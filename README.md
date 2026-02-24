@@ -34,7 +34,7 @@ PTO Tile Lib is not aimed at beginner-level users. The intended audience include
 
 ## Performance
 
-This repository includes performance-oriented kernels with reference measurements and reproducible setups.
+This repository includes performance-oriented kernels with reference measurements and reproducible setups.For performance testing tools, please refer to the [msprof tool](https://www.hiascend.com/document/detail/zh/canncommercial/850/devaids/Profiling/atlasprofiling_16_0010.html).
 
 ### GEMM (A2/A3 reference)
 
@@ -110,6 +110,12 @@ For more details please refer to [Released PTO ISA](include/README.md)
 For detailed, OS-specific setup (Windows / Linux / macOS), see: [docs/getting-started.md](docs/getting-started.md).
 
 ### Build Documentation (MkDocs)
+
+If you wish to directly access the PTO ISA documentation, you can refer to the following links for complete content:
+
+- [Documentation Center](https://pto-isa.gitcode.com)
+
+If you prefer to build the documentation locally, you may follow the steps below.
 
 This repository includes an MkDocs (Read the Docs theme) site under `docs/mkdocs/`.
 
