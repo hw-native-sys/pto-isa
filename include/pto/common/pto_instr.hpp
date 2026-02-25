@@ -14,6 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/common/debug.h"
 #include "pto/common/event.hpp"
 #include "pto/common/pto_instr_impl.hpp"
+#include "pto/comm/comm_types.hpp"
 
 #define MAP_INSTR_IMPL(API, ...) API##_IMPL(__VA_ARGS__)
 
@@ -1440,7 +1441,7 @@ template <typename GlobalDstData, typename GlobalSrcData, typename TileData, typ
 PTO_INST RecordEvent TGET(GlobalDstData &dst, GlobalSrcData &src, TileData &stagingTileData, WaitEvents &... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL(TGET, dst, src, stagingTileData);
+    MAP_INSTR_IMPL(pto::comm::TGET, dst, src, stagingTileData);
     return {};
 }
 
@@ -1449,7 +1450,7 @@ PTO_INST RecordEvent TGET(GlobalDstData &dst, GlobalSrcData &src, TileData &ping
                           WaitEvents &... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL(TGET, dst, src, pingTile, pongTile);
+    MAP_INSTR_IMPL(pto::comm::TGET, dst, src, pingTile, pongTile);
     return {};
 }
 
@@ -1457,7 +1458,7 @@ template <typename GlobalDstData, typename GlobalSrcData, typename TileData, typ
 PTO_INST RecordEvent TPUT(GlobalDstData &dst, GlobalSrcData &src, TileData &stagingTileData, WaitEvents &... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL(TPUT, dst, src, stagingTileData);
+    MAP_INSTR_IMPL(pto::comm::TPUT, dst, src, stagingTileData);
     return {};
 }
 
@@ -1466,7 +1467,7 @@ PTO_INST RecordEvent TPUT(GlobalDstData &dst, GlobalSrcData &src, TileData &stag
                           WaitEvents &... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL(TPUT, dst, src, stagingTileData, atomicType);
+    MAP_INSTR_IMPL(pto::comm::TPUT, dst, src, stagingTileData, atomicType);
     return {};
 }
 
@@ -1475,7 +1476,25 @@ PTO_INST RecordEvent TPUT(GlobalDstData &dst, GlobalSrcData &src, TileData &ping
                           WaitEvents &... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL(TPUT, dst, src, pingTile, pongTile);
+    MAP_INSTR_IMPL(pto::comm::TPUT, dst, src, pingTile, pongTile);
+    return {};
+}
+
+template <pto::comm::DmaEngine engine = pto::comm::DmaEngine::SDMA, typename GlobalDstData, typename GlobalSrcData,
+          typename... WaitEvents>
+PTO_INST AsyncEvent TGET_ASYNC(GlobalDstData &dst, GlobalSrcData &src, WaitEvents &... events)
+{
+    TSYNC(events...);
+    MAP_INSTR_IMPL(pto::comm::TGET_ASYNC, dst, src);
+    return {};
+}
+
+template <pto::comm::DmaEngine engine = pto::comm::DmaEngine::SDMA, typename GlobalDstData, typename GlobalSrcData,
+          typename... WaitEvents>
+PTO_INST AsyncEvent TPUT_ASYNC(GlobalDstData &dst, GlobalSrcData &src, WaitEvents &... events)
+{
+    TSYNC(events...);
+    MAP_INSTR_IMPL(pto::comm::TPUT_ASYNC, dst, src);
     return {};
 }
 #endif

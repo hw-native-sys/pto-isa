@@ -32,6 +32,8 @@ namespace comm {
 // - `tensors` points to an array of GlobalData objects (not pointers).
 // ============================================================================
 
+#define AsyncEvent RecordEvent
+
 template <typename GlobalData>
 struct ParallelGroup {
     using value_type = GlobalData; // Type alias for type traits
@@ -122,6 +124,16 @@ enum class ReduceOp : uint8_t
     Sum = 0, // Element-wise sum
     Max = 1, // Element-wise maximum
     Min = 2, // Element-wise minimum
+};
+
+// ============================================================================
+// DmaEngine: DMA constraints for data transfer
+// ============================================================================
+
+enum class DmaEngine : uint8_t
+{
+    SDMA = 0, // Supports 2D transfer
+    URMA = 1, // Supports 1D transfer
 };
 
 // ============================================================================

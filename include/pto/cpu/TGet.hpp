@@ -16,6 +16,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/cpu/parallel.hpp"
 
 namespace pto {
+namespace comm {
 
 template <typename GlobalDstData, typename GlobalSrcData>
 void TGet_Impl(typename GlobalDstData::DType *dst, typename GlobalSrcData::DType *src, long int shape[],
@@ -73,5 +74,18 @@ PTO_INTERNAL void TPUT_IMPL(GlobalDstData &dst, GlobalSrcData &src, TileData &pi
     Copy_Data(src, dst);
 }
 
+template <typename GlobalDstData, typename GlobalSrcData>
+PTO_INTERNAL void TGET_ASYNC_IMPL(GlobalDstData &dst, GlobalSrcData &src)
+{
+    Copy_Data(dst, src);
+}
+
+template <typename GlobalDstData, typename GlobalSrcData>
+PTO_INTERNAL void TPUT_ASYNC_IMPL(GlobalDstData &dst, GlobalSrcData &src)
+{
+    Copy_Data(src, dst);
+}
+
+} // namespace comm
 } // namespace pto
 #endif
