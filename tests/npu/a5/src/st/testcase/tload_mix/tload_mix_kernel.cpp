@@ -823,16 +823,16 @@ template void launchTLOADMIX<float, 11, 27, 2, 16, 8, 32, 24, 3, 3, 333, 188, 3,
 // 12 : NCDHW2NDC1HWC0
 template void launchTLOADMIX<int8_t, 12, 1, 2, 3, 11, 109, 3, 111, 2, 1023, 109, 1, 1>(uint8_t *out, uint8_t *src0,
                                                                                        uint8_t *src1, void *stream);
-template void launchTLOADMIX<int8_t, 12, 3, 3, 2, 15, 9, 3, 65, 4, 30, 9, 1, 1>(uint8_t *out, uint8_t *src0,
-                                                                                uint8_t *src1, void *stream);
+template void launchTLOADMIX<int8_t, 12, 3, 3, 2, 15, 9, 3, 65, 4, 30, 50, 1, 1>(uint8_t *out, uint8_t *src0,
+                                                                                 uint8_t *src1, void *stream);
 template void launchTLOADMIX<uint16_t, 12, 1, 4, 6, 10, 10, 1, 96, 6, 100, 10, 1, 1>(uint8_t *out, uint8_t *src0,
                                                                                      uint8_t *src1, void *stream);
-template void launchTLOADMIX<uint16_t, 12, 10, 2, 8, 16, 2, 256, 128, 2, 100, 2, 1, 1>(uint8_t *out, uint8_t *src0,
+template void launchTLOADMIX<uint16_t, 12, 10, 2, 8, 16, 2, 256, 128, 2, 100, 7, 1, 1>(uint8_t *out, uint8_t *src0,
                                                                                        uint8_t *src1, void *stream);
 template void launchTLOADMIX<float, 12, 1, 5, 1, 25, 31, 2, 25, 7, 112, 31, 1, 1>(uint8_t *out, uint8_t *src0,
                                                                                   uint8_t *src1, void *stream);
-template void launchTLOADMIX<float, 12, 2, 2, 1, 43, 43, 3, 19, 2, 155, 43, 1, 1>(uint8_t *out, uint8_t *src0,
-                                                                                  uint8_t *src1, void *stream);
+template void launchTLOADMIX<float, 12, 2, 2, 1, 43, 43, 3, 19, 2, 155, 180, 1, 1>(uint8_t *out, uint8_t *src0,
+                                                                                   uint8_t *src1, void *stream);
 
 // 13 : NCDHW2FZ3D
 template void launchTLOADMIX<int8_t, 13, 48, 95, 2, 5, 5, 50, 111, 4, 5, 5, 150, 3>(uint8_t *out, uint8_t *src0,
