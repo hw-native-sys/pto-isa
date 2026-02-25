@@ -38,6 +38,8 @@ constexpr const int MX_BLOCK_SIZE = 32;
 constexpr const int B8_DATA_TYPE_OFFSET = 8;
 constexpr const int MAD_MODE_BIT = 46;
 constexpr const int MAD_ROUND_MODE_BIT = 47;
+constexpr const int TROW_PROD_LOOP_B16 = 7;
+constexpr const int TROW_PROD_LOOP_B32 = 6;
 
 template <typename DType, PadValue PadVal>
 struct PadValueMap {

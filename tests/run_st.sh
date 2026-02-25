@@ -273,6 +273,7 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a5 -t trowmax -g TROWMAXTest.case1
     python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a5 -t trowmin -g TROWMINTest.case1
     python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a5 -t trowsum -g TROWSUMTest.test1
+    python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a5 -t trowprod -g TROWPRODTest.case1
     python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a5 -t trsqrt -g TRSQRTTest.case1
     python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a5 -t tsel -g TSELTest.case1
     python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a5 -t tsels -g TSELSTest.case_uint8_uint8_2x32_2x32_2x32_2x32
@@ -375,6 +376,7 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a5 -t trowmax
     python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a5 -t trowmin
     python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a5 -t trowsum
+    python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a5 -t trowprod
     python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a5 -t trsqrt
     python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a5 -t tsel
     python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a5 -t tsels

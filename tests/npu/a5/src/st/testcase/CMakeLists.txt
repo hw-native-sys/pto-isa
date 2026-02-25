@@ -115,6 +115,7 @@ set(ALL_TESTCASES
     textract
     textract_compact
     trowsum
+    trowprod
     trowmax
     trowmin
     tcolsum

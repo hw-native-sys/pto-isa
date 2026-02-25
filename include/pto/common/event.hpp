@@ -55,6 +55,7 @@ enum class Op : uint16_t
     TGATHERB,
     TCVT,
     TROWSUM,
+    TROWPROD,
     TROWMAX,
     TROWMIN,
     TROWEXPAND,
