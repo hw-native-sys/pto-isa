@@ -100,6 +100,7 @@ enum class Op : uint16_t
     TSETFMATRIX,
     TSET_IMG2COL_RPT,
     TSET_IMG2COL_PADDING,
+    TDEQUANT,
     OP_COUNT, // The Total number of operations, please add new operations before OP_COUNT
 };
 

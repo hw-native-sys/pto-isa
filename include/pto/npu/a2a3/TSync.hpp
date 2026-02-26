@@ -105,6 +105,7 @@ constexpr pipe_t opPipeList[] = {
     PIPE_S /* TSETFMATRIX */,
     PIPE_S /* TSET_IMG2COL_RPT */,
     PIPE_S /* TSET_IMG2COL_PADDING */,
+    PIPE_V /* TDEQUANT */,
 };
 
 template <Op OpCode>

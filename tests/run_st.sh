@@ -126,7 +126,8 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a3 -t txors -g TXORSTest.case_int16_64x64_64x64_64x64
     python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a3 -t tquant -g TQUANTTest.case_int8_sym_fp32_128x128_nd
     python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a3 -t tquant -g TQUANTTest.case_int8_asym_fp32_128x128_nd
-
+    python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a3 -t tdequant -g TDEQUANTTest.case4
+    python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a3 -t tdequant -g TDEQUANTTest.case5
 
   elif [ "$ENABLE_ALL" = "true" ]; then            # 所有用例
     python3 tests/script/build_st.py -r $RUN_TYPE -v a3 -t all
@@ -202,6 +203,7 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a3 -t txor
     python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a3 -t txors
     python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a3 -t tquant
+    python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a3 -t tdequant
   fi
 fi
 
