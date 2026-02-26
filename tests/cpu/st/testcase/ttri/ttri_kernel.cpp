@@ -12,31 +12,52 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-template <int row, int col, int isUpperOrLower, int diagonal>
-AICORE void runTTRI(__gm__ int32_t __out__ *out)
+template <typename T, int isUpperOrLower, int diagonal, int kTRows_, int kTCols_, int vRows, int vCols>
+AICORE void runTTRI(__gm__ T __out__ *out)
 {
-    using DynShapeDim5 = Shape<1, 1, 1, row, col>;
-    using DynStridDim5 = Stride<1, 1, 1, col, 1>;
-    using GlobalData = GlobalTensor<int32_t, DynShapeDim5, DynStridDim5>;
+    using DynShapeDim5 = Shape<1, 1, 1, vRows, vCols>;
+    using DynStridDim5 = Stride<1, 1, 1, vCols, 1>;
+    using GlobalData = GlobalTensor<T, DynShapeDim5, DynStridDim5>;
+    using TileData = Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>;
+    TileData dstTile(vRows, vCols);
 
-    using TileT = Tile<TileType::Vec, int32_t, row, col, BLayout::RowMajor, -1, -1>;
-    TileT dstTile(row, col);
     GlobalData dstGlobal(out);
 
-    TTRI<TileT, isUpperOrLower>(dstTile, diagonal);
+    TTRI<TileData, isUpperOrLower>(dstTile, diagonal);
     TSTORE(dstGlobal, dstTile);
     out = dstGlobal.data();
 }
 
-template <int row, int col, int isUpperOrLower, int diagonal>
-void LaunchTTRI(int32_t *out, void *stream)
+template <typename T, int isUpperOrLower, int diagonal, int kTRows_, int kTCols_, int vRows, int vCols>
+void LaunchTTRI(T *out, void *stream)
 {
     (void)stream;
-    runTTRI<row, col, isUpperOrLower, diagonal>(out);
+    if constexpr (std::is_same_v<T, aclFloat16>)
+        runTTRI<half, isUpperOrLower, diagonal, kTRows_, kTCols_, vRows, vCols>((half *)(out));
+    else
+        runTTRI<T, isUpperOrLower, diagonal, kTRows_, kTCols_, vRows, vCols>(out);
 }
 
-template void LaunchTTRI<64, 64, 1, 0>(int32_t *out, void *stream);
-template void LaunchTTRI<100, 64, 1, -2>(int32_t *out, void *stream);
-template void LaunchTTRI<128, 32, 0, 1>(int32_t *out, void *stream);
-template void LaunchTTRI<200, 48, 1, 2>(int32_t *out, void *stream);
-template void LaunchTTRI<256, 16, 0, -1>(int32_t *out, void *stream);
+template void LaunchTTRI<float, 1, 0, 4, 8, 4, 4>(float *out, void *stream);
+template void LaunchTTRI<float, 1, 0, 64, 64, 64, 64>(float *out, void *stream);
+template void LaunchTTRI<int32_t, 1, 0, 64, 64, 64, 64>(int32_t *out, void *stream);
+template void LaunchTTRI<int16_t, 1, 0, 64, 64, 64, 64>(int16_t *out, void *stream);
+template void LaunchTTRI<aclFloat16, 1, 0, 16, 256, 16, 256>(aclFloat16 *out, void *stream);
+template void LaunchTTRI<float, 1, 0, 128, 128, 128, 128>(float *out, void *stream);
+template void LaunchTTRI<float, 0, 0, 64, 64, 64, 64>(float *out, void *stream);
+template void LaunchTTRI<int32_t, 0, 0, 64, 64, 64, 64>(int32_t *out, void *stream);
+template void LaunchTTRI<int16_t, 0, 0, 64, 64, 64, 64>(int16_t *out, void *stream);
+template void LaunchTTRI<aclFloat16, 0, 0, 16, 256, 16, 256>(aclFloat16 *out, void *stream);
+template void LaunchTTRI<float, 0, 0, 128, 128, 128, 128>(float *out, void *stream);
+template void LaunchTTRI<float, 0, 0, 128, 128, 128, 125>(float *out, void *stream);
+template void LaunchTTRI<uint32_t, 1, 0, 64, 64, 64, 64>(uint32_t *out, void *stream);
+template void LaunchTTRI<uint32_t, 0, 0, 64, 64, 64, 64>(uint32_t *out, void *stream);
+
+template void LaunchTTRI<float, 0, 2, 128, 128, 128, 111>(float *out, void *stream);
+template void LaunchTTRI<float, 0, -2, 128, 128, 128, 111>(float *out, void *stream);
+template void LaunchTTRI<float, 0, 444, 128, 128, 128, 31>(float *out, void *stream);
+template void LaunchTTRI<float, 0, -444, 128, 128, 128, 31>(float *out, void *stream);
+template void LaunchTTRI<float, 1, 2, 128, 128, 128, 111>(float *out, void *stream);
+template void LaunchTTRI<float, 1, -2, 128, 128, 128, 111>(float *out, void *stream);
+template void LaunchTTRI<float, 1, 444, 128, 128, 128, 31>(float *out, void *stream);
+template void LaunchTTRI<float, 1, -444, 128, 128, 128, 31>(float *out, void *stream);

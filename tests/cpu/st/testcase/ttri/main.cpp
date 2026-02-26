@@ -35,27 +35,27 @@ std::string GetGoldenDir()
     return fullPath;
 }
 
-template <int row, int col, int isUpperOrLower, int diagonal>
-void LaunchTTRI(int32_t *out, void *stream);
+template <typename T, int isUpperOrLower, int diagonal, int kTRows_, int kTCols_, int vRows, int vCols>
+void LaunchTTRI(T *out, void *stream);
 
-template <int row, int col, int isUpperOrLower, int diagonal>
+template <typename T, int isUpperOrLower, int diagonal, int kTRows_, int kTCols_, int vRows, int vCols>
 void test_ttri()
 {
-    size_t fileSize = row * col * 4;
+    size_t fileSize = vRows * vCols * sizeof(T);
 
     aclInit(nullptr);
     aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    int32_t *dstHost;
-    int32_t *dstDevice;
+    T *dstHost;
+    T *dstDevice;
 
     aclrtMallocHost((void **)(&dstHost), fileSize);
 
     aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
-    LaunchTTRI<row, col, isUpperOrLower, diagonal>(dstDevice, stream);
+    LaunchTTRI<T, isUpperOrLower, diagonal, kTRows_, kTCols_, vRows, vCols>(dstDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, fileSize, dstDevice, fileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -69,33 +69,101 @@ void test_ttri()
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<int32_t> golden(fileSize);
-    std::vector<int32_t> devFinal(fileSize);
+    std::vector<T> golden(fileSize);
+    std::vector<T> devFinal(fileSize);
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/golden.bin", fileSize, golden.data(), fileSize));
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/output.bin", fileSize, devFinal.data(), fileSize));
 
-    bool ret = ResultCmp<int32_t>(golden, devFinal, 0.001f);
+    bool ret = ResultCmp<T>(golden, devFinal, 0.001f);
 
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TTRITest, case_ttri_64x64_upper_diag0)
+TEST_F(TTRITest, case_float_4x8_4x4_1_0)
 {
-    test_ttri<64, 64, 1, 0>();
+    test_ttri<float, 1, 0, 4, 8, 4, 4>();
 }
-TEST_F(TTRITest, case_ttri_100x64_upper_diag_2)
+TEST_F(TTRITest, case_float_64x64_64x64_1_0)
 {
-    test_ttri<100, 64, 1, -2>();
+    test_ttri<float, 1, 0, 64, 64, 64, 64>();
 }
-TEST_F(TTRITest, case_ttri_128x32_lower_diag1)
+TEST_F(TTRITest, case_int32_64x64_64x64_1_0)
 {
-    test_ttri<128, 32, 0, 1>();
+    test_ttri<int32_t, 1, 0, 64, 64, 64, 64>();
 }
-TEST_F(TTRITest, case_ttri_200x48_upper_diag2)
+TEST_F(TTRITest, case_int16_64x64_64x64_1_0)
 {
-    test_ttri<200, 48, 1, 2>();
+    test_ttri<int16_t, 1, 0, 64, 64, 64, 64>();
 }
-TEST_F(TTRITest, case_ttri_256x16_lower_diag_1)
+TEST_F(TTRITest, case_half_16x256_16x256_1_0)
 {
-    test_ttri<256, 16, 0, -1>();
+    test_ttri<aclFloat16, 1, 0, 16, 256, 16, 256>();
+}
+TEST_F(TTRITest, case_float_128x128_128x128_1_0)
+{
+    test_ttri<float, 1, 0, 128, 128, 128, 128>();
+}
+TEST_F(TTRITest, case_float_64x64_64x64_0_0)
+{
+    test_ttri<float, 0, 0, 64, 64, 64, 64>();
+}
+TEST_F(TTRITest, case_int32_64x64_64x64_0_0)
+{
+    test_ttri<int32_t, 0, 0, 64, 64, 64, 64>();
+}
+TEST_F(TTRITest, case_int16_64x64_64x64_0_0)
+{
+    test_ttri<int16_t, 0, 0, 64, 64, 64, 64>();
+}
+TEST_F(TTRITest, case_half_16x256_16x256_0_0)
+{
+    test_ttri<aclFloat16, 0, 0, 16, 256, 16, 256>();
+}
+TEST_F(TTRITest, case_float_128x128_128x128_0_0)
+{
+    test_ttri<float, 0, 0, 128, 128, 128, 128>();
+}
+TEST_F(TTRITest, case_float_128x128_128x125_0_0)
+{
+    test_ttri<float, 0, 0, 128, 128, 128, 125>();
+}
+TEST_F(TTRITest, case_uint32_64x64_64x64_1_0)
+{
+    test_ttri<uint32_t, 1, 0, 64, 64, 64, 64>();
+}
+TEST_F(TTRITest, case_uint32_64x64_64x64_0_0)
+{
+    test_ttri<uint32_t, 0, 0, 64, 64, 64, 64>();
+}
+TEST_F(TTRITest, case_float_128x128_128x111_0_2)
+{
+    test_ttri<float, 0, 2, 128, 128, 128, 111>();
+}
+TEST_F(TTRITest, case_float_128x128_128x111_0__2)
+{
+    test_ttri<float, 0, -2, 128, 128, 128, 111>();
+}
+TEST_F(TTRITest, case_float_128x128_128x111_1_2)
+{
+    test_ttri<float, 1, 2, 128, 128, 128, 111>();
+}
+TEST_F(TTRITest, case_float_128x128_128x111_1__2)
+{
+    test_ttri<float, 1, -2, 128, 128, 128, 111>();
+}
+TEST_F(TTRITest, case_float_128x128_128x31_0_444)
+{
+    test_ttri<float, 0, 444, 128, 128, 128, 31>();
+}
+TEST_F(TTRITest, case_float_128x128_128x31_1_444)
+{
+    test_ttri<float, 1, 444, 128, 128, 128, 31>();
+}
+TEST_F(TTRITest, case_float_128x128_128x31_0__444)
+{
+    test_ttri<float, 0, -444, 128, 128, 128, 31>();
+}
+TEST_F(TTRITest, case_float_128x128_128x31_1__444)
+{
+    test_ttri<float, 1, -444, 128, 128, 128, 31>();
 }

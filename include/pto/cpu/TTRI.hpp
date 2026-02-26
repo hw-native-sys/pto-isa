@@ -20,7 +20,8 @@ PTO_INTERNAL void TTriCheck(const TileData &dst)
 {
     using T = typename TileData::DType;
     static_assert(std::is_same<T, int32_t>::value || std::is_same<T, int>::value || std::is_same<T, int16_t>::value ||
-                      std::is_same<T, uint32_t>::value || std::is_same<T, uint16_t>::value,
+                      std::is_same<T, uint32_t>::value || std::is_same<T, uint16_t>::value ||
+                      std::is_same<T, half>::value || std::is_same<T, float>::value,
                   "Fix: TTRI has invalid data type.");
     static_assert(isUpperOrLower == 0 || isUpperOrLower == 1, "Fix: isUpperOrLower must be 0 or 1.");
     static_assert(TileData::isRowMajor, "Fix: TTRI only support row major layout.");
@@ -31,12 +32,14 @@ PTO_INTERNAL void TTril(__ubuf__ typename TileData::DType *dstPtr, unsigned vali
 {
     for (int r = 0; r < validRow; r++) {
         int base = r * TileData::Cols;
+        int ends = std::min(diagonal + r + 1, (int)validCol);
+        int starts = std::max(diagonal + r + 1, 0);
         PTO_CPU_VECTORIZE_LOOP
-        for (int c = 0; c < std::min(diagonal + r + 1, (int)validCol); c++) {
+        for (int c = 0; c < ends; c++) {
             dstPtr[base + c] = 1;
         }
         PTO_CPU_VECTORIZE_LOOP
-        for (int c = std::max(diagonal + r + 1, 0); c < validCol; c++) {
+        for (int c = starts; c < validCol; c++) {
             dstPtr[base + c] = 0;
         }
     }
@@ -47,12 +50,14 @@ PTO_INTERNAL void TTriu(__ubuf__ typename TileData::DType *dstPtr, unsigned vali
 {
     for (int r = 0; r < validRow; r++) {
         int base = r * TileData::Cols;
+        int ends = std::min(diagonal + r, (int)validCol);
+        int starts = std::max(diagonal + r, 0);
         PTO_CPU_VECTORIZE_LOOP
-        for (int c = 0; c < std::min(diagonal + r, (int)validCol); c++) {
+        for (int c = 0; c < ends; c++) {
             dstPtr[base + c] = 0;
         }
         PTO_CPU_VECTORIZE_LOOP
-        for (int c = std::max(diagonal + r, 0); c < validCol; c++) {
+        for (int c = starts; c < validCol; c++) {
             dstPtr[base + c] = 1;
         }
     }
