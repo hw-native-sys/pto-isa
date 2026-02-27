@@ -211,9 +211,8 @@ AICORE inline void ProcessKIteration(uint32_t kIter, uint32_t i, uint32_t j, __g
     mte1DBFlag = (mte1DBFlag == 0) ? 1 : 0;
 }
 
-template <typename T, typename U, int m, int n, uint32_t baseM, uint32_t baseN, uint32_t singleCoreK>
-AICORE inline void StoreResult(TileAcc<float, baseM, baseN, baseM, baseN> &cTile, __gm__ T *currentDst, uint32_t i,
-                               uint32_t j)
+template <typename T, typename U, int m, int n, uint32_t baseM, uint32_t baseN, uint32_t singleCoreK, typename ResTile>
+AICORE inline void StoreResult(ResTile &cTile, __gm__ T *currentDst, uint32_t i, uint32_t j)
 {
     // TSTORE stage: write the finished C tile [baseM, baseN] back to GM.
     SetFlag<PIPE_M, PIPE_FIX>(0);
@@ -252,7 +251,7 @@ AICORE inline void Compute(__gm__ U *currentSrc0, __gm__ U *currentSrc1, __gm__ 
                     kIter, i, j, currentSrc0, currentSrc1, currentSrc2, currentSrc3, aMatTile, bMatTile, aScaleMatTile,
                     bScaleMatTile, aTile, bTile, aScaleTile, bScaleTile, cTile, mte2DBFlag, mte2mxDBFlag, mte1DBFlag);
             }
-            StoreResult<T, U, m, n, baseM, baseN, singleCoreK>(cTile, currentDst, i, j);
+            StoreResult<T, U, m, n, baseM, baseN, singleCoreK, ResTile>(cTile, currentDst, i, j);
         }
     }
 }
