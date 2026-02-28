@@ -10,15 +10,25 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #ifndef PTO_FIFO_HPP
 #define PTO_FIFO_HPP
+#include <type_traits>
+
+using namespace std;
 
 namespace pto {
 
 // FIFO definitons
 enum class FIFOType : uint8_t
 {
-    GM_FIFO = 0,
-    VEC_FIFO = 1,
-    MAT_FIFO = 2,
+    GM_FIFO = 0,  // FIFO implemented in Global Memory
+    VEC_FIFO = 1, // FIFO implemented in Vector core's local memory
+    MAT_FIFO = 2, // FIFO implemented in Cube core's local memory (e.g., L1)
+};
+
+enum class VecCubeRatio : uint8_t
+{
+    V1C1_VEC0 = 0, // 1 Vector core : 1 Cube core, Vec core only used Vector 0
+    V1C1_VEC1 = 1, // 1 Vector core : 1 Cube core, Vec core only used Vector 1
+    V2C1_VECS = 2, // 2 Vector cores : 1 Cube core
 };
 
 template <typename DataType, FIFOType FifoType, int Depth, int Period, typename Enable = void>

@@ -1434,12 +1434,19 @@ PTO_INST RecordEvent TFMOD(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &s
     return {};
 }
 
-#ifdef __CPU_SIM
 template <typename PipeProd, typename TileData, typename DataFifo, typename... WaitEvents>
 PTO_INST RecordEvent TPUSH(PipeProd &prod, TileData &tile, DataFifo &fifo, WaitEvents &... events)
 {
     TSYNC(events...);
     MAP_INSTR_IMPL(TPUSH, prod, tile, fifo);
+    return {};
+}
+
+template <typename PipeProd, typename... WaitEvents>
+PTO_INST RecordEvent TPUSHSTART(PipeProd &prod, WaitEvents &... events)
+{
+    TSYNC(events...);
+    MAP_INSTR_IMPL(TPUSHSTART, prod);
     return {};
 }
 
@@ -1450,7 +1457,14 @@ PTO_INST RecordEvent TPOP(PipeCon &cons, TileData &tile, DataFifo &fifo, WaitEve
     MAP_INSTR_IMPL(TPOP, cons, tile, fifo);
     return {};
 }
-#endif
+
+template <typename PipeCon, typename... WaitEvents>
+PTO_INST RecordEvent TPOPRELEASE(PipeCon &cons, WaitEvents &... events)
+{
+    TSYNC(events...);
+    MAP_INSTR_IMPL(TPOPRELEASE, cons);
+    return {};
+}
 
 #ifdef PTO_NPU_ARCH_A5
 template <auto quant_type, typename TileDataOut, typename TileDataSrc, typename TileDataExp, typename TileDataMax,
