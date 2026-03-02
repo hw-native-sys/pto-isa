@@ -65,9 +65,7 @@ __tf__ AICORE void TMovToFb(typename DstTileData::TileDType __out__ dst, typenam
                   "TMov: When TileType is Scaling, col * sizeof(srcType) must be aligned to 128");
 
     __cbuf__ SrcType *srcAddrP = (__cbuf__ SrcType *)(src);
-    __fbuf__ DstType *dstAddr = (__fbuf__ DstType *)(dst);
-    constexpr bool isRelu = 0;
-    __fbuf__ DstType *dstAddrP = (__fbuf__ DstType *)(dstAddr || (isRelu << RELU_BIT));
+    __fbuf__ DstType *dstAddrP = (__fbuf__ DstType *)(dst);
 
     constexpr uint16_t burstLen = srcRow * srcCol * sizeof(SrcType) / BURST_LEN_UNIT;
     copy_cbuf_to_fbuf(dstAddrP, srcAddrP, (uint16_t)1, burstLen, (uint16_t)0, (uint16_t)0);
