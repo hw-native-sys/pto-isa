@@ -1,4 +1,4 @@
-﻿# Axis Reduce / Expand
+# Axis Reduce / Expand
 
 This document describes row/column reduction and broadcast operations.
 

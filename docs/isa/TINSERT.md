@@ -19,7 +19,7 @@ $$
 
 ## Assembly Syntax
 
-PTO-AS form: see `docs/grammar/PTO-AS.md`.
+PTO-AS form: see [docs/grammar/PTO-AS.md](../grammar/PTO-AS.md).
 
 Synchronous form:
 

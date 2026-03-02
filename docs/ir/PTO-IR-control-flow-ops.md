@@ -1,4 +1,4 @@
-﻿# Control Flow Operations
+# Control Flow Operations
 
 This document describes structured control flow operations from the MLIR `scf` (Structured Control Flow) dialect.
 

@@ -22,7 +22,7 @@ where `cmp` ∈ {`EQ`, `NE`, `GT`, `GE`, `LT`, `LE`}
 
 ## Assembly Syntax
 
-PTO-AS form: see `docs/grammar/PTO-AS.md`.
+PTO-AS form: see [docs/grammar/PTO-AS.md](../../grammar/PTO-AS.md).
 
 ```text
 %result = ttest %signal, %cmp_value {cmp = #pto.cmp<EQ>} : (!pto.memref<i32>, i32) -> i1

@@ -26,7 +26,7 @@ $$ \mathrm{dst}_{i,j} = \mathrm{src}_{i,j} $$
 
 ## 汇编语法
 
-PTO-AS 形式：参见 `docs/grammar/PTO-AS.md`.
+PTO-AS 形式：参见 [docs/grammar/PTO-AS_zh.md](../grammar/PTO-AS_zh.md)。
 
 The PTO IR design recommends splitting `TMOV` into a family of ops:
 

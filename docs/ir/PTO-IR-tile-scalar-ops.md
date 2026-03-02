@@ -1,4 +1,4 @@
-﻿# Tile-Scalar / Tile-Immediate
+# Tile-Scalar / Tile-Immediate
 
 This document describes operations between tiles and scalar values or immediate constants.
 

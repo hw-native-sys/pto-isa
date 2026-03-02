@@ -1,4 +1,4 @@
-﻿# Matrix Multiply
+# Matrix Multiply
 
 This document describes matrix multiplication and matrix-vector operations.
 

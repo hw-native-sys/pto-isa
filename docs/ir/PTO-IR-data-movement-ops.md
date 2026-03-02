@@ -1,4 +1,4 @@
-﻿# Data Movement / Layout
+# Data Movement / Layout
 
 This document describes data movement and layout transformation operations.
 

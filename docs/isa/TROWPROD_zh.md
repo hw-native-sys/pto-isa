@@ -3,7 +3,8 @@
 
 ## Tile 操作图示
 
-![TROWPROD tile operation](../figures/isa/TROWPROD.svg)
+<!-- ![TROWPROD tile operation](../figures/isa/TROWPROD.svg) -->
+<!-- TODO: 添加 TROWPROD 图示 -->
 
 ## 简介
 

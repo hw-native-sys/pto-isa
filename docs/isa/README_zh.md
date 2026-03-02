@@ -1,13 +1,13 @@
 <p align="center">
-  <img src="../figures/pto_logo.svg" alt="PTO Tile Lib" width="180" />
+  <img src="../../figures/pto_logo.svg" alt="PTO Tile Lib" width="180" />
 </p>
 
 # PTO ISA 参考
 
 本目录是 PTO Tile Lib ISA 的指令参考（每条指令一页）。
 
-- 权威来源：`include/pto/common/pto_instr.hpp`
-- 通用约定（操作数、事件、修饰符）：`docs/isa/conventions_zh.md`
+- 权威来源（C++ 内建函数）：`include/pto/common/pto_instr.hpp`
+- [通用约定（操作数、事件、修饰符）](conventions_zh.md)
 
 ## 同步
 - [TSYNC](TSYNC_zh.md) - 同步 PTO 执行（等待事件或插入每操作流水线屏障）。

@@ -18,7 +18,7 @@ The predicate mask is stored in `dst` using an implementation-defined packed lay
 
 ## 汇编语法
 
-PTO-AS 形式：参见 `docs/grammar/PTO-AS.md`.
+PTO-AS 形式：参见 [docs/grammar/PTO-AS_zh.md](../grammar/PTO-AS_zh.md)。
 
 同步形式：
 

@@ -4,9 +4,9 @@ This folder contains **manual (hand-tuned) kernel examples** that use explicit b
 
 If you are new to PTO programming, start from the ISA and tutorials first:
 
-- Programming tutorials: `docs/coding/tutorial.md`
-- Optimization notes: `docs/coding/opt.md`
-- PTO ISA reference: `docs/PTOISA.md`
+- Programming tutorials: [docs/coding/tutorial.md](../../docs/coding/tutorial.md)
+- Optimization notes: [docs/coding/opt.md](../../docs/coding/opt.md)
+- PTO ISA reference: [docs/PTOISA.md](../../docs/PTOISA.md)
 
 ## Platforms
 
@@ -16,5 +16,5 @@ If you are new to PTO programming, start from the ISA and tutorials first:
 
 Each subdirectory is a standalone example with its own build/run instructions. See:
 
-- `kernels/manual/a2a3/README.md`
+- [a2a3/README.md](a2a3/README.md)
 

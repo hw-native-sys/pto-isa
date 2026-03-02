@@ -18,7 +18,7 @@ Each operation is documented with:
 
 ## Auxiliary Functions (11 functions)
 
-**Document**: [PTO-IR-ops.md](PTO-IR-ops.md)
+**Document**: [Auxiliary Functions](PTO-IR-ops.md)
 
 IR-level constructs for tensor view management, tile allocation, and synchronization:
 
@@ -33,7 +33,7 @@ IR-level constructs for tensor view management, tile allocation, and synchroniza
 ## Tile Operations (116 operations)
 
 ### Elementwise (Tile-Tile) - 28 operations
-**Document**: [PTO-IR-elementwise-ops.md](PTO-IR-elementwise-ops.md)
+**Document**: [Elementwise Operations](PTO-IR-elementwise-ops.md)
 
 - **Arithmetic**: `TADD`, `TSUB`, `TMUL`, `TDIV`, `TABS`, `TNEG`
 - **Bitwise**: `TAND`, `TOR`, `TXOR`, `TNOT`, `TSHL`, `TSHR`
@@ -46,7 +46,7 @@ IR-level constructs for tensor view management, tile allocation, and synchroniza
 - **Modulo**: `TREM`, `TFMOD`
 
 ### Tile-Scalar Operations - 19 operations
-**Document**: [PTO-IR-tile-scalar-ops.md](PTO-IR-tile-scalar-ops.md)
+**Document**: [Tile-Scalar Operations](PTO-IR-tile-scalar-ops.md)
 
 - **Arithmetic**: `TADDS`, `TSUBS`, `TMULS`, `TDIVS`, `TMINS`, `TMAXS`
 - **Bitwise**: `TANDS`, `TORS`, `TXORS`, `TSHLS`, `TSHRS`
@@ -58,7 +58,7 @@ IR-level constructs for tensor view management, tile allocation, and synchroniza
 - **Compound**: `TADDSC`, `TSUBSC`
 
 ### Axis Reduction and Expansion - 23 operations
-**Document**: [PTO-IR-axis-ops.md](PTO-IR-axis-ops.md)
+**Document**: [Axis Reduction and Expansion](PTO-IR-axis-ops.md)
 
 - **Row Reduction**: `TROWSUM`, `TROWMAX`, `TROWMIN`
 - **Column Reduction**: `TCOLSUM`, `TCOLMAX`, `TCOLMIN`, `TCOLPROD`
@@ -66,20 +66,20 @@ IR-level constructs for tensor view management, tile allocation, and synchroniza
 - **Column Expansion**: `TCOLEXPAND`, `TCOLEXPANDADD`, `TCOLEXPANDMUL`, `TCOLEXPANDDIV`, `TCOLEXPANDSUB`, `TCOLEXPANDMAX`, `TCOLEXPANDMIN`, `TCOLEXPANDEXPDIF`
 
 ### Memory Operations - 6 operations
-**Document**: [PTO-IR-memory-ops.md](PTO-IR-memory-ops.md)
+**Document**: [Memory Operations](PTO-IR-memory-ops.md)
 
 - **Load/Store**: `TLOAD`, `TSTORE`, `TSTORE_FP`, `TPREFETCH`
 - **Gather/Scatter**: `MGATHER`, `MSCATTER`
 
 ### Matrix Multiplication - 8 operations
-**Document**: [PTO-IR-matrix-ops.md](PTO-IR-matrix-ops.md)
+**Document**: [Matrix Multiplication](PTO-IR-matrix-ops.md)
 
 - **Basic**: `TMATMUL`, `TMATMUL_ACC`, `TMATMUL_BIAS`
 - **Mixed Precision**: `TMATMUL_MX`
 - **Vector**: `TGEMV`, `TGEMV_ACC`, `TGEMV_BIAS`, `TGEMV_MX`
 
 ### Data Movement and Layout - 12 operations
-**Document**: [PTO-IR-data-movement-ops.md](PTO-IR-data-movement-ops.md)
+**Document**: [Data Movement and Layout](PTO-IR-data-movement-ops.md)
 
 - **Extract/Insert**: `TEXTRACT`, `TEXTRACT_FP`, `TINSERT`, `TINSERT_FP`
 - **Transform**: `TTRANS`, `TRESHAPE`, `TIMG2COL`
@@ -87,7 +87,7 @@ IR-level constructs for tensor view management, tile allocation, and synchroniza
 - **Padding**: `TFILLPAD`, `TFILLPAD_INPLACE`, `TFILLPAD_EXPAND`
 
 ### Complex Operations - 13 operations
-**Document**: [PTO-IR-complex-ops.md](PTO-IR-complex-ops.md)
+**Document**: [Complex Operations](PTO-IR-complex-ops.md)
 
 - **Sorting**: `TSORT32`, `TMRGSORT`
 - **Gathering**: `TGATHER`, `TGATHERB`, `TSCATTER`
@@ -95,7 +95,7 @@ IR-level constructs for tensor view management, tile allocation, and synchroniza
 - **Utility**: `TCI`, `TTRI`, `TQUANT`, `TPRINT`
 
 ### Manual Resource Binding - 6 operations
-**Document**: [PTO-IR-manual-binding-ops.md](PTO-IR-manual-binding-ops.md)
+**Document**: [Manual Resource Binding](PTO-IR-manual-binding-ops.md)
 
 - **Assignment**: `TASSIGN`
 - **Mode Configuration**: `TSETHF32MODE`, `TSETTF32MODE`, `TSETFMATRIX`
@@ -105,7 +105,7 @@ IR-level constructs for tensor view management, tile allocation, and synchroniza
 
 ## Scalar Arithmetic Operations (47 operations)
 
-**Document**: [PTO-IR-scalar-arith-ops.md](PTO-IR-scalar-arith-ops.md)
+**Document**: [Scalar Arithmetic Operations](PTO-IR-scalar-arith-ops.md)
 
 Standard scalar operations from MLIR `arith` dialect (scalar only, no vector/tensor):
 
@@ -123,7 +123,7 @@ Standard scalar operations from MLIR `arith` dialect (scalar only, no vector/ten
 
 ## Control Flow Operations (7 operations)
 
-**Document**: [PTO-IR-control-flow-ops.md](PTO-IR-control-flow-ops.md)
+**Document**: [Control Flow Operations](PTO-IR-control-flow-ops.md)
 
 Structured control flow operations from MLIR `scf` dialect:
 
@@ -136,5 +136,5 @@ Structured control flow operations from MLIR `scf` dialect:
 
 ## Related Resources
 
-- **ISA Instruction Reference**: `../isa/README.md` - Per-instruction canonical semantics
-- **PTO-AS Grammar**: `../grammar/PTO-AS.md` - Assembly language syntax and grammar
+- [**ISA Instruction Reference**](../isa/README.md): Per-instruction canonical semantics
+- [**PTO-AS Grammar**](../grammar/PTO-AS.md): Assembly language syntax and grammar

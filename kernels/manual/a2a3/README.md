@@ -4,9 +4,9 @@ This directory contains manual, performance-oriented kernel examples targeting A
 
 ## Examples
 
-- GEMM performance kernel: `kernels/manual/a2a3/gemm_performance/README.md`
-- Flash-Attention kernel: `kernels/manual/a2a3/flash_atten/README.md`
-- TOPK performance kernel：`kernels/manual/a2a3/topk/README.md`
+- GEMM performance kernel: [gemm_performance/README.md](gemm_performance/README.md)
+- Flash-Attention kernel: [flash_atten/README.md](flash_atten/README.md)
+- TOPK performance kernel: [topk/README.md](topk/README.md)
 
 ## Common setup
 

@@ -17,7 +17,7 @@ $$ \mathrm{dst}_{i,j} = (\mathrm{src}_{i,j} > 0) ? \mathrm{src}_{i,j} : (\mathrm
 
 ## Assembly Syntax
 
-PTO-AS form: see `docs/grammar/PTO-AS.md`.
+PTO-AS form: see [docs/grammar/PTO-AS.md](../grammar/PTO-AS.md).
 
 Synchronous form:
 

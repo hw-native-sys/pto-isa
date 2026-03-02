@@ -4,14 +4,14 @@ This folder defines the abstract execution model used by the PTO ISA and PTO Til
 
 ## Documents
 
-- PTO machine model (core/device/host): `docs/machine/abstract-machine.md`
+- [PTO machine model (core/device/host)](abstract-machine.md)
 
 ## How this relates to other docs
 
 - Data model and programming model:
-  - Tiles: `docs/coding/Tile.md`
-  - Global memory tensors: `docs/coding/GlobalTensor.md`
-  - Events and synchronization: `docs/coding/Event.md`
-  - Scalar values and enums: `docs/coding/Scalar.md`
-- Instruction reference: `docs/isa/README.md`
+  - [Tiles](../coding/Tile.md)
+  - [Global memory tensors](../coding/GlobalTensor.md)
+  - [Events and synchronization](../coding/Event.md)
+  - [Scalar values and enums](../coding/Scalar.md)
+- [Instruction reference](../isa/README.md)
 

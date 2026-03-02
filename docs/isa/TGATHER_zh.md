@@ -22,7 +22,7 @@ Mask-pattern gather is an implementation-defined selection/reduction controlled 
 
 ## 汇编语法
 
-PTO-AS 形式：参见 `docs/grammar/PTO-AS.md`.
+PTO-AS 形式：参见 [docs/grammar/PTO-AS_zh.md](../grammar/PTO-AS_zh.md)。
 
 Index-based gather:
 

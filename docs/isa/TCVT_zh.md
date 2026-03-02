@@ -18,7 +18,7 @@ where `rmode` is a rounding policy (see `pto::RoundMode`).
 
 ## 汇编语法
 
-PTO-AS 形式：参见 `docs/grammar/PTO-AS.md`.
+PTO-AS 形式：参见 [docs/grammar/PTO-AS_zh.md](../grammar/PTO-AS_zh.md)。
 
 同步形式：
 

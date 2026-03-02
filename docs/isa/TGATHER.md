@@ -23,7 +23,7 @@ Mask-pattern gather is an implementation-defined selection/reduction controlled 
 
 ## Assembly Syntax
 
-PTO-AS form: see `docs/grammar/PTO-AS.md`.
+PTO-AS form: see [docs/grammar/PTO-AS.md](../grammar/PTO-AS.md).
 
 Index-based gather:
 

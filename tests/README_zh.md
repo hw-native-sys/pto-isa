@@ -18,4 +18,4 @@ PTO Tile Lib 的测试与示例，覆盖 CPU 仿真与 NPU（`sim` 和板上 `np
 
 ## 建议阅读顺序
 
-- 入门指南（建议先 CPU，再 NPU）：`docs/getting-started.md`
+- 入门指南（建议先 CPU，再 NPU）：[docs/getting-started.md](../docs/getting-started.md)

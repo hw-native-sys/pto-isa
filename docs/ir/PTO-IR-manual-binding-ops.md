@@ -1,4 +1,4 @@
-﻿# Manual / Resource Binding
+# Manual / Resource Binding
 
 This document describes manual resource binding and configuration operations.
 

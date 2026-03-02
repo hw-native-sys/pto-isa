@@ -1,4 +1,4 @@
-﻿# Complex
+# Complex
 
 This document describes complex operations including sorting, gathering, and quantization.
 

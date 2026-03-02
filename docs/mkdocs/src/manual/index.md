@@ -47,19 +47,19 @@ When documents differ, resolve in this order:
 
 ## 0.6 Reading order
 
-1. `manual/01-overview.md`
-2. `manual/02-machine-model.md`
-3. `manual/03-state-and-types.md`
-4. `manual/04-tiles-and-globaltensor.md`
-5. `manual/05-synchronization.md`
-6. `manual/06-assembly.md`
-7. `manual/07-instructions.md`
-8. `manual/08-programming.md`
-9. `manual/09-virtual-isa-and-ir.md`
-10. `manual/10-bytecode-and-toolchain.md`
-11. `manual/11-memory-ordering-and-consistency.md`
-12. `manual/12-backend-profiles-and-conformance.md`
-13. `manual/appendix-a-glossary.md`
-14. `manual/appendix-b-instruction-contract-template.md`
-15. `manual/appendix-c-diagnostics-taxonomy.md`
-16. `manual/appendix-d-instruction-family-matrix.md`
+1. [Overview](01-overview.md)
+2. [Execution Model](02-machine-model.md)
+3. [State and Types](03-state-and-types.md)
+4. [Tiles and GlobalTensor](04-tiles-and-globaltensor.md)
+5. [Synchronization](05-synchronization.md)
+6. [PTO Assembly (PTO-AS)](06-assembly.md)
+7. [Instruction Set (overview)](07-instructions.md)
+8. [Programming Guide](08-programming.md)
+9. [Virtual ISA and IR](09-virtual-isa-and-ir.md)
+10. [Bytecode and Toolchain](10-bytecode-and-toolchain.md)
+11. [Memory Ordering and Consistency](11-memory-ordering-and-consistency.md)
+12. [Backend Profiles and Conformance](12-backend-profiles-and-conformance.md)
+13. [Appendix A: Glossary](appendix-a-glossary.md)
+14. [Appendix B: Instruction Contract Template](appendix-b-instruction-contract-template.md)
+15. [Appendix C: Diagnostics Taxonomy](appendix-c-diagnostics-taxonomy.md)
+16. [Appendix D: Instruction Family Matrix](appendix-d-instruction-family-matrix.md)

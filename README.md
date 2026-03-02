@@ -49,7 +49,7 @@ Measured on Ascend A3 (24 cores) with fp16 inputs → fp32 output:
 | `m=6144` `k=6144` `n=6144` | 86.7% | 68.1% | 95.2% | 3.1% | 1.5060 |
 | `m=7680` `k=7680` `n=7680` | 80.6% | 63.0% | 98.4% | 2.4% | 3.1680 |
 
-Detailed analysis and tuning notes: `kernels/manual/a2a3/gemm_performance/README.md`.
+Detailed analysis and tuning notes: [High-Performance GEMM Operator Example](kernels/manual/a2a3/gemm_performance/README.md).
 
 ![GEMM performance reference (Ascend A3, 24 cores)](docs/figures/performance/gemm_performance_a3.svg)
 
@@ -57,7 +57,7 @@ Detailed analysis and tuning notes: `kernels/manual/a2a3/gemm_performance/README
 
 - Kernel: `kernels/manual/a2a3/flash_atten/`
 
-Detailed analysis and tuning notes: `kernels/manual/a2a3/flash_atten/README.md`.
+Detailed analysis and tuning notes: [Flash Attention Kernel Implementation](kernels/manual/a2a3/flash_atten/README.md).
 
 ![Flash Attention normalized TFLOPS (A2/A3)](docs/figures/performance/fa_normalized_tflops_a2a3.svg)
 

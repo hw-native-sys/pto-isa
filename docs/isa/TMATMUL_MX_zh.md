@@ -24,7 +24,7 @@ The exact role of `aScaleMatrix` / `bScaleMatrix` (and any dequant/quant semanti
 
 ## 汇编语法
 
-PTO-AS 形式：参见 `docs/grammar/PTO-AS.md`.
+PTO-AS 形式：参见 [docs/grammar/PTO-AS_zh.md](../grammar/PTO-AS_zh.md)。
 
 Synchronous forms (conceptual):
 
@@ -58,7 +58,7 @@ pto.tmatmul.mx.bias ins(%a, %a_scale, %b, %b_scale, %bias : !pto.tile_buf<...>, 
 
 ## C++ 内建接口
 
-声明于 `include/pto/common/pto_instr.hpp`:
+声明于 `include/pto/common/pto_instr.hpp`：
 
 ```cpp
 template <typename TileRes, typename TileLeft, typename TileLeftScale, typename TileRight, typename TileRightScale,

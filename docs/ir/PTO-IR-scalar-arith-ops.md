@@ -1,4 +1,4 @@
-﻿# Scalar Arithmetic Operations
+# Scalar Arithmetic Operations
 
 This document describes scalar arithmetic operations from the MLIR `arith` dialect. 
 

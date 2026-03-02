@@ -16,7 +16,7 @@ $$\mathrm{dst}_{i,j} = \mathrm{fmod}(\mathrm{src}_{i,j}, \mathrm{scalar})$$
 
 ## 汇编语法
 
-PTO-AS 形式：参见 `docs/grammar/PTO-AS.md`.
+PTO-AS 形式：参见 [docs/grammar/PTO-AS_zh.md](../grammar/PTO-AS_zh.md)。
 
 同步形式：
 
@@ -38,7 +38,7 @@ pto.tfmods ins(%src, %scalar : !pto.tile_buf<...>, f32) outs(%dst : !pto.tile_bu
 
 ## C++ 内建接口
 
-声明于 `include/pto/common/pto_instr.hpp`:
+声明于 `include/pto/common/pto_instr.hpp`：
 
 ```cpp
 template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>

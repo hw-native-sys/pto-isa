@@ -14,7 +14,7 @@ No direct tensor arithmetic is produced by this instruction. It updates target m
 
 ## 汇编语法
 
-PTO-AS 形式：参见 `docs/grammar/PTO-AS.md`.
+PTO-AS 形式：参见 [docs/grammar/PTO-AS_zh.md](../grammar/PTO-AS_zh.md)。
 
 Schematic form:
 
@@ -36,7 +36,7 @@ pto.tsettf32mode ins({enable = true, mode = ...}) outs()
 
 ## C++ 内建接口
 
-声明于 `include/pto/common/pto_instr.hpp`:
+声明于 `include/pto/common/pto_instr.hpp`：
 
 ```cpp
 template <bool isEnable, RoundMode tf32TransMode = RoundMode::CAST_ROUND, typename... WaitEvents>

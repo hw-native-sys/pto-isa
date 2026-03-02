@@ -27,7 +27,7 @@ The exact role of `aScaleMatrix` / `bScaleMatrix` (and any dequant/quant semanti
 
 ## Assembly Syntax
 
-PTO-AS form: see `docs/grammar/PTO-AS.md`.
+PTO-AS form: see [docs/grammar/PTO-AS.md](../grammar/PTO-AS.md).
 
 Synchronous forms (conceptual):
 

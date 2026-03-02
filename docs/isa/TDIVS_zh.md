@@ -22,7 +22,7 @@
 
 ## 汇编语法
 
-PTO-AS 形式：参见 `docs/grammar/PTO-AS.md`.
+PTO-AS 形式：参见 [docs/grammar/PTO-AS_zh.md](../grammar/PTO-AS_zh.md)。
 
 Tile/scalar form:
 
@@ -52,7 +52,7 @@ pto.tdivs ins(%scalar, %src : dtype, !pto.tile_buf<...>) outs(%dst : !pto.tile_b
 
 ## C++ 内建接口
 
-声明于 `include/pto/common/pto_instr.hpp`:
+声明于 `include/pto/common/pto_instr.hpp`：
 
 ```cpp
 template <typename TileData, typename... WaitEvents>

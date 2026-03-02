@@ -14,7 +14,7 @@
 
 ## 汇编语法
 
-PTO-AS 形式：参见 `docs/grammar/PTO-AS.md`.
+PTO-AS 形式：参见 [docs/grammar/PTO-AS_zh.md](../grammar/PTO-AS_zh.md)。
 
 同步形式：
 
@@ -36,7 +36,7 @@ pto.tprefetch ins(%src : !pto.global<...>) outs(%dst : !pto.tile_buf<...>)
 
 ## C++ 内建接口
 
-声明于 `include/pto/common/pto_instr.hpp`:
+声明于 `include/pto/common/pto_instr.hpp`：
 
 ```cpp
 template <typename TileData, typename GlobalData>

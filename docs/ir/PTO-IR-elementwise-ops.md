@@ -1,4 +1,4 @@
-﻿# Elementwise (Tile-Tile)
+# Elementwise (Tile-Tile)
 
 This document describes element-wise operations between two tiles.
 

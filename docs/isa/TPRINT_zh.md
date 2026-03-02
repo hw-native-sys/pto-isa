@@ -24,7 +24,7 @@ The `TPRINT` instruction outputs the logical view of data stored in a Tile or Gl
 
 ## 汇编语法
 
-PTO-AS 形式：参见 `docs/grammar/PTO-AS.md`.
+PTO-AS 形式：参见 [docs/grammar/PTO-AS_zh.md](../grammar/PTO-AS_zh.md)。
 
 ```text
 tprint %src : !pto.tile<...> | !pto.global<...>
@@ -44,7 +44,7 @@ pto.tprint ins(%src : !pto.tile_buf<...> | !pto.partition_tensor_view<MxNxdtype>
 
 ## C++ 内建接口
 
-声明于 `include/pto/common/pto_instr.hpp`:
+声明于 `include/pto/common/pto_instr.hpp`：
 ```cpp
 template <typename T, typename... WaitEvents>
 PTO_INST RecordEvent TPRINT(T &src, WaitEvents&... events) {

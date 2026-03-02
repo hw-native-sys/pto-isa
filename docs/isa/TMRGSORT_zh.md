@@ -16,7 +16,7 @@ $$ \mathrm{dst} = \mathrm{merge}(\mathrm{src}_0, \mathrm{src}_1, \ldots) $$
 
 ## 汇编语法
 
-PTO-AS 形式：参见 `docs/grammar/PTO-AS.md`.
+PTO-AS 形式：参见 [docs/grammar/PTO-AS_zh.md](../grammar/PTO-AS_zh.md)。
 
 Synchronous form (conceptual):
 
@@ -43,7 +43,7 @@ outs(%dst, %executed : !pto.tile_buf<...>, vector<4xi16>)
 
 ## C++ 内建接口
 
-声明于 `include/pto/common/pto_instr.hpp`:
+声明于 `include/pto/common/pto_instr.hpp`：
 
 ```cpp
 template <typename DstTileData, typename TmpTileData, typename Src0TileData,

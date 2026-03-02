@@ -1,4 +1,4 @@
-﻿# Memory (GM 鈫?Tile)
+# Memory (GM <-> Tile)
 
 This document describes memory operations between global memory and tiles.
 

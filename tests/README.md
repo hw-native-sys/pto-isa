@@ -18,4 +18,4 @@ Tests and examples for PTO Tile Lib, covering both CPU simulation and NPU (inclu
 
 ## Suggested Reading
 
-- Getting started (recommended: CPU first, then NPU): `docs/getting-started.md`
+- Getting started (recommended: CPU first, then NPU): [docs/getting-started.md](../docs/getting-started.md)

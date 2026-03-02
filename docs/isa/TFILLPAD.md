@@ -30,7 +30,7 @@ otherwise `std::numeric_limits<T>::max()/min()`).
 
 ## Assembly Syntax
 
-PTO-AS form: see `docs/grammar/PTO-AS.md`.
+PTO-AS form: see [docs/grammar/PTO-AS.md](../grammar/PTO-AS.md).
 
 Synchronous form (conceptual):
 

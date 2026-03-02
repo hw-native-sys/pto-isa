@@ -151,10 +151,17 @@ def main() -> None:
     # Generate a simple index page that links to all mirrored markdown.
     copied_md = sorted(set(copied_md))
     sections: dict[str, list[str]] = {}
+    sections_zh: dict[str, list[str]] = {}
+    
     for rel in copied_md:
         top = rel.split("/", 1)[0] if "/" in rel else "(root)"
         sections.setdefault(top, []).append(rel)
+        
+        # 同时为中文版分类
+        if "_zh.md" in rel or rel.endswith("_zh/index.md"):
+            sections_zh.setdefault(top, []).append(rel)
 
+    # Generate English all-pages.md
     with mkdocs_gen_files.open("all-pages.md", "w") as f:
         f.write("# All Markdown Pages\n\n")
         f.write("This page is generated at build time and lists markdown files mirrored into the site.\n\n")
@@ -165,6 +172,21 @@ def main() -> None:
                 label = rel if top == "(root)" else rel[len(top) + 1 :]
                 f.write(f"- [{label}]({rel})\n")
             f.write("\n")
+    
+    # Generate Chinese all-pages_zh.md
+    with mkdocs_gen_files.open("all-pages_zh.md", "w") as f:
+        f.write("# 所有 Markdown 页面\n\n")
+        f.write("本页面在构建时自动生成，列出了站点中镜像的所有中文 markdown 文件。\n\n")
+        if not sections_zh:
+            f.write("未找到中文页面。\n")
+        else:
+            for top in sorted(sections_zh.keys()):
+                f.write(f"## {top}\n\n")
+                for rel in sections_zh[top]:
+                    # Prefer a short label but keep it unambiguous.
+                    label = rel if top == "(root)" else rel[len(top) + 1 :]
+                    f.write(f"- [{label}]({rel})\n")
+                f.write("\n")
 
     # Mirror commonly referenced doc assets (images) so docs render cleanly.
     for src in REPO_ROOT.rglob("*"):

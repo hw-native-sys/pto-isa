@@ -4,9 +4,9 @@
 
 如果你刚接触 PTO 编程，建议先从 ISA 与教程入手：
 
-- 编程教程：`docs/coding/tutorial_zh.md`
-- 优化笔记：`docs/coding/opt_zh.md`
-- PTO ISA 参考：`docs/PTOISA_zh.md`
+- 编程教程：[docs/coding/tutorial_zh.md](../../docs/coding/tutorial_zh.md)
+- 优化笔记：[docs/coding/opt_zh.md](../../docs/coding/opt_zh.md)
+- PTO ISA 参考：[docs/PTOISA_zh.md](../../docs/PTOISA_zh.md)
 
 ## 平台
 
@@ -16,4 +16,4 @@
 
 每个子目录都是一个独立示例，包含各自的构建/运行说明。请从这里开始：
 
-- `kernels/manual/a2a3/README_zh.md`
+- [a2a3/README_zh.md](a2a3/README_zh.md)

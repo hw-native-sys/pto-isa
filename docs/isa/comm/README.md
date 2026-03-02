@@ -6,20 +6,20 @@ This directory contains the per-instruction reference for the PTO Communication 
 - Type definitions: `include/pto/comm/comm_types.hpp`
 
 ## Point-to-Point Communication (Synchronous)
-- `TPUT`: `docs/isa/comm/TPUT.md` - Remote write (GM → UB → GM)
-- `TGET`: `docs/isa/comm/TGET.md` - Remote read (GM → UB → GM)
+- [**TPUT**](TPUT.md): Remote write (GM → UB → GM)
+- [**TGET**](TGET.md): Remote read (GM → UB → GM)
 
 ## Signal-Based Synchronization
-- `TNOTIFY`: `docs/isa/comm/TNOTIFY.md` - Send notification to remote NPU
-- `TWAIT`: `docs/isa/comm/TWAIT.md` - Blocking wait for signal condition
-- `TTEST`: `docs/isa/comm/TTEST.md` - Non-blocking test signal condition
+- [**TNOTIFY**](TNOTIFY.md): Send notification to remote NPU
+- [**TWAIT**](TWAIT.md): Blocking wait for signal condition
+- [**TTEST**](TTEST.md): Non-blocking test signal condition
 
 ## Collective Communication
 
-- `TGATHER`: `docs/isa/comm/TGATHER.md` - Gather data from all ranks
-- `TSCATTER`: `docs/isa/comm/TSCATTER.md` - Scatter data to all ranks
-- `TREDUCE`: `docs/isa/comm/TREDUCE.md` - Reduce data from all ranks to local
-- `TBROADCAST`: `docs/isa/comm/TBROADCAST.md` - Broadcast from current NPU to all ranks
+- [**TGATHER**](TGATHER.md): Gather data from all ranks
+- [**TSCATTER**](TSCATTER.md): Scatter data to all ranks
+- [**TREDUCE**](TREDUCE.md): Reduce data from all ranks to local
+- [**TBROADCAST**](TBROADCAST.md): Broadcast from current NPU to all ranks
 
 ## Type Definitions
 

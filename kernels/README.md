@@ -6,9 +6,9 @@ Most kernel subdirectories are **self-contained mini-projects** (kernel + host +
 
 ## Where to start
 
-- Manual (hand-tuned) NPU kernels: `kernels/manual/README.md`
-- Custom operator scaffolding: `kernels/custom/README.md`
-- End-to-end demos (including CPU): `demos/`
+- Manual (hand-tuned) NPU kernels: [manual/README.md](manual/README.md)
+- Custom operator scaffolding: [custom/README.md](custom/README.md)
+- End-to-end demos (including CPU): [demos/](../demos/README.md)
 
 ## Directory layout
 

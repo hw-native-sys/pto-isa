@@ -3,7 +3,8 @@
 
 ## Tile Operation Diagram
 
-![TROWPROD tile operation](../figures/isa/TROWPROD.svg)
+<!-- ![TROWPROD tile operation](../figures/isa/TROWPROD.svg) -->
+<!-- TODO: Add TROWPROD diagram -->
 
 ## Introduction
 
@@ -17,7 +18,7 @@ $$ \mathrm{dst}_{i,0} = \prod_{j=0}^{C-1} \mathrm{src}_{i,j} $$
 
 ## Assembly Syntax
 
-PTO-AS form: see `docs/grammar/PTO-AS.md`.
+PTO-AS form: see [docs/grammar/PTO-AS.md](../grammar/PTO-AS.md).
 
 Synchronous form:
 

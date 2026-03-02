@@ -26,6 +26,7 @@ extra_javascript:
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
   - assets/javascripts/nav-translator.js
   - assets/javascripts/language-switcher.js
+  - assets/javascripts/chinese-navigation.js
 
 nav:
   - Home: index.md
@@ -48,7 +49,8 @@ nav:
       - Diagnostics Taxonomy: manual/appendix-c-diagnostics-taxonomy.md
       - Instruction Family Matrix: manual/appendix-d-instruction-family-matrix.md
   - Programming Model:
-      - Overview: docs/coding/ProgrammingModel.md
+      - Overview: docs/coding/README.md
+      - Programming Model: docs/coding/ProgrammingModel.md
       - Tile: docs/coding/Tile.md
       - GlobalTensor: docs/coding/GlobalTensor.md
       - Scalar: docs/coding/Scalar.md

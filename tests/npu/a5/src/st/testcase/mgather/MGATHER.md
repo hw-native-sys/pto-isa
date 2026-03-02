@@ -3,7 +3,7 @@
 
 ## Tile Operation Diagram
 
-![MGATHER tile operation](../figures/isa/MGATHER.svg)
+![MGATHER tile operation](../../../../../../../docs/figures/isa/MGATHER.svg)
 
 ## Introduction
 
@@ -31,7 +31,7 @@ Indices are interpreted as linear element offsets into the source.
 
 ## Assembly Syntax
 
-PTO-AS form: see `docs/grammar/PTO-AS.md`.
+PTO-AS form: see [docs/grammar/PTO-AS.md](/docs/grammar/PTO-AS.md).
 
 Row-indexed gather:
 
@@ -194,6 +194,6 @@ void example_manual() {
 
 ## Related Instructions
 
-- [`TLOAD`](../../docs/isa/TLOAD.md): Contiguous block transfer from GM to Tile
-- [`TGATHER`](../../docs/isa/TGATHER.md): Index-based gather within tiles (UB-to-UB)
-- [`MSCATTER`](MSCATTER.md): Indexed scatter from Tile to GM (inverse operation)
+- [`TLOAD`](/docs/isa/TLOAD.md): Contiguous block transfer from GM to Tile
+- [`TGATHER`](/docs/isa/TGATHER.md): Index-based gather within tiles (UB-to-UB)
+- [`MSCATTER`](../mscatter/MSCATTER.md): Indexed scatter from Tile to GM (inverse operation)

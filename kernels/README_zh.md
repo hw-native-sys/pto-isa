@@ -6,9 +6,9 @@
 
 ## 从哪里开始
 
-- 手工调优（manual）的 NPU kernels：`kernels/manual/README.md`
-- 自定义算子脚手架：`kernels/custom/README.md`
-- 端到端 demo（包含 CPU）：`demos/`
+- 手工调优（manual）的 NPU kernels：[manual/README.md](manual/README_zh.md)
+- 自定义算子脚手架：[custom/README.md](custom/README.md)
+- 端到端 demo（包含 CPU）：[demos/](../demos/README_zh.md)
 
 ## 目录结构
 

@@ -10,7 +10,7 @@ Include the unified entry header:
 #include <pto/pto-inst.hpp>
 ```
 
-`pto/pto-inst.hpp` selects the appropriate backend (CPU simulation/stub or NPU implementation) based on build configuration. See `include/pto/README.md` for details.
+`pto/pto-inst.hpp` selects the appropriate backend (CPU simulation/stub or NPU implementation) based on build configuration. See [include/pto/README.md](pto/README.md) for details.
 
 ## Layout
 
@@ -18,8 +18,8 @@ Include the unified entry header:
 
 ## Related Docs
 
-- ISA guide: `docs/README.md`
-- Getting started: `docs/getting-started.md`
+- [ISA guide](../docs/README.md)
+- [Getting started](../docs/getting-started.md)
 
 ## PTO Instruction Implementation Status (CPU / A2 / A3 / A5)
 
