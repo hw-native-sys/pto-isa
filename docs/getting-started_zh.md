@@ -259,7 +259,14 @@ python3 tests/run_cpu.py --clean --verbose
       > 
       > 如果您已通过其他方式安装了 googletest，则需要相应地修改 CMakeLists.txt。例如，如果您在安装 googletest 时使用了 `cmake .. -DCMAKE_CXX_FLAGS="-fPIC -D_GLIBCXX_USE_CXX11_ABI=0"`，则需要在 tests/npu/[a2a3 | a5]/src/st/CMakeLists.txt 中添加 `add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=0)`。
 
-2.  **安装驱动和固件（运行时依赖）**
+2.  **一键式安装**
+
+    安装指南请参考：
+    https://www.hiascend.com/cann/download
+    
+    通过此方式安装可跳过安装驱动和固件（运行时依赖）和安装软件包两个步骤。
+
+3.  **安装驱动和固件（运行时依赖）**
 
     运行算子需要驱动和固件。如果仅需构建，可跳过此步骤。
     安装指南请参考：
