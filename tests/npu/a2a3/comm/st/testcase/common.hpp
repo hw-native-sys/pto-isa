@@ -20,7 +20,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include "hccl/hccl.h"
+#include "hccl/hccl_comm.h"
 #include "hccl/hccl_types.h"
 #include "hccl_context.h"
 

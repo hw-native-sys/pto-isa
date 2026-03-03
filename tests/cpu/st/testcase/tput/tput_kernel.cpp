@@ -28,7 +28,7 @@ AICORE void runTPut(__gm__ T __out__ *out, __gm__ T __in__ *input)
     GlobalData inputGlobal(input);
     GlobalData outputGlobal(out);
 
-    TPUT(inputGlobal, outputGlobal, srcTile);
+    comm::TPUT(inputGlobal, outputGlobal, srcTile);
     out = outputGlobal.data();
 }
 

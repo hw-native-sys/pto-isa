@@ -11,10 +11,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef PTO_INST_HPP
 #define PTO_INST_HPP
 
+#include <pto/common/type.hpp>
 #ifdef __CPU_SIM
 #include "pto/common/cpu_stub.hpp"
 #endif
-#include <pto/common/type.hpp>
 #include <pto/common/memory.hpp>
 
 #if defined(__CPU_SIM) || defined(__CCE_AICORE__)

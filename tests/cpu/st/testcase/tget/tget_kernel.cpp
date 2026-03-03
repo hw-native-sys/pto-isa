@@ -28,7 +28,7 @@ AICORE void runTGet(__gm__ T __out__ *out, __gm__ T __in__ *src)
     GlobalData srcGlobal(src);
     GlobalData dstGlobal(out);
 
-    TGET(dstGlobal, srcGlobal, srcTile);
+    comm::TGET(dstGlobal, srcGlobal, srcTile);
     out = dstGlobal.data();
 }
 

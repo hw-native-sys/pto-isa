@@ -8,7 +8,6 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-#include <cstddef>
 #include <cstdint>
 
 #include <sys/wait.h>
@@ -18,7 +17,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <iostream>
 
 #include <pto/pto-inst.hpp>
-#include "pto/comm/pto_comm_inst.hpp"
 #include "pto/common/pto_tile.hpp"
 #include "../common.hpp"
 
