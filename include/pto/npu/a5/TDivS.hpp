@@ -110,7 +110,7 @@ __tf__ PTO_INTERNAL OP_NAME(TDIVS)
     using T = typename TileDataDst::DType;
     __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
     __ubuf__ T *src0Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src0);
-    if constexpr (std::is_same<T, int16_t>::value) {
+    if constexpr (std::is_integral_v<T>) {
         TDivs_naive<T, TileDataDst::Cols, TileDataSrc::Cols>(dst, src0, src1, validRow, validCol);
     } else {
         BinaryInstr<DivSOp<T>, TileDataDst, TileDataSrc, T, elementsPerRepeat, blockSizeElem, dstRowStride,
@@ -129,7 +129,7 @@ __tf__ PTO_INTERNAL OP_NAME(TDIVS)
     using T = typename TileDataDst::DType;
     __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
     __ubuf__ T *src0Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src0);
-    if constexpr (std::is_same<T, int16_t>::value) {
+    if constexpr (std::is_integral_v<T>) {
         TSDiv_naive<T, TileDataDst::Cols, TileDataSrc::Cols>(dst, src0, src1, validRow, validCol);
     } else {
         BinaryInstr<DivSOpS<T>, TileDataDst, TileDataSrc, T, elementsPerRepeat, blockSizeElem, dstRowStride,

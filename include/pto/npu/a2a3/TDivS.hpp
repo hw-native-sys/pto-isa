@@ -136,27 +136,29 @@ struct DivSOp {
         }
     }
 };
-template <typename T, unsigned Cols>
+template <typename T, unsigned DstCols, unsigned SrcCols>
 PTO_INTERNAL void TDivs_naive(__ubuf__ T *dst, __ubuf__ T *src0, T src1, unsigned validRow, unsigned validCol)
 {
     PtoSetWaitFlag<PIPE_V, PIPE_S>();
     for (int row = 0; row < validRow; row++) {
         for (int col = 0; col < validCol; col++) {
-            int idx = row * Cols + col;
-            dst[idx] = src0[idx] / src1;
+            int dstOffset = row * DstCols + col;
+            int srcOffset = row * SrcCols + col;
+            dst[dstOffset] = src0[srcOffset] / src1;
         }
     }
     PtoSetWaitFlag<PIPE_S, PIPE_V>();
 }
 
-template <typename T, unsigned Cols>
+template <typename T, unsigned DstCols, unsigned SrcCols>
 PTO_INTERNAL void TSDiv_naive(__ubuf__ T *dst, __ubuf__ T *src0, T src1, unsigned validRow, unsigned validCol)
 {
     PtoSetWaitFlag<PIPE_V, PIPE_S>();
     for (int row = 0; row < validRow; row++) {
         for (int col = 0; col < validCol; col++) {
-            int idx = row * Cols + col;
-            dst[idx] = src1 / src0[idx];
+            int dstOffset = row * DstCols + col;
+            int srcOffset = row * SrcCols + col;
+            dst[dstOffset] = src1 / src0[srcOffset];
         }
     }
     PtoSetWaitFlag<PIPE_S, PIPE_V>();
@@ -173,8 +175,12 @@ __tf__ PTO_INTERNAL void TDivS(typename TileDataDst::TileDType __out__ dstData,
     constexpr unsigned blockSizeElem = pto::BLOCK_BYTE_SIZE / sizeof(T);
     constexpr unsigned dstStride = TileDataDst::RowStride;
     constexpr unsigned srcStride = TileDataSrc::RowStride;
-    TBinSInstr<DivSOp<T>, TileDataDst, TileDataSrc, elementsPerRepeat, blockSizeElem, dstStride, srcStride>(
-        dst, src, scalar, validRow, validCol);
+    if constexpr (std::is_integral_v<T>) {
+        TDivs_naive<T, TileDataDst::Cols, TileDataSrc::Cols>(dst, src, scalar, validRow, validCol);
+    } else {
+        TBinSInstr<DivSOp<T>, TileDataDst, TileDataSrc, elementsPerRepeat, blockSizeElem, dstStride, srcStride>(
+            dst, src, scalar, validRow, validCol);
+    }
 }
 
 template <typename TileDataDst, typename TileDataSrc>
@@ -201,10 +207,6 @@ PTO_INTERNAL void TDIVS_IMPL(TileDataDst &dst, TileDataSrc &src, typename TileDa
 
     PTO_ASSERT(src.GetValidCol() == dst.GetValidCol(), "Number of cols of src and dst must be the same.");
     PTO_ASSERT(src.GetValidRow() == dst.GetValidRow(), "Number of rows of src and dst must be the same.");
-#ifndef __PTO_AUTO__
-    PTO_ASSERT(dst.data() != src.data(),
-               "Setting the source Tile and destination Tile to the same memory is unsupported");
-#endif
 
     unsigned dstValidRow = dst.GetValidRow();
     unsigned dstValidCol = dst.GetValidCol();
@@ -221,14 +223,18 @@ __tf__ PTO_INTERNAL void TSDiv(typename TileDataDst::TileDType __out__ dstData,
                                typename TileDataSrc::TileDType __in__ srcData, T scalar, unsigned validRow,
                                unsigned validCol)
 {
-    __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
-    __ubuf__ T *src = (__ubuf__ T *)__cce_get_tile_ptr(srcData);
     constexpr unsigned elementsPerRepeat = pto::REPEAT_BYTE / sizeof(T);
     constexpr unsigned blockSizeElem = pto::BLOCK_BYTE_SIZE / sizeof(T);
     constexpr unsigned dstStride = TileDataDst::RowStride;
     constexpr unsigned srcStride = TileDataSrc::RowStride;
-    TBinSInstr<SDivOp<T>, TileDataDst, TileDataSrc, elementsPerRepeat, blockSizeElem, dstStride, srcStride>(
-        dst, src, scalar, validRow, validCol);
+    __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
+    __ubuf__ T *src = (__ubuf__ T *)__cce_get_tile_ptr(srcData);
+    if constexpr (std::is_integral_v<T>) {
+        TSDiv_naive<T, TileDataDst::Cols, TileDataSrc::Cols>(dst, src, scalar, validRow, validCol);
+    } else {
+        TBinSInstr<SDivOp<T>, TileDataDst, TileDataSrc, elementsPerRepeat, blockSizeElem, dstStride, srcStride>(
+            dst, src, scalar, validRow, validCol);
+    }
 }
 template <typename TileDataDst, typename TileDataSrc>
 PTO_INTERNAL void TDIVS_IMPL(TileDataDst &dst, typename TileDataDst::DType scalar, TileDataSrc &src)
@@ -254,10 +260,6 @@ PTO_INTERNAL void TDIVS_IMPL(TileDataDst &dst, typename TileDataDst::DType scala
 
     PTO_ASSERT(src.GetValidRow() == dst.GetValidRow(), "Number of rows of src and dst must be the same.");
     PTO_ASSERT(src.GetValidCol() == dst.GetValidCol(), "Number of columns of src and dst must be the same.");
-#ifndef __PTO_AUTO__
-    PTO_ASSERT(dst.data() != src.data(),
-               "Setting the source Tile and destination Tile to the same memory is unsupported");
-#endif
 
     unsigned dstValidRow = dst.GetValidRow();
     unsigned dstValidCol = dst.GetValidCol();

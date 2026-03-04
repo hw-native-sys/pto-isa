@@ -18,6 +18,11 @@ import numpy as np
 np.random.seed(23)
 
 
+def divide(dividend, divisor, dtype):
+    if dtype in (np.float16, np.float32):
+        return dividend / divisor
+    return dividend // divisor
+
 def gen_golden_data(param):
     data_type = param.data_type
     rows = param.row
@@ -25,17 +30,18 @@ def gen_golden_data(param):
     dst_tile_row = param.dst_tile_row
     dst_tile_col = param.dst_tile_col
 
-    input_arr = np.random.uniform(low=1, high=8, size=(rows, cols)).astype(data_type)
-    divider = np.random.uniform(low=1, high=8, size=(1, 1)).astype(data_type)
+    input_arr = np.random.uniform(low=1, high=16383, size=(rows, cols)).astype(data_type)
+    divider = np.random.uniform(low=1, high=10, size=(1, 1)).astype(data_type)
     output_arr = np.zeros((dst_tile_row, dst_tile_col), dtype=data_type)
 
     for i in range(rows):
         for j in range(cols):
             match = re.search(r'(\d+)$', param.name)
             if int(match.group(1)) < 10:
-                output_arr[i, j] = input_arr[i, j] / divider[0, 0]
+                output_arr[i, j] = divide(input_arr[i, j], divider[0, 0], data_type)
             else:
-                output_arr[i, j] = divider[0, 0] / input_arr[i, j]
+                output_arr[i, j] = divide(divider[0, 0], input_arr[i, j], data_type)
+    
     input_arr.tofile('input.bin')
     with open("divider.bin", 'wb') as f:
         f.write(struct.pack('f', np.float32(divider[0, 0])))
