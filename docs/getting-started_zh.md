@@ -309,5 +309,5 @@ python3 tests/run_cpu.py --clean --verbose
 通过以下命令下载源码：
 ```bash
 # 克隆仓库（以 master 分支为例）
-git clone https://gitcode.com/cann/pto-isa.git
+git clone https://github.com/PTO-ISA/pto-isa.git
 ```
