@@ -125,7 +125,6 @@ PTO_INTERNAL void TCMPS_IMPL(TileDataDst &dst, TileDataSrc0 &src0, T src1, CmpMo
                   "Number of valid columns for scr must not be greater than number of tile columns.");
     static_assert(TileDataSrc0::ValidRow <= TileDataSrc0::Rows,
                   "Number of valid rows for src must not be greater than number of tile rows.");
-    PTO_ASSERT(src0.GetValidCol() == dst.GetValidCol(), "Number of columns of src and dst must be the same.");
     PTO_ASSERT(src0.GetValidRow() == dst.GetValidRow(), "Number of rows of src and dst must be the same.");
 
     constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(typename TileDataSrc0::DType);
