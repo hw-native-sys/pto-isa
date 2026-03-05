@@ -323,7 +323,7 @@ template <typename U, int Shape0, int Shape1, int Shape2, int Shape3, int Shape4
 int get_input_golden_case(uint8_t *input, uint8_t *golden)
 {
     auto arr = getGoldenZero<U>();
-    using T = typeof(arr);
+    using T = decltype(arr);
 
     constexpr int shape4_aligned = align_to_32B(Shape4, T);
     int in_shape[5] = {Shape0, Shape1, Shape2, Shape3, Shape4};

@@ -130,7 +130,7 @@ void tfillpad_test()
     int elements = actual_out_byteSize / sizeof(T);
 
     auto zero = getGoldenZero<T>();
-    using CT = typeof(zero);
+    using CT = decltype(zero);
     std::vector<CT> golden(elements);
     std::vector<CT> devFinal(elements);
     size_t oFileSize = actual_out_byteSize;
