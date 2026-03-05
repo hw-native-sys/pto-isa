@@ -9,7 +9,7 @@
 # ======================================================================================================================
 
 SHORT=r:,v:,n:,c:,a:,p:,m:,i,d,k
-LONG=run-mode:,soc-version:,npu:,case:,cases:,qk-preload:,mode:,intermediate,debug,mask
+LONG=run-mode:,soc-version:,npu:,case:,cases:,qk-preload:,mode:,intermediate,debug,mask,mode_dn
 OPTS=$(getopt -a --options $SHORT --longoptions $LONG -- "$@")
 eval set -- "$OPTS"
 while :
@@ -41,6 +41,9 @@ do
             shift 1;;
         (-d | --debug )
             DEBUG_BUILD=1
+            shift 1;;
+        (--mode_dn )
+            MODE_DN=1
             shift 1;;
         (-k | --mask )
             CAUSAL_MASK=1
@@ -99,12 +102,16 @@ echo "[RUN.SH] GEN_CASE_ARGS=${GEN_CASE_ARGS[*]:-<none>}"
 echo "[RUN.SH] INTERMEDIATE=${INTERMEDIATE:-0}"
 echo "[RUN.SH] CAUSAL_MASK=${CAUSAL_MASK:-0}"
 echo "[RUN.SH] DEBUG=${DEBUG_BUILD:-0}"
+echo "[RUN.SH] DN_MODE=${MODE_DN:-0}"
 
 python3 ../scripts/generate_cases.py --qk-preload "${QK_PRELOAD}" "${GEN_CASE_ARGS[@]}" --causal-mask "${CAUSAL_MASK:-0}"
 
 CMAKE_EXTRA=()
 if [[ -n "${DEBUG_BUILD:-}" ]]; then
     CMAKE_EXTRA+=(-DDEBUG_MODE=ON)
+fi
+if [[ -n "${MODE_DN:-}" ]]; then
+    CMAKE_EXTRA+=(-DMODE_DN=ON)
 fi
 CMAKE_EXTRA+=(-DFIFO_MODE=${FIFO_MODE})
 
@@ -117,13 +124,26 @@ if [[ -n "${INTERMEDIATE:-}" ]]; then
 fi
 EXTRA_BIN_ARGS+=(--sys_cnt_multiple=1.0)
 
-if [[ -n "${CASE_FILTER:-}" ]]; then
-    python3 ../scripts/gen_data.py --case="${CASE_FILTER}" "${GEN_CASE_ARGS[@]}" --causal-mask "${CAUSAL_MASK:-0}"
-    time ./fa_performance --npu="${NPU_ID}" --case="${CASE_FILTER}" "${EXTRA_BIN_ARGS[@]}"
-elif [[ -n "${CASES_RAW:-}" ]]; then
-    python3 ../scripts/gen_data.py "${GEN_CASE_ARGS[@]}" --causal-mask "${CAUSAL_MASK:-0}"
-    time ./fa_performance --npu="${NPU_ID}" --cases="${CASES_RAW}" "${EXTRA_BIN_ARGS[@]}"
+if [[ -n "${MODE_DN:-}" ]]; then
+    if [[ -n "${CASE_FILTER:-}" ]]; then
+        python3 ../scripts/gen_data.py --case="${CASE_FILTER}" "${GEN_CASE_ARGS[@]}" --causal-mask "${CAUSAL_MASK:-0}"
+        time ./fa_performance_dn --npu="${NPU_ID}" --case="${CASE_FILTER}" "${EXTRA_BIN_ARGS[@]}"
+    elif [[ -n "${CASES_RAW:-}" ]]; then
+        python3 ../scripts/gen_data.py "${GEN_CASE_ARGS[@]}" --causal-mask "${CAUSAL_MASK:-0}"
+        time ./fa_performance_dn --npu="${NPU_ID}" --cases="${CASES_RAW}" "${EXTRA_BIN_ARGS[@]}"
+    else
+        python3 ../scripts/gen_data.py "${GEN_CASE_ARGS[@]}" --causal-mask "${CAUSAL_MASK:-0}"
+        time ./fa_performance_dn --npu="${NPU_ID}" "${EXTRA_BIN_ARGS[@]}"
+    fi
 else
-    python3 ../scripts/gen_data.py "${GEN_CASE_ARGS[@]}" --causal-mask "${CAUSAL_MASK:-0}"
-    time ./fa_performance --npu="${NPU_ID}" "${EXTRA_BIN_ARGS[@]}"
+    if [[ -n "${CASE_FILTER:-}" ]]; then
+        python3 ../scripts/gen_data.py --case="${CASE_FILTER}" "${GEN_CASE_ARGS[@]}" --causal-mask "${CAUSAL_MASK:-0}"
+        time ./fa_performance --npu="${NPU_ID}" --case="${CASE_FILTER}" "${EXTRA_BIN_ARGS[@]}"
+    elif [[ -n "${CASES_RAW:-}" ]]; then
+        python3 ../scripts/gen_data.py "${GEN_CASE_ARGS[@]}" --causal-mask "${CAUSAL_MASK:-0}"
+        time ./fa_performance --npu="${NPU_ID}" --cases="${CASES_RAW}" "${EXTRA_BIN_ARGS[@]}"
+    else
+        python3 ../scripts/gen_data.py "${GEN_CASE_ARGS[@]}" --causal-mask "${CAUSAL_MASK:-0}"
+        time ./fa_performance --npu="${NPU_ID}" "${EXTRA_BIN_ARGS[@]}"
+    fi
 fi

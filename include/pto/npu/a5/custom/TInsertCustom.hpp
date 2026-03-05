@@ -167,8 +167,6 @@ PTO_INTERNAL void TINSERT_CUSTOM(DstTileData &dst, SrcTileData &src, uint32_t in
                   "TINSERT CUSTOM : Source and destination data types must match");
     static_assert(!SrcTileData::isRowMajor && (SrcTileData::SFractal == SLayout::RowMajor),
                   "TINSERT CUSTOM : Source must be NZ format (column-major, RowMajor fractal)");
-    static_assert(!DstTileData::isRowMajor && (DstTileData::SFractal == SLayout::RowMajor),
-                  "TINSERT CUSTOM : Destination must be NZ format (column-major, RowMajor fractal)");
     static_assert((std::is_same<T, half>::value) || (std::is_same<T, bfloat16_t>::value) ||
                       (std::is_same<T, float>::value) || (std::is_same<T, int32_t>::value) ||
                       (std::is_same<T, float8_e4m3_t>::value) || (std::is_same<T, float8_e5m2_t>::value) ||
