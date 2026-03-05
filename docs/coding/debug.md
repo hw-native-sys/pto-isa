@@ -30,6 +30,7 @@ Use these codes referenced in the assertion index:
 - `FIX-A09` GlobalTensor shape/stride mismatch or out-of-range: ensure the 5-D shape/stride matches the intended view and obeys backend constraints (ND/DN/NZ rules, range limits for dims, and alignment restrictions).
 - `FIX-A10` Gather/scatter contiguity/alignment: some gather/scatter paths require continuous rows/cols or 32B alignment—adjust valid sizes, layout, or use a different path.
 - `FIX-A11` Invalid numeric domain (e.g., divide-by-zero): avoid feeding illegal inputs (add epsilon/clamp) before `RECIP/RSQRT/DIV`-like ops.
+- `FIX-A12` `TASSIGN<Addr>(tile)` address/capacity error: ensure the target memory space exists on the current architecture (e.g. `ScaleLeft`/`ScaleRight` are A5-only); reduce tile dimensions (`Rows`/`Cols`) or element size so that `Rows * Cols * sizeof(DType) <= capacity`; choose `Addr` so that `Addr + tile_size <= capacity` and `Addr` is a multiple of the alignment (typically 32 bytes). Capacities can be overridden via `-DPTO_xxx_SIZE_BYTES=<value>` (see `include/pto/common/buffer_limits.hpp`).
 
 ## Notes
 
@@ -391,6 +392,10 @@ Use these codes referenced in the assertion index:
 - **SA-0348** Unsupport CMP_MODE. (At: `include/pto/cpu/ElementOp.h:416`; Fix: `-`)
 - **SA-0349** Unsupport element op. (At: `include/pto/cpu/ElementOp.h:77`; Fix: `-`)
 - **SA-0350** When TileData is NZ format, the last 2 dim must be static and satisfy [16, 32 / sizeof(DataType)] (At: `include/pto/npu/a2a3/TLoad.hpp:144 (+1)`; Fix: `-`)
+- **SA-0351** TASSIGN: memory space is not available on this architecture (capacity is 0). (At: `include/pto/common/tassign_check.hpp`; Fix: `FIX-A12`)
+- **SA-0352** TASSIGN: Tile storage size exceeds memory space capacity. (At: `include/pto/common/tassign_check.hpp`; Fix: `FIX-A12`)
+- **SA-0353** TASSIGN: addr + tile_size exceeds memory space capacity (out of bounds). (At: `include/pto/common/tassign_check.hpp`; Fix: `FIX-A12`)
+- **SA-0354** TASSIGN: addr is not properly aligned for the target memory space. (At: `include/pto/common/tassign_check.hpp`; Fix: `FIX-A12`)
 
 ### Runtime checks (`PTO_ASSERT`)
 - **PA-0001** blockLen is a multiple of 64 (At: `include/pto/npu/a2a3/TMrgSort.hpp:282`; Fix: `-`)
