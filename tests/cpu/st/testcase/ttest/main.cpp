@@ -33,7 +33,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-bool LaunchTTest(T *src, int32_t cmpValue, pto::CmpMode cmp, void *stream);
+bool LaunchTTest(T *src, int32_t cmpValue, pto::comm::WaitCmp cmp, void *stream);
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
 void test_ttest()
@@ -62,7 +62,8 @@ void test_ttest()
     cmpFile.read(reinterpret_cast<char *>(&cmpValue), 4);
     cmpFile.close();
 
-    bool outputTest = LaunchTTest<T, kGRows_, kGCols_, kTRows_, kTCols_>(srcDevice, cmpValue, pto::CmpMode::LE, stream);
+    bool outputTest =
+        LaunchTTest<T, kGRows_, kGCols_, kTRows_, kTCols_>(srcDevice, cmpValue, pto::comm::WaitCmp::LE, stream);
 
     aclrtSynchronizeStream(stream);
 

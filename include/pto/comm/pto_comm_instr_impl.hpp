@@ -32,18 +32,19 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #ifdef __CPU_SIM
 // Point-to-Point Communication (Synchronous)
-#include "pto/cpu/TPut.hpp"
-#include "pto/cpu/TGet.hpp"
+#include "pto/cpu/comm/TPut.hpp"
+#include "pto/cpu/comm/TGet.hpp"
 
 // Signal-Based Synchronization
-#include "pto/cpu/TNotify.hpp"
-#include "pto/cpu/TTest.hpp"
-#include "pto/cpu/TWait.hpp"
+#include "pto/cpu/comm/TNotify.hpp"
+#include "pto/cpu/comm/TTest.hpp"
+#include "pto/cpu/comm/TWait.hpp"
 
 // Collective Communication
-#include "pto/cpu/TReduce.hpp"
-#include "pto/cpu/TGather.hpp"
-#include "pto/cpu/TScatter.hpp"
+#include "pto/cpu/comm/TReduce.hpp"
+#include "pto/cpu/comm/TGather.hpp"
+#include "pto/cpu/comm/TBroadcast.hpp"
+#include "pto/cpu/comm/TScatter.hpp"
 #endif
 
 #endif // PTO_COMM_INSTR_IMPL_HPP

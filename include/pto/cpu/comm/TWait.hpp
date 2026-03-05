@@ -20,7 +20,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/comm/comm_types.hpp"
 
 namespace pto {
-namespace cpu {
+namespace comm {
 
 namespace detail {
 inline bool CompareSignalRuntime(int32_t sigVal, int32_t cmpVal, comm::WaitCmp cmp)
@@ -45,7 +45,7 @@ inline bool CompareSignalRuntime(int32_t sigVal, int32_t cmpVal, comm::WaitCmp c
 } // namespace detail
 
 template <typename GlobalSignalData>
-inline void TWAIT(GlobalSignalData &signalData, int32_t cmpValue, comm::WaitCmp cmp)
+inline void TWAIT_IMPL(GlobalSignalData &signalData, int32_t cmpValue, comm::WaitCmp cmp)
 {
     static_assert(std::is_same_v<typename GlobalSignalData::RawDType, int32_t>, "TWAIT: signal type must be int32_t");
     const int s0 = signalData.GetShape(GlobalTensorDim::DIM_0);
@@ -93,7 +93,7 @@ inline void TWAIT(GlobalSignalData &signalData, int32_t cmpValue, comm::WaitCmp 
     }
 }
 
-} // namespace cpu
+} // namespace comm
 } // namespace pto
 
 #endif // TTRI_HPP

@@ -11,31 +11,32 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef PTO_TTEST_HPP
 #define PTO_TTEST_HPP
 
-#include "pto/common/type.hpp"
+#include "pto/comm/comm_types.hpp"
 
 namespace pto {
+namespace comm {
 
-PTO_INTERNAL bool TestCompareSignal(int32_t sigVal, int32_t cmpVal, CmpMode cmp)
+PTO_INTERNAL bool TestCompareSignal(int32_t sigVal, int32_t cmpVal, WaitCmp cmp)
 {
     switch (cmp) {
-        case CmpMode::EQ:
+        case WaitCmp::EQ:
             return sigVal == cmpVal;
-        case CmpMode::NE:
+        case WaitCmp::NE:
             return sigVal != cmpVal;
-        case CmpMode::GT:
+        case WaitCmp::GT:
             return sigVal > cmpVal;
-        case CmpMode::GE:
+        case WaitCmp::GE:
             return sigVal >= cmpVal;
-        case CmpMode::LT:
+        case WaitCmp::LT:
             return sigVal < cmpVal;
-        case CmpMode::LE:
+        case WaitCmp::LE:
             return sigVal <= cmpVal;
         default:
             return false;
     }
 }
 
-PTO_INTERNAL bool TestPartSignal(volatile int32_t *basePtr, int32_t cmpValue, CmpMode cmp, int d0, int st0, int d1,
+PTO_INTERNAL bool TestPartSignal(volatile int32_t *basePtr, int32_t cmpValue, WaitCmp cmp, int d0, int st0, int d1,
                                  int st1, int d2, int st2, int s3, int st3, int s4)
 {
     for (int d3 = 0; d3 < s3; ++d3) {
@@ -50,7 +51,7 @@ PTO_INTERNAL bool TestPartSignal(volatile int32_t *basePtr, int32_t cmpValue, Cm
 }
 
 template <typename GlobalSignalData>
-PTO_INTERNAL bool TTEST_IMPL(GlobalSignalData &signalData, int32_t cmpValue, CmpMode cmp)
+PTO_INTERNAL bool TTEST_IMPL(GlobalSignalData &signalData, int32_t cmpValue, WaitCmp cmp)
 {
     static_assert(sizeof(typename GlobalSignalData::DType) == sizeof(int32_t),
                   "TTEST: signal type must be 32-bit (int32_t)");
@@ -83,6 +84,7 @@ PTO_INTERNAL bool TTEST_IMPL(GlobalSignalData &signalData, int32_t cmpValue, Cmp
     return true;
 }
 
+} // namespace comm
 } // namespace pto
 
 #endif // PTO_COMM_TTEST_HPP

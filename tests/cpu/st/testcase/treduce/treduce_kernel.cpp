@@ -17,7 +17,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <pto/common/constants.hpp>
 #include "pto/comm/comm_types.hpp"
-using namespace pto;
+using namespace pto::comm;
 
 // ============================================================================
 // TREDUCE Test Kernel
@@ -48,7 +48,7 @@ __global__ AICORE void TReduceKernelImpl(__gm__ T *src0, __gm__ T *src1, __gm__ 
     tensors[0] = Global(src0, fullShape, fullStride);
     tensors[1] = Global(src1, fullShape, fullStride);
 
-    pto::comm::ParallelGroup<Global> pg(tensors, actual_nranks, my_rank);
+    ParallelGroup<Global> pg(tensors, actual_nranks, my_rank);
 
     // Allocate UB tiles — TREDUCE_IMPL will auto-chunk using these
     TileData accTile(tile_rows, cols);
@@ -59,7 +59,7 @@ __global__ AICORE void TReduceKernelImpl(__gm__ T *src0, __gm__ T *src1, __gm__ 
 
     // Only root executes TREDUCE
     if (my_rank == 0) {
-        pto::TREDUCE(pg, outputG, accTile, recvTile, op);
+        TREDUCE(pg, outputG, accTile, recvTile, op);
     }
 }
 

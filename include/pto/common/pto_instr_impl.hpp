@@ -262,17 +262,18 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/cpu/TColExpand.hpp"
 #include "pto/cpu/TColExpandOp.hpp"
 #include "pto/cpu/TScatter.hpp"
-#include "pto/cpu/TBroadcast.hpp"
 #include "pto/cpu/TTRI.hpp"
 #include "pto/cpu/TSort32.hpp"
 #include "pto/cpu/MGatherScatter.hpp"
 #include "pto/cpu/TSync.hpp"
-#include "pto/cpu/TTest.hpp"
-#include "pto/cpu/TGet.hpp"
-#include "pto/cpu/TWait.hpp"
-#include "pto/cpu/TReduce.hpp"
 #include "pto/cpu/TPush.hpp"
 #include "pto/cpu/TPop.hpp"
+#include "pto/cpu/comm/TBroadcast.hpp"
+#include "pto/cpu/comm/TTest.hpp"
+#include "pto/cpu/comm/TGet.hpp"
+#include "pto/cpu/comm/TWait.hpp"
+#include "pto/cpu/comm/TReduce.hpp"
+
 #endif
 
 #endif

@@ -20,6 +20,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/comm/comm_types.hpp"
 
 namespace pto {
+namespace comm {
 
 // ============================================================================
 // TREDUCE_IMPL: Reduce operation - root gathers and reduces data from all ranks
@@ -462,6 +463,7 @@ PTO_INTERNAL void TREDUCE_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &
     }
 }
 
+} // namespace comm
 } // namespace pto
 
 #endif

@@ -18,30 +18,32 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 namespace comm {
 
-template <typename GlobalDstData, typename GlobalSrcData>
-void TGet_Impl(typename GlobalDstData::DType *dst, typename GlobalSrcData::DType *src, long int shape[],
-               long int stride[])
+template <typename GlobalDstData, typename GlobalSrcData, AtomicType atomicType = AtomicType::AtomicNone>
+PTO_INTERNAL void Copy_Data(GlobalDstData &dstTensor, GlobalSrcData &srcTensor)
 {
+    typename GlobalDstData::DType *dst = dstTensor.data();
+    typename GlobalSrcData::DType *src = srcTensor.data();
+    long shape[] = {dstTensor.GetShape(0), dstTensor.GetShape(1), dstTensor.GetShape(2), dstTensor.GetShape(3),
+                    dstTensor.GetShape(4)};
+    long stride[] = {dstTensor.GetStride(0), dstTensor.GetStride(1), dstTensor.GetStride(2), dstTensor.GetStride(3),
+                     dstTensor.GetStride(4)};
+
     for (size_t i = 0; i < shape[0]; i++) {
         for (size_t j = 0; j < shape[1]; j++) {
             for (size_t k = 0; k < shape[2]; k++) {
                 for (size_t l = 0; l < shape[3]; l++) {
                     for (size_t m = 0; m < shape[4]; m++) {
                         int index = i * stride[0] + j * stride[1] + k * stride[2] + l * stride[3] + m * stride[4];
-                        dst[index] = src[index];
+                        if constexpr (atomicType == AtomicType::AtomicNone) {
+                            dst[index] = src[index];
+                        } else {
+                            dst[index] += src[index];
+                        }
                     }
                 }
             }
         }
     }
-}
-
-template <typename GlobalDstData, typename GlobalSrcData>
-PTO_INTERNAL void Copy_Data(GlobalDstData &dst, GlobalSrcData &src)
-{
-    long int shape[5] = {dst.GetShape(0), dst.GetShape(1), dst.GetShape(2), dst.GetShape(3), dst.GetShape(4)};
-    long int stride[5] = {dst.GetStride(0), dst.GetStride(1), dst.GetStride(2), dst.GetStride(3), dst.GetStride(4)};
-    TGet_Impl<GlobalDstData, GlobalSrcData>(dst.data(), src.data(), shape, stride);
 }
 
 template <typename GlobalDstData, typename GlobalSrcData, typename TileData>
@@ -54,36 +56,6 @@ template <typename GlobalDstData, typename GlobalSrcData, typename TileData>
 PTO_INTERNAL void TGET_IMPL(GlobalDstData &dst, GlobalSrcData &src, TileData &ping, TileData &pong)
 {
     Copy_Data(dst, src);
-}
-
-template <typename GlobalDstData, typename GlobalSrcData, typename TileData>
-PTO_INTERNAL void TPUT_IMPL(GlobalDstData &dst, GlobalSrcData &src, TileData &src1)
-{
-    Copy_Data(src, dst);
-}
-
-template <typename GlobalDstData, typename GlobalSrcData, typename TileData>
-PTO_INTERNAL void TPUT_IMPL(GlobalDstData &dst, GlobalSrcData &src, TileData &src1, AtomicType &atomicType)
-{
-    Copy_Data(src, dst);
-}
-
-template <typename GlobalDstData, typename GlobalSrcData, typename TileData>
-PTO_INTERNAL void TPUT_IMPL(GlobalDstData &dst, GlobalSrcData &src, TileData &ping, TileData &pong)
-{
-    Copy_Data(src, dst);
-}
-
-template <typename GlobalDstData, typename GlobalSrcData>
-PTO_INTERNAL void TGET_ASYNC_IMPL(GlobalDstData &dst, GlobalSrcData &src)
-{
-    Copy_Data(dst, src);
-}
-
-template <typename GlobalDstData, typename GlobalSrcData>
-PTO_INTERNAL void TPUT_ASYNC_IMPL(GlobalDstData &dst, GlobalSrcData &src)
-{
-    Copy_Data(src, dst);
 }
 
 } // namespace comm

@@ -17,7 +17,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <cassert>
 #include <functional>
 
-using namespace pto;
+using namespace pto::comm;
 
 // ============================================================================
 // Test 1: Basic single signal wait (EQ comparison)
@@ -25,7 +25,7 @@ using namespace pto;
 bool RunTWaitBasic()
 {
     alignas(64) std::atomic<int32_t> signal{0};
-    comm::Signal sig(reinterpret_cast<int32_t *>(&signal));
+    Signal sig(reinterpret_cast<int32_t *>(&signal));
 
     bool success = true;
 
@@ -36,7 +36,7 @@ bool RunTWaitBasic()
     });
 
     // Wait for signal == 42
-    cpu::TWAIT(sig, 42, comm::WaitCmp::EQ);
+    TWAIT(sig, 42, WaitCmp::EQ);
 
     // Verify
     if (signal.load() != 42) {
@@ -53,27 +53,27 @@ bool RunTWaitBasic()
 bool RunTWaitCompare()
 {
     // Returns false if the post-wait condition is violated.
-    auto runCase = [](int32_t initial, int32_t stored, int32_t threshold, comm::WaitCmp cmp,
+    auto runCase = [](int32_t initial, int32_t stored, int32_t threshold, WaitCmp cmp,
                       std::function<bool(int32_t)> postCheck) -> bool {
         alignas(64) std::atomic<int32_t> signal{initial};
-        comm::Signal sig(reinterpret_cast<int32_t *>(&signal));
+        Signal sig(reinterpret_cast<int32_t *>(&signal));
 
         std::thread notifier([&]() {
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
             signal.store(stored, std::memory_order_release);
         });
 
-        cpu::TWAIT(sig, threshold, cmp);
+        TWAIT(sig, threshold, cmp);
         bool ok = postCheck(signal.load());
         notifier.join();
         return ok;
     };
 
-    return runCase(0, 150, 100, comm::WaitCmp::GE, [](int32_t v) { return v >= 100; })   // GE
-           && runCase(0, 1, 0, comm::WaitCmp::NE, [](int32_t v) { return v != 0; })      // NE
-           && runCase(0, 51, 50, comm::WaitCmp::GT, [](int32_t v) { return v > 50; })    // GT
-           && runCase(100, 10, 20, comm::WaitCmp::LE, [](int32_t v) { return v <= 20; }) // LE
-           && runCase(100, 5, 10, comm::WaitCmp::LT, [](int32_t v) { return v < 10; });  // LT
+    return runCase(0, 150, 100, WaitCmp::GE, [](int32_t v) { return v >= 100; })   // GE
+           && runCase(0, 1, 0, WaitCmp::NE, [](int32_t v) { return v != 0; })      // NE
+           && runCase(0, 51, 50, WaitCmp::GT, [](int32_t v) { return v > 50; })    // GT
+           && runCase(100, 10, 20, WaitCmp::LE, [](int32_t v) { return v <= 20; }) // LE
+           && runCase(100, 5, 10, WaitCmp::LT, [](int32_t v) { return v < 10; });  // LT
 }
 
 // ============================================================================
@@ -82,7 +82,7 @@ bool RunTWaitCompare()
 bool RunTWaitAtomic(int numThreads)
 {
     alignas(64) std::atomic<int32_t> counter{0};
-    comm::Signal sig(reinterpret_cast<int32_t *>(&counter));
+    Signal sig(reinterpret_cast<int32_t *>(&counter));
 
     constexpr int kIncrementsPerThread = 25;
     const int kExpectedTotal = numThreads * kIncrementsPerThread;
@@ -100,7 +100,7 @@ bool RunTWaitAtomic(int numThreads)
     }
 
     // Wait for counter >= expected total
-    cpu::TWAIT(sig, kExpectedTotal, comm::WaitCmp::GE);
+    TWAIT(sig, kExpectedTotal, WaitCmp::GE);
 
     bool success = (counter.load() >= kExpectedTotal);
 
@@ -124,7 +124,7 @@ bool RunTWaitMatrix()
         elem.store(0, std::memory_order_release);
     }
 
-    comm::Signal2D<Rows, Cols> sig(reinterpret_cast<int32_t *>(matrix.data()));
+    Signal2D<Rows, Cols> sig(reinterpret_cast<int32_t *>(matrix.data()));
 
     // Launch a thread to set all matrix elements to 1
     std::thread notifier([&]() {
@@ -137,7 +137,7 @@ bool RunTWaitMatrix()
     });
 
     // Wait for all matrix elements == 1
-    cpu::TWAIT(sig, 1, comm::WaitCmp::EQ);
+    TWAIT(sig, 1, WaitCmp::EQ);
 
     // Verify all elements are 1
     bool success = true;
@@ -158,7 +158,7 @@ bool RunTWaitMatrix()
 bool RunTWaitMultiPhase()
 {
     alignas(64) std::atomic<int32_t> signal{0};
-    comm::Signal sig(reinterpret_cast<int32_t *>(&signal));
+    Signal sig(reinterpret_cast<int32_t *>(&signal));
 
     std::thread notifier([&]() {
         // Phase 1
@@ -175,21 +175,21 @@ bool RunTWaitMultiPhase()
     });
 
     // Phase 1: Wait for signal == 1
-    cpu::TWAIT(sig, 1, comm::WaitCmp::EQ);
+    TWAIT(sig, 1, WaitCmp::EQ);
     if (signal.load() != 1) {
         notifier.join();
         return false;
     }
 
     // Phase 2: Wait for signal >= 3
-    cpu::TWAIT(sig, 3, comm::WaitCmp::GE);
+    TWAIT(sig, 3, WaitCmp::GE);
     if (signal.load() < 3) {
         notifier.join();
         return false;
     }
 
     // Phase 3: Wait for signal == 5
-    cpu::TWAIT(sig, 5, comm::WaitCmp::EQ);
+    TWAIT(sig, 5, WaitCmp::EQ);
     if (signal.load() != 5) {
         notifier.join();
         return false;
@@ -216,7 +216,7 @@ bool RunTWaitSubRegion()
 
     // Create signal pointing to the sub-region with proper stride
     int32_t *subPtr = reinterpret_cast<int32_t *>(matrix.data()) + kStartRow * FullCols + kStartCol;
-    comm::Signal2D<SubRows, SubCols> sig(subPtr, FullCols);
+    Signal2D<SubRows, SubCols> sig(subPtr, FullCols);
 
     // Launch a thread to set only the sub-region elements to 1
     std::thread notifier([&]() {
@@ -230,7 +230,7 @@ bool RunTWaitSubRegion()
     });
 
     // Wait for all sub-region elements == 1
-    cpu::TWAIT(sig, 1, comm::WaitCmp::EQ);
+    TWAIT(sig, 1, WaitCmp::EQ);
 
     // Verify sub-region elements are 1
     bool success = true;
