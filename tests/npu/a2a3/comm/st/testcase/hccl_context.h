@@ -15,10 +15,12 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // ============================================================================
 // HcclDeviceContext
 //
-// Binary layout matches HcclCombinOpParamA5 returned by
-// HcclAllocComResourceByTiling() on Ascend 910 A5 (DAV_3510).
-// A5 uses HCCL_MTE_MAX_RANK_NUM = 64 for windowsIn/Out arrays,
-// unlike A3 which uses AICPU_MAX_RANK_NUM_V1 = 32.
+// Simplified device-side context for TPUT/TGET tests.
+// On MESH topology (A2), HCCL returns HcclCombinOpParamA5 whose first fields
+// match this struct directly (windowsIn[64] already contains per-rank RDMA
+// addresses).
+// On RING topology (A3), we build this struct manually on the host by
+// extracting remote RDMA addresses from HcclOpResParam's remoteRes array.
 // ============================================================================
 
 static constexpr uint32_t HCCL_MAX_RANK_NUM = 64;
@@ -32,10 +34,4 @@ struct HcclDeviceContext {
     uint64_t winSize;
     uint64_t windowsIn[HCCL_MAX_RANK_NUM];
     uint64_t windowsOut[HCCL_MAX_RANK_NUM];
-
-    // CCU registers (A5-specific, not used by tests)
-    uint64_t xnAddr;
-    uint64_t ckeAddr;
-    uint64_t msAddr;
-    uint64_t msSize;
 };
