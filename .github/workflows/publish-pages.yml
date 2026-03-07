@@ -44,12 +44,14 @@ jobs:
 
       - name: Build static site
         run: |
-          python -m mkdocs build -f docs/mkdocs/mkdocs.yml -d _site --clean
-          touch _site/.nojekyll
+          site_dir="${GITHUB_WORKSPACE}/_site"
+          python -m mkdocs build -f docs/mkdocs/mkdocs.yml -d "${site_dir}" --clean
+          touch "${site_dir}/.nojekyll"
 
       - name: Write generated-site README
         run: |
-          cat > _site/README.md <<'EOF'
+          site_dir="${GITHUB_WORKSPACE}/_site"
+          cat > "${site_dir}/README.md" <<'EOF'
           # PTO-ISA GitHub Pages
 
           This repository is generated from the MkDocs source in `PTO-ISA/pto-isa`.
