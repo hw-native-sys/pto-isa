@@ -89,12 +89,12 @@ TEST_F(TMovUb2l1Test, case2)
 
 TEST_F(TMovUb2l1Test, case3)
 {
-    testTMovUb2L1<3, float>(48, 72, 48, 72);
+    testTMovUb2L1<3, int32_t>(48, 72, 48, 72);
 }
 
 TEST_F(TMovUb2l1Test, case4)
 {
-    testTMovUb2L1<4, float>(96, 8, 96, 8);
+    testTMovUb2L1<4, int32_t>(96, 8, 96, 8);
 }
 
 TEST_F(TMovUb2l1Test, case5)
@@ -114,7 +114,7 @@ TEST_F(TMovUb2l1Test, case7)
 
 TEST_F(TMovUb2l1Test, case8)
 {
-    testTMovUb2L1<8, float>(128, 128, 64, 64);
+    testTMovUb2L1<8, int32_t>(128, 128, 64, 64);
 }
 
 TEST_F(TMovUb2l1Test, case9)

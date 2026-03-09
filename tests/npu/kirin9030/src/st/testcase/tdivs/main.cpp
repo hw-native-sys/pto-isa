@@ -66,6 +66,9 @@ bool TDivSTestFramework()
 
     file.read(reinterpret_cast<char *>(&scalar), 4);
     file.close();
+    aclrtMemset(dstHost, dstByteSize, 0, dstByteSize);
+
+    aclrtMemcpy(dstDevice, dstByteSize, dstHost, dstByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(srcDevice, srcByteSize, srcHost, srcByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
     launchTDIVSTestCase<caseId>(dstDevice, srcDevice, scalar, stream);
     aclrtSynchronizeStream(stream);
@@ -103,6 +106,12 @@ TEST_F(TDIVSTest, case2)
     EXPECT_TRUE(ret);
 }
 
+TEST_F(TDIVSTest, case3)
+{
+    bool ret = TDivSTestFramework<3, int32_t, 31, 256, 31, 31, 128, 128>();
+    EXPECT_TRUE(ret);
+}
+
 TEST_F(TDIVSTest, case4)
 {
     bool ret = TDivSTestFramework<4, int16_t, 15, 192, 15, 15, 192, 192>();
@@ -118,5 +127,41 @@ TEST_F(TDIVSTest, case5)
 TEST_F(TDIVSTest, case6)
 {
     bool ret = TDivSTestFramework<6, float, 256, 32, 256, 256, 16, 16>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TDIVSTest, case7)
+{
+    bool ret = TDivSTestFramework<7, float, 32, 128, 32, 32, 64, 64>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TDIVSTest, case8)
+{
+    bool ret = TDivSTestFramework<8, aclFloat16, 63, 128, 63, 63, 64, 64>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TDIVSTest, case9)
+{
+    bool ret = TDivSTestFramework<9, int32_t, 31, 256, 31, 31, 128, 128>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TDIVSTest, case10)
+{
+    bool ret = TDivSTestFramework<10, int16_t, 15, 192, 15, 15, 192, 192>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TDIVSTest, case11)
+{
+    bool ret = TDivSTestFramework<11, float, 7, 512, 7, 7, 448, 448>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TDIVSTest, case12)
+{
+    bool ret = TDivSTestFramework<12, float, 256, 32, 256, 256, 16, 16>();
     EXPECT_TRUE(ret);
 }

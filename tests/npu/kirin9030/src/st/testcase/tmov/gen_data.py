@@ -69,34 +69,35 @@ def qf2f16_pre(data, quant_gm):
     return saturation(data.astype(np.float32) * m1, np.finfo(np.float16).min, np.finfo(np.float16).max, np.float16)
 
 
-def gen_golden_data(case_name, param):
+def gen_golden_data(param):
     src_type = param.atype
     l0c_type = param.ctype
     bias_type = param.bias_type
     dst_type = param.dst_type
     quant_type = param.quant_type
 
-    m, k, n, is_bias, is_quant = param.m, param.k, param.n, param.is_bias, param.is_quant
+    m, k, n, is_bias, is_quant, block_size = param.m, param.k, param.n, param.is_bias, param.is_quant, param.block_size
 
     x1_gm = np.random.randint(-1, 10, [m, k]).astype(src_type)
     x2_gm = np.random.randint(-1, 10, [k, n]).astype(src_type)
-    bias_gm = np.random.randint(1, 10, [n, ]).astype(bias_type)
 
     if is_bias:
+        bias_gm = np.random.randint(1, 10, [n, ]).astype(bias_type)
         golden = np.matmul(x1_gm.astype(l0c_type), x2_gm.astype(l0c_type)).astype(l0c_type) + bias_gm.astype(l0c_type)
+        bias_gm.tofile("./bias_gm.bin")
     else:
         golden = np.matmul(x1_gm.astype(l0c_type), x2_gm.astype(l0c_type)).astype(l0c_type)
 
     # fixpipe
-    temp_quant_tensor = np.random.randint(1, 5, n).astype(np.float32)
-    temp_quant_tensor_api = copy.deepcopy(temp_quant_tensor).astype(np.uint64)
-    for i, _ in enumerate(temp_quant_tensor_api):
-        temp_quant_tensor_api[i] = struct.unpack('!I', struct.pack('!f', temp_quant_tensor_api[i]))[0]
-        temp_quant_tensor_api[i] = temp_quant_tensor_api[i] | np.uint64(0x400000000000)
-    quant_tensor = np.frombuffer(temp_quant_tensor_api, np.uint64)
-    quant_tensor = quant_tensor.astype(quant_type)
-    quant_golden = np.zeros((m, n), dtype = dst_type)
     if is_quant:
+        temp_quant_tensor = np.random.randint(1, 5, n).astype(np.float32)
+        temp_quant_tensor_api = copy.deepcopy(temp_quant_tensor).astype(np.uint64)
+        for i, _ in enumerate(temp_quant_tensor_api):
+            temp_quant_tensor_api[i] = struct.unpack('!I', struct.pack('!f', temp_quant_tensor_api[i]))[0]
+            temp_quant_tensor_api[i] = temp_quant_tensor_api[i] | np.uint64(0x400000000000)
+        quant_tensor = np.frombuffer(temp_quant_tensor_api, np.uint64)
+        quant_tensor = quant_tensor.astype(quant_type)
+        quant_golden = np.zeros((m, n), dtype = dst_type)
         for i in range(m):
             for j in range(n):
                 if dst_type == np.int8:
@@ -108,18 +109,22 @@ def gen_golden_data(case_name, param):
                     quant_golden[i, j] = qf2f16_pre(golden[i, j], quant_tensor[j])
                 else:
                     quant_golden[i, j] = golden[i, j] * quant_tensor[j]
+        quant_tensor.tofile("./quant_gm.bin")
+        quant_golden.tofile("./quant_golden.bin")
+
+    if block_size != 0:
+        golden = golden.reshape(m // block_size, block_size, n // block_size, block_size)
+        golden = golden.transpose(2, 0, 1, 3)
 
     x1_gm.tofile("./x1_gm.bin")
     x2_gm.tofile("./x2_gm.bin")
-    bias_gm.tofile("./bias_gm.bin")
-    quant_tensor.tofile("./quant_gm.bin")
     golden.tofile("./golden.bin")
-    quant_golden.tofile("./quant_golden.bin")
     os.chdir(original_dir)
 
 
 class tmovParams:
-    def __init__(self, atype, btype, ctype, bias_type, dst_type, quant_type, m, n, k, is_bias = 0, is_quant = 0):
+    def __init__(self, atype, btype, ctype, bias_type, dst_type, quant_type, m, n, k, is_bias = 0, is_quant = 0,
+        block_size = 0):
         self.atype = atype
         self.btype = btype
         self.ctype = ctype
@@ -131,6 +136,7 @@ class tmovParams:
         self.k = k
         self.is_bias = is_bias
         self.is_quant = is_quant
+        self.block_size = block_size
 
 if __name__ == "__main__":
     case_name_list = [
@@ -139,6 +145,9 @@ if __name__ == "__main__":
 
         "TMOVTest.case_fixpipe1",
         "TMOVTest.case_fixpipe2",
+
+        "TMOVTest.case_acc2vec_Nz2Nd",
+        "TMOVTest.case_acc2vec_Nz2Nz",
     ]
 
     case_params_list = [
@@ -153,6 +162,11 @@ if __name__ == "__main__":
         tmovParams(np.int8, np.int8, np.int32, np.int32, np.int8, np.uint64, 32, 128, 32, 0, 1),
         # int32 -> half
         tmovParams(np.int8, np.int8, np.int32, np.int32, np.float16, np.uint64, 96, 64, 32, 0, 1),
+
+        # L0C_TO_UB
+        # half -> half
+        tmovParams(np.float16, np.float16, np.float16, np.float16, np.float16, np.float16, 64, 64, 64, 0, 0),
+        tmovParams(np.float16, np.float16, np.float16, np.float16, np.float16, np.float16, 64, 64, 64, 0, 0, 16),
     ]
 
     for i, case_name in enumerate(case_name_list):
@@ -160,5 +174,5 @@ if __name__ == "__main__":
             os.makedirs(case_name)
         original_dir = os.getcwd()
         os.chdir(case_name)
-        gen_golden_data(case_name, case_params_list[i])
+        gen_golden_data(case_params_list[i])
         os.chdir(original_dir)

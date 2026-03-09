@@ -137,6 +137,69 @@ __global__ AICORE void runTMovL12Fb(__gm__ cType *out, __gm__ aType *src0, __gm_
     TSTORE_FP(dstGlobal, cTile, fbTile, evtMov2S_Store, evtMatmul_Store);
 }
 
+template <typename cType, typename aType, typename bType, int M, int K, int N, int ValidM, int ValidK, int ValidN,
+          int Block = 1>
+__global__ AICORE void runTMovAcc2Vec(__gm__ cType *out, __gm__ aType *src0, __gm__ bType *src1)
+{
+    // static shape
+    using GlobalDataSrc0 = GlobalTensor<aType, pto::Shape<1, 1, 1, ValidM, ValidK>,
+                                        pto::Stride<ValidM * ValidK, ValidM * ValidK, ValidM * ValidK, ValidK, 1>>;
+    using GlobalDataSrc1 = GlobalTensor<bType, pto::Shape<1, 1, 1, ValidK, ValidN>,
+                                        pto::Stride<ValidK * ValidN, ValidK * ValidN, ValidK * ValidN, ValidN, 1>>;
+    using GlobalDataOutNd = GlobalTensor<cType, pto::Shape<1, 1, 1, ValidM, ValidN>,
+                                         pto::Stride<ValidM * ValidN, ValidM * ValidN, ValidM * ValidN, ValidN, 1>>;
+    using GlobalDataOutNz =
+        GlobalTensor<cType, pto::Shape<1, ValidM / Block, ValidN / Block, Block, Block>,
+                     pto::Stride<ValidM * ValidN, ValidN * Block, Block * Block, Block, 1>, pto::Layout::NZ>;
+    using GlobalDataOut = std::conditional_t<Block == 1, GlobalDataOutNd, GlobalDataOutNz>;
+
+    GlobalDataSrc0 src0Global(src0);
+    GlobalDataSrc1 src1Global(src1);
+    GlobalDataOut dstGlobal(out);
+
+    using TileMatAData = Tile<TileType::Mat, aType, M, K, BLayout::ColMajor, ValidM, ValidK, SLayout::RowMajor, 512>;
+    using TileMatBData = Tile<TileType::Mat, bType, K, N, BLayout::ColMajor, ValidK, ValidN, SLayout::RowMajor, 512>;
+
+    using LeftTile = TileLeft<aType, M, K, ValidM, ValidK>;
+    using RightTile = TileRight<bType, K, N, ValidK, ValidN>;
+    using AccTile = TileAcc<cType, M, N, ValidM, ValidN>;
+
+    using VecTileNd = Tile<TileType::Vec, cType, M, N, BLayout::RowMajor, ValidM, ValidN>;
+    using VecTileNz = Tile<TileType::Vec, cType, M, N, BLayout::ColMajor, ValidM, ValidN, SLayout::RowMajor>;
+    using VecTile = std::conditional_t<Block == 1, VecTileNd, VecTileNz>;
+
+    TileMatAData aMatTile;
+    TileMatBData bMatTile;
+    TASSIGN(aMatTile, 0x0);
+    TASSIGN(bMatTile, M * K * sizeof(aType));
+
+    LeftTile aTile;
+    RightTile bTile;
+    AccTile cTile;
+    VecTile dstTile;
+
+    TASSIGN(aTile, 0x0);
+    TASSIGN(bTile, 0x0);
+    TASSIGN(cTile, 0x0);
+    TASSIGN(dstTile, 0x0);
+
+    /******************************TLOAD*****************************/
+    Event<Op::TLOAD, Op::TMOV_M2L> evtLoad_MovL = TLOAD(aMatTile, src0Global);
+    Event<Op::TLOAD, Op::TMOV_M2R> evtLoad_MovR = TLOAD(bMatTile, src1Global);
+
+    /**************************TMOV**************************/
+    Event<Op::TMOV_M2L, Op::TMATMUL> evtMovL_Matmul = TMOV(aTile, aMatTile, evtLoad_MovL);
+    Event<Op::TMOV_M2R, Op::TMATMUL> evtMovR_Matmul = TMOV(bTile, bMatTile, evtLoad_MovR);
+
+    /****************************TMATMUL********************************/
+    Event<Op::TMATMUL, Op::TMOV_A2V> evtMatmul_Mov = TMATMUL(cTile, aTile, bTile, evtMovL_Matmul, evtMovR_Matmul);
+    /****************************TMOV ACC->VEC**************************/
+    Event<Op::TMOV_A2V, Op::TSTORE_VEC> evtMov_Store = TMOV(dstTile, cTile, evtMatmul_Mov);
+
+    /********************************TSTORE****************************/
+    TSTORE(dstGlobal, dstTile, evtMov_Store);
+}
+
 template <int32_t tilingKey>
 void launchTMovL12Bias(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *bias, void *stream)
 {
@@ -165,17 +228,22 @@ void launchTMovL12Fb(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *scalin
     }
 }
 
-// template void launchTMovL12Bias<1>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
-// template void launchTMovL12Bias<2>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
-// template void launchTMovL12Bias<3>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
+template <int32_t tilingKey>
+void launchTMovAcc2Vec(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream)
+{
+    if constexpr (tilingKey == 1) {
+        runTMovAcc2Vec<half, half, half, 64, 64, 64, 64, 64, 64><<<1, nullptr, stream>>>(
+            reinterpret_cast<half *>(out), reinterpret_cast<half *>(src0), reinterpret_cast<half *>(src1));
+    } else if constexpr (tilingKey == 2) {
+        runTMovAcc2Vec<half, half, half, 64, 64, 64, 64, 64, 64, 16><<<1, nullptr, stream>>>(
+            reinterpret_cast<half *>(out), reinterpret_cast<half *>(src0), reinterpret_cast<half *>(src1));
+    }
+}
+
 template void launchTMovL12Bias<4>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
 template void launchTMovL12Bias<5>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
-// template void launchTMovL12Bias<6>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
-// template void launchTMovL12Bias<7>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
-// template void launchTMovL12Bias<8>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
 
 template void launchTMovL12Fb<1>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
 template void launchTMovL12Fb<2>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
-// template void launchTMovL12Fb<3>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
-// template void launchTMovL12Fb<4>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
-// template void launchTMovL12Fb<5>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
+template void launchTMovAcc2Vec<1>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
+template void launchTMovAcc2Vec<2>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);

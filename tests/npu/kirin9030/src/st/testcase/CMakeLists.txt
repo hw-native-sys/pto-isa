@@ -149,6 +149,23 @@ set(ALL_TESTCASES
     tadd
     tpartadd
     tmov
+    tdivs
+    trsqrt
+    tadds
+    tmax
+    tpartmax
+    tpartmin
+    trowmax
+    tmul
+    tmov_acc2mat
+    tci
+    tdiv
+    texp
+    tfillpad
+    tmov_ub2l1
+    tmov_vect
+    tmuls
+    tsel
 )
 
 if((TEST_CASE IN_LIST ALL_TESTCASES) OR (TEST_CASE STREQUAL "all"))

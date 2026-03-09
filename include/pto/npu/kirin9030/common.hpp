@@ -71,54 +71,51 @@ struct RegTensor {
 template <typename SrcType, typename DstType>
 PTO_INTERNAL constexpr QuantMode_t GetCastPreQuantMode()
 {
-    if constexpr (std::is_same_v<DstType, half>) {
-        return QuantMode_t::F322F16;
-    }
     return QuantMode_t::NoQuant;
 }
 
 template <typename SrcType, typename DstType>
 PTO_INTERNAL constexpr QuantMode_t GetScalarPreQuantMode()
 {
-    QuantMode_t quantPre = QuantMode_t::NoQuant;
-    if constexpr (std::is_same_v<SrcType, half>) {
-        if constexpr (std::is_same_v<DstType, int8_t> || std::is_same_v<DstType, uint8_t>) {
-            quantPre = QuantMode_t::QF162B8_PRE;
+    if constexpr (std::is_same_v<SrcType, int32_t>) {
+        if constexpr (std::is_same_v<DstType, half>) {
+            return QuantMode_t::DEQF16;
         } else if constexpr (std::is_same_v<DstType, int16_t>) {
-            quantPre = QuantMode_t::QF162S16_PRE;
+            return QuantMode_t::DEQS16;
+        } else if constexpr (std::is_same_v<DstType, int8_t> || std::is_same_v<DstType, uint8_t>) {
+            return QuantMode_t::REQ8;
         }
-    } else if constexpr (std::is_same_v<SrcType, int32_t>) {
-        if constexpr ((std::is_same_v<DstType, int8_t>) || (std::is_same_v<DstType, uint8_t>)) {
-            quantPre = QuantMode_t::REQ8;
-        } else if constexpr (std::is_same_v<DstType, half>) {
-            quantPre = QuantMode_t::DEQF16;
-        } else if constexpr (std::is_same_v<DstType, int16_t>) {
-            quantPre = QuantMode_t::DEQS16;
+    } else if constexpr (std::is_same_v<SrcType, half>) {
+        if constexpr (std::is_same_v<DstType, int16_t>) {
+            return QuantMode_t::QF162S16_PRE;
+        } else if constexpr (std::is_same_v<DstType, int8_t> || std::is_same_v<DstType, uint8_t>) {
+            return QuantMode_t::QF162B8_PRE;
         }
     }
-    return quantPre;
+
+    return QuantMode_t::NoQuant;
 }
 
 template <typename SrcType, typename DstType>
 PTO_INTERNAL constexpr QuantMode_t GetVectorPreQuantMode()
 {
-    QuantMode_t quantPre = QuantMode_t::NoQuant;
-    if constexpr (std::is_same_v<SrcType, half>) {
-        if constexpr (std::is_same_v<DstType, int8_t> || std::is_same_v<DstType, uint8_t>) {
-            quantPre = QuantMode_t::VQF162B8_PRE;
+    if constexpr (std::is_same_v<SrcType, int32_t>) {
+        if constexpr (std::is_same_v<DstType, half>) {
+            return QuantMode_t::VDEQF16;
         } else if constexpr (std::is_same_v<DstType, int16_t>) {
-            quantPre = QuantMode_t::VQF162S16_PRE;
+            return QuantMode_t::VDEQS16;
+        } else if constexpr (std::is_same_v<DstType, int8_t> || std::is_same_v<DstType, uint8_t>) {
+            return QuantMode_t::VREQ8;
         }
-    } else if constexpr (std::is_same_v<SrcType, int32_t>) {
-        if constexpr ((std::is_same_v<DstType, int8_t>) || (std::is_same_v<DstType, uint8_t>)) {
-            quantPre = QuantMode_t::VREQ8;
-        } else if constexpr (std::is_same_v<DstType, half>) {
-            quantPre = QuantMode_t::VDEQF16;
-        } else if constexpr (std::is_same_v<DstType, int16_t>) {
-            quantPre = QuantMode_t::VDEQS16;
+    } else if constexpr (std::is_same_v<SrcType, half>) {
+        if constexpr (std::is_same_v<DstType, int16_t>) {
+            return QuantMode_t::VQF162S16_PRE;
+        } else if constexpr (std::is_same_v<DstType, int8_t> || std::is_same_v<DstType, uint8_t>) {
+            return QuantMode_t::VQF162B8_PRE;
         }
     }
-    return quantPre;
+
+    return QuantMode_t::NoQuant;
 }
 
 template <typename DstTileData, typename SrcTileData, typename DstType, typename SrcType, bool isQuant = false>
@@ -140,14 +137,11 @@ PTO_INTERNAL void CheckTMovAccValid()
                           "The output data type must be int8/uint8/half/int16/int32 when input is data type int32.");
         }
     } else {
-        if constexpr (std::is_same_v<SrcType, half>) {
-            static_assert(std::is_same_v<DstType, half> || std::is_same_v<DstType, int8_t> ||
-                              std::is_same_v<DstType, uint8_t> || std::is_same_v<DstType, int16_t>,
-                          "The output data type must be int8/uint8/half/int16 when input is data type half.");
-        } else if constexpr (std::is_same_v<SrcType, int32_t>) {
-            static_assert(std::is_same_v<DstType, int32_t>,
-                          "The output data type must be int32 when input is data type int32.");
-        }
+        static_assert(std::is_same_v<DstType, SrcType>,
+                      "The input data type must be consistent with the output data type when preQuantScalar is not "
+                      "configured");
+        static_assert(std::is_same_v<DstType, half> || std::is_same_v<DstType, int32_t>,
+                      "The data type must be half or int32 when preQuantScalar is not configured");
     }
     static_assert((DstTileData::isRowMajor && DstTileData::SFractal == SLayout::NoneBox) ||
                       (!DstTileData::isRowMajor && DstTileData::SFractal == SLayout::NoneBox) ||

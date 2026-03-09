@@ -64,7 +64,9 @@ void test_tsel()
     ReadFile(GetGoldenDir() + "/input0.bin", fileSize, src0Host, fileSize);
     ReadFile(GetGoldenDir() + "/input1.bin", fileSize, src1Host, fileSize);
     ReadFile(GetGoldenDir() + "/mask.bin", maskFileSize, maskHost, maskFileSize);
+    aclrtMemset(dstHost, fileSize, 0, fileSize);
 
+    aclrtMemcpy(dstDevice, fileSize, dstHost, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src0Device, fileSize, src0Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, fileSize, src1Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(maskDevice, maskFileSize, maskHost, maskFileSize, ACL_MEMCPY_HOST_TO_DEVICE);

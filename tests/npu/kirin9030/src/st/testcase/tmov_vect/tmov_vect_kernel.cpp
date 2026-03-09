@@ -16,33 +16,28 @@ template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
 __global__ AICORE void runTMOV(__gm__ T *out, __gm__ T *src)
 {
     using DynShapeDim5 = Shape<1, 1, 1, kGRows_, kGCols_>;
-    using DynStridDim5 = pto::Stride<1, 1, 1, kGCols_, 1>;
-    using DynShapeDim5 = Shape<1, 1, 1, kGRows_, kGCols_>;
+    using DynStridDim5 = pto::Stride<kGRows_ * kGCols_, kGRows_ * kGCols_, kGRows_ * kGCols_, kGCols_, 1>;
     using GlobalData = GlobalTensor<T, DynShapeDim5, DynStridDim5>;
-    using SrcTileData = Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>;
-    using DstTileData = Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>;
-
-    DstTileData dstTile(kTRows_, kTCols_);
-    SrcTileData srcTile(kTRows_, kTCols_);
-
-    TASSIGN(dstTile, 0x20000 + 0x400 * block_idx);
-    TASSIGN(srcTile, 0x0 + 0x400 * block_idx);
-
     GlobalData dstGlobal(out);
     GlobalData srcGlobal(src);
+
+    using TileData = Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, kTRows_, kTCols_>;
+    TileData dstTile;
+    TileData srcTile;
+    TASSIGN(srcTile, 0x0);
+    TASSIGN(dstTile, kTRows_ * kTCols_ * sizeof(T));
 
     TLOAD(srcTile, srcGlobal);
 
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 
-    TMOV<DstTileData, SrcTileData>(dstTile, srcTile);
+    TMOV(dstTile, srcTile);
 
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
 
     TSTORE(dstGlobal, dstTile);
-    out = dstGlobal.data();
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>

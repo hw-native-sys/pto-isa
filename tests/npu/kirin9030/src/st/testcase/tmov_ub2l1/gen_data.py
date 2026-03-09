@@ -28,7 +28,7 @@ def gen_golden_data(param):
     c0_size = 16
     if test_type == np.int8:
         c0_size = 32
-    elif test_type == np.float32:
+    elif test_type == np.int32:
         c0_size = 8
     output_arr = input_arr.reshape(int(param.valid_rows / nz_block_row), nz_block_row,
         int(param.valid_cols / c0_size), c0_size).transpose(2, 0, 1, 3).astype(test_type)
@@ -61,12 +61,12 @@ if __name__ == "__main__":
     case_params_list = [
         TmovUb2L1Params(np.float16, 16, 32, 16, 32),
         TmovUb2L1Params(np.float16, 64, 256, 64, 256),
-        TmovUb2L1Params(np.float32, 48, 72, 48, 72),
-        TmovUb2L1Params(np.float32, 96, 8, 96, 8),
+        TmovUb2L1Params(np.int32, 48, 72, 48, 72),
+        TmovUb2L1Params(np.int32, 96, 8, 96, 8),
         TmovUb2L1Params(np.int8, 32, 512, 32, 512),
         TmovUb2L1Params(np.int8, 64, 96, 64, 96),
         TmovUb2L1Params(np.float16, 64, 64, 48, 48, 16, 16),
-        TmovUb2L1Params(np.float32, 128, 128, 64, 64, 64, 64),
+        TmovUb2L1Params(np.int32, 128, 128, 64, 64, 64, 64),
         TmovUb2L1Params(np.int8, 256, 256, 32, 32, 224, 224),
     ]
 

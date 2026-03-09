@@ -59,9 +59,10 @@ __global__ AICORE void runTPartMin(__gm__ T *out, __gm__ T *src0, __gm__ T *src1
 template <typename T, int dstVR, int dstVC, int src0VR, int src0VC, int src1VR, int src1VC, bool isHalf = false>
 void LaunchTPartMin(T *out, T *src0, T *src1, void *stream)
 {
-    constexpr int alignedSrc0VC = PTO_CEIL(src0VC, BLOCK_BYTE_SIZE / sizeof(T));
-    constexpr int alignedSrc1VC = PTO_CEIL(src1VC, BLOCK_BYTE_SIZE / sizeof(T));
-    constexpr int alignedDstVC = PTO_CEIL(dstVC, BLOCK_BYTE_SIZE / sizeof(T));
+    constexpr int blockSize = 32;
+    constexpr int alignedSrc0VC = PTO_CEIL(src0VC, blockSize / sizeof(T));
+    constexpr int alignedSrc1VC = PTO_CEIL(src1VC, blockSize / sizeof(T));
+    constexpr int alignedDstVC = PTO_CEIL(dstVC, blockSize / sizeof(T));
     if constexpr (std::is_same_v<T, aclFloat16> && isHalf == true) {
         runTPartMin<half, dstVR, dstVC, src0VR, src0VC, src1VR, src1VC, dstVR, alignedDstVC, src0VR, alignedSrc0VC,
                     src1VR, alignedSrc1VC><<<1, nullptr, stream>>>((half *)out, (half *)src0, (half *)src1);

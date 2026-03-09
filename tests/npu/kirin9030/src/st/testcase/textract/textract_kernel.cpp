@@ -50,7 +50,7 @@ AICORE inline void runTEXTRACT(__gm__ T *out, __gm__ U *src0, __gm__ S *src1)
     TileMatAData aMatTile;
     TileMatBData bMatTile;
     TASSIGN(aMatTile, 0x0);
-    TASSIGN(bMatTile, 0x10000);
+    TASSIGN(bMatTile, M * K * sizeof(U));
 
     LeftTile aTile;
     RightTile bTile;
@@ -121,7 +121,7 @@ AICORE inline void runTEXTRACT_DYNAMIC(__gm__ T *out, __gm__ U *src0, __gm__ S *
     TileMatAData aMatTile(m, k);
     TileMatBData bMatTile(k, n);
     TASSIGN(aMatTile, 0x0);
-    TASSIGN(bMatTile, 0x10000);
+    TASSIGN(bMatTile, M * K * sizeof(U));
 
     int validM = m - indexM;
     int validK = k - indexK;

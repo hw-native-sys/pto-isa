@@ -21,6 +21,9 @@ void launchTMovL12Bias(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2
 template <int32_t tilingKey>
 void launchTMovL12Fb(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
 
+template <int32_t tilingKey>
+void launchTMovAcc2Vec(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
+
 class TMOVTest : public testing::Test {
 protected:
     void SetUp() override
@@ -168,6 +171,64 @@ void tMovL12Fb(uint32_t m, uint32_t n, uint32_t k)
     EXPECT_TRUE(ret);
 }
 
+template <typename AType, typename BType, typename CType, int32_t tilingKey>
+void tMovAcc2Vec(uint32_t m, uint32_t n, uint32_t k)
+{
+    size_t aFileSize = m * k * sizeof(AType);
+    size_t bFileSize = k * n * sizeof(BType);
+    size_t cFileSize = m * n * sizeof(CType);
+
+    aclInit(nullptr);
+    aclrtSetDevice(0);
+    aclrtStream stream;
+    aclrtCreateStream(&stream);
+
+    uint8_t *dstHost, *src0Host, *src1Host;
+    uint8_t *dstDevice, *src0Device, *src1Device;
+
+    aclrtMallocHost((void **)(&dstHost), cFileSize);
+    aclrtMallocHost((void **)(&src0Host), aFileSize);
+    aclrtMallocHost((void **)(&src1Host), bFileSize);
+
+    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void **)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void **)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+
+    ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
+    ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
+    aclrtMemset(dstHost, cFileSize, 0, cFileSize);
+
+    aclrtMemcpy(dstDevice, cFileSize, dstHost, cFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(src0Device, aFileSize, src0Host, aFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(src1Device, bFileSize, src1Host, bFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    launchTMovAcc2Vec<tilingKey>(dstDevice, src0Device, src1Device, stream);
+
+    aclrtSynchronizeStream(stream);
+    aclrtMemcpy(dstHost, cFileSize, dstDevice, cFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
+
+    WriteFile(GetGoldenDir() + "/output_z.bin", dstHost, cFileSize);
+
+    aclrtFree(dstDevice);
+    aclrtFree(src0Device);
+    aclrtFree(src1Device);
+
+    aclrtFreeHost(dstHost);
+    aclrtFreeHost(src0Host);
+    aclrtFreeHost(src1Host);
+    aclrtDestroyStream(stream);
+    aclrtResetDevice(0);
+    aclFinalize();
+
+    std::vector<CType> golden(cFileSize);
+    std::vector<CType> devFinal(cFileSize);
+    ReadFile(GetGoldenDir() + "/golden.bin", cFileSize, golden.data(), cFileSize);
+    ReadFile(GetGoldenDir() + "/output_z.bin", cFileSize, devFinal.data(), cFileSize);
+
+    bool ret = ResultCmp(golden, devFinal, 0.001f);
+
+    EXPECT_TRUE(ret);
+}
+
 TEST_F(TMOVTest, case_bias4)
 {
     constexpr uint32_t M = 128;
@@ -198,4 +259,20 @@ TEST_F(TMOVTest, case_fixpipe2)
     constexpr uint32_t N = 64;
     constexpr uint32_t K = 32;
     tMovL12Fb<int8_t, int8_t, uint16_t, uint64_t, 2>(M, N, K);
+}
+
+TEST_F(TMOVTest, case_acc2vec_Nz2Nd)
+{
+    constexpr uint32_t M = 64;
+    constexpr uint32_t N = 64;
+    constexpr uint32_t K = 64;
+    tMovAcc2Vec<aclFloat16, aclFloat16, aclFloat16, 1>(M, N, K);
+}
+
+TEST_F(TMOVTest, case_acc2vec_Nz2Nz)
+{
+    constexpr uint32_t M = 64;
+    constexpr uint32_t N = 64;
+    constexpr uint32_t K = 64;
+    tMovAcc2Vec<aclFloat16, aclFloat16, aclFloat16, 2>(M, N, K);
 }

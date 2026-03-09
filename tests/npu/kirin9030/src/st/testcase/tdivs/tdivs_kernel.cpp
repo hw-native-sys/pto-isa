@@ -27,12 +27,37 @@ PTO_INTERNAL void runTDivS(__gm__ T *out, __gm__ T *src, T scalar)
     srcTileData srcTile(validRow, validCol);
     dstTileData dstTile(validRow, validCol);
     TASSIGN(srcTile, 0x0);
-    TASSIGN(dstTile, 0x26000);
+    TASSIGN(dstTile, row * col * sizeof(T));
     TLOAD(dstTile, dstGlobal);
     TLOAD(srcTile, srcGlobal);
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     TDIVS(dstTile, srcTile, scalar);
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    TSTORE(dstGlobal, dstTile);
+    out = dstGlobal.data();
+}
+
+template <typename T, int dstTileRow, int dstTileCol, int row, int validRow, int col, int validCol>
+PTO_INTERNAL void runTSDiv(__gm__ T *out, __gm__ T *src, T scalar)
+{
+    using DynDim2Shape = Shape<1, 1, 1, -1, -1>;
+    using DynDim2Stride = pto::Stride<1, 1, -1, -1, 1>;
+    using GlobalData = GlobalTensor<T, DynDim2Shape, DynDim2Stride>;
+    GlobalData srcGlobal(src, DynDim2Shape(validRow, validCol), DynDim2Stride(row, col));
+    GlobalData dstGlobal(out, DynDim2Shape(validRow, validCol), DynDim2Stride(dstTileRow, dstTileCol));
+    using srcTileData = Tile<TileType::Vec, T, row, col, BLayout::RowMajor, -1, -1>;
+    using dstTileData = Tile<TileType::Vec, T, dstTileRow, dstTileCol, BLayout::RowMajor, -1, -1>;
+    srcTileData srcTile(validRow, validCol);
+    dstTileData dstTile(validRow, validCol);
+    TASSIGN(srcTile, 0x0);
+    TASSIGN(dstTile, row * col * sizeof(T));
+    TLOAD(dstTile, dstGlobal);
+    TLOAD(srcTile, srcGlobal);
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    TDIVS(dstTile, scalar, srcTile);
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     TSTORE(dstGlobal, dstTile);
@@ -63,6 +88,30 @@ extern "C" __global__ AICORE void launchTDIVSCase6(__gm__ float *out, __gm__ flo
 {
     runTDivS<float, 256, 32, 256, 256, 16, 16>(out, src, scalar);
 }
+extern "C" __global__ AICORE void launchTDIVSCase7(__gm__ float *out, __gm__ float *src, float scalar)
+{
+    runTSDiv<float, 32, 128, 32, 32, 64, 64>(out, src, scalar);
+}
+extern "C" __global__ AICORE void launchTDIVSCase8(__gm__ aclFloat16 *out, __gm__ aclFloat16 *src, float scalar)
+{
+    runTSDiv<half, 63, 128, 63, 63, 64, 64>((__gm__ half *)out, (__gm__ half *)src, (half)scalar);
+}
+extern "C" __global__ AICORE void launchTDIVSCase9(__gm__ int32_t *out, __gm__ int32_t *src, int32_t scalar)
+{
+    runTSDiv<int32_t, 31, 256, 31, 31, 128, 128>(out, src, scalar);
+}
+extern "C" __global__ AICORE void launchTDIVSCase10(__gm__ int16_t *out, __gm__ int16_t *src, int16_t scalar)
+{
+    runTSDiv<int16_t, 15, 192, 15, 15, 192, 192>(out, src, scalar);
+}
+extern "C" __global__ AICORE void launchTDIVSCase11(__gm__ float *out, __gm__ float *src, float scalar)
+{
+    runTSDiv<float, 7, 512, 7, 7, 448, 448>(out, src, scalar);
+}
+extern "C" __global__ AICORE void launchTDIVSCase12(__gm__ float *out, __gm__ float *src, float scalar)
+{
+    runTSDiv<float, 256, 32, 256, 256, 16, 16>(out, src, scalar);
+}
 
 template <uint32_t caseId>
 void launchTDIVSTestCase(void *out, void *src, float scalar, aclrtStream stream)
@@ -92,6 +141,30 @@ void launchTDIVSTestCase(void *out, void *src, float scalar, aclrtStream stream)
             launchTDIVSCase6<<<1, nullptr, stream>>>((float *)out, (float *)src, scalar);
             break;
         }
+        case 7: {
+            launchTDIVSCase7<<<1, nullptr, stream>>>((float *)out, (float *)src, scalar);
+            break;
+        }
+        case 8: {
+            launchTDIVSCase8<<<1, nullptr, stream>>>((aclFloat16 *)out, (aclFloat16 *)src, scalar);
+            break;
+        }
+        case 9: {
+            launchTDIVSCase9<<<1, nullptr, stream>>>((int32_t *)out, (int32_t *)src, scalar);
+            break;
+        }
+        case 10: {
+            launchTDIVSCase10<<<1, nullptr, stream>>>((int16_t *)out, (int16_t *)src, scalar);
+            break;
+        }
+        case 11: {
+            launchTDIVSCase11<<<1, nullptr, stream>>>((float *)out, (float *)src, scalar);
+            break;
+        }
+        case 12: {
+            launchTDIVSCase12<<<1, nullptr, stream>>>((float *)out, (float *)src, scalar);
+            break;
+        }
         default: {
         }
     }
@@ -103,3 +176,9 @@ template void launchTDIVSTestCase<3>(void *out, void *src, float scalar, aclrtSt
 template void launchTDIVSTestCase<4>(void *out, void *src, float scalar, aclrtStream stream);
 template void launchTDIVSTestCase<5>(void *out, void *src, float scalar, aclrtStream stream);
 template void launchTDIVSTestCase<6>(void *out, void *src, float scalar, aclrtStream stream);
+template void launchTDIVSTestCase<7>(void *out, void *src, float scalar, aclrtStream stream);
+template void launchTDIVSTestCase<8>(void *out, void *src, float scalar, aclrtStream stream);
+template void launchTDIVSTestCase<9>(void *out, void *src, float scalar, aclrtStream stream);
+template void launchTDIVSTestCase<10>(void *out, void *src, float scalar, aclrtStream stream);
+template void launchTDIVSTestCase<11>(void *out, void *src, float scalar, aclrtStream stream);
+template void launchTDIVSTestCase<12>(void *out, void *src, float scalar, aclrtStream stream);

@@ -12,6 +12,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define PTO_COMM_INST_HPP
 
 #include "pto/comm/comm_types.hpp"
+#if !defined(PTO_NPU_ARCH_KIRIN9030) && !defined(PTO_NPU_ARCH_KIRINX90)
 #include "pto/comm/pto_comm_instr_impl.hpp"
 #include "pto/common/event.hpp"
 
@@ -250,4 +251,5 @@ PTO_INST RecordEvent TREDUCE(ParallelGroupType &parallelGroup, GlobalDstData &ds
 } // namespace comm
 } // namespace pto
 
+#endif // !defined(PTO_NPU_ARCH_KIRIN9030) && !defined(PTO_NPU_ARCH_KIRINX90)
 #endif // PTO_COMM_INST_HPP

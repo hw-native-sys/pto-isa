@@ -26,10 +26,10 @@ __global__ AICORE void runTSel(__gm__ T *out, __gm__ uint8_t *mask, __gm__ T *sr
     constexpr unsigned maskVCol = (ValidCols + 7) / 8;
 
     using DynShapeDim5 = Shape<1, 1, 1, ValidRows, ValidCols>;
-    using DynStridDim5 = pto::Stride<1, 1, 1, ValidCols, 1>;
+    using DynStridDim5 = pto::Stride<Rows * Cols, Rows * Cols, Rows * Cols, Cols, 1>;
 
     using DynShapeDim5m = Shape<1, 1, 1, maskVRow, maskVCol>;
-    using DynStridDim5m = pto::Stride<1, 1, 1, maskVCol, 1>;
+    using DynStridDim5m = pto::Stride<maskVRow * maskVCol, maskVRow * maskVCol, maskVRow * maskVCol, maskVCol, 1>;
 
     using GlobalData = GlobalTensor<T, DynShapeDim5, DynStridDim5>;
     using TileData = Tile<TileType::Vec, T, Rows, Cols, BLayout::RowMajor, -1, -1>;

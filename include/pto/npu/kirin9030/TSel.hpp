@@ -1,5 +1,5 @@
 /**
-Copyright (c) 2026 Huawei Technologies Co., Ltd.
+Copyright (c) 2025 Huawei Technologies Co., Ltd.
 This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 CANN Open Software License Agreement Version 2.0 (the "License").
 Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -15,150 +15,118 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "utils.hpp"
 
 namespace pto {
-
-#define TILE_PTRS(dst, selmask, src0, src1)                                                                        \
-    using T = typename TileData::DType;                                                                            \
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);                                                    \
-    __ubuf__ typename MaskTile::DType *maskPtr = (__ubuf__ typename MaskTile::DType *)__cce_get_tile_ptr(selmask); \
-    __ubuf__ T *src0Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src0);                                                  \
-    __ubuf__ T *src1Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src1)
-
-template <typename T, unsigned elementsPerRepeat, uint16_t unRollConstant, unsigned rowStride, unsigned maskStride>
-PTO_INTERNAL void TSelHead(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ubuf__ T *src1Ptr, __ubuf__ uint8_t *maskPtr,
-                           uint16_t pairedRepeatTimes, unsigned validRow, unsigned validCol)
+template <typename T, typename TileT, typename MaskT, int32_t dstRowStride, int32_t maskRowStride,
+          int32_t src0RowStride, int32_t src1RowStride, unsigned nRepeatElem>
+__tf__ PTO_INTERNAL void TSel_b32(TileT __out__ dstData, MaskT __in__ maskData, TileT __in__ src0Data,
+                                  TileT __in__ src1Data, unsigned validRow, unsigned validCol)
 {
-    MaskReg preg, selMask0, selMask1, tmpMask0;
-    MaskReg tmpMask1 = pset_b16(PAT_ALL);
-    RegTensor<T> vreg0, vreg1, vreg2, vreg3, dreg0, dreg1, dreg2;
-
-    constexpr auto distValue =
-        std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
-
-    for (uint16_t i = 0; i < (uint16_t)(validRow); ++i) {
-        for (uint16_t j = 0; j < (uint16_t)(pairedRepeatTimes); ++j) {
-            uint16_t repeatIdx = j * unRollConstant;
-            uint32_t colOffset0 = repeatIdx * elementsPerRepeat;
-            uint32_t colOffset1 = colOffset0 + elementsPerRepeat;
-
-            vlds(vreg0, src0Ptr, (int32_t)(i * rowStride + colOffset0), NORM);
-            vlds(vreg1, src1Ptr, (int32_t)(i * rowStride + colOffset0), NORM);
-            plds(tmpMask0, (__ubuf__ uint32_t *)maskPtr, i * maskStride + repeatIdx * 8, US);
-            pintlv_b16(selMask0, selMask1, tmpMask0, tmpMask1);
-
-            vsel(dreg0, vreg0, vreg1, selMask0);
-
-            uint32_t count0 =
-                ((colOffset0 + elementsPerRepeat) >= validCol ? validCol - colOffset0 : elementsPerRepeat);
-            preg = CreatePredicate<T>(count0);
-
-            vsts(dreg0, dstPtr, (int32_t)(i * rowStride + colOffset0), distValue, preg);
-
-            vlds(vreg2, src0Ptr, (int32_t)(i * rowStride + colOffset1), NORM);
-            vlds(vreg3, src1Ptr, (int32_t)(i * rowStride + colOffset1), NORM);
-            vsel(dreg1, vreg2, vreg3, selMask1);
-            uint32_t count1 =
-                ((colOffset1 + elementsPerRepeat) >= validCol ? validCol - colOffset1 : elementsPerRepeat);
-            preg = CreatePredicate<T>(count1);
-            vsts(dreg1, dstPtr, (int32_t)(i * rowStride + colOffset1), distValue, preg);
-        }
-    }
-}
-
-template <typename T, unsigned elementsPerRepeat, unsigned rowStride, unsigned maskStride>
-PTO_INTERNAL void TSelTail(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ubuf__ T *src1Ptr, __ubuf__ uint8_t *maskPtr,
-                           uint16_t repeatIdx, uint16_t remainRepeat, unsigned validRow, unsigned validCol)
-{
-    MaskReg preg, selMask2;
-    MaskReg tmpMask1 = pset_b16(PAT_ALL);
-    RegTensor<T> vreg4, vreg5, dreg2;
-    constexpr auto distValue =
-        std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
-    for (uint16_t i = 0; i < (uint16_t)(validRow); ++i) {
-        for (uint16_t j = 0; j < (uint16_t)(remainRepeat); ++j) {
-            uint32_t colOffset = (repeatIdx + j) * elementsPerRepeat;
-            uint32_t count = (validCol > colOffset) ? (validCol - colOffset) : 0;
-            preg = CreatePredicate<T>(count);
-
-            plds(selMask2, (__ubuf__ uint32_t *)maskPtr, i * maskStride + (repeatIdx + j) * 8, US);
-            punpack(selMask2, selMask2, LOWER);
-
-            vlds(vreg4, src0Ptr, (int32_t)(i * rowStride + colOffset), NORM);
-            vlds(vreg5, src1Ptr, (int32_t)(i * rowStride + colOffset), NORM);
-            vsel(dreg2, vreg4, vreg5, selMask2);
-            vsts(dreg2, dstPtr, (int32_t)(i * rowStride + colOffset), distValue, preg);
-        }
-    }
-}
-
-template <typename TileData, typename MaskTile, unsigned elementsPerRepeat, unsigned rowStride, unsigned maskStride>
-__tf__ PTO_INTERNAL void TSel_b32(typename TileData::TileDType __out__ dst, typename MaskTile::TileDType __in__ selmask,
-                                  typename TileData::TileDType __in__ src0, typename TileData::TileDType __in__ src1,
-                                  unsigned validRow, unsigned validCol)
-{
-    TILE_PTRS(dst, selmask, src0, src1);
-    uint16_t repeatTimes = CeilDivision(validCol, elementsPerRepeat);
-    constexpr uint32_t unRollConstant = 2;
-    uint16_t pairedRepeatTimes = repeatTimes / unRollConstant;
-    uint16_t remainRepeat = repeatTimes % unRollConstant;
-    uint16_t repeatIdx = pairedRepeatTimes * unRollConstant;
-
+    __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
+    __ubuf__ T *src0 = (__ubuf__ T *)__cce_get_tile_ptr(src0Data);
+    __ubuf__ T *src1 = (__ubuf__ T *)__cce_get_tile_ptr(src1Data);
+    __ubuf__ uint8_t *mask = (__ubuf__ uint8_t *)__cce_get_tile_ptr(maskData);
+    uint16_t loopTimes = CeilDivision(validCol, nRepeatElem) / 2;
     __VEC_SCOPE__
     {
-        TSelHead<T, elementsPerRepeat, unRollConstant, rowStride, maskStride>(dstPtr, src0Ptr, src1Ptr, maskPtr,
-                                                                              pairedRepeatTimes, validRow, validCol);
-        TSelTail<T, elementsPerRepeat, rowStride, maskStride>(dstPtr, src0Ptr, src1Ptr, maskPtr, repeatIdx,
-                                                              remainRepeat, validRow, validCol);
-    } // end of vf
-}
-
-template <typename TileData, typename MaskTile, unsigned elementsPerRepeat, unsigned rowStride, unsigned maskStride>
-__tf__ PTO_INTERNAL void TSel_b16_8(typename TileData::TileDType __out__ dst,
-                                    typename MaskTile::TileDType __in__ selmask,
-                                    typename TileData::TileDType __in__ src0, typename TileData::TileDType __in__ src1,
-                                    unsigned validRow, unsigned validCol)
-{
-    TILE_PTRS(dst, selmask, src0, src1);
-    uint16_t repeatTimes = CeilDivision(validCol, elementsPerRepeat);
-    __VEC_SCOPE__
-    {
-        MaskReg preg, maskreg;
-        RegTensor<T> vreg0, vreg1, vreg2;
+        MaskReg pReg, selMask0, selMask1, selMask2, tmpMask;
+        MaskReg tmpMask1 = pset_b16(PAT_ALL);
+        RegTensor<T> vreg0, vreg1, vreg2, vreg3, dreg0, dreg1;
+        unsigned sReg, colOffset0, colOffset1;
         constexpr auto distValue =
             std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
         for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
-            for (uint16_t j = 0; j < (uint16_t)repeatTimes; ++j) {
-                vlds(vreg0, src0Ptr, i * rowStride + j * elementsPerRepeat, NORM);
-                vlds(vreg1, src1Ptr, i * rowStride + j * elementsPerRepeat, NORM);
-                if (sizeof(T) == 2) {
-                    plds(maskreg, (__ubuf__ uint32_t *)maskPtr, i * maskStride + j * 16, US);
-                } else {
-                    plds(maskreg, (__ubuf__ uint32_t *)maskPtr, i * maskStride + j * 16, NORM);
-                }
-                uint32_t count =
-                    ((j + 1) * elementsPerRepeat >= validCol ? validCol - j * elementsPerRepeat : elementsPerRepeat);
-                preg = CreatePredicate<T>(count);
-                vsel(vreg2, vreg0, vreg1, maskreg);
-                vsts(vreg2, dstPtr, i * rowStride + j * elementsPerRepeat, distValue, preg);
+            sReg = validCol;
+            for (uint16_t j = 0; j < (uint16_t)loopTimes; ++j) {
+                colOffset0 = 2 * j * nRepeatElem;
+                colOffset1 = (2 * j + 1) * nRepeatElem;
+                plds(tmpMask, (__ubuf__ uint32_t *)mask, i * maskRowStride + 2 * 8 * j, US);
+                pintlv_b16(selMask0, selMask1, tmpMask, tmpMask1);
+                vlds(vreg0, src0, (int32_t)(i * src0RowStride + colOffset0), NORM);
+                vlds(vreg1, src1, (int32_t)(i * src1RowStride + colOffset0), NORM);
+                vlds(vreg2, src0, (int32_t)(i * src0RowStride + colOffset1), NORM);
+                vlds(vreg3, src1, (int32_t)(i * src1RowStride + colOffset1), NORM);
+                vsel(dreg0, vreg0, vreg1, selMask0);
+                vsel(dreg1, vreg2, vreg3, selMask1);
+                pReg = CreatePredicate<T>(sReg);
+                vsts(dreg0, dst, (int32_t)(i * dstRowStride + colOffset0), distValue, pReg);
+                pReg = CreatePredicate<T>(sReg);
+                vsts(dreg1, dst, (int32_t)(i * dstRowStride + colOffset1), distValue, pReg);
+            }
+
+            if (sReg > 0) {
+                colOffset0 = 2 * loopTimes * nRepeatElem;
+                plds(tmpMask, (__ubuf__ uint32_t *)mask, i * maskRowStride + 2 * 8 * loopTimes, US);
+                punpack(selMask0, tmpMask, LOWER);
+                vlds(vreg0, src0, (int32_t)(i * src0RowStride + colOffset0), NORM);
+                vlds(vreg1, src1, (int32_t)(i * src1RowStride + colOffset0), NORM);
+                vsel(dreg0, vreg0, vreg1, selMask0);
+                pReg = CreatePredicate<T>(sReg);
+                vsts(dreg0, dst, (int32_t)(i * dstRowStride + colOffset0), distValue, pReg);
             }
         }
     } // end of vf
 }
 
-template <typename TileData, typename MaskTile>
-PTO_INTERNAL void TSEL_IMPL(TileData &dst, MaskTile &selMask, TileData &src0, TileData &src1)
+template <typename DstTile, typename MaskTile, typename Src0Tile, typename Src1Tile, unsigned nRepeatElem>
+__tf__ PTO_INTERNAL void TSel_b16_8(typename DstTile::TileDType __out__ dstData,
+                                    typename MaskTile::TileDType __in__ selmask,
+                                    typename Src0Tile::TileDType __in__ src0Data,
+                                    typename Src1Tile::TileDType __in__ src1Data, unsigned validRow, unsigned validCol)
 {
-    static_assert(TileData::isRowMajor, "Fix: TSEL has not supported layout type.");
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(typename TileData::DType);
+    using T = typename DstTile::DType;
+    __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
+    __ubuf__ T *src0 = (__ubuf__ T *)__cce_get_tile_ptr(src0Data);
+    __ubuf__ T *src1 = (__ubuf__ T *)__cce_get_tile_ptr(src1Data);
+    __ubuf__ uint32_t *mask = (__ubuf__ uint32_t *)__cce_get_tile_ptr(selmask);
+    constexpr unsigned dstRowStride = DstTile::RowStride;
+    constexpr unsigned src0RowStride = Src0Tile::RowStride;
+    constexpr unsigned src1RowStride = Src1Tile::RowStride;
+    constexpr unsigned maskRowStride = MaskTile::RowStride;
+    uint16_t repeatTimes = CeilDivision(validCol, nRepeatElem);
+
+    __VEC_SCOPE__
+    {
+        MaskReg pReg, maskReg;
+        RegTensor<T> vreg0, vreg1, vreg2;
+        unsigned sReg;
+        constexpr auto distValue =
+            std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
+        constexpr auto pldsMode = std::integral_constant < ::Dist,
+                       (sizeof(T) == 2) ? Dist::DIST_US : Dist::DIST_NORM > ();
+        for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
+            sReg = validCol;
+            for (uint16_t j = 0; j < (uint16_t)repeatTimes; ++j) {
+                vlds(vreg0, src0, i * src0RowStride + j * nRepeatElem, NORM);
+                vlds(vreg1, src1, i * src1RowStride + j * nRepeatElem, NORM);
+                plds(maskReg, mask, i * maskRowStride + j * 16, pldsMode);
+                pReg = CreatePredicate<T>(sReg);
+                vsel(vreg2, vreg0, vreg1, maskReg);
+                vsts(vreg2, dst, i * dstRowStride + j * nRepeatElem, distValue, pReg);
+            }
+        }
+    } // end of vf
+}
+
+template <typename DstTile, typename MaskTile, typename Src0Tile, typename Src1Tile>
+PTO_INTERNAL void TSEL_IMPL(DstTile &dst, MaskTile &selMask, Src0Tile &src0, Src1Tile &src1)
+{
+    static_assert(sizeof(typename DstTile::DType) == 4 || sizeof(typename DstTile::DType) == 2 ||
+                      sizeof(typename DstTile::DType) == 1,
+                  "Fix: TSEL only support 8B, 16B and 32B data type.");
+    static_assert(std::is_same_v<typename DstTile::DType, typename Src0Tile::DType> ||
+                      std::is_same_v<typename DstTile::DType, typename Src1Tile::DType>,
+                  "Fix: TSEL only support same data type between dst, src0, and src1.");
+    static_assert(DstTile::isRowMajor && Src0Tile::isRowMajor && Src1Tile::isRowMajor,
+                  "Fix: TSEL only support RowMajor layout type.");
+    constexpr unsigned nRepeatElem = CCE_VL / sizeof(typename DstTile::DType);
     unsigned validRow = dst.GetValidRow();
     unsigned validCol = dst.GetValidCol();
-    constexpr unsigned rowStride = TileData::RowStride;
-    constexpr unsigned maskStride = MaskTile::RowStride;
-    if (sizeof(typename TileData::DType) == 4) {
-        TSel_b32<TileData, MaskTile, elementsPerRepeat, rowStride, maskStride>(dst.data(), selMask.data(), src0.data(),
-                                                                               src1.data(), validRow, validCol);
-    } else {
-        TSel_b16_8<TileData, MaskTile, elementsPerRepeat, rowStride, maskStride>(
+    if constexpr (sizeof(typename DstTile::DType) == 4) {
+        TSel_b32<typename DstTile::DType, typename DstTile::TileDType, typename MaskTile::TileDType, DstTile::RowStride,
+                 MaskTile::RowStride, Src0Tile::RowStride, Src1Tile::RowStride, nRepeatElem>(
             dst.data(), selMask.data(), src0.data(), src1.data(), validRow, validCol);
+    } else {
+        TSel_b16_8<DstTile, MaskTile, Src0Tile, Src1Tile, nRepeatElem>(dst.data(), selMask.data(), src0.data(),
+                                                                       src1.data(), validRow, validCol);
     }
 }
 } // namespace pto
