@@ -11,10 +11,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef MSCATTER_HPP
 #define MSCATTER_HPP
 
-#ifndef __aicore__
-#define __aicore__ [aicore]
-#endif
-
 #include <pto/common/utils.hpp>
 #include <pto/common/constants.hpp>
 #include "common.hpp"
@@ -90,7 +86,7 @@ AICORE PTO_INLINE void scatter_write(__gm__ T *ptr, T val)
 // Semantics: table[indices[i], j] = src[i, j]
 template <typename T, typename TIdx, ScatterAtomicOp Atomic, ScatterOOB Mode, uint32_t NumRows, uint32_t RowWidth,
           uint32_t TableRows>
-__simt_vf__ __aicore__ LAUNCH_BOUND(1024) PTO_INLINE
+AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE
     void simt_mscatter_row_kernel(__gm__ T *__restrict__ table, __ubuf__ const T *__restrict__ src,
                                   __ubuf__ const TIdx *__restrict__ indices)
 {
@@ -120,7 +116,7 @@ __simt_vf__ __aicore__ LAUNCH_BOUND(1024) PTO_INLINE
 // Semantics: table[indices[i, j]] = src[i, j]
 template <typename T, typename TIdx, ScatterAtomicOp Atomic, ScatterOOB Mode, uint32_t NumRows, uint32_t NumCols,
           uint32_t TableSize>
-__simt_vf__ __aicore__ LAUNCH_BOUND(1024) PTO_INLINE
+AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE
     void simt_mscatter_elem_kernel(__gm__ T *__restrict__ table, __ubuf__ const T *__restrict__ src,
                                    __ubuf__ const TIdx *__restrict__ indices)
 {

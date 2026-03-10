@@ -11,10 +11,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef MGATHER_HPP
 #define MGATHER_HPP
 
-#ifndef __aicore__
-#define __aicore__ [aicore]
-#endif
-
 #include <pto/common/utils.hpp>
 #include <pto/common/constants.hpp>
 #include "common.hpp"
@@ -56,7 +52,7 @@ AICORE PTO_INLINE uint32_t apply_gather_oob(uint32_t idx, uint32_t tableSize)
 //   - tx (lane): Column index within row (strided for wide rows)
 //   - ty (warp): Row index (strided for many rows)
 template <typename T, typename TIdx, GatherOOB Mode, uint32_t NumRows, uint32_t RowWidth, uint32_t TableRows>
-__simt_vf__ __aicore__ LAUNCH_BOUND(1024) PTO_INLINE
+AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE
     void simt_mgather_row_kernel(__ubuf__ T *__restrict__ dst, __gm__ const T *__restrict__ table,
                                  __ubuf__ const TIdx *__restrict__ indices)
 {
@@ -91,7 +87,7 @@ __simt_vf__ __aicore__ LAUNCH_BOUND(1024) PTO_INLINE
 // Semantics: dst[i, j] = table[indices[i, j]]
 // Thread mapping: Linearized element index
 template <typename T, typename TIdx, GatherOOB Mode, uint32_t NumRows, uint32_t NumCols, uint32_t TableSize>
-__simt_vf__ __aicore__ LAUNCH_BOUND(1024) PTO_INLINE
+AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE
     void simt_mgather_elem_kernel(__ubuf__ T *__restrict__ dst, __gm__ const T *__restrict__ table,
                                   __ubuf__ const TIdx *__restrict__ indices)
 {
