@@ -178,6 +178,7 @@ set(ALL_TESTCASES
     tpartmax
     tmov_vect
     texpands
+    texpands_mat
     tmov_acc2mat
     timg2col
     tassign

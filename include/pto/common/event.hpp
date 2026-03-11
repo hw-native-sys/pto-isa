@@ -43,6 +43,7 @@ enum class Op : uint16_t
     TSQRT,
     TRSQRT,
     TEXPANDS,
+    TEXPANDS_MAT,
     TPARTADD,
     TPARTMUL,
     TPARTMAX,

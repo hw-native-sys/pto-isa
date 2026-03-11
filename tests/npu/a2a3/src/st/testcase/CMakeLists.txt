@@ -168,6 +168,7 @@ tci
 tcolmax
 tcolmin
 texpands
+texpands_mat
 tcolsum
 tcolprod
 tcmp
