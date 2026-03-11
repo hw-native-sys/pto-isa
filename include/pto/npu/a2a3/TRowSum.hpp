@@ -87,8 +87,7 @@ struct TRowSumOp : TRowReduceOp<T, TRowSumOp<T>> {
 template <typename T, typename TileDataOut, typename TileDataIn, typename TileDataTmp>
 __tf__ PTO_INTERNAL void TRowSum(typename TileDataOut::TileDType __out__ dstData,
                                  typename TileDataIn::TileDType __in__ srcData,
-                                 typename TileDataTmp::TileDType __in__ tmpData, int validCol, int validRow,
-                                 unsigned version)
+                                 typename TileDataTmp::TileDType __in__ tmpData, int validCol, int validRow)
 {
     __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
     __ubuf__ T *src = (__ubuf__ T *)__cce_get_tile_ptr(srcData);
@@ -107,8 +106,8 @@ PTO_INTERNAL void TROWSUM_IMPL(TileDataOut &dst, TileDataIn &src, TileDataTmp &t
         return;
     }
 
-    TRowSum<typename TileDataIn::DType, TileDataOut, TileDataIn, TileDataTmp>(
-        dst.data(), src.data(), tmp.data(), validCol, validRow, VFImplKind::VFIMPL_DEFAULT);
+    TRowSum<typename TileDataIn::DType, TileDataOut, TileDataIn, TileDataTmp>(dst.data(), src.data(), tmp.data(),
+                                                                              validCol, validRow);
 }
 } // namespace pto
 #endif

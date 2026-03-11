@@ -18,10 +18,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 template <typename T, typename TileData, unsigned elementsPerRepeat, unsigned blockSizeElem, unsigned dstRowStride,
           unsigned src0RowStride = dstRowStride, unsigned src1RowStride = dstRowStride>
-__tf__ PTO_INTERNAL OP_NAME(TSHL)
-    OP_TYPE(element_wise) void TShl(typename TileData::TileDType __out__ dst, typename TileData::TileDType __in__ src0,
-                                    typename TileData::TileDType __in__ src1, unsigned validRows, unsigned validCols,
-                                    VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
+__tf__ PTO_INTERNAL void TShl(typename TileData::TileDType __out__ dst, typename TileData::TileDType __in__ src0,
+                              typename TileData::TileDType __in__ src1, unsigned validRows, unsigned validCols)
 {
     __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
     __ubuf__ T *src0Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src0);
