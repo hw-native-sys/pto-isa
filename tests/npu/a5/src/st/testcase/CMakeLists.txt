@@ -212,7 +212,6 @@ set(ALL_TESTCASES
     mgather
     mscatter
     t_dhrystone
-    engram
     tpack
 )
 

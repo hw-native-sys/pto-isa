@@ -13,8 +13,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <cstdint>
 
-// ─── Hash helpers (kept for reference; demo uses pre-computed indices) ───
-
 constexpr uint32_t kGoldenRatio = 0x9e3779b9u;
 
 constexpr uint32_t kHashPrimes[16] = {0x85ebca6b, 0xc2b2ae35, 0x27d4eb2f, 0x165667b1, 0x8d2a4c8a, 0x1b873593,
@@ -42,4 +40,4 @@ inline uint32_t multi_head_hash_host(uint32_t key, uint32_t table_size, int head
     return h % table_size;
 }
 
-#endif // ENGRAM_COMMON_H
+#endif
