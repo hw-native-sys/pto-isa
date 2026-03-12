@@ -298,7 +298,7 @@ bisheng -mllvm --help | rg -n "pto|PTO" || true
 - `<ENABLE_PTO_PASSES_FLAG>`：基于 Bisheng help 输出选择正确拼写。
 
 ```bash
-source /usr/local/Ascend/ascend-toolkit/latest/bin/setenv.bash
+source /usr/local/Ascend/cann/set_env.sh
 
 bisheng -c -xcce -O2 --cce-aicore-only \
   --cce-aicore-arch=dav-c310-vec \
@@ -323,4 +323,3 @@ bisheng -c -xcce -O2 --cce-aicore-only \
 - `-mllvm -cce-enable-pto-passes`
 
 如果不确定，优先以 `bisheng --help` 与 `bisheng -mllvm --help` 的输出为准，而不要在文档中硬编码某一版本的拼写。
-

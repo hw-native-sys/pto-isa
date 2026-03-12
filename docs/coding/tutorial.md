@@ -300,7 +300,7 @@ This compiles a single CCE kernel source into an object file. Adjust:
 - the “enable PTO passes” flag spelling based on your Bisheng help output.
 
 ```bash
-source /usr/local/Ascend/ascend-toolkit/latest/bin/setenv.bash
+source /usr/local/Ascend/cann/set_env.sh
 
 bisheng -c -xcce -O2 --cce-aicore-only \
   --cce-aicore-arch=dav-c310-vec \

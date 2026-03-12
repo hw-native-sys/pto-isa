@@ -87,16 +87,15 @@ chmod +x ./tests/run_st.sh
 NPU ST requires a working Ascend environment. Typical setup (choose the correct install path):
 
 ```bash
-source /usr/local/Ascend/cann/bin/setenv.bash
+source /usr/local/Ascend/cann/set_env.sh
 # or
-source $HOME/Ascend/ascend-toolkit/latest/bin/setenv.bash
+source $HOME/Ascend/cann/set_env.sh
 ```
 
-`tests/script/run_st.py` expects `ASCEND_HOME_PATH` to be set (usually done by `setenv.bash`).
+`tests/script/run_st.py` expects `ASCEND_HOME_PATH` to be set (usually done by `set_env.sh`).
 
 ## Common Pitfalls (And How This Repo Handles Them)
 
 - **GTest ABI mismatch on Linux**: some systems have `libgtest*.a` built with `_GLIBCXX_USE_CXX11_ABI=0`.
   - CPU and NPU ST CMake projects support `PTO_GLIBCXX_USE_CXX11_ABI=auto|0|1` and auto-detect when possible.
 - **`sim` open-files limit**: simulator runs may require a higher `ulimit -n` (see `docs/getting-started.md` and `build.sh`).
-
