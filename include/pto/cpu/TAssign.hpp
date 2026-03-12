@@ -65,9 +65,11 @@ PTO_INTERNAL void TASSIGN_IMPL(T &obj, AddrType addr)
 
 #ifdef __CPU_SIM
 // Initialize NPU memory model with specific architecture
-// Call once at program start (optional, defaults to A2A3)
+// Sets the default arch for all threads, and initializes the calling thread's instance.
+// Other threads auto-initialize via EnsureInitialized() on first use.
 inline void NPU_MEMORY_INIT(NPUArch arch = NPUArch::A2A3)
 {
+    NPUMemoryModel::SetDefaultArch(arch);
     NPUMemoryModel::Instance().Initialize(arch);
 }
 
