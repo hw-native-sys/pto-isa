@@ -10,13 +10,15 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include "test_common.h"
 #include "acl/acl.h"
+#include "runtime/rt.h"
 #include <gtest/gtest.h>
 
 using namespace std;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
-void LaunchTPushPopMatmulAdd(uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *bias, uint8_t *fifoMem, void *stream);
+void LaunchTPushPopMatmulAdd(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *bias, uint8_t *fifoMem,
+                             void *stream);
 
 class TPushPopCVTest : public testing::Test {
 protected:
@@ -71,7 +73,11 @@ void TPushPopMatmulAddTestFunc(uint32_t M, uint32_t K, uint32_t N)
     aclrtMemcpy(srcBDevice, bFileSize, srcBHost, bFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(biasDevice, biasFileSize, biasHost, biasFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
-    LaunchTPushPopMatmulAdd<key>(dstDevice, srcADevice, srcBDevice, biasDevice, fifoMemDevice, stream);
+    uint64_t ffts{0};
+    uint32_t fftsLen{0};
+    rtGetC2cCtrlAddr(&ffts, &fftsLen);
+
+    LaunchTPushPopMatmulAdd<key>((uint8_t *)ffts, dstDevice, srcADevice, srcBDevice, biasDevice, fifoMemDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, cFileSize, dstDevice, cFileSize, ACL_MEMCPY_DEVICE_TO_HOST);

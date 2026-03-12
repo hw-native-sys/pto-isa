@@ -95,6 +95,9 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/../../../../../include
     ${ASCEND_HOME_PATH}/include
     ${ASCEND_DRIVER_PATH}/kernel/inc
+    ${ASCEND_HOME_PATH}/pkg_inc
+    ${ASCEND_HOME_PATH}/pkg_inc/profiling
+    ${ASCEND_HOME_PATH}/pkg_inc/runtime
 )
 
 if (DEFINED ENV{ACCURATE_RSQRT})

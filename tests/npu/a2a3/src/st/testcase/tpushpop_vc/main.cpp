@@ -10,14 +10,15 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include "test_common.h"
 #include "acl/acl.h"
+#include "runtime/rt.h"
 #include <gtest/gtest.h>
 
 using namespace std;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
-void LaunchTPushPopVCMatmul(uint8_t *out, uint8_t *srcA, uint8_t *quantB, uint8_t *scale, uint8_t *offset,
-                            uint8_t *fifoMem, void *stream);
+void LaunchTPushPopVCMatmul(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *quantB, uint8_t *scale,
+                            uint8_t *offset, uint8_t *fifoMem, void *stream);
 
 class TPushPopVCTest : public testing::Test {
 protected:
@@ -77,7 +78,12 @@ void TPushPopVCMatmulTestFunc(uint32_t M, uint32_t K, uint32_t N)
     aclrtMemcpy(scaleDevice, scaleFileSize, scaleHost, scaleFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(offsetDevice, offsetFileSize, offsetHost, offsetFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
-    LaunchTPushPopVCMatmul<key>(dstDevice, srcADevice, quantBDevice, scaleDevice, offsetDevice, fifoMemDevice, stream);
+    uint64_t ffts{0};
+    uint32_t fftsLen{0};
+    rtGetC2cCtrlAddr(&ffts, &fftsLen);
+
+    LaunchTPushPopVCMatmul<key>((uint8_t *)ffts, dstDevice, srcADevice, quantBDevice, scaleDevice, offsetDevice,
+                                fifoMemDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, cFileSize, dstDevice, cFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
