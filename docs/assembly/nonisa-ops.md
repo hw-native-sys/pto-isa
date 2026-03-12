@@ -100,6 +100,10 @@ pto.tsetval ins(%index, %val : dtype, dtype) outs(%dst : !pto.tile_buf<...>)
 pto.record_event[src_op, dst_op, eventID]
 ```
 
+Note: this is a low-level synchronization primitive. For the current PTO-DSL
+front-end flow, prefer sync-free source and let `ptoas --enable-insert-sync`
+insert the corresponding synchronization.
+
 Supported ops in current table: `TLOAD`, `TSTORE_ACC`, `TSTORE_VEC`, `TMOV_M2L`, `TMOV_M2S`, `TMOV_M2B`, `TMOV_M2V`, `TMOV_V2M`, `TMATMUL`, `TVEC`.
 
 ### 6.2 `wait_event`
@@ -107,6 +111,10 @@ Supported ops in current table: `TLOAD`, `TSTORE_ACC`, `TSTORE_VEC`, `TMOV_M2L`,
 ```text
 pto.wait_event[src_op, dst_op, eventID]
 ```
+
+Note: this is a low-level synchronization primitive. For the current PTO-DSL
+front-end flow, prefer sync-free source and let `ptoas --enable-insert-sync`
+insert the corresponding synchronization.
 
 Supported ops in current table: `TLOAD`, `TSTORE_ACC`, `TSTORE_VEC`, `TMOV_M2L`, `TMOV_M2S`, `TMOV_M2B`, `TMOV_M2V`, `TMOV_V2M`, `TMATMUL`, `TVEC`.
 

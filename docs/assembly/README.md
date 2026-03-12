@@ -27,6 +27,9 @@ IR-level constructs for tensor view management, tile allocation, and synchroniza
 - **Indexing**: `get_block_idx`, `get_subblock_idx`, `get_block_num`, `get_subblock_num`
 - **Pointer Arithmetic**: `addptr`
 - **Synchronization**: `record_event`, `wait_event`, `barrier`, `PIPE_BARRIER`
+  For the current PTO-DSL kernel-authoring flow, prefer sync-free source plus
+  `ptoas --enable-insert-sync`; treat `record_event` and `wait_event` as
+  low-level IR or assembly constructs.
 
 ---
 

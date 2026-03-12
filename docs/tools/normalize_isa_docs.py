@@ -251,7 +251,7 @@ def _resolve_level_formats(instr: str, assembly_body: str, level_formats: Dict[s
         level1 = "// Level 1 (SSA) does not support explicit synchronization primitives."
         level2 = _sync_level2_from_table(level_formats)
         if not level2:
-            level2 = "pto.record_event[src_op, dst_op, eventID]\npto.wait_event[src_op, dst_op, eventID]\npto.barrier(op)"
+            level2 = "pto.record_event[src_op, dst_op, eventID]\npto.wait_event[src_op, dst_op, eventID]\npto.barrier(op)\n\nNote: for the current PTO-DSL front-end flow, prefer sync-free source plus `ptoas --enable-insert-sync`."
         return {"level1": level1, "level2": level2}
 
     item = level_formats.get(instr, {})

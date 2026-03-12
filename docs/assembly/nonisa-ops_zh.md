@@ -100,6 +100,9 @@ pto.tsetval ins(%index, %val : dtype, dtype) outs(%dst : !pto.tile_buf<...>)
 pto.record_event[src_op, dst_op, eventID]
 ```
 
+说明：这是低层同步原语。对当前的 PTO-DSL 前端流程，优先保持源码不显式写
+事件，并让 `ptoas --enable-insert-sync` 插入对应同步。
+
 当前表格支持 op：`TLOAD`、`TSTORE_ACC`、`TSTORE_VEC`、`TMOV_M2L`、`TMOV_M2S`、`TMOV_M2B`、`TMOV_M2V`、`TMOV_V2M`、`TMATMUL`、`TVEC`。
 
 ### 6.2 `wait_event`
@@ -107,6 +110,9 @@ pto.record_event[src_op, dst_op, eventID]
 ```text
 pto.wait_event[src_op, dst_op, eventID]
 ```
+
+说明：这是低层同步原语。对当前的 PTO-DSL 前端流程，优先保持源码不显式写
+事件，并让 `ptoas --enable-insert-sync` 插入对应同步。
 
 当前表格支持 op：`TLOAD`、`TSTORE_ACC`、`TSTORE_VEC`、`TMOV_M2L`、`TMOV_M2S`、`TMOV_M2B`、`TMOV_M2V`、`TMOV_V2M`、`TMATMUL`、`TVEC`。
 
