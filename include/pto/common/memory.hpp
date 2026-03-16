@@ -27,6 +27,7 @@ enum class TileType
     Scaling,
     ScaleLeft,
     ScaleRight,
+    Ctrl,
 };
 
 enum class BLayout
@@ -123,6 +124,11 @@ struct MemoryQualifier<TileType::ScaleRight, DType> {
 #else
     using type = __cb__ DType *;
 #endif
+};
+
+template <typename DType>
+struct MemoryQualifier<TileType::Ctrl, DType> {
+    using type = uint64_t;
 };
 
 PTO_INTERNAL constexpr const __gm__ char *GetLayoutName(BLayout bType, SLayout sType) noexcept

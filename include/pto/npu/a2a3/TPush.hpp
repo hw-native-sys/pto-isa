@@ -184,6 +184,18 @@ struct TPipe {
             }
         }
 
+        PTO_INTERNAL void pushVec2CtrlFiFo(DataFiFo &fifo, TileDataProd &tile)
+        {
+            static_assert(DataFiFo::fifoType == FIFOType::CTRL_FIFO, "Fix: TPUSH has unsupported fifo Type!");
+            uint32_t buf_idx = static_cast<uint32_t>(tile_id % DataFiFo::fifoDepth);
+            uint64_t entryBase = buf_idx * sizeof(uint32_t);
+            __gm__ uint32_t *ctrlBuf = (__gm__ uint32_t *)(fifo.fifoBase + entryBase + entryOffset);
+            set_flag(PIPE_V, PIPE_S, EVENT_ID0);
+            wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
+            uint32_t ctrlSignal = *(tile.data());
+            *(ctrlBuf) = ctrlSignal;
+        }
+
         PTO_INTERNAL void push(DataFiFo &fifo, TileDataProd &tile)
         {
             // get tile shape and valid shape
@@ -198,7 +210,13 @@ struct TPipe {
             if constexpr (TileDataProd::Loc == TileType::Acc) {
                 pushAcc2GMFiFo<T, ProdM, ProdN, ConsM, ConsN>(fifo, tile);
             } else if constexpr (TileDataProd::Loc == TileType::Vec) {
-                pushVec2GMFiFo<T, ProdM, ProdN, ConsM, ConsN>(fifo, tile);
+                static_assert(DataFiFo::fifoType == FIFOType::GM_FIFO || DataFiFo::fifoType == FIFOType::CTRL_FIFO,
+                              "Fix: TPUSH has unsupported fifo type!");
+                if constexpr (DataFiFo::fifoType == FIFOType::GM_FIFO) {
+                    pushVec2GMFiFo<T, ProdM, ProdN, ConsM, ConsN>(fifo, tile);
+                } else if constexpr (DataFiFo::fifoType == FIFOType::CTRL_FIFO) {
+                    pushVec2CtrlFiFo(fifo, tile);
+                }
             }
         } // end of store
     };    // end of Producer
@@ -334,6 +352,14 @@ struct TPipe {
             TLOAD_IMPL(tile, globalTensor);
         }
 
+        PTO_INTERNAL void popCtrlFromCtrlFiFo(DataFiFo &fifo)
+        {
+            uint32_t buf_idx = static_cast<uint32_t>(tile_id % fifo.fifoDepth);
+            size_t entryBase = buf_idx * sizeof(uint32_t);
+            uint64_t ctrlTileBase = fifo.fifoBase + entryBase + entryOffset;
+            fifo.ctrlSignal = ((*(__gm__ uint32_t *)(ctrlTileBase)) == 1) ? true : false;
+        }
+
         PTO_INTERNAL void pop(DataFiFo &fifo, TileDataCons &tile)
         {
             using T = typename TileDataCons::DType;
@@ -342,12 +368,18 @@ struct TPipe {
             constexpr int ProdM = TileDataProd::Rows;
             constexpr int ProdN = TileDataProd::Cols;
             constexpr int VEC_CORES = (VCRatio == VecCubeRatio::V2C1_VECS) ? 2 : 1;
+            static_assert(DataFiFo::fifoType == FIFOType::GM_FIFO || DataFiFo::fifoType == FIFOType::CTRL_FIFO,
+                          "Fix: TPOP has unsupported fifo type!");
             static_assert(TileDataCons::Loc == TileType::Vec || TileDataCons::Loc == TileType::Mat,
                           "Fix: TPOP has unsupported tile type!");
-            if constexpr (TileDataCons::Loc == TileType::Vec) {
-                popVecTileFromGMFiFo<T, ProdM, ProdN, ConsM, ConsN>(fifo, tile);
-            } else if constexpr (TileDataCons::Loc == TileType::Mat) {
-                popMatTileFromGMFiFo<T, ConsM, ConsN, ProdN>(fifo, tile);
+            if constexpr (DataFiFo::fifoType == FIFOType::GM_FIFO) {
+                if constexpr (TileDataCons::Loc == TileType::Vec) {
+                    popVecTileFromGMFiFo<T, ProdM, ProdN, ConsM, ConsN>(fifo, tile);
+                } else if constexpr (TileDataCons::Loc == TileType::Mat) {
+                    popMatTileFromGMFiFo<T, ConsM, ConsN, ProdN>(fifo, tile);
+                }
+            } else if constexpr (DataFiFo::fifoType == FIFOType::CTRL_FIFO) {
+                popCtrlFromCtrlFiFo(fifo);
             }
         }
     };
@@ -359,6 +391,12 @@ struct TPipe {
     template <FIFOType T = FiFoType, typename std::enable_if_t<T == FIFOType::GM_FIFO, int> = 0>
     PTO_INTERNAL explicit TPipe(__gm__ typename TileDataCons::DType *gmFiFoBase, uint32_t localFiFoBase)
         : fifo(gmFiFoBase, localFiFoBase), prod(), cons()
+    {
+        cons.free();
+    }
+
+    template <FIFOType T = FiFoType, typename std::enable_if_t<T == FIFOType::CTRL_FIFO, int> = 0>
+    PTO_INTERNAL explicit TPipe(uint32_t fifoBase) : fifo(fifoBase), prod(), cons()
     {
         cons.free();
     }

@@ -19,9 +19,10 @@ namespace pto {
 // FIFO definitons
 enum class FIFOType : uint8_t
 {
-    GM_FIFO = 0,  // FIFO implemented in Global Memory
-    VEC_FIFO = 1, // FIFO implemented in Vector core's local memory
-    MAT_FIFO = 2, // FIFO implemented in Cube core's local memory (e.g., L1)
+    GM_FIFO = 0,   // FIFO implemented in Global Memory
+    VEC_FIFO = 1,  // FIFO implemented in Vector core's local memory
+    MAT_FIFO = 2,  // FIFO implemented in Cube core's local memory (e.g., L1)
+    CTRL_FIFO = 3, // FIFO for control signals, implemented in scalar buffer
 };
 
 enum class VecCubeRatio : uint8_t
@@ -94,6 +95,24 @@ struct DataFIFO<DataType, FifoType, Depth, Period, LocalDepth_unused,
     {
         tilePtr = reinterpret_cast<DataType *>(tile.data());
     }
+};
+
+template <FIFOType T>
+struct IsCtrlFiFo {
+    static constexpr bool value = (T == FIFOType::CTRL_FIFO);
+};
+
+template <typename DataType, FIFOType FifoType, int Depth, int Period, int LocalDepth_unused>
+struct DataFIFO<DataType, FifoType, Depth, Period, LocalDepth_unused,
+                typename std::enable_if<IsCtrlFiFo<FifoType>::value>::type> {
+    static constexpr int fifoDepth = Depth;
+    static constexpr int fifoPeriod = Period;
+    static constexpr FIFOType fifoType = FifoType;
+    bool ctrlSignal = false; // control signal to be sent through the FIFO
+    uint32_t fifoBase = 0x0; // fifo base address in global memory or scalar buffer
+
+    PTO_INTERNAL DataFIFO(uint32_t base) : fifoBase(base)
+    {}
 };
 
 } // namespace pto

@@ -43,7 +43,9 @@ struct TPipe {
         (FiFoType == FIFOType::GM_FIFO) && (TileDataProd::Loc == TileType::Vec) && (TileDataCons::Loc == TileType::Mat);
     static constexpr bool is_v2c_mat = (FiFoType == FIFOType::MAT_FIFO) && (TileDataProd::Loc == TileType::Vec) &&
                                        (TileDataCons::Loc == TileType::Mat);
-    static constexpr bool is_v2c = is_v2c_gm || is_v2c_mat;
+    static constexpr bool is_v2c_ctrl = (FiFoType == FIFOType::CTRL_FIFO) && (TileDataProd::Loc == TileType::Vec) &&
+                                        (TileDataCons::Loc == TileType::Ctrl);
+    static constexpr bool is_v2c = is_v2c_gm || is_v2c_mat || is_v2c_ctrl;
     static_assert(
         is_c2v || is_v2c,
         "TPipe currently only supports Cube-to-Vec or Vec-to-Cube communication with specified tile and FIFO types.");
@@ -113,7 +115,6 @@ struct TPipe {
          * 1. (iter >= Depth): Startup protection. Don't check flags when buffer is empty.
          * 2. (iter % Period == 0): Sparse sync. Only check flag periodically.
          */
-        template <bool IsStart = false>
         PTO_INTERNAL void allocate() const
         {
             if constexpr (is_c2v) {
@@ -123,24 +124,23 @@ struct TPipe {
 #ifdef __DAV_CUBE__
                 uint8_t waitVec0ID = FlagID + 1;
                 uint8_t waitVec1ID = FlagID + 1 + VEC_CORE_ID_OFFSET;
-                if constexpr (!IsStart) {
-                    wait_intra_block(PIPE_FIX, waitVec0ID);
-                    wait_intra_block(PIPE_FIX, waitVec1ID);
-                } else {
-                    wait_intra_block(PIPE_FIX, waitVec0ID + 1);
-                    wait_intra_block(PIPE_FIX, waitVec1ID + 1);
-                }
+                wait_intra_block(PIPE_FIX, waitVec0ID);
+                wait_intra_block(PIPE_FIX, waitVec1ID);
 #endif
-            } else { // is_v2c (both gm and ub)
-                     // Vec producer waits for Cube consumer to free buffer
-                     // Cube signals on BOTH, Vec waits on flag_id+1 only
+            } else if constexpr (is_v2c_gm || is_v2c_mat) {
+                // is_v2c (both gm and mat)
+                // Vec producer waits for Cube consumer to free buffer
+                // Cube signals on BOTH, Vec waits on flag_id+1 only
 #ifdef __DAV_VEC__
                 uint8_t waitCubeID = FlagID + 1;
-                if constexpr (!IsStart) {
-                    wait_intra_block(PIPE_MTE3, waitCubeID);
-                } else {
-                    wait_intra_block(PIPE_MTE3, waitCubeID + 1);
-                }
+                wait_intra_block(PIPE_MTE3, waitCubeID);
+#endif
+            } else {
+                // is_v2c_ctrl
+                // Control signals from Vec to Cube: Vec signals on flag_id, Cube waits on flag_id only
+#ifdef __DAV_VEC__
+                uint8_t waitCubeID = FlagID + 1;
+                wait_intra_block(PIPE_S, waitCubeID);
 #endif
             }
         }
@@ -158,10 +158,13 @@ struct TPipe {
                 set_intra_block(PIPE_FIX, FlagID);
                 set_intra_block(PIPE_FIX, FlagID + VEC_CORE_ID_OFFSET);
 #endif
-            } else { // is_v2c (both gm and ub)
+            } else if constexpr (is_v2c_gm || is_v2c_mat) { // is_v2c (both gm and mat)
                 // Vec -> Cube: Vec sets flag_id only on PIPE_MTE3
                 // Each Vec subblock executes this; hardware maps subblock 1's flag to flag_id+16
                 set_intra_block(PIPE_MTE3, FlagID);
+            } else { // is_v2c_ctrl
+                // Control signals from Vec to Cube: Vec signals on flag_id, Cube waits on flag_id only
+                set_intra_block(PIPE_S, FlagID);
             }
         }
 
@@ -302,6 +305,19 @@ struct TPipe {
             }
         }
 
+        template <typename T, int ProdM, int ProdN, int ConsM, int ConsN>
+        PTO_INTERNAL void pushVec2CtrlFiFo(DataFiFo &fifo, TileDataProd &tile)
+        {
+            static_assert(DataFiFo::fifoType == FIFOType::CTRL_FIFO,
+                          "Fix: TPUSH(pushVec2CtrlFiFo) has unsupported fifoType!");
+            uint64_t fifoBase = (fifo.tilePtr != nullptr) ? (uint64_t)fifo.tilePtr->data() : fifo.fifoBase;
+            uint32_t buf_idx = static_cast<uint32_t>(tile_id % DataFiFo::fifoDepth);
+            uint64_t entryBase = buf_idx * sizeof(uint32_t);
+            __ssbuf__ uint32_t *ctrlBuf = (__ssbuf__ uint32_t *)(fifoBase + entryBase + entryOffset);
+            uint32_t ctrlSignal = *(tile.data());
+            *(ctrlBuf) = ctrlSignal;
+        }
+
         PTO_INTERNAL void push(DataFiFo &fifo, TileDataProd &tile)
         {
             // get tile shape and valid shape
@@ -323,15 +339,18 @@ struct TPipe {
                     pushAcc2VecFiFo<T, ProdM, ProdN, ConsM, ConsN, VEC_CORES>(fifo, tile);
                 }
             } else if constexpr (TileDataProd::Loc == TileType::Vec) {
-                static_assert(DataFiFo::fifoType == FIFOType::GM_FIFO || DataFiFo::fifoType == FIFOType::MAT_FIFO,
-                              "Fix: TPUSH has unsupported fifoType!");
+                static_assert(DataFiFo::fifoType == FIFOType::GM_FIFO || DataFiFo::fifoType == FIFOType::MAT_FIFO ||
+                                  DataFiFo::fifoType == FIFOType::CTRL_FIFO,
+                              "Fix: TPUSH has unsupported fifo type!");
                 if constexpr (DataFiFo::fifoType == FIFOType::GM_FIFO) {
                     pushVec2GMFiFo<T, ProdM, ProdN, ConsM, ConsN>(fifo, tile);
                 } else if constexpr (DataFiFo::fifoType == FIFOType::MAT_FIFO) {
                     pushVec2MatFiFo<T, ProdM, ProdN, ConsM, ConsN, VEC_CORES>(fifo, tile);
+                } else if constexpr (DataFiFo::fifoType == FIFOType::CTRL_FIFO) {
+                    pushVec2CtrlFiFo<T, ProdM, ProdN, ConsM, ConsN>(fifo, tile);
                 }
-            }
-        } // end of store
+            } // end of store
+        }
     };
 
     // -------------------------------------------------------------------------
@@ -399,7 +418,6 @@ struct TPipe {
             } else if constexpr (is_c2v_ub) {
                 // Cube -> Vec (UB path): Vec waits on PIPE_V before vector ops on UB data
                 // Cube sets PIPE_FIX, Vec waits PIPE_V (Vec does vector ops, not TLOAD)
-
 #ifdef __DAV_VEC__
                 wait_intra_block(PIPE_V, FlagID);
 #endif
@@ -407,12 +425,15 @@ struct TPipe {
                 // Vec -> Cube (GM path): Cube waits on PIPE_MTE2, BOTH flags
                 wait_intra_block(PIPE_MTE2, FlagID);
                 wait_intra_block(PIPE_MTE2, FlagID + VEC_CORE_ID_OFFSET);
-            } else { // is_v2c_ub
-                     // Vec -> Cube (UB path - TINSERT): Cube waits on PIPE_MTE1, BOTH flags
+            } else if constexpr (is_v2c_gm) { // is_v2c_mat
+                                              // Vec -> Cube (UB path - TINSERT): Cube waits on PIPE_MTE1, BOTH flags
 #ifdef __DAV_CUBE__
                 wait_intra_block(PIPE_MTE1, FlagID);
                 wait_intra_block(PIPE_MTE1, FlagID + VEC_CORE_ID_OFFSET);
 #endif
+            } else { // is_v2c_ctrl
+                wait_intra_block(PIPE_S, FlagID);
+                wait_intra_block(PIPE_S, FlagID + VEC_CORE_ID_OFFSET);
             }
         }
 
@@ -422,40 +443,36 @@ struct TPipe {
          * is still enjoying the initial free buffer space.
          * 2. (is_sync_step): Accumulate free slots and signal in batches.
          */
-        template <bool IsRelease = false>
         PTO_INTERNAL void free() const
         {
             if constexpr (is_c2v_gm) {
                 // Vec consumer frees buffer for Cube - signals on PIPE_MTE2, flag_id+1 only
 #ifdef __DAV_VEC__
                 uint8_t freeCubeID = FlagID + 1;
-                if constexpr (!IsRelease) {
-                    set_intra_block(PIPE_MTE2, freeCubeID);
-                } else {
-                    set_intra_block(PIPE_MTE2, freeCubeID + 1);
-                }
+                set_intra_block(PIPE_MTE2, freeCubeID);
 #endif
             } else if constexpr (is_c2v_ub) {
                 // Vec consumer frees buffer for Cube - signals on PIPE_V, flag_id+1 only
                 // Vec signals after vector ops complete (PIPE_V)
 #ifdef __DAV_VEC__
                 uint8_t freeCubeID = FlagID + 1;
-                if constexpr (!IsRelease) {
-                    set_intra_block(PIPE_V, freeCubeID);
-                } else {
-                    set_intra_block(PIPE_V, freeCubeID + 1);
-                }
+                set_intra_block(PIPE_V, freeCubeID);
 #endif
-            } else { // is_v2c (both gm and ub)
-                     // Cube consumer frees buffer for Vec - signals BOTH flags on PIPE_MTE1
+            } else if constexpr (is_v2c_gm || is_v2c_mat) { // is_v2c (both gm and mat)
+                // Cube consumer frees buffer for Vec - signals BOTH flags on PIPE_MTE1
 #ifdef __DAV_CUBE__
                 uint8_t freeVec0ID = FlagID + 1;
                 uint8_t freeVec1ID = FlagID + 1 + VEC_CORE_ID_OFFSET;
-                if constexpr (!IsRelease) {
-                    set_intra_block(PIPE_MTE1, freeVec0ID);
-                    set_intra_block(PIPE_MTE1, freeVec1ID);
-                } else {
-                }
+                set_intra_block(PIPE_MTE1, freeVec0ID);
+                set_intra_block(PIPE_MTE1, freeVec1ID);
+#endif
+            } else { // is_v2c_ctrl
+                     // Control signals from Vec to Cube: Vec signals on flag_id, Cube waits on flag_id only
+#ifdef __DAV_CUBE__
+                uint8_t freeVec0ID = FlagID + 1;
+                uint8_t freeVec1ID = FlagID + 1 + VEC_CORE_ID_OFFSET;
+                set_intra_block(PIPE_S, freeVec0ID);
+                set_intra_block(PIPE_S, freeVec1ID);
 #endif
             }
         }
@@ -514,6 +531,14 @@ struct TPipe {
             TLOAD_IMPL(tile, globalTensor);
         }
 
+        PTO_INTERNAL void popCtrlFromCtrlFiFo(DataFiFo &fifo)
+        {
+            uint32_t buf_idx = static_cast<uint32_t>(tile_id % fifo.fifoDepth);
+            size_t entryBase = buf_idx * sizeof(uint32_t);
+            uint64_t ctrlTileBase = fifo.fifoBase + entryBase + entryOffset;
+            fifo.ctrlSignal = (*(__ssbuf__ uint32_t *)(ctrlTileBase) == 1) ? true : false;
+        }
+
         PTO_INTERNAL bool pop(DataFiFo &fifo, TileDataCons &tile)
         {
             using T = typename TileDataCons::DType;
@@ -533,6 +558,9 @@ struct TPipe {
                     return true;
                 } else if constexpr (DataFiFo::fifoType == FIFOType::VEC_FIFO) {
                     popTileFromLocalFiFo<T, ProdM, ProdN, ConsM, ConsN>(fifo, tile);
+                    return false;
+                } else if constexpr (DataFiFo::fifoType == FIFOType::CTRL_FIFO) {
+                    popCtrlFromCtrlFiFo(fifo);
                     return false;
                 }
             } else if constexpr (TileDataCons::Loc == TileType::Mat) {
