@@ -1411,6 +1411,31 @@ public:
         return ColMaskInternal;
     }
 
+    // Call this function need PIPE_S wait
+    PTO_INTERNAL void SetValidRow(int rowMask)
+    {
+        static_assert(ValidRow == DYNAMIC, "Only Dynamic Valid Row Support Set Value.");
+        PTO_ASSERT(rowMask <= Rows, "rowMask must less than Rows.");
+        RowMaskInternal = rowMask;
+    }
+
+    // Call this function need PIPE_S wait
+    PTO_INTERNAL void SetValidCol(int colMask)
+    {
+        static_assert(ValidCol == DYNAMIC, "Only Dynamic Valid Col Support Set Value.");
+        PTO_ASSERT(colMask <= Cols, "colMask must less than Cols.");
+        ColMaskInternal = colMask;
+    }
+
+    // Call this function need PIPE_S wait
+    PTO_INTERNAL void SetValidShape(int rowMask, int colMask)
+    {
+        static_assert(ValidCol == DYNAMIC && ValidRow == DYNAMIC, "Only Dynamic Valid Shape Support Set Value.");
+        PTO_ASSERT(rowMask <= Rows && colMask <= Cols, "colMask must less than Cols.");
+        RowMaskInternal = rowMask;
+        ColMaskInternal = colMask;
+    }
+
     template <typename T, typename AddrType>
     friend AICORE void TASSIGN_IMPL(T &tile, AddrType addr);
 
