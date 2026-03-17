@@ -15,26 +15,32 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, CmpMode cmpMode>
-__global__ AICORE void runTCmps(__gm__ uint8_t __out__ *out, __gm__ T __in__ *src0, __gm__ T __in__ *src1)
+__global__ AICORE void runTCmps(__gm__ uint8_t *out, __gm__ T *src0, __gm__ T *src1)
 {
     using DynShapeDim5 = Shape<1, 1, 1, kGRows_, kGCols_>;
     using DynStridDim5 = pto::Stride<1, 1, 1, kGCols_, 1>;
     using GlobalData_src0 = GlobalTensor<T, DynShapeDim5, DynStridDim5>;
+    using GlobalData_src1 = GlobalTensor<T, Shape<1, 1, 1, 1, 1>, pto::Stride<1, 1, 1, 1, 1>>;
     using GlobalData_dst = GlobalTensor<uint8_t, DynShapeDim5, DynStridDim5>;
     using TileData_src0 = Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, kGRows_, kGCols_>;
+    using TileData_src1 = Tile<TileType::Vec, T, 1, BLOCK_BYTE_SIZE / sizeof(T), BLayout::RowMajor, 1, 1>;
     using TileData_dst = Tile<TileType::Vec, uint8_t, kTRows_, kTCols_, BLayout::RowMajor, kGRows_, kGCols_>;
     TileData_src0 src0Tile;
+    TileData_src1 src1Tile;
     TileData_dst dstTile;
-    TASSIGN(src0Tile, 0x0 + 0x400 * block_idx);
-    TASSIGN(dstTile, 0x20000 + 0x400 * block_idx);
+    TASSIGN(src0Tile, 0x0);
+    TASSIGN(src1Tile, kTRows_ * kTCols_ * sizeof(T));
+    TASSIGN(dstTile, kTRows_ * kTCols_ * sizeof(T) + BLOCK_BYTE_SIZE);
 
     GlobalData_src0 src0Global(src0);
+    GlobalData_src1 src1Global(src1);
     GlobalData_dst dstGlobal(out);
 
     TLOAD(src0Tile, src0Global);
+    TLOAD(src1Tile, src1Global);
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    TCMPS(dstTile, src0Tile, src1[0], cmpMode);
+    TCMPS(dstTile, src0Tile, src1Tile, cmpMode);
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     TSTORE(dstGlobal, dstTile);

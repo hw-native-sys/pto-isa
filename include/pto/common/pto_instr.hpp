@@ -139,11 +139,22 @@ PTO_INST RecordEvent TPREFETCH(TileData &dst, GlobalData &src)
     return {};
 }
 
-template <typename TileDataDst, typename TileDataSrc0, typename T, typename... WaitEvents>
-PTO_INST RecordEvent TCMPS(TileDataDst &dst, TileDataSrc0 &src0, T src1, CmpMode cmpMode, WaitEvents &... events)
+template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
+PTO_INST RecordEvent TCMPS(TileDataDst &dst, TileDataSrc &src0, typename TileDataSrc::DType src1, CmpMode mode,
+                           WaitEvents &... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL(TCMPS, dst, src0, src1, cmpMode);
+    MAP_INSTR_IMPL(TCMPS, dst, src0, src1, mode);
+    return {};
+}
+
+template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1,
+          typename = std::void_t<typename TileDataSrc1::DType>, typename... WaitEvents>
+PTO_INST RecordEvent TCMPS(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, CmpMode mode,
+                           WaitEvents &... events)
+{
+    TSYNC(events...);
+    MAP_INSTR_IMPL(TCMPS, dst, src0, src1, mode);
     return {};
 }
 
