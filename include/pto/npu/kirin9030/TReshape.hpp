@@ -9,10 +9,4 @@ BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 PARTICULAR PURPOSE. See LICENSE in the root of the software repository for the
 full text of the License.
 */
-
-#ifndef __PTO_RESHAPE_KIRIN9030__
-#define __PTO_RESHAPE_KIRIN9030__
-
 #include "pto/npu/a2a3/TReshape.hpp"
-
-#endif

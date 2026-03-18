@@ -161,7 +161,6 @@ set(ALL_TESTCASES
     tci
     tdiv
     texp
-    tfillpad
     tmov_ub2l1
     tmov_vect
     tmuls

@@ -36,7 +36,7 @@ using UnalignReg = vector_align;
 using AddrReg = vector_address;
 
 template <typename T>
-PTO_INTERNAL MaskReg CreatePredicateImpl(uint32_t &scalar)
+PTO_INTERNAL MaskReg CreatePredicate(uint32_t &scalar)
 {
     MaskReg reg;
     if constexpr (sizeof(T) == 1) {
@@ -50,22 +50,15 @@ PTO_INTERNAL MaskReg CreatePredicateImpl(uint32_t &scalar)
 }
 
 template <typename T>
-PTO_INTERNAL MaskReg CreatePredicate(uint32_t &scalar)
-{
-    return CreatePredicateImpl<T>(scalar);
-}
-
-template <typename T>
 struct RegTensor {
-    PTO_INTERNAL RegTensor(){};
     using RegType = typename TypeGet<T>::T;
     RegType reg;
 
+    PTO_INTERNAL RegTensor(){};
     PTO_INTERNAL operator RegType &()
     {
         return reg;
     }
-    AICORE void Print() const;
 };
 
 template <typename SrcType, typename DstType>
@@ -92,7 +85,6 @@ PTO_INTERNAL constexpr QuantMode_t GetScalarPreQuantMode()
             return QuantMode_t::QF162B8_PRE;
         }
     }
-
     return QuantMode_t::NoQuant;
 }
 
