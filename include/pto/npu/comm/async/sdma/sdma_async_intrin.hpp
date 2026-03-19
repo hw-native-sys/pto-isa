@@ -286,9 +286,10 @@ PTO_INTERNAL bool SdmaWaitEvent(uint64_t eventHandle, const SdmaEventContext &ev
 
     const uint32_t sqTail = GetValue<uint32_t>((__gm__ uint8_t *)&record->sq_tail, tmpBuf);
     const uint64_t channelInfoAddr = GetValue<uint64_t>((__gm__ uint8_t *)&record->channel_info, tmpBuf);
+    const uint8_t offset = 4;
     if (channelInfoAddr != 0) {
         __gm__ uint8_t *channelInfo = reinterpret_cast<__gm__ uint8_t *>(channelInfoAddr);
-        SetValue<uint32_t>(channelInfo + 4, tmpBuf, syncId, sqTail);
+        SetValue<uint32_t>(channelInfo + offset, tmpBuf, syncId, sqTail);
     }
 
     return true;

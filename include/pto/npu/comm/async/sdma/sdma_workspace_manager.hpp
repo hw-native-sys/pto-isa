@@ -197,7 +197,6 @@ private:
         pRtStreamGetSqid_ = reinterpret_cast<detail::RtStreamGetSqidFn>(dlsym(rtHandle_, "rtStreamGetSqid"));
         pRtStreamGetCqid_ = reinterpret_cast<detail::RtStreamGetCqidFn>(dlsym(rtHandle_, "rtStreamGetCqid"));
         pRtGetDeviceInfo_ = reinterpret_cast<detail::RtGetDeviceInfoFn>(dlsym(rtHandle_, "rtGetDeviceInfo"));
-
         if (!pRtsStreamCreate_ || !pRtStreamGetSqid_ || !pRtStreamGetCqid_ || !pRtGetDeviceInfo_) {
             std::cerr << "[SDMA] Failed to resolve runtime symbols: " << dlerror() << std::endl;
             return false;
@@ -212,7 +211,6 @@ private:
         pAclnnGetWsSize_ =
             reinterpret_cast<detail::AclnnGetWsSizeFn>(dlsym(opapiHandle_, "aclnnShmemSdmaStarsQueryGetWorkspaceSize"));
         pAclnnExec_ = reinterpret_cast<detail::AclnnExecFn>(dlsym(opapiHandle_, "aclnnShmemSdmaStarsQuery"));
-
         if (!pAclnnGetWsSize_ || !pAclnnExec_) {
             std::cerr << "[SDMA] Failed to resolve opapi symbols: " << dlerror() << std::endl;
             return false;
