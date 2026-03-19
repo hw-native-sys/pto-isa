@@ -13,6 +13,9 @@ site_zh/
 output/
 __pycache__/
 *.log
+*.pdf
+*.bin
+bin/
 tests/npu/a2a3/src/st/build
 tests/npu/a5/src/st/build
 .arts

@@ -90,6 +90,7 @@ bool TRowSumTest()
 constexpr int smallSize = 16;
 constexpr int bigSize666 = 666;
 constexpr int bigSizeAligned = 672;
+constexpr int bigSize64 = 64;
 
 TEST_F(TROWSUMTest, test1)
 {
@@ -106,6 +107,32 @@ TEST_F(TROWSUMTest, test2)
 TEST_F(TROWSUMTest, test3)
 {
     bool res = TRowSumTest<float, bigSize666, bigSize666, bigSize666, bigSizeAligned>();
+    EXPECT_TRUE(res);
+}
+
+// int32 test cases
+TEST_F(TROWSUMTest, test4)
+{
+    bool res = TRowSumTest<int32_t, smallSize, smallSize, smallSize, smallSize>();
+    EXPECT_TRUE(res);
+}
+
+TEST_F(TROWSUMTest, test5)
+{
+    bool res = TRowSumTest<int32_t, bigSize64, bigSize64, bigSize64, bigSize64>();
+    EXPECT_TRUE(res);
+}
+
+// int16 test cases
+TEST_F(TROWSUMTest, test6)
+{
+    bool res = TRowSumTest<int16_t, smallSize, smallSize, smallSize, smallSize>();
+    EXPECT_TRUE(res);
+}
+
+TEST_F(TROWSUMTest, test7)
+{
+    bool res = TRowSumTest<int16_t, bigSize64, bigSize64, bigSize64, bigSize64>();
     EXPECT_TRUE(res);
 }
 } // namespace TRowSumTest

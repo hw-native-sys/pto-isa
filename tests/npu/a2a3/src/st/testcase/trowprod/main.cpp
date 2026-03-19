@@ -142,3 +142,43 @@ TEST_F(TROWPRODTest, case10)
 {
     TRowProdTestFramework<10, __fp16, 32, 26, 19, 32, 26>();
 }
+
+TEST_F(TROWPRODTest, case11)
+{
+    TRowProdTestFramework<11, int32_t, 8, 1, 1, 8, 8>();
+}
+
+TEST_F(TROWPRODTest, case12)
+{
+    TRowProdTestFramework<12, int32_t, 8, 1, 1, 16, 16>();
+}
+
+TEST_F(TROWPRODTest, case13)
+{
+    TRowProdTestFramework<13, int32_t, 8, 1, 1, 128, 128>();
+}
+
+TEST_F(TROWPRODTest, case14)
+{
+    TRowProdTestFramework<14, int32_t, 8, 1, 1, 8, 5>();
+}
+
+TEST_F(TROWPRODTest, case15)
+{
+    TRowProdTestFramework<15, int32_t, 8, 3, 2, 24, 16>();
+}
+
+TEST_F(TROWPRODTest, case16)
+{
+    TRowProdTestFramework<16, int16_t, 16, 1, 1, 16, 16>();
+}
+
+TEST_F(TROWPRODTest, case17)
+{
+    TRowProdTestFramework<17, int16_t, 32, 26, 19, 32, 32>();
+}
+
+TEST_F(TROWPRODTest, case18)
+{
+    TRowProdTestFramework<18, int16_t, 16, 1, 1, 16, 16>();
+}

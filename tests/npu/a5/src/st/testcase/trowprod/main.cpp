@@ -151,3 +151,53 @@ TEST_F(TROWPRODTest, case10)
     bool ret = TRowProdTestFramework<10, float, 8, 8, 1024, 1024, 1>();
     EXPECT_TRUE(ret);
 }
+
+// int32 test cases
+TEST_F(TROWPRODTest, case11)
+{
+    bool ret = TRowProdTestFramework<11, int32_t, 127, 127, 64, 63, 1>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TROWPRODTest, case12)
+{
+    bool ret = TRowProdTestFramework<12, int32_t, 63, 63, 64, 64, 1>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TROWPRODTest, case13)
+{
+    bool ret = TRowProdTestFramework<13, int32_t, 31, 31, 128, 127, 1>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TROWPRODTest, case14)
+{
+    bool ret = TRowProdTestFramework<14, int32_t, 15, 15, 192, 192, 1>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TROWPRODTest, case15)
+{
+    bool ret = TRowProdTestFramework<15, int32_t, 7, 7, 448, 447, 1>();
+    EXPECT_TRUE(ret);
+}
+
+// int16 test cases
+TEST_F(TROWPRODTest, case16)
+{
+    bool ret = TRowProdTestFramework<16, int16_t, 256, 256, 16, 15, 1>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TROWPRODTest, case17)
+{
+    bool ret = TRowProdTestFramework<17, int16_t, 63, 63, 64, 64, 1>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TROWPRODTest, case18)
+{
+    bool ret = TRowProdTestFramework<18, int16_t, 31, 31, 128, 127, 1>();
+    EXPECT_TRUE(ret);
+}

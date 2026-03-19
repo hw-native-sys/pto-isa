@@ -12,16 +12,38 @@
 
 import os
 import numpy as np
+
 np.random.seed(23)
 
 
 def gen_golden_data(param):
-    input_arr = np.random.uniform(low=-16, high=16, size=(param.row, param.col)).astype(param.data_type)
-    output_arr = np.full((param.valid_row), np.finfo(param.data_type).max).astype(param.data_type)
-    for i in range(param.valid_row):
-        output_arr[i] = np.min(input_arr[i][:param.valid_col])
-    input_arr.tofile('input.bin')
-    output_arr.tofile('golden.bin')
+    data_type = param.data_type
+    row = param.row
+    valid_row = param.valid_row
+    col = param.col
+    valid_col = param.valid_col
+
+    # Use appropriate value range based on data type
+    if np.issubdtype(data_type, np.integer):
+        # For integer types, use a reasonable range
+        if data_type == np.int32:
+            input_arr = np.random.randint(low=-1000, high=1000, size=(row, col)).astype(data_type)
+        elif data_type == np.int16:
+            input_arr = np.random.randint(low=-1000, high=1000, size=(row, col)).astype(data_type)
+        else:
+            input_arr = np.random.randint(low=-100, high=100, size=(row, col)).astype(data_type)
+        # Use appropriate max value for integer types
+        output_arr = np.full((valid_row), np.iinfo(data_type).max, dtype=data_type)
+    else:
+        # For float types, use the original range
+        input_arr = np.random.uniform(low=-16, high=16, size=(row, col)).astype(data_type)
+        output_arr = np.full((valid_row), np.finfo(data_type).max).astype(data_type)
+
+    for i in range(valid_row):
+        output_arr[i] = np.min(input_arr[i][:valid_col])
+
+    input_arr.tofile("input.bin")
+    output_arr.tofile("golden.bin")
 
 
 class TRowMinParams:
@@ -53,7 +75,19 @@ if __name__ == "__main__":
         TRowMinParams("TROWMINTest.case15", np.float32, 64, 64, 128, 128),
         TRowMinParams("TROWMINTest.case16", np.float32, 32, 32, 256, 256),
         TRowMinParams("TROWMINTest.case17", np.float32, 16, 16, 512, 512),
-        TRowMinParams("TROWMINTest.case18", np.float32, 8, 8, 1024, 1024)
+        TRowMinParams("TROWMINTest.case18", np.float32, 8, 8, 1024, 1024),
+        # int32 test cases
+        TRowMinParams("TROWMINTest.case19", np.int32, 127, 127, 64, 64 - 1),
+        TRowMinParams("TROWMINTest.case20", np.int32, 63, 63, 64, 64),
+        TRowMinParams("TROWMINTest.case21", np.int32, 31, 31, 64 * 2, 64 * 2 - 1),
+        TRowMinParams("TROWMINTest.case22", np.int32, 15, 15, 64 * 3, 64 * 3),
+        TRowMinParams("TROWMINTest.case23", np.int32, 7, 7, 64 * 7, 64 * 7 - 1),
+        # int16 test cases
+        TRowMinParams("TROWMINTest.case24", np.int16, 128, 128, 64, 64),
+        TRowMinParams("TROWMINTest.case25", np.int16, 64, 64, 64, 64),
+        TRowMinParams("TROWMINTest.case26", np.int16, 32, 32, 128, 128),
+        TRowMinParams("TROWMINTest.case27", np.int16, 16, 16, 192, 192),
+        TRowMinParams("TROWMINTest.case28", np.int16, 8, 8, 448, 448),
     ]
 
     for _, case in enumerate(case_params_list):

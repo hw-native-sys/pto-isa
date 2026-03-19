@@ -151,3 +151,63 @@ TEST_F(TROWSUMTest, case10)
     bool ret = TRowSumTestFramework<10, float, 8, 8, 1024, 1024, 1>();
     EXPECT_TRUE(ret);
 }
+
+TEST_F(TROWSUMTest, case11)
+{
+    bool ret = TRowSumTestFramework<11, int32_t, 127, 127, 64, 63, 1>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TROWSUMTest, case12)
+{
+    bool ret = TRowSumTestFramework<12, int32_t, 63, 63, 64, 64, 1>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TROWSUMTest, case13)
+{
+    bool ret = TRowSumTestFramework<13, int32_t, 31, 31, 128, 127, 1>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TROWSUMTest, case14)
+{
+    bool ret = TRowSumTestFramework<14, int32_t, 15, 15, 192, 192, 1>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TROWSUMTest, case15)
+{
+    bool ret = TRowSumTestFramework<15, int32_t, 7, 7, 448, 447, 1>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TROWSUMTest, case16)
+{
+    bool ret = TRowSumTestFramework<16, int16_t, 128, 128, 64, 64, 1>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TROWSUMTest, case17)
+{
+    bool ret = TRowSumTestFramework<17, int16_t, 64, 64, 64, 64, 1>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TROWSUMTest, case18)
+{
+    bool ret = TRowSumTestFramework<18, int16_t, 32, 32, 128, 128, 1>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TROWSUMTest, case19)
+{
+    bool ret = TRowSumTestFramework<19, int16_t, 16, 16, 192, 192, 1>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TROWSUMTest, case20)
+{
+    bool ret = TRowSumTestFramework<20, int16_t, 8, 8, 448, 448, 1>();
+    EXPECT_TRUE(ret);
+}

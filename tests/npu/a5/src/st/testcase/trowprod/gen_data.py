@@ -12,6 +12,7 @@
 
 import os
 import numpy as np
+
 np.random.seed(42)
 
 
@@ -22,16 +23,26 @@ def gen_golden_data(param):
     col = param.col
     valid_col = param.valid_col
 
-    input_arr = np.random.uniform(low=0.9, high=1.1, size=(row, col)).astype(data_type)
-    output_arr = np.ones((row))
-    for i in range(valid_row):
-        for j in range(valid_col):
-            output_arr[i] *= input_arr[i, j]
+    # Use appropriate value range based on data type
+    if np.issubdtype(data_type, np.integer):
+        # For integer types, use small values to avoid overflow in product
+        input_arr = np.random.randint(low=1, high=5, size=(row, col)).astype(data_type)
+        # Use integer arithmetic for product
+        output_arr = np.ones((row), dtype=np.int64)
+        for i in range(valid_row):
+            output_arr[i] = np.prod(input_arr[i, :valid_col], dtype=np.int64)
+        output_arr = output_arr.astype(data_type)
+    else:
+        # For float types, use the original range
+        input_arr = np.random.uniform(low=0.9, high=1.1, size=(row, col)).astype(data_type)
+        output_arr = np.ones((row))
+        for i in range(valid_row):
+            for j in range(valid_col):
+                output_arr[i] *= input_arr[i, j]
+        output_arr = output_arr.astype(data_type)
 
-    # 先计算, 再强转类型, 保证结果精度不裂化
-    output_arr = output_arr.astype(data_type)
-    input_arr.tofile('input.bin')
-    output_arr.tofile('golden.bin')
+    input_arr.tofile("input.bin")
+    output_arr.tofile("golden.bin")
 
 
 class TRowProdParams:
@@ -42,6 +53,7 @@ class TRowProdParams:
         self.valid_row = valid_row
         self.col = col
         self.valid_col = valid_col
+
 
 if __name__ == "__main__":
     case_params_list = [
@@ -54,7 +66,17 @@ if __name__ == "__main__":
         TRowProdParams("TROWPRODTest.case7", np.float32, 64, 64, 128, 128),
         TRowProdParams("TROWPRODTest.case8", np.float32, 32, 32, 256, 256),
         TRowProdParams("TROWPRODTest.case9", np.float32, 16, 16, 512, 512),
-        TRowProdParams("TROWPRODTest.case10", np.float32, 8, 8, 1024, 1024)
+        TRowProdParams("TROWPRODTest.case10", np.float32, 8, 8, 1024, 1024),
+        # int32 test cases
+        TRowProdParams("TROWPRODTest.case11", np.int32, 127, 127, 64, 64 - 1),
+        TRowProdParams("TROWPRODTest.case12", np.int32, 63, 63, 64, 64),
+        TRowProdParams("TROWPRODTest.case13", np.int32, 31, 31, 64 * 2, 64 * 2 - 1),
+        TRowProdParams("TROWPRODTest.case14", np.int32, 15, 15, 64 * 3, 64 * 3),
+        TRowProdParams("TROWPRODTest.case15", np.int32, 7, 7, 64 * 7, 64 * 7 - 1),
+        # int16 test cases
+        TRowProdParams("TROWPRODTest.case16", np.int16, 256, 256, 16, 16 - 1),
+        TRowProdParams("TROWPRODTest.case17", np.int16, 63, 63, 64, 64),
+        TRowProdParams("TROWPRODTest.case18", np.int16, 31, 31, 64 * 2, 64 * 2 - 1),
     ]
 
     for _, case in enumerate(case_params_list):

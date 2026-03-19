@@ -60,5 +60,53 @@ template <>
 struct TypeGet<int8_t> {
     using T = vector_s8;
 };
+
+// Specializations for vector types (identity mappings)
+template <>
+struct TypeGet<vector_u64> {
+    using T = vector_u64;
+};
+template <>
+struct TypeGet<vector_s64> {
+    using T = vector_s64;
+};
+template <>
+struct TypeGet<vector_u32> {
+    using T = vector_u32;
+};
+template <>
+struct TypeGet<vector_s32> {
+    using T = vector_s32;
+};
+template <>
+struct TypeGet<vector_f32> {
+    using T = vector_f32;
+};
+template <>
+struct TypeGet<vector_u16> {
+    using T = vector_u16;
+};
+template <>
+struct TypeGet<vector_f16> {
+    using T = vector_f16;
+};
+template <>
+struct TypeGet<vector_s16> {
+    using T = vector_s16;
+};
+template <>
+struct TypeGet<vector_u8> {
+    using T = vector_u8;
+};
+template <>
+struct TypeGet<vector_s8> {
+    using T = vector_s8;
+};
+#if defined(__DAV_VEC__)
+template <>
+struct TypeGet<vector_bf16> {
+    using T = vector_bf16;
+};
+#endif
 } // namespace pto
 #endif

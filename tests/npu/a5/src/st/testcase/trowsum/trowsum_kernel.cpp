@@ -62,6 +62,7 @@ void launchTROWSUMTest(T *out, T *src, aclrtStream stream)
 constexpr int smallSize = 16;
 constexpr int bigSize666 = 666;
 constexpr int bigSizeAligned = 672;
+constexpr int bigSize64 = 64;
 
 template void launchTROWSUMTest<float, smallSize, smallSize, smallSize, smallSize>(float *out, float *src,
                                                                                    aclrtStream stream);
@@ -69,4 +70,14 @@ template void launchTROWSUMTest<uint16_t, smallSize, smallSize, smallSize, small
                                                                                       aclrtStream stream);
 template void launchTROWSUMTest<float, bigSize666, bigSize666, bigSize666, bigSizeAligned>(float *out, float *src,
                                                                                            aclrtStream stream);
+// int32 test cases
+template void launchTROWSUMTest<int32_t, smallSize, smallSize, smallSize, smallSize>(int32_t *out, int32_t *src,
+                                                                                     aclrtStream stream);
+template void launchTROWSUMTest<int32_t, bigSize64, bigSize64, bigSize64, bigSize64>(int32_t *out, int32_t *src,
+                                                                                     aclrtStream stream);
+// int16 test cases
+template void launchTROWSUMTest<int16_t, smallSize, smallSize, smallSize, smallSize>(int16_t *out, int16_t *src,
+                                                                                     aclrtStream stream);
+template void launchTROWSUMTest<int16_t, bigSize64, bigSize64, bigSize64, bigSize64>(int16_t *out, int16_t *src,
+                                                                                     aclrtStream stream);
 }; // namespace TRowSumTest

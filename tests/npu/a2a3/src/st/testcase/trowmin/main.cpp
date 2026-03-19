@@ -199,3 +199,63 @@ TEST_F(TROWMINTest, case18)
     bool ret = TRowMinTestFramework<18, float, 8, 8, 1024, 1024, 1>();
     EXPECT_TRUE(ret);
 }
+
+TEST_F(TROWMINTest, case19)
+{
+    bool ret = TRowMinTestFramework<19, int32_t, 127, 127, 64, 63, 1>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TROWMINTest, case20)
+{
+    bool ret = TRowMinTestFramework<20, int32_t, 63, 63, 64, 64, 1>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TROWMINTest, case21)
+{
+    bool ret = TRowMinTestFramework<21, int32_t, 31, 31, 128, 127, 1>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TROWMINTest, case22)
+{
+    bool ret = TRowMinTestFramework<22, int32_t, 15, 15, 192, 192, 1>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TROWMINTest, case23)
+{
+    bool ret = TRowMinTestFramework<23, int32_t, 7, 7, 448, 447, 1>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TROWMINTest, case24)
+{
+    bool ret = TRowMinTestFramework<24, int16_t, 128, 128, 64, 64, 1>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TROWMINTest, case25)
+{
+    bool ret = TRowMinTestFramework<25, int16_t, 64, 64, 64, 64, 1>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TROWMINTest, case26)
+{
+    bool ret = TRowMinTestFramework<26, int16_t, 32, 32, 128, 128, 1>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TROWMINTest, case27)
+{
+    bool ret = TRowMinTestFramework<27, int16_t, 16, 16, 192, 192, 1>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TROWMINTest, case28)
+{
+    bool ret = TRowMinTestFramework<28, int16_t, 8, 8, 448, 448, 1>();
+    EXPECT_TRUE(ret);
+}

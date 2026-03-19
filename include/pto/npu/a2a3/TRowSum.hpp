@@ -14,6 +14,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "TRowReduceOps.hpp"
 
 namespace pto {
+
+// Float/Half operation traits (for vcadd-based implementation)
 template <typename T>
 struct TRowSumOp : TRowReduceOp<T, TRowSumOp<T>> {
     using ReduceOp = TRowReduceOp<T, TRowSumOp<T>>;
@@ -41,14 +43,12 @@ struct TRowSumOp : TRowReduceOp<T, TRowSumOp<T>> {
     template <int TmpCols, int SrcCols, uint32_t TmpStride, uint32_t SrcStride, uint8_t ElemPerRpt>
     PTO_INTERNAL static void FillTmp(__ubuf__ T *tmp, __ubuf__ T *src, int srcRptPerRow, int validRow, int validCol)
     {
-        // 二分Add, 将每行相邻的两个repeat相加存入tmp
         for (int i = 0; i < srcRptPerRow / 2; ++i) {
             ReduceOp::template BinInstrByMode<true, TmpCols, SrcCols, SrcCols, TmpStride, SrcStride, SrcStride,
                                               ElemPerRpt>(tmp + i * ElemPerRpt, src + (i * 2) * ElemPerRpt,
                                                           src + (i * 2 + 1) * ElemPerRpt, validRow);
             pipe_barrier(PIPE_V);
         }
-        // 若repeat为奇数, 则将最后的repeat加入tmp
         if (srcRptPerRow != 1 && srcRptPerRow % 2 == 1) {
             ReduceOp::template BinInstrByMode<true, TmpCols, TmpCols, SrcCols, TmpStride, TmpStride, SrcStride,
                                               ElemPerRpt>(tmp, tmp, src + (srcRptPerRow - 1) * ElemPerRpt, validRow);
@@ -59,7 +59,6 @@ struct TRowSumOp : TRowReduceOp<T, TRowSumOp<T>> {
     template <int TmpCols, int SrcCols, uint32_t TmpStride, uint32_t SrcStride, uint8_t ElemPerRpt>
     PTO_INTERNAL static void TmpProc(__ubuf__ T *tmp, __ubuf__ T *src, int srcRptPerRow, int validRow)
     {
-        // 二分Add后的repeat数
         unsigned curLen = srcRptPerRow / 2;
         unsigned loopRemain;
         int i;
@@ -70,7 +69,6 @@ struct TRowSumOp : TRowReduceOp<T, TRowSumOp<T>> {
                                                               tmp + (i * 2 + 1) * ElemPerRpt, validRow);
                 pipe_barrier(PIPE_V);
             }
-
             loopRemain = curLen % 2;
             curLen /= 2;
             if (loopRemain > 0) {
@@ -93,7 +91,54 @@ __tf__ PTO_INTERNAL void TRowSum(typename TileDataOut::TileDType __out__ dstData
     __ubuf__ T *src = (__ubuf__ T *)__cce_get_tile_ptr(srcData);
     __ubuf__ T *tmp = (__ubuf__ T *)__cce_get_tile_ptr(tmpData);
 
-    TRowReduceInstr<TRowSumOp<T>, T, TileDataOut, TileDataIn, TileDataTmp>(dst, src, tmp, validCol, validRow);
+    if constexpr (std::is_same_v<T, int32_t> || std::is_same_v<T, int16_t>) {
+        // Integer implementation (follows TROWPROD pattern)
+        constexpr unsigned dstRowStride = TileDataOut::RowStride;
+        constexpr unsigned srcRowStride = TileDataIn::RowStride;
+        constexpr unsigned tmpRowStride = TileDataTmp::RowStride;
+        constexpr unsigned elemsPerBlock = BLOCK_BYTE_SIZE / sizeof(T);
+        unsigned blocksPerRow = validCol / elemsPerBlock;
+
+        set_mask_count();
+
+        for (unsigned row = 0; row < validRow; ++row, dst += dstRowStride, src += srcRowStride, tmp += tmpRowStride) {
+            set_vector_mask(0, elemsPerBlock);
+
+            // Initialize tmp with 0
+            vector_dup(tmp, (T)0, 1, 1, 1, 0, 0);
+            pipe_barrier(PIPE_V);
+
+            // Accumulate using vadd
+            for (unsigned block = 0; block < blocksPerRow; ++block) {
+                vadd(tmp, tmp, src + block * elemsPerBlock, 1, 0, 0, 1, 0, 0, 1);
+                pipe_barrier(PIPE_V);
+            }
+
+            // Handle remaining elements
+            unsigned elemsLessThanBlock = validCol % elemsPerBlock;
+            if (elemsLessThanBlock > 0) {
+                set_vector_mask(0, elemsLessThanBlock);
+                vadd(tmp, tmp, src + blocksPerRow * elemsPerBlock, 1, 0, 0, 1, 0, 0, 1);
+                pipe_barrier(PIPE_V);
+            }
+
+            pipe_barrier(PIPE_ALL);
+
+            // Final scalar reduction
+            if constexpr (std::is_same_v<T, int32_t>) {
+                dst[0] = tmp[0] + tmp[1] + tmp[2] + tmp[3] + tmp[4] + tmp[5] + tmp[6] + tmp[7];
+            } else if constexpr (std::is_same_v<T, int16_t>) {
+                dst[0] = tmp[0] + tmp[1] + tmp[2] + tmp[3] + tmp[4] + tmp[5] + tmp[6] + tmp[7] + tmp[8] + tmp[9] +
+                         tmp[10] + tmp[11] + tmp[12] + tmp[13] + tmp[14] + tmp[15];
+            }
+        }
+
+        set_mask_norm();
+        set_vector_mask(-1, -1);
+    } else {
+        // Float/Half implementation (original vcadd-based)
+        TRowReduceInstr<TRowSumOp<T>, T, TileDataOut, TileDataIn, TileDataTmp>(dst, src, tmp, validCol, validRow);
+    }
 }
 
 template <typename TileDataOut, typename TileDataIn, typename TileDataTmp>

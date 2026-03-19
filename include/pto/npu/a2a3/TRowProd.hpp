@@ -37,7 +37,15 @@ __tf__ PTO_INTERNAL void TRowProd(typename TileDataOut::TileDType __out__ dst,
     for (unsigned row = 0; row < validRow; ++row, dstPtr += dstRowStride, srcPtr += srcRowStride) {
         set_vector_mask(0, elemsPerBlock);
 
-        vector_dup(tmpPtr, (T)1.0f, 1, 1, 1, 0, 0);
+        if constexpr (std::is_same_v<T, float>) {
+            vector_dup(tmpPtr, (T)1.0f, 1, 1, 1, 0, 0);
+        } else if constexpr (std::is_same_v<T, int32_t>) {
+            vector_dup(tmpPtr, (T)1, 1, 1, 1, 0, 0);
+        } else if constexpr (std::is_same_v<T, int16_t>) {
+            vector_dup(tmpPtr, (T)1, 1, 1, 1, 0, 0);
+        } else if constexpr (std::is_same_v<T, half>) {
+            vector_dup(tmpPtr, (T)1.0f, 1, 1, 1, 0, 0);
+        }
         pipe_barrier(PIPE_V);
 
         for (unsigned block = 0; block < blocksPerRow; ++block) {
@@ -60,8 +68,14 @@ __tf__ PTO_INTERNAL void TRowProd(typename TileDataOut::TileDType __out__ dst,
                                (float)tmpPtr[4] * (float)tmpPtr[5] * (float)tmpPtr[6] * (float)tmpPtr[7] *
                                (float)tmpPtr[8] * (float)tmpPtr[9] * (float)tmpPtr[10] * (float)tmpPtr[11] *
                                (float)tmpPtr[12] * (float)tmpPtr[13] * (float)tmpPtr[14] * (float)tmpPtr[15]);
+        } else if constexpr (std::is_same_v<T, int32_t>) {
+            dstPtr[0] = tmpPtr[0] * tmpPtr[1] * tmpPtr[2] * tmpPtr[3] * tmpPtr[4] * tmpPtr[5] * tmpPtr[6] * tmpPtr[7];
+        } else if constexpr (std::is_same_v<T, int16_t>) {
+            dstPtr[0] = tmpPtr[0] * tmpPtr[1] * tmpPtr[2] * tmpPtr[3] * tmpPtr[4] * tmpPtr[5] * tmpPtr[6] * tmpPtr[7] *
+                        tmpPtr[8] * tmpPtr[9] * tmpPtr[10] * tmpPtr[11] * tmpPtr[12] * tmpPtr[13] * tmpPtr[14] *
+                        tmpPtr[15];
         } else {
-            static_assert(sizeof(T) == 0, "T must be float or half");
+            static_assert(sizeof(T) == 0, "T must be float, half, int32, or int16");
         }
     }
 
