@@ -84,7 +84,7 @@ def time_op_npu(fn):
 def test_flash():
     s0, s1, head = 128, 2048, 128
 
-    device = "npu:6"
+    device = "npu:0"
     torch.npu.set_device(device)
 
     dtype = torch.float16
