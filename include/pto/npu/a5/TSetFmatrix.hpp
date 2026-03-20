@@ -17,21 +17,21 @@ PTO_INTERNAL void TSETFMATRIX_IMPL(ConvTileData &src)
 {
     if constexpr (FmatrixMode == SetFmatrixMode::FMATRIX_A_MANUAL || FmatrixMode == SetFmatrixMode::FMATRIX_B_MANUAL) {
         uint64_t regFmatrix = 0;
-        regFmatrix |= uint64_t(src.GetFmapW() & 0xFFFF);
         constexpr uint32_t l1ShiftBit = 16;
+        regFmatrix |= uint64_t(src.GetFmapW() & 0xFFFF);
         regFmatrix |= uint64_t(src.GetFmapH() & 0xFFFF) << l1ShiftBit;
 
-        constexpr uint32_t padNumber = 4;
         constexpr uint32_t padListShiftBit = 8;
         constexpr uint32_t padListShiftBase = 32;
+        constexpr uint32_t padNumber = 4;
 
         for (uint32_t i = 0; i < padNumber; i++) {
             regFmatrix |= uint64_t(src.GetPadListArray()[i] & 0xFF) << (padListShiftBase + i * padListShiftBit);
         }
-        if constexpr (FmatrixMode == SetFmatrixMode::FMATRIX_A_MANUAL) {
-            set_fmatrix(regFmatrix);
-        } else if constexpr (FmatrixMode == SetFmatrixMode::FMATRIX_B_MANUAL) {
+        if constexpr (FmatrixMode == SetFmatrixMode::FMATRIX_B_MANUAL) {
             set_fmatrix_b(regFmatrix);
+        } else if constexpr (FmatrixMode == SetFmatrixMode::FMATRIX_A_MANUAL) {
+            set_fmatrix(regFmatrix);
         }
     }
 }
