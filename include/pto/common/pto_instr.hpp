@@ -821,11 +821,12 @@ PTO_INST RecordEvent TSORT32(DstTileData &dst, SrcTileData &src, IdxTileData &id
     return {};
 }
 
-template <typename TileDataD, typename TileDataS0, typename TileDataS1, typename... WaitEvents>
-PTO_INST RecordEvent TGATHER(TileDataD &dst, TileDataS0 &src0, TileDataS1 &src1, WaitEvents &... events)
+template <typename TileDataD, typename TileDataS0, typename TileDataS1, typename TileDataTmp, typename... WaitEvents>
+PTO_INST RecordEvent TGATHER(TileDataD &dst, TileDataS0 &src0, TileDataS1 &src1, TileDataTmp &tmp,
+                             WaitEvents &... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL(TGATHER, dst, src0, src1);
+    MAP_INSTR_IMPL(TGATHER, dst, src0, src1, tmp);
     return {};
 }
 
