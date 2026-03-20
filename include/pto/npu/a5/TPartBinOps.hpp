@@ -52,6 +52,7 @@ struct Padding<uint32_t> {
     static constexpr Type Max = (Type)0xffffffffUL;
 };
 
+#ifndef PTO_NPU_ARCH_KIRIN9030
 template <>
 struct Padding<bfloat16_t> {
     using Type = uint16_t;
@@ -60,6 +61,7 @@ struct Padding<bfloat16_t> {
     static constexpr Type Min = (Type)0xff80UL;
     static constexpr Type Max = (Type)0x7f80UL;
 };
+#endif
 
 template <>
 struct Padding<half> {
@@ -166,7 +168,7 @@ __tf__ PTO_INTERNAL void TCopyPadOp(typename TileData::TileDType __out__ dst, ty
 
         mem_bar(VST_VLD);
 
-        // MAX (between the dst and source 1)
+        // MAX (between dst and source 1)
         repeatTimes = CeilDivision(Src1validCol, elementsPerRepeat);
         for (uint16_t i = 0; i < (uint16_t)Src1validRow; ++i) {
             uint32_t sreg = (uint32_t)(Src1validCol);

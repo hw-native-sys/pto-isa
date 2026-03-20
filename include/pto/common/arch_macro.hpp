@@ -13,13 +13,13 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #if __NPU_ARCH__ == 2201
 #define PTO_NPU_ARCH_A2A3
-#elif __NPU_ARCH__ == 3101
-#define PTO_NPU_ARCH_A5
-#elif __NPU_ARCH__ == 3510
+#elif (__NPU_ARCH__ == 3101) || (__NPU_ARCH__ == 3510)
 #define PTO_NPU_ARCH_A5
 #elif __NPU_ARCH__ == 3113
+#define PTO_COMM_NOT_SUPPORTED
 #define PTO_NPU_ARCH_KIRIN9030
 #elif __NPU_ARCH__ == 3003
+#define PTO_COMM_NOT_SUPPORTED
 #define PTO_NPU_ARCH_KIRINX90
 #endif
 
