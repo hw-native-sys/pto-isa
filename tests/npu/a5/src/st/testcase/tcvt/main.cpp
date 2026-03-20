@@ -49,6 +49,27 @@ struct hifloat8_wrapper {
         return static_cast<float>(value);
     }
 };
+struct fp4_e1m2x2_wrapper {
+    uint8_t value;
+    operator uint8_t() const
+    {
+        return value;
+    }
+};
+struct fp4_e2m1x2_wrapper {
+    uint8_t value;
+    operator uint8_t() const
+    {
+        return value;
+    }
+};
+struct bf16_wrapper {
+    uint16_t value;
+    operator uint16_t() const
+    {
+        return value;
+    }
+};
 
 template <typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
           int kValidCols_ = kTCols_>
@@ -81,8 +102,13 @@ void test_tcvt()
     uint32_t M = kGRows_;
     uint32_t N = kGCols_;
 
-    size_t srcFileSize = M * N * sizeof(S);
-    size_t dstFileSize = M * N * sizeof(D);
+    constexpr bool isFp4Dst = std::is_same_v<D, fp4_e1m2x2_wrapper> || std::is_same_v<D, fp4_e2m1x2_wrapper>;
+    constexpr bool isFp4Src = std::is_same_v<S, fp4_e1m2x2_wrapper> || std::is_same_v<S, fp4_e2m1x2_wrapper>;
+    size_t srcCols = isFp4Src ? ((N + 1) / 2) : N;
+    size_t dstCols = isFp4Dst ? ((N + 1) / 2) : N;
+
+    size_t srcFileSize = M * srcCols * sizeof(S);
+    size_t dstFileSize = M * dstCols * sizeof(D);
 
     aclInit(nullptr);
     aclrtSetDevice(0);
@@ -120,8 +146,10 @@ void test_tcvt()
 
     std::vector<D> golden(dstFileSize);
     std::vector<D> devFinal(dstFileSize);
-    ReadFile(GetGoldenDir() + "/golden.bin", dstFileSize, golden.data(), dstFileSize);
-    ReadFile(GetGoldenDir() + "/output_z.bin", dstFileSize, devFinal.data(), dstFileSize);
+    size_t goldenFileSize = dstFileSize;
+    size_t outputFileSize = dstFileSize;
+    ReadFile(GetGoldenDir() + "/golden.bin", goldenFileSize, golden.data(), dstFileSize);
+    ReadFile(GetGoldenDir() + "/output_z.bin", outputFileSize, devFinal.data(), dstFileSize);
 
     bool ret = ResultCmp<D>(golden, devFinal, 0.001f);
 
@@ -177,10 +205,16 @@ GENERATE_TCVT_TESTS(int8_t, aclFloat16, fp16_int8)
 GENERATE_TCVT_TESTS(uint8_t, aclFloat16, fp16_uint8)
 GENERATE_TCVT_TESTS(hifloat8_wrapper, aclFloat16, fp16_h8)
 
-// BF16 Source → fp32, int32, half
+// BF16 Source → fp32, int32, half, fp4
 GENERATE_TCVT_TESTS(float, aclFloat16, bf16_fp32)
 GENERATE_TCVT_TESTS(int32_t, aclFloat16, bf16_int32)
 // GENERATE_TCVT_TESTS(aclFloat16, bfloat16_t, bf16_fp16)
+GENERATE_TCVT_TESTS(fp4_e1m2x2_wrapper, bf16_wrapper, bf16_fp4_e1m2x2)
+GENERATE_TCVT_TESTS(fp4_e2m1x2_wrapper, bf16_wrapper, bf16_fp4_e2m1x2)
+
+// FP4 Source → bf16
+GENERATE_TCVT_TESTS(bf16_wrapper, fp4_e1m2x2_wrapper, fp4_e1m2x2_bf16)
+GENERATE_TCVT_TESTS(bf16_wrapper, fp4_e2m1x2_wrapper, fp4_e2m1x2_bf16)
 
 // U8 Source → half, uint16
 GENERATE_TCVT_TESTS(aclFloat16, uint8_t, uint8_fp16)

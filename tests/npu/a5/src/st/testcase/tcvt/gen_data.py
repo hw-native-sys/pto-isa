@@ -45,6 +45,90 @@ fp8_e4m3 = ml_dtypes.float8_e4m3fn if HAS_ML_DTYPES else None
 hifloat8 = en_dtypes.hifloat8 if HAS_EN_DTYPES else None
 np.random.seed(19)
 
+# ---------------------------------------------------------------------------
+# FP4 type helpers
+# ---------------------------------------------------------------------------
+# float4_e1m2x2_t: two FP4-E1M2 (1 sign, 1 exp, 2 mantissa) nibbles per byte
+# float4_e2m1x2_t: two FP4-E2M1 (1 sign, 2 exp, 1 mantissa) nibbles per byte
+
+# Positive representable values for each format (index = nibble code for positive values 0..7)
+_FP4_E1M2_POS = np.array([0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75], dtype=np.float32)
+_FP4_E2M1_POS = np.array([0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0], dtype=np.float32)
+
+
+def _float32_to_bf16_bits(arr: np.ndarray) -> np.ndarray:
+    """Convert float32 array to BF16 bit-patterns (uint16) using RNE."""
+    arr_f32 = np.asarray(arr, dtype=np.float32)
+    u32 = arr_f32.view(np.uint32)
+    # Round-to-nearest-even when truncating lower 16 bits
+    round_bias = np.uint32(0x7FFF) + ((u32 >> 16) & np.uint32(1))
+    bf16 = ((u32 + round_bias) >> 16).astype(np.uint16)
+    return bf16
+
+
+def _bf16_bits_to_float32(arr_bits: np.ndarray) -> np.ndarray:
+    """Decode BF16 bit-patterns (uint16) into float32 values."""
+    u32 = np.asarray(arr_bits, dtype=np.uint16).astype(np.uint32) << 16
+    return u32.view(np.float32)
+
+
+def _quantize_to_fp4_nibble(val: float, pos_grid: np.ndarray) -> int:
+    """Return the 4-bit nibble code for a scalar float value.
+
+    Nibble layout: bit3 = sign, bits[2:0] = magnitude code (index into pos_grid).
+    Saturation ON: values beyond max are clamped to max.
+    """
+    sign = 0
+    if val < 0:
+        sign = 1
+        val = -val
+    # Round-to-nearest, saturate.
+    # For exact midpoint ties, choose the even magnitude code (RNE behavior).
+    distances = np.abs(pos_grid - val)
+    min_dist = float(np.min(distances))
+    tie_candidates = np.where(np.isclose(distances, min_dist, rtol=0.0, atol=1e-8))[0]
+    even_candidates = tie_candidates[tie_candidates % 2 == 0]
+    mag_code = int(even_candidates[0] if even_candidates.size > 0 else tie_candidates[0])
+    return (sign << 3) | mag_code
+
+
+def _bf16_to_fp4x2_array(src: np.ndarray, pos_grid: np.ndarray) -> np.ndarray:
+    """Convert a BF16-value array (provided as float array) to packed FP4x2 uint8 array.
+
+    Input shape (M, N) → output shape (M, N//2).
+    If N is odd, the last nibble of each row is zero-padded.
+    """
+    m, n = src.shape
+    n_out = (n + 1) // 2
+    out = np.zeros((m, n_out), dtype=np.uint8)
+    src_f32 = src.astype(np.float32)
+    for r in range(m):
+        for c in range(n):
+            nibble = _quantize_to_fp4_nibble(float(src_f32[r, c]), pos_grid)
+            byte_idx = c // 2
+            if c % 2 == 0:  # even → low nibble
+                out[r, byte_idx] = (out[r, byte_idx] & 0xF0) | nibble
+            else:  # odd → high nibble
+                out[r, byte_idx] = (out[r, byte_idx] & 0x0F) | (nibble << 4)
+    return out
+
+
+# Sentinel dtype objects so gen_golden can dispatch on type identity
+class _Fp4E1m2x2Type:
+    """Sentinel for float4_e1m2x2_t (BF16→FP4-E1M2 packed)"""
+
+    __name__ = "fp4_e1m2x2"
+
+
+class _Fp4E2m1x2Type:
+    """Sentinel for float4_e2m1x2_t (BF16→FP4-E2M1 packed)"""
+
+    __name__ = "fp4_e2m1x2"
+
+
+fp4_e1m2x2 = _Fp4E1m2x2Type()
+fp4_e2m1x2 = _Fp4E2m1x2Type()
+
 # PyTorch infinity handling: GPU (True) vs CPU (False)
 # GPU: signed int +inf→-1, -inf→0 | unsigned +inf→max, -inf→0
 # CPU: all +inf→0, -inf→0
@@ -71,6 +155,62 @@ def gen_golden(case_name, param):
     dsttype = param.dsttype
     m, n = param.m, param.n
     valid_m, valid_n = param.valid_m, param.valid_n
+
+    # FP4 packed types as DESTINATION: BF16→FP4 quantization
+    if isinstance(dsttype, (_Fp4E1m2x2Type, _Fp4E2m1x2Type)):
+        pos_grid = _FP4_E1M2_POS if isinstance(dsttype, _Fp4E1m2x2Type) else _FP4_E2M1_POS
+        max_val = float(pos_grid.max())  # E1M2: 1.75, E2M1: 6.0
+        # Scale to [-1.5*max, 1.5*max] so values span the full FP4 range with mild saturation.
+        # Generate true BF16 source bytes, then quantize from decoded BF16 values.
+        x1_f32 = (np.random.random([m, n]).astype(np.float32) * max_val * 3 - max_val * 1.5).astype(np.float32)
+        x1_bf16_bits = _float32_to_bf16_bits(x1_f32)
+        x1_bf16_vals = _bf16_bits_to_float32(x1_bf16_bits)
+
+        packed = _bf16_to_fp4x2_array(x1_bf16_vals, pos_grid)  # shape (m, n//2)
+        # Apply valid region mask (zero out rows/cols outside valid range)
+        if valid_m < m or valid_n < n:
+            # Hardware TCVT BF16->FP4 keeps only complete packed bytes in partial mode.
+            # For odd valid_n, the boundary byte is zeroed (effective truncation to even cols).
+            valid_n_packed = valid_n // 2
+            full = np.zeros((m, (n + 1) // 2), dtype=np.uint8)
+            full[:valid_m, :valid_n_packed] = packed[:valid_m, :valid_n_packed]
+            packed = full
+        x1_bf16_bits.tofile("./x1_gm.bin")
+        packed.tofile("./golden.bin")
+        return
+
+    # FP4 packed types as SOURCE: FP4→BF16 dequantization
+    if isinstance(srctype, (_Fp4E1m2x2Type, _Fp4E2m1x2Type)):
+        pos_grid = _FP4_E1M2_POS if isinstance(srctype, _Fp4E1m2x2Type) else _FP4_E2M1_POS
+        n_src_bytes = (n + 1) // 2
+        # Generate random packed FP4x2 bytes
+        x1_gm = np.random.randint(0, 256, [m, n_src_bytes]).astype(np.uint8)
+        # Dequantize: unpack nibbles to float values, then convert to BF16
+        golden_f32 = np.zeros([m, n], dtype=np.float32)
+        for r in range(m):
+            for c in range(n):
+                byte_idx = c // 2
+                if c % 2 == 0:
+                    nibble = int(x1_gm[r, byte_idx]) & 0x0F
+                else:
+                    nibble = (int(x1_gm[r, byte_idx]) >> 4) & 0x0F
+                sign = (nibble >> 3) & 1
+                mag_code = nibble & 0x07
+                val = float(pos_grid[mag_code])
+                if sign:
+                    val = -val
+                golden_f32[r, c] = val
+        golden_bf16_bits = _float32_to_bf16_bits(golden_f32)
+        # Apply valid region mask
+        # FP4 nibbles are processed in byte-pairs; round valid_n to even (truncate odd boundary nibble)
+        valid_n_adj = valid_n & ~1
+        if valid_m < m or valid_n_adj < n:
+            full = np.zeros([m, n], dtype=np.uint16)
+            full[:valid_m, :valid_n_adj] = golden_bf16_bits[:valid_m, :valid_n_adj]
+            golden_bf16_bits = full
+        x1_gm.tofile("./x1_gm.bin")
+        golden_bf16_bits.tofile("./golden.bin")
+        return
 
     # Build type tuples dynamically to exclude None types
     float_types = tuple(t for t in (np.float32, np.float16, bfloat16) if t is not None)
@@ -286,6 +426,11 @@ if __name__ == "__main__":
         ("bf16_fp32", bfloat16, np.float32),
         ("bf16_int32", bfloat16, np.int32),
         ("bf16_fp16", bfloat16, np.float16),
+        ("bf16_fp4_e1m2x2", bfloat16, fp4_e1m2x2),
+        ("bf16_fp4_e2m1x2", bfloat16, fp4_e2m1x2),
+        # FP4 conversions
+        ("fp4_e1m2x2_bf16", fp4_e1m2x2, bfloat16),
+        ("fp4_e2m1x2_bf16", fp4_e2m1x2, bfloat16),
         # U8/I8 conversions
         ("uint8_fp16", np.uint8, np.float16),
         ("int8_fp16", np.int8, np.float16),
