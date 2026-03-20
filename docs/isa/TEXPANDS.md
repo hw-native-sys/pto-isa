@@ -127,7 +127,7 @@ void example_manual() {
 
 ```text
 %dst = texpands %scalar : f32, !pto.tile<...>
-# IR Level 2 (DPS)
+# AS Level 2 (DPS)
 pto.texpands ins(%scalar : dtype) outs(%dst : !pto.tile_buf<...>)
 ```
 

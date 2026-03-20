@@ -1,5 +1,5 @@
 ﻿<p align="center">
-  <img src="../../figures/pto_logo.svg" alt="PTO Tile Lib" width="180" />
+  <img src="../figures/pto_logo.svg" alt="PTO Tile Lib" width="180" />
 </p>
 
 # PTO ISA 参考
@@ -51,7 +51,7 @@
 ## Tile-标量 / Tile-立即数
 - [TEXPANDS](TEXPANDS_zh.md) - 将标量广播到目标 Tile 中。
 - [TCMPS](TCMPS_zh.md) - 将 Tile 与标量比较并写入逐元素比较结果。
-- [TSELS](TSELS_zh.md) - 使用掩码Tile在源Tile和标量之间进行选择（源Tile逐元素选择）。
+- [TSELS](TSELS_zh.md) - 使用掩码 Tile 在源 Tile 和标量之间进行选择（源 Tile 逐元素选择）。
 - [TMINS](TMINS_zh.md) - Tile 与标量的逐元素最小值。
 - [TADDS](TADDS_zh.md) - Tile 与标量的逐元素加法。
 - [TSUBS](TSUBS_zh.md) - 从 Tile 中逐元素减去一个标量。
@@ -141,3 +141,7 @@
 - [TGATHERB](TGATHERB_zh.md) - 使用字节偏移量收集元素。
 - [TSCATTER](TSCATTER_zh.md) - 使用逐元素目标扁平偏移，将源 Tile 元素散播到目标 Tile 中。
 - [TQUANT](TQUANT_zh.md) - 量化 Tile（例如 FP32 到 FP8），生成指数/缩放/最大值输出。
+
+## 通信
+
+完整的通信 ISA 指令参考（点对点、异步、同步原语及集合通信）见 [comm/README_zh.md](comm/README_zh.md)。

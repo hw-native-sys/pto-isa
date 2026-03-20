@@ -94,7 +94,7 @@ void example() {
 
 ```text
 %dst = txors %src, %scalar : !pto.tile<...>, i32
-# IR Level 2 (DPS)
+# AS Level 2 (DPS)
 pto.txors ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
 

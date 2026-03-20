@@ -83,7 +83,7 @@ PTO_INST RecordEvent TCOLEXPANDMIN(TileDataDst &dst, TileDataDst &src0, TileData
 
 ```text
 %dst = tcolexpandmin %src0, %src1 : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
-# IR Level 2 (DPS)
+# AS Level 2 (DPS)
 pto.tcolexpandmin ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 

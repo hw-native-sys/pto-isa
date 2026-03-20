@@ -111,7 +111,7 @@ void example_manual() {
 
 ```text
 %dst = texp %src : !pto.tile<...>
-# IR Level 2 (DPS)
+# AS Level 2 (DPS)
 pto.texp ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 

@@ -124,7 +124,7 @@ void example_manual() {
 
 ```text
 %dst = tgatherb %src, %offsets : !pto.tile<...> -> !pto.tile<...>
-# IR Level 2 (DPS)
+# AS Level 2 (DPS)
 pto.tgatherb ins(%src, %offsets : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 

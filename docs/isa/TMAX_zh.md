@@ -118,7 +118,7 @@ void example_manual() {
 
 ```text
 %dst = tmax %src0, %src1 : !pto.tile<...>
-# IR Level 2 (DPS)
+# AS Level 2 (DPS)
 pto.tmax ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 

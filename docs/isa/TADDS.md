@@ -117,7 +117,7 @@ void example_manual() {
 
 ```text
 %dst = tadds %src, %scalar : !pto.tile<...>, f32
-# IR Level 2 (DPS)
+# AS Level 2 (DPS)
 pto.tadds ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
 

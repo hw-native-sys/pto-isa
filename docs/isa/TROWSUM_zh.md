@@ -128,7 +128,7 @@ void example_manual() {
 
 ```text
 %dst = trowsum %src : !pto.tile<...> -> !pto.tile<...>
-# IR Level 2 (DPS)
+# AS Level 2 (DPS)
 pto.trowsum ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 

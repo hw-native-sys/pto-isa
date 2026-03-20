@@ -17,7 +17,8 @@ This appendix is generated from `docs/isa/manifest.yaml` and provides a source-s
 | Matrix Multiply | 8 |
 | Data Movement / Layout | 12 |
 | Complex | 13 |
-| Total | 115 |
+| Communication | 11 |
+| Total | 126 |
 
 ## D.3 Header synchronization status
 
@@ -143,6 +144,17 @@ This appendix is generated from `docs/isa/manifest.yaml` and provides a source-s
 | Complex | [TGATHERB](/docs/isa/TGATHERB.md) | `complex` | `dst, src0, src1` | `docs/isa/TGATHERB.md` |
 | Complex | [TSCATTER](/docs/isa/TSCATTER.md) | `complex` | `dst, src0, src1` | `docs/isa/TSCATTER.md` |
 | Complex | [TQUANT](/docs/isa/TQUANT.md) | `complex` | `dst, src0, src1` | `docs/isa/TQUANT.md` |
+| Communication | [TPUT](/docs/isa/comm/TPUT.md) | `comm` | `dst, src, staging` | `docs/isa/comm/TPUT.md` |
+| Communication | [TGET](/docs/isa/comm/TGET.md) | `comm` | `dst, src, staging` | `docs/isa/comm/TGET.md` |
+| Communication | [TPUT_ASYNC](/docs/isa/comm/TPUT_ASYNC.md) | `comm` | `dst, src, session` | `docs/isa/comm/TPUT_ASYNC.md` |
+| Communication | [TGET_ASYNC](/docs/isa/comm/TGET_ASYNC.md) | `comm` | `dst, src, session` | `docs/isa/comm/TGET_ASYNC.md` |
+| Communication | [TNOTIFY](/docs/isa/comm/TNOTIFY.md) | `comm` | `signal, value, op` | `docs/isa/comm/TNOTIFY.md` |
+| Communication | [TWAIT](/docs/isa/comm/TWAIT.md) | `comm` | `signal, value, cmp` | `docs/isa/comm/TWAIT.md` |
+| Communication | [TTEST](/docs/isa/comm/TTEST.md) | `comm` | `signal, value, cmp` | `docs/isa/comm/TTEST.md` |
+| Communication | [TGATHER](/docs/isa/comm/TGATHER.md) | `comm` | `group, dst, staging` | `docs/isa/comm/TGATHER.md` |
+| Communication | [TSCATTER](/docs/isa/comm/TSCATTER.md) | `comm` | `group, src, staging` | `docs/isa/comm/TSCATTER.md` |
+| Communication | [TREDUCE](/docs/isa/comm/TREDUCE.md) | `comm` | `group, dst, acc, recv` | `docs/isa/comm/TREDUCE.md` |
+| Communication | [TBROADCAST](/docs/isa/comm/TBROADCAST.md) | `comm` | `group, src, staging` | `docs/isa/comm/TBROADCAST.md` |
 
 ## D.5 Notes
 

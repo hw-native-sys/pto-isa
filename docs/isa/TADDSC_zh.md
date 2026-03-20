@@ -42,12 +42,25 @@ pto.taddsc ins(%src0, %scalar, %src1 : !pto.tile_buf<...>, dtype, !pto.tile_buf<
 
 ```cpp
 template <typename TileData, typename... WaitEvents>
-PTO_INST RecordEvent TADDSC(TileData &dst, TileData &src0, typename TileData::DType scalar, TileData &src1, WaitEvents &... events);
+PTO_INST RecordEvent TADDSC(TileData& dst, TileData& src0, typename TileData::DType scalar, TileData& src1,
+                            WaitEvents&... events);
 ```
 
 ## 约束
 
-- 该操作在 `dst.GetValidRow()` / `dst.GetValidCol()` 上迭代。
+- **实现检查 (A2A3)**:
+    - `TileData::DType` 必须是以下之一：`int32_t`、`int16_t`、`half`、`float`。
+    - Tile 布局必须是行主序（`TileData::isRowMajor`）。
+- **实现检查 (A5)**:
+    - `TileData::DType` 必须是以下之一：`int32_t`、`int16_t`、`half`、`float`。
+    - Tile 布局必须是行主序（`TileData::isRowMajor`）。
+- **通用约束**:
+    - Tile 位置必须是向量（`TileData::Loc == TileType::Vec`）。
+    - 静态有效边界：`TileData::ValidRow <= TileData::Rows` 且 `TileData::ValidCol <= TileData::Cols`。
+    - 运行时：`dst`、`src0` 和 `src1` 的有效行列数必须相同。
+    - 标量类型必须与 Tile 数据类型一致。
+- **有效区域**:
+    - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
 
 ## 示例
 
@@ -86,7 +99,7 @@ void example() {
 
 ```text
 %dst = taddsc %src0, %scalar, %src1 : !pto.tile<...>, f32, !pto.tile<...>
-# IR Level 2 (DPS)
+# AS Level 2 (DPS)
 pto.taddsc ins(%src0, %scalar, %src1 : !pto.tile_buf<...>, dtype, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 

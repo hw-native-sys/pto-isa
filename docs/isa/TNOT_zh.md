@@ -99,7 +99,7 @@ void example() {
 
 ```text
 %dst = tnot %src : !pto.tile<...>
-# IR Level 2 (DPS)
+# AS Level 2 (DPS)
 pto.tnot ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 

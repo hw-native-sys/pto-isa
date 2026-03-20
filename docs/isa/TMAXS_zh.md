@@ -41,13 +41,25 @@ pto.tmaxs ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_b
 声明于 `include/pto/common/pto_instr.hpp`：
 
 ```cpp
-template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
-PTO_INST RecordEvent TMAXS(TileDataDst &dst, TileDataSrc &src, typename TileDataSrc::DType scalar, WaitEvents &... events);
+template <typename TileData, typename... WaitEvents>
+PTO_INST RecordEvent TMAXS(TileData& dst, TileData& src0, typename TileData::DType scalar, WaitEvents&... events);
 ```
 
 ## 约束
 
-- 该操作在 `dst.GetValidRow()` / `dst.GetValidCol()` 上迭代。
+- **实现检查 (A2A3)**:
+    - `TileData::DType` 必须是以下之一：`int32_t`、`int16_t`、`half`、`float`。
+    - Tile 布局必须是行主序（`TileData::isRowMajor`）。
+- **实现检查 (A5)**:
+    - `TileData::DType` 必须是以下之一：`int32_t`、`uint32_t`、`float`、`int16_t`、`uint16_t`、`half`、`bfloat16_t`、`uint8_t`、`int8_t`。
+    - Tile 布局必须是行主序（`TileData::isRowMajor`）。
+- **通用约束**:
+    - Tile 位置必须是向量（`TileData::Loc == TileType::Vec`）。
+    - 静态有效边界：`TileData::ValidRow <= TileData::Rows` 且 `TileData::ValidCol <= TileData::Cols`。
+    - 运行时：`dst` 和 `src` 的有效行列数必须相同。
+    - 标量类型必须与 Tile 数据类型一致。
+- **有效区域**:
+    - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
 
 ## 示例
 
@@ -86,7 +98,7 @@ void example() {
 
 ```text
 %dst = tmaxs %src, %scalar : !pto.tile<...>, f32
-# IR Level 2 (DPS)
+# AS Level 2 (DPS)
 pto.tmaxs ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
 

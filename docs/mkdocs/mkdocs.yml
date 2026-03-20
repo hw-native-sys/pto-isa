@@ -216,6 +216,19 @@ nav:
           - TMRGSORT: docs/isa/TMRGSORT.md
           - TQUANT: docs/isa/TQUANT.md
           - TPRINT: docs/isa/TPRINT.md
+      - Communication:
+          - Overview: docs/isa/comm/README.md
+          - TPUT: docs/isa/comm/TPUT.md
+          - TGET: docs/isa/comm/TGET.md
+          - TPUT_ASYNC: docs/isa/comm/TPUT_ASYNC.md
+          - TGET_ASYNC: docs/isa/comm/TGET_ASYNC.md
+          - TNOTIFY: docs/isa/comm/TNOTIFY.md
+          - TWAIT: docs/isa/comm/TWAIT.md
+          - TTEST: docs/isa/comm/TTEST.md
+          - TGATHER (comm): docs/isa/comm/TGATHER.md
+          - TSCATTER (comm): docs/isa/comm/TSCATTER.md
+          - TREDUCE: docs/isa/comm/TREDUCE.md
+          - TBROADCAST: docs/isa/comm/TBROADCAST.md
       - Reference:
           - Intrinsics Header: docs/reference/pto-intrinsics-header.md
           - All Instructions Index: manual/isa-reference.md

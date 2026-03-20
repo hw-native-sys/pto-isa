@@ -116,7 +116,7 @@ void example_manual() {
 
 ```text
 %dst = tci %S {descending = false} : !pto.tile<...>
-# IR Level 2 (DPS)
+# AS Level 2 (DPS)
 pto.tci ins(%scalar {descending = false} : dtype) outs(%dst : !pto.tile_buf<...>)
 ```
 

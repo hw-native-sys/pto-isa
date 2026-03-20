@@ -26,14 +26,15 @@ from __future__ import annotations
 import json
 import posixpath
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
 import mkdocs_gen_files
 
 
-repoRoot = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
-skipPrefixes = (
+SKIP_PREFIXES = (
     ".git/",
     ".github/",
     ".gitcode/",
@@ -47,12 +48,12 @@ skipPrefixes = (
     ".vscode/",
 )
 
-skipContains = (
+SKIP_CONTAINS = (
     "/__pycache__/",
     "/CMakeFiles/",
 )
 
-assetExts = {
+ASSET_EXTS = {
     ".svg",
     ".png",
     ".jpg",
@@ -63,41 +64,41 @@ assetExts = {
 }
 
 # Directory names whose README is the canonical index page.
-# Used by enUrlToZhUrl to map e.g. /docs/isa/ -> /docs/isa/README_zh/.
-readmeDirs = {
+# Used by _en_url_to_zh_url to map e.g. /docs/isa/ -> /docs/isa/README_zh/.
+README_DIRS = {
     "coding", "isa", "machine", "assembly", "docs", "kernels",
     "tests", "demos", "scripts", "include", "cmake", "reference",
     "tutorials", "script", "package", "custom", "baseline", "add",
     "gemm_basic", "flash_atten", "gemm_performance", "a2a3", "a5",
-    "kirin9030", "npu", "pto",
+    "kirin9030", "npu", "pto", "comm",
 }
 
 
-def shouldSkip(relPosix: str) -> bool:
-    if relPosix.startswith("docs/mkdocs/"):
+def _should_skip(rel_posix: str) -> bool:
+    if rel_posix.startswith("docs/mkdocs/"):
         return True
-    if relPosix.endswith("/mkdocs.yml"):
+    if rel_posix.endswith("/mkdocs.yml"):
         return True
-    if relPosix == "docs/menu_ops_development.md":
+    if rel_posix == "docs/menu_ops_development.md":
         return True
-    if relPosix.startswith(".venv"):
+    if rel_posix.startswith(".venv"):
         return True
-    if "site-packages/" in relPosix:
+    if "site-packages/" in rel_posix:
         return True
-    if any(relPosix.startswith(p) for p in skipPrefixes):
+    if any(rel_posix.startswith(p) for p in SKIP_PREFIXES):
         return True
-    if any(s in relPosix for s in skipContains):
+    if any(s in rel_posix for s in SKIP_CONTAINS):
         return True
-    if relPosix.endswith((".pyc",)):
+    if rel_posix.endswith((".pyc",)):
         return True
     return False
 
 
-absLinkRe = re.compile(r'\]\(/((?!http)[^)]+)\)')
-relImgRe = re.compile(r'(<img\b[^>]*\bsrc=["\'])((?!http|/|data:)[^"\'>]+)(["\'])')
+ABS_LINK_RE = re.compile(r'\]\(/((?!http)[^)]+)\)')
+REL_IMG_RE = re.compile(r'(<img\b[^>]*\bsrc=["\'])((?!http|/|data:)[^"\'>]+)(["\'])')
 
 
-def rewriteRelImgsForBuild(text: str, srcRel: str) -> str:
+def _rewrite_rel_imgs_for_build(text: str, src_rel: str) -> str:
     """Rewrite relative <img src="..."> paths so they resolve correctly from
     the MkDocs virtual page URL.
 
@@ -106,54 +107,54 @@ def rewriteRelImgsForBuild(text: str, srcRel: str) -> str:
     to be relative to /foo/bar/ instead.
 
     Example:
-      srcRel = "docs/getting-started.md"
-      imgPath = "figures/pto_logo.svg"  (relative to docs/)
+      src_rel = "docs/getting-started.md"
+      img_path = "figures/pto_logo.svg"  (relative to docs/)
       resolved repo path = docs/figures/pto_logo.svg
       MkDocs page URL   = /docs/getting-started/
       correct rel path  = ../figures/pto_logo.svg
     """
     # Directory containing the source file (repo-relative, posix).
-    srcDir = Path(srcRel).parent.as_posix()  # e.g. "docs"
+    src_dir = Path(src_rel).parent.as_posix()  # e.g. "docs"
 
     # Virtual page directory (where MkDocs serves the page).
-    # For foo/bar.md -> /foo/bar/  so pageDir = "foo/bar"
-    pageDir = Path(srcRel).with_suffix('').as_posix()  # e.g. "docs/getting-started"
+    # For foo/bar.md -> /foo/bar/  so page_dir = "foo/bar"
+    page_dir = Path(src_rel).with_suffix('').as_posix()  # e.g. "docs/getting-started"
 
     def replace(m: re.Match) -> str:
-        prefix, imgPath, suffix = m.group(1), m.group(2), m.group(3)
+        prefix, img_path, suffix = m.group(1), m.group(2), m.group(3)
         # Resolve image to repo-relative path.
-        repoImg = (srcDir + '/' + imgPath) if (srcDir and srcDir != '.') else imgPath
-        # Normalize (handle any ../ in original imgPath).
-        repoImg = posixpath.normpath(repoImg)
-        # Compute relative path from pageDir to repoImg.
-        rel = posixpath.relpath(repoImg, pageDir)  # e.g. ../figures/pto_logo.svg
+        repo_img = (src_dir + '/' + img_path) if (src_dir and src_dir != '.') else img_path
+        # Normalize (handle any ../ in original img_path).
+        repo_img = posixpath.normpath(repo_img)
+        # Compute relative path from page_dir to repo_img.
+        rel = posixpath.relpath(repo_img, page_dir)  # e.g. ../figures/pto_logo.svg
         return f'{prefix}{rel}{suffix}'
 
-    return relImgRe.sub(replace, text)
+    return REL_IMG_RE.sub(replace, text)
 
 
 # Matches a relative markdown link that starts with one or more "../" components.
 # Group 1: the "../" prefix (one or more), Group 2: the rest of the target.
-relLinkRe = re.compile(r'\]\((\.\./+)([^)]+)\)')
+REL_LINK_RE = re.compile(r'\]\((\.\./+)([^)]+)\)')
 
 # Matches repo-relative links into docs/mkdocs/src/ (e.g. mkdocs/src/manual/foo.md).
 # These appear in repo-level docs so they resolve correctly during static browsing,
 # but must be rewritten to root-absolute paths at MkDocs build time.
-mkdocsSrcLinkRe = re.compile(r'\]\(mkdocs/src/([^)]+)\)')
+MKDOCS_SRC_LINK_RE = re.compile(r'\]\(mkdocs/src/([^)]+)\)')
 
 # Strip stale "<!-- Generated from ... -->" header lines that accumulate on
 # repeated builds when docs_dir is the same directory as the source files.
-_generatedHeaderRe = re.compile(
+_GENERATED_HEADER_RE = re.compile(
     r'^(?:<!-- Generated from `[^`]*` -->\s*\n\n?)+', re.MULTILINE
 )
 
 
-def stripGeneratedHeader(text: str) -> str:
+def _strip_generated_header(text: str) -> str:
     """Remove any leading '<!-- Generated from ... -->' comment blocks."""
-    return _generatedHeaderRe.sub('', text)
+    return _GENERATED_HEADER_RE.sub('', text)
 
 
-def rewriteLinksForBuild(text: str, virtualPath: str) -> str:
+def _rewrite_links_for_build(text: str, virtual_path: str) -> str:
     """Rewrite links in a hand-written docs/mkdocs/src/ file so they resolve
     correctly from the MkDocs virtual page URL.
 
@@ -172,50 +173,50 @@ def rewriteLinksForBuild(text: str, virtualPath: str) -> str:
        MkDocs needs  ../docs/isa/TADD.md  (only 1 level up).
 
        The hand-written source sits at depth
-         srcDepth = len(Path("docs/mkdocs/src") / virtualPath).parent.parts
-                  = len(("docs","mkdocs","src","manual")) = 4
+         src_depth = len(Path("docs/mkdocs/src") / virtual_path).parent.parts
+                   = len(("docs","mkdocs","src","manual")) = 4
        and the virtual path sits at depth
-         virtDepth = len(Path(virtualPath).parent.parts)
-                   = len(("manual",)) = 1
+         virt_depth = len(Path(virtual_path).parent.parts)
+                    = len(("manual",)) = 1
        so each "../" in the original link corresponds to climbing one level
        in the repo tree.  After stripping the src prefix the correct number
-       of "../" is virtDepth.
+       of "../" is virt_depth.
 
     Args:
-        text:        Markdown source text.
-        virtualPath: Virtual path of the file (relative to docs_dir), e.g.
-                     "manual/appendix-d-instruction-family-matrix.md".
+        text:         Markdown source text.
+        virtual_path: Virtual path of the file (relative to docs_dir), e.g.
+                      "manual/appendix-d-instruction-family-matrix.md".
     """
     # Depth of virtual page's parent directory.
-    virtDepth = len(Path(virtualPath).parent.parts)  # e.g. 1 for "manual/foo.md"
+    virt_depth = len(Path(virtual_path).parent.parts)  # e.g. 1 for "manual/foo.md"
 
     # Depth of the source file inside docs/mkdocs/src/.
-    srcDepth = len((Path("docs") / "mkdocs" / "src" / virtualPath).parent.parts)
+    src_depth = len((Path("docs") / "mkdocs" / "src" / virtual_path).parent.parts)
 
-    # --- Pass 1: root-absolute links /foo/bar  ->  (../)*virtDepth foo/bar ---
-    prefixAbs = '../' * virtDepth if virtDepth else ''
+    # --- Pass 1: root-absolute links /foo/bar  ->  (../)*virt_depth foo/bar ---
+    prefix_abs = '../' * virt_depth if virt_depth else ''
 
-    def replaceAbs(m: re.Match) -> str:
-        return f']({prefixAbs}{m.group(1)})'
+    def replace_abs(m: re.Match) -> str:
+        return f']({prefix_abs}{m.group(1)})'
 
-    text = absLinkRe.sub(replaceAbs, text)
+    text = ABS_LINK_RE.sub(replace_abs, text)
 
     # --- Pass 2: relative links with wrong ../ depth ---
     # The author wrote the link relative to the *repo* source file location
-    # (srcDepth levels deep).  We need it relative to the virtual page
-    # (virtDepth levels deep).  We only touch links whose leading "../"
-    # count equals srcDepth (exactly what the author would write to reach
+    # (src_depth levels deep).  We need it relative to the virtual page
+    # (virt_depth levels deep).  We only touch links whose leading "../"
+    # count equals src_depth (exactly what the author would write to reach
     # the repo root from the source file).
-    if srcDepth != virtDepth:
-        newUps = '../' * virtDepth if virtDepth else ''
+    if src_depth != virt_depth:
+        new_ups = '../' * virt_depth if virt_depth else ''
 
-        def replaceRel(m: re.Match) -> str:
+        def replace_rel(m: re.Match) -> str:
             ups, rest = m.group(1), m.group(2)
-            if ups.count('../') == srcDepth:
-                return f']({newUps}{rest})'
+            if ups.count('../') == src_depth:
+                return f']({new_ups}{rest})'
             return m.group(0)  # leave unchanged
 
-        text = relLinkRe.sub(replaceRel, text)
+        text = REL_LINK_RE.sub(replace_rel, text)
 
     return text
 
@@ -224,7 +225,7 @@ def rewriteLinksForBuild(text: str, virtualPath: str) -> str:
 # Nav order from mkdocs.yml (used for prev/next generation)
 # ---------------------------------------------------------------------------
 
-navPagesEn = [
+NAV_PAGES_EN = [
     "index.md",
     "docs/getting-started.md",
     "docs/PTO-Virtual-ISA-Manual.md",
@@ -325,6 +326,12 @@ navPagesEn = [
     "docs/isa/TPARTMUL.md", "docs/isa/TPARTMAX.md", "docs/isa/TPARTMIN.md",
     "docs/isa/TSORT32.md", "docs/isa/TMRGSORT.md", "docs/isa/TQUANT.md",
     "docs/isa/TPRINT.md",
+    "docs/isa/comm/README.md",
+    "docs/isa/comm/TPUT.md", "docs/isa/comm/TGET.md",
+    "docs/isa/comm/TPUT_ASYNC.md", "docs/isa/comm/TGET_ASYNC.md",
+    "docs/isa/comm/TNOTIFY.md", "docs/isa/comm/TWAIT.md", "docs/isa/comm/TTEST.md",
+    "docs/isa/comm/TGATHER.md", "docs/isa/comm/TSCATTER.md",
+    "docs/isa/comm/TREDUCE.md", "docs/isa/comm/TBROADCAST.md",
     "docs/reference/pto-intrinsics-header.md",
     "manual/isa-reference.md",
     # Examples & Kernels
@@ -343,7 +350,7 @@ navPagesEn = [
 ]
 
 
-def mdToUrl(mdPath: str) -> str:
+def _md_to_url(md_path: str) -> str:
     """Convert a virtual .md path to the MkDocs site URL path.
 
     MkDocs converts:
@@ -353,7 +360,7 @@ def mdToUrl(mdPath: str) -> str:
       - ``README.md``     -> ``/``
       - ``foo/bar.md``    -> ``/foo/bar/``
     """
-    p = Path(mdPath)
+    p = Path(md_path)
     if p.name in ("index.md", "README.md"):
         parent = p.parent.as_posix().lstrip("./")
         url = "/" + parent + "/" if parent else "/"
@@ -365,28 +372,28 @@ def mdToUrl(mdPath: str) -> str:
     return url
 
 
-def enUrlToZhUrl(enUrl: str) -> str | None:
+def _en_url_to_zh_url(en_url: str) -> str | None:
     """Best-effort mapping: English URL -> Chinese URL.
 
     Returns None if we cannot determine the zh counterpart.
     """
     # root index: / -> /index_zh/
-    if enUrl == "/":
+    if en_url == "/":
         return "/index_zh/"
     # strip trailing slash for manipulation
-    base = enUrl.rstrip("/")
+    base = en_url.rstrip("/")
     # manual index: /manual -> /manual/index_zh
     if base == "/manual":
         return "/manual/index_zh/"
     # README pages: last segment is a known directory name
     last = base.rsplit("/", 1)[-1]
-    if last in readmeDirs:
-        return enUrl.rstrip("/") + "/README_zh/"
+    if last in README_DIRS:
+        return en_url.rstrip("/") + "/README_zh/"
     # general page: append _zh
     return base + "_zh/"
 
 
-def generateLangMap(navPages: list[str]) -> dict:
+def _generate_lang_map(nav_pages: list[str]) -> dict:
     """Build a mapping dict for use by the language switcher JS.
 
     Structure::
@@ -403,93 +410,108 @@ def generateLangMap(navPages: list[str]) -> dict:
           ]
         }
     """
-    enUrls = [mdToUrl(p) for p in navPages]
-    enToZh: dict[str, str] = {}
-    zhToEn: dict[str, str] = {}
+    en_urls = [_md_to_url(p) for p in nav_pages]
+    en_to_zh: dict[str, str] = {}
+    zh_to_en: dict[str, str] = {}
 
-    for en in enUrls:
-        zh = enUrlToZhUrl(en)
+    for en in en_urls:
+        zh = _en_url_to_zh_url(en)
         if zh:
-            enToZh[en] = zh
-            zhToEn[zh] = en
+            en_to_zh[en] = zh
+            zh_to_en[zh] = en
 
-    navEntries = []
-    for i, en in enumerate(enUrls):
-        zh = enToZh.get(en)
-        prevEn = enUrls[i - 1] if i > 0 else None
-        nextEn = enUrls[i + 1] if i < len(enUrls) - 1 else None
+    nav_entries = []
+    for i, en in enumerate(en_urls):
+        zh = en_to_zh.get(en)
+        prev_en = en_urls[i - 1] if i > 0 else None
+        next_en = en_urls[i + 1] if i < len(en_urls) - 1 else None
         entry = {
             "en": en,
             "zh": zh,
-            "prev_en": prevEn,
-            "prev_zh": enToZh.get(prevEn) if prevEn else None,
-            "next_en": nextEn,
-            "next_zh": enToZh.get(nextEn) if nextEn else None,
+            "prev_en": prev_en,
+            "prev_zh": en_to_zh.get(prev_en) if prev_en else None,
+            "next_en": next_en,
+            "next_zh": en_to_zh.get(next_en) if next_en else None,
         }
-        navEntries.append(entry)
+        nav_entries.append(entry)
 
-    return {"en_to_zh": enToZh, "zh_to_en": zhToEn, "nav": navEntries}
+    return {"en_to_zh": en_to_zh, "zh_to_en": zh_to_en, "nav": nav_entries}
 
 
 # ---------------------------------------------------------------------------
 # Helpers used by main()
 # ---------------------------------------------------------------------------
 
-def extractFirstHeading(mdPath: Path) -> str:
-    """Return the text of the first Markdown heading in *mdPath*, or the stem."""
+def _extract_first_heading(md_path: Path) -> str:
+    """Return the text of the first Markdown heading in *md_path*, or the stem."""
     try:
-        text = mdPath.read_text(encoding="utf-8-sig", errors="replace")
+        text = md_path.read_text(encoding="utf-8-sig", errors="replace")
     except OSError:
-        return mdPath.stem
+        return md_path.stem
     for line in text.splitlines():
         if line.startswith("#"):
             return line.lstrip("#").strip()
-    return mdPath.stem
+    return md_path.stem
 
 
-def writeIsaReferenceIndex(
-    outPath: str,
-    isaPages: list[tuple[str, str]],
-    heading: str,
-    preamble: str,
-    sectionHeading: str,
-    emptyMsg: str,
-) -> None:
-    """Write a generated ISA reference index page to *outPath*."""
-    with mkdocs_gen_files.open(outPath, "w") as f:
-        f.write(f"{heading}\n\n")
-        f.write(preamble)
-        if not isaPages:
-            f.write(emptyMsg)
+@dataclass
+class IsaReferenceIndexConfig:
+    """Configuration for generating an ISA reference index page."""
+    out_path: str
+    isa_pages: list[tuple[str, str]]
+    heading: str
+    preamble: str
+    section_heading: str
+    empty_msg: str
+
+
+def _write_isa_reference_index(config: IsaReferenceIndexConfig) -> None:
+    """Write a generated ISA reference index page to *config.out_path*."""
+    with mkdocs_gen_files.open(config.out_path, "w") as f:
+        f.write(f"{config.heading}\n\n")
+        f.write(config.preamble)
+        if not config.isa_pages:
+            f.write(config.empty_msg)
         else:
-            f.write(f"{sectionHeading}\n\n")
-            for instr, title in isaPages:
+            f.write(f"{config.section_heading}\n\n")
+            for instr, _ in config.isa_pages:
                 link = f"../docs/isa/{instr}.md"
-                suffix = "" if title.strip() == instr else f" — {title}"
-                f.write(f"- [{instr}]({link}){suffix}\n")
+                bare = instr[:-3] if instr.endswith("_zh") else instr
+                display = bare.split("/")[-1]
+                f.write(f"- [{display}]({link})\n")
             f.write("\n")
 
 
-def writeAllPagesIndex(
-    outPath: str,
+def _format_section_entry(rel: str, top: str) -> str:
+    """Return a markdown list entry for a single page in a section."""
+    label = rel if top == "(root)" else rel[len(top) + 1:]
+    return f"- [{label}]({rel})\n"
+
+
+def _write_sections(f, sections: dict[str, list[str]]) -> None:
+    """Write all section headings and page entries to an open file handle."""
+    for top in sorted(sections.keys()):
+        f.write(f"## {top}\n\n")
+        for rel in sections[top]:
+            f.write(_format_section_entry(rel, top))
+        f.write("\n")
+
+
+def _write_all_pages_index(
+    out_path: str,
     sections: dict[str, list[str]],
     heading: str,
     preamble: str,
-    emptyMsg: str,
+    empty_msg: str,
 ) -> None:
-    """Write a generated all-pages index to *outPath*."""
-    with mkdocs_gen_files.open(outPath, "w") as f:
+    """Write a generated all-pages index to *out_path*."""
+    with mkdocs_gen_files.open(out_path, "w") as f:
         f.write(f"{heading}\n\n")
         f.write(preamble)
         if not sections:
-            f.write(emptyMsg)
+            f.write(empty_msg)
         else:
-            for top in sorted(sections.keys()):
-                f.write(f"## {top}\n\n")
-                for rel in sections[top]:
-                    label = rel if top == "(root)" else rel[len(top) + 1:]
-                    f.write(f"- [{label}]({rel})\n")
-                f.write("\n")
+            _write_sections(f, sections)
 
 
 # ---------------------------------------------------------------------------
@@ -497,9 +519,9 @@ def writeAllPagesIndex(
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    copiedMd: list[str] = []
+    copied_md: list[str] = []
 
-    mkdocsSrc = repoRoot / "docs" / "mkdocs" / "src"
+    mkdocs_src = REPO_ROOT / "docs" / "mkdocs" / "src"
 
     # Step 1: Process hand-written files under docs/mkdocs/src/.
     # These files use root-absolute links (e.g. /docs/isa/TADD.md) so they
@@ -509,130 +531,142 @@ def main() -> None:
     #
     # IMPORTANT: We must NOT recurse into docs/mkdocs/src/docs/mkdocs/src/
     # (stale nested copies from previous builds). We skip any path that,
-    # relative to mkdocsSrc, starts with "docs/mkdocs/" to avoid that.
-    for src in mkdocsSrc.rglob("*.md"):
-        virtualPath = src.relative_to(mkdocsSrc).as_posix()  # e.g. manual/01-overview.md
+    # relative to mkdocs_src, starts with "docs/mkdocs/" to avoid that.
+    for src in mkdocs_src.rglob("*.md"):
+        virtual_path = src.relative_to(mkdocs_src).as_posix()  # e.g. manual/01-overview.md
         # Skip stale nested docs/mkdocs/src/ directories that may exist on disk
         # from previous builds (mkdocs_gen_files writes to a temp dir, but the
         # docs_dir itself may have leftover files if docs_dir == src/).
-        if virtualPath.startswith("docs/mkdocs/"):
+        if virtual_path.startswith("docs/mkdocs/"):
             continue
         text = src.read_text(encoding="utf-8-sig", errors="replace")
         # Strip any stale "Generated from" header left by a previous build.
-        text = stripGeneratedHeader(text)
-        text = rewriteRelImgsForBuild(text, virtualPath)
-        text = rewriteLinksForBuild(text, virtualPath)
-        with mkdocs_gen_files.open(virtualPath, "w") as f:
+        text = _strip_generated_header(text)
+        text = _rewrite_rel_imgs_for_build(text, virtual_path)
+        text = _rewrite_links_for_build(text, virtual_path)
+        with mkdocs_gen_files.open(virtual_path, "w") as f:
             # Do not add a generated header for hand-written files under
             # docs/mkdocs/src/manual/ or the root index pages — those are
             # source files, not build artefacts, and the comment would
             # pollute the originals.
-            if not virtualPath.startswith("manual/") and virtualPath not in ("index.md", "index_zh.md"):
-                f.write(f"<!-- Generated from `docs/mkdocs/src/{virtualPath}` -->\n\n")
+            if not virtual_path.startswith("manual/") and virtual_path not in ("index.md", "index_zh.md"):
+                f.write(f"<!-- Generated from `docs/mkdocs/src/{virtual_path}` -->\n\n")
             f.write(text)
-        copiedMd.append(virtualPath)
+        copied_md.append(virtual_path)
 
     # Step 2: Mirror all other repo markdown files preserving their paths.
-    for src in repoRoot.rglob("*.md"):
-        rel = src.relative_to(repoRoot).as_posix()
-        if shouldSkip(rel):
+    for src in REPO_ROOT.rglob("*.md"):
+        rel = src.relative_to(REPO_ROOT).as_posix()
+        if _should_skip(rel):
             continue
         # Use utf-8-sig to automatically remove BOM if present
         text = src.read_text(encoding="utf-8-sig", errors="replace")
         # Rewrite relative <img src="..."> paths for all mirrored files.
-        text = rewriteRelImgsForBuild(text, rel)
+        text = _rewrite_rel_imgs_for_build(text, rel)
         # Rewrite mkdocs/src/... links to root-absolute /... links, then
-        # let rewriteLinksForBuild convert them to correct relative paths.
-        if mkdocsSrcLinkRe.search(text):
-            text = mkdocsSrcLinkRe.sub(r'](/\1)', text)
-            text = rewriteLinksForBuild(text, rel)
+        # let _rewrite_links_for_build convert them to correct relative paths.
+        if MKDOCS_SRC_LINK_RE.search(text):
+            text = MKDOCS_SRC_LINK_RE.sub(r'](/\1)', text)
+            text = _rewrite_links_for_build(text, rel)
         with mkdocs_gen_files.open(rel, "w") as f:
             f.write(f"<!-- Generated from `{rel}` -->\n\n")
             f.write(text)
-        copiedMd.append(rel)
+        copied_md.append(rel)
 
     # Generate per-instruction reference indexes for docs/isa/*.md.
-    isaDir = repoRoot / "docs" / "isa"
-    isaPageEn: list[tuple[str, str]] = []
-    isaPageZh: list[tuple[str, str]] = []
+    isa_dir = REPO_ROOT / "docs" / "isa"
+    isa_pages_en: list[tuple[str, str]] = []
+    isa_pages_zh: list[tuple[str, str]] = []
 
-    if isaDir.exists():
-        for p in sorted(isaDir.glob("*.md")):
+    if isa_dir.exists():
+        for p in sorted(isa_dir.glob("*.md")):
             if p.name in ("README.md", "README_zh.md", "conventions.md", "conventions_zh.md"):
                 continue
             stem = p.stem
-            title = extractFirstHeading(p)
+            title = _extract_first_heading(p)
             if stem.endswith("_zh"):
-                isaPageZh.append((stem, title))
+                isa_pages_zh.append((stem, title))
             else:
-                isaPageEn.append((stem, title))
+                isa_pages_en.append((stem, title))
+        # Also include comm sub-directory instructions
+        comm_dir = isa_dir / "comm"
+        if comm_dir.exists():
+            for p in sorted(comm_dir.glob("*.md")):
+                if p.name in ("README.md", "README_zh.md"):
+                    continue
+                stem = p.stem
+                title = _extract_first_heading(p)
+                if stem.endswith("_zh"):
+                    isa_pages_zh.append(("comm/" + stem, title))
+                else:
+                    isa_pages_en.append(("comm/" + stem, title))
 
-    writeIsaReferenceIndex(
-        outPath="manual/isa-reference.md",
-        isaPages=isaPageEn,
+    _write_isa_reference_index(IsaReferenceIndexConfig(
+        out_path="manual/isa-reference.md",
+        isa_pages=isa_pages_en,
         heading="# Instruction Reference Pages",
         preamble=(
             "This page is generated at build time.\n\n"
             "- Instruction index: `docs/isa/README.md`\n"
             "- ISA conventions: `docs/isa/conventions.md`\n\n"
         ),
-        sectionHeading="## All instructions",
-        emptyMsg="No English instruction pages were found under `docs/isa/`.\n",
-    )
+        section_heading="## All instructions",
+        empty_msg="No English instruction pages were found under `docs/isa/`.\n",
+    ))
 
-    writeIsaReferenceIndex(
-        outPath="manual/isa-reference_zh.md",
-        isaPages=isaPageZh,
+    _write_isa_reference_index(IsaReferenceIndexConfig(
+        out_path="manual/isa-reference_zh.md",
+        isa_pages=isa_pages_zh,
         heading="# 指令参考页面（全量）",
         preamble=(
             "本页在构建站点时自动生成。\n\n"
             "- 指令索引：`docs/isa/README_zh.md`\n"
             "- ISA 通用约定：`docs/isa/conventions_zh.md`\n\n"
         ),
-        sectionHeading="## 全部指令",
-        emptyMsg="未在 `docs/isa/` 下发现中文指令页面。\n",
-    )
+        section_heading="## 全部指令",
+        empty_msg="未在 `docs/isa/` 下发现中文指令页面。\n",
+    ))
 
     # Generate a simple index page that links to all mirrored markdown.
-    allMd = sorted(set(copiedMd))
+    all_md = sorted(set(copied_md))
     sections: dict[str, list[str]] = {}
-    sectionsZh: dict[str, list[str]] = {}
+    sections_zh: dict[str, list[str]] = {}
 
-    for rel in allMd:
+    for rel in all_md:
         top = rel.split("/", 1)[0] if "/" in rel else "(root)"
         sections.setdefault(top, []).append(rel)
         if "_zh.md" in rel or rel.endswith("_zh/index.md"):
-            sectionsZh.setdefault(top, []).append(rel)
+            sections_zh.setdefault(top, []).append(rel)
 
-    writeAllPagesIndex(
-        outPath="all-pages.md",
+    _write_all_pages_index(
+        out_path="all-pages.md",
         sections=sections,
         heading="# All Markdown Pages",
         preamble="This page is generated at build time and lists markdown files mirrored into the site.\n\n",
-        emptyMsg="",
+        empty_msg="",
     )
 
-    writeAllPagesIndex(
-        outPath="all-pages_zh.md",
-        sections=sectionsZh,
+    _write_all_pages_index(
+        out_path="all-pages_zh.md",
+        sections=sections_zh,
         heading="# 所有 Markdown 页面",
         preamble="本页面在构建时自动生成，列出了站点中镜像的所有中文 markdown 文件。\n\n",
-        emptyMsg="未找到中文页面。\n",
+        empty_msg="未找到中文页面。\n",
     )
 
     # Generate lang-map.json for zero-latency language switching.
-    langMap = generateLangMap(navPagesEn)
+    lang_map = _generate_lang_map(NAV_PAGES_EN)
     with mkdocs_gen_files.open("lang-map.json", "w") as f:
-        json.dump(langMap, f, ensure_ascii=False, separators=(",", ":"))
+        json.dump(lang_map, f, ensure_ascii=False, separators=(",", ":"))
 
     # Mirror commonly referenced doc assets (images) so docs render cleanly.
-    for src in repoRoot.rglob("*"):
+    for src in REPO_ROOT.rglob("*"):
         if not src.is_file():
             continue
-        if src.suffix.lower() not in assetExts:
+        if src.suffix.lower() not in ASSET_EXTS:
             continue
-        rel = src.relative_to(repoRoot).as_posix()
-        if shouldSkip(rel):
+        rel = src.relative_to(REPO_ROOT).as_posix()
+        if _should_skip(rel):
             continue
         with mkdocs_gen_files.open(rel, "wb") as f:
             f.write(src.read_bytes())

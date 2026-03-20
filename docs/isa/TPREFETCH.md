@@ -77,7 +77,7 @@ See related examples in `docs/isa/` and `docs/coding/tutorials/`.
 
 ```text
 %dst = tprefetch %src : !pto.global<...> -> !pto.tile<...>
-# IR Level 2 (DPS)
+# AS Level 2 (DPS)
 pto.tprefetch ins(%src : !pto.global<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 

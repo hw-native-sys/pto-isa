@@ -72,7 +72,7 @@ See related examples in `docs/isa/` and `docs/coding/tutorials/`.
 
 ```text
 %dst = pto.tfillpad_inplace %src : !pto.tile<...> -> !pto.tile<...>
-# IR Level 2 (DPS)
+# AS Level 2 (DPS)
 pto.tfillpad_inplace ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 

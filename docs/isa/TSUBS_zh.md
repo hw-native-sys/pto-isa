@@ -86,7 +86,7 @@ void example() {
 
 ```text
 %dst = tsubs %src, %scalar : !pto.tile<...>, f32
-# IR Level 2 (DPS)
+# AS Level 2 (DPS)
 pto.tsubs ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
 

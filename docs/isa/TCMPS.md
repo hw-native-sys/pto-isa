@@ -43,25 +43,26 @@ pto.tcmps ins(%src, %scalar{cmpMode = #pto<cmp xx>}: !pto.tile_buf<...>, dtype) 
 Declared in `include/pto/common/pto_instr.hpp` and `include/pto/common/type.hpp`:
 
 ```cpp
-template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
-PTO_INST RecordEvent TCMPS(TileDataDst &dst, TileDataSrc &src0, typename TileDataSrc::DType src1, CmpMode mode, WaitEvents &... events);
-
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1,
-          typename = std::void_t<typename TileDataSrc1::DType>, typename... WaitEvents>
-PTO_INST RecordEvent TCMPS(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, CmpMode mode, WaitEvents &... events);
+template <typename TileDataDst, typename TileDataSrc0, typename T, typename... WaitEvents>
+PTO_INST RecordEvent TCMPS(TileDataDst& dst, TileDataSrc0& src0, T src1, CmpMode cmpMode, WaitEvents&... events);
 ```
 
 ## Constraints
 
 - **Implementation checks (A2A3)**:
-    - `src0` and `dst` tile location must be vector (`TileType::Vec`).
-    - Static valid bounds: `TileDataSrc0::ValidRow <= TileDataSrc0::Rows` and `TileDataSrc0::ValidCol <= TileDataSrc0::Cols`.
-    - Runtime: `src0.GetValidRow() == dst.GetValidRow()` and `src0.GetValidCol() == dst.GetValidCol()`.
+    - `TileData::DType` must be one of: `int32_t`, `float`, `half`, `uint16_t`, `int16_t`.
+    - Tile layout must be row-major (`TileData::isRowMajor`).
 - **Implementation checks (A5)**:
-    - No explicit `static_assert`/`PTO_ASSERT` shape checks are enforced by `TCMPS_IMPL`.
-    - Effective support depends on `TileDataSrc0::DType` (only specific 1/2/4-byte integer/float types are dispatched in the implementation).
+    - `TileData::DType` must be one of: `int32_t`, `float`, `half`, `uint16_t`, `int16_t`.
+    - Tile layout must be row-major (`TileData::isRowMajor`).
+- **Common constraints**:
+    - Tile location must be vector (`TileData::Loc == TileType::Vec`).
+    - Static valid bounds: `TileData::ValidRow <= TileData::Rows` and `TileData::ValidCol <= TileData::Cols`.
+    - Runtime: `src0` and `dst` must have the same valid row/col.
 - **Valid region**:
-    - The implementation uses `dst.GetValidRow()` / `dst.GetValidCol()` as the iteration domain.
+    - The op uses `dst.GetValidRow()` / `dst.GetValidCol()` as the iteration domain.
+- **Comparison modes**:
+    - Supports `CmpMode::EQ`, `CmpMode::NE`, `CmpMode::LT`, `CmpMode::GT`, `CmpMode::LE`, `CmpMode::GE`.
 
 ## Examples
 
@@ -122,7 +123,7 @@ void example_manual() {
 
 ```text
 %dst = tcmps %src, %scalar {cmpMode = #pto.cmp<EQ>} : !pto.tile<...> -> !pto.tile<...>
-# IR Level 2 (DPS)
+# AS Level 2 (DPS)
 pto.tcmps ins(%src, %scalar{cmpMode = #pto<cmp xx>}: !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
 

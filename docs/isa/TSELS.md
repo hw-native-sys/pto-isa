@@ -1,6 +1,5 @@
 ﻿# TSELS
 
-
 ## Tile Operation Diagram
 
 ![TSELS tile operation](../figures/isa/TSELS.svg)
@@ -28,42 +27,43 @@ PTO-AS form: see [PTO-AS Specification](../assembly/PTO-AS.md).
 Synchronous form:
 
 ```text
-%dst = tsel %mask, %src, %scalar : !pto.tile<...>
+%dst = tsels %mask, %src, %scalar : !pto.tile<...>
 ```
 
 ### AS Level 1 (SSA)
 
 ```text
-%dst = pto.tsels %src0, %src1, %scalar : (!pto.tile<...>, !pto.tile<...>, dtype) -> !pto.tile<...>
+%dst = pto.tsels %mask, %src, %scalar : (!pto.tile<...>, !pto.tile<...>, dtype) -> !pto.tile<...>
 ```
 
 ### AS Level 2 (DPS)
 
 ```text
-pto.tsels ins(%src0, %src1, %scalar : !pto.tile_buf<...>, !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
+pto.tsels ins(%mask, %src, %scalar : !pto.tile_buf<...>, !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:
 
 ```cpp
-template <typename TileDataDst, typename TileDataMask, typename TileDataSrc, typename TileDataTmp,
-          typename... WaitEvents>
+template <typename TileDataDst, typename TileDataMask, typename TileDataSrc, typename TileDataTmp, typename... WaitEvents>
 PTO_INST RecordEvent TSELS(TileDataDst &dst, TileDataMask &mask, TileDataSrc &src, TileDataTmp &tmp, typename TileDataSrc::DType scalar, WaitEvents &... events);
 ```
 
 ## Constraints
 
 - **Implementation checks (A2A3)**:
-    - `sizeof(TileDataDst::DType)` and `sizeof(TileDataSrc::DType)` must be `2` or `4` bytes.
-    - Supported `DType`: `int16_t`, `uint16_t`, `int32_t, `uint32_t`, `half`, `float`.
-    - No explicit assertions are enforced on the mask tile type/shape; mask encoding is target-defined.
-    - The implementation uses `dst.GetValidRow()` / `dst.GetValidCol()` for the selection domain.
+    - `TileData::DType` must be one of: `half`, `float16_t`, `float`, `float32_t`.
 - **Implementation checks (A5)**:
-    - `sizeof(TileData::DType)` must be `2` or `4` bytes.
-    - Supported `DType`: `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `half`, `float`.
-    - No explicit assertions are enforced on the mask tile type/shape; mask encoding is target-defined.
-    - The implementation uses `dst.GetValidRow()` / `dst.GetValidCol()` for the selection domain.
+    - `TileData::DType` must be one of: `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `half`, `float`.
+- **Common constraints**:
+    - Tile layout must be row-major (`TileData::isRowMajor`).
+    - Tile location must be vector (`TileData::Loc == TileType::Vec`).
+    - Static valid bounds: `TileData::ValidRow <= TileData::Rows` and `TileData::ValidCol <= TileData::Cols`.
+    - Runtime: `dst`, `src0` and `src1` must have the same valid row/col.
+    - Scalar type must match the Tile data type.
+- **Valid region**:
+    - The op uses `dst.GetValidRow()` / `dst.GetValidCol()` as the iteration domain.
 - **Mask encoding**:
     - The mask tile is interpreted as packed predicate bits in a target-defined layout.
 
@@ -79,11 +79,14 @@ using namespace pto;
 void example_auto() {
   using TileDst = Tile<TileType::Vec, float, 16, 16>;
   using TileSrc = Tile<TileType::Vec, float, 16, 16>;
+  using TileTmp = Tile<TileType::Vec, float, 16, 16>;
   using TileMask = Tile<TileType::Vec, uint8_t, 16, 32, BLayout::RowMajor, -1, -1>;
   TileDst dst;
   TileSrc src;
+  TileTmp tmp;
   TileMask mask(16, 2);
-  TSELS(dst, mask, src, scalar);
+  float scalar = 0.0f;
+  TSELS(dst, mask, src, tmp, scalar);
 }
 ```
 
@@ -97,14 +100,18 @@ using namespace pto;
 void example_manual() {
   using TileDst = Tile<TileType::Vec, float, 16, 16>;
   using TileSrc = Tile<TileType::Vec, float, 16, 16>;
+  using TileTmp = Tile<TileType::Vec, float, 16, 16>;
   using TileMask = Tile<TileType::Vec, uint8_t, 16, 32, BLayout::RowMajor, -1, -1>;
   TileDst dst;
   TileSrc src;
+  TileTmp tmp;
   TileMask mask(16, 2);
+  float scalar = 0.0f;
   TASSIGN(src, 0x1000);
-  TASSIGN(dst,  0x3000);
+  TASSIGN(tmp, 0x2000);
+  TASSIGN(dst, 0x3000);
   TASSIGN(mask, 0x4000);
-  TSELS(dst, mask, src, scalar);
+  TSELS(dst, mask, src, tmp, scalar);
 }
 ```
 
@@ -114,7 +121,7 @@ void example_manual() {
 
 ```text
 # Auto mode: compiler/runtime-managed placement and scheduling.
-%dst = pto.tsels %src0, %src1, %scalar : (!pto.tile<...>, !pto.tile<...>, dtype) -> !pto.tile<...>
+%dst = pto.tsels %mask, %src, %scalar : (!pto.tile<...>, !pto.tile<...>, dtype) -> !pto.tile<...>
 ```
 
 ### Manual Mode
@@ -124,14 +131,14 @@ void example_manual() {
 # Optional for tile operands:
 # pto.tassign %arg0, @tile(0x1000)
 # pto.tassign %arg1, @tile(0x2000)
-%dst = pto.tsels %src0, %src1, %scalar : (!pto.tile<...>, !pto.tile<...>, dtype) -> !pto.tile<...>
+%dst = pto.tsels %mask, %src, %scalar : (!pto.tile<...>, !pto.tile<...>, dtype) -> !pto.tile<...>
 ```
 
 ### PTO Assembly Form
 
 ```text
-%dst = tsels %src0, %src1, %selectMode : !pto.tile<...>
-# IR Level 2 (DPS)
-pto.tsels ins(%src0, %src1, %scalar : !pto.tile_buf<...>, !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
+%dst = tsels %mask, %src, %scalar : !pto.tile<...>
+# AS Level 2 (DPS)
+pto.tsels ins(%mask, %src, %scalar : !pto.tile_buf<...>, !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
 

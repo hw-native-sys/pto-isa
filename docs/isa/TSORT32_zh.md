@@ -125,7 +125,7 @@ void example_manual() {
 
 ```text
 %dst, %idx = tsort32 %src : !pto.tile<...> -> (!pto.tile<...>, !pto.tile<...>)
-# IR Level 2 (DPS)
+# AS Level 2 (DPS)
 pto.tsort32 ins(%src : !pto.tile_buf<...>) outs(%dst, %idx : !pto.tile_buf<...>, !pto.tile_buf<...>)
 ```
 

@@ -1,4 +1,4 @@
-﻿# TABS
+﻿﻿# TABS
 
 
 ## Tile Operation Diagram
@@ -116,6 +116,6 @@ void example_manual() {
 
 ```text
 %dst = tabs %src : !pto.tile<...> -> !pto.tile<...>
-# IR Level 2 (DPS)
+# AS Level 2 (DPS)
 pto.tabs ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```

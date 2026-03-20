@@ -132,3 +132,14 @@ This page is the source-synchronized ISA index generated from `docs/isa/manifest
 | Complex | [`TGATHERB`](isa/TGATHERB.md) | Gather elements using byte offsets. |
 | Complex | [`TSCATTER`](isa/TSCATTER.md) | Scatter rows of a source tile into a destination tile using per-element row indices. |
 | Complex | [`TQUANT`](isa/TQUANT.md) | Quantize a tile (e.g. FP32 to FP8) producing exponent/scaling/max outputs. |
+| Communication | [`TPUT`](isa/comm/TPUT.md) | Remote write: transfer local data to remote NPU memory (GM → UB → GM). |
+| Communication | [`TGET`](isa/comm/TGET.md) | Remote read: read remote NPU data to local memory (GM → UB → GM). |
+| Communication | [`TPUT_ASYNC`](isa/comm/TPUT_ASYNC.md) | Asynchronous remote write (local GM → DMA engine → remote GM). |
+| Communication | [`TGET_ASYNC`](isa/comm/TGET_ASYNC.md) | Asynchronous remote read (remote GM → DMA engine → local GM). |
+| Communication | [`TNOTIFY`](isa/comm/TNOTIFY.md) | Send flag notification to remote NPU. |
+| Communication | [`TWAIT`](isa/comm/TWAIT.md) | Blocking wait until signal(s) meet comparison condition. |
+| Communication | [`TTEST`](isa/comm/TTEST.md) | Non-blocking test if signal(s) meet comparison condition. |
+| Communication | [`TGATHER`](isa/comm/TGATHER.md) | Gather data from all ranks and concatenate along DIM_3. |
+| Communication | [`TSCATTER`](isa/comm/TSCATTER.md) | Scatter data to all ranks by splitting along DIM_3. |
+| Communication | [`TREDUCE`](isa/comm/TREDUCE.md) | Gather and reduce data from all ranks element-wise to local. |
+| Communication | [`TBROADCAST`](isa/comm/TBROADCAST.md) | Broadcast data from current NPU to all ranks. |

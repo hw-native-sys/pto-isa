@@ -175,7 +175,7 @@ void example_manual() {
 
 ```text
 %c = pto.tmatmul.mx %a, %a_scale, %b, %b_scale : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>)
-# IR Level 2 (DPS)
+# AS Level 2 (DPS)
 pto.tmatmul.mx ins(%a, %a_scale, %b, %b_scale : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>)
 ```
 

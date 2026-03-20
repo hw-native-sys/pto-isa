@@ -90,7 +90,7 @@ pto.tset_img2col_padding %cfg : !pto.fmatrix_config -> ()
 
 ```text
 tset_img2col_padding %cfg
-# IR Level 2 (DPS)
+# AS Level 2 (DPS)
 pto.tset_img2col_padding ins(%cfg : !pto.fmatrix_config) outs()
 ```
 

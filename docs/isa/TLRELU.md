@@ -41,13 +41,25 @@ pto.tlrelu ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_
 Declared in `include/pto/common/pto_instr.hpp`:
 
 ```cpp
-template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
-PTO_INST RecordEvent TLRELU(TileDataDst &dst, TileDataSrc &src, typename TileDataSrc::DType scalar, WaitEvents &... events);
+template <typename TileData, typename... WaitEvents>
+PTO_INST RecordEvent TLRELU(TileData& dst, TileData& src0, typename TileData::DType scalar, WaitEvents&... events);
 ```
 
 ## Constraints
 
-- The op iterates over `dst.GetValidRow()` / `dst.GetValidCol()`.
+- **Implementation checks (A2A3)**:
+    - `TileData::DType` must be one of: `half`, `float16_t`, `float`, `float32_t` (floating-point types only).
+    - Tile layout must be row-major (`TileData::isRowMajor`).
+- **Implementation checks (A5)**:
+    - `TileData::DType` must be one of: `half`, `float16_t`, `float`, `float32_t` (floating-point types only).
+    - Tile layout must be row-major (`TileData::isRowMajor`).
+- **Common constraints**:
+    - Tile location must be vector (`TileData::Loc == TileType::Vec`).
+    - Static valid bounds: `TileData::ValidRow <= TileData::Rows` and `TileData::ValidCol <= TileData::Cols`.
+    - Runtime: `dst` and `src` must have the same valid row/col.
+    - Slope scalar type must match the Tile data type.
+- **Valid region**:
+    - The op uses `dst.GetValidRow()` / `dst.GetValidCol()` as the iteration domain.
 
 ## Examples
 
@@ -86,7 +98,7 @@ void example() {
 
 ```text
 %dst = tlrelu %src, %slope : !pto.tile<...>, f32
-# IR Level 2 (DPS)
+# AS Level 2 (DPS)
 pto.tlrelu ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
 

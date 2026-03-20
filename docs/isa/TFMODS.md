@@ -87,7 +87,7 @@ void example() {
 
 ```text
 %dst = tfmods %src, %scalar : !pto.tile<...>, f32
-# IR Level 2 (DPS)
+# AS Level 2 (DPS)
 pto.tfmods ins(%src, %scalar : !pto.tile_buf<...>, f32) outs(%dst : !pto.tile_buf<...>)
 ```
 

@@ -1,5 +1,5 @@
 ﻿<p align="center">
-  <img src="../../figures/pto_logo.svg" alt="PTO Tile Lib" width="180" />
+  <img src="../figures/pto_logo.svg" alt="PTO Tile Lib" width="180" />
 </p>
 
 # PTO ISA Reference
@@ -51,7 +51,7 @@ This directory contains the per-instruction reference for the PTO Tile Lib ISA.
 ## Tile-Scalar / Tile-Immediate
 - [TEXPANDS](TEXPANDS.md) - Broadcast a scalar into a destination tile.
 - [TCMPS](TCMPS.md) - Compare a tile against a scalar and write per-element comparison results.
-- [TSELS](TSELS.md) - Select one of two source tiles using a scalar `selectMode` (global select).
+- [TSELS](TSELS.md) - Select between source tile and scalar using a mask tile (per-element selection for source tile).
 - [TMINS](TMINS.md) - Elementwise minimum of a tile and a scalar.
 - [TADDS](TADDS.md) - Elementwise add a scalar to a tile.
 - [TSUBS](TSUBS.md) - Elementwise subtract a scalar from a tile.
@@ -141,3 +141,7 @@ This directory contains the per-instruction reference for the PTO Tile Lib ISA.
 - [TGATHERB](TGATHERB.md) - Gather elements using byte offsets.
 - [TSCATTER](TSCATTER.md) - Scatter source elements into a destination tile using per-element flattened destination offsets.
 - [TQUANT](TQUANT.md) - Quantize a tile (e.g. FP32 to FP8) producing exponent/scaling/max outputs.
+
+## Communication
+
+See [comm/README.md](comm/README.md) for the full per-instruction communication ISA reference (point-to-point, async, synchronization, and collective operations).

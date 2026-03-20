@@ -113,7 +113,7 @@ void example_manual() {
 
 ```text
 %dst = trsqrt %src : !pto.tile<...>
-# IR Level 2 (DPS)
+# AS Level 2 (DPS)
 pto.trsqrt ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 

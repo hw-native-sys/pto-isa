@@ -19,8 +19,8 @@
     'use strict';
 
     function collapseSecondLevelNav() {
-        // 等待 jQuery 和主题 JavaScript 加载完成
-        if (typeof $ === 'undefined' || typeof window.SphinxRtdTheme === 'undefined') {
+        // 等待 jQuery 加载完成
+        if (typeof $ === 'undefined') {
             setTimeout(collapseSecondLevelNav, 100);
             return;
         }
@@ -45,9 +45,26 @@
         updateExpandButtons();
         
         // 使用事件委托监听按钮点击事件
-        $('.wy-menu-vertical').off('click.navCollapse').on('click.navCollapse', 'button.toctree-expand', function() {
-            // 延迟更新，等待子菜单展开/收起动画完成
-            setTimeout(updateExpandButtons, 50);
+        $('.wy-menu-vertical').off('click.navCollapse').on('click.navCollapse', 'button.toctree-expand', function(e) {
+            var $button = $(this);
+            var $item = $button.closest('li.toctree-l1');
+            var $subMenu = $item.find('> ul');
+            
+            if ($subMenu.length === 0) return;
+            
+            // 切换子菜单的显示/隐藏
+            if ($subMenu.is(':visible')) {
+                $subMenu.slideUp(200);
+                $item.removeClass('current').attr('aria-expanded', 'false');
+                $button.attr('data-expanded', 'false');
+            } else {
+                $subMenu.slideDown(200);
+                $item.addClass('current').attr('aria-expanded', 'true');
+                $button.attr('data-expanded', 'true');
+            }
+            
+            e.stopPropagation();
+            e.preventDefault();
         });
     }
     

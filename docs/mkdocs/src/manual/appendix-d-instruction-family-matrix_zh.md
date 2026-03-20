@@ -17,7 +17,8 @@
 | 矩阵乘 | 8 |
 | 数据搬运 / 布局 | 12 |
 | 复杂指令 | 13 |
-| 总计 | 115 |
+| 通信 | 11 |
+| 总计 | 126 |
 
 ## D.3 头文件同步状态
 
@@ -143,6 +144,17 @@
 | 复杂指令 | [TGATHERB](/docs/isa/TGATHERB_zh.md) | `complex` | `dst, src0, src1` | `docs/isa/TGATHERB_zh.md` |
 | 复杂指令 | [TSCATTER](/docs/isa/TSCATTER_zh.md) | `complex` | `dst, src0, src1` | `docs/isa/TSCATTER_zh.md` |
 | 复杂指令 | [TQUANT](/docs/isa/TQUANT_zh.md) | `complex` | `dst, src0, src1` | `docs/isa/TQUANT_zh.md` |
+| 通信 | [TPUT](/docs/isa/comm/TPUT_zh.md) | `comm` | `dst, src, staging` | `docs/isa/comm/TPUT_zh.md` |
+| 通信 | [TGET](/docs/isa/comm/TGET_zh.md) | `comm` | `dst, src, staging` | `docs/isa/comm/TGET_zh.md` |
+| 通信 | [TPUT_ASYNC](/docs/isa/comm/TPUT_ASYNC_zh.md) | `comm` | `dst, src, session` | `docs/isa/comm/TPUT_ASYNC_zh.md` |
+| 通信 | [TGET_ASYNC](/docs/isa/comm/TGET_ASYNC_zh.md) | `comm` | `dst, src, session` | `docs/isa/comm/TGET_ASYNC_zh.md` |
+| 通信 | [TNOTIFY](/docs/isa/comm/TNOTIFY_zh.md) | `comm` | `signal, value, op` | `docs/isa/comm/TNOTIFY_zh.md` |
+| 通信 | [TWAIT](/docs/isa/comm/TWAIT_zh.md) | `comm` | `signal, value, cmp` | `docs/isa/comm/TWAIT_zh.md` |
+| 通信 | [TTEST](/docs/isa/comm/TTEST_zh.md) | `comm` | `signal, value, cmp` | `docs/isa/comm/TTEST_zh.md` |
+| 通信 | [TGATHER](/docs/isa/comm/TGATHER_zh.md) | `comm` | `group, dst, staging` | `docs/isa/comm/TGATHER_zh.md` |
+| 通信 | [TSCATTER](/docs/isa/comm/TSCATTER_zh.md) | `comm` | `group, src, staging` | `docs/isa/comm/TSCATTER_zh.md` |
+| 通信 | [TREDUCE](/docs/isa/comm/TREDUCE_zh.md) | `comm` | `group, dst, acc, recv` | `docs/isa/comm/TREDUCE_zh.md` |
+| 通信 | [TBROADCAST](/docs/isa/comm/TBROADCAST_zh.md) | `comm` | `group, src, staging` | `docs/isa/comm/TBROADCAST_zh.md` |
 
 ## D.5 说明
 

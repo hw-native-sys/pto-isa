@@ -85,7 +85,7 @@ See related examples in `docs/isa/` and `docs/coding/tutorials/`.
 
 ```text
 %dst = tinsert %src[%r0, %r1] : !pto.tile<...> -> !pto.tile<...>
-# IR Level 2 (DPS)
+# AS Level 2 (DPS)
 pto.tinsert ins(%src[%r0, %r1] : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 

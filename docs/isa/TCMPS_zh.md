@@ -43,25 +43,26 @@ pto.tcmps ins(%src, %scalar{cmpMode = #pto<cmp xx>}: !pto.tile_buf<...>, dtype) 
 声明于 `include/pto/common/pto_instr.hpp` 和 `include/pto/common/type.hpp`：
 
 ```cpp
-template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
-PTO_INST RecordEvent TCMPS(TileDataDst &dst, TileDataSrc &src0, typename TileDataSrc::DType src1, CmpMode mode, WaitEvents &... events);
-
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1,
-          typename = std::void_t<typename TileDataSrc1::DType>, typename... WaitEvents>
-PTO_INST RecordEvent TCMPS(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, CmpMode mode, WaitEvents &... events);
+template <typename TileDataDst, typename TileDataSrc0, typename T, typename... WaitEvents>
+PTO_INST RecordEvent TCMPS(TileDataDst& dst, TileDataSrc0& src0, T src1, CmpMode cmpMode, WaitEvents&... events);
 ```
 
 ## 约束
 
 - **实现检查 (A2A3)**:
-    - `src0`且`dst` tile 位置 必须是 vector (`TileType::Vec`）。
-    - 静态有效边界： `TileDataSrc0::ValidRow <= TileDataSrc0::Rows`且`TileDataSrc0::ValidCol <= TileDataSrc0::Cols`.
-    - 运行时： `src0.GetValidRow() == dst.GetValidRow()`且`src0.GetValidCol() == dst.GetValidCol()`.
+    - `TileData::DType` 必须是以下之一：`int32_t`、`float`、`half`、`uint16_t`、`int16_t`。
+    - Tile 布局必须是行主序（`TileData::isRowMajor`）。
 - **实现检查 (A5)**:
-    - `TCMPS_IMPL` 不强制执行显式的 `static_assert`/`PTO_ASSERT` 形状检查。
-    - 有效支持取决于 `TileDataSrc0::DType`（实现中仅分派特定的 1/2/4 字节整数/浮点类型）。
+    - `TileData::DType` 必须是以下之一：`int32_t`、`float`、`half`、`uint16_t`、`int16_t`。
+    - Tile 布局必须是行主序（`TileData::isRowMajor`）。
+- **通用约束**:
+    - Tile 位置必须是向量（`TileData::Loc == TileType::Vec`）。
+    - 静态有效边界：`TileData::ValidRow <= TileData::Rows` 且 `TileData::ValidCol <= TileData::Cols`。
+    - 运行时：`src0` 和 `dst` 的有效行列数必须相同。
 - **有效区域**:
-    - 实现使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域.
+    - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
+- **比较模式**:
+    - 支持 `CmpMode::EQ`、`CmpMode::NE`、`CmpMode::LT`、`CmpMode::GT`、`CmpMode::LE`、`CmpMode::GE`。
 
 ## 示例
 
@@ -122,7 +123,7 @@ void example_manual() {
 
 ```text
 %dst = tcmps %src, %scalar {cmpMode = #pto.cmp<EQ>} : !pto.tile<...> -> !pto.tile<...>
-# IR Level 2 (DPS)
+# AS Level 2 (DPS)
 pto.tcmps ins(%src, %scalar{cmpMode = #pto<cmp xx>}: !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
 
