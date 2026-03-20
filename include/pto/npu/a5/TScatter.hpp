@@ -30,7 +30,7 @@ __tf__ AICORE void TScatter_b32(typename TileDataD::TileDType __out__ dst, typen
     __VEC_SCOPE__
     {
         uint16_t batchSize = 256 / static_cast<uint16_t>(sizeof(TI));
-        uint16_t innerLoopNum = CEIL(validCol, batchSize);
+        uint16_t innerLoopNum = CeilDivision(validCol, batchSize);
         for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
             for (uint16_t j = 0; j < innerLoopNum; ++j) {
                 RegTensor<TI> index;
@@ -60,7 +60,7 @@ __tf__ AICORE void TScatter_b16(typename TileDataD::TileDType __out__ dst, typen
     __VEC_SCOPE__
     {
         uint16_t batchSize = 256 / static_cast<uint16_t>(sizeof(TI));
-        uint16_t innerLoopNum = CEIL(validCol, batchSize);
+        uint16_t innerLoopNum = CeilDivision(validCol, batchSize);
         for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
             for (uint16_t j = 0; j < innerLoopNum; ++j) {
                 RegTensor<TI> index;
@@ -90,7 +90,7 @@ __tf__ AICORE void TScatter_b8(typename TileDataD::TileDType __out__ dst, typena
     __VEC_SCOPE__
     {
         uint16_t batchSize = 256 / static_cast<uint16_t>(sizeof(TI));
-        uint16_t innerLoopNum = CEIL(validCol, batchSize);
+        uint16_t innerLoopNum = CeilDivision(validCol, batchSize);
         for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
             for (uint16_t j = 0; j < innerLoopNum; ++j) {
                 RegTensor<TI> index;

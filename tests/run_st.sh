@@ -257,7 +257,7 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a5 -t texpands_mat -g TEXPANDSTest.case1
     python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a5 -t textract -g TEXTRACTTest.case1
     python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a5 -t tfillpad -g TFILLPADTest.case_float_GT_128_127_VT_128_128_BLK1_PADMAX_PADMAX
-    python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a5 -t tgather -g TGATHERTest.case1_float
+    python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a5 -t tgather -g TGATHERTest.case1_float_32x1024_16x64
     python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a5 -t tgatherb -g TGATHERBTest.case_float_2x128_2x16_2x128
     python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a5 -t tload -g TLOADTest.case_float_GT_2_2_2_256_60_VT_256_64_BLK8_PADMAX
     python3 tests/script/$RUN_MODE -r $RUN_TYPE -v a5 -t tload_mix -g TLOADMIXTest.1_1_1_59_119_1_1_1_64_128_64_128_int8_t_ND2NZ
