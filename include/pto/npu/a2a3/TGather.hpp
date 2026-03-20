@@ -14,11 +14,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/common/constants.hpp>
 
 namespace pto {
-PTO_INTERNAL int CEIL(int a, int b)
-{
-    return (a + (b - 1)) / (b);
-}
-
 template <typename DstTileData, typename Src0TileData, typename Src1TileData>
 PTO_INTERNAL void CheckValid()
 {

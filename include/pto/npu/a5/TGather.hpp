@@ -15,11 +15,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "common.hpp"
 
 namespace pto {
-PTO_INTERNAL int CEIL(int a, int b)
-{
-    return (a + (b - 1)) / (b);
-}
-
 template <typename DstTileData, typename Src0TileData, typename Src1TileData>
 PTO_INTERNAL void CheckValid()
 {
@@ -43,7 +38,7 @@ __tf__ AICORE void TGather_b32(typename TileDataD::TileDType __out__ dst, typena
     __VEC_SCOPE__
     {
         uint16_t batchSize = 256 / static_cast<uint16_t>(sizeof(typename TileDataS1::DType));
-        uint16_t innerLoopNum = CEIL(validCol, batchSize);
+        uint16_t innerLoopNum = CeilDivision(validCol, batchSize);
         for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
             for (uint16_t j = 0; j < innerLoopNum; ++j) {
                 RegTensor<typename TileDataS1::DType> index;
@@ -71,7 +66,7 @@ __tf__ AICORE void TGather_b16(typename TileDataD::TileDType __out__ dst, typena
     __VEC_SCOPE__
     {
         uint16_t batchSize = 256 / static_cast<uint16_t>(sizeof(typename TileDataS1::DType));
-        uint16_t loop_num = CEIL(validCol, batchSize);
+        uint16_t loop_num = CeilDivision(validCol, batchSize);
         for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
             for (uint16_t j = 0; j < loop_num; ++j) {
                 RegTensor<typename TileDataS1::DType> index;
@@ -100,7 +95,7 @@ __tf__ AICORE void TGather_b16_bc(typename TileDataD::TileDType __out__ dst, typ
     __VEC_SCOPE__
     {
         uint16_t batchSize = 256 / static_cast<uint16_t>(sizeof(typename TileDataS1::DType));
-        uint16_t loop_num = CEIL(validCol, batchSize);
+        uint16_t loop_num = CeilDivision(validCol, batchSize);
         for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
             for (uint16_t j = 0; j < loop_num; ++j) {
                 RegTensor<typename TileDataS1::DType> index;
@@ -129,7 +124,7 @@ __tf__ AICORE void TGather_fp8_e4m3(typename TileDataD::TileDType __out__ dst,
     __VEC_SCOPE__
     {
         uint16_t batchSize = 256 / static_cast<uint16_t>(sizeof(typename TileDataS1::DType));
-        uint16_t loopNum = CEIL(validCol, batchSize);
+        uint16_t loopNum = CeilDivision(validCol, batchSize);
         for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
             for (uint16_t j = 0; j < loopNum; ++j) {
                 RegTensor<typename TileDataS1::DType> index;
@@ -158,7 +153,7 @@ __tf__ AICORE void TGather_fp8_e5m2(typename TileDataD::TileDType __out__ dst,
     __VEC_SCOPE__
     {
         constexpr uint16_t batchSize = 256 / static_cast<uint16_t>(sizeof(typename TileDataS1::DType));
-        uint16_t loopNum = CEIL(validCol, batchSize);
+        uint16_t loopNum = CeilDivision(validCol, batchSize);
         for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
             for (uint16_t j = 0; j < loopNum; ++j) {
                 RegTensor<typename TileDataS1::DType> index;
