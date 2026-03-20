@@ -23,6 +23,22 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/costmodel/a2a3/TUnaryOp.hpp"
 
 namespace pto {
+constexpr float HEAD_CYCLE_13 = 13.0;
+constexpr float HEAD_CYCLE_14 = 14.0;
+constexpr float COMPLETE_CYCLE_17 = 17.0;
+constexpr float COMPLETE_CYCLE_18 = 18.0;
+constexpr float COMPLETE_CYCLE_19 = 19.0;
+constexpr float COMPLETE_CYCLE_20 = 20.0;
+constexpr float COMPLETE_CYCLE_26 = 26.0;
+constexpr float COMPLETE_CYCLE_27 = 27.0;
+constexpr float COMPLETE_CYCLE_28 = 28.0;
+constexpr float COMPLETE_CYCLE_29 = 29.0;
+constexpr float COMPUTING_CYCLE_1 = 1.0;
+constexpr float COMPUTING_CYCLE_2 = 2.0;
+constexpr float COMPUTING_CYCLE_4 = 4.0;
+constexpr float INTERVAL_CYCLE_18 = 18.0;
+constexpr float MASK_1 = 1.0;
+constexpr float BANK_CONFLICT_0 = 0.0;
 
 enum class DataType
 {
@@ -94,60 +110,96 @@ public:
     void InitDefaultParams()
     {
         // TADD
-        SetParam("TADD", DataType::INT16, 14.0, 17.0, 2.0, 18.0, 1.0, 0.0);
-        SetParam("TADD", DataType::INT32, 14.0, 17.0, 2.0, 18.0, 1.0, 0.0);
-        SetParam("TADD", DataType::FP16, 14.0, 19.0, 2.0, 18.0, 1.0, 0.0);
-        SetParam("TADD", DataType::FP32, 14.0, 19.0, 2.0, 18.0, 1.0, 0.0);
+        SetParam("TADD", DataType::INT16, HEAD_CYCLE_14, COMPLETE_CYCLE_17, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18,
+                 MASK_1, BANK_CONFLICT_0);
+        SetParam("TADD", DataType::INT32, HEAD_CYCLE_14, COMPLETE_CYCLE_17, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18,
+                 MASK_1, BANK_CONFLICT_0);
+        SetParam("TADD", DataType::FP16, HEAD_CYCLE_14, COMPLETE_CYCLE_19, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18, MASK_1,
+                 BANK_CONFLICT_0);
+        SetParam("TADD", DataType::FP32, HEAD_CYCLE_14, COMPLETE_CYCLE_19, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18, MASK_1,
+                 BANK_CONFLICT_0);
 
         // TMUL
-        SetParam("TMUL", DataType::INT16, 14.0, 18.0, 2.0, 18.0, 1.0, 0.0);
-        SetParam("TMUL", DataType::INT32, 14.0, 18.0, 2.0, 18.0, 1.0, 0.0);
-        SetParam("TMUL", DataType::FP16, 14.0, 20.0, 2.0, 18.0, 1.0, 0.0);
-        SetParam("TMUL", DataType::FP32, 14.0, 20.0, 2.0, 18.0, 1.0, 0.0);
+        SetParam("TMUL", DataType::INT16, HEAD_CYCLE_14, COMPLETE_CYCLE_18, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18,
+                 MASK_1, BANK_CONFLICT_0);
+        SetParam("TMUL", DataType::INT32, HEAD_CYCLE_14, COMPLETE_CYCLE_18, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18,
+                 MASK_1, BANK_CONFLICT_0);
+        SetParam("TMUL", DataType::FP16, HEAD_CYCLE_14, COMPLETE_CYCLE_20, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18, MASK_1,
+                 BANK_CONFLICT_0);
+        SetParam("TMUL", DataType::FP32, HEAD_CYCLE_14, COMPLETE_CYCLE_20, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18, MASK_1,
+                 BANK_CONFLICT_0);
 
         // TSUB
-        SetParam("TSUB", DataType::INT16, 14.0, 17.0, 2.0, 18.0, 1.0, 0.0);
-        SetParam("TSUB", DataType::INT32, 14.0, 17.0, 2.0, 18.0, 1.0, 0.0);
-        SetParam("TSUB", DataType::FP16, 14.0, 19.0, 2.0, 18.0, 1.0, 0.0);
-        SetParam("TSUB", DataType::FP32, 14.0, 19.0, 2.0, 18.0, 1.0, 0.0);
+        SetParam("TSUB", DataType::INT16, HEAD_CYCLE_14, COMPLETE_CYCLE_17, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18,
+                 MASK_1, BANK_CONFLICT_0);
+        SetParam("TSUB", DataType::INT32, HEAD_CYCLE_14, COMPLETE_CYCLE_17, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18,
+                 MASK_1, BANK_CONFLICT_0);
+        SetParam("TSUB", DataType::FP16, HEAD_CYCLE_14, COMPLETE_CYCLE_19, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18, MASK_1,
+                 BANK_CONFLICT_0);
+        SetParam("TSUB", DataType::FP32, HEAD_CYCLE_14, COMPLETE_CYCLE_19, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18, MASK_1,
+                 BANK_CONFLICT_0);
 
         // TEXP
-        SetParam("TEXP", DataType::FP16, 13.0, 28.0, 4.0, 18.0, 1.0, 0.0);
-        SetParam("TEXP", DataType::FP32, 13.0, 26.0, 2.0, 18.0, 1.0, 0.0);
+        SetParam("TEXP", DataType::FP16, HEAD_CYCLE_13, COMPLETE_CYCLE_28, COMPUTING_CYCLE_4, INTERVAL_CYCLE_18, MASK_1,
+                 BANK_CONFLICT_0);
+        SetParam("TEXP", DataType::FP32, HEAD_CYCLE_13, COMPLETE_CYCLE_26, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18, MASK_1,
+                 BANK_CONFLICT_0);
 
         // TSQRT
-        SetParam("TSQRT", DataType::FP16, 13.0, 29.0, 4.0, 18.0, 1.0, 0.0);
-        SetParam("TSQRT", DataType::FP32, 13.0, 27.0, 2.0, 18.0, 1.0, 0.0);
+        SetParam("TSQRT", DataType::FP16, HEAD_CYCLE_13, COMPLETE_CYCLE_29, COMPUTING_CYCLE_4, INTERVAL_CYCLE_18,
+                 MASK_1, BANK_CONFLICT_0);
+        SetParam("TSQRT", DataType::FP32, HEAD_CYCLE_13, COMPLETE_CYCLE_27, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18,
+                 MASK_1, BANK_CONFLICT_0);
 
         // TADDS
-        SetParam("TADDS", DataType::INT16, 14.0, 17.0, 1.0, 18.0, 1.0, 0.0);
-        SetParam("TADDS", DataType::INT32, 14.0, 17.0, 1.0, 18.0, 1.0, 0.0);
-        SetParam("TADDS", DataType::FP16, 14.0, 19.0, 1.0, 18.0, 1.0, 0.0);
-        SetParam("TADDS", DataType::FP32, 14.0, 19.0, 1.0, 18.0, 1.0, 0.0);
+        SetParam("TADDS", DataType::INT16, HEAD_CYCLE_14, COMPLETE_CYCLE_17, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
+                 MASK_1, BANK_CONFLICT_0);
+        SetParam("TADDS", DataType::INT32, HEAD_CYCLE_14, COMPLETE_CYCLE_17, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
+                 MASK_1, BANK_CONFLICT_0);
+        SetParam("TADDS", DataType::FP16, HEAD_CYCLE_14, COMPLETE_CYCLE_19, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
+                 MASK_1, BANK_CONFLICT_0);
+        SetParam("TADDS", DataType::FP32, HEAD_CYCLE_14, COMPLETE_CYCLE_19, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
+                 MASK_1, BANK_CONFLICT_0);
 
         // TABS
-        SetParam("TABS", DataType::INT16, 13.0, 19.0, 1.0, 18.0, 1.0, 0.0);
-        SetParam("TABS", DataType::INT32, 13.0, 19.0, 1.0, 18.0, 1.0, 0.0);
-        SetParam("TABS", DataType::FP16, 13.0, 19.0, 1.0, 18.0, 1.0, 0.0);
-        SetParam("TABS", DataType::FP32, 13.0, 19.0, 1.0, 18.0, 1.0, 0.0);
+        SetParam("TABS", DataType::INT16, HEAD_CYCLE_13, COMPLETE_CYCLE_19, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
+                 MASK_1, BANK_CONFLICT_0);
+        SetParam("TABS", DataType::INT32, HEAD_CYCLE_13, COMPLETE_CYCLE_19, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
+                 MASK_1, BANK_CONFLICT_0);
+        SetParam("TABS", DataType::FP16, HEAD_CYCLE_13, COMPLETE_CYCLE_19, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18, MASK_1,
+                 BANK_CONFLICT_0);
+        SetParam("TABS", DataType::FP32, HEAD_CYCLE_13, COMPLETE_CYCLE_19, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18, MASK_1,
+                 BANK_CONFLICT_0);
 
         // TMINS
-        SetParam("TMINS", DataType::INT16, 14.0, 17.0, 1.0, 18.0, 1.0, 0.0);
-        SetParam("TMINS", DataType::INT32, 14.0, 17.0, 1.0, 18.0, 1.0, 0.0);
-        SetParam("TMINS", DataType::FP16, 14.0, 17.0, 1.0, 18.0, 1.0, 0.0);
-        SetParam("TMINS", DataType::FP32, 14.0, 17.0, 1.0, 18.0, 1.0, 0.0);
+        SetParam("TMINS", DataType::INT16, HEAD_CYCLE_14, COMPLETE_CYCLE_17, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
+                 MASK_1, BANK_CONFLICT_0);
+        SetParam("TMINS", DataType::INT32, HEAD_CYCLE_14, COMPLETE_CYCLE_17, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
+                 MASK_1, BANK_CONFLICT_0);
+        SetParam("TMINS", DataType::FP16, HEAD_CYCLE_14, COMPLETE_CYCLE_17, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
+                 MASK_1, BANK_CONFLICT_0);
+        SetParam("TMINS", DataType::FP32, HEAD_CYCLE_14, COMPLETE_CYCLE_17, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
+                 MASK_1, BANK_CONFLICT_0);
 
         // TMULS
-        SetParam("TMULS", DataType::INT16, 14.0, 18.0, 1.0, 18.0, 1.0, 0.0);
-        SetParam("TMULS", DataType::INT32, 14.0, 18.0, 1.0, 18.0, 1.0, 0.0);
-        SetParam("TMULS", DataType::FP16, 14.0, 20.0, 1.0, 18.0, 1.0, 0.0);
-        SetParam("TMULS", DataType::FP32, 14.0, 20.0, 1.0, 18.0, 1.0, 0.0);
+        SetParam("TMULS", DataType::INT16, HEAD_CYCLE_14, COMPLETE_CYCLE_18, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
+                 MASK_1, BANK_CONFLICT_0);
+        SetParam("TMULS", DataType::INT32, HEAD_CYCLE_14, COMPLETE_CYCLE_18, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
+                 MASK_1, BANK_CONFLICT_0);
+        SetParam("TMULS", DataType::FP16, HEAD_CYCLE_14, COMPLETE_CYCLE_20, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
+                 MASK_1, BANK_CONFLICT_0);
+        SetParam("TMULS", DataType::FP32, HEAD_CYCLE_14, COMPLETE_CYCLE_20, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
+                 MASK_1, BANK_CONFLICT_0);
 
         // TDIVS
-        SetParam("TDIVS", DataType::INT16, 14.0, 18.0, 1.0, 18.0, 1.0, 0.0);
-        SetParam("TDIVS", DataType::INT32, 14.0, 18.0, 1.0, 18.0, 1.0, 0.0);
-        SetParam("TDIVS", DataType::FP16, 14.0, 20.0, 1.0, 18.0, 1.0, 0.0);
-        SetParam("TDIVS", DataType::FP32, 14.0, 20.0, 1.0, 18.0, 1.0, 0.0);
+        SetParam("TDIVS", DataType::INT16, HEAD_CYCLE_14, COMPLETE_CYCLE_18, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
+                 MASK_1, BANK_CONFLICT_0);
+        SetParam("TDIVS", DataType::INT32, HEAD_CYCLE_14, COMPLETE_CYCLE_18, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
+                 MASK_1, BANK_CONFLICT_0);
+        SetParam("TDIVS", DataType::FP16, HEAD_CYCLE_14, COMPLETE_CYCLE_20, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
+                 MASK_1, BANK_CONFLICT_0);
+        SetParam("TDIVS", DataType::FP32, HEAD_CYCLE_14, COMPLETE_CYCLE_20, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
+                 MASK_1, BANK_CONFLICT_0);
     }
 
     // TBinOp
@@ -186,7 +238,6 @@ public:
     {
         DataType dtype = GetDataTypeEnum<T>();
         auto key = std::make_pair(instr_name, dtype);
-
         if (!CheckParamExist(key)) {
             fprintf(stderr, "[CostModel] Error: <%s> <%d> \n", instr_name.c_str(), static_cast<int>(dtype));
             return 0.0f;
