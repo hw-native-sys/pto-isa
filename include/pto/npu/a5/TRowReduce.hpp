@@ -43,34 +43,6 @@ struct FloatLimits<half> {
     }
 };
 
-// IntegerLimits: get max/min values for integer types
-template <typename T>
-struct IntegerLimits;
-
-template <>
-struct IntegerLimits<int32_t> {
-    static constexpr int32_t max()
-    {
-        return 2147483647;
-    }
-    static constexpr int32_t min()
-    {
-        return -2147483648;
-    }
-};
-
-template <>
-struct IntegerLimits<int16_t> {
-    static constexpr int16_t max()
-    {
-        return 32767;
-    }
-    static constexpr int16_t min()
-    {
-        return -32768;
-    }
-};
-
 template <typename T>
 struct FloatLimits {
     static_assert(sizeof(T) == 0,

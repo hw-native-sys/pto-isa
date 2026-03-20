@@ -113,7 +113,7 @@ def bench(
     rtol=1e-3,
     atol=1e-3,
 ):
-    device = "npu:6"
+    device = "npu:0"
     torch.npu.set_device(device)
     dtype = torch.float16
     batch_size = 1
