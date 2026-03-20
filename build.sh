@@ -178,6 +178,7 @@ run_cpu_st() {
   python3 tests/run_cpu.py --cxx=clang++ --demo gemm --verbose
   python3 tests/run_cpu.py --cxx=clang++ --demo flash_attn --verbose
   python3 tests/run_cpu.py --cxx=clang++ --demo mla --verbose
+  bash tests/run_costmodel_tests.sh
 }
 
 run_all_st() {
