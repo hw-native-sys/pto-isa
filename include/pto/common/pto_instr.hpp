@@ -771,6 +771,17 @@ PTO_INST RecordEvent TINSERT_FP(DstTileData &dst, SrcTileData &src, FpTileData &
     return {};
 }
 
+#ifdef PTO_NPU_ARCH_A5
+template <TInsertMode mode, typename DstTileData, typename SrcTileData, typename... WaitEvents>
+PTO_INST RecordEvent TINSERT(DstTileData &dst, SrcTileData &src, uint32_t indexRow = 0, uint32_t indexCol = 0,
+                             WaitEvents &... events)
+{
+    TSYNC(events...);
+    TINSERT_IMPL<mode>(dst, src, indexRow, indexCol);
+    return {};
+}
+#endif
+
 template <typename TileData, PadValue PadVal = PadValue::Zero,
           std::enable_if_t<(TileData::Loc == TileType::Mat), int> = 0, typename... WaitEvents>
 PTO_INST RecordEvent TFILLPAD(TileData &dst, TileData &src, WaitEvents &... events)

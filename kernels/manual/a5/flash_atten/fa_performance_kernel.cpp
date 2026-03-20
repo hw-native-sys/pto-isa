@@ -15,7 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/npu/kernels/Pto_prefetch.hpp>
 #include <pto/npu/a5/custom/TSyncCVID.hpp>
 #include <pto/npu/a5/custom/TSync_Custom.hpp>
-#include <pto/npu/a5/custom/TInsertCustom.hpp>
+
 #define UF_ENABLE 0
 #include "pto_macro_matmul.hpp"
 #include "pto_macro_fa_softmax.hpp"
@@ -762,7 +762,7 @@ AICORE inline void compute_p(int tile_id, int row_slice, __gm__ float *qk_tile_f
             wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
 
             const uint32_t col_idx = static_cast<uint32_t>(sub_col * Cube_S1);
-            TINSERT_CUSTOM<TInsertMode::NZ_PLUS_1>(pMatTile, nzConvBuffer, static_cast<uint32_t>(row_offset), col_idx);
+            TINSERT<TInsertMode::NZ_PLUS_1>(pMatTile, nzConvBuffer, static_cast<uint32_t>(row_offset), col_idx);
         }
         (void)global_sum_out;
         (void)exp_max_out;

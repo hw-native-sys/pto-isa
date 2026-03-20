@@ -14,7 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/common/fifo.hpp>
 #include <pto/npu/a5/TStore.hpp>
 #include <pto/npu/a5/TLoad.hpp>
-#include <pto/npu/a5/custom/TInsertCustom.hpp>
+#include <pto/npu/a5/TInsert.hpp>
 
 namespace pto {
 
@@ -270,9 +270,9 @@ struct TPipe {
                 TASSIGN_IMPL(matTile, fifoBase + entryBase);
                 constexpr bool isNZPlus1 = (ConsM / ProdM) != 2;
                 if constexpr (isNZPlus1) { // NZ + 1 mode
-                    TINSERT_CUSTOM<TInsertMode::NZ_PLUS_1>(matTile, tile, row_offset, 0);
+                    TINSERT_IMPL<TInsertMode::NZ_PLUS_1>(matTile, tile, row_offset, 0);
                 } else { // NZ mode
-                    TINSERT_CUSTOM<TInsertMode::NZ>(matTile, tile, row_offset, 0);
+                    TINSERT_IMPL<TInsertMode::NZ>(matTile, tile, row_offset, 0);
                 }
             } else if constexpr (isSplitN) {
                 // split N between vectors
@@ -283,9 +283,9 @@ struct TPipe {
                 TASSIGN_IMPL(matTile, fifoBase + entryBase);
                 constexpr bool isNZPlus1 = (ConsM / ProdM) != 2;
                 if constexpr (isNZPlus1) { // NZ+1 mode for bank conflict optimization
-                    TINSERT_CUSTOM<TInsertMode::NZ_PLUS_1>(matTile, tile, 0, col_index);
+                    TINSERT_IMPL<TInsertMode::NZ_PLUS_1>(matTile, tile, 0, col_index);
                 } else {
-                    TINSERT_CUSTOM<TInsertMode::NZ>(matTile, tile, 0, col_index);
+                    TINSERT_IMPL<TInsertMode::NZ>(matTile, tile, 0, col_index);
                 }
             } else if constexpr (nonSplit) {
                 // single vector core
@@ -295,9 +295,9 @@ struct TPipe {
                 TASSIGN_IMPL(matTile, fifoBase + entryBase);
                 constexpr bool isNZPlus1 = (ProdM > ConsM);
                 if constexpr (isNZPlus1) { // NZ+1 mode
-                    TINSERT_CUSTOM<TInsertMode::NZ_PLUS_1>(matTile, tile, 0, 0);
+                    TINSERT_IMPL<TInsertMode::NZ_PLUS_1>(matTile, tile, 0, 0);
                 } else {
-                    TINSERT_CUSTOM<TInsertMode::NZ>(matTile, tile, 0, 0);
+                    TINSERT_IMPL<TInsertMode::NZ>(matTile, tile, 0, 0);
                 }
             } else {
                 static_assert(isSplitM || isSplitN || nonSplit,
