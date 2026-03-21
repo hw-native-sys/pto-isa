@@ -29,8 +29,8 @@ PTO_INTERNAL void TSYNC_IMPL()
 {
 #ifndef __PTO_AUTO__
     constexpr pipe_t pipe = GetPipeByOp<OpCode>();
-    PTO_STATIC_ASSERT(pipe == PIPE_MTE3 || OpCode == Op::OP_COUNT,
-                      "Single Op TSYNC only supports MTE3 or ALL pipeline.");
+    PTO_STATIC_ASSERT((pipe == PIPE_MTE2) || (pipe == PIPE_MTE3) || (pipe == PIPE_ALL),
+                      "Single Op TSYNC only supports MTE2 / MTE3 / ALL pipeline.");
     pipe_barrier((pipe_t)pipe);
 #endif
 }
@@ -42,6 +42,9 @@ struct Event {
     static constexpr Op srcOp = SrcOp;
     static constexpr pipe_t dstPipe = GetPipeByOp<dstOp>();
     static constexpr pipe_t srcPipe = GetPipeByOp<srcOp>();
+    static constexpr bool isSamePipe = (srcPipe == dstPipe);
+    static constexpr bool isValidBarrierPipe =
+        ((srcPipe == PIPE_MTE2) || (dstPipe == PIPE_MTE3) || (dstPipe == PIPE_ALL));
     PTO_STATIC_ASSERT(SrcOp != DstOp, "SrcOp is not allowed to be equal to DstOp.");
     PTO_STATIC_ASSERT(dstPipe != srcPipe, "SrcPipe is not allowed to be equal to dstPipe.");
 
@@ -76,11 +79,17 @@ struct Event {
                               "The cross-core id must be assigned by user when the event is a cross-core event.");
             wait_intra_block(srcPipe, CrossCoreId);
         } else {
+            if constexpr (isSamePipe) {
+                if constexpr (isValidBarrierPipe) {
+                    pipe_barrier((pipe_t)srcPipe);
+                }
+            } else {
 #ifdef PTO_FLAG_TEST
-            __pto_wait_flag((pipe_t)srcPipe, (pipe_t)dstPipe, token);
+                __pto_wait_flag((pipe_t)srcPipe, (pipe_t)dstPipe, token);
 #else
-            wait_flag((pipe_t)srcPipe, (pipe_t)dstPipe, token);
+                wait_flag((pipe_t)srcPipe, (pipe_t)dstPipe, token);
 #endif
+            }
         }
 #endif
         return *this;
@@ -95,7 +104,7 @@ struct Event {
                               "The cross-core id must be assigned by user when the event is a cross-core event.");
             set_intra_block(srcPipe, CrossCoreId);
             set_intra_block(srcPipe, CrossCoreId + 16);
-        } else {
+        } else if constexpr (!isSamePipe) {
 #ifdef PTO_FLAG_TEST
             token = __pto_set_flag((pipe_t)srcPipe, (pipe_t)dstPipe);
 #else
@@ -104,6 +113,16 @@ struct Event {
         }
 #endif
         return *this;
+    }
+
+    PTO_INTERNAL Event() = default;
+    PTO_INTERNAL Event(RecordEvent)
+    {
+#ifndef __PTO_AUTO__
+        PTO_STATIC_ASSERT(!IsCrossCore,
+                          "Fix: The cross-core event must be manually initialized and specify the cross-core ID.");
+#endif
+        Init();
     }
 
     PTO_INTERNAL Event &operator=(RecordEvent)

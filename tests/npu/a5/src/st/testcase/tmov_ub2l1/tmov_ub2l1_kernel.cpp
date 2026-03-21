@@ -16,6 +16,17 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace pto;
 
+template <typename T, typename DstTileData, typename SrcTileData>
+__tf__ PTO_INTERNAL void tf_copy_cbuf_to_ubuf(typename DstTileData::TileDType __out__ dst,
+                                              typename SrcTileData::TileDType __in__ src, uint16_t vector,
+                                              uint16_t blockLen)
+{
+    __cbuf__ T *srcMatAddr = __cce_get_tile_ptr(src);
+    __ubuf__ T *dstUbAddr = __cce_get_tile_ptr(dst);
+    copy_cbuf_to_ubuf((__ubuf__ void *)dstUbAddr, (__cbuf__ void *)srcMatAddr, vector, 1, blockLen, 0,
+                      0); // move to vector0 or vector1
+}
+
 template <typename T, uint32_t Rows, uint32_t Cols, uint32_t ExtraRows, uint32_t ValidRows = Rows,
           uint32_t ValidCols = Cols, uint32_t IndexRows = 0, uint32_t IndexCols = 0>
 AICORE void runTmovUb2l1(__gm__ T *out, __gm__ T *src)
@@ -49,16 +60,18 @@ AICORE void runTmovUb2l1(__gm__ T *out, __gm__ T *src)
     uint8_t syncId = 0;
     uint8_t eventIdNum = 16;
     uint16_t blockLen = ValidRows * ValidCols * sizeof(T) / BLOCK_BYTE_SIZE;
-    __cbuf__ T *srcMatAddr = matTile.data();
-    __ubuf__ T *dstUbAddr = dstTile.data();
 
 #if defined(__DAV_VEC__)
     TLOAD(srcTile, srcGlobal); // gm->ub
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
     TMOV(tmpTile, srcTile); // ub2Ub
+#ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
     if constexpr (IndexRows != 0 || IndexCols != 0) {
         TEXTRACT(matTile, tmpTile, IndexRows, IndexCols);
     } else {
@@ -71,12 +84,16 @@ AICORE void runTmovUb2l1(__gm__ T *out, __gm__ T *src)
     wait_intra_block(PIPE_MTE1, syncId); // MTE1 等待V侧MTE3流水
     wait_intra_block(PIPE_MTE1, syncId + eventIdNum);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE3, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE3, PIPE_MTE1, EVENT_ID0);
-    copy_cbuf_to_ubuf((__ubuf__ void *)dstUbAddr, (__cbuf__ void *)srcMatAddr, 0, 1, blockLen, 0, 0); // move to vector0
-    copy_cbuf_to_ubuf((__ubuf__ void *)dstUbAddr, (__cbuf__ void *)srcMatAddr, 1, 1, blockLen, 0, 0); // move to vector1
+#endif
+    tf_copy_cbuf_to_ubuf<T, DstTileData, MatTileData>(dstTile.data(), matTile.data(), 0, blockLen);
+    tf_copy_cbuf_to_ubuf<T, DstTileData, MatTileData>(dstTile.data(), matTile.data(), 1, blockLen);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_MTE3, EVENT_ID0);
+#endif
 
     set_intra_block(PIPE_MTE1, syncId); // ub2l1 告诉V侧已经搬完,C侧L12UB MTE1流水
     set_intra_block(PIPE_MTE1, syncId + eventIdNum);

@@ -118,11 +118,14 @@ __global__ AICORE void RunTMOVMX(__gm__ OutType *out, __gm__ AType *src0, __gm__
 
     TASSIGN(aTile, 0x0);
     TASSIGN(bTile, 0x0);
+
+#ifndef __PTO_AUTO__
     uint64_t scaleAAddr = GetScaleAddr(aTile.data());
     uint64_t scaleBAddr = GetScaleAddr(bTile.data());
-
     TASSIGN(aScaleTile, scaleAAddr);
     TASSIGN(bScaleTile, scaleBAddr);
+#endif
+
     TASSIGN(cTile, 0x0);
 
     /*************************************TLOAD****************************************/
@@ -137,8 +140,10 @@ __global__ AICORE void RunTMOVMX(__gm__ OutType *out, __gm__ AType *src0, __gm__
     TLOAD<TileScaleAData, GlobalDataSrc2>(aScaleMatTile, src2Global);
     TLOAD<TileScaleBData, GlobalDataSrc3>(bScaleMatTile, src3Global);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
 
     /**********************************TMOV && TEXTRACT**********************************/
 
@@ -148,15 +153,24 @@ __global__ AICORE void RunTMOVMX(__gm__ OutType *out, __gm__ AType *src0, __gm__
     TMOV(aScaleTile, aScaleMatTile);
     TMOV(bScaleTile, bScaleMatTile);
 
+#ifdef __PTO_AUTO__
+    TGET_SCALE_ADDR(aScaleTile, aTile);
+    TGET_SCALE_ADDR(bScaleTile, bTile);
+#endif
+
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
 
     /**********************************TMATMUL**********************************/
 
     TMATMUL_MX(cTile, aTile, aScaleTile, bTile, bScaleTile);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
 
     /**********************************TSTORE**********************************/
     TSTORE(dstGlobal, cTile);
@@ -233,10 +247,14 @@ __global__ AICORE void RunTEXTRACTMX(__gm__ OutType *out, __gm__ AType *src0, __
 
     TASSIGN(aTile, 0x0);
     TASSIGN(bTile, 0x0);
+
+#ifndef __PTO_AUTO__
     uint64_t scaleAAddr = GetScaleAddr(aTile.data());
     uint64_t scaleBAddr = GetScaleAddr(bTile.data());
     TASSIGN(aScaleTile, scaleAAddr);
     TASSIGN(bScaleTile, scaleBAddr);
+#endif
+
     TASSIGN(cTile, 0x0);
 
     /*************************************TLOAD****************************************/
@@ -251,8 +269,10 @@ __global__ AICORE void RunTEXTRACTMX(__gm__ OutType *out, __gm__ AType *src0, __
     TLOAD<TileScaleAData, GlobalDataSrc2>(aScaleMatTile, src2Global);
     TLOAD<TileScaleBData, GlobalDataSrc3>(bScaleMatTile, src3Global);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
 
     /**********************************TMOV && TEXTRACT**********************************/
     TEXTRACT(aTile, aMatTile, indexM, indexK);
@@ -261,15 +281,24 @@ __global__ AICORE void RunTEXTRACTMX(__gm__ OutType *out, __gm__ AType *src0, __
     TEXTRACT(aScaleTile, aScaleMatTile, indexM, indexK / 32);
     TEXTRACT(bScaleTile, bScaleMatTile, indexK / 32, indexN);
 
+#ifdef __PTO_AUTO__
+    TGET_SCALE_ADDR(aScaleTile, aTile);
+    TGET_SCALE_ADDR(bScaleTile, bTile);
+#endif
+
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
 
     /**********************************TMATMUL**********************************/
 
     TMATMUL_MX(cTile, aTile, aScaleTile, bTile, bScaleTile);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
 
     /**********************************TSTORE**********************************/
     TSTORE(dstGlobal, cTile);
@@ -342,10 +371,14 @@ __global__ AICORE void RunTEXTRACTMX_COMPACT(__gm__ OutType *out, __gm__ AType *
 
     TASSIGN(aTile, 0x0);
     TASSIGN(bTile, 0x0);
+
+#ifndef __PTO_AUTO__
     uint64_t scaleAAddr = GetScaleAddr(aTile.data());
     uint64_t scaleBAddr = GetScaleAddr(bTile.data());
     TASSIGN(aScaleTile, scaleAAddr);
     TASSIGN(bScaleTile, scaleBAddr);
+#endif
+
     TASSIGN(cTile, 0x0);
 
     /*************************************TLOAD****************************************/
@@ -355,8 +388,10 @@ __global__ AICORE void RunTEXTRACTMX_COMPACT(__gm__ OutType *out, __gm__ AType *
     TLOAD<TileScaleAData, GlobalDataSrc2>(aScaleMatTile, src2Global);
     TLOAD<TileScaleBData, GlobalDataSrc3>(bScaleMatTile, src3Global);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
 
     /**********************************TMOV && TEXTRACT**********************************/
     TEXTRACT(aTile, aMatTile, indexM, indexK);
@@ -365,15 +400,24 @@ __global__ AICORE void RunTEXTRACTMX_COMPACT(__gm__ OutType *out, __gm__ AType *
     TEXTRACT(aScaleTile, aScaleMatTile, indexM, indexK / 32);
     TEXTRACT(bScaleTile, bScaleMatTile, indexK / 32, indexN);
 
+#ifdef __PTO_AUTO__
+    TGET_SCALE_ADDR(aScaleTile, aTile);
+    TGET_SCALE_ADDR(bScaleTile, bTile);
+#endif
+
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
 
     /**********************************TMATMUL**********************************/
 
     TMATMUL_MX(cTile, aTile, aScaleTile, bTile, bScaleTile);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
 
     /**********************************TSTORE**********************************/
     TSTORE(dstGlobal, cTile);

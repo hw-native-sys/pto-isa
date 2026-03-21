@@ -27,7 +27,7 @@ template <typename T>
 using CType = typename std::conditional<std::is_same<T, int8_t>::value, int32_t, float>::type;
 
 template <typename aType, typename bType, int M, int K, int N, int validM, int validK, int validN>
-AICORE inline void runMATMUL(__gm__ aType *src0, __gm__ bType *src1)
+AICORE inline void runMATMUL(__gm__ aType *src0, __gm__ bType *src1, TileAcc<CType<aType>, M, N, -1, -1> &cTile)
 {
     using GlobalDataSrc0 =
         GlobalTensor<aType, pto::Shape<1, 1, 1, M, K>, pto::Stride<1 * M * K, 1 * M * K, M * K, K, 1>>;
@@ -48,7 +48,7 @@ AICORE inline void runMATMUL(__gm__ aType *src0, __gm__ bType *src1)
     using AccTile = TileAcc<CType<aType>, M, N, validM, validN>;
     LeftTile aTile;
     RightTile bTile;
-    AccTile cTile;
+    // AccTile cTile;
     TASSIGN(aTile, 0x0);
     TASSIGN(bTile, 0x0);
     TASSIGN(cTile, 0x0);
@@ -56,25 +56,33 @@ AICORE inline void runMATMUL(__gm__ aType *src0, __gm__ bType *src1)
     TLOAD(aMatTile, src0Global);
     TLOAD(bMatTile, src1Global);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
 
     /**********************************TMOV && TEXTRACT**********************************/
     TMOV(aTile, aMatTile);
     TMOV(bTile, bMatTile);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
 
     /**********************************TMATMUL**********************************/
     TMATMUL(cTile, aTile, bTile);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
 }
 
 template <typename aType, typename bType, typename fbType, int M, int K, int N, int validM, int validK, int validN>
-AICORE inline void runMATMULFB(__gm__ aType *src0, __gm__ bType *src1, __gm__ fbType *src2)
+AICORE inline void runMATMULFB(
+    __gm__ aType *src0, __gm__ bType *src1, __gm__ fbType *src2, TileAcc<CType<aType>, M, N, -1, -1> &cTile,
+    Tile<TileType::Mat, fbType, 1, N, BLayout::RowMajor, 1, validN, SLayout::NoneBox> &fbMatTile)
 {
     using GlobalDataSrc0 =
         GlobalTensor<aType, pto::Shape<1, 1, 1, M, K>, pto::Stride<1 * M * K, 1 * M * K, M * K, K, 1>>;
@@ -90,7 +98,7 @@ AICORE inline void runMATMULFB(__gm__ aType *src0, __gm__ bType *src1, __gm__ fb
     using TileMatFbData = Tile<TileType::Mat, fbType, 1, N, BLayout::RowMajor, 1, N, SLayout::NoneBox>;
     TileMatAData aMatTile;
     TileMatBData bMatTile;
-    TileMatFbData fbMatTile;
+    // TileMatFbData fbMatTile;
     TASSIGN(aMatTile, 0x0);
     TASSIGN(bMatTile, 0x10000);
     TASSIGN(fbMatTile, 0x20000);
@@ -100,7 +108,7 @@ AICORE inline void runMATMULFB(__gm__ aType *src0, __gm__ bType *src1, __gm__ fb
     using AccTile = TileAcc<CType<aType>, M, N, validM, validN>;
     LeftTile aTile;
     RightTile bTile;
-    AccTile cTile;
+    // AccTile cTile;
     TASSIGN(aTile, 0x0);
     TASSIGN(bTile, 0x0);
     TASSIGN(cTile, 0x0);
@@ -109,21 +117,27 @@ AICORE inline void runMATMULFB(__gm__ aType *src0, __gm__ bType *src1, __gm__ fb
     TLOAD(bMatTile, src1Global);
     TLOAD(fbMatTile, src2Global);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
 
     /**********************************TMOV && TEXTRACT**********************************/
     TMOV(aTile, aMatTile);
     TMOV(bTile, bMatTile);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
 
     /**********************************TMATMUL**********************************/
     TMATMUL(cTile, aTile, bTile);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
 }
 
 template <typename outType, typename aType, typename bType, int M, int K, int N, int validM, int validK, int validN,
@@ -145,11 +159,11 @@ __global__ AICORE void runTMOV_nz2nz(__gm__ outType *out, __gm__ aType *src0, __
     using GlobalDataOut = GlobalTensor<outType, DynShapeDim5, DynStridDim5, Layout::NZ>;
     GlobalDataOut dstGlobal(out);
 
-    runMATMUL<aType, bType, M, K, N, validM, validK, validN>(src0, src1);
-
     using AccTile = TileAcc<CType<aType>, M, N, -1, -1>;
     AccTile cTile(validM, validN);
     TASSIGN(cTile, 0x0);
+
+    runMATMUL<aType, bType, M, K, N, validM, validK, validN>(src0, src1, cTile);
 
     constexpr int staticRow = isInsert ? dstRow : (M - indexRow);
     constexpr int staticCol = isInsert ? dstCol : (N - indexCol);
@@ -169,18 +183,22 @@ __global__ AICORE void runTMOV_nz2nz(__gm__ outType *out, __gm__ aType *src0, __
                 outType, pto::Shape<1, 1, 1, copyOutM, copyOutN>,
                 pto::Stride<1 * copyOutM * copyOutN, 1 * copyOutM * copyOutN, copyOutM * copyOutN, copyOutN, 1>>;
             GlobalDataSrc2 src2Global(src2);
+#ifndef __PTO_AUTO__
             set_flag(PIPE_M, PIPE_MTE2, EVENT_ID0);
             wait_flag(PIPE_M, PIPE_MTE2, EVENT_ID0);
+#endif
             TLOAD(dstTileData, src2Global);
+#ifndef __PTO_AUTO__
             set_flag(PIPE_MTE2, PIPE_FIX, EVENT_ID0);
             wait_flag(PIPE_MTE2, PIPE_FIX, EVENT_ID0);
+#endif
             TINSERT(dstTileData, cTile, indexRow, indexCol);
         }
     }
-
+#ifndef __PTO_AUTO__
     set_flag(PIPE_FIX, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_FIX, PIPE_MTE3, EVENT_ID0);
-
+#endif
     TSTORE(dstGlobal, dstTileData);
     out = dstGlobal.data();
 }
@@ -208,11 +226,12 @@ __global__ AICORE void runVectorQuantTMOV_nz2nz(__gm__ outType *out, __gm__ aTyp
     TileMatFbData fbMatTile;
     TASSIGN(fbMatTile, 0x20000);
 
-    runMATMULFB<aType, bType, fbType, M, K, N, validM, validK, validN>(src0, src1, src2);
-
     using AccTile = TileAcc<CType<aType>, M, N, -1, -1>;
     AccTile cTile(validM, validN);
     TASSIGN(cTile, 0x0);
+
+    runMATMULFB<aType, bType, fbType, M, K, N, validM, validK, validN>(src0, src1, src2, cTile, fbMatTile);
+
     using FbTile = Tile<TileType::Scaling, fbType, 1, N, BLayout::RowMajor, 1, validN, SLayout::NoneBox>;
     FbTile fbTile;
     TASSIGN(fbTile, 0x0);
@@ -237,16 +256,22 @@ __global__ AICORE void runVectorQuantTMOV_nz2nz(__gm__ outType *out, __gm__ aTyp
                 outType, pto::Shape<1, 1, 1, copyOutM, copyOutN>,
                 pto::Stride<1 * copyOutM * copyOutN, 1 * copyOutM * copyOutN, copyOutM * copyOutN, copyOutN, 1>>;
             GlobalDataSrc3 src3Global(src3);
+#ifndef __PTO_AUTO__
             set_flag(PIPE_M, PIPE_MTE2, EVENT_ID0);
             wait_flag(PIPE_M, PIPE_MTE2, EVENT_ID0);
+#endif
             TLOAD(dstTileData, src3Global);
+#ifndef __PTO_AUTO__
             set_flag(PIPE_MTE2, PIPE_FIX, EVENT_ID0);
             wait_flag(PIPE_MTE2, PIPE_FIX, EVENT_ID0);
+#endif
             TINSERT_FP<DstTileData, AccTile, FbTile>(dstTileData, cTile, fbTile, indexRow, indexCol);
         }
     }
+#ifndef __PTO_AUTO_
     set_flag(PIPE_FIX, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_FIX, PIPE_MTE3, EVENT_ID0);
+#endif
     TSTORE(dstGlobal, dstTileData);
     out = dstGlobal.data();
 }
@@ -270,11 +295,11 @@ __global__ AICORE void runScalarQuantTMOV_nz2nz(__gm__ outType *out, __gm__ aTyp
     using GlobalDataOut = GlobalTensor<outType, DynShapeDim5, DynStridDim5, Layout::NZ>;
     GlobalDataOut dstGlobal(out);
 
-    runMATMUL<aType, bType, M, K, N, validM, validK, validN>(src0, src1);
-
     using AccTile = TileAcc<CType<aType>, M, N, -1, -1>;
     AccTile cTile(validM, validN);
     TASSIGN(cTile, 0x0);
+
+    runMATMUL<aType, bType, M, K, N, validM, validK, validN>(src0, src1, cTile);
 
     constexpr int staticRow = isInsert ? dstRow : (M - indexRow);
     constexpr int staticCol = isInsert ? dstCol : (N - indexCol);
@@ -307,17 +332,23 @@ __global__ AICORE void runScalarQuantTMOV_nz2nz(__gm__ outType *out, __gm__ aTyp
                 outType, pto::Shape<1, 1, 1, copyOutM, copyOutN>,
                 pto::Stride<1 * copyOutM * copyOutN, 1 * copyOutM * copyOutN, copyOutM * copyOutN, copyOutN, 1>>;
             GlobalDataSrc2 src2Global(src2);
+#ifndef __PTO_AUTO__
             set_flag(PIPE_M, PIPE_MTE2, EVENT_ID0);
             wait_flag(PIPE_M, PIPE_MTE2, EVENT_ID0);
+#endif
             TLOAD(dstTileData, src2Global);
+#ifndef __PTO_AUTO__
             set_flag(PIPE_MTE2, PIPE_FIX, EVENT_ID0);
             wait_flag(PIPE_MTE2, PIPE_FIX, EVENT_ID0);
+#endif
             TINSERT<DstTileData, AccTile>(dstTileData, cTile, preQuantScalar, indexRow, indexCol);
         }
     }
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_FIX, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_FIX, PIPE_MTE3, EVENT_ID0);
+#endif
 
     TSTORE(dstGlobal, dstTileData);
     out = dstGlobal.data();

@@ -14,6 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <stdint.h>
 #include <type_traits>
 #include <pto/common/type.hpp>
+#include <pto/common/arch_macro.hpp>
 
 namespace pto {
 enum class TileType
@@ -96,7 +97,15 @@ struct MemoryQualifier<TileType::Acc, DType> {
 
 template <typename DType>
 struct MemoryQualifier<TileType::Bias, DType> {
+#if defined(__DAV_C220_CUBE__)
+#ifdef __PTO_AUTO__
+    using type = __biasbuf__ DType;
+#else
+    using type = __biasbuf__ DType *;
+#endif
+#else
     using type = uint64_t;
+#endif
 };
 
 template <typename DType>

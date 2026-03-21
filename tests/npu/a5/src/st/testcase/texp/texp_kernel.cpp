@@ -31,11 +31,15 @@ __global__ AICORE void runTExp(__gm__ T __out__ *out, __gm__ T __in__ *src)
     TASSIGN(dstTile, isInPlace ? 0x0 : srcRow * srcCol * sizeof(T));
 
     TLOAD(srcTile, srcGlobal);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
     TEXP(dstTile, srcTile);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
     TSTORE(dstGlobal, dstTile);
 }
 

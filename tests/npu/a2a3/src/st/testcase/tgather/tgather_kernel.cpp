@@ -33,11 +33,15 @@ __global__ AICORE void runTGATHER(__gm__ T __out__ *out, __gm__ T __in__ *src)
     GlobalData dstGlobal(out);
 
     TLOAD(srcTile, srcGlobal);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
     TGATHER<DstTileData, TileData, maskPattern>(dstTile, srcTile);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID1);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID1);
+#endif
     TSTORE(dstGlobal, dstTile);
     out = dstGlobal.data();
 }
@@ -172,11 +176,15 @@ __global__ AICORE void runTGather1D(__gm__ Tsrc0 __out__ *out, __gm__ Tsrc0 __in
 
     TLOAD(src0Tile, src0Global);
     TLOAD(src1Tile, src1Global);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
     TGATHER(dstTile, src0Tile, src1Tile, tmpTile);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
     TSTORE(dstGlobal, dstTile);
     out = dstGlobal.data();
 }

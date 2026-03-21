@@ -32,7 +32,7 @@ template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, un
           unsigned blockSizeElem>
 __tf__ AICORE OP_NAME(TROWEXPANDMUL)
     OP_TYPE(broadcast) void TRowExpandMul(typename TileDataDst::TileDType __out__ dst,
-                                          typename TileDataDst::TileDType __in__ src0,
+                                          typename TileDataSrc0::TileDType __in__ src0,
                                           typename TileDataSrc1::TileDType __in__ src1, unsigned validRow,
                                           unsigned validCol, VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
 {

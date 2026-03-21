@@ -421,7 +421,7 @@ __tf__ AICORE void TExtractAccToMat(typename DstTileData::TileDType __out__ dst,
     uint32_t srcOffset = SrcTileData::Rows * ACC_C0_SIZE * (indexCol / ACC_C0_SIZE) +
                          (indexRow * ACC_C0_SIZE + (indexCol % ACC_C0_SIZE));
     __cbuf__ dstType *dstAddr = (__cbuf__ dstType *)__cce_get_tile_ptr(dst);
-    __cc__ srcType *srcData = (__cc__ srcType *)(src) + srcOffset;
+    __cc__ srcType *srcData = (__cc__ srcType *)__cce_get_tile_ptr(src) + srcOffset;
 
     copy_matrix_cc_to_cbuf(dstAddr, srcData, 0, nSize, validRow, dstStride, SrcTileData::Rows, 0, 0, 0, QuantPre,
                            reluMode, channelSplitEnable, false, 0, 0, false, false, 0, false, false, false, false,

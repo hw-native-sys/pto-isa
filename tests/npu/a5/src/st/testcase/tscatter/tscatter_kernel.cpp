@@ -54,11 +54,15 @@ PTO_INTERNAL void runTScatter(__gm__ Tsrc0 __out__ *out, __gm__ Tsrc0 __in__ *sr
 
     TLOAD(src0Tile, src0Global);
     TLOAD(src1Tile, src1Global);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
     TSCATTER(dstTile, src0Tile, src1Tile);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
     TSTORE(dstGlobal, dstTile);
     out = dstGlobal.data();
 }

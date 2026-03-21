@@ -47,7 +47,7 @@ __tf__ PTO_INTERNAL void TInsertAccToMat(typename DstTileData::TileDType __out__
     constexpr uint32_t dstStride = DstTileData::Rows * c0Size;
     uint16_t nSize = CeilDivision(validCol, c0Size) * c0Size;
     __cbuf__ dstType *dstAddr = (__cbuf__ dstType *)__cce_get_tile_ptr(dst) + dstOffset;
-    __cc__ typename SrcTileData::DType *srcData = (__cc__ typename SrcTileData::DType *)(src);
+    __cc__ typename SrcTileData::DType *srcData = (__cc__ typename SrcTileData::DType *)__cce_get_tile_ptr(src);
 
     COPY_CC_TO_CUBF(dstAddr, srcData, nSize, SrcTileData::Rows, dstStride, SrcTileData::Rows, QuantPre, reluMode,
                     channelSplitEnable);

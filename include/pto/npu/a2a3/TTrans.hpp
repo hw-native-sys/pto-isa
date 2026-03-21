@@ -255,12 +255,12 @@ PTO_INTERNAL void TTransOperation(__ubuf__ T *dstPtr, __ubuf__ T *srcPtr, __ubuf
     copy_ubuf_to_ubuf(dstPtr, tmpPtr, 0, validCol, lenBurst, srcGap, dstGap);
 }
 
-template <typename TileData, unsigned blockSizeElem>
-__tf__ PTO_INTERNAL void TTrans(typename TileData::TileDType __out__ dst, typename TileData::TileDType __in__ src,
-                                typename TileData::TileDType __in__ tmp, unsigned validRow, unsigned validCol,
+template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp, unsigned blockSizeElem>
+__tf__ PTO_INTERNAL void TTrans(typename TileDataDst::TileDType __out__ dst, typename TileDataSrc::TileDType __in__ src,
+                                typename TileDataTmp::TileDType __in__ tmp, unsigned validRow, unsigned validCol,
                                 unsigned dstStride, unsigned srcStride)
 {
-    using T = typename TileData::DType;
+    using T = typename TileDataSrc::DType;
     __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
     __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src);
     __ubuf__ T *tmpPtr = (__ubuf__ T *)__cce_get_tile_ptr(tmp);
@@ -534,8 +534,8 @@ PTO_INTERNAL void TTRANS_IMPL(TileDataDst &dst, TileDataSrc &src, TileDataTmp &t
 
         unsigned validRow = src.GetValidRow();
         unsigned validCol = src.GetValidCol();
-        TTrans<TileDataSrc, blockSizeElem>(dst.data(), src.data(), tmp.data(), validRow, validCol, dstStride,
-                                           srcStride);
+        TTrans<TileDataDst, TileDataSrc, TileDataTmp, blockSizeElem>(dst.data(), src.data(), tmp.data(), validRow,
+                                                                     validCol, dstStride, srcStride);
     }
 }
 } // namespace pto

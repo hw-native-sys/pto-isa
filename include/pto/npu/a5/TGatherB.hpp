@@ -32,9 +32,9 @@ __tf__ PTO_INTERNAL void TGatherBRowWise(typename TileDataDst::TileDType __out__
     uint32_t count = elementsPerRepeat;
     constexpr auto distValue =
         std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
+    __ubuf__ uint32_t *offsetPtr = (__ubuf__ uint32_t *)__cce_get_tile_ptr(offset);
     __VEC_SCOPE__
     {
-        __ubuf__ uint32_t *offsetPtr = (__ubuf__ uint32_t *)__cce_get_tile_ptr(offset);
         MaskReg preg0 = CreatePredicate<T>(count);
         MaskReg preg1 = CreatePredicate<T>(remainEleNum);
         RegTensor<uint32_t> vregOffset;

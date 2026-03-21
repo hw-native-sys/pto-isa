@@ -235,14 +235,16 @@ PTO_INTERNAL void WaitAllEvents(WaitEvents &... events)
 }
 
 template <pipe_t SrcPipe, pipe_t DstPipe>
-PTO_INTERNAL void PtoSetWaitFlag()
+PTO_INTERNAL void PtoSetWaitFlag(event_t SetEventId = EVENT_ID0, event_t WaitEventId = EVENT_ID0)
 {
+#ifndef __PTO_AUTO__
 #ifdef PTO_FLAG_TEST
     CceEventIdType token = __pto_set_flag(SrcPipe, DstPipe);
     __pto_wait_flag(SrcPipe, DstPipe, token);
 #else
-    set_flag(SrcPipe, DstPipe, EVENT_ID0);
-    wait_flag(SrcPipe, DstPipe, EVENT_ID0);
+    set_flag(SrcPipe, DstPipe, SetEventId);
+    wait_flag(SrcPipe, DstPipe, WaitEventId);
+#endif
 #endif
 }
 } // namespace pto

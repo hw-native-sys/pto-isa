@@ -115,6 +115,7 @@ template <typename T, int shape0, int shape1, int shape2, int shape3, int shape4
 AICORE void runTFILLPAD(__gm__ T *out, __gm__ T *src, int gShape0, int gShape1, int gShape2, int gRows, int gCols,
                         __gm__ uint64_t *gLog)
 {
+#ifndef __PTO_AUTO__
     // Avoid stack dcache miss
     {
 #define INIT_STACK 8192
@@ -132,8 +133,12 @@ AICORE void runTFILLPAD(__gm__ T *out, __gm__ T *src, int gShape0, int gShape1, 
     asm volatile("MOV %0, PC\n" : "+l"(pc));
     preload((void *)pc, 2);
     while (get_icache_prl_st()) {
+#if defined(__DAV_C220_CUBE__) || defined(__DAV_C220_VEC__)
+        // seems to compile for a2a3; will crash in HiIPUJumpOpt pass for A5
         asm("nop");
+#endif
     }
+#endif
 
 #ifdef DEBUGLOG
     gLog += block_idx * LOGSIZE;
@@ -171,8 +176,10 @@ AICORE void runTFILLPAD(__gm__ T *out, __gm__ T *src, int gShape0, int gShape1, 
 
         // TLOAD(vecTile, srcGlobal); //warm up...
         TLOAD(vecTile, srcGlobal);
+#ifndef __PTO_AUTO__
         set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
         wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
         t0 = get_syscnt();
         TFILLPAD_EXPAND(vecTileP, vecTile);
     } else {
@@ -185,8 +192,10 @@ AICORE void runTFILLPAD(__gm__ T *out, __gm__ T *src, int gShape0, int gShape1, 
 
         // TLOAD(vecTile, srcGlobal); //warm up...
         TLOAD(vecTile, srcGlobal);
+#ifndef __PTO_AUTO__
         set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
         wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
         t0 = get_syscnt();
         if constexpr (inplace)
             TFILLPAD_INPLACE(vecTileP, vecTile);
@@ -194,11 +203,15 @@ AICORE void runTFILLPAD(__gm__ T *out, __gm__ T *src, int gShape0, int gShape1, 
             TFILLPAD(vecTileP, vecTile);
     }
     t1 = get_syscnt();
+#ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
     TSTORE(dstGlobal, vecTileP);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_S, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_S, EVENT_ID0);
+#endif
     t2 = get_syscnt(); /*FIXME: compile would insert a dcci at above set/wait t2 timing may not be very correct*/
     LOG(t0);
     LOG(t1 - t0);

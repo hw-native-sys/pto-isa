@@ -52,15 +52,21 @@ AICORE void runTSORT32(__gm__ T *out, __gm__ T *src, __gm__ uint32_t *idx)
     TLOAD(srcTile, srcGlobal);
     TLOAD(idxTile, idxGlobal);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
     TSORT32(dstTile, srcTile, idxTile, tmpTile);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
     TSTORE(dstGlobal, dstTile);
 
+#ifndef __PTO_AUTO__
     pipe_barrier(PIPE_ALL);
+#endif
     out = dstGlobal.data();
 }
 

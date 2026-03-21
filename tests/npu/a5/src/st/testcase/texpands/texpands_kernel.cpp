@@ -49,11 +49,8 @@ __global__ AICORE void runTEXPANDS(__gm__ T *out, __gm__ T *scalar)
     TileData dstTile(kVRows_, kVCols_);
     TASSIGN(dstTile, 0x0);
 
-    TEXPANDS(dstTile, src);
-    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-    TSTORE(dstGlobal, dstTile);
-    out = dstGlobal.data();
+    Event<Op::TEXPANDS, Op::TSTORE_VEC> event = TEXPANDS(dstTile, src);
+    TSTORE(dstGlobal, dstTile, event);
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kVRows_, int kVCols_, int padValueType,

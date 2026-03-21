@@ -132,11 +132,12 @@ __global__ AICORE void RunTMATMULMX(__gm__ OutType *out, __gm__ AType *src0, __g
     TASSIGN(cTile, 0x0);
     TASSIGN(biasTile, 0x0);
 
+#ifndef __PTO_AUTO__
     uint64_t scaleAAddr = GetScaleAddr(aTile.data());
     uint64_t scaleBAddr = GetScaleAddr(bTile.data());
-
     TASSIGN(aScaleTile, scaleAAddr);
     TASSIGN(bScaleTile, scaleBAddr);
+#endif
 
     /*************************************TLOAD****************************************/
     TLOAD(aMatTile, src0Global);
@@ -155,8 +156,10 @@ __global__ AICORE void RunTMATMULMX(__gm__ OutType *out, __gm__ AType *src0, __g
         TLOAD(biasDataTile, src4Global);
     }
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
 
     /**********************************TMOV && TEXTRACT**********************************/
     TMOV(aTile, aMatTile);
@@ -165,12 +168,19 @@ __global__ AICORE void RunTMATMULMX(__gm__ OutType *out, __gm__ AType *src0, __g
     TMOV(aScaleTile, aScaleMatTile);
     TMOV(bScaleTile, bScaleMatTile);
 
+#ifdef __PTO_AUTO__
+    TGET_SCALE_ADDR(aScaleTile, aTile);
+    TGET_SCALE_ADDR(bScaleTile, bTile);
+#endif
+
     if constexpr (isBias) {
         TMOV(biasTile, biasDataTile);
     }
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
 
     /**********************************TMATMUL**********************************/
     if constexpr (isBias) {
@@ -179,8 +189,10 @@ __global__ AICORE void RunTMATMULMX(__gm__ OutType *out, __gm__ AType *src0, __g
         TMATMUL_MX(cTile, aTile, aScaleTile, bTile, bScaleTile);
     }
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
 
     /**********************************TSTORE**********************************/
     TSTORE(dstGlobal, cTile);
@@ -268,10 +280,12 @@ __global__ AICORE void RunTMATMULMX_SPLIT_K(__gm__ OutType *out, __gm__ AType *s
     TASSIGN(cTile, 0x0);
     TASSIGN(biasTile, 0x0);
 
+#ifndef __PTO_AUTO__
     uint64_t scaleAAddr = GetScaleAddr(aTile.data());
     uint64_t scaleBAddr = GetScaleAddr(bTile.data());
     TASSIGN(aScaleTile, scaleAAddr);
     TASSIGN(bScaleTile, scaleBAddr);
+#endif
 
     constexpr int iter = K / BASEK;
     for (int i = 0; i < iter; i++) {
@@ -296,8 +310,10 @@ __global__ AICORE void RunTMATMULMX_SPLIT_K(__gm__ OutType *out, __gm__ AType *s
             TLOAD(biasDataTile, src4Global);
         }
 
+#ifndef __PTO_AUTO__
         set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
         wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
 
         /**************************TMOV && TEXTRACT**************************/
         TMOV(aTile, aMatTile);
@@ -306,12 +322,18 @@ __global__ AICORE void RunTMATMULMX_SPLIT_K(__gm__ OutType *out, __gm__ AType *s
         TMOV(aScaleTile, aScaleMatTile);
         TMOV(bScaleTile, bScaleMatTile);
 
+#ifdef __PTO_AUTO__
+        TGET_SCALE_ADDR(aScaleTile, aTile);
+        TGET_SCALE_ADDR(bScaleTile, bTile);
+#endif
+
         if constexpr (isBias) {
             TMOV(biasTile, biasDataTile);
         }
-
+#ifndef __PTO_AUTO__
         set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
         wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
 
         if (i == 0) {
             if constexpr (isBias) {
@@ -322,12 +344,16 @@ __global__ AICORE void RunTMATMULMX_SPLIT_K(__gm__ OutType *out, __gm__ AType *s
         } else {
             TMATMUL_MX(cTile, cTile, aTile, aScaleTile, bTile, bScaleTile);
         }
+#ifndef __PTO_AUTO__
         set_flag(PIPE_M, PIPE_MTE2, EVENT_ID0);
         wait_flag(PIPE_M, PIPE_MTE2, EVENT_ID0);
+#endif
     }
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
     TSTORE(dstGlobal, cTile);
     out = dstGlobal.data();
 }
@@ -401,11 +427,14 @@ __global__ AICORE void RunTGEMVMX(__gm__ OutType *out, __gm__ AType *src0, __gm_
 
     TASSIGN(aTile, 0x0);
     TASSIGN(bTile, 0x0);
+
+#ifndef __PTO_AUTO__
     uint64_t scaleAAddr = GetScaleAddr(aTile.data());
     uint64_t scaleBAddr = GetScaleAddr(bTile.data());
-
     TASSIGN(aScaleTile, scaleAAddr);
     TASSIGN(bScaleTile, scaleBAddr);
+#endif
+
     TASSIGN(cTile, 0x0);
 
     /*************************************TLOAD****************************************/
@@ -416,8 +445,10 @@ __global__ AICORE void RunTGEMVMX(__gm__ OutType *out, __gm__ AType *src0, __gm_
     TLOAD<TileScaleAData, GlobalDataSrc2>(aScaleMatTile, src2Global);
     TLOAD<TileScaleBData, GlobalDataSrc3>(bScaleMatTile, src3Global);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
 
     /**********************************TMOV && TEXTRACT**********************************/
 
@@ -427,15 +458,24 @@ __global__ AICORE void RunTGEMVMX(__gm__ OutType *out, __gm__ AType *src0, __gm_
     TMOV(aScaleTile, aScaleMatTile);
     TMOV(bScaleTile, bScaleMatTile);
 
+#ifdef __PTO_AUTO__
+    TGET_SCALE_ADDR(aScaleTile, aTile);
+    TGET_SCALE_ADDR(bScaleTile, bTile);
+#endif
+
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
 
     /**********************************TMATMUL**********************************/
 
     TGEMV_MX(cTile, aTile, aScaleTile, bTile, bScaleTile);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
 
     /**********************************TSTORE**********************************/
     TSTORE(dstGlobal, cTile);
@@ -520,12 +560,15 @@ __global__ AICORE void RunTGEMVMX_SPLIT_K(__gm__ OutType *out, __gm__ AType *src
 
     TASSIGN(aTile, 0x0);
     TASSIGN(bTile, 0x0);
+
+#ifndef __PTO_AUTO__
     uint64_t scaleAAddr = GetScaleAddr(aTile.data());
     uint64_t scaleBAddr = GetScaleAddr(bTile.data());
-    TASSIGN(biasTile, 0x0);
-
     TASSIGN(aScaleTile, scaleAAddr);
     TASSIGN(bScaleTile, scaleBAddr);
+#endif
+
+    TASSIGN(biasTile, 0x0);
     TASSIGN(cTile, 0x0);
 
     constexpr int iter = CeilDiv(kAlign, BASEK);
@@ -547,31 +590,45 @@ __global__ AICORE void RunTGEMVMX_SPLIT_K(__gm__ OutType *out, __gm__ AType *src
         if (i == 0) {
             TLOAD(biasDataTile, src4Global);
         }
+#ifndef __PTO_AUTO__
         set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
         wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
 
         /**********************************TMOV && TEXTRACT**********************************/
         TEXTRACT(aTile, aMatTile, 0, 0);
         TEXTRACT(bTile, bMatTile, 0, 0);
         TMOV(aScaleTile, aScaleMatTile);
         TMOV(bScaleTile, bScaleMatTile);
+
+#ifdef __PTO_AUTO__
+        TGET_SCALE_ADDR(aScaleTile, aTile);
+        TGET_SCALE_ADDR(bScaleTile, bTile);
+#endif
+
         if (i == 0) {
             TMOV(biasTile, biasDataTile);
         }
+#ifndef __PTO_AUTO__
         set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
         wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
         /**********************************TMATMUL**********************************/
         if (i == 0) {
             TGEMV_MX(cTile, aTile, aScaleTile, bTile, bScaleTile, biasTile);
         } else {
             TGEMV_MX(cTile, cTile, aTile, aScaleTile, bTile, bScaleTile);
         }
+#ifndef __PTO_AUTO__
         set_flag(PIPE_M, PIPE_MTE2, EVENT_ID0);
         wait_flag(PIPE_M, PIPE_MTE2, EVENT_ID0);
+#endif
     }
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
     TSTORE(dstGlobal, cTile);
     out = dstGlobal.data();
 }

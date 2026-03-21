@@ -85,12 +85,12 @@ struct FmodSOp {
     }
 };
 
-template <typename TileData, unsigned elementsPerRepeat, unsigned blockSizeElem, unsigned dstRowStride,
-          unsigned srcRowStride>
-__tf__ PTO_INTERNAL void TFmodS(typename TileData::TileDType __out__ dst, typename TileData::TileDType __in__ src,
-                                typename TileData::DType x, unsigned validRows, unsigned validCols)
+template <typename TileDataDst, typename TileDataSrc, unsigned elementsPerRepeat, unsigned blockSizeElem,
+          unsigned dstRowStride, unsigned srcRowStride>
+__tf__ PTO_INTERNAL void TFmodS(typename TileDataDst::TileDType __out__ dst, typename TileDataSrc::TileDType __in__ src,
+                                typename TileDataSrc::DType x, unsigned validRows, unsigned validCols)
 {
-    using T = typename TileData::DType;
+    using T = typename TileDataDst::DType;
 
     __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
     __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src);
@@ -142,7 +142,7 @@ PTO_INTERNAL void TFMODS_IMPL(TileDataDst &dst, TileDataSrc &src, typename TileD
     constexpr unsigned dstRowStride = TileDataDst::RowStride;
     constexpr unsigned srcRowStride = TileDataSrc::RowStride;
 
-    TFmodS<TileDataDst, elementsPerRepeat, blockSizeElem, dstRowStride, srcRowStride>(
+    TFmodS<TileDataDst, TileDataSrc, elementsPerRepeat, blockSizeElem, dstRowStride, srcRowStride>(
         dst.data(), src.data(), scalar, dst.GetValidRow(), dst.GetValidCol());
 }
 } // namespace pto

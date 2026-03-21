@@ -50,14 +50,13 @@ __global__ AICORE void runTSELS(__gm__ T __out__ *out, __gm__ TMask *mask, __gm_
     TASSIGN(srcTile, srcOffset);
     TASSIGN(tmpTile, totalSize);
 
+    Event<Op::TLOAD, Op::TSELS> event0;
+    Event<Op::TSELS, Op::TSTORE_VEC> event1;
+
     TLOAD(maskTile, maskGlobal);
-    TLOAD(srcTile, srcGlobal);
-    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    TSELS(dstTile, maskTile, srcTile, tmpTile, scalar);
-    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-    TSTORE(dstGlobal, dstTile);
+    event0 = TLOAD(srcTile, srcGlobal);
+    event1 = TSELS(dstTile, maskTile, srcTile, tmpTile, scalar, event0);
+    TSTORE(dstGlobal, dstTile, event1);
     out = dstGlobal.data();
 }
 

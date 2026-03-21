@@ -33,14 +33,13 @@ __global__ AICORE void runTSub(__gm__ T __out__ *out, __gm__ T __in__ *src0, __g
     GlobalData src1Global(src1 + offset);
     GlobalData dstGlobal(out + offset);
 
+    Event<Op::TLOAD, Op::TSUB> event0;
+    Event<Op::TSUB, Op::TSTORE_VEC> event1;
+
     TLOAD(src0Tile, src0Global);
-    TLOAD(src1Tile, src1Global);
-    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    TSUB(dstTile, src0Tile, src1Tile);
-    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-    TSTORE(dstGlobal, dstTile);
+    event0 = TLOAD(src1Tile, src1Global);
+    event1 = TSUB(dstTile, src0Tile, src1Tile, event0);
+    TSTORE(dstGlobal, dstTile, event1);
     out = dstGlobal.data();
 }
 
@@ -70,14 +69,13 @@ __global__ AICORE void runTSub(__gm__ T __out__ *out, __gm__ T __in__ *src0, __g
     TASSIGN(src1Tile, 0x10000);
     TASSIGN(dstTile, 0x20000);
 
+    Event<Op::TLOAD, Op::TSUB> event0;
+    Event<Op::TSUB, Op::TSTORE_VEC> event1;
+
     TLOAD(src0Tile, src0Global);
-    TLOAD(src1Tile, src1Global);
-    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    TSUB<TileDataDst, TileDataSrc0, TileDataSrc1>(dstTile, src0Tile, src1Tile);
-    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-    TSTORE(dstGlobal, dstTile);
+    event0 = TLOAD(src1Tile, src1Global);
+    event1 = TSUB<TileDataDst, TileDataSrc0, TileDataSrc1>(dstTile, src0Tile, src1Tile, event0);
+    TSTORE(dstGlobal, dstTile, event1);
     out = dstGlobal.data();
 }
 

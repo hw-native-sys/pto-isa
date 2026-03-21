@@ -244,7 +244,7 @@ template <VecStoreMode store_mode, typename TileDataOut, typename TileDataSrc, t
           typename TileDataMax, typename TileDataIdx>
 __tf__ PTO_INTERNAL void TQuant_MXFP8(
     typename TileDataOut::TileDType __out__ dst, typename TileDataExp::TileDType __out__ exp,
-    typename TileDataMax::TileDType __out__ max, typename TileDataMax::TileDType __out__ scaling,
+    typename TileDataMax::TileDType __out__ max, typename TileDataSrc::TileDType __out__ scaling,
     typename TileDataExp::TileDType __out__ exp_zz, typename TileDataIdx::TileDType __in__ vgather_idx,
     typename TileDataSrc::TileDType __in__ src, unsigned validRows, unsigned validCols)
 {

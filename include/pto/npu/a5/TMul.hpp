@@ -33,9 +33,9 @@ template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, un
           unsigned BlockSizeElem>
 __tf__ PTO_INTERNAL OP_NAME(TMUL)
     OP_TYPE(element_wise) void TMul(typename TileDataDst::TileDType __out__ dst,
-                                    typename TileDataDst::TileDType __in__ src0,
-                                    typename TileDataDst::TileDType __in__ src1, unsigned validRows, unsigned validCols,
-                                    VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
+                                    typename TileDataSrc0::TileDType __in__ src0,
+                                    typename TileDataSrc1::TileDType __in__ src1, unsigned validRows,
+                                    unsigned validCols, VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
 {
     using T = typename TileDataDst::DType;
     __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);

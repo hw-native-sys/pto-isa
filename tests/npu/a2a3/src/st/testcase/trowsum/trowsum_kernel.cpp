@@ -37,11 +37,15 @@ PTO_INTERNAL void runTRowSum(__gm__ T __out__ *out, __gm__ T __in__ *src)
 
     // 搬运数据
     TLOAD(srcTile, srcGlobal);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
     TROWSUM(dstTile, srcTile, tmpTile);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
     TSTORE(dstGlobal, dstTile);
 }
 
@@ -69,11 +73,15 @@ PTO_INTERNAL void runTRowSumDNDst(__gm__ T *out, __gm__ T *src)
 
     // 搬运数据
     TLOAD(srcTile, srcGlobal);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
     TROWSUM(dstTile, srcTile, tmpTile);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
     using dstTileDataND = Tile<TileType::Vec, T, 1, row, BLayout::RowMajor, 1, row>;
     dstTileDataND dstTileND;
     TRESHAPE(dstTileND, dstTile);

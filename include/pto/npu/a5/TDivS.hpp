@@ -77,7 +77,10 @@ struct DivSOpS {
 template <typename T, unsigned DstCols, unsigned SrcCols>
 PTO_INTERNAL void TDivs_naive(__ubuf__ T *dst, __ubuf__ T *src0, T src1, unsigned validRow, unsigned validCol)
 {
+// auto mode adds in synchronization during compilation
+#ifndef __PTO_AUTO__
     PtoSetWaitFlag<PIPE_V, PIPE_S>();
+#endif
     for (int i = 0; i < validRow; i++) {
         for (int j = 0; j < validCol; j++) {
             int dstOffset = i * DstCols + j;
@@ -90,7 +93,10 @@ PTO_INTERNAL void TDivs_naive(__ubuf__ T *dst, __ubuf__ T *src0, T src1, unsigne
 template <typename T, unsigned DstCols, unsigned SrcCols>
 PTO_INTERNAL void TSDiv_naive(__ubuf__ T *dst, __ubuf__ T *src0, T src1, unsigned validRow, unsigned validCol)
 {
+// auto mode adds in synchronization during compilation
+#ifndef __PTO_AUTO__
     PtoSetWaitFlag<PIPE_V, PIPE_S>();
+#endif
     for (int i = 0; i < validRow; i++) {
         for (int j = 0; j < validCol; j++) {
             int dstOffset = i * DstCols + j;
@@ -111,7 +117,7 @@ __tf__ PTO_INTERNAL OP_NAME(TDIVS)
     __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
     __ubuf__ T *src0Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src0);
     if constexpr (std::is_integral_v<T>) {
-        TDivs_naive<T, TileDataDst::Cols, TileDataSrc::Cols>(dst, src0, src1, validRow, validCol);
+        TDivs_naive<T, TileDataDst::Cols, TileDataSrc::Cols>(dstPtr, src0Ptr, src1, validRow, validCol);
     } else {
         BinaryInstr<DivSOp<T>, TileDataDst, TileDataSrc, T, elementsPerRepeat, blockSizeElem, dstRowStride,
                     srcRowStride>(dstPtr, src0Ptr, src1, validRow, validCol, version);
@@ -130,7 +136,7 @@ __tf__ PTO_INTERNAL OP_NAME(TDIVS)
     __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
     __ubuf__ T *src0Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src0);
     if constexpr (std::is_integral_v<T>) {
-        TSDiv_naive<T, TileDataDst::Cols, TileDataSrc::Cols>(dst, src0, src1, validRow, validCol);
+        TSDiv_naive<T, TileDataDst::Cols, TileDataSrc::Cols>(dstPtr, src0Ptr, src1, validRow, validCol);
     } else {
         BinaryInstr<DivSOpS<T>, TileDataDst, TileDataSrc, T, elementsPerRepeat, blockSizeElem, dstRowStride,
                     srcRowStride>(dstPtr, src0Ptr, src1, validRow, validCol, version);

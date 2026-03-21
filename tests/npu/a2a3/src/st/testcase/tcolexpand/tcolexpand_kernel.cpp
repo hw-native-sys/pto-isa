@@ -32,18 +32,25 @@ __global__ AICORE void runTCOLEXPAND(__gm__ T __out__ *out, __gm__ T __in__ *src
     TASSIGN(srcTile, 0x0);
     TASSIGN(dstTile, src_row * src_col * sizeof(T));
 
-    // 清除脏数据
+// causes issues in automode as the tile returned from the TLOAD tfcall appears unused and this tload may not finish
+// before the second tload
+#ifndef __PTO_AUTO__
     TLOAD(dstTile, dstGlobal);
+#endif
 
     // 搬运数据
     TLOAD(srcTile, srcGlobal);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
     TCOLEXPAND(dstTile, srcTile);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
     TSTORE(dstGlobal, dstTile);
     out = dstGlobal.data();
 }

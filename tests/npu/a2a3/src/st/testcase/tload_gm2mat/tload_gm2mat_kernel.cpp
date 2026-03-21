@@ -15,11 +15,27 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace pto;
 
+template <typename GlobalData, typename TileDataSrc>
+__tf__ PTO_INTERNAL void tf_copy_cbuf_to_gm(typename GlobalData::DType __out__ *dst,
+                                            typename TileDataSrc::TileDType __in__ src, uint8_t n, uint16_t nBurst,
+                                            uint16_t lenBurst, uint16_t l1Gap, uint16_t gmGap)
+{
+    copy_cbuf_to_gm(dst, __cce_get_tile_ptr(src), n, nBurst, lenBurst, l1Gap, gmGap);
+}
+
+template <typename T, typename TileDataSrc>
+__tf__ PTO_INTERNAL void tf_copy_cbuf_to_gm(__gm__ T __out__ *dst, typename TileDataSrc::TileDType __in__ src,
+                                            uint8_t n, uint16_t nBurst, uint16_t lenBurst, uint16_t l1Gap,
+                                            uint16_t gmGap)
+{
+    copy_cbuf_to_gm(dst, __cce_get_tile_ptr(src), n, nBurst, lenBurst, l1Gap, gmGap);
+}
+
 template <typename GlobalData, typename TileData>
 AICORE inline void TSTORE_MAT2GM(GlobalData &dst, TileData &src)
 {
-    __cbuf__ typename TileData::DType *srcAddr = (__cbuf__ typename TileData::DType *)src.data();
-    typename GlobalData::DType *dstAddr = dst.data();
+    // __cbuf__ typename TileData::DType *srcAddr = (__cbuf__ typename TileData::DType *)src.data();
+    // typename GlobalData::DType *dstAddr = dst.data();
 
     constexpr uint32_t blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename TileData::DType);
 
@@ -31,26 +47,26 @@ AICORE inline void TSTORE_MAT2GM(GlobalData &dst, TileData &src)
         uint16_t lenBurst = (validCol + blockSizeElem - 1) / blockSizeElem;
         uint16_t l1Gap = (TileData::Cols - validCol) / blockSizeElem;
         uint16_t gmGap = 0;
-        copy_cbuf_to_gm(dstAddr, srcAddr, (uint8_t)0, nBurst, lenBurst, l1Gap, gmGap);
+        tf_copy_cbuf_to_gm<GlobalData, TileData>(dst.data(), src.data(), (uint8_t)0, nBurst, lenBurst, l1Gap, gmGap);
     } else if constexpr (GlobalData::layout == pto::Layout::DN &&
                          GetTileLayoutCustom<TileData>() == TileLayoutCustom::DN) {
         uint16_t nBurst = validCol;
         uint16_t lenBurst = (validRow + blockSizeElem - 1) / blockSizeElem;
         uint16_t l1Gap = (TileData::Rows - validRow) / blockSizeElem;
         uint16_t gmGap = 0;
-        copy_cbuf_to_gm(dstAddr, srcAddr, (uint8_t)0, nBurst, lenBurst, l1Gap, gmGap);
+        tf_copy_cbuf_to_gm<GlobalData, TileData>(dst.data(), src.data(), (uint8_t)0, nBurst, lenBurst, l1Gap, gmGap);
     } else if constexpr (GetTileLayoutCustom<TileData>() == TileLayoutCustom::NZ) {
         uint16_t nBurst = (validCol + blockSizeElem - 1) / blockSizeElem;
         uint16_t lenBurst = validRow;
         uint16_t l1Gap = TileData::Rows - validRow;
         uint16_t gmGap = 0;
-        copy_cbuf_to_gm(dstAddr, srcAddr, (uint8_t)0, nBurst, lenBurst, l1Gap, gmGap);
+        tf_copy_cbuf_to_gm<GlobalData, TileData>(dst.data(), src.data(), (uint8_t)0, nBurst, lenBurst, l1Gap, gmGap);
     } else if constexpr (GetTileLayoutCustom<TileData>() == TileLayoutCustom::ZN) {
         uint16_t nBurst = (validRow + blockSizeElem - 1) / blockSizeElem;
         uint16_t lenBurst = validCol;
         uint16_t l1Gap = TileData::Cols - validCol;
         uint16_t gmGap = 0;
-        copy_cbuf_to_gm(dstAddr, srcAddr, (uint8_t)0, nBurst, lenBurst, l1Gap, gmGap);
+        tf_copy_cbuf_to_gm<GlobalData, TileData>(dst.data(), src.data(), (uint8_t)0, nBurst, lenBurst, l1Gap, gmGap);
     }
 }
 
@@ -81,8 +97,10 @@ AICORE inline void RunTLoadND2ND(__gm__ T __out__ *out, __gm__ T __in__ *src)
     GlobalData dstGlobal(out);
 
     TLOAD(srcTile, srcGlobal);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+#endif
     TSTORE_MAT2GM<GlobalData, TileData>(dstGlobal, srcTile);
     out = dstGlobal.data();
 }
@@ -114,8 +132,10 @@ AICORE inline void RunTLoadDN2DN(__gm__ T __out__ *out, __gm__ T __in__ *src)
     GlobalData dstGlobal(out);
 
     TLOAD(srcTile, srcGlobal);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+#endif
     TSTORE_MAT2GM(dstGlobal, srcTile);
     out = dstGlobal.data();
 }
@@ -145,8 +165,10 @@ AICORE inline void RunTLoadNZ2NZ(__gm__ T __out__ *out, __gm__ T __in__ *src)
     GlobalData dstGlobal(out);
 
     TLOAD(srcTile, srcGlobal);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+#endif
     TSTORE_MAT2GM(dstGlobal, srcTile);
     out = dstGlobal.data();
 }
@@ -177,8 +199,10 @@ AICORE inline void RunTLoadND2NZ(__gm__ T __out__ *out, __gm__ T __in__ *src)
     GlobalData dstGlobal(out);
 
     TLOAD(srcTile, srcGlobal);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+#endif
     TSTORE_MAT2GM(dstGlobal, srcTile);
     out = dstGlobal.data();
 }
@@ -209,8 +233,10 @@ AICORE inline void RunTLoadDN2ZN(__gm__ T __out__ *out, __gm__ T __in__ *src)
     GlobalData dstGlobal(out);
 
     TLOAD(srcTile, srcGlobal);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+#endif
     TSTORE_MAT2GM(dstGlobal, srcTile);
     out = dstGlobal.data();
 }
@@ -223,7 +249,9 @@ AICORE inline void RunTLoad5HD(__gm__ T __out__ *out, __gm__ T __in__ *src)
                                 gWholeShape2 * gWholeShape3 * gWholeShape4, gWholeShape3 * gWholeShape4, gWholeShape4,
                                 1};
     constexpr int blockSize = 32 / sizeof(T);
-    constexpr int bufferSize = dstN * dstC1 * dstH * dstW * dstC0 * sizeof(T);
+    // for auto mode, bufferSize is a misleading variable name in convTile, it shouldn't be number of bytes it should be
+    // the number of elements
+    constexpr int bufferSize = dstN * dstC1 * dstH * dstW * dstC0; // * sizeof(T);
     constexpr int validRow = dstN * dstC1 * dstH * dstW;
     constexpr int validCol = dstC0;
     constexpr int Rows = dstN * dstC1 * dstH * dstW;
@@ -241,14 +269,16 @@ AICORE inline void RunTLoad5HD(__gm__ T __out__ *out, __gm__ T __in__ *src)
 
     GlobalDataIn srcGlobal(src);
     TLOAD(srcTile, srcGlobal);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+#endif
 
     using OutTileData = Tile<TileType::Mat, T, Rows, Cols, BLayout::RowMajor, validRow, validCol>;
     OutTileData outTile;
     TASSIGN(outTile, 0x0);
-    __cbuf__ typename TileData::DType *srcAddr = (__cbuf__ typename TileData::DType *)outTile.data();
-    copy_cbuf_to_gm(out, srcAddr, (uint8_t)0, 1, validRow, 0, 0);
+    // __cbuf__ typename TileData::DType *srcAddr = (__cbuf__ typename TileData::DType *)outTile.data();
+    tf_copy_cbuf_to_gm<T, OutTileData>(out, outTile.data(), (uint8_t)0, 1, validRow, 0, 0);
 }
 
 // C1HWNC0
@@ -260,7 +290,9 @@ AICORE inline void RunTLoadFractalZ5D(__gm__ T __out__ *out, __gm__ T __in__ *sr
                                 gWholeShape2 * gWholeShape3 * gWholeShape4, gWholeShape3 * gWholeShape4, gWholeShape4,
                                 1};
     constexpr int blockSize = 32 / sizeof(T);
-    constexpr int bufferSize = dstN * dstC1 * dstH * dstW * dstC0 * sizeof(T);
+    // for auto mode, bufferSize is a misleading variable name in convTile, it shouldn't be number of bytes it should be
+    // the number of elements
+    constexpr int bufferSize = dstN * dstC1 * dstH * dstW * dstC0; // * sizeof(T);
     constexpr int validRow = dstN * dstC1 * dstH * dstW;
     constexpr int validCol = dstC0;
     constexpr int Rows = dstN * dstC1 * dstH * dstW;
@@ -278,14 +310,16 @@ AICORE inline void RunTLoadFractalZ5D(__gm__ T __out__ *out, __gm__ T __in__ *sr
     GlobalDataIn srcGlobal(src);
     TLOAD(srcTile, srcGlobal);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+#endif
     using OutTileData = Tile<TileType::Mat, T, Rows, Cols, BLayout::RowMajor, validRow, validCol>;
     OutTileData outTile;
     TASSIGN(outTile, 0x0);
 
-    __cbuf__ typename TileData::DType *srcAddr = (__cbuf__ typename TileData::DType *)outTile.data();
-    copy_cbuf_to_gm(out, srcAddr, (uint8_t)0, 1, validRow, 0, 0);
+    // __cbuf__ typename TileData::DType *srcAddr = (__cbuf__ typename TileData::DType *)outTile.data();
+    tf_copy_cbuf_to_gm<T, OutTileData>(out, outTile.data(), (uint8_t)0, 1, validRow, 0, 0);
 }
 // [C1HW, N/16, 16, C0]
 template <typename T, int dstShape0, int dstC1HW, int dstShape2, int dstShape3, int dstC0, int gWholeShape0,
@@ -296,7 +330,9 @@ AICORE inline void RunTLoadFractalZ4D(__gm__ T __out__ *out, __gm__ T __in__ *sr
                                 gWholeShape2 * gWholeShape3 * gWholeShape4, gWholeShape3 * gWholeShape4, gWholeShape4,
                                 1};
     constexpr int blockSize = 32 / sizeof(T);
-    constexpr int bufferSize = dstC1HW * dstShape2 * dstShape3 * dstC0 * sizeof(T);
+    // for auto mode, bufferSize is a misleading variable name in convTile, it shouldn't be number of bytes it should be
+    // the number of elements
+    constexpr int bufferSize = dstC1HW * dstShape2 * dstShape3 * dstC0; // * sizeof(T);
     constexpr int validRow = dstC1HW * dstShape2 * dstShape3;
     constexpr int validCol = dstC0;
     constexpr int Rows = dstC1HW * dstShape2 * dstShape3;
@@ -314,14 +350,16 @@ AICORE inline void RunTLoadFractalZ4D(__gm__ T __out__ *out, __gm__ T __in__ *sr
     GlobalDataIn srcGlobal(src);
     TLOAD(srcTile, srcGlobal);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+#endif
     using OutTileData = Tile<TileType::Mat, T, Rows, Cols, BLayout::RowMajor, validRow, validCol>;
     OutTileData outTile;
     TASSIGN(outTile, 0x0);
 
-    __cbuf__ typename TileData::DType *srcAddr = (__cbuf__ typename TileData::DType *)outTile.data();
-    copy_cbuf_to_gm(out, srcAddr, (uint8_t)0, 1, validRow, 0, 0);
+    // __cbuf__ typename TileData::DType *srcAddr = (__cbuf__ typename TileData::DType *)outTile.data();
+    tf_copy_cbuf_to_gm<T, OutTileData>(out, outTile.data(), (uint8_t)0, 1, validRow, 0, 0);
 }
 
 template <typename T, int format, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gWholeShape0,

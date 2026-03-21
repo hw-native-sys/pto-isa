@@ -45,12 +45,16 @@ __global__ AICORE void CONCAT(run, CASENAME)(__gm__ T __out__ *out, __gm__ T __i
     TLOAD(src0Tile, src0Global);
     TLOAD(src1Tile, src1Global);
     TLOAD(src2Tile, src2Global);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
     TADD(tmpTile, src0Tile, src1Tile);
     TDIV(dstTile, tmpTile, src2Tile);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
     TSTORE(dstGlobal, dstTile);
     out = dstGlobal.data();
 }

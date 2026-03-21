@@ -35,10 +35,12 @@ __global__ AICORE void runTci(__gm__ T __out__ *out, T S)
 
     // 6. 调用指令集进行计算；
     TCI<TileData, T, reverse>(dstTile, S);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_S, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_S, PIPE_MTE3, EVENT_ID0);
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
 
     // 7.将数据保存到host侧，并输出到gm;
     TSTORE(dstGlobal, dstTile);

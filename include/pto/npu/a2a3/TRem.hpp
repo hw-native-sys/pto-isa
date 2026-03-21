@@ -87,12 +87,13 @@ struct RemOp {
     }
 };
 
-template <typename TileData, unsigned elementsPerRepeat, unsigned blockSizeElem, unsigned dstRowStride,
-          unsigned src0RowStride = dstRowStride, unsigned src1RowStride = dstRowStride>
-__tf__ PTO_INTERNAL void TRem(typename TileData::TileDType __out__ dst, typename TileData::TileDType __in__ src0,
-                              typename TileData::TileDType __in__ src1, unsigned validRows, unsigned validCols)
+template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
+          unsigned blockSizeElem, unsigned dstRowStride, unsigned src0RowStride = dstRowStride,
+          unsigned src1RowStride = dstRowStride>
+__tf__ PTO_INTERNAL void TRem(typename TileDataDst::TileDType __out__ dst, typename TileDataSrc0::TileDType __in__ src0,
+                              typename TileDataSrc1::TileDType __in__ src1, unsigned validRows, unsigned validCols)
 {
-    using T = typename TileData::DType;
+    using T = typename TileDataDst::DType;
     __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
     __ubuf__ T *src0Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src0);
     __ubuf__ T *src1Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src1);
@@ -146,8 +147,8 @@ PTO_INTERNAL void TREM_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &
     constexpr unsigned dstRowStride = TileDataDst::RowStride;
     constexpr unsigned src0RowStride = TileDataSrc0::RowStride;
     constexpr unsigned src1RowStride = TileDataSrc1::RowStride;
-    TRem<TileDataDst, elementsPerRepeat, blockSizeElem, dstRowStride, src0RowStride, src1RowStride>(
-        dst.data(), src0.data(), src1.data(), dst.GetValidRow(), dst.GetValidCol());
+    TRem<TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem, dstRowStride, src0RowStride,
+         src1RowStride>(dst.data(), src0.data(), src1.data(), dst.GetValidRow(), dst.GetValidCol());
 }
 
 } // namespace pto

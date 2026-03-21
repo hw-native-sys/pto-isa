@@ -56,18 +56,24 @@ AICORE inline void runTMOV(__gm__ T *out, __gm__ U *src0, __gm__ S *src1)
     /*************************************TLOAD****************************************/
     TLOAD(aMatTile, src0Global);
     TLOAD(bMatTile, src1Global);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     pipe_barrier(PIPE_ALL);
+#endif
     /**********************************TMOV && TEXTRACT**********************************/
     TMOV(aTile, aMatTile);
     TMOV(bTile, bMatTile);
+#ifndef __PTO_AUTO__
     pipe_barrier(PIPE_ALL);
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
     TMATMUL(cTile, aTile, bTile);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
     /****************************************TSTORE*****************************************/
     TSTORE(dstGlobal, cTile);
     out = dstGlobal.data();
@@ -124,25 +130,27 @@ AICORE inline void runTMOV_UNALIGN(__gm__ T *out, __gm__ U *src0, __gm__ S *src1
     using BType = typename RightTile::DType;
     using CType = typename AccTile::DType;
 
-    __ca__ AType *a = (__ca__ AType *)(aTile.data());
-    __cb__ BType *b = (__cb__ BType *)(bTile.data());
-    __cc__ CType *c = (__cc__ CType *)(cTile.data());
-
     /*************************************TLOAD****************************************/
     TLOAD(aMatTile, src0Global);
     TLOAD(bMatTile, src1Global);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
     /**********************************TMOV*******************************************/
     TMOV(aTile, aMatTile);
     TMOV(bTile, bMatTile);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
     TMATMUL(cTile, aTile, bTile);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
     /****************************************TSTORE*****************************************/
     TSTORE(dstGlobal, cTile);
     out = dstGlobal.data();
@@ -197,18 +205,24 @@ AICORE inline void runTEXTRACT(__gm__ T *out, __gm__ U *src0, __gm__ S *src1)
     /*************************************TLOAD****************************************/
     TLOAD(aMatTile, src0Global);
     TLOAD(bMatTile, src1Global);
+#ifndef __PTO_AUTO__
     pipe_barrier(PIPE_ALL);
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
     /**********************************TMOV && TEXTRACT**********************************/
     TEXTRACT(aTile, aMatTile, indexM, indexK);
     TEXTRACT(bTile, bMatTile, indexK, indexN);
+#ifndef __PTO_AUTO__
     pipe_barrier(PIPE_ALL);
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
     TMATMUL(cTile, aTile, bTile);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
     TSTORE(dstGlobal, cTile);
     out = dstGlobal.data();
 }
@@ -269,25 +283,27 @@ AICORE inline void runTEXTRACT_UNALIGN(__gm__ T *out, __gm__ U *src0, __gm__ S *
     using BType = typename RightTile::DType;
     using CType = typename AccTile::DType;
 
-    __ca__ AType *a = (__ca__ AType *)(aTile.data());
-    __cb__ BType *b = (__cb__ BType *)(bTile.data());
-    __cc__ CType *c = (__cc__ CType *)(cTile.data());
-
     /*************************************TLOAD****************************************/
     TLOAD(aMatTile, src0Global);
     TLOAD(bMatTile, src1Global);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID1);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID1);
+#endif
     /**********************************TEXTRACT*******************************************/
     TEXTRACT(aTile, aMatTile, indexM, indexK);
     TEXTRACT(bTile, bMatTile, indexK, indexN);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID1);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID1);
+#endif
     TMATMUL(cTile, aTile, bTile);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID1);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID1);
+#endif
     /****************************************TSTORE*****************************************/
     TSTORE(dstGlobal, cTile);
     out = dstGlobal.data();
@@ -344,18 +360,24 @@ AICORE inline void runTEXTRACT_DYNAMIC(__gm__ T *out, __gm__ U *src0, __gm__ S *
     /*************************************TLOAD****************************************/
     TLOAD(aMatTile, src0Global);
     TLOAD(bMatTile, src1Global);
+#ifndef __PTO_AUTO__
     pipe_barrier(PIPE_ALL);
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
     /**********************************TMOV && TEXTRACT**********************************/
     TEXTRACT(aTile, aMatTile, indexM, indexK);
     TEXTRACT(bTile, bMatTile, indexK, indexN);
+#ifndef __PTO_AUTO__
     pipe_barrier(PIPE_ALL);
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
     TMATMUL(cTile, aTile, bTile);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
 
     TSTORE(dstGlobal, cTile);
     out = dstGlobal.data();
@@ -417,25 +439,27 @@ AICORE inline void runTEXTRACT_COMPACT(__gm__ T *out, __gm__ U *src0, __gm__ S *
     using BType = typename RightTile::DType;
     using CType = typename AccTile::DType;
 
-    __ca__ AType *a = (__ca__ AType *)(aTile.data());
-    __cb__ BType *b = (__cb__ BType *)(bTile.data());
-    __cc__ CType *c = (__cc__ CType *)(cTile.data());
-
     /*************************************TLOAD****************************************/
     TLOAD(aMatTile, src0Global);
     TLOAD(bMatTile, src1Global);
+#ifndef __PTO_AUTO__
     pipe_barrier(PIPE_ALL);
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
     /**********************************TEXTRACT*******************************************/
     TEXTRACT(aTile, aMatTile, indexM, indexK);
     TEXTRACT(bTile, bMatTile, indexK, indexN);
+#ifndef __PTO_AUTO__
     pipe_barrier(PIPE_ALL);
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
     TMATMUL(cTile, aTile, bTile);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
     /****************************************TSTORE*****************************************/
     TSTORE(dstGlobal, cTile);
     out = dstGlobal.data();

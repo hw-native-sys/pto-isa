@@ -150,7 +150,9 @@ PTO_INTERNAL void TFILLPAD_EXPAND_IMPL(TileDataDst &dst, TileDataSrc &src)
 }
 
 template <typename TileData>
-__tf__ PTO_INTERNAL void TFillPad(typename TileData::TileDType __out__ dst, uint32_t dstValidRow, uint32_t dstValidCol)
+__tf__ PTO_INTERNAL void TFillPad_cube(typename TileData::TileDType __out__ dst,
+                                       typename TileData::TileDType __in__ src, uint32_t dstValidRow,
+                                       uint32_t dstValidCol)
 {
     using U = typename TileData::DType;
     __cbuf__ U *dstPtr = (__cbuf__ U *)__cce_get_tile_ptr(dst);
@@ -191,7 +193,7 @@ PTO_INTERNAL void TFILLPAD_IMPL(TileData &dst, TileData &src)
 
     uint32_t validDstRow = dst.GetValidRow();
     uint32_t validDstCol = dst.GetValidCol();
-    TFillPad<TileData>(dst.data(), validDstRow, validDstCol);
+    TFillPad_cube<TileData>(dst.data(), src.data(), validDstRow, validDstCol);
 }
 
 } // namespace pto

@@ -68,18 +68,24 @@ AICORE inline void runTEXTRACT_UNALIGN(__gm__ T *out, __gm__ U *src0, __gm__ S *
     /*************************************TLOAD****************************************/
     TLOAD(aMatTile, src0Global);
     TLOAD(bMatTile, src1Global);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
 
     /*********************************TEXTRACT**********************************/
     TEXTRACT(aTile, aMatTile, indexM, indexK);
     TEXTRACT(bTile, bMatTile, indexK, indexN);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
 
     TMATMUL(cTile, aTile, bTile);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
 
     /****************************************TSTORE*****************************************/
     TSTORE(dstGlobal, cTile);

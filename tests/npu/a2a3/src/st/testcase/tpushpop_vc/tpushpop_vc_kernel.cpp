@@ -90,8 +90,10 @@ __global__ AICORE void runTPushPopVCMatmul(__gm__ uint64_t *ffts_addr, __gm__ Ou
         TASSIGN(scaleTile, 0x20000);
         TASSIGN(offsetTile, 0x28000);
 
+#ifndef __PTO_AUTO__
         set_flag(PIPE_V, PIPE_MTE2, EVENT_ID1);
         set_flag(PIPE_MTE3, PIPE_V, EVENT_ID1);
+#endif
 
         using GlobalQuantB =
             GlobalTensor<QuantT, pto::Shape<1, 1, 1, HALF_TILE_K, TILE_N>,
@@ -107,33 +109,41 @@ __global__ AICORE void runTPushPopVCMatmul(__gm__ uint64_t *ffts_addr, __gm__ Ou
             GlobalScaleOffset globalScale(scale + k_tile * TILE_K + subBlockIdx * HALF_TILE_K);
             GlobalScaleOffset globalOffset(offset + k_tile * TILE_K + subBlockIdx * HALF_TILE_K);
 
+#ifndef __PTO_AUTO__
             wait_flag(PIPE_V, PIPE_MTE2, EVENT_ID1);
+#endif
 
             TLOAD(quantTile, globalQuantB);
             TLOAD(scaleTile, globalScale);
             TLOAD(offsetTile, globalOffset);
 
+#ifndef __PTO_AUTO__
             set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
             wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 
             wait_flag(PIPE_MTE3, PIPE_V, EVENT_ID1);
+#endif
 
             TDEQUANT(dequantTile, quantTile, scaleTile, offsetTile);
 
+#ifndef __PTO_AUTO__
             set_flag(PIPE_V, PIPE_MTE2, EVENT_ID1);
 
             set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
             wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
 
             mPipe.prod.setEntryOffset(entryOffsetVal);
             TPUSH(dequantTile, mPipe);
             set_flag(PIPE_MTE3, PIPE_V, EVENT_ID1);
         }
 
+#ifndef __PTO_AUTO__
         wait_flag(PIPE_V, PIPE_MTE2, EVENT_ID1);
         wait_flag(PIPE_MTE3, PIPE_V, EVENT_ID1);
 
         pipe_barrier(PIPE_ALL);
+#endif
     }
 
     if constexpr (DAV_CUBE) {
@@ -150,30 +160,38 @@ __global__ AICORE void runTPushPopVCMatmul(__gm__ uint64_t *ffts_addr, __gm__ Ou
 
         typename MatPipe::Consumer cons;
 
+#ifndef __PTO_AUTO__
         set_flag(PIPE_MTE1, PIPE_MTE2, EVENT_ID1);
         set_flag(PIPE_M, PIPE_MTE1, EVENT_ID1);
+#endif
 
         for (int k_tile = 0; k_tile < NUM_K_TILES; k_tile++) {
             GlobalA globalA(srcA + k_tile * TILE_K);
 
+#ifndef __PTO_AUTO__
             wait_flag(PIPE_MTE1, PIPE_MTE2, EVENT_ID1);
+#endif
 
             TLOAD(aMatTile, globalA);
 
             TPOP(bMatTile, mPipe);
 
+#ifndef __PTO_AUTO__
             set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
             wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
 
             wait_flag(PIPE_M, PIPE_MTE1, EVENT_ID1);
+#endif
 
             TMOV(aTile, aMatTile);
             TMOV(bTile, bMatTile);
 
+#ifndef __PTO_AUTO__
             set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
             wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
 
             set_flag(PIPE_MTE1, PIPE_MTE2, EVENT_ID1);
+#endif
 
             if (k_tile == 0) {
                 TMATMUL(accTile, aTile, bTile);
@@ -184,16 +202,20 @@ __global__ AICORE void runTPushPopVCMatmul(__gm__ uint64_t *ffts_addr, __gm__ Ou
             set_flag(PIPE_M, PIPE_MTE1, EVENT_ID1);
         }
 
+#ifndef __PTO_AUTO__
         set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
         wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
 
         GlobalOut globalOut(out);
         TSTORE<AccTile, GlobalOut>(globalOut, accTile);
 
+#ifndef __PTO_AUTO__
         wait_flag(PIPE_MTE1, PIPE_MTE2, EVENT_ID1);
         wait_flag(PIPE_M, PIPE_MTE1, EVENT_ID1);
 
         pipe_barrier(PIPE_ALL);
+#endif
     }
 }
 

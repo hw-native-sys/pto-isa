@@ -8,11 +8,24 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
+#include <cstdint>
 #include <pto/pto-inst.hpp>
 #include <pto/common/pto_tile.hpp>
 #include <pto/common/constants.hpp>
 
 using namespace pto;
+
+template <typename TileDataDst, typename TileDataSrc>
+__tf__ PTO_INTERNAL void tf_copy_cbuf_to_ubuf(typename TileDataDst::TileDType __out__ dst,
+                                              typename TileDataSrc::TileDType __in__ src, int vec_core, int block_count,
+                                              int block_len, int src_stride, int dst_stride, int i,
+                                              uint32_t tileMatStride, uint32_t tileUbStride)
+{
+    copy_cbuf_to_ubuf((__ubuf__ void *)(__cce_get_tile_ptr(dst) + i * tileUbStride),
+                      (__cbuf__ void *)(__cce_get_tile_ptr(src) + i * tileMatStride), vec_core, block_count, block_len,
+                      src_stride, dst_stride);
+}
+
 template <typename T, int N0, int N1, int N2, int N3, int N4, int WN0, int WN1, int WN2, int WN3, int WN4, int baseRow,
           int baseCol, int validRow, int validCol, bool isScaleA>
 AICORE inline void runTLOAD_SCALE(__gm__ T *out, __gm__ T *src0, __gm__ T *src1)
@@ -43,17 +56,15 @@ AICORE inline void runTLOAD_SCALE(__gm__ T *out, __gm__ T *src0, __gm__ T *src1)
     TileMatAData aMatTile;
     TASSIGN(aMatTile, 0x0);
 
-    __cbuf__ T *srcMatAddr = aMatTile.data();
-    __ubuf__ T *srcUbAddr = srcTile.data();
-    __gm__ T *outAddr = dstGlobal.data();
-
     /*************************************TLOAD****************************************/
     uint8_t syncID = 0;
     // L1 -> UB : AIC
 #if defined(__DAV_CUBE__)
     TLOAD<TileMatAData, GlobalDataSrc0>(aMatTile, src0Global);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
     uint16_t validRowPreN0 = validRow / N0;
     uint16_t validColPreN0 = validCol / N0;
     uint16_t blockCount = isScaleA ? validRowPreN0 / 16 : validColPreN0 / 16;
@@ -64,12 +75,10 @@ AICORE inline void runTLOAD_SCALE(__gm__ T *out, __gm__ T *src0, __gm__ T *src1)
     uint32_t tileMatStride = isScaleA ? validRowPreN0 * baseCol : baseRow * validColPreN0;
     uint32_t tileUbStride = isScaleA ? validRowPreN0 * validCol : validRow * validColPreN0;
     for (int i = 0; i < N0; i++) {
-        copy_cbuf_to_ubuf((__ubuf__ void *)(srcUbAddr + i * tileUbStride),
-                          (__cbuf__ void *)(srcMatAddr + i * tileMatStride), 0, blockCount, l12ubBlockLen, srcStride,
-                          0); // move to vector0
-        copy_cbuf_to_ubuf((__ubuf__ void *)(srcUbAddr + i * tileUbStride),
-                          (__cbuf__ void *)(srcMatAddr + i * tileMatStride), 1, blockCount, l12ubBlockLen, srcStride,
-                          0); // move to vector1
+        tf_copy_cbuf_to_ubuf<TileUBData, TileMatAData>(srcTile.data(), aMatTile.data(), 0, blockCount, l12ubBlockLen,
+                                                       srcStride, 0, i, tileMatStride, tileUbStride); // move to vector0
+        tf_copy_cbuf_to_ubuf<TileUBData, TileMatAData>(srcTile.data(), aMatTile.data(), 1, blockCount, l12ubBlockLen,
+                                                       srcStride, 0, i, tileMatStride, tileUbStride); // move to vector1
     }
 
     set_intra_block(PIPE_MTE1, syncID);

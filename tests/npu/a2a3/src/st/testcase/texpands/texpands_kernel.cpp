@@ -51,8 +51,10 @@ __global__ AICORE void runTEXPANDS(__gm__ T __out__ *out, float scalar)
     GlobalData dstGlobal(out + offset);
 
     TEXPANDS(dstTile, scalar);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
     TSTORE(dstGlobal, dstTile);
     out = dstGlobal.data();
 }

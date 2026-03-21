@@ -62,11 +62,15 @@ __global__ AICORE void runTSel(__gm__ T __out__ *out, __gm__ uint8_t __in__ *mas
     TLOAD(src0Tile, src0Global);
     TLOAD(src1Tile, src1Global);
     TLOAD(maskTile, maskGlobal);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
     TSEL(dstTile, maskTile, src0Tile, src1Tile, tmpTile);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
     TSTORE(dstGlobal, dstTile);
     out = dstGlobal.data();
 }

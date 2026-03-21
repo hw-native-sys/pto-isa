@@ -65,8 +65,10 @@ AICORE inline void runTSetValue_ConvTile(__gm__ T *out, T value)
     TASSIGN(MatTile, 0x0);
 
     TEXPANDS<TileData>(MatTile, value);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_MTE3, EVENT_ID0);
+#endif
     constexpr int reshapeRow = N;
     constexpr int reshapeCol = C1 * H * W * C0;
     TSTORE_MAT2GM_CONVTILE<GlobalData, TileData, reshapeRow, reshapeCol>(dstGlobal, MatTile);

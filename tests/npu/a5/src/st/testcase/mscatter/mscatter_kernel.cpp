@@ -51,16 +51,18 @@ inline AICORE void runMSCATTER(__gm__ T __out__ *out, __gm__ T __in__ *src, __gm
     // Load indices first (at offset 0), then src
     TLOAD(idxTile, idxGlobal);
     TLOAD(srcTile, srcGlobal);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-
+#endif
     MSCATTER(outGlobal, srcTile, idxTile);
-
+#ifndef __PTO_AUTO__
     // MSCATTER uses SIMT to write from UB to GM, ensure completion before kernel exit
     pipe_barrier(PIPE_ALL);
 
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
 }
 
 extern "C" __global__ AICORE void runMSCATTER_half_8x32_1024(__gm__ half *out, __gm__ half *src,

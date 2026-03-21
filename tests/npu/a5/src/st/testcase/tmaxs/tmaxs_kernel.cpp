@@ -63,14 +63,12 @@ __global__ AICORE void runTMAXS(__gm__ T __out__ *out, __gm__ T __in__ *src0, __
     srcGlobalType src0Global(src0 + offset);
     dstGlobalType dstGlobal(out + offset);
 
-    TLOAD(src0Tile, src0Global);
-    TLOAD(dstTile, dstGlobal);
-    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    TMAXS(dstTile, src0Tile, scalar[0]);
-    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-    TSTORE(dstGlobal, dstTile);
+    Event<Op::TLOAD, Op::TMAXS> event0;
+    Event<Op::TMAXS, Op::TSTORE_VEC> event1;
+
+    event0 = TLOAD(src0Tile, src0Global);
+    event1 = TMAXS(dstTile, src0Tile, scalar[0], event0);
+    TSTORE(dstGlobal, dstTile, event1);
     out = dstGlobal.data();
 }
 

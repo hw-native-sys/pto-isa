@@ -239,7 +239,7 @@ PTO_INTERNAL void TMRGSORT_IMPL(DstTileData &dst, MrgSortExecutedNumList &execut
     unsigned src1Col = src1.GetValidCol() >> ELE_NUM_SHIFT;
     unsigned src2Col = src2.GetValidCol() >> ELE_NUM_SHIFT;
     TMrgsort<DstTileData, TmpTileData, Src0TileData, Src1TileData, Src2TileData, Src2TileData, exhausted, LIST_NUM_3>(
-        dst.data(), tmp.data(), src0.data(), src1.data(), src2.data(), nullptr, executedNumList.mrgSortList0,
+        dst.data(), tmp.data(), src0.data(), src1.data(), src2.data(), src2.data(), executedNumList.mrgSortList0,
         executedNumList.mrgSortList1, executedNumList.mrgSortList2, executedNumList.mrgSortList3, dst.GetValidCol(),
         src0Col, src1Col, src2Col, EMPTY_LIST_SIZE);
 }
@@ -255,7 +255,7 @@ PTO_INTERNAL void TMRGSORT_IMPL(DstTileData &dst, MrgSortExecutedNumList &execut
     unsigned src0Col = src0.GetValidCol() >> ELE_NUM_SHIFT;
     unsigned src1Col = src1.GetValidCol() >> ELE_NUM_SHIFT;
     TMrgsort<DstTileData, TmpTileData, Src0TileData, Src1TileData, Src1TileData, Src1TileData, exhausted, LIST_NUM_2>(
-        dst.data(), tmp.data(), src0.data(), src1.data(), nullptr, nullptr, executedNumList.mrgSortList0,
+        dst.data(), tmp.data(), src0.data(), src1.data(), src1.data(), src1.data(), executedNumList.mrgSortList0,
         executedNumList.mrgSortList1, executedNumList.mrgSortList2, executedNumList.mrgSortList3, dst.GetValidCol(),
         src0Col, src1Col, EMPTY_LIST_SIZE, EMPTY_LIST_SIZE);
 }

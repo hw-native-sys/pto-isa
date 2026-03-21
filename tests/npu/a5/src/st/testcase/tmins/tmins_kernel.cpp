@@ -63,14 +63,12 @@ __global__ AICORE void runTMINS(__gm__ T __out__ *out, __gm__ T __in__ *src0, __
     srcGlobalType src0Global(src0 + offset);
     dstGlobalType dstGlobal(out + offset);
 
-    TLOAD(src0Tile, src0Global);
-    TLOAD(dstTile, dstGlobal);
-    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    TMINS(dstTile, src0Tile, scalar[0]);
-    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-    TSTORE(dstGlobal, dstTile);
+    Event<Op::TLOAD, Op::TMINS> event0;
+    Event<Op::TMINS, Op::TSTORE_VEC> event1;
+
+    event0 = TLOAD(src0Tile, src0Global);
+    event1 = TMINS(dstTile, src0Tile, scalar[0], event0);
+    TSTORE(dstGlobal, dstTile, event1);
     out = dstGlobal.data();
 }
 

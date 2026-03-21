@@ -21,13 +21,16 @@ template <typename TileLeft, typename TileRight>
 PTO_INTERNAL bool GetKDirectionAlign(TileLeft &aMatrix, TileRight &bMatrix)
 {
     // only for f322f32
+    // #ifndef __PTO_AUTO__
     if constexpr (std::is_same<typename TileLeft::DType, float>::value &&
                   std::is_same<typename TileRight::DType, float>::value) {
-        if (aMatrix.GetKAligned() || bMatrix.GetKAligned()) {
+        bool cond = aMatrix.GetKAligned() || bMatrix.GetKAligned();
+        if (cond) {
             return true;
         }
         return false;
     }
+    // #endif
     return false;
 }
 
@@ -49,15 +52,16 @@ __tf__ AICORE void TMatmul(typename TileRes::TileDType __out__ cMatrix, typename
 }
 
 template <AccPhase Phase = AccPhase::Unspecified, typename TileRes, typename TileLeft, typename TileRight,
-          bool cmatrixSource, bool cmatrixInitVal, bool isGemv>
+          typename TileBias, bool cmatrixSource, bool cmatrixInitVal, bool isGemv>
 __tf__ AICORE void TMatmulBias(typename TileRes::TileDType __out__ cMatrix, typename TileLeft::TileDType __in__ aMatrix,
-                               typename TileRight::TileDType __in__ bMatrix, uint64_t bias, uint16_t m, uint16_t k,
-                               uint16_t n, bool kDirectionAlign)
+                               typename TileRight::TileDType __in__ bMatrix, typename TileBias::TileDType bias,
+                               uint16_t m, uint16_t k, uint16_t n, bool kDirectionAlign)
 {
     __cc__ typename TileRes::DType *c = (__cc__ typename TileRes::DType *)__cce_get_tile_ptr(cMatrix);
     __ca__ typename TileLeft::DType *a = (__ca__ typename TileLeft::DType *)__cce_get_tile_ptr(aMatrix);
     __cb__ typename TileRight::DType *b = (__cb__ typename TileRight::DType *)__cce_get_tile_ptr(bMatrix);
-    uint64_t xd = ((uint64_t)c) & 0xffffffffULL | ((bias & 0xffffffffULL) << 32);
+    __biasbuf__ typename TileBias::DType *d = (__biasbuf__ typename TileBias::DType *)__cce_get_tile_ptr(bias);
+    uint64_t xd = ((uint64_t)c) & 0xffffffffULL | ((((uint64_t)d) & 0xffffffffULL) << 32);
     c = (__cc__ typename TileRes::DType *)xd;
     if constexpr (!isGemv) {
         if (m == 1) {
@@ -141,8 +145,8 @@ PTO_INTERNAL void TGEMV_BIAS_IMPL(TileRes &cMatrix, TileLeft &aMatrix, TileRight
     PTO_ASSERT(k >= 1 && k <= MMAD_MAX_SUPPORT_LENGTH, "ERROR: The range of valid aMatrixCol is [1, 4095].");
     PTO_ASSERT(n >= 1 && n <= MMAD_MAX_SUPPORT_LENGTH, "ERROR: The range of valid bMatrixCol is [1, 4095].");
 
-    TMatmulBias<Phase, TileRes, TileLeft, TileRight, true, false, true>(cMatrix.data(), aMatrix.data(), bMatrix.data(),
-                                                                        biasData.data(), 1, k, n, kDirectionAlign);
+    TMatmulBias<Phase, TileRes, TileLeft, TileRight, TileBias, true, false, true>(
+        cMatrix.data(), aMatrix.data(), bMatrix.data(), biasData.data(), 1, k, n, kDirectionAlign);
 }
 
 template <AccPhase Phase = AccPhase::Unspecified, typename TileRes, typename TileLeft, typename TileRight>
@@ -191,8 +195,8 @@ PTO_INTERNAL void TMATMUL_BIAS_IMPL(TileRes &cMatrix, TileLeft &aMatrix, TileRig
     bool kDirectionAlign = GetKDirectionAlign(aMatrix, bMatrix);
     CheckDynamicMad(m, k, n);
 
-    TMatmulBias<Phase, TileRes, TileLeft, TileRight, true, false, false>(cMatrix.data(), aMatrix.data(), bMatrix.data(),
-                                                                         biasData.data(), m, k, n, kDirectionAlign);
+    TMatmulBias<Phase, TileRes, TileLeft, TileRight, TileBias, true, false, false>(
+        cMatrix.data(), aMatrix.data(), bMatrix.data(), biasData.data(), m, k, n, kDirectionAlign);
 }
 } // namespace pto
 #endif

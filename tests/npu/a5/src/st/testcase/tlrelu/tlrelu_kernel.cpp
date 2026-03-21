@@ -29,14 +29,13 @@ PTO_INTERNAL void runTLRelu(__gm__ T *out, __gm__ T *src, T scalar)
     dstTileData dstTile(validRow, validCol);
     TASSIGN(srcTile, 0x0);
     TASSIGN(dstTile, 0x28000);
-    TLOAD(dstTile, dstGlobal);
-    TLOAD(srcTile, srcGlobal);
-    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    TLRELU(dstTile, srcTile, scalar);
-    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-    TSTORE(dstGlobal, dstTile);
+
+    Event<Op::TLOAD, Op::TLRELU> event0;
+    Event<Op::TLRELU, Op::TSTORE_VEC> event1;
+
+    event0 = TLOAD(srcTile, srcGlobal);
+    event1 = TLRELU(dstTile, srcTile, scalar, event0);
+    TSTORE(dstGlobal, dstTile, event1);
     out = dstGlobal.data();
 }
 

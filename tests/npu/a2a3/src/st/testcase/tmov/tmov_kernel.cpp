@@ -134,22 +134,22 @@ __global__ AICORE void TMOV2BiasKernel(__gm__ cType *out, __gm__ aType *src0, __
     TLOAD(aMatTile, src0Global);
     TLOAD(bMatTile, src1Global);
     TLOAD(biasMatTile, src2Global);
-
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
-
+#endif
     TMOV(aTile, aMatTile);
     TMOV(bTile, bMatTile);
     TMOV(biasTile, biasMatTile);
-
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
-
+#endif
     TMATMUL_BIAS(cTile, aTile, bTile, biasTile);
-
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
-
+#endif
     TSTORE(dstGlobal, cTile);
     out = dstGlobal.data();
 }
@@ -223,21 +223,22 @@ __global__ AICORE void TMOV2BiasDyncmicKernel(__gm__ cType *out, __gm__ aType *s
     TLOAD(aMatTile, src0Global);
     TLOAD(bMatTile, src1Global);
     TLOAD(biasMatTile, src2Global);
-
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
     TMOV(aTile, aMatTile);
     TMOV(bTile, bMatTile);
     TMOV(biasTile, biasMatTile);
-
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
-
+#endif
     TMATMUL_BIAS(cTile, aTile, bTile, biasTile);
-
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
-
+#endif
     TSTORE(dstGlobal, cTile);
     out = dstGlobal.data();
 }
@@ -302,19 +303,21 @@ __global__ AICORE void TMOV2ScalingKernel(__gm__ cType *out, __gm__ aType *src0,
     TLOAD(aMatTile, src0Global);
     TLOAD(bMatTile, src1Global);
     TLOAD(fbMatTile, src2Global);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
-
+#endif
     TMOV(aTile, aMatTile);
     TMOV(bTile, bMatTile);
-
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
-
+#endif
     TMATMUL(cTile, aTile, bTile);
-
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
     TMOV(fbTile, fbMatTile);
 
     TSTORE_FP<AccTile, GlobalDataOut, FbTile>(dstGlobal, cTile, fbTile);
@@ -419,20 +422,26 @@ __global__ AICORE void TMOV2BiasAndScalingDyncmicKernel(__gm__ cType *out, __gm_
     TLOAD(biasMatTile, src2Global);
     TLOAD(scalingMatTile, src3Global);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
 
     TMOV(aTile, aMatTile);
     TMOV(bTile, bMatTile);
     TMOV(biasTile, biasMatTile);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
 
     TMATMUL_BIAS(cTile, aTile, bTile, biasTile);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
     TMOV(scalingTile, scalingMatTile);
 
     TSTORE_FP<AccTile, GlobalDataOut, ScalingTile>(dstGlobal, cTile, scalingTile);

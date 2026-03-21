@@ -45,14 +45,15 @@ inline AICORE void runMGATHER(__gm__ T __out__ *out, __gm__ T __in__ *table, __g
     GlobalData_out outGlobal(out);
 
     TLOAD(idxTile, idxGlobal);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-
+#endif
     MGATHER(outTile, tableGlobal, idxTile);
-
+#ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-
+#endif
     TSTORE(outGlobal, outTile);
 }
 

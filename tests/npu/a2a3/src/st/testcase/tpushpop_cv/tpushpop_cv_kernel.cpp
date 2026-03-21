@@ -94,51 +94,63 @@ __global__ AICORE void runTPushPopMatmulAdd(__gm__ uint64_t *ffts_addr, __gm__ O
         TASSIGN(bTile, 0x0);
         TASSIGN(accTile, 0x0);
 
+#ifndef __PTO_AUTO__
         set_flag(PIPE_FIX, PIPE_M, EVENT_ID1);
         set_flag(PIPE_M, PIPE_MTE1, EVENT_ID1);
         set_flag(PIPE_MTE1, PIPE_MTE2, EVENT_ID1);
+#endif
 
         for (int m_tile = 0; m_tile < NUM_M_TILES; m_tile++) {
             GlobalA globalA(srcA + m_tile * CASE_TILE_M * TILE_K);
             GlobalB globalB(srcB);
 
+#ifndef __PTO_AUTO__
             wait_flag(PIPE_MTE1, PIPE_MTE2, EVENT_ID1);
+#endif
 
             TLOAD(aMatTile, globalA);
             TLOAD(bMatTile, globalB);
 
+#ifndef __PTO_AUTO__
             set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
             wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
 
             wait_flag(PIPE_M, PIPE_MTE1, EVENT_ID1);
+#endif
 
             TMOV(aTile, aMatTile);
             TMOV(bTile, bMatTile);
 
+#ifndef __PTO_AUTO__
             set_flag(PIPE_MTE1, PIPE_MTE2, EVENT_ID1);
 
             set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
             wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
 
             wait_flag(PIPE_FIX, PIPE_M, EVENT_ID1);
+#endif
 
             TMATMUL(accTile, aTile, bTile);
 
+#ifndef __PTO_AUTO__
             set_flag(PIPE_M, PIPE_MTE1, EVENT_ID1);
 
             set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
             wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
 
             TPUSH(accTile, mPipe);
 
             set_flag(PIPE_FIX, PIPE_M, EVENT_ID1);
         }
 
+#ifndef __PTO_AUTO__
         wait_flag(PIPE_MTE1, PIPE_MTE2, EVENT_ID1);
         wait_flag(PIPE_M, PIPE_MTE1, EVENT_ID1);
         wait_flag(PIPE_FIX, PIPE_M, EVENT_ID1);
 
         pipe_barrier(PIPE_ALL);
+#endif
     }
 
     if constexpr (DAV_VEC) {
@@ -150,11 +162,15 @@ __global__ AICORE void runTPushPopMatmulAdd(__gm__ uint64_t *ffts_addr, __gm__ O
 
         uint32_t subBlockIdx = get_subblockid();
 
+#ifndef __PTO_AUTO__
         set_flag(PIPE_MTE3, PIPE_V, EVENT_ID1);
         set_flag(PIPE_V, PIPE_MTE2, EVENT_ID1);
+#endif
 
         for (int m_tile = 0; m_tile < NUM_M_TILES; m_tile++) {
+#ifndef __PTO_AUTO__
             wait_flag(PIPE_V, PIPE_MTE2, EVENT_ID1);
+#endif
 
             size_t entryOffset = subBlockIdx * VEC_M * TILE_N * sizeof(OutT);
             mPipe.cons.setEntryOffset(entryOffset);
@@ -165,29 +181,37 @@ __global__ AICORE void runTPushPopMatmulAdd(__gm__ uint64_t *ffts_addr, __gm__ O
 
             TLOAD(biasTile, globalBias);
 
+#ifndef __PTO_AUTO__
             set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
             wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 
             wait_flag(PIPE_MTE3, PIPE_V, EVENT_ID1);
+#endif
 
             TADD(outTile, vecTileHalf, biasTile);
 
+#ifndef __PTO_AUTO__
             set_flag(PIPE_V, PIPE_MTE2, EVENT_ID1);
 
             set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
             wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
 
             size_t outOffset = static_cast<size_t>(m_tile * CASE_TILE_M + subBlockIdx * VEC_M) * TILE_N;
             GlobalOut globalOut(out + outOffset);
             TSTORE(globalOut, outTile);
 
+#ifndef __PTO_AUTO__
             set_flag(PIPE_MTE3, PIPE_V, EVENT_ID1);
+#endif
         }
 
+#ifndef __PTO_AUTO__
         wait_flag(PIPE_V, PIPE_MTE2, EVENT_ID1);
         wait_flag(PIPE_MTE3, PIPE_V, EVENT_ID1);
 
         pipe_barrier(PIPE_ALL);
+#endif
     }
 }
 

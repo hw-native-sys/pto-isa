@@ -136,7 +136,8 @@ def gen_golden_data(case_name, g_info):
 
     x1_gm, x2_gm, golden = gen_x1_x2_golden(g_info)
     if quant_mode == 1:
-        golden = golden * scalar
+        # multiplication like this in numpy upcasts golden type to float32, so cast it back to the original dst type
+        golden = (golden * scalar).astype(dst_data_type)
         if dst_data_type == np.int8:
             golden = saturation(golden, -128, 127, np.int8)
         elif dst_data_type == np.uint8:

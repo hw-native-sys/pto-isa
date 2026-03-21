@@ -30,13 +30,12 @@ __global__ AICORE void runTsqrt(__gm__ T __out__ *out, __gm__ T __in__ *src)
     TASSIGN(dstTile, isInPlace ? 0x0 : srcRow * srcCol * sizeof(T));
     TASSIGN(srcTile, 0x0);
 
-    TLOAD(srcTile, srcGlobal);
-    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    TSQRT(dstTile, srcTile);
-    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-    TSTORE(dstGlobal, dstTile);
+    Event<Op::TLOAD, Op::TSQRT> event0;
+    Event<Op::TSQRT, Op::TSTORE_VEC> event1;
+
+    event0 = TLOAD(srcTile, srcGlobal);
+    event1 = TSQRT(dstTile, srcTile, event0);
+    TSTORE(dstGlobal, dstTile, event1);
 }
 
 template <typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol, bool isInPlace>

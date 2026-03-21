@@ -34,18 +34,26 @@ __global__ AICORE void runTCOLSUM(__gm__ T __out__ *out, __gm__ T __in__ *src)
     TASSIGN(dstTile, 0x14000);
     TASSIGN(tmpTile, 0x28000);
 
+// causes issues in automode as the tile returned from the TLOAD tfcall appears unused and this tload may not finish
+// before the second tload
+#ifndef __PTO_AUTO__
     // 清除脏数据
     TLOAD(dstTile, dstGlobal);
+#endif
 
     // 搬运数据
     TLOAD(srcTile, srcGlobal);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
     TCOLSUM(dstTile, srcTile, tmpTile, IsBinary);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
     TSTORE(dstGlobal, dstTile);
     out = dstGlobal.data();
 }

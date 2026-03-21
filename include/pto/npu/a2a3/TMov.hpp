@@ -35,8 +35,8 @@ __tf__ AICORE void TMovToBt(typename DstTileData::TileDType __out__ dst, typenam
     static_assert(SrcTileData::Cols * sizeof(SrcType) % BURST_LEN_UNIT == 0,
                   "TMov: When TileType is Bias, col * sizeof(srcDType) must be aligned to 64");
 
-    __cbuf__ SrcType *srcAddrP = (__cbuf__ SrcType *)(src);
-    uint64_t dstAddrP = (uint64_t)dst;
+    __cbuf__ SrcType *srcAddrP = (__cbuf__ SrcType *)(__cce_get_tile_ptr(src));
+    __biasbuf__ DstType *dstAddrP = (__biasbuf__ DstType *)(__cce_get_tile_ptr(dst));
 
     uint16_t convControl = 0;
     constexpr uint16_t burstLen = srcRow * srcCol * sizeof(SrcType) / BURST_LEN_UNIT;
@@ -64,8 +64,8 @@ __tf__ AICORE void TMovToFb(typename DstTileData::TileDType __out__ dst, typenam
     static_assert(SrcTileData::Cols * sizeof(SrcType) % BURST_LEN_UNIT == 0,
                   "TMov: When TileType is Scaling, col * sizeof(srcType) must be aligned to 128");
 
-    __cbuf__ SrcType *srcAddrP = (__cbuf__ SrcType *)(src);
-    __fbuf__ DstType *dstAddrP = (__fbuf__ DstType *)(dst);
+    __cbuf__ SrcType *srcAddrP = (__cbuf__ SrcType *)(__cce_get_tile_ptr(src));
+    __fbuf__ DstType *dstAddrP = (__fbuf__ DstType *)(__cce_get_tile_ptr(dst));
 
     constexpr uint16_t burstLen = srcRow * srcCol * sizeof(SrcType) / BURST_LEN_UNIT;
     copy_cbuf_to_fbuf(dstAddrP, srcAddrP, (uint16_t)1, burstLen, (uint16_t)0, (uint16_t)0);

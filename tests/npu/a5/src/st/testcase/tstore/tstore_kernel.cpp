@@ -53,8 +53,10 @@ AICORE inline void RunTStoreRowMajor(__gm__ T __out__ *out, __gm__ T __in__ *src
     GlobalData dstGlobal(out);
 
     TLOAD(srcTile, srcGlobal);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+#endif
     TSTORE(dstGlobal, srcTile);
     out = dstGlobal.data();
 }
@@ -87,8 +89,10 @@ AICORE inline void RunTStoreColMajor(__gm__ T __out__ *out, __gm__ T __in__ *src
     GlobalData dstGlobal(out);
 
     TLOAD(srcTile, srcGlobal);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+#endif
     TSTORE(dstGlobal, srcTile);
     out = dstGlobal.data();
 }
@@ -119,8 +123,10 @@ AICORE inline void RunTStoreNZ(__gm__ T __out__ *out, __gm__ T __in__ *src)
     GlobalData dstGlobal(out);
 
     TLOAD(srcTile, srcGlobal);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+#endif
     TSTORE(dstGlobal, srcTile);
     out = dstGlobal.data();
 }

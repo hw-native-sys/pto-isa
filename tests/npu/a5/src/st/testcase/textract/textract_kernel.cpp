@@ -15,40 +15,56 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 using fp8_e8m0_t = uint8_t;
 
-template <typename T>
-AICORE inline void DynGM2L1(__cbuf__ T *dst, __gm__ T *src, unsigned TShape0, unsigned TShape1)
+template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
+__tf__ PTO_INTERNAL void tf_mad_mx(typename TileDataDst::TileDType __out__ dst,
+                                   typename TileDataSrc0::TileDType __in__ src0,
+                                   typename TileDataSrc1::TileDType __in__ src1, int M, int K, int N, bool a, bool b,
+                                   bool c, bool d)
+{
+    mad_mx(__cce_get_tile_ptr(dst), __cce_get_tile_ptr(src0), __cce_get_tile_ptr(src1), M, K, N, a, b, c, d);
+}
+
+template <typename TileDataDst, typename T>
+__tf__ PTO_INTERNAL void DynGM2L1(typename TileDataDst::TileDType __out__ dst, __gm__ T *src, unsigned TShape0,
+                                  unsigned TShape1)
 {
     if (std::is_same<T, float4_e2m1x2_t>::value || std::is_same<T, float4_e1m2x2_t>::value) {
         uint32_t lenBurst = TShape0 * TShape1 * sizeof(T) / 2;
-        copy_gm_to_cbuf_align_v2((__cbuf__ uint8_t *)dst, (__gm__ uint8_t *)src, 0, 1, lenBurst, 0, 0, 0, 0, 0, 0);
+        copy_gm_to_cbuf_align_v2((__cbuf__ uint8_t *)__cce_get_tile_ptr(dst), (__gm__ uint8_t *)src, 0, 1, lenBurst, 0,
+                                 0, 0, 0, 0, 0);
     } else {
         uint32_t lenBurst = TShape0 * TShape1 * sizeof(T);
-        copy_gm_to_cbuf_align_v2(dst, src, 0, 1, lenBurst, 0, 0, 0, 0, 0, 0);
+        copy_gm_to_cbuf_align_v2((__cbuf__ uint8_t *)__cce_get_tile_ptr(dst), (__gm__ uint8_t *)src, 0, 1, lenBurst, 0,
+                                 0, 0, 0, 0, 0);
     }
 }
 
-template <typename T, typename X>
-AICORE inline void MOV_MX_TOA(__ca__ T *dst, __cbuf__ X *src, unsigned dstM, unsigned dstK)
+template <typename TileDataDst, typename TileDataSrc>
+__tf__ PTO_INTERNAL void MOV_MX_TOA(typename TileDataDst::TileDType __out__ dst,
+                                    typename TileDataSrc::TileDType __in__ src, unsigned dstM, unsigned dstK)
 {
-    uint64_t mxDstAddr = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(dst)) / 16;
+    uint64_t mxDstAddr = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(__cce_get_tile_ptr(dst))) / 16;
     constexpr int c0Size = 2;
     uint8_t mStep = dstK / c0Size;
     uint8_t kStep = dstM / 16;
     uint16_t srcStride = dstM / 16;
     uint16_t dstStride = dstM / 16;
-    load_cbuf_to_ca_mx(mxDstAddr, static_cast<__cbuf__ void *>(src), 0, 0, mStep, kStep, srcStride, dstStride);
+    load_cbuf_to_ca_mx(mxDstAddr, static_cast<__cbuf__ void *>(__cce_get_tile_ptr(src)), 0, 0, mStep, kStep, srcStride,
+                       dstStride);
 }
 
-template <typename T, typename X>
-AICORE inline void MOV_MX_TOB(__cb__ T *dst, __cbuf__ X *src, unsigned dstK, unsigned dstN)
+template <typename TileDataDst, typename TileDataSrc>
+__tf__ PTO_INTERNAL void MOV_MX_TOB(typename TileDataDst::TileDType __out__ dst,
+                                    typename TileDataSrc::TileDType __in__ src, unsigned dstK, unsigned dstN)
 {
-    uint64_t mxDstAddr = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(dst)) / 16;
+    uint64_t mxDstAddr = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(__cce_get_tile_ptr(dst))) / 16;
     constexpr int c0Size = 2;
     uint8_t mStep = dstK / c0Size;
     uint8_t kStep = dstN / 16;
     uint16_t srcStride = dstN / 16;
     uint16_t dstStride = dstN / 16;
-    load_cbuf_to_cb_mx(mxDstAddr, static_cast<__cbuf__ void *>(src), 0, 0, mStep, kStep, srcStride, dstStride);
+    load_cbuf_to_cb_mx(mxDstAddr, static_cast<__cbuf__ void *>(__cce_get_tile_ptr(src)), 0, 0, mStep, kStep, srcStride,
+                       dstStride);
 }
 
 template <typename T, typename U, typename S, int M, int K, int N, uint16_t indexM, uint16_t indexK, uint16_t indexN,
@@ -101,18 +117,24 @@ AICORE inline void runTEXTRACT(__gm__ T *out, __gm__ U *src0, __gm__ S *src1)
     /*************************************TLOAD****************************************/
     TLOAD(aMatTile, src0Global);
     TLOAD(bMatTile, src1Global);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
 
     /**********************************TEXTRACT**********************************/
     TEXTRACT(aTile, aMatTile, indexM, indexK);
     TEXTRACT(bTile, bMatTile, indexK, indexN);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
 
     TMATMUL(cTile, aTile, bTile);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
 
     /****************************************TSTORE*****************************************/
     TSTORE(dstGlobal, cTile);
@@ -176,18 +198,24 @@ AICORE inline void runTEXTRACT_DYNAMIC(__gm__ T *out, __gm__ U *src0, __gm__ S *
     /*************************************TLOAD****************************************/
     TLOAD(aMatTile, src0Global);
     TLOAD(bMatTile, src1Global);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
 
     /**********************************TEXTRACT**********************************/
     TEXTRACT(aTile, aMatTile, indexM, indexK);
     TEXTRACT(bTile, bMatTile, indexK, indexN);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
 
     TMATMUL(cTile, aTile, bTile);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
 
     /****************************************TSTORE*****************************************/
     TSTORE(dstGlobal, cTile);
@@ -250,36 +278,37 @@ AICORE inline void runTEXTRACTMX(__gm__ T *out, __gm__ U *src0, __gm__ S *src1, 
     TASSIGN(bTile, 0x0);
     TASSIGN(cTile, 0x0);
 
-    using AType = typename LeftTile::DType;
-    using BType = typename RightTile::DType;
-    using CType = typename ResTile::DType;
-    using MxType = typename TileMatAmxData::DType;
-
-    __ca__ AType *a = (__ca__ AType *)(aTile.data());
-    __cb__ BType *b = (__cb__ BType *)(bTile.data());
-    __cc__ CType *c = (__cc__ CType *)(cTile.data());
-    __cbuf__ MxType *srcAmxAddr = amxMatTile.data();
-    __cbuf__ MxType *srcBmxAddr = bmxMatTile.data();
+    auto &a = aTile.data();
+    auto &b = bTile.data();
+    auto &c = cTile.data();
+    auto &srcAmxAddr = amxMatTile.data();
+    auto &srcBmxAddr = bmxMatTile.data();
 
     /*************************************TLOAD****************************************/
     TLOAD(aMatTile, src0Global);
     TLOAD(bMatTile, src1Global);
-    DynGM2L1<X>(srcAmxAddr, srcMx0, mValid, kValid / 32);
-    DynGM2L1<X>(srcBmxAddr, srcMx1, kValid / 32, nValid);
+    DynGM2L1<TileMatAmxData, X>(srcAmxAddr, srcMx0, mValid, kValid / 32);
+    DynGM2L1<TileMatBmxData, X>(srcBmxAddr, srcMx1, kValid / 32, nValid);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
 
     /**********************************TEXTRACT**********************************/
     TEXTRACT(aTile, aMatTile, indexM, indexK);
     TEXTRACT(bTile, bMatTile, indexK, indexN);
-    MOV_MX_TOA(a, srcAmxAddr, mValid, kValid / 32);
-    MOV_MX_TOB(b, srcBmxAddr, kValid / 32, nValid);
+    MOV_MX_TOA<LeftTile, TileMatAmxData>(a, srcAmxAddr, mValid, kValid / 32);
+    MOV_MX_TOB<RightTile, TileMatBmxData>(b, srcBmxAddr, kValid / 32, nValid);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
 
-    mad_mx(c, a, b, mValid, kValid, nValid, false, false, false, true);
+    tf_mad_mx<ResTile, LeftTile, RightTile>(c, a, b, mValid, kValid, nValid, false, false, false, true);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
 
     /****************************************TSTORE*****************************************/
     TSTORE(dstGlobal, cTile);
@@ -534,18 +563,24 @@ AICORE inline void runTMOV(__gm__ T *out, __gm__ U *src0, __gm__ S *src1)
     /*************************************TLOAD****************************************/
     TLOAD(aMatTile, src0Global);
     TLOAD(bMatTile, src1Global);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
 
     /**********************************TEXTRACT**********************************/
     TMOV(aTile, aMatTile);
     TMOV(bTile, bMatTile);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
 
     TMATMUL(cTile, aTile, bTile);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
 
     /****************************************TSTORE*****************************************/
     TSTORE(dstGlobal, cTile);
@@ -600,18 +635,24 @@ AICORE inline void runTMOV_DYNAMIC(__gm__ T *out, __gm__ U *src0, __gm__ S *src1
     /*************************************TLOAD****************************************/
     TLOAD(aMatTile, src0Global);
     TLOAD(bMatTile, src1Global);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
 
     /**********************************TMOV**********************************/
     TMOV(aTile, aMatTile);
     TMOV(bTile, bMatTile);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
 
     TMATMUL(cTile, aTile, bTile);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
 
     /****************************************TSTORE*****************************************/
     TSTORE(dstGlobal, cTile);
@@ -672,18 +713,24 @@ AICORE inline void runTMOV_UNALIGN(__gm__ T *out, __gm__ U *src0, __gm__ S *src1
     /*************************************TLOAD****************************************/
     TLOAD(aMatTile, src0Global);
     TLOAD(bMatTile, src1Global);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
 
     /*********************************TEXTRACT**********************************/
     TMOV(aTile, aMatTile);
     TMOV(bTile, bMatTile);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
 
     TMATMUL(cTile, aTile, bTile);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
 
     /****************************************TSTORE*****************************************/
     TSTORE(dstGlobal, cTile);
@@ -738,36 +785,37 @@ AICORE inline void runTMOVMX(__gm__ T *out, __gm__ U *src0, __gm__ S *src1, __gm
     TASSIGN(bTile, 0x0);
     TASSIGN(cTile, 0x0);
 
-    using AType = typename LeftTile::DType;
-    using BType = typename RightTile::DType;
-    using CType = typename ResTile::DType;
-    using MxType = typename TileMatAmxData::DType;
-
-    __ca__ AType *a = (__ca__ AType *)(aTile.data());
-    __cb__ BType *b = (__cb__ BType *)(bTile.data());
-    __cc__ CType *c = (__cc__ CType *)(cTile.data());
-    __cbuf__ MxType *srcAmxAddr = amxMatTile.data();
-    __cbuf__ MxType *srcBmxAddr = bmxMatTile.data();
+    auto &a = aTile.data();
+    auto &b = bTile.data();
+    auto &c = cTile.data();
+    auto &srcAmxAddr = amxMatTile.data();
+    auto &srcBmxAddr = bmxMatTile.data();
 
     /*************************************TLOAD****************************************/
     TLOAD(aMatTile, src0Global);
     TLOAD(bMatTile, src1Global);
-    DynGM2L1<X>(srcAmxAddr, srcMx0, M, K / 32);
-    DynGM2L1<X>(srcBmxAddr, srcMx1, K / 32, N);
+    DynGM2L1<TileMatAmxData, X>(srcAmxAddr, srcMx0, M, K / 32);
+    DynGM2L1<TileMatBmxData, X>(srcBmxAddr, srcMx1, K / 32, N);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
 
     /**********************************TMOV**********************************/
     TMOV(aTile, aMatTile);
     TMOV(bTile, bMatTile);
-    MOV_MX_TOA(a, srcAmxAddr, M, K / 32);
-    MOV_MX_TOB(b, srcBmxAddr, K / 32, N);
+    MOV_MX_TOA<LeftTile, TileMatAmxData>(a, srcAmxAddr, M, K / 32);
+    MOV_MX_TOB<RightTile, TileMatBmxData>(b, srcBmxAddr, K / 32, N);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
 
-    mad_mx(c, a, b, M, K, N, false, false, false, true);
+    tf_mad_mx<ResTile, LeftTile, RightTile>(c, a, b, M, K, N, false, false, false, true);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
 
     /****************************************TSTORE*****************************************/
     TSTORE(dstGlobal, cTile);

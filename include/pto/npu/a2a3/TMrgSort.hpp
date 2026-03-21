@@ -246,9 +246,9 @@ PTO_INTERNAL void TMRGSORT_IMPL(DstTileData &dst, MrgSortExecutedNumList &execut
     unsigned src1Col = src1.GetValidCol() >> ELE_NUM_SHIFT;
     unsigned src2Col = src2.GetValidCol() >> ELE_NUM_SHIFT;
     TMrgsort<DstTileData, TmpTileData, Src0TileData, Src1TileData, Src2TileData, Src2TileData, exhausted, LIST_NUM_3>(
-        dst.data(), tmp.data(), src0.data(), src1.data(), src2.data(), nullptr, dstCol, executedNumList.mrgSortList0,
-        executedNumList.mrgSortList1, executedNumList.mrgSortList2, executedNumList.mrgSortList3, src0Col, src1Col,
-        src2Col, EMPTY_LIST_SIZE);
+        dst.data(), tmp.data(), src0.data(), src1.data(), src2.data(), src2.data(), dstCol,
+        executedNumList.mrgSortList0, executedNumList.mrgSortList1, executedNumList.mrgSortList2,
+        executedNumList.mrgSortList3, src0Col, src1Col, src2Col, EMPTY_LIST_SIZE);
 }
 
 template <typename DstTileData, typename TmpTileData, typename Src0TileData, typename Src1TileData, bool exhausted>
@@ -265,9 +265,9 @@ PTO_INTERNAL void TMRGSORT_IMPL(DstTileData &dst, MrgSortExecutedNumList &execut
     unsigned src0Col = src0.GetValidCol() >> ELE_NUM_SHIFT;
     unsigned src1Col = src1.GetValidCol() >> ELE_NUM_SHIFT;
     TMrgsort<DstTileData, TmpTileData, Src0TileData, Src1TileData, Src1TileData, Src1TileData, exhausted, LIST_NUM_2>(
-        dst.data(), tmp.data(), src0.data(), src1.data(), nullptr, nullptr, dstCol, executedNumList.mrgSortList0,
-        executedNumList.mrgSortList1, executedNumList.mrgSortList2, executedNumList.mrgSortList3, src0Col, src1Col,
-        EMPTY_LIST_SIZE, EMPTY_LIST_SIZE);
+        dst.data(), tmp.data(), src0.data(), src1.data(), src1.data(), src1.data(), dstCol,
+        executedNumList.mrgSortList0, executedNumList.mrgSortList1, executedNumList.mrgSortList2,
+        executedNumList.mrgSortList3, src0Col, src1Col, EMPTY_LIST_SIZE, EMPTY_LIST_SIZE);
 }
 
 // The blockLen size includes values and indexes, such as 32 values and indexes: blockLen=64

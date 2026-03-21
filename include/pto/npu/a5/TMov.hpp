@@ -39,7 +39,7 @@ __tf__ AICORE void TMovToBt(typename DstTileData::TileDType __out__ dst, typenam
     static_assert(dstCol * sizeof(DstType) <= BIAS_TABLE_SIZE,
                   "TMov: The memory occupation of BiasTile exceeds 4.0KB bias table size.");
 
-    __cbuf__ SrcType *srcAddrP = (__cbuf__ SrcType *)(src);
+    __cbuf__ SrcType *srcAddrP = (__cbuf__ SrcType *)__cce_get_tile_ptr(src);
     uint64_t dstAddrP = (uint64_t)dst;
 
     bool convControl = false;
@@ -73,8 +73,8 @@ __tf__ AICORE void TMovToFb(typename DstTileData::TileDType __out__ dst, typenam
     static_assert(dstCol * sizeof(DstType) <= FIXPIPE_BUFFER_SIZE,
                   "TMov: The memory occupation of FbTile exceeds 4.0KB fixpipe buffer size.");
 
-    __cbuf__ SrcType *srcAddrP = (__cbuf__ SrcType *)(src);
-    __fbuf__ DstType *dstAddrP = (__fbuf__ DstType *)(dst);
+    __cbuf__ SrcType *srcAddrP = (__cbuf__ SrcType *)__cce_get_tile_ptr(src);
+    __fbuf__ DstType *dstAddrP = (__fbuf__ DstType *)__cce_get_tile_ptr(dst);
 
     constexpr uint16_t burstNum = 1;
     constexpr int BURST_LEN_UNIT_SHIFT = 6; // BURST_LEN_UNIT = 64;
@@ -163,7 +163,7 @@ __tf__ AICORE void TMovCcToCb(typename DstTileData::TileDType __out__ dst, typen
     }
     auto srcStride = (validRow + BLOCK_LEN - 1) / BLOCK_LEN * BLOCK_LEN;
     __cbuf__ dstType *dstAddr = (__cbuf__ dstType *)__cce_get_tile_ptr(dst);
-    __cc__ srcType *srcData = (__cc__ srcType *)(src);
+    __cc__ srcType *srcData = (__cc__ srcType *)__cce_get_tile_ptr(src);
 
     copy_matrix_cc_to_cbuf(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, 0, 0, 0, QuantPre, reluMode,
                            channelSplitEnable, enableNz2Nd, 0, 0, false, false, 0, false, false, false, false, false,
@@ -215,7 +215,7 @@ __tf__ AICORE void TMovCcToUb(typename DstTileData::TileDType __out__ dst, typen
     }
     auto srcStride = (validRow + BLOCK_LEN - 1) / BLOCK_LEN * BLOCK_LEN;
     __ubuf__ dstType *dstAddr = (__ubuf__ dstType *)__cce_get_tile_ptr(dst);
-    __cc__ srcType *srcData = (__cc__ srcType *)(src);
+    __cc__ srcType *srcData = (__cc__ srcType *)__cce_get_tile_ptr(src);
     copy_matrix_cc_to_ub(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, dualDstCtl, subBlockId, 0, 0,
                          quantPre, reluMode, channelSplitEnable, enableNz2Nd, 0, 0, false, false, 0, false, false,
                          false, false, false, enableNz2Dn);

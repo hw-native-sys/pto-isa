@@ -30,13 +30,12 @@ __global__ AICORE void runTShlS(__gm__ T __out__ *out, __gm__ T __in__ *src0, T 
     TASSIGN(src0Tile, 0x0);
     TASSIGN(dstTile, 0x20000);
 
-    TLOAD(src0Tile, src0Global);
-    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    TSHLS(dstTile, src0Tile, scalar);
-    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-    TSTORE(dstGlobal, dstTile);
+    Event<Op::TLOAD, Op::TSHLS> event0;
+    Event<Op::TSHLS, Op::TSTORE_VEC> event1;
+
+    event0 = TLOAD(src0Tile, src0Global);
+    event1 = TSHLS(dstTile, src0Tile, scalar, event0);
+    TSTORE(dstGlobal, dstTile, event1);
     out = dstGlobal.data();
 }
 

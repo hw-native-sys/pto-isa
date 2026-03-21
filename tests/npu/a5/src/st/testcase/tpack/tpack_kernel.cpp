@@ -43,13 +43,17 @@ __global__ AICORE void runTPack(__gm__ DstType __out__ *out, __gm__ SrcType __in
 
     TLOAD(srcTile, srcGlobal);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
 
     TPACK(dstTile, srcTile);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
 
     TSTORE(dstGlobal, dstTile);
 }

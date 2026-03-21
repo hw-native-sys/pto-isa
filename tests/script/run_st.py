@@ -71,7 +71,8 @@ def set_env_variables(run_mode, soc_version):
         simulator_lib_path = os.path.join(ascend_home, "tools", "simulator", soc_version, "lib")
         os.environ["LD_LIBRARY_PATH"] = f"{simulator_lib_path}:{os.environ.get('LD_LIBRARY_PATH', '')}"
 
-def build_project(run_mode, soc_version, testcase = "all", debug_enable = False):
+
+def build_project(run_mode, soc_version, testcase="all", debug_enable=False, auto_enable=False):
     original_dir = os.getcwd()
     # 清理并创建build目录
     build_dir = "build"
@@ -90,6 +91,8 @@ def build_project(run_mode, soc_version, testcase = "all", debug_enable = False)
         ]
         if debug_enable :
             cmake_cmd.append("-DDEBUG_MODE=ON")
+        if auto_enable:
+            cmake_cmd.append("-DAUTO_MODE=ON")
 
         subprocess.run(
             cmake_cmd,
@@ -223,6 +226,7 @@ def main():
     parser.add_argument("-t", "--testcase", required=True, help="需要执行的用例")
     parser.add_argument("-g", "--gtest_filter", required=False, help="可选 需要执行的具体case名")
     parser.add_argument("-d", "--debug-enable", action='store_true', help="开启debug检查")
+    parser.add_argument("-a", "--auto-mode-enable", action='store_true', help="开启auto模式")
     parser.add_argument("-w", "--without-build", action='store_true', help="关闭编译（需要预先编译）")
     parser.add_argument("-n", "--nranks", type=int, default=8, help="comm测试的最大MPI rank数量（默认8，自动按2/4/8分轮执行）")
 
@@ -273,7 +277,7 @@ def main():
                 cwd=original_dir,
                 check=True)
         else:
-            build_project(args.run_mode, default_soc_version, testcase, args.debug_enable)
+            build_project(args.run_mode, default_soc_version, testcase, args.debug_enable, args.auto_mode_enable)
 
         # 生成标杆
         golden_path = "testcase/" + testcase + "/gen_data.py"

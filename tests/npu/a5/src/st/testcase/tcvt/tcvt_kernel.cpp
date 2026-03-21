@@ -107,8 +107,10 @@ __global__ AICORE void runTCVT(__gm__ T *out, __gm__ S *src)
 
     TLOAD(srcTile, srcGlobal);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
 
     // FP16->H8 conversion only supports ROUND_A or ROUND_H, use CAST_ROUND instead of CAST_RINT
     if constexpr (std::is_same_v<T, hifloat8_t> && std::is_same_v<S, half>) {
@@ -117,8 +119,10 @@ __global__ AICORE void runTCVT(__gm__ T *out, __gm__ S *src)
         TCVT(dstTile, srcTile, RoundMode::CAST_RINT);
     }
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
 
     TSTORE(dstGlobal, dstTile);
 
@@ -269,30 +273,38 @@ __global__ AICORE void runTCVTSaturationTest(__gm__ T *outSaturated, __gm__ T *o
     GlobalData_dst dstGlobalDefault(outDefault);
 
     TLOAD(srcTile, srcGlobal);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
 
     // Test 1: Saturation mode ON (default)
     // Out-of-range values clamp to [min, max]
     // Example: 300.0f -> int8 = 127 (max for int8)
     TCVT(dstTileSat, srcTile, RoundMode::CAST_RINT, SaturationMode::ON);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID1);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID1);
+#endif
 
     // Test 2: Saturation mode OFF (truncation)
     // Convert to int64, then extract low N bits
     // Example: 300.0f -> int8 = 44 (0x12C & 0xFF = 0x2C = 44)
     TCVT(dstTileTrunc, srcTile, RoundMode::CAST_RINT, SaturationMode::OFF);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID2);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID2);
+#endif
 
     // Test 3: Default mode (no explicit saturation parameter)
     // Uses type-based defaults: OFF for fp16→uint8/int8, fp32/fp16→int16, int64→int32, int32→int16
     // All other conversions use ON
     TCVT(dstTileDefault, srcTile, RoundMode::CAST_RINT);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID3);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID3);
+#endif
 
     TSTORE(dstGlobalSat, dstTileSat);
     TSTORE(dstGlobalTrunc, dstTileTrunc);

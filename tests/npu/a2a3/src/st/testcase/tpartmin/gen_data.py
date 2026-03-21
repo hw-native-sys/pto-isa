@@ -43,15 +43,15 @@ class TPartMinTestParams:
 
 if __name__ == "__main__":
     case_list = [
-        TPartMinTestParams('TPARTMINTEST.test0', np.float32, (16, 32, 32), (16, 16, 16), (16, 32, 32)),
-        TPartMinTestParams('TPARTMINTEST.test1', np.float32, (22, 32, 32), (22, 32, 32), (16, 32, 32)),
-        TPartMinTestParams('TPARTMINTEST.test2', np.float32, (22, 40, 40), (22, 40, 40), (22, 32, 32)),
-        TPartMinTestParams('TPARTMINTEST.test3', np.float32, (22, 40, 40), (22, 40, 40), (8, 40, 40)),
-        TPartMinTestParams('TPARTMINTEST.test4', np.float32, (64, 128, 128), (64, 128, 128), (64, 128, 128)),
-        TPartMinTestParams('TPARTMINTEST.testEmpty0', np.float32, (16, 32, 32), (16, 0, 8), (16, 32, 32)),
-        TPartMinTestParams('TPARTMINTEST.testEmpty1', np.float32, (16, 32, 32), (0, 32, 32), (16, 32, 32)),
-        TPartMinTestParams('TPARTMINTEST.testEmpty2', np.float32, (16, 32, 32), (16, 32, 32), (16, 0, 8)),
-        TPartMinTestParams('TPARTMINTEST.testEmpty3', np.float32, (16, 32, 32), (16, 32, 32), (0, 32, 32)),
+        TPartMinTestParams('TPARTMINTest.test0', np.float32, (16, 32, 32), (16, 16, 16), (16, 32, 32)),
+        TPartMinTestParams('TPARTMINTest.test1', np.float32, (22, 32, 32), (22, 32, 32), (16, 32, 32)),
+        TPartMinTestParams('TPARTMINTest.test2', np.float32, (22, 40, 40), (22, 40, 40), (22, 32, 32)),
+        TPartMinTestParams('TPARTMINTest.test3', np.float32, (22, 40, 40), (22, 40, 40), (8, 40, 40)),
+        TPartMinTestParams('TPARTMINTest.test4', np.float32, (64, 128, 128), (64, 128, 128), (64, 128, 128)),
+        TPartMinTestParams('TPARTMINTest.testEmpty0', np.float32, (16, 32, 32), (16, 0, 8), (16, 32, 32)),
+        TPartMinTestParams('TPARTMINTest.testEmpty1', np.float32, (16, 32, 32), (0, 32, 32), (16, 32, 32)),
+        TPartMinTestParams('TPARTMINTest.testEmpty2', np.float32, (16, 32, 32), (16, 32, 32), (16, 0, 8)),
+        TPartMinTestParams('TPARTMINTest.testEmpty3', np.float32, (16, 32, 32), (16, 32, 32), (0, 32, 32)),
     ]
 
     for case in case_list:

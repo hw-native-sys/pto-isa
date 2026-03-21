@@ -58,117 +58,32 @@ AICORE inline constexpr SLayout GetTileSLayout()
     }
 }
 
-template <typename AType, typename BType, typename FbType, int M, int K, int N, int validM, int validK, int validN>
-AICORE inline void RunMATMUL(__gm__ AType *src0, __gm__ BType *src1, __gm__ FbType *src2)
+template <typename DstTileData, typename SrcTileData>
+__tf__ PTO_INTERNAL void tf_copy_cbuf_to_ubuf(typename DstTileData::TileDType __out__ dst,
+                                              typename SrcTileData::TileDType __in__ src, uint16_t nBurst,
+                                              uint16_t lenBurst)
 {
-    using GlobalDataSrc0 =
-        GlobalTensor<AType, pto::Shape<1, 1, 1, validM, validK>,
-                     pto::Stride<1 * validM * validK, 1 * validM * validK, validM * validK, validK, 1>>;
-    using GlobalDataSrc1 =
-        GlobalTensor<BType, pto::Shape<1, 1, 1, validK, validN>,
-                     pto::Stride<1 * validK * validN, 1 * validK * validN, validK * validN, validN, 1>>;
-    GlobalDataSrc0 src0Global(src0);
-    GlobalDataSrc1 src1Global(src1);
+    __ubuf__ typename DstTileData::DType *dstTileAddr = __cce_get_tile_ptr(dst);
+    __cbuf__ typename SrcTileData::DType *srcTileAddr = __cce_get_tile_ptr(src);
 
-    using TileMatAData = Tile<TileType::Mat, AType, M, K, BLayout::ColMajor, validM, validK, SLayout::RowMajor, 512>;
-    using TileMatBData = Tile<TileType::Mat, BType, K, N, BLayout::ColMajor, validK, validN, SLayout::RowMajor, 512>;
-    TileMatAData aMatTile;
-    TileMatBData bMatTile;
-    TASSIGN(aMatTile, 0x0);
-    TASSIGN(bMatTile, 0x10000);
-
-    using LeftTile = TileLeft<AType, M, K, validM, validK>;
-    using RightTile = TileRight<BType, K, N, validK, validN>;
-    using AccTile = TileAcc<CType<AType>, M, N, validM, validN>;
-    AccTile cTile;
-    LeftTile aTile;
-    RightTile bTile;
-    TASSIGN(aTile, 0x0);
-    TASSIGN(bTile, 0x0);
-    TASSIGN(cTile, 0x0);
-#if defined(__DAV_CUBE__)
-    /*************************************TLOAD****************************************/
-    TLOAD(aMatTile, src0Global);
-    TLOAD(bMatTile, src1Global);
-    if (src2 != nullptr) {
-        using GlobalDataSrc2 = GlobalTensor<FbType, pto::Shape<1, 1, 1, 1, validN>,
-                                            pto::Stride<1 * validN, 1 * validN, 1 * validN, validN, 1>>;
-        GlobalDataSrc2 src2Global(src2);
-        using TileMatFbData = Tile<TileType::Mat, FbType, 1, N, BLayout::RowMajor, 1, validN, SLayout::NoneBox>;
-        TileMatFbData fbMatTile;
-        TASSIGN(fbMatTile, 0x20000);
-        TLOAD(fbMatTile, src2Global);
-    }
-    set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
-    wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
-    /**********************************TMOV && TEXTRACT**********************************/
-    TMOV(aTile, aMatTile);
-    TMOV(bTile, bMatTile);
-
-    set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
-    wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
-
-    /**********************************TMATMUL**********************************/
-    TMATMUL(cTile, aTile, bTile);
-
-    set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
-    wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
-#endif
+    copy_cbuf_to_ubuf(dstTileAddr, srcTileAddr, 0, nBurst, lenBurst, 0, 0);
 }
 
-template <typename AType, typename BType, typename FbType, int M, int K, int N, int validM, int validK, int validN>
-AICORE inline void RunMATMUL_NZUNALIGN(__gm__ AType *src0, __gm__ BType *src1, __gm__ FbType *src2)
+template <typename GlobalData, typename TileData>
+__tf__ PTO_INTERNAL void tf_copy_ubuf_to_gm(typename GlobalData::DType __out__ *dst,
+                                            typename TileData::TileDType __in__ src, int startDstAddr, int gShape0,
+                                            int gStride0, uint16_t nBurst, uint32_t lenBurst, uint64_t burstDstStride,
+                                            uint32_t burstSrcStride, int64_t tileStride)
 {
-    using GlobalDataSrc0 =
-        GlobalTensor<AType, pto::Shape<1, 1, 1, M, K>, pto::Stride<1 * M * K, 1 * M * K, M * K, K, 1>>;
-    using GlobalDataSrc1 =
-        GlobalTensor<BType, pto::Shape<1, 1, 1, K, N>, pto::Stride<1 * K * N, 1 * K * N, K * N, N, 1>>;
-    GlobalDataSrc0 src0Global(src0);
-    GlobalDataSrc1 src1Global(src1);
-
-    using TileMatAData = Tile<TileType::Mat, AType, M, K, BLayout::ColMajor, M, K, SLayout::RowMajor, 512>;
-    using TileMatBData = Tile<TileType::Mat, BType, K, N, BLayout::ColMajor, K, N, SLayout::RowMajor, 512>;
-    TileMatAData aMatTile;
-    TileMatBData bMatTile;
-    TASSIGN(aMatTile, 0x0);
-    TASSIGN(bMatTile, 0x10000);
-
-    using LeftTile = TileLeft<AType, M, K, M, K>;
-    using RightTile = TileRight<BType, K, N, K, N>;
-    using AccTile = TileAcc<CType<AType>, M, N, validM, validN>;
-    LeftTile aTile;
-    RightTile bTile;
-    AccTile cTile;
-    TASSIGN(aTile, 0x0);
-    TASSIGN(bTile, 0x0);
-    TASSIGN(cTile, 0x0);
-#if defined(__DAV_CUBE__)
-    /*************************************TLOAD****************************************/
-    TLOAD(aMatTile, src0Global);
-    TLOAD(bMatTile, src1Global);
-    if (src2 != nullptr) {
-        using GlobalDataSrc2 = GlobalTensor<FbType, pto::Shape<1, 1, 1, 1, N>, pto::Stride<1 * N, 1 * N, 1 * N, N, 1>>;
-        GlobalDataSrc2 src2Global(src2);
-        using TileMatFbData = Tile<TileType::Mat, FbType, 1, N, BLayout::RowMajor, 1, N, SLayout::NoneBox>;
-        TileMatFbData fbMatTile;
-        TASSIGN(fbMatTile, 0x20000);
-        TLOAD(fbMatTile, src2Global);
+    typename GlobalData::DType *dstAddr = dst;
+    __ubuf__ typename TileData::DType *srcAddr = __cce_get_tile_ptr(src);
+    typename GlobalData::DType *dstGlobalAddr = dstAddr;
+    __ubuf__ typename TileData::DType *srcTileAddr = srcAddr;
+    for (uint32_t k = 0; k < gShape0; k++) {
+        dstGlobalAddr = dstAddr + k * gStride0;
+        srcTileAddr = srcAddr + k * tileStride + startDstAddr;
+        copy_ubuf_to_gm_align_v2(dstGlobalAddr, srcTileAddr, 0, nBurst, lenBurst, 0, burstDstStride, burstSrcStride);
     }
-
-    set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
-    wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
-
-    /**********************************TMOV && TEXTRACT**********************************/
-    TMOV(aTile, aMatTile);
-    TMOV(bTile, bMatTile);
-    set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
-    wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
-    /**********************************TMATMUL**********************************/
-    TMATMUL(cTile, aTile, bTile);
-
-    set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
-    wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
-#endif
 }
 
 template <typename T, typename GlobalData, typename TileData>
@@ -186,15 +101,8 @@ AICORE inline void VecCopyOut(GlobalData &dst, TileData &src, int rows, int cols
     uint64_t burstDstStride = gStride1 * sizeof(typename TileData::DType);
     uint32_t burstSrcStride = TileData::Rows * c0Size;
     int64_t tileStride = gShape1 * TileData::Rows * gShape4;
-    typename GlobalData::DType *dstAddr = dst.data();
-    __ubuf__ typename TileData::DType *srcAddr = src.data();
-    typename GlobalData::DType *dstGlobalAddr = dstAddr;
-    __ubuf__ typename TileData::DType *srcTileAddr = srcAddr;
-    for (uint32_t k = 0; k < gShape0; k++) {
-        dstGlobalAddr = dstAddr + k * gStride0;
-        srcTileAddr = srcAddr + k * tileStride + startDstAddr;
-        copy_ubuf_to_gm_align_v2(dstGlobalAddr, srcTileAddr, 0, nBurst, lenBurst, 0, burstDstStride, burstSrcStride);
-    }
+    tf_copy_ubuf_to_gm<GlobalData, TileData>(dst.data(), src.data(), startDstAddr, gShape0, gStride0, nBurst, lenBurst,
+                                             burstDstStride, burstSrcStride, tileStride);
 }
 
 template <typename OutType, typename SrcTileData, int validM, int validN, Layout layoutType = Layout::ND,
@@ -235,15 +143,9 @@ AICORE inline void RunTSTORE(__gm__ OutType *out, SrcTileData &srcTile)
 template <typename T, typename DstTileData, typename SrcTileData, int row, int col>
 AICORE inline void TMOVMat2Vec(DstTileData &dst, SrcTileData &src)
 {
-    __ubuf__ typename DstTileData::DType *dstAddr = dst.data();
-    __cbuf__ typename SrcTileData::DType *srcAddr = src.data();
-    __ubuf__ typename DstTileData::DType *dstTileAddr = dstAddr;
-    __cbuf__ typename SrcTileData::DType *srcTileAddr = srcAddr;
-
     uint16_t nBurst = 1;
     uint16_t lenBurst = row * col * sizeof(T) / 32;
-
-    copy_cbuf_to_ubuf(dstTileAddr, srcTileAddr, 0, nBurst, lenBurst, 0, 0);
+    tf_copy_cbuf_to_ubuf<DstTileData, SrcTileData>(dst.data(), src.data(), nBurst, lenBurst);
 }
 
 template <typename OutType, typename AType, typename BType, int validM, int validK, int validN, int row, int col,
@@ -258,14 +160,9 @@ __global__ AICORE void RunTMOV(__gm__ OutType *out, __gm__ AType *src0, __gm__ B
     constexpr int copyOutM = isInsert ? dstRow : (validM - indexRow);
     constexpr int copyOutN = isInsert ? dstCol : (validN - indexCol);
 
-    if constexpr (!isNZUnalign) {
-        RunMATMUL<AType, BType, OutType, M, K, N, validM, validK, validN>(src0, src1, nullptr);
-    } else {
-        RunMATMUL_NZUNALIGN<AType, BType, OutType, M, K, N, validM, validK, validN>(src0, src1, nullptr);
-    }
-
     constexpr int staticRow = isInsert ? copyOutM : row;
     constexpr int staticCol = isInsert ? copyOutN : col;
+
     using SrcTileData =
         std::conditional_t<isNZUnalign,
                            Tile<TileType::Mat, OutType, row, col, GetTileBLayout<layoutType>(), row, col,
@@ -278,16 +175,90 @@ __global__ AICORE void RunTMOV(__gm__ OutType *out, __gm__ AType *src0, __gm__ B
                                 GetTileSLayout<layoutType>(), sfractalSize>,
                            Tile<TileType::Vec, OutType, staticRow, staticCol, GetTileBLayout<layoutType>(), copyOutM,
                                 copyOutN, GetTileSLayout<layoutType>(), sfractalSize>>;
+
+    using GlobalDataSrc0 = std::conditional_t<
+        isNZUnalign, GlobalTensor<AType, pto::Shape<1, 1, 1, M, K>, pto::Stride<1 * M * K, 1 * M * K, M * K, K, 1>>,
+        GlobalTensor<AType, pto::Shape<1, 1, 1, validM, validK>,
+                     pto::Stride<1 * validM * validK, 1 * validM * validK, validM * validK, validK, 1>>>;
+
+    using GlobalDataSrc1 = std::conditional_t<
+        isNZUnalign, GlobalTensor<BType, pto::Shape<1, 1, 1, K, N>, pto::Stride<1 * K * N, 1 * K * N, K * N, N, 1>>,
+        GlobalTensor<BType, pto::Shape<1, 1, 1, validK, validN>,
+                     pto::Stride<1 * validK * validN, 1 * validK * validN, validK * validN, validN, 1>>>;
+
+    using TileMatAData =
+        std::conditional_t<isNZUnalign,
+                           Tile<TileType::Mat, AType, M, K, BLayout::ColMajor, M, K, SLayout::RowMajor, 512>,
+                           Tile<TileType::Mat, AType, M, K, BLayout::ColMajor, validM, validK, SLayout::RowMajor, 512>>;
+
+    using TileMatBData =
+        std::conditional_t<isNZUnalign,
+                           Tile<TileType::Mat, BType, K, N, BLayout::ColMajor, K, N, SLayout::RowMajor, 512>,
+                           Tile<TileType::Mat, BType, K, N, BLayout::ColMajor, validK, validN, SLayout::RowMajor, 512>>;
+
+    using LeftTile =
+        std::conditional_t<isNZUnalign, TileLeft<AType, M, K, M, K>, TileLeft<AType, M, K, validM, validK>>;
+
+    using RightTile =
+        std::conditional_t<isNZUnalign, TileRight<BType, K, N, K, N>, TileRight<BType, K, N, validK, validN>>;
+
     using AccTile = TileAcc<CType<AType>, M, N, validM, validN>;
-    SrcTileData srcTileData;
-    DstTileData dstTileData;
+
+    GlobalDataSrc0 src0Global(src0);
+    GlobalDataSrc1 src1Global(src1);
+
+    TileMatAData aMatTile;
+    TileMatBData bMatTile;
+
     AccTile cTile;
+
+    LeftTile aTile;
+
+    RightTile bTile;
+
+    DstTileData dstTileData;
+
+    TASSIGN(aMatTile, 0x0);
+    TASSIGN(bMatTile, 0x10000);
+
+    TASSIGN(aTile, 0x0);
+
+    TASSIGN(bTile, 0x0);
+
     TASSIGN(cTile, 0x0);
-    TASSIGN(srcTileData, 0x0);
+
     TASSIGN(dstTileData, 0x0);
+
+#if defined(__DAV_CUBE__)
+    TLOAD(aMatTile, src0Global);
+    TLOAD(bMatTile, src1Global);
+
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
+
+    TMOV(aTile, aMatTile);
+    TMOV(bTile, bMatTile);
+
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+    wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
+
+    TMATMUL(cTile, aTile, bTile);
+
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+    wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
+#endif
+
     uint8_t syncId = 0;
 
 #if defined(__DAV_CUBE__)
+    SrcTileData srcTileData;
+    TASSIGN(srcTileData, 0x0);
     if constexpr (isRelu) {
         TMOV<SrcTileData, AccTile, ReluPreMode::NormalRelu>(srcTileData, cTile);
     } else {
@@ -300,24 +271,32 @@ __global__ AICORE void RunTMOV(__gm__ OutType *out, __gm__ AType *src0, __gm__ B
                 OutType, pto::Shape<1, 1, 1, copyOutM, copyOutN>,
                 pto::Stride<1 * copyOutM * copyOutN, 1 * copyOutM * copyOutN, copyOutM * copyOutN, copyOutN, 1>>;
             GlobalDataSrc2 src2Global(src2);
+#ifndef __PTO_AUTO__
             set_flag(PIPE_M, PIPE_MTE2, EVENT_ID0);
             wait_flag(PIPE_M, PIPE_MTE2, EVENT_ID0);
+#endif
             TLOAD(srcTileData, src2Global);
+#ifndef __PTO_AUTO__
             set_flag(PIPE_MTE2, PIPE_FIX, EVENT_ID0);
             wait_flag(PIPE_MTE2, PIPE_FIX, EVENT_ID0);
+#endif
             TINSERT(srcTileData, cTile, indexRow, indexCol);
         }
     }
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_FIX, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_FIX, PIPE_MTE1, EVENT_ID0);
+#endif
 
     TMOVMat2Vec<OutType, DstTileData, SrcTileData, staticRow, staticCol>(dstTileData, srcTileData);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_FIX, EVENT_ID0);
-    set_intra_block(PIPE_FIX, syncId);
-    set_intra_block(PIPE_FIX, syncId + 16);
+#endif
+    set_intra_block(PIPE_MTE1, syncId);
+    set_intra_block(PIPE_MTE1, syncId + 16);
 #endif
 #if defined(__DAV_VEC__)
     wait_intra_block(PIPE_MTE3, syncId);
@@ -341,13 +320,6 @@ __global__ AICORE void RunTMOVFBQuant(__gm__ OutType *out, __gm__ AType *src0, _
     constexpr int K = CeilAlign<int>(validK, blockAlign);
     constexpr int copyOutM = isInsert ? dstRow : (validM - indexRow);
     constexpr int copyOutN = isInsert ? dstCol : (validN - indexCol);
-
-    if constexpr (!isNZUnalign) {
-        RunMATMUL<AType, BType, FbType, M, K, N, validM, validK, validN>(src0, src1, src2);
-    } else {
-        RunMATMUL_NZUNALIGN<AType, BType, FbType, M, K, N, validM, validK, validN>(src0, src1, src2);
-    }
-
     constexpr int staticRow = isInsert ? copyOutM : row;
     constexpr int staticCol = isInsert ? copyOutN : col;
     using SrcTileData =
@@ -362,26 +334,121 @@ __global__ AICORE void RunTMOVFBQuant(__gm__ OutType *out, __gm__ AType *src0, _
                                 GetTileSLayout<layoutType>(), sfractalSize>,
                            Tile<TileType::Vec, OutType, staticRow, staticCol, GetTileBLayout<layoutType>(), copyOutM,
                                 copyOutN, GetTileSLayout<layoutType>(), sfractalSize>>;
+
+    using GlobalDataSrc0 = std::conditional_t<
+        isNZUnalign, GlobalTensor<AType, pto::Shape<1, 1, 1, M, K>, pto::Stride<1 * M * K, 1 * M * K, M * K, K, 1>>,
+        GlobalTensor<AType, pto::Shape<1, 1, 1, validM, validK>,
+                     pto::Stride<1 * validM * validK, 1 * validM * validK, validM * validK, validK, 1>>>;
+
+    using GlobalDataSrc1 = std::conditional_t<
+        isNZUnalign, GlobalTensor<BType, pto::Shape<1, 1, 1, K, N>, pto::Stride<1 * K * N, 1 * K * N, K * N, N, 1>>,
+        GlobalTensor<BType, pto::Shape<1, 1, 1, validK, validN>,
+                     pto::Stride<1 * validK * validN, 1 * validK * validN, validK * validN, validN, 1>>>;
+
+    using TileMatAData =
+        std::conditional_t<isNZUnalign,
+                           Tile<TileType::Mat, AType, M, K, BLayout::ColMajor, M, K, SLayout::RowMajor, 512>,
+                           Tile<TileType::Mat, AType, M, K, BLayout::ColMajor, validM, validK, SLayout::RowMajor, 512>>;
+
+    using TileMatBData =
+        std::conditional_t<isNZUnalign,
+                           Tile<TileType::Mat, BType, K, N, BLayout::ColMajor, K, N, SLayout::RowMajor, 512>,
+                           Tile<TileType::Mat, BType, K, N, BLayout::ColMajor, validK, validN, SLayout::RowMajor, 512>>;
+
+    using LeftTile =
+        std::conditional_t<isNZUnalign, TileLeft<AType, M, K, M, K>, TileLeft<AType, M, K, validM, validK>>;
+
+    using RightTile =
+        std::conditional_t<isNZUnalign, TileRight<BType, K, N, K, N>, TileRight<BType, K, N, validK, validN>>;
+
     using AccTile = TileAcc<CType<AType>, M, N, validM, validN>;
-    AccTile cTile;
-    TASSIGN(cTile, 0x0);
-    uint8_t syncId = 0;
 
-    using TileMatFbData = Tile<TileType::Mat, FbType, 1, N, BLayout::RowMajor, 1, validN, SLayout::NoneBox>;
-    TileMatFbData fbMatTile;
-    TASSIGN(fbMatTile, 0x20000);
+    using GlobalDataSrc2 =
+        std::conditional_t<isNZUnalign,
+                           GlobalTensor<FbType, pto::Shape<1, 1, 1, 1, N>, pto::Stride<1 * N, 1 * N, 1 * N, N, 1>>,
+                           GlobalTensor<FbType, pto::Shape<1, 1, 1, 1, validN>,
+                                        pto::Stride<1 * validN, 1 * validN, 1 * validN, validN, 1>>>;
+
+    using TileMatFbData =
+        std::conditional_t<isNZUnalign, Tile<TileType::Mat, FbType, 1, N, BLayout::RowMajor, 1, N, SLayout::NoneBox>,
+                           Tile<TileType::Mat, FbType, 1, N, BLayout::RowMajor, 1, validN, SLayout::NoneBox>>;
+
     using FbTile = Tile<TileType::Scaling, FbType, 1, N, BLayout::RowMajor, 1, validN, SLayout::NoneBox>;
-    FbTile fbTile;
-    TASSIGN(fbTile, 0x0);
 
-    SrcTileData srcTileData;
+    GlobalDataSrc0 src0Global(src0);
+    GlobalDataSrc1 src1Global(src1);
+
+    TileMatAData aMatTile;
+    TileMatBData bMatTile;
+    TileMatFbData fbMatTile;
+
+    AccTile cTile;
+
+    LeftTile aTile;
+
+    RightTile bTile;
+
     DstTileData dstTileData;
-    TASSIGN(srcTileData, 0x0);
+
+    FbTile fbTile;
+
+    TASSIGN(aMatTile, 0x0);
+    TASSIGN(bMatTile, 0x10000);
+    TASSIGN(fbMatTile, 0x20000);
+
+    TASSIGN(aTile, 0x0);
+
+    TASSIGN(bTile, 0x0);
+
+    TASSIGN(cTile, 0x0);
+
     TASSIGN(dstTileData, 0x0);
 
+    TASSIGN(fbTile, 0x0);
+
 #if defined(__DAV_CUBE__)
+    TLOAD(aMatTile, src0Global);
+    TLOAD(bMatTile, src1Global);
+
+    if (src2 != nullptr) {
+        GlobalDataSrc2 src2Global(src2);
+        TLOAD(fbMatTile, src2Global);
+    }
+
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE2, PIPE_FIX, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_FIX, EVENT_ID0);
+#endif
+
     TMOV(fbTile, fbMatTile);
 
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
+
+    TMOV(aTile, aMatTile);
+    TMOV(bTile, bMatTile);
+
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+    wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
+
+    TMATMUL(cTile, aTile, bTile);
+
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+    wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
+
+#endif
+
+    uint8_t syncId = 0;
+
+#if defined(__DAV_CUBE__)
+    SrcTileData srcTileData;
+    TASSIGN(srcTileData, 0x0);
     if constexpr (isRelu) {
         TMOV_FP<SrcTileData, AccTile, FbTile, ReluPreMode::NormalRelu>(srcTileData, cTile, fbTile);
     } else {
@@ -395,24 +462,32 @@ __global__ AICORE void RunTMOVFBQuant(__gm__ OutType *out, __gm__ AType *src0, _
                 OutType, pto::Shape<1, 1, 1, copyOutM, copyOutN>,
                 pto::Stride<1 * copyOutM * copyOutN, 1 * copyOutM * copyOutN, copyOutM * copyOutN, copyOutN, 1>>;
             GlobalDataSrc3 src3Global(src3);
+#ifndef __PTO_AUTO__
             set_flag(PIPE_M, PIPE_MTE2, EVENT_ID0);
             wait_flag(PIPE_M, PIPE_MTE2, EVENT_ID0);
+#endif
             TLOAD(srcTileData, src3Global);
+#ifndef __PTO_AUTO__
             set_flag(PIPE_MTE2, PIPE_FIX, EVENT_ID0);
             wait_flag(PIPE_MTE2, PIPE_FIX, EVENT_ID0);
+#endif
             TINSERT_FP<SrcTileData, AccTile, FbTile>(srcTileData, cTile, fbTile, indexRow, indexCol);
         }
     }
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_FIX, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_FIX, PIPE_MTE1, EVENT_ID0);
+#endif
 
     TMOVMat2Vec<OutType, DstTileData, SrcTileData, staticRow, staticCol>(dstTileData, srcTileData);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_FIX, EVENT_ID0);
-    set_intra_block(PIPE_FIX, syncId);
-    set_intra_block(PIPE_FIX, syncId + 16);
+#endif
+    set_intra_block(PIPE_MTE1, syncId);
+    set_intra_block(PIPE_MTE1, syncId + 16);
 #endif
 #if defined(__DAV_VEC__)
     wait_intra_block(PIPE_MTE3, syncId);
@@ -436,12 +511,6 @@ __global__ AICORE void RunTMOVSCQuant(__gm__ OutType *out, __gm__ AType *src0, _
     constexpr int copyOutM = isInsert ? dstRow : (validM - indexRow);
     constexpr int copyOutN = isInsert ? dstCol : (validN - indexCol);
 
-    if constexpr (!isNZUnalign) {
-        RunMATMUL<AType, BType, OutType, M, K, N, validM, validK, validN>(src0, src1, nullptr);
-    } else {
-        RunMATMUL_NZUNALIGN<AType, BType, OutType, M, K, N, validM, validK, validN>(src0, src1, nullptr);
-    }
-
     constexpr int staticRow = isInsert ? copyOutM : row;
     constexpr int staticCol = isInsert ? copyOutN : col;
     using SrcTileData =
@@ -456,14 +525,107 @@ __global__ AICORE void RunTMOVSCQuant(__gm__ OutType *out, __gm__ AType *src0, _
                                 GetTileSLayout<layoutType>(), sfractalSize>,
                            Tile<TileType::Vec, OutType, staticRow, staticCol, GetTileBLayout<layoutType>(), copyOutM,
                                 copyOutN, GetTileSLayout<layoutType>(), sfractalSize>>;
+
+    using SrcTileData =
+        std::conditional_t<isNZUnalign,
+                           Tile<TileType::Mat, OutType, row, col, GetTileBLayout<layoutType>(), row, col,
+                                GetTileSLayout<layoutType>(), sfractalSize>,
+                           Tile<TileType::Mat, OutType, staticRow, staticCol, GetTileBLayout<layoutType>(), copyOutM,
+                                copyOutN, GetTileSLayout<layoutType>(), sfractalSize>>;
+    using DstTileData =
+        std::conditional_t<isNZUnalign,
+                           Tile<TileType::Vec, OutType, row, col, GetTileBLayout<layoutType>(), row, col,
+                                GetTileSLayout<layoutType>(), sfractalSize>,
+                           Tile<TileType::Vec, OutType, staticRow, staticCol, GetTileBLayout<layoutType>(), copyOutM,
+                                copyOutN, GetTileSLayout<layoutType>(), sfractalSize>>;
+
+    using GlobalDataSrc0 = std::conditional_t<
+        isNZUnalign, GlobalTensor<AType, pto::Shape<1, 1, 1, M, K>, pto::Stride<1 * M * K, 1 * M * K, M * K, K, 1>>,
+        GlobalTensor<AType, pto::Shape<1, 1, 1, validM, validK>,
+                     pto::Stride<1 * validM * validK, 1 * validM * validK, validM * validK, validK, 1>>>;
+
+    using GlobalDataSrc1 = std::conditional_t<
+        isNZUnalign, GlobalTensor<BType, pto::Shape<1, 1, 1, K, N>, pto::Stride<1 * K * N, 1 * K * N, K * N, N, 1>>,
+        GlobalTensor<BType, pto::Shape<1, 1, 1, validK, validN>,
+                     pto::Stride<1 * validK * validN, 1 * validK * validN, validK * validN, validN, 1>>>;
+
+    using TileMatAData =
+        std::conditional_t<isNZUnalign,
+                           Tile<TileType::Mat, AType, M, K, BLayout::ColMajor, M, K, SLayout::RowMajor, 512>,
+                           Tile<TileType::Mat, AType, M, K, BLayout::ColMajor, validM, validK, SLayout::RowMajor, 512>>;
+
+    using TileMatBData =
+        std::conditional_t<isNZUnalign,
+                           Tile<TileType::Mat, BType, K, N, BLayout::ColMajor, K, N, SLayout::RowMajor, 512>,
+                           Tile<TileType::Mat, BType, K, N, BLayout::ColMajor, validK, validN, SLayout::RowMajor, 512>>;
+
+    using LeftTile =
+        std::conditional_t<isNZUnalign, TileLeft<AType, M, K, M, K>, TileLeft<AType, M, K, validM, validK>>;
+
+    using RightTile =
+        std::conditional_t<isNZUnalign, TileRight<BType, K, N, K, N>, TileRight<BType, K, N, validK, validN>>;
+
     using AccTile = TileAcc<CType<AType>, M, N, validM, validN>;
+
+    using GlobalDataSrc2 =
+        std::conditional_t<isNZUnalign,
+                           GlobalTensor<OutType, pto::Shape<1, 1, 1, 1, N>, pto::Stride<1 * N, 1 * N, 1 * N, N, 1>>,
+                           GlobalTensor<OutType, pto::Shape<1, 1, 1, 1, validN>,
+                                        pto::Stride<1 * validN, 1 * validN, 1 * validN, validN, 1>>>;
+
+    GlobalDataSrc0 src0Global(src0);
+    GlobalDataSrc1 src1Global(src1);
+
+    TileMatAData aMatTile;
+    TileMatBData bMatTile;
+
     AccTile cTile;
-    TASSIGN(cTile, 0x0);
-    uint8_t syncId = 0;
+
+    LeftTile aTile;
+
+    RightTile bTile;
+
     SrcTileData srcTileData;
     DstTileData dstTileData;
+
+    TASSIGN(aMatTile, 0x0);
+    TASSIGN(bMatTile, 0x10000);
+
+    TASSIGN(aTile, 0x0);
+
+    TASSIGN(bTile, 0x0);
+
+    TASSIGN(cTile, 0x0);
+
     TASSIGN(srcTileData, 0x0);
     TASSIGN(dstTileData, 0x0);
+
+#if defined(__DAV_CUBE__)
+    TLOAD(aMatTile, src0Global);
+    TLOAD(bMatTile, src1Global);
+
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
+
+    TMOV(aTile, aMatTile);
+    TMOV(bTile, bMatTile);
+
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+    wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
+
+    TMATMUL(cTile, aTile, bTile);
+
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+    wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
+#endif
+
+    uint8_t syncId = 0;
 
 #if defined(__DAV_CUBE__)
     uint64_t preScalar = static_cast<uint64_t>(*reinterpret_cast<int32_t *>(&scalar));
@@ -483,24 +645,32 @@ __global__ AICORE void RunTMOVSCQuant(__gm__ OutType *out, __gm__ AType *src0, _
                 OutType, pto::Shape<1, 1, 1, copyOutM, copyOutN>,
                 pto::Stride<1 * copyOutM * copyOutN, 1 * copyOutM * copyOutN, copyOutM * copyOutN, copyOutN, 1>>;
             GlobalDataSrc2 src2Global(src2);
+#ifndef __PTO_AUTO__
             set_flag(PIPE_M, PIPE_MTE2, EVENT_ID0);
             wait_flag(PIPE_M, PIPE_MTE2, EVENT_ID0);
+#endif
             TLOAD(srcTileData, src2Global);
+#ifndef __PTO_AUTO__
             set_flag(PIPE_MTE2, PIPE_FIX, EVENT_ID0);
             wait_flag(PIPE_MTE2, PIPE_FIX, EVENT_ID0);
+#endif
             TINSERT(srcTileData, cTile, preScalar, indexRow, indexCol);
         }
     }
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_FIX, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_FIX, PIPE_MTE1, EVENT_ID0);
+#endif
 
     TMOVMat2Vec<OutType, DstTileData, SrcTileData, staticRow, staticCol>(dstTileData, srcTileData);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_FIX, EVENT_ID0);
-    set_intra_block(PIPE_FIX, syncId);
-    set_intra_block(PIPE_FIX, syncId + 16);
+#endif
+    set_intra_block(PIPE_MTE1, syncId);
+    set_intra_block(PIPE_MTE1, syncId + 16);
 #endif
 #if defined(__DAV_VEC__)
     wait_intra_block(PIPE_MTE3, syncId);

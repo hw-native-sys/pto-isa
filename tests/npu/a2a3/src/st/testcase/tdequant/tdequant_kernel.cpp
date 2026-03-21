@@ -45,11 +45,15 @@ __global__ AICORE void runTDequant(__gm__ dstDType __out__ *out, __gm__ srcDType
     TLOAD(srcTile, srcGlobal);
     TLOAD(scaleTile, scaleGlobal);
     TLOAD(offsetTile, offsetGlobal);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
     TDEQUANT(dstTile, srcTile, scaleTile, offsetTile);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
     TSTORE(dstGlobal, dstTile);
     out = dstGlobal.data();
 }

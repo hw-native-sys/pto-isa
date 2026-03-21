@@ -14,6 +14,21 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
+template <typename TileData>
+__tf__ PTO_INTERNAL void tf_create_cbuf_matrix(typename TileData::TileDType __out__ tile, int64_t repeat_bit, int n)
+{
+    create_cbuf_matrix((__cbuf__ uint16_t *)__cce_get_tile_ptr(tile), repeat_bit, n);
+}
+
+template <typename TileDataDst, typename TileDataSrc>
+__tf__ PTO_INTERNAL void tf_copy_cbuf_to_ubuf(typename TileDataDst::TileDType __out__ dst,
+                                              typename TileDataSrc::TileDType __in__ src, int vec_core, int block_count,
+                                              int block_len, int src_stride, int dst_stride)
+{
+    copy_cbuf_to_ubuf((__ubuf__ void *)__cce_get_tile_ptr(dst), (__cbuf__ void *)__cce_get_tile_ptr(src), vec_core,
+                      block_count, block_len, src_stride, dst_stride);
+}
+
 template <typename T, Layout layout, typename GlobalDataSrc0>
 AICORE inline auto GetGlobalTensor(__gm__ T *addr, __gm__ T *addr2)
 {
@@ -41,17 +56,14 @@ AICORE inline void RunLoadAndStoreDyn(__gm__ T *out, __gm__ T *src0, __gm__ T *s
 
     TileMatScaAData aMatTile;
     TASSIGN(aMatTile, 0x0);
-
-    __cbuf__ T *srcMatAddr = aMatTile.data();
-    __ubuf__ T *srcUbAddr = srcTile.data();
-    __gm__ T *outAddr = dstGlobal.data();
+    ;
 
     uint8_t syncID = 0;
     // clear memory in L1 to help verify data in unaligned case
 #if defined(__DAV_CUBE__)
     uint16_t blockLen = totalSize * sizeof(T) / 32;
     int64_t repeatBit = (static_cast<uint64_t>(blockLen) << 16) | (static_cast<uint64_t>(0) << 32) | 1;
-    create_cbuf_matrix((__cbuf__ uint16_t *)srcMatAddr, repeatBit, 0);
+    tf_create_cbuf_matrix<TileMatScaAData>(aMatTile.data(), repeatBit, 0);
 
     /*************************************TLOAD****************************************/
     TLOAD(aMatTile, src0Global);
@@ -59,14 +71,18 @@ AICORE inline void RunLoadAndStoreDyn(__gm__ T *out, __gm__ T *src0, __gm__ T *s
     // L1 -> UB : AIC
     uint16_t blockCount = 1;
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
     // move to vector    core0
-    copy_cbuf_to_ubuf((__ubuf__ void *)srcUbAddr, (__cbuf__ void *)srcMatAddr, 0, blockCount, blockLen, 0, 0);
+    tf_copy_cbuf_to_ubuf<TileUBData, TileMatScaAData>(srcTile.data(), aMatTile.data(), 0, blockCount, blockLen, 0, 0);
     // move to vector    core1
-    copy_cbuf_to_ubuf((__ubuf__ void *)srcUbAddr, (__cbuf__ void *)srcMatAddr, 1, blockCount, blockLen, 0, 0);
+    tf_copy_cbuf_to_ubuf<TileUBData, TileMatScaAData>(srcTile.data(), aMatTile.data(), 1, blockCount, blockLen, 0, 0);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_MTE3, EVENT_ID0);
+#endif
     set_intra_block(PIPE_MTE1, syncID);
     set_intra_block(PIPE_MTE1, syncID + 16);
 #endif
@@ -91,16 +107,12 @@ AICORE inline void RunLoadAndStore(__gm__ T *out, __gm__ T *src0, __gm__ T *src1
     TileMatScaAData aMatTile;
     TASSIGN(aMatTile, 0x0);
 
-    __cbuf__ T *srcMatAddr = aMatTile.data();
-    __ubuf__ T *srcUbAddr = srcTile.data();
-    __gm__ T *outAddr = dstGlobal.data();
-
     uint8_t syncID = 0;
     // clear memory in L1 to help verify data in unaligned case
 #if defined(__DAV_CUBE__)
     uint16_t blockLen = totalSize * sizeof(T) / 32;
     int64_t repeatBit = (static_cast<uint64_t>(blockLen) << 16) | (static_cast<uint64_t>(0) << 32) | 1;
-    create_cbuf_matrix((__cbuf__ uint16_t *)srcMatAddr, repeatBit, 0);
+    tf_create_cbuf_matrix<TileMatScaAData>(aMatTile.data(), repeatBit, 0);
 
     /*************************************TLOAD****************************************/
     TLOAD<TileMatScaAData, GlobalDataSrc0>(aMatTile, src0Global);
@@ -108,14 +120,18 @@ AICORE inline void RunLoadAndStore(__gm__ T *out, __gm__ T *src0, __gm__ T *src1
     // L1 -> UB : AIC
     uint16_t blockCount = 1;
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
     // move to vector    core0
-    copy_cbuf_to_ubuf((__ubuf__ void *)srcUbAddr, (__cbuf__ void *)srcMatAddr, 0, blockCount, blockLen, 0, 0);
+    tf_copy_cbuf_to_ubuf<TileUBData, TileMatScaAData>(srcTile.data(), aMatTile.data(), 0, blockCount, blockLen, 0, 0);
     // move to vector    core1
-    copy_cbuf_to_ubuf((__ubuf__ void *)srcUbAddr, (__cbuf__ void *)srcMatAddr, 1, blockCount, blockLen, 0, 0);
+    tf_copy_cbuf_to_ubuf<TileUBData, TileMatScaAData>(srcTile.data(), aMatTile.data(), 1, blockCount, blockLen, 0, 0);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_MTE3, EVENT_ID0);
+#endif
     set_intra_block(PIPE_MTE1, syncID);
     set_intra_block(PIPE_MTE1, syncID + 16);
 #endif

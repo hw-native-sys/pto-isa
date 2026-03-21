@@ -31,15 +31,23 @@ PTO_INTERNAL void runTSUBS(__gm__ T *out, __gm__ T *src, T scalar)
     TASSIGN(srcTile, 0x0);
     TASSIGN(dstTile, 0x28000);
 
+// causes issues in automode as the tile returned from the TLOAD tfcall appears unused and this tload may not finish
+// before the second tload
+#ifndef __PTO_AUTO__
     TLOAD(dstTile, dstGlobal);
+#endif
 
     TLOAD(srcTile, srcGlobal);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
     TSUBS(dstTile, srcTile, scalar);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
     TSTORE(dstGlobal, dstTile);
     out = dstGlobal.data();
 }

@@ -59,14 +59,16 @@ AICORE inline void runTIMG2COL(__gm__ T *out, __gm__ U *src0, __gm__ U *src1)
     GlobalDataSrc0 src0Global(src0);
     GlobalDataOut dstGlobal(out);
 
-    constexpr int bufferSizeA = fmapN * fmapC1 * fmapH * fmapW * fmapC0 * sizeof(U);
+    // for auto mode, bufferSize is a misleading variable name in convTile, it shouldn't be number of bytes it should be
+    // the number of elements
+    constexpr int bufferSizeA = fmapN * fmapC1 * fmapH * fmapW * fmapC0; // * sizeof(U);
     using TileMatAData = ConvTile<TileType::Mat, U, bufferSizeA, Layout::NC1HWC0,
                                   pto::ConvTileShape<fmapN, fmapC1, fmapH, fmapW, fmapC0>>;
     TileMatAData aMatTile;
     TASSIGN(aMatTile, 0x0);
     static_assert(aMatTile.totalDimCount == 5);
 
-    constexpr int bufferSizeB = filterC1 * filterH * filterW * filterN * filterC0 * sizeof(T);
+    constexpr int bufferSizeB = filterC1 * filterH * filterW * filterN * filterC0;
     using TileMatBData = ConvTile<TileType::Mat, U, bufferSizeB, Layout::FRACTAL_Z,
                                   pto::ConvTileShape<filterC1, filterH, filterW, filterN, filterC0>>;
     TileMatBData bMatTile;
@@ -85,8 +87,10 @@ AICORE inline void runTIMG2COL(__gm__ T *out, __gm__ U *src0, __gm__ U *src1)
 
     TLOAD(aMatTile, src0Global);
     TLOAD(bMatTile, src1Global);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
 
     uint8_t padList[] = {padLeft, padRight, padTop, padBottom};
     aMatTile.SetFmapH(fmapH);
@@ -106,11 +110,15 @@ AICORE inline void runTIMG2COL(__gm__ T *out, __gm__ U *src0, __gm__ U *src1)
     TIMG2COL<LeftTile, TileMatAData, SetFmatrixMode::FMATRIX_B_MANUAL>(aTile, aMatTile, 0, 0);
     TMOV(bTile, bMatTile);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
     TMATMUL(cTile, aTile, bTile);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
     TSTORE(dstGlobal, cTile);
     out = dstGlobal.data();
 }
@@ -152,14 +160,14 @@ AICORE inline void runTIMG2COLSplitK(__gm__ T *out, __gm__ U *src0, __gm__ U *sr
     GlobalDataSrc1 src1Global(src1);
     GlobalDataOut dstGlobal(out);
 
-    constexpr int bufferSizeA = fmapN * fmapC1 * fmapH * fmapW * fmapC0 * sizeof(U);
+    constexpr int bufferSizeA = fmapN * fmapC1 * fmapH * fmapW * fmapC0;
     using TileMatAData = ConvTile<TileType::Mat, U, bufferSizeA, Layout::NC1HWC0,
                                   pto::ConvTileShape<fmapN, fmapC1, fmapH, fmapW, fmapC0>>;
     TileMatAData aMatTile;
     static_assert(aMatTile.totalDimCount == 5);
     TASSIGN(aMatTile, 0x0);
 
-    constexpr int bufferSizeB = filterC1 * filterH * filterW * filterN * filterC0 * sizeof(T);
+    constexpr int bufferSizeB = filterC1 * filterH * filterW * filterN * filterC0;
     using TileMatBData = ConvTile<TileType::Mat, U, bufferSizeB, Layout::FRACTAL_Z,
                                   pto::ConvTileShape<filterC1, filterH, filterW, filterN, filterC0>>;
     TileMatBData bMatTile;
@@ -178,8 +186,10 @@ AICORE inline void runTIMG2COLSplitK(__gm__ T *out, __gm__ U *src0, __gm__ U *sr
 
     TLOAD(aMatTile, src0Global);
     TLOAD(bMatTile, src1Global);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
 
     uint8_t padList[] = {padLeft, padRight, padTop, padBottom};
     aMatTile.SetFmapH(fmapH);
@@ -197,18 +207,24 @@ AICORE inline void runTIMG2COLSplitK(__gm__ T *out, __gm__ U *src0, __gm__ U *sr
     for (int i = 0; i < iter; i++) {
         TIMG2COL<LeftTile, TileMatAData, SetFmatrixMode::FMATRIX_B_AUTO>(aTile, aMatTile, 0, i * baseK);
         TEXTRACT(bTile, bMatTile, i * baseK, 0);
+#ifndef __PTO_AUTO__
         set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
         wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
         if (i == 0) {
             TMATMUL(cTile, aTile, bTile);
         } else {
             TMATMUL_ACC(cTile, cTile, aTile, bTile);
         }
+#ifndef __PTO_AUTO__
         pipe_barrier(PIPE_ALL);
+#endif
     }
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
     TSTORE(dstGlobal, cTile);
     out = dstGlobal.data();
 }
@@ -250,14 +266,14 @@ AICORE inline void runTIMG2COLFractalZ4D(__gm__ T *out, __gm__ U *src0, __gm__ U
     GlobalDataSrc1 src1Global(src1);
     GlobalDataOut dstGlobal(out);
 
-    constexpr int bufferSizeA = fmapN * fmapC1 * fmapH * fmapW * fmapC0 * sizeof(U);
+    constexpr int bufferSizeA = fmapN * fmapC1 * fmapH * fmapW * fmapC0;
     using TileMatAData = ConvTile<TileType::Mat, U, bufferSizeA, Layout::NC1HWC0,
                                   pto::ConvTileShape<fmapN, fmapC1, fmapH, fmapW, fmapC0>>;
     TileMatAData aMatTile;
     static_assert(aMatTile.totalDimCount == 5);
     TASSIGN(aMatTile, 0x0);
 
-    constexpr int bufferSizeB = filterDim3 * filterDim2 * filterDim1 * filterDim0 * sizeof(T);
+    constexpr int bufferSizeB = filterDim3 * filterDim2 * filterDim1 * filterDim0;
     using TileMatBData = ConvTile<TileType::Mat, U, bufferSizeB, Layout::FRACTAL_Z,
                                   pto::ConvTileShape<filterDim3, filterDim2, filterDim1, filterDim0>>;
     TileMatBData bMatTile;
@@ -276,8 +292,10 @@ AICORE inline void runTIMG2COLFractalZ4D(__gm__ T *out, __gm__ U *src0, __gm__ U
 
     TLOAD(aMatTile, src0Global);
     TLOAD(bMatTile, src1Global);
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
 
     uint8_t padList[] = {padLeft, padRight, padTop, padBottom};
     aMatTile.SetFmapH(fmapH);
@@ -297,18 +315,24 @@ AICORE inline void runTIMG2COLFractalZ4D(__gm__ T *out, __gm__ U *src0, __gm__ U
     for (int i = 0; i < iter; i++) {
         TIMG2COL(aTile, aMatTile, 0, i * baseK);
         TEXTRACT(bTile, bMatTile, i * baseK, 0);
+#ifndef __PTO_AUTO__
         set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
         wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
         if (i == 0) {
             TMATMUL(cTile, aTile, bTile);
         } else {
             TMATMUL_ACC(cTile, cTile, aTile, bTile);
         }
+#ifndef __PTO_AUTO__
         pipe_barrier(PIPE_ALL);
+#endif
     }
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
     TSTORE(dstGlobal, cTile);
     out = dstGlobal.data();
 }

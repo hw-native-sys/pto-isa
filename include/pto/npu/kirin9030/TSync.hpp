@@ -29,8 +29,9 @@ PTO_INTERNAL void TSYNC_IMPL()
 {
 #ifndef __PTO_AUTO__
     constexpr pipe_t pipe = GetPipeByOp<OpCode>();
-    PTO_STATIC_ASSERT(pipe == PIPE_MTE3 || OpCode == Op::OP_COUNT,
-                      "Single Op TSYNC only supports MTE3 or ALL pipeline.");
+    PTO_STATIC_ASSERT((pipe == PIPE_M) || (pipe == PIPE_MTE1) || (pipe == PIPE_MTE2) || (pipe == PIPE_MTE3) ||
+                          (pipe == PIPE_ALL) || (pipe == PIPE_FIX),
+                      "Single Op TSYNC only supports MTE2 / MTE3 / ALL pipeline.");
     pipe_barrier((pipe_t)pipe);
 #endif
 }
@@ -44,7 +45,7 @@ struct Event {
     static constexpr pipe_t srcPipe = GetPipeByOp<srcOp>();
     static constexpr bool isSamePipe = (srcPipe == dstPipe);
     static constexpr bool isValidBarrierPipe =
-        ((srcPipe == PIPE_M) || (dstPipe == PIPE_MTE1) || (dstPipe == PIPE_MTE2) || (dstPipe == PIPE_MTE3) ||
+        ((dstPipe == PIPE_M) || (dstPipe == PIPE_MTE1) || (dstPipe == PIPE_MTE2) || (dstPipe == PIPE_MTE3) ||
          (dstPipe == PIPE_ALL) || (dstPipe == PIPE_FIX));
 
     PTO_STATIC_ASSERT(SrcOp != DstOp, "SrcOp is not allowed to be equal to DstOp.");

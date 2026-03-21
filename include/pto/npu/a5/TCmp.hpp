@@ -55,6 +55,8 @@ __tf__ PTO_INTERNAL OP_NAME(TCMP)
                                     typename TileDataSrc::TileDType __in__ src1, CmpMode mode, unsigned validRow,
                                     unsigned validCol, unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
+    __ubuf__ typename TileDataSrc::DType *srcPtr0 = (__ubuf__ typename TileDataSrc::DType *)__cce_get_tile_ptr(src0);
+    __ubuf__ typename TileDataSrc::DType *srcPtr1 = (__ubuf__ typename TileDataSrc::DType *)__cce_get_tile_ptr(src1);
     __ubuf__ typename TileDataDst::DType *dstPtr = (__ubuf__ typename TileDataDst::DType *)__cce_get_tile_ptr(dst);
 
     __VEC_SCOPE__
@@ -73,8 +75,8 @@ __tf__ PTO_INTERNAL OP_NAME(TCMP)
             } else {
                 preg0 = plt_b16(sreg, POST_UPDATE);
             }
-            vlds(vreg0, src0, i * repeatElm, NORM);
-            vlds(vreg1, src1, i * repeatElm, NORM);
+            vlds(vreg0, srcPtr0, i * repeatElm, NORM);
+            vlds(vreg1, srcPtr1, i * repeatElm, NORM);
             CmpCall<vector_bool, dataType0>(preg1, vreg0, vreg1, mode, preg0);
             psts(preg1, ((__ubuf__ uint32_t *)dstPtr + i * dstStride), 0, PK);
         }
@@ -88,6 +90,8 @@ __tf__ PTO_INTERNAL OP_NAME(TCMP)
                                         typename TileDataSrc::TileDType __in__ src1, CmpMode mode, unsigned validRow,
                                         unsigned validCol, unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
+    __ubuf__ typename TileDataSrc::DType *srcPtr0 = (__ubuf__ typename TileDataSrc::DType *)__cce_get_tile_ptr(src0);
+    __ubuf__ typename TileDataSrc::DType *srcPtr1 = (__ubuf__ typename TileDataSrc::DType *)__cce_get_tile_ptr(src1);
     __ubuf__ typename TileDataDst::DType *dstPtr = (__ubuf__ typename TileDataDst::DType *)__cce_get_tile_ptr(dst);
 
     __VEC_SCOPE__
@@ -106,12 +110,12 @@ __tf__ PTO_INTERNAL OP_NAME(TCMP)
         uint16_t repeatTimes = CeilDivision(validCol * validRow, repeatElm) + 1;
         for (uint16_t i = 0; i < (uint16_t)(repeatTimes / 2); ++i) {
             preg0 = plt_b32(sreg, POST_UPDATE);
-            vlds(vreg0, src0, i * 2 * repeatElm, NORM);
-            vlds(vreg1, src1, i * 2 * repeatElm, NORM);
+            vlds(vreg0, srcPtr0, i * 2 * repeatElm, NORM);
+            vlds(vreg1, srcPtr1, i * 2 * repeatElm, NORM);
             CmpCall<vector_bool, dataType0>(preg1, vreg0, vreg1, mode, preg0);
             preg0 = plt_b32(sreg, POST_UPDATE);
-            vlds(vreg2, src0, (i * 2 + 1) * repeatElm, NORM);
-            vlds(vreg3, src1, (i * 2 + 1) * repeatElm, NORM);
+            vlds(vreg2, srcPtr0, (i * 2 + 1) * repeatElm, NORM);
+            vlds(vreg3, srcPtr1, (i * 2 + 1) * repeatElm, NORM);
             CmpCall<vector_bool, dataType0>(preg2, vreg2, vreg3, mode, preg0);
             pdintlv_b8(preg3, preg4, preg1, preg2);
             psts(preg3, ((__ubuf__ uint32_t *)dstPtr + i * 4), 0, PK);

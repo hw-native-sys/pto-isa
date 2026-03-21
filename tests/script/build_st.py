@@ -32,7 +32,7 @@ def run_command(command, cwd=None, check=True):
         raise
 
 
-def build_project(run_mode, soc_version, testcase = "all"):
+def build_project(run_mode, soc_version, auto_enable=False, testcase="all"):
     original_dir = os.getcwd()
     # 清理并创建build目录
     build_dir = "build"
@@ -49,6 +49,9 @@ def build_project(run_mode, soc_version, testcase = "all"):
             f"-DTEST_CASE={testcase}",
             ".."
         ]
+
+        if auto_enable:
+            cmake_cmd.append("-DAUTO_MODE=ON")
 
         subprocess.run(
             cmake_cmd,
@@ -97,6 +100,7 @@ def main():
     parser.add_argument("-v", "--soc-version", required=True, help="SOC版本 只支持 a3 / a5 / kirinX90 / kirin9030")
     parser.add_argument("-t", "--testcase", required=True, help="需要执行的用例")
     parser.add_argument("-g", "--gtest_filter", required=False, help="可选 需要执行的具体case名")
+    parser.add_argument("-a", "--auto-mode-enable", action='store_true', help="开启auto模式")
 
     args = parser.parse_args()
     default_soc_version = "Ascend910B1"
@@ -127,7 +131,7 @@ def main():
         os.chdir(target_dir)
 
         # 执行构建
-        build_project(args.run_mode, default_soc_version, args.testcase)
+        build_project(args.run_mode, default_soc_version, args.auto_mode_enable, args.testcase)
 
     except Exception as e:
         print(f"run failed: {str(e)}", file=sys.stderr)

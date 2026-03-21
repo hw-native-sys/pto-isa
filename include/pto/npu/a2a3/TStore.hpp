@@ -478,15 +478,16 @@ __tf__ AICORE void TStoreAccFp(typename GlobalData::DType __out__ *dst, typename
     pipe_barrier(PIPE_FIX);
     if constexpr (GlobalData::layout == pto::Layout::ND) {
         TStoreAccNz2nd<GlobalData, TileData, quantizationMode, reluPreMode>(
-            dst, src, gShape0, gShape1, gShape2, gShape3, gShape4, gStride0, gStride1, gStride2, gStride3, gStride4,
-            validRow, validCol);
+            dst, __cce_get_tile_ptr(src), gShape0, gShape1, gShape2, gShape3, gShape4, gStride0, gStride1, gStride2,
+            gStride3, gStride4, validRow, validCol);
     } else if constexpr (GlobalData::layout == pto::Layout::NZ) {
         TStoreAccNz2nz<GlobalData, TileData, quantizationMode, reluPreMode>(
-            dst, src, gShape0, gShape1, gShape2, gShape3, gShape4, gStride0, gStride1, gStride2, gStride3, gStride4,
-            validRow, validCol);
+            dst, __cce_get_tile_ptr(src), gShape0, gShape1, gShape2, gShape3, gShape4, gStride0, gStride1, gStride2,
+            gStride3, gStride4, validRow, validCol);
     } else if constexpr (GlobalData::layout == pto::Layout::NC1HWC0) {
         TStoreAccNz2NC1HWC0<GlobalData, TileData, quantizationMode, reluPreMode>(
-            dst, src, gShape0, gShape1, gShape2, gShape3, gShape4, gStride1, gStride3, validRow, validCol);
+            dst, __cce_get_tile_ptr(src), gShape0, gShape1, gShape2, gShape3, gShape4, gStride1, gStride3, validRow,
+            validCol);
     }
 }
 

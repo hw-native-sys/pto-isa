@@ -120,9 +120,6 @@ PTO_INTERNAL void TROWMIN_IMPL(TileDataOut &dst, TileDataIn &src, TileDataTmp &t
     int validCol = src.GetValidCol();
     int validRow = src.GetValidRow();
     TRowReduceCheck<TileDataOut, TileDataIn>(validRow, validCol, dst.GetValidRow());
-    if (validCol == 0 || validRow == 0) {
-        return;
-    }
 
     TRowMin<typename TileDataIn::DType, TileDataOut, TileDataIn, TileDataTmp>(dst.data(), src.data(), tmp.data(),
                                                                               validCol, validRow);

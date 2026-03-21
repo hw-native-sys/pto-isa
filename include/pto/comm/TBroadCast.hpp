@@ -178,23 +178,19 @@ PTO_INTERNAL void TBROADCAST_IMPL(ParallelGroupType &parallelGroup, GlobalSrcDat
 
     if (nranks == 1) {
         TLOAD(stagingTileData, srcGlobalData);
-        set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
-        wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+        PtoSetWaitFlag<PIPE_MTE2, PIPE_MTE3>();
         TSTORE(parallelGroup[rootIdx], stagingTileData);
-        set_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
-        wait_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
+        PtoSetWaitFlag<PIPE_MTE3, PIPE_MTE2>();
         return;
     }
 
     // Simple path: data fits in UB tile
     if (totalRows <= tileValidRow && gShape4 <= tileValidCol) {
         TLOAD(stagingTileData, srcGlobalData);
-        set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
-        wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+        PtoSetWaitFlag<PIPE_MTE2, PIPE_MTE3>();
         for (int r = 0; r < nranks; ++r) {
             TSTORE(parallelGroup[r], stagingTileData);
-            set_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
-            wait_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
+            PtoSetWaitFlag<PIPE_MTE3, PIPE_MTE2>();
         }
         return;
     }
@@ -414,23 +410,19 @@ PTO_INTERNAL void TBROADCAST_IMPL(ParallelGroupType &parallelGroup, GlobalSrcDat
 
     if (nranks == 1) {
         TLOAD(pingTile, srcGlobalData);
-        set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
-        wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+        PtoSetWaitFlag<PIPE_MTE2, PIPE_MTE3>();
         TSTORE(parallelGroup[rootIdx], pingTile);
-        set_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
-        wait_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
+        PtoSetWaitFlag<PIPE_MTE3, PIPE_MTE2>();
         return;
     }
 
     // Simple path: single chunk, no ping-pong benefit
     if (totalRows <= tileValidRow && dims[4] <= tileValidCol) {
         TLOAD(pingTile, srcGlobalData);
-        set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
-        wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+        PtoSetWaitFlag<PIPE_MTE2, PIPE_MTE3>();
         for (int r = 0; r < nranks; ++r) {
             TSTORE(parallelGroup[r], pingTile);
-            set_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
-            wait_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
+            PtoSetWaitFlag<PIPE_MTE3, PIPE_MTE2>();
         }
         return;
     }

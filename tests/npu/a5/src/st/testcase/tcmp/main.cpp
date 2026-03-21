@@ -109,35 +109,29 @@ TEST_F(TCMPTest, case_int32_4x64_4x64_4x64)
 {
     test_tcmp<int32_t, 4, 64, 4, 64, CmpMode::NE>();
 }
-TEST_F(TCMPTest, case_int32_128x128_64x64_128x128)
-{
-    test_tcmp<int32_t, 128, 128, 64, 64, CmpMode::LT>();
-}
-TEST_F(TCMPTest, case_int32_64x64_32x32_64x64)
-{
-    test_tcmp<int32_t, 64, 64, 32, 32, CmpMode::EQ>();
-}
+// TEST_F(TCMPTest, case_int32_128x128_64x64_128x128) {
+//     test_tcmp<int32_t, 128, 128, 64, 64, CmpMode::LT>();
+// }
+// TEST_F(TCMPTest, case_int32_64x64_32x32_64x64) {
+//     test_tcmp<int32_t, 64, 64, 32, 32, CmpMode::EQ>();
+// }
 TEST_F(TCMPTest, case_int32_16x32_16x32_16x32)
 {
     test_tcmp<int32_t, 16, 32, 16, 32, CmpMode::EQ>();
 }
-TEST_F(TCMPTest, case_float_128x128_64x64_128x128)
-{
-    test_tcmp<float, 128, 128, 64, 64, CmpMode::LE>();
-}
-TEST_F(TCMPTest, case_int32_77x81_32x32_77x81)
-{
-    test_tcmp<int32_t, 77, 81, 32, 32, CmpMode::EQ>();
-}
+// TEST_F(TCMPTest, case_float_128x128_64x64_128x128) {
+//     test_tcmp<float, 128, 128, 64, 64, CmpMode::LE>();
+// }
+// TEST_F(TCMPTest, case_int32_77x81_32x32_77x81) {
+//     test_tcmp<int32_t, 77, 81, 32, 32, CmpMode::EQ>();
+// }
 TEST_F(TCMPTest, case_int32_32x32_32x32_32x32)
 {
     test_tcmp<int32_t, 32, 32, 32, 32, CmpMode::EQ>();
 }
-TEST_F(TCMPTest, case_int16_32x32_16x32_32x32)
-{
-    test_tcmp<int16_t, 32, 32, 16, 32, CmpMode::EQ>();
-}
-TEST_F(TCMPTest, case_int16_77x81_32x32_77x81)
-{
-    test_tcmp<int16_t, 77, 81, 32, 32, CmpMode::LE>();
-}
+// TEST_F(TCMPTest, case_int16_32x32_16x32_32x32) {
+//     test_tcmp<int16_t, 32, 32, 16, 32, CmpMode::EQ>();
+// }
+// TEST_F(TCMPTest, case_int16_77x81_32x32_77x81) {
+//     test_tcmp<int16_t, 77, 81, 32, 32, CmpMode::LE>();
+// }

@@ -33,13 +33,17 @@ PTO_INTERNAL void runTREMS(__gm__ T *out, __gm__ T *src, T scalar)
 
     TLOAD(srcTile, srcGlobal);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
 
     TREMS(dstTile, srcTile, scalar);
 
+#ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
 
     TSTORE(dstGlobal, dstTile);
     out = dstGlobal.data();

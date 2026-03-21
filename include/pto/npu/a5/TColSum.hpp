@@ -109,7 +109,7 @@ PTO_INTERNAL void TColSum_Binary(__ubuf__ T *dst, __ubuf__ T *src, __ubuf__ T *t
 template <typename T, typename TileDataOut, typename TileDataIn, typename TileDataTmp, bool isBinary>
 __tf__ PTO_INTERNAL void TColSum(typename TileDataOut::TileDType __out__ dstData,
                                  typename TileDataIn::TileDType __in__ srcData,
-                                 typename TileDataIn::TileDType __in__ tmpData, unsigned validRow, unsigned validCol,
+                                 typename TileDataTmp::TileDType __in__ tmpData, unsigned validRow, unsigned validCol,
                                  unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
     __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
