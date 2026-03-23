@@ -17,7 +17,7 @@ namespace pto {
 template <typename TileDataDst, typename TileDataSrc>
 PTO_INTERNAL void TMULS_IMPL(TileDataDst &dst, TileDataSrc &src, typename TileDataSrc::DType scalar)
 {
-    pto::CostModel::GetInstance().BinSOpPredictCycle<TileDataDst, TileDataSrc>("TMULS", dst, src, scalar);
+    pto::CostModel::GetInstance().BinSOpPredictCycle<MulSOp, TileDataDst, TileDataSrc>("TMULS", dst, src);
 }
 
 } // namespace pto

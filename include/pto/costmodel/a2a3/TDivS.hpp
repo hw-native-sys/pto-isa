@@ -17,13 +17,13 @@ namespace pto {
 template <typename TileDataDst, typename TileDataSrc>
 PTO_INTERNAL void TDIVS_IMPL(TileDataDst &dst, TileDataSrc &src, typename TileDataSrc::DType scalar)
 {
-    pto::CostModel::GetInstance().BinSOpPredictCycle<TileDataDst, TileDataSrc>("TDIVS", dst, src, scalar);
+    pto::CostModel::GetInstance().BinSOpPredictCycle<DivSOp, TileDataDst, TileDataSrc>("TDIVS", dst, src);
 }
 
 template <typename TileDataDst, typename TileDataSrc>
 PTO_INTERNAL void TDIVS_IMPL(TileDataDst &dst, typename TileDataSrc::DType scalar, TileDataSrc &src)
 {
-    pto::CostModel::GetInstance().BinSOpPredictCycle<TileDataDst, TileDataSrc>("TDIVS", dst, src, scalar);
+    pto::CostModel::GetInstance().BinSOpPredictCycle<DivSOp, TileDataDst, TileDataSrc>("TDIVS", dst, src);
 }
 
 } // namespace pto

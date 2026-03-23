@@ -17,7 +17,7 @@ namespace pto {
 template <typename DstTile, typename SrcTile>
 PTO_INTERNAL void TEXP_IMPL(DstTile &dst, SrcTile &src)
 {
-    pto::CostModel::GetInstance().UnaryOpPredictCycle<DstTile, SrcTile>("TEXP", dst, src);
+    pto::CostModel::GetInstance().UnaryOpPredictCycle<ExpOp, DstTile, SrcTile>("TEXP", dst, src);
 }
 
 } // namespace pto

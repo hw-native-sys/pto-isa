@@ -17,7 +17,7 @@ namespace pto {
 template <typename TileDataDst, typename TileDataSrc>
 PTO_INTERNAL void TMINS_IMPL(TileDataDst &dst, TileDataSrc &src, typename TileDataSrc::DType scalar)
 {
-    pto::CostModel::GetInstance().BinSOpPredictCycle<TileDataDst, TileDataSrc>("TMINS", dst, src, scalar);
+    pto::CostModel::GetInstance().BinSOpPredictCycle<MinSOp, TileDataDst, TileDataSrc>("TMINS", dst, src);
 }
 
 } // namespace pto

@@ -80,36 +80,36 @@ bool TAddSTestFramework()
 
 TEST_F(TADDSTest, case1)
 {
-    bool ret = TAddSTestFramework<1, float, 32, 32, 64, 64, 128.0f, 1.0f>();
+    bool ret = TAddSTestFramework<1, float, 32, 32, 64, 64, 46.0f, 1.0f>();
     EXPECT_TRUE(ret);
 }
 
 TEST_F(TADDSTest, case2)
 {
-    bool ret = TAddSTestFramework<2, aclFloat16, 63, 63, 64, 64, 128.0f, 1.0f>();
+    bool ret = TAddSTestFramework<2, aclFloat16, 63, 63, 64, 64, 77.0f, 1.0f>();
     EXPECT_TRUE(ret);
 }
 
 TEST_F(TADDSTest, case3)
 {
-    bool ret = TAddSTestFramework<3, int32_t, 31, 31, 128, 128, 128.0f, 1.0f>();
+    bool ret = TAddSTestFramework<3, int32_t, 31, 31, 128, 128, 76.0f, 1.0f>();
     EXPECT_TRUE(ret);
 }
 
 TEST_F(TADDSTest, case4)
 {
-    bool ret = TAddSTestFramework<4, int16_t, 15, 15, 192, 192, 128.0f, 1.0f>();
+    bool ret = TAddSTestFramework<4, int16_t, 15, 15, 192, 192, 44.0f, 1.0f>();
     EXPECT_TRUE(ret);
 }
 
 TEST_F(TADDSTest, case5)
 {
-    bool ret = TAddSTestFramework<5, float, 7, 7, 448, 448, 128.0f, 1.0f>();
+    bool ret = TAddSTestFramework<5, float, 7, 7, 448, 448, 63.0f, 1.0f>();
     EXPECT_TRUE(ret);
 }
 
 TEST_F(TADDSTest, case6)
 {
-    bool ret = TAddSTestFramework<6, float, 256, 256, 16, 16, 288.0f, 1.0f>();
+    bool ret = TAddSTestFramework<6, float, 256, 256, 16, 16, 270.0f, 1.0f>();
     EXPECT_TRUE(ret);
 }

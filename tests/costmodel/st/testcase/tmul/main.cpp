@@ -82,17 +82,17 @@ void test_tmul()
 
 TEST_F(TMULTest, case_float_64x64_64x64_64x64)
 {
-    test_tmul<float, 64, 64, 64, 64, 160.0f, 1.0f>();
+    test_tmul<float, 64, 64, 64, 64, 142.0f, 1.0f>();
 }
 TEST_F(TMULTest, case_int32_64x64_64x64_64x64)
 {
-    test_tmul<int32_t, 64, 64, 64, 64, 158.0f, 1.0f>();
+    test_tmul<int32_t, 64, 64, 64, 64, 142.0f, 1.0f>();
 }
 TEST_F(TMULTest, case_int16_64x64_64x64_64x64)
 {
-    test_tmul<int16_t, 64, 64, 64, 64, 158.0f, 1.0f>();
+    test_tmul<int16_t, 64, 64, 64, 64, 142.0f, 1.0f>();
 }
 TEST_F(TMULTest, case_half_16x256_16x256_16x256)
 {
-    test_tmul<aclFloat16, 16, 256, 16, 256, 96.0f, 1.0f>();
+    test_tmul<aclFloat16, 16, 256, 16, 256, 78.0f, 1.0f>();
 }

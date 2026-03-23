@@ -11,34 +11,50 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef PTO_ISA_COST_MODEL_HPP
 #define PTO_ISA_COST_MODEL_HPP
 
+#include <cstdio>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <cstdint>
 #include <type_traits>
 #include <pto/common/pto_tile.hpp>
+#include "pto/costmodel/op_struct.hpp"
 #include "pto/costmodel/costmodel_types.hpp"
 #include "pto/costmodel/a2a3/TBinOp.hpp"
 #include "pto/costmodel/a2a3/TBinSOp.hpp"
 #include "pto/costmodel/a2a3/TUnaryOp.hpp"
+#include "pto/costmodel/a2a3/TColReduceOp.hpp"
+#include "pto/costmodel/a2a3/TRowReduceOp.hpp"
+#include "pto/costmodel/a2a3/TRowExpandOp.hpp"
 
 namespace pto {
-constexpr float HEAD_CYCLE_13 = 13.0;
-constexpr float HEAD_CYCLE_14 = 14.0;
-constexpr float COMPLETE_CYCLE_17 = 17.0;
-constexpr float COMPLETE_CYCLE_18 = 18.0;
-constexpr float COMPLETE_CYCLE_19 = 19.0;
-constexpr float COMPLETE_CYCLE_20 = 20.0;
-constexpr float COMPLETE_CYCLE_26 = 26.0;
-constexpr float COMPLETE_CYCLE_27 = 27.0;
-constexpr float COMPLETE_CYCLE_28 = 28.0;
-constexpr float COMPLETE_CYCLE_29 = 29.0;
-constexpr float COMPUTING_CYCLE_1 = 1.0;
-constexpr float COMPUTING_CYCLE_2 = 2.0;
-constexpr float COMPUTING_CYCLE_4 = 4.0;
-constexpr float INTERVAL_CYCLE_18 = 18.0;
-constexpr float MASK_1 = 1.0;
-constexpr float BANK_CONFLICT_0 = 0.0;
+
+// A2A3 vector instruction timing constants (all values in cycles)
+// Startup latencies (pipeline fill time from instruction issue to first output)
+constexpr float A2A3_STARTUP_REDUCE = 13.0f; // reduce/transcendental ops (vcg*, vc*, vabs, vexp, vsqrt)
+constexpr float A2A3_STARTUP_BINARY = 14.0f; // binary, scalar, dup ops
+
+// Completion latencies (pipeline drain time after last output)
+constexpr float A2A3_COMPL_DUP = 14.0f;       // vector_dup
+constexpr float A2A3_COMPL_INT_BINOP = 17.0f; // int add/sub/min/max and int scalar (vadds/vmins/vdivs int)
+constexpr float A2A3_COMPL_INT_MUL = 18.0f;   // int mul/div (vmul/vdivs int)
+constexpr float A2A3_COMPL_FP_BINOP = 19.0f;  // fp add/sub; abs (all dtypes); fp scalar; int32 group-reduce
+constexpr float A2A3_COMPL_FP_MUL = 20.0f;    // fp mul/div scalar (vmuls/vdivs fp)
+constexpr float A2A3_COMPL_FP_CGOP = 21.0f;   // fp16 group/cross-lane reduce (vcg*/vc* fp16)
+constexpr float A2A3_COMPL_FP32_EXP = 26.0f;  // fp32 exp
+constexpr float A2A3_COMPL_FP32_SQRT = 27.0f; // fp32 sqrt
+constexpr float A2A3_COMPL_FP16_EXP = 28.0f;  // fp16 exp
+constexpr float A2A3_COMPL_FP16_SQRT = 29.0f; // fp16 sqrt
+
+// Per-repeat throughput (cycles per VL-aligned repeat within one instruction call)
+constexpr float A2A3_RPT_1 = 1.0f; // scalar/unary/single-pass ops
+constexpr float A2A3_RPT_2 = 2.0f; // binary vector ops
+constexpr float A2A3_RPT_4 = 4.0f; // transcendental ops (exp/sqrt fp16)
+
+// Pipeline configuration
+constexpr float A2A3_INTERVAL = 18.0f;   // interval cycles between instruction groups
+constexpr float A2A3_MASK_EFFECT = 1.0f; // mask penalty multiplier (1.0 = no extra penalty)
+constexpr float A2A3_BANK_NONE = 0.0f;   // no bank conflict penalty
 
 enum class DataType
 {
@@ -109,149 +125,329 @@ public:
 
     void InitDefaultParams()
     {
+        SetParam("PIPE_V", DataType::INT16, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("PIPE_V", DataType::INT32, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("PIPE_V", DataType::FP16, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("PIPE_V", DataType::FP32, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+
+        SetParam("vector_dup", DataType::INT16, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vector_dup", DataType::INT32, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vector_dup", DataType::FP16, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vector_dup", DataType::FP32, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+
         // TADD
-        SetParam("TADD", DataType::INT16, HEAD_CYCLE_14, COMPLETE_CYCLE_17, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18,
-                 MASK_1, BANK_CONFLICT_0);
-        SetParam("TADD", DataType::INT32, HEAD_CYCLE_14, COMPLETE_CYCLE_17, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18,
-                 MASK_1, BANK_CONFLICT_0);
-        SetParam("TADD", DataType::FP16, HEAD_CYCLE_14, COMPLETE_CYCLE_19, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18, MASK_1,
-                 BANK_CONFLICT_0);
-        SetParam("TADD", DataType::FP32, HEAD_CYCLE_14, COMPLETE_CYCLE_19, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18, MASK_1,
-                 BANK_CONFLICT_0);
+        SetParam("vadd", DataType::INT16, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vadd", DataType::INT32, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vadd", DataType::FP16, A2A3_STARTUP_BINARY, A2A3_COMPL_FP_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vadd", DataType::FP32, A2A3_STARTUP_BINARY, A2A3_COMPL_FP_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
 
         // TMUL
-        SetParam("TMUL", DataType::INT16, HEAD_CYCLE_14, COMPLETE_CYCLE_18, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18,
-                 MASK_1, BANK_CONFLICT_0);
-        SetParam("TMUL", DataType::INT32, HEAD_CYCLE_14, COMPLETE_CYCLE_18, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18,
-                 MASK_1, BANK_CONFLICT_0);
-        SetParam("TMUL", DataType::FP16, HEAD_CYCLE_14, COMPLETE_CYCLE_20, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18, MASK_1,
-                 BANK_CONFLICT_0);
-        SetParam("TMUL", DataType::FP32, HEAD_CYCLE_14, COMPLETE_CYCLE_20, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18, MASK_1,
-                 BANK_CONFLICT_0);
+        SetParam("vmul", DataType::INT16, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_MUL, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vmul", DataType::INT32, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_MUL, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vmul", DataType::FP16, A2A3_STARTUP_BINARY, A2A3_COMPL_FP_MUL, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vmul", DataType::FP32, A2A3_STARTUP_BINARY, A2A3_COMPL_FP_MUL, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
 
         // TSUB
-        SetParam("TSUB", DataType::INT16, HEAD_CYCLE_14, COMPLETE_CYCLE_17, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18,
-                 MASK_1, BANK_CONFLICT_0);
-        SetParam("TSUB", DataType::INT32, HEAD_CYCLE_14, COMPLETE_CYCLE_17, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18,
-                 MASK_1, BANK_CONFLICT_0);
-        SetParam("TSUB", DataType::FP16, HEAD_CYCLE_14, COMPLETE_CYCLE_19, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18, MASK_1,
-                 BANK_CONFLICT_0);
-        SetParam("TSUB", DataType::FP32, HEAD_CYCLE_14, COMPLETE_CYCLE_19, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18, MASK_1,
-                 BANK_CONFLICT_0);
+        SetParam("vsub", DataType::INT16, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vsub", DataType::INT32, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vsub", DataType::FP16, A2A3_STARTUP_BINARY, A2A3_COMPL_FP_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vsub", DataType::FP32, A2A3_STARTUP_BINARY, A2A3_COMPL_FP_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
 
         // TEXP
-        SetParam("TEXP", DataType::FP16, HEAD_CYCLE_13, COMPLETE_CYCLE_28, COMPUTING_CYCLE_4, INTERVAL_CYCLE_18, MASK_1,
-                 BANK_CONFLICT_0);
-        SetParam("TEXP", DataType::FP32, HEAD_CYCLE_13, COMPLETE_CYCLE_26, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18, MASK_1,
-                 BANK_CONFLICT_0);
+        SetParam("vexp", DataType::FP16, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP16_EXP, A2A3_RPT_4, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vexp", DataType::FP32, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP32_EXP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
 
         // TSQRT
-        SetParam("TSQRT", DataType::FP16, HEAD_CYCLE_13, COMPLETE_CYCLE_29, COMPUTING_CYCLE_4, INTERVAL_CYCLE_18,
-                 MASK_1, BANK_CONFLICT_0);
-        SetParam("TSQRT", DataType::FP32, HEAD_CYCLE_13, COMPLETE_CYCLE_27, COMPUTING_CYCLE_2, INTERVAL_CYCLE_18,
-                 MASK_1, BANK_CONFLICT_0);
+        SetParam("vsqrt", DataType::FP16, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP16_SQRT, A2A3_RPT_4, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vsqrt", DataType::FP32, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP32_SQRT, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
 
         // TADDS
-        SetParam("TADDS", DataType::INT16, HEAD_CYCLE_14, COMPLETE_CYCLE_17, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
-                 MASK_1, BANK_CONFLICT_0);
-        SetParam("TADDS", DataType::INT32, HEAD_CYCLE_14, COMPLETE_CYCLE_17, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
-                 MASK_1, BANK_CONFLICT_0);
-        SetParam("TADDS", DataType::FP16, HEAD_CYCLE_14, COMPLETE_CYCLE_19, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
-                 MASK_1, BANK_CONFLICT_0);
-        SetParam("TADDS", DataType::FP32, HEAD_CYCLE_14, COMPLETE_CYCLE_19, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
-                 MASK_1, BANK_CONFLICT_0);
+        SetParam("vadds", DataType::INT16, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_BINOP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vadds", DataType::INT32, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_BINOP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vadds", DataType::FP16, A2A3_STARTUP_BINARY, A2A3_COMPL_FP_BINOP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vadds", DataType::FP32, A2A3_STARTUP_BINARY, A2A3_COMPL_FP_BINOP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
 
         // TABS
-        SetParam("TABS", DataType::INT16, HEAD_CYCLE_13, COMPLETE_CYCLE_19, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
-                 MASK_1, BANK_CONFLICT_0);
-        SetParam("TABS", DataType::INT32, HEAD_CYCLE_13, COMPLETE_CYCLE_19, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
-                 MASK_1, BANK_CONFLICT_0);
-        SetParam("TABS", DataType::FP16, HEAD_CYCLE_13, COMPLETE_CYCLE_19, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18, MASK_1,
-                 BANK_CONFLICT_0);
-        SetParam("TABS", DataType::FP32, HEAD_CYCLE_13, COMPLETE_CYCLE_19, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18, MASK_1,
-                 BANK_CONFLICT_0);
+        SetParam("vabs", DataType::INT16, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP_BINOP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vabs", DataType::INT32, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP_BINOP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vabs", DataType::FP16, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP_BINOP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vabs", DataType::FP32, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP_BINOP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
 
         // TMINS
-        SetParam("TMINS", DataType::INT16, HEAD_CYCLE_14, COMPLETE_CYCLE_17, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
-                 MASK_1, BANK_CONFLICT_0);
-        SetParam("TMINS", DataType::INT32, HEAD_CYCLE_14, COMPLETE_CYCLE_17, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
-                 MASK_1, BANK_CONFLICT_0);
-        SetParam("TMINS", DataType::FP16, HEAD_CYCLE_14, COMPLETE_CYCLE_17, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
-                 MASK_1, BANK_CONFLICT_0);
-        SetParam("TMINS", DataType::FP32, HEAD_CYCLE_14, COMPLETE_CYCLE_17, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
-                 MASK_1, BANK_CONFLICT_0);
+        SetParam("vmins", DataType::INT16, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_BINOP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vmins", DataType::INT32, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_BINOP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vmins", DataType::FP16, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_BINOP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vmins", DataType::FP32, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_BINOP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
 
         // TMULS
-        SetParam("TMULS", DataType::INT16, HEAD_CYCLE_14, COMPLETE_CYCLE_18, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
-                 MASK_1, BANK_CONFLICT_0);
-        SetParam("TMULS", DataType::INT32, HEAD_CYCLE_14, COMPLETE_CYCLE_18, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
-                 MASK_1, BANK_CONFLICT_0);
-        SetParam("TMULS", DataType::FP16, HEAD_CYCLE_14, COMPLETE_CYCLE_20, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
-                 MASK_1, BANK_CONFLICT_0);
-        SetParam("TMULS", DataType::FP32, HEAD_CYCLE_14, COMPLETE_CYCLE_20, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
-                 MASK_1, BANK_CONFLICT_0);
+        SetParam("vmuls", DataType::INT16, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_MUL, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vmuls", DataType::INT32, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_MUL, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vmuls", DataType::FP16, A2A3_STARTUP_BINARY, A2A3_COMPL_FP_MUL, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vmuls", DataType::FP32, A2A3_STARTUP_BINARY, A2A3_COMPL_FP_MUL, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
 
         // TDIVS
-        SetParam("TDIVS", DataType::INT16, HEAD_CYCLE_14, COMPLETE_CYCLE_18, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
-                 MASK_1, BANK_CONFLICT_0);
-        SetParam("TDIVS", DataType::INT32, HEAD_CYCLE_14, COMPLETE_CYCLE_18, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
-                 MASK_1, BANK_CONFLICT_0);
-        SetParam("TDIVS", DataType::FP16, HEAD_CYCLE_14, COMPLETE_CYCLE_20, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
-                 MASK_1, BANK_CONFLICT_0);
-        SetParam("TDIVS", DataType::FP32, HEAD_CYCLE_14, COMPLETE_CYCLE_20, COMPUTING_CYCLE_1, INTERVAL_CYCLE_18,
-                 MASK_1, BANK_CONFLICT_0);
+        SetParam("vdivs", DataType::INT16, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_MUL, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vdivs", DataType::INT32, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_MUL, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vdivs", DataType::FP16, A2A3_STARTUP_BINARY, A2A3_COMPL_FP_MUL, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vdivs", DataType::FP32, A2A3_STARTUP_BINARY, A2A3_COMPL_FP_MUL, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+
+        // vmax
+        SetParam("vmax", DataType::INT16, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vmax", DataType::INT32, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vmax", DataType::FP16, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vmax", DataType::FP32, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+
+        // vmin
+        SetParam("vmin", DataType::INT16, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vmin", DataType::INT32, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vmin", DataType::FP16, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vmin", DataType::FP32, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+
+        // vcgmax
+        SetParam("vcgmax", DataType::INT16, A2A3_STARTUP_REDUCE, A2A3_COMPL_INT_BINOP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vcgmax", DataType::INT32, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vcgmax", DataType::FP16, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP_CGOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vcgmax", DataType::FP32, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+
+        // vcgmin
+        SetParam("vcgmin", DataType::INT16, A2A3_STARTUP_REDUCE, A2A3_COMPL_INT_BINOP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vcgmin", DataType::INT32, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vcgmin", DataType::FP16, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP_CGOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vcgmin", DataType::FP32, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+
+        // vcgadd
+        SetParam("vcgadd", DataType::INT16, A2A3_STARTUP_REDUCE, A2A3_COMPL_INT_BINOP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vcgadd", DataType::INT32, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vcgadd", DataType::FP16, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP_CGOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vcgadd", DataType::FP32, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+
+        // vcmax
+        SetParam("vcmax", DataType::INT16, A2A3_STARTUP_REDUCE, A2A3_COMPL_INT_BINOP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vcmax", DataType::INT32, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vcmax", DataType::FP16, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP_CGOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vcmax", DataType::FP32, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+
+        // vcmin
+        SetParam("vcmin", DataType::INT16, A2A3_STARTUP_REDUCE, A2A3_COMPL_INT_BINOP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vcmin", DataType::INT32, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vcmin", DataType::FP16, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP_CGOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vcmin", DataType::FP32, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+
+        // vcadd
+        SetParam("vcadd", DataType::INT16, A2A3_STARTUP_REDUCE, A2A3_COMPL_INT_BINOP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vcadd", DataType::INT32, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vcadd", DataType::FP16, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP_CGOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vcadd", DataType::FP32, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP_BINOP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+
+        // copy_ubuf_to_ubuf (memory copy, 0-cycle placeholder)
+        SetParam("copy_ubuf_to_ubuf", DataType::INT16, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("copy_ubuf_to_ubuf", DataType::INT32, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("copy_ubuf_to_ubuf", DataType::FP16, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("copy_ubuf_to_ubuf", DataType::FP32, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+
+        // mask (mask set instruction, 0-cycle placeholder)
+        SetParam("mask", DataType::INT16, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("mask", DataType::INT32, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("mask", DataType::FP16, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("mask", DataType::FP32, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
     }
 
     // TBinOp
-    template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
+    template <typename Op, typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
     void BinOpPredictCycle(const std::string &instr_name, TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1)
     {
         using T = typename TileDataDst::DType;
-        CostModelStats stats = runBinaryOp(dst, src0, src1);
-        float resultCycles = PredictCycle<T>(instr_name, stats);
-        dst.SetCycle(resultCycles);
+        std::vector<CostModelStats> stats = runBinaryOp<Op>(dst, src0, src1);
+        dst.SetCycle(PredictCycle<T>(stats));
     }
 
     // TBinSOp
-    template <typename TileDataDst, typename TileDataSrc>
-    void BinSOpPredictCycle(const std::string &instr_name, TileDataDst &dst, TileDataSrc &src,
-                            TileDataSrc::DType scalar)
+    template <typename Op, typename TileDataDst, typename TileDataSrc>
+    void BinSOpPredictCycle(const std::string &instr_name, TileDataDst &dst, TileDataSrc &src)
     {
-        using T = typename TileDataSrc::DType;
-        CostModelStats stats = runBinaryScalarOp(dst, src);
-        float resultCycles = PredictCycle<T>(instr_name, stats);
-        dst.SetCycle(resultCycles);
+        using T = typename TileDataDst::DType;
+        std::vector<CostModelStats> stats = runBinaryScalarOp<Op>(dst, src);
+        dst.SetCycle(PredictCycle<T>(stats));
     }
 
     // TUnaryOp
-    template <typename TileDataDst, typename TileDataSrc>
+    template <typename Op, typename TileDataDst, typename TileDataSrc>
     void UnaryOpPredictCycle(const std::string &instr_name, TileDataDst &dst, TileDataSrc &src)
     {
         using T = typename TileDataDst::DType;
-        CostModelStats stats = runUnaryOp(dst, src);
-        float resultCycles = PredictCycle<T>(instr_name, stats);
-        dst.SetCycle(resultCycles);
+        std::vector<CostModelStats> stats = runUnaryOp<Op>(dst, src);
+        dst.SetCycle(PredictCycle<T>(stats));
+    }
+
+    // TRowReduceOpPredict
+    template <typename Op, typename TileDataOut, typename TileDataIn, typename TileDataTmp>
+    void RowReduceOpPredictCycle(const std::string &instr_name, TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp)
+    {
+        using T = typename TileDataIn::DType;
+        std::vector<CostModelStats> stats =
+            runRowReduceOps<T, Op, TileDataOut, TileDataIn, TileDataTmp>(instr_name, dst, src, tmp);
+        float totalCycles = PredictCycle<T>(stats);
+        dst.SetCycle(totalCycles);
+    }
+
+    // TColMax / TColMin
+    template <typename Op, typename TileDataOut, typename TileDataIn>
+    void ColReduceOpPredictCycle(const std::string &instr_name, TileDataOut &dst, TileDataIn &src)
+    {
+        using T = typename TileDataIn::DType;
+        std::vector<CostModelStats> stats = runColReduceOps<T, Op, TileDataOut, TileDataIn>(dst, src);
+        float totalCycles = PredictCycle<T>(stats);
+        dst.SetCycle(totalCycles);
+    }
+
+    // TColSum
+    template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp>
+    void ColSumOpPredictCycle(const std::string &instr_name, TileDataDst &dst, TileDataSrc &src, TileDataTmp &tmp,
+                              bool IsBinary)
+    {
+        using T = typename TileDataSrc::DType;
+        std::vector<CostModelStats> stats =
+            runColSumOp<T, TileDataDst, TileDataSrc, TileDataTmp>(dst, src, tmp, IsBinary);
+        float totalCycles = PredictCycle<T>(stats);
+        dst.SetCycle(totalCycles);
+    }
+
+    // TRowExpand
+    template <typename TileDataDst, typename TileDataSrc>
+    void RowExpandPredictCycle(const std::string &instr_name, TileDataDst &dst, TileDataSrc &src)
+    {
+        using T = typename TileDataDst::DType;
+        std::vector<CostModelStats> stats = runRowExpandOp<TileDataDst, TileDataSrc>(dst, src);
+        float totalCycles = PredictCycle<T>(stats);
+        dst.SetCycle(totalCycles);
     }
 
     template <typename T>
-    float PredictCycle(const std::string &instr_name, const CostModelStats &stats)
+    float PredictCycle(const std::vector<CostModelStats> &stats)
     {
-        DataType dtype = GetDataTypeEnum<T>();
-        auto key = std::make_pair(instr_name, dtype);
-        if (!CheckParamExist(key)) {
-            fprintf(stderr, "[CostModel] Error: <%s> <%d> \n", instr_name.c_str(), static_cast<int>(dtype));
-            return 0.0f;
+        float total_cycles = 0.0f;
+        // first: next real instruction starts a new pipeline segment (pays startup_cycles once)
+        // pipe:  previous instruction was a PIPE_V barrier (next real instruction pays interval_cycles)
+        bool first = true;
+        bool pipe = false;
+
+        for (const auto &stat : stats) {
+            const std::string &instr_name = stat.cceInstName;
+            DataType dtype = GetDataTypeEnum<T>();
+            auto key = std::make_pair(instr_name, dtype);
+
+            if (instr_name == "PIPE_V") {
+                pipe = true;
+                continue;
+            }
+
+            if (!CheckParamExist(key)) {
+                fprintf(stderr, "[CostModel] Error: unknown instruction <%s> for dtype <%d>\n", instr_name.c_str(),
+                        static_cast<int>(dtype));
+                return 0.0f;
+            }
+
+            const CostModelParams &params = params_map_.at(key);
+
+            // Startup: paid once for the very first instruction in the sequence
+            if (first) {
+                total_cycles += params.startup_cycles;
+                first = false;
+            }
+
+            // Interval: paid for any instruction that immediately follows a PIPE_V barrier
+            if (pipe) {
+                total_cycles += params.interval_cycles;
+                pipe = false;
+            }
+            total_cycles += stat.repeats * params.per_repeat_cycles;
         }
-
-        const CostModelParams &params = params_map_.at(key);
-        float masked_repeat_penalty = params.per_repeat_cycles * (params.mask_effect - 1.0f);
-        int effective_repeats = stats.total_repeats > 0 ? stats.total_repeats - 1 : 0;
-
-        float sum_cycles = params.startup_cycles + params.completion_cycles +
-                           (effective_repeats * params.per_repeat_cycles) +
-                           (stats.masked_repeats * masked_repeat_penalty) + params.bank_conflict_cycles;
-
-        return sum_cycles;
+        fprintf(stdout, "[CostModel] PredictCycle: %.1f\n", total_cycles);
+        return total_cycles;
     }
 
 private:
@@ -260,14 +456,11 @@ private:
         InitDefaultParams();
     }
 
-    void SetParam(const std::string &instr_name, DataType dtype, double head, double complete, double computing,
-                  double interval, double mask, double bank_conflict)
+    void SetParam(const std::string &instr_name, DataType dtype, float head, float complete, float computing,
+                  float interval, float mask, float bank_conflict)
     {
-        auto key = std::make_pair(instr_name, dtype);
-        params_map_[key] = CostModelParams{
-            static_cast<float>(head),     static_cast<float>(complete), static_cast<float>(computing),
-            static_cast<float>(interval), static_cast<float>(mask),     static_cast<float>(bank_conflict),
-        };
+        params_map_[std::make_pair(instr_name, dtype)] =
+            CostModelParams{head, complete, computing, interval, mask, bank_conflict};
     }
 
     bool CheckParamExist(const std::pair<std::string, DataType> &key)
@@ -293,7 +486,6 @@ private:
         } else if constexpr (std::is_same_v<T, uint8_t>) {
             return DataType::UINT8;
         } else {
-            fprintf(stderr, "[CostModel] Warning: unknow data type, use FP16 instead.\n");
             return DataType::FP16;
         }
     }

@@ -62,9 +62,9 @@ void LaunchTSqrt(T *out, T *src, void *stream)
         runTSqrt<T, kGRows_, kGCols_, kTRows_, kTCols_, isInPlace, profiling, accuracy>(out, src);
 }
 
-template void LaunchTSqrt<float, 64, 64, 64, 64, true, 166.0f, 1.0f>(float *out, float *src, void *stream);
-template void LaunchTSqrt<float, 64, 64, 64, 64, false, 166.0f, 1.0f>(float *out, float *src, void *stream);
-template void LaunchTSqrt<aclFloat16, 64, 64, 64, 64, true, 166.0f, 1.0f>(aclFloat16 *out, aclFloat16 *src,
+template void LaunchTSqrt<float, 64, 64, 64, 64, true, 141.0f, 1.0f>(float *out, float *src, void *stream);
+template void LaunchTSqrt<float, 64, 64, 64, 64, false, 141.0f, 1.0f>(float *out, float *src, void *stream);
+template void LaunchTSqrt<aclFloat16, 64, 64, 64, 64, true, 141.0f, 1.0f>(aclFloat16 *out, aclFloat16 *src,
                                                                           void *stream);
-template void LaunchTSqrt<aclFloat16, 64, 64, 64, 64, false, 166.0f, 1.0f>(aclFloat16 *out, aclFloat16 *src,
+template void LaunchTSqrt<aclFloat16, 64, 64, 64, 64, false, 141.0f, 1.0f>(aclFloat16 *out, aclFloat16 *src,
                                                                            void *stream);

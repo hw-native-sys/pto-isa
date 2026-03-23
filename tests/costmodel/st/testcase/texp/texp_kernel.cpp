@@ -55,8 +55,8 @@ void LaunchTExp(T *out, T *src, void *stream)
         runTEXP<T, kGRows_, kGCols_, kTRows_, kTCols_, profiling, accuracy>(out, src);
 }
 
-template void LaunchTExp<float, 64, 64, 64, 64, 165.0f, 1.0f>(float *out, float *src, void *stream);
-template void LaunchTExp<aclFloat16, 64, 64, 64, 64, 165.0f, 1.0f>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTExp<aclFloat16, 32, 32, 32, 32, 69.0f, 1.0f>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTExp<float, 32, 32, 32, 32, 69.0f, 1.0f>(float *out, float *src, void *stream);
-template void LaunchTExp<float, 32, 16, 32, 16, 53.0f, 1.0f>(float *out, float *src, void *stream);
+template void LaunchTExp<float, 64, 64, 64, 64, 141.0f, 1.0f>(float *out, float *src, void *stream);
+template void LaunchTExp<aclFloat16, 64, 64, 64, 64, 141.0f, 1.0f>(aclFloat16 *out, aclFloat16 *src, void *stream);
+template void LaunchTExp<aclFloat16, 32, 32, 32, 32, 45.0f, 1.0f>(aclFloat16 *out, aclFloat16 *src, void *stream);
+template void LaunchTExp<float, 32, 32, 32, 32, 45.0f, 1.0f>(float *out, float *src, void *stream);
+template void LaunchTExp<float, 32, 16, 32, 16, 29.0f, 1.0f>(float *out, float *src, void *stream);

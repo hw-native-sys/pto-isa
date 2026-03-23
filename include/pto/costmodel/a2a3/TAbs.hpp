@@ -17,7 +17,7 @@ namespace pto {
 template <typename DstTile, typename SrcTile>
 PTO_INTERNAL void TABS_IMPL(DstTile &dst, SrcTile &src)
 {
-    pto::CostModel::GetInstance().UnaryOpPredictCycle<DstTile, SrcTile>("TABS", dst, src);
+    pto::CostModel::GetInstance().UnaryOpPredictCycle<AbsOp, DstTile, SrcTile>("TABS", dst, src);
 }
 
 } // namespace pto

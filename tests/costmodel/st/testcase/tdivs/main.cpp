@@ -80,48 +80,48 @@ bool TDivSTestFramework()
 
 TEST_F(TDIVSTest, case1)
 {
-    bool ret = TDivSTestFramework<1, float, 32, 32, 64, 64, 128.0f, 1.0f>();
+    bool ret = TDivSTestFramework<1, float, 32, 32, 64, 64, 46.0f, 1.0f>();
     EXPECT_TRUE(ret);
 }
 
 TEST_F(TDIVSTest, case2)
 {
-    bool ret = TDivSTestFramework<2, aclFloat16, 63, 63, 64, 64, 128.0f, 1.0f>();
+    bool ret = TDivSTestFramework<2, aclFloat16, 63, 63, 64, 64, 77.0f, 1.0f>();
     EXPECT_TRUE(ret);
 }
 
 TEST_F(TDIVSTest, case3)
 {
-    bool ret = TDivSTestFramework<3, int32_t, 31, 31, 128, 128, 128.0f, 1.0f>();
+    bool ret = TDivSTestFramework<3, int32_t, 31, 31, 128, 128, 76.0f, 1.0f>();
     EXPECT_TRUE(ret);
 }
 
 TEST_F(TDIVSTest, case4)
 {
-    bool ret = TDivSTestFramework<4, int16_t, 15, 15, 192, 192, 128.0f, 1.0f>();
+    bool ret = TDivSTestFramework<4, int16_t, 15, 15, 192, 192, 44.0f, 1.0f>();
     EXPECT_TRUE(ret);
 }
 
 TEST_F(TDIVSTest, case5)
 {
-    bool ret = TDivSTestFramework<5, float, 32, 32, 64, 64, 128.0f, 1.0f>();
+    bool ret = TDivSTestFramework<5, float, 32, 32, 64, 64, 46.0f, 1.0f>();
     EXPECT_TRUE(ret);
 }
 
 TEST_F(TDIVSTest, case6)
 {
-    bool ret = TDivSTestFramework<6, aclFloat16, 63, 63, 64, 64, 128.0f, 1.0f>();
+    bool ret = TDivSTestFramework<6, aclFloat16, 63, 63, 64, 64, 77.0f, 1.0f>();
     EXPECT_TRUE(ret);
 }
 
 TEST_F(TDIVSTest, case7)
 {
-    bool ret = TDivSTestFramework<7, int32_t, 31, 31, 128, 128, 128.0f, 1.0f>();
+    bool ret = TDivSTestFramework<7, int32_t, 31, 31, 128, 128, 76.0f, 1.0f>();
     EXPECT_TRUE(ret);
 }
 
 TEST_F(TDIVSTest, case8)
 {
-    bool ret = TDivSTestFramework<8, int16_t, 15, 15, 192, 192, 128.0f, 1.0f>();
+    bool ret = TDivSTestFramework<8, int16_t, 15, 15, 192, 192, 44.0f, 1.0f>();
     EXPECT_TRUE(ret);
 }

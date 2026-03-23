@@ -17,7 +17,7 @@ namespace pto {
 template <typename DstTile, typename SrcTile>
 PTO_INTERNAL void TSQRT_IMPL(DstTile &dst, SrcTile &src)
 {
-    pto::CostModel::GetInstance().UnaryOpPredictCycle<DstTile, SrcTile>("TSQRT", dst, src);
+    pto::CostModel::GetInstance().UnaryOpPredictCycle<SqrtOp, DstTile, SrcTile>("TSQRT", dst, src);
 }
 
 } // namespace pto

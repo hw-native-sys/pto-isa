@@ -13,7 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TARGET_DIR="${SCRIPT_DIR}/.."
 
 # 需要执行的测试用例列表（可按需添加/删除）
-TESTCASES=("tadd" "tmul" "tsub" "tadds" "tdivs" "tmins" "tmuls" "tabs" "texp" "tsqrt")
+TESTCASES=("tadd" "tmul" "tsub" "tadds" "tdivs" "tmins" "tmuls" "tabs" "texp" "tsqrt" "tabs" "tcolmax" "tcolsum" "trowexpand" "trowmax" "trowsum")
 
 # 测试命令的固定参数
 TEST_ARGS="--clean --verbose"

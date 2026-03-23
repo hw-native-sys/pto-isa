@@ -82,17 +82,17 @@ void test_tsub()
 
 TEST_F(TSUBTest, case_float_64x64_64x64_64x64)
 {
-    test_tsub<float, 64, 64, 64, 64, 159.0f, 1.0f>();
+    test_tsub<float, 64, 64, 64, 64, 142.0f, 1.0f>();
 }
 TEST_F(TSUBTest, case_int32_64x64_64x64_64x64)
 {
-    test_tsub<int32_t, 64, 64, 64, 64, 157.0f, 1.0f>();
+    test_tsub<int32_t, 64, 64, 64, 64, 142.0f, 1.0f>();
 }
 TEST_F(TSUBTest, case_int16_64x64_64x64_64x64)
 {
-    test_tsub<int16_t, 64, 64, 64, 64, 157.0f, 1.0f>();
+    test_tsub<int16_t, 64, 64, 64, 64, 142.0f, 1.0f>();
 }
 TEST_F(TSUBTest, case_half_16x256_16x256_16x256)
 {
-    test_tsub<aclFloat16, 16, 256, 16, 256, 95.0f, 1.0f>();
+    test_tsub<aclFloat16, 16, 256, 16, 256, 78.0f, 1.0f>();
 }
