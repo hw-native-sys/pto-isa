@@ -6,6 +6,10 @@
 
 Parallel Tile Operation (PTO) is a virtual instruction set architecture designed by Ascend CANN, focusing on tile-level operations. This repository offers high-performance, cross-platform tile operations across Ascend platforms. By porting to PTO instruction sequences, users can migrate Ascend hardware more easily.
 
+[![License](https://img.shields.io/badge/License-CANN%20Open%20Software%20License%202.0-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Ascend%20A2%20%7C%20A3%20%7C%20A5%20%7C%20CPU-green.svg)](#platform-support)
+[![Docs](https://img.shields.io/badge/Docs-MkDocs%20Site-blue.svg)](docs/README.md)
+
 ## News
 
 * **2025-12-27**: PTO Tile Library becomes publicly available.
@@ -18,11 +22,17 @@ Ascend hardware architectures have significantly evolved over generations, leadi
 
 Our goal is to offer users a simplified, yet powerful way to optimize performance, enabling them to write high-performance code with PTO instructions.
 
-Currently, PTO instructions are integrated into the following frameworks:
+## Related Projects
 
-* [PyPTO](https://gitcode.com/cann/pypto/)
-* [TileLang Ascend](https://github.com/tile-ai/tilelang-ascend/)
-* More languages coming soon
+The PTO ecosystem includes the following related projects:
+
+| Project | Description |
+| --- | --- |
+| [PTOAS](https://github.com/PTO-ISA/PTOAS) | PTO assembler and compiler backend for PTO text/bytecode workflows. |
+| [pto-dsl](https://github.com/PTO-ISA/pto-dsl) | Pythonic interface and JIT compiler for PTO-ISA. |
+| [pypto](https://github.com/PTO-ISA/pypto) | Community-driven Python frontend implementation for PTO kernels. |
+| [pto-kernels](https://github.com/PTO-ISA/pto-kernels) | Custom kernel collections built on PTO-ISA. |
+| [tilelang-ascend](https://github.com/PTO-ISA/tilelang-ascend) | Ascend TileLang adapter integration for PTO workflows. |
 
 ## Target Users of this Repository
 
