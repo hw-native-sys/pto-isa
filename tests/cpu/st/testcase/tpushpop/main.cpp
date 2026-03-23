@@ -9,10 +9,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include <pto/pto-inst.hpp>
-#include <functional>
-#include "test_common.h"
 #include <gtest/gtest.h>
 #include <pto/common/fifo.hpp>
+#include <vector>
+#include "test_common.h"
 
 using namespace std;
 using namespace pto;
@@ -24,27 +24,20 @@ void testPushPop()
     using PPDataFIFO = DataFIFO<T, FIFOType::GM_FIFO, 8, 1>;
     using PPSync = TFIFOSync<0, PPDataFIFO, TSyncOpType::TSTORE_C2GM, TSyncOpType::TLOAD>;
     using PPTile = Tile<srcLoc, T, rows, cols>;
-    using PPGlobal =
-        GlobalTensor<T, Shape<1, 1, 1, rows, cols>, Stride<rows * cols, rows * cols, rows * cols, cols, 1>>;
-
-    T *srcDevice;
-    aclrtMalloc((void **)&srcDevice, PPTile::Numel * PPDataFIFO::fifoDepth, ACL_MEM_MALLOC_HUGE_FIRST);
-    PPDataFIFO gmFIFO(srcDevice);
+    std::vector<T> fifoStorage(PPTile::Numel * PPDataFIFO::fifoDepth, static_cast<T>(0));
+    PPDataFIFO gmFIFO(fifoStorage.data());
     PPTile src;
     PPTile dst;
 
-    std::vector<T> srcData(PPTile::Numel, 0);
-    std::vector<T> dstData(PPTile::Numel, 0);
+    std::vector<T> expected(PPTile::Numel, static_cast<T>(0));
 
     for (int i = 0; i < src.Numel; i++) {
-        src.data()[i] = std::rand() / 1000.0;
+        src.data()[i] = static_cast<T>((i % 17) + 1);
+        expected[i] = src.data()[i];
     }
     for (int i = 0; i < dst.Numel; i++) {
-        dst.data()[i] = 0;
+        dst.data()[i] = static_cast<T>(0);
     }
-
-    PPGlobal srcTensor(srcData.data());
-    PPGlobal dstTensor(dstData.data());
 
     typename PPSync::Producer prod;
     typename PPSync::Consumer cons;
@@ -52,9 +45,7 @@ void testPushPop()
     TPUSH(prod, src, gmFIFO);
     TPOP(cons, dst, gmFIFO);
 
-    EXPECT_TRUE(ResultCmp(srcData, dstData.data(), 0));
-
-    aclrtFree(srcDevice);
+    EXPECT_TRUE(ResultCmp(expected, dst.data(), 0));
 }
 
 class TPushPopTest : public testing::Test {

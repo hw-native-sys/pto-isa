@@ -145,7 +145,7 @@ PTO_INTERNAL void TPUSH_IMPL(PipeProd &prod, TileData &tile, DataFiFo &fifo)
     GlobalTensor<typename TileData::DType, Shape<1, 1, 1, rows, cols>,
                  Stride<rows * cols, rows * cols, rows * cols, cols, 1>>
         gt(addr);
-    TLOAD(tile, gt);
+    TSTORE(gt, tile);
 
     // 3. Cross-Core: Commit & Signal
     prod.record();

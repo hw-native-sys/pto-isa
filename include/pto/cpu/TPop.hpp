@@ -37,7 +37,7 @@ PTO_INTERNAL void TPOP_IMPL(PipeCons &cons, TileData &tile, DataFiFo &fifo)
     GlobalTensor<typename DataFiFo::DType, Shape<1, 1, 1, rows, cols>,
                  Stride<rows * cols, rows * cols, rows * cols, cols, 1>>
         gt(addr);
-    TSTORE(gt, tile);
+    TLOAD(tile, gt);
 
     // 3. Cross-Core: Free Space
     cons.free();
