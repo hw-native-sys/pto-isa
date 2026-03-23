@@ -32,59 +32,6 @@ struct FmodOp {
         vsub(dst, src0, dst, 1, 1, 1, 1, 8, 8, 8);
         pipe_barrier(PIPE_V);
     }
-
-    PTO_INTERNAL static void FmodF16Instr(__ubuf__ half *dst, __ubuf__ half *src0, __ubuf__ half *src1)
-    {
-        vdiv(dst, src0, src1, 1, 1, 1, 1, 8, 8, 8);
-        pipe_barrier(PIPE_V);
-
-        vconv_f162s16z((__ubuf__ int16_t *)dst, dst, 1, 1, 1, 8, 8);
-        pipe_barrier(PIPE_V);
-        vconv_s162f16(dst, (__ubuf__ int16_t *)dst, 1, 1, 1, 8, 8);
-        pipe_barrier(PIPE_V);
-
-        vmul(dst, dst, src1, 1, 1, 1, 1, 8, 8, 8);
-        pipe_barrier(PIPE_V);
-
-        vsub(dst, src0, dst, 1, 1, 1, 1, 8, 8, 8);
-        pipe_barrier(PIPE_V);
-    }
-
-    PTO_INTERNAL static void FmodInt32Instr(__ubuf__ int32_t *dst, __ubuf__ int32_t *src0, __ubuf__ int32_t *src1)
-    {
-        __ubuf__ float *dst_f = reinterpret_cast<__ubuf__ float *>(dst);
-        __ubuf__ float *src0_f = reinterpret_cast<__ubuf__ float *>(src0);
-        __ubuf__ float *src1_f = reinterpret_cast<__ubuf__ float *>(src1);
-
-        vconv_s322f32(src0_f, src0, 1, 1, 1, 8, 8);
-        vconv_s322f32(src1_f, src1, 1, 1, 1, 8, 8);
-        pipe_barrier(PIPE_V);
-
-        FmodF32Instr(dst_f, src0_f, src1_f);
-
-        vconv_f322s32r(dst, dst_f, 1, 1, 1, 8, 8);
-        vconv_f322s32r(src0, src0_f, 1, 1, 1, 8, 8);
-        vconv_f322s32r(src1, src1_f, 1, 1, 1, 8, 8);
-        pipe_barrier(PIPE_V);
-    }
-
-    PTO_INTERNAL static void FmodInt16Instr(__ubuf__ int16_t *dst, __ubuf__ int16_t *src0, __ubuf__ int16_t *src1)
-    {
-        __ubuf__ half *dst_f = reinterpret_cast<__ubuf__ half *>(dst);
-        __ubuf__ half *src0_f = reinterpret_cast<__ubuf__ half *>(src0);
-        __ubuf__ half *src1_f = reinterpret_cast<__ubuf__ half *>(src1);
-
-        vconv_s162f16(src0_f, src0, 1, 1, 1, 8, 8);
-        vconv_s162f16(src1_f, src1, 1, 1, 1, 8, 8);
-        pipe_barrier(PIPE_V);
-
-        FmodF16Instr(dst_f, src0_f, src1_f);
-
-        vconv_f162s16r(dst, dst_f, 1, 1, 1, 8, 8);
-        vconv_f162s16r(src0, src0_f, 1, 1, 1, 8, 8);
-        vconv_f162s16r(src1, src1_f, 1, 1, 1, 8, 8);
-        pipe_barrier(PIPE_V);
-    }
 };
 
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
@@ -108,14 +55,8 @@ __tf__ PTO_INTERNAL void TFmod(typename TileDataDst::TileDType __out__ dst,
         __ubuf__ T *s1Next = src1Ptr + i * src1RowStride;
         if constexpr (std::is_same_v<T, float> || std::is_same_v<T, float32_t>) {
             FmodOp::FmodF32Instr(dstNext, s0Next, s1Next);
-        } else if constexpr (std::is_same_v<T, half> || std::is_same_v<T, float16_t>) {
-            FmodOp::FmodF16Instr(dstNext, s0Next, s1Next);
-        } else if constexpr (std::is_same_v<T, int32_t>) {
-            FmodOp::FmodInt32Instr(dstNext, s0Next, s1Next);
-        } else if constexpr (std::is_same_v<T, int16_t>) {
-            FmodOp::FmodInt16Instr(dstNext, s0Next, s1Next);
         } else {
-            static_assert(sizeof(T) == 4 || sizeof(T) == 2, "Fix: TFMOD has unsupported dtype size");
+            static_assert(sizeof(T) == 0, "Fix: Unsupported element type for TFMOD.");
         }
     }
     set_mask_norm();
@@ -125,11 +66,10 @@ __tf__ PTO_INTERNAL void TFmod(typename TileDataDst::TileDType __out__ dst,
 template <typename T, typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
 PTO_INTERNAL void TFmodCheck(const TileDataDst &dst, const TileDataSrc0 &src0, const TileDataSrc1 &src1)
 {
-    static_assert(std::is_same<T, float>::value || std::is_same<T, float32_t>::value ||
-                      std::is_same<T, int32_t>::value || std::is_same<T, int16_t>::value,
-                  "Fix: TFMOD currently supports float and signed 16/32-bit integer data types.");
+    static_assert(std::is_same_v<T, float> || std::is_same_v<T, float32_t>,
+                  "Fix: TFMOD supports only float element type.");
     static_assert(TileDataDst::isRowMajor && TileDataSrc0::isRowMajor && TileDataSrc1::isRowMajor,
-                  "Fix: TFMOD only support row major layout.");
+                  "Fix: TFMOD support only row major layout.");
     unsigned validRows = dst.GetValidRow();
     unsigned validCols = dst.GetValidCol();
     PTO_ASSERT(src0.GetValidRow() == validRows && src0.GetValidCol() == validCols,

@@ -103,16 +103,6 @@ TEST_F(TFMODTest, case_float_16x32_16x64_16x32_16x32)
     test_tfmod<float, 16, 32, 16, 64, 16, 32, 16, 32>();
 }
 
-TEST_F(TFMODTest, case_int32_4x32_4x32_4x32_4x32)
-{
-    test_tfmod<int32_t, 4, 32, 4, 32, 4, 32, 4, 32>();
-}
-
-TEST_F(TFMODTest, case_int32_16x32_16x64_16x32_16x32)
-{
-    test_tfmod<int32_t, 16, 32, 16, 64, 16, 32, 16, 32>();
-}
-
 TEST_F(TFMODTest, case_float_16x64_16x128_16x128_16x63)
 {
     test_tfmod<float, 16, 64, 16, 128, 16, 128, 16, 63>();
@@ -121,21 +111,6 @@ TEST_F(TFMODTest, case_float_16x64_16x128_16x128_16x63)
 TEST_F(TFMODTest, case_float_2x32_2x64_2x32_2x31)
 {
     test_tfmod<float, 2, 32, 2, 64, 2, 32, 2, 31>();
-}
-
-TEST_F(TFMODTest, case_int32_16x32_16x64_16x32_16x31)
-{
-    test_tfmod<int32_t, 16, 32, 16, 64, 16, 32, 16, 31>();
-}
-
-TEST_F(TFMODTest, case_int16_16x32_16x64_16x32_16x31)
-{
-    test_tfmod<int16_t, 16, 32, 16, 64, 16, 32, 16, 31>();
-}
-
-TEST_F(TFMODTest, case_int16_16x64_16x128_16x128_16x63)
-{
-    test_tfmod<int16_t, 16, 64, 16, 128, 16, 128, 16, 63>();
 }
 
 TEST_F(TFMODTest, case_float_1x8192_1x8192_1x8192_1x8192)

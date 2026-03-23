@@ -96,16 +96,6 @@ TEST_F(TFMODSTest, case1)
     TFMODSTestFramework<1, float, 32, 64, 32, 32, 64, 64>();
 }
 
-TEST_F(TFMODSTest, case3)
-{
-    TFMODSTestFramework<3, int32_t, 31, 128, 31, 31, 128, 128>();
-}
-
-TEST_F(TFMODSTest, case4)
-{
-    TFMODSTestFramework<4, int16_t, 3, 256, 3, 3, 256, 256>();
-}
-
 TEST_F(TFMODSTest, case5)
 {
     TFMODSTestFramework<5, float, 7, 448, 7, 7, 448, 448>();
@@ -121,16 +111,6 @@ TEST_F(TFMODSTest, case7)
     TFMODSTestFramework<7, float, 32, 128, 32, 32, 64, 64>();
 }
 
-TEST_F(TFMODSTest, case9)
-{
-    TFMODSTestFramework<9, int32_t, 31, 256, 31, 31, 128, 128>();
-}
-
-TEST_F(TFMODSTest, case10)
-{
-    TFMODSTestFramework<10, int16_t, 15, 192, 15, 15, 192, 192>();
-}
-
 TEST_F(TFMODSTest, case11)
 {
     TFMODSTestFramework<11, float, 7, 512, 7, 7, 448, 448>();
@@ -139,16 +119,6 @@ TEST_F(TFMODSTest, case11)
 TEST_F(TFMODSTest, case12)
 {
     TFMODSTestFramework<12, float, 256, 32, 256, 256, 16, 16>();
-}
-
-TEST_F(TFMODSTest, case14)
-{
-    TFMODSTestFramework<14, int16_t, 1, 8192, 1, 1, 8192, 8192>();
-}
-
-TEST_F(TFMODSTest, case15)
-{
-    TFMODSTestFramework<15, int32_t, 1, 8192, 1, 1, 8192, 8192>();
 }
 
 TEST_F(TFMODSTest, case16)

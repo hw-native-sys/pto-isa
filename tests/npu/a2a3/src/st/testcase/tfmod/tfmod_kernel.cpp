@@ -64,17 +64,7 @@ void LaunchTFMOD(T *out, T *src0, T *src1, void *stream)
 
 template void LaunchTFMOD<float, 16, 64, 16, 128, 16, 128, 16, 64>(float *out, float *src0, float *src1, void *stream);
 template void LaunchTFMOD<float, 16, 32, 16, 64, 16, 32, 16, 32>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTFMOD<int32_t, 4, 32, 4, 32, 4, 32, 4, 32>(int32_t *out, int32_t *src0, int32_t *src1,
-                                                               void *stream);
-template void LaunchTFMOD<int32_t, 16, 32, 16, 64, 16, 32, 16, 32>(int32_t *out, int32_t *src0, int32_t *src1,
-                                                                   void *stream);
 template void LaunchTFMOD<float, 16, 64, 16, 128, 16, 128, 16, 63>(float *out, float *src0, float *src1, void *stream);
 template void LaunchTFMOD<float, 2, 32, 2, 64, 2, 32, 2, 31>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTFMOD<int32_t, 16, 32, 16, 64, 16, 32, 16, 31>(int32_t *out, int32_t *src0, int32_t *src1,
-                                                                   void *stream);
-template void LaunchTFMOD<int16_t, 16, 32, 16, 64, 16, 32, 16, 31>(int16_t *out, int16_t *src0, int16_t *src1,
-                                                                   void *stream);
-template void LaunchTFMOD<int16_t, 16, 64, 16, 128, 16, 128, 16, 63>(int16_t *out, int16_t *src0, int16_t *src1,
-                                                                     void *stream);
 template void LaunchTFMOD<float, 1, 8192, 1, 8192, 1, 8192, 1, 8192>(float *out, float *src0, float *src1,
                                                                      void *stream);

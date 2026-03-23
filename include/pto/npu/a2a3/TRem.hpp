@@ -33,23 +33,6 @@ struct RemOp {
         pipe_barrier(PIPE_V);
     }
 
-    PTO_INTERNAL static void RemF16Instr(__ubuf__ half *dst, __ubuf__ half *src0, __ubuf__ half *src1)
-    {
-        vdiv(dst, src0, src1, 1, 1, 1, 1, 8, 8, 8);
-        pipe_barrier(PIPE_V);
-
-        vconv_f162s16f((__ubuf__ int16_t *)dst, dst, 1, 1, 1, 8, 8);
-        pipe_barrier(PIPE_V);
-        vconv_s162f16(dst, (__ubuf__ int16_t *)dst, 1, 1, 1, 8, 8);
-        pipe_barrier(PIPE_V);
-
-        vmul(dst, dst, src1, 1, 1, 1, 1, 8, 8, 8);
-        pipe_barrier(PIPE_V);
-
-        vsub(dst, src0, dst, 1, 1, 1, 1, 8, 8, 8);
-        pipe_barrier(PIPE_V);
-    }
-
     PTO_INTERNAL static void RemInt32Instr(__ubuf__ int32_t *dst, __ubuf__ int32_t *src0, __ubuf__ int32_t *src1)
     {
         __ubuf__ float *dst_f = reinterpret_cast<__ubuf__ float *>(dst);
@@ -65,24 +48,6 @@ struct RemOp {
         vconv_f322s32r(dst, dst_f, 1, 1, 1, 8, 8);
         vconv_f322s32r(src0, src0_f, 1, 1, 1, 8, 8);
         vconv_f322s32r(src1, src1_f, 1, 1, 1, 8, 8);
-        pipe_barrier(PIPE_V);
-    }
-
-    PTO_INTERNAL static void RemInt16Instr(__ubuf__ int16_t *dst, __ubuf__ int16_t *src0, __ubuf__ int16_t *src1)
-    {
-        __ubuf__ half *dst_f = reinterpret_cast<__ubuf__ half *>(dst);
-        __ubuf__ half *src0_f = reinterpret_cast<__ubuf__ half *>(src0);
-        __ubuf__ half *src1_f = reinterpret_cast<__ubuf__ half *>(src1);
-
-        vconv_s162f16(src0_f, src0, 1, 1, 1, 8, 8);
-        vconv_s162f16(src1_f, src1, 1, 1, 1, 8, 8);
-        pipe_barrier(PIPE_V);
-
-        RemF16Instr(dst_f, src0_f, src1_f);
-
-        vconv_f162s16r(dst, dst_f, 1, 1, 1, 8, 8);
-        vconv_f162s16r(src0, src0_f, 1, 1, 1, 8, 8);
-        vconv_f162s16r(src1, src1_f, 1, 1, 1, 8, 8);
         pipe_barrier(PIPE_V);
     }
 };
@@ -107,14 +72,10 @@ __tf__ PTO_INTERNAL void TRem(typename TileDataDst::TileDType __out__ dst, typen
         __ubuf__ T *s1Next = src1Ptr + i * src1RowStride;
         if constexpr (std::is_same_v<T, float> || std::is_same_v<T, float32_t>) {
             RemOp::RemF32Instr(dstNext, s0Next, s1Next);
-        } else if constexpr (std::is_same_v<T, half> || std::is_same_v<T, float16_t>) {
-            RemOp::RemF16Instr(dstNext, s0Next, s1Next);
         } else if constexpr (std::is_same_v<T, int32_t>) {
             RemOp::RemInt32Instr(dstNext, s0Next, s1Next);
-        } else if constexpr (std::is_same_v<T, int16_t>) {
-            RemOp::RemInt16Instr(dstNext, s0Next, s1Next);
         } else {
-            static_assert(sizeof(T) == 4 || sizeof(T) == 2, "Fix: TREM has unsupported dtype size");
+            static_assert(sizeof(T) == 0, "Fix: Unsupported element type for TREM.");
         }
     }
     set_mask_norm();
@@ -124,11 +85,10 @@ __tf__ PTO_INTERNAL void TRem(typename TileDataDst::TileDType __out__ dst, typen
 template <typename T, typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
 PTO_INTERNAL void TRemCheck(const TileDataDst &dst, const TileDataSrc0 &src0, const TileDataSrc1 &src1)
 {
-    static_assert(std::is_same<T, float>::value || std::is_same<T, float32_t>::value ||
-                      std::is_same<T, int32_t>::value || std::is_same<T, int16_t>::value,
-                  "Fix: TREM currently supports float and signed 16/32-bit integer data types.");
+    static_assert(std::is_same_v<T, float> || std::is_same_v<T, float32_t> || std::is_same_v<T, int32_t>,
+                  "Fix: TREM supports only float and int32 element types.");
     static_assert(TileDataDst::isRowMajor && TileDataSrc0::isRowMajor && TileDataSrc1::isRowMajor,
-                  "Fix: TREM only support row major layout.");
+                  "Fix: TREM support only row major layout.");
     unsigned validRows = dst.GetValidRow();
     unsigned validCols = dst.GetValidCol();
     PTO_ASSERT(src0.GetValidRow() == validRows && src0.GetValidCol() == validCols,

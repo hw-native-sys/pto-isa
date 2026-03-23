@@ -57,17 +57,11 @@ class TFMODSParams:
 if __name__ == "__main__":
     case_params_list = [
         TFMODSParams("TFMODSTest.case1", np.float32, 32, 64, 32, 64),
-        TFMODSParams("TFMODSTest.case3", np.int32, 31, 128, 31, 128),
-        TFMODSParams("TFMODSTest.case4", np.int16, 3, 256, 3, 256),
         TFMODSParams("TFMODSTest.case5", np.float32, 7, 64 * 7, 7, 64 * 7),
         TFMODSParams("TFMODSTest.case6", np.float32, 256, 16, 256, 16),
         TFMODSParams("TFMODSTest.case7", np.float32, 32, 128, 32, 64),
-        TFMODSParams("TFMODSTest.case9", np.int32, 31, 256, 31, 128),
-        TFMODSParams("TFMODSTest.case10", np.int16, 15, 192, 15, 64 * 3),
         TFMODSParams("TFMODSTest.case11", np.float32, 7, 512, 7, 64 * 7),
         TFMODSParams("TFMODSTest.case12", np.float32, 256, 32, 256, 16),
-        TFMODSParams("TFMODSTest.case14", np.int16, 1, 8192, 1, 8192),
-        TFMODSParams("TFMODSTest.case15", np.int32, 1, 8192, 1, 8192),
         TFMODSParams("TFMODSTest.case16", np.float32, 1, 8192, 1, 8192),
     ]
 

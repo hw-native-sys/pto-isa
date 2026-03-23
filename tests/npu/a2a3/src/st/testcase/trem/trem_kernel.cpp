@@ -71,8 +71,4 @@ template void LaunchTREM<float, 16, 64, 16, 128, 16, 128, 16, 63>(float *out, fl
 template void LaunchTREM<float, 2, 32, 2, 64, 2, 32, 2, 31>(float *out, float *src0, float *src1, void *stream);
 template void LaunchTREM<int32_t, 16, 32, 16, 64, 16, 32, 16, 31>(int32_t *out, int32_t *src0, int32_t *src1,
                                                                   void *stream);
-template void LaunchTREM<int16_t, 16, 32, 16, 64, 16, 32, 16, 31>(int16_t *out, int16_t *src0, int16_t *src1,
-                                                                  void *stream);
-template void LaunchTREM<int16_t, 16, 64, 16, 128, 16, 128, 16, 63>(int16_t *out, int16_t *src0, int16_t *src1,
-                                                                    void *stream);
 template void LaunchTREM<float, 1, 8192, 1, 8192, 1, 8192, 1, 8192>(float *out, float *src0, float *src1, void *stream);

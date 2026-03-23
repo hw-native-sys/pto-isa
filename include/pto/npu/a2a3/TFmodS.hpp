@@ -33,56 +33,6 @@ struct FmodSOp {
         vsub(dst, src, dst, 1, 1, 1, 1, 8, 8, 8);
         pipe_barrier(PIPE_V);
     }
-
-    PTO_INTERNAL static void FmodSF16Instr(__ubuf__ half *dst, __ubuf__ half *src, half x)
-    {
-        vector_dup(dst, x, 1, 1, 1, 8, 8);
-        pipe_barrier(PIPE_V);
-
-        vdiv(dst, src, dst, 1, 1, 1, 1, 8, 8, 8);
-        pipe_barrier(PIPE_V);
-
-        vconv_f162s16z((__ubuf__ int16_t *)dst, dst, 1, 1, 1, 8, 8);
-        pipe_barrier(PIPE_V);
-        vconv_s162f16(dst, (__ubuf__ int16_t *)dst, 1, 1, 1, 8, 8);
-        pipe_barrier(PIPE_V);
-
-        vmuls(dst, dst, x, 1, 1, 1, 8, 8);
-        pipe_barrier(PIPE_V);
-
-        vsub(dst, src, dst, 1, 1, 1, 1, 8, 8, 8);
-        pipe_barrier(PIPE_V);
-    }
-
-    PTO_INTERNAL static void FmodSInt32Instr(__ubuf__ int32_t *dst, __ubuf__ int32_t *src, int32_t x)
-    {
-        __ubuf__ float *dst_f = reinterpret_cast<__ubuf__ float *>(dst);
-        __ubuf__ float *src_f = reinterpret_cast<__ubuf__ float *>(src);
-
-        vconv_s322f32(src_f, src, 1, 1, 1, 8, 8);
-        pipe_barrier(PIPE_V);
-
-        FmodSF32Instr(dst_f, src_f, (float)x);
-
-        vconv_f322s32r(dst, dst_f, 1, 1, 1, 8, 8);
-        vconv_f322s32r(src, src_f, 1, 1, 1, 8, 8);
-        pipe_barrier(PIPE_V);
-    }
-
-    PTO_INTERNAL static void FmodSInt16Instr(__ubuf__ int16_t *dst, __ubuf__ int16_t *src, int16_t x)
-    {
-        __ubuf__ half *dst_f = reinterpret_cast<__ubuf__ half *>(dst);
-        __ubuf__ half *src_f = reinterpret_cast<__ubuf__ half *>(src);
-
-        vconv_s162f16(src_f, src, 1, 1, 1, 8, 8);
-        pipe_barrier(PIPE_V);
-
-        FmodSF16Instr(dst_f, src_f, (half)x);
-
-        vconv_f162s16r(dst, dst_f, 1, 1, 1, 8, 8);
-        vconv_f162s16r(src, src_f, 1, 1, 1, 8, 8);
-        pipe_barrier(PIPE_V);
-    }
 };
 
 template <typename TileDataDst, typename TileDataSrc, unsigned elementsPerRepeat, unsigned blockSizeElem,
@@ -102,12 +52,6 @@ __tf__ PTO_INTERNAL void TFmodS(typename TileDataDst::TileDType __out__ dst, typ
         __ubuf__ T *s0Next = srcPtr + i * srcRowStride;
         if constexpr (std::is_same_v<T, float> || std::is_same_v<T, float32_t>) {
             FmodSOp::FmodSF32Instr(dstNext, s0Next, x);
-        } else if constexpr (std::is_same_v<T, half> || std::is_same_v<T, float16_t>) {
-            FmodSOp::FmodSF16Instr(dstNext, s0Next, x);
-        } else if constexpr (std::is_same_v<T, int32_t>) {
-            FmodSOp::FmodSInt32Instr(dstNext, s0Next, x);
-        } else if constexpr (std::is_same_v<T, int16_t>) {
-            FmodSOp::FmodSInt16Instr(dstNext, s0Next, x);
         } else {
             static_assert(sizeof(T) == 0, "TFMODS: Unsupported tile DType.");
         }
@@ -124,9 +68,8 @@ PTO_INTERNAL void TFMODS_IMPL(TileDataDst &dst, TileDataSrc &src, typename TileD
     // static assertions
     static_assert(std::is_same_v<T, typename TileDataSrc::DType>,
                   "TFMODS: The data types of dst and src must be the same.");
-    static_assert(std::is_same<T, int32_t>::value || std::is_same<T, int>::value || std::is_same<T, int16_t>::value ||
-                      std::is_same<T, float>::value || std::is_same<T, float32_t>::value,
-                  "Fix: TFMODS currently supports float and signed 16/32-bit integer data types.");
+    static_assert(std::is_same_v<T, float> || std::is_same_v<T, float32_t>,
+                  "Fix: TFMODS supports only float element type.");
     static_assert(TileDataDst::Loc == TileType::Vec && TileDataSrc::Loc == TileType::Vec,
                   "TFMODS: TileType of dst and src tiles must be TileType::Vec.");
     static_assert(TileDataDst::isRowMajor && TileDataSrc::isRowMajor, "TFMODS: Only support row major layout.");

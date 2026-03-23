@@ -83,8 +83,6 @@ if __name__ == "__main__":
         TremParams(np.float32, 16, 64, 16, 128, 16, 128, 16, 63),
         TremParams(np.float32, 2, 32, 2, 64, 2, 32, 2, 31),
         TremParams(np.int32, 16, 32, 16, 64, 16, 32, 16, 31),
-        TremParams(np.int16, 16, 32, 16, 64, 16, 32, 16, 31),
-        TremParams(np.int16, 16, 64, 16, 128, 16, 128, 16, 63),
         TremParams(np.float32, 1, 8192, 1, 8192, 1, 8192, 1, 8192),
     ]
 
