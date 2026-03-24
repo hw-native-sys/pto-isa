@@ -81,7 +81,7 @@ void test_ttest()
     std::string goldenFileName = GetGoldenDir() + "/golden.bin";
     std::ifstream goldenFile(goldenFileName, std::ios::binary);
 
-    goldenFile.read(reinterpret_cast<char *>(&goldenValue), 1);
+    goldenFile.read(reinterpret_cast<char *>(goldenValue), sizeof(goldenValue));
     goldenFile.close();
 
     EXPECT_TRUE(goldenValue[0] == outputTestTrue);
