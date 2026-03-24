@@ -16,10 +16,30 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "utils.hpp"
 #include "TBinSOp.hpp"
 
+#ifndef STRAIGHT_INTRINSICS_IMPL
+#include "custom/Div754.hpp"
+#endif
+
 namespace pto {
 
 template <typename T>
 struct DivSOp {
+#ifndef STRAIGHT_INTRINSICS_IMPL
+    PTO_INTERNAL static void BinSInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, T reg_src1, MaskReg &preg)
+    {
+        if constexpr (std::is_same_v<T, float>) {
+            vdup(reg_dst, reg_src1, preg, MODE_ZEROING);
+            DivIEEE754FloatImpl<T, RegTensor<T> >(reg_dst, reg_src0, reg_dst, preg);
+        } else if constexpr (std::is_same_v<T, half>) {
+            vdup(reg_dst, reg_src1, preg, MODE_ZEROING);
+            DivIEEE754HalfImpl<T, RegTensor<T> >(reg_dst, reg_src0, reg_dst, preg);
+        } else {
+            vdup(reg_dst, reg_src1, preg, MODE_ZEROING);
+            vdiv(reg_dst, reg_src0, reg_dst, preg, MODE_ZEROING);
+        }
+    }
+#else
+
     PTO_INTERNAL static void BinSInstr(RegTensor<T> &vregdst, RegTensor<T> &vregsrc, T src1, MaskReg &preg)
     {
         float divider = static_cast<float>(src1);
@@ -46,6 +66,7 @@ struct DivSOp {
             vcvt(vregdst, tempDst, preg, ROUND_Z, RS_ENABLE);
         }
     }
+#endif
 };
 
 template <typename T>

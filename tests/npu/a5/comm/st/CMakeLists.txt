@@ -86,4 +86,6 @@ include_directories(
     ${ASCEND_HOME_PATH}/include/hccl
 )
 
+option(HIGH_PRECISION_IMPL "Use high-precision algorithms (usually slower) for some operations" OFF)
+
 add_subdirectory(testcase)
