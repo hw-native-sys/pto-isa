@@ -87,8 +87,8 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     python3 tests/script/run_st.py $ARGS -w -v a3 -t trowprod -g TROWPRODTest.case1
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolmax -g TCOLMAXTest.case1
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolmin -g TCOLMINTest.case1
-    python3 tests/script/run_st.py $ARGS -w -v a3 -t trem -g TREMTest.case_half_16x64_16x128_16x128_16x64
-    python3 tests/script/run_st.py $ARGS -w -v a3 -t tfmod -g TFMODTest.case_half_16x64_16x128_16x128_16x64
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t trem -g TREMTest.case_float_16x64_16x128_16x128_16x64
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tfmod -g TFMODTest.case_float_16x64_16x128_16x128_16x64
     python3 tests/script/run_st.py $ARGS -w -v a3 -t trems -g TREMSTest.case1
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tfmods -g TFMODSTest.case1
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tsubs -g TSUBSTest.case1
@@ -96,10 +96,10 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tlrelu -g TLRELUTest.case1
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tgatherb -g TGATHERBTest.case_float_2x128_2x16_2x128
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tci -g TCITest.case1_int32
-    python3 tests/script/run_st.py $ARGS -w -v a3 -t tcvt -g TCVTTest.case1
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tcvt -g TCVTTest.case_fp16_fp32_2x64
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tmov -g TMOVTest.case14_scaling_dynamic_int32_int8_0_1_1_1_0_param
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tmov_acc2mat -g TMOVTest.case_nz2nz_fb_quant_4
-    python3 tests/script/run_st.py $ARGS -w -v a3 -t textract -g TEXTRACTTest.case1_half_0_1_param
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t textract -g TEXTRACTTest.case1_half_0_1_16_16_32_param
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tmrgsort -g TMRGSORTTest.case_topk1
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tmul -g TMULTest.case_float_64x64_64x64_64x64
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tdiv -g TDIVTest.case_float_64x64_64x64_64x64
@@ -126,7 +126,7 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tsort32 -g TSort32Test.case1
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tadd -g TADDTest.case_float_64x64_64x64
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tand -g TANDTest.case1
-    python3 tests/script/run_st.py $ARGS -w -v a3 -t tor -g TANDTest.case2
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tor -g TORTest.case2
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tpartadd -g TPARTADDTest.case_float_64x64_64x64_64x64
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tpartmul -g TPARTMULTest.case_float_64x64_64x64_64x64
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tsel -g TSELTest.case1
@@ -135,7 +135,7 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tload_gm2mat -g TLoadGM2L1Test.ND2NZ_bfloat16_t_1_1_1_1_1_1_1_1_1_1
     python3 tests/script/run_st.py $ARGS -w -v a3 -t trsqrt -g TRSQRTTest.case_float_64x64_64x64_64x64_inPlace_False
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tsqrt -g TSQRTTest.case_float_64x64_64x64_64x64_inPlace_False
-    python3 tests/script/run_st.py $ARGS -w -v a3 -t texp -g TEXPTest.case1
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t texp -g TEXPTest.case_float_64x64_64x64_64x64_inPlace_False
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tabs -g TABSTest.case_float_64x64_64x64_64x64_inPlace_False
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tlog -g TLOGTest.case_float_64x64_64x64_64x64_inPlace_False
     python3 tests/script/run_st.py $ARGS -w -v a3 -t trecip -g TRECIPTest.case_float_64x64_64x64_64x64_inPlace_False
@@ -158,10 +158,10 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tshr -g TSHRTest.case2
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tshls -g TSHLSTest.case_int16_64x64_64x64_64x64
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tshrs -g TSHRSTest.case_int16_64x64_64x64_64x64
-    python3 tests/script/run_st.py $ARGS -w -v a3 -t txor -g TXORSTest.case_int16_64x64_64x64_64x64_64x64
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t txor -g TXORTest.case_int16_64x64_64x64_64x64_64x64
     python3 tests/script/run_st.py $ARGS -w -v a3 -t txors -g TXORSTest.case_int16_64x64_64x64_64x64
-    python3 tests/script/run_st.py $ARGS -w -v a3 -t tquant -g TQUANTTest.case_int8_sym_fp32_128x128_nd
-    python3 tests/script/run_st.py $ARGS -w -v a3 -t tquant -g TQUANTTest.case_int8_asym_fp32_128x128_nd
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tquant -g TQUANTTEST.case_int8_sym_fp32_128x128_nd
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tquant -g TQUANTTEST.case_int8_asym_fp32_128x128_nd
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tdequant -g TDEQUANTTest.case4
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tdequant -g TDEQUANTTest.case5
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tconcat -g TCONCATTest.case_half_16x128_16x64_16x64_16x63_16x64
@@ -279,10 +279,10 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolmin -g TCOLMINTest.case01
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolsum -g TCOLSUMTest.case01
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolprod -g TCOLPRODTest.case01
-    python3 tests/script/run_st.py $ARGS -w -v a5 -t tcvt -g TCVTTest.case1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tcvt -g TCVTTest.case_fp16_fp32_2x64
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tdivs -g TDIVSTest.case4
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tdivs -g TDIVSTest.case5
-    python3 tests/script/run_st.py $ARGS -w -v a5 -t texp -g TEXPTest.case_float_64x64_64x64_64x64_inPlace_False
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t texp -g TEXPTest.case1
     python3 tests/script/run_st.py $ARGS -w -v a5 -t texpands -g TEXPANDSTest.case_float_64x64_64x64_64x64_PAD_VALUE_NULL
     python3 tests/script/run_st.py $ARGS -w -v a5 -t texpands_mat -g TEXPANDSTest.case1
     python3 tests/script/run_st.py $ARGS -w -v a5 -t textract -g TEXTRACTTest.case1
@@ -310,7 +310,7 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tmrgsort -g TMRGSORTTest.case_topk1
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tmul -g TMULTest.case_float_64x64_64x64_64x64_64x64
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tmuls -g TMULSTest.case1
-    python3 tests/script/run_st.py $ARGS -w -v a5 -t tor -g TANDTest.case2
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tor -g TORTest.case2
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tpartadd -g TPARTADDTest.case_float_64x64_64x64_64x64
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tpartmul -g TPARTMULTest.case_float_64x64_64x64_64x64
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tpartmax -g TPARTMAXTest.case_fp32_64x64_64x64_64x64
@@ -321,7 +321,7 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a5 -t trowexpanddiv -g TRowExpandDivTest.case_fp32_40_64
     python3 tests/script/run_st.py $ARGS -w -v a5 -t trowmax -g TROWMAXTest.case1
     python3 tests/script/run_st.py $ARGS -w -v a5 -t trowmin -g TROWMINTest.case1
-    python3 tests/script/run_st.py $ARGS -w -v a5 -t trowsum -g TROWSUMTest.test1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t trowsum -g TROWSUMTest.case1
     python3 tests/script/run_st.py $ARGS -w -v a5 -t trowprod -g TROWPRODTest.case1
     python3 tests/script/run_st.py $ARGS -w -v a5 -t trsqrt -g TRSQRTTest.case1
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tsel -g TSELTest.case1
@@ -349,14 +349,14 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolexpand -g TCOLEXPANDTest.case_float_1_8_128_63
     python3 tests/script/run_st.py $ARGS -w -v a5 -t ttri -g TTRITest.case_float_128x128_upper_diag_n3
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tnot -g TNOTTest.case_int16_64x64_64x64_64x64
-    python3 tests/script/run_st.py $ARGS -w -v a5 -t trelu -g TNOTTest.case_int32_64x64_64x64_64x64
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t trelu -g TRELUTest.case_int32_64x64_64x64_64x64
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tmov_acc2mat -g TMOVTest.case_nz2nz_insert
     python3 tests/script/run_st.py $ARGS -w -v a5 -t mgather -g MGATHERTest.case_half_16x128_8x64
     python3 tests/script/run_st.py $ARGS -w -v a5 -t mscatter -g MSCATTERTest.case_uint8_16x64_2048
-    python3 tests/script/run_st.py $ARGS -w -v a5 -t tquant -g TQUANTTest.case_mxfp8_fp32_128x128_nd
-    python3 tests/script/run_st.py $ARGS -w -v a5 -t tquant -g TQUANTTest.case_mxfp8_fp32_128x128_nz
-    python3 tests/script/run_st.py $ARGS -w -v a5 -t tquant -g TQUANTTest.case_int8_sym_fp32_128x128_nd
-    python3 tests/script/run_st.py $ARGS -w -v a5 -t tquant -g TQUANTTest.case_int8_asym_fp32_128x128_nd
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tquant -g TQUANTTEST.case_int8_sym_fp32_128x128_nd
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tquant -g TQUANTTEST.case_int8_asym_fp32_128x128_nd
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tquant -g TQUANTTEST.case_int8_sym_fp32_128x128_nd
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tquant -g TQUANTTEST.case_int8_asym_fp32_128x128_nd
     python3 tests/script/run_st.py $ARGS -w -v a5 -t ttri -g TTRITest.case_float_128x128_lower_diag_n3
     python3 tests/script/run_st.py $ARGS -w -v a5 -t ttri -g TTRITest.case_float_128x128_upper_diag_0
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tpack -g TPACKTEST.case_fp32_fp16_128x128
