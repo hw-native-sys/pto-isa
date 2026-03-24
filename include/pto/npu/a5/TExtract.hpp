@@ -11,6 +11,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef TEXTRACT_HPP
 #define TEXTRACT_HPP
 #include "common.hpp"
+#include "utils.hpp"
 
 namespace pto {
 
@@ -433,7 +434,7 @@ constexpr bool is_textract_supported_type =
     std::disjunction_v<std::is_same<T, int8_t>, std::is_same<T, float8_e4m3_t>, std::is_same<T, float8_e5m2_t>,
                        std::is_same<T, hifloat8_t>, std::is_same<T, half>, std::is_same<T, bfloat16_t>,
                        std::is_same<T, float>, std::is_same<T, float4_e2m1x2_t>, std::is_same<T, float4_e1m2x2_t>,
-                       std::is_same<T, float8_e8m0_t> >;
+                       std::is_same<T, float8_e8m0_t>>;
 
 template <typename DstTileData, typename SrcTileData>
 AICORE void TExtractToLeft(DstTileData &dst, SrcTileData &src, uint16_t indexRow, uint16_t indexCol)
@@ -590,10 +591,176 @@ PTO_INTERNAL void TEXTRACT_CONVTILE_IMPL(DstTileData &dst, SrcTileData &src, uin
     }
 }
 
+template <typename T, typename DstTileData, typename SrcTileData>
+__tf__ AICORE void TExtractVecToVecNDImpl(typename DstTileData::TileDType __out__ dst,
+                                          typename SrcTileData::TileDType __in__ src, uint16_t validRow,
+                                          uint16_t validCol, uint32_t indexRow, uint32_t indexCol)
+{
+    __ubuf__ T *dstAddr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
+    __ubuf__ T *srcAddr = (__ubuf__ T *)__cce_get_tile_ptr(src);
+    constexpr uint32_t dstRowStride = DstTileData::RowStride;
+    constexpr uint32_t srcRowStride = SrcTileData::RowStride;
+
+    __ubuf__ T *srcStart = srcAddr + indexRow * srcRowStride + indexCol;
+    uint32_t rowBytes = static_cast<uint32_t>(validCol) * sizeof(T);
+    uint32_t totalBytes = static_cast<uint32_t>(validRow) * rowBytes;
+    uint16_t rowBurstLen = static_cast<uint16_t>(rowBytes / BLOCK_BYTE_SIZE);
+
+    if (validCol == dstRowStride && validCol == srcRowStride && totalBytes >= BLOCK_BYTE_SIZE) {
+        uint16_t burstLen = static_cast<uint16_t>(totalBytes / BLOCK_BYTE_SIZE);
+        copy_ubuf_to_ubuf((__ubuf__ void *)dstAddr, (__ubuf__ void *)srcStart, 0, 1, burstLen, 0, 0);
+    } else {
+        uint16_t srcGap = static_cast<uint16_t>((srcRowStride - validCol) * sizeof(T) / BLOCK_BYTE_SIZE);
+        uint16_t dstGap = static_cast<uint16_t>((dstRowStride - validCol) * sizeof(T) / BLOCK_BYTE_SIZE);
+        copy_ubuf_to_ubuf((__ubuf__ void *)dstAddr, (__ubuf__ void *)srcStart, 0, validRow, rowBurstLen, srcGap,
+                          dstGap);
+    }
+}
+
+template <typename T, typename DstTileData, typename SrcTileData>
+__tf__ AICORE void TExtractVecToVecNDAlignedImpl(typename DstTileData::TileDType __out__ dst,
+                                                 typename SrcTileData::TileDType __in__ src, uint16_t validRow,
+                                                 uint16_t validCol, uint32_t indexRow, uint32_t indexCol)
+{
+    __ubuf__ T *dstAddr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
+    __ubuf__ T *srcAddr = (__ubuf__ T *)__cce_get_tile_ptr(src);
+    constexpr uint32_t dstRowStride = DstTileData::RowStride;
+    constexpr uint32_t srcRowStride = SrcTileData::RowStride;
+    constexpr uint32_t elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+
+    __VEC_SCOPE__
+    {
+        constexpr auto distValue =
+            std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
+        RegTensor<T> vreg;
+        MaskReg preg;
+        uint16_t repeatTimes = CeilDivision(static_cast<uint32_t>(validCol), elementsPerRepeat);
+
+        for (uint16_t i = 0; i < validRow; ++i) {
+            uint32_t sreg = static_cast<uint32_t>(validCol);
+            uint32_t srcRowOff = (indexRow + static_cast<uint32_t>(i)) * srcRowStride + indexCol;
+            uint32_t dstRowOff = static_cast<uint32_t>(i) * dstRowStride;
+            for (uint16_t j = 0; j < repeatTimes; ++j) {
+                preg = CreatePredicate<T>(sreg);
+                vlds(vreg, srcAddr, srcRowOff + static_cast<uint32_t>(j) * elementsPerRepeat, NORM);
+                vsts(vreg, dstAddr, dstRowOff + static_cast<uint32_t>(j) * elementsPerRepeat, distValue, preg);
+            }
+        }
+    }
+}
+
+template <typename T, typename DstTileData, typename SrcTileData>
+__tf__ AICORE void TExtractVecToVecNDVectorImpl(typename DstTileData::TileDType __out__ dst,
+                                                typename SrcTileData::TileDType __in__ src, uint16_t validRow,
+                                                uint16_t validCol, uint32_t indexRow, uint32_t indexCol)
+{
+    __ubuf__ T *dstAddr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
+    __ubuf__ T *srcAddr = (__ubuf__ T *)__cce_get_tile_ptr(src);
+    constexpr uint32_t dstRowStride = DstTileData::RowStride;
+    constexpr uint32_t srcRowStride = SrcTileData::RowStride;
+    constexpr uint32_t elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+
+    __VEC_SCOPE__
+    {
+        constexpr auto distValue =
+            std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
+        RegTensor<T> vreg;
+        UnalignReg ureg;
+        MaskReg preg;
+        uint16_t repeatTimes = CeilDivision(static_cast<uint32_t>(validCol), elementsPerRepeat);
+
+        for (uint16_t i = 0; i < validRow; ++i) {
+            uint32_t sreg = static_cast<uint32_t>(validCol);
+            __ubuf__ T *psrc = srcAddr + (indexRow + static_cast<uint32_t>(i)) * srcRowStride + indexCol;
+            uint32_t dstRowOff = static_cast<uint32_t>(i) * dstRowStride;
+            for (uint16_t j = 0; j < repeatTimes; ++j) {
+                preg = CreatePredicate<T>(sreg);
+                vldas(ureg, psrc + static_cast<uint32_t>(j) * elementsPerRepeat);
+                vldus(vreg, ureg, psrc + static_cast<uint32_t>(j) * elementsPerRepeat);
+                vsts(vreg, dstAddr, dstRowOff + static_cast<uint32_t>(j) * elementsPerRepeat, distValue, preg);
+            }
+        }
+    }
+}
+
+template <typename T, typename DstTileData, typename SrcTileData>
+__tf__ AICORE void TExtractVecToVecNDScalarImpl(typename DstTileData::TileDType __out__ dst,
+                                                typename SrcTileData::TileDType __in__ src, uint32_t indexRow,
+                                                uint32_t indexCol)
+{
+    __ubuf__ T *dstAddr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
+    __ubuf__ T *srcAddr = (__ubuf__ T *)__cce_get_tile_ptr(src);
+    constexpr uint32_t srcRowStride = SrcTileData::RowStride;
+    set_flag(PIPE_V, PIPE_S, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
+    dstAddr[0] = srcAddr[indexRow * srcRowStride + indexCol];
+    set_flag(PIPE_S, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_S, PIPE_V, EVENT_ID0);
+}
+
+template <typename T, typename DstTileData, typename SrcTileData>
+PTO_INTERNAL void TExtractVecToVecNDDispatch(DstTileData &dst, SrcTileData &src, uint32_t indexRow, uint32_t indexCol)
+{
+    uint16_t validRow = static_cast<uint16_t>(dst.GetValidRow());
+    uint16_t validCol = static_cast<uint16_t>(dst.GetValidCol());
+
+    PTO_ASSERT(indexRow + DstTileData::ValidRow <= SrcTileData::Rows,
+               "TEXTRACT ND_VEC : indexRow + dstValidRows exceeds srcRows!");
+    PTO_ASSERT(indexCol + DstTileData::ValidCol <= SrcTileData::Cols,
+               "TEXTRACT ND_VEC : indexCol + dstValidCols exceeds srcCols!");
+
+    constexpr bool kStridesAligned = (SrcTileData::RowStride * sizeof(T) % BLOCK_BYTE_SIZE == 0) &&
+                                     (DstTileData::RowStride * sizeof(T) % BLOCK_BYTE_SIZE == 0);
+    constexpr bool kValidColAligned = (DstTileData::ValidCol * sizeof(T) % BLOCK_BYTE_SIZE == 0);
+
+    if constexpr (kStridesAligned) {
+        if (indexCol * sizeof(T) % BLOCK_BYTE_SIZE == 0) {
+            if constexpr (kValidColAligned) {
+                TExtractVecToVecNDImpl<T, DstTileData, SrcTileData>(dst.data(), src.data(), validRow, validCol,
+                                                                    indexRow, indexCol);
+            } else {
+                TExtractVecToVecNDAlignedImpl<T, DstTileData, SrcTileData>(dst.data(), src.data(), validRow, validCol,
+                                                                           indexRow, indexCol);
+            }
+        } else {
+            TExtractVecToVecNDVectorImpl<T, DstTileData, SrcTileData>(dst.data(), src.data(), validRow, validCol,
+                                                                      indexRow, indexCol);
+        }
+    } else {
+        TExtractVecToVecNDVectorImpl<T, DstTileData, SrcTileData>(dst.data(), src.data(), validRow, validCol, indexRow,
+                                                                  indexCol);
+    }
+}
+
 template <typename DstTileData, typename SrcTileData>
 PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, uint16_t indexRow = 0, uint16_t indexCol = 0)
 {
-    if constexpr (is_conv_tile_v<SrcTileData>) {
+    if constexpr (DstTileData::Loc == TileType::Vec && SrcTileData::Loc == TileType::Vec) {
+        using T = typename DstTileData::DType;
+        static_assert(std::is_same<typename DstTileData::DType, typename SrcTileData::DType>::value,
+                      "TEXTRACT : Source and destination data types must match");
+        static_assert(DstTileData::isRowMajor, "TEXTRACT : Destination must be RowMajor (ND format)");
+        static_assert(SrcTileData::isRowMajor, "TEXTRACT : Source must be RowMajor (ND format)");
+        static_assert(DstTileData::Rows <= SrcTileData::Rows,
+                      "TEXTRACT : Destination rows must not exceed source rows");
+        static_assert(DstTileData::Cols <= SrcTileData::Cols,
+                      "TEXTRACT : Destination cols must not exceed source cols");
+        static_assert((std::is_same<T, half>::value) || (std::is_same<T, bfloat16_t>::value) ||
+                          (std::is_same<T, float>::value) || (std::is_same<T, int32_t>::value) ||
+                          (std::is_same<T, float8_e4m3_t>::value) || (std::is_same<T, float8_e5m2_t>::value) ||
+                          (std::is_same<T, hifloat8_t>::value) || (std::is_same<T, int8_t>::value) ||
+                          (std::is_same<T, float8_e8m0_t>::value),
+                      "TEXTRACT : Unsupported data type.");
+        uint32_t idxRow = static_cast<uint32_t>(indexRow);
+        uint32_t idxCol = static_cast<uint32_t>(indexCol);
+        if constexpr (DstTileData::ValidRow == 1 && DstTileData::ValidCol == 1) {
+            PTO_ASSERT(idxRow < SrcTileData::Rows, "TEXTRACT : indexRow exceeds srcRows!");
+            PTO_ASSERT(idxCol < SrcTileData::Cols, "TEXTRACT : indexCol exceeds srcCols!");
+            TExtractVecToVecNDScalarImpl<T, DstTileData, SrcTileData>(dst.data(), src.data(), idxRow, idxCol);
+        } else {
+            TExtractVecToVecNDDispatch<T>(dst, src, idxRow, idxCol);
+        }
+    } else if constexpr (is_conv_tile_v<SrcTileData>) {
         TEXTRACT_CONVTILE_IMPL(dst, src, indexRow, indexCol);
     } else {
         TEXTRACT_TILE_IMPL(dst, src, indexRow, indexCol);

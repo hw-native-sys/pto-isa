@@ -793,7 +793,7 @@ PTO_INST RecordEvent TINSERT_FP(DstTileData &dst, SrcTileData &src, FpTileData &
 
 #ifdef PTO_NPU_ARCH_A5
 template <TInsertMode mode, typename DstTileData, typename SrcTileData, typename... WaitEvents>
-PTO_INST RecordEvent TINSERT(DstTileData &dst, SrcTileData &src, uint32_t indexRow = 0, uint32_t indexCol = 0,
+PTO_INST RecordEvent TINSERT(DstTileData &dst, SrcTileData &src, uint16_t indexRow = 0, uint16_t indexCol = 0,
                              WaitEvents &... events)
 {
     TSYNC(events...);

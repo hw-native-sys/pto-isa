@@ -226,6 +226,7 @@ set(ALL_TESTCASES
     tconcat
     thistogram
     tinsert
+    textract_nd_vec
 )
 
 if((TEST_CASE IN_LIST ALL_TESTCASES) OR (TEST_CASE STREQUAL "all"))
