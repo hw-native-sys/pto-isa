@@ -248,7 +248,8 @@ PTO_INTERNAL constexpr void CommonCheckMX()
 template <typename T, typename DstTileData, typename SrcTileData>
 __tf__ PTO_INTERNAL void TMovToVecNd2Nz(typename DstTileData::TileDType __out__ dst,
                                         typename SrcTileData::TileDType __in__ src, uint32_t validRow,
-                                        uint32_t validCol, unsigned version = VFImplKind::VFIMPL_DEFAULT)
+                                        uint32_t validCol, uint32_t srcValidRow,
+                                        unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
     static_assert((std::is_same<T, half>::value) || (std::is_same<T, bfloat16_t>::value) ||
                       (std::is_same<T, float>::value) || (std::is_same<T, int32_t>::value) ||
@@ -264,7 +265,8 @@ __tf__ PTO_INTERNAL void TMovToVecNd2Nz(typename DstTileData::TileDType __out__ 
 
     constexpr uint32_t elementsPerRepeat = REPEAT_BYTE / sizeof(T);
     uint16_t repeatTimes = CeilDivision(validCol, elementsPerRepeat);
-    constexpr bool isOptForConflict = (dstByteSize >= (srcRow + 1) * srcCol * sizeof(T)) ? true : false;
+    bool isOptForConflict = std::is_same<T, half>::value && (srcValidRow % FRACTAL_NZ_ROW == 0) &&
+                            (dstByteSize >= (srcRow + 1) * srcCol * sizeof(T));
     uint32_t alignRow = (validRow + FRACTAL_NZ_ROW - 1) / FRACTAL_NZ_ROW * FRACTAL_NZ_ROW;
     uint32_t blockStride = isOptForConflict ? ((alignRow + 1) * C0_SIZE_BYTE) / BLOCK_BYTE_SIZE :
                                               (alignRow * C0_SIZE_BYTE) / BLOCK_BYTE_SIZE;
@@ -435,7 +437,7 @@ PTO_INTERNAL void TMOV_TILE_IMPL(DstTileData &dst, SrcTileData &src)
             if constexpr ((SrcTileData::isRowMajor && (SrcTileData::SFractal == SLayout::NoneBox)) &&
                           (!DstTileData::isRowMajor && (DstTileData::SFractal == SLayout::RowMajor))) {
                 TMovToVecNd2Nz<typename DstTileData::DType, DstTileData, SrcTileData>(
-                    dst.data(), src.data(), src.GetValidRow(), src.GetValidCol());
+                    dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(), src.GetValidRow());
             } else {
                 TMovToVec<DstTileData, SrcTileData>(dst, src);
             }
