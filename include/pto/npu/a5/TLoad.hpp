@@ -383,7 +383,9 @@ PTO_INTERNAL void TLoadCubeND2ND(__cbuf__ typename TileData::DType *dst, typenam
                   std::is_same<typename TileData::DType, float4_e2m1x2_t>::value) {
         padCount = padCount >> 1;
     }
-    set_pad_val_outtol1(GetPadValue<TileData>());
+    if constexpr (!(TileData::PadVal == PadValue::Null || TileData::PadVal == PadValue::Zero)) {
+        set_pad_val_outtol1(GetPadValue<TileData>());
+    }
 
     int64_t dstStride2 = gShape3 * TileData::Cols;
     int64_t dstStride1 = gShape2 * dstStride2;
@@ -416,6 +418,9 @@ PTO_INTERNAL void TLoadCubeND2ND(__cbuf__ typename TileData::DType *dst, typenam
     if (loop1 != 1 || loop2 != 1) {
         set_loop_size_outtol1(1 << 21 | 1); // resume to normal mode
     }
+    if constexpr (!(TileData::PadVal == PadValue::Null || TileData::PadVal == PadValue::Zero)) {
+        set_pad_val_outtol1(uint8_t(0));
+    }
 }
 
 template <typename TileData, typename GlobalData>
@@ -437,8 +442,9 @@ PTO_INTERNAL void TLoadCubeDN2DN(__cbuf__ typename TileData::DType *dst, typenam
                   std::is_same<typename TileData::DType, float4_e2m1x2_t>::value) {
         padCount = padCount >> 1;
     }
-    set_pad_val_outtol1(GetPadValue<TileData>());
-
+    if constexpr (!(TileData::PadVal == PadValue::Null || TileData::PadVal == PadValue::Zero)) {
+        set_pad_val_outtol1(GetPadValue<TileData>());
+    }
     int64_t dstStride2 = gShape4 * TileData::Rows;
     int64_t dstStride1 = gShape2 * dstStride2;
     int64_t dstStride0 = gShape1 * dstStride1;
@@ -468,6 +474,9 @@ PTO_INTERNAL void TLoadCubeDN2DN(__cbuf__ typename TileData::DType *dst, typenam
     }
     if (loop1 != 1 || loop2 != 1) {
         set_loop_size_outtol1(1 << 21 | 1); // resume to normal mode
+    }
+    if constexpr (!(TileData::PadVal == PadValue::Null || TileData::PadVal == PadValue::Zero)) {
+        set_pad_val_outtol1(uint8_t(0));
     }
 }
 

@@ -457,6 +457,9 @@ PTO_INTERNAL void TStoreVecND(typename GlobalData::DType *dstAddr, __ubuf__ type
                               int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gStride0,
                               int gStride1, int gStride2, int gStride3, int gStride4, int validRow, int validCol)
 {
+    PTO_ASSERT(validCol == gShape4, "The validCol of TileData must be equal to the 5th dim(Shape4) of ND shape!");
+    PTO_ASSERT(validRow == gShape0 * gShape1 * gShape2 * gShape3,
+               "The validRow of TileData must be equal to (Shape0 * Shape1 * Shape2 * Shape3) of ND shape!");
     typename GlobalData::DType *dstGlobalAddr = dstAddr;
     __ubuf__ typename TileData::DType *srcTileAddr = srcAddr;
     uint32_t loop1SrcStride = GetByteSize<typename TileData::DType>(gShape3 * TileData::Cols);
@@ -501,6 +504,9 @@ PTO_INTERNAL void TStoreVecDN(typename GlobalData::DType *dstAddr, __ubuf__ type
                               int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gStride0,
                               int gStride1, int gStride2, int gStride3, int gStride4, int validRow, int validCol)
 {
+    PTO_ASSERT(validRow == gShape3, "The validCol of TileData must be equal to the 4th dim(Shape3) of DN shape!");
+    PTO_ASSERT(validCol == gShape0 * gShape1 * gShape2 * gShape4,
+               "The validRow of TileData must be equal to (Shape0 * Shape1 * Shape2 * Shape4) of DN shape!");
     typename GlobalData::DType *dstGlobalAddr = dstAddr;
     __ubuf__ typename TileData::DType *srcTileAddr = srcAddr;
     uint32_t loop1SrcStride = GetByteSize<typename TileData::DType>(TileData::Rows * gShape4);
