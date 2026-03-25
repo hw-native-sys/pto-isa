@@ -218,6 +218,7 @@ set(ALL_TESTCASES
     trelu
     tquant
     tdequant
+    trandom
     mgather
     mscatter
     t_dhrystone

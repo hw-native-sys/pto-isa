@@ -257,6 +257,10 @@ constexpr int DIM_4 = 4;
 constexpr int TOTAL_DIM = 5;
 } // namespace GlobalTensorDim
 
+constexpr int PTO_RANDOM_KEY_SIZE = 2;
+constexpr int PTO_RANDOM_COUNTER_SIZE = 4;
+using TRandomKey = uint32_t[PTO_RANDOM_KEY_SIZE];
+using TRandomCounter = uint32_t[PTO_RANDOM_COUNTER_SIZE];
 } // namespace pto
 
 #if defined(__CPU_SIM) || defined(__COSTMODEL)

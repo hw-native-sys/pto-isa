@@ -489,6 +489,13 @@ PTO_INST RecordEvent TMATMUL_MX(TileRes &cMatrix, TileLeft &aMatrix, TileLeftSca
     return {};
 }
 
+template <uint16_t Rounds = 10, typename DstTile, typename... WaitEvents>
+PTO_INST RecordEvent TRANDOM(DstTile &dst, TRandomKey &key, TRandomCounter &counter, WaitEvents &... events)
+{
+    TSYNC(events...);
+    TRANDOM_IMPL<Rounds, DstTile>(dst, key, counter);
+    return {};
+}
 #endif
 
 template <typename TileRes, typename TileLeft, typename TileRight, typename... WaitEvents>
