@@ -36,6 +36,7 @@ python3 tests/script/build_st.py -r npu -v a3 -t tcvt -g TCVTTest.case_fp16_fp32
 python3 tests/script/build_st.py -r npu -v a3 -t tpartmin -g TPARTMINTest.test0
 python3 tests/script/build_st.py -r npu -v a3 -t tpartmax -g TPARTMAXTest.test0
 python3 tests/script/build_st.py -r npu -v a3 -t ttrans -g TTRANSTest.case1_float_16_8_16_8
+python3 tests/script/build_st.py -r npu -v a3 -t ttrans_conv -g TTRANSConvTest.uint16_45_3_2_7_16
 python3 tests/script/build_st.py -r npu -v a3 -t texpands_mat -g TEXPANDSTest.case1
 
 python3 tests/script/build_st.py -r npu -v a5 -t tcvt -g TCVTTest.case_fp16_fp32_2x64
@@ -55,6 +56,7 @@ python3 tests/script/build_st.py -r npu -v a5 -t tcolmin -g TCOLMINTest.case01
 python3 tests/script/build_st.py -r npu -v a5 -t trowexpand -g TROWEXPANDTest.case0_half_16_16_16_512
 python3 tests/script/build_st.py -r npu -v a5 -t tgather -g TGATHERTest.case1_float_32x1024_16x64
 python3 tests/script/build_st.py -r npu -v a5 -t ttrans -g TTRANSTest.case_float_66x88_9x16_7x15
+python3 tests/script/build_st.py -r npu -v a5 -t ttrans_conv -g TTRANSConvTest.float32_1_32_6_56
 python3 tests/script/build_st.py -r npu -v a5 -t tsort32 -g TSort32Test.case1
 python3 tests/script/build_st.py -r npu -v a5 -t tload -g TLOADTest.case_float_GT_2_2_2_256_60_VT_256_64_BLK8_PADMAX
 python3 tests/script/build_st.py -r npu -v a5 -t tload_mix -g TLOADMIXTest.1_1_1_59_119_1_1_1_64_128_64_128_int8_t_ND2NZ

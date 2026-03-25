@@ -121,6 +121,7 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolexpandmin -g TColExpandMinTest.case_fp16_4_256_1_256
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tgather -g TGATHERTest.case1_float_P0101
     python3 tests/script/run_st.py $ARGS -w -v a3 -t ttrans -g TTRANSTest.case1_float_16_8_16_8
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t ttrans_conv -g TTRANSConvTest.int8_1_63_2_128
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tsels -g TSELSTest.case_uint16_uint8_2x16_2x32_2x16_2x16
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tsels -g TSELSTest.case_float_uint16_2x8_2x16_2x8_2x8
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tsort32 -g TSort32Test.case1
@@ -207,6 +208,7 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolexpandmin
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tgather
     python3 tests/script/run_st.py $ARGS -w -v a3 -t ttrans
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t ttrans_conv
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tsort32
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tpartadd
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tpartmul
@@ -334,6 +336,7 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tstore -g TStoreTest.case1
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tstore_acc2gm -g TStoreAcc2gmTest.case7
     python3 tests/script/run_st.py $ARGS -w -v a5 -t ttrans -g TTRANSTest.case_float_8x8_2x8_2x8
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t ttrans_conv -g TTRANSConvTest.uint8_11_2_7_7_32
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tcmp -g TCMPTest.case_half_32x32_32x32_32x32
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tadd_tdiv -g TADD_TDIVTest.case_float_64x64_64x64
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tmul_tadds -g TMUL_TADDSTest.case_float_64x64_64x64
@@ -447,6 +450,7 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tstore
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tstore_acc2gm
     python3 tests/script/run_st.py $ARGS -w -v a5 -t ttrans
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t ttrans_conv
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tcmp
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tadd_tdiv
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tmul_tadds
