@@ -19,13 +19,6 @@ full text of the License.
 namespace pto {
 
 template <typename TileDataOut, typename TileDataIn>
-__tf__ PTO_INTERNAL void TReshape(typename TileDataOut::TileDType __out__ dst,
-                                  typename TileDataIn::TileDType __in__ src)
-{
-    return;
-}
-
-template <typename TileDataOut, typename TileDataIn>
 PTO_INTERNAL void TRESHAPE_IMPL(TileDataOut &dst, TileDataIn &src)
 {
     static_assert(is_tile_data_v<TileDataIn>, "input must be a Tile instance.");
@@ -56,7 +49,7 @@ PTO_INTERNAL void TRESHAPE_IMPL(TileDataOut &dst, TileDataIn &src)
 
     TASSIGN_IMPL(dst, reinterpret_cast<uintptr_t>(src.data()));
 #else
-    TReshape<TileDataOut, TileDataIn>(dst.data(), src.data());
+    __cce_alias(dst.data(), src.data(), 0);
 #endif
 }
 

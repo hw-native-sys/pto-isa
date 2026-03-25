@@ -35,10 +35,12 @@ __tf__ PTO_INTERNAL void TRowExpand(typename TileDataDst::TileDType __out__ dst,
     set_mask_count();
     set_vector_mask(0, transValidCol);
     for (int i = 0; i < validRow; i++) {
-        PtoSetWaitFlag<PIPE_V, PIPE_S>();
+        set_flag(PIPE_V, PIPE_S, EVENT_ID0);
+        wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
         T tempValue = (T)(*(srcPtr + i * srcStride));
         typename TRANS::TransType transValue = TRANS::TransValue(tempValue);
-        PtoSetWaitFlag<PIPE_S, PIPE_V>();
+        set_flag(PIPE_S, PIPE_V, EVENT_ID0);
+        wait_flag(PIPE_S, PIPE_V, EVENT_ID0);
         vector_dup(transDst + i * dstStride, transValue, 0, 1, 1, BLOCK_MAX_PER_REPEAT, 0);
     }
     set_mask_norm();

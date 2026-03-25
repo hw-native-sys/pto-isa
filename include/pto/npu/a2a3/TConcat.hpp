@@ -49,8 +49,10 @@ __tf__ PTO_INTERNAL void TConcatImpl(typename TileDataD::TileDType __out__ dst,
                               src1Gap, dstGap);
         }
     } else {
-        PtoSetWaitFlag<PIPE_V, PIPE_S>();
-        PtoSetWaitFlag<PIPE_MTE2, PIPE_S>();
+        set_flag(PIPE_V, PIPE_S, EVENT_ID0);
+        wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
+        set_flag(PIPE_MTE2, PIPE_S, EVENT_ID0);
+        wait_flag(PIPE_MTE2, PIPE_S, EVENT_ID0);
         for (unsigned i = 0; i < validRow; i++) {
             for (unsigned j = 0; j < validCol1; j++) {
                 dstPtr[i * dstRowStride + validCol0 + j] = src1Ptr[i * src1RowStride + j];

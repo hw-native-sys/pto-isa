@@ -131,8 +131,10 @@ __tf__ PTO_INTERNAL OP_NAME(TCMPS)
     __ubuf__ TOUT *dst = (__ubuf__ TOUT *)__cce_get_tile_ptr(dstData);
     __ubuf__ TIN *src0 = (__ubuf__ TIN *)__cce_get_tile_ptr(src0Data);
     __ubuf__ TIN *src1 = (__ubuf__ TIN *)__cce_get_tile_ptr(src1Data);
-    PtoSetWaitFlag<PIPE_V, PIPE_S>();
-    PtoSetWaitFlag<PIPE_MTE2, PIPE_S>();
+    set_flag(PIPE_V, PIPE_S, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
+    set_flag(PIPE_MTE2, PIPE_S, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_S, EVENT_ID0);
     TIN src1Value = *src1;
     if constexpr (sizeof(TIN) == 4) {
         TCmps_32B<TOUT, TIN>(dst, src0, src1Value, mode, validRow, validCol);

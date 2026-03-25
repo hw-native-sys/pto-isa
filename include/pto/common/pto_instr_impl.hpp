@@ -115,7 +115,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #ifdef PTO_NPU_ARCH_A5
 #include "pto/npu/a5/TAssign.hpp"
-#include "pto/npu/a5/TAlias.hpp"
 #include "pto/npu/a5/TSync.hpp"
 #include "pto/npu/a5/TAdd.hpp"
 #include "pto/npu/a5/TAnd.hpp"
@@ -143,6 +142,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TMax.hpp"
 #include "pto/npu/a5/TLoad.hpp"
 #include "pto/npu/a5/TSubView.hpp"
+#include "pto/npu/a5/TGetScaleAddr.hpp"
 #ifdef __DAV_VEC__
 #include "pto/npu/a5/TCvt.hpp"
 #endif

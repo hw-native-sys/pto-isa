@@ -145,6 +145,9 @@ AICORE void runTLOADND(__gm__ T *out, __gm__ T *src, int gShape0, int gShape1, i
     using TileDataP = Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, -1, kTCols_>;
     TileDataP vecTileP(kTRows_);
     TASSIGN(vecTileP, (uint64_t)ubaddr1);
+#ifdef __PTO_AUTO__
+    TRESHAPE(vecTileP, vecTile);
+#endif
 
     constexpr int kGTRows = kTRows_ / shape0 / shape1 / shape2; // Dst Tile Rows, merged all shape0*shape1*shape2 row
     constexpr int shape4_aligned = align_to_32B(shape4, T);

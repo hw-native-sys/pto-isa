@@ -13,6 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <stdint.h>
 #include <type_traits>
+#include <pto/common/arch_macro.hpp>
 #include <pto/common/type.hpp>
 #include <pto/common/arch_macro.hpp>
 

@@ -72,6 +72,16 @@ struct bf16_wrapper {
     }
 };
 
+template <typename T, bool UseDynamicTile>
+PTO_INTERNAL T getTile(int kValidRows, int kValidCols)
+{
+    if constexpr (UseDynamicTile) {
+        return T(kValidRows, kValidCols);
+    } else {
+        return T();
+    }
+}
+
 template <typename T, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
           int kValidCols_ = kTCols_>
 __global__ AICORE void runTCVT(__gm__ T *out, __gm__ S *src)
@@ -90,13 +100,9 @@ __global__ AICORE void runTCVT(__gm__ T *out, __gm__ S *src)
         std::conditional_t<useDynamicTile, Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>,
                            Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor>>;
 
-    TileDataSrc srcTile;
-    TileDataDst dstTile;
-
-    if constexpr (useDynamicTile) {
-        srcTile = TileDataSrc(kValidRows_, kValidCols_);
-        dstTile = TileDataDst(kValidRows_, kValidCols_);
-    }
+    // auto mode doesn't allow copy-initialize and copy-assignment of tiles
+    auto srcTile = getTile<TileDataSrc, useDynamicTile>(kValidRows_, kValidCols_);
+    auto dstTile = getTile<TileDataDst, useDynamicTile>(kValidRows_, kValidCols_);
 
     TASSIGN(srcTile, 0x0 + 0x400 * block_idx);
     TASSIGN(dstTile, 0x20000 + 0x400 * block_idx);

@@ -10,51 +10,35 @@ PARTICULAR PURPOSE. See LICENSE in the root of the software repository for the
 full text of the License.
 */
 
-#ifndef TSUBVIEW_A2A3_HPP
-#define TSUBVIEW_A2A3_HPP
+#ifndef TILE_TSUBVIEW_HPP
+#define TILE_TSUBVIEW_HPP
 #include <pto/common/type.hpp>
-
-#ifdef __PTO_AUTO__
-// only needed for auto mode
-template <typename TileDataDst, typename TileDataSrc>
-__tf__ PTO_INTERNAL void TSubView(typename TileDataDst::TileDType __out__ dst,
-                                  typename TileDataSrc::TileDType __in__ src, uint16_t subTileValidRow,
-                                  uint16_t subTileValidCol, uint16_t srcTileRowStride, uint16_t srcTileColStride,
-                                  uint16_t rowIdx, uint16_t colIdx)
-{
-    return;
-}
-#endif
+#include <cstdint>
 
 template <typename TileDataDst, typename TileDataSrc>
 PTO_INTERNAL void TSUBVIEW_IMPL(TileDataDst &dst, TileDataSrc &src, uint16_t rowIdx, uint16_t colIdx)
 {
-#ifndef __PTO_AUTO__
-    // implement for manual mode (e.g. using TASSIGN_IMPL(dst, src.data() + ...);)
-#else
-    // we simply call a dummy tile function for auto mode, and the compiler
-    // will generate the implementation during memory allocation
+    constexpr int kRowStride = TileDataSrc::RowStride;
+    constexpr int kColStride = TileDataSrc::ColStride;
+    const uint64_t totalOffset = rowIdx * kRowStride + colIdx * kColStride;
+
     static_assert(TileDataDst::Loc == TileDataSrc::Loc,
                   "The destination and source tiles must have the same TileType!");
-    static_assert(TileDataDst::Rows == TileDataSrc::Rows,
-                  "The destination and source tiles must have the same number of rows!");
-    static_assert(TileDataDst::Cols == TileDataSrc::Cols,
-                  "The destination and source tiles must have the same number of columns!");
-    static_assert(std::is_same<typename TileDataDst::DType, typename TileDataSrc::DType>::value,
-                  "The destination and source tiles must have the same scalar "
-                  "element type!");
+
+#ifndef __PTO_AUTO__
+    TASSIGN_IMPL(dst, (uint64_t)(src.data() + totalOffset));
+#else
     static_assert(TileDataDst::BFractal == TileDataSrc::BFractal,
                   "The destination and source tiles must have the same BFractal");
-    PTO_ASSERT(src.GetValidRow() % dst.GetValidRow() == 0,
-               "The source tile's validRow must be a multiple of the destination "
+    PTO_ASSERT(src.GetValidRow() >= dst.GetValidRow(),
+               "The source tile's validRow must be at least as big as the destination "
                "tile's validRow!");
-    PTO_ASSERT(src.GetValidCol() % dst.GetValidCol() == 0,
-               "The source tile's validCol must be a multiple of the destination "
+    PTO_ASSERT(src.GetValidCol() >= dst.GetValidCol(),
+               "The source tile's validCol must be at least as big as the destination "
                "tile's validCol!");
 
-    TSubView<TileDataDst, TileDataSrc>(dst.data(), src.data(), (uint16_t)dst.GetValidRow(), (uint16_t)dst.GetValidCol(),
-                                       (uint16_t)TileDataSrc::RowStride, (uint16_t)TileDataSrc::ColStride, rowIdx,
-                                       colIdx);
+    const uint64_t byteOffset = totalOffset * sizeof(typename TileDataSrc::DType);
+    __cce_alias(dst.data(), src.data(), byteOffset);
 #endif
 }
 

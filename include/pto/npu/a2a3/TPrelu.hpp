@@ -39,29 +39,26 @@ PTO_INTERNAL void TPreluCheck(const TileDataDst &dst, const TileDataSrc0 &src0, 
                "Fix: TPRELU input tile tmp valid shape mismatch with output tile dst shape.");
 }
 
-template <typename TileDataTmp>
-__tf__ PTO_INTERNAL uint32_t getTmpAddr(typename TileDataTmp::TileDType __in__ tmp)
-{
-    __ubuf__ uint8_t *cmpMaskPtr = (__ubuf__ uint8_t *)__cce_get_tile_ptr(tmp);
-    return static_cast<uint32_t>(reinterpret_cast<int64_t>(cmpMaskPtr));
-}
-
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataTmp>
 PTO_INTERNAL void TPRELU_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, TileDataTmp &tmp)
 {
     using T = typename TileDataDst::DType;
     TPreluCheck(dst, src0, src1, tmp);
     TMUL_IMPL(dst, src0, src1);
+#ifndef __PTO_AUTO__
     pipe_barrier(PIPE_V);
+#endif
     TCMPS_IMPL(tmp, src0, (T)0, CmpMode::GT);
+#ifndef __PTO_AUTO__
     pipe_barrier(PIPE_V);
+#endif
     using SelTmpTile = Tile<TileType::Vec, uint8_t, 1, 32, BLayout::RowMajor, -1, -1>;
     SelTmpTile selTmp;
     // TSEL使用的selTmp取tmp后的32B
-    uint32_t selTmpAddr = getTmpAddr<TileDataTmp>(tmp.data()) +
-                          TileDataTmp::Rows * TileDataTmp::Cols * sizeof(typename TileDataTmp::DType);
-    TASSIGN_IMPL(selTmp, selTmpAddr);
+    TSUBVIEW(selTmp, tmp, TileDataTmp::Rows, 0);
+#ifndef __PTO_AUTO__
     pipe_barrier(PIPE_V);
+#endif
     TSEL_IMPL(dst, tmp, src0, dst, selTmp);
 }
 } // namespace pto

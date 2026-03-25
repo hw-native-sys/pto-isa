@@ -123,10 +123,12 @@ PTO_INTERNAL void ApplyScaleAndOffset(__ubuf__ T *dstPtr, __ubuf__ T *scalePtr, 
     set_vector_mask(0, dstValidCols);
     for (int i = 0; i < dstValidRows; ++i) {
         __ubuf__ T *dstNext = dstPtr + i * dstRowStride;
-        PtoSetWaitFlag<PIPE_V, PIPE_S>();
+        set_flag(PIPE_V, PIPE_S, EVENT_ID0);
+        wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
         T offsetValue = *(offsetPtr + i * scaleRowStride);
         T scaleValue = *(scalePtr + i * scaleRowStride);
-        PtoSetWaitFlag<PIPE_S, PIPE_V>();
+        set_flag(PIPE_S, PIPE_V, EVENT_ID0);
+        wait_flag(PIPE_S, PIPE_V, EVENT_ID0);
         vadds(dstNext, dstNext, -offsetValue, 1, 1, 1, 8, 8);
         pipe_barrier(PIPE_V);
         vmuls(dstNext, dstNext, scaleValue, 1, 1, 1, 8, 8);
