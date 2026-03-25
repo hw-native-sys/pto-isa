@@ -1028,6 +1028,19 @@ public:
     using TileDType = typename MemoryQualifier<Loc_, DType>::type;
 #endif
 
+#ifdef __COSTMODEL
+    float cycle;
+    AICORE void SetCycle(const float cycle_)
+    {
+        cycle = cycle_;
+    }
+
+    AICORE float GetCycle()
+    {
+        return cycle;
+    }
+#endif
+
 #ifdef __CPU_SIM
     // For CPU sim, return reference to pointer (allows TASSIGN to modify)
     AICORE TileDType &data()
@@ -1297,7 +1310,7 @@ public:
         return *(ptr + offset);
     }
     // constructor for static shape
-#ifdef __CPU_SIM
+#if defined(__CPU_SIM) || defined(__COSTMODEL)
     AICORE Tile() : data_(internalStorage_){};
 #else
     AICORE Tile()
@@ -1315,7 +1328,7 @@ public:
     template <int RowMask = ValidRow, int ColMask = ValidCol>
     AICORE Tile(std::enable_if_t<RowMask == DYNAMIC && ColMask == DYNAMIC, size_t> VR,
                 std::enable_if_t<RowMask == DYNAMIC && ColMask == DYNAMIC, size_t> VC)
-#ifdef __CPU_SIM
+#if defined(__CPU_SIM) || defined(__COSTMODEL)
         : data_(internalStorage_)
 #endif
     {
@@ -1329,7 +1342,7 @@ public:
     // constructor for row dimension is runtime variables
     template <int RowMask = ValidRow, int ColMask = ValidCol>
     AICORE Tile(std::enable_if_t<(RowMask == DYNAMIC) && (ColMask > 0), size_t> VR)
-#ifdef __CPU_SIM
+#if defined(__CPU_SIM) || defined(__COSTMODEL)
         : data_(internalStorage_)
 #endif
     {
@@ -1342,7 +1355,7 @@ public:
     // constructor for col dimension is runtime variables
     template <int RowMask = ValidRow, int ColMask = ValidCol>
     AICORE Tile(std::enable_if_t<(RowMask > 0) && (ColMask == DYNAMIC), size_t> VC)
-#ifdef __CPU_SIM
+#if defined(__CPU_SIM) || defined(__COSTMODEL)
         : data_(internalStorage_)
 #endif
     {

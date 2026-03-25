@@ -41,19 +41,29 @@ tabs
 tadd
 tadds
 tcolmax
-tcolmin
 tcolsum
 tdivs
 texp
 tmins
 tmul
 tmuls
+tmatmul
 trowexpand
 trowmax
 trowmin
 trowsum
 tsqrt
 tsub
+tcvt
+tmrgsort
+tsel
+tsort32
+ttrans
+tload
+tloadconv
+tmov
+textract
+tscatter
 )
 
 foreach(TESTCASE ${ALL_TESTCASES})

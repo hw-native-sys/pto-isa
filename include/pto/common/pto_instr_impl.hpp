@@ -308,6 +308,16 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/costmodel/a2a3/TSqrt.hpp"
 #include "pto/costmodel/a2a3/TStore.hpp"
 #include "pto/costmodel/a2a3/TSub.hpp"
+#include "pto/costmodel/a2a3/TExtract.hpp"
+#include "pto/costmodel/a2a3/TMov.hpp"
+#include "pto/costmodel/a2a3/TScatter.hpp"
+#include "pto/costmodel/a2a3/TTrans.hpp"
+#include "pto/costmodel/a2a3/TMatmul.hpp"
+#include "pto/costmodel/a2a3/TSel.hpp"
+#include "pto/costmodel/a2a3/TCvt.hpp"
+#include "pto/costmodel/a2a3/TSort32.hpp"
+#include "pto/costmodel/a2a3/TMrgSort.hpp"
+#include "pto/costmodel/a2a3/TCopy.hpp"
 #endif
 
 #endif

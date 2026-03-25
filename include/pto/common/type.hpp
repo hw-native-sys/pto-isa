@@ -267,7 +267,7 @@ using TRandomCounter = uint32_t[PTO_RANDOM_COUNTER_SIZE];
 typedef _Float16 half;
 typedef _Float16 aclFloat16;
 // Note: clang version should be >=15 and gcc version should be >=14
-#if defined(__has_include) && __has_include(<stdfloat>) && __cplusplus >= 202302L
+#if defined(__has_include) && __has_include(<stdfloat>) && __cplusplus >= 202302L && defined(__STDCPP_BFLOAT16_T__)
 #include <stdfloat>
 typedef std::bfloat16_t bfloat16_t;
 #define CPU_SIM_BFLOAT_ENABLED

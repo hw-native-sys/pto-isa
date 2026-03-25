@@ -8,17 +8,17 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-#ifndef TCOLSUM_HPP
-#define TCOLSUM_HPP
+#ifndef TSEL_HPP
+#define TSEL_HPP
 
 #include "pto/costmodel/pto_isa_costmodel.hpp"
 
 namespace pto {
 
-template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp>
-PTO_INTERNAL void TCOLSUM_IMPL(TileDataDst &dst, TileDataSrc &src, TileDataTmp &tmp, bool IsBinary)
+template <typename DstTile, typename MaskTile, typename Src0Tile, typename Src1Tile, typename TmpTile>
+PTO_INTERNAL void TSEL_IMPL(DstTile &dst, MaskTile &selMask, Src0Tile &src0, Src1Tile &src1, TmpTile &tmp)
 {
-    pto::CostModel::GetInstance().ColSumOpPredictCycle<TileDataDst, TileDataSrc, TileDataTmp>(dst, src, tmp, IsBinary);
+    pto::CostModel::GetInstance().SelOpPredictCycle<DstTile, MaskTile, Src0Tile, Src1Tile, TmpTile>("TSEL", dst);
 }
 } // namespace pto
 #endif

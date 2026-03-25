@@ -19,8 +19,8 @@ namespace pto {
 struct CostModelStats {
     std::string cceInstName;
     int repeats;
-    int mask1;
-    int mask0;
+    int mask1{};
+    int mask0{};
     int dstBlockStride;
     int src0BlockStride;
     int src1BlockStride;
@@ -28,12 +28,23 @@ struct CostModelStats {
     int src0RepeatStride;
     int src1RepeatStride;
     std::string order; // vcmax/vcmin专用,取值VALUE_INDEX/INDEX_VALUE/ONLY_VALUE/ONLY_INDEX
-    bool mode;         // vcadd专用
+    bool mode{};       // vcadd专用
 
-    int nBurst;
-    int lenBurst;
-    int srcGap;
-    int dstGap;
+    int nBurst{};
+    int lenBurst{};
+    int leftPaddingNum;
+    int rightPaddingNum;
+    int convControl;
+    int srcGap{};
+    int dstGap{};
+    int padMode;
+    int padConfig; // set_mov_pad_val参数，即存入copy_gm_to_ubuf_align接口的填充值
+    int byteMode;
+
+    // mmad专用
+    int m{};
+    int k{};
+    int n{};
 
     void setCceInstName(std::string cceInstName_)
     {
@@ -103,6 +114,76 @@ struct CostModelStats {
     CostModelStats(const std::string cceInstName_, int mask1_, int mask0_)
         : cceInstName(cceInstName_), mask1(mask1_), mask0(mask0_)
     {}
+
+    // mmad
+    static CostModelStats MakeMmad(const std::string &cceInstName_, int m_, int k_, int n_)
+    {
+        CostModelStats s(cceInstName_, 1);
+        s.m = m_;
+        s.k = k_;
+        s.n = n_;
+        return s;
+    }
+
+    void setLeftPaddingNum(int paddingNum_)
+    {
+        leftPaddingNum = paddingNum_;
+    }
+
+    int getLeftPaddingNum()
+    {
+        return leftPaddingNum;
+    }
+
+    void setRightPaddingNum(int paddingNum_)
+    {
+        rightPaddingNum = paddingNum_;
+    }
+
+    int getRightPaddingNum()
+    {
+        return rightPaddingNum;
+    }
+
+    void setPadMode(int mode_)
+    {
+        padMode = mode_;
+    }
+
+    int getPadMode()
+    {
+        return padMode;
+    }
+
+    void setByteMode(int mode_)
+    {
+        byteMode = mode_;
+    }
+
+    int getByteMode()
+    {
+        return byteMode;
+    }
+
+    void setPadConfig(int padConfig_)
+    {
+        padConfig = padConfig_;
+    }
+
+    int getPadConfig()
+    {
+        return padConfig;
+    }
+
+    void setConvControl(int convControl_)
+    {
+        convControl = convControl_;
+    }
+
+    int getConvControl()
+    {
+        return convControl;
+    }
 };
 
 struct CostModelParams {
@@ -124,6 +205,14 @@ inline uint64_t GetContinuousMask0(unsigned n)
 {
     return static_cast<uint64_t>((n >= MASK_LEN) ? 0xffffffffffffffff :
                                                    (((static_cast<uint64_t>(1)) << static_cast<uint32_t>(n)) - 1));
+}
+
+inline int32_t CeilDivision(int32_t num1, int32_t num2)
+{
+    if (num2 == 0) {
+        return 0;
+    }
+    return (num1 + num2 - 1) / num2;
 }
 
 } // namespace pto

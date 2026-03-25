@@ -15,7 +15,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <string>
 #include <unordered_map>
 #include <utility>
-#include <cstdint>
 #include <type_traits>
 #include <pto/common/pto_tile.hpp>
 #include "pto/costmodel/op_struct.hpp"
@@ -26,6 +25,17 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/costmodel/a2a3/TColReduceOp.hpp"
 #include "pto/costmodel/a2a3/TRowReduceOp.hpp"
 #include "pto/costmodel/a2a3/TRowExpandOp.hpp"
+#include "pto/costmodel/a2a3/TLoadOp.hpp"
+#include "pto/costmodel/a2a3/TMovOp.hpp"
+#include "pto/costmodel/a2a3/TExtractOp.hpp"
+#include "pto/costmodel/a2a3/TScatterOp.hpp"
+#include "pto/costmodel/a2a3/TMatmulOp.hpp"
+#include "pto/costmodel/a2a3/TTransOp.hpp"
+#include "pto/costmodel/a2a3/TMrgSortOp.hpp"
+#include "pto/costmodel/a2a3/TSelOp.hpp"
+#include "pto/costmodel/a2a3/TCvtOp.hpp"
+#include "pto/costmodel/a2a3/TSort32Op.hpp"
+#include "pto/costmodel/a2a3/TMatmulOp.hpp"
 
 namespace pto {
 
@@ -50,11 +60,23 @@ constexpr float A2A3_COMPL_FP16_SQRT = 29.0f; // fp16 sqrt
 constexpr float A2A3_RPT_1 = 1.0f; // scalar/unary/single-pass ops
 constexpr float A2A3_RPT_2 = 2.0f; // binary vector ops
 constexpr float A2A3_RPT_4 = 4.0f; // transcendental ops (exp/sqrt fp16)
+constexpr float A2A3_RPT_6 = 6.0f; // merge_sort op
 
 // Pipeline configuration
 constexpr float A2A3_INTERVAL = 18.0f;   // interval cycles between instruction groups
 constexpr float A2A3_MASK_EFFECT = 1.0f; // mask penalty multiplier (1.0 = no extra penalty)
 constexpr float A2A3_BANK_NONE = 0.0f;   // no bank conflict penalty
+
+// A2A3 data transfer bandwidth constants (B/Cycle), named as SRC_DST using TileType names
+constexpr float A2A3_BW_GM_VEC = 128.0f;
+constexpr float A2A3_BW_VEC_VEC = 128.0f;
+constexpr float A2A3_BW_GM_MAT = 256.0f;
+constexpr float A2A3_BW_MAT_LEFT = 256.0f;
+constexpr float A2A3_BW_MAT_RIGHT = 128.0f;
+constexpr float A2A3_BW_MAT_BIAS = 128.0f;
+constexpr float A2A3_BW_MAT_SCALING = 128.0f;
+constexpr float A2A3_BW_ACC_MAT = 128.0f;
+constexpr float A2A3_BW_MAT_MAT = 32.0f; // l12l1 (TEXTRACT Mat→Mat)
 
 enum class DataType
 {
@@ -66,6 +88,28 @@ enum class DataType
     INT32,
     BF16
 };
+
+constexpr int getDataTypeBytes(DataType type)
+{
+    switch (type) {
+        case DataType::FP16:
+            return 2;
+        case DataType::FP32:
+            return 4;
+        case DataType::INT8:
+            return 1;
+        case DataType::INT16:
+            return 2;
+        case DataType::UINT8:
+            return 1;
+        case DataType::INT32:
+            return 4;
+        case DataType::BF16:
+            return 2;
+        default:
+            return 0;
+    }
+}
 
 template <typename Element_, const int Rows_, const int Cols_, const int RowValid_ = Rows_, const int ColValid_ = Cols_>
 struct TileInfo {
@@ -97,7 +141,7 @@ public:
         cycle = cycle_;
     }
 
-    float GetCycle()
+    [[nodiscard]] float GetCycle() const
     {
         return cycle;
     }
@@ -106,8 +150,17 @@ public:
 struct InstrTypeHash {
     size_t operator()(const std::pair<std::string, DataType> &key) const
     {
-        auto hash_instr = std::hash<std::string>()(key.first);
-        auto hash_dtype = std::hash<int>()(static_cast<int>(key.second));
+        const auto hash_instr = std::hash<std::string>()(key.first);
+        const auto hash_dtype = std::hash<int>()(static_cast<int>(key.second));
+        return hash_instr ^ (hash_dtype << 1);
+    }
+};
+
+struct IntIntHash {
+    size_t operator()(const std::pair<int, int> &key) const
+    {
+        const auto hash_instr = std::hash<int>()(key.first);
+        const auto hash_dtype = std::hash<int>()(key.second);
         return hash_instr ^ (hash_dtype << 1);
     }
 };
@@ -334,6 +387,103 @@ public:
                  A2A3_MASK_EFFECT, A2A3_BANK_NONE);
         SetParam("mask", DataType::FP32, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE,
                  A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+
+        // TSEL: vsel (element-wise select, 1 cycle/repeat, startup=14)
+        SetParam("vsel", DataType::FP16, A2A3_STARTUP_BINARY, A2A3_COMPL_FP_BINOP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vsel", DataType::FP32, A2A3_STARTUP_BINARY, A2A3_COMPL_FP_BINOP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vsel", DataType::INT16, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_BINOP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vsel", DataType::INT32, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_BINOP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+
+        // TCVT: vconv (type conversion, startup=13 like reduce ops)
+        SetParam("vconv", DataType::FP16, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP_BINOP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vconv", DataType::FP32, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP_BINOP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vconv", DataType::INT16, A2A3_STARTUP_REDUCE, A2A3_COMPL_INT_BINOP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vconv", DataType::INT32, A2A3_STARTUP_REDUCE, A2A3_COMPL_FP_BINOP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+
+        // TSORT32: vbitsort (bitonic sort, 2 cycles/repeat)
+        SetParam("vbitsort", DataType::FP16, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_4, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vbitsort", DataType::FP32, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_4, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vbitsort", DataType::INT16, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_4, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vbitsort", DataType::INT32, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_4, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+
+        // TMRGSORT: vmrgsort4 (merge sort, 2 cycles/repeat)
+        SetParam("vmrgsort4", DataType::FP16, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_6, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("vmrgsort4", DataType::FP32, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_6, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+
+        SetParam("scatter", DataType::FP16, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("scatter", DataType::FP32, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("scatter", DataType::INT16, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_1, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("scatter", DataType::INT32, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_2, A2A3_INTERVAL,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+
+        // TMATMUL / TGEMV: mmad (PIPE_M cube pipeline — recorded, cycle model TBD)
+        SetParam("mmad", DataType::FP32, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("mmad", DataType::INT32, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+
+        // TTRANS: scatter_vnchwconv_b8/b16/b32 (vector-pipeline layout-transpose, startup=14, 2 cycles/repeat)
+        // B16 types (sizeof=2): half, int16
+        SetParam("scatter_vnchwconv", DataType::FP16, A2A3_STARTUP_BINARY, A2A3_COMPL_FP_BINOP, A2A3_RPT_2,
+                 A2A3_INTERVAL, A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("scatter_vnchwconv", DataType::INT16, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_BINOP, A2A3_RPT_2,
+                 A2A3_INTERVAL, A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        // B32 types (sizeof=4): float, int32
+        SetParam("scatter_vnchwconv", DataType::FP32, A2A3_STARTUP_BINARY, A2A3_COMPL_FP_BINOP, A2A3_RPT_2,
+                 A2A3_INTERVAL, A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("scatter_vnchwconv", DataType::INT32, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_BINOP, A2A3_RPT_2,
+                 A2A3_INTERVAL, A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        // B8 types (sizeof=1): int8, uint8
+        SetParam("scatter_vnchwconv", DataType::INT8, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_BINOP, A2A3_RPT_2,
+                 A2A3_INTERVAL, A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("scatter_vnchwconv", DataType::UINT8, A2A3_STARTUP_BINARY, A2A3_COMPL_INT_BINOP, A2A3_RPT_2,
+                 A2A3_INTERVAL, A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+
+        // mmad
+        SetParam("mad", DataType::INT16, A2A3_STARTUP_BINARY, A2A3_BANK_NONE, A2A3_RPT_1, A2A3_BANK_NONE,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("mad", DataType::INT8, A2A3_STARTUP_BINARY, A2A3_BANK_NONE, A2A3_RPT_1, A2A3_BANK_NONE,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("mad", DataType::FP16, A2A3_STARTUP_BINARY, A2A3_BANK_NONE, A2A3_RPT_1, A2A3_BANK_NONE,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("mad", DataType::FP32, A2A3_STARTUP_BINARY, A2A3_BANK_NONE, A2A3_RPT_2, A2A3_BANK_NONE,
+                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+
+        // gm2ub
+        SetParam(-1, static_cast<int>(TileType::Vec), A2A3_BW_GM_VEC);
+        // ub2ub
+        SetParam(static_cast<int>(TileType::Vec), static_cast<int>(TileType::Vec), A2A3_BW_VEC_VEC);
+        // gm2l1
+        SetParam(-1, static_cast<int>(TileType::Mat), A2A3_BW_GM_MAT);
+        // l12l0A
+        SetParam(static_cast<int>(TileType::Mat), static_cast<int>(TileType::Left), A2A3_BW_MAT_LEFT);
+        // l12l0B
+        SetParam(static_cast<int>(TileType::Mat), static_cast<int>(TileType::Right), A2A3_BW_MAT_RIGHT);
+        // l12BT
+        SetParam(static_cast<int>(TileType::Mat), static_cast<int>(TileType::Bias), A2A3_BW_MAT_BIAS);
+        // l12FP
+        SetParam(static_cast<int>(TileType::Mat), static_cast<int>(TileType::Scaling), A2A3_BW_MAT_SCALING);
+        // l0C2l1
+        SetParam(static_cast<int>(TileType::Acc), static_cast<int>(TileType::Mat), A2A3_BW_ACC_MAT);
+        // l12l1 (TEXTRACT Mat→Mat)
+        SetParam(static_cast<int>(TileType::Mat), static_cast<int>(TileType::Mat), A2A3_BW_MAT_MAT);
     }
 
     // TBinOp
@@ -342,7 +492,7 @@ public:
     {
         using T = typename TileDataDst::DType;
         std::vector<CostModelStats> stats = runBinaryOp<Op>(dst, src0, src1);
-        dst.SetCycle(PredictCycle<T>(stats));
+        dst.SetCycle(VecInstPredictCycle<T>(stats));
     }
 
     // TBinSOp
@@ -351,7 +501,7 @@ public:
     {
         using T = typename TileDataDst::DType;
         std::vector<CostModelStats> stats = runBinaryScalarOp<Op>(dst, src);
-        dst.SetCycle(PredictCycle<T>(stats));
+        dst.SetCycle(VecInstPredictCycle<T>(stats));
     }
 
     // TUnaryOp
@@ -360,7 +510,7 @@ public:
     {
         using T = typename TileDataDst::DType;
         std::vector<CostModelStats> stats = runUnaryOp<Op>(dst, src);
-        dst.SetCycle(PredictCycle<T>(stats));
+        dst.SetCycle(VecInstPredictCycle<T>(stats));
     }
 
     // TRowReduceOpPredict
@@ -370,7 +520,7 @@ public:
         using T = typename TileDataIn::DType;
         std::vector<CostModelStats> stats =
             runRowReduceOps<T, Op, TileDataOut, TileDataIn, TileDataTmp>(instr_name, dst, src, tmp);
-        float totalCycles = PredictCycle<T>(stats);
+        float totalCycles = VecInstPredictCycle<T>(stats);
         dst.SetCycle(totalCycles);
     }
 
@@ -378,21 +528,20 @@ public:
     template <typename Op, typename TileDataOut, typename TileDataIn>
     void ColReduceOpPredictCycle(const std::string &instr_name, TileDataOut &dst, TileDataIn &src)
     {
-        using T = typename TileDataIn::DType;
+        using T = TileDataIn::DType;
         std::vector<CostModelStats> stats = runColReduceOps<T, Op, TileDataOut, TileDataIn>(dst, src);
-        float totalCycles = PredictCycle<T>(stats);
+        float totalCycles = VecInstPredictCycle<T>(stats);
         dst.SetCycle(totalCycles);
     }
 
     // TColSum
     template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp>
-    void ColSumOpPredictCycle(const std::string &instr_name, TileDataDst &dst, TileDataSrc &src, TileDataTmp &tmp,
-                              bool IsBinary)
+    void ColSumOpPredictCycle(TileDataDst &dst, TileDataSrc &src, TileDataTmp &tmp, const bool IsBinary)
     {
-        using T = typename TileDataSrc::DType;
-        std::vector<CostModelStats> stats =
+        using T = TileDataSrc::DType;
+        const std::vector<CostModelStats> stats =
             runColSumOp<T, TileDataDst, TileDataSrc, TileDataTmp>(dst, src, tmp, IsBinary);
-        float totalCycles = PredictCycle<T>(stats);
+        float totalCycles = VecInstPredictCycle<T>(stats);
         dst.SetCycle(totalCycles);
     }
 
@@ -400,14 +549,114 @@ public:
     template <typename TileDataDst, typename TileDataSrc>
     void RowExpandPredictCycle(const std::string &instr_name, TileDataDst &dst, TileDataSrc &src)
     {
-        using T = typename TileDataDst::DType;
+        using T = TileDataDst::DType;
         std::vector<CostModelStats> stats = runRowExpandOp<TileDataDst, TileDataSrc>(dst, src);
-        float totalCycles = PredictCycle<T>(stats);
+        float totalCycles = VecInstPredictCycle<T>(stats);
+        dst.SetCycle(totalCycles);
+    }
+
+    template <typename TileRes, typename TileLeft, typename TileRight>
+    void MatmulPredictCycle(TileRes &cMatrix, TileLeft &aMatrix, TileRight &bMatrix)
+    {
+        using T = typename TileLeft::DType;
+        auto stats = runMatmulOp(aMatrix, bMatrix);
+        float total_cycles = CubeInstPredictCycle<T>(stats);
+        cMatrix.SetCycle(total_cycles);
+    }
+
+    template <typename TileRes, typename TileLeft, typename TileRight>
+    void MatmulBiasPredictCycle(TileRes &cMatrix, TileLeft &aMatrix, TileRight &bMatrix)
+    {
+        using T = typename TileLeft::DType;
+        auto stats = runMatmulBiasOp(aMatrix, bMatrix);
+        float total_cycles = CubeInstPredictCycle<T>(stats);
+        cMatrix.SetCycle(total_cycles);
+    }
+
+    // TCvt
+    template <typename TileDataD, typename TileDataS>
+    void CvtOpPredictCycle(const std::string &instr_name, TileDataD &dst, TileDataS &src, RoundMode mode,
+                           SaturationMode satMode)
+    {
+        using T = typename TileDataD::DType; // conv的类型需单独考虑
+        std::vector<CostModelStats> stats;
+        runTCvtOp<TileDataD, TileDataS>(stats, dst, src, mode, satMode);
+        float totalCycles = VecInstPredictCycle<T>(stats);
+        dst.SetCycle(totalCycles);
+    }
+
+    // TSel
+    template <typename DstTile, typename MaskTile, typename Src0Tile, typename Src1Tile, typename TmpTile>
+    void SelOpPredictCycle(const std::string &instr_name, DstTile &dst)
+    {
+        using T = typename DstTile::DType;
+        std::vector<CostModelStats> stats = runTSelOp<DstTile, MaskTile, Src0Tile, Src1Tile, TmpTile>(dst);
+        float totalCycles = VecInstPredictCycle<T>(stats);
+        dst.SetCycle(totalCycles);
+    }
+
+    // TMov
+    template <typename DstTileData, typename SrcTileData>
+    void MovOpPredictCycle(const std::string &instr_name, DstTileData &dst, SrcTileData &src)
+    {
+        using T = typename DstTileData::DType;
+        std::vector<CostModelStats> stats;
+        runTMovOp<DstTileData, SrcTileData>(stats, dst, src);
+        float totalCycles = DataTransInstPredictCycle<T, DstTileData, SrcTileData>(stats, dst, src);
+        dst.SetCycle(totalCycles);
+    }
+
+    // TMov with mode
+    template <typename DstTileData, typename SrcTileData, QuantMode_t quantPre, ReluPreMode reluMode>
+    void MovModeOpPredictCycle(const std::string &instr_name, DstTileData &dst, SrcTileData &src)
+    {
+        using T = typename DstTileData::DType;
+        uint16_t m = src.GetValidRow();
+        uint16_t n = src.GetValidCol();
+        std::vector<CostModelStats> stats;
+        TMovCcToCb<DstTileData, SrcTileData, quantPre, reluMode>(stats, m, n);
+        float totalCycles = DataTransInstPredictCycle<T, DstTileData, SrcTileData>(stats, dst, src);
+        dst.SetCycle(totalCycles);
+    }
+
+    // TLoad
+    template <typename TileData, typename GlobalData>
+    void LoadOpPredictCycle(const std::string &instr_name, TileData &dst, GlobalData &src)
+    {
+        using T = typename TileData::DType;
+        std::vector<CostModelStats> stats = runTLoadOp<TileData, GlobalData>(dst, src);
+        float totalCycles = DataTransInstPredictCycle<T, TileData>(stats, dst);
+        fprintf(stdout, "[CostModel4] cycles: %f\n", totalCycles);
+        dst.SetCycle(totalCycles);
+    }
+
+    // TExtract
+    template <typename DstTileData, typename SrcTileData>
+    void ExtractOpPredictCycle(const std::string &instr_name, DstTileData &dst, SrcTileData &src, uint16_t indexRow,
+                               uint16_t indexCol)
+    {
+        using T = typename DstTileData::DType;
+        std::vector<CostModelStats> stats;
+        runTExtractOp<DstTileData, SrcTileData>(stats, dst, src, indexRow, indexCol);
+        float totalCycles = DataTransInstPredictCycle<T, DstTileData, SrcTileData>(stats, dst, src);
+        dst.SetCycle(totalCycles);
+    }
+
+    // TExtract with mode
+    template <typename DstTileData, typename SrcTileData, QuantMode_t quantPre, ReluPreMode reluMode>
+    void ExtractModeOpPredictCycle(const std::string &instr_name, DstTileData &dst, SrcTileData &src, uint16_t indexRow,
+                                   uint16_t indexCol)
+    {
+        using T = typename DstTileData::DType;
+        std::vector<CostModelStats> stats;
+        TExtractAccToMat<DstTileData, SrcTileData, quantPre, reluMode>(stats, dst.GetValidRow(), dst.GetValidCol(),
+                                                                       indexRow, indexCol);
+        float totalCycles = DataTransInstPredictCycle<T, DstTileData, SrcTileData>(stats, dst, src);
         dst.SetCycle(totalCycles);
     }
 
     template <typename T>
-    float PredictCycle(const std::vector<CostModelStats> &stats)
+    [[nodiscard]] float VecInstPredictCycle(const std::vector<CostModelStats> &stats) const
     {
         float total_cycles = 0.0f;
         // first: next real instruction starts a new pipeline segment (pays startup_cycles once)
@@ -420,7 +669,7 @@ public:
             DataType dtype = GetDataTypeEnum<T>();
             auto key = std::make_pair(instr_name, dtype);
 
-            if (instr_name == "PIPE_V") {
+            if (instr_name == "PIPE_V" || instr_name == "pipe_barrier") {
                 pipe = true;
                 continue;
             }
@@ -431,22 +680,137 @@ public:
                 return 0.0f;
             }
 
-            const CostModelParams &params = params_map_.at(key);
+            const CostModelParams &vec_params = params_map_.at(key);
 
             // Startup: paid once for the very first instruction in the sequence
             if (first) {
-                total_cycles += params.startup_cycles;
+                total_cycles += vec_params.startup_cycles;
                 first = false;
             }
 
             // Interval: paid for any instruction that immediately follows a PIPE_V barrier
             if (pipe) {
-                total_cycles += params.interval_cycles;
+                total_cycles += vec_params.interval_cycles;
                 pipe = false;
             }
-            total_cycles += stat.repeats * params.per_repeat_cycles;
+            total_cycles += stat.repeats * vec_params.per_repeat_cycles;
         }
-        fprintf(stdout, "[CostModel] PredictCycle: %.1f\n", total_cycles);
+        fprintf(stdout, "[CostModel] VecInstPredictCycle: %.1f\n", total_cycles);
+        return total_cycles;
+    }
+
+    template <typename T>
+    [[nodiscard]] float CubeInstPredictCycle(const std::vector<CostModelStats> &stats) const
+    {
+        float total_cycles = 0.0f;
+        bool first = true;
+        for (const auto &stat : stats) {
+            const std::string &instr_name = stat.cceInstName;
+            DataType dtype = GetDataTypeEnum<T>();
+            auto key = std::make_pair(instr_name, dtype);
+            if (!CheckParamExist(key)) {
+                fprintf(stderr, "[CostModel] Error: unknown instruction <%s> for dtype <%d>\n", instr_name.c_str(),
+                        static_cast<int>(dtype));
+                return 0.0f;
+            }
+            const CostModelParams &cube_params = params_map_.at(key);
+
+            if (first) {
+                total_cycles += cube_params.startup_cycles;
+                first = false;
+            }
+
+            const int baskK = 32 / getDataTypeBytes(dtype);
+            const int repeats = (stat.m + 15) / 16 * ((stat.n + 15) / 16) * ((stat.k + baskK - 1) / baskK);
+            total_cycles += repeats * cube_params.per_repeat_cycles;
+        }
+
+        return total_cycles;
+    }
+
+    // TLoad专用
+    template <typename T, typename DstTileData>
+    [[nodiscard]] float DataTransInstPredictCycle(const std::vector<CostModelStats> &stats, DstTileData &dst)
+    {
+        int srcType = -1;
+        int dstType = -1;
+
+        // gm2ub
+        if constexpr (DstTileData::Loc == TileType::Vec) {
+            dstType = static_cast<int>(TileType::Vec);
+        } else if constexpr (DstTileData::Loc == TileType::Mat) { // gm2l1
+            dstType = static_cast<int>(TileType::Mat);
+        }
+
+        fprintf(stdout, "[CostModel3] SrcTileData::Loc: %d, DstTileData::Loc: %d\n", srcType, dstType);
+
+        if constexpr (is_conv_tile_v<DstTileData>) {
+            return DataTransInstPredictCycle(srcType, dstType, DstTileData::bufferSize);
+        } else {
+            return DataTransInstPredictCycle(srcType, dstType, dst.GetValidRow() * dst.GetValidCol() * sizeof(T));
+        }
+    }
+
+    // TMov/TExtract
+    template <typename T, typename DstTileData, typename SrcTileData>
+    [[nodiscard]] float DataTransInstPredictCycle(const std::vector<CostModelStats> &stats, DstTileData &dst,
+                                                  SrcTileData &src)
+    {
+        int srcType = -1;
+        int dstType = -1;
+        if constexpr (SrcTileData::Loc == TileType::Mat && DstTileData::Loc == TileType::Left) {
+            srcType = static_cast<int>(TileType::Mat);
+            dstType = static_cast<int>(TileType::Left);
+        } else if constexpr (SrcTileData::Loc == TileType::Mat && DstTileData::Loc == TileType::Right) {
+            srcType = static_cast<int>(TileType::Mat);
+            dstType = static_cast<int>(TileType::Right);
+        } else if constexpr (SrcTileData::Loc == TileType::Mat && DstTileData::Loc == TileType::Bias) {
+            srcType = static_cast<int>(TileType::Mat);
+            dstType = static_cast<int>(TileType::Bias);
+        } else if constexpr (SrcTileData::Loc == TileType::Mat && DstTileData::Loc == TileType::Scaling) {
+            srcType = static_cast<int>(TileType::Mat);
+            dstType = static_cast<int>(TileType::Scaling);
+        } else if constexpr (SrcTileData::Loc == TileType::Vec && DstTileData::Loc == TileType::Vec) {
+            srcType = static_cast<int>(TileType::Vec);
+            dstType = static_cast<int>(TileType::Vec);
+        } else if constexpr (SrcTileData::Loc == TileType::Acc && DstTileData::Loc == TileType::Mat) {
+            srcType = static_cast<int>(TileType::Acc);
+            dstType = static_cast<int>(TileType::Mat);
+        } else if constexpr (SrcTileData::Loc == TileType::Mat && DstTileData::Loc == TileType::Mat) {
+            srcType = static_cast<int>(TileType::Mat);
+            dstType = static_cast<int>(TileType::Mat);
+        }
+
+        if constexpr (is_conv_tile_v<SrcTileData>) {
+            fprintf(stdout, "[CostModel1] SrcTileData::Loc: %d, DstTileData::Loc: %d\n",
+                    static_cast<int>(SrcTileData::Loc), static_cast<int>(DstTileData::Loc));
+            return DataTransInstPredictCycle(srcType, dstType, DstTileData::bufferSize);
+        } else {
+            fprintf(stdout, "[CostModel2] SrcTileData::Loc: %d, DstTileData::Loc: %d\n",
+                    static_cast<int>(SrcTileData::Loc), static_cast<int>(DstTileData::Loc));
+            return DataTransInstPredictCycle(srcType, dstType, src.GetValidRow() * src.GetValidCol() * sizeof(T));
+        }
+    }
+
+    [[nodiscard]] float DataTransInstPredictCycle(int srcType, int dstType, uint32_t bufferSize)
+    {
+        float total_cycles = 0.0f;
+        auto key = std::make_pair(srcType, dstType);
+        if (!data_trans_params_map_.contains(key)) {
+            fprintf(stderr, "[CostModel] Error: unknown data transfer instruction, srcType: <%d>,  dstType: <%d>\n",
+                    srcType, dstType);
+            return total_cycles;
+        }
+
+        float bandWidth = data_trans_params_map_.at(key);
+        if (bandWidth <= 0) {
+            total_cycles = 0.0;
+            fprintf(stderr, "[CostModel] Error: bandWidth should be larger than 0");
+        } else {
+            total_cycles = static_cast<int>(bufferSize / bandWidth);
+        }
+
+        fprintf(stdout, "[CostModel] DataTransInstPredictCycle: %.1f\n", total_cycles);
         return total_cycles;
     }
 
@@ -463,13 +827,18 @@ private:
             CostModelParams{head, complete, computing, interval, mask, bank_conflict};
     }
 
-    bool CheckParamExist(const std::pair<std::string, DataType> &key)
+    void SetParam(int srcType, int dstType, float bandWidth)
     {
-        return params_map_.count(key) > 0;
+        data_trans_params_map_[std::make_pair(srcType, dstType)] = bandWidth;
+    }
+
+    [[nodiscard]] bool CheckParamExist(const std::pair<std::string, DataType> &key) const
+    {
+        return params_map_.contains(key);
     }
 
     template <typename T>
-    DataType GetDataTypeEnum()
+    DataType GetDataTypeEnum() const
     {
         if constexpr (std::is_same_v<T, __bf16>) {
             return DataType::BF16;
@@ -491,6 +860,7 @@ private:
     }
 
     std::unordered_map<std::pair<std::string, DataType>, CostModelParams, InstrTypeHash> params_map_;
+    std::unordered_map<std::pair<int, int>, float, IntIntHash> data_trans_params_map_;
 };
 
 } // namespace pto

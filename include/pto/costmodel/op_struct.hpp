@@ -368,6 +368,34 @@ struct TColReduceOp {
     }
 };
 
+struct TransOp {
+    PTO_INTERNAL static void TransB8Instr(std::vector<CostModelStats> &stats, uint8_t repeat)
+    {
+        // [32, 8] -> [8, 32], scatter_vnchwconv_b8 * 4
+        stats.emplace_back("scatter_vnchwconv", repeat);
+        stats.emplace_back("scatter_vnchwconv", repeat);
+        stats.emplace_back("scatter_vnchwconv", repeat);
+        stats.emplace_back("scatter_vnchwconv", repeat);
+    }
+
+    PTO_INTERNAL static void TransB16Instr(std::vector<CostModelStats> &stats, uint8_t repeat)
+    {
+        // [16, 16] -> [16, 16], scatter_vnchwconv_b16
+        stats.emplace_back("scatter_vnchwconv", repeat);
+    }
+
+    PTO_INTERNAL static void TransB32Instr(std::vector<CostModelStats> &stats, uint8_t repeat)
+    {
+        // [16,8] -> [8,16], scatter_vnchwconv_b32
+        stats.emplace_back("scatter_vnchwconv", repeat);
+    }
+
+    PTO_INTERNAL static void CopyInstr(std::vector<CostModelStats> &stats, uint8_t repeat)
+    {
+        stats.emplace_back("vcopy", repeat);
+    }
+};
+
 } // namespace pto
 
 #endif // PTO_ISA_COSTMODEL_OP_STRUCT_HPP

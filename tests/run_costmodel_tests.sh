@@ -12,8 +12,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 TARGET_DIR="${SCRIPT_DIR}/.."
 
-# 需要执行的测试用例列表（可按需添加/删除）
-TESTCASES=("tadd" "tmul" "tsub" "tadds" "tdivs" "tmins" "tmuls" "tabs" "texp" "tsqrt" "tabs" "tcolmax" "tcolsum" "trowexpand" "trowmax" "trowsum")
+# ST 测试用例目录
+TESTCASE_DIR="${SCRIPT_DIR}/costmodel/st/testcase"
+
+# 需要执行的测试用例列表（留空则自动发现 TESTCASE_DIR 下所有子目录）
+TESTCASES=()
 
 # 测试命令的固定参数
 TEST_ARGS="--clean --verbose"
@@ -30,9 +33,24 @@ error_exit() {
     exit 1
 }
 
+# 记录结果的数组
+PASSED_CASES=()
+FAILED_CASES=()
+
 # 1. 检查目标目录是否存在
 if [ ! -d "${TARGET_DIR}" ]; then
     error_exit "Dir not exists：${TARGET_DIR}"
+fi
+
+# 若 TESTCASES 为空，自动发现 TESTCASE_DIR 下所有子目录
+if [ ${#TESTCASES[@]} -eq 0 ]; then
+    if [ ! -d "${TESTCASE_DIR}" ]; then
+        error_exit "Testcase dir not exists：${TESTCASE_DIR}"
+    fi
+    while IFS= read -r -d '' dir; do
+        TESTCASES+=("$(basename "${dir}")")
+    done < <(find "${TESTCASE_DIR}" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
+    echo -e "${YELLOW}[INFO] Auto-discovered testcases: ${TESTCASES[*]}${NC}"
 fi
 
 # 2. 进入目标目录
@@ -56,13 +74,42 @@ for testcase in "${TESTCASES[@]}"; do
     # 根据退出码判断执行结果
     if [ ${exit_code} -eq 0 ]; then
         echo -e "${GREEN}[SUCCESS] Test Case ${testcase} Finished${NC}"
+        PASSED_CASES+=("${testcase}")
     else
         echo -e "${RED}[FAIL] Test Case ${testcase} Failed (Exit Code: ${exit_code})${NC}"
-        # 可选：如果某个用例失败是否继续执行后续用例
-        # error_exit "测试用例 ${testcase} 执行失败，终止脚本"
+        FAILED_CASES+=("${testcase}")
     fi
 done
 
-# 4. 脚本执行完成
-echo -e "\n${GREEN}[INFO] All Test Case Finished${NC}"
+# 4. 输出总览
+total=${#TESTCASES[@]}
+passed=${#PASSED_CASES[@]}
+failed=${#FAILED_CASES[@]}
+
+echo -e "\n========================================"
+echo -e "           ST Results Summary"
+echo -e "========================================"
+echo -e "Total:  ${total}"
+echo -e "${GREEN}Passed: ${passed}${NC}"
+echo -e "${RED}Failed: ${failed}${NC}"
+
+if [ ${passed} -gt 0 ]; then
+    echo -e "\n${GREEN}[PASSED]${NC}"
+    for tc in "${PASSED_CASES[@]}"; do
+        echo -e "  ${GREEN}✔ ${tc}${NC}"
+    done
+fi
+
+if [ ${failed} -gt 0 ]; then
+    echo -e "\n${RED}[FAILED]${NC}"
+    for tc in "${FAILED_CASES[@]}"; do
+        echo -e "  ${RED}✘ ${tc}${NC}"
+    done
+fi
+
+echo -e "========================================"
+
+if [ ${failed} -gt 0 ]; then
+    exit 1
+fi
 exit 0
