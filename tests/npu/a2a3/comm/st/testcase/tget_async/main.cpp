@@ -30,7 +30,6 @@ TEST(TGetAsync, Vec_Uint8Small)
 {
     ASSERT_TRUE((RunGetAsyncRootGet<uint8_t, 512>(2, 2, 0, 0)));
 }
-
 int main(int argc, char **argv)
 {
     CommMpiInit(&argc, &argv);

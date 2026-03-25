@@ -80,7 +80,7 @@ function(pto_comm_st NAME)
         ${NAME}_kernel
         $<BUILD_INTERFACE:$<$<STREQUAL:${RUN_MODE},sim>:runtime_camodel>>
         $<BUILD_INTERFACE:$<$<STREQUAL:${RUN_MODE},npu>:runtime>>
-        stdc++ ascendcl hcomm m tiling_api platform c_sec dl nnopbase GTest::gtest GTest::gtest_main pthread
+        stdc++ ascendcl hcomm m tiling_api platform c_sec dl nnopbase GTest::gtest pthread
     )
 endfunction()
 

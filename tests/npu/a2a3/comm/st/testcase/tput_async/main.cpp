@@ -30,7 +30,6 @@ TEST(TPutAsync, Vec_Uint8Small_8Ranks)
 {
     ASSERT_TRUE((RunPutAsyncRootPut<uint8_t, 512>(8, 8, 0, 0)));
 }
-
 int main(int argc, char **argv)
 {
     CommMpiInit(&argc, &argv);

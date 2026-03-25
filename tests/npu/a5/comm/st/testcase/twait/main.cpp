@@ -75,7 +75,6 @@ TEST(TWait, SubRegion_4x8_of_16)
     SKIP_IF_RANKS_LT(2);
     ASSERT_TRUE((RunTWaitSubRegion<16, 4, 8>(2, 2, 0, 0)));
 }
-
 int main(int argc, char **argv)
 {
     CommMpiInit(&argc, &argv);

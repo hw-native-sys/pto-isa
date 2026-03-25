@@ -66,6 +66,7 @@ checkopts() {
   ENABLE_A3=FALSE
   ENABLE_A5=FALSE
   ENABLE_CPU=FALSE
+  ENABLE_COMM=FALSE
   RUN_TYPE="npu"
   EXAMPLE_NAME=""
   EXAMPLE_MODE=""
@@ -73,7 +74,7 @@ checkopts() {
   INST_NAME=""
   AUTO_MODE=FALSE
 
-  parsed_args=$(getopt -a -o j:hvuO: -l help,verbose,cov,make_clean,noexec,pkg,run_all,a3,a5,sim,npu,cpu,auto_mode,run_simple,build,cann_3rd_lib_path: -- "$@") || {
+  parsed_args=$(getopt -a -o j:hvuO: -l help,verbose,cov,make_clean,noexec,pkg,run_all,a3,a5,sim,npu,comm,cpu,auto_mode,run_simple,build,cann_3rd_lib_path: -- "$@") || {
   usage
   exit 1
   }
@@ -104,6 +105,10 @@ checkopts() {
         ;;
       --a5)
         ENABLE_A5=TRUE
+        shift
+        ;;
+      --comm)
+        ENABLE_COMM=TRUE
         shift
         ;;
       --sim)
@@ -180,6 +185,25 @@ run_simple_st() {
   fi
   ./tests/run_st.sh ${ARGS}
   echo "execute samples success"
+}
+
+run_comm_st() {
+  echo $dotted_line
+  echo "Start to run comm st"
+  chmod +x ./tests/run_st.sh
+  ARGS="--comm "
+  if [ "$ENABLE_A3" = "TRUE" ] && [ "$ENABLE_A5" = "FALSE" ]; then
+    ARGS+="--a3 "
+  elif [ "$ENABLE_A3" = "FALSE" ] && [ "$ENABLE_A5" = "TRUE" ]; then
+    ARGS+="--a5 "
+  elif [ "$ENABLE_A3" = "TRUE" ] && [ "$ENABLE_A5" = "TRUE" ]; then
+    ARGS+="--a3_a5 "
+  else
+    ARGS+="--a3 "
+  fi
+  ARGS+="--$RUN_TYPE "
+  ./tests/run_st.sh ${ARGS}
+  echo "execute comm samples success"
 }
 
 run_cpu_st() {
@@ -268,6 +292,9 @@ main() {
   fi
   if [ "$ENABLE_CPU" == "TRUE" ]; then
     run_cpu_st
+  fi
+  if [ "$ENABLE_COMM" == "TRUE" ]; then
+    run_comm_st
   fi
 }
 

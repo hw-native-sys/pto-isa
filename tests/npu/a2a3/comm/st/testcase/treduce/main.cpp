@@ -157,7 +157,6 @@ TEST(TReduce, PingPong_Float_256x64_tile32_Sum_8Ranks)
     SKIP_IF_RANKS_LT(8);
     ASSERT_TRUE((RunReducePingPong_Float_256x64_tile32_Sum(8, 8, 0, 0)));
 }
-
 int main(int argc, char **argv)
 {
     CommMpiInit(&argc, &argv);

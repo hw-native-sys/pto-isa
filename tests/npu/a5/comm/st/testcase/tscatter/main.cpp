@@ -91,7 +91,6 @@ TEST(TScatterPingPong, Float_256x64_tile32_2ranks)
     SKIP_IF_RANKS_LT(2);
     ASSERT_TRUE(RunScatterPingPong_Float_256x64_tile32(2, 2, 0, 0));
 }
-
 int main(int argc, char **argv)
 {
     CommMpiInit(&argc, &argv);

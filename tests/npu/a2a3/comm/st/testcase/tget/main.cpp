@@ -186,7 +186,6 @@ TEST(TGet, PingPong_Irregular_Float_65x104_tile16x32)
     SKIP_IF_RANKS_LT(2);
     ASSERT_TRUE((RunGetRingPingPong<float, 65, 104, 16, 32>(2, 2, 0, 0)));
 }
-
 int main(int argc, char **argv)
 {
     CommMpiInit(&argc, &argv);

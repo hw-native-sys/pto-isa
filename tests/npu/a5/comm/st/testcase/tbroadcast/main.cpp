@@ -102,7 +102,6 @@ TEST(TBroadCast, PingPong_Float_256x64_tile32_Root0_8Ranks)
     SKIP_IF_RANKS_LT(8);
     ASSERT_TRUE((RunBroadCastPingPong_Float_256x64_tile32(8, 8, 0, 0, 0)));
 }
-
 int main(int argc, char **argv)
 {
     CommMpiInit(&argc, &argv);
