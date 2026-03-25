@@ -2683,8 +2683,8 @@ inline AICORE void castData_1D_NoPostUpdate(__ubuf__ int32_t *dst, __ubuf__ int6
 template <typename TileDataD, typename TileDataS, typename R>
 __tf__ PTO_INTERNAL OP_NAME(TCVT)
     OP_TYPE(element_wise) void implTCVT(typename TileDataD::TileDType __out__ dst,
-                                        typename TileDataS::TileDType __in__ src, unsigned validRows,
-                                        unsigned validCols, SaturationMode satMode,
+                                        typename TileDataS::TileDType __in__ src, SaturationMode satMode,
+                                        unsigned validRows, unsigned validCols,
                                         VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
 {
     // Saturation is controlled by:
@@ -2967,35 +2967,35 @@ PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, RoundMode mode, Satu
     // Execute the conversion with appropriate rounding mode
     switch (mode) {
         case RoundMode::CAST_RINT:
-            implTCVT<TileDataD, TileDataS, RoundRType>(dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(),
-                                                       satMode);
+            implTCVT<TileDataD, TileDataS, RoundRType>(dst.data(), src.data(), satMode, dst.GetValidRow(),
+                                                       dst.GetValidCol());
             break;
         case RoundMode::CAST_ROUND:
-            implTCVT<TileDataD, TileDataS, RoundAType>(dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(),
-                                                       satMode);
+            implTCVT<TileDataD, TileDataS, RoundAType>(dst.data(), src.data(), satMode, dst.GetValidRow(),
+                                                       dst.GetValidCol());
             break;
         case RoundMode::CAST_FLOOR:
-            implTCVT<TileDataD, TileDataS, RoundFType>(dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(),
-                                                       satMode);
+            implTCVT<TileDataD, TileDataS, RoundFType>(dst.data(), src.data(), satMode, dst.GetValidRow(),
+                                                       dst.GetValidCol());
             break;
         case RoundMode::CAST_CEIL:
-            implTCVT<TileDataD, TileDataS, RoundCType>(dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(),
-                                                       satMode);
+            implTCVT<TileDataD, TileDataS, RoundCType>(dst.data(), src.data(), satMode, dst.GetValidRow(),
+                                                       dst.GetValidCol());
             break;
         case RoundMode::CAST_TRUNC:
-            implTCVT<TileDataD, TileDataS, RoundZType>(dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(),
-                                                       satMode);
+            implTCVT<TileDataD, TileDataS, RoundZType>(dst.data(), src.data(), satMode, dst.GetValidRow(),
+                                                       dst.GetValidCol());
             break;
         case RoundMode::CAST_ODD:
             if constexpr (std::is_same<typename TileDataD::DType, half>::value &&
                           std::is_same<typename TileDataS::DType, float>::value) {
-                implTCVT<TileDataD, TileDataS, RoundOType>(dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(),
-                                                           satMode);
+                implTCVT<TileDataD, TileDataS, RoundOType>(dst.data(), src.data(), satMode, dst.GetValidRow(),
+                                                           dst.GetValidCol());
             }
             break;
         default:
-            implTCVT<TileDataD, TileDataS, RoundRType>(dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(),
-                                                       satMode);
+            implTCVT<TileDataD, TileDataS, RoundRType>(dst.data(), src.data(), satMode, dst.GetValidRow(),
+                                                       dst.GetValidCol());
             break;
     }
 

@@ -342,7 +342,7 @@ PTO_INTERNAL void TRowReduceImpl(__ubuf__ typename TileDataOut::DType *dstPtr,
 template <typename TileDataOut, typename TileDataIn, unsigned elementsPerRepeat>
 __tf__ PTO_INTERNAL OP_NAME(TROWMAX)
     OP_TYPE(reduce) void TRowMax(typename TileDataOut::TileDType __out__ dst, typename TileDataIn::TileDType __in__ src,
-                                 uint32_t srcValidRows, uint32_t srcValidCols, uint32_t dstValidRow,
+                                 uint32_t dstValidRow, uint32_t srcValidRows, uint32_t srcValidCols,
                                  unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
     TRowReduceCheck<TileDataOut, TileDataIn>(srcValidRows, srcValidCols, dstValidRow);
@@ -365,7 +365,7 @@ __tf__ PTO_INTERNAL OP_NAME(TROWMAX)
 template <typename TileDataOut, typename TileDataIn, unsigned elementsPerRepeat>
 __tf__ PTO_INTERNAL OP_NAME(TROWSUM)
     OP_TYPE(reduce) void TRowSum(typename TileDataOut::TileDType __out__ dst, typename TileDataIn::TileDType __in__ src,
-                                 uint32_t srcValidRows, uint32_t srcValidCols, uint32_t dstValidRow,
+                                 uint32_t dstValidRow, uint32_t srcValidRows, uint32_t srcValidCols,
                                  unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
     TRowReduceCheck<TileDataOut, TileDataIn>(srcValidRows, srcValidCols, dstValidRow);
@@ -388,7 +388,7 @@ __tf__ PTO_INTERNAL OP_NAME(TROWSUM)
 template <typename TileDataOut, typename TileDataIn, unsigned elementsPerRepeat>
 __tf__ PTO_INTERNAL OP_NAME(TROWMIN)
     OP_TYPE(reduce) void TRowMin(typename TileDataOut::TileDType __out__ dst, typename TileDataIn::TileDType __in__ src,
-                                 uint32_t srcValidRows, uint32_t srcValidCols, uint32_t dstValidRow,
+                                 uint32_t dstValidRow, uint32_t srcValidRows, uint32_t srcValidCols,
                                  unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
     TRowReduceCheck<TileDataOut, TileDataIn>(srcValidRows, srcValidCols, dstValidRow);
@@ -414,7 +414,7 @@ PTO_INTERNAL void TROWMAX_IMPL(TileDataOut &dst, TileDataIn &src, TileDataTmp &t
     unsigned rows = src.GetValidRow();
     unsigned cols = src.GetValidCol();
 
-    TRowMax<TileDataOut, TileDataIn, elementsPerRepeat>(dst.data(), src.data(), rows, cols, dst.GetValidRow());
+    TRowMax<TileDataOut, TileDataIn, elementsPerRepeat>(dst.data(), src.data(), dst.GetValidRow(), rows, cols);
 }
 
 template <typename TileDataOut, typename TileDataIn, typename TileDataTmp>
@@ -425,7 +425,7 @@ PTO_INTERNAL void TROWSUM_IMPL(TileDataOut &dst, TileDataIn &src, TileDataTmp &t
     unsigned rows = src.GetValidRow();
     unsigned cols = src.GetValidCol();
 
-    TRowSum<TileDataOut, TileDataIn, elementsPerRepeat>(dst.data(), src.data(), rows, cols, dst.GetValidRow());
+    TRowSum<TileDataOut, TileDataIn, elementsPerRepeat>(dst.data(), src.data(), dst.GetValidRow(), rows, cols);
 }
 
 template <typename TileDataOut, typename TileDataIn, typename TileDataTmp>
@@ -436,7 +436,7 @@ PTO_INTERNAL void TROWMIN_IMPL(TileDataOut &dst, TileDataIn &src, TileDataTmp &t
     unsigned rows = src.GetValidRow();
     unsigned cols = src.GetValidCol();
 
-    TRowMin<TileDataOut, TileDataIn, elementsPerRepeat>(dst.data(), src.data(), rows, cols, dst.GetValidRow());
+    TRowMin<TileDataOut, TileDataIn, elementsPerRepeat>(dst.data(), src.data(), dst.GetValidRow(), rows, cols);
 }
 
 } // namespace pto
