@@ -186,13 +186,13 @@ struct TPipe {
             TASSIGN_IMPL(matTile, (uint64_t)(fifo.V2C_CONSUMER_BUF + entryBase + entryOffset));
             if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT) {
                 // single vector core
-                TINSERT<TInsertMode::NZ>(matTile, tile, 0, 0);
+                TINSERT_IMPL<TInsertMode::NZ>(matTile, tile, 0, 0);
             } else if constexpr (Split == TileSplitAxis::TILE_UP_DOWN) {
                 int rowIndex = ProdM * static_cast<size_t>(get_subblockid());
-                TINSERT<TInsertMode::NZ>(matTile, tile, rowIndex, 0);
+                TINSERT_IMPL<TInsertMode::NZ>(matTile, tile, rowIndex, 0);
             } else if constexpr (Split == TileSplitAxis::TILE_LEFT_RIGHT) {
                 constexpr uint32_t colIndex = ProdN * static_cast<size_t>(get_subblockid());
-                TINSERT<TInsertMode::NZ>(matTile, tile, 0, colIndex);
+                TINSERT_IMPL<TInsertMode::NZ>(matTile, tile, 0, colIndex);
             }
         }
 
