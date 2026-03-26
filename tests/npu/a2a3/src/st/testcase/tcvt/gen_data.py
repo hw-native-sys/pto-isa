@@ -501,7 +501,7 @@ if __name__ == "__main__":
 
     for test_name, src, dst, m, n in nonsattorch_tests:
         case_name_list.append(f"TCVTTest.{test_name}")
-        case_params_list.append(tcvtParams(src, dst, m, n, "RoundMode::CAST_RINT"))
+        case_params_list.append(tcvtParams(src, dst, m, n, "RoundMode::CAST_TRUNC"))
 
     # NonSatTorch partial tile test cases
     nonsattorch_partial_tests = [
@@ -513,7 +513,7 @@ if __name__ == "__main__":
 
     for test_name, src, dst, m, n, valid_m, valid_n in nonsattorch_partial_tests:
         case_name_list.append(f"TCVTTest.{test_name}")
-        case_params_list.append(tcvtParams(src, dst, m, n, "RoundMode::CAST_RINT", valid_m, valid_n))
+        case_params_list.append(tcvtParams(src, dst, m, n, "RoundMode::CAST_TRUNC", valid_m, valid_n))
 
     for i, case_name in enumerate(case_name_list):
         if not os.path.exists(case_name):

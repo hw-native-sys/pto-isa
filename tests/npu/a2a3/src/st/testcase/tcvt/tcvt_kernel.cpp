@@ -285,7 +285,7 @@ __global__ AICORE void runTCVTNonSatTorch(__gm__ T *outTruncated, __gm__ S *src)
         set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
         wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 
-        TCVT(dstTile, srcTile, tmpTile, RoundMode::CAST_RINT, SaturationMode::OFF);
+        TCVT(dstTile, srcTile, tmpTile, RoundMode::CAST_TRUNC, SaturationMode::OFF);
 
         set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
         wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
@@ -308,7 +308,7 @@ __global__ AICORE void runTCVTNonSatTorch(__gm__ T *outTruncated, __gm__ S *src)
         set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
         wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 
-        TCVT(dstTile, srcTile, tmpTile, RoundMode::CAST_RINT, SaturationMode::OFF);
+        TCVT(dstTile, srcTile, tmpTile, RoundMode::CAST_TRUNC, SaturationMode::OFF);
 
         set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
         wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
