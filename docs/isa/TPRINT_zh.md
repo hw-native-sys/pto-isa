@@ -16,7 +16,7 @@ The `TPRINT` instruction outputs the logical view of data stored in a Tile or Gl
 > - This instruction is **for development and debugging ONLY**.
 > - It incurs **significant runtime overhead** and **must not be used in production kernels**.
 > - Output may be **truncated** if it exceeds the internal print buffer.
-> - **Requires CCE compilation option `-D_DEBUG --cce-enable-print`**.
+> - **Requires CCE compilation option `-D_DEBUG --cce-enable-print`** (see [Behavior](#behavior)).
 
 ## 数学语义
 

@@ -50,6 +50,11 @@ pto.wait_event[src_op, dst_op, eventID]
 pto.barrier(op)
 // 支持的op：TVEC,TMATMUL
 ```
+
+In the current PTO-DSL front-end flow, `record_event` and `wait_event` should
+be treated as low-level TSYNC forms. Front-end kernels SHOULD normally stay free
+of explicit event wiring and rely on `ptoas --enable-insert-sync`.
+
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:
