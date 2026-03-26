@@ -52,6 +52,10 @@ pto.barrier(op)
 // 支持的op：TVEC,TMATMUL
 ```
 
+在当前 PTO-DSL 前端流程中，`record_event` 和 `wait_event` 应视为 TSYNC 的低层形式。
+前端 kernel 通常不应手工编写事件连线，而应依赖 `ptoas --enable-insert-sync`
+自动插入同步。
+
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`:
