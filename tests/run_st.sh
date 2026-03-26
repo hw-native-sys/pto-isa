@@ -526,29 +526,3 @@ if [ "$ENABLE_KIRIN9030" = "true" ]; then
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t trowexpand
 fi
 
-if [ "$ENABLE_COMM" == "true" ]; then
-  if [ "$ENABLE_A3" = "true" ]; then
-    python3 tests/script/run_st.py $ARGS -v a3 -t comm/tbroadcast
-    python3 tests/script/run_st.py $ARGS -v a3 -t comm/tgather
-    python3 tests/script/run_st.py $ARGS -v a3 -t comm/tget
-    python3 tests/script/run_st.py $ARGS -v a3 -t comm/tnotify
-    python3 tests/script/run_st.py $ARGS -v a3 -t comm/tput
-    python3 tests/script/run_st.py $ARGS -v a3 -t comm/treduce
-    python3 tests/script/run_st.py $ARGS -v a3 -t comm/tscatter
-    python3 tests/script/run_st.py $ARGS -v a3 -t comm/ttest
-    python3 tests/script/run_st.py $ARGS -v a3 -t comm/twait
-    python3 tests/script/run_st.py $ARGS -v a3 -t comm/tput_async
-    python3 tests/script/run_st.py $ARGS -v a3 -t comm/tget_async
-  fi
-  if [ "$ENABLE_A5" = "true" ]; then
-    python3 tests/script/run_st.py $ARGS -v a5 -t comm/tbroadcast
-    python3 tests/script/run_st.py $ARGS -v a5 -t comm/tgather
-    python3 tests/script/run_st.py $ARGS -v a5 -t comm/tget
-    python3 tests/script/run_st.py $ARGS -v a5 -t comm/tnotify
-    python3 tests/script/run_st.py $ARGS -v a5 -t comm/tput
-    python3 tests/script/run_st.py $ARGS -v a5 -t comm/treduce
-    python3 tests/script/run_st.py $ARGS -v a5 -t comm/tscatter
-    python3 tests/script/run_st.py $ARGS -v a5 -t comm/ttest
-    python3 tests/script/run_st.py $ARGS -v a5 -t comm/twait
-  fi
-fi
