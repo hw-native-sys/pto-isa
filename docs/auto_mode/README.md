@@ -9,6 +9,8 @@ PTO AUTO is a programming mode for PTO that provides two major benefits:
 
 More specifically, in PTO AUTO, the kernel developer does not need to explicitly specify tile memory addresses or synchronization between different pipes. Instead the PTO AUTO compiler automatically allocates optimal memory addressess for the tiles in different chip buffers. Moreover, the compiler automatically synchronizes the PTO tile operations in order to maximize parallelism among different pipes. Finally, the kernel developer does not need to be concerned with the minor differences between various generations of the Ascend architecture (particulary in terms of the way Cube and Vector computations are coordinated).
 
+Note: auto mode currently only supports the compiler `-O2` option.
+
 ## Simple Example
 
 A simple example, elementwise multiplication demonstrates the key differences between the PTO AUTO and manual modes:
