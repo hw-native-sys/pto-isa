@@ -533,6 +533,22 @@ if [ "$ENABLE_KIRIN9030" = "true" ]; then
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t ttrans
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tstore
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t trowexpand
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tdivs
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t trsqrt
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tadds
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tmax
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tpartmax
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tpartmin
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t trowmax
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tmul
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tmov_acc2mat
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tci
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tdiv
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t texp
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tmov_ub2l1
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tmov_vect
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tmuls
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tsel
 fi
 
 if [ "$ENABLE_COMM" == "true" ]; then
