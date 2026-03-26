@@ -1316,6 +1316,32 @@
       "notes": []
     },
     {
+      "instruction": "TSUBVIEW",
+      "category": "Manual / Resource Binding",
+      "summary_en": "Reinterpret a tile as a subtile of another tile.",
+      "summary_zh": "表达一个tile是另一个tile的subview。",
+      "diagram_template": "reshape_move",
+      "operands": [
+        "dst",
+        "src",
+        "rowOffset",
+        "colOffset"
+      ],
+      "notes": []
+    },
+    {
+      "instruction": "TGET_SCALE_ADDR",
+      "category": "Manual / Resource Binding",
+      "summary_en": "Bind the on-chip address of output tile to a scaled factor of that of input tile.",
+      "summary_zh": "将输出tile的片上内存值绑定为扩展后的输入tile内存的值。",
+      "diagram_template": "reshape_move",
+      "operands": [
+        "dst",
+        "src"
+      ],
+      "notes": []
+    },
+    {
       "instruction": "TPRINT",
       "category": "Complex",
       "summary_en": "Debug/print elements from a tile (implementation-defined).",

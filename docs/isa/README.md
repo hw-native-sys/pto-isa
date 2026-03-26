@@ -128,6 +128,8 @@ This directory contains the per-instruction reference for the PTO Tile Lib ISA.
 - [TMOV_FP](TMOV_FP.md) - Move/convert from an accumulator tile into a destination tile, using a scaling (`fp`) tile for vector quantization parameters.
 - [TRESHAPE](TRESHAPE.md) - Reinterpret a tile as another tile type/shape while preserving the underlying bytes.
 - [TTRANS](TTRANS.md) - Transpose with an implementation-defined temporary tile.
+- [TSUBVIEW](TSUBVIEW.md) - Reinterpret a tile as a subtile of another tile.
+- [TGET_SCALE_ADDR](TGET_SCALE_ADDR.md) - Bind the on-chip address of output tile to a scaled factor of that of input tile.
 
 ## Complex
 - [TPRINT](TPRINT.md) - Debug/print elements from a tile (implementation-defined).

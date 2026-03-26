@@ -294,10 +294,10 @@ cd pto-isa
 **Run a Single ST Test Case:**
 
   ```bash
-  python3 tests/script/run_st.py -r [sim|npu] -v [a3|a5] -t [TEST_CASE] -g [GTEST_FILTER_CASE]
+  python3 tests/script/run_st.py -r [sim|npu] -v [a3|a5] [-a] -t [TEST_CASE] -g [GTEST_FILTER_CASE]
   ```
 
-Note: The `a3` backend covers the A2/A3 family (`include/pto/npu/a2a3`).
+Note: The `a3` backend covers the A2/A3 family (`include/pto/npu/a2a3`) and `-a` is for running the ST test case in auto mode.
 
 Examples:
 

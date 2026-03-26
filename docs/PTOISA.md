@@ -12,6 +12,7 @@ This page is the source-synchronized ISA index generated from `docs/isa/manifest
 | ISA reference | [`docs/isa/conventions.md`](isa/conventions.md) | Shared notation, operands, events, and modifiers. |
 | Assembly (PTO-AS) | [`docs/assembly/PTO-AS.md`](assembly/PTO-AS.md) | PTO-AS syntax reference. |
 | Source of truth | [`include/pto/common/pto_instr.hpp`](reference/pto-intrinsics-header.md) | C++ intrinsic API (authoritative). |
+| PTO Auto Mode | [`docs/auto_mode/README.md`](README.md) | PTO auto mode guide entry point. |
 
 ## Instruction Index (All PTO Instructions)
 
@@ -121,6 +122,8 @@ This page is the source-synchronized ISA index generated from `docs/isa/manifest
 | Data Movement / Layout | [`TMOV_FP`](isa/TMOV_FP.md) | Move/convert from an accumulator tile into a destination tile, using a scaling (`fp`) tile for vector quantization parameters. |
 | Data Movement / Layout | [`TRESHAPE`](isa/TRESHAPE.md) | Reinterpret a tile as another tile type/shape while preserving the underlying bytes. |
 | Data Movement / Layout | [`TTRANS`](isa/TTRANS.md) | Transpose with an implementation-defined temporary tile. |
+| Data Movement / Layout | [`TSUBVIEW`](isa/TSUBVIEW.md) | Reinterpret a tile as a subtile of another tile. |
+| Data Movement / Layout | [`TGET_SCALE_ADDR`](isa/TGET_SCALE_ADDR.md) | Bind the on-chip address of output tile to a scaled factor of that of input tile. |
 | Complex | [`TPRINT`](isa/TPRINT.md) | Debug/print elements from a tile (implementation-defined). |
 | Complex | [`TMRGSORT`](isa/TMRGSORT.md) | Merge sort for multiple sorted lists (implementation-defined element format and layout). |
 | Complex | [`TSORT32`](isa/TSORT32.md) | Sort 32-element blocks of `src` with accompanying `idx` entries and output sorted value-index pairs. |

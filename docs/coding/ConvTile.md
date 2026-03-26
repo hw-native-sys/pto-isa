@@ -12,7 +12,7 @@ A ConvTile is defined by five families of attributes:
 
 - **Location**: which logical tile storage class the tile belongs to (matrix/cube registers).
 - **Element type**: scalar element type (`float`, `half`, `int8_t`, ...).
-- **Buffer size**: the static space of convtile.
+- **Buffer size**: the number of elements in the convtile.
 - **Layout**: a layout (`NCHW`, `NHWC`, `NC1HWC0`, ...), used to guide lowering and target-specific fast paths.
 - **Shape**: a `pto::ConvTileShape<...>` (up to 6 dimensions).
 
@@ -42,7 +42,7 @@ Instruction pages in `docs/isa/` specify which locations are legal for each inst
 
 ### Capacity (`BufferSize_`)
 
-`BufferSize_` define the **static capacity** of the tile object. Most instructions require static shapes so they can be specialized and optimized at compile time.
+`BufferSize_` define the **static number of elements** of the tile object. Most instructions require static shapes so they can be specialized and optimized at compile time.
 
 ### Layout (`pto::Layout`)
 

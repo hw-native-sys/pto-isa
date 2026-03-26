@@ -131,6 +131,8 @@
 | 数据搬运 / 布局 | [TMOV_FP](/docs/isa/TMOV_FP_zh.md) | `reshape_move` | `dst, src` | `docs/isa/TMOV_FP_zh.md` |
 | 数据搬运 / 布局 | [TRESHAPE](/docs/isa/TRESHAPE_zh.md) | `reshape_move` | `dst, src` | `docs/isa/TRESHAPE_zh.md` |
 | 数据搬运 / 布局 | [TTRANS](/docs/isa/TTRANS_zh.md) | `reshape_move` | `dst, src` | `docs/isa/TTRANS_zh.md` |
+| 数据搬运 / 布局 | [TSUBVIEW](/docs/isa/TSUBVIEW_zh.md) | `reshape_move` | `dst, src, rowOffset, colOffset` | `docs/isa/TSUBVIEW_zh.md` |
+| 数据搬运 / 布局 | [TGET_SCALE_ADDR](/docs/isa/TGET_SCALE_ADDR_zh.md) | `reshape_move` | `dst, src` | `docs/isa/TGET_SCALE_ADDR_zh.md` |
 | 复杂指令 | [TPRINT](/docs/isa/TPRINT_zh.md) | `complex` | `dst, src0, src1` | `docs/isa/TPRINT_zh.md` |
 | 复杂指令 | [TMRGSORT](/docs/isa/TMRGSORT_zh.md) | `complex` | `dst, src0, src1` | `docs/isa/TMRGSORT_zh.md` |
 | 复杂指令 | [TSORT32](/docs/isa/TSORT32_zh.md) | `complex` | `dst, src0, src1` | `docs/isa/TSORT32_zh.md` |

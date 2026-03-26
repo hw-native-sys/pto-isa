@@ -35,3 +35,4 @@
 - `docs/isa/`：指令参考（每条指令一页，以及分类索引）
 - `docs/assembly/`：PTO 汇编语法与规范（PTO-AS）
 - `docs/coding/`：扩展 PTO Tile Lib 的开发者说明
+- `docs/auto_mode/`: auto模式文档

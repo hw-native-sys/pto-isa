@@ -1,6 +1,6 @@
 # Events and Synchronization
 
-PTO Tile Lib supports an explicit event model for expressing dependencies between operations without introducing a global barrier for every instruction.
+PTO Tile Lib supports an explicit event model for expressing dependencies between operations without introducing a global barrier for every instruction. Note that in auto mode, the events turn into no-ops since auto mode inserts the synchronization during compilation.
 
 This document describes the C++ event types used by `include/pto/common/pto_instr.hpp` and `include/pto/common/event.hpp`.
 

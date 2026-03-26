@@ -200,6 +200,8 @@ nav:
           - TRESHAPE: docs/isa/TRESHAPE.md
           - TTRANS: docs/isa/TTRANS.md
           - TIMG2COL: docs/isa/TIMG2COL.md
+          - TSUBVIEW: docs/isa/TSUBVIEW.md
+          - TGET_SCALE_ADDR: docs/isa/TGET_SCALE_ADDR.md
       - Complex Instructions:
           - TGATHER: docs/isa/TGATHER.md
           - TGATHERB: docs/isa/TGATHERB.md

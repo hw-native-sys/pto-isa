@@ -1298,6 +1298,43 @@ def _render_reshape_move(instr: str, summary: str, accent: str, bg: str) -> str:
         _draw_procedure(out, lines=proc, accent=accent)
         return _end_svg(out)
 
+    if instr.startswith("TSUBVIEW"):
+        expr = "dst = subview(src, rI, cI)"
+        proc = [
+            "for r,c in valid(dst):",
+            "  dst[r,c] = src[r + rI, c + cI]",
+        ]
+        out.append(
+            f'<text x="{CANVAS_W // 2}" y="{EXPR_Y}" class="subtitle" text-anchor="middle" fill="{_esc(accent)}">{_esc(expr)}</text>'
+        )
+        x_src = (CANVAS_W - tile_w) // 2
+        x_dst = (CANVAS_W - tile_w) // 2
+        _draw_tile_grid(
+            out,
+            x=x_src,
+            y=y_src,
+            label="src (rI = 0 and cI = 0)",
+            prefix="a",
+            valid_box=(5, 5),
+            highlight_cells=[(0, 0)],
+            accent=accent)
+        _draw_tile_grid(
+            out,
+            x=x_dst,
+            y=y_dst,
+            label="dst (subtile)",
+            valid_box=(3, 3),
+            prefix="d",
+            highlight_cells=[(0, 0)],
+            accent=accent
+        )
+        sx, sy = _tile_port_bottom(x=x_src, y=y_src, rows=TILE_ROWS, cols=TILE_COLS, c=0)
+        dx, dy = _tile_port_top(x=x_dst, y=y_dst, rows=TILE_ROWS, cols=TILE_COLS, c=0)
+        via_y = int((sy + dy) / 2)
+        _draw_ortho_arrow(out, x1=sx, y1=sy, x2=dx, y2=dy, via_y=via_y, accent=accent)
+        _draw_procedure(out, lines=proc, accent=accent)
+        return _end_svg(out)
+
     # Default: movement/reshape
     expr = "dst = move/reshape(src)"
     proc = [

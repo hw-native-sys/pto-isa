@@ -58,11 +58,12 @@ Notes:
 NPU ST is built/run via `tests/script/run_st.py`:
 
 ```bash
-python3 tests/script/run_st.py -r [sim|npu] -v [a3|a5] -t <testcase> -g <gtest_filter>
+python3 tests/script/run_st.py -r [sim|npu] -v [a3|a5] [-a] -t <testcase> -g <gtest_filter>
 ```
 
 Key points:
 
+- `-a` compiles the test case in auto mode instead of manual mode.
 - `-v a3` selects the **A2/A3** implementation under `include/pto/npu/a2a3/` (the test script maps it to a SoC string like `Ascend910B1`).
 - `-r sim` uses the Ascend simulator libraries under `$ASCEND_HOME_PATH/tools/simulator/<SOC>/lib` and `runtime/lib64/stub`.
 - `-r npu` runs on real hardware.

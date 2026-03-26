@@ -12,6 +12,7 @@
 | ISA 参考 | [`docs/isa/conventions_zh.md`](isa/conventions_zh.md) | 通用符号、操作数、事件与修饰符。 |
 | 汇编 (PTO-AS) | [`docs/assembly/PTO-AS_zh.md`](assembly/PTO-AS_zh.md) | PTO-AS 语法参考。 |
 | 权威源 | [`include/pto/common/pto_instr.hpp`](reference/pto-intrinsics-header_zh.md) | C++ intrinsic API（权威来源）。 |
+| PTO auto 模式 | [`docs/auto_mode/README_zh.md`](README_zh.md) | PTO auto模式文档入口 |
 
 ## 指令索引（全部 PTO 指令）
 
@@ -121,6 +122,8 @@
 | 数据搬运 / 布局 | [`TMOV_FP`](isa/TMOV_FP_zh.md) | 使用缩放 (`fp`) Tile 作为向量量化参数，将累加器 Tile 移动/转换到目标 Tile。 |
 | 数据搬运 / 布局 | [`TRESHAPE`](isa/TRESHAPE_zh.md) | 将 Tile 重新解释为另一种 Tile 类型/形状，同时保留底层字节。 |
 | 数据搬运 / 布局 | [`TTRANS`](isa/TTRANS_zh.md) | 使用实现定义的临时 Tile 进行转置。 |
+| 数据搬运 / 布局 | [`TSUBVIEW`](isa/TSUBVIEW_zh.md) | 表达一个tile是另一个tile的subview |
+| 数据搬运 / 布局 | [`TGET_SCALE_ADDR`](isa/TGET_SCALE_ADDR_zh.md) | 将输出tile的片上内存值绑定为扩展后的输入tile内存的值。 |
 | 复杂指令 | [`TPRINT`](isa/TPRINT_zh.md) | 调试/打印 Tile 中的元素（实现定义）。 |
 | 复杂指令 | [`TMRGSORT`](isa/TMRGSORT_zh.md) | 用于多个已排序列表的归并排序（实现定义的元素格式和布局）。 |
 | 复杂指令 | [`TSORT32`](isa/TSORT32_zh.md) | 对 `src` 的每个 32 元素块连同对应的 `idx` 条目一起排序，并输出排序后的 value-index 对。 |

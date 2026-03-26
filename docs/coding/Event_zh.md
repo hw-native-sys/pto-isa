@@ -1,6 +1,7 @@
 # 事件与同步
 
 PTO Tile Lib 支持显式事件（event）模型，用于表达操作之间的依赖关系，而不必为每条指令都引入全局屏障。
+注意：在auto模式下，Events是no-op，因为auto模式下编译器会自动插入同步。
 
 本文档描述 `include/pto/common/pto_instr.hpp` 与 `include/pto/common/event.hpp` 中使用的 C++ 事件类型。
 
@@ -91,4 +92,3 @@ void pipeline(__gm__ float* in0, __gm__ float* in1, __gm__ float* out) {
   TSTORE(gout, c, e2);
 }
 ```
-

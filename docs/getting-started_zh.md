@@ -225,7 +225,7 @@ sudo make install
 
 完整的安装指南（包括驱动、固件和 toolkit）：
 
-https://www.hiascend.com/cann/download
+<https://www.hiascend.com/cann/download>
 
 此方法会自动处理所有依赖项。
 
@@ -294,10 +294,10 @@ cd pto-isa
 **运行单个 ST 测试用例：**
 
   ```bash
-  python3 tests/script/run_st.py -r [sim|npu] -v [a3|a5] -t [TEST_CASE] -g [GTEST_FILTER_CASE]
+  python3 tests/script/run_st.py -r [sim|npu] -v [a3|a5] [-a] -t [TEST_CASE] -g [GTEST_FILTER_CASE]
   ```
 
-注意：`a3` 后端覆盖 A2/A3 系列（`include/pto/npu/a2a3`）。
+注意：`a3` 后端覆盖 A2/A3 系列（`include/pto/npu/a2a3`）；`-a`使能auto模式。
 
   示例：
 
