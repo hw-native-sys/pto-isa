@@ -74,7 +74,7 @@ python add_compile_and_run.py
 ## Prerequisites
 
 **For Baseline and JIT (NPU)**:
-- Ascend AI Processor (910B/910C/950)
+- Ascend AI Processor A2/A3/A5(910B/910C/950)
 - CANN Toolkit 8.5.0+
 - PyTorch with `torch_npu`
 - Python 3.8+, CMake 3.16+

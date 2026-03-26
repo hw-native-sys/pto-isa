@@ -7,7 +7,7 @@
 This guide helps you set up and run the PTO ISA project. It covers two main scenarios:
 
 1. **CPU Simulator** (Recommended for beginners) - Cross-platform support for macOS, Linux, and Windows
-2. **NPU Environment** (Advanced) - Ascend 910B/910C on Linux with CANN toolkit
+2. **NPU Environment** (Advanced) - Ascend A2/A3(910B/910C) on Linux with CANN toolkit
 
 Choose the section that matches your needs. Most users should start with the CPU simulator.
 

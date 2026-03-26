@@ -4,8 +4,8 @@
 
 ## 支持的 AI 处理器
 
-- Ascend 910C
-- Ascend 910B
+- Ascend A2 (Ascend 910B)
+- Ascend A3 (Ascend 910C)
 
 ## 目录结构
 
