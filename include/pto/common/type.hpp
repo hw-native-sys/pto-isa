@@ -228,6 +228,7 @@ enum class CompactMode
 {
     Null,
     Normal,
+    RowPlusOne,
 };
 
 enum class SetFmatrixMode
