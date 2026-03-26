@@ -59,6 +59,9 @@ PTO Tile Lib 并不面向入门级用户，主要面向：
 
 详细分析与调参说明：[Flash Attention 算子实现](kernels/manual/common/flash_atten/README_zh.md)。
 
+- S0：query 序列长度（Q/O 的行数）
+- S1：key/value 序列长度（K/V 的行数）
+
 ![Flash Attention 归一化 TFLOPS（A2/A3）](docs/figures/performance/fa_normalized_tflops_a2a3.svg)
 
 ## 路线图（Roadmap）

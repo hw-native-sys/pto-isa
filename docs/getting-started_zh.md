@@ -29,7 +29,7 @@ CPU 模拟器是最简单的入门方式。它可以在 macOS、Linux 和 Window
   - Windows: Visual Studio 2022 Build Tools (MSVC)
 - Python 包：`numpy`
 
-`run_cpu.py` 可以自动安装 `numpy`（除非您传递 `--no-install` 参数）。
+`tests/run_cpu.py` 可以自动安装 `numpy`（除非您传递 `--no-install` 参数）。
 
 **可选项（用于加速构建）：**
 - Ninja (CMake 生成器)
@@ -90,7 +90,7 @@ winget install --id Microsoft.VisualStudio.2022.BuildTools -e
 ### 获取代码
 
 ```bash
-git clone <YOUR_REPO_URL>
+git clone https://gitcode.com/cann/pto-isa.git
 cd pto-isa
 ```
 
@@ -195,12 +195,6 @@ Windows 特定选项（如需要）：
 - Python >= 3.8.0
 - GCC >= 7.3.0
 - CMake >= 3.16.0
-- Ascend NPU 驱动和固件（用于硬件执行）
-- CANN toolkit >= 8.5.0
-
-> **注意：** 请确保bisheng -v显示的GCC版本与gcc -v显示的GCC版本兼容或一致。
->
-> 如果不同，您可以在bisheng -v所示的gcc路径下，安装与gcc -v所显示版本一致的gcc，或将默认的gcc替换为与bisheng -v显示一致的版本。
 
 **GoogleTest（单元测试所需）：**
 
@@ -219,6 +213,26 @@ sudo make install
 >
 > 如果您使用不同的标志安装了 GoogleTest（例如 `-D_GLIBCXX_USE_CXX11_ABI=0`），则必须在 `tests/npu/[a2a3|a5]/src/st/CMakeLists.txt` 中添加 `add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=0)` 进行相应更新。
 
+**CANN Toolkit 安装**
+
+- Ascend NPU 驱动和固件（用于硬件执行）
+- CANN toolkit >= 8.5.0
+
+> **重要提示：** 请确保在安装完 CANN toolkit 后，执行以下命令设置环境变量：
+>
+> ```bash
+> source /usr/local/Ascend/cann/bin/setenv.bash
+> ```
+>
+> 然后验证 bisheng 的 GCC 版本与系统 GCC 版本兼容或一致：
+>
+> ```bash
+> bisheng -v
+> gcc -v
+> ```
+>
+> 如果版本不同，您可以在 bisheng -v 所示的 gcc 路径下安装与 gcc -v 显示版本一致的 GCC，或将默认的 gcc 替换为与 bisheng -v 显示一致的版本。
+
 ### 安装选项
 
 #### 选项 1：快速安装（推荐）
@@ -235,7 +249,7 @@ https://www.hiascend.com/cann/download
 
 在实际 NPU 硬件上运行时需要（如果仅构建或使用模拟器，可跳过）。
 
-安装指南：[NPU 驱动和固件安装指南](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850alpha002/softwareinst/instg/instg_0001.html?Mode=VmIns&OS=Ubuntu&Software=cannToolKit)
+安装指南：[NPU 驱动和固件安装指南](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850alpha002/softwareinst/instg/instg_0005.html?Mode=PmIns&InstallType=local&OS=openEuler&Software=cannToolKit)
 
 **步骤 2：安装 CANN Toolkit**
 
@@ -259,6 +273,19 @@ chmod +x Ascend-cann-toolkit_${cann_version}_linux-${arch}.run
 默认路径：
 - Root 用户安装：`/usr/local/Ascend/cann`
 - 非 root 用户安装：`$HOME/Ascend/cann`
+
+#### 选项 3：一键环境安装脚本
+
+如果您希望一次性完成 CANN toolkit、PTO ISA 包和 GoogleTest 的安装，可使用项目自带的 `install_pto.sh` 脚本。脚本会自动检测 CANN toolkit 是否已安装：若已安装则直接安装 PTO ISA 包；若未安装则需通过第二个参数提供 CANN toolkit 安装包路径。
+
+```bash
+chmod +x ./scripts/install_pto.sh
+./scripts/install_pto.sh <cann_toolkit_install_path> [cann_toolkit_package_path]
+```
+
+参数说明：
+- `<cann_toolkit_install_path>`：CANN toolkit 的安装路径（用于检测是否已安装）
+- `[cann_toolkit_package_path]`：CANN toolkit 安装包路径（可选；仅在 CANN toolkit 未安装时需要提供）
 
 ### 环境变量
 
@@ -337,15 +364,6 @@ ulimit -n 65536
   ```bash
   chmod +x build.sh
   ./build.sh --pkg
-  ```
-
-**环境设置脚本：**
-
-如果您尚未安装 toolkit，请先下载 toolkit 安装包，然后：
-
-  ```bash
-  chmod +x ./scripts/install_pto.sh
-  ./scripts/install_pto.sh <toolkit_install_path> [toolkit_package_path]
   ```
 
 ---

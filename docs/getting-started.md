@@ -29,7 +29,7 @@ The CPU simulator is the easiest way to get started. It works on macOS, Linux, a
   - Windows: Visual Studio 2022 Build Tools (MSVC)
 - Python package: `numpy`
 
-`run_cpu.py` can install `numpy` automatically (unless you pass `--no-install`).
+`tests/run_cpu.py` can install `numpy` automatically (unless you pass `--no-install`).
 
 **Optional (for faster builds):**
 - Ninja (CMake generator)
@@ -90,7 +90,7 @@ After installation, add `path_to_compiler/bin` to `PATH` (verify with `gcc -v` i
 ### Get The Code
 
 ```bash
-git clone <YOUR_REPO_URL>
+git clone https://gitcode.com/cann/pto-isa.git
 cd pto-isa
 ```
 
@@ -195,12 +195,6 @@ This section is for users who need to run on Ascend NPU hardware or simulator. I
 - Python >= 3.8.0
 - GCC >= 7.3.0
 - CMake >= 3.16.0
-- Ascend NPU driver and firmware (for hardware execution)
-- CANN toolkit >= 8.5.0
-
-> **Note:** Please make sure that the GCC version shown by bisheng -v is compatible with or matches the version shown by gcc -v.
->
-> If they are dififerent, you can install a version of GCC that matches the version shown by gcc -v at the gcc path indicated by bisheng -v,or replace the default gcc with the version that matches what bisheng -v shows.
 
 **GoogleTest (required for unit tests):**
 
@@ -219,6 +213,26 @@ sudo make install
 >
 > If you installed GoogleTest with different flags (e.g., `-D_GLIBCXX_USE_CXX11_ABI=0`), you must update `tests/npu/[a2a3|a5]/src/st/CMakeLists.txt` accordingly by adding `add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=0)`.
 
+**CANN Toolkit Installation**
+
+- Ascend NPU driver and firmware (for hardware execution)
+- CANN toolkit >= 8.5.0
+
+> **Important:** After installing the CANN toolkit, set up the environment variables by running:
+>
+> ```bash
+> source /usr/local/Ascend/cann/bin/setenv.bash
+> ```
+>
+> Then verify that the GCC version shown by bisheng is compatible with or matches the version shown by gcc:
+>
+> ```bash
+> bisheng -v
+> gcc -v
+> ```
+>
+> If they differ, you can install a version of GCC that matches the version shown by gcc -v at the gcc path indicated by bisheng -v, or replace the default gcc with the version that matches what bisheng -v shows.
+
 ### Installation Options
 
 #### Option 1: Quick Installation (Recommended)
@@ -235,7 +249,7 @@ This method handles all dependencies automatically.
 
 Required for running on actual NPU hardware (skip if only building or using simulator).
 
-Installation guide: [NPU Driver and Firmware Installation Guide](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850alpha002/softwareinst/instg/instg_0001.html?Mode=VmIns&OS=Ubuntu&Software=cannToolKit)
+Installation guide: [NPU Driver and Firmware Installation Guide](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850alpha002/softwareinst/instg/instg_0005.html?Mode=PmIns&InstallType=local&OS=openEuler&Software=cannToolKit)
 
 **Step 2: Install CANN Toolkit**
 
@@ -259,6 +273,19 @@ Parameters:
 Default paths:
 - Root installation: `/usr/local/Ascend/cann`
 - Non-root installation: `$HOME/Ascend/cann`
+
+#### Option 3: One-Step Environment Setup Script
+
+If you want to install the CANN toolkit, PTO ISA package, and GoogleTest all at once, use the project's built-in `install_pto.sh` script. It automatically detects whether the CANN toolkit is already installed: if it is, the PTO ISA package is installed directly; if not, provide the CANN toolkit installer path via the second argument.
+
+```bash
+chmod +x ./scripts/install_pto.sh
+./scripts/install_pto.sh <cann_toolkit_install_path> [cann_toolkit_package_path]
+```
+
+Parameters:
+- `<cann_toolkit_install_path>`: The installation path of the CANN toolkit (used to detect whether it is already installed)
+- `[cann_toolkit_package_path]`: Path to the CANN toolkit installer package (optional; only required if the CANN toolkit is not yet installed)
 
 ### Environment Variables
 
@@ -337,15 +364,6 @@ ulimit -n 65536
   ```bash
   chmod +x build.sh
   ./build.sh --pkg
-  ```
-
-**Environment Setup Script:**
-
-If you haven't installed the toolkit yet, download the toolkit package first, then:
-
-  ```bash
-  chmod +x ./scripts/install_pto.sh
-  ./scripts/install_pto.sh <toolkit_install_path> [toolkit_package_path]
   ```
 
 ---

@@ -69,6 +69,9 @@ Detailed analysis and tuning notes: [High-Performance GEMM Operator Example](ker
 
 Detailed analysis and tuning notes: [Flash Attention Kernel Implementation](kernels/manual/common/flash_atten/README.md).
 
+- S0: query sequence length (number of rows in Q/O)
+- S1: key/value sequence length (number of rows in K/V)
+
 ![Flash Attention normalized TFLOPS (A2/A3)](docs/figures/performance/fa_normalized_tflops_a2a3.svg)
 
 ## Coming Soon
