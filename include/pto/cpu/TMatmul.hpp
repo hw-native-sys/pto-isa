@@ -114,5 +114,93 @@ PTO_INTERNAL void TMATMUL_BIAS_IMPL(TileAcc &cMatrix, TileLeft &aMatrix, TileRig
         }
     }
 }
+
+template <AccPhase Phase = AccPhase::Unspecified, typename TileRes, typename TileLeft, typename TileRight>
+PTO_INTERNAL void TGEMV_IMPL(TileRes &cMatrix, TileLeft &aMatrix, TileRight &bMatrix)
+{
+    (void)Phase;
+    TMATMUL_IMPL(cMatrix, aMatrix, bMatrix);
+}
+
+template <AccPhase Phase = AccPhase::Unspecified, typename TileRes, typename TileLeft, typename TileRight>
+PTO_INTERNAL void TGEMV_ACC_IMPL(TileRes &cOutMatrix, TileRes &cInMatrix, TileLeft &aMatrix, TileRight &bMatrix)
+{
+    (void)Phase;
+    TMATMUL_ACC_IMPL(cOutMatrix, cInMatrix, aMatrix, bMatrix);
+}
+
+template <AccPhase Phase = AccPhase::Unspecified, typename TileRes, typename TileLeft, typename TileRight,
+          typename TileBias>
+PTO_INTERNAL void TGEMV_BIAS_IMPL(TileRes &cMatrix, TileLeft &aMatrix, TileRight &bMatrix, TileBias &biasData)
+{
+    (void)Phase;
+    TMATMUL_BIAS_IMPL(cMatrix, aMatrix, bMatrix, biasData);
+}
+
+template <AccPhase Phase = AccPhase::Unspecified, typename TileRes, typename TileLeft, typename TileLeftScale,
+          typename TileRight, typename TileRightScale>
+PTO_INTERNAL void TMATMUL_MX_IMPL(TileRes &cMatrix, TileLeft &aMatrix, TileLeftScale &aScaleMatrix, TileRight &bMatrix,
+                                  TileRightScale &bScaleMatrix)
+{
+    (void)Phase;
+    (void)aScaleMatrix;
+    (void)bScaleMatrix;
+    TMATMUL_IMPL(cMatrix, aMatrix, bMatrix);
+}
+
+template <AccPhase Phase = AccPhase::Unspecified, typename TileRes, typename TileLeft, typename TileLeftScale,
+          typename TileRight, typename TileRightScale>
+PTO_INTERNAL void TMATMUL_MX_IMPL(TileRes &cOutMatrix, TileRes &cInMatrix, TileLeft &aMatrix,
+                                  TileLeftScale &aScaleMatrix, TileRight &bMatrix, TileRightScale &bScaleMatrix)
+{
+    (void)Phase;
+    (void)aScaleMatrix;
+    (void)bScaleMatrix;
+    TMATMUL_ACC_IMPL(cOutMatrix, cInMatrix, aMatrix, bMatrix);
+}
+
+template <AccPhase Phase = AccPhase::Unspecified, typename TileRes, typename TileLeft, typename TileLeftScale,
+          typename TileRight, typename TileRightScale, typename TileBias>
+PTO_INTERNAL void TMATMUL_MX_IMPL(TileRes &cMatrix, TileLeft &aMatrix, TileLeftScale &aScaleMatrix, TileRight &bMatrix,
+                                  TileRightScale &bScaleMatrix, TileBias &biasData)
+{
+    (void)Phase;
+    (void)aScaleMatrix;
+    (void)bScaleMatrix;
+    TMATMUL_BIAS_IMPL(cMatrix, aMatrix, bMatrix, biasData);
+}
+
+template <AccPhase Phase = AccPhase::Unspecified, typename TileRes, typename TileLeft, typename TileLeftScale,
+          typename TileRight, typename TileRightScale>
+PTO_INTERNAL void TGEMV_MX_IMPL(TileRes &cMatrix, TileLeft &aMatrix, TileLeftScale &aScaleMatrix, TileRight &bMatrix,
+                                TileRightScale &bScaleMatrix)
+{
+    (void)Phase;
+    (void)aScaleMatrix;
+    (void)bScaleMatrix;
+    TGEMV_IMPL(cMatrix, aMatrix, bMatrix);
+}
+
+template <AccPhase Phase = AccPhase::Unspecified, typename TileRes, typename TileLeft, typename TileLeftScale,
+          typename TileRight, typename TileRightScale>
+PTO_INTERNAL void TGEMV_MX_IMPL(TileRes &cOutMatrix, TileRes &cInMatrix, TileLeft &aMatrix, TileLeftScale &aScaleMatrix,
+                                TileRight &bMatrix, TileRightScale &bScaleMatrix)
+{
+    (void)Phase;
+    (void)aScaleMatrix;
+    (void)bScaleMatrix;
+    TGEMV_ACC_IMPL(cOutMatrix, cInMatrix, aMatrix, bMatrix);
+}
+
+template <AccPhase Phase = AccPhase::Unspecified, typename TileRes, typename TileLeft, typename TileLeftScale,
+          typename TileRight, typename TileRightScale, typename TileBias>
+PTO_INTERNAL void TGEMV_MX_IMPL(TileRes &cMatrix, TileLeft &aMatrix, TileLeftScale &aScaleMatrix, TileRight &bMatrix,
+                                TileRightScale &bScaleMatrix, TileBias &biasData)
+{
+    (void)Phase;
+    (void)aScaleMatrix;
+    (void)bScaleMatrix;
+    TGEMV_BIAS_IMPL(cMatrix, aMatrix, bMatrix, biasData);
+}
 } // namespace pto
 #endif

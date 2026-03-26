@@ -12,6 +12,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define TBINS_HPP
 
 #include <algorithm>
+#include <cmath>
 #include <pto/common/pto_tile.hpp>
 #include "pto/cpu/tile_offsets.hpp"
 
@@ -60,10 +61,60 @@ PTO_INTERNAL void TDIVS_IMPL(TileData &dst, typename TileData::DType scalar, Til
     unsigned col = dst.GetValidCol();
     TBinSOp<TileData>(dst.data(), src.data(), scalar, row, col, lambda);
 }
+
+template <typename TileDataDst, typename TileDataSrc>
+PTO_INTERNAL void TAXPY_IMPL(TileDataDst &dst, TileDataSrc &src, typename TileDataSrc::DType scalar)
+{
+    unsigned row = dst.GetValidRow();
+    unsigned col = dst.GetValidCol();
+    for (size_t c = 0; c < col; ++c) {
+        for (size_t r = 0; r < row; ++r) {
+            const size_t dstIdx = GetTileElementOffset<TileDataDst>(r, c);
+            const size_t srcIdx = GetTileElementOffset<TileDataSrc>(r, c);
+            dst.data()[dstIdx] = static_cast<typename TileDataDst::DType>(
+                dst.data()[dstIdx] + static_cast<typename TileDataDst::DType>(src.data()[srcIdx]) *
+                                         static_cast<typename TileDataDst::DType>(scalar));
+        }
+    }
+}
+
+template <typename TileDataDst, typename TileDataSrc>
+PTO_INTERNAL void TFMODS_IMPL(TileDataDst &dst, TileDataSrc &src, typename TileDataSrc::DType scalar)
+{
+    unsigned row = dst.GetValidRow();
+    unsigned col = dst.GetValidCol();
+    for (size_t c = 0; c < col; ++c) {
+        for (size_t r = 0; r < row; ++r) {
+            const size_t dstIdx = GetTileElementOffset<TileDataDst>(r, c);
+            const size_t srcIdx = GetTileElementOffset<TileDataSrc>(r, c);
+            dst.data()[dstIdx] = static_cast<typename TileDataDst::DType>(
+                std::fmod(static_cast<double>(src.data()[srcIdx]), static_cast<double>(scalar)));
+        }
+    }
+}
+
 template <typename TileData>
 PTO_INTERNAL void TMINS_IMPL(TileData &dst, TileData &src, typename TileData::DType scalar)
 {
     auto lambda = [](typename TileData::DType x, typename TileData::DType y) { return std::min(x, y); };
+    unsigned row = dst.GetValidRow();
+    unsigned col = dst.GetValidCol();
+    TBinSOp<TileData>(dst.data(), src.data(), scalar, row, col, lambda);
+}
+
+template <typename TileData>
+PTO_INTERNAL void TSHRS_IMPL(TileData &dst, TileData &src, typename TileData::DType scalar)
+{
+    auto lambda = [](typename TileData::DType x, typename TileData::DType y) { return x >> y; };
+    unsigned row = dst.GetValidRow();
+    unsigned col = dst.GetValidCol();
+    TBinSOp<TileData>(dst.data(), src.data(), scalar, row, col, lambda);
+}
+
+template <typename TileData>
+PTO_INTERNAL void TSHLS_IMPL(TileData &dst, TileData &src, typename TileData::DType scalar)
+{
+    auto lambda = [](typename TileData::DType x, typename TileData::DType y) { return x << y; };
     unsigned row = dst.GetValidRow();
     unsigned col = dst.GetValidCol();
     TBinSOp<TileData>(dst.data(), src.data(), scalar, row, col, lambda);

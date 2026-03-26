@@ -87,5 +87,6 @@ PTO_INTERNAL void TPUT_ASYNC_IMPL(GlobalDstData &dst, GlobalSrcData &src)
 }
 
 } // namespace comm
+
 } // namespace pto
 #endif

@@ -119,6 +119,7 @@ treduce
 treshape
 tpushpop
 tpushpop_cv
+tcpu_missing_ops
 )
 
 foreach(TESTCASE ${ALL_TESTCASES})
