@@ -1618,6 +1618,22 @@ inline AICORE void castBf16toFp4(__ubuf__ DST *dst, __ubuf__ bfloat16_t *src, ui
     vci((RegTensor<int8_t> &)v_idx, (int8_t)0, INC_ORDER);
     vmuls((RegTensor<int16_t> &)v_idx, (RegTensor<int16_t> &)v_idx, (int16_t)4, preg_idx);
 
+    // Zero-fill destination to clear padding bytes (UB is uninitialized on hardware).
+    // BF16→FP4 writes only validCols/2 complete packed bytes per row; bytes beyond
+    // that (including the boundary byte for odd validCols) must be zero.
+    {
+        RegTensor<uint8_t> v_zeros;
+        MaskReg pg_fill = pset_b8(PAT_ALL);
+        vdup(v_zeros, (uint8_t)0, pg_fill, MODE_ZEROING);
+        uint32_t totalDstBytes = validRows * (dstCols >> 1);
+        uint32_t fillLen = totalDstBytes;
+        uint16_t fillRepeats = CeilDivision(totalDstBytes, static_cast<uint32_t>(ELE_CNT_B8));
+        for (uint16_t fi = 0; fi < fillRepeats; ++fi) {
+            MaskReg preg_fill = CreatePredicate<uint8_t>(fillLen);
+            vsts(v_zeros, (__ubuf__ uint8_t *)dst, fi * ELE_CNT_B8, NORM_B8, preg_fill);
+        }
+    }
+
     FOR_ROWS
     uint32_t preg_len_tail = (sreg % ELE_CNT_B16 == 0) ? ELE_CNT_B16 : (sreg % ELE_CNT_B16);
     FOR_ELEMENTS(ELE_CNT_B16)
@@ -1735,6 +1751,22 @@ inline AICORE void castBf16toFp4_1D_NoPostUpdate(__ubuf__ DST *dst, __ubuf__ bfl
     DST_VEC v_idx;
     vci((RegTensor<int8_t> &)v_idx, (int8_t)0, INC_ORDER);
     vmuls((RegTensor<int16_t> &)v_idx, (RegTensor<int16_t> &)v_idx, (int16_t)4, preg_idx);
+
+    // Zero-fill destination to clear padding bytes (UB is uninitialized on hardware).
+    // BF16→FP4 writes only complete packed bytes; the boundary byte for odd element
+    // counts and all trailing bytes must be zero.
+    {
+        MaskReg pg_fill = pset_b8(PAT_ALL);
+        RegTensor<uint8_t> v_zeros;
+        vdup(v_zeros, (uint8_t)0, pg_fill, MODE_ZEROING);
+        uint32_t totalDstBytes = validRows * (dstCols >> 1);
+        uint16_t fillRepeats = CeilDivision(totalDstBytes, static_cast<uint32_t>(ELE_CNT_B8));
+        uint32_t fillLen = totalDstBytes;
+        for (uint16_t fi = 0; fi < fillRepeats; ++fi) {
+            MaskReg preg_fill = CreatePredicate<uint8_t>(fillLen);
+            vsts(v_zeros, (__ubuf__ uint8_t *)dst, fi * ELE_CNT_B8, NORM_B8, preg_fill);
+        }
+    }
 
     for (uint16_t i = 0; i < repeatTimes; ++i) {
         RegTensor<bfloat16_t> v_input;
