@@ -113,7 +113,7 @@ PTO_INTERNAL void ProcReduceIdxStage2(__ubuf__ typename TileDataOut::DType *dst,
         __ubuf__ U *idxArrStage2 = (reinterpret_cast<__ubuf__ U *>(tmp + i * TileDataTmp::Cols + tempIdxOffsetStage2));
         U idxStage2 = *(reinterpret_cast<__ubuf__ U *>(tmp + i * TileDataTmp::Cols + tempIdxOffsetFinal));
         TDest idxStage1 = (TDest)idxStage2 * elemPerRpt + idxArrStage2[idxStage2];
-        reinterpret_cast<__ubuf__ TDest *>(dst)[i] = idxStage1 * elemPerRpt + idxArrStage1[idxStage1];
+        *(dst + i * TileDataOut::Cols) = idxStage1 * elemPerRpt + idxArrStage1[idxStage1];
     }
 }
 
@@ -151,7 +151,7 @@ PTO_INTERNAL void ProcReduceIdxStage1(__ubuf__ typename TileDataOut::DType *dst,
         idxArr = reinterpret_cast<__ubuf__ U *>(tmp + i * TileDataTmp::Cols);
         idxStage1 = *(reinterpret_cast<__ubuf__ U *>(tmp + i * TileDataTmp::Cols + tempOffset));
         TDest idx_final = (TDest)idxStage1 * elemPerRpt + idxArr[idxStage1];
-        reinterpret_cast<__ubuf__ TDest *>(dst)[i] = idx_final;
+        *(dst + i * TileDataOut::Cols) = idx_final;
     }
 }
 
@@ -180,7 +180,7 @@ PTO_INTERNAL void OneRepeatProcIdx(__ubuf__ typename TileDataOut::DType *dst, __
                                                                                                          rptTimes);
         pipe_barrier(PIPE_V);
         rowRptTimes -= 1;
-        dst += rptTimes;
+        dst += rptTimes * TileDataOut::Cols;
         src += rptTimes * TileDataIn::Cols;
     } while (rowRptTimes >= 0);
 

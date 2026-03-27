@@ -54,15 +54,15 @@ PTO_INST RecordEvent TROWARGMAX(TileDataOut& dst, TileDataIn& src, TileDataTmp& 
   - Tile location: `dst` and `src` must be `TileType::Vec`.
   - Tile 布局 of `src`: ND fractal (`isRowMajor` and `SLayout::NoneBox`).
   - Tile 布局 of `dst`:
-    - 仅支持DN layout Tile of 1D, e.g., `Tile<TileType::Vec, T, ROWS, 1, BLayout::ColMajor, ValidRows, 1>`
-    - ROWS必须32b对齐
+      - **紧凑模式**：DN 布局的一维 Tile，例如 `Tile<TileType::Vec, T, ROWS, 1, BLayout::ColMajor, ValidRows, 1>`，此时ROWS要做到32b对齐。
+      - **传统模式**：ND 布局的二维 Tile，例如 `Tile<TileType::Vec, T, ROWS, COLS, BLayout::RowMajor, ValidRows, 1>`。
   - 源数据类型: `half` or `float`.
-  - 目标数据类型：`uint32_t`.
+  - 目标数据类型：`uint32_t` or `int32_t`.
   - 运行期有效区域检查:
     - `srcValidCol != 0` and `srcValidRow != 0`.
 - A5:
   - 源数据类型: `half` or `float`.
-  - 目标数据类型：`uint32_t`.
+  - 目标数据类型：`uint32_t` or `int32_t`.
   - No explicit runtime assertions on `validRow/validCol` in the implementation; the loops use `src.GetValidRow()` and `src.GetValidCol()`.
   - `tmp`临时Tile不使用，仅做兼容。
 
@@ -70,9 +70,12 @@ PTO_INST RecordEvent TROWARGMAX(TileDataOut& dst, TileDataIn& src, TileDataTmp& 
 
 * `tmp`临时Tile在`srcValidCol <= ElementPerRepeat`时不使用，`srcValidCol > ElementPerRepeat`时需要使用。
 * `tmp` tile的行数和`src` tile的行数相同。
-* 当`src`较小时，临时Tile的stride可指定成和`src`一样，如果UB空间紧张则可按以下公式算出`tmp` tile所需最小stride以节省UB空间：
+* 按以下公式根据`src` tile的`validCol`算出`tmp` tile所需stride：
 
-$$ stride = \frac{validCol / elementPerRepeat * 2 + elementPerBlock - 1}{elementPerBlock} * elementPerBlock + \frac{validCol / elementPerRepeat + elementPerBlock - 1}{elementPerBlock} * elementPerBlock $$
+```text
+repeats = ceil(validCol / elementPerRepeat)
+stride = ceil(repeats * 2 / elementPerBlock) * elementPerBlock + ceil(repeats / elementPerBlock) * elementPerBlock
+```
 
 ## 示例
 

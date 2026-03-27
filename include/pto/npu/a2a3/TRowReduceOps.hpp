@@ -183,6 +183,7 @@ PTO_INTERNAL void TRowReduceCheck(int validRow, int validCol, int dstValidRow)
                   "Fix: TROWREDUCE only support Nd fractal Tile or DN Tile with Col is 1.");
 
     using T = typename TileDataIn::DType;
+    using TDst = typename TileDataOut::DType;
     static_assert(
         std::is_same_v<T, half> || std::is_same_v<T, float> || std::is_same_v<T, int32_t> || std::is_same_v<T, int16_t>,
         "Fix: TROWREDUCE input data type is not supported by this instruction. Supported types: half, float, int32, "
@@ -190,8 +191,8 @@ PTO_INTERNAL void TRowReduceCheck(int validRow, int validCol, int dstValidRow)
 
     static_assert(idx || std::is_same_v<typename TileDataOut::DType, typename TileDataIn::DType>,
                   "Fix: TROWREDUCE input data type must be consistent with the output data type.");
-    static_assert(!idx || std::is_same_v<typename TileDataOut::DType, uint32_t>,
-                  "Fix: TROWCREDUCE output data type must be uint32_t.");
+    static_assert(!idx || std::is_same_v<TDst, uint32_t> || std::is_same_v<TDst, int32_t>,
+                  "Fix: TROWARGREDUCE output data type must be uint32_t or int32_t.");
 
     PTO_ASSERT(validCol != 0 && validRow != 0, "Fix: TROWREDUCE input shape is invalid, validCol or validRow is 0.");
     PTO_ASSERT(validRow == dstValidRow, "Fix: TROWREDUCE input validRow must be consistent with the output validRow.");

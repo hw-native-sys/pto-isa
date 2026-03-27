@@ -54,15 +54,15 @@ Implementation checks (NPU):
   - Tile location: `dst` and `src` must be `TileType::Vec`.
   - Tile layout of `src`: ND fractal (`isRowMajor` and `SLayout::NoneBox`).
   - Tile layout of `dst`:
-    - Only support DN layout Tile of 1D, e.g., `Tile<TileType::Vec, T, ROWS, 1, BLayout::ColMajor, ValidRows, 1>`
-    - ROWS muse be 32b aligned.
+    - **Compact Mode**: DN layout Tile of 1D, e.g., `Tile<TileType::Vec, T, ROWS, 1, BLayout::ColMajor, ValidRows, 1>`, ROWS must be 32b aligned.
+    - **Traditional Mode**: ND layout Tile of 2D, e.g., `Tile<TileType::Vec, T, ROWS, COLS, BLayout::RowMajor, ValidRows, 1>`.
   - Source data types: `half` or `float`.
-  - Destination data types: `uint32_t`.
+  - Destination data types: `uint32_t` or `int32_t`.
   - Runtime valid checks:
     - `srcValidCol != 0` and `srcValidRow != 0`.
 - A5:
   - Source data types: `half` or `float`.
-  - Destination data types: `uint32_t`.
+  - Destination data types: `uint32_t` or `int32_t`.
   - No explicit runtime assertions on `validRow/validCol` in the implementation; the loops use `src.GetValidRow()` and `src.GetValidCol()`.
   - `tmp` temporary tile is not used, only for compatibility use.
 
@@ -71,9 +71,12 @@ Implementation checks (NPU):
 * Temporary tile is not used when `srcValidCol <= ElementPerRepeat`, used when `srcValidCol > ElementPerRepeat`.
 * `tmp` tile's rows is the same as `src`.
 * Simply set `tmp` tile size the same as `src` when `src` is small.
-* Use the following equation to get the minimum stride required by `tmp` tile, so as to save UB space:
+* `tmp` tile's stride can be calculated out based on `src`'s `validCol` using the following formula:
 
-$$ stride = \frac{validCol / elementPerRepeat * 2 + elementPerBlock - 1}{elementPerBlock} * elementPerBlock + \frac{validCol / elementPerRepeat + elementPerBlock - 1}{elementPerBlock} * elementPerBlock $$
+```text
+repeats = ceil(validCol / elementPerRepeat)
+stride = ceil(repeats * 2 / elementPerBlock) * elementPerBlock + ceil(repeats / elementPerBlock) * elementPerBlock
+```
 
 ## Examples
 
