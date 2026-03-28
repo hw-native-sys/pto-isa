@@ -85,4 +85,19 @@ static inline void aclrtMallocHost(void **p, size_t sz)
 typedef int event_t;
 #define EVENT_ID0 0
 
+inline uint32_t get_block_idx()
+{
+    return 0;
+}
+
+inline uint32_t get_subblockid()
+{
+    return 0;
+}
+
+inline uint32_t get_subblockdim()
+{
+    return 1;
+}
+
 #endif

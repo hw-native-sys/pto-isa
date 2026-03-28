@@ -11,36 +11,73 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef TPOP_HPP
 #define TPOP_HPP
 
-#include <pto/common/fifo.hpp>
-#include <pto/cpu/TStore.hpp>
 #include <pto/cpu/TPush.hpp>
 
 namespace pto {
-/**
- * TPOP: Pop Tile from FIFO
- * * Flow:
- * 1. [Wait]    Wait for data ready (Cross-Core)
- * 2. [Load]    Load data from GM
- * 3. [Free]    Release GM space (Cross-Core)
- */
-template <typename TileData, typename Pipe>
-PTO_INTERNAL void TPOP_IMPL(TileData &tile, Pipe &pipe)
+
+template <typename Pipe, typename TileCons, TileSplitAxis Split>
+PTO_INTERNAL void TPOP_IMPL(Pipe &pipe, TileCons &tile)
 {
-    // 1. Cross-Core: Wait for Data
-    pipe.cons.wait();
+    if (pipe.cons.getWaitStatus()) {
+        pipe.cons.template wait<Split>();
+    }
 
-    // 2. Address Calculation & Load
-    typename Pipe::DataFiFo::DType *addr;
-    addr = pipe.fifo.getBasePtr() + TileData::Numel * (pipe.cons.get_tile_id() % Pipe::DataFiFo::fifoDepth);
-    constexpr unsigned int cols = TileData::Cols;
-    constexpr unsigned int rows = TileData::Rows;
-    GlobalTensor<typename Pipe::DataFiFo::DType, Shape<1, 1, 1, rows, cols>,
-                 Stride<rows * cols, rows * cols, rows * cols, cols, 1>>
-        gt(addr);
-    TSTORE(gt, tile);
+    const std::size_t slotIndex = static_cast<std::size_t>(pipe.cons.getTileId() % Pipe::RingFiFo::SLOT_NUM);
+    const std::size_t entryBase =
+        slotIndex * Pipe::RingFiFo::SLOT_SIZE + static_cast<std::size_t>(pipe.cons.entryOffset);
 
-    // 3. Cross-Core: Free Space
-    pipe.cons.free();
+    if (pipe.fifo.GM_SLOT_BUFFER != nullptr) {
+        using T = typename TileCons::DType;
+        constexpr int rows = TileCons::Rows;
+        constexpr int cols = TileCons::Cols;
+        std::size_t subOffset = 0;
+        if constexpr (Split != TileSplitAxis::TILE_NO_SPLIT) {
+            subOffset = static_cast<std::size_t>(get_subblockid()) * rows * cols * sizeof(T);
+        }
+        using GlobalData = GlobalTensor<T, Shape<1, 1, 1, rows, cols>, Stride<1, 1, 1, cols, 1>>;
+        auto *addr = reinterpret_cast<__gm__ T *>(reinterpret_cast<std::uintptr_t>(pipe.fifo.GM_SLOT_BUFFER) +
+                                                  entryBase + subOffset);
+        GlobalData globalData(addr);
+        TLOAD_IMPL(tile, globalData);
+    } else if constexpr (Pipe::is_c2v) {
+        using T = typename TileCons::DType;
+        constexpr int rows = TileCons::Rows;
+        constexpr int cols = TileCons::Cols;
+        using SlotTile = Tile<TileType::Vec, T, rows, cols, BLayout::RowMajor, rows, cols>;
+
+        SlotTile slotTile;
+        TASSIGN(slotTile, static_cast<uint64_t>(pipe.fifo.C2V_CONSUMER_BUF + entryBase));
+        TMOV_IMPL(tile, slotTile);
+    } else if constexpr (Pipe::is_v2c) {
+        using T = typename TileCons::DType;
+        constexpr int rows = TileCons::Rows;
+        constexpr int cols = TileCons::Cols;
+        using SlotTile = Tile<TileType::Mat, T, rows, cols, BLayout::RowMajor, rows, cols>;
+
+        SlotTile slotTile;
+        TASSIGN(slotTile, static_cast<uint64_t>(pipe.fifo.V2C_CONSUMER_BUF + entryBase));
+        TMOV_IMPL(tile, slotTile);
+    }
+}
+
+template <typename TileCons, typename Pipe>
+PTO_INTERNAL void TPOP_IMPL(TileCons &tile, Pipe &pipe)
+{
+    TPOP_IMPL<Pipe, TileCons, TileSplitAxis::TILE_NO_SPLIT>(pipe, tile);
+}
+
+template <typename Pipe, TileSplitAxis Split>
+PTO_INTERNAL void TFREE_IMPL(Pipe &pipe)
+{
+    if (pipe.cons.getFreeStatus()) {
+        pipe.cons.template free<Split>();
+    }
+}
+
+template <typename Pipe>
+PTO_INTERNAL void TFREE_IMPL(Pipe &pipe)
+{
+    TFREE_IMPL<Pipe, TileSplitAxis::TILE_NO_SPLIT>(pipe);
 }
 
 } // namespace pto
