@@ -225,6 +225,7 @@ set(ALL_TESTCASES
     mscatter
     t_dhrystone
     tpack
+    tconcatidx
     tconcat
     thistogram
     tinsert

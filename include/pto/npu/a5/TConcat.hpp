@@ -111,5 +111,103 @@ PTO_INTERNAL void TCONCAT_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc
     TConcat<TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat>(
         dst.data(), src0.data(), src1.data(), dst.GetValidRow(), src0.GetValidCol(), src1.GetValidCol());
 }
+
+template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileSrc0Idx, typename TileSrc1Idx>
+__tf__ PTO_INTERNAL void TConcatIdx(typename TileDst::TileDType __out__ dst, typename TileSrc0::TileDType __in__ src0,
+                                    typename TileSrc1::TileDType __in__ src1,
+                                    typename TileSrc0Idx::TileDType __in__ idx0,
+                                    typename TileSrc1Idx::TileDType __in__ idx1, unsigned validRow,
+                                    unsigned dstValidCol)
+{
+    using dataType = typename TileDst::DType;
+    using idxType = typename TileSrc0Idx::DType;
+
+    __ubuf__ dataType *dstPtr = (__ubuf__ dataType *)__cce_get_tile_ptr(dst);
+    __ubuf__ dataType *src0Ptr = (__ubuf__ dataType *)__cce_get_tile_ptr(src0);
+    __ubuf__ dataType *src1Ptr = (__ubuf__ dataType *)__cce_get_tile_ptr(src1);
+    __ubuf__ idxType *idx0Ptr = (__ubuf__ idxType *)__cce_get_tile_ptr(idx0);
+    __ubuf__ idxType *idx1Ptr = (__ubuf__ idxType *)__cce_get_tile_ptr(idx1);
+
+    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(dataType);
+    constexpr unsigned dstStride = TileDst::RowStride;
+    constexpr unsigned src0Stride = TileSrc0::RowStride;
+    constexpr unsigned src1Stride = TileSrc1::RowStride;
+    constexpr unsigned idx0Stride = TileSrc0Idx::RowStride;
+    constexpr unsigned idx1Stride = TileSrc1Idx::RowStride;
+
+    __VEC_SCOPE__
+    {
+        RegTensor<dataType> vreg_0;
+        RegTensor<dataType> vreg_1;
+        using IndexScalar = typename IndexConcat<dataType>::Scalar;
+        typename IndexConcat<dataType>::type vreg_idx;
+        using UnsignedIndexScalar = typename std::make_unsigned<IndexScalar>::type;
+        MaskReg preg0, preg1;
+        constexpr auto distValue =
+            std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<dataType, DistVST::DIST_NORM>())>();
+
+        for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
+            unsigned idx0Num = *(idx0 + i * idx0Stride);
+            unsigned idx1Num = *(idx1 + i * idx1Stride);
+            unsigned sreg0 = idx0Num < dstValidCol ? idx0Num : dstValidCol;
+            unsigned src1Col = dstValidCol > sreg0 ? dstValidCol - sreg0 : 0;
+            unsigned sreg1 = idx1Num < src1Col ? idx1Num : src1Col;
+            unsigned src1Offset = i * dstStride + sreg0;
+            uint16_t repeatTimes0 = CeilDivision(sreg0, elementsPerRepeat);
+            uint16_t repeatTimes1 = CeilDivision(sreg1, elementsPerRepeat);
+
+            for (uint16_t j = 0; j < repeatTimes0; ++j) {
+                preg0 = CreatePredicate<dataType>(sreg0);
+                vlds(vreg_0, src0Ptr, i * src0Stride + j * elementsPerRepeat, NORM);
+                vsts(vreg_0, dstPtr, i * dstStride + j * elementsPerRepeat, distValue, preg0);
+            }
+
+            mem_bar(VST_VLD);
+            for (uint16_t j = 0; j < repeatTimes1; ++j) {
+                preg1 = CreatePredicate<dataType>(sreg1);
+                vlds(vreg_1, src1Ptr, i * src1Stride + j * elementsPerRepeat, NORM);
+                vci((RegTensor<IndexScalar> &)vreg_idx, (IndexScalar)(src1Offset + j * elementsPerRepeat), INC_ORDER);
+                vscatter(vreg_1, dstPtr, (RegTensor<UnsignedIndexScalar> &)vreg_idx, preg1);
+            }
+        }
+    }
+}
+
+template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileSrc0Idx, typename TileSrc1Idx>
+PTO_INTERNAL void TCONCAT_IMPL(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileSrc0Idx &src0Idx, TileSrc1Idx &src1Idx)
+{
+    using dataType = typename TileDst::DType;
+    using idxType = typename TileSrc0Idx::DType;
+
+    static_assert(std::is_same<dataType, typename TileSrc0::DType>::value &&
+                      std::is_same<dataType, typename TileSrc0::DType>::value,
+                  "TCONCAT: Data type of dst, src0 and src1 must be the same.");
+    static_assert(std::is_same<idxType, typename TileSrc1Idx::DType>::value,
+                  "TCONCAT: Data type of src0Idx and src1Idx must be the same.");
+    static_assert(std::is_same<dataType, int32_t>::value || std::is_same<dataType, int16_t>::value ||
+                      std::is_same<dataType, int8_t>::value || std::is_same<dataType, uint32_t>::value ||
+                      std::is_same<dataType, uint16_t>::value || std::is_same<dataType, uint8_t>::value ||
+                      std::is_same<dataType, half>::value || std::is_same<dataType, float32_t>::value ||
+                      std::is_same<dataType, bfloat16_t>::value,
+                  "TCONCAT: Invalid data type.");
+    static_assert(TileDst::Loc == TileType::Vec && TileSrc0::Loc == TileType::Vec && TileSrc1::Loc == TileType::Vec,
+                  "TCONCAT: TileType of src and dst tiles must be TileType::Vec.");
+    static_assert(TileDst::ValidRow <= TileDst::Rows && TileSrc0::ValidRow <= TileSrc0::Rows &&
+                      TileSrc1::ValidRow <= TileSrc1::Rows,
+                  "TCONCAT: Number of valid rows must not be greater than number of tile rows.");
+    static_assert(std::is_same<idxType, int32_t>::value || std::is_same<idxType, int16_t>::value ||
+                      std::is_same<idxType, int8_t>::value || std::is_same<idxType, uint32_t>::value ||
+                      std::is_same<idxType, uint16_t>::value || std::is_same<idxType, uint8_t>::value,
+                  "TCONCAT: Invalid data type of src0Idx.");
+
+    unsigned validRow = dst.GetValidRow();
+    unsigned dstValidCol = dst.GetValidCol();
+
+    PTO_ASSERT(validRow == src0.GetValidRow(), "TCONCAT: validRow of src0 must match dst.");
+    PTO_ASSERT(validRow == src1.GetValidRow(), "TCONCAT: validRow of src1 must match dst.");
+
+    TConcatIdx<TileDst, TileSrc0, TileSrc1, TileSrc0Idx, TileSrc1Idx>(
+        dst.data(), src0.data(), src1.data(), src0Idx.data(), src1Idx.data(), validRow, dstValidCol);
+}
 } // namespace pto
 #endif

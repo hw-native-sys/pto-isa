@@ -187,7 +187,6 @@ PTO_INST RecordEvent TCONCAT(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 
     return {};
 }
 
-#ifdef PTO_NPU_ARCH_A2A3
 template <typename DstTile, typename Src0Tile, typename Src1Tile, typename Src0IdxTile, typename Src1IdxTile,
           typename = std::void_t<typename Src0IdxTile::DType>, typename = std::void_t<typename Src1IdxTile::DType>,
           typename... WaitEvents>
@@ -198,7 +197,6 @@ PTO_INST RecordEvent TCONCAT(DstTile &dst, Src0Tile &src0, Src1Tile &src1, Src0I
     MAP_INSTR_IMPL(TCONCAT, dst, src0, src1, src0Idx, src1Idx);
     return {};
 }
-#endif
 
 template <typename TileData, typename GlobalData, typename... WaitEvents>
 PTO_INST RecordEvent TSTORE(GlobalData &dst, TileData &src, WaitEvents &... events)

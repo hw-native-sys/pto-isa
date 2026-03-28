@@ -100,7 +100,7 @@ __tf__ PTO_INTERNAL void TConcatIdx(typename DstTile::TileDType __out__ dst, typ
                                     typename Src1Tile::TileDType __in__ src1,
                                     typename Src0IdxTile::TileDType __in__ idx0,
                                     typename Src1IdxTile::TileDType __in__ idx1, unsigned validRow,
-                                    unsigned dstValidCol, unsigned src0ValidCol, unsigned src1ValidCol)
+                                    unsigned dstValidCol)
 {
     using dataType = typename DstTile::DType;
     using idxType = typename Src0IdxTile::DType;
@@ -189,15 +189,12 @@ PTO_INTERNAL void TCONCAT_IMPL(DstTile &dst, Src0Tile &src0, Src1Tile &src1, Src
 
     unsigned validRow = dst.GetValidRow();
     unsigned dstValidCol = dst.GetValidCol();
-    unsigned src0ValidCol = src0.GetValidCol();
-    unsigned src1ValidCol = src1.GetValidCol();
 
     PTO_ASSERT(validRow == src0.GetValidRow(), "TCONCAT: validRow of src0 must match dst.");
     PTO_ASSERT(validRow == src1.GetValidRow(), "TCONCAT: validRow of src1 must match dst.");
 
-    TConcatIdx<DstTile, Src0Tile, Src1Tile, Src0IdxTile, Src1IdxTile>(dst.data(), src0.data(), src1.data(),
-                                                                      src0Idx.data(), src1Idx.data(), validRow,
-                                                                      dstValidCol, src0ValidCol, src1ValidCol);
+    TConcatIdx<DstTile, Src0Tile, Src1Tile, Src0IdxTile, Src1IdxTile>(
+        dst.data(), src0.data(), src1.data(), src0Idx.data(), src1Idx.data(), validRow, dstValidCol);
 }
 } // namespace pto
 
