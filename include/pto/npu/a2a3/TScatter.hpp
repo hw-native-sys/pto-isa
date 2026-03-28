@@ -14,6 +14,24 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/common/constants.hpp>
 
 namespace pto {
+template <typename TileDataD>
+__tf__ PTO_INTERNAL void InitUBBuffer(typename TileDataD::TileDType dst)
+{
+    using TD = typename TileDataD::DType;
+    __ubuf__ TD *dstPtr = (__ubuf__ TD *)__cce_get_tile_ptr(dst);
+    set_mask_count();
+    set_vector_mask(0, TileDataD::Cols);
+    for (int i = 0; i < TileDataD::Rows; i++) {
+        unsigned offset = i * TileDataD::Cols;
+        vector_dup((__ubuf__ int16_t *)(dstPtr + offset), static_cast<int16_t>(0), 1, 1, 1, 8, 8);
+    }
+    set_mask_norm();
+    set_vector_mask(-1, -1);
+#ifndef __PTO_AUTO__
+    PtoSetWaitFlag<PIPE_V, PIPE_S>();
+#endif
+}
+
 template <typename TileDataD, typename TileDataS, typename TileDataI>
 __tf__ PTO_INTERNAL void TScatterImpl(typename TileDataD::TileDType __out__ dst,
                                       typename TileDataS::TileDType __in__ src,
@@ -66,17 +84,7 @@ PTO_INTERNAL void TSCATTER_IMPL(TileDataD &dst, TileDataS &src, TileDataI &idx)
     unsigned validCol = idx.GetValidCol();
 
     // Initialize dst UB buffer
-    __ubuf__ TD *dstPtr = dst.data();
-    set_mask_count();
-    set_vector_mask(0, TileDataD::Cols);
-    for (int i = 0; i < TileDataD::Rows; i++) {
-        unsigned offset = i * TileDataD::Cols;
-        vector_dup((__ubuf__ int16_t *)(dstPtr + offset), static_cast<int16_t>(0), 1, 1, 1, 8, 8);
-    }
-    set_mask_norm();
-    set_vector_mask(-1, -1);
-
-    PtoSetWaitFlag<PIPE_V, PIPE_S>();
+    InitUBBuffer<TileDataD>(dst.data());
 
     TScatterImpl<TileDataD, TileDataS, TileDataI>(dst.data(), src.data(), idx.data(), validRow, validCol);
 }
