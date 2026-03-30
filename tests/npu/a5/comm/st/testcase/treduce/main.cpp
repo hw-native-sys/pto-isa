@@ -19,7 +19,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // ============================================================================
 // TREDUCE Tests - Basic (data fits in single UB Tile)
 // ============================================================================
-TEST(TReduce, FloatSmall_Sum)
+TEST(TReduce, FloatSmall_Sum_4Ranks)
 {
     SKIP_IF_RANKS_LT(4);
     ASSERT_TRUE((RunReduceFloat256Sum(4, 4, 0, 0)));

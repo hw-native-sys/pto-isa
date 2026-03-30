@@ -194,6 +194,133 @@ PTO_INTERNAL void TPUT_IMPL(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlob
         logicalDims[4], ubChunkRows, ubChunkCols);
 }
 
+// Process one chunk in the ping-pong pipeline: overlap TSTORE of previous chunk with TLOAD of current chunk
+template <typename GlobalDstData, typename GlobalSrcData, typename TileData, AtomicType atomicType, typename StrideT>
+PTO_INTERNAL void TputPingPongProcessChunk(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData,
+                                           TileData &pingTile, TileData &pongTile, TputPingPongState &pp,
+                                           int64_t srcOff, int64_t dstOff, int curRows, int curCols,
+                                           const StrideT &srcChunkStride, const StrideT &dstChunkStride)
+{
+    using T = typename GlobalSrcData::RawDType;
+    constexpr bool isDynamicRow = (TileData::ValidRow == DYNAMIC);
+    constexpr bool isDynamicCol = (TileData::ValidCol == DYNAMIC);
+    using DynShape = Shape<1, 1, 1, DYNAMIC, DYNAMIC>;
+    using SrcViewT = GlobalTensor<T, DynShape, StrideT, GlobalSrcData::layout>;
+    using DstViewT = GlobalTensor<T, DynShape, StrideT, GlobalDstData::layout>;
+
+    TileData &loadTile = pp.usePing ? pingTile : pongTile;
+    event_t curEvent = pp.usePing ? EVENT_ID0 : EVENT_ID1;
+    if constexpr (isDynamicRow)
+        loadTile.RowMaskInternal = curRows;
+    if constexpr (isDynamicCol)
+        loadTile.ColMaskInternal = curCols;
+
+    DynShape chunkShape(1, 1, 1, curRows, curCols);
+    SrcViewT srcView(srcGlobalData.data() + srcOff, chunkShape, srcChunkStride);
+
+    if (pp.hasPending) {
+        TileData &storeTile = pp.usePing ? pongTile : pingTile;
+        event_t prevEvent = pp.usePing ? EVENT_ID1 : EVENT_ID0;
+        wait_flag(PIPE_MTE2, PIPE_MTE3, prevEvent);
+        DynShape pendShape(1, 1, 1, pp.pendingRows, pp.pendingCols);
+        DstViewT pendView(dstGlobalData.data() + pp.pendingDstOffset, pendShape, dstChunkStride);
+        TSTORE_IMPL<TileData, DstViewT, atomicType>(pendView, storeTile);
+        TLOAD(loadTile, srcView);
+        set_flag(PIPE_MTE3, PIPE_MTE2, prevEvent);
+        set_flag(PIPE_MTE2, PIPE_MTE3, curEvent);
+        wait_flag(PIPE_MTE3, PIPE_MTE2, prevEvent);
+    } else {
+        TLOAD(loadTile, srcView);
+        set_flag(PIPE_MTE2, PIPE_MTE3, curEvent);
+    }
+
+    pp.pendingDstOffset = dstOff;
+    pp.pendingRows = curRows;
+    pp.pendingCols = curCols;
+    pp.hasPending = true;
+    pp.usePing = !pp.usePing;
+}
+
+// Flush the last pending TSTORE in the ping-pong pipeline
+template <typename GlobalDstData, typename TileData, AtomicType atomicType, typename StrideT>
+PTO_INTERNAL void TputPingPongFlush(GlobalDstData &dstGlobalData, TileData &pingTile, TileData &pongTile,
+                                    TputPingPongState &pp, const StrideT &dstChunkStride)
+{
+    if (!pp.hasPending)
+        return;
+
+    using T = typename GlobalDstData::RawDType;
+    using DynShape = Shape<1, 1, 1, DYNAMIC, DYNAMIC>;
+    using DstViewT = GlobalTensor<T, DynShape, StrideT, GlobalDstData::layout>;
+
+    TileData &lastTile = pp.usePing ? pongTile : pingTile;
+    event_t lastEvent = pp.usePing ? EVENT_ID1 : EVENT_ID0;
+    wait_flag(PIPE_MTE2, PIPE_MTE3, lastEvent);
+    DynShape lastShape(1, 1, 1, pp.pendingRows, pp.pendingCols);
+    DstViewT lastView(dstGlobalData.data() + pp.pendingDstOffset, lastShape, dstChunkStride);
+    TSTORE_IMPL<TileData, DstViewT, atomicType>(lastView, lastTile);
+    set_flag(PIPE_MTE3, PIPE_MTE2, lastEvent);
+    wait_flag(PIPE_MTE3, PIPE_MTE2, lastEvent);
+}
+
+// 2D sliding chunked transfer with ping-pong double buffering
+//
+// Pipeline overlap: TSTORE and TLOAD are dispatched to separate HW engines
+// (MTE3 and MTE2). Within each iteration they run concurrently. The
+// wait_flag at the end ensures storeTile's UB is safe to reuse before
+// the NEXT iteration's TLOAD can overwrite it.
+//
+// MTE2 queue: [..., TLOAD(loadTile), set_flag(curEvent), wait_flag(prevEvent), ...]
+// MTE3 queue: [..., wait_flag(prevEvent), TSTORE(storeTile), set_flag(prevEvent), ...]
+template <typename GlobalDstData, typename GlobalSrcData, typename TileData, AtomicType atomicType>
+PTO_INTERNAL void TputChunkedPingPong(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData, TileData &pingTile,
+                                      TileData &pongTile, int gShape0, int gShape1, int gShape2, int gShape3,
+                                      int gShape4, int tileValidRow, int tileValidCol)
+{
+    const int srcStride[5] = {static_cast<int>(srcGlobalData.GetStride(GlobalTensorDim::DIM_0)),
+                              static_cast<int>(srcGlobalData.GetStride(GlobalTensorDim::DIM_1)),
+                              static_cast<int>(srcGlobalData.GetStride(GlobalTensorDim::DIM_2)),
+                              static_cast<int>(srcGlobalData.GetStride(GlobalTensorDim::DIM_3)),
+                              static_cast<int>(srcGlobalData.GetStride(GlobalTensorDim::DIM_4))};
+    const int dstStride[5] = {static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_0)),
+                              static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_1)),
+                              static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_2)),
+                              static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_3)),
+                              static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_4))};
+
+    using DynStride = Stride<DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC>;
+    DynStride srcChunkStride(srcStride[0], srcStride[1], srcStride[2], srcStride[3], srcStride[4]);
+    DynStride dstChunkStride(dstStride[0], dstStride[1], dstStride[2], dstStride[3], dstStride[4]);
+
+    TputPingPongState pp;
+
+    for (int i0 = 0; i0 < gShape0; ++i0) {
+        for (int i1 = 0; i1 < gShape1; ++i1) {
+            for (int i2 = 0; i2 < gShape2; ++i2) {
+                int64_t srcBase = static_cast<int64_t>(i0) * srcStride[0] + static_cast<int64_t>(i1) * srcStride[1] +
+                                  static_cast<int64_t>(i2) * srcStride[2];
+                int64_t dstBase = static_cast<int64_t>(i0) * dstStride[0] + static_cast<int64_t>(i1) * dstStride[1] +
+                                  static_cast<int64_t>(i2) * dstStride[2];
+                for (int rowOff = 0; rowOff < gShape3; rowOff += tileValidRow) {
+                    int curRows = (rowOff + tileValidRow <= gShape3) ? tileValidRow : (gShape3 - rowOff);
+                    for (int colOff = 0; colOff < gShape4; colOff += tileValidCol) {
+                        int curCols = (colOff + tileValidCol <= gShape4) ? tileValidCol : (gShape4 - colOff);
+                        int64_t srcOff = srcBase + static_cast<int64_t>(rowOff) * srcStride[3] +
+                                         static_cast<int64_t>(colOff) * srcStride[4];
+                        int64_t dstOff = dstBase + static_cast<int64_t>(rowOff) * dstStride[3] +
+                                         static_cast<int64_t>(colOff) * dstStride[4];
+                        TputPingPongProcessChunk<GlobalDstData, GlobalSrcData, TileData, atomicType>(
+                            dstGlobalData, srcGlobalData, pingTile, pongTile, pp, srcOff, dstOff, curRows, curCols,
+                            srcChunkStride, dstChunkStride);
+                    }
+                }
+            }
+        }
+    }
+
+    TputPingPongFlush<GlobalDstData, TileData, atomicType>(dstGlobalData, pingTile, pongTile, pp, dstChunkStride);
+}
+
 // ============================================================================
 // TPUT_IMPL (ping-pong): Remote write with double buffering
 //
@@ -262,10 +389,9 @@ PTO_INTERNAL void TPUT_IMPL(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlob
                    "Use a Tile with DYNAMIC ValidCol for partial column chunk support.");
     }
 
-    // Keep behavior conservative: fallback to single-buffer chunk path when ping-pong helper is unavailable.
-    TputChunkedSingle<GlobalDstData, GlobalSrcData, TileData, atomicType>(dstGlobalData, srcGlobalData, pingTile,
-                                                                          gShape0, gShape1, gShape2, gShape3, gShape4,
-                                                                          tileValidRow, tileValidCol);
+    TputChunkedPingPong<GlobalDstData, GlobalSrcData, TileData, atomicType>(
+        dstGlobalData, srcGlobalData, pingTile, pongTile, gShape0, gShape1, gShape2, gShape3, gShape4, tileValidRow,
+        tileValidCol);
 }
 
 } // namespace comm

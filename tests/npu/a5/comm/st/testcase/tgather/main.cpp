@@ -19,7 +19,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // ============================================================================
 // TGATHER Tests - Basic: Gather data from all ranks to root
 // ============================================================================
-TEST(TGather, FloatSmall)
+TEST(TGather, FloatSmall_4Ranks)
 {
     SKIP_IF_RANKS_LT(4);
     ASSERT_TRUE((RunGather<float, 256>(4, 4, 0, 0)));

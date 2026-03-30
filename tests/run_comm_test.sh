@@ -77,54 +77,17 @@ fi
 # mpiSize == nRanks). The script runs the binary once per distinct rank count,
 # using gtest filters to select only the matching tests each time.
 #
-# Tests following the *_NRanks / *_Nranks naming convention are matched by
-# pattern. Tests without a rank suffix in their names are listed explicitly.
+# All multi-rank tests follow the *_NRanks / *_Nranks naming convention,
+# so a simple wildcard match is sufficient.
 # ============================================================================
 
-# Tests that need 4 ranks but lack "4Ranks"/"4ranks" in their name.
-KNOWN_4RANK_TESTS_tput="TPut.Vec_FloatSmall:TPut.AtomicAdd_Int32"
-KNOWN_4RANK_TESTS_tgather="TGather.FloatSmall"
-KNOWN_4RANK_TESTS_tscatter="TScatter.FloatSmall"
-KNOWN_4RANK_TESTS_treduce="TReduce.FloatSmall_Sum"
-KNOWN_4RANK_TESTS_tbroadcast="TBroadCast.FloatSmallRoot0"
-
-# Tests that need 8 ranks but lack "8Ranks"/"8ranks" in their name.
-KNOWN_8RANK_TESTS_tput="TPut.Vec_Uint8Small"
-
-get_known_tests() {
-  local test_name="$1"
-  local nranks="$2"
-  local varname="KNOWN_${nranks}RANK_TESTS_${test_name}"
-  echo "${!varname:-}"
-}
-
 get_gtest_filter_for_nranks() {
-  local test_name="$1"
-  local nranks="$2"
-
-  local known4; known4="$(get_known_tests "$test_name" 4)"
-  local known8; known8="$(get_known_tests "$test_name" 8)"
+  local nranks="$1"
 
   case "$nranks" in
-    2)
-      # All tests EXCEPT those needing 4 or 8 ranks.
-      local negative="*4Ranks*:*4ranks*:*8Ranks*:*8ranks*"
-      [[ -n "$known4" ]] && negative="${negative}:${known4}"
-      [[ -n "$known8" ]] && negative="${negative}:${known8}"
-      echo "*-${negative}"
-      ;;
-    4)
-      # Only tests needing exactly 4 ranks.
-      local positive="*4Ranks*:*4ranks*"
-      [[ -n "$known4" ]] && positive="${positive}:${known4}"
-      echo "${positive}"
-      ;;
-    8)
-      # Only tests needing exactly 8 ranks.
-      local positive="*8Ranks*:*8ranks*"
-      [[ -n "$known8" ]] && positive="${positive}:${known8}"
-      echo "${positive}"
-      ;;
+    2) echo "*-*4Ranks*:*4ranks*:*8Ranks*:*8ranks*" ;;
+    4) echo "*4Ranks*:*4ranks*" ;;
+    8) echo "*8Ranks*:*8ranks*" ;;
   esac
 }
 
@@ -178,7 +141,7 @@ for t in "${tests[@]}"; do
   for nranks in 2 4 8; do
     if (( nranks > NPU_COUNT )); then continue; fi
 
-    gtest_filter="$(get_gtest_filter_for_nranks "$t" "$nranks")"
+    gtest_filter="$(get_gtest_filter_for_nranks "$nranks")"
     [[ -z "$gtest_filter" ]] && continue
 
     echo "============================================================"

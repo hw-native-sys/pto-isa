@@ -18,7 +18,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // ============================================================================
 // TBROADCAST Tests - Basic (data fits in single UB Tile)
 // ============================================================================
-TEST(TBroadCast, FloatSmallRoot0)
+TEST(TBroadCast, FloatSmallRoot0_4Ranks)
 {
     SKIP_IF_RANKS_LT(4);
     EXPECT_TRUE((RunBroadCast<float, 256>(4, 4, 0, 0, 0)));
