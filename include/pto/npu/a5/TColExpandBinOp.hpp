@@ -98,17 +98,17 @@ PTO_INTERNAL void ColExpandBinaryInstr(__ubuf__ typename TileData::DType *dstPtr
     }
 }
 
-template <typename Op, typename TileData, typename TileDataSrc, unsigned elementsPerRepeat, unsigned blockSizeElem,
-          unsigned rowStride>
-__tf__ AICORE void TColExpandOp(typename TileData::TileDType __out__ dst, typename TileData::TileDType __in__ src0,
-                                typename TileDataSrc::TileDType __in__ src1, unsigned validRow, unsigned validCol)
+template <typename Op, typename TileData, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
+          unsigned blockSizeElem, unsigned rowStride>
+__tf__ AICORE void TColExpandOp(typename TileData::TileDType __out__ dst, typename TileDataSrc0::TileDType __in__ src0,
+                                typename TileDataSrc1::TileDType __in__ src1, unsigned validRow, unsigned validCol)
 {
     using T = typename TileData::DType;
     __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
     __ubuf__ T *src0Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src0);
     __ubuf__ T *src1Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src1);
 
-    ColExpandBinaryInstr<Op, TileData, TileDataSrc, elementsPerRepeat, blockSizeElem, rowStride>(
+    ColExpandBinaryInstr<Op, TileData, TileDataSrc1, elementsPerRepeat, blockSizeElem, rowStride>(
         dstPtr, src0Ptr, src1Ptr, validRow, validCol);
 }
 
@@ -132,10 +132,10 @@ PTO_INTERNAL void TCOLEXPANDOP_IMPL(TileData &dst, TileDataSrc0 &src0, TileDataS
     bool src1eqdst = (validRow == src1ValidRow) && (validCol == src1ValidCol);
 
     if (src0eqdst) {
-        TColExpandOp<Op, TileData, TileDataSrc1, elementsPerRepeat, blockSizeElem, rowStride>(
+        TColExpandOp<Op, TileData, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem, rowStride>(
             dst.data(), src0.data(), src1.data(), validRow, validCol);
     } else {
-        TColExpandOp<Op2, TileData, TileDataSrc0, elementsPerRepeat, blockSizeElem, rowStride>(
+        TColExpandOp<Op2, TileData, TileDataSrc1, TileDataSrc0, elementsPerRepeat, blockSizeElem, rowStride>(
             dst.data(), src1.data(), src0.data(), validRow, validCol);
     }
 }
