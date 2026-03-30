@@ -11,6 +11,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef PTO_CPUSTUB_HPP
 #define PTO_CPUSTUB_HPP
 
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <cassert>
@@ -82,19 +83,58 @@ static inline void aclrtMallocHost(void **p, size_t sz)
 typedef int event_t;
 #define EVENT_ID0 0
 
+namespace pto::cpu_sim {
+struct ExecutionContext {
+    uint32_t block_idx = 0;
+    uint32_t subblock_id = 0;
+    uint32_t subblock_dim = 1;
+};
+
+inline thread_local ExecutionContext execution_context{};
+
+inline void set_execution_context(uint32_t block_idx, uint32_t subblock_id, uint32_t subblock_dim = 1)
+{
+    execution_context.block_idx = block_idx;
+    execution_context.subblock_id = subblock_id;
+    execution_context.subblock_dim = (subblock_dim == 0) ? 1 : subblock_dim;
+}
+
+inline void reset_execution_context()
+{
+    execution_context = {};
+}
+
+class ScopedExecutionContext {
+public:
+    ScopedExecutionContext(uint32_t block_idx, uint32_t subblock_id, uint32_t subblock_dim = 1)
+        : saved_(execution_context)
+    {
+        set_execution_context(block_idx, subblock_id, subblock_dim);
+    }
+
+    ~ScopedExecutionContext()
+    {
+        execution_context = saved_;
+    }
+
+private:
+    ExecutionContext saved_{};
+};
+} // namespace pto::cpu_sim
+
 inline uint32_t get_block_idx()
 {
-    return 0;
+    return pto::cpu_sim::execution_context.block_idx;
 }
 
 inline uint32_t get_subblockid()
 {
-    return 0;
+    return pto::cpu_sim::execution_context.subblock_id;
 }
 
 inline uint32_t get_subblockdim()
 {
-    return 1;
+    return pto::cpu_sim::execution_context.subblock_dim;
 }
 
 #endif
