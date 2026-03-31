@@ -23,4 +23,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define ASCEND 0
 #define DESCEND 1
 
+#define SCALAR 0
+#define SIMD 1
+
 #define START 0

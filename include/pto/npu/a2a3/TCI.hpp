@@ -49,5 +49,232 @@ PTO_INTERNAL void TCI_IMPL(TileData &dst, T start)
 
     TCI<TileData, T, descending>(dst.data(), start, validCol);
 }
+
+template <typename TileData, typename TileDataTmp, typename T, int descending>
+__tf__ AICORE void TCI_b32_repeat(typename TileData::TileDType __out__ dst, typename TileDataTmp::TileDType __in__ tmp,
+                                  T S, unsigned validCol, unsigned numRepeatPerLine, unsigned numRemainPerLine)
+{
+    __ubuf__ typename TileData::DType *dstPtr = (__ubuf__ typename TileData::DType *)__cce_get_tile_ptr(dst);
+    __ubuf__ float *tmp0 = (__ubuf__ typename TileDataTmp::DType *)__cce_get_tile_ptr(tmp);
+    __ubuf__ float *tmp1 = (__ubuf__ typename TileDataTmp::DType *)__cce_get_tile_ptr(tmp + 128);
+
+    set_mask_count();
+    set_vector_mask(0, 8);
+#pragma unroll
+    for (int i = 0; i < 8; i++) {
+        vector_dup(tmp0 + i * 8, (float)float(i) * 0.125f, 1, 1, 1, 1, (int64_t)0);
+    }
+    pipe_barrier(PIPE_V);
+    set_vector_mask(0, 64);
+    vcgadd((__ubuf__ float *)tmp1, tmp0, 1, 1, 1, 8);
+    pipe_barrier(PIPE_V);
+    set_vector_mask(0, 8);
+    vmuls(tmp0, (__ubuf__ float *)tmp1, 8.0f, 1, 1, 1, 8, 8);
+    pipe_barrier(PIPE_V);
+    set_mask_norm();
+    set_vector_mask((uint64_t)-1, (uint64_t)-1);
+    vbrcb((__ubuf__ uint32_t *)(tmp0), (__ubuf__ uint32_t *)(tmp0), 1, 8, 1);
+    pipe_barrier(PIPE_V);
+    vadd((__ubuf__ float *)tmp1, (__ubuf__ float *)tmp1, tmp0, 8, 1, 0, 1, 8, 0, 8);
+    pipe_barrier(PIPE_V);
+    vconv_f322s32r((__ubuf__ int32_t *)tmp1, (__ubuf__ float *)tmp1, 1, 1, 1, 8, 8);
+    pipe_barrier(PIPE_V);
+#pragma unroll
+    for (int i = 0; i < numRepeatPerLine; i++) {
+        vadds((__ubuf__ int32_t *)(dst + 64 * i), (__ubuf__ int32_t *)tmp1, S + 64 * i, 1, 1, 1, 8, 8);
+    }
+    pipe_barrier(PIPE_V);
+    if (numRemainPerLine) {
+        set_mask_norm();
+        SetContinuousMask(numRemainPerLine);
+        vadds((__ubuf__ int32_t *)(dst + 64 * numRepeatPerLine), (__ubuf__ int32_t *)tmp1, S + 64 * numRepeatPerLine, 1,
+              1, 1, 8, 8);
+    }
+    pipe_barrier(PIPE_V);
+    if (descending) {
+        set_mask_count();
+        set_vector_mask(0, validCol);
+        vmuls((__ubuf__ int32_t *)dst, (__ubuf__ int32_t *)dst, -1, 1, 1, 1, 8, 8);
+    }
+}
+
+template <typename TileData, typename TileDataTmp, typename T, int descending>
+__tf__ AICORE void TCI_b32_normal(typename TileData::TileDType __out__ dst, typename TileDataTmp::TileDType __in__ tmp,
+                                  T S, unsigned validCol, unsigned numRepeatPerLine, unsigned numRemainPerLine)
+{
+    __ubuf__ typename TileData::DType *dstPtr = (__ubuf__ typename TileData::DType *)__cce_get_tile_ptr(dst);
+
+    __ubuf__ float *tmp1 = (__ubuf__ typename TileDataTmp::DType *)__cce_get_tile_ptr(tmp);
+    __ubuf__ float *tmp2 = (__ubuf__ typename TileDataTmp::DType *)__cce_get_tile_ptr(tmp + 128);
+
+    set_mask_count();
+    set_vector_mask(0, 8);
+#pragma unroll
+    for (int i = 0; i < 8; i++) {
+        vector_dup(tmp1 + i * 8, (float)float(i) * 0.125f, 1, 1, 1, 1, (int64_t)0);
+    }
+    pipe_barrier(PIPE_V);
+    set_vector_mask(0, 64);
+    vcgadd((__ubuf__ float *)tmp2, tmp1, 1, 1, 1, 8);
+    pipe_barrier(PIPE_V);
+    set_vector_mask(0, 8);
+    vmuls(tmp1, (__ubuf__ float *)tmp2, 8.0f, 1, 1, 1, 8, 8);
+    pipe_barrier(PIPE_V);
+    set_mask_norm();
+    set_vector_mask((uint64_t)-1, (uint64_t)-1);
+    vbrcb((__ubuf__ uint32_t *)(tmp1), (__ubuf__ uint32_t *)(tmp1), 1, 8, 1);
+    pipe_barrier(PIPE_V);
+    set_mask_count();
+    set_vector_mask(0, validCol);
+    vadd((__ubuf__ float *)tmp2, (__ubuf__ float *)tmp2, tmp1, 8, 1, 0, 1, 8, 0, 8);
+    pipe_barrier(PIPE_V);
+    vconv_f322s32r((__ubuf__ int32_t *)dst, (__ubuf__ float *)tmp2, 1, 1, 1, 8, 8);
+    pipe_barrier(PIPE_V);
+    vadds((__ubuf__ int32_t *)dst, (__ubuf__ int32_t *)dst, S, 1, 1, 1, 8, 8);
+    pipe_barrier(PIPE_V);
+    if (descending) {
+        vmuls((__ubuf__ int32_t *)dst, (__ubuf__ int32_t *)dst, -1, 1, 1, 1, 8, 8);
+    }
+}
+
+template <typename TileData, typename TileDataTmp, typename T, int descending>
+__tf__ AICORE void TCI_b16_repeat(typename TileData::TileDType __out__ dst, typename TileDataTmp::TileDType __in__ tmp,
+                                  T S, unsigned validCol, unsigned numRepeatPerLine, unsigned numRemainPerLine)
+{
+    __ubuf__ typename TileData::DType *dstPtr = (__ubuf__ typename TileData::DType *)__cce_get_tile_ptr(dst);
+
+    __ubuf__ float *tmp0 = (__ubuf__ typename TileDataTmp::DType *)__cce_get_tile_ptr(tmp);
+    __ubuf__ float *tmp1 = (__ubuf__ typename TileDataTmp::DType *)__cce_get_tile_ptr(tmp + 128);
+    __ubuf__ half *tmp2 =
+        reinterpret_cast<__ubuf__ half *>((__ubuf__ typename TileDataTmp::DType *)__cce_get_tile_ptr(tmp + 196));
+    __ubuf__ half *tmp3 =
+        reinterpret_cast<__ubuf__ half *>((__ubuf__ typename TileDataTmp::DType *)__cce_get_tile_ptr(tmp + 260));
+
+    set_mask_count();
+    set_vector_mask(0, 8);
+    for (int i = 0; i < 8; i++) {
+        vector_dup(tmp0 + i * 8, (float)float(i) * 0.125f, 1, 1, 1, 1, (int64_t)0);
+        vector_dup(tmp0 + 64 + i * 8, (float)float(i + 8) * 0.125f, 1, 1, 1, 1, (int64_t)0);
+    }
+    pipe_barrier(PIPE_V);
+    set_vector_mask(0, 64);
+    vcgadd((__ubuf__ float *)tmp1, tmp0, 1, 1, 1, 8);
+    pipe_barrier(PIPE_V);
+    vcgadd((__ubuf__ float *)tmp1 + 8, tmp0 + 64, 1, 1, 1, 8);
+    pipe_barrier(PIPE_V);
+    vconv_f322f16r((__ubuf__ half *)tmp2, (__ubuf__ float *)tmp1, 1, 1, 1, 8, 8);
+
+    pipe_barrier(PIPE_V);
+    set_vector_mask(0, 8);
+    vmuls(tmp3, (__ubuf__ half *)tmp2, (half)16.0f, 1, 1, 1, 8, 8);
+    pipe_barrier(PIPE_V);
+    set_mask_norm();
+    set_vector_mask((uint64_t)-1, (uint64_t)-1);
+    vbrcb((__ubuf__ uint16_t *)(tmp3), (__ubuf__ uint16_t *)(tmp3), 1, 8, 1);
+    pipe_barrier(PIPE_V);
+
+    set_vector_mask(0, 65535);
+    for (int i = 0; i < 8; i++) {
+        vadd((__ubuf__ half *)(tmp3 + i * 16), (__ubuf__ half *)(tmp3 + i * 16), tmp2, 1, 1, 0, 1, 8, 0, 8);
+    }
+    pipe_barrier(PIPE_V);
+    set_vector_mask((uint64_t)-1, (uint64_t)-1);
+    vconv_f162s16r((__ubuf__ int16_t *)tmp3, (__ubuf__ half *)tmp3, 1, 1, 1, 8, 8);
+    pipe_barrier(PIPE_V);
+
+    for (int i = 0; i < numRepeatPerLine; i++) {
+        vadds((__ubuf__ int16_t *)(dst + 128 * i), (__ubuf__ int16_t *)tmp3, S + 128 * i, 1, 1, 1, 8, 8);
+    }
+    pipe_barrier(PIPE_V);
+    if (numRemainPerLine) {
+        set_mask_norm();
+        SetContinuousMask(numRemainPerLine);
+        vadds((__ubuf__ int16_t *)(dst + 128 * numRepeatPerLine), (__ubuf__ int16_t *)tmp3, S + 128 * numRepeatPerLine,
+              1, 1, 1, 8, 8);
+    }
+}
+
+template <typename TileData, typename TileDataTmp, typename T, int descending>
+__tf__ AICORE void TCI_b16_normal(typename TileData::TileDType __out__ dst, typename TileDataTmp::TileDType __in__ tmp,
+                                  T S, unsigned validCol, unsigned numRepeatPerLine, unsigned numRemainPerLine)
+{
+    __ubuf__ typename TileData::DType *dstPtr = (__ubuf__ typename TileData::DType *)__cce_get_tile_ptr(dst);
+
+    __ubuf__ float *tmp1 = (__ubuf__ typename TileDataTmp::DType *)__cce_get_tile_ptr(tmp);
+    __ubuf__ float *tmp2 = (__ubuf__ typename TileDataTmp::DType *)__cce_get_tile_ptr(tmp + 128);
+    __ubuf__ half *tmp3 =
+        reinterpret_cast<__ubuf__ half *>((__ubuf__ typename TileDataTmp::DType *)__cce_get_tile_ptr(tmp + 196));
+    __ubuf__ half *tmp4 =
+        reinterpret_cast<__ubuf__ half *>((__ubuf__ typename TileDataTmp::DType *)__cce_get_tile_ptr(tmp + 260));
+
+    set_mask_count();
+    set_vector_mask(0, 8);
+#pragma unroll
+    for (int i = 0; i < 8; i++) {
+        vector_dup(tmp1 + i * 8, (float)float(i) * 0.125f, 1, 1, 1, 1, (int64_t)0);
+        vector_dup(tmp1 + 64 + i * 8, (float)float(i + 8) * 0.125f, 1, 1, 1, 1, (int64_t)0);
+    }
+    pipe_barrier(PIPE_V);
+    set_vector_mask(0, 64);
+    vcgadd((__ubuf__ float *)tmp2, tmp1, 1, 1, 1, 8);
+    pipe_barrier(PIPE_V);
+    vcgadd((__ubuf__ float *)tmp2 + 8, tmp1 + 64, 1, 1, 1, 8);
+    pipe_barrier(PIPE_V);
+    vconv_f322f16r((__ubuf__ half *)tmp3, (__ubuf__ float *)tmp2, 1, 1, 1, 8, 8);
+
+    pipe_barrier(PIPE_V);
+    set_vector_mask(0, 8);
+    vmuls(tmp4, (__ubuf__ half *)tmp3, (half)16.0f, 1, 1, 1, 8, 8);
+    pipe_barrier(PIPE_V);
+    set_mask_norm();
+    set_vector_mask((uint64_t)-1, (uint64_t)-1);
+    vbrcb((__ubuf__ uint16_t *)(tmp4), (__ubuf__ uint16_t *)(tmp4), 1, 8, 1);
+    pipe_barrier(PIPE_V);
+
+    set_vector_mask(0, 65535);
+#pragma unroll
+    for (int i = 0; i < 8; i++) {
+        vadd((__ubuf__ half *)(tmp4 + i * 16), (__ubuf__ half *)(tmp4 + i * 16), tmp3, 1, 1, 0, 1, 8, 0, 8);
+    }
+    pipe_barrier(PIPE_V);
+    set_mask_count();
+    set_vector_mask(0, validCol);
+    vconv_f162s16r((__ubuf__ int16_t *)dst, (__ubuf__ half *)tmp4, 1, 1, 1, 8, 8);
+    pipe_barrier(PIPE_V);
+    vadds((__ubuf__ int16_t *)dst, (__ubuf__ int16_t *)dst, S, 1, 1, 1, 8, 8);
+    pipe_barrier(PIPE_V);
+    if (descending) {
+        vmuls((__ubuf__ int16_t *)dst, (__ubuf__ int16_t *)dst, -1, 1, 1, 1, 8, 8);
+    }
+}
+
+template <typename TileData, typename TileDataTmp, typename T, int descending>
+PTO_INTERNAL void TCI_IMPL(TileData &dst, T start, TileDataTmp &tmp)
+{
+    CheckValid<TileData, T>();
+
+    unsigned validCol = dst.GetValidCol();
+    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(typename TileData::DType);
+    unsigned numRepeatPerLine = validCol / elementsPerRepeat;
+    unsigned numRemainPerLine = validCol % elementsPerRepeat;
+
+    if constexpr (sizeof(typename TileData::DType) == 4 && elementsPerRepeat) {
+        TCI_b32_repeat<TileData, TileDataTmp, T, descending>(dst.data(), tmp.data(), start, validCol, numRepeatPerLine,
+                                                             numRemainPerLine);
+    } else if constexpr (sizeof(typename TileData::DType) == 4) {
+        TCI_b32_normal<TileData, TileDataTmp, T, descending>(dst.data(), tmp.data(), start, validCol, numRepeatPerLine,
+                                                             numRemainPerLine);
+    } else if constexpr (sizeof(typename TileData::DType) == 2 && elementsPerRepeat) {
+        TCI_b16_repeat<TileData, TileDataTmp, T, descending>(dst.data(), tmp.data(), start, validCol, numRepeatPerLine,
+                                                             numRemainPerLine);
+        pipe_barrier(PIPE_V);
+        if (descending) {
+            TMULS_IMPL(dst, dst, -1);
+        }
+    } else {
+        TCI_b16_normal<TileData, TileDataTmp, T, descending>(dst.data(), tmp.data(), start, validCol, numRepeatPerLine,
+                                                             numRemainPerLine);
+    }
+}
 } // namespace pto
 #endif

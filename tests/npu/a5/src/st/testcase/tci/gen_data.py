@@ -12,13 +12,11 @@
 
 import os
 import numpy as np
+
 np.random.seed(19)
 
 
 def save_to_binary_file(data, filename, dtype):
-    """
-    将数据保存成指定dtype的二进制文件;
-    """
     np.array(data, dtype=dtype).tofile(filename)
 
 
@@ -26,10 +24,8 @@ def gen_golden_data_tci(case_name, param):
     dtype = param.dtype
 
     if param.reverse == 0:
-        # 生成递增索引
         result = [param.begin + i for i in range(param.length)]
     elif param.reverse == 1:
-        # 生成递减索引
         result = [param.begin - i for i in range(0, param.length)]
     save_to_binary_file(result, "golden.bin", dtype)
     save_to_binary_file(param.begin, "begin_index.bin", dtype)
@@ -46,20 +42,15 @@ class TciParams:
 
 
 def generate_case_name(param):
-    dtype_str = {
-        np.float32: 'float',
-        np.float16: 'half',
-        np.int8: 'int8',
-        np.int32: 'int32',
-        np.int16: 'int16'
-    }[param.dtype]
+    dtype_str = {np.float32: "float", np.float16: "half", np.int8: "int8", np.int32: "int32", np.int16: "int16"}[
+        param.dtype
+    ]
     return f"TCITest.case_{dtype_str}_{param.begin}_{param.reverse}_{param.length}"
 
+
 if __name__ == "__main__":
-    # Get the absolute path of the script
     script_dir = os.path.dirname(os.path.abspath(__file__))
     testcases_dir = os.path.join(script_dir, "testcases")
-    # Ensure the testcases directory exists
     if not os.path.exists(testcases_dir):
         os.makedirs(testcases_dir)
 
@@ -74,6 +65,12 @@ if __name__ == "__main__":
         TciParams(np.int32, 0, 1, 2560, "TCITest.case8"),
         TciParams(np.int32, 0, 0, 3200, "TCITest.case9"),
         TciParams(np.int32, 0, 0, 8, "TCITest.case10"),
+        TciParams(np.int32, 100, 1, 128, "TCITest.case11"),
+        TciParams(np.int32, 0, 0, 3200, "TCITest.case12"),
+        TciParams(np.int16, -1, 1, 128, "TCITest.case13"),
+        TciParams(np.int16, 0, 0, 800, "TCITest.case14"),
+        TciParams(np.int16, 20, 1, 3840, "TCITest.case15"),
+        TciParams(np.int16, 50, 0, 1408, "TCITest.case16"),
     ]
 
     for _, param in enumerate(case_params_list):

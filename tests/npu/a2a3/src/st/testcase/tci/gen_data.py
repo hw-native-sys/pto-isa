@@ -13,6 +13,7 @@
 import os
 
 import numpy as np
+
 np.random.seed(0)
 
 
@@ -32,7 +33,7 @@ def gen_golden_data(case_name, param):
     golden = golden.astype(src_type)
 
     golden.tofile("./golden.bin")
-    os.chdir(original_dir) 
+    os.chdir(original_dir)
 
 
 class TciParams:
@@ -45,7 +46,6 @@ class TciParams:
 
 
 if __name__ == "__main__":
-    
     case_name_list = [
         "TCITest.case1_int32",
         "TCITest.case2_int32",
@@ -55,8 +55,13 @@ if __name__ == "__main__":
         "TCITest.case6_int16",
         "TCITest.case7_int16",
         "TCITest.case8_int16",
-        ]
-    
+        "TCITest.case9_int32",
+        "TCITest.case10_int32",
+        "TCITest.case11_int16",
+        "TCITest.case12_int16",
+        "TCITest.case13_int16",
+    ]
+
     case_params_list = [
         TciParams(np.int32, 1, 128, 0, 0),
         TciParams(np.int32, 1, 600, 0, 0),
@@ -66,6 +71,11 @@ if __name__ == "__main__":
         TciParams(np.int16, 1, 800, 1, 0),
         TciParams(np.int16, 1, 64, 0, 0),
         TciParams(np.int16, 1, 5120, 1, 0),
+        TciParams(np.int32, 1, 128, 0, 0),
+        TciParams(np.int32, 1, 32, 1, 0),
+        TciParams(np.int16, 1, 256, 0, 0),
+        TciParams(np.int16, 1, 800, 1, 0),
+        TciParams(np.int16, 1, 3328, 1, 0),
     ]
 
     for i, case_name in enumerate(case_name_list):
