@@ -11,6 +11,38 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef ARCH_MACRO_HPP
 #define ARCH_MACRO_HPP
 
+#if defined(PTO_GPU_BACKEND)
+#define PTO_COMM_NOT_SUPPORTED
+
+#if defined(__CUDA_ARCH__)
+#if __CUDA_ARCH__ >= 1210
+#define PTO_GPU_SM121
+#elif __CUDA_ARCH__ >= 1200
+#define PTO_GPU_SM120
+#elif __CUDA_ARCH__ >= 1100
+#define PTO_GPU_SM110
+#elif __CUDA_ARCH__ >= 1030
+#define PTO_GPU_SM103
+#elif __CUDA_ARCH__ >= 1000
+#define PTO_GPU_SM100
+#elif __CUDA_ARCH__ >= 900
+#define PTO_GPU_SM90
+#elif __CUDA_ARCH__ >= 890
+#define PTO_GPU_SM89
+#elif __CUDA_ARCH__ >= 870
+#define PTO_GPU_SM87
+#elif __CUDA_ARCH__ >= 860
+#define PTO_GPU_SM86
+#elif __CUDA_ARCH__ >= 800
+#define PTO_GPU_SM80
+#elif __CUDA_ARCH__ >= 750
+#define PTO_GPU_SM75
+#elif __CUDA_ARCH__ >= 700
+#define PTO_GPU_SM70
+#endif
+#endif
+#endif
+
 #if __NPU_ARCH__ == 2201
 #define PTO_NPU_ARCH_A2A3
 #elif (__NPU_ARCH__ == 3101) || (__NPU_ARCH__ == 3510)
