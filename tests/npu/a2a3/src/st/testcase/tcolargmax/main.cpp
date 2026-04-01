@@ -152,3 +152,23 @@ TEST_F(TCOLCMAXTest, case73)
     bool ret = TCOLCMAXTestFramework<73, uint32_t, 16, 15, 1, 256, 255>();
     EXPECT_TRUE(ret);
 }
+TEST_F(TCOLCMAXTest, case81)
+{
+    bool ret = TCOLCMAXTestFramework<81, aclFloat16, 16, 16, 1, 32, 32>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TCOLCMAXTest, case82)
+{
+    bool ret = TCOLCMAXTestFramework<82, uint16_t, 16, 16, 1, 32, 32>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TCOLCMAXTest, case83)
+{
+    bool ret = TCOLCMAXTestFramework<83, uint32_t, 16, 16, 1, 32, 31>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TCOLCMAXTest, case84)
+{
+    bool ret = TCOLCMAXTestFramework<84, float, 16, 16, 1, 32, 31>();
+    EXPECT_TRUE(ret);
+}

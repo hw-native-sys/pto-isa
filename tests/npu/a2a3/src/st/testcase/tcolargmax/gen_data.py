@@ -61,6 +61,10 @@ if __name__ == "__main__":
         TColCMaxParams("TCOLCMAXTest.case71", np.uint32, 1, 1, 256, 255),
         TColCMaxParams("TCOLCMAXTest.case72", np.uint32, 16, 16, 128, 127),
         TColCMaxParams("TCOLCMAXTest.case73", np.uint32, 16, 15, 256, 255),
+        TColCMaxParams("TCOLCMAXTest.case81", np.float16, 16, 16, 32, 32),
+        TColCMaxParams("TCOLCMAXTest.case82", np.uint16, 16, 16, 32, 32),
+        TColCMaxParams("TCOLCMAXTest.case83", np.uint32, 16, 16, 32, 31),
+        TColCMaxParams("TCOLCMAXTest.case84", np.float32, 16, 16, 32, 31)
     ]
 
     for _, case in enumerate(case_params_list):

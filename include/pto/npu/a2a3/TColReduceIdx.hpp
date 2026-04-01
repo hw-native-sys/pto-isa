@@ -61,53 +61,51 @@ __tf__ PTO_INTERNAL void TColReduceIdx16(typename TileDataOut::TileDType __out__
     uint16_t remainAfterLoop = srcValidCol % elemPerRpt;
     uint32_t tmpGapEles = numLoop > 0 ? elemPerRpt : CeilDivision(srcValidCol, elemPerBlock) * elemPerBlock;
 
-    if (numLoop > 0) {
-        for (uint16_t j = 0; j < numLoop; j++) {
-            pipe_barrier(PIPE_V);
-
-            vector_dup((__ubuf__ int16_t *)tmpPtr, 0, 1, 1, 1, 0, 0);                  // cur index
-            vector_dup((__ubuf__ int16_t *)tmpPtr + 2 * tmpGapEles, 0, 1, 1, 1, 0, 0); // argmin index
-
-            copy_ubuf_to_ubuf(tmpPtr + tmpGapEles, srcPtr + j * elemPerRpt, 0, 1, 8, 0, 0); // min elements
-            for (uint16_t i = 1; i < srcValidRow; i++) {
+    for (uint16_t j = 0; j < numLoop; j++) {
+        pipe_barrier(PIPE_V);
+        vector_dup((__ubuf__ int16_t *)tmpPtr, 0, 1, 1, 1, 0, 0);                       // cur index
+        vector_dup((__ubuf__ int16_t *)tmpPtr + 2 * tmpGapEles, 0, 1, 1, 1, 0, 0);      // argmin index
+        copy_ubuf_to_ubuf(tmpPtr + tmpGapEles, srcPtr + j * elemPerRpt, 0, 1, 8, 0, 0); // min elements
+        pipe_barrier(PIPE_V);
+        for (uint16_t i = 1; i < srcValidRow; i++) {
+            vadds((__ubuf__ int16_t *)tmpPtr, (__ubuf__ int16_t *)tmpPtr, 1, 1, 1, 1, 0, 0);
+            if constexpr (IsArgMax) {
+                vcmp_ge((__ubuf__ half *)tmpPtr + tmpGapEles,
+                        (__ubuf__ half *)srcPtr + i * srcRowStride + j * elemPerRpt, 1, 1, 1, 1, 0, 0, 0);
                 pipe_barrier(PIPE_V);
-
-                vadds((__ubuf__ int16_t *)tmpPtr, (__ubuf__ int16_t *)tmpPtr, 1, 1, 1, 1, 0, 0);
-                if constexpr (IsArgMax) {
-                    vcmp_ge((__ubuf__ half *)tmpPtr + tmpGapEles,
-                            (__ubuf__ half *)srcPtr + i * srcRowStride + j * elemPerRpt, 1, 1, 1, 1, 0, 0, 0);
-                    pipe_barrier(PIPE_V);
-                    vsel((__ubuf__ half *)tmpPtr + 2 * tmpGapEles, (__ubuf__ half *)tmpPtr + 2 * tmpGapEles,
-                         (__ubuf__ half *)tmpPtr, 1, 1, 1, 1, 0, 0, 0, 0);
-                    vmax((__ubuf__ half *)tmpPtr + tmpGapEles, (__ubuf__ half *)tmpPtr + tmpGapEles,
-                         (__ubuf__ half *)srcPtr + i * srcRowStride + j * elemPerRpt, 1, 1, 1, 1, 0, 0, 0);
-                } else {
-                    vcmp_le((__ubuf__ half *)tmpPtr + tmpGapEles,
-                            (__ubuf__ half *)srcPtr + i * srcRowStride + j * elemPerRpt, 1, 1, 1, 1, 0, 0, 0);
-                    pipe_barrier(PIPE_V);
-                    vsel((__ubuf__ half *)tmpPtr + 2 * tmpGapEles, (__ubuf__ half *)tmpPtr + 2 * tmpGapEles,
-                         (__ubuf__ half *)tmpPtr, 1, 1, 1, 1, 0, 0, 0, 0);
-                    vmin((__ubuf__ half *)tmpPtr + tmpGapEles, (__ubuf__ half *)tmpPtr + tmpGapEles,
-                         (__ubuf__ half *)srcPtr + i * srcRowStride + j * elemPerRpt, 1, 1, 1, 1, 0, 0, 0);
-                }
+                vsel((__ubuf__ half *)tmpPtr + 2 * tmpGapEles, (__ubuf__ half *)tmpPtr + 2 * tmpGapEles,
+                     (__ubuf__ half *)tmpPtr, 1, 1, 1, 1, 0, 0, 0, 0);
+                vmax((__ubuf__ half *)tmpPtr + tmpGapEles, (__ubuf__ half *)tmpPtr + tmpGapEles,
+                     (__ubuf__ half *)srcPtr + i * srcRowStride + j * elemPerRpt, 1, 1, 1, 1, 0, 0, 0);
+            } else {
+                vcmp_le((__ubuf__ half *)tmpPtr + tmpGapEles,
+                        (__ubuf__ half *)srcPtr + i * srcRowStride + j * elemPerRpt, 1, 1, 1, 1, 0, 0, 0);
+                pipe_barrier(PIPE_V);
+                vsel((__ubuf__ half *)tmpPtr + 2 * tmpGapEles, (__ubuf__ half *)tmpPtr + 2 * tmpGapEles,
+                     (__ubuf__ half *)tmpPtr, 1, 1, 1, 1, 0, 0, 0, 0);
+                vmin((__ubuf__ half *)tmpPtr + tmpGapEles, (__ubuf__ half *)tmpPtr + tmpGapEles,
+                     (__ubuf__ half *)srcPtr + i * srcRowStride + j * elemPerRpt, 1, 1, 1, 1, 0, 0, 0);
             }
             pipe_barrier(PIPE_V);
-
-            vconv_s162f16a((__ubuf__ half *)tmpPtr + 2 * tmpGapEles, (__ubuf__ int16_t *)tmpPtr + 2 * tmpGapEles, 1, 1,
-                           1, 0, 0);
-            pipe_barrier(PIPE_V);
-            vconv_f162s32a((__ubuf__ int32_t *)dstPtr + j * elemPerRpt, (__ubuf__ half *)tmpPtr + 2 * tmpGapEles, 2, 1,
-                           1, 8, 4);
         }
+
+        vconv_s162f16a((__ubuf__ half *)tmpPtr + 2 * tmpGapEles, (__ubuf__ int16_t *)tmpPtr + 2 * tmpGapEles, 1, 1, 1,
+                       0, 0);
+        pipe_barrier(PIPE_V);
+        vconv_f162s32a((__ubuf__ int32_t *)dstPtr + j * elemPerRpt, (__ubuf__ half *)tmpPtr + 2 * tmpGapEles, 2, 1, 1,
+                       8, 4);
+        pipe_barrier(PIPE_V);
     }
     if (remainAfterLoop > 0) {
         set_mask_count();
+        set_vector_mask(0, remainAfterLoop);
         vector_dup(tmpPtr, 0, 1, 1, 1, 0, 0);
         vector_dup((__ubuf__ int16_t *)tmpPtr + 2 * tmpGapEles, 0, 1, 1, 1, 0, 0);
-        copy_ubuf_to_ubuf(tmpPtr + tmpGapEles, srcPtr + numLoop * elemPerRpt, 0, 1, 8, 0, 0); // max elements
+        vcopy((__ubuf__ int16_t *)tmpPtr + tmpGapEles, (__ubuf__ int16_t *)srcPtr + numLoop * elemPerRpt, 1, 1, 1, 0,
+              0);
+        pipe_barrier(PIPE_V);
+
         for (uint16_t i = 1; i < srcValidRow; i++) {
-            set_vector_mask(0, remainAfterLoop);
-            pipe_barrier(PIPE_V);
             vadds((__ubuf__ int16_t *)tmpPtr, (__ubuf__ int16_t *)tmpPtr, 1, 1, 1, 1, 0, 0);
             if constexpr (IsArgMax) {
                 vcmp_ge((__ubuf__ half *)tmpPtr + tmpGapEles,
@@ -126,8 +124,8 @@ __tf__ PTO_INTERNAL void TColReduceIdx16(typename TileDataOut::TileDType __out__
                 vmin((__ubuf__ half *)tmpPtr + tmpGapEles, (__ubuf__ half *)tmpPtr + tmpGapEles,
                      (__ubuf__ half *)srcPtr + i * srcRowStride + numLoop * elemPerRpt, 1, 1, 1, 1, 0, 0, 0);
             }
+            pipe_barrier(PIPE_V);
         }
-        pipe_barrier(PIPE_V);
 
         vconv_s162f16a((__ubuf__ half *)tmpPtr + 2 * tmpGapEles, (__ubuf__ int16_t *)tmpPtr + 2 * tmpGapEles, 1, 1, 1,
                        0, 0);
@@ -136,6 +134,7 @@ __tf__ PTO_INTERNAL void TColReduceIdx16(typename TileDataOut::TileDType __out__
                        1, 1, 8, 4);
         set_mask_norm();
         set_vector_mask(-1, -1);
+        pipe_barrier(PIPE_V);
     }
 }
 
@@ -158,43 +157,44 @@ __tf__ PTO_INTERNAL void TColReduceIdx32(typename TileDataOut::TileDType __out__
     uint16_t remainAfterLoop = srcValidCol % elemPerRpt;
     uint32_t tmpGapEles = numLoop > 0 ? elemPerRpt : CeilDivision(srcValidCol, elemPerBlock) * elemPerBlock;
 
-    if (numLoop > 0) {
-        for (uint16_t j = 0; j < numLoop; j++) {
-            vector_dup(dstPtr + j * elemPerRpt, 0, 1, 1, 1, 0, 0);                          // argmin index
-            vector_dup(tmpPtr, 0, 1, 1, 1, 0, 0);                                           // cur index
-            copy_ubuf_to_ubuf(tmpPtr + tmpGapEles, srcPtr + j * elemPerRpt, 0, 1, 8, 0, 0); // min elements
-            for (uint16_t i = 1; i < srcValidRow; i++) {
+    for (uint16_t j = 0; j < numLoop; j++) {
+        vector_dup(dstPtr + j * elemPerRpt, 0, 1, 1, 1, 0, 0);                          // argmin index
+        vector_dup(tmpPtr, 0, 1, 1, 1, 0, 0);                                           // cur index
+        copy_ubuf_to_ubuf(tmpPtr + tmpGapEles, srcPtr + j * elemPerRpt, 0, 1, 8, 0, 0); // min elements
+        pipe_barrier(PIPE_V);
+        for (uint16_t i = 1; i < srcValidRow; i++) {
+            vadds((__ubuf__ int32_t *)tmpPtr, (__ubuf__ int32_t *)tmpPtr, 1, 1, 1, 1, 0, 0);
+            if constexpr (IsArgMax) {
+                vcmp_ge((__ubuf__ float *)tmpPtr + tmpGapEles,
+                        (__ubuf__ float *)srcPtr + i * srcRowStride + j * elemPerRpt, 1, 1, 1, 1, 0, 0, 0);
                 pipe_barrier(PIPE_V);
-                vadds((__ubuf__ int32_t *)tmpPtr, (__ubuf__ int32_t *)tmpPtr, 1, 1, 1, 1, 0, 0);
-                if constexpr (IsArgMax) {
-                    vcmp_ge((__ubuf__ float *)tmpPtr + tmpGapEles,
-                            (__ubuf__ float *)srcPtr + i * srcRowStride + j * elemPerRpt, 1, 1, 1, 1, 0, 0, 0);
-                    pipe_barrier(PIPE_V);
-                    vsel((__ubuf__ float *)dstPtr + j * elemPerRpt, (__ubuf__ float *)dstPtr + j * elemPerRpt,
-                         (__ubuf__ float *)tmpPtr, 1, 1, 1, 1, 0, 0, 0, 0);
-                    vmax((__ubuf__ float *)tmpPtr + tmpGapEles, (__ubuf__ float *)tmpPtr + tmpGapEles,
-                         (__ubuf__ float *)srcPtr + i * srcRowStride + j * elemPerRpt, 1, 1, 1, 1, 0, 0, 0);
-                } else {
-                    vcmp_le((__ubuf__ float *)tmpPtr + tmpGapEles,
-                            (__ubuf__ float *)srcPtr + i * srcRowStride + j * elemPerRpt, 1, 1, 1, 1, 0, 0, 0);
-                    pipe_barrier(PIPE_V);
-                    vsel((__ubuf__ float *)dstPtr + j * elemPerRpt, (__ubuf__ float *)dstPtr + j * elemPerRpt,
-                         (__ubuf__ float *)tmpPtr, 1, 1, 1, 1, 0, 0, 0, 0);
-                    vmin((__ubuf__ float *)tmpPtr + tmpGapEles, (__ubuf__ float *)tmpPtr + tmpGapEles,
-                         (__ubuf__ float *)srcPtr + i * srcRowStride + j * elemPerRpt, 1, 1, 1, 1, 0, 0, 0);
-                }
+                vsel((__ubuf__ float *)dstPtr + j * elemPerRpt, (__ubuf__ float *)dstPtr + j * elemPerRpt,
+                     (__ubuf__ float *)tmpPtr, 1, 1, 1, 1, 0, 0, 0, 0);
+                vmax((__ubuf__ float *)tmpPtr + tmpGapEles, (__ubuf__ float *)tmpPtr + tmpGapEles,
+                     (__ubuf__ float *)srcPtr + i * srcRowStride + j * elemPerRpt, 1, 1, 1, 1, 0, 0, 0);
+            } else {
+                vcmp_le((__ubuf__ float *)tmpPtr + tmpGapEles,
+                        (__ubuf__ float *)srcPtr + i * srcRowStride + j * elemPerRpt, 1, 1, 1, 1, 0, 0, 0);
+                pipe_barrier(PIPE_V);
+                vsel((__ubuf__ float *)dstPtr + j * elemPerRpt, (__ubuf__ float *)dstPtr + j * elemPerRpt,
+                     (__ubuf__ float *)tmpPtr, 1, 1, 1, 1, 0, 0, 0, 0);
+                vmin((__ubuf__ float *)tmpPtr + tmpGapEles, (__ubuf__ float *)tmpPtr + tmpGapEles,
+                     (__ubuf__ float *)srcPtr + i * srcRowStride + j * elemPerRpt, 1, 1, 1, 1, 0, 0, 0);
             }
             pipe_barrier(PIPE_V);
         }
     }
     if (remainAfterLoop > 0) {
         set_mask_count();
+        set_vector_mask(0, remainAfterLoop);
+
         vector_dup(dstPtr + numLoop * elemPerRpt, 0, 1, 1, 1, 0, 0);
         vector_dup(tmpPtr, 0, 1, 1, 1, 0, 0);
-        copy_ubuf_to_ubuf(tmpPtr + tmpGapEles, srcPtr + numLoop * elemPerRpt, 0, 1, 8, 0, 0);
+        vcopy((__ubuf__ int32_t *)tmpPtr + tmpGapEles, (__ubuf__ int32_t *)srcPtr + numLoop * elemPerRpt, 1, 1, 1, 0,
+              0);
+        pipe_barrier(PIPE_V);
+
         for (uint16_t i = 1; i < srcValidRow; i++) {
-            set_vector_mask(0, remainAfterLoop);
-            pipe_barrier(PIPE_V);
             vadds((__ubuf__ int32_t *)tmpPtr, (__ubuf__ int32_t *)tmpPtr, 1, 1, 1, 1, 0, 0);
             if constexpr (IsArgMax) {
                 vcmp_ge((__ubuf__ float *)tmpPtr + tmpGapEles,
@@ -213,6 +213,7 @@ __tf__ PTO_INTERNAL void TColReduceIdx32(typename TileDataOut::TileDType __out__
                 vmin((__ubuf__ float *)tmpPtr + tmpGapEles, (__ubuf__ float *)tmpPtr + tmpGapEles,
                      (__ubuf__ float *)srcPtr + i * srcRowStride + numLoop * elemPerRpt, 1, 1, 1, 1, 0, 0, 0);
             }
+            pipe_barrier(PIPE_V);
         }
         set_mask_norm();
         set_vector_mask(-1, -1);

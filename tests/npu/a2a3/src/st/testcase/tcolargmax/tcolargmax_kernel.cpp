@@ -95,6 +95,22 @@ extern "C" __global__ AICORE void launchTCOLCMAXCase73(__gm__ uint32_t *out, __g
 {
     runTColCMax<uint32_t, 16, 15, 1, 256, 255>(out, src, false);
 }
+extern "C" __global__ AICORE void launchTCOLCMAXCase81(__gm__ uint32_t *out, __gm__ half *src)
+{
+    runTColCMax<half, 16, 16, 1, 32, 32>(out, src, false);
+}
+extern "C" __global__ AICORE void launchTCOLCMAXCase82(__gm__ uint32_t *out, __gm__ uint16_t *src)
+{
+    runTColCMax<uint16_t, 16, 16, 1, 32, 32>(out, src, false);
+}
+extern "C" __global__ AICORE void launchTCOLCMAXCase83(__gm__ uint32_t *out, __gm__ uint32_t *src)
+{
+    runTColCMax<uint32_t, 16, 16, 1, 32, 31>(out, src, false);
+}
+extern "C" __global__ AICORE void launchTCOLCMAXCase84(__gm__ uint32_t *out, __gm__ float *src)
+{
+    runTColCMax<float, 16, 16, 1, 32, 31>(out, src, false);
+}
 
 template <uint32_t caseId>
 void launchTCOLCMAXTestCase(void *out, void *src, aclrtStream stream)
@@ -148,6 +164,22 @@ void launchTCOLCMAXTestCase(void *out, void *src, aclrtStream stream)
             launchTCOLCMAXCase73<<<1, nullptr, stream>>>((uint32_t *)out, (uint32_t *)src);
             break;
         }
+        case 81: {
+            launchTCOLCMAXCase81<<<1, nullptr, stream>>>((uint32_t *)out, (half *)src);
+            break;
+        }
+        case 82: {
+            launchTCOLCMAXCase82<<<1, nullptr, stream>>>((uint32_t *)out, (uint16_t *)src);
+            break;
+        }
+        case 83: {
+            launchTCOLCMAXCase83<<<1, nullptr, stream>>>((uint32_t *)out, (uint32_t *)src);
+            break;
+        }
+        case 84: {
+            launchTCOLCMAXCase84<<<1, nullptr, stream>>>((uint32_t *)out, (float *)src);
+            break;
+        }
         default: {
         }
     }
@@ -165,3 +197,7 @@ template void launchTCOLCMAXTestCase<53>(void *out, void *src, aclrtStream strea
 template void launchTCOLCMAXTestCase<71>(void *out, void *src, aclrtStream stream);
 template void launchTCOLCMAXTestCase<72>(void *out, void *src, aclrtStream stream);
 template void launchTCOLCMAXTestCase<73>(void *out, void *src, aclrtStream stream);
+template void launchTCOLCMAXTestCase<81>(void *out, void *src, aclrtStream stream);
+template void launchTCOLCMAXTestCase<82>(void *out, void *src, aclrtStream stream);
+template void launchTCOLCMAXTestCase<83>(void *out, void *src, aclrtStream stream);
+template void launchTCOLCMAXTestCase<84>(void *out, void *src, aclrtStream stream);
