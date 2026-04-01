@@ -61,9 +61,8 @@ PTO_INTERNAL void SetValue(__gm__ uint8_t *addr, UbTmpBuf &tmpBuf, uint32_t sync
     pipe_barrier(PIPE_ALL);
 
 #ifdef PTO_NPU_ARCH_A5
-    copy_ubuf_to_gm_align_v2(reinterpret_cast<__gm__ uint8_t *>(addr), reinterpret_cast<__ubuf__ uint8_t *>(ubPtr), 0,
-                             1, static_cast<uint32_t>(sizeof(T)), 0, static_cast<uint32_t>(sizeof(T)),
-                             static_cast<uint32_t>(sizeof(T)));
+    copy_ubuf_to_gm_align_v2(reinterpret_cast<__gm__ uint32_t *>(addr), reinterpret_cast<__ubuf__ uint32_t *>(ubPtr), 0,
+                             1, static_cast<uint32_t>(sizeof(T)), 0, 0, 0);
 #else
     copy_ubuf_to_gm_align_b32((__gm__ void *)addr, (__ubuf__ void *)ubPtr, 0, 1, static_cast<uint32_t>(sizeof(T)), 0, 0,
                               0, 0);
@@ -78,9 +77,8 @@ PTO_INTERNAL T GetValue(__gm__ uint8_t *addr, UbTmpBuf &tmpBuf)
     __ubuf__ T *ubPtr = reinterpret_cast<__ubuf__ T *>(tmpBuf.addr);
 
 #ifdef PTO_NPU_ARCH_A5
-    copy_gm_to_ubuf_align_v2(reinterpret_cast<__ubuf__ uint8_t *>(ubPtr), reinterpret_cast<__gm__ uint8_t *>(addr), 0,
-                             1, static_cast<uint32_t>(sizeof(T)), 0, 0, false, 0, static_cast<uint32_t>(sizeof(T)),
-                             static_cast<uint32_t>(sizeof(T)));
+    copy_gm_to_ubuf_align_v2(reinterpret_cast<__ubuf__ uint32_t *>(ubPtr), reinterpret_cast<__gm__ uint32_t *>(addr), 0,
+                             1, static_cast<uint32_t>(sizeof(T)), 0, 0, 0, 0, 0, 0);
 #else
     copy_gm_to_ubuf_align_b32((__ubuf__ void *)ubPtr, (__gm__ void *)addr, 0, 1, static_cast<uint32_t>(sizeof(T)), 0, 0,
                               0, 0);
@@ -106,6 +104,28 @@ PTO_INTERNAL void AddOneMemcpySqe(__gm__ BatchWriteChannelInfo *channelInfo, __g
     __gm__ BatchWriteItem *sqe = (__gm__ BatchWriteItem *)(channelInfo->sq_base);
     sqe += (sqTail % channelInfo->sq_depth);
 
+#ifdef PTO_NPU_ARCH_A5
+    sqe->type = RT_STARS_SQE_TYPE_SDMA;
+    sqe->wrCqe = 1;
+    sqe->numBlocks = 0;
+    sqe->rtStreamId = channelInfo->stream_id;
+    sqe->taskId = taskId;
+    sqe->kernelCredit = K_CREDIT_TIME_DEFAULT;
+    sqe->opcode = static_cast<uint32_t>(opcode);
+    sqe->sssv = 1U;
+    sqe->dssv = 1U;
+    sqe->sns = 1U;
+    sqe->dns = 1U;
+    sqe->lengthMove = length;
+
+    uint64_t src_addr = reinterpret_cast<uint64_t>(src);
+    uint64_t dst_addr = reinterpret_cast<uint64_t>(dst);
+
+    sqe->srcAddrLow = static_cast<uint32_t>(src_addr & 0xFFFFFFFF);
+    sqe->srcAddrHigh = static_cast<uint32_t>((src_addr >> 32) & 0xFFFFFFFF);
+    sqe->dstAddrLow = static_cast<uint32_t>(dst_addr & 0xFFFFFFFF);
+    sqe->dstAddrHigh = static_cast<uint32_t>((dst_addr >> 32) & 0xFFFFFFFF);
+#else
     sqe->type = RT_STARS_SQE_TYPE_SDMA;
     sqe->blockDim = 0;
     sqe->rtStreamId = channelInfo->stream_id;
@@ -131,6 +151,7 @@ PTO_INTERNAL void AddOneMemcpySqe(__gm__ BatchWriteChannelInfo *channelInfo, __g
     sqe->dstAddrLow = static_cast<uint32_t>(dst_addr & 0xFFFFFFFF);
     sqe->dstAddrHigh = static_cast<uint32_t>((dst_addr >> 32) & 0xFFFFFFFF);
     sqe->linkType = static_cast<uint8_t>(255U);
+#endif
 
     pipe_barrier(PIPE_ALL);
 }
@@ -238,7 +259,11 @@ PTO_INTERNAL void FlushCacheAndRingDoorbell(__gm__ BatchWriteChannelInfo *batchW
         dcci((__gm__ void *)(channelInfo->sq_base), ENTIRE_DATA_CACHE);
         __asm__ __volatile__("");
 
+#ifdef PTO_NPU_ARCH_A5
+        SetValue<uint32_t>((__gm__ uint8_t *)(channelInfo->sq_reg_base), tmpBuf, syncId, sqTail[queueId]);
+#else
         SetValue<uint32_t>((__gm__ uint8_t *)(channelInfo->sq_reg_base) + 8, tmpBuf, syncId, sqTail[queueId]);
+#endif
     }
 }
 

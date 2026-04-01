@@ -12,6 +12,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define PTO_COMM_ASYNC_SDMA_SDMA_TYPES_HPP
 
 #include <cstdint>
+#include "pto/common/arch_macro.hpp"
 #include "pto/comm/async/async_types.hpp"
 
 namespace pto {
@@ -20,7 +21,11 @@ namespace sdma {
 
 // NPU-internal SDMA SQE constants
 constexpr uint64_t kRtStarsSqeTypeSdma = 11ULL;
+#ifdef PTO_NPU_ARCH_A5
+constexpr uint64_t kCreditTimeDefault = 254ULL;
+#else
 constexpr uint64_t kCreditTimeDefault = 240ULL;
+#endif
 constexpr uint32_t kSqDepth = 2048U;
 constexpr uint32_t kSdmaMaxChannel = 48U;
 
@@ -83,6 +88,78 @@ using batch_write_channel_info_t = BatchWriteChannelInfo;
 // ============================================================================
 // Batch Write Item (SQE) Structure
 // ============================================================================
+#ifdef PTO_NPU_ARCH_A5
+
+struct BatchWriteItem {
+    // Header (bytes 0-7)
+    uint8_t type : 6;
+    uint8_t lock : 1;
+    uint8_t unlock : 1;
+    uint8_t ie : 1;
+    uint8_t preP : 1;
+    uint8_t postP : 1;
+    uint8_t wrCqe : 1;
+    uint8_t ptrMode : 1;
+    uint8_t rttMode : 1;
+    uint8_t headUpdate : 1;
+    uint8_t reserved0 : 1;
+    uint16_t numBlocks;
+    uint16_t rtStreamId;
+    uint16_t taskId;
+
+    // Words 2-3 (bytes 8-15)
+    uint32_t res1;
+    uint16_t res2;
+    uint8_t kernelCredit;
+    uint8_t res3;
+
+    // Word 4 (bytes 16-19): A5 bit-field layout
+    uint32_t opcode : 8;
+    uint32_t sssv : 1;
+    uint32_t dssv : 1;
+    uint32_t sns : 1;
+    uint32_t dns : 1;
+    uint32_t sro : 1;
+    uint32_t dro : 1;
+    uint32_t stride : 2;
+    uint32_t ie2 : 1;
+    uint32_t compEn : 1;
+    uint32_t res4 : 14;
+
+    // Word 5 (bytes 20-23)
+    uint16_t sqeId;
+    uint8_t mapamPartId;
+    uint8_t mpamns : 1;
+    uint8_t pmg : 2;
+    uint8_t qos : 4;
+    uint8_t d2dOffsetFlag : 1;
+
+    // Word 6 (bytes 24-27)
+    uint16_t srcStreamId;
+    uint16_t srcSubStreamId;
+
+    // Word 7 (bytes 28-31): dstStreamId replaces A2/A3 length
+    uint16_t dstStreamId;
+    uint16_t dstSubStreamId;
+
+    // Words 8-11 (bytes 32-47): src/dst addresses (same position as A2/A3)
+    uint32_t srcAddrLow;
+    uint32_t srcAddrHigh;
+    uint32_t dstAddrLow;
+    uint32_t dstAddrHigh;
+
+    // Word 12 (bytes 48-51): transfer length (replaces A2/A3 linkType+reserved)
+    uint32_t lengthMove;
+
+    // Words 13-15 (bytes 52-63)
+    uint32_t srcOffsetLow;
+    uint32_t dstOffsetLow;
+    uint16_t srcOffsetHigh;
+    uint16_t dstOffsetHigh;
+};
+
+#else // A2/A3
+
 struct BatchWriteItem {
     uint8_t type : 6;
     uint16_t res1 : 10;
@@ -127,6 +204,8 @@ struct BatchWriteItem {
     uint8_t reserved[3];
     uint32_t reslast[3];
 };
+
+#endif // PTO_NPU_ARCH_A5
 using batch_write_item_t = BatchWriteItem;
 
 // ============================================================================

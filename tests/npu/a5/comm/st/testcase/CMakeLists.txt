@@ -92,6 +92,7 @@ set(ALL_TESTCASES
 tput
 tget
 # Point-to-Point Communication (Asynchronous)
+tget_async
 tput_async
 # Signal-Based Synchronization
 tnotify

@@ -24,6 +24,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "hccl/hccl_types.h"
 #include "hccl_context.h"
 #include "comm_mpi.h"
+#include "pto/npu/comm/async/sdma/sdma_workspace_manager.hpp"
 
 // ============================================================================
 // Debug logging helpers.  Enabled by cmake -DDEBUG_MODE=ON  (defines COMM_DEBUG).
@@ -372,3 +373,5 @@ inline bool ForkAndRunWithHcclRootInfo(int nRanks, int firstRankId, int firstDev
 
     return perRankFn(rankId, &hcclRootInfo);
 }
+
+using SdmaWorkspaceManager = pto::comm::sdma::SdmaWorkspaceManager;
