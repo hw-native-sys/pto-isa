@@ -15,7 +15,7 @@
         <policylist>
             <policy name="projectPolicy" desc="">
                 <!--policyitem type="compatibility" name="GPL-2.0+" path="abc/.*" desc="Process that runs independently, invoked by the X process."/-->
-                <policyitem type="license" name="cann License" path=".*" desc="Dynamically linked by module X"/>
+                <policyitem type="license" name="CANN-2.0" path=".*" desc="Dynamically linked by module X"/>
                 <!--policyitem type="copyright" name="xxx" path="abc/.*" rule="may" group="defaultGroup" filefilter="copyrightPolicyFilter" desc="Developed by X Company"/-->
             </policy>
         </policylist>
