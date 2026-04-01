@@ -28,6 +28,14 @@ template <typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTC
           int kValidCols_ = kTCols_>
 void launchTCVTNonSatTorch(D *dst, S *src, void *stream);
 
+// Int4b_t (S4) conversion launchers
+// kGCols_ is the number of fp16 elements (= number of int4 elements)
+template <int kGRows_, int kGCols_, int kTRows_, int kTCols_>
+void launchTCVT_fp16_to_s4(uint8_t *dst, aclFloat16 *src, void *stream);
+
+template <int kGRows_, int kGCols_, int kTRows_, int kTCols_>
+void launchTCVT_s4_to_fp16(aclFloat16 *dst, uint8_t *src, void *stream);
+
 class TCVTTest : public testing::Test {
 protected:
     void SetUp() override
@@ -201,6 +209,131 @@ GENERATE_TCVT_TESTS(int64_t, int32_t, int32_int64)
 // I64 Source → fp32, int32
 GENERATE_TCVT_TESTS(float, int64_t, int64_fp32)
 GENERATE_TCVT_TESTS(int32_t, int64_t, int64_int32)
+
+// ============================================================================
+// Int4b_t (S4) Conversion Tests
+// ============================================================================
+// kGCols_ = number of fp16/int4 elements. Packed byte count = kGCols_ / 2.
+
+// FP16 → S4 test: src is fp16, dst is packed uint8_t (2 int4 elements per byte)
+template <int kGRows_, int kGCols_, int kTRows_, int kTCols_>
+void test_tcvt_fp16_to_s4()
+{
+    size_t numElements = static_cast<size_t>(kGRows_) * kGCols_;
+    size_t srcFileSize = numElements * sizeof(aclFloat16);
+    size_t dstFileSize = numElements / 2; // packed: 2 elements per byte
+
+    aclInit(nullptr);
+    aclrtSetDevice(0);
+    aclrtStream stream;
+    aclrtCreateStream(&stream);
+
+    aclFloat16 *srcHost;
+    uint8_t *dstHost;
+    aclFloat16 *srcDevice;
+    uint8_t *dstDevice;
+
+    aclrtMallocHost((void **)(&srcHost), srcFileSize);
+    aclrtMallocHost((void **)(&dstHost), dstFileSize);
+    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+
+    ReadFile(GetGoldenDir() + "/x1_gm.bin", srcFileSize, srcHost, srcFileSize);
+    aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+
+    launchTCVT_fp16_to_s4<kGRows_, kGCols_, kTRows_, kTCols_>(dstDevice, srcDevice, stream);
+    aclrtSynchronizeStream(stream);
+    aclrtMemcpy(dstHost, dstFileSize, dstDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    WriteFile(GetGoldenDir() + "/output_z.bin", dstHost, dstFileSize);
+
+    aclrtFree(dstDevice);
+    aclrtFree(srcDevice);
+    aclrtFreeHost(dstHost);
+    aclrtFreeHost(srcHost);
+    aclrtDestroyStream(stream);
+    aclrtResetDevice(0);
+    aclFinalize();
+
+    std::vector<uint8_t> golden(dstFileSize);
+    std::vector<uint8_t> devFinal(dstFileSize);
+    ReadFile(GetGoldenDir() + "/golden.bin", dstFileSize, golden.data(), dstFileSize);
+    ReadFile(GetGoldenDir() + "/output_z.bin", dstFileSize, devFinal.data(), dstFileSize);
+    EXPECT_TRUE(ResultCmp<uint8_t>(golden, devFinal, 0.001f));
+}
+
+// S4 → FP16 test: src is packed uint8_t, dst is fp16
+template <int kGRows_, int kGCols_, int kTRows_, int kTCols_>
+void test_tcvt_s4_to_fp16()
+{
+    size_t numElements = static_cast<size_t>(kGRows_) * kGCols_;
+    size_t srcFileSize = numElements / 2; // packed: 2 elements per byte
+    size_t dstFileSize = numElements * sizeof(aclFloat16);
+
+    aclInit(nullptr);
+    aclrtSetDevice(0);
+    aclrtStream stream;
+    aclrtCreateStream(&stream);
+
+    uint8_t *srcHost;
+    aclFloat16 *dstHost;
+    uint8_t *srcDevice;
+    aclFloat16 *dstDevice;
+
+    aclrtMallocHost((void **)(&srcHost), srcFileSize);
+    aclrtMallocHost((void **)(&dstHost), dstFileSize);
+    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+
+    ReadFile(GetGoldenDir() + "/x1_gm.bin", srcFileSize, srcHost, srcFileSize);
+    aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+
+    launchTCVT_s4_to_fp16<kGRows_, kGCols_, kTRows_, kTCols_>(dstDevice, srcDevice, stream);
+    aclrtSynchronizeStream(stream);
+    aclrtMemcpy(dstHost, dstFileSize, dstDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    WriteFile(GetGoldenDir() + "/output_z.bin", dstHost, dstFileSize);
+
+    aclrtFree(srcDevice);
+    aclrtFree(dstDevice);
+    aclrtFreeHost(srcHost);
+    aclrtFreeHost(dstHost);
+    aclrtDestroyStream(stream);
+    aclrtResetDevice(0);
+    aclFinalize();
+
+    std::vector<aclFloat16> golden(dstFileSize);
+    std::vector<aclFloat16> devFinal(dstFileSize);
+    ReadFile(GetGoldenDir() + "/golden.bin", dstFileSize, golden.data(), dstFileSize);
+    ReadFile(GetGoldenDir() + "/output_z.bin", dstFileSize, devFinal.data(), dstFileSize);
+    EXPECT_TRUE(ResultCmp<aclFloat16>(golden, devFinal, 0.001f));
+}
+
+#define GENERATE_TCVT_FP16_TO_S4_TESTS(type_name, gR, gC, tR, tC) \
+    TEST_F(TCVTTest, case_##type_name##_##gR##x##gC)              \
+    {                                                             \
+        test_tcvt_fp16_to_s4<gR, gC, tR, tC>();                   \
+    }
+
+#define GENERATE_TCVT_S4_TO_FP16_TESTS(type_name, gR, gC, tR, tC) \
+    TEST_F(TCVTTest, case_##type_name##_##gR##x##gC)              \
+    {                                                             \
+        test_tcvt_s4_to_fp16<gR, gC, tR, tC>();                   \
+    }
+
+// FP16 → S4
+GENERATE_TCVT_FP16_TO_S4_TESTS(fp16_s4, 1, 64, 1, 64)
+GENERATE_TCVT_FP16_TO_S4_TESTS(fp16_s4, 1, 128, 1, 128)
+GENERATE_TCVT_FP16_TO_S4_TESTS(fp16_s4, 1, 256, 1, 256)
+GENERATE_TCVT_FP16_TO_S4_TESTS(fp16_s4, 2, 128, 2, 128)
+GENERATE_TCVT_FP16_TO_S4_TESTS(fp16_s4, 4, 128, 4, 128)
+GENERATE_TCVT_FP16_TO_S4_TESTS(fp16_s4, 8, 128, 8, 128)
+
+// S4 → FP16
+GENERATE_TCVT_S4_TO_FP16_TESTS(s4_fp16, 1, 64, 1, 64)
+GENERATE_TCVT_S4_TO_FP16_TESTS(s4_fp16, 1, 128, 1, 128)
+GENERATE_TCVT_S4_TO_FP16_TESTS(s4_fp16, 1, 256, 1, 256)
+GENERATE_TCVT_S4_TO_FP16_TESTS(s4_fp16, 2, 128, 2, 128)
+GENERATE_TCVT_S4_TO_FP16_TESTS(s4_fp16, 4, 128, 4, 128)
+GENERATE_TCVT_S4_TO_FP16_TESTS(s4_fp16, 8, 128, 8, 128)
 
 // ============================================================================
 // Saturation Mode Tests

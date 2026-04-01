@@ -95,6 +95,19 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define PTO_CPU_ASSERT(...) ((void)0)
 #endif
 
+// Signed 4-bit integer type (packed: 2 elements per byte using uint8_t storage).
+// Compatible with AscendC int4b_t. The vconv intrinsics use void* for the packed side.
+struct int4b_t {
+    uint8_t storage;
+    int4b_t() = default;
+    explicit int4b_t(int32_t value) : storage(static_cast<uint8_t>(value) & 0x0F)
+    {}
+    operator int8_t() const
+    {
+        return (storage & 0x08) ? static_cast<int8_t>(storage | 0xF0) : static_cast<int8_t>(storage & 0x0F);
+    }
+};
+
 namespace pto {
 // 01-bits patterns are read from right to left.
 // Right bits are low bits, corresponding to low index positions of data.

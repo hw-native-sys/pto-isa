@@ -413,6 +413,62 @@ class tcvtParams:
         self.valid_n = valid_n if valid_n is not None else n
 
 
+# Sentinel for int4 (s4) type - numpy doesn't have a native int4 type
+S4_TYPE = "s4"
+
+
+def pack_int4(values):
+    """Pack an array of int4 values [-8..7] into bytes (2 per byte, low nibble first)."""
+    values = np.asarray(values).flatten()
+    assert len(values) % 2 == 0, "Number of int4 elements must be even"
+    packed = np.zeros(len(values) // 2, dtype=np.uint8)
+    for i in range(0, len(values), 2):
+        lo = int(values[i]) & 0x0F
+        hi = int(values[i + 1]) & 0x0F
+        packed[i // 2] = lo | (hi << 4)
+    return packed
+
+
+def unpack_int4(packed):
+    """Unpack bytes into int4 values (2 per byte, low nibble first), returned as int8."""
+    packed = np.asarray(packed, dtype=np.uint8).flatten()
+    result = np.zeros(len(packed) * 2, dtype=np.int8)
+    for i, byte in enumerate(packed):
+        lo = byte & 0x0F
+        hi = (byte >> 4) & 0x0F
+        # Sign extend from 4-bit
+        result[2 * i] = lo if lo < 8 else lo - 16
+        result[2 * i + 1] = hi if hi < 8 else hi - 16
+    return result
+
+
+def gen_golden_fp16_to_s4(case_name, param):
+    """Generate golden data for FP16 → S4 conversion."""
+    m, n = param.m, param.n
+    # Generate fp16 input in int4 range [-8, 7]
+    x1_gm = np.random.randint(-8, 8, [m, n]).astype(np.float16)
+    x1_gm.tofile("./x1_gm.bin")
+
+    # Golden: round fp16 to nearest integer, clamp to [-8, 7], then pack as int4
+    rounded = np.rint(x1_gm).astype(np.int8)
+    rounded = np.clip(rounded, -8, 7)
+    golden_packed = pack_int4(rounded)
+    golden_packed.tofile("./golden.bin")
+
+
+def gen_golden_s4_to_fp16(case_name, param):
+    """Generate golden data for S4 → FP16 conversion."""
+    m, n = param.m, param.n
+    # Generate random int4 values [-8, 7] and pack them
+    int4_values = np.random.randint(-8, 8, [m, n]).astype(np.int8)
+    packed = pack_int4(int4_values)
+    packed.tofile("./x1_gm.bin")
+
+    # Golden: unpack int4 and convert to fp16
+    golden = int4_values.astype(np.float16)
+    golden.tofile("./golden.bin")
+
+
 if __name__ == "__main__":
     # Type conversion pairs: (name_suffix, source_type, destination_type)
     type_pairs = [
@@ -515,6 +571,28 @@ if __name__ == "__main__":
         case_name_list.append(f"TCVTTest.{test_name}")
         case_params_list.append(tcvtParams(src, dst, m, n, "RoundMode::CAST_TRUNC", valid_m, valid_n))
 
+    # Int4 (S4) conversion test cases
+    # kGCols_ is the number of fp16/int4 elements (must be even, ≥64 for vconv alignment)
+    s4_shapes = [(1, 64), (1, 128), (1, 256), (2, 128), (4, 128), (8, 128)]
+
+    # S4 test case names and params (processed separately with specialized golden gen)
+    s4_case_names = []
+    s4_case_params = []
+    s4_case_directions = []  # "fp16_to_s4" or "s4_to_fp16"
+
+    for m, n in s4_shapes:
+        # FP16 → S4
+        case_name = f"case_fp16_s4_{m}x{n}"
+        s4_case_names.append(f"TCVTTest.{case_name}")
+        s4_case_params.append(tcvtParams(np.float16, S4_TYPE, m, n, "RoundMode::CAST_RINT"))
+        s4_case_directions.append("fp16_to_s4")
+
+        # S4 → FP16
+        case_name = f"case_s4_fp16_{m}x{n}"
+        s4_case_names.append(f"TCVTTest.{case_name}")
+        s4_case_params.append(tcvtParams(S4_TYPE, np.float16, m, n, "RoundMode::CAST_NONE"))
+        s4_case_directions.append("s4_to_fp16")
+
     for i, case_name in enumerate(case_name_list):
         if not os.path.exists(case_name):
             os.makedirs(case_name)
@@ -522,5 +600,19 @@ if __name__ == "__main__":
         os.chdir(case_name)
 
         gen_golden(case_name, case_params_list[i])
+
+        os.chdir(original_dir)
+
+    # Generate S4 conversion test data
+    for i, case_name in enumerate(s4_case_names):
+        if not os.path.exists(case_name):
+            os.makedirs(case_name)
+        original_dir = os.getcwd()
+        os.chdir(case_name)
+
+        if s4_case_directions[i] == "fp16_to_s4":
+            gen_golden_fp16_to_s4(case_name, s4_case_params[i])
+        else:
+            gen_golden_s4_to_fp16(case_name, s4_case_params[i])
 
         os.chdir(original_dir)

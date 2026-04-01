@@ -145,6 +145,132 @@ INSTANTIATE_TCVT(float, int64_t)
 INSTANTIATE_TCVT(int32_t, int64_t)
 
 // ============================================================================
+// Int4b_t (S4) Conversion Kernels
+// ============================================================================
+// int4b_t is a packed 4-bit type (2 elements per byte). TLOAD/TSTORE cannot handle
+// int4b_t directly, so we use uint8_t tiles for DMA and int4b_t tiles for TCVT.
+// kGCols_ is the number of fp16 elements (= number of int4 elements).
+// The packed byte count is kGCols_ / 2.
+
+// FP16 → S4: Load fp16 src, TCVT to int4b_t, store packed bytes
+template <int kGRows_, int kGCols_, int kTRows_, int kTCols_>
+__global__ AICORE void runTCVT_fp16_to_s4(__gm__ uint8_t *out, __gm__ half *src)
+{
+    constexpr int kPackedCols = kGCols_ / 2; // packed byte count per row
+
+    using SrcShape = pto::Shape<1, 1, 1, kGRows_, kGCols_>;
+    using SrcStride = pto::Stride<1, 1, 1, kGCols_, 1>;
+    using GlobalSrc = GlobalTensor<half, SrcShape, SrcStride>;
+
+    using DstShape = pto::Shape<1, 1, 1, kGRows_, kPackedCols>;
+    using DstStride = pto::Stride<1, 1, 1, kPackedCols, 1>;
+    using GlobalDst = GlobalTensor<uint8_t, DstShape, DstStride>;
+
+    using TileSrc = Tile<TileType::Vec, half, kTRows_, kTCols_, BLayout::RowMajor>;
+    using TileS4 = Tile<TileType::Vec, int4b_t, kTRows_, kTCols_, BLayout::RowMajor>;
+    // Use kTCols_ cols to match int4b_t tile's RowStride, with dynamic validCols = kPackedCols
+    using TileDstBytes = Tile<TileType::Vec, uint8_t, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>;
+
+    GlobalSrc srcGlobal(src);
+    GlobalDst dstGlobal(out);
+
+    TileSrc srcTile;
+    TileS4 dstS4Tile;
+    TileDstBytes dstBytesTile(kTRows_, kPackedCols);
+
+    TASSIGN(srcTile, 0x0);
+    TASSIGN(dstS4Tile, 0x20000);
+    TASSIGN(dstBytesTile, 0x20000); // alias to same UB address as dstS4Tile
+
+    TLOAD(srcTile, srcGlobal);
+
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+
+    TCVT(dstS4Tile, srcTile, RoundMode::CAST_RINT);
+
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+
+    TSTORE(dstGlobal, dstBytesTile);
+}
+
+template <int kGRows_, int kGCols_, int kTRows_, int kTCols_>
+void launchTCVT_fp16_to_s4(uint8_t *dst, aclFloat16 *src, void *stream)
+{
+    runTCVT_fp16_to_s4<kGRows_, kGCols_, kTRows_, kTCols_><<<1, nullptr, stream>>>(dst, reinterpret_cast<half *>(src));
+}
+
+#define INSTANTIATE_TCVT_FP16_TO_S4(gR, gC, tR, tC) \
+    template void launchTCVT_fp16_to_s4<gR, gC, tR, tC>(uint8_t * dst, aclFloat16 * src, void *stream);
+
+INSTANTIATE_TCVT_FP16_TO_S4(1, 64, 1, 64)
+INSTANTIATE_TCVT_FP16_TO_S4(1, 128, 1, 128)
+INSTANTIATE_TCVT_FP16_TO_S4(1, 256, 1, 256)
+INSTANTIATE_TCVT_FP16_TO_S4(2, 128, 2, 128)
+INSTANTIATE_TCVT_FP16_TO_S4(4, 128, 4, 128)
+INSTANTIATE_TCVT_FP16_TO_S4(8, 128, 8, 128)
+
+// S4 → FP16: Load packed bytes, TCVT from int4b_t to fp16, store fp16
+template <int kGRows_, int kGCols_, int kTRows_, int kTCols_>
+__global__ AICORE void runTCVT_s4_to_fp16(__gm__ half *out, __gm__ uint8_t *src)
+{
+    constexpr int kPackedCols = kGCols_ / 2; // packed byte count per row
+
+    using SrcShape = pto::Shape<1, 1, 1, kGRows_, kPackedCols>;
+    using SrcStride = pto::Stride<1, 1, 1, kPackedCols, 1>;
+    using GlobalSrc = GlobalTensor<uint8_t, SrcShape, SrcStride>;
+
+    using DstShape = pto::Shape<1, 1, 1, kGRows_, kGCols_>;
+    using DstStride = pto::Stride<1, 1, 1, kGCols_, 1>;
+    using GlobalDst = GlobalTensor<half, DstShape, DstStride>;
+
+    // Use kTCols_ cols to match int4b_t tile's RowStride, with dynamic validCols = kPackedCols
+    using TileSrcBytes = Tile<TileType::Vec, uint8_t, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>;
+    using TileS4 = Tile<TileType::Vec, int4b_t, kTRows_, kTCols_, BLayout::RowMajor>;
+    using TileDst = Tile<TileType::Vec, half, kTRows_, kTCols_, BLayout::RowMajor>;
+
+    GlobalSrc srcGlobal(src);
+    GlobalDst dstGlobal(out);
+
+    TileSrcBytes srcBytesTile(kTRows_, kPackedCols);
+    TileS4 srcS4Tile;
+    TileDst dstTile;
+
+    TASSIGN(srcBytesTile, 0x0);
+    TASSIGN(srcS4Tile, 0x0); // alias to same UB address as srcBytesTile
+    TASSIGN(dstTile, 0x20000);
+
+    TLOAD(srcBytesTile, srcGlobal);
+
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+
+    TCVT(dstTile, srcS4Tile, RoundMode::CAST_NONE);
+
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+
+    TSTORE(dstGlobal, dstTile);
+}
+
+template <int kGRows_, int kGCols_, int kTRows_, int kTCols_>
+void launchTCVT_s4_to_fp16(aclFloat16 *dst, uint8_t *src, void *stream)
+{
+    runTCVT_s4_to_fp16<kGRows_, kGCols_, kTRows_, kTCols_><<<1, nullptr, stream>>>(reinterpret_cast<half *>(dst), src);
+}
+
+#define INSTANTIATE_TCVT_S4_TO_FP16(gR, gC, tR, tC) \
+    template void launchTCVT_s4_to_fp16<gR, gC, tR, tC>(aclFloat16 * dst, uint8_t * src, void *stream);
+
+INSTANTIATE_TCVT_S4_TO_FP16(1, 64, 1, 64)
+INSTANTIATE_TCVT_S4_TO_FP16(1, 128, 1, 128)
+INSTANTIATE_TCVT_S4_TO_FP16(1, 256, 1, 256)
+INSTANTIATE_TCVT_S4_TO_FP16(2, 128, 2, 128)
+INSTANTIATE_TCVT_S4_TO_FP16(4, 128, 4, 128)
+INSTANTIATE_TCVT_S4_TO_FP16(8, 128, 8, 128)
+
+// ============================================================================
 // Saturation Mode Test Kernels
 // ============================================================================
 // Test kernel to demonstrate saturation mode behavior
