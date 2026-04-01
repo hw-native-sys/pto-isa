@@ -146,9 +146,9 @@ __tf__ AICORE void TCI_b16_repeat(typename TileData::TileDType __out__ dst, type
     __ubuf__ float *tmp0 = (__ubuf__ typename TileDataTmp::DType *)__cce_get_tile_ptr(tmp);
     __ubuf__ float *tmp1 = (__ubuf__ typename TileDataTmp::DType *)__cce_get_tile_ptr(tmp + 128);
     __ubuf__ half *tmp2 =
-        reinterpret_cast<__ubuf__ half *>((__ubuf__ typename TileDataTmp::DType *)__cce_get_tile_ptr(tmp + 196));
+        reinterpret_cast<__ubuf__ half *>((__ubuf__ typename TileDataTmp::DType *)__cce_get_tile_ptr(tmp + 256));
     __ubuf__ half *tmp3 =
-        reinterpret_cast<__ubuf__ half *>((__ubuf__ typename TileDataTmp::DType *)__cce_get_tile_ptr(tmp + 260));
+        reinterpret_cast<__ubuf__ half *>((__ubuf__ typename TileDataTmp::DType *)__cce_get_tile_ptr(tmp + 384));
 
     set_mask_count();
     set_vector_mask(0, 8);
@@ -187,7 +187,6 @@ __tf__ AICORE void TCI_b16_repeat(typename TileData::TileDType __out__ dst, type
     }
     pipe_barrier(PIPE_V);
     if (numRemainPerLine) {
-        set_mask_norm();
         SetContinuousMask(numRemainPerLine);
         vadds((__ubuf__ int16_t *)(dst + 128 * numRepeatPerLine), (__ubuf__ int16_t *)tmp3, S + 128 * numRepeatPerLine,
               1, 1, 1, 8, 8);
@@ -258,13 +257,13 @@ PTO_INTERNAL void TCI_IMPL(TileData &dst, T start, TileDataTmp &tmp)
     unsigned numRepeatPerLine = validCol / elementsPerRepeat;
     unsigned numRemainPerLine = validCol % elementsPerRepeat;
 
-    if constexpr (sizeof(typename TileData::DType) == 4 && elementsPerRepeat) {
+    if (sizeof(typename TileData::DType) == 4 && numRepeatPerLine) {
         TCI_b32_repeat<TileData, TileDataTmp, T, descending>(dst.data(), tmp.data(), start, validCol, numRepeatPerLine,
                                                              numRemainPerLine);
-    } else if constexpr (sizeof(typename TileData::DType) == 4) {
+    } else if (sizeof(typename TileData::DType) == 4) {
         TCI_b32_normal<TileData, TileDataTmp, T, descending>(dst.data(), tmp.data(), start, validCol, numRepeatPerLine,
                                                              numRemainPerLine);
-    } else if constexpr (sizeof(typename TileData::DType) == 2 && elementsPerRepeat) {
+    } else if (sizeof(typename TileData::DType) == 2 && numRepeatPerLine) {
         TCI_b16_repeat<TileData, TileDataTmp, T, descending>(dst.data(), tmp.data(), start, validCol, numRepeatPerLine,
                                                              numRemainPerLine);
         pipe_barrier(PIPE_V);
