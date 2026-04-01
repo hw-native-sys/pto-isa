@@ -256,6 +256,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/cpu/TRowSum.hpp"
 #include "pto/cpu/TRowProd.hpp"
 #include "pto/cpu/TRowReduceIdx.hpp"
+#include "pto/cpu/TColReduceIdx.hpp"
 #include "pto/cpu/TMax.hpp"
 #include "pto/cpu/TExtract.hpp"
 #include "pto/cpu/TFillPad.hpp"

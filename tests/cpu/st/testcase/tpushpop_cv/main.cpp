@@ -47,27 +47,27 @@ std::vector<T> makeExpected(int iter)
 template <typename T, int rows, int cols>
 void runCubeToVectorSingleTile()
 {
-    using FIFO = DataFIFO<T, FIFOType::GM_FIFO, 4, 1>;
-    using Sync = TFIFOSync<2, FIFO, TSyncOpType::TSTORE_C2GM, TSyncOpType::TLOAD>;
+    constexpr int FiFoDepth = 4;
     using CubeTile = Tile<TileType::Mat, T, rows, cols>;
     using VecTile = Tile<TileType::Vec, T, rows, cols>;
+    using Pipe = TPipe<5, Direction::DIR_C2V, sizeof(T) * VecTile::Numel, FiFoDepth>;
 
-    std::vector<T> fifoStorage(CubeTile::Numel * FIFO::fifoDepth, static_cast<T>(0));
-    FIFO fifo(fifoStorage.data());
+    std::vector<T> fifoStorage(VecTile::Numel * FiFoDepth, static_cast<T>(0));
+    Pipe::reset_for_cpu_sim();
+    Pipe pipe(fifoStorage.data(), 0x0, 0x0);
     CubeTile cubeTile;
     VecTile vecTile;
+    TASSIGN(cubeTile, 0);
+    TASSIGN(vecTile, 0);
 
     fillCubeTile<T, rows, cols>(cubeTile, 0);
     for (int i = 0; i < vecTile.Numel; ++i) {
         vecTile.data()[i] = static_cast<T>(0);
     }
 
-    Sync::reset_for_cpu_sim();
-    typename Sync::Producer producer;
-    typename Sync::Consumer consumer;
-
-    TPUSH(producer, cubeTile, fifo);
-    TPOP(consumer, vecTile, fifo);
+    TPUSH(cubeTile, pipe);
+    TPOP(vecTile, pipe);
+    TFREE(pipe);
 
     const auto expected = makeExpected<T, rows, cols>(0);
     EXPECT_TRUE(ResultCmp(expected, vecTile.data(), 0));
@@ -76,25 +76,23 @@ void runCubeToVectorSingleTile()
 template <typename T, int rows, int cols>
 void runCubeToVectorMultiCoreStream()
 {
-    using FIFO = DataFIFO<T, FIFOType::GM_FIFO, 4, 1>;
-    using Sync = TFIFOSync<3, FIFO, TSyncOpType::TSTORE_C2GM, TSyncOpType::TLOAD>;
+    constexpr int FiFoDepth = 4;
     using CubeTile = Tile<TileType::Mat, T, rows, cols>;
     using VecTile = Tile<TileType::Vec, T, rows, cols>;
+    using Pipe = TPipe<6, Direction::DIR_C2V, sizeof(T) * VecTile::Numel, FiFoDepth>;
 
     constexpr int kIterations = 10;
-    std::vector<T> fifoStorage(CubeTile::Numel * FIFO::fifoDepth, static_cast<T>(0));
+    std::vector<T> fifoStorage(VecTile::Numel * FiFoDepth, static_cast<T>(0));
     std::vector<std::vector<T>> actual(kIterations);
-    FIFO fifo(fifoStorage.data());
-
-    Sync::reset_for_cpu_sim();
-    typename Sync::Producer producer;
-    typename Sync::Consumer consumer;
+    Pipe::reset_for_cpu_sim();
+    Pipe pipe(fifoStorage.data(), 0x0, 0x0);
 
     std::thread cubeCore([&]() {
         for (int iter = 0; iter < kIterations; ++iter) {
             CubeTile cubeTile;
+            TASSIGN(cubeTile, 0);
             fillCubeTile<T, rows, cols>(cubeTile, iter);
-            TPUSH(producer, cubeTile, fifo);
+            TPUSH(cubeTile, pipe);
         }
     });
 
@@ -103,10 +101,12 @@ void runCubeToVectorMultiCoreStream()
     std::thread vectorCore([&]() {
         for (int iter = 0; iter < kIterations; ++iter) {
             VecTile vecTile;
+            TASSIGN(vecTile, 0);
             for (int i = 0; i < vecTile.Numel; ++i) {
                 vecTile.data()[i] = static_cast<T>(0);
             }
-            TPOP(consumer, vecTile, fifo);
+            TPOP(vecTile, pipe);
+            TFREE(pipe);
             actual[iter].assign(vecTile.data(), vecTile.data() + vecTile.Numel);
         }
     });

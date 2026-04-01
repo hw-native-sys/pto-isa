@@ -45,6 +45,20 @@ void FillAll(TileData &tile, typename TileData::DType value)
 }
 
 template <typename TileData>
+void AssignTileStorage(TileData &tile, size_t &addr)
+{
+    TASSIGN(tile, addr);
+    addr += sizeof(typename TileData::DType) * static_cast<size_t>(TileData::Numel);
+    addr = (addr + 63) & ~static_cast<size_t>(63);
+}
+
+template <typename... TileData>
+void AssignTileStorage(size_t &addr, TileData &... tiles)
+{
+    (AssignTileStorage(tiles, addr), ...);
+}
+
+template <typename TileData>
 auto GetValue(const TileData &tile, int r, int c) -> typename TileData::DType
 {
     return tile.data()[GetTileElementOffset<TileData>(r, c)];
@@ -257,6 +271,8 @@ TEST_F(IsaCoverageTest, TaxpyAccumulatesScaledSource)
     using TileData = Tile<TileType::Vec, float, 2, 8>;
     TileData dst;
     TileData src;
+    size_t addr = 0;
+    AssignTileStorage(addr, dst, src);
 
     FillLinear(dst, 10.0f);
     FillLinear(src, 1.0f);
@@ -278,6 +294,8 @@ TEST_F(IsaCoverageTest, TfmodAndTfmodsUseFloatingPointRemainder)
     TileData src0;
     TileData src1;
     TileData dstScalar;
+    size_t addr = 0;
+    AssignTileStorage(addr, dstVec, src0, src1, dstScalar);
 
     FillAll(dstVec, 0.0f);
     FillAll(dstScalar, 0.0f);
@@ -310,6 +328,8 @@ TEST_F(IsaCoverageTest, TfillpadInplaceAndExpandPadRemainingElements)
     InplaceDst inplaceDst;
     ExpandDst expandDst;
     SrcTile src;
+    size_t addr = 0;
+    AssignTileStorage(addr, inplaceDst, expandDst, src);
     FillAll(inplaceDst, 0);
     FillAll(expandDst, 0);
     FillAll(src, 0);
@@ -339,6 +359,8 @@ TEST_F(IsaCoverageTest, TshlsAndTshrsApplyScalarShift)
     TileData left;
     TileData right;
     TileData src;
+    size_t addr = 0;
+    AssignTileStorage(addr, left, right, src);
 
     FillLinear(src, 1);
     TSHLS(left, src, 2);
@@ -359,6 +381,8 @@ TEST_F(IsaCoverageTest, TsubviewExtractsRequestedWindow)
     using DstTile = Tile<TileType::Vec, float, 3, 8, BLayout::RowMajor, 3, 6>;
     SrcTile src;
     DstTile dst;
+    size_t addr = 0;
+    AssignTileStorage(addr, src, dst);
 
     FillLinear(src, 1.0f);
     TSUBVIEW(dst, src, 1, 2);
@@ -378,6 +402,8 @@ TEST_F(IsaCoverageTest, TconcatAppendsColumns)
     Src0Tile src0;
     Src1Tile src1;
     DstTile dst;
+    size_t addr = 0;
+    AssignTileStorage(addr, src0, src1, dst);
 
     FillLinear(src0, 1);
     FillLinear(src1, 101);
@@ -404,6 +430,8 @@ TEST_F(IsaCoverageTest, TinsertCopiesIntoDestinationAtOffset)
     DstTile fpDst;
     SrcTile src;
     FpTile fp;
+    size_t addr = 0;
+    AssignTileStorage(addr, plainDst, scalarDst, fpDst, src, fp);
 
     FillAll(plainDst, 0.0f);
     FillAll(scalarDst, 0.0f);
@@ -432,6 +460,8 @@ TEST_F(IsaCoverageTest, TmovFpCopiesSourceTile)
     TileData src;
     TileData dst;
     FpTile fp;
+    size_t addr = 0;
+    AssignTileStorage(addr, src, dst, fp);
 
     FillLinear(src, 3.0f);
     FillAll(dst, 0.0f);
@@ -454,6 +484,8 @@ TEST_F(IsaCoverageTest, TextractFpSlicesSourceTile)
     SrcTile src;
     DstTile dst;
     FpTile fp;
+    size_t addr = 0;
+    AssignTileStorage(addr, src, dst, fp);
 
     FillLinear(src, 1.0f);
     FillAll(fp, 1.0f);
@@ -475,6 +507,8 @@ TEST_F(IsaCoverageTest, TpartmulMultipliesOverlapAndCopiesRemainder)
     DstTile dst;
     Src0Tile src0;
     Src1Tile src1;
+    size_t addr = 0;
+    AssignTileStorage(addr, dst, src0, src1);
 
     FillLinear(src0, 1);
     FillLinear(src1, 10);
@@ -495,11 +529,17 @@ TEST_F(IsaCoverageTest, TprintWritesReadableMatrix)
 {
     using TileData = Tile<TileType::Vec, int32_t, 2, 8, BLayout::RowMajor, 2, 4>;
     TileData src;
+    size_t addr = 0;
+    AssignTileStorage(addr, src);
     FillLinear(src, 1);
 
     std::ostringstream captured;
     auto *old = std::cout.rdbuf(captured.rdbuf());
+#ifdef _DEBUG
     TPRINT(src);
+#else
+    TPRINT_IMPL(src);
+#endif
     std::cout.rdbuf(old);
 
     EXPECT_EQ(captured.str(), std::string("TPRINT 2x4\n1 2 3 4\n5 6 7 8\n"));
@@ -510,6 +550,8 @@ TEST_F(IsaCoverageTest, TgetScaleAddrAliasesSourceStorage)
     using TileData = Tile<TileType::Vec, float, 2, 8>;
     TileData src;
     TileData dst;
+    size_t addr = 0;
+    AssignTileStorage(addr, src, dst);
     FillLinear(src, 1.0f);
 
     TGET_SCALE_ADDR(dst, src);
@@ -527,6 +569,8 @@ TEST_F(IsaCoverageTest, TstoreFpStoresTileIntoGlobalTensor)
 
     TileData src;
     FpTile fp;
+    size_t addr = 0;
+    AssignTileStorage(addr, src, fp);
     std::vector<float> buffer(16, 0.0f);
     GlobalData dst(buffer.data());
 
@@ -555,6 +599,8 @@ TEST_F(IsaCoverageTest, TfreeDiscardsQueuedTileInCpuSimPipe)
     TileData first;
     TileData second;
     TileData dst;
+    size_t addr = 0;
+    AssignTileStorage(addr, first, second, dst);
     FillLinear(first, 1.0f);
     FillLinear(second, 101.0f);
     FillAll(dst, 0.0f);
@@ -577,6 +623,8 @@ TEST_F(IsaCoverageTest, TpackCopiesValidValues)
     using DstTile = Tile<TileType::Vec, int16_t, 2, 16, BLayout::RowMajor, 2, 8>;
     SrcTile src;
     DstTile dst;
+    size_t addr = 0;
+    AssignTileStorage(addr, src, dst);
     FillLinear(src, 1);
     FillAll(dst, 0);
 
@@ -594,6 +642,8 @@ TEST_F(IsaCoverageTest, TrandomWrapperProducesDeterministicOutput)
     using TileData = Tile<TileType::Vec, uint32_t, 1, 256>;
     TileData first;
     TileData second;
+    size_t addr = 0;
+    AssignTileStorage(addr, first, second);
     TRandomKey key = {0x12345678u, 0x9abcdef0u};
     TRandomCounter counter = {0u, 1u, 2u, 3u};
     TRandomKey keyCopy = {key[0], key[1]};
@@ -618,6 +668,8 @@ TEST_F(IsaCoverageTest, TcolprodAndTrowprodReduceProducts)
     ColDst colDst;
     RowDst rowDst;
     TmpTile tmp;
+    size_t addr = 0;
+    AssignTileStorage(addr, src, colDst, rowDst, tmp);
 
     FillLinear(src, 1.0f);
     TCOLPROD(colDst, src);
@@ -648,6 +700,8 @@ TEST_F(IsaCoverageTest, TrowArgmaxAndTrowArgminReturnIndices)
     DstTile argmax;
     DstTile argmin;
     TmpTile tmp;
+    size_t addr = 0;
+    AssignTileStorage(addr, src, argmax, argmin, tmp);
 
     FillAll(src, 0.0f);
     for (int r = 0; r < src.GetValidRow(); ++r) {
@@ -670,6 +724,42 @@ TEST_F(IsaCoverageTest, TrowArgmaxAndTrowArgminReturnIndices)
     EXPECT_EQ(GetValue(argmin, 2, 0), 0);
 }
 
+TEST_F(IsaCoverageTest, TcolArgmaxAndTcolArgminReturnIndices)
+{
+    using SrcTile = Tile<TileType::Vec, float, 4, 8, BLayout::RowMajor, 4, 4>;
+    using DstTile = Tile<TileType::Vec, int32_t, 1, 8, BLayout::RowMajor, 1, 4>;
+    using TmpTile = Tile<TileType::Vec, float, 4, 8>;
+    SrcTile src;
+    DstTile argmax;
+    DstTile argmin;
+    TmpTile tmp;
+    size_t addr = 0;
+    AssignTileStorage(addr, src, argmax, argmin, tmp);
+
+    FillAll(src, 0.0f);
+    for (int r = 0; r < src.GetValidRow(); ++r) {
+        for (int c = 0; c < src.GetValidCol(); ++c) {
+            SetValue(src, r, c, static_cast<float>((r + 1) * 10 + c));
+        }
+    }
+    SetValue(src, 3, 0, 100.0f);
+    SetValue(src, 1, 1, -5.0f);
+    SetValue(src, 2, 2, 77.0f);
+    SetValue(src, 0, 3, -9.0f);
+
+    TCOLARGMAX(argmax, src, tmp);
+    TCOLARGMIN(argmin, src, tmp);
+
+    EXPECT_EQ(GetValue(argmax, 0, 0), 3);
+    EXPECT_EQ(GetValue(argmax, 0, 1), 3);
+    EXPECT_EQ(GetValue(argmax, 0, 2), 2);
+    EXPECT_EQ(GetValue(argmax, 0, 3), 3);
+    EXPECT_EQ(GetValue(argmin, 0, 0), 0);
+    EXPECT_EQ(GetValue(argmin, 0, 1), 1);
+    EXPECT_EQ(GetValue(argmin, 0, 2), 0);
+    EXPECT_EQ(GetValue(argmin, 0, 3), 0);
+}
+
 TEST_F(IsaCoverageTest, ThistogramWrapperBuildsCumulativeBins)
 {
     using SrcTile = Tile<TileType::Vec, uint16_t, 1, 16, BLayout::RowMajor, 1, 8>;
@@ -678,6 +768,8 @@ TEST_F(IsaCoverageTest, ThistogramWrapperBuildsCumulativeBins)
     SrcTile src;
     DstTile dst;
     IdxTile idx;
+    size_t addr = 0;
+    AssignTileStorage(addr, src, dst, idx);
 
     FillAll(src, 0);
     FillAll(dst, 0u);
@@ -714,6 +806,8 @@ TEST_F(IsaCoverageTest, TdequantAppliesScaleAndOffset)
     SrcTile src;
     ParaTile scale;
     ParaTile offset;
+    size_t addr = 0;
+    AssignTileStorage(addr, dst, src, scale, offset);
 
     for (int r = 0; r < src.GetValidRow(); ++r) {
         for (int c = 0; c < src.GetValidCol(); ++c) {
@@ -753,6 +847,8 @@ TEST_F(IsaCoverageTest, TquantScalarAndMxWrappersAreCallable)
     ExpTile expZz;
     MaxTile max;
     IdxTile gatherIdx;
+    size_t addr = 0;
+    AssignTileStorage(addr, src, scaling, symDst, fp8Dst, invScale, exp, expZz, max, gatherIdx);
 
     for (int r = 0; r < src.GetValidRow(); ++r) {
         invScale.data()[GetTileElementOffset<ParaTile>(r, 0)] = 2.0f;
@@ -795,6 +891,8 @@ TEST_F(IsaCoverageTest, TgemvAndMxVariantsMatchCpuMatmulSemantics)
     BiasTile bias;
     LeftScaleTile lhsScale;
     RightScaleTile rhsScale;
+    size_t addr = 0;
+    AssignTileStorage(addr, lhs, rhs, gemv, gemvAcc, gemvMx, matmulMx, accIn, bias, lhsScale, rhsScale);
 
     FillAll(lhs, 0.0f);
     FillAll(rhs, 0.0f);
@@ -824,6 +922,7 @@ TEST_F(IsaCoverageTest, TgemvAndMxVariantsMatchCpuMatmulSemantics)
     ExpectTileEqualsVector(matmulMx, expectedGemv);
 
     AccTile gemvBias;
+    AssignTileStorage(addr, gemvBias);
     TGEMV_BIAS(gemvBias, lhs, rhs, bias);
     std::vector<float> biasValues(bias.GetValidCol());
     for (int c = 0; c < bias.GetValidCol(); ++c) {

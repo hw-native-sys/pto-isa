@@ -47,6 +47,12 @@ TEST(THistogramCpuSimTest, MsbModeMatchesExactCumulativeHistogram)
     SrcTile src;
     DstTile dst;
     IdxTile idx;
+    size_t addr = 0;
+    TASSIGN(src, addr);
+    addr += SrcTile::Numel * sizeof(typename SrcTile::DType);
+    TASSIGN(dst, addr);
+    addr += DstTile::Numel * sizeof(typename DstTile::DType);
+    TASSIGN(idx, addr);
 
     const std::vector<uint16_t> row0 = {0x1201u, 0x1202u, 0x13ffu, 0x1203u, 0x3400u, 0x0101u, 0x0202u, 0x0303u,
                                         0x0404u, 0x0505u, 0x0606u, 0x0707u, 0x0808u, 0x0909u, 0x0a0au, 0x0b0bu};
@@ -82,6 +88,12 @@ TEST(THistogramCpuSimTest, LsbModeMatchesExactFilteredHistogram)
     SrcTile src;
     DstTile dst;
     IdxTile idx;
+    size_t addr = 0;
+    TASSIGN(src, addr);
+    addr += SrcTile::Numel * sizeof(typename SrcTile::DType);
+    TASSIGN(dst, addr);
+    addr += DstTile::Numel * sizeof(typename DstTile::DType);
+    TASSIGN(idx, addr);
 
     const std::vector<uint16_t> row0 = {0x1201u, 0x1202u, 0x34ffu, 0x12ffu, 0x1210u};
     const std::vector<uint16_t> row1 = {0xa001u, 0xa002u, 0xa0ffu, 0xb003u, 0xa010u};

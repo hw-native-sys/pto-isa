@@ -83,6 +83,7 @@ TEST(TImg2colCpuSimTest, ManualMetadataPathMatchesReferenceWithPadding)
     SrcTile src;
     DstTile dst;
     src.data() = storage.data();
+    TASSIGN(dst, 0);
 
     for (int n = 0; n < 1; ++n) {
         for (int h = 0; h < 3; ++h) {
@@ -129,6 +130,7 @@ TEST(TImg2colCpuSimTest, AutoMetadataPathMatchesReferenceForSplitKChunk)
     SrcTile src;
     DstTile dst;
     src.data() = storage.data();
+    TASSIGN(dst, 0);
 
     for (int h = 0; h < 4; ++h) {
         for (int w = 0; w < 4; ++w) {

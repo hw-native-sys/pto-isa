@@ -93,6 +93,12 @@ TEST(TQuantCpuSimTest, Int8SymMatchesExactReference)
     SrcTile src;
     DstTile dst;
     ParaTile scale;
+    size_t addr = 0;
+    TASSIGN(src, addr);
+    addr += SrcTile::Numel * sizeof(typename SrcTile::DType);
+    TASSIGN(dst, addr);
+    addr += DstTile::Numel * sizeof(typename DstTile::DType);
+    TASSIGN(scale, addr);
 
     for (int r = 0; r < src.GetValidRow(); ++r) {
         scale.data()[GetTileElementOffset<ParaTile>(r, 0)] = 4.0f - static_cast<float>(r) * 0.5f;
@@ -121,6 +127,14 @@ TEST(TQuantCpuSimTest, Int8AsymMatchesExactReference)
     DstTile dst;
     ParaTile scale;
     ParaTile offset;
+    size_t addr = 0;
+    TASSIGN(src, addr);
+    addr += SrcTile::Numel * sizeof(typename SrcTile::DType);
+    TASSIGN(dst, addr);
+    addr += DstTile::Numel * sizeof(typename DstTile::DType);
+    TASSIGN(scale, addr);
+    addr += ParaTile::Numel * sizeof(typename ParaTile::DType);
+    TASSIGN(offset, addr);
 
     for (int r = 0; r < src.GetValidRow(); ++r) {
         scale.data()[GetTileElementOffset<ParaTile>(r, 0)] = 3.0f - static_cast<float>(r) * 0.25f;
@@ -154,6 +168,16 @@ TEST(TQuantCpuSimTest, MxFp8NdMatchesExactBytes)
     DstTile dst;
     ExpTile exp;
     MaxTile max;
+    size_t addr = 0;
+    TASSIGN(src, addr);
+    addr += SrcTile::Numel * sizeof(typename SrcTile::DType);
+    TASSIGN(scaling, addr);
+    addr += SrcTile::Numel * sizeof(typename SrcTile::DType);
+    TASSIGN(dst, addr);
+    addr += DstTile::Numel * sizeof(typename DstTile::DType);
+    TASSIGN(exp, addr);
+    addr += ExpTile::Numel * sizeof(typename ExpTile::DType);
+    TASSIGN(max, addr);
 
     for (int r = 0; r < src.GetValidRow(); ++r) {
         for (int c = 0; c < src.GetValidCol(); ++c) {
@@ -196,6 +220,20 @@ TEST(TQuantCpuSimTest, MxFp8NzReordersExponentsExactly)
     ExpTile expZz;
     MaxTile max;
     IdxTile gatherIdx;
+    size_t addr = 0;
+    TASSIGN(src, addr);
+    addr += SrcTile::Numel * sizeof(typename SrcTile::DType);
+    TASSIGN(scaling, addr);
+    addr += SrcTile::Numel * sizeof(typename SrcTile::DType);
+    TASSIGN(dst, addr);
+    addr += DstTile::Numel * sizeof(typename DstTile::DType);
+    TASSIGN(exp, addr);
+    addr += ExpTile::Numel * sizeof(typename ExpTile::DType);
+    TASSIGN(expZz, addr);
+    addr += ExpTile::Numel * sizeof(typename ExpTile::DType);
+    TASSIGN(max, addr);
+    addr += MaxTile::Numel * sizeof(typename MaxTile::DType);
+    TASSIGN(gatherIdx, addr);
 
     for (int r = 0; r < src.GetValidRow(); ++r) {
         for (int c = 0; c < src.GetValidCol(); ++c) {

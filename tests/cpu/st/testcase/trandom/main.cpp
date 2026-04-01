@@ -78,6 +78,7 @@ TEST(TRandomCpuSimTest, Rounds10MatchesExactReferenceFor4x256)
 {
     using TileData = Tile<TileType::Vec, uint32_t, 4, 256>;
     TileData dst;
+    TASSIGN(dst, 0);
     TRandomKey key = {0x12345678u, 0x9abcdef0u};
     TRandomCounter counter = {0x0u, 0x11111111u, 0x22222222u, 0x33333333u};
 
@@ -97,6 +98,7 @@ TEST(TRandomCpuSimTest, Rounds7MatchesExactReference)
 {
     using TileData = Tile<TileType::Vec, int32_t, 2, 256>;
     TileData dst;
+    TASSIGN(dst, 0);
     TRandomKey key = {0x13579bdfu, 0x2468ace0u};
     TRandomCounter counter = {0x10u, 0x20u, 0x30u, 0x40u};
 

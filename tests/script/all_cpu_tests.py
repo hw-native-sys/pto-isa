@@ -9,68 +9,167 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # --------------------------------------------------------------------------------
 
-import glob
-import os
-import sys
-import inspect
-import subprocess
+from __future__ import annotations
+
 import argparse
-
-def parse_arguments():
-    parser = argparse.ArgumentParser(description="A script that processes optional arguments.")
-    parser.add_argument("-v","--verbose", action="store_true", help="Enable verbose mode")
-    parser.add_argument("-b","--build-folder", type=str, default="build_tests", help="Set the build folder path")
-    parser.add_argument("-c", "--compiler", required=False, help="Compiler for CPU-SIM", default="g++-14")
-    args = parser.parse_args()
-    return args
-
-def red(st):
-    return f"\033[31m{st}\033[0m"
-def green(st):
-    return f"\033[32m{st}\033[0m"
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
 
 
-def main():
-    args=parse_arguments()
-    cmd_suffix = "" if args.verbose else ">>/dev/null"
-    try:
-        os.mkdir(args.build_folder)
-    except:
-        pass
-    tests_path = os.path.dirname(os.path.dirname(inspect.getfile(sys.modules[__name__])))+"/cpu/st/"
-    if os.system(f"export CXX=/usr/bin/{args.compiler}; cmake -S {tests_path} -B build_tests {cmd_suffix} && cd build_tests && make -j8 {cmd_suffix}")==0:
-        os.chdir(args.build_folder)
-        py_files = glob.glob(f"{tests_path}/testcase/*/gen_data.py", recursive=False)
-        for f in py_files:
-            os.system(f"{sys.executable} {f} {cmd_suffix}")
+def parse_arguments() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Build and run all CPU-SIM STs.")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Print configure/build and passing test output.")
+    parser.add_argument(
+        "-b",
+        "--build-folder",
+        default="build/cpu_st_all",
+        help="Build folder to use. Relative paths are resolved from the repo root.",
+    )
+    parser.add_argument(
+        "-c",
+        "--compiler",
+        required=False,
+        help="Optional C++ compiler path or name. When omitted, the current CXX environment or default compiler is used.",
+    )
+    parser.add_argument("-g", "--generator", required=False, help="Optional CMake generator, for example Ninja.")
+    parser.add_argument(
+        "-j",
+        "--jobs",
+        type=int,
+        default=max(1, os.cpu_count() or 1),
+        help="Parallel build jobs.",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=30,
+        help="Per-test timeout in seconds.",
+    )
+    return parser.parse_args()
 
-        os.chdir("bin")
-        exe_files = glob.glob("./*", recursive=False)
-        total_tests=0
-        successful_tests=0
-        for f in exe_files:
-            try:
-                print(f"--- {f} ------------------------------------------------")
-                total_tests+=1                
-                ret = subprocess.check_output(f)
-                split_out = str(ret).split("\\n")
-                #print(split_out)
-                passed = [x for x in split_out if x.startswith("[  PASSED  ]")]
-                failed = [x for x in split_out if x.startswith("[  FAILED  ]")]
-                total = [x for x in split_out if x.startswith("[==========]") and "ran" in x ]
-                print(*passed)
-                if len(failed)>0:
-                    print(*[red(x) for x in failed])
-                else:
-                    successful_tests+=1
-                print(*total)
-                print()
-                
-            except:
-                print(red(f"ERROR: failed to run {f} test\n"))
 
-        res = f"SUCCESSFULLY EXECUTED {successful_tests} OF {total_tests} TEST SUITES. FAILED:{total_tests-successful_tests}"
-        print(green(res) if total_tests==successful_tests else red(res))
+def color(text: str, code: str) -> str:
+    return f"\033[{code}m{text}\033[0m"
+
+
+def green(text: str) -> str:
+    return color(text, "32")
+
+
+def red(text: str) -> str:
+    return color(text, "31")
+
+
+def run_command(
+    cmd: list[str],
+    *,
+    cwd: Path,
+    env: dict[str, str],
+    verbose: bool,
+    check: bool = True,
+) -> subprocess.CompletedProcess[str]:
+    if verbose:
+        print(f"$ {' '.join(cmd)}")
+    proc = subprocess.run(cmd, cwd=cwd, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if verbose or proc.returncode != 0:
+        if proc.stdout:
+            print(proc.stdout, end="" if proc.stdout.endswith("\n") else "\n")
+    if check and proc.returncode != 0:
+        raise subprocess.CalledProcessError(proc.returncode, cmd, output=proc.stdout)
+    return proc
+
+
+def build_all_cpu_tests(repo_root: Path, build_dir: Path, args: argparse.Namespace) -> None:
+    tests_path = repo_root / "tests" / "cpu" / "st"
+    env = os.environ.copy()
+    if args.compiler:
+        env["CXX"] = args.compiler
+
+    configure_cmd = [
+        "cmake",
+        "-S",
+        str(tests_path),
+        "-B",
+        str(build_dir),
+        "-DCMAKE_BUILD_TYPE=Release",
+    ]
+    if args.generator:
+        configure_cmd.extend(["-G", args.generator])
+    run_command(configure_cmd, cwd=repo_root, env=env, verbose=args.verbose)
+
+    build_cmd = ["cmake", "--build", str(build_dir), "-j", str(args.jobs)]
+    run_command(build_cmd, cwd=repo_root, env=env, verbose=args.verbose)
+
+
+def generate_test_data(repo_root: Path, build_dir: Path, args: argparse.Namespace) -> None:
+    testcase_src_root = repo_root / "tests" / "cpu" / "st" / "testcase"
+    testcase_build_root = build_dir / "testcase"
+    testcase_build_root.mkdir(parents=True, exist_ok=True)
+    for script in sorted(testcase_src_root.glob("*/gen_data.py")):
+        run_command([sys.executable, str(script)], cwd=testcase_build_root, env=os.environ.copy(), verbose=args.verbose)
+
+
+def run_binaries(repo_root: Path, build_dir: Path, args: argparse.Namespace) -> int:
+    bin_dir = build_dir / "bin"
+    testcase_build_root = build_dir / "testcase"
+    binaries = sorted(path for path in bin_dir.iterdir() if path.is_file())
+    total = 0
+    failed = 0
+
+    for binary in binaries:
+        cwd = testcase_build_root / binary.name
+        if not cwd.is_dir():
+            cwd = repo_root
+
+        total += 1
+        start = time.time()
+        try:
+            proc = subprocess.run(
+                [str(binary)],
+                cwd=cwd,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                timeout=args.timeout,
+            )
+            duration = time.time() - start
+            passed = proc.returncode == 0
+            status = green("PASS") if passed else red("FAIL")
+            print(f"{status} {binary.name} rc={proc.returncode} dur={duration:.2f}s")
+            if args.verbose or not passed:
+                if proc.stdout:
+                    print(proc.stdout, end="" if proc.stdout.endswith("\n") else "\n")
+            if not passed:
+                failed += 1
+        except subprocess.TimeoutExpired as exc:
+            duration = time.time() - start
+            print(red(f"FAIL {binary.name} rc=124 dur={duration:.2f}s"))
+            captured = exc.stdout if isinstance(exc.stdout, str) else ""
+            if captured:
+                print(captured, end="" if captured.endswith("\n") else "\n")
+            print("[TIMEOUT]")
+            failed += 1
+
+    summary = f"SUMMARY total={total} pass={total - failed} fail={failed}"
+    print(green(summary) if failed == 0 else red(summary))
+    return 0 if failed == 0 else 1
+
+
+def main() -> int:
+    args = parse_arguments()
+    repo_root = Path(__file__).resolve().parents[2]
+    build_dir = Path(args.build_folder)
+    if not build_dir.is_absolute():
+        build_dir = repo_root / build_dir
+    build_dir.mkdir(parents=True, exist_ok=True)
+
+    build_all_cpu_tests(repo_root, build_dir, args)
+    generate_test_data(repo_root, build_dir, args)
+    return run_binaries(repo_root, build_dir, args)
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

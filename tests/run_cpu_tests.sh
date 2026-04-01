@@ -9,4 +9,6 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # --------------------------------------------------------------------------------
 
-python3 tests/script/all_cpu_tests.py
+set -euo pipefail
+
+python3 tests/script/all_cpu_tests.py "$@"
