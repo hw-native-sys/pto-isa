@@ -110,3 +110,9 @@ TEST_F(TCMPTest, case_half_16x256_16x256_16x256_EQ)
 {
     test_tcmp<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>(pto::CmpMode::EQ);
 }
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TCMPTest, case_bf16_16x256_16x256_16x256_EQ)
+{
+    test_tcmp<bfloat16_t, NUM_16, NUM_256, NUM_16, NUM_256>(pto::CmpMode::EQ);
+}
+#endif

@@ -50,3 +50,7 @@ template void LaunchTNeg<float, NUM_64, NUM_64, NUM_64, NUM_64>(float *out, floa
 template void LaunchTNeg<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(int32_t *out, int32_t *src0, void *stream);
 template void LaunchTNeg<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>(aclFloat16 *out, aclFloat16 *src0, void *stream);
 template void LaunchTNeg<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(int16_t *out, int16_t *src0, void *stream);
+#ifdef CPU_SIM_BFLOAT_ENABLED
+template void LaunchTNeg<bfloat16_t, NUM_16, NUM_256, NUM_16, NUM_256>(bfloat16_t *out, bfloat16_t *src0,
+                                                                       void *stream);
+#endif

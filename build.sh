@@ -36,6 +36,7 @@ usage() {
   echo "    --pkg Build run package"
   echo "    --run_all run all st on sim"
   echo "    --run_simple run some st on board"
+  echo "    --cpu_bf16 Enable BF16 CPU-SIM STs with a C++23 std::bfloat16_t toolchain"
   echo ""
 }
 
@@ -66,6 +67,7 @@ checkopts() {
   ENABLE_A3=FALSE
   ENABLE_A5=FALSE
   ENABLE_CPU=FALSE
+  ENABLE_CPU_BF16=FALSE
   ENABLE_COMM=FALSE
   RUN_TYPE="npu"
   EXAMPLE_NAME=""
@@ -74,7 +76,7 @@ checkopts() {
   INST_NAME=""
   AUTO_MODE=FALSE
 
-  parsed_args=$(getopt -a -o j:hvuO: -l help,verbose,cov,make_clean,noexec,pkg,run_all,a3,a5,sim,npu,comm,cpu,auto_mode,run_simple,build,cann_3rd_lib_path: -- "$@") || {
+  parsed_args=$(getopt -a -o j:hvuO: -l help,verbose,cov,make_clean,noexec,pkg,run_all,a3,a5,sim,npu,comm,cpu,cpu_bf16,auto_mode,run_simple,build,cann_3rd_lib_path: -- "$@") || {
   usage
   exit 1
   }
@@ -121,6 +123,10 @@ checkopts() {
         ;;
       --cpu)
         ENABLE_CPU=TRUE
+        shift
+        ;;
+      --cpu_bf16)
+        ENABLE_CPU_BF16=TRUE
         shift
         ;;
       --cann_3rd_lib_path)
@@ -209,10 +215,14 @@ run_comm_st() {
 run_cpu_st() {
   echo $dotted_line
   echo "Start to run cpu st"
-  python3 tests/run_cpu.py --cxx=clang++ --clean --verbose
-  python3 tests/run_cpu.py --cxx=clang++ --demo gemm --verbose
-  python3 tests/run_cpu.py --cxx=clang++ --demo flash_attn --verbose
-  python3 tests/run_cpu.py --cxx=clang++ --demo mla --verbose
+  BF16_ARGS=""
+  if [ "$ENABLE_CPU_BF16" = "TRUE" ]; then
+    BF16_ARGS="--enable-bf16 "
+  fi
+  python3 tests/run_cpu.py ${BF16_ARGS} --clean --verbose
+  python3 tests/run_cpu.py --demo gemm --verbose
+  python3 tests/run_cpu.py --demo flash_attn --verbose
+  python3 tests/run_cpu.py --demo mla --verbose
   bash tests/run_costmodel_tests.sh
 }
 

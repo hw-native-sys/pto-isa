@@ -101,6 +101,12 @@ TEST_F(TCMPSTest, case_half_32x32_32x32_32x32)
 {
     test_tcmps<aclFloat16, 32, 32, 32, 32, 5>();
 }
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TCMPSTest, case_bf16_32x32_32x32_32x32)
+{
+    test_tcmps<bfloat16_t, 32, 32, 32, 32, 5>();
+}
+#endif
 TEST_F(TCMPSTest, case_float_1x64_1x64_1x64)
 {
     test_tcmps<float, 1, 64, 1, 64, 0>();

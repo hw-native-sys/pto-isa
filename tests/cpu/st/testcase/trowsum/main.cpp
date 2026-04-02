@@ -103,3 +103,9 @@ TEST_F(TROWSUMTest, case_half_16x256_16x256_16x256)
 {
     test_trowsum<aclFloat16, 16, 256, 16, 256>();
 }
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TROWSUMTest, case_bf16_16x256_16x256_16x256)
+{
+    test_trowsum<bfloat16_t, 16, 256, 16, 256>();
+}
+#endif

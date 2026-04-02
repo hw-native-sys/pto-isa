@@ -12,6 +12,7 @@
 
 import os
 import numpy as np
+from tests.script.cpu_bfloat16 import BF16_DTYPE, cast_for_compute, normalize_case_dtype_name, write_array
 np.random.seed(19)
 
 def gen_golden_data_tcolsum(case_name, param):
@@ -22,16 +23,13 @@ def gen_golden_data_tcolsum(case_name, param):
     row_valid, col_valid = [min(dstRow, param.valid_row), min(dstCols, param.valid_col)]
 
     # Generate random input arrays
-    input1 = np.random.randint(low=-16, high=16, size=[srcRow, srcCols]).astype(dtype)
+    input1 = cast_for_compute(np.random.randint(low=-16, high=16, size=[srcRow, srcCols]), dtype)
 
     # Perform the addbtraction
-    golden = np.full((row_valid, col_valid), np.finfo(dtype).min, dtype=dtype)
-    golden[0, :] = np.sum(input1, axis=0)
-
-    golden = golden.astype(dtype)
+    golden = cast_for_compute(np.sum(input1, axis=0, dtype=np.float32).reshape(1, col_valid), dtype)
     # Save the input and golden data to binary files
-    input1.tofile("input.bin")
-    golden.tofile("golden.bin")
+    write_array("input.bin", input1, dtype)
+    write_array("golden.bin", golden, dtype)
 
     return input1, golden
 
@@ -46,13 +44,13 @@ class TColsumParams:
         self.valid_col = valid_col
 
 def generate_case_name(param):
-    dtype_str = {
+    dtype_str = normalize_case_dtype_name(param.dtype, {
         np.float32: 'float',
         np.float16: 'half',
         np.int8: 'int8',
         np.int32: 'int32',
         np.int16: 'int16'
-    }[param.dtype]
+    })
 
     name = f"TCOLSUMTest.case_{dtype_str}"
     name += f"_{param.global_row}x{param.global_col}"
@@ -74,6 +72,8 @@ if __name__ == "__main__":
         TColsumParams(np.float32, 64, 64, 64, 64, 64, 64),
         TColsumParams(np.float16, 16, 256, 16, 256, 16, 256),
     ]
+    if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
+        case_params_list.append(TColsumParams(BF16_DTYPE, 16, 256, 16, 256, 16, 256))
 
     for i, param in enumerate(case_params_list):
         case_name = generate_case_name(param)

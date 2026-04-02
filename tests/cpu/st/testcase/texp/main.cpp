@@ -91,10 +91,22 @@ TEST_F(TEXPTest, case_half_64x64_64x64_64x64)
 {
     test_texp<aclFloat16, 64, 64, 64, 64>();
 }
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TEXPTest, case_bf16_64x64_64x64_64x64)
+{
+    test_texp<bfloat16_t, 64, 64, 64, 64>();
+}
+#endif
 TEST_F(TEXPTest, case_half_32x32_32x32_32x32)
 {
     test_texp<aclFloat16, 32, 32, 32, 32>();
 }
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TEXPTest, case_bf16_32x32_32x32_32x32)
+{
+    test_texp<bfloat16_t, 32, 32, 32, 32>();
+}
+#endif
 TEST_F(TEXPTest, case_float_32x32_32x32_32x32)
 {
     test_texp<float, 32, 32, 32, 32>();

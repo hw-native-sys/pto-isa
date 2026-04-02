@@ -245,3 +245,20 @@ TEST_F(TEXTRACTTest, case_float_float_128_96_125_93_IDX_8_16_L_2_2)
 {
     textract_test<float, float, 128, 96, 125, 93, 8, 16, 2, 2>();
 }
+
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TEXTRACTTest, case_bfloat16_t_bfloat16_t_32_32_32_32_IDX_0_0_L_0_0)
+{
+    textract_test<bfloat16_t, bfloat16_t, 32, 32, 32, 32, 0, 0, 0, 0>();
+}
+
+TEST_F(TEXTRACTTest, case_bfloat16_t_float_32_32_32_32_IDX_8_16_L_0_0)
+{
+    textract_test<bfloat16_t, float, 32, 32, 32, 32, 8, 16, 0, 0>();
+}
+
+TEST_F(TEXTRACTTest, case_bfloat16_t_bfloat16_t_32_32_31_31_IDX_8_16_L_0_0)
+{
+    textract_test<bfloat16_t, bfloat16_t, 32, 32, 31, 31, 8, 16, 0, 0>();
+}
+#endif

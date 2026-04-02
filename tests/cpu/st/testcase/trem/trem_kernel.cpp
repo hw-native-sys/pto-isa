@@ -53,3 +53,7 @@ const int NUM_256 = 256;
 template void LaunchTRem<float, NUM_64, NUM_64, NUM_64, NUM_64>(float *out, float *src0, float *src1, void *stream);
 template void LaunchTRem<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>(aclFloat16 *out, aclFloat16 *src0,
                                                                        aclFloat16 *src1, void *stream);
+#ifdef CPU_SIM_BFLOAT_ENABLED
+template void LaunchTRem<bfloat16_t, NUM_16, NUM_256, NUM_16, NUM_256>(bfloat16_t *out, bfloat16_t *src0,
+                                                                        bfloat16_t *src1, void *stream);
+#endif

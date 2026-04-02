@@ -12,6 +12,7 @@
 
 import os
 import numpy as np
+from tests.script.cpu_bfloat16 import BF16_DTYPE, cast_for_compute, normalize_case_dtype_name, write_array, zeros
 np.random.seed(19)
 
 def gen_golden_data_trowsum(case_name, param):
@@ -21,22 +22,22 @@ def gen_golden_data_trowsum(case_name, param):
     h_valid, w_valid = [param.valid_row, param.valid_col]
 
     # Generate random input arrays
-    inputArr = np.random.randint(1, 10, size=[H, W]).astype(dtype)
+    inputArr = cast_for_compute(np.random.randint(1, 10, size=[H, W]), dtype)
 
     # Perform the addbtraction
-    golden = np.zeros([H, W]).astype(dtype)
-    golden[:, 0] = np.sum(inputArr, axis=1)
+    golden = zeros([H, W], dtype)
+    golden[:, 0] = cast_for_compute(np.sum(inputArr, axis=1, dtype=np.float32), dtype)
 
     # Apply valid region constraints
-    output = np.zeros([H, W]).astype(dtype)
+    output = zeros([H, W], dtype)
     for h in range(H):
         for w in range(W):
             if h > h_valid or w > w_valid:
                 golden[h][w] = output[h][w]
 
     # Save the input and golden data to binary files
-    inputArr.tofile("input.bin")
-    golden.tofile("golden.bin")
+    write_array("input.bin", inputArr, dtype)
+    write_array("golden.bin", golden, dtype)
 
     return output, inputArr, golden
 
@@ -51,10 +52,10 @@ class trowsumParams:
         self.valid_col = valid_col
 
 def generate_case_name(param):
-    dtype_str = {
+    dtype_str = normalize_case_dtype_name(param.dtype, {
         np.float32: 'float',
         np.float16: 'half'
-    }[param.dtype]
+    })
     return f"TROWSUMTest.case_{dtype_str}_{param.global_row}x{param.global_col}_{param.tile_row}x{param.tile_col}_{param.valid_row}x{param.valid_col}"
 
 if __name__ == "__main__":
@@ -70,6 +71,8 @@ if __name__ == "__main__":
         trowsumParams(np.float32, 64, 64, 64, 64, 64, 64),
         trowsumParams(np.float16, 16, 256, 16, 256, 16, 256),
     ]
+    if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
+        case_params_list.append(trowsumParams(BF16_DTYPE, 16, 256, 16, 256, 16, 256))
 
     for i, param in enumerate(case_params_list):
         case_name = generate_case_name(param)

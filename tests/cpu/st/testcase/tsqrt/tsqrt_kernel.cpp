@@ -55,3 +55,7 @@ template void LaunchTSqrt<float, 64, 64, 64, 64, true>(float *out, float *src, v
 template void LaunchTSqrt<float, 64, 64, 64, 64, false>(float *out, float *src, void *stream);
 template void LaunchTSqrt<aclFloat16, 64, 64, 64, 64, true>(aclFloat16 *out, aclFloat16 *src, void *stream);
 template void LaunchTSqrt<aclFloat16, 64, 64, 64, 64, false>(aclFloat16 *out, aclFloat16 *src, void *stream);
+#ifdef CPU_SIM_BFLOAT_ENABLED
+template void LaunchTSqrt<bfloat16_t, 64, 64, 64, 64, true>(bfloat16_t *out, bfloat16_t *src, void *stream);
+template void LaunchTSqrt<bfloat16_t, 64, 64, 64, 64, false>(bfloat16_t *out, bfloat16_t *src, void *stream);
+#endif

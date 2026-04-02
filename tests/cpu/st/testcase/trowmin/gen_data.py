@@ -12,6 +12,7 @@
 
 import os
 import numpy as np
+from tests.script.cpu_bfloat16 import BF16_DTYPE, cast_for_compute, normalize_case_dtype_name, write_array
 
 np.random.seed(19)
 
@@ -21,14 +22,14 @@ def gen_golden_data_trowmin(param):
     row, col = [param.tile_row, param.tile_col]
     h_valid, w_valid = [min(row, param.valid_row), min(col, param.valid_col)]
 
-    input1 = np.random.uniform(low=-16, high=16, size=[row, col]).astype(dtype)
+    input1 = cast_for_compute(np.random.uniform(low=-16, high=16, size=[row, col]), dtype)
 
-    golden = np.full((h_valid,), np.finfo(dtype).max, dtype=dtype)
+    golden = cast_for_compute(np.full((h_valid,), np.finfo(np.float32).max, dtype=np.float32), dtype)
     for i in range(h_valid):
-        golden[i] = np.min(input1[i][:w_valid])
+        golden[i] = cast_for_compute(np.min(input1[i][:w_valid]), dtype)
 
-    input1.tofile("input1.bin")
-    golden.astype(dtype).tofile("golden.bin")
+    write_array("input1.bin", input1, dtype)
+    write_array("golden.bin", golden, dtype)
 
 
 class TRowminParams:
@@ -43,7 +44,7 @@ class TRowminParams:
 
 
 def generate_case_name(param):
-    dtype_str = {np.float32: "float", np.float16: "half"}[param.dtype]
+    dtype_str = normalize_case_dtype_name(param.dtype, {np.float32: "float", np.float16: "half"})
 
     def substring(a, b) -> str:
         return f"_{a}x{b}"
@@ -63,6 +64,8 @@ if __name__ == "__main__":
         TRowminParams(np.float32, 77, 81, 32, 16, 77, 81),
         TRowminParams(np.float32, 32, 32, 32, 16, 32, 32),
     ]
+    if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
+        case_params_list.append(TRowminParams(BF16_DTYPE, 64, 64, 64, 64, 64, 64))
 
     for param in case_params_list:
         case_name = generate_case_name(param)
@@ -71,4 +74,3 @@ if __name__ == "__main__":
         os.chdir(case_name)
         gen_golden_data_trowmin(param)
         os.chdir(original_dir)
-

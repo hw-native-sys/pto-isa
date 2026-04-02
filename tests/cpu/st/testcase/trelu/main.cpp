@@ -104,3 +104,9 @@ TEST_F(TRELUTest, case_half_16x256_16x256_16x256)
 {
     test_trelu<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>();
 }
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TRELUTest, case_bf16_16x256_16x256_16x256)
+{
+    test_trelu<bfloat16_t, NUM_16, NUM_256, NUM_16, NUM_256>();
+}
+#endif

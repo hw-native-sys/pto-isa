@@ -12,7 +12,10 @@
 
 import os
 import numpy as np
+from tests.script.cpu_bfloat16 import BF16_DTYPE, cast_for_compute, normalize_case_dtype_name, write_array, zeros
+
 np.random.seed(19)
+ENABLE_BF16 = os.environ.get("PTO_CPU_SIM_ENABLE_BF16") == "1"
 
 
 def gen_golden_data_tadd(case_name, param):
@@ -22,17 +25,17 @@ def gen_golden_data_tadd(case_name, param):
     row_valid, col_valid = [param.valid_row, param.valid_col]
 
     # Generate random input arrays
-    input1 = np.random.randint(1, 10, size=[row, col]).astype(dtype)
-    input2 = np.random.randint(1, 10, size=[row, col]).astype(dtype)
+    input1 = cast_for_compute(np.random.randint(1, 10, size=[row, col]), dtype)
+    input2 = cast_for_compute(np.random.randint(1, 10, size=[row, col]), dtype)
 
     # Perform the addbtraction
-    golden = np.zeros([row, col]).astype(dtype)
+    golden = zeros([row, col], dtype)
     golden[:row_valid,:col_valid] = (input1 + input2)[:row_valid,:col_valid]
 
     # Save the input and golden data to binary files
-    input1.tofile("input1.bin")
-    input2.tofile("input2.bin")
-    golden.tofile("golden.bin")
+    write_array("input1.bin", input1, dtype)
+    write_array("input2.bin", input2, dtype)
+    write_array("golden.bin", golden, dtype)
 
 
 
@@ -48,13 +51,13 @@ class TAddParams:
 
 
 def generate_case_name(param):
-    dtype_str = {
+    dtype_str = normalize_case_dtype_name(param.dtype, {
         np.float32: 'float',
         np.float16: 'half',
         np.int8: 'int8',
         np.int32: 'int32',
         np.int16: 'int16'
-    }[param.dtype]
+    })
     
     def substring(a, b) -> str:
         return f"_{a}x{b}"
@@ -82,6 +85,8 @@ if __name__ == "__main__":
         TAddParams(np.int16, 64, 64, 64, 64, 64, 64),
         TAddParams(np.float16, 16, 256, 16, 256, 16, 256)
     ]
+    if ENABLE_BF16:
+        case_params_list.append(TAddParams(BF16_DTYPE, 16, 256, 16, 256, 16, 256))
 
     for i, param in enumerate(case_params_list):
         case_name = generate_case_name(param)

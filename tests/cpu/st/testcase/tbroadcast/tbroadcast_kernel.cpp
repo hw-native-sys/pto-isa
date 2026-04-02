@@ -53,3 +53,6 @@ template void LaunchTBroadcast<float, 1, 2, 4, 64, 64, 5>(float *, float *, void
 template void LaunchTBroadcast<int32_t, 1, 2, 4, 64, 64, 3>(int32_t *, int32_t *, void *);
 template void LaunchTBroadcast<int16_t, 2, 2, 3, 64, 64, 2>(int16_t *, int16_t *, void *);
 template void LaunchTBroadcast<aclFloat16, 1, 2, 1, 16, 256, 1>(aclFloat16 *, aclFloat16 *, void *);
+#ifdef CPU_SIM_BFLOAT_ENABLED
+template void LaunchTBroadcast<bfloat16_t, 1, 2, 1, 16, 256, 1>(bfloat16_t *, bfloat16_t *, void *);
+#endif

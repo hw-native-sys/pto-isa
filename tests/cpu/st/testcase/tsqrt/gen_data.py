@@ -12,6 +12,7 @@
 
 import os
 import numpy as np
+from tests.script.cpu_bfloat16 import BF16_DTYPE, cast_for_compute, normalize_case_dtype_name, write_array, zeros
 np.random.seed(19)
 
 def gen_golden_data(case_name, param):
@@ -21,21 +22,21 @@ def gen_golden_data(case_name, param):
     h_valid, w_valid = [param.valid_row, param.valid_col]
 
     # Generate random input arrays
-    input1 = np.random.random(size=(H,W)).astype(dtype)
+    input1 = cast_for_compute(np.random.random(size=(H, W)), dtype)
 
     # Perform the operation
-    golden = np.sqrt(input1)
+    golden = cast_for_compute(np.sqrt(input1), dtype)
 
     # Apply valid region constraints
-    output = np.zeros([H, W]).astype(dtype)
+    output = zeros([H, W], dtype)
     for h in range(H):
         for w in range(W):
             if h >= h_valid or w >= w_valid:
                 golden[h][w] = output[h][w]
 
     # Save the input and golden data to binary files
-    input1.tofile("input1.bin")
-    golden.tofile("golden.bin")
+    write_array("input1.bin", input1, dtype)
+    write_array("golden.bin", golden, dtype)
 
     return output, input1, golden
 
@@ -51,13 +52,13 @@ class tunaryParams:
         self.in_place = in_place
 
 def generate_case_name(param):
-    dtype_str = {
+    dtype_str = normalize_case_dtype_name(param.dtype, {
         np.float32: 'float',
         np.float16: 'half',
         np.int8: 'int8',
         np.int32: 'int32',
         np.int16: 'int16'
-    }[param.dtype]
+    })
     return f"TSQRTTest.case_{dtype_str}_{param.global_row}x{param.global_col}_{param.tile_row}x{param.tile_col}_{param.valid_row}x{param.valid_col}_inPlace_{param.in_place}"
 
 if __name__ == "__main__":
@@ -75,6 +76,11 @@ if __name__ == "__main__":
         tunaryParams(np.float16, 64, 64, 64, 64, 64, 64, True),
         tunaryParams(np.float16, 64, 64, 64, 64, 64, 64, False),
     ]
+    if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
+        case_params_list.extend([
+            tunaryParams(BF16_DTYPE, 64, 64, 64, 64, 64, 64, True),
+            tunaryParams(BF16_DTYPE, 64, 64, 64, 64, 64, 64, False),
+        ])
 
     for i, param in enumerate(case_params_list):
         case_name = generate_case_name(param)
