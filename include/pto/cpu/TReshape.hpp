@@ -47,6 +47,9 @@ PTO_INTERNAL void TRESHAPE_IMPL(TileDataOut &dst, TileDataIn &src)
                       (SFractal != SLayout::NoneBox && NewSFractal != SLayout::NoneBox),
                   "TRESHAPE: Cannot reshape between boxed and non-boxed layouts.");
 
+#ifdef __CPU_SIM
+    dst.data() = reinterpret_cast<NewElemType *>(src.data());
+#else
     constexpr size_t N = sizeof(ElemType) * ElemNum;
     const std::byte *src_bytes = reinterpret_cast<const std::byte *>(src.data());
     std::byte *dst_bytes = reinterpret_cast<std::byte *>(dst.data());
@@ -54,6 +57,7 @@ PTO_INTERNAL void TRESHAPE_IMPL(TileDataOut &dst, TileDataIn &src)
     for (size_t i = 0; i < N; ++i) {
         dst_bytes[i] = src_bytes[i];
     }
+#endif
 }
 } // namespace pto
 

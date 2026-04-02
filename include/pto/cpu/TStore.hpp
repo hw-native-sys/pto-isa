@@ -156,10 +156,12 @@ __aicore__ void TSTORE_IMPL(GlobalData &dst, TileData &src, uint64_t preQuantSca
     TSTORE_IMPL<TileData, GlobalData, atomicType>(dst, src);
 }
 
-template <typename TileData, typename GlobalData, typename FpTileData, AtomicType atomicType = AtomicType::AtomicNone>
+template <typename TileData, typename GlobalData, typename FpTileData, AtomicType atomicType = AtomicType::AtomicNone,
+          ReluPreMode reluPreMode = ReluPreMode::NoRelu>
 __aicore__ void TSTORE_IMPL(GlobalData &dst, TileData &src, FpTileData &fp)
 {
     (void)fp;
+    (void)reluPreMode;
     TSTORE_IMPL<TileData, GlobalData, atomicType>(dst, src);
 }
 } // namespace pto

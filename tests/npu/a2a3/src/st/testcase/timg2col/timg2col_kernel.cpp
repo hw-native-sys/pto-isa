@@ -88,6 +88,7 @@ AICORE inline void runTIMG2COL(__gm__ T *out, __gm__ U *src0, __gm__ U *src1)
     aMatTile.SetChannelSize(fmapC1 * fmapC0);
 
     TSETFMATRIX(aMatTile);
+    TSET_IMG2COL_PADDING(aMatTile);
     TIMG2COL(aTile, aMatTile, 0, 0);
     TMOV(bTile, bMatTile);
 
@@ -202,6 +203,7 @@ AICORE inline void runTIMG2COLSplitK(__gm__ T *out, __gm__ U *src0, __gm__ U *sr
     aMatTile.SetChannelSize(fmapC1 * fmapC0);
 
     TSETFMATRIX<TileMatAData, SetFmatrixMode::FMATRIX_B_MANUAL>(aMatTile);
+    TSET_IMG2COL_PADDING(aMatTile);
     constexpr int iter = K / baseK;
     for (int i = 0; i < iter; i++) {
         TIMG2COL<LeftTile, TileMatAData, SetFmatrixMode::FMATRIX_B_MANUAL>(aTile, aMatTile, 0, i * baseK);
