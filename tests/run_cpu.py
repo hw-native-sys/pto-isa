@@ -23,9 +23,6 @@ import platform
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from script.cpu_bfloat16 import detect_bfloat16_cxx, derive_cc_from_cxx
-
-
 def _format_cmd(command: List[str]) -> str:
     return " ".join(map(str, command))
 
@@ -480,6 +477,17 @@ def setup_environment(args) -> None:
         ensure_cmake_tools()
 
 
+def resolve_bf16_compiler_pair(args) -> None:
+    from script.cpu_bfloat16 import detect_bfloat16_cxx, derive_cc_from_cxx
+
+    selected_cxx = detect_bfloat16_cxx(args.cxx)
+    if args.cxx and (shutil.which(args.cxx) or args.cxx) != selected_cxx:
+        raise RuntimeError(f"--cxx={args.cxx} does not support std::bfloat16_t")
+    args.cxx = selected_cxx
+    if not args.cc:
+        args.cc = derive_cc_from_cxx(selected_cxx)
+
+
 def log_build_info(args, cxx, cc) -> None:
     logging.info(f"[INFO] build_type={args.build_type}")
     logging.info(f"[INFO] bf16={'ON' if args.enable_bf16 else 'OFF'}")
@@ -714,12 +722,7 @@ def main() -> int:
     repo_root = Path(__file__).resolve().parent
 
     if args.enable_bf16:
-        selected_cxx = detect_bfloat16_cxx(args.cxx)
-        if args.cxx and (shutil.which(args.cxx) or args.cxx) != selected_cxx:
-            raise RuntimeError(f"--cxx={args.cxx} does not support std::bfloat16_t")
-        args.cxx = selected_cxx
-        if not args.cc:
-            args.cc = derive_cc_from_cxx(selected_cxx)
+        resolve_bf16_compiler_pair(args)
 
     cxx, cc = detect_compilers(args.cxx, args.cc)
     log_build_info(args, cxx, cc)

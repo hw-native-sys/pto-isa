@@ -55,12 +55,30 @@ endif()
 
 # GTest is required for CPU STs. Prefer a system installation, but fall back to
 # fetching googletest to make macOS builds self-contained.
-if (PTO_CPU_SIM_ENABLE_BF16)
-    set(PTO_CPU_SIM_PREFER_FETCH_GTEST ON)
-endif()
-
 if (NOT PTO_CPU_SIM_PREFER_FETCH_GTEST)
     find_package(GTest QUIET)
+    if (GTest_FOUND AND APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND TARGET GTest::gtest)
+        get_target_property(_pto_gtest_imported GTest::gtest IMPORTED)
+        get_target_property(_pto_gtest_loc GTest::gtest IMPORTED_LOCATION)
+        if (NOT _pto_gtest_imported)
+            unset(_pto_gtest_loc)
+        elseif (NOT _pto_gtest_loc)
+            get_target_property(_pto_gtest_loc GTest::gtest LOCATION)
+        endif()
+        if (_pto_gtest_loc AND EXISTS "${_pto_gtest_loc}")
+            execute_process(
+                COMMAND bash -lc "nm -C \"${_pto_gtest_loc}\" 2>/dev/null | grep -q 'std::__1::'"
+                RESULT_VARIABLE _pto_gtest_uses_libcpp
+            )
+            if (_pto_gtest_uses_libcpp EQUAL 0)
+                message(STATUS "Installed GTest uses libc++; fetching googletest for GNU/libstdc++ compatibility")
+                set(GTest_FOUND OFF)
+            endif()
+        endif()
+        unset(_pto_gtest_imported)
+        unset(_pto_gtest_loc)
+        unset(_pto_gtest_uses_libcpp)
+    endif()
 endif()
 if (NOT GTest_FOUND)
     include(FetchContent)
