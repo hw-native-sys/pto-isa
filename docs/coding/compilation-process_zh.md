@@ -4,22 +4,22 @@
 
 ## 目录
 
-- [1. 编译流程概述](#1-编译流程概述)
-- [2. 构建系统配置](#2-构建系统配置)
-- [3. 编译步骤详解](#3-编译步骤详解)
-- [4. 编译选项说明](#4-编译选项说明)
-- [5. 交叉编译](#5-交叉编译)
-- [6. 编译优化](#6-编译优化)
-- [7. 常见问题排查](#7-常见问题排查)
-- [8. 高级主题](#8-高级主题)
+- [1. 编译流程概述](#1-%E7%BC%96%E8%AF%91%E6%B5%81%E7%A8%8B%E6%A6%82%E8%BF%B0)
+- [2. 构建系统配置](#2-%E6%9E%84%E5%BB%BA%E7%B3%BB%E7%BB%9F%E9%85%8D%E7%BD%AE)
+- [3. 编译步骤详解](#3-%E7%BC%96%E8%AF%91%E6%AD%A5%E9%AA%A4%E8%AF%A6%E8%A7%A3)
+- [4. 编译选项说明](#4-%E7%BC%96%E8%AF%91%E9%80%89%E9%A1%B9%E8%AF%B4%E6%98%8E)
+- [5. 交叉编译](#5-%E4%BA%A4%E5%8F%89%E7%BC%96%E8%AF%91)
+- [6. 编译优化](#6-%E7%BC%96%E8%AF%91%E4%BC%98%E5%8C%96)
+- [7. 常见问题排查](#7-%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98%E6%8E%92%E6%9F%A5)
+- [8. 高级主题](#8-%E9%AB%98%E7%BA%A7%E4%B8%BB%E9%A2%98)
 
----
+______________________________________________________________________
 
 ## 1. 编译流程概述
 
 ### 1.1 完整编译流程图
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                    PTO C++ 源码 (.cpp)                       │
 └────────────────────────┬────────────────────────────────────┘
@@ -85,24 +85,27 @@
 #### 必需工具
 
 **CMake**：
+
 - 版本要求：>= 3.16
 - 用途：构建系统生成器
 - 安装：
+
   ```bash
   # Ubuntu/Debian
   sudo apt install cmake
-  
+
   # CentOS/RHEL
   sudo yum install cmake
-  
+
   # macOS
   brew install cmake
-  
+
   # Windows
   # 从 https://cmake.org/download/ 下载安装
   ```
 
 **C++ 编译器**：
+
 - 要求：支持 C++20 标准
 - Linux 选项：
   - GCC >= 13.0
@@ -111,25 +114,28 @@
   - MSVC 2022 (Visual Studio 17.0+)
   - MinGW-w64 (GCC 13+)
 - 安装：
+
   ```bash
   # Ubuntu/Debian - GCC
   sudo apt install g++-13
-  
+
   # Ubuntu/Debian - Clang
   sudo apt install clang-15
-  
+
   # CentOS/RHEL
   sudo yum install gcc-toolset-13
   ```
 
 **Python**：
+
 - 版本要求：>= 3.8
 - 用途：构建脚本、测试工具
 - 安装：
+
   ```bash
   # Ubuntu/Debian
   sudo apt install python3 python3-pip
-  
+
   # CentOS/RHEL
   sudo yum install python3 python3-pip
   ```
@@ -137,45 +143,52 @@
 #### 可选工具
 
 **Ninja**：
+
 - 用途：加速构建（比 Make 快 2-3×）
 - 安装：
+
   ```bash
   # Ubuntu/Debian
   sudo apt install ninja-build
-  
+
   # CentOS/RHEL
   sudo yum install ninja-build
-  
+
   # macOS
   brew install ninja
   ```
 
 **ccache**：
+
 - 用途：编译缓存（加速重复编译）
 - 安装：
+
   ```bash
   # Ubuntu/Debian
   sudo apt install ccache
-  
+
   # 配置
   export CC="ccache gcc"
   export CXX="ccache g++"
   ```
 
 **clang-tidy**：
+
 - 用途：静态代码分析
 - 安装：
+
   ```bash
   sudo apt install clang-tidy
   ```
 
----
+______________________________________________________________________
 
 ## 2. 构建系统配置
 
 ### 2.1 CMake 基础配置
 
 **最小配置示例**：
+
 ```cmake
 # CMakeLists.txt
 cmake_minimum_required(VERSION 3.16)
@@ -201,6 +214,7 @@ target_link_libraries(my_operator
 ```
 
 **完整配置示例**：
+
 ```cmake
 cmake_minimum_required(VERSION 3.16)
 project(MyPTOOperator VERSION 1.0.0 LANGUAGES CXX)
@@ -287,6 +301,7 @@ add_subdirectory(tests)
 ### 2.2 配置选项说明
 
 **后端选择**：
+
 ```bash
 # CPU 仿真构建（开发调试）
 cmake -B build -DPTO_BACKEND=CPU
@@ -302,6 +317,7 @@ cmake -B build -DPTO_BACKEND=NPU -DSOC_VERSION=Ascend910_9599
 ```
 
 **构建类型**：
+
 ```bash
 # Debug 构建（无优化，包含调试符号）
 cmake -B build -DCMAKE_BUILD_TYPE=Debug
@@ -317,6 +333,7 @@ cmake -B build -DCMAKE_BUILD_TYPE=MinSizeRel
 ```
 
 **编译器选择**：
+
 ```bash
 # 使用 GCC
 cmake -B build -DCMAKE_CXX_COMPILER=g++-13
@@ -331,6 +348,7 @@ cmake -B build \
 ```
 
 **生成器选择**：
+
 ```bash
 # 使用 Make（默认）
 cmake -B build
@@ -345,6 +363,7 @@ cmake -B build -G "Visual Studio 17 2022"
 ### 2.3 构建命令
 
 **标准构建流程**：
+
 ```bash
 # 步骤1：配置
 cmake -B build -DCMAKE_BUILD_TYPE=Release
@@ -360,6 +379,7 @@ cmake --install build --prefix /path/to/install
 ```
 
 **增量构建**：
+
 ```bash
 # 只重新编译修改的文件
 cmake --build build
@@ -369,6 +389,7 @@ cmake --build build --clean-first
 ```
 
 **并行构建**：
+
 ```bash
 # 使用所有 CPU 核心
 cmake --build build -j$(nproc)
@@ -381,6 +402,7 @@ ninja -C build
 ```
 
 **详细输出**：
+
 ```bash
 # 显示编译命令
 cmake --build build --verbose
@@ -389,13 +411,14 @@ cmake --build build --verbose
 VERBOSE=1 cmake --build build
 ```
 
----
+______________________________________________________________________
 
 ## 3. 编译步骤详解
 
 ### 3.1 预处理阶段
 
 **宏展开**：
+
 ```cpp
 // 源码
 #define TILE_SIZE 256
@@ -408,6 +431,7 @@ using TileT = Tile<TileType::Vec, float, 16, 256>;
 ```
 
 **头文件包含**：
+
 ```cpp
 // 源码
 #include <pto/pto-inst.hpp>
@@ -420,6 +444,7 @@ using TileT = Tile<TileType::Vec, float, 16, 256>;
 ```
 
 **条件编译**：
+
 ```cpp
 // 源码
 #ifdef PTO_BACKEND_CPU
@@ -438,6 +463,7 @@ run_npu_kernel();
 ```
 
 **查看预处理结果**：
+
 ```bash
 # GCC
 g++ -E -P src/my_operator.cpp -o my_operator.i
@@ -449,6 +475,7 @@ clang++ -E -P src/my_operator.cpp -o my_operator.i
 ### 3.2 编译阶段
 
 **词法分析**：
+
 ```cpp
 // 源码
 TLOAD(tile, input);
@@ -464,7 +491,8 @@ SEMICOLON
 ```
 
 **语法分析**：
-```
+
+```text
 FunctionCall
 ├─ Function: TLOAD
 └─ Arguments
@@ -473,6 +501,7 @@ FunctionCall
 ```
 
 **语义分析**：
+
 ```cpp
 // 检查类型匹配
 TLOAD(tile, input);
@@ -486,6 +515,7 @@ static_assert(256 % 16 == 0, "Tile width must be aligned");
 ```
 
 **PTO 内建函数展开**：
+
 ```cpp
 // 源码
 TLOAD(tile, input);
@@ -500,6 +530,7 @@ __builtin_pto_load(
 ```
 
 **生成目标代码**：
+
 ```bash
 # 编译为目标文件
 g++ -std=c++20 -O3 -c src/my_operator.cpp -o build/my_operator.o
@@ -511,7 +542,8 @@ g++ -std=c++20 -O3 -S src/my_operator.cpp -o build/my_operator.s
 ### 3.3 链接阶段
 
 **符号解析**：
-```
+
+```text
 my_operator.o:
   - 定义: main, my_kernel
   - 引用: TLOAD, TSTORE, TADD
@@ -526,7 +558,8 @@ libpto.a:
 ```
 
 **重定位**：
-```
+
+```text
 my_operator.o 中的调用:
   call TLOAD  // 地址未知
 
@@ -535,6 +568,7 @@ my_operator.o 中的调用:
 ```
 
 **生成可执行文件**：
+
 ```bash
 # 链接
 g++ build/my_operator.o \
@@ -549,13 +583,14 @@ ldd build/my_operator
 #   libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6
 ```
 
----
+______________________________________________________________________
 
 ## 4. 编译选项说明
 
 ### 4.1 优化级别
 
 **-O0（无优化）**：
+
 - 用途：调试
 - 特点：
   - 编译最快
@@ -564,6 +599,7 @@ ldd build/my_operator
 - 性能：最慢
 
 **-O1（基本优化）**：
+
 - 用途：快速编译 + 基本优化
 - 特点：
   - 编译较快
@@ -571,6 +607,7 @@ ldd build/my_operator
 - 性能：中等
 
 **-O2（标准优化）**：
+
 - 用途：生产环境（推荐）
 - 特点：
   - 编译时间适中
@@ -579,6 +616,7 @@ ldd build/my_operator
 - 性能：快
 
 **-O3（激进优化）**：
+
 - 用途：性能关键代码
 - 特点：
   - 编译最慢
@@ -587,6 +625,7 @@ ldd build/my_operator
 - 性能：最快
 
 **-Os（优化代码大小）**：
+
 - 用途：嵌入式系统
 - 特点：
   - 最小化代码大小
@@ -594,6 +633,7 @@ ldd build/my_operator
 - 性能：中等
 
 **-Ofast（超激进优化）**：
+
 - 用途：不严格遵守标准的代码
 - 特点：
   - 包含 -O3
@@ -601,6 +641,7 @@ ldd build/my_operator
 - 性能：最快（但可能不正确）
 
 **性能对比**：
+
 ```bash
 # 测试不同优化级别
 for opt in O0 O1 O2 O3 Ofast; do
@@ -619,6 +660,7 @@ done
 ### 4.2 架构特定选项
 
 **-march=native**：
+
 - 用途：针对当前 CPU 优化
 - 特点：
   - 使用 CPU 特定指令（AVX2, AVX-512）
@@ -626,6 +668,7 @@ done
   - 不可移植
 
 **-march=x86-64**：
+
 - 用途：通用 x86-64 代码
 - 特点：
   - 兼容所有 x86-64 CPU
@@ -633,6 +676,7 @@ done
   - 可移植
 
 **示例**：
+
 ```bash
 # 针对当前 CPU 优化
 g++ -O3 -march=native src/my_operator.cpp
@@ -647,6 +691,7 @@ g++ -O3 -march=skylake src/my_operator.cpp
 ### 4.3 调试选项
 
 **-g（包含调试符号）**：
+
 ```bash
 # 基本调试信息
 g++ -g src/my_operator.cpp
@@ -659,6 +704,7 @@ gdb ./my_operator
 ```
 
 **-fsanitize（运行时检查）**：
+
 ```bash
 # 地址检查（检测内存错误）
 g++ -fsanitize=address src/my_operator.cpp
@@ -673,6 +719,7 @@ g++ -fsanitize=thread src/my_operator.cpp
 ### 4.4 警告选项
 
 **推荐警告选项**：
+
 ```bash
 g++ -Wall -Wextra -Wpedantic \
     -Werror \
@@ -684,13 +731,14 @@ g++ -Wall -Wextra -Wpedantic \
 # -Werror: 警告视为错误
 ```
 
----
+______________________________________________________________________
 
 ## 5. 交叉编译
 
 ### 5.1 x86 → ARM 交叉编译
 
 **安装交叉编译工具链**：
+
 ```bash
 # Ubuntu/Debian
 sudo apt install g++-aarch64-linux-gnu
@@ -700,6 +748,7 @@ aarch64-linux-gnu-g++ --version
 ```
 
 **CMake 配置**：
+
 ```cmake
 # toolchain-aarch64.cmake
 set(CMAKE_SYSTEM_NAME Linux)
@@ -715,6 +764,7 @@ set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 ```
 
 **构建**：
+
 ```bash
 cmake -B build \
   -DCMAKE_TOOLCHAIN_FILE=toolchain-aarch64.cmake \
@@ -726,6 +776,7 @@ cmake --build build
 ### 5.2 开发机 → NPU 交叉编译
 
 **配置**：
+
 ```bash
 # 设置 NPU 工具链路径
 export NPU_TOOLCHAIN=/usr/local/Ascend/toolkit
@@ -740,13 +791,14 @@ cmake -B build \
 cmake --build build
 ```
 
----
+______________________________________________________________________
 
 ## 6. 编译优化
 
 ### 6.1 加速编译
 
 **使用 Ninja**：
+
 ```bash
 # 比 Make 快 2-3×
 cmake -B build -G Ninja
@@ -754,6 +806,7 @@ ninja -C build
 ```
 
 **使用 ccache**：
+
 ```bash
 # 缓存编译结果
 export CC="ccache gcc"
@@ -767,6 +820,7 @@ ccache -s
 ```
 
 **并行编译**：
+
 ```bash
 # 使用所有核心
 cmake --build build -j$(nproc)
@@ -776,6 +830,7 @@ cmake --build build -j4
 ```
 
 **预编译头文件**：
+
 ```cmake
 # CMakeLists.txt
 target_precompile_headers(my_operator
@@ -789,6 +844,7 @@ target_precompile_headers(my_operator
 ### 6.2 减小二进制大小
 
 **Strip 调试符号**：
+
 ```bash
 # 编译时不包含调试符号
 g++ -O3 -DNDEBUG src/my_operator.cpp
@@ -802,6 +858,7 @@ strip build/my_operator
 ```
 
 **链接时优化（LTO）**：
+
 ```cmake
 # CMakeLists.txt
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
@@ -811,20 +868,22 @@ target_compile_options(my_operator PRIVATE -flto)
 target_link_options(my_operator PRIVATE -flto)
 ```
 
----
+______________________________________________________________________
 
 ## 7. 常见问题排查
 
 ### 7.1 编译错误
 
-**问题1：找不到头文件**
-```
+#### 问题1：找不到头文件
+
+```text
 error: pto/pto-inst.hpp: No such file or directory
 ```
 
 **原因**：PTO 库路径未设置
 
 **解决方案**：
+
 ```bash
 # 方法1：设置环境变量
 export PTO_LIB_PATH=/path/to/pto-isa
@@ -836,14 +895,16 @@ cmake -B build -DPTO_ROOT=/path/to/pto-isa
 g++ -I/path/to/pto-isa/include src/my_operator.cpp
 ```
 
-**问题2：静态断言失败**
-```
+#### 问题2：静态断言失败
+
+```text
 static_assert failed: "Tile shape not aligned"
 ```
 
 **原因**：Tile 尺寸不满足对齐要求
 
 **解决方案**：
+
 ```cpp
 // 错误：宽度 250 不是 16 的倍数
 using TileT = Tile<TileType::Vec, float, 16, 250>;
@@ -852,14 +913,16 @@ using TileT = Tile<TileType::Vec, float, 16, 250>;
 using TileT = Tile<TileType::Vec, float, 16, 256>;
 ```
 
-**问题3：链接错误**
-```
+#### 问题3：链接错误
+
+```text
 undefined reference to `pto::TLOAD(...)`
 ```
 
 **原因**：未链接 PTO 库
 
 **解决方案**：
+
 ```cmake
 # CMakeLists.txt
 target_link_libraries(my_operator PRIVATE PTO::pto)
@@ -870,9 +933,10 @@ g++ build/my_operator.o -L/path/to/pto/lib -lpto -o build/my_operator
 
 ### 7.2 性能问题
 
-**问题：Release 构建性能差**
+#### 问题：Release 构建性能差
 
 **诊断**：
+
 ```bash
 # 检查优化级别
 cmake --build build --verbose | grep "\-O"
@@ -881,6 +945,7 @@ cmake --build build --verbose | grep "\-O"
 ```
 
 **解决方案**：
+
 ```cmake
 # 显式设置优化选项
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -march=native")
@@ -891,12 +956,14 @@ set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
 
 ### 7.3 运行时错误
 
-**问题：找不到共享库**
-```
+#### 问题：找不到共享库
+
+```text
 error while loading shared libraries: libpto.so: cannot open shared object file
 ```
 
 **解决方案**：
+
 ```bash
 # 方法1：设置 LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=/path/to/pto/lib:$LD_LIBRARY_PATH
@@ -909,13 +976,14 @@ sudo ldconfig
 cmake -B build -DCMAKE_INSTALL_RPATH=/path/to/pto/lib
 ```
 
----
+______________________________________________________________________
 
 ## 8. 高级主题
 
 ### 8.1 自定义编译 Pass
 
-**示例：添加自定义优化**
+#### 示例：添加自定义优化
+
 ```cmake
 # CMakeLists.txt
 target_compile_options(my_operator
@@ -928,11 +996,13 @@ target_compile_options(my_operator
 ### 8.2 编译时间分析
 
 **GCC 时间报告**：
+
 ```bash
 g++ -ftime-report src/my_operator.cpp 2>&1 | grep "TOTAL"
 ```
 
 **Clang 时间追踪**：
+
 ```bash
 clang++ -ftime-trace src/my_operator.cpp
 # 生成 my_operator.json
@@ -942,6 +1012,7 @@ clang++ -ftime-trace src/my_operator.cpp
 ### 8.3 生成编译数据库
 
 **用于 IDE 和工具**：
+
 ```bash
 cmake -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
@@ -949,7 +1020,7 @@ cmake -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 # 用于 clangd, clang-tidy 等工具
 ```
 
----
+______________________________________________________________________
 
 ## 参考资源
 

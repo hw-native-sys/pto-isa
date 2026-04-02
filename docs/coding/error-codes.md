@@ -12,20 +12,22 @@ This document lists common error codes, error messages, and solutions encountere
 - [6. Performance Issues (P001-P099)](#6-performance-issues-p001-p099)
 - [7. Framework Integration Errors (F001-F099)](#7-framework-integration-errors-f001-f099)
 
----
+______________________________________________________________________
 
 ## 1. Compilation Errors (E001-E099)
 
 ### E001: Header File Not Found
 
 **Error Message**:
-```
+
+```text
 error: pto/pto-inst.hpp: No such file or directory
 ```
 
 **Cause**: PTO library path not set
 
 **Solution**:
+
 ```bash
 # Method 1: Set environment variable
 export PTO_LIB_PATH=/path/to/pto-isa
@@ -40,7 +42,8 @@ g++ -I/path/to/pto-isa/include src/my_operator.cpp
 ### E002: Static Assertion Failed - Tile Alignment
 
 **Error Message**:
-```
+
+```text
 static_assert failed: "Tile shape not aligned"
 static_assert failed: "Tile width must be multiple of 16"
 ```
@@ -48,6 +51,7 @@ static_assert failed: "Tile width must be multiple of 16"
 **Cause**: Tile dimensions don't meet alignment requirements
 
 **Solution**:
+
 ```cpp
 // ❌ Wrong: width 250 is not multiple of 16
 using TileT = Tile<TileType::Vec, float, 16, 250>;
@@ -64,13 +68,15 @@ using TileT = Tile<TileType::Vec, float, 16, 256>;
 ### E003: Type Mismatch
 
 **Error Message**:
-```
+
+```text
 error: no matching function for call to 'TADD(Tile<float>&, Tile<half>&)'
 ```
 
 **Cause**: Tile types are inconsistent
 
 **Solution**:
+
 ```cpp
 // ❌ Wrong: type mismatch
 Tile<TileType::Vec, float, 16, 256> tile_a;
@@ -89,7 +95,8 @@ TADD(tile_c, tile_a, tile_b_float);
 ### E004: C++ Standard Not Supported
 
 **Error Message**:
-```
+
+```text
 error: 'concept' does not name a type
 error: expected ';' before 'requires'
 ```
@@ -97,6 +104,7 @@ error: expected ';' before 'requires'
 **Cause**: Compiler doesn't support C++20
 
 **Solution**:
+
 ```bash
 # Check compiler version
 g++ --version  # Need >= 13.0
@@ -110,14 +118,15 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 ```
 
----
+______________________________________________________________________
 
 ## 2. Linking Errors (L001-L099)
 
 ### L001: Undefined Reference
 
 **Error Message**:
-```
+
+```text
 undefined reference to `pto::TLOAD(...)`
 undefined reference to `pto::TSTORE(...)`
 ```
@@ -125,6 +134,7 @@ undefined reference to `pto::TSTORE(...)`
 **Cause**: PTO library not linked
 
 **Solution**:
+
 ```bash
 # Manual linking
 g++ build/my_operator.o -L/path/to/pto/lib -lpto -o build/my_operator
@@ -136,13 +146,15 @@ target_link_libraries(my_operator PRIVATE PTO::pto)
 ### L002: Shared Library Not Found
 
 **Error Message**:
-```
+
+```text
 error while loading shared libraries: libpto.so: cannot open shared object file
 ```
 
 **Cause**: Runtime cannot find shared library
 
 **Solution**:
+
 ```bash
 # Method 1: Set LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=/path/to/pto/lib:$LD_LIBRARY_PATH
@@ -158,14 +170,15 @@ cmake -B build -DCMAKE_INSTALL_RPATH=/path/to/pto/lib
 ldd ./my_operator
 ```
 
----
+______________________________________________________________________
 
 ## 3. Runtime Errors (R001-R099)
 
 ### R001: Kernel Launch Failed
 
 **Error Message**:
-```
+
+```text
 PTO_ERROR: Failed to launch kernel
 Error code: -1
 ```
@@ -173,6 +186,7 @@ Error code: -1
 **Cause**: Kernel parameters incorrect or insufficient resources
 
 **Solution**:
+
 ```cpp
 // Check block_num
 int block_num = get_available_cores();  // Don't exceed available cores
@@ -189,7 +203,8 @@ EXEC_KERNEL_CMD(MyKernel, 24, float_ptr, ...);
 ### R002: Assertion Failed
 
 **Error Message**:
-```
+
+```text
 PTO_ASSERT failed: condition 'size <= MAX_SIZE'
 File: my_operator.cpp, Line: 42
 ```
@@ -197,6 +212,7 @@ File: my_operator.cpp, Line: 42
 **Cause**: Runtime condition check failed
 
 **Solution**:
+
 ```cpp
 // Add input validation
 void my_kernel(..., uint32_t size) {
@@ -205,7 +221,7 @@ void my_kernel(..., uint32_t size) {
     printf("Error: size %u exceeds MAX_SIZE %u\n", size, MAX_SIZE);
     return;
   }
-  
+
   // Continue execution
   // ...
 }
@@ -214,13 +230,15 @@ void my_kernel(..., uint32_t size) {
 ### R003: Null Pointer Dereference
 
 **Error Message**:
-```
+
+```text
 Segmentation fault (core dumped)
 ```
 
 **Cause**: Accessed null pointer or invalid memory
 
 **Solution**:
+
 ```cpp
 // Add null pointer checks
 void my_kernel(__gm__ float* out, __gm__ const float* in) {
@@ -228,7 +246,7 @@ void my_kernel(__gm__ float* out, __gm__ const float* in) {
     printf("Error: null pointer\n");
     return;
   }
-  
+
   // Continue execution
   // ...
 }
@@ -237,14 +255,15 @@ void my_kernel(__gm__ float* out, __gm__ const float* in) {
 g++ -fsanitize=address src/my_operator.cpp
 ```
 
----
+______________________________________________________________________
 
 ## 4. Memory Errors (M001-M099)
 
 ### M001: L1 Memory Overflow
 
 **Error Message**:
-```
+
+```text
 PTO_ASSERT: L1 memory overflow
 Required: 600 KB, Available: 512 KB
 ```
@@ -252,6 +271,7 @@ Required: 600 KB, Available: 512 KB
 **Cause**: Tile memory usage exceeds L1 capacity
 
 **Solution**:
+
 ```cpp
 // Method 1: Reduce Tile size
 // ❌ Wrong: 16 × 512 × 4 bytes = 32 KB, multiple Tiles exceed L1
@@ -279,7 +299,8 @@ for (int i = 1; i < N; i++) {
 ### M002: Memory Alignment Error
 
 **Error Message**:
-```
+
+```text
 PTO_ASSERT: Memory address not aligned
 Address: 0x12345678, Required alignment: 64
 ```
@@ -287,6 +308,7 @@ Address: 0x12345678, Required alignment: 64
 **Cause**: Memory address doesn't meet alignment requirements
 
 **Solution**:
+
 ```cpp
 // Use aligned_alloc
 void* ptr = aligned_alloc(64, size);
@@ -298,14 +320,15 @@ float* ptr = new(std::align_val_t{64}) float[size];
 assert(reinterpret_cast<uintptr_t>(ptr) % 64 == 0);
 ```
 
----
+______________________________________________________________________
 
 ## 5. Numerical Errors (N001-N099)
 
 ### N001: Numerical Precision Error
 
 **Error Message**:
-```
+
+```text
 Numerical error: max_diff = 1e-2
 Expected: 1.0, Got: 1.01
 ```
@@ -313,6 +336,7 @@ Expected: 1.0, Got: 1.01
 **Cause**: Floating-point precision issues or algorithm errors
 
 **Solution**:
+
 ```cpp
 // Method 1: Use higher precision
 // ❌ half (FP16): precision ~1e-3
@@ -329,7 +353,8 @@ assert(abs(result - expected) < TOLERANCE);
 ### N002: NaN or Inf
 
 **Error Message**:
-```
+
+```text
 Numerical error: NaN detected
 Numerical error: Inf detected
 ```
@@ -337,6 +362,7 @@ Numerical error: Inf detected
 **Cause**: Division by zero, overflow, or invalid operations
 
 **Solution**:
+
 ```cpp
 // Add numerical checks
 void check_numerical_stability(const Tile& tile) {
@@ -359,7 +385,7 @@ TDIV(result, numerator, denominator);
 TCLIP(tile, tile, -1e10f, 1e10f);  // Limit range
 ```
 
----
+______________________________________________________________________
 
 ## 6. Performance Issues (P001-P099)
 
@@ -368,6 +394,7 @@ TCLIP(tile, tile, -1e10f, 1e10f);  // Limit range
 **Symptoms**: Operator runtime far exceeds expectations
 
 **Diagnosis**:
+
 ```bash
 # Use msprof for analysis
 msprof --output=./profiling_data \
@@ -381,6 +408,7 @@ msprof --export=on --output=./profiling_data
 **Common Causes and Solutions**:
 
 1. **Memory Access Bottleneck**
+
 ```cpp
 // ❌ Problem: Frequent GM access
 for (int i = 0; i < N; i++) {
@@ -400,7 +428,8 @@ for (int i = 0; i < N; i += BATCH) {
 }
 ```
 
-2. **Low Pipeline Efficiency**
+1. **Low Pipeline Efficiency**
+
 ```cpp
 // ❌ Problem: Serial execution
 TLOAD(tile, input);
@@ -422,20 +451,22 @@ for (int i = 1; i < N; i++) {
 }
 ```
 
----
+______________________________________________________________________
 
 ## 7. Framework Integration Errors (F001-F099)
 
 ### F001: PyTorch Operator Registration Failed
 
 **Error Message**:
-```
+
+```text
 RuntimeError: No such operator npu::my_add
 ```
 
 **Cause**: Operator not properly registered
 
 **Solution**:
+
 ```cpp
 // Ensure proper registration
 TORCH_LIBRARY_FRAGMENT(npu, m) {
@@ -454,13 +485,15 @@ print(torch.ops.npu.my_add)  # Should display operator info
 ### F002: Device Type Mismatch
 
 **Error Message**:
-```
+
+```text
 RuntimeError: Expected all tensors to be on the same device, but found at least two devices, npu:0 and cpu!
 ```
 
 **Cause**: Input tensors on different devices
 
 **Solution**:
+
 ```python
 # Ensure all inputs on same device
 x = x.npu()
@@ -469,13 +502,13 @@ z = torch.ops.npu.my_add(x, y)
 
 # Or check in operator
 at::Tensor my_add_impl(const at::Tensor& x, const at::Tensor& y) {
-  TORCH_CHECK(x.device() == y.device(), 
+  TORCH_CHECK(x.device() == y.device(),
               "Inputs must be on same device");
   // ...
 }
 ```
 
----
+______________________________________________________________________
 
 ## References
 
@@ -484,4 +517,3 @@ at::Tensor my_add_impl(const at::Tensor& x, const at::Tensor& y) {
 - [Compilation Process](compilation-process.md)
 - [Framework Integration](framework-integration.md)
 - [Memory Optimization](memory-optimization.md)
-
