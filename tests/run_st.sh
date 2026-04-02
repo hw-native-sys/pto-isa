@@ -279,10 +279,10 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     if [ "$IS_AUTO_MODE" = "false" ]; then
       # this testcase has to directly call CCE intrinsics now, which won't compile for auto mode;
       # besides, auto-sync doesn't work with CCE intrisics
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tpushpop_cv
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tpushpop_vc
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tpushpop_cv_nosplit
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tpushpop_vc_nosplit
+      python3 tests/script/run_st.py $ARGS -w -v a3 -t tpushpop_cv
+      python3 tests/script/run_st.py $ARGS -w -v a3 -t tpushpop_vc
+      python3 tests/script/run_st.py $ARGS -w -v a3 -t tpushpop_cv_nosplit
+      python3 tests/script/run_st.py $ARGS -w -v a3 -t tpushpop_vc_nosplit
     fi
   fi
 fi
