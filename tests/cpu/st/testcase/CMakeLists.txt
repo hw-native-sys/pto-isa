@@ -73,6 +73,7 @@ tloadconv
 tlog
 tlrelu
 tmatmul
+tmatmul_layout
 tmax
 tmaxs
 tmin

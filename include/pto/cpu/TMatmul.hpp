@@ -52,8 +52,12 @@ PTO_INTERNAL void CheckMadValid()
     static_assert(
         (TileLeft::Rows == TileAcc::Rows) && (TileLeft::Cols == TileRight::Rows) && (TileRight::Cols == TileAcc::Cols),
         "Inconsistent number of m, k, n");
+    // CPU simulation can see two equivalent Left-tile encodings:
+    // - TileLeft<...> aliases use ColMajor B-layout in CPU builds
+    // - PTOAS-generated kernels materialize explicit Tile<Left,...,RowMajor,...>
+    //   declarations that still produce correct offsets through GetTileElementOffset.
     static_assert(
-        ((TileLeft::Loc == TileType::Left) && (!TileLeft::isRowMajor) && (TileLeft::SFractal == SLayout::RowMajor)) &&
+        ((TileLeft::Loc == TileType::Left) && (TileLeft::SFractal == SLayout::RowMajor)) &&
             ((TileRight::Loc == TileType::Right) && (TileRight::isRowMajor) &&
              (TileRight::SFractal == SLayout::ColMajor)) &&
             ((TileAcc::Loc == TileType::Acc) && (!TileAcc::isRowMajor) && (TileAcc::SFractal == SLayout::RowMajor)),
