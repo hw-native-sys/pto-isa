@@ -63,6 +63,7 @@ void LaunchTCOLSUM(T *out, T *src, void *stream)
     }
 }
 
-template void LaunchTCOLSUM<float, 64, 64, 64, 64, true, 126.0f, 1.0f>(float *out, float *src, void *stream);
-template void LaunchTCOLSUM<aclFloat16, 16, 256, 16, 256, false, 252.0f, 1.0f>(aclFloat16 *out, aclFloat16 *src,
+template void LaunchTCOLSUM<float, 64, 64, 64, 64, true, 140.0f, 1.0f>(float *out, float *src, void *stream);
+template void LaunchTCOLSUM<float, 1, 3072, 1, 3072, true, 14.0f, 1.0f>(float *out, float *src, void *stream);
+template void LaunchTCOLSUM<aclFloat16, 16, 256, 16, 256, false, 266.0f, 1.0f>(aclFloat16 *out, aclFloat16 *src,
                                                                                void *stream);

@@ -71,7 +71,9 @@ struct CostModelStats {
     // move
     CostModelStats(const std::string cceInstName_, int nBurst_, int lenBurst_, int srcGap_, int dstGap_)
         : cceInstName(cceInstName_), nBurst(nBurst_), lenBurst(lenBurst_), srcGap(srcGap_), dstGap(dstGap_)
-    {}
+    {
+        repeats = nBurst;
+    }
 
     // BinSOp UnaryOp
     CostModelStats(const std::string cceInstName_, int repeats_, int dstBlockStride_, int srcBlockStride_,

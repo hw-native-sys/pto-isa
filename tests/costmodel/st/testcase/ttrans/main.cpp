@@ -33,7 +33,7 @@ TEST_F(TTRANSTest, case1)
     aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
-    launchTTRANS<1, 270.0f, 1.0f>(stream);
+    launchTTRANS<1, 284.0f, 1.0f>(stream);
     aclrtSynchronizeStream(stream);
     aclrtDestroyStream(stream);
     aclrtResetDevice(0);

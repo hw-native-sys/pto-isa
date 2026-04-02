@@ -45,7 +45,7 @@ constexpr float A2A3_STARTUP_REDUCE = 13.0f; // reduce/transcendental ops (vcg*,
 constexpr float A2A3_STARTUP_BINARY = 14.0f; // binary, scalar, dup ops
 
 // Completion latencies (pipeline drain time after last output)
-constexpr float A2A3_COMPL_DUP = 14.0f;       // vector_dup
+constexpr float A2A3_COMPL_DUP_VCOPY = 14.0f; // vector_dup
 constexpr float A2A3_COMPL_INT_BINOP = 17.0f; // int add/sub/min/max and int scalar (vadds/vmins/vdivs int)
 constexpr float A2A3_COMPL_INT_MUL = 18.0f;   // int mul/div (vmul/vdivs int)
 constexpr float A2A3_COMPL_FP_BINOP = 19.0f;  // fp add/sub; abs (all dtypes); fp scalar; int32 group-reduce
@@ -63,9 +63,10 @@ constexpr float A2A3_RPT_4 = 4.0f; // transcendental ops (exp/sqrt fp16)
 constexpr float A2A3_RPT_6 = 6.0f; // merge_sort op
 
 // Pipeline configuration
-constexpr float A2A3_INTERVAL = 18.0f;   // interval cycles between instruction groups
-constexpr float A2A3_MASK_EFFECT = 1.0f; // mask penalty multiplier (1.0 = no extra penalty)
-constexpr float A2A3_BANK_NONE = 0.0f;   // no bank conflict penalty
+constexpr float A2A3_INTERVAL = 18.0f;       // interval cycles between instruction groups
+constexpr float A2A3_INTERVAL_VCOPY = 13.0f; // interval cycles between instruction groups
+constexpr float A2A3_MASK_EFFECT = 1.0f;     // mask penalty multiplier (1.0 = no extra penalty)
+constexpr float A2A3_BANK_NONE = 0.0f;       // no bank conflict penalty
 
 // A2A3 data transfer bandwidth constants (B/Cycle), named as SRC_DST using TileType names
 constexpr float A2A3_BW_GM_VEC = 128.0f;
@@ -187,13 +188,13 @@ public:
         SetParam("PIPE_V", DataType::FP32, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE,
                  A2A3_MASK_EFFECT, A2A3_BANK_NONE);
 
-        SetParam("vector_dup", DataType::INT16, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_1, A2A3_INTERVAL,
+        SetParam("vector_dup", DataType::INT16, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP_VCOPY, A2A3_RPT_1, A2A3_INTERVAL,
                  A2A3_MASK_EFFECT, A2A3_BANK_NONE);
-        SetParam("vector_dup", DataType::INT32, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_1, A2A3_INTERVAL,
+        SetParam("vector_dup", DataType::INT32, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP_VCOPY, A2A3_RPT_1, A2A3_INTERVAL,
                  A2A3_MASK_EFFECT, A2A3_BANK_NONE);
-        SetParam("vector_dup", DataType::FP16, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_1, A2A3_INTERVAL,
+        SetParam("vector_dup", DataType::FP16, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP_VCOPY, A2A3_RPT_1, A2A3_INTERVAL,
                  A2A3_MASK_EFFECT, A2A3_BANK_NONE);
-        SetParam("vector_dup", DataType::FP32, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_1, A2A3_INTERVAL,
+        SetParam("vector_dup", DataType::FP32, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP_VCOPY, A2A3_RPT_1, A2A3_INTERVAL,
                  A2A3_MASK_EFFECT, A2A3_BANK_NONE);
 
         // TADD
@@ -369,14 +370,14 @@ public:
                  A2A3_MASK_EFFECT, A2A3_BANK_NONE);
 
         // copy_ubuf_to_ubuf (memory copy, 0-cycle placeholder)
-        SetParam("copy_ubuf_to_ubuf", DataType::INT16, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE,
-                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
-        SetParam("copy_ubuf_to_ubuf", DataType::INT32, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE,
-                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
-        SetParam("copy_ubuf_to_ubuf", DataType::FP16, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE,
-                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
-        SetParam("copy_ubuf_to_ubuf", DataType::FP32, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE,
-                 A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("copy_ubuf_to_ubuf", DataType::INT16, A2A3_STARTUP_REDUCE, A2A3_COMPL_DUP_VCOPY, A2A3_RPT_1,
+                 A2A3_INTERVAL_VCOPY, A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("copy_ubuf_to_ubuf", DataType::INT32, A2A3_STARTUP_REDUCE, A2A3_COMPL_DUP_VCOPY, A2A3_RPT_1,
+                 A2A3_INTERVAL_VCOPY, A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("copy_ubuf_to_ubuf", DataType::FP16, A2A3_STARTUP_REDUCE, A2A3_COMPL_DUP_VCOPY, A2A3_RPT_1,
+                 A2A3_INTERVAL_VCOPY, A2A3_MASK_EFFECT, A2A3_BANK_NONE);
+        SetParam("copy_ubuf_to_ubuf", DataType::FP32, A2A3_STARTUP_REDUCE, A2A3_COMPL_DUP_VCOPY, A2A3_RPT_1,
+                 A2A3_INTERVAL_VCOPY, A2A3_MASK_EFFECT, A2A3_BANK_NONE);
 
         // mask (mask set instruction, 0-cycle placeholder)
         SetParam("mask", DataType::INT16, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE, A2A3_BANK_NONE,
@@ -409,28 +410,28 @@ public:
                  A2A3_MASK_EFFECT, A2A3_BANK_NONE);
 
         // TSORT32: vbitsort (bitonic sort, 2 cycles/repeat)
-        SetParam("vbitsort", DataType::FP16, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_4, A2A3_INTERVAL,
+        SetParam("vbitsort", DataType::FP16, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP_VCOPY, A2A3_RPT_4, A2A3_INTERVAL,
                  A2A3_MASK_EFFECT, A2A3_BANK_NONE);
-        SetParam("vbitsort", DataType::FP32, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_4, A2A3_INTERVAL,
+        SetParam("vbitsort", DataType::FP32, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP_VCOPY, A2A3_RPT_4, A2A3_INTERVAL,
                  A2A3_MASK_EFFECT, A2A3_BANK_NONE);
-        SetParam("vbitsort", DataType::INT16, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_4, A2A3_INTERVAL,
+        SetParam("vbitsort", DataType::INT16, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP_VCOPY, A2A3_RPT_4, A2A3_INTERVAL,
                  A2A3_MASK_EFFECT, A2A3_BANK_NONE);
-        SetParam("vbitsort", DataType::INT32, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_4, A2A3_INTERVAL,
+        SetParam("vbitsort", DataType::INT32, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP_VCOPY, A2A3_RPT_4, A2A3_INTERVAL,
                  A2A3_MASK_EFFECT, A2A3_BANK_NONE);
 
         // TMRGSORT: vmrgsort4 (merge sort, 2 cycles/repeat)
-        SetParam("vmrgsort4", DataType::FP16, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_6, A2A3_INTERVAL,
+        SetParam("vmrgsort4", DataType::FP16, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP_VCOPY, A2A3_RPT_6, A2A3_INTERVAL,
                  A2A3_MASK_EFFECT, A2A3_BANK_NONE);
-        SetParam("vmrgsort4", DataType::FP32, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_6, A2A3_INTERVAL,
+        SetParam("vmrgsort4", DataType::FP32, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP_VCOPY, A2A3_RPT_6, A2A3_INTERVAL,
                  A2A3_MASK_EFFECT, A2A3_BANK_NONE);
 
-        SetParam("scatter", DataType::FP16, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_1, A2A3_INTERVAL,
+        SetParam("scatter", DataType::FP16, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP_VCOPY, A2A3_RPT_1, A2A3_INTERVAL,
                  A2A3_MASK_EFFECT, A2A3_BANK_NONE);
-        SetParam("scatter", DataType::FP32, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_2, A2A3_INTERVAL,
+        SetParam("scatter", DataType::FP32, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP_VCOPY, A2A3_RPT_2, A2A3_INTERVAL,
                  A2A3_MASK_EFFECT, A2A3_BANK_NONE);
-        SetParam("scatter", DataType::INT16, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_1, A2A3_INTERVAL,
+        SetParam("scatter", DataType::INT16, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP_VCOPY, A2A3_RPT_1, A2A3_INTERVAL,
                  A2A3_MASK_EFFECT, A2A3_BANK_NONE);
-        SetParam("scatter", DataType::INT32, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP, A2A3_RPT_2, A2A3_INTERVAL,
+        SetParam("scatter", DataType::INT32, A2A3_STARTUP_BINARY, A2A3_COMPL_DUP_VCOPY, A2A3_RPT_2, A2A3_INTERVAL,
                  A2A3_MASK_EFFECT, A2A3_BANK_NONE);
 
         // TMATMUL / TGEMV: mmad (PIPE_M cube pipeline — recorded, cycle model TBD)
@@ -626,7 +627,6 @@ public:
         using T = typename TileData::DType;
         std::vector<CostModelStats> stats = runTLoadOp<TileData, GlobalData>(dst, src);
         float totalCycles = DataTransInstPredictCycle<T, TileData>(stats, dst);
-        fprintf(stdout, "[CostModel4] cycles: %f\n", totalCycles);
         dst.SetCycle(totalCycles);
     }
 
@@ -695,7 +695,7 @@ public:
             }
             total_cycles += stat.repeats * vec_params.per_repeat_cycles;
         }
-        fprintf(stdout, "[CostModel] VecInstPredictCycle: %.1f\n", total_cycles);
+
         return total_cycles;
     }
 
@@ -742,8 +742,6 @@ public:
             dstType = static_cast<int>(TileType::Mat);
         }
 
-        fprintf(stdout, "[CostModel3] SrcTileData::Loc: %d, DstTileData::Loc: %d\n", srcType, dstType);
-
         if constexpr (is_conv_tile_v<DstTileData>) {
             return DataTransInstPredictCycle(srcType, dstType, DstTileData::bufferSize);
         } else {
@@ -782,12 +780,8 @@ public:
         }
 
         if constexpr (is_conv_tile_v<SrcTileData>) {
-            fprintf(stdout, "[CostModel1] SrcTileData::Loc: %d, DstTileData::Loc: %d\n",
-                    static_cast<int>(SrcTileData::Loc), static_cast<int>(DstTileData::Loc));
             return DataTransInstPredictCycle(srcType, dstType, DstTileData::bufferSize);
         } else {
-            fprintf(stdout, "[CostModel2] SrcTileData::Loc: %d, DstTileData::Loc: %d\n",
-                    static_cast<int>(SrcTileData::Loc), static_cast<int>(DstTileData::Loc));
             return DataTransInstPredictCycle(srcType, dstType, src.GetValidRow() * src.GetValidCol() * sizeof(T));
         }
     }
@@ -809,8 +803,6 @@ public:
         } else {
             total_cycles = static_cast<int>(bufferSize / bandWidth);
         }
-
-        fprintf(stdout, "[CostModel] DataTransInstPredictCycle: %.1f\n", total_cycles);
         return total_cycles;
     }
 

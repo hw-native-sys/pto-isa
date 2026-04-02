@@ -56,7 +56,8 @@ void LaunchTColMax(T *out, T *src, void *stream)
         runTColMax<T, kGRows_, kGCols_, kTRows_, kTCols_, profiling, accuracy>(out, src);
 }
 
-template void LaunchTColMax<float, 64, 64, 64, 64, 1116.0f, 1.0f>(float *out, float *src, void *stream);
-template void LaunchTColMax<aclFloat16, 64, 64, 64, 64, 1242.0f, 1.0f>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTColMax<int16_t, 64, 64, 64, 64, 1242.0f, 1.0f>(int16_t *out, int16_t *src, void *stream);
-template void LaunchTColMax<aclFloat16, 16, 256, 16, 256, 252.0f, 1.0f>(aclFloat16 *out, aclFloat16 *src, void *stream);
+template void LaunchTColMax<float, 64, 64, 64, 64, 1130.0f, 1.0f>(float *out, float *src, void *stream);
+template void LaunchTColMax<aclFloat16, 64, 64, 64, 64, 1256.0f, 1.0f>(aclFloat16 *out, aclFloat16 *src, void *stream);
+template void LaunchTColMax<int16_t, 64, 64, 64, 64, 1256.0f, 1.0f>(int16_t *out, int16_t *src, void *stream);
+template void LaunchTColMax<aclFloat16, 16, 256, 16, 256, 266.0f, 1.0f>(aclFloat16 *out, aclFloat16 *src, void *stream);
+template void LaunchTColMax<float, 1, 3072, 1, 3072, 14.0f, 1.0f>(float *out, float *src, void *stream);

@@ -40,34 +40,12 @@ template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, bool I
           float accuracy>
 void test_tcolsum()
 {
-    size_t dstFileSize = kTCols_ * sizeof(T);
-    size_t srcFileSize = kTRows_ * kTCols_ * sizeof(T);
-
     aclInit(nullptr);
     aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
-
-    T *dstHost, *srcHost;
-    T *dstDevice, *srcDevice;
-
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
-
-    aclrtMalloc((void **)(&srcDevice), srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)(&dstDevice), dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-
-    aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    LaunchTCOLSUM<T, kGRows_, kGCols_, kTRows_, kTCols_, IsBinary, profiling, accuracy>(dstDevice, srcDevice, stream);
-
+    LaunchTCOLSUM<T, kGRows_, kGCols_, kTRows_, kTCols_, IsBinary, profiling, accuracy>(nullptr, nullptr, stream);
     aclrtSynchronizeStream(stream);
-    aclrtMemcpy(dstHost, dstFileSize, dstDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
-
-    aclrtFree(dstDevice);
-    aclrtFree(srcDevice);
-
-    aclrtFreeHost(dstHost);
-    aclrtFreeHost(srcHost);
     aclrtDestroyStream(stream);
     aclrtResetDevice(0);
     aclFinalize();
@@ -75,9 +53,13 @@ void test_tcolsum()
 
 TEST_F(TCOLSUMTest, case_float_64x64_64x64_64x64)
 {
-    test_tcolsum<float, 64, 64, 64, 64, true, 126.0f, 1.0f>();
+    test_tcolsum<float, 64, 64, 64, 64, true, 140.0f, 1.0f>();
+}
+TEST_F(TCOLSUMTest, case_float_1x3072_1x3072_1x3072)
+{
+    test_tcolsum<float, 1, 3072, 1, 3072, true, 14.0f, 1.0f>();
 }
 TEST_F(TCOLSUMTest, case_half_16x256_16x256_16x256)
 {
-    test_tcolsum<aclFloat16, 16, 256, 16, 256, false, 252.0f, 1.0f>();
+    test_tcolsum<aclFloat16, 16, 256, 16, 256, false, 266.0f, 1.0f>();
 }
