@@ -55,7 +55,7 @@ PTO_INST void TSYNC(WaitEvents &... events)
     WaitAllEvents(events...);
 }
 
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(__CPU_SIM)
 template <typename TileData>
 PTO_INST void TPRINT(TileData &src)
 {
