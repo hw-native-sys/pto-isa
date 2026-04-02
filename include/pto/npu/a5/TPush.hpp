@@ -197,7 +197,7 @@ struct TPipe {
             } else if constexpr (Split == TileSplitAxis::TILE_UP_DOWN) {
                 TMOV_IMPL<TileCons, TileProd, AccToVecMode::DualModeSplitM>(vecTile, tile);
             } else if constexpr (Split == TileSplitAxis::TILE_LEFT_RIGHT) {
-                TMOV_IMPL<TileProd, TileProd, AccToVecMode::DualModeSplitN>(vecTile, tile);
+                TMOV_IMPL<TileCons, TileProd, AccToVecMode::DualModeSplitN>(vecTile, tile);
             }
         }
 
