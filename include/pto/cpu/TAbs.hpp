@@ -34,6 +34,7 @@ PTO_INTERNAL void TABS_IMPL(tile_shape &dst, tile_shape &src)
                       std::is_same<typename tile_shape::DType, int>::value ||
                       std::is_same<typename tile_shape::DType, int16_t>::value ||
                       std::is_same<typename tile_shape::DType, half>::value ||
+                      std::is_same<typename tile_shape::DType, bfloat16_t>::value ||
                       std::is_same<typename tile_shape::DType, float>::value,
                   "TABS: Invalid data type");
     TAbs_Impl<tile_shape>(dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol());

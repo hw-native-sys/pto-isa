@@ -13,28 +13,31 @@
 import os
 
 import numpy as np
+from tests.script.cpu_bfloat16 import BF16_DTYPE, cast_for_compute, write_array
+
 np.random.seed(19)
+ENABLE_BF16 = os.environ.get("PTO_CPU_SIM_ENABLE_BF16") == "1"
 
 
 def gen_golden(param):
     m, n = param.m, param.n
 
-    x1_gm = (np.random.random([m, n]) * 4.41).astype(param.srctype)
+    x1_gm = cast_for_compute(np.random.random([m, n]) * 4.41, param.srctype)
     if param.mode == "RoundMode::CAST_RINT":
         if param.srctype == np.float32:
-            if param.dsttype == np.float16:
-                golden = x1_gm.astype(param.dsttype)
+            if param.dsttype == np.float16 or param.dsttype == BF16_DTYPE:
+                golden = cast_for_compute(x1_gm, param.dsttype)
             else:
                 golden = np.rint(x1_gm).astype(param.dsttype)
-        elif param.srctype == np.float16:
+        elif param.srctype == np.float16 or param.srctype == BF16_DTYPE:
             if param.dsttype == np.float32:
                 golden = x1_gm.astype(param.dsttype)
             else:
                 golden = np.rint(x1_gm).astype(param.dsttype)
         else:
             golden = x1_gm.astype(param.dsttype)
-    x1_gm.tofile("./x1_gm.bin")
-    golden.tofile("./golden.bin")
+    write_array("./x1_gm.bin", x1_gm, param.srctype)
+    write_array("./golden.bin", golden, param.dsttype)
 
 
 class TCvtParams:
@@ -69,6 +72,15 @@ if __name__ == "__main__":
         TCvtParams(np.float32, np.float16, 64, 64, "RoundMode::CAST_RINT"),
         TCvtParams(np.float16, np.uint8, 64, 64, "RoundMode::CAST_RINT")
     ]
+    if ENABLE_BF16:
+        case_name_list.extend([
+            "TCVTTest.case10",
+            "TCVTTest.case11",
+        ])
+        case_params_list.extend([
+            TCvtParams(np.float32, BF16_DTYPE, 64, 64, "RoundMode::CAST_RINT"),
+            TCvtParams(BF16_DTYPE, np.float32, 64, 64, "RoundMode::CAST_RINT"),
+        ])
 
     for i, case_name in enumerate(case_name_list):
         if not os.path.exists(case_name):

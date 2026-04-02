@@ -31,7 +31,8 @@ template <typename tile_type>
 PTO_INTERNAL void TSQRT_IMPL(tile_type &dst, tile_type &src)
 {
     static_assert(
-        std::is_same<typename tile_type::DType, half>::value || std::is_same<typename tile_type::DType, float>::value,
+        std::is_same<typename tile_type::DType, half>::value || std::is_same<typename tile_type::DType, bfloat16_t>::value ||
+            std::is_same<typename tile_type::DType, float>::value,
         "TSQRT: Invalid data type");
     TSqrt_Impl<tile_type>(dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol());
 }

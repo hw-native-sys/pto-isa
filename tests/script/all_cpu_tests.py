@@ -18,6 +18,8 @@ import sys
 import time
 from pathlib import Path
 
+from cpu_bfloat16 import detect_bfloat16_cxx, derive_cc_from_cxx
+
 
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build and run all CPU-SIM STs.")
@@ -33,6 +35,11 @@ def parse_arguments() -> argparse.Namespace:
         "--compiler",
         required=False,
         help="Optional C++ compiler path or name. When omitted, the current CXX environment or default compiler is used.",
+    )
+    parser.add_argument(
+        "--enable-bf16",
+        action="store_true",
+        help="Enable BF16 CPU-SIM coverage. This switches to a compiler that supports std::bfloat16_t and C++23.",
     )
     parser.add_argument("-g", "--generator", required=False, help="Optional CMake generator, for example Ninja.")
     parser.add_argument(
@@ -85,7 +92,14 @@ def run_command(
 def build_all_cpu_tests(repo_root: Path, build_dir: Path, args: argparse.Namespace) -> None:
     tests_path = repo_root / "tests" / "cpu" / "st"
     env = os.environ.copy()
-    if args.compiler:
+    cc = None
+    if args.enable_bf16:
+        cxx = detect_bfloat16_cxx(args.compiler)
+        cc = derive_cc_from_cxx(cxx)
+        env["CXX"] = cxx
+        if cc:
+            env["CC"] = cc
+    elif args.compiler:
         env["CXX"] = args.compiler
 
     configure_cmd = [
@@ -95,7 +109,11 @@ def build_all_cpu_tests(repo_root: Path, build_dir: Path, args: argparse.Namespa
         "-B",
         str(build_dir),
         "-DCMAKE_BUILD_TYPE=Release",
+        f"-DPTO_CPU_SIM_ENABLE_BF16={'ON' if args.enable_bf16 else 'OFF'}",
     ]
+    if cc:
+        configure_cmd.append(f"-DCMAKE_C_COMPILER={cc}")
+        configure_cmd.append(f"-DCMAKE_CXX_COMPILER={env['CXX']}")
     if args.generator:
         configure_cmd.extend(["-G", args.generator])
     run_command(configure_cmd, cwd=repo_root, env=env, verbose=args.verbose)
@@ -107,9 +125,13 @@ def build_all_cpu_tests(repo_root: Path, build_dir: Path, args: argparse.Namespa
 def generate_test_data(repo_root: Path, build_dir: Path, args: argparse.Namespace) -> None:
     testcase_src_root = repo_root / "tests" / "cpu" / "st" / "testcase"
     testcase_build_root = build_dir / "testcase"
+    gen_env = os.environ.copy()
+    gen_env["PYTHONPATH"] = str(repo_root) + os.pathsep + gen_env.get("PYTHONPATH", "")
+    if args.enable_bf16:
+        gen_env["PTO_CPU_SIM_ENABLE_BF16"] = "1"
     testcase_build_root.mkdir(parents=True, exist_ok=True)
     for script in sorted(testcase_src_root.glob("*/gen_data.py")):
-        run_command([sys.executable, str(script)], cwd=testcase_build_root, env=os.environ.copy(), verbose=args.verbose)
+        run_command([sys.executable, str(script)], cwd=testcase_build_root, env=gen_env, verbose=args.verbose)
 
 
 def run_binaries(repo_root: Path, build_dir: Path, args: argparse.Namespace) -> int:

@@ -170,6 +170,12 @@ void LaunchTMATMUL(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream)
     } else if constexpr (tilingKey == 4) {
         RunTMATMUL<float, float, float, float, 120, 110, 50, false>(
             reinterpret_cast<float *>(out), reinterpret_cast<float *>(src0), reinterpret_cast<float *>(src1), nullptr);
+#ifdef CPU_SIM_BFLOAT_ENABLED
+    } else if constexpr (tilingKey == 6) {
+        RunTMATMUL<float, bfloat16_t, bfloat16_t, float, 40, 50, 60, false>(
+            reinterpret_cast<float *>(out), reinterpret_cast<bfloat16_t *>(src0), reinterpret_cast<bfloat16_t *>(src1),
+            nullptr);
+#endif
     }
 }
 
@@ -177,6 +183,9 @@ template void LaunchTMATMUL<1>(uint8_t *out, uint8_t *src0, uint8_t *src1, void 
 template void LaunchTMATMUL<2>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
 template void LaunchTMATMUL<3>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
 template void LaunchTMATMUL<4>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
+#ifdef CPU_SIM_BFLOAT_ENABLED
+template void LaunchTMATMUL<6>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
+#endif
 
 template <int32_t tilingKey>
 void LaunchTMATMULBIAS(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream)
@@ -193,9 +202,18 @@ void LaunchTMATMULBIAS(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2
         RunTMATMUL<float, float, float, float, 127, 128, 63, true>(
             reinterpret_cast<float *>(out), reinterpret_cast<float *>(src0), reinterpret_cast<float *>(src1),
             reinterpret_cast<float *>(src2));
+#ifdef CPU_SIM_BFLOAT_ENABLED
+    } else if constexpr (tilingKey == 7) {
+        RunTMATMUL<float, bfloat16_t, bfloat16_t, float, 16, 15, 16, true>(
+            reinterpret_cast<float *>(out), reinterpret_cast<bfloat16_t *>(src0), reinterpret_cast<bfloat16_t *>(src1),
+            reinterpret_cast<float *>(src2));
+#endif
     }
 }
 
 template void LaunchTMATMULBIAS<1>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
 template void LaunchTMATMULBIAS<2>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
 template void LaunchTMATMULBIAS<5>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
+#ifdef CPU_SIM_BFLOAT_ENABLED
+template void LaunchTMATMULBIAS<7>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
+#endif

@@ -12,6 +12,7 @@
 
 import os
 import numpy as np
+from tests.script.cpu_bfloat16 import BF16_DTYPE, cast_for_compute, normalize_case_dtype_name, write_array
 np.random.seed(19)
 
 def gen_golden_data_trowmax(case_name, param):
@@ -21,17 +22,16 @@ def gen_golden_data_trowmax(case_name, param):
     h_valid, w_valid = [min(row, param.valid_row), min(col, param.valid_col)]
 
     # Generate random input array
-    input1 = np.random.uniform(low=-16, high=16, size=[row, col]).astype(dtype)
+    input1 = cast_for_compute(np.random.uniform(low=-16, high=16, size=[row, col]), dtype)
 
     # Apply valid region constraints
-    golden = np.full((h_valid), np.finfo(dtype).min, dtype=dtype)
+    golden = cast_for_compute(np.full((h_valid), np.finfo(np.float32).min, dtype=np.float32), dtype)
     for i in range(h_valid):
-        golden[i] = np.max(input1[i][:w_valid])
+        golden[i] = cast_for_compute(np.max(input1[i][:w_valid]), dtype)
 
-    golden =golden.astype(dtype)
     # Save the input and golden data to binary files
-    input1.tofile("input1.bin")
-    golden.tofile("golden.bin")
+    write_array("input1.bin", input1, dtype)
+    write_array("golden.bin", golden, dtype)
 
     return input1, golden
 
@@ -48,13 +48,13 @@ class TRowmaxParams:
 
 
 def generate_case_name(param):
-    dtype_str = {
+    dtype_str = normalize_case_dtype_name(param.dtype, {
         np.float32: 'float',
         np.float16: 'half',
         np.int8: 'int8',
         np.int32: 'int32',
         np.int16: 'int16'
-    }[param.dtype]
+    })
 
     def substring(a, b) -> str:
         return f"_{a}x{b}"
@@ -83,6 +83,8 @@ if __name__ == "__main__":
         TRowmaxParams(np.float32, 77, 81, 32, 16, 77, 81),
         TRowmaxParams(np.float32, 32, 32, 32, 16, 32, 32)
     ]
+    if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
+        case_params_list.append(TRowmaxParams(BF16_DTYPE, 64, 64, 64, 64, 64, 64))
 
     for i, param in enumerate(case_params_list):
         case_name = generate_case_name(param)

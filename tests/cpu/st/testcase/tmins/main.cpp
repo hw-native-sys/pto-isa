@@ -106,7 +106,19 @@ TEST_F(TMINSTest, case_half_64x64_64x64_64x64)
 {
     test_tmins<aclFloat16, 64, 64, 64, 64>();
 }
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TMINSTest, case_bf16_64x64_64x64_64x64)
+{
+    test_tmins<bfloat16_t, 64, 64, 64, 64>();
+}
+#endif
 TEST_F(TMINSTest, case_half_16x256_16x256_16x256)
 {
     test_tmins<aclFloat16, 16, 256, 16, 256>();
 }
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TMINSTest, case_bf16_16x256_16x256_16x256)
+{
+    test_tmins<bfloat16_t, 16, 256, 16, 256>();
+}
+#endif

@@ -23,6 +23,8 @@ import platform
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from script.cpu_bfloat16 import detect_bfloat16_cxx, derive_cc_from_cxx
+
 
 def _format_cmd(command: List[str]) -> str:
     return " ".join(map(str, command))
@@ -463,6 +465,11 @@ def parse_arguments():
     parser.add_argument("--demo-only", action="store_true", help="Same as --demo (demo runs without CPU ST).")
     parser.add_argument("--generator", default=None, help="CMake generator(Windows required: 'MinGW Makefiles' etc..)")
     parser.add_argument("--cmake_prefix_path", default=None, help="-DCMAKE_PREFIX_PATH=<path> e.g. D:\\gtest")
+    parser.add_argument(
+        "--enable-bf16",
+        action="store_true",
+        help="Enable BF16 CPU-SIM coverage. Requires a compiler with C++23 std::bfloat16_t support.",
+    )
     args = parser.parse_args()
     return args
 
@@ -475,6 +482,7 @@ def setup_environment(args) -> None:
 
 def log_build_info(args, cxx, cc) -> None:
     logging.info(f"[INFO] build_type={args.build_type}")
+    logging.info(f"[INFO] bf16={'ON' if args.enable_bf16 else 'OFF'}")
     if cxx:
         logging.info(f"[INFO] cxx={cxx}")
     if cc:
@@ -601,6 +609,7 @@ def perform_build(args, source_dir, build_dir, cxx, cc) -> bool:
             "-B",
             str(build_dir),
             f"-DCMAKE_BUILD_TYPE={args.build_type}",
+            f"-DPTO_CPU_SIM_ENABLE_BF16={'ON' if args.enable_bf16 else 'OFF'}",
             *([f"-DTEST_CASE={args.testcase}"] if args.testcase else []),
             *([f"-DCMAKE_C_COMPILER={cc}"] if cc else []),
             *([f"-DCMAKE_CXX_COMPILER={cxx}"] if cxx else []),
@@ -654,7 +663,22 @@ def run_selected_tests(args, source_dir, build_dir, selected, xml_dir) -> List[L
         gen_script = source_dir / "testcase" / testcase / "gen_data.py"
         if not args.no_gen and gen_script.exists():
             logging.info(f"[STEP] gen_data: {testcase}")
-            generate_golden(build_dir=build_dir, gen_script=gen_script)
+            old_pythonpath = os.environ.get("PYTHONPATH", "")
+            old_bf16_flag = os.environ.get("PTO_CPU_SIM_ENABLE_BF16")
+            repo_root = Path(__file__).resolve().parent.parent
+            os.environ["PYTHONPATH"] = str(repo_root) + (os.pathsep + old_pythonpath if old_pythonpath else "")
+            if args.enable_bf16:
+                os.environ["PTO_CPU_SIM_ENABLE_BF16"] = "1"
+            else:
+                os.environ.pop("PTO_CPU_SIM_ENABLE_BF16", None)
+            try:
+                generate_golden(build_dir=build_dir, gen_script=gen_script)
+            finally:
+                os.environ["PYTHONPATH"] = old_pythonpath
+                if old_bf16_flag is None:
+                    os.environ.pop("PTO_CPU_SIM_ENABLE_BF16", None)
+                else:
+                    os.environ["PTO_CPU_SIM_ENABLE_BF16"] = old_bf16_flag
 
         xml_output = (xml_dir / f"{testcase}.xml") if xml_dir else None
         t0 = time.perf_counter()
@@ -688,6 +712,14 @@ def main() -> int:
     args = parse_arguments()
     setup_environment(args)
     repo_root = Path(__file__).resolve().parent
+
+    if args.enable_bf16:
+        selected_cxx = detect_bfloat16_cxx(args.cxx)
+        if args.cxx and (shutil.which(args.cxx) or args.cxx) != selected_cxx:
+            raise RuntimeError(f"--cxx={args.cxx} does not support std::bfloat16_t")
+        args.cxx = selected_cxx
+        if not args.cc:
+            args.cc = derive_cc_from_cxx(selected_cxx)
 
     cxx, cc = detect_compilers(args.cxx, args.cc)
     log_build_info(args, cxx, cc)

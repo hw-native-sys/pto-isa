@@ -285,14 +285,19 @@ using TRandomCounter = uint32_t[PTO_RANDOM_COUNTER_SIZE];
 #if defined(__CPU_SIM) || defined(__COSTMODEL)
 typedef _Float16 half;
 typedef _Float16 aclFloat16;
-// Note: clang version should be >=15 and gcc version should be >=14
+// BF16 simulation is opt-in because it requires a C++23 toolchain with std::bfloat16_t.
+#if defined(PTO_CPU_SIM_ENABLE_BF16)
 #if defined(__has_include) && __has_include(<stdfloat>) && __cplusplus >= 202302L && defined(__STDCPP_BFLOAT16_T__)
 #include <stdfloat>
 typedef std::bfloat16_t bfloat16_t;
 #define CPU_SIM_BFLOAT_ENABLED
 #else
-// macOS libc++ (and some other toolchains) may not ship <stdfloat> yet.
-// For CPU simulation, a best-effort 16-bit float type is sufficient.
+#error "PTO_CPU_SIM_ENABLE_BF16 requires C++23 <stdfloat> with std::bfloat16_t support."
+#endif
+#else
+// Default CPU simulator builds keep the existing compiler baseline.
+// bfloat16_t remains available as a placeholder type, but BF16 ST coverage and
+// bit-accurate custom-value paths are compiled only when CPU_SIM_BFLOAT_ENABLED is set.
 typedef _Float16 bfloat16_t;
 #endif
 #endif

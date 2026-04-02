@@ -108,3 +108,9 @@ TEST_F(TSUBTest, case_half_16x256_16x256_16x256)
 {
     test_tsub<aclFloat16, 16, 256, 16, 256>();
 }
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TSUBTest, case_bf16_16x256_16x256_16x256)
+{
+    test_tsub<bfloat16_t, 16, 256, 16, 256>();
+}
+#endif

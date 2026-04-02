@@ -55,3 +55,7 @@ template void LaunchTExp<aclFloat16, 64, 64, 64, 64>(aclFloat16 *out, aclFloat16
 template void LaunchTExp<aclFloat16, 32, 32, 32, 32>(aclFloat16 *out, aclFloat16 *src, void *stream);
 template void LaunchTExp<float, 32, 32, 32, 32>(float *out, float *src, void *stream);
 template void LaunchTExp<float, 32, 16, 32, 16>(float *out, float *src, void *stream);
+#ifdef CPU_SIM_BFLOAT_ENABLED
+template void LaunchTExp<bfloat16_t, 64, 64, 64, 64>(bfloat16_t *out, bfloat16_t *src, void *stream);
+template void LaunchTExp<bfloat16_t, 32, 32, 32, 32>(bfloat16_t *out, bfloat16_t *src, void *stream);
+#endif

@@ -101,7 +101,19 @@ TEST_F(TSQRTTest, case_half_64x64_64x64_64x64_inPlace_True)
 {
     test_tsqrt<aclFloat16, 64, 64, 64, 64, true>();
 }
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TSQRTTest, case_bf16_64x64_64x64_64x64_inPlace_True)
+{
+    test_tsqrt<bfloat16_t, 64, 64, 64, 64, true>();
+}
+#endif
 TEST_F(TSQRTTest, case_half_64x64_64x64_64x64_inPlace_False)
 {
     test_tsqrt<aclFloat16, 64, 64, 64, 64, false>();
 }
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TSQRTTest, case_bf16_64x64_64x64_64x64_inPlace_False)
+{
+    test_tsqrt<bfloat16_t, 64, 64, 64, 64, false>();
+}
+#endif

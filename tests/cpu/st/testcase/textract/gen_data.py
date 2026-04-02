@@ -12,13 +12,21 @@
 
 import os
 import numpy as np
+from tests.script.cpu_bfloat16 import BF16_DTYPE, cast_for_compute, is_bfloat16_dtype, write_array
 
 print_C_case = True
 
 np.random.seed(19)
+ENABLE_BF16 = os.environ.get("PTO_CPU_SIM_ENABLE_BF16") == "1"
 
 def type2str(t):
-    return "half" if t is np.float16 else "float" if t is np.float32 else np.dtype(t).name+"_t"
+    if t is np.float16:
+        return "half"
+    if t is np.float32:
+        return "float"
+    if is_bfloat16_dtype(t):
+        return "bfloat16_t"
+    return np.dtype(t).name+"_t"
 
 def gen_golden_data(case_name, param):
     src_type = param.src_type
@@ -27,12 +35,12 @@ def gen_golden_data(case_name, param):
     rows, cols, valid_rows, valid_cols, idx_row, idx_col = param.rows, param.cols, param.valid_rows, param.valid_cols, param.idx_row, param.idx_col
 
     #gm = np.rand(1, 1e6, [m, k]).astype(src_type)
-    gm = np.arange(1, valid_rows*valid_cols+1).reshape([valid_rows, valid_cols]).astype(src_type)
+    gm = cast_for_compute(np.arange(1, valid_rows * valid_cols + 1).reshape([valid_rows, valid_cols]), src_type)
 
-    golden = gm[idx_row:, idx_col:].astype(dst_type)
+    golden = cast_for_compute(gm[idx_row:, idx_col:], dst_type)
 
-    gm.tofile("./input.bin")
-    golden.tofile("./golden.bin")
+    write_array("./input.bin", gm, src_type)
+    write_array("./golden.bin", golden, dst_type)
 
     if print_C_case:
         print(f"TEST_F(TEXTRACTTest, {case_name}) "+"{")
@@ -76,6 +84,12 @@ if __name__ == "__main__":
         textractParams(np.float32, np.float32, 128, 96, 125, 93, 8, 16, 2, 1),
         textractParams(np.float32, np.float32, 128, 96, 125, 93, 8, 16, 2, 2),
     ]
+    if ENABLE_BF16:
+        case_params_list.extend([
+            textractParams(BF16_DTYPE, BF16_DTYPE, 32, 32, 32, 32, 0, 0, 0, 0),
+            textractParams(BF16_DTYPE, np.float32, 32, 32, 32, 32, 8, 16, 0, 0),
+            textractParams(BF16_DTYPE, BF16_DTYPE, 32, 32, 31, 31, 8, 16, 0, 0),
+        ])
 
     for case_param in case_params_list:
         case_name = gen_case_name(case_param)
@@ -88,5 +102,4 @@ if __name__ == "__main__":
         gen_golden_data(case_name, case_param)
 
         os.chdir(original_dir)
-
 

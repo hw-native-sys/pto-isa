@@ -108,3 +108,10 @@ TEST_F(TADDTest, case_half_16x256_16x256_16x256)
 {
     test_tadd<aclFloat16, 16, 256, 16, 256>();
 }
+
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TADDTest, case_bf16_16x256_16x256_16x256)
+{
+    test_tadd<bfloat16_t, 16, 256, 16, 256>();
+}
+#endif

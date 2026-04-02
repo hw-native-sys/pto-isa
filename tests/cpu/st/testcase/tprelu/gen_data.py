@@ -12,6 +12,7 @@
 
 import os
 import numpy as np
+from tests.script.cpu_bfloat16 import BF16_DTYPE, cast_for_compute, normalize_case_dtype_name, write_array, zeros
 np.random.seed(19)
 
 
@@ -22,25 +23,21 @@ def gen_golden_data_tprelu(case_name, param):
     h_valid, w_valid = [param.valid_row, param.valid_col]
 
     # Generate random input arrays
-    input1 = np.random.randint(1, 10, size=[row, col]).astype(dtype)
-    input2 = np.random.randint(1, 10, size=[row, col]).astype(dtype)
+    input1 = cast_for_compute(np.random.randint(1, 10, size=[row, col]), dtype)
+    input2 = cast_for_compute(np.random.randint(1, 10, size=[row, col]), dtype)
 
     # Perform the addbtraction
-    golden = np.where(input1 > 0, input1, input1 * input2).astype(dtype)
-
-    # Apply valid region constraints
-    output = np.zeros([row, col]).astype(dtype)
-    for h in range(row):
-        for w in range(col):
-            if h >= h_valid or w >= w_valid:
-                golden[h][w] = output[h][w]
+    golden = zeros([row, col], dtype)
+    golden[:h_valid, :w_valid] = cast_for_compute(
+        np.where(input1 > 0, input1, input1 * input2), dtype
+    )[:h_valid, :w_valid]
 
     # Save the input and golden data to binary files
-    input1.tofile("input1.bin")
-    input2.tofile("input2.bin")
-    golden.tofile("golden.bin")
+    write_array("input1.bin", input1, dtype)
+    write_array("input2.bin", input2, dtype)
+    write_array("golden.bin", golden, dtype)
 
-    return output, input1, input2, golden
+    return input1, input2, golden
 
 
 class TPreluParams:
@@ -55,13 +52,13 @@ class TPreluParams:
 
 
 def generate_case_name(param):
-    dtype_str = {
+    dtype_str = normalize_case_dtype_name(param.dtype, {
         np.float32: 'float',
         np.float16: 'half',
         np.int8: 'int8',
         np.int32: 'int32',
         np.int16: 'int16'
-    }[param.dtype]
+    })
     return f"TPRELUTest.case_{dtype_str}_{param.global_row}x{param.global_col}_{param.tile_row}x{param.tile_col}_" + \
            f"{param.valid_row}x{param.valid_col}"
 
@@ -81,6 +78,8 @@ if __name__ == "__main__":
         TPreluParams(np.int16, 64, 64, 64, 64, 64, 64),
         TPreluParams(np.float16, 16, 256, 16, 256, 16, 256),
     ]
+    if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
+        case_params_list.append(TPreluParams(BF16_DTYPE, 16, 256, 16, 256, 16, 256))
 
     for i, param in enumerate(case_params_list):
         case_name = generate_case_name(param)
