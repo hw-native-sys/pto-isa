@@ -59,6 +59,7 @@ enum class ElementOp
     OP_SUBS,
     OP_MULS,
     OP_DIVS,
+    OP_RDIVS,
     OP_REMS,
     OP_MAXS,
     OP_MINS,
@@ -67,6 +68,9 @@ enum class ElementOp
     OP_XORS,
     OP_CMPS,
     OP_LRELU,
+    OP_FMODS,
+    OP_SHLS,
+    OP_SHRS,
     // Input tile0 tile1 and scala
     OP_SELS,
     OP_ADDCS,
@@ -427,8 +431,16 @@ template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_DIVS> {
     static void apply(DType &dst, DType &src, DType &scalar, size_t)
     {
-        if (scalar != static_cast<DType>(0)) {
-            dst = src / scalar;
+        dst = src / scalar;
+    }
+};
+
+template <typename DType>
+struct ElementOpCal<DType, ElementOp::OP_RDIVS> {
+    static void apply(DType &dst, DType &src, DType &scalar, size_t)
+    {
+        if (src != static_cast<DType>(0)) {
+            dst = scalar / src;
         } else {
             PTO_ASSERT(false, "illegal src is zero");
         }
@@ -456,6 +468,14 @@ struct ElementOpCal<DType, ElementOp::OP_MAXS> {
     static void apply(DType &dst, DType &src, DType &scalar, size_t)
     {
         dst = std::max(src, scalar);
+    }
+};
+
+template <typename DType>
+struct ElementOpCal<DType, ElementOp::OP_MINS> {
+    static void apply(DType &dst, DType &src, DType &scalar, size_t)
+    {
+        dst = std::min(src, scalar);
     }
 };
 
@@ -518,6 +538,30 @@ struct ElementOpCal<DType, ElementOp::OP_LRELU> {
     static void apply(DType &dst, DType &src, DType &scalar, size_t)
     {
         dst = (src > static_cast<DType>(0)) ? src : (src * scalar);
+    }
+};
+
+template <typename DType>
+struct ElementOpCal<DType, ElementOp::OP_FMODS> {
+    static void apply(DType &dst, DType &src, DType &scalar, size_t)
+    {
+        dst = static_cast<DType>(std::fmod(static_cast<double>(src), static_cast<double>(scalar)));
+    }
+};
+
+template <typename DType>
+struct ElementOpCal<DType, ElementOp::OP_SHLS> {
+    static void apply(DType &dst, DType &src, DType &scalar, size_t)
+    {
+        dst = src << scalar;
+    }
+};
+
+template <typename DType>
+struct ElementOpCal<DType, ElementOp::OP_SHRS> {
+    static void apply(DType &dst, DType &src, DType &scalar, size_t)
+    {
+        dst = src >> scalar;
     }
 };
 

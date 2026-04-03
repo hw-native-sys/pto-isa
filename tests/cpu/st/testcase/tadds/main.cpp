@@ -37,7 +37,17 @@ std::string GetGoldenDir()
     return fullPath;
 }
 
-template <uint32_t caseId, typename T, int row, int vaildRow, int col, int srcVaildCol>
+template <typename T, int oRow, int oCol>
+inline void InitDstDevice(T *dstDevice)
+{
+    constexpr int size = oRow * oCol;
+    for (int k = 0; k < size; k++) {
+        dstDevice[k] = T{0};
+    }
+}
+
+template <uint32_t caseId, typename T, int validRow, int validCol, int iRow = validRow, int iCol = validCol,
+          int oRow = validRow, int oCol = validCol>
 bool TAddSTestFramework()
 {
     aclInit(nullptr);
@@ -46,8 +56,8 @@ bool TAddSTestFramework()
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    size_t dstByteSize = row * col * sizeof(T);
-    size_t srcByteSize = row * col * sizeof(T);
+    size_t dstByteSize = oRow * oCol * sizeof(T);
+    size_t srcByteSize = iRow * iCol * sizeof(T);
     T *dstHost;
     T *srcHost;
     T *dstDevice;
@@ -60,6 +70,7 @@ bool TAddSTestFramework()
     aclrtMalloc((void **)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMalloc((void **)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
+    InitDstDevice<T, oRow, oCol>(dstDevice);
     ReadFile(GetGoldenDir() + "/input.bin", srcByteSize, srcHost, srcByteSize);
     std::string scalar_file = GetGoldenDir() + "/divider.bin";
     std::ifstream file(scalar_file, std::ios::binary);
@@ -93,36 +104,42 @@ bool TAddSTestFramework()
 
 TEST_F(TADDSTest, case1)
 {
-    bool ret = TAddSTestFramework<1, float, 32, 32, 64, 64>();
+    bool ret = TAddSTestFramework<1, float, 32, 64>();
     EXPECT_TRUE(ret);
 }
 
 TEST_F(TADDSTest, case2)
 {
-    bool ret = TAddSTestFramework<2, aclFloat16, 63, 63, 64, 64>();
+    bool ret = TAddSTestFramework<2, aclFloat16, 63, 64>();
     EXPECT_TRUE(ret);
 }
 
 TEST_F(TADDSTest, case3)
 {
-    bool ret = TAddSTestFramework<3, int32_t, 31, 31, 128, 128>();
+    bool ret = TAddSTestFramework<3, int32_t, 31, 128>();
     EXPECT_TRUE(ret);
 }
 
 TEST_F(TADDSTest, case4)
 {
-    bool ret = TAddSTestFramework<4, int16_t, 15, 15, 192, 192>();
+    bool ret = TAddSTestFramework<4, int16_t, 15, 192>();
     EXPECT_TRUE(ret);
 }
 
 TEST_F(TADDSTest, case5)
 {
-    bool ret = TAddSTestFramework<5, float, 7, 7, 448, 448>();
+    bool ret = TAddSTestFramework<5, float, 7, 448>();
     EXPECT_TRUE(ret);
 }
 
 TEST_F(TADDSTest, case6)
 {
-    bool ret = TAddSTestFramework<6, float, 256, 256, 16, 16>();
+    bool ret = TAddSTestFramework<6, float, 256, 16>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TADDSTest, case7)
+{
+    bool ret = TAddSTestFramework<7, float, 16, 16, 32, 32, 64, 64>();
     EXPECT_TRUE(ret);
 }

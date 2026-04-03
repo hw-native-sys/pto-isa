@@ -11,6 +11,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef ELEMENT_TILE_SCLAR_OP_HPP
 #define ELEMENT_TILE_SCLAR_OP_HPP
 
+#include <type_traits>
 #include "pto/cpu/ElementOp.h"
 #include "pto/cpu/parallel.hpp"
 
@@ -55,120 +56,6 @@ void ZeroTileScalarOp_Impl(typename tile_shape::TileDType dst, typename tile_sha
             });
         }
     }
-}
-
-template <typename tile_shape, ElementOp op>
-void UnaryTileScalarOpImpl(typename tile_shape::TileDType dst, typename tile_shape::TileDType src,
-                           typename tile_shape::DType scalar, unsigned validRow, unsigned validCol, size_t extra = 0)
-{
-    using DType = typename tile_shape::DType;
-    if constexpr (tile_shape::SFractal == SLayout::NoneBox) {
-        if constexpr (tile_shape::isRowMajor) {
-            cpu::parallel_for_rows(validRow, validCol, [&](std::size_t r) {
-                const std::size_t base = r * tile_shape::Cols;
-                PTO_CPU_VECTORIZE_LOOP
-                for (std::size_t c = 0; c < validCol; ++c) {
-                    const std::size_t idx = base + c;
-                    ElementOpCal<DType, op>::apply(dst[idx], src[idx], scalar, extra);
-                }
-            });
-        } else {
-            cpu::parallel_for_rows(validCol, validRow, [&](std::size_t c) {
-                const std::size_t base = c * tile_shape::Rows;
-                PTO_CPU_VECTORIZE_LOOP
-                for (std::size_t r = 0; r < validRow; ++r) {
-                    const std::size_t idx = base + r;
-                    ElementOpCal<DType, op>::apply(dst[idx], src[idx], scalar, extra);
-                }
-            });
-        }
-    } else {
-        if constexpr (tile_shape::isRowMajor) {
-            cpu::parallel_for_rows(validRow, validCol, [&](std::size_t r) {
-                for (std::size_t c = 0; c < validCol; ++c) {
-                    const std::size_t idx = GetTileElementOffset<tile_shape>(r, c);
-                    ElementOpCal<DType, op>::apply(dst[idx], src[idx], scalar, extra);
-                }
-            });
-        } else {
-            cpu::parallel_for_rows(validCol, validRow, [&](std::size_t c) {
-                for (std::size_t r = 0; r < validRow; ++r) {
-                    const std::size_t idx = GetTileElementOffset<tile_shape>(r, c);
-                    ElementOpCal<DType, op>::apply(dst[idx], src[idx], scalar, extra);
-                }
-            });
-        }
-    }
-}
-
-template <typename tile_shape>
-PTO_INTERNAL void TSUBS_IMPL(tile_shape &dst, tile_shape &src, typename tile_shape::DType scalar)
-{
-    unsigned row = dst.GetValidRow();
-    unsigned col = dst.GetValidCol();
-    UnaryTileScalarOpImpl<tile_shape, ElementOp::OP_SUBS>(dst.data(), src.data(), scalar, row, col);
-}
-
-template <typename tile_shape>
-PTO_INTERNAL void TREMS_IMPL(tile_shape &dst, tile_shape &src, typename tile_shape::DType scalar)
-{
-    unsigned row = dst.GetValidRow();
-    unsigned col = dst.GetValidCol();
-    UnaryTileScalarOpImpl<tile_shape, ElementOp::OP_REMS>(dst.data(), src.data(), scalar, row, col);
-}
-
-template <typename tile_shape>
-PTO_INTERNAL void TREMS_IMPL(tile_shape &dst, tile_shape &src, typename tile_shape::DType scalar, tile_shape &tmp)
-{
-    (void)tmp;
-    TREMS_IMPL(dst, src, scalar);
-}
-
-template <typename tile_shape>
-PTO_INTERNAL void TMAXS_IMPL(tile_shape &dst, tile_shape &src, typename tile_shape::DType scalar)
-{
-    unsigned row = dst.GetValidRow();
-    unsigned col = dst.GetValidCol();
-    UnaryTileScalarOpImpl<tile_shape, ElementOp::OP_MAXS>(dst.data(), src.data(), scalar, row, col);
-}
-
-template <typename tile_shape>
-PTO_INTERNAL void TANDS_IMPL(tile_shape &dst, tile_shape &src, typename tile_shape::DType scalar)
-{
-    unsigned row = dst.GetValidRow();
-    unsigned col = dst.GetValidCol();
-    UnaryTileScalarOpImpl<tile_shape, ElementOp::OP_ANDS>(dst.data(), src.data(), scalar, row, col);
-}
-
-template <typename tile_shape>
-PTO_INTERNAL void TORS_IMPL(tile_shape &dst, tile_shape &src, typename tile_shape::DType scalar)
-{
-    unsigned row = dst.GetValidRow();
-    unsigned col = dst.GetValidCol();
-    UnaryTileScalarOpImpl<tile_shape, ElementOp::OP_ORS>(dst.data(), src.data(), scalar, row, col);
-}
-
-template <typename tile_shape>
-PTO_INTERNAL void TXORS_IMPL(tile_shape &dst, tile_shape &src, typename tile_shape::DType scalar)
-{
-    unsigned row = dst.GetValidRow();
-    unsigned col = dst.GetValidCol();
-    UnaryTileScalarOpImpl<tile_shape, ElementOp::OP_XORS>(dst.data(), src.data(), scalar, row, col);
-}
-
-template <typename tile_shape>
-PTO_INTERNAL void TXORS_IMPL(tile_shape &dst, tile_shape &src, typename tile_shape::DType scalar, tile_shape &tmp)
-{
-    (void)tmp;
-    TXORS_IMPL(dst, src, scalar);
-}
-
-template <typename tile_shape>
-PTO_INTERNAL void TLRELU_IMPL(tile_shape &dst, tile_shape &src, typename tile_shape::DType scalar)
-{
-    unsigned row = dst.GetValidRow();
-    unsigned col = dst.GetValidCol();
-    UnaryTileScalarOpImpl<tile_shape, ElementOp::OP_LRELU>(dst.data(), src.data(), scalar, row, col);
 }
 
 template <typename tile_shape, ElementOp op>

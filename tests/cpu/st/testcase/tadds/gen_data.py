@@ -19,14 +19,14 @@ np.random.seed(23)
 
 def gen_golden_data(param):
     data_type = param.data_type
-    rows = param.row
-    cols = param.col
+    valid_row = param.valid_row
+    valid_col = param.valid_col
 
-    input_arr = np.random.uniform(low=-8, high=8, size=(rows, cols)).astype(data_type)
+    input_arr = np.random.uniform(low=-8, high=8, size=(param.in_row, param.in_col)).astype(data_type)
     divider = np.random.uniform(low=-8, high=8, size=(1, 1)).astype(data_type)
-    output_arr = np.zeros((rows, cols), dtype=data_type)
-    for i in range(rows):
-        for j in range(cols):
+    output_arr = np.zeros((param.out_row, param.out_col), dtype=data_type)
+    for i in range(valid_row):
+        for j in range(valid_col):
             output_arr[i, j] = input_arr[i, j] + divider[0, 0]
     input_arr.tofile('input.bin')
     with open("divider.bin", 'wb') as f:
@@ -35,11 +35,15 @@ def gen_golden_data(param):
 
 
 class TAddsParams:
-    def __init__(self, name, data_type, row, col):
+    def __init__(self, name, data_type, valid_row, valid_col, in_row=None, in_col=None, out_row=None, out_col=None):
         self.name = name
         self.data_type = data_type
-        self.row = row
-        self.col = col
+        self.valid_row = valid_row
+        self.valid_col = valid_col
+        self.in_row = valid_row if in_row is None else in_row
+        self.in_col = valid_col if in_col is None else in_col
+        self.out_row = valid_row if out_row is None else out_row
+        self.out_col = valid_col if out_col is None else out_col
 
 
 if __name__ == "__main__":
@@ -49,7 +53,8 @@ if __name__ == "__main__":
         TAddsParams("TADDSTest.case3", np.int32, 31, 128),
         TAddsParams("TADDSTest.case4", np.int16, 15, 64 * 3),
         TAddsParams("TADDSTest.case5", np.float32, 7, 64 * 7),
-        TAddsParams("TADDSTest.case6", np.float32, 256, 16)
+        TAddsParams("TADDSTest.case6", np.float32, 256, 16),
+        TAddsParams("TADDSTest.case7", np.float32, 16, 16, 32, 32, 64, 64)
     ]
 
     for _, case in enumerate(case_params_list):
