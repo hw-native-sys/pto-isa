@@ -11,6 +11,8 @@ Tests and examples for PTO Tile Lib, covering both CPU simulation and NPU (inclu
   - `README.md`: Script usage
 - `cpu/`: CPU-side ST tests (gtest + CMake)
   - `cpu/st/`: CPU ST projects and testcase data generation scripts
+- `gpu/`: NVIDIA GPU backend tests
+  - `gpu/st/`: standalone CUDA smoke / correctness tests for the GPU backend
 - `npu/`: NPU-side ST tests split by SoC
   - `npu/a2a3/src/st/`: A2/A3 compute ST
   - `npu/a2a3/comm/st/`: A2/A3 communication ST

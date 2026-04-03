@@ -386,6 +386,9 @@ PTO_INTERNAL constexpr TileLayoutCustom GetTileLayoutCustom()
     } else if constexpr (TileData::isRowMajor && (TileData::SFractal == SLayout::RowMajor) &&
                          TileData::SFractalSize == 512) {
         return TileLayoutCustom::ZZ;
+    } else if constexpr (TileData::isRowMajor && (TileData::SFractal == SLayout::GpuSwizzle128B) &&
+                         TileData::SFractalSize == 128) {
+        return TileLayoutCustom::GPU_SWIZZLE_128B;
     } else {
         return TileLayoutCustom::NONE;
     }

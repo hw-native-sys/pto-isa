@@ -43,6 +43,7 @@ enum class SLayout
     NoneBox = 0,
     RowMajor = 1,
     ColMajor = 2,
+    GpuSwizzle128B = 3,
 };
 
 // returns the memory qualifier for a given TileType and data type.
@@ -150,6 +151,8 @@ PTO_INTERNAL constexpr const __gm__ char *GetLayoutName(BLayout bType, SLayout s
             return (bType == BLayout::RowMajor) ? "Zz" : "Nz";
         case SLayout::ColMajor:
             return (bType == BLayout::RowMajor) ? "Zn" : "Nn";
+        case SLayout::GpuSwizzle128B:
+            return (bType == BLayout::RowMajor) ? "GS128" : "GS128C";
         default:
             return "Unknown";
     }

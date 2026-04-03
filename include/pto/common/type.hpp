@@ -10,17 +10,27 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #ifndef _PTO_INCLUDE_NPU_TYPE_H_
 #define _PTO_INCLUDE_NPU_TYPE_H_
+#include <cstdint>
+#ifndef AICORE
 #ifndef __CPU_SIM
 #define AICORE [aicore]
 #else
 #define AICORE
 #endif
+#endif
+
+#ifndef PTO_INLINE
 #define PTO_INLINE inline __attribute__((always_inline))
+#endif
 
 // for pto instruction declaration
+#ifndef PTO_INST
 #define PTO_INST AICORE PTO_INLINE __attribute__((visibility("default")))
+#endif
 // for pto internal implementation
+#ifndef PTO_INTERNAL
 #define PTO_INTERNAL AICORE PTO_INLINE
+#endif
 
 #ifdef __CPU_SIM
 #define OP_NAME(Name)
@@ -264,6 +274,7 @@ enum class TileLayoutCustom : uint8_t
     NZ,
     ZN,
     ZZ,
+    GPU_SWIZZLE_128B,
     NONE,
 };
 
@@ -282,7 +293,13 @@ using TRandomKey = uint32_t[PTO_RANDOM_KEY_SIZE];
 using TRandomCounter = uint32_t[PTO_RANDOM_COUNTER_SIZE];
 } // namespace pto
 
-#if defined(__CPU_SIM) || defined(__COSTMODEL)
+#if defined(PTO_GPU_BACKEND) && defined(__CUDACC__)
+#include <cuda_bf16.h>
+#include <cuda_fp16.h>
+typedef __half half;
+typedef __half aclFloat16;
+typedef __nv_bfloat16 bfloat16_t;
+#elif defined(__CPU_SIM) || defined(__COSTMODEL)
 typedef _Float16 half;
 typedef _Float16 aclFloat16;
 // Use native BF16 automatically when the current toolchain already supports it.

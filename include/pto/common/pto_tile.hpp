@@ -813,6 +813,8 @@ static constexpr int fixedMxColSize = 2;
 static constexpr int fractalABSize = 512;
 static constexpr int fractalCSize = 1024;
 static constexpr int fractalMxSize = 32;
+static constexpr int gpuSwizzle128BSize = 128;
+static constexpr int gpuSwizzleRows = 8;
 } // namespace TileConfig
 
 namespace ConvTileDetail {
@@ -1243,7 +1245,9 @@ public:
 
     static constexpr int getInnerRow()
     {
-        if constexpr (SFractalSize_ == TileConfig::fractalCSize) {
+        if constexpr (SFractal_ == SLayout::GpuSwizzle128B) {
+            return TileConfig::gpuSwizzleRows;
+        } else if constexpr (SFractalSize_ == TileConfig::fractalCSize) {
             return TileConfig::fixedRowSize;
         } else if constexpr (SFractalSize_ == TileConfig::fractalMxSize) {
             return TileConfig::fixedMxRowSize;
@@ -1256,7 +1260,9 @@ public:
 
     static constexpr int getInnerCol()
     {
-        if constexpr (SFractalSize_ == TileConfig::fractalCSize) {
+        if constexpr (SFractal_ == SLayout::GpuSwizzle128B) {
+            return TileConfig::gpuSwizzle128BSize / (TileConfig::gpuSwizzleRows * sizeof(DType));
+        } else if constexpr (SFractalSize_ == TileConfig::fractalCSize) {
             return TileConfig::fixedColSize;
         } else if constexpr (SFractalSize_ == TileConfig::fractalMxSize) {
             return TileConfig::fixedMxColSize;
@@ -1350,6 +1356,7 @@ public:
     static constexpr bool isBoxedLayout = (SFractal != SLayout::NoneBox);
     static constexpr bool isInnerRowMajor = (SFractal == SLayout::RowMajor);
     static constexpr bool isInnerColMajor = (SFractal == SLayout::ColMajor);
+    static constexpr bool isGpuSwizzled = (SFractal == SLayout::GpuSwizzle128B);
 
     static constexpr int InnerRows = getInnerRow();
     static constexpr int InnerCols = getInnerCol();
@@ -1357,6 +1364,8 @@ public:
     static constexpr int InnerNumel = InnerRows * InnerCols;
 
     static_assert(InnerRows != 0 && InnerCols != 0, "rows or cols of fractal size is 0.");
+    static_assert((SFractal_ != SLayout::GpuSwizzle128B) || (BFractal_ == BLayout::RowMajor),
+                  "GPU swizzle layout currently supports row-major tiles only.");
     static_assert((Loc == TileType::Vec) || (SFractalSize_ == TileConfig::fractalMxSize) || (Rows_ == 1) ||
                       (Rows % InnerRows == 0),
                   "Layout rows must be divisible by inner box rows");
@@ -1375,7 +1384,7 @@ public:
          SFractal_ in not NoneBox: Rows/Cols must be integer multiple of InnerRows/InnerCols.");
 
     static_assert(SFractalSize_ == TileConfig::fractalABSize || SFractalSize_ == TileConfig::fractalCSize ||
-                      SFractalSize_ == TileConfig::fractalMxSize,
+                      SFractalSize_ == TileConfig::fractalMxSize || SFractalSize_ == TileConfig::gpuSwizzle128BSize,
                   "SFractalSize_ illegal");
 
 #if defined(__CPU_SIM) || defined(__COSTMODEL)
@@ -1580,6 +1589,23 @@ using TileAcc = Tile<TileType::Acc, Element_, Rows_, Cols_, BLayout::ColMajor, R
 template <typename Element_, const int Rows_, const int Cols_, const int RowValid_ = Rows_, const int ColValid_ = Cols_>
 using TileAccCompact = Tile<TileType::Acc, Element_, Rows_, Cols_, BLayout::ColMajor, RowValid_, ColValid_,
                             SLayout::RowMajor, TileConfig::fractalCSize, PadValue::Null, CompactMode::Normal>;
+
+// GPU-only swizzled layouts. These are intentionally not tied to the NPU fractal conventions.
+template <typename Element_, const int Rows_, const int Cols_, const int RowValid_ = Rows_, const int ColValid_ = Cols_>
+using TileVecGpuSwizzle = Tile<TileType::Vec, Element_, Rows_, Cols_, BLayout::RowMajor, RowValid_, ColValid_,
+                               SLayout::GpuSwizzle128B, TileConfig::gpuSwizzle128BSize>;
+
+template <typename Element_, const int Rows_, const int Cols_, const int RowValid_ = Rows_, const int ColValid_ = Cols_>
+using TileLeftGpuSwizzle = Tile<TileType::Left, Element_, Rows_, Cols_, BLayout::RowMajor, RowValid_, ColValid_,
+                                SLayout::GpuSwizzle128B, TileConfig::gpuSwizzle128BSize>;
+
+template <typename Element_, const int Rows_, const int Cols_, const int RowValid_ = Rows_, const int ColValid_ = Cols_>
+using TileRightGpuSwizzle = Tile<TileType::Right, Element_, Rows_, Cols_, BLayout::RowMajor, RowValid_, ColValid_,
+                                 SLayout::GpuSwizzle128B, TileConfig::gpuSwizzle128BSize>;
+
+template <typename Element_, const int Rows_, const int Cols_, const int RowValid_ = Rows_, const int ColValid_ = Cols_>
+using TileAccGpuSwizzle = Tile<TileType::Acc, Element_, Rows_, Cols_, BLayout::RowMajor, RowValid_, ColValid_,
+                               SLayout::GpuSwizzle128B, TileConfig::gpuSwizzle128BSize>;
 
 template <typename T>
 struct is_global : std::false_type {
