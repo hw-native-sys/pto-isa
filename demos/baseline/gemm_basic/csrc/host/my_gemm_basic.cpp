@@ -21,8 +21,8 @@ constexpr uint32_t DIM_2 = 2;
 
 at::Tensor run_gemm_basic_custom(const at::Tensor &a, const at::Tensor &b_dn)
 {
-    TORCH_CHECK(a.device().type() == DEVICE_TYPE, "a must be a NPU tensor (PrivateUse1)");
-    TORCH_CHECK(b_dn.device().type() == DEVICE_TYPE, "b_dn must be a NPU tensor (PrivateUse1)");
+    TORCH_CHECK(a.device().type() == kNpuDevice, "a must be a NPU tensor (PrivateUse1)");
+    TORCH_CHECK(b_dn.device().type() == kNpuDevice, "b_dn must be a NPU tensor (PrivateUse1)");
     TORCH_CHECK(a.scalar_type() == at::kHalf, "a must be float16");
     TORCH_CHECK(b_dn.scalar_type() == at::kHalf, "b_dn must be float16");
     TORCH_CHECK(a.dim() == DIM_2 && b_dn.dim() == DIM_2, "a and b_dn must be 2D tensors");
@@ -33,7 +33,7 @@ at::Tensor run_gemm_basic_custom(const at::Tensor &a, const at::Tensor &b_dn)
 
     auto out = at::empty({512, 1536}, a.options().dtype(at::kFloat));
     constexpr uint32_t blockDim = 24;
-    EXEC_KERNEL_CMD(gemm_basic_custom, blockDim, a, b_dn, out);
+    INVOKE_PTO_KERNEL(gemm_basic_custom, blockDim, a, b_dn, out);
     return out;
 }
 

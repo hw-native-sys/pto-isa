@@ -18,36 +18,34 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto_path {
 
-#define DEVICE_TYPE c10::DeviceType::PrivateUse1
+constexpr auto kNpuDevice = c10::DeviceType::PrivateUse1;
 
-template <typename... Ts>
-constexpr auto ConvertTypes(Ts &... args)
+template <typename Arg>
+decltype(auto) AdaptKernelArg(Arg &&arg)
 {
-    return std::make_tuple(ConvertType(args)...);
+    if constexpr (std::is_same_v<std::remove_cv_t<std::remove_reference_t<Arg>>, at::Tensor>) {
+        return const_cast<void *>(arg.storage().data());
+    } else {
+        return std::forward<Arg>(arg);
+    }
 }
 
-template <typename T>
-T ConvertType(T value)
+template <typename... Args>
+auto AdaptKernelArgs(Args &&...args)
 {
-    return value;
+    return std::make_tuple(AdaptKernelArg(std::forward<Args>(args))...);
 }
 
-inline void *ConvertType(const at::Tensor &at_tensor)
-{
-    return const_cast<void *>(at_tensor.storage().data());
-}
-
-#define EXEC_KERNEL_CMD(kernel_name, blockdim, ...)                                                                  \
-    do {                                                                                                             \
-        auto converted_params = ConvertTypes(__VA_ARGS__);                                                           \
-        auto acl_stream = c10_npu::getCurrentNPUStream().stream(false);                                              \
-        auto acl_call = [acl_stream, blockdim, converted_params]() -> int {                                          \
-            uint32_t ret = 0;                                                                                        \
-            std::apply(                                                                                              \
-                [&](auto &&... params) { ret = ACLRT_LAUNCH_KERNEL(kernel_name)(blockdim, acl_stream, params...); }, \
-                converted_params);                                                                                   \
-        };                                                                                                           \
-        at_npu::native::OpCommand::RunOpApi(#kernel_name, acl_call);                                                 \
+#define INVOKE_PTO_KERNEL(kernel_name, blk, ...)                                                                \
+    do {                                                                                                        \
+        auto __s = c10_npu::getCurrentNPUStream().stream(false);                                                \
+        auto __p = AdaptKernelArgs(__VA_ARGS__);                                                                \
+        auto __fn = [__s, blk, __p]() -> int {                                                                  \
+            uint32_t __rc = 0;                                                                                  \
+            std::apply([&](auto &&...__a) { __rc = ACLRT_LAUNCH_KERNEL(kernel_name)(blk, __s, __a...); }, __p); \
+            return __rc;                                                                                        \
+        };                                                                                                      \
+        at_npu::native::OpCommand::RunOpApi(#kernel_name, __fn);                                                \
     } while (false)
 
 } // namespace pto_path
