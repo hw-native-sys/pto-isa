@@ -31,21 +31,21 @@ decltype(auto) AdaptKernelArg(Arg &&arg)
 }
 
 template <typename... Args>
-auto AdaptKernelArgs(Args &&... args)
+auto AdaptKernelArgs(Args &&...args)
 {
     return std::make_tuple(AdaptKernelArg(std::forward<Args>(args))...);
 }
 
-#define INVOKE_PTO_KERNEL(kernel_name, blk, ...)                                                                 \
-    do {                                                                                                         \
-        auto __s = c10_npu::getCurrentNPUStream().stream(false);                                                 \
-        auto __p = AdaptKernelArgs(__VA_ARGS__);                                                                 \
-        auto __fn = [__s, blk, __p]() -> int {                                                                   \
-            uint32_t __rc = 0;                                                                                   \
-            std::apply([&](auto &&... __a) { __rc = ACLRT_LAUNCH_KERNEL(kernel_name)(blk, __s, __a...); }, __p); \
-            return __rc;                                                                                         \
-        };                                                                                                       \
-        at_npu::native::OpCommand::RunOpApi(#kernel_name, __fn);                                                 \
+#define INVOKE_PTO_KERNEL(kernel_name, blk, ...)                                                                \
+    do {                                                                                                        \
+        auto __s = c10_npu::getCurrentNPUStream().stream(false);                                                \
+        auto __p = AdaptKernelArgs(__VA_ARGS__);                                                                \
+        auto __fn = [__s, blk, __p]() -> int {                                                                  \
+            uint32_t __rc = 0;                                                                                  \
+            std::apply([&](auto &&...__a) { __rc = ACLRT_LAUNCH_KERNEL(kernel_name)(blk, __s, __a...); }, __p); \
+            return __rc;                                                                                        \
+        };                                                                                                      \
+        at_npu::native::OpCommand::RunOpApi(#kernel_name, __fn);                                                \
     } while (false)
 
 } // namespace pto_path
