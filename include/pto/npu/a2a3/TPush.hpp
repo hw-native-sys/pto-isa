@@ -30,9 +30,12 @@ template <uint8_t FlagID, uint8_t DirType, uint32_t SlotSize, uint32_t SlotNum, 
 struct TPipe {
     static constexpr uint8_t DIR_MASK = 0x7;
     static constexpr uint8_t DIR_TYPE = DIR_MASK & DirType;
-    static constexpr bool is_c2v = ((DIR_TYPE & Direction::DIR_C2V) == Direction::DIR_C2V);
-    static constexpr bool is_v2c = ((DIR_TYPE & Direction::DIR_V2C) == Direction::DIR_V2C);
-    static constexpr bool is_v2c_ctrl = ((DIR_TYPE & Direction::DIR_V2C_CTRL) == Direction::DIR_V2C_CTRL);
+    static constexpr bool is_c2v = (DIR_TYPE == Direction::DIR_C2V);           // 1
+    static constexpr bool is_v2c = (DIR_TYPE == Direction::DIR_V2C);           // 2
+    static constexpr bool is_both = (DIR_TYPE == Direction::DIR_BOTH);         // 3
+    static constexpr bool is_v2c_ctrl = (DIR_TYPE == Direction::DIR_V2C_CTRL); // 4
+    static_assert(is_c2v || is_v2c || is_both || is_v2c_ctrl,
+                  "Fix: TPipe only supports C2V or V2C or Both or V2C_CTRL communication on A2A3.");
 
     using RingFiFo = RingFIFO<SlotSize, SlotNum, LocalSlotNum>;
 
@@ -101,11 +104,13 @@ struct TPipe {
 #ifdef __DAV_CUBE__
                 wait_flag_dev(FlagID + 1);
 #endif
-            } else {
+            } else if constexpr (is_v2c) {
                 // Vector waits for Cube to free buffer
 #ifdef __DAV_VEC__
                 wait_flag_dev(FlagID + 1);
 #endif
+            } else if constexpr (is_both) {
+                wait_flag_dev(FlagID + 1);
             }
         }
 
@@ -113,10 +118,21 @@ struct TPipe {
         {
             if constexpr (is_c2v) {
                 // Cube produces, Vector consumes
+#ifdef __DAV_CUBE__
                 ffts_cross_core_sync(PIPE_FIX, getFFTSMsgCfg(TSyncCVMode::CV_CORES_SYNC, FlagID));
-            } else { // is_v2c
+#endif
+            } else if constexpr (is_v2c) {
                 // Vector produces, Cube consumes
+#ifdef __DAV_VEC__
                 ffts_cross_core_sync(PIPE_MTE3, getFFTSMsgCfg(TSyncCVMode::CV_CORES_SYNC, FlagID));
+#endif
+            } else if constexpr (is_both) {
+#ifdef __DAV_CUBE__
+                ffts_cross_core_sync(PIPE_FIX, getFFTSMsgCfg(TSyncCVMode::CV_CORES_SYNC, FlagID));
+#endif
+#ifdef __DAV_VEC__
+                ffts_cross_core_sync(PIPE_MTE3, getFFTSMsgCfg(TSyncCVMode::CV_CORES_SYNC, FlagID));
+#endif
             }
         }
 
@@ -126,7 +142,7 @@ struct TPipe {
             using T = typename TileProd::DType;
             constexpr int ProdM = TileProd::Rows;
             constexpr int ProdN = TileProd::Cols;
-            size_t entryBase = (tileIndex % RingFiFo::SLOT_NUM) * RingFiFo::SLOT_SIZE; // ProdM * ProdN * sizeof(T);
+            size_t entryBase = (tileIndex % RingFiFo::SLOT_NUM) * RingFiFo::SLOT_SIZE;
             using GlobalData = GlobalTensor<T, pto::Shape<1, 1, 1, ProdM, ProdN>, pto::Stride<1, 1, 1, ProdN, 1>>;
             GlobalData globalTensor((__gm__ T *)((uint64_t)fifo.GM_SLOT_BUFFER + entryBase + entryOffset));
             // store tile to GM FIFO, enable unit-flag one
@@ -172,11 +188,11 @@ struct TPipe {
         PTO_INTERNAL void pushVec2CtrlFiFo(RingFiFo &fifo, TileProd &tile)
         {
             size_t slotIndex = (tileIndex % RingFiFo::SLOT_NUM);
-            uint64_t entryBase = slotIndex * sizeof(uint32_t);
-            __gm__ uint32_t *ctrlBuf = (__gm__ uint32_t *)(fifo.CTRL_SLOT_BUFFER + entryBase + entryOffset);
+            uint64_t entryBase = slotIndex * sizeof(uint64_t);
+            __gm__ uint64_t *ctrlBuf = (__gm__ uint64_t *)(fifo.CTRL_SLOT_BUFFER + entryBase + entryOffset);
             set_flag(PIPE_V, PIPE_S, EVENT_ID0);
             wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
-            uint32_t ctrlSignal = *(tile.data());
+            uint64_t ctrlSignal = *(tile.data());
             *(ctrlBuf) = ctrlSignal;
         }
 
@@ -186,9 +202,20 @@ struct TPipe {
             static_assert(TileProd::Loc == TileType::Acc || TileProd::Loc == TileType::Vec,
                           "Fix: TPUSH has unsupported tile type!");
             if constexpr (is_c2v) {
+#ifdef __DAV_CUBE__
                 pushAcc2GMFiFo<TileProd>(fifo, tile);
+#endif
             } else if constexpr (is_v2c) {
+#ifdef __DAV_VEC__
                 pushVec2GMFiFo<TileProd, Split>(fifo, tile);
+#endif
+            } else if constexpr (is_both) {
+#ifdef __DAV_CUBE__
+                pushAcc2GMFiFo<TileProd>(fifo, tile);
+#endif
+#ifdef __DAV_VEC__
+                pushVec2GMFiFo<TileProd, Split>(fifo, tile);
+#endif
             } else if constexpr (is_v2c_ctrl) {
                 pushVec2CtrlFiFo<TileProd>(fifo, tile);
             }
@@ -266,16 +293,16 @@ struct TPipe {
         {
             // Vector frees buffer for Cube
             // Or Cube frees buffer for Vector
-            if constexpr (is_c2v) {
+            if constexpr (is_c2v) { // Vec consumer frees buffer for Cube
 #ifdef __DAV_VEC__
-                // Vec consumer frees buffer for Cube
                 ffts_cross_core_sync(PIPE_MTE2, getFFTSMsgCfg(TSyncCVMode::CV_CORES_SYNC, FlagID + 1));
 #endif
-            } else { // is_v2c
-                     // cube consumer frees buffer for vec
+            } else if constexpr (is_v2c) { // cube consumer frees buffer for vec
 #ifdef __DAV_CUBE__
                 ffts_cross_core_sync(PIPE_MTE2, getFFTSMsgCfg(TSyncCVMode::CV_CORES_SYNC, FlagID + 1));
 #endif
+            } else if constexpr (is_both) {
+                ffts_cross_core_sync(PIPE_MTE2, getFFTSMsgCfg(TSyncCVMode::CV_CORES_SYNC, FlagID + 1));
             }
         }
 
@@ -326,8 +353,8 @@ struct TPipe {
             constexpr int ConsN = TileCons::Cols;
             size_t entryBase = (static_cast<size_t>(tileIndex) % RingFiFo::SLOT_NUM) *
                                RingFiFo::SLOT_SIZE; // ConsM * ConsN * sizeof(T);
-            using GlobaData = GlobalTensor<T, pto::Shape<1, 1, 1, ConsM, ConsN>, pto::Stride<1, 1, 1, ConsN, 1>>;
-            GlobaData globalTensor((__gm__ T *)((uint64_t)fifo.GM_SLOT_BUFFER + entryBase + entryOffset));
+            using GlobalData = GlobalTensor<T, pto::Shape<1, 1, 1, ConsM, ConsN>, pto::Stride<1, 1, 1, ConsN, 1>>;
+            GlobalData globalTensor((__gm__ T *)((uint64_t)fifo.GM_SLOT_BUFFER + entryBase + entryOffset));
 
             uint64_t localTileBase =
                 fifo.V2C_CONSUMER_BUF +
@@ -396,7 +423,7 @@ PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
     pipe.prod.template push<TileProd, Split>(pipe.fifo, tile);
     pipe.prod.tileIndex++;
 
-    // 3； Cross-Core: Commit & Signal
+    // 3. Cross-Core: Commit & Signal
     bool isRecord = pipe.prod.getRecordStatus();
     if (isRecord) {
         pipe.prod.record();
@@ -548,7 +575,7 @@ struct TMPipe {
 
         PTO_INTERNAL void pushVec2CtrlFiFo(DataFiFo &fifo, TileDataProd &tile)
         {
-            static_assert(DataFiFo::fifoType == FIFOType::CTRL_FIFO, "Fix: TPUSH has unsupported fifo Type!");
+            static_assert(DataFiFo::fifoType == FIFOType::CTRL_FIFO, "Fix: TPUSH has unsupported fifo type!");
             uint32_t bufIndex = static_cast<uint32_t>(tile_id % DataFiFo::fifoDepth);
             uint64_t entryBase = bufIndex * sizeof(uint32_t);
             __gm__ uint32_t *ctrlBuf = (__gm__ uint32_t *)(fifo.fifoBase + entryBase + entryOffset);
@@ -695,10 +722,10 @@ struct TMPipe {
         template <typename T, int ConsM, int ConsN, int ProdN>
         PTO_INTERNAL void popMatTileFromGMFiFo(DataFiFo &fifo, TileDataCons &tile)
         {
-            using GlobaData = GlobalTensor<T, pto::Shape<1, 1, 1, ConsM, ConsN>, pto::Stride<1, 1, 1, ConsN, 1>>;
+            using GlobalData = GlobalTensor<T, pto::Shape<1, 1, 1, ConsM, ConsN>, pto::Stride<1, 1, 1, ConsN, 1>>;
             uint32_t bufIndex = static_cast<uint32_t>(tile_id % fifo.fifoDepth);
             size_t entryBase = bufIndex * ConsM * ProdN * sizeof(T);
-            GlobaData globalTensor((__gm__ T *)((uint64_t)fifo.fifoBase + entryBase + entryOffset));
+            GlobalData globalTensor((__gm__ T *)((uint64_t)fifo.fifoBase + entryBase + entryOffset));
 
             if constexpr (DataFiFo::useLocalFiFo) {
                 uint64_t tileBase = fifo.localFiFoBase +
