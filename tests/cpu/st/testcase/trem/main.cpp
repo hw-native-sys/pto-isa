@@ -35,13 +35,13 @@ std::string GetGoldenDir()
     return fullPath;
 }
 
-template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
+template <typename T, int kDRows_, int kDCols_, int kTRows_, int kTCols_>
 void LaunchTRem(T *out, T *src0, T *src1, void *stream);
 
-template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
+template <typename T, int kDRows_, int kDCols_, int kTRows_, int kTCols_>
 void test_trem()
 {
-    size_t fileSize = kGRows_ * kGCols_ * sizeof(T);
+    size_t fileSize = kDRows_ * kDCols_ * sizeof(T);
     aclInit(nullptr);
     aclrtSetDevice(0);
     aclrtStream stream;
@@ -63,7 +63,7 @@ void test_trem()
 
     aclrtMemcpy(src0Device, fileSize, src0Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, fileSize, src1Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    LaunchTRem<T, kGRows_, kGCols_, kTRows_, kTCols_>(dstDevice, src0Device, src1Device, stream);
+    LaunchTRem<T, kDRows_, kDCols_, kTRows_, kTCols_>(dstDevice, src0Device, src1Device, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, fileSize, dstDevice, fileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -91,13 +91,15 @@ void test_trem()
     EXPECT_TRUE(ret);
 }
 const int NUM_16 = 16;
+const int NUM_32 = 32;
 const int NUM_64 = 64;
 const int NUM_256 = 256;
-TEST_F(TREMTest, case_float_64x64_64x64_64x64)
+const int NUM_512 = 256;
+TEST_F(TREMTest, case_float_64x64_64x64)
 {
     test_trem<float, NUM_64, NUM_64, NUM_64, NUM_64>();
 }
-TEST_F(TREMTest, case_half_16x256_16x256_16x256)
+TEST_F(TREMTest, case_half_16x256_16x256)
 {
     test_trem<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>();
 }
@@ -107,3 +109,11 @@ TEST_F(TREMTest, case_bf16_16x256_16x256_16x256)
     test_trem<bfloat16_t, NUM_16, NUM_256, NUM_16, NUM_256>();
 }
 #endif
+TEST_F(TREMTest, case_float_32x512_64x64)
+{
+    test_trem<float, NUM_32, NUM_512, NUM_64, NUM_64>();
+}
+TEST_F(TREMTest, case_half_32x512_16x256)
+{
+    test_trem<aclFloat16, NUM_32, NUM_512, NUM_16, NUM_256>();
+}
