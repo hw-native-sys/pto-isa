@@ -13,11 +13,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
+template <typename T, int kDRows_, int kDCols_, int kTRows_, int kTCols_>
 AICORE void runTNeg(__gm__ T __out__ *out, __gm__ T __in__ *src0)
 {
-    using DynShapeDim5 = Shape<1, 1, 1, kGRows_, kGCols_>;
-    using DynStridDim5 = Stride<1, 1, 1, kGCols_, 1>;
+    using DynShapeDim5 = Shape<1, 1, 1, kTRows_, kTCols_>;
+    using DynStridDim5 = Stride<1, 1, 1, kTCols_, 1>;
     using GlobalData = GlobalTensor<T, DynShapeDim5, DynStridDim5>;
     using TileData = Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>;
     TileData src0Tile(kTRows_, kTCols_);
@@ -35,18 +35,25 @@ AICORE void runTNeg(__gm__ T __out__ *out, __gm__ T __in__ *src0)
     out = dstGlobal.data();
 }
 
-template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
+template <typename T, int kDRows_, int kDCols_, int kTRows_, int kTCols_>
 void LaunchTNeg(T *out, T *src0, void *stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>)
-        runTNeg<half, kGRows_, kGCols_, kTRows_, kTCols_>((half *)(out), (half *)(src0));
+        runTNeg<half, kDRows_, kDCols_, kTRows_, kTCols_>((half *)(out), (half *)(src0));
     else
-        runTNeg<T, kGRows_, kGCols_, kTRows_, kTCols_>(out, src0);
+        runTNeg<T, kDRows_, kDCols_, kTRows_, kTCols_>(out, src0);
 }
+
 const int NUM_16 = 16;
 const int NUM_64 = 64;
+const int NUM_128 = 128;
 const int NUM_256 = 256;
 template void LaunchTNeg<float, NUM_64, NUM_64, NUM_64, NUM_64>(float *out, float *src0, void *stream);
 template void LaunchTNeg<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(int32_t *out, int32_t *src0, void *stream);
 template void LaunchTNeg<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>(aclFloat16 *out, aclFloat16 *src0, void *stream);
 template void LaunchTNeg<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(int16_t *out, int16_t *src0, void *stream);
+
+template void LaunchTNeg<float, NUM_128, NUM_128, NUM_64, NUM_64>(float *out, float *src0, void *stream);
+template void LaunchTNeg<int32_t, NUM_128, NUM_128, NUM_64, NUM_64>(int32_t *out, int32_t *src0, void *stream);
+template void LaunchTNeg<aclFloat16, NUM_64, NUM_256, NUM_16, NUM_256>(aclFloat16 *out, aclFloat16 *src0, void *stream);
+template void LaunchTNeg<int16_t, NUM_128, NUM_128, NUM_64, NUM_64>(int16_t *out, int16_t *src0, void *stream);

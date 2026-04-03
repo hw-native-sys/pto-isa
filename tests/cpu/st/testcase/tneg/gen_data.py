@@ -18,8 +18,7 @@ np.random.seed(19)
 def gen_golden_data_tneg(case_name, param):
     dtype = param.dtype
 
-    row, col = [param.tile_row, param.tile_col]
-    row_valid, col_valid = [param.valid_row, param.valid_col]
+    row, col = [param.valid_row, param.valid_col]
 
     # Generate random input arrays
     input1 = np.random.randint(1, 10, size=[row, col]).astype(dtype)
@@ -33,12 +32,10 @@ def gen_golden_data_tneg(case_name, param):
 
 
 class TNegParams:
-    def __init__(self, dtype, global_row, global_col, tile_row, tile_col, valid_row, valid_col):
+    def __init__(self, dtype, global_row, global_col, valid_row, valid_col):
         self.dtype = dtype
         self.global_row = global_row
         self.global_col = global_col
-        self.tile_row = tile_row
-        self.tile_col = tile_col
         self.valid_row = valid_row
         self.valid_col = valid_col
 
@@ -51,15 +48,14 @@ def generate_case_name(param):
         np.int32: 'int32',
         np.int16: 'int16'
     }[param.dtype]
-    
+
     def substring(a, b) -> str:
         return f"_{a}x{b}"
-        
-    name = f"TNEGTest.case_{dtype_str}" 
+
+    name = f"TNEGTest.case_{dtype_str}"
     name += substring(param.global_row, param.global_col)
-    name += substring(param.tile_row, param.tile_col)
     name += substring(param.valid_row, param.valid_col)
-    
+
     return name
 
 
@@ -73,10 +69,15 @@ if __name__ == "__main__":
         os.makedirs(testcases_dir)
 
     case_params_list = [
-        TNegParams(np.float32, 64, 64, 64, 64, 64, 64),
-        TNegParams(np.int32, 64, 64, 64, 64, 64, 64),
-        TNegParams(np.int16, 64, 64, 64, 64, 64, 64),
-        TNegParams(np.float16, 16, 256, 16, 256, 16, 256)
+        TNegParams(np.float32, 64, 64, 64, 64),
+        TNegParams(np.int32, 64, 64, 64, 64),
+        TNegParams(np.int16, 64, 64, 64, 64),
+        TNegParams(np.float16, 16, 256, 16, 256),
+        TNegParams(np.float32, 128, 128, 64, 64),
+        TNegParams(np.int32, 128, 128, 64, 64),
+        TNegParams(np.int16, 128, 128, 64, 64),
+        TNegParams(np.float16, 64, 256, 16, 256)
+
     ]
 
     for i, param in enumerate(case_params_list):

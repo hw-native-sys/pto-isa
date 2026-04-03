@@ -283,7 +283,11 @@ template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_EXP> {
     static void apply(DType &dst, DType &src)
     {
-        dst = static_cast<DType>(std::exp(static_cast<double>(src)));
+        if constexpr (std::is_same_v<DType, aclFloat16>) {
+            dst = static_cast<aclFloat16>(expf(static_cast<float>(src)));
+        } else {
+            dst = static_cast<DType>(std::exp(static_cast<double>(src)));
+        }
     }
 };
 

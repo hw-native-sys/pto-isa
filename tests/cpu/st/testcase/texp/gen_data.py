@@ -17,8 +17,7 @@ np.random.seed(19)
 def gen_golden_data_texp(case_name, param):
     dtype = param.dtype
 
-    row, col = [param.tile_row, param.tile_col]
-    h_valid, w_valid = [param.valid_row, param.valid_col]
+    row, col = [param.valid_row, param.valid_col]
 
     # Generate random input array
     input1 = np.random.random(size=[row, col]).astype(dtype)
@@ -26,27 +25,16 @@ def gen_golden_data_texp(case_name, param):
     # Perform the addbtraction
     golden = np.exp(input1)
 
-    # Apply valid region constraints
-    output = np.zeros([row, col]).astype(dtype)
-    for h in range(row):
-        for w in range(col):
-            if h >= h_valid or w >= w_valid:
-                golden[h][w] = output[h][w]
-
     # Save the input and golden data to binary files
     input1.tofile("input1.bin")
     golden.tofile("golden.bin")
 
-    return output, input1, golden
-
 
 class TExpParams:
-    def __init__(self, dtype, global_row, global_col, tile_row, tile_col, valid_row, valid_col):
+    def __init__(self, dtype, global_row, global_col, valid_row, valid_col):
         self.dtype = dtype
         self.global_row = global_row
         self.global_col = global_col
-        self.tile_row = tile_row
-        self.tile_col = tile_col
         self.valid_row = valid_row
         self.valid_col = valid_col
 
@@ -65,7 +53,6 @@ def generate_case_name(param):
         
     name = f"TEXPTest.case_{dtype_str}" 
     name += substring(param.global_row, param.global_col)
-    name += substring(param.tile_row, param.tile_col)
     name += substring(param.valid_row, param.valid_col)
     
     return name
@@ -81,11 +68,17 @@ if __name__ == "__main__":
         os.makedirs(testcases_dir)
 
     case_params_list = [
-        TExpParams(np.float32, 64, 64, 64, 64, 64, 64),
-        TExpParams(np.float16, 64, 64, 64, 64, 64, 64),
-        TExpParams(np.float16, 32, 32, 32, 32, 32, 32),
-        TExpParams(np.float32, 32, 32, 32, 32, 32, 32),
-        TExpParams(np.float32, 32, 16, 32, 16, 32, 16)
+        TExpParams(np.float32, 64, 64, 64, 64),
+        TExpParams(np.float16, 64, 64, 64, 64),
+        TExpParams(np.float16, 32, 32, 32, 32),
+        TExpParams(np.float32, 32, 32, 32, 32),
+        TExpParams(np.float32, 32, 16, 32, 16),
+        TExpParams(np.float32, 128, 128, 64, 64),
+        TExpParams(np.float16, 128, 128, 64, 64),
+        TExpParams(np.float16, 128, 128, 32, 32),
+        TExpParams(np.float32, 128, 128, 32, 32),
+        TExpParams(np.float32, 128, 128, 32, 16)
+
     ]
 
     for i, param in enumerate(case_params_list):

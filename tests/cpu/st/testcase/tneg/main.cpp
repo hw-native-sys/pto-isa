@@ -35,13 +35,13 @@ std::string GetGoldenDir()
     return fullPath;
 }
 
-template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
+template <typename T, int kDRows_, int kDCols_, int kTRows_, int kTCols_>
 void LaunchTNeg(T *out, T *src0, void *stream);
 
-template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
+template <typename T, int kDRows_, int kDCols_, int kTRows_, int kTCols_>
 void test_tneg()
 {
-    size_t fileSize = kGRows_ * kGCols_ * sizeof(T);
+    size_t fileSize = kDRows_ * kDCols_ * sizeof(T);
 
     aclInit(nullptr);
     aclrtSetDevice(0);
@@ -60,7 +60,7 @@ void test_tneg()
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input1.bin", fileSize, src0Host, fileSize));
 
     aclrtMemcpy(src0Device, fileSize, src0Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    LaunchTNeg<T, kGRows_, kGCols_, kTRows_, kTCols_>(dstDevice, src0Device, stream);
+    LaunchTNeg<T, kDRows_, kDCols_, kTRows_, kTCols_>(dstDevice, src0Device, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, fileSize, dstDevice, fileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -85,22 +85,42 @@ void test_tneg()
 
     EXPECT_TRUE(ret);
 }
+
 const int NUM_16 = 16;
 const int NUM_64 = 64;
+const int NUM_128 = 128;
 const int NUM_256 = 256;
-TEST_F(TNEGTest, case_float_64x64_64x64_64x64)
+
+TEST_F(TNEGTest, case_float_64x64_64x64)
 {
     test_tneg<float, NUM_64, NUM_64, NUM_64, NUM_64>();
 }
-TEST_F(TNEGTest, case_int32_64x64_64x64_64x64)
+TEST_F(TNEGTest, case_int32_64x64_64x64)
 {
     test_tneg<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>();
 }
-TEST_F(TNEGTest, case_int16_64x64_64x64_64x64)
+TEST_F(TNEGTest, case_int16_64x64_64x64)
 {
     test_tneg<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>();
 }
-TEST_F(TNEGTest, case_half_16x256_16x256_16x256)
+TEST_F(TNEGTest, case_half_16x256_16x256)
 {
     test_tneg<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>();
+}
+
+TEST_F(TNEGTest, case_float_128x128_64x64)
+{
+    test_tneg<float, NUM_128, NUM_128, NUM_64, NUM_64>();
+}
+TEST_F(TNEGTest, case_int32_128x128_64x64)
+{
+    test_tneg<int32_t, NUM_128, NUM_128, NUM_64, NUM_64>();
+}
+TEST_F(TNEGTest, case_int16_128x128_64x64)
+{
+    test_tneg<int16_t, NUM_128, NUM_128, NUM_64, NUM_64>();
+}
+TEST_F(TNEGTest, case_half_64x256_16x256)
+{
+    test_tneg<aclFloat16, NUM_64, NUM_256, NUM_16, NUM_256>();
 }
