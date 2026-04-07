@@ -9,36 +9,46 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include <pto/pto-inst.hpp>
+#include <pto/common/constants.hpp>
 
 using namespace pto;
 
-template <int kRows, int kCols>
-AICORE void runTRSQRT(__gm__ float __out__ *out, __gm__ float __in__ *src)
+template <typename T, int kDstRows_, int kDstCols_, int kSrcRows_, int kSrcCols_, int kValRows_, int kValCols_>
+__global__ AICORE void runTRSqrt(__gm__ T __out__ *out, __gm__ T __in__ *src)
 {
-    using DynShapeDim5 = Shape<1, 1, 1, kRows, kCols>;
-    using DynStridDim5 = Stride<1, 1, 1, kCols, 1>;
-    using GlobalData = GlobalTensor<float, DynShapeDim5, DynStridDim5>;
+    using DynShapeDim5Src = Shape<1, 1, 1, kSrcRows_, kSrcCols_>;
+    using DynShapeDim5Dst = Shape<1, 1, 1, kDstRows_, kDstCols_>;
+    using DynStridDim5Src = pto::Stride<1, 1, 1, kSrcCols_, 1>;
+    using DynStridDim5Dst = pto::Stride<1, 1, 1, kDstCols_, 1>;
+    using GlobalDataSrc = GlobalTensor<T, DynShapeDim5Src, DynStridDim5Src>;
+    using GlobalDataDst = GlobalTensor<T, DynShapeDim5Dst, DynStridDim5Dst>;
+    using TileData = Tile<TileType::Vec, T, kValRows_, kValCols_, BLayout::RowMajor, -1, -1>;
+    TileData srcTile(kSrcRows_, kSrcCols_);
+    TileData dstTile(kDstRows_, kDstCols_);
+    TASSIGN(srcTile, 0x0);
+    TASSIGN(dstTile, 0x0);
 
-    using TileT = Tile<TileType::Vec, float, kRows, kCols, BLayout::RowMajor, -1, -1>;
-    TileT srcTile(kRows, kCols);
-    TileT dstTile(kRows, kCols);
+    GlobalDataSrc srcGlobal(src);
+    GlobalDataSrc dstGlobal(out);
 
-    GlobalData srcGlobal(src);
-    GlobalData dstGlobal(out);
-
-    TASSIGN(srcTile, 0);
-    TASSIGN(dstTile, srcTile.Numel * sizeof(typename TileT::DType));
     TLOAD(srcTile, srcGlobal);
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     TRSQRT(dstTile, srcTile);
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     TSTORE(dstGlobal, dstTile);
     out = dstGlobal.data();
 }
 
-template <int kRows, int kCols>
-void LaunchTRSQRT(float *out, float *src, void *stream)
+template <typename T, int kDstRows_, int kDstCols_, int kSrcRows_, int kSrcCols_, int kValRows_, int kValCols_>
+void LaunchTRSqrt(T *out, T *src, void *stream)
 {
-    (void)stream;
-    runTRSQRT<kRows, kCols>(out, src);
+    if constexpr (std::is_same_v<T, aclFloat16>)
+        runTRSqrt<half, kDstRows_, kDstCols_, kSrcRows_, kSrcCols_, kValRows_, kValCols_>((half *)(out), (half *)(src));
+    else
+        runTRSqrt<T, kDstRows_, kDstCols_, kSrcRows_, kSrcCols_, kValRows_, kValCols_>(out, src);
 }
 
-template void LaunchTRSQRT<64, 64>(float *out, float *src, void *stream);
+template void LaunchTRSqrt<float, 64, 64, 64, 64, 64, 64>(float *out, float *src, void *stream);
+template void LaunchTRSqrt<aclFloat16, 64, 64, 64, 64, 64, 64>(aclFloat16 *out, aclFloat16 *src, void *stream);

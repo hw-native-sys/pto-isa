@@ -17,9 +17,16 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-template <typename TileData>
-PTO_INTERNAL void TRSQRT_IMPL(TileData &dst, TileData &src)
+template <typename TileDataDst, typename TileDataSrc>
+PTO_INTERNAL void TRSQRT_IMPL(TileDataDst &dst, TileDataSrc &src)
 {
+    static_assert((std::is_same<typename TileDataDst::DType, half>::value &&
+                   std::is_same<typename TileDataSrc::DType, half>::value) ||
+                      (std::is_same<typename TileDataSrc::DType, float>::value &&
+                       std::is_same<typename TileDataDst::DType, float>::value),
+                  "TRSQRT: Invalid data type");
+    static_assert(TileDataSrc::ValidRow == TileDataDst::ValidRow && TileDataSrc::ValidCol == TileDataDst::ValidCol,
+                  "TRSQRT: Src valid row/col != Dst valid row/col");
     const std::size_t rows = static_cast<std::size_t>(dst.GetValidRow());
     const std::size_t cols = static_cast<std::size_t>(dst.GetValidCol());
     if (rows == 0 || cols == 0) {
@@ -28,15 +35,15 @@ PTO_INTERNAL void TRSQRT_IMPL(TileData &dst, TileData &src)
 
     cpu::parallel_for_rows(rows, cols, [&](std::size_t r) {
         for (std::size_t c = 0; c < cols; ++c) {
-            const auto x = static_cast<double>(src.data()[GetTileElementOffset<TileData>(r, c)]);
+            const auto x = static_cast<double>(src.data()[GetTileElementOffset<TileDataSrc>(r, c)]);
             const double y = 1.0 / std::sqrt(x);
-            dst.data()[GetTileElementOffset<TileData>(r, c)] = static_cast<typename TileData::DType>(y);
+            dst.data()[GetTileElementOffset<TileDataDst>(r, c)] = static_cast<typename TileDataDst::DType>(y);
         }
     });
 }
 
-template <typename TileData, typename TmpTileData>
-PTO_INTERNAL void TSQRT_IMPL(TileData &dst, TileData &src, TmpTileData &tmp)
+template <typename TileDataDst, typename TileDataSrc, typename TmpTileData>
+PTO_INTERNAL void TSQRT_IMPL(TileDataDst &dst, TileDataSrc &src, TmpTileData &tmp)
 {
     TRSQRT_IMPL(dst, src);
 }

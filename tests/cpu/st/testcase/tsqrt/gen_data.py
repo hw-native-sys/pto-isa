@@ -18,27 +18,25 @@ np.random.seed(19)
 def gen_golden_data(case_name, param):
     dtype = param.dtype
 
-    H, W = [param.tile_row, param.tile_col]
+    h_src, w_src = [param.global_row, param.global_col]
+    h_dst, w_dst = [param.global_row, param.global_col]
     h_valid, w_valid = [param.valid_row, param.valid_col]
 
     # Generate random input arrays
-    input1 = cast_for_compute(np.random.random(size=(H, W)), dtype)
+    input1 = cast_for_compute(np.random.uniform(0.1, 10.0, size=(h_src, w_src)), dtype)
 
-    # Perform the operation
-    golden = cast_for_compute(np.sqrt(input1), dtype)
-
-    # Apply valid region constraints
-    output = zeros([H, W], dtype)
-    for h in range(H):
-        for w in range(W):
-            if h >= h_valid or w >= w_valid:
-                golden[h][w] = output[h][w]
+    # Perform the operation only on the valid region.
+    golden = zeros([h_dst, w_dst], dtype)
+    for h in range(h_dst):
+        for w in range(w_dst):
+            if h < h_valid and w < w_valid:
+                golden[h][w] = cast_for_compute(np.sqrt(float(input1[h][w])), dtype)
 
     # Save the input and golden data to binary files
     write_array("input1.bin", input1, dtype)
     write_array("golden.bin", golden, dtype)
 
-    return output, input1, golden
+    return input1, golden
 
 class tunaryParams:
     def __init__(self, dtype, global_row, global_col, tile_row, tile_col, valid_row, valid_col, in_place = False):

@@ -39,7 +39,6 @@ template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, bool i
 void test_tsqrt()
 {
     size_t fileSize = kGRows_ * kGCols_ * sizeof(T);
-
     aclInit(nullptr);
     aclrtSetDevice(0);
     aclrtStream stream;
@@ -83,6 +82,8 @@ void test_tsqrt()
         eps = 0.0001f;
     } else if constexpr (std::is_same_v<T, aclFloat16>) {
         eps = 0.001f;
+    } else if constexpr (std::is_same_v<T, bfloat16_t>) {
+        eps = 0.01f;
     }
     bool ret = ResultCmp<T>(golden, devFinal, eps);
 
