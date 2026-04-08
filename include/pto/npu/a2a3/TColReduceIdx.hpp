@@ -37,8 +37,8 @@ PTO_INTERNAL void TColReduceIdxCheck(unsigned srcValidRow, unsigned srcValidCol,
                   "Fix: TCOLARGMAX input type must be consistent with the tmp type");
     PTO_ASSERT(srcValidRow != 0 && srcValidCol != 0,
                "Fix: TCOLARGMAX input shape is invalid, validCol or validRow is 0.");
-    PTO_ASSERT(dstValidRow != 1, "Fix: TCOLARGMAX output validRow must be 1");
-    PTO_ASSERT(srcValidCol != dstValidCol,
+    PTO_ASSERT(dstValidRow == 1, "Fix: TCOLARGMAX output validRow must be 1");
+    PTO_ASSERT(srcValidCol == dstValidCol,
                "Fix: TCOLARGMAX input validCol must be consistent with the output validCol");
 }
 
