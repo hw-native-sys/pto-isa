@@ -25,8 +25,7 @@ PTO_INTERNAL void TCONCAT_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc
 
     for (unsigned r = 0; r < rows; ++r) {
         for (unsigned c = 0; c < cols0; ++c) {
-            dst.data()[GetTileElementOffset<TileDataDst>(r, c)] =
-                src0.data()[GetTileElementOffset<TileDataSrc0>(r, c)];
+            dst.data()[GetTileElementOffset<TileDataDst>(r, c)] = src0.data()[GetTileElementOffset<TileDataSrc0>(r, c)];
         }
         for (unsigned c = 0; c < cols1; ++c) {
             dst.data()[GetTileElementOffset<TileDataDst>(r, cols0 + c)] =

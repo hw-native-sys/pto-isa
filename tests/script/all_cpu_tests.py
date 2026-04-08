@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -42,19 +43,8 @@ def parse_arguments() -> argparse.Namespace:
         help="Enable BF16 CPU-SIM coverage. This switches to a compiler that supports std::bfloat16_t and C++23.",
     )
     parser.add_argument("-g", "--generator", required=False, help="Optional CMake generator, for example Ninja.")
-    parser.add_argument(
-        "-j",
-        "--jobs",
-        type=int,
-        default=max(1, os.cpu_count() or 1),
-        help="Parallel build jobs.",
-    )
-    parser.add_argument(
-        "--timeout",
-        type=int,
-        default=30,
-        help="Per-test timeout in seconds.",
-    )
+    parser.add_argument("-j", "--jobs", type=int, default=max(1, os.cpu_count() or 1), help="Parallel build jobs.")
+    parser.add_argument("--timeout", type=int, default=30, help="Per-test timeout in seconds.")
     return parser.parse_args()
 
 
@@ -71,12 +61,7 @@ def red(text: str) -> str:
 
 
 def run_command(
-    cmd: list[str],
-    *,
-    cwd: Path,
-    env: dict[str, str],
-    verbose: bool,
-    check: bool = True,
+    cmd: list[str], *, cwd: Path, env: dict[str, str], verbose: bool, check: bool = True
 ) -> subprocess.CompletedProcess[str]:
     if verbose:
         print(f"$ {' '.join(cmd)}")
@@ -124,27 +109,26 @@ def build_all_cpu_tests(repo_root: Path, build_dir: Path, args: argparse.Namespa
 
 def generate_test_data(repo_root: Path, build_dir: Path, args: argparse.Namespace) -> None:
     testcase_src_root = repo_root / "tests" / "cpu" / "st" / "testcase"
-    testcase_build_root = build_dir / "testcase"
     gen_env = os.environ.copy()
     gen_env["PYTHONPATH"] = str(repo_root) + os.pathsep + gen_env.get("PYTHONPATH", "")
     if args.enable_bf16:
         gen_env["PTO_CPU_SIM_ENABLE_BF16"] = "1"
-    testcase_build_root.mkdir(parents=True, exist_ok=True)
     for script in sorted(testcase_src_root.glob("*/gen_data.py")):
-        run_command([sys.executable, str(script)], cwd=testcase_build_root, env=gen_env, verbose=args.verbose)
+        dst = build_dir / "gen_data.py"
+        shutil.copyfile(script, dst)
+        run_command([sys.executable, str(dst.name)], cwd=build_dir, env=gen_env, verbose=args.verbose)
 
 
 def run_binaries(repo_root: Path, build_dir: Path, args: argparse.Namespace) -> int:
     bin_dir = build_dir / "bin"
-    testcase_build_root = build_dir / "testcase"
     binaries = sorted(path for path in bin_dir.iterdir() if path.is_file())
     total = 0
     failed = 0
 
     for binary in binaries:
-        cwd = testcase_build_root / binary.name
-        if not cwd.is_dir():
-            cwd = repo_root
+        cwd = binary.parent
+        if os.name == "nt" and binary.parent.name.lower() == "release":
+            cwd = binary.parent.parent
 
         total += 1
         start = time.time()

@@ -11,20 +11,16 @@
 # --------------------------------------------------------------------------------
 
 import torch
-import torch.nn as nn
-import torch_npu
 from torch_npu.testing.testcase import TestCase, run_tests
-import op_extension
 
 
 class TestCustomAdd(TestCase):
-
     def test_add_custom_ops(self):
         # Define the tensor size
         length = [20, 2048]
         # Create random input tensors on CPU with float16 data type
-        x = torch.rand(length, device='cpu', dtype=torch.float16)
-        y = torch.rand(length, device='cpu', dtype=torch.float16)
+        x = torch.rand(length, device="cpu", dtype=torch.float16)
+        y = torch.rand(length, device="cpu", dtype=torch.float16)
 
         x_npu = x.npu()
         y_npu = y.npu()
@@ -35,6 +31,7 @@ class TestCustomAdd(TestCase):
 
         # Validate the results
         self.assertRtolEqual(output, cpuout)
+
 
 if __name__ == "__main__":
     run_tests()

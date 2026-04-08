@@ -5,7 +5,7 @@
 ## 文档目录
 
 | 领域 | 页面 | 描述 |
-|---|---|---|
+| --- | --- | --- |
 | 概述 | [`docs/README_zh.md`](README_zh.md) | PTO ISA 指南入口与导航。 |
 | 概述 | [`docs/PTOISA_zh.md`](PTOISA_zh.md) | 本页（概述 + 全量指令索引）。 |
 | ISA 参考 | [`docs/isa/README_zh.md`](isa/README_zh.md) | 每条指令参考目录。 |
@@ -17,7 +17,7 @@
 ## 指令索引（全部 PTO 指令）
 
 | 分类 | 指令 | 描述 |
-|---|---|---|
+| --- | --- | --- |
 | 同步 | [`TSYNC`](isa/TSYNC_zh.md) | 同步 PTO 执行（等待事件或插入每操作流水线屏障）。 |
 | 手动 / 资源绑定 | [`TASSIGN`](isa/TASSIGN_zh.md) | 将 Tile 对象绑定到实现定义的片上地址（手动放置）。 |
 | 手动 / 资源绑定 | [`TSETFMATRIX`](isa/TSETFMATRIX_zh.md) | 为类 IMG2COL 操作设置 FMATRIX 寄存器。 |

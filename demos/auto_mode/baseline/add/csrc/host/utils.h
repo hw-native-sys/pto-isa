@@ -56,7 +56,7 @@ T ConvertType(T value)
 }
 
 template <typename... Ts>
-constexpr auto ConvertTypes(Ts &... args)
+constexpr auto ConvertTypes(Ts &...args)
 {
     return std::make_tuple(ConvertType(args)...);
 }
@@ -67,7 +67,7 @@ constexpr auto ConvertTypes(Ts &... args)
         auto converted_params = ConvertTypes(__VA_ARGS__);                  \
         auto acl_call = [acl_stream, blockdim, converted_params]() -> int { \
             std::apply(                                                     \
-                [&](auto &&... params) {                                    \
+                [&](auto &&...params) {                                     \
                     ACLRT_LAUNCH_KERNEL(kernel_name)                        \
                     (blockdim, acl_stream, params...);                      \
                 },                                                          \

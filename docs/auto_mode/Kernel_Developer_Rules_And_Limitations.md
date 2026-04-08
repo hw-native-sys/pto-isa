@@ -9,7 +9,7 @@ Not following these rules can lead to any of the following consequences:
 
 # 1 - Control Flow Rules
 
-Complex control flow (especially inside loops) often makes it difficult to optimize the precise cross-pipe parallelization and double-buffering. Since PTO AUTO compiler is required to maintain program correctness, it may generate the sync operations more conservatively leading to performance degradation.  
+Complex control flow (especially inside loops) often makes it difficult to optimize the precise cross-pipe parallelization and double-buffering. Since PTO AUTO compiler is required to maintain program correctness, it may generate the sync operations more conservatively leading to performance degradation.
 
 ## 1.1 - Guards for First and Last Iteraions
 
@@ -27,9 +27,9 @@ for (int tile_id = 0; tile_id < total_tiles; tile_id++) {
 }
 ```
 
-## 1.2 - Loop Invariant Control Flow in Loop Nests  
+## 1.2 - Loop Invariant Control Flow in Loop Nests
 
-if-statements Nested in a Loop that do not depend on inner loop's induction variable should be left inside the inner loop.  
+if-statements Nested in a Loop that do not depend on inner loop's induction variable should be left inside the inner loop.
 
 For example, consider the if-statement inside the inner loop:
 
@@ -88,6 +88,7 @@ else {
 ```
 
 ## 1.4 - It's strongly recommended NOT to use double/multi buffering at the moment
+
 For now, the double/multi buffering in auto mode isn't fully supported, because once the kernels becomes complicated, using double buffering always
 involves complex control flows, imposing huges challenges for compilers to do auto-sync.
 Auto mode compiler team is trying to design a dedicated abstraction/interface (with some constraints) to kernel developers, to enable double buffering,
@@ -146,7 +147,7 @@ for (int i = 0; i < N; i++) {
 
 Users in manual mode can use trick like this to change a tile' address at any point during runtime. Compiler can't handle such dynamic behavior to properly allocate memory; *In auto mode, each tile will be allocated memory once and for all.* Programmers should rewrite their code to bypass such limitation.
 
-Here's a crucial mindset for auto mode:  
+Here's a crucial mindset for auto mode:
 **think of a tile as a C++ reference, meaning that its memory address is already determined and cannot change once declared**.
 
 ## 2.4 - Correctly understand the semantics of `TRESHAPE` and `TSUBVIEW`
@@ -161,12 +162,12 @@ In manual mode, they are both actual PTO instructions that (re)assign an address
 
     The `TSUBVIEW` instruction allows users obtain a subtile from a larger tile. In the AUTO mode, the compiler calculates the relative offset of the subtile and add it to the automatically allocated address of the base tile.
 
-Note that since in the AUTO mode is that the address of a tile cannot change throughout its scope, a tile cannot be used as the destination for multiple `TRESHAPE` or `TSUBVIEW` instructions. For example, the following example is invalid in the AUTO mode and the actual behavior is undefined.  
+Note that since in the AUTO mode is that the address of a tile cannot change throughout its scope, a tile cannot be used as the destination for multiple `TRESHAPE` or `TSUBVIEW` instructions. For example, the following example is invalid in the AUTO mode and the actual behavior is undefined.
 
 ```cpp
 TRESHAPE(tile0, tile1);
 foo(tile0);
-... 
+...
 TSUBVIEW(tile0, tile2, 0, 0);
 bar(tile0);
 ```

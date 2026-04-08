@@ -29,8 +29,8 @@ def compile_cpp(kernel_cpp: str, verbose: bool = False, timeout: int = 120) -> s
         "-shared",
         "-xcce",
         "--cce-aicore-arch=dav-c220-vec",
-        "-O2", # auto mode only works on -O2
-        "--cce-enable-pto-passes", # enable auto mode
+        "-O2",  # auto mode only works on -O2
+        "--cce-enable-pto-passes",  # enable auto mode
         "-std=c++17",
         f"-I{PTO_LIB_PATH}/include",
     ]
@@ -76,14 +76,7 @@ def load_lib(lib_path, check_type=True):
     def add_func(x, y, z, block_dim=default_block_dim, stream_ptr=default_stream_ptr):
         N = x.numel()
         # TODO: customize call args according to cpp `void call_kernel` signature
-        lib.call_kernel(
-            block_dim,
-            stream_ptr,
-            torch_to_ctypes(x),
-            torch_to_ctypes(y),
-            torch_to_ctypes(z),
-            N,
-        )
+        lib.call_kernel(block_dim, stream_ptr, torch_to_ctypes(x), torch_to_ctypes(y), torch_to_ctypes(z), N)
 
     return add_func
 

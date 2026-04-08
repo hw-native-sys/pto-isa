@@ -17,7 +17,7 @@ namespace pto {
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
 PTO_INTERNAL void TFMOD_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1)
 {
-    TREM_IMPL(dst, src0, src1);
+    BinaryElementTileOp_Impl<ElementOp::OP_REM>(dst, src0, src1);
 }
 } // namespace pto
 

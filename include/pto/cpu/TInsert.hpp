@@ -11,10 +11,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define TINSERT_HPP
 
 #include <cassert>
+#include <type_traits>
 
 namespace pto {
 template <typename DstTileData, typename SrcTileData>
-PTO_INTERNAL void TINSERT_IMPL(DstTileData &dst, SrcTileData &src, uint32_t idxRow = 0, uint32_t idxCol = 0)
+PTO_INTERNAL void TINSERT_IMPL(DstTileData &dst, SrcTileData &src, uint16_t idxRow = 0, uint16_t idxCol = 0)
 {
     assert(src.GetValidRow() + idxRow <= dst.GetValidRow() && src.GetValidCol() + idxCol <= dst.GetValidCol());
 
@@ -64,8 +65,8 @@ PTO_INTERNAL void TINSERT_IMPL(DstTileData &dst, SrcTileData &src, uint64_t preQ
     TINSERT_IMPL(dst, src, indexRow, indexCol);
 }
 
-template <typename DstTileData, typename SrcTileData, typename FpTileData,
-          ReluPreMode reluMode = ReluPreMode::NoRelu>
+template <typename DstTileData, typename SrcTileData, typename FpTileData, ReluPreMode reluMode = ReluPreMode::NoRelu,
+          std::enable_if_t<!std::is_integral_v<FpTileData>, int> = 0>
 PTO_INTERNAL void TINSERT_IMPL(DstTileData &dst, SrcTileData &src, FpTileData &fp, uint16_t indexRow = 0,
                                uint16_t indexCol = 0)
 {

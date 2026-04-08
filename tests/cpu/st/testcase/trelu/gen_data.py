@@ -13,6 +13,7 @@
 import os
 import numpy as np
 from tests.script.cpu_bfloat16 import BF16_DTYPE, cast_for_compute, normalize_case_dtype_name, write_array
+
 np.random.seed(19)
 
 
@@ -44,13 +45,9 @@ class TReluParams:
 
 
 def generate_case_name(param):
-    dtype_str = normalize_case_dtype_name(param.dtype, {
-        np.float32: 'float',
-        np.float16: 'half',
-        np.int8: 'int8',
-        np.int32: 'int32',
-        np.int16: 'int16'
-    })
+    dtype_str = normalize_case_dtype_name(
+        param.dtype, {np.float32: "float", np.float16: "half", np.int8: "int8", np.int32: "int32", np.int16: "int16"}
+    )
 
     def substring(a, b) -> str:
         return f"_{a}x{b}"
@@ -64,33 +61,29 @@ def generate_case_name(param):
 
 
 if __name__ == "__main__":
-    # Get the absolute path of the script
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    testcases_dir = os.path.join(script_dir, "testcases")
-
-    # Ensure the testcases directory exists
-    if not os.path.exists(testcases_dir):
-        os.makedirs(testcases_dir)
 
     case_params_list = [
         TReluParams(np.float32, 64, 64, 64, 64, 64, 64),
         TReluParams(np.int32, 64, 64, 64, 64, 64, 64),
         TReluParams(np.float16, 16, 256, 16, 256, 16, 256),
         TReluParams(np.int16, 64, 64, 64, 64, 64, 64),
-        
         TReluParams(np.float32, 64, 64, 64, 64, 60, 55),
         TReluParams(np.int32, 64, 64, 64, 64, 60, 55),
         TReluParams(np.float16, 64, 64, 96, 96, 64, 60),
-        TReluParams(np.int16, 64, 64, 96, 96, 64, 60)
+        TReluParams(np.int16, 64, 64, 96, 96, 64, 60),
     ]
     if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
         case_params_list.append(TReluParams(BF16_DTYPE, 16, 256, 16, 256, 16, 256))
 
     for i, param in enumerate(case_params_list):
         case_name = generate_case_name(param)
-        if not os.path.exists(case_name):
-            os.makedirs(case_name)
+        if i < 8:
+            output_dir = os.path.join(script_dir, f"TRELUTest.case_{i}")
+        else:
+            output_dir = os.path.join(script_dir, case_name)
+        os.makedirs(output_dir, exist_ok=True)
         original_dir = os.getcwd()
-        os.chdir(case_name)
+        os.chdir(output_dir)
         gen_golden_data_trelu(case_name, param)
         os.chdir(original_dir)

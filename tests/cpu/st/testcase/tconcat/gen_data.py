@@ -12,6 +12,7 @@
 
 import os
 import numpy as np
+
 np.random.seed(19)
 
 
@@ -34,7 +35,7 @@ def gen_golden_data(case_name, param):
     # Perform the concat operation
     golden = np.zeros([dst_tile_row, dst_tile_col]).astype(dtype)
     golden[0:v_valid_row, 0:v_valid_col0] = input1[0:v_valid_row, 0:v_valid_col0]
-    golden[0:v_valid_row, v_valid_col0:v_valid_col0 + v_valid_col1] = input2[0:v_valid_row, 0:v_valid_col1]
+    golden[0:v_valid_row, v_valid_col0 : v_valid_col0 + v_valid_col1] = input2[0:v_valid_row, 0:v_valid_col1]
 
     # Save the input and golden data to binary files
     input1.tofile("input1.bin")
@@ -57,13 +58,9 @@ class TConcatParams:
 
 
 def generate_case_name(param):
-    dtype_str = {
-        np.float32: 'float',
-        np.float16: 'half',
-        np.int8: 'int8',
-        np.int32: 'int32',
-        np.int16: 'int16'
-    }[param.dtype]
+    dtype_str = {np.float32: "float", np.float16: "half", np.int8: "int8", np.int32: "int32", np.int16: "int16"}[
+        param.dtype
+    ]
     return f"TCONCATTest.case_{dtype_str}_{param.dst_tile_row}x{param.dst_tile_col}_\
 {param.src0_tile_row}x{param.src0_tile_col}_{param.src1_tile_row}x{param.src1_tile_col}_\
 {param.valid_row}x{param.valid_col0}_{param.valid_row}x{param.valid_col1}"

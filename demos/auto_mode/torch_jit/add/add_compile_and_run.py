@@ -11,7 +11,6 @@
 # --------------------------------------------------------------------------------
 
 import torch
-import torch_npu
 
 from jit_util_add import jit_compile
 

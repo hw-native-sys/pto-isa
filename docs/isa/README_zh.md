@@ -10,15 +10,18 @@
 - [通用约定（操作数、事件、修饰符）](conventions_zh.md)
 
 ## 同步
+
 - [TSYNC](TSYNC_zh.md) - 同步 PTO 执行（等待事件或插入每操作流水线屏障）。
 
 ## 手动 / 资源绑定
+
 - [TASSIGN](TASSIGN_zh.md) - 将 Tile 对象绑定到实现定义的片上地址（手动放置）。
 - [TSETFMATRIX](TSETFMATRIX_zh.md) - 为类 IMG2COL 操作设置 FMATRIX 寄存器。
 - [TSET_IMG2COL_RPT](TSET_IMG2COL_RPT_zh.md) - 从 IMG2COL 配置 Tile 设置 IMG2COL 重复次数元数据。
 - [TSET_IMG2COL_PADDING](TSET_IMG2COL_PADDING_zh.md) - 从 IMG2COL 配置 Tile 设置 IMG2COL 填充元数据。
 
 ## 逐元素（Tile-Tile）
+
 - [TADD](TADD_zh.md) - 两个 Tile 的逐元素加法。
 - [TABS](TABS_zh.md) - Tile 的逐元素绝对值。
 - [TAND](TAND_zh.md) - 两个 Tile 的逐元素按位与。
@@ -49,6 +52,7 @@
 - [TFMOD](TFMOD_zh.md) - 两个 Tile 的逐元素余数，余数符号与被除数相同。
 
 ## Tile-标量 / Tile-立即数
+
 - [TEXPANDS](TEXPANDS_zh.md) - 将标量广播到目标 Tile 中。
 - [TCMPS](TCMPS_zh.md) - 将 Tile 与标量比较并写入逐元素比较结果。
 - [TSELS](TSELS_zh.md) - 使用掩码 Tile 在源 Tile 和标量之间进行选择（源 Tile 逐元素选择）。
@@ -70,6 +74,7 @@
 - [TSUBSC](TSUBSC_zh.md) - 融合逐元素运算：`src0 - scalar + src1`。
 
 ## 轴归约 / 扩展
+
 - [TROWSUM](TROWSUM_zh.md) - 通过对列求和来归约每一行。
 - [TROWPROD](TROWPROD_zh.md) - 通过跨列乘积来归约每一行。
 - [TCOLSUM](TCOLSUM_zh.md) - 通过对行求和来归约每一列。
@@ -100,6 +105,7 @@
 - [TCOLEXPANDEXPDIF](TCOLEXPANDEXPDIF_zh.md) - 列指数差运算：计算 exp(src0 - src1)，其中 src1 为每列标量。
 
 ## 内存（GM <-> Tile）
+
 - [TLOAD](TLOAD_zh.md) - 从 GlobalTensor (GM) 加载数据到 Tile。
 - [TPREFETCH](TPREFETCH_zh.md) - 将数据从全局内存预取到 Tile 本地缓存/缓冲区（提示）。
 - [TSTORE](TSTORE_zh.md) - 将 Tile 中的数据存储到 GlobalTensor (GM)，可选使用原子写入或量化参数。
@@ -108,6 +114,7 @@
 - [MSCATTER](MSCATTER_zh.md) - 使用逐元素索引将 Tile 中的元素散播存储到全局内存。
 
 ## 矩阵乘
+
 - [TGEMV_MX](TGEMV_MX_zh.md) - 带缩放 Tile 的 GEMV 变体，支持混合精度/量化矩阵向量计算。
 - [TMATMUL_MX](TMATMUL_MX_zh.md) - 带额外缩放 Tile 的矩阵乘法 (GEMM)，用于支持目标上的混合精度/量化矩阵乘法。
 - [TMATMUL](TMATMUL_zh.md) - 矩阵乘法 (GEMM)，生成累加器/输出 Tile。
@@ -118,6 +125,7 @@
 - [TGEMV_BIAS](TGEMV_BIAS_zh.md) - 带偏置加法的 GEMV。
 
 ## 数据搬运 / 布局
+
 - [TEXTRACT](TEXTRACT_zh.md) - 从源 Tile 中提取子 Tile。
 - [TEXTRACT_FP](TEXTRACT_FP_zh.md) - 带 fp/缩放 Tile 的提取（向量量化参数）。
 - [TIMG2COL](TIMG2COL_zh.md) - 用于类卷积工作负载的图像到列变换。
@@ -134,6 +142,7 @@
 - [TGET_SCALE_ADDR](TGET_SCALE_ADDR_zh.md) - 将输出tile的片上内存值绑定为扩展后的输入tile内存的值。
 
 ## 复杂指令
+
 - [TPRINT](TPRINT_zh.md) - 调试/打印 Tile 中的元素（实现定义）。
 - [TMRGSORT](TMRGSORT_zh.md) - 用于多个已排序列表的归并排序（实现定义的元素格式和布局）。
 - [TSORT32](TSORT32_zh.md) - 对 `src` 的每个 32 元素块，与 `idx` 中对应的索引一起进行排序，并将排序后的值-索引对写入 `dst`。

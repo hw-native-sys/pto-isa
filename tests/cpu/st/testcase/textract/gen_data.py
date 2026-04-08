@@ -27,16 +27,23 @@ def type2str(t):
         return "float"
     if is_bfloat16_dtype(t):
         return "bfloat16_t"
-    return np.dtype(t).name+"_t"
+    return np.dtype(t).name + "_t"
 
 
 def gen_golden_data(case_name, param):
     src_type = param.src_type
     dst_type = param.dst_type
 
-    rows, cols, valid_rows, valid_cols, idx_row, idx_col = param.rows, param.cols, param.valid_rows, param.valid_cols, param.idx_row, param.idx_col
+    rows, cols, valid_rows, valid_cols, idx_row, idx_col = (
+        param.rows,
+        param.cols,
+        param.valid_rows,
+        param.valid_cols,
+        param.idx_row,
+        param.idx_col,
+    )
 
-    #gm = np.rand(1, 1e6, [m, k]).astype(src_type)
+    # gm = np.rand(1, 1e6, [m, k]).astype(src_type)
     gm = cast_for_compute(np.arange(1, valid_rows * valid_cols + 1).reshape([valid_rows, valid_cols]), src_type)
 
     golden = cast_for_compute(gm[idx_row:, idx_col:], dst_type)
@@ -46,102 +53,97 @@ def gen_golden_data(case_name, param):
 
     if PRINT_C_CASE:
         print(f"TEST_F(TEXTRACTTest, {case_name}) " + "{")
-        print(f"    textract_test<{type2str(src_type)}, {type2str(dst_type)}, TileType::{param.src_loc}, TileType::{param.dst_loc}, {rows}, {cols}, {valid_rows}, {valid_cols}, {idx_row}, {idx_col}, {param.src_layout}, {param.dst_layout}>();" + "\n}\n")
+        print(
+            f"    textract_test<{type2str(src_type)}, {type2str(dst_type)}, TileType::{param.src_loc}, TileType::{param.dst_loc}, {rows}, {cols}, {valid_rows}, {valid_cols}, {idx_row}, {idx_col}, {param.src_layout}, {param.dst_layout}>();"
+            + "\n}\n"
+        )
 
 
 class textractParams:
-    def __init__(self, src_type, dst_type, src_loc, dst_loc, rows, cols, valid_rows, valid_cols, idx_row, idx_col, src_layout, dst_layout):
+    def __init__(
+        self,
+        src_type,
+        dst_type,
+        src_loc,
+        dst_loc,
+        rows,
+        cols,
+        valid_rows,
+        valid_cols,
+        idx_row,
+        idx_col,
+        src_layout,
+        dst_layout,
+    ):
         self.src_type, self.dst_type = src_type, dst_type
         self.src_loc, self.dst_loc = src_loc, dst_loc
-        self.rows, self.cols, self.valid_rows, self.valid_cols, self.idx_row, self.idx_col = rows, cols, valid_rows, valid_cols, idx_row, idx_col
+        self.rows, self.cols, self.valid_rows, self.valid_cols, self.idx_row, self.idx_col = (
+            rows,
+            cols,
+            valid_rows,
+            valid_cols,
+            idx_row,
+            idx_col,
+        )
         self.src_layout, self.dst_layout = src_layout, dst_layout
 
 
 def gen_case_name(param):
-    return f"case_{type2str(param.src_type)}_{type2str(param.dst_type)}_{param.src_loc}_{param.dst_loc}_"\
-    f"{param.rows}_{param.cols}_{param.valid_rows}_{param.valid_cols}_IDX_{param.idx_row}_{param.idx_col}_L_{param.src_layout}_{param.dst_layout}"
+    return (
+        f"case_{type2str(param.src_type)}_{type2str(param.dst_type)}_{param.src_loc}_{param.dst_loc}_"
+        f"{param.rows}_{param.cols}_{param.valid_rows}_{param.valid_cols}_IDX_{param.idx_row}_{param.idx_col}_L_{param.src_layout}_{param.dst_layout}"
+    )
 
 
 if __name__ == "__main__":
     case_params_list = [
-        textractParams(np.float16, np.float16, "Mat",
-                       "Mat", 32, 32, 32, 32, 0, 0, 0, 0),
-        textractParams(np.float16, np.float32, "Mat",
-                       "Mat", 32, 32, 32, 32, 0, 0, 0, 0),
-        textractParams(np.float32, np.float32, "Mat",
-                       "Mat", 128, 96, 128, 96, 0, 0, 0, 0),
-        textractParams(np.int32, np.float32, "Mat",
-                       "Mat", 128, 96, 128, 96, 0, 0, 0, 0),
-        textractParams(np.int8, np.int32, "Mat", "Mat",
-                       128, 64, 128, 64, 0, 0, 0, 0),
-        #---------------------------------------------------
-        textractParams(np.float16, np.float16, "Mat",
-                       "Mat", 32, 32, 32, 32, 8, 16, 0, 0),
-        textractParams(np.float16, np.float32, "Mat",
-                       "Mat", 32, 32, 32, 32, 8, 16, 0, 0),
-        textractParams(np.float32, np.float32, "Mat", "Mat",
-                       128, 96, 128, 96, 8, 16, 0, 0),
-        textractParams(np.int32, np.float32, "Mat", "Mat",
-                       128, 96, 128, 96, 8, 16, 0, 0),
-        textractParams(np.int8, np.int32, "Mat", "Mat",
-                       128, 64, 128, 64, 8, 16, 0, 0),
-        #---------------------------------------------------
-        textractParams(np.float16, np.float16, "Mat",
-                       "Mat", 32, 32, 31, 31, 8, 16, 0, 0),
-        textractParams(np.float16, np.float32, "Mat",
-                       "Mat", 32, 32, 31, 31, 8, 16, 0, 0),
-        textractParams(np.float32, np.float32, "Mat", "Mat",
-                       128, 96, 125, 93, 8, 16, 0, 0),
-        textractParams(np.int32, np.float32, "Mat", "Mat",
-                       128, 96, 125, 93, 8, 16, 0, 0),
-        textractParams(np.int8, np.int32, "Mat", "Mat",
-                       128, 64, 125, 61, 8, 16, 0, 0),
-        #---------------------------------------------------
-        textractParams(np.float32, np.float32, "Mat", "Mat",
-                       128, 96, 125, 93, 8, 16, 0, 1),
-        textractParams(np.float32, np.float32, "Mat", "Mat",
-                       128, 96, 125, 93, 8, 16, 0, 2),
-        textractParams(np.float32, np.float32, "Mat", "Mat",
-                       128, 96, 125, 93, 8, 16, 1, 0),
-        textractParams(np.float32, np.float32, "Mat", "Mat",
-                       128, 96, 125, 93, 8, 16, 1, 1),
-        textractParams(np.float32, np.float32, "Mat", "Mat",
-                       128, 96, 125, 93, 8, 16, 1, 2),
-        textractParams(np.float32, np.float32, "Mat", "Mat",
-                       128, 96, 125, 93, 8, 16, 2, 0),
-        textractParams(np.float32, np.float32, "Mat", "Mat",
-                       128, 96, 125, 93, 8, 16, 2, 1),
-        textractParams(np.float32, np.float32, "Mat", "Mat",
-                       128, 96, 125, 93, 8, 16, 2, 2),
-        #---------------------------------------------------
-        textractParams(np.float16, np.float16, "Mat",
-                       "Vec", 32, 32, 32, 32, 16, 24, 0, 0),
-        textractParams(np.float16, np.float32, "Mat",
-                       "Vec", 32, 32, 32, 32, 16, 24, 0, 0),
-        textractParams(np.float32, np.float32, "Mat", "Vec",
-                       128, 96, 128, 96, 16, 24, 0, 0),
-        textractParams(np.int32, np.float32, "Mat", "Vec",
-                       128, 96, 128, 96, 16, 24, 0, 0),
-        textractParams(np.int8, np.int32, "Mat", "Vec",
-                       128, 64, 128, 64, 16, 24, 0, 0),
-        #---------------------------------------------------
-        textractParams(np.float16, np.float16, "Vec",
-                       "Vec", 32, 32, 32, 32, 16, 24, 0, 0),
-        textractParams(np.float16, np.float32, "Vec",
-                       "Vec", 32, 32, 32, 32, 16, 24, 0, 0),
-        textractParams(np.float32, np.float32, "Vec", "Vec",
-                       128, 96, 128, 96, 16, 24, 0, 0),
-        textractParams(np.int32, np.float32, "Vec", "Vec",
-                       128, 96, 128, 96, 16, 24, 0, 0),
-        textractParams(np.int8, np.int32, "Vec", "Vec",
-                       128, 64, 128, 64, 16, 24, 0, 0),
+        textractParams(np.float16, np.float16, "Mat", "Mat", 32, 32, 32, 32, 0, 0, 0, 0),
+        textractParams(np.float16, np.float32, "Mat", "Mat", 32, 32, 32, 32, 0, 0, 0, 0),
+        textractParams(np.float32, np.float32, "Mat", "Mat", 128, 96, 128, 96, 0, 0, 0, 0),
+        textractParams(np.int32, np.float32, "Mat", "Mat", 128, 96, 128, 96, 0, 0, 0, 0),
+        textractParams(np.int8, np.int32, "Mat", "Mat", 128, 64, 128, 64, 0, 0, 0, 0),
+        # ---------------------------------------------------
+        textractParams(np.float16, np.float16, "Mat", "Mat", 32, 32, 32, 32, 8, 16, 0, 0),
+        textractParams(np.float16, np.float32, "Mat", "Mat", 32, 32, 32, 32, 8, 16, 0, 0),
+        textractParams(np.float32, np.float32, "Mat", "Mat", 128, 96, 128, 96, 8, 16, 0, 0),
+        textractParams(np.int32, np.float32, "Mat", "Mat", 128, 96, 128, 96, 8, 16, 0, 0),
+        textractParams(np.int8, np.int32, "Mat", "Mat", 128, 64, 128, 64, 8, 16, 0, 0),
+        # ---------------------------------------------------
+        textractParams(np.float16, np.float16, "Mat", "Mat", 32, 32, 31, 31, 8, 16, 0, 0),
+        textractParams(np.float16, np.float32, "Mat", "Mat", 32, 32, 31, 31, 8, 16, 0, 0),
+        textractParams(np.float32, np.float32, "Mat", "Mat", 128, 96, 125, 93, 8, 16, 0, 0),
+        textractParams(np.int32, np.float32, "Mat", "Mat", 128, 96, 125, 93, 8, 16, 0, 0),
+        textractParams(np.int8, np.int32, "Mat", "Mat", 128, 64, 125, 61, 8, 16, 0, 0),
+        # ---------------------------------------------------
+        textractParams(np.float32, np.float32, "Mat", "Mat", 128, 96, 125, 93, 8, 16, 0, 1),
+        textractParams(np.float32, np.float32, "Mat", "Mat", 128, 96, 125, 93, 8, 16, 0, 2),
+        textractParams(np.float32, np.float32, "Mat", "Mat", 128, 96, 125, 93, 8, 16, 1, 0),
+        textractParams(np.float32, np.float32, "Mat", "Mat", 128, 96, 125, 93, 8, 16, 1, 1),
+        textractParams(np.float32, np.float32, "Mat", "Mat", 128, 96, 125, 93, 8, 16, 1, 2),
+        textractParams(np.float32, np.float32, "Mat", "Mat", 128, 96, 125, 93, 8, 16, 2, 0),
+        textractParams(np.float32, np.float32, "Mat", "Mat", 128, 96, 125, 93, 8, 16, 2, 1),
+        textractParams(np.float32, np.float32, "Mat", "Mat", 128, 96, 125, 93, 8, 16, 2, 2),
+        # ---------------------------------------------------
+        textractParams(np.float16, np.float16, "Mat", "Vec", 32, 32, 32, 32, 16, 24, 0, 0),
+        textractParams(np.float16, np.float32, "Mat", "Vec", 32, 32, 32, 32, 16, 24, 0, 0),
+        textractParams(np.float32, np.float32, "Mat", "Vec", 128, 96, 128, 96, 16, 24, 0, 0),
+        textractParams(np.int32, np.float32, "Mat", "Vec", 128, 96, 128, 96, 16, 24, 0, 0),
+        textractParams(np.int8, np.int32, "Mat", "Vec", 128, 64, 128, 64, 16, 24, 0, 0),
+        # ---------------------------------------------------
+        textractParams(np.float16, np.float16, "Vec", "Vec", 32, 32, 32, 32, 16, 24, 0, 0),
+        textractParams(np.float16, np.float32, "Vec", "Vec", 32, 32, 32, 32, 16, 24, 0, 0),
+        textractParams(np.float32, np.float32, "Vec", "Vec", 128, 96, 128, 96, 16, 24, 0, 0),
+        textractParams(np.int32, np.float32, "Vec", "Vec", 128, 96, 128, 96, 16, 24, 0, 0),
+        textractParams(np.int8, np.int32, "Vec", "Vec", 128, 64, 128, 64, 16, 24, 0, 0),
     ]
     if ENABLE_BF16:
-        case_params_list.extend([
-            textractParams(BF16_DTYPE, BF16_DTYPE, "Mat", "Mat", 32, 32, 32, 32, 0, 0, 0, 0),
-            textractParams(BF16_DTYPE, np.float32, "Mat", "Mat", 32, 32, 32, 32, 8, 16, 0, 0),
-            textractParams(BF16_DTYPE, BF16_DTYPE, "Mat", "Mat", 32, 32, 31, 31, 8, 16, 0, 0),
-        ])
+        case_params_list.extend(
+            [
+                textractParams(BF16_DTYPE, BF16_DTYPE, "Mat", "Mat", 32, 32, 32, 32, 0, 0, 0, 0),
+                textractParams(BF16_DTYPE, np.float32, "Mat", "Mat", 32, 32, 32, 32, 8, 16, 0, 0),
+                textractParams(BF16_DTYPE, BF16_DTYPE, "Mat", "Mat", 32, 32, 31, 31, 8, 16, 0, 0),
+            ]
+        )
 
     for case_param in case_params_list:
         case_name = gen_case_name(case_param)

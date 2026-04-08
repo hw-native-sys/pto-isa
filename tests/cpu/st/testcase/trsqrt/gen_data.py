@@ -12,7 +12,9 @@
 
 import os
 import numpy as np
+
 np.random.seed(19)
+
 
 def gen_golden_data(case_name, param):
     dtype = param.dtype
@@ -39,6 +41,7 @@ def gen_golden_data(case_name, param):
 
     return input1, golden
 
+
 class tunaryParams:
     def __init__(self, dtype, dst_row, dst_col, src_row, src_col, valid_row, valid_col):
         self.dtype = dtype
@@ -49,13 +52,12 @@ class tunaryParams:
         self.valid_row = valid_row
         self.valid_col = valid_col
 
+
 def generate_case_name(param):
-    dtype_str = {
-        np.float32: 'float',
-        np.float16: 'half',
-    }[param.dtype]
+    dtype_str = {np.float32: "float", np.float16: "half"}[param.dtype]
     return f"TRSQRTTest.case_{dtype_str}_{param.dst_row}x{param.dst_col}_{param.src_row}x{param.src_col}_\
         {param.valid_row}x{param.valid_col}"
+
 
 if __name__ == "__main__":
     # Get the absolute path of the script

@@ -4,7 +4,7 @@
 
 ## 目录结构
 
-```
+```text
 demos/baseline/add/
 ├── op_extension/              # Python 包入口（模块加载）
 ├── csrc/
@@ -31,11 +31,12 @@ ascendc_compile_options(no_workspace_kernel PRIVATE --cce-enable-pto-passes -O2)
 不像manual模式，你不需要手动调用`TASSIGN`和同步指令，编译器会替你自动完成。
 
 注意:
+
 1. 你需要使用 `--cce-enable-pto-passes` 编译选项来使能编译器的auto模式
 2. 编译kernel时必须使用-O2
 3. 目前，这个用例没有使用双缓冲，而且非常不建议在目前的auto模式下使用双缓冲，因为并没有完全支持。
 
-构建选项与细节请参考昇腾社区文档：https://www.hiascend.com/ascend-c
+构建选项与细节请参考昇腾社区文档：[Ascend C](https://www.hiascend.com/ascend-c)
 
 ## 2. 与 PyTorch 集成（`torch_npu`）
 
@@ -82,7 +83,7 @@ at::Tensor run_add_custom(const at::Tensor &x, const at::Tensor &y)
 ### 2.3 注册实现
 
 使用 `TORCH_LIBRARY_IMPL` 注册实现。对 NPU 执行而言，`torch_npu` 使用 `PrivateUse1` dispatch key，关于 `PrivateUse1` 的详细介绍请参考 PyTorch 官方文档：
-https://docs.pytorch.org/tutorials/advanced/privateuseone.html
+[PyTorch PrivateUse1 文档](https://docs.pytorch.org/tutorials/advanced/privateuseone.html)
 
 ```cpp
 TORCH_LIBRARY_IMPL(npu, PrivateUse1, m)
@@ -95,7 +96,7 @@ TORCH_LIBRARY_IMPL(npu, PrivateUse1, m)
 
 本示例依赖 PTO Tile Lib、PyTorch、`torch_npu` 与 CANN。请参考 `torch_npu` 官方安装指南：
 
-https://gitcode.com/ascend/pytorch#%E5%AE%89%E8%A3%85
+[torch_npu 安装指南](https://gitcode.com/ascend/pytorch#%E5%AE%89%E8%A3%85)
 
 或执行：
 
