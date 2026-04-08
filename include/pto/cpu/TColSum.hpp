@@ -53,5 +53,12 @@ PTO_INTERNAL void TCOLSUM_IMPL(TileDst &dstTile, TileSrc &srcTile)
 
     TColSum<TileDst, TileSrc>(dstTile.data(), srcTile.data(), m, n);
 }
+
+template <typename TileDst, typename TileSrc, typename TileDataTmp>
+PTO_INTERNAL void TCOLSUM_IMPL(TileDst &dstTile, TileSrc &srcTile, TileDataTmp &tmp, bool isBinary)
+{
+    TCOLSUM_IMPL(dstTile, srcTile);
+}
+
 } // namespace pto
 #endif
