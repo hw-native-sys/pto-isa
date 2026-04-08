@@ -69,8 +69,7 @@ TEST(THistogramCpuSimTest, MsbModeMatchesExactCumulativeHistogram)
     for (size_t i = 0; i < row1.size(); ++i) {
         src.data()[GetTileElementOffset<SrcTile>(1, static_cast<int>(i))] = row1[i];
     }
-
-    THISTOGRAM<true>(dst, src, idx);
+    THISTOGRAM<HistByte::BYTE_1>(dst, src, idx);
 
     const auto expected0 = ReferenceHistogram<true>(row0, 0);
     const auto expected1 = ReferenceHistogram<true>(row1, 0);
@@ -109,7 +108,7 @@ TEST(THistogramCpuSimTest, LsbModeMatchesExactFilteredHistogram)
         src.data()[GetTileElementOffset<SrcTile>(1, static_cast<int>(i))] = row1[i];
     }
 
-    THISTOGRAM<false>(dst, src, idx);
+    THISTOGRAM<HistByte::BYTE_0>(dst, src, idx);
 
     const auto expected0 = ReferenceHistogram<false>(row0, 0x12u);
     const auto expected1 = ReferenceHistogram<false>(row1, 0xa0u);

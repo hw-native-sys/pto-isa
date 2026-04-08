@@ -294,6 +294,17 @@ enum class TileLayoutCustom : uint8_t
     NONE,
 };
 
+// Enum identifying which byte of a multi-byte element is being histogrammed.
+// BYTE_0 = LSB (bits 7-0), BYTE_3 = MSB (bits 31-24).
+// Radix sort processes MSB-first: BYTE_3 → BYTE_2 → BYTE_1 → BYTE_0.
+enum class HistByte : uint8_t
+{
+    BYTE_0 = 0, // LSB (bits 7-0)
+    BYTE_1 = 1, // bits 15-8
+    BYTE_2 = 2, // bits 23-16
+    BYTE_3 = 3  // MSB (bits 31-24)
+};
+
 enum class DivAlgorithm : uint8_t
 {
     DEFAULT,

@@ -1758,12 +1758,11 @@ PTO_INST RecordEvent TPACK(TileDataDst &dst, TileDataSrc &src, WaitEvents &... e
     return {};
 }
 
-template <bool MSBorLSB = true, typename TileDataDst, typename TileDataSrc, typename TileDataIdx,
-          typename... WaitEvents>
+template <HistByte byte, typename TileDataDst, typename TileDataSrc, typename TileDataIdx, typename... WaitEvents>
 PTO_INST RecordEvent THISTOGRAM(TileDataDst &dst, TileDataSrc &src, TileDataIdx &idx, WaitEvents &... events)
 {
     TSYNC(events...);
-    THISTOGRAM_IMPL<MSBorLSB>(dst, src, idx);
+    THISTOGRAM_IMPL<byte>(dst, src, idx);
     return {};
 }
 
