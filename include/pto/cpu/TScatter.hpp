@@ -17,8 +17,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-template <typename TileData, typename TileInd>
-PTO_INTERNAL void TSCATTER_IMPL(TileData &dst, TileData &src, TileInd &indexes)
+template <typename TileDataDst, typename TileDataSrc, typename TileInd>
+PTO_INTERNAL void TSCATTER_IMPL(TileDataDst &dst, TileDataSrc &src, TileInd &indexes)
 {
     using IndexT = typename TileInd::DType;
     static_assert(std::is_integral_v<IndexT>, "TSCATTER: indexes must be an integral type");
@@ -31,10 +31,10 @@ PTO_INTERNAL void TSCATTER_IMPL(TileData &dst, TileData &src, TileInd &indexes)
 
     for (unsigned i = 0; i < validRow; ++i) {
         for (unsigned j = 0; j < validCol; ++j) {
-            const size_t srcOff = GetTileElementOffset<TileData>(i, j);
+            const size_t srcOff = GetTileElementOffset<TileDataSrc>(i, j);
             const size_t idxOff = GetTileElementOffset<TileInd>(i, j);
             const auto dstRow = static_cast<unsigned>(indexes.data()[idxOff]);
-            const size_t dstOff = GetTileElementOffset<TileData>(dstRow, j);
+            const size_t dstOff = GetTileElementOffset<TileDataDst>(dstRow, j);
             dst.data()[dstOff] = src.data()[srcOff];
         }
     }
