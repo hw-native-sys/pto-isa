@@ -152,12 +152,10 @@ struct TPipe {
 
     PTO_INTERNAL static SharedState &GetSharedState()
     {
-        if (auto hook = cpu_sim::ResolveSharedStorageHook(); hook != nullptr) {
-            char key[128] = {};
-            std::snprintf(key, sizeof(key), "pto-pipe-%llu-%u-%u-%u-%u-%u-%u",
-                          static_cast<unsigned long long>(get_task_cookie()), get_block_idx(), FlagID, DirType,
-                          SlotSize, SlotNum, LocalSlotNum);
-            auto *storage = reinterpret_cast<SharedStateStorage *>(hook(key, sizeof(SharedStateStorage)));
+        if (auto hook = cpu_sim::get_pipe_shared_state_hook(); hook != nullptr) {
+            uint32_t pipe_key = (uint32_t(FlagID) << 24) | (uint32_t(DirType) << 16) |
+                                (uint32_t(SlotNum) << 8) | uint32_t(LocalSlotNum);
+            auto *storage = reinterpret_cast<SharedStateStorage *>(hook(pipe_key, sizeof(SharedStateStorage)));
             EnsureSharedStateInitialized(*storage);
             return *std::launder(reinterpret_cast<SharedState *>(storage->payload));
         }

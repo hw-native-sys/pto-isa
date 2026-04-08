@@ -16,7 +16,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <cstring>
 #include <cassert>
 #include <cstdio>
-#include <dlfcn.h>
 
 #define __global__
 #define AICORE
@@ -85,42 +84,25 @@ typedef int event_t;
 #define EVENT_ID0 0
 
 namespace pto::cpu_sim {
-using SetExecutionContextHookFn = void (*)(uint32_t block_idx, uint32_t subblock_id, uint32_t subblock_dim);
-using GetExecutionContextHookFn = void (*)(uint32_t *block_idx, uint32_t *subblock_id, uint32_t *subblock_dim);
-using GetSharedStorageHookFn = void *(*)(const char *key, size_t size);
-using GetTaskCookieHookFn = uint64_t (*)();
+using GetSubblockIdHookFn = uint32_t (*)();
+using GetPipeSharedStateHookFn = void *(*)(uint32_t pipe_key, size_t size);
 
-inline SetExecutionContextHookFn ResolveSetExecutionContextHook()
+inline GetSubblockIdHookFn &get_subblock_id_hook()
 {
-    static auto hook =
-        reinterpret_cast<SetExecutionContextHookFn>(dlsym(RTLD_DEFAULT, "pto_cpu_sim_set_execution_context"));
-    return hook;
+    static GetSubblockIdHookFn fn = nullptr;
+    return fn;
 }
 
-inline GetExecutionContextHookFn ResolveExecutionContextHook()
+inline GetPipeSharedStateHookFn &get_pipe_shared_state_hook()
 {
-    static auto hook =
-        reinterpret_cast<GetExecutionContextHookFn>(dlsym(RTLD_DEFAULT, "pto_cpu_sim_get_execution_context"));
-    return hook;
-}
-
-inline GetSharedStorageHookFn ResolveSharedStorageHook()
-{
-    static auto hook = reinterpret_cast<GetSharedStorageHookFn>(dlsym(RTLD_DEFAULT, "pto_cpu_sim_get_shared_storage"));
-    return hook;
-}
-
-inline GetTaskCookieHookFn ResolveTaskCookieHook()
-{
-    static auto hook = reinterpret_cast<GetTaskCookieHookFn>(dlsym(RTLD_DEFAULT, "pto_cpu_sim_get_task_cookie"));
-    return hook;
+    static GetPipeSharedStateHookFn fn = nullptr;
+    return fn;
 }
 
 struct ExecutionContext {
     uint32_t block_idx = 0;
     uint32_t subblock_id = 0;
     uint32_t subblock_dim = 1;
-    uint64_t task_cookie = 0;
 };
 
 inline thread_local ExecutionContext execution_context{};
@@ -130,19 +112,11 @@ inline void set_execution_context(uint32_t block_idx, uint32_t subblock_id, uint
     execution_context.block_idx = block_idx;
     execution_context.subblock_id = subblock_id;
     execution_context.subblock_dim = (subblock_dim == 0) ? 1 : subblock_dim;
-    if (auto hook = ResolveSetExecutionContextHook(); hook != nullptr) {
-        hook(execution_context.block_idx, execution_context.subblock_id, execution_context.subblock_dim);
-    }
 }
 
 inline void reset_execution_context()
 {
     execution_context = {};
-}
-
-inline void set_task_cookie(uint64_t task_cookie)
-{
-    execution_context.task_cookie = task_cookie;
 }
 
 class ScopedExecutionContext {
@@ -163,48 +137,39 @@ private:
 };
 } // namespace pto::cpu_sim
 
+/**
+ * Register simulation hook function pointers for this SO.
+ *
+ * Called by the sim platform (DeviceRunner) after dlopen'ing each kernel SO.
+ * Each SO has its own copy of the inline static function pointers, so every
+ * SO that uses TPUSH/TPOP must be registered.
+ *
+ * Pass nullptr to clear hooks (fallback to thread_local execution context).
+ */
+extern "C" __attribute__((visibility("default"), used)) inline void pto_sim_register_hooks(void *get_subblock_id, void *get_pipe_shared_state)
+{
+    pto::cpu_sim::get_subblock_id_hook() =
+        reinterpret_cast<pto::cpu_sim::GetSubblockIdHookFn>(get_subblock_id);
+    pto::cpu_sim::get_pipe_shared_state_hook() =
+        reinterpret_cast<pto::cpu_sim::GetPipeSharedStateHookFn>(get_pipe_shared_state);
+}
+
 inline uint32_t get_block_idx()
 {
-    if (auto hook = pto::cpu_sim::ResolveExecutionContextHook(); hook != nullptr) {
-        uint32_t block_idx = 0;
-        uint32_t subblock_id = 0;
-        uint32_t subblock_dim = 1;
-        hook(&block_idx, &subblock_id, &subblock_dim);
-        return block_idx;
-    }
     return pto::cpu_sim::execution_context.block_idx;
 }
 
 inline uint32_t get_subblockid()
 {
-    if (auto hook = pto::cpu_sim::ResolveExecutionContextHook(); hook != nullptr) {
-        uint32_t block_idx = 0;
-        uint32_t subblock_id = 0;
-        uint32_t subblock_dim = 1;
-        hook(&block_idx, &subblock_id, &subblock_dim);
-        return subblock_id;
+    if (auto hook = pto::cpu_sim::get_subblock_id_hook(); hook != nullptr) {
+        return hook();
     }
     return pto::cpu_sim::execution_context.subblock_id;
 }
 
 inline uint32_t get_subblockdim()
 {
-    if (auto hook = pto::cpu_sim::ResolveExecutionContextHook(); hook != nullptr) {
-        uint32_t block_idx = 0;
-        uint32_t subblock_id = 0;
-        uint32_t subblock_dim = 1;
-        hook(&block_idx, &subblock_id, &subblock_dim);
-        return subblock_dim;
-    }
     return pto::cpu_sim::execution_context.subblock_dim;
-}
-
-inline uint64_t get_task_cookie()
-{
-    if (auto hook = pto::cpu_sim::ResolveTaskCookieHook(); hook != nullptr) {
-        return hook();
-    }
-    return pto::cpu_sim::execution_context.task_cookie;
 }
 
 #endif
