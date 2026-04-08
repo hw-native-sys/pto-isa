@@ -30,8 +30,13 @@ def get_k_index(cumulative_hist_asc, k):
     return int(valid_bins[-1])
 
 
+# ---------------------------------------------------------------------------
+# uint16 golden generation (original)
+# ---------------------------------------------------------------------------
+
+
 def gen_golden_histogram(case_name, param):
-    """Generate golden data for THistogram.
+    """Generate golden data for THistogram (uint16 input).
 
     THistogram is generated per row.
 
@@ -84,9 +89,105 @@ class THISTOGRAMParams:
 
 def generate_case_name(param):
     if param.msb_or_lsb == "MSB":
-        return f"THISTOGRAMTest.case_{param.rows}x{param.cols}_{param.msb_or_lsb}"
+        return f"THISTOGRAMTest.case_{param.rows}x{param.cols}_b1"
     else:
-        return f"THISTOGRAMTest.case_{param.rows}x{param.cols}_{param.msb_or_lsb}_k{param.k}"
+        return f"THISTOGRAMTest.case_{param.rows}x{param.cols}_b0_k{param.k}"
+
+
+# ---------------------------------------------------------------------------
+# uint32 golden generation
+# ---------------------------------------------------------------------------
+# For uint32 input the four bytes are:
+#   byte0 (bits 7-0, LSB), byte1 (bits 15-8), byte2 (bits 23-16), byte3 (bits 31-24, MSB)
+#
+# Radix sort processes MSB-first:
+# HistByte::BYTE_3 -> histogram of byte3, no filtering
+# HistByte::BYTE_2 -> histogram of byte2, filter by byte3 == k_idx_0
+# HistByte::BYTE_1 -> histogram of byte1, filter by byte3 == k_idx_0 AND byte2 == k_idx_1
+# HistByte::BYTE_0 -> histogram of byte0, filter by all three upper bytes
+#
+# Index tile shape for byte N: (3 - N, cols) with uint8 dtype, RowMajor.
+# Each idx row stores one filter byte value broadcast across all columns.
+
+
+class THISTOGRAMParamsU32:
+    def __init__(self, rows, cols, byte, k=2):
+        self.rows = rows
+        self.cols = cols
+        self.byte = byte  # 0=LSB, 3=MSB
+        self.k = k
+
+
+def generate_case_name_u32(param):
+    return f"THISTOGRAMTest.case_u32_{param.rows}x{param.cols}_b{param.byte}_k{param.k}"
+
+
+def gen_golden_histogram_u32(case_name, param):
+    """Generate golden data for THistogram with uint32 input.
+
+    Processing order (MSB-first): byte3, byte2, byte1, byte0.
+    The `byte` parameter identifies which byte is being histogrammed
+    (0=LSB, 3=MSB).  Number of filter passes = 3 - byte.
+
+    For filter passes > 0 the k_index values from previous passes are used
+    to filter elements.  These filter values are stored in the idx tile
+    of shape (3 - byte, cols) with each row broadcast to cols.
+    """
+    rows, cols = param.rows, param.cols
+    byte = param.byte  # 0=LSB, 3=MSB
+    num_filter_passes = 3 - byte  # 0 for BYTE_3 (MSB), 3 for BYTE_0 (LSB)
+    k = param.k
+
+    src = np.random.randint(0, 2**32, size=(rows, cols), dtype=np.uint32)
+
+    # Extract individual bytes
+    byte3 = ((src >> 24) & 0xFF).astype(np.uint8)
+    byte2 = ((src >> 16) & 0xFF).astype(np.uint8)
+    byte1 = ((src >> 8) & 0xFF).astype(np.uint8)
+    byte0 = (src & 0xFF).astype(np.uint8)
+    all_bytes = [byte3, byte2, byte1, byte0]  # processing order MSB-first
+
+    golden = np.zeros((rows, 256), dtype=np.uint32)
+
+    # Derive k_index values from row 0 only.  The hardware kernel uses the
+    # same idx values (broadcast from row 0) for filtering ALL rows, so the
+    # golden must be computed with the same filter values.
+    k_indices = np.zeros(max(num_filter_passes, 1), dtype=np.uint8)
+
+    if num_filter_passes > 0:
+        mask_row0 = np.ones(cols, dtype=bool)
+        for b in range(num_filter_passes):
+            byte_data = all_bytes[b][0]  # row 0
+            hist = cumulative_histogram_asc(byte_data[mask_row0])
+            ki = get_k_index(hist, k)
+            k_indices[b] = np.uint8(ki)
+            mask_row0 = mask_row0 & (byte_data == ki)
+
+    # Compute golden for every row using the shared k_indices from row 0.
+    for row in range(rows):
+        mask = np.ones(cols, dtype=bool)
+        for b in range(num_filter_passes):
+            byte_data = all_bytes[b][row]
+            mask = mask & (byte_data == k_indices[b])
+
+        # Now compute the histogram for the target byte
+        target_byte = all_bytes[3 - byte][row]  # index into MSB-first array
+        golden[row] = cumulative_histogram_asc(target_byte[mask])
+
+    # Build the idx tile of shape (num_filter_passes, cols).
+    # Each idx row stores the k_index for that pass, broadcast to cols.
+    if num_filter_passes > 0:
+        idx = np.zeros((num_filter_passes, cols), dtype=np.uint8)
+        for b in range(num_filter_passes):
+            idx[b, :] = k_indices[b]
+    else:
+        idx = np.zeros((1, 1), dtype=np.uint8)  # dummy
+
+    src.tofile("input.bin")
+    idx.tofile("idx.bin")
+    golden.tofile("golden.bin")
+
+    return src, golden
 
 
 if __name__ == "__main__":
@@ -100,6 +201,9 @@ if __name__ == "__main__":
     if not os.path.exists(testcases_dir):
         os.makedirs(testcases_dir)
 
+    # -----------------------------------------------------------------------
+    # uint16 test cases (original)
+    # -----------------------------------------------------------------------
     case_params_list = [
         THISTOGRAMParams(2, 128, "MSB"),
         THISTOGRAMParams(4, 64, "MSB"),
@@ -122,4 +226,47 @@ if __name__ == "__main__":
         original_dir = os.getcwd()
         os.chdir(case_name)
         gen_golden_histogram(case_name, param)
+        os.chdir(original_dir)
+
+    # -----------------------------------------------------------------------
+    # uint32 test cases
+    # -----------------------------------------------------------------------
+    case_params_u32_list = [
+        # BYTE_3: histogram of byte3 (MSB), no filtering
+        THISTOGRAMParamsU32(1, 128, byte=3, k=64),
+        THISTOGRAMParamsU32(1, 256, byte=3, k=128),
+        THISTOGRAMParamsU32(2, 128, byte=3, k=100),
+        THISTOGRAMParamsU32(2, 4096, byte=3, k=96),
+        THISTOGRAMParamsU32(4, 4096, byte=3, k=128),
+        THISTOGRAMParamsU32(2, 192, byte=3, k=64),
+        THISTOGRAMParamsU32(6, 912, byte=3, k=64),
+        # BYTE_2: histogram of byte2, filtered by byte3
+        THISTOGRAMParamsU32(1, 128, byte=2, k=64),
+        THISTOGRAMParamsU32(1, 256, byte=2, k=128),
+        THISTOGRAMParamsU32(2, 128, byte=2, k=100),
+        THISTOGRAMParamsU32(2, 4096, byte=2, k=96),
+        THISTOGRAMParamsU32(4, 4096, byte=2, k=128),
+        THISTOGRAMParamsU32(2, 192, byte=2, k=64),
+        THISTOGRAMParamsU32(6, 912, byte=2, k=64),
+        # BYTE_1: histogram of byte1, filtered by byte3 & byte2
+        THISTOGRAMParamsU32(1, 128, byte=1, k=64),
+        THISTOGRAMParamsU32(1, 256, byte=1, k=128),
+        THISTOGRAMParamsU32(2, 4096, byte=1, k=96),
+        THISTOGRAMParamsU32(2, 192, byte=1, k=64),
+        THISTOGRAMParamsU32(6, 912, byte=1, k=64),
+        # BYTE_0: histogram of byte0 (LSB), filtered by all upper bytes
+        THISTOGRAMParamsU32(1, 128, byte=0, k=64),
+        THISTOGRAMParamsU32(1, 256, byte=0, k=128),
+        THISTOGRAMParamsU32(2, 4096, byte=0, k=96),
+        THISTOGRAMParamsU32(2, 192, byte=0, k=64),
+        THISTOGRAMParamsU32(6, 912, byte=0, k=64),
+    ]
+
+    for param in case_params_u32_list:
+        case_name = generate_case_name_u32(param)
+        if not os.path.exists(case_name):
+            os.makedirs(case_name)
+        original_dir = os.getcwd()
+        os.chdir(case_name)
+        gen_golden_histogram_u32(case_name, param)
         os.chdir(original_dir)
