@@ -53,7 +53,7 @@ void AssignTileStorage(TileData &tile, size_t &addr)
 }
 
 template <typename... TileData>
-void AssignTileStorage(size_t &addr, TileData &... tiles)
+void AssignTileStorage(size_t &addr, TileData &...tiles)
 {
     (AssignTileStorage(tiles, addr), ...);
 }
@@ -211,8 +211,7 @@ std::set<std::string> CollectCpuListedCases(const std::filesystem::path &repoRoo
     return listed;
 }
 
-class IsaCoverageTest : public testing::Test {
-};
+class IsaCoverageTest : public testing::Test {};
 
 TEST_F(IsaCoverageTest, RepoWideCoverageTouchesEveryIsaEntryPoint)
 {
@@ -821,8 +820,8 @@ TEST_F(IsaCoverageTest, TdequantAppliesScaleAndOffset)
 
     for (int r = 0; r < dst.GetValidRow(); ++r) {
         for (int c = 0; c < dst.GetValidCol(); ++c) {
-            const float expected = (static_cast<float>(GetValue(src, r, c)) - GetValue(offset, r, c)) *
-                                   GetValue(scale, r, c);
+            const float expected =
+                (static_cast<float>(GetValue(src, r, c)) - GetValue(offset, r, c)) * GetValue(scale, r, c);
             EXPECT_FLOAT_EQ(GetValue(dst, r, c), expected);
         }
     }
