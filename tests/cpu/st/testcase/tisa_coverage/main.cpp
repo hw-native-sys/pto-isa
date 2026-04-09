@@ -783,13 +783,13 @@ TEST_F(IsaCoverageTest, ThistogramWrapperBuildsCumulativeBins)
     SetValue(src, 0, 6, static_cast<uint16_t>(0x4413u));
     SetValue(src, 0, 7, static_cast<uint16_t>(0x2214u));
 
-    THISTOGRAM<true>(dst, src, idx);
+    THISTOGRAM<HistByte::BYTE_1>(dst, src, idx);
     EXPECT_EQ(GetValue(dst, 0, 0x11), 0u);
     EXPECT_EQ(GetValue(dst, 0, 0x12), 3u);
     EXPECT_EQ(GetValue(dst, 0, 0x33), 6u);
     EXPECT_EQ(GetValue(dst, 0, 0x34), 7u);
 
-    THISTOGRAM<false>(dst, src, idx);
+    THISTOGRAM<HistByte::BYTE_0>(dst, src, idx);
     EXPECT_EQ(GetValue(dst, 0, 0x00), 0u);
     EXPECT_EQ(GetValue(dst, 0, 0x01), 1u);
     EXPECT_EQ(GetValue(dst, 0, 0x02), 2u);

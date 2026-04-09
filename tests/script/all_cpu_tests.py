@@ -112,10 +112,16 @@ def generate_test_data(repo_root: Path, build_dir: Path, args: argparse.Namespac
     gen_env["PYTHONPATH"] = str(repo_root) + os.pathsep + gen_env.get("PYTHONPATH", "")
     if args.enable_bf16:
         gen_env["PTO_CPU_SIM_ENABLE_BF16"] = "1"
-    for script in sorted(testcase_src_root.glob("*/gen_data.py")):
-        dst = build_dir / f"{script.parent.name}_gen_data.py"
-        dst.write_text(script.read_text(encoding="utf-8"), encoding="utf-8")
-        run_command([sys.executable, str(dst.name)], cwd=build_dir, env=gen_env, verbose=args.verbose)
+    copied_scripts: list[Path] = []
+    try:
+        for script in sorted(testcase_src_root.glob("*/gen_data.py")):
+            dst = build_dir / f"{script.parent.name}_gen_data.py"
+            copied_scripts.append(dst)
+            dst.write_text(script.read_text(encoding="utf-8"), encoding="utf-8")
+            run_command([sys.executable, str(dst.name)], cwd=build_dir, env=gen_env, verbose=args.verbose)
+    finally:
+        for script_path in copied_scripts:
+            script_path.unlink(missing_ok=True)
 
 
 def run_binaries(repo_root: Path, build_dir: Path, args: argparse.Namespace) -> int:
