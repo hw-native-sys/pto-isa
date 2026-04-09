@@ -26,11 +26,11 @@ PTO_INTERNAL void ConvertToDstDtype(__ubuf__ DstDType *dst, __ubuf__ SrcDType *s
         vconv_s162f32(dst, src, repeatNum, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
         pipe_barrier(PIPE_V);
     } else if constexpr (std::is_same<DstDType, half>::value && std::is_same<SrcDType, int8_t>::value) {
-        vconv_s82f16(dst, src, repeatNum, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
+        vconv_s82f16(dst, src, repeatNum, dstBlockStride * 2, srcBlockStride, dstRepeatStride, srcRepeatStride);
         pipe_barrier(PIPE_V);
 
     } else if constexpr (std::is_same<DstDType, float>::value && std::is_same<SrcDType, half>::value) {
-        vconv_f162f32(dst, src, repeatNum, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
+        vconv_f162f32(dst, src, repeatNum, dstBlockStride, srcBlockStride * 2, dstRepeatStride, srcRepeatStride);
         pipe_barrier(PIPE_V);
     }
 }
@@ -154,7 +154,7 @@ __tf__ PTO_INTERNAL void TDequant(typename TileDataDst::TileDType __out__ dst,
         ConvertForDequant<float, int16_t, dstRowStride, srcRowStride>(dstPtr, srcPtr, dstValidRows, dstValidCols);
     } else if constexpr (std::is_same_v<typename TileDataDst::DType, float> &&
                          std::is_same_v<typename TileDataSrc::DType, int8_t>) {
-        __ubuf__ half *tempDstHalfPtr = (__ubuf__ half *)(dstPtr) + dstRowStride;
+        __ubuf__ half *tempDstHalfPtr = (__ubuf__ half *)(dstPtr);
         ConvertForDequant<half, int8_t, dstRowStride * 2, srcRowStride>(tempDstHalfPtr, srcPtr, dstValidRows,
                                                                         dstValidCols);
         ConvertForDequant<float, half, dstRowStride, dstRowStride * 2>(dstPtr, tempDstHalfPtr, dstValidRows,
@@ -173,8 +173,6 @@ template <typename TileDataDst, typename TileDataSrc, typename TileDataPara>
 PTO_INTERNAL void TDequantCheck(const TileDataDst &dst, const TileDataSrc &src, const TileDataPara &scale,
                                 const TileDataPara &offset)
 {
-    static_assert(TileDataDst::RowStride == TileDataSrc::RowStride,
-                  "Fix: TDEQUANT src and dst tile must have the same rowStride.");
     static_assert(std::is_same<typename TileDataDst::DType, float>::value ||
                       std::is_same<typename TileDataDst::DType, float32_t>::value,
                   "Fix: TDEQUANT dst tile currently supports float data type.");

@@ -90,7 +90,7 @@ if __name__ == "__main__":
         TDequantParams("TDEQUANTTest.case2", np.float32, np.int16, 32, 32, 32, 32, 32, 32, 32, 32),
         TDequantParams("TDEQUANTTest.case3", np.float32, np.int8, 64, 64, 32, 64, 31, 31, 48, 32),
         TDequantParams("TDEQUANTTest.case4", np.float32, np.int16, 32, 32, 16, 32, 15, 15, 24, 16),
-        TDequantParams("TDEQUANTTest.case5", np.float32, np.int8, 5, 512, 4, 512, 4, 511, 4, 32),
+        TDequantParams("TDEQUANTTest.case5", np.float32, np.int8, 64, 128, 32, 128, 31, 62, 48, 32),
         TDequantParams("TDEQUANTTest.case6", np.float32, np.int16, 4, 256, 4, 256, 4, 255, 4, 16),
     ]
 
