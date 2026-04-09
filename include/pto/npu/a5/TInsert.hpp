@@ -121,17 +121,17 @@ AICORE inline void ComputeNZBlockParams(uint32_t validRow, uint32_t validCol, ui
     switch (mode) {
         case TInsertMode::NZ:
             srcGap = 0;
-            dstGap = static_cast<uint16_t>(dstRow - validRow);
+            dstGap = static_cast<uint16_t>(dstRow - alignedRow);
             break;
         case TInsertMode::NZ_PLUS_1:
         case TInsertMode::SPLIT2_NZ_PLUS_1:
         case TInsertMode::SPLIT4_NZ_PLUS_1:
             srcGap = 1;
-            dstGap = static_cast<uint16_t>(dstRow - validRow);
+            dstGap = static_cast<uint16_t>(dstRow - alignedRow);
             break;
         default:
             srcGap = 1;
-            dstGap = static_cast<uint16_t>(dstRow - validRow);
+            dstGap = static_cast<uint16_t>(dstRow - alignedRow);
             break;
     }
 }

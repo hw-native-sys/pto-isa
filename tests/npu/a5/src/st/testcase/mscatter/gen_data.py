@@ -56,7 +56,9 @@ def gen_golden_data(param: MScatterParams):
                     golden[indices[i]] = src[i]
     elif param.mode == "clamp":
         indices = np.arange(0, src_size, dtype=np.int32)
-        indices[src_size // 2 :] = np.arange(out_size, out_size + src_size // 2, dtype=np.int32)
+        # Only make the last element OOB to avoid SIMT write-conflict
+        # (all OOB indices clamp to out_size-1, may cause a data race)
+        indices[-1] = out_size + 10
         golden = np.zeros(out_size, dtype=dtype)
         for i in range(src_size):
             clamped_idx = min(int(indices[i]), out_size - 1)

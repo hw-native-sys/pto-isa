@@ -243,3 +243,72 @@ if __name__ == "__main__":
         golden.tofile("golden_output.bin")
 
         os.chdir(original_dir)
+
+    # NZ unaligned test cases (UB→L1, rows < 16 and unaligned offsets)
+    nz_unaligned_case_names = ["TInsertTest.case_nz_8", "TInsertTest.case_nz_9"]
+
+    # (dtype, src_rows, dst_rows, cols, idx_row)
+    nz_unaligned_params = [(np.float32, 15, 16, 32, 0), (np.float32, 10, 32, 32, 16)]
+
+    for i, case_name in enumerate(nz_unaligned_case_names):
+        if not os.path.exists(case_name):
+            os.makedirs(case_name)
+        original_dir = os.getcwd()
+        os.chdir(case_name)
+        test_type, src_rows, dst_rows, cols, idx_row = nz_unaligned_params[i]
+        nz_block_row = 16
+        if test_type == np.float32 or test_type == np.int32:
+            c0_size = 8
+        elif test_type == np.int8:
+            c0_size = 32
+        else:
+            c0_size = 16
+
+        input_arr = np.random.uniform(low=-10, high=10, size=(src_rows, cols)).astype(test_type)
+        input_arr.tofile("input_arr.bin")
+
+        result = np.zeros((dst_rows, cols), dtype=test_type)
+        result[idx_row : idx_row + src_rows, :] = input_arr
+
+        golden_nz = (
+            result.reshape(int(dst_rows / nz_block_row), nz_block_row, int(cols / c0_size), c0_size)
+            .transpose(2, 0, 1, 3)
+            .astype(test_type)
+        )
+        golden_nz.tofile("golden_output.bin")
+        os.chdir(original_dir)
+
+    # NZ two-insert unaligned test case
+    nz_two_insert_case_names = ["TInsertTest.case_nz_10"]
+    nz_two_insert_params = [(np.float32, 15, 10, 32, 32, 15)]
+
+    for i, case_name in enumerate(nz_two_insert_case_names):
+        if not os.path.exists(case_name):
+            os.makedirs(case_name)
+        original_dir = os.getcwd()
+        os.chdir(case_name)
+        test_type, src_rows1, src_rows2, dst_rows, cols, idx_row2 = nz_two_insert_params[i]
+        nz_block_row = 16
+        if test_type == np.float32 or test_type == np.int32:
+            c0_size = 8
+        elif test_type == np.int8:
+            c0_size = 32
+        else:
+            c0_size = 16
+
+        src1 = np.random.uniform(low=-10, high=10, size=(src_rows1, cols)).astype(test_type)
+        src2 = np.random.uniform(low=-10, high=10, size=(src_rows2, cols)).astype(test_type)
+        src1.tofile("src1_input.bin")
+        src2.tofile("src2_input.bin")
+
+        result = np.zeros((dst_rows, cols), dtype=test_type)
+        result[0:src_rows1, :] = src1
+        result[idx_row2 : idx_row2 + src_rows2, :] = src2
+
+        golden_nz = (
+            result.reshape(int(dst_rows / nz_block_row), nz_block_row, int(cols / c0_size), c0_size)
+            .transpose(2, 0, 1, 3)
+            .astype(test_type)
+        )
+        golden_nz.tofile("golden_output.bin")
+        os.chdir(original_dir)
