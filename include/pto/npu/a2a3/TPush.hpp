@@ -25,8 +25,8 @@ enum TSyncCVMode : uint8_t
     CV_CORES_SYNC = 2
 };
 
-template <uint8_t FlagID, uint8_t DirType, uint32_t SlotSize, uint32_t SlotNum, bool IsNoSplit = false,
-          uint32_t LocalSlotNum = 2, bool EN_UNIT_FLAG = false>
+template <uint8_t FlagID, uint8_t DirType, uint32_t SlotSize, uint32_t SlotNum, uint32_t LocalSlotNum = 2,
+          bool IsNoSplit = false, bool EN_UNIT_FLAG = false>
 struct TPipe {
     static constexpr uint8_t DIR_MASK = 0x7;
     static constexpr uint8_t DIR_TYPE = DIR_MASK & DirType;
