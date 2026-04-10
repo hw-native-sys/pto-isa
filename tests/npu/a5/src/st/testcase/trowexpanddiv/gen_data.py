@@ -87,7 +87,11 @@ if __name__ == "__main__":
         TrowexpandParams(np.float32, 16, 128, 16, 1, 16, 128, False, False),
         TrowexpandParams(np.float16, 32, 64, 32, 1, 32, 64, False, False),
         TrowexpandParams(np.float32, 20, 64, 20, 8, 20, 64, False, True),
-        TrowexpandParams(np.float16, 16, 64, 16, 16, 16, 64, False, True)
+        TrowexpandParams(np.float16, 16, 64, 16, 16, 16, 64, False, True),
+        TrowexpandParams(np.float32, 40, 32, 40, 32, 40, 1, True, False),
+        TrowexpandParams(np.float16, 16, 128, 16, 128, 16, 1, True, False),
+        TrowexpandParams(np.float32, 8, 32, 8, 32, 8, 8, True, True),
+        TrowexpandParams(np.float16, 8, 128, 8, 128, 8, 16, True, True)
     ]
 
     for _, param in enumerate(case_params_list):

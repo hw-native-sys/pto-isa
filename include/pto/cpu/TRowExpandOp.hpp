@@ -53,7 +53,7 @@ PTO_INTERNAL void TRowExpandOp(TileDst &dst, TileDst &src0, TileSrc1 &src1)
     });
 }
 
-template <typename TileDst, typename TileSrc1>
+template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDst, typename TileSrc1>
 PTO_INTERNAL void TROWEXPANDDIV_IMPL(TileDst &dst, TileDst &src0, TileSrc1 &src1)
 {
     TRowExpandOp<TileDst, TileSrc1, ElementOp::OP_DIV>(dst, src0, src1);

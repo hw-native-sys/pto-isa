@@ -19,26 +19,38 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-template <typename T>
+template <DivAlgorithm PrecisionType, typename T>
 struct RowExpandDivOp {
     PTO_INTERNAL static void RowExpandBinaryInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, RegTensor<T> &reg_src1,
                                                   MaskReg &preg)
     {
-        vdiv(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);
+        if constexpr (PrecisionType == DivAlgorithm::HIGH_PRECISION && std::is_same_v<T, float>) {
+            DivIEEE754FloatImpl<T, RegTensor<T> >(reg_dst, reg_src0, reg_src1, preg);
+        } else if constexpr (PrecisionType == DivAlgorithm::HIGH_PRECISION && std::is_same_v<T, half>) {
+            DivIEEE754HalfImpl<T, RegTensor<T> >(reg_dst, reg_src0, reg_src1, preg);
+        } else {
+            vdiv(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);
+        }
     }
 };
 
-template <typename T>
+template <DivAlgorithm PrecisionType, typename T>
 struct RowExpandDivOp2 {
     PTO_INTERNAL static void RowExpandBinaryInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, RegTensor<T> &reg_src1,
                                                   MaskReg &preg)
     {
-        vdiv(reg_dst, reg_src1, reg_src0, preg, MODE_ZEROING);
+        if constexpr (PrecisionType == DivAlgorithm::HIGH_PRECISION && std::is_same_v<T, float>) {
+            DivIEEE754FloatImpl<T, RegTensor<T> >(reg_dst, reg_src1, reg_src0, preg);
+        } else if constexpr (PrecisionType == DivAlgorithm::HIGH_PRECISION && std::is_same_v<T, half>) {
+            DivIEEE754HalfImpl<T, RegTensor<T> >(reg_dst, reg_src1, reg_src0, preg);
+        } else {
+            vdiv(reg_dst, reg_src1, reg_src0, preg, MODE_ZEROING);
+        }
     }
 };
 
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
-          unsigned blockSizeElem>
+template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc0,
+          typename TileDataSrc1, unsigned elementsPerRepeat, unsigned blockSizeElem>
 __tf__ AICORE OP_NAME(TROWEXPANDDIV)
     OP_TYPE(broadcast) void TRowExpandDiv(typename TileDataDst::TileDType __out__ dst,
                                           typename TileDataSrc0::TileDType __in__ src0,
@@ -52,15 +64,16 @@ __tf__ AICORE OP_NAME(TROWEXPANDDIV)
     __ubuf__ T *src1Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src1);
 
     if (src0eqdst) {
-        RowExpandBinaryInstr<RowExpandDivOp<T>, TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat,
-                             blockSizeElem>(dstPtr, src0Ptr, src1Ptr, validRow, validCol);
+        RowExpandBinaryInstr<RowExpandDivOp<PrecisionType, T>, TileDataDst, TileDataSrc0, TileDataSrc1,
+                             elementsPerRepeat, blockSizeElem>(dstPtr, src0Ptr, src1Ptr, validRow, validCol);
     } else {
-        RowExpandBinaryInstr<RowExpandDivOp2<T>, TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat,
-                             blockSizeElem>(dstPtr, src0Ptr, src1Ptr, validRow, validCol);
+        RowExpandBinaryInstr<RowExpandDivOp2<PrecisionType, T>, TileDataDst, TileDataSrc0, TileDataSrc1,
+                             elementsPerRepeat, blockSizeElem>(dstPtr, src0Ptr, src1Ptr, validRow, validCol);
     }
 }
 
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
+template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc0,
+          typename TileDataSrc1>
 PTO_INTERNAL void TROWEXPANDDIV_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1)
 {
     using T = typename TileDataDst::DType;
@@ -90,7 +103,7 @@ PTO_INTERNAL void TROWEXPANDDIV_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileD
                     (!TileDataSrc1::isRowMajor && src1ValidCol == 1)) &&
                        src1.GetValidRow() == validRow,
                    "TROWEXPANDDIV: invalid src1 shape.");
-        TRowExpandDiv<TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem>(
+        TRowExpandDiv<PrecisionType, TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem>(
             dst.data(), src0.data(), src1.data(), validRow, validCol, src0eqdst);
     } else {
         unsigned src0ValidCol = src0.GetValidCol();
@@ -98,7 +111,7 @@ PTO_INTERNAL void TROWEXPANDDIV_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileD
                     (!TileDataSrc0::isRowMajor && src0ValidCol == 1)) &&
                        src0.GetValidRow() == validRow,
                    "TROWEXPANDDIV: invalid src0 shape.");
-        TRowExpandDiv<TileDataDst, TileDataSrc1, TileDataSrc0, elementsPerRepeat, blockSizeElem>(
+        TRowExpandDiv<PrecisionType, TileDataDst, TileDataSrc1, TileDataSrc0, elementsPerRepeat, blockSizeElem>(
             dst.data(), src1.data(), src0.data(), validRow, validCol, src0eqdst);
     }
 }

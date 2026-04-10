@@ -1207,21 +1207,22 @@ PTO_INST RecordEvent TROWEXPAND(TileDataDst &dst, TileDataSrc &src, WaitEvents &
     return {};
 }
 
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
+template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc0,
+          typename TileDataSrc1, typename... WaitEvents>
 PTO_INST RecordEvent TROWEXPANDDIV(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, WaitEvents &... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL(TROWEXPANDDIV, dst, src0, src1);
+    TROWEXPANDDIV_IMPL<PrecisionType>(dst, src0, src1);
     return {};
 }
 
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataTmp,
-          typename... WaitEvents>
+template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc0,
+          typename TileDataSrc1, typename TileDataTmp, typename... WaitEvents>
 PTO_INST RecordEvent TROWEXPANDDIV(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, TileDataTmp &tmp,
                                    WaitEvents &... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL(TROWEXPANDDIV, dst, src0, src1, tmp);
+    TROWEXPANDDIV_IMPL<PrecisionType>(dst, src0, src1, tmp);
     return {};
 }
 
