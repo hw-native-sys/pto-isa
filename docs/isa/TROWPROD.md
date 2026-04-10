@@ -1,6 +1,5 @@
 ﻿# TROWPROD
 
-
 ## Tile Operation Diagram
 
 ![TROWPROD tile operation](../figures/isa/TROWPROD.svg)
@@ -24,6 +23,7 @@ Synchronous form:
 ```text
 %dst = trowprod %src : !pto.tile<...> -> !pto.tile<...>
 ```
+
 Lowering may introduce internal scratch tiles; the C++ intrinsic requires an explicit `tmp` operand.
 
 ### AS Level 1 (SSA)
@@ -54,13 +54,13 @@ PTO_INST RecordEvent TROWPROD(TileDataOut &dst, TileDataIn &src, TileDataTmp &tm
 - `dst` and `src` must both be `TileType::Vec`.
 - `src` must use standard ND layout: row-major and non-fractal (`BLayout::RowMajor`, `SLayout::NoneBox`).
 - `dst` must use one of the following non-fractal layouts:
-    - ND layout (`BLayout::RowMajor`, `SLayout::NoneBox`), or
-    - DN layout with exactly one column (`BLayout::ColMajor`, `SLayout::NoneBox`, `Cols == 1`).
+  - ND layout (`BLayout::RowMajor`, `SLayout::NoneBox`), or
+  - DN layout with exactly one column (`BLayout::ColMajor`, `SLayout::NoneBox`, `Cols == 1`).
 - `dst` and `src` must use the same element type.
 - Runtime valid-region checks:
-    - `src.GetValidRow() != 0`
-    - `src.GetValidCol() != 0`
-    - `src.GetValidRow() == dst.GetValidRow()`
+  - `src.GetValidRow() != 0`
+  - `src.GetValidCol() != 0`
+  - `src.GetValidRow() == dst.GetValidRow()`
 - The intrinsic signature requires an explicit `tmp` operand.
 
 ### A5 implementation checks

@@ -69,4 +69,3 @@ svg { font-family: Arial, Helvetica, sans-serif; }
 <text x="80" y="612" class="cellText">result : dst becomes a scale-address tile bound to the transformed on-chip address</text>
 <text x="80" y="638" class="small">This is address binding, not element-wise data movement.</text>
 </svg>
-

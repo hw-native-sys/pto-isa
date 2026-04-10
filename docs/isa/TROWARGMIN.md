@@ -1,6 +1,5 @@
 # TROWARGMIN
 
-
 ## Tile Operation Diagram
 
 ![TROWARGMIN tile operation](../figures/isa/TROWARGMIN.svg)
@@ -24,6 +23,7 @@ Synchronous form:
 ```text
 %dst = trowargmin %src : !pto.tile<...> -> !pto.tile<...>
 ```
+
 Lowering may introduce internal scratch tiles; the C++ intrinsic requires an explicit `tmp` operand.
 
 ### IR Level 1 (SSA)
@@ -37,6 +37,7 @@ Lowering may introduce internal scratch tiles; the C++ intrinsic requires an exp
 ```text
 pto.trowargmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
+
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:
@@ -54,16 +55,16 @@ PTO_INST RecordEvent TROWARGMIN(TileDataOut& dst, TileDataIn& src, TileDataTmp& 
 - Supported source element types: `half`, `float`.
 - Supported destination element types: `uint32_t`, `int32_t`.
 - Runtime checks follow the shared row-reduce check path:
-    - `src.GetValidRow() != 0`
-    - `src.GetValidCol() != 0`
-    - `src.GetValidRow() == dst.GetValidRow()`
+  - `src.GetValidRow() != 0`
+  - `src.GetValidCol() != 0`
+  - `src.GetValidRow() == dst.GetValidRow()`
 
 ### A2A3 implementation checks
 
 - `src` must use standard ND layout: row-major and non-fractal (`BLayout::RowMajor`, `SLayout::NoneBox`).
 - `dst` is checked through the shared row-reduce-index path and may use either of these non-fractal layouts:
-    - DN layout with one column (`BLayout::ColMajor`, `Cols == 1`), or
-    - ND layout whose valid column count is 1.
+  - DN layout with one column (`BLayout::ColMajor`, `Cols == 1`), or
+  - ND layout whose valid column count is 1.
 
 ### A5 implementation checks
 
@@ -72,10 +73,10 @@ PTO_INST RecordEvent TROWARGMIN(TileDataOut& dst, TileDataIn& src, TileDataTmp& 
 
 ### About temporary tile `tmp` for A3
 
-* Temporary tile is not used when `srcValidCol <= ElementPerRepeat`, used when `srcValidCol > ElementPerRepeat`.
-* `tmp` tile's rows is the same as `src`.
-* Simply set `tmp` tile size the same as `src` when `src` is small.
-* `tmp` tile's stride can be calculated out based on `src`'s `validCol` using the following formula:
+- Temporary tile is not used when `srcValidCol <= ElementPerRepeat`, used when `srcValidCol > ElementPerRepeat`.
+- `tmp` tile's rows is the same as `src`.
+- Simply set `tmp` tile size the same as `src` when `src` is small.
+- `tmp` tile's stride can be calculated out based on `src`'s `validCol` using the following formula:
 
 ```text
 repeats = ceil(validCol / elementPerRepeat)
@@ -149,4 +150,3 @@ void example_manual() {
 # IR Level 2 (DPS)
 pto.trowargmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-

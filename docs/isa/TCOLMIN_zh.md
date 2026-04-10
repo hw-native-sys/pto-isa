@@ -53,7 +53,7 @@ PTO_INST RecordEvent TCOLMIN(TileDataOut &dst, TileDataIn &src, WaitEvents &... 
 - `dst` 和 `src` 必须使用标准 ND 布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
 - `dst` 和 `src` 的元素类型必须一致。
 - 运行时检查：
-    - `src.GetValidCol() == dst.GetValidCol()`
+  - `src.GetValidCol() == dst.GetValidCol()`
 - 若 `src.GetValidRow() == 0` 或 `src.GetValidCol() == 0`，实现会直接返回。
 
 ### A2A3 实现检查
@@ -126,4 +126,3 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.tcolmin ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-

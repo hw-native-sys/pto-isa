@@ -99,4 +99,3 @@ svg { font-family: Arial, Helvetica, sans-serif; }
 <text x="80" y="620" class="cellText">  dst[row, col] = Random(key, counter, rounds)</text>
 <text x="80" y="644" class="cellText">  advance counter state across the generated output stream</text>
 </svg>
-

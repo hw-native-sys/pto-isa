@@ -59,8 +59,8 @@ PTO_INST RecordEvent TPARTADD(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1
 - `dst`、`src0` 和 `src1` 的元素类型必须一致。
 - 目标有效区域定义结果的计算范围。
 - 对目标有效区域内的每个元素：
-    - 若两个输入都有效，则执行该指令对应的逐元素运算；
-    - 若只有一个输入有效，则结果直接取该输入的值。
+  - 若两个输入都有效，则执行该指令对应的逐元素运算；
+  - 若只有一个输入有效，则结果直接取该输入的值。
 - 若 `dst` 的有效区域为零，指令直接返回。
 - 支持的部分有效区域模式要求至少有一个源 Tile 的有效区域与 `dst` 完全一致，另一个源 Tile 的有效区域在两个维度上都不能超过 `dst`。
 - 上述范围之外的有效区域组合，其行为均由具体实现定义。
@@ -133,4 +133,3 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.tpartadd ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-

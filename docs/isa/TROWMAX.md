@@ -1,6 +1,5 @@
 ﻿# TROWMAX
 
-
 ## Tile Operation Diagram
 
 ![TROWMAX tile operation](../figures/isa/TROWMAX.svg)
@@ -24,6 +23,7 @@ Synchronous form:
 ```text
 %dst = trowmax %src : !pto.tile<...> -> !pto.tile<...>
 ```
+
 Lowering may introduce internal scratch tiles; the C++ intrinsic requires an explicit `tmp` operand.
 
 ### AS Level 1 (SSA)
@@ -54,13 +54,13 @@ PTO_INST RecordEvent TROWMAX(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
 - `dst` and `src` must both be `TileType::Vec`.
 - `src` must use standard ND layout: row-major and non-fractal (`BLayout::RowMajor`, `SLayout::NoneBox`).
 - `dst` must use one of the following non-fractal layouts:
-    - ND layout (`BLayout::RowMajor`, `SLayout::NoneBox`), or
-    - DN layout with exactly one column (`BLayout::ColMajor`, `SLayout::NoneBox`, `Cols == 1`).
+  - ND layout (`BLayout::RowMajor`, `SLayout::NoneBox`), or
+  - DN layout with exactly one column (`BLayout::ColMajor`, `SLayout::NoneBox`, `Cols == 1`).
 - `dst` and `src` must use the same element type.
 - Runtime valid-region checks:
-    - `src.GetValidRow() != 0`
-    - `src.GetValidCol() != 0`
-    - `src.GetValidRow() == dst.GetValidRow()`
+  - `src.GetValidRow() != 0`
+  - `src.GetValidCol() != 0`
+  - `src.GetValidRow() == dst.GetValidRow()`
 - The intrinsic signature requires an explicit `tmp` operand.
 
 ### A2A3 implementation checks
@@ -68,11 +68,10 @@ PTO_INST RecordEvent TROWMAX(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
 - Supported element types: `half`, `float`, `int32_t`, `int16_t`.
 - The implementation accepts both ND output and DN output with `Cols == 1`.
 - Runtime checks follow the shared row-reduce check path:
-    - `src.GetValidRow() != 0`
-    - `src.GetValidCol() != 0`
-    - `src.GetValidRow() == dst.GetValidRow()`
+  - `src.GetValidRow() != 0`
+  - `src.GetValidCol() != 0`
+  - `src.GetValidRow() == dst.GetValidRow()`
 - The current implementation path passes `tmp` into the backend call, but this document does not add extra `tmp` shape/layout constraints beyond what is explicitly enforced by the checked implementation.
-
 
 ## Examples
 
@@ -141,4 +140,3 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.trowmax ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-

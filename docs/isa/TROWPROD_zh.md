@@ -23,6 +23,7 @@ PTO-AS 形式：参见 [PTO-AS 规范](../assembly/PTO-AS_zh.md)。
 ```text
 %dst = trowprod %src : !pto.tile<...> -> !pto.tile<...>
 ```
+
 降级可能引入内部临时 tile；C++ 内建函数需要显式的 `tmp` 操作数。
 
 ### AS Level 1 (SSA)
@@ -53,13 +54,13 @@ PTO_INST RecordEvent TROWPROD(TileDataOut &dst, TileDataIn &src, TileDataTmp &tm
 - `dst` 和 `src` 必须均为 `TileType::Vec`。
 - `src` 必须使用标准 ND 布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
 - `dst` 必须使用以下两种非分形布局之一：
-    - ND 布局（`BLayout::RowMajor`、`SLayout::NoneBox`），或
-    - 列数严格为 1 的 DN 布局（`BLayout::ColMajor`、`SLayout::NoneBox`、`Cols == 1`）。
+  - ND 布局（`BLayout::RowMajor`、`SLayout::NoneBox`），或
+  - 列数严格为 1 的 DN 布局（`BLayout::ColMajor`、`SLayout::NoneBox`、`Cols == 1`）。
 - `dst` 和 `src` 的元素类型必须一致。
 - 运行时有效区域检查：
-    - `src.GetValidRow() != 0`
-    - `src.GetValidCol() != 0`
-    - `src.GetValidRow() == dst.GetValidRow()`
+  - `src.GetValidRow() != 0`
+  - `src.GetValidCol() != 0`
+  - `src.GetValidRow() == dst.GetValidRow()`
 - 内建接口签名要求显式传入 `tmp` 操作数。
 
 ### A5 实现检查

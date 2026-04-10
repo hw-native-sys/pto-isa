@@ -25,6 +25,7 @@ PTO-AS 形式：参见 [PTO-AS 规范](../assembly/PTO-AS_zh.md)。
 ```text
 %dst = tcolsum %src {isBinary = false} : !pto.tile<...> -> !pto.tile<...>
 ```
+
 降低时可能引入内部临时 Tile；C++ 内建接口需要显式传入 `tmp` 操作数。
 
 ### AS Level 1（SSA）
@@ -61,13 +62,13 @@ PTO_INST RecordEvent TCOLSUM(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
 - `dst` 和 `src` 必须使用标准 ND 布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
 - `dst` 和 `src` 的元素类型必须一致。
 - 运行时检查：
-    - `src.GetValidCol() == dst.GetValidCol()`
-    - `src.GetValidRow() != 0`
-    - `src.GetValidCol() != 0`
-    - `src.GetValidCol()` 必须不大于按 `src` 元素计的 `tmp` 行跨度
+  - `src.GetValidCol() == dst.GetValidCol()`
+  - `src.GetValidRow() != 0`
+  - `src.GetValidCol() != 0`
+  - `src.GetValidCol()` 必须不大于按 `src` 元素计的 `tmp` 行跨度
 - `isBinary` 选择已检查到的后端路径：
-    - `true`：使用 `tmp` 做二叉树累加
-    - `false`：直接在 `dst` 上做顺序累加
+  - `true`：使用 `tmp` 做二叉树累加
+  - `false`：直接在 `dst` 上做顺序累加
 
 ### A2A3 实现检查
 
@@ -148,4 +149,3 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.tcolsum ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-

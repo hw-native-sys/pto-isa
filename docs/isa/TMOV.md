@@ -1,5 +1,4 @@
-﻿# TMOV
-
+# TMOV
 
 ## Tile Operation Diagram
 
@@ -49,6 +48,7 @@ The PTO AS design recommends splitting `TMOV` into a family of ops:
 ```text
 pto.tmov ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
+
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp` and `include/pto/common/constants.hpp`:
@@ -82,11 +82,11 @@ PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, uint64_t preQuantS
 ### General constraints / checks
 
 - `TMOV` has these overload families:
-    - plain move: `TMOV(dst, src)`
-    - relu form: `TMOV<..., reluMode>(dst, src)`
-    - accumulator-to-vector form: `TMOV<..., mode, reluMode>(dst, src)`
-    - vector-quant form: `TMOV<..., FpTileData, mode, reluMode>(dst, src, fp)`
-    - scalar-quant form: `TMOV<..., reluMode>(dst, src, preQuantScalar)` and `TMOV<..., mode, reluMode>(dst, src, preQuantScalar)`
+  - plain move: `TMOV(dst, src)`
+  - relu form: `TMOV<..., reluMode>(dst, src)`
+  - accumulator-to-vector form: `TMOV<..., mode, reluMode>(dst, src)`
+  - vector-quant form: `TMOV<..., FpTileData, mode, reluMode>(dst, src, fp)`
+  - scalar-quant form: `TMOV<..., reluMode>(dst, src, preQuantScalar)` and `TMOV<..., mode, reluMode>(dst, src, preQuantScalar)`
 - `reluMode` is `ReluPreMode::{NoRelu, NormalRelu}`.
 - `mode` is `AccToVecMode::{SingleModeVec0, SingleModeVec1, DualModeSplitM, DualModeSplitN}`.
 
@@ -94,56 +94,55 @@ PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, uint64_t preQuantS
 
 - Shape must match: `SrcTileData::Rows == DstTileData::Rows` and `SrcTileData::Cols == DstTileData::Cols`.
 - Supported tile-type pairs are compile-time restricted to:
-    - `TileType::Mat -> TileType::Left/Right/Bias/Scaling`
-    - `TileType::Vec -> TileType::Vec`
-    - `TileType::Acc -> TileType::Mat`
+  - `TileType::Mat -> TileType::Left/Right/Bias/Scaling`
+  - `TileType::Vec -> TileType::Vec`
+  - `TileType::Acc -> TileType::Mat`
 - For `TileType::Mat -> TileType::Bias`:
-    - supported source/destination dtype pairs are `int32_t -> int32_t`, `float -> float`, and `half -> float`
-    - source row must be `1`
-    - `SrcTileData::Cols * sizeof(SrcType)` must be aligned to `64` bytes
+  - supported source/destination dtype pairs are `int32_t -> int32_t`, `float -> float`, and `half -> float`
+  - source row must be `1`
+  - `SrcTileData::Cols * sizeof(SrcType)` must be aligned to `64` bytes
 - For `TileType::Mat -> TileType::Scaling`:
-    - destination dtype must equal source dtype and must be `uint64_t`
-    - source row must be `1`
-    - `SrcTileData::Cols * sizeof(SrcType)` must be aligned to `128` bytes
+  - destination dtype must equal source dtype and must be `uint64_t`
+  - source row must be `1`
+  - `SrcTileData::Cols * sizeof(SrcType)` must be aligned to `128` bytes
 - For `TileType::Acc -> TileType::Mat`:
-    - additional `CheckTMovAccToMat<...>` compile-time checks are enforced
-    - plain/relu forms use cast pre-quant mode derived by `GetCastPreQuantMode<SrcDType, DstDType>()`
-    - scalar-quant forms use `GetScalarPreQuantMode<SrcDType, DstDType>()`
-    - vector-quant forms require an `FpTileData` operand with `FpTileData::Loc == TileType::Scaling`, and use `GetVectorPreQuantMode<SrcDType, DstDType>()`
+  - additional `CheckTMovAccToMat<...>` compile-time checks are enforced
+  - plain/relu forms use cast pre-quant mode derived by `GetCastPreQuantMode<SrcDType, DstDType>()`
+  - scalar-quant forms use `GetScalarPreQuantMode<SrcDType, DstDType>()`
+  - vector-quant forms require an `FpTileData` operand with `FpTileData::Loc == TileType::Scaling`, and use `GetVectorPreQuantMode<SrcDType, DstDType>()`
 
 ### A5 implementation checks
 
 - `CommonCheck()` requires:
-    - destination/source dtype must be identical
-    - supported element types are `int8_t`, `hifloat8_t`, `float8_e5m2_t`, `float8_e4m3_t`, `half`, `bfloat16_t`, `float`, `float4_e2m1x2_t`, `float4_e1m2x2_t`
-    - source layout must satisfy one of:
-        - `(SrcTileData::SFractal == SLayout::ColMajor && SrcTileData::isRowMajor)`
-        - `(SrcTileData::SFractal == SLayout::RowMajor && !SrcTileData::isRowMajor)`
-        - `SrcTileData::isRowMajor`
+  - destination/source dtype must be identical
+  - supported element types are `int8_t`, `hifloat8_t`, `float8_e5m2_t`, `float8_e4m3_t`, `half`, `bfloat16_t`, `float`, `float4_e2m1x2_t`, `float4_e1m2x2_t`
+  - source layout must satisfy one of:
+    - `(SrcTileData::SFractal == SLayout::ColMajor && SrcTileData::isRowMajor)`
+    - `(SrcTileData::SFractal == SLayout::RowMajor && !SrcTileData::isRowMajor)`
+    - `SrcTileData::isRowMajor`
 - `CommonCheckMX()` for MX paths requires identical source/destination dtype and supports `float8_e8m0_t`.
 - Supported paths include:
-    - `TileType::Mat -> TileType::Left/Right/Bias/Scaling/ScaleLeft/ScaleRight`
-    - `TileType::Vec -> TileType::Vec/TileType::Mat`
-    - `TileType::Acc -> TileType::Vec/TileType::Mat`
-    - specific `ND -> ZZ` and related internal path variants handled by the A5 implementation
+  - `TileType::Mat -> TileType::Left/Right/Bias/Scaling/ScaleLeft/ScaleRight`
+  - `TileType::Vec -> TileType::Vec/TileType::Mat`
+  - `TileType::Acc -> TileType::Vec/TileType::Mat`
+  - specific `ND -> ZZ` and related internal path variants handled by the A5 implementation
 - For `TileType::Mat -> TileType::Bias`:
-    - supported dtype pairs are `int32_t -> int32_t`, `float -> float`, `half -> float`, `bfloat16_t -> float`
-    - source row must be `1`
-    - `DstTileData::Cols * sizeof(DstType)` must be aligned to `64` bytes
-    - bias-table footprint `DstTileData::Cols * sizeof(DstType)` must not exceed `4096` bytes
+  - supported dtype pairs are `int32_t -> int32_t`, `float -> float`, `half -> float`, `bfloat16_t -> float`
+  - source row must be `1`
+  - `DstTileData::Cols * sizeof(DstType)` must be aligned to `64` bytes
+  - bias-table footprint `DstTileData::Cols * sizeof(DstType)` must not exceed `4096` bytes
 - For `TileType::Mat -> TileType::Scaling`:
-    - source row must be `1`
-    - `DstTileData::Cols * sizeof(DstType)` must be aligned to `128` bytes
-    - fixpipe-buffer footprint `DstTileData::Cols * sizeof(DstType)` must not exceed `4096` bytes
+  - source row must be `1`
+  - `DstTileData::Cols * sizeof(DstType)` must be aligned to `128` bytes
+  - fixpipe-buffer footprint `DstTileData::Cols * sizeof(DstType)` must not exceed `4096` bytes
 - For `TileType::Acc -> TileType::Vec`:
-    - `mode` selects `SingleModeVec0`, `SingleModeVec1`, `DualModeSplitM`, or `DualModeSplitN`
-    - dual-destination modes require `QuantMode_t::NoQuant`
-    - dual-destination modes do not support the `nz2dn` path
-    - destination stride must be non-zero and `dstStride * sizeof(dstType)` must be a multiple of `32` bytes
+  - `mode` selects `SingleModeVec0`, `SingleModeVec1`, `DualModeSplitM`, or `DualModeSplitN`
+  - dual-destination modes require `QuantMode_t::NoQuant`
+  - dual-destination modes do not support the `nz2dn` path
+  - destination stride must be non-zero and `dstStride * sizeof(dstType)` must be a multiple of `32` bytes
 - For `TileType::Acc -> TileType::Mat`:
-    - destination stride must be non-zero and `dstStride * sizeof(dstType)` must be a multiple of `32` bytes
-    - relu/scalar-quant/vector-quant forms are supported through the corresponding overloads
-
+  - destination stride must be non-zero and `dstStride * sizeof(dstType)` must be a multiple of `32` bytes
+  - relu/scalar-quant/vector-quant forms are supported through the corresponding overloads
 
 ## Examples
 
@@ -205,4 +204,3 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.tmov ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-

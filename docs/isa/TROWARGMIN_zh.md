@@ -23,6 +23,7 @@ PTO-AS 形式：参见 `docs/grammar/PTO-AS.md`.
 ```text
 %dst = trowargmin %src : !pto.tile<...> -> !pto.tile<...>
 ```
+
 Lowering may introduce internal scratch tiles; the C++ intrinsic requires an explicit `tmp` operand.
 
 ### IR Level 1（SSA）
@@ -54,16 +55,16 @@ PTO_INST RecordEvent TROWARGMIN(TileDataOut& dst, TileDataIn& src, TileDataTmp& 
 - 支持的源元素类型：`half`、`float`。
 - 支持的目标元素类型：`uint32_t`、`int32_t`。
 - 运行时检查遵循共享的行归约检查路径：
-    - `src.GetValidRow() != 0`
-    - `src.GetValidCol() != 0`
-    - `src.GetValidRow() == dst.GetValidRow()`
+  - `src.GetValidRow() != 0`
+  - `src.GetValidCol() != 0`
+  - `src.GetValidRow() == dst.GetValidRow()`
 
 ### A2A3 实现检查
 
 - `src` 必须使用标准 ND 布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
 - `dst` 通过共享的行归约索引检查路径约束，可使用以下任一非分形布局：
-    - 单列 DN 布局（`BLayout::ColMajor`、`Cols == 1`），或
-    - 有效列数为 1 的 ND 布局。
+  - 单列 DN 布局（`BLayout::ColMajor`、`Cols == 1`），或
+  - 有效列数为 1 的 ND 布局。
 
 ### A5 实现检查
 
@@ -72,9 +73,9 @@ PTO_INST RecordEvent TROWARGMIN(TileDataOut& dst, TileDataIn& src, TileDataTmp& 
 
 ### A3 `tmp`临时Tile相关说明
 
-* `tmp`临时Tile在`srcValidCol <= ElementPerRepeat`时不使用，`srcValidCol > ElementPerRepeat`时需要使用。
-* `tmp` tile的行数和`src` tile的行数相同。
-* 按以下公式根据`src` tile的`validCol`算出`tmp` tile所需stride：
+- `tmp`临时Tile在`srcValidCol <= ElementPerRepeat`时不使用，`srcValidCol > ElementPerRepeat`时需要使用。
+- `tmp` tile的行数和`src` tile的行数相同。
+- 按以下公式根据`src` tile的`validCol`算出`tmp` tile所需stride：
 
 ```text
 repeats = ceil(validCol / elementPerRepeat)
@@ -148,4 +149,3 @@ void example_manual() {
 # IR Level 2 (DPS)
 pto.trowargmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-

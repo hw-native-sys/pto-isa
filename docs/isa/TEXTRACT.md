@@ -1,6 +1,5 @@
 ﻿# TEXTRACT
 
-
 ## Tile Operation Diagram
 
 ![TEXTRACT tile operation](../figures/isa/TEXTRACT.svg)
@@ -38,6 +37,7 @@ Synchronous form:
 ```text
 pto.textract ins(%src, %idxrow, %idxcol : !pto.tile_buf<...>, dtype, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
+
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:
@@ -64,15 +64,15 @@ PTO_INST RecordEvent TEXTRACT_FP(DstTileData &dst, SrcTileData &src, FpTileData 
 
 - `DstTileData::DType` must equal `SrcTileData::DType`.
 - Runtime bounds checks:
-    - `indexRow + DstTileData::Rows <= SrcTileData::Rows`
-    - `indexCol + DstTileData::Cols <= SrcTileData::Cols`
+  - `indexRow + DstTileData::Rows <= SrcTileData::Rows`
+  - `indexCol + DstTileData::Cols <= SrcTileData::Cols`
 
 ### A2A3 implementation checks
 
 - Supported element types: `int8_t`, `half`, `bfloat16_t`, `float`.
 - Source layout must satisfy one of the checked A2A3 extraction layouts:
-    - `(SFractal == ColMajor && isRowMajor)`, or
-    - `(SFractal == RowMajor && !isRowMajor)`.
+  - `(SFractal == ColMajor && isRowMajor)`, or
+  - `(SFractal == RowMajor && !isRowMajor)`.
 - In GEMV scenarios targeting `TileType::Left`, the checked source layout also allows `(SrcTileData::Rows == 1 && SrcTileData::isRowMajor)`.
 - Destination must be `TileType::Left` or `TileType::Right` with a target-supported fractal configuration.
 
@@ -80,9 +80,9 @@ PTO_INST RecordEvent TEXTRACT_FP(DstTileData &dst, SrcTileData &src, FpTileData 
 
 - Supported element types: `int8_t`, `hifloat8_t`, `float8_e5m2_t`, `float8_e4m3_t`, `half`, `bfloat16_t`, `float`, `float4_e2m1x2_t`, `float4_e1m2x2_t`, `float8_e8m0_t`.
 - Source layout must satisfy one of the checked A5 extraction layouts:
-    - for `Left` / `Right`: `(SFractal == ColMajor && isRowMajor)` or `(SFractal == RowMajor && !isRowMajor)`
-    - for `ScaleLeft`: `(SFractal == RowMajor && isRowMajor)`
-    - for `ScaleRight`: `(SFractal == ColMajor && !isRowMajor)`
+  - for `Left` / `Right`: `(SFractal == ColMajor && isRowMajor)` or `(SFractal == RowMajor && !isRowMajor)`
+  - for `ScaleLeft`: `(SFractal == RowMajor && isRowMajor)`
+  - for `ScaleRight`: `(SFractal == ColMajor && !isRowMajor)`
 - In GEMV scenarios targeting `Left`, the checked source layout also allows `(SrcTileData::Rows == 1 && SrcTileData::isRowMajor)`.
 - Destination supports `TileType::Mat -> TileType::Left/Right/Scale`, `TileType::Acc -> TileType::Mat` (including relu, scalar-quant, and vector-quantized forms), and specific `TileType::Vec -> TileType::Mat` extraction paths.
 - The vector-quantized form additionally requires an `FpTileData` scaling operand, matching the `TEXTRACT_FP(...)` interface.
@@ -149,4 +149,3 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.textract ins(%src, %idxrow, %idxcol : !pto.tile_buf<...>, dtype, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
-

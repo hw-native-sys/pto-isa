@@ -1,6 +1,5 @@
 ﻿# TCOLMAX
 
-
 ## Tile Operation Diagram
 
 ![TCOLMAX tile operation](../figures/isa/TCOLMAX.svg)
@@ -36,6 +35,7 @@ Synchronous form:
 ```text
 pto.tcolmax ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
+
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:
@@ -53,7 +53,7 @@ PTO_INST RecordEvent TCOLMAX(TileDataOut &dst, TileDataIn &src, WaitEvents &... 
 - `dst` and `src` must use standard ND layout: row-major and non-fractal (`BLayout::RowMajor`, `SLayout::NoneBox`).
 - `dst` and `src` must use the same element type.
 - Runtime checks:
-    - `src.GetValidCol() == dst.GetValidCol()`
+  - `src.GetValidCol() == dst.GetValidCol()`
 - If `src.GetValidRow() == 0` or `src.GetValidCol() == 0`, the implementation returns early.
 
 ### A2A3 implementation checks
@@ -126,4 +126,3 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.tcolmax ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-

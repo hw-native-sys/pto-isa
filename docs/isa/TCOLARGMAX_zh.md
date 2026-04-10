@@ -23,6 +23,7 @@ PTO-AS 形式：参见 `docs/grammar/PTO-AS.md`.
 ```text
 %dst = tcolargmax %src : !pto.tile<...> -> !pto.tile<...>
 ```
+
 Lowering may introduce internal scratch tiles; the C++ intrinsic requires an explicit `tmp` operand.
 
 ### IR Level 1（SSA）
@@ -56,10 +57,10 @@ PTO_INST RecordEvent TCOLARGMAX(TileDataOut& dst, TileDataIn& src, TileDataTmp& 
 - 支持的目标元素类型：`uint32_t`、`int32_t`。
 - 编译时检查：`TileDataIn::ValidCol == 1 || TileDataIn::ValidCol == -1`。
 - 运行时检查：
-    - `src.GetValidRow() != 0`
-    - `src.GetValidCol() != 0`
-    - `dst.GetValidRow() == 1`
-    - `src.GetValidCol() == dst.GetValidCol()`
+  - `src.GetValidRow() != 0`
+  - `src.GetValidCol() != 0`
+  - `dst.GetValidRow() == 1`
+  - `src.GetValidCol() == dst.GetValidCol()`
 
 ### A2A3 实现检查
 
@@ -74,16 +75,16 @@ PTO_INST RecordEvent TCOLARGMAX(TileDataOut& dst, TileDataIn& src, TileDataTmp& 
 
 ### A2A3 `tmp` 临时 Tile 相关说明
 
-* A2A3 实现中 `tmp` **始终被使用**，作为中间结果的临时存储空间（当前行索引、argmax 索引、当前最大值元素）。
-* `tmp` Tile 的数据类型必须与 `src` 的数据类型一致。
-* `tmp` Tile 在单行内被划分为三个区域：
+- A2A3 实现中 `tmp` **始终被使用**，作为中间结果的临时存储空间（当前行索引、argmax 索引、当前最大值元素）。
+- `tmp` Tile 的数据类型必须与 `src` 的数据类型一致。
+- `tmp` Tile 在单行内被划分为三个区域：
   - 区域 0（`[0, tmpGapEles)`）：当前行索引计数器（每行递增）。
   - 区域 1（`[tmpGapEles, 2 * tmpGapEles)`）：当前最大值元素，用于比较。
   - 区域 2（`[2 * tmpGapEles, 3 * tmpGapEles)`）：argmax 索引结果（最终转换后写入 `dst`）。
-* `tmpGapEles` 的确定方式：
+- `tmpGapEles` 的确定方式：
   - 当 `srcValidCol >= elemPerRpt` 时：`tmpGapEles = elemPerRpt`。
   - 当 `srcValidCol < elemPerRpt` 时：`tmpGapEles = ceil(srcValidCol / elemPerBlock) * elemPerBlock`。
-* 当 `src` 较小时，可直接将 `tmp` Tile 大小设为与 `src` 相同；也可按以下公式根据 `src` 的 `validCol` 算出 `tmp` Tile 所需 stride：
+- 当 `src` 较小时，可直接将 `tmp` Tile 大小设为与 `src` 相同；也可按以下公式根据 `src` 的 `validCol` 算出 `tmp` Tile 所需 stride：
 
 ```text
 repeats = ceil(validCol / elementPerRepeat)
@@ -92,8 +93,8 @@ stride = ceil(repeats * 2 / elementPerBlock) * elementPerBlock + ceil(repeats / 
 
 ### A5 `tmp` 临时 Tile 相关说明
 
-* A5 实现中 `tmp` 临时 Tile **不使用**。A5 使用基于向量寄存器的计算方式（`__VEC_SCOPE__`），不需要临时 Tile 存储。
-* `tmp` 在 C++ 内建接口签名中保留，仅为了与 A2A3 的 API 兼容。
+- A5 实现中 `tmp` 临时 Tile **不使用**。A5 使用基于向量寄存器的计算方式（`__VEC_SCOPE__`），不需要临时 Tile 存储。
+- `tmp` 在 C++ 内建接口签名中保留，仅为了与 A2A3 的 API 兼容。
 
 ## 示例
 
@@ -162,14 +163,3 @@ void example_manual() {
 # IR Level 2 (DPS)
 pto.tcolargmax ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-</task_progress>
-- [x] Explore existing docs/isa for documentation style and format
-- [x] Read tcolargmax and tcolargmin A2A3 implementation in include/
-- [x] Read tcolargmax and tcolargmin A5 implementation in include/
-- [x] Read test cases for tcolargmax and tcolargmin
-- [x] Understand A2A3 vs A5 differences and tmp handling
-- [x] Write tcolargmax English documentation (docs/isa/TCOLARGMAX.md)
-- [x] Write tcolargmax Chinese documentation (docs/isa/TCOLARGMAX_zh.md)
-- [ ] Verify documentation completeness and accuracy
-</task_progress>
-</write_to_file>

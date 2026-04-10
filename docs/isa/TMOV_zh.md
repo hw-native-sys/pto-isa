@@ -82,11 +82,11 @@ PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, uint64_t preQuantS
 ### 通用约束或检查
 
 - `TMOV` 包含以下重载族：
-    - 普通移动：`TMOV(dst, src)`
-    - relu 形式：`TMOV<..., reluMode>(dst, src)`
-    - 累加器到向量形式：`TMOV<..., mode, reluMode>(dst, src)`
-    - 向量量化形式：`TMOV<..., FpTileData, mode, reluMode>(dst, src, fp)`
-    - 标量量化形式：`TMOV<..., reluMode>(dst, src, preQuantScalar)` 和 `TMOV<..., mode, reluMode>(dst, src, preQuantScalar)`
+  - 普通移动：`TMOV(dst, src)`
+  - relu 形式：`TMOV<..., reluMode>(dst, src)`
+  - 累加器到向量形式：`TMOV<..., mode, reluMode>(dst, src)`
+  - 向量量化形式：`TMOV<..., FpTileData, mode, reluMode>(dst, src, fp)`
+  - 标量量化形式：`TMOV<..., reluMode>(dst, src, preQuantScalar)` 和 `TMOV<..., mode, reluMode>(dst, src, preQuantScalar)`
 - `reluMode` 取值为 `ReluPreMode::{NoRelu, NormalRelu}`。
 - `mode` 取值为 `AccToVecMode::{SingleModeVec0, SingleModeVec1, DualModeSplitM, DualModeSplitN}`。
 
@@ -94,56 +94,55 @@ PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, uint64_t preQuantS
 
 - 形状必须匹配：`SrcTileData::Rows == DstTileData::Rows` 且 `SrcTileData::Cols == DstTileData::Cols`。
 - 支持的 Tile 类型对在编译期限制为：
-    - `TileType::Mat -> TileType::Left/Right/Bias/Scaling`
-    - `TileType::Vec -> TileType::Vec`
-    - `TileType::Acc -> TileType::Mat`
+  - `TileType::Mat -> TileType::Left/Right/Bias/Scaling`
+  - `TileType::Vec -> TileType::Vec`
+  - `TileType::Acc -> TileType::Mat`
 - 对于 `TileType::Mat -> TileType::Bias`：
-    - 支持的源/目标 dtype 对为 `int32_t -> int32_t`、`float -> float`、`half -> float`
-    - 源行数必须为 `1`
-    - `SrcTileData::Cols * sizeof(SrcType)` 必须按 `64` 字节对齐
+  - 支持的源/目标 dtype 对为 `int32_t -> int32_t`、`float -> float`、`half -> float`
+  - 源行数必须为 `1`
+  - `SrcTileData::Cols * sizeof(SrcType)` 必须按 `64` 字节对齐
 - 对于 `TileType::Mat -> TileType::Scaling`：
-    - 目标 dtype 必须与源 dtype 相同，且必须为 `uint64_t`
-    - 源行数必须为 `1`
-    - `SrcTileData::Cols * sizeof(SrcType)` 必须按 `128` 字节对齐
+  - 目标 dtype 必须与源 dtype 相同，且必须为 `uint64_t`
+  - 源行数必须为 `1`
+  - `SrcTileData::Cols * sizeof(SrcType)` 必须按 `128` 字节对齐
 - 对于 `TileType::Acc -> TileType::Mat`：
-    - 额外执行 `CheckTMovAccToMat<...>` 编译期检查
-    - 普通/relu 形式使用 `GetCastPreQuantMode<SrcDType, DstDType>()` 推导的 cast pre-quant 模式
-    - 标量量化形式使用 `GetScalarPreQuantMode<SrcDType, DstDType>()`
-    - 向量量化形式要求提供 `FpTileData` 操作数，且 `FpTileData::Loc == TileType::Scaling`，并使用 `GetVectorPreQuantMode<SrcDType, DstDType>()`
+  - 额外执行 `CheckTMovAccToMat<...>` 编译期检查
+  - 普通/relu 形式使用 `GetCastPreQuantMode<SrcDType, DstDType>()` 推导的 cast pre-quant 模式
+  - 标量量化形式使用 `GetScalarPreQuantMode<SrcDType, DstDType>()`
+  - 向量量化形式要求提供 `FpTileData` 操作数，且 `FpTileData::Loc == TileType::Scaling`，并使用 `GetVectorPreQuantMode<SrcDType, DstDType>()`
 
 ### A5 实现检查
 
 - `CommonCheck()` 要求：
-    - 目标/源 dtype 必须相同
-    - 支持的元素类型为 `int8_t`、`hifloat8_t`、`float8_e5m2_t`、`float8_e4m3_t`、`half`、`bfloat16_t`、`float`、`float4_e2m1x2_t`、`float4_e1m2x2_t`
-    - 源布局必须满足以下之一：
-        - `(SrcTileData::SFractal == SLayout::ColMajor && SrcTileData::isRowMajor)`
-        - `(SrcTileData::SFractal == SLayout::RowMajor && !SrcTileData::isRowMajor)`
-        - `SrcTileData::isRowMajor`
+  - 目标/源 dtype 必须相同
+  - 支持的元素类型为 `int8_t`、`hifloat8_t`、`float8_e5m2_t`、`float8_e4m3_t`、`half`、`bfloat16_t`、`float`、`float4_e2m1x2_t`、`float4_e1m2x2_t`
+  - 源布局必须满足以下之一：
+    - `(SrcTileData::SFractal == SLayout::ColMajor && SrcTileData::isRowMajor)`
+    - `(SrcTileData::SFractal == SLayout::RowMajor && !SrcTileData::isRowMajor)`
+    - `SrcTileData::isRowMajor`
 - `CommonCheckMX()` 用于 MX 路径时要求源/目标 dtype 相同，并支持 `float8_e8m0_t`。
 - 支持的路径包括：
-    - `TileType::Mat -> TileType::Left/Right/Bias/Scaling/ScaleLeft/ScaleRight`
-    - `TileType::Vec -> TileType::Vec/TileType::Mat`
-    - `TileType::Acc -> TileType::Vec/TileType::Mat`
-    - A5 实现中处理的特定 `ND -> ZZ` 及相关内部路径变体
+  - `TileType::Mat -> TileType::Left/Right/Bias/Scaling/ScaleLeft/ScaleRight`
+  - `TileType::Vec -> TileType::Vec/TileType::Mat`
+  - `TileType::Acc -> TileType::Vec/TileType::Mat`
+  - A5 实现中处理的特定 `ND -> ZZ` 及相关内部路径变体
 - 对于 `TileType::Mat -> TileType::Bias`：
-    - 支持的 dtype 对为 `int32_t -> int32_t`、`float -> float`、`half -> float`、`bfloat16_t -> float`
-    - 源行数必须为 `1`
-    - `DstTileData::Cols * sizeof(DstType)` 必须按 `64` 字节对齐
-    - bias table 占用 `DstTileData::Cols * sizeof(DstType)` 不得超过 `4096` 字节
+  - 支持的 dtype 对为 `int32_t -> int32_t`、`float -> float`、`half -> float`、`bfloat16_t -> float`
+  - 源行数必须为 `1`
+  - `DstTileData::Cols * sizeof(DstType)` 必须按 `64` 字节对齐
+  - bias table 占用 `DstTileData::Cols * sizeof(DstType)` 不得超过 `4096` 字节
 - 对于 `TileType::Mat -> TileType::Scaling`：
-    - 源行数必须为 `1`
-    - `DstTileData::Cols * sizeof(DstType)` 必须按 `128` 字节对齐
-    - fixpipe buffer 占用 `DstTileData::Cols * sizeof(DstType)` 不得超过 `4096` 字节
+  - 源行数必须为 `1`
+  - `DstTileData::Cols * sizeof(DstType)` 必须按 `128` 字节对齐
+  - fixpipe buffer 占用 `DstTileData::Cols * sizeof(DstType)` 不得超过 `4096` 字节
 - 对于 `TileType::Acc -> TileType::Vec`：
-    - `mode` 用于选择 `SingleModeVec0`、`SingleModeVec1`、`DualModeSplitM` 或 `DualModeSplitN`
-    - 双目标模式要求 `QuantMode_t::NoQuant`
-    - 双目标模式不支持 `nz2dn` 路径
-    - 目标 stride 必须非零，且 `dstStride * sizeof(dstType)` 必须是 `32` 字节的整数倍
+  - `mode` 用于选择 `SingleModeVec0`、`SingleModeVec1`、`DualModeSplitM` 或 `DualModeSplitN`
+  - 双目标模式要求 `QuantMode_t::NoQuant`
+  - 双目标模式不支持 `nz2dn` 路径
+  - 目标 stride 必须非零，且 `dstStride * sizeof(dstType)` 必须是 `32` 字节的整数倍
 - 对于 `TileType::Acc -> TileType::Mat`：
-    - 目标 stride 必须非零，且 `dstStride * sizeof(dstType)` 必须是 `32` 字节的整数倍
-    - 支持通过对应重载启用 relu/标量量化/向量量化形式
-
+  - 目标 stride 必须非零，且 `dstStride * sizeof(dstType)` 必须是 `32` 字节的整数倍
+  - 支持通过对应重载启用 relu/标量量化/向量量化形式
 
 ## 示例
 
@@ -205,4 +204,3 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.tmov ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-

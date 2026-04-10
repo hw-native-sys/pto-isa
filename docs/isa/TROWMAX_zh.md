@@ -23,6 +23,7 @@ PTO-AS 形式：参见 [PTO-AS 规范](../assembly/PTO-AS_zh.md)。
 ```text
 %dst = trowmax %src : !pto.tile<...> -> !pto.tile<...>
 ```
+
 降低时可能引入内部临时 Tile；C++ 内建接口需要显式传入 `tmp` 操作数。
 
 ### AS Level 1（SSA）
@@ -53,13 +54,13 @@ PTO_INST RecordEvent TROWMAX(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
 - `dst` 和 `src` 必须均为 `TileType::Vec`。
 - `src` 必须使用标准 ND 布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
 - `dst` 必须使用以下两种非分形布局之一：
-    - ND 布局（`BLayout::RowMajor`、`SLayout::NoneBox`），或
-    - 列数严格为 1 的 DN 布局（`BLayout::ColMajor`、`SLayout::NoneBox`、`Cols == 1`）。
+  - ND 布局（`BLayout::RowMajor`、`SLayout::NoneBox`），或
+  - 列数严格为 1 的 DN 布局（`BLayout::ColMajor`、`SLayout::NoneBox`、`Cols == 1`）。
 - `dst` 和 `src` 的元素类型必须一致。
 - 运行时有效区域检查：
-    - `src.GetValidRow() != 0`
-    - `src.GetValidCol() != 0`
-    - `src.GetValidRow() == dst.GetValidRow()`
+  - `src.GetValidRow() != 0`
+  - `src.GetValidCol() != 0`
+  - `src.GetValidRow() == dst.GetValidRow()`
 - 内建接口签名要求显式传入 `tmp` 操作数。
 
 ### A2A3 实现检查
@@ -67,11 +68,10 @@ PTO_INST RecordEvent TROWMAX(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
 - 支持的元素类型：`half`、`float`、`int32_t`、`int16_t`。
 - 实现同时接受 ND 输出和 `Cols == 1` 的 DN 输出。
 - 运行时检查遵循共享的行归约检查路径：
-    - `src.GetValidRow() != 0`
-    - `src.GetValidCol() != 0`
-    - `src.GetValidRow() == dst.GetValidRow()`
+  - `src.GetValidRow() != 0`
+  - `src.GetValidCol() != 0`
+  - `src.GetValidRow() == dst.GetValidRow()`
 - 当前实现路径会将 `tmp` 传入后端调用，但本文档不额外补充 checked implementation 未显式约束的 `tmp` shape/layout 要求。
-
 
 ## 示例
 
@@ -140,4 +140,3 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.trowmax ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-

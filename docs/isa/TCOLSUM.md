@@ -1,6 +1,5 @@
 ﻿# TCOLSUM
 
-
 ## Tile Operation Diagram
 
 ![TCOLSUM tile operation](../figures/isa/TCOLSUM.svg)
@@ -26,6 +25,7 @@ Synchronous form:
 ```text
 %dst = tcolsum %src {isBinary = false} : !pto.tile<...> -> !pto.tile<...>
 ```
+
 Lowering may introduce internal scratch tiles; the C++ intrinsic requires an explicit `tmp` operand.
 
 ### AS Level 1 (SSA)
@@ -41,6 +41,7 @@ Lowering may introduce internal scratch tiles; the C++ intrinsic requires an exp
 pto.tcolsum ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 pto.tcolsum ins(%src, %tmp {isBinary = false} : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
+
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:
@@ -61,13 +62,13 @@ PTO_INST RecordEvent TCOLSUM(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
 - `dst` and `src` must use standard ND layout: row-major and non-fractal (`BLayout::RowMajor`, `SLayout::NoneBox`).
 - `dst` and `src` must use the same element type.
 - Runtime checks:
-    - `src.GetValidCol() == dst.GetValidCol()`
-    - `src.GetValidRow() != 0`
-    - `src.GetValidCol() != 0`
-    - `src.GetValidCol() <= tmp` row stride measured in `src` elements
+  - `src.GetValidCol() == dst.GetValidCol()`
+  - `src.GetValidRow() != 0`
+  - `src.GetValidCol() != 0`
+  - `src.GetValidCol() <= tmp` row stride measured in `src` elements
 - `isBinary` selects the checked backend path:
-    - `true`: binary-tree accumulation using `tmp`
-    - `false`: sequential accumulation into `dst`
+  - `true`: binary-tree accumulation using `tmp`
+  - `false`: sequential accumulation into `dst`
 
 ### A2A3 implementation checks
 
@@ -148,4 +149,3 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.tcolsum ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-

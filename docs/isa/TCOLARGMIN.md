@@ -1,6 +1,5 @@
 # TCOLARGMIN
 
-
 ## Tile Operation Diagram
 
 ![TCOLARGMIN tile operation](../figures/isa/TCOLARGMIN.svg)
@@ -24,6 +23,7 @@ Synchronous form:
 ```text
 %dst = tcolargmin %src : !pto.tile<...> -> !pto.tile<...>
 ```
+
 Lowering may introduce internal scratch tiles; the C++ intrinsic requires an explicit `tmp` operand.
 
 ### IR Level 1 (SSA)
@@ -37,6 +37,7 @@ Lowering may introduce internal scratch tiles; the C++ intrinsic requires an exp
 ```text
 pto.tcolargmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
+
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:
@@ -56,10 +57,10 @@ PTO_INST RecordEvent TCOLARGMIN(TileDataOut& dst, TileDataIn& src, TileDataTmp& 
 - Supported destination element types: `uint32_t`, `int32_t`.
 - Compile-time check: `TileDataIn::ValidCol == 1 || TileDataIn::ValidCol == -1`.
 - Runtime checks:
-    - `src.GetValidRow() != 0`
-    - `src.GetValidCol() != 0`
-    - `dst.GetValidRow() == 1`
-    - `src.GetValidCol() == dst.GetValidCol()`
+  - `src.GetValidRow() != 0`
+  - `src.GetValidCol() != 0`
+  - `dst.GetValidRow() == 1`
+  - `src.GetValidCol() == dst.GetValidCol()`
 
 ### A2A3 implementation checks
 
@@ -74,16 +75,16 @@ PTO_INST RecordEvent TCOLARGMIN(TileDataOut& dst, TileDataIn& src, TileDataTmp& 
 
 ### About temporary tile `tmp` for A2A3
 
-* `tmp` is always used in the A2A3 implementation as scratch space for intermediate results (current index, argmin index, and current min elements).
-* `tmp` tile's data type must be the same as `src`'s data type.
-* `tmp` tile is organized into three regions within a single row:
+- `tmp` is always used in the A2A3 implementation as scratch space for intermediate results (current index, argmin index, and current min elements).
+- `tmp` tile's data type must be the same as `src`'s data type.
+- `tmp` tile is organized into three regions within a single row:
   - Region 0 (`[0, tmpGapEles)`): current row index counter (incremented per row).
   - Region 1 (`[tmpGapEles, 2 * tmpGapEles)`): current minimum elements for comparison.
   - Region 2 (`[2 * tmpGapEles, 3 * tmpGapEles)`): argmin index result (before final conversion to `dst`).
-* `tmpGapEles` is determined as follows:
+- `tmpGapEles` is determined as follows:
   - When `srcValidCol >= elemPerRpt`: `tmpGapEles = elemPerRpt`.
   - When `srcValidCol < elemPerRpt`: `tmpGapEles = ceil(srcValidCol / elemPerBlock) * elemPerBlock`.
-* Simply set `tmp` tile size the same as `src` when `src` is small, or calculate the required stride based on `src`'s `validCol` using the following formula:
+- Simply set `tmp` tile size the same as `src` when `src` is small, or calculate the required stride based on `src`'s `validCol` using the following formula:
 
 ```text
 repeats = ceil(validCol / elementPerRepeat)
@@ -92,8 +93,8 @@ stride = ceil(repeats * 2 / elementPerBlock) * elementPerBlock + ceil(repeats / 
 
 ### About temporary tile `tmp` for A5
 
-* `tmp` temporary tile is **not used** in the A5 implementation. The A5 uses vector register-based computation (`__VEC_SCOPE__`) and does not require scratch tile storage.
-* `tmp` is retained in the C++ intrinsic signature solely for API compatibility with A2A3.
+- `tmp` temporary tile is **not used** in the A5 implementation. The A5 uses vector register-based computation (`__VEC_SCOPE__`) and does not require scratch tile storage.
+- `tmp` is retained in the C++ intrinsic signature solely for API compatibility with A2A3.
 
 ## Examples
 
@@ -162,8 +163,3 @@ void example_manual() {
 # IR Level 2 (DPS)
 pto.tcolargmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-</task_progress>
-- [x] Write tcolargmin English documentation (docs/isa/TCOLARGMIN.md)
-- [ ] Write tcolargmin Chinese documentation (docs/isa/TCOLARGMIN_zh.md)
-</task_progress>
-</write_to_file>

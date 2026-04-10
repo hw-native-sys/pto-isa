@@ -1,6 +1,5 @@
 ﻿# TPARTMUL
 
-
 ## Tile Operation Diagram
 
 ![TPARTMUL tile operation](../figures/isa/TPARTMUL.svg)
@@ -55,6 +54,7 @@ pto.tpartmul ins(%src0, %src1 : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<..
 ```text
 pto.tpartmul ins(%src0, %src1 : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
+
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:
@@ -71,8 +71,8 @@ PTO_INST RecordEvent TPARTMUL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1
 - `dst`, `src0`, and `src1` must use the same element type.
 - The destination valid region defines the result domain.
 - For each element in the destination valid region:
-    - if both inputs are valid, the instruction applies its elementwise operator;
-    - if only one input is valid, the result copies that input value.
+  - if both inputs are valid, the instruction applies its elementwise operator;
+  - if only one input is valid, the result copies that input value.
 - If `dst` has a zero valid region, the instruction returns early.
 - Supported partial-validity patterns require at least one source tile to have a valid region exactly equal to `dst`, while the other source tile's valid region must not exceed `dst` in either dimension.
 - Handling of any validity pattern not explicitly listed above is implementation-defined.
