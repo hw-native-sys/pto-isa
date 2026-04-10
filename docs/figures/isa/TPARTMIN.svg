@@ -1,7 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-label="TPARTMIN tile operation diagram">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="660" viewBox="0 0 1200 660" role="img" aria-label="TPARTMIN tile operation diagram">
 <defs>
-  <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0,0 L0,12 L12,6 z" fill="#C53A79"/></marker>
-  <marker id="axisArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L0,10 L10,5 z" fill="#64748b"/></marker>
+  <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+    <path d="M0,0 L0,8 L8,4 z" fill="#C53A79"/>
+  </marker>
+  <marker id="axisArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+    <path d="M0,0 L0,8 L8,4 z" fill="#64748b"/>
+  </marker>
 </defs>
 <style>
 svg { font-family: Arial, Helvetica, sans-serif; }
@@ -10,153 +14,135 @@ svg { font-family: Arial, Helvetica, sans-serif; }
 .meta { font-size: 12px; fill: #64748b; }
 .frame { fill: white; }
 .panel { fill: #FDF0F6; stroke: #e2e8f0; stroke-width: 1.5; rx: 14; }
-.tileLabel { font-size: 14px; font-weight: 700; fill: #0f172a; }
+.tileLabel { font-size: 15px; font-weight: 700; fill: #0f172a; }
+.tileNote { font-size: 12px; fill: #475569; }
 .tileBorder { fill: none; stroke: #475569; stroke-width: 1.5; }
 .cell { fill: #ffffff; stroke: #94a3b8; stroke-width: 1; }
 .cellMasked { fill: #e2e8f0; }
 .cellHL { stroke-width: 2; }
-.cellText { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 10px; fill: #0f172a; }
 .arrow { stroke-width: 2.5; fill: none; stroke-linejoin: round; stroke-linecap: round; }
 .axisLine { stroke: #64748b; stroke-width: 1.5; fill: none; }
 .axisText { font-size: 10px; fill: #64748b; font-weight: 700; }
-.opCircle { fill: #ffffff; stroke-width: 2; }
-.opRect { fill: #ffffff; stroke-width: 2; }
-.opText { font-size: 10px; font-weight: 800; fill: #0f172a; }
-.procBox { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.5; rx: 12; }
-.procTitle { font-size: 14px; font-weight: 700; fill: #0f172a; }
-.procText { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; fill: #0f172a; }
-.smallLabel { font-size: 12px; fill: #334155; }
-.scalarBox { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.5; }
-.scalarValue { font-size: 16px; font-weight: 700; }
+.opRect { fill: #ffffff; stroke: #C53A79; stroke-width: 2; rx: 10; }
+.opText { font-size: 16px; font-weight: 800; fill: #0f172a; }
 .validBox { fill: none; stroke-width: 2; stroke-dasharray: 6 4; }
+.caption { font-size: 12px; fill: #475569; }
 </style>
-<rect x="0" y="0" width="1200" height="720" class="frame" />
-<rect x="24" y="24" width="1152" height="672" class="panel" />
-<text x="40" y="46" class="title">TPARTMIN</text>
-<text x="40" y="72" class="subtitle">Partial elementwise min with implementation-defined handling of mismatched valid regions.</text>
-<text x="40" y="92" class="meta">Template: complex</text>
-<text x="1160" y="92" class="meta" text-anchor="end">Legend: outline=example; dashed=valid rows/cols (Rv,Cv); shaded=masked; r down / c right; ortho arrows=dataflow</text>
-<line x1="36" y1="104" x2="1164" y2="104" stroke="#e2e8f0" stroke-width="1.5" />
-<text x="600" y="140" class="subtitle" text-anchor="middle" fill="#C53A79">dst[r,c] = partial(min(src0, src1))   (validity-dependent)</text>
-<text x="485" y="168" class="tileLabel" text-anchor="middle">src0 (valid A)</text>
-<rect x="430" y="178" width="110" height="110" class="tileBorder" />
-<rect x="430" y="178" width="22" height="22" class="cell" />
-<rect x="452" y="178" width="22" height="22" class="cell" />
-<rect x="474" y="178" width="22" height="22" class="cell" />
-<rect x="496" y="178" width="22" height="22" class="cell cellMasked" />
-<rect x="518" y="178" width="22" height="22" class="cell cellMasked" />
-<rect x="430" y="200" width="22" height="22" class="cell" />
-<rect x="452" y="200" width="22" height="22" class="cell" />
-<rect x="474" y="200" width="22" height="22" class="cell cellHL" stroke="#C53A79" />
-<rect x="496" y="200" width="22" height="22" class="cell cellMasked" />
-<rect x="518" y="200" width="22" height="22" class="cell cellMasked" />
-<rect x="430" y="222" width="22" height="22" class="cell" />
-<rect x="452" y="222" width="22" height="22" class="cell" />
-<rect x="474" y="222" width="22" height="22" class="cell" />
-<rect x="496" y="222" width="22" height="22" class="cell cellMasked" />
-<rect x="518" y="222" width="22" height="22" class="cell cellMasked" />
-<rect x="430" y="244" width="22" height="22" class="cell cellMasked" />
-<rect x="452" y="244" width="22" height="22" class="cell cellMasked" />
-<rect x="474" y="244" width="22" height="22" class="cell cellMasked" />
-<rect x="496" y="244" width="22" height="22" class="cell cellMasked" />
-<rect x="518" y="244" width="22" height="22" class="cell cellMasked" />
-<rect x="430" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="452" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="474" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="496" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="518" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="430" y="178" width="66" height="66" class="validBox" stroke="#C53A79" />
-<text x="434" y="240" class="axisText">Rv</text>
-<text x="492" y="190" class="axisText" text-anchor="end">Cv</text>
-<path d="M 440 188 L 474 188" class="axisLine" marker-end="url(#axisArrow)" />
-<path d="M 440 188 L 440 222" class="axisLine" marker-end="url(#axisArrow)" />
-<text x="478" y="192" class="axisText">c</text>
-<text x="438" y="226" class="axisText" text-anchor="end">r</text>
-<text x="715" y="168" class="tileLabel" text-anchor="middle">src1 (valid B)</text>
-<rect x="660" y="178" width="110" height="110" class="tileBorder" />
-<rect x="660" y="178" width="22" height="22" class="cell" />
-<rect x="682" y="178" width="22" height="22" class="cell" />
-<rect x="704" y="178" width="22" height="22" class="cell" />
-<rect x="726" y="178" width="22" height="22" class="cell" />
-<rect x="748" y="178" width="22" height="22" class="cell cellMasked" />
-<rect x="660" y="200" width="22" height="22" class="cell" />
-<rect x="682" y="200" width="22" height="22" class="cell" />
-<rect x="704" y="200" width="22" height="22" class="cell cellHL" stroke="#C53A79" />
-<rect x="726" y="200" width="22" height="22" class="cell" />
-<rect x="748" y="200" width="22" height="22" class="cell cellMasked" />
-<rect x="660" y="222" width="22" height="22" class="cell cellMasked" />
-<rect x="682" y="222" width="22" height="22" class="cell cellMasked" />
-<rect x="704" y="222" width="22" height="22" class="cell cellMasked" />
-<rect x="726" y="222" width="22" height="22" class="cell cellMasked" />
-<rect x="748" y="222" width="22" height="22" class="cell cellMasked" />
-<rect x="660" y="244" width="22" height="22" class="cell cellMasked" />
-<rect x="682" y="244" width="22" height="22" class="cell cellMasked" />
-<rect x="704" y="244" width="22" height="22" class="cell cellMasked" />
-<rect x="726" y="244" width="22" height="22" class="cell cellMasked" />
-<rect x="748" y="244" width="22" height="22" class="cell cellMasked" />
-<rect x="660" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="682" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="704" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="726" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="748" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="660" y="178" width="88" height="44" class="validBox" stroke="#C53A79" />
-<text x="664" y="218" class="axisText">Rv</text>
-<text x="744" y="190" class="axisText" text-anchor="end">Cv</text>
-<path d="M 670 188 L 704 188" class="axisLine" marker-end="url(#axisArrow)" />
-<path d="M 670 188 L 670 222" class="axisLine" marker-end="url(#axisArrow)" />
-<text x="708" y="192" class="axisText">c</text>
-<text x="668" y="226" class="axisText" text-anchor="end">r</text>
-<text x="600" y="350" class="tileLabel" text-anchor="middle">dst (valid D)</text>
-<rect x="545" y="360" width="110" height="110" class="tileBorder" />
-<rect x="545" y="360" width="22" height="22" class="cell" />
-<rect x="567" y="360" width="22" height="22" class="cell" />
-<rect x="589" y="360" width="22" height="22" class="cell" />
-<rect x="611" y="360" width="22" height="22" class="cell cellMasked" />
-<rect x="633" y="360" width="22" height="22" class="cell cellMasked" />
-<rect x="545" y="382" width="22" height="22" class="cell" />
-<rect x="567" y="382" width="22" height="22" class="cell" />
-<rect x="589" y="382" width="22" height="22" class="cell cellHL" stroke="#C53A79" />
-<rect x="611" y="382" width="22" height="22" class="cell cellMasked" />
-<rect x="633" y="382" width="22" height="22" class="cell cellMasked" />
-<rect x="545" y="404" width="22" height="22" class="cell" />
-<rect x="567" y="404" width="22" height="22" class="cell" />
-<rect x="589" y="404" width="22" height="22" class="cell" />
-<rect x="611" y="404" width="22" height="22" class="cell cellMasked" />
-<rect x="633" y="404" width="22" height="22" class="cell cellMasked" />
-<rect x="545" y="426" width="22" height="22" class="cell cellMasked" />
-<rect x="567" y="426" width="22" height="22" class="cell cellMasked" />
-<rect x="589" y="426" width="22" height="22" class="cell cellMasked" />
-<rect x="611" y="426" width="22" height="22" class="cell cellMasked" />
-<rect x="633" y="426" width="22" height="22" class="cell cellMasked" />
-<rect x="545" y="448" width="22" height="22" class="cell cellMasked" />
-<rect x="567" y="448" width="22" height="22" class="cell cellMasked" />
-<rect x="589" y="448" width="22" height="22" class="cell cellMasked" />
-<rect x="611" y="448" width="22" height="22" class="cell cellMasked" />
-<rect x="633" y="448" width="22" height="22" class="cell cellMasked" />
-<rect x="545" y="360" width="66" height="66" class="validBox" stroke="#C53A79" />
-<text x="549" y="422" class="axisText">Rv</text>
-<text x="607" y="372" class="axisText" text-anchor="end">Cv</text>
-<path d="M 555 370 L 589 370" class="axisLine" marker-end="url(#axisArrow)" />
-<path d="M 555 370 L 555 404" class="axisLine" marker-end="url(#axisArrow)" />
-<text x="593" y="374" class="axisText">c</text>
-<text x="553" y="408" class="axisText" text-anchor="end">r</text>
-<circle cx="600" cy="324" r="22" class="opCircle" stroke="#C53A79" />
-<rect x="583" y="307" width="34" height="34" rx="6" class="opRect" stroke="#C53A79" />
-<text x="600" y="322.5" class="opText" font-size="8px" text-anchor="middle">TPARTM</text>
-<text x="600" y="331.5" class="opText" font-size="8px" text-anchor="middle">IN</text>
-<path d="M 485 300 L 485 324 L 578 324 L 578 324" class="arrow" stroke="#C53A79" marker-end="url(#arrow)" />
-<path d="M 715 300 L 715 324 L 622 324 L 622 324" class="arrow" stroke="#C53A79" marker-end="url(#arrow)" />
-<path d="M 600 346 L 600 347 L 600 347 L 600 348" class="arrow" stroke="#C53A79" marker-end="url(#arrow)" />
-<rect x="40" y="502" width="1120" height="194" class="procBox" />
-<text x="56" y="528" class="procTitle">Procedure (conceptual)</text>
-<text x="56" y="554" class="procText" xml:space="preserve">
-  <tspan x="56" dy="0">for r,c in valid(dst):</tspan>
-  <tspan x="56" dy="16">  if defined(src0[r,c]) and defined(src1[r,c]):</tspan>
-  <tspan x="56" dy="16">    dst[r,c] = min(src0, src1)</tspan>
-  <tspan x="56" dy="16">  elif only one is defined:</tspan>
-  <tspan x="56" dy="16">    dst[r,c] = that defined value</tspan>
-  <tspan x="56" dy="16">  else:</tspan>
-  <tspan x="56" dy="16">    dst[r,c] = implementation-defined</tspan>
-</text>
-<text x="56" y="680" class="meta">Note: semantics apply to the valid region unless stated otherwise.</text>
+<rect x="0" y="0" width="1200" height="660" class="frame" />
+<rect x="24" y="24" width="1152" height="612" class="panel" />
+<text x="40" y="58" class="title">TPARTMIN</text>
+<text x="40" y="84" class="subtitle">Partial elementwise minimum over the destination valid region.</text>
+<text x="40" y="104" class="meta">Legend: dashed=valid region, shaded=outside valid region, r down / c right</text>
+<line x1="36" y1="118" x2="1164" y2="118" stroke="#e2e8f0" stroke-width="1.5" />
+<text x="600" y="152" class="subtitle" text-anchor="middle" fill="#C53A79">dst[r,c] = min(src0[r,c], src1[r,c]) when both valid; otherwise copy the only valid input</text>
+
+<text x="390" y="194" class="tileLabel" text-anchor="middle">src0</text>
+<text x="390" y="212" class="tileNote" text-anchor="middle">example: valid region matches dst</text>
+<rect x="335" y="228" width="110" height="110" class="tileBorder" />
+<rect x="335" y="228" width="22" height="22" class="cell" />
+<rect x="357" y="228" width="22" height="22" class="cell" />
+<rect x="379" y="228" width="22" height="22" class="cell" />
+<rect x="401" y="228" width="22" height="22" class="cell cellMasked" />
+<rect x="423" y="228" width="22" height="22" class="cell cellMasked" />
+<rect x="335" y="250" width="22" height="22" class="cell" />
+<rect x="357" y="250" width="22" height="22" class="cell" />
+<rect x="379" y="250" width="22" height="22" class="cell cellHL" stroke="#C53A79" />
+<rect x="401" y="250" width="22" height="22" class="cell cellMasked" />
+<rect x="423" y="250" width="22" height="22" class="cell cellMasked" />
+<rect x="335" y="272" width="22" height="22" class="cell" />
+<rect x="357" y="272" width="22" height="22" class="cell" />
+<rect x="379" y="272" width="22" height="22" class="cell" />
+<rect x="401" y="272" width="22" height="22" class="cell cellMasked" />
+<rect x="423" y="272" width="22" height="22" class="cell cellMasked" />
+<rect x="335" y="294" width="22" height="22" class="cell cellMasked" />
+<rect x="357" y="294" width="22" height="22" class="cell cellMasked" />
+<rect x="379" y="294" width="22" height="22" class="cell cellMasked" />
+<rect x="401" y="294" width="22" height="22" class="cell cellMasked" />
+<rect x="423" y="294" width="22" height="22" class="cell cellMasked" />
+<rect x="335" y="316" width="22" height="22" class="cell cellMasked" />
+<rect x="357" y="316" width="22" height="22" class="cell cellMasked" />
+<rect x="379" y="316" width="22" height="22" class="cell cellMasked" />
+<rect x="401" y="316" width="22" height="22" class="cell cellMasked" />
+<rect x="423" y="316" width="22" height="22" class="cell cellMasked" />
+<rect x="335" y="228" width="66" height="66" class="validBox" stroke="#C53A79" />
+<path d="M 345 238 L 379 238" class="axisLine" marker-end="url(#axisArrow)" />
+<path d="M 345 238 L 345 272" class="axisLine" marker-end="url(#axisArrow)" />
+<text x="383" y="242" class="axisText">c</text>
+<text x="343" y="276" class="axisText" text-anchor="end">r</text>
+
+<text x="810" y="194" class="tileLabel" text-anchor="middle">src1</text>
+<text x="810" y="212" class="tileNote" text-anchor="middle">example: smaller valid region, still within dst</text>
+<rect x="755" y="228" width="110" height="110" class="tileBorder" />
+<rect x="755" y="228" width="22" height="22" class="cell" />
+<rect x="777" y="228" width="22" height="22" class="cell" />
+<rect x="799" y="228" width="22" height="22" class="cell cellMasked" />
+<rect x="821" y="228" width="22" height="22" class="cell cellMasked" />
+<rect x="843" y="228" width="22" height="22" class="cell cellMasked" />
+<rect x="755" y="250" width="22" height="22" class="cell" />
+<rect x="777" y="250" width="22" height="22" class="cell cellHL" stroke="#C53A79" />
+<rect x="799" y="250" width="22" height="22" class="cell cellMasked" />
+<rect x="821" y="250" width="22" height="22" class="cell cellMasked" />
+<rect x="843" y="250" width="22" height="22" class="cell cellMasked" />
+<rect x="755" y="272" width="22" height="22" class="cell" />
+<rect x="777" y="272" width="22" height="22" class="cell" />
+<rect x="799" y="272" width="22" height="22" class="cell cellMasked" />
+<rect x="821" y="272" width="22" height="22" class="cell cellMasked" />
+<rect x="843" y="272" width="22" height="22" class="cell cellMasked" />
+<rect x="755" y="294" width="22" height="22" class="cell cellMasked" />
+<rect x="777" y="294" width="22" height="22" class="cell cellMasked" />
+<rect x="799" y="294" width="22" height="22" class="cell cellMasked" />
+<rect x="821" y="294" width="22" height="22" class="cell cellMasked" />
+<rect x="843" y="294" width="22" height="22" class="cell cellMasked" />
+<rect x="755" y="316" width="22" height="22" class="cell cellMasked" />
+<rect x="777" y="316" width="22" height="22" class="cell cellMasked" />
+<rect x="799" y="316" width="22" height="22" class="cell cellMasked" />
+<rect x="821" y="316" width="22" height="22" class="cell cellMasked" />
+<rect x="843" y="316" width="22" height="22" class="cell cellMasked" />
+<rect x="755" y="228" width="44" height="66" class="validBox" stroke="#C53A79" />
+<path d="M 765 238 L 799 238" class="axisLine" marker-end="url(#axisArrow)" />
+<path d="M 765 238 L 765 272" class="axisLine" marker-end="url(#axisArrow)" />
+<text x="803" y="242" class="axisText">c</text>
+<text x="763" y="276" class="axisText" text-anchor="end">r</text>
+
+<rect x="540" y="310" width="120" height="50" class="opRect" />
+<text x="600" y="340" class="opText" text-anchor="middle">TPARTMIN</text>
+<path d="M 445 314 L 540 332" class="arrow" stroke="#C53A79" marker-end="url(#arrow)" />
+<path d="M 755 314 L 660 332" class="arrow" stroke="#C53A79" marker-end="url(#arrow)" />
+
+<rect x="545" y="430" width="110" height="110" class="tileBorder" />
+<rect x="545" y="430" width="22" height="22" class="cell" />
+<rect x="567" y="430" width="22" height="22" class="cell" />
+<rect x="589" y="430" width="22" height="22" class="cell" />
+<rect x="611" y="430" width="22" height="22" class="cell cellMasked" />
+<rect x="633" y="430" width="22" height="22" class="cell cellMasked" />
+<rect x="545" y="452" width="22" height="22" class="cell" />
+<rect x="567" y="452" width="22" height="22" class="cell" />
+<rect x="589" y="452" width="22" height="22" class="cell cellHL" stroke="#C53A79" />
+<rect x="611" y="452" width="22" height="22" class="cell cellMasked" />
+<rect x="633" y="452" width="22" height="22" class="cell cellMasked" />
+<rect x="545" y="474" width="22" height="22" class="cell" />
+<rect x="567" y="474" width="22" height="22" class="cell" />
+<rect x="589" y="474" width="22" height="22" class="cell" />
+<rect x="611" y="474" width="22" height="22" class="cell cellMasked" />
+<rect x="633" y="474" width="22" height="22" class="cell cellMasked" />
+<rect x="545" y="496" width="22" height="22" class="cell cellMasked" />
+<rect x="567" y="496" width="22" height="22" class="cell cellMasked" />
+<rect x="589" y="496" width="22" height="22" class="cell cellMasked" />
+<rect x="611" y="496" width="22" height="22" class="cell cellMasked" />
+<rect x="633" y="496" width="22" height="22" class="cell cellMasked" />
+<rect x="545" y="518" width="22" height="22" class="cell cellMasked" />
+<rect x="567" y="518" width="22" height="22" class="cell cellMasked" />
+<rect x="589" y="518" width="22" height="22" class="cell cellMasked" />
+<rect x="611" y="518" width="22" height="22" class="cell cellMasked" />
+<rect x="633" y="518" width="22" height="22" class="cell cellMasked" />
+<rect x="545" y="430" width="66" height="66" class="validBox" stroke="#C53A79" />
+<path d="M 555 440 L 589 440" class="axisLine" marker-end="url(#axisArrow)" />
+<path d="M 555 440 L 555 474" class="axisLine" marker-end="url(#axisArrow)" />
+<text x="593" y="444" class="axisText">c</text>
+<text x="553" y="478" class="axisText" text-anchor="end">r</text>
+<path d="M 600 360 L 600 420" class="arrow" stroke="#C53A79" marker-end="url(#arrow)" />
+
+<text x="600" y="570" class="tileLabel" text-anchor="middle">dst</text>
+<text x="600" y="588" class="tileNote" text-anchor="middle">result domain = destination valid region</text>
+<text x="40" y="616" class="caption">Example validity pattern shown: one source matches dst, the other stays within dst. Other unsupported patterns are omitted.</text>
 </svg>

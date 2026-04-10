@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-label="TGET_SCALE_ADDR tile operation diagram">
+<defs>
+  <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#515151"/></marker>
+</defs>
+<style>
+svg { font-family: Arial, Helvetica, sans-serif; }
+.title { font-size: 30px; font-weight: 700; fill: #0f172a; }
+.subtitle { font-size: 14px; fill: #334155; }
+.meta { font-size: 12px; fill: #64748b; }
+.frame { fill: white; }
+.panel { fill: #F5F5F5; stroke: #e2e8f0; stroke-width: 1.5; rx: 14; }
+.box { fill: #ffffff; stroke: #94a3b8; stroke-width: 1.5; rx: 12; }
+.procBox { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.5; rx: 12; }
+.tileBorder { fill: none; stroke: #475569; stroke-width: 1.5; }
+.cell { fill: #ffffff; stroke: #94a3b8; stroke-width: 1; }
+.cellSrc { fill: #e0f2fe; stroke: #0284c7; }
+.cellDst { fill: #dcfce7; stroke: #16a34a; }
+.label { font-size: 14px; font-weight: 700; fill: #0f172a; }
+.small { font-size: 12px; fill: #334155; }
+.cellText { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; fill: #0f172a; }
+.arrow { stroke: #515151; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+</style>
+<rect x="0" y="0" width="1200" height="720" class="frame" />
+<rect x="24" y="24" width="1152" height="672" class="panel" />
+<text x="40" y="46" class="title">TGET_SCALE_ADDR</text>
+<text x="40" y="72" class="subtitle">Bind a scale-tile address from an existing tile address.</text>
+<text x="40" y="92" class="meta">Semantics: Address(dst) = Address(src) >> SHIFT_MX_ADDR</text>
+<line x1="36" y1="104" x2="1164" y2="104" stroke="#e2e8f0" stroke-width="1.5" />
+
+<text x="250" y="170" class="label" text-anchor="middle">src tile</text>
+<rect x="120" y="190" width="260" height="180" class="tileBorder" />
+<rect x="120" y="190" width="65" height="60" class="cell cellSrc" />
+<rect x="185" y="190" width="65" height="60" class="cell cellSrc" />
+<rect x="250" y="190" width="65" height="60" class="cell cellSrc" />
+<rect x="315" y="190" width="65" height="60" class="cell cellSrc" />
+<rect x="120" y="250" width="65" height="60" class="cell cellSrc" />
+<rect x="185" y="250" width="65" height="60" class="cell cellSrc" />
+<rect x="250" y="250" width="65" height="60" class="cell cellSrc" />
+<rect x="315" y="250" width="65" height="60" class="cell cellSrc" />
+<rect x="120" y="310" width="65" height="60" class="cell cellSrc" />
+<rect x="185" y="310" width="65" height="60" class="cell cellSrc" />
+<rect x="250" y="310" width="65" height="60" class="cell cellSrc" />
+<rect x="315" y="310" width="65" height="60" class="cell cellSrc" />
+<text x="140" y="398" class="cellText">addr(src)</text>
+<text x="140" y="420" class="small">existing on-chip tile address</text>
+
+<rect x="470" y="220" width="260" height="120" class="procBox" />
+<text x="490" y="248" class="label">address transform</text>
+<text x="490" y="278" class="cellText">scaled_addr = addr(src) &gt;&gt; SHIFT_MX_ADDR</text>
+<text x="490" y="306" class="small">bind dst to the derived scale address</text>
+
+<path d="M 380 280 C 420 280, 430 280, 470 280" class="arrow" />
+
+<text x="930" y="170" class="label" text-anchor="middle">dst scale tile</text>
+<rect x="840" y="220" width="180" height="120" class="tileBorder" />
+<rect x="840" y="220" width="90" height="60" class="cell cellDst" />
+<rect x="930" y="220" width="90" height="60" class="cell cellDst" />
+<rect x="840" y="280" width="90" height="60" class="cell cellDst" />
+<rect x="930" y="280" width="90" height="60" class="cell cellDst" />
+<text x="860" y="368" class="cellText">addr(dst) = scaled_addr</text>
+<text x="860" y="390" class="small">bind output tile to scale address view</text>
+
+<path d="M 730 280 C 780 280, 790 280, 840 280" class="arrow" />
+
+<rect x="60" y="500" width="1080" height="150" class="procBox" />
+<text x="80" y="530" class="label">Conceptual behavior</text>
+<text x="80" y="560" class="cellText">input : src tile address</text>
+<text x="80" y="586" class="cellText">compute: dst address = src address &gt;&gt; SHIFT_MX_ADDR</text>
+<text x="80" y="612" class="cellText">result : dst becomes a scale-address tile bound to the transformed on-chip address</text>
+<text x="80" y="638" class="small">This is address binding, not element-wise data movement.</text>
+</svg>
+

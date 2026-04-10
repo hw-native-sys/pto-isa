@@ -7,11 +7,11 @@
 
 ## Introduction
 
-Extract a sub-tile from a source tile.
+Extract a smaller sub-tile from a larger source tile.
 
 ## Math Interpretation
 
-Conceptually copies a window starting at `(indexRow, indexCol)` from `src` into `dst`. Exact mapping depends on layouts.
+Conceptually copies a smaller window starting at `(indexRow, indexCol)` from the larger `src` tile into `dst`. Exact mapping depends on tile layouts.
 
 Let `R = dst.GetValidRow()` and `C = dst.GetValidCol()`. For `0 <= i < R` and `0 <= j < C`:
 
@@ -60,18 +60,32 @@ PTO_INST RecordEvent TEXTRACT_FP(DstTileData &dst, SrcTileData &src, FpTileData 
 
 ## Constraints
 
-- **Implementation checks (A2A3)**:
-    - `DstTileData::DType` must equal `SrcTileData::DType` and must be one of: `int8_t`, `half`, `bfloat16_t`, `float`.
-    - Source fractal must satisfy: `(SFractal == ColMajor && isRowMajor)` or `(SFractal == RowMajor && !isRowMajor)`. In GEMV scenarios, the source fractal satisfies `(SrcTileData::Rows == 1 && SrcTileData::isRowMajor)` for Left.
-    - Runtime bounds checks:
+### General constraints / checks
+
+- `DstTileData::DType` must equal `SrcTileData::DType`.
+- Runtime bounds checks:
     - `indexRow + DstTileData::Rows <= SrcTileData::Rows`
     - `indexCol + DstTileData::Cols <= SrcTileData::Cols`
-    - Destination must be `TileType::Left` or `TileType::Right` with a target-supported fractal configuration.
-- **Implementation checks (A5)**:
-    - `DstTileData::DType` must equal `SrcTileData::DType` and must be one of: `int8_t`, `hifloat8_t`, `float8_e5m2_t`, `float8_e4m3_t`, `half`, `bfloat16_t`, `float`, `float4_e2m1x2_t`, `float4_e1m2x2_t`, `float8_e8m0_t`.
-    - Source fractal must satisfy: `(SFractal == ColMajor && isRowMajor)` or `(SFractal == RowMajor && !isRowMajor)` for Left/Right,  In GEMV scenarios, the source fractal satisfies `(SrcTileData::Rows == 1 && SrcTileData::isRowMajor)` for Left. `(SFractal == RowMajor && isRowMajor)` for ScaleLeft, `(SFractal == ColMajor && !isRowMajor)` for ScaleRight.
-    - Destination supports `Mat -> Left/Right/Scale`, `Acc -> Mat` (including relu/scalar-quant/vector-quant forms), and also supports specific `Vec -> Mat` extraction paths.
-    - The vector-quantized form additionally requires an `FpTileData` scaling operand, matching the `TEXTRACT_FP(...)` interface shown above.
+
+### A2A3 implementation checks
+
+- Supported element types: `int8_t`, `half`, `bfloat16_t`, `float`.
+- Source layout must satisfy one of the checked A2A3 extraction layouts:
+    - `(SFractal == ColMajor && isRowMajor)`, or
+    - `(SFractal == RowMajor && !isRowMajor)`.
+- In GEMV scenarios targeting `TileType::Left`, the checked source layout also allows `(SrcTileData::Rows == 1 && SrcTileData::isRowMajor)`.
+- Destination must be `TileType::Left` or `TileType::Right` with a target-supported fractal configuration.
+
+### A5 implementation checks
+
+- Supported element types: `int8_t`, `hifloat8_t`, `float8_e5m2_t`, `float8_e4m3_t`, `half`, `bfloat16_t`, `float`, `float4_e2m1x2_t`, `float4_e1m2x2_t`, `float8_e8m0_t`.
+- Source layout must satisfy one of the checked A5 extraction layouts:
+    - for `Left` / `Right`: `(SFractal == ColMajor && isRowMajor)` or `(SFractal == RowMajor && !isRowMajor)`
+    - for `ScaleLeft`: `(SFractal == RowMajor && isRowMajor)`
+    - for `ScaleRight`: `(SFractal == ColMajor && !isRowMajor)`
+- In GEMV scenarios targeting `Left`, the checked source layout also allows `(SrcTileData::Rows == 1 && SrcTileData::isRowMajor)`.
+- Destination supports `TileType::Mat -> TileType::Left/Right/Scale`, `TileType::Acc -> TileType::Mat` (including relu, scalar-quant, and vector-quantized forms), and specific `TileType::Vec -> TileType::Mat` extraction paths.
+- The vector-quantized form additionally requires an `FpTileData` scaling operand, matching the `TEXTRACT_FP(...)` interface.
 
 ## Examples
 

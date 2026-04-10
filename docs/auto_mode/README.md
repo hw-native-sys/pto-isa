@@ -102,5 +102,4 @@ More detailed documentations of the PTO AUTO programming and compilations are or
 
 * [PTO_AUTO_kernel_developer_rules_and_limitations](Kernel_Developer_Rules_And_Limitations_zh.md)
 * [PTO_AUTO_library_developer_rules_and_limitations](Library_Developer_Rules_And_Limitations.md)
-* [Compiling with AUTO Mode](PTO_AUTO_compilation_guide.md)
 * [PTO AUTO Code Examples](Examples.md)

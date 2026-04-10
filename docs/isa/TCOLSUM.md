@@ -41,20 +41,6 @@ Lowering may introduce internal scratch tiles; the C++ intrinsic requires an exp
 pto.tcolsum ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 pto.tcolsum ins(%src, %tmp {isBinary = false} : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-
-### IR Level 1 (SSA)
-
-```text
-%dst = pto.tcolsum %src : !pto.tile<...> -> !pto.tile<...>
-%dst = pto.tcolsum %src, %tmp {isBinary = false} : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-```
-
-### IR Level 2 (DPS)
-
-```text
-pto.tcolsum ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
-pto.tcolsum ins(%src, %tmp {isBinary = false} : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
-```
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:
@@ -69,16 +55,31 @@ PTO_INST RecordEvent TCOLSUM(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
 
 ## Constraints
 
-Implementation checks (NPU):
+### General constraints / checks
 
-- Tile location: `dst`, `src`, `tmp` must be `TileType::Vec`.
-- Tile layout: all tiles must be ND fractal (`isRowMajor` and `SLayout::NoneBox`).
-- DType consistency:
-    - A2A3: `src.DType` must be one of `half`, `float`, `int16_t`, `int32_t`, and `dst.DType == tmp.DType == src.DType`.
-    - A5: `dst.DType == src.DType` is required by `TColReduceCheck`; the exact supported `src.DType` set is target-defined (see `include/pto/npu/a5/TColReduceOps.hpp`).
-- Runtime valid checks:
-    - A2A3: `src.GetValidCol() == dst.GetValidCol()`; returns early if `src.GetValidRow() == 0` or `src.GetValidCol() == 0`.
-    - A5: `srcValidRow` and `srcValidCol` must be non-zero; `srcValidCol == dstValidCol` is asserted by `TColReduceCheck`.
+- `dst` and `src` must be `TileType::Vec`.
+- `dst` and `src` must use standard ND layout: row-major and non-fractal (`BLayout::RowMajor`, `SLayout::NoneBox`).
+- `dst` and `src` must use the same element type.
+- Runtime checks:
+    - `src.GetValidCol() == dst.GetValidCol()`
+    - `src.GetValidRow() != 0`
+    - `src.GetValidCol() != 0`
+    - `src.GetValidCol() <= tmp` row stride measured in `src` elements
+- `isBinary` selects the checked backend path:
+    - `true`: binary-tree accumulation using `tmp`
+    - `false`: sequential accumulation into `dst`
+
+### A2A3 implementation checks
+
+- Supported element types: `half`, `float`, `int16_t`, `int32_t`.
+- `tmp` must be `TileType::Vec` and use standard ND layout: row-major and non-fractal (`BLayout::RowMajor`, `SLayout::NoneBox`).
+- `tmp` must use the same element type as `src` and `dst`.
+- If `src.GetValidRow() == 0` or `src.GetValidCol() == 0`, the implementation returns early.
+
+### A5 implementation checks
+
+- Shared A5 column-reduce checks allow `half`, `float`, `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `bfloat16_t`.
+- The checked A5 `TCOLSUM` path still takes `tmp` only for the binary accumulation path; no extra compile-time `tmp` type/layout assertions are explicitly enforced in `TCOLSUM_IMPL`.
 
 ## Examples
 
@@ -147,3 +148,4 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.tcolsum ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
+

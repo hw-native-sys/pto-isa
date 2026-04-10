@@ -13,7 +13,7 @@ Get the column index of the maximum element for each row.
 
 Let `R = src.GetValidRow()` and `C = src.GetValidCol()`. For `0 <= i < R`:
 
-$$ \mathrm{dst}_{i,0} = \max_{0 \le j < C} j_{i} $$
+$$ \mathrm{dst}_{i,0} = \underset{0 \le j < C}{\operatorname{argmax}} \; \mathrm{src}_{i,j} $$
 
 ## Assembly Syntax
 
@@ -48,23 +48,27 @@ PTO_INST RecordEvent TROWARGMAX(TileDataOut& dst, TileDataIn& src, TileDataTmp& 
 
 ## Constraints
 
-Implementation checks (NPU):
+### General constraints / checks
 
-- A2A3:
-  - Tile location: `dst` and `src` must be `TileType::Vec`.
-  - Tile layout of `src`: ND fractal (`isRowMajor` and `SLayout::NoneBox`).
-  - Tile layout of `dst`:
-    - **Compact Mode**: DN layout Tile of 1D, e.g., `Tile<TileType::Vec, T, ROWS, 1, BLayout::ColMajor, ValidRows, 1>`, ROWS must be 32b aligned.
-    - **Traditional Mode**: ND layout Tile of 2D, e.g., `Tile<TileType::Vec, T, ROWS, COLS, BLayout::RowMajor, ValidRows, 1>`.
-  - Source data types: `half` or `float`.
-  - Destination data types: `uint32_t` or `int32_t`.
-  - Runtime valid checks:
-    - `srcValidCol != 0` and `srcValidRow != 0`.
-- A5:
-  - Source data types: `half` or `float`.
-  - Destination data types: `uint32_t` or `int32_t`.
-  - No explicit runtime assertions on `validRow/validCol` in the implementation; the loops use `src.GetValidRow()` and `src.GetValidCol()`.
-  - `tmp` temporary tile is not used, only for compatibility use.
+- `dst` and `src` must be `TileType::Vec`.
+- Supported source element types: `half`, `float`.
+- Supported destination element types: `uint32_t`, `int32_t`.
+- Runtime checks follow the shared row-reduce check path:
+    - `src.GetValidRow() != 0`
+    - `src.GetValidCol() != 0`
+    - `src.GetValidRow() == dst.GetValidRow()`
+
+### A2A3 implementation checks
+
+- `src` must use standard ND layout: row-major and non-fractal (`BLayout::RowMajor`, `SLayout::NoneBox`).
+- `dst` is checked through the shared row-reduce-index path and may use either of these non-fractal layouts:
+    - DN layout with one column (`BLayout::ColMajor`, `Cols == 1`), or
+    - ND layout whose valid column count is 1.
+
+### A5 implementation checks
+
+- `dst` and `src` must satisfy the shared row-reduce-index check path used by `TRowArgMax`.
+- In the checked A5 implementation path, `tmp` is accepted by the interface but not used by `TROWARGMAX_IMPL`.
 
 ### About temporary tile `tmp` for A3
 

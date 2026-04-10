@@ -10,9 +10,9 @@
 
 ## 数学语义
 
-Let `R = src.GetValidRow()` and `C = src.GetValidCol()`. For `0 <= i < R`:
+设 `R = src.GetValidRow()`，`C = src.GetValidCol()`。对 `0 <= i < R`：
 
-$$ \mathrm{dst}_{i,0} = \max_{0 \le j < C} j_{i} $$
+$$ \mathrm{dst}_{i,0} = \underset{0 \le j < C}{\operatorname{argmax}} \; \mathrm{src}_{i,j} $$
 
 ## 汇编语法
 
@@ -48,23 +48,27 @@ PTO_INST RecordEvent TROWARGMAX(TileDataOut& dst, TileDataIn& src, TileDataTmp& 
 
 ## 约束
 
-实现检查 (NPU):
+### 通用约束或检查
 
-- A2A3:
-  - Tile location: `dst` and `src` must be `TileType::Vec`.
-  - Tile 布局 of `src`: ND fractal (`isRowMajor` and `SLayout::NoneBox`).
-  - Tile 布局 of `dst`:
-      - **紧凑模式**：DN 布局的一维 Tile，例如 `Tile<TileType::Vec, T, ROWS, 1, BLayout::ColMajor, ValidRows, 1>`，此时ROWS要做到32b对齐。
-      - **传统模式**：ND 布局的二维 Tile，例如 `Tile<TileType::Vec, T, ROWS, COLS, BLayout::RowMajor, ValidRows, 1>`。
-  - 源数据类型: `half` or `float`.
-  - 目标数据类型：`uint32_t` or `int32_t`.
-  - 运行期有效区域检查:
-    - `srcValidCol != 0` and `srcValidRow != 0`.
-- A5:
-  - 源数据类型: `half` or `float`.
-  - 目标数据类型：`uint32_t` or `int32_t`.
-  - No explicit runtime assertions on `validRow/validCol` in the implementation; the loops use `src.GetValidRow()` and `src.GetValidCol()`.
-  - `tmp`临时Tile不使用，仅做兼容。
+- `dst` 和 `src` 必须为 `TileType::Vec`。
+- 支持的源元素类型：`half`、`float`。
+- 支持的目标元素类型：`uint32_t`、`int32_t`。
+- 运行时检查遵循共享的行归约检查路径：
+    - `src.GetValidRow() != 0`
+    - `src.GetValidCol() != 0`
+    - `src.GetValidRow() == dst.GetValidRow()`
+
+### A2A3 实现检查
+
+- `src` 必须使用标准 ND 布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
+- `dst` 通过共享的行归约索引检查路径约束，可使用以下任一非分形布局：
+    - 单列 DN 布局（`BLayout::ColMajor`、`Cols == 1`），或
+    - 有效列数为 1 的 ND 布局。
+
+### A5 实现检查
+
+- `dst` 和 `src` 必须满足 `TRowArgMax` 使用的共享行归约索引检查路径。
+- 在已检查到的 A5 实现路径中，接口仍接收 `tmp`，但 `TROWARGMAX_IMPL` 实际并不使用它。
 
 ### A3 `tmp`临时Tile相关说明
 

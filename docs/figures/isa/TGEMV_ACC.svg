@@ -1,7 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-label="TGEMV_ACC tile operation diagram">
 <defs>
   <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#1B7F91"/></marker>
-  <marker id="axisArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#64748b"/></marker>
 </defs>
 <style>
 svg { font-family: Arial, Helvetica, sans-serif; }
@@ -13,88 +12,56 @@ svg { font-family: Arial, Helvetica, sans-serif; }
 .tileLabel { font-size: 14px; font-weight: 700; fill: #0f172a; }
 .tileBorder { fill: none; stroke: #475569; stroke-width: 1.5; }
 .cell { fill: #ffffff; stroke: #94a3b8; stroke-width: 1; }
-.cellMasked { fill: #e2e8f0; }
-.cellHL { stroke-width: 2; }
-.arrow { stroke-width: 1.5; fill: none; stroke-linejoin: round; stroke-linecap: round; }
-.axisLine { stroke: #64748b; stroke-width: 1.5; fill: none; }
-.axisText { font-size: 10px; fill: #64748b; font-weight: 700; }
-.opCircle { fill: #ffffff; stroke-width: 2; }
-.opRect { fill: #ffffff; stroke-width: 2; }
-.opText { font-size: 10px; font-weight: 800; fill: #0f172a; }
+.cellA { fill: #ecfeff; }
+.cellB { fill: #eff6ff; }
+.cellCin { fill: #fff7ed; }
+.cellCout { fill: #f5f3ff; }
+.cellText { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; fill: #0f172a; }
+.arrow { stroke-width: 1.5; fill: none; stroke-linejoin: round; stroke-linecap: round; marker-end: url(#arrow); }
 .procBox { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.5; rx: 12; }
 .procTitle { font-size: 14px; font-weight: 700; fill: #0f172a; }
-.procText { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; fill: #0f172a; }
-.validBox { fill: none; stroke-width: 2; stroke-dasharray: 6 4; }
-.accPanel { fill: #F5F3FF; stroke: #c4b5fd; stroke-width: 1.5; rx: 10; }
-.accText { font-size: 12px; fill: #5b21b6; font-weight: 700; }
+.procText { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; fill: #0f172a; }
+.opBox { fill: #ffffff; stroke: #1B7F91; stroke-width: 2; rx: 12; }
+.opText { font-size: 13px; font-weight: 800; fill: #0f172a; }
 </style>
 <rect x="0" y="0" width="1200" height="720" class="frame" />
 <rect x="24" y="24" width="1152" height="672" class="panel" />
 <text x="40" y="46" class="title">TGEMV_ACC</text>
-<text x="40" y="72" class="subtitle">GEMV with explicit accumulator input/output tiles.</text>
-<text x="40" y="92" class="meta">Template: matmul</text>
-<text x="1160" y="92" class="meta" text-anchor="end">Legend: outline=example; dashed=valid rows/cols (Rv,Cv); shaded=masked; r down / c right; ortho arrows=dataflow</text>
+<text x="40" y="72" class="subtitle">GEMV with explicit accumulator input and output tiles.</text>
+<text x="40" y="92" class="meta">C_out[0,j] = C_in[0,j] + Σ_k A[0,k] × B[k,j]</text>
 <line x1="36" y1="104" x2="1164" y2="104" stroke="#e2e8f0" stroke-width="1.5" />
 
-<text x="485" y="168" class="tileLabel" text-anchor="middle">A (vec)</text>
-<rect x="430" y="178" width="110" height="110" class="tileBorder" />
-<rect x="430" y="178" width="22" height="22" class="cell" /><rect x="452" y="178" width="22" height="22" class="cell" /><rect x="474" y="178" width="22" height="22" class="cell" /><rect x="496" y="178" width="22" height="22" class="cell" /><rect x="518" y="178" width="22" height="22" class="cell cellMasked" />
-<rect x="430" y="200" width="22" height="22" class="cell" /><rect x="452" y="200" width="22" height="22" class="cell cellHL" stroke="#1B7F91" /><rect x="474" y="200" width="22" height="22" class="cell" /><rect x="496" y="200" width="22" height="22" class="cell" /><rect x="518" y="200" width="22" height="22" class="cell cellMasked" />
-<rect x="430" y="222" width="22" height="22" class="cell" /><rect x="452" y="222" width="22" height="22" class="cell" /><rect x="474" y="222" width="22" height="22" class="cell" /><rect x="496" y="222" width="22" height="22" class="cell" /><rect x="518" y="222" width="22" height="22" class="cell cellMasked" />
-<rect x="430" y="244" width="22" height="22" class="cell" /><rect x="452" y="244" width="22" height="22" class="cell" /><rect x="474" y="244" width="22" height="22" class="cell" /><rect x="496" y="244" width="22" height="22" class="cell" /><rect x="518" y="244" width="22" height="22" class="cell cellMasked" />
-<rect x="430" y="266" width="22" height="22" class="cell cellMasked" /><rect x="452" y="266" width="22" height="22" class="cell cellMasked" /><rect x="474" y="266" width="22" height="22" class="cell cellMasked" /><rect x="496" y="266" width="22" height="22" class="cell cellMasked" /><rect x="518" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="430" y="178" width="88" height="88" class="validBox" stroke="#1B7F91" />
-<text x="434" y="262" class="axisText">Rv</text><text x="514" y="190" class="axisText" text-anchor="end">Cv</text>
-<path d="M 440 188 L 474 188" class="axisLine" marker-end="url(#axisArrow)" /><path d="M 440 188 L 440 222" class="axisLine" marker-end="url(#axisArrow)" />
-<text x="478" y="192" class="axisText">c</text><text x="438" y="226" class="axisText" text-anchor="end">r</text>
+<text x="220" y="160" class="tileLabel" text-anchor="middle">A / left tile (1 × K)</text>
+<rect x="70" y="185" width="300" height="80" class="tileBorder" />
+<rect x="70" y="185" width="60" height="80" class="cell cellA" /><rect x="130" y="185" width="60" height="80" class="cell cellA" /><rect x="190" y="185" width="60" height="80" class="cell cellA" /><rect x="250" y="185" width="60" height="80" class="cell cellA" /><rect x="310" y="185" width="60" height="80" class="cell cellA" />
+<text x="100" y="230" class="cellText" text-anchor="middle">A₀₀</text><text x="160" y="230" class="cellText" text-anchor="middle">A₀₁</text><text x="220" y="230" class="cellText" text-anchor="middle">…</text><text x="280" y="230" class="cellText" text-anchor="middle">A₀,k</text><text x="340" y="230" class="cellText" text-anchor="middle">A₀,K-1</text>
 
-<text x="715" y="168" class="tileLabel" text-anchor="middle">B (mat/vec domain)</text>
-<rect x="660" y="178" width="110" height="110" class="tileBorder" />
-<rect x="660" y="178" width="22" height="22" class="cell" /><rect x="682" y="178" width="22" height="22" class="cell" /><rect x="704" y="178" width="22" height="22" class="cell" /><rect x="726" y="178" width="22" height="22" class="cell" /><rect x="748" y="178" width="22" height="22" class="cell cellMasked" />
-<rect x="660" y="200" width="22" height="22" class="cell" /><rect x="682" y="200" width="22" height="22" class="cell" /><rect x="704" y="200" width="22" height="22" class="cell cellHL" stroke="#1B7F91" /><rect x="726" y="200" width="22" height="22" class="cell" /><rect x="748" y="200" width="22" height="22" class="cell cellMasked" />
-<rect x="660" y="222" width="22" height="22" class="cell" /><rect x="682" y="222" width="22" height="22" class="cell" /><rect x="704" y="222" width="22" height="22" class="cell" /><rect x="726" y="222" width="22" height="22" class="cell" /><rect x="748" y="222" width="22" height="22" class="cell cellMasked" />
-<rect x="660" y="244" width="22" height="22" class="cell" /><rect x="682" y="244" width="22" height="22" class="cell" /><rect x="704" y="244" width="22" height="22" class="cell" /><rect x="726" y="244" width="22" height="22" class="cell" /><rect x="748" y="244" width="22" height="22" class="cell cellMasked" />
-<rect x="660" y="266" width="22" height="22" class="cell cellMasked" /><rect x="682" y="266" width="22" height="22" class="cell cellMasked" /><rect x="704" y="266" width="22" height="22" class="cell cellMasked" /><rect x="726" y="266" width="22" height="22" class="cell cellMasked" /><rect x="748" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="660" y="178" width="88" height="88" class="validBox" stroke="#1B7F91" />
-<text x="664" y="262" class="axisText">Rv</text><text x="744" y="190" class="axisText" text-anchor="end">Cv</text>
-<path d="M 670 188 L 704 188" class="axisLine" marker-end="url(#axisArrow)" /><path d="M 670 188 L 670 222" class="axisLine" marker-end="url(#axisArrow)" />
-<text x="708" y="192" class="axisText">c</text><text x="668" y="226" class="axisText" text-anchor="end">r</text>
+<text x="900" y="160" class="tileLabel" text-anchor="middle">B / right tile (K × N)</text>
+<rect x="700" y="175" width="360" height="200" class="tileBorder" />
+<rect x="700" y="175" width="72" height="50" class="cell cellB" /><rect x="772" y="175" width="72" height="50" class="cell cellB" /><rect x="844" y="175" width="72" height="50" class="cell cellB" /><rect x="916" y="175" width="72" height="50" class="cell cellB" /><rect x="988" y="175" width="72" height="50" class="cell cellB" />
+<rect x="700" y="225" width="72" height="50" class="cell cellB" /><rect x="772" y="225" width="72" height="50" class="cell cellB" /><rect x="844" y="225" width="72" height="50" class="cell cellB" /><rect x="916" y="225" width="72" height="50" class="cell cellB" /><rect x="988" y="225" width="72" height="50" class="cell cellB" />
+<rect x="700" y="275" width="72" height="50" class="cell cellB" /><rect x="772" y="275" width="72" height="50" class="cell cellB" /><rect x="844" y="275" width="72" height="50" class="cell cellB" /><rect x="916" y="275" width="72" height="50" class="cell cellB" /><rect x="988" y="275" width="72" height="50" class="cell cellB" />
+<rect x="700" y="325" width="72" height="50" class="cell cellB" /><rect x="772" y="325" width="72" height="50" class="cell cellB" /><rect x="844" y="325" width="72" height="50" class="cell cellB" /><rect x="916" y="325" width="72" height="50" class="cell cellB" /><rect x="988" y="325" width="72" height="50" class="cell cellB" />
+<text x="736" y="205" class="cellText" text-anchor="middle">B₀₀</text><text x="808" y="205" class="cellText" text-anchor="middle">B₀₁</text><text x="880" y="205" class="cellText" text-anchor="middle">…</text><text x="952" y="205" class="cellText" text-anchor="middle">B₀,j</text>
+<text x="952" y="255" class="cellText" text-anchor="middle">B₁,j</text><text x="880" y="305" class="cellText" text-anchor="middle">⋮</text><text x="952" y="355" class="cellText" text-anchor="middle">Bₖ,j</text>
 
-<text x="260" y="350" class="tileLabel" text-anchor="middle">C0 / acc in</text>
-<rect x="194" y="360" width="132" height="66" class="accPanel" />
-<rect x="206" y="372" width="22" height="22" class="cell" /><rect x="228" y="372" width="22" height="22" class="cell" /><rect x="250" y="372" width="22" height="22" class="cell cellHL" stroke="#7c3aed" /><rect x="272" y="372" width="22" height="22" class="cell" /><rect x="294" y="372" width="22" height="22" class="cell cellMasked" />
-<text x="260" y="418" class="accText" text-anchor="middle">C0[0,j]</text>
+<text x="210" y="365" class="tileLabel" text-anchor="middle">C_in / acc tile (1 × N)</text>
+<rect x="70" y="390" width="280" height="80" class="tileBorder" />
+<rect x="70" y="390" width="56" height="80" class="cell cellCin" /><rect x="126" y="390" width="56" height="80" class="cell cellCin" /><rect x="182" y="390" width="56" height="80" class="cell cellCin" /><rect x="238" y="390" width="56" height="80" class="cell cellCin" /><rect x="294" y="390" width="56" height="80" class="cell cellCin" />
+<text x="98" y="435" class="cellText" text-anchor="middle">Cin₀</text><text x="154" y="435" class="cellText" text-anchor="middle">Cin₁</text><text x="210" y="435" class="cellText" text-anchor="middle">…</text><text x="266" y="435" class="cellText" text-anchor="middle">Cinⱼ</text><text x="322" y="435" class="cellText" text-anchor="middle">Cinₙ</text>
 
-<text x="600" y="350" class="tileLabel" text-anchor="middle">C1 / dst</text>
-<rect x="545" y="360" width="110" height="110" class="tileBorder" />
-<rect x="545" y="360" width="22" height="22" class="cell" /><rect x="567" y="360" width="22" height="22" class="cell" /><rect x="589" y="360" width="22" height="22" class="cell" /><rect x="611" y="360" width="22" height="22" class="cell" /><rect x="633" y="360" width="22" height="22" class="cell cellMasked" />
-<rect x="545" y="382" width="22" height="22" class="cell" /><rect x="567" y="382" width="22" height="22" class="cell" /><rect x="589" y="382" width="22" height="22" class="cell cellHL" stroke="#1B7F91" /><rect x="611" y="382" width="22" height="22" class="cell" /><rect x="633" y="382" width="22" height="22" class="cell cellMasked" />
-<rect x="545" y="404" width="22" height="22" class="cell" /><rect x="567" y="404" width="22" height="22" class="cell" /><rect x="589" y="404" width="22" height="22" class="cell" /><rect x="611" y="404" width="22" height="22" class="cell" /><rect x="633" y="404" width="22" height="22" class="cell cellMasked" />
-<rect x="545" y="426" width="22" height="22" class="cell" /><rect x="567" y="426" width="22" height="22" class="cell" /><rect x="589" y="426" width="22" height="22" class="cell" /><rect x="611" y="426" width="22" height="22" class="cell" /><rect x="633" y="426" width="22" height="22" class="cell cellMasked" />
-<rect x="545" y="448" width="22" height="22" class="cell cellMasked" /><rect x="567" y="448" width="22" height="22" class="cell cellMasked" /><rect x="589" y="448" width="22" height="22" class="cell cellMasked" /><rect x="611" y="448" width="22" height="22" class="cell cellMasked" /><rect x="633" y="448" width="22" height="22" class="cell cellMasked" />
-<rect x="545" y="360" width="88" height="88" class="validBox" stroke="#1B7F91" />
-<text x="549" y="444" class="axisText">Rv</text><text x="629" y="372" class="axisText" text-anchor="end">Cv</text>
-<path d="M 555 370 L 589 370" class="axisLine" marker-end="url(#axisArrow)" /><path d="M 555 370 L 555 404" class="axisLine" marker-end="url(#axisArrow)" />
-<text x="593" y="374" class="axisText">c</text><text x="553" y="408" class="axisText" text-anchor="end">r</text>
+<rect x="470" y="300" width="140" height="54" class="opBox" />
+<text x="540" y="333" class="opText" text-anchor="middle">TGEMV_ACC</text>
+<path d="M 370 225 C 420 225, 420 315, 470 315" class="arrow" stroke="#1B7F91" />
+<path d="M 700 280 C 650 280, 650 340, 610 340" class="arrow" stroke="#1B7F91" />
+<path d="M 350 430 C 420 430, 420 345, 470 345" class="arrow" stroke="#ea580c" />
 
-<text x="600" y="140" class="subtitle" text-anchor="middle" fill="#1B7F91">C1[0,j] = C0[0,j] + sum_k A[0,k] * B[k,j]</text>
-<circle cx="600" cy="324" r="22" class="opCircle" stroke="#1B7F91" />
-<rect x="583" y="307" width="34" height="34" rx="6" class="opRect" stroke="#1B7F91" />
-<text x="600" y="322.5" class="opText" font-size="8px" text-anchor="middle">TGEMV_</text>
-<text x="600" y="331.5" class="opText" font-size="8px" text-anchor="middle">ACC</text>
-<path d="M 463 300 L 463 324 L 578 324" class="arrow" stroke="#1B7F91" marker-end="url(#arrow)" />
-<path d="M 715 300 L 715 324 L 622 324" class="arrow" stroke="#1B7F91" marker-end="url(#arrow)" />
-<path d="M 326 393 L 388 393 L 388 324 L 578 324" class="arrow" stroke="#7c3aed" marker-end="url(#arrow)" />
-<path d="M 600 346 L 600 361" class="arrow" stroke="#1B7F91" marker-end="url(#arrow)" />
+<text x="540" y="520" class="tileLabel" text-anchor="middle">C_out / acc tile (1 × N)</text>
+<rect x="400" y="425" width="280" height="80" class="tileBorder" />
+<rect x="400" y="425" width="56" height="80" class="cell cellCout" /><rect x="456" y="425" width="56" height="80" class="cell cellCout" /><rect x="512" y="425" width="56" height="80" class="cell cellCout" /><rect x="568" y="425" width="56" height="80" class="cell cellCout" /><rect x="624" y="425" width="56" height="80" class="cell cellCout" />
+<text x="428" y="470" class="cellText" text-anchor="middle">Cout₀</text><text x="484" y="470" class="cellText" text-anchor="middle">Cout₁</text><text x="540" y="470" class="cellText" text-anchor="middle">…</text><text x="596" y="470" class="cellText" text-anchor="middle">Coutⱼ</text><text x="652" y="470" class="cellText" text-anchor="middle">Coutₙ</text>
+<path d="M 540 354 L 540 425" class="arrow" stroke="#1B7F91" />
 
-<rect x="40" y="502" width="1120" height="194" class="procBox" />
-<text x="56" y="528" class="procTitle">Procedure (conceptual)</text>
-<text x="56" y="554" class="procText" xml:space="preserve">
-  <tspan x="56" dy="0">for j in output valid region:</tspan>
-  <tspan x="56" dy="16">  acc = C0[0,j]</tspan>
-  <tspan x="56" dy="16">  for k in 0..K-1:</tspan>
-  <tspan x="56" dy="16">    acc += A[0,k] * B[k,j]</tspan>
-  <tspan x="56" dy="16">  C1[0,j] = acc</tspan>
-</text>
-<text x="56" y="680" class="meta">Note: semantics apply to the valid region unless stated otherwise.</text>
+<rect x="50" y="580" width="1100" height="42" class="procBox" />
+<text x="68" y="606" class="procText">for each output column j: C_out[0,j] = C_in[0,j] + Σ_k A[0,k] × B[k,j]</text>
 </svg>

@@ -37,6 +37,7 @@ Lowering may introduce internal scratch tiles; the C++ intrinsic requires an exp
 ```text
 pto.trowmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
+
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:
@@ -48,23 +49,30 @@ PTO_INST RecordEvent TROWMIN(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
 
 ## Constraints
 
-Implementation checks (NPU):
+### General constraints / checks
 
-- A2A3:
-    - Tile location: `dst` and `src` must be `TileType::Vec`.
-    - Tile layout of `src`: ND fractal (`isRowMajor` and `SLayout::NoneBox`).
-    - Tile layout of `dst`:
-        - **Compact Mode**: DN layout Tile of 1D, e.g., `Tile<TileType::Vec, T, ROWS, 1, BLayout::ColMajor, ValidRows, 1>`, ROWS must be 32b aligned.
-        - **Traditional Mode**: ND layout Tile of 2D, e.g., `Tile<TileType::Vec, T, ROWS, COLS, BLayout::RowMajor, ValidRows, 1>`.
-    - Data types: `half` or `float`.
-    - DType consistency: `dst.DType == src.DType`.
-    - Runtime valid checks:
-    - `srcValidCol != 0` and `srcValidRow != 0`.
-    - `srcValidRow == dstValidRow` (the output valid row must match the input valid row).
-- A5:
-    - Data types: `half` or `float`.
-    - DType consistency: `dst.DType == src.DType`.
-    - No explicit runtime assertions on `validRow/validCol` in the implementation; the loops use `src.GetValidRow()` and `src.GetValidCol()`.
+- `dst` and `src` must both be `TileType::Vec`.
+- `src` must use standard ND layout: row-major and non-fractal (`BLayout::RowMajor`, `SLayout::NoneBox`).
+- `dst` must use one of the following non-fractal layouts:
+    - ND layout (`BLayout::RowMajor`, `SLayout::NoneBox`), or
+    - DN layout with exactly one column (`BLayout::ColMajor`, `SLayout::NoneBox`, `Cols == 1`).
+- `dst` and `src` must use the same element type.
+- Runtime valid-region checks:
+    - `src.GetValidRow() != 0`
+    - `src.GetValidCol() != 0`
+    - `src.GetValidRow() == dst.GetValidRow()`
+- The intrinsic signature requires an explicit `tmp` operand.
+
+### A2A3 implementation checks
+
+- Supported element types: `half`, `float`, `int32_t`, `int16_t`.
+- The implementation accepts both ND output and DN output with `Cols == 1`.
+- Runtime checks follow the shared row-reduce check path:
+    - `src.GetValidRow() != 0`
+    - `src.GetValidCol() != 0`
+    - `src.GetValidRow() == dst.GetValidRow()`
+- The current implementation path passes `tmp` into the backend call, but this document does not add extra `tmp` shape/layout constraints beyond what is explicitly enforced by the checked implementation.
+
 
 ## Examples
 
@@ -133,3 +141,4 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.trowmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
+

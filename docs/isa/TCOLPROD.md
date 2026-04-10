@@ -37,17 +37,6 @@ Synchronous form:
 pto.tcolprod ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-### IR Level 1 (SSA)
-
-```text
-%dst = pto.tcolprod %src : !pto.tile<...> -> !pto.tile<...>
-```
-
-### IR Level 2 (DPS)
-
-```text
-pto.tcolprod ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
-```
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:
@@ -59,17 +48,22 @@ PTO_INST RecordEvent TCOLPROD(TileDataOut &dst, TileDataIn &src, WaitEvents &...
 
 ## Constraints
 
-Implementation checks (NPU):
+### General constraints / checks
 
-- Tile location: `dst` and `src` must be `TileType::Vec`.
-- Tile layout: both tiles must be ND fractal (`isRowMajor` and `SLayout::NoneBox`).
-- DType consistency: `dst.DType == src.DType`.
-- Supported `src.DType`:
-    - A2A3: `half`, `float`, `int16_t`, `int32_t`.
-    - A5: `half`, `float`, `bfloat16`, `int16_t`, `int32_t`, `uint16_t`, `uint32_t`.
-- Runtime valid checks:
-    - `src.GetValidCol() == dst.GetValidCol()`.
-    - If `src.GetValidRow() == 0` or `src.GetValidCol() == 0`, the implementation returns early.
+- `dst` and `src` must be `TileType::Vec`.
+- `dst` and `src` must use standard ND layout: row-major and non-fractal (`BLayout::RowMajor`, `SLayout::NoneBox`).
+- `dst` and `src` must use the same element type.
+- Runtime checks:
+    - `src.GetValidCol() == dst.GetValidCol()`
+- If `src.GetValidRow() == 0` or `src.GetValidCol() == 0`, the implementation returns early.
+
+### A2A3 implementation checks
+
+- Supported element types: `half`, `float`, `int16_t`, `int32_t`.
+
+### A5 implementation checks
+
+- Supported element types: `half`, `float`, `bfloat16_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`.
 
 ## Examples
 
@@ -133,3 +127,4 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.tcolprod ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
+

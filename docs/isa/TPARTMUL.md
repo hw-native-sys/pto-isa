@@ -7,7 +7,7 @@
 
 ## Introduction
 
-Partial elementwise multiply with implementation-defined handling of mismatched valid regions.
+Performs elementwise multiplication over the destination valid region. When both `src0` and `src1` are valid at an element, the result is their product; when only one input is valid there, the result copies that input value. Handling of other mismatched-validity cases is implementation-defined.
 
 ## Math Interpretation
 
@@ -15,10 +15,10 @@ For each element `(i, j)` in the destination valid region:
 
 $$
 \mathrm{dst}_{i,j} =
-egin{cases}
-\mathrm{src0}_{i,j} \cdot \mathrm{src1}_{i,j} & 	ext{if both inputs are defined at } (i,j) \
-\mathrm{src0}_{i,j} & 	ext{if only src0 is defined at } (i,j) \
-\mathrm{src1}_{i,j} & 	ext{if only src1 is defined at } (i,j)
+\begin{cases}
+\mathrm{src0}_{i,j} \cdot \mathrm{src1}_{i,j} & \text{if both inputs are defined at } (i,j) \\
+\mathrm{src0}_{i,j} & \text{if only src0 is defined at } (i,j) \\
+\mathrm{src1}_{i,j} & \text{if only src1 is defined at } (i,j)
 \end{cases}
 $$
 
@@ -66,9 +66,25 @@ PTO_INST RecordEvent TPARTMUL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1
 
 ## Constraints
 
-- Element type/layout legality follows backend checks and is analogous to `TPARTADD` / `TPARTMAX` / `TPARTMIN`.
-- Destination valid region defines the result domain.
-- Partial-validity handling is implementation-defined for unsupported shape combinations.
+### General constraints / checks
+
+- `dst`, `src0`, and `src1` must use the same element type.
+- The destination valid region defines the result domain.
+- For each element in the destination valid region:
+    - if both inputs are valid, the instruction applies its elementwise operator;
+    - if only one input is valid, the result copies that input value.
+- If `dst` has a zero valid region, the instruction returns early.
+- Supported partial-validity patterns require at least one source tile to have a valid region exactly equal to `dst`, while the other source tile's valid region must not exceed `dst` in either dimension.
+- Handling of any validity pattern not explicitly listed above is implementation-defined.
+
+### A2A3 implementation checks
+
+- Supported element types: `int32_t`, `int16_t`, `half`, `float`.
+- `dst`, `src0`, and `src1` must all be row-major (`isRowMajor`).
+
+### A5 implementation checks
+
+- Supported element types: `uint8_t`, `int8_t`, `uint16_t`, `int16_t`, `uint32_t`, `int32_t`, `half`, `float`, `bfloat16_t`.
 
 ## Examples
 

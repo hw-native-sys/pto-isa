@@ -48,32 +48,29 @@ PTO_INST RecordEvent TCOLARGMAX(TileDataOut& dst, TileDataIn& src, TileDataTmp& 
 
 ## Constraints
 
-Implementation checks (NPU):
+### General constraints / checks
 
-- A2A3:
-  - Tile location: `dst` and `src` must be `TileType::Vec`.
-  - Tile layout of `src`: ND fractal (`isRowMajor` and `SLayout::NoneBox`).
-  - Tile layout of `dst`: ND fractal (`isRowMajor` and `SLayout::NoneBox`).
-  - Source data types: `half`, `float`, `uint16_t`, `uint32_t`.
-  - Destination data types: `uint32_t` or `int32_t`.
-  - `tmp` data type must be consistent with `src` data type.
-  - Compile-time check: `src.ValidCol` must be `1` or `-1` (dynamic).
-  - Runtime valid checks:
-    - `srcValidCol != 0` and `srcValidRow != 0`.
-    - `dstValidRow == 1`.
-    - `srcValidCol == dstValidCol`.
-- A5:
-  - Tile location: `dst` and `src` must be `TileType::Vec`.
-  - Tile layout of `src`: ND fractal (`isRowMajor` and `SLayout::NoneBox`).
-  - Tile layout of `dst`: ND fractal (`isRowMajor` and `SLayout::NoneBox`).
-  - Source data types: `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `half`, `float`.
-  - Destination data types: `uint32_t` or `int32_t`.
-  - Compile-time check: `src.ValidCol` must be `1` or `-1` (dynamic).
-  - Runtime valid checks:
-    - `srcValidCol != 0` and `srcValidRow != 0`.
-    - `dstValidRow == 1`.
-    - `srcValidCol == dstValidCol`.
-  - `tmp` temporary tile is not used, only for compatibility.
+- `dst` and `src` must be `TileType::Vec`.
+- `src` may use ND or DN non-fractal layout because the checked helper only requires `SLayout::NoneBox`.
+- `dst` must use standard ND layout: row-major and non-fractal (`BLayout::RowMajor`, `SLayout::NoneBox`).
+- Supported destination element types: `uint32_t`, `int32_t`.
+- Compile-time check: `TileDataIn::ValidCol == 1 || TileDataIn::ValidCol == -1`.
+- Runtime checks:
+    - `src.GetValidRow() != 0`
+    - `src.GetValidCol() != 0`
+    - `dst.GetValidRow() == 1`
+    - `src.GetValidCol() == dst.GetValidCol()`
+
+### A2A3 implementation checks
+
+- Supported source element types: `half`, `float`, `uint16_t`, `uint32_t`.
+- `tmp` must use the same element type as `src`.
+- In the checked A2A3 implementation path, `tmp` is used as scratch storage for index tracking and current comparison values.
+
+### A5 implementation checks
+
+- Supported source element sizes are 8-bit, 16-bit, or 32-bit; the checked implementation therefore covers `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `half`, `float`.
+- In the checked A5 implementation path, `tmp` is accepted by the interface but not used by `TCOLARGMAX_IMPL`.
 
 ### About temporary tile `tmp` for A2A3
 

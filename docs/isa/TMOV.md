@@ -13,7 +13,7 @@ Move/copy between tiles, optionally applying implementation-defined conversion m
 
 - Vec -> Vec moves
 - Mat -> Left/Right/Bias/Scaling/Scale(Microscaling) moves (target-dependent)
-- Acc -> Vec moves (target-dependent)
+- Acc -> Mat/Vec moves (target-dependent)
 
 ## Math Interpretation
 
@@ -79,24 +79,71 @@ PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, uint64_t preQuantS
 
 ## Constraints
 
-- **Implementation checks (A2A3)**:
-    - Shape rules:
-        - Shapes must match: `SrcTileData::Rows == DstTileData::Rows` and `SrcTileData::Cols == DstTileData::Cols`.
-    - Supported location pairs (compile-time checked):
-        - `Mat -> Left/Right/Bias/Scaling`
-        - `Vec -> Vec`
-        - `Acc -> Mat`
-    - Additional checks by path:
-        - `Acc -> Mat`: additional fractal and dtype constraints are enforced (for example, `Acc` uses an NZ-like fractal, `Mat` uses a 512B fractal, and only specific dtype conversions are allowed).
-- **Implementation checks (A5)**:
-    - Shape rules:
-        - For `Mat -> Left/Right/Bias/Scaling/Scale`, shapes must match.
-        - For `Vec -> Vec` and `Vec -> Mat`, the effective copy region may be determined by the valid rows/cols of source and destination.
-    - Supported location pairs include (target-dependent):
-        - `Mat -> Left/Right/Bias/Scaling/Scale`
-        - `Vec -> Vec/Mat`
-        - `Acc -> Vec/Mat`
-    - `Acc -> Vec` supports additional `AccToVecMode` forms; some forms also take `FpTileData` or `preQuantScalar`.
+### General constraints / checks
+
+- `TMOV` has these overload families:
+    - plain move: `TMOV(dst, src)`
+    - relu form: `TMOV<..., reluMode>(dst, src)`
+    - accumulator-to-vector form: `TMOV<..., mode, reluMode>(dst, src)`
+    - vector-quant form: `TMOV<..., FpTileData, mode, reluMode>(dst, src, fp)`
+    - scalar-quant form: `TMOV<..., reluMode>(dst, src, preQuantScalar)` and `TMOV<..., mode, reluMode>(dst, src, preQuantScalar)`
+- `reluMode` is `ReluPreMode::{NoRelu, NormalRelu}`.
+- `mode` is `AccToVecMode::{SingleModeVec0, SingleModeVec1, DualModeSplitM, DualModeSplitN}`.
+
+### A2A3 implementation checks
+
+- Shape must match: `SrcTileData::Rows == DstTileData::Rows` and `SrcTileData::Cols == DstTileData::Cols`.
+- Supported tile-type pairs are compile-time restricted to:
+    - `TileType::Mat -> TileType::Left/Right/Bias/Scaling`
+    - `TileType::Vec -> TileType::Vec`
+    - `TileType::Acc -> TileType::Mat`
+- For `TileType::Mat -> TileType::Bias`:
+    - supported source/destination dtype pairs are `int32_t -> int32_t`, `float -> float`, and `half -> float`
+    - source row must be `1`
+    - `SrcTileData::Cols * sizeof(SrcType)` must be aligned to `64` bytes
+- For `TileType::Mat -> TileType::Scaling`:
+    - destination dtype must equal source dtype and must be `uint64_t`
+    - source row must be `1`
+    - `SrcTileData::Cols * sizeof(SrcType)` must be aligned to `128` bytes
+- For `TileType::Acc -> TileType::Mat`:
+    - additional `CheckTMovAccToMat<...>` compile-time checks are enforced
+    - plain/relu forms use cast pre-quant mode derived by `GetCastPreQuantMode<SrcDType, DstDType>()`
+    - scalar-quant forms use `GetScalarPreQuantMode<SrcDType, DstDType>()`
+    - vector-quant forms require an `FpTileData` operand with `FpTileData::Loc == TileType::Scaling`, and use `GetVectorPreQuantMode<SrcDType, DstDType>()`
+
+### A5 implementation checks
+
+- `CommonCheck()` requires:
+    - destination/source dtype must be identical
+    - supported element types are `int8_t`, `hifloat8_t`, `float8_e5m2_t`, `float8_e4m3_t`, `half`, `bfloat16_t`, `float`, `float4_e2m1x2_t`, `float4_e1m2x2_t`
+    - source layout must satisfy one of:
+        - `(SrcTileData::SFractal == SLayout::ColMajor && SrcTileData::isRowMajor)`
+        - `(SrcTileData::SFractal == SLayout::RowMajor && !SrcTileData::isRowMajor)`
+        - `SrcTileData::isRowMajor`
+- `CommonCheckMX()` for MX paths requires identical source/destination dtype and supports `float8_e8m0_t`.
+- Supported paths include:
+    - `TileType::Mat -> TileType::Left/Right/Bias/Scaling/ScaleLeft/ScaleRight`
+    - `TileType::Vec -> TileType::Vec/TileType::Mat`
+    - `TileType::Acc -> TileType::Vec/TileType::Mat`
+    - specific `ND -> ZZ` and related internal path variants handled by the A5 implementation
+- For `TileType::Mat -> TileType::Bias`:
+    - supported dtype pairs are `int32_t -> int32_t`, `float -> float`, `half -> float`, `bfloat16_t -> float`
+    - source row must be `1`
+    - `DstTileData::Cols * sizeof(DstType)` must be aligned to `64` bytes
+    - bias-table footprint `DstTileData::Cols * sizeof(DstType)` must not exceed `4096` bytes
+- For `TileType::Mat -> TileType::Scaling`:
+    - source row must be `1`
+    - `DstTileData::Cols * sizeof(DstType)` must be aligned to `128` bytes
+    - fixpipe-buffer footprint `DstTileData::Cols * sizeof(DstType)` must not exceed `4096` bytes
+- For `TileType::Acc -> TileType::Vec`:
+    - `mode` selects `SingleModeVec0`, `SingleModeVec1`, `DualModeSplitM`, or `DualModeSplitN`
+    - dual-destination modes require `QuantMode_t::NoQuant`
+    - dual-destination modes do not support the `nz2dn` path
+    - destination stride must be non-zero and `dstStride * sizeof(dstType)` must be a multiple of `32` bytes
+- For `TileType::Acc -> TileType::Mat`:
+    - destination stride must be non-zero and `dstStride * sizeof(dstType)` must be a multiple of `32` bytes
+    - relu/scalar-quant/vector-quant forms are supported through the corresponding overloads
+
 
 ## Examples
 

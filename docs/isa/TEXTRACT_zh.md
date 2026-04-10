@@ -6,11 +6,11 @@
 
 ## 简介
 
-从源 Tile 中提取子 Tile。
+从较大的源 Tile 中提取较小的子 Tile。
 
 ## 数学语义
 
-概念上从 `src` 中复制从 `(indexRow, indexCol)` 开始的窗口到 `dst`。确切的映射取决于布局。
+概念上从较大的 `src` Tile 中，以 `(indexRow, indexCol)` 为起点复制一个较小窗口到 `dst`。确切的映射取决于 tile 布局。
 
 设 `R = dst.GetValidRow()` 和 `C = dst.GetValidCol()`。对于 `0 <= i < R` 和 `0 <= j < C`：
 
@@ -60,18 +60,32 @@ PTO_INST RecordEvent TEXTRACT_FP(DstTileData &dst, SrcTileData &src, FpTileData 
 
 ## 约束
 
-- **实现检查 (A2A3)**:
-    - `DstTileData::DType` 必须等于 `SrcTileData::DType` 且必须是以下之一：`int8_t`、`half`、`bfloat16_t`、`float`。
-    - 源分形必须满足：`(SFractal == ColMajor && isRowMajor)` 或 `(SFractal == RowMajor && !isRowMajor)`，GEMV场景中，目标为Left时，源分形满足`(SrcTileData::Rows == 1 && SrcTileData::isRowMajor)`
-    - 运行时边界检查：
+### 通用约束或检查
+
+- `DstTileData::DType` 必须等于 `SrcTileData::DType`。
+- 运行时边界检查：
     - `indexRow + DstTileData::Rows <= SrcTileData::Rows`
     - `indexCol + DstTileData::Cols <= SrcTileData::Cols`
-    - 目标必须是 `TileType::Left` 或 `TileType::Right`，具有目标支持的分形配置。
-- **实现检查 (A5)**:
-    - `DstTileData::DType` 必须等于 `SrcTileData::DType` 且必须是以下之一：`int8_t`、`hifloat8_t`、`float8_e5m2_t`、`float8_e4m3_t`、`half`、`bfloat16_t`、`float`、`float4_e2m1x2_t`、`float4_e1m2x2_t`、`float8_e8m0_t`。
-    - 源分形必须满足：对于 Left/Right 为 `(SFractal == ColMajor && isRowMajor)` 或 `(SFractal == RowMajor && !isRowMajor)`，GEMV场景中，目标为Left时，源分形满足`(SrcTileData::Rows == 1 && SrcTileData::isRowMajor)`；对于 ScaleLeft 为 `(SFractal == RowMajor && isRowMajor)`，对于 ScaleRight 为 `(SFractal == ColMajor && !isRowMajor)`。
-    - 目标支持 `Mat -> Left/Right/Scale`、`Acc -> Mat`（含 relu / 标量量化 / 向量量化形式），也支持特定 tile 位置的 `Vec -> Mat` 提取路径。
-    - 向量量化形式额外要求提供 `FpTileData` 缩放操作数，对应上文展示的 `TEXTRACT_FP(...)` 接口。
+
+### A2A3 实现检查
+
+- 支持的元素类型：`int8_t`、`half`、`bfloat16_t`、`float`。
+- 源布局必须满足以下已检查到的 A2A3 提取布局之一：
+    - `(SFractal == ColMajor && isRowMajor)`，或
+    - `(SFractal == RowMajor && !isRowMajor)`。
+- 在以 `TileType::Left` 为目标的 GEMV 场景中，已检查到的源布局还允许 `(SrcTileData::Rows == 1 && SrcTileData::isRowMajor)`。
+- 目标必须是 `TileType::Left` 或 `TileType::Right`，并具有目标支持的布局配置。
+
+### A5 实现检查
+
+- 支持的元素类型：`int8_t`、`hifloat8_t`、`float8_e5m2_t`、`float8_e4m3_t`、`half`、`bfloat16_t`、`float`、`float4_e2m1x2_t`、`float4_e1m2x2_t`、`float8_e8m0_t`。
+- 源布局必须满足以下已检查到的 A5 提取布局之一：
+    - 对于 `Left` / `Right`：`(SFractal == ColMajor && isRowMajor)` 或 `(SFractal == RowMajor && !isRowMajor)`
+    - 对于 `ScaleLeft`：`(SFractal == RowMajor && isRowMajor)`
+    - 对于 `ScaleRight`：`(SFractal == ColMajor && !isRowMajor)`
+- 在以 `Left` 为目标的 GEMV 场景中，已检查到的源布局还允许 `(SrcTileData::Rows == 1 && SrcTileData::isRowMajor)`。
+- 目标支持 `TileType::Mat -> TileType::Left/Right/Scale`、`TileType::Acc -> TileType::Mat`（含 relu、标量量化、向量量化形式），以及特定的 `TileType::Vec -> TileType::Mat` 提取路径。
+- 向量量化形式额外要求提供 `FpTileData` 缩放操作数，对应 `TEXTRACT_FP(...)` 接口。
 
 ## 示例
 

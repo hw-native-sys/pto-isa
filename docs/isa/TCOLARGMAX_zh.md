@@ -48,32 +48,29 @@ PTO_INST RecordEvent TCOLARGMAX(TileDataOut& dst, TileDataIn& src, TileDataTmp& 
 
 ## 约束
 
-实现检查 (NPU):
+### 通用约束或检查
 
-- A2A3:
-  - Tile location: `dst` 和 `src` 必须为 `TileType::Vec`。
-  - Tile 布局 of `src`: ND fractal (`isRowMajor` and `SLayout::NoneBox`)。
-  - Tile 布局 of `dst`: ND fractal (`isRowMajor` and `SLayout::NoneBox`)。
-  - 源数据类型: `half`、`float`、`uint16_t`、`uint32_t`。
-  - 目标数据类型: `uint32_t` 或 `int32_t`。
-  - `tmp` 数据类型必须与 `src` 数据类型一致。
-  - 编译期检查: `src.ValidCol` 必须为 `1` 或 `-1`（动态）。
-  - 运行期有效区域检查:
-    - `srcValidCol != 0` 且 `srcValidRow != 0`。
-    - `dstValidRow == 1`。
-    - `srcValidCol == dstValidCol`。
-- A5:
-  - Tile location: `dst` 和 `src` 必须为 `TileType::Vec`。
-  - Tile 布局 of `src`: ND fractal (`isRowMajor` and `SLayout::NoneBox`)。
-  - Tile 布局 of `dst`: ND fractal (`isRowMajor` and `SLayout::NoneBox`)。
-  - 源数据类型: `int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`float`。
-  - 目标数据类型: `uint32_t` 或 `int32_t`。
-  - 编译期检查: `src.ValidCol` 必须为 `1` 或 `-1`（动态）。
-  - 运行期有效区域检查:
-    - `srcValidCol != 0` 且 `srcValidRow != 0`。
-    - `dstValidRow == 1`。
-    - `srcValidCol == dstValidCol`。
-  - `tmp` 临时 Tile 不使用，仅做兼容。
+- `dst` 和 `src` 必须为 `TileType::Vec`。
+- 由于已检查到的辅助检查仅要求 `SLayout::NoneBox`，因此 `src` 可使用 ND 或 DN 的非分形布局。
+- `dst` 必须使用标准 ND 布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
+- 支持的目标元素类型：`uint32_t`、`int32_t`。
+- 编译时检查：`TileDataIn::ValidCol == 1 || TileDataIn::ValidCol == -1`。
+- 运行时检查：
+    - `src.GetValidRow() != 0`
+    - `src.GetValidCol() != 0`
+    - `dst.GetValidRow() == 1`
+    - `src.GetValidCol() == dst.GetValidCol()`
+
+### A2A3 实现检查
+
+- 支持的源元素类型：`half`、`float`、`uint16_t`、`uint32_t`。
+- `tmp` 的元素类型必须与 `src` 一致。
+- 在已检查到的 A2A3 实现路径中，`tmp` 用作索引跟踪和当前比较值的临时存储。
+
+### A5 实现检查
+
+- 支持的源元素宽度为 8 位、16 位或 32 位，因此已检查到的实现覆盖 `int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`float`。
+- 在已检查到的 A5 实现路径中，接口仍接收 `tmp`，但 `TCOLARGMAX_IMPL` 实际并不使用它。
 
 ### A2A3 `tmp` 临时 Tile 相关说明
 

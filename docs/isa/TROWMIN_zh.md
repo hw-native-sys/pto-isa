@@ -48,23 +48,30 @@ PTO_INST RecordEvent TROWMIN(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
 
 ## 约束
 
-实现检查 (NPU):
+### 通用约束或检查
 
-- A2A3:
-    - Tile 位置：`dst` 和 `src` 必须是 `TileType::Vec`。
-    - `src` 的 Tile 布局：ND 分形（`isRowMajor` 且 `SLayout::NoneBox`）。
-    - `dst` 的 Tile 布局：
-        - **紧凑模式**：DN 布局的一维 Tile，例如 `Tile<TileType::Vec, T, ROWS, 1, BLayout::ColMajor, ValidRows, 1>`，此时ROWS要做到32b对齐。
-        - **传统模式**：ND 布局的二维 Tile，例如 `Tile<TileType::Vec, T, ROWS, COLS, BLayout::RowMajor, ValidRows, 1>`。
-    - 数据类型：`half` 或 `float`。
-    - 数据类型一致性：`dst.DType == src.DType`。
-    - 运行期有效区域检查：
-    - `srcValidCol != 0` 且 `srcValidRow != 0`。
-    - `srcValidRow == dstValidRow`（输出有效行数必须与输入有效行数匹配）。
-- A5:
-    - 数据类型：`half` 或 `float`。
-    - 数据类型一致性：`dst.DType == src.DType`。
-    - 实现中对 `validRow/validCol` 无显式运行时断言；循环使用 `src.GetValidRow()` 和 `src.GetValidCol()`。
+- `dst` 和 `src` 必须均为 `TileType::Vec`。
+- `src` 必须使用标准 ND 布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
+- `dst` 必须使用以下两种非分形布局之一：
+    - ND 布局（`BLayout::RowMajor`、`SLayout::NoneBox`），或
+    - 列数严格为 1 的 DN 布局（`BLayout::ColMajor`、`SLayout::NoneBox`、`Cols == 1`）。
+- `dst` 和 `src` 的元素类型必须一致。
+- 运行时有效区域检查：
+    - `src.GetValidRow() != 0`
+    - `src.GetValidCol() != 0`
+    - `src.GetValidRow() == dst.GetValidRow()`
+- 内建接口签名要求显式传入 `tmp` 操作数。
+
+### A2A3 实现检查
+
+- 支持的元素类型：`half`、`float`、`int32_t`、`int16_t`。
+- 实现同时接受 ND 输出和 `Cols == 1` 的 DN 输出。
+- 运行时检查遵循共享的行归约检查路径：
+    - `src.GetValidRow() != 0`
+    - `src.GetValidCol() != 0`
+    - `src.GetValidRow() == dst.GetValidRow()`
+- 当前实现路径会将 `tmp` 传入后端调用，但本文档不额外补充 checked implementation 未显式约束的 `tmp` shape/layout 要求。
+
 
 ## 示例
 
@@ -133,3 +140,4 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.trowmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
+

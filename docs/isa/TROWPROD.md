@@ -38,17 +38,6 @@ Lowering may introduce internal scratch tiles; the C++ intrinsic requires an exp
 pto.trowprod ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-### IR Level 1 (SSA)
-
-```text
-%dst = pto.trowprod %src : !pto.tile<...> -> !pto.tile<...>
-```
-
-### IR Level 2 (DPS)
-
-```text
-pto.trowprod ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
-```
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:
@@ -60,26 +49,35 @@ PTO_INST RecordEvent TROWPROD(TileDataOut &dst, TileDataIn &src, TileDataTmp &tm
 
 ## Constraints
 
-Implementation checks (NPU):
+### General constraints / checks
 
-- A2A3:
-    - Tile location: `dst` and `src` must be `TileType::Vec`.
-    - Tile layout of `src`: ND fractal (`isRowMajor` and `SLayout::NoneBox`).
-    - Tile layout of `dst`: DN layout Tile of 1D, e.g., `Tile<TileType::Vec, T, ROWS, 1, BLayout::ColMajor, ValidRows, 1>`
-    - Data types: `half`, `float`.
-    - DType consistency: `dst.DType == src.DType`.
-    - Runtime valid checks:
-    - `srcValidCol != 0` and `srcValidRow != 0`.
-    - `srcValidRow == dstValidRow` (the output valid row must match the input valid row).
-    - `tmp` must have the same shape as `src`.
+- `dst` and `src` must both be `TileType::Vec`.
+- `src` must use standard ND layout: row-major and non-fractal (`BLayout::RowMajor`, `SLayout::NoneBox`).
+- `dst` must use one of the following non-fractal layouts:
+    - ND layout (`BLayout::RowMajor`, `SLayout::NoneBox`), or
+    - DN layout with exactly one column (`BLayout::ColMajor`, `SLayout::NoneBox`, `Cols == 1`).
+- `dst` and `src` must use the same element type.
+- Runtime valid-region checks:
+    - `src.GetValidRow() != 0`
+    - `src.GetValidCol() != 0`
+    - `src.GetValidRow() == dst.GetValidRow()`
+- The intrinsic signature requires an explicit `tmp` operand.
+
+### A5 implementation checks
+
+- Supported element types: `half`, `float`, `int32_t`, `int16_t`.
+- In the currently inspected implementation path, the enforced constraints are on `src` and `dst`.
+- No extra shape/layout assertions on `tmp` are enforced in the current implementation path.
 
 ## Implementation Notes
 
-Unlike TROWSUM which uses `vcadd`/`vcgadd` instructions, TROWPROD uses binary reduction with `vmul` since there is no `vcmul` instruction available on A2A3. The implementation:
+`TROWPROD` follows the currently implemented A5 backend path in this codebase. It performs row-wise multiplication reduction directly from `src` to `dst` after validating `src`/`dst` constraints.
 
-1. Multiplies adjacent repeat pairs and stores results in `tmp`
-2. Iteratively performs binary multiplication reduction on `tmp`
-3. Continues until each row has only one element
+The C++ intrinsic still takes a `tmp` operand for interface consistency:
+
+1. `tmp` remains part of the intrinsic signature and AS lowering form.
+2. The currently inspected implementation-enforced constraints are on `src` and `dst`.
+3. If another backend introduces additional `tmp` requirements later, the documentation should be updated to match that backend implementation exactly.
 
 ## Examples
 

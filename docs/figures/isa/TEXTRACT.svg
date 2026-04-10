@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-label="TEXTRACT tile operation diagram">
 <defs>
-  <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0,0 L0,12 L12,6 z" fill="#515151"/></marker>
-  <marker id="axisArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L0,10 L10,5 z" fill="#64748b"/></marker>
+  <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#515151"/></marker>
+  <marker id="axisArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#64748b"/></marker>
 </defs>
 <style>
 svg { font-family: Arial, Helvetica, sans-serif; }
@@ -16,102 +16,91 @@ svg { font-family: Arial, Helvetica, sans-serif; }
 .cellMasked { fill: #e2e8f0; }
 .cellHL { stroke-width: 2; }
 .cellText { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 10px; fill: #0f172a; }
-.arrow { stroke-width: 2.5; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.arrow { stroke-width: 1.5; fill: none; stroke-linejoin: round; stroke-linecap: round; }
 .axisLine { stroke: #64748b; stroke-width: 1.5; fill: none; }
 .axisText { font-size: 10px; fill: #64748b; font-weight: 700; }
-.opCircle { fill: #ffffff; stroke-width: 2; }
-.opRect { fill: #ffffff; stroke-width: 2; }
-.opText { font-size: 10px; font-weight: 800; fill: #0f172a; }
 .procBox { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.5; rx: 12; }
 .procTitle { font-size: 14px; font-weight: 700; fill: #0f172a; }
 .procText { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; fill: #0f172a; }
 .smallLabel { font-size: 12px; fill: #334155; }
-.scalarBox { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.5; }
-.scalarValue { font-size: 16px; font-weight: 700; }
 .validBox { fill: none; stroke-width: 2; stroke-dasharray: 6 4; }
 </style>
 <rect x="0" y="0" width="1200" height="720" class="frame" />
 <rect x="24" y="24" width="1152" height="672" class="panel" />
 <text x="40" y="46" class="title">TEXTRACT</text>
-<text x="40" y="72" class="subtitle">Extract a sub-tile from a source tile.</text>
+<text x="40" y="72" class="subtitle">Extract a small tile from a larger source tile.</text>
 <text x="40" y="92" class="meta">Template: reshape_move</text>
-<text x="1160" y="92" class="meta" text-anchor="end">Legend: outline=example; dashed=valid rows/cols (Rv,Cv); shaded=masked; r down / c right; ortho arrows=dataflow</text>
+<text x="1160" y="92" class="meta" text-anchor="end">Legend: dashed=valid rows/cols; blue box=extracted window; shaded=masked</text>
 <line x1="36" y1="104" x2="1164" y2="104" stroke="#e2e8f0" stroke-width="1.5" />
-<text x="600" y="140" class="subtitle" text-anchor="middle" fill="#515151">dst = slice(src, offset)</text>
-<text x="600" y="168" class="tileLabel" text-anchor="middle">src</text>
-<rect x="545" y="178" width="110" height="110" class="tileBorder" />
-<rect x="545" y="178" width="22" height="22" class="cell cellHL" stroke="#515151" />
-<rect x="567" y="178" width="22" height="22" class="cell" />
-<rect x="589" y="178" width="22" height="22" class="cell" />
-<rect x="611" y="178" width="22" height="22" class="cell cellMasked" />
-<rect x="633" y="178" width="22" height="22" class="cell cellMasked" />
-<rect x="545" y="200" width="22" height="22" class="cell" />
-<rect x="567" y="200" width="22" height="22" class="cell" />
-<rect x="589" y="200" width="22" height="22" class="cell" />
-<rect x="611" y="200" width="22" height="22" class="cell cellMasked" />
-<rect x="633" y="200" width="22" height="22" class="cell cellMasked" />
-<rect x="545" y="222" width="22" height="22" class="cell" />
-<rect x="567" y="222" width="22" height="22" class="cell" />
-<rect x="589" y="222" width="22" height="22" class="cell" />
-<rect x="611" y="222" width="22" height="22" class="cell cellMasked" />
-<rect x="633" y="222" width="22" height="22" class="cell cellMasked" />
-<rect x="545" y="244" width="22" height="22" class="cell cellMasked" />
-<rect x="567" y="244" width="22" height="22" class="cell cellMasked" />
-<rect x="589" y="244" width="22" height="22" class="cell cellMasked" />
-<rect x="611" y="244" width="22" height="22" class="cell cellMasked" />
-<rect x="633" y="244" width="22" height="22" class="cell cellMasked" />
-<rect x="545" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="567" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="589" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="611" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="633" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="545" y="178" width="66" height="66" class="validBox" stroke="#515151" />
-<text x="549" y="240" class="axisText">Rv</text>
-<text x="607" y="190" class="axisText" text-anchor="end">Cv</text>
-<path d="M 555 188 L 589 188" class="axisLine" marker-end="url(#axisArrow)" />
-<path d="M 555 188 L 555 222" class="axisLine" marker-end="url(#axisArrow)" />
-<text x="593" y="192" class="axisText">c</text>
-<text x="553" y="226" class="axisText" text-anchor="end">r</text>
-<text x="600" y="350" class="tileLabel" text-anchor="middle">dst (window)</text>
-<rect x="545" y="360" width="110" height="110" class="tileBorder" />
-<rect x="545" y="360" width="22" height="22" class="cell cellHL" stroke="#515151" />
-<rect x="567" y="360" width="22" height="22" class="cell" />
-<rect x="589" y="360" width="22" height="22" class="cell" />
-<rect x="611" y="360" width="22" height="22" class="cell" />
-<rect x="633" y="360" width="22" height="22" class="cell cellMasked" />
-<rect x="545" y="382" width="22" height="22" class="cell" />
-<rect x="567" y="382" width="22" height="22" class="cell" />
-<rect x="589" y="382" width="22" height="22" class="cell" />
-<rect x="611" y="382" width="22" height="22" class="cell" />
-<rect x="633" y="382" width="22" height="22" class="cell cellMasked" />
-<rect x="545" y="404" width="22" height="22" class="cell" />
-<rect x="567" y="404" width="22" height="22" class="cell" />
-<rect x="589" y="404" width="22" height="22" class="cell" />
-<rect x="611" y="404" width="22" height="22" class="cell" />
-<rect x="633" y="404" width="22" height="22" class="cell cellMasked" />
-<rect x="545" y="426" width="22" height="22" class="cell" />
-<rect x="567" y="426" width="22" height="22" class="cell" />
-<rect x="589" y="426" width="22" height="22" class="cell" />
-<rect x="611" y="426" width="22" height="22" class="cell" />
-<rect x="633" y="426" width="22" height="22" class="cell cellMasked" />
-<rect x="545" y="448" width="22" height="22" class="cell cellMasked" />
-<rect x="567" y="448" width="22" height="22" class="cell cellMasked" />
-<rect x="589" y="448" width="22" height="22" class="cell cellMasked" />
-<rect x="611" y="448" width="22" height="22" class="cell cellMasked" />
-<rect x="633" y="448" width="22" height="22" class="cell cellMasked" />
-<rect x="545" y="360" width="88" height="88" class="validBox" stroke="#515151" />
-<text x="549" y="444" class="axisText">Rv</text>
-<text x="629" y="372" class="axisText" text-anchor="end">Cv</text>
-<path d="M 555 370 L 589 370" class="axisLine" marker-end="url(#axisArrow)" />
-<path d="M 555 370 L 555 404" class="axisLine" marker-end="url(#axisArrow)" />
-<text x="593" y="374" class="axisText">c</text>
-<text x="553" y="408" class="axisText" text-anchor="end">r</text>
-<path d="M 556 300 L 556 324 L 556 324 L 556 348" class="arrow" stroke="#515151" marker-end="url(#arrow)" />
+<text x="600" y="140" class="subtitle" text-anchor="middle" fill="#515151">dst = extract sub-tile from src at (indexRow, indexCol)</text>
+
+<text x="320" y="168" class="tileLabel" text-anchor="middle">src (large tile)</text>
+<rect x="210" y="178" width="220" height="220" class="tileBorder" />
+
+<rect x="210" y="178" width="44" height="44" class="cell" />
+<rect x="254" y="178" width="44" height="44" class="cell" />
+<rect x="298" y="178" width="44" height="44" class="cell" />
+<rect x="342" y="178" width="44" height="44" class="cell" />
+<rect x="386" y="178" width="44" height="44" class="cell cellMasked" />
+
+<rect x="210" y="222" width="44" height="44" class="cell" />
+<rect x="254" y="222" width="44" height="44" class="cell" />
+<rect x="298" y="222" width="44" height="44" class="cell" />
+<rect x="342" y="222" width="44" height="44" class="cell" />
+<rect x="386" y="222" width="44" height="44" class="cell cellMasked" />
+
+<rect x="210" y="266" width="44" height="44" class="cell" />
+<rect x="254" y="266" width="44" height="44" class="cell" />
+<rect x="298" y="266" width="44" height="44" class="cell" />
+<rect x="342" y="266" width="44" height="44" class="cell" />
+<rect x="386" y="266" width="44" height="44" class="cell cellMasked" />
+
+<rect x="210" y="310" width="44" height="44" class="cell" />
+<rect x="254" y="310" width="44" height="44" class="cell" />
+<rect x="298" y="310" width="44" height="44" class="cell" />
+<rect x="342" y="310" width="44" height="44" class="cell" />
+<rect x="386" y="310" width="44" height="44" class="cell cellMasked" />
+
+<rect x="210" y="354" width="44" height="44" class="cell cellMasked" />
+<rect x="254" y="354" width="44" height="44" class="cell cellMasked" />
+<rect x="298" y="354" width="44" height="44" class="cell cellMasked" />
+<rect x="342" y="354" width="44" height="44" class="cell cellMasked" />
+<rect x="386" y="354" width="44" height="44" class="cell cellMasked" />
+
+<rect x="210" y="178" width="176" height="176" class="validBox" stroke="#515151" />
+<rect x="254" y="222" width="88" height="88" fill="none" stroke="#2563eb" stroke-width="3" rx="4" />
+<text x="346" y="217" class="smallLabel" fill="#2563eb">extracted window</text>
+<text x="254" y="212" class="smallLabel" fill="#2563eb">(indexRow, indexCol)</text>
+<path d="M 220 188 L 290 188" class="axisLine" marker-end="url(#axisArrow)" />
+<path d="M 220 188 L 220 258" class="axisLine" marker-end="url(#axisArrow)" />
+<text x="294" y="192" class="axisText">c</text>
+<text x="218" y="262" class="axisText" text-anchor="end">r</text>
+<text x="214" y="350" class="axisText">Rv</text>
+<text x="382" y="190" class="axisText" text-anchor="end">Cv</text>
+
+<text x="880" y="246" class="tileLabel" text-anchor="middle">dst (small tile)</text>
+<rect x="814" y="256" width="88" height="88" class="tileBorder" />
+<rect x="814" y="256" width="44" height="44" class="cell cellHL" stroke="#2563eb" />
+<rect x="858" y="256" width="44" height="44" class="cell cellHL" stroke="#2563eb" />
+<rect x="814" y="300" width="44" height="44" class="cell cellHL" stroke="#2563eb" />
+<rect x="858" y="300" width="44" height="44" class="cell cellHL" stroke="#2563eb" />
+<rect x="814" y="256" width="88" height="88" class="validBox" stroke="#2563eb" />
+<path d="M 824 266 L 868 266" class="axisLine" marker-end="url(#axisArrow)" />
+<path d="M 824 266 L 824 310" class="axisLine" marker-end="url(#axisArrow)" />
+<text x="872" y="270" class="axisText">c</text>
+<text x="822" y="314" class="axisText" text-anchor="end">r</text>
+<text x="812" y="340" class="axisText">Rv</text>
+<text x="898" y="268" class="axisText" text-anchor="end">Cv</text>
+
+<path d="M 342 266 C 520 266, 620 300, 804 300" class="arrow" stroke="#2563eb" marker-end="url(#arrow)" />
+<text x="592" y="282" class="smallLabel" fill="#2563eb" text-anchor="middle">copy extracted sub-tile</text>
+
 <rect x="40" y="502" width="1120" height="194" class="procBox" />
 <text x="56" y="528" class="procTitle">Procedure (conceptual)</text>
 <text x="56" y="554" class="procText" xml:space="preserve">
   <tspan x="56" dy="0">for r,c in valid(dst):</tspan>
-  <tspan x="56" dy="16">  dst[r,c] = src[r + row_off, c + col_off]</tspan>
+  <tspan x="56" dy="16">  dst[r,c] = src[indexRow + r, indexCol + c]</tspan>
+  <tspan x="56" dy="16"># i.e. extract a smaller window from the larger source tile</tspan>
 </text>
-<text x="56" y="680" class="meta">Note: semantics apply to the valid region unless stated otherwise.</text>
+<text x="56" y="680" class="meta">Note: TEXTRACT copies a sub-window out of src into a smaller destination tile.</text>
 </svg>

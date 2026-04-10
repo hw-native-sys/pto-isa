@@ -36,18 +36,6 @@ Synchronous form:
 ```text
 pto.tcolmax ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-
-### IR Level 1 (SSA)
-
-```text
-%dst = pto.tcolmax %src : !pto.tile<...> -> !pto.tile<...>
-```
-
-### IR Level 2 (DPS)
-
-```text
-pto.tcolmax ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
-```
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:
@@ -59,17 +47,22 @@ PTO_INST RecordEvent TCOLMAX(TileDataOut &dst, TileDataIn &src, WaitEvents &... 
 
 ## Constraints
 
-Implementation checks (NPU):
+### General constraints / checks
 
-- Tile location: `dst` and `src` must be `TileType::Vec`.
-- Tile layout: both tiles must be ND fractal (`isRowMajor` and `SLayout::NoneBox`).
-- Data types:
-    - A2A3: `half`, `float`, `int16_t`, `int32_t`.
-    - A5: `half`, `float`, `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `bfloat16_t`.
-- DType consistency: `dst.DType == src.DType`.
-- Runtime valid checks:
-    - `src.GetValidCol() == dst.GetValidCol()`.
-    - If `src.GetValidRow() == 0` or `src.GetValidCol() == 0`, the implementation returns early.
+- `dst` and `src` must be `TileType::Vec`.
+- `dst` and `src` must use standard ND layout: row-major and non-fractal (`BLayout::RowMajor`, `SLayout::NoneBox`).
+- `dst` and `src` must use the same element type.
+- Runtime checks:
+    - `src.GetValidCol() == dst.GetValidCol()`
+- If `src.GetValidRow() == 0` or `src.GetValidCol() == 0`, the implementation returns early.
+
+### A2A3 implementation checks
+
+- Supported element types: `half`, `float`, `int16_t`, `int32_t`.
+
+### A5 implementation checks
+
+- Supported element types: `half`, `float`, `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `bfloat16_t`.
 
 ## Examples
 
@@ -133,3 +126,4 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.tcolmax ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
+
