@@ -28,7 +28,7 @@ def gen_golden_data(param):
         dtype_info = np.finfo(dtype)
         max_val = dtype_info.max
         if param.high_precision:
-            max_val = struct.unpack('!f', bytes.fromhex('007FFFFF'))[0]
+            max_val = struct.unpack("!f", bytes.fromhex("007FFFFF"))[0]
         input_arr = np.random.uniform(low=0, high=max_val, size=[src_row, src_col]).astype(dtype)
 
     golden = np.zeros((dst_row, dst_col), dtype=dtype)
@@ -39,16 +39,11 @@ def gen_golden_data(param):
 
 
 class tunaryParams:
-    DTYPE_DICT = {
-        np.float32: 'float',
-        np.float16: 'half',
-        np.int8: 'int8',
-        np.int32: 'int32',
-        np.int16: 'int16'
-    }
+    DTYPE_DICT = {np.float32: "float", np.float16: "half", np.int8: "int8", np.int32: "int32", np.int16: "int16"}
 
-    def __init__(self, dtype, dst_row, dst_col, src_row, src_col, valid_row, valid_col,
-        in_place=False, high_precision=False):
+    def __init__(
+        self, dtype, dst_row, dst_col, src_row, src_col, valid_row, valid_col, in_place=False, high_precision=False
+    ):
         self.dtype = dtype
         self.dst_row = dst_row
         self.dst_col = dst_col
@@ -57,14 +52,15 @@ class tunaryParams:
         self.valid_row = valid_row
         self.valid_col = valid_col
         self.high_precision = high_precision
-        inplace_flag = ''
+        inplace_flag = ""
         if in_place:
-            inplace_flag = '_inPlace'
+            inplace_flag = "_inPlace"
         dtype_str = self.DTYPE_DICT[dtype]
         if high_precision:
-            dtype_str += '_hp'
-        self.case_name = f"TLOGTest.case_{dtype_str}_{dst_row}x{dst_col}_{src_row}x{src_col}_"\
-            f"{valid_row}x{valid_col}{inplace_flag}"
+            dtype_str += "_hp"
+        self.case_name = (
+            f"TLOGTest.case_{dtype_str}_{dst_row}x{dst_col}_{src_row}x{src_col}_{valid_row}x{valid_col}{inplace_flag}"
+        )
 
 
 if __name__ == "__main__":

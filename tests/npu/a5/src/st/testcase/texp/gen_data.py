@@ -24,13 +24,12 @@ def gen_golden_data(param):
 
     if dtype in (np.int8, np.uint8, np.int16, np.uint16, np.int32, np.uint32):
         dtype_info = np.iinfo(dtype)
-        input_arr = np.random.randint(dtype_info.min, math.log(dtype_info.max),
-            size=[src_row, src_col]).astype(dtype)
+        input_arr = np.random.randint(dtype_info.min, math.log(dtype_info.max), size=[src_row, src_col]).astype(dtype)
     else:
         dtype_info = np.finfo(dtype)
         max_val, min_val = dtype_info.min, math.log(dtype_info.max)
         if param.high_precision:
-            bound_val = struct.unpack('!f', bytes.fromhex('007FFFFF'))[0]
+            bound_val = struct.unpack("!f", bytes.fromhex("007FFFFF"))[0]
             max_val = math.log(bound_val)
             min_val = max_val * 2
         input_arr = np.random.uniform(min_val, max_val, size=[src_row, src_col]).astype(dtype)
@@ -43,8 +42,19 @@ def gen_golden_data(param):
 
 
 class tunaryParams:
-    def __init__(self, name, dtype, dst_row, dst_col, src_row, src_col, valid_row, valid_col,
-        in_place=False, high_precision=False):
+    def __init__(
+        self,
+        name,
+        dtype,
+        dst_row,
+        dst_col,
+        src_row,
+        src_col,
+        valid_row,
+        valid_col,
+        in_place=False,
+        high_precision=False,
+    ):
         self.name = name
         self.dtype = dtype
         self.dst_row = dst_row

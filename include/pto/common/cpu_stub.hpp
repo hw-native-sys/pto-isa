@@ -189,8 +189,7 @@ inline uint32_t get_subblockdim()
 
 namespace pto {
 template <typename T>
-struct is_event : std::false_type {
-};
+struct is_event : std::false_type {};
 
 template <typename... Ts>
 inline constexpr bool all_events_v = (is_event<Ts>::value && ...);
