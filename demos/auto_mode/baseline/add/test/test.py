@@ -10,9 +10,10 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # --------------------------------------------------------------------------------
 
-import op_extension  # noqa: F401
 import torch
 from torch_npu.testing.testcase import TestCase, run_tests
+
+import op_extension  # noqa: F401
 
 
 class TestCustomAdd(TestCase):
