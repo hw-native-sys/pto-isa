@@ -25,8 +25,9 @@ enum TSyncCVMode : uint8_t
     CV_CORES_SYNC = 2
 };
 
-template <uint8_t FlagID, uint8_t DirType, uint32_t SlotSize, uint32_t SlotNum, bool IsNoSplit = false,
-          uint32_t LocalSlotNum = 2, bool EN_UNIT_FLAG = false>
+template <uint8_t FlagID, uint8_t DirType, uint32_t SlotSize, uint32_t SlotNum,
+          uint32_t CompatLocalSlotNumOrIsNoSplit = 0, uint32_t LocalSlotNum = 2,
+          bool EN_UNIT_FLAG = false>
 struct TPipe {
     static constexpr uint8_t DIR_MASK = 0x7;
     static constexpr uint8_t DIR_TYPE = DIR_MASK & DirType;
@@ -34,10 +35,14 @@ struct TPipe {
     static constexpr bool is_v2c = (DIR_TYPE == Direction::DIR_V2C);           // 2
     static constexpr bool is_both = (DIR_TYPE == Direction::DIR_BOTH);         // 3
     static constexpr bool is_v2c_ctrl = (DIR_TYPE == Direction::DIR_V2C_CTRL); // 4
+    static constexpr bool IsNoSplit =
+        CompatLocalSlotNumOrIsNoSplit <= 1 && static_cast<bool>(CompatLocalSlotNumOrIsNoSplit);
+    static constexpr uint32_t EffectiveLocalSlotNum =
+        CompatLocalSlotNumOrIsNoSplit <= 1 ? LocalSlotNum : CompatLocalSlotNumOrIsNoSplit;
     static_assert(is_c2v || is_v2c || is_both || is_v2c_ctrl,
                   "Fix: TPipe only supports C2V or V2C or Both or V2C_CTRL communication on A2A3.");
 
-    using RingFiFo = RingFIFO<SlotSize, SlotNum, LocalSlotNum>;
+    using RingFiFo = RingFIFO<SlotSize, SlotNum, EffectiveLocalSlotNum>;
 
     PTO_INTERNAL static uint64_t getFFTSMsgCfg(TSyncCVMode mode, uint16_t flagID, uint16_t base_const = 0x1)
     {
