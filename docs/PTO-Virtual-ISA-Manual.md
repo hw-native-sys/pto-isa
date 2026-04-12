@@ -1,32 +1,51 @@
 # PTO Virtual ISA Manual
 
-This page is the stable entry point for the PTO Virtual Instruction Set Architecture manual.
-The chaptered source of truth is maintained under `mkdocs/src/manual/`.
+This page is the stable landing page for the PTO ISA manual. The canonical manual now lives under `docs/isa/` as one merged tree. It presents PTO as a multi-target virtual ISA with a clear split between programming model, machine model, memory model, instruction sets, and instruction set contracts.
 
-## Primary entry
+Use the top-right language icon to move between the English and Chinese tracks. Switching language lands on a real counterpart when one exists; otherwise it falls back to the matching language landing page.
 
-- [Preface and reading order](mkdocs/src/manual/index.md)
-- [Manual overview chapter](mkdocs/src/manual/01-overview.md)
-- [Virtual ISA and AS contract](mkdocs/src/manual/09-virtual-isa-and-ir.md)
-- [Bytecode and toolchain contract](mkdocs/src/manual/10-bytecode-and-toolchain.md)
-- [Memory ordering and consistency](mkdocs/src/manual/11-memory-ordering-and-consistency.md)
-- [Backend profiles and conformance](mkdocs/src/manual/12-backend-profiles-and-conformance.md)
+## Start Here
 
-## Chapter map
+- [Introduction](isa/introduction/what-is-pto-visa.md)
+- [Document structure](isa/introduction/document-structure.md)
+- [Goals Of PTO](isa/introduction/goals-of-pto.md)
+- [PTO ISA Version 1.0](isa/introduction/pto-isa-version-1-0.md)
+- [Scope And Boundaries](isa/introduction/design-goals-and-boundaries.md)
+- [Programming model](isa/programming-model/tiles-and-valid-regions.md)
+- [Machine model](isa/machine-model/execution-agents.md)
+- [Syntax and operands](isa/syntax-and-operands/assembly-model.md)
+- [Common conventions](isa/conventions.md)
+- [Type system](isa/state-and-types/type-system.md)
+- [Location intent and legality](isa/state-and-types/location-intent-and-legality.md)
+- [Memory model](isa/memory-model/consistency-baseline.md)
 
-1. [Overview](mkdocs/src/manual/01-overview.md)
-2. [Execution Model](mkdocs/src/manual/02-machine-model.md)
-3. [State and Types](mkdocs/src/manual/03-state-and-types.md)
-4. [Tiles and GlobalTensor](mkdocs/src/manual/04-tiles-and-globaltensor.md)
-5. [Synchronization](mkdocs/src/manual/05-synchronization.md)
-6. [PTO Assembly (PTO-AS)](mkdocs/src/manual/06-assembly.md)
-7. [Instruction Set (overview)](mkdocs/src/manual/07-instructions.md)
-8. [Programming Guide](mkdocs/src/manual/08-programming.md)
-9. [Virtual ISA and AS](mkdocs/src/manual/09-virtual-isa-and-ir.md)
-10. [Bytecode and Toolchain](mkdocs/src/manual/10-bytecode-and-toolchain.md)
-11. [Memory Ordering and Consistency](mkdocs/src/manual/11-memory-ordering-and-consistency.md)
-12. [Backend Profiles and Conformance](mkdocs/src/manual/12-backend-profiles-and-conformance.md)
-13. [Appendix A: Glossary](mkdocs/src/manual/appendix-a-glossary.md)
-14. [Appendix B: Instruction Contract Template](mkdocs/src/manual/appendix-b-instruction-contract-template.md)
-15. [Appendix C: Diagnostics Taxonomy](mkdocs/src/manual/appendix-c-diagnostics-taxonomy.md)
-16. [Appendix D: Instruction Family Matrix](mkdocs/src/manual/appendix-d-instruction-family-matrix.md)
+## Manual Structure
+
+- [Instruction overview](isa/instruction-surfaces/README.md)
+- [Instruction set contracts](isa/instruction-families/README.md)
+- [Format of instruction descriptions](isa/reference/format-of-instruction-descriptions.md)
+- [Reference notes](isa/reference/README.md)
+
+## Instruction Reference
+
+- [Tile ISA reference](isa/tile/README.md)
+- [Vector ISA reference](isa/vector/README.md)
+- [Scalar and control reference](isa/scalar/README.md)
+- [Other and communication reference](isa/other/README.md)
+- [Syntax and operands](isa/syntax-and-operands/assembly-model.md)
+- [Common conventions](isa/conventions.md)
+
+## PTO ISA At A Glance
+
+PTO is a virtual ISA that spans multiple targets, including CPU simulation, A2/A3-class targets, and A5-class targets. The visible ISA is not one flat pool of operations:
+
+- `pto.t*` covers tile-oriented compute and data movement.
+- `pto.v*` covers vector micro-instruction behavior and its buffer/register/predicate model.
+- `pto.*` covers scalar, control, configuration, and shared supporting operations.
+- communication and other supporting operations complete the instruction set where needed.
+
+The manual explains what is guaranteed by PTO itself and what is only a target-profile restriction.
+
+## Canonical Hub
+
+The merged manual index is [PTO ISA manual and reference](isa/README.md).

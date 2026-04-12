@@ -48,29 +48,54 @@ SKIP_PREFIXES = (
     ".vscode/",
 )
 
-SKIP_CONTAINS = (
-    "/__pycache__/",
-    "/CMakeFiles/",
-)
+SKIP_CONTAINS = ("/__pycache__/", "/CMakeFiles/")
 
-ASSET_EXTS = {
-    ".svg",
-    ".png",
-    ".jpg",
-    ".jpeg",
-    ".gif",
-    ".webp",
-    ".bnf",
-}
+ASSET_EXTS = {".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bnf"}
+
+PUBLISHED_MD_PREFIXES = ("docs/isa/",)
+
+PUBLISHED_MD_EXACT = {"index.md", "index_zh.md", "docs/getting-started.md", "docs/getting-started_zh.md"}
+
+PUBLISHED_ASSET_PREFIXES = ("docs/figures/",)
 
 # Directory names whose README is the canonical index page.
 # Used by _en_url_to_zh_url to map e.g. /docs/isa/ -> /docs/isa/README_zh/.
 README_DIRS = {
-    "coding", "isa", "machine", "assembly", "docs", "kernels",
-    "tests", "demos", "scripts", "include", "cmake", "reference",
-    "tutorials", "script", "package", "custom", "baseline", "add",
-    "gemm_basic", "flash_atten", "gemm_performance", "a2a3", "a5",
-    "kirin9030", "npu", "pto", "comm",
+    "coding",
+    "isa",
+    "machine",
+    "assembly",
+    "docs",
+    "kernels",
+    "tests",
+    "demos",
+    "scripts",
+    "include",
+    "cmake",
+    "reference",
+    "tutorials",
+    "script",
+    "package",
+    "custom",
+    "baseline",
+    "add",
+    "gemm_basic",
+    "flash_atten",
+    "gemm_performance",
+    "a2a3",
+    "a5",
+    "kirin9030",
+    "npu",
+    "pto",
+    "comm",
+    "introduction",
+    "programming-model",
+    "machine-model",
+    "memory-model",
+    "state-and-types",
+    "syntax-and-operands",
+    "instruction-surfaces",
+    "instruction-families",
 }
 
 
@@ -94,7 +119,15 @@ def _should_skip(rel_posix: str) -> bool:
     return False
 
 
-ABS_LINK_RE = re.compile(r'\]\(/((?!http)[^)]+)\)')
+def _is_published_md(rel_posix: str) -> bool:
+    return rel_posix in PUBLISHED_MD_EXACT or rel_posix.startswith(PUBLISHED_MD_PREFIXES)
+
+
+def _is_published_asset(rel_posix: str) -> bool:
+    return rel_posix.startswith(PUBLISHED_ASSET_PREFIXES)
+
+
+ABS_LINK_RE = re.compile(r"\]\(/((?!http)[^)]+)\)")
 REL_IMG_RE = re.compile(r'(<img\b[^>]*\bsrc=["\'])((?!http|/|data:)[^"\'>]+)(["\'])')
 
 
@@ -118,40 +151,38 @@ def _rewrite_rel_imgs_for_build(text: str, src_rel: str) -> str:
 
     # Virtual page directory (where MkDocs serves the page).
     # For foo/bar.md -> /foo/bar/  so page_dir = "foo/bar"
-    page_dir = Path(src_rel).with_suffix('').as_posix()  # e.g. "docs/getting-started"
+    page_dir = Path(src_rel).with_suffix("").as_posix()  # e.g. "docs/getting-started"
 
     def replace(m: re.Match) -> str:
         prefix, img_path, suffix = m.group(1), m.group(2), m.group(3)
         # Resolve image to repo-relative path.
-        repo_img = (src_dir + '/' + img_path) if (src_dir and src_dir != '.') else img_path
+        repo_img = (src_dir + "/" + img_path) if (src_dir and src_dir != ".") else img_path
         # Normalize (handle any ../ in original img_path).
         repo_img = posixpath.normpath(repo_img)
         # Compute relative path from page_dir to repo_img.
         rel = posixpath.relpath(repo_img, page_dir)  # e.g. ../figures/pto_logo.svg
-        return f'{prefix}{rel}{suffix}'
+        return f"{prefix}{rel}{suffix}"
 
     return REL_IMG_RE.sub(replace, text)
 
 
 # Matches a relative markdown link that starts with one or more "../" components.
 # Group 1: the "../" prefix (one or more), Group 2: the rest of the target.
-REL_LINK_RE = re.compile(r'\]\((\.\./+)([^)]+)\)')
+REL_LINK_RE = re.compile(r"\]\((\.\./+)([^)]+)\)")
 
 # Matches repo-relative links into docs/mkdocs/src/ (e.g. mkdocs/src/manual/foo.md).
 # These appear in repo-level docs so they resolve correctly during static browsing,
 # but must be rewritten to root-absolute paths at MkDocs build time.
-MKDOCS_SRC_LINK_RE = re.compile(r'\]\(mkdocs/src/([^)]+)\)')
+MKDOCS_SRC_LINK_RE = re.compile(r"\]\(mkdocs/src/([^)]+)\)")
 
 # Strip stale "<!-- Generated from ... -->" header lines that accumulate on
 # repeated builds when docs_dir is the same directory as the source files.
-_GENERATED_HEADER_RE = re.compile(
-    r'^(?:<!-- Generated from `[^`]*` -->\s*\n\n?)+', re.MULTILINE
-)
+_GENERATED_HEADER_RE = re.compile(r"^(?:<!-- Generated from `[^`]*` -->\s*\n\n?)+", re.MULTILINE)
 
 
 def _strip_generated_header(text: str) -> str:
     """Remove any leading '<!-- Generated from ... -->' comment blocks."""
-    return _GENERATED_HEADER_RE.sub('', text)
+    return _GENERATED_HEADER_RE.sub("", text)
 
 
 def _rewrite_links_for_build(text: str, virtual_path: str) -> str:
@@ -160,17 +191,17 @@ def _rewrite_links_for_build(text: str, virtual_path: str) -> str:
 
     Two kinds of links are rewritten:
 
-    1. Root-absolute links like /docs/isa/TADD.md  ->  ../docs/isa/TADD.md
+    1. Root-absolute links like /docs/isa/tile/ops/elementwise-tile-tile/tadd.md  ->  ../docs/isa/tile/ops/elementwise-tile-tile/tadd.md
        These are written with a leading '/' so they work when browsing the
        repo on GitHub/Gitee; at build time they need to be relative.
 
     2. Relative links whose "../" depth is wrong for the virtual path.
        Example: hand-written file lives at
          docs/mkdocs/src/manual/appendix-d.md  (repo path)
-       so the author wrote  ../../docs/isa/TADD.md  (2 levels up from
+       so the author wrote  ../../docs/isa/tile/ops/elementwise-tile-tile/tadd.md  (2 levels up from
        docs/mkdocs/src/manual/ to reach the repo root docs/).
        But the virtual path is  manual/appendix-d.md  (depth=1), so
-       MkDocs needs  ../docs/isa/TADD.md  (only 1 level up).
+       MkDocs needs  ../docs/isa/tile/ops/elementwise-tile-tile/tadd.md  (only 1 level up).
 
        The hand-written source sits at depth
          src_depth = len(Path("docs/mkdocs/src") / virtual_path).parent.parts
@@ -194,10 +225,10 @@ def _rewrite_links_for_build(text: str, virtual_path: str) -> str:
     src_depth = len((Path("docs") / "mkdocs" / "src" / virtual_path).parent.parts)
 
     # --- Pass 1: root-absolute links /foo/bar  ->  (../)*virt_depth foo/bar ---
-    prefix_abs = '../' * virt_depth if virt_depth else ''
+    prefix_abs = "../" * virt_depth if virt_depth else ""
 
     def replace_abs(m: re.Match) -> str:
-        return f']({prefix_abs}{m.group(1)})'
+        return f"]({prefix_abs}{m.group(1)})"
 
     text = ABS_LINK_RE.sub(replace_abs, text)
 
@@ -208,12 +239,12 @@ def _rewrite_links_for_build(text: str, virtual_path: str) -> str:
     # count equals src_depth (exactly what the author would write to reach
     # the repo root from the source file).
     if src_depth != virt_depth:
-        new_ups = '../' * virt_depth if virt_depth else ''
+        new_ups = "../" * virt_depth if virt_depth else ""
 
         def replace_rel(m: re.Match) -> str:
             ups, rest = m.group(1), m.group(2)
-            if ups.count('../') == src_depth:
-                return f']({new_ups}{rest})'
+            if ups.count("../") == src_depth:
+                return f"]({new_ups}{rest})"
             return m.group(0)  # leave unchanged
 
         text = REL_LINK_RE.sub(replace_rel, text)
@@ -225,132 +256,387 @@ def _rewrite_links_for_build(text: str, virtual_path: str) -> str:
 # Nav order from mkdocs.yml (used for prev/next generation)
 # ---------------------------------------------------------------------------
 
+TILE_REFERENCE_PAGES = [
+    "docs/isa/tile/README.md",
+    "docs/isa/tile/sync-and-config.md",
+    "docs/isa/tile/ops/sync-and-config/tsync.md",
+    "docs/isa/tile/ops/sync-and-config/tassign.md",
+    "docs/isa/tile/ops/sync-and-config/tsethf32mode.md",
+    "docs/isa/tile/ops/sync-and-config/tsettf32mode.md",
+    "docs/isa/tile/ops/sync-and-config/tsetfmatrix.md",
+    "docs/isa/tile/ops/sync-and-config/tset-img2col-rpt.md",
+    "docs/isa/tile/ops/sync-and-config/tset-img2col-padding.md",
+    "docs/isa/tile/ops/sync-and-config/tsubview.md",
+    "docs/isa/tile/ops/sync-and-config/tget-scale-addr.md",
+    "docs/isa/tile/elementwise-tile-tile.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/tadd.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/tabs.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/tand.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/tor.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/tsub.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/tmul.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/tmin.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/tmax.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/tcmp.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/tdiv.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/tshl.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/tshr.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/txor.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/tlog.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/trecip.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/tprelu.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/taddc.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/tsubc.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/tcvt.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/tsel.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/trsqrt.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/tsqrt.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/texp.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/tnot.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/trelu.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/tneg.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/trem.md",
+    "docs/isa/tile/ops/elementwise-tile-tile/tfmod.md",
+    "docs/isa/tile/tile-scalar-and-immediate.md",
+    "docs/isa/tile/ops/tile-scalar-and-immediate/texpands.md",
+    "docs/isa/tile/ops/tile-scalar-and-immediate/tcmps.md",
+    "docs/isa/tile/ops/tile-scalar-and-immediate/tsels.md",
+    "docs/isa/tile/ops/tile-scalar-and-immediate/tmins.md",
+    "docs/isa/tile/ops/tile-scalar-and-immediate/tadds.md",
+    "docs/isa/tile/ops/tile-scalar-and-immediate/tsubs.md",
+    "docs/isa/tile/ops/tile-scalar-and-immediate/tdivs.md",
+    "docs/isa/tile/ops/tile-scalar-and-immediate/tmuls.md",
+    "docs/isa/tile/ops/tile-scalar-and-immediate/tfmods.md",
+    "docs/isa/tile/ops/tile-scalar-and-immediate/trems.md",
+    "docs/isa/tile/ops/tile-scalar-and-immediate/tmaxs.md",
+    "docs/isa/tile/ops/tile-scalar-and-immediate/tands.md",
+    "docs/isa/tile/ops/tile-scalar-and-immediate/tors.md",
+    "docs/isa/tile/ops/tile-scalar-and-immediate/tshls.md",
+    "docs/isa/tile/ops/tile-scalar-and-immediate/tshrs.md",
+    "docs/isa/tile/ops/tile-scalar-and-immediate/txors.md",
+    "docs/isa/tile/ops/tile-scalar-and-immediate/tlrelu.md",
+    "docs/isa/tile/ops/tile-scalar-and-immediate/taddsc.md",
+    "docs/isa/tile/ops/tile-scalar-and-immediate/tsubsc.md",
+    "docs/isa/tile/reduce-and-expand.md",
+    "docs/isa/tile/ops/reduce-and-expand/trowsum.md",
+    "docs/isa/tile/ops/reduce-and-expand/tcolsum.md",
+    "docs/isa/TROWPROD.md",
+    "docs/isa/tile/ops/reduce-and-expand/tcolprod.md",
+    "docs/isa/tile/ops/reduce-and-expand/tcolmax.md",
+    "docs/isa/tile/ops/reduce-and-expand/tcolmin.md",
+    "docs/isa/TCOLARGMAX.md",
+    "docs/isa/TCOLARGMIN.md",
+    "docs/isa/tile/ops/reduce-and-expand/trowmax.md",
+    "docs/isa/tile/ops/reduce-and-expand/trowmin.md",
+    "docs/isa/tile/ops/reduce-and-expand/trowargmax.md",
+    "docs/isa/tile/ops/reduce-and-expand/trowargmin.md",
+    "docs/isa/tile/ops/reduce-and-expand/trowexpand.md",
+    "docs/isa/tile/ops/reduce-and-expand/trowexpanddiv.md",
+    "docs/isa/tile/ops/reduce-and-expand/trowexpandmul.md",
+    "docs/isa/tile/ops/reduce-and-expand/trowexpandsub.md",
+    "docs/isa/tile/ops/reduce-and-expand/trowexpandadd.md",
+    "docs/isa/tile/ops/reduce-and-expand/trowexpandmax.md",
+    "docs/isa/tile/ops/reduce-and-expand/trowexpandmin.md",
+    "docs/isa/tile/ops/reduce-and-expand/trowexpandexpdif.md",
+    "docs/isa/tile/ops/reduce-and-expand/tcolexpand.md",
+    "docs/isa/tile/ops/reduce-and-expand/tcolexpanddiv.md",
+    "docs/isa/tile/ops/reduce-and-expand/tcolexpandmul.md",
+    "docs/isa/tile/ops/reduce-and-expand/tcolexpandadd.md",
+    "docs/isa/tile/ops/reduce-and-expand/tcolexpandmax.md",
+    "docs/isa/tile/ops/reduce-and-expand/tcolexpandmin.md",
+    "docs/isa/tile/ops/reduce-and-expand/tcolexpandsub.md",
+    "docs/isa/tile/ops/reduce-and-expand/tcolexpandexpdif.md",
+    "docs/isa/tile/memory-and-data-movement.md",
+    "docs/isa/tile/ops/memory-and-data-movement/tload.md",
+    "docs/isa/tile/ops/memory-and-data-movement/tprefetch.md",
+    "docs/isa/tile/ops/memory-and-data-movement/tstore.md",
+    "docs/isa/tile/ops/memory-and-data-movement/tstore-fp.md",
+    "docs/isa/tile/ops/memory-and-data-movement/mgather.md",
+    "docs/isa/tile/ops/memory-and-data-movement/mscatter.md",
+    "docs/isa/tile/matrix-and-matrix-vector.md",
+    "docs/isa/tile/ops/matrix-and-matrix-vector/tgemv-mx.md",
+    "docs/isa/tile/ops/matrix-and-matrix-vector/tmatmul-mx.md",
+    "docs/isa/tile/ops/matrix-and-matrix-vector/tmatmul.md",
+    "docs/isa/tile/ops/matrix-and-matrix-vector/tmatmul-acc.md",
+    "docs/isa/tile/ops/matrix-and-matrix-vector/tmatmul-bias.md",
+    "docs/isa/tile/ops/matrix-and-matrix-vector/tgemv.md",
+    "docs/isa/tile/ops/matrix-and-matrix-vector/tgemv-acc.md",
+    "docs/isa/tile/ops/matrix-and-matrix-vector/tgemv-bias.md",
+    "docs/isa/tile/layout-and-rearrangement.md",
+    "docs/isa/tile/ops/layout-and-rearrangement/textract.md",
+    "docs/isa/tile/ops/layout-and-rearrangement/textract-fp.md",
+    "docs/isa/tile/ops/layout-and-rearrangement/timg2col.md",
+    "docs/isa/tile/ops/layout-and-rearrangement/tinsert.md",
+    "docs/isa/tile/ops/layout-and-rearrangement/tinsert-fp.md",
+    "docs/isa/tile/ops/layout-and-rearrangement/tfillpad.md",
+    "docs/isa/tile/ops/layout-and-rearrangement/tfillpad-inplace.md",
+    "docs/isa/tile/ops/layout-and-rearrangement/tfillpad-expand.md",
+    "docs/isa/tile/ops/layout-and-rearrangement/tmov.md",
+    "docs/isa/tile/ops/layout-and-rearrangement/tmov-fp.md",
+    "docs/isa/tile/ops/layout-and-rearrangement/treshape.md",
+    "docs/isa/tile/ops/layout-and-rearrangement/ttrans.md",
+    "docs/isa/tile/irregular-and-complex.md",
+    "docs/isa/tile/ops/irregular-and-complex/tprint.md",
+    "docs/isa/tile/ops/irregular-and-complex/tmrgsort.md",
+    "docs/isa/tile/ops/irregular-and-complex/tsort32.md",
+    "docs/isa/tile/ops/irregular-and-complex/tgather.md",
+    "docs/isa/tile/ops/irregular-and-complex/tgatherb.md",
+    "docs/isa/tile/ops/irregular-and-complex/tscatter.md",
+    "docs/isa/tile/ops/irregular-and-complex/tci.md",
+    "docs/isa/tile/ops/irregular-and-complex/ttri.md",
+    "docs/isa/tile/ops/irregular-and-complex/tpartadd.md",
+    "docs/isa/tile/ops/irregular-and-complex/tpartmul.md",
+    "docs/isa/tile/ops/irregular-and-complex/tpartmax.md",
+    "docs/isa/tile/ops/irregular-and-complex/tpartmin.md",
+    "docs/isa/tile/ops/irregular-and-complex/tquant.md",
+]
+
+VECTOR_REFERENCE_PAGES = [
+    "docs/isa/vector/README.md",
+    "docs/isa/vector/vector-load-store.md",
+    "docs/isa/vector/ops/vector-load-store/vlds.md",
+    "docs/isa/vector/ops/vector-load-store/vldas.md",
+    "docs/isa/vector/ops/vector-load-store/vldus.md",
+    "docs/isa/vector/ops/vector-load-store/vldx2.md",
+    "docs/isa/vector/ops/vector-load-store/vsld.md",
+    "docs/isa/vector/ops/vector-load-store/vsldb.md",
+    "docs/isa/vector/ops/vector-load-store/vgather2.md",
+    "docs/isa/vector/ops/vector-load-store/vgatherb.md",
+    "docs/isa/vector/ops/vector-load-store/vgather2-bc.md",
+    "docs/isa/vector/ops/vector-load-store/vsts.md",
+    "docs/isa/vector/ops/vector-load-store/vstx2.md",
+    "docs/isa/vector/ops/vector-load-store/vsst.md",
+    "docs/isa/vector/ops/vector-load-store/vsstb.md",
+    "docs/isa/vector/ops/vector-load-store/vscatter.md",
+    "docs/isa/vector/ops/vector-load-store/vsta.md",
+    "docs/isa/vector/ops/vector-load-store/vstas.md",
+    "docs/isa/vector/ops/vector-load-store/vstar.md",
+    "docs/isa/vector/ops/vector-load-store/vstu.md",
+    "docs/isa/vector/ops/vector-load-store/vstus.md",
+    "docs/isa/vector/ops/vector-load-store/vstur.md",
+    "docs/isa/vector/predicate-and-materialization.md",
+    "docs/isa/vector/ops/predicate-and-materialization/vbr.md",
+    "docs/isa/vector/ops/predicate-and-materialization/vdup.md",
+    "docs/isa/vector/unary-vector-ops.md",
+    "docs/isa/vector/ops/unary-vector-ops/vabs.md",
+    "docs/isa/vector/ops/unary-vector-ops/vneg.md",
+    "docs/isa/vector/ops/unary-vector-ops/vexp.md",
+    "docs/isa/vector/ops/unary-vector-ops/vln.md",
+    "docs/isa/vector/ops/unary-vector-ops/vsqrt.md",
+    "docs/isa/vector/ops/unary-vector-ops/vrsqrt.md",
+    "docs/isa/vector/ops/unary-vector-ops/vrec.md",
+    "docs/isa/vector/ops/unary-vector-ops/vrelu.md",
+    "docs/isa/vector/ops/unary-vector-ops/vnot.md",
+    "docs/isa/vector/ops/unary-vector-ops/vbcnt.md",
+    "docs/isa/vector/ops/unary-vector-ops/vcls.md",
+    "docs/isa/vector/ops/unary-vector-ops/vmov.md",
+    "docs/isa/vector/binary-vector-ops.md",
+    "docs/isa/vector/ops/binary-vector-ops/vadd.md",
+    "docs/isa/vector/ops/binary-vector-ops/vsub.md",
+    "docs/isa/vector/ops/binary-vector-ops/vmul.md",
+    "docs/isa/vector/ops/binary-vector-ops/vdiv.md",
+    "docs/isa/vector/ops/binary-vector-ops/vmax.md",
+    "docs/isa/vector/ops/binary-vector-ops/vmin.md",
+    "docs/isa/vector/ops/binary-vector-ops/vand.md",
+    "docs/isa/vector/ops/binary-vector-ops/vor.md",
+    "docs/isa/vector/ops/binary-vector-ops/vxor.md",
+    "docs/isa/vector/ops/binary-vector-ops/vshl.md",
+    "docs/isa/vector/ops/binary-vector-ops/vshr.md",
+    "docs/isa/vector/ops/binary-vector-ops/vaddc.md",
+    "docs/isa/vector/ops/binary-vector-ops/vsubc.md",
+    "docs/isa/vector/vec-scalar-ops.md",
+    "docs/isa/vector/ops/vec-scalar-ops/vadds.md",
+    "docs/isa/vector/ops/vec-scalar-ops/vsubs.md",
+    "docs/isa/vector/ops/vec-scalar-ops/vmuls.md",
+    "docs/isa/vector/ops/vec-scalar-ops/vmaxs.md",
+    "docs/isa/vector/ops/vec-scalar-ops/vmins.md",
+    "docs/isa/vector/ops/vec-scalar-ops/vands.md",
+    "docs/isa/vector/ops/vec-scalar-ops/vors.md",
+    "docs/isa/vector/ops/vec-scalar-ops/vxors.md",
+    "docs/isa/vector/ops/vec-scalar-ops/vshls.md",
+    "docs/isa/vector/ops/vec-scalar-ops/vshrs.md",
+    "docs/isa/vector/ops/vec-scalar-ops/vlrelu.md",
+    "docs/isa/vector/ops/vec-scalar-ops/vaddcs.md",
+    "docs/isa/vector/ops/vec-scalar-ops/vsubcs.md",
+    "docs/isa/vector/conversion-ops.md",
+    "docs/isa/vector/ops/conversion-ops/vci.md",
+    "docs/isa/vector/ops/conversion-ops/vcvt.md",
+    "docs/isa/vector/ops/conversion-ops/vtrc.md",
+    "docs/isa/vector/reduction-ops.md",
+    "docs/isa/vector/ops/reduction-ops/vcadd.md",
+    "docs/isa/vector/ops/reduction-ops/vcmax.md",
+    "docs/isa/vector/ops/reduction-ops/vcmin.md",
+    "docs/isa/vector/ops/reduction-ops/vcgadd.md",
+    "docs/isa/vector/ops/reduction-ops/vcgmax.md",
+    "docs/isa/vector/ops/reduction-ops/vcgmin.md",
+    "docs/isa/vector/ops/reduction-ops/vcpadd.md",
+    "docs/isa/vector/compare-select.md",
+    "docs/isa/vector/ops/compare-select/vcmp.md",
+    "docs/isa/vector/ops/compare-select/vcmps.md",
+    "docs/isa/vector/ops/compare-select/vsel.md",
+    "docs/isa/vector/ops/compare-select/vselr.md",
+    "docs/isa/vector/ops/compare-select/vselrv2.md",
+    "docs/isa/vector/data-rearrangement.md",
+    "docs/isa/vector/ops/data-rearrangement/vintlv.md",
+    "docs/isa/vector/ops/data-rearrangement/vdintlv.md",
+    "docs/isa/vector/ops/data-rearrangement/vslide.md",
+    "docs/isa/vector/ops/data-rearrangement/vshift.md",
+    "docs/isa/vector/ops/data-rearrangement/vsqz.md",
+    "docs/isa/vector/ops/data-rearrangement/vusqz.md",
+    "docs/isa/vector/ops/data-rearrangement/vperm.md",
+    "docs/isa/vector/ops/data-rearrangement/vpack.md",
+    "docs/isa/vector/ops/data-rearrangement/vsunpack.md",
+    "docs/isa/vector/ops/data-rearrangement/vzunpack.md",
+    "docs/isa/vector/ops/data-rearrangement/vintlvv2.md",
+    "docs/isa/vector/ops/data-rearrangement/vdintlvv2.md",
+    "docs/isa/vector/sfu-and-dsa-ops.md",
+    "docs/isa/vector/ops/sfu-and-dsa-ops/vprelu.md",
+    "docs/isa/vector/ops/sfu-and-dsa-ops/vexpdiff.md",
+    "docs/isa/vector/ops/sfu-and-dsa-ops/vaddrelu.md",
+    "docs/isa/vector/ops/sfu-and-dsa-ops/vsubrelu.md",
+    "docs/isa/vector/ops/sfu-and-dsa-ops/vaxpy.md",
+    "docs/isa/vector/ops/sfu-and-dsa-ops/vaddreluconv.md",
+    "docs/isa/vector/ops/sfu-and-dsa-ops/vmulconv.md",
+    "docs/isa/vector/ops/sfu-and-dsa-ops/vmull.md",
+    "docs/isa/vector/ops/sfu-and-dsa-ops/vmula.md",
+    "docs/isa/vector/ops/sfu-and-dsa-ops/vtranspose.md",
+    "docs/isa/vector/ops/sfu-and-dsa-ops/vsort32.md",
+    "docs/isa/vector/ops/sfu-and-dsa-ops/vmrgsort.md",
+    "docs/isa/vector/shared-arith.md",
+    "docs/isa/vector/shared-scf.md",
+]
+
+SCALAR_REFERENCE_PAGES = [
+    "docs/isa/scalar/README.md",
+    "docs/isa/scalar/control-and-configuration.md",
+    "docs/isa/scalar/pipeline-sync.md",
+    "docs/isa/scalar/ops/pipeline-sync/set-flag.md",
+    "docs/isa/scalar/ops/pipeline-sync/wait-flag.md",
+    "docs/isa/scalar/ops/pipeline-sync/pipe-barrier.md",
+    "docs/isa/scalar/ops/pipeline-sync/get-buf.md",
+    "docs/isa/scalar/ops/pipeline-sync/rls-buf.md",
+    "docs/isa/scalar/ops/pipeline-sync/mem-bar.md",
+    "docs/isa/scalar/ops/pipeline-sync/set-cross-core.md",
+    "docs/isa/scalar/ops/pipeline-sync/wait-flag-dev.md",
+    "docs/isa/scalar/ops/pipeline-sync/set-intra-block.md",
+    "docs/isa/scalar/ops/pipeline-sync/wait-intra-core.md",
+    "docs/isa/scalar/dma-copy.md",
+    "docs/isa/scalar/ops/dma-copy/set-loop-size-outtoub.md",
+    "docs/isa/scalar/ops/dma-copy/set-loop2-stride-outtoub.md",
+    "docs/isa/scalar/ops/dma-copy/set-loop1-stride-outtoub.md",
+    "docs/isa/scalar/ops/dma-copy/set-loop-size-ubtoout.md",
+    "docs/isa/scalar/ops/dma-copy/set-loop2-stride-ubtoout.md",
+    "docs/isa/scalar/ops/dma-copy/set-loop1-stride-ubtoout.md",
+    "docs/isa/scalar/ops/dma-copy/copy-gm-to-ubuf.md",
+    "docs/isa/scalar/ops/dma-copy/copy-ubuf-to-gm.md",
+    "docs/isa/scalar/ops/dma-copy/copy-ubuf-to-ubuf.md",
+    "docs/isa/scalar/predicate-load-store.md",
+    "docs/isa/scalar/ops/predicate-load-store/plds.md",
+    "docs/isa/scalar/ops/predicate-load-store/pld.md",
+    "docs/isa/scalar/ops/predicate-load-store/pldi.md",
+    "docs/isa/scalar/ops/predicate-load-store/psts.md",
+    "docs/isa/scalar/ops/predicate-load-store/pst.md",
+    "docs/isa/scalar/ops/predicate-load-store/psti.md",
+    "docs/isa/scalar/ops/predicate-load-store/pstu.md",
+    "docs/isa/scalar/predicate-generation-and-algebra.md",
+    "docs/isa/scalar/ops/predicate-generation-and-algebra/pset-b8.md",
+    "docs/isa/scalar/ops/predicate-generation-and-algebra/pset-b16.md",
+    "docs/isa/scalar/ops/predicate-generation-and-algebra/pset-b32.md",
+    "docs/isa/scalar/ops/predicate-generation-and-algebra/pge-b8.md",
+    "docs/isa/scalar/ops/predicate-generation-and-algebra/pge-b16.md",
+    "docs/isa/scalar/ops/predicate-generation-and-algebra/pge-b32.md",
+    "docs/isa/scalar/ops/predicate-generation-and-algebra/plt-b8.md",
+    "docs/isa/scalar/ops/predicate-generation-and-algebra/plt-b16.md",
+    "docs/isa/scalar/ops/predicate-generation-and-algebra/plt-b32.md",
+    "docs/isa/scalar/ops/predicate-generation-and-algebra/ppack.md",
+    "docs/isa/scalar/ops/predicate-generation-and-algebra/punpack.md",
+    "docs/isa/scalar/ops/predicate-generation-and-algebra/pand.md",
+    "docs/isa/scalar/ops/predicate-generation-and-algebra/por.md",
+    "docs/isa/scalar/ops/predicate-generation-and-algebra/pxor.md",
+    "docs/isa/scalar/ops/predicate-generation-and-algebra/pnot.md",
+    "docs/isa/scalar/ops/predicate-generation-and-algebra/psel.md",
+    "docs/isa/scalar/ops/predicate-generation-and-algebra/pdintlv-b8.md",
+    "docs/isa/scalar/ops/predicate-generation-and-algebra/pintlv-b16.md",
+    "docs/isa/scalar/shared-arith.md",
+    "docs/isa/scalar/shared-scf.md",
+]
+
+OTHER_REFERENCE_PAGES = [
+    "docs/isa/other/README.md",
+    "docs/isa/other/communication-and-runtime.md",
+    "docs/isa/comm/README.md",
+    "docs/isa/comm/TBROADCAST.md",
+    "docs/isa/comm/TGET.md",
+    "docs/isa/comm/TGET_ASYNC.md",
+    "docs/isa/comm/TGATHER.md",
+    "docs/isa/comm/TNOTIFY.md",
+    "docs/isa/comm/TPUT.md",
+    "docs/isa/comm/TPUT_ASYNC.md",
+    "docs/isa/comm/TREDUCE.md",
+    "docs/isa/comm/TSCATTER.md",
+    "docs/isa/comm/TTEST.md",
+    "docs/isa/comm/TWAIT.md",
+    "docs/isa/other/non-isa-and-supporting-ops.md",
+    "docs/isa/TALIAS.md",
+    "docs/isa/TAXPY.md",
+    "docs/isa/TCONCAT.md",
+    "docs/isa/TDEQUANT.md",
+    "docs/isa/TFREE.md",
+    "docs/isa/THISTOGRAM.md",
+    "docs/isa/TPACK.md",
+    "docs/isa/TPOP.md",
+    "docs/isa/TPUSH.md",
+    "docs/isa/TRANDOM.md",
+]
+
+REFERENCE_NOTE_PAGES = [
+    "docs/isa/reference/README.md",
+    "docs/isa/reference/diagnostics-and-illegal-cases.md",
+    "docs/isa/reference/glossary.md",
+    "docs/isa/reference/portability-and-target-profiles.md",
+    "docs/isa/reference/source-of-truth.md",
+]
+
 NAV_PAGES_EN = [
     "index.md",
     "docs/getting-started.md",
-    "docs/PTO-Virtual-ISA-Manual.md",
-    "manual/index.md",
-    "manual/01-overview.md",
-    "manual/02-machine-model.md",
-    "manual/03-state-and-types.md",
-    "manual/04-tiles-and-globaltensor.md",
-    "manual/05-synchronization.md",
-    "manual/06-assembly.md",
-    "manual/07-instructions.md",
-    "manual/08-programming.md",
-    "manual/09-virtual-isa-and-ir.md",
-    "manual/10-bytecode-and-toolchain.md",
-    "manual/11-memory-ordering-and-consistency.md",
-    "manual/12-backend-profiles-and-conformance.md",
-    "manual/appendix-a-glossary.md",
-    "manual/appendix-b-instruction-contract-template.md",
-    "manual/appendix-c-diagnostics-taxonomy.md",
-    "manual/appendix-d-instruction-family-matrix.md",
-    "docs/coding/README.md",
-    "docs/coding/ProgrammingModel.md",
-    "docs/coding/Tile.md",
-    "docs/coding/GlobalTensor.md",
-    "docs/coding/Scalar.md",
-    "docs/coding/Event.md",
-    "docs/coding/tutorial.md",
-    "docs/coding/tutorials/README.md",
-    "docs/coding/tutorials/vec-add.md",
-    "docs/coding/tutorials/row-softmax.md",
-    "docs/coding/tutorials/gemm.md",
-    "docs/coding/opt.md",
-    "docs/coding/debug.md",
-    "docs/machine/abstract-machine.md",
-    "docs/machine/README.md",
     "docs/isa/README.md",
+    "docs/isa/introduction/what-is-pto-visa.md",
+    "docs/isa/introduction/design-goals-and-boundaries.md",
+    "docs/isa/programming-model/tiles-and-valid-regions.md",
+    "docs/isa/programming-model/globaltensor-and-data-movement.md",
+    "docs/isa/programming-model/auto-vs-manual.md",
+    "docs/isa/machine-model/execution-agents.md",
+    "docs/isa/machine-model/ordering-and-synchronization.md",
+    "docs/isa/memory-model/consistency-baseline.md",
+    "docs/isa/memory-model/producer-consumer-ordering.md",
+    "docs/isa/state-and-types/type-system.md",
+    "docs/isa/state-and-types/location-intent-and-legality.md",
+    "docs/isa/syntax-and-operands/assembly-model.md",
+    "docs/isa/syntax-and-operands/operands-and-attributes.md",
     "docs/isa/conventions.md",
-    "docs/assembly/README.md",
-    "docs/assembly/PTO-AS.md",
-    "docs/assembly/conventions.md",
-    "docs/assembly/nonisa-ops.md",
-    "docs/assembly/elementwise-ops.md",
-    "docs/assembly/tile-scalar-ops.md",
-    "docs/assembly/axis-ops.md",
-    "docs/assembly/memory-ops.md",
-    "docs/assembly/matrix-ops.md",
-    "docs/assembly/data-movement-ops.md",
-    "docs/assembly/complex-ops.md",
-    "docs/assembly/manual-binding-ops.md",
-    "docs/assembly/scalar-arith-ops.md",
-    "docs/assembly/control-flow-ops.md",
-    "docs/PTOISA.md",
-    "docs/isa/TSYNC.md",
-    "docs/isa/TASSIGN.md",
-    "docs/isa/TSETHF32MODE.md",
-    "docs/isa/TSETTF32MODE.md",
-    "docs/isa/TSETFMATRIX.md",
-    "docs/isa/TSET_IMG2COL_RPT.md",
-    "docs/isa/TSET_IMG2COL_PADDING.md",
-    "docs/isa/TADD.md", "docs/isa/TABS.md", "docs/isa/TAND.md",
-    "docs/isa/TOR.md", "docs/isa/TSUB.md", "docs/isa/TMUL.md",
-    "docs/isa/TMIN.md", "docs/isa/TMAX.md", "docs/isa/TCMP.md",
-    "docs/isa/TDIV.md", "docs/isa/TSHL.md", "docs/isa/TSHR.md",
-    "docs/isa/TXOR.md", "docs/isa/TLOG.md", "docs/isa/TRECIP.md",
-    "docs/isa/TPRELU.md", "docs/isa/TADDC.md", "docs/isa/TSUBC.md",
-    "docs/isa/TCVT.md", "docs/isa/TSEL.md", "docs/isa/TRSQRT.md",
-    "docs/isa/TSQRT.md", "docs/isa/TEXP.md", "docs/isa/TNOT.md",
-    "docs/isa/TRELU.md", "docs/isa/TNEG.md", "docs/isa/TREM.md",
-    "docs/isa/TFMOD.md",
-    "docs/isa/TEXPANDS.md", "docs/isa/TCMPS.md", "docs/isa/TSELS.md",
-    "docs/isa/TMINS.md", "docs/isa/TADDS.md", "docs/isa/TAXPY.md", "docs/isa/TSUBS.md",
-    "docs/isa/TDIVS.md", "docs/isa/TMULS.md", "docs/isa/TFMODS.md",
-    "docs/isa/TREMS.md", "docs/isa/TMAXS.md", "docs/isa/TANDS.md",
-    "docs/isa/TORS.md", "docs/isa/TSHLS.md", "docs/isa/TSHRS.md",
-    "docs/isa/TXORS.md", "docs/isa/TLRELU.md", "docs/isa/TADDSC.md",
-    "docs/isa/TSUBSC.md",
-    "docs/isa/TROWSUM.md", "docs/isa/TROWPROD.md", "docs/isa/TCOLSUM.md",
-    "docs/isa/TCOLPROD.md", "docs/isa/TCOLMAX.md", "docs/isa/TROWMAX.md",
-    "docs/isa/TROWMIN.md", "docs/isa/TCOLMIN.md", "docs/isa/TROWEXPAND.md",
-    "docs/isa/TROWEXPANDDIV.md", "docs/isa/TROWEXPANDMUL.md",
-    "docs/isa/TROWEXPANDSUB.md", "docs/isa/TROWEXPANDADD.md",
-    "docs/isa/TROWEXPANDMAX.md", "docs/isa/TROWEXPANDMIN.md",
-    "docs/isa/TROWEXPANDEXPDIF.md", "docs/isa/TCOLEXPAND.md",
-    "docs/isa/TCOLEXPANDDIV.md", "docs/isa/TCOLEXPANDMUL.md",
-    "docs/isa/TCOLEXPANDADD.md", "docs/isa/TCOLEXPANDMAX.md",
-    "docs/isa/TCOLEXPANDMIN.md", "docs/isa/TCOLEXPANDSUB.md",
-    "docs/isa/TCOLEXPANDEXPDIF.md",
-    "docs/isa/TLOAD.md", "docs/isa/TPREFETCH.md", "docs/isa/TSTORE.md",
-    "docs/isa/TSTORE_FP.md", "docs/isa/MGATHER.md", "docs/isa/MSCATTER.md",
-    "docs/isa/TMATMUL.md", "docs/isa/TMATMUL_ACC.md", "docs/isa/TMATMUL_BIAS.md",
-    "docs/isa/TMATMUL_MX.md", "docs/isa/TGEMV.md", "docs/isa/TGEMV_ACC.md",
-    "docs/isa/TGEMV_BIAS.md", "docs/isa/TGEMV_MX.md",
-    "docs/isa/TMOV.md", "docs/isa/TMOV_FP.md", "docs/isa/TEXTRACT.md",
-    "docs/isa/TEXTRACT_FP.md", "docs/isa/TINSERT.md", "docs/isa/TINSERT_FP.md",
-    "docs/isa/TFILLPAD.md", "docs/isa/TFILLPAD_INPLACE.md",
-    "docs/isa/TFILLPAD_EXPAND.md", "docs/isa/TRESHAPE.md", "docs/isa/TALIAS.md",
-    "docs/isa/TSUBVIEW.md", "docs/isa/TCONCAT.md", "docs/isa/TTRANS.md",
-    "docs/isa/TPACK.md", "docs/isa/TIMG2COL.md",
-    "docs/isa/TGATHER.md", "docs/isa/TGATHERB.md", "docs/isa/TSCATTER.md",
-    "docs/isa/TCI.md", "docs/isa/TTRI.md", "docs/isa/TPARTADD.md",
-    "docs/isa/TPARTMUL.md", "docs/isa/TPARTMAX.md", "docs/isa/TPARTMIN.md",
-    "docs/isa/TSORT32.md", "docs/isa/TMRGSORT.md", "docs/isa/TQUANT.md",
-    "docs/isa/TDEQUANT.md", "docs/isa/TPUSH.md", "docs/isa/TPOP.md",
-    "docs/isa/TFREE.md", "docs/isa/THISTOGRAM.md", "docs/isa/TPRINT.md",
-    "docs/isa/comm/README.md",
-    "docs/isa/comm/TPUT.md", "docs/isa/comm/TGET.md",
-    "docs/isa/comm/TPUT_ASYNC.md", "docs/isa/comm/TGET_ASYNC.md",
-    "docs/isa/comm/TNOTIFY.md", "docs/isa/comm/TWAIT.md", "docs/isa/comm/TTEST.md",
-    "docs/isa/comm/TGATHER.md", "docs/isa/comm/TSCATTER.md",
-    "docs/isa/comm/TREDUCE.md", "docs/isa/comm/TBROADCAST.md",
+    "docs/isa/instruction-surfaces/README.md",
+    "docs/isa/instruction-surfaces/tile-instructions.md",
+    "docs/isa/instruction-surfaces/vector-instructions.md",
+    "docs/isa/instruction-surfaces/scalar-and-control-instructions.md",
+    "docs/isa/instruction-surfaces/other-instructions.md",
+    "docs/isa/instruction-families/README.md",
+    "docs/isa/instruction-families/tile-families.md",
+    "docs/isa/instruction-families/vector-families.md",
+    "docs/isa/instruction-families/scalar-and-control-families.md",
+    "docs/isa/instruction-families/other-families.md",
+    *TILE_REFERENCE_PAGES,
+    *VECTOR_REFERENCE_PAGES,
+    *SCALAR_REFERENCE_PAGES,
+    *OTHER_REFERENCE_PAGES,
+    *REFERENCE_NOTE_PAGES,
+    "docs/coding/README.md",
+    "docs/coding/tutorial.md",
     "docs/reference/pto-intrinsics-header.md",
-    "manual/isa-reference.md",
-    # Examples & Kernels
-    "kernels/README.md",
-    "kernels/manual/a2a3/gemm_performance/README.md",
-    "kernels/manual/common/flash_atten/README.md",
-    "demos/baseline/add/README.md",
-    "demos/baseline/gemm_basic/README.md",
-    "tests/README.md",
-    "tests/script/README.md",
-    # Documentation
     "docs/README.md",
-    "docs/website.md",
-    # Full index
-    "all-pages.md",
+    "docs/reference/pto-isa-writing-playbook.md",
+    "docs/reference/pto-isa-manual-rewrite-plan.md",
+    "docs/reference/pto-isa-manual-review-rubric.md",
 ]
 
 
@@ -397,7 +683,7 @@ def _en_url_to_zh_url(en_url: str) -> str | None:
     return base + "_zh/"
 
 
-def _generate_lang_map(nav_pages: list[str]) -> dict:
+def _generate_lang_map(nav_pages: list[str], existing_urls: set[str]) -> dict:
     """Build a mapping dict for use by the language switcher JS.
 
     Structure::
@@ -420,7 +706,7 @@ def _generate_lang_map(nav_pages: list[str]) -> dict:
 
     for en in en_urls:
         zh = _en_url_to_zh_url(en)
-        if zh:
+        if zh and zh in existing_urls:
             en_to_zh[en] = zh
             zh_to_en[zh] = en
 
@@ -446,6 +732,7 @@ def _generate_lang_map(nav_pages: list[str]) -> dict:
 # Helpers used by main()
 # ---------------------------------------------------------------------------
 
+
 def _extract_first_heading(md_path: Path) -> str:
     """Return the text of the first Markdown heading in *md_path*, or the stem."""
     try:
@@ -461,6 +748,7 @@ def _extract_first_heading(md_path: Path) -> str:
 @dataclass
 class IsaReferenceIndexConfig:
     """Configuration for generating an ISA reference index page."""
+
     out_path: str
     isa_pages: list[tuple[str, str]]
     heading: str
@@ -488,7 +776,7 @@ def _write_isa_reference_index(config: IsaReferenceIndexConfig) -> None:
 
 def _format_section_entry(rel: str, top: str) -> str:
     """Return a markdown list entry for a single page in a section."""
-    label = rel if top == "(root)" else rel[len(top) + 1:]
+    label = rel if top == "(root)" else rel[len(top) + 1 :]
     return f"- [{label}]({rel})\n"
 
 
@@ -501,12 +789,113 @@ def _write_sections(f, sections: dict[str, list[str]]) -> None:
         f.write("\n")
 
 
+def _zh_md_path(rel: str) -> str:
+    p = Path(rel)
+    if p.name == "README.md":
+        return p.with_name("README_zh.md").as_posix()
+    if p.name == "index.md":
+        return p.with_name("index_zh.md").as_posix()
+    return p.with_name(f"{p.stem}_zh.md").as_posix()
+
+
+def _rel_md_link(from_rel: str, to_rel: str) -> str:
+    base = Path(from_rel).parent.as_posix()
+    base = "." if base in ("", ".") else base
+    return posixpath.relpath(to_rel, base)
+
+
+def _legacy_zh_doc_for(rel: str) -> str | None:
+    if not rel.startswith("docs/isa/"):
+        return None
+
+    stem = Path(rel).stem
+    legacy_name = stem.replace("-", "_").upper() + "_zh.md"
+
+    candidates = [f"docs/isa/{legacy_name}", f"docs/isa/comm/{legacy_name}"]
+    for candidate in candidates:
+        if (REPO_ROOT / candidate).exists():
+            return candidate
+    return None
+
+
+def _zh_context_links_for(rel: str) -> list[tuple[str, str]]:
+    links: list[tuple[str, str]] = []
+    if rel.startswith("docs/isa/introduction/"):
+        links.append(("中文章节手册概述", "manual/01-overview_zh.md"))
+    elif rel.startswith("docs/isa/programming-model/"):
+        links.append(("中文章节手册状态与类型", "manual/03-state-and-types_zh.md"))
+        links.append(("中文章节手册 Tile 与 GlobalTensor", "manual/04-tiles-and-globaltensor_zh.md"))
+        links.append(("中文章节手册编程指南", "manual/08-programming_zh.md"))
+    elif rel.startswith("docs/isa/machine-model/"):
+        links.append(("中文章节手册执行模型", "manual/02-machine-model_zh.md"))
+        links.append(("中文章节手册同步", "manual/05-synchronization_zh.md"))
+    elif rel.startswith("docs/isa/memory-model/"):
+        links.append(("中文章节手册内存顺序与一致性", "manual/11-memory-ordering-and-consistency_zh.md"))
+    elif rel.startswith("docs/isa/state-and-types/"):
+        links.append(("中文章节手册状态与类型", "manual/03-state-and-types_zh.md"))
+    elif rel.startswith("docs/isa/syntax-and-operands/"):
+        links.append(("中文章节手册 PTO 汇编", "manual/06-assembly_zh.md"))
+    elif rel.startswith("docs/isa/instruction-surfaces/") or rel.startswith("docs/isa/instruction-families/"):
+        links.append(("中文 ISA 指令参考入口", "docs/isa/README_zh.md"))
+        links.append(("中文章节手册指令集概述", "manual/07-instructions_zh.md"))
+    elif (
+        rel.startswith("docs/isa/tile/")
+        or rel.startswith("docs/isa/vector/")
+        or rel.startswith("docs/isa/scalar/")
+        or rel.startswith("docs/isa/other/")
+    ):
+        links.append(("中文 ISA 指令参考入口", "docs/isa/README_zh.md"))
+    return links
+
+
+def _write_missing_zh_wrapper(en_rel: str, zh_rel: str) -> None:
+    title = _extract_first_heading(REPO_ROOT / en_rel)
+    with mkdocs_gen_files.open(zh_rel, "w") as f:
+        f.write(f"# {title}\n\n")
+        f.write("本页为自动生成的中文入口页，用于保证中文导航保持在中文路径下。\n\n")
+        f.write("## 当前状态\n\n")
+        f.write(
+            f"- [对应英文页面]({_rel_md_link(zh_rel, en_rel)})\n"
+            f"- [中文手册入口]({_rel_md_link(zh_rel, 'docs/PTO-Virtual-ISA-Manual_zh.md')})\n"
+        )
+
+        legacy = _legacy_zh_doc_for(en_rel)
+        if legacy:
+            f.write(f"- [现有中文指令说明]({_rel_md_link(zh_rel, legacy)})\n")
+
+        extra_links = _zh_context_links_for(en_rel)
+        if extra_links:
+            for label, target in extra_links:
+                f.write(f"- [{label}]({_rel_md_link(zh_rel, target)})\n")
+
+        f.write("\n## 说明\n\n")
+        f.write(
+            "当前 PTO ISA 的新英文手册结构已经展开，但对应的中文正文尚未完全按新结构补齐。"
+            "在中文导航中点击本页时，你仍然停留在中文路径下；若需要完整细节，请使用上面的英文页面或已有中文参考页。\n"
+        )
+
+
+def _generate_missing_zh_wrappers(copied_md: list[str]) -> list[str]:
+    generated: list[str] = []
+    existing = set(copied_md)
+
+    for en_rel in NAV_PAGES_EN:
+        if en_rel.endswith("_zh.md"):
+            continue
+        zh_rel = _zh_md_path(en_rel)
+        if zh_rel in existing:
+            continue
+        if not (REPO_ROOT / en_rel).exists():
+            continue
+        _write_missing_zh_wrapper(en_rel, zh_rel)
+        generated.append(zh_rel)
+        existing.add(zh_rel)
+
+    return generated
+
+
 def _write_all_pages_index(
-    out_path: str,
-    sections: dict[str, list[str]],
-    heading: str,
-    preamble: str,
-    empty_msg: str,
+    out_path: str, sections: dict[str, list[str]], heading: str, preamble: str, empty_msg: str
 ) -> None:
     """Write a generated all-pages index to *out_path*."""
     with mkdocs_gen_files.open(out_path, "w") as f:
@@ -522,13 +911,14 @@ def _write_all_pages_index(
 # main
 # ---------------------------------------------------------------------------
 
+
 def main() -> None:
     copied_md: list[str] = []
 
     mkdocs_src = REPO_ROOT / "docs" / "mkdocs" / "src"
 
     # Step 1: Process hand-written files under docs/mkdocs/src/.
-    # These files use root-absolute links (e.g. /docs/isa/TADD.md) so they
+    # These files use root-absolute links (e.g. /docs/isa/tile/ops/elementwise-tile-tile/tadd.md) so they
     # work when browsing the repo statically (GitHub/Gitee). At build time
     # we rewrite them to relative paths for MkDocs, and place them at their
     # virtual path (stripping the docs/mkdocs/src/ prefix).
@@ -570,12 +960,17 @@ def main() -> None:
         # Rewrite mkdocs/src/... links to root-absolute /... links, then
         # let _rewrite_links_for_build convert them to correct relative paths.
         if MKDOCS_SRC_LINK_RE.search(text):
-            text = MKDOCS_SRC_LINK_RE.sub(r'](/\1)', text)
+            text = MKDOCS_SRC_LINK_RE.sub(r"](/\1)", text)
             text = _rewrite_links_for_build(text, rel)
         with mkdocs_gen_files.open(rel, "w") as f:
             f.write(f"<!-- Generated from `{rel}` -->\n\n")
             f.write(text)
         copied_md.append(rel)
+
+    # Step 3: For English-first manual pages that do not yet have authored
+    # Chinese counterparts, generate Chinese wrapper pages so the Chinese
+    # sidebar stays on Chinese URLs instead of falling back to English paths.
+    copied_md.extend(_generate_missing_zh_wrappers(copied_md))
 
     # Generate per-instruction reference indexes for docs/isa/*.md.
     isa_dir = REPO_ROOT / "docs" / "isa"
@@ -605,38 +1000,43 @@ def main() -> None:
                 else:
                     isa_pages_en.append(("comm/" + stem, title))
 
-    _write_isa_reference_index(IsaReferenceIndexConfig(
-        out_path="manual/isa-reference.md",
-        isa_pages=isa_pages_en,
-        heading="# Instruction Reference Pages",
-        preamble=(
-            "This page is generated at build time.\n\n"
-            "- Instruction index: `docs/isa/README.md`\n"
-            "- ISA conventions: `docs/isa/conventions.md`\n\n"
-        ),
-        section_heading="## All instructions",
-        empty_msg="No English instruction pages were found under `docs/isa/`.\n",
-    ))
+    _write_isa_reference_index(
+        IsaReferenceIndexConfig(
+            out_path="manual/isa-reference.md",
+            isa_pages=isa_pages_en,
+            heading="# Instruction Reference Pages",
+            preamble=(
+                "This page is generated at build time.\n\n"
+                "- Instruction index: `docs/isa/README.md`\n"
+                "- ISA conventions: `docs/isa/conventions.md`\n\n"
+            ),
+            section_heading="## All instructions",
+            empty_msg="No English instruction pages were found under `docs/isa/`.\n",
+        )
+    )
 
-    _write_isa_reference_index(IsaReferenceIndexConfig(
-        out_path="manual/isa-reference_zh.md",
-        isa_pages=isa_pages_zh,
-        heading="# 指令参考页面（全量）",
-        preamble=(
-            "本页在构建站点时自动生成。\n\n"
-            "- 指令索引：`docs/isa/README_zh.md`\n"
-            "- ISA 通用约定：`docs/isa/conventions_zh.md`\n\n"
-        ),
-        section_heading="## 全部指令",
-        empty_msg="未在 `docs/isa/` 下发现中文指令页面。\n",
-    ))
+    _write_isa_reference_index(
+        IsaReferenceIndexConfig(
+            out_path="manual/isa-reference_zh.md",
+            isa_pages=isa_pages_zh,
+            heading="# 指令参考页面（全量）",
+            preamble=(
+                "本页在构建站点时自动生成。\n\n"
+                "- 指令索引：`docs/isa/README_zh.md`\n"
+                "- ISA 通用约定：`docs/isa/conventions_zh.md`\n\n"
+            ),
+            section_heading="## 全部指令",
+            empty_msg="未在 `docs/isa/` 下发现中文指令页面。\n",
+        )
+    )
 
     # Generate a simple index page that links to all mirrored markdown.
     all_md = sorted(set(copied_md))
+    published_md = [rel for rel in all_md if _is_published_md(rel)]
     sections: dict[str, list[str]] = {}
     sections_zh: dict[str, list[str]] = {}
 
-    for rel in all_md:
+    for rel in published_md:
         top = rel.split("/", 1)[0] if "/" in rel else "(root)"
         sections.setdefault(top, []).append(rel)
         if "_zh.md" in rel or rel.endswith("_zh/index.md"):
@@ -659,7 +1059,8 @@ def main() -> None:
     )
 
     # Generate lang-map.json for zero-latency language switching.
-    lang_map = _generate_lang_map(NAV_PAGES_EN)
+    existing_urls = {_md_to_url(p) for p in published_md}
+    lang_map = _generate_lang_map(NAV_PAGES_EN, existing_urls)
     with mkdocs_gen_files.open("lang-map.json", "w") as f:
         json.dump(lang_map, f, ensure_ascii=False, separators=(",", ":"))
 
@@ -672,9 +1073,10 @@ def main() -> None:
         rel = src.relative_to(REPO_ROOT).as_posix()
         if _should_skip(rel):
             continue
+        if not _is_published_asset(rel):
+            continue
         with mkdocs_gen_files.open(rel, "wb") as f:
             f.write(src.read_bytes())
 
 
 main()
- 
