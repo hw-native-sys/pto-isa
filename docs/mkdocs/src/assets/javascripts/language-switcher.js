@@ -9,12 +9,12 @@
 // --------------------------------------------------------------------------------
 
 /**
- * Language switcher — icon + dropdown.
+ * Language switcher — static-map edition.
  *
- * Languages are treated as separate reading tracks. Switching language should
- * move the user to a real counterpart page when one exists; otherwise it
- * should fall back to a language landing page instead of fabricating URLs or
- * trying to translate the current page in place.
+ * At build time gen_pages.py emits /lang-map.json which contains the complete
+ * en⇔zh URL mapping for every page in the nav.  This module fetches that map
+ * once (cached in sessionStorage), then switches pages with a direct lookup —
+ * no heuristics, no per-page fetch, no MutationObserver overhead.
  */
 (function () {
     'use strict';
@@ -22,14 +22,6 @@
     const LANG_KEY = 'preferred_language';
     const MAP_CACHE_KEY = 'lang_map_cache_v2';
     const LANG_MAP_URL = '/lang-map.json';
-    const LANGUAGE_HOME = {
-        en: '/',
-        zh: '/index_zh/',
-    };
-    const LANGUAGE_DOC_HOME = {
-        en: '/docs/isa/',
-        zh: '/docs/isa/README_zh/',
-    };
 
     // ── helpers ──────────────────────────────────────────────────────────────
 
@@ -44,14 +36,6 @@
     function getCurrentLanguage() {
         const p = window.location.pathname;
         return (p.includes('_zh/') || p.endsWith('_zh.html')) ? 'zh' : 'en';
-    }
-
-    function getLanguageHome(targetLang) {
-        const p = window.location.pathname;
-        if (p.startsWith('/docs/')) {
-            return LANGUAGE_DOC_HOME[targetLang];
-        }
-        return LANGUAGE_HOME[targetLang];
     }
 
     // ── map loading (fetch once, cache in sessionStorage) ────────────────────
@@ -104,85 +88,101 @@
         }
     }
 
-    function getTargetUrl(map, targetLang) {
-        return getAlternateUrl(map, targetLang) || getLanguageHome(targetLang);
-    }
-
     // ── UI ───────────────────────────────────────────────────────────────────
 
-    function createSwitcher() {
-        const currentLang = getCurrentLanguage();
+    function createSwitcher(preferredLang) {
         const container = document.createElement('div');
         container.id = 'language-switcher';
-        container.className = 'language-switcher';
-
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'language-switcher__button';
-        button.setAttribute('aria-haspopup', 'true');
-        button.setAttribute('aria-expanded', 'false');
-        button.title = 'Switch language';
-        button.innerHTML = '<span class="language-switcher__icon">🌐</span><span class="language-switcher__label">' +
-            (currentLang === 'zh' ? '中文' : 'EN') + '</span>';
-
-        const menu = document.createElement('div');
-        menu.className = 'language-switcher__menu';
-        menu.hidden = true;
+        container.style.cssText = [
+            'position:fixed', 'top:10px', 'right:10px', 'z-index:1000',
+            'background:#fff', 'border:1px solid #ccc', 'border-radius:4px',
+            'padding:5px 10px', 'box-shadow:0 2px 4px rgba(0,0,0,.1)',
+            'font-family:sans-serif', 'font-size:14px',
+        ].join(';');
 
         const langs = [
-            { code: 'en', label: 'English' },
-            { code: 'zh', label: '中文' },
+            { code: 'en', label: '\uD83C\uDDEC\uD83C\uDDE7 English' },
+            { code: 'zh', label: '\uD83C\uDDE8\uD83C\uDDF3 \u4E2D\u6587' },
         ];
 
-        langs.forEach(function (lang) {
-            const item = document.createElement('a');
-            item.href = '#';
-            item.className = 'language-switcher__item';
-            if (lang.code === currentLang) {
-                item.classList.add('is-active');
+        langs.forEach((lang, i) => {
+            if (i > 0) {
+                const sep = document.createElement('span');
+                sep.textContent = ' | ';
+                sep.style.color = '#999';
+                container.appendChild(sep);
             }
-            item.dataset.langCode = lang.code;
-            item.textContent = lang.label;
-            item.addEventListener('click', function (e) {
+
+            const a = document.createElement('a');
+            a.href = '#';
+            a.textContent = lang.label;
+            a.dataset.langCode = lang.code;
+            a.style.cssText = [
+                'text-decoration:none',
+                'cursor:pointer',
+                `color:${preferredLang === lang.code ? '#2980b9' : '#333'}`,
+                `font-weight:${preferredLang === lang.code ? 'bold' : 'normal'}`,
+            ].join(';');
+
+            a.addEventListener('click', function (e) {
                 e.preventDefault();
                 const targetLang = lang.code;
                 setPreferredLanguage(targetLang);
-                loadLangMap().then(function (map) {
-                    const url = getTargetUrl(map, targetLang);
-                    if (url !== window.location.pathname) {
+
+                // Update switcher appearance immediately.
+                container.querySelectorAll('a').forEach(el => {
+                    const active = el.dataset.langCode === targetLang;
+                    el.style.color = active ? '#2980b9' : '#333';
+                    el.style.fontWeight = active ? 'bold' : 'normal';
+                });
+
+                // Translate nav labels (text only, no link rewrite needed).
+                if (targetLang === 'zh' && typeof window.translateNavigation === 'function') {
+                    window.translateNavigation('zh');
+                } else if (targetLang === 'en' && typeof window.restoreEnglishNavigation === 'function') {
+                    window.restoreEnglishNavigation();
+                }
+
+                // Navigate to the alternate page via map lookup.
+                loadLangMap().then(map => {
+                    const url = getAlternateUrl(map, targetLang);
+                    if (url && url !== window.location.pathname) {
                         window.location.href = url;
-                    } else {
-                        menu.hidden = true;
-                        button.setAttribute('aria-expanded', 'false');
                     }
+                    // If not found in map, stay on current page (no broken redirect).
                 });
             });
-            menu.appendChild(item);
+
+            a.addEventListener('mouseenter', function () {
+                if (this.dataset.langCode !== getPreferredLanguage()) {
+                    this.style.color = '#2980b9';
+                }
+            });
+            a.addEventListener('mouseleave', function () {
+                if (this.dataset.langCode !== getPreferredLanguage()) {
+                    this.style.color = '#333';
+                }
+            });
+
+            container.appendChild(a);
         });
 
-        button.addEventListener('click', function () {
-            const expanded = button.getAttribute('aria-expanded') === 'true';
-            button.setAttribute('aria-expanded', expanded ? 'false' : 'true');
-            menu.hidden = expanded;
-        });
-
-        document.addEventListener('click', function (e) {
-            if (!container.contains(e.target)) {
-                menu.hidden = true;
-                button.setAttribute('aria-expanded', 'false');
-            }
-        });
-
-        container.appendChild(button);
-        container.appendChild(menu);
         document.body.appendChild(container);
     }
 
     // ── init ─────────────────────────────────────────────────────────────────
 
     function init() {
-        createSwitcher();
+        const preferred = getPreferredLanguage();
+        createSwitcher(preferred);
+
+        // Kick off map pre-fetch so it is cached before the user clicks.
         loadLangMap();
+
+        // Translate nav labels if user prefers Chinese.
+        if (preferred === 'zh' && typeof window.translateNavigation === 'function') {
+            window.translateNavigation('zh');
+        }
     }
 
     if (document.readyState === 'loading') {
