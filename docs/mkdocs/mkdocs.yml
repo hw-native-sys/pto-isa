@@ -67,6 +67,9 @@ extra_javascript:
 extra_css:
   - assets/stylesheets/custom.css
 
+hooks:
+  - hooks/normalize_md_links.py
+
 nav:
   - 1. Introduction:
       - Introduction: docs/isa/introduction/what-is-pto-visa.md
@@ -173,12 +176,12 @@ nav:
               - Instruction Set Contract: docs/isa/tile/reduce-and-expand.md
               - pto.trowsum: docs/isa/tile/ops/reduce-and-expand/trowsum.md
               - pto.tcolsum: docs/isa/tile/ops/reduce-and-expand/tcolsum.md
-              - pto.trowprod: docs/isa/tile/ops/reduce-and-expand/trowprod.md
+              - pto.trowprod: docs/isa/TROWPROD.md
               - pto.tcolprod: docs/isa/tile/ops/reduce-and-expand/tcolprod.md
               - pto.tcolmax: docs/isa/tile/ops/reduce-and-expand/tcolmax.md
               - pto.tcolmin: docs/isa/tile/ops/reduce-and-expand/tcolmin.md
-              - pto.tcolargmax: docs/isa/tile/ops/reduce-and-expand/tcolargmax.md
-              - pto.tcolargmin: docs/isa/tile/ops/reduce-and-expand/tcolargmin.md
+              - pto.tcolargmax: docs/isa/TCOLARGMAX.md
+              - pto.tcolargmin: docs/isa/TCOLARGMIN.md
               - pto.trowmax: docs/isa/tile/ops/reduce-and-expand/trowmax.md
               - pto.trowmin: docs/isa/tile/ops/reduce-and-expand/trowmin.md
               - pto.trowargmax: docs/isa/tile/ops/reduce-and-expand/trowargmax.md
