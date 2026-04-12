@@ -10,15 +10,18 @@ This directory contains the per-instruction reference for the PTO Tile Lib ISA.
 - [Common conventions (operands, events, modifiers)](conventions.md)
 
 ## Synchronization
+
 - [TSYNC](TSYNC.md) - Synchronize PTO execution (wait on events or insert a per-op pipeline barrier).
 
 ## Manual / Resource Binding
+
 - [TASSIGN](TASSIGN.md) - Bind a Tile object to an implementation-defined on-chip address (manual placement).
 - [TSETFMATRIX](TSETFMATRIX.md) - Set FMATRIX register(s) for IMG2COL-like ops.
 - [TSET_IMG2COL_RPT](TSET_IMG2COL_RPT.md) - Set IMG2COL repeat metadata from an IMG2COL configuration tile.
 - [TSET_IMG2COL_PADDING](TSET_IMG2COL_PADDING.md) - Set IMG2COL padding metadata from an IMG2COL configuration tile.
 
 ## Elementwise (Tile-Tile)
+
 - [TADD](TADD.md) - Elementwise add of two tiles.
 - [TABS](TABS.md) - Elementwise absolute value of a tile.
 - [TAND](TAND.md) - Elementwise bitwise AND of two tiles.
@@ -49,6 +52,7 @@ This directory contains the per-instruction reference for the PTO Tile Lib ISA.
 - [TFMOD](TFMOD.md) - Elementwise fmod of two tiles.
 
 ## Tile-Scalar / Tile-Immediate
+
 - [TEXPANDS](TEXPANDS.md) - Broadcast a scalar into a destination tile.
 - [TCMPS](TCMPS.md) - Compare a tile against a scalar and write per-element comparison results.
 - [TSELS](TSELS.md) - Select between source tile and scalar using a mask tile (per-element selection for source tile).
@@ -70,6 +74,7 @@ This directory contains the per-instruction reference for the PTO Tile Lib ISA.
 - [TSUBSC](TSUBSC.md) - Elementwise fused op: `src0 - scalar + src1`.
 
 ## Axis Reduce / Expand
+
 - [TROWSUM](TROWSUM.md) - Reduce each row by summing across columns.
 - [TROWPROD](TROWPROD.md) - Reduce each row by multiplying across columns.
 - [TCOLSUM](TCOLSUM.md) - Reduce each column by summing across rows.
@@ -100,6 +105,7 @@ This directory contains the per-instruction reference for the PTO Tile Lib ISA.
 - [TCOLEXPANDEXPDIF](TCOLEXPANDEXPDIF.md) - Column-wise exp-diff: compute exp(src0 - src1) with per-column scalars.
 
 ## Memory (GM <-> Tile)
+
 - [TLOAD](TLOAD.md) - Load data from a GlobalTensor (GM) into a Tile.
 - [TPREFETCH](TPREFETCH.md) - Prefetch data from global memory into a tile-local cache/buffer (hint).
 - [TSTORE](TSTORE.md) - Store data from a Tile into a GlobalTensor (GM), optionally using atomic write or quantization parameters.
@@ -108,6 +114,7 @@ This directory contains the per-instruction reference for the PTO Tile Lib ISA.
 - [MSCATTER](MSCATTER.md) - Scatter-store elements from a tile into global memory using per-element indices.
 
 ## Matrix Multiply
+
 - [TGEMV_MX](TGEMV_MX.md) - GEMV with additional scaling tiles for mixed-precision / quantized matrix-vector compute.
 - [TMATMUL_MX](TMATMUL_MX.md) - Matrix multiply (GEMM) with additional scaling tiles for mixed-precision / quantized matmul on supported targets.
 - [TMATMUL](TMATMUL.md) - Matrix multiply (GEMM) producing an accumulator/output tile.
@@ -118,6 +125,7 @@ This directory contains the per-instruction reference for the PTO Tile Lib ISA.
 - [TGEMV_BIAS](TGEMV_BIAS.md) - GEMV with bias add.
 
 ## Data Movement / Layout
+
 - [TEXTRACT](TEXTRACT.md) - Extract a sub-tile from a source tile.
 - [TEXTRACT_FP](TEXTRACT_FP.md) - Extract with fp/scaling tile (vector-quantization parameters).
 - [TIMG2COL](TIMG2COL.md) - Image-to-column transform for convolution-like workloads.
@@ -134,6 +142,7 @@ This directory contains the per-instruction reference for the PTO Tile Lib ISA.
 - [TGET_SCALE_ADDR](TGET_SCALE_ADDR.md) - Bind the on-chip address of output tile to a scaled factor of that of input tile.
 
 ## Complex
+
 - [TPRINT](TPRINT.md) - Debug/print elements from a tile (implementation-defined).
 - [TMRGSORT](TMRGSORT.md) - Merge sort for multiple sorted lists (implementation-defined element format and layout).
 - [TSORT32](TSORT32.md) - Sort each 32-element block of `src` together with the corresponding indices from `idx`, and write the sorted value-index pairs into `dst`.

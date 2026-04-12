@@ -10,7 +10,7 @@
 
 /**
  * Custom styles for navigation
- * 
+ *
  * - Hide +/- buttons in page content (TOC)
  * - Keep +/- buttons in left sidebar navigation
  * - Fix +/- button logic (+ = collapsed, - = expanded)
@@ -71,4 +71,3 @@ article .toctree-expand,
 .wy-menu-vertical button.toctree-expand:hover {
     opacity: 0.7;
 }
-

@@ -10,7 +10,7 @@
 
 /**
  * Navigation collapse control
- * 
+ *
  * This script collapses all second-level navigation items by default,
  * showing only the first-level navigation items.
  * Works with the existing +/- buttons in the ReadTheDocs theme.
@@ -27,31 +27,31 @@
 
         // 查找所有一级导航项
         var firstLevelItems = $('.wy-menu-vertical li.toctree-l1');
-        
+
         firstLevelItems.each(function() {
             var $item = $(this);
             var $subMenu = $item.find('> ul');
-            
+
             if ($subMenu.length === 0) return;
-            
+
             // 如果当前项不是激活状态，则收起子菜单
             if (!$item.hasClass('current')) {
                 $subMenu.hide();
                 $item.removeClass('current').attr('aria-expanded', 'false');
             }
         });
-        
+
         // 更新所有 +/- 按钮的显示
         updateExpandButtons();
-        
+
         // 使用事件委托监听按钮点击事件
         $('.wy-menu-vertical').off('click.navCollapse').on('click.navCollapse', 'button.toctree-expand', function(e) {
             var $button = $(this);
             var $item = $button.closest('li.toctree-l1');
             var $subMenu = $item.find('> ul');
-            
+
             if ($subMenu.length === 0) return;
-            
+
             // 切换子菜单的显示/隐藏
             if ($subMenu.is(':visible')) {
                 $subMenu.slideUp(200);
@@ -62,26 +62,26 @@
                 $item.addClass('current').attr('aria-expanded', 'true');
                 $button.attr('data-expanded', 'true');
             }
-            
+
             e.stopPropagation();
             e.preventDefault();
         });
     }
-    
+
     // 更新所有 +/- 按钮的显示
     function updateExpandButtons() {
         if (typeof $ === 'undefined') return;
-        
+
         $('.wy-menu-vertical li.toctree-l1').each(function() {
             var $item = $(this);
             var $subMenu = $item.find('> ul');
             var $button = $item.find('> a > button.toctree-expand');
-            
+
             if ($subMenu.length === 0 || $button.length === 0) return;
-            
+
             // 检查子菜单是否可见
             var isVisible = $subMenu.is(':visible');
-            
+
             // 根据可见性设置按钮的 data 属性，CSS 可以使用这个属性
             if (isVisible) {
                 $button.attr('data-expanded', 'true');
@@ -106,4 +106,3 @@
         init();
     }
 })();
-
