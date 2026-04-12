@@ -53,6 +53,49 @@
         };
     }
 
+    function rewriteMarkdownHref(href) {
+        if (!href || href.charAt(0) === '#') {
+            return null;
+        }
+
+        try {
+            var url = new URL(href, window.location.href);
+            if (url.origin !== window.location.origin || !url.pathname.endsWith('.md')) {
+                return null;
+            }
+
+            var pathname = url.pathname;
+            if (pathname.endsWith('/README.md')) {
+                pathname = pathname.slice(0, -'README.md'.length);
+            } else if (pathname.endsWith('/index.md')) {
+                pathname = pathname.slice(0, -'index.md'.length);
+            } else {
+                pathname = pathname.slice(0, -3) + '/';
+            }
+
+            pathname = pathname.replace(/\/+/g, '/');
+            if (pathname === '') {
+                pathname = '/';
+            }
+
+            return pathname + url.search + url.hash;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function normalizeMarkdownLinks() {
+        document.querySelectorAll('a[href$=".md"]').forEach(function (link) {
+            var rewritten = rewriteMarkdownHref(link.getAttribute('href'));
+            if (!rewritten) {
+                return;
+            }
+
+            link.setAttribute('href', rewritten);
+            link.classList.add('reference', 'internal');
+        });
+    }
+
     function mountLanguageSwitcher() {
         var switcher = document.getElementById('language-switcher');
         if (!switcher) {
@@ -127,6 +170,7 @@
 
     function init() {
         window.requestAnimationFrame(function () {
+            normalizeMarkdownLinks();
             mountLanguageSwitcher();
             buildUtilityBar();
         });
