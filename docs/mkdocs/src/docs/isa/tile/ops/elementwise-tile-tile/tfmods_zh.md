@@ -106,4 +106,3 @@ void example() {
 # AS Level 2 (DPS)
 pto.tfmods ins(%src, %scalar : !pto.tile_buf<...>, f32) outs(%dst : !pto.tile_buf<...>)
 ```
-

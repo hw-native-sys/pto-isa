@@ -150,4 +150,3 @@ void compare_wait_test(__gm__ int32_t* local_signal) {
     bool ready = comm::TTEST(sig, 1, comm::WaitCmp::EQ);
 }
 ```
-

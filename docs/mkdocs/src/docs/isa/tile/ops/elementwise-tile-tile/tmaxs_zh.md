@@ -103,4 +103,3 @@ void example() {
 # AS Level 2 (DPS)
 pto.tmaxs ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
-

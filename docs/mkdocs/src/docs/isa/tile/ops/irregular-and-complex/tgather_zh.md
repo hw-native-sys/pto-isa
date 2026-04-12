@@ -153,4 +153,3 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.tgather ins(%src, %indices : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-

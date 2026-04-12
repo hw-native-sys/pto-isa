@@ -107,4 +107,3 @@ void example() {
 # AS Level 2 (DPS)
 pto.tshrs ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
-

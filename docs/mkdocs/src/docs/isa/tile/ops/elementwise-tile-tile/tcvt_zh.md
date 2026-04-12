@@ -123,4 +123,3 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.tcvt ins(%src{rmode = #pto<round_mode xx>}: !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-

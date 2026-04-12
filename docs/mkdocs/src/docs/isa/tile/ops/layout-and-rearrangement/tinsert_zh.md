@@ -106,4 +106,3 @@ PTO_INST RecordEvent TINSERT(DstTileData &dst, SrcTileData &src, uint32_t indexR
 # AS Level 2 (DPS)
 pto.tinsert ins(%src[%r0, %r1] : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-

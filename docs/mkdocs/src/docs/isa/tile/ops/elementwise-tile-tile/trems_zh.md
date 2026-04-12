@@ -114,4 +114,3 @@ void example() {
 # AS Level 2 (DPS)
 pto.trems ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
-

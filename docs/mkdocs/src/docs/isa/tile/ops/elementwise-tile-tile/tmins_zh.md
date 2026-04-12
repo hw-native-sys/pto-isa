@@ -120,4 +120,3 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.tmins ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
-

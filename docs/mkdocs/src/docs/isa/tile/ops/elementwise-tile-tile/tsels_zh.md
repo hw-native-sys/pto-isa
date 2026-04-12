@@ -146,4 +146,3 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.tsels ins(%mask, %src, %scalar : !pto.tile_buf<...>, !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
-

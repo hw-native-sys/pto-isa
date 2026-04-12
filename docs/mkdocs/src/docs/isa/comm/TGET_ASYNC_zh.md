@@ -162,4 +162,3 @@ __global__ AICORE void BatchGet(__gm__ T *localDstBase, __gm__ T *remoteSrcBase,
     (void)lastEvent.Wait(session);  // 一次 Wait 等待所有 pending 操作
 }
 ```
-
