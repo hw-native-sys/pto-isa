@@ -180,3 +180,13 @@ TEST_F(TCITest, case13_int16)
 {
     test_vci_b16<int16_t, 1, 3328, 1, 0, 1>();
 }
+
+TEST_F(TCITest, case14_int16)
+{
+    test_vci_b16<int16_t, 1, 64, 0, 0, 1>();
+}
+
+TEST_F(TCITest, case15_int16)
+{
+    test_vci_b16<int16_t, 1, 32, 1, 0, 1>();
+}

@@ -16,7 +16,7 @@ using namespace std;
 using namespace PtoTestCommon;
 
 namespace TColExpandDivTest {
-template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col>
+template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool highPrecision>
 void launchTColExpandDiv(T *out, T *src0, T *src1, void *stream);
 
 class TColExpandDivTest : public testing::Test {
@@ -36,7 +36,7 @@ std::string GetGoldenDir()
     return fullPath;
 }
 
-template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col>
+template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool highPrecision = false>
 void test_tcolexpanddiv()
 {
     size_t inputFileSize = src1Row * src1Col * sizeof(T);
@@ -63,7 +63,7 @@ void test_tcolexpanddiv()
 
     aclrtMemcpy(src0Device, outputFileSize, src0Host, outputFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, inputFileSize, src1Host, inputFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    launchTColExpandDiv<T, dstRow, dstCol, src1Row, src1Col>(dstDevice, src0Device, src1Device, stream);
+    launchTColExpandDiv<T, dstRow, dstCol, src1Row, src1Col, highPrecision>(dstDevice, src0Device, src1Device, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, outputFileSize, dstDevice, outputFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -86,7 +86,8 @@ void test_tcolexpanddiv()
     std::vector<float> devFinal(outputFileSize);
     ReadFile(GetGoldenDir() + "/golden.bin", outputFileSize, golden.data(), outputFileSize);
     ReadFile(GetGoldenDir() + "/output.bin", outputFileSize, devFinal.data(), outputFileSize);
-    bool ret = ResultCmp(golden, devFinal, 0.001f);
+    auto resPrecision = highPrecision ? 0.0000001f : 0.001f;
+    bool ret = ResultCmp(golden, devFinal, resPrecision);
 
     EXPECT_TRUE(ret);
 }
@@ -106,5 +107,17 @@ TEST_F(TColExpandDivTest, case_fp16_16_64_1_64)
 TEST_F(TColExpandDivTest, case_fp16_4_128_1_128)
 {
     test_tcolexpanddiv<aclFloat16, 4, 128, 1, 128>();
+}
+TEST_F(TColExpandDivTest, case_fp32_40_32_1_32)
+{
+    test_tcolexpanddiv<float, 40, 32, 1, 32, true>();
+}
+TEST_F(TColExpandDivTest, case_fp16_16_128_1_128)
+{
+    test_tcolexpanddiv<aclFloat16, 16, 128, 1, 128, true>();
+}
+TEST_F(TColExpandDivTest, case_fp32_20_64_1_64)
+{
+    test_tcolexpanddiv<float, 20, 64, 1, 64, true>();
 }
 } // namespace TColExpandDivTest

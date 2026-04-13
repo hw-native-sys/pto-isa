@@ -60,6 +60,8 @@ if __name__ == "__main__":
         "TCITest.case11_int16",
         "TCITest.case12_int16",
         "TCITest.case13_int16",
+        "TCITest.case14_int16",
+        "TCITest.case15_int16",
     ]
 
     case_params_list = [
@@ -76,6 +78,8 @@ if __name__ == "__main__":
         TciParams(np.int16, 1, 256, 0, 0),
         TciParams(np.int16, 1, 800, 1, 0),
         TciParams(np.int16, 1, 3328, 1, 0),
+        TciParams(np.int16, 1, 64, 0, 0),
+        TciParams(np.int16, 1, 32, 1, 0),
     ]
 
     for i, case_name in enumerate(case_name_list):

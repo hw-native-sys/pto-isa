@@ -36,7 +36,7 @@ PTO_INTERNAL void TColExpand_Op(TileDst &dst, TileDst &src0, TileSrc1 &src1)
     });
 }
 
-template <typename TileDst, typename TileSrc1>
+template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDst, typename TileSrc1>
 PTO_INTERNAL void TCOLEXPANDDIV_IMPL(TileDst &dst, TileDst &src0, TileSrc1 &src1)
 {
     TColExpand_Op<TileDst, TileSrc1, ElementOp::OP_DIV>(dst, src0, src1);

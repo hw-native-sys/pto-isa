@@ -91,3 +91,5 @@ template void launchTCI_demo_b16<1, 800, 1, 800, 0, 1>(int16_t *out, void *strea
 template void launchTCI_demo_b16<1, 800, 1, 800, 1, 1>(int16_t *out, void *stream);
 template void launchTCI_demo_b16<1, 3328, 1, 3328, 0, 1>(int16_t *out, void *stream);
 template void launchTCI_demo_b16<1, 3328, 1, 3328, 1, 1>(int16_t *out, void *stream);
+template void launchTCI_demo_b16<1, 64, 1, 64, 0, 1>(int16_t *out, void *stream);
+template void launchTCI_demo_b16<1, 32, 1, 32, 1, 1>(int16_t *out, void *stream);

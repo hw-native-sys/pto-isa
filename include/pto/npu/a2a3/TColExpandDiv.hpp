@@ -44,7 +44,8 @@ struct ColExpandDivOp2 {
         vdiv(dst, src1, src0, repeats, 1, 1, 1, dstRepeatStride, 0, src0RepeatStride);
     }
 };
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
+template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc0,
+          typename TileDataSrc1>
 PTO_INTERNAL void TCOLEXPANDDIV_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1)
 {
     using T = typename TileDataDst::DType;
