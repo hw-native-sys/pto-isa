@@ -7,19 +7,16 @@ body:
     attributes:
       value: |
         Thanks for sending an issue! Please fill in the following template to help quickly solve your problem.
+  - type: input
+    attributes:
+      label: 文档链接
+      description:
+    validations:
+      required: true
+
   - type: textarea
     attributes:
-      label:
-      description: 提供尽可能多的信息描述产生了什么问题
-      value: |
-        ####  一、文档链接 （必填）
-        <!-- 请给出有问题的文档链接 -->
-
-
-        ####  二、问题文档片段 （必填）
-        <!-- 请给出问题文档片段或截图 -->
-
-        💡 存在的问题（选填）
-
+      label: 问题文档片段描述/截图
+      description:
     validations:
       required: true

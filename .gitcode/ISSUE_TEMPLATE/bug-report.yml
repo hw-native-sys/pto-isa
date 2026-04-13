@@ -9,29 +9,14 @@ body:
         Thanks for sending an issue! Please fill in the following template to help quickly solve your problem.
   - type: textarea
     attributes:
-      label:
-      description: 提供尽可能多的信息描述产生了什么问题
-      value: |
-        ####  一、问题描述 （必填）
-        <!-- 可粘贴错误日志或描述截图 -->
+      label: 发生了什么问题？
+      description:
+    validations:
+      required: true
 
-
-        ####  二、环境信息 （可选）
-        <!--
-        • 昇腾硬件型号：
-        • CANN版本:
-        • 操作系统：
-        • 其他相关软件版本：
-         -->
-
-        ####  三、重现步骤 （可选）
-        <!-- 提供尽可能多的信息描述如何重现该缺陷 -->
-
-        ####  四、预期结果 （可选）
-        <!-- 描述预期的行为应该是什么样子的 -->
-
-
-        💡 备注（选填）
-
+  - type: textarea
+    attributes:
+      label: 期望的行为是什么？
+      description:
     validations:
       required: true
