@@ -7,8 +7,9 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 # --------------------------------------------------------------------------------
-import os 
-import numpy as np 
+import os
+import numpy as np
+from utils import NumExt
 
 np.random.seed(19)
 
@@ -19,12 +20,12 @@ def gen_golden_data(param):
     size = shape[0] * shape[1] * shape[2] * shape[3] * shape[4]
 
     #Generate random input arrays
-    input1 = np.random.randint(1, 10, size=[size]).astype(dtype)
-    golden = np.tile(input1, rank)
+    input1 = NumExt.astype(np.random.randint(1, 10, size=[size]), dtype)
+    golden = NumExt.astype(np.tile(input1, rank), dtype)
 
     #Save the input and golden data to binary files
-    input1.tofile("input.bin") 
-    golden.tofile("golden.bin")
+    NumExt.write_array("input.bin", input1, dtype)
+    NumExt.write_array("golden.bin", golden, dtype)
 
 
 class TBroadCastParams:
@@ -35,13 +36,7 @@ class TBroadCastParams:
 
 
 def generate_case_name(param, index):
-    dtype_str = {
-        np.float32: 'float', 
-        np.float16: 'half', 
-        np.int8: 'int8', 
-        np.int32: 'int32', 
-        np.int16: 'int16' 
-    }[param.dtype]
+    dtype_str = NumExt.get_short_type_name(param.dtype)
 
     name = f"TBroadCastTest.case_{dtype_str}_{index}"
     return name
@@ -61,6 +56,8 @@ if __name__ == "__main__":
         TBroadCastParams(np.int16, (2, 2, 3, 64, 64), 2), 
         TBroadCastParams(np.float16, (1, 2, 1, 16, 256), 1)
     ]
+    if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
+        case_params_list.append(TBroadCastParams(NumExt.bf16, (1, 2, 1, 16, 256), 1))
 
     for i, param in enumerate(case_params_list):
         case_name = generate_case_name(param, i + 1) 

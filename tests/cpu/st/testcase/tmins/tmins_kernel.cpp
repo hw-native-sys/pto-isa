@@ -55,3 +55,9 @@ template void LaunchTMins<aclFloat16, 64, 64, 64, 64>(aclFloat16 *out, aclFloat1
                                                       void *stream);
 template void LaunchTMins<aclFloat16, 16, 256, 16, 256>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
                                                         void *stream);
+#ifdef CPU_SIM_BFLOAT_ENABLED
+template void LaunchTMins<bfloat16_t, 64, 64, 64, 64>(bfloat16_t *out, bfloat16_t *src0, bfloat16_t *src1,
+                                                      void *stream);
+template void LaunchTMins<bfloat16_t, 16, 256, 16, 256>(bfloat16_t *out, bfloat16_t *src0, bfloat16_t *src1,
+                                                        void *stream);
+#endif

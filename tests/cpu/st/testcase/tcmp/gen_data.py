@@ -12,6 +12,7 @@
 
 import os
 import numpy as np
+from utils import NumExt
 np.random.seed(19)
 
 
@@ -22,38 +23,38 @@ def gen_golden_data_tcmp(case_name, param):
     h_valid, w_valid = [param.valid_row, param.valid_col]
 
     # Generate random input arrays
-    input1 = np.random.randint(1, 10, size=[row, col]).astype(dtype)
-    input2 = np.random.randint(1, 10, size=[row, col]).astype(dtype)
+    input1 = NumExt.astype(np.random.randint(1, 10, size=[row, col]), dtype)
+    input2 = NumExt.astype(np.random.randint(1, 10, size=[row, col]), dtype)
 
-    golden = np.zeros([row, col]).astype(dtype)
+    golden = NumExt.zeros([row, col], dtype)
     if param.cmp_mode == "EQ":
-        golden = np.equal(input1, input2).astype(dtype)
+        golden = NumExt.astype(np.equal(input1, input2), dtype)
     elif param.cmp_mode == "NE":
-        golden = np.not_equal(input1, input2).astype(dtype)
+        golden = NumExt.astype(np.not_equal(input1, input2), dtype)
     elif param.cmp_mode == "GT":
-        golden = np.greater(input1, input2).astype(dtype)
+        golden = NumExt.astype(np.greater(input1, input2), dtype)
     elif param.cmp_mode == "LT":
-        golden = np.less(input1, input2).astype(dtype)
+        golden = NumExt.astype(np.less(input1, input2), dtype)
     elif param.cmp_mode == "GE":
-        golden = np.greater_equal(input1, input2).astype(dtype)
+        golden = NumExt.astype(np.greater_equal(input1, input2), dtype)
     elif param.cmp_mode == "LE":
-        golden = np.less_equal(input1, input2).astype(dtype)
+        golden = NumExt.astype(np.less_equal(input1, input2), dtype)
     else: # default EQ
-        golden = np.equal(input1, input2).astype(dtype)
+        golden = NumExt.astype(np.equal(input1, input2), dtype)
 
     # Apply valid region constraints
-    output = np.zeros([row, col]).astype(dtype)
+    output = NumExt.zeros([row, col], dtype)
     for h in range(row):
         for w in range(col):
             if h >= h_valid or w >= w_valid:
                 golden[h][w] = output[h][w]
 
     # Save the input and golden data to binary files
-    input1.tofile("input1.bin")
-    input2.tofile("input2.bin")
-    golden.tofile("golden.bin")
+    NumExt.write_array("input1.bin", input1, dtype)
+    NumExt.write_array("input2.bin", input2, dtype)
+    NumExt.write_array("golden.bin", golden, dtype)
 
-    return output, input1, input2, golden
+    return input1, input2, golden
 
 
 class TCmpParams:
@@ -69,13 +70,7 @@ class TCmpParams:
 
 
 def generate_case_name(param):
-    dtype_str = {
-        np.float32: 'float',
-        np.float16: 'half',
-        np.int8: 'int8',
-        np.int32: 'int32',
-        np.int16: 'int16'
-    }[param.dtype]
+    dtype_str = NumExt.get_short_type_name(param.dtype)
     return f"TCMPTest.case_{dtype_str}_{param.global_row}x{param.global_col}_{param.tile_row}x{param.tile_col}_" + \
            f"{param.valid_row}x{param.valid_col}_{param.cmp_mode}"
 
@@ -95,6 +90,8 @@ if __name__ == "__main__":
         TCmpParams(np.int16, 64, 64, 64, 64, 64, 64, "EQ"),
         TCmpParams(np.float16, 16, 256, 16, 256, 16, 256, "EQ"),
     ]
+    if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
+        case_params_list.append(TCmpParams(NumExt.bf16, 16, 256, 16, 256, 16, 256, "EQ"))
 
     for i, param in enumerate(case_params_list):
         case_name = generate_case_name(param)

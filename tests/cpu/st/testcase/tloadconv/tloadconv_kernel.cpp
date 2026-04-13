@@ -127,6 +127,13 @@ extern "C" __global__ AICORE void launch_4(__gm__ uint8_t *o, __gm__ uint8_t *s)
     runTloadFractalZ5D<int8_t, 4, 2, 6, 16>((__gm__ int8_t *)o, (__gm__ int8_t *)s);
 }
 
+#ifdef CPU_SIM_BFLOAT_ENABLED
+extern "C" __global__ AICORE void launch_5(__gm__ uint8_t *o, __gm__ uint8_t *s)
+{
+    runTloadDynamic<bfloat16_t, 1, 2, 4, 4, Layout::NC1HWC0>((__gm__ bfloat16_t *)o, (__gm__ bfloat16_t *)s);
+}
+#endif
+
 // Unified Dispatcher for GTest
 template <int32_t testKey>
 void launchTLOAD(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream)
@@ -139,6 +146,10 @@ void launchTLOAD(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream)
         launch_3(out, src);
     else if constexpr (testKey == 4)
         launch_4(out, src);
+#ifdef CPU_SIM_BFLOAT_ENABLED
+    else if constexpr (testKey == 5)
+        launch_5(out, src);
+#endif
 }
 
 // Template instantiations
@@ -146,3 +157,6 @@ template void launchTLOAD<1>(uint8_t *, uint8_t *, uint64_t *, void *);
 template void launchTLOAD<2>(uint8_t *, uint8_t *, uint64_t *, void *);
 template void launchTLOAD<3>(uint8_t *, uint8_t *, uint64_t *, void *);
 template void launchTLOAD<4>(uint8_t *, uint8_t *, uint64_t *, void *);
+#ifdef CPU_SIM_BFLOAT_ENABLED
+template void launchTLOAD<5>(uint8_t *, uint8_t *, uint64_t *, void *);
+#endif

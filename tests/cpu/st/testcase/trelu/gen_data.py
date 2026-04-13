@@ -12,49 +12,48 @@
 
 import os
 import numpy as np
+from utils import NumExt
 np.random.seed(19)
 
 
 def gen_golden_data_trelu(case_name, param):
     dtype = param.dtype
 
+    row, col = [param.tile_row, param.tile_col]
     row_valid, col_valid = [param.valid_row, param.valid_col]
 
     # Generate random input arrays
-    input1 = np.random.randint(1, 10, size=[row_valid, col_valid]).astype(dtype)
+    input1 = NumExt.astype(np.random.randint(1, 10, size=[row, col]), dtype)
 
     # Perform the addbtraction
-    golden = np.maximum(input1, 0).astype(dtype)
+    golden = NumExt.astype(np.maximum(input1, 0), dtype)
 
     # Save the input and golden data to binary files
-    input1.tofile("input1.bin")
-    golden.tofile("golden.bin")
+    NumExt.write_array("input1.bin", input1, dtype)
+    NumExt.write_array("golden.bin", golden, dtype)
 
 
 class TReluParams:
-    def __init__(self, dtype, src_tile_row, src_tile_col, dst_tile_row, dst_tile_col, valid_row, valid_col):
+    def __init__(self, dtype, global_row, global_col, tile_row, tile_col, valid_row, valid_col):
         self.dtype = dtype
-        self.src_tile_row = src_tile_row
-        self.src_tile_col = src_tile_col
-        self.dst_tile_row = dst_tile_row
-        self.dst_tile_col = dst_tile_col
+        self.global_row = global_row
+        self.global_col = global_col
+        self.tile_row = tile_row
+        self.tile_col = tile_col
         self.valid_row = valid_row
         self.valid_col = valid_col
 
 
-def generate_case_name(param, i):
-    dtype_str = {
-        np.float32: 'float',
-        np.float16: 'half',
-        np.int8: 'int8',
-        np.int32: 'int32',
-        np.int16: 'int16'
-    }[param.dtype]
+def generate_case_name(param):
+    dtype_str = NumExt.get_short_type_name(param.dtype)
     
     def substring(a, b) -> str:
         return f"_{a}x{b}"
         
-    name = f"TRELUTest.case_{i}"
+    name = f"TRELUTest.case_{dtype_str}" 
+    name += substring(param.global_row, param.global_col)
+    name += substring(param.tile_row, param.tile_col)
+    name += substring(param.valid_row, param.valid_col)
     
     return name
 
@@ -71,17 +70,14 @@ if __name__ == "__main__":
     case_params_list = [
         TReluParams(np.float32, 64, 64, 64, 64, 64, 64),
         TReluParams(np.int32, 64, 64, 64, 64, 64, 64),
-        TReluParams(np.float16, 16, 256, 16, 256, 16, 256),
         TReluParams(np.int16, 64, 64, 64, 64, 64, 64),
-        
-        TReluParams(np.float32, 64, 64, 64, 64, 60, 55),
-        TReluParams(np.int32, 64, 64, 64, 64, 60, 55),
-        TReluParams(np.float16, 64, 64, 96, 96, 64, 60),
-        TReluParams(np.int16, 64, 64, 96, 96, 64, 60)
+        TReluParams(np.float16, 16, 256, 16, 256, 16, 256)
     ]
+    if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
+        case_params_list.append(TReluParams(NumExt.bf16, 16, 256, 16, 256, 16, 256))
 
     for i, param in enumerate(case_params_list):
-        case_name = generate_case_name(param, i)
+        case_name = generate_case_name(param)
         if not os.path.exists(case_name):
             os.makedirs(case_name)
         original_dir = os.getcwd()

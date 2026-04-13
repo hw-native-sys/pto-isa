@@ -90,6 +90,12 @@ TEST_F(TROWMINTest, case_half_64x64_64x64_64x64)
 {
     test_trowmin<aclFloat16, 64, 64, 64, 64>();
 }
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TROWMINTest, case_bf16_64x64_64x64_64x64)
+{
+    test_trowmin<bfloat16_t, 64, 64, 64, 64>();
+}
+#endif
 TEST_F(TROWMINTest, case_half_161x161_32x32_161x161)
 {
     test_trowmin<aclFloat16, 161, 161, 32, 32>();

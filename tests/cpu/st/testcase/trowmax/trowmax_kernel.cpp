@@ -54,3 +54,6 @@ template void LaunchTROWMAX<aclFloat16, 64, 64, 64, 64>(aclFloat16 *out, aclFloa
 template void LaunchTROWMAX<aclFloat16, 161, 161, 32, 32>(aclFloat16 *out, aclFloat16 *src, void *stream);
 template void LaunchTROWMAX<float, 77, 81, 32, 16>(float *out, float *src, void *stream);
 template void LaunchTROWMAX<float, 32, 32, 32, 16>(float *out, float *src, void *stream);
+#ifdef CPU_SIM_BFLOAT_ENABLED
+template void LaunchTROWMAX<bfloat16_t, 64, 64, 64, 64>(bfloat16_t *out, bfloat16_t *src, void *stream);
+#endif

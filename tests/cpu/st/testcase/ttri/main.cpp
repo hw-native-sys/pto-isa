@@ -99,6 +99,12 @@ TEST_F(TTRITest, case_half_16x256_16x256_1_0)
 {
     test_ttri<aclFloat16, 1, 0, 16, 256, 16, 256>();
 }
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TTRITest, case_bf16_16x256_16x256_1_0)
+{
+    test_ttri<bfloat16_t, 1, 0, 16, 256, 16, 256>();
+}
+#endif
 TEST_F(TTRITest, case_float_128x128_128x128_1_0)
 {
     test_ttri<float, 1, 0, 128, 128, 128, 128>();
@@ -119,6 +125,12 @@ TEST_F(TTRITest, case_half_16x256_16x256_0_0)
 {
     test_ttri<aclFloat16, 0, 0, 16, 256, 16, 256>();
 }
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TTRITest, case_bf16_16x256_16x256_0_0)
+{
+    test_ttri<bfloat16_t, 0, 0, 16, 256, 16, 256>();
+}
+#endif
 TEST_F(TTRITest, case_float_128x128_128x128_0_0)
 {
     test_ttri<float, 0, 0, 128, 128, 128, 128>();

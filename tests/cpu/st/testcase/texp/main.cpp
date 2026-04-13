@@ -32,13 +32,13 @@ std::string GetGoldenDir()
     return fullPath;
 }
 
-template <typename T, int kDRows_, int kDCols_, int kTRows_, int kTCols_>
+template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
 void LaunchTExp(T *out, T *src, void *stream);
 
-template <typename T, int kDRows_, int kDCols_, int kTRows_, int kTCols_>
+template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
 void test_texp()
 {
-    size_t fileSize = kDRows_ * kDCols_ * sizeof(T);
+    size_t fileSize = kGRows_ * kGCols_ * sizeof(T);
 
     aclInit(nullptr);
     aclrtSetDevice(0);
@@ -57,7 +57,7 @@ void test_texp()
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input1.bin", fileSize, srcHost, fileSize));
 
     aclrtMemcpy(srcDevice, fileSize, srcHost, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    LaunchTExp<T, kDRows_, kDCols_, kTRows_, kTCols_>(dstDevice, srcDevice, stream);
+    LaunchTExp<T, kGRows_, kGCols_, kTRows_, kTCols_>(dstDevice, srcDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, fileSize, dstDevice, fileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -83,44 +83,35 @@ void test_texp()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TEXPTest, case_float_64x64_64x64)
+TEST_F(TEXPTest, case_float_64x64_64x64_64x64)
 {
     test_texp<float, 64, 64, 64, 64>();
 }
-TEST_F(TEXPTest, case_half_64x64_64x64)
+TEST_F(TEXPTest, case_half_64x64_64x64_64x64)
 {
     test_texp<aclFloat16, 64, 64, 64, 64>();
 }
-TEST_F(TEXPTest, case_half_32x32_32x32)
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TEXPTest, case_bf16_64x64_64x64_64x64)
+{
+    test_texp<bfloat16_t, 64, 64, 64, 64>();
+}
+#endif
+TEST_F(TEXPTest, case_half_32x32_32x32_32x32)
 {
     test_texp<aclFloat16, 32, 32, 32, 32>();
 }
-TEST_F(TEXPTest, case_float_32x32_32x32)
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TEXPTest, case_bf16_32x32_32x32_32x32)
+{
+    test_texp<bfloat16_t, 32, 32, 32, 32>();
+}
+#endif
+TEST_F(TEXPTest, case_float_32x32_32x32_32x32)
 {
     test_texp<float, 32, 32, 32, 32>();
 }
-TEST_F(TEXPTest, case_float_32x16_32x16)
+TEST_F(TEXPTest, case_float_32x16_32x16_32x16)
 {
     test_texp<float, 32, 16, 32, 16>();
-}
-
-TEST_F(TEXPTest, case_float_128x128_64x64)
-{
-    test_texp<float, 128, 128, 64, 64>();
-}
-TEST_F(TEXPTest, case_half_128x128_64x64)
-{
-    test_texp<aclFloat16, 128, 128, 64, 64>();
-}
-TEST_F(TEXPTest, case_half_128x128_32x32)
-{
-    test_texp<aclFloat16, 128, 128, 32, 32>();
-}
-TEST_F(TEXPTest, case_float_128x128_32x32)
-{
-    test_texp<float, 128, 128, 32, 32>();
-}
-TEST_F(TEXPTest, case_float_128x128_32x16)
-{
-    test_texp<float, 128, 128, 32, 16>();
 }

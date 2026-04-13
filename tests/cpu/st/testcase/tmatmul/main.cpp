@@ -169,6 +169,13 @@ TEST_F(TMATMULTest, case4)
     tmatmul_test<float, float, float, 4>(120, 110, 50);
 }
 
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TMATMULTest, case_bf16_1)
+{
+    tmatmul_test<float, bfloat16_t, bfloat16_t, 6>(40, 50, 60);
+}
+#endif
+
 template <typename T, typename U, typename S, typename B, int32_t key>
 void tmatmul_bias_test(uint32_t M, uint32_t K, uint32_t N)
 {
@@ -251,3 +258,10 @@ TEST_F(TMATMULTest, case_bias_5)
 
     tmatmul_bias_test<float, float, float, float, 5>(M, K, N);
 }
+
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TMATMULTest, case_bf16_bias_1)
+{
+    tmatmul_bias_test<float, bfloat16_t, bfloat16_t, float, 7>(16, 15, 16);
+}
+#endif

@@ -12,6 +12,7 @@
 
 import os
 import numpy as np
+from utils import NumExt
 np.random.seed(19)
 
 def gen_golden_data_tsub(case_name, param):
@@ -21,23 +22,23 @@ def gen_golden_data_tsub(case_name, param):
     h_valid, w_valid = [param.valid_row, param.valid_col]
 
     # Generate random input arrays
-    input1 = np.random.randint(1, 10, size=[H, W]).astype(dtype)
-    input2 = np.random.randint(1, 10, size=[H, W]).astype(dtype)
+    input1 = NumExt.astype(np.random.randint(1, 10, size=[H, W]), dtype)
+    input2 = NumExt.astype(np.random.randint(1, 10, size=[H, W]), dtype)
 
     # Perform the addbtraction
-    golden = input1 - input2
+    golden = NumExt.astype(input1 - input2, dtype)
 
     # Apply valid region constraints
-    output = np.zeros([H, W]).astype(dtype)
+    output = NumExt.zeros([H, W], dtype)
     for h in range(H):
         for w in range(W):
             if h >= h_valid or w >= w_valid:
                 golden[h][w] = output[h][w]
 
     # Save the input and golden data to binary files
-    input1.tofile("input1.bin")
-    input2.tofile("input2.bin")
-    golden.tofile("golden.bin")
+    NumExt.write_array("input1.bin", input1, dtype)
+    NumExt.write_array("input2.bin", input2, dtype)
+    NumExt.write_array("golden.bin", golden, dtype)
 
     return output, input1, input2, golden
 
@@ -52,13 +53,7 @@ class tsubParams:
         self.valid_col = valid_col
 
 def generate_case_name(param):
-    dtype_str = {
-        np.float32: 'float',
-        np.float16: 'half',
-        np.int8: 'int8',
-        np.int32: 'int32',
-        np.int16: 'int16'
-    }[param.dtype]
+    dtype_str = NumExt.get_short_type_name(param.dtype)
     return f"TSUBTest.case_{dtype_str}_{param.global_row}x{param.global_col}_{param.tile_row}x{param.tile_col}_{param.valid_row}x{param.valid_col}"
 
 if __name__ == "__main__":
@@ -76,6 +71,8 @@ if __name__ == "__main__":
         tsubParams(np.int16, 64, 64, 64, 64, 64, 64),
         tsubParams(np.float16, 16, 256, 16, 256, 16, 256),
     ]
+    if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
+        case_params_list.append(tsubParams(NumExt.bf16, 16, 256, 16, 256, 16, 256))
 
     for i, param in enumerate(case_params_list):
         case_name = generate_case_name(param)

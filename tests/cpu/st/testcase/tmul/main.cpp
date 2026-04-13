@@ -108,3 +108,9 @@ TEST_F(TMULTest, case_half_16x256_16x256_16x256)
 {
     test_tmul<aclFloat16, 16, 256, 16, 256>();
 }
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TMULTest, case_bf16_16x256_16x256_16x256)
+{
+    test_tmul<bfloat16_t, 16, 256, 16, 256>();
+}
+#endif

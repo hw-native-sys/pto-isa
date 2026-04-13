@@ -119,3 +119,10 @@ TEST_F(TLoadConvTest, case_FracZ_5D_small_int8)
 {
     tload_test<4, int8_t>();
 }
+
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TLoadConvTest, case_5HD_fused_bf16)
+{
+    tload_test<5, bfloat16_t>();
+}
+#endif

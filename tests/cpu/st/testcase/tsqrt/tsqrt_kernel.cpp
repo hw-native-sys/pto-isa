@@ -13,23 +13,24 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-template <typename T, int kDstRows_, int kDstCols_, int kSrcRows_, int kSrcCols_, int kValRows_, int kValCols_>
+template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, bool isInPlace = false>
 __global__ AICORE void runTSqrt(__gm__ T __out__ *out, __gm__ T __in__ *src)
 {
-    using DynShapeDim5Src = Shape<1, 1, 1, kSrcRows_, kSrcCols_>;
-    using DynShapeDim5Dst = Shape<1, 1, 1, kDstRows_, kDstCols_>;
-    using DynStridDim5Src = pto::Stride<1, 1, 1, kSrcCols_, 1>;
-    using DynStridDim5Dst = pto::Stride<1, 1, 1, kDstCols_, 1>;
-    using GlobalDataSrc = GlobalTensor<T, DynShapeDim5Src, DynStridDim5Src>;
-    using GlobalDataDst = GlobalTensor<T, DynShapeDim5Dst, DynStridDim5Dst>;
-    using TileData = Tile<TileType::Vec, T, kValRows_, kValCols_, BLayout::RowMajor, -1, -1>;
-    TileData srcTile(kSrcRows_, kSrcCols_);
-    TileData dstTile(kDstRows_, kDstCols_);
+    using DynShapeDim5 = Shape<1, 1, 1, kGRows_, kGCols_>;
+    using DynStridDim5 = pto::Stride<1, 1, 1, kGCols_, 1>;
+    using GlobalData = GlobalTensor<T, DynShapeDim5, DynStridDim5>;
+    using TileData = Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>;
+    TileData srcTile(kTRows_, kTCols_);
+    TileData dstTile(kTRows_, kTCols_);
     TASSIGN(srcTile, 0x0);
-    TASSIGN(dstTile, 0x0);
+    if constexpr (isInPlace) {
+        TASSIGN(dstTile, 0x0);
+    } else {
+        TASSIGN(dstTile, 0x20000);
+    }
 
-    GlobalDataSrc srcGlobal(src);
-    GlobalDataSrc dstGlobal(out);
+    GlobalData srcGlobal(src);
+    GlobalData dstGlobal(out);
 
     TLOAD(srcTile, srcGlobal);
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
@@ -41,14 +42,20 @@ __global__ AICORE void runTSqrt(__gm__ T __out__ *out, __gm__ T __in__ *src)
     out = dstGlobal.data();
 }
 
-template <typename T, int kDstRows_, int kDstCols_, int kSrcRows_, int kSrcCols_, int kValRows_, int kValCols_>
+template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, bool isInPlace = false>
 void LaunchTSqrt(T *out, T *src, void *stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>)
-        runTSqrt<half, kDstRows_, kDstCols_, kSrcRows_, kSrcCols_, kValRows_, kValCols_>((half *)(out), (half *)(src));
+        runTSqrt<half, kGRows_, kGCols_, kTRows_, kTCols_, isInPlace>((half *)(out), (half *)(src));
     else
-        runTSqrt<T, kDstRows_, kDstCols_, kSrcRows_, kSrcCols_, kValRows_, kValCols_>(out, src);
+        runTSqrt<T, kGRows_, kGCols_, kTRows_, kTCols_, isInPlace>(out, src);
 }
 
-template void LaunchTSqrt<float, 64, 64, 64, 64, 64, 64>(float *out, float *src, void *stream);
-template void LaunchTSqrt<aclFloat16, 64, 64, 64, 64, 64, 64>(aclFloat16 *out, aclFloat16 *src, void *stream);
+template void LaunchTSqrt<float, 64, 64, 64, 64, true>(float *out, float *src, void *stream);
+template void LaunchTSqrt<float, 64, 64, 64, 64, false>(float *out, float *src, void *stream);
+template void LaunchTSqrt<aclFloat16, 64, 64, 64, 64, true>(aclFloat16 *out, aclFloat16 *src, void *stream);
+template void LaunchTSqrt<aclFloat16, 64, 64, 64, 64, false>(aclFloat16 *out, aclFloat16 *src, void *stream);
+#ifdef CPU_SIM_BFLOAT_ENABLED
+template void LaunchTSqrt<bfloat16_t, 64, 64, 64, 64, true>(bfloat16_t *out, bfloat16_t *src, void *stream);
+template void LaunchTSqrt<bfloat16_t, 64, 64, 64, 64, false>(bfloat16_t *out, bfloat16_t *src, void *stream);
+#endif

@@ -14,7 +14,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <unistd.h>
 namespace pto {
 template <typename TileData>
-using TypeSum = std::conditional_t<std::is_same_v<typename TileData::DType, half>, float, typename TileData::DType>;
+using TypeSum = std::conditional_t<std::is_same_v<typename TileData::DType, half> ||
+                                       std::is_same_v<typename TileData::DType, bfloat16_t>,
+                                   float, typename TileData::DType>;
 
 template <typename TileData>
 size_t GetTileElementOffsetSubfractals(size_t subTileR, size_t innerR, size_t subTileC, size_t innerC)

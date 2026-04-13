@@ -12,6 +12,7 @@
 
 import os
 import numpy as np
+from utils import NumExt
 np.random.seed(19)
 
 
@@ -24,12 +25,13 @@ def gen_golden_data_ttri(case_name, param):
     h_valid, w_valid = [param.valid_row, param.valid_col]
 
     # generate upper or lower triangular matrix
-    golden = np.triu(np.ones([h_valid, w_valid]).astype(dtype), k=diagonal)
+    data_dtype = np.float32 if dtype == NumExt.bf16 else dtype
+    golden = np.triu(np.ones([h_valid, w_valid], dtype=data_dtype), k=diagonal)
     if isUpperOrLower == 0:
-        golden = np.tril(np.ones([h_valid, w_valid]).astype(dtype), k=diagonal)
+        golden = np.tril(np.ones([h_valid, w_valid], dtype=data_dtype), k=diagonal)
 
     # Save the input and golden data to binary files
-    golden.tofile("golden.bin")
+    NumExt.write_array("golden.bin", golden, dtype)
 
     return golden
 
@@ -46,15 +48,7 @@ class TTriParams:
 
 
 def generate_case_name(param):
-    dtype_str = {
-        np.float32: 'float',
-        np.float16: 'half',
-        np.int8: 'int8',
-        np.int32: 'int32',
-        np.int16: 'int16',
-        np.uint32: 'uint32',
-        np.uint16: 'uint16'
-    }[param.dtype]
+    dtype_str = NumExt.get_short_type_name(param.dtype)
     if param.diagonal >= 0:
         diagonal_str = str(param.diagonal)
     else:
@@ -94,6 +88,11 @@ if __name__ == "__main__":
         TTriParams(np.float32, 128, 128, 128, 31, 1, -444),
         TTriParams(np.float32, 128, 128, 128, 31, 0, -444),
     ]
+    if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
+        case_params_list.extend([
+            TTriParams(NumExt.bf16, 16, 256, 16, 256, 1, 0),
+            TTriParams(NumExt.bf16, 16, 256, 16, 256, 0, 0),
+        ])
 
     for param in case_params_list:
         case_name = generate_case_name(param)

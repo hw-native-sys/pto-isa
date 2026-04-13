@@ -51,3 +51,6 @@ template void LaunchTAbs<float, 64, 64, 64, 64>(float *out, float *src, void *st
 template void LaunchTAbs<int32_t, 64, 64, 64, 64>(int32_t *out, int32_t *src, void *stream);
 template void LaunchTAbs<aclFloat16, 16, 256, 16, 256>(aclFloat16 *out, aclFloat16 *src, void *stream);
 template void LaunchTAbs<int16_t, 64, 64, 64, 64>(int16_t *out, int16_t *src, void *stream);
+#ifdef CPU_SIM_BFLOAT_ENABLED
+template void LaunchTAbs<bfloat16_t, 16, 256, 16, 256>(bfloat16_t *out, bfloat16_t *src, void *stream);
+#endif

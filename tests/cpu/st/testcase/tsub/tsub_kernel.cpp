@@ -56,3 +56,7 @@ template void LaunchTSub<int32_t, 64, 64, 64, 64>(int32_t *out, int32_t *src0, i
 template void LaunchTSub<aclFloat16, 16, 256, 16, 256>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
                                                        void *stream);
 template void LaunchTSub<int16_t, 64, 64, 64, 64>(int16_t *out, int16_t *src0, int16_t *src1, void *stream);
+#ifdef CPU_SIM_BFLOAT_ENABLED
+template void LaunchTSub<bfloat16_t, 16, 256, 16, 256>(bfloat16_t *out, bfloat16_t *src0, bfloat16_t *src1,
+                                                       void *stream);
+#endif

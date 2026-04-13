@@ -22,8 +22,8 @@ namespace pto {
 constexpr double CAST_ODD_THRESHHOLD = 0.5;
 
 template <typename T>
-constexpr bool is_float_like_v =
-    std::is_floating_point_v<T> || std::is_same_v<T, half> || std::is_same_v<T, aclFloat16>;
+constexpr bool is_float_like_v = std::is_floating_point_v<T> || std::is_same_v<T, half> ||
+                                 std::is_same_v<T, aclFloat16> || std::is_same_v<T, bfloat16_t>;
 
 inline double applyRoundingToIntegral(double v, RoundMode mode)
 {

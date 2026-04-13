@@ -12,6 +12,7 @@
 
 import os
 import numpy as np
+from utils import NumExt
 np.random.seed(19)
 
 
@@ -26,22 +27,22 @@ def gen_golden_data_tmins(case_name, param):
         input1 = np.random.randint(1, 10, size=[height, width]).astype(dtype)
         input2 = np.random.randint(1, 10, size=[1]).astype(dtype)
     else:
-        input1 = np.random.uniform(low=-13.033, high=101.011, size=[height, width]).astype(dtype)
-        input2 = np.random.uniform(low=-13.033, high=101.011, size=[1]).astype(dtype)
+        input1 = NumExt.astype(np.random.uniform(low=-13.033, high=101.011, size=[height, width]), dtype)
+        input2 = NumExt.astype(np.random.uniform(low=-13.033, high=101.011, size=[1]), dtype)
 
-    golden = np.minimum(input1, input2)
+    golden = NumExt.astype(np.minimum(input1, input2), dtype)
 
     # Apply valid region constraints
-    output = np.zeros([height, width]).astype(dtype)
+    output = NumExt.zeros([height, width], dtype)
     for h in range(height):
         for w in range(width):
             if h >= h_valid or w >= w_valid:
                 golden[h][w] = output[h][w]
 
     # Save the input and golden data to binary files
-    input1.tofile("input1.bin")
-    input2.tofile("input_scalar.bin")
-    golden.tofile("golden.bin")
+    NumExt.write_array("input1.bin", input1, dtype)
+    NumExt.write_array("input_scalar.bin", input2, dtype)
+    NumExt.write_array("golden.bin", golden, dtype)
 
     return output, input1, input2, golden
 
@@ -57,12 +58,7 @@ class TminsParams:
         self.valid_col = valid_col
 
 def generate_case_name(param):
-    dtype_str = {
-        np.float32: 'float',
-        np.float16: 'half',
-        np.int32: 'int32',
-        np.int16: 'int16'
-    }[param.dtype]
+    dtype_str = NumExt.get_short_type_name(param.dtype)
     return f"TMINSTest.case_{dtype_str}_{param.global_row}x{param.global_col}"\
         f"_{param.tile_row}x{param.tile_col}_{param.valid_row}x{param.valid_col}"
 
@@ -82,6 +78,11 @@ if __name__ == "__main__":
         TminsParams(np.float16, 64, 64, 64, 64, 64, 64),
         TminsParams(np.float16, 16, 256, 16, 256, 16, 256),
     ]
+    if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
+        case_params_list.extend([
+            TminsParams(NumExt.bf16, 64, 64, 64, 64, 64, 64),
+            TminsParams(NumExt.bf16, 16, 256, 16, 256, 16, 256),
+        ])
 
     for i, param in enumerate(case_params_list):
         case_name = generate_case_name(param)

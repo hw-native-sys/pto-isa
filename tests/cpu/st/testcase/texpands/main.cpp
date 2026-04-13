@@ -93,6 +93,12 @@ TEST_F(TEXPANDSTest, case_half_64x64_64x64_64x64_PAD_VALUE_NULL)
 {
     test_texpands<aclFloat16, 64, 64, 64, 64, 64, 64, PAD_VALUE_NULL>();
 }
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TEXPANDSTest, case_bf16_64x64_64x64_64x64_PAD_VALUE_NULL)
+{
+    test_texpands<bfloat16_t, 64, 64, 64, 64, 64, 64, PAD_VALUE_NULL>();
+}
+#endif
 TEST_F(TEXPANDSTest, case_int16_64x64_64x64_64x64_PAD_VALUE_NULL)
 {
     test_texpands<int16_t, 64, 64, 64, 64, 64, 64, PAD_VALUE_NULL>();
@@ -110,6 +116,12 @@ TEST_F(TEXPANDSTest, case_half_1x3600_2x4096_1x3600_PAD_VALUE_MAX)
 {
     test_texpands<aclFloat16, 1, 3600, 2, 4096, 1, 3600, PAD_VALUE_MAX>();
 }
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TEXPANDSTest, case_bf16_1x3600_2x4096_1x3600_PAD_VALUE_MAX)
+{
+    test_texpands<bfloat16_t, 1, 3600, 2, 4096, 1, 3600, PAD_VALUE_MAX>();
+}
+#endif
 TEST_F(TEXPANDSTest, case_int16_16x200_20x512_16x200_PAD_VALUE_MAX)
 {
     test_texpands<int16_t, 16, 200, 20, 512, 16, 200, PAD_VALUE_MAX>();

@@ -132,3 +132,15 @@ TEST_F(TCVTTest, case9)
 {
     test_tcvt<uint8_t, aclFloat16, 64, 64, 64, 64>();
 }
+
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TCVTTest, case10)
+{
+    test_tcvt<bfloat16_t, float, 64, 64, 64, 64>();
+}
+
+TEST_F(TCVTTest, case11)
+{
+    test_tcvt<float, bfloat16_t, 64, 64, 64, 64>();
+}
+#endif

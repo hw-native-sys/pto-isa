@@ -48,3 +48,6 @@ void LaunchTCOLEXPAND(T *out, T *src, void *stream)
 
 template void LaunchTCOLEXPAND<float, 64, 64, 64, 64>(float *out, float *src, void *stream);
 template void LaunchTCOLEXPAND<aclFloat16, 16, 256, 16, 256>(aclFloat16 *out, aclFloat16 *src, void *stream);
+#ifdef CPU_SIM_BFLOAT_ENABLED
+template void LaunchTCOLEXPAND<bfloat16_t, 16, 256, 16, 256>(bfloat16_t *out, bfloat16_t *src, void *stream);
+#endif

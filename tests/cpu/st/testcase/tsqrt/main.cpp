@@ -32,14 +32,14 @@ std::string GetGoldenDir()
     return fullPath;
 }
 
-template <typename T, int kDstRows_, int kDstCols_, int kSrcRows_, int kSrcCols_, int kValRows_, int kValCols_>
+template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, bool isInPlace = false>
 void LaunchTSqrt(T *out, T *src, void *stream);
 
-template <typename T, int kDstRows_, int kDstCols_, int kSrcRows_, int kSrcCols_, int kValRows_, int kValCols_>
+template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, bool isInPlace = false>
 void test_tsqrt()
 {
-    size_t fileSrcSize = kSrcRows_ * kSrcCols_ * sizeof(T);
-    size_t fileDstSize = kDstRows_ * kDstCols_ * sizeof(T);
+    size_t fileSize = kGRows_ * kGCols_ * sizeof(T);
+
     aclInit(nullptr);
     aclrtSetDevice(0);
     aclrtStream stream;
@@ -48,21 +48,21 @@ void test_tsqrt()
     T *dstHost, *srcHost;
     T *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), fileDstSize);
-    aclrtMallocHost((void **)(&srcHost), fileSrcSize);
+    aclrtMallocHost((void **)(&dstHost), fileSize);
+    aclrtMallocHost((void **)(&srcHost), fileSize);
 
-    aclrtMalloc((void **)&dstDevice, fileDstSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, fileSrcSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void **)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
-    ReadFile(GetGoldenDir() + "/input1.bin", fileSrcSize, srcHost, fileSrcSize);
+    ReadFile(GetGoldenDir() + "/input1.bin", fileSize, srcHost, fileSize);
 
-    aclrtMemcpy(srcDevice, fileSrcSize, srcHost, fileSrcSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    LaunchTSqrt<T, kDstRows_, kDstCols_, kSrcRows_, kSrcCols_, kValRows_, kValCols_>(dstDevice, srcDevice, stream);
+    aclrtMemcpy(srcDevice, fileSize, srcHost, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    LaunchTSqrt<T, kGRows_, kGCols_, kTRows_, kTCols_, isInPlace>(dstDevice, srcDevice, stream);
 
     aclrtSynchronizeStream(stream);
-    aclrtMemcpy(dstHost, fileDstSize, dstDevice, fileDstSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    aclrtMemcpy(dstHost, fileSize, dstDevice, fileSize, ACL_MEMCPY_DEVICE_TO_HOST);
 
-    WriteFile(GetGoldenDir() + "/output.bin", dstHost, fileDstSize);
+    WriteFile(GetGoldenDir() + "/output.bin", dstHost, fileSize);
 
     aclrtFree(dstDevice);
     aclrtFree(srcDevice);
@@ -73,10 +73,10 @@ void test_tsqrt()
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<T> golden(fileDstSize);
-    std::vector<T> devFinal(fileDstSize);
-    ReadFile(GetGoldenDir() + "/golden.bin", fileDstSize, golden.data(), fileDstSize);
-    ReadFile(GetGoldenDir() + "/output.bin", fileDstSize, devFinal.data(), fileDstSize);
+    std::vector<T> golden(fileSize);
+    std::vector<T> devFinal(fileSize);
+    ReadFile(GetGoldenDir() + "/golden.bin", fileSize, golden.data(), fileSize);
+    ReadFile(GetGoldenDir() + "/output.bin", fileSize, devFinal.data(), fileSize);
 
     float eps = 0.0f;
     if constexpr (std::is_same_v<T, float>) {
@@ -89,11 +89,31 @@ void test_tsqrt()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TSQRTTest, case_float_64x64_64x64_64x64)
+TEST_F(TSQRTTest, case_float_64x64_64x64_64x64_inPlace_True)
 {
-    test_tsqrt<float, 64, 64, 64, 64, 64, 64>();
+    test_tsqrt<float, 64, 64, 64, 64, true>();
 }
-TEST_F(TSQRTTest, case_half_64x64_64x64_64x64)
+TEST_F(TSQRTTest, case_float_64x64_64x64_64x64_inPlace_False)
 {
-    test_tsqrt<aclFloat16, 64, 64, 64, 64, 64, 64>();
+    test_tsqrt<float, 64, 64, 64, 64, false>();
 }
+TEST_F(TSQRTTest, case_half_64x64_64x64_64x64_inPlace_True)
+{
+    test_tsqrt<aclFloat16, 64, 64, 64, 64, true>();
+}
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TSQRTTest, case_bf16_64x64_64x64_64x64_inPlace_True)
+{
+    test_tsqrt<bfloat16_t, 64, 64, 64, 64, true>();
+}
+#endif
+TEST_F(TSQRTTest, case_half_64x64_64x64_64x64_inPlace_False)
+{
+    test_tsqrt<aclFloat16, 64, 64, 64, 64, false>();
+}
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TSQRTTest, case_bf16_64x64_64x64_64x64_inPlace_False)
+{
+    test_tsqrt<bfloat16_t, 64, 64, 64, 64, false>();
+}
+#endif

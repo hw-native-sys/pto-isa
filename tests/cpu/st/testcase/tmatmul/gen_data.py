@@ -14,7 +14,10 @@ import os
 import struct
 import math
 import numpy as np
+from utils import NumExt
+
 np.random.seed(19)
+ENABLE_BF16 = os.environ.get("PTO_CPU_SIM_ENABLE_BF16") == "1"
 
 def matmul_reference(a, b, out_dtype):
     """
@@ -37,8 +40,8 @@ def gen_golden_data(case_name, param):
     m, k, n, is_bias, is_atrans, is_btrans = param.m, param.k, param.n, param.is_bias, False, False
     repeats = param.repeats
 
-    x1_gm = np.random.randint(1, 5, [repeats, m, k]).astype(src_type)
-    x2_gm = np.random.randint(1, 5, [repeats, k, n]).astype(src_type)
+    x1_gm = NumExt.astype(np.random.randint(1, 5, [repeats, m, k]), src_type)
+    x2_gm = NumExt.astype(np.random.randint(1, 5, [repeats, k, n]), src_type)
     bias_gm = np.random.randint(1, 10, [n, ]).astype(param.bias_type)
     golden=np.zeros([m,n], dst_type)
 
@@ -53,8 +56,8 @@ def gen_golden_data(case_name, param):
     if is_bias:
         golden += bias_gm
 
-    x1_gm.tofile("./x1_gm.bin")
-    x2_gm.tofile("./x2_gm.bin")
+    NumExt.write_array("./x1_gm.bin", x1_gm, src_type)
+    NumExt.write_array("./x2_gm.bin", x2_gm, src_type)
     bias_gm.tofile("./bias_gm.bin")
     golden.tofile("./golden.bin")
 
@@ -87,6 +90,11 @@ if __name__ == "__main__":
         "TMATMULTest.case_bias_2",
         "TMATMULTest.case_bias_5",
     ]
+    if ENABLE_BF16:
+        case_name_list.extend([
+            "TMATMULTest.case_bf16_1",
+            "TMATMULTest.case_bf16_bias_1",
+        ])
 
     case_params_list = [
         tmatmulParams(np.float16, np.float16, np.float32, 40, 50, 60, False),
@@ -98,6 +106,11 @@ if __name__ == "__main__":
         tmatmulParams(np.float16, np.float16, np.float32, 16, 15, 16, True, np.float32),
         tmatmulParams(np.float32, np.float32, np.float32, 127, 128, 63, True, np.float32),
     ]
+    if ENABLE_BF16:
+        case_params_list.extend([
+            tmatmulParams(NumExt.bf16, NumExt.bf16, np.float32, 40, 50, 60, False),
+            tmatmulParams(NumExt.bf16, NumExt.bf16, np.float32, 16, 15, 16, True, np.float32),
+        ])
 
     for i, case_name in enumerate(case_name_list):
         if not os.path.exists(case_name):

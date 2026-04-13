@@ -11,6 +11,7 @@
 import os
 import struct
 import numpy as np
+from utils import NumExt
 np.random.seed(19)
 
 def gen_golden_data_tsels(case_name, param):
@@ -20,27 +21,24 @@ def gen_golden_data_tsels(case_name, param):
     h_valid, w_valid = [param.valid_row, param.valid_col]
 
     # Generate random input array
-    input1 = np.random.randint(1, 10, size=[H, W]).astype(dtype)
-    input2 = np.random.randint(1, 10, size=[H, W]).astype(dtype)
+    input1 = NumExt.astype(np.random.randint(1, 10, size=[H, W]), dtype)
+    input2 = NumExt.astype(np.random.randint(1, 10, size=[H, W]), dtype)
     scalar = np.random.uniform(low=1, high=3, size=(1, 1)).astype(np.float32)
     # Apply valid region constraints
-    output = np.zeros([H, W]).astype(dtype)
-    golden = output
+    golden = NumExt.zeros([H, W], dtype)
     for h in range(H):
         for w in range(W):
             if not (h >= h_valid or w >= w_valid):
                 golden[h][w] = input1[h][w] if int(scalar[0][0]) == 1 else input2[h][w]
-            else:
-                golden[h][w] = output[h][w]
 
     # Save the input and golden data to binary files
-    input1.tofile("./input1.bin")
-    input2.tofile("./input2.bin")
-    golden.tofile("./golden.bin")
+    NumExt.write_array("./input1.bin", input1, dtype)
+    NumExt.write_array("./input2.bin", input2, dtype)
+    NumExt.write_array("./golden.bin", golden, dtype)
     with open("./scalar.bin", 'wb') as f:
         f.write(struct.pack('f', np.float32(scalar[0, 0])))
 
-    return output, input, scalar, golden
+    return golden, scalar
 
 
 class TSelsParams:
@@ -55,13 +53,7 @@ class TSelsParams:
 
 
 def generate_case_name(param):
-    dtype_str = {
-        np.float32: 'float',
-        np.float16: 'half',
-        np.int8: 'int8',
-        np.int32: 'int32',
-        np.int16: 'int16'
-    }[param.dtype]
+    dtype_str = NumExt.get_short_type_name(param.dtype)
     return f"TSELSTest.case_{dtype_str}_{param.global_row}x{param.global_col}_{param.tile_row}x{param.tile_col}_{param.valid_row}x{param.valid_col}"
 
 if __name__ == "__main__":
@@ -79,6 +71,8 @@ if __name__ == "__main__":
         TSelsParams(np.int16, 64, 64, 64, 64, 64, 64),
         TSelsParams(np.float16, 16, 256, 16, 256, 16, 256),
     ]
+    if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
+        case_params_list.append(TSelsParams(NumExt.bf16, 16, 256, 16, 256, 16, 256))
 
     for i, param in enumerate(case_params_list):
         case_name = generate_case_name(param)

@@ -46,7 +46,9 @@ PTO_INTERNAL void CheckMadValid()
     static_assert(
         (std::is_same_v<AType, int8_t> && std::is_same_v<BType, int8_t> && std::is_same_v<CType, int32_t>) || // s8
             (std::is_same_v<AType, half> && std::is_same_v<BType, half> && std::is_same_v<CType, float>) ||   // f162f32
-            (std::is_same_v<AType, float> && std::is_same_v<BType, float> && std::is_same_v<CType, float>)    // f322f32
+            (std::is_same_v<AType, bfloat16_t> && std::is_same_v<BType, bfloat16_t> &&
+             std::is_same_v<CType, float>) ||                                                              // bf162f32
+            (std::is_same_v<AType, float> && std::is_same_v<BType, float> && std::is_same_v<CType, float>) // f322f32
         ,
         "Not supported data type");
     static_assert(

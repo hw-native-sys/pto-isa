@@ -21,7 +21,8 @@ PTO_INTERNAL void TTriCheck(const TileData &dst)
     using T = typename TileData::DType;
     static_assert(std::is_same<T, int32_t>::value || std::is_same<T, int>::value || std::is_same<T, int16_t>::value ||
                       std::is_same<T, uint32_t>::value || std::is_same<T, uint16_t>::value ||
-                      std::is_same<T, half>::value || std::is_same<T, float>::value,
+                      std::is_same<T, half>::value || std::is_same<T, bfloat16_t>::value ||
+                      std::is_same<T, float>::value,
                   "Fix: TTRI has invalid data type.");
     static_assert(isUpperOrLower == 0 || isUpperOrLower == 1, "Fix: isUpperOrLower must be 0 or 1.");
     static_assert(TileData::isRowMajor, "Fix: TTRI only support row major layout.");

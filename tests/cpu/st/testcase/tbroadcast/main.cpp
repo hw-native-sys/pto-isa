@@ -111,3 +111,9 @@ TEST_F(TBroadCastTest, case_half_4)
 {
     test_tbroadcast_5d<aclFloat16, 1, 2, 1, 16, 256, 1>();
 }
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TBroadCastTest, case_bf16_5)
+{
+    test_tbroadcast_5d<bfloat16_t, 1, 2, 1, 16, 256, 1>();
+}
+#endif

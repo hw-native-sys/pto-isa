@@ -90,6 +90,12 @@ TEST_F(TCOLMINTest, case_half_64x64_64x64_64x64)
 {
     test_tcolmin<aclFloat16, 64, 64, 64, 64>();
 }
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TCOLMINTest, case_bf16_64x64_64x64_64x64)
+{
+    test_tcolmin<bfloat16_t, 64, 64, 64, 64>();
+}
+#endif
 TEST_F(TCOLMINTest, case_float_32x32_32x16_32x32)
 {
     test_tcolmin<float, 32, 32, 32, 16>();

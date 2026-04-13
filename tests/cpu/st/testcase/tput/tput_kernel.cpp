@@ -45,3 +45,6 @@ template void LaunchTPut<float, 64, 64, 64, 64>(float *out, float *src, void *st
 template void LaunchTPut<int32_t, 64, 64, 64, 64>(int32_t *out, int32_t *src, void *stream);
 template void LaunchTPut<aclFloat16, 16, 256, 16, 256>(aclFloat16 *out, aclFloat16 *src, void *stream);
 template void LaunchTPut<int16_t, 64, 64, 64, 64>(int16_t *out, int16_t *src, void *stream);
+#ifdef CPU_SIM_BFLOAT_ENABLED
+template void LaunchTPut<bfloat16_t, 16, 256, 16, 256>(bfloat16_t *out, bfloat16_t *src, void *stream);
+#endif

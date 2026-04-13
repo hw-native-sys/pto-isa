@@ -36,11 +36,13 @@ PTO_INTERNAL void CheckCMValid()
 {
     using SrcType = typename TileSrc::DType;
     using DstType = typename TileDst::DType;
-    static_assert((std::is_same_v<SrcType, half> && std::is_same_v<DstType, half>) ||      // f162f16
-                      (std::is_same_v<SrcType, half> && std::is_same_v<DstType, float>) || // f162f32
-                      (std::is_same_v<SrcType, float> && std::is_same_v<DstType, float>)   // f322f32
+    static_assert((std::is_same_v<SrcType, bfloat16_t> && std::is_same_v<DstType, bfloat16_t>) || // bf162bf16
+                      (std::is_same_v<SrcType, half> && std::is_same_v<DstType, half>) ||         // f162f16
+                      (std::is_same_v<SrcType, half> && std::is_same_v<DstType, float>) ||        // f162f32
+                      (std::is_same_v<SrcType, bfloat16_t> && std::is_same_v<DstType, float>) ||  // bf162f32
+                      (std::is_same_v<SrcType, float> && std::is_same_v<DstType, float>)          // f322f32
                   ,
-                  "Not supported data type");
+                  "TCOLMAX: Not supported data type");
     static_assert((TileSrc::Cols == TileDst::Cols), "Inconsistent number of cols");
     static_assert((TileDst::Rows == 1), "Inconsistent number of dst tile rows");
 }

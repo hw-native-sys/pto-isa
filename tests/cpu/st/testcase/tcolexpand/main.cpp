@@ -89,3 +89,9 @@ TEST_F(TCOLEXPANDTest, case_half_16x256_16x256_16x256)
 {
     test_tcolexpand<aclFloat16, 16, 256, 16, 256>();
 }
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TCOLEXPANDTest, case_bf16_16x256_16x256_16x256)
+{
+    test_tcolexpand<bfloat16_t, 16, 256, 16, 256>();
+}
+#endif

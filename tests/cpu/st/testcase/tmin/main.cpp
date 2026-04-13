@@ -110,3 +110,9 @@ TEST_F(TMINTest, case_half_16x256_16x256_16x256)
 {
     test_tmin<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>();
 }
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TMINTest, case_bf16_16x256_16x256_16x256)
+{
+    test_tmin<bfloat16_t, NUM_16, NUM_256, NUM_16, NUM_256>();
+}
+#endif
