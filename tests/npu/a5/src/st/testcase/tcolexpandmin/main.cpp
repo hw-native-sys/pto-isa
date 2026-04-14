@@ -107,4 +107,12 @@ TEST_F(TColExpandMinTest, case_fp16_10_64_1_64)
 {
     test_tcolexpandmin<aclFloat16, 10, 64, 1, 64>();
 }
+TEST_F(TColExpandMinTest, case_int32_16_32_1_32)
+{
+    test_tcolexpandmin<int32_t, 16, 32, 1, 32>();
+}
+TEST_F(TColExpandMinTest, case_int16_16_64_1_64)
+{
+    test_tcolexpandmin<int16_t, 16, 64, 1, 64>();
+}
 } // namespace TColExpandMinTest

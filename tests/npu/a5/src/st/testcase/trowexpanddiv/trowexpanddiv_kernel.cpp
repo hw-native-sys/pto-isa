@@ -161,4 +161,8 @@ template void launchTRowExpandDiv<aclFloat16, 16, 128, 16, 1, true, true>(aclFlo
 template void launchTRowExpandDiv2<float, 8, 32, 8, 8, true, true>(float *out, float *src0, float *src1, void *stream);
 template void launchTRowExpandDiv2<aclFloat16, 8, 128, 8, 16, true, true>(aclFloat16 *out, aclFloat16 *src0,
                                                                           aclFloat16 *src1, void *stream);
+template void launchTRowExpandDiv<int32_t, 16, 32, 16, 1, true, false>(int32_t *out, int32_t *src0, int32_t *src1,
+                                                                       void *stream);
+template void launchTRowExpandDiv<int16_t, 16, 64, 16, 1, true, false>(int16_t *out, int16_t *src0, int16_t *src1,
+                                                                       void *stream);
 } // namespace TRowExpandDivTest

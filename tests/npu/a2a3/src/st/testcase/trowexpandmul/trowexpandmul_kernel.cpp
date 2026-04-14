@@ -197,3 +197,11 @@ template void launchTRowExpandMul3<aclFloat16, 16, 16, 16, 16, true>(aclFloat16 
                                                                      aclFloat16 *src1, void *stream);
 template void launchTRowExpandMul3<float, 1, 16384, 1, 16384, true>(float *out, float *src0, float *src1, void *stream);
 template void launchTRowExpandMul3<float, 2048, 1, 2048, 8, true>(float *out, float *src0, float *src1, void *stream);
+template void launchTRowExpandMul<int32_t, 16, 16, 16, 16, true>(int32_t *out, int32_t *src0, int32_t *src1,
+                                                                 void *stream);
+template void launchTRowExpandMul2<int32_t, 16, 16, 16, 16, true>(int32_t *out, int32_t *src0, int32_t *src1,
+                                                                  void *stream);
+template void launchTRowExpandMul<int16_t, 16, 16, 16, 16, true>(int16_t *out, int16_t *src0, int16_t *src1,
+                                                                 void *stream);
+template void launchTRowExpandMul2<int16_t, 16, 16, 16, 16, true>(int16_t *out, int16_t *src0, int16_t *src1,
+                                                                  void *stream);

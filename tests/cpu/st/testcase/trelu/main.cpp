@@ -35,10 +35,10 @@ std::string GetGoldenDir()
     return fullPath;
 }
 
-template <typename T, int sTRows_, int sTCols_, int dTRows_, int dTCols_, int kGRows_, int kGCols_>
+template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
 void LaunchTRelu(T *out, T *src0, void *stream);
 
-template <typename T, int sTRows_, int sTCols_, int dTRows_, int dTCols_, int kGRows_, int kGCols_>
+template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
 void test_trelu()
 {
     size_t fileSize = kGRows_ * kGCols_ * sizeof(T);
@@ -60,7 +60,7 @@ void test_trelu()
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input1.bin", fileSize, src0Host, fileSize));
 
     aclrtMemcpy(src0Device, fileSize, src0Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    LaunchTRelu<T, sTRows_, sTCols_, dTRows_, dTCols_, kGRows_, kGCols_>(dstDevice, src0Device, stream);
+    LaunchTRelu<T, kGRows_, kGCols_, kTRows_, kTCols_>(dstDevice, src0Device, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, fileSize, dstDevice, fileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -85,37 +85,28 @@ void test_trelu()
 
     EXPECT_TRUE(ret);
 }
-
-TEST_F(TRELUTest, case_0)
+const int NUM_16 = 16;
+const int NUM_64 = 64;
+const int NUM_256 = 256;
+TEST_F(TRELUTest, case_float_64x64_64x64_64x64)
 {
-    test_trelu<float, 64, 64, 64, 64, 64, 64>();
+    test_trelu<float, NUM_64, NUM_64, NUM_64, NUM_64>();
 }
-TEST_F(TRELUTest, case_1)
+TEST_F(TRELUTest, case_int32_64x64_64x64_64x64)
 {
-    test_trelu<int32_t, 64, 64, 64, 64, 64, 64>();
+    test_trelu<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>();
 }
-TEST_F(TRELUTest, case_2)
+TEST_F(TRELUTest, case_int16_64x64_64x64_64x64)
 {
-    test_trelu<aclFloat16, 16, 256, 16, 256, 16, 256>();
+    test_trelu<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>();
 }
-TEST_F(TRELUTest, case_3)
+TEST_F(TRELUTest, case_half_16x256_16x256_16x256)
 {
-    test_trelu<int16_t, 64, 64, 64, 64, 64, 64>();
+    test_trelu<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>();
 }
-
-TEST_F(TRELUTest, case_4)
+#ifdef CPU_SIM_BFLOAT_ENABLED
+TEST_F(TRELUTest, case_bf16_16x256_16x256_16x256)
 {
-    test_trelu<float, 64, 64, 64, 64, 60, 55>();
+    test_trelu<bfloat16_t, NUM_16, NUM_256, NUM_16, NUM_256>();
 }
-TEST_F(TRELUTest, case_5)
-{
-    test_trelu<int32_t, 64, 64, 64, 64, 60, 55>();
-}
-TEST_F(TRELUTest, case_6)
-{
-    test_trelu<aclFloat16, 64, 64, 96, 96, 64, 60>();
-}
-TEST_F(TRELUTest, case_7)
-{
-    test_trelu<int16_t, 64, 64, 96, 96, 64, 60>();
-}
+#endif

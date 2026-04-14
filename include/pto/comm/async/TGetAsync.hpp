@@ -83,14 +83,23 @@ PTO_INTERNAL AsyncEvent TGET_ASYNC_SDMA_IMPL(GlobalDstData &dstGlobalData, Globa
 {
     (void)TGetAsyncCheckTensorCompatibility<GlobalDstData, GlobalSrcData>();
 
-    if (!TGetAsyncIsFlatContiguous1D(srcGlobalData)) {
+    if (dstGlobalData.data() == nullptr || srcGlobalData.data() == nullptr) {
         return AsyncEvent(0, DmaEngine::SDMA);
     }
 
-    const uint32_t totalElems = TGetAsyncGetTotalElemCount(srcGlobalData);
+    if (!TGetAsyncIsFlatContiguous1D(srcGlobalData) || !TGetAsyncIsFlatContiguous1D(dstGlobalData)) {
+        return AsyncEvent(0, DmaEngine::SDMA);
+    }
+
+    const uint32_t srcElems = TGetAsyncGetTotalElemCount(srcGlobalData);
+    const uint32_t dstElems = TGetAsyncGetTotalElemCount(dstGlobalData);
+    if (dstElems < srcElems) {
+        return AsyncEvent(0, DmaEngine::SDMA);
+    }
+
     using T = typename GlobalSrcData::RawDType;
     const uint64_t eventHandle =
-        sdma::__sdma_get_async(dstGlobalData.data(), srcGlobalData.data(), totalElems * sizeof(T), execCtx);
+        sdma::__sdma_get_async(dstGlobalData.data(), srcGlobalData.data(), srcElems * sizeof(T), execCtx);
     return AsyncEvent(eventHandle, DmaEngine::SDMA);
 }
 

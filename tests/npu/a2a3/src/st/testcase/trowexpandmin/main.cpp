@@ -191,3 +191,23 @@ TEST_F(TROWEXPANDMINTest, case18)
 {
     test_trowexpandmin<float, 2048, 1, 2048, 8, true, false, true>();
 }
+
+TEST_F(TROWEXPANDMINTest, case19)
+{
+    test_trowexpandmin<int32_t, 16, 16, 16, 16, true, false>();
+}
+
+TEST_F(TROWEXPANDMINTest, case20)
+{
+    test_trowexpandmin<int32_t, 16, 16, 16, 16, true, true>();
+}
+
+TEST_F(TROWEXPANDMINTest, case21)
+{
+    test_trowexpandmin<int16_t, 16, 16, 16, 16, true, false>();
+}
+
+TEST_F(TROWEXPANDMINTest, case22)
+{
+    test_trowexpandmin<int16_t, 16, 16, 16, 16, true, true>();
+}

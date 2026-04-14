@@ -67,7 +67,8 @@ protected:
     template <uint32_t caseId, typename T, int srcRow, int srcValidRow, int dstRow, int col, int validCol>
     bool TCOLCMAXTestFramework()
     {
-        size_t dstByteSize = dstRow * col * sizeof(uint32_t);
+        int dstCol = (validCol + 7) / 8 * 8;
+        size_t dstByteSize = dstRow * dstCol * sizeof(uint32_t);
         size_t srcByteSize = srcRow * col * sizeof(T);
         aclrtMallocHost(&dstHost, dstByteSize);
         aclrtMallocHost(&srcHost, srcByteSize);
@@ -170,5 +171,20 @@ TEST_F(TCOLCMAXTest, case83)
 TEST_F(TCOLCMAXTest, case84)
 {
     bool ret = TCOLCMAXTestFramework<84, float, 16, 16, 1, 32, 31>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TCOLCMAXTest, case91)
+{
+    bool ret = TCOLCMAXTestFramework<91, uint16_t, 16, 16, 1, 128, 120>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TCOLCMAXTest, case92)
+{
+    bool ret = TCOLCMAXTestFramework<92, aclFloat16, 16, 16, 1, 96, 88>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TCOLCMAXTest, case93)
+{
+    bool ret = TCOLCMAXTestFramework<93, uint16_t, 4, 4, 1, 48, 34>();
     EXPECT_TRUE(ret);
 }

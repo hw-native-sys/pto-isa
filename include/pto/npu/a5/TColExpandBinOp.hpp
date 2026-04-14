@@ -116,7 +116,11 @@ template <typename Op, typename Op2, typename TileData, typename TileDataSrc0, t
 PTO_INTERNAL void TCOLEXPANDOP_IMPL(TileData &dst, TileDataSrc0 &src0, TileDataSrc1 &src1)
 {
     static_assert(
-        std::is_same<typename TileData::DType, float>::value || std::is_same<typename TileData::DType, half>::value,
+        std::is_same_v<typename TileData::DType, int32_t> || std::is_same_v<typename TileData::DType, uint32_t> ||
+            std::is_same_v<typename TileData::DType, float> || std::is_same_v<typename TileData::DType, int16_t> ||
+            std::is_same_v<typename TileData::DType, uint16_t> || std::is_same_v<typename TileData::DType, half> ||
+            std::is_same_v<typename TileData::DType, bfloat16_t> || std::is_same_v<typename TileData::DType, uint8_t> ||
+            std::is_same_v<typename TileData::DType, int8_t>,
         "Fix: TCOLEXPANDOP Invalid data type.");
     static_assert(TileData::isRowMajor, "Fix: TCOLEXPANDOP not supported Layout type");
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename TileData::DType);

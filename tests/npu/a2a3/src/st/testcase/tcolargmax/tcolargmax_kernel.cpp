@@ -22,18 +22,19 @@ PTO_INTERNAL void runTColCMax(__gm__ uint32_t __out__ *out, __gm__ T __in__ *src
     using DynDim2Stride = pto::Stride<1, 1, -1, -1, 1>;
     using GlobalData = GlobalTensor<T, DynDim2Shape, DynDim2Stride>;
     using GlobalDataDst = GlobalTensor<uint32_t, DynDim2Shape, DynDim2Stride>;
+    constexpr int dstCol = (validCol + 7) / 8 * 8;
     GlobalData srcGlobal(src, DynDim2Shape(srcValidRow, validCol), DynDim2Stride(srcRow, col));
-    GlobalDataDst dstGlobal(out, DynDim2Shape(dstRow, validCol), DynDim2Stride(dstRow, col));
+    GlobalDataDst dstGlobal(out, DynDim2Shape(dstRow, validCol), DynDim2Stride(dstRow, dstCol));
 
     using SrcTileData = Tile<TileType::Vec, T, srcRow, col, BLayout::RowMajor, -1, -1>;
-    using DstTileData = Tile<TileType::Vec, uint32_t, dstRow, col, BLayout::RowMajor, -1, -1>;
+    using DstTileData = Tile<TileType::Vec, uint32_t, dstRow, dstCol, BLayout::RowMajor, -1, -1>;
     using TmpTile = Tile<TileType::Vec, T, 1, 32, BLayout::RowMajor, -1, -1>;
     SrcTileData srcTile(srcValidRow, validCol);
     DstTileData dstTile(dstRow, validCol);
     TmpTile tmpTile(1, 32);
     TASSIGN(srcTile, 0x0);
     TASSIGN(dstTile, srcRow * col * sizeof(T));
-    TASSIGN(tmpTile, srcRow * col * sizeof(T) + col * sizeof(uint32_t));
+    TASSIGN(tmpTile, srcRow * col * sizeof(T) + dstCol * sizeof(uint32_t));
 
     // 搬运数据
     TLOAD(srcTile, srcGlobal);
@@ -111,6 +112,18 @@ extern "C" __global__ AICORE void launchTCOLCMAXCase84(__gm__ uint32_t *out, __g
 {
     runTColCMax<float, 16, 16, 1, 32, 31>(out, src, false);
 }
+extern "C" __global__ AICORE void launchTCOLCMAXCase91(__gm__ uint32_t *out, __gm__ uint16_t *src)
+{
+    runTColCMax<uint16_t, 16, 16, 1, 128, 120>(out, src, false);
+}
+extern "C" __global__ AICORE void launchTCOLCMAXCase92(__gm__ uint32_t *out, __gm__ half *src)
+{
+    runTColCMax<half, 16, 16, 1, 96, 88>(out, src, false);
+}
+extern "C" __global__ AICORE void launchTCOLCMAXCase93(__gm__ uint32_t *out, __gm__ uint16_t *src)
+{
+    runTColCMax<uint16_t, 4, 4, 1, 48, 34>(out, src, false);
+}
 
 template <uint32_t caseId>
 void launchTCOLCMAXTestCase(void *out, void *src, aclrtStream stream)
@@ -180,6 +193,18 @@ void launchTCOLCMAXTestCase(void *out, void *src, aclrtStream stream)
             launchTCOLCMAXCase84<<<1, nullptr, stream>>>((uint32_t *)out, (float *)src);
             break;
         }
+        case 91: {
+            launchTCOLCMAXCase91<<<1, nullptr, stream>>>((uint32_t *)out, (uint16_t *)src);
+            break;
+        }
+        case 92: {
+            launchTCOLCMAXCase92<<<1, nullptr, stream>>>((uint32_t *)out, (half *)src);
+            break;
+        }
+        case 93: {
+            launchTCOLCMAXCase93<<<1, nullptr, stream>>>((uint32_t *)out, (uint16_t *)src);
+            break;
+        }
         default: {
         }
     }
@@ -201,3 +226,6 @@ template void launchTCOLCMAXTestCase<81>(void *out, void *src, aclrtStream strea
 template void launchTCOLCMAXTestCase<82>(void *out, void *src, aclrtStream stream);
 template void launchTCOLCMAXTestCase<83>(void *out, void *src, aclrtStream stream);
 template void launchTCOLCMAXTestCase<84>(void *out, void *src, aclrtStream stream);
+template void launchTCOLCMAXTestCase<91>(void *out, void *src, aclrtStream stream);
+template void launchTCOLCMAXTestCase<92>(void *out, void *src, aclrtStream stream);
+template void launchTCOLCMAXTestCase<93>(void *out, void *src, aclrtStream stream);

@@ -55,5 +55,5 @@ template void LaunchTLrelu<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(int16_t *out
                                                                     void *stream);
 #ifdef CPU_SIM_BFLOAT_ENABLED
 template void LaunchTLrelu<bfloat16_t, NUM_16, NUM_256, NUM_16, NUM_256>(bfloat16_t *out, bfloat16_t *src,
-                                                                          bfloat16_t *scalar, void *stream);
+                                                                         bfloat16_t *scalar, void *stream);
 #endif

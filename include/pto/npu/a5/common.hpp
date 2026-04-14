@@ -176,6 +176,18 @@ PTO_INTERNAL void CheckTMovAccValid()
                    (!DstTileData::isRowMajor && DstTileData::SFractal == SLayout::RowMajor)),
                   "Only support nz2nz, nz2nd or nz2dn.");
 }
+
+template <typename DstTileData, typename SrcTileData, AccToVecMode mode, QuantMode_t quantPre>
+PTO_INTERNAL constexpr uint8_t GetDualDstCtl()
+{
+    if constexpr (mode == AccToVecMode::DualModeSplitM || mode == AccToVecMode::DualModeSplitN) {
+        static_assert(quantPre == QuantMode_t::NoQuant, "Quant is not support in dual Dst Mode.");
+        static_assert((!(!DstTileData::isRowMajor && DstTileData::SFractal == SLayout::NoneBox)),
+                      "Dual Dst Mode is not support in nz2dn.");
+        return ((mode == AccToVecMode::DualModeSplitM) ? 1 : 2);
+    }
+    return 0;
+}
 } // namespace pto
 
 #endif

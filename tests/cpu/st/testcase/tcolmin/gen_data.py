@@ -12,7 +12,7 @@
 
 import os
 import numpy as np
-from tests.script.cpu_bfloat16 import BF16_DTYPE, cast_for_compute, normalize_case_dtype_name, write_array
+from utils import NumExt
 
 np.random.seed(19)
 
@@ -22,15 +22,15 @@ def gen_golden_data_tcolmin(param):
     row, col = [param.tile_row, param.tile_col]
     h_valid, w_valid = [min(row, param.valid_row), min(col, param.valid_col)]
 
-    input1 = cast_for_compute(np.random.uniform(low=-16, high=16, size=[row, col]), dtype)
+    input1 = NumExt.astype(np.random.uniform(low=-16, high=16, size=[row, col]), dtype)
 
-    max_value = np.finfo(np.float32).max if dtype == BF16_DTYPE else np.finfo(dtype).max
-    golden = cast_for_compute(np.full((w_valid,), max_value, dtype=np.float32), dtype)
+    max_value = np.finfo(np.float32).max if dtype == NumExt.bf16 else np.finfo(dtype).max
+    golden = NumExt.astype(np.full((w_valid,), max_value, dtype=np.float32), dtype)
     for j in range(w_valid):
-        golden[j] = cast_for_compute(np.min(input1[:h_valid, j]), dtype)
+        golden[j] = NumExt.astype(np.min(input1[:h_valid, j]), dtype)
 
-    write_array("input1.bin", input1, dtype)
-    write_array("golden.bin", golden, dtype)
+    NumExt.write_array("input1.bin", input1, dtype)
+    NumExt.write_array("golden.bin", golden, dtype)
 
 
 class TColminParams:
@@ -45,7 +45,7 @@ class TColminParams:
 
 
 def generate_case_name(param):
-    dtype_str = normalize_case_dtype_name(param.dtype, {np.float32: "float", np.float16: "half"})
+    dtype_str = NumExt.get_short_type_name(param.dtype)
 
     def substring(a, b) -> str:
         return f"_{a}x{b}"
@@ -64,7 +64,7 @@ if __name__ == "__main__":
         TColminParams(np.float32, 32, 32, 32, 16, 32, 32),
     ]
     if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
-        case_params_list.append(TColminParams(BF16_DTYPE, 64, 64, 64, 64, 64, 64))
+        case_params_list.append(TColminParams(NumExt.bf16, 64, 64, 64, 64, 64, 64))
 
     for param in case_params_list:
         case_name = generate_case_name(param)

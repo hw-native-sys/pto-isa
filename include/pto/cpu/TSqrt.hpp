@@ -31,8 +31,10 @@ void TSqrt_Impl(TileDataDst dst, TileDataSrc src, int validRow, int validCol)
 template <auto PrecisionType = SqrtAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc>
 PTO_INTERNAL void TSQRT_IMPL(TileDataDst &dst, TileDataSrc &src)
 {
-    static_assert((std::is_same<typename TileDataDst::DType, half>::value &&
-                   std::is_same<typename TileDataSrc::DType, half>::value) ||
+    static_assert((std::is_same<typename TileDataDst::DType, bfloat16_t>::value &&
+                   std::is_same<typename TileDataSrc::DType, bfloat16_t>::value) ||
+                      (std::is_same<typename TileDataDst::DType, half>::value &&
+                       std::is_same<typename TileDataSrc::DType, half>::value) ||
                       (std::is_same<typename TileDataSrc::DType, float>::value &&
                        std::is_same<typename TileDataDst::DType, float>::value),
                   "TSQRT: Invalid data type");

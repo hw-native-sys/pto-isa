@@ -79,7 +79,9 @@ PTO_INTERNAL void TROWEXPANDDIV_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileD
     using T = typename TileDataDst::DType;
     static_assert(std::is_same_v<T, typename TileDataSrc0::DType> && std::is_same_v<T, typename TileDataSrc1::DType>,
                   "Fix: TROWEXPANDDIV src and dst data type is different!");
-    static_assert(std::is_same<T, float>::value || std::is_same<T, half>::value,
+    static_assert(std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float> ||
+                      std::is_same_v<T, int16_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, half> ||
+                      std::is_same_v<T, bfloat16_t> || std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t>,
                   "Fix: TROWEXPANDDIV invalid data type.");
     static_assert(TileDataDst::isRowMajor, "Fix: TROWEXPANDDIV Invalid tile shape.");
 

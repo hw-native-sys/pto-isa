@@ -219,16 +219,14 @@ PTO_INTERNAL void SubmitDataTransferSqes(__gm__ BatchWriteChannelInfo *batchWrit
     }
 }
 
-PTO_INTERNAL uint64_t SubmitFlagTransferSqes(__gm__ BatchWriteChannelInfo *batchWriteChannelInfo,
-                                             const WorkspaceLayout &layout, const SdmaConfig &config, uint32_t *sqTail,
-                                             UbTmpBuf &tmpBuf, uint32_t syncId)
+PTO_INTERNAL void SubmitFlagTransferSqes(__gm__ BatchWriteChannelInfo *batchWriteChannelInfo,
+                                         const WorkspaceLayout &layout, const SdmaConfig &config, uint32_t *sqTail,
+                                         UbTmpBuf &tmpBuf, uint32_t syncId)
 {
-    uint64_t eventHandle = 0;
     for (uint32_t queueId = 0U; queueId < config.queue_num; ++queueId) {
         __gm__ BatchWriteChannelInfo *channelInfo = batchWriteChannelInfo + queueId;
 
-        uint32_t slotIdx = SelectEventSlot(sqTail[queueId]);
-        __gm__ SdmaEventRecord *record = GetEventRecord(layout.recv_workspace, slotIdx);
+        __gm__ SdmaEventRecord *record = GetEventRecord(layout.recv_workspace, queueId);
 
         SetValue<uint32_t>((__gm__ uint8_t *)&record->flag, tmpBuf, syncId, 0U);
         SetValue<uint32_t>((__gm__ uint8_t *)&record->sq_tail, tmpBuf, syncId, (sqTail[queueId] + 1) % kSqDepth);
@@ -240,12 +238,7 @@ PTO_INTERNAL uint64_t SubmitFlagTransferSqes(__gm__ BatchWriteChannelInfo *batch
 
         sqTail[queueId] = (sqTail[queueId] + 1) % kSqDepth;
         pipe_barrier(PIPE_ALL);
-
-        if (queueId == 0U) {
-            eventHandle = reinterpret_cast<uint64_t>(record);
-        }
     }
-    return eventHandle;
 }
 
 PTO_INTERNAL void FlushCacheAndRingDoorbell(__gm__ BatchWriteChannelInfo *batchWriteChannelInfo,
@@ -277,7 +270,7 @@ PTO_INTERNAL void UpdateSqTailState(__gm__ BatchWriteChannelInfo *batchWriteChan
 }
 
 PTO_INTERNAL bool PrepareEventCheck(const SdmaSession &session, UbTmpBuf &tmpBuf, uint32_t &syncId,
-                                    uint64_t &flagHandle)
+                                    __gm__ uint8_t *&recvWorkspace, uint32_t &queueNum)
 {
     const SdmaExecContext &execCtx = session.execCtx;
     __gm__ uint8_t *contextGm = execCtx.contextGm;
@@ -292,6 +285,7 @@ PTO_INTERNAL bool PrepareEventCheck(const SdmaSession &session, UbTmpBuf &tmpBuf
     SdmaConfig config;
     config.queue_num = execCtx.baseConfig.queue_num;
     config.block_bytes = execCtx.baseConfig.block_bytes;
+    queueNum = config.queue_num;
 
     if (config.queue_num == 0 || channelGroupIdx >= (kSdmaMaxChannel / config.queue_num)) {
         return false;
@@ -310,10 +304,12 @@ PTO_INTERNAL bool PrepareEventCheck(const SdmaSession &session, UbTmpBuf &tmpBuf
     uint32_t sqTail[64] = {0};
     InitSqTailArray(batchWriteChannelInfo, config.queue_num, sqTail, tmpBuf);
 
-    flagHandle = SubmitFlagTransferSqes(batchWriteChannelInfo, workspaceLayout, config, sqTail, tmpBuf, syncId);
+    SubmitFlagTransferSqes(batchWriteChannelInfo, workspaceLayout, config, sqTail, tmpBuf, syncId);
 
     FlushCacheAndRingDoorbell(batchWriteChannelInfo, config, sqTail, tmpBuf, syncId);
     UpdateSqTailState(batchWriteChannelInfo, config, sqTail, tmpBuf, syncId);
+
+    recvWorkspace = workspaceLayout.recv_workspace;
     return true;
 }
 
@@ -338,21 +334,23 @@ PTO_INTERNAL bool SdmaTestEvent(uint64_t eventHandle, const SdmaSession &session
 
     UbTmpBuf tmpBuf;
     uint32_t syncId;
-    uint64_t flagHandle;
-    if (!PrepareEventCheck(session, tmpBuf, syncId, flagHandle)) {
+    __gm__ uint8_t *recvWorkspace = nullptr;
+    uint32_t queueNum = 0;
+    if (!PrepareEventCheck(session, tmpBuf, syncId, recvWorkspace, queueNum)) {
         return false;
     }
-    if (flagHandle == 0) {
+    if (recvWorkspace == nullptr || queueNum == 0) {
         return true;
     }
 
-    __gm__ SdmaEventRecord *record = reinterpret_cast<__gm__ SdmaEventRecord *>(flagHandle);
-    const uint32_t sendValue = GetValue<uint32_t>((__gm__ uint8_t *)&record->flag, tmpBuf);
-    if (sendValue == 0) {
-        return false;
+    for (uint32_t queueId = 0; queueId < queueNum; ++queueId) {
+        __gm__ SdmaEventRecord *record = GetEventRecord(recvWorkspace, queueId);
+        const uint32_t sendValue = GetValue<uint32_t>((__gm__ uint8_t *)&record->flag, tmpBuf);
+        if (sendValue == 0) {
+            return false;
+        }
+        HandleCompletedEventRecord(record, tmpBuf, syncId);
     }
-
-    HandleCompletedEventRecord(record, tmpBuf, syncId);
     return true;
 }
 
@@ -364,26 +362,27 @@ PTO_INTERNAL bool SdmaWaitEvent(uint64_t eventHandle, const SdmaSession &session
 
     UbTmpBuf tmpBuf;
     uint32_t syncId;
-    uint64_t flagHandle;
-    if (!PrepareEventCheck(session, tmpBuf, syncId, flagHandle)) {
+    __gm__ uint8_t *recvWorkspace = nullptr;
+    uint32_t queueNum = 0;
+    if (!PrepareEventCheck(session, tmpBuf, syncId, recvWorkspace, queueNum)) {
         return false;
     }
-    if (flagHandle == 0) {
+    if (recvWorkspace == nullptr || queueNum == 0) {
         return true;
     }
 
-    __gm__ SdmaEventRecord *record = reinterpret_cast<__gm__ SdmaEventRecord *>(flagHandle);
-
     constexpr uint32_t kMaxPollTimes = 1000000;
-    uint32_t sendValue = 0;
-    for (uint32_t i = 0; i < kMaxPollTimes && sendValue == 0; ++i) {
-        sendValue = GetValue<uint32_t>((__gm__ uint8_t *)&record->flag, tmpBuf);
+    for (uint32_t queueId = 0; queueId < queueNum; ++queueId) {
+        __gm__ SdmaEventRecord *record = GetEventRecord(recvWorkspace, queueId);
+        uint32_t sendValue = 0;
+        for (uint32_t i = 0; i < kMaxPollTimes && sendValue == 0; ++i) {
+            sendValue = GetValue<uint32_t>((__gm__ uint8_t *)&record->flag, tmpBuf);
+        }
+        if (sendValue == 0) {
+            return false;
+        }
+        HandleCompletedEventRecord(record, tmpBuf, syncId);
     }
-    if (sendValue == 0) {
-        return false;
-    }
-
-    HandleCompletedEventRecord(record, tmpBuf, syncId);
     return true;
 }
 
@@ -405,6 +404,10 @@ PTO_INTERNAL uint64_t SdmaPostSendAsyncWithCtx(__gm__ uint8_t *recvBuffer, __gm_
         return 0;
     }
     if (config.iter_num == 0) {
+        return 0;
+    }
+    const uint32_t sqePerQueue = (config.iter_num + config.queue_num - 1) / config.queue_num + 1;
+    if (sqePerQueue > kSqDepth) {
         return 0;
     }
     if (channelGroupIdx >= (kSdmaMaxChannel / config.queue_num)) {
@@ -479,6 +482,11 @@ PTO_INTERNAL bool BuildSdmaSession(ScratchTile &scratchTile, __gm__ uint8_t *wor
 {
     if (channelGroupIdx == kAutoChannelGroupIdx) {
         channelGroupIdx = static_cast<uint32_t>(get_block_idx());
+    }
+    if (syncId > 7 || baseConfig.queue_num == 0 || baseConfig.queue_num > kSdmaMaxChannel ||
+        channelGroupIdx >= (kSdmaMaxChannel / baseConfig.queue_num)) {
+        session.valid = false;
+        return false;
     }
     session.valid =
         BuildSdmaExecContext(scratchTile, channelGroupIdx, baseConfig, workspace, syncId, session.execCtx) &&

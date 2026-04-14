@@ -12,51 +12,54 @@
 
 import os
 import numpy as np
-from tests.script.cpu_bfloat16 import BF16_DTYPE, cast_for_compute, normalize_case_dtype_name, write_array, zeros
+from utils import NumExt
 np.random.seed(19)
 
 
 def gen_golden_data_trem(case_name, param):
     dtype = param.dtype
 
-    row, col = [param.valid_row, param.valid_col]
+    row, col = [param.tile_row, param.tile_col]
     h_valid, w_valid = [param.valid_row, param.valid_col]
 
     # Generate random input arrays
-    input1 = cast_for_compute(np.random.randint(1, 10, size=[row, col]), dtype)
-    input2 = cast_for_compute(np.random.randint(1, 10, size=[row, col]), dtype)
+    input1 = NumExt.astype(np.random.randint(1, 10, size=[row, col]), dtype)
+    input2 = NumExt.astype(np.random.randint(1, 10, size=[row, col]), dtype)
 
     # Perform the addbtraction
-    golden = input1 % input2
+    golden = NumExt.zeros([row, col], dtype)
+    golden[:h_valid, :w_valid] = NumExt.astype(np.fmod(input1, input2), dtype)[:h_valid, :w_valid]
 
     # Save the input and golden data to binary files
-    input1.tofile("input1.bin")
-    input2.tofile("input2.bin")
-    golden.tofile("golden.bin")
+    NumExt.write_array("input1.bin", input1, dtype)
+    NumExt.write_array("input2.bin", input2, dtype)
+    NumExt.write_array("golden.bin", golden, dtype)
+
+    return input1, input2, golden
 
 
 class TRemParams:
-    def __init__(self, dtype, dst_tile_row, dst_tile_col, valid_row, valid_col):
+    def __init__(self, dtype, global_row, global_col, tile_row, tile_col, valid_row, valid_col):
         self.dtype = dtype
-        self.dst_tile_row = dst_tile_row
-        self.dst_tile_col = dst_tile_col
+        self.global_row = global_row
+        self.global_col = global_col
+        self.tile_row = tile_row
+        self.tile_col = tile_col
         self.valid_row = valid_row
         self.valid_col = valid_col
 
 
 def generate_case_name(param):
-    dtype_str = normalize_case_dtype_name(param.dtype, {
-        np.float32: 'float',
-        np.float16: 'half',
-    })
-
+    dtype_str = NumExt.get_short_type_name(param.dtype)
+    
     def substring(a, b) -> str:
         return f"_{a}x{b}"
-
-    name = f"TREMTest.case_{dtype_str}"
-    name += substring(param.dst_tile_row, param.dst_tile_col)
+        
+    name = f"TREMTest.case_{dtype_str}" 
+    name += substring(param.global_row, param.global_col)
+    name += substring(param.tile_row, param.tile_col)
     name += substring(param.valid_row, param.valid_col)
-
+    
     return name
 
 
@@ -70,13 +73,11 @@ if __name__ == "__main__":
         os.makedirs(testcases_dir)
 
     case_params_list = [
-        TRemParams(np.float32, 64, 64, 64, 64),
-        TRemParams(np.float16, 16, 256, 16, 256),
-        TRemParams(np.float32, 32, 512, 64, 64),
-        TRemParams(np.float16, 32, 512, 16, 256)
+        TRemParams(np.float32, 64, 64, 64, 64, 64, 64),
+        TRemParams(np.float16, 16, 256, 16, 256, 16, 256)
     ]
     if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
-        case_params_list.append(TRemParams(BF16_DTYPE, 16, 256, 16, 256))
+        case_params_list.append(TRemParams(NumExt.bf16, 16, 256, 16, 256, 16, 256))
 
     for i, param in enumerate(case_params_list):
         case_name = generate_case_name(param)

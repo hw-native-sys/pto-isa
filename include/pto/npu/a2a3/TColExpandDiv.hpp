@@ -49,6 +49,9 @@ template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDataDst, type
 PTO_INTERNAL void TCOLEXPANDDIV_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1)
 {
     using T = typename TileDataDst::DType;
+    static_assert(std::is_same_v<T, half> || std::is_same_v<T, float16_t> || std::is_same_v<T, float> ||
+                      std::is_same_v<T, float32_t>,
+                  "Fix: TCOLEXPANDDIV Invalid data type.");
     TCOLEXPANDOP_IMPL<ColExpandDivOp<T>, ColExpandDivOp2<T>, TileDataDst, TileDataSrc0, TileDataSrc1>(dst, src0, src1);
 }
 } // namespace pto

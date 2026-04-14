@@ -12,78 +12,58 @@
 
 import os
 import numpy as np
-from tests.script.cpu_bfloat16 import BF16_DTYPE, cast_for_compute, normalize_case_dtype_name, write_array
-
+from utils import NumExt
 np.random.seed(19)
-
 
 def gen_golden_data_texp(case_name, param):
     dtype = param.dtype
 
-    row, col = [param.valid_row, param.valid_col]
+    row, col = [param.tile_row, param.tile_col]
+    h_valid, w_valid = [param.valid_row, param.valid_col]
 
     # Generate random input array
-    input1 = cast_for_compute(np.random.random(size=[row, col]), dtype)
+    input1 = NumExt.astype(np.random.random(size=[row, col]), dtype)
 
     # Perform the addbtraction
-    golden = np.exp(input1)
+    golden = NumExt.astype(np.exp(input1), dtype)
+
+    # Apply valid region constraints
+    output = np.zeros([row, col], dtype=np.float32) if dtype == NumExt.bf16 else np.zeros([row, col]).astype(dtype)
+    for h in range(row):
+        for w in range(col):
+            if h >= h_valid or w >= w_valid:
+                golden[h][w] = output[h][w]
 
     # Save the input and golden data to binary files
-    input1.tofile("input1.bin")
-    golden.tofile("golden.bin")
+    NumExt.write_array("input1.bin", input1, dtype)
+    NumExt.write_array("golden.bin", golden, dtype)
+
+    return output, input1, golden
 
 
 class TExpParams:
-    def __init__(self, dtype, global_row, global_col, valid_row, valid_col):
+    def __init__(self, dtype, global_row, global_col, tile_row, tile_col, valid_row, valid_col):
         self.dtype = dtype
         self.global_row = global_row
         self.global_col = global_col
+        self.tile_row = tile_row
+        self.tile_col = tile_col
         self.valid_row = valid_row
         self.valid_col = valid_col
 
 
 def generate_case_name(param):
-    dtype_str = normalize_case_dtype_name(
-        param.dtype, {np.float32: "float", np.float16: "half", np.int8: "int8", np.int32: "int32", np.int16: "int16"}
-    )
-
+    dtype_str = NumExt.get_short_type_name(param.dtype)
+    
     def substring(a, b) -> str:
         return f"_{a}x{b}"
-
-    name = f"TEXPTest.case_{dtype_str}"
+        
+    name = f"TEXPTest.case_{dtype_str}" 
     name += substring(param.global_row, param.global_col)
+    name += substring(param.tile_row, param.tile_col)
     name += substring(param.valid_row, param.valid_col)
-
+    
     return name
-
-
-def generate_case_aliases(param):
-    aliases = []
-    if (
-        param.dtype is np.float16
-        and param.global_row == 32
-        and param.global_col == 32
-        and param.valid_row == 32
-        and param.valid_col == 32
-    ):
-        aliases.append("TEXPTest.case_half_32x32_32x32_32x32")
-    if (
-        param.dtype is BF16_DTYPE
-        and param.global_row == 64
-        and param.global_col == 64
-        and param.valid_row == 64
-        and param.valid_col == 64
-    ):
-        aliases.append("TEXPTest.case_bf16_64x64_64x64_64x64")
-    if (
-        param.dtype is BF16_DTYPE
-        and param.global_row == 32
-        and param.global_col == 32
-        and param.valid_row == 32
-        and param.valid_col == 32
-    ):
-        aliases.append("TEXPTest.case_bf16_32x32_32x32_32x32")
-    return aliases
 
 
 if __name__ == "__main__":
@@ -96,27 +76,23 @@ if __name__ == "__main__":
         os.makedirs(testcases_dir)
 
     case_params_list = [
-        TExpParams(np.float32, 64, 64, 64, 64),
-        TExpParams(np.float16, 64, 64, 64, 64),
-        TExpParams(np.float16, 32, 32, 32, 32),
-        TExpParams(np.float32, 32, 32, 32, 32),
-        TExpParams(np.float32, 32, 16, 32, 16),
-        TExpParams(np.float32, 128, 128, 64, 64),
-        TExpParams(np.float16, 128, 128, 64, 64),
-        TExpParams(np.float16, 128, 128, 32, 32),
-        TExpParams(np.float32, 128, 128, 32, 32),
-        TExpParams(np.float32, 128, 128, 32, 16)
-
+        TExpParams(np.float32, 64, 64, 64, 64, 64, 64),
+        TExpParams(np.float16, 64, 64, 64, 64, 64, 64),
+        TExpParams(np.float16, 32, 32, 32, 32, 32, 32),
+        TExpParams(np.float32, 32, 32, 32, 32, 32, 32),
+        TExpParams(np.float32, 32, 16, 32, 16, 32, 16)
     ]
     if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
-        case_params_list.extend([TExpParams(BF16_DTYPE, 64, 64, 64, 64), TExpParams(BF16_DTYPE, 32, 32, 32, 32)])
+        case_params_list.extend([
+            TExpParams(NumExt.bf16, 64, 64, 64, 64, 64, 64),
+            TExpParams(NumExt.bf16, 32, 32, 32, 32, 32, 32),
+        ])
 
     for i, param in enumerate(case_params_list):
         case_name = generate_case_name(param)
-        output_dirs = [case_name, *generate_case_aliases(param)]
+        if not os.path.exists(case_name):
+            os.makedirs(case_name)
         original_dir = os.getcwd()
-        for output_dir in output_dirs:
-            os.makedirs(output_dir, exist_ok=True)
-            os.chdir(output_dir)
-            gen_golden_data_texp(case_name, param)
-            os.chdir(original_dir)
+        os.chdir(case_name)
+        gen_golden_data_texp(case_name, param)
+        os.chdir(original_dir)

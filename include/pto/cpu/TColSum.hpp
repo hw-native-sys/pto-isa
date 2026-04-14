@@ -34,11 +34,11 @@ PTO_INTERNAL void CheckCSValid()
     using SrcNonDuplicateType = typename TileSrc::DType;
     using DstNonDuplicateType = typename TileDst::DType;
     static_assert(
-        (std::is_same_v<SrcNonDuplicateType, half> && std::is_same_v<DstNonDuplicateType, half>) ||      // f162f16
+        (std::is_same_v<SrcNonDuplicateType, half> && std::is_same_v<DstNonDuplicateType, half>) || // f162f16
             (std::is_same_v<SrcNonDuplicateType, bfloat16_t> &&
-             std::is_same_v<DstNonDuplicateType, bfloat16_t>) ||                                           // bf162bf16
+             std::is_same_v<DstNonDuplicateType, bfloat16_t>) || // bf162bf16
             (std::is_same_v<SrcNonDuplicateType, bfloat16_t> &&
-             std::is_same_v<DstNonDuplicateType, float>) ||                                                // bf162f32
+             std::is_same_v<DstNonDuplicateType, float>) ||                                              // bf162f32
             (std::is_same_v<SrcNonDuplicateType, half> && std::is_same_v<DstNonDuplicateType, float>) || // f162f32
             (std::is_same_v<SrcNonDuplicateType, float> && std::is_same_v<DstNonDuplicateType, float>)   // f322f32
         ,

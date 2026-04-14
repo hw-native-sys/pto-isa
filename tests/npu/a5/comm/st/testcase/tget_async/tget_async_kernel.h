@@ -16,3 +16,13 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // 1D Vector Tile tests (root reads data from all other ranks)
 template <typename T, size_t count>
 bool RunGetAsyncRootGet(int n_ranks, int n_devices, int first_rank_id, int first_device_id);
+
+// Configurable SdmaBaseConfig tests (custom block_bytes / comm_block_offset / queue_num)
+template <typename T, size_t count>
+bool RunGetAsyncWithConfig(int n_ranks, int n_devices, int first_rank_id, int first_device_id, uint64_t blockBytes,
+                           uint64_t commBlockOffset, uint32_t queueNum);
+
+// Multi-core tests (blockDim > 1). multiCoreMode: 0 = split, 1 = independent
+template <typename T, size_t count>
+bool RunGetAsyncMultiCore(int n_ranks, int n_devices, int first_rank_id, int first_device_id, int blockDim,
+                          int multiCoreMode);

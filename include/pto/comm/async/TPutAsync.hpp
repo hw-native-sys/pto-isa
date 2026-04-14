@@ -83,14 +83,23 @@ PTO_INTERNAL AsyncEvent TPUT_ASYNC_SDMA_IMPL(GlobalDstData &dstGlobalData, Globa
 {
     (void)TPutAsyncCheckTensorCompatibility<GlobalDstData, GlobalSrcData>();
 
-    if (!TPutAsyncIsFlatContiguous1D(srcGlobalData)) {
+    if (srcGlobalData.data() == nullptr || dstGlobalData.data() == nullptr) {
         return AsyncEvent(0, DmaEngine::SDMA);
     }
 
-    const uint32_t totalElems = TPutAsyncGetTotalElemCount(srcGlobalData);
+    if (!TPutAsyncIsFlatContiguous1D(srcGlobalData) || !TPutAsyncIsFlatContiguous1D(dstGlobalData)) {
+        return AsyncEvent(0, DmaEngine::SDMA);
+    }
+
+    const uint32_t dstElems = TPutAsyncGetTotalElemCount(dstGlobalData);
+    const uint32_t srcElems = TPutAsyncGetTotalElemCount(srcGlobalData);
+    if (dstElems < srcElems) {
+        return AsyncEvent(0, DmaEngine::SDMA);
+    }
+
     using T = typename GlobalSrcData::RawDType;
     const uint64_t eventHandle =
-        sdma::__sdma_put_async(dstGlobalData.data(), srcGlobalData.data(), totalElems * sizeof(T), execCtx);
+        sdma::__sdma_put_async(dstGlobalData.data(), srcGlobalData.data(), srcElems * sizeof(T), execCtx);
     return AsyncEvent(eventHandle, DmaEngine::SDMA);
 }
 
@@ -109,13 +118,22 @@ PTO_INTERNAL AsyncEvent TPUT_ASYNC_MTE_FALLBACK(GlobalDstData &dstGlobalData, Gl
 {
     (void)TPutAsyncCheckTensorCompatibility<GlobalDstData, GlobalSrcData>();
 
-    if (!TPutAsyncIsFlatContiguous1D(srcGlobalData)) {
+    if (dstGlobalData.data() == nullptr || srcGlobalData.data() == nullptr) {
         return AsyncEvent(0, DmaEngine::SDMA);
     }
 
-    const uint32_t totalElems = TPutAsyncGetTotalElemCount(srcGlobalData);
+    if (!TPutAsyncIsFlatContiguous1D(srcGlobalData) || !TPutAsyncIsFlatContiguous1D(dstGlobalData)) {
+        return AsyncEvent(0, DmaEngine::SDMA);
+    }
+
+    const uint32_t srcElems = TPutAsyncGetTotalElemCount(srcGlobalData);
+    const uint32_t dstElems = TPutAsyncGetTotalElemCount(dstGlobalData);
+    if (dstElems < srcElems) {
+        return AsyncEvent(0, DmaEngine::SDMA);
+    }
+
     using T = typename GlobalSrcData::RawDType;
-    const uint64_t totalBytes = static_cast<uint64_t>(totalElems) * sizeof(T);
+    const uint64_t totalBytes = static_cast<uint64_t>(srcElems) * sizeof(T);
     if (totalBytes == 0) {
         return AsyncEvent(0, DmaEngine::SDMA);
     }

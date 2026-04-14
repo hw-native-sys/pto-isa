@@ -12,6 +12,7 @@
 
 import os
 import numpy as np
+import math
 np.random.seed(19)
 
 
@@ -32,6 +33,8 @@ def gen_golden_data(param):
     input_arr = np.random.uniform(low=value_min, high=value_max, size=(row, col)).astype(data_type)
     output_arr = np.argmax(input_arr[0:valid_row], axis=0)
     output_arr[valid_col:] = 0
+    dst_col = math.ceil(valid_col / 8) * 8
+    output_arr = output_arr[:dst_col]
     # 先计算, 再强转类型, 保证结果精度不裂化
     output_arr = output_arr.astype(np.int32)
     input_arr.tofile('input.bin')
@@ -64,7 +67,10 @@ if __name__ == "__main__":
         TColCMaxParams("TCOLCMAXTest.case81", np.float16, 16, 16, 32, 32),
         TColCMaxParams("TCOLCMAXTest.case82", np.uint16, 16, 16, 32, 32),
         TColCMaxParams("TCOLCMAXTest.case83", np.uint32, 16, 16, 32, 31),
-        TColCMaxParams("TCOLCMAXTest.case84", np.float32, 16, 16, 32, 31)
+        TColCMaxParams("TCOLCMAXTest.case84", np.float32, 16, 16, 32, 31),
+        TColCMaxParams("TCOLCMAXTest.case91", np.uint16, 16, 16, 128, 120),
+        TColCMaxParams("TCOLCMAXTest.case92", np.float16, 16, 16, 96, 88),
+        TColCMaxParams("TCOLCMAXTest.case93", np.uint16, 4, 4, 48, 34)
     ]
 
     for _, case in enumerate(case_params_list):

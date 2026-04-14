@@ -191,3 +191,23 @@ TEST_F(TROWEXPANDMAXTest, case18)
 {
     test_trowexpandmax<float, 2048, 1, 2048, 8, true, false, true>();
 }
+
+TEST_F(TROWEXPANDMAXTest, case19)
+{
+    test_trowexpandmax<int32_t, 16, 16, 16, 16, true, false>();
+}
+
+TEST_F(TROWEXPANDMAXTest, case20)
+{
+    test_trowexpandmax<int32_t, 16, 16, 16, 16, true, true>();
+}
+
+TEST_F(TROWEXPANDMAXTest, case21)
+{
+    test_trowexpandmax<int16_t, 16, 16, 16, 16, true, false>();
+}
+
+TEST_F(TROWEXPANDMAXTest, case22)
+{
+    test_trowexpandmax<int16_t, 16, 16, 16, 16, true, true>();
+}

@@ -191,3 +191,23 @@ TEST_F(TROWEXPANDADDTest, case18)
 {
     test_trowexpandadd<float, 2048, 1, 2048, 8, true, false, true>();
 }
+
+TEST_F(TROWEXPANDADDTest, case19)
+{
+    test_trowexpandadd<int32_t, 16, 16, 16, 16, true, false>();
+}
+
+TEST_F(TROWEXPANDADDTest, case20)
+{
+    test_trowexpandadd<int32_t, 16, 16, 16, 16, true, true>();
+}
+
+TEST_F(TROWEXPANDADDTest, case21)
+{
+    test_trowexpandadd<int16_t, 16, 16, 16, 16, true, false>();
+}
+
+TEST_F(TROWEXPANDADDTest, case22)
+{
+    test_trowexpandadd<int16_t, 16, 16, 16, 16, true, true>();
+}

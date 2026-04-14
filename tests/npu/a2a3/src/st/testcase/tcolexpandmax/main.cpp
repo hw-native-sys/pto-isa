@@ -107,4 +107,12 @@ TEST_F(TColExpandMaxTest, case_fp16_10_64_1_64)
 {
     test_tcolexpandmax<aclFloat16, 10, 64, 1, 64>();
 }
+TEST_F(TColExpandMaxTest, case_int32_8_32_1_32)
+{
+    test_tcolexpandmax<int32_t, 8, 32, 1, 32>();
+}
+TEST_F(TColExpandMaxTest, case_int16_8_32_1_32)
+{
+    test_tcolexpandmax<int16_t, 8, 32, 1, 32>();
+}
 } // namespace TColExpandMaxTest

@@ -30,6 +30,39 @@ TEST(TPutAsync, Vec_Uint8Small_8Ranks)
 {
     ASSERT_TRUE((RunPutAsyncRootPut<uint8_t, 512>(8, 8, 0, 0)));
 }
+
+// ============================================================================
+// Configurable SdmaBaseConfig Tests
+// ============================================================================
+TEST(TPutAsync, Vec_Int32_QueueNum2)
+{
+    ASSERT_TRUE((RunPutAsyncWithConfig<int32_t, 4096>(2, 2, 0, 0, 4096, 0, 2)));
+}
+TEST(TPutAsync, Vec_Float_SmallBlockBytes)
+{
+    ASSERT_TRUE((RunPutAsyncWithConfig<float, 4096>(2, 2, 0, 0, 4096, 0, 1)));
+}
+TEST(TPutAsync, Vec_Float_LargeBlockBytes)
+{
+    ASSERT_TRUE((RunPutAsyncWithConfig<float, 4096>(2, 2, 0, 0, 2 * 1024 * 1024, 0, 1)));
+}
+TEST(TPutAsync, Vec_Float_CommOffset)
+{
+    ASSERT_TRUE((RunPutAsyncWithConfig<float, 2048>(2, 2, 0, 0, 1024 * 1024, 1024 * sizeof(float), 1)));
+}
+
+// ============================================================================
+// Multi-Core Tests (blockDim > 1)
+// ============================================================================
+TEST(TPutAsync, Vec_Float_MultiCoreSplit)
+{
+    ASSERT_TRUE((RunPutAsyncMultiCore<float, 2048>(2, 2, 0, 0, 2, 0)));
+}
+TEST(TPutAsync, Vec_Float_MultiCoreIndep)
+{
+    ASSERT_TRUE((RunPutAsyncMultiCore<float, 256>(2, 2, 0, 0, 2, 1)));
+}
+
 int main(int argc, char **argv)
 {
     CommMpiInit(&argc, &argv);

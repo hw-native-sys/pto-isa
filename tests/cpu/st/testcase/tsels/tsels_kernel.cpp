@@ -63,5 +63,5 @@ template void LaunchTSelS<int16_t, 64, 64, 64, 64>(int16_t *out, int8_t scalar, 
                                                    void *stream);
 #ifdef CPU_SIM_BFLOAT_ENABLED
 template void LaunchTSelS<bfloat16_t, 16, 256, 16, 256>(bfloat16_t *out, int8_t scalar, bfloat16_t *src0,
-                                                         bfloat16_t *src1, void *stream);
+                                                        bfloat16_t *src1, void *stream);
 #endif

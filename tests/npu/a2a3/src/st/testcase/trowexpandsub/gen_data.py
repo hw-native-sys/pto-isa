@@ -14,6 +14,7 @@ import os
 import struct
 import ctypes
 import numpy as np
+
 np.random.seed(2025)
 
 
@@ -25,8 +26,12 @@ def gen_golden_data(case_name, param):
     if param.is_rowmajor:
         src1vc = 32 // np.dtype(dtype).itemsize
 
-    input1 = np.random.random(vr * vc).astype(dtype)
-    input2 = np.random.random(vr * src1vc).astype(dtype)
+    if np.issubdtype(dtype, np.integer):
+        input1 = np.random.randint(1, 10, size=vr * vc).astype(dtype)
+        input2 = np.random.randint(1, 10, size=vr * src1vc).astype(dtype)
+    else:
+        input1 = np.random.random(vr * vc).astype(dtype)
+        input2 = np.random.random(vr * src1vc).astype(dtype)
     golden = np.zeros(vr * vc).astype(dtype)
 
     if param.src0eqdst:
@@ -74,6 +79,10 @@ if __name__ == "__main__":
         "TROWEXPANDSUBTest.case16",
         "TROWEXPANDSUBTest.case17",
         "TROWEXPANDSUBTest.case18",
+        "TROWEXPANDSUBTest.case19",
+        "TROWEXPANDSUBTest.case20",
+        "TROWEXPANDSUBTest.case21",
+        "TROWEXPANDSUBTest.case22",
     ]
 
     case_params_list = [
@@ -95,6 +104,10 @@ if __name__ == "__main__":
         TRowExpandSub(np.float16, 16, 16, 16, 16, True, False),
         TRowExpandSub(np.float32, 1, 16384, 1, 16384, True, False),
         TRowExpandSub(np.float32, 2048, 1, 2048, 8, True, False),
+        TRowExpandSub(np.int32, 16, 16, 16, 16, True, False),
+        TRowExpandSub(np.int32, 16, 16, 16, 16, True, True),
+        TRowExpandSub(np.int16, 16, 16, 16, 16, True, False),
+        TRowExpandSub(np.int16, 16, 16, 16, 16, True, True),
     ]
 
     for i, case_name in enumerate(case_name_list):

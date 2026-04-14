@@ -120,4 +120,12 @@ TEST_F(TColExpandDivTest, case_fp32_20_64_1_64)
 {
     test_tcolexpanddiv<float, 20, 64, 1, 64, true>();
 }
+TEST_F(TColExpandDivTest, case_int32_16_32_1_32)
+{
+    test_tcolexpanddiv<int32_t, 16, 32, 1, 32>();
+}
+TEST_F(TColExpandDivTest, case_int16_16_64_1_64)
+{
+    test_tcolexpanddiv<int16_t, 16, 64, 1, 64>();
+}
 } // namespace TColExpandDivTest

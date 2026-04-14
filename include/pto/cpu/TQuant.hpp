@@ -21,8 +21,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/cpu/tile_offsets.hpp"
 
 namespace pto {
-#if !defined(PTO_NPU_ARCH_A2A3) && !defined(PTO_NPU_ARCH_A5) && !defined(PTO_NPU_ARCH_KIRIN9030) && \
-    !defined(PTO_NPU_ARCH_KIRINX90)
+#if !defined(PTO_NPU_ARCH_A2A3) && !defined(PTO_NPU_ARCH_A5) && !defined(PTO_NPU_ARCH_KIRIN9030)
 enum class QuantType
 {
     MXFP8,
@@ -185,9 +184,10 @@ PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataPara &
     }
 }
 
-template <QuantType quant_type, typename TileDataOut, typename TileDataSrc, typename TileDataExp, typename TileDataMax>
+template <QuantType quant_type, typename TileDataOut, typename TileDataSrc, typename TileDataExp, typename TileDataMax,
+          typename TileDataScaling>
 PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataExp *exp, TileDataMax *max,
-                              TileDataSrc *scaling)
+                              TileDataScaling *scaling)
 {
     static_assert(quant_type == QuantType::MXFP8, "Fix: MX overload is reserved for MXFP8.");
     using SrcT = typename TileDataSrc::DType;
@@ -202,7 +202,23 @@ PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataExp *e
     const int cols = src.GetValidCol();
     PTO_CPU_ASSERT(cols % 32 == 0, "Fix: MXFP8 CPU sim currently requires valid cols to be a multiple of 32.");
     const int groupCols = cols / 32;
-    std::vector<uint8_t> expValues(rows * groupCols, 0);
+
+    // Flatten exp, max, scaling to 1D for internal processing
+    constexpr int expNumel = TileDataExp::Rows * TileDataExp::Cols;
+    using FlatExpTile = Tile<TileType::Vec, typename TileDataExp::DType, 1, expNumel, BLayout::RowMajor, -1, -1>;
+    FlatExpTile flatExp(1, expNumel);
+    TRESHAPE_IMPL(flatExp, *exp);
+
+    constexpr int maxNumel = TileDataMax::Rows * TileDataMax::Cols;
+    using FlatMaxTile = Tile<TileType::Vec, typename TileDataMax::DType, 1, maxNumel, BLayout::RowMajor, -1, -1>;
+    FlatMaxTile flatMax(1, maxNumel);
+    TRESHAPE_IMPL(flatMax, *max);
+
+    constexpr int scalingNumel = TileDataScaling::Rows * TileDataScaling::Cols;
+    using FlatScalingTile =
+        Tile<TileType::Vec, typename TileDataScaling::DType, 1, scalingNumel, BLayout::RowMajor, -1, -1>;
+    FlatScalingTile flatScaling(1, scalingNumel);
+    TRESHAPE_IMPL(flatScaling, *scaling);
 
     for (int row = 0; row < rows; ++row) {
         for (int group = 0; group < groupCols; ++group) {
@@ -213,30 +229,35 @@ PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataExp *e
             }
             const uint8_t e8m0 = cpu_quant::ComputeSharedExponent(maxAbsValue);
             const float groupScaling = cpu_quant::ComputeScalingFromExponent(e8m0);
-            expValues[row * groupCols + group] = e8m0;
-            max->data()[GetTileElementOffset<TileDataMax>(0, row * groupCols + group)] = maxAbsValue;
-            exp->data()[GetTileElementOffset<TileDataExp>(0, row * groupCols + group)] = e8m0;
+            const int flatGroupIdx = row * groupCols + group;
+            flatMax.data()[flatGroupIdx] = maxAbsValue;
+            flatExp.data()[flatGroupIdx] = e8m0;
             for (int inner = 0; inner < 32; ++inner) {
                 const int col = group * 32 + inner;
+                flatScaling.data()[row * cols + col] = groupScaling;
                 const float value = src.data()[GetTileElementOffset<TileDataSrc>(row, col)];
-                scaling->data()[GetTileElementOffset<TileDataSrc>(row, col)] = groupScaling;
                 const uint8_t encoded = cpu_quant::EncodeE4M3Fn(value * groupScaling);
                 dst.data()[GetTileElementOffset<TileDataOut>(row, col)] = static_cast<int8_t>(encoded);
             }
         }
     }
+
+    // Reshape back so caller can inspect results
+    TRESHAPE_IMPL(*exp, flatExp);
+    TRESHAPE_IMPL(*max, flatMax);
+    TRESHAPE_IMPL(*scaling, flatScaling);
 }
 
 template <QuantType quant_type, VecStoreMode store_mode, typename TileDataOut, typename TileDataSrc,
-          typename TileDataExp, typename TileDataMax, typename TileDataIdx>
+          typename TileDataExp, typename TileDataMax, typename TileDataScaling>
 PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataExp *exp, TileDataMax *max,
-                              TileDataSrc *scaling, TileDataExp *exp_zz, TileDataIdx *vgather_idx)
+                              TileDataScaling *scaling, TileDataExp *exp_zz)
 {
-    (void)vgather_idx;
     static_assert(quant_type == QuantType::MXFP8, "Fix: MX overload is reserved for MXFP8.");
     static_assert(store_mode == VecStoreMode::NZ, "Fix: This overload is reserved for MXFP8 NZ mode.");
 
-    TQUANT_IMPL<quant_type, TileDataOut, TileDataSrc, TileDataExp, TileDataMax>(dst, src, exp, max, scaling);
+    TQUANT_IMPL<quant_type, TileDataOut, TileDataSrc, TileDataExp, TileDataMax, TileDataScaling>(dst, src, exp, max,
+                                                                                                 scaling);
 
     PTO_CPU_ASSERT(exp_zz != nullptr, "Fix: MXFP8 NZ mode requires reordered exponents.");
     const int rows = src.GetValidRow();

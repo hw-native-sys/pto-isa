@@ -213,14 +213,12 @@ TEST(TQuantCpuSimTest, MxFp8NzReordersExponentsExactly)
     using DstTile = Tile<TileType::Vec, int8_t, 16, 64>;
     using ExpTile = Tile<TileType::Vec, uint8_t, 1, 32>;
     using MaxTile = Tile<TileType::Vec, float, 1, 32>;
-    using IdxTile = Tile<TileType::Vec, uint16_t, 1, 16, BLayout::RowMajor>;
     SrcTile src;
     SrcTile scaling;
     DstTile dst;
     ExpTile exp;
     ExpTile expZz;
     MaxTile max;
-    IdxTile gatherIdx;
     size_t addr = 0;
     TASSIGN(src, addr);
     addr += SrcTile::Numel * sizeof(typename SrcTile::DType);
@@ -233,8 +231,6 @@ TEST(TQuantCpuSimTest, MxFp8NzReordersExponentsExactly)
     TASSIGN(expZz, addr);
     addr += ExpTile::Numel * sizeof(typename ExpTile::DType);
     TASSIGN(max, addr);
-    addr += MaxTile::Numel * sizeof(typename MaxTile::DType);
-    TASSIGN(gatherIdx, addr);
 
     for (int r = 0; r < src.GetValidRow(); ++r) {
         for (int c = 0; c < src.GetValidCol(); ++c) {
@@ -242,11 +238,8 @@ TEST(TQuantCpuSimTest, MxFp8NzReordersExponentsExactly)
             src.data()[GetTileElementOffset<SrcTile>(r, c)] = ((r + c) % 3 == 0) ? -base : base;
         }
     }
-    for (int i = 0; i < gatherIdx.GetValidCol(); ++i) {
-        gatherIdx.data()[i] = static_cast<uint16_t>(i);
-    }
 
-    TQUANT<QuantType::MXFP8, VecStoreMode::NZ>(dst, src, &exp, &max, &scaling, &expZz, &gatherIdx);
+    TQUANT<QuantType::MXFP8, VecStoreMode::NZ>(dst, src, &exp, &max, &scaling, &expZz);
 
     std::vector<uint8_t> expFlat(32);
     for (int i = 0; i < 32; ++i) {

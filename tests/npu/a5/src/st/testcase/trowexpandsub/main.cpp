@@ -127,4 +127,12 @@ TEST_F(TRowExpandSubTest, case_fp16_16_64)
 {
     test_trowexpandsub<aclFloat16, 16, 64, 16, 16, false, true>();
 }
+TEST_F(TRowExpandSubTest, case_int32_16_32)
+{
+    test_trowexpandsub<int32_t, 16, 32, 16, 1, true, false>();
+}
+TEST_F(TRowExpandSubTest, case_int16_16_64)
+{
+    test_trowexpandsub<int16_t, 16, 64, 16, 1, true, false>();
+}
 } // namespace TRowExpandSubTest

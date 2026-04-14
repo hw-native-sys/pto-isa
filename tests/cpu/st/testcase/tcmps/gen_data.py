@@ -12,7 +12,7 @@
 
 import os
 import numpy as np
-from tests.script.cpu_bfloat16 import BF16_DTYPE, cast_for_compute, normalize_case_dtype_name, write_array, zeros
+from utils import NumExt
 np.random.seed(19)
 
 def gen_golden_data_tcmps(case_name, param):
@@ -22,12 +22,12 @@ def gen_golden_data_tcmps(case_name, param):
     h_valid, w_valid = [param.valid_row, param.valid_col]
 
     # Generate random input arrays
-    if dtype == np.float16 or dtype == BF16_DTYPE:
-        input1 = cast_for_compute(np.random.randint(-5, 5, size=[H, W]), dtype)
-        input2 = cast_for_compute(np.zeros(1), dtype)
+    if dtype == np.float16 or dtype == NumExt.bf16:
+        input1 = NumExt.astype(np.random.randint(-5, 5, size=[H, W]), dtype)
+        input2 = NumExt.astype(np.zeros(1), dtype)
     else:
-        input1 = cast_for_compute(np.random.randint(1, 10, size=[H, W]), dtype)
-        input2 = cast_for_compute(np.random.randint(1, 10, size=[1]), dtype)
+        input1 = NumExt.astype(np.random.randint(1, 10, size=[H, W]), dtype)
+        input2 = NumExt.astype(np.random.randint(1, 10, size=[1]), dtype)
 
     if param.mode == "CmpMode::EQ":
         golden = np.equal(input1, input2[0])
@@ -43,7 +43,7 @@ def gen_golden_data_tcmps(case_name, param):
         golden = np.less_equal(input1, input2[0]) 
 
     # Apply valid region constraints
-    output = zeros([H, W], dtype)
+    output = NumExt.zeros([H, W], dtype)
     for h in range(H):
         for w in range(W):
             if h >= h_valid or w >= w_valid:
@@ -58,8 +58,8 @@ def gen_golden_data_tcmps(case_name, param):
             out_uint8.append(func_binar(row[i*8:i*8+8]))
 
     # Save the input and golden data to binary files
-    write_array("input1.bin", input1, dtype)
-    write_array("input2.bin", input2, dtype)
+    NumExt.write_array("input1.bin", input1, dtype)
+    NumExt.write_array("input2.bin", input2, dtype)
     np.array(out_uint8).astype(np.uint8).tofile("golden.bin")
 
     return input1, input2, golden
@@ -76,12 +76,7 @@ class tcmpsParams:
         self.mode = cmpMode
 
 def generate_case_name(param):
-    dtype_str = normalize_case_dtype_name(param.dtype, {
-        np.float32: 'float',
-        np.float16: 'half',
-        np.int32: 'int32',
-        np.int16: 'int16'
-    })
+    dtype_str = NumExt.get_short_type_name(param.dtype)
     return f"TCMPSTest.case_{dtype_str}_{param.global_row}x{param.global_col}_{param.tile_row}x{param.tile_col}_{param.valid_row}x{param.valid_col}"
 
 if __name__ == "__main__":
@@ -106,7 +101,7 @@ if __name__ == "__main__":
         tcmpsParams(np.int32, 32, 32, 32, 32, 32, 32, "CmpMode::EQ"),
     ]
     if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
-        case_params_list.append(tcmpsParams(BF16_DTYPE, 32, 32, 32, 32, 32, 32, "CmpMode::GE"))
+        case_params_list.append(tcmpsParams(NumExt.bf16, 32, 32, 32, 32, 32, 32, "CmpMode::GE"))
 
     for i, param in enumerate(case_params_list):
         case_name = generate_case_name(param)

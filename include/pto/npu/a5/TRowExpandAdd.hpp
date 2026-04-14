@@ -51,7 +51,10 @@ PTO_INTERNAL void TROWEXPANDADD_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileD
     using T = typename TileDataDst::DType;
     static_assert(std::is_same_v<T, typename TileDataSrc0::DType> && std::is_same_v<T, typename TileDataSrc1::DType>,
                   "Fix: TROWEXPANDADD src and dst data type is different!");
-    static_assert(std::is_same_v<T, half> || std::is_same_v<T, float>, "Fix: TROWEXPANDADD Invalid data type.");
+    static_assert(std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float> ||
+                      std::is_same_v<T, int16_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, half> ||
+                      std::is_same_v<T, bfloat16_t> || std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t>,
+                  "Fix: TROWEXPANDADD Invalid data type.");
     static_assert(TileDataDst::isRowMajor, "Fix: TROWEXPANDADD Invalid tile shape.");
 
     unsigned validRow = dst.GetValidRow();

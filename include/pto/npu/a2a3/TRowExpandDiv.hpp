@@ -49,7 +49,9 @@ PTO_INTERNAL void TROWEXPANDDIV_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileD
     using T = typename TileDataDst::DType;
     static_assert(std::is_same_v<T, typename TileDataSrc0::DType> && std::is_same_v<T, typename TileDataSrc1::DType>,
                   "Fix: TROWEXPANDIV src and dst data type is different!");
-    static_assert(std::is_same_v<T, half> || std::is_same_v<T, float>, "Fix: TROWEXPANDIV Invalid data type.");
+    static_assert(std::is_same_v<T, half> || std::is_same_v<T, float16_t> || std::is_same_v<T, float> ||
+                      std::is_same_v<T, float32_t>,
+                  "Fix: TROWEXPANDIV Invalid data type.");
     static_assert(TileDataDst::isRowMajor, "Fix: TROWEXPANDIV Invalid tile shape.");
     unsigned validRow = dst.GetValidRow();
     unsigned validCol = dst.GetValidCol();
@@ -85,7 +87,9 @@ PTO_INTERNAL void TROWEXPANDDIV_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileD
     using T = typename TileDataDst::DType;
     static_assert(std::is_same_v<T, typename TileDataSrc0::DType> && std::is_same_v<T, typename TileDataSrc1::DType>,
                   "Fix: TROWEXPANDDIV src and dst data type is different!");
-    static_assert(std::is_same_v<T, half> || std::is_same_v<T, float>, "Fix: TROWEXPANDDIV Invalid data type.");
+    static_assert(std::is_same_v<T, half> || std::is_same_v<T, float16_t> || std::is_same_v<T, float> ||
+                      std::is_same_v<T, float32_t>,
+                  "Fix: TROWEXPANDDIV Invalid data type.");
     static_assert(TileDataDst::isRowMajor, "Fix: TROWEXPANDDIV Invalid tile shape.");
     unsigned validRow = dst.GetValidRow();
     unsigned validCol = dst.GetValidCol();

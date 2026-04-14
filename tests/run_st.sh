@@ -339,6 +339,7 @@ if [ "$ENABLE_A5" = "true" ]; then
       python3 tests/script/run_st.py $ARGS -w -v a5 -t tpushpop_dir_both -g TPushPopDirBothTest.case1_float_dir_both
     fi
     python3 tests/script/run_st.py $ARGS -w -v a5 -t textract -g TEXTRACTTest.case1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_acc2vec -g TMOVTest.case_nz2nd_sc_quant_1
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tfillpad -g TFILLPADTest.case_float_GT_128_127_VT_128_128_BLK1_PADMAX_PADMAX
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tgather -g TGATHERTest.case1_float_32x1024_16x64
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tgatherb -g TGATHERBTest.case_float_2x128_2x16_2x128
@@ -477,6 +478,7 @@ if [ "$ENABLE_A5" = "true" ]; then
       python3 tests/script/run_st.py $ARGS -w -v a5 -t tpushpop_dir_both
     fi
     python3 tests/script/run_st.py $ARGS -w -v a5 -t textract
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_acc2vec
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tfillpad
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tgather
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tgatherb

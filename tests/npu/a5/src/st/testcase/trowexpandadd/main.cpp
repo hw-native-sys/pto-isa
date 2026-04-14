@@ -127,4 +127,12 @@ TEST_F(TRowExpandAddTest, case_fp32_20_64)
 {
     test_trowexpandadd<float, 20, 64, 20, 8, false, true>();
 }
+TEST_F(TRowExpandAddTest, case_int32_16_32)
+{
+    test_trowexpandadd<int32_t, 16, 32, 16, 1, true, false>();
+}
+TEST_F(TRowExpandAddTest, case_int16_16_64)
+{
+    test_trowexpandadd<int16_t, 16, 64, 16, 1, true, false>();
+}
 } // namespace TRowExpandAddTest

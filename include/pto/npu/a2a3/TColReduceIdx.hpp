@@ -50,7 +50,7 @@ __tf__ PTO_INTERNAL void TColReduceIdx16(typename TileDataOut::TileDType __out__
 {
     using TOUT = typename TileDataOut::DType;
     using T = typename TileDataIn::DType;
-    constexpr uint32_t srcRowStride = TileDataOut::Cols;
+    constexpr uint32_t srcRowStride = TileDataIn::Cols;
     constexpr uint32_t elemPerRpt = REPEAT_BYTE / sizeof(T);
     constexpr uint32_t elemPerBlock = BLOCK_BYTE_SIZE / sizeof(T);
     __ubuf__ TOUT *dstPtr = (__ubuf__ TOUT *)__cce_get_tile_ptr(dst);
@@ -150,7 +150,7 @@ __tf__ PTO_INTERNAL void TColReduceIdx32(typename TileDataOut::TileDType __out__
     __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src);
     __ubuf__ T *tmpPtr = (__ubuf__ T *)__cce_get_tile_ptr(tmp);
 
-    constexpr uint32_t srcRowStride = TileDataOut::Cols;
+    constexpr uint32_t srcRowStride = TileDataIn::Cols;
     constexpr uint32_t elemPerRpt = REPEAT_BYTE / sizeof(T);
     constexpr uint32_t elemPerBlock = BLOCK_BYTE_SIZE / sizeof(T);
     uint16_t numLoop = srcValidCol / elemPerRpt;

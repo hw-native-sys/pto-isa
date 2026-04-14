@@ -14,6 +14,7 @@ import os
 import struct
 import ctypes
 import numpy as np
+
 np.random.seed(2025)
 
 
@@ -23,26 +24,38 @@ def gen_golden_data(params):
     [src0_row, src0_col] = [param.src0_row, param.src0_col]
     [src1_row, src1_col] = [param.src1_row, param.src1_col]
 
+    is_int = np.issubdtype(dtype, np.integer)
+
+    def rand_src0(shape):
+        if is_int:
+            return np.random.randint(1, 10, size=shape).astype(dtype)
+        return np.random.uniform(low=-10, high=10, size=shape).astype(dtype)
+
+    def rand_src1(shape):
+        if is_int:
+            return np.random.randint(1, 10, size=shape).astype(dtype)
+        return np.random.uniform(low=1, high=10, size=shape).astype(dtype)
+
     if param.src0eqdst:
-        src0 = np.random.uniform(low=-10, high=10, size=(src0_row, src0_col)).astype(dtype)
+        src0 = rand_src0((src0_row, src0_col))
         src0.tofile("input0.bin")
-        src1 = np.random.uniform(low=1, high=10, size=(src1_row, src1_col)).astype(dtype)
+        src1 = rand_src1((src1_row, src1_col))
         src1.tofile("input1.bin")
 
         reps = (dst_col + src1_col - 1) // src1_col
         src1_expand = np.tile(src1, (1, reps))[:, :dst_col]
 
-        golden = src0 / src1_expand
+        golden = np.floor_divide(src0, src1_expand) if is_int else src0 / src1_expand
     else:
-        src0 = np.random.uniform(low=-10, high=10, size=(src1_row, src1_col)).astype(dtype)
+        src0 = rand_src0((src1_row, src1_col))
         src0.tofile("input0.bin")
-        src1 = np.random.uniform(low=1, high=10, size=(src0_row, src0_col)).astype(dtype)
+        src1 = rand_src1((src0_row, src0_col))
         src1.tofile("input1.bin")
 
         reps = (dst_col + src0_col - 1) // src0_col
         src1_expand = np.tile(src1, (1, reps))[:, :dst_col]
 
-        golden = src1_expand / src0
+        golden = np.floor_divide(src1_expand, src0) if is_int else src1_expand / src0
 
     golden.tofile("golden.bin")
 
@@ -64,11 +77,9 @@ class TrowexpandParams:
 
 
 def generate_case_name(param):
-    dtype_str = {
-        np.float32: 'fp32',
-        np.float16: 'fp16',
-    }[param.dtype]
+    dtype_str = {np.float32: "fp32", np.float16: "fp16", np.int32: "int32", np.int16: "int16"}[param.dtype]
     return f"TRowExpandDivTest.case_{dtype_str}_{param.dst_row}_{param.dst_col}"
+
 
 if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -91,7 +102,9 @@ if __name__ == "__main__":
         TrowexpandParams(np.float32, 40, 32, 40, 32, 40, 1, True, False),
         TrowexpandParams(np.float16, 16, 128, 16, 128, 16, 1, True, False),
         TrowexpandParams(np.float32, 8, 32, 8, 32, 8, 8, True, True),
-        TrowexpandParams(np.float16, 8, 128, 8, 128, 8, 16, True, True)
+        TrowexpandParams(np.float16, 8, 128, 8, 128, 8, 16, True, True),
+        TrowexpandParams(np.int32, 16, 32, 16, 32, 16, 1, True, False),
+        TrowexpandParams(np.int16, 16, 64, 16, 64, 16, 1, True, False),
     ]
 
     for _, param in enumerate(case_params_list):

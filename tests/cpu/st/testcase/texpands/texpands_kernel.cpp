@@ -60,8 +60,8 @@ void LaunchTExpandS(void *out, float scalar, void *stream)
         runTEXPANDS<half, kGRows_, kGCols_, kTRows_, kTCols_, kVRows_, kVCols_, padValueType>(
             (half *)out, static_cast<half>(scalar));
     else
-        runTEXPANDS<T, kGRows_, kGCols_, kTRows_, kTCols_, kVRows_, kVCols_, padValueType>(
-            (T *)out, static_cast<T>(scalar));
+        runTEXPANDS<T, kGRows_, kGCols_, kTRows_, kTCols_, kVRows_, kVCols_, padValueType>((T *)out,
+                                                                                           static_cast<T>(scalar));
 }
 
 template void LaunchTExpandS<float, 64, 64, 64, 64, 64, 64, PAD_VALUE_NULL>(void *out, float scalar, void *stream);
@@ -75,8 +75,7 @@ template void LaunchTExpandS<aclFloat16, 1, 3600, 2, 4096, 1, 3600, PAD_VALUE_MA
                                                                                    void *stream);
 template void LaunchTExpandS<int16_t, 16, 200, 20, 512, 16, 200, PAD_VALUE_MAX>(void *out, float scalar, void *stream);
 #ifdef CPU_SIM_BFLOAT_ENABLED
-template void LaunchTExpandS<bfloat16_t, 64, 64, 64, 64, 64, 64, PAD_VALUE_NULL>(void *out, float scalar,
-                                                                                  void *stream);
+template void LaunchTExpandS<bfloat16_t, 64, 64, 64, 64, 64, 64, PAD_VALUE_NULL>(void *out, float scalar, void *stream);
 template void LaunchTExpandS<bfloat16_t, 1, 3600, 2, 4096, 1, 3600, PAD_VALUE_MAX>(void *out, float scalar,
-                                                                                    void *stream);
+                                                                                   void *stream);
 #endif

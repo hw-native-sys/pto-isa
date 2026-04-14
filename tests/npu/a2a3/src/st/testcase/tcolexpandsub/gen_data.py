@@ -14,6 +14,7 @@ import os
 import struct
 import ctypes
 import numpy as np
+
 np.random.seed(2025)
 
 
@@ -21,12 +22,18 @@ def gen_golden_data(params):
     dtype = param.dtype
     [dst_row, dst_col] = [param.dst_row, param.dst_col]
     [src1_row, src1_col] = [param.src1_row, param.src1_col]
-    
-    src0 = np.random.uniform(low=-10, high=10, size=(dst_row, dst_col)).astype(dtype)
-    src0.tofile("input0.bin")
-    src1 = np.random.uniform(low=-10, high=10, size=(src1_row, src1_col)).astype(dtype)
-    src1.tofile("input1.bin")
-    
+
+    if np.issubdtype(dtype, np.integer):
+        src0 = np.random.randint(1, 10, size=(dst_row, dst_col)).astype(dtype)
+        src0.tofile("input0.bin")
+        src1 = np.random.randint(1, 10, size=(src1_row, src1_col)).astype(dtype)
+        src1.tofile("input1.bin")
+    else:
+        src0 = np.random.uniform(low=-10, high=10, size=(dst_row, dst_col)).astype(dtype)
+        src0.tofile("input0.bin")
+        src1 = np.random.uniform(low=-10, high=10, size=(src1_row, src1_col)).astype(dtype)
+        src1.tofile("input1.bin")
+
     reps = (dst_col + src1_col - 1) // src1_col
     src1_expand = np.tile(src1, (1, reps))[:, :dst_col]
     golden = src0 - src1_expand
@@ -48,11 +55,9 @@ class TcolexpandParams:
 
 
 def generate_case_name(param):
-    dtype_str = {
-        np.float32: 'fp32',
-        np.float16: 'fp16',
-    }[param.dtype]
+    dtype_str = {np.float32: "fp32", np.float16: "fp16", np.int32: "int32", np.int16: "int16"}[param.dtype]
     return f"TColExpandSubTest.case_{dtype_str}_{param.dst_row}_{param.dst_col}_{param.src1_row}_{param.src1_col}"
+
 
 if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -66,6 +71,8 @@ if __name__ == "__main__":
         TcolexpandParams(np.float32, 18, 32, 18, 32, 1, 32),
         TcolexpandParams(np.float16, 10, 256, 10, 256, 1, 256),
         TcolexpandParams(np.float16, 12, 64, 12, 64, 1, 64),
+        TcolexpandParams(np.int32, 8, 32, 8, 32, 1, 32),
+        TcolexpandParams(np.int16, 8, 32, 8, 32, 1, 32),
     ]
 
     for _, param in enumerate(case_params_list):

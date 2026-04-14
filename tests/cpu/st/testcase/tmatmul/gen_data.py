@@ -14,7 +14,7 @@ import os
 import struct
 import math
 import numpy as np
-from tests.script.cpu_bfloat16 import BF16_DTYPE, cast_for_compute, write_array
+from utils import NumExt
 
 np.random.seed(19)
 ENABLE_BF16 = os.environ.get("PTO_CPU_SIM_ENABLE_BF16") == "1"
@@ -40,8 +40,8 @@ def gen_golden_data(case_name, param):
     m, k, n, is_bias, is_atrans, is_btrans = param.m, param.k, param.n, param.is_bias, False, False
     repeats = param.repeats
 
-    x1_gm = cast_for_compute(np.random.randint(1, 5, [repeats, m, k]), src_type)
-    x2_gm = cast_for_compute(np.random.randint(1, 5, [repeats, k, n]), src_type)
+    x1_gm = NumExt.astype(np.random.randint(1, 5, [repeats, m, k]), src_type)
+    x2_gm = NumExt.astype(np.random.randint(1, 5, [repeats, k, n]), src_type)
     bias_gm = np.random.randint(1, 10, [n, ]).astype(param.bias_type)
     golden=np.zeros([m,n], dst_type)
 
@@ -56,8 +56,8 @@ def gen_golden_data(case_name, param):
     if is_bias:
         golden += bias_gm
 
-    write_array("./x1_gm.bin", x1_gm, src_type)
-    write_array("./x2_gm.bin", x2_gm, src_type)
+    NumExt.write_array("./x1_gm.bin", x1_gm, src_type)
+    NumExt.write_array("./x2_gm.bin", x2_gm, src_type)
     bias_gm.tofile("./bias_gm.bin")
     golden.tofile("./golden.bin")
 
@@ -108,8 +108,8 @@ if __name__ == "__main__":
     ]
     if ENABLE_BF16:
         case_params_list.extend([
-            tmatmulParams(BF16_DTYPE, BF16_DTYPE, np.float32, 40, 50, 60, False),
-            tmatmulParams(BF16_DTYPE, BF16_DTYPE, np.float32, 16, 15, 16, True, np.float32),
+            tmatmulParams(NumExt.bf16, NumExt.bf16, np.float32, 40, 50, 60, False),
+            tmatmulParams(NumExt.bf16, NumExt.bf16, np.float32, 16, 15, 16, True, np.float32),
         ])
 
     for i, case_name in enumerate(case_name_list):

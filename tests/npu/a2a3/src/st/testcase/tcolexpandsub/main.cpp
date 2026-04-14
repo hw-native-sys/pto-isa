@@ -107,4 +107,12 @@ TEST_F(TColExpandSubTest, case_fp16_12_64_1_64)
 {
     test_tcolexpandsub<aclFloat16, 12, 64, 1, 64>();
 }
+TEST_F(TColExpandSubTest, case_int32_8_32_1_32)
+{
+    test_tcolexpandsub<int32_t, 8, 32, 1, 32>();
+}
+TEST_F(TColExpandSubTest, case_int16_8_32_1_32)
+{
+    test_tcolexpandsub<int16_t, 8, 32, 1, 32>();
+}
 } // namespace TColExpandSubTest

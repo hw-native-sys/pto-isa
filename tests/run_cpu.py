@@ -34,6 +34,7 @@ def run_command(
     title: Optional[str] = None,
     verbose: bool = False,
     always_print_patterns: Optional[List[str]] = None,
+    env: Optional[Dict[str, str]] = None,
 ) -> float:
     cwd_str = str(cwd) if cwd is not None else None
     start = time.perf_counter()
@@ -45,6 +46,7 @@ def run_command(
         completed = subprocess.run(
             [str(x) for x in command],
             cwd=cwd_str,
+            env=env or os.environ,
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -268,8 +270,15 @@ def cmake_build(build_dir: Path, build_type: str) -> None:
 
 def generate_golden(build_dir: Path, gen_script: Path) -> None:
     dst = build_dir / "gen_data.py"
+    st_dir = gen_script.resolve().parent.parent.parent
     shutil.copyfile(gen_script, dst)
-    run_command([sys.executable, str(dst.name)], cwd=build_dir)
+
+    env = os.environ.copy()
+    pp = env.get("PYTHONPATH", "")
+    new_path = str(st_dir)
+    env["PYTHONPATH"] = f"{new_path}{os.pathsep}{pp}" if pp else new_path
+
+    run_command([sys.executable, str(dst.name)], cwd=build_dir, env=env)
 
 
 def read_cmake_cache_var(build_dir: Path, var_name: str) -> Optional[str]:
@@ -478,7 +487,7 @@ def setup_environment(args) -> None:
 
 
 def resolve_bf16_compiler_pair(args) -> None:
-    from script.cpu_bfloat16 import detect_bfloat16_cxx, derive_cc_from_cxx
+    from tests.script.cpu_bfloat16 import detect_bfloat16_cxx, derive_cc_from_cxx
 
     selected_cxx = detect_bfloat16_cxx(args.cxx)
     if args.cxx and (shutil.which(args.cxx) or args.cxx) != selected_cxx:

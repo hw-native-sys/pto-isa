@@ -191,3 +191,23 @@ TEST_F(TROWEXPANDMULTest, case18)
 {
     test_trowexpandmul<float, 2048, 1, 2048, 8, true, false, true>();
 }
+
+TEST_F(TROWEXPANDMULTest, case19)
+{
+    test_trowexpandmul<int32_t, 16, 16, 16, 16, true, false>();
+}
+
+TEST_F(TROWEXPANDMULTest, case20)
+{
+    test_trowexpandmul<int32_t, 16, 16, 16, 16, true, true>();
+}
+
+TEST_F(TROWEXPANDMULTest, case21)
+{
+    test_trowexpandmul<int16_t, 16, 16, 16, 16, true, false>();
+}
+
+TEST_F(TROWEXPANDMULTest, case22)
+{
+    test_trowexpandmul<int16_t, 16, 16, 16, 16, true, true>();
+}

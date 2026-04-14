@@ -82,4 +82,6 @@ template void launchTColExpandAdd<aclFloat16, 4, 256, 1, 256>(aclFloat16 *out, a
                                                               void *stream);
 template void launchTColExpandAdd<aclFloat16, 10, 64, 1, 64>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
                                                              void *stream);
+template void launchTColExpandAdd<int32_t, 8, 32, 1, 32>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
+template void launchTColExpandAdd<int16_t, 8, 32, 1, 32>(int16_t *out, int16_t *src0, int16_t *src1, void *stream);
 } // namespace TColExpandAddTest

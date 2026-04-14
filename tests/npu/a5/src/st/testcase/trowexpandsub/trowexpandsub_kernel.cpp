@@ -137,4 +137,8 @@ template void launchTRowExpandSub2<float, 24, 64, 24, 8, true>(float *out, float
 template void launchTRowExpandSub<float, 16, 128, 16, 1, false>(float *out, float *src0, float *src1, void *stream);
 template void launchTRowExpandSub2<aclFloat16, 16, 64, 16, 16, false>(aclFloat16 *out, aclFloat16 *src0,
                                                                       aclFloat16 *src1, void *stream);
+template void launchTRowExpandSub<int32_t, 16, 32, 16, 1, true>(int32_t *out, int32_t *src0, int32_t *src1,
+                                                                void *stream);
+template void launchTRowExpandSub<int16_t, 16, 64, 16, 1, true>(int16_t *out, int16_t *src0, int16_t *src1,
+                                                                void *stream);
 } // namespace TRowExpandSubTest

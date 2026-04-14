@@ -53,7 +53,7 @@ template void LaunchTCmps<aclFloat16, 32, 32, 32, 32, 5>(uint8_t *out, aclFloat1
                                                          void *stream);
 #ifdef CPU_SIM_BFLOAT_ENABLED
 template void LaunchTCmps<bfloat16_t, 32, 32, 32, 32, 5>(uint8_t *out, bfloat16_t *src0, bfloat16_t *src1,
-                                                          void *stream);
+                                                         void *stream);
 #endif
 template void LaunchTCmps<float, 1, 64, 1, 64, 0>(uint8_t *out, float *src0, float *src1, void *stream);
 template void LaunchTCmps<float, 8, 64, 8, 64, 4>(uint8_t *out, float *src0, float *src1, void *stream);

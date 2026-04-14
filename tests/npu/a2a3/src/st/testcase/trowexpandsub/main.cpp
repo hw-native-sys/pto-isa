@@ -191,3 +191,23 @@ TEST_F(TROWEXPANDSUBTest, case18)
 {
     test_trowexpandsub<float, 2048, 1, 2048, 8, true, false, true>();
 }
+
+TEST_F(TROWEXPANDSUBTest, case19)
+{
+    test_trowexpandsub<int32_t, 16, 16, 16, 16, true, false>();
+}
+
+TEST_F(TROWEXPANDSUBTest, case20)
+{
+    test_trowexpandsub<int32_t, 16, 16, 16, 16, true, true>();
+}
+
+TEST_F(TROWEXPANDSUBTest, case21)
+{
+    test_trowexpandsub<int16_t, 16, 16, 16, 16, true, false>();
+}
+
+TEST_F(TROWEXPANDSUBTest, case22)
+{
+    test_trowexpandsub<int16_t, 16, 16, 16, 16, true, true>();
+}

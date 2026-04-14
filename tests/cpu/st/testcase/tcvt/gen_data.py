@@ -13,7 +13,7 @@
 import os
 
 import numpy as np
-from tests.script.cpu_bfloat16 import BF16_DTYPE, cast_for_compute, write_array
+from utils import NumExt
 
 np.random.seed(19)
 ENABLE_BF16 = os.environ.get("PTO_CPU_SIM_ENABLE_BF16") == "1"
@@ -22,22 +22,22 @@ ENABLE_BF16 = os.environ.get("PTO_CPU_SIM_ENABLE_BF16") == "1"
 def gen_golden(param):
     m, n = param.m, param.n
 
-    x1_gm = cast_for_compute(np.random.random([m, n]) * 4.41, param.srctype)
+    x1_gm = NumExt.astype(np.random.random([m, n]) * 4.41, param.srctype)
     if param.mode == "RoundMode::CAST_RINT":
         if param.srctype == np.float32:
-            if param.dsttype == np.float16 or param.dsttype == BF16_DTYPE:
-                golden = cast_for_compute(x1_gm, param.dsttype)
+            if param.dsttype == np.float16 or param.dsttype == NumExt.bf16:
+                golden = NumExt.astype(x1_gm, param.dsttype)
             else:
                 golden = np.rint(x1_gm).astype(param.dsttype)
-        elif param.srctype == np.float16 or param.srctype == BF16_DTYPE:
+        elif param.srctype == np.float16 or param.srctype == NumExt.bf16:
             if param.dsttype == np.float32:
                 golden = x1_gm.astype(param.dsttype)
             else:
                 golden = np.rint(x1_gm).astype(param.dsttype)
         else:
             golden = x1_gm.astype(param.dsttype)
-    write_array("./x1_gm.bin", x1_gm, param.srctype)
-    write_array("./golden.bin", golden, param.dsttype)
+    NumExt.write_array("./x1_gm.bin", x1_gm, param.srctype)
+    NumExt.write_array("./golden.bin", golden, param.dsttype)
 
 
 class TCvtParams:
@@ -78,8 +78,8 @@ if __name__ == "__main__":
             "TCVTTest.case11",
         ])
         case_params_list.extend([
-            TCvtParams(np.float32, BF16_DTYPE, 64, 64, "RoundMode::CAST_RINT"),
-            TCvtParams(BF16_DTYPE, np.float32, 64, 64, "RoundMode::CAST_RINT"),
+            TCvtParams(np.float32, NumExt.bf16, 64, 64, "RoundMode::CAST_RINT"),
+            TCvtParams(NumExt.bf16, np.float32, 64, 64, "RoundMode::CAST_RINT"),
         ])
 
     for i, case_name in enumerate(case_name_list):

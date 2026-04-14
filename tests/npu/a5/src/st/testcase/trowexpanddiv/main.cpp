@@ -160,4 +160,12 @@ TEST_F(TRowExpandDivTest, case_fp16_8_128)
 {
     test_trowexpanddiv<aclFloat16, 8, 128, 8, 16, true, true, true>();
 }
+TEST_F(TRowExpandDivTest, case_int32_16_32)
+{
+    test_trowexpanddiv<int32_t, 16, 32, 16, 1, true, false>();
+}
+TEST_F(TRowExpandDivTest, case_int16_16_64)
+{
+    test_trowexpanddiv<int16_t, 16, 64, 16, 1, true, false>();
+}
 } // namespace TRowExpandDivTest

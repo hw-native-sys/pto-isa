@@ -9,7 +9,7 @@
 # --------------------------------------------------------------------------------
 import os
 import numpy as np
-from tests.script.cpu_bfloat16 import BF16_DTYPE, cast_for_compute, normalize_case_dtype_name, write_array
+from utils import NumExt
 
 np.random.seed(19)
 
@@ -20,12 +20,12 @@ def gen_golden_data(param):
     size = shape[0] * shape[1] * shape[2] * shape[3] * shape[4]
 
     #Generate random input arrays
-    input1 = cast_for_compute(np.random.randint(1, 10, size=[size]), dtype)
-    golden = cast_for_compute(np.tile(input1, rank), dtype)
+    input1 = NumExt.astype(np.random.randint(1, 10, size=[size]), dtype)
+    golden = NumExt.astype(np.tile(input1, rank), dtype)
 
     #Save the input and golden data to binary files
-    write_array("input.bin", input1, dtype)
-    write_array("golden.bin", golden, dtype)
+    NumExt.write_array("input.bin", input1, dtype)
+    NumExt.write_array("golden.bin", golden, dtype)
 
 
 class TBroadCastParams:
@@ -36,13 +36,7 @@ class TBroadCastParams:
 
 
 def generate_case_name(param, index):
-    dtype_str = normalize_case_dtype_name(param.dtype, {
-        np.float32: 'float', 
-        np.float16: 'half', 
-        np.int8: 'int8', 
-        np.int32: 'int32', 
-        np.int16: 'int16' 
-    })
+    dtype_str = NumExt.get_short_type_name(param.dtype)
 
     name = f"TBroadCastTest.case_{dtype_str}_{index}"
     return name
@@ -63,7 +57,7 @@ if __name__ == "__main__":
         TBroadCastParams(np.float16, (1, 2, 1, 16, 256), 1)
     ]
     if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
-        case_params_list.append(TBroadCastParams(BF16_DTYPE, (1, 2, 1, 16, 256), 1))
+        case_params_list.append(TBroadCastParams(NumExt.bf16, (1, 2, 1, 16, 256), 1))
 
     for i, param in enumerate(case_params_list):
         case_name = generate_case_name(param, i + 1) 
