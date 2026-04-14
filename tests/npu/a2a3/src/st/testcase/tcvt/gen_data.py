@@ -33,9 +33,11 @@ np.random.seed(19)
 USE_PYTORCH_GPU_BEHAVIOR = True  # Set to False to use CPU behavior
 
 # Mirror the C++ EDGE_CASE_ALIGN_ENABLE macro.
-# When True, TCVT_IMPL without a tmp buffer forces SaturationMode::ON for all types,
-# so the golden data for regular "case_" tests must use clamping (not truncation).
-EDGE_CASE_ALIGN_ENABLE = True
+# The C++ EDGE_CASE_ALIGN_ENABLE only affects the with-tmp GenCastCall overload
+# (NonSatTorch paths). The no-tmp TCVT_IMPL(dst, src, mode) used by regular
+# "case_" tests always passes SaturationMode::OFF for narrowing conversions
+# (kIsNarrowingCvt), so golden data must use truncation (not clamping).
+EDGE_CASE_ALIGN_ENABLE = False
 
 
 def default_saturation_off(srctype, dsttype):
