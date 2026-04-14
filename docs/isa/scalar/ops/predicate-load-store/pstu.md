@@ -21,8 +21,8 @@ The `%align_out` state carries forward into the next `pstu` call, enabling strea
 
 ### PTO Assembly Form
 
-```text
-pstu %align_in, %mask, %base_in : !pto.align, !pto.mask, !pto.ptr<T, ub> -> !pto.align, !pto.ptr<T, ub>
+```mlir
+%align_out, %base_out = pto.pstu %align_in, %mask, %base_in : !pto.align, !pto.mask, !pto.ptr<T, ub> -> !pto.align, !pto.ptr<T, ub>
 ```
 
 ### AS Level 1 (SSA)
@@ -40,13 +40,11 @@ pto.pstu ins(%align_in, %mask, %base_in : !pto.align, !pto.mask, !pto.ptr<T, ub>
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp`:
-
 ```cpp
-PTO_INST void PSTU(PredicateReg& dst,
-                    Ptr<ub_space_t, ub_t> ub_ptr,
-                    predicate_t align_in,
-                    predicate_t align_out);
+vector_align alignData;
+vector_bool src;
+__ubuf__ uint32_t *base;
+pstu(alignData, src, base);
 ```
 
 ## Inputs

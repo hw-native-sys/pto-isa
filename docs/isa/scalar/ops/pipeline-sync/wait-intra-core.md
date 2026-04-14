@@ -22,8 +22,8 @@ Block a specific pipeline within a cluster (A5) until a subblock signals an even
 
 ### PTO Assembly Form
 
-```text
-wait_intra_core %pipe, %sem_id : i64, i64
+```mlir
+pto.wait_intra_core %pipe, %sem_id : i64, i64
 ```
 
 ### AS Level 1 (SSA)
@@ -34,10 +34,12 @@ pto.wait_intra_core %pipe, %sem_id : i64, i64
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp`:
+The installed 3510 public CCE headers spell this operation as `wait_intra_block(...)`. The PTO page keeps the `wait_intra_core` ISA name, but the call surface below is the public Bisheng entry point that is actually shipped.
 
 ```cpp
-PTO_INST void WAIT_INTRA_CORE(pipe_t wait_pipe, int64_t sem_id);
+pipe_t pipe = PIPE_V;
+uint64_t syncId = 0;
+wait_intra_block(pipe, syncId);
 ```
 
 ## Inputs

@@ -22,8 +22,8 @@ Inactive lanes (`mask[i] == 0`): `dst[i]` is **unmodified** (preserves the prior
 
 ### PTO Assembly Form
 
-```text
-%result = vexp %input, %mask : !pto.vreg<NxT>, !pto.mask
+```mlir
+%result = pto.vexp %input, %mask : (!pto.vreg<NxT>, !pto.mask) -> !pto.vreg<NxT>
 ```
 
 ### AS Level 1 (SSA)
@@ -41,12 +41,11 @@ pto.vexp ins(%input, %mask : !pto.vreg<NxT>, !pto.mask)
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp`:
-
 ```cpp
-template <typename VecDst, typename VecSrc, typename MaskT, typename... WaitEvents>
-PTO_INST RecordEvent VEXP(VecDst& dst, const VecSrc& src,
-                          const MaskT& mask, WaitEvents&... events);
+vector_f32 dst;
+vector_f32 src;
+vector_bool mask;
+vexp(dst, src, mask);
 ```
 
 ## C Semantics

@@ -16,8 +16,8 @@ $$ \mathrm{dst}_i = \neg \mathrm{src}_i $$
 
 ### PTO Assembly Form
 
-```text
-pnot %dst, %src : !pto.mask, !pto.mask
+```mlir
+%dst = pto.pnot %src, %mask : !pto.mask, !pto.mask -> !pto.mask
 ```
 
 ### AS Level 1 (SSA)
@@ -34,12 +34,11 @@ pto.pnot ins(%src, %mask : !pto.mask, !pto.mask) outs(%dst : !pto.mask)
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp`:
-
 ```cpp
-PTO_INST void PNOT(RegBuf<predicate_t>& dst,
-                   const RegBuf<predicate_t>& src,
-                   const RegBuf<predicate_t>& mask);
+vector_bool dst;
+vector_bool src;
+vector_bool mask;
+pnot(dst, src, mask);
 ```
 
 ## Inputs

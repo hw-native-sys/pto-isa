@@ -22,8 +22,8 @@ This contrasts with A2A3's `set_cross_core` which broadcasts to both subblocks w
 
 ### PTO Assembly Form
 
-```text
-set_intra_block %pipe, %sem_id : i64, i64
+```mlir
+pto.set_intra_block %pipe, %sem_id : i64, i64
 ```
 
 ### AS Level 1 (SSA)
@@ -34,10 +34,10 @@ pto.set_intra_block %pipe, %sem_id : i64, i64
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp`:
-
 ```cpp
-PTO_INST void SET_INTRA_BLOCK(pipe_t trigger_pipe, int64_t sem_id);
+pipe_t pipe = PIPE_MTE2;
+uint64_t syncId = 0;
+set_intra_block(pipe, syncId);
 ```
 
 ## Inputs

@@ -18,8 +18,8 @@ $$ \mathrm{dst}_N = \begin{cases} \mathrm{LOWER}(\mathrm{src}_{2N}) & \text{if }
 
 ### PTO Assembly Form
 
-```text
-punpack %dst, %src, "PART" : !pto.mask, !pto.mask
+```mlir
+%dst = pto.punpack %src, "PART" : !pto.mask -> !pto.mask
 ```
 
 ### AS Level 1 (SSA)
@@ -36,12 +36,10 @@ pto.punpack ins(%src, "PART" : !pto.mask) outs(%dst : !pto.mask)
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp`:
-
 ```cpp
-PTO_INST void PUNPACK(RegBuf<predicate_t>& dst,
-                      const RegBuf<predicate_t>& src,
-                      const char* partition);
+vector_bool dst;
+vector_bool src;
+punpack(dst, src, __cce_simd::LOWER);
 ```
 
 ## Inputs

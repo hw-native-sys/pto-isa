@@ -4,55 +4,51 @@
 
 ## Summary
 
-Generate a dynamic 8-bit predicate: lanes where the lane index is greater-than-or-equal to a scalar threshold.
+Construct a 8-bit predicate mask from a documented `Pat*` token.
 
 ## Mechanism
 
-`pto.pge_b8` compares the lane index against a runtime scalar value and produces a predicate where active lanes satisfy `i ≥ scalar`. This is the scalar complement of `plt_b8`, commonly used for tail-mask generation in remainder loops.
+The installed 3510 Bisheng CCE header exposes `pge_b8` as a pattern-token helper, not as a runtime scalar-threshold compare. The public call surface is `vector_bool pge_b8(T dist)` where `T` is one of the documented `__cce_simd::Pat*` marker types.
 
-For lane index `i` (0 ≤ i < 8) and scalar threshold `s`:
-
-$$ \mathrm{mask}_i = \begin{cases} 1 & \text{if } i \geq s \\ 0 & \text{if } i < s \end{cases} $$
+This page therefore models `pto.pge_b8` as pattern-based predicate materialization: the chosen token determines which lanes are active in the returned predicate register.
 
 ## Syntax
 
 ### PTO Assembly Form
 
-```text
-pge_b8 %dst, %scalar : !pto.mask, i8
+```mlir
+%mask = pto.pge_b8 "PAT_VL4" : !pto.mask
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-%mask = pto.pge_b8 %scalar : i8 -> !pto.mask
+%mask = pto.pge_b8 "PAT_VL4" : !pto.mask
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.pge_b8 ins(%scalar : i8) outs(%mask : !pto.mask)
+pto.pge_b8 "PAT_VL4" outs(%mask : !pto.mask)
 ```
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp`:
-
 ```cpp
-PTO_INST void PGE_B8(RegBuf<predicate_t>& dst, int8_t scalar);
+vector_bool mask = pge_b8(__cce_simd::PAT_VL4);
 ```
 
 ## Inputs
 
 | Operand | Type | Description |
 |---------|------|-------------|
-| `%scalar` | `i8` | Lane-index threshold; lanes i ≥ scalar are active |
+| `"PAT_*"` | string attribute | Predicate-pattern token such as `PAT_ALL`, `PAT_ALLF`, `PAT_VL*`, `PAT_M3`, `PAT_M4`, `PAT_H`, or `PAT_Q` |
 
 ## Expected Outputs
 
 | Result | Type | Description |
 |--------|------|-------------|
-| `%mask` | `!pto.mask` | 8-bit predicate with active lanes above threshold |
+| `%mask` | `!pto.mask` | 8-bit predicate generated from the selected pattern token |
 
 ## Side Effects
 
@@ -60,58 +56,34 @@ None.
 
 ## Constraints
 
-- **Scalar range**: `scalar` MUST be in the range `[0, 8]`. Values outside this range produce all-1 (if scalar ≤ 0) or all-0 (if scalar ≥ 8) predicates.具体的实现行为取决于目标 Profile。
-- **Predicate width**: The produced predicate is 8 bits wide. Programs that need wider predicates MUST use `ppack` to combine multiple `_b8` results.
-- **No side effect on scalar**: Unlike `plt_b8`, this operation does NOT modify the scalar operand.
+- The installed public CCE API accepts documented `Pat*` marker types only; there is no public runtime-scalar overload for `pge_b8` in the shipped 3510 header.
+- Programs must use a pattern token that is valid for the selected target profile.
+- This operation materializes a predicate register only; it does not update any scalar input in place.
 
 ## Exceptions
 
-- Illegal if `scalar` is outside the representable range for the target profile (typically `[0, 8]`).
-- Illegal if the operation is used in a context requiring a predicate width other than 8 bits.
+- Illegal if the pattern token is not supported by the selected target profile.
+- Illegal if the result is consumed in a predicate-width context that the selected backend does not support.
 
 ## Target-Profile Restrictions
 
 | Aspect | CPU Sim | A2/A3 | A5 |
 |--------|:-------:|:------:|:--:|
-| Dynamic predicate generation | Simulated | Supported | Supported |
-| 8-bit predicate width | Supported | Supported | Supported |
-| Scalar range enforcement | Enforced | Enforced | Enforced |
+| Pattern-token predicate generation | Simulated | Supported | Supported |
+| Public CCE surface | Emulated | Supported | Supported |
 
 ## Examples
 
-### Tail mask for remainder loop
+### C++ usage
 
-```c
-#include <pto/pto-inst.hpp>
-using namespace pto;
-
-void generate_tail_mask(RegBuf<predicate_t>& dst, int8_t remainder) {
-    // remainder lanes active (i >= (8 - remainder))
-    PGE_B8(dst, 8 - remainder);
-}
+```cpp
+vector_bool mask = pge_b8(__cce_simd::PAT_VL4);
 ```
 
 ### SSA form
 
 ```mlir
-// %c0 holds the remainder count
-%tail = pto.pge_b8 %c0 : i8 -> !pto.mask
-
-// Use in predicated vector operation
-%result = pto.vsel %v_true, %v_false, %tail : !pto.vreg<8xf32>, !pto.vreg<8xf32>, !pto.mask -> !pto.vreg<8xf32>
-```
-
-### Comparison with plt_b8
-
-```mlir
-// pge_b8: lane i is active iff i >= scalar
-//   input: %rem = 3
-//   result: [0,0,0,0,0,1,1,1] (lanes 5,6,7 active)
-
-// plt_b8: lane i is active iff i < scalar; also decrements scalar
-//   input: %rem = 3
-//   result: [1,1,1,0,0,0,0,0] (lanes 0,1,2 active)
-//   output: %scalar_out = 0
+%mask = pto.pge_b8 "PAT_VL4" : !pto.mask
 ```
 
 ## Related Ops / Instruction Set Links

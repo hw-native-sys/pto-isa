@@ -16,8 +16,8 @@ $$ \mathrm{dst}_i = \mathrm{src0}_i \lor \mathrm{src1}_i $$
 
 ### PTO Assembly Form
 
-```text
-por %dst, %src0, %src1 : !pto.mask, !pto.mask, !pto.mask
+```mlir
+%dst = pto.por %src0, %src1, %mask : !pto.mask, !pto.mask, !pto.mask -> !pto.mask
 ```
 
 ### AS Level 1 (SSA)
@@ -34,13 +34,12 @@ pto.por ins(%src0, %src1, %mask : !pto.mask, !pto.mask, !pto.mask) outs(%dst : !
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp`:
-
 ```cpp
-PTO_INST void POR(RegBuf<predicate_t>& dst,
-                  const RegBuf<predicate_t>& src0,
-                  const RegBuf<predicate_t>& src1,
-                  const RegBuf<predicate_t>& mask);
+vector_bool dst;
+vector_bool src0;
+vector_bool src1;
+vector_bool mask;
+por(dst, src0, src1, mask);
 ```
 
 ## Inputs

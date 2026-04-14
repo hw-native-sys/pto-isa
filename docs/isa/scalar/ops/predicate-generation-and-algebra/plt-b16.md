@@ -4,108 +4,90 @@
 
 ## Summary
 
-Generate a dynamic 16-bit predicate with lane index less-than comparison, and atomically decrement the scalar operand.
+Generate a 16-bit tail predicate from a runtime element count and update the scalar through a post-update reference.
 
 ## Mechanism
 
-`pto.plt_b16` compares the lane index against a runtime scalar value and produces a predicate where active lanes satisfy `i < scalar`, then decrements the scalar by 16.
+The installed 3510 Bisheng CCE header exposes `plt_b16` as `vector_bool plt_b16(uint32_t &scalar, __cce_simd::POST_UPDATE)`. The call returns a predicate mask and writes the updated scalar value back through the reference argument.
 
-For lane index `i` (0 ≤ i < 16) and scalar threshold `s`:
-
-$$ \mathrm{mask}_i = \begin{cases} 1 & \text{if } i < s \\ 0 & \text{if } i \geq s \end{cases} $$
-$$ s_{\mathrm{out}} = s - 16 $$
+In practice, this is the public CCE helper used for remainder-mask generation: the returned mask enables the currently active lanes, and the scalar reference carries the post-update state into the next step.
 
 ## Syntax
 
 ### PTO Assembly Form
 
-```text
-plt_b16 %dst, %scalar_in : !pto.mask, i16 -> !pto.mask, i16
+```mlir
+%mask, %scalar_out = pto.plt_b16 %scalar_in {post_update} : i32 -> !pto.mask, i32
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-%mask, %scalar_out = pto.plt_b16 %scalar_in : i16 -> !pto.mask, i16
+%mask, %scalar_out = pto.plt_b16 %scalar_in {post_update} : i32 -> !pto.mask, i32
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.plt_b16 ins(%scalar_in : i16) outs(%mask, %scalar_out : !pto.mask, i16)
+pto.plt_b16 ins(%scalar_in : i32) outs(%mask, %scalar_out : !pto.mask, i32)
 ```
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp`:
-
 ```cpp
-PTO_INST void PLT_B16(RegBuf<predicate_t>& dst,
-                      int16_t& scalar_inout);
+uint32_t scalar = elementCount;
+vector_bool mask = plt_b16(scalar, __cce_simd::POST_UPDATE);
 ```
 
 ## Inputs
 
 | Operand | Type | Description |
 |---------|------|-------------|
-| `%scalar_in` | `i16` | Lane-index threshold; lanes i < scalar_in are active |
+| `%scalar_in` | `i32` | Runtime element count carried into the predicate generator |
+| `post_update` | attribute | Indicates the public CCE post-update form that writes `scalar_out` back through the reference |
 
 ## Expected Outputs
 
 | Result | Type | Description |
 |--------|------|-------------|
-| `%mask` | `!pto.mask` | 16-bit predicate with active lanes below threshold |
-| `%scalar_out` | `i16` | Decremented scalar: `scalar_in - 16` |
+| `%mask` | `!pto.mask` | 16-bit predicate generated from the current scalar value |
+| `%scalar_out` | `i32` | Scalar value after the intrinsic's post-update step |
 
 ## Side Effects
 
-- The scalar operand is **modified in place**: `scalar_out = scalar_in - 16`.
+- The public CCE call updates the scalar reference argument in place.
 
 ## Constraints
 
-- **Scalar range**: `scalar_in` MUST be in the range `[0, 16]`. After subtraction, `scalar_out` may be negative.
-- **Chain requirement**: Programs MUST use `scalar_out` from one iteration as `scalar_in` of the next. Breaking the chain produces **implementation-defined** predicates.
-- **Predicate width**: The produced predicate is 16 bits wide. For wider predicates, use `ppack`.
+- The installed public CCE surface for `plt_b16` uses a `uint32_t &` scalar plus `__cce_simd::POST_UPDATE`.
+- Programs that chain multiple `plt_b16` calls must thread the updated scalar value forward explicitly.
+- The returned predicate width is fixed by the `_b16` suffix.
 
 ## Exceptions
 
-- Illegal if `scalar_in` is outside the range `[0, 16]` for the target profile.
-- Illegal if the scalar chain is broken.
+- Illegal if the selected target profile does not support the requested predicate width.
+- Illegal if the post-update scalar state is consumed in a way that breaks the required chaining discipline.
 
 ## Target-Profile Restrictions
 
 | Aspect | CPU Sim | A2/A3 | A5 |
 |--------|:-------:|:------:|:--:|
-| Dynamic predicate generation | Simulated | Supported | Supported |
-| Scalar decrement | Simulated | Supported | Supported |
-| 16-bit predicate width | Supported | Supported | Supported |
+| Tail-predicate helper | Simulated | Supported | Supported |
+| Public post-update scalar form | Emulated | Supported | Supported |
 
 ## Examples
 
-### Software-pipelined remainder loop (f16/bf16)
+### C++ usage
 
-```c
-#include <pto/pto-inst.hpp>
-using namespace pto;
-
-void process_remainder(int16_t& rem, RegBuf<predicate_t>& mask) {
-    // rem = remainder count
-    // predicate: lanes 0..(rem-1) active
-    // rem = rem - 16
-    PLT_B16(mask, rem);
-}
+```cpp
+uint32_t scalar = elementCount;
+vector_bool mask = plt_b16(scalar, __cce_simd::POST_UPDATE);
 ```
 
-### Chained remainder loop
+### SSA form
 
 ```mlir
-// Iteration 1: rem = 28
-//   mask: 16 lanes active, rem_out = 12
-%mask1, %rem1 = pto.plt_b16 %rem0 : i16 -> !pto.mask, i16
-
-// Iteration 2: rem = 12
-//   mask: 12 lanes active, rem_out = -4
-%mask2, %rem2 = pto.plt_b16 %rem1 : i16 -> !pto.mask, i16
+%mask, %scalar_out = pto.plt_b16 %scalar_in {post_update} : i32 -> !pto.mask, i32
 ```
 
 ## Related Ops / Instruction Set Links

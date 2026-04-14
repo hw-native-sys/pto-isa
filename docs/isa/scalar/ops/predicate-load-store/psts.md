@@ -20,8 +20,8 @@ The predicate register is read atomically. Only bits within the current element-
 
 ### PTO Assembly Form
 
-```text
-psts %mask, %ub_ptr : !pto.mask, !pto.ptr<i64, ub>
+```mlir
+pto.psts %mask, %ub_ptr : !pto.mask, !pto.ptr<i64, ub>
 ```
 
 ### AS Level 1 (SSA)
@@ -38,10 +38,12 @@ pto.psts ins(%mask, %ub_ptr : !pto.mask, !pto.ptr<i64, ub>)
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp`:
-
 ```cpp
-PTO_INST void PSTS(RegBuf<predicate_t>& src, const Ptr<ub_space_t, ub_t>& dst);
+vector_bool src;
+__ubuf__ uint32_t *base;
+int32_t offset = 0;
+psts(src, base, offset, __cce_simd::NORM);
+psts(src, base, offset, __cce_simd::NORM, __cce_simd::POST_UPDATE);
 ```
 
 ## Inputs

@@ -23,8 +23,8 @@ The semaphore is a counter: incremented by `set_cross_core`, decremented by `wai
 
 ### PTO Assembly Form
 
-```text
-set_cross_core %core_id, %event_id : i64, i64
+```mlir
+pto.set_cross_core %core_id, %event_id : i64, i64
 ```
 
 ### AS Level 1 (SSA)
@@ -35,10 +35,10 @@ pto.set_cross_core %core_id, %event_id : i64, i64
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp`:
+The installed 3510 public CCE headers do not expose a same-name `set_cross_core(...)` intrinsic. The shipped sync implementation uses the internal cross-core helper shown below.
 
 ```cpp
-PTO_INST void SET_CROSS_CORE(int64_t core_id, int64_t event_id);
+ffts_cross_core_sync(PIPE_MTE3, AscendC::GetffstMsg(0x02, AscendC::SYNC_AIC_AIV_FLAG));
 ```
 
 ## Inputs

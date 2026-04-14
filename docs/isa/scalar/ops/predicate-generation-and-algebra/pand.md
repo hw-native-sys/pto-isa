@@ -18,8 +18,8 @@ The third operand (`%mask`) in the syntax is an optional masking predicate for t
 
 ### PTO Assembly Form
 
-```text
-pand %dst, %src0, %src1 : !pto.mask, !pto.mask, !pto.mask
+```mlir
+%dst = pto.pand %src0, %src1, %mask : !pto.mask, !pto.mask, !pto.mask -> !pto.mask
 ```
 
 ### AS Level 1 (SSA)
@@ -36,13 +36,12 @@ pto.pand ins(%src0, %src1, %mask : !pto.mask, !pto.mask, !pto.mask) outs(%dst : 
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp`:
-
 ```cpp
-PTO_INST void PAND(RegBuf<predicate_t>& dst,
-                    const RegBuf<predicate_t>& src0,
-                    const RegBuf<predicate_t>& src1,
-                    const RegBuf<predicate_t>& mask);
+vector_bool dst;
+vector_bool src0;
+vector_bool src1;
+vector_bool mask;
+pand(dst, src0, src1, mask);
 ```
 
 ## Inputs

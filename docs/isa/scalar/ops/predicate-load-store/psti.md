@@ -21,8 +21,8 @@ The immediate offset is encoded directly in the instruction word, in units of 8 
 
 ### PTO Assembly Form
 
-```text
-psti %mask, %ub_ptr[%imm], "DIST" : !pto.mask, !pto.ptr<i64, ub>, i32
+```mlir
+pto.psti %mask, %ub_ptr, %imm, "DIST" : !pto.mask, !pto.ptr<i64, ub>, i32
 ```
 
 ### AS Level 1 (SSA)
@@ -39,13 +39,12 @@ pto.psti ins(%mask, %ub_ptr, %imm, "DIST" : !pto.mask, !pto.ptr<i64, ub>, i32)
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp`:
-
 ```cpp
-PTO_INST void PSTI(RegBuf<predicate_t>& src,
-                    const Ptr<ub_space_t, ub_t>& base,
-                    int32_t imm,
-                    const char* dist = "PK");
+vector_bool src;
+__ubuf__ uint32_t *base;
+int32_t offset = 0;
+psti(src, base, offset, __cce_simd::NORM);
+psti(src, base, offset, __cce_simd::NORM, __cce_simd::POST_UPDATE);
 ```
 
 ## Inputs

@@ -4,61 +4,59 @@
 
 ## Summary
 
-Predicate deinterleave: split one 16-bit predicate register into two 8-bit predicate registers by separating alternating bits.
+Deinterleave two predicate sources and materialize the lower and higher result halves as two predicate outputs.
 
 ## Mechanism
 
-`pto.pdintlv_b8` deinterleaves a 16-bit predicate register into two 8-bit predicates by distributing alternating bits. Lane `i` from the lower half goes to the first output; lane `i` from the upper half goes to the second output.
+The installed 3510 Bisheng CCE header exposes `pdintlv_b8` as a four-operand, two-result helper:
 
-For a 16-bit predicate `src` and 0 ≤ i < 8:
+- `void pdintlv_b8(vector_bool &dst0, vector_bool &dst1, vector_bool src0, vector_bool src1);`
 
-$$ \mathrm{dst0}_i = \mathrm{src}_i $$
-$$ \mathrm{dst1}_i = \mathrm{src}_{i+8} $$
-
-This operation is used when processing 16-bit-wide data with two independent 8-bit predicate contexts, or when separating even/odd lane groups for multi-step processing.
+The public call surface therefore models `pto.pdintlv_b8` as a paired-result operation. `dst0` receives the lower deinterleaved half and `dst1` receives the upper deinterleaved half produced from `src0` and `src1`.
 
 ## Syntax
 
 ### PTO Assembly Form
 
-```text
-pdintlv_b8 %dst0, %dst1, %src : !pto.mask, !pto.mask, !pto.mask
+```mlir
+%dst0, %dst1 = pto.pdintlv_b8 %src0, %src1 : !pto.mask, !pto.mask -> !pto.mask, !pto.mask
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-%dst0, %dst1 = pto.pdintlv_b8 %src : !pto.mask -> !pto.mask, !pto.mask
+%dst0, %dst1 = pto.pdintlv_b8 %src0, %src1 : !pto.mask, !pto.mask -> !pto.mask, !pto.mask
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.pdintlv_b8 ins(%src : !pto.mask) outs(%dst0, %dst1 : !pto.mask, !pto.mask)
+pto.pdintlv_b8 ins(%src0, %src1 : !pto.mask, !pto.mask) outs(%dst0, %dst1 : !pto.mask, !pto.mask)
 ```
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp`:
-
 ```cpp
-PTO_INST void PDINTLV_B8(RegBuf<predicate_t>& dst0,
-                         RegBuf<predicate_t>& dst1,
-                         const RegBuf<predicate_t>& src);
+vector_bool dst0;
+vector_bool dst1;
+vector_bool src0;
+vector_bool src1;
+pdintlv_b8(dst0, dst1, src0, src1);
 ```
 
 ## Inputs
 
 | Operand | Type | Description |
 |---------|------|-------------|
-| `%src` | `!pto.mask` | 16-bit source predicate register |
+| `%src0` | `!pto.mask` | First predicate source |
+| `%src1` | `!pto.mask` | Second predicate source |
 
 ## Expected Outputs
 
 | Result | Type | Description |
 |--------|------|-------------|
-| `%dst0` | `!pto.mask` | Lower 8 bits: `src[0..7]` |
-| `%dst1` | `!pto.mask` | Upper 8 bits: `src[8..15]` |
+| `%dst0` | `!pto.mask` | Lower result half returned by the deinterleave helper |
+| `%dst1` | `!pto.mask` | Upper result half returned by the deinterleave helper |
 
 ## Side Effects
 
@@ -66,48 +64,36 @@ None.
 
 ## Constraints
 
-- **Source width**: The source predicate MUST be 16 bits. Sources of other widths are **illegal**.
-- **Destination width**: Both destination predicates are 8 bits.
-- **Relationship**: `pdintlv_b8` is the inverse of `pintlv_b16`.
+- The installed public CCE helper for `pdintlv_b8` returns two predicate results, not a single input-to-two-output split from one predicate operand.
+- Source and destination predicate widths must match the `_b8` variant selected by the instruction.
 
 ## Exceptions
 
-- Illegal if the source predicate width is not 16 bits.
+- Illegal if the selected target profile does not support the requested predicate-deinterleave form.
 
 ## Target-Profile Restrictions
 
 | Aspect | CPU Sim | A2/A3 | A5 |
 |--------|:-------:|:------:|:--:|
-| Predicate deinterleave (b8) | Simulated | Supported | Supported |
+| Predicate deinterleave helper | Simulated | Supported | Supported |
+| Public two-result CCE surface | Emulated | Supported | Supported |
 
 ## Examples
 
-### Separate two 8-bit predicate contexts
+### C++ usage
 
-```c
-#include <pto/pto-inst.hpp>
-using namespace pto;
-
-void split_predicate(RegBuf<predicate_t>& dst0,
-                     RegBuf<predicate_t>& dst1,
-                     const RegBuf<predicate_t>& src16) {
-    PDINTLV_B8(dst0, dst1, src16);
-}
+```cpp
+vector_bool dst0;
+vector_bool dst1;
+vector_bool src0;
+vector_bool src1;
+pdintlv_b8(dst0, dst1, src0, src1);
 ```
 
-### SSA form — two-phase predicate processing
+### SSA form
 
 ```mlir
-// %src16: 16-bit predicate from some comparison
-
-// Phase 1: process lower 8 lanes
-%lo, %hi = pto.pdintlv_b8 %src16 : !pto.mask -> !pto.mask, !pto.mask
-
-// Use %lo for first phase of vector computation
-%result_lo = pto.vsel %v_a_lo, %v_b_lo, %lo : !pto.vreg<8xf32>, !pto.vreg<8xf32>, !pto.mask -> !pto.vreg<8xf32>
-
-// Use %hi for second phase of vector computation
-%result_hi = pto.vsel %v_a_hi, %v_b_hi, %hi : !pto.vreg<8xf32>, !pto.vreg<8xf32>, !pto.mask -> !pto.vreg<8xf32>
+%dst0, %dst1 = pto.pdintlv_b8 %src0, %src1 : !pto.mask, !pto.mask -> !pto.mask, !pto.mask
 ```
 
 ## Related Ops / Instruction Set Links

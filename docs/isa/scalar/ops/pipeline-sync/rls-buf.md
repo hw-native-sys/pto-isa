@@ -21,8 +21,8 @@ After `rls_buf`, the producer pipeline no longer holds the buffer and MUST NOT a
 
 ### PTO Assembly Form
 
-```text
-rls_buf %buf_id, "PIPE_*", %mode : i64, i64
+```mlir
+pto.rls_buf %buf_id, "PIPE_*", %mode : i64, i64
 ```
 
 ### AS Level 1 (SSA)
@@ -33,12 +33,11 @@ pto.rls_buf %buf_id, "PIPE_*", %mode : i64, i64
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp`:
-
 ```cpp
-PTO_INST void RLS_BUF(int64_t buf_id,
-                      pipe_t producer_pipe,
-                      int64_t mode);
+pipe_t pipe = PIPE_S;
+uint64_t bufId = 0;
+bool mode = true;
+rls_buf(pipe, bufId, mode);
 ```
 
 ## Inputs

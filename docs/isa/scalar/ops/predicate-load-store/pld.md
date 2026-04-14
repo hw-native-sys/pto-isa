@@ -21,8 +21,8 @@ The offset register value is interpreted as a byte displacement in units of 8 by
 
 ### PTO Assembly Form
 
-```text
-pld %mask, %ub_ptr[%areg], "DIST" : !pto.mask, !pto.ptr<i64, ub>, i32
+```mlir
+%mask = pto.pld %ub_ptr, %areg, "DIST" : !pto.ptr<i64, ub>, i32 -> !pto.mask
 ```
 
 ### AS Level 1 (SSA)
@@ -39,13 +39,11 @@ pto.pld ins(%ub_ptr, %areg, "DIST" : !pto.ptr<i64, ub>, i32) outs(%mask : !pto.m
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp`:
-
 ```cpp
-PTO_INST void PLD(RegBuf<predicate_t>& dst,
-                  const Ptr<ub_space_t, ub_t>& base,
-                  int32_t areg,
-                  const char* dist = "NORM");
+vector_bool dst;
+__ubuf__ uint32_t *base;
+vector_address offset;
+pld(dst, base, offset, __cce_simd::NORM);
 ```
 
 ## Inputs

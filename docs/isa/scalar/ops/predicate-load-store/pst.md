@@ -21,8 +21,8 @@ The predicate register is read atomically. Only bits within the current element-
 
 ### PTO Assembly Form
 
-```text
-pst %mask, %ub_ptr[%areg], "DIST" : !pto.mask, !pto.ptr<i64, ub>, i32
+```mlir
+pto.pst %mask, %ub_ptr, %areg, "DIST" : !pto.mask, !pto.ptr<i64, ub>, i32
 ```
 
 ### AS Level 1 (SSA)
@@ -39,13 +39,11 @@ pto.pst ins(%mask, %ub_ptr, %areg, "DIST" : !pto.mask, !pto.ptr<i64, ub>, i32)
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp`:
-
 ```cpp
-PTO_INST void PST(RegBuf<predicate_t>& src,
-                   const Ptr<ub_space_t, ub_t>& base,
-                   int32_t areg,
-                   const char* dist = "PK");
+vector_bool src;
+__ubuf__ uint32_t *base;
+vector_address offset;
+pst(src, base, offset, __cce_simd::NORM);
 ```
 
 ## Inputs

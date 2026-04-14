@@ -18,8 +18,8 @@ $$ \mathrm{dst}_{2N} = \begin{cases} \mathrm{ZERO}(N) \Vert \mathrm{src}_N & \te
 
 ### PTO Assembly Form
 
-```text
-ppack %dst, %src, "PART" : !pto.mask, !pto.mask
+```mlir
+%dst = pto.ppack %src, "PART" : !pto.mask -> !pto.mask
 ```
 
 ### AS Level 1 (SSA)
@@ -36,12 +36,10 @@ pto.ppack ins(%src, "PART" : !pto.mask) outs(%dst : !pto.mask)
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp`:
-
 ```cpp
-PTO_INST void PPACK(RegBuf<predicate_t>& dst,
-                   const RegBuf<predicate_t>& src,
-                   const char* partition);
+vector_bool dst;
+vector_bool src;
+ppack(dst, src, __cce_simd::LOWER);
 ```
 
 ## Inputs

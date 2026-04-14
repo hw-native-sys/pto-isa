@@ -28,8 +28,8 @@ Cube:         wait_flag_dev → unblocks when BOTH subblocks signaled
 
 ### PTO Assembly Form
 
-```text
-wait_flag_dev %event_id : i64
+```mlir
+pto.wait_flag_dev %event_id : i64
 ```
 
 ### AS Level 1 (SSA)
@@ -40,10 +40,10 @@ pto.wait_flag_dev %event_id : i64
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp`:
-
 ```cpp
-PTO_INST void WAIT_FLAG_DEV(int64_t event_id);
+pipe_t pipe = PIPE_MTE2;
+int64_t flagId = 0;
+wait_flag_dev(pipe, flagId);
 ```
 
 ## Inputs

@@ -20,8 +20,8 @@ The predicate register is updated atomically. All bits are meaningful only withi
 
 ### PTO Assembly Form
 
-```text
-plds %mask, %ub_ptr : !pto.mask, !pto.ptr<i64, ub>
+```mlir
+%mask = pto.plds %ub_ptr : !pto.ptr<i64, ub> -> !pto.mask
 ```
 
 ### AS Level 1 (SSA)
@@ -38,10 +38,12 @@ pto.plds ins(%ub_ptr : !pto.ptr<i64, ub>) outs(%mask : !pto.mask)
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp`:
-
 ```cpp
-PTO_INST void PLDS(RegBuf<predicate_t>& dst, const Ptr<ub_space_t, ub_t>& src);
+vector_bool dst;
+__ubuf__ uint32_t *base;
+int32_t offset = 0;
+plds(dst, base, offset, __cce_simd::NORM);
+plds(dst, base, offset, __cce_simd::NORM, __cce_simd::POST_UPDATE);
 ```
 
 ## Inputs

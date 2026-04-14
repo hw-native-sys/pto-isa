@@ -20,8 +20,8 @@ The pattern token fully determines which bits are set.
 
 ### PTO Assembly Form
 
-```text
-pset_b16 %dst, "PATTERN" : !pto.mask
+```mlir
+%mask = pto.pset_b16 "PATTERN" : !pto.mask
 ```
 
 ### AS Level 1 (SSA)
@@ -38,10 +38,8 @@ pto.pset_b16 "PATTERN" outs(%mask : !pto.mask)
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp`:
-
 ```cpp
-PTO_INST void PSET_B16(RegBuf<predicate_t>& dst, const char* pattern);
+vector_bool mask = pset_b16(__cce_simd::PAT_VL8);
 ```
 
 ## Inputs

@@ -20,8 +20,8 @@ Lanes where the predicate is false are **inactive**: the destination register el
 
 ### PTO Assembly Form
 
-```text
-vadd %dst, %lhs, %rhs, %mask : !pto.vreg<NxT>
+```mlir
+%result = pto.vadd %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask) -> !pto.vreg<NxT>
 ```
 
 ### AS Level 1 (SSA)
@@ -39,12 +39,12 @@ pto.vadd ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask)
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp`:
-
 ```cpp
-template <typename VecDst, typename VecLhs, typename VecRhs, typename MaskT, typename... WaitEvents>
-PTO_INST RecordEvent VADD(VecDst& dst, const VecLhs& lhs, const VecRhs& rhs,
-                          const MaskT& mask, WaitEvents&... events);
+vector_f32 dst;
+vector_f32 src0;
+vector_f32 src1;
+vector_bool mask;
+vadd(dst, src0, src1, mask);
 ```
 
 ## Inputs
