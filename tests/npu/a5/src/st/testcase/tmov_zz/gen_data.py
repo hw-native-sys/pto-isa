@@ -11,7 +11,6 @@
 # --------------------------------------------------------------------------------
 
 import os
-import struct
 import math
 import numpy as np
 from ml_dtypes import float8_e4m3fn
@@ -65,20 +64,23 @@ def scale_data(data_fp32, data_scaling, group_size=32):
 
 
 def nd2nz_mxfp8(data_fp8, tile_m, tile_n):
-    data_fp8_reshaped = data_fp8.reshape(int(tile_m), int(math.ceil(tile_n / 32)), 32)
-    data_fp8_nz = np.transpose(data_fp8_reshaped, [1, 0, 2])
+    padded_m = int(math.ceil(tile_m / 16)) * 16
+    n_groups = int(math.ceil(tile_n / 32))
+    data_fp8_reshaped = data_fp8.reshape(int(tile_m), n_groups, 32)
+    # Pad to next multiple of 16 rows (NZ fractal block size)
+    data_fp8_padded = np.zeros((padded_m, n_groups, 32), dtype=data_fp8.dtype)
+    data_fp8_padded[:tile_m, :, :] = data_fp8_reshaped
+    data_fp8_nz = np.transpose(data_fp8_padded, [1, 0, 2])
     return data_fp8_nz
 
 
 def nd2zz_e8m0(e8m0, tile_m, tile_n_div_32):
-    index_array = np.arange(e8m0.size).reshape(e8m0.shape)
-    index_reshaped = index_array.reshape(int(math.ceil(tile_m / 16)), 16, int(math.ceil(tile_n_div_32 / 2)), 2)
-    index_zz = np.transpose(index_reshaped, [0, 2, 1, 3]).flatten()
-    index_zz_b16 = index_zz // 2
-    index_zz_b16_selected = index_zz_b16[::2].astype(np.uint16)
-    index_zz_b16_selected.tofile("index_vselr_b16.bin")
-
-    e8m0_reshaped = e8m0.reshape(int(math.ceil(tile_m / 16)), 16, int(math.ceil(tile_n_div_32 / 2)), 2)
+    padded_m = int(math.ceil(tile_m / 16)) * 16
+    # Pad E8M0 to padded_m rows (zero-fill padding rows)
+    e8m0_2d = e8m0.reshape(tile_m, tile_n_div_32)
+    e8m0_padded = np.zeros((padded_m, tile_n_div_32), dtype=e8m0.dtype)
+    e8m0_padded[:tile_m, :] = e8m0_2d
+    e8m0_reshaped = e8m0_padded.reshape(padded_m // 16, 16, int(math.ceil(tile_n_div_32 / 2)), 2)
     e8m0_zz = np.transpose(e8m0_reshaped, [0, 2, 1, 3]).astype(np.uint8)
     return e8m0_zz
 
@@ -119,6 +121,18 @@ CASE_PARAMS = [
     ("TMOVZZTest.case_fp32_128x256", CaseParam(128, 256)),
     ("TMOVZZTest.case_fp32_128x384", CaseParam(128, 384)),
     ("TMOVZZTest.case_fp32_256x192", CaseParam(256, 192)),
+    # Non-16-aligned row sizes
+    ("TMOVZZTest.case_fp32_8x64", CaseParam(8, 64)),
+    ("TMOVZZTest.case_fp32_6x64", CaseParam(6, 64)),
+    ("TMOVZZTest.case_fp32_13x64", CaseParam(13, 64)),
+    ("TMOVZZTest.case_fp32_3x64", CaseParam(3, 64)),
+    ("TMOVZZTest.case_fp32_29x64", CaseParam(29, 64)),
+    ("TMOVZZTest.case_fp32_31x64", CaseParam(31, 64)),
+    ("TMOVZZTest.case_fp32_47x64", CaseParam(47, 64)),
+    ("TMOVZZTest.case_fp32_31x128", CaseParam(31, 128)),
+    ("TMOVZZTest.case_fp32_47x128", CaseParam(47, 128)),
+    ("TMOVZZTest.case_fp32_31x256", CaseParam(31, 256)),
+    ("TMOVZZTest.case_fp32_47x256", CaseParam(47, 256)),
 ]
 
 

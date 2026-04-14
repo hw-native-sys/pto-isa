@@ -247,12 +247,11 @@ PTO_INTERNAL void GenerateB8IndicesZZToUB(__ubuf__ uint8_t *dst, __ubuf__ uint8_
                                           unsigned rows, unsigned groupedCols)
 {
     const uint16_t P = groupedCols / 2;
-    const uint16_t rowBlockCount = rows / 16;
+    const uint16_t rowBlockCount = (rows + 15) / 16; // ceil-divide to support non-16-aligned row counts
     const uint16_t N_blk = rowBlockCount * P;
     const uint16_t vlElem = REPEAT_BYTE / sizeof(uint16_t);     // 128
     constexpr uint16_t blkElem = BLOCK_SIZE / sizeof(uint16_t); // 16
     constexpr uint16_t blksPerVL = REPEAT_BYTE / BLOCK_SIZE;    // 8
-
     __ubuf__ uint16_t *srcPtr_b16 = (__ubuf__ uint16_t *)src;
     __ubuf__ uint16_t *dstPtr_b16 = (__ubuf__ uint16_t *)dst;
     __ubuf__ uint16_t *basePtr = (__ubuf__ uint16_t *)tmp;
@@ -273,14 +272,12 @@ PTO_INTERNAL void GenerateB8IndicesZZToUB(__ubuf__ uint8_t *dst, __ubuf__ uint8_
     }
     vstus(ureg_align, (uint32_t)blkElem, vb16_off, offWr, POST_UPDATE);
     vstas(ureg_align, offWr, 0, POST_UPDATE);
-
     mem_bar(VST_VLD);
 
     __ubuf__ uint16_t *offRd = offsetBuf;
     const uint16_t fullIters = N_blk / blksPerVL;
     const uint16_t tailBlks = N_blk % blksPerVL;
     vector_u16 vb16_base_blk, vb16_blk_off, vb16_idx, vb16_gathered;
-
     vlds(vb16_base_blk, basePtr, 0, BLK);
     MaskReg preg_full = pset_b16(PAT_ALL);
     for (uint16_t i = 0; i < fullIters; ++i) {
@@ -311,7 +308,7 @@ __tf__ PTO_INTERNAL void TMovNdTo2Zz(typename DstTileData::TileDType __out__ dst
                   "TMov ND->ZZ: Destination Mat tile must use ColMajor + RowMajor fractal layout.");
 
     const uint32_t srcBytes = validRow * validCol * sizeof(uint8_t);
-    const uint32_t rowBlockCount = validRow / 16;
+    const uint32_t rowBlockCount = (validRow + 15) / 16; // ceil-divide to support non-16-aligned row counts
     const uint32_t P = validCol / 2;
     const uint32_t tmpBytes =
         (BLOCK_SIZE / sizeof(uint16_t) + rowBlockCount * P + BLOCK_SIZE / sizeof(uint16_t)) * sizeof(uint16_t);

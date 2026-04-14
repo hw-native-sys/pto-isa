@@ -8,7 +8,6 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 #include <gtest/gtest.h>
-#include <type_traits>
 #include "acl/acl.h"
 #include "test_common.h"
 
@@ -18,7 +17,7 @@ using namespace PtoTestCommon;
 namespace TMovZZTest {
 
 template <int validRows, int validCols>
-void LaunchTMovZZ(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, uint16_t *idx, void *stream);
+void LaunchTMovZZ(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
 
 class TMOVZZTest : public testing::Test {
 protected:
@@ -41,11 +40,11 @@ template <int validRows, int validCols>
 void test_tmov_zz()
 {
     constexpr int paddedCols = ((validCols + 31) / 32) * 32;
+    constexpr int paddedRows = ((validRows + 15) / 16) * 16;
     constexpr int groupedCols = paddedCols / 32;
     size_t srcFileSize = validRows * validCols * sizeof(float);
-    size_t dstFp8FileSize = validRows * paddedCols * sizeof(uint8_t);
-    size_t dstE8FileSize = validRows * groupedCols * sizeof(uint8_t);
-    size_t idxFileSize = validRows * paddedCols / 32;
+    size_t dstFp8FileSize = paddedRows * paddedCols * sizeof(uint8_t);
+    size_t dstE8FileSize = paddedRows * groupedCols * sizeof(uint8_t);
 
     aclInit(nullptr);
     aclrtSetDevice(0);
@@ -54,24 +53,19 @@ void test_tmov_zz()
 
     uint8_t *dstFp8Host, *dstFp8Device, *dstE8Host, *dstE8Device;
     float *srcHost, *srcDevice;
-    uint16_t *idxHost, *idxDevice;
 
     aclrtMallocHost((void **)(&dstFp8Host), dstFp8FileSize);
     aclrtMallocHost((void **)(&dstE8Host), dstE8FileSize);
     aclrtMallocHost((void **)(&srcHost), srcFileSize);
-    aclrtMallocHost((void **)(&idxHost), idxFileSize);
 
     aclrtMalloc((void **)&dstFp8Device, dstFp8FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMalloc((void **)&dstE8Device, dstE8FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&idxDevice, idxFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", srcFileSize, srcHost, srcFileSize);
-    ReadFile(GetGoldenDir() + "/index_vselr_b16.bin", idxFileSize, idxHost, idxFileSize);
     aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    aclrtMemcpy(idxDevice, idxFileSize, idxHost, idxFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
-    LaunchTMovZZ<validRows, validCols>(dstFp8Device, srcDevice, dstE8Device, idxDevice, stream);
+    LaunchTMovZZ<validRows, validCols>(dstFp8Device, srcDevice, dstE8Device, stream);
 
     aclError syncRet = aclrtSynchronizeStream(stream);
     ASSERT_EQ(syncRet, ACL_SUCCESS) << "aclrtSynchronizeStream failed (ret=" << syncRet
@@ -86,11 +80,9 @@ void test_tmov_zz()
     aclrtFree(dstFp8Device);
     aclrtFree(dstE8Device);
     aclrtFree(srcDevice);
-    aclrtFree(idxDevice);
     aclrtFreeHost(dstFp8Host);
     aclrtFreeHost(dstE8Host);
     aclrtFreeHost(srcHost);
-    aclrtFreeHost(idxHost);
     aclrtDestroyStream(stream);
     aclrtResetDevice(0);
     aclFinalize();
@@ -202,6 +194,61 @@ TEST_F(TMOVZZTest, case_fp32_128x384)
 TEST_F(TMOVZZTest, case_fp32_256x192)
 {
     test_tmov_zz<256, 192>();
+}
+
+TEST_F(TMOVZZTest, case_fp32_8x64)
+{
+    test_tmov_zz<8, 64>();
+}
+
+TEST_F(TMOVZZTest, case_fp32_6x64)
+{
+    test_tmov_zz<6, 64>();
+}
+
+TEST_F(TMOVZZTest, case_fp32_13x64)
+{
+    test_tmov_zz<13, 64>();
+}
+
+TEST_F(TMOVZZTest, case_fp32_3x64)
+{
+    test_tmov_zz<3, 64>();
+}
+
+TEST_F(TMOVZZTest, case_fp32_29x64)
+{
+    test_tmov_zz<29, 64>();
+}
+
+TEST_F(TMOVZZTest, case_fp32_31x64)
+{
+    test_tmov_zz<31, 64>();
+}
+
+TEST_F(TMOVZZTest, case_fp32_47x64)
+{
+    test_tmov_zz<47, 64>();
+}
+
+TEST_F(TMOVZZTest, case_fp32_31x128)
+{
+    test_tmov_zz<31, 128>();
+}
+
+TEST_F(TMOVZZTest, case_fp32_47x128)
+{
+    test_tmov_zz<47, 128>();
+}
+
+TEST_F(TMOVZZTest, case_fp32_31x256)
+{
+    test_tmov_zz<31, 256>();
+}
+
+TEST_F(TMOVZZTest, case_fp32_47x256)
+{
+    test_tmov_zz<47, 256>();
 }
 
 } // namespace TMovZZTest
