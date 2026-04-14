@@ -280,8 +280,8 @@ enum class CompactMode
     Null,
     Normal,
     RowPlusOne,
+    RowAlignedPadding, // apply padding only to the part of ValidRow aligned upward to 16 in TFILLPAD.
 };
-
 enum class SetFmatrixMode
 {
     FMATRIX_A_AUTO,
