@@ -89,8 +89,7 @@ static inline int aclrtMallocHost(void **p, size_t sz)
 #define SKIP_IF_RANKS_LT(n)
 static constexpr uint32_t HCCL_MAX_RANK_NUM = 64;
 
-struct HcclRootInfo {
-};
+struct HcclRootInfo {};
 
 struct HcclDeviceContext {
     uint64_t workSpace;

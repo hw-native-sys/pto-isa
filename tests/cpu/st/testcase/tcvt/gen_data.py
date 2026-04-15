@@ -33,7 +33,7 @@ def gen_golden(param):
 
     x1_gm = np.random.uniform(s_min + 5, s_max - 5, size=[m, n]).astype(param.srctype)
 
-    if param.saturation_mode == "SatMode::ON":     
+    if param.saturation_mode == "SatMode::ON":
         data_to_cast = np.clip(x1_gm, d_min, d_max)
     else:
         data_to_cast = x1_gm
@@ -76,7 +76,7 @@ if __name__ == "__main__":
         "TCVTTest.case14",
         "TCVTTest.case15"
     ]
-   
+
     case_params_list = [
         TCvtParams(np.float32, np.int32, 128, 128, "RoundMode::CAST_RINT"),
         TCvtParams(np.int32, np.float32, 256, 64, "RoundMode::CAST_RINT"),
