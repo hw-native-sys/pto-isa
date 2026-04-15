@@ -72,7 +72,7 @@ PTO_INST RecordEvent TINSERT(DstTileData &dst, SrcTileData &src, uint32_t indexR
     - 除了上面的 `Acc -> Mat` 插入路径外，A5 还额外提供 `template <TInsertMode mode, ...> TINSERT(...)`，用于 `Vec -> Mat` 与 `Vec -> Vec` 插入变体。
     - `mode == TInsertMode::ND` 要求源向量 tile 为行优先，并以 ND 布局插入到矩阵 tile。
     - `mode == TInsertMode::ND_VEC` 要求源和目的都为行优先向量 tile。
-    - NZ 系列模式（`NZ`、`NZ_PLUS_1`、`SPLIT2_NZ_PLUS_1`、`SPLIT4_NZ_PLUS_1`）要求源向量 tile 为 NZ 格式，目的为矩阵 tile。
+    - NZ 系列模式要求源向量 tile 为 NZ 格式，目的为矩阵 tile。非模板 `TINSERT` 处理 NZ 插入，`SPLIT2` 和 `SPLIT4` 模式将插入拆分到多个块。
 
 ## 示例
 

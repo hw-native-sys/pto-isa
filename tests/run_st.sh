@@ -429,6 +429,16 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert -g TInsertTest.case_nz_2
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert -g TInsertTest.case_nz_6
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert_acc2vec -g TMOVTest.case_nz2nd_fb_quant_1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert -g TInsertTest.case_nd_vec_16
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert -g TInsertTest.case_nz_split_1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert -g TInsertTest.case_nz_split_4
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert -g TInsertTest.case_nz_hif8_3
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert -g TInsertTest.case_nz_twoinput_bf16_1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert -g TInsertTest.case_nz_twoinput_fp8e5_1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert -g TInsertTest.case_nz_twoinput_fp4e1m2_2
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert -g TInsertTest.case_nz_dblinput_fp4e2m1_1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert -g TInsertTest.case_nz_twoinput_fp4e2m1_1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert -g TInsertTest.case_nz_dblinput_fp8e4_2
 
 
   elif [ "$ENABLE_ALL" = "true" ]; then            # 所有用例

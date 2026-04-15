@@ -18,22 +18,14 @@ See LICENSE in the root of the software repository for the full text of the Lice
     copy_matrix_cc_to_cbuf(dst, src, 0, nSize, srcRow, dstStride, srcStride, 0, 0, 0, QuantPre, reluMode,      \
                            channelSplitEnable, false, 0, 0, false, false, 0, false, false, false, false, false, false)
 #endif
-#ifndef COPY_CC_TO_UB
-#define COPY_CC_TO_UB(dst, src, nSize, msize, dstStride, srcStride, dualDstCtl, subBlockId, quantPre, reluMode)   \
-    copy_matrix_cc_to_ub(dst, src, 0, nSize, msize, dstStride, srcStride, dualDstCtl, subBlockId, 0, 0, quantPre, \
-                         reluMode, false, true, 0, 0, false, false, 0, false, false, false, false, false, false)
-#endif
-
 namespace pto {
 
 #ifndef TINSERT_MODE_DEFINED
 #define TINSERT_MODE_DEFINED
 enum class TInsertMode : uint8_t
 {
-    NZ = 0,
-    NZ_PLUS_1 = 1,
-    SPLIT2_NZ_PLUS_1 = 2,
-    SPLIT4_NZ_PLUS_1 = 3,
+    SPLIT2 = 2,
+    SPLIT4 = 3,
 };
 #endif
 
@@ -59,31 +51,67 @@ __tf__ PTO_INTERNAL void TInsertAccToMat(typename DstTileData::TileDType __out__
                     channelSplitEnable);
 }
 
-template <typename DstTileData, typename SrcTileData, AccToVecMode mode, QuantMode_t quantPre, ReluPreMode reluMode>
+template <typename DstTileData, typename SrcTileData, AccToVecMode mode, QuantMode_t QuantPre, ReluPreMode reluMode>
 __tf__ PTO_INTERNAL void TInsertAccToVec(typename DstTileData::TileDType __out__ dst,
                                          typename SrcTileData::TileDType __in__ src, uint16_t validRow,
                                          uint16_t validCol, uint16_t indexRow, uint16_t indexCol)
 {
     using dstType = typename DstTileData::DType;
-    using srcType = typename SrcTileData::DType;
-    constexpr int32_t c0Size = C0_SIZE_BYTE / sizeof(dstType);
     constexpr bool subBlockId = (mode == AccToVecMode::SingleModeVec1);
-    constexpr uint8_t dualDstCtl = GetDualDstCtl<DstTileData, SrcTileData, mode, quantPre>();
-    constexpr uint32_t dstStride = DstTileData::Cols;
+    constexpr uint8_t dualDstCtl = GetDualDstCtl<DstTileData, SrcTileData, mode, QuantPre>();
+    constexpr bool enableNz2Nd = (DstTileData::isRowMajor && DstTileData::SFractal == SLayout::NoneBox);
+    constexpr bool enableNz2Dn = (!DstTileData::isRowMajor && DstTileData::SFractal == SLayout::NoneBox);
+    constexpr bool enableNz2Nz = (!DstTileData::isRowMajor && DstTileData::SFractal == SLayout::RowMajor);
+    constexpr bool channelSplitEnable =
+        enableNz2Nz && (std::is_same_v<dstType, float>)&&(DstTileData::SFractalSize == CUBE_BLOCK_SIZE);
+    constexpr uint32_t dstStride = GetTmovAccDstStride<DstTileData, SrcTileData>();
+
+    uint32_t dstOffset;
+    if constexpr (enableNz2Nd) {
+        dstOffset = static_cast<uint32_t>(indexRow) * DstTileData::Cols + indexCol;
+    } else if constexpr (enableNz2Dn) {
+        dstOffset = static_cast<uint32_t>(indexCol) * DstTileData::Rows + indexRow;
+    } else {
+        constexpr int32_t c0Size = (!channelSplitEnable) && (DstTileData::SFractalSize == 2 * CUBE_BLOCK_SIZE) ?
+                                       2 * C0_SIZE_BYTE / sizeof(dstType) :
+                                       C0_SIZE_BYTE / sizeof(dstType);
+        dstOffset = DstTileData::Rows * c0Size * (indexCol / c0Size) + (indexRow * c0Size + (indexCol % c0Size));
+    }
+
+    if constexpr (enableNz2Nz) {
+        constexpr int32_t c0Size = BLOCK_BYTE_SIZE / sizeof(dstType);
+        validRow = SrcTileData::Rows;
+        if constexpr ((mode == AccToVecMode::SingleModeVec0 || mode == AccToVecMode::SingleModeVec1)) {
+            if constexpr (std::is_same_v<dstType, float>) {
+                constexpr int32_t align = channelSplitEnable ? c0Size : FRACTAL_NZ_ROW;
+                validCol = CeilDivision(static_cast<uint32_t>(validCol), static_cast<uint32_t>(align)) * align;
+            } else {
+                validCol = CeilDivision(static_cast<uint32_t>(validCol), static_cast<uint32_t>(c0Size)) * c0Size;
+            }
+        } else if constexpr (mode == AccToVecMode::DualModeSplitM) {
+            validCol =
+                CeilDivision(static_cast<uint32_t>(validCol), static_cast<uint32_t>(FRACTAL_NZ_ROW)) * FRACTAL_NZ_ROW;
+        } else {
+            validCol =
+                CeilDivision(static_cast<uint32_t>(validCol), static_cast<uint32_t>(BLOCK_BYTE_SIZE)) * BLOCK_BYTE_SIZE;
+        }
+    }
+
+    if constexpr (enableNz2Nd) {
+        SetLoop3Para();
+    } else if constexpr (enableNz2Dn) {
+        SetLoop3Para();
+        constexpr uint64_t channelPara = static_cast<uint64_t>(1) << 48;
+        set_channel_para(channelPara);
+    }
+
     auto srcStride = (validRow + BLOCK_LEN - 1) / BLOCK_LEN * BLOCK_LEN;
-    static_assert(((dstStride * sizeof(dstType) % C0_SIZE_BYTE == 0) && ((dstStride) > 0)),
-                  "Dst Tile Cols * sizeof(dstT) must be multiples of 32 and not 0 when nz2nd.");
-    uint32_t dstOffset = DstTileData::Cols * indexRow + indexCol;
     __ubuf__ dstType *dstAddr = (__ubuf__ dstType *)__cce_get_tile_ptr(dst) + dstOffset;
-    __cc__ srcType *srcAddr = (__cc__ srcType *)__cce_get_tile_ptr(src);
-    uint16_t nSize = CeilDivision(validCol, c0Size) * c0Size;
-    constexpr uint16_t ndNum = 1;
-    constexpr uint16_t dstNdStride = 0;
-    constexpr uint16_t srcNdStride = 0;
-    constexpr uint64_t loop3Para = static_cast<uint64_t>(dstNdStride) << 32 | static_cast<uint64_t>(srcNdStride) << 16 |
-                                   static_cast<uint64_t>(ndNum);
-    set_loop3_para(loop3Para);
-    COPY_CC_TO_UB(dstAddr, srcAddr, nSize, validRow, dstStride, srcStride, dualDstCtl, subBlockId, quantPre, reluMode);
+    __cc__ typename SrcTileData::DType *srcData = (__cc__ typename SrcTileData::DType *)__cce_get_tile_ptr(src);
+
+    copy_matrix_cc_to_ub(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, dualDstCtl, subBlockId, 0, 0,
+                         QuantPre, reluMode, channelSplitEnable, enableNz2Nd, 0, 0, false, false, 0, false, false,
+                         false, false, false, enableNz2Dn);
 }
 
 template <typename FpTileData>
@@ -94,101 +122,88 @@ __tf__ PTO_INTERNAL void SetFPCInsert(typename FpTileData::TileDType __in__ fp)
     set_fpc(deqTensorAddr);
 }
 
-// relu
-template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode>
-PTO_INTERNAL void TINSERT_IMPL(DstTileData &dst, SrcTileData &src, uint16_t indexRow = 0, uint16_t indexCol = 0)
+template <typename DstTileData, typename SrcTileData, AccToVecMode mode, QuantMode_t quantPre, ReluPreMode reluMode>
+PTO_INTERNAL void TInsertAccDispatch(DstTileData &dst, SrcTileData &src, uint16_t indexRow, uint16_t indexCol)
 {
-    static_assert(((DstTileData::Loc == TileType::Mat) || (DstTileData::Loc == TileType::Vec)),
-                  "Destination TileType only support Mat and Vec.");
-    static_assert(((!DstTileData::isRowMajor && DstTileData::SFractal == SLayout::RowMajor) ||
-                   (DstTileData::isRowMajor && DstTileData::SFractal == SLayout::NoneBox)),
-                  "Dst fractal format should be (BFractal: ColMajor, SFractal: RowMajor) and (BFractal: RowMajor).");
-    CheckTMovAccValid<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType>();
-    constexpr QuantMode_t quantPre = GetCastPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
-    if constexpr ((DstTileData::Loc == TileType::Mat)) {
+    if constexpr (DstTileData::Loc == TileType::Mat) {
+        static_assert((!DstTileData::isRowMajor && DstTileData::SFractal == SLayout::RowMajor),
+                      "Dst fractal format should be (BFractal: ColMajor, SFractal: RowMajor).");
         TInsertAccToMat<DstTileData, SrcTileData, quantPre, reluMode>(dst.data(), src.data(), src.GetValidRow(),
                                                                       src.GetValidCol(), indexRow, indexCol);
+    } else if constexpr (DstTileData::Loc == TileType::Vec) {
+        TInsertAccToVec<DstTileData, SrcTileData, mode, quantPre, reluMode>(dst.data(), src.data(), src.GetValidRow(),
+                                                                            src.GetValidCol(), indexRow, indexCol);
     } else {
-        TInsertAccToVec<DstTileData, SrcTileData, AccToVecMode::SingleModeVec0, quantPre, ReluPreMode::NoRelu>(
-            dst.data(), src.data(), src.GetValidRow(), src.GetValidCol(), indexRow, indexCol);
+        static_assert(DstTileData::Loc == TileType::Mat || DstTileData::Loc == TileType::Vec,
+                      "TINSERT: Destination must be Mat or Vec.");
     }
 }
 
+// relu (Acc→Mat or Acc→Vec, default AccToVecMode::SingleModeVec0)
+template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode>
+PTO_INTERNAL void TINSERT_IMPL(DstTileData &dst, SrcTileData &src, uint16_t indexRow = 0, uint16_t indexCol = 0)
+{
+    CheckTMovAccValid<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType>();
+    constexpr QuantMode_t quantPre = GetCastPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
+    TInsertAccDispatch<DstTileData, SrcTileData, AccToVecMode::SingleModeVec0, quantPre, reluMode>(dst, src, indexRow,
+                                                                                                   indexCol);
+}
+
+// relu with explicit AccToVecMode
 template <typename DstTileData, typename SrcTileData, AccToVecMode mode, ReluPreMode reluMode = ReluPreMode::NoRelu>
 PTO_INTERNAL void TINSERT_IMPL(DstTileData &dst, SrcTileData &src, uint16_t indexRow = 0, uint16_t indexCol = 0)
 {
     static_assert((DstTileData::Loc == TileType::Vec), "Destination TileType only support Vec.");
-    static_assert((DstTileData::isRowMajor && DstTileData::SFractal == SLayout::NoneBox),
-                  "Dst fractal format should be (BFractal: RowMajor).");
+    CheckTMovAccValid<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType>();
     constexpr QuantMode_t quantPre = GetCastPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
     TInsertAccToVec<DstTileData, SrcTileData, mode, quantPre, reluMode>(dst.data(), src.data(), src.GetValidRow(),
                                                                         src.GetValidCol(), indexRow, indexCol);
 }
 
-// scalar quant
+// scalar quant (Acc→Mat or Acc→Vec, default AccToVecMode::SingleModeVec0)
 template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode = ReluPreMode::NoRelu>
 PTO_INTERNAL void TINSERT_IMPL(DstTileData &dst, SrcTileData &src, uint64_t preQuantScalar, uint16_t indexRow = 0,
                                uint16_t indexCol = 0)
 {
-    static_assert(((DstTileData::Loc == TileType::Mat) || (DstTileData::Loc == TileType::Vec)),
-                  "Destination TileType only support Mat and Vec.");
-    static_assert(((!DstTileData::isRowMajor && DstTileData::SFractal == SLayout::RowMajor) ||
-                   (DstTileData::isRowMajor && DstTileData::SFractal == SLayout::NoneBox)),
-                  "Dst fractal format should be (BFractal: ColMajor, SFractal: RowMajor) and (BFractal: RowMajor).");
     CheckTMovAccValid<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, true>();
     constexpr QuantMode_t quantPre = GetScalarPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
     set_quant_pre(preQuantScalar);
-    if constexpr ((DstTileData::Loc == TileType::Mat)) {
-        TInsertAccToMat<DstTileData, SrcTileData, quantPre, reluMode>(dst.data(), src.data(), src.GetValidRow(),
-                                                                      src.GetValidCol(), indexRow, indexCol);
-    } else {
-        TInsertAccToVec<DstTileData, SrcTileData, AccToVecMode::SingleModeVec0, quantPre, reluMode>(
-            dst.data(), src.data(), src.GetValidRow(), src.GetValidCol(), indexRow, indexCol);
-    }
+    TInsertAccDispatch<DstTileData, SrcTileData, AccToVecMode::SingleModeVec0, quantPre, reluMode>(dst, src, indexRow,
+                                                                                                   indexCol);
 }
+
+// scalar quant with AccToVecMode
 template <typename DstTileData, typename SrcTileData, AccToVecMode mode, ReluPreMode reluMode = ReluPreMode::NoRelu>
-PTO_INTERNAL void TTINSERT_IMPL(DstTileData &dst, SrcTileData &src, uint64_t preQuantScalar, uint16_t indexRow = 0,
-                                uint16_t indexCol = 0)
+PTO_INTERNAL void TINSERT_IMPL(DstTileData &dst, SrcTileData &src, uint64_t preQuantScalar, uint16_t indexRow = 0,
+                               uint16_t indexCol = 0)
 {
     static_assert((DstTileData::Loc == TileType::Vec), "Destination TileType only support Vec.");
-    static_assert((DstTileData::isRowMajor && DstTileData::SFractal == SLayout::NoneBox),
-                  "Dst fractal format should be (BFractal: RowMajor).");
     CheckTMovAccValid<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, true>();
-    constexpr QuantMode_t quantPre = GetCastPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
+    constexpr QuantMode_t quantPre = GetScalarPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
     set_quant_pre(preQuantScalar);
-
     TInsertAccToVec<DstTileData, SrcTileData, mode, quantPre, reluMode>(dst.data(), src.data(), src.GetValidRow(),
                                                                         src.GetValidCol(), indexRow, indexCol);
 }
-// vector quant
+
+// vector quant (Acc→Mat or Acc→Vec, default AccToVecMode::SingleModeVec0)
 template <typename DstTileData, typename SrcTileData, typename FpTileData, ReluPreMode reluMode = ReluPreMode::NoRelu>
 PTO_INTERNAL void TINSERT_IMPL(DstTileData &dst, SrcTileData &src, FpTileData &fp, uint16_t indexRow = 0,
                                uint16_t indexCol = 0)
 {
-    static_assert(((DstTileData::Loc == TileType::Mat) || (DstTileData::Loc == TileType::Vec)),
-                  "Destination TileType only support Mat and Vec.");
-    static_assert(((!DstTileData::isRowMajor && DstTileData::SFractal == SLayout::RowMajor) ||
-                   (DstTileData::isRowMajor && DstTileData::SFractal == SLayout::NoneBox)),
-                  "Dst fractal format should be (BFractal: ColMajor, SFractal: RowMajor) and (BFractal: RowMajor).");
     CheckTMovAccValid<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, true>();
     constexpr QuantMode_t quantPre = GetVectorPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
     SetFPCInsert<FpTileData>(fp.data());
-    if constexpr ((DstTileData::Loc == TileType::Mat)) {
-        TInsertAccToMat<DstTileData, SrcTileData, quantPre, reluMode>(dst.data(), src.data(), src.GetValidRow(),
-                                                                      src.GetValidCol(), indexRow, indexCol);
-    } else {
-        TInsertAccToVec<DstTileData, SrcTileData, AccToVecMode::SingleModeVec0, quantPre, reluMode>(
-            dst.data(), src.data(), src.GetValidRow(), src.GetValidCol(), indexRow, indexCol);
-    }
+    TInsertAccDispatch<DstTileData, SrcTileData, AccToVecMode::SingleModeVec0, quantPre, reluMode>(dst, src, indexRow,
+                                                                                                   indexCol);
 }
+
+// vector quant with AccToVecMode
 template <typename DstTileData, typename SrcTileData, typename FpTileData, AccToVecMode mode,
           ReluPreMode reluMode = ReluPreMode::NoRelu>
-PTO_INTERNAL void TTINSERT_IMPL(DstTileData &dst, SrcTileData &src, FpTileData &fp, uint16_t indexRow = 0,
-                                uint16_t indexCol = 0)
+PTO_INTERNAL void TINSERT_IMPL(DstTileData &dst, SrcTileData &src, FpTileData &fp, uint16_t indexRow = 0,
+                               uint16_t indexCol = 0)
 {
     static_assert((DstTileData::Loc == TileType::Vec), "Destination TileType only support Vec.");
-    static_assert((DstTileData::isRowMajor && DstTileData::SFractal == SLayout::NoneBox),
-                  "Dst fractal format should be (BFractal: RowMajor).");
     CheckTMovAccValid<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, true>();
     constexpr QuantMode_t quantPre = GetVectorPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
     SetFPCInsert<FpTileData>(fp.data());
@@ -197,92 +212,86 @@ PTO_INTERNAL void TTINSERT_IMPL(DstTileData &dst, SrcTileData &src, FpTileData &
 }
 
 template <typename T, typename DstTileData, typename SrcTileData>
-AICORE inline void ComputeNZBlockParams(uint32_t validRow, uint32_t validCol, uint32_t dstRow, TInsertMode mode,
-                                        uint16_t &burstNum, uint16_t &burstLen, uint16_t &srcGap, uint16_t &dstGap,
-                                        uint32_t &dstOffset, uint16_t indexRow = 0, uint16_t indexCol = 0)
+AICORE inline void ComputeNZBlockParams(uint32_t validRow, uint32_t validCol, uint32_t dstRow, uint16_t &burstNum,
+                                        uint16_t &burstLen, uint16_t &srcGap, uint16_t &dstGap, uint32_t &dstOffset,
+                                        uint16_t indexRow = 0, uint16_t indexCol = 0)
 {
     constexpr uint32_t typeSize = sizeof(T);
+    constexpr bool isFp4Type = std::is_same_v<T, float4_e2m1x2_t> || std::is_same_v<T, float4_e1m2x2_t>;
     uint32_t c0Size = BLOCK_BYTE_SIZE / typeSize;
-    constexpr uint32_t nzRow = FRACTAL_NZ_ROW;
-    burstNum = CeilDivision(validCol, c0Size);
-    uint32_t alignedRow = CeilDivision(validRow, nzRow) * nzRow;
-    burstLen = (alignedRow * c0Size * sizeof(T)) / BLOCK_BYTE_SIZE;
-    uint32_t colBlockOffset = (indexCol / c0Size) * dstRow * c0Size;
-    uint32_t rowOffset = indexRow * c0Size + (indexCol % c0Size);
+    uint32_t byteValidCol = isFp4Type ? validCol / 2 : validCol;
+    uint32_t byteIndexCol = isFp4Type ? indexCol / 2 : indexCol;
+    burstNum = static_cast<uint16_t>(CeilDivision(byteValidCol, c0Size));
+    burstLen = (validRow * c0Size * sizeof(T)) / BLOCK_BYTE_SIZE;
+    uint32_t colBlockOffset = (byteIndexCol / c0Size) * dstRow * c0Size;
+    uint32_t rowOffset = indexRow * c0Size + (byteIndexCol % c0Size);
     dstOffset = colBlockOffset + rowOffset;
-    switch (mode) {
-        case TInsertMode::NZ:
-            srcGap = 0;
-            dstGap = static_cast<uint16_t>(dstRow - alignedRow);
-            break;
-        case TInsertMode::NZ_PLUS_1:
-        case TInsertMode::SPLIT2_NZ_PLUS_1:
-        case TInsertMode::SPLIT4_NZ_PLUS_1:
-            srcGap = 1;
-            dstGap = static_cast<uint16_t>(dstRow - alignedRow);
-            break;
-        default:
-            srcGap = 1;
-            dstGap = static_cast<uint16_t>(dstRow - alignedRow);
-            break;
-    }
+    srcGap = static_cast<uint16_t>(SrcTileData::Rows - validRow);
+    dstGap = static_cast<uint16_t>(dstRow - validRow);
 }
 
 template <typename T, typename DstTileData, typename SrcTileData>
 __tf__ AICORE void TInsertImpl(typename DstTileData::TileDType __out__ dst, typename SrcTileData::TileDType __in__ src,
-                               TInsertMode mode, uint16_t validRow, uint16_t validCol, uint16_t dstRow,
-                               uint16_t indexRow = 0, uint16_t indexCol = 0)
+                               uint16_t validRow, uint16_t validCol, uint16_t dstRow, uint16_t indexRow = 0,
+                               uint16_t indexCol = 0)
 {
     __cbuf__ T *dstAddr = (__cbuf__ T *)__cce_get_tile_ptr(dst);
     __ubuf__ T *srcAddr = (__ubuf__ T *)__cce_get_tile_ptr(src);
     uint16_t burstNum, burstLen, srcGap, dstGap;
     uint32_t dstOffset;
-    ComputeNZBlockParams<T, DstTileData, SrcTileData>(validRow, validCol, dstRow, mode, burstNum, burstLen, srcGap,
-                                                      dstGap, dstOffset, indexRow, indexCol);
+    ComputeNZBlockParams<T, DstTileData, SrcTileData>(validRow, validCol, dstRow, burstNum, burstLen, srcGap, dstGap,
+                                                      dstOffset, indexRow, indexCol);
     __cbuf__ T *dstAddr2 = dstAddr + dstOffset;
     copy_ubuf_to_cbuf(dstAddr2, srcAddr, 0, burstNum, burstLen, srcGap, dstGap);
 }
 
 template <uint32_t SplitCount, typename T, typename DstTileData, typename SrcTileData>
 __tf__ AICORE void TInsertSplitImpl(typename DstTileData::TileDType __out__ dst,
-                                    typename SrcTileData::TileDType __in__ src, TInsertMode mode, uint16_t validRow,
-                                    uint16_t validCol, uint16_t indexRow = 0, uint16_t indexCol = 0)
+                                    typename SrcTileData::TileDType __in__ src, uint16_t validRow, uint16_t validCol,
+                                    uint16_t indexRow = 0, uint16_t indexCol = 0)
 {
     __cbuf__ T *dstAddr = (__cbuf__ T *)__cce_get_tile_ptr(dst);
     __ubuf__ T *srcAddr = (__ubuf__ T *)__cce_get_tile_ptr(src);
 
     constexpr uint32_t typeSize = sizeof(T);
+    constexpr bool isFp4Type = std::is_same_v<T, float4_e2m1x2_t> || std::is_same_v<T, float4_e1m2x2_t>;
     uint32_t c0Size = BLOCK_BYTE_SIZE / typeSize;
     constexpr uint32_t nzRow = FRACTAL_NZ_ROW;
 
+    uint32_t byteValidCol = isFp4Type ? validCol / 2 : validCol;
+    uint32_t byteIndexCol = isFp4Type ? indexCol / 2 : indexCol;
     uint32_t alignedRow = CeilDivision(validRow, nzRow) * nzRow;
-    uint16_t totalBurstNum = CeilDivision(validCol, c0Size);
+    uint16_t totalBurstNum = static_cast<uint16_t>(CeilDivision(byteValidCol, c0Size));
     uint16_t burstLen = (alignedRow * c0Size * typeSize) / BLOCK_BYTE_SIZE;
     uint16_t partBurstNum = totalBurstNum / SplitCount;
-    uint32_t srcBlockSize = (burstLen + 1) * BLOCK_BYTE_SIZE / typeSize;
+    uint16_t lastBurstNum = totalBurstNum - partBurstNum * (SplitCount - 1);
+    uint16_t srcGap = static_cast<uint16_t>(SrcTileData::Rows - alignedRow);
+    uint16_t dstGap = static_cast<uint16_t>(DstTileData::Rows - alignedRow);
+    uint32_t srcBlockSize = (burstLen + srcGap) * BLOCK_BYTE_SIZE / typeSize;
     uint32_t dstBlockSize = DstTileData::Rows * c0Size;
 
-    uint32_t colBlockOffset = (indexCol / c0Size) * DstTileData::Rows * c0Size;
-    uint32_t rowOffset = indexRow * c0Size + (indexCol % c0Size);
+    uint32_t colBlockOffset = (byteIndexCol / c0Size) * DstTileData::Rows * c0Size;
+    uint32_t rowOffset = indexRow * c0Size + (byteIndexCol % c0Size);
     uint32_t dstOffset = colBlockOffset + rowOffset;
 
     __cbuf__ T *dstAddr0 = dstAddr + dstOffset;
-    copy_ubuf_to_cbuf(dstAddr0, srcAddr, 0, partBurstNum, burstLen, 1, 0);
+    copy_ubuf_to_cbuf(dstAddr0, srcAddr, 0, partBurstNum, burstLen, srcGap, dstGap);
 
     if constexpr (SplitCount >= 2) {
         __ubuf__ T *src1 = srcAddr + partBurstNum * srcBlockSize;
         __cbuf__ T *dst1 = dstAddr0 + partBurstNum * dstBlockSize;
-        copy_ubuf_to_cbuf(dst1, src1, 0, partBurstNum, burstLen, 1, 0);
+        uint16_t burst1Num = (SplitCount == 2) ? lastBurstNum : partBurstNum;
+        copy_ubuf_to_cbuf(dst1, src1, 0, burst1Num, burstLen, srcGap, dstGap);
     }
 
     if constexpr (SplitCount >= 4) {
         __ubuf__ T *src2 = srcAddr + 2 * partBurstNum * srcBlockSize;
         __cbuf__ T *dst2 = dstAddr0 + 2 * partBurstNum * dstBlockSize;
-        copy_ubuf_to_cbuf(dst2, src2, 0, partBurstNum, burstLen, 1, 0);
+        copy_ubuf_to_cbuf(dst2, src2, 0, partBurstNum, burstLen, srcGap, dstGap);
 
         __ubuf__ T *src3 = srcAddr + 3 * partBurstNum * srcBlockSize;
         __cbuf__ T *dst3 = dstAddr0 + 3 * partBurstNum * dstBlockSize;
-        copy_ubuf_to_cbuf(dst3, src3, 0, partBurstNum, burstLen, 1, 0);
+        copy_ubuf_to_cbuf(dst3, src3, 0, lastBurstNum, burstLen, srcGap, dstGap);
     }
 }
 
@@ -334,13 +343,29 @@ __tf__ AICORE void TInsertVecToVecNDImpl(typename DstTileData::TileDType __out__
 
     if (validCol == srcRowStride && validCol == dstRowStride && totalBytes >= BLOCK_BYTE_SIZE) {
         uint16_t burstLen = static_cast<uint16_t>(totalBytes / BLOCK_BYTE_SIZE);
-        pto_copy_ubuf_to_ubuf((__ubuf__ void *)dstStart, (__ubuf__ void *)srcAddr, 1, burstLen, 0, 0);
+        copy_ubuf_to_ubuf((__ubuf__ void *)dstStart, (__ubuf__ void *)srcAddr, 0, 1, burstLen, 0, 0);
     } else {
         uint16_t srcGap = static_cast<uint16_t>((srcRowStride - validCol) * sizeof(T) / BLOCK_BYTE_SIZE);
         uint16_t dstGap = static_cast<uint16_t>((dstRowStride - validCol) * sizeof(T) / BLOCK_BYTE_SIZE);
-        pto_copy_ubuf_to_ubuf((__ubuf__ void *)dstStart, (__ubuf__ void *)srcAddr, validRow, rowBurstLen, srcGap,
-                              dstGap);
+        copy_ubuf_to_ubuf((__ubuf__ void *)dstStart, (__ubuf__ void *)srcAddr, 0, validRow, rowBurstLen, srcGap,
+                          dstGap);
     }
+}
+
+template <typename T, typename DstTileData, typename SrcTileData>
+__tf__ AICORE void TInsertVecToVecNZImpl(typename DstTileData::TileDType __out__ dst,
+                                         typename SrcTileData::TileDType __in__ src, uint16_t validRow,
+                                         uint16_t validCol, uint16_t dstRow, uint16_t indexRow = 0,
+                                         uint16_t indexCol = 0)
+{
+    __ubuf__ T *dstAddr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
+    __ubuf__ T *srcAddr = (__ubuf__ T *)__cce_get_tile_ptr(src);
+    uint16_t burstNum, burstLen, srcGap, dstGap;
+    uint32_t dstOffset;
+    ComputeNZBlockParams<T, DstTileData, SrcTileData>(validRow, validCol, dstRow, burstNum, burstLen, srcGap, dstGap,
+                                                      dstOffset, indexRow, indexCol);
+    __ubuf__ T *dstStart = dstAddr + dstOffset;
+    copy_ubuf_to_ubuf((__ubuf__ void *)dstStart, (__ubuf__ void *)srcAddr, 0, burstNum, burstLen, srcGap, dstGap);
 }
 
 // vlds+vsts path: strides + indexCol are 32B-aligned, ValidCol may not be.
@@ -462,26 +487,71 @@ PTO_INTERNAL void TInsertVecToVecNDDispatch(DstTileData &dst, SrcTileData &src, 
     }
 }
 
+template <typename T, typename DstTileData, typename SrcTileData>
+PTO_INTERNAL void TInsertVecToVecImpl(DstTileData &dst, SrcTileData &src, uint16_t indexRow, uint16_t indexCol)
+{
+    if constexpr (DstTileData::isRowMajor && SrcTileData::isRowMajor) {
+        static_assert(SrcTileData::Rows <= DstTileData::Rows,
+                      "TINSERT ND Vec→Vec : Source rows must not exceed destination rows");
+        static_assert(SrcTileData::Cols <= DstTileData::Cols,
+                      "TINSERT ND Vec→Vec : Source cols must not exceed destination cols");
+
+        if constexpr (SrcTileData::ValidRow == 1 && SrcTileData::ValidCol == 1) {
+            PTO_ASSERT(indexRow < DstTileData::Rows, "TINSERT : indexRow exceeds dstRows!");
+            PTO_ASSERT(indexCol < DstTileData::Cols, "TINSERT : indexCol exceeds dstCols!");
+            TInsertVecToVecNDScalarImpl<T, DstTileData, SrcTileData>(dst.data(), src.data(), indexRow, indexCol);
+        } else {
+            TInsertVecToVecNDDispatch<T>(dst, src, indexRow, indexCol);
+        }
+    } else if constexpr (!DstTileData::isRowMajor && !SrcTileData::isRowMajor &&
+                         DstTileData::SFractal == SLayout::RowMajor && SrcTileData::SFractal == SLayout::RowMajor) {
+        static_assert(SrcTileData::Cols <= DstTileData::Cols,
+                      "TINSERT NZ Vec→Vec : Source cols must not exceed destination cols");
+        uint16_t validRow = static_cast<uint16_t>(src.GetValidRow());
+        uint16_t validCol = static_cast<uint16_t>(src.GetValidCol());
+        PTO_ASSERT(indexRow + validRow <= DstTileData::Rows,
+                   "TINSERT NZ Vec→Vec : indexRow + validRow exceeds destination rows!");
+        PTO_ASSERT(indexCol + validCol <= DstTileData::Cols,
+                   "TINSERT NZ Vec→Vec : indexCol + validCol exceeds destination cols!");
+        TInsertVecToVecNZImpl<T, DstTileData, SrcTileData>(
+            dst.data(), src.data(), validRow, validCol, static_cast<uint16_t>(DstTileData::Rows), indexRow, indexCol);
+    } else {
+        static_assert(DstTileData::isRowMajor == SrcTileData::isRowMajor,
+                      "TINSERT Vec→Vec : Source and destination layout must match (both ND or both NZ)");
+    }
+}
+
+template <typename T, typename DstTileData, typename SrcTileData>
+PTO_INTERNAL void TInsertVecToMatImpl(DstTileData &dst, SrcTileData &src, uint16_t indexRow, uint16_t indexCol)
+{
+    uint16_t validRow = static_cast<uint16_t>(src.GetValidRow());
+    uint16_t validCol = static_cast<uint16_t>(src.GetValidCol());
+    PTO_ASSERT(indexRow + validRow <= DstTileData::Rows, "TINSERT : indexRow + validRow exceeds destination rows!");
+    PTO_ASSERT(indexCol + validCol <= DstTileData::Cols, "TINSERT : indexCol + validCol exceeds destination cols!");
+
+    if constexpr (SrcTileData::isRowMajor) {
+        uint16_t dstCols = static_cast<uint16_t>(DstTileData::Cols);
+        TInsertNDImpl<T, DstTileData, SrcTileData>(dst.data(), src.data(), validRow, validCol, dstCols, indexRow,
+                                                   indexCol);
+    } else if constexpr (!SrcTileData::isRowMajor && (SrcTileData::SFractal == SLayout::RowMajor)) {
+        uint16_t dstRow = static_cast<uint16_t>(dst.GetValidRow());
+        PTO_ASSERT(indexRow + validRow <= dstRow, "TINSERT NZ : indexRow + validRow exceeds destination valid rows!");
+        TInsertImpl<T, DstTileData, SrcTileData>(dst.data(), src.data(), validRow, validCol, dstRow, indexRow,
+                                                 indexCol);
+    }
+}
+
 template <typename DstTileData, typename SrcTileData>
 PTO_INTERNAL void TINSERT_IMPL(DstTileData &dst, SrcTileData &src, uint16_t indexRow = 0, uint16_t indexCol = 0)
 {
-    if constexpr (((DstTileData::Loc == TileType::Mat) || (DstTileData::Loc == TileType::Vec)) &&
+    if constexpr ((DstTileData::Loc == TileType::Mat || DstTileData::Loc == TileType::Vec) &&
                   SrcTileData::Loc == TileType::Acc) {
-        // Acc→Mat/Vec path (accumulator to L1/cbuf)
-        static_assert(
-            ((!DstTileData::isRowMajor && DstTileData::SFractal == SLayout::RowMajor) ||
-             (DstTileData::isRowMajor && DstTileData::SFractal == SLayout::NoneBox)),
-            "Dst fractal format should be (BFractal: ColMajor, SFractal: RowMajor) and (BFractal: RowMajor).");
+        // Acc→Mat/Vec path
         CheckTMovAccValid<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType>();
         constexpr QuantMode_t quantPre =
             GetCastPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
-        if constexpr ((DstTileData::Loc == TileType::Mat)) {
-            TInsertAccToMat<DstTileData, SrcTileData, quantPre, ReluPreMode::NoRelu>(
-                dst.data(), src.data(), src.GetValidRow(), src.GetValidCol(), indexRow, indexCol);
-        } else {
-            TInsertAccToVec<DstTileData, SrcTileData, AccToVecMode::SingleModeVec0, quantPre, ReluPreMode::NoRelu>(
-                dst.data(), src.data(), src.GetValidRow(), src.GetValidCol(), indexRow, indexCol);
-        }
+        TInsertAccDispatch<DstTileData, SrcTileData, AccToVecMode::SingleModeVec0, quantPre, ReluPreMode::NoRelu>(
+            dst, src, indexRow, indexCol);
     } else {
         using T = typename SrcTileData::DType;
         static_assert(std::is_same<typename DstTileData::DType, typename SrcTileData::DType>::value,
@@ -490,42 +560,14 @@ PTO_INTERNAL void TINSERT_IMPL(DstTileData &dst, SrcTileData &src, uint16_t inde
                           (std::is_same<T, float>::value) || (std::is_same<T, int32_t>::value) ||
                           (std::is_same<T, float8_e4m3_t>::value) || (std::is_same<T, float8_e5m2_t>::value) ||
                           (std::is_same<T, hifloat8_t>::value) || (std::is_same<T, int8_t>::value) ||
-                          (std::is_same<T, float8_e8m0_t>::value),
+                          (std::is_same<T, float8_e8m0_t>::value) || (std::is_same<T, float4_e2m1x2_t>::value) ||
+                          (std::is_same<T, float4_e1m2x2_t>::value),
                       "TINSERT : Unsupported data type.");
 
         if constexpr (DstTileData::Loc == TileType::Vec && SrcTileData::Loc == TileType::Vec) {
-            static_assert(DstTileData::isRowMajor, "TINSERT : Vec→Vec destination must be RowMajor (ND format)");
-            static_assert(SrcTileData::isRowMajor, "TINSERT : Vec→Vec source must be RowMajor (ND format)");
-            static_assert(SrcTileData::Rows <= DstTileData::Rows,
-                          "TINSERT : Source rows must not exceed destination rows");
-            static_assert(SrcTileData::Cols <= DstTileData::Cols,
-                          "TINSERT : Source cols must not exceed destination cols");
-
-            if constexpr (SrcTileData::ValidRow == 1 && SrcTileData::ValidCol == 1) {
-                PTO_ASSERT(indexRow < DstTileData::Rows, "TINSERT : indexRow exceeds dstRows!");
-                PTO_ASSERT(indexCol < DstTileData::Cols, "TINSERT : indexCol exceeds dstCols!");
-                TInsertVecToVecNDScalarImpl<T, DstTileData, SrcTileData>(dst.data(), src.data(), indexRow, indexCol);
-            } else {
-                TInsertVecToVecNDDispatch<T>(dst, src, indexRow, indexCol);
-            }
+            TInsertVecToVecImpl<T>(dst, src, indexRow, indexCol);
         } else if constexpr (DstTileData::Loc == TileType::Mat && SrcTileData::Loc == TileType::Vec) {
-            PTO_ASSERT(indexRow + SrcTileData::Rows <= DstTileData::Rows,
-                       "TINSERT : The sum of indexRow and srcRow should be less than dstRow!");
-            PTO_ASSERT(indexCol + SrcTileData::Cols <= DstTileData::Cols,
-                       "TINSERT : The sum of indexCol and srcCol should be less than dstCol!");
-
-            uint16_t validRow = static_cast<uint16_t>(src.GetValidRow());
-            uint16_t validCol = static_cast<uint16_t>(src.GetValidCol());
-
-            if constexpr (SrcTileData::isRowMajor) {
-                uint16_t dstCols = static_cast<uint16_t>(DstTileData::Cols);
-                TInsertNDImpl<T, DstTileData, SrcTileData>(dst.data(), src.data(), validRow, validCol, dstCols,
-                                                           indexRow, indexCol);
-            } else if constexpr (!SrcTileData::isRowMajor && (SrcTileData::SFractal == SLayout::RowMajor)) {
-                uint16_t dstRow = static_cast<uint16_t>(dst.GetValidRow());
-                TInsertImpl<T, DstTileData, SrcTileData>(dst.data(), src.data(), TInsertMode::NZ, validRow, validCol,
-                                                         dstRow, indexRow, indexCol);
-            }
+            TInsertVecToMatImpl<T>(dst, src, indexRow, indexCol);
         }
     } // else (non Acc→Mat)
 }
@@ -544,30 +586,20 @@ PTO_INTERNAL void TINSERT_IMPL(DstTileData &dst, SrcTileData &src, uint16_t inde
                       (std::is_same<T, float>::value) || (std::is_same<T, int32_t>::value) ||
                       (std::is_same<T, float8_e4m3_t>::value) || (std::is_same<T, float8_e5m2_t>::value) ||
                       (std::is_same<T, hifloat8_t>::value) || (std::is_same<T, int8_t>::value) ||
-                      (std::is_same<T, float8_e8m0_t>::value),
+                      (std::is_same<T, float8_e8m0_t>::value) || (std::is_same<T, float4_e2m1x2_t>::value) ||
+                      (std::is_same<T, float4_e1m2x2_t>::value),
                   "TINSERT NZ : Unsupported data type.");
-
-    PTO_ASSERT(indexRow + SrcTileData::Rows <= DstTileData::Rows,
-               "TINSERT : The sum of indexRow and srcRow should be less than dstRow!");
-    PTO_ASSERT(indexCol + SrcTileData::Cols <= DstTileData::Cols,
-               "TINSERT : The sum of indexCol and srcCol should be less than dstCol!");
 
     uint16_t validRow = static_cast<uint16_t>(src.GetValidRow());
     uint16_t validCol = static_cast<uint16_t>(src.GetValidCol());
+    PTO_ASSERT(indexRow + validRow <= DstTileData::Rows, "TINSERT : indexRow + validRow exceeds destination rows!");
+    PTO_ASSERT(indexCol + validCol <= DstTileData::Cols, "TINSERT : indexCol + validCol exceeds destination cols!");
 
-    if constexpr (mode == TInsertMode::NZ) {
-        uint16_t dstRow = static_cast<uint16_t>(dst.GetValidRow());
-        TInsertImpl<T, DstTileData, SrcTileData>(dst.data(), src.data(), mode, validRow, validCol, dstRow, indexRow,
-                                                 indexCol);
-    } else if constexpr (mode == TInsertMode::NZ_PLUS_1) {
-        uint16_t dstRow = static_cast<uint16_t>(dst.GetValidRow());
-        TInsertImpl<T, DstTileData, SrcTileData>(dst.data(), src.data(), mode, validRow, validCol, dstRow, indexRow,
-                                                 indexCol);
-    } else if constexpr (mode == TInsertMode::SPLIT2_NZ_PLUS_1) {
-        TInsertSplitImpl<2, T, DstTileData, SrcTileData>(dst.data(), src.data(), mode, validRow, validCol, indexRow,
+    if constexpr (mode == TInsertMode::SPLIT2) {
+        TInsertSplitImpl<2, T, DstTileData, SrcTileData>(dst.data(), src.data(), validRow, validCol, indexRow,
                                                          indexCol);
-    } else if constexpr (mode == TInsertMode::SPLIT4_NZ_PLUS_1) {
-        TInsertSplitImpl<4, T, DstTileData, SrcTileData>(dst.data(), src.data(), mode, validRow, validCol, indexRow,
+    } else if constexpr (mode == TInsertMode::SPLIT4) {
+        TInsertSplitImpl<4, T, DstTileData, SrcTileData>(dst.data(), src.data(), validRow, validCol, indexRow,
                                                          indexCol);
     }
 }

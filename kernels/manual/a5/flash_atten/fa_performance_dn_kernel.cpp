@@ -771,7 +771,7 @@ AICORE inline void compute_p(int tile_id, int row_slice, __gm__ float *qk_tile_f
             wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
 
             uint16_t col_offset = static_cast<uint16_t>(Vec_S0 * static_cast<size_t>(get_subblockid()));
-            TINSERT<TInsertMode::NZ_PLUS_1>(pMatTile, nzConvBuffer, static_cast<uint16_t>(0), col_offset);
+            TINSERT(pMatTile, nzConvBuffer, static_cast<uint16_t>(0), col_offset);
         }
         (void)global_sum_out;
         (void)exp_max_out;

@@ -1,5 +1,5 @@
 /**
-Copyright (c) 2025 Huawei Technologies Co., Ltd.
+Copyright (c) 2026 Huawei Technologies Co., Ltd.
 This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 CANN Open Software License Agreement Version 2.0 (the "License").
 Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -25,10 +25,37 @@ template <int32_t testKey>
 void launchTInsertND(uint64_t *out, uint64_t *src, void *stream);
 
 template <int32_t testKey>
+void launchTInsertNDVec(uint8_t *out, uint8_t *srcIn, uint8_t *dstIn, void *stream);
+
+template <int32_t testKey>
+void launchTInsertNDVecScalar(uint8_t *out, uint8_t *srcIn, uint8_t *dstIn, void *stream);
+
+template <int32_t testKey>
+void launchTInsertNDVecValidShape(uint8_t *out, uint8_t *srcIn, uint8_t *dstIn, void *stream);
+
+template <int32_t testKey>
 void launchTInsertNZUnaligned(uint64_t *out, uint64_t *src, void *stream);
 
 template <int32_t testKey>
 void launchTInsertNZTwoInsert(uint64_t *out, uint64_t *src1, uint64_t *src2, void *stream);
+
+template <int32_t testKey>
+void launchTInsertNZOverwrite(uint64_t *out, uint64_t *src1, uint64_t *src2, void *stream);
+
+template <int32_t testKey>
+void launchTInsertNZVecToVec(uint64_t *out, uint64_t *src, void *stream);
+
+template <int32_t testKey>
+void launchTInsertNZSplitCustom(uint64_t *out, uint64_t *src, void *stream);
+
+template <int32_t testKey>
+void launchTInsertNZTwoInput(uint64_t *out, uint64_t *src, void *stream);
+
+template <int32_t testKey>
+void launchTInsertNZDoubleInput(uint64_t *out, uint64_t *src, void *stream);
+
+template <int32_t testKey>
+void launchTInsertNZFp4Offset(uint64_t *out, uint64_t *src, void *stream);
 
 class TInsertTest : public testing::Test {
 protected:
@@ -41,52 +68,44 @@ protected:
 std::string GetGoldenDir()
 {
     const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
-    const std::string caseName = testInfo->name();
-    std::string suiteName = testInfo->test_suite_name();
-    std::string fullPath = "../" + suiteName + "." + caseName;
-    return fullPath;
+    return "../" + std::string(testInfo->test_suite_name()) + "." + std::string(testInfo->name());
 }
 
 template <int32_t testKey, typename AType, typename CType>
-void testTInsertAcc2Mat(int32_t M, int32_t K, int32_t N)
+void testTInsertAcc2Mat(int32_t m, int32_t k, int32_t n)
 {
-    size_t aFileSize = M * K * sizeof(AType);
-    size_t bFileSize = K * N * sizeof(AType);
-    size_t cFileSize = M * N * sizeof(CType);
-
     aclInit(nullptr);
     aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    uint8_t *dstHost, *src0Host, *src1Host;
-    uint8_t *dstDevice, *src0Device, *src1Device;
+    size_t aFileSize = m * k * sizeof(AType);
+    size_t bFileSize = k * n * sizeof(AType);
+    size_t cFileSize = m * n * sizeof(CType);
+    uint8_t *outHost, *src0Host, *src1Host, *outDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
+    aclrtMallocHost((void **)(&outHost), cFileSize);
     aclrtMallocHost((void **)(&src0Host), aFileSize);
     aclrtMallocHost((void **)(&src1Host), bFileSize);
-
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void **)&outDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMalloc((void **)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMalloc((void **)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
-
     aclrtMemcpy(src0Device, aFileSize, src0Host, aFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, bFileSize, src1Host, bFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
-    launchTInsertAcc2Mat<testKey>(dstDevice, src0Device, src1Device, stream);
+    launchTInsertAcc2Mat<testKey>(outDevice, src0Device, src1Device, stream);
 
     aclrtSynchronizeStream(stream);
-    aclrtMemcpy(dstHost, cFileSize, dstDevice, cFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    aclrtMemcpy(outHost, cFileSize, outDevice, cFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    WriteFile(GetGoldenDir() + "/output_z.bin", outHost, cFileSize);
 
-    WriteFile(GetGoldenDir() + "/output_z.bin", dstHost, cFileSize);
-
-    aclrtFree(dstDevice);
+    aclrtFree(outDevice);
     aclrtFree(src0Device);
     aclrtFree(src1Device);
-    aclrtFreeHost(dstHost);
+    aclrtFreeHost(outHost);
     aclrtFreeHost(src0Host);
     aclrtFreeHost(src1Host);
     aclrtDestroyStream(stream);
@@ -97,47 +116,41 @@ void testTInsertAcc2Mat(int32_t M, int32_t K, int32_t N)
     std::vector<CType> devFinal(cFileSize / sizeof(CType));
     ReadFile(GetGoldenDir() + "/golden.bin", cFileSize, golden.data(), cFileSize);
     ReadFile(GetGoldenDir() + "/output_z.bin", cFileSize, devFinal.data(), cFileSize);
-
-    bool ret = ResultCmp(golden, devFinal, 0.001f);
-    EXPECT_TRUE(ret);
+    EXPECT_TRUE(ResultCmp(golden, devFinal, 0.001f));
 }
 
 TEST_F(TInsertTest, case_acc2mat_1)
 {
     testTInsertAcc2Mat<1, uint16_t, float>(16, 16, 16);
 }
-
 TEST_F(TInsertTest, case_acc2mat_2)
 {
     testTInsertAcc2Mat<2, uint16_t, float>(32, 32, 32);
 }
 
-template <int32_t testKey, typename dType>
-void testTInsertNZ(int32_t rows, int32_t cols)
+using LaunchFn2 = void (*)(uint64_t *, uint64_t *, void *);
+
+template <typename dType>
+void testSingleSrc(size_t srcByteSize, size_t dstByteSize, LaunchFn2 launch)
 {
     aclInit(nullptr);
     aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    size_t srcByteSize = rows * cols * sizeof(dType);
-    size_t dstByteSize = rows * cols * sizeof(dType);
     uint64_t *dstHost, *srcHost, *dstDevice, *srcDevice;
-
     aclrtMallocHost((void **)(&dstHost), dstByteSize);
     aclrtMallocHost((void **)(&srcHost), srcByteSize);
     aclrtMalloc((void **)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMalloc((void **)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input_arr.bin", srcByteSize, srcHost, srcByteSize);
-
     aclrtMemcpy(srcDevice, srcByteSize, srcHost, srcByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
-    launchTInsertNZ<testKey>(dstDevice, srcDevice, stream);
+    launch(dstDevice, srcDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, dstByteSize, dstDevice, dstByteSize, ACL_MEMCPY_DEVICE_TO_HOST);
-
     WriteFile(GetGoldenDir() + "/output_z.bin", dstHost, dstByteSize);
 
     aclrtFree(dstDevice);
@@ -152,71 +165,63 @@ void testTInsertNZ(int32_t rows, int32_t cols)
     std::vector<dType> devFinal(dstByteSize / sizeof(dType));
     ReadFile(GetGoldenDir() + "/golden_output.bin", dstByteSize, golden.data(), dstByteSize);
     ReadFile(GetGoldenDir() + "/output_z.bin", dstByteSize, devFinal.data(), dstByteSize);
-
-    bool ret = ResultCmp(golden, devFinal, 0.001f);
-    EXPECT_TRUE(ret);
+    EXPECT_TRUE(ResultCmp(golden, devFinal, 0.001f));
 }
 
+// NZ basic tests
 TEST_F(TInsertTest, case_nz_1)
 {
-    testTInsertNZ<1, float>(16, 32);
+    testSingleSrc<float>(16 * 32 * 4, 16 * 32 * 4, launchTInsertNZ<1>);
 }
-
 TEST_F(TInsertTest, case_nz_2)
 {
-    testTInsertNZ<2, float>(16, 32);
+    testSingleSrc<float>(16 * 32 * 4, 16 * 32 * 4, launchTInsertNZ<2>);
 }
-
 TEST_F(TInsertTest, case_nz_3)
 {
-    testTInsertNZ<3, float>(32, 64);
+    testSingleSrc<float>(32 * 64 * 4, 32 * 64 * 4, launchTInsertNZ<3>);
 }
-
 TEST_F(TInsertTest, case_nz_4)
 {
-    testTInsertNZ<4, int32_t>(32, 32);
+    testSingleSrc<int32_t>(32 * 32 * 4, 32 * 32 * 4, launchTInsertNZ<4>);
 }
-
 TEST_F(TInsertTest, case_nz_5)
 {
-    testTInsertNZ<5, float>(32, 32);
+    testSingleSrc<float>(32 * 32 * 4, 32 * 32 * 4, launchTInsertNZ<5>);
 }
-
 TEST_F(TInsertTest, case_nz_6)
 {
-    testTInsertNZ<6, float>(32, 32);
+    testSingleSrc<float>(32 * 32 * 4, 32 * 32 * 4, launchTInsertNZ<6>);
 }
-
 TEST_F(TInsertTest, case_nz_7)
 {
-    testTInsertNZ<7, float>(64, 64);
+    testSingleSrc<float>(64 * 64 * 4, 64 * 64 * 4, launchTInsertNZ<7>);
 }
 
+// ND tests (output.bin instead of output_z.bin)
 template <int32_t testKey, typename dType>
-void testTInsertND(int32_t srcRows, int32_t srcCols, int32_t dstRows, int32_t dstCols)
+void testTInsertND(int32_t rows, int32_t cols)
 {
+    size_t byteSize = rows * cols * sizeof(dType);
     aclInit(nullptr);
     aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    size_t srcByteSize = srcRows * srcCols * sizeof(dType);
-    size_t dstByteSize = dstRows * dstCols * sizeof(dType);
     uint64_t *dstHost, *srcHost, *dstDevice, *srcDevice;
+    aclrtMallocHost((void **)(&dstHost), byteSize);
+    aclrtMallocHost((void **)(&srcHost), byteSize);
+    aclrtMalloc((void **)&dstDevice, byteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void **)&srcDevice, byteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
-    aclrtMallocHost((void **)(&dstHost), dstByteSize);
-    aclrtMallocHost((void **)(&srcHost), srcByteSize);
-    aclrtMalloc((void **)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-
-    ReadFile(GetGoldenDir() + "/input_arr.bin", srcByteSize, srcHost, srcByteSize);
-    aclrtMemcpy(srcDevice, srcByteSize, srcHost, srcByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    ReadFile(GetGoldenDir() + "/input_arr.bin", byteSize, srcHost, byteSize);
+    aclrtMemcpy(srcDevice, byteSize, srcHost, byteSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
     launchTInsertND<testKey>(dstDevice, srcDevice, stream);
 
     aclrtSynchronizeStream(stream);
-    aclrtMemcpy(dstHost, dstByteSize, dstDevice, dstByteSize, ACL_MEMCPY_DEVICE_TO_HOST);
-    WriteFile(GetGoldenDir() + "/output.bin", dstHost, dstByteSize);
+    aclrtMemcpy(dstHost, byteSize, dstDevice, byteSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    WriteFile(GetGoldenDir() + "/output.bin", dstHost, byteSize);
 
     aclrtFree(dstDevice);
     aclrtFree(srcDevice);
@@ -226,37 +231,26 @@ void testTInsertND(int32_t srcRows, int32_t srcCols, int32_t dstRows, int32_t ds
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<dType> golden(dstByteSize);
-    std::vector<dType> devFinal(dstByteSize);
-    ReadFile(GetGoldenDir() + "/golden_output.bin", dstByteSize, golden.data(), dstByteSize);
-    ReadFile(GetGoldenDir() + "/output.bin", dstByteSize, devFinal.data(), dstByteSize);
-    bool ret = ResultCmp(golden, devFinal, 0.001f);
-    EXPECT_TRUE(ret);
+    std::vector<dType> golden(byteSize);
+    std::vector<dType> devFinal(byteSize);
+    ReadFile(GetGoldenDir() + "/golden_output.bin", byteSize, golden.data(), byteSize);
+    ReadFile(GetGoldenDir() + "/output.bin", byteSize, devFinal.data(), byteSize);
+    EXPECT_TRUE(ResultCmp(golden, devFinal, 0.001f));
 }
 
 TEST_F(TInsertTest, case_nd_1)
 {
-    testTInsertND<1, int8_t>(64, 32, 64, 32);
+    testTInsertND<1, int8_t>(64, 32);
 }
-
 TEST_F(TInsertTest, case_nd_2)
 {
-    testTInsertND<2, int8_t>(128, 64, 128, 64);
+    testTInsertND<2, int8_t>(128, 64);
 }
-
-template <int32_t testKey>
-void launchTInsertNDVec(uint8_t *out, uint8_t *srcIn, uint8_t *dstIn, void *stream);
-
-template <int32_t testKey>
-void launchTInsertNDVecScalar(uint8_t *out, uint8_t *srcIn, uint8_t *dstIn, void *stream);
-
-template <int32_t testKey>
-void launchTInsertNDVecValidShape(uint8_t *out, uint8_t *srcIn, uint8_t *dstIn, void *stream);
 
 using NdVecLaunchFn = void (*)(uint8_t *, uint8_t *, uint8_t *, void *);
 
 template <typename dType>
-void runTInsertNDVecTest(size_t srcByteSize, size_t dstByteSize, NdVecLaunchFn launch)
+void testNDVec(size_t srcByteSize, size_t dstByteSize, NdVecLaunchFn launch)
 {
     aclInit(nullptr);
     aclrtSetDevice(0);
@@ -269,14 +263,12 @@ void runTInsertNDVecTest(size_t srcByteSize, size_t dstByteSize, NdVecLaunchFn l
     aclrtMallocHost((void **)(&outHost), dstByteSize);
     aclrtMallocHost((void **)(&srcHost), srcByteSize);
     aclrtMallocHost((void **)(&dstInitHost), dstByteSize);
-
     aclrtMalloc((void **)&outDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMalloc((void **)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMalloc((void **)&dstInitDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/src_input.bin", srcByteSize, srcHost, srcByteSize);
     ReadFile(GetGoldenDir() + "/dst_init.bin", dstByteSize, dstInitHost, dstByteSize);
-
     aclrtMemcpy(srcDevice, srcByteSize, srcHost, srcByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(dstInitDevice, dstByteSize, dstInitHost, dstByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
@@ -300,215 +292,132 @@ void runTInsertNDVecTest(size_t srcByteSize, size_t dstByteSize, NdVecLaunchFn l
     std::vector<dType> devFinal(dstByteSize / sizeof(dType));
     ReadFile(GetGoldenDir() + "/golden_output.bin", dstByteSize, golden.data(), dstByteSize);
     ReadFile(GetGoldenDir() + "/output.bin", dstByteSize, devFinal.data(), dstByteSize);
-    bool ret = ResultCmp(golden, devFinal, 0.0f);
-    EXPECT_TRUE(ret);
-}
-
-template <int32_t testKey, typename dType>
-void testTInsertNDVec(int32_t srcRows, int32_t srcCols, int32_t dstRows, int32_t dstCols)
-{
-    runTInsertNDVecTest<dType>(srcRows * srcCols * sizeof(dType), dstRows * dstCols * sizeof(dType),
-                               launchTInsertNDVec<testKey>);
+    EXPECT_TRUE(ResultCmp(golden, devFinal, 0.0f));
 }
 
 TEST_F(TInsertTest, case_nd_vec_1)
 {
-    testTInsertNDVec<1, float>(8, 8, 16, 16);
+    testNDVec<float>(8 * 8 * 4, 16 * 16 * 4, launchTInsertNDVec<1>);
 }
-
 TEST_F(TInsertTest, case_nd_vec_2)
 {
-    testTInsertNDVec<2, float>(8, 8, 16, 16);
+    testNDVec<float>(8 * 8 * 4, 16 * 16 * 4, launchTInsertNDVec<2>);
 }
-
 TEST_F(TInsertTest, case_nd_vec_3)
 {
-    testTInsertNDVec<3, uint16_t>(16, 16, 32, 32);
+    testNDVec<uint16_t>(16 * 16 * 2, 32 * 32 * 2, launchTInsertNDVec<3>);
 }
-
 TEST_F(TInsertTest, case_nd_vec_4)
 {
-    testTInsertNDVec<4, int8_t>(32, 32, 64, 64);
+    testNDVec<int8_t>(32 * 32 * 1, 64 * 64 * 1, launchTInsertNDVec<4>);
 }
-
 TEST_F(TInsertTest, case_nd_vec_5)
 {
-    testTInsertNDVec<5, uint16_t>(16, 16, 32, 48);
+    testNDVec<uint16_t>(16 * 16 * 2, 32 * 48 * 2, launchTInsertNDVec<5>);
 }
-
 TEST_F(TInsertTest, case_nd_vec_6)
 {
-    testTInsertNDVec<6, float>(8, 8, 16, 24);
+    testNDVec<float>(8 * 8 * 4, 16 * 24 * 4, launchTInsertNDVec<6>);
 }
-
 TEST_F(TInsertTest, case_nd_vec_7)
 {
-    testTInsertNDVec<7, float>(8, 8, 16, 24);
+    testNDVec<float>(8 * 8 * 4, 16 * 24 * 4, launchTInsertNDVec<7>);
 }
-
 TEST_F(TInsertTest, case_nd_vec_8)
 {
-    testTInsertNDVec<8, uint16_t>(8, 16, 16, 48);
+    testNDVec<uint16_t>(8 * 16 * 2, 16 * 48 * 2, launchTInsertNDVec<8>);
 }
-
 TEST_F(TInsertTest, case_nd_vec_9)
 {
-    testTInsertNDVec<9, int8_t>(32, 32, 64, 64);
+    testNDVec<int8_t>(32 * 32, 64 * 64, launchTInsertNDVec<9>);
 }
-
-template <int32_t testKey, typename dType>
-void testTInsertNDVecScalar(int32_t dstRows, int32_t dstCols)
-{
-    constexpr size_t minAlignedCols = 32 / sizeof(dType);
-    runTInsertNDVecTest<dType>(1 * minAlignedCols * sizeof(dType), dstRows * dstCols * sizeof(dType),
-                               launchTInsertNDVecScalar<testKey>);
-}
-
-template <int32_t testKey, typename dType>
-void testTInsertNDVecValidShape(int32_t srcRows, int32_t srcCols, int32_t dstRows, int32_t dstCols)
-{
-    runTInsertNDVecTest<dType>(srcRows * srcCols * sizeof(dType), dstRows * dstCols * sizeof(dType),
-                               launchTInsertNDVecValidShape<testKey>);
-}
-
 TEST_F(TInsertTest, case_nd_vec_10)
 {
-    testTInsertNDVecScalar<1, float>(16, 16);
+    testNDVec<float>(1 * 8 * 4, 16 * 16 * 4, launchTInsertNDVecScalar<1>);
 }
-
 TEST_F(TInsertTest, case_nd_vec_11)
 {
-    testTInsertNDVecScalar<2, uint16_t>(32, 32);
+    testNDVec<uint16_t>(1 * 16 * 2, 32 * 32 * 2, launchTInsertNDVecScalar<2>);
 }
-
 TEST_F(TInsertTest, case_nd_vec_12)
 {
-    testTInsertNDVecScalar<3, int8_t>(64, 64);
+    testNDVec<int8_t>(1 * 32, 64 * 64, launchTInsertNDVecScalar<3>);
 }
-
 TEST_F(TInsertTest, case_nd_vec_13)
 {
-    testTInsertNDVecValidShape<1, float>(4, 8, 16, 16);
+    testNDVec<float>(4 * 8 * 4, 16 * 16 * 4, launchTInsertNDVecValidShape<1>);
 }
-
 TEST_F(TInsertTest, case_nd_vec_14)
 {
-    testTInsertNDVecValidShape<2, uint16_t>(8, 16, 16, 32);
+    testNDVec<uint16_t>(8 * 16 * 2, 16 * 32 * 2, launchTInsertNDVecValidShape<2>);
 }
-
 TEST_F(TInsertTest, case_nd_vec_15)
 {
-    testTInsertNDVecValidShape<3, int8_t>(16, 32, 32, 64);
+    testNDVec<int8_t>(16 * 32, 32 * 64, launchTInsertNDVecValidShape<3>);
 }
-
 TEST_F(TInsertTest, case_nd_vec_16)
 {
-    testTInsertNDVecValidShape<4, float>(4, 8, 16, 16);
+    testNDVec<float>(4 * 8 * 4, 16 * 16 * 4, launchTInsertNDVecValidShape<4>);
 }
-
 TEST_F(TInsertTest, case_nd_vec_17)
 {
-    testTInsertNDVecValidShape<5, uint16_t>(8, 16, 16, 32);
+    testNDVec<uint16_t>(8 * 16 * 2, 16 * 32 * 2, launchTInsertNDVecValidShape<5>);
 }
-
 TEST_F(TInsertTest, case_nd_vec_18)
 {
-    testTInsertNDVecValidShape<6, int8_t>(16, 32, 32, 64);
+    testNDVec<int8_t>(16 * 32, 32 * 64, launchTInsertNDVecValidShape<6>);
 }
-
 TEST_F(TInsertTest, case_nd_vec_19)
 {
-    testTInsertNDVec<10, uint16_t>(4, 128, 8, 144);
+    testNDVec<uint16_t>(4 * 128 * 2, 8 * 144 * 2, launchTInsertNDVec<10>);
 }
-
 TEST_F(TInsertTest, case_nd_vec_20)
 {
-    testTInsertNDVec<11, uint16_t>(4, 144, 8, 160);
+    testNDVec<uint16_t>(4 * 144 * 2, 8 * 160 * 2, launchTInsertNDVec<11>);
 }
 
-template <int32_t testKey, typename dType>
-void testTInsertNZUnaligned(int32_t srcRows, int32_t srcCols, int32_t dstRows, int32_t dstCols)
-{
-    aclInit(nullptr);
-    aclrtSetDevice(0);
-    aclrtStream stream;
-    aclrtCreateStream(&stream);
-
-    size_t srcByteSize = srcRows * srcCols * sizeof(dType);
-    size_t dstByteSize = dstRows * dstCols * sizeof(dType);
-    uint64_t *dstHost, *srcHost, *dstDevice, *srcDevice;
-
-    aclrtMallocHost((void **)(&dstHost), dstByteSize);
-    aclrtMallocHost((void **)(&srcHost), srcByteSize);
-    aclrtMalloc((void **)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-
-    ReadFile(GetGoldenDir() + "/input_arr.bin", srcByteSize, srcHost, srcByteSize);
-    aclrtMemcpy(srcDevice, srcByteSize, srcHost, srcByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
-
-    launchTInsertNZUnaligned<testKey>(dstDevice, srcDevice, stream);
-
-    aclrtSynchronizeStream(stream);
-    aclrtMemcpy(dstHost, dstByteSize, dstDevice, dstByteSize, ACL_MEMCPY_DEVICE_TO_HOST);
-    WriteFile(GetGoldenDir() + "/output_z.bin", dstHost, dstByteSize);
-
-    aclrtFree(dstDevice);
-    aclrtFree(srcDevice);
-    aclrtFreeHost(dstHost);
-    aclrtFreeHost(srcHost);
-    aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
-
-    std::vector<dType> golden(dstByteSize / sizeof(dType));
-    std::vector<dType> devFinal(dstByteSize / sizeof(dType));
-    ReadFile(GetGoldenDir() + "/golden_output.bin", dstByteSize, golden.data(), dstByteSize);
-    ReadFile(GetGoldenDir() + "/output_z.bin", dstByteSize, devFinal.data(), dstByteSize);
-
-    bool ret = ResultCmp(golden, devFinal, 0.001f);
-    EXPECT_TRUE(ret);
-}
-
+// NZ unaligned tests
 TEST_F(TInsertTest, case_nz_8)
 {
-    testTInsertNZUnaligned<1, float>(15, 32, 16, 32);
+    testSingleSrc<float>(15 * 32 * 4, 16 * 32 * 4, launchTInsertNZUnaligned<1>);
 }
-
 TEST_F(TInsertTest, case_nz_9)
 {
-    testTInsertNZUnaligned<2, float>(10, 32, 32, 32);
+    testSingleSrc<float>(10 * 32 * 4, 32 * 32 * 4, launchTInsertNZUnaligned<2>);
+}
+TEST_F(TInsertTest, case_nz_11)
+{
+    testSingleSrc<float>(10 * 32 * 4, 32 * 32 * 4, launchTInsertNZUnaligned<3>);
 }
 
-template <int32_t testKey, typename dType>
-void testTInsertNZTwoInsert(int32_t srcRows1, int32_t srcRows2, int32_t cols, int32_t dstRows)
+using LaunchFn3 = void (*)(uint64_t *, uint64_t *, uint64_t *, void *);
+
+template <typename dType>
+void testTwoSrc(size_t src1Bytes, size_t src2Bytes, size_t dstBytes, LaunchFn3 launch)
 {
     aclInit(nullptr);
     aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    size_t src1ByteSize = srcRows1 * cols * sizeof(dType);
-    size_t src2ByteSize = srcRows2 * cols * sizeof(dType);
-    size_t dstByteSize = dstRows * cols * sizeof(dType);
     uint64_t *dstHost, *src1Host, *src2Host, *dstDevice, *src1Device, *src2Device;
+    aclrtMallocHost((void **)(&dstHost), dstBytes);
+    aclrtMallocHost((void **)(&src1Host), src1Bytes);
+    aclrtMallocHost((void **)(&src2Host), src2Bytes);
+    aclrtMalloc((void **)&dstDevice, dstBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void **)&src1Device, src1Bytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void **)&src2Device, src2Bytes, ACL_MEM_MALLOC_HUGE_FIRST);
 
-    aclrtMallocHost((void **)(&dstHost), dstByteSize);
-    aclrtMallocHost((void **)(&src1Host), src1ByteSize);
-    aclrtMallocHost((void **)(&src2Host), src2ByteSize);
-    aclrtMalloc((void **)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, src1ByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src2Device, src2ByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    ReadFile(GetGoldenDir() + "/src1_input.bin", src1Bytes, src1Host, src1Bytes);
+    ReadFile(GetGoldenDir() + "/src2_input.bin", src2Bytes, src2Host, src2Bytes);
+    aclrtMemcpy(src1Device, src1Bytes, src1Host, src1Bytes, ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(src2Device, src2Bytes, src2Host, src2Bytes, ACL_MEMCPY_HOST_TO_DEVICE);
 
-    ReadFile(GetGoldenDir() + "/src1_input.bin", src1ByteSize, src1Host, src1ByteSize);
-    ReadFile(GetGoldenDir() + "/src2_input.bin", src2ByteSize, src2Host, src2ByteSize);
-    aclrtMemcpy(src1Device, src1ByteSize, src1Host, src1ByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    aclrtMemcpy(src2Device, src2ByteSize, src2Host, src2ByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
-
-    launchTInsertNZTwoInsert<testKey>(dstDevice, src1Device, src2Device, stream);
+    launch(dstDevice, src1Device, src2Device, stream);
 
     aclrtSynchronizeStream(stream);
-    aclrtMemcpy(dstHost, dstByteSize, dstDevice, dstByteSize, ACL_MEMCPY_DEVICE_TO_HOST);
-    WriteFile(GetGoldenDir() + "/output_z.bin", dstHost, dstByteSize);
+    aclrtMemcpy(dstHost, dstBytes, dstDevice, dstBytes, ACL_MEMCPY_DEVICE_TO_HOST);
+    WriteFile(GetGoldenDir() + "/output_z.bin", dstHost, dstBytes);
 
     aclrtFree(dstDevice);
     aclrtFree(src1Device);
@@ -520,16 +429,299 @@ void testTInsertNZTwoInsert(int32_t srcRows1, int32_t srcRows2, int32_t cols, in
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<dType> golden(dstByteSize / sizeof(dType));
-    std::vector<dType> devFinal(dstByteSize / sizeof(dType));
-    ReadFile(GetGoldenDir() + "/golden_output.bin", dstByteSize, golden.data(), dstByteSize);
-    ReadFile(GetGoldenDir() + "/output_z.bin", dstByteSize, devFinal.data(), dstByteSize);
-
-    bool ret = ResultCmp(golden, devFinal, 0.001f);
-    EXPECT_TRUE(ret);
+    std::vector<dType> golden(dstBytes / sizeof(dType));
+    std::vector<dType> devFinal(dstBytes / sizeof(dType));
+    ReadFile(GetGoldenDir() + "/golden_output.bin", dstBytes, golden.data(), dstBytes);
+    ReadFile(GetGoldenDir() + "/output_z.bin", dstBytes, devFinal.data(), dstBytes);
+    EXPECT_TRUE(ResultCmp(golden, devFinal, 0.001f));
 }
 
 TEST_F(TInsertTest, case_nz_10)
 {
-    testTInsertNZTwoInsert<1, float>(15, 10, 32, 32);
+    testTwoSrc<float>(15 * 32 * 4, 10 * 32 * 4, 32 * 32 * 4, launchTInsertNZTwoInsert<1>);
+}
+TEST_F(TInsertTest, case_nz_12)
+{
+    testTwoSrc<float>(32 * 32 * 4, 10 * 32 * 4, 32 * 32 * 4, launchTInsertNZOverwrite<1>);
+}
+TEST_F(TInsertTest, case_nz_13)
+{
+    testTwoSrc<float>(8 * 256 * 4, 8 * 256 * 4, 16 * 256 * 4, launchTInsertNZTwoInsert<2>);
+}
+
+// NZ large tile tests
+TEST_F(TInsertTest, case_nz_14)
+{
+    testSingleSrc<float>(32 * 32 * 4, 32 * 32 * 4, launchTInsertNZ<8>);
+}
+TEST_F(TInsertTest, case_nz_15)
+{
+    testSingleSrc<float>(32 * 32 * 4, 32 * 32 * 4, launchTInsertNZ<9>);
+}
+
+// NZ Vec→Vec tests
+TEST_F(TInsertTest, case_nz_vec_1)
+{
+    testSingleSrc<float>(16 * 32 * 4, 16 * 32 * 4, launchTInsertNZVecToVec<1>);
+}
+TEST_F(TInsertTest, case_nz_vec_2)
+{
+    testSingleSrc<float>(16 * 32 * 4, 16 * 32 * 4, launchTInsertNZVecToVec<2>);
+}
+TEST_F(TInsertTest, case_nz_vec_3)
+{
+    testSingleSrc<float>(16 * 32 * 4, 32 * 32 * 4, launchTInsertNZVecToVec<3>);
+}
+TEST_F(TInsertTest, case_nz_vec_4)
+{
+    testSingleSrc<uint16_t>(16 * 32 * 2, 16 * 32 * 2, launchTInsertNZVecToVec<4>);
+}
+TEST_F(TInsertTest, case_nz_vec_5)
+{
+    testSingleSrc<uint16_t>(16 * 32 * 2, 16 * 32 * 2, launchTInsertNZVecToVec<5>);
+}
+TEST_F(TInsertTest, case_nz_vec_6)
+{
+    testSingleSrc<uint8_t>(16 * 64, 16 * 64, launchTInsertNZVecToVec<6>);
+}
+TEST_F(TInsertTest, case_nz_vec_7)
+{
+    testSingleSrc<uint8_t>(16 * 64, 16 * 64, launchTInsertNZVecToVec<7>);
+}
+
+// NZ Split custom tests
+TEST_F(TInsertTest, case_nz_split_1)
+{
+    testSingleSrc<float>(8 * 256 * 4, 16 * 256 * 4, launchTInsertNZSplitCustom<1>);
+}
+TEST_F(TInsertTest, case_nz_split_2)
+{
+    testSingleSrc<float>(8 * 256 * 4, 16 * 256 * 4, launchTInsertNZSplitCustom<2>);
+}
+TEST_F(TInsertTest, case_nz_split_3)
+{
+    testSingleSrc<float>(128 * 128 * 4, 128 * 128 * 4, launchTInsertNZSplitCustom<3>);
+}
+TEST_F(TInsertTest, case_nz_split_4)
+{
+    testSingleSrc<float>(128 * 128 * 4, 128 * 128 * 4, launchTInsertNZSplitCustom<4>);
+}
+
+// NZ hif8 tests
+TEST_F(TInsertTest, case_nz_hif8_1)
+{
+    testSingleSrc<uint8_t>(16 * 64, 16 * 64, launchTInsertNZ<10>);
+}
+TEST_F(TInsertTest, case_nz_hif8_2)
+{
+    testSingleSrc<uint8_t>(16 * 64, 16 * 64, launchTInsertNZ<11>);
+}
+TEST_F(TInsertTest, case_nz_hif8_3)
+{
+    testSingleSrc<uint8_t>(16 * 128, 16 * 128, launchTInsertNZ<12>);
+}
+
+template <int32_t testKey, typename dType, int32_t ValidRows, int32_t DstRows, int32_t Cols>
+void testTInsertNZTwoInput()
+{
+    constexpr int32_t nzRow = 16;
+    constexpr int32_t AlignedRow = ((ValidRows + nzRow - 1) / nzRow) * nzRow;
+    constexpr int32_t c0Size = 32 / static_cast<int32_t>(sizeof(dType));
+    constexpr int32_t burstNum = Cols / c0Size;
+    constexpr size_t nz1TotalBytes = static_cast<size_t>(burstNum) * (AlignedRow + 1) * c0Size * sizeof(dType);
+    constexpr size_t zeroBytes = static_cast<size_t>(DstRows) * Cols * sizeof(dType);
+
+    testSingleSrc<dType>(zeroBytes + nz1TotalBytes, zeroBytes, launchTInsertNZTwoInput<testKey>);
+}
+
+TEST_F(TInsertTest, case_nz_twoinput_fp16_1)
+{
+    testTInsertNZTwoInput<1, uint16_t, 8, 16, 128>();
+}
+TEST_F(TInsertTest, case_nz_twoinput_bf16_1)
+{
+    testTInsertNZTwoInput<2, uint16_t, 8, 16, 128>();
+}
+TEST_F(TInsertTest, case_nz_twoinput_fp32_1)
+{
+    testTInsertNZTwoInput<3, float, 8, 16, 128>();
+}
+TEST_F(TInsertTest, case_nz_twoinput_int8_1)
+{
+    testTInsertNZTwoInput<4, uint8_t, 8, 16, 128>();
+}
+TEST_F(TInsertTest, case_nz_twoinput_fp8e5_1)
+{
+    testTInsertNZTwoInput<5, uint8_t, 8, 16, 128>();
+}
+TEST_F(TInsertTest, case_nz_twoinput_fp8e4_1)
+{
+    testTInsertNZTwoInput<6, uint8_t, 8, 16, 128>();
+}
+TEST_F(TInsertTest, case_nz_twoinput_hif8_1)
+{
+    testTInsertNZTwoInput<7, uint8_t, 8, 16, 128>();
+}
+TEST_F(TInsertTest, case_nz_twoinput_fp16_2)
+{
+    testTInsertNZTwoInput<8, uint16_t, 129, 256, 256>();
+}
+TEST_F(TInsertTest, case_nz_twoinput_bf16_2)
+{
+    testTInsertNZTwoInput<9, uint16_t, 129, 256, 256>();
+}
+TEST_F(TInsertTest, case_nz_twoinput_fp32_2)
+{
+    testTInsertNZTwoInput<10, float, 129, 256, 256>();
+}
+TEST_F(TInsertTest, case_nz_twoinput_int8_2)
+{
+    testTInsertNZTwoInput<11, uint8_t, 129, 256, 256>();
+}
+TEST_F(TInsertTest, case_nz_twoinput_fp8e5_2)
+{
+    testTInsertNZTwoInput<12, uint8_t, 129, 256, 256>();
+}
+TEST_F(TInsertTest, case_nz_twoinput_fp8e4_2)
+{
+    testTInsertNZTwoInput<13, uint8_t, 129, 256, 256>();
+}
+TEST_F(TInsertTest, case_nz_twoinput_hif8_2)
+{
+    testTInsertNZTwoInput<14, uint8_t, 129, 256, 256>();
+}
+TEST_F(TInsertTest, case_nz_twoinput_fp4e2m1_1)
+{
+    testTInsertNZTwoInput<15, uint8_t, 8, 16, 64>();
+}
+TEST_F(TInsertTest, case_nz_twoinput_fp4e1m2_1)
+{
+    testTInsertNZTwoInput<16, uint8_t, 8, 16, 64>();
+}
+TEST_F(TInsertTest, case_nz_twoinput_fp4e2m1_2)
+{
+    testTInsertNZTwoInput<17, uint8_t, 129, 256, 128>();
+}
+TEST_F(TInsertTest, case_nz_twoinput_fp4e1m2_2)
+{
+    testTInsertNZTwoInput<18, uint8_t, 129, 256, 128>();
+}
+
+template <int32_t testKey, typename dType, int32_t TileRows, int32_t DstRows, int32_t Cols>
+void testTInsertNZDoubleInput()
+{
+    constexpr int32_t c0Size = 32 / static_cast<int32_t>(sizeof(dType));
+    constexpr int32_t burstNum = Cols / c0Size;
+    constexpr size_t nz1Bytes = static_cast<size_t>(burstNum) * TileRows * c0Size * sizeof(dType);
+    constexpr size_t zeroBytes = static_cast<size_t>(DstRows) * Cols * sizeof(dType);
+    testSingleSrc<dType>(zeroBytes + 2 * nz1Bytes, zeroBytes, launchTInsertNZDoubleInput<testKey>);
+}
+
+TEST_F(TInsertTest, case_nz_dblinput_fp4e2m1_1)
+{
+    testTInsertNZDoubleInput<1, uint8_t, 17, 16, 64>();
+}
+TEST_F(TInsertTest, case_nz_dblinput_fp4e1m2_1)
+{
+    testTInsertNZDoubleInput<2, uint8_t, 17, 16, 64>();
+}
+TEST_F(TInsertTest, case_nz_dblinput_hif8_1)
+{
+    testTInsertNZDoubleInput<3, uint8_t, 17, 16, 128>();
+}
+TEST_F(TInsertTest, case_nz_dblinput_fp4e2m1_2)
+{
+    testTInsertNZDoubleInput<4, uint8_t, 129, 256, 128>();
+}
+TEST_F(TInsertTest, case_nz_dblinput_fp4e1m2_2)
+{
+    testTInsertNZDoubleInput<5, uint8_t, 129, 256, 128>();
+}
+TEST_F(TInsertTest, case_nz_dblinput_hif8_2)
+{
+    testTInsertNZDoubleInput<6, uint8_t, 129, 256, 256>();
+}
+TEST_F(TInsertTest, case_nz_dblinput_fp16_1)
+{
+    testTInsertNZDoubleInput<7, uint16_t, 17, 16, 128>();
+}
+TEST_F(TInsertTest, case_nz_dblinput_bf16_1)
+{
+    testTInsertNZDoubleInput<8, uint16_t, 17, 16, 128>();
+}
+TEST_F(TInsertTest, case_nz_dblinput_fp32_1)
+{
+    testTInsertNZDoubleInput<9, float, 17, 16, 128>();
+}
+TEST_F(TInsertTest, case_nz_dblinput_int8_1)
+{
+    testTInsertNZDoubleInput<10, uint8_t, 17, 16, 128>();
+}
+TEST_F(TInsertTest, case_nz_dblinput_fp8e5_1)
+{
+    testTInsertNZDoubleInput<11, uint8_t, 17, 16, 128>();
+}
+TEST_F(TInsertTest, case_nz_dblinput_fp8e4_1)
+{
+    testTInsertNZDoubleInput<12, uint8_t, 17, 16, 128>();
+}
+TEST_F(TInsertTest, case_nz_dblinput_fp16_2)
+{
+    testTInsertNZDoubleInput<13, uint16_t, 129, 256, 256>();
+}
+TEST_F(TInsertTest, case_nz_dblinput_bf16_2)
+{
+    testTInsertNZDoubleInput<14, uint16_t, 129, 256, 256>();
+}
+TEST_F(TInsertTest, case_nz_dblinput_fp32_2)
+{
+    testTInsertNZDoubleInput<15, float, 129, 256, 128>();
+}
+TEST_F(TInsertTest, case_nz_dblinput_int8_2)
+{
+    testTInsertNZDoubleInput<16, uint8_t, 129, 256, 256>();
+}
+TEST_F(TInsertTest, case_nz_dblinput_fp8e5_2)
+{
+    testTInsertNZDoubleInput<17, uint8_t, 129, 256, 256>();
+}
+TEST_F(TInsertTest, case_nz_dblinput_fp8e4_2)
+{
+    testTInsertNZDoubleInput<18, uint8_t, 129, 256, 256>();
+}
+
+// FP4 split remainder tests (3 NZ c0 blocks with SPLIT2 → partBurstNum=1, lastBurstNum=2)
+TEST_F(TInsertTest, case_nz_twoinput_fp4e2m1_3)
+{
+    testTInsertNZTwoInput<19, uint8_t, 8, 16, 96>();
+}
+TEST_F(TInsertTest, case_nz_twoinput_fp4e1m2_3)
+{
+    testTInsertNZTwoInput<20, uint8_t, 8, 16, 96>();
+}
+
+// FP4 non-zero indexCol tests
+template <int32_t testKey, int32_t SrcRows, int32_t SrcByteCols, int32_t DstRows, int32_t DstByteCols>
+void testTInsertNZFp4Offset()
+{
+    constexpr size_t srcNzBytes = static_cast<size_t>(SrcRows) * SrcByteCols;
+    constexpr size_t dstBytes = static_cast<size_t>(DstRows) * DstByteCols;
+    testSingleSrc<uint8_t>(dstBytes + srcNzBytes, dstBytes, launchTInsertNZFp4Offset<testKey>);
+}
+
+TEST_F(TInsertTest, case_nz_fp4_offset_e2m1_col)
+{
+    testTInsertNZFp4Offset<1, 16, 32, 16, 128>();
+}
+TEST_F(TInsertTest, case_nz_fp4_offset_e1m2_col)
+{
+    testTInsertNZFp4Offset<2, 16, 32, 16, 128>();
+}
+TEST_F(TInsertTest, case_nz_fp4_offset_e2m1_rowcol)
+{
+    testTInsertNZFp4Offset<3, 16, 32, 16, 128>();
+}
+TEST_F(TInsertTest, case_nz_fp4_offset_e1m2_rowcol)
+{
+    testTInsertNZFp4Offset<4, 16, 32, 16, 128>();
 }

@@ -265,7 +265,7 @@ def main():
     args = parser.parse_args()
     default_soc_version = "Ascend910B1"
     if args.soc_version == "a5":
-        default_soc_version = "Ascend950PR_9599"
+        default_soc_version = "Ascend910_9599"
     elif args.soc_version == "kirin9030":
         default_soc_version = "Kirin9030"
     elif args.soc_version == "kirinX90":

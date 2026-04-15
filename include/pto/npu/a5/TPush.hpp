@@ -218,13 +218,13 @@ struct TPipe {
             TASSIGN_IMPL(matTile, (uint64_t)(fifo.V2C_CONSUMER_BUF + entryBase + entryOffset));
             if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT) {
                 // single vector core
-                TINSERT_IMPL<TInsertMode::NZ>(matTile, tile, 0, 0);
+                TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(0), static_cast<uint16_t>(0));
             } else if constexpr (Split == TileSplitAxis::TILE_UP_DOWN) {
                 int rowIndex = ProdM * static_cast<size_t>(get_subblockid());
-                TINSERT_IMPL<TInsertMode::NZ>(matTile, tile, rowIndex, 0);
+                TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(rowIndex), static_cast<uint16_t>(0));
             } else if constexpr (Split == TileSplitAxis::TILE_LEFT_RIGHT) {
                 uint32_t colIndex = ProdN * static_cast<size_t>(get_subblockid());
-                TINSERT_IMPL<TInsertMode::NZ>(matTile, tile, 0, colIndex);
+                TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(0), static_cast<uint16_t>(colIndex));
             }
         }
 
@@ -850,35 +850,20 @@ struct TMPipe {
                 uint64_t entryBase = (tile_id % DataFiFo::fifoDepth) * ConsM * ConsN * sizeof(T);
                 TileDataCons matTile;
                 TASSIGN_IMPL(matTile, fifo.fifoBase + entryBase);
-                constexpr bool isNZPlus1 = (ConsM / ProdM) != 2;
-                if constexpr (isNZPlus1) { // NZ + 1 mode
-                    TINSERT_IMPL<TInsertMode::NZ_PLUS_1>(matTile, tile, row_offset, 0);
-                } else { // NZ mode
-                    TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(row_offset), static_cast<uint16_t>(0));
-                }
+                TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(row_offset), static_cast<uint16_t>(0));
             } else if constexpr (isSplitN) {
                 // split N between vectors
                 int col_index = ProdN;
                 uint64_t entryBase = (tile_id % DataFiFo::fifoDepth) * ConsM * ConsN * sizeof(T);
                 TileDataCons matTile;
                 TASSIGN_IMPL(matTile, fifo.fifoBase + entryBase);
-                constexpr bool isNZPlus1 = (ConsM / ProdM) != 2;
-                if constexpr (isNZPlus1) { // NZ+1 mode for bank conflict optimization
-                    TINSERT_IMPL<TInsertMode::NZ_PLUS_1>(matTile, tile, 0, col_index);
-                } else {
-                    TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(0), static_cast<uint16_t>(col_index));
-                }
+                TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(0), static_cast<uint16_t>(col_index));
             } else if constexpr (nonSplit) {
                 // single vector core
                 TileDataCons matTile;
                 uint64_t entryBase = (tile_id % DataFiFo::fifoDepth) * ConsM * ConsN * sizeof(T);
                 TASSIGN_IMPL(matTile, fifo.fifoBase + entryBase);
-                constexpr bool isNZPlus1 = (ProdM > ConsM);
-                if constexpr (isNZPlus1) { // NZ+1 mode
-                    TINSERT_IMPL<TInsertMode::NZ_PLUS_1>(matTile, tile, 0, 0);
-                } else {
-                    TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(0), static_cast<uint16_t>(0));
-                }
+                TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(0), static_cast<uint16_t>(0));
             } else {
                 static_assert(isSplitM || isSplitN || nonSplit,
                               "Fix: TPUSH(pushVec2MatFiFo) has unsupported split mode!");
