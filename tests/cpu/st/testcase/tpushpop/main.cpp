@@ -394,6 +394,60 @@ TEST_F(TPushPopTest, a5_style_c2v_dual_subblock_split_push_pop)
     run_iteration(1);
 }
 
+TEST_F(TPushPopTest, a5_style_c2v_dual_subblock_split_push_pop_without_tassign_dst)
+{
+    using AccTile = TileAcc<float, 16, 16>;
+    using VecTile = Tile<TileType::Vec, float, 8, 16, BLayout::RowMajor, 8, 16>;
+    using Pipe = TPipe<5, Direction::DIR_C2V, sizeof(float) * VecTile::Numel, 1>;
+
+    Pipe::reset_for_cpu_sim();
+    Pipe producer((__gm__ void *)nullptr, 0x0, 0x0);
+    Pipe consumer0((__gm__ void *)nullptr, 0x0, 0x0);
+    Pipe consumer1((__gm__ void *)nullptr, 0x0, 0x0);
+
+    auto run_iteration = [&](int iter) {
+        AccTile src;
+        VecTile topHalf;
+        VecTile bottomHalf;
+        TASSIGN(src, 0);
+        fillTile<float, 16, 16, TileType::Acc>(src, iter);
+
+        {
+            cpu_sim::ScopedExecutionContext producerCtx(0, 0, 1);
+            TPUSH<Pipe, AccTile, TileSplitAxis::TILE_UP_DOWN>(producer, src);
+        }
+        {
+            cpu_sim::ScopedExecutionContext consumerCtx(0, 0, 2);
+            TPOP<Pipe, VecTile, TileSplitAxis::TILE_UP_DOWN>(consumer0, topHalf);
+        }
+        {
+            cpu_sim::ScopedExecutionContext consumerCtx(0, 1, 2);
+            TPOP<Pipe, VecTile, TileSplitAxis::TILE_UP_DOWN>(consumer1, bottomHalf);
+        }
+
+        for (int r = 0; r < topHalf.GetValidRow(); ++r) {
+            for (int c = 0; c < topHalf.GetValidCol(); ++c) {
+                EXPECT_EQ(topHalf.data()[GetTileElementOffset<VecTile>(r, c)],
+                          src.data()[GetTileElementOffset<AccTile>(r, c)]);
+                EXPECT_EQ(bottomHalf.data()[GetTileElementOffset<VecTile>(r, c)],
+                          src.data()[GetTileElementOffset<AccTile>(r + topHalf.GetValidRow(), c)]);
+            }
+        }
+
+        {
+            cpu_sim::ScopedExecutionContext consumerCtx(0, 0, 2);
+            TFREE<Pipe, TileSplitAxis::TILE_UP_DOWN>(consumer0);
+        }
+        {
+            cpu_sim::ScopedExecutionContext consumerCtx(0, 1, 2);
+            TFREE<Pipe, TileSplitAxis::TILE_UP_DOWN>(consumer1);
+        }
+    };
+
+    run_iteration(0);
+    run_iteration(1);
+}
+
 TEST_F(TPushPopTest, a5_style_v2c_local_split_push_pop)
 {
     using VecTile = Tile<TileType::Vec, float, 8, 16, BLayout::RowMajor, 8, 16>;

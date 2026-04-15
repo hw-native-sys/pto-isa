@@ -1535,13 +1535,15 @@ public:
 #endif
 #endif
 
-#if (defined(__CPU_SIM) && defined(__PTO_AUTO__)) || defined(__COSTMODEL)
-    TileDType &data()
+#if defined(__CPU_SIM) || defined(__COSTMODEL)
+    AICORE TileDType &data()
     {
-        if (!data_) {
-            internalBuffer.resize(Rows * Cols);
-            data_ = internalBuffer.data();
-        }
+        ensureStorage();
+        return data_;
+    }
+    AICORE const TileDType &data() const
+    {
+        ensureStorage();
         return data_;
     }
 #else
@@ -1654,15 +1656,24 @@ public:
     }
 #endif
 private:
+#if defined(__CPU_SIM) || defined(__COSTMODEL)
+    AICORE void ensureStorage() const
+    {
+        if (!data_) {
+            internalBuffer.resize(Rows * Cols);
+            data_ = internalBuffer.data();
+        }
+    }
+#endif
     AICORE void assignData(TileDType data)
     {
         data_ = data;
     }
     bool isKAligned_; // K-Alignedment for A3
 
-#if (defined(__CPU_SIM) && defined(__PTO_AUTO__)) || defined(__COSTMODEL)
-    std::vector<DType> internalBuffer;
-    TileDType data_ = nullptr;
+#if defined(__CPU_SIM) || defined(__COSTMODEL)
+    mutable std::vector<DType> internalBuffer;
+    mutable TileDType data_ = nullptr;
 #else
     TileDType data_;
 #endif
