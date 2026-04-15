@@ -38,6 +38,7 @@ find_package(Threads REQUIRED)
 
 set(ALL_TESTCASES
 tscatter
+tgather
 )
 
 foreach(TESTCASE ${ALL_TESTCASES})
