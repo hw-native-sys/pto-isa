@@ -11,6 +11,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef PTO_COMM_TNOTIFY_HPP
 #define PTO_COMM_TNOTIFY_HPP
 
+#include <atomic>
 #include <pto/common/pto_tile.hpp>
 #include <pto/comm/comm_types.hpp>
 #include "pto/cpu/tile_offsets.hpp"
@@ -25,12 +26,14 @@ using NotifyOp = ::pto::comm::NotifyOp;
 template <typename GlobalSignalData>
 void TNotify_Impl(typename GlobalSignalData::DType *dstSignaData, int32_t value, NotifyOp op)
 {
+    using DType = typename GlobalSignalData::DType;
+    auto *atomicPtr = reinterpret_cast<std::atomic<DType> *>(dstSignaData);
     switch (op) {
         case NotifyOp::AtomicAdd:
-            dstSignaData[0] = dstSignaData[0] + value;
+            atomicPtr->fetch_add(static_cast<DType>(value), std::memory_order_seq_cst);
             break;
         case NotifyOp::Set:
-            dstSignaData[0] = value;
+            atomicPtr->store(static_cast<DType>(value), std::memory_order_seq_cst);
             break;
         default:
             break;

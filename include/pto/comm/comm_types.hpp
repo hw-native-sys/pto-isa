@@ -47,10 +47,12 @@ struct ParallelGroup {
         : tensors(tensorArray), nranks(size), rootIdx(root)
     {}
 
-    // Factory function (recommended)
-    AICORE static constexpr ParallelGroup Create(GlobalData *tensorArray, int size, int rank_id)
+    // Factory function (recommended).
+    // rootIdx: the index of the root rank in the group (not the caller's own rank).
+    // All ranks in the group must pass the same rootIdx value.
+    AICORE static constexpr ParallelGroup Create(GlobalData *tensorArray, int size, int rootIdx)
     {
-        return ParallelGroup(tensorArray, size, rank_id);
+        return ParallelGroup(tensorArray, size, rootIdx);
     }
 
     AICORE constexpr int GetRootIdx() const

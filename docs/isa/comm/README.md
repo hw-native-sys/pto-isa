@@ -33,8 +33,8 @@ Operation type for `TNOTIFY`:
 
 | Value | Description |
 |-------|-------------|
-| `NotifyOp::Set` | Direct set (`signal = value`) |
 | `NotifyOp::AtomicAdd` | Atomic add (`signal += value`) |
+| `NotifyOp::Set` | Direct set (`signal = value`) |
 
 ### WaitCmp
 

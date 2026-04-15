@@ -1,10 +1,10 @@
-﻿# TGET
+# TGET
 
 ## Introduction
 
 Remote read operation: read remote NPU's data to local memory. Data is transferred via a UB tile as intermediate staging buffer.
 
-When the GlobalTensor exceeds the UB tile capacity, TGET automatically performs **2D sliding** �?chunking rows (DIM_3) and columns (DIM_4) to fit each chunk into the tile, iterating over all outer dimensions (DIM_0, DIM_1, DIM_2).
+When the GlobalTensor exceeds the UB tile capacity, TGET automatically performs **2D sliding**: chunking rows (DIM_3) and columns (DIM_4) to fit each chunk into the tile, iterating over all outer dimensions (DIM_0, DIM_1, DIM_2).
 
 ## Math Interpretation
 
@@ -12,7 +12,7 @@ For each element `(i, j)` in the valid region:
 
 $$ \mathrm{dst}^{\mathrm{local}}_{i,j} = \mathrm{src}^{\mathrm{remote}}_{i,j} $$
 
-Data flow: `srcGlobalData (remote GM)` �?`stagingTileData (UB)` �?`dstGlobalData (local GM)`
+Data flow: `srcGlobalData (remote GM)` ->`stagingTileData (UB)` ->`dstGlobalData (local GM)`
 
 ## Assembly Syntax
 

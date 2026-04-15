@@ -97,4 +97,4 @@ inline void TWAIT_IMPL(GlobalSignalData &signalData, int32_t cmpValue, comm::Wai
 } // namespace comm
 } // namespace pto
 
-#endif // TTRI_HPP
+#endif // TWAIT_HPP
