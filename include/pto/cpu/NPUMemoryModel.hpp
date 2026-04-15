@@ -1,5 +1,5 @@
 // --------------------------------------------------------------------------------
-// Copyright (c) 2025 Huawei Technologies Co., Ltd.
+// Copyright (c) 2026 Huawei Technologies Co., Ltd.
 // This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 // CANN Open Software License Agreement Version 2.0 (the "License").
 // Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -146,6 +146,22 @@ public:
         }
     }
 
+    // PTOAS-generated CPU-sim kernels may TASSIGN either:
+    // - a byte offset within the simulated NPU region, or
+    // - an already-materialized host pointer to a tile in that region
+    //   (used when creating another tile view over the same backing storage).
+    template <typename TileDef>
+    typename TileDef::DType *ResolveAssignedAddress(std::uintptr_t addr)
+    {
+        static_assert(is_tile_data_v<TileDef>);
+        EnsureInitialized();
+
+        if (auto *direct = TryResolveExistingPointer<typename TileDef::DType>(addr)) {
+            return direct;
+        }
+        return GetPointer<TileDef>(static_cast<std::size_t>(addr));
+    }
+
     // Get raw buffer bases (for debugging/direct access)
     char *GetUBBase()
     {
@@ -228,6 +244,20 @@ public:
     }
 
 private:
+    template <typename T>
+    T *TryResolveExistingPointer(std::uintptr_t addr)
+    {
+        for (int region = 0; region < MemoryRegion::_MAX_REGIONS; ++region) {
+            auto *base = buffers_[region].data();
+            const auto start = reinterpret_cast<std::uintptr_t>(base);
+            const auto end = start + buffers_[region].size();
+            if (addr >= start && addr < end) {
+                return reinterpret_cast<T *>(addr);
+            }
+        }
+        return nullptr;
+    }
+
     template <typename T, MemoryRegion region>
     inline T *GetPointer(std::size_t byteOffset, size_t numel)
     {
