@@ -22,6 +22,27 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 namespace comm {
 
+template <typename GlobalDataDst, typename GlobalDataSrc>
+void Gather(typename GlobalDataDst::DType *dst, typename GlobalDataSrc::DType *src, long int srcShape[],
+            long int srcStride[], long int dstStride[], long int dstOffset)
+{
+    for (size_t i = 0; i < srcShape[0]; i++) {
+        for (size_t j = 0; j < srcShape[1]; j++) {
+            for (size_t k = 0; k < srcShape[2]; k++) {
+                for (size_t l = 0; l < srcShape[3]; l++) {
+                    for (size_t m = 0; m < srcShape[4]; m++) {
+                        int srcIndex = i * srcStride[0] + j * srcStride[1] + k * srcStride[2] + l * srcStride[3] +
+                                       m * srcStride[4];
+                        int dstIndex = i * dstStride[0] + j * dstStride[1] + k * dstStride[2] +
+                                       (l + dstOffset) * dstStride[3] + m * dstStride[4];
+                        dst[dstIndex] = src[srcIndex];
+                    }
+                }
+            }
+        }
+    }
+}
+
 // ============================================================================
 // TGATHER_IMPL: Gather operation - root collects data from all ranks
 //
@@ -56,7 +77,37 @@ PTO_INTERNAL void TGATHER_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &
                   "TGATHER: TileData element type must match GlobalData element type");
     static_assert(GlobalSrcData::layout == GlobalDstData::layout, "TGATHER: src/dst layout mismatch");
 
-    // CPU Logic is not implemented yet
+    const int nranks = parallelGroup.GetSize();
+    const int rootIdx = parallelGroup.GetRootIdx();
+
+    PTO_ASSERT(nranks > 0, "ParallelGroup size must be greater than 0!");
+    PTO_ASSERT(rootIdx >= 0 && rootIdx < nranks, "rootIdx must be in range [0, nranks)!");
+
+    constexpr size_t numDims = 5;
+
+    long int dstStride[numDims] = {dstGlobalData.GetStride(0), dstGlobalData.GetStride(1), dstGlobalData.GetStride(2),
+                                   dstGlobalData.GetStride(3), dstGlobalData.GetStride(4)};
+
+    GlobalSrcData &srcTensor = parallelGroup[0];
+    long int srcShape[numDims] = {srcTensor.GetShape(0), srcTensor.GetShape(1), srcTensor.GetShape(2),
+                                  srcTensor.GetShape(3), srcTensor.GetShape(4)};
+    long int srcStride[numDims] = {srcTensor.GetStride(0), srcTensor.GetStride(1), srcTensor.GetStride(2),
+                                   srcTensor.GetStride(3), srcTensor.GetStride(4)};
+    long int DST_DIM_3 = srcTensor.GetShape(3);
+
+    PTO_ASSERT(dstGlobalData.GetShape(0) == srcTensor.GetShape(0), "TSCATTER: src DIM0 must equal dst DIM0!");
+    PTO_ASSERT(dstGlobalData.GetShape(1) == srcTensor.GetShape(1), "TSCATTER: src DIM1 must equal dst DIM1!");
+    PTO_ASSERT(dstGlobalData.GetShape(2) == srcTensor.GetShape(2), "TSCATTER: src DIM2 must equal dst DIM2!");
+    PTO_ASSERT(dstGlobalData.GetShape(3) == srcTensor.GetShape(3) * nranks,
+               "TSCATTER: src DIM3 must equal dst DIM3 * nranks!");
+    PTO_ASSERT(dstGlobalData.GetShape(4) == srcTensor.GetShape(4), "TSCATTER: src DIM4 must equal dst DIM4!");
+
+    for (int r = 0; r < nranks; ++r) {
+        GlobalSrcData &srcGlobalData = parallelGroup[r];
+        long int currentSrcOffset = r * DST_DIM_3;
+        Gather<GlobalDstData, GlobalSrcData>(dstGlobalData.data(), srcGlobalData.data(), srcShape, srcStride, dstStride,
+                                             currentSrcOffset);
+    }
 }
 
 // ============================================================================
@@ -89,7 +140,7 @@ PTO_INTERNAL void TGATHER_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &
     const int nranks = parallelGroup.GetSize();
     const int rootIdx = parallelGroup.GetRootIdx();
 
-    // CPU Logic is not implemented yet
+    TGATHER_IMPL(parallelGroup, dstGlobalData, pingTile);
 }
 
 } // namespace comm
