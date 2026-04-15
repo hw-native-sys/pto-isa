@@ -59,7 +59,7 @@ PTO_INTERNAL void TROWEXPANDSUB_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileD
     unsigned src0ValidCol = src0.GetValidCol();
     unsigned src1ValidRow = src1.GetValidRow();
     unsigned src1ValidCol = src1.GetValidCol();
-    bool src0eqdst = (validRow == src0ValidRow) && (validCol == src0ValidCol);
+    bool src0eqdst = (validRow == src0ValidRow) && (validCol == src0ValidCol) && (src1ValidCol == TileDataSrc1::Cols);
     bool src1eqdst = (validRow == src1ValidRow) && (validCol == src1ValidCol);
     PTO_ASSERT((src0eqdst && TileDataSrc0::isRowMajor) || (src1eqdst && TileDataSrc1::isRowMajor),
                "TROWEXPANSUB: the validShape of src0 or src1 should be equal to those of dst.");
