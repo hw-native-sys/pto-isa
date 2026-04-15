@@ -57,8 +57,8 @@ Those sources define the buffered unaligned-store mechanism in detail, but they 
 
 | Metric | Status | Source Basis |
 |--------|--------|--------------|
-| A5 latency | Not publicly published | `visa.txt` §8.9 `VSTUS`, `PTOAS/docs/vpto-spec.md` |
-| Steady-state throughput | Not publicly published | `visa.txt` §8.9 `VSTUS`, `PTOAS/docs/vpto-spec.md` |
+| A5 latency | Not publicly published | Current public VPTO timing material |
+| Steady-state throughput | Not publicly published | Current public VPTO timing material |
 
 Because `pto.vstus` participates in a stateful buffered-store stream, exact timing is backend-specific unless and until the public ISA source publishes a numeric contract.
 

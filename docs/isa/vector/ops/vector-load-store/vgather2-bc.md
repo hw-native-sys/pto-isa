@@ -50,13 +50,13 @@ This is a backward-compatible instruction set. Masked-off lanes do not participa
 
 ### Timing Disclosure
 
-The timing sources currently used for PTO micro-instruction pages are `~/visa.txt` and `PTOAS/docs/vpto-spec.md` on the latest fetched `feature_vpto_backend` branch.
+The current public VPTO timing material for PTO micro instructions remains limited.
 For `pto.vgather2_bc`, those public sources describe the instruction semantics, operand legality, and pipeline placement, but they do **not** publish a numeric latency or steady-state throughput.
 
 | Metric | Status | Source Basis |
 |--------|--------|--------------|
-| A5 latency | Not publicly published | `visa.txt`, `PTOAS/docs/vpto-spec.md` |
-| Steady-state throughput | Not publicly published | `visa.txt`, `PTOAS/docs/vpto-spec.md` |
+| A5 latency | Not publicly published | Current public VPTO timing material |
+| Steady-state throughput | Not publicly published | Current public VPTO timing material |
 
 If software scheduling or performance modeling depends on the exact cost of `pto.vgather2_bc`, treat that cost as target-profile-specific and measure it on the concrete backend rather than inferring a manual constant.
 

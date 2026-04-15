@@ -44,12 +44,7 @@ See the [Vector ISA reference](./README.md) for the full per-op reference under 
 ## Timing Coverage Policy
 
 The standalone micro-instruction pages under `vector/ops/` now all carry an explicit timing section.
-That section is sourced in this order:
-
-1. Public timing statements in `~/visa.txt`
-2. VPTO semantic context from `PTOAS/docs/vpto-spec.md` on the latest fetched `feature_vpto_backend` branch
-
-Where those sources do not publish a numeric latency or steady-state throughput, the per-op page states that the timing is not publicly published and must be measured on the concrete backend.
+Those timing sections are limited to what the current public VPTO material actually discloses. Where the public material does not publish a numeric latency or steady-state throughput, the per-op page states that the timing is not publicly published and must be measured on the concrete backend.
 
 
 ## See Also

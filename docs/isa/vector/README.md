@@ -37,10 +37,7 @@ The left sidebar provides standalone per-op pages for all vector instructions. U
 
 ## Source And Timing Provenance
 
-This vector reference is cross-checked against two current VPTO sources:
-
-- `PTOAS/docs/vpto-spec.md` from the latest fetched `feature_vpto_backend` branch for operation spelling, operand legality, and execution-surface semantics.
-- `~/visa.txt` for public Vector Thread ISA wording, especially where the public ISA text explicitly publishes timing or stream-throughput behavior.
+This vector reference treats the current public VPTO semantic and timing material as the input for all per-op timing disclosures.
 
 Timing disclosure policy for the per-op pages is intentionally strict:
 

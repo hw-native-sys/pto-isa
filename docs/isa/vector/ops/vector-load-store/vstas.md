@@ -54,8 +54,8 @@ Those sources describe the buffered-tail flush semantics precisely, but they do 
 
 | Metric | Status | Source Basis |
 |--------|--------|--------------|
-| A5 latency | Not publicly published | `visa.txt` §8.6 `VSTAS`, `PTOAS/docs/vpto-spec.md` |
-| Steady-state throughput | Not publicly published | `visa.txt` §8.6 `VSTAS`, `PTOAS/docs/vpto-spec.md` |
+| A5 latency | Not publicly published | Current public VPTO timing material |
+| Steady-state throughput | Not publicly published | Current public VPTO timing material |
 
 Code that depends on the cost of the trailing flush step MUST measure the concrete backend rather than assuming a public cycle constant from the ISA text.
 

@@ -55,8 +55,8 @@ Those sources do **not** publish a standalone numeric latency for the priming op
 
 | Metric | Value | Source Basis |
 |--------|-------|--------------|
-| A5 priming-op latency | Not publicly published | `visa.txt`, `PTOAS/docs/vpto-spec.md` |
-| Subsequent unaligned-load throughput | One CPI for each subsequent unaligned load instruction in the same stream | `visa.txt` §7.5 `VLDAS` |
+| A5 priming-op latency | Not publicly published | Current public VPTO timing material |
+| Subsequent unaligned-load throughput | One CPI for each subsequent unaligned load instruction in the same stream | Public ISA timing note for the primed unaligned-load stream |
 
 `pto.vldas` should therefore be read as a setup instruction: the public timing contract is about the **following unaligned load stream**, not an isolated latency number for the setup op.
 

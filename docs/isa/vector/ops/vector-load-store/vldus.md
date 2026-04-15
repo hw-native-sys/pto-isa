@@ -53,12 +53,12 @@ A matching `pto.vldas` MUST appear before the first dependent `pto.vldus`
 ### Timing Disclosure
 
 The current public VPTO timing sources for `pto.vldus` are `~/visa.txt` and `PTOAS/docs/vpto-spec.md` on the latest fetched `feature_vpto_backend` branch.
-They do **not** publish a standalone numeric latency for `pto.vldus`, but the ISA text does publish the throughput contract for the `pto.vldas`-primed unaligned load stream that `pto.vldus` participates in.
+It does **not** publish a standalone numeric latency for `pto.vldus`, but it does publish the throughput contract for the `pto.vldas`-primed unaligned load stream that `pto.vldus` participates in.
 
 | Metric | Value | Source Basis |
 |--------|-------|--------------|
-| A5 standalone latency | Not publicly published | `visa.txt`, `PTOAS/docs/vpto-spec.md` |
-| Stream throughput with matching `pto.vldas` primer | One CPI for each subsequent unaligned load instruction | `visa.txt` §7.5 `VLDAS` / §7.7 `VLDUS` |
+| A5 standalone latency | Not publicly published | Current public VPTO timing material |
+| Stream throughput with matching `pto.vldas` primer | One CPI for each subsequent unaligned load instruction | Public ISA timing note for the primed unaligned-load stream |
 
 When documentation or scheduling depends on the throughput claim, treat it as a property of the **primed unaligned-load stream**, not as an isolated latency guarantee for `pto.vldus` alone.
 
