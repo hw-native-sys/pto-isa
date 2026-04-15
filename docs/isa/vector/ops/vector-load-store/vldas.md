@@ -46,6 +46,20 @@ This op is the required leading operation for a `pto.vldus` stream using the
 - A5 is the most detailed concrete profile in the current manual; CPU simulation and A2/A3-class targets may support narrower subsets or emulate the behavior while preserving the visible PTO contract.
 - Code that depends on an instruction-set-specific type list, distribution mode, or fused form should treat that dependency as target-profile-specific unless the PTO manual states cross-target portability explicitly.
 
+## Performance
+
+### Timing Disclosure
+
+The current public VPTO timing sources for `pto.vldas` are `~/visa.txt` and `PTOAS/docs/vpto-spec.md` on the latest fetched `feature_vpto_backend` branch.
+Those sources do **not** publish a standalone numeric latency for the priming op itself, but `visa.txt` is explicit about the stream-level throughput contract.
+
+| Metric | Value | Source Basis |
+|--------|-------|--------------|
+| A5 priming-op latency | Not publicly published | `visa.txt`, `PTOAS/docs/vpto-spec.md` |
+| Subsequent unaligned-load throughput | One CPI for each subsequent unaligned load instruction in the same stream | `visa.txt` §7.5 `VLDAS` |
+
+`pto.vldas` should therefore be read as a setup instruction: the public timing contract is about the **following unaligned load stream**, not an isolated latency number for the setup op.
+
 ## Examples
 
 ```mlir

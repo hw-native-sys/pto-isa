@@ -44,6 +44,20 @@ The two outputs form the even/odd
 - A5 is the most detailed concrete profile in the current manual; CPU simulation and A2/A3-class targets may support narrower subsets or emulate the behavior while preserving the visible PTO contract.
 - Code that depends on an instruction-set-specific type list, distribution mode, or fused form should treat that dependency as target-profile-specific unless the PTO manual states cross-target portability explicitly.
 
+## Performance
+
+### Timing Disclosure
+
+The timing sources currently used for PTO micro-instruction pages are `~/visa.txt` and `PTOAS/docs/vpto-spec.md` on the latest fetched `feature_vpto_backend` branch.
+For `pto.vdintlv`, those public sources describe the instruction semantics, operand legality, and pipeline placement, but they do **not** publish a numeric latency or steady-state throughput.
+
+| Metric | Status | Source Basis |
+|--------|--------|--------------|
+| A5 latency | Not publicly published | `visa.txt`, `PTOAS/docs/vpto-spec.md` |
+| Steady-state throughput | Not publicly published | `visa.txt`, `PTOAS/docs/vpto-spec.md` |
+
+If software scheduling or performance modeling depends on the exact cost of `pto.vdintlv`, treat that cost as target-profile-specific and measure it on the concrete backend rather than inferring a manual constant.
+
 ## Examples
 
 ```c
@@ -59,8 +73,6 @@ The two outputs form the even/odd
 // low  = {src0[0], src0[2], src0[4], ...}  // even
 // high = {src0[1], src0[3], src0[5], ...}  // odd
 ```
-
-## Slide / Shift
 
 ## Related Ops / Instruction Set Links
 

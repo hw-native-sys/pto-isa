@@ -73,6 +73,20 @@ This operation mutates `%dest` in UB memory. It does not reserve buffers, signal
 - CPU simulation may preserve the visible merge behavior with a software fallback.
 - Availability and exact configuration encoding on other profiles are target-specific.
 
+## Performance
+
+### Timing Disclosure
+
+The timing sources currently used for PTO micro-instruction pages are `~/visa.txt` and `PTOAS/docs/vpto-spec.md` on the latest fetched `feature_vpto_backend` branch.
+For `pto.vmrgsort`, those public sources describe the instruction semantics, operand legality, and pipeline placement, but they do **not** publish a numeric latency or steady-state throughput.
+
+| Metric | Status | Source Basis |
+|--------|--------|--------------|
+| A5 latency | Not publicly published | `visa.txt`, `PTOAS/docs/vpto-spec.md` |
+| Steady-state throughput | Not publicly published | `visa.txt`, `PTOAS/docs/vpto-spec.md` |
+
+If software scheduling or performance modeling depends on the exact cost of `pto.vmrgsort`, treat that cost as target-profile-specific and measure it on the concrete backend rather than inferring a manual constant.
+
 ## Examples
 
 ### Merge four sorted UB segments

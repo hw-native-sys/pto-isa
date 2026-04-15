@@ -48,6 +48,20 @@ This is the scalar-offset stateful form of the unaligned store instruction set. 
 - A5 is the most detailed concrete profile in the current manual; CPU simulation and A2/A3-class targets may support narrower subsets or emulate the behavior while preserving the visible PTO contract.
 - Code that depends on an instruction-set-specific type list, distribution mode, or fused form should treat that dependency as target-profile-specific unless the PTO manual states cross-target portability explicitly.
 
+## Performance
+
+### Timing Disclosure
+
+The current public VPTO timing sources for `pto.vstus` are `~/visa.txt` and `PTOAS/docs/vpto-spec.md` on the latest fetched `feature_vpto_backend` branch.
+Those sources define the buffered unaligned-store mechanism in detail, but they do **not** publish a numeric latency or steady-state throughput for `pto.vstus`.
+
+| Metric | Status | Source Basis |
+|--------|--------|--------------|
+| A5 latency | Not publicly published | `visa.txt` §8.9 `VSTUS`, `PTOAS/docs/vpto-spec.md` |
+| Steady-state throughput | Not publicly published | `visa.txt` §8.9 `VSTUS`, `PTOAS/docs/vpto-spec.md` |
+
+Because `pto.vstus` participates in a stateful buffered-store stream, exact timing is backend-specific unless and until the public ISA source publishes a numeric contract.
+
 ## Examples
 
 ```mlir

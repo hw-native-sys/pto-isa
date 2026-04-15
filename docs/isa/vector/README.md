@@ -35,6 +35,20 @@ Vector length `N` is a power of 2. Common values depend on the target profile.
 
 The left sidebar provides standalone per-op pages for all vector instructions. Use the instruction set overviews above to understand shared constraints and mechanisms before reading individual opcode pages.
 
+## Source And Timing Provenance
+
+This vector reference is cross-checked against two current VPTO sources:
+
+- `PTOAS/docs/vpto-spec.md` from the latest fetched `feature_vpto_backend` branch for operation spelling, operand legality, and execution-surface semantics.
+- `~/visa.txt` for public Vector Thread ISA wording, especially where the public ISA text explicitly publishes timing or stream-throughput behavior.
+
+Timing disclosure policy for the per-op pages is intentionally strict:
+
+- If the public sources publish a numeric latency or throughput, the page states that number.
+- If the public sources only publish a stream-level statement, such as the one-CPI note on unaligned-load priming, the page states exactly that narrower contract.
+- If the public sources do not publish a numeric timing value, the page now says so explicitly instead of guessing.
+
+
 ## See Also
 
 - [Vector instructions](../instruction-surfaces/vector-instructions.md)

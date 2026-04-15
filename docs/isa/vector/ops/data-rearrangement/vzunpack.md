@@ -43,6 +43,20 @@ This is the zero-extending unpack instruction set.
 - A5 is the most detailed concrete profile in the current manual; CPU simulation and A2/A3-class targets may support narrower subsets or emulate the behavior while preserving the visible PTO contract.
 - Code that depends on an instruction-set-specific type list, distribution mode, or fused form should treat that dependency as target-profile-specific unless the PTO manual states cross-target portability explicitly.
 
+## Performance
+
+### Timing Disclosure
+
+The timing sources currently used for PTO micro-instruction pages are `~/visa.txt` and `PTOAS/docs/vpto-spec.md` on the latest fetched `feature_vpto_backend` branch.
+For `pto.vzunpack`, those public sources describe the instruction semantics, operand legality, and pipeline placement, but they do **not** publish a numeric latency or steady-state throughput.
+
+| Metric | Status | Source Basis |
+|--------|--------|--------------|
+| A5 latency | Not publicly published | `visa.txt`, `PTOAS/docs/vpto-spec.md` |
+| Steady-state throughput | Not publicly published | `visa.txt`, `PTOAS/docs/vpto-spec.md` |
+
+If software scheduling or performance modeling depends on the exact cost of `pto.vzunpack`, treat that cost as target-profile-specific and measure it on the concrete backend rather than inferring a manual constant.
+
 ## Examples
 
 ```c
@@ -102,8 +116,6 @@ for (int i = 0; i < N/2; i++)
 %packed_i16 = pto.vpack %wide0_i32, %wide1_i32, %c0
     : !pto.vreg<64xi32>, !pto.vreg<64xi32>, index -> !pto.vreg<128xi16>
 ```
-
-## V2 Interleave Forms
 
 ## Related Ops / Instruction Set Links
 

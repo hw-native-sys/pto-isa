@@ -82,10 +82,6 @@ for (int i = 0; i < N; i++)
 
 ## Related Ops / Instruction Set Links
 
-## Transcendental
-
-## Related Ops / Instruction Set Links
-
 - Instruction set overview: [Unary Vector Instructions](../../unary-vector-ops.md)
 - Previous op in instruction set: [pto.vabs](./vabs.md)
 - Next op in instruction set: [pto.vexp](./vexp.md)

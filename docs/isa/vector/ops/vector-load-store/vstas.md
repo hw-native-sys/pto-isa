@@ -45,6 +45,20 @@ This instruction set uses the same buffered-tail semantics as `pto.vsta` but kee
 - A5 is the most detailed concrete profile in the current manual; CPU simulation and A2/A3-class targets may support narrower subsets or emulate the behavior while preserving the visible PTO contract.
 - Code that depends on an instruction-set-specific type list, distribution mode, or fused form should treat that dependency as target-profile-specific unless the PTO manual states cross-target portability explicitly.
 
+## Performance
+
+### Timing Disclosure
+
+The current public VPTO timing sources for `pto.vstas` are `~/visa.txt` and `PTOAS/docs/vpto-spec.md` on the latest fetched `feature_vpto_backend` branch.
+Those sources describe the buffered-tail flush semantics precisely, but they do **not** publish a numeric latency or steady-state throughput for `pto.vstas`.
+
+| Metric | Status | Source Basis |
+|--------|--------|--------------|
+| A5 latency | Not publicly published | `visa.txt` §8.6 `VSTAS`, `PTOAS/docs/vpto-spec.md` |
+| Steady-state throughput | Not publicly published | `visa.txt` §8.6 `VSTAS`, `PTOAS/docs/vpto-spec.md` |
+
+Code that depends on the cost of the trailing flush step MUST measure the concrete backend rather than assuming a public cycle constant from the ISA text.
+
 ## Examples
 
 ```mlir

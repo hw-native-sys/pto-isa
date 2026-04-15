@@ -10,9 +10,6 @@ Standalone contract page for `pto.vtrc`.
 
 `pto.vtrc` belongs to the `pto.v*` conversion instruction set. It changes vector element interpretation, width, rounding, saturation, or index-generation state without leaving the vector-register model.
 
-## Syntax
-
-
 ## Inputs
 
 This operation follows the operand model of the [Conversion Ops](../../conversion-ops.md) instruction set: SSA vector values carry payloads, masks gate active lanes when present, and instruction-set-specific attributes select rounding, selection, distribution, or fused-mode behavior.
@@ -37,6 +34,20 @@ This operation inherits the legality and operand-shape rules of its instruction 
 
 - A5 is the most detailed concrete profile in the current manual; CPU simulation and A2/A3-class targets may support narrower subsets or emulate the behavior while preserving the visible PTO contract.
 - Code that depends on an instruction-set-specific type list, distribution mode, or fused form should treat that dependency as target-profile-specific unless the PTO manual states cross-target portability explicitly.
+
+## Performance
+
+### Timing Disclosure
+
+The timing sources currently used for PTO micro-instruction pages are `~/visa.txt` and `PTOAS/docs/vpto-spec.md` on the latest fetched `feature_vpto_backend` branch.
+For `pto.vtrc`, those public sources describe the instruction semantics, operand legality, and pipeline placement, but they do **not** publish a numeric latency or steady-state throughput.
+
+| Metric | Status | Source Basis |
+|--------|--------|--------------|
+| A5 latency | Not publicly published | `visa.txt`, `PTOAS/docs/vpto-spec.md` |
+| Steady-state throughput | Not publicly published | `visa.txt`, `PTOAS/docs/vpto-spec.md` |
+
+If software scheduling or performance modeling depends on the exact cost of `pto.vtrc`, treat that cost as target-profile-specific and measure it on the concrete backend rather than inferring a manual constant.
 
 ## Examples
 

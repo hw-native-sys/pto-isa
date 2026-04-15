@@ -48,6 +48,20 @@ A matching `pto.vldas` MUST appear before the first dependent `pto.vldus`
 - A5 is the most detailed concrete profile in the current manual; CPU simulation and A2/A3-class targets may support narrower subsets or emulate the behavior while preserving the visible PTO contract.
 - Code that depends on an instruction-set-specific type list, distribution mode, or fused form should treat that dependency as target-profile-specific unless the PTO manual states cross-target portability explicitly.
 
+## Performance
+
+### Timing Disclosure
+
+The current public VPTO timing sources for `pto.vldus` are `~/visa.txt` and `PTOAS/docs/vpto-spec.md` on the latest fetched `feature_vpto_backend` branch.
+They do **not** publish a standalone numeric latency for `pto.vldus`, but the ISA text does publish the throughput contract for the `pto.vldas`-primed unaligned load stream that `pto.vldus` participates in.
+
+| Metric | Value | Source Basis |
+|--------|-------|--------------|
+| A5 standalone latency | Not publicly published | `visa.txt`, `PTOAS/docs/vpto-spec.md` |
+| Stream throughput with matching `pto.vldas` primer | One CPI for each subsequent unaligned load instruction | `visa.txt` §7.5 `VLDAS` / §7.7 `VLDUS` |
+
+When documentation or scheduling depends on the throughput claim, treat it as a property of the **primed unaligned-load stream**, not as an isolated latency guarantee for `pto.vldus` alone.
+
 ## Examples
 
 ```mlir
@@ -62,8 +76,6 @@ A matching `pto.vldas` MUST appear before the first dependent `pto.vldus`
 %align = pto.vldas %ub : !pto.ptr<f32, ub> -> !pto.align
 %vec, %align2, %ub2 = pto.vldus %ub, %align : !pto.ptr<f32, ub>, !pto.align -> !pto.vreg<64xf32>, !pto.align, !pto.ptr<f32, ub>
 ```
-
-## Dual Loads (Deinterleave)
 
 ## Related Ops / Instruction Set Links
 

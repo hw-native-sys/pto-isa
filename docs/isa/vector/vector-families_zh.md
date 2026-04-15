@@ -28,3 +28,14 @@
 
 - [向量指令集](../instruction-surfaces/vector-instructions_zh.md)
 - [向量参考入口](./README_zh.md)
+
+## 时序覆盖策略
+
+`vector/ops/` 下的每个微指令页面现在都带有显式的性能小节。
+这些小节按以下顺序取材：
+
+1. `~/visa.txt` 中公开披露的时延/吞吐说明
+2. `PTOAS/docs/vpto-spec.md`（最新抓取的 `feature_vpto_backend` 分支）中的 VPTO 语义背景
+
+如果这两类公开来源都没有给出数字时延或稳态吞吐，页面会明确写成“公开来源未给出”，并要求读者在具体 backend 上实测。
+

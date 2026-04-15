@@ -83,10 +83,6 @@ for (int i = 0; i < N; i++)
 
 ## Related Ops / Instruction Set Links
 
-## Bitwise
-
-## Related Ops / Instruction Set Links
-
 - Instruction set overview: [Unary Vector Instructions](../../unary-vector-ops.md)
 - Previous op in instruction set: [pto.vrec](./vrec.md)
 - Next op in instruction set: [pto.vnot](./vnot.md)

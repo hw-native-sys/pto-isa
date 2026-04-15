@@ -47,6 +47,20 @@ Integer element types only. Signedness of the
 - A5 is the most detailed concrete profile in the current manual; CPU simulation and A2/A3-class targets may support narrower subsets or emulate the behavior while preserving the visible PTO contract.
 - Code that depends on an instruction-set-specific type list, distribution mode, or fused form should treat that dependency as target-profile-specific unless the PTO manual states cross-target portability explicitly.
 
+## Performance
+
+### Timing Disclosure
+
+The timing sources currently used for PTO micro-instruction pages are `~/visa.txt` and `PTOAS/docs/vpto-spec.md` on the latest fetched `feature_vpto_backend` branch.
+For `pto.vshr`, those public sources describe the instruction semantics, operand legality, and pipeline placement, but they do **not** publish a numeric latency or steady-state throughput.
+
+| Metric | Status | Source Basis |
+|--------|--------|--------------|
+| A5 latency | Not publicly published | `visa.txt`, `PTOAS/docs/vpto-spec.md` |
+| Steady-state throughput | Not publicly published | `visa.txt`, `PTOAS/docs/vpto-spec.md` |
+
+If software scheduling or performance modeling depends on the exact cost of `pto.vshr`, treat that cost as target-profile-specific and measure it on the concrete backend rather than inferring a manual constant.
+
 ## Examples
 
 ```c
@@ -60,8 +74,6 @@ for (int i = 0; i < N; i++)
 for (int i = 0; i < N; i++)
     dst[i] = src0[i] >> src1[i];  // arithmetic for signed, logical for unsigned
 ```
-
-## Carry Operations
 
 ## Related Ops / Instruction Set Links
 

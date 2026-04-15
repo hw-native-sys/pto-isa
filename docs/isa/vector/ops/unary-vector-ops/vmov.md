@@ -43,6 +43,20 @@ Predicated `pto.vmov` behaves like a masked
 - A5 is the most detailed concrete profile in the current manual; CPU simulation and A2/A3-class targets may support narrower subsets or emulate the behavior while preserving the visible PTO contract.
 - Code that depends on an instruction-set-specific type list, distribution mode, or fused form should treat that dependency as target-profile-specific unless the PTO manual states cross-target portability explicitly.
 
+## Performance
+
+### Timing Disclosure
+
+The timing sources currently used for PTO micro-instruction pages are `~/visa.txt` and `PTOAS/docs/vpto-spec.md` on the latest fetched `feature_vpto_backend` branch.
+For `pto.vmov`, those public sources describe the instruction semantics, operand legality, and pipeline placement, but they do **not** publish a numeric latency or steady-state throughput.
+
+| Metric | Status | Source Basis |
+|--------|--------|--------------|
+| A5 latency | Not publicly published | `visa.txt`, `PTOAS/docs/vpto-spec.md` |
+| Steady-state throughput | Not publicly published | `visa.txt`, `PTOAS/docs/vpto-spec.md` |
+
+If software scheduling or performance modeling depends on the exact cost of `pto.vmov`, treat that cost as target-profile-specific and measure it on the concrete backend rather than inferring a manual constant.
+
 ## Examples
 
 ```c
@@ -50,40 +64,26 @@ for (int i = 0; i < N; i++)
     dst[i] = src[i];
 ```
 
+### Full-register copy
+
 ```mlir
-// Softmax numerator: exp(x - max)
-%sub = pto.vsub %x, %max_broadcast, %mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
-%exp = pto.vexp %sub, %mask : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+%dst = pto.vmov %src, %mask_all : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+```
 
-// Reciprocal for division
-%sum_rcp = pto.vrec %sum, %mask : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+### Predicated copy
 
-// ReLU activation
-%activated = pto.vrelu %linear_out, %mask : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+```mlir
+%dst = pto.vmov %src, %tail_mask : !pto.vreg<128xf16>, !pto.mask -> !pto.vreg<128xf16>
 ```
 
 ## Detailed Notes
 
-```c
-for (int i = 0; i < N; i++)
-    dst[i] = src[i];
-```
-
-## Typical Usage
-
-```mlir
-// Softmax numerator: exp(x - max)
-%sub = pto.vsub %x, %max_broadcast, %mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
-%exp = pto.vexp %sub, %mask : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
-
-// Reciprocal for division
-%sum_rcp = pto.vrec %sum, %mask : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
-
-// ReLU activation
-%activated = pto.vrelu %linear_out, %mask : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
-```
+`pto.vmov` is the plain register-to-register move in the vector surface. Use it
+when the ISA-level effect is “preserve the selected lanes exactly as they are,”
+without introducing arithmetic or conversion semantics.
 
 ## Related Ops / Instruction Set Links
 
 - Instruction set overview: [Unary Vector Instructions](../../unary-vector-ops.md)
 - Previous op in instruction set: [pto.vcls](./vcls.md)
+- Next op in instruction set: [pto.vabs](./vabs.md)
