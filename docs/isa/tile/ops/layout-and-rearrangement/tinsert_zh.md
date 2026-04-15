@@ -65,16 +65,14 @@ PTO_INST RecordEvent TINSERT(DstTileData &dst, SrcTileData &src, uint32_t indexR
 
 ## 约束
 
-!!! warning "约束"
-    - **A2/A3**:
-        - 文档中列出的这些重载对应 `Acc -> Mat` 插入路径，包括普通形式、`reluMode` 形式、标量预量化形式以及向量预量化（`TINSERT_FP`）形式。
-        - 运行时边界必须满足 `indexRow + src.Rows <= dst.Rows` 且 `indexCol + src.Cols <= dst.Cols`。
-    - **A5**:
-        - 除了上面的 `Acc -> Mat` 插入路径外，A5 还额外提供 `template <TInsertMode mode, ...> TINSERT(...)`，用于 `Vec -> Mat` 与 `Vec -> Vec` 插入变体。
-        - `mode == TInsertMode::ND` 要求源向量 tile 为行优先，并以 ND 布局插入到矩阵 tile。
-        - `mode == TInsertMode::ND_VEC` 要求源和目的都为行优先向量 tile。
-        - NZ 系列模式（`NZ`、`NZ_PLUS_1`、`SPLIT2_NZ_PLUS_1`、`SPLIT4_NZ_PLUS_1`）要求源向量 tile 为 NZ 格式，目的为矩阵 tile。
-        - 对于 `Acc -> Vec` 的 32 位目标类型（`float`/`int32_t`），使用 `DualModeSplitN` 时，切分前的 `ValidCol` 必须是 `32` 的整数倍。
+- **A2/A3**:
+    - 文档中列出的这些重载对应 `Acc -> Mat` 插入路径，包括普通形式、`reluMode` 形式、标量预量化形式以及向量预量化（`TINSERT_FP`）形式。
+    - 运行时边界必须满足 `indexRow + src.Rows <= dst.Rows` 且 `indexCol + src.Cols <= dst.Cols`。
+- **A5**:
+    - 除了上面的 `Acc -> Mat` 插入路径外，A5 还额外提供 `template <TInsertMode mode, ...> TINSERT(...)`，用于 `Vec -> Mat` 与 `Vec -> Vec` 插入变体。
+    - `mode == TInsertMode::ND` 要求源向量 tile 为行优先，并以 ND 布局插入到矩阵 tile。
+    - `mode == TInsertMode::ND_VEC` 要求源和目的都为行优先向量 tile。
+    - NZ 系列模式要求源向量 tile 为 NZ 格式，目的为矩阵 tile。非模板 `TINSERT` 处理 NZ 插入，`SPLIT2` 和 `SPLIT4` 模式将插入拆分到多个块。
 
 ## 示例
 

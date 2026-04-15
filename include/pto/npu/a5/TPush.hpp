@@ -268,13 +268,10 @@ struct TPipe {
                 // single vector core
                 TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(0), static_cast<uint16_t>(0));
             } else if constexpr (Split == TileSplitAxis::TILE_UP_DOWN) {
-                int rowIndex = ProdM * static_cast<size_t>(subBlockId);
+                int rowIndex = ProdM * static_cast<size_t>(get_subblockid());
                 TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(rowIndex), static_cast<uint16_t>(0));
             } else if constexpr (Split == TileSplitAxis::TILE_LEFT_RIGHT) {
-                PTO_ASSERT(tile.GetValidCol() * sizeof(T) % 32 == 0,
-                           "Fix: For V2C(UB->L1), tile's valid column must be multiple of 32 bytes due to hardware "
-                           "requirement.");
-                uint32_t colIndex = ProdN * static_cast<size_t>(subBlockId);
+                uint32_t colIndex = ProdN * static_cast<size_t>(get_subblockid());
                 TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(0), static_cast<uint16_t>(colIndex));
             }
         }
@@ -1042,20 +1039,20 @@ struct TMPipe {
                 int row_offset = VecM * static_cast<size_t>(get_subblockid());
                 uint64_t entryBase = (tile_id % DataFiFo::fifoDepth) * ConsM * ConsN * sizeof(T);
                 TileDataCons matTile;
-                TASSIGN_IMPL(matTile, fifo.fifoBase + entryBase + entryOffset);
+                TASSIGN_IMPL(matTile, fifo.fifoBase + entryBase);
                 TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(row_offset), static_cast<uint16_t>(0));
             } else if constexpr (isSplitN) {
                 // split N between vectors
                 int col_index = ProdN * static_cast<size_t>(get_subblockid());
                 uint64_t entryBase = (tile_id % DataFiFo::fifoDepth) * ConsM * ConsN * sizeof(T);
                 TileDataCons matTile;
-                TASSIGN_IMPL(matTile, fifo.fifoBase + entryBase + entryOffset);
+                TASSIGN_IMPL(matTile, fifo.fifoBase + entryBase);
                 TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(0), static_cast<uint16_t>(col_index));
             } else if constexpr (nonSplit) {
                 // single vector core
                 TileDataCons matTile;
                 uint64_t entryBase = (tile_id % DataFiFo::fifoDepth) * ConsM * ConsN * sizeof(T);
-                TASSIGN_IMPL(matTile, fifo.fifoBase + entryBase + entryOffset);
+                TASSIGN_IMPL(matTile, fifo.fifoBase + entryBase);
                 TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(0), static_cast<uint16_t>(0));
             } else {
                 static_assert(isSplitM || isSplitN || nonSplit,

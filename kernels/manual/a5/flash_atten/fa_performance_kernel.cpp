@@ -655,16 +655,46 @@ AICORE inline void compute_p(QKPipe &qkPipe, PPipe &pPipe, int tile_id, int row_
         const bool should_wait_sv_consumed = should_wait_consumption<P_CV_FIFO, P_CV_FIFO_CONS_SYNC_PERIOD>(sync_iter);
 
 #if USE_UB_TO_L1_PATH
-        if constexpr (INTERMEDIATE_CHECK) {
-            using GlobalPTileHalfSub =
-                GlobalTensor<half, pto::Shape<1, 1, 1, Vec_S0, Cube_S1>, pto::Stride<1, 1, 1, Cube_S1, 1>>;
-            using TileDataH_Sub = Tile<TileType::Vec, half, Vec_S0, Tile_S1, BLayout::RowMajor, Vec_S0, Cube_S1>;
-            // Debug dumps use the host-visible FIFO layout, not the reduced live UB pipe depth.
-            const uint32_t debug_buf_idx = static_cast<uint32_t>(tile_id % kFaCvFifoSize);
-            const size_t debug_base_elems = static_cast<size_t>(debug_buf_idx) * static_cast<size_t>(kTileFactor) *
-                                            static_cast<size_t>(Cube_S0) * static_cast<size_t>(Cube_S1);
-            __gm__ half *p_ptr = p_tile_fifo + debug_base_elems + row_offset * static_cast<size_t>(Cube_S1);
-            GlobalPTileHalfSub pTileHalfSub((__gm__ half *)(p_ptr));
+        using GlobalPTileHalfSub =
+            GlobalTensor<half, pto::Shape<1, 1, 1, Vec_S0, Cube_S1>, pto::Stride<1, 1, 1, Cube_S1, 1>>;
+        using TileDataH_Sub = Tile<TileType::Vec, half, Vec_S0, Tile_S1, BLayout::RowMajor, Vec_S0, Cube_S1>;
+        __gm__ half *p_ptr = p_tile_fifo + base_elems + row_offset * static_cast<size_t>(Cube_S1);
+
+        for (int sub_col = 0; sub_col < static_cast<int>(kTileFactor); ++sub_col) {
+            using TileDataH_Sub_ND = Tile<TileType::Vec, half, Vec_S0, Cube_S1, BLayout::RowMajor, Vec_S0, Cube_S1>;
+            TileDataH_Sub_ND xExpSubND;
+            const uint64_t col_byte_offset = static_cast<uint64_t>(sub_col * Cube_S1 * sizeof(half));
+            TASSIGN(xExpSubND, (uint64_t)x_expT.data() + col_byte_offset);
+
+            if constexpr (INTERMEDIATE_CHECK) {
+                __gm__ half *p_ptr_sub =
+                    p_ptr + static_cast<size_t>(sub_col) * static_cast<size_t>(Cube_S1) * static_cast<size_t>(Cube_S0);
+                GlobalPTileHalfSub pTileHalfSub((__gm__ half *)(p_ptr_sub));
+                TileDataH_Sub xExpSub;
+                TASSIGN(xExpSub, (uint64_t)x_expT.data() + col_byte_offset);
+                TSTORE(pTileHalfSub, xExpSub);
+            }
+
+            TMOV(nzConvBuffer, xExpSubND);
+
+            set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+            wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+
+            const uint16_t col_idx = static_cast<uint16_t>(sub_col * Cube_S1);
+            TINSERT(pMatTile, nzConvBuffer, static_cast<uint16_t>(row_offset), col_idx);
+        }
+        (void)global_sum_out;
+        (void)exp_max_out;
+#else
+        using GlobalPTileHalfSub =
+            GlobalTensor<half, pto::Shape<1, 1, 1, Vec_S0, Cube_S1>, pto::Stride<1, 1, 1, Cube_S1, 1>>;
+        using TileDataH_Sub = Tile<TileType::Vec, half, Vec_S0, Tile_S1, BLayout::RowMajor, Vec_S0, Cube_S1>;
+        __gm__ half *p_ptr = p_tile_fifo + base_elems + row_offset * static_cast<size_t>(Cube_S1);
+        for (int sub_col = 0; sub_col < static_cast<int>(kTileFactor); ++sub_col) {
+            __gm__ half *p_ptr_sub =
+                p_ptr + static_cast<size_t>(sub_col) * static_cast<size_t>(Cube_S1) * static_cast<size_t>(Cube_S0);
+            GlobalPTileHalfSub pTileHalfSub((__gm__ half *)(p_ptr_sub));
+
             TileDataH_Sub xExpSub;
             TASSIGN(xExpSub, (uint64_t)x_expT.data());
             TSTORE(pTileHalfSub, xExpSub);
