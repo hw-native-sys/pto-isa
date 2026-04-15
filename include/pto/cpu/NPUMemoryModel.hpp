@@ -215,32 +215,13 @@ public:
     template <typename TileDef>
     typename TileDef::DType *ResolveAssignedAddress(std::uintptr_t addr)
     {
-        static_assert(is_tile_data_v<TileDef> || is_conv_tile_v<TileDef>);
+        static_assert(is_tile_data_v<TileDef>);
         EnsureInitialized();
 
         if (auto *direct = TryResolveExistingPointer<typename TileDef::DType>(addr)) {
             return direct;
         }
         return GetPointer<TileDef>(static_cast<std::size_t>(addr));
-    }
-
-    template <typename TileDef>
-    std::uintptr_t NormalizeAssignedAddress(std::uintptr_t addr)
-    {
-        static_assert(is_tile_data_v<TileDef> || is_conv_tile_v<TileDef>);
-        EnsureInitialized();
-
-        const int region = GetRegionForTile<TileDef>();
-        if (region < 0 || region >= MemoryRegion::_MAX_REGIONS || buffers_[region].empty()) {
-            return addr;
-        }
-
-        const auto begin = reinterpret_cast<std::uintptr_t>(buffers_[region].data());
-        const auto end = begin + buffers_[region].size();
-        if (addr >= begin && addr < end) {
-            return addr - begin;
-        }
-        return addr;
     }
 
     // Get raw buffer bases (for debugging/direct access)
@@ -330,22 +311,6 @@ public:
     }
 
 private:
-    template <typename TileDef>
-    static constexpr int GetRegionForTile()
-    {
-        if constexpr (TileDef::Loc == TileType::Mat) {
-            return MemoryRegion::L1;
-        } else if constexpr (TileDef::Loc == TileType::Left) {
-            return MemoryRegion::L0A;
-        } else if constexpr (TileDef::Loc == TileType::Right) {
-            return MemoryRegion::L0B;
-        } else if constexpr (TileDef::Loc == TileType::Acc) {
-            return MemoryRegion::L0C;
-        } else {
-            return MemoryRegion::UB;
-        }
-    }
-
     template <typename T>
     T *TryResolveExistingPointer(std::uintptr_t addr)
     {
