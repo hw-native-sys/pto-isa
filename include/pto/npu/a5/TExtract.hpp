@@ -435,7 +435,7 @@ __tf__ AICORE void TExtractAccToMat(typename DstTileData::TileDType __out__ dst,
 template <typename DstTileData, typename SrcTileData, AccToVecMode mode, QuantMode_t quantPre, ReluPreMode reluMode>
 __tf__ AICORE void TExtractAccToVec(typename DstTileData::TileDType __out__ dst,
                                     typename SrcTileData::TileDType __in__ src, uint16_t validRow, uint16_t validCol,
-                                    uint16_t indexRow, uint16_t indexCol)
+                                    uint16_t srcValidRow, uint16_t indexRow, uint16_t indexCol)
 {
     using dstType = typename DstTileData::DType;
     using srcType = typename SrcTileData::DType;
@@ -451,10 +451,15 @@ __tf__ AICORE void TExtractAccToVec(typename DstTileData::TileDType __out__ dst,
     constexpr uint64_t loop3Para = static_cast<uint64_t>(dstNdStride) << 32 | static_cast<uint64_t>(srcNdStride) << 16 |
                                    static_cast<uint64_t>(ndNum);
     set_loop3_para(loop3Para);
-    auto srcStride = SrcTileData::Rows;
     __ubuf__ dstType *dstAddr = (__ubuf__ dstType *)__cce_get_tile_ptr(dst);
+    auto srcStride = SrcTileData::Rows;
     uint32_t srcOffset = SrcTileData::Rows * ACC_C0_SIZE * (indexCol / ACC_C0_SIZE) +
                          (indexRow * ACC_C0_SIZE + (indexCol % ACC_C0_SIZE));
+    if constexpr (SrcTileData::Compact == CompactMode::Normal) {
+        srcStride = (srcValidRow + BLOCK_LEN - 1) / BLOCK_LEN * BLOCK_LEN;
+        srcOffset =
+            srcStride * ACC_C0_SIZE * (indexCol / ACC_C0_SIZE) + (indexRow * ACC_C0_SIZE + (indexCol % ACC_C0_SIZE));
+    }
     __cc__ srcType *srcData = (__cc__ srcType *)__cce_get_tile_ptr(src) + srcOffset;
     copy_matrix_cc_to_ub(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, dualDstCtl, subBlockId, 0, 0,
                          quantPre, reluMode, false, true, 0, 0, false, false, 0, false, false, false, false, false,
@@ -563,7 +568,7 @@ PTO_INTERNAL void TEXTRACT_TILE_IMPL(DstTileData &dst, SrcTileData &src, uint16_
                 dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(), indexRow, indexCol);
         } else {
             TExtractAccToVec<DstTileData, SrcTileData, AccToVecMode::SingleModeVec0, quantPre, ReluPreMode::NoRelu>(
-                dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(), indexRow, indexCol);
+                dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(), src.GetValidRow(), indexRow, indexCol);
         }
     }
 }
@@ -834,7 +839,7 @@ PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, uint16_t ind
                                                                        dst.GetValidCol(), indexRow, indexCol);
     } else {
         TExtractAccToVec<DstTileData, SrcTileData, AccToVecMode::SingleModeVec0, quantPre, ReluPreMode::NoRelu>(
-            dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(), indexRow, indexCol);
+            dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(), src.GetValidRow(), indexRow, indexCol);
     }
 }
 
@@ -846,8 +851,8 @@ PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, uint16_t ind
     static_assert((DstTileData::isRowMajor && DstTileData::SFractal == SLayout::NoneBox),
                   "Dst fractal format should be (BFractal: RowMajor, SFractal: NoneBox).");
     constexpr QuantMode_t quantPre = GetCastPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
-    TExtractAccToVec<DstTileData, SrcTileData, mode, quantPre, reluMode>(dst.data(), src.data(), dst.GetValidRow(),
-                                                                         dst.GetValidCol(), indexRow, indexCol);
+    TExtractAccToVec<DstTileData, SrcTileData, mode, quantPre, reluMode>(
+        dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(), src.GetValidRow(), indexRow, indexCol);
 }
 
 // scalar quant
@@ -869,7 +874,7 @@ PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, uint64_t pre
                                                                        dst.GetValidCol(), indexRow, indexCol);
     } else {
         TExtractAccToVec<DstTileData, SrcTileData, AccToVecMode::SingleModeVec0, quantPre, reluMode>(
-            dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(), indexRow, indexCol);
+            dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(), src.GetValidRow(), indexRow, indexCol);
     }
 }
 
@@ -883,8 +888,8 @@ PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, uint64_t pre
                   "Dst fractal format should be (BFractal: RowMajor, SFractal: NoneBox).");
     constexpr QuantMode_t quantPre = GetScalarPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
     set_quant_pre(preQuantScalar);
-    TExtractAccToVec<DstTileData, SrcTileData, mode, quantPre, reluMode>(dst.data(), src.data(), dst.GetValidRow(),
-                                                                         dst.GetValidCol(), indexRow, indexCol);
+    TExtractAccToVec<DstTileData, SrcTileData, mode, quantPre, reluMode>(
+        dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(), src.GetValidRow(), indexRow, indexCol);
 }
 
 // fp
@@ -907,7 +912,7 @@ PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, FpTileData &
                                                                        dst.GetValidCol(), indexRow, indexCol);
     } else {
         TExtractAccToVec<DstTileData, SrcTileData, AccToVecMode::SingleModeVec0, quantPre, reluMode>(
-            dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(), indexRow, indexCol);
+            dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(), src.GetValidRow(), indexRow, indexCol);
     }
 }
 
@@ -924,8 +929,8 @@ PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, FpTileData &
     constexpr QuantMode_t quantPre = GetVectorPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
     SetFPC<FpTileData>(fp.data(), indexCol);
 
-    TExtractAccToVec<DstTileData, SrcTileData, mode, quantPre, reluMode>(dst.data(), src.data(), dst.GetValidRow(),
-                                                                         dst.GetValidCol(), indexRow, indexCol);
+    TExtractAccToVec<DstTileData, SrcTileData, mode, quantPre, reluMode>(
+        dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(), src.GetValidRow(), indexRow, indexCol);
 }
 } // namespace pto
 #endif // TEXTRACT_HPP
