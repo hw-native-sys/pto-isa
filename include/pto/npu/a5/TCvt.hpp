@@ -569,6 +569,7 @@ inline AICORE void cast32to8_1D_NoPostUpdate(__ubuf__ DST *dst, __ubuf__ SRC *sr
 
         // Reuse v_input's preg for vselr output — guaranteed non-overlapping with v_output_p0
         vselr((RegTensor<uint8_t> &)v_input, (RegTensor<uint8_t> &)v_output_p0, (RegTensor<uint8_t> &)v_idx);
+        mem_bar(VST_VST);
         vsts((RegTensor<uint8_t> &)v_input, (__ubuf__ uint8_t *)dst, i * ELE_CNT_B32, NORM_B8, preg_b8);
         // sReg is decremented by the first CreatePredicate with POST_UPDATE
     }
@@ -607,6 +608,7 @@ inline AICORE void cast32toH8_1D_NoPostUpdate(__ubuf__ hifloat8_t *dst, __ubuf__
         // Reuse v_input's preg for vselr output — guaranteed non-overlapping with v_output_p0
         // since vcvt requires them as separate source/dest pregs
         vselr((RegTensor<uint8_t> &)v_input, (RegTensor<uint8_t> &)v_output_p0, (RegTensor<uint8_t> &)v_idx);
+        mem_bar(VST_VST);
         vsts((RegTensor<uint8_t> &)v_input, (__ubuf__ uint8_t *)dst, i * ELE_CNT_B32, NORM_B8, preg_b8);
         // sReg is decremented by CreatePredicate with POST_UPDATE
     }
@@ -1149,6 +1151,7 @@ inline AICORE void cast32to8(__ubuf__ DST *dst, __ubuf__ SRC *src, uint32_t vali
 
     // Reuse v_input's preg for vselr output — guaranteed non-overlapping with v_output_p0
     vselr((RegTensor<uint8_t> &)v_input, (RegTensor<uint8_t> &)v_output_p0, (RegTensor<uint8_t> &)v_idx);
+    mem_bar(VST_VST);
     vsts((RegTensor<uint8_t> &)v_input, (__ubuf__ uint8_t *)dst, dstOffset, NORM_B8, preg_b8);
     END_FOR_ELEMENTS
     END_FOR_ROWS
@@ -1390,6 +1393,7 @@ inline AICORE void castData(__ubuf__ hifloat8_t *dst, __ubuf__ float *src, uint3
 
     // Reuse v_input's preg for vselr output — guaranteed non-overlapping with v_output_p0
     vselr((RegTensor<uint8_t> &)v_input, (RegTensor<uint8_t> &)v_output_p0, (RegTensor<uint8_t> &)v_idx);
+    mem_bar(VST_VST);
     vsts((RegTensor<uint8_t> &)v_input, (__ubuf__ uint8_t *)dst, dstOffset, NORM_B8, preg_b8);
     END_FOR_ELEMENTS
     END_FOR_ROWS
@@ -1645,6 +1649,7 @@ inline AICORE void castBf16toFp4(__ubuf__ DST *dst, __ubuf__ bfloat16_t *src, ui
     vlds(v_input, src, srcOffset, NORM);
     vcvt(v_output_p0, v_input, preg_b16, R(), PART_P0);
     vselr((RegTensor<uint8_t> &)v_output, (RegTensor<uint8_t> &)v_output_p0, (RegTensor<uint8_t> &)v_idx);
+    mem_bar(VST_VST);
     vsts((RegTensor<uint8_t> &)v_output, (__ubuf__ uint8_t *)dst, dstOffset >> 1, NORM_B8, preg_b8);
     END_FOR_ELEMENTS
     END_FOR_ROWS
@@ -1778,6 +1783,7 @@ inline AICORE void castBf16toFp4_1D_NoPostUpdate(__ubuf__ DST *dst, __ubuf__ bfl
         vlds(v_input, src, i * ELE_CNT_B16, NORM);
         vcvt(v_output_p0, v_input, preg_b16, R(), PART_P0);
         vselr((RegTensor<uint8_t> &)v_output, (RegTensor<uint8_t> &)v_output_p0, (RegTensor<uint8_t> &)v_idx);
+        mem_bar(VST_VST);
         vsts((RegTensor<uint8_t> &)v_output, (__ubuf__ uint8_t *)dst, (i * ELE_CNT_B16) >> 1, NORM_B8, preg_b8);
         // sReg is decremented by CreatePredicate<half> with POST_UPDATE
     }
