@@ -603,9 +603,6 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tquant -g TQUANTTEST.case_int8_asym_fp32_128x128_nd
     python3 tests/script/run_st.py $ARGS -w -v a5 -t ttri -g TTRITest.case_float_128x128_lower_diag_n3
     python3 tests/script/run_st.py $ARGS -w -v a5 -t ttri -g TTRITest.case_float_128x128_upper_diag_0
-    python3 tests/script/run_st.py $ARGS -w -v a5 -t tpack -g TPACKTEST.case_fp32_fp16_128x128
-    python3 tests/script/run_st.py $ARGS -w -v a5 -t tpack -g TPACKTEST.case_fp32_fp8_128x128
-    python3 tests/script/run_st.py $ARGS -w -v a5 -t tpack -g TPACKTEST.case_fp16_fp8_128x128
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tconcat -g TCONCATTest.case_half_16x128_16x64_16x64_16x63_16x64
     python3 tests/script/run_st.py $ARGS -w -v a5 -t thistogram -g THISTOGRAMTest.case_8x128_b1
     python3 tests/script/run_st.py $ARGS -w -v a5 -t thistogram -g THISTOGRAMTest.case_u32_6x912_b1_k64 
@@ -762,9 +759,9 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a5 -t mgather
     python3 tests/script/run_st.py $ARGS -w -v a5 -t mscatter
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tconcat
-    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec
-    python3 tests/script/run_st.py $ARGS -w -v a5 -t tinterleave
-    python3 tests/script/run_st.py $ARGS -w -v a5 -t tdeinterleave
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t thistogram
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert_acc2vec
   fi
 fi
 

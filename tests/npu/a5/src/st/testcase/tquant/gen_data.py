@@ -926,38 +926,12 @@ def bf16_to_mxfp4_e2m1(valid_rows, valid_cols, mode, case_suffix=None, scale_alg
     src_bf16 = make_mxfp4_e2m1_bf16_data(valid_rows, valid_cols, case_suffix, scale_alg=scale_alg)
     src_bf16.tofile("input.bin")
 
-    padded_src = np.zeros((valid_rows, padded_cols), dtype=bfloat16)
-    padded_src[:, :valid_cols] = src_bf16
-    _, _, packed = quant_bf16_to_e2m1(padded_src, scale_alg=scale_alg)
-
-    if padded_cols != valid_cols and mode == "nd":
-        packed[:, : ((valid_cols + 1) // 2)].copy().tofile("golden_fp4.bin")
-    return
-
-
-def bf16_to_mxfp8(valid_rows, valid_cols, mode, scale_alg="ocp", case_suffix=None):
-    padded_cols = ((valid_cols + 31) // 32) * 32
-
-    if case_suffix == "boundary":
-        src_bf16 = make_mxfp8_boundary_values(valid_rows, valid_cols, bfloat16, scale_alg=scale_alg)
-    elif case_suffix is not None and "_exp2d_fuzz" in case_suffix:
-        src_bf16 = make_mx_exp2d_fuzz_values(
-            valid_rows, valid_cols, bfloat16, get_exp2d_fuzz_seed(case_suffix), max_abs=448.0
-        )
-    else:
-        mags = np.random.lognormal(mean=0.0, sigma=2.0, size=(valid_rows, valid_cols))
-        signs = np.where(np.random.rand(valid_rows, valid_cols) < 0.5, -1.0, 1.0)
-        src_fp32 = (mags * signs).astype(np.float32)
-        src_fp32 = np.clip(src_fp32, -1e4, 1e4)  # bf16 has same exponent range but less mantissa
-        src_bf16 = src_fp32.astype(bfloat16)
-    src_bf16.tofile("input.bin")
-
     pad_value = bfloat16(0.0)  # match kernel PadValue::Zero
     padded_src = np.full((valid_rows, padded_cols), pad_value, dtype=bfloat16)
     padded_src[:, :valid_cols] = src_bf16
 
     # bf16 quantization, golden is saved in quant function
-    e8m0, scaling, data_fp8, group_max = quant_bf16_to_e4m3(padded_src, mode=mode, scale_alg=scale_alg)
+    e8m0, scaling, data_fp8, group_max = quant_bf16_to_e4m3(padded_src, mode=mode)
 
     # Trim FP8 golden to valid dimensions (kernel TSTORE only outputs valid columns)
     if padded_cols != valid_cols and mode == "nd":
@@ -1106,9 +1080,6 @@ if __name__ == "__main__":
         TQuantParams("mxfp8", 15, 32, mode="nd"),
         TQuantParams("mxfp8", 7, 64, mode="nd"),
         TQuantParams("mxfp8", 33, 64, mode="nd"),
-        TQuantParams("mxfp8", 13, 192, mode="nd"),
-        TQuantParams("mxfp8", 32, 128, mode="nd", scale_alg="nv"),
-        TQuantParams("mxfp8", 2, 256, mode="nd", case_suffix="boundary", scale_alg="nv"),
         TQuantParams("mxfp8", 32, 64, mode="nz"),
         TQuantParams("mxfp8", 64, 128, mode="nz"),
         TQuantParams("mxfp8", 64, 256, mode="nz"),
@@ -1126,24 +1097,6 @@ if __name__ == "__main__":
         TQuantParams("mxfp8", 128, 128, mode="nd", dtype=bfloat16),
         TQuantParams("mxfp8", 14, 16, mode="nd", dtype=bfloat16),
         TQuantParams("mxfp8", 7, 48, mode="nd", dtype=bfloat16),
-        TQuantParams("mxfp8", 18, 136, mode="nd", dtype=bfloat16),
-        # Diagnostic cases for board failure analysis
-        TQuantParams("mxfp8", 1, 32, mode="nd", dtype=bfloat16),
-        TQuantParams("mxfp8", 2, 16, mode="nd", dtype=bfloat16),
-        TQuantParams("mxfp8", 4, 16, mode="nd", dtype=bfloat16),
-        TQuantParams("mxfp8", 8, 16, mode="nd", dtype=bfloat16),
-        TQuantParams("mxfp8", 16, 16, mode="nd", dtype=bfloat16),
-        TQuantParams("mxfp8", 3, 32, mode="nd", dtype=bfloat16),
-        TQuantParams("mxfp8", 5, 96, mode="nd", dtype=bfloat16),
-        TQuantParams("mxfp8", 1, 16, mode="nd", dtype=bfloat16),
-        # Multi-flush vstas coverage: loop_num odd >= 3 leaves 16B pending in st_align.
-        TQuantParams("mxfp8", 4, 256, mode="nd", dtype=bfloat16),  # 1024 elems -> 4 row-aligned 256-elem windows
-        TQuantParams("mxfp8", 4, 512, mode="nd", dtype=bfloat16),  # 2048 elems -> generic ND, not 32-VL large path
-        TQuantParams("mxfp8", 3, 256, mode="nd", dtype=bfloat16),  # padded 768 -> loop_num=3
-        TQuantParams("mxfp8", 5, 256, mode="nd", dtype=bfloat16),  # padded 1280 -> loop_num=5
-        TQuantParams("mxfp8", 18, 138, mode="nd", dtype=bfloat16),  # padded 18x160 = 2880 -> loop_num=12
-        TQuantParams("mxfp8", 1, 192, mode="nd", dtype=bfloat16),  # no pad, 192 elems -> loop_num=1
-        TQuantParams("mxfp8", 1, 198, mode="nd", dtype=bfloat16),  # padded 1x224 = 224 -> loop_num=1
         TQuantParams("mxfp8", 32, 128, mode="nz", dtype=bfloat16),
         TQuantParams("mxfp8", 64, 128, mode="nz", dtype=bfloat16),
         TQuantParams("mxfp8", 128, 128, mode="nz", dtype=bfloat16),

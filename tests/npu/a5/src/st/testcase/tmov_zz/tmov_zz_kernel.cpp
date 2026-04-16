@@ -276,8 +276,7 @@ AICORE void runTMovZZ_e8m0(__gm__ uint8_t *outFp8Nz, __gm__ float *src, __gm__ u
         scalingTileBytesRaw > tmpBufSizeAligned ?
             (scalingTileBytesRaw > minScalingBytes ? scalingTileBytesRaw : minScalingBytes) :
             (tmpBufSizeAligned > minScalingBytes ? tmpBufSizeAligned : minScalingBytes);
-    // Pad to 32-byte alignment (required for UB address alignment of adjacent tiles).
-    constexpr int e8TileBytes = PTO_CEIL(groupedColsFlattenedPadded * (int)sizeof(float8_e8m0_t), 0x20);
+    constexpr int e8TileBytes = groupedColsFlattenedPadded * (int)sizeof(float8_e8m0_t);
     constexpr int fp8TileBytes = validRows * paddedCols * sizeof(int8_t);
     constexpr int C0_SIZE_B = 32;
     constexpr int nColGroupsNZ = paddedCols / C0_SIZE_B;
@@ -290,10 +289,7 @@ AICORE void runTMovZZ_e8m0(__gm__ uint8_t *outFp8Nz, __gm__ float *src, __gm__ u
     constexpr int scalingTileAddr = PTO_CEIL(maxTileAddr + maxTileBytes, 0x20);
     constexpr int e8TileAddr = PTO_CEIL(scalingTileAddr + scalingTileBytes, 0x20);
     constexpr int fp8TileAddr = 0x0;
-    // vlds reads a full VL (REPEAT_BYTE = 256 bytes) even when paddedCols < 256.
-    // Add gap to prevent VLD/VST address overlap on real NPU hardware.
-    constexpr int vldOverreadGap = PTO_CEIL(paddedCols * (int)sizeof(int8_t), 256) - paddedCols * (int)sizeof(int8_t);
-    constexpr int fp8TileNZAddr = PTO_CEIL(fp8TileAddr + fp8TileBytes + vldOverreadGap, 0x20);
+    constexpr int fp8TileNZAddr = fp8TileAddr + fp8TileBytes;
     constexpr int workTileEnd = e8TileAddr + e8TileBytes;
     constexpr int fp8TileNZEnd = fp8TileNZAddr + fp8TileNZBytes;
     constexpr int zzTmpStart = PTO_CEIL(workTileEnd > fp8TileNZEnd ? workTileEnd : fp8TileNZEnd, 0x20);
@@ -338,5 +334,8 @@ void LaunchTMovZZ_e8m0(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *st
 {
     launchTMovZZKernel_e8m0<validRows, validCols><<<1, nullptr, stream>>>(dstFp8Nz, src, dstE8Zz);
 }
+
+template void LaunchTMovZZ_e8m0<64, 128>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
+template void LaunchTMovZZ_e8m0<32, 64>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
 
 } // namespace TMovZZTest

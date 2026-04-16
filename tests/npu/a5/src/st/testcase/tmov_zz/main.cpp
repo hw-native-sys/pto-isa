@@ -319,4 +319,14 @@ void test_tmov_zz_e8m0()
     EXPECT_TRUE(ResultCmp<uint8_t>(goldenE8, outE8, 0.0f));
 }
 
+TEST_F(TMOVZZTest, case_e8m0_64x128)
+{
+    test_tmov_zz_e8m0<64, 128>();
+}
+
+TEST_F(TMOVZZTest, case_e8m0_32x64)
+{
+    test_tmov_zz_e8m0<32, 64>();
+}
+
 } // namespace TMovZZTest

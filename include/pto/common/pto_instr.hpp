@@ -2374,7 +2374,7 @@ PTO_INST RecordEvent TFREE(Pipe &pipe, WaitEvents &...events)
 }
 #endif
 
-#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRIN9030) || defined(__CPU_SIM)
+#if defined(PTO_NPU_ARCH_A5) || defined(__CPU_SIM)
 template <HistByte byte, typename TileDataDst, typename TileDataSrc, typename TileDataIdx, typename... WaitEvents>
 PTO_INST RecordEvent THISTOGRAM(TileDataDst &dst, TileDataSrc &src, TileDataIdx &idx, WaitEvents &...events)
 {

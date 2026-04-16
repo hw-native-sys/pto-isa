@@ -246,52 +246,6 @@ PTO_INTERNAL constexpr void CommonCheckZZ()
                   "TMov ND->ZZ: Destination, source, and temporary tile data types must all be the same.");
 }
 
-// Zero source padding beyond validRows (up to paddedRows aligned to 16) so that
-// vgather2 reads zeros instead of stale UB residue on real NPU hardware.
-PTO_INTERNAL void ZeroSourcePaddingB16(__ubuf__ uint16_t *srcPtr_b16, uint16_t validB16, uint16_t totalB16)
-{
-    constexpr uint16_t vlElem = REPEAT_BYTE / sizeof(uint16_t); // 128
-    if (validB16 >= totalB16) {
-        return;
-    }
-    vector_u16 vb16_zero;
-    vbr(vb16_zero, 0);
-    const uint16_t skipVLs = validB16 / vlElem;
-    __ubuf__ uint16_t *zBase = srcPtr_b16 + skipVLs * vlElem;
-    const uint16_t localValid = validB16 - skipVLs * vlElem;
-    const uint16_t localTotal = totalB16 - skipVLs * vlElem;
-    if (localTotal <= vlElem) {
-        uint32_t totalCount = (uint32_t)localTotal;
-        uint32_t validCount = (uint32_t)localValid;
-        MaskReg preg_total = CreatePredicate<uint16_t>(totalCount);
-        MaskReg preg_valid = CreatePredicate<uint16_t>(validCount);
-        MaskReg preg_pad;
-        pnot(preg_pad, preg_valid, preg_total);
-        vsts(vb16_zero, zBase, 0, NORM_B16, preg_pad);
-    } else {
-        uint32_t firstTotal = (uint32_t)vlElem;
-        uint32_t firstValid = (uint32_t)localValid;
-        MaskReg preg_first_total = CreatePredicate<uint16_t>(firstTotal);
-        MaskReg preg_first_valid = CreatePredicate<uint16_t>(firstValid);
-        MaskReg preg_first_pad;
-        pnot(preg_first_pad, preg_first_valid, preg_first_total);
-        vsts(vb16_zero, zBase, vlElem, NORM_B16, preg_first_pad, POST_UPDATE);
-        uint16_t remaining = localTotal - vlElem;
-        const uint16_t fullItersZ = remaining / vlElem;
-        const uint16_t tailB16 = remaining % vlElem;
-        MaskReg preg_all = pset_b16(PAT_ALL);
-        for (uint16_t i = 0; i < fullItersZ; ++i) {
-            vsts(vb16_zero, zBase, vlElem, NORM_B16, preg_all, POST_UPDATE);
-        }
-        if (tailB16 > 0) {
-            uint32_t tailCount = (uint32_t)tailB16;
-            MaskReg preg_tail = CreatePredicate<uint16_t>(tailCount);
-            vsts(vb16_zero, zBase, 0, NORM_B16, preg_tail);
-        }
-    }
-    mem_bar(VST_VLD);
-}
-
 template <typename DstTileData, typename SrcTileData>
 PTO_INTERNAL void GenerateB8IndicesZZToUB(__ubuf__ uint8_t *dst, __ubuf__ uint8_t *src, __ubuf__ uint8_t *tmp,
                                           unsigned rows, unsigned groupedCols)
@@ -503,16 +457,20 @@ __tf__ PTO_INTERNAL void TMovToVecNd2Nz(typename DstTileData::TileDType __out__ 
     constexpr bool isByte = (sizeof(T) == 1);
     __VEC_SCOPE__
     {
-        if constexpr (isByte) {
-            // For 1-byte types (hifloat8_t, int8_t, float8_e4m3_t, etc.), cast to uint8_t
-            // since vlds/vsstb don't directly support these types.
-            __ubuf__ uint8_t *&srcU8 = (__ubuf__ uint8_t *&)srcPtr;
-            __ubuf__ uint8_t *&dstU8 = (__ubuf__ uint8_t *&)dstPtr;
-            TMovNd2NzLoop<uint8_t, SrcTileData>(srcU8, dstU8, repeatTimes, innerLoopNum, validCol, cfgVsstb,
-                                                cfgVsstbLast, srcOffset);
-        } else {
-            TMovNd2NzLoop<T, SrcTileData>(srcPtr, dstPtr, repeatTimes, innerLoopNum, validCol, cfgVsstb, cfgVsstbLast,
-                                          srcOffset);
+        RegTensor<T> vreg;
+        MaskReg preg;
+        uint32_t cols = (uint32_t)(validCol);
+        for (uint16_t j = 0; j < (uint16_t)repeatTimes; ++j) {
+            uint32_t count = cols > elementsPerRepeat ? elementsPerRepeat : cols;
+            preg = CreatePredicate<T>(count);
+            for (uint16_t i = 0; i < (uint16_t)innerLoopNum; ++i) {
+                vlds(vreg, srcPtr, SrcTileData::RowStride, NORM, POST_UPDATE);
+                vsstb(vreg, dstPtr, cfgVsstb, preg, POST_UPDATE);
+            }
+            vlds(vreg, srcPtr, elementsPerRepeat, NORM, POST_UPDATE);
+            vsstb(vreg, dstPtr, cfgVsstbLast, preg, POST_UPDATE);
+            srcPtr -= srcOffset;
+            cols -= elementsPerRepeat;
         }
     } // end of VF
 }

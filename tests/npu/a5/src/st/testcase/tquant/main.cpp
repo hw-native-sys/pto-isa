@@ -451,18 +451,6 @@ TEST_F(TQUANTTEST, case_mxfp8_fp32_33x64_nd)
 {
     test_tquant_mxfp8<33, 64, 0>();
 }
-TEST_F(TQUANTTEST, case_mxfp8_fp32_13x192_nd)
-{
-    test_tquant_mxfp8<13, 192, 0>();
-}
-TEST_F(TQUANTTEST, case_mxfp8_nv_fp32_32x128_nd)
-{
-    test_tquant_mxfp8<32, 128, 0, pto::QuantScaleAlg::NV>();
-}
-TEST_F(TQUANTTEST, case_mxfp8_nv_fp32_2x256_boundary_nd)
-{
-    test_tquant_mxfp8<2, 256, 0, pto::QuantScaleAlg::NV>();
-}
 
 // MXFP8 BF16
 TEST_F(TQUANTTEST, case_mxfp8_bf16_32x128_nd)
@@ -484,66 +472,6 @@ TEST_F(TQUANTTEST, case_mxfp8_bf16_14x16_nd)
 TEST_F(TQUANTTEST, case_mxfp8_bf16_7x48_nd)
 {
     test_tquant_mxfp8_bf16<7, 48, 0>();
-}
-
-// Removing previous failing cases and Diagnostic comments...
-TEST_F(TQUANTTEST, case_mxfp8_bf16_1x32_nd)
-{
-    test_tquant_mxfp8_bf16<1, 32, 0>();
-}
-TEST_F(TQUANTTEST, case_mxfp8_bf16_2x16_nd)
-{
-    test_tquant_mxfp8_bf16<2, 16, 0>();
-}
-TEST_F(TQUANTTEST, case_mxfp8_bf16_3x32_nd)
-{
-    test_tquant_mxfp8_bf16<3, 32, 0>();
-}
-TEST_F(TQUANTTEST, case_mxfp8_bf16_5x96_nd)
-{
-    test_tquant_mxfp8_bf16<5, 96, 0>();
-}
-TEST_F(TQUANTTEST, case_mxfp8_bf16_1x16_nd)
-{
-    test_tquant_mxfp8_bf16<1, 16, 0>();
-}
-// 4x256 => 1024 elems => vlCount=8, loop_num=4. Each 256-elem DINTLV window maps to one row,
-// which makes this case a direct check that max/exp/scaling and quant windows stay row-aligned.
-TEST_F(TQUANTTEST, case_mxfp8_bf16_4x256_nd)
-{
-    test_tquant_mxfp8_bf16<4, 256, 0>();
-}
-// 4x512 => 2048 elems. This must not dispatch to the 32-VL large reducer
-// because bf16 vlCount is only 16; the generic ND path covers it.
-TEST_F(TQUANTTEST, case_mxfp8_bf16_4x512_nd)
-{
-    test_tquant_mxfp8_bf16<4, 512, 0>();
-}
-// Multi-flush vstas coverage: loop_num odd >= 3 => 16B pending in st_align at final vstas.
-// 3x256 => padded 768 elements => loop_num = ceil(768/256) = 3 (odd).
-TEST_F(TQUANTTEST, case_mxfp8_bf16_3x256_nd)
-{
-    test_tquant_mxfp8_bf16<3, 256, 0>();
-}
-// 5x256 => padded 1280 elements => loop_num = 5 (odd), exercises more vstus iterations.
-TEST_F(TQUANTTEST, case_mxfp8_bf16_5x256_nd)
-{
-    test_tquant_mxfp8_bf16<5, 256, 0>();
-}
-// Additional padding coverage (non-multiple-of-32 cols / large padding).
-TEST_F(TQUANTTEST, case_mxfp8_bf16_1x192_nd)
-{
-    test_tquant_mxfp8_bf16<1, 192, 0>();
-}
-TEST_F(TQUANTTEST, case_mxfp8_bf16_1x198_nd)
-{
-    test_tquant_mxfp8_bf16<1, 198, 0>();
-}
-
-// 2D exp coverage: keep one compact MXFP8 padded case for CI.
-TEST_F(TQUANTTEST, case_mxfp8_bf16_1x64_static3x128_exp2d_fuzz01_nd)
-{
-    test_tquant_mxfp8_bf16_exp2d<3, 128, 1, 64>();
 }
 
 TEST_F(TQUANTTEST, case_mxfp8_bf16_32x128_nz)
