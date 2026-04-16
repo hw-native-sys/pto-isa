@@ -129,13 +129,13 @@ template <TileSplitAxis Split>
 PTO_INTERNAL uint32_t GetActiveSplitCount()
 {
     constexpr uint32_t splitCount = GetSplitCount<Split>();
-    const uint32_t subblockDim = get_subblockdim();
-    if (subblockDim != 0) {
-        return (subblockDim < splitCount) ? subblockDim : splitCount;
-    }
     if ((cpu_sim::injected_subblock_id_hook != nullptr) || (cpu_sim::injected_pipe_shared_state_hook != nullptr) ||
         (cpu_sim::ResolveSubblockIdHook() != nullptr) || (cpu_sim::ResolvePipeSharedStateHook() != nullptr)) {
         return splitCount;
+    }
+    const uint32_t subblockDim = get_subblockdim();
+    if (subblockDim != 0) {
+        return (subblockDim < splitCount) ? subblockDim : splitCount;
     }
     return 1u;
 }
