@@ -72,11 +72,6 @@ set(ALL_TESTCASES
     tsub
     tsubs
     ttrans
-    perf_sim_pipeline
-    fa_perf_sim
-    gemm_perf_sim
-    conv2d_perf_sim
-    topk_perf_sim
 )
 
 foreach(TESTCASE ${ALL_TESTCASES})

@@ -20,11 +20,10 @@ template <typename CType, typename AType, typename BType>
 inline void mad(CType c, AType a, BType b, auto m, auto k, auto n, auto phase, auto kDirectionAlign, auto cmatrixSource,
                 auto cmatrixInitVal)
 {
-    constexpr uint64_t kCyclePerRepeatForFloat = 2;
     using dtype_a = std::remove_pointer_t<AType>;
     int cycle_per_repeat = 1;
     if (std::is_same_v<dtype_a, float>) {
-        cycle_per_repeat = kCyclePerRepeatForFloat;
+        cycle_per_repeat = 2;
     }
     const uint64_t mTiles = CeilDiv(m, 16);
     const uint64_t kTiles = CeilDiv(k, 32 / sizeof(dtype_a));

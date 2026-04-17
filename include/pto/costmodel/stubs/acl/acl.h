@@ -7,10 +7,12 @@ THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, E
 INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 See LICENSE in the root of the software repository for the full text of the License.
 */
+#ifndef PTO_MOCKER_RUNTIME_STUB_HPP
+#define PTO_MOCKER_RUNTIME_STUB_HPP
 
-#ifndef PTO_COSTMODEL_STUBS_ACL_ACL_H
-#define PTO_COSTMODEL_STUBS_ACL_ACL_H
-
+#include <pto/costmodel/common/qualifiers.hpp>
 #include <pto/costmodel/common/aclrt_stub.hpp>
+#include <pto/costmodel/common/runtime_util.hpp>
+#include <pto/costmodel/common/arch_select.hpp>
 
-#endif // PTO_COSTMODEL_STUBS_ACL_ACL_H
+#endif

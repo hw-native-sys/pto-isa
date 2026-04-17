@@ -40,10 +40,7 @@ inline void vabs(auto dst, auto src, auto repeat, auto dstBlockStride, auto srcB
 inline void vadd(auto dst, auto src0, auto src1, auto repeat, auto dstBlockStride, auto src0BlockStride,
                  auto src1BlockStride, auto dstRepeatStride, auto src0RepeatStride, auto src1RepeatStride)
 {
-    // 910B3 标定 (fp32, TADD, dav-2201): measured = 2.11·repeat + 24 (R²=1.0).
-    // Was (slope=1) -> 2x underestimate at large cols. slope 1->2; fixed 32->24.
-    // (head+tail split is an unmeasured assumption: single-op data fixes only the sum.)
-    const uint64_t cycles = EstimateLinearCycles(repeat, 10, 2, 14) + EstimateCountModeFloor();
+    const uint64_t cycles = EstimateLinearCycles(repeat, 14, 1, 18);
     ::pto::mocker::RecordCceCall(::pto::mocker::evaluator::PipeKey::VECTOR, "vadd", cycles, dst, src0, src1, repeat,
                                  dstBlockStride, src0BlockStride, src1BlockStride, dstRepeatStride, src0RepeatStride,
                                  src1RepeatStride);
@@ -58,10 +55,7 @@ inline void vadds(auto dst, auto src0, auto src1, auto repeat, auto dstBlockStri
 inline void vand(auto dst, auto src0, auto src1, auto repeat, auto dstBlockStride, auto src0BlockStride,
                  auto src1BlockStride, auto dstRepeatStride, auto src0RepeatStride, auto src1RepeatStride)
 {
-    // 910B3 标定 (int16, TAND, dav-2201): measured = 2.03·repeat + 20 (R²=0.999).
-    // Bitwise AND: slope 2 kept, fixed 6->20. vor is identical HW cost (TOR fits the same
-    // line). (head/tail split is an unmeasured assumption: single-op data fixes only the sum.)
-    const uint64_t cycles = EstimateLinearCycles(repeat, 8, 2, 12) + EstimateCountModeFloor();
+    const uint64_t cycles = EstimateLinearCycles(repeat);
     ::pto::mocker::RecordCceCall(::pto::mocker::evaluator::PipeKey::VECTOR, "vand", cycles, dst, src0, src1, repeat,
                                  dstBlockStride, src0BlockStride, src1BlockStride, dstRepeatStride, src0RepeatStride,
                                  src1RepeatStride);
@@ -75,10 +69,7 @@ inline void vaxpy(auto dst, auto src0, auto src1, auto repeat, auto dstBlockStri
 }
 inline void vbitsort(auto dst, auto src, auto idx, auto repeat)
 {
-    // 910B3 标定 (fp32, TSORT32 single-row, dav-2201): bitonic sort of 32 elems/repeat.
-    // Measured = 16·repeat + 21 (incl. trailing pipe_barrier=1) -> slope=16, head=20.
-    // Was the bare placeholder (slope=2, head=6) -> 8x underestimate.
-    const uint64_t cycles = EstimateLinearCycles(repeat, /*head=*/20, /*slope=*/16);
+    const uint64_t cycles = EstimateLinearCycles(repeat);
     ::pto::mocker::RecordCceCall(::pto::mocker::evaluator::PipeKey::VECTOR, "vbitsort", cycles, dst, src, idx, repeat);
 }
 inline void vbrcb(auto dst, auto src, auto dstBlockStride, auto dstRepeatStride, auto repeat)
@@ -136,10 +127,7 @@ inline void vcopy(auto dst, auto src, auto repeat, auto dstBlockStride, auto src
 inline void vdiv(auto dst, auto src0, auto src1, auto repeat, auto dstBlockStride, auto src0BlockStride,
                  auto src1BlockStride, auto dstRepeatStride, auto src0RepeatStride, auto src1RepeatStride)
 {
-    // 910B3 标定 (fp32, TDIV DEFAULT div-mode, dav-2201): measured = 4.03·repeat + 31 (R²=1.0).
-    // Was (slope=8) -> 2x overestimate. slope 8->4. NOTE: high-precision div modes would be higher;
-    // costmodel has a single vdiv (no mode param), so this models the common DEFAULT path.
-    const uint64_t cycles = EstimateLinearCycles(repeat, 11, 4, 19) + EstimateCountModeFloor();
+    const uint64_t cycles = EstimateLinearCycles(repeat, 13, 8, 25);
     ::pto::mocker::RecordCceCall(::pto::mocker::evaluator::PipeKey::VECTOR, "vdiv", cycles, dst, src0, src1, repeat,
                                  dstBlockStride, src0BlockStride, src1BlockStride, dstRepeatStride, src0RepeatStride,
                                  src1RepeatStride);
@@ -154,23 +142,13 @@ inline void vector_dup(auto dst, auto src, auto repeat, auto dstBlockStride, aut
 inline void vexp(auto dst, auto src, auto repeat, auto dstBlockStride, auto srcBlockStride, auto dstRepeatStride,
                  auto srcRepeatStride)
 {
-    // 910B3 标定 (fp32, TEXP, dav-2201): measured = 2.00·repeat + 31 (R²=1.0, rep 1-128).
-    // Was the uncalibrated placeholder (slope=4, head+tail=37) -> 1.9x over at rep128
-    // (mock 545 vs real 287). slope 4->2; head+tail 37->31 (isolated op = slope*rep+head+tail,
-    // see EstimateLinearCycles). slope is the real lever; head+tail sum fixed by rep1=33.
-    // (head/tail split is an unmeasured assumption: single-op data fixes only head+tail+slope.)
-    const uint64_t cycles = EstimateLinearCycles(repeat, 13, 2, 18);
+    const uint64_t cycles = EstimateLinearCycles(repeat, 13, 4, 24);
     ::pto::mocker::RecordCceCall(::pto::mocker::evaluator::PipeKey::VECTOR, "vexp", cycles, dst, src, repeat,
                                  dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
 }
 inline void vgather(auto dst, auto offset, auto srcBaseAddr, auto dstRepeatStride, auto repeat)
 {
-    // 910B3 标定 (fp32, TGATHER counter-mode, dav-2201): indirect-address gather.
-    // TGATHER issues exactly one vgather/row (counter mode, repeat=1); measured
-    // per-row marginal = 46.6 cyc/row. Mock per-row = vmuls(1)+barrier(20)+vgather,
-    // which matches with vgather head 6->24 (vgather≈26 cyc/call). Slope (per-repeat)
-    // stays 2: TGATHER never uses repeat>1, so slope is unverified.
-    const uint64_t cycles = EstimateLinearCycles(repeat, /*head=*/24, /*slope=*/2);
+    const uint64_t cycles = EstimateLinearCycles(repeat);
     ::pto::mocker::RecordCceCall(::pto::mocker::evaluator::PipeKey::VECTOR, "vgather", cycles, dst, offset, srcBaseAddr,
                                  dstRepeatStride, repeat);
 }
@@ -183,28 +161,21 @@ inline void vgatherb(auto dst, auto offset, auto srcBaseAddr, auto dstRepeatStri
 inline void vln(auto dst, auto src, auto repeat, auto dstBlockStride, auto srcBlockStride, auto dstRepeatStride,
                 auto srcRepeatStride)
 {
-    // 910B3 标定 (fp32, TLOG, dav-2201): measured = 2.00·repeat + 33 (R²=1.0).
-    // Natural log (DEFAULT precision -> single vln). slope 2 kept; fixed 6->33 — the
-    // high one-time overhead is the transcendental setup/issue latency.
-    const uint64_t cycles = EstimateLinearCycles(repeat, 13, 2, 20);
+    const uint64_t cycles = EstimateLinearCycles(repeat);
     ::pto::mocker::RecordCceCall(::pto::mocker::evaluator::PipeKey::VECTOR, "vln", cycles, dst, src, repeat,
                                  dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
 }
 inline void vlrelu(auto dst, auto src0, auto src1, auto repeat, auto dstBlockStride, auto src0BlockStride,
                    auto dstRepeatStride, auto src0RepeatStride)
 {
-    // 910B3 标定 (fp32, TLRELU, dav-2201): measured = 1.03·repeat + 26 (R²=1.0).
-    // Leaky ReLU: slope 2->1, fixed 6->26.
-    const uint64_t cycles = EstimateLinearCycles(repeat, 11, 1, 15);
+    const uint64_t cycles = EstimateLinearCycles(repeat);
     ::pto::mocker::RecordCceCall(::pto::mocker::evaluator::PipeKey::VECTOR, "vlrelu", cycles, dst, src0, src1, repeat,
                                  dstBlockStride, src0BlockStride, dstRepeatStride, src0RepeatStride);
 }
 inline void vmax(auto dst, auto src0, auto src1, auto repeat, auto dstBlockStride, auto src0BlockStride,
                  auto src1BlockStride, auto dstRepeatStride, auto src0RepeatStride, auto src1RepeatStride)
 {
-    // 910B3 标定 (fp32, TMAX, dav-2201): measured = 2.01·repeat + 23 (R²=1.0).
-    // slope 2 confirmed; fixed 30->24.
-    const uint64_t cycles = EstimateLinearCycles(repeat, 10, 2, 14) + EstimateCountModeFloor();
+    const uint64_t cycles = EstimateLinearCycles(repeat, 14, 2, 16);
     ::pto::mocker::RecordCceCall(::pto::mocker::evaluator::PipeKey::VECTOR, "vmax", cycles, dst, src0, src1, repeat,
                                  dstBlockStride, src0BlockStride, src1BlockStride, dstRepeatStride, src0RepeatStride,
                                  src1RepeatStride);
@@ -212,18 +183,14 @@ inline void vmax(auto dst, auto src0, auto src1, auto repeat, auto dstBlockStrid
 inline void vmaxs(auto dst, auto src0, auto src1, auto repeat, auto dstBlockStride, auto src0BlockStride,
                   auto dstRepeatStride, auto src0RepeatStride)
 {
-    // 910B3 标定 (fp32, TMAXS, dav-2201): measured = 1.00·repeat + 23 (R²=1.0).
-    // Scalar-max: slope 2->1, fixed 6->23. Same cheap class as vrelu (identical fit).
-    const uint64_t cycles = EstimateLinearCycles(repeat, 10, 1, 13);
+    const uint64_t cycles = EstimateLinearCycles(repeat);
     ::pto::mocker::RecordCceCall(::pto::mocker::evaluator::PipeKey::VECTOR, "vmaxs", cycles, dst, src0, src1, repeat,
                                  dstBlockStride, src0BlockStride, dstRepeatStride, src0RepeatStride);
 }
 inline void vmin(auto dst, auto src0, auto src1, auto repeat, auto dstBlockStride, auto src0BlockStride,
                  auto src1BlockStride, auto dstRepeatStride, auto src0RepeatStride, auto src1RepeatStride)
 {
-    // 910B3 标定: vmin is vmax's twin (identical HW cost). Recalibrated to match vmax
-    // (slope 2, fixed 24) by symmetry — TMIN unmeasured but shares the vmin instruction.
-    const uint64_t cycles = EstimateLinearCycles(repeat, 10, 2, 14) + EstimateCountModeFloor();
+    const uint64_t cycles = EstimateLinearCycles(repeat, 14, 2, 16);
     ::pto::mocker::RecordCceCall(::pto::mocker::evaluator::PipeKey::VECTOR, "vmin", cycles, dst, src0, src1, repeat,
                                  dstBlockStride, src0BlockStride, src1BlockStride, dstRepeatStride, src0RepeatStride,
                                  src1RepeatStride);
@@ -237,21 +204,14 @@ inline void vmins(auto dst, auto src0, auto src1, auto repeat, auto dstBlockStri
 }
 inline void vmrgsort4(auto dst, auto addrArray, auto count, auto config)
 {
-    // 910B3 标定 (fp32, blockLen=64 single-source merge, dav-2201): 4-way merge.
-    // Measured = 78·repeat + 20 -> slope=78, head=20.
-    // Was the bare placeholder (slope=2, head=6) -> 39x underestimate.
-    // NOTE: only calibrated for single-source (LIST_NUM_1); multi-source paths use
-    // repeat=1 and their cost is driven by `count` (data volume), not modeled here.
-    const uint64_t cycles = EstimateLinearCycles(ExtractBits(config, 0, 0xffULL), /*head=*/20, /*slope=*/78);
+    const uint64_t cycles = EstimateLinearCycles(ExtractBits(config, 0, 0xffULL));
     ::pto::mocker::RecordCceCall(::pto::mocker::evaluator::PipeKey::VECTOR, "vmrgsort4", cycles, dst, addrArray, count,
                                  config);
 }
 inline void vmul(auto dst, auto src0, auto src1, auto repeat, auto dstBlockStride, auto src0BlockStride,
                  auto src1BlockStride, auto dstRepeatStride, auto src0RepeatStride, auto src1RepeatStride)
 {
-    // 910B3 标定 (fp32, TMUL, dav-2201): measured slope 2.3, fixed 25 (clean norm-mode).
-    // slope 2 kept; fixed 32->25. This also fixes TMUL clean-shape precision (was floor-blamed).
-    const uint64_t cycles = EstimateLinearCycles(repeat, 10, 2, 15) + EstimateCountModeFloor();
+    const uint64_t cycles = EstimateLinearCycles(repeat, 13, 2, 19);
     ::pto::mocker::RecordCceCall(::pto::mocker::evaluator::PipeKey::VECTOR, "vmul", cycles, dst, src0, src1, repeat,
                                  dstBlockStride, src0BlockStride, src1BlockStride, dstRepeatStride, src0RepeatStride,
                                  src1RepeatStride);
@@ -259,28 +219,21 @@ inline void vmul(auto dst, auto src0, auto src1, auto repeat, auto dstBlockStrid
 inline void vmuls(auto dst, auto src0, auto src1, auto repeat, auto dstBlockStride, auto src0BlockStride,
                   auto dstRepeatStride, auto src0RepeatStride)
 {
-    // 910B3 标定 (fp32, TMULS, dav-2201): measured slope 1, fixed 26 (clean norm-mode).
-    // slope 1 kept; fixed 33->26. Fixes TMULS clean-shape precision.
-    const uint64_t cycles = EstimateLinearCycles(repeat, 11, 1, 15);
+    const uint64_t cycles = EstimateLinearCycles(repeat, 14, 1, 19);
     ::pto::mocker::RecordCceCall(::pto::mocker::evaluator::PipeKey::VECTOR, "vmuls", cycles, dst, src0, src1, repeat,
                                  dstBlockStride, src0BlockStride, dstRepeatStride, src0RepeatStride);
 }
 inline void vnot(auto dst, auto src, auto repeat, auto dstBlockStride, auto srcBlockStride, auto dstRepeatStride,
                  auto srcRepeatStride)
 {
-    // By symmetry with vand/vor (same bitwise unit): slope 2, fixed ~20.
-    // (TNOT kernel did not compile on NPU for direct measurement; bitwise NOT shares
-    //  the vector bitwise pipeline cost of AND/OR.)
-    const uint64_t cycles = EstimateLinearCycles(repeat, 8, 2, 12);
+    const uint64_t cycles = EstimateLinearCycles(repeat);
     ::pto::mocker::RecordCceCall(::pto::mocker::evaluator::PipeKey::VECTOR, "vnot", cycles, dst, src, repeat,
                                  dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
 }
 inline void vor(auto dst, auto src0, auto src1, auto repeat, auto dstBlockStride, auto src0BlockStride,
                 auto src1BlockStride, auto dstRepeatStride, auto src0RepeatStride, auto src1RepeatStride)
 {
-    // 910B3 标定 (int16, TOR, dav-2201): measured = 2.03·repeat + 20 (R²=0.999).
-    // Identical to vand (same bitwise unit, cross-validated). slope 2 kept, fixed 6->20.
-    const uint64_t cycles = EstimateLinearCycles(repeat, 8, 2, 12) + EstimateCountModeFloor();
+    const uint64_t cycles = EstimateLinearCycles(repeat);
     ::pto::mocker::RecordCceCall(::pto::mocker::evaluator::PipeKey::VECTOR, "vor", cycles, dst, src0, src1, repeat,
                                  dstBlockStride, src0BlockStride, src1BlockStride, dstRepeatStride, src0RepeatStride,
                                  src1RepeatStride);
@@ -295,18 +248,14 @@ inline void vreducev2(auto dst, auto src0, auto src1, auto repeat, auto src0Bloc
 inline void vrelu(auto dst, auto src, auto repeat, auto dstBlockStride, auto srcBlockStride, auto dstRepeatStride,
                   auto srcRepeatStride)
 {
-    // 910B3 标定 (fp32, TRELU, dav-2201): measured = 1.00·repeat + 23 (R²=1.0).
-    // ReLU: slope 2->1, fixed 6->23. Same class as vmaxs (identical fit).
-    const uint64_t cycles = EstimateLinearCycles(repeat, 10, 1, 13);
+    const uint64_t cycles = EstimateLinearCycles(repeat);
     ::pto::mocker::RecordCceCall(::pto::mocker::evaluator::PipeKey::VECTOR, "vrelu", cycles, dst, src, repeat,
                                  dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
 }
 inline void vrsqrt(auto dst, auto src, auto repeat, auto dstBlockStride, auto srcBlockStride, auto dstRepeatStride,
                    auto srcRepeatStride)
 {
-    // 910B3 标定 (fp32, TRSQRT, dav-2201): measured = 1.07·repeat + 24 (R²=1.0).
-    // Reciprocal sqrt: slope 2->1, fixed 6->24.
-    const uint64_t cycles = EstimateLinearCycles(repeat, 10, 1, 14);
+    const uint64_t cycles = EstimateLinearCycles(repeat);
     ::pto::mocker::RecordCceCall(::pto::mocker::evaluator::PipeKey::VECTOR, "vrsqrt", cycles, dst, src, repeat,
                                  dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
 }
@@ -342,9 +291,7 @@ inline void vsqrt(auto dst, auto src, auto repeat, auto dstBlockStride, auto src
 inline void vsub(auto dst, auto src0, auto src1, auto repeat, auto dstBlockStride, auto src0BlockStride,
                  auto src1BlockStride, auto dstRepeatStride, auto src0RepeatStride, auto src1RepeatStride)
 {
-    // 910B3 标定 (fp32, TSUB, dav-2201): measured = 2.11·repeat + 24 (R²=1.0).
-    // slope 2 confirmed (cross-validated with vadd); fixed 31->24.
-    const uint64_t cycles = EstimateLinearCycles(repeat, 10, 2, 14) + EstimateCountModeFloor();
+    const uint64_t cycles = EstimateLinearCycles(repeat, 13, 2, 18);
     ::pto::mocker::RecordCceCall(::pto::mocker::evaluator::PipeKey::VECTOR, "vsub", cycles, dst, src0, src1, repeat,
                                  dstBlockStride, src0BlockStride, src1BlockStride, dstRepeatStride, src0RepeatStride,
                                  src1RepeatStride);

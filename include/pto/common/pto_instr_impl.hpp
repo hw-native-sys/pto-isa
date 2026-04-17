@@ -57,28 +57,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a2a3/TUnaryOp.hpp"
 #include "pto/npu/a2a3/TPush.hpp"
 #include "pto/npu/a2a3/TPop.hpp"
-#include "pto/npu/a2a3/TAlloc.hpp"
-#include "pto/npu/a2a3/TFree.hpp"
-#include "pto/npu/a2a3/TReshape.hpp"
-#include "pto/npu/a2a3/TPrefetch.hpp"
-#include "pto/npu/a2a3/TRowExpandSub.hpp"
-#include "pto/npu/a2a3/TRowExpandMul.hpp"
-#include "pto/npu/a2a3/TRowExpandDiv.hpp"
-#include "pto/npu/a2a3/TRowExpandAdd.hpp"
-#include "pto/npu/a2a3/TImg2col.hpp"
-#include "pto/npu/a2a3/SetFmatrix.hpp"
-#include "pto/npu/a2a3/TPairReduceSum.hpp"
-// Bitwise / axpy / leaky-relu ops: their MAP_INSTR_IMPL entries already exist in
-// pto/costmodel/pto_instr.hpp (TAND/TOR/TSHL/TSHR/TAXPY/TLRELU), but the headers
-// providing the *_IMPL were only in the real-kernel #else block. Including them
-// here wires vand/vor/vshl/vshr/vaxpy/vlrelu into the mock so their (currently
-// bare 6/2 placeholder) coefficients are actually exercised and can be calibrated.
-#include "pto/npu/a2a3/TAnd.hpp"
-#include "pto/npu/a2a3/TOr.hpp"
-#include "pto/npu/a2a3/TShl.hpp"
-#include "pto/npu/a2a3/TShr.hpp"
-#include "pto/npu/a2a3/TAxpy.hpp"
-#include "pto/npu/a2a3/TLRelu.hpp"
 #else
 #include "pto/npu/a2a3/TAssign.hpp"
 #include "pto/npu/a2a3/TAlias.hpp"
@@ -196,6 +174,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a2a3/TMulAddDst.hpp"
 #include "pto/npu/a2a3/TSubRelu.hpp"
 #include "pto/npu/a2a3/TFusedMulAddRelu.hpp"
+#endif
 #endif
 #endif
 
@@ -437,7 +416,5 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 // Async L2 cache prefetch (no-op on CPU sim - kept for API surface compatibility).
 #include "pto/cpu/TPrefetchAsync.hpp"
-
-#endif
 
 #endif

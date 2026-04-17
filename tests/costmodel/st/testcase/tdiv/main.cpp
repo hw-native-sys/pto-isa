@@ -38,12 +38,12 @@ void runTDiv()
 
 TEST(TDiv, case_float_64x64_64x64_64x64)
 {
-    runTDiv<float, 64, 64, 64, 64, 288.0f, 0.993055f>();
+    runTDiv<float, 64, 64, 64, 64, 0.0f, 0.0f>();
 }
 
 TEST(TDiv, case_half_64x64_64x64_64x64)
 {
-    runTDiv<half, 64, 64, 64, 64, 304.0f, 0.999999f>();
+    runTDiv<half, 64, 64, 64, 64, 0.0f, 0.0f>();
 }
 
 TEST(TDiv, case_half_61x61_64x64_61x61)

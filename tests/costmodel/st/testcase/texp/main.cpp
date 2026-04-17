@@ -40,11 +40,11 @@ TEST(TExp, float_64x64)
 }
 TEST(TExp, half_64x64)
 {
-    runTExp<half, 64, 64, 95.0f, 0.962263f>();
+    runTExp<half, 64, 64, 159.0f, 0.962264f>();
 }
 TEST(TExp, half_32x32)
 {
-    runTExp<half, 32, 32, 47.0f, 0.904761f>();
+    runTExp<half, 32, 32, 63.0f, 0.904761f>();
 }
 TEST(TExp, float_32x32)
 {

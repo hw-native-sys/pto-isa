@@ -33,22 +33,22 @@ void runTMax()
 
 TEST(TMax, case_float_64x64_64x64_64x64_PAD_VALUE_NULL)
 {
-    runTMax<float, 64, 64, 64, 64, PadValue::Null, 151.0f, 0.993376f>();
+    runTMax<float, 64, 64, 64, 64, PadValue::Null, 0.0f, 0.0f>();
 }
 
 TEST(TMax, case_int32_64x64_64x64_64x64_PAD_VALUE_NULL)
 {
-    runTMax<int32_t, 64, 64, 64, 64, PadValue::Null, 151.0f, 0.993376f>();
+    runTMax<int32_t, 64, 64, 64, 64, PadValue::Null, 0.0f, 0.0f>();
 }
 
 TEST(TMax, case_half_64x64_64x64_64x64_PAD_VALUE_NULL)
 {
-    runTMax<half, 64, 64, 64, 64, PadValue::Null, 167.0f, 0.982035f>();
+    runTMax<half, 64, 64, 64, 64, PadValue::Null, 0.0f, 0.0f>();
 }
 
 TEST(TMax, case_int16_64x64_64x64_64x64_PAD_VALUE_NULL)
 {
-    runTMax<int16_t, 64, 64, 64, 64, PadValue::Null, 167.0f, 0.982035f>();
+    runTMax<int16_t, 64, 64, 64, 64, PadValue::Null, 0.0f, 0.0f>();
 }
 
 TEST(TMax, case_float_60x60_64x64_60x60_PAD_VALUE_MAX)

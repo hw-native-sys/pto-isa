@@ -53,5 +53,5 @@ TEST(TSub, half_16x256)
 
 TEST(TSub, int16_64x64)
 {
-    runTSub<int16_t, 64, 64, 170.0f, 0.798507f>();
+    runTSub<int16_t, 64, 64, 134.0f, 0.798507f>();
 }
