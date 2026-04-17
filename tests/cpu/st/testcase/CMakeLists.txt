@@ -167,10 +167,9 @@ ttrace
 twait
 txor
 txors
-tpushpop_cv_nosplit
-tpushpop_cv
-tpushpop_vc_nosplit
-tpushpop_vc
+tget_async
+tput_async
+tsubview
 )
 
 foreach(TESTCASE ${ALL_TESTCASES})
