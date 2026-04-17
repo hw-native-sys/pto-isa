@@ -91,20 +91,6 @@ A5 is the primary concrete profile for the vector instructions. CPU simulation a
 
 ---
 
-## Performance
-
-### Timing Disclosure
-
-The current public VPTO timing material for PTO micro instructions remains limited.
-For `pto.vaddc`, those public sources describe the instruction semantics, operand legality, and pipeline placement, but they do **not** publish a numeric latency or steady-state throughput.
-
-| Metric | Status | Source Basis |
-|--------|--------|--------------|
-| A5 latency | Not publicly published | Current public VPTO timing material |
-| Steady-state throughput | Not publicly published | Current public VPTO timing material |
-
-If software scheduling or performance modeling depends on the exact cost of `pto.vaddc`, treat that cost as target-profile-specific and measure it on the concrete backend rather than inferring a manual constant.
-
 ## Examples
 
 ### C Semantics
