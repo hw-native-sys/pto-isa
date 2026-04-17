@@ -1773,21 +1773,22 @@ PTO_INST RecordEvent TDEQUANT(TileDataDst &dst, TileDataSrc &src, TileDataPara &
     return {};
 }
 
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataTmp,
-          typename... WaitEvents>
+template <auto PrecisionType = RemAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc0,
+          typename TileDataSrc1, typename TileDataTmp, typename... WaitEvents>
 PTO_INST RecordEvent TREM(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, TileDataTmp &tmp,
                           WaitEvents &... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL(TREM, dst, src0, src1, tmp);
+    TREM_IMPL<PrecisionType>(dst, src0, src1, tmp);
     return {};
 }
 
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
+template <auto PrecisionType = FmodAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc0,
+          typename TileDataSrc1, typename... WaitEvents>
 PTO_INST RecordEvent TFMOD(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, WaitEvents &... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL(TFMOD, dst, src0, src1);
+    TFMOD_IMPL<PrecisionType>(dst, src0, src1);
     return {};
 }
 

@@ -72,19 +72,20 @@ PTO_INTERNAL void TFmodCheck(const TileDataDst &dst, const TileDataSrc0 &src0, c
                   "Fix: TFMOD support only row major layout.");
     unsigned validRows = dst.GetValidRow();
     unsigned validCols = dst.GetValidCol();
-    PTO_ASSERT(src0.GetValidRow() == validRows && src0.GetValidCol() == validCols,
-               "Fix: TFMOD input tile src0 valid shape mismatch with output tile dst shape.");
     PTO_ASSERT(src1.GetValidRow() == validRows && src1.GetValidCol() == validCols,
                "Fix: TFMOD input tile src1 valid shape mismatch with output tile dst shape.");
+    PTO_ASSERT(src0.GetValidRow() == validRows && src0.GetValidCol() == validCols,
+               "Fix: TFMOD input tile src0 valid shape mismatch with output tile dst shape.");
 }
 
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
+template <auto PrecisionType = FmodAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc0,
+          typename TileDataSrc1>
 PTO_INTERNAL void TFMOD_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1)
 {
     using T = typename TileDataDst::DType;
     TFmodCheck<T, TileDataDst, TileDataSrc0, TileDataSrc1>(dst, src0, src1);
-    constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
     constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
     constexpr unsigned dstRowStride = TileDataDst::RowStride;
     constexpr unsigned src0RowStride = TileDataSrc0::RowStride;
     constexpr unsigned src1RowStride = TileDataSrc1::RowStride;

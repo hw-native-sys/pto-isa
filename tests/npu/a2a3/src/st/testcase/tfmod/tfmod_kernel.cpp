@@ -45,7 +45,7 @@ __global__ AICORE void runTFmod(__gm__ T __out__ *out, __gm__ T __in__ *src0, __
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 #endif
-    TFMOD<TileDataDst, TileDataSrc0, TileDataSrc1>(dstTile, src0Tile, src1Tile);
+    TFMOD<FmodAlgorithm::DEFAULT, TileDataDst, TileDataSrc0, TileDataSrc1>(dstTile, src0Tile, src1Tile);
 #ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);

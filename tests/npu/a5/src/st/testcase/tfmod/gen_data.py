@@ -73,6 +73,9 @@ if __name__ == "__main__":
         TfmodParams("TFMODTest.case7", np.float16, 32, 32, 31, 31),
         TfmodParams("TFMODTest.case8", np.int16, 16, 16, 16, 16),
         TfmodParams("TFMODTest.case9", np.int32, 8, 8, 8, 8),
+        TfmodParams("TFMODTest.case10", np.float32, 64, 64, 64, 64),
+        TfmodParams("TFMODTest.case11", np.float32, 128, 128, 96, 96),
+        TfmodParams("TFMODTest.case12", np.float32, 128, 128, 96, 97),
     ]
 
     for param in case_params_list:

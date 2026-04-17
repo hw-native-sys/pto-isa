@@ -23,7 +23,8 @@ protected:
     {}
 };
 
-std::string GetGoldenDir() {
+std::string GetGoldenDir()
+{
     const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
@@ -31,12 +32,12 @@ std::string GetGoldenDir() {
     return fullPath;
 }
 
-
-template <typename T, int kTRows_, int kTCols_, int vRows, int vCols, bool isHalf>
+template <typename T, int kTRows_, int kTCols_, int vRows, int vCols, bool isHalf, bool highPrecision = false>
 void LaunchTFMod(T *out, T *src0, T *src1, void *stream);
 
-template<typename T, int kTRows_, int kTCols_, int vRows, int vCols, bool isHalf>
-void test_tfmod() {
+template <typename T, int kTRows_, int kTCols_, int vRows, int vCols, bool isHalf, bool highPrecision = false>
+void test_tfmod()
+{
     size_t fileSize = kTRows_ * kTCols_ * sizeof(T);
 
     aclInit(nullptr);
@@ -60,7 +61,7 @@ void test_tfmod() {
 
     aclrtMemcpy(src0Device, fileSize, src0Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, fileSize, src1Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    LaunchTFMod<T, kTRows_, kTCols_, vRows, vCols, isHalf>(dstDevice, src0Device, src1Device, stream);
+    LaunchTFMod<T, kTRows_, kTCols_, vRows, vCols, isHalf, highPrecision>(dstDevice, src0Device, src1Device, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, fileSize, dstDevice, fileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -88,38 +89,62 @@ void test_tfmod() {
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TFMODTest, case1) {
+TEST_F(TFMODTest, case1)
+{
     test_tfmod<uint16_t, 64, 64, 64, 64, false>();
 }
 
-TEST_F(TFMODTest, case2) {
+TEST_F(TFMODTest, case2)
+{
     test_tfmod<uint16_t, 64, 64, 63, 63, false>();
 }
 
-TEST_F(TFMODTest, case3) {
+TEST_F(TFMODTest, case3)
+{
     test_tfmod<uint16_t, 1, 16384, 1, 16384, false>();
 }
 
-TEST_F(TFMODTest, case4) {
+TEST_F(TFMODTest, case4)
+{
     test_tfmod<uint16_t, 2048, 16, 2048, 16, false>();
 }
 
-TEST_F(TFMODTest, case5) {
-    test_tfmod<float, 32, 32, 32, 32, false>();
+TEST_F(TFMODTest, case5)
+{
+    test_tfmod<float, 32, 32, 32, 32, false, true>();
 }
 
-TEST_F(TFMODTest, case6) {
+TEST_F(TFMODTest, case6)
+{
     test_tfmod<uint32_t, 8, 8, 8, 8, false>();
 }
 
-TEST_F(TFMODTest, case7) {
+TEST_F(TFMODTest, case7)
+{
     test_tfmod<aclFloat16, 32, 32, 31, 31, true>();
 }
 
-TEST_F(TFMODTest, case8) {
+TEST_F(TFMODTest, case8)
+{
     test_tfmod<int16_t, 16, 16, 16, 16, false>();
 }
 
-TEST_F(TFMODTest, case9) {
+TEST_F(TFMODTest, case9)
+{
     test_tfmod<int32_t, 8, 8, 8, 8, false>();
+}
+
+TEST_F(TFMODTest, case10)
+{
+    test_tfmod<float, 64, 64, 64, 64, false, true>();
+}
+
+TEST_F(TFMODTest, case11)
+{
+    test_tfmod<float, 128, 128, 96, 96, false, true>();
+}
+
+TEST_F(TFMODTest, case12)
+{
+    test_tfmod<float, 128, 128, 96, 97, false, true>();
 }

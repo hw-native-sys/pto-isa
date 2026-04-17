@@ -71,21 +71,21 @@ PTO_INTERNAL void DivIEEE754FloatImpl(RegTensor<float> &dst, RegTensor<float> &s
     constexpr uint32_t exponentNormalizer = 0x3F800000; // 1.0f reference (bias=127)
     constexpr uint32_t F32_INF = 0x7f800000;            // +Infinity: sign=0, exp=0xFF, mant=0
 
-    NotNumUnion subnormalThreshold;
+    FloatUnion subnormalThreshold;
     subnormalThreshold.i = 0x007FFFFF; // Threshold for subnormal (denormal) detection: 2^23 - 1
 
-    NotNumUnion nan;
+    FloatUnion nan;
     nan.i = 0x7fc00000; // NaN: sign=0, exp=0xFF, mant!=0
 
-    NotNumUnion min_denormal;
+    FloatUnion min_denormal;
     min_denormal.i = 0x1; // Minimum denormal value detection (smallest positive float32 = 2^-149)
 
     // Scaling factors for denormal normalization:
     // normalizeScaleEnlarge = 2^23: shifts denormals into normal range
     // normalizeScaleReduce = 2^-23: inverse operation for denormal result
-    NotNumUnion normalizeScaleEnlarge;
+    FloatUnion normalizeScaleEnlarge;
     normalizeScaleEnlarge.i = 0x4B000000; // 2^23
-    NotNumUnion normalizeScaleReduce;
+    FloatUnion normalizeScaleReduce;
     normalizeScaleReduce.i = 0x34000000; // 2^-23
 
     RegTensor<float> maxSubnormal;

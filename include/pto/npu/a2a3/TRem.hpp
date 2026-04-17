@@ -137,7 +137,8 @@ PTO_INTERNAL void TRemCheck(const TileDataDst &dst, const TileDataSrc0 &src0, co
     PTO_ASSERT(tmp.GetValidRow() >= 1, "Fix: TREM tmp tile must have at least 1 row.");
 }
 
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataTmp>
+template <auto PrecisionType = RemAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc0,
+          typename TileDataSrc1, typename TileDataTmp>
 PTO_INTERNAL void TREM_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, TileDataTmp &tmp)
 {
     using T = typename TileDataDst::DType;

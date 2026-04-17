@@ -50,7 +50,8 @@ __global__ AICORE void runTRem(__gm__ T __out__ *out, __gm__ T __in__ *src0, __g
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 #endif
-    TREM<TileDataDst, TileDataSrc0, TileDataSrc1, TileDataTmp>(dstTile, src0Tile, src1Tile, tmpTile);
+    TREM<RemAlgorithm::DEFAULT, TileDataDst, TileDataSrc0, TileDataSrc1, TileDataTmp>(dstTile, src0Tile, src1Tile,
+                                                                                      tmpTile);
 #ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);

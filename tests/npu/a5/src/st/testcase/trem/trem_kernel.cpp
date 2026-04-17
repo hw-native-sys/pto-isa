@@ -14,7 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-template <typename T, int kTRows_, int kTCols_, int vRows, int vCols>
+template <typename T, int kTRows_, int kTCols_, int vRows, int vCols, bool highPrecision>
 __global__ AICORE void runTRem(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in__ *src1)
 {
     using DynShapeDim5 = Shape<1, 1, 1, vRows, vCols>;
@@ -29,6 +29,7 @@ __global__ AICORE void runTRem(__gm__ T __out__ *out, __gm__ T __in__ *src0, __g
     TASSIGN(src1Tile, kTRows_ * kTCols_ * sizeof(T));
     TASSIGN(dstTile, kTRows_ * kTCols_ * sizeof(T) * 2);
     TASSIGN(tmpTile, kTRows_ * kTCols_ * sizeof(T) * 3);
+    constexpr auto precisionType = highPrecision ? RemAlgorithm::HIGH_PRECISION : RemAlgorithm::DEFAULT;
 
     GlobalData src0Global(src0);
     GlobalData src1Global(src1);
@@ -39,30 +40,38 @@ __global__ AICORE void runTRem(__gm__ T __out__ *out, __gm__ T __in__ *src0, __g
 
     TLOAD(src0Tile, src0Global);
     event0 = TLOAD(src1Tile, src1Global);
-    event1 = TREM(dstTile, src0Tile, src1Tile, tmpTile, event0);
+    event1 = TREM<precisionType>(dstTile, src0Tile, src1Tile, tmpTile, event0);
     TSTORE(dstGlobal, dstTile, event1);
     out = dstGlobal.data();
 }
 
-template <typename T, int kTRows_, int kTCols_, int vRows, int vCols, bool isHalf>
+template <typename T, int kTRows_, int kTCols_, int vRows, int vCols, bool isHalf, bool highPrecision>
 void LaunchTRem(T *out, T *src0, T *src1, void *stream)
 {
     if constexpr (isHalf) {
-        runTRem<half, kTRows_, kTCols_, vRows, vCols><<<1, nullptr, stream>>>((half *)out, (half *)src0, (half *)src1);
+        runTRem<half, kTRows_, kTCols_, vRows, vCols, highPrecision>
+            <<<1, nullptr, stream>>>((half *)out, (half *)src0, (half *)src1);
     } else {
-        runTRem<T, kTRows_, kTCols_, vRows, vCols><<<1, nullptr, stream>>>(out, src0, src1);
+        runTRem<T, kTRows_, kTCols_, vRows, vCols, highPrecision><<<1, nullptr, stream>>>(out, src0, src1);
     }
 }
 
-template void LaunchTRem<uint16_t, 64, 64, 64, 64, false>(uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream);
-template void LaunchTRem<uint16_t, 64, 64, 63, 63, false>(uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream);
-template void LaunchTRem<uint16_t, 1, 16384, 1, 16384, false>(uint16_t *out, uint16_t *src0, uint16_t *src1,
-                                                              void *stream);
-template void LaunchTRem<uint16_t, 2048, 16, 2048, 16, false>(uint16_t *out, uint16_t *src0, uint16_t *src1,
-                                                              void *stream);
-template void LaunchTRem<float, 32, 32, 32, 32, false>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTRem<uint32_t, 8, 8, 8, 8, false>(uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream);
-template void LaunchTRem<aclFloat16, 32, 32, 31, 31, true>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                           void *stream);
-template void LaunchTRem<int16_t, 16, 16, 16, 16, false>(int16_t *out, int16_t *src0, int16_t *src1, void *stream);
-template void LaunchTRem<int32_t, 8, 8, 8, 8, false>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
+template void LaunchTRem<uint16_t, 64, 64, 64, 64, false, false>(uint16_t *out, uint16_t *src0, uint16_t *src1,
+                                                                 void *stream);
+template void LaunchTRem<uint16_t, 64, 64, 63, 63, false, false>(uint16_t *out, uint16_t *src0, uint16_t *src1,
+                                                                 void *stream);
+template void LaunchTRem<uint16_t, 1, 16384, 1, 16384, false, false>(uint16_t *out, uint16_t *src0, uint16_t *src1,
+                                                                     void *stream);
+template void LaunchTRem<uint16_t, 2048, 16, 2048, 16, false, false>(uint16_t *out, uint16_t *src0, uint16_t *src1,
+                                                                     void *stream);
+template void LaunchTRem<float, 32, 32, 32, 32, false, true>(float *out, float *src0, float *src1, void *stream);
+template void LaunchTRem<uint32_t, 8, 8, 8, 8, false, false>(uint32_t *out, uint32_t *src0, uint32_t *src1,
+                                                             void *stream);
+template void LaunchTRem<aclFloat16, 32, 32, 31, 31, true, false>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
+                                                                  void *stream);
+template void LaunchTRem<int16_t, 16, 16, 16, 16, false, false>(int16_t *out, int16_t *src0, int16_t *src1,
+                                                                void *stream);
+template void LaunchTRem<int32_t, 8, 8, 8, 8, false, false>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
+template void LaunchTRem<float, 64, 64, 64, 64, false, true>(float *out, float *src0, float *src1, void *stream);
+template void LaunchTRem<float, 128, 128, 96, 96, false, true>(float *out, float *src0, float *src1, void *stream);
+template void LaunchTRem<float, 128, 128, 96, 97, false, true>(float *out, float *src0, float *src1, void *stream);

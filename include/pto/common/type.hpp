@@ -108,6 +108,8 @@ struct int4b_t {
     }
 };
 
+#include <type_traits>
+
 namespace pto {
 enum class TileType
 {
@@ -313,19 +315,23 @@ enum class HistByte : uint8_t
     BYTE_3 = 3  // MSB (bits 31-24)
 };
 
-union NotNumUnion {
-    float f;
-    uint32_t i;
+template <typename T>
+union FloatIntUnion {
+    using UIntegerType = std::conditional_t<sizeof(T) == sizeof(float), uint32_t, uint16_t>;
+    UIntegerType i;
+#ifdef __CCE_AICORE__
+    T f;
+    constexpr PTO_INTERNAL FloatIntUnion() : f(0.0f)
+    {}
+    constexpr PTO_INTERNAL FloatIntUnion(UIntegerType val) : i(val)
+    {}
+#endif
 };
 
-union HalfUnion {
+using FloatUnion = FloatIntUnion<float>;
 #ifdef __CCE_AICORE__
-    half f;
-#else
-    uint16_t f;
+using HalfUnion = FloatIntUnion<half>;
 #endif
-    uint16_t i;
-};
 
 enum class DivAlgorithm : uint8_t
 {
@@ -358,6 +364,18 @@ enum class ExpAlgorithm : uint8_t
 };
 
 enum class LogAlgorithm : uint8_t
+{
+    DEFAULT,
+    HIGH_PRECISION
+};
+
+enum class FmodAlgorithm : uint8_t
+{
+    DEFAULT,
+    HIGH_PRECISION
+};
+
+enum class RemAlgorithm : uint8_t
 {
     DEFAULT,
     HIGH_PRECISION

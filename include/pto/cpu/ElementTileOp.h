@@ -110,7 +110,6 @@ BINARY_OP_DEF(AND)
 BINARY_OP_DEF(OR)
 BINARY_OP_DEF(XOR)
 BINARY_OP_DEF(MIN)
-BINARY_OP_DEF(FMOD)
 
 UNARY_OP_DEF(NEG)
 UNARY_OP_DEF(NOT)
@@ -134,7 +133,15 @@ PTO_INTERNAL void TLOG_IMPL(TileDataDst &dst, TileDataSrc &src)
     UnaryElementTileOp_Impl<ElementOp::OP_LOG>(dst, src);
 }
 
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataTmp>
+template <auto PrecisionType = FmodAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc0,
+          typename TileDataSrc1>
+PTO_INTERNAL void TFMOD_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1)
+{
+    BinaryElementTileOp_Impl<ElementOp::OP_FMOD>(dst, src0, src1);
+}
+
+template <auto PrecisionType = RemAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc0,
+          typename TileDataSrc1, typename TileDataTmp>
 PTO_INTERNAL void TREM_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, TileDataTmp &tmp)
 {
     (void)tmp;

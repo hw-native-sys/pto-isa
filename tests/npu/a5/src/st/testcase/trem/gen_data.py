@@ -73,6 +73,9 @@ if __name__ == "__main__":
         TremParams("TREMTest.case7", np.float16, 32, 32, 31, 31),
         TremParams("TREMTest.case8", np.int16, 16, 16, 16, 16),
         TremParams("TREMTest.case9", np.int32, 8, 8, 8, 8),
+        TremParams("TREMTest.case10", np.float32, 64, 64, 64, 64),
+        TremParams("TREMTest.case11", np.float32, 128, 128, 96, 96),
+        TremParams("TREMTest.case12", np.float32, 128, 128, 96, 97),
     ]
 
     for param in case_params_list:
