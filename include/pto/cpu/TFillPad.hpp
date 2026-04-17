@@ -89,9 +89,11 @@ PTO_INTERNAL void TFILLPAD_IMPL(TileDataDst &dst, TileDataSrc &src)
     TFillPad<TileDataDst, TileDataSrc>(dst.data(), src.data(), validDstRow, validDstCol, validSrcRow, validSrcCol);
 }
 
-template <typename TileData, PadValue PadVal = TileData::PadVal>
+template <typename TileData, PadValue PadVal = PadValue::Zero>
 PTO_INTERNAL void TFILLPAD_IMPL(TileData &dst, TileData &src)
 {
+    constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename TileData::DType);
+    constexpr unsigned Stride = TileData::RowStride;
     unsigned validSrcRow = src.GetValidRow();
     unsigned validSrcCol = src.GetValidCol();
     unsigned validDstRow = dst.GetValidRow();
@@ -117,7 +119,7 @@ PTO_INTERNAL void TFILLPAD_IMPL(TileDataDst &dst, TileDataSrc &src)
 }
 
 template <typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TFILLPAD_INPLACE(TileDataDst &dst, TileDataSrc &src)
+PTO_INTERNAL void TFILLPAD_INPLACE_IMPL(TileDataDst &dst, TileDataSrc &src)
 {
     static_assert(TileDataDst::Cols == TileDataSrc::Cols && TileDataDst::Rows == TileDataSrc::Rows,
                   "TFillPad: dst and src should have the same rows/cols!");
@@ -126,13 +128,7 @@ PTO_INTERNAL void TFILLPAD_INPLACE(TileDataDst &dst, TileDataSrc &src)
 }
 
 template <typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TFILLPAD_INPLACE_IMPL(TileDataDst &dst, TileDataSrc &src)
-{
-    TFILLPAD_INPLACE(dst, src);
-}
-
-template <typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TFILLPAD_EXPAND(TileDataDst &dst, TileDataSrc &src)
+PTO_INTERNAL void TFILLPAD_EXPAND_IMPL(TileDataDst &dst, TileDataSrc &src)
 {
     static_assert(TileDataDst::Cols >= TileDataSrc::Cols && TileDataDst::Rows >= TileDataSrc::Rows,
                   "TFillPad: dst and src should have the same rows/cols!");
