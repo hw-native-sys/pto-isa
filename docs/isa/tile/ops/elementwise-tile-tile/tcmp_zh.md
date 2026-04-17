@@ -1,77 +1,110 @@
-# TCMP
+# pto.tcmp
 
-## 指令示意图
+`pto.tcmp` 属于[逐元素 Tile-Tile](../../elementwise-tile-tile_zh.md)指令集。
 
-![TCMP tile operation](../../../../figures/isa/TCMP.svg)
+## 概述
 
-## 简介
+比较两个 tile，并把结果写成打包谓词 tile。
 
-比较两个 Tile 并写入一个打包的谓词掩码。
+## 机制
 
-## 数学语义
-
-Conceptually, for each element `(i, j)` in the valid region, define a predicate:
+从语义上看，对目标 tile 的 valid region 中每个 `(i, j)`，先定义一个谓词：
 
 $$ p_{i,j} = \left(\mathrm{src0}_{i,j}\ \mathrm{cmpMode}\ \mathrm{src1}_{i,j}\right) $$
 
-The predicate mask is stored in `dst` using an implementation-defined packed layout.
+随后把这些谓词位按目标定义的 packed layout 写入 `dst`。也就是说，`dst` 不是“每个 lane 一个布尔数”的朴素 tile，而是某种目标定义的压缩谓词表示。
 
-## 汇编语法
+## 语法
 
-PTO-AS 形式：参见 [PTO-AS Specification](../../../../assembly/PTO-AS_zh.md).
-
-同步形式：
+### PTO-AS
 
 ```text
-%dst = tcmp %src0, %src1 {cmpMode = #pto.cmp<EQ>} : !pto.tile<...> -> !pto.tile<...>
+%dst = tcmp %src0, %src1 {cmpMode = #pto.cmp<EQ>} : !pto.tile<...>
 ```
 
 ### AS Level 1（SSA）
 
 ```text
-%dst = pto.tcmp %src0, %src1{cmpMode = #pto<cmp xx>}: (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+%dst = pto.tcmp %src0, %src1 {cmpMode = #pto.cmp<EQ>} : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
 ### AS Level 2（DPS）
 
 ```text
-pto.tcmp ins(%src0, %src1{cmpMode = #pto<cmp xx>}: !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+pto.tcmp ins(%src0, %src1 {cmpMode = #pto.cmp<EQ>}: !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
 ## C++ 内建接口
 
-声明于 `include/pto/common/pto_instr.hpp` and `include/pto/common/type.hpp`:
-
 ```cpp
 template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
-PTO_INST RecordEvent TCMP(TileDataDst &dst, TileDataSrc &src0, TileDataSrc &src1, CmpMode cmpMode, WaitEvents &... events);
+PTO_INST RecordEvent TCMP(TileDataDst &dst, TileDataSrc &src0, TileDataSrc &src1,
+                          CmpMode cmpMode, WaitEvents &... events);
 ```
+
+### 比较模式
+
+| 模式 | 含义 |
+| --- | --- |
+| `EQ` | 等于 |
+| `NE` | 不等于 |
+| `LT` | 小于 |
+| `LE` | 小于等于 |
+| `GT` | 大于 |
+| `GE` | 大于等于 |
+
+## 输入
+
+| 操作数 | 角色 | 说明 |
+| --- | --- | --- |
+| `%src0` | 左 tile | 在 `dst` valid region 上逐坐标参与比较 |
+| `%src1` | 右 tile | 在 `dst` valid region 上逐坐标参与比较 |
+| `%dst` | 谓词 tile | 保存打包后的比较结果 |
+| `cmpMode` | 比较谓词 | 选择 EQ/NE/LT/LE/GT/GE |
+
+## 预期输出
+
+| 结果 | 类型 | 说明 |
+| --- | --- | --- |
+| `%dst` | `!pto.tile<...>` | 打包后的谓词结果 tile |
+
+## 副作用
+
+除产生谓词 tile 外，没有额外架构副作用。
 
 ## 约束
 
-- **实现检查 (A2A3)**:
-    - Input type must be one of: `int32_t`, `half`, `float`.
-    - Output type must be `uint8_t`.
-    - `src0/src1/dst` tile location must be `TileType::Vec`.
-    - Static valid bounds: `TileDataSrc::ValidRow <= TileDataSrc::Rows` and `TileDataSrc::ValidCol <= TileDataSrc::Cols`.
-    - Runtime: `src0.GetValidRow() == dst.GetValidRow()` and `src0.GetValidCol() == dst.GetValidCol()`.
-    - Note: `src1` shape/valid is not validated by explicit runtime assertions in this implementation.
-    - For `TileDataSrc::DType == int32_t`, the implementation uses the `EQ` compare path regardless of `cmpMode`.
-- **实现检查 (A5)**:
-    - Input type must be one of: `uint32_t`, `int32_t`, `uint16_t`, `int16_t`, `uint8_t`,  `int8_t`, `float`, `half`.
-    - Output type must be `uint32_t`.
-    - Implemented (see `include/pto/npu/a5/TCmp.hpp`).
-    - The A5 implementation uses `dst.GetValidRow()` / `dst.GetValidCol()` as the iteration domain and writes a packed predicate mask into `dst` (target-defined packing).
-- **Mask encoding**:
-    - The mask tile is interpreted as packed predicate bits in a target-defined layout.
+- 迭代域是 `dst.GetValidRow() × dst.GetValidCol()`。
+- `src0` 的 validRow / validCol 必须与 `dst` 一致。
+- `src1` 的 shape / valid 在某些实现里不会做完整运行时校验，因此域外读值属于 implementation-defined。
+- 程序不能假设谓词 tile 的具体编码。
+
+## 不允许的情形
+
+- 假设谓词 tile 是“一位一元素”的普通展开布尔 tile。
+- 对 `dst` 使用不符合目标定义的谓词输出 dtype。
+
+## Target-Profile 限制
+
+| 检查项 | A2A3 | A5 |
+| --- | :---: | :---: |
+| 支持输入类型 | `int32_t`、`half`、`float` | `uint32_t`、`int32_t`、`uint16_t`、`int16_t`、`uint8_t`、`int8_t`、`float`、`half` |
+| 输出谓词 dtype | `uint8_t` | `uint32_t` |
+| tile 位置 | `TileType::Vec` | `TileType::Vec` |
+| 布局 | RowMajor | RowMajor |
+| `src0` valid == `dst` valid` | Required | Required |
+| `src1` validity` | Not fully verified | Not fully verified |
+
+对 A2A3，若输入类型是 `int32_t`，实现里可能只走 `EQ` 比较路径；A5 则支持完整比较模式。
+
+## 性能
+
+当前仓内没有把 `tcmp` 单独落成公开 cost bucket。若代码依赖具体延迟，应把它视为目标 profile 相关的 tile 比较路径。
 
 ## 示例
 
-### 自动（Auto）
-
 ```cpp
 #include <pto/pto-inst.hpp>
-
 using namespace pto;
 
 void example_auto() {
@@ -83,21 +116,8 @@ void example_auto() {
 }
 ```
 
-### 手动（Manual）
+## 相关页面
 
-```cpp
-#include <pto/pto-inst.hpp>
-
-using namespace pto;
-
-void example_manual() {
-  using SrcT = Tile<TileType::Vec, float, 16, 16>;
-  using MaskT = Tile<TileType::Vec, uint8_t, 16, 32, BLayout::RowMajor, -1, -1>;
-  SrcT src0, src1;
-  MaskT mask(16, 2);
-  TASSIGN(src0, 0x1000);
-  TASSIGN(src1, 0x2000);
-  TASSIGN(mask, 0x3000);
-  TCMP(mask, src0, src1, CmpMode::GT);
-}
-```
+- 指令集总览：[逐元素 Tile-Tile](../../elementwise-tile-tile_zh.md)
+- 上一条指令：[pto.tmax](./tmax_zh.md)
+- 下一条指令：[pto.tdiv](./tdiv_zh.md)

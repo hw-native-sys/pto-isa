@@ -1,13 +1,13 @@
 # pto.tsetfmatrix
 
-Canonical tile-instruction reference: [pto.tsetfmatrix](./tile/ops/sync-and-config/tsetfmatrix.md).
+Canonical scalar/control reference: [pto.tsetfmatrix](./scalar/ops/control-and-configuration/tsetfmatrix.md).
 
 The PTO ISA manual now treats tile, vector, and scalar/control operations consistently: the canonical per-op pages live under `docs/isa/tile/ops/`, `docs/isa/vector/ops/`, and `docs/isa/scalar/ops/`.
 
 ## Canonical Location
 
-- Instruction set overview: [Sync And Config](./tile/sync-and-config.md)
-- Canonical per-op page: [pto.tsetfmatrix](./tile/ops/sync-and-config/tsetfmatrix.md)
+- Instruction set overview: [Scalar And Control Instruction Set: Control And Configuration](./scalar/control-and-configuration.md)
+- Canonical per-op page: [pto.tsetfmatrix](./scalar/ops/control-and-configuration/tsetfmatrix.md)
 
 ## Compatibility Note
 

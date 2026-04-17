@@ -1,30 +1,31 @@
-# TROWARGMAX
+# pto.trowargmax
 
-## 指令示意图
+`pto.trowargmax` 属于[归约与扩展](../../reduce-and-expand_zh.md)指令集。
 
-![TROWARGMAX tile operation](../../../../figures/isa/TROWARGMAX.svg)
+## 概述
 
-## 简介
+返回每一行最大值所在的列索引。
 
-获取每行最大值对应列索引。
+## 机制
 
-## 数学语义
+设：
 
-设 `R = src.GetValidRow()`，`C = src.GetValidCol()`。对 `0 <= i < R`：
+- `R = src.GetValidRow()`
+- `C = src.GetValidCol()`
+
+则对 `0 <= i < R`：
 
 $$ \mathrm{dst}_{i,0} = \underset{0 \le j < C}{\operatorname{argmax}} \; \mathrm{src}_{i,j} $$
 
-## 汇编语法
+输出 tile 只保留一列，因此 `dst[i,0]` 表示“第 `i` 行最大值落在哪一列”。如果一行里有多个相同最大值，具体选哪一个索引由实现决定，可移植代码不能依赖固定 tie-breaking。
 
-PTO-AS 形式：参见 [PTO-AS 规范](../../../../assembly/PTO-AS_zh.md)。
+## 语法
 
 同步形式：
 
 ```text
 %dst = trowargmax %src : !pto.tile<...> -> !pto.tile<...>
 ```
-
-lowering 过程中可能引入内部 scratch tile；C++ intrinsic 接口要求显式传入 `tmp` 操作数。
 
 ### IR Level 1（SSA）
 
@@ -40,55 +41,59 @@ pto.trowargmax ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%ds
 
 ## C++ 内建接口
 
-声明于 `include/pto/common/pto_instr.hpp`：
-
 ```cpp
 template <typename TileDataOut, typename TileDataIn, typename TileDataTmp, typename... WaitEvents>
 PTO_INST RecordEvent TROWARGMAX(TileDataOut& dst, TileDataIn& src, TileDataTmp& tmp, WaitEvents&... events);
 ```
 
+## 输入
+
+- `src`：源 tile
+- `tmp`：可能参与归约中间阶段的临时 tile
+- `dst`：目标索引 tile
+
+## 预期输出
+
+- `dst[i,0]`：第 `i` 行最大值所在列索引
+
+## 副作用
+
+除产生目标 tile 外，没有额外架构副作用。
+
 ## 约束
 
-### 通用约束或检查
-
-- `dst` 和 `src` 必须为 `TileType::Vec`。
-- 支持的源元素类型：`half`、`float`。
-- 支持的目标元素类型：`uint32_t`、`int32_t`。
-- 运行时检查遵循共享的行归约检查路径：
+- `dst` 与 `src` 必须为 `TileType::Vec`
+- 源元素类型支持：`half`、`float`
+- 目标元素类型支持：`uint32_t`、`int32_t`
+- 运行时要求：
   - `src.GetValidRow() != 0`
   - `src.GetValidCol() != 0`
   - `src.GetValidRow() == dst.GetValidRow()`
 
-### A2A3 实现检查
+### A2A3
 
-- `src` 必须使用标准 ND 布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
-- `dst` 通过共享的行归约索引检查路径约束，可使用以下任一非分形布局：
-  - 单列 DN 布局（`BLayout::ColMajor`、`Cols == 1`），或
-  - 有效列数为 1 的 ND 布局。
+- `src` 必须是标准 ND 布局：行主且非分形
+- `dst` 可为单列 DN，或 validCol 为 1 的 ND
+- 当 `srcValidCol <= elementPerRepeat` 时，`tmp` 可能不参与运算
+- 当 `srcValidCol > elementPerRepeat` 时，`tmp` 会用于分阶段归约
+- `tmp` 的行数应与 `src` 一致
 
-### A5 实现检查
+### A5
 
-- `dst` 和 `src` 必须满足 `TRowArgMax` 使用的共享行归约索引检查路径。
-- 在已检查到的 A5 实现路径中，接口仍接收 `tmp`，但 `TROWARGMAX_IMPL` 实际并不使用它。
+- A5 路径接口仍接收 `tmp`，但当前 checked implementation 中并不实际使用它
 
-### A3 `tmp`临时Tile相关说明
+## 异常与非法情形
 
-- `tmp`临时Tile在`srcValidCol <= ElementPerRepeat`时不使用，`srcValidCol > ElementPerRepeat`时需要使用。
-- `tmp` tile的行数和`src` tile的行数相同。
-- 按以下公式根据`src` tile的`validCol`算出`tmp` tile所需stride：
+- 非法操作数组合、不支持的数据类型、不合法布局或不支持的 target-profile 模式，会被 verifier 或后端实现拒绝。
 
-```text
-repeats = ceil(validCol / elementPerRepeat)
-stride = ceil(repeats * 2 / elementPerBlock) * elementPerBlock + ceil(repeats / elementPerBlock) * elementPerBlock
-```
+## 性能
+
+当前仓内没有把 `trowargmax` 单列成公开 cost table。它应视为索引归约路径，而不是普通数值归约。
 
 ## 示例
 
-### 自动（Auto）
-
 ```cpp
 #include <pto/pto-inst.hpp>
-
 using namespace pto;
 
 void example_auto() {
@@ -102,50 +107,8 @@ void example_auto() {
 }
 ```
 
-### 手动（Manual）
+## 相关页面
 
-```cpp
-#include <pto/pto-inst.hpp>
-
-using namespace pto;
-
-void example_manual() {
-  using SrcT = Tile<TileType::Vec, float, 16, 16>;
-  using DstT = Tile<TileType::Vec, uint32_t, 16, 1, BLayout::ColMajor>;
-  using TmpT = Tile<TileType::Vec, float, 16, 16>;
-  SrcT src;
-  DstT dst;
-  TmpT tmp;
-  TASSIGN(src, 0x1000);
-  TASSIGN(dst, 0x2000);
-  TASSIGN(tmp, 0x3000);
-  TROWARGMAX(dst, src, tmp);
-}
-```
-
-## 汇编示例（ASM）
-
-### 自动模式
-
-```text
-# 自动模式：由编译器/运行时负责资源放置与调度。
-%dst = pto.trowargmax %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-```
-
-### 手动模式
-
-```text
-# 手动模式：先显式绑定资源，再发射指令。
-# 可选（当该指令包含 tile 操作数时）：
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
-%dst = pto.trowargmax %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-```
-
-### PTO 汇编形式
-
-```text
-%dst = trowargmax %src : !pto.tile<...> -> !pto.tile<...>
-# IR Level 2 (DPS)
-pto.trowargmax ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
-```
+- 指令集总览：[归约与扩展](../../reduce-and-expand_zh.md)
+- 上一条指令：[pto.trowmin](./trowmin_zh.md)
+- 下一条指令：[pto.trowargmin](./trowargmin_zh.md)

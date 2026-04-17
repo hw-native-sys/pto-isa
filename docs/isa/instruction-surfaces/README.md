@@ -91,7 +91,7 @@ The four instruction sets form a layered execution model:
                        │  Tile Instructions: TSTORE
                        │  Vector Instructions: vsts → copy_ubuf_to_gm
                        ▼
-                  [UB → GM]
+         [vector tile buffer → GM]
 ```
 
 ## Instruction Count Summary

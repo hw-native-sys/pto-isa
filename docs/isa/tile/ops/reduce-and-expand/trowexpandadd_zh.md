@@ -1,24 +1,20 @@
-# TROWEXPANDADD
+# pto.trowexpandadd
 
-## 指令示意图
+`pto.trowexpandadd` 属于[归约与扩展](../../reduce-and-expand_zh.md)指令集。
 
-![TROWEXPANDADD tile operation](../../../../figures/isa/TROWEXPANDADD.svg)
+## 概述
 
-## 简介
+把“每行一个标量”的向量广播到整行，再与 `src0` 做逐元素加法。
 
-`TROWEXPANDADD` 把一个“按行给出的标量向量”广播到整行，再和 `src0` 做逐元素加法。它适合表达 softmax 前后的按行偏移、量化参数按行展开等模式。
+## 机制
 
-## 数学语义
-
-设 `R = dst.GetValidRow()`、`C = dst.GetValidCol()`。记 `s_i` 为第 `i` 行对应的广播标量，则：
+设 `R = dst.GetValidRow()`、`C = dst.GetValidCol()`。记 `s_i` 为第 `i` 行对应的广播标量。则：
 
 $$ \mathrm{dst}_{i,j} = \mathrm{src0}_{i,j} + s_i $$
 
-其中 `s_i` 并不总是以同一种布局存放；不同 backend 允许的 `src1` 形态略有区别，但语义上都表示“每行一个标量”。
+这里的 `src1` 在语义上表示“每行一个标量”。它的物理布局在不同 backend 上可以有不止一种，但可见结果始终等价于“先行广播，再逐元素加”。
 
-## 汇编语法
-
-PTO-AS 形式：参见 [PTO-AS 规范](../../../../assembly/PTO-AS_zh.md)。
+## 语法
 
 同步形式：
 
@@ -40,8 +36,6 @@ pto.trowexpandadd ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ## C++ 内建接口
 
-声明于 `include/pto/common/pto_instr.hpp`：
-
 ```cpp
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
 PTO_INST RecordEvent TROWEXPANDADD(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, WaitEvents &... events);
@@ -52,47 +46,61 @@ PTO_INST RecordEvent TROWEXPANDADD(TileDataDst &dst, TileDataSrc0 &src0, TileDat
                                    WaitEvents &... events);
 ```
 
+## 输入
+
+- `src0`：逐元素主输入 tile
+- `src1`：提供“每行一个标量”的广播源
+- `tmp`：某些实现路径会用到的临时 tile
+- `dst`：目标 tile
+
+## 预期输出
+
+- `dst[i,j] = src0[i,j] + src1[i,0]`
+
+## 副作用
+
+除产生目标 tile 外，没有额外架构副作用。
+
 ## 约束
 
-- `dst/src0/src1` 的元素类型必须一致，且当前实现只支持 `half` 或 `float`。
-- `dst` 必须是 row-major Tile。
-- `src0` 或 `src1` 其中之一必须和 `dst` 拥有相同的 valid shape，并作为逐元素主输入。
-- 另一侧则承担“每行一个标量”的角色。
+- `dst/src0/src1` 的元素类型必须一致，当前实现只支持 `half` 或 `float`
+- `dst` 必须是 row-major
+- `src1` 需要表达“每行一个标量”这一角色
 
-### 无 `tmp` 形式
+### 广播侧常见形态
 
-- A2/A3 / A5 当前允许广播侧 `src1` 使用两种形态之一：
-  - row-major，且每行提供 `32 / sizeof(T)` 字节的数据
-  - 非 row-major 单列向量（`validCol == 1`）
+- 单列广播向量
+- 或者每行一段固定 32B 数据的打包形式
 
-### 带 `tmp` 形式
+具体支持哪种物理布局，取决于目标 backend。
 
-- 带 `tmp` 的重载通常对应更窄的广播输入形态，当前 backend 更偏向使用单列广播向量。
+## 异常与非法情形
 
-### CPU 模拟器
+- 非法操作数组合、不支持的数据类型、不合法布局或不支持的 target-profile 模式，会被 verifier 或后端实现拒绝。
 
-- CPU 会按“每行取一个标量”的抽象语义执行：
-  - 如果 `src1` 是单行，则取第 `r` 列
-  - 如果 `src1` 是单列，则取第 `r` 行
+## 性能
+
+当前仓内没有把 `trowexpandadd` 单列成公开 cost table，应视为目标 profile 相关的广播组合路径。
 
 ## 示例
 
 ```cpp
 #include <pto/pto-inst.hpp>
-
 using namespace pto;
 
 void example() {
-  using MatT = Tile<TileType::Vec, float, 16, 16>;
-  using RowBiasT = Tile<TileType::Vec, float, 16, 1, BLayout::ColMajor>;
-  MatT src0, dst;
-  RowBiasT src1;
+  using SrcT = Tile<TileType::Vec, float, 16, 16>;
+  using DstT = Tile<TileType::Vec, float, 16, 16>;
+  using RowVecT = Tile<TileType::Vec, float, 16, 1, BLayout::ColMajor>;
+  SrcT src0;
+  DstT dst;
+  RowVecT src1;
   TROWEXPANDADD(dst, src0, src1);
 }
 ```
 
 ## 相关页面
 
-- [TROWEXPANDMAX](./trowexpandmax_zh.md)
-- [TROWEXPANDMIN](./trowexpandmin_zh.md)
-- [归约与扩展指令集](../../reduce-and-expand_zh.md)
+- 指令集总览：[归约与扩展](../../reduce-and-expand_zh.md)
+- 上一条指令：[pto.trowexpandsub](./trowexpandsub_zh.md)
+- 下一条指令：[pto.trowexpandmax](./trowexpandmax_zh.md)

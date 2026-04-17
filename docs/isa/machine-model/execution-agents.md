@@ -27,15 +27,13 @@ PTO uses an architecture-visible three-level execution hierarchy: host, device, 
 │  │  - Control flow, address calculation               │ │
 │  │  - System query: GetBlockIdx, GetSubBlockIdx, ...│ │
 │  ├────────────────────────────────────────────────────┤ │
-│  │  Unified Buffer (UB) — 256 KB on-chip SRAM         │ │
-│  │  - GM↔tile DMA staging area                      │ │
-│  │  - Shared by all tile buffers and vector regs       │ │
-│  ├────────────────────────────────────────────────────┤ │
-│  │  Tile Register File                                │ │
+│  │  Local Tile Buffers                                │ │
 │  │  ┌──────────┬──────────┬──────────┬──────────┐   │ │
-│  │  │ Vec slots│ Mat slots│ Acc slots│Scalar slt│   │ │
-│  │  │ 16×16×N │ 16×16×N │ 16×16×N │   1×1    │   │ │
+│  │  │ Vec / UB │  L0A     │  L0B     │   L0C    │   │ │
+│  │  │ vector   │  left    │  right   │   acc    │   │ │
 │  │  └────┬─────┴────┬─────┴────┬─────┴──────────┘   │ │
+│  │  Tile registers are the ISA abstraction over      │ │
+│  │  these role-specific tile buffers.                │ │
 │  ├───────┼──────────┼──────────┼───────────────────┤ │
 │  │  ┌────▼────┐ ┌───▼───┐ ┌────▼────┐              │ │
 │  │  │ Vector  │ │Matrix │ │  DMA    │              │ │
@@ -76,15 +74,15 @@ The **core** (one physical AI Core / NPU) is where PTO instructions execute. It 
 | Component | Description | PTO Visibility |
 |-----------|-------------|---------------|
 | **Scalar Unit** | Control flow, address calculation, system queries | `GetBlockIdx()`, `GetBlockNum()`, `GetSubBlockIdx()` |
-| **Unified Buffer (UB)** | 256 KB on-chip SRAM; shared staging area for GM↔tile DMA | `!pto.ptr<T, ub>` |
-| **Tile Register File** | On-chip tile buffer storage, typed by `TileType` | `!pto.tile_buf<...>` |
+| **Vector tile buffer (hardware UB)** | 256 KB on-chip SRAM used by `TileType::Vec` and by the vector micro-instruction path | `!pto.ptr<T, ub>` |
+| **Local tile buffers** | Role-specific local storage: `Left`→L0A, `Right`→L0B, `Acc`→L0C, scale tiles on the corresponding side buffers | `!pto.tile_buf<...>` |
 | **Vector Pipeline (V)** | Executes `pto.v*` vector micro-instructions on vector registers | `!pto.vreg<NxT>` |
 | **Matrix Multiply Unit (M/CUBE)** | Executes `pto.tmatmul` and `pto.tgemv` | Via `TileType::Mat`, `TileType::Left`, `TileType::Right`, `TileType::Acc` |
 | **DMA Engine (MTE1/MTE2/MTE3)** | Moves data between GM and UB; coordinates with pipelines | `copy_gm_to_ubuf`, `copy_ubuf_to_gm`, `TLOAD`, `TSTORE` |
 
 ## Vector Register Architecture (VLane)
 
-On A5 (Ascend 9xx-class), the vector register is organized as **8 VLanes** of 32 bytes each. A VLane is the atomic unit for group reduction operations.
+On A5 (Ascend 950 PR / DT), the vector register is organized as **8 VLanes** of 32 bytes each. A VLane is the atomic unit for group reduction operations.
 
 ```
 vreg (256 bytes total):
@@ -111,9 +109,9 @@ The DMA engine uses three sub-units that operate concurrently with compute pipel
 
 | MTE | Direction | Role in Tile Instructions | Role in Vector Instructions |
 |-----|-----------|---------------------|----------------------|
-| `MTE1` | GM → UB | Optional: explicit prefetch | Pre-stage data before vector load |
-| `MTE2` | GM → UB | Load staging: GM→UB→tile buffer (via TLOAD) | DMA copy: GM→UB (via `copy_gm_to_ubuf`) |
-| `MTE3` | UB → GM | Store: tile→UB→GM (via TSTORE) | DMA copy: UB→GM (via `copy_ubuf_to_gm`) |
+| `MTE1` | GM → vector tile buffer | Optional: explicit prefetch | Pre-stage data before vector load |
+| `MTE2` | GM → local tile buffer | Load staging into the selected local tile buffer (via `TLOAD`) | DMA copy: GM→vector tile buffer (via `copy_gm_to_ubuf`) |
+| `MTE3` | local tile buffer → GM | Store from the selected local tile buffer (via `TSTORE`) | DMA copy: vector tile buffer → GM (via `copy_ubuf_to_gm`) |
 
 MTE1, MTE2, and MTE3 can operate in parallel with the Vector Pipeline and Matrix Multiply Unit when proper `set_flag`/`wait_flag` synchronization is used.
 
@@ -147,27 +145,28 @@ The **CPU simulator** (also called the reference simulator) executes PTO program
 - UB is allocated from heap memory
 - The UB size is configurable via build flags
 
-### A2/A3 Profile
+### A2A3 Profile
 
-The **A2/A3 profile** targets Ascend 2/3-class NPUs. These targets support:
+The **A2A3 profile** targets Ascend 910B and Ascend 910C. These targets support:
 
 - Full `pto.t*` tile instructions on hardware
 - `pto.v*` vector instructions emulated through a tile-vector bridge (`SimdTileToMemrefOp`, `SimdVecScopeOp`)
 - Hardware matmul via the Matrix Multiply Unit (CUBE)
 - Fractal layout support on hardware, but with software fallback paths
-- UB: 256 KB per AI Core
+- Vector tile buffer (hardware UB): 256 KB per AI Core
 - Vector width: N=64 (f32), N=128 (f16/bf16), N=256 (i8)
 - Support for `textract` compact modes (ND2NZ, NZ2ND, ND, ND2NZ2)
 
 ### A5 Profile
 
-The **A5 profile** targets Ascend 9xx-class NPUs (Ascend 910, 910B, 920, etc.). These targets support:
+The **A5 profile** targets Ascend 950 PR and Ascend 950 DT. These targets support:
 
 - Full `pto.t*` tile instructions on hardware
 - Full native `pto.v*` vector instructions on the vector pipeline
 - Hardware matmul with MX format support (int8 input → int32 accumulator)
 - Full fractal layout support (NZ, ZN, FR, RN) on hardware
-- UB: 256 KB per AI Core
+- Vector tile buffer (hardware UB): 256 KB per AI Core
+- MX block-scale formats with explicit `TileLeftScale` and `TileRightScale`
 - FP8 support: `float8_e4m3_t` (E4M3) and `float8_e5m3fn` (E5M2)
 - Native vector unaligned store (`vstu` / `vstus`) and alignment state threading
 - Block-scoped collective communication primitives (`TBROADCAST`, `TGET`, `TPUT`, etc.)
@@ -175,14 +174,14 @@ The **A5 profile** targets Ascend 9xx-class NPUs (Ascend 910, 910B, 920, etc.). 
 
 ### Target Profile Comparison
 
-| Feature | CPU Simulator | A2/A3 Profile | A5 Profile |
+| Feature | CPU Simulator | A2A3 Profile | A5 Profile |
 |---------|:-------------:|:-------------:|:----------:|
 | Tile instructions (`pto.t*`) | Full (emulated) | Full (hardware) | Full (hardware) |
 | Vector instructions (`pto.v*`) | Emulated (scalar loops) | Emulated (tile-vector bridge) | Full native |
 | Matmul (`TMATMUL`) | Software fallback | Hardware CUBE | Hardware CUBE |
 | MX format (int8→int32 acc) | Not applicable | Not applicable | Supported |
 | Fractal layouts (NZ/ZN/FR/RN) | Simulated | Simulated | Full hardware |
-| UB size | Configurable | 256 KB/core | 256 KB/core |
+| Vector tile buffer size | Configurable | 256 KB/core | 256 KB/core |
 | Vector width (f32 / f16,bf16 / i8) | N=64 / N=128 / N=256 | N=64 / N=128 / N=256 | N=64 / N=128 / N=256 |
 | FP8 types (e4m3 / e5m2) | Not supported | Not supported | Supported |
 | Vector unaligned store (`vstu`) | Not supported | Not supported | Supported |

@@ -1,22 +1,18 @@
-﻿# TROWEXPANDMUL
+# pto.trowexpandmul
 
-## 指令示意图
+`pto.trowexpandmul` 属于[归约与扩展](../../reduce-and-expand_zh.md)指令集。
 
-![TROWEXPANDMUL tile operation](../../../../figures/isa/TROWEXPANDMUL.svg)
+## 概述
 
-## 简介
+把“每行一个标量”的向量广播到整行，再与 `src0` 做逐元素乘法。
 
-行广播乘法：将 `src0` 的每一行乘以一个每行标量向量 `src1`。
+## 机制
 
-## 数学语义
+设 `R = dst.GetValidRow()`、`C = dst.GetValidCol()`。记 `s_i` 为第 `i` 行对应的广播标量。则：
 
-对每个元素 `(i, j)` 在有效区域内：
+$$ \mathrm{dst}_{i,j} = \mathrm{src0}_{i,j} \cdot s_i $$
 
-$$ \mathrm{dst}_{i,j} = \mathrm{src0}_{i,j} \cdot \mathrm{src1}_{0,i} $$
-
-## 汇编语法
-
-PTO-AS 形式：参见 [PTO-AS 规范](../../../../assembly/PTO-AS_zh.md)。
+## 语法
 
 同步形式：
 
@@ -38,8 +34,6 @@ pto.trowexpandmul ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ## C++ 内建接口
 
-声明于 `include/pto/common/pto_instr.hpp`：
-
 ```cpp
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
 PTO_INST RecordEvent TROWEXPANDMUL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, WaitEvents &... events);
@@ -49,77 +43,52 @@ template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, ty
 PTO_INST RecordEvent TROWEXPANDMUL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, TileDataTmp &tmp, WaitEvents &... events);
 ```
 
+## 输入
+
+- `src0`：逐元素主输入 tile
+- `src1`：提供“每行一个标量”的广播源
+- `tmp`：部分实现路径会用到的临时 tile
+- `dst`：目标 tile
+
+## 预期输出
+
+- `dst[i,j] = src0[i,j] * src1[i,0]`
+
+## 副作用
+
+除产生目标 tile 外，没有额外架构副作用。
+
 ## 约束
 
-- **实现检查**:
-    - `TileDataDst::DType == TileDataSrc0::DType == TileDataSrc1::DType`（编译时）。
-    - `TileDataDst::DType`、`TileDataSrc0::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`。
-    - Tile 形状/布局约束（编译时）：`TileDataDst::isRowMajor`。
-    - 模式 1：`src1` 预期提供**每行一个标量**（即，其有效形状必须覆盖 `R` 个值）。
-    - 模式 2：`src1` 预期提供**每行 32 字节数据**。
+- `dst/src0/src1` 的元素类型必须一致，当前实现只支持 `half` 或 `float`
+- `dst` 必须是 row-major
+- `src1` 需要表达“每行一个标量”这一角色
+
+## 异常与非法情形
+
+- 非法操作数组合、不支持的数据类型、不合法布局或不支持的 target-profile 模式，会被 verifier 或后端实现拒绝。
+
+## 性能
+
+当前仓内没有把 `trowexpandmul` 单列成公开 cost table，应视为目标 profile 相关的广播组合路径。
 
 ## 示例
 
-### 自动（Auto）
-
 ```cpp
 #include <pto/pto-inst.hpp>
-
 using namespace pto;
 
 void example_auto() {
   using TileT = Tile<TileType::Vec, half, 16, 16>;
   using RowVecT = Tile<TileType::Vec, half, 16, 1, BLayout::ColMajor, 1, DYNAMIC, SLayout::NoneBox>;
-
   TileT src0, dst;
   RowVecT src1(16);
   TROWEXPANDMUL(dst, src0, src1);
 }
 ```
 
-### 手动（Manual）
+## 相关页面
 
-```cpp
-#include <pto/pto-inst.hpp>
-
-using namespace pto;
-
-void example_manual() {
-  using TileT = Tile<TileType::Vec, half, 16, 16>;
-  using RowVecT = Tile<TileType::Vec, half, 16, 1, BLayout::ColMajor, 1, DYNAMIC, SLayout::NoneBox>;
-
-  TileT src0, dst;
-  RowVecT src1(16);
-  TASSIGN(src0, 0x1000);
-  TASSIGN(dst,  0x2000);
-  TASSIGN(src1, 0x3000);
-  TROWEXPANDMUL(dst, src0, src1);
-}
-```
-
-## 汇编示例（ASM）
-
-### 自动模式
-
-```text
-# 自动模式：由编译器/运行时负责资源放置与调度。
-%dst = pto.trowexpandmul %src0, %src1 : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
-```
-
-### 手动模式
-
-```text
-# 手动模式：先显式绑定资源，再发射指令。
-# 可选（当该指令包含 tile 操作数时）：
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
-%dst = pto.trowexpandmul %src0, %src1 : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
-```
-
-### PTO 汇编形式
-
-```text
-%dst = trowexpandmul %src0, %src1 : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
-# AS Level 2 (DPS)
-pto.trowexpandmul ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
-```
+- 指令集总览：[归约与扩展](../../reduce-and-expand_zh.md)
+- 上一条指令：[pto.trowexpanddiv](./trowexpanddiv_zh.md)
+- 下一条指令：[pto.trowexpandsub](./trowexpandsub_zh.md)

@@ -1,4 +1,4 @@
-﻿# TGEMV
+# TGEMV
 
 ## 指令示意图
 
@@ -6,35 +6,32 @@
 
 ## 简介
 
-通用矩阵-向量乘法，生成累加器/输出 Tile。
+`TGEMV` 是 cube 路径上的矩阵-向量乘指令。它不是 vector 指令，而是矩阵乘合同在 `m = 1` 条件下的专门形式：左输入仍走 `Left`，右输入仍走 `Right`，结果仍写入 `Acc`。
+
+把 GEMV 单独列成一条指令，是为了让接口、用法和调度语义更直接，不必让读者总是从“一般 matmul 的退化情况”去倒推。
 
 ## 数学语义
 
 设：
 
-- `M = 1`
 - `K = bMatrix.GetValidRow()`
 - `N = bMatrix.GetValidCol()`
 
-### 1. TGEMV（基于 Tile 的 GEMV）
-
-对于 `0 <= j < N`（有效矩阵乘法域中的输出元素）：
+对 `0 <= j < N`：
 
 $$ \mathrm{C}_{0,j} = \sum_{k=0}^{K-1} \mathrm{A}_{0,k} \cdot \mathrm{B}_{k,j} $$
 
-### 2. TGEMV_ACC（带累加的基于 Tile 的 GEMV）
+这里输出只有一行，因此 `TGEMV` 可以理解为矩阵乘一条向量，但它仍然遵守 cube 路径的角色和布局约束。
 
-对于 `0 <= j < N`（累加到现有 tile）：
+## 机制
 
-$$ \mathrm{C}_{0,j} \gets \mathrm{C}_{0,j} + \sum_{k=0}^{K-1} \mathrm{A}_{0,k} \cdot \mathrm{B}_{k,j} $$
+`TGEMV` 仍然使用：
 
-### 3. TGEMV_BIAS（带偏置的基于 Tile 的 GEMV）
+- `Left` 作为左操作数，对应 L0A 路径；
+- `Right` 作为右操作数，对应 L0B 路径；
+- `Acc` 作为输出累加器。
 
-对于 `0 <= j < N`（将偏置项添加到矩阵乘积）：
-
-$$ \mathrm{C}_{0,j} = \mathrm{Bias}_{0,j} + \sum_{k=0}^{K-1} \mathrm{A}_{0,k} \cdot \mathrm{B}_{k,j} $$
-
-**注意：** 精确的累加器行为和数据类型提升由目标/实现定义。
+和 `TMATMUL` 的主要区别，不在“是不是 cube 指令”，而在运行时合同里固定了 `m = 1`。因此它的 costmodel、角色限制和 target 边界都更接近 matmul，而不是向量算术。
 
 ## 汇编语法
 
@@ -44,26 +41,18 @@ PTO-AS 形式：参见 [PTO-AS 规范](../../../../assembly/PTO-AS_zh.md)。
 
 ```text
 %acc = tgemv %a, %b : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-
-%acc1 = tgemv.acc %acc0, %a, %b : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-
-%acc = tgemv.bias %a, %b, %bias : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
 ### AS Level 1（SSA）
 
 ```text
 %c = pto.tgemv %a, %b : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-%c_out = pto.tgemv.acc %c_in, %a, %b : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-%c = pto.tgemv.bias %a, %b, %bias : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
 ### AS Level 2（DPS）
 
 ```text
 pto.tgemv ins(%a, %b : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%c : !pto.tile_buf<...>)
-pto.tgemv.acc ins(%c_in, %a, %b : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%c_out : !pto.tile_buf<...>)
-pto.tgemv.bias ins(%a, %b, %bias : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%c : !pto.tile_buf<...>)
 ```
 
 ## C++ 内建接口
@@ -72,63 +61,77 @@ pto.tgemv.bias ins(%a, %b, %bias : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.
 
 ```cpp
 template <typename TileRes, typename TileLeft, typename TileRight, typename... WaitEvents>
-PTO_INST RecordEvent TGEMV(TileRes &cMatrix, TileLeft &aMatrix, TileRight &bMatrix, WaitEvents&... events);
-
-template <typename TileRes, typename TileLeft, typename TileRight, typename... WaitEvents>
-PTO_INST RecordEvent TGEMV_ACC(TileRes &cOutMatrix, TileRes &cInMatrix, TileLeft &aMatrix, TileRight &bMatrix, WaitEvents&... events);
-
-template <typename TileRes, typename TileLeft, typename TileRight, typename TileBias, typename... WaitEvents>
-PTO_INST RecordEvent TGEMV_BIAS(TileRes &cMatrix, TileLeft &aMatrix, TileRight &bMatrix, TileBias &biasData, WaitEvents&... events);
+PTO_INST RecordEvent TGEMV(TileRes &cMatrix, TileLeft &aMatrix, TileRight &bMatrix, WaitEvents &... events);
 ```
+
+## 输入与输出
+
+- `aMatrix`：左操作数 tile，必须是 `Left`。
+- `bMatrix`：右操作数 tile，必须是 `Right`。
+- `cMatrix`：结果累加器 tile，必须是 `Acc`。
+
+输出合同是：生成一行结果 `C[0, j]`。这条指令不会把普通 vector buffer 直接提升成 cube 合同。
 
 ## 约束
 
-### 通用形状与位置约束
+### 通用约束
 
-以下约束在未特别说明时同时适用于 `TGEMV`、`TGEMV_ACC` 和 `TGEMV_BIAS`。
+- 静态 shape 必须满足：
+  - `TileLeft::Rows == TileRes::Rows`
+  - `TileLeft::Cols == TileRight::Rows`
+  - `TileRight::Cols == TileRes::Cols`
+- tile 角色必须满足：
+  - `TileLeft::Loc == Left`
+  - `TileRight::Loc == Right`
+  - `TileRes::Loc == Acc`
+- 运行时要求：
+  - `m = 1`
+  - `k`、`n` 位于 `[1, 4095]`
 
-- 静态形状约束：
-    - `TileLeft::Rows == TileRes::Rows`
-    - `TileLeft::Cols == TileRight::Rows`
-    - `TileRight::Cols == TileRes::Cols`
-- Tile 位置约束：
-    - `TileLeft::Loc == Left`
-    - `TileRight::Loc == Right`
-    - `TileRes::Loc == Acc`
-- 运行时有效尺寸约束：
-    - `m` 必须为 `1`
-    - `k` 和 `n`（取自 `bMatrix.GetValidRow()` 与 `bMatrix.GetValidCol()`）必须位于 `[1, 4095]`
+### A2A3 约束
 
-### TGEMV / TGEMV_ACC 数据类型约束
+`A2A3` 指 Ascend 910B 与 Ascend 910C。当前仓内实现公开支持的 `(CType, AType, BType)` 组合包括：
 
-- **实现检查 (A2A3)**:
-    - 支持的 `(CType, AType, BType)` 三元组：
-        - `(int32_t, int8_t, int8_t)`
-        - `(float, half, half)`
-        - `(float, float, float)`
-        - `(float, bfloat16_t, bfloat16_t)`
-- **实现检查 (A5)**:
-    - 累加器类型必须是 `int32_t` 或 `float`。
-    - 如果为 `int32_t`：`AType == int8_t` 且 `BType == int8_t`。
-    - 如果为 `float`：支持 `half`、`bfloat16_t`、`float` 以及选定的 fp8 组合（目标定义）。
-    - 会强制执行以下分形/布局约束：
-        - Left：`Loc == Left`、`!isRowMajor`、`SFractal == RowMajor`
-        - Right：`Loc == Right`、`isRowMajor`、`SFractal == ColMajor`
-        - Acc：`Loc == Acc`、`!isRowMajor`、`SFractal == RowMajor`
+- `(int32_t, int8_t, int8_t)`
+- `(float, half, half)`
+- `(float, float, float)`
+- `(float, bfloat16_t, bfloat16_t)`
 
-### TGEMV_BIAS 的附加约束
+### A5 约束
 
-- 偏置 tile 的数据类型必须与 `TileRes::DType` 完全一致。
-- 偏置 tile 必须配置为单行。
-- 偏置 tile 的位置必须为 `TileType::Bias`。
-- **A5 附加说明**：
-    - 除上述 GEMV 约定外，底层 A5 matmul 实现不会再单独补充一组显式的 `m/k/n` 运行时断言。
+`A5` 指 Ascend 950 PR 与 Ascend 950 DT。当前实现要求：
+
+- 累加器类型必须是 `int32_t` 或 `float`；
+- 若累加器为 `int32_t`，左右输入都必须是 `int8_t`；
+- 若累加器为 `float`，当前实现支持 `half`、`bfloat16_t`、`float` 和部分 fp8 输入对；
+- A5 的 `Right` 角色有独立布局 / fractal 约束，不能拿 A2A3 的右操作数布局直接套用。
+
+## 不允许的情形
+
+- `m != 1`；
+- 角色不是 `Left` / `Right` / `Acc`；
+- 形状不满足 GEMV 兼容关系；
+- 在不支持的 target 上使用不支持的 dtype 组合。
+
+## 性能与吞吐
+
+仓内 A2A3 costmodel 对 `TGEMV` 与 `TMATMUL` 共用 `mad/mmad` 模型，只是 GEMV 固定 `m = 1`，因此公式可直接写成：
+
+```text
+cycles = 14 + ceil(N/16) * ceil(K / baskK) * repeat_cost
+```
+
+其中：
+
+- `baskK = 32 / sizeof(left_element_type)`；
+- int8、fp16 bucket 的 `repeat_cost = 1`；
+- fp32 bucket 的 `repeat_cost = 2`。
+
+当前仓库没有公开单列的 A5 latency / throughput 表。
 
 ## 示例
 
 ### 自动（Auto）
-
-#### 1. TGEMV
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -146,47 +149,7 @@ void example_auto() {
 }
 ```
 
-#### 2. TGEMV_ACC
-
-```cpp
-#include <pto/pto-inst.hpp>
-
-using namespace pto;
-
-void example_auto() {
-  using A = TileLeft<half, 1, 16>;
-  using B = TileRight<half, 16, 16>;
-  using C = TileAcc<float, 1, 16>;
-  A a;
-  B b;
-  C c0, c1;
-  TGEMV_ACC(c1, c0, a, b);
-}
-```
-
-#### 3. TGEMV_BIAS
-
-```cpp
-#include <pto/pto-inst.hpp>
-
-using namespace pto;
-
-void example_auto() {
-  using A = TileLeft<half, 1, 16>;
-  using B = TileRight<half, 16, 16>;
-  using Bias = Tile<TileType::Bias, half, 1, 16>;
-  using C = TileAcc<float, 1, 16>;
-  A a;
-  B b;
-  Bias bias;
-  C c;
-  TGEMV_BIAS(c, a, b, bias);
-}
-```
-
 ### 手动（Manual）
-
-#### 1. TGEMV
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -207,75 +170,9 @@ void example_manual() {
 }
 ```
 
-#### 2. TGEMV_ACC
+## 相关页面
 
-```cpp
-#include <pto/pto-inst.hpp>
-
-using namespace pto;
-
-void example_manual() {
-  using A = TileLeft<half, 1, 16>;
-  using B = TileRight<half, 16, 16>;
-  using C = TileAcc<float, 1, 16>;
-  A a;
-  B b;
-  C c0, c1;
-  TASSIGN(a, 0x1000);
-  TASSIGN(b, 0x2000);
-  TASSIGN(c0, 0x3000);
-  TASSIGN(c1, 0x4000);
-  TGEMV_ACC(c1, c0, a, b);
-}
-```
-
-#### 3. TGEMV_BIAS
-
-```cpp
-#include <pto/pto-inst.hpp>
-
-using namespace pto;
-
-void example_manual() {
-  using A = TileLeft<half, 1, 16>;
-  using B = TileRight<half, 16, 16>;
-  using Bias = Tile<TileType::Bias, half, 1, 16>;
-  using C = TileAcc<float, 1, 16>;
-  A a;
-  B b;
-  Bias bias;
-  C c;
-  TASSIGN(a, 0x1000);
-  TASSIGN(b, 0x2000);
-  TASSIGN(bias, 0x3000);
-  TASSIGN(c, 0x4000);
-  TGEMV_BIAS(c, a, b, bias);
-}
-```
-
-## 汇编示例（ASM）
-
-### 自动模式
-
-```text
-# 自动模式：由编译器/运行时负责资源放置与调度。
-%c = pto.tgemv %a, %b : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-```
-
-### 手动模式
-
-```text
-# 手动模式：先显式绑定资源，再发射指令。
-# 可选（当该指令包含 tile 操作数时）：
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
-%c = pto.tgemv %a, %b : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-```
-
-### PTO 汇编形式
-
-```text
-%acc = tgemv %a, %b : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-# AS Level 2 (DPS)
-pto.tgemv ins(%a, %b : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%c : !pto.tile_buf<...>)
-```
+- [TGEMV_ACC](./tgemv-acc_zh.md)
+- [TGEMV_BIAS](./tgemv-bias_zh.md)
+- [TGEMV_MX](./tgemv-mx_zh.md)
+- [矩阵与矩阵-向量指令集](../../matrix-and-matrix-vector_zh.md)

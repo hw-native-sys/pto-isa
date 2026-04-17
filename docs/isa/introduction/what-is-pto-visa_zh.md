@@ -72,9 +72,9 @@ void vec_add(Tile<float, 16, 16>& c,
 | **Tile** | 带 shape、layout 和 valid-region 元数据的多维片段 |
 | **Valid Region** | tile 中真正有架构意义的子区域 |
 | **Global Memory (GM)** | 设备侧片外全局内存 |
-| **Unified Buffer (UB)** | 单 AI Core 可见的片上局部存储 |
-| **Location Intent** | tile 的角色意图，如 `Vec`、`Left`、`Right`、`Acc` |
-| **Target Profile** | 对 PTO ISA 的具体目标缩窄，例如 CPU、A2/A3、A5 |
+| **向量 tile buffer** | `TileType::Vec` 使用的本地 tile buffer；当前硬件实现对应 Unified Buffer（UB），但在手册中把它视为同一个 tile-buffer 概念 |
+| **Location Intent** | tile 的角色意图，如 `Vec`、`Left`（L0A）、`Right`（L0B）、`Acc`、`ScaleLeft`、`ScaleRight` |
+| **Target Profile** | 对 PTO ISA 的具体目标缩窄，例如 CPU、A2A3（Ascend 910B / 910C）、A5（Ascend 950 PR / DT） |
 
 ## 软件栈位置
 

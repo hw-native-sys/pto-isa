@@ -4,11 +4,11 @@
 
 ## Summary
 
-Matrix multiply (GEMM) with additional scaling tiles for mixed-precision / quantized matmul on supported targets.
+Matrix multiply (GEMM) in an MX block-scale format, with explicit left and right scale tiles.
 
 ## Mechanism
 
-Matrix multiply (GEMM) with additional scaling tiles for mixed-precision / quantized matmul on supported targets.
+Matrix multiply (GEMM) in an MX block-scale format.
 
 This instruction is currently implemented on A5 (see `include/pto/npu/a5/TMatmul.hpp`). It operates on tile payloads rather than scalar control state, and its legality is constrained by tile shape, layout, valid-region, and target-profile support.
 
@@ -18,11 +18,11 @@ Let:
 - `K = aMatrix.GetValidCol()`
 - `N = bMatrix.GetValidCol()`
 
-Conceptually, the result corresponds to a matrix multiply over the effective matmul domain (`0 <= i < M`, `0 <= j < N`), with the scaling tiles `aScaleMatrix` / `bScaleMatrix` configuring implementation-defined mixed-precision behavior:
+Conceptually, the result corresponds to a matrix multiply over the effective matmul domain (`0 <= i < M`, `0 <= j < N`), with the scale tiles `aScaleMatrix` / `bScaleMatrix` carrying the block-scale metadata required by the MX format:
 
 $$ \mathrm{C}_{i,j} = \sum_{k=0}^{K-1} \mathrm{A}_{i,k} \cdot \mathrm{B}_{k,j} $$
 
-The exact role of `aScaleMatrix` / `bScaleMatrix` (and any dequant/quant semantics) is target-defined.
+In current `pto-isa` code, `TileLeft` maps to L0A, `TileRight` maps to L0B, `TileLeftScale` maps to the L0A-side scale buffer, and `TileRightScale` maps to the L0B-side scale buffer. MX block-scale forms are therefore a five-buffer contract (`Left`, `ScaleLeft`, `Right`, `ScaleRight`, `Acc`) rather than a plain two-input matmul.
 
 ## Syntax
 
@@ -113,16 +113,16 @@ PTO_INST RecordEvent TMATMUL_MX(TileRes &cMatrix, TileLeft &aMatrix, TileLeftSca
 ## Inputs
 
 - `a` is the left operand tile (must be TileLeft location).
-- `aScale` is the left scaling tile for mixed-precision reconstruction.
+- `aScale` is the left scale tile for the MX block-scale format.
 - `b` is the right operand tile (must be TileRight location).
-- `bScale` is the right scaling tile for mixed-precision reconstruction.
+- `bScale` is the right scale tile for the MX block-scale format.
 - `bias` (optional): bias tile (must be TileType::Bias).
 - `cIn` (optional): input accumulator tile for accumulation variants.
 - `dst` names the destination accumulator tile. The operation iterates over dst's valid region.
 
 ## Expected Outputs
 
-`dst` holds the mx matrix multiply result with mixed-precision scaling applied.
+`dst` holds the MX block-scale matrix multiply result.
 
 ## Side Effects
 

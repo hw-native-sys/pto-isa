@@ -26,7 +26,7 @@ That yields **263 named instructions** in the Version 1.0 reference set, excludi
 
 ### Sync And Config
 
-`tsync`, `tassign`, `tsethf32mode`, `tsettf32mode`, `tsetfmatrix`, `tset_img2col_rpt`, `tset_img2col_padding`, `tsubview`, `tget_scale_addr`
+`tsync`, `tassign`, `tsettf32mode`, `tset_img2col_rpt`, `tset_img2col_padding`, `tsubview`, `tget_scale_addr`
 
 ### Elementwise Tile-Tile
 
@@ -115,6 +115,10 @@ That yields **263 named instructions** in the Version 1.0 reference set, excludi
 ### Predicate Generation And Algebra
 
 `pand`, `pdintlv_b8`, `pge_b16`, `pge_b32`, `pge_b8`, `pintlv_b16`, `plt_b16`, `plt_b32`, `plt_b8`, `pnot`, `por`, `ppack`, `psel`, `pset_b16`, `pset_b32`, `pset_b8`, `punpack`, `pxor`
+
+### Control And Configuration
+
+`tsethf32mode`, `tsetfmatrix`
 
 ## Supporting Reference Groups
 

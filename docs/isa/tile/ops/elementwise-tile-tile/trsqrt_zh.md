@@ -1,24 +1,22 @@
-# TRSQRT
+# pto.trsqrt
 
-## 指令示意图
+`pto.trsqrt` 属于[逐元素 Tile-Tile](../../elementwise-tile-tile_zh.md)指令集。
 
-![TRSQRT tile operation](../../../../figures/isa/TRSQRT.svg)
+## 概述
 
-## 简介
+对 tile 做逐元素倒数平方根。
 
-逐元素倒数平方根。
+## 机制
 
-## 数学语义
-
-对每个元素 `(i, j)` 在有效区域内：
+对目标 tile 的 valid region 中每个 `(i, j)`：
 
 $$ \mathrm{dst}_{i,j} = \frac{1}{\sqrt{\mathrm{src}_{i,j}}} $$
 
-## 汇编语法
+它常用于范数归一化、标准化和一类需要快速 `1/sqrt(x)` 的数值路径。
 
-PTO-AS 形式：参见 [PTO-AS Specification](../../../../assembly/PTO-AS_zh.md).
+## 语法
 
-同步形式：
+### PTO-AS
 
 ```text
 %dst = trsqrt %src : !pto.tile<...>
@@ -38,8 +36,6 @@ pto.trsqrt ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 
 ## C++ 内建接口
 
-声明于 `include/pto/common/pto_instr.hpp`：
-
 ```cpp
 template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
 PTO_INST RecordEvent TRSQRT(TileDataDst &dst, TileDataSrc &src, WaitEvents &... events);
@@ -48,27 +44,63 @@ template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp, type
 PTO_INST RecordEvent TRSQRT(TileDataDst &dst, TileDataSrc &src, TileDataTmp &tmp, WaitEvents &... events);
 ```
 
+## 输入
+
+- `%src`：源 tile
+- `%tmp`：可选临时 tile；提供时通常触发高精度路径
+- `%dst`：目标 tile
+
+## 预期输出
+
+- `%dst`：逐元素倒数平方根结果 tile
+
+## 副作用
+
+除产生目标 tile 外，没有额外架构副作用。
+
 ## 约束
 
-- **实现检查 (NPU)**:
-    - The `tmp` buffer must be at least 32 bytes. When tmp is provided, the high-precision version is executed.
-    - `TileData::DType` must be one of: `float` or `half`;
-    - Tile location must be vector (`TileData::Loc == TileType::Vec`);
-    - Static valid bounds: `TileData::ValidRow <= TileData::Rows` and `TileData::ValidCol <= TileData::Cols`;
-    - Runtime: `src.GetValidRow() == dst.GetValidRow()` and `src.GetValidCol() == dst.GetValidCol()`;
-    - Tile 布局 must be row-major (`TileData::isRowMajor`).
-- **有效区域**:
-    - The op uses `dst.GetValidRow()` / `dst.GetValidCol()` as the iteration domain.
-- **Domain / NaN**:
-    - Behavior is target-defined (e.g., for `src == 0` or negative inputs).
+- 支持类型当前是 `float` / `half`
+- tile 必须是行主序向量 tile
+- 迭代域由 `dst.GetValidRow()` / `dst.GetValidCol()` 决定
+- 对 `src == 0` 或负输入这类情况，行为由目标 profile 定义
+- 当 `tmp` 提供时，NPU 路径要求它至少有 32 字节，以触发高精度实现
+
+## 异常与非法情形
+
+- 非法操作数组合、不支持的数据类型、不合法布局或不支持的 target-profile 模式，会被 verifier 或后端实现拒绝。
+
+## Target-Profile 限制
+
+### NPU
+
+- `tmp` 至少需要 32 字节；提供后会使用高精度版本
+- 支持类型：`float`、`half`
+- tile 必须是行主序向量 tile
+- 静态 valid 边界必须合法
+- 运行时要求：`src.GetValidRow() == dst.GetValidRow()` 且 `src.GetValidCol() == dst.GetValidCol()`
+
+## 性能
+
+### A2A3
+
+英文页当前把 `TRSQRT` 归到一元超越函数桶：
+
+| 指标 | 数值 |
+| --- | --- |
+| 启动时延 | 13 |
+| 完成时延 | 26 |
+| 每次 repeat 吞吐 | 1 |
+| 流水间隔 | 18 |
+
+### A5
+
+当前手册未单列 `trsqrt` 的独立周期表，应视为目标 profile 相关。
 
 ## 示例
 
-### 自动（Auto）
-
 ```cpp
 #include <pto/pto-inst.hpp>
-
 using namespace pto;
 
 void example_auto() {
@@ -78,18 +110,8 @@ void example_auto() {
 }
 ```
 
-### 手动（Manual）
+## 相关页面
 
-```cpp
-#include <pto/pto-inst.hpp>
-
-using namespace pto;
-
-void example_manual() {
-  using TileT = Tile<TileType::Vec, float, 16, 16>;
-  TileT src, dst;
-  TASSIGN(src, 0x1000);
-  TASSIGN(dst, 0x2000);
-  TRSQRT(dst, src);
-}
-```
+- 指令集总览：[逐元素 Tile-Tile](../../elementwise-tile-tile_zh.md)
+- 上一条指令：[pto.tsel](./tsel_zh.md)
+- 下一条指令：[pto.tsqrt](./tsqrt_zh.md)

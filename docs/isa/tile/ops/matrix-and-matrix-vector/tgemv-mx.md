@@ -4,11 +4,11 @@
 
 ## Summary
 
-GEMV with additional scaling tiles for mixed-precision / quantized matrix-vector compute.
+GEMV in an MX block-scale format, with explicit left and right scale tiles.
 
 ## Mechanism
 
-GEMV with scaling tiles for mixed-precision / quantized matrix-vector compute on supported targets.
+GEMV in an MX block-scale format on supported targets.
 
 This instruction set extends `TGEMV` with additional scale operands (mx path). Accumulator and scale handling are target-dependent. It operates on tile payloads rather than scalar control state, and its legality is constrained by tile shape, layout, valid-region, and target-profile support.
 
@@ -18,7 +18,7 @@ $$
 \mathrm{C}_{0,j} = \sum_{k=0}^{K-1} \mathrm{A}_{0,k} \cdot \mathrm{B}_{k,j}
 $$
 
-For `TGEMV_MX`, scale tiles participate in implementation-defined mixed-precision reconstruction / scaling. The architectural contract is that output corresponds to the target-defined mx GEMV semantics.
+For `TGEMV_MX`, the scale tiles carry the block-scale metadata required by the MX format. The architectural contract is that output corresponds to the target-defined MX GEMV semantics rather than a plain scalar-rescaled GEMV.
 
 ## Syntax
 
@@ -89,16 +89,16 @@ Additional overloads support accumulation/bias variants and `AccPhase` selection
 ## Inputs
 
 - `a` is the left operand tile (must be TileLeft location).
-- `aScale` is the left scaling tile for mixed-precision reconstruction.
+- `aScale` is the left scale tile for the MX block-scale format.
 - `b` is the right operand tile (must be TileRight location).
-- `bScale` is the right scaling tile for mixed-precision reconstruction.
+- `bScale` is the right scale tile for the MX block-scale format.
 - `bias` (optional): bias tile (must be TileType::Bias).
 - `cIn` (optional): input accumulator tile for accumulation variants.
 - `dst` names the destination accumulator tile. The operation iterates over dst's valid region.
 
 ## Expected Outputs
 
-`dst` holds the mx matrix-vector product with mixed-precision scaling applied.
+`dst` holds the MX block-scale matrix-vector result.
 
 ## Side Effects
 

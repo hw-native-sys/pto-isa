@@ -62,11 +62,11 @@ The `preQuantScalar` and `TSTORE_FP` quantized-store overloads are only legal fo
 - `dst` is the destination GlobalTensor.
 - `atomicType` (optional): specifies atomic store mode (e.g., `AtomicAdd`).
 - `preQuantScalar` (optional): scalar for pre-quantization.
-- `fp` (optional, for TSTORE_FP): scaling tile for vector quantization parameters.
+- `fp` (optional, for TSTORE_FP): auxiliary fix-pipe tile consumed by the backend FPC path.
 
 ## Expected Outputs
 
-Data is written from `src` to `dst`. With atomic operations, values are accumulated. With quantization, data is converted using the quantization parameters.
+Data is written from `src` to `dst`. With atomic operations, values are accumulated. With `TSTORE_FP`, the transfer uses the fix-pipe sideband state configured by the auxiliary `fp` tile.
 
 ## Side Effects
 

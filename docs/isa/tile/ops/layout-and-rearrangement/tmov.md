@@ -81,7 +81,7 @@ PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, uint64_t preQuantS
 
 - `src` is the source tile.
 - `dst` names the destination tile. The operation iterates over dst's valid region.
-- `fp` (optional for TMOV_FP): scaling tile for vector quantization parameters.
+- `fp` (optional for TMOV_FP): auxiliary fix-pipe tile consumed by the backend FPC path.
 
 ## Expected Outputs
 

@@ -1,116 +1,143 @@
 # Matrix And Matrix-Vector Instruction Set
 
-Matrix and matrix-vector operations perform tiled linear algebra on `TileType::Mat` tiles (cube tiles). They use specialized matrix multiply units and may have dedicated DMA paths.
+This family covers the cube-pipeline instructions that evaluate matrix products on tile buffers. The basic forms produce a new accumulator tile, the `_acc` forms continue accumulation on an existing accumulator tile, the `_bias` forms inject a bias tile, and the `*_mx` forms add explicit scale tiles for block-scale MX formats.
+
+These instructions are not generic vector-tile operations. Their legality depends on dedicated matrix roles such as `Left`, `Right`, `Acc`, `Bias`, `ScaleLeft`, and `ScaleRight`, plus the target profile's layout and datatype rules.
 
 ## Operations
 
-| Operation | Description | Variants | TileType | C++ Intrinsic |
-|-----------|-------------|----------|----------|---------------|
-| [pto.tgemv](./ops/matrix-and-matrix-vector/tgemv.md) | General matrix-vector product | basic, acc, bias, mx | `Mat` | `TGEMV(C, A, x)` |
-| [pto.tgemv_acc](./ops/matrix-and-matrix-vector/tgemv-acc.md) | GEMV with accumulation | — | `Mat` | `TGEMV_ACC(C, A, x)` |
-| [pto.tgemv_bias](./ops/matrix-and-matrix-vector/tgemv-bias.md) | GEMV with bias addition | — | `Mat` | `TGEMV_BIAS(C, A, x, bias)` |
-| [pto.tgemv_mx](./ops/matrix-and-matrix-vector/tgemv-mx.md) | MX-format GEMV | — | `Mat` | `TGEMV_MX(C, A, x, scale)` |
-| [pto.tmatmul](./ops/matrix-and-matrix-vector/tmatmul.md) | General matrix-matrix multiply | basic, acc, bias, mx | `Mat` | `TMATMUL(C, A, B)` |
-| [pto.tmatmul_acc](./ops/matrix-and-matrix-vector/tmatmul-acc.md) | Matmul with accumulation | — | `Mat` | `TMATMUL_ACC(C, A, B)` |
-| [pto.tmatmul_bias](./ops/matrix-and-matrix-vector/tmatmul-bias.md) | Matmul with bias addition | — | `Mat` | `TMATMUL_BIAS(C, A, B, bias)` |
-| [pto.tmatmul_mx](./ops/matrix-and-matrix-vector/tmatmul-mx.md) | MX-format matrix multiply | — | `Mat` | `TMATMUL_MX(C, A, B, scale)` |
+| Operation | Purpose | C++ intrinsic | Notes |
+| --- | --- | --- | --- |
+| [pto.tmatmul](./ops/matrix-and-matrix-vector/tmatmul.md) | Matrix multiply producing a fresh accumulator tile | `TMATMUL(C, A, B)` | New result tile |
+| [pto.tmatmul_acc](./ops/matrix-and-matrix-vector/tmatmul-acc.md) | Matrix multiply that continues accumulation | `TMATMUL_ACC(C, A, B)` | K-loop body form |
+| [pto.tmatmul_bias](./ops/matrix-and-matrix-vector/tmatmul-bias.md) | Matrix multiply with column bias | `TMATMUL_BIAS(C, A, B, bias)` | Bias tile is one row |
+| [pto.tmatmul_mx](./ops/matrix-and-matrix-vector/tmatmul-mx.md) | Matrix multiply in MX block-scale format | `TMATMUL_MX(C, A, AScale, B, BScale)` | A5 only |
+| [pto.tgemv](./ops/matrix-and-matrix-vector/tgemv.md) | Matrix-vector multiply producing a fresh accumulator tile | `TGEMV(C, A, B)` | `m = 1` GEMV shape |
+| [pto.tgemv_acc](./ops/matrix-and-matrix-vector/tgemv-acc.md) | GEMV that continues accumulation | `TGEMV_ACC(C, A, B)` | Accumulating form |
+| [pto.tgemv_bias](./ops/matrix-and-matrix-vector/tgemv-bias.md) | GEMV with bias add | `TGEMV_BIAS(C, A, B, bias)` | Bias tile is one row |
+| [pto.tgemv_mx](./ops/matrix-and-matrix-vector/tgemv-mx.md) | GEMV in MX block-scale format | `TGEMV_MX(C, A, AScale, B, BScale)` | A5 only |
+
+## Why This Family Exists
+
+PTO keeps matrix-product instructions separate from ordinary tile arithmetic because the cube path has different operand roles, different legality checks, and different target constraints from the vector path. A reader needs one place that answers:
+
+- which tile roles are legal,
+- how accumulation differs from fresh output generation,
+- how bias is injected,
+- and which profile-specific layout rules apply on A2A3 versus A5.
 
 ## Mechanism
 
-### GEMV
+### TMATMUL
 
-$$ \mathbf{y} = A \times \mathbf{x} + \mathbf{b} $$
+For `M = a.GetValidRow()`, `K = a.GetValidCol()`, and `N = b.GetValidCol()`:
 
-- Matrix tile `A`: shape `(M, K)`
-- Vector tile `x`: shape `(K)`
-- Bias tile `b` (optional): shape `(M)`
-- Result tile `y`: shape `(M)`
+$$ \mathrm{C}_{i,j} = \sum_{k=0}^{K-1} \mathrm{A}_{i,k} \cdot \mathrm{B}_{k,j} $$
 
-### Matmul
+`pto.tmatmul` treats the destination accumulator as a newly produced output tile.
 
-$$ C = A \times B + D $$
+### TMATMUL_ACC
 
-- Tile `A`: shape `(M, K)`
-- Tile `B`: shape `(K, N)`
-- Bias tile `D` (optional): shape `(M, N)`
-- Result tile `C`: shape `(M, N)`
+$$ \mathrm{C1}_{i,j} = \mathrm{C0}_{i,j} + \sum_{k=0}^{K-1} \mathrm{A}_{i,k} \cdot \mathrm{B}_{k,j} $$
 
-### MX Format
+This form exists for split-K and blocked GEMM loops where a partial accumulator must be carried across iterations.
 
-MX (Matrix Multiply) format is Huawei's hardware-optimized data format. It separates scale tensors and may use compressed data representation. The `*_mx` variants require:
+### TMATMUL_BIAS
 
-1. MX-formatted input tiles (`A`, `B`) with matching MX layout.
-2. A scale tensor (`scale`) with compatible shape.
-3. Accumulator tile (`C`) with shape matching the output shape.
+$$ \mathrm{C}_{i,j} = \sum_{k=0}^{K-1} \mathrm{A}_{i,k} \cdot \mathrm{B}_{k,j} + \mathrm{Bias}_{0,j} $$
 
-## Tile Type
+Bias is a one-row tile and is broadcast by output column.
 
-Matrix operations **require** `TileType::Mat` (cube tiles). `TileType::Vec` tiles MUST NOT be used with matrix operations. Cube tiles use a different physical layout optimized for matrix multiplication and have different valid-region semantics from vector tiles.
+### TGEMV
 
-## Type Support by Target Profile
+GEMV is the `m = 1` specialization of the same cube contract. PTO still exposes it as a separate instruction family because it has its own operand spelling and its own common usage pattern.
 
-| Element Type | CPU Simulator | A2/A3 | A5 |
-|------------|:-------------:|:------:|:--:|
-| f32 (float) | Yes | Yes | Yes |
-| f16 (half) | Yes | Yes | Yes |
-| bf16 (bfloat16_t) | Yes | Yes | Yes |
-| i8 / u8 | No | Yes | Yes |
-| f8e4m3 / f8e5m2 | No | No | Yes |
-| MX format | No | No | Yes |
+### MX Variants
 
-## Constraints
+`*_mx` uses block-scale MX formats such as MXFP4 and MXMP8. Those forms require:
 
-- **Tile type MUST be `TileType::Mat`** — `TileType::Vec` tiles MUST NOT be used.
-- Shape compatibility: `(M, K) × (K) → (M)` for GEMV; `(M, K) × (K, N) → (M, N)` for matmul.
-- MX format operations require matching MX layout between `A` and `B` tiles.
-- Bias variants require compatible bias tensor shape.
-- Accumulation variants require matching accumulator tile shape.
-- On A2/A3, int8/i8 matrix multiply requires `shape[0..1] % 16 == 0`.
-- On A5, FP8 matmul is supported but requires scale tensors.
+- one left operand tile in `Left`,
+- one right operand tile in `Right`,
+- one left scale tile in `ScaleLeft`,
+- one right scale tile in `ScaleRight`,
+- and an accumulator/output tile in `Acc`.
 
-## Cases That Are Not Allowed
+MX is not "one extra scale tensor". It is a paired scale-tile contract on both sides of the product.
 
-- **MUST NOT** use `TileType::Vec` tiles with matrix operations.
-- **MUST NOT** use incompatible shape combinations (e.g., `(M, K) × (N, K) → …`).
-- **MUST NOT** mix MX and non-MX tiles in the same operation.
-- **MUST NOT** use FP8 matmul on CPU simulator or A2/A3.
+## Tile Roles And Buffer Mapping
 
-## C++ Intrinsic
+The architectural tile roles are abstractions over target tile buffers:
 
-```cpp
-#include <pto/pto-inst.hpp>
-using namespace pto;
+- `Left` is the left matrix operand tile and corresponds to the L0A-backed operand path.
+- `Right` is the right matrix operand tile and corresponds to the L0B-backed operand path.
+- `Acc` is the accumulator/output tile.
+- `Bias` is the one-row bias tile used by `*_bias`.
+- `ScaleLeft` and `ScaleRight` are the scale tiles used by MX block-scale variants.
 
-// Basic matrix-vector
-template <typename TileC, typename TileA, typename TileX>
-PTO_INST RecordEvent TGEMV(TileC& C, TileA& A, TileX& x);
+Programs should not assume one portable physical layout for `Right`. A2A3 and A5 both use the `Right` role, but the legal right-tile layout details differ by target profile.
 
-// Matrix-vector with accumulation
-template <typename TileC, typename TileA, typename TileX>
-PTO_INST RecordEvent TGEMV_ACC(TileC& C, TileA& A, TileX& x);
+## Target Profiles
 
-// Matrix-vector with bias
-template <typename TileC, typename TileA, typename TileX, typename TileBias>
-PTO_INST RecordEvent TGEMV_BIAS(TileC& C, TileA& A, TileX& x, TileBias& bias);
+`A2A3` in this manual means the Ascend 910B and Ascend 910C class targets. `A5` means the Ascend 950 PR and Ascend 950 DT class targets.
 
-// Basic matrix multiply
-template <typename TileC, typename TileA, typename TileB>
-PTO_INST RecordEvent TMATMUL(TileC& C, TileA& A, TileB& B);
+| Capability | CPU simulator | A2A3 | A5 |
+| --- | :---: | :---: | :---: |
+| `TMATMUL`, `TMATMUL_ACC`, `TMATMUL_BIAS` | Yes | Yes | Yes |
+| `TGEMV`, `TGEMV_ACC`, `TGEMV_BIAS` | Yes | Yes | Yes |
+| int8 cube path | No | Yes | Yes |
+| fp16 / bf16 / fp32 cube path | Yes | Yes | Yes |
+| fp8 cube path | No | No | Yes |
+| MX block-scale path | No | No | Yes |
 
-// Matrix multiply with accumulation
-template <typename TileC, typename TileA, typename TileB>
-PTO_INST RecordEvent TMATMUL_ACC(TileC& C, TileA& A, TileB& B);
+### Common Legality
 
-// Matrix multiply with bias
-template <typename TileC, typename TileA, typename TileB, typename TileBias>
-PTO_INST RecordEvent TMATMUL_BIAS(TileC& C, TileA& A, TileB& B, TileBias& bias);
+- Shapes must satisfy `(M, K) x (K, N) -> (M, N)` for matmul.
+- GEMV uses the same contract with `m = 1`.
+- Left, Right, Acc, Bias, and MX scale-tile roles must match the operation being issued.
+- Valid-region values outside the legal output domain are not repaired implicitly.
 
-// MX-format matrix multiply
-template <typename TileC, typename TileA, typename TileB, typename TileScale>
-PTO_INST RecordEvent TMATMUL_MX(TileC& C, TileA& A, TileB& B, TileScale& scale);
+### A2A3 Notes
+
+- The base cube path supports the repository's documented triples such as `(int32, int8, int8)` and `(float, half, half)`.
+- Dynamic `m`, `k`, and `n` are constrained to `[1, 4095]`.
+- The backend checks the `Left`/`Right`/`Acc` role combination explicitly.
+
+### A5 Notes
+
+- The base cube path accepts `int32` accumulators for int8 input pairs and `float` accumulators for fp16, bf16, fp32, and selected fp8 pairs.
+- The `Right` role has A5-specific layout/fractal constraints; do not copy an A2A3 right-tile layout assumption onto A5.
+- MX variants are A5-only and require both `ScaleLeft` and `ScaleRight`.
+
+## Performance And Throughput
+
+The repository currently exposes an A2A3 cost-model formula for the shared `mad/mmad` cube instruction used by `TMATMUL`, `TMATMUL_ACC`, `TMATMUL_BIAS`, `TGEMV`, `TGEMV_ACC`, and `TGEMV_BIAS`.
+
+For A2A3:
+
+- startup cost: `14` cycles,
+- repeat count: `ceil(M/16) * ceil(N/16) * ceil(K / baskK)`,
+- `baskK = 32 / sizeof(left_element_type)`,
+- steady-state cost per repeat:
+  - `1` cycle for int8 and fp16 buckets,
+  - `2` cycles for fp32 buckets.
+
+So the published A2A3 model is:
+
+```text
+cycles = 14 + repeat_count * repeat_cost
 ```
+
+Examples backed by `tests/costmodel/st/testcase/tmatmul/tmatmul_kernel.cpp` include:
+
+- half `40x50 * 50x60`: `62` cycles,
+- int8 `6x7 * 7x8`: `15` cycles,
+- float `120x110 * 110x50`: `910` cycles.
+
+The current repository does not publish an equivalent A5 latency or throughput table for this family. A5 legality is specified, but cycle figures are not single-listed in the public cost-model headers.
 
 ## See Also
 
-- [Tile instruction set](../instruction-families/tile-families.md) — Instruction set overview
-- [Tile instruction set](../instruction-surfaces/tile-instructions.md) — Instruction Set description
+- [Tile instruction families](../instruction-families/tile-families.md)
+- [Tile instruction surface](../instruction-surfaces/tile-instructions.md)
+- [Location intent and legality](../state-and-types/location-intent-and-legality.md)
+- [Layout](../state-and-types/layout.md)

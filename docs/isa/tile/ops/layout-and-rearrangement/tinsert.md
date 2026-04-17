@@ -69,7 +69,7 @@ PTO_INST RecordEvent TINSERT(DstTileData &dst, SrcTileData &src, uint32_t indexR
 - `indexRow` is the starting row offset in `dst`.
 - `indexCol` is the starting column offset in `dst`.
 - `dst` names the destination tile. The operation iterates over src's valid region.
-- `fp` (optional for TINSERT_FP): scaling tile for vector quantization.
+- `fp` (optional for TINSERT_FP): auxiliary fix-pipe tile consumed by the backend FPC path.
 - `reluMode` (optional): specifies ReLU mode.
 - `preQuantScalar` (optional): scalar for pre-quantization.
 

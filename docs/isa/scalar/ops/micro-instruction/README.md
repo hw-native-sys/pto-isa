@@ -91,8 +91,7 @@ Elements per VLane by data type:
 └─────────────────────┬───────────────────────┘
                       │ DMA (MTE2 inbound / MTE3 outbound)
 ┌─────────────────────▼───────────────────────┐
-│              Unified Buffer (UB)             │
-│            (On-chip SRAM, 256KB)             │
+│   Vector Tile Buffer (hardware UB, 256KB)    │
 └─────────────────────┬───────────────────────┘
                       │ Vector Load/Store (PIPE_V)
 ┌─────────────────────▼───────────────────────┐
@@ -114,4 +113,4 @@ dst[i] = mask[i] ? op(src0[i], src1[i]) : 0    // ZEROING mode
 - [Vector ISA Reference](../../../vector/README.md) — Vector instruction reference at the PTO Tile ISA level
 - [Scalar And Control Reference](../../README.md) — Control and configuration operations
 - [Pipeline Synchronization](../../pipeline-sync.md) — Synchronization primitives
-- [DMA Copy](../../dma-copy.md) — GM↔UB data transfer
+- [DMA Copy](../../dma-copy.md) — GM↔vector-tile-buffer data transfer

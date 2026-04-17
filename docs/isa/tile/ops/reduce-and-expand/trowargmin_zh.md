@@ -1,31 +1,25 @@
-# TROWARGMIN
+# pto.trowargmin
 
-## 指令示意图
+`pto.trowargmin` 属于[归约与扩展](../../reduce-and-expand_zh.md)指令集。
 
-![TROWARGMIN tile operation](../../../../figures/isa/TROWARGMIN.svg)
+## 概述
 
-## 简介
+返回每一行最小值所在的列索引。
 
-`TROWARGMIN` 对输入 Tile 的每一行做“取最小值位置”的归约，结果返回**列索引**。它通常用在后续仍然需要知道“最优元素落在哪一列”的场景里，而不是只要最小值本身的场景。
-
-输出 Tile 只保留一列，因此第 `i` 行的结果 `dst[i, 0]` 表示：源 Tile 第 `i` 行的最小元素位于哪一列。
-
-## 数学语义
+## 机制
 
 设：
 
 - `R = src.GetValidRow()`
 - `C = src.GetValidCol()`
 
-对 `0 <= i < R`：
+则对 `0 <= i < R`：
 
 $$ \mathrm{dst}_{i,0} = \underset{0 \le j < C}{\operatorname{argmin}} \; \mathrm{src}_{i,j} $$
 
-如果一行里有多个相同的最小值，具体选择哪一个索引由实现决定。可移植代码不应依赖某个固定的 tie-breaking 结果。
+输出 tile 只保留一列，因此 `dst[i,0]` 表示“第 `i` 行最小值落在哪一列”。如果有多个相同最小值，具体选哪一个索引由实现决定。
 
-## 汇编语法
-
-PTO-AS 形式：参见 [PTO-AS 规范](../../../../assembly/PTO-AS_zh.md)。
+## 语法
 
 同步形式：
 
@@ -33,15 +27,13 @@ PTO-AS 形式：参见 [PTO-AS 规范](../../../../assembly/PTO-AS_zh.md)。
 %dst = trowargmin %src : !pto.tile<...> -> !pto.tile<...>
 ```
 
-在 lowering 过程中，backend 可能会引入临时 scratch Tile；C++ 内建接口因此显式接收 `tmp` 操作数。
-
-### AS Level 1（SSA）
+### IR Level 1（SSA）
 
 ```text
 %dst = pto.trowargmin %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
-### AS Level 2（DPS）
+### IR Level 2（DPS）
 
 ```text
 pto.trowargmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
@@ -49,50 +41,59 @@ pto.trowargmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%ds
 
 ## C++ 内建接口
 
-声明于 `include/pto/common/pto_instr.hpp`：
-
 ```cpp
 template <typename TileDataOut, typename TileDataIn, typename TileDataTmp, typename... WaitEvents>
 PTO_INST RecordEvent TROWARGMIN(TileDataOut& dst, TileDataIn& src, TileDataTmp& tmp, WaitEvents&... events);
 ```
 
+## 输入
+
+- `src`：源 tile
+- `tmp`：可能参与归约中间阶段的临时 tile
+- `dst`：目标索引 tile
+
+## 预期输出
+
+- `dst[i,0]`：第 `i` 行最小值所在列索引
+
+## 副作用
+
+除产生目标 tile 外，没有额外架构副作用。
+
 ## 约束
 
-### 通用约束
-
-- `src` 和 `dst` 都必须是 `TileType::Vec`。
-- `src` 必须是标准 ND 布局：row-major 且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
-- `dst` 必须是以下两类之一：
-  - ND 布局，或
-  - 单列 DN 布局（`Cols == 1`）。
-- `dst` 的元素类型必须是 `uint32_t` 或 `int32_t`。
-- `src` 的元素类型必须属于：
-  `half`、`float`、`int32_t`、`int16_t`。
+- `dst` 与 `src` 必须为 `TileType::Vec`
+- 源元素类型支持：`half`、`float`
+- 目标元素类型支持：`uint32_t`、`int32_t`
 - 运行时要求：
   - `src.GetValidRow() != 0`
   - `src.GetValidCol() != 0`
-  - `dst.GetValidRow() == src.GetValidRow()`
+  - `src.GetValidRow() == dst.GetValidRow()`
 
-### A2/A3 实现检查
+### A2A3
 
-- 当 `src.GetValidCol() <= elementPerRepeat` 时，A2/A3 可以直接完成行内索引归约，此时 `tmp` 不参与计算。
-- 当 `src.GetValidCol() > elementPerRepeat` 时，A2/A3 会使用 `tmp` 做分阶段归约：
-  - `validCol <= elementPerRepeat^2` 时走一阶段暂存；
-  - `validCol > elementPerRepeat^2` 时走两阶段暂存。
-- 因为暂存是按“每一行”展开的，`tmp` 至少应覆盖与 `src` 同样的有效行数。
+- `src` 必须是标准 ND 布局：行主且非分形
+- `dst` 可为单列 DN，或 validCol 为 1 的 ND
+- 当 `srcValidCol <= elementPerRepeat` 时，`tmp` 可能不参与运算
+- 当 `srcValidCol > elementPerRepeat` 时，`tmp` 会用于分阶段归约
+- `tmp` 的行数应与 `src` 一致
 
-### A5 与 CPU 实现
+### A5
 
-- A5 和 CPU 的接口也保留了 `tmp` 参数，但当前实现并不会实际使用它。
-- 这意味着 `tmp` 在这些 profile 里主要是接口兼容用，而不是算法必需输入。
+- A5 路径接口仍接收 `tmp`，但当前 checked implementation 中并不实际使用它
+
+## 异常与非法情形
+
+- 非法操作数组合、不支持的数据类型、不合法布局或不支持的 target-profile 模式，会被 verifier 或后端实现拒绝。
+
+## 性能
+
+当前仓内没有把 `trowargmin` 单列成公开 cost table。它应视为索引归约路径，而不是普通数值归约。
 
 ## 示例
 
-### 自动（Auto）
-
 ```cpp
 #include <pto/pto-inst.hpp>
-
 using namespace pto;
 
 void example_auto() {
@@ -106,29 +107,7 @@ void example_auto() {
 }
 ```
 
-### 手动（Manual）
-
-```cpp
-#include <pto/pto-inst.hpp>
-
-using namespace pto;
-
-void example_manual() {
-  using SrcT = Tile<TileType::Vec, float, 16, 16>;
-  using DstT = Tile<TileType::Vec, uint32_t, 16, 1, BLayout::ColMajor>;
-  using TmpT = Tile<TileType::Vec, float, 16, 16>;
-  SrcT src;
-  DstT dst;
-  TmpT tmp;
-  TASSIGN(src, 0x1000);
-  TASSIGN(dst, 0x2000);
-  TASSIGN(tmp, 0x3000);
-  TROWARGMIN(dst, src, tmp);
-}
-```
-
 ## 相关页面
 
-- [归约与扩展指令集](../../reduce-and-expand_zh.md)
-- [TROWMIN](./trowmin_zh.md)
-- [布局参考](../../../state-and-types/layout_zh.md)
+- 指令集总览：[归约与扩展](../../reduce-and-expand_zh.md)
+- 上一条指令：[pto.trowargmax](./trowargmax_zh.md)

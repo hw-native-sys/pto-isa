@@ -1,13 +1,13 @@
 # pto.tsethf32mode
 
-Canonical tile-instruction reference: [pto.tsethf32mode](./tile/ops/sync-and-config/tsethf32mode.md).
+Canonical scalar/control reference: [pto.tsethf32mode](./scalar/ops/control-and-configuration/tsethf32mode.md).
 
 The PTO ISA manual now treats tile, vector, and scalar/control operations consistently: the canonical per-op pages live under `docs/isa/tile/ops/`, `docs/isa/vector/ops/`, and `docs/isa/scalar/ops/`.
 
 ## Canonical Location
 
-- Instruction set overview: [Sync And Config](./tile/sync-and-config.md)
-- Canonical per-op page: [pto.tsethf32mode](./tile/ops/sync-and-config/tsethf32mode.md)
+- Instruction set overview: [Scalar And Control Instruction Set: Control And Configuration](./scalar/control-and-configuration.md)
+- Canonical per-op page: [pto.tsethf32mode](./scalar/ops/control-and-configuration/tsethf32mode.md)
 
 ## Compatibility Note
 

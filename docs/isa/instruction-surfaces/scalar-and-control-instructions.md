@@ -18,9 +18,9 @@ Scalar/control instructions do not produce tile or vector payloads. Instead, the
 
 | Class | Description | Examples |
 |-------|-------------|----------|
-| Control and Configuration | NOP, barrier, yield, and control setup | `nop`, `barrier`, `yield` |
+| Control and Configuration | NOP, barrier, yield, and mode/config setup | `nop`, `barrier`, `yield`, `tsethf32mode`, `tsetfmatrix` |
 | Pipeline Sync | Event and barrier synchronization between pipelines | `set_flag`, `wait_flag`, `pipe_barrier` |
-| DMA Copy | GM↔UB memory transfer configuration and initiation | `copy_gm_to_ubuf`, `copy_ubuf_to_gm`, `set_loop_size_outtoub` |
+| DMA Copy | GM↔vector-tile-buffer transfer configuration and initiation | `copy_gm_to_ubuf`, `copy_ubuf_to_gm`, `set_loop_size_outtoub` |
 | Predicate Load/Store | Mask-based scalar memory access | `pld`, `plds`, `pdi`, `pst`, `psts`, `psti`, `pstu` |
 | Predicate Generation | Predicate construction and algebra | `pset_b8`, `pge_b8`, `plt_b8`, `pand`, `por`, `pxor`, `pnot`, `pintlv_b16` |
 
@@ -144,12 +144,12 @@ PTO_INST void wait_flag(pipe_t src_pipe, pipe_t dst_pipe, event_t event_id);
 // Pipeline barrier
 PTO_INST void pipe_barrier(pipe_t pipe);
 
-// DMA copy: GM → UB
+// DMA copy: GM → vector tile buffer / hardware UB
 PTO_INST void copy_gm_to_ubuf(ub_ptr dst, gm_ptr src, uint64_t sid,
                               uint64_t n_burst, uint64_t len_burst,
                               uint64_t dst_stride, uint64_t src_stride);
 
-// DMA copy: UB → GM
+// DMA copy: vector tile buffer / hardware UB → GM
 PTO_INST void copy_ubuf_to_gm(gm_ptr dst, ub_ptr src, uint64_t sid,
                               uint64_t n_burst, uint64_t len_burst,
                               uint64_t reserved, uint64_t dst_stride, uint64_t src_stride);

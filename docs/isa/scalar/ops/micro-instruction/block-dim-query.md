@@ -196,6 +196,6 @@ When designing the block grid:
 
 ## Related Operations
 
-- Pointer arithmetic: [Pointer Operations](../pointer-operations.md) — `pto.addptr`, `pto.castptr`
-- Scalar memory access: [Pointer Operations](../pointer-operations.md) — `pto.load_scalar`, `pto.store_scalar`
-- Scalar arithmetic: [Shared Scalar Arithmetic](../../../shared-arith.md) — `arith.constant`, `arith.index_cast`, `arith.muli`
+- Pointer arithmetic: [Pointer Operations](./pointer-operations.md) — `pto.addptr`, `pto.castptr`
+- Scalar memory access: [Pointer Operations](./pointer-operations.md) — `pto.load_scalar`, `pto.store_scalar`
+- Scalar arithmetic: [Shared Scalar Arithmetic](../../shared-arith.md) — `arith.constant`, `arith.index_cast`, `arith.muli`

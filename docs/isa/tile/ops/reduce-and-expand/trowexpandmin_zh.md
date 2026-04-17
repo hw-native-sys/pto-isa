@@ -1,22 +1,20 @@
-# TROWEXPANDMIN
+# pto.trowexpandmin
 
-## 指令示意图
+`pto.trowexpandmin` 属于[归约与扩展](../../reduce-and-expand_zh.md)指令集。
 
-![TROWEXPANDMIN tile operation](../../../../figures/isa/TROWEXPANDMIN.svg)
+## 概述
 
-## 简介
+把“每行一个标量”的向量广播到整行，再与 `src0` 做逐元素最小值。
 
-`TROWEXPANDMIN` 把一个“按行给出的标量向量”广播到整行，再和 `src0` 做逐元素最小值。它和 `TROWEXPANDMAX` 对称，常用于按行上界裁剪或稳定化步骤。
+## 机制
 
-## 数学语义
-
-设 `R = dst.GetValidRow()`、`C = dst.GetValidCol()`。记 `s_i` 为第 `i` 行对应的广播标量，则：
+设 `R = dst.GetValidRow()`、`C = dst.GetValidCol()`。记 `s_i` 为第 `i` 行对应的广播标量。则：
 
 $$ \mathrm{dst}_{i,j} = \min(\mathrm{src0}_{i,j}, s_i) $$
 
-## 汇编语法
+它与 `trowexpandmax` 成对出现，常用于按行上界裁剪或数值钳制。
 
-PTO-AS 形式：参见 [PTO-AS 规范](../../../../assembly/PTO-AS_zh.md)。
+## 语法
 
 同步形式：
 
@@ -38,8 +36,6 @@ pto.trowexpandmin ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ## C++ 内建接口
 
-声明于 `include/pto/common/pto_instr.hpp`：
-
 ```cpp
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
 PTO_INST RecordEvent TROWEXPANDMIN(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, WaitEvents &... events);
@@ -50,20 +46,39 @@ PTO_INST RecordEvent TROWEXPANDMIN(TileDataDst &dst, TileDataSrc0 &src0, TileDat
                                    WaitEvents &... events);
 ```
 
+## 输入
+
+- `src0`：逐元素主输入 tile
+- `src1`：提供“每行一个标量”的广播源
+- `tmp`：部分实现路径会用到的临时 tile
+- `dst`：目标 tile
+
+## 预期输出
+
+- `dst[i,j] = min(src0[i,j], src1[i,0])`
+
+## 副作用
+
+除产生目标 tile 外，没有额外架构副作用。
+
 ## 约束
 
-- `dst/src0/src1` 的元素类型必须一致，且当前实现只支持 `half` 或 `float`。
-- `dst` 必须是 row-major Tile。
-- `src0` 或 `src1` 其中之一必须与 `dst` 具有相同的 valid shape。
-- 另一侧承担“每行一个标量”的广播角色。
+- `dst/src0/src1` 的元素类型必须一致，当前实现只支持 `half` 或 `float`
+- `dst` 必须是 row-major
+- `src1` 需要表达“每行一个标量”这一角色
 
-广播侧允许的具体形态与 `TROWEXPANDADD` 相同：不带 `tmp` 时可接受单列广播或一行 32B 数据块；带 `tmp` 时更偏向单列广播。
+## 异常与非法情形
+
+- 非法操作数组合、不支持的数据类型、不合法布局或不支持的 target-profile 模式，会被 verifier 或后端实现拒绝。
+
+## 性能
+
+当前仓内没有把 `trowexpandmin` 单列成公开 cost table，应视为目标 profile 相关的广播组合路径。
 
 ## 示例
 
 ```cpp
 #include <pto/pto-inst.hpp>
-
 using namespace pto;
 
 void example() {
@@ -77,6 +92,6 @@ void example() {
 
 ## 相关页面
 
-- [TROWEXPANDMAX](./trowexpandmax_zh.md)
-- [TROWEXPANDADD](./trowexpandadd_zh.md)
-- [归约与扩展指令集](../../reduce-and-expand_zh.md)
+- 指令集总览：[归约与扩展](../../reduce-and-expand_zh.md)
+- 上一条指令：[pto.trowexpandmax](./trowexpandmax_zh.md)
+- 下一条指令：[pto.trowexpandexpdif](./trowexpandexpdif_zh.md)

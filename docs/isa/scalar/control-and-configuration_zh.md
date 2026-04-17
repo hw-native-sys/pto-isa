@@ -8,6 +8,8 @@
 
 ## 主要子类
 
+- 历史上保留 `t` 前缀、但在手册中归入控制/配置路径的模式寄存器操作：
+  [pto.tsethf32mode](./ops/control-and-configuration/tsethf32mode_zh.md)、[pto.tsetfmatrix](./ops/control-and-configuration/tsetfmatrix_zh.md)
 - [流水线同步](./pipeline-sync_zh.md)
 - [DMA 拷贝](./dma-copy_zh.md)
 - [谓词加载存储](./predicate-load-store_zh.md)
@@ -23,6 +25,8 @@
 - 顺序边和同步状态
 
 它们仍然是虚拟 ISA 契约的一部分，只是输出的不是 tile / vector payload。
+
+手册也把少量保留 `pto.t*` 历史命名的配置操作放在这里，因为它们的架构角色属于控制/配置而不是 tile payload 变换。
 
 ## 相关页面
 

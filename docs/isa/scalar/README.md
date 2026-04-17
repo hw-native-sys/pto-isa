@@ -7,6 +7,7 @@ The key distinction is architectural role, not only spelling. `pto.*` pages live
 ## Instruction Sets
 
 - [Control and configuration](./control-and-configuration.md)
+- [PTO micro-instruction reference](./ops/micro-instruction/README.md)
 - [Pipeline sync](./pipeline-sync.md)
 - [DMA copy](./dma-copy.md)
 - [Predicate load store](./predicate-load-store.md)

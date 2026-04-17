@@ -13,9 +13,9 @@ Tile instructions operate over tiles whose shapes, layouts, roles, and valid reg
 ```
 GlobalMemory
     │
-    │  TLOAD: GM → UB → Tile Buffer
+    │  TLOAD: GM → local tile buffer
     ▼
-Tile Buffer ──► Tile Compute ──► Tile Buffer ──► TSTORE: Tile Buffer → UB → GM
+Tile Buffer ──► Tile Compute ──► Tile Buffer ──► TSTORE: Tile Buffer → GM
 (Vec/Mat/Acc)    (pto.tadd, TMATMUL, etc.)       (Vec/Mat/Acc)
 ```
 
@@ -23,11 +23,11 @@ Tile Buffer ──► Tile Compute ──► Tile Buffer ──► TSTORE: Tile 
 
 | Class | Description | Examples |
 |-------|-------------|----------|
-| Sync and Config | Resource binding, event setup, mode control | `tassign`, `tsync`, `tsethf32mode`, `tsetfmatrix` |
+| Sync and Config | Resource binding, event setup, tile-local config | `tassign`, `tsync`, `tsettf32mode`, `tset_img2col_rpt` |
 | Elementwise Tile-Tile | Lane-wise binary and unary operations | `tadd`, `tmul`, `tcmp`, `tcvt`, `tsel`, `trelu` |
 | Tile-Scalar and Immediate | Tile combined with scalar or immediate operands | `tadds`, `tmuls`, `tlrelu`, `tcmps` |
 | Reduce and Expand | Row/column reductions and expansions | `trowsum`, `tcolmax`, `trowexpand`, `tcolexpand` |
-| Memory and Data Movement | GM↔tile transfer, gather/scatter | `tload`, `tstore`, `tstore_fp`, `mgather`, `mscatter` |
+| Memory and Data Movement | GM↔tile transfer, gather/scatter, fix-pipe store variants | `tload`, `tstore`, `tstore_fp`, `mgather`, `mscatter` |
 | Matrix and Matrix-Vector | GEMV, matmul, and variants | `tgemv`, `tgemv_mx`, `tmatmul`, `tmatmul_acc`, `tmatmul_bias` |
 | Layout and Rearrangement | Reshape, transpose, extract, insert | `tmov`, `ttrans`, `treshape`, `textract`, `tinsert`, `timg2col` |
 | Irregular and Complex | Sort, quantize, histogram, print | `tmrgsort`, `tsort32`, `tquant`, `thistogram`, `tprint` |
@@ -74,7 +74,8 @@ See [Tiles And Valid Regions](../programming-model/tiles-and-valid-regions.md) f
 
 - **Tile legality** depends on more than dtype; shape, layout, role, and valid region all matter.
 - Operations with multiple tiles must define valid-region interaction explicitly.
-- Some tile instruction set are profile-gated: MX format tiles (`Left`/`Right`) are A5-only; FP8 types are A5-only.
+- Some tile instruction set are profile-gated: MX block-scale tiles (`Left`, `Right`, `ScaleLeft`, `ScaleRight`) are A5-only; FP8/FP4-family element types are A5-only.
+- `tsethf32mode` and `tsetfmatrix` are documented in the scalar/control lane even though their historic API names still carry the `t` prefix; they configure scalar-visible mode state rather than tile payload state.
 - Tile instructions do **not** inherit vector-register semantics; they operate on architecturally visible tile state.
 - No implicit broadcasting: all source tiles must have shapes compatible with the destination tile.
 

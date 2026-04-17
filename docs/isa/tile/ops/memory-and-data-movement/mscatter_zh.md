@@ -1,24 +1,20 @@
-﻿# MSCATTER
+# pto.mscatter
 
-## 指令示意图
+`pto.mscatter` 属于[内存与数据搬运](../../memory-and-data-movement_zh.md)指令集。
 
-![MSCATTER tile operation](../../../../figures/isa/MSCATTER.svg)
+## 概述
 
-## 简介
+根据逐元素索引，把 tile 中的数据散写回全局内存。
 
-使用逐元素索引将 Tile 中的元素散播存储到全局内存。
-
-## 数学语义
+## 机制
 
 对源有效区域中的每个元素 `(i, j)`：
 
 $$ \mathrm{mem}[\mathrm{idx}_{i,j}] = \mathrm{src}_{i,j} $$
 
-如果多个元素映射到同一目标位置，最终值由实现定义（CPU 模拟器：按行主序迭代顺序，最后写入者获胜）。
+如果多个元素映射到同一目标地址，最终值由实现决定。CPU 模拟器当前采用“按行主序遍历时最后写入者获胜”的行为。
 
-## 汇编语法
-
-PTO-AS 形式：参见 [PTO-AS 规范](../../../../assembly/PTO-AS_zh.md)。
+## 语法
 
 同步形式：
 
@@ -40,65 +36,62 @@ pto.mscatter ins(%src, %idx : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%mem 
 
 ## C++ 内建接口
 
-声明于 `include/pto/common/pto_instr.hpp`：
-
 ```cpp
 template <typename GlobalData, typename TileSrc, typename TileInd, typename... WaitEvents>
 PTO_INST RecordEvent MSCATTER(GlobalData &dst, TileSrc &src, TileInd &indexes, WaitEvents &... events);
 ```
 
+## 输入
+
+- `src`：源 tile
+- `indexes`：索引 tile
+- `dst`：目标 `GlobalTensor`
+
+## 预期输出
+
+- `src` 中各元素被按 `indexes` 指定的位置写入 `dst`
+
+## 副作用
+
+这条指令会写 GM。若多个源元素散写到同一地址，结果由实现和执行顺序决定。
+
 ## 约束
 
-- **支持的数据类型**：
-    - `src`/`dst` 的元素类型必须是以下之一：`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`bfloat16_t`、`float`。
-    - 在 AICore 目标上，还支持 `float8_e4m3_t` 和 `float8_e5m2_t`。
-    - `indexes` 的元素类型必须是 `int32_t` 或 `uint32_t`。
-- **Tile 与内存类型约束**：
-    - `src` 必须是向量 Tile（`TileType::Vec`）。
-    - `indexes` 必须是向量 Tile（`TileType::Vec`）。
-    - `src` 和 `indexes` 必须使用行主序布局。
-    - `dst` 必须是位于 GM 内存中的 `GlobalTensor`。
-    - `dst` 必须使用 `ND` 布局。
-- **原子操作约束**：
-    - 非原子 scatter 对所有受支持元素类型都可用。
-    - `Add` 原子模式要求元素类型为 `int32_t`、`uint32_t`、`float` 或 `half`。
-    - `Max`/`Min` 原子模式要求元素类型为 `int32_t` 或 `float`。
-- **形状约束**：
-    - `src.Rows == indexes.Rows`。
-    - `indexes` 的形状必须为 `[N, 1]`（按行 scatter）或 `[N, M]`（按元素 scatter）。
-    - `src` 的行宽必须满足 32 字节对齐，即 `src.Cols * sizeof(DType)` 必须是 32 的倍数。
-    - `dst` 的静态 shape 必须满足 `Shape<1, 1, 1, TableRows, RowWidth>`。
-- **索引解释**：
-    - 索引解释由目标定义。CPU 模拟器将索引视为 `dst.data()` 中的线性元素索引。
-    - CPU 模拟器不对 `indexes` 强制执行边界检查。
+- `src/dst` 元素类型必须属于：
+  `int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`bfloat16_t`、`float`
+- AICore 目标上还支持 `float8_e4m3_t` 和 `float8_e5m2_t`
+- `indexes` 的元素类型必须是 `int32_t` 或 `uint32_t`
+- `src` 和 `indexes` 必须是 row-major 的 `TileType::Vec`
+- `dst` 必须是 GM 上的 `GlobalTensor`，且布局为 ND
+- `src.Rows == indexes.Rows`
+- `src` 的行宽必须满足 32B 对齐
+
+### 原子约束
+
+- 非原子 scatter 对所有支持类型都可用
+- `Add` 原子要求 `int32_t`、`uint32_t`、`float` 或 `half`
+- `Max/Min` 原子要求 `int32_t` 或 `float`
+
+## 异常与非法情形
+
+- 非法操作数组合、不支持的数据类型、不合法布局或不支持的 target-profile 模式，会被 verifier 或后端实现拒绝。
+- CPU 模拟器不会对 `indexes` 做强制越界检查。
+
+## Target-Profile 限制
+
+- `pto.mscatter` 在 CPU 仿真、A2/A3 和 A5 上都保留相同的 PTO 可见语义，但具体支持子集和原子路径仍取决于 profile。
+
+## 性能
+
+当前手册未单列 `mscatter` 的公开周期表。它的成本通常主要受索引分布、原子模式和目标散写路径影响。
 
 ## 示例
 
-参见 `docs/isa/` 和 `docs/coding/tutorials/` 中的相关示例。
-
-## 汇编示例（ASM）
-
-### 自动模式
-
 ```text
-# 自动模式：由编译器/运行时负责资源放置与调度。
 pto.mscatter %src, %idx, %mem : (!pto.tile<...>, !pto.tile<...>, !pto.partition_tensor_view<MxNxdtype>) -> ()
 ```
 
-### 手动模式
+## 相关页面
 
-```text
-# 手动模式：先显式绑定资源，再发射指令。
-# 可选（当该指令包含 tile 操作数时）：
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
-pto.mscatter %src, %idx, %mem : (!pto.tile<...>, !pto.tile<...>, !pto.partition_tensor_view<MxNxdtype>) -> ()
-```
-
-### PTO 汇编形式
-
-```text
-mscatter %src, %mem, %idx : !pto.memref<...>, !pto.tile<...>, !pto.tile<...>
-# AS Level 2 (DPS)
-pto.mscatter ins(%src, %idx : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%mem : !pto.partition_tensor_view<MxNxdtype>)
-```
+- 指令集总览：[内存与数据搬运](../../memory-and-data-movement_zh.md)
+- 上一条指令：[pto.mgather](./mgather_zh.md)

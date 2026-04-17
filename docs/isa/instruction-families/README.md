@@ -32,7 +32,7 @@ Instruction set pages do not repeat per-op details; they set the contract for th
 ```
 Instruction Sets
 ├── Tile Instruction Set
-│   ├── Sync and Config            → pto.tassign, pto.tsync, pto.tsethf32mode, pto.tsetfmatrix, etc.
+│   ├── Sync and Config            → pto.tassign, pto.tsync, pto.tsettf32mode, pto.tset_img2col_*, etc.
 │   ├── Elementwise Tile-Tile      → pto.tadd, pto.tmul, pto.tcmp, pto.tcvt, pto.tsel, etc.
 │   ├── Tile-Scalar and Immediate  → pto.tadds, pto.tmuls, pto.tmins, pto.texpands, etc.
 │   ├── Reduce and Expand          → pto.trowsum, pto.tcolmax, pto.trowexpand, pto.tcolexpand, etc.
@@ -54,7 +54,7 @@ Instruction Sets
 │   └── SFU and DSA Instructions      → pto.vprelu, pto.vexpdiff, pto.vaxpy, pto.vtranspose, pto.vsort32, etc.
 │
 ├── Scalar And Control Instruction Set
-│   ├── Control and Configuration  → pto.nop, pto.barrier, pto.yield, etc.
+│   ├── Control and Configuration  → pto.nop, pto.barrier, pto.yield, legacy mode/config ops such as pto.tsethf32mode and pto.tsetfmatrix
 │   ├── Pipeline Sync             → pto.set_flag, pto.wait_flag, pto.pipe_barrier, pto.mem_bar, etc.
 │   ├── DMA Copy                  → pto.copy_gm_to_ubuf, pto.copy_ubuf_to_gm, pto.copy_ubuf_to_ubuf, etc.
 │   ├── Predicate Load Store       → pto.pld, pto.plds, pto.pldi, pto.pst, pto.psts, pto.psti, pto.pstu

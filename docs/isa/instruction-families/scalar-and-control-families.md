@@ -8,7 +8,7 @@ Scalar and control instruction set documentation covers the state-setting and co
 |--------|-------------|----------|
 | [Control and Configuration](../scalar/control-and-configuration.md) | NOP, barrier, yield, and control setup | `nop`, `barrier`, `yield` |
 | [Pipeline Sync](../scalar/pipeline-sync.md) | Event and barrier synchronization between pipelines | `set_flag`, `wait_flag`, `pipe_barrier`, `mem_bar` |
-| [DMA Copy](../scalar/dma-copy.md) | GM↔UB memory transfer configuration and initiation | `copy_gm_to_ubuf`, `copy_ubuf_to_gm`, `set_loop_size_outtoub` |
+| [DMA Copy](../scalar/dma-copy.md) | GM↔vector-tile-buffer transfer configuration and initiation | `copy_gm_to_ubuf`, `copy_ubuf_to_gm`, `set_loop_size_outtoub` |
 | [Predicate Load/Store](../scalar/predicate-load-store.md) | Mask-based scalar memory access | `pld`, `plds`, `pdi`, `pst`, `psts`, `psti`, `pstu` |
 | [Predicate Generation](../scalar/predicate-generation-and-algebra.md) | Predicate construction and algebra | `pset_b8`, `pge_b8`, `plt_b8`, `pand`, `por`, `pxor`, `pnot` |
 | Shared Arithmetic | Scalar arithmetic ops shared across instruction sets | Scalar integer/float ops |

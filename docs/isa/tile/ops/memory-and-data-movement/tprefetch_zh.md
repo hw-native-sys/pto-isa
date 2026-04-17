@@ -1,26 +1,20 @@
-# TPREFETCH
+# pto.tprefetch
 
-## 指令示意图
+`pto.tprefetch` 属于[内存与数据搬运](../../memory-and-data-movement_zh.md)指令集。
 
-![TPREFETCH tile operation](../../../../figures/isa/TPREFETCH.svg)
+## 概述
 
-## 简介
+把后续可能会访问的一段 `GlobalTensor` 数据提前搬进 tile 本地缓冲，用作预取或预热。
 
-`TPREFETCH` 把 `GlobalTensor` 的一段数据提前搬进 tile 本地缓冲，用作后续访问前的预取或预热。它的目的不是做 layout 变换，而是把“稍后会用到的 GM 数据”尽早拉到 tile 可见的本地空间里。
+## 机制
 
-名字里虽然叫 prefetch，但在当前仓库实现里它并不是纯粹的“可完全忽略的提示位”，而是会实际把一段数据写入 `dst`。真正应该把它当成“提示”的部分，是缓存或局部性收益本身，而不是 `dst` 是否被填充。
-
-## 数学语义
-
-若把 `src` 当前视图看成一个二维切片，`TPREFETCH` 的可见结果接近于：
+若把 `src` 的当前视图看成二维切片，则：
 
 $$ \mathrm{dst}_{i,j} = \mathrm{src}_{r_0 + i,\; c_0 + j} $$
 
-其中具体会搬多少行列，取决于 `dst` 的尺寸以及 `src` 当前 `GlobalTensor` 视图的 shape / stride。和 `TLOAD` 相比，这条指令不承诺复杂的 layout 转换；它更像“把接下来要访问的 GM 切片装进一个临时 tile 缓冲”。
+和 `TLOAD` 不同，这条指令的重点不是复杂布局转换，而是把“稍后会用到的数据”尽早拉近。它在当前仓库实现里并不是“可以完全忽略的 hint bit”，而是真会填充 `dst`。
 
-## 汇编语法
-
-PTO-AS 形式：参见 [PTO-AS 规范](../../../../assembly/PTO-AS_zh.md)。
+## 语法
 
 同步形式：
 
@@ -42,38 +36,54 @@ pto.tprefetch ins(%src : !pto.global<...>) outs(%dst : !pto.tile_buf<...>)
 
 ## C++ 内建接口
 
-声明于 `include/pto/common/pto_instr.hpp`：
-
 ```cpp
 template <typename TileData, typename GlobalData>
 PTO_INST RecordEvent TPREFETCH(TileData &dst, GlobalData &src);
 ```
 
-和大多数 PTO C++ 指令不同，`TPREFETCH` 这个接口没有 `WaitEvents...`，封装层也不会在调用前自动插入 `TSYNC(events...)`。
+与大多数 PTO C++ 接口不同，这条封装不会自动执行 `TSYNC(events...)`。
+
+## 输入
+
+- `src`：源 `GlobalTensor`
+- `dst`：目标 tile 缓冲
+
+## 预期输出
+
+- `dst`：被预取进本地路径的数据
+
+## 副作用
+
+这条指令可能会从 GM 读取。某些 target 可能会把它当提示，也可能会直接完成缓冲填充。
 
 ## 约束
 
-### 通用约束
+- 可移植代码应把它用于“提前搬运即将访问的数据”，而不要把它当 `TLOAD` 的语义等价替代品。
+- 在当前仓库实现里，预取范围仍然受 `dst` 大小和 `src` 切片大小影响。
 
-- 这条指令面向“本地预取缓冲”场景，不应把它当成 `TLOAD` 的语义等价替代品。
-- 当前仓库实现没有像 `TLOAD` 那样为它建立一套完整的 layout / dtype 合法性检查路径。
-- 可移植代码应只把它用于“提前把后续要访问的数据搬进临时 tile”的场景，而不要依赖某个 backend 的特殊缓存收益。
+## Target-Profile 限制
 
-### CPU 模拟器
+### CPU
 
-- CPU 直接按 `dst.GetValidRow()` / `dst.GetValidCol()` 做逐元素拷贝。
+- CPU 会直接按 `dst.GetValidRow()` / `dst.GetValidCol()` 做逐元素拷贝
 
-### A2/A3 与 A5 实现
+### A2A3 / A5
 
-- 两条 NPU 实现都会把 `GlobalTensor` 当前 5D 视图拆成切片后分块搬入 `dst`。
-- 如果单个切片能放进 `dst`，则一次性搬运；否则按 `dst` 容量分块预取。
-- 这意味着 `TPREFETCH` 的可见结果依赖 `dst` 大小和 `src` 切片大小，而不是单独由“预取提示”决定。
+- 若单个切片能放进 `dst`，则一次性预取
+- 若放不下，则按 `dst` 容量分块预取
+
+## 异常与非法情形
+
+- 非法操作数组合、不支持的数据类型、不合法布局或不支持的 target-profile 模式，会被 verifier 或后端实现拒绝。
+
+## 性能
+
+当前手册未单列 `tprefetch` 的公开周期表。它的真正收益更依赖后续访存局部性，而不是单条指令本身的独立算术成本。
 
 ## 示例
 
 ```cpp
 #include <pto/pto-inst.hpp>
-
 using namespace pto;
 
 template <typename T, typename GT>
@@ -85,5 +95,4 @@ void example(Tile<TileType::Vec, T, 16, 16>& tileBuf, GT& globalView) {
 ## 相关页面
 
 - [TLOAD](./tload_zh.md)
-- [内存与数据搬运指令集](../../memory-and-data-movement_zh.md)
-- [GlobalTensor 与数据搬运](../../../programming-model/globaltensor-and-data-movement_zh.md)
+- [内存与数据搬运](../../memory-and-data-movement_zh.md)

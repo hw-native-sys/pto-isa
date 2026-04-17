@@ -91,5 +91,5 @@ void example_enable_tf32() {
 ## Related Ops / Instruction Set Links
 
 - Instruction set overview: [Sync And Config](../../sync-and-config.md)
-- Previous op in instruction set: [pto.tsethf32mode](./tsethf32mode.md)
-- Next op in instruction set: [pto.tsetfmatrix](./tsetfmatrix.md)
+- Previous op in instruction set: [pto.tassign](./tassign.md)
+- Next op in instruction set: [pto.tset_img2col_rpt](./tset-img2col-rpt.md)

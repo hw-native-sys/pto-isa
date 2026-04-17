@@ -6,7 +6,7 @@ Tile-instruction set documentation explains how `pto.t*` groups behave. Each ins
 
 | Instruction Set | Prefix | Description |
 |--------|--------|-------------|
-| [Sync and Config](../tile/sync-and-config.md) | `pto.tassign`, `pto.tsync`, `pto.tset*` | Resource binding, event setup, mode control |
+| [Sync and Config](../tile/sync-and-config.md) | `pto.tassign`, `pto.tsync`, `pto.tset_img2col_*`, `pto.tsubview` | Resource binding, event setup, tile-local config |
 | [Elementwise Tile-Tile](../tile/elementwise-tile-tile.md) | `pto.tadd`, `pto.tmul`, `pto.tcmp`, `pto.tcvt` | Lane-wise binary and unary operations |
 | [Tile-Scalar and Immediate](../tile/tile-scalar-and-immediate.md) | `pto.tadds`, `pto.tmuls`, `pto.tmins` | Tile combined with scalar or immediate operand |
 | [Reduce and Expand](../tile/reduce-and-expand.md) | `pto.trowsum`, `pto.tcolmax`, `pto.trowexpand` | Row/column reductions and expansions |

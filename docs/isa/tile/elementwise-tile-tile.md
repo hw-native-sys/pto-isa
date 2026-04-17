@@ -22,8 +22,8 @@ Elementwise tile-tile operations perform lane-wise binary and unary operations o
 | [pto.tlog](./ops/elementwise-tile-tile/tlog.md) | Elementwise natural logarithm | Unary | `TLOG(dst, src)` |
 | [pto.trecip](./ops/elementwise-tile-tile/trecip.md) | Elementwise reciprocal | Unary | `TRECIP(dst, src)` |
 | [pto.tprelu](./ops/elementwise-tile-tile/tprelu.md) | Elementwise parameterized ReLU | Binary | `TPRELU(dst, src0, src1)` |
-| [pto.taddc](./ops/elementwise-tile-tile/taddc.md) | Saturating elementwise addition | Binary | `TADDC(dst, src0, src1)` |
-| [pto.tsubc](./ops/elementwise-tile-tile/tsubc.md) | Saturating elementwise subtraction | Binary | `TSUBC(dst, src0, src1)` |
+| [pto.taddc](./ops/elementwise-tile-tile/taddc.md) | Three-input fused addition | Ternary-like Binary | `TADDC(dst, src0, src1, src2)` |
+| [pto.tsubc](./ops/elementwise-tile-tile/tsubc.md) | Three-input fused subtract/add | Ternary-like Binary | `TSUBC(dst, src0, src1, src2)` |
 | [pto.tcvt](./ops/elementwise-tile-tile/tcvt.md) | Elementwise type conversion | Unary | `TCVT(dst, src)` |
 | [pto.tsel](./ops/elementwise-tile-tile/tsel.md) | Elementwise conditional selection | Ternary | `TSEL(dst, src0, src1, cmp)` |
 | [pto.trsqrt](./ops/elementwise-tile-tile/trsqrt.md) | Elementwise reciprocal square root | Unary | `TRSQRT(dst, src)` |
@@ -55,16 +55,14 @@ All elementwise tile-tile operations iterate over the **destination tile's valid
 - Source tiles whose valid region does not cover `(r, c)` read **implementation-defined values**
 - Programs MUST NOT rely on any particular value being read from an out-of-region source lane unless the operation explicitly documents the behavior
 
-## Saturating Variants
+## `_c` Variants
 
-Operations with the `_c` suffix perform saturating arithmetic instead of wrapping arithmetic:
+Within the current canonical per-op pages and intrinsic signatures, the `_c` suffix in this instruction family does **not** denote a generic saturating-arithmetic convention:
 
-| Base Op | Saturating Op | Overflow/Underflow Behavior |
-|---------|--------------|--------------------------|
-| `TADD` | `TADDC` | Clamp to type min/max |
-| `TSUB` | `TSUBC` | Clamp to type min/max |
+- `TADDC` is a three-input fused add: `src0 + src1 + src2`
+- `TSUBC` is a three-input fused subtract/add: `src0 - src1 + src2`
 
-Programs MUST NOT assume that `TADDC` and `TADD` produce identical results when overflow does not occur; they MAY differ even for in-range values due to implementation precision choices.
+Readers MUST NOT infer saturating semantics from the suffix alone; always treat the individual per-op page as the source of truth.
 
 ## Type Support by Target Profile
 
@@ -92,7 +90,7 @@ Programs MUST NOT assume that `TADDC` and `TADD` produce identical results when 
 
 - **MUST NOT** assume implicit broadcasting, reshaping, or valid-region repair.
 - **MUST NOT** rely on a defined value from a source tile lane outside its valid region.
-- **MUST NOT** assume `TADDC`/`TSUBC` are bit-identical to `TADD`/`TSUB` for all inputs.
+- **MUST NOT** infer a generic saturating-arithmetic meaning from the `_c` suffix alone.
 - **MUST NOT** use a shift count `>=` element bit-width.
 
 ## C++ Intrinsic
@@ -108,8 +106,8 @@ PTO_INST RecordEvent TADD(TileDst& dst, TileSrc0& src0, TileSrc1& src1);
 template <typename TileDst, typename TileSrc0, typename TileSrc1>
 PTO_INST RecordEvent TMUL(TileDst& dst, TileSrc0& src0, TileSrc1& src1);
 
-template <typename TileDst, typename TileSrc0, typename TileSrc1>
-PTO_INST RecordEvent TADDC(TileDst& dst, TileSrc0& src0, TileSrc1& src1);
+template <typename TileData, typename TileData0, typename TileData1, typename TileData2>
+PTO_INST RecordEvent TADDC(TileData& dst, TileData0& src0, TileData1& src1, TileData2& src2);
 
 // Unary elementwise
 template <typename TileDst, typename TileSrc>

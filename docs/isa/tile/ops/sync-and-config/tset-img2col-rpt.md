@@ -133,5 +133,5 @@ pto.tset_img2col_rpt ins(%cfg : !pto.fmatrix_config) outs()
 ## Related Ops / Instruction Set Links
 
 - Instruction set overview: [Sync And Config](../../sync-and-config.md)
-- Previous op in instruction set: [pto.tsetfmatrix](./tsetfmatrix.md)
+- Previous op in instruction set: [pto.tsettf32mode](./tsettf32mode.md)
 - Next op in instruction set: [pto.tset_img2col_padding](./tset-img2col-padding.md)

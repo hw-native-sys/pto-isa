@@ -1,26 +1,18 @@
-﻿# TCOLEXPANDMIN
+# pto.tcolexpandmin
 
-## 指令示意图
+`pto.tcolexpandmin` 属于[归约与扩展](../../reduce-and-expand_zh.md)指令集。
 
-![TCOLEXPANDMIN tile operation](../../../../figures/isa/TCOLEXPANDMIN.svg)
+## 概述
 
-## 简介
+把“每列一个标量”的向量广播到整列，再与 `src0` 做逐元素最小值。
 
-列广播最小值：与每列标量向量取最小值。
+## 机制
 
-## 数学语义
+设 `R = dst.GetValidRow()`、`C = dst.GetValidCol()`。记 `s_j` 为第 `j` 列对应的广播标量。则：
 
-设 `R = dst.GetValidRow()` 和 `C = dst.GetValidCol()`。设 `s_j` 为从 `src1` 中获取的每列标量（每列一个值）。
+$$ \mathrm{dst}_{i,j} = \min(\mathrm{src0}_{i,j}, s_j) $$
 
-对于 `0 <= i < R` 和 `0 <= j < C`：
-
-$$
-\mathrm{dst}_{i,j} = \min(\mathrm{src0}_{i,j}, s_j)
-$$
-
-## 汇编语法
-
-PTO-AS 形式：参见 [PTO-AS 规范](../../../../assembly/PTO-AS_zh.md)。
+## 语法
 
 同步形式：
 
@@ -42,47 +34,48 @@ pto.tcolexpandmin ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ## C++ 内建接口
 
-声明于 `include/pto/common/pto_instr.hpp`：
-
 ```cpp
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
 PTO_INST RecordEvent TCOLEXPANDMIN(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, WaitEvents &... events);
 ```
 
+## 输入
+
+- `src0`：逐元素主输入 tile
+- `src1`：提供“每列一个标量”的广播源
+- `dst`：目标 tile
+
+## 预期输出
+
+- `dst[i,j] = min(src0[i,j], src1[0,j])`
+
+## 副作用
+
+除产生目标 tile 外，没有额外架构副作用。
+
 ## 约束
 
-- `TileDataDst::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`。
-- Tile 形状/布局约束（编译时）：`TileDataDst::isRowMajor`。
-- `src1` 预期提供**每列一个标量**（即，其有效形状必须覆盖 `C` 个值）。
-- 确切的布局/分形约束是目标特定的；参见 `include/pto/npu/*/TColExpand*.hpp` 下的后端头文件。
+- `TileDataDst::DType`、`TileDataSrc1::DType` 当前实现只支持 `half`、`float`
+- `dst` 必须是 row-major
+- `src1` 应覆盖每一列的广播标量
+- 具体布局 / 分形约束由 backend 决定
+
+## 异常与非法情形
+
+- 非法操作数组合、不支持的数据类型、不合法布局或不支持的 target-profile 模式，会被 verifier 或后端实现拒绝。
+
+## 性能
+
+当前仓内没有把 `tcolexpandmin` 单列成公开 cost table，应视为目标 profile 相关的列广播组合路径。
 
 ## 示例
 
-参见 `docs/isa/` 和 `docs/coding/tutorials/` 中的相关示例。
-
-## 汇编示例（ASM）
-
-### 自动模式
-
 ```text
-# 自动模式：由编译器/运行时负责资源放置与调度。
 %dst = pto.tcolexpandmin %src0, %src1 : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
 ```
 
-### 手动模式
+## 相关页面
 
-```text
-# 手动模式：先显式绑定资源，再发射指令。
-# 可选（当该指令包含 tile 操作数时）：
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
-%dst = pto.tcolexpandmin %src0, %src1 : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
-```
-
-### PTO 汇编形式
-
-```text
-%dst = tcolexpandmin %src0, %src1 : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
-# AS Level 2 (DPS)
-pto.tcolexpandmin ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
-```
+- 指令集总览：[归约与扩展](../../reduce-and-expand_zh.md)
+- 上一条指令：[pto.tcolexpandmax](./tcolexpandmax_zh.md)
+- 下一条指令：[pto.tcolexpandsub](./tcolexpandsub_zh.md)

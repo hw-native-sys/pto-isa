@@ -4,15 +4,13 @@
 
 ## Summary
 
-Move/convert from an accumulator tile into a destination tile, using a scaling (`fp`) tile for vector quantization parameters.
+Move or convert from an accumulator tile into a destination tile through the fix-pipe path.
 
 ## Mechanism
 
-Move/convert from an accumulator tile into a destination tile, using a scaling (`fp`) tile for vector quantization parameters.
+`TMOV_FP` is a named wrapper around the `TMOV_IMPL(..., fp)` path and is part of the [`pto.tmov`](./tmov.md) instruction set. The `_fp` suffix means **fix pipe**, not floating point. The auxiliary `fp` tile is the sideband tile consumed by the backend `set_fpc(...)` path.
 
-`TMOV_FP` is a named wrapper around the `TMOV_IMPL(..., fp)` path and is part of the [`pto.tmov`](./tmov.md) instruction set. It belongs to the tile instructions and carries architecture-visible behavior that is not reducible to a plain elementwise compute pattern.
-
-Conceptually converts each element using an implementation-defined quantization/dequantization configuration derived from `fp`:
+Conceptually the fix-pipe path applies an implementation-defined conversion configured by `fp`:
 
 $$ \mathrm{dst}_{i,j} = \mathrm{Convert}\!\left(\mathrm{src}_{i,j};\ \mathrm{fp}\right) $$
 
@@ -63,13 +61,13 @@ PTO_INST RecordEvent TMOV_FP(DstTileData &dst, SrcTileData &src, FpTileData &fp,
 ## Inputs
 
 - `src` is the source accumulator tile.
-- `fp` is the scaling tile for vector quantization.
+- `fp` is the auxiliary fix-pipe tile for the backend FPC path.
 - `dst` names the destination tile. The operation iterates over dst's valid region.
 - `reluMode` (optional): specifies ReLU mode.
 
 ## Expected Outputs
 
-`dst` holds the converted values from `src` using `fp` quantization parameters.
+`dst` holds the values moved from `src` through the fix-pipe path configured by `fp`.
 
 ## Side Effects
 

@@ -97,20 +97,22 @@ Target profile 只会缩窄 PTO ISA，不会引入新的 ISA 语义。
 - 分形布局以跨步访问模拟
 - UB 由堆内存分配
 
-### A2/A3 Profile
+### A2A3 Profile
 
+- 对应 Ascend 910B 与 Ascend 910C
 - `pto.t*` 在硬件上执行
 - `pto.v*` 通过 tile-vector bridge 模拟
 - CUBE 提供 matmul
-- UB 每 AI Core 256 KB
+- 向量 tile buffer（硬件 UB）每 AI Core 256 KB
 - 支持 `textract` compact 模式
 
 ### A5 Profile
 
+- 对应 Ascend 950 PR 与 Ascend 950 DT
 - `pto.t*` 和 `pto.v*` 都原生执行
-- 支持 MX format matmul
+- 支持 MX block-scale matmul
 - 完整支持分形布局
-- UB 每 AI Core 256 KB
+- 向量 tile buffer（硬件 UB）每 AI Core 256 KB
 - 支持 FP8、向量非对齐 store、alignment state 和 block 级通信
 
 ### Profile 对比

@@ -6,12 +6,12 @@ Memory operations transfer data between global memory (GM) and tile buffers. The
 
 | Operation | Description | Direction | C++ Intrinsic |
 |-----------|-------------|-----------|----------------|
-| [pto.tload](./ops/memory-and-data-movement/tload.md) | Load from GM into tile | GM → UB → Tile | `TLOAD(dst, gtensor)` |
-| [pto.tprefetch](./ops/memory-and-data-movement/tprefetch.md) | Prefetch from GM into tile (non-blocking) | GM → UB → Tile | `TPREFETCH(dst, gtensor)` |
-| [pto.tstore](./ops/memory-and-data-movement/tstore.md) | Store from tile to GM | Tile → UB → GM | `TSTORE(gtensor, src)` |
-| [pto.tstore_fp](./ops/memory-and-data-movement/tstore-fp.md) | Store with fill/pad | Tile → UB → GM | `TSTORE_FP(gtensor, src, fp)` |
-| [pto.mgather](./ops/memory-and-data-movement/mgather.md) | Gather scattered elements from GM | GM → UB → Tile | `MGATHER(dst, gtensor, indices)` |
-| [pto.mscatter](./ops/memory-and-data-movement/mscatter.md) | Scatter tile elements to GM | Tile → UB → GM | `MSCATTER(gtensor, indices, src)` |
+| [pto.tload](./ops/memory-and-data-movement/tload.md) | Load from GM into tile | GM → local tile buffer | `TLOAD(dst, gtensor)` |
+| [pto.tprefetch](./ops/memory-and-data-movement/tprefetch.md) | Prefetch from GM into tile (non-blocking) | GM → local tile buffer | `TPREFETCH(dst, gtensor)` |
+| [pto.tstore](./ops/memory-and-data-movement/tstore.md) | Store from tile to GM | local tile buffer → GM | `TSTORE(gtensor, src)` |
+| [pto.tstore_fp](./ops/memory-and-data-movement/tstore-fp.md) | Store through the fix-pipe path | Tile → local tile buffer → GM | `TSTORE_FP(gtensor, src, fp)` |
+| [pto.mgather](./ops/memory-and-data-movement/mgather.md) | Gather scattered elements from GM | GM → local tile buffer | `MGATHER(dst, gtensor, indices)` |
+| [pto.mscatter](./ops/memory-and-data-movement/mscatter.md) | Scatter tile elements to GM | local tile buffer → GM | `MSCATTER(gtensor, indices, src)` |
 
 ## Mechanism
 
@@ -36,9 +36,9 @@ An index tile specifies which GM elements to transfer:
 
 $$ \mathrm{dst}_i = \mathrm{src}_{\mathrm{index}_i} $$
 
-### Fill/Pad Variants (TSTORE_FP)
+### Fix-Pipe Variants (TSTORE_FP)
 
-In addition to transferring valid data, padding regions are filled with a specified fill value before storing.
+`TSTORE_FP` is a **fix-pipe** variant, not a “floating-point” variant. The `_fp` suffix names the backend path that programs fix-pipe state before storing.
 
 ## Layout Compatibility
 
@@ -79,7 +79,7 @@ See [Producer Consumer Ordering](../memory-model/producer-consumer-ordering.md) 
 - Layout compatibility between GM layout and tile layout is profile-dependent (see layout compatibility table above).
 - Gather/scatter index tiles must have compatible shapes.
 - `TSTORE` with `TileType::Acc` supports `AtomicType`: `AtomicNone`, `AtomicAdd`, `AtomicMax`, `AtomicMin` (A5 only).
-- `TSTORE_FP` quantized-store is only legal for `TileType::Acc` on A2/A3 and A5.
+- `TSTORE_FP` is only legal for `TileType::Acc` on A2A3 and A5 and uses the fix-pipe sideband state carried by the auxiliary `fp` tile argument.
 
 ## Cases That Are Not Allowed
 

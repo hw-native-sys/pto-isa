@@ -6,9 +6,9 @@
 
 ## 简介
 
-`TMATMUL` 是 PTO tile 路径里最核心的矩阵乘法指令之一：它从 `Left` / `Right` Tile 读取操作数，在 `Acc` Tile 中生成新的乘加结果。
+`TMATMUL` 是 tile 路径里生成新累加器结果的基础矩阵乘指令。它从 `Left` 读取左操作数，从 `Right` 读取右操作数，把结果写入 `Acc`。
 
-这条指令的语义是“用当前 `aMatrix` 和 `bMatrix` 计算一个新的输出块”。如果你要在已有累加器内容上继续累加，应改用 `TMATMUL_ACC`；这也是 `TMATMUL` 和 `TMATMUL_ACC` 分开的原因。
+这条指令和 `TMATMUL_ACC` 分开的原因很直接：`TMATMUL` 代表“这次计算生成一个新的输出块”，而 `TMATMUL_ACC` 代表“在已有累加器上继续叠加”。把两者混在一起，会让 K 维分块循环里的资源和调度语义变得不清楚。
 
 ## 数学语义
 
@@ -18,13 +18,22 @@
 - `K = aMatrix.GetValidCol()`
 - `N = bMatrix.GetValidCol()`
 
-对 `0 <= i < M` 和 `0 <= j < N`：
+对 `0 <= i < M`、`0 <= j < N`：
 
 $$ \mathrm{C}_{i,j} = \sum_{k=0}^{K-1} \mathrm{A}_{i,k} \cdot \mathrm{B}_{k,j} $$
 
-这里的有效计算域由 `aMatrix` 和 `bMatrix` 的 valid region 决定，而不是单纯由静态 Tile 尺寸决定。
+有效计算域由输入 tile 的 valid region 决定，而不是单纯由静态 tile 尺寸决定。指令不会隐式做广播、reshape，或把不合法的输入域“修复”为某种可移植结果。
 
-累加器内部的精确实现细节，例如某些 target 上的特殊舍入或 profile 限定的数据类型子集，不属于这条通用语义本身，而是目标 profile 的约束。
+## 机制
+
+`TMATMUL` 属于 cube 路径，不是普通逐元素 tile 运算：
+
+- 左操作数必须是 `Left` tile，对应 L0A 路径；
+- 右操作数必须是 `Right` tile，对应 L0B 路径；
+- 输出必须是 `Acc` tile；
+- 结果域由 `(M, K) x (K, N) -> (M, N)` 的合法矩阵乘域决定。
+
+`Right` 虽然在 A2A3 与 A5 上都叫同一个架构角色，但它们的具体布局要求并不完全相同，不能把某一侧的物理布局理解成“全 target 通用”。
 
 ## 汇编语法
 
@@ -60,7 +69,15 @@ template <AccPhase Phase, typename TileRes, typename TileLeft, typename TileRigh
 PTO_INST RecordEvent TMATMUL(TileRes &cMatrix, TileLeft &aMatrix, TileRight &bMatrix, WaitEvents &... events);
 ```
 
-带 `AccPhase` 的模板重载不会改变矩阵乘法本身的算术含义；它只是在目标实现侧附带 unit-flag 相关的选择。
+带 `AccPhase` 的模板重载不改变矩阵乘法的算术语义；它只是让具体后端在 unit-flag 或实现细节上做选择。
+
+## 输入与输出
+
+- `aMatrix`：左操作数 tile，必须是 `Left`。
+- `bMatrix`：右操作数 tile，必须是 `Right`。
+- `cMatrix`：结果累加器 tile，必须是 `Acc`。
+
+结果写入 `cMatrix`。对读者可见的合同是：输出块由本次 `A * B` 生成，而不是在旧累加器上继续叠加。
 
 ## 约束
 
@@ -70,37 +87,64 @@ PTO_INST RecordEvent TMATMUL(TileRes &cMatrix, TileLeft &aMatrix, TileRight &bMa
   - `TileLeft::Rows == TileRes::Rows`
   - `TileLeft::Cols == TileRight::Rows`
   - `TileRight::Cols == TileRes::Cols`
-- Tile 位置必须满足：
-  - 左操作数为 `TileType::Left`
-  - 右操作数为 `TileType::Right`
-  - 结果为 `TileType::Acc`
-- 运行时 `m/k/n` 均必须落在 `[1, 4095]`。
-- `TMATMUL` 依赖 cube 路径认可的 fractal/layout 组合；Left / Right / Acc 不是可随意替换的通用 Tile 位置。
+- tile 角色必须满足：
+  - `TileLeft::Loc == Left`
+  - `TileRight::Loc == Right`
+  - `TileRes::Loc == Acc`
+- 运行时 `m`、`k`、`n` 必须位于 `[1, 4095]`。
 
-### A2/A3 实现检查
+### A2A3 约束
 
-- A2/A3 支持的 `(CType, AType, BType)` 组合是：
-  - `(int32_t, int8_t, int8_t)`
-  - `(float, half, half)`
-  - `(float, float, float)`
-  - `(float, bfloat16_t, bfloat16_t)`
-- 对 `float + float + float` 路径，backend 还会根据输入对齐信息决定某些内部实现细节，但不改变外部矩阵乘法语义。
+`A2A3` 指 Ascend 910B 与 Ascend 910C。当前仓内实现公开支持的 `(CType, AType, BType)` 组合包括：
 
-### A5 实现检查
+- `(int32_t, int8_t, int8_t)`
+- `(float, half, half)`
+- `(float, float, float)`
+- `(float, bfloat16_t, bfloat16_t)`
 
-- A5 上，累加器类型必须是 `int32_t` 或 `float`。
-- 当累加器为 `int32_t` 时，左右输入都必须是 `int8_t`。
-- 当累加器为 `float` 时，当前实现支持以下输入族：
-  - `half / half`
-  - `bfloat16_t / bfloat16_t`
-  - `float / float`
-  - 若干 fp8 组合：`float8_e4m3_t` / `float8_e5m2_t`
-  - `hifloat8_t / hifloat8_t`
-- A5 的 Left / Right / Acc 还要求固定的 fractal 方向：
+### A5 约束
+
+`A5` 指 Ascend 950 PR 与 Ascend 950 DT。当前仓内实现要求：
+
+- 累加器类型必须是 `int32_t` 或 `float`；
+- 若累加器为 `int32_t`，左右输入都必须是 `int8_t`；
+- 若累加器为 `float`，当前实现支持 `half`、`bfloat16_t`、`float` 和部分 fp8 输入对；
+- A5 还要求固定的角色布局组合：
   - Left：`Loc == Left`，非 row-major，`SFractal == RowMajor`
   - Right：`Loc == Right`，row-major，`SFractal == ColMajor`
   - Acc：`Loc == Acc`，非 row-major，`SFractal == RowMajor`
-- 某些具体 A5 目标可能比通用 A5 实现更窄。例如部分具体芯片只开放其中一部分 dtype 组合；这类收窄以目标 profile 为准。
+
+## 不允许的情形
+
+- 使用不是 `Left` / `Right` / `Acc` 的角色组合；
+- 形状不满足 `(M, K) x (K, N) -> (M, N)`；
+- 在不支持的 target 上使用不支持的 dtype 组合；
+- 把某个 target 上偶然可运行的布局当成可移植合同。
+
+## 性能与吞吐
+
+仓内当前公开的性能数据主要来自 A2A3 costmodel。`TMATMUL`、`TMATMUL_ACC` 与 `TMATMUL_BIAS` 使用同一条 `mad/mmad` cube 模型：
+
+- 启动开销：`14` cycles；
+- repeat 次数：`ceil(M/16) * ceil(N/16) * ceil(K / baskK)`；
+- `baskK = 32 / sizeof(left_element_type)`；
+- 单个 repeat 的稳态代价：
+  - int8、fp16 bucket 为 `1` cycle；
+  - fp32 bucket 为 `2` cycles。
+
+因此 A2A3 的公开公式是：
+
+```text
+cycles = 14 + ceil(M/16) * ceil(N/16) * ceil(K / baskK) * repeat_cost
+```
+
+仓内 costmodel 测试样例包括：
+
+- half `40x50 * 50x60`：`62` cycles；
+- int8 `6x7 * 7x8`：`15` cycles；
+- float `120x110 * 110x50`：`910` cycles。
+
+当前仓库没有公开单列的 A5 latency / throughput 表，因此 A5 这里只能精确写合法性和 dtype 边界，不能编造周期数字。
 
 ## 示例
 
@@ -145,6 +189,7 @@ void example_manual() {
 
 ## 相关页面
 
-- [矩阵与矩阵向量指令集](../../matrix-and-matrix-vector_zh.md)
+- [矩阵与矩阵-向量指令集](../../matrix-and-matrix-vector_zh.md)
 - [TMATMUL_ACC](./tmatmul-acc_zh.md)
-- [TMOV](../layout-and-rearrangement/tmov_zh.md)
+- [TMATMUL_BIAS](./tmatmul-bias_zh.md)
+- [TMATMUL_MX](./tmatmul-mx_zh.md)

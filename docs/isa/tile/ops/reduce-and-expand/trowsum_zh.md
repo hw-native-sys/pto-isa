@@ -1,30 +1,31 @@
-﻿# TROWSUM
+# pto.trowsum
 
-## 指令示意图
+`pto.trowsum` 属于[归约与扩展](../../reduce-and-expand_zh.md)指令集。
 
-![TROWSUM tile operation](../../../../figures/isa/TROWSUM.svg)
+## 概述
 
-## 简介
+对每一行按列求和。
 
-通过对列求和来归约每一行。
+## 机制
 
-## 数学语义
+设：
 
-设 `R = src.GetValidRow()`，`C = src.GetValidCol()`。对 `0 <= i < R`：
+- `R = src.GetValidRow()`
+- `C = src.GetValidCol()`
+
+则对 `0 <= i < R`：
 
 $$ \mathrm{dst}_{i,0} = \sum_{j=0}^{C-1} \mathrm{src}_{i,j} $$
 
-## 汇编语法
+也就是说，`trowsum` 把 `(R, C)` 压成 `(R, 1)`，保留行、折叠列。lowering 过程中通常会引入临时 tile，C++ intrinsic 因此要求显式传入 `tmp`。
 
-PTO-AS 形式：参见 [PTO-AS 规范](../../../../assembly/PTO-AS_zh.md)。
+## 语法
 
 同步形式：
 
 ```text
 %dst = trowsum %src : !pto.tile<...> -> !pto.tile<...>
 ```
-
-降低时可能引入内部临时 Tile；C++ 内建接口需要显式传入 `tmp` 操作数。
 
 ### AS Level 1（SSA）
 
@@ -40,46 +41,71 @@ pto.trowsum ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst :
 
 ## C++ 内建接口
 
-声明于 `include/pto/common/pto_instr.hpp`：
-
 ```cpp
 template <typename TileDataOut, typename TileDataIn, typename TileDataTmp, typename... WaitEvents>
 PTO_INST RecordEvent TROWSUM(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp, WaitEvents &... events);
 ```
 
+## 输入
+
+- `src`：源 tile
+- `tmp`：归约过程中的临时 tile
+- `dst`：目标 tile
+
+## 预期输出
+
+- `dst[i,0]`：第 `i` 行所有列元素的和
+
+## 副作用
+
+除产生目标 tile 外，没有额外架构副作用。
+
 ## 约束
 
-### 通用约束或检查
-
-- `dst` 和 `src` 必须均为 `TileType::Vec`。
-- `src` 必须使用标准 ND 布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
-- `dst` 必须使用以下两种非分形布局之一：
-  - ND 布局（`BLayout::RowMajor`、`SLayout::NoneBox`），或
-  - 列数严格为 1 的 DN 布局（`BLayout::ColMajor`、`SLayout::NoneBox`、`Cols == 1`）。
-- `dst` 和 `src` 的元素类型必须一致。
-- 运行时有效区域检查：
+- `dst` 与 `src` 都必须是 `TileType::Vec`
+- `src` 必须是标准 ND 布局：行主且非分形
+- `dst` 可以是 ND，或 `Cols == 1` 的 DN 布局
+- `dst` 与 `src` 元素类型必须一致
+- 运行时要求：
   - `src.GetValidRow() != 0`
   - `src.GetValidCol() != 0`
   - `src.GetValidRow() == dst.GetValidRow()`
-- 内建接口签名要求显式传入 `tmp` 操作数。
 
-### A2A3 实现检查
+### A2A3
 
-- 支持的元素类型：`half`、`float`、`int32_t`、`int16_t`。
-- 实现同时接受 ND 输出和 `Cols == 1` 的 DN 输出，并非仅支持 DN 输出。
-- 运行时检查遵循共享的行归约检查路径：
-  - `src.GetValidRow() != 0`
-  - `src.GetValidCol() != 0`
-  - `src.GetValidRow() == dst.GetValidRow()`
-- 当前实现路径会将 `tmp` 传入后端调用，但本文档不额外补充 checked implementation 未显式约束的 `tmp` shape/layout 要求。
+- 支持类型：`half`、`float`、`int32_t`、`int16_t`
+- `tmp` 会进入后端调用路径，但当前文档不额外扩大 checked implementation 没显式声明的 shape / layout 约束
+
+## 异常与非法情形
+
+- 非法操作数组合、不支持的数据类型、不合法布局或不支持的 target-profile 模式，会被 verifier 或后端实现拒绝。
+
+## 性能
+
+### A2A3
+
+`TROWSUM` 在 A2/A3 上通常会 lowering 成多阶段向量归约序列。英文页给出的要点是：
+
+- 总周期由多段 `vcgadd / vadd / vcadd` 组合而成
+- shape 不同，采用的序列不同
+
+示例：
+
+| valid shape | 典型序列 |
+| --- | --- |
+| `64×128` | `vcgadd*128 -> vadd*8 -> vcgadd*8` |
+| `32×256` | `vcgadd*128 -> vadd*8 -> vadd*4 -> vcgadd*4` |
+| `16×512` | `vcgadd*128 -> vcgadd*16 -> vcgadd*2` |
+| `8×1024` | `vcgadd*128 -> vcgadd*16 -> vadd*8 -> vcgadd*8` |
+
+### A5
+
+当前手册未单列 `trowsum` 的独立周期表，应视为目标 profile 相关。
 
 ## 示例
 
-### 自动（Auto）
-
 ```cpp
 #include <pto/pto-inst.hpp>
-
 using namespace pto;
 
 void example_auto() {
@@ -93,50 +119,7 @@ void example_auto() {
 }
 ```
 
-### 手动（Manual）
+## 相关页面
 
-```cpp
-#include <pto/pto-inst.hpp>
-
-using namespace pto;
-
-void example_manual() {
-  using SrcT = Tile<TileType::Vec, float, 16, 16>;
-  using DstT = Tile<TileType::Vec, float, 16, 1, BLayout::ColMajor>;
-  using TmpT = Tile<TileType::Vec, float, 16, 16>;
-  SrcT src;
-  DstT dst;
-  TmpT tmp;
-  TASSIGN(src, 0x1000);
-  TASSIGN(dst, 0x2000);
-  TASSIGN(tmp, 0x3000);
-  TROWSUM(dst, src, tmp);
-}
-```
-
-## 汇编示例（ASM）
-
-### 自动模式
-
-```text
-# 自动模式：由编译器/运行时负责资源放置与调度。
-%dst = pto.trowsum %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-```
-
-### 手动模式
-
-```text
-# 手动模式：先显式绑定资源，再发射指令。
-# 可选（当该指令包含 tile 操作数时）：
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
-%dst = pto.trowsum %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-```
-
-### PTO 汇编形式
-
-```text
-%dst = trowsum %src : !pto.tile<...> -> !pto.tile<...>
-# AS Level 2 (DPS)
-pto.trowsum ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
-```
+- 指令集总览：[归约与扩展](../../reduce-and-expand_zh.md)
+- 下一条指令：[pto.tcolsum](./tcolsum_zh.md)

@@ -1,22 +1,20 @@
-# TROWEXPAND
+# pto.trowexpand
 
-## 指令示意图
+`pto.trowexpand` 属于[归约与扩展](../../reduce-and-expand_zh.md)指令集。
 
-![TROWEXPAND tile operation](../../../../figures/isa/TROWEXPAND.svg)
+## 概述
 
-## 简介
+把源 tile 每一行的第一个元素广播到整行。
 
-将每个源行的第一个元素广播到目标行中。
+## 机制
 
-## 数学语义
-
-Let `R = dst.GetValidRow()` and `C = dst.GetValidCol()`. For `0 <= i < R` and `0 <= j < C`:
+设 `R = dst.GetValidRow()`、`C = dst.GetValidCol()`。对 `0 <= i < R` 且 `0 <= j < C`：
 
 $$ \mathrm{dst}_{i,j} = \mathrm{src}_{i,0} $$
 
-## 汇编语法
+也就是说，`trowexpand` 先从每一行抽出一个标量，再沿列方向复制回整行。它是行广播的最基础形式，后面的 `trowexpandadd`、`trowexpandmax`、`trowexpandexpdif` 都是在这个语义上继续组合。
 
-PTO-AS 形式：参见 [PTO-AS Specification](../../../../assembly/PTO-AS_zh.md).
+## 语法
 
 同步形式：
 
@@ -38,31 +36,47 @@ pto.trowexpand ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 
 ## C++ 内建接口
 
-声明于 `include/pto/common/pto_instr.hpp`：
-
 ```cpp
 template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
 PTO_INST RecordEvent TROWEXPAND(TileDataDst &dst, TileDataSrc &src, WaitEvents &... events);
 ```
 
+## 输入
+
+- `src`：源 tile
+- `dst`：目标 tile
+
+## 预期输出
+
+- `dst`：每一行都被 `src[i,0]` 填满的广播结果
+
+## 副作用
+
+除产生目标 tile 外，没有额外架构副作用。
+
 ## 约束
 
-实现检查 (NPU):
+- `dst` 和 `src` 都必须是 `TileType::Vec`
+- `src` 与 `dst` 都必须是标准 ND 非分形布局：row-major 且 `SLayout::NoneBox`
+- 支持的数据类型在 A2A3 / A5 上都覆盖：`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`bfloat16_t`、`float`
 
-- Tile Type: `dst` and `src` must be `TileType::Vec`.
-- Tile 布局: ND fractal (`isRowMajor` and `SLayout::NoneBox`) for both `src` and `dst`.
-- Data type: A2A3/A5 element types must be one of: `int8_t` or `uint8_t` or `int16_t` or `uint16_t` or `int32_t` or `uint32_t` or `half` or `bfloat16_t` or `float`.
-- 运行期有效区域检查:
-    - A2A3: returns early if any of `dstValidRow`, `dstValidCol`, `srcValidRow`, `srcValidCol` is zero.
-    - A5: asserts `srcValidRow == dstValidRow` and asserts `srcValidRow != 0 && srcValidCol != 0`.
+### 运行时有效区域
+
+- A2A3：若 `dstValidRow`、`dstValidCol`、`srcValidRow`、`srcValidCol` 中任一为 0，直接提前返回
+- A5：要求 `srcValidRow == dstValidRow`，并要求 `srcValidRow != 0 && srcValidCol != 0`
+
+## 异常与非法情形
+
+- 非法操作数组合、不支持的数据类型、不合法布局或不支持的 target-profile 模式，会被 verifier 或后端实现拒绝。
+
+## 性能
+
+当前仓内没有把 `trowexpand` 单列成公开 cost table。若代码依赖具体延迟，应把它视为目标 profile 相关的广播 / 重排路径。
 
 ## 示例
 
-### 自动（Auto）
-
 ```cpp
 #include <pto/pto-inst.hpp>
-
 using namespace pto;
 
 void example_auto() {
@@ -74,20 +88,8 @@ void example_auto() {
 }
 ```
 
-### 手动（Manual）
+## 相关页面
 
-```cpp
-#include <pto/pto-inst.hpp>
-
-using namespace pto;
-
-void example_manual() {
-  using SrcT = Tile<TileType::Vec, float, 16, 16>;
-  using DstT = Tile<TileType::Vec, float, 16, 16>;
-  SrcT src;
-  DstT dst;
-  TASSIGN(src, 0x1000);
-  TASSIGN(dst, 0x2000);
-  TROWEXPAND(dst, src);
-}
-```
+- 指令集总览：[归约与扩展](../../reduce-and-expand_zh.md)
+- 上一条指令：[pto.trowargmin](./trowargmin_zh.md)
+- 下一条指令：[pto.trowexpanddiv](./trowexpanddiv_zh.md)

@@ -4,23 +4,33 @@ The **physical data format** defines how tiles, vectors, and scalars are represe
 
 ## Memory Spaces
 
-PTO distinguishes three memory spaces, each with different access semantics and bandwidth characteristics:
+PTO distinguishes global memory from local tile-buffer storage. The ISA-level concept is the **tile buffer**; the hardware names behind that concept depend on `TileType`.
 
 | Memory Space | Location | Access Unit | Bandwidth | Access Pattern |
 |-------------|----------|-------------|-----------|----------------|
-| **GM** (Global Memory) | Off-chip device DRAM | Byte-granular | Low | Random access via UB DMA |
-| **UB** (Unified Buffer) | On-chip SRAM | 32-byte block | High | Bulk DMA transfer; no direct scalar access |
-| **Tile Register File** (TRF) | On-chip tile buffer | Element-granular | Highest | Direct compute access; not directly addressable by scalar code |
+| **GM** (Global Memory) | Off-chip device DRAM | Byte-granular | Low | Global backing store |
+| **Local tile buffers** | On-chip local storage | Role-specific | High | Direct tile/vector access through the selected tile role |
 
-Data movement between GM and UB is performed by the **DMA engine** (MTE1/MTE2/MTE3 pipelines). Data movement between UB and TRF is performed by **load/store operations** (`TLOAD`, `TSTORE`, `VLDS`, `VSTS`). Data inside the TRF is accessed by tile/vector compute pipelines directly without going through the UB.
+The hardware mapping of local tile buffers is:
+
+| PTO tile-buffer role | Hardware-local buffer |
+|----------------------|----------------------|
+| `TileType::Vec` | Unified Buffer (UB) |
+| `TileType::Left` | L0A |
+| `TileType::Right` | L0B |
+| `TileType::Acc` | L0C |
+| `TileType::ScaleLeft` | L0A scale buffer |
+| `TileType::ScaleRight` | L0B scale buffer |
+
+`Tile Register File` terminology in the current manual should be read as the ISA abstraction over these local tile buffers, not as a second user-visible storage class separate from the buffers themselves.
 
 ## Tile Buffer Format
 
-A tile occupies a contiguous region in either the TRF or UB. Its logical shape `(Rows, Cols)` is independent of its physical storage format.
+A tile occupies a contiguous region in one local tile buffer. Its logical shape `(Rows, Cols)` is independent of its physical storage format.
 
-### In-Memory Format (UB)
+### In-Memory Format
 
-In the UB, tiles are stored in their `BLayout` order — either `RowMajor` or `ColMajor`. Each element occupies `sizeof(DType)` bytes.
+In a local tile buffer, elements are stored in their `BLayout` order — either `RowMajor` or `ColMajor`. Each element occupies `sizeof(DType)` bytes. For `TileType::Vec`, that local tile buffer is the hardware Unified Buffer.
 
 For `BLayout = RowMajor`, shape `(R, C)`:
 
@@ -30,17 +40,17 @@ For `BLayout = ColMajor`, shape `(R, C)`:
 
 $$ \text{addr}(r, c) = (c \times R + r) \times \mathrm{sizeof(DType)} $$
 
-### In-Register Format (TRF)
+### Tile-Register View
 
-The TRF (Tile Register File) holds tiles in their native `BLayout`. The TRF is not byte-addressable — tile data is moved in and out via explicit `TLOAD`/`TSTORE` operations. Compute pipelines (Vector, Matrix) access tile data directly from the TRF without going through the UB.
+The tile-register view is the ISA abstraction presented to authors. It names typed local tile buffers and hides the fact that different `TileType` values are backed by different hardware-local buffers. Tile data is moved in and out via explicit `TLOAD`/`TSTORE`/`TMOV*`-family operations rather than by scalar byte addressing.
 
 ### Address Alignment
 
 | Access Type | Required Alignment |
 |-------------|-------------------|
 | GM read/write | Element-size aligned (2 bytes for f16/i16, 4 bytes for f32) |
-| UB DMA transfer | 32-byte block aligned (DMA engine unit) |
-| TRF load/store | Element-size aligned |
+| Vector tile buffer DMA transfer | 32-byte block aligned (DMA engine unit) |
+| Local tile-buffer access | Element-size aligned, plus any role-specific backend constraints |
 
 The DMA engine operates on 32-byte blocks (`BLOCK_BYTE_SIZE = 32`). Misaligned GM addresses result in implementation-defined behavior.
 
@@ -72,7 +82,7 @@ The DMA engine operates on 32-byte blocks (`BLOCK_BYTE_SIZE = 32`). Misaligned G
 
 ## Vector Register Format (VLane Architecture)
 
-On A5 (Ascend 9xx-class), the vector register is organized as **8 VLanes** of 32 bytes each. A VLane is the atomic unit for group reduction operations. This architecture is architecturally visible in PTO.
+On A5 (Ascend 950 PR / DT), the vector register is organized as **8 VLanes** of 32 bytes each. A VLane is the atomic unit for group reduction operations. This architecture is architecturally visible in PTO.
 
 ```
 vreg (256 bytes total):
@@ -134,6 +144,17 @@ using TilePadNeg1 = Tile<TileType::Vec, float, 16, 16, RowMajor, NoneBox, None, 
 
 Custom pad values encode the float bit pattern in the upper bits of the 64-bit `PadValue` enum. They are processed by `PadValueMap` and applied via `GetPadValue()` at load time.
 
+## MX Block-Scale Formats
+
+MX block-scale matmul forms use extra scale tiles in addition to the left and right payload tiles. In the current codebase:
+
+- `TileLeft` corresponds to L0A
+- `TileRight` corresponds to L0B
+- `TileLeftScale` corresponds to the L0A-side scale buffer
+- `TileRightScale` corresponds to the L0B-side scale buffer
+
+The A5 `TMATMUL_MX` / `TGEMV_MX` code paths explicitly require both scale tiles, and the supported combinations include MX FP4 and MX FP8 families. These are block-scale formats, not plain elementwise FP formats.
+
 ## Fractal Layout Encoding
 
 The `TileLayoutCustom` enum in `include/pto/common/constants.hpp` encodes the concrete layout used at runtime:
@@ -142,7 +163,7 @@ The `TileLayoutCustom` enum in `include/pto/common/constants.hpp` encodes the co
 |--------------------|---------|---------|---------|:---------:|-------------|
 | `ND` | RowMajor | NoneBox | — | — | Standard tile; most ops |
 | `DN` | ColMajor | NoneBox | — | — | Fortran-order tile |
-| `NZ` | ColMajor | RowMajor | NZ | 512 B | LHS matmul on A5 |
+| `NZ` | ColMajor | RowMajor | NZ | 512 B | Left/L0A-side matmul operand on A5 |
 | `ZN` | RowMajor | ColMajor | ZN | 512 B | Symmetric NZ variant |
 | `ZZ` | RowMajor | RowMajor | ZZ | 512 B | CUBE-specific pattern |
 
@@ -157,9 +178,9 @@ The `BLOCK_BYTE_SIZE = 32` constant and `FRACTAL_NZ_ROW = 16` and `CUBE_BLOCK_SI
 | `FRACTAL_NZ_ROW` | 16 | elements | Fractal row dimension for NZ/ZN |
 | `CUBE_BLOCK_SIZE` | 512 | bytes | CUBE fractal block |
 | `C0_SIZE_BYTE` | 32 | bytes | Cube C0 dimension (in bytes) |
-| `MX_COL_LEN` | 2 | elements | MX matmul column block |
-| `MX_ROW_LEN` | 16 | elements | MX matmul row block |
-| `MX_BLOCK_SIZE` | 32 | elements | MX matmul block |
+| `MX_COL_LEN` | 2 | elements | MX block-scale column block |
+| `MX_ROW_LEN` | 16 | elements | MX block-scale row block |
+| `MX_BLOCK_SIZE` | 32 | elements | MX block-scale block |
 | `TMP_UB_SIZE` | 8 × 1024 | bytes | Temporary UB buffer size |
 | `TMP_UB_OFFSET` | 184 × 1024 | bytes | Temporary UB offset |
 | `MASK_LEN` | 64 | bits | Predicate mask width |

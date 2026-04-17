@@ -1,6 +1,6 @@
 # GlobalTensor And Data Movement
 
-PTO does not hide movement between global memory and local execution state. `GlobalTensor` is the architecture-visible GM-facing object, and movement operations define when data enters or leaves the local payload instruction sets. The GM-facing types and the complete data paths to tile buffers and vector registers are described below.
+PTO does not hide movement between global memory and local execution state. `GlobalTensor` is the architecture-visible GM-facing object, and movement operations define when data enters or leaves local tile buffers or vector registers. PTO treats the vector tile buffer and the hardware Unified Buffer as the same architectural destination for `TileType::Vec`; this page avoids describing them as two separate user-visible concepts.
 
 ## GlobalTensor
 
@@ -41,27 +41,27 @@ The `partition_tensor_view` describes a sub-partition of GM visible to a specifi
 
 ## Tile Instructions Data Path
 
-The tile instructions (`pto.t*`) moves data between GM and tile buffers through MTE2/MTE3:
+The tile instructions (`pto.t*`) move data between GM and tile buffers through MTE2/MTE3. For `TileType::Vec`, the destination tile buffer is the hardware Unified Buffer; for `Left`, `Right`, and `Acc`, the destination tile buffers map to L0A, L0B, and L0C respectively.
 
 ```
 GM
   │
   │  copy via DMA engine
   ▼
-UB (Unified Buffer, 256 KB on-chip)
+Local Tile Buffer (`Vec` uses hardware UB; `Left`/`Right`/`Acc` use L0A/L0B/L0C)
   │
-  │  implicit tile buffer fill
+  │  tile compute reads and writes the selected tile buffer role directly
   ▼
-Tile Buffer  ──►  Tile Compute  ──►  Tile Buffer
-                                     │
-                                     │  copy via DMA engine
-                                     ▼
-                                   GM
+Tile Compute
+  │
+  │  copy via DMA engine
+  ▼
+GM
 ```
 
 ### TLOAD
 
-`TLOAD` moves data from a `GlobalTensor` into a tile buffer:
+`TLOAD` moves data from a `GlobalTensor` into the destination tile buffer:
 
 ```
 dst[i, j] = src[ r0 + i, c0 + j ]
@@ -79,7 +79,7 @@ Where `r0` and `c0` are the base offsets derived from the `GlobalTensor` shape/s
 
 ### TSTORE
 
-`TSTORE` moves data from a tile buffer to a `GlobalTensor`:
+`TSTORE` moves data from the source tile buffer to a `GlobalTensor`:
 
 ```
 dst[ r0 + i, c0 + j ] = src[i, j]
@@ -102,22 +102,22 @@ Where `i ∈ [0, src.GetValidRow())`, `j ∈ [0, src.GetValidCol())`.
 
 ## Vector Instructions Data Path
 
-The vector instructions (`pto.v*`) requires an explicit GM↔UB DMA step before vector loads and after vector stores:
+The vector instructions (`pto.v*`) require an explicit GM↔vector-tile-buffer DMA step before vector loads and after vector stores:
 
 ```
 GM
   │
   │  copy_ubuf_to_gm / copy_gm_to_ubuf (DMA, MTE2/MTE3)
   ▼
-UB (Unified Buffer, 256 KB on-chip)
+Vector Tile Buffer (hardware UB, 256 KB on-chip)
   │
-  │  vlds / vsld / vgather2 (vector load, from UB to vreg)
+  │  vlds / vsld / vgather2 (vector load, from the vector tile buffer to vreg)
   ▼
 Vector Registers  ──►  Vector Compute  ──►  Vector Registers
                                                 │
                                                 │  vsts / vsst / vscatter (vector store)
                                                 ▼
-                                            UB ──► GM
+                                   Vector Tile Buffer ──► GM
 ```
 
 ### DMA Copy Operations
@@ -126,9 +126,9 @@ The following scalar/control operations configure and execute GM↔UB DMA:
 
 | Operation | Direction | Description |
 |-----------|-----------|-------------|
-| `copy_gm_to_ubuf` | GM → UB | Move data from GM to UB staging area |
-| `copy_ubuf_to_gm` | UB → GM | Move data from UB to GM |
-| `copy_ubuf_to_ubuf` | UB → UB | Copy within UB (e.g., double-buffering) |
+| `copy_gm_to_ubuf` | GM → vector tile buffer | Move data from GM into the vector tile buffer (hardware UB) |
+| `copy_ubuf_to_gm` | vector tile buffer → GM | Move data from the vector tile buffer back to GM |
+| `copy_ubuf_to_ubuf` | vector tile buffer → vector tile buffer | Copy within the vector tile buffer space (e.g., double-buffering) |
 
 These are `pto.*` control-instruction set operations. They do NOT implicitly synchronize — a `set_flag`/`wait_flag` sequence or explicit `TSYNC` is required before the data is consumed by subsequent vector compute.
 
@@ -138,10 +138,10 @@ After DMA staging, `vlds`/`vsld` bring data from UB into vector registers, and `
 
 | Operation | Path | Description |
 |-----------|------|-------------|
-| `vlds` | UB → vreg | Standard vector load with distribution mode |
-| `vsld` | vreg → UB | Standard vector store |
-| `vgather2` | UB → vreg | Strided/gather load from UB |
-| `vscatter` | vreg → UB | Strided/scatter store to UB |
+| `vlds` | vector tile buffer → vreg | Standard vector load with distribution mode |
+| `vsld` | vreg → vector tile buffer | Standard vector store |
+| `vgather2` | vector tile buffer → vreg | Strided/gather load from the vector tile buffer |
+| `vscatter` | vreg → vector tile buffer | Strided/scatter store to the vector tile buffer |
 
 **Distribution modes** (for `vlds`):
 
@@ -162,9 +162,9 @@ The DMA engine uses three sub-units that operate in a pipeline:
 
 | MTE | Direction | Role in Tile Instructions | Role in Vector Instructions |
 |-----|-----------|---------------------|----------------------|
-| `MTE1` | GM → UB | Optional: explicit prefetch | Pre-stage data before vector load |
-| `MTE2` | GM → UB | Load staging: GM→UB→tile buffer (via TLOAD) | DMA copy: GM→UB (via `copy_gm_to_ubuf`) |
-| `MTE3` | Tile → GM | Store: tile→UB→GM (via TSTORE) | DMA copy: UB→GM (via `copy_ubuf_to_gm`) |
+| `MTE1` | GM → vector tile buffer | Optional: explicit prefetch | Pre-stage data before vector load |
+| `MTE2` | GM → local tile buffer | Load staging into the selected local tile buffer (via `TLOAD`) | DMA copy: GM→vector tile buffer (via `copy_gm_to_ubuf`) |
+| `MTE3` | local tile buffer → GM | Store from the selected local tile buffer (via `TSTORE`) | DMA copy: vector tile buffer → GM (via `copy_ubuf_to_gm`) |
 
 MTE1, MTE2, and MTE3 can operate in parallel with the Vector Pipeline and Matrix Multiply Unit when proper `set_flag`/`wait_flag` synchronization is used.
 
@@ -194,10 +194,10 @@ using namespace pto;
 void vec_add(Tile<float, 16, 16>& c, const GlobalTensor<float>& ga,
              const GlobalTensor<float>& gb) {
     Tile<float, 16, 16> a, b;
-    TLOAD(a, ga);           // GM → UB → Tile Buffer A
-    TLOAD(b, gb);           // GM → UB → Tile Buffer B
+    TLOAD(a, ga);           // GM → local tile buffer A
+    TLOAD(b, gb);           // GM → local tile buffer B
     TADD(c, a, b);          // c = a + b, iterated over c's valid region
-    TSTORE(gc, c);          // Tile Buffer C → UB → GM
+    TSTORE(gc, c);          // Local tile buffer C → GM
 }
 ```
 

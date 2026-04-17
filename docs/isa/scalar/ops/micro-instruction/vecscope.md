@@ -150,8 +150,8 @@ Synchronization can be achieved through:
 
 ## Related Operations
 
-- Pipeline sync: [Pipeline Synchronization](../../../pipeline-sync.md) — `pto.set_flag`, `pto.wait_flag`, `pto.get_buf`, `pto.rls_buf`
-- Memory barrier: [Pipeline Synchronization](../../../pipeline-sync.md) — `pto.mem_bar`
-- Scalar arithmetic: [Shared Scalar Arithmetic](../../../shared-arith.md)
-- Structured control: [Shared SCF](../../../shared-scf.md)
-- BlockDim queries: [BlockDim Query Operations](../block-dim-query.md)
+- Pipeline sync: [Pipeline Synchronization](../../pipeline-sync.md) — `pto.set_flag`, `pto.wait_flag`, `pto.get_buf`, `pto.rls_buf`
+- Memory barrier: [Pipeline Synchronization](../../pipeline-sync.md) — `pto.mem_bar`
+- Scalar arithmetic: [Shared Scalar Arithmetic](../../shared-arith.md)
+- Structured control: [Shared SCF](../../shared-scf.md)
+- BlockDim queries: [BlockDim Query Operations](./block-dim-query.md)

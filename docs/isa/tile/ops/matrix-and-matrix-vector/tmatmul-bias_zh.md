@@ -6,9 +6,9 @@
 
 ## 简介
 
-`TMATMUL_BIAS` 在矩阵乘法结果上再叠加一行 Bias Tile。它表达的是“矩阵乘法 + 列偏置”，而不是另一种不同的乘法。
+`TMATMUL_BIAS` 表示“矩阵乘法后立即并入列偏置”。它表达的是矩阵乘积再加一行 bias，而不是另一种不同的乘法。
 
-这条指令常见于需要在 cube 计算后立刻加入每列偏置的场景，可以避免把乘法和偏置加法拆成两步理解。
+把 bias 作为这条指令的显式输入，有两个好处：一是合同清楚，二是文档不必把“先做 matmul、再做逐元素加”误写成完全等价的抽象。
 
 ## 数学语义
 
@@ -18,11 +18,17 @@
 - `K = aMatrix.GetValidCol()`
 - `N = bMatrix.GetValidCol()`
 
-对 `0 <= i < M` 和 `0 <= j < N`：
+对 `0 <= i < M`、`0 <= j < N`：
 
 $$ \mathrm{C}_{i,j} = \sum_{k=0}^{K-1} \mathrm{A}_{i,k} \cdot \mathrm{B}_{k,j} + \mathrm{Bias}_{0,j} $$
 
-这里的 Bias Tile 只有一行，因此它按列广播到所有输出行。`bias[0, j]` 会加到结果矩阵的整列 `j` 上。
+Bias tile 只有一行，因此它按输出列广播。
+
+## 机制
+
+`TMATMUL_BIAS` 仍然走 `Left` / `Right` / `Acc` 的 cube 路径，只是在乘积生成后再引入一块 `Bias` tile。
+
+这条指令要求 bias 是“单行偏置 tile”，而不是任意 shape 的普通 tile。也正因为如此，它表达的是列偏置，而不是一般意义上的逐元素加法。
 
 ## 汇编语法
 
@@ -61,30 +67,60 @@ PTO_INST RecordEvent TMATMUL_BIAS(TileRes &cMatrix, TileLeft &aMatrix, TileRight
                                   WaitEvents &... events);
 ```
 
+## 输入与输出
+
+- `aMatrix`：左操作数 tile，必须是 `Left`。
+- `bMatrix`：右操作数 tile，必须是 `Right`。
+- `biasData`：偏置 tile，必须是 `Bias`，且为单行。
+- `cMatrix`：结果累加器 tile，必须是 `Acc`。
+
+输出合同是：先得到矩阵乘积，再把 `bias[0, j]` 加到每个输出列 `j` 上。
+
 ## 约束
 
 ### 通用约束
 
-- `TMATMUL` 的所有 shape、位置、dtype 和 target-profile 约束，在这里同样成立。
-- `biasData` 的元素类型必须与结果累加器 `TileRes::DType` 一致。
-- `biasData` 必须是单行 Bias Tile，因为它表示“按列广播”的偏置。
+- `TMATMUL` 的所有 shape、角色、dtype 和 target-profile 约束在这里同样成立；
+- `biasData` 的数据类型必须与结果累加器 `TileRes::DType` 一致；
+- `biasData` 必须是单行 Bias tile。
 
-### A2/A3 实现检查
+### A2A3 约束
+
+`A2A3` 指 Ascend 910B 与 Ascend 910C。当前实现要求：
 
 - `TileBias::Loc == TileType::Bias`
 - `TileBias::Rows == 1`
 
-### A5 实现检查
+### A5 约束
+
+`A5` 指 Ascend 950 PR 与 Ascend 950 DT。当前实现要求：
 
 - `TileBias::Loc == TileType::Bias`
 - `TileBias::Rows == 1`
 - `TileBias::isRowMajor == true`
 
-### 目标差异说明
+## 不允许的情形
 
-- 通用 A5 / A2A3 路径都把 bias 直接送入底层 cube bias 通道。
-- CPU 模拟器则先完成普通矩阵乘法，再把 `bias[0, j]` 显式加到每一行的第 `j` 列上。
-- 虽然实现方式不同，但对读者可见的合同是一致的：Bias 是“按列广播”。
+- 用普通 tile 代替 Bias tile；
+- bias 不是单行；
+- bias dtype 与结果累加器 dtype 不一致；
+- 违反 `TMATMUL` 的任一合法性约束。
+
+## 性能与吞吐
+
+当前仓内 A2A3 costmodel 对 `TMATMUL_BIAS` 仍复用 `mad/mmad` 的同一套模型，周期口径与 `TMATMUL` 一致：
+
+```text
+cycles = 14 + ceil(M/16) * ceil(N/16) * ceil(K / baskK) * repeat_cost
+```
+
+其中：
+
+- `baskK = 32 / sizeof(left_element_type)`；
+- int8、fp16 bucket 的 `repeat_cost = 1`；
+- fp32 bucket 的 `repeat_cost = 2`。
+
+当前仓库没有单列的 A5 latency / throughput 表。
 
 ## 示例
 
@@ -136,4 +172,5 @@ void example_manual() {
 
 - [TMATMUL](./tmatmul_zh.md)
 - [TMATMUL_ACC](./tmatmul-acc_zh.md)
-- [矩阵与矩阵向量指令集](../../matrix-and-matrix-vector_zh.md)
+- [TMATMUL_MX](./tmatmul-mx_zh.md)
+- [矩阵与矩阵-向量指令集](../../matrix-and-matrix-vector_zh.md)

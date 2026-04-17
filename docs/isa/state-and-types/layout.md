@@ -25,7 +25,7 @@ The GM layout must be compatible with the tile's internal layout during `TLOAD`/
 
 ## Block Layout (BLayout)
 
-`BLayout` describes the in-memory stride between adjacent elements along the row and column axes within a tile buffer. It is the tile's **storage order** — the order in which element data is laid out in the Tile Register File (TRF) or UB buffer.
+`BLayout` describes the in-memory stride between adjacent elements along the row and column axes within a tile buffer. It is the tile's **storage order** — the order in which element data is laid out in the local tile buffer selected by the tile role. For `TileType::Vec`, that local tile buffer is the hardware Unified Buffer.
 
 ### Values
 
@@ -136,10 +136,20 @@ The combination of `TileType`, `BLayout`, `SLayout`, and `Fractal` is **jointly 
 | `Mat` | `RowMajor`, `ColMajor` | `NoneBox` | `None` | `TGEMV`, `TGEMV_ACC`, `TGEMV_BIAS` |
 | `Acc` | `RowMajor`, `ColMajor` | `NoneBox` | `None` | `TMATMUL`, `TMATMUL_ACC` output |
 | `Left` | `RowMajor` | `RowMajor` | `NZ` | LHS of `TMATMUL_MX` |
-| `Right` | `RowMajor` | `NoneBox` | `NN` (implicit) | RHS of `TMATMUL_MX` |
+| `Right` | backend-specific | backend-specific | backend-specific | L0B-backed RHS matmul operand; do not assume one portable right-tile layout across A2A3 and A5 |
+| `ScaleLeft` | `RowMajor` | `RowMajor` | MX scale fractal | L0A-side scale tile for MX block-scale formats |
+| `ScaleRight` | `ColMajor` | `ColMajor` | MX scale fractal | L0B-side scale tile for MX block-scale formats |
 | `Scalar` | `RowMajor` | `NoneBox` | `None` | Single-element scalar tiles |
 
 Using a combination not listed in this table is an **illegal PTO program**. The verifier or backend will reject it.
+
+For matrix roles, treat the role-to-buffer mapping as primary:
+
+- `Left` means the L0A-backed operand
+- `Right` means the L0B-backed operand
+- `ScaleLeft` / `ScaleRight` are the extra L0A/L0B scale tiles required by MX block-scale formats
+
+The exact `Right`-tile layout contract is backend-sensitive. The current manual should not describe A2A3 and A5 right tiles as one interchangeable layout rule; use the relevant per-op target-profile restrictions or the typed aliases from `include/pto/common/pto_tile.hpp`.
 
 ## Padding
 

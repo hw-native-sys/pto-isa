@@ -244,4 +244,4 @@ pto.tassign ins(%tile, %addr : !pto.tile_buf<...>, dtype)
 
 - Instruction set overview: [Sync And Config](../../sync-and-config.md)
 - Previous op in instruction set: [pto.tsync](./tsync.md)
-- Next op in instruction set: [pto.tsethf32mode](./tsethf32mode.md)
+- Next op in instruction set: [pto.tsettf32mode](./tsettf32mode.md)

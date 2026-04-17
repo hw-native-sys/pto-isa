@@ -26,7 +26,7 @@ PTO ISA 版本 1.0 当前文档化了：
 
 ### 同步与配置
 
-`tsync`、`tassign`、`tsethf32mode`、`tsettf32mode`、`tsetfmatrix`、`tset_img2col_rpt`、`tset_img2col_padding`、`tsubview`、`tget_scale_addr`
+`tsync`、`tassign`、`tsettf32mode`、`tset_img2col_rpt`、`tset_img2col_padding`、`tsubview`、`tget_scale_addr`
 
 ### 逐元素 Tile-Tile
 

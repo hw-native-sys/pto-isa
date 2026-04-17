@@ -52,8 +52,8 @@ High-level Frontend
    bisheng (or backend C++ compiler)
    ┌─────────────────────────────────────┐
    │ Compile to target binary             │
-   │ Target: A2/A3 (Ascend 2/3-class)   │
-   │ Target: A5 (Ascend 9xx-class)       │
+   │ Target: A2A3 (Ascend 910B / 910C)  │
+   │ Target: A5 (Ascend 950 PR / DT)    │
    │ Target: CPU simulator                │
    └─────────────────────────────────────┘
         │
@@ -130,15 +130,15 @@ Even this fragment depends on valid regions, dtype and layout rules, and explici
 | **Tile** | A bounded multi-dimensional array fragment with shape, layout, and valid-region metadata that is architecturally visible |
 | **Valid Region** | The subset of a tile's declared shape that contains meaningful data, expressed as `(Rv, Cv)` — valid rows and valid columns |
 | **Global Memory (GM)** | Off-chip device memory (`__gm__` address space) shared by all blocks and accessible via `GlobalTensor` views |
-| **Unified Buffer (UB)** | On-chip local memory (`!pto.ptr<T, ub>`) visible to a single AI Core; the staging ground for GM↔tile data movement |
-| **Tile Buffer** | On-chip storage for a single Tile, partitioned by `TileType`: `Vec` (vector compute), `Mat` (matrix/CUBE compute), `Acc` (accumulator), `Scalar` (scalar tile) |
-| **Location Intent** | The declared role of a tile operand: `Left` (LHS of matmul), `Right` (RHS), `Acc` (accumulator/output), `Vec` (general vector tile) |
+| **Vector Tile Buffer** | The local tile buffer used for `TileType::Vec`. On current hardware this is implemented by the Unified Buffer (UB), but PTO treats it as one tile-buffer concept rather than two separate architectural objects. |
+| **Tile Buffer** | On-chip storage for one tile, chosen by `TileType`: `Vec` uses the vector tile buffer (hardware UB), `Left` maps to L0A, `Right` maps to L0B, `Acc` maps to L0C, and scale tiles map to the corresponding left/right scale buffers. |
+| **Location Intent** | The declared role of a tile operand: `Left` (L0A-backed left matmul operand), `Right` (L0B-backed right matmul operand), `Acc` (accumulator/output), `Vec` (vector tile buffer), `ScaleLeft`, and `ScaleRight` |
 | **Block Layout (BLayout)** | The in-memory storage order of a tile: `RowMajor` (row-major, C-contiguous) or `ColMajor` (column-major, Fortran-contiguous) |
 | **Stripe Layout (SLayout)** | The layout of sub-elements within a tile: `NoneBox` (uniform rectangular), `RowMajor` (fractal/strided), `ColMajor` (fractal/strided) |
 | **Fractal Layout** | A strided layout encoding non-uniform strides for 2D tiles: `NZ` (row-major fractal), `ZN` (col-major fractal), `FR` (row-fractal), `RN` (row-N-fractal) |
 | **TileType** | Classification of tile buffer role: `Vec` (vector pipe), `Mat` (matrix/CUBE pipe), `Acc` (accumulator), `Scalar` (scalar tile), `Left`/`Right` (matmul operands) |
 | **MTE** | DMA engine sub-unit: `MTE1` (GM→UB), `MTE2` (UB→GM for loads), `MTE3` (tile→GM for stores) |
-| **Target Profile** | A concrete instantiation of PTO ISA for a specific backend: `CPU` (reference simulator), `A2/A3` (Ascend 2/3-class), `A5` (Ascend 9xx-class) |
+| **Target Profile** | A concrete instantiation of PTO ISA for a specific backend: `CPU` (reference simulator), `A2A3` (Ascend 910B / Ascend 910C), `A5` (Ascend 950 PR / Ascend 950 DT) |
 | **Instruction Set** | One of the four ISA instruction sets: `pto.t*` (tile instructions), `pto.v*` (vector micro-instruction set), `pto.*` (scalar and control instructions), collective ops (communication instructions) |
 | **pto.t*** | The tile compute instruction set (`pto.tadd`, `pto.tmul`, etc.) that operates on tile buffers |
 | **pto.v*** | The low-level vector micro-instruction set (`pto.v*`) that operates on vector registers after an explicit GM→UB→vector data flow |
@@ -162,7 +162,7 @@ Source Languages
         │
         └──► ptoas ──────────────────► binary        (Flow B)
 
-Targets: CPU simulation / A2-A3 / A5 / future Ascend NPUs
+Targets: CPU simulation / A2A3 (Ascend 910B / 910C) / A5 (Ascend 950 PR / 950 DT) / future Ascend NPUs
 ```
 
 This structure gives the software stack one versioned instruction language even when native hardware instruction sets and low-level programming rules change across generations.
@@ -174,7 +174,7 @@ PTO ISA uses **hierarchical abstractions** rather than one flat opcode space. Th
 ```
 PTO ISA
 ├── Tile Instructions (pto.t*)              Primary tile-oriented compute instruction set
-│   ├── Sync and Config                Resource binding, event setup, mode control
+│   ├── Sync and Config                Resource binding, event setup, tile-local config
 │   ├── Elementwise Tile-Tile           Lane-wise binary and unary operations
 │   ├── Tile-Scalar and Immediate       Tile combined with scalar or immediate
 │   ├── Reduce and Expand             Row/column reductions and expansions
@@ -196,9 +196,10 @@ PTO ISA
 │
 ├── Scalar and Control Instruction Set (pto.*)  State setup and control shell
 │   ├── Pipeline Sync                 Event and barrier synchronization
-│   ├── DMA Copy                     GM↔UB memory transfer configuration
+│   ├── DMA Copy                     GM↔vector-tile-buffer transfer configuration
 │   ├── Predicate Load/Store         Mask-based scalar memory access
 │   ├── Predicate Generation         pset, pge, plt, pand, por, pxor, pnot, etc.
+│   ├── Control and Configuration    legacy tile-prefixed mode/config ops such as tsethf32mode and tsetfmatrix
 │   └── Shared Arithmetic/SCF         Scalar arithmetic and structured control flow
 │
 └── Communication Instructions (pto.*)       Collective and runtime operations
@@ -217,11 +218,12 @@ Grid (whole kernel invocation)
 └── Block  (AI Core / NPU)
     ├── Host Interface
     ├── Scalar Unit          (control flow, address calculation)
-    ├── Unified Buffer (UB)  256 KB on-chip SRAM
-    ├── Tile Registers       (16×16 tile slots, typed by TileType)
-    │   ├── Vec slots   ──► Vector Pipeline (V)
-    │   ├── Mat slots   ──► Matrix Multiply Unit (M / CUBE)
-    │   └── Acc slots   ──► Accumulator output
+    ├── Local Tile Buffers   (typed by TileType)
+    │   ├── Vec buffer   = hardware UB
+    │   ├── Left buffer  = L0A
+    │   ├── Right buffer = L0B
+    │   └── Acc buffer   = L0C
+    ├── Tile Registers       ISA abstraction over those local tile buffers
     ├── DMA Engine
     │   ├── MTE1: GM ──► UB  (GM→UB, prefetch)
     │   ├── MTE2: GM ──► UB  (GM→UB, load staging)
@@ -237,21 +239,21 @@ Grid (whole kernel invocation)
 | **Block** | Single AI Core with local UB, tile regs, and compute units | `GetSubBlockNum()`, `GetSubBlockIdx()` |
 | **Tile Buffer** | Per-core on-chip storage for one tile (typed by `TileType`) | `!pto.tile_buf<...>` |
 | **Vector Register** | Per-lane on-chip storage for vector compute (N lanes) | `!pto.vreg<NxT>` |
-| **Unified Buffer (UB)** | On-chip staging area shared by all tile buffers and vector regs | `!pto.ptr<T, ub>` |
+| **Vector Tile Buffer (hardware UB)** | On-chip buffer used by `TileType::Vec` and by the vector micro-instruction path | `!pto.ptr<T, ub>` |
 | **Global Memory (GM)** | Off-chip device memory shared by all AI Cores | `__gm__ T*`, `!pto.partition_tensor_view<...>` |
 
 ### Target Profiles
 
 PTO ISA is instantiated by concrete **target profiles** that narrow the ISA to the capabilities of a specific backend. Profiles do NOT introduce new ISA semantics; they only restrict which subsets are available.
 
-| Feature | CPU Simulator | A2/A3 Profile | A5 Profile |
+| Feature | CPU Simulator | A2A3 Profile | A5 Profile |
 |---------|:------------:|:-------------:|:----------:|
 | Tile instructions (`pto.t*`) | Full | Full | Full |
 | Vector instructions (`pto.v*`) | Emulated | Emulated | Full |
 | Matmul / CUBE ops | Software fallback | Hardware | Hardware |
 | MX format (int8→acc int32) | Not applicable | Not applicable | Supported |
 | Fractal layout (NZ/ZN/FR/RN) | Simulated | Simulated | Full |
-| UB size | Configurable | 256 KB/core | 256 KB/core |
+| Vector tile buffer size | Configurable | 256 KB/core | 256 KB/core |
 | Vector width (f32 / f16,bf16 / i8) | N=64 / N=128 / N=256 | N=64 / N=128 / N=256 | N=64 / N=128 / N=256 |
 | FP8 types (e4m3 / e5m2) | Not supported | Not supported | Supported |
 | Vector unaligned store (`vstu`) | Not supported | Not supported | Supported |
@@ -327,7 +329,7 @@ GM ──(MTE2)──► UB ──(implicit)──► Tile Buffer ──(Tile Co
 
 - `TLOAD` copies data from GM into a tile buffer (via MTE2 → UB → tile)
 - Tile compute (`TADD`, `TMATMUL`, etc.) operates directly on tile buffers
-- `TSTORE` copies data from a tile buffer to GM (via tile → MTE3 → UB → GM)
+- `TSTORE` copies data from a tile buffer to GM through the corresponding local store path
 - Valid regions, layout, and tile type are explicit at every step
 
 ### Vector Instructions (pto.v*)

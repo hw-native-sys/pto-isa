@@ -1,22 +1,20 @@
-# TROWEXPANDEXPDIF
+# pto.trowexpandexpdif
 
-## 指令示意图
+`pto.trowexpandexpdif` 属于[归约与扩展](../../reduce-and-expand_zh.md)指令集。
 
-![TROWEXPANDEXPDIF tile operation](../../../../figures/isa/TROWEXPANDEXPDIF.svg)
+## 概述
 
-## 简介
+先做按行广播减法，再对结果逐元素取指数。
 
-`TROWEXPANDEXPDIF` 先做按行广播减法，再对结果逐元素取指数。它常用于类似 softmax 的按行稳定化路径：先减去某个行基准，再做 `exp`。
+## 机制
 
-## 数学语义
-
-设 `R = dst.GetValidRow()`、`C = dst.GetValidCol()`。记 `s_i` 为第 `i` 行对应的广播标量，则：
+设 `R = dst.GetValidRow()`、`C = dst.GetValidCol()`。记 `s_i` 为第 `i` 行对应的广播标量。则：
 
 $$ \mathrm{dst}_{i,j} = \exp(\mathrm{src0}_{i,j} - s_i) $$
 
-## 汇编语法
+这条指令常用于 softmax 一类“先减去行基准，再做指数”的数值稳定路径。
 
-PTO-AS 形式：参见 [PTO-AS 规范](../../../../assembly/PTO-AS_zh.md)。
+## 语法
 
 同步形式：
 
@@ -38,8 +36,6 @@ pto.trowexpandexpdif ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) 
 
 ## C++ 内建接口
 
-声明于 `include/pto/common/pto_instr.hpp`：
-
 ```cpp
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
 PTO_INST RecordEvent TROWEXPANDEXPDIF(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1,
@@ -51,26 +47,46 @@ PTO_INST RecordEvent TROWEXPANDEXPDIF(TileDataDst &dst, TileDataSrc0 &src0, Tile
                                       WaitEvents &... events);
 ```
 
+## 输入
+
+- `src0`：逐元素主输入 tile
+- `src1`：提供“每行一个标量”的广播源
+- `tmp`：部分实现路径可能会用到的临时 tile
+- `dst`：目标 tile
+
+## 预期输出
+
+- `dst[i,j] = exp(src0[i,j] - src1[i,0])`
+
+## 副作用
+
+除产生目标 tile 外，没有额外架构副作用。
+
 ## 约束
 
-- `dst/src0/src1` 的元素类型必须一致，且当前实现只支持 `half` 或 `float`。
-- `dst` 必须是 row-major Tile。
-- `src0` 或 `src1` 其中之一必须与 `dst` 具有相同的 valid shape。
-- 另一侧承担“每行一个标量”的广播角色。
+- `dst/src0/src1` 的元素类型必须一致，当前实现只支持 `half` 或 `float`
+- `dst` 必须是 row-major
+- `src1` 需要表达“每行一个标量”这一角色
 
-### backend 行为
+### backend 路径
 
-- A2/A3 的实现实际上就是：
+- A2A3 的实现可以理解成：
   1. 先执行 `TROWEXPANDSUB`
   2. 再对 `dst` 执行 `TEXP`
-- A5 则有专门的 `vexpdif` / `vsub + vexp` 路径，但外部语义一致。
-- CPU 模拟器按抽象逐元素语义执行。
+- A5 则有更贴近 `vexpdif` 的实现路径
+
+## 异常与非法情形
+
+- 非法操作数组合、不支持的数据类型、不合法布局或不支持的 target-profile 模式，会被 verifier 或后端实现拒绝。
+
+## 性能
+
+当前仓内没有把 `trowexpandexpdif` 单列成公开 cost table，应视为目标 profile 相关的广播 + 超越函数组合路径。
 
 ## 示例
 
 ```cpp
 #include <pto/pto-inst.hpp>
-
 using namespace pto;
 
 void example() {
@@ -84,6 +100,6 @@ void example() {
 
 ## 相关页面
 
-- [TROWEXPANDADD](./trowexpandadd_zh.md)
-- [TEXP](../../../TEXP_zh.md)
-- [归约与扩展指令集](../../reduce-and-expand_zh.md)
+- 指令集总览：[归约与扩展](../../reduce-and-expand_zh.md)
+- 上一条指令：[pto.trowexpandmin](./trowexpandmin_zh.md)
+- [pto.texp](../../../TEXP_zh.md)

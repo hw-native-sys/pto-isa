@@ -8,9 +8,7 @@ Sync-and-config operations manage tile-visible state: resource binding, event se
 |-----------|-------------|----------|---------------|
 | [pto.tassign](./ops/sync-and-config/tassign.md) | Bind tile register to a UB address | Resource | `TASSIGN(tile, addr)` |
 | [pto.tsync](./ops/sync-and-config/tsync.md) | Synchronize execution, wait on events, insert barrier | Sync | `TSYNC(events...)` |
-| [pto.tsethf32mode](./ops/sync-and-config/tsethf32mode.md) | Set HF32 computation mode | Config | `TSETHF32MODE(mode)` |
 | [pto.tsettf32mode](./ops/sync-and-config/tsettf32mode.md) | Set TF32 computation mode | Config | `TSETTF32MODE(mode)` |
-| [pto.tsetfmatrix](./ops/sync-and-config/tsetfmatrix.md) | Set FMatrix layout configuration | Config | `TSETFMATRIX(cfg)` |
 | [pto.tset_img2col_rpt](./ops/sync-and-config/tset-img2col-rpt.md) | Set img2col repetition count | Config | `TSET_IMG2COL_RPT(rpt)` |
 | [pto.tset_img2col_padding](./ops/sync-and-config/tset-img2col-padding.md) | Set img2col padding configuration | Config | `TSET_IMG2COL_PADDING(pad)` |
 | [pto.tsubview](./ops/sync-and-config/tsubview.md) | Create a sub-view of a tile | View | `TSUBVIEW(tile, offsets, shape)` |
@@ -22,7 +20,7 @@ Sync-and-config operations change tile-visible state that later tile instruction
 
 - **`TASSIGN`**: binds a physical UB address to a tile register. Without `TASSIGN`, the compiler/runtime auto-assigns addresses. `TASSIGN` enables manual placement for performance tuning.
 - **`TSYNC`**: waits on event tokens (`events...`) or inserts per-op pipeline barriers (`TSYNC<Op>()`). See [Ordering and Synchronization](../machine-model/ordering-and-synchronization.md) for the full event model.
-- **`TSET*`**: configure mode registers that affect how later operations interpret their inputs or produce results. The affected operations are those that consume the configured mode.
+- **`TSET*`**: tile-local configuration in this instruction set is limited to tile-side controls such as TF32 or IMG2COL setup. Legacy mode-register ops such as `tsethf32mode` and `tsetfmatrix` are documented in the scalar/control lane because their architectural effect is scalar-visible configuration, not tile payload transformation.
 - **`TSUBVIEW`**: creates a logical view of a tile with adjusted offsets and/or reduced shape. The underlying storage is shared with the source tile.
 - **`TGET_SCALE_ADDR`**: retrieves the physical UB address of a scale tensor used in quantized matmul operations.
 
@@ -40,7 +38,7 @@ See [Producer-Consumer Ordering](../memory-model/producer-consumer-ordering.md) 
 
 - `TASSIGN` binds an address; using the same address for two non-alias tiles simultaneously results in undefined behavior.
 - `TSYNC` with no operands is a no-op.
-- `TSET*` mode configurations affect subsequent operations until the next mode-setting operation of the same kind.
+- Tile-side `TSET*` mode configurations affect subsequent operations until the next mode-setting operation of the same kind.
 - `TSUBVIEW` creates a view with reduced shape; accessing elements outside the view's shape but within the underlying tile's shape is undefined behavior.
 
 ## Cases That Are Not Allowed
@@ -68,9 +66,7 @@ template <typename OpTag>
 PTO_INST void TSYNC();
 
 // Set computation modes
-PTO_INST void TSETHF32MODE(HF32Mode mode);
 PTO_INST void TSETTF32MODE(TF32Mode mode);
-PTO_INST void TSETFMATRIX(FMatrixConfig cfg);
 
 // Subview creation
 template <typename TileT>
@@ -83,3 +79,4 @@ PTO_INST TileT TSUBVIEW(TileT& src, int rowOffset, int colOffset,
 - [Tile instruction set](../instruction-families/tile-families.md) — Instruction set overview
 - [Ordering and Synchronization](../machine-model/ordering-and-synchronization.md) — Event model
 - [Tile instruction set](../instruction-surfaces/tile-instructions.md) — Instruction Set description
+- [Scalar control and configuration](../scalar/control-and-configuration.md) — canonical location for `tsethf32mode` and `tsetfmatrix`

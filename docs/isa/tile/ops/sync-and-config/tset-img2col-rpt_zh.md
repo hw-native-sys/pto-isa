@@ -108,6 +108,6 @@ void example_set_img2col_rpt(Img2colTileConfig<uint16_t>& cfg) {
 
 ## 相关页面
 
-- [TSETFMATRIX](./tsetfmatrix_zh.md)
+- [TSETFMATRIX](../../../scalar/ops/control-and-configuration/tsetfmatrix_zh.md)
 - [TSET_IMG2COL_PADDING](./tset-img2col-padding_zh.md)
 - [TIMG2COL](../layout-and-rearrangement/timg2col_zh.md)

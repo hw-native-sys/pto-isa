@@ -22,12 +22,12 @@ Follow this path in order:
 
 - **[Tile ISA Reference](isa/tile/README.md)** — `TADD`, `TMATMUL`, `TLOAD`, `TSTORE`, and all tile operations
 - **[Vector ISA Reference](isa/vector/README.md)** — `vadd`, `vmul`, `vlds`, `vsts`, and all vector operations
-- **[GlobalTensor and Data Movement](isa/programming-model/globaltensor-and-data-movement.md)** — GM↔UB↔tile data flow
+- **[GlobalTensor and Data Movement](isa/programming-model/globaltensor-and-data-movement.md)** — GM↔local-tile-buffer data flow, including the vector tile buffer (hardware UB)
 - **[Ordering and Synchronization](isa/machine-model/ordering-and-synchronization.md)** — `set_flag`/`wait_flag`, `get_buf`/`rls_buf`, double-buffering
 
 ### I am a compiler backend developer
 
-- **[Execution Agents and Target Profiles](isa/machine-model/execution-agents.md)** — CPU, A2/A3, A5 profile details
+- **[Execution Agents and Target Profiles](isa/machine-model/execution-agents.md)** — CPU, A2A3 (Ascend 910B / 910C), and A5 (Ascend 950 PR / DT) profile details
 - **[Instruction Set Contracts](isa/instruction-families/README.md)** — Legal types, layouts, and shapes per instruction family
 - **[Location Intent and Legality](isa/state-and-types/location-intent-and-legality.md)** — TileType constraints
 - **[Portability and Target Profiles](isa/reference/portability-and-target-profiles.md)** — What's guaranteed across profiles
@@ -49,7 +49,7 @@ Or jump directly to the alphabetical index: [Instruction Families](isa/instructi
 
 ## PTO ISA At A Glance
 
-PTO is a virtual ISA that spans multiple targets — CPU simulation, A2/A3-class, and A5-class. The ISA is organized into four instruction sets:
+PTO is a virtual ISA that spans multiple targets — CPU simulation, A2A3 (Ascend 910B / 910C), and A5 (Ascend 950 PR / DT). The ISA is organized into four instruction sets:
 
 ```
 pto.t*   Tile instructions         Tile-oriented compute and GM↔tile data movement

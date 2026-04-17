@@ -114,5 +114,5 @@ On hardware that supports unaligned memory operations through internal alignment
 
 ## Related Operations
 
-- Vector load/store: [Vector Load Store](../../../../vector/vector-load-store.md) — `pto.vlds`, `pto.vsts`
+- Vector load/store: [Vector Load Store](../../../vector/vector-load-store.md) — `pto.vlds`, `pto.vsts`
 - Strict vecscope: [Vector Execution Scope](./vecscope.md) — `pto.vecscope`, `pto.strict_vecscope`

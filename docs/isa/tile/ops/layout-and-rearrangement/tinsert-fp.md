@@ -4,11 +4,11 @@
 
 ## Summary
 
-Insert with fp/scaling tile (vector-quantization parameters).
+Insert through the fix-pipe path using an auxiliary `fp` tile.
 
 ## Mechanism
 
-Vector-quantization variant of `TINSERT` that also takes an `fp` (scaling) tile. It belongs to the tile instructions and carries architecture-visible behavior that is not reducible to a plain elementwise compute pattern.
+Fix-pipe variant of `TINSERT` that also takes an auxiliary `fp` tile. The `_fp` suffix means **fix pipe**, not floating point. The backend uses the auxiliary tile to program the FPC sideband state before the insert executes.
 
 Unless otherwise specified, semantics are defined over the valid region and target-dependent behavior is marked as implementation-defined.
 
@@ -53,7 +53,7 @@ PTO_INST RecordEvent TINSERT_FP(DstTileData &dst, SrcTileData &src, FpTileData &
 ## Inputs
 
 - `src` is the source tile.
-- `fp` is the scaling tile for vector quantization.
+- `fp` is the auxiliary fix-pipe tile consumed by the backend FPC path.
 - `indexRow` is the starting row offset in `dst`.
 - `indexCol` is the starting column offset in `dst`.
 - `dst` names the destination tile. The operation iterates over src's valid region.
@@ -61,7 +61,7 @@ PTO_INST RecordEvent TINSERT_FP(DstTileData &dst, SrcTileData &src, FpTileData &
 
 ## Expected Outputs
 
-`dst` holds the result of inserting `src` into `dst` at position (indexRow, indexCol), converted using `fp` scaling parameters.
+`dst` holds the result of inserting `src` into `dst` at position `(indexRow, indexCol)` through the fix-pipe path configured by the auxiliary `fp` tile.
 
 ## Side Effects
 

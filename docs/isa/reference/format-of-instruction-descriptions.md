@@ -34,9 +34,11 @@ Each `pto.*` operation page should make the following easy to find. Section titl
 
 8. **Constraints and illegal cases** — What verifiers and backends reject; target-profile narrowing may be called out here or under a dedicated subsection.
 
-9. **Examples** — Include at least one concrete snippet or pseudocode when it makes an abstract rule materially clearer.
+9. **Performance** — When timing data is documented, keep **A2A3** and **A5** in separate subsections. Do not merge their latency or throughput into one unlabeled table.
 
-10. **Related links** — Instruction set overview, neighbors in the nav, and cross-links to the programming or memory model when ordering matters.
+10. **Examples** — Include at least one concrete snippet or pseudocode when it makes an abstract rule materially clearer.
+
+11. **Related links** — Instruction set overview, neighbors in the nav, and cross-links to the programming or memory model when ordering matters.
 
 ## Normative Language
 

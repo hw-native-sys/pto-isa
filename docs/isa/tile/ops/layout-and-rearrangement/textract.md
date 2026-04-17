@@ -64,7 +64,7 @@ PTO_INST RecordEvent TEXTRACT_FP(DstTileData &dst, SrcTileData &src, FpTileData 
 - `indexRow` is the starting row offset in `src`.
 - `indexCol` is the starting column offset in `src`.
 - `dst` names the destination tile. The operation iterates over dst's valid region.
-- `fp` (optional for TEXTRACT_FP): scaling tile for vector quantization.
+- `fp` (optional for TEXTRACT_FP): auxiliary fix-pipe tile consumed by the backend FPC path.
 - `reluMode` (optional): specifies ReLU mode.
 - `preQuantScalar` (optional): scalar for pre-quantization.
 

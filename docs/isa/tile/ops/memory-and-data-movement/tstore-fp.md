@@ -4,13 +4,11 @@
 
 ## Summary
 
-Store an accumulator tile into global memory using a scaling (`fp`) tile for vector quantization parameters.
+Store an accumulator tile into global memory through the fix-pipe path.
 
 ## Mechanism
 
-Store an accumulator tile into global memory using a scaling (`fp`) tile for vector quantization parameters.
-
-`TSTORE_FP` is the fp-quantization overload of [`pto.tstore`](./tstore.md). It is part of the tile memory/data-movement instruction set, so the visible behavior includes explicit transfer between GM-visible data and tile-visible state.
+`TSTORE_FP` is the fix-pipe overload of [`pto.tstore`](./tstore.md). The `_fp` suffix means **fix pipe**, not floating point. The auxiliary `fp` tile is the sideband tile consumed by the backend `set_fpc(...)` path before the store executes.
 
 Let `R = src.GetValidRow()` and `C = src.GetValidCol()`. Conceptually (2D view, with a base offset), for `0 <= i < R` and `0 <= j < C`:
 
@@ -63,17 +61,17 @@ PTO_INST RecordEvent TSTORE_FP(GlobalData &dst, TileData &src, FpTileData &fp, W
 ## Inputs
 
 - `src` is the source accumulator tile.
-- `fp` is the scaling tile containing vector quantization parameters.
+- `fp` is the auxiliary fix-pipe tile consumed by the backend FPC path.
 - `dst` is the destination GlobalTensor.
 - `reluPreMode` (optional): specifies ReLU pre-processing mode.
 
 ## Expected Outputs
 
-`src` is converted using `fp` scaling parameters and written to `dst`.
+`src` is written to `dst` through the fix-pipe path configured by the auxiliary `fp` tile.
 
 ## Side Effects
 
-This operation writes to global memory with quantization conversion.
+This operation writes to global memory and programs fix-pipe sideband state for the transfer.
 
 ## Constraints
 
@@ -94,11 +92,11 @@ This operation writes to global memory with quantization conversion.
     - Source dtype must be `int32_t` or `float`.
     - Static shape constraints: `1 <= TileData::Cols <= 4095`; if ND then `1 <= TileData::Rows <= 8192`; if NZ then `1 <= TileData::Rows <= 65535` and `TileData::Cols % 16 == 0`.
     - Runtime: `1 <= src.GetValidCol() <= 4095`.
-    - No explicit `static_assert` is enforced on `FpTileData` (the implementation uses `fp` to set FPC state).
+    - No explicit `static_assert` is enforced on `FpTileData`; the implementation uses `fp` to set FPC state.
 
 - **Implementation checks (A5)**:
     - Implemented via `TSTORE_IMPL(dst, src, fp)` and validated by `CheckStaticAcc<..., true>()` for the accumulator path (ND/NZ only, `int32_t/float` source dtype, rows/cols ranges).
-    - No explicit `static_assert` is enforced on `FpTileData` (the implementation uses `fp` to set FPC state).
+    - No explicit `static_assert` is enforced on `FpTileData`; the implementation uses `fp` to set FPC state.
 
 ## Examples
 

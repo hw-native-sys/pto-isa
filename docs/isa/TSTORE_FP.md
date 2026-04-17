@@ -1,6 +1,6 @@
 # pto.tstore_fp
 
-Canonical tile-instruction reference: [pto.tstore_fp](./tile/ops/memory-and-data-movement/tstore-fp.md).
+Canonical tile-instruction reference: [pto.tstore_fp](./tile/ops/memory-and-data-movement/tstore-fp.md). The `_fp` suffix means **fix pipe**, not floating point.
 
 The PTO ISA manual now treats tile, vector, and scalar/control operations consistently: the canonical per-op pages live under `docs/isa/tile/ops/`, `docs/isa/vector/ops/`, and `docs/isa/scalar/ops/`.
 

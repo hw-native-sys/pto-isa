@@ -1,4 +1,4 @@
-﻿# TGEMV_BIAS
+# TGEMV_BIAS
 
 ## 指令示意图
 
@@ -6,39 +6,24 @@
 
 ## 简介
 
-带偏置加法的 GEMV。
+`TGEMV_BIAS` 表示“先做 GEMV，再并入 bias”。它仍然属于 cube 路径，只是运行时固定 `m = 1`。
 
-## 另请参见
-
-- 基础 GEMV 指令：`docs/isa/TGEMV.md`。
-- 累加变体：`docs/isa/TGEMV_ACC.md`。
-
-## C++ 内建接口
-
-声明于 `include/pto/common/pto_instr.hpp`：
-
-```cpp
-template <typename TileRes, typename TileLeft, typename TileRight, typename TileBias, typename... WaitEvents>
-PTO_INST RecordEvent TGEMV_BIAS(TileRes &cMatrix, TileLeft &aMatrix, TileRight &bMatrix, TileBias &biasData, WaitEvents &... events);
-
-template <AccPhase Phase, typename TileRes, typename TileLeft, typename TileRight, typename TileBias,
-          typename... WaitEvents>
-PTO_INST RecordEvent TGEMV_BIAS(TileRes &cMatrix, TileLeft &aMatrix, TileRight &bMatrix, TileBias &biasData, WaitEvents &... events);
-```
+这条指令的 bias 不是任意 shape 的普通 tile，而是单行 Bias tile。也正因此，它表达的是输出列上的偏置，而不是一般意义上的逐元素加法。
 
 ## 数学语义
 
 设：
 
-- `M = 1`
 - `K = bMatrix.GetValidRow()`
 - `N = bMatrix.GetValidCol()`
 
-对于 `0 <= j < N`（将偏置项加入矩阵乘积）：
+对 `0 <= j < N`：
 
 $$ \mathrm{C}_{0,j} = \mathrm{Bias}_{0,j} + \sum_{k=0}^{K-1} \mathrm{A}_{0,k} \cdot \mathrm{B}_{k,j} $$
 
-**注意：** 精确的累加器行为和数据类型提升由目标/实现定义。
+## 机制
+
+`TGEMV_BIAS` 沿用 `TGEMV` 的 `Left` / `Right` / `Acc` 角色合同，再额外引入一块单行 `Bias` tile。由于输出本身只有一行，这里不需要像 `TMATMUL_BIAS` 那样再解释“按列向多行广播”；bias 的每一项直接对应结果中的一列。
 
 ## 汇编语法
 
@@ -62,46 +47,72 @@ PTO-AS 形式：参见 [PTO-AS 规范](../../../../assembly/PTO-AS_zh.md)。
 pto.tgemv.bias ins(%a, %b, %bias : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%c : !pto.tile_buf<...>)
 ```
 
+## C++ 内建接口
+
+声明于 `include/pto/common/pto_instr.hpp`：
+
+```cpp
+template <typename TileRes, typename TileLeft, typename TileRight, typename TileBias, typename... WaitEvents>
+PTO_INST RecordEvent TGEMV_BIAS(TileRes &cMatrix, TileLeft &aMatrix, TileRight &bMatrix, TileBias &biasData,
+                                WaitEvents &... events);
+
+template <AccPhase Phase, typename TileRes, typename TileLeft, typename TileRight, typename TileBias,
+          typename... WaitEvents>
+PTO_INST RecordEvent TGEMV_BIAS(TileRes &cMatrix, TileLeft &aMatrix, TileRight &bMatrix, TileBias &biasData,
+                                WaitEvents &... events);
+```
+
+## 输入与输出
+
+- `aMatrix`：左操作数 tile，必须是 `Left`。
+- `bMatrix`：右操作数 tile，必须是 `Right`。
+- `biasData`：单行 Bias tile。
+- `cMatrix`：结果累加器 tile，必须是 `Acc`。
+
 ## 约束
 
-### 通用形状与位置约束
+### 通用约束
 
-- 静态形状约束：
-    - `TileLeft::Rows == TileRes::Rows`
-    - `TileLeft::Cols == TileRight::Rows`
-    - `TileRight::Cols == TileRes::Cols`
-- Tile 位置约束：
-    - `TileLeft::Loc == Left`
-    - `TileRight::Loc == Right`
-    - `TileRes::Loc == Acc`
-- 运行时有效尺寸约束：
-    - `m` 必须为 `1`
-    - `k` 和 `n`（取自 `bMatrix.GetValidRow()` 与 `bMatrix.GetValidCol()`）必须位于 `[1, 4095]`
+- `TGEMV` 的角色、shape、dtype 和 target-profile 约束在这里全部成立；
+- bias 的数据类型必须与结果累加器 `TileRes::DType` 一致；
+- bias 必须是单行 Bias tile。
 
-### 数据类型约束
+### A2A3 约束
 
-- **实现检查 (A2A3)**:
-    - 支持的 `(CType, AType, BType)` 三元组：
-        - `(int32_t, int8_t, int8_t)`
-        - `(float, half, half)`
-        - `(float, float, float)`
-        - `(float, bfloat16_t, bfloat16_t)`
-- **实现检查 (A5)**:
-    - 累加器类型必须是 `int32_t` 或 `float`。
-    - 如果为 `int32_t`：`AType == int8_t` 且 `BType == int8_t`。
-    - 如果为 `float`：支持 `half`、`bfloat16_t`、`float` 以及选定的 fp8 组合（目标定义）。
-    - 会强制执行以下分形/布局约束：
-        - Left：`Loc == Left`、`!isRowMajor`、`SFractal == RowMajor`
-        - Right：`Loc == Right`、`isRowMajor`、`SFractal == ColMajor`
-        - Acc：`Loc == Acc`、`!isRowMajor`、`SFractal == RowMajor`
+`A2A3` 指 Ascend 910B 与 Ascend 910C。当前实现要求：
 
-### 偏置专属约束
+- `TileBias::Loc == TileType::Bias`
+- `TileBias::Rows == 1`
 
-- 偏置 tile 的数据类型必须与 `TileRes::DType` 完全一致。
-- 偏置 tile 必须配置为单行。
-- 偏置 tile 的位置必须为 `TileType::Bias`。
-- **A5 附加说明**：
-    - 除上述 GEMV 约定外，底层 A5 matmul 实现不会再单独补充一组显式的 `m/k/n` 运行时断言。
+### A5 约束
+
+`A5` 指 Ascend 950 PR 与 Ascend 950 DT。当前实现要求：
+
+- `TileBias::Loc == TileType::Bias`
+- `TileBias::Rows == 1`
+- `TileBias::isRowMajor == true`
+
+## 不允许的情形
+
+- bias 不是单行；
+- bias 的角色或 dtype 不合法；
+- 违反 `TGEMV` 的任一合法性约束。
+
+## 性能与吞吐
+
+当前仓内 A2A3 costmodel 对 `TGEMV_BIAS` 仍复用 `mad/mmad` 的 GEMV 公式：
+
+```text
+cycles = 14 + ceil(N/16) * ceil(K / baskK) * repeat_cost
+```
+
+其中：
+
+- `baskK = 32 / sizeof(left_element_type)`；
+- int8、fp16 bucket 的 `repeat_cost = 1`；
+- fp32 bucket 的 `repeat_cost = 2`。
+
+当前仓库没有公开单列的 A5 latency / throughput 表。
 
 ## 示例
 
@@ -115,7 +126,7 @@ using namespace pto;
 void example_auto() {
   using A = TileLeft<half, 1, 16>;
   using B = TileRight<half, 16, 16>;
-  using Bias = Tile<TileType::Bias, half, 1, 16>;
+  using Bias = Tile<TileType::Bias, float, 1, 16>;
   using C = TileAcc<float, 1, 16>;
   A a;
   B b;
@@ -135,7 +146,7 @@ using namespace pto;
 void example_manual() {
   using A = TileLeft<half, 1, 16>;
   using B = TileRight<half, 16, 16>;
-  using Bias = Tile<TileType::Bias, half, 1, 16>;
+  using Bias = Tile<TileType::Bias, float, 1, 16>;
   using C = TileAcc<float, 1, 16>;
   A a;
   B b;
@@ -149,29 +160,9 @@ void example_manual() {
 }
 ```
 
-## 汇编示例（ASM）
+## 相关页面
 
-### 自动模式
-
-```text
-# 自动模式：由编译器/运行时负责资源放置与调度。
-%c = pto.tgemv.bias %a, %b, %bias : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-```
-
-### 手动模式
-
-```text
-# 手动模式：先显式绑定资源，再发射指令。
-# 可选（当该指令包含 tile 操作数时）：
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
-%c = pto.tgemv.bias %a, %b, %bias : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-```
-
-### PTO 汇编形式
-
-```text
-%acc = tgemv.bias %a, %b, %bias : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-# AS Level 2 (DPS)
-pto.tgemv.bias ins(%a, %b, %bias : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%c : !pto.tile_buf<...>)
-```
+- [TGEMV](./tgemv_zh.md)
+- [TGEMV_ACC](./tgemv-acc_zh.md)
+- [TGEMV_MX](./tgemv-mx_zh.md)
+- [矩阵与矩阵-向量指令集](../../matrix-and-matrix-vector_zh.md)

@@ -5,7 +5,7 @@ UB-to-vector-register data movement inside PTO ISA is defined here. The detailed
 > **Category:** UB ↔ Vector Register data movement
 > **Pipeline:** PIPE_V (Vector Core)
 
-Vector loads move data from Unified Buffer (UB) to vector registers (`vreg`). Vector stores move data from `vreg` back to UB. All vector compute operates only on `vreg` — UB is the staging area between DMA and compute.
+Vector loads move data from the vector tile buffer (implemented on current hardware by the Unified Buffer / UB) to vector registers (`vreg`). Vector stores move data from `vreg` back to that same vector tile buffer. All vector compute operates only on `vreg`.
 
 ---
 
@@ -14,7 +14,7 @@ Vector loads move data from Unified Buffer (UB) to vector registers (`vreg`). Ve
 Vector load/store operations bridge the **DMA** (`PIPE_MTE2`/`PIPE_MTE3`) and **Vector** (`PIPE_V`) pipelines. The complete kernel structure is:
 
 ```
-GM → MTE2 → UB → VLDS → vreg → PTO.v* compute → VSTS → UB → MTE3 → GM
+GM → MTE2 → vector tile buffer (hardware UB) → VLDS → vreg → PTO.v* compute → VSTS → vector tile buffer → MTE3 → GM
 ```
 
 **Typical kernel structure:**
@@ -24,7 +24,7 @@ module attributes {pto.target_arch = "a5"} {
   func.func @kernel_2d(%arg0: !pto.ptr, %arg1: !pto.ptr) {
     %false = arith.constant false
 
-    // Phase 1: MTE2 DMA (GM → UB)
+    // Phase 1: MTE2 DMA (GM → vector tile buffer / hardware UB)
     pto.get_buf "PIPE_MTE2", 0, 0
     pto.set_loop_size_outtoub %c1_i64, %c1_i64 : i64, i64
     pto.copy_gm_to_ubuf %arg0, %ub_in, %c0_i64, %c32_i64, %c128_i64,
@@ -54,7 +54,7 @@ module attributes {pto.target_arch = "a5"} {
     pto.set_flag["PIPE_V", "PIPE_MTE3", "EVENT_ID0"]
     pto.wait_flag["PIPE_V", "PIPE_MTE3", "EVENT_ID0"]
 
-    // Phase 5: MTE3 DMA (UB → GM)
+    // Phase 5: MTE3 DMA (vector tile buffer / hardware UB → GM)
     pto.get_buf "PIPE_MTE3", 0, 0
     pto.set_loop_size_ubtoout %c1_i64, %c1_i64 : i64, i64
     pto.copy_ubuf_to_gm %ub_out, %arg1, %c0_i64, %c32_i64, %c128_i64,
@@ -100,7 +100,7 @@ cycles = ceil(4096 / 128) = 32 cycles
 ## Common Operand Model
 
 - `%source` / `%dest` is the base address operand in SSA form. The base pointer
-  MUST address the Vector tile buffer / UB space.
+  MUST address the vector tile buffer (implemented on current hardware by the Unified Buffer / UB).
 - `%offset` is the displacement operand in SSA form. The exact encoding is
   instruction-specific, but the effective address and any post-update behavior
   MUST match the selected instruction form.

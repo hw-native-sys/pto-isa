@@ -15,7 +15,7 @@ These operations make pointer typing and pointer arithmetic explicit in SSA form
 | Space | Interpretation |
 |-------|----------------|
 | `gm` | Global Memory (GM), off-chip HBM/DDR storage |
-| `ub` | Unified Buffer (UB), on-chip vector buffer |
+| `ub` | Vector tile buffer (implemented on current hardware by the Unified Buffer / UB) |
 
 Typical pointer construction and pointer arithmetic follow the same `!pto.ptr<..., space>` form. Pointer arithmetic is element-based rather than byte-based.
 
@@ -212,5 +212,5 @@ pto.vecscope {
 ## Related Operations
 
 - BlockDim queries: [BlockDim Query Operations](./block-dim-query.md) — `pto.get_block_idx`, `pto.get_block_num`
-- Vector load/store: [Vector Load Store](../../../../vector/vector-load-store.md) — `pto.vlds`, `pto.vsts`
-- Scalar arithmetic: [Shared Scalar Arithmetic](../../../shared-arith.md) — `arith.constant`, `arith.index_cast`
+- Vector load/store: [Vector Load Store](../../../vector/vector-load-store.md) — `pto.vlds`, `pto.vsts`
+- Scalar arithmetic: [Shared Scalar Arithmetic](../../shared-arith.md) — `arith.constant`, `arith.index_cast`

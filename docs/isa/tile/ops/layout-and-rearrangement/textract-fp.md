@@ -4,11 +4,11 @@
 
 ## Summary
 
-Extract with fp/scaling tile (vector-quantization parameters).
+Extract through the fix-pipe path using an auxiliary `fp` tile.
 
 ## Mechanism
 
-Extract a sub-tile from a source tile, while also providing an `fp` (scaling) tile used for vector quantization parameters (target/implementation-defined). It belongs to the tile instructions and carries architecture-visible behavior that is not reducible to a plain elementwise compute pattern.
+Extract a sub-tile from a source tile while also providing an auxiliary `fp` tile used by the backend fix-pipe path. The `_fp` suffix means **fix pipe**, not floating point.
 
 Unless otherwise specified, semantics are defined over the valid region and target-dependent behavior is marked as implementation-defined.
 
@@ -53,7 +53,7 @@ PTO_INST RecordEvent TEXTRACT_FP(DstTileData &dst, SrcTileData &src, FpTileData 
 ## Inputs
 
 - `src` is the source tile.
-- `fp` is the scaling tile for vector quantization.
+- `fp` is the auxiliary fix-pipe tile consumed by the backend FPC path.
 - `indexRow` is the starting row offset in `src`.
 - `indexCol` is the starting column offset in `src`.
 - `dst` names the destination tile. The operation iterates over dst's valid region.
@@ -61,7 +61,7 @@ PTO_INST RecordEvent TEXTRACT_FP(DstTileData &dst, SrcTileData &src, FpTileData 
 
 ## Expected Outputs
 
-`dst` holds the extracted sub-tile from `src` at position (indexRow, indexCol), converted using `fp` scaling parameters.
+`dst` holds the extracted sub-tile from `src` at position `(indexRow, indexCol)` through the fix-pipe path configured by `fp`.
 
 ## Side Effects
 
