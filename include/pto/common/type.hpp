@@ -118,6 +118,8 @@ struct int4b_t {
 };
 } // namespace pto
 
+#include <type_traits>
+
 namespace pto {
 enum class TileType
 {
@@ -395,12 +397,6 @@ using FloatUnion = FloatIntUnion<float>;
 using HalfUnion = FloatIntUnion<half>;
 #endif
 
-enum class PowAlgorithm : uint8_t
-{
-    DEFAULT,
-    HIGH_PRECISION
-};
-
 enum class DivAlgorithm : uint8_t
 {
     DEFAULT,
@@ -443,86 +439,10 @@ enum class FmodAlgorithm : uint8_t
     HIGH_PRECISION
 };
 
-enum class FmodSAlgorithm : uint8_t
-{
-    DEFAULT,
-    HIGH_PRECISION
-};
-
 enum class RemAlgorithm : uint8_t
 {
     DEFAULT,
     HIGH_PRECISION
-};
-
-enum class RemSAlgorithm : uint8_t
-{
-    DEFAULT,
-    HIGH_PRECISION
-};
-
-enum class ScatterAxis : uint8_t
-{
-    SCATTER_ROW = 0,
-    SCATTER_COL = 1
-};
-
-enum class ScatterAtomicOp : uint8_t
-{
-    None = 0,
-    Add = 1,
-    Max = 2,
-    Min = 3
-};
-
-enum class ScatterOOB : uint8_t
-{
-    Undefined = 0,
-    Skip = 1,
-    Clamp = 2,
-    Wrap = 3
-};
-
-enum class ScatterConflict : uint8_t
-{
-    Last = 0,
-    Default = 1
-};
-
-enum class GatherAxis : uint8_t
-{
-    GATHER_ROW = 0,
-    GATHER_COL = 1
-};
-
-enum class GatherOOB : uint8_t
-{
-    Undefined = 0,
-    Clamp = 1,
-    Wrap = 2,
-    Zero = 3
-};
-
-#ifndef TINSERT_MODE_DEFINED
-#define TINSERT_MODE_DEFINED
-enum class TInsertMode : uint8_t
-{
-    SPLIT2 = 2,
-    SPLIT4 = 3,
-};
-#endif
-
-enum class Coalesce : uint8_t
-{
-    Row = 0,
-    Elem = 1
-};
-
-struct MrgSortExecutedNumList {
-    uint16_t mrgSortList0;
-    uint16_t mrgSortList1;
-    uint16_t mrgSortList2;
-    uint16_t mrgSortList3;
 };
 
 namespace GlobalTensorDim {
