@@ -85,10 +85,13 @@ if __name__ == "__main__":
         "TMATMULTest.case2",
         "TMATMULTest.case3",
         "TMATMULTest.case4",
+        "TMATMULTest.case_gemm_1",
+        "TMATMULTest.case_gemm_2",
 
         "TMATMULTest.case_bias_1",
         "TMATMULTest.case_bias_2",
         "TMATMULTest.case_bias_5",
+        "TMATMULTest.case_bias_gemm",
     ]
     if ENABLE_BF16:
         case_name_list.extend([
@@ -101,10 +104,13 @@ if __name__ == "__main__":
         tmatmulParams(np.int8, np.int8, np.int32, 6, 7, 8, False),
         tmatmulParams(np.float16, np.float16, np.float32, 128, 128, 64, False,repeats=5),
         tmatmulParams(np.float32, np.float32, np.float32, 120, 110, 50, False),
+        tmatmulParams(np.float16, np.float16, np.float32, 1, 110, 50, False),
+        tmatmulParams(np.float32, np.float32, np.float32, 1, 128, 64, False),
 
         tmatmulParams(np.int8, np.int8, np.int32, 8, 7, 6, True,np.int32),
         tmatmulParams(np.float16, np.float16, np.float32, 16, 15, 16, True, np.float32),
         tmatmulParams(np.float32, np.float32, np.float32, 127, 128, 63, True, np.float32),
+        tmatmulParams(np.float16, np.float16, np.float32, 1, 110, 50, True, np.float32),
     ]
     if ENABLE_BF16:
         case_params_list.extend([
