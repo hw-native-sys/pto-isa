@@ -150,10 +150,6 @@ if __name__ == "__main__":
         TRowArgMinValIdxParams(np.uint16, np.float16, 1, 16, 1, 16, 1, 32768, 1, 768, 1, 32761),
         TRowArgMinValIdxParams(np.uint16, np.float16, 16, 1, 1, 16, 1, 32768, 1, 768, 1, 32761),
         TRowArgMinValIdxParams(np.uint16, np.float16, 1, 16, 16, 1, 1, 32768, 1, 768, 1, 32761),
-        TRowArgMinValIdxParams(np.uint32, np.float16, 16, 1, 16, 1, 2, 4096, 2, 1536, 2, 4096),
-        TRowArgMinValIdxParams(np.uint32, np.float16, 16, 1, 16, 1, 1, 65552, 1, 1536, 1, 65552),
-        TRowArgMinValIdxParams(np.uint32, np.float16, 272, 1, 272, 1, 272, 112, 272, 16, 272, 112),
-        TRowArgMinValIdxParams(np.uint32, np.float16, 272, 16, 272, 8, 272, 112, 272, 16, 272, 112),
     ]
 
     for case in case_list:

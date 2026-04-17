@@ -1510,7 +1510,7 @@ PTO_INST RecordEvent TROWMAX(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
 
 template <typename TileDataOut, typename TileDataIn, typename TileDataTmp, typename... WaitEvents,
           std::enable_if_t<all_events_v<WaitEvents...>, int> = 0>
-PTO_INST RecordEvent TROWARGMAX(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp, WaitEvents &...events)
+PTO_INST RecordEvent TROWARGMAX(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp, WaitEvents &... events)
 {
     TSYNC(events...);
     MAP_INSTR_IMPL(TROWARGMAX, dst, src, tmp);
@@ -1520,10 +1520,10 @@ PTO_INST RecordEvent TROWARGMAX(TileDataOut &dst, TileDataIn &src, TileDataTmp &
 template <typename TileDataOutVal, typename TileDataOutIdx, typename TileDataIn, typename TileDataTmp,
           typename... WaitEvents, std::enable_if_t<is_tile_data_v<TileDataTmp> && all_events_v<WaitEvents...>, int> = 0>
 PTO_INST RecordEvent TROWARGMAX(TileDataOutVal &dstVal, TileDataOutIdx &dstIdx, TileDataIn &src, TileDataTmp &tmp,
-                                WaitEvents &...events)
+                                WaitEvents &... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_ROLES(TROWARGMAX, "OOII", dstVal, dstIdx, src, tmp);
+    MAP_INSTR_IMPL(TROWARGMAX, dstVal, dstIdx, src, tmp);
     return {};
 }
 
@@ -1545,7 +1545,7 @@ PTO_INST RecordEvent TROWMIN(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
 
 template <typename TileDataOut, typename TileDataIn, typename TileDataTmp, typename... WaitEvents,
           std::enable_if_t<all_events_v<WaitEvents...>, int> = 0>
-PTO_INST RecordEvent TROWARGMIN(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp, WaitEvents &...events)
+PTO_INST RecordEvent TROWARGMIN(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp, WaitEvents &... events)
 {
     TSYNC(events...);
     MAP_INSTR_IMPL(TROWARGMIN, dst, src, tmp);
@@ -1555,10 +1555,10 @@ PTO_INST RecordEvent TROWARGMIN(TileDataOut &dst, TileDataIn &src, TileDataTmp &
 template <typename TileDataOutVal, typename TileDataOutIdx, typename TileDataIn, typename TileDataTmp,
           typename... WaitEvents, std::enable_if_t<is_tile_data_v<TileDataTmp> && all_events_v<WaitEvents...>, int> = 0>
 PTO_INST RecordEvent TROWARGMIN(TileDataOutVal &dstVal, TileDataOutIdx &dstIdx, TileDataIn &src, TileDataTmp &tmp,
-                                WaitEvents &...events)
+                                WaitEvents &... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_ROLES(TROWARGMIN, "OOII", dstVal, dstIdx, src, tmp);
+    MAP_INSTR_IMPL(TROWARGMIN, dstVal, dstIdx, src, tmp);
     return {};
 }
 

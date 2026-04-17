@@ -309,19 +309,3 @@ TEST_F(TROWARGMINTest, case_uint16_half_16x1_16x1_2x16384_2x16381)
 {
     this->Launch<uint16_t, aclFloat16, 16, 1, 16, 1, 2, 16384, 2, 16381, true>();
 }
-TEST_F(TROWARGMINTest, case_uint32_half_16x1_16x1_2x4096_2x4096)
-{
-    this->Launch<uint32_t, aclFloat16, 16, 1, 16, 1, 2, 4096, 2, 4096, true>();
-}
-TEST_F(TROWARGMINTest, case_uint32_half_16x1_16x1_1x65552_1x65552)
-{
-    this->Launch<uint32_t, aclFloat16, 16, 1, 16, 1, 1, 65552, 1, 65552, true>();
-}
-TEST_F(TROWARGMINTest, case_uint32_half_272x1_272x1_272x112_272x112)
-{
-    this->Launch<uint32_t, aclFloat16, 272, 1, 272, 1, 272, 112, 272, 112, true>();
-}
-TEST_F(TROWARGMINTest, case_uint32_half_272x16_272x8_272x112_272x112)
-{
-    this->Launch<uint32_t, aclFloat16, 272, 16, 272, 8, 272, 112, 272, 112, true>();
-}

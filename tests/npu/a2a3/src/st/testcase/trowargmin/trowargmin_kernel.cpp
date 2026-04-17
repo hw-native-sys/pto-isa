@@ -97,15 +97,11 @@ __global__ AICORE void runTRowArgMin(__gm__ TVal __out__ *outVal, __gm__ TIdx __
     TASSIGN(tmpTile, tmpOffset);
 
     TLOAD(srcTile, srcGlobal);
-#ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-#endif
     TROWARGMIN(dstValTile, dstIdxTile, srcTile, tmpTile);
-#ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-#endif
     TSTORE(dstValGlobal, dstValTile);
     TSTORE(dstIdxGlobal, dstIdxTile);
     outVal = dstValGlobal.data();
@@ -259,16 +255,3 @@ template void LaunchTRowArgMinHalf<uint16_t, 16, 1, 1, 16, 1, 32768, 1, 768, 1, 
 template void LaunchTRowArgMinHalf<uint16_t, 1, 16, 16, 1, 1, 32768, 1, 768, 1, 32761>(aclFloat16 *outVal,
                                                                                        uint16_t *out, aclFloat16 *src,
                                                                                        void *stream);
-template void LaunchTRowArgMinHalf<uint32_t, 16, 1, 16, 1, 2, 4096, 2, 1536, 2, 4096>(aclFloat16 *outVal, uint32_t *out,
-                                                                                      aclFloat16 *src, void *stream);
-template void LaunchTRowArgMinHalf<uint32_t, 16, 1, 16, 1, 1, 65552, 1, 1536, 1, 65552>(aclFloat16 *outVal,
-                                                                                        uint32_t *out, aclFloat16 *src,
-                                                                                        void *stream);
-template void LaunchTRowArgMinHalf<uint32_t, 272, 1, 272, 1, 272, 112, 272, 16, 272, 112>(aclFloat16 *outVal,
-                                                                                          uint32_t *out,
-                                                                                          aclFloat16 *src,
-                                                                                          void *stream);
-template void LaunchTRowArgMinHalf<uint32_t, 272, 16, 272, 8, 272, 112, 272, 16, 272, 112>(aclFloat16 *outVal,
-                                                                                           uint32_t *out,
-                                                                                           aclFloat16 *src,
-                                                                                           void *stream);

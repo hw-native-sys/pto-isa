@@ -182,11 +182,3 @@ template void LaunchTRowArgMinHalf<uint16_t, 1024, 1, 1024, 1, 1024, 16, 1024, 1
                                                                                    aclFloat16 *src, void *stream);
 template void LaunchTRowArgMinHalf<uint16_t, 16, 1, 16, 1, 2, 16384, 2, 16381>(aclFloat16 *outVal, uint16_t *outIdx,
                                                                                aclFloat16 *src, void *stream);
-template void LaunchTRowArgMinHalf<uint32_t, 16, 1, 16, 1, 2, 4096, 2, 4096>(aclFloat16 *outVal, uint32_t *out,
-                                                                             aclFloat16 *src, void *stream);
-template void LaunchTRowArgMinHalf<uint32_t, 16, 1, 16, 1, 1, 65552, 1, 65552>(aclFloat16 *outVal, uint32_t *out,
-                                                                               aclFloat16 *src, void *stream);
-template void LaunchTRowArgMinHalf<uint32_t, 272, 1, 272, 1, 272, 112, 272, 112>(aclFloat16 *outVal, uint32_t *out,
-                                                                                 aclFloat16 *src, void *stream);
-template void LaunchTRowArgMinHalf<uint32_t, 272, 16, 272, 8, 272, 112, 272, 112>(aclFloat16 *outVal, uint32_t *out,
-                                                                                  aclFloat16 *src, void *stream);

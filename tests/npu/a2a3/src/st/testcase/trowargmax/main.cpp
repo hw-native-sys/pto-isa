@@ -124,10 +124,9 @@ protected:
 
         if (this->dstValFileSize) {
             ReadFile(GetGoldenDir() + "/golden_val.bin", this->dstValFileSize, goldenVal.data(), this->dstValFileSize);
-            bool resval = ResultCmp<TVal>(goldenVal, devValFinal, 0.0001f);
-            if (!resval) {
+            res = ResultCmp<TVal>(goldenVal, devValFinal, 0.0001f);
+            if (!res) {
                 WriteFile(GetGoldenDir() + "/output_val.bin", devValFinal.data(), this->dstValFileSize);
-                res = resval;
             }
         }
 
@@ -368,20 +367,4 @@ TEST_F(TROWARGMAXTest, case_uint16_half_16x1_1x16_1x32768_1x768_1x32761)
 TEST_F(TROWARGMAXTest, case_uint16_half_1x16_16x1_1x32768_1x768_1x32761)
 {
     this->Launch<uint16_t, aclFloat16, 1, 16, 16, 1, 1, 32768, 1, 768, 1, 32761, true>();
-}
-TEST_F(TROWARGMAXTest, case_uint32_half_16x1_16x1_2x4096_2x1536_2x4096)
-{
-    this->Launch<uint32_t, aclFloat16, 16, 1, 16, 1, 2, 4096, 2, 1536, 2, 4096, true>();
-}
-TEST_F(TROWARGMAXTest, case_uint32_half_16x1_16x1_1x65552_1x1536_1x65552)
-{
-    this->Launch<uint32_t, aclFloat16, 16, 1, 16, 1, 1, 65552, 1, 1536, 1, 65552, true>();
-}
-TEST_F(TROWARGMAXTest, case_uint32_half_272x1_272x1_272x112_272x16_272x112)
-{
-    this->Launch<uint32_t, aclFloat16, 272, 1, 272, 1, 272, 112, 272, 16, 272, 112, true>();
-}
-TEST_F(TROWARGMAXTest, case_uint32_half_272x16_272x8_272x112_272x16_272x112)
-{
-    this->Launch<uint32_t, aclFloat16, 272, 16, 272, 8, 272, 112, 272, 16, 272, 112, true>();
 }

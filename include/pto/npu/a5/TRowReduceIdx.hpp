@@ -59,10 +59,10 @@ PTO_INTERNAL void TRowReduceIdxCheck(uint32_t srcValidRows, uint32_t srcValidCol
     using TIdx = typename TileDataOutIdx::DType;
     if constexpr (outputVal) {
         static_assert(
-            (sizeof(TVal) == sizeof(half) && (std::is_same_v<int16_t, TIdx> || std::is_same_v<uint16_t, TIdx> ||
-                                              std::is_same_v<int32_t, TIdx> || std::is_same_v<uint32_t, TIdx>)) ||
+            (sizeof(TVal) == sizeof(half) && (std::is_same_v<int16_t, TIdx> || std::is_same_v<uint16_t, TIdx>)) ||
                 (sizeof(TVal) == sizeof(float) && (std::is_same_v<int32_t, TIdx> || std::is_same_v<uint32_t, TIdx>)),
-            "Dest index tile must use int16_t/uint16_t/int32_t/uint32_t.");
+            "Input and output tile data types must match. "
+            "Fix: Ensure TileDataOutIdx uses the same DType as TileDataIn.");
         TRowReduceCheck<TileDataOutVal, TileDataIn, false>(srcValidRows, srcValidCols, dstValValidRow);
     } else {
         static_assert(std::is_same_v<int32_t, TIdx> || std::is_same_v<uint32_t, TIdx>,
@@ -74,72 +74,65 @@ PTO_INTERNAL void TRowReduceIdxCheck(uint32_t srcValidRows, uint32_t srcValidCol
 
 template <typename ReduceIdxOp, typename TDst, typename TSrc>
 PTO_INTERNAL void UpdateIdxValue(RegTensor<TDst> &vregIdxOrig, RegTensor<TSrc> &vregValOrig, RegTensor<TSrc> &vregVal,
-                                 RegTensor<TSrc> &vregZero, RegTensor<TDst> &vregIdxOffset, MaskReg &pRegOneElem)
+                                 RegTensor<TSrc> &vregZero, TDst currentOffset, MaskReg &pRegOneElem)
 {
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(TSrc);
     MaskReg pregCmp;
     RegTensor<TDst> vregIdx;
     vdintlv(vregVal, (RegTensor<TSrc> &)vregIdx, vregVal, vregZero);
-    vadd(vregIdx, vregIdx, vregIdxOffset, pRegOneElem, MODE_ZEROING);
+    vadds(vregIdx, vregIdx, currentOffset, pRegOneElem, MODE_ZEROING);
     ReduceIdxOp::Compare(pregCmp, vregValOrig, vregVal, pRegOneElem);
     vsel(vregValOrig, vregVal, vregValOrig, pregCmp);
     vsel(vregIdxOrig, vregIdx, vregIdxOrig, pregCmp);
-    vadds(vregIdxOffset, vregIdxOffset, elementsPerRepeat, pRegOneElem, MODE_ZEROING);
 }
 
 template <typename ReduceIdxOp, typename TileDataOutVal, typename TileDataOutIdx, typename TileDataIn, bool outputVal,
           bool postUpdate>
 PTO_INTERNAL void TRowReduceIdxProc(__ubuf__ typename TileDataOutVal::DType *dstValPtr,
                                     __ubuf__ typename TileDataOutIdx::DType *dstIdxPtr,
-                                    __ubuf__ typename TileDataIn::DType *srcPtr, uint32_t rows, uint32_t cols,
-                                    int32_t repeatTimes, int32_t srcAdjust)
+                                    __ubuf__ typename TileDataIn::DType *srcPtr, uint32_t rows, uint32_t cols)
 {
     using TDstVal = typename TileDataOutVal::DType;
     using TDstIdx = typename TileDataOutIdx::DType;
     using TSrc = typename TileDataIn::DType;
     constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(TSrc);
-    __VEC_SCOPE__
-    {
-        constexpr auto distValueVal =
-            std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<TDstVal, DistVST::DIST_ONEPT>())>();
-        constexpr auto distValueIdx =
-            std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<TDstIdx, DistVST::DIST_ONEPT>())>();
+    uint16_t repeatTimes = CeilDivision(cols, elementsPerRepeat);
+    constexpr auto distValueVal =
+        std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<TDstVal, DistVST::DIST_ONEPT>())>();
+    constexpr auto distValueIdx =
+        std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<TDstIdx, DistVST::DIST_ONEPT>())>();
+    RegTensor<TSrc> vregZero, vregSrc, vregValOrig;
+    RegTensor<TDstIdx> vregIdxOrig;
+    vbr(vregZero, 0);
 
-        RegTensor<TSrc> vregZero, vregSrc, vregValOrig;
-        RegTensor<TDstIdx> vregIdxOrig, vregIdxOffset;
-        vbr(vregZero, 0);
-
-        uint32_t dstDup = 1;
-        MaskReg pRegOneElem = CreatePredicate<TSrc>(dstDup);
-        for (uint16_t i = 0; i < (uint16_t)rows; ++i) {
-            vdup((RegTensor<typename ReduceIdxOp::PaddingType> &)vregValOrig, ReduceIdxOp::InitVal, pRegOneElem,
-                 MODE_ZEROING);
-            vbr(vregIdxOrig, 0);
-            vbr(vregIdxOffset, 0);
-            uint32_t sregCol = cols;
-            for (uint16_t j = 0; j < (uint16_t)repeatTimes; j++) {
-                MaskReg pRegSrc = CreatePredicate<TSrc>(sregCol);
-                if constexpr (postUpdate) {
-                    vlds(vregSrc, srcPtr, elementsPerRepeat, NORM, POST_UPDATE);
-                } else {
-                    vlds(vregSrc, srcPtr, i * TileDataIn::RowStride + j * elementsPerRepeat, NORM);
-                }
-                ReduceIdxOp::Reduce(vregSrc, vregSrc, pRegSrc);
-                UpdateIdxValue<ReduceIdxOp, TDstIdx, TSrc>(vregIdxOrig, vregValOrig, vregSrc, vregZero, vregIdxOffset,
-                                                           pRegOneElem);
-            }
+    uint32_t dstDup = 1;
+    MaskReg pRegOneElem = CreatePredicate<TSrc>(dstDup);
+    for (uint16_t i = 0; i < (uint16_t)rows; ++i) {
+        vdup((RegTensor<typename ReduceIdxOp::PaddingType> &)vregValOrig, ReduceIdxOp::InitVal, pRegOneElem,
+             MODE_ZEROING);
+        vbr(vregIdxOrig, 0);
+        __ubuf__ TSrc *rowPtr = srcPtr + i * TileDataIn::RowStride;
+        uint32_t sregCol = cols;
+        for (uint16_t j = 0; j < (uint16_t)repeatTimes; j++) {
+            MaskReg pRegSrc = CreatePredicate<TSrc>(sregCol);
             if constexpr (postUpdate) {
-                vsts(vregIdxOrig, dstIdxPtr, TileDataOutIdx::RowStride, distValueIdx, pRegOneElem, POST_UPDATE);
-                srcPtr += srcAdjust;
+                vlds(vregSrc, rowPtr, elementsPerRepeat, NORM, POST_UPDATE);
             } else {
-                vsts(vregIdxOrig, dstIdxPtr, i * TileDataOutIdx::RowStride, distValueIdx, pRegOneElem);
+                vlds(vregSrc, srcPtr, i * TileDataIn::RowStride + j * elementsPerRepeat, NORM);
             }
-            if constexpr (outputVal) {
-                if constexpr (postUpdate) {
-                    vsts(vregValOrig, dstValPtr, TileDataOutVal::RowStride, distValueVal, pRegOneElem, POST_UPDATE);
-                } else {
-                    vsts(vregValOrig, dstValPtr, i * TileDataOutVal::RowStride, distValueVal, pRegOneElem);
-                }
+            ReduceIdxOp::Reduce(vregSrc, vregSrc, pRegSrc);
+            UpdateIdxValue<ReduceIdxOp, TDstIdx, TSrc>(vregIdxOrig, vregValOrig, vregSrc, vregZero,
+                                                       j * elementsPerRepeat, pRegOneElem);
+        }
+        if constexpr (postUpdate) {
+            vsts(vregIdxOrig, dstIdxPtr, TileDataOutIdx::RowStride, distValueIdx, pRegOneElem, POST_UPDATE);
+        } else {
+            vsts(vregIdxOrig, dstIdxPtr, i * TileDataOutIdx::RowStride, distValueIdx, pRegOneElem);
+        }
+        if constexpr (outputVal) {
+            if constexpr (postUpdate) {
+                vsts(vregValOrig, dstValPtr, TileDataOutVal::RowStride, distValueVal, pRegOneElem, POST_UPDATE);
+            } else {
+                vsts(vregValOrig, dstValPtr, i * TileDataOutVal::RowStride, distValueVal, pRegOneElem);
             }
         }
     }
@@ -151,18 +144,15 @@ PTO_INTERNAL void TRowReduceIdxImpl(__ubuf__ typename TileDataOutVal::DType *dst
                                     __ubuf__ typename TileDataIn::DType *srcPtr, uint32_t rows, uint32_t cols,
                                     unsigned version)
 {
-    using TDstVal = typename TileDataOutVal::DType;
-    using TDstIdx = typename TileDataOutIdx::DType;
-    using TSrc = typename TileDataIn::DType;
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(TSrc);
-    int32_t repeatTimes = CeilDivision(cols, elementsPerRepeat);
-    if (version == VFIMPL_2D_NO_POST_UPDATE) {
-        TRowReduceIdxProc<ReduceIdxOp, TileDataOutVal, TileDataOutIdx, TileDataIn, outputVal, false>(
-            dstValPtr, dstIdxPtr, srcPtr, rows, cols, repeatTimes, 0);
-    } else {
-        int32_t srcAdjust = static_cast<int32_t>(TileDataIn::RowStride) - repeatTimes * elementsPerRepeat;
-        TRowReduceIdxProc<ReduceIdxOp, TileDataOutVal, TileDataOutIdx, TileDataIn, outputVal, true>(
-            dstValPtr, dstIdxPtr, srcPtr, rows, cols, repeatTimes, srcAdjust);
+    __VEC_SCOPE__
+    {
+        if (version == VFIMPL_2D_NO_POST_UPDATE) {
+            TRowReduceIdxProc<ReduceIdxOp, TileDataOutVal, TileDataOutIdx, TileDataIn, outputVal, false>(
+                dstValPtr, dstIdxPtr, srcPtr, rows, cols);
+        } else {
+            TRowReduceIdxProc<ReduceIdxOp, TileDataOutVal, TileDataOutIdx, TileDataIn, outputVal, false>(
+                dstValPtr, dstIdxPtr, srcPtr, rows, cols);
+        }
     }
 }
 
