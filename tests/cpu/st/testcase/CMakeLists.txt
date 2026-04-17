@@ -136,6 +136,7 @@ txor
 txors
 tget_async
 tput_async
+tsubview
 )
 
 foreach(TESTCASE ${ALL_TESTCASES})
