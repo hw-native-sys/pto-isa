@@ -38,6 +38,11 @@ def gen_golden_data(param):
     src_input.tofile("input.bin")
     golden.tofile("golden.bin")
 
+    if param.output_val:
+        golden = np.zeros([param.dst_val_tile_row, param.dst_val_tile_col]).astype(src_dtype)
+        golden[0:height, 0:1] = np.max(src_input[:, 0:width], axis=1, keepdims=True)
+        golden.tofile("golden_val.bin")
+
 
 class TRowArgMaxParams:
     DTYPE_STR_TABLE = {
@@ -63,10 +68,23 @@ class TRowArgMaxParams:
         self.tmp_tile_col = tmp_tile_col
         self.valid_row = valid_row
         self.valid_col = valid_col
+        self.output_val = False
         self.name = f"TROWARGMAXTest.case_{self.DTYPE_STR_TABLE[dst_dtype]}_{self.DTYPE_STR_TABLE[src_dtype]}_"\
             f"{dst_tile_row}x{dst_tile_col}_{src_tile_row}x{src_tile_col}_"\
             f"{tmp_tile_row}x{tmp_tile_col}_{valid_row}x{valid_col}"
 
+
+class TRowArgMaxValIdxParams(TRowArgMaxParams):
+    def __init__(self, dst_dtype, src_dtype, dst_val_tile_row, dst_val_tile_col, dst_tile_row, dst_tile_col,
+        src_tile_row, src_tile_col, tmp_tile_row, tmp_tile_col, valid_row, valid_col):
+        super().__init__(dst_dtype, src_dtype, dst_tile_row, dst_tile_col, src_tile_row, src_tile_col,
+            tmp_tile_row, tmp_tile_col, valid_row, valid_col)
+        self.dst_val_tile_row = dst_val_tile_row
+        self.dst_val_tile_col = dst_val_tile_col
+        self.output_val = True
+        self.name = f"TROWARGMAXTest.case_{self.DTYPE_STR_TABLE[dst_dtype]}_{self.DTYPE_STR_TABLE[src_dtype]}_"\
+            f"{dst_val_tile_row}x{dst_val_tile_col}_{dst_tile_row}x{dst_tile_col}_"\
+            f"{src_tile_row}x{src_tile_col}_{tmp_tile_row}x{tmp_tile_col}_{valid_row}x{valid_col}"
 
 if __name__ == "__main__":
     # Get the absolute path of the script
@@ -104,6 +122,33 @@ if __name__ == "__main__":
         TRowArgMaxParams(np.uint32, np.float16, 260, 16, 260, 64, 1, 16, 260, 64),
         TRowArgMaxParams(np.uint32, np.float16, 1023, 16, 1023, 32, 1, 16, 1023, 17),
         TRowArgMaxParams(np.uint32, np.float16, 2, 16, 2, 32768, 2, 768, 2, 32761),
+        TRowArgMaxValIdxParams(np.uint32, np.float32, 1024, 1, 1024, 1, 1023, 24, 1023, 8, 1023, 17),
+        TRowArgMaxValIdxParams(np.uint32, np.float32, 264, 1, 264, 1, 260, 64, 260, 8, 260, 64),
+        TRowArgMaxValIdxParams(np.uint32, np.float32, 8, 1, 8, 1, 3, 4096, 3, 192, 3, 4095),
+        TRowArgMaxValIdxParams(np.uint32, np.float32, 8, 1, 8, 1, 1, 16384, 1, 768, 1, 16381),
+        TRowArgMaxValIdxParams(np.uint16, np.float16, 272, 1, 272, 1, 260, 64, 260, 16, 260, 63),
+        TRowArgMaxValIdxParams(np.uint16, np.float16, 272, 1, 272, 1, 260, 128, 260, 16, 260, 127),
+        TRowArgMaxValIdxParams(np.uint16, np.float16, 16, 1, 16, 1, 3, 8192, 3, 384, 3, 8191),
+        TRowArgMaxValIdxParams(np.uint16, np.float16, 16, 1, 16, 1, 1, 16384, 1, 768, 1, 16381),
+        TRowArgMaxValIdxParams(np.uint16, np.float16, 16, 1, 16, 1, 1, 32768, 1, 768, 1, 32761),
+        TRowArgMaxValIdxParams(np.uint32, np.float32, 777, 8, 777, 8, 777, 24, 777, 8, 777, 17),
+        TRowArgMaxValIdxParams(np.uint32, np.float32, 784, 1, 777, 8, 777, 24, 777, 8, 777, 17),
+        TRowArgMaxValIdxParams(np.uint32, np.float32, 777, 8, 784, 1, 777, 24, 777, 8, 777, 17),
+        TRowArgMaxValIdxParams(np.uint32, np.float32, 3, 8, 3, 8, 3, 4096, 3, 192, 3, 4095),
+        TRowArgMaxValIdxParams(np.uint32, np.float32, 8, 1, 3, 8, 3, 4096, 3, 192, 3, 4095),
+        TRowArgMaxValIdxParams(np.uint32, np.float32, 3, 8, 8, 1, 3, 4096, 3, 192, 3, 4095),
+        TRowArgMaxValIdxParams(np.uint32, np.float32, 1, 8, 1, 8, 1, 16384, 1, 768, 1, 16381),
+        TRowArgMaxValIdxParams(np.uint32, np.float32, 8, 1, 1, 8, 1, 16384, 1, 768, 1, 16381),
+        TRowArgMaxValIdxParams(np.uint32, np.float32, 1, 8, 8, 1, 1, 16384, 1, 768, 1, 16381),
+        TRowArgMaxValIdxParams(np.uint16, np.float16, 777, 16, 777, 16, 777, 48, 777, 16, 777, 43),
+        TRowArgMaxValIdxParams(np.uint16, np.float16, 784, 1, 777, 16, 777, 48, 777, 16, 777, 43),
+        TRowArgMaxValIdxParams(np.uint16, np.float16, 777, 16, 784, 1, 777, 48, 777, 16, 777, 43),
+        TRowArgMaxValIdxParams(np.uint16, np.float16, 3, 16, 3, 16, 3, 4096, 3, 192, 3, 4095),
+        TRowArgMaxValIdxParams(np.uint16, np.float16, 16, 1, 3, 16, 3, 4096, 3, 192, 3, 4095),
+        TRowArgMaxValIdxParams(np.uint16, np.float16, 3, 16, 16, 1, 3, 4096, 3, 192, 3, 4095),
+        TRowArgMaxValIdxParams(np.uint16, np.float16, 1, 16, 1, 16, 1, 32768, 1, 768, 1, 32761),
+        TRowArgMaxValIdxParams(np.uint16, np.float16, 16, 1, 1, 16, 1, 32768, 1, 768, 1, 32761),
+        TRowArgMaxValIdxParams(np.uint16, np.float16, 1, 16, 16, 1, 1, 32768, 1, 768, 1, 32761),
     ]
 
     for case in case_list:

@@ -52,6 +52,58 @@ __global__ AICORE void runTRowArgMax(__gm__ TDst __out__ *out, __gm__ TSrc __in_
     out = dstGlobal.data();
 }
 
+template <typename TIdx, typename TVal, int dstValTileH, int dstValTileW, int dstIdxTileH, int dstIdxTileW,
+          int srcTileH, int srcTileW, int tmpTileH, int tmpTileW, int vRows, int vCols>
+__global__ AICORE void runTRowArgMax(__gm__ TVal __out__ *outVal, __gm__ TIdx __out__ *outIdx, __gm__ TVal __in__ *src)
+{
+    using DynShape = pto::Shape<1, 1, 1, -1, -1>;
+    using DynStride = pto::Stride<-1, -1, -1, -1, -1>;
+    using GlobalDataIdx = GlobalTensor<TIdx, DynShape, DynStride>;
+    using GlobalDataVal = GlobalTensor<TVal, DynShape, DynStride>;
+
+    GlobalDataVal dstValGlobal(
+        outVal, DynShape(vRows, 1),
+        DynStride(dstValTileH * dstValTileW, dstValTileH * dstValTileW, dstValTileH * dstValTileW, dstValTileW, 1));
+    GlobalDataIdx dstIdxGlobal(
+        outIdx, DynShape(vRows, 1),
+        DynStride(dstIdxTileH * dstIdxTileW, dstIdxTileH * dstIdxTileW, dstIdxTileH * dstIdxTileW, dstIdxTileW, 1));
+    GlobalDataVal srcGlobal(src, DynShape(vRows, vCols),
+                            DynStride(srcTileH * srcTileW, srcTileH * srcTileW, srcTileH * srcTileW, srcTileW, 1));
+    constexpr auto DstValLayout = (dstValTileW == 1 ? BLayout::ColMajor : BLayout::RowMajor);
+    constexpr auto DstIdxLayout = (dstIdxTileW == 1 ? BLayout::ColMajor : BLayout::RowMajor);
+    using TileDataDstVal = Tile<TileType::Vec, TVal, dstValTileH, dstValTileW, DstValLayout, -1, -1>;
+    using TileDataDstIdx = Tile<TileType::Vec, TIdx, dstIdxTileH, dstIdxTileW, DstIdxLayout, -1, -1>;
+    using TileDataSrc = Tile<TileType::Vec, TVal, srcTileH, srcTileW, BLayout::RowMajor, -1, -1>;
+    using TileDataTmp = Tile<TileType::Vec, TVal, tmpTileH, tmpTileW, BLayout::RowMajor, -1, -1>;
+    TileDataDstVal dstValTile(vRows, 1);
+    TileDataDstIdx dstIdxTile(vRows, 1);
+    TileDataSrc srcTile(vRows, vCols);
+    TileDataTmp tmpTile(vRows, vCols);
+
+    size_t dstValSize = sizeof(TVal) * dstValTileH * dstValTileW;
+    size_t dstIdxSize = sizeof(TIdx) * dstIdxTileH * dstIdxTileW;
+    size_t srcSize = sizeof(TVal) * srcTileH * srcTileW;
+    size_t dstValOffset = 0;
+    size_t dstIdxOffset = dstValOffset + dstValSize;
+    size_t srcOffset = dstIdxOffset + dstIdxSize;
+    size_t tmpOffset = srcOffset + srcSize;
+    TASSIGN(dstValTile, dstValOffset);
+    TASSIGN(dstIdxTile, dstIdxOffset);
+    TASSIGN(srcTile, srcOffset);
+    TASSIGN(tmpTile, tmpOffset);
+
+    TLOAD(srcTile, srcGlobal);
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    TROWARGMAX(dstValTile, dstIdxTile, srcTile, tmpTile);
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    TSTORE(dstValGlobal, dstValTile);
+    TSTORE(dstIdxGlobal, dstIdxTile);
+    outVal = dstValGlobal.data();
+    outIdx = dstIdxGlobal.data();
+}
+
 template <typename TDst, typename TSrc, int dstTileH, int dstTileW, int srcTileH, int srcTileW, int tmpTileH,
           int tmpTileW, int vRows, int vCols>
 void LaunchTRowArgMax(TDst *out, TSrc *src, void *stream)
@@ -66,6 +118,22 @@ void LaunchTRowArgMaxHalf(TDst *out, aclFloat16 *src, void *stream)
 {
     runTRowArgMax<TDst, half, dstTileH, dstTileW, srcTileH, srcTileW, tmpTileH, tmpTileW, vRows, vCols>
         <<<1, nullptr, stream>>>(out, (half *)src);
+}
+
+template <typename TIdx, typename TVal, int dstValTileH, int dstValTileW, int dstIdxTileH, int dstIdxTileW,
+          int srcTileH, int srcTileW, int tmpTileH, int tmpTileW, int vRows, int vCols>
+void LaunchTRowArgMax(TVal *outVal, TIdx *outIdx, TVal *src, void *stream)
+{
+    runTRowArgMax<TIdx, TVal, dstValTileH, dstValTileW, dstIdxTileH, dstIdxTileW, srcTileH, srcTileW, tmpTileH,
+                  tmpTileW, vRows, vCols><<<1, nullptr, stream>>>(outVal, outIdx, src);
+}
+
+template <typename TIdx, int dstValTileH, int dstValTileW, int dstIdxTileH, int dstIdxTileW, int srcTileH, int srcTileW,
+          int tmpTileH, int tmpTileW, int vRows, int vCols>
+void LaunchTRowArgMaxHalf(aclFloat16 *outVal, TIdx *outIdx, aclFloat16 *src, void *stream)
+{
+    runTRowArgMax<TIdx, half, dstValTileH, dstValTileW, dstIdxTileH, dstIdxTileW, srcTileH, srcTileW, tmpTileH,
+                  tmpTileW, vRows, vCols><<<1, nullptr, stream>>>((half *)outVal, outIdx, (half *)src);
 }
 
 // Dest column must be 32b aligned, rows should always be 1
@@ -115,3 +183,71 @@ template void LaunchTRowArgMaxHalf<uint32_t, 1023, 16, 1023, 32, 1, 16, 1023, 17
                                                                                   void *stream);
 template void LaunchTRowArgMaxHalf<uint32_t, 2, 16, 2, 32768, 2, 768, 2, 32761>(uint32_t *out, aclFloat16 *src,
                                                                                 void *stream);
+template void LaunchTRowArgMax<uint32_t, float, 1024, 1, 1024, 1, 1023, 24, 1023, 8, 1023, 17>(float *outVal,
+                                                                                               uint32_t *out,
+                                                                                               float *src,
+                                                                                               void *stream);
+template void LaunchTRowArgMax<uint32_t, float, 264, 1, 264, 1, 260, 64, 260, 8, 260, 64>(float *outVal, uint32_t *out,
+                                                                                          float *src, void *stream);
+template void LaunchTRowArgMax<uint32_t, float, 8, 1, 8, 1, 3, 4096, 3, 192, 3, 4095>(float *outVal, uint32_t *out,
+                                                                                      float *src, void *stream);
+template void LaunchTRowArgMax<uint32_t, float, 8, 1, 8, 1, 1, 16384, 1, 768, 1, 16381>(float *outVal, uint32_t *out,
+                                                                                        float *src, void *stream);
+template void LaunchTRowArgMaxHalf<uint16_t, 272, 1, 272, 1, 260, 64, 260, 16, 260, 63>(aclFloat16 *outVal,
+                                                                                        uint16_t *out, aclFloat16 *src,
+                                                                                        void *stream);
+template void LaunchTRowArgMaxHalf<uint16_t, 272, 1, 272, 1, 260, 128, 260, 16, 260, 127>(aclFloat16 *outVal,
+                                                                                          uint16_t *out,
+                                                                                          aclFloat16 *src,
+                                                                                          void *stream);
+template void LaunchTRowArgMaxHalf<uint16_t, 16, 1, 16, 1, 3, 8192, 3, 384, 3, 8191>(aclFloat16 *outVal, uint16_t *out,
+                                                                                     aclFloat16 *src, void *stream);
+template void LaunchTRowArgMaxHalf<uint16_t, 16, 1, 16, 1, 1, 16384, 1, 768, 1, 16381>(aclFloat16 *outVal,
+                                                                                       uint16_t *out, aclFloat16 *src,
+                                                                                       void *stream);
+template void LaunchTRowArgMaxHalf<uint16_t, 16, 1, 16, 1, 1, 32768, 1, 768, 1, 32761>(aclFloat16 *outVal,
+                                                                                       uint16_t *out, aclFloat16 *src,
+                                                                                       void *stream);
+template void LaunchTRowArgMax<uint32_t, float, 777, 8, 777, 8, 777, 24, 777, 8, 777, 17>(float *outVal, uint32_t *out,
+                                                                                          float *src, void *stream);
+template void LaunchTRowArgMax<uint32_t, float, 784, 1, 777, 8, 777, 24, 777, 8, 777, 17>(float *outVal, uint32_t *out,
+                                                                                          float *src, void *stream);
+template void LaunchTRowArgMax<uint32_t, float, 777, 8, 784, 1, 777, 24, 777, 8, 777, 17>(float *outVal, uint32_t *out,
+                                                                                          float *src, void *stream);
+template void LaunchTRowArgMax<uint32_t, float, 3, 8, 3, 8, 3, 4096, 3, 192, 3, 4095>(float *outVal, uint32_t *out,
+                                                                                      float *src, void *stream);
+template void LaunchTRowArgMax<uint32_t, float, 8, 1, 3, 8, 3, 4096, 3, 192, 3, 4095>(float *outVal, uint32_t *out,
+                                                                                      float *src, void *stream);
+template void LaunchTRowArgMax<uint32_t, float, 3, 8, 8, 1, 3, 4096, 3, 192, 3, 4095>(float *outVal, uint32_t *out,
+                                                                                      float *src, void *stream);
+template void LaunchTRowArgMax<uint32_t, float, 1, 8, 1, 8, 1, 16384, 1, 768, 1, 16381>(float *outVal, uint32_t *out,
+                                                                                        float *src, void *stream);
+template void LaunchTRowArgMax<uint32_t, float, 8, 1, 1, 8, 1, 16384, 1, 768, 1, 16381>(float *outVal, uint32_t *out,
+                                                                                        float *src, void *stream);
+template void LaunchTRowArgMax<uint32_t, float, 1, 8, 8, 1, 1, 16384, 1, 768, 1, 16381>(float *outVal, uint32_t *out,
+                                                                                        float *src, void *stream);
+template void LaunchTRowArgMaxHalf<uint16_t, 777, 16, 777, 16, 777, 48, 777, 16, 777, 43>(aclFloat16 *outVal,
+                                                                                          uint16_t *out,
+                                                                                          aclFloat16 *src,
+                                                                                          void *stream);
+template void LaunchTRowArgMaxHalf<uint16_t, 784, 1, 777, 16, 777, 48, 777, 16, 777, 43>(aclFloat16 *outVal,
+                                                                                         uint16_t *out, aclFloat16 *src,
+                                                                                         void *stream);
+template void LaunchTRowArgMaxHalf<uint16_t, 777, 16, 784, 1, 777, 48, 777, 16, 777, 43>(aclFloat16 *outVal,
+                                                                                         uint16_t *out, aclFloat16 *src,
+                                                                                         void *stream);
+template void LaunchTRowArgMaxHalf<uint16_t, 3, 16, 3, 16, 3, 4096, 3, 192, 3, 4095>(aclFloat16 *outVal, uint16_t *out,
+                                                                                     aclFloat16 *src, void *stream);
+template void LaunchTRowArgMaxHalf<uint16_t, 16, 1, 3, 16, 3, 4096, 3, 192, 3, 4095>(aclFloat16 *outVal, uint16_t *out,
+                                                                                     aclFloat16 *src, void *stream);
+template void LaunchTRowArgMaxHalf<uint16_t, 3, 16, 16, 1, 3, 4096, 3, 192, 3, 4095>(aclFloat16 *outVal, uint16_t *out,
+                                                                                     aclFloat16 *src, void *stream);
+template void LaunchTRowArgMaxHalf<uint16_t, 1, 16, 1, 16, 1, 32768, 1, 768, 1, 32761>(aclFloat16 *outVal,
+                                                                                       uint16_t *out, aclFloat16 *src,
+                                                                                       void *stream);
+template void LaunchTRowArgMaxHalf<uint16_t, 16, 1, 1, 16, 1, 32768, 1, 768, 1, 32761>(aclFloat16 *outVal,
+                                                                                       uint16_t *out, aclFloat16 *src,
+                                                                                       void *stream);
+template void LaunchTRowArgMaxHalf<uint16_t, 1, 16, 16, 1, 1, 32768, 1, 768, 1, 32761>(aclFloat16 *outVal,
+                                                                                       uint16_t *out, aclFloat16 *src,
+                                                                                       void *stream);

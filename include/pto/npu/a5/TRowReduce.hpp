@@ -140,8 +140,6 @@ PTO_INTERNAL void TRowReduceCheck(uint32_t srcValidRows, uint32_t srcValidCols, 
     static_assert(idx || std::is_same_v<T, typename TileDataOut::DType>,
                   "Input and output tile data types must match. "
                   "Fix: Ensure TileDataOut uses the same DType as TileDataIn.");
-    static_assert(!idx || std::is_same_v<uint32_t, TDst> || std::is_same_v<int32_t, TDst>,
-                  "Output tile data type must be uint32_t or int32_t.");
     static_assert(TileDataOut::Loc == pto::TileType::Vec && TileDataIn::Loc == pto::TileType::Vec,
                   "Row reduction only works on vector tiles (TileType::Vec). "
                   "Fix: Instantiate TileDataIn and TileDataOut with Loc_ = TileType::Vec.");
