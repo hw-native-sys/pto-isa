@@ -132,7 +132,7 @@ struct TPipe {
                 waitIntraBlockBySplit<PIPE_FIX, Split>(FlagID + 1);
 #endif
 #ifdef __DAV_VEC__
-                wait_intra_block(PIPE_MTE3, FlagID + 1);
+                wait_intra_block(PIPE_MTE3, FlagID + 3);
 #endif
             } else if constexpr (is_v2c_ctrl) {
 #ifdef __DAV_VEC__
@@ -143,7 +143,7 @@ struct TPipe {
                 waitIntraBlockBySplit<PIPE_FIX, Split>(FlagID + 1);
 #endif
 #ifdef __DAV_VEC__
-                wait_intra_block(PIPE_MTE3, FlagID + 1);
+                wait_intra_block(PIPE_MTE3, FlagID + 3);
 #endif
             }
         }
@@ -167,13 +167,13 @@ struct TPipe {
                 setIntraBlockBySplit<PIPE_FIX, Split>(FlagID);
 #endif
 #ifdef __DAV_VEC__
-                set_intra_block(PIPE_MTE3, FlagID);
+                set_intra_block(PIPE_MTE3, FlagID + 2);
 #endif
             } else if constexpr (is_v2c_ctrl) {
                 set_intra_block(PIPE_S, FlagID);
             } else if constexpr (is_both_gm) {
 #ifdef __DAV_VEC__
-                set_intra_block(PIPE_MTE3, FlagID);
+                set_intra_block(PIPE_MTE3, FlagID + 2);
 #endif
 #ifdef __DAV_CUBE__
                 setIntraBlockBySplit<PIPE_FIX, Split>(FlagID);
@@ -401,7 +401,7 @@ struct TPipe {
                 wait_intra_block(PIPE_V, FlagID);
 #endif
 #ifdef __DAV_CUBE__ // v2c_mat
-                waitIntraBlockBySplit<PIPE_MTE1, Split>(FlagID);
+                waitIntraBlockBySplit<PIPE_MTE1, Split>(FlagID + 2);
 #endif
             } else if constexpr (is_v2c_ctrl) {
                 waitIntraBlockBySplit<PIPE_S, Split>(FlagID);
@@ -410,7 +410,7 @@ struct TPipe {
                 wait_intra_block(PIPE_MTE2, FlagID + 1);
 #endif
 #ifdef __DAV_CUBE__
-                waitIntraBlockBySplit<PIPE_MTE2, Split>(FlagID);
+                waitIntraBlockBySplit<PIPE_MTE2, Split>(FlagID + 2);
 #endif
             }
         }
@@ -434,7 +434,7 @@ struct TPipe {
                 set_intra_block(PIPE_V, FlagID + 1);
 #endif
 #ifdef __DAV_CUBE__
-                setIntraBlockBySplit<PIPE_MTE1, Split>(FlagID + 1);
+                setIntraBlockBySplit<PIPE_MTE1, Split>(FlagID + 3);
 #endif
             } else if constexpr (is_v2c_gm || is_v2c_mat) {
 #ifdef __DAV_CUBE__
@@ -449,7 +449,7 @@ struct TPipe {
                 set_intra_block(PIPE_MTE2, FlagID + 1);
 #endif
 #ifdef __DAV_CUBE__
-                setIntraBlockBySplit<PIPE_MTE1, Split>(FlagID + 1);
+                setIntraBlockBySplit<PIPE_MTE1, Split>(FlagID + 3);
 #endif
             }
         }
@@ -989,8 +989,8 @@ struct TMPipe {
                 // Vec -> Cube (GM path): Cube waits on PIPE_MTE2, BOTH flags
                 wait_intra_block(PIPE_MTE2, FlagID);
                 wait_intra_block(PIPE_MTE2, FlagID + VEC_CORE_ID_OFFSET);
-            } else if constexpr (is_v2c_gm) { // is_v2c_mat
-                                              // Vec -> Cube (UB path - TINSERT): Cube waits on PIPE_MTE1, BOTH flags
+            } else if constexpr (is_v2c_mat) { // is_v2c_mat
+                                               // Vec -> Cube (UB path - TINSERT): Cube waits on PIPE_MTE1, BOTH flags
 #ifdef __DAV_CUBE__
                 wait_intra_block(PIPE_MTE1, FlagID);
                 wait_intra_block(PIPE_MTE1, FlagID + VEC_CORE_ID_OFFSET);

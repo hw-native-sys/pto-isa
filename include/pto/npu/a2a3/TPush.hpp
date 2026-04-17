@@ -110,7 +110,12 @@ struct TPipe {
                 wait_flag_dev(FlagID + 1);
 #endif
             } else if constexpr (is_both) {
+#ifdef __DAV_CUBE__
                 wait_flag_dev(FlagID + 1);
+#endif
+#ifdef __DAV_VEC__
+                wait_flag_dev(FlagID + 3);
+#endif
             }
         }
 
@@ -131,7 +136,7 @@ struct TPipe {
                 ffts_cross_core_sync(PIPE_FIX, getFFTSMsgCfg(TSyncCVMode::CV_CORES_SYNC, FlagID));
 #endif
 #ifdef __DAV_VEC__
-                ffts_cross_core_sync(PIPE_MTE3, getFFTSMsgCfg(TSyncCVMode::CV_CORES_SYNC, FlagID));
+                ffts_cross_core_sync(PIPE_MTE3, getFFTSMsgCfg(TSyncCVMode::CV_CORES_SYNC, FlagID + 2));
 #endif
             }
         }
@@ -280,7 +285,16 @@ struct TPipe {
         {
             // Vector waits for Cube
             // Or Cube waits for Vector
-            wait_flag_dev(FlagID);
+            if constexpr (is_both) {
+#ifdef __DAV_VEC__
+                wait_flag_dev(FlagID);
+#endif
+#ifdef __DAV_CUBE__
+                wait_flag_dev(FlagID + 2);
+#endif
+            } else {
+                wait_flag_dev(FlagID);
+            }
         }
 
         /**
@@ -302,7 +316,12 @@ struct TPipe {
                 ffts_cross_core_sync(PIPE_MTE2, getFFTSMsgCfg(TSyncCVMode::CV_CORES_SYNC, FlagID + 1));
 #endif
             } else if constexpr (is_both) {
+#ifdef __DAV_VEC__
                 ffts_cross_core_sync(PIPE_MTE2, getFFTSMsgCfg(TSyncCVMode::CV_CORES_SYNC, FlagID + 1));
+#endif
+#ifdef __DAV_CUBE__
+                ffts_cross_core_sync(PIPE_MTE2, getFFTSMsgCfg(TSyncCVMode::CV_CORES_SYNC, FlagID + 3));
+#endif
             }
         }
 
