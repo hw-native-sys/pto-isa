@@ -7,6 +7,7 @@ THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, E
 INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 See LICENSE in the root of the software repository for the full text of the License.
 */
+<<<<<<<< HEAD:include/pto/cpu/SetImg2colRpt.hpp
 #ifndef SET_IMG2COL_RPT_CPU_HPP
 #define SET_IMG2COL_RPT_CPU_HPP
 
@@ -20,3 +21,31 @@ PTO_INTERNAL void SET_IMG2COL_RPT_IMPL(ConvTileData &src)
 } // namespace pto
 
 #endif
+========
+#pragma once
+
+inline void printf(...)
+{}
+inline void print(...)
+{}
+inline void print_str(...)
+{}
+inline void print_int(...)
+{}
+inline void print_float(...)
+{}
+inline void print_half(...)
+{}
+inline void print_hex(...)
+{}
+inline void print_matrix(...)
+{}
+inline void print_tensor(...)
+{}
+inline void print_ubuf(...)
+{}
+inline void print_cbuf(...)
+{}
+inline void print_gm(...)
+{}
+>>>>>>>> c610a3e5 (costmodel refactoring):include/pto/costmodel/a2a3/cce_costmodel/cce_costmodel_debug.hpp
