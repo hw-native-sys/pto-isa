@@ -11,8 +11,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef TMOV_HPP
 #define TMOV_HPP
 
-#include "pto/npu/kirinX90/TExtract.hpp"
-#include "pto/common/arch/memory/tmov_common.hpp"
+#include "pto/npu/a2a3/TExtract.hpp"
+#include "pto/npu/a2a3/TCopy.hpp"
 
 namespace pto {
 

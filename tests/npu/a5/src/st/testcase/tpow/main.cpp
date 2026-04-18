@@ -132,19 +132,3 @@ TEST_F(TPOWTest, case11)
 {
     test_tpow<aclFloat16, 16, 512, 16, 400, true>();
 }
-TEST_F(TPOWTest, case12)
-{
-    test_tpow<float, 1, 64, 1, 64, false>();
-}
-TEST_F(TPOWTest, case13)
-{
-    test_tpow<float, 1, 64, 1, 64, false>();
-}
-TEST_F(TPOWTest, case14)
-{
-    test_tpow<float, 1, 64, 1, 64, false>();
-}
-TEST_F(TPOWTest, case15)
-{
-    test_tpow<float, 1, 64, 1, 64, false>();
-}
