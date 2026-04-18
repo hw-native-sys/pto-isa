@@ -75,22 +75,8 @@ __tf__ PTO_INTERNAL OP_NAME(TREM)
     __ubuf__ T *src0Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src0);
     __ubuf__ T *src1Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src1);
     // Note: tmp parameter is not used in a5 implementation (no sign correction needed)
-    if constexpr (PrecisionType == RemAlgorithm::HIGH_PRECISION && std::is_same_v<T, float>) {
-        constexpr uint32_t REM_INTERATION_NUM_MAX = 11;
-        constexpr unsigned dstRowStride = TileDataDst::RowStride;
-        constexpr unsigned src0RowStride = TileDataSrc0::RowStride;
-        constexpr unsigned src1RowStride = TileDataSrc1::RowStride;
-        uint32_t mainRepeatTimes = validCols / ElementsPerRepeat;
-        uint32_t tailCount = validCols - mainRepeatTimes * ElementsPerRepeat;
-        for (uint16_t i = 0; i < validRows; i++) {
-            ComputeIterationF32<REM_INTERATION_NUM_MAX>(dstPtr + i * dstRowStride, src0Ptr + i * src0RowStride,
-                                                        src1Ptr + i * src1RowStride, mainRepeatTimes, ElementsPerRepeat,
-                                                        tailCount, false);
-        }
-    } else {
-        BinaryInstr<RemOp<T>, TileDataDst, TileDataSrc0, TileDataSrc1, ElementsPerRepeat, BlockSizeElem>(
-            dstPtr, src0Ptr, src1Ptr, validRows, validCols, version);
-    }
+    BinaryInstr<RemOp<T>, TileDataDst, TileDataSrc0, TileDataSrc1, ElementsPerRepeat, BlockSizeElem>(
+        dstPtr, src0Ptr, src1Ptr, validRows, validCols, version);
     return;
 }
 

@@ -15,6 +15,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define float8_e5m2_t int8_t
 #define hifloat8_t int8_t
 #define float8_e8m0_t int8_t
+#define float4_e2m1x2_t int64_t
+#define float4_e1m2x2_t int64_t
 #include "pto/npu/a2a3/TAssign.hpp"
 #include "pto/npu/kirin9030/TSync.hpp"
 #include "pto/npu/kirin9030/TAdd.hpp"
@@ -63,5 +65,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #undef float8_e5m2_t
 #undef hifloat8_t
 #undef float8_e8m0_t
-
+#undef float4_e2m1x2_t
+#undef float4_e1m2x2_t
 #endif
