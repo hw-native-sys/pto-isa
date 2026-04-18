@@ -224,7 +224,8 @@ set(ALL_TESTCASES
     mgather
     mscatter
     t_dhrystone
-
+    tpow
+    tpows
     tconcatidx
     tconcat
     thistogram

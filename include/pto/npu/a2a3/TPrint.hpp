@@ -55,11 +55,17 @@ PTO_INTERNAL void PrintValue(T &val, int col)
         } else if constexpr (Format == PrintFormat::Width10_Precision6) {
             cce::printf("%10.6f", static_cast<float>(val));
         }
-    } else if constexpr (std::is_integral_v<T>) {
+    } else if constexpr (std::is_signed_v<T>) {
         if constexpr (Format == PrintFormat::Width10_Precision6) {
             cce::printf("%10d", static_cast<int>(val));
         } else {
             cce::printf("%8d", static_cast<int>(val));
+        }
+    } else if constexpr (std::is_unsigned_v<T>) {
+        if constexpr (Format == PrintFormat::Width10_Precision6) {
+            cce::printf("%10u", static_cast<unsigned int>(val));
+        } else {
+            cce::printf("%8u", static_cast<unsigned int>(val));
         }
     } else {
         static_assert(sizeof(T) == 0, "Unsupported data type for Print.");

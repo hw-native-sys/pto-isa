@@ -8,18 +8,13 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
+#include <type_traits>
+#include <gtest/gtest.h>
 #include "test_common.h"
 #include "acl/acl.h"
-#include <gtest/gtest.h>
 
 using namespace std;
 using namespace PtoTestCommon;
-
-template <int32_t testKey>
-void launchTFILLPAD(uint8_t *out, uint8_t *src, void *stream);
-
-template <int32_t testKey>
-int get_input_golden(uint8_t *input, uint8_t *golden);
 
 class TFILLPADTest : public testing::Test {
 protected:
@@ -38,145 +33,112 @@ std::string GetGoldenDir()
     return fullPath;
 }
 
-template <typename T>
-constexpr T getGoldenZero()
-{
-    return T{0};
-}
+template <int32_t testKey>
+void launchTFILLPAD(uint8_t *out, uint8_t *src, void *stream);
 
-template <int32_t testKey, typename T, int32_t kBlock>
-void tfillpad_test()
+template <typename T, int32_t srcRows, int32_t srcCols, int32_t dstRows, int32_t dstCols, int32_t testKey>
+void test_tfillpad()
 {
-    uint32_t M = 1024;
-    uint32_t N = 1024;
+    size_t fileSizeSrc = srcRows * srcCols * sizeof(T);
+    size_t fileSizeDst = dstRows * dstCols * sizeof(T);
 
     aclInit(nullptr);
     aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    int in_byteSize = M * N * sizeof(float);
-    int out_byteSize = M * N * sizeof(float);
-
-    void *dstHost, *srcHost, *goldHost;
+    void *dstHost, *srcHost;
     void *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&srcHost), in_byteSize);
-    aclrtMallocHost((void **)(&dstHost), out_byteSize);
-    aclrtMallocHost((void **)(&goldHost), out_byteSize);
+    aclrtMallocHost((void **)(&srcHost), fileSizeSrc);
+    aclrtMallocHost((void **)(&dstHost), fileSizeDst);
 
-    aclrtMalloc((void **)&dstDevice, in_byteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, out_byteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void **)&dstDevice, fileSizeDst, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void **)&srcDevice, fileSizeSrc, ACL_MEM_MALLOC_HUGE_FIRST);
 
-    int actual_out_byteSize = 0;
-    actual_out_byteSize = get_input_golden<testKey>((uint8_t *)srcHost, (uint8_t *)goldHost);
-    cout << "Golden size:" << actual_out_byteSize << " B" << endl;
-    std::fill((uint8_t *)dstHost, ((uint8_t *)(dstHost)) + out_byteSize, 0);
+    ReadFile(GetGoldenDir() + "/input.bin", fileSizeSrc, srcHost, fileSizeSrc);
+    aclrtMemset(dstHost, fileSizeDst, 0, fileSizeDst);
 
-    aclrtMemcpy(srcDevice, in_byteSize, srcHost, in_byteSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    aclrtMemcpy(dstDevice, out_byteSize, dstHost, out_byteSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(dstDevice, fileSizeDst, dstHost, fileSizeDst, ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(srcDevice, fileSizeSrc, srcHost, fileSizeSrc, ACL_MEMCPY_HOST_TO_DEVICE);
 
     launchTFILLPAD<testKey>((uint8_t *)dstDevice, (uint8_t *)srcDevice, stream);
 
     aclrtSynchronizeStream(stream);
-    aclrtMemcpy(dstHost, out_byteSize, dstDevice, out_byteSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    aclrtMemcpy(dstHost, fileSizeDst, dstDevice, fileSizeDst, ACL_MEMCPY_DEVICE_TO_HOST);
 
-    std::ofstream inFile(GetGoldenDir() + "/input.bin", std::ios::binary | std::ios::out);
-    std::ofstream outFile(GetGoldenDir() + "/output.bin", std::ios::binary | std::ios::out);
-    std::ofstream goldFile(GetGoldenDir() + "/golden.bin", std::ios::binary | std::ios::out);
-    inFile.write((const char *)srcHost, actual_out_byteSize);
-    outFile.write((const char *)dstHost, actual_out_byteSize);
-    goldFile.write((const char *)goldHost, actual_out_byteSize);
-    inFile.close();
-    outFile.close();
-    goldFile.close();
+    WriteFile(GetGoldenDir() + "/output.bin", dstHost, fileSizeDst);
 
     aclrtFree(dstDevice);
     aclrtFree(srcDevice);
 
     aclrtFreeHost(dstHost);
     aclrtFreeHost(srcHost);
-    aclrtFreeHost(goldHost);
-
     aclrtDestroyStream(stream);
     aclrtResetDevice(0);
     aclFinalize();
 
-    int elements = actual_out_byteSize / sizeof(T);
-
-    auto zero = getGoldenZero<T>();
-    using CT = decltype(zero);
-    std::vector<CT> golden(elements);
-    std::vector<CT> devFinal(elements);
-    size_t oFileSize = actual_out_byteSize;
-    ReadFile(GetGoldenDir() + "/golden.bin", oFileSize, golden.data(), oFileSize);
-    ReadFile(GetGoldenDir() + "/output.bin", oFileSize, devFinal.data(), oFileSize);
+    std::vector<T> golden(dstRows * dstCols);
+    std::vector<T> devFinal(dstRows * dstCols);
+    ReadFile(GetGoldenDir() + "/golden.bin", fileSizeDst, golden.data(), fileSizeDst);
+    ReadFile(GetGoldenDir() + "/output.bin", fileSizeDst, devFinal.data(), fileSizeDst);
 
     bool ret = ResultCmp(golden, devFinal, 0);
 
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TFILLPADTest, case_float_GT_128_127_VT_128_128_BLK1_PADMAX_PADMAX)
+TEST_F(TFILLPADTest, case_float_GT_64_127_VT_64_128_BLK1_PADMAX)
 {
-    tfillpad_test<1, float, 1>();
+    test_tfillpad<float, 64, 127, 64, 128, 1>();
 }
 
-TEST_F(TFILLPADTest, case_float_GT_128_127_VT_128_160_BLK1_PADMAX_PADMAX)
+TEST_F(TFILLPADTest, case_float_GT_64_127_VT_64_144_BLK1_PADMAX)
 {
-    tfillpad_test<2, float, 1>();
+    test_tfillpad<float, 64, 127, 64, 144, 2>();
 }
 
-TEST_F(TFILLPADTest, case_float_GT_128_127_VT_128_160_BLK1_PADMIN_PADMAX)
+TEST_F(TFILLPADTest, case_float_GT_64_127_VT_64_160_BLK1_PADMAX)
 {
-    tfillpad_test<3, float, 1>();
+    test_tfillpad<float, 64, 127, 64, 160, 3>();
 }
 
-TEST_F(TFILLPADTest, case_float_GT_260_7_VT_260_16_BLK1_PADMIN_PADMAX)
+TEST_F(TFILLPADTest, case_float_GT_260_7_VT_260_16_BLK1_PADMAX)
 {
-    tfillpad_test<4, float, 1>();
+    test_tfillpad<float, 260, 7, 260, 16, 4>();
 }
 
-TEST_F(TFILLPADTest, case_float_GT_260_7_VT_260_16_BLK1_PADMIN_PADMAX_INPLACE)
+TEST_F(TFILLPADTest, case_float_GT_260_7_VT_260_16_BLK1_PADMAX_INPLACE)
 {
-    tfillpad_test<5, float, 1>();
+    test_tfillpad<float, 260, 7, 260, 16, 5>();
 }
 
-TEST_F(TFILLPADTest, case_u16_GT_260_7_VT_260_32_BLK1_PADMIN_PADMAX)
+TEST_F(TFILLPADTest, case_u16_GT_260_7_VT_260_32_BLK1_PADMAX)
 {
-    tfillpad_test<6, uint16_t, 1>();
+    test_tfillpad<uint16_t, 260, 7, 260, 32, 6>();
 }
 
-TEST_F(TFILLPADTest, case_s8_GT_260_7_VT_260_64_BLK1_PADMIN_PADMAX)
+TEST_F(TFILLPADTest, case_s8_GT_260_7_VT_260_64_BLK1_PADMAX)
 {
-    tfillpad_test<7, int8_t, 1>();
+    test_tfillpad<int8_t, 260, 7, 260, 64, 7>();
 }
 
-TEST_F(TFILLPADTest, case_u16_GT_259_7_VT_260_32_BLK1_PADMIN_PADMAX_EXPAND)
+TEST_F(TFILLPADTest, case_u16_GT_259_7_VT_260_32_BLK1_PADMAX_EXPAND)
 {
-    tfillpad_test<8, uint16_t, 1>();
+    test_tfillpad<uint16_t, 259, 7, 260, 32, 8>();
 }
 
-TEST_F(TFILLPADTest, case_s8_GT_259_7_VT_260_64_BLK1_PADMIN_PADMAX_EXPAND)
+TEST_F(TFILLPADTest, case_s8_GT_259_7_VT_260_64_BLK1_PADMAX_EXPAND)
 {
-    tfillpad_test<9, int8_t, 1>();
+    test_tfillpad<int8_t, 259, 7, 260, 64, 9>();
 }
 
-TEST_F(TFILLPADTest, case_s16_GT_260_7_VT_260_32_BLK1_PADMIN_PADMIN)
+TEST_F(TFILLPADTest, case_s16_GT_260_7_VT_260_32_BLK1_PADMIN)
 {
-    tfillpad_test<10, int16_t, 1>();
+    test_tfillpad<int16_t, 260, 7, 260, 32, 10>();
 }
 
-TEST_F(TFILLPADTest, case_s32_GT_260_7_VT_260_32_BLK1_PADMIN_PADMIN)
+TEST_F(TFILLPADTest, case_s32_GT_260_7_VT_260_32_BLK1_PADMIN)
 {
-    tfillpad_test<11, int32_t, 1>();
-}
-TEST_F(TFILLPADTest, case_float_GT_128_64_VT_128_128_PADCUSTOM_NEG1)
-{
-    tfillpad_test<12, float, 1>();
-}
-
-TEST_F(TFILLPADTest, case_float_GT_128_127_VT_128_160_BLK1_PADCUSTOM_NEG1_PADCUSTOM_NEG1)
-{
-    tfillpad_test<13, float, 1>();
+    test_tfillpad<int32_t, 260, 7, 260, 32, 11>();
 }

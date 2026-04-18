@@ -333,6 +333,12 @@ using FloatUnion = FloatIntUnion<float>;
 using HalfUnion = FloatIntUnion<half>;
 #endif
 
+enum class PowAlgorithm : uint8_t
+{
+    DEFAULT,
+    HIGH_PRECISION
+};
+
 enum class DivAlgorithm : uint8_t
 {
     DEFAULT,

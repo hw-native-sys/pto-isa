@@ -11,10 +11,15 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef __UIILS_HPP__
 #define __UIILS_HPP__
 
+#include <type_traits>
 #include <pto/common/constants.hpp>
 #pragma once
 
 namespace pto {
+template <typename T, typename... Types>
+using isSupportTypeImpl = std::disjunction<std::is_same<T, Types>...>;
+template <typename T, typename... Types>
+inline constexpr bool isSupportType = isSupportTypeImpl<T, Types...>::value;
 template <typename T>
 struct LoadTypeBySize {
     using type = std::conditional_t<sizeof(T) == sizeof(uint8_t), uint8_t,

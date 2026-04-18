@@ -369,6 +369,8 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tpartmul -g TPARTMULTest.case_float_64x64_64x64_64x64
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tpartmax -g TPARTMAXTest.case_fp32_64x64_64x64_64x64
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tpartmin -g TPARTMINTest.case_fp32_64x64_64x64_64x64
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tpow -g TPOWTest.case1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tpows -g TPOWSTest.case1
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tprelu -g TPRELUTest.case1
     python3 tests/script/run_st.py $ARGS -w -v a5 -t trem -g TREMTest.case1
     python3 tests/script/run_st.py $ARGS -w -v a5 -t trowexpand -g TROWEXPANDTest.case5_float_16_8_16_127
@@ -511,6 +513,8 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tpartadd
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tpartmul
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tpartmax
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tpow
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tpows
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tpartmin
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tprelu
     python3 tests/script/run_st.py $ARGS -w -v a5 -t trem
@@ -564,6 +568,7 @@ fi
 if [ "$ENABLE_KIRIN9030" = "true" ]; then
   python3 tests/script/build_st.py $ARGS -v kirin9030 -t all
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t textract
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tfillpad
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tmov
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tadd
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tcolsum

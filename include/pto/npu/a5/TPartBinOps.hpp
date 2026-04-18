@@ -8,8 +8,8 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-#ifndef TPATIALBINOPS_HPP
-#define TPATIALBINOPS_HPP
+#ifndef TPARTIALBINOPS_HPP
+#define TPARTIALBINOPS_HPP
 
 #include <pto/common/constants.hpp>
 #include <pto/common/utils.hpp>
@@ -18,94 +18,50 @@ namespace pto {
 
 template <typename T>
 struct Padding {
-    using Type = std::make_unsigned_t<T>;
-    static constexpr Type Null = (Type)0;
-    static constexpr Type Zero = (Type)0;
-    static constexpr Type Min = (Type)0;
-    static constexpr Type Max = (Type)0xffffffffffffffffUL;
-};
+    using Type = std::conditional_t<sizeof(T) == 4, uint32_t, std::conditional_t<sizeof(T) == 2, uint16_t, uint8_t>>;
 
-template <>
-struct Padding<float> {
-    using Type = uint32_t;
-    static constexpr Type Null = (Type)0;
-    static constexpr Type Zero = (Type)0;
-    static constexpr Type Min = (Type)0xff800000UL;
-    static constexpr Type Max = (Type)0x7f800000UL;
-};
+    PTO_INTERNAL static constexpr Type GetPaddingMin()
+    {
+        if constexpr (std::is_same_v<T, float>) {
+            return (Type)0xff800000UL;
+        } else if constexpr (std::is_same_v<T, half>) {
+            return (Type)0xfc00UL;
+        } else if constexpr (std::is_same_v<T, bfloat16_t>) {
+            return (Type)0xff80UL;
+        } else if constexpr (std::is_same_v<T, int32_t>) {
+            return (Type)0x80000000UL;
+        } else if constexpr (std::is_same_v<T, int16_t>) {
+            return (Type)0x8000UL;
+        } else if constexpr (std::is_same_v<T, int8_t>) {
+            return (Type)0x80UL;
+        } else {
+            return (Type)0;
+        }
+    }
 
-template <>
-struct Padding<int32_t> {
-    using Type = uint32_t;
-    static constexpr Type Null = (Type)0;
-    static constexpr Type Zero = (Type)0;
-    static constexpr Type Min = (Type)0x80000000UL;
-    static constexpr Type Max = (Type)0x7fffffffUL;
-};
+    PTO_INTERNAL static constexpr Type GetPaddingMax()
+    {
+        if constexpr (std::is_same_v<T, float>) {
+            return (Type)0x7f800000UL;
+        } else if constexpr (std::is_same_v<T, half>) {
+            return (Type)0x7c00UL;
+        } else if constexpr (std::is_same_v<T, bfloat16_t>) {
+            return (Type)0x7f80UL;
+        } else if constexpr (std::is_same_v<T, int32_t>) {
+            return (Type)0x7fffffffUL;
+        } else if constexpr (std::is_same_v<T, int16_t>) {
+            return (Type)0x7fffUL;
+        } else if constexpr (std::is_same_v<T, int8_t>) {
+            return (Type)0x7fUL;
+        } else {
+            return (Type)(~(Type)0);
+        }
+    }
 
-template <>
-struct Padding<uint32_t> {
-    using Type = uint32_t;
     static constexpr Type Null = (Type)0;
     static constexpr Type Zero = (Type)0;
-    static constexpr Type Min = (Type)0;
-    static constexpr Type Max = (Type)0xffffffffUL;
-};
-
-#ifndef PTO_NPU_ARCH_KIRIN9030
-template <>
-struct Padding<bfloat16_t> {
-    using Type = uint16_t;
-    static constexpr Type Null = (Type)0;
-    static constexpr Type Zero = (Type)0;
-    static constexpr Type Min = (Type)0xff80UL;
-    static constexpr Type Max = (Type)0x7f80UL;
-};
-#endif
-
-template <>
-struct Padding<half> {
-    using Type = uint16_t;
-    static constexpr Type Null = (Type)0;
-    static constexpr Type Zero = (Type)0;
-    static constexpr Type Min = (Type)0xfc00UL;
-    static constexpr Type Max = (Type)0x7c00UL;
-};
-
-template <>
-struct Padding<int16_t> {
-    using Type = uint16_t;
-    static constexpr Type Null = (Type)0;
-    static constexpr Type Zero = (Type)0;
-    static constexpr Type Min = (Type)0x8000UL;
-    static constexpr Type Max = (Type)0x7fffUL;
-};
-
-template <>
-struct Padding<uint16_t> {
-    using Type = uint16_t;
-    static constexpr Type Null = (Type)0;
-    static constexpr Type Zero = (Type)0;
-    static constexpr Type Min = (Type)0;
-    static constexpr Type Max = (Type)0xffffUL;
-};
-
-template <>
-struct Padding<int8_t> {
-    using Type = uint8_t;
-    static constexpr Type Null = (Type)0;
-    static constexpr Type Zero = (Type)0;
-    static constexpr Type Min = (Type)0x80UL;
-    static constexpr Type Max = (Type)0x7fUL;
-};
-
-template <>
-struct Padding<uint8_t> {
-    using Type = uint8_t;
-    static constexpr Type Null = (Type)0;
-    static constexpr Type Zero = (Type)0;
-    static constexpr Type Min = (Type)0;
-    static constexpr Type Max = (Type)0xffUL;
+    static constexpr Type Min = GetPaddingMin();
+    static constexpr Type Max = GetPaddingMax();
 };
 
 template <typename Op, typename T, unsigned elementsPerRepeat, unsigned dstStride>

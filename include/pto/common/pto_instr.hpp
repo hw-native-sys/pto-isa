@@ -1451,6 +1451,25 @@ PTO_INST RecordEvent TEXP(TileDataDst &dst, TileDataSrc &src, WaitEvents &... ev
     return {};
 }
 
+template <auto PrecisionType = PowAlgorithm::DEFAULT, typename DstTile, typename BaseTile, typename ExpTile,
+          typename TmpTile, typename... WaitEvents>
+PTO_INTERNAL RecordEvent TPOW(DstTile &dst, BaseTile &base, ExpTile &exp, TmpTile &tmp, WaitEvents &... events)
+{
+    TSYNC(events...);
+    TPOW_IMPL<PrecisionType>(dst, base, exp, tmp);
+    return {};
+}
+
+template <auto PrecisionType = PowAlgorithm::DEFAULT, typename DstTile, typename BaseTile, typename TmpTile,
+          typename... WaitEvents>
+PTO_INTERNAL RecordEvent TPOWS(DstTile &dst, BaseTile &base, typename DstTile::DType exp, TmpTile &tmp,
+                               WaitEvents &... events)
+{
+    TSYNC(events...);
+    TPOWS_IMPL<PrecisionType>(dst, base, exp, tmp);
+    return {};
+}
+
 template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
 PTO_INST RecordEvent TNOT(TileDataDst &dst, TileDataSrc &src, WaitEvents &... events)
 {
