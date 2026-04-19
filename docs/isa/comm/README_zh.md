@@ -1,130 +1,39 @@
-# PTO 通信 ISA 参考手册
+# PTO Communication ISA Reference
 
-本目录包含 PTO 通信 ISA 的逐指令参考文档。
+本目录包含 PTO 通信 ISA 的逐指令参考文档。通信操作实现跨执行代理和并行 rank 的数据移动和同步。
 
-- 权威来源（C++ 内建接口）：`include/pto/comm/pto_comm_inst.hpp`
+## 权威来源
+
+- C++ 内建接口：`include/pto/comm/pto_comm_inst.hpp`
 - 类型定义：`include/pto/comm/comm_types.hpp`
 
-## 点对点通信（同步）
-- [**TPUT**](TPUT_zh.md)：远程写（GM → UB → GM）
-- [**TGET**](TGET_zh.md)：远程读（GM → UB → GM）
+## 按操作类型选择
 
-## 点对点通信（异步）
-- [**TPUT_ASYNC**](TPUT_ASYNC_zh.md)：异步远程写（GM → DMA 引擎 → GM）
-- [**TGET_ASYNC**](TGET_ASYNC_zh.md)：异步远程读（GM → DMA 引擎 → GM）
+| 类型 | 指令 | 说明 |
+|------|------|------|
+| **点对点同步写** | [TPUT](./TPUT_zh.md) | 远程写（GM → UB → GM） |
+| **点对点同步读** | [TGET](./TGET_zh.md) | 远程读（GM → UB → GM） |
+| **点对点异步写** | [TPUT_ASYNC](./TPUT_ASYNC_zh.md) | 异步远程写（GM → DMA 引擎 → GM） |
+| **点对点异步读** | [TGET_ASYNC](./TGET_ASYNC_zh.md) | 异步远程读（GM → DMA 引擎 → GM） |
+| **通知** | [TNOTIFY](./TNOTIFY_zh.md) | 向远端 NPU 发送通知 |
+| **等待** | [TWAIT](./TWAIT_zh.md) | 阻塞等待信号条件满足 |
+| **非阻塞检测** | [TTEST](./TTEST_zh.md) | 非阻塞检测信号条件 |
+| **广播** | [TBROADCAST](./TBROADCAST_zh.md) | 从 root NPU 广播数据到所有 rank |
+| **收集** | [TGATHER](./TGATHER_zh.md) | 从所有 rank 收集数据到 root |
+| **散发** | [TSCATTER](./TSCATTER_zh.md) | 从 root 向所有 rank 分发数据 |
+| **归约** | [TREDUCE](./TREDUCE_zh.md) | 从所有 rank 归约数据到本地 |
 
-## 基于信号的同步
-- [**TNOTIFY**](TNOTIFY_zh.md)：向远端 NPU 发送通知
-- [**TWAIT**](TWAIT_zh.md)：阻塞等待信号条件满足
-- [**TTEST**](TTEST_zh.md)：非阻塞检测信号条件
+## 同步 vs 异步
 
-## 集合通信
+| 类型 | 特点 | CANN 版本要求 |
+|------|------|--------------|
+| 同步（`TPUT`/`TGET`） | 操作阻塞直到完成，通过 UB 暂存 tile | CANN 8.x 及以上 |
+| 异步（`TPUT_ASYNC`/`TGET_ASYNC`） | 非阻塞，通过 SDMA/URMA 引擎，支持轮询查询 | **CANN 9.0 及以上** |
 
-- [**TGATHER**](TGATHER_zh.md)：从所有 rank 收集数据
-- [**TSCATTER**](TSCATTER_zh.md)：向所有 rank 分发数据
-- [**TREDUCE**](TREDUCE_zh.md)：从所有 rank 归约数据到本地
-- [**TBROADCAST**](TBROADCAST_zh.md)：从当前 NPU 广播数据到所有 rank
+## 相关页面
 
-## 类型定义
-
-### NotifyOp
-
-`TNOTIFY` 的操作类型：
-
-| 值 | 说明 |
-|-------|-------------|
-| `NotifyOp::Set` | 直接赋值（`signal = value`）|
-| `NotifyOp::AtomicAdd` | 原子加（`signal += value`）|
-
-### WaitCmp
-
-`TWAIT` 和 `TTEST` 的比较运算符：
-
-| 值 | 说明 |
-|-------|-------------|
-| `WaitCmp::EQ` | 等于（`==`）|
-| `WaitCmp::NE` | 不等于（`!=`）|
-| `WaitCmp::GT` | 大于（`>`）|
-| `WaitCmp::GE` | 大于等于（`>=`）|
-| `WaitCmp::LT` | 小于（`<`）|
-| `WaitCmp::LE` | 小于等于（`<=`）|
-
-```cpp
-// 用法示例（统一运行时参数风格）：
-comm::TNOTIFY(signal, 1, comm::NotifyOp::Set);
-comm::TWAIT(signal, 1, comm::WaitCmp::EQ);
-comm::TTEST(signal, 1, comm::WaitCmp::GE);
-```
-
-### ReduceOp
-
-`TREDUCE` 的归约运算符：
-
-| 值 | 说明 |
-|-------|-------------|
-| `ReduceOp::Sum` | 逐元素求和 |
-| `ReduceOp::Max` | 逐元素取最大值 |
-| `ReduceOp::Min` | 逐元素取最小值 |
-
-### AtomicType
-
-`TPUT` 的原子操作类型（定义于 `include/pto/common/constants.hpp`）：
-
-| 值 | 说明 |
-|-------|-------------|
-| `AtomicType::AtomicNone` | 无原子操作（默认）|
-| `AtomicType::AtomicAdd` | 原子加操作 |
-
-### DmaEngine
-
-`TPUT_ASYNC` 和 `TGET_ASYNC` 的 DMA 后端选择：
-
-| 值 | 说明 |
-|-------|-------------|
-| `DmaEngine::SDMA` | SDMA 引擎（支持一维传输，Ascend950 上仅支持TGET|
-| `DmaEngine::URMA` | URMA 引擎（支持一维传输，仅Ascend950 / NPU_ARCH 3510）支持|
-
-### AsyncEvent
-
-由 `TPUT_ASYNC` / `TGET_ASYNC` 返回，用于同步传输完成状态：
-
-```cpp
-struct AsyncEvent {
-    uint64_t handle;
-    DmaEngine engine;
-
-    bool valid() const;                        // handle != 0 时返回 true
-    bool Wait(const AsyncSession &session) const; // 阻塞直到传输完成
-    bool Test(const AsyncSession &session) const; // 非阻塞完成检测
-};
-```
-
-### AsyncSession
-
-用于异步 DMA 操作的引擎无关会话对象，构建一次后传递给所有异步调用：
-
-```cpp
-comm::AsyncSession session;
-comm::BuildAsyncSession<comm::DmaEngine::SDMA>(scratchTile, workspace, session);
-```
-
-定义于 `include/pto/comm/async/async_types.hpp`。构建参数详见 [TPUT_ASYNC](TPUT_ASYNC_zh.md)。
-
-### ParallelGroup
-
-用于多 NPU 集合通信的包装器：
-
-```cpp
-template <typename GlobalData>
-struct ParallelGroup {
-    // 指向 `GlobalData` 对象数组的指针（每个对象封装一个 GM 地址）。
-    // 数组本身是本地元数据；封装的地址可以指向本地或远端 GM，
-    // 具体取决于集合通信指令的语义。
-    GlobalData *tensors;
-    int nranks;   // rank 总数
-    int rootIdx;  // 根 NPU 的 rank 索引
-
-    // 工厂函数（推荐）：从已有 tensor 数组构建。
-    static ParallelGroup Create(GlobalData *tensorArray, int size, int rank_id);
-};
-```
+| 页面 | 内容 |
+|------|------|
+| [通信与运行时契约](../other/communication-and-runtime_zh.md) | 通信指令集的规范契约 |
+| [其他与通信](../other/README_zh.md) | 其他与通信指令集总入口 |
+| [tests/](../../../tests/README_zh.md) | 通信测试运行方式 |

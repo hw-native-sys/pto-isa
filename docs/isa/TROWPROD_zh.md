@@ -1,43 +1,39 @@
-﻿# TROWPROD
+﻿# pto.trowprod
 
-## 指令示意图
+`pto.trowprod` 属于[行归约](./tile/ops/reduce-and-expand/trowprod_zh.md)指令集。
 
-![TROWPROD tile operation](../figures/isa/TROWPROD.svg)
+## 概述
 
-## 简介
+对每行元素进行乘积归约。将源 tile 每行的所有元素相乘，结果写入目标 tile 对应行的第一个位置。
 
-对每行元素进行乘积归约。
-
-## 数学定义
+## 机制
 
 设 `R = src.GetValidRow()` 且 `C = src.GetValidCol()`。对于 `0 <= i < R`：
 
 $$ \mathrm{dst}_{i,0} = \prod_{j=0}^{C-1} \mathrm{src}_{i,j} $$
 
-## 汇编语法
+## 语法
 
-PTO-AS 形式：参见 [PTO-AS 规范](../assembly/PTO-AS_zh.md)。
-
-同步形式：
+### PTO-AS
 
 ```text
 %dst = trowprod %src : !pto.tile<...> -> !pto.tile<...>
 ```
 降级可能引入内部临时 tile；C++ 内建函数需要显式的 `tmp` 操作数。
 
-### AS Level 1 (SSA)
+### AS Level 1（SSA）
 
-```text
+```mlir
 %dst = pto.trowprod %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
-### AS Level 2 (DPS)
+### AS Level 2（DPS）
 
-```text
+```mlir
 pto.trowprod ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建函数
+## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
 
@@ -46,41 +42,49 @@ template <typename TileDataOut, typename TileDataIn, typename TileDataTmp, typen
 PTO_INST RecordEvent TROWPROD(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp, WaitEvents &... events);
 ```
 
-## 约束条件
+## 输入
 
-### 通用约束或检查
+| 操作数 | 角色 | 说明 |
+| --- | --- | --- |
+| `src` | 输入 | 源 tile，支持 `half`、`float`、`int32_t`、`int16_t` 元素类型 |
+| `tmp` | 临时 | 临时 tile，接口保留但当前实现路径无特定约束 |
 
-- `dst` 和 `src` 必须均为 `TileType::Vec`。
-- `src` 必须使用标准 ND 布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
+## 预期输出
+
+| 结果 | 类型 | 说明 |
+| --- | --- | --- |
+| `dst` | 输出 | 每行元素的乘积结果，类型与 `src` 一致 |
+
+## 副作用
+
+指令执行完成后，`dst` 有效行数与 `src` 相同，有效列数为 1。
+
+## 约束
+
+- `dst` 和 `src` 必须均为 `TileType::Vec`
+- `src` 必须使用标准 ND 布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）
 - `dst` 必须使用以下两种非分形布局之一：
-    - ND 布局（`BLayout::RowMajor`、`SLayout::NoneBox`），或
-    - 列数严格为 1 的 DN 布局（`BLayout::ColMajor`、`SLayout::NoneBox`、`Cols == 1`）。
-- `dst` 和 `src` 的元素类型必须一致。
-- 运行时有效区域检查：
-    - `src.GetValidRow() != 0`
-    - `src.GetValidCol() != 0`
-    - `src.GetValidRow() == dst.GetValidRow()`
-- 内建接口签名要求显式传入 `tmp` 操作数。
+    - ND 布局（`BLayout::RowMajor`、`SLayout::NoneBox`）
+    - 列数严格为 1 的 DN 布局（`BLayout::ColMajor`、`SLayout::NoneBox`、`Cols == 1`）
+- `dst` 和 `src` 的元素类型必须一致
+- `src.GetValidRow() != 0`
+- `src.GetValidCol() != 0`
+- `src.GetValidRow() == dst.GetValidRow()`
+- 内建接口签名要求显式传入 `tmp` 操作数
 
-### A5 实现检查
+## 异常与非法情形
 
-- 支持的元素类型：`half`、`float`、`int32_t`、`int16_t`。
-- 当前检查到的实现路径中，实际受约束的是 `src` 和 `dst`。
-- 当前实现路径中，没有额外要求 `tmp` 必须满足特定 shape/layout 约束。
+- 运行时检查失败时，行为由具体实现定义
 
-## 实现说明
+## Target-Profile 限制
 
-`TROWPROD` 在当前代码库中遵循已实现的 A5 后端路径。该实现会在校验 `src` / `dst` 约束后，直接完成按行乘积归约。
-
-C++ 内建接口中仍然保留 `tmp` 参数，以保持接口形式一致：
-
-1. `tmp` 仍然保留在内建接口签名和 AS lowering 形式中。
-2. 当前检查到的实现路径中，实际被约束的是 `src` 和 `dst`。
-3. 如果后续该指令的其他后端实现对 `tmp` 引入额外要求，文档应再按对应实现同步更新。
+| 特性 | CPU Simulator | A2/A3 | A5 |
+| --- | :---: | :---: | :---: |
+| 支持 | 是 | 是 | 是 |
 
 ## 示例
 
-### Auto 模式
+### C++ 自动模式
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -98,7 +102,7 @@ void example_auto() {
 }
 ```
 
-### Manual 模式
+### C++ 手动模式
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -119,29 +123,13 @@ void example_manual() {
 }
 ```
 
-## ASM 形式示例
-
-### Auto 模式
+### PTO-AS
 
 ```text
-# Auto 模式：编译器/运行时管理的放置和调度。
+# 自动模式
 %dst = pto.trowprod %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
-### Manual 模式
+## 相关页面
 
-```text
-# Manual 模式：在发出指令前显式绑定资源。
-# Tile 操作数可选：
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
-%dst = pto.trowprod %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-```
-
-### PTO 汇编形式
-
-```text
-%dst = trowprod %src : !pto.tile<...> -> !pto.tile<...>
-# AS Level 2 (DPS)
-pto.trowprod ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
-```
+- 指令集总览：[行归约](./tile/ops/reduce-and-expand/trowprod_zh.md)

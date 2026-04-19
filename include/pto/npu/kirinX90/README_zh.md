@@ -1,13 +1,28 @@
 # include/pto/npu/kirinX90/
 
-KirinX90 系列 PTO 指令实现头文件。
+Kirin X90 系列 PTO 指令实现头文件。
 
-## 概览
+Kirin X90 是昇腾面向消费端场景的 SoC 变体，与 Kirin 9030 共用测试用例。
 
-- 按指令（或指令族）组织实现，例如：`TAdd.hpp`、`TMatmul.hpp`、`TLoad.hpp`、`TStore.hpp`
-- 包含 KirinX90 专用的算子模式与工具（如适用）
+## 主要文件
+
+```
+include/pto/npu/kirinX90/
+├── TAdd.hpp
+├── TSub.hpp
+├── TMul.hpp
+├── TDiv.hpp
+├── TMatmul.hpp
+├── TLoad.hpp
+├── TStore.hpp
+├── TAssign.hpp
+├── TSync.hpp
+└── ...                  # 其他指令实现
+```
 
 ## 相关内容
 
-- ISA 语义与示例：`docs/isa/`
-- KirinX90 NPU ST 测试：`tests/npu/Kirin9030/src/st/`，与Kirin9030共用测试用例。
+| 文档 | 内容 |
+|------|------|
+| [docs/isa/](../../docs/isa/) | ISA 语义与示例 |
+| [include/pto/npu/](../README_zh.md) | NPU 实现总入口 |

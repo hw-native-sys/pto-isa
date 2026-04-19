@@ -185,3 +185,6 @@ pto.tstore ins(%src : !pto.tile_buf<...>) outs(%mem : !pto.partition_tensor_view
 - Instruction set overview: [Memory And Data Movement](../../memory-and-data-movement.md)
 - Previous op in instruction set: [pto.tprefetch](./tprefetch.md)
 - Next op in instruction set: [pto.tstore_fp](./tstore-fp.md)
+- Complementary operation: [pto.tload](./tload.md)
+- Vector store counterpart: [pto.vsts](../../../vector/ops/vector-load-store/vsts.md)
+- Instruction set: [Tile Instructions](../../README.md)

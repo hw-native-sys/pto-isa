@@ -1,39 +1,34 @@
-﻿# TROWMAX
+﻿# pto.trowmax
 
-## 指令示意图
+`pto.trowmax` 属于[归约与扩展](./tile/reduce-and-expand_zh.md)指令集。
 
-![TROWMAX tile operation](../figures/isa/TROWMAX.svg)
-
-## 简介
+## 概述
 
 通过取列间最大值来归约每一行。
 
-## 数学语义
+## 机制
 
 设 `R = src.GetValidRow()`，`C = src.GetValidCol()`。对 `0 <= i < R`：
 
 $$ \mathrm{dst}_{i,0} = \max_{0 \le j < C} \mathrm{src}_{i,j} $$
 
-## 汇编语法
+迭代域由 `src` 的 valid region 决定。C++ 内建接口需要显式传入 `tmp` 操作数。若 `src.GetValidRow() == 0` 或 `src.GetValidCol() == 0`，实现会直接返回。
 
-PTO-AS 形式：参见 [PTO-AS 规范](../assembly/PTO-AS_zh.md)。
+## 语法
 
-同步形式：
+### PTO-AS
 
-```text
-%dst = trowmax %src : !pto.tile<...> -> !pto.tile<...>
-```
-降低时可能引入内部临时 Tile；C++ 内建接口需要显式传入 `tmp` 操作数。
+参见 [PTO-AS 规范](../assembly/PTO-AS_zh.md)。
 
 ### AS Level 1（SSA）
 
-```text
+```mlir
 %dst = pto.trowmax %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
 ### AS Level 2（DPS）
 
-```text
+```mlir
 pto.trowmax ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
@@ -46,36 +41,48 @@ template <typename TileDataOut, typename TileDataIn, typename TileDataTmp, typen
 PTO_INST RecordEvent TROWMAX(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp, WaitEvents &... events);
 ```
 
-## 约束
+## 输入
 
-### 通用约束或检查
+| 操作数 | 角色 | 说明 |
+| --- | --- | --- |
+| `%src` | 源 tile | 输入 tile |
+| `%dst` | 目标 tile | 接收按行取最大值结果 |
+| `%tmp` | 临时 tile | 用于分阶段归约的中间存储 |
+| `WaitEvents...` | 可选同步 | 发射前需要等待的事件 |
+
+## 预期输出
+
+| 结果 | 类型 | 说明 |
+| --- | --- | --- |
+| `%dst` | `!pto.tile<R, 1>` | 每行的最大元素值 |
+
+## 副作用
+
+除产生目标 tile 外，没有额外架构副作用。
+
+## 约束
 
 - `dst` 和 `src` 必须均为 `TileType::Vec`。
 - `src` 必须使用标准 ND 布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
-- `dst` 必须使用以下两种非分形布局之一：
-    - ND 布局（`BLayout::RowMajor`、`SLayout::NoneBox`），或
-    - 列数严格为 1 的 DN 布局（`BLayout::ColMajor`、`SLayout::NoneBox`、`Cols == 1`）。
+- `dst` 必须使用以下两种非分形布局之一：ND 布局（`BLayout::RowMajor`、`SLayout::NoneBox`），或列数严格为 1 的 DN 布局（`BLayout::ColMajor`、`SLayout::NoneBox`、`Cols == 1`）。
 - `dst` 和 `src` 的元素类型必须一致。
-- 运行时有效区域检查：
-    - `src.GetValidRow() != 0`
-    - `src.GetValidCol() != 0`
-    - `src.GetValidRow() == dst.GetValidRow()`
-- 内建接口签名要求显式传入 `tmp` 操作数。
+- 运行时有效区域检查：`src.GetValidRow() != 0`、`src.GetValidCol() != 0`、`src.GetValidRow() == dst.GetValidRow()`。
 
-### A2A3 实现检查
+## 异常与非法情形
 
-- 支持的元素类型：`half`、`float`、`int32_t`、`int16_t`。
-- 实现同时接受 ND 输出和 `Cols == 1` 的 DN 输出。
-- 运行时检查遵循共享的行归约检查路径：
-    - `src.GetValidRow() != 0`
-    - `src.GetValidCol() != 0`
-    - `src.GetValidRow() == dst.GetValidRow()`
-- 当前实现路径会将 `tmp` 传入后端调用，但本文档不额外补充 checked implementation 未显式约束的 `tmp` shape/layout 要求。
+- 非法操作数组合、不支持的数据类型、不合法布局或不支持的 target-profile 模式，会被 verifier 或后端实现拒绝。
 
+## Target-Profile 限制
+
+| 特性 | CPU Simulator | A2/A3 | A5 |
+| --- | :---: | :---: | :---: |
+| `float` | Simulated | Supported | — |
+| `half` | Simulated | Supported | — |
+| `int16_t` / `int32_t` | — | Supported | — |
 
 ## 示例
 
-### 自动（Auto）
+### C++ 自动模式
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -93,7 +100,7 @@ void example_auto() {
 }
 ```
 
-### 手动（Manual）
+### C++ 手动模式
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -114,29 +121,23 @@ void example_manual() {
 }
 ```
 
-## 汇编示例（ASM）
-
-### 自动模式
+### PTO-AS
 
 ```text
-# 自动模式：由编译器/运行时负责资源放置与调度。
+# 自动模式
 %dst = pto.trowmax %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-```
 
-### 手动模式
-
-```text
-# 手动模式：先显式绑定资源，再发射指令。
-# 可选（当该指令包含 tile 操作数时）：
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
+# 手动模式
+pto.tassign %arg0, @tile(0x1000)
+pto.tassign %arg1, @tile(0x2000)
 %dst = pto.trowmax %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-```
 
-### PTO 汇编形式
-
-```text
+# PTO 汇编形式
 %dst = trowmax %src : !pto.tile<...> -> !pto.tile<...>
 # AS Level 2 (DPS)
 pto.trowmax ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
+
+## 相关页面
+
+- 指令集总览：[归约与扩展](./tile/reduce-and-expand_zh.md)

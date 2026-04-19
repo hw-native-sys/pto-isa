@@ -1,53 +1,54 @@
 # Vector ISA Reference
 
-The `pto.v*` vector micro-instruction set of PTO ISA is organized by instruction set, with standalone per-op pages under `vector/ops/`.
+`pto.v*` is the PTO ISA vector micro-instruction set. It directly exposes the vector pipeline, vector registers, predicates, and vector-visible UB movement.
 
-## Instruction Sets
+## Organization
 
-| Instruction Set | Description | Operations |
-|--------|-------------|------------|
-| [Vector Load Store](./vector-load-store.md) | UB↔vector register transfer, gather/scatter | ~25 |
-| [Predicate and Materialization](./predicate-and-materialization.md) | Vector broadcast and duplication | 2 |
-| [Unary Vector Instructions](./unary-vector-ops.md) | Single-input elementwise operations | 12 |
-| [Binary Vector Instructions](./binary-vector-ops.md) | Two-input elementwise operations | 14 |
-| [Vector-Scalar Instructions](./vec-scalar-ops.md) | Vector combined with scalar operand | 14 |
-| [Conversion Ops](./conversion-ops.md) | Type conversion between numeric types | 3 |
-| [Reduction Instructions](./reduction-ops.md) | Cross-lane reductions | 6 |
-| [Compare and Select](./compare-select.md) | Comparison and conditional selection | 5 |
-| [Data Rearrangement](./data-rearrangement.md) | Lane permutation and packing | 10 |
-| [SFU and DSA Instructions](./sfu-and-dsa-ops.md) | Special function units and DSA instructions | 11 |
+The vector reference is organized by instruction family, with individual per-op pages under `vector/ops/`.
+
+## Instruction Families
+
+| Family | Description | Operations |
+|--------|-------------|-----------|
+| [Vector Load Store](./vector-load-store.md) | GM↔UB and UB↔vreg data movement | `vlds`, `vldas`, `vldus`, `vldx2`, `vsld`, `vsldb`, `vgather2`, `vgatherb`, `vgather2_bc`, `vsts`, `vstx2`, `vsst`, `vsstb`, `vscatter`, `vsta`, `vstas`, `vstar`, `vstu`, `vstus`, `vstur` |
+| [Predicate and Materialization](./predicate-and-materialization.md) | Predicate broadcast and duplication | `vbr`, `vdup` |
+| [Unary Vector Ops](./unary-vector-ops.md) | Single-operand vector operations | `vabs`, `vneg`, `vexp`, `vln`, `vsqrt`, `vrsqrt`, `vrec`, `vrelu`, `vnot`, `vbcnt`, `vcls`, `vmov` |
+| [Binary Vector Ops](./binary-vector-ops.md) | Two-operand vector operations | `vadd`, `vsub`, `vmul`, `vdiv`, `vmax`, `vmin`, `vand`, `vor`, `vxor`, `vshl`, `vshr`, `vaddc`, `vsubc` |
+| [Vector-Scalar Ops](./vec-scalar-ops.md) | Vector combined with scalar operand | `vadds`, `vsubs`, `vmuls`, `vmaxs`, `vmins`, `vands`, `vors`, `vxors`, `vshls`, `vshrs`, `vlrelu`, `vaddcs`, `vsubcs` |
+| [Conversion Ops](./conversion-ops.md) | Type conversion | `vci`, `vcvt`, `vtrc` |
+| [Reduction Ops](./reduction-ops.md) | Cross-lane reduction | `vcadd`, `vcmax`, `vcmin`, `vcgadd`, `vcgmax`, `vcgmin`, `vcpadd` |
+| [Compare and Select](./compare-select.md) | Predicate generation and conditional selection | `vcmp`, `vcmps`, `vsel`, `vselr`, `vselrv2` |
+| [Data Rearrangement](./data-rearrangement.md) | Lane permutation and packing | `vintlv`, `vdintlv`, `vslide`, `vshift`, `vsqz`, `vusqz`, `vperm`, `vpack`, `vsunpack`, `vzunpack`, `vintlvv2`, `vdintlvv2` |
+| [SFU and DSA](./sfu-and-dsa-ops.md) | Special function units and DSA operations | `vprelu`, `vexpdiff`, `vaddrelu`, `vsubrelu`, `vaxpy`, `vaddreluconv`, `vmulconv`, `vmull`, `vmula`, `vtranspose`, `vsort32`, `vbitsort`, `vmrgsort` |
+
+## Common Constraints
+
+- Vector width is determined by element type.
+- Predicate width must match vector width.
+- Alignment, distribution, and advanced forms depend on the target profile.
+- There is no tile-level valid-region semantics at the vector layer.
 
 ## Quick Reference
 
 ### Common Vector Types
 
-| Type | Description |
-|------|-------------|
-| `!pto.vreg<NxT>` | Vector register with N lanes of type T |
-| `!pto.mask` | Predicate mask (width matches vector length) |
-| `!pto.scalar<T>` | Scalar register |
+| Type | Width/Element | Total Elements/vreg |
+|------|---------------|-------------------|
+| f32 / i32 | 8 | 64 |
+| f16 / bf16 / i16 | 16 | 128 |
+| i8 / si8 / ui8 | 32 | 256 |
 
-### Vector Lengths
+### Mask Types
 
-Vector length `N` is a power of 2. Common values depend on the target profile.
-
-## Navigation
-
-The left sidebar provides standalone per-op pages for all vector instructions. Use the instruction set overviews above to understand shared constraints and mechanisms before reading individual opcode pages.
-
-## Source And Timing Provenance
-
-This vector reference treats the current public VPTO semantic and timing material as the input for all per-op timing disclosures.
-
-Timing disclosure policy for the per-op pages is intentionally strict:
-
-- If the public sources publish a numeric latency or throughput, the page states that number.
-- If the public sources only publish a stream-level statement, such as the one-CPI note on unaligned-load priming, the page states exactly that narrower contract.
-- If the public sources do not publish a numeric timing value, the page now says so explicitly instead of guessing.
-
+| Mask Type | Bytes/Element Slot | Total Lanes |
+|-----------|-------------------|-------------|
+| `mask<b32>` | 4 | 64 |
+| `mask<b16>` | 2 | 128 |
+| `mask<b8>` | 1 | 256 |
 
 ## See Also
 
-- [Vector instructions](../instruction-surfaces/vector-instructions.md)
-- [Vector Instruction Set](../instruction-families/vector-families.md)
-- [Format of instruction descriptions](../reference/format-of-instruction-descriptions.md)
+- [Vector instruction surface](../instruction-surfaces/vector-instructions.md) — High-level description
+- [Vector instruction families](../instruction-families/vector-families.md) — Normative contracts
+- [Format of instruction descriptions](../reference/format-of-instruction-descriptions.md) — Per-op page format standard
+- [Micro-instruction summary](./micro-instruction-summary.md) — Scalar micro-instructions for vector scope

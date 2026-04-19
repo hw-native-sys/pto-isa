@@ -1,6 +1,6 @@
 # pto.tget / TGET
 
-## 简介
+## 概述
 
 `TGET` 是远程读原语：把远端 NPU 上的 GM 数据读到当前 NPU 的本地 GM。`pto.tget` 是 IR 形式，`TGET` 是 C++ intrinsic 形式，两者描述的是同一条通信指令。
 
@@ -12,13 +12,9 @@
 
 当 `GlobalTensor` 的行或列超出单个 UB Tile 的容量时，`TGET` 会自动沿 `DIM_3` 和 `DIM_4` 做二维滑动分块，不需要手工把传输拆成小块。
 
-## 数学语义
+只有本地 NPU 执行 TGET；远端 NPU 是被动的。
 
-对有效区域中的每个元素 `(i, j)`：
-
-$$ \mathrm{dst}^{\mathrm{local}}_{i,j} = \mathrm{src}^{\mathrm{remote}}_{i,j} $$
-
-## 汇编语法
+## 语法
 
 PTO-AS 形式：
 
@@ -53,6 +49,26 @@ PTO_INST RecordEvent TGET(GlobalDstData &dstGlobalData,
                           WaitEvents&... events);
 ```
 
+## 输入
+
+| 操作数 | 类型 | 描述 |
+|--------|------|------|
+| `dstGlobalData` | `GlobalTensor` | 本地目标，必须指向本地 GM |
+| `srcGlobalData` | `GlobalTensor` | 远端源，必须指向远端 NPU 的 GM |
+| `stagingTileData` | `Tile` | UB 暂存 Tile，用于 GM→UB→GM 传输路径 |
+| `pingTile` / `pongTile` | `Tile` | 用于乒乓双缓冲的两个 UB 暂存 Tile |
+| `WaitEvents...` | `RecordEvent...` | 在发起 GET 前需要等待的事件 |
+
+## 预期输出
+
+| 结果 | 类型 | 描述 |
+|------|------|------|
+| `RecordEvent` | event | 标记远程读取完成的事件令牌 |
+
+## 副作用
+
+此操作从远端 GM 读取数据并写入本地 GM。它通过返回的事件令牌建立同步边界。
+
 ## 约束
 
 ### 类型约束
@@ -67,10 +83,21 @@ PTO_INST RecordEvent TGET(GlobalDstData &dstGlobalData,
 - `dstGlobalData` 必须指向本地地址（当前 NPU）
 - `stagingTileData`、`pingTile`、`pongTile` 必须预先在 UB 中分配
 
+### 传输约束
+
+- 传输大小由 `GlobalTensor` 的 shape 决定；自动分块以适配 UB 暂存缓冲区
+- 自动分块时，行（`DIM_3`）和列（`DIM_4`）会根据需要细分
+
 ### 乒乓约束
 
 - `pingTile` 与 `pongTile` 的类型和维度必须一致
 - 两者必须位于不重叠的 UB 偏移
+
+## 目标Profile限制
+
+- 点对点通信仅在 A2/A3 和 A5 Profile 上支持。CPU 模拟不支持远程内存访问。
+- 传输大张量时请使用乒乓双缓冲，以重叠连续传输，提高流水线利用率。
+- `TGET` 需要有效的远端 GM 地址；远端 NPU 必须已分配对应的内存区域。
 
 ## 示例
 
@@ -128,6 +155,6 @@ comm::TGET(dstG, srcG, pingTile, pongTile);
 ## 相关页面
 
 - [通信与运行时](../other/communication-and-runtime_zh.md)
-- [TPUT](./TPUT_zh.md)
-- [TBROADCAST](./TBROADCAST_zh.md)
-- [TGATHER](./TGATHER_zh.md)
+- 逆操作：[TPUT](./TPUT_zh.md)
+- 集合通信：[TBROADCAST](./TBROADCAST_zh.md)、[TGATHER](./TGATHER_zh.md)、[TSCATTLER](./TSCATTER_zh.md)、[TREDUCE](./TREDUCE_zh.md)
+- 指令集：[其他与通信](../other/README_zh.md)

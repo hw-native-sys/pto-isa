@@ -1,30 +1,27 @@
-﻿# TMATMUL_MX
+﻿# pto.tmatmul.mx
 
-## 指令示意图
+`pto.tmatmul.mx` 属于[矩阵与矩阵-向量运算](./tile/ops/matrix-and-matrix-vector/tmatmul-mx_zh.md)指令集。
 
-![TMATMUL_MX tile operation](../figures/isa/TMATMUL_MX.svg)
+## 概述
 
-## 简介
+带额外缩放 Tile 的矩阵乘法 (GEMM)，用于支持目标上的混合精度/量化矩阵乘法。`aScaleMatrix` / `bScaleMatrix` 配置实现定义的混合精度行为，缩放 tile 的确切作用以及任何反量化/量化语义由目标定义。
 
-带额外缩放 Tile 的矩阵乘法 (GEMM)，用于支持目标上的混合精度/量化矩阵乘法。
-
-## 数学语义
+## 机制
 
 设：
-
 - `M = aMatrix.GetValidRow()`
 - `K = aMatrix.GetValidCol()`
 - `N = bMatrix.GetValidCol()`
 
-概念上，结果对应于有效矩阵乘法域（`0 <= i < M`，`0 <= j < N`）上的矩阵乘法，缩放 tile `aScaleMatrix` / `bScaleMatrix` 配置实现定义的混合精度行为：
+概念上，结果对应于有效矩阵乘法域（`0 <= i < M`，`0 <= j < N`）上的矩阵乘法：
 
 $$ \mathrm{C}_{i,j} = \sum_{k=0}^{K-1} \mathrm{A}_{i,k} \cdot \mathrm{B}_{k,j} $$
 
 `aScaleMatrix` / `bScaleMatrix` 的确切作用（以及任何反量化/量化语义）由目标定义。
 
-## 汇编语法
+## 语法
 
-PTO-AS 形式：参见 [PTO-AS 规范](../assembly/PTO-AS_zh.md)。
+### PTO-AS
 
 同步形式（概念性）：
 
@@ -36,24 +33,18 @@ PTO-AS 形式：参见 [PTO-AS 规范](../assembly/PTO-AS_zh.md)。
 
 ### AS Level 1（SSA）
 
-```text
-%c = pto.tmatmul.mx %a, %a_scale, %b, %b_scale : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>)
--> !pto.tile<...>
-%c_out = pto.tmatmul.mx.acc %c_in, %a, %a_scale, %b, %b_scale : (!pto.tile<...>, !pto.tile<...>,
-!pto.tile<...>, !pto.tile<...>, !pto.tile<...>)  -> !pto.tile<...>
-%c = pto.tmatmul.mx.bias %a, %a_scale, %b, %b_scale, %bias : (!pto.tile<...>, !pto.tile<...>,
-!pto.tile<...>, !pto.tile<...>, !pto.tile<...>)  -> !pto.tile<...>
+```mlir
+%c = pto.tmatmul.mx %a, %a_scale, %b, %b_scale : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+%c_out = pto.tmatmul.mx.acc %c_in, %a, %a_scale, %b, %b_scale : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+%c = pto.tmatmul.mx.bias %a, %a_scale, %b, %b_scale, %bias : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
 ### AS Level 2（DPS）
 
-```text
-pto.tmatmul.mx ins(%a, %a_scale, %b, %b_scale : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>)
-outs(%c :  !pto.tile_buf<...>)
-pto.tmatmul.mx.acc ins(%c_in, %a, %a_scale, %b, %b_scale : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>,
-!pto.tile_buf<...>, !pto.tile_buf<...>) outs(%c_out : !pto.tile_buf<...>)
-pto.tmatmul.mx.bias ins(%a, %a_scale, %b, %b_scale, %bias : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>,
-!pto.tile_buf<...>, !pto.tile_buf<...>) outs(%c : !pto.tile_buf<...>)
+```mlir
+pto.tmatmul.mx ins(%a, %a_scale, %b, %b_scale : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%c : !pto.tile_buf<...>)
+pto.tmatmul.mx.acc ins(%c_in, %a, %a_scale, %b, %b_scale : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%c_out : !pto.tile_buf<...>)
+pto.tmatmul.mx.bias ins(%a, %a_scale, %b, %b_scale, %bias : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%c : !pto.tile_buf<...>)
 ```
 
 ## C++ 内建接口
@@ -86,17 +77,50 @@ template <AccPhase Phase, typename TileRes, typename TileLeft, typename TileLeft
 PTO_INST RecordEvent TMATMUL_MX(TileRes &cMatrix, TileLeft &aMatrix, TileLeftScale &aScaleMatrix, TileRight &bMatrix, TileRightScale &bScaleMatrix, TileBias &biasData, WaitEvents &... events);
 ```
 
+## 输入
+
+| 操作数 | 角色 | 说明 |
+| --- | --- | --- |
+| `aMatrix` | Left | 左操作数矩阵 Tile |
+| `aScaleMatrix` | LeftScale | 左操作数缩放 Tile |
+| `bMatrix` | Right | 右操作数矩阵 Tile |
+| `bScaleMatrix` | RightScale | 右操作数缩放 Tile |
+| `biasData` | Bias | 偏置 Tile（偏置形式可选） |
+
+## 预期输出
+
+| 结果 | 类型 | 说明 |
+| --- | --- | --- |
+| `cMatrix` / `cOutMatrix` | Acc | MX GEMM 结果 Tile |
+
+## 副作用
+
+MX 混合精度操作可能触发目标特定的缩放、反量化或溢出处理行为。
+
 ## 约束
 
-- **实现检查 (A5)**:
+- 实现检查 (A5):
     - `m/k/n` 取自 `aMatrix.GetValidRow()`、`aMatrix.GetValidCol()`、`bMatrix.GetValidCol()`。
     - 静态合法性检查通过 `CheckMadMxValid<...>()`（类型、形状、分形和缩放 tile 合法性）。
-- **偏置形式**:
+- 偏置形式:
     - `TileBias::DType` 必须是 `float` 且 `TileBias::Loc == TileType::Bias`，`TileBias::Rows == 1`（A5 通过 `static_assert` 检查）。
+
+## 异常与非法情形
+
+- 当缩放 tile 类型或布局不符合目标要求时行为未定义。
+- 当 `m/k/n` 超出目标允许范围时行为未定义。
+
+## Target-Profile 限制
+
+| 特性 | CPU Simulator | A2/A3 | A5 |
+| --- | :---: | :---: | :---: |
+| MX 基本形式 | ✓ | ✗ | ✓ |
+| MX 累加形式 | ✓ | ✗ | ✓ |
+| MX 偏置形式 | ✓ | ✗ | ✓ |
 
 ## 示例
 
-### 自动（Auto）
+### C++ 自动模式
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -120,7 +144,7 @@ void example_auto() {
 }
 ```
 
-### 手动（Manual）
+### C++ 手动模式
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -150,29 +174,20 @@ void example_manual() {
 }
 ```
 
-## 汇编示例（ASM）
-
-### 自动模式
-
-```text
-# 自动模式：由编译器/运行时负责资源放置与调度。
-%c = pto.tmatmul.mx %a, %a_scale, %b, %b_scale : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>)
-```
-
-### 手动模式
-
-```text
-# 手动模式：先显式绑定资源，再发射指令。
-# 可选（当该指令包含 tile 操作数时）：
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
-%c = pto.tmatmul.mx %a, %a_scale, %b, %b_scale : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>)
-```
-
-### PTO 汇编形式
+### PTO-AS
 
 ```text
 %c = pto.tmatmul.mx %a, %a_scale, %b, %b_scale : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>)
-# AS Level 2 (DPS)
-pto.tmatmul.mx ins(%a, %a_scale, %b, %b_scale : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>)
 ```
+
+AS Level 2 (DPS)：
+
+```mlir
+pto.tmatmul.mx ins(%a, %a_scale, %b, %b_scale : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%c : !pto.tile_buf<...>)
+```
+
+![TMATMUL_MX tile operation](../figures/isa/TMATMUL_MX.svg)
+
+## 相关页面
+
+- 指令集总览：[矩阵与矩阵-向量运算](./tile/ops/matrix-and-matrix-vector/tmatmul-mx_zh.md)

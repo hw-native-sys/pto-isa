@@ -61,8 +61,11 @@ PTO_INST RecordEvent TLOAD(TileData &dst, GlobalData &src, WaitEvents &... event
 
 ## Inputs
 
-- `src` is the source GlobalTensor to load from.
-- `dst` names the destination tile. The operation uses dst's valid region for the transfer shape.
+|| Operand | Role | Description |
+||---------|------|-------------|
+|| `src` | Source | GlobalTensor to load data from |
+|| `dst` | Destination | Tile that receives the loaded data; transfer size is determined by `dst`'s valid region |
+|| `WaitEvents...` | Optional synchronization | `RecordEvent` tokens to wait on before issuing the load |
 
 ## Expected Outputs
 
@@ -180,4 +183,8 @@ pto.tload ins(%mem : !pto.partition_tensor_view<MxNxdtype>) outs(%dst : !pto.til
 ## Related Ops / Instruction Set Links
 
 - Instruction set overview: [Memory And Data Movement](../../memory-and-data-movement.md)
+- Previous op in instruction set: (none — first in set)
 - Next op in instruction set: [pto.tprefetch](./tprefetch.md)
+- Complementary operation: [pto.tstore](./tstore.md)
+- Vector load counterpart: [pto.vlds](../../../vector/ops/vector-load-store/vlds.md)
+- Instruction set: [Tile Instructions](../../README.md)

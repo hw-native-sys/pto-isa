@@ -1,30 +1,30 @@
-# TIMG2COL
+# pto.timg2col
 
-## 指令示意图
+`pto.timg2col` 属于[布局与重排](./tile/ops/layout-and-rearrangement/timg2col_zh.md)指令集。
 
-![TIMG2COL tile operation](../figures/isa/TIMG2COL.svg)
+## 概述
 
-## 简介
+用于类卷积工作负载的图像到列变换，将图像 tile 重新排列为适合 GEMM 操作的列格式，语义在有效区域上定义，目标相关的行为标记为实现定义。
 
-用于类卷积工作负载的图像到列变换。
+## 机制
 
-## 数学语义
+除非另有说明，语义在有效区域上定义，目标相关的行为标记为实现定义。
 
-除非另有说明, semantics are defined over the valid region and target-dependent behavior is marked as implementation-defined.
+## 语法
 
-## 汇编语法
+### PTO-AS
 
-PTO-AS 形式：参见 [PTO-AS Specification](../assembly/PTO-AS_zh.md).
+参见 [PTO-AS 规范](../assembly/PTO-AS_zh.md)。
 
 ### AS Level 1（SSA）
 
-```text
+```mlir
 %dst = pto.timg2col %src : !pto.tile<...> -> !pto.tile<...>
 ```
 
 ### AS Level 2（DPS）
 
-```text
+```mlir
 pto.timg2col ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
@@ -37,10 +37,80 @@ PTO_INST RecordEvent TIMG2COL(TileData &dst, ConvTileData &src, uint16_t posM = 
                               WaitEvents&... events);
 ```
 
+## 输入
+
+| 操作数 | 角色 | 说明 |
+| --- | --- | --- |
+| `src` | Conv | 输入卷积图像 Tile |
+| `posM` | - | M 维度偏移量 |
+| `posK` | - | K 维度偏移量 |
+
+## 预期输出
+
+| 结果 | 类型 | 说明 |
+| --- | --- | --- |
+| `dst` | - | img2col 变换后的 Tile |
+
+## 副作用
+
+img2col 变换可能产生填充值或目标特定的填充模式。
+
 ## 约束
 
-- This instruction is target/implementation-specific. See `include/pto/npu/*/TImg2col.hpp` for the supported tile types/layouts and config fields.
+- 此指令是目标/实现特定的。
+- 参见 `include/pto/npu/*/TImg2col.hpp` 了解支持的 tile 类型/布局和配置字段。
+
+## 异常与非法情形
+
+- 当输入 tile 类型或布局不被目标支持时行为未定义。
+- 当偏移量超出有效范围时行为未定义。
+
+## Target-Profile 限制
+
+| 特性 | CPU Simulator | A2/A3 | A5 |
+| --- | :---: | :---: | :---: |
+| img2col 变换 | ✓ | ✓ | ✓ |
 
 ## 示例
 
-See related examples in `docs/isa/` and `docs/coding/tutorials/`.
+### C++ 自动模式
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_auto() {
+  ConvTileData src;
+  TileData dst;
+  TIMG2COL(dst, src);
+}
+```
+
+### C++ 手动模式
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_manual() {
+  ConvTileData src;
+  TileData dst;
+  TASSIGN(src, 0x1000);
+  TASSIGN(dst, 0x2000);
+  TIMG2COL(dst, src);
+}
+```
+
+### PTO-AS
+
+```mlir
+%dst = pto.timg2col %src : !pto.tile<...> -> !pto.tile<...>
+```
+
+![TIMG2COL tile operation](../figures/isa/TIMG2COL.svg)
+
+## 相关页面
+
+- 指令集总览：[布局与重排](./tile/ops/layout-and-rearrangement/timg2col_zh.md)

@@ -7,7 +7,7 @@ theme:
   name: readthedocs
   language: en
 
-docs_dir: src
+docs_dir: ../
 site_dir: ../../site
 exclude_docs: |
   /README.md
@@ -79,403 +79,404 @@ extra_css:
 
 nav:
   - 1. Introduction:
-      - Introduction: docs/isa/introduction/what-is-pto-visa.md
-      - Document Structure: docs/isa/introduction/document-structure.md
-      - Goals Of PTO: docs/isa/introduction/goals-of-pto.md
-      - PTO ISA Version 1.0: docs/isa/introduction/pto-isa-version-1-0.md
-      - Scope And Boundaries: docs/isa/introduction/design-goals-and-boundaries.md
+      - Introduction: isa/introduction/what-is-pto-visa.md
+      - Document Structure: isa/introduction/document-structure.md
+      - Goals Of PTO: isa/introduction/goals-of-pto.md
+      - PTO ISA Version 1.0: isa/introduction/pto-isa-version-1-0.md
+      - Scope And Boundaries: isa/introduction/design-goals-and-boundaries.md
   - 2. Programming Model:
-      - Tiles And Valid Regions: docs/isa/programming-model/tiles-and-valid-regions.md
-      - GlobalTensor And Data Movement: docs/isa/programming-model/globaltensor-and-data-movement.md
-      - Auto Vs Manual: docs/isa/programming-model/auto-vs-manual.md
+      - Tiles And Valid Regions: isa/programming-model/tiles-and-valid-regions.md
+      - GlobalTensor And Data Movement: isa/programming-model/globaltensor-and-data-movement.md
+      - Auto Vs Manual: isa/programming-model/auto-vs-manual.md
   - 3. Machine Model:
-      - Execution Agents And Target Profiles: docs/isa/machine-model/execution-agents.md
-      - Ordering And Synchronization: docs/isa/machine-model/ordering-and-synchronization.md
+      - Execution Agents And Target Profiles: isa/machine-model/execution-agents.md
+      - Ordering And Synchronization: isa/machine-model/ordering-and-synchronization.md
   - 4. Syntax And Operands:
-      - Assembly Spelling And Operands: docs/isa/syntax-and-operands/assembly-model.md
-      - Operands And Attributes: docs/isa/syntax-and-operands/operands-and-attributes.md
-      - Common Conventions: docs/isa/conventions.md
+      - Assembly Spelling And Operands: isa/syntax-and-operands/assembly-model.md
+      - Operands And Attributes: isa/syntax-and-operands/operands-and-attributes.md
+      - Common Conventions: isa/conventions.md
   - 5. State And Types:
-      - Type System: docs/isa/state-and-types/type-system.md
-      - Layout Reference: docs/isa/state-and-types/layout.md
-      - Data Format Reference: docs/isa/state-and-types/data-format.md
-      - Location Intent And Legality: docs/isa/state-and-types/location-intent-and-legality.md
+      - Type System: isa/state-and-types/type-system.md
+      - Layout Reference: isa/state-and-types/layout.md
+      - Data Format Reference: isa/state-and-types/data-format.md
+      - Location Intent And Legality: isa/state-and-types/location-intent-and-legality.md
   - 6. Memory Model:
-      - Consistency Baseline: docs/isa/memory-model/consistency-baseline.md
-      - Producer Consumer Ordering: docs/isa/memory-model/producer-consumer-ordering.md
+      - Consistency Baseline: isa/memory-model/consistency-baseline.md
+      - Producer Consumer Ordering: isa/memory-model/producer-consumer-ordering.md
   - 7. Instruction Set Overview:
-      - Overview: docs/isa/instruction-surfaces/README.md
-      - Tile Instructions: docs/isa/instruction-surfaces/tile-instructions.md
-      - Vector Instructions: docs/isa/instruction-surfaces/vector-instructions.md
-      - Scalar And Control Instructions: docs/isa/instruction-surfaces/scalar-and-control-instructions.md
-      - Other Instructions: docs/isa/instruction-surfaces/other-instructions.md
+      - Overview: isa/instruction-surfaces/README.md
+      - Tile Instructions: isa/instruction-surfaces/tile-instructions.md
+      - Vector Instructions: isa/instruction-surfaces/vector-instructions.md
+      - Scalar And Control Instructions: isa/instruction-surfaces/scalar-and-control-instructions.md
+      - Other Instructions: isa/instruction-surfaces/other-instructions.md
   - 8. Instruction Set Contracts:
-      - Overview: docs/isa/instruction-families/README.md
-      - Tile Instruction Set: docs/isa/instruction-families/tile-families.md
-      - Vector Instruction Set: docs/isa/instruction-families/vector-families.md
-      - Scalar And Control Instruction Set: docs/isa/instruction-families/scalar-and-control-families.md
-      - Other Instruction Set: docs/isa/instruction-families/other-families.md
+      - Overview: isa/instruction-families/README.md
+      - Tile Instruction Set: isa/instruction-families/tile-families.md
+      - Vector Instruction Set: isa/instruction-families/vector-families.md
+      - Scalar And Control Instruction Set: isa/instruction-families/scalar-and-control-families.md
+      - Other Instruction Set: isa/instruction-families/other-families.md
   - 9. Tile Instruction Reference:
-          - Overview: docs/isa/tile/README.md
+          - Overview: isa/tile/README.md
           - Sync And Config:
-              - Instruction Set Contract: docs/isa/tile/sync-and-config.md
-              - pto.tsync: docs/isa/tile/ops/sync-and-config/tsync.md
-              - pto.tassign: docs/isa/tile/ops/sync-and-config/tassign.md
-              - pto.tsethf32mode: docs/isa/tile/ops/sync-and-config/tsethf32mode.md
-              - pto.tsettf32mode: docs/isa/tile/ops/sync-and-config/tsettf32mode.md
-              - pto.tsetfmatrix: docs/isa/tile/ops/sync-and-config/tsetfmatrix.md
-              - pto.tset_img2col_rpt: docs/isa/tile/ops/sync-and-config/tset-img2col-rpt.md
-              - pto.tset_img2col_padding: docs/isa/tile/ops/sync-and-config/tset-img2col-padding.md
-              - pto.tsubview: docs/isa/tile/ops/sync-and-config/tsubview.md
-              - pto.tget_scale_addr: docs/isa/tile/ops/sync-and-config/tget-scale-addr.md
+              - Instruction Set Contract: isa/tile/sync-and-config.md
+              - pto.tsync: isa/tile/ops/sync-and-config/tsync.md
+              - pto.tassign: isa/tile/ops/sync-and-config/tassign.md
+              - pto.tsethf32mode: isa/tile/ops/sync-and-config/tsethf32mode.md
+              - pto.tsettf32mode: isa/tile/ops/sync-and-config/tsettf32mode.md
+              - pto.tsetfmatrix: isa/tile/ops/sync-and-config/tsetfmatrix.md
+              - pto.tset_img2col_rpt: isa/tile/ops/sync-and-config/tset-img2col-rpt.md
+              - pto.tset_img2col_padding: isa/tile/ops/sync-and-config/tset-img2col-padding.md
+              - pto.tsubview: isa/tile/ops/sync-and-config/tsubview.md
+              - pto.tget_scale_addr: isa/tile/ops/sync-and-config/tget-scale-addr.md
           - Elementwise Tile Tile:
-              - Instruction Set Contract: docs/isa/tile/elementwise-tile-tile.md
-              - pto.tadd: docs/isa/tile/ops/elementwise-tile-tile/tadd.md
-              - pto.tabs: docs/isa/tile/ops/elementwise-tile-tile/tabs.md
-              - pto.tand: docs/isa/tile/ops/elementwise-tile-tile/tand.md
-              - pto.tor: docs/isa/tile/ops/elementwise-tile-tile/tor.md
-              - pto.tsub: docs/isa/tile/ops/elementwise-tile-tile/tsub.md
-              - pto.tmul: docs/isa/tile/ops/elementwise-tile-tile/tmul.md
-              - pto.tmin: docs/isa/tile/ops/elementwise-tile-tile/tmin.md
-              - pto.tmax: docs/isa/tile/ops/elementwise-tile-tile/tmax.md
-              - pto.tcmp: docs/isa/tile/ops/elementwise-tile-tile/tcmp.md
-              - pto.tdiv: docs/isa/tile/ops/elementwise-tile-tile/tdiv.md
-              - pto.tshl: docs/isa/tile/ops/elementwise-tile-tile/tshl.md
-              - pto.tshr: docs/isa/tile/ops/elementwise-tile-tile/tshr.md
-              - pto.txor: docs/isa/tile/ops/elementwise-tile-tile/txor.md
-              - pto.tlog: docs/isa/tile/ops/elementwise-tile-tile/tlog.md
-              - pto.trecip: docs/isa/tile/ops/elementwise-tile-tile/trecip.md
-              - pto.tprelu: docs/isa/tile/ops/elementwise-tile-tile/tprelu.md
-              - pto.taddc: docs/isa/tile/ops/elementwise-tile-tile/taddc.md
-              - pto.tsubc: docs/isa/tile/ops/elementwise-tile-tile/tsubc.md
-              - pto.tcvt: docs/isa/tile/ops/elementwise-tile-tile/tcvt.md
-              - pto.tsel: docs/isa/tile/ops/elementwise-tile-tile/tsel.md
-              - pto.trsqrt: docs/isa/tile/ops/elementwise-tile-tile/trsqrt.md
-              - pto.tsqrt: docs/isa/tile/ops/elementwise-tile-tile/tsqrt.md
-              - pto.texp: docs/isa/tile/ops/elementwise-tile-tile/texp.md
-              - pto.tnot: docs/isa/tile/ops/elementwise-tile-tile/tnot.md
-              - pto.trelu: docs/isa/tile/ops/elementwise-tile-tile/trelu.md
-              - pto.tneg: docs/isa/tile/ops/elementwise-tile-tile/tneg.md
-              - pto.trem: docs/isa/tile/ops/elementwise-tile-tile/trem.md
-              - pto.tfmod: docs/isa/tile/ops/elementwise-tile-tile/tfmod.md
+              - Instruction Set Contract: isa/tile/elementwise-tile-tile.md
+              - pto.tadd: isa/tile/ops/elementwise-tile-tile/tadd.md
+              - pto.tabs: isa/tile/ops/elementwise-tile-tile/tabs.md
+              - pto.tand: isa/tile/ops/elementwise-tile-tile/tand.md
+              - pto.tor: isa/tile/ops/elementwise-tile-tile/tor.md
+              - pto.tsub: isa/tile/ops/elementwise-tile-tile/tsub.md
+              - pto.tmul: isa/tile/ops/elementwise-tile-tile/tmul.md
+              - pto.tmin: isa/tile/ops/elementwise-tile-tile/tmin.md
+              - pto.tmax: isa/tile/ops/elementwise-tile-tile/tmax.md
+              - pto.tcmp: isa/tile/ops/elementwise-tile-tile/tcmp.md
+              - pto.tdiv: isa/tile/ops/elementwise-tile-tile/tdiv.md
+              - pto.tshl: isa/tile/ops/elementwise-tile-tile/tshl.md
+              - pto.tshr: isa/tile/ops/elementwise-tile-tile/tshr.md
+              - pto.txor: isa/tile/ops/elementwise-tile-tile/txor.md
+              - pto.tlog: isa/tile/ops/elementwise-tile-tile/tlog.md
+              - pto.trecip: isa/tile/ops/elementwise-tile-tile/trecip.md
+              - pto.tprelu: isa/tile/ops/elementwise-tile-tile/tprelu.md
+              - pto.taddc: isa/tile/ops/elementwise-tile-tile/taddc.md
+              - pto.tsubc: isa/tile/ops/elementwise-tile-tile/tsubc.md
+              - pto.tcvt: isa/tile/ops/elementwise-tile-tile/tcvt.md
+              - pto.tsel: isa/tile/ops/elementwise-tile-tile/tsel.md
+              - pto.trsqrt: isa/tile/ops/elementwise-tile-tile/trsqrt.md
+              - pto.tsqrt: isa/tile/ops/elementwise-tile-tile/tsqrt.md
+              - pto.texp: isa/tile/ops/elementwise-tile-tile/texp.md
+              - pto.tnot: isa/tile/ops/elementwise-tile-tile/tnot.md
+              - pto.trelu: isa/tile/ops/elementwise-tile-tile/trelu.md
+              - pto.tneg: isa/tile/ops/elementwise-tile-tile/tneg.md
+              - pto.trem: isa/tile/ops/elementwise-tile-tile/trem.md
+              - pto.tfmod: isa/tile/ops/elementwise-tile-tile/tfmod.md
           - Tile Scalar And Immediate:
-              - Instruction Set Contract: docs/isa/tile/tile-scalar-and-immediate.md
-              - pto.texpands: docs/isa/tile/ops/tile-scalar-and-immediate/texpands.md
-              - pto.tcmps: docs/isa/tile/ops/tile-scalar-and-immediate/tcmps.md
-              - pto.tsels: docs/isa/tile/ops/tile-scalar-and-immediate/tsels.md
-              - pto.tmins: docs/isa/tile/ops/tile-scalar-and-immediate/tmins.md
-              - pto.tadds: docs/isa/tile/ops/tile-scalar-and-immediate/tadds.md
-              - pto.tsubs: docs/isa/tile/ops/tile-scalar-and-immediate/tsubs.md
-              - pto.tdivs: docs/isa/tile/ops/tile-scalar-and-immediate/tdivs.md
-              - pto.tmuls: docs/isa/tile/ops/tile-scalar-and-immediate/tmuls.md
-              - pto.tfmods: docs/isa/tile/ops/tile-scalar-and-immediate/tfmods.md
-              - pto.trems: docs/isa/tile/ops/tile-scalar-and-immediate/trems.md
-              - pto.tmaxs: docs/isa/tile/ops/tile-scalar-and-immediate/tmaxs.md
-              - pto.tands: docs/isa/tile/ops/tile-scalar-and-immediate/tands.md
-              - pto.tors: docs/isa/tile/ops/tile-scalar-and-immediate/tors.md
-              - pto.tshls: docs/isa/tile/ops/tile-scalar-and-immediate/tshls.md
-              - pto.tshrs: docs/isa/tile/ops/tile-scalar-and-immediate/tshrs.md
-              - pto.txors: docs/isa/tile/ops/tile-scalar-and-immediate/txors.md
-              - pto.tlrelu: docs/isa/tile/ops/tile-scalar-and-immediate/tlrelu.md
-              - pto.taddsc: docs/isa/tile/ops/tile-scalar-and-immediate/taddsc.md
-              - pto.tsubsc: docs/isa/tile/ops/tile-scalar-and-immediate/tsubsc.md
+              - Instruction Set Contract: isa/tile/tile-scalar-and-immediate.md
+              - pto.texpands: isa/tile/ops/tile-scalar-and-immediate/texpands.md
+              - pto.tcmps: isa/tile/ops/tile-scalar-and-immediate/tcmps.md
+              - pto.tsels: isa/tile/ops/tile-scalar-and-immediate/tsels.md
+              - pto.tmins: isa/tile/ops/tile-scalar-and-immediate/tmins.md
+              - pto.tadds: isa/tile/ops/tile-scalar-and-immediate/tadds.md
+              - pto.tsubs: isa/tile/ops/tile-scalar-and-immediate/tsubs.md
+              - pto.tdivs: isa/tile/ops/tile-scalar-and-immediate/tdivs.md
+              - pto.tmuls: isa/tile/ops/tile-scalar-and-immediate/tmuls.md
+              - pto.tfmods: isa/tile/ops/tile-scalar-and-immediate/tfmods.md
+              - pto.trems: isa/tile/ops/tile-scalar-and-immediate/trems.md
+              - pto.tmaxs: isa/tile/ops/tile-scalar-and-immediate/tmaxs.md
+              - pto.tands: isa/tile/ops/tile-scalar-and-immediate/tands.md
+              - pto.tors: isa/tile/ops/tile-scalar-and-immediate/tors.md
+              - pto.tshls: isa/tile/ops/tile-scalar-and-immediate/tshls.md
+              - pto.tshrs: isa/tile/ops/tile-scalar-and-immediate/tshrs.md
+              - pto.txors: isa/tile/ops/tile-scalar-and-immediate/txors.md
+              - pto.tlrelu: isa/tile/ops/tile-scalar-and-immediate/tlrelu.md
+              - pto.taddsc: isa/tile/ops/tile-scalar-and-immediate/taddsc.md
+              - pto.tsubsc: isa/tile/ops/tile-scalar-and-immediate/tsubsc.md
           - Reduce And Expand:
-              - Instruction Set Contract: docs/isa/tile/reduce-and-expand.md
-              - pto.trowsum: docs/isa/tile/ops/reduce-and-expand/trowsum.md
-              - pto.tcolsum: docs/isa/tile/ops/reduce-and-expand/tcolsum.md
-              - pto.trowprod: docs/isa/tile/ops/reduce-and-expand/trowprod.md
-              - pto.tcolprod: docs/isa/tile/ops/reduce-and-expand/tcolprod.md
-              - pto.tcolmax: docs/isa/tile/ops/reduce-and-expand/tcolmax.md
-              - pto.tcolmin: docs/isa/tile/ops/reduce-and-expand/tcolmin.md
-              - pto.tcolargmax: docs/isa/tile/ops/reduce-and-expand/tcolargmax.md
-              - pto.tcolargmin: docs/isa/tile/ops/reduce-and-expand/tcolargmin.md
-              - pto.trowmax: docs/isa/tile/ops/reduce-and-expand/trowmax.md
-              - pto.trowmin: docs/isa/tile/ops/reduce-and-expand/trowmin.md
-              - pto.trowargmax: docs/isa/tile/ops/reduce-and-expand/trowargmax.md
-              - pto.trowargmin: docs/isa/tile/ops/reduce-and-expand/trowargmin.md
-              - pto.trowexpand: docs/isa/tile/ops/reduce-and-expand/trowexpand.md
-              - pto.trowexpanddiv: docs/isa/tile/ops/reduce-and-expand/trowexpanddiv.md
-              - pto.trowexpandmul: docs/isa/tile/ops/reduce-and-expand/trowexpandmul.md
-              - pto.trowexpandsub: docs/isa/tile/ops/reduce-and-expand/trowexpandsub.md
-              - pto.trowexpandadd: docs/isa/tile/ops/reduce-and-expand/trowexpandadd.md
-              - pto.trowexpandmax: docs/isa/tile/ops/reduce-and-expand/trowexpandmax.md
-              - pto.trowexpandmin: docs/isa/tile/ops/reduce-and-expand/trowexpandmin.md
-              - pto.trowexpandexpdif: docs/isa/tile/ops/reduce-and-expand/trowexpandexpdif.md
-              - pto.tcolexpand: docs/isa/tile/ops/reduce-and-expand/tcolexpand.md
-              - pto.tcolexpanddiv: docs/isa/tile/ops/reduce-and-expand/tcolexpanddiv.md
-              - pto.tcolexpandmul: docs/isa/tile/ops/reduce-and-expand/tcolexpandmul.md
-              - pto.tcolexpandadd: docs/isa/tile/ops/reduce-and-expand/tcolexpandadd.md
-              - pto.tcolexpandmax: docs/isa/tile/ops/reduce-and-expand/tcolexpandmax.md
-              - pto.tcolexpandmin: docs/isa/tile/ops/reduce-and-expand/tcolexpandmin.md
-              - pto.tcolexpandsub: docs/isa/tile/ops/reduce-and-expand/tcolexpandsub.md
-              - pto.tcolexpandexpdif: docs/isa/tile/ops/reduce-and-expand/tcolexpandexpdif.md
+              - Instruction Set Contract: isa/tile/reduce-and-expand.md
+              - pto.trowsum: isa/tile/ops/reduce-and-expand/trowsum.md
+              - pto.tcolsum: isa/tile/ops/reduce-and-expand/tcolsum.md
+              - pto.trowprod: isa/tile/ops/reduce-and-expand/trowprod.md
+              - pto.tcolprod: isa/tile/ops/reduce-and-expand/tcolprod.md
+              - pto.tcolmax: isa/tile/ops/reduce-and-expand/tcolmax.md
+              - pto.tcolmin: isa/tile/ops/reduce-and-expand/tcolmin.md
+              - pto.tcolargmax: isa/tile/ops/reduce-and-expand/tcolargmax.md
+              - pto.tcolargmin: isa/tile/ops/reduce-and-expand/tcolargmin.md
+              - pto.trowmax: isa/tile/ops/reduce-and-expand/trowmax.md
+              - pto.trowmin: isa/tile/ops/reduce-and-expand/trowmin.md
+              - pto.trowargmax: isa/tile/ops/reduce-and-expand/trowargmax.md
+              - pto.trowargmin: isa/tile/ops/reduce-and-expand/trowargmin.md
+              - pto.trowexpand: isa/tile/ops/reduce-and-expand/trowexpand.md
+              - pto.trowexpanddiv: isa/tile/ops/reduce-and-expand/trowexpanddiv.md
+              - pto.trowexpandmul: isa/tile/ops/reduce-and-expand/trowexpandmul.md
+              - pto.trowexpandsub: isa/tile/ops/reduce-and-expand/trowexpandsub.md
+              - pto.trowexpandadd: isa/tile/ops/reduce-and-expand/trowexpandadd.md
+              - pto.trowexpandmax: isa/tile/ops/reduce-and-expand/trowexpandmax.md
+              - pto.trowexpandmin: isa/tile/ops/reduce-and-expand/trowexpandmin.md
+              - pto.trowexpandexpdif: isa/tile/ops/reduce-and-expand/trowexpandexpdif.md
+              - pto.tcolexpand: isa/tile/ops/reduce-and-expand/tcolexpand.md
+              - pto.tcolexpanddiv: isa/tile/ops/reduce-and-expand/tcolexpanddiv.md
+              - pto.tcolexpandmul: isa/tile/ops/reduce-and-expand/tcolexpandmul.md
+              - pto.tcolexpandadd: isa/tile/ops/reduce-and-expand/tcolexpandadd.md
+              - pto.tcolexpandmax: isa/tile/ops/reduce-and-expand/tcolexpandmax.md
+              - pto.tcolexpandmin: isa/tile/ops/reduce-and-expand/tcolexpandmin.md
+              - pto.tcolexpandsub: isa/tile/ops/reduce-and-expand/tcolexpandsub.md
+              - pto.tcolexpandexpdif: isa/tile/ops/reduce-and-expand/tcolexpandexpdif.md
           - Memory And Data Movement:
-              - Instruction Set Contract: docs/isa/tile/memory-and-data-movement.md
-              - pto.tload: docs/isa/tile/ops/memory-and-data-movement/tload.md
-              - pto.tprefetch: docs/isa/tile/ops/memory-and-data-movement/tprefetch.md
-              - pto.tstore: docs/isa/tile/ops/memory-and-data-movement/tstore.md
-              - pto.tstore_fp: docs/isa/tile/ops/memory-and-data-movement/tstore-fp.md
-              - pto.mgather: docs/isa/tile/ops/memory-and-data-movement/mgather.md
-              - pto.mscatter: docs/isa/tile/ops/memory-and-data-movement/mscatter.md
+              - Instruction Set Contract: isa/tile/memory-and-data-movement.md
+              - pto.tload: isa/tile/ops/memory-and-data-movement/tload.md
+              - pto.tprefetch: isa/tile/ops/memory-and-data-movement/tprefetch.md
+              - pto.tstore: isa/tile/ops/memory-and-data-movement/tstore.md
+              - pto.tstore_fp: isa/tile/ops/memory-and-data-movement/tstore-fp.md
+              - pto.mgather: isa/tile/ops/memory-and-data-movement/mgather.md
+              - pto.mscatter: isa/tile/ops/memory-and-data-movement/mscatter.md
           - Matrix And Matrix Vector:
-              - Instruction Set Contract: docs/isa/tile/matrix-and-matrix-vector.md
-              - pto.tgemv_mx: docs/isa/tile/ops/matrix-and-matrix-vector/tgemv-mx.md
-              - pto.tmatmul_mx: docs/isa/tile/ops/matrix-and-matrix-vector/tmatmul-mx.md
-              - pto.tmatmul: docs/isa/tile/ops/matrix-and-matrix-vector/tmatmul.md
-              - pto.tmatmul_acc: docs/isa/tile/ops/matrix-and-matrix-vector/tmatmul-acc.md
-              - pto.tmatmul_bias: docs/isa/tile/ops/matrix-and-matrix-vector/tmatmul-bias.md
-              - pto.tgemv: docs/isa/tile/ops/matrix-and-matrix-vector/tgemv.md
-              - pto.tgemv_acc: docs/isa/tile/ops/matrix-and-matrix-vector/tgemv-acc.md
-              - pto.tgemv_bias: docs/isa/tile/ops/matrix-and-matrix-vector/tgemv-bias.md
+              - Instruction Set Contract: isa/tile/matrix-and-matrix-vector.md
+              - pto.tgemv_mx: isa/tile/ops/matrix-and-matrix-vector/tgemv-mx.md
+              - pto.tmatmul_mx: isa/tile/ops/matrix-and-matrix-vector/tmatmul-mx.md
+              - pto.tmatmul: isa/tile/ops/matrix-and-matrix-vector/tmatmul.md
+              - pto.tmatmul_acc: isa/tile/ops/matrix-and-matrix-vector/tmatmul-acc.md
+              - pto.tmatmul_bias: isa/tile/ops/matrix-and-matrix-vector/tmatmul-bias.md
+              - pto.tgemv: isa/tile/ops/matrix-and-matrix-vector/tgemv.md
+              - pto.tgemv_acc: isa/tile/ops/matrix-and-matrix-vector/tgemv-acc.md
+              - pto.tgemv_bias: isa/tile/ops/matrix-and-matrix-vector/tgemv-bias.md
           - Layout And Rearrangement:
-              - Instruction Set Contract: docs/isa/tile/layout-and-rearrangement.md
-              - pto.textract: docs/isa/tile/ops/layout-and-rearrangement/textract.md
-              - pto.textract_fp: docs/isa/tile/ops/layout-and-rearrangement/textract-fp.md
-              - pto.timg2col: docs/isa/tile/ops/layout-and-rearrangement/timg2col.md
-              - pto.tinsert: docs/isa/tile/ops/layout-and-rearrangement/tinsert.md
-              - pto.tinsert_fp: docs/isa/tile/ops/layout-and-rearrangement/tinsert-fp.md
-              - pto.tfillpad: docs/isa/tile/ops/layout-and-rearrangement/tfillpad.md
-              - pto.tfillpad_inplace: docs/isa/tile/ops/layout-and-rearrangement/tfillpad-inplace.md
-              - pto.tfillpad_expand: docs/isa/tile/ops/layout-and-rearrangement/tfillpad-expand.md
-              - pto.tmov: docs/isa/tile/ops/layout-and-rearrangement/tmov.md
-              - pto.tmov_fp: docs/isa/tile/ops/layout-and-rearrangement/tmov-fp.md
-              - pto.treshape: docs/isa/tile/ops/layout-and-rearrangement/treshape.md
-              - pto.ttrans: docs/isa/tile/ops/layout-and-rearrangement/ttrans.md
+              - Instruction Set Contract: isa/tile/layout-and-rearrangement.md
+              - pto.textract: isa/tile/ops/layout-and-rearrangement/textract.md
+              - pto.textract_fp: isa/tile/ops/layout-and-rearrangement/textract-fp.md
+              - pto.timg2col: isa/tile/ops/layout-and-rearrangement/timg2col.md
+              - pto.tinsert: isa/tile/ops/layout-and-rearrangement/tinsert.md
+              - pto.tinsert_fp: isa/tile/ops/layout-and-rearrangement/tinsert-fp.md
+              - pto.tfillpad: isa/tile/ops/layout-and-rearrangement/tfillpad.md
+              - pto.tfillpad_inplace: isa/tile/ops/layout-and-rearrangement/tfillpad-inplace.md
+              - pto.tfillpad_expand: isa/tile/ops/layout-and-rearrangement/tfillpad-expand.md
+              - pto.tmov: isa/tile/ops/layout-and-rearrangement/tmov.md
+              - pto.tmov_fp: isa/tile/ops/layout-and-rearrangement/tmov-fp.md
+              - pto.treshape: isa/tile/ops/layout-and-rearrangement/treshape.md
+              - pto.ttrans: isa/tile/ops/layout-and-rearrangement/ttrans.md
           - Irregular And Complex:
-              - Instruction Set Contract: docs/isa/tile/irregular-and-complex.md
-              - pto.tprint: docs/isa/tile/ops/irregular-and-complex/tprint.md
-              - pto.tmrgsort: docs/isa/tile/ops/irregular-and-complex/tmrgsort.md
-              - pto.tsort32: docs/isa/tile/ops/irregular-and-complex/tsort32.md
-              - pto.tgather: docs/isa/tile/ops/irregular-and-complex/tgather.md
-              - pto.tgatherb: docs/isa/tile/ops/irregular-and-complex/tgatherb.md
-              - pto.tscatter: docs/isa/tile/ops/irregular-and-complex/tscatter.md
-              - pto.tci: docs/isa/tile/ops/irregular-and-complex/tci.md
-              - pto.ttri: docs/isa/tile/ops/irregular-and-complex/ttri.md
-              - pto.tpartadd: docs/isa/tile/ops/irregular-and-complex/tpartadd.md
-              - pto.tpartmul: docs/isa/tile/ops/irregular-and-complex/tpartmul.md
-              - pto.tpartmax: docs/isa/tile/ops/irregular-and-complex/tpartmax.md
-              - pto.tpartmin: docs/isa/tile/ops/irregular-and-complex/tpartmin.md
-              - pto.tquant: docs/isa/tile/ops/irregular-and-complex/tquant.md
+              - Instruction Set Contract: isa/tile/irregular-and-complex.md
+              - pto.tprint: isa/tile/ops/irregular-and-complex/tprint.md
+              - pto.tmrgsort: isa/tile/ops/irregular-and-complex/tmrgsort.md
+              - pto.tsort32: isa/tile/ops/irregular-and-complex/tsort32.md
+              - pto.tgather: isa/tile/ops/irregular-and-complex/tgather.md
+              - pto.tgatherb: isa/tile/ops/irregular-and-complex/tgatherb.md
+              - pto.tscatter: isa/tile/ops/irregular-and-complex/tscatter.md
+              - pto.tci: isa/tile/ops/irregular-and-complex/tci.md
+              - pto.ttri: isa/tile/ops/irregular-and-complex/ttri.md
+              - pto.tpartadd: isa/tile/ops/irregular-and-complex/tpartadd.md
+              - pto.tpartmul: isa/tile/ops/irregular-and-complex/tpartmul.md
+              - pto.tpartmax: isa/tile/ops/irregular-and-complex/tpartmax.md
+              - pto.tpartmin: isa/tile/ops/irregular-and-complex/tpartmin.md
+              - pto.tquant: isa/tile/ops/irregular-and-complex/tquant.md
   - 10. Vector ISA Reference:
-          - Overview: docs/isa/vector/README.md
+          - Overview: isa/vector/README.md
           - Vector Load Store:
-              - Instruction Set Overview: docs/isa/vector/vector-load-store.md
-              - pto.vlds: docs/isa/vector/ops/vector-load-store/vlds.md
-              - pto.vldas: docs/isa/vector/ops/vector-load-store/vldas.md
-              - pto.vldus: docs/isa/vector/ops/vector-load-store/vldus.md
-              - pto.vldx2: docs/isa/vector/ops/vector-load-store/vldx2.md
-              - pto.vsld: docs/isa/vector/ops/vector-load-store/vsld.md
-              - pto.vsldb: docs/isa/vector/ops/vector-load-store/vsldb.md
-              - pto.vgather2: docs/isa/vector/ops/vector-load-store/vgather2.md
-              - pto.vgatherb: docs/isa/vector/ops/vector-load-store/vgatherb.md
-              - pto.vgather2_bc: docs/isa/vector/ops/vector-load-store/vgather2-bc.md
-              - pto.vsts: docs/isa/vector/ops/vector-load-store/vsts.md
-              - pto.vstx2: docs/isa/vector/ops/vector-load-store/vstx2.md
-              - pto.vsst: docs/isa/vector/ops/vector-load-store/vsst.md
-              - pto.vsstb: docs/isa/vector/ops/vector-load-store/vsstb.md
-              - pto.vscatter: docs/isa/vector/ops/vector-load-store/vscatter.md
-              - pto.vsta: docs/isa/vector/ops/vector-load-store/vsta.md
-              - pto.vstas: docs/isa/vector/ops/vector-load-store/vstas.md
-              - pto.vstar: docs/isa/vector/ops/vector-load-store/vstar.md
-              - pto.vstu: docs/isa/vector/ops/vector-load-store/vstu.md
-              - pto.vstus: docs/isa/vector/ops/vector-load-store/vstus.md
-              - pto.vstur: docs/isa/vector/ops/vector-load-store/vstur.md
+              - Instruction Set Overview: isa/vector/vector-load-store.md
+              - pto.vlds: isa/vector/ops/vector-load-store/vlds.md
+              - pto.vldas: isa/vector/ops/vector-load-store/vldas.md
+              - pto.vldus: isa/vector/ops/vector-load-store/vldus.md
+              - pto.vldx2: isa/vector/ops/vector-load-store/vldx2.md
+              - pto.vsld: isa/vector/ops/vector-load-store/vsld.md
+              - pto.vsldb: isa/vector/ops/vector-load-store/vsldb.md
+              - pto.vgather2: isa/vector/ops/vector-load-store/vgather2.md
+              - pto.vgatherb: isa/vector/ops/vector-load-store/vgatherb.md
+              - pto.vgather2_bc: isa/vector/ops/vector-load-store/vgather2-bc.md
+              - pto.vsts: isa/vector/ops/vector-load-store/vsts.md
+              - pto.vstx2: isa/vector/ops/vector-load-store/vstx2.md
+              - pto.vsst: isa/vector/ops/vector-load-store/vsst.md
+              - pto.vsstb: isa/vector/ops/vector-load-store/vsstb.md
+              - pto.vscatter: isa/vector/ops/vector-load-store/vscatter.md
+              - pto.vsta: isa/vector/ops/vector-load-store/vsta.md
+              - pto.vstas: isa/vector/ops/vector-load-store/vstas.md
+              - pto.vstar: isa/vector/ops/vector-load-store/vstar.md
+              - pto.vstu: isa/vector/ops/vector-load-store/vstu.md
+              - pto.vstus: isa/vector/ops/vector-load-store/vstus.md
+              - pto.vstur: isa/vector/ops/vector-load-store/vstur.md
           - Predicate And Materialization:
-              - Instruction Set Overview: docs/isa/vector/predicate-and-materialization.md
-              - pto.vbr: docs/isa/vector/ops/predicate-and-materialization/vbr.md
-              - pto.vdup: docs/isa/vector/ops/predicate-and-materialization/vdup.md
+              - Instruction Set Overview: isa/vector/predicate-and-materialization.md
+              - pto.vbr: isa/vector/ops/predicate-and-materialization/vbr.md
+              - pto.vdup: isa/vector/ops/predicate-and-materialization/vdup.md
           - Unary Vector Instructions:
-              - Instruction Set Overview: docs/isa/vector/unary-vector-ops.md
-              - pto.vabs: docs/isa/vector/ops/unary-vector-ops/vabs.md
-              - pto.vneg: docs/isa/vector/ops/unary-vector-ops/vneg.md
-              - pto.vexp: docs/isa/vector/ops/unary-vector-ops/vexp.md
-              - pto.vln: docs/isa/vector/ops/unary-vector-ops/vln.md
-              - pto.vsqrt: docs/isa/vector/ops/unary-vector-ops/vsqrt.md
-              - pto.vrsqrt: docs/isa/vector/ops/unary-vector-ops/vrsqrt.md
-              - pto.vrec: docs/isa/vector/ops/unary-vector-ops/vrec.md
-              - pto.vrelu: docs/isa/vector/ops/unary-vector-ops/vrelu.md
-              - pto.vnot: docs/isa/vector/ops/unary-vector-ops/vnot.md
-              - pto.vbcnt: docs/isa/vector/ops/unary-vector-ops/vbcnt.md
-              - pto.vcls: docs/isa/vector/ops/unary-vector-ops/vcls.md
-              - pto.vmov: docs/isa/vector/ops/unary-vector-ops/vmov.md
+              - Instruction Set Overview: isa/vector/unary-vector-ops.md
+              - pto.vabs: isa/vector/ops/unary-vector-ops/vabs.md
+              - pto.vneg: isa/vector/ops/unary-vector-ops/vneg.md
+              - pto.vexp: isa/vector/ops/unary-vector-ops/vexp.md
+              - pto.vln: isa/vector/ops/unary-vector-ops/vln.md
+              - pto.vsqrt: isa/vector/ops/unary-vector-ops/vsqrt.md
+              - pto.vrsqrt: isa/vector/ops/unary-vector-ops/vrsqrt.md
+              - pto.vrec: isa/vector/ops/unary-vector-ops/vrec.md
+              - pto.vrelu: isa/vector/ops/unary-vector-ops/vrelu.md
+              - pto.vnot: isa/vector/ops/unary-vector-ops/vnot.md
+              - pto.vbcnt: isa/vector/ops/unary-vector-ops/vbcnt.md
+              - pto.vcls: isa/vector/ops/unary-vector-ops/vcls.md
+              - pto.vmov: isa/vector/ops/unary-vector-ops/vmov.md
           - Binary Vector Instructions:
-              - Instruction Set Overview: docs/isa/vector/binary-vector-ops.md
-              - pto.vadd: docs/isa/vector/ops/binary-vector-ops/vadd.md
-              - pto.vsub: docs/isa/vector/ops/binary-vector-ops/vsub.md
-              - pto.vmul: docs/isa/vector/ops/binary-vector-ops/vmul.md
-              - pto.vdiv: docs/isa/vector/ops/binary-vector-ops/vdiv.md
-              - pto.vmax: docs/isa/vector/ops/binary-vector-ops/vmax.md
-              - pto.vmin: docs/isa/vector/ops/binary-vector-ops/vmin.md
-              - pto.vand: docs/isa/vector/ops/binary-vector-ops/vand.md
-              - pto.vor: docs/isa/vector/ops/binary-vector-ops/vor.md
-              - pto.vxor: docs/isa/vector/ops/binary-vector-ops/vxor.md
-              - pto.vshl: docs/isa/vector/ops/binary-vector-ops/vshl.md
-              - pto.vshr: docs/isa/vector/ops/binary-vector-ops/vshr.md
-              - pto.vaddc: docs/isa/vector/ops/binary-vector-ops/vaddc.md
-              - pto.vsubc: docs/isa/vector/ops/binary-vector-ops/vsubc.md
+              - Instruction Set Overview: isa/vector/binary-vector-ops.md
+              - pto.vadd: isa/vector/ops/binary-vector-ops/vadd.md
+              - pto.vsub: isa/vector/ops/binary-vector-ops/vsub.md
+              - pto.vmul: isa/vector/ops/binary-vector-ops/vmul.md
+              - pto.vdiv: isa/vector/ops/binary-vector-ops/vdiv.md
+              - pto.vmax: isa/vector/ops/binary-vector-ops/vmax.md
+              - pto.vmin: isa/vector/ops/binary-vector-ops/vmin.md
+              - pto.vand: isa/vector/ops/binary-vector-ops/vand.md
+              - pto.vor: isa/vector/ops/binary-vector-ops/vor.md
+              - pto.vxor: isa/vector/ops/binary-vector-ops/vxor.md
+              - pto.vshl: isa/vector/ops/binary-vector-ops/vshl.md
+              - pto.vshr: isa/vector/ops/binary-vector-ops/vshr.md
+              - pto.vaddc: isa/vector/ops/binary-vector-ops/vaddc.md
+              - pto.vsubc: isa/vector/ops/binary-vector-ops/vsubc.md
           - Vector-Scalar Instructions:
-              - Instruction Set Overview: docs/isa/vector/vec-scalar-ops.md
-              - pto.vadds: docs/isa/vector/ops/vec-scalar-ops/vadds.md
-              - pto.vsubs: docs/isa/vector/ops/vec-scalar-ops/vsubs.md
-              - pto.vmuls: docs/isa/vector/ops/vec-scalar-ops/vmuls.md
-              - pto.vmaxs: docs/isa/vector/ops/vec-scalar-ops/vmaxs.md
-              - pto.vmins: docs/isa/vector/ops/vec-scalar-ops/vmins.md
-              - pto.vands: docs/isa/vector/ops/vec-scalar-ops/vands.md
-              - pto.vors: docs/isa/vector/ops/vec-scalar-ops/vors.md
-              - pto.vxors: docs/isa/vector/ops/vec-scalar-ops/vxors.md
-              - pto.vshls: docs/isa/vector/ops/vec-scalar-ops/vshls.md
-              - pto.vshrs: docs/isa/vector/ops/vec-scalar-ops/vshrs.md
-              - pto.vlrelu: docs/isa/vector/ops/vec-scalar-ops/vlrelu.md
-              - pto.vaddcs: docs/isa/vector/ops/vec-scalar-ops/vaddcs.md
-              - pto.vsubcs: docs/isa/vector/ops/vec-scalar-ops/vsubcs.md
+              - Instruction Set Overview: isa/vector/vec-scalar-ops.md
+              - pto.vadds: isa/vector/ops/vec-scalar-ops/vadds.md
+              - pto.vsubs: isa/vector/ops/vec-scalar-ops/vsubs.md
+              - pto.vmuls: isa/vector/ops/vec-scalar-ops/vmuls.md
+              - pto.vmaxs: isa/vector/ops/vec-scalar-ops/vmaxs.md
+              - pto.vmins: isa/vector/ops/vec-scalar-ops/vmins.md
+              - pto.vands: isa/vector/ops/vec-scalar-ops/vands.md
+              - pto.vors: isa/vector/ops/vec-scalar-ops/vors.md
+              - pto.vxors: isa/vector/ops/vec-scalar-ops/vxors.md
+              - pto.vshls: isa/vector/ops/vec-scalar-ops/vshls.md
+              - pto.vshrs: isa/vector/ops/vec-scalar-ops/vshrs.md
+              - pto.vlrelu: isa/vector/ops/vec-scalar-ops/vlrelu.md
+              - pto.vaddcs: isa/vector/ops/vec-scalar-ops/vaddcs.md
+              - pto.vsubcs: isa/vector/ops/vec-scalar-ops/vsubcs.md
           - Conversion Ops:
-              - Instruction Set Overview: docs/isa/vector/conversion-ops.md
-              - pto.vci: docs/isa/vector/ops/conversion-ops/vci.md
-              - pto.vcvt: docs/isa/vector/ops/conversion-ops/vcvt.md
-              - pto.vtrc: docs/isa/vector/ops/conversion-ops/vtrc.md
+              - Instruction Set Overview: isa/vector/conversion-ops.md
+              - pto.vci: isa/vector/ops/conversion-ops/vci.md
+              - pto.vcvt: isa/vector/ops/conversion-ops/vcvt.md
+              - pto.vtrc: isa/vector/ops/conversion-ops/vtrc.md
           - Reduction Instructions:
-              - Instruction Set Overview: docs/isa/vector/reduction-ops.md
-              - pto.vcadd: docs/isa/vector/ops/reduction-ops/vcadd.md
-              - pto.vcmax: docs/isa/vector/ops/reduction-ops/vcmax.md
-              - pto.vcmin: docs/isa/vector/ops/reduction-ops/vcmin.md
-              - pto.vcgadd: docs/isa/vector/ops/reduction-ops/vcgadd.md
-              - pto.vcgmax: docs/isa/vector/ops/reduction-ops/vcgmax.md
-              - pto.vcgmin: docs/isa/vector/ops/reduction-ops/vcgmin.md
-              - pto.vcpadd: docs/isa/vector/ops/reduction-ops/vcpadd.md
+              - Instruction Set Overview: isa/vector/reduction-ops.md
+              - pto.vcadd: isa/vector/ops/reduction-ops/vcadd.md
+              - pto.vcmax: isa/vector/ops/reduction-ops/vcmax.md
+              - pto.vcmin: isa/vector/ops/reduction-ops/vcmin.md
+              - pto.vcgadd: isa/vector/ops/reduction-ops/vcgadd.md
+              - pto.vcgmax: isa/vector/ops/reduction-ops/vcgmax.md
+              - pto.vcgmin: isa/vector/ops/reduction-ops/vcgmin.md
+              - pto.vcpadd: isa/vector/ops/reduction-ops/vcpadd.md
           - Compare And Select:
-              - Instruction Set Overview: docs/isa/vector/compare-select.md
-              - pto.vcmp: docs/isa/vector/ops/compare-select/vcmp.md
-              - pto.vcmps: docs/isa/vector/ops/compare-select/vcmps.md
-              - pto.vsel: docs/isa/vector/ops/compare-select/vsel.md
-              - pto.vselr: docs/isa/vector/ops/compare-select/vselr.md
-              - pto.vselrv2: docs/isa/vector/ops/compare-select/vselrv2.md
+              - Instruction Set Overview: isa/vector/compare-select.md
+              - pto.vcmp: isa/vector/ops/compare-select/vcmp.md
+              - pto.vcmps: isa/vector/ops/compare-select/vcmps.md
+              - pto.vsel: isa/vector/ops/compare-select/vsel.md
+              - pto.vselr: isa/vector/ops/compare-select/vselr.md
+              - pto.vselrv2: isa/vector/ops/compare-select/vselrv2.md
           - Data Rearrangement:
-              - Instruction Set Overview: docs/isa/vector/data-rearrangement.md
-              - pto.vintlv: docs/isa/vector/ops/data-rearrangement/vintlv.md
-              - pto.vdintlv: docs/isa/vector/ops/data-rearrangement/vdintlv.md
-              - pto.vslide: docs/isa/vector/ops/data-rearrangement/vslide.md
-              - pto.vshift: docs/isa/vector/ops/data-rearrangement/vshift.md
-              - pto.vsqz: docs/isa/vector/ops/data-rearrangement/vsqz.md
-              - pto.vusqz: docs/isa/vector/ops/data-rearrangement/vusqz.md
-              - pto.vperm: docs/isa/vector/ops/data-rearrangement/vperm.md
-              - pto.vpack: docs/isa/vector/ops/data-rearrangement/vpack.md
-              - pto.vsunpack: docs/isa/vector/ops/data-rearrangement/vsunpack.md
-              - pto.vzunpack: docs/isa/vector/ops/data-rearrangement/vzunpack.md
-              - pto.vintlvv2: docs/isa/vector/ops/data-rearrangement/vintlvv2.md
-              - pto.vdintlvv2: docs/isa/vector/ops/data-rearrangement/vdintlvv2.md
+              - Instruction Set Overview: isa/vector/data-rearrangement.md
+              - pto.vintlv: isa/vector/ops/data-rearrangement/vintlv.md
+              - pto.vdintlv: isa/vector/ops/data-rearrangement/vdintlv.md
+              - pto.vslide: isa/vector/ops/data-rearrangement/vslide.md
+              - pto.vshift: isa/vector/ops/data-rearrangement/vshift.md
+              - pto.vsqz: isa/vector/ops/data-rearrangement/vsqz.md
+              - pto.vusqz: isa/vector/ops/data-rearrangement/vusqz.md
+              - pto.vperm: isa/vector/ops/data-rearrangement/vperm.md
+              - pto.vpack: isa/vector/ops/data-rearrangement/vpack.md
+              - pto.vsunpack: isa/vector/ops/data-rearrangement/vsunpack.md
+              - pto.vzunpack: isa/vector/ops/data-rearrangement/vzunpack.md
+              - pto.vintlvv2: isa/vector/ops/data-rearrangement/vintlvv2.md
+              - pto.vdintlvv2: isa/vector/ops/data-rearrangement/vdintlvv2.md
           - SFU And DSA Instructions:
-              - Instruction Set Overview: docs/isa/vector/sfu-and-dsa-ops.md
-              - pto.vprelu: docs/isa/vector/ops/sfu-and-dsa-ops/vprelu.md
-              - pto.vexpdiff: docs/isa/vector/ops/sfu-and-dsa-ops/vexpdiff.md
-              - pto.vaddrelu: docs/isa/vector/ops/sfu-and-dsa-ops/vaddrelu.md
-              - pto.vsubrelu: docs/isa/vector/ops/sfu-and-dsa-ops/vsubrelu.md
-              - pto.vaxpy: docs/isa/vector/ops/sfu-and-dsa-ops/vaxpy.md
-              - pto.vaddreluconv: docs/isa/vector/ops/sfu-and-dsa-ops/vaddreluconv.md
-              - pto.vmulconv: docs/isa/vector/ops/sfu-and-dsa-ops/vmulconv.md
-              - pto.vmull: docs/isa/vector/ops/sfu-and-dsa-ops/vmull.md
-              - pto.vmula: docs/isa/vector/ops/sfu-and-dsa-ops/vmula.md
-              - pto.vtranspose: docs/isa/vector/ops/sfu-and-dsa-ops/vtranspose.md
-              - pto.vsort32: docs/isa/vector/ops/sfu-and-dsa-ops/vsort32.md
-              - pto.vbitsort: docs/isa/vector/ops/sfu-and-dsa-ops/vbitsort.md
-              - pto.vmrgsort: docs/isa/vector/ops/sfu-and-dsa-ops/vmrgsort.md
+              - Instruction Set Overview: isa/vector/sfu-and-dsa-ops.md
+              - pto.vprelu: isa/vector/ops/sfu-and-dsa-ops/vprelu.md
+              - pto.vexpdiff: isa/vector/ops/sfu-and-dsa-ops/vexpdiff.md
+              - pto.vaddrelu: isa/vector/ops/sfu-and-dsa-ops/vaddrelu.md
+              - pto.vsubrelu: isa/vector/ops/sfu-and-dsa-ops/vsubrelu.md
+              - pto.vaxpy: isa/vector/ops/sfu-and-dsa-ops/vaxpy.md
+              - pto.vaddreluconv: isa/vector/ops/sfu-and-dsa-ops/vaddreluconv.md
+              - pto.vmulconv: isa/vector/ops/sfu-and-dsa-ops/vmulconv.md
+              - pto.vmull: isa/vector/ops/sfu-and-dsa-ops/vmull.md
+              - pto.vmula: isa/vector/ops/sfu-and-dsa-ops/vmula.md
+              - pto.vtranspose: isa/vector/ops/sfu-and-dsa-ops/vtranspose.md
+              - pto.vsort32: isa/vector/ops/sfu-and-dsa-ops/vsort32.md
+              - pto.vbitsort: isa/vector/ops/sfu-and-dsa-ops/vbitsort.md
+              - pto.vmrgsort: isa/vector/ops/sfu-and-dsa-ops/vmrgsort.md
   - 11. Scalar And Control Reference:
-          - Overview: docs/isa/scalar/README.md
-          - Control And Configuration: docs/isa/scalar/control-and-configuration.md
+          - Overview: isa/scalar/README.md
+          - Control And Configuration: isa/scalar/control-and-configuration.md
           - Pipeline Sync:
-              - Instruction Set Overview: docs/isa/scalar/pipeline-sync.md
-              - pto.set_flag: docs/isa/scalar/ops/pipeline-sync/set-flag.md
-              - pto.wait_flag: docs/isa/scalar/ops/pipeline-sync/wait-flag.md
-              - pto.pipe_barrier: docs/isa/scalar/ops/pipeline-sync/pipe-barrier.md
-              - pto.get_buf: docs/isa/scalar/ops/pipeline-sync/get-buf.md
-              - pto.rls_buf: docs/isa/scalar/ops/pipeline-sync/rls-buf.md
-              - pto.mem_bar: docs/isa/scalar/ops/pipeline-sync/mem-bar.md
-              - pto.set_cross_core: docs/isa/scalar/ops/pipeline-sync/set-cross-core.md
-              - pto.wait_flag_dev: docs/isa/scalar/ops/pipeline-sync/wait-flag-dev.md
-              - pto.set_intra_block: docs/isa/scalar/ops/pipeline-sync/set-intra-block.md
-              - pto.wait_intra_core: docs/isa/scalar/ops/pipeline-sync/wait-intra-core.md
+              - Instruction Set Overview: isa/scalar/pipeline-sync.md
+              - pto.set_flag: isa/scalar/ops/pipeline-sync/set-flag.md
+              - pto.wait_flag: isa/scalar/ops/pipeline-sync/wait-flag.md
+              - pto.pipe_barrier: isa/scalar/ops/pipeline-sync/pipe-barrier.md
+              - pto.get_buf: isa/scalar/ops/pipeline-sync/get-buf.md
+              - pto.rls_buf: isa/scalar/ops/pipeline-sync/rls-buf.md
+              - pto.mem_bar: isa/scalar/ops/pipeline-sync/mem-bar.md
+              - pto.set_cross_core: isa/scalar/ops/pipeline-sync/set-cross-core.md
+              - pto.wait_flag_dev: isa/scalar/ops/pipeline-sync/wait-flag-dev.md
+              - pto.set_intra_block: isa/scalar/ops/pipeline-sync/set-intra-block.md
+              - pto.wait_intra_core: isa/scalar/ops/pipeline-sync/wait-intra-core.md
           - DMA Copy:
-              - Instruction Set Overview: docs/isa/scalar/dma-copy.md
-              - pto.set_loop_size_outtoub: docs/isa/scalar/ops/dma-copy/set-loop-size-outtoub.md
-              - pto.set_loop2_stride_outtoub: docs/isa/scalar/ops/dma-copy/set-loop2-stride-outtoub.md
-              - pto.set_loop1_stride_outtoub: docs/isa/scalar/ops/dma-copy/set-loop1-stride-outtoub.md
-              - pto.set_loop_size_ubtoout: docs/isa/scalar/ops/dma-copy/set-loop-size-ubtoout.md
-              - pto.set_loop2_stride_ubtoout: docs/isa/scalar/ops/dma-copy/set-loop2-stride-ubtoout.md
-              - pto.set_loop1_stride_ubtoout: docs/isa/scalar/ops/dma-copy/set-loop1-stride-ubtoout.md
-              - pto.copy_gm_to_ubuf: docs/isa/scalar/ops/dma-copy/copy-gm-to-ubuf.md
-              - pto.copy_ubuf_to_gm: docs/isa/scalar/ops/dma-copy/copy-ubuf-to-gm.md
-              - pto.copy_ubuf_to_ubuf: docs/isa/scalar/ops/dma-copy/copy-ubuf-to-ubuf.md
+              - Instruction Set Overview: isa/scalar/dma-copy.md
+              - pto.set_loop_size_outtoub: isa/scalar/ops/dma-copy/set-loop-size-outtoub.md
+              - pto.set_loop2_stride_outtoub: isa/scalar/ops/dma-copy/set-loop2-stride-outtoub.md
+              - pto.set_loop1_stride_outtoub: isa/scalar/ops/dma-copy/set-loop1-stride-outtoub.md
+              - pto.set_loop_size_ubtoout: isa/scalar/ops/dma-copy/set-loop-size-ubtoout.md
+              - pto.set_loop2_stride_ubtoout: isa/scalar/ops/dma-copy/set-loop2-stride-ubtoout.md
+              - pto.set_loop1_stride_ubtoout: isa/scalar/ops/dma-copy/set-loop1-stride-ubtoout.md
+              - pto.copy_gm_to_ubuf: isa/scalar/ops/dma-copy/copy-gm-to-ubuf.md
+              - pto.copy_ubuf_to_gm: isa/scalar/ops/dma-copy/copy-ubuf-to-gm.md
+              - pto.copy_ubuf_to_ubuf: isa/scalar/ops/dma-copy/copy-ubuf-to-ubuf.md
           - Predicate Load Store:
-              - Instruction Set Overview: docs/isa/scalar/predicate-load-store.md
-              - pto.plds: docs/isa/scalar/ops/predicate-load-store/plds.md
-              - pto.pld: docs/isa/scalar/ops/predicate-load-store/pld.md
-              - pto.pldi: docs/isa/scalar/ops/predicate-load-store/pldi.md
-              - pto.psts: docs/isa/scalar/ops/predicate-load-store/psts.md
-              - pto.pst: docs/isa/scalar/ops/predicate-load-store/pst.md
-              - pto.psti: docs/isa/scalar/ops/predicate-load-store/psti.md
-              - pto.pstu: docs/isa/scalar/ops/predicate-load-store/pstu.md
+              - Instruction Set Overview: isa/scalar/predicate-load-store.md
+              - pto.plds: isa/scalar/ops/predicate-load-store/plds.md
+              - pto.pld: isa/scalar/ops/predicate-load-store/pld.md
+              - pto.pldi: isa/scalar/ops/predicate-load-store/pldi.md
+              - pto.psts: isa/scalar/ops/predicate-load-store/psts.md
+              - pto.pst: isa/scalar/ops/predicate-load-store/pst.md
+              - pto.psti: isa/scalar/ops/predicate-load-store/psti.md
+              - pto.pstu: isa/scalar/ops/predicate-load-store/pstu.md
           - Predicate Generation And Algebra:
-              - Instruction Set Overview: docs/isa/scalar/predicate-generation-and-algebra.md
-              - pto.pset_b8: docs/isa/scalar/ops/predicate-generation-and-algebra/pset-b8.md
-              - pto.pset_b16: docs/isa/scalar/ops/predicate-generation-and-algebra/pset-b16.md
-              - pto.pset_b32: docs/isa/scalar/ops/predicate-generation-and-algebra/pset-b32.md
-              - pto.pge_b8: docs/isa/scalar/ops/predicate-generation-and-algebra/pge-b8.md
-              - pto.pge_b16: docs/isa/scalar/ops/predicate-generation-and-algebra/pge-b16.md
-              - pto.pge_b32: docs/isa/scalar/ops/predicate-generation-and-algebra/pge-b32.md
-              - pto.plt_b8: docs/isa/scalar/ops/predicate-generation-and-algebra/plt-b8.md
-              - pto.plt_b16: docs/isa/scalar/ops/predicate-generation-and-algebra/plt-b16.md
-              - pto.plt_b32: docs/isa/scalar/ops/predicate-generation-and-algebra/plt-b32.md
-              - pto.ppack: docs/isa/scalar/ops/predicate-generation-and-algebra/ppack.md
-              - pto.punpack: docs/isa/scalar/ops/predicate-generation-and-algebra/punpack.md
-              - pto.pand: docs/isa/scalar/ops/predicate-generation-and-algebra/pand.md
-              - pto.por: docs/isa/scalar/ops/predicate-generation-and-algebra/por.md
-              - pto.pxor: docs/isa/scalar/ops/predicate-generation-and-algebra/pxor.md
-              - pto.pnot: docs/isa/scalar/ops/predicate-generation-and-algebra/pnot.md
-              - pto.psel: docs/isa/scalar/ops/predicate-generation-and-algebra/psel.md
-              - pto.pdintlv_b8: docs/isa/scalar/ops/predicate-generation-and-algebra/pdintlv-b8.md
-              - pto.pintlv_b16: docs/isa/scalar/ops/predicate-generation-and-algebra/pintlv-b16.md
-          - Shared Arithmetic: docs/isa/scalar/shared-arith.md
-          - Shared SCF: docs/isa/scalar/shared-scf.md
+              - Instruction Set Overview: isa/scalar/predicate-generation-and-algebra.md
+              - pto.pset_b8: isa/scalar/ops/predicate-generation-and-algebra/pset-b8.md
+              - pto.pset_b16: isa/scalar/ops/predicate-generation-and-algebra/pset-b16.md
+              - pto.pset_b32: isa/scalar/ops/predicate-generation-and-algebra/pset-b32.md
+              - pto.pge_b8: isa/scalar/ops/predicate-generation-and-algebra/pge-b8.md
+              - pto.pge_b16: isa/scalar/ops/predicate-generation-and-algebra/pge-b16.md
+              - pto.pge_b32: isa/scalar/ops/predicate-generation-and-algebra/pge-b32.md
+              - pto.plt_b8: isa/scalar/ops/predicate-generation-and-algebra/plt-b8.md
+              - pto.plt_b16: isa/scalar/ops/predicate-generation-and-algebra/plt-b16.md
+              - pto.plt_b32: isa/scalar/ops/predicate-generation-and-algebra/plt-b32.md
+              - pto.ppack: isa/scalar/ops/predicate-generation-and-algebra/ppack.md
+              - pto.punpack: isa/scalar/ops/predicate-generation-and-algebra/punpack.md
+              - pto.pand: isa/scalar/ops/predicate-generation-and-algebra/pand.md
+              - pto.por: isa/scalar/ops/predicate-generation-and-algebra/por.md
+              - pto.pxor: isa/scalar/ops/predicate-generation-and-algebra/pxor.md
+              - pto.pnot: isa/scalar/ops/predicate-generation-and-algebra/pnot.md
+              - pto.psel: isa/scalar/ops/predicate-generation-and-algebra/psel.md
+              - pto.pdintlv_b8: isa/scalar/ops/predicate-generation-and-algebra/pdintlv-b8.md
+              - pto.pintlv_b16: isa/scalar/ops/predicate-generation-and-algebra/pintlv-b16.md
+          - Shared Arithmetic: isa/scalar/shared-arith.md
+          - Shared SCF: isa/scalar/shared-scf.md
           - PTO Micro-Instruction Reference:
-              - Overview: docs/isa/scalar/ops/micro-instruction/README.md
-              - BlockDim Query: docs/isa/scalar/ops/micro-instruction/block-dim-query.md
-              - Pointer Operations: docs/isa/scalar/ops/micro-instruction/pointer-operations.md
-              - Vector Execution Scope: docs/isa/scalar/ops/micro-instruction/vecscope.md
-              - Alignment State Type: docs/isa/scalar/ops/micro-instruction/align-type.md
+              - Overview: isa/scalar/ops/micro-instruction/README.md
+              - Micro-Instruction Summary: isa/vector/micro-instruction-summary.md
+              - BlockDim Query: isa/scalar/ops/micro-instruction/block-dim-query.md
+              - Pointer Operations: isa/scalar/ops/micro-instruction/pointer-operations.md
+              - Vector Execution Scope: isa/scalar/ops/micro-instruction/vecscope.md
+              - Alignment State Type: isa/scalar/ops/micro-instruction/align-type.md
   - 11A. PTO-AS Reference:
-          - PTO-AS Specification: docs/assembly/PTO-AS.md
-          - PTO-AS 规范: docs/assembly/PTO-AS_zh.md
+          - PTO-AS Specification: assembly/PTO-AS.md
+          - PTO-AS 规范: assembly/PTO-AS_zh.md
   - 12. Other And Communication Reference:
-          - Overview: docs/isa/other/README.md
+          - Overview: isa/other/README.md
           - Communication And Runtime:
-              - Instruction Set Contract: docs/isa/other/communication-and-runtime.md
-              - Communication Overview: docs/isa/comm/README.md
-              - TBROADCAST: docs/isa/comm/TBROADCAST.md
-              - TGET: docs/isa/comm/TGET.md
-              - TGET_ASYNC: docs/isa/comm/TGET_ASYNC.md
-              - TGATHER: docs/isa/comm/TGATHER.md
-              - TNOTIFY: docs/isa/comm/TNOTIFY.md
-              - TPUT: docs/isa/comm/TPUT.md
-              - TPUT_ASYNC: docs/isa/comm/TPUT_ASYNC.md
-              - TREDUCE: docs/isa/comm/TREDUCE.md
-              - TSCATTER: docs/isa/comm/TSCATTER.md
-              - TTEST: docs/isa/comm/TTEST.md
-              - TWAIT: docs/isa/comm/TWAIT.md
+              - Instruction Set Contract: isa/other/communication-and-runtime.md
+              - Communication Overview: isa/comm/README.md
+              - TBROADCAST: isa/comm/TBROADCAST.md
+              - TGET: isa/comm/TGET.md
+              - TGET_ASYNC: isa/comm/TGET_ASYNC.md
+              - TGATHER: isa/comm/TGATHER.md
+              - TNOTIFY: isa/comm/TNOTIFY.md
+              - TPUT: isa/comm/TPUT.md
+              - TPUT_ASYNC: isa/comm/TPUT_ASYNC.md
+              - TREDUCE: isa/comm/TREDUCE.md
+              - TSCATTER: isa/comm/TSCATTER.md
+              - TTEST: isa/comm/TTEST.md
+              - TWAIT: isa/comm/TWAIT.md
           - Non ISA And Supporting Ops:
-              - Instruction Set Contract: docs/isa/other/non-isa-and-supporting-ops.md
-              - TALIAS: docs/isa/TALIAS.md
-              - TAXPY: docs/isa/TAXPY.md
-              - TCONCAT: docs/isa/TCONCAT.md
-              - TDEQUANT: docs/isa/TDEQUANT.md
-              - TFREE: docs/isa/TFREE.md
-              - THISTOGRAM: docs/isa/THISTOGRAM.md
-              - TPACK: docs/isa/TPACK.md
-              - TPOP: docs/isa/TPOP.md
-              - TPUSH: docs/isa/TPUSH.md
-              - TRANDOM: docs/isa/TRANDOM.md
+              - Instruction Set Contract: isa/other/non-isa-and-supporting-ops.md
+              - TALIAS: isa/TALIAS.md
+              - TAXPY: isa/TAXPY.md
+              - TCONCAT: isa/TCONCAT.md
+              - TDEQUANT: isa/TDEQUANT.md
+              - TFREE: isa/TFREE.md
+              - THISTOGRAM: isa/THISTOGRAM.md
+              - TPACK: isa/TPACK.md
+              - TPOP: isa/TPOP.md
+              - TPUSH: isa/TPUSH.md
+              - TRANDOM: isa/TRANDOM.md
   - 13. Reference Notes:
-      - Overview: docs/isa/reference/README.md
-      - Format Of Instruction Descriptions: docs/isa/reference/format-of-instruction-descriptions.md
-      - Diagnostics And Illegal Cases: docs/isa/reference/diagnostics-and-illegal-cases.md
-      - Glossary: docs/isa/reference/glossary.md
-      - Portability And Target Profiles: docs/isa/reference/portability-and-target-profiles.md
-      - Source Of Truth: docs/isa/reference/source-of-truth.md
+      - Overview: isa/reference/README.md
+      - Format Of Instruction Descriptions: isa/reference/format-of-instruction-descriptions.md
+      - Diagnostics And Illegal Cases: isa/reference/diagnostics-and-illegal-cases.md
+      - Glossary: isa/reference/glossary.md
+      - Portability And Target Profiles: isa/reference/portability-and-target-profiles.md
+      - Source Of Truth: isa/reference/source-of-truth.md

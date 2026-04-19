@@ -1,24 +1,24 @@
-﻿# TEXP
-
-## 指令示意图
+﻿# pto.texp
 
 ![TEXP tile operation](../figures/isa/TEXP.svg)
 
-## 简介
+`pto.texp` 属于[逐元素 Tile-Tile](./tile/elementwise-tile-tile_zh.md)指令集。
 
-逐元素指数运算。
+## 概述
 
-## 数学语义
+对 tile 做逐元素指数运算，结果写入目标 tile。迭代域由目标 tile 的 valid region 决定。
 
-对每个元素 `(i, j)` 在有效区域内：
+## 机制
+
+对目标 tile 的 valid region 中每个 `(i, j)`：
 
 $$ \mathrm{dst}_{i,j} = \exp(\mathrm{src}_{i,j}) $$
 
-## 汇编语法
+它是 tile 路径上的一元超越函数，常见于 softmax、归一化和指数域变换。
 
-PTO-AS 形式：参见 [PTO-AS 规范](../assembly/PTO-AS_zh.md)。
+## 语法
 
-同步形式：
+### PTO-AS
 
 ```text
 %dst = texp %src : !pto.tile<...>
@@ -26,19 +26,17 @@ PTO-AS 形式：参见 [PTO-AS 规范](../assembly/PTO-AS_zh.md)。
 
 ### AS Level 1（SSA）
 
-```text
+```mlir
 %dst = pto.texp %src : !pto.tile<...> -> !pto.tile<...>
 ```
 
 ### AS Level 2（DPS）
 
-```text
+```mlir
 pto.texp ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
 ## C++ 内建接口
-
-声明于 `include/pto/common/pto_instr.hpp`：
 
 ```cpp
 template <auto PrecisionType = ExpAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc,
@@ -46,33 +44,54 @@ template <auto PrecisionType = ExpAlgorithm::DEFAULT, typename TileDataDst, type
 PTO_INST RecordEvent TEXP(TileDataDst &dst, TileDataSrc &src, WaitEvents &... events);
 ```
 
-`PrecisionType`可指定以下值：
+`PrecisionType` 可选：
 
-* `ExpAlgorithm::DEFAULT`：普通算法，速度快但精度较低。
-* `ExpAlgorithm::HIGH_PRECISION`：高精度算法，速度较慢。
+- `ExpAlgorithm::DEFAULT`：普通算法，速度快但精度较低。
+- `ExpAlgorithm::HIGH_PRECISION`：高精度算法，速度较慢。
 
+## 输入
+
+| 操作数 | 角色 | 说明 |
+| --- | --- | --- |
+| `%src` | 源 tile | 输入 tile |
+| `%dst` | 目标 tile | 接收逐元素指数结果 |
+| `WaitEvents...` | 可选同步 | 发射前需要等待的事件 |
+
+## 预期输出
+
+| 结果 | 类型 | 说明 |
+| --- | --- | --- |
+| `%dst` | `!pto.tile<...>` | `dst` valid region 内的每个元素都等于 `exp(src)` |
+
+## 副作用
+
+除产生目标 tile 外，没有额外架构副作用。
 
 ## 约束
 
-- **实现检查 (NPU)**:
-    - `TileData::DType` 必须是以下之一：`float` 或 `half`。
-    - Tile 位置必须是向量（`TileData::Loc == TileType::Vec`);
-    - 静态有效边界：`TileData::ValidRow <= TileData::Rows` 且 `TileData::ValidCol <= TileData::Cols`。
-    - 运行时：`src.GetValidRow() == dst.GetValidRow()` 且 `src.GetValidCol() == dst.GetValidCol()`。
-    - Tile 布局必须是行主序（`TileData::isRowMajor`）。
-- **有效区域**:
-    - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
-- **高精度算法**
-    - 仅在A5上有效，`PrecisionType`选项A3上将被忽略。
+- 支持类型当前是 `float` / `half`。
+- tile 必须是行主序向量 tile。
+- 操作迭代域由 `dst.GetValidRow()` / `dst.GetValidCol()` 决定。
+- 高精度算法只在 A5 有效。
 
+## 异常与非法情形
+
+- 非法操作数组合、不支持的数据类型、不合法布局或不支持的 target-profile 模式，会被 verifier 或后端实现拒绝。
+
+## Target-Profile 限制
+
+| 特性 | CPU Simulator | A2/A3 | A5 |
+| --- | :---: | :---: | :---: |
+| `float` | Simulated | Supported | Supported |
+| `half` | Simulated | Supported | Supported |
+| 布局 | Any | RowMajor only | RowMajor only |
 
 ## 示例
 
-### 自动（Auto）
+### C++ 自动模式
 
 ```cpp
 #include <pto/pto-inst.hpp>
-
 using namespace pto;
 
 void example_auto() {
@@ -83,11 +102,10 @@ void example_auto() {
 }
 ```
 
-### 手动（Manual）
+### C++ 手动模式
 
 ```cpp
 #include <pto/pto-inst.hpp>
-
 using namespace pto;
 
 void example_manual() {
@@ -99,29 +117,24 @@ void example_manual() {
 }
 ```
 
-## 汇编示例（ASM）
-
-### 自动模式
+### PTO-AS
 
 ```text
-# 自动模式：由编译器/运行时负责资源放置与调度。
+# 自动模式
 %dst = pto.texp %src : !pto.tile<...> -> !pto.tile<...>
-```
 
-### 手动模式
-
-```text
-# 手动模式：先显式绑定资源，再发射指令。
-# 可选（当该指令包含 tile 操作数时）：
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
+# 手动模式
+pto.tassign %arg0, @tile(0x1000)
+pto.tassign %arg1, @tile(0x2000)
 %dst = pto.texp %src : !pto.tile<...> -> !pto.tile<...>
-```
 
-### PTO 汇编形式
-
-```text
+# PTO 汇编形式
 %dst = texp %src : !pto.tile<...>
 # AS Level 2 (DPS)
 pto.texp ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
+
+## 相关页面
+
+- 指令集总览：[逐元素 Tile-Tile](./tile/elementwise-tile-tile_zh.md)
+- 规范页：[pto.texp](./tile/ops/elementwise-tile-tile/texp_zh.md)

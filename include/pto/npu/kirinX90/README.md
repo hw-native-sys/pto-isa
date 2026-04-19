@@ -1,13 +1,28 @@
 # include/pto/npu/kirinX90/
 
-KirinX90 series PTO instruction implementation headers.
+Kirin X90 series PTO instruction implementation headers.
 
-## Overview
+Kirin X90 is an Ascend SoC variant targeting consumer scenarios, sharing test cases with Kirin 9030.
 
-- Implementations are organized per instruction (or instruction family), for example: `TAdd.hpp`, `TMatmul.hpp`, `TLoad.hpp`, `TStore.hpp`
-- Includes KirinX90-specific operator patterns and utilities where applicable
+## Key Files
+
+```
+include/pto/npu/kirinX90/
+├── TAdd.hpp
+├── TSub.hpp
+├── TMul.hpp
+├── TDiv.hpp
+├── TMatmul.hpp
+├── TLoad.hpp
+├── TStore.hpp
+├── TAssign.hpp
+├── TSync.hpp
+└── ...                  # Other instruction implementations
+```
 
 ## Related
 
-- ISA semantics and examples: `docs/isa/`
-- KirinX90 NPU ST tests: `tests/npu/KirinX90/src/st/`, share test cases with Kirin9030.
+| Document | Content |
+|----------|---------|
+| [docs/isa/](../../docs/isa/) | ISA semantics and examples |
+| [include/pto/npu/](../README.md) | NPU implementation entry |

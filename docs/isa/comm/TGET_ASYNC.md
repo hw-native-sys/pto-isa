@@ -1,26 +1,46 @@
 # TGET_ASYNC
 
-## Introduction
+`TGET_ASYNC` is part of the [Communication and Runtime](../other/communication-and-runtime.md) instruction set.
 
-`TGET_ASYNC` is an asynchronous remote read primitive. It starts a transfer from remote GM to local GM and returns an `AsyncEvent` immediately.
+## Summary
 
-Data flow:
+Asynchronous remote read: initiates a transfer from a remote NPU's global memory to local global memory and returns an `AsyncEvent` immediately without blocking. The event is used later to wait for transfer completion.
 
-`srcGlobalData (remote GM) -> DMA engine -> dstGlobalData (local GM)`
+Two DMA engines are supported: SDMA (default, available on all targets) and URMA (hardware RDMA, available on Ascend950 / NPU_ARCH 3510 only).
 
-## Template Parameter
+## Mechanism
 
-- `engine`:
-    - `DmaEngine::SDMA` (default)
-    - `DmaEngine::URMA` (Ascend950, NPU_ARCH 3510 only)
+`TGET_ASYNC` starts a DMA transfer from remote GM to local GM and returns immediately:
 
-> **Important (SDMA path)**
-> `TGET_ASYNC` with `DmaEngine::SDMA` currently supports **only flat contiguous logical 1D tensors**.
-> Non-1D or non-contiguous layouts are not supported by the current SDMA async implementation.
+```
+srcGlobalData (remote GM) → DMA engine → dstGlobalData (local GM)
+```
+
+The `AsyncSession` manages the engine-agnostic async state. After issuing one or more async operations, call `event.Wait(session)` to block until all pending operations complete (quiet semantics — a single `Wait` drains all operations issued since the last `Wait`).
+
+### Engine differences
+
+- **SDMA**: Submits data transfer SQEs; flag SQE is deferred to `Wait`, which polls for completion.
+- **URMA**: Submits an RDMA READ WQE and rings the doorbell immediately; `Wait` polls the Completion Queue.
+
+## Syntax
+
+### PTO Assembly Form
+
+Engine selection is a template parameter at the C++ level. The assembly form does not expose the engine choice.
+
+### Template Parameter
+
+|| Value | Description |
+||-------|-------------|
+|| `DmaEngine::SDMA` | Default. System DMA — available on all targets. |
+|| `DmaEngine::URMA` | User-level RDMA — Ascend950 (NPU_ARCH 3510) only. |
+
+> **SDMA limitation**: Currently supports **only flat contiguous logical 1D tensors**. Non-1D or non-contiguous layouts are not supported. If this requirement is not met, the implementation returns an invalid async event (`handle == 0`).
 
 ## C++ Intrinsic
 
-Declared in `include/pto/comm/pto_comm_inst.hpp`.
+Declared in `include/pto/comm/pto_comm_inst.hpp`:
 
 ```cpp
 template <DmaEngine engine = DmaEngine::SDMA,
@@ -29,17 +49,7 @@ PTO_INST AsyncEvent TGET_ASYNC(GlobalDstData &dstGlobalData, GlobalSrcData &srcG
                                const AsyncSession &session, WaitEvents &... events);
 ```
 
-`AsyncSession` is an engine-agnostic session object. Build once with
-`BuildAsyncSession<engine>()`, then pass to all async calls and event waits.
-The template `engine` parameter selects the DMA backend at compile time, making the
-code forward-compatible with future engines (CCU, etc.).
-
-## AsyncSession Construction
-
-Use `BuildAsyncSession` from `include/pto/comm/async/async_event_impl.hpp`.
-There are two overloads — one for SDMA and one for URMA — with different parameter lists.
-
-### SDMA Construction (default)
+### AsyncSession construction (SDMA)
 
 ```cpp
 template <DmaEngine engine = DmaEngine::SDMA, typename ScratchTile>
@@ -51,18 +61,16 @@ PTO_INTERNAL bool BuildAsyncSession(ScratchTile &scratchTile,
                                     uint32_t channelGroupIdx = sdma::kAutoChannelGroupIdx);
 ```
 
-| Parameter | Default | Description |
-|---|---|---|
-| `scratchTile` | — | UB scratch tile for SDMA control metadata (see [scratchTile Role](#scratchtile-role)). |
-| `workspace` | — | GM pointer allocated by host-side `SdmaWorkspaceManager`. |
-| `session` | — | Output `AsyncSession` object. |
-| `syncId` | `0` | MTE3/MTE2 pipe sync event id (0-7). Override if kernel uses other pipe barriers on the same id. |
-| `baseConfig` | `{kDefaultSdmaBlockBytes, 0, 1}` | `{block_bytes, comm_block_offset, queue_num}`. Suitable for most single-queue transfers. |
-| `channelGroupIdx` | `kAutoChannelGroupIdx` | SDMA channel group index. Default uses `get_block_idx()` internally, mapping to current AI core. Override for multi-block or custom channel mapping scenarios. |
+|| Parameter | Default | Description |
+||-----------|---------|-------------|
+|| `scratchTile` | — | UB scratch tile for SDMA control metadata |
+|| `workspace` | — | GM pointer from host-side `SdmaWorkspaceManager` |
+|| `session` | — | Output `AsyncSession` object |
+|| `syncId` | `0` | MTE3/MTE2 pipe sync event id (0–7) |
+|| `baseConfig` | `{kDefaultSdmaBlockBytes, 0, 1}` | `{block_bytes, comm_block_offset, queue_num}` |
+|| `channelGroupIdx` | `kAutoChannelGroupIdx` | SDMA channel group index; defaults to current AI core |
 
-### URMA Construction (NPU_ARCH 3510 only)
-
-> URMA (User-level RDMA Memory Access) is a hardware-accelerated RDMA transport available on Ascend950 (NPU_ARCH 3510).
+### AsyncSession construction (URMA, NPU_ARCH 3510 only)
 
 ```cpp
 #ifdef PTO_URMA_SUPPORTED
@@ -73,72 +81,68 @@ PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t *workspace,
 #endif
 ```
 
-| Parameter | Description |
-|---|---|
-| `workspace` | GM pointer allocated by host-side `UrmaWorkspaceManager`. |
-| `destRankId` | Remote PE rank id that this session communicates with. For `TGET_ASYNC` this is the source rank. |
-| `session` | Output `AsyncSession` object. |
+|| Parameter | Description |
+||-----------|-------------|
+|| `workspace` | GM pointer from host-side `UrmaWorkspaceManager` |
+|| `destRankId` | Source rank id (remote NPU for `TGET_ASYNC`) |
+|| `session` | Output `AsyncSession` object |
 
-URMA does not require `scratchTile` — polling uses `ld_dev`/`st_dev` hardware intrinsics directly.
+## Inputs
+
+|| Operand | Type | Description |
+||---------|------|-------------|
+|| `dstGlobalData` | `GlobalTensor` | Local destination; must be flat contiguous 1D |
+|| `srcGlobalData` | `GlobalTensor` | Remote source; must be flat contiguous 1D |
+|| `session` | `AsyncSession` | Engine-agnostic session object |
+|| `WaitEvents...` | `RecordEvent...` | Events to wait on before issuing the get |
+
+## Expected Outputs
+
+|| Result | Type | Description |
+||--------|------|-------------|
+|| `AsyncEvent` | event | Handle for later `Wait` call; drain via `event.Wait(session)` |
+
+## Side Effects
+
+This operation initiates a DMA transfer from remote global memory to local global memory. Completion is deferred to the `Wait` call.
 
 ## Constraints
 
+### Type constraints
+
 - `GlobalSrcData::RawDType == GlobalDstData::RawDType`
 - `GlobalSrcData::layout == GlobalDstData::layout`
-- Both SDMA and URMA paths require source tensor to be **flat contiguous logical 1D only**
-- SDMA workspace must be a valid GM pointer allocated by host-side `SdmaWorkspaceManager`
-- URMA workspace must be a valid GM pointer allocated by host-side `UrmaWorkspaceManager`
-- URMA is only available on NPU_ARCH 3510 (Ascend950)
-- The symmetric data buffer passed to `UrmaWorkspaceManager::Init()` must be backed by huge-page memory (allocate with `ACL_MEM_MALLOC_HUGE_ONLY`). The underlying MR registration requires huge-page backing; `ACL_MEM_MALLOC_HUGE_FIRST` may silently fall back to 4KB pages for small allocations, causing registration to fail
+- Both SDMA and URMA require **flat contiguous logical 1D tensors** only.
 
-If the 1D contiguous requirement is not met, current implementation returns an invalid async event (`handle == 0`).
+### Memory constraints
 
-## scratchTile Role
+- SDMA: `workspace` must be allocated by host-side `SdmaWorkspaceManager`.
+- URMA: `workspace` must be allocated by host-side `UrmaWorkspaceManager`; the buffer must be backed by huge-page memory (`ACL_MEM_MALLOC_HUGE_ONLY`).
 
-`scratchTile` is **not** used to hold transferred payload data.
-It is converted to `TmpBuffer` and used as temporary UB workspace for:
+### Platform constraints
 
-- writing/reading SDMA control words (flag, sq_tail, channel_info)
-- polling event completion flags
-- committing queue tail during completion
+- URMA is available on NPU_ARCH 3510 (Ascend950) only.
 
-The real payload path remains remote GM -> DMA engine -> local GM; `scratchTile` is only for control/synchronization metadata.
+## scratchTile Role (SDMA)
 
-## scratchTile Type and Size Constraints
+`scratchTile` does **not** hold payload data. It is converted to `TmpBuffer` and used as temporary UB workspace for SDMA control words (flag, sq_tail, channel_info), polling completion flags, and committing queue tail. The payload path is always remote GM → DMA engine → local GM.
 
-- must be a `pto::Tile` type
-- must be UB/Vec tile (`ScratchTile::Loc == TileType::Vec`)
-- available bytes must be at least `sizeof(uint64_t)` (8 bytes)
+Requirements: must be `pto::Tile` with `TileType::Vec`, at least 8 bytes. Recommended: `Tile<TileType::Vec, uint8_t, 1, comm::sdma::UB_ALIGN_SIZE>` (256B).
 
-Recommended: `Tile<TileType::Vec, uint8_t, 1, comm::sdma::UB_ALIGN_SIZE>` (256B).
+## Target-Profile Restrictions
 
-## Completion Semantics (Quiet Semantics)
+- SDMA is available on all targets. URMA is Ascend950-only.
+- CPU simulation does not support async communication operations.
+- The `AsyncSession` is engine-agnostic; switching engines requires recompilation.
 
-The completion mechanism differs by engine, but user-facing quiet semantics are identical:
+## Examples
 
-- **SDMA**: `TGET_ASYNC` only submits data transfer SQEs. The flag SQE is deferred to `Wait`, which polls the flag for completion.
-- **URMA**: `TGET_ASYNC` submits an RDMA READ WQE and rings the doorbell immediately. `Wait` polls the Completion Queue (CQ) until all expected CQEs have been consumed.
-
-- `event.Wait(session)` — blocks until **all async operations issued since the last Wait** are complete
-
-This means after multiple `TGET_ASYNC` calls, a single `Wait` on the last returned `AsyncEvent` drains all pending operations (similar to shmem's quiet semantics).
-
-After wait succeeds, all issued reads into `dstGlobalData` are complete.
-
-## Example
-
-### Single Transfer
+### Single transfer (SDMA)
 
 ```cpp
-#include <pto/comm/pto_comm_inst.hpp>
-#include <pto/common/pto_tile.hpp>
-
-using namespace pto;
-
 template <typename T>
 __global__ AICORE void SimpleGet(__gm__ T *localDst, __gm__ T *remoteSrc,
-                                 __gm__ uint8_t *sdmaWorkspace)
-{
+                                 __gm__ uint8_t *sdmaWorkspace) {
     using ShapeDyn = Shape<DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC>;
     using StrideDyn = Stride<DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC>;
     using GT = GlobalTensor<T, ShapeDyn, StrideDyn, Layout::ND>;
@@ -153,75 +157,40 @@ __global__ AICORE void SimpleGet(__gm__ T *localDst, __gm__ T *remoteSrc,
     TASSIGN(scratchTile, 0x0);
 
     comm::AsyncSession session;
-    if (!comm::BuildAsyncSession<comm::DmaEngine::SDMA>(scratchTile, sdmaWorkspace, session)) {
+    if (!comm::BuildAsyncSession<comm::DmaEngine::SDMA>(scratchTile, sdmaWorkspace, session))
         return;
-    }
 
     auto event = comm::TGET_ASYNC<comm::DmaEngine::SDMA>(dstG, srcG, session);
     (void)event.Wait(session);
 }
 ```
 
-### Batch Transfer (Quiet Semantics)
+### Batch transfer — quiet semantics
 
 ```cpp
-template <typename T>
-__global__ AICORE void BatchGet(__gm__ T *localDstBase, __gm__ T *remoteSrcBase,
-                                __gm__ uint8_t *sdmaWorkspace, int nranks)
-{
-    using ShapeDyn = Shape<DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC>;
-    using StrideDyn = Stride<DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC>;
-    using GT = GlobalTensor<T, ShapeDyn, StrideDyn, Layout::ND>;
-    using ScratchTile = Tile<TileType::Vec, uint8_t, 1, comm::sdma::UB_ALIGN_SIZE>;
-
-    ShapeDyn shape(1, 1, 1, 1, 1024);
-    StrideDyn stride(1024, 1024, 1024, 1024, 1);
-
-    ScratchTile scratchTile;
-    TASSIGN(scratchTile, 0x0);
-
-    comm::AsyncSession session;
-    if (!comm::BuildAsyncSession(scratchTile, sdmaWorkspace, session)) {
-        return;
-    }
-
-    comm::AsyncEvent lastEvent;
-    for (int rank = 0; rank < nranks; ++rank) {
-        GT dstG(localDstBase + rank * 1024, shape, stride);
-        GT srcG(remoteSrcBase + rank * 1024, shape, stride);
-        lastEvent = comm::TGET_ASYNC(dstG, srcG, session);
-    }
-    (void)lastEvent.Wait(session);  // single Wait drains all pending ops
+comm::AsyncEvent lastEvent;
+for (int rank = 0; rank < nranks; ++rank) {
+    GT dstG(localDstBase + rank * 1024, shape, stride);
+    GT srcG(remoteSrcBase + rank * 1024, shape, stride);
+    lastEvent = comm::TGET_ASYNC(dstG, srcG, session);
 }
+(void)lastEvent.Wait(session);  // single Wait drains all pending ops
 ```
 
-### URMA Example (NPU_ARCH 3510)
+### URMA (Ascend950)
 
 ```cpp
-#include <pto/comm/pto_comm_inst.hpp>
-#include <pto/common/pto_tile.hpp>
+comm::AsyncSession session;
+if (!comm::BuildAsyncSession<comm::DmaEngine::URMA>(urmaWorkspace, srcRankId, session))
+    return;
 
-using namespace pto;
-
-template <typename T>
-__global__ AICORE void SimpleGetUrma(__gm__ T *localDst, __gm__ T *remoteSrc,
-                                     __gm__ uint8_t *urmaWorkspace, uint32_t srcRankId)
-{
-    using ShapeDyn = Shape<DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC>;
-    using StrideDyn = Stride<DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC>;
-    using GT = GlobalTensor<T, ShapeDyn, StrideDyn, Layout::ND>;
-
-    ShapeDyn shape(1, 1, 1, 1, 1024);
-    StrideDyn stride(1024, 1024, 1024, 1024, 1);
-    GT dstG(localDst, shape, stride);
-    GT srcG(remoteSrc, shape, stride);
-
-    comm::AsyncSession session;
-    if (!comm::BuildAsyncSession<comm::DmaEngine::URMA>(urmaWorkspace, srcRankId, session)) {
-        return;
-    }
-
-    auto event = comm::TGET_ASYNC<comm::DmaEngine::URMA>(dstG, srcG, session);
-    (void)event.Wait(session);
-}
+auto event = comm::TGET_ASYNC<comm::DmaEngine::URMA>(dstG, srcG, session);
+(void)event.Wait(session);
 ```
+
+## Related Ops / Instruction Set Links
+
+- Communication overview: [Communication and Runtime](../other/communication-and-runtime.md)
+- Synchronous counterpart: [TGET](./TGET.md)
+- Async write: [TPUT_ASYNC](./TPUT_ASYNC.md)
+- Instruction set: [Other and Communication](../other/README.md)

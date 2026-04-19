@@ -1,39 +1,38 @@
-﻿# TORS
+﻿# pto.tors
 
-## 指令示意图
+`pto.tors` 属于[逐元素 Tile-Tile](../../elementwise-tile-tile_zh.md)指令集。
 
-![TORS tile operation](../../../../figures/isa/TORS.svg)
+## 概述
 
-## 简介
+对源 tile 的每个元素与一个立即数（标量）做按位或，结果写入目标 tile。迭代域由目标 tile 的 valid region 决定。
 
-Tile 与标量的逐元素按位或。
+## 机制
 
-## 数学语义
-
-对每个元素 `(i, j)` 在有效区域内：
+对目标 tile 的 valid region 中每个 `(i, j)`：
 
 $$ \mathrm{dst}_{i,j} = \mathrm{src}_{i,j} \;|\; \mathrm{scalar} $$
 
-## 汇编语法
+标量值在发射时广播到所有参与 lane；超出源 tile valid region 的坐标读到的值属于 implementation-defined。
 
-PTO-AS 形式：参见 [PTO-AS 规范](../../../../assembly/PTO-AS_zh.md)。
+## 语法
 
-同步形式：
+### PTO-AS
 
 ```text
-%dst = tors %src, %scalar : !pto.tile<...>, i32
+%dst = tors %src, %scalar : !pto.tile<...>
 ```
 
 ### AS Level 1（SSA）
 
-```text
+```mlir
 %dst = pto.tors %src, %scalar : (!pto.tile<...>, dtype) -> !pto.tile<...>
 ```
 
 ### AS Level 2（DPS）
 
-```text
-pto.tors ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
+```mlir
+pto.tors ins(%src, %scalar : !pto.tile_buf<...>, dtype)
+         outs(%dst : !pto.tile_buf<...>)
 ```
 
 ## C++ 内建接口
@@ -42,30 +41,54 @@ pto.tors ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_bu
 
 ```cpp
 template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
-PTO_INST RecordEvent TORS(TileDataDst &dst, TileDataSrc &src, typename TileDataDst::DType scalar, WaitEvents &... events);
+PTO_INST RecordEvent TORS(TileDataDst &dst, TileDataSrc &src,
+                          typename TileDataDst::DType scalar, WaitEvents &... events);
 ```
+
+## 输入
+
+|| 操作数 | 角色 | 说明 |
+|| --- | --- | --- |
+|| `%src` | 源 tile | 在 `dst` valid region 上逐坐标读取 |
+|| `%scalar` | 立即数 | 广播到所有 lane 的整数标量 |
+|| `WaitEvents...` | 可选同步 | 发射前需要等待的事件 |
+
+## 预期输出
+
+|| 结果 | 类型 | 说明 |
+|| --- | --- | --- |
+|| `%dst` | `!pto.tile<...>` | `dst` valid region 内每个元素等于 `src | scalar` |
+
+## 副作用
+
+除产生目标 tile 外，没有额外架构副作用，不会隐式为无关 tile 流量建立栅栏。
 
 ## 约束
 
-- **实现检查 (A2A3)**:
-    - 适用于整数元素类型。
-    - `dst` 和 `src` 必须使用相同的元素类型。
-    - `dst` 和 `src` 必须是向量 Tile。
-    - 运行时：`src.GetValidRow() == dst.GetValidRow()` 且 `src.GetValidCol() == dst.GetValidCol()`。
-    - 在手动模式下，不支持将源 Tile 和目标 Tile 设置为相同的内存。
-- **实现检查 (A5)**:
-    - 适用于 `TEXPANDS` 和 `TOR` 支持的整数元素类型。
-    - `dst` 和 `src` 必须使用相同的元素类型。
-    - `dst` 和 `src` 必须是向量 Tile。
-    - 在手动模式下，不支持将源 Tile 和目标 Tile 设置为相同的内存。
-- **有效区域**:
-    - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
+- **类型约束**：源 tile 和目标 tile 必须有相同元素类型，且均为整数类型。
+- **布局约束**：源 tile 和目标 tile 必须有兼容布局。
+- **有效区域**：迭代域总是 `dst.GetValidRow() × dst.GetValidCol()`。
+- **手动模式**：不支持将源 tile 和目标 tile 设置为同一地址（禁止 in-place）。
+
+## 异常与非法情形
+
+- Verifier 拒绝类型不匹配。
+- 后端拒绝不支持的元素类型、布局或目标 profile。
+- 程序不能依赖 `dst` valid region 之外的值。
+
+## Target-Profile 限制
+
+|| 特性 | CPU Simulator | A2/A3 | A5 |
+|| --- | :---: | :---: | :---: |
+|| 整数类型 | Simulated | Supported | Supported |
+|| 布局 | Any | RowMajor | RowMajor |
 
 ## 示例
 
+### C++ 自动模式
+
 ```cpp
 #include <pto/pto-inst.hpp>
-
 using namespace pto;
 
 void example() {
@@ -77,29 +100,32 @@ void example() {
 }
 ```
 
-## 汇编示例（ASM）
+### C++ 手动模式
 
-### 自动模式
+```cpp
+#include <pto/pto-inst.hpp>
+using namespace pto;
+
+void example_manual() {
+  using TileDst = Tile<TileType::Vec, uint16_t, 16, 16>;
+  using TileSrc = Tile<TileType::Vec, uint16_t, 16, 16>;
+  TileDst dst;
+  TileSrc src;
+  TASSIGN(src, 0x1000);
+  TASSIGN(dst,  0x3000);
+  TORS(dst, src, 0xffu);
+}
+```
+
+### PTO-AS
 
 ```text
-# 自动模式：由编译器/运行时负责资源放置与调度。
 %dst = pto.tors %src, %scalar : (!pto.tile<...>, dtype) -> !pto.tile<...>
 ```
 
-### 手动模式
+## 相关页面
 
-```text
-# 手动模式：先显式绑定资源，再发射指令。
-# 可选（当该指令包含 tile 操作数时）：
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
-%dst = pto.tors %src, %scalar : (!pto.tile<...>, dtype) -> !pto.tile<...>
-```
-
-### PTO 汇编形式
-
-```text
-%dst = tors %src, %scalar : !pto.tile<...>, i32
-# AS Level 2 (DPS)
-pto.tors ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
-```
+- 指令集总览：[逐元素 Tile-Tile](../../elementwise-tile-tile_zh.md)
+- 上一条指令：[pto.txors](./txors_zh.md)
+- 下一条指令：[pto.tshls](./tshl_zh.md)
+- 类似指令：[pto.tands](./tands_zh.md)、[pto.tor](./tor_zh.md)
