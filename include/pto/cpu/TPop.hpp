@@ -18,6 +18,11 @@ namespace pto {
 template <typename Pipe, typename TileCons, TileSplitAxis Split>
 PTO_INTERNAL void TPOP_IMPL(Pipe &pipe, TileCons &tile)
 {
+    if (cpu_pipe::IsInactiveNoSplitVecLane<TileCons, Split>()) {
+        cpu_pipe::EnsureTileStorage(tile);
+        cpu_pipe::FillTile(tile, typename TileCons::DType{});
+        return;
+    }
     // 1. Wait for data
     if (pipe.cons.getWaitStatus()) {
         pipe.cons.template wait<TileCons, Split>();
@@ -36,6 +41,9 @@ PTO_INTERNAL void TPOP_IMPL(TileCons &tile, Pipe &pipe)
 template <typename Pipe, TileSplitAxis Split>
 PTO_INTERNAL void TFREE_IMPL(Pipe &pipe)
 {
+    if (cpu_pipe::IsInactiveNoSplitVecConsumerLane<Pipe, Split>()) {
+        return;
+    }
     if (pipe.cons.getFreeStatus()) {
         pipe.cons.template free<Split>();
     }

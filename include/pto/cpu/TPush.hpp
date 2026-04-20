@@ -150,6 +150,32 @@ PTO_INTERNAL constexpr uint32_t GetActiveSplitLaneMask()
     return (1u << GetActiveSplitCount<TileData, Split>()) - 1u;
 }
 
+template <typename TileData, TileSplitAxis Split>
+PTO_INTERNAL bool IsInactiveNoSplitVecLane()
+{
+    static_assert(is_tile_data_v<TileData> || is_conv_tile_v<TileData>,
+                  "IsInactiveNoSplitVecLane requires a Tile or ConvTile type.");
+    if constexpr (Split != TileSplitAxis::TILE_NO_SPLIT) {
+        return false;
+    }
+    if constexpr (TileData::Loc != TileType::Vec) {
+        return false;
+    }
+    return get_subblockid() != 0;
+}
+
+template <typename Pipe, TileSplitAxis Split>
+PTO_INTERNAL bool IsInactiveNoSplitVecConsumerLane()
+{
+    if constexpr (Split != TileSplitAxis::TILE_NO_SPLIT) {
+        return false;
+    }
+    if constexpr (!Pipe::is_c2v) {
+        return false;
+    }
+    return get_subblockid() != 0;
+}
+
 template <typename TileData>
 PTO_INTERNAL void FillTile(TileData &tile, typename TileData::DType value)
 {
@@ -741,6 +767,9 @@ PTO_INTERNAL void TPush_v2c(Pipe &pipe, TileProd &tile, size_t entryBase)
 template <typename Pipe, typename TileProd, TileSplitAxis Split>
 PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
 {
+    if (cpu_pipe::IsInactiveNoSplitVecLane<TileProd, Split>()) {
+        return;
+    }
     if (pipe.prod.getAllocateStatus()) {
         pipe.prod.template allocate<TileProd, Split>();
     }
