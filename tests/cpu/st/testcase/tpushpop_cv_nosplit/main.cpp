@@ -10,6 +10,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <algorithm>
 #include <gtest/gtest.h>
+#include <mutex>
 #include <pto/pto-inst.hpp>
 #include <vector>
 #include "test_common.h"
@@ -112,6 +113,59 @@ void runCubeToVectorNoSplitWraparound()
         EXPECT_TRUE(ResultCmp(expected, actual[iter], 0));
     }
 }
+
+template <typename T, int rows, int cols>
+void runCubeToVectorNoSplitInactiveLaneNoOp()
+{
+    constexpr int kFifoDepth = 2;
+    using CubeTile = Tile<TileType::Mat, T, rows, cols>;
+    using VecTile = Tile<TileType::Vec, T, rows, cols>;
+    using Pipe = TPipe<kPipeFlagId + 2, Direction::DIR_C2V, sizeof(T) * VecTile::Numel, kFifoDepth>;
+
+    NPU_MEMORY_CLEAR();
+    Pipe::reset_for_cpu_sim();
+    Pipe pipe((__gm__ void *)nullptr, kVecConsumerBase, 0x0);
+
+    {
+        cpu_sim::ScopedExecutionContext producerCtx(0, 0, 1);
+        CubeTile cubeTile;
+        TASSIGN(cubeTile, 0x0);
+        fillCubeTile<T, rows, cols>(cubeTile, 0);
+        TPUSH<Pipe, CubeTile, TileSplitAxis::TILE_NO_SPLIT>(pipe, cubeTile);
+    }
+
+    {
+        cpu_sim::ScopedExecutionContext inactiveVecCtx(0, 1, 2);
+        VecTile vecTile;
+        TASSIGN(vecTile, 0x4000);
+        TPOP<Pipe, VecTile, TileSplitAxis::TILE_NO_SPLIT>(pipe, vecTile);
+        TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(pipe);
+    }
+
+    {
+        auto &sharedState = Pipe::GetSharedState();
+        std::lock_guard<std::mutex> lock(sharedState.mutex);
+        EXPECT_EQ(sharedState.occupied, 1);
+        EXPECT_EQ(sharedState.next_consumer_slot, 0);
+    }
+
+    VecTile vecTile;
+    TASSIGN(vecTile, 0x4000);
+    {
+        cpu_sim::ScopedExecutionContext activeVecCtx(0, 0, 2);
+        TPOP<Pipe, VecTile, TileSplitAxis::TILE_NO_SPLIT>(pipe, vecTile);
+        TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(pipe);
+    }
+
+    const auto expected = makeExpected<T, rows, cols>(0);
+    EXPECT_TRUE(ResultCmp(expected, vecTile.data(), 0));
+
+    {
+        auto &sharedState = Pipe::GetSharedState();
+        std::lock_guard<std::mutex> lock(sharedState.mutex);
+        EXPECT_EQ(sharedState.occupied, 0);
+    }
+}
 } // namespace
 
 class TPushPopCVNoSplitTest : public testing::Test {
@@ -137,4 +191,9 @@ TEST_F(TPushPopCVNoSplitTest, cube_to_vector_single_tile_float_16x32)
 TEST_F(TPushPopCVNoSplitTest, cube_to_vector_fifo_wraparound_float_16x32)
 {
     runCubeToVectorNoSplitWraparound<float, 16, 32>();
+}
+
+TEST_F(TPushPopCVNoSplitTest, cube_to_vector_inactive_aiv1_is_noop_in_no_split_mode)
+{
+    runCubeToVectorNoSplitInactiveLaneNoOp<float, 16, 32>();
 }
