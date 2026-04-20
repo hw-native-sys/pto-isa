@@ -374,6 +374,29 @@ __tf__ PTO_INTERNAL void TMovNdTo2Zz(typename DstTileData::TileDType __out__ dst
     }
 }
 
+template <typename WorkT, typename SrcTileData>
+PTO_INTERNAL void TMovNd2NzLoop(__ubuf__ WorkT *srcPtr, __ubuf__ WorkT *dstPtr, uint16_t repeatTimes,
+                                uint16_t innerLoopNum, uint32_t validCol, uint32_t cfgVsstb, uint32_t cfgVsstbLast,
+                                uint32_t srcOffset)
+{
+    constexpr uint32_t elementsPerRepeat = REPEAT_BYTE / sizeof(WorkT);
+    RegTensor<WorkT> vreg;
+    MaskReg preg;
+    uint32_t cols = validCol;
+    for (uint16_t j = 0; j < repeatTimes; ++j) {
+        uint32_t count = cols > elementsPerRepeat ? elementsPerRepeat : cols;
+        preg = CreatePredicate<WorkT>(count);
+        for (uint16_t i = 0; i < innerLoopNum; ++i) {
+            vlds(vreg, srcPtr, SrcTileData::RowStride, NORM, POST_UPDATE);
+            vsstb(vreg, dstPtr, cfgVsstb, preg, POST_UPDATE);
+        }
+        vlds(vreg, srcPtr, elementsPerRepeat, NORM, POST_UPDATE);
+        vsstb(vreg, dstPtr, cfgVsstbLast, preg, POST_UPDATE);
+        srcPtr -= srcOffset;
+        cols -= elementsPerRepeat;
+    }
+}
+
 template <typename T, typename DstTileData, typename SrcTileData>
 __tf__ PTO_INTERNAL void TMovToVecNd2Nz(typename DstTileData::TileDType __out__ dst,
                                         typename SrcTileData::TileDType __in__ src, uint32_t validRow,
@@ -405,22 +428,19 @@ __tf__ PTO_INTERNAL void TMovToVecNd2Nz(typename DstTileData::TileDType __out__ 
     uint32_t repeatStrideLast = (REPEAT_BYTE * virtualRow - innerLoopNum * BLOCK_BYTE_SIZE) / BLOCK_BYTE_SIZE;
     uint32_t cfgVsstbLast = (blockStride << 16u) | (repeatStrideLast & 0xFFFFU);
     uint32_t srcOffset = innerLoopNum * SrcTileData::RowStride;
+    constexpr bool isByte = (sizeof(T) == 1);
     __VEC_SCOPE__
     {
-        RegTensor<T> vreg;
-        MaskReg preg;
-        uint32_t cols = (uint32_t)(validCol);
-        for (uint16_t j = 0; j < (uint16_t)repeatTimes; ++j) {
-            uint32_t count = cols > elementsPerRepeat ? elementsPerRepeat : cols;
-            preg = CreatePredicate<T>(count);
-            for (uint16_t i = 0; i < (uint16_t)innerLoopNum; ++i) {
-                vlds(vreg, srcPtr, SrcTileData::RowStride, NORM, POST_UPDATE);
-                vsstb(vreg, dstPtr, cfgVsstb, preg, POST_UPDATE);
-            }
-            vlds(vreg, srcPtr, elementsPerRepeat, NORM, POST_UPDATE);
-            vsstb(vreg, dstPtr, cfgVsstbLast, preg, POST_UPDATE);
-            srcPtr -= srcOffset;
-            cols -= elementsPerRepeat;
+        if constexpr (isByte) {
+            // For 1-byte types (hifloat8_t, int8_t, float8_e4m3_t, etc.), cast to uint8_t
+            // since vlds/vsstb don't directly support these types.
+            __ubuf__ uint8_t *&srcU8 = (__ubuf__ uint8_t *&)srcPtr;
+            __ubuf__ uint8_t *&dstU8 = (__ubuf__ uint8_t *&)dstPtr;
+            TMovNd2NzLoop<uint8_t, SrcTileData>(srcU8, dstU8, repeatTimes, innerLoopNum, validCol, cfgVsstb,
+                                                cfgVsstbLast, srcOffset);
+        } else {
+            TMovNd2NzLoop<T, SrcTileData>(srcPtr, dstPtr, repeatTimes, innerLoopNum, validCol, cfgVsstb, cfgVsstbLast,
+                                          srcOffset);
         }
     } // end of VF
 }

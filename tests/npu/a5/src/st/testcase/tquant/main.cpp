@@ -489,5 +489,9 @@ TEST_F(TQUANTTEST, case_int8_asym_fp32_256x128_nd)
 {
     test_tquant_int8_asym<256, 128, 0>();
 }
+TEST_F(TQUANTTEST, case_int8_asym_fp32_32x72_nd)
+{
+    test_tquant_int8_asym<32, 72, 0>();
+}
 
 } // namespace TQuantTest
