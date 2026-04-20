@@ -214,7 +214,7 @@ PTO_INTERNAL void ComputeIterationF32(__ubuf__ float *dstTensor, __ubuf__ float 
         RegTensor<float> nanReg, zeroReg, n2Reg, oneReg;
         RegTensor<float> src0SignBitReg, src0SignBitTmpReg, dstSignBitReg;
         RegTensor<float> bTmpReg, tmpReg;
-        MaskReg maskReg, subNormalMask;
+        MaskReg maskReg, subNormalMask, signDiffMask;
         MaskReg maskFull = pset_b32(PAT_ALL);
 
         vdup(nanReg, nan.f, maskFull, MODE_ZEROING);
@@ -246,6 +246,14 @@ PTO_INTERNAL void ComputeIterationF32(__ubuf__ float *dstTensor, __ubuf__ float 
             vsel(dstReg, tmpReg, dstReg, subNormalMask);
 
             SolveExceptionScenarios(dstReg, src0OriginReg, src1OriginReg, nanReg, maskFull);
+
+            if (!isFmod) {
+                vmul(tmpReg, src1OriginReg, dstReg, maskFull, MODE_ZEROING);
+                vcmps_lt(signDiffMask, tmpReg, 0.0f, maskFull);
+                vadd(tmpReg, dstReg, src1OriginReg, signDiffMask, MODE_ZEROING);
+                vsel(dstReg, tmpReg, dstReg, signDiffMask);
+            }
+
             constexpr auto distValue =
                 std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<float, DistVST::DIST_NORM>())>();
             vsts(dstReg, dstTensor, i * elementsPerRepeat, distValue, maskFull);
@@ -272,6 +280,14 @@ PTO_INTERNAL void ComputeIterationF32(__ubuf__ float *dstTensor, __ubuf__ float 
             vsel(dstReg, tmpReg, dstReg, subNormalMask);
 
             SolveExceptionScenarios(dstReg, src0OriginReg, src1OriginReg, nanReg, maskReg);
+
+            if (!isFmod) {
+                vmul(tmpReg, src1OriginReg, dstReg, maskReg, MODE_ZEROING);
+                vcmps_lt(signDiffMask, tmpReg, 0.0f, maskReg);
+                vadd(tmpReg, dstReg, src1OriginReg, signDiffMask, MODE_ZEROING);
+                vsel(dstReg, tmpReg, dstReg, signDiffMask);
+            }
+
             constexpr auto distValue =
                 std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<float, DistVST::DIST_NORM>())>();
             vsts(dstReg, dstTensor, mainRepeatTimes * elementsPerRepeat, distValue, maskReg);
