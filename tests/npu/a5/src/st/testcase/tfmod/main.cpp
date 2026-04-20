@@ -84,7 +84,12 @@ void test_tfmod()
     ReadFile(GetGoldenDir() + "/golden.bin", fileSize, golden.data(), fileSize);
     ReadFile(GetGoldenDir() + "/output.bin", fileSize, devFinal.data(), fileSize);
 
-    bool ret = ResultCmp<T>(golden, devFinal, 0.001f);
+    float eps = 0.0005f;
+    if constexpr (std::is_same_v<T, float>) {
+        eps = 0.00005f;
+    }
+    eps = highPrecision ? 0.0000001f : eps;
+    bool ret = ResultCmp<T>(golden, devFinal, eps);
 
     EXPECT_TRUE(ret);
 }
