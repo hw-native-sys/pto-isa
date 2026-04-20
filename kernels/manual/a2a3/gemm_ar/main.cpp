@@ -809,7 +809,7 @@ static bool AllocDeviceBuffers(DeviceBuffers &buf, const GemmHcclContext &hctx, 
                                size_t a_bytes, const uint16_t *b_data, size_t b_bytes, aclrtStream commStream)
 {
     buf.outputSize = static_cast<size_t>(G_M) * G_N * sizeof(uint16_t);
-    buf.signalMatrixSize = ((static_cast<size_t>(MAX_RANKS + 1) * sizeof(int32_t) + 63) / 64) * 64;
+    buf.signalMatrixSize = ((static_cast<size_t>(MAX_RANKS + 2) * sizeof(int32_t) + 63) / 64) * 64;
 
     buf.gemm_output = nullptr;
     aclrtMalloc(&buf.gemm_output, buf.outputSize, ACL_MEM_MALLOC_HUGE_FIRST);
@@ -885,6 +885,7 @@ static bool RunBenchmarkAndVerify(int rank_id, int n_ranks, ResetFn &resetState,
     }
 
     std::vector<double> compute_us, seq_us, seq_comp_us, seq_comm_us, pipe_us, pipe_comp_us, pipe_comm_us;
+
     RunComputeOnlyBenchmark(resetState, launchComp, syncAll, computeStream, commStream, comm, compute_us);
     RunSequentialBenchmark(resetState, launchComp, launchComm, syncAll, computeStream, commStream, comm, seq_us,
                            seq_comp_us, seq_comm_us);

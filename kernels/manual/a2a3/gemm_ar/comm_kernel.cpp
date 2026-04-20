@@ -40,7 +40,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // Signal matrix layout (per rank, in HCCL RDMA window):
 //   [0 .. MAX_RANKS-1]              Phase 0 cross-rank counters (RS done)
 //   [MAX_RANKS]                     Phase 0 local broadcast flag (block 0 -> all blocks)
+//   [MAX_RANKS+1]                   Intra-rank block arrival counter (for RS completion sync)
 static constexpr int SIGNAL_LOCAL_FLAG_OFFSET = MAX_RANKS;
+static constexpr int SIGNAL_INTRA_RANK_COUNTER = MAX_RANKS + 1;
 
 using ShapeDyn = pto::Shape<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
 using StrideDyn = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
@@ -56,8 +58,23 @@ static constexpr size_t TILE_UB_BYTES = ((G_BASE_M * G_BASE_N * sizeof(half) + 1
 // Other blocks: wait on the local broadcast flag via TWAIT.
 // ============================================================================
 AICORE inline void DeviceBarrier(__gm__ HcclDeviceContext *hcclCtx, __gm__ int32_t *signal_base, int phase, int my_rank,
-                                 int nranks, int block_idx, int32_t expected = 1)
+                                 int nranks, int block_idx, int num_comm_blocks, int32_t expected = 1)
 {
+    // Intra-rank barrier: all blocks must arrive before block 0 sends cross-rank TNOTIFY.
+    // Non-zero blocks atomically increment the arrival counter;
+    // block 0 waits until all (num_comm_blocks - 1) other blocks have arrived.
+    // NOTE: The caller (ReduceScatterPhase) already ends with pipe_barrier(PIPE_ALL),
+    //       so we don't need another one at entry.
+    __gm__ int32_t *intra_counter = signal_base + SIGNAL_INTRA_RANK_COUNTER + phase;
+    if (block_idx != 0) {
+        pto::comm::Signal arrSig(intra_counter);
+        pto::comm::TNOTIFY(arrSig, (int32_t)1, pto::comm::NotifyOp::AtomicAdd);
+    } else {
+        if (num_comm_blocks > 1) {
+            pto::comm::Signal arrSig(intra_counter);
+            pto::comm::TWAIT(arrSig, (int32_t)(num_comm_blocks - 1), pto::comm::WaitCmp::GE);
+        }
+    }
     pipe_barrier(PIPE_ALL);
 
     if (block_idx == 0) {
@@ -374,7 +391,7 @@ AICORE inline void GemmCommAllImpl(__gm__ half *gemm_output, __gm__ half *reduce
 
     ReduceScatterPhase(gemm_output, reduced_output, queue_set, hcclCtx, my_rank, nranks, num_compute_blocks, block_idx);
 
-    DeviceBarrier(hcclCtx, signal_matrix, 0, my_rank, nranks, block_idx);
+    DeviceBarrier(hcclCtx, signal_matrix, 0, my_rank, nranks, block_idx, num_comm_blocks);
 
     AllGatherPhase(reduced_output, hcclCtx, my_rank, nranks, block_idx, num_comm_blocks);
 }
