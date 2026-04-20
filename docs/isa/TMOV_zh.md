@@ -1,30 +1,18 @@
 # pto.tmov
 
-旧路径兼容入口。规范页见 [pto.tmov](./tile/ops/layout-and-rearrangement/tmov_zh.md)。
+`pto.tmov` 属于[布局与重排](./tile/layout-and-rearrangement_zh.md)指令集。
 
-![TMOV tile operation](../figures/isa/TMOV.svg)
+## 概述
 
-## 简介
+在 Tile 之间移动/复制数据，可选通过模板参数和重载选择实现定义的转换模式。TMOV 用于 Vec -> Vec 移动、Mat -> Left/Right/Bias/Scaling/Scale（微缩放）移动（取决于目标）、以及 Acc -> Mat/Vec 移动（取决于目标）。
 
-在 Tile 之间移动/复制，可选通过模板参数和重载选择实现定义的转换模式。
+## 机制
 
-`TMOV` 用于：
+概念上在有效区域上将元素从 `src` 复制或转换到 `dst`。确切的转换取决于所选模式和目标。对于纯复制情况：$ \mathrm{dst}_{i,j} = \mathrm{src}_{i,j} $。支持多种转换模式，包括 relu 前处理、累加器到向量的特定模式、以及量化参数的微缩放。
 
-- Vec -> Vec 移动
-- Mat -> Left/Right/Bias/Scaling/Scale（微缩放）移动（取决于目标）
-- Acc -> Mat/Vec 移动（取决于目标）
+## 语法
 
-## 数学语义
-
-概念上在有效区域上将元素从 `src` 复制或转换到 `dst`。确切的转换取决于所选模式和目标。
-
-对于纯复制情况：
-
-$$ \mathrm{dst}_{i,j} = \mathrm{src}_{i,j} $$
-
-## 汇编语法
-
-PTO-AS 形式：参见 [PTO-AS 规范](../assembly/PTO-AS_zh.md)。
+### PTO-AS
 
 PTO AS 设计建议将 `TMOV` 拆分为一系列操作：
 
@@ -39,13 +27,13 @@ PTO AS 设计建议将 `TMOV` 拆分为一系列操作：
 
 ### AS Level 1（SSA）
 
-```text
+```mlir
 %dst = pto.tmov.s2d %src  : !pto.tile<...> -> !pto.tile<...>
 ```
 
 ### AS Level 2（DPS）
 
-```text
+```mlir
 pto.tmov ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
@@ -77,77 +65,110 @@ template <typename DstTileData, typename SrcTileData, AccToVecMode mode, ReluPre
 PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, uint64_t preQuantScalar, WaitEvents &... events);
 ```
 
+## 输入
+
+| 操作数 | 角色 | 说明 |
+| --- | --- | --- |
+| dst | 输出 | 目标 Tile |
+| src | 输入 | 源 Tile |
+| fp | 可选 | 浮点量化 Tile（向量量化形式） |
+| preQuantScalar | 可选 | 标量量化参数 |
+| events | 可选 | 等待事件 |
+
+## 预期输出
+
+| 结果 | 类型 | 说明 |
+| --- | --- | --- |
+| dst | DstTileData& | 转换后的目标 Tile |
+| 事件 | RecordEvent | 同步事件 |
+
+## 副作用
+
+该指令可能修改目标 Tile 的内容，并在特定模式下触发硬件数据转换路径。
+
 ## 约束
 
 ### 通用约束或检查
 
-- `TMOV` 包含以下重载族：
-    - 普通移动：`TMOV(dst, src)`
-    - relu 形式：`TMOV<..., reluMode>(dst, src)`
-    - 累加器到向量形式：`TMOV<..., mode, reluMode>(dst, src)`
-    - 向量量化形式：`TMOV<..., FpTileData, mode, reluMode>(dst, src, fp)`
-    - 标量量化形式：`TMOV<..., reluMode>(dst, src, preQuantScalar)` 和 `TMOV<..., mode, reluMode>(dst, src, preQuantScalar)`
-- `reluMode` 取值为 `ReluPreMode::{NoRelu, NormalRelu}`。
-- `mode` 取值为 `AccToVecMode::{SingleModeVec0, SingleModeVec1, DualModeSplitM, DualModeSplitN}`。
+- TMOV 包含以下重载族：
+    - 普通移动：TMOV(dst, src)
+    - relu 形式：TMOV<..., reluMode>(dst, src)
+    - 累加器到向量形式：TMOV<..., mode, reluMode>(dst, src)
+    - 向量量化形式：TMOV<..., FpTileData, mode, reluMode>(dst, src, fp)
+    - 标量量化形式：TMOV<..., reluMode>(dst, src, preQuantScalar) 和 TMOV<..., mode, reluMode>(dst, src, preQuantScalar)
+- reluMode 取值为 ReluPreMode::{NoRelu, NormalRelu}
+- mode 取值为 AccToVecMode::{SingleModeVec0, SingleModeVec1, DualModeSplitM, DualModeSplitN}
 
 ### A2A3 实现检查
 
-- 形状必须匹配：`SrcTileData::Rows == DstTileData::Rows` 且 `SrcTileData::Cols == DstTileData::Cols`。
+- 形状必须匹配：SrcTileData::Rows == DstTileData::Rows 且 SrcTileData::Cols == DstTileData::Cols
 - 支持的 Tile 类型对在编译期限制为：
-    - `TileType::Mat -> TileType::Left/Right/Bias/Scaling`
-    - `TileType::Vec -> TileType::Vec`
-    - `TileType::Acc -> TileType::Mat`
-- 对于 `TileType::Mat -> TileType::Bias`：
-    - 支持的源/目标 dtype 对为 `int32_t -> int32_t`、`float -> float`、`half -> float`
-    - 源行数必须为 `1`
-    - `SrcTileData::Cols * sizeof(SrcType)` 必须按 `64` 字节对齐
-- 对于 `TileType::Mat -> TileType::Scaling`：
-    - 目标 dtype 必须与源 dtype 相同，且必须为 `uint64_t`
-    - 源行数必须为 `1`
-    - `SrcTileData::Cols * sizeof(SrcType)` 必须按 `128` 字节对齐
-- 对于 `TileType::Acc -> TileType::Mat`：
-    - 额外执行 `CheckTMovAccToMat<...>` 编译期检查
-    - 普通/relu 形式使用 `GetCastPreQuantMode<SrcDType, DstDType>()` 推导的 cast pre-quant 模式
-    - 标量量化形式使用 `GetScalarPreQuantMode<SrcDType, DstDType>()`
-    - 向量量化形式要求提供 `FpTileData` 操作数，且 `FpTileData::Loc == TileType::Scaling`，并使用 `GetVectorPreQuantMode<SrcDType, DstDType>()`
+    - TileType::Mat -> TileType::Left/Right/Bias/Scaling
+    - TileType::Vec -> TileType::Vec
+    - TileType::Acc -> TileType::Mat
+- 对于 TileType::Mat -> TileType::Bias：
+    - 支持的源/目标 dtype 对为 int32_t -> int32_t、float -> float、half -> float
+    - 源行数必须为 1
+    - SrcTileData::Cols * sizeof(SrcType) 必须按 64 字节对齐
+- 对于 TileType::Mat -> TileType::Scaling：
+    - 目标 dtype 必须与源 dtype 相同，且必须为 uint64_t
+    - 源行数必须为 1
+    - SrcTileData::Cols * sizeof(SrcType) 必须按 128 字节对齐
+- 对于 TileType::Acc -> TileType::Mat：
+    - 额外执行 CheckTMovAccToMat<...> 编译期检查
+    - 普通/relu 形式使用 GetCastPreQuantMode<SrcDType, DstDType>() 推导的 cast pre-quant 模式
+    - 标量量化形式使用 GetScalarPreQuantMode<SrcDType, DstDType>()
+    - 向量量化形式要求提供 FpTileData 操作数，且 FpTileData::Loc == TileType::Scaling，并使用 GetVectorPreQuantMode<SrcDType, DstDType>()
 
 ### A5 实现检查
 
-- `CommonCheck()` 要求：
+- CommonCheck() 要求：
     - 目标/源 dtype 必须相同
-    - 支持的元素类型为 `int8_t`、`hifloat8_t`、`float8_e5m2_t`、`float8_e4m3_t`、`half`、`bfloat16_t`、`float`、`float4_e2m1x2_t`、`float4_e1m2x2_t`
+    - 支持的元素类型为 int8_t、hifloat8_t、float8_e5m2_t、float8_e4m3_t、half、bfloat16_t、float、float4_e2m1x2_t、float4_e1m2x2_t
     - 源布局必须满足以下之一：
-        - `(SrcTileData::SFractal == SLayout::ColMajor && SrcTileData::isRowMajor)`
-        - `(SrcTileData::SFractal == SLayout::RowMajor && !SrcTileData::isRowMajor)`
-        - `SrcTileData::isRowMajor`
-- `CommonCheckMX()` 用于 MX 路径时要求源/目标 dtype 相同，并支持 `float8_e8m0_t`。
+        - (SrcTileData::SFractal == SLayout::ColMajor && SrcTileData::isRowMajor)
+        - (SrcTileData::SFractal == SLayout::RowMajor && !SrcTileData::isRowMajor)
+        - SrcTileData::isRowMajor
+- CommonCheckMX() 用于 MX 路径时要求源/目标 dtype 相同，并支持 float8_e8m0_t
 - 支持的路径包括：
-    - `TileType::Mat -> TileType::Left/Right/Bias/Scaling/ScaleLeft/ScaleRight`
-    - `TileType::Vec -> TileType::Vec/TileType::Mat`
-    - `TileType::Acc -> TileType::Vec/TileType::Mat`
-    - A5 实现中处理的特定 `ND -> ZZ` 及相关内部路径变体
-- 对于 `TileType::Mat -> TileType::Bias`：
-    - 支持的 dtype 对为 `int32_t -> int32_t`、`float -> float`、`half -> float`、`bfloat16_t -> float`
-    - 源行数必须为 `1`
-    - `DstTileData::Cols * sizeof(DstType)` 必须按 `64` 字节对齐
-    - bias table 占用 `DstTileData::Cols * sizeof(DstType)` 不得超过 `4096` 字节
-- 对于 `TileType::Mat -> TileType::Scaling`：
-    - 源行数必须为 `1`
-    - `DstTileData::Cols * sizeof(DstType)` 必须按 `128` 字节对齐
-    - fixpipe buffer 占用 `DstTileData::Cols * sizeof(DstType)` 不得超过 `4096` 字节
-- 对于 `TileType::Acc -> TileType::Vec`：
-    - `mode` 用于选择 `SingleModeVec0`、`SingleModeVec1`、`DualModeSplitM` 或 `DualModeSplitN`
-    - 双目标模式要求 `QuantMode_t::NoQuant`
-    - 双目标模式不支持 `nz2dn` 路径
-    - 目标 stride 必须非零，且 `dstStride * sizeof(dstType)` 必须是 `32` 字节的整数倍
-- 对于 `TileType::Acc -> TileType::Mat`：
-    - 目标 stride 必须非零，且 `dstStride * sizeof(dstType)` 必须是 `32` 字节的整数倍
+    - TileType::Mat -> TileType::Left/Right/Bias/Scaling/ScaleLeft/ScaleRight
+    - TileType::Vec -> TileType::Vec/TileType::Mat
+    - TileType::Acc -> TileType::Vec/TileType::Mat
+    - A5 实现中处理的特定 ND -> ZZ 及相关内部路径变体
+- 对于 TileType::Mat -> TileType::Bias：
+    - 支持的 dtype 对为 int32_t -> int32_t、float -> float、half -> float、bfloat16_t -> float
+    - 源行数必须为 1
+    - DstTileData::Cols * sizeof(DstType) 必须按 64 字节对齐
+    - bias table 占用 DstTileData::Cols * sizeof(DstType) 不得超过 4096 字节
+- 对于 TileType::Mat -> TileType::Scaling：
+    - 源行数必须为 1
+    - DstTileData::Cols * sizeof(DstType) 必须按 128 字节对齐
+    - fixpipe buffer 占用 DstTileData::Cols * sizeof(DstType) 不得超过 4096 字节
+- 对于 TileType::Acc -> TileType::Vec：
+    - mode 用于选择 SingleModeVec0、SingleModeVec1、DualModeSplitM 或 DualModeSplitN
+    - 双目标模式要求 QuantMode_t::NoQuant
+    - 双目标模式不支持 nz2dn 路径
+    - 目标 stride 必须非零，且 dstStride * sizeof(dstType) 必须是 32 字节的整数倍
+- 对于 TileType::Acc -> TileType::Mat：
+    - 目标 stride 必须非零，且 dstStride * sizeof(dstType) 必须是 32 字节的整数倍
     - 支持通过对应重载启用 relu/标量量化/向量量化形式
 
+## 异常与非法情形
+
+- 未指定
+
+## Target-Profile 限制
+
+| 特性 | CPU Simulator | A2/A3 | A5 |
+| --- | :---: | :---: | :---: |
+| Mat -> Left/Right/Bias/Scaling | - | 支持 | 支持 |
+| Vec -> Vec | - | 支持 | 支持 |
+| Acc -> Mat | - | 支持 | 支持 |
+| Acc -> Vec | - | 支持 | 支持 |
 
 ## 示例
 
-### 自动（Auto）
+### C++ 自动模式
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -161,7 +182,7 @@ void example_auto() {
 }
 ```
 
-### 手动（Manual）
+### C++ 手动模式
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -179,31 +200,21 @@ void example_manual() {
 }
 ```
 
-## 汇编示例（ASM）
-
-### 自动模式
+### PTO-AS
 
 ```text
-# 自动模式：由编译器/运行时负责资源放置与调度。
+# 自动模式
 %dst = pto.tmov.s2d %src  : !pto.tile<...> -> !pto.tile<...>
-```
 
-### 手动模式
-
-```text
-# 手动模式：先显式绑定资源，再发射指令。
-# 可选（当该指令包含 tile 操作数时）：
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
+# 手动模式
 %dst = pto.tmov.s2d %src  : !pto.tile<...> -> !pto.tile<...>
-```
 
-### PTO 汇编形式
-
-```text
+# PTO 汇编形式
 %dst = pto.tmov.s2d %src  : !pto.tile<...> -> !pto.tile<...>
 # AS Level 2 (DPS)
 pto.tmov ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-新的 PTO ISA 文档应直接链接到分组后的指令集路径。
+## 相关页面
+
+- 指令集总览：[布局与重排](./tile/layout-and-rearrangement_zh.md)

@@ -1,30 +1,36 @@
-# TGET_SCALE_ADDR
+# pto.tget_scale_addr
 
-## Tile Operation Diagram
+`pto.tget_scale_addr` 属于[同步与配置指令](../../sync-and-config_zh.md)集。
 
-![TGET_SCALE_ADDR tile operation](../../../../figures/isa/TGET_SCALE_ADDR.svg)
+## 概述
 
-## 简介
+`TGET_SCALE_ADDR` 将输入 Tile 的片上地址数值按比例扩展，将其结果数值绑定为输出 Tile 的片上地址。这个扩展因子是由 `include/pto/npu/a5/utils.hpp` 中的右移值 `SHIFT_MX_ADDR` 定义的。
 
-将输入Tile的片上地址数值按比例扩展，将其结果数值绑定为输出Tile的片上地址。
+## 机制
 
-这个扩展因子是由`include/pto/npu/a5/utils.hpp`中的右移值`SHIFT_MX_ADDR`定义的。
+地址映射关系为：
 
-## 数学语义
+$$ \mathrm{Address}(\mathrm{dst}) = \mathrm{Address}(\mathrm{src}) \gg \mathrm{SHIFT\_MX\_ADDR} $$
 
-Address(`dst`) = Address(`src`) >> `SHIFT_MX_ADDR`
+该指令主要用于在自动模式下处理不同粒度的地址映射。
 
-## 汇编语法
+## 语法
 
-PTO-AS form: see [PTO-AS Specification](../../../../assembly/PTO-AS_zh.md).
+### PTO-AS
 
-### IR Level 1（SSA）
+参见 [PTO-AS 规范](../../../../assembly/PTO-AS_zh.md)。
 
-TODO
+### AS Level 1（SSA）
 
-### IR Level 2（DPS）
+```mlir
+%dst = pto.tget_scale_addr %src : !pto.tile<...> -> !pto.tile<...>
+```
 
-TODO
+### AS Level 2（DPS）
+
+```mlir
+pto.tget_scale_addr ins(%src : !pto.tile<...>) outs(%dst : !pto.tile<...>)
+```
 
 ## C++ 内建接口
 
@@ -32,23 +38,51 @@ TODO
 
 ```cpp
 template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
-PTO_INST RecordEvent TGET_SCALE_ADDR(TileDataDst &dst, TileDataSrc &src, aitEvents&... events);
+PTO_INST RecordEvent TGET_SCALE_ADDR(TileDataDst &dst, TileDataSrc &src, WaitEvents&... events);
 ```
+
+## 输入
+
+| 操作数 | 角色 | 说明 |
+| --- | --- | --- |
+| `dst` | 输出 | 目标 Tile（缩放后地址） |
+| `src` | 输入 | 源 Tile |
+
+## 预期输出
+
+| 结果 | 类型 | 说明 |
+| --- | --- | --- |
+| `dst` | Tile | 片上地址按比例缩放后的 Tile |
+
+## 副作用
+
+将目标 Tile 的片上地址绑定为源 Tile 地址经右移 `SHIFT_MX_ADDR` 位后的值。
 
 ## 约束
 
-- **输入和输出都必须为Tile对象**
-- **目前只能用在auto模式下**（以后会将支持manual模式下的实现）
+- 输入和输出都必须为 Tile 对象。
+- 目前只能用在自动模式下。
+
+## 异常与非法情形
+
+- 在手动模式下使用此指令，行为未定义。
+
+## Target-Profile 限制
+
+| 特性 | CPU Simulator | A2/A3 | A5 |
+| --- | :---: | :---: | :---: |
+| 自动模式支持 | - | - | 是 |
 
 ## 示例
+
+### C++
 
 ```cpp
 #include <pto/pto-inst.hpp>
 
-> wa
 using namespace pto;
 
-template <typename T, int ARows, int ACols, BRows, BCols>
+template <typename T, int ARows, int ACols, int BRows, int BCols>
 void example() {
     using LeftTile = TileLeft<T, ARows, ACols>;
     using RightTile = TileRight<T, BRows, BCols>;
@@ -66,16 +100,13 @@ void example() {
 }
 ```
 
-## asm form examples
+### PTO-AS
 
-### Auto Mode
+```text
+%dst = pto.tget_scale_addr %src : !pto.tile<...> -> !pto.tile<...>
+```
 
-TODO
+## 相关页面
 
-### Manual Mode
-
-TODO
-
-### PTO 汇编形式
-
-TODO
+- 指令集总览：[同步与配置](../../sync-and-config_zh.md)
+- [TGET_SCALE_ADDR](./tget-scale-addr_zh.md)

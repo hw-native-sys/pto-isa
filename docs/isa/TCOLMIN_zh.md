@@ -1,38 +1,34 @@
-﻿# TCOLMIN
+﻿# pto.tcolmin
 
-## 指令示意图
+`pto.tcolmin` 属于[归约与扩展](./tile/reduce-and-expand_zh.md)指令集。
 
-![TCOLMIN tile operation](../figures/isa/TCOLMIN.svg)
-
-## 简介
+## 概述
 
 通过取行间最小值来归约每一列。
 
-## 数学语义
+## 机制
 
 设 `R = src.GetValidRow()`，`C = src.GetValidCol()`。对 `0 <= j < C`：
 
 $$ \mathrm{dst}_{0,j} = \min_{0 \le i < R} \mathrm{src}_{i,j} $$
 
-## 汇编语法
+迭代域由 `src` 的 valid region 决定。若 `src.GetValidRow() == 0` 或 `src.GetValidCol() == 0`，实现会直接返回。
 
-PTO-AS 形式：参见 [PTO-AS 规范](../assembly/PTO-AS_zh.md)。
+## 语法
 
-同步形式：
+### PTO-AS
 
-```text
-%dst = tcolmin %src : !pto.tile<...> -> !pto.tile<...>
-```
+参见 [PTO-AS 规范](../assembly/PTO-AS_zh.md)。
 
 ### AS Level 1（SSA）
 
-```text
+```mlir
 %dst = pto.tcolmin %src : !pto.tile<...> -> !pto.tile<...>
 ```
 
 ### AS Level 2（DPS）
 
-```text
+```mlir
 pto.tcolmin ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
@@ -45,28 +41,49 @@ template <typename TileDataOut, typename TileDataIn, typename... WaitEvents>
 PTO_INST RecordEvent TCOLMIN(TileDataOut &dst, TileDataIn &src, WaitEvents &... events);
 ```
 
-## 约束
+## 输入
 
-### 通用约束或检查
+| 操作数 | 角色 | 说明 |
+| --- | --- | --- |
+| `%src` | 源 tile | 输入 tile |
+| `%dst` | 目标 tile | 接收按列取最小值结果 |
+| `WaitEvents...` | 可选同步 | 发射前需要等待的事件 |
+
+## 预期输出
+
+| 结果 | 类型 | 说明 |
+| --- | --- | --- |
+| `%dst` | `!pto.tile<1, C>` | 每列的最小元素值 |
+
+## 副作用
+
+除产生目标 tile 外，没有额外架构副作用。
+
+## 约束
 
 - `dst` 和 `src` 必须为 `TileType::Vec`。
 - `dst` 和 `src` 必须使用标准 ND 布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
 - `dst` 和 `src` 的元素类型必须一致。
-- 运行时检查：
-    - `src.GetValidCol() == dst.GetValidCol()`
-- 若 `src.GetValidRow() == 0` 或 `src.GetValidCol() == 0`，实现会直接返回。
+- 运行时检查：`src.GetValidCol() == dst.GetValidCol()`。
 
-### A2A3 实现检查
+## 异常与非法情形
 
-- 支持的元素类型：`half`、`float`、`int16_t`、`int32_t`。
+- 非法操作数组合、不支持的数据类型、不合法布局或不支持的 target-profile 模式，会被 verifier 或后端实现拒绝。
 
-### A5 实现检查
+## Target-Profile 限制
 
-- 支持的元素类型：`half`、`float`、`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`bfloat16_t`。
+| 特性 | CPU Simulator | A2/A3 | A5 |
+| --- | :---: | :---: | :---: |
+| `float` | Simulated | Supported | Supported |
+| `half` | Simulated | Supported | Supported |
+| `int16_t` / `int32_t` | — | Supported | — |
+| `int8_t` / `uint8_t` | — | — | Supported |
+| `uint16_t` / `uint32_t` | — | — | Supported |
+| `bfloat16_t` | — | — | Supported |
 
 ## 示例
 
-### 自动（Auto）
+### C++ 自动模式
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -82,7 +99,7 @@ void example_auto() {
 }
 ```
 
-### 手动（Manual）
+### C++ 手动模式
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -100,29 +117,23 @@ void example_manual() {
 }
 ```
 
-## 汇编示例（ASM）
-
-### 自动模式
+### PTO-AS
 
 ```text
-# 自动模式：由编译器/运行时负责资源放置与调度。
+# 自动模式
 %dst = pto.tcolmin %src : !pto.tile<...> -> !pto.tile<...>
-```
 
-### 手动模式
-
-```text
-# 手动模式：先显式绑定资源，再发射指令。
-# 可选（当该指令包含 tile 操作数时）：
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
+# 手动模式
+pto.tassign %arg0, @tile(0x1000)
+pto.tassign %arg1, @tile(0x2000)
 %dst = pto.tcolmin %src : !pto.tile<...> -> !pto.tile<...>
-```
 
-### PTO 汇编形式
-
-```text
+# PTO 汇编形式
 %dst = tcolmin %src : !pto.tile<...> -> !pto.tile<...>
 # AS Level 2 (DPS)
 pto.tcolmin ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
+
+## 相关页面
+
+- 指令集总览：[归约与扩展](./tile/reduce-and-expand_zh.md)

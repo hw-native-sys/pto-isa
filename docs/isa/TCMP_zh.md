@@ -1,26 +1,24 @@
-﻿# TCMP
-
-## 指令示意图
+﻿# pto.tcmp
 
 ![TCMP tile operation](../figures/isa/TCMP.svg)
 
-## 简介
+`pto.tcmp` 属于[逐元素 Tile-Tile](./tile/elementwise-tile-tile_zh.md)指令集。
 
-比较两个 Tile 并写入一个打包的谓词掩码。
+## 概述
 
-## 数学语义
+比较两个 tile 并将结果写成打包谓词 tile。迭代域由目标 tile 的 valid region 决定。
 
-概念上，对于有效区域中的每个元素 `(i, j)`，定义一个谓词：
+## 机制
+
+从语义上看，对目标 tile 的 valid region 中每个 `(i, j)`，先定义一个谓词：
 
 $$ p_{i,j} = \left(\mathrm{src0}_{i,j}\ \mathrm{cmpMode}\ \mathrm{src1}_{i,j}\right) $$
 
-谓词掩码使用实现定义的打包布局存储在 `dst` 中。
+随后把这些谓词位按目标定义的 packed layout 写入 `dst`。也就是说，`dst` 不是"每个 lane 一个布尔数"的朴素 tile，而是某种目标定义的压缩谓词表示。程序不能假设谓词 tile 的具体编码。
 
-## 汇编语法
+## 语法
 
-PTO-AS 形式：参见 [PTO-AS 规范](../assembly/PTO-AS_zh.md)。
-
-同步形式：
+### PTO-AS
 
 ```text
 %dst = tcmp %src0, %src1 {cmpMode = #pto.cmp<EQ>} : !pto.tile<...> -> !pto.tile<...>
@@ -28,50 +26,87 @@ PTO-AS 形式：参见 [PTO-AS 规范](../assembly/PTO-AS_zh.md)。
 
 ### AS Level 1（SSA）
 
-```text
-%dst = pto.tcmp %src0, %src1{cmpMode = #pto<cmp xx>}: (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+```mlir
+%dst = pto.tcmp %src0, %src1 {cmpMode = #pto.cmp<EQ>} : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
 ### AS Level 2（DPS）
 
-```text
-pto.tcmp ins(%src0, %src1{cmpMode = #pto<cmp xx>}: !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+```mlir
+pto.tcmp ins(%src0, %src1 {cmpMode = #pto.cmp<EQ>}: !pto.tile_buf<...>, !pto.tile_buf<...>)
+         outs(%dst : !pto.tile_buf<...>)
 ```
 
 ## C++ 内建接口
 
-声明于 `include/pto/common/pto_instr.hpp` 和 `include/pto/common/type.hpp`：
-
 ```cpp
 template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
-PTO_INST RecordEvent TCMP(TileDataDst &dst, TileDataSrc &src0, TileDataSrc &src1, CmpMode cmpMode, WaitEvents &... events);
+PTO_INST RecordEvent TCMP(TileDataDst &dst, TileDataSrc &src0, TileDataSrc &src1,
+                          CmpMode cmpMode, WaitEvents &... events);
 ```
+
+### 比较模式
+
+| 模式 | 含义 |
+| --- | --- |
+| `EQ` | 等于 |
+| `NE` | 不等于 |
+| `LT` | 小于 |
+| `LE` | 小于等于 |
+| `GT` | 大于 |
+| `GE` | 大于等于 |
+
+## 输入
+
+| 操作数 | 角色 | 说明 |
+| --- | --- | --- |
+| `%src0` | 左 tile | 在 `dst` valid region 上逐坐标参与比较 |
+| `%src1` | 右 tile | 在 `dst` valid region 上逐坐标参与比较 |
+| `%dst` | 谓词 tile | 保存打包后的比较结果 |
+| `cmpMode` | 比较谓词 | 选择 EQ / NE / LT / LE / GT / GE |
+| `WaitEvents...` | 可选同步 | 发射前需要等待的事件 |
+
+## 预期输出
+
+| 结果 | 类型 | 说明 |
+| --- | --- | --- |
+| `%dst` | `!pto.tile<...>` | 打包后的谓词结果 tile，具体编码由目标 profile 定义 |
+
+## 副作用
+
+除产生谓词 tile 外，没有额外架构副作用。
 
 ## 约束
 
-- **实现检查 (A2A3)**:
-    - 输入类型必须是以下之一：`int32_t`、`half`、`float`。
-    - 输出类型必须是 `uint8_t`。
-    - `src0/src1/dst` tile 位置必须是 `TileType::Vec`。
-    - 静态有效边界：`TileDataSrc::ValidRow <= TileDataSrc::Rows` 且 `TileDataSrc::ValidCol <= TileDataSrc::Cols`。
-    - 运行时：`src0.GetValidRow() == dst.GetValidRow()` 且 `src0.GetValidCol() == dst.GetValidCol()`。
-    - 注意：`src1` 的形状/有效性在此实现中不通过显式运行时断言进行验证。
-    - 对于 `TileDataSrc::DType == int32_t`，实现使用 `EQ` 比较路径，无论 `cmpMode` 如何。
-- **实现检查 (A5)**:
-    - 输入类型必须是以下之一：`uint32_t`、`int32_t`、`uint16_t`、`int16_t`、`uint8_t`、`int8_t`、`float`、`half`。
-    - 输出类型必须是 `uint32_t`。
-    - 已实现（参见 `include/pto/npu/a5/TCmp.hpp`）。
-    - A5 实现使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域，并将打包的谓词掩码写入 `dst`（目标定义的打包方式）。
-- **掩码编码**:
-    - 掩码 tile 被解释为目标定义布局中的打包谓词位。
+- 迭代域是 `dst.GetValidRow() × dst.GetValidCol()`。
+- `src0` 的 validRow / validCol 必须与 `dst` 一致。
+- `src1` 的 shape / valid 在某些实现里不会做完整运行时校验，因此域外读值属于 implementation-defined。
+- 程序不能假设谓词 tile 的具体编码。
+
+## 异常与非法情形
+
+- 假设谓词 tile 是"一位一元素"的普通展开布尔 tile，会导致行为不可预期。
+- 对 `dst` 使用不符合目标定义的谓词输出 dtype，会被 verifier 或后端拒绝。
+
+## Target-Profile 限制
+
+| 检查项 | A2/A3 | A5 |
+| --- | :---: | :---: |
+| 支持输入类型 | `int32_t`、`half`、`float` | `uint32_t`、`int32_t`、`uint16_t`、`int16_t`、`uint8_t`、`int8_t`、`float`、`half` |
+| 输出谓词 dtype | `uint8_t` | `uint32_t` |
+| tile 位置 | `TileType::Vec` | `TileType::Vec` |
+| 布局 | RowMajor | RowMajor |
+| `src0` valid == `dst` valid | Required | Required |
+| `src1` validity 校验 | Not fully verified | Not fully verified |
+
+对 A2A3，若输入类型是 `int32_t`，实现里可能只走 `EQ` 比较路径；A5 则支持完整比较模式。
 
 ## 示例
 
-### 自动（Auto）
+### C++ 自动模式
 
 ```cpp
 #include <pto/pto-inst.hpp>
-
 using namespace pto;
 
 void example_auto() {
@@ -83,11 +118,10 @@ void example_auto() {
 }
 ```
 
-### 手动（Manual）
+### C++ 手动模式
 
 ```cpp
 #include <pto/pto-inst.hpp>
-
 using namespace pto;
 
 void example_manual() {
@@ -102,29 +136,25 @@ void example_manual() {
 }
 ```
 
-## 汇编示例（ASM）
-
-### 自动模式
+### PTO-AS
 
 ```text
-# 自动模式：由编译器/运行时负责资源放置与调度。
-%dst = pto.tcmp %src0, %src1{cmpMode = #pto<cmp xx>}: (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-```
+# 自动模式
+%dst = pto.tcmp %src0, %src1 {cmpMode = #pto.cmp<GT>} : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 
-### 手动模式
+# 手动模式
+pto.tassign %arg0, @tile(0x1000)
+pto.tassign %arg1, @tile(0x2000)
+%dst = pto.tcmp %src0, %src1 {cmpMode = #pto.cmp<GT>} : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 
-```text
-# 手动模式：先显式绑定资源，再发射指令。
-# 可选（当该指令包含 tile 操作数时）：
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
-%dst = pto.tcmp %src0, %src1{cmpMode = #pto<cmp xx>}: (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-```
-
-### PTO 汇编形式
-
-```text
+# PTO 汇编形式
 %dst = tcmp %src0, %src1 {cmpMode = #pto.cmp<EQ>} : !pto.tile<...> -> !pto.tile<...>
 # AS Level 2 (DPS)
-pto.tcmp ins(%src0, %src1{cmpMode = #pto<cmp xx>}: !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+pto.tcmp ins(%src0, %src1 {cmpMode = #pto.cmp<EQ>}: !pto.tile_buf<...>, !pto.tile_buf<...>)
+         outs(%dst : !pto.tile_buf<...>)
 ```
+
+## 相关页面
+
+- 指令集总览：[逐元素 Tile-Tile](./tile/elementwise-tile-tile_zh.md)
+- 规范页：[pto.tcmp](./tile/ops/elementwise-tile-tile/tcmp_zh.md)

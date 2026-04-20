@@ -1,12 +1,25 @@
 # TGET_ASYNC
 
-## 简介
+## 概述
 
-`TGET_ASYNC` 是异步远程读原语。它启动一次从远端 GM 到本地 GM 的传输，并立即返回 `AsyncEvent`。
+`TGET_ASYNC` 是异步远程读原语：启动从远端 GM 到本地 GM 的 DMA 传输后立即返回 `AsyncEvent`，不阻塞。稍后通过事件等待传输完成。
 
-数据流：
+支持两种 DMA 引擎：SDMA（默认，所有目标均可用）和 URMA（硬件 RDMA，仅 Ascend950 / NPU_ARCH 3510 可用）。
 
-`srcGlobalData（远端 GM）` → DMA 引擎 → `dstGlobalData（本地 GM）`
+## 机制
+
+`TGET_ASYNC` 启动从远端 GM 到本地 GM 的 DMA 传输后立即返回：
+
+```
+srcGlobalData（远端 GM） → DMA 引擎 → dstGlobalData（本地 GM）
+```
+
+`AsyncSession` 管理引擎无关的异步状态。发出一个或多个异步操作后，调用 `event.Wait(session)` 阻塞直到所有 pending 操作完成（quiet 语义——一次 `Wait` 等待自上次 `Wait` 以来发出的所有操作）。
+
+不同引擎的完成机制：
+
+- **SDMA**：只提交数据传输 SQE，flag SQE 延迟到 `Wait` 时提交，通过轮询 flag 判断完成。
+- **URMA**：立即提交 RDMA READ WQE 并敲门铃，`Wait` 轮询 Completion Queue 直到所有预期的 CQE 被消费。
 
 ## 模板参数
 
@@ -30,6 +43,25 @@ PTO_INST AsyncEvent TGET_ASYNC(GlobalDstData &dstGlobalData, GlobalSrcData &srcG
 ```
 
 `AsyncSession` 是引擎无关的会话对象。使用 `BuildAsyncSession<engine>()` 构建一次后，传递给所有异步调用和事件等待。模板参数 `engine` 在编译期选择 DMA 后端，使代码对未来引擎（CCU 等）保持前向兼容。
+
+## 输入
+
+|| 操作数 | 类型 | 说明 |
+||--------|------|------|
+|| `dstGlobalData` | `GlobalTensor` | 本地目标，必须为扁平连续一维 |
+|| `srcGlobalData` | `GlobalTensor` | 远端源，必须为扁平连续一维 |
+|| `session` | `AsyncSession` | 引擎无关的会话对象 |
+|| `WaitEvents...` | `RecordEvent...` | 发指令前要等待的事件 |
+
+## 预期输出
+
+|| 结果 | 类型 | 说明 |
+||------|------|------|
+|| `AsyncEvent` | event | 后续用于 `Wait` 调用的句柄 |
+
+## 副作用
+
+此操作启动从远端 GM 到本地 GM 的 DMA 传输。完成时机延后到 `Wait` 调用。
 
 ## AsyncSession 构建
 
@@ -80,15 +112,22 @@ URMA 不需要 `scratchTile`——轮询通过 `ld_dev`/`st_dev` 硬件原语直
 
 ## 约束
 
+### 类型约束
+
 - `GlobalSrcData::RawDType == GlobalDstData::RawDType`
 - `GlobalSrcData::layout == GlobalDstData::layout`
+
+### 传输约束
+
 - SDMA 和 URMA 路径均要求源 tensor 为**扁平连续的逻辑一维**
+- 若不满足一维连续要求，当前实现返回无效 async event（`handle == 0`）
+
+### 内存约束
+
 - SDMA workspace 必须是由主机侧 `SdmaWorkspaceManager` 分配的有效 GM 指针
 - URMA workspace 必须是由主机侧 `UrmaWorkspaceManager` 分配的有效 GM 指针
 - URMA 仅在 NPU_ARCH 3510（Ascend950）上可用
-- 传给 `UrmaWorkspaceManager::Init()` 的对称数据缓冲区必须由大页内存支撑（使用 `ACL_MEM_MALLOC_HUGE_ONLY` 分配）。底层 MR 注册要求大页背景；`ACL_MEM_MALLOC_HUGE_FIRST` 在小尺寸分配时可能静默回退到 4KB 小页，导致注册失败
-
-若不满足一维连续要求，当前实现返回无效 async event（`handle == 0`）。
+- 传给 `UrmaWorkspaceManager::Init()` 的对称数据缓冲区必须由大页内存支撑（使用 `ACL_MEM_MALLOC_HUGE_ONLY` 分配）
 
 ## scratchTile 的作用
 
@@ -222,3 +261,16 @@ __global__ AICORE void SimpleGetUrma(__gm__ T *localDst, __gm__ T *remoteSrc,
     (void)event.Wait(session);
 }
 ```
+
+## 目标Profile限制
+
+- SDMA 在所有目标上可用。URMA 仅在 Ascend950（Ascend 9xx）上可用。
+- CPU 模拟器不支持异步通信操作。
+- `AsyncSession` 是引擎无关的；切换引擎需要重新编译。
+
+## 相关页面
+
+- 通信概述：[通信与运行时](../other/communication-and-runtime_zh.md)
+- 同步对应：[TGET](./TGET_zh.md)
+- 异步写：[TPUT_ASYNC](./TPUT_ASYNC_zh.md)
+- 指令集：[其他与通信](../other/README_zh.md)

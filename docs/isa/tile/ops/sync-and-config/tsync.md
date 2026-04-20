@@ -144,4 +144,7 @@ tsync.op #pto.op<TADD>
 ## Related Ops / Instruction Set Links
 
 - Instruction set overview: [Sync And Config](../../sync-and-config.md)
+- Previous op in instruction set: (none — first in set)
 - Next op in instruction set: [pto.tassign](./tassign.md)
+- Related synchronization: [pto.pipe_barrier](../../../scalar/ops/pipeline-sync/pipe-barrier.md), [pto.set_flag](../../../scalar/ops/pipeline-sync/set-flag.md), [pto.wait_flag](../../../scalar/ops/pipeline-sync/wait-flag.md)
+- Instruction set: [Tile Instructions](../../README.md)

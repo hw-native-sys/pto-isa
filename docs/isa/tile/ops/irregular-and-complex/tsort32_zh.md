@@ -1,42 +1,16 @@
-﻿# TSORT32
+﻿# pto.tsort32
 
-## 指令示意图
+`pto.tsort32` 属于[不规则与复杂指令](../../irregular-and-complex_zh.md)集。
 
-![TSORT32 tile operation](../../../../figures/isa/TSORT32.svg)
+## 概述
 
-## 简介
+对 `src` 的每个 32 元素块，与 `idx` 中对应的索引一起进行排序，并将排序后的值-索引对写入 `dst`。`idx` 是输入 Tile 而非输出 Tile，提供与 `src` 一起参与重排的索引。`dst` 保存的是排序后的值-索引对，而不只是排序后的值。在 CPU 仿真实现中，按值降序排序；当值相同时，索引较小者优先。
 
-对 `src` 的每个 32 元素块，与 `idx` 中对应的索引一起进行排序，并将排序后的值-索引对写入 `dst`。
+对每一行，TSORT32 按独立的 32 元素块处理 `src`。设第 `b` 个块覆盖列 `32b ... 32b+31`，该块的有效元素数为 `n_b = min(32, C - 32b)`。对于块中的每个有效元素，先构造二元组 `(v_k, i_k) = (\mathrm{src}_{r,32b+k}, \mathrm{idx}_{r,32b+k})`，然后按值对这些二元组排序。
 
-## 数学语义
+## 语法
 
-对每一行，`TSORT32` 会按独立的 32 元素块处理 `src`。设第 `b` 个块覆盖列 `32b ... 32b+31`，该块的有效元素数为 `n_b = min(32, C - 32b)`。
-
-对于块中的每个有效元素，先构造一个二元组：
-
-$$
-(v_k, i_k) = (\mathrm{src}_{r,32b+k}, \mathrm{idx}_{r,32b+k}), \quad 0 \le k < n_b
-$$
-
-然后按值对这些二元组排序，并将排序后的值-索引对写入 `dst`。`dst` 中的具体打包布局由目标实现定义，但从语义上看，每个块的输出可表示为：
-
-$$
-[(v_{\pi(0)}, i_{\pi(0)}), (v_{\pi(1)}, i_{\pi(1)}), \ldots, (v_{\pi(n_b-1)}, i_{\pi(n_b-1)})]
-$$
-
-其中 `π` 是该 32 元素块对应的排序置换。
-
-说明：
-
-- `idx` 是输入 Tile，不是输出 Tile。
-- `dst` 保存的是排序后的值-索引对，而不只是排序后的值。
-- 在 CPU 仿真实现中，按值降序排序；当值相同时，索引较小者优先。
-
-## 汇编语法
-
-PTO-AS 形式：参见 [PTO-AS 规范](../../../../assembly/PTO-AS_zh.md)。
-
-同步形式：
+### PTO-AS
 
 ```text
 %dst = tsort32 %src, %idx : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
@@ -44,13 +18,13 @@ PTO-AS 形式：参见 [PTO-AS 规范](../../../../assembly/PTO-AS_zh.md)。
 
 ### AS Level 1（SSA）
 
-```text
+```mlir
 %dst = pto.tsort32 %src, %idx : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
 ```
 
 ### AS Level 2（DPS）
 
-```text
+```mlir
 pto.tsort32 ins(%src, %idx : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
@@ -66,23 +40,49 @@ template <typename DstTileData, typename SrcTileData, typename IdxTileData, type
 PTO_INST RecordEvent TSORT32(DstTileData &dst, SrcTileData &src, IdxTileData &idx, TmpTileData &tmp);
 ```
 
+## 输入
+
+| 操作数 | 角色 | 说明 |
+| --- | --- | --- |
+| `dst` | 输出 | 目标 Tile，接收排序后的值-索引对 |
+| `src` | 输入 | 源 Tile，包含待排序的值 |
+| `idx` | 输入 | 索引 Tile，提供与 src 一起参与重排的索引 |
+| `tmp` | 临时 | 可选，用于支持非 32 对齐尾块 |
+
+## 预期输出
+
+| 结果 | 类型 | 说明 |
+| --- | --- | --- |
+| `dst` | Tile | 排序后的值-索引对 |
+
+## 副作用
+
+该指令可能会写入 Tile 的有效区域标记。
+
 ## 约束
 
-- `TSORT32` 不接受 `WaitEvents&...` 参数，也不在内部调用 `TSYNC(...)`；如有需要请显式同步。
-- `idx` 在两个重载中都是必需的输入操作数；它提供与 `src` 一起参与重排的索引。
-- **实现检查 (A2A3/A5)**:
-    - `DstTileData::DType` 必须是 `half` 或 `float`。
-    - `SrcTileData::DType` 必须与 `DstTileData::DType` 匹配。
-    - `IdxTileData::DType` 必须是 `uint32_t`。
-    - `dst`/`src`/`idx` Tile 位置必须是 `TileType::Vec`，且都必须是行主序（`isRowMajor`）。
-- **有效区域**:
-    - 实现使用 `dst.GetValidRow()` 作为行数。
-    - 实现使用 `src.GetValidCol()` 确定每行参与排序的元素数量。
-    - 排序按独立的 32 元素块进行；4 参数重载额外通过 `tmp` 支持非 32 对齐尾块。
+- TSORT32 不接受 `WaitEvents&...` 参数，也不在内部调用 `TSYNC(...)`；如有需要请显式同步。
+- `idx` 在两个重载中都是必需的输入操作数，提供与 `src` 一起参与重排的索引。
+- `DstTileData::DType` 必须是 `half` 或 `float`。
+- `SrcTileData::DType` 必须与 `DstTileData::DType` 匹配。
+- `IdxTileData::DType` 必须是 `uint32_t`。
+- `dst`/`src`/`idx` Tile 类型必须是 `TileType::Vec`，且都必须是行主序（`isRowMajor`）。
+- 实现使用 `dst.GetValidRow()` 作为行数，使用 `src.GetValidCol()` 确定每行参与排序的元素数量。
+- 排序按独立的 32 元素块进行；4 参数重载额外通过 `tmp` 支持非 32 对齐尾块。
+
+## 异常与非法情形
+
+- 输入 Tile 类型不是 `TileType::Vec` 时行为未定义。
+- 元素类型不匹配时行为未定义。
+
+## Target-Profile 限制
+
+| 特性 | CPU Simulator | A2/A3 | A5 |
+| --- | :---: | :---: | :---: |
 
 ## 示例
 
-### 自动（Auto）
+### C++ 自动模式
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -100,7 +100,7 @@ void example_auto() {
 }
 ```
 
-### 手动（Manual）
+### C++ 手动模式
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -121,30 +121,15 @@ void example_manual() {
 }
 ```
 
-## 汇编示例（ASM）
-
-### 自动模式
+### PTO-AS
 
 ```text
-# 自动模式：由编译器/运行时负责资源放置与调度。
 %dst = pto.tsort32 %src, %idx : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
-```
-
-### 手动模式
-
-```text
-# 手动模式：先显式绑定资源，再发射指令。
-# 可选（当该指令包含 tile 操作数时）：
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
-# pto.tassign %arg2, @tile(0x3000)
-%dst = pto.tsort32 %src, %idx : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
-```
-
-### PTO 汇编形式
-
-```text
-%dst = tsort32 %src, %idx : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
 # AS Level 2 (DPS)
 pto.tsort32 ins(%src, %idx : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
+
+## 相关页面
+
+- 指令集总览：[不规则与复杂指令](../../irregular-and-complex_zh.md)
+- 相关指令：[TMRGSORT](./tmrgsort_zh.md)

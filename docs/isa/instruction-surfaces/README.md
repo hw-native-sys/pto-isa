@@ -4,116 +4,73 @@ PTO ISA is organized into four instruction sets, each representing a distinct me
 
 ## Overview
 
-| Instruction Set | Prefix | Pipeline | Primary Role | Operands |
-|-----------------|--------|----------|-------------|----------|
+| Instruction Set | Prefix | Pipeline | Primary Role | Typical Operands |
+|----------------|--------|----------|-------------|-----------------|
 | [Tile Instructions](./tile-instructions.md) | `pto.t*` | All (via tile buffers) | Tile-oriented compute, data movement, layout transforms, synchronization | `!pto.tile<...>`, `!pto.tile_buf<...>`, `!pto.partition_tensor_view<...>` |
 | [Vector Instructions](./vector-instructions.md) | `pto.v*` | Vector Pipe (V) | Vector micro-instructions: lane-level compute, masking, alignment state | `!pto.vreg<NxT>`, `!pto.mask`, `!pto.ptr<T, ub>` |
-| [Scalar And Control](./scalar-and-control-instructions.md) | `pto.*` | Scalar Unit, DMA | Configuration, control flow, DMA setup, synchronization, predicates | Scalar regs, pipe ids, event ids, buffer ids |
+| [Scalar and Control](./scalar-and-control-instructions.md) | `pto.*` | Scalar Unit, DMA | Configuration, control flow, DMA setup, synchronization, predicates | Scalar regs, pipe ids, event ids, buffer ids |
 | [Other Instructions](./other-instructions.md) | `pto.*` | Inter-NPU | Collective communication, runtime support, tile sequence operations | `!pto.group<N>`, tile sequences, allocation handles |
 
-## Why These Instruction Sets Exist
+## Why Four Instruction Sets
 
-PTO has four instruction sets because different parts of the architecture expose different kinds of state. Mixing tile-level and vector-level state in one opcode space would blur the ISA contract.
+PTO is not a flat list of opcodes — it layers by architecturally visible state. The reason is direct: tile, vector, scalar/control, and communication each expose different kinds of state. Mixing them into one flat layer would blur the ISA contract.
 
-### Tile Instructions (`pto.t*`)
-
-Tile instructions reason about tiles: bounded multi-dimensional arrays with architecturally visible shape, layout, role, and valid-region metadata. The primary operands are tile registers (`!pto.tile<T, R, C>` or `!pto.tile_buf<...>`). Tile instructions produce destination tiles, change valid-region interpretations, or establish synchronization edges.
-
-```
-Input:   Tile operands, scalar modifiers, GlobalTensor views
-Output:  Tile payload, synchronization edges
-Domain:  Valid regions, tile layouts, tile shapes, location intents
-```
-
-### Vector Instructions (`pto.v*`)
-
-Vector instructions expose the vector pipeline directly. Operands are vector registers (`!pto.vreg<NxT>`), scalar values, and predicate masks. Vector instructions are the fine-grained compute layer beneath tile instructions. The full register width is always meaningful — there is no valid-region abstraction at the vector level.
-
-```
-Input:   Vector registers, scalar registers, predicates, memory addresses
-Output:  Vector registers, scalar registers, memory writes
-Domain:  Vector length N, lane masks, alignment state, distribution modes
-```
-
-### Scalar And Control Instructions (`pto.*`)
-
-Scalar/control instructions handle configuration, control flow, synchronization, DMA setup, and predicate state. They set up the execution shell around tile and vector payload regions. Most do not produce tile or vector payloads; they produce control effects, event tokens, or predicate masks.
-
-```
-Input:   Scalar registers, pipe ids, event ids, buffer ids, DMA loop parameters
-Output:  Control state, event tokens, predicate masks, configured DMA state
-Domain:  Configuration tuples, pipe/event spaces, DMA loop sizes and strides
-```
-
-### Other Instructions (`pto.*`)
-
-Communication and supporting operations carry their own side effects and ordering rules that do not fit into the tile/vector/scalar model. Examples include collective broadcasts across NPUs and alias/concatenation operations on tile sequences.
-
-```
-Input:   Collective groups, tile sequences, allocation handles
-Output:  Collective results, modified tile sequences, allocation state
-Domain:  Parallel groups, tile sequences, memory allocation
-```
+| Instruction Set | Core Abstraction | Primary Responsibilities |
+|----------------|-----------------|-------------------------|
+| Tile (`pto.t*`) | tile: architecturally visible objects with shape, layout, role, valid region | GM↔tile movement, elementwise/reduce/layout/matmul ops, sync edges |
+| Vector (`pto.v*`) | vreg, predicates, vector-visible UB | Vector register ops, lane-level masking, UB↔vreg movement |
+| Scalar/Control (`pto.*`) | Scalar regs, pipe/event ids, buffer ids | Sync edges, DMA config, predicate construction, control flow |
+| Other (`pto.*`) | Collective groups, tile sequences, allocation handles | Collective comm, tile sequence ops, memory management |
 
 ## Instruction Data Flow
 
 The four instruction sets form a layered execution model:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  GM (off-chip device memory)                                │
-└──────────┬──────────────────────────────────────┬───────────┘
-           │                                      │
-           │  Tile Instructions: TLOAD/TSTORE          │
-           │  Vector Instructions: copy_gm_to_ubuf / copy_ubuf_to_gm
-           ▼                                      ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Unified Buffer (UB, 256 KB on-chip)                      │
-│  !pto.ptr<T, ub> — shared staging area                    │
-└──────┬──────────────────────────────────────────┬──────────┘
-       │                                      │
-       │  Tile Instructions: implicit tile↔UB       │
-       │  Vector Instructions: vlds / vsts          │
-       ▼                                      ▼
+GM (off-chip device memory)
+        │
+        ├── Tile instructions: TLOAD / TSTORE
+        └── Vector path: copy_gm_to_ubuf / copy_ubuf_to_gm
+        ▼
+Vector tile buffer (hardware implementation is UB)
+        │
+        ├── Tile instructions: direct read/write to tile buffer
+        └── Vector instructions: vlds / vsts
+        ▼
 ┌─────────────────┐              ┌─────────────────────────────┐
-│  Tile Buffers   │              │  Vector Registers          │
-│  !pto.tile_buf  │              │  !pto.vreg<NxT>           │
-│  (Vec/Mat/Acc/  │              │  (N lanes)                │
-│   Left/Right)   │              │                           │
+│  Tile Buffers   │              │  Vector Registers           │
+│  (Vec/Mat/Acc/  │              │  !pto.vreg<NxT>            │
+│   Left/Right)    │              │                             │
 └────────┬─────────┘              └──────────────┬────────────┘
-         │                                     │
-         │  Tile Instructions: pto.t*                       │  Vector Instructions: pto.v*
-         │  (TMATMUL via Mat/Acc slots)       │  (vadd, vmul, etc.)
-         │                                     │
-         │  ◄── Matrix Multiply Unit (M)       │  ◄── Vector Pipeline (V)
+         │                                       │
+         │  Tile instructions: pto.t*         │  Vector instructions: pto.v*
+         │  (TMATMUL via Mat/Left/Right/Acc)  │  (vadd, vmul, vcmp, ...)
+         │                                       │
+         │  ◄── Matrix Multiply Unit            │  ◄── Vector Pipeline
          └─────────────────────────────────────┘
                        │
-                       │  Tile Instructions: TSTORE
-                       │  Vector Instructions: vsts → copy_ubuf_to_gm
                        ▼
-         [vector tile buffer → GM]
+              [tile buffer → GM]
 ```
 
 ## Instruction Count Summary
 
-| Instruction Set | Groups | Operations | Notes |
-|-----------------|--------|------------|-------|
-| Tile | 8 | ~120 | Full matmul, elementwise, reduce, layout |
+| Instruction Set | Families | Operations | Notes |
+|----------------|----------|------------|-------|
+| Tile | 8 | ~120 | Full matmul, elementwise, reduce, layout, data movement |
 | Vector | 9 | ~99 | Full vector compute, load/store, SFU |
-| Scalar/Control | 6 | ~60 | Sync, DMA, predicates |
+| Scalar/Control | 6 | ~60 | Sync, DMA, predicates, control |
 | Other/Communication | 2 | ~24 | Collective ops, supporting ops |
 
 ## Normative Language
 
-Instruction text always means what happens in the declared valid region unless the page explicitly defines behavior outside it. PTO is **tile-first** and **valid-region-first**.
-
-Use **MUST**, **SHOULD**, and **MAY** only for rules that a test, verifier, or review can check. Prefer plain language for explanation.
+Instruction set pages describe shared contracts for groups of operations — they do not repeat per-op details. Use **MUST / SHOULD / MAY** only for rules that a verifier, test, or review can check. Prefer plain language for explanation.
 
 ## See Also
 
-- [Instruction set contracts](../instruction-families/README.md) — Group-level contracts
+- [Instruction set contracts](../instruction-families/README.md) — Group-level contracts for all four sets
+- [Tile reference](../tile/README.md) — Tile instruction per-op reference
+- [Vector reference](../vector/README.md) — Vector instruction per-op reference
+- [Scalar reference](../scalar/README.md) — Scalar and control per-op reference
+- [Other reference](../other/README.md) — Communication and supporting ops
 - [Format of instruction descriptions](../reference/format-of-instruction-descriptions.md) — Per-op page format standard
-- [Tile ISA reference](../tile/README.md) — Tile instruction per-op reference
-- [Vector ISA reference](../vector/README.md) — Vector instruction per-op reference
-- [Scalar ISA reference](../scalar/README.md) — Scalar instruction per-op reference
-- [Other ISA reference](../other/README.md) — Communication and supporting ops

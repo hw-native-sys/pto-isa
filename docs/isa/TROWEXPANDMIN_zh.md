@@ -1,14 +1,12 @@
-﻿# TROWEXPANDMIN
+﻿# pto.trowexpandmin
 
-## 指令示意图
+`pto.trowexpandmin` 属于[行归约](./tile/ops/reduce-and-expand/trowexpandmin_zh.md)指令集。
 
-![TROWEXPANDMIN tile operation](../figures/isa/TROWEXPANDMIN.svg)
+## 概述
 
-## 简介
+行广播最小值：将 `src1` 中每行的标量值与 `src0` 对应行的所有元素取最小值，结果写入 `dst`。
 
-行广播最小值：与每行标量向量取最小值。
-
-## 数学语义
+## 机制
 
 设 `R = dst.GetValidRow()` 和 `C = dst.GetValidCol()`。设 `s_i` 为从 `src1` 中获取的每行标量（每行一个值）。
 
@@ -18,11 +16,9 @@ $$
 \mathrm{dst}_{i,j} = \min(\mathrm{src0}_{i,j}, s_i)
 $$
 
-## 汇编语法
+## 语法
 
-PTO-AS 形式：参见 [PTO-AS 规范](../assembly/PTO-AS_zh.md)。
-
-同步形式：
+### PTO-AS
 
 ```text
 %dst = trowexpandmin %src0, %src1 : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
@@ -30,13 +26,13 @@ PTO-AS 形式：参见 [PTO-AS 规范](../assembly/PTO-AS_zh.md)。
 
 ### AS Level 1（SSA）
 
-```text
+```mlir
 %dst = pto.trowexpandmin %src0, %src1 : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
 ```
 
 ### AS Level 2（DPS）
 
-```text
+```mlir
 pto.trowexpandmin ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
@@ -53,42 +49,82 @@ template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, ty
 PTO_INST RecordEvent TROWEXPANDMIN(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, TileDataTmp &tmp, WaitEvents &... events);
 ```
 
+## 输入
+
+| 操作数 | 角色 | 说明 |
+| --- | --- | --- |
+| `src0` | 输入 | 源 tile 0，`half` 或 `float` 类型 |
+| `src1` | 输入 | 每行一个标量（模式 1）或每行 32 字节数据（模式 2） |
+
+## 预期输出
+
+| 结果 | 类型 | 说明 |
+| --- | --- | --- |
+| `dst` | 输出 | 行广播最小值结果，与 `src0` 类型相同 |
+
+## 副作用
+
+`dst` 的有效区域定义结果的计算范围。
+
 ## 约束
 
 - `TileDataDst::DType == TileDataSrc0::DType == TileDataSrc1::DType`
-- `TileDataDst::DType`、`TileDataSrc0::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`。
-- Tile 形状/布局约束（编译时）：`TileDataDst::isRowMajor`。
-- 模式 1：`src1` 预期提供**每行一个标量**（即，其有效形状必须覆盖 `R` 个值）。
-- 模式 2：`src1` 预期提供**每行 32 字节数据**。
-- 确切的布局/分形约束是目标特定的；参见 `include/pto/npu/*/TRowExpand*.hpp` 下的后端头文件。
+- `TileDataDst::DType`、`TileDataSrc0::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`
+- Tile 形状/布局约束（编译时）：`TileDataDst::isRowMajor`
+- 模式 1：`src1` 预期提供每行一个标量（即，其有效形状必须覆盖 `R` 个值）
+- 模式 2：`src1` 预期提供每行 32 字节数据
+- 确切的布局/分形约束是目标特定的；参见 `include/pto/npu/*/TRowExpand*.hpp` 下的后端头文件
+
+## 异常与非法情形
+
+- 运行时检查失败时，行为由具体实现定义
+
+## Target-Profile 限制
+
+| 特性 | CPU Simulator | A2/A3 | A5 |
+| --- | :---: | :---: | :---: |
+| 支持 | 是 | 是 | 是 |
 
 ## 示例
 
-参见 `docs/isa/` 和 `docs/coding/tutorials/` 中的相关示例。
+### C++ 自动模式
 
-## 汇编示例（ASM）
+```cpp
+#include <pto/pto-inst.hpp>
 
-### 自动模式
+using namespace pto;
+
+void example_auto() {
+  using TileT = Tile<TileType::Vec, float, 16, 16>;
+  TileT src0, src1, dst;
+  TROWEXPANDMIN(dst, src0, src1);
+}
+```
+
+### C++ 手动模式
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_manual() {
+  using TileT = Tile<TileType::Vec, float, 16, 16>;
+  TileT src0, src1, dst;
+  TASSIGN(src0, 0x1000);
+  TASSIGN(src1, 0x2000);
+  TASSIGN(dst,  0x3000);
+  TROWEXPANDMIN(dst, src0, src1);
+}
+```
+
+### PTO-AS
 
 ```text
-# 自动模式：由编译器/运行时负责资源放置与调度。
+# 自动模式
 %dst = pto.trowexpandmin %src0, %src1 : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
 ```
 
-### 手动模式
+## 相关页面
 
-```text
-# 手动模式：先显式绑定资源，再发射指令。
-# 可选（当该指令包含 tile 操作数时）：
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
-%dst = pto.trowexpandmin %src0, %src1 : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
-```
-
-### PTO 汇编形式
-
-```text
-%dst = trowexpandmin %src0, %src1 : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
-# AS Level 2 (DPS)
-pto.trowexpandmin ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
-```
+- 指令集总览：[行归约](./tile/ops/reduce-and-expand/trowexpandmin_zh.md)

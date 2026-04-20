@@ -4,11 +4,9 @@
 
 ## Summary
 
-Reduce each row by summing across columns.
+Reduce each row by summing across columns. For each row `i` in the valid region, all `C` elements in that row are summed and written to `dst[i, 0]`.
 
 ## Mechanism
-
-Reduce each row by summing across columns.
 
 Let `R = src.GetValidRow()` and `C = src.GetValidCol()`. For `0 <= i < R`:
 

@@ -1,24 +1,18 @@
-﻿# TASSIGN
+﻿# pto.tassign
 
-## 指令示意图
+`pto.tassign` 属于[同步与配置](./tile/sync-and-config_zh.md)指令集。
 
-![TASSIGN tile operation](../figures/isa/TASSIGN.svg)
+## 概述
 
-## 简介
+将 Tile 对象绑定到实现定义的片上地址（手动放置）。TASSIGN 通常在将 SSA tile 映射到物理存储时由缓冲化/降级引入。
 
-将 Tile 对象绑定到实现定义的片上地址（手动放置）。
+## 机制
 
-## 数学语义
+该指令将 Tile 或 GlobalTensor 绑定到指定地址。对于 Tile，它设置片上缓冲区地址；对于 GlobalTensor，它绑定主机内存指针。编译时地址重载执行静态边界检查以确保地址有效性。
 
-不适用。
+## 语法
 
-## 汇编语法
-
-PTO-AS 形式：参见 [PTO-AS 规范](../assembly/PTO-AS_zh.md)。
-
-`TASSIGN` 通常在将 SSA tile 映射到物理存储时由缓冲化/降级引入。
-
-同步形式：
+### PTO-AS
 
 ```text
 tassign %tile, %addr : !pto.tile<...>, index
@@ -26,13 +20,13 @@ tassign %tile, %addr : !pto.tile<...>, index
 
 ### AS Level 1（SSA）
 
-```text
+```mlir
 pto.tassign %tile, %addr : !pto.tile<...>, dtype
 ```
 
 ### AS Level 2（DPS）
 
-```text
+```mlir
 pto.tassign ins(%tile, %addr : !pto.tile_buf<...>, dtype)
 ```
 
@@ -56,22 +50,21 @@ template <std::size_t Addr, typename T>
 PTO_INST void TASSIGN(T& obj);
 ```
 
-将 `obj` 绑定到片上地址 `Addr`。由于 `Addr` 是非类型模板参数，编译器通过 `static_assert`
-执行以下**编译时**检查：
+将 `obj` 绑定到片上地址 `Addr`。由于 `Addr` 是非类型模板参数，编译器通过 `static_assert` 执行编译时检查：
 
 | 检查项 | 条件 | 断言 ID | 错误信息 |
-|--------|------|---------|----------|
-| 内存空间存在 | `capacity > 0` | SA-0351 | 当前架构不支持该内存空间。 |
-| Tile 可放入内存 | `tile_size <= capacity` | SA-0352 | Tile 存储大小超出内存空间容量。 |
-| 地址未越界 | `Addr + tile_size <= capacity` | SA-0353 | addr + tile_size 超出内存空间容量（越界）。 |
-| 地址对齐 | `Addr % alignment == 0` | SA-0354 | addr 未按目标内存空间要求对齐。 |
+| --- | --- | --- | --- |
+| 内存空间存在 | capacity > 0 | SA-0351 | 当前架构不支持该内存空间。 |
+| Tile 可放入内存 | tile_size <= capacity | SA-0352 | Tile 存储大小超出内存空间容量。 |
+| 地址未越界 | Addr + tile_size <= capacity | SA-0353 | addr + tile_size 超出内存空间容量（越界）。 |
+| 地址对齐 | Addr % alignment == 0 | SA-0354 | addr 未按目标内存空间要求对齐。 |
 
 修复建议请参阅 `docs/coding/debug.md`（修复方案 `FIX-A12`）。
 
-内存空间、容量和对齐由 Tile 的 `TileType`（即 `Loc` 模板参数）自动确定：
+内存空间、容量和对齐由 Tile 的 `TileType` 自动确定：
 
 | TileType | 内存空间 | 容量 (A2A3) | 容量 (A5) | 容量 (Kirin9030) | 容量 (KirinX90) | 对齐 |
-|----------|----------|-------------|-----------|------------------|-----------------|------|
+| --- | --- | --- | --- | --- | --- | --- |
 | Vec | UB | 192 KB | 256 KB | 128 KB | 128 KB | 32 B |
 | Mat | L1 | 512 KB | 512 KB | 512 KB | 1024 KB | 32 B |
 | Left | L0A | 64 KB | 64 KB | 32 KB | 64 KB | 32 B |
@@ -86,15 +79,43 @@ PTO_INST void TASSIGN(T& obj);
 
 **注意：** 该重载仅适用于 `Tile` 和 `ConvTile` 类型。对于 `GlobalTensor`，请使用 `TASSIGN(obj, pointer)`（形式 1）。
 
+## 输入
+
+| 操作数 | 角色 | 说明 |
+| --- | --- | --- |
+| obj | 输入/输出 | Tile 或 GlobalTensor 对象 |
+| addr | 输入 | 片上地址（形式 1）或编译时常量地址（形式 2） |
+
+## 预期输出
+
+| 结果 | 类型 | 说明 |
+| --- | --- | --- |
+| 无 | void | 该指令为原地操作 |
+
+## 副作用
+
+该指令修改 Tile 的内部存储地址绑定。
+
 ## 约束
 
-- **实现检查**:
-    - 如果 `obj` 是 Tile：
-    - 在手动模式下（未定义 `__PTO_AUTO__` 时），`addr` 必须是整数类型，并被重新解释为 tile 的存储地址。
-    - 在自动模式下（定义了 `__PTO_AUTO__` 时），`TASSIGN(tile, addr)` 是空操作。
-    - 如果 `obj` 是 `GlobalTensor`：
-    - `addr` 必须是指针类型。
-    - 指向的元素类型必须匹配 `GlobalTensor::DType`。
+- 实现检查:
+    - 如果 obj 是 Tile：
+    - 在手动模式下（未定义 __PTO_AUTO__ 时），addr 必须是整数类型，并被重新解释为 tile 的存储地址
+    - 在自动模式下（定义了 __PTO_AUTO__ 时），TASSIGN(tile, addr) 是空操作
+    - 如果 obj 是 GlobalTensor：
+    - addr 必须是指针类型
+    - 指向的元素类型必须匹配 GlobalTensor::DType
+
+## 异常与非法情形
+
+- 形式 2 编译时检查失败会触发 static_assert，断言 ID 为 SA-0351、SA-0352、SA-0353 或 SA-0354
+
+## Target-Profile 限制
+
+| 特性 | CPU Simulator | A2/A3 | A5 |
+| --- | :---: | :---: | :---: |
+| 运行时地址形式 | 支持 | 支持 | 支持 |
+| 编译时地址形式 | 支持 | 支持 | 支持 |
 
 ## 示例
 
@@ -173,29 +194,21 @@ void example_pingpong() {
 }
 ```
 
-## 汇编示例（ASM）
-
-### 自动模式
+### PTO-AS
 
 ```text
-# 自动模式：由编译器/运行时负责资源放置与调度。
+# 自动模式
 pto.tassign %tile, %addr : !pto.tile<...>, dtype
-```
 
-### 手动模式
-
-```text
-# 手动模式：先显式绑定资源，再发射指令。
-# 可选（当该指令包含 tile 操作数时）：
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
+# 手动模式
 pto.tassign %tile, %addr : !pto.tile<...>, dtype
-```
 
-### PTO 汇编形式
-
-```text
+# PTO 汇编形式
 tassign %tile, %addr : !pto.tile<...>, index
 # AS Level 2 (DPS)
 pto.tassign ins(%tile, %addr : !pto.tile_buf<...>, dtype)
 ```
+
+## 相关页面
+
+- 指令集总览：[同步与配置](./tile/sync-and-config_zh.md)

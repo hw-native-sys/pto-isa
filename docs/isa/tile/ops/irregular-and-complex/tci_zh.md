@@ -1,32 +1,14 @@
-# TCI
+# pto.tci
 
-## 指令示意图
+`pto.tci` 属于[不规则与复杂指令](../../irregular-and-complex_zh.md)集。
 
-![TCI tile operation](../../../../figures/isa/TCI.svg)
+## 概述
 
-## 简介
+TCI 在目标 Tile 的有效区域内生成连续整数序列，序列的起始值由标量参数 `S` 指定。当 `descending = false` 时序列递增，当 `descending = true` 时序列递减。对于线性化索引 `k`，升序时 $\mathrm{dst}_{k} = S + k$，降序时 $\mathrm{dst}_{k} = S - k$。线性化顺序取决于 Tile 的布局（实现定义）。
 
-生成连续整数序列到目标 Tile 中。
+## 语法
 
-## 数学语义
-
-For a linearized index `k` over the valid elements:
-
-- Ascending:
-
-  $$ \mathrm{dst}_{k} = S + k $$
-
-- Descending:
-
-  $$ \mathrm{dst}_{k} = S - k $$
-
-The linearization order depends on the tile layout (implementation-defined).
-
-## 汇编语法
-
-PTO-AS 形式：参见 [PTO-AS Specification](../../../../assembly/PTO-AS_zh.md).
-
-同步形式：
+### PTO-AS
 
 ```text
 %dst = tci %S {descending = false} : !pto.tile<...>
@@ -34,13 +16,13 @@ PTO-AS 形式：参见 [PTO-AS Specification](../../../../assembly/PTO-AS_zh.md)
 
 ### AS Level 1（SSA）
 
-```text
+```mlir
 %dst = pto.tci %scalar {descending = false} : dtype -> !pto.tile<...>
 ```
 
 ### AS Level 2（DPS）
 
-```text
+```mlir
 pto.tci ins(%scalar {descending = false} : dtype) outs(%dst : !pto.tile_buf<...>)
 ```
 
@@ -53,18 +35,38 @@ template <typename TileData, typename T, int descending, typename... WaitEvents>
 PTO_INST RecordEvent TCI(TileData &dst, T start, WaitEvents &... events);
 ```
 
+## 输入
+
+| 操作数 | 角色 | 说明 |
+| --- | --- | --- |
+| `dst` | 输出 | 目标 Tile，接收生成的整数序列 |
+| `S` | 标量输入 | 序列的起始值 |
+
+## 预期输出
+
+| 结果 | 类型 | 说明 |
+| --- | --- | --- |
+| `dst` | Tile | 包含连续整数序列的 Tile |
+
+## 副作用
+
+该指令可能会读取或写入 Tile 的有效区域标记。
+
 ## 约束
 
-- **实现检查 (A2A3/A5)**:
-    - `TileData::DType` must be exactly the same type as the scalar template parameter `T`.
-    - `dst/scalar` element types must be identical, and must be one of: `int32_t`, `uint32_t`, `int16_t`, `uint16_t`.
-    - `TileData::Cols != 1` (this is the condition enforced by the implementation).
-- **有效区域**:
-    - The implementation uses `dst.GetValidCol()` as the sequence length and does not consult `dst.GetValidRow()`.
+- `TileData::DType` 必须与标量模板参数 `T` 类型完全一致。
+- `dst`/`scalar` 元素类型必须相同，且必须是以下类型之一：`int32_t`、`uint32_t`、`int16_t`、`uint16_t`。
+- `TileData::Cols != 1`（这是实现强制执行的条件）。
+- 实现使用 `dst.GetValidCol()` 作为序列长度，不使用 `dst.GetValidRow()`。
+
+## Target-Profile 限制
+
+| 特性 | CPU Simulator | A2/A3 | A5 |
+| --- | :---: | :---: | :---: |
 
 ## 示例
 
-### 自动（Auto）
+### C++ 自动模式
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -78,7 +80,7 @@ void example_auto() {
 }
 ```
 
-### 手动（Manual）
+### C++ 手动模式
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -92,3 +94,7 @@ void example_manual() {
   TCI<TileT, int32_t, /*descending=*/1>(dst, /*S=*/100);
 }
 ```
+
+## 相关页面
+
+- 指令集总览：[不规则与复杂指令](../../irregular-and-complex_zh.md)

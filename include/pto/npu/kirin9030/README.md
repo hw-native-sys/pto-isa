@@ -1,13 +1,28 @@
 # include/pto/npu/kirin9030/
 
-Kirin9030 series PTO instruction implementation headers.
+Kirin 9030 series PTO instruction implementation headers.
 
-## Overview
+Kirin 9030 is an Ascend SoC variant targeting consumer scenarios. Its PTO instruction implementations may differ in certain details from other datacenter SoCs (A2/A3/A5).
 
-- Implementations are organized per instruction (or instruction family), for example: `TAdd.hpp`, `TMatmul.hpp`, `TLoad.hpp`, `TStore.hpp`
-- Includes Kirin9030-specific operator patterns and utilities where applicable
+## Key Files
+
+```
+include/pto/npu/kirin9030/
+├── TAdd.hpp
+├── TSub.hpp
+├── TMul.hpp
+├── TDiv.hpp
+├── TMatmul.hpp
+├── TLoad.hpp
+├── TStore.hpp
+├── TAssign.hpp
+├── TSync.hpp
+└── ...                  # Other instruction implementations
+```
 
 ## Related
 
-- ISA semantics and examples: `docs/isa/`
-- Kirin9030 NPU ST tests: `tests/npu/Kirin9030/src/st/`
+| Document | Content |
+|----------|---------|
+| [docs/isa/](../../docs/isa/) | ISA semantics and examples |
+| [include/pto/npu/](../README.md) | NPU implementation entry |

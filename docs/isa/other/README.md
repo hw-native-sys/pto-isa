@@ -2,27 +2,29 @@
 
 Other and communication operations cover behavior that does not fit cleanly into the tile, vector, or scalar/control buckets.
 
-## Communication And Runtime
+## Two Categories
 
-Inter-NPU collective communication and synchronization.
+### Communication and Runtime
 
-| Instruction Set | Description |
-|--------|-------------|
-| [TBROADCAST](../comm/TBROADCAST.md) | Broadcast data from root NPU to all ranks |
-| [TGET](../comm/TGET.md) | Get data from a remote NPU |
-| [TGET_ASYNC](../comm/TGET_ASYNC.md) | Asynchronous variant of TGET |
-| [TNOTIFY](../comm/TNOTIFY.md) | Notify other ranks of an event |
-| [TPUT](../comm/TPUT.md) | Put data to a remote NPU |
-| [TPUT_ASYNC](../comm/TPUT_ASYNC.md) | Asynchronous variant of TPUT |
-| [TREDUCE](../comm/TREDUCE.md) | Collective reduction across all ranks |
-| [TSCATTER](../comm/TSCATTER.md) | Scatter data from root NPU to all ranks |
-| [TGATHER](../comm/TGATHER.md) | Gather data from all ranks to root NPU |
-| [TTEST](../comm/TTEST.md) | Test if a notification has been received |
-| [TWAIT](../comm/TWAIT.md) | Wait for a notification |
+Inter-NPU collective communication and synchronization primitives.
 
-See [Communication and Runtime](./communication-and-runtime.md) for the instruction set contract.
+| Instruction | Description | Sync Type |
+|-------------|-------------|-----------|
+| [TBROADCAST](../comm/TBROADCAST.md) | Broadcast data from root NPU to all ranks | Sync |
+| [TGET](../comm/TGET.md) | Get data from a remote NPU | Sync |
+| [TGET_ASYNC](../comm/TGET_ASYNC.md) | Asynchronously get data from a remote NPU | Async |
+| [TPUT](../comm/TPUT.md) | Put data to a remote NPU | Sync |
+| [TPUT_ASYNC](../comm/TPUT_ASYNC.md) | Asynchronously put data to a remote NPU | Async |
+| [TNOTIFY](../comm/TNOTIFY.md) | Notify other ranks of an event | Sync |
+| [TWAIT](../comm/TWAIT.md) | Wait for a notification | Sync |
+| [TTEST](../comm/TTEST.md) | Test if a notification has been received | Sync |
+| [TGATHER](../comm/TGATHER.md) | Gather data from all ranks to root NPU | Sync |
+| [TSCATTER](../comm/TSCATTER.md) | Scatter data from root NPU to all ranks | Sync |
+| [TREDUCE](../comm/TREDUCE.md) | Collective reduction across all ranks | Sync |
 
-## Non-ISA Supporting Operations
+[Communication and Runtime contract →](./communication-and-runtime.md)
+
+### Non-ISA Supporting Operations
 
 Convenience operations over tile sequences or memory management.
 
@@ -40,10 +42,12 @@ Convenience operations over tile sequences or memory management.
 | [TRANDOM](../TRANDOM.md) | Fill tile with random values | Generation |
 | [TQUANT](../TQUANT.md) | Quantize a tile to integer format | Quantize |
 
-See [Non-ISA and Supporting Ops](./non-isa-and-supporting-ops.md) for the instruction set contract.
+[Non-ISA and Supporting Ops contract →](./non-isa-and-supporting-ops.md)
 
 ## See Also
 
-- [Other instruction set](../instruction-surfaces/other-instructions.md) — High-level instruction set description
-- [Instruction set contracts](../instruction-families/README.md) — Normative contracts for all instruction sets
-- [Instruction set overview](../instruction-surfaces/README.md) — Map of all four instruction sets
+| Page | Content |
+|------|---------|
+| [Instruction overview](../instruction-surfaces/other-instructions.md) | High-level description of Other instruction set |
+| [Instruction families](../instruction-families/README.md) | Normative contracts for all instruction sets |
+| [Instruction set overview](../instruction-surfaces/README.md) | Map of all four instruction sets |
