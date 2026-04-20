@@ -21,7 +21,7 @@ PTO_INTERNAL void CheckValid()
                   "Fix: TGATHER expect b16/b32");
     static_assert((sizeof(typename Src1TileData::DType) == 4), "Fix: TGATHER expect b32");
     static_assert((std::is_same<typename DstTileData::DType, typename Src0TileData::DType>::value),
-                  "Fix: TGATHER expect same size for indice and dst");
+                  "Fix: TGATHER expect same datatype for src and dst");
     static_assert((std::is_same<typename TmpTileData::DType, typename Src1TileData::DType>::value),
                   "Fix: TGATHER expect same datatype for tmp buffer and indice");
 }
