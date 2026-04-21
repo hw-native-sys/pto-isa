@@ -59,6 +59,7 @@ tcolmin
 tcolsum
 tconcat
 tcvt
+tdequant
 tdiv
 tdivs
 texp
