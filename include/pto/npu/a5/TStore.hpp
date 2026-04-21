@@ -498,6 +498,7 @@ PTO_INTERNAL void TStoreVecND(typename GlobalData::DType *dstAddr, __ubuf__ type
         srcTileAddr = srcAddr + k * srcStride0;
         TStoreInstr<TileData, GlobalData>(dstGlobalAddr, srcTileAddr, nBurst, lenBurst, burstDstStride, burstSrcStride);
     }
+    set_loop_size_ubtoout(1 << 21 | 1); // resume to normal mode
 }
 template <typename GlobalData, typename TileData>
 PTO_INTERNAL void TStoreVecDN(typename GlobalData::DType *dstAddr, __ubuf__ typename TileData::DType *srcAddr,
@@ -546,6 +547,7 @@ PTO_INTERNAL void TStoreVecDN(typename GlobalData::DType *dstAddr, __ubuf__ type
         srcTileAddr = srcAddr + k * srcStride0;
         TStoreInstr<TileData, GlobalData>(dstGlobalAddr, srcTileAddr, nBurst, lenBurst, burstDstStride, burstSrcStride);
     }
+    set_loop_size_ubtoout(1 << 21 | 1); // resume to normal mode
 }
 
 template <typename GlobalData, typename TileData>
