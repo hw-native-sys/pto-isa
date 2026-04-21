@@ -40,14 +40,17 @@ PTO_INTERNAL void TROWEXPANDADD_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileD
                       std::is_same_v<T, int16_t>,
                   "Fix: TROWEXPANDADD Invalid data type.");
     static_assert(TileDataDst::isRowMajor, "Fix: TROWEXPANDADD Invalid tile shape.");
-    unsigned validRow = dst.GetValidRow();
-    unsigned validCol = dst.GetValidCol();
     unsigned src0ValidRow = src0.GetValidRow();
     unsigned src0ValidCol = src0.GetValidCol();
+    unsigned validRow = dst.GetValidRow();
+    unsigned validCol = dst.GetValidCol();
     unsigned src1ValidRow = src1.GetValidRow();
     unsigned src1ValidCol = src1.GetValidCol();
-    bool src0eqdst = (validRow == src0ValidRow) && (validCol == src0ValidCol) && (src1ValidCol == TileDataSrc1::Cols);
+    bool src0eqdst = (validRow == src0ValidRow) && (validCol == src0ValidCol);
     bool src1eqdst = (validRow == src1ValidRow) && (validCol == src1ValidCol);
+    if (src0eqdst && src1eqdst) {
+        src0eqdst = (TileDataSrc0::RowStride >= TileDataSrc1::RowStride);
+    }
     PTO_ASSERT((src0eqdst && TileDataSrc0::isRowMajor) || (src1eqdst && TileDataSrc1::isRowMajor),
                "TROWEXPANDADD: the validShape of src0 or src1 should be equal to those of dst.");
     if (src0eqdst) {
