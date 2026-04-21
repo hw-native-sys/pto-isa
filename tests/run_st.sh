@@ -183,6 +183,28 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     python3 tests/script/run_st.py $ARGS -w -v a3 -t trowargmin -g TROWARGMINTest.case_uint32_float_16x1_13x16_13x13
     python3 tests/script/run_st.py $ARGS -w -v a3 -t trowargmin -g TROWARGMINTest.case_uint32_float_8x1_3x4096_3x4095
     python3 tests/script/run_st.py $ARGS -w -v a3 -t trowargmin -g TROWARGMINTest.case_uint32_float_8x1_2x16384_2x16381
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_vec -g TExtractVecTest.case_nd_aligned_1
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_vec -g TExtractVecTest.case_nd_aligned_4_bf16
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_vec -g TExtractVecTest.case_nd_partial_validrow
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_vec -g TExtractVecTest.case_nd_unaligned_validcol_full_row
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_vec -g TExtractVecTest.case_nd_aligned_int8_strided
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_vec -g TExtractVecTest.case_nd_nonpow2_half
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_vec -g TExtractVecTest.case_nd_nonpow2_partial_float_unaligned_idxrow
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_vec -g TExtractVecTest.case_nd_unalignedvalid_int16
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_vec -g TExtractVecTest.case_nd_unalignedvalid_float_smallthan32B
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_vec -g TExtractVecTest.case_nd_unalignedvalid_uint16_taillarge
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_vec -g TExtractVecTest.case_nd_scalar_4_int8
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_vec -g TExtractVecTest.case_nd_scalar_nonpow2_float
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_vec -g TExtractVecTest.case_nz_1
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_vec -g TExtractVecTest.case_nz_multi_fractal_dst
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_vec -g TExtractVecTest.case_nz_half_large
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_vec -g TExtractVecTest.case_nz_nonpow2_float
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_vec -g TExtractVecTest.case_nz_partial_bf16
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_vec -g TExtractVecTest.case_nz_partial_float_unaligned_idxcol
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_vec -g TExtractVecTest.case_nz_unalignedvalid_validrow_half
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_vec -g TExtractVecTest.case_nz_scalar_5_int32
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_vec -g TExtractVecTest.case_nz_scalar_nonpow2_int8
+
     if [ "$IS_AUTO_MODE" = "false" ]; then
       # this testcase has to directly call CCE intrinsics now, which won't compile for auto mode;
       # besides, auto-sync doesn't work with CCE intrisics      
@@ -277,6 +299,7 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tconcat
     python3 tests/script/run_st.py $ARGS -w -v a3 -t trowargmax
     python3 tests/script/run_st.py $ARGS -w -v a3 -t trowargmin
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_vec
     if [ "$IS_AUTO_MODE" = "false" ]; then
       # this testcase has to directly call CCE intrinsics now, which won't compile for auto mode;
       # besides, auto-sync doesn't work with CCE intrisics
