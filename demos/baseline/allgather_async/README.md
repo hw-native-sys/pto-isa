@@ -1,40 +1,74 @@
 # Allgather Async Demo
 
-Demonstrates the allgather collective operation using PTO's `TPUT_ASYNC` (remote write) and `TGET_ASYNC` (remote read) SDMA-based async instructions across multiple NPU devices.
+Demonstrates the allgather collective operation using PTO async instructions across multiple NPU devices.
+
+- **A2/A3 build** (default `SOC_VERSION=Ascend910B1`): Demos 1–3 using SDMA engine (`TPUT_ASYNC` / `TGET_ASYNC` via HCCL)
+- **A5 build** (`SOC_VERSION=Ascend950PR_9599`): Demos 4–6 using URMA engine (`HCCP V2 Jetty RDMA`).
+
+The two engine paths use different host infrastructure (`a2a3/common.hpp` vs `a5/common.hpp`) with incompatible ACL/runtime initialization, so each build only compiles and links one set.
 
 ## Prerequisites
 
 - CANN Toolkit (version 9.0.0 or above) installed (`ASCEND_HOME_PATH` set via `set_env.sh`)
 - CANN Ops package (version 9.0.0 or above) installed
 - MPICH installed
-- At least 2 NPU devices on the machine
+- Enough NPU devices for your MPI rank count (default `./run.sh` uses 8 ranks; `./run.sh 2 …` uses 2). Typically one rank maps to one device.
 
 ## Quick Start
 
 ```bash
 source /path/to/set_env.sh
-./run.sh                      # 8 ranks, default SoC
+./run.sh                      # 8 ranks, default SoC Ascend910B1 (A2/A3, Demos 1–3)
 ./run.sh 4                    # 4 ranks
-./run.sh 2 Ascend910_9599     # A5 devices
+./run.sh 2 Ascend950PR_9599   # 2 ranks, A5 (Demos 4-6)
 ```
 
 ## What It Does
 
 Each rank contributes 256 `int32_t` values. After allgather, every rank holds all ranks' data.
 
+### SDMA Demos (A2/A3 build)
+
 1. **TPUT_ASYNC Allgather (multi-core)**: Launched with `<<<nRanks, ...>>>` — each AICORE handles one target rank's communication in parallel. The AICORE where `block_idx == myRank` performs a local copy; all others use `pto::comm::TPUT_ASYNC` to write data to the corresponding remote rank.
 2. **TGET_ASYNC Allgather (multi-core)**: Launched with `<<<nRanks, ...>>>` — each AICORE pulls data from one source rank in parallel. The AICORE where `block_idx == myRank` performs a local copy; all others use `pto::comm::TGET_ASYNC` to read data from the corresponding remote rank.
 3. **Ring TPUT_ASYNC Allgather**: Ring algorithm with N-1 rounds for N ranks. In round 0, each rank copies its `sendBuf` locally and pushes it to the next rank via `TPUT_ASYNC`. In subsequent rounds, each rank forwards the chunk it received in the previous round to the next rank. Each round is a separate kernel launch with a host-side barrier in between.
+
+### URMA Demos (A5 build)
+
+4. **URMA TPUT_ASYNC Allgather (multi-core)**: Same algorithm as Demo 1, using `TPUT_ASYNC<DmaEngine::URMA>` with `UrmaPeerMrBaseAddr` for remote addressing.
+5. **URMA TGET_ASYNC Allgather (multi-core)**: Same algorithm as Demo 2, using `TGET_ASYNC<DmaEngine::URMA>`.
+6. **URMA Ring TPUT_ASYNC Allgather**: Same ring algorithm as Demo 3, using `TPUT_ASYNC<DmaEngine::URMA>`. Runs N-1 rounds; on 2 ranks this is a single round verifying basic AllGather correctness. The recv→forward path is naturally exercised when N≥3.
+
+### Key PTO APIs
+
+**Demos 1–3 (SDMA / HCCL)**
+
+- `pto::comm::AsyncSession`, `BuildAsyncSession` (SDMA overload, used with `SdmaWorkspaceManager` and HCCL context)
+- `pto::comm::TPUT_ASYNC`, `TGET_ASYNC` (default SDMA engine)
+- `pto::comm::AsyncEvent`, `Wait`
+- `SdmaWorkspaceManager`, `HcclRemotePtr` (host)
+
+**Demos 4–6 (URMA)**
+
+- `pto::comm::BuildAsyncSession<DmaEngine::URMA>`, `TPUT_ASYNC` / `TGET_ASYNC<DmaEngine::URMA>`
+- `UrmaWorkspaceManager`, `UrmaPeerMrBaseAddr` (host)
 
 ## Project Structure
 
 ```
 allgather_async/
-  CMakeLists.txt                       -- Build configuration (bisheng + CCE)
-  csrc/kernel/allgather_kernel.cpp     -- AICORE kernels + host-side launchers
-  csrc/kernel/allgather_kernel.h       -- Host-side function declarations
-  csrc/host/main.cpp                   -- Entry point (MPI init, run demos, report)
-  run.sh                               -- One-click build and run
+├── CMakeLists.txt                       -- Build configuration (bisheng + CCE)
+├── csrc/
+│   ├── kernel/
+│   │   ├── allgather_kernel.cpp         -- SDMA kernels + host launchers (A2/A3)
+│   │   ├── allgather_kernel.h           -- SDMA host-side function declarations
+│   │   ├── allgather_urma_kernel.cpp    -- URMA kernels + host launchers (A5)
+│   │   └── allgather_urma_kernel.h      -- URMA host-side function declarations
+│   └── host/
+│       └── main.cpp                     -- Entry point (MPI init, run demos, report)
+├── run.sh                               -- One-click build and run
+├── README.md                            -- English documentation
+└── README_zh.md                         -- Chinese documentation
 ```
 
 ## Dependency Installation
@@ -101,14 +135,27 @@ mpirun --version
 ## Manual Build
 
 ```bash
+# A2/A3 build (Demos 1-3)
 mkdir -p build && cd build
-cmake .. -DSOC_VERSION=ascend910b1
+cmake .. -DSOC_VERSION=Ascend910B1
+make -j$(nproc)
+cd ..
+mpirun -n 8 ./build/bin/allgather_demo
+
+# A5 build (Demos 4-6)
+rm -rf build
+mkdir -p build && cd build
+cmake .. -DSOC_VERSION=Ascend950PR_9599
 make -j$(nproc)
 cd ..
 mpirun -n 2 ./build/bin/allgather_demo
 ```
 
-## Expected Output (2 ranks)
+`SOC_VERSION` determines which kernel set is compiled: A2/A3 builds only the SDMA kernel; A5 builds only the URMA kernel. A clean rebuild (`rm -rf build`) is needed when switching between SoC targets.
+
+## Expected Output
+
+### A5 (2 ranks, URMA Demos 4–6)
 
 ```
 ========================================
@@ -116,17 +163,42 @@ mpirun -n 2 ./build/bin/allgather_demo
  Ranks: 2
 ========================================
 
+--- Demo 4: URMA Multi-core TPUT_ASYNC ---
+[URMA_TPUT_MC PASS] Rank 0: slot[0]=[0,1,2,...] slot[1]=[1000,1001,1002,...]
+[URMA_TPUT_MC PASS] Rank 1: slot[0]=[0,1,2,...] slot[1]=[1000,1001,1002,...]
+
+--- Demo 5: URMA Multi-core TGET_ASYNC ---
+[URMA_TGET_MC PASS] Rank 0: slot[0]=[0,1,2,...] slot[1]=[1000,1001,1002,...]
+[URMA_TGET_MC PASS] Rank 1: slot[0]=[0,1,2,...] slot[1]=[1000,1001,1002,...]
+
+--- Demo 6: URMA Ring TPUT_ASYNC ---
+[URMA_RING_TPUT PASS] Rank 0: slot[0]=[0,1,2,...] slot[1]=[1000,1001,1002,...]
+[URMA_RING_TPUT PASS] Rank 1: slot[0]=[0,1,2,...] slot[1]=[1000,1001,1002,...]
+
+========================================
+ All demos PASSED
+========================================
+```
+
+### A3 (8 ranks, SDMA Demos 1–3)
+
+```
+========================================
+ PTO Allgather Async Demo
+ Ranks: 8
+========================================
+
 --- Demo 1: Multi-core TPUT_ASYNC ---
-[TPUT_ASYNC_MC PASS] Rank 0: slot[0]=[0,1,2,...] slot[1]=[1000,1001,1002,...]
-[TPUT_ASYNC_MC PASS] Rank 1: slot[0]=[0,1,2,...] slot[1]=[1000,1001,1002,...]
+[TPUT_ASYNC_MC PASS] Rank 0: slot[0]=[0,1,2,...] slot[1]=[1000,1001,1002,...] slot[2]=[2000,2001,2002,...] ...
+...
 
 --- Demo 2: Multi-core TGET_ASYNC ---
-[TGET_ASYNC_MC PASS] Rank 0: slot[0]=[0,1,2,...] slot[1]=[1000,1001,1002,...]
-[TGET_ASYNC_MC PASS] Rank 1: slot[0]=[0,1,2,...] slot[1]=[1000,1001,1002,...]
+[TGET_ASYNC_MC PASS] Rank 0: slot[0]=[0,1,2,...] slot[1]=[1000,1001,1002,...] slot[2]=[2000,2001,2002,...] ...
+...
 
 --- Demo 3: Ring TPUT_ASYNC ---
-[RING_TPUT_ASYNC PASS] Rank 0: slot[0]=[0,1,2,...] slot[1]=[1000,1001,1002,...]
-[RING_TPUT_ASYNC PASS] Rank 1: slot[0]=[0,1,2,...] slot[1]=[1000,1001,1002,...]
+[RING_TPUT_ASYNC PASS] Rank 0: slot[0]=[0,1,2,...] slot[1]=[1000,1001,1002,...] slot[2]=[2000,2001,2002,...] ...
+...
 
 ========================================
  All demos PASSED

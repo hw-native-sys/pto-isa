@@ -35,10 +35,21 @@ set(ASCEND_DRIVER_PATH /usr/local/Ascend/driver)
 get_filename_component(PTO_LIB_PATH "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
 message(STATUS "PTO_LIB_PATH = ${PTO_LIB_PATH}")
 
-set(COMM_COMMON_DIR "${PTO_LIB_PATH}/tests/npu/a2a3/comm/st/testcase")
-message(STATUS "COMM_COMMON_DIR = ${COMM_COMMON_DIR}")
+set(SOC_VERSION "Ascend910B1" CACHE STRING "SoC version (Ascend910B1 or Ascend950PR_9599 for A5)")
 
-set(SOC_VERSION "ascend910b1" CACHE STRING "SoC version (ascend910b1 or Ascend910_9599)")
+# A5 (dav-c310) vs A2/A3 (dav-c220).
+# SDMA kernel uses a2a3/common.hpp; URMA kernel uses a5/common.hpp. The two define
+# same-named types with different layouts (HcclDeviceContext, TestContext) and incompatible
+# ACL init/finalize semantics, so only one set can be compiled per binary.
+if(SOC_VERSION STREQUAL "Ascend950PR_9599")
+    set(IS_A5 TRUE)
+    set(CCE_AICORE_ARCH "dav-c310-vec")
+    set(CCE_MEMORY_MODEL "REGISTER_BASE")
+else()
+    set(IS_A5 FALSE)
+    set(CCE_AICORE_ARCH "dav-c220-vec")
+    set(CCE_MEMORY_MODEL "MEMORY_BASE")
+endif()
 
 add_compile_options(
     -D_FORTIFY_SOURCE=2
@@ -47,14 +58,6 @@ add_compile_options(
     -fstack-protector-strong
 )
 add_link_options(-s -Wl,-z,relro -Wl,-z,now)
-
-if(SOC_VERSION STREQUAL "Ascend910_9599")
-    set(CCE_AICORE_ARCH "dav-c310-vec")
-    set(CCE_MEMORY_MODEL "REGISTER_BASE")
-else()
-    set(CCE_AICORE_ARCH "dav-c220-vec")
-    set(CCE_MEMORY_MODEL "MEMORY_BASE")
-endif()
 
 set(CCE_OPTS
     -xcce
@@ -92,24 +95,11 @@ elseif(EXISTS "${ASCEND_HOME_PATH}/compiler/tikcpp/ascendc_kernel/include")
     set(ASCENDC_KERNEL_INCLUDE "${ASCEND_HOME_PATH}/compiler/tikcpp/ascendc_kernel/include")
 endif()
 
-# === Kernel shared library ===
-add_library(allgather_kernel SHARED csrc/kernel/allgather_kernel.cpp)
-
-target_compile_options(allgather_kernel PRIVATE
-    ${CCE_OPTS}
-    --cce-aicore-arch=${CCE_AICORE_ARCH}
-    -D${CCE_MEMORY_MODEL}
-    -std=c++17
-    -Wno-non-c-typedef-for-linkage
-    -Wno-braced-scalar-init
-)
-
-target_include_directories(allgather_kernel PRIVATE
+set(KERNEL_INCLUDE_DIRS
     ${ASCEND_HOME_PATH}/pkg_inc/
     ${ASCEND_HOME_PATH}/pkg_inc/profiling/
     ${ASCEND_HOME_PATH}/pkg_inc/runtime/runtime
     ${PTO_LIB_PATH}/include
-    ${COMM_COMMON_DIR}
     ${TOOLKIT_DIR}/asc
     ${TOOLKIT_DIR}/asc/include
     ${TOOLKIT_DIR}/ascendc/include
@@ -123,12 +113,59 @@ target_include_directories(allgather_kernel PRIVATE
     ${ASCENDC_KERNEL_INCLUDE}
 )
 
-target_link_directories(allgather_kernel PRIVATE ${ASCEND_HOME_PATH}/lib64)
-target_link_libraries(allgather_kernel PRIVATE hcomm runtime nnopbase)
-target_link_options(allgather_kernel PRIVATE --cce-fatobj-link)
+set(KERNEL_LIBS "")
+
+if(IS_A5)
+    # === A5: URMA kernel only ===
+    set(URMA_COMMON_DIR "${PTO_LIB_PATH}/tests/npu/a5/comm/st/testcase")
+    message(STATUS "URMA_COMMON_DIR = ${URMA_COMMON_DIR}")
+
+    add_library(allgather_urma_kernel SHARED csrc/kernel/allgather_urma_kernel.cpp)
+    target_compile_options(allgather_urma_kernel PRIVATE
+        ${CCE_OPTS}
+        --cce-aicore-arch=${CCE_AICORE_ARCH}
+        -D${CCE_MEMORY_MODEL}
+        -std=c++17
+        -Wno-non-c-typedef-for-linkage
+        -Wno-braced-scalar-init
+    )
+    target_include_directories(allgather_urma_kernel PRIVATE ${KERNEL_INCLUDE_DIRS} ${URMA_COMMON_DIR})
+    target_link_directories(allgather_urma_kernel PRIVATE ${ASCEND_HOME_PATH}/lib64)
+    target_link_libraries(allgather_urma_kernel PRIVATE hcomm runtime nnopbase)
+    target_link_options(allgather_urma_kernel PRIVATE --cce-fatobj-link)
+
+    list(APPEND KERNEL_LIBS allgather_urma_kernel)
+else()
+    # === A2/A3: SDMA kernel only ===
+    set(COMM_COMMON_DIR "${PTO_LIB_PATH}/tests/npu/a2a3/comm/st/testcase")
+    message(STATUS "COMM_COMMON_DIR = ${COMM_COMMON_DIR}")
+
+    add_library(allgather_kernel SHARED csrc/kernel/allgather_kernel.cpp)
+    target_compile_options(allgather_kernel PRIVATE
+        ${CCE_OPTS}
+        --cce-aicore-arch=${CCE_AICORE_ARCH}
+        -D${CCE_MEMORY_MODEL}
+        -std=c++17
+        -Wno-non-c-typedef-for-linkage
+        -Wno-braced-scalar-init
+    )
+    target_include_directories(allgather_kernel PRIVATE ${KERNEL_INCLUDE_DIRS} ${COMM_COMMON_DIR})
+    target_link_directories(allgather_kernel PRIVATE ${ASCEND_HOME_PATH}/lib64)
+    target_link_libraries(allgather_kernel PRIVATE hcomm runtime nnopbase)
+    target_link_options(allgather_kernel PRIVATE --cce-fatobj-link)
+
+    list(APPEND KERNEL_LIBS allgather_kernel)
+endif()
 
 # === Host executable ===
 add_executable(allgather_demo csrc/host/main.cpp)
+
+if(IS_A5)
+    target_compile_definitions(allgather_demo PRIVATE ALLGATHER_DEMO_SOC_A5=1)
+    target_include_directories(allgather_demo PRIVATE ${PTO_LIB_PATH}/include ${URMA_COMMON_DIR})
+else()
+    target_include_directories(allgather_demo PRIVATE ${PTO_LIB_PATH}/include ${COMM_COMMON_DIR})
+endif()
 
 target_compile_options(allgather_demo PRIVATE
     ${CPP_OPTS}
@@ -136,15 +173,10 @@ target_compile_options(allgather_demo PRIVATE
     -Wno-braced-scalar-init
 )
 
-target_include_directories(allgather_demo PRIVATE
-    ${PTO_LIB_PATH}/include
-    ${COMM_COMMON_DIR}
-)
-
 target_link_directories(allgather_demo PUBLIC ${ASCEND_HOME_PATH}/lib64)
 
 target_link_libraries(allgather_demo PRIVATE
-    allgather_kernel
+    ${KERNEL_LIBS}
     runtime
     stdc++ ascendcl hcomm m tiling_api platform c_sec dl nnopbase pthread
 )

@@ -19,7 +19,7 @@
 # Usage:
 #   ./run.sh                             # 8 ranks, default SoC
 #   ./run.sh 4                           # 4 ranks
-#   ./run.sh 2 Ascend910_9599            # 2 ranks, A5 SoC
+#   ./run.sh 2 Ascend950PR_9599           # 2 ranks, A5 SoC
 
 set -e
 
@@ -30,7 +30,7 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 N_RANKS="${1:-${N_RANKS:-8}}"
-SOC_VERSION="${2:-${SOC_VERSION:-ascend910b1}}"
+SOC_VERSION="${2:-${SOC_VERSION:-Ascend910B1}}"
 
 echo "=== Allgather Async Demo: Building (SOC_VERSION=${SOC_VERSION}) ==="
 
