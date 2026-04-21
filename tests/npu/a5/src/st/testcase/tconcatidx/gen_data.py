@@ -18,6 +18,15 @@ np.random.seed(19)
 def gen_golden_data(case_name, param):
     dtype = param.dtype
     itype = param.itype
+    itype_len = 1
+    if itype in [np.int32, np.uint32]:
+        itype_len = 4
+    elif itype in [np.int16, np.uint16]:
+        itype_len = 2
+    elif itype in [np.int8, np.uint8]:
+        itype_len = 1
+    else:
+        raise ValueError(f"Unsupported index type: {itype}")
 
     dst_tile_row, dst_tile_col = param.dst_tile_row, param.dst_tile_col
     src0_tile_row, src0_tile_col = param.src0_tile_row, param.src0_tile_col
@@ -34,22 +43,21 @@ def gen_golden_data(case_name, param):
 
     src0_idx = np.zeros([src0_tile_row, src0_tile_col]).astype(itype)
     src1_idx = np.zeros([src1_tile_row, src1_tile_col]).astype(itype)
-    src0_idx_valid = np.random.randint(1, v_valid_col0, size=(v_valid_row, v_valid_col0)).astype(itype)
-    src1_idx_valid = np.random.randint(1, v_valid_col1, size=(v_valid_row, v_valid_col1)).astype(itype)
+    src0_idx_valid = np.random.randint(1, v_valid_col0, size=(v_valid_row, v_valid_col0)).astype(itype) * itype_len
+    src1_idx_valid = np.random.randint(1, v_valid_col1, size=(v_valid_row, v_valid_col1)).astype(itype) * itype_len
     src0_idx[0:v_valid_row, 0:v_valid_col0] = src0_idx_valid
     src1_idx[0:v_valid_row, 0:v_valid_col1] = src1_idx_valid
 
     # Perform the concat operation
     golden = np.zeros([dst_tile_row, dst_tile_col]).astype(dtype)
     for i in range(0, v_valid_row):
-        if dst_tile_col >= src0_idx[i, 0] + src1_idx[i, 0]:
-            golden[i, 0:src0_idx[i, 0]] = input0[i, 0:src0_idx[i, 0]]
-            golden[i, src0_idx[i, 0]:src0_idx[i, 0] + src1_idx[i, 0]] = input1[i, 0:src1_idx[i, 0]]
-        elif dst_tile_col > src0_idx[i, 0] and dst_tile_col < src0_idx[i, 0] + src1_idx[i, 0]:
-            golden[i, 0:src0_idx[i, 0]] = input0[i, 0:src0_idx[i, 0]]
-            golden[i, src0_idx[i, 0]:dst_tile_col - src0_idx[i, 0]] = input1[i, 0:dst_tile_col - src0_idx[i, 0]]
-        else:
-            golden[i, 0:dst_tile_col] = input0[i, 0:dst_tile_col]
+        src0_num = src0_idx[i, 0] // itype_len
+        src1_num = src1_idx[i, 0] // itype_len
+        src0_copy = min(src0_num, dst_tile_col)
+        src1_copy = min(src1_num, max(dst_tile_col - src0_copy, 0))
+
+        golden[i, 0:src0_copy] = input0[i, 0:src0_copy]
+        golden[i, src0_copy:src0_copy + src1_copy] = input1[i, 0:src1_copy]
 
     # Save the input and golden data to binary files
     input0.tofile("input0.bin")
