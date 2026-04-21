@@ -436,6 +436,21 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert -g TInsertTest.case_nz_dblinput_fp4e2m1_1
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert -g TInsertTest.case_nz_twoinput_fp4e2m1_1
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert -g TInsertTest.case_nz_dblinput_fp8e4_2
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nd_aligned_6
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nd_unaligned_validcol_2
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nd_unaligned_indexcol_2
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nd_unaligned_validcol_3
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nd_aligned_hif8
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nd_aligned_fp4_e2m1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nd_scalar_2
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nz_2
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nz_6
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nz_indexcol_nonzero
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nz_multi_fractal_dst
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nz_hif8
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nz_scalar_1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nz_scalar_fp4_e2m1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nz_scalar_fp4_e1m2
 
 
   elif [ "$ENABLE_ALL" = "true" ]; then            # 所有用例
@@ -559,6 +574,7 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert_acc2vec
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tmov_zz
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec
   fi
 fi
 
