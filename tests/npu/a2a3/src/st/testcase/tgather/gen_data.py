@@ -178,6 +178,12 @@ def gen_golden_data(param: TGatherParamsBase):
             assert False, "not implemented"
 
         src_data1 = np.array(kvalue).astype(src_type)
+        if src_type == np.float32 or src_type == np.int32 or src_type == np.uint32:
+            src_data1 = np.tile(src_data1, src_row).astype(np.uint32)
+        elif src_type == np.half or src_type == np.int16 or src_type == np.uint16:
+            src_data1 = np.tile(src_data1, src_row).astype(np.uint16)
+        else:
+            assert False, "not implemented"
 
         src_data.tofile("./src.bin")
         src_data1.tofile("./src1.bin")

@@ -224,29 +224,36 @@ template void launchTGATHER_demo<int16_t, int32_t, int16_t, 16, 16, 32, 32>(int1
                                                                             void *stream);
 
 template <typename srcT, typename src1T, typename dstT, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int K,
-          CmpMode cmpMode, uint32_t offset>
-__global__ AICORE void runTGATHER_CMP(__gm__ srcT *src, __gm__ src1T *src1, __gm__ dstT *out)
+          CmpMode cmpMode>
+__global__ AICORE void runTGATHER_CMP(__gm__ srcT *src, __gm__ src1T *src1, __gm__ dstT *out, uint32_t offset)
 {
     using DynShapeDim5 = pto::Shape<1, 1, 1, kGRows_, kGCols_>;
     using DynStridDim5 = pto::Stride<1, 1, 1, kGCols_, 1>;
     using SrcGlobalData = GlobalTensor<srcT, DynShapeDim5, DynStridDim5>;
+    using Src1GlobalData =
+        GlobalTensor<src1T, pto::Shape<1, 1, 1, kGRows_, 1>, pto::Stride<1, 1, 1, kGCols_, 1>, Layout::DN>;
     using DstGlobalData = GlobalTensor<dstT, pto::Shape<1, 1, 1, kGRows_, K>, pto::Stride<1, 1, 1, K, 1>>;
     using TileData = Tile<TileType::Vec, srcT, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>;
+    constexpr int k_row = (kTRows_ * sizeof(src1T)) < 32 ? (32 / sizeof(src1T)) : kTRows_;
+    using TileData1 = Tile<TileType::Vec, src1T, k_row, 1, BLayout::ColMajor, -1, -1>;
     using DstTileData = Tile<TileType::Vec, dstT, kTRows_, K, BLayout::RowMajor, -1, -1>;
 
     TileData srcTile(kTRows_, kTCols_);
+    TileData1 src1Tile(kTRows_, 1);
     DstTileData dstTile(kTRows_, K);
     size_t srcSize = kTRows_ * kTCols_ * sizeof(srcT);
+    size_t src1Size = k_row * sizeof(src1T);
     size_t dstSize = kTRows_ * K * sizeof(dstT);
     TASSIGN(srcTile, 0x0);
-    TASSIGN(dstTile, srcSize);
+    TASSIGN(src1Tile, srcSize);
+    TASSIGN(dstTile, srcSize + src1Size);
 
     // for TCONCAT
     constexpr int concat_row = (kTRows_ * sizeof(srcT)) < 32 ? (32 / sizeof(srcT)) : kTRows_;
     using ConcatTileData = Tile<TileType::Vec, dstT, concat_row, 1, BLayout::ColMajor, -1, -1>;
     ConcatTileData concatTile(kTRows_, 1);
     size_t concatSize = concat_row * sizeof(dstT);
-    TASSIGN(concatTile, srcSize + dstSize);
+    TASSIGN(concatTile, srcSize + src1Size + dstSize);
 
     constexpr int cmpVCol = (kTCols_ + 7) / 8;
     constexpr int cmpCol = (cmpVCol + 31) / 32 * 32;
@@ -254,18 +261,21 @@ __global__ AICORE void runTGATHER_CMP(__gm__ srcT *src, __gm__ src1T *src1, __gm
     // tmp所需空间如下
     // cmps所需tmp：kTRows_ * cmpCol * sizeof(uint8_t)
     // index所需tmp：kTRows_ * kTCols_ * sizeof(dstT)即与src相同的shape，数据类型为dst的
-    size_t tmpSize = kTRows_ * cmpCol * sizeof(uint8_t) + kTRows_ * kTCols_ * sizeof(dstT);
+    // cvt所需tmp：kTRows_ * sizeof(src1T)
+    size_t tmpSize = kTRows_ * cmpCol * sizeof(uint8_t) + kTRows_ * kTCols_ * sizeof(dstT) + kTRows_ * sizeof(src1T);
     TmpTileData tmpTile(kTRows_, cmpVCol);
-    TASSIGN(tmpTile, srcSize + dstSize + concatSize);
+    TASSIGN(tmpTile, srcSize + src1Size + dstSize + concatSize);
 
     SrcGlobalData srcGlobal(src);
+    Src1GlobalData src1Global(src1);
     DstGlobalData dstGlobal(out);
 
     TLOAD(srcTile, srcGlobal);
+    TLOAD(src1Tile, src1Global);
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    TGATHER<DstTileData, TileData, ConcatTileData, TmpTileData, cmpMode, offset>(dstTile, srcTile, src1[0], concatTile,
-                                                                                 tmpTile);
+    TGATHER<DstTileData, TileData, TileData1, ConcatTileData, TmpTileData, cmpMode>(dstTile, srcTile, src1Tile,
+                                                                                    concatTile, tmpTile, offset);
 
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID1);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID1);
@@ -274,33 +284,29 @@ __global__ AICORE void runTGATHER_CMP(__gm__ srcT *src, __gm__ src1T *src1, __gm
 }
 
 template <typename srcT, typename src1T, typename dstT, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int K,
-          CmpMode cmpMode, uint32_t offset>
-void LaunchTGATHER_CMP(srcT *src, src1T *src1, dstT *out, void *stream)
+          CmpMode cmpMode>
+void LaunchTGATHER_CMP(srcT *src, src1T *src1, dstT *out, uint32_t offset, void *stream)
 {
     if constexpr (std::is_same_v<srcT, aclFloat16>) {
-        runTGATHER_CMP<half, half, dstT, kGRows_, kGCols_, kTRows_, kTCols_, K, cmpMode, offset>
-            <<<1, nullptr, stream>>>((half *)(src), (half *)(src1), out);
+        runTGATHER_CMP<half, src1T, dstT, kGRows_, kGCols_, kTRows_, kTCols_, K, cmpMode>
+            <<<1, nullptr, stream>>>((half *)(src), src1, out, offset);
     } else {
-        runTGATHER_CMP<srcT, src1T, dstT, kGRows_, kGCols_, kTRows_, kTCols_, K, cmpMode, offset>
-            <<<1, nullptr, stream>>>(src, src1, out);
+        runTGATHER_CMP<srcT, src1T, dstT, kGRows_, kGCols_, kTRows_, kTCols_, K, cmpMode>
+            <<<1, nullptr, stream>>>(src, src1, out, offset);
     }
 }
 
-template void LaunchTGATHER_CMP<float, float, uint32_t, 16, 64, 16, 64, 32, CmpMode::GT, 0>(float *src, float *src1,
+template void LaunchTGATHER_CMP<float, uint32_t, uint32_t, 16, 64, 16, 64, 32, CmpMode::GT>(float *src, uint32_t *src1,
                                                                                             uint32_t *out,
+                                                                                            uint32_t offset,
                                                                                             void *stream);
-template void LaunchTGATHER_CMP<int32_t, int32_t, uint32_t, 8, 128, 8, 128, 64, CmpMode::EQ, 0>(int32_t *src,
-                                                                                                int32_t *src1,
-                                                                                                uint32_t *out,
-                                                                                                void *stream);
-template void LaunchTGATHER_CMP<float, float, uint32_t, 4, 256, 4, 256, 64, CmpMode::EQ, 0>(float *src, float *src1,
+template void LaunchTGATHER_CMP<int32_t, uint32_t, uint32_t, 8, 128, 8, 128, 64, CmpMode::EQ>(
+    int32_t *src, uint32_t *src1, uint32_t *out, uint32_t offset, void *stream);
+template void LaunchTGATHER_CMP<float, uint32_t, uint32_t, 4, 256, 4, 256, 64, CmpMode::EQ>(float *src, uint32_t *src1,
                                                                                             uint32_t *out,
+                                                                                            uint32_t offset,
                                                                                             void *stream);
-template void LaunchTGATHER_CMP<aclFloat16, aclFloat16, uint32_t, 2, 256, 2, 256, 32, CmpMode::GT, 0>(aclFloat16 *src,
-                                                                                                      aclFloat16 *src1,
-                                                                                                      uint32_t *out,
-                                                                                                      void *stream);
-template void LaunchTGATHER_CMP<aclFloat16, aclFloat16, uint32_t, 8, 128, 8, 128, 32, CmpMode::EQ, 0>(aclFloat16 *src,
-                                                                                                      aclFloat16 *src1,
-                                                                                                      uint32_t *out,
-                                                                                                      void *stream);
+template void LaunchTGATHER_CMP<aclFloat16, uint16_t, uint32_t, 2, 256, 2, 256, 32, CmpMode::GT>(
+    aclFloat16 *src, uint16_t *src1, uint32_t *out, uint32_t offset, void *stream);
+template void LaunchTGATHER_CMP<aclFloat16, uint16_t, uint32_t, 8, 128, 8, 128, 32, CmpMode::EQ>(
+    aclFloat16 *src, uint16_t *src1, uint32_t *out, uint32_t offset, void *stream);
