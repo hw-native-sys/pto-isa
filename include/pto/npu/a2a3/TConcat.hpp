@@ -122,8 +122,8 @@ __tf__ PTO_INTERNAL void TConcatIdx(typename DstTile::TileDType __out__ dst, typ
 
     for (uint16_t i = 0; i < validRow; i++) {
         PtoSetWaitFlag<PIPE_MTE2, PIPE_S>();
-        unsigned idx0Num = *(idx0Ptr + i * idx0Stride);
-        unsigned idx1Num = *(idx1Ptr + i * idx1Stride);
+        unsigned idx0Num = *(idx0Ptr + i * idx0Stride) / sizeof(idxType);
+        unsigned idx1Num = *(idx1Ptr + i * idx1Stride) / sizeof(idxType);
         unsigned src0Num = idx0Num < dstValidCol ? idx0Num : dstValidCol;
         unsigned src1Col = dstValidCol > src0Num ? dstValidCol - src0Num : 0;
         unsigned src1Num = idx1Num < src1Col ? idx1Num : src1Col;

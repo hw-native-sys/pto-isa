@@ -147,8 +147,8 @@ __tf__ PTO_INTERNAL void TConcatIdx(typename TileDst::TileDType __out__ dst, typ
             std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<dataType, DistVST::DIST_NORM>())>();
 
         for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
-            unsigned idx0Num = *(idx0Ptr + i * idx0Stride);
-            unsigned idx1Num = *(idx1Ptr + i * idx1Stride);
+            unsigned idx0Num = *(idx0Ptr + i * idx0Stride) / sizeof(idxType);
+            unsigned idx1Num = *(idx1Ptr + i * idx1Stride) / sizeof(idxType);
             unsigned sreg0 = idx0Num < dstValidCol ? idx0Num : dstValidCol;
             unsigned src1Col = dstValidCol > sreg0 ? dstValidCol - sreg0 : 0;
             unsigned sreg1 = idx1Num < src1Col ? idx1Num : src1Col;
