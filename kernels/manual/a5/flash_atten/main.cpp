@@ -425,10 +425,29 @@ void run_tfa()
                 size_t pv_off =
                     static_cast<size_t>(buf_idx) * static_cast<size_t>(CUBE_S0) * static_cast<size_t>(HEAD_SIZE);
 
+                const int c0 = ti * TILE_S1;
+
+                // DN builds dump qk/p subtiles as (Cube_S1 x Cube_S0); ND builds dump them as (Cube_S0 x Cube_S1).
+#ifdef MODE_DN
+                for (int sub_col = 0; sub_col < tile_factor; ++sub_col) {
+                    const size_t subtile_off = qk_off + static_cast<size_t>(sub_col) * static_cast<size_t>(CUBE_S0) *
+                                                            static_cast<size_t>(CUBE_S1);
+                    for (int c = 0; c < CUBE_S1; ++c) {
+                        float *qk_dst = &exp_qk[subtile_off + static_cast<size_t>(c) * static_cast<size_t>(CUBE_S0)];
+                        float *p_dst = &exp_p[subtile_off + static_cast<size_t>(c) * static_cast<size_t>(CUBE_S0)];
+                        for (int r = 0; r < CUBE_S0; ++r) {
+                            const int global_r = b * CUBE_S0 + r;
+                            const size_t src_idx =
+                                static_cast<size_t>(global_r) * static_cast<size_t>(S1) + c0 + sub_col * CUBE_S1 + c;
+                            qk_dst[r] = golden_qk[src_idx];
+                            p_dst[r] = golden_p[src_idx];
+                        }
+                    }
+                }
+#else
                 // Copy qk tile
                 for (int r = 0; r < CUBE_S0; ++r) {
                     const int global_r = b * CUBE_S0 + r;
-                    const int c0 = ti * TILE_S1;
                     for (int sub_col = 0; sub_col < tile_factor; ++sub_col) {
                         const float *src = &golden_qk[static_cast<size_t>(global_r) * S1 + c0 + sub_col * CUBE_S1];
                         float *dst = &exp_qk[qk_off +
@@ -442,7 +461,6 @@ void run_tfa()
                 // Copy p tile (converted to float) with new layout: contiguous sub-tiles of width CUBE_S1
                 for (int r = 0; r < CUBE_S0; ++r) {
                     const int global_r = b * CUBE_S0 + r;
-                    const int c0 = ti * TILE_S1;
                     for (int sub_col = 0; sub_col < tile_factor; ++sub_col) {
                         const float *src = &golden_p[static_cast<size_t>(global_r) * S1 + c0 + sub_col * CUBE_S1];
                         float *dst = &exp_p[p_off +
@@ -451,6 +469,11 @@ void run_tfa()
                                             static_cast<size_t>(r) * CUBE_S1];
                         std::copy_n(src, CUBE_S1, dst);
                     }
+                }
+#endif
+
+                for (int r = 0; r < CUBE_S0; ++r) {
+                    const int global_r = b * CUBE_S0 + r;
                     exp_p_max[p_max_off + static_cast<size_t>(r)] = golden_exp_max_tiles[ti][global_r];
                 }
 

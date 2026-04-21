@@ -60,6 +60,10 @@ if(DEBUG_MODE)
     set(CMAKE_CCE_COMPILE_OPTIONS "${CMAKE_CCE_COMPILE_OPTIONS} --cce-enable-print")
 endif()
 
+if(MODE_DN)
+    add_compile_definitions(MODE_DN)
+endif()
+
 # UB Path Mode Configuration
 # 0 = ALL_GM_PATH: All paths use GM (baseline)
 # 1 = ALL_UB_PATH: All paths use UB/L1 direct transfers

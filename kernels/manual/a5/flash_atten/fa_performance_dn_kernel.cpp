@@ -1035,9 +1035,6 @@ __global__ AICORE void runTFA(__gm__ uint64_t *ffts_addr, __gm__ half *q, __gm__
     }
 
     // block offset for logical S0
-#if defined(__DAV_C220_CUBE__) || defined(__DAV_C220_VEC__) // A5 defined macro, don't need to reassign
-    const int block_idx = get_block_idx();
-#endif
     const int block_offset_rows = block_idx * static_cast<int>(Cube_S0);
 
     constexpr bool use_cv_comm = (!INTERMEDIATE_CHECK) && (block_rows >= static_cast<uint32_t>(pto::kCvMaxCores));
@@ -1275,9 +1272,6 @@ __global__ AICORE void runTFA(__gm__ uint64_t *ffts_addr, __gm__ half *q, __gm__
                 pvUbBufSync.allocate();
         }
 #endif
-#ifdef __DAV_C220_CUBE__
-        wait_flag_dev(CV_BLOCK_END); // wait for vector done all reading
-#endif
     }
 
     if constexpr (DAV_VEC) {
@@ -1287,9 +1281,6 @@ __global__ AICORE void runTFA(__gm__ uint64_t *ffts_addr, __gm__ half *q, __gm__
         wait_flag(PIPE_MTE3, PIPE_V, EVENT_ID1);
         for (int i = 0; i < pending_sv_consumed; ++i)
             sm2pvSync.allocate();
-#ifdef __DAV_C220_VEC__
-        ffts_cross_core_sync(PIPE_MTE2, _getFFTSMsg(CV_CORE_SYNC, CV_BLOCK_END)); // cube can exit CV comm now
-#endif
     }
 
     pipe_barrier(PIPE_ALL);
