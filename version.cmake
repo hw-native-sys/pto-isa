@@ -8,7 +8,7 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
 
-set_package(pto-isa VERSION "9.0.0")
+set_package(pto-isa VERSION "0.1.2")
 
 set_run_dependencies(runtime "CUR_MAJOR_MINOR_VER")
 set_run_dependencies(opbase "CUR_MAJOR_MINOR_VER")
