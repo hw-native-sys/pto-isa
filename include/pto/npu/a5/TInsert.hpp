@@ -69,8 +69,12 @@ __tf__ PTO_INTERNAL void TInsertAccToVec(typename DstTileData::TileDType __out__
     uint32_t dstOffset;
     if constexpr (enableNz2Nd) {
         dstOffset = static_cast<uint32_t>(indexRow) * DstTileData::Cols + indexCol;
+        constexpr int32_t c0Size = BLOCK_BYTE_SIZE / sizeof(dstType);
+        validCol = (validCol + c0Size - 1) / c0Size * c0Size;
     } else if constexpr (enableNz2Dn) {
         dstOffset = static_cast<uint32_t>(indexCol) * DstTileData::Rows + indexRow;
+        constexpr int32_t c0Size = BLOCK_BYTE_SIZE / sizeof(dstType);
+        validRow = (validRow + c0Size - 1) / c0Size * c0Size;
     } else {
         constexpr int32_t c0Size = (!channelSplitEnable) && (DstTileData::SFractalSize == 2 * CUBE_BLOCK_SIZE) ?
                                        2 * C0_SIZE_BYTE / sizeof(dstType) :

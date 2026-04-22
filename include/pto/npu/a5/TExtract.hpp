@@ -460,6 +460,7 @@ __tf__ AICORE void TExtractAccToVec(typename DstTileData::TileDType __out__ dst,
         srcOffset =
             srcStride * ACC_C0_SIZE * (indexCol / ACC_C0_SIZE) + (indexRow * ACC_C0_SIZE + (indexCol % ACC_C0_SIZE));
     }
+    validCol = (validCol + c0Size - 1) / c0Size * c0Size;
     __cc__ srcType *srcData = (__cc__ srcType *)__cce_get_tile_ptr(src) + srcOffset;
     copy_matrix_cc_to_ub(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, dualDstCtl, subBlockId, 0, 0,
                          quantPre, reluMode, false, true, 0, 0, false, false, 0, false, false, false, false, false,
