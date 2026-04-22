@@ -525,7 +525,24 @@ PTO_INTERNAL void GenCastCallFp16ToInt8_NonSatTorch(__ubuf__ typename TileDataD:
 
             // Step 1: fp16 -> int32 with saturation (clamps inf/overflow into int32 range).
             set_ctrl(sbitset0(get_ctrl(), SAT_MODE_BIT));
-            GenCastCallFp16ToInt32ByRoundMode(tempInt32Buf, chunkSrc, 1, mode, srcBlockStride, srcBlockStride, 8, 8);
+            switch (static_cast<RoundMode>(mode)) {
+                case RoundMode::CAST_RINT:
+                    vconv_f162s32r(tempInt32Buf, chunkSrc, 1, srcBlockStride, srcBlockStride, 8, 8);
+                    break;
+                case RoundMode::CAST_ROUND:
+                    vconv_f162s32a(tempInt32Buf, chunkSrc, 1, srcBlockStride, srcBlockStride, 8, 8);
+                    break;
+                case RoundMode::CAST_FLOOR:
+                    vconv_f162s32f(tempInt32Buf, chunkSrc, 1, srcBlockStride, srcBlockStride, 8, 8);
+                    break;
+                case RoundMode::CAST_CEIL:
+                    vconv_f162s32c(tempInt32Buf, chunkSrc, 1, srcBlockStride, srcBlockStride, 8, 8);
+                    break;
+                case RoundMode::CAST_TRUNC:
+                default:
+                    vconv_f162s32z(tempInt32Buf, chunkSrc, 1, srcBlockStride, srcBlockStride, 8, 8);
+                    break;
+            }
             pipe_barrier(PIPE_V);
 
             // Switch to non-saturating (wrap-around) mode for the remaining narrowing stages —
