@@ -8,6 +8,7 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
+#include <filesystem>
 #include "test_common.h"
 #include "acl/acl.h"
 #include <gtest/gtest.h>
@@ -32,10 +33,10 @@ std::string GetGoldenDir()
     return fullPath;
 }
 
-template <typename T, int TRow, int TCol, int validRow, int validCol, bool isHighPrecision>
+template <typename T, int TRow, int TCol, int validRow, int validCol>
 void LaunchTPow(T *out, T *base, T *exp, void *stream);
 
-template <typename T, int Row, int Col, int validRow, int validCol, bool isHighPrecision = false>
+template <typename T, int Row, int Col, int validRow, int validCol>
 void test_tpow()
 {
     size_t fileSize = Row * Col * sizeof(T);
@@ -59,7 +60,7 @@ void test_tpow()
     ReadFile(GetGoldenDir() + "/exp.bin", fileSize, expHost, fileSize);
     aclrtMemcpy(baseDevice, fileSize, baseHost, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(expDevice, fileSize, expHost, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    LaunchTPow<T, Row, Col, validRow, validCol, isHighPrecision>(dstDevice, baseDevice, expDevice, stream);
+    LaunchTPow<T, Row, Col, validRow, validCol>(dstDevice, baseDevice, expDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, fileSize, dstDevice, fileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -83,46 +84,46 @@ void test_tpow()
     ReadFile(GetGoldenDir() + "/output.bin", fileSize, devFinal.data(), fileSize);
 
     constexpr float eps = std::is_same_v<T, float> ? 0.0005f : 0.00005f;
-    bool ret = ResultCmp<T>(golden, devFinal, eps);
+    bool ret = ResultCmp<T>(golden, devFinal, eps, 0, 1000);
 
     EXPECT_TRUE(ret);
 }
 
 TEST_F(TPOWTest, case1)
 {
-    test_tpow<float, 64, 64, 63, 63>();
+    test_tpow<float, 16, 64, 15, 63>();
 }
 TEST_F(TPOWTest, case2)
 {
-    test_tpow<aclFloat16, 64, 64, 63, 63>(); // typedef uint16_t aclFloat16
+    test_tpow<uint16_t, 16, 64, 15, 63>();
 }
 TEST_F(TPOWTest, case3)
 {
-    test_tpow<int32_t, 64, 64, 63, 63>();
+    test_tpow<int32_t, 16, 64, 15, 63>();
 }
 TEST_F(TPOWTest, case4)
 {
-    test_tpow<int16_t, 64, 64, 63, 63>();
+    test_tpow<int16_t, 16, 64, 15, 63>();
 }
 TEST_F(TPOWTest, case5)
 {
-    test_tpow<int8_t, 64, 64, 63, 63>();
+    test_tpow<int8_t, 16, 64, 15, 63>();
 }
 TEST_F(TPOWTest, case6)
 {
-    test_tpow<uint32_t, 64, 64, 63, 63>();
+    test_tpow<uint32_t, 16, 64, 15, 63>();
 }
 TEST_F(TPOWTest, case7)
 {
-    test_tpow<uint8_t, 64, 64, 63, 63>();
+    test_tpow<uint8_t, 16, 64, 15, 63>();
 }
 TEST_F(TPOWTest, case8)
 {
-    test_tpow<float, 64, 64, 63, 63, true>();
+    test_tpow<float, 16, 64, 15, 63>();
 }
 TEST_F(TPOWTest, case9)
 {
-    test_tpow<aclFloat16, 64, 64, 63, 63, true>();
+    test_tpow<uint16_t, 16, 64, 15, 63>();
 }
 TEST_F(TPOWTest, case10)
 {
@@ -130,21 +131,21 @@ TEST_F(TPOWTest, case10)
 }
 TEST_F(TPOWTest, case11)
 {
-    test_tpow<aclFloat16, 16, 512, 16, 400, true>();
+    test_tpow<uint16_t, 16, 512, 16, 400>();
 }
 TEST_F(TPOWTest, case12)
 {
-    test_tpow<float, 1, 64, 1, 64, false>();
+    test_tpow<float, 1, 64, 1, 64>();
 }
 TEST_F(TPOWTest, case13)
 {
-    test_tpow<float, 1, 64, 1, 64, false>();
+    test_tpow<float, 1, 64, 1, 64>();
 }
 TEST_F(TPOWTest, case14)
 {
-    test_tpow<float, 1, 64, 1, 64, false>();
+    test_tpow<float, 1, 64, 1, 64>();
 }
 TEST_F(TPOWTest, case15)
 {
-    test_tpow<float, 1, 64, 1, 64, false>();
+    test_tpow<float, 1, 64, 1, 64>();
 }

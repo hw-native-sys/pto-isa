@@ -65,3 +65,4 @@ template void LaunchTPow<float, 64, 64, 63, 63, true>(float *out, float *base, f
 template void LaunchTPow<uint16_t, 64, 64, 63, 63, true>(uint16_t *out, uint16_t *base, uint16_t *exp, void *stream);
 template void LaunchTPow<float, 16, 256, 15, 231, false>(float *out, float *base, float *exp, void *stream);
 template void LaunchTPow<uint16_t, 16, 512, 16, 400, true>(uint16_t *out, uint16_t *base, uint16_t *exp, void *stream);
+template void LaunchTPow<float, 1, 64, 1, 64, false>(float *out, float *base, float *exp, void *stream);

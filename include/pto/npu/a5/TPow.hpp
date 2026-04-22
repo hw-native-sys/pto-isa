@@ -34,7 +34,6 @@ constexpr float LOG2_LO = -1.90465421e-9f;
 constexpr float EXP_OVFL_UNFL_F = -104.0f;
 constexpr float EXP_MIN_F = 88.7228390f;
 constexpr int32_t INF = 0x7F800000;
-constexpr int32_t NEG_INF = 0xff800000;
 constexpr int32_t F32_NAN = 0x7fc00000;
 constexpr int32_t R10_COEFF = 0x7F800000;
 constexpr int32_t R12_COEFF = 0x7FFFFFFF;
@@ -95,8 +94,8 @@ PTO_INTERNAL void ProcessFloatSpecialCase(RegTensor<float> &dstReg, RegTensor<fl
     // 3. 无穷大和零处理
     // if (isinf(base) || base == 0.0f) {
     //     if (exp < 0.0f)
-    //         return base ^ 0x7F800000;  // 反转指数位
-    //     return base & 0x7FFFFFFF;  // 取绝对值
+    //         base = base ^ 0x7F800000;          // 指数为负：翻转指数位
+    //     return (exp is odd) ? base : (base & 0x7FFFFFFF); // 奇数指数保留符号，否则取绝对值
     // }
     pxor(curMask, cmpMask2, curMask, mask);
     IsInfNum(cmpMask1, baseReg, tmpR12Reg, curMask);
@@ -110,7 +109,7 @@ PTO_INTERNAL void ProcessFloatSpecialCase(RegTensor<float> &dstReg, RegTensor<fl
     vsel(tmpFloatReg, tmpFloatReg, tmpFloatReg2, cmpMask2);
     vsel(dstReg, tmpFloatReg, dstReg, cmpMask1);
 
-    // 4. 负数底数处理
+    // 4-1. 负数底数处理
     // if (base < 0.0f) {
     //     if (exp != floor(exp))
     //         return NAN;  // 负数的非整数幂为NaN
@@ -118,20 +117,19 @@ PTO_INTERNAL void ProcessFloatSpecialCase(RegTensor<float> &dstReg, RegTensor<fl
     //         return -result;
     // }
     pxor(curMask, cmpMask1, curMask, mask);
+    pand(cmpMask2, cmpMask2, curMask, mask);
     vneg(tmpFloatReg, dstReg, curMask);
     vsel(tmpFloatReg, tmpFloatReg, dstReg, cmpMask2);
     RFloor(tmpFloatReg2, expReg, curMask);
-    vcmp_eq(cmpMask1, expReg, tmpFloatReg2, curMask);
+    vcmp_ne(cmpMask1, expReg, tmpFloatReg2, curMask);
     vdup((RegTensor<int32_t> &)tmpFloatReg, F32_NAN, cmpMask1, MODE_MERGING);
     vcmps_lt(cmpMask2, baseReg, 0.0f, curMask);
     vsel(dstReg, tmpFloatReg, dstReg, cmpMask2);
 
-    // 5. 特殊组合处理
+    // 4-2. 特殊组合处理
     // if (base == -1.0f && isinf(exp))
     //     return 1.0f;
-    vcmps_eq(cmpMask1, expReg, INF, curMask);
-    vcmps_eq(cmpMask2, expReg, NEG_INF, curMask);
-    por(cmpMask1, cmpMask1, cmpMask2, mask);
+    IsInfNum(cmpMask1, expReg, tmpR12Reg, curMask);
     vcmps_eq(cmpMask2, baseReg, -1.0f, cmpMask1);
     vdup(dstReg, 1.0f, cmpMask2, MODE_MERGING);
 }
@@ -453,7 +451,7 @@ PTO_INTERNAL void StoreDstData(RegTensor<ConvType> &dstReg, __ubuf__ T *dst, uin
 }
 
 template <typename T>
-PTO_INTERNAL void GetPowI(T &dstReg, T &baseReg, T &expReg, MaskReg &mask)
+PTO_INTERNAL void PowIntegerCore(T &dstReg, T &baseReg, T &expReg, MaskReg &mask)
 {
     T selReg;
     MaskReg selMask;
@@ -469,23 +467,34 @@ PTO_INTERNAL void GetPowI(T &dstReg, T &baseReg, T &expReg, MaskReg &mask)
     vmul(baseReg, baseReg, baseReg, mask, MODE_ZEROING);
 }
 
-template <typename T>
+template <typename ConvType, typename T>
 PTO_INTERNAL void ProcessSpecialCaseForPowI(T &dstReg, T &baseReg, T &expReg, MaskReg &mask)
 {
     T tmpReg;
     vdup(tmpReg, 1, mask, MODE_ZEROING);
 
+    // if (exp == 0) || (base == 1)
+    //     return 1;
     MaskReg cmpMask1, cmpMask2, condMask;
     vcmps_eq(cmpMask1, expReg, 0, mask);
     vcmps_eq(cmpMask2, baseReg, 1, mask);
     por(condMask, cmpMask1, cmpMask2, mask);
-
     vsel(dstReg, tmpReg, dstReg, condMask);
     pxor(mask, mask, condMask, mask);
+
+    // if (base != -1 && exp < 0)
+    //    return 0;
+    if constexpr (std::is_signed_v<ConvType>) {
+        vdup(tmpReg, 0, mask, MODE_ZEROING);
+        vcmps_ne(cmpMask1, baseReg, -1, mask);
+        vcmps_lt(cmpMask2, expReg, 0, mask);
+        pand(condMask, cmpMask1, cmpMask2, mask);
+        vsel(dstReg, tmpReg, dstReg, condMask);
+    }
 }
 
 template <typename ConvType, typename T>
-PTO_INTERNAL void GetPowICompute(T &dstReg, T &baseReg, T &expReg, MaskReg &mask)
+PTO_INTERNAL void TPowIntegerCompute(T &dstReg, T &baseReg, T &expReg, MaskReg &mask)
 {
     // TODO: vcmax(dst, exp); maxLoop = __buildin_clz(dst[0])
     constexpr uint16_t maxLoop = sizeof(ConvType) * BITS_PER_BYTE;
@@ -493,14 +502,13 @@ PTO_INTERNAL void GetPowICompute(T &dstReg, T &baseReg, T &expReg, MaskReg &mask
     T tmpExpReg = expReg;
     MaskReg tmpMask = mask;
     for (uint16_t j = 0; j < maxLoop; j++) {
-        GetPowI(dstReg, tmpBaseReg, tmpExpReg, mask);
+        PowIntegerCore(dstReg, tmpBaseReg, tmpExpReg, mask);
     }
-    ProcessSpecialCaseForPowI(dstReg, baseReg, expReg, tmpMask);
+    ProcessSpecialCaseForPowI<ConvType>(dstReg, baseReg, expReg, tmpMask);
 }
 
 template <typename T, uint32_t DstStride, uint32_t BaseStride, uint32_t ExpStride>
-PTO_INTERNAL void PowIComputeImpl(__ubuf__ T *dst, __ubuf__ T *base, __ubuf__ T *exp, unsigned validRow,
-                                  unsigned validCol)
+PTO_INTERNAL void TPowInteger(__ubuf__ T *dst, __ubuf__ T *base, __ubuf__ T *exp, unsigned validRow, unsigned validCol)
 {
     using ConvType = std::conditional_t<std::is_same_v<T, int8_t>, int16_t,
                                         std::conditional_t<std::is_same_v<T, uint8_t>, uint16_t, T>>;
@@ -523,7 +531,7 @@ PTO_INTERNAL void PowIComputeImpl(__ubuf__ T *dst, __ubuf__ T *base, __ubuf__ T 
 
                 LoadSrcData(baseReg, base, i * BaseStride + j * nElemPerRpt, mask);
                 LoadSrcData(expReg, exp, i * ExpStride + j * nElemPerRpt, mask);
-                GetPowICompute<ConvType>(dstReg, baseReg, expReg, mask);
+                TPowIntegerCompute<ConvType>(dstReg, baseReg, expReg, mask);
                 StoreDstData(dstReg, dst, i * DstStride + j * nElemPerRpt, mask);
             }
         }
@@ -531,7 +539,7 @@ PTO_INTERNAL void PowIComputeImpl(__ubuf__ T *dst, __ubuf__ T *base, __ubuf__ T 
 }
 
 template <typename T, uint32_t DstStride, uint32_t BaseStride>
-PTO_INTERNAL void PowIComputeImpl(__ubuf__ T *dst, __ubuf__ T *base, T exp, unsigned validRow, unsigned validCol)
+PTO_INTERNAL void TPowInteger(__ubuf__ T *dst, __ubuf__ T *base, T exp, unsigned validRow, unsigned validCol)
 {
     using ConvType = std::conditional_t<std::is_same_v<T, int8_t>, int16_t,
                                         std::conditional_t<std::is_same_v<T, uint8_t>, uint16_t, T>>;
@@ -554,7 +562,7 @@ PTO_INTERNAL void PowIComputeImpl(__ubuf__ T *dst, __ubuf__ T *base, T exp, unsi
                 dstReg = initRetReg;
 
                 LoadSrcData(baseReg, base, i * BaseStride + j * nElemPerRpt, mask);
-                GetPowICompute<ConvType>(dstReg, baseReg, expReg, mask);
+                TPowIntegerCompute<ConvType>(dstReg, baseReg, expReg, mask);
                 StoreDstData(dstReg, dst, i * DstStride + j * nElemPerRpt, mask);
             }
         }
@@ -588,8 +596,8 @@ __tf__ PTO_INTERNAL void TPowImpl(typename DstTile::TileDType __out__ dstData,
                 dst, base, exp, validRow, validCol);
         }
     } else if constexpr (IsIntegerNum<T>) {
-        PowI::PowIComputeImpl<T, DstTile::RowStride, BaseTile::RowStride, ExpTile::RowStride>(dst, base, exp, validRow,
-                                                                                              validCol);
+        PowI::TPowInteger<T, DstTile::RowStride, BaseTile::RowStride, ExpTile::RowStride>(dst, base, exp, validRow,
+                                                                                          validCol);
     }
 }
 
@@ -657,7 +665,7 @@ __tf__ PTO_INTERNAL void TPowSImpl(typename DstTile::TileDType __out__ dstData,
                                                                                          validCol);
         }
     } else if constexpr (IsIntegerNum<T>) {
-        PowI::PowIComputeImpl<T, DstTile::RowStride, BaseTile::RowStride>(dst, base, exp, validRow, validCol);
+        PowI::TPowInteger<T, DstTile::RowStride, BaseTile::RowStride>(dst, base, exp, validRow, validCol);
     }
 }
 

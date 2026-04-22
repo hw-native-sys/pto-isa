@@ -130,11 +130,13 @@ struct Event {
 
     PTO_INTERNAL Event &operator=(RecordEvent)
     {
-#ifndef __PTO_AUTO__
-        PTO_STATIC_ASSERT(!IsCrossCore,
-                          "Fix: The cross-core event must be manually initialized and specify the cross-core ID.");
-#endif
         return Init();
+    }
+
+    PTO_INTERNAL Event() = default;
+    PTO_INTERNAL Event(RecordEvent)
+    {
+        Init();
     }
 };
 

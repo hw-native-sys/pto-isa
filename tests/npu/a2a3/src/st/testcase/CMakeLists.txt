@@ -142,6 +142,8 @@ tpartadd
 tpartmul
 tpartmin
 tpartmax
+tpow
+tpows
 tsel
 tsub
 tsubs
