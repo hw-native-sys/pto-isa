@@ -205,6 +205,7 @@ t_dhrystone
 tconcatidx
 tconcat
 textract_vec
+tinsert_vec
 )
 if (NOT AUTO_MODE)
   # TPUSH and TPOP currently directly use TASSIGN inside their implementations,
