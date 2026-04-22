@@ -845,29 +845,23 @@ struct TMPipe {
             if constexpr (isSplitM) {
                 // split M between vectors
                 constexpr uint32_t VecM = ConsM / VEC_CORES;
-                int subblock_base_rows = VecM * static_cast<size_t>(get_subblockid());
-                int row_offset = subblock_base_rows + entryOffset;
+                int row_offset = VecM * static_cast<size_t>(get_subblockid());
                 uint64_t entryBase = (tile_id % DataFiFo::fifoDepth) * ConsM * ConsN * sizeof(T);
                 TileDataCons matTile;
-                TASSIGN_IMPL(matTile, fifo.fifoBase + entryBase);
-                constexpr bool isNZPlus1 = (ConsM / ProdM) != 2;
-                if constexpr (isNZPlus1) { // NZ + 1 mode
-                    TINSERT_IMPL<TInsertMode::NZ_PLUS_1>(matTile, tile, row_offset, 0);
-                } else {                   // NZ mode
-                    TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(row_offset), static_cast<uint16_t>(0));
-                }
+                TASSIGN_IMPL(matTile, fifo.fifoBase + entryBase + entryOffset);
+                TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(row_offset), static_cast<uint16_t>(0));
             } else if constexpr (isSplitN) {
                 // split N between vectors
-                int col_index = ProdN;
+                int col_index = ProdN * static_cast<size_t>(get_subblockid());
                 uint64_t entryBase = (tile_id % DataFiFo::fifoDepth) * ConsM * ConsN * sizeof(T);
                 TileDataCons matTile;
-                TASSIGN_IMPL(matTile, fifo.fifoBase + entryBase);
+                TASSIGN_IMPL(matTile, fifo.fifoBase + entryBase + entryOffset);
                 TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(0), static_cast<uint16_t>(col_index));
             } else if constexpr (nonSplit) {
                 // single vector core
                 TileDataCons matTile;
                 uint64_t entryBase = (tile_id % DataFiFo::fifoDepth) * ConsM * ConsN * sizeof(T);
-                TASSIGN_IMPL(matTile, fifo.fifoBase + entryBase);
+                TASSIGN_IMPL(matTile, fifo.fifoBase + entryBase + entryOffset);
                 TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(0), static_cast<uint16_t>(0));
             } else {
                 static_assert(isSplitM || isSplitN || nonSplit,
