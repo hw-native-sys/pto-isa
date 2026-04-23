@@ -178,10 +178,8 @@ PTO_INTERNAL void AbsReduceMax_b16_ND(__ubuf__ T *srcPtr, __ubuf__ T *maxPtr, un
             remaining = elements_per_dintlv;
         AbsReduceMax_b16_DintlvWindow(srcPtr, offset, remaining, vb16_max);
         vstus(ureg_max, blks_per_vl, vb16_max, maxPtr + i * grps_per_dintlv);
-        mem_bar(VST_VST);
     }
     vstas(ureg_max, maxPtr + loop_num * grps_per_dintlv, 0);
-    mem_bar(VST_VST);
 }
 
 // Assumption: input total size is a multiple of 2K elements
@@ -330,12 +328,7 @@ PTO_INTERNAL void ExtractB8ExponentAndScaling(__ubuf__ T *maxPtr, __ubuf__ uint8
 
         vsts((vector_s16 &)vb16_shared_exp, ((__ubuf__ int16_t *)expPtr), i * elementsPerVL / sizeof(T), PK_B16,
              preg_b16);
-        // Board: enforce store ordering between expPtr and scalingPtr writes,
-        // and between successive loop iterations, so Phase 3's E2B_B16 load
-        // of scaling is guaranteed to see every per-group value.
-        mem_bar(VST_VST);
         vsts((vector_s16 &)vb16_scaling, ((__ubuf__ int16_t *)scalingPtr), i * elementsPerVL, distValue, preg_b16);
-        mem_bar(VST_VST);
     }
 }
 
@@ -420,8 +413,6 @@ PTO_INTERNAL void CalcQuantizedFP8Values_B16_Window(__ubuf__ T *srcPtr, __ubuf__
     vor(vb8_or2, vb8_p2, vb8_p3, preg_b8);
     vor(vb8_out, vb8_or1, vb8_or2, preg_b8);
     vsts((vector_u8 &)vb8_out, (__ubuf__ uint8_t *)dstPtr, i * elementsPerVL_b8, NORM_B8, preg_b8);
-    mem_bar(VST_VLD);
-    mem_bar(VST_VST);
 }
 
 // B16 (BF16/FP16) -> FP8. 2 VLs per iter (one DINTLV_B16 load). Ceil-div on
@@ -476,15 +467,11 @@ PTO_INTERNAL void TQuant_MXFP8_F32(__ubuf__ float *srcPtr, __ubuf__ uint8_t *exp
                                elementsPerRepeat, preg_lower32, preg_upper32);
         }
     }
-    mem_bar(VST_VST);
     mem_bar(VST_VLD);
-    mem_bar(VV_ALL);
     maxPtr = maxPtr_backup;
     constexpr bool unroll = (StaticRows * StaticCols > 1024) && (StaticRows * StaticCols % 256 == 0);
     ExtractB8ExponentAndScaling<unroll>(maxPtr, expPtr, scalingPtr, exp_loop_count, numGroups, elementsPerRepeat);
-    mem_bar(VST_VST);
     mem_bar(VST_VLD);
-    mem_bar(VV_ALL);
     if constexpr (unroll)
         CalcQuantizedFP8Values_Unroll2(srcPtr, scalingPtr, dstPtr, vl_count, elementsPerRepeat, total_elements_count);
     else
@@ -510,14 +497,10 @@ PTO_INTERNAL void TQuant_MXFP8_B16(__ubuf__ T *srcPtr, __ubuf__ uint8_t *expPtr,
         AbsReduceMax_b16_ND(srcPtr_b16, maxPtr_b16, vl_count, total_elements_count);
     // Board: add VST_VST alongside VST_VLD/VV_ALL. Sim orders stores implicitly,
     // board does not — missing VST_VST lets Phase-3 E2B_B16 read stale scaling.
-    mem_bar(VST_VST);
     mem_bar(VST_VLD);
-    mem_bar(VV_ALL);
     maxPtr = maxPtr_backup;
     ExtractB8ExponentAndScaling(maxPtr, expPtr, scalingPtr, exp_loop_count, numGroups);
-    mem_bar(VST_VST);
     mem_bar(VST_VLD);
-    mem_bar(VV_ALL);
     CalcQuantizedFP8Values(srcPtr, scalingPtr, dstPtr, total_elements_count);
 }
 
@@ -561,13 +544,7 @@ PTO_INTERNAL void ZeroPadColumns_VLAligned(__ubuf__ T *srcPtr, unsigned validRow
 
     for (uint16_t vi = 0; vi < vlCount; ++vi) {
         vsts(vreg_zero, srcPtr, vi * elemPerVL, NORM_B16, preg_pad);
-        // Board: ensure successive pad stores commit in order so AbsReduceMax
-        // cannot observe a partially padded tile.
-        mem_bar(VST_VST);
     }
-    mem_bar(VST_VST);
-    mem_bar(VST_VLD);
-    mem_bar(VV_ALL);
 }
 
 // Fallback zero-padding using vstus/vstas for cases where StaticCols doesn't divide VL.
@@ -592,9 +569,6 @@ PTO_INTERNAL void ZeroPadColumns_Unaligned(__ubuf__ T *srcPtr, unsigned validRow
         }
         vstas(ureg_pad, pdst, 0, POST_UPDATE);
     }
-    mem_bar(VST_VST);
-    mem_bar(VST_VLD);
-    mem_bar(VV_ALL);
 }
 
 // Zero-pad source tile columns for non-float types. Dispatches between VL-aligned
@@ -637,6 +611,7 @@ __tf__ PTO_INTERNAL void TQuant_MXFP8_Impl(typename TileDataOut::TileDType __out
     __VEC_SCOPE__
     {
         ZeroPadSourceTile<T, TileDataSrc::Cols>(srcPtr, validRows, validCols);
+        mem_bar(VST_VLD);
 
         constexpr unsigned elemPerVL = REPEAT_BYTE / sizeof(T);
         uint32_t totalElems = validRows * (unsigned)TileDataSrc::Cols;
