@@ -1619,7 +1619,7 @@ public:
     unsigned ColMaskInternal;
 
     template <int RowMask = ValidRow>
-    AICORE static constexpr std::enable_if_t<(RowMask >= 0), unsigned> GetValidRow()
+    AICORE static constexpr std::enable_if_t<(RowMask > 0), unsigned> GetValidRow()
     {
         return RowMask;
     }
@@ -1631,7 +1631,7 @@ public:
     }
 
     template <int ColMask = ValidCol>
-    AICORE static constexpr std::enable_if_t<(ColMask >= 0), unsigned> GetValidCol()
+    AICORE static constexpr std::enable_if_t<(ColMask > 0), unsigned> GetValidCol()
     {
         return ColMask;
     }

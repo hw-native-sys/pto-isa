@@ -514,7 +514,7 @@ pto.tfmod ins(%src0, %src1 : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 
 ### TPOW
 
-该指令的详细介绍请见[isa/TPOW](../isa/tile/ops/elementwise-tile-tile/tpow_zh.md)
+该指令的详细介绍请见[isa/TPOW](../isa/TPOW_zh.md)
 
 
 **AS Level 1 (SSA)：**

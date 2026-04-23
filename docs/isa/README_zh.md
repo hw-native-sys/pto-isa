@@ -13,9 +13,58 @@
 - PTO ISA 定义了架构可见的语义、合法性、状态、排序、目标 profile 边界，以及 tile、vector、scalar、communication、系统调度操作的可见行为
 - PTO-AS 是用于编写这些操作和操作数的汇编拼写。它是 PTO ISA 的表达方式的一部分，而非具有不同语义的分立 ISA
 
-如果问题是"PTO 程序在 CPU、A2/A3 和 A5 上的含义是什么？"，请留在本树中。如果问题是"这个操作的操作数形状或文本拼写是什么？"，请使用本树中语法与操作数相关的页面。
+## 逐元素（Tile-Tile）
+- [TADD](TADD_zh.md) - 两个 Tile 的逐元素加法。
+- [TABS](TABS_zh.md) - Tile 的逐元素绝对值。
+- [TAND](TAND_zh.md) - 两个 Tile 的逐元素按位与。
+- [TOR](TOR_zh.md) - 两个 Tile 的逐元素按位或。
+- [TSUB](TSUB_zh.md) - 两个 Tile 的逐元素减法。
+- [TMUL](TMUL_zh.md) - 两个 Tile 的逐元素乘法。
+- [TMIN](TMIN_zh.md) - 两个 Tile 的逐元素最小值。
+- [TMAX](TMAX_zh.md) - 两个 Tile 的逐元素最大值。
+- [TCMP](TCMP_zh.md) - 比较两个 Tile 并写入一个打包的谓词掩码。
+- [TDIV](TDIV_zh.md) - 两个 Tile 的逐元素除法。
+- [TSHL](TSHL_zh.md) - 两个 Tile 的逐元素左移。
+- [TSHR](TSHR_zh.md) - 两个 Tile 的逐元素右移。
+- [TXOR](TXOR_zh.md) - 两个 Tile 的逐元素按位异或。
+- [TLOG](TLOG_zh.md) - Tile 的逐元素自然对数。
+- [TRECIP](TRECIP_zh.md) - Tile 的逐元素倒数。
+- [TPRELU](TPRELU_zh.md) - 带逐元素斜率 Tile 的逐元素参数化 ReLU (PReLU)。
+- [TADDC](TADDC_zh.md) - 三元逐元素加法：`src0 + src1 + src2`。
+- [TSUBC](TSUBC_zh.md) - 三元逐元素运算：`src0 - src1 + src2`。
+- [TCVT](TCVT_zh.md) - 带指定舍入模式的逐元素类型转换。
+- [TSEL](TSEL_zh.md) - 使用掩码 Tile 在两个 Tile 之间进行选择（逐元素选择）。
+- [TRSQRT](TRSQRT_zh.md) - 逐元素倒数平方根。
+- [TSQRT](TSQRT_zh.md) - 逐元素平方根。
+- [TEXP](TEXP_zh.md) - 逐元素指数运算。
+- [TNOT](TNOT_zh.md) - Tile 的逐元素按位取反。
+- [TRELU](TRELU_zh.md) - Tile 的逐元素 ReLU。
+- [TNEG](TNEG_zh.md) - Tile 的逐元素取负。
+- [TREM](TREM_zh.md) - 两个 Tile 的逐元素余数，余数符号与除数相同。
+- [TFMOD](TFMOD_zh.md) - 两个 Tile 的逐元素余数，余数符号与被除数相同。
+- [TPOW](TPOW_zh.md) - 两个 Tile 的逐元素幂运算。
 
-## 从这里开始
+## Tile-标量 / Tile-立即数
+- [TEXPANDS](TEXPANDS_zh.md) - 将标量广播到目标 Tile 中。
+- [TCMPS](TCMPS_zh.md) - 将 Tile 与标量比较并写入逐元素比较结果。
+- [TSELS](TSELS_zh.md) - 使用掩码 Tile 在源 Tile 和标量之间进行选择（源 Tile 逐元素选择）。
+- [TMINS](TMINS_zh.md) - Tile 与标量的逐元素最小值。
+- [TADDS](TADDS_zh.md) - Tile 与标量的逐元素加法。
+- [TSUBS](TSUBS_zh.md) - 从 Tile 中逐元素减去一个标量。
+- [TDIVS](TDIVS_zh.md) - 与标量的逐元素除法（Tile/标量 或 标量/Tile）。
+- [TMULS](TMULS_zh.md) - Tile 与标量的逐元素乘法。
+- [TFMODS](TFMODS_zh.md) - 与标量的逐元素余数：`fmod(src, scalar)`。
+- [TREMS](TREMS_zh.md) - 与标量的逐元素余数：`remainder(src, scalar)`。
+- [TMAXS](TMAXS_zh.md) - Tile 与标量的逐元素最大值：`max(src, scalar)`。
+- [TANDS](TANDS_zh.md) - Tile 与标量的逐元素按位与。
+- [TORS](TORS_zh.md) - Tile 与标量的逐元素按位或。
+- [TSHLS](TSHLS_zh.md) - Tile 按标量逐元素左移。
+- [TSHRS](TSHRS_zh.md) - Tile 按标量逐元素右移。
+- [TXORS](TXORS_zh.md) - Tile 与标量的逐元素按位异或。
+- [TLRELU](TLRELU_zh.md) - 带标量斜率的 Leaky ReLU。
+- [TADDSC](TADDSC_zh.md) - 与标量和第二个 Tile 的融合逐元素加法：`src0 + scalar + src1`。
+- [TSUBSC](TSUBSC_zh.md) - 融合逐元素运算：`src0 - scalar + src1`。
+- [TPOWS](TPOWS_zh.md) - Tile 逐元素与标量幂运算。
 
 ## 模型层次
 

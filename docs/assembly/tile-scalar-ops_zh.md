@@ -354,7 +354,7 @@ pto.tsubsc ins(%src0, %scalar, %src1 : !pto.tile_buf<...>, dtype, !pto.tile_buf<
 
 ### TPOWS
 
-该指令的详细介绍请见[isa/TPOWS](../isa/tile/ops/tile-scalar-and-immediate/tpows_zh.md)
+该指令的详细介绍请见[isa/TPOWS](../isa/TPOWS_zh.md)
 
 
 **AS Level 1 (SSA)：**

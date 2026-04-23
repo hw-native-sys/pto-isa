@@ -13,9 +13,58 @@ This tree is the canonical PTO ISA manual. Textual assembly spelling belongs to 
 - PTO ISA defines architecture-visible semantics, legality, state, ordering, target-profile boundaries, and the visible behavior of tile, vector, scalar, communication, and system scheduling operations.
 - PTO-AS is the assembler-facing spelling used to write those operations and operands. It is part of how PTO ISA is expressed, not a separate ISA with different semantics.
 
-If the question is "what does this legal PTO program mean across CPU, A2/A3, and A5?", stay in this tree. If the question is "what is the operand shape or textual spelling of this operation?", use the syntax-and-operands pages in this same tree.
+## Elementwise (Tile-Tile)
+- [TADD](TADD.md) - Elementwise add of two tiles.
+- [TABS](TABS.md) - Elementwise absolute value of a tile.
+- [TAND](TAND.md) - Elementwise bitwise AND of two tiles.
+- [TOR](TOR.md) - Elementwise bitwise OR of two tiles.
+- [TSUB](TSUB.md) - Elementwise subtract of two tiles.
+- [TMUL](TMUL.md) - Elementwise multiply of two tiles.
+- [TMIN](TMIN.md) - Elementwise minimum of two tiles.
+- [TMAX](TMAX.md) - Elementwise maximum of two tiles.
+- [TCMP](TCMP.md) - Compare two tiles and write a packed predicate mask.
+- [TDIV](TDIV.md) - Elementwise division of two tiles.
+- [TSHL](TSHL.md) - Elementwise shift-left of two tiles.
+- [TSHR](TSHR.md) - Elementwise shift-right of two tiles.
+- [TXOR](TXOR.md) - Elementwise bitwise XOR of two tiles.
+- [TLOG](TLOG.md) - Elementwise natural logarithm of a tile.
+- [TRECIP](TRECIP.md) - Elementwise reciprocal of a tile.
+- [TPRELU](TPRELU.md) - Elementwise PReLU (parametric ReLU) with a per-element slope tile.
+- [TADDC](TADDC.md) - Elementwise ternary add: `src0 + src1 + src2`.
+- [TSUBC](TSUBC.md) - Elementwise ternary op: `src0 - src1 + src2`.
+- [TCVT](TCVT.md) - Elementwise type conversion with a specified rounding mode.
+- [TSEL](TSEL.md) - Select between two tiles using a mask tile (per-element selection).
+- [TRSQRT](TRSQRT.md) - Elementwise reciprocal square root.
+- [TSQRT](TSQRT.md) - Elementwise square root.
+- [TEXP](TEXP.md) - Elementwise exponential.
+- [TNOT](TNOT.md) - Elementwise bitwise NOT of a tile.
+- [TRELU](TRELU.md) - Elementwise ReLU of a tile.
+- [TNEG](TNEG.md) - Elementwise negation of a tile.
+- [TREM](TREM.md) - Elementwise remainder of two tiles.
+- [TFMOD](TFMOD.md) - Elementwise fmod of two tiles.
+- [TPOW](TPOW.md) - Elementwise power of two tiles.
 
-## Start Here
+## Tile-Scalar / Tile-Immediate
+- [TEXPANDS](TEXPANDS.md) - Broadcast a scalar into a destination tile.
+- [TCMPS](TCMPS.md) - Compare a tile against a scalar and write per-element comparison results.
+- [TSELS](TSELS.md) - Select between source tile and scalar using a mask tile (per-element selection for source tile).
+- [TMINS](TMINS.md) - Elementwise minimum of a tile and a scalar.
+- [TADDS](TADDS.md) - Elementwise add a scalar to a tile.
+- [TSUBS](TSUBS.md) - Elementwise subtract a scalar from a tile.
+- [TDIVS](TDIVS.md) - Elementwise division with a scalar (tile/scalar or scalar/tile).
+- [TMULS](TMULS.md) - Elementwise multiply a tile by a scalar.
+- [TFMODS](TFMODS.md) - Elementwise remainder with a scalar: `fmod(src, scalar)`.
+- [TREMS](TREMS.md) - Elementwise remainder with a scalar: `remainder(src, scalar)`.
+- [TMAXS](TMAXS.md) - Elementwise max of a tile and a scalar: `max(src, scalar)`.
+- [TANDS](TANDS.md) - Elementwise bitwise AND of a tile and a scalar.
+- [TORS](TORS.md) - Elementwise bitwise OR of a tile and a scalar.
+- [TSHLS](TSHLS.md) - Elementwise shift-left a tile by a scalar.
+- [TSHRS](TSHRS.md) - Elementwise shift-right a tile by a scalar.
+- [TXORS](TXORS.md) - Elementwise bitwise XOR of a tile and a scalar.
+- [TLRELU](TLRELU.md) - Leaky ReLU with a scalar slope.
+- [TADDSC](TADDSC.md) - Elementwise fused add with scalar and a second tile: `src0 + scalar + src1`.
+- [TSUBSC](TSUBSC.md) - Elementwise fused op: `src0 - scalar + src1`.
+- [TPOWS](TPOWS.md) - Elementwise power of a tile by a scalar.
 
 ## Model Layers
 

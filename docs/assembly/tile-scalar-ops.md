@@ -2,7 +2,7 @@
 
 This document describes operations between tiles and scalar values or immediate constants.
 
-**Total Operations:** 19
+**Total Operations:** 20
 
 ---
 
@@ -10,16 +10,15 @@ This document describes operations between tiles and scalar values or immediate 
 
 ### TEXPANDS
 
-For detailed instruction documentation, see [isa/TEXPANDS](../isa/tile/ops/tile-scalar-and-immediate/texpands.md)
+For detailed instruction documentation, see [isa/TEXPANDS](../isa/TEXPANDS.md)
+
 
 **AS Level 1 (SSA):**
-
 ```text
 %dst = pto.texpands %scalar : dtype -> !pto.tile<...>
 ```
 
 **AS Level 2 (DPS):**
-
 ```text
 pto.texpands ins(%scalar : dtype) outs(%dst : !pto.tile_buf<...>)
 ```
@@ -28,16 +27,15 @@ pto.texpands ins(%scalar : dtype) outs(%dst : !pto.tile_buf<...>)
 
 ### TCMPS
 
-For detailed instruction documentation, see [isa/TCMPS](../isa/tile/ops/tile-scalar-and-immediate/tcmps.md)
+For detailed instruction documentation, see [isa/TCMPS](../isa/TCMPS.md)
+
 
 **AS Level 1 (SSA):**
-
 ```text
 %dst = pto.tcmps %src, %scalar {cmpMode = #pto<cmp xx>} : (!pto.tile<...>, dtype) -> !pto.tile<...>
 ```
 
 **AS Level 2 (DPS):**
-
 ```text
 pto.tcmps ins(%src, %scalar{cmpMode = #pto<cmp xx>}: !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
@@ -46,16 +44,15 @@ pto.tcmps ins(%src, %scalar{cmpMode = #pto<cmp xx>}: !pto.tile_buf<...>, dtype) 
 
 ### TSELS
 
-For detailed instruction documentation, see [isa/TSELS](../isa/tile/ops/tile-scalar-and-immediate/tsels.md)
+For detailed instruction documentation, see [isa/TSELS](../isa/TSELS.md)
+
 
 **AS Level 1 (SSA):**
-
 ```text
 %dst = pto.tsels %src0, %src1, %scalar : (!pto.tile<...>, !pto.tile<...>, dtype) -> !pto.tile<...>
 ```
 
 **AS Level 2 (DPS):**
-
 ```text
 pto.tsels ins(%src0, %src1, %scalar : !pto.tile_buf<...>, !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
@@ -64,16 +61,15 @@ pto.tsels ins(%src0, %src1, %scalar : !pto.tile_buf<...>, !pto.tile_buf<...>, dt
 
 ### TMINS
 
-For detailed instruction documentation, see [isa/TMINS](../isa/tile/ops/tile-scalar-and-immediate/tmins.md)
+For detailed instruction documentation, see [isa/TMINS](../isa/TMINS.md)
+
 
 **AS Level 1 (SSA):**
-
 ```text
 %dst = pto.tmins %src, %scalar : (!pto.tile<...>, dtype) -> !pto.tile<...>
 ```
 
 **AS Level 2 (DPS):**
-
 ```text
 pto.tmins ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
@@ -82,16 +78,15 @@ pto.tmins ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_b
 
 ### TADDS
 
-For detailed instruction documentation, see [isa/TADDS](../isa/tile/ops/tile-scalar-and-immediate/tadds.md)
+For detailed instruction documentation, see [isa/TADDS](../isa/TADDS.md)
+
 
 **AS Level 1 (SSA):**
-
 ```text
 %dst = pto.tadds %src, %scalar : (!pto.tile<...>,dtype) -> !pto.tile<...>
 ```
 
 **AS Level 2 (DPS):**
-
 ```text
 pto.tadds ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
@@ -100,16 +95,15 @@ pto.tadds ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_b
 
 ### TSUBS
 
-For detailed instruction documentation, see [isa/TSUBS](../isa/tile/ops/tile-scalar-and-immediate/tsubs.md)
+For detailed instruction documentation, see [isa/TSUBS](../isa/TSUBS.md)
+
 
 **AS Level 1 (SSA):**
-
 ```text
 %dst = pto.tsubs %src, %scalar : (!pto.tile<...>, dtype) -> !pto.tile<...>
 ```
 
 **AS Level 2 (DPS):**
-
 ```text
 pto.tsubs ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
@@ -118,17 +112,16 @@ pto.tsubs ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_b
 
 ### TDIVS
 
-For detailed instruction documentation, see [isa/TDIVS](../isa/tile/ops/tile-scalar-and-immediate/tdivs.md)
+For detailed instruction documentation, see [isa/TDIVS](../isa/TDIVS.md)
+
 
 **AS Level 1 (SSA):**
-
 ```text
 %dst = pto.tdivs %src, %scalar : (!pto.tile<...>, dtype) -> !pto.tile<...>
 %dst = pto.tdivs %scalar, %src : (dtype, !pto.tile<...>) -> !pto.tile<...>
 ```
 
 **AS Level 2 (DPS):**
-
 ```text
 pto.tdivs ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 pto.tdivs ins(%scalar, %src : dtype, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
@@ -138,16 +131,15 @@ pto.tdivs ins(%scalar, %src : dtype, !pto.tile_buf<...>) outs(%dst : !pto.tile_b
 
 ### TMULS
 
-For detailed instruction documentation, see [isa/TMULS](../isa/tile/ops/tile-scalar-and-immediate/tmuls.md)
+For detailed instruction documentation, see [isa/TMULS](../isa/TMULS.md)
+
 
 **AS Level 1 (SSA):**
-
 ```text
 %dst = pto.tmuls %src, %scalar : (!pto.tile<...>, dtype) -> !pto.tile<...>
 ```
 
 **AS Level 2 (DPS):**
-
 ```text
 pto.tmuls ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
@@ -156,16 +148,15 @@ pto.tmuls ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_b
 
 ### TFMODS
 
-For detailed instruction documentation, see [isa/TFMODS](../isa/tile/ops/tile-scalar-and-immediate/tfmods.md)
+For detailed instruction documentation, see [isa/TFMODS](../isa/TFMODS.md)
+
 
 **AS Level 1 (SSA):**
-
 ```text
 %dst = pto.tfmods %src, %scalar : !pto.tile<...>, f32
 ```
 
 **AS Level 2 (DPS):**
-
 ```text
 pto.tfmods ins(%src, %scalar : !pto.tile_buf<...>, f32) outs(%dst : !pto.tile_buf<...>)
 ```
@@ -174,16 +165,15 @@ pto.tfmods ins(%src, %scalar : !pto.tile_buf<...>, f32) outs(%dst : !pto.tile_bu
 
 ### TREMS
 
-For detailed instruction documentation, see [isa/TREMS](../isa/tile/ops/tile-scalar-and-immediate/trems.md)
+For detailed instruction documentation, see [isa/TREMS](../isa/TREMS.md)
+
 
 **AS Level 1 (SSA):**
-
 ```text
 %dst = pto.trems %src, %scalar : (!pto.tile<...>, dtype) -> !pto.tile<...>
 ```
 
 **AS Level 2 (DPS):**
-
 ```text
 pto.trems ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
@@ -192,16 +182,15 @@ pto.trems ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_b
 
 ### TMAXS
 
-For detailed instruction documentation, see [isa/TMAXS](../isa/tile/ops/tile-scalar-and-immediate/tmaxs.md)
+For detailed instruction documentation, see [isa/TMAXS](../isa/TMAXS.md)
+
 
 **AS Level 1 (SSA):**
-
 ```text
 %dst = pto.tmaxs %src, %scalar : (!pto.tile<...>, dtype) -> !pto.tile<...>
 ```
 
 **AS Level 2 (DPS):**
-
 ```text
 pto.tmaxs ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
@@ -210,16 +199,15 @@ pto.tmaxs ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_b
 
 ### TANDS
 
-For detailed instruction documentation, see [isa/TANDS](../isa/tile/ops/tile-scalar-and-immediate/tands.md)
+For detailed instruction documentation, see [isa/TANDS](../isa/TANDS.md)
+
 
 **AS Level 1 (SSA):**
-
 ```text
 %dst = pto.tands %src, %scalar : (!pto.tile<...>, dtype) -> !pto.tile<...>
 ```
 
 **AS Level 2 (DPS):**
-
 ```text
 pto.tands ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
@@ -228,16 +216,15 @@ pto.tands ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_b
 
 ### TORS
 
-For detailed instruction documentation, see [isa/TORS](../isa/tile/ops/tile-scalar-and-immediate/tors.md)
+For detailed instruction documentation, see [isa/TORS](../isa/TORS.md)
+
 
 **AS Level 1 (SSA):**
-
 ```text
 %dst = pto.tors %src, %scalar : (!pto.tile<...>, dtype) -> !pto.tile<...>
 ```
 
 **AS Level 2 (DPS):**
-
 ```text
 pto.tors ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
@@ -246,16 +233,15 @@ pto.tors ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_bu
 
 ### TSHLS
 
-For detailed instruction documentation, see [isa/TSHLS](../isa/tile/ops/tile-scalar-and-immediate/tshls.md)
+For detailed instruction documentation, see [isa/TSHLS](../isa/TSHLS.md)
+
 
 **AS Level 1 (SSA):**
-
 ```text
 %dst = pto.tshls %src, %scalar : (!pto.tile<...>, dtype) -> !pto.tile<...>
 ```
 
 **AS Level 2 (DPS):**
-
 ```text
 pto.tshls ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
@@ -264,16 +250,15 @@ pto.tshls ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_b
 
 ### TSHRS
 
-For detailed instruction documentation, see [isa/TSHRS](../isa/tile/ops/tile-scalar-and-immediate/tshrs.md)
+For detailed instruction documentation, see [isa/TSHRS](../isa/TSHRS.md)
+
 
 **AS Level 1 (SSA):**
-
 ```text
 %dst = pto.tshrs %src, %scalar : (!pto.tile<...>, dtype) -> !pto.tile<...>
 ```
 
 **AS Level 2 (DPS):**
-
 ```text
 pto.tshrs ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
@@ -282,16 +267,15 @@ pto.tshrs ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_b
 
 ### TXORS
 
-For detailed instruction documentation, see [isa/TXORS](../isa/tile/ops/tile-scalar-and-immediate/txors.md)
+For detailed instruction documentation, see [isa/TXORS](../isa/TXORS.md)
+
 
 **AS Level 1 (SSA):**
-
 ```text
 %dst = pto.txors %src, %scalar : (!pto.tile<...>, dtype) -> !pto.tile<...>
 ```
 
 **AS Level 2 (DPS):**
-
 ```text
 pto.txors ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
@@ -300,16 +284,15 @@ pto.txors ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_b
 
 ### TLRELU
 
-For detailed instruction documentation, see [isa/TLRELU](../isa/tile/ops/tile-scalar-and-immediate/tlrelu.md)
+For detailed instruction documentation, see [isa/TLRELU](../isa/TLRELU.md)
+
 
 **AS Level 1 (SSA):**
-
 ```text
 %dst = pto.tlrelu %src, %scalar : (!pto.tile<...>, dtype) -> !pto.tile<...>
 ```
 
 **AS Level 2 (DPS):**
-
 ```text
 pto.tlrelu ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
@@ -318,16 +301,15 @@ pto.tlrelu ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_
 
 ### TADDSC
 
-For detailed instruction documentation, see [isa/TADDSC](../isa/tile/ops/tile-scalar-and-immediate/taddsc.md)
+For detailed instruction documentation, see [isa/TADDSC](../isa/TADDSC.md)
+
 
 **AS Level 1 (SSA):**
-
 ```text
 %dst = pto.taddsc %src0, %scalar, %src1 : (!pto.tile<...>, dtype, !pto.tile<...>) -> !pto.tile<...>
 ```
 
 **AS Level 2 (DPS):**
-
 ```text
 pto.taddsc ins(%src0, %scalar, %src1 : !pto.tile_buf<...>, dtype, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
@@ -336,16 +318,15 @@ pto.taddsc ins(%src0, %scalar, %src1 : !pto.tile_buf<...>, dtype, !pto.tile_buf<
 
 ### TSUBSC
 
-For detailed instruction documentation, see [isa/TSUBSC](../isa/tile/ops/tile-scalar-and-immediate/tsubsc.md)
+For detailed instruction documentation, see [isa/TSUBSC](../isa/TSUBSC.md)
+
 
 **AS Level 1 (SSA):**
-
 ```text
 %dst = pto.tsubsc %src0, %scalar, %src1 : (!pto.tile<...>, dtype, !pto.tile<...>) -> !pto.tile<...>
 ```
 
 **AS Level 2 (DPS):**
-
 ```text
 pto.tsubsc ins(%src0, %scalar, %src1 : !pto.tile_buf<...>, dtype, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
@@ -354,7 +335,8 @@ pto.tsubsc ins(%src0, %scalar, %src1 : !pto.tile_buf<...>, dtype, !pto.tile_buf<
 
 ### TPOWS
 
-For detailed instruction documentation, see [isa/TPOWS](../isa/tile/ops/tile-scalar-and-immediate/tpows.md)
+For detailed instruction documentation, see [isa/TPOWS](../isa/TPOWS.md)
+
 
 **AS Level 1 (SSA):**
 ```text
@@ -367,3 +349,4 @@ pto.tpows ins(%base, %exp, %tmp : !pto.tile_buf<...>, dtype, !pto.tile_buf<...>)
 ```
 
 ---
+
