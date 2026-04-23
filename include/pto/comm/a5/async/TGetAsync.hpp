@@ -13,7 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include "pto/comm/async_common/TGetAsyncCommonDetail.hpp"
 #ifdef PTO_URMA_SUPPORTED
-#include "pto/comm/async/urma/urma_async_intrin.hpp"
+#include "pto/npu/comm/async/urma/urma_async_intrin.hpp"
 #endif
 
 namespace pto {
@@ -40,8 +40,7 @@ PTO_INTERNAL AsyncEvent TGET_ASYNC_URMA_IMPL(GlobalDstData &dstGlobalData, Globa
 
     using T = typename GlobalSrcData::RawDType;
     const uint64_t transferSize = static_cast<uint64_t>(srcElems) * sizeof(T);
-    PTO_ASSERT(transferSize > 0 && transferSize <= urma::kUrmaMaxWqeTransferBytes,
-               "TGET_ASYNC URMA: transfer size must be in (0, 256MB] per single WQE");
+    PTO_ASSERT(transferSize <= UINT32_MAX, "TGET_ASYNC URMA: transfer size exceeds SGE length limit (4GB)");
 
     const uint64_t eventHandle =
         urma::__urma_get_async(reinterpret_cast<__gm__ uint8_t *>(dstGlobalData.data()),
