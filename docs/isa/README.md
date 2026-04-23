@@ -1,4 +1,4 @@
-﻿<p align="center">
+<p align="center">
   <img src="../figures/pto_logo.svg" alt="PTO Tile Lib" width="180" />
 </p>
 
@@ -47,6 +47,7 @@ This directory contains the per-instruction reference for the PTO Tile Lib ISA.
 - [TNEG](TNEG.md) - Elementwise negation of a tile.
 - [TREM](TREM.md) - Elementwise remainder of two tiles.
 - [TFMOD](TFMOD.md) - Elementwise fmod of two tiles.
+- [TPOW](TPOW.md) - Elementwise power of two tiles.
 
 ## Tile-Scalar / Tile-Immediate
 - [TEXPANDS](TEXPANDS.md) - Broadcast a scalar into a destination tile.
@@ -68,6 +69,7 @@ This directory contains the per-instruction reference for the PTO Tile Lib ISA.
 - [TLRELU](TLRELU.md) - Leaky ReLU with a scalar slope.
 - [TADDSC](TADDSC.md) - Elementwise fused add with scalar and a second tile: `src0 + scalar + src1`.
 - [TSUBSC](TSUBSC.md) - Elementwise fused op: `src0 - scalar + src1`.
+- [TPOWS](TPOWS.md) - Elementwise power of a tile by a scalar.
 
 ## Axis Reduce / Expand
 - [TROWSUM](TROWSUM.md) - Reduce each row by summing across columns.

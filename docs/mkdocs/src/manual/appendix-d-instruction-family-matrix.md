@@ -10,15 +10,15 @@ This appendix is generated from `docs/isa/manifest.yaml` and provides a source-s
 |---|---:|
 | Synchronization | 1 |
 | Manual / Resource Binding | 4 |
-| Elementwise (Tile-Tile) | 28 |
-| Tile-Scalar / Tile-Immediate | 19 |
+| Elementwise (Tile-Tile) | 29 |
+| Tile-Scalar / Tile-Immediate | 20 |
 | Axis Reduce / Expand | 24 |
 | Memory (GM <-> Tile) | 6 |
 | Matrix Multiply | 8 |
 | Data Movement / Layout | 12 |
 | Complex | 13 |
 | Communication | 11 |
-| Total | 126 |
+| Total | 128 |
 
 ## D.3 Header synchronization status
 
@@ -62,6 +62,7 @@ This appendix is generated from `docs/isa/manifest.yaml` and provides a source-s
 | Elementwise (Tile-Tile) | [TNEG](/docs/isa/TNEG.md) | `elementwise` | `dst, src0, src1` | `docs/isa/TNEG.md` |
 | Elementwise (Tile-Tile) | [TREM](/docs/isa/TREM.md) | `elementwise` | `dst, src0, src1` | `docs/isa/TREM.md` |
 | Elementwise (Tile-Tile) | [TFMOD](/docs/isa/TFMOD.md) | `elementwise` | `dst, src0, src1` | `docs/isa/TFMOD.md` |
+| Elementwise (Tile-Tile) | [TPOW](/docs/isa/TPOW.md) | `elementwise` | `dst, src0, src1` | `docs/isa/TPOW.md` |
 | Tile-Scalar / Tile-Immediate | [TEXPANDS](/docs/isa/TEXPANDS.md) | `scalar` | `dst, src, scalar` | `docs/isa/TEXPANDS.md` |
 | Tile-Scalar / Tile-Immediate | [TCMPS](/docs/isa/TCMPS.md) | `scalar` | `dst, src, scalar` | `docs/isa/TCMPS.md` |
 | Tile-Scalar / Tile-Immediate | [TSELS](/docs/isa/TSELS.md) | `scalar` | `dst, src, scalar` | `docs/isa/TSELS.md` |
@@ -81,6 +82,7 @@ This appendix is generated from `docs/isa/manifest.yaml` and provides a source-s
 | Tile-Scalar / Tile-Immediate | [TLRELU](/docs/isa/TLRELU.md) | `scalar` | `dst, src, scalar` | `docs/isa/TLRELU.md` |
 | Tile-Scalar / Tile-Immediate | [TADDSC](/docs/isa/TADDSC.md) | `scalar` | `dst, src, scalar` | `docs/isa/TADDSC.md` |
 | Tile-Scalar / Tile-Immediate | [TSUBSC](/docs/isa/TSUBSC.md) | `scalar` | `dst, src, scalar` | `docs/isa/TSUBSC.md` |
+| Tile-Scalar / Tile-Immediate | [TPOWS](/docs/isa/TPOWS.md) | `scalar` | `dst, src, scalar` | `docs/isa/TPOWS.md` |
 | Axis Reduce / Expand | [TROWSUM](/docs/isa/TROWSUM.md) | `reduce_expand` | `dst, src` | `docs/isa/TROWSUM.md` |
 | Axis Reduce / Expand | [TROWPROD](/docs/isa/TROWPROD.md) | `reduce_expand` | `dst, src` | `docs/isa/TROWPROD.md` |
 | Axis Reduce / Expand | [TCOLSUM](/docs/isa/TCOLSUM.md) | `reduce_expand` | `dst, src` | `docs/isa/TCOLSUM.md` |

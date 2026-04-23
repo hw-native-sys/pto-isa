@@ -46,6 +46,7 @@
 | 逐元素（Tile-Tile） | [`TRSQRT`](isa/TRSQRT_zh.md) | 逐元素倒数平方根。 |
 | 逐元素（Tile-Tile） | [`TSQRT`](isa/TSQRT_zh.md) | 逐元素平方根。 |
 | 逐元素（Tile-Tile） | [`TEXP`](isa/TEXP_zh.md) | 逐元素指数运算。 |
+| 逐元素（Tile-Tile） | [`TPOW`](isa/TPOW_zh.md) | 逐元素幂运算。 |
 | 逐元素（Tile-Tile） | [`TNOT`](isa/TNOT_zh.md) | Tile 的逐元素按位取反。 |
 | 逐元素（Tile-Tile） | [`TRELU`](isa/TRELU_zh.md) | Tile 的逐元素 ReLU。 |
 | 逐元素（Tile-Tile） | [`TNEG`](isa/TNEG_zh.md) | Tile 的逐元素取负。 |
@@ -68,6 +69,7 @@
 | Tile-标量 / Tile-立即数 | [`TSHRS`](isa/TSHRS_zh.md) | Tile 按标量逐元素右移。 |
 | Tile-标量 / Tile-立即数 | [`TXORS`](isa/TXORS_zh.md) | Tile 与标量的逐元素按位异或。 |
 | Tile-标量 / Tile-立即数 | [`TLRELU`](isa/TLRELU_zh.md) | 带标量斜率的 Leaky ReLU。 |
+| Tile-标量 / Tile-立即数 | [`TPOWS`](isa/TPOWS_zh.md) | Tile 逐元素与标量幂运算。 |
 | Tile-标量 / Tile-立即数 | [`TADDSC`](isa/TADDSC_zh.md) | 与标量和第二个 Tile 的融合逐元素加法：`src0 + scalar + src1`。 |
 | Tile-标量 / Tile-立即数 | [`TSUBSC`](isa/TSUBSC_zh.md) | 融合逐元素运算：`src0 - scalar + src1`。 |
 | 轴归约 / 扩展 | [`TROWSUM`](isa/TROWSUM_zh.md) | 通过对列求和来归约每一行。 |

@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-label="TPOWS tile operation diagram">
+<defs>
+  <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#C026D3"/></marker>
+  <marker id="axisArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#64748b"/></marker>
+</defs>
+<style>
+svg { font-family: Arial, Helvetica, sans-serif; }
+.title { font-size: 30px; font-weight: 700; fill: #0f172a; }
+.subtitle { font-size: 14px; fill: #334155; }
+.meta { font-size: 12px; fill: #64748b; }
+.frame { fill: white; }
+.panel { fill: #FDF4FF; stroke: #e2e8f0; stroke-width: 1.5; rx: 14; }
+.tileLabel { font-size: 14px; font-weight: 700; fill: #0f172a; }
+.tileBorder { fill: none; stroke: #475569; stroke-width: 1.5; }
+.cell { fill: #ffffff; stroke: #94a3b8; stroke-width: 1; }
+.cellMasked { fill: #e2e8f0; }
+.cellHL { stroke-width: 2; }
+.cellText { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 10px; fill: #0f172a; }
+.arrow { stroke-width: 1.5; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.axisLine { stroke: #64748b; stroke-width: 1.5; fill: none; }
+.axisText { font-size: 10px; fill: #64748b; font-weight: 700; }
+.opCircle { fill: #ffffff; stroke-width: 2; }
+.opRect { fill: #ffffff; stroke-width: 2; }
+.opText { font-size: 10px; font-weight: 800; fill: #0f172a; }
+.procBox { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.5; rx: 12; }
+.procTitle { font-size: 14px; font-weight: 700; fill: #0f172a; }
+.procText { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; fill: #0f172a; }
+.smallLabel { font-size: 12px; fill: #334155; }
+.scalarBox { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.5; }
+.scalarValue { font-size: 16px; font-weight: 700; }
+.tmpBox { fill: #fef3c7; stroke: #f59e0b; stroke-width: 1.5; rx: 8; }
+.tmpLabel { font-size: 11px; fill: #92400e; }
+.validBox { fill: none; stroke-width: 2; stroke-dasharray: 6 4; }
+</style>
+<rect x="0" y="0" width="1200" height="720" class="frame" />
+<rect x="24" y="24" width="1152" height="672" class="panel" />
+<text x="40" y="46" class="title">TPOWS</text>
+<text x="40" y="72" class="subtitle">Elementwise power operation with scalar exponent.</text>
+<text x="40" y="92" class="meta">Template: scalar with tmp buffer</text>
+<text x="1160" y="92" class="meta" text-anchor="end">Legend: outline=example; dashed=valid rows/cols (Rv,Cv); shaded=masked; r down / c right; ortho arrows=dataflow</text>
+<line x1="36" y1="104" x2="1164" y2="104" stroke="#e2e8f0" stroke-width="1.5" />
+<text x="600" y="140" class="subtitle" text-anchor="middle" fill="#C026D3">dst[r,c] = base[r,c] ^ exp</text>
+<text x="505" y="168" class="tileLabel" text-anchor="middle">base</text>
+<rect x="450" y="178" width="110" height="110" class="tileBorder" />
+<rect x="450" y="178" width="22" height="22" class="cell" />
+<rect x="472" y="178" width="22" height="22" class="cell" />
+<rect x="494" y="178" width="22" height="22" class="cell" />
+<rect x="516" y="178" width="22" height="22" class="cell" />
+<rect x="538" y="178" width="22" height="22" class="cell cellMasked" />
+<rect x="450" y="200" width="22" height="22" class="cell" />
+<rect x="472" y="200" width="22" height="22" class="cell" />
+<rect x="494" y="200" width="22" height="22" class="cell cellHL" stroke="#C026D3" />
+<rect x="516" y="200" width="22" height="22" class="cell" />
+<rect x="538" y="200" width="22" height="22" class="cell cellMasked" />
+<rect x="450" y="222" width="22" height="22" class="cell" />
+<rect x="472" y="222" width="22" height="22" class="cell" />
+<rect x="494" y="222" width="22" height="22" class="cell" />
+<rect x="516" y="222" width="22" height="22" class="cell" />
+<rect x="538" y="222" width="22" height="22" class="cell cellMasked" />
+<rect x="450" y="244" width="22" height="22" class="cell" />
+<rect x="472" y="244" width="22" height="22" class="cell" />
+<rect x="494" y="244" width="22" height="22" class="cell" />
+<rect x="516" y="244" width="22" height="22" class="cell" />
+<rect x="538" y="244" width="22" height="22" class="cell cellMasked" />
+<rect x="450" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="472" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="494" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="516" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="538" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="450" y="178" width="88" height="88" class="validBox" stroke="#C026D3" />
+<text x="454" y="262" class="axisText">Rv</text>
+<text x="534" y="190" class="axisText" text-anchor="end">Cv</text>
+<path d="M 460 188 L 494 188" class="axisLine" marker-end="url(#axisArrow)" />
+<path d="M 460 188 L 460 222" class="axisLine" marker-end="url(#axisArrow)" />
+<text x="498" y="192" class="axisText">c</text>
+<text x="458" y="226" class="axisText" text-anchor="end">r</text>
+<rect x="640" y="186" width="110" height="54" rx="10" class="scalarBox" />
+<text x="652" y="206" class="smallLabel">exp (scalar)</text>
+<text x="652" y="228" class="scalarValue" fill="#C026D3">n</text>
+<rect x="830" y="202" width="80" height="44" class="tmpBox" />
+<text x="840" y="220" class="tmpLabel">tmp (scratch)</text>
+<text x="840" y="238" class="tmpLabel" font-weight="700">intermediate</text>
+<text x="600" y="350" class="tileLabel" text-anchor="middle">dst</text>
+<rect x="545" y="360" width="110" height="110" class="tileBorder" />
+<rect x="545" y="360" width="22" height="22" class="cell" />
+<rect x="567" y="360" width="22" height="22" class="cell" />
+<rect x="589" y="360" width="22" height="22" class="cell" />
+<rect x="611" y="360" width="22" height="22" class="cell" />
+<rect x="633" y="360" width="22" height="22" class="cell cellMasked" />
+<rect x="545" y="382" width="22" height="22" class="cell" />
+<rect x="567" y="382" width="22" height="22" class="cell" />
+<rect x="589" y="382" width="22" height="22" class="cell cellHL" stroke="#C026D3" />
+<rect x="611" y="382" width="22" height="22" class="cell" />
+<rect x="633" y="382" width="22" height="22" class="cell cellMasked" />
+<rect x="545" y="404" width="22" height="22" class="cell" />
+<rect x="567" y="404" width="22" height="22" class="cell" />
+<rect x="589" y="404" width="22" height="22" class="cell" />
+<rect x="611" y="404" width="22" height="22" class="cell" />
+<rect x="633" y="404" width="22" height="22" class="cell cellMasked" />
+<rect x="545" y="426" width="22" height="22" class="cell" />
+<rect x="567" y="426" width="22" height="22" class="cell" />
+<rect x="589" y="426" width="22" height="22" class="cell" />
+<rect x="611" y="426" width="22" height="22" class="cell" />
+<rect x="633" y="426" width="22" height="22" class="cell cellMasked" />
+<rect x="545" y="448" width="22" height="22" class="cell cellMasked" />
+<rect x="567" y="448" width="22" height="22" class="cell cellMasked" />
+<rect x="589" y="448" width="22" height="22" class="cell cellMasked" />
+<rect x="611" y="448" width="22" height="22" class="cell cellMasked" />
+<rect x="633" y="448" width="22" height="22" class="cell cellMasked" />
+<rect x="545" y="360" width="88" height="88" class="validBox" stroke="#C026D3" />
+<text x="549" y="444" class="axisText">Rv</text>
+<text x="629" y="372" class="axisText" text-anchor="end">Cv</text>
+<path d="M 555 370 L 589 370" class="axisLine" marker-end="url(#axisArrow)" />
+<path d="M 555 370 L 555 404" class="axisLine" marker-end="url(#axisArrow)" />
+<text x="593" y="374" class="axisText">c</text>
+<text x="553" y="408" class="axisText" text-anchor="end">r</text>
+<circle cx="600" cy="324" r="22" class="opCircle" stroke="#C026D3" />
+<rect x="583" y="307" width="34" height="34" rx="6" class="opRect" stroke="#C026D3" />
+<text x="600" y="327.0" class="opText" font-size="10px" text-anchor="middle">TPOWS</text>
+<path d="M 505 300 L 505 324 L 579 324" class="arrow" stroke="#C026D3" marker-end="url(#arrow)" />
+<path d="M 695 252 L 695 324 L 621 324" class="arrow" stroke="#C026D3" marker-end="url(#arrow)" />
+<path d="M 870 246 L 870 324 L 621 324" class="arrow" stroke="#f59e0b" marker-end="url(#arrow)" />
+<path d="M 600 346 L 600 361" class="arrow" stroke="#C026D3" marker-end="url(#arrow)" />
+<rect x="40" y="502" width="1120" height="194" class="procBox" />
+<text x="56" y="528" class="procTitle">Procedure (conceptual)</text>
+<text x="56" y="554" class="procText" xml:space="preserve">
+  <tspan x="56" dy="0">for r in 0..Rv-1:</tspan>
+  <tspan x="56" dy="16">  for c in 0..Cv-1:</tspan>
+  <tspan x="56" dy="16">    dst[r,c] = base[r,c] ^ n  // via exp(ln(|base|) * n)</tspan>
+</text>
+<text x="56" y="680" class="meta">Note: semantics apply to the valid region unless stated otherwise. Requires tmp buffer for intermediate computation.</text>
+</svg>
