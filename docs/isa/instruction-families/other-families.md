@@ -30,7 +30,7 @@ These provide higher-level semantics over tile sequences or memory management. S
 |----------|-----------|
 | Tile sequence | `talias`, `tconcat`, `taxpy` |
 | Memory management | `tfree` |
-| Quantization | `tquant`, `tdequant` |
+| Quantization | `tdequant` |
 | Counting | `tpop`, `tpush` |
 | A5-only | `thistogram`, `tpack`, `trandom` |
 

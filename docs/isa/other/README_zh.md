@@ -38,7 +38,6 @@
 | [TPOP](../TPOP_zh.md) | 计算谓词 mask 的 population count | Predicate |
 | [TPUSH](../TPUSH_zh.md) | 计算谓词 mask 的 push count | Predicate |
 | [TRANDOM](../TRANDOM_zh.md) | 用随机值填充 tile | Generation |
-| [TQUANT](../TQUANT_zh.md) | 把 tile 量化为整数或低精度格式 | Quantize |
 
 详见 [非 ISA 与支撑操作](./non-isa-and-supporting-ops_zh.md)。
 

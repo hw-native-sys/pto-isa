@@ -16,7 +16,6 @@ Supporting operations provide convenience semantics over tile sequences, memory 
 | [TPOP](../TPOP.md) | Population count of predicate mask | Predicate |
 | [TPUSH](../TPUSH.md) | Push count of predicate mask | Predicate |
 | [TRANDOM](../TRANDOM.md) | Fill tile with random values | Generation |
-| [TQUANT](../TQUANT.md) | Quantize a tile to integer format | Quantize |
 
 ## Mechanism
 
@@ -32,7 +31,7 @@ Fused multiply-add: `dst = src0 * scalar + src1`. This is a convenience operatio
 
 `TCONCAT` concatenates two tiles along a specified axis. `TPACK` packs multiple tiles into a single buffer for storage.
 
-### Quantization (TQUANT, TDEQUANT)
+### Quantization (TDEQUANT)
 
 Convert between floating-point and quantized integer representations. In the current authored tree:
 

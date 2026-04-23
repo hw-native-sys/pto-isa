@@ -4,11 +4,11 @@
 
 ## Summary
 
-Dequantize an integer tile into a floating-point tile using per-row scale and offset tiles.
+Dequantize an integer tile into a floating-point tile using per-row scale and zero-point tiles.
 
 ## Mechanism
 
-`pto.tdequant` converts a quantized source tile back into floating-point form. In the current repo surface, the destination tile is floating-point, the source tile is integer, and the `scale` / `offset` tiles provide one parameter value per destination row.
+`pto.tdequant` converts a quantized source tile back into floating-point form. In the current repo surface, the destination tile is floating-point, the source tile is integer, and the `scale` / zero-point tiles provide one parameter value per destination row. The current public intrinsic spells the zero-point operand as `offset`.
 
 For each lane `(r, c)` in the destination valid region:
 
@@ -48,7 +48,7 @@ PTO_INST RecordEvent TDEQUANT(TileDataDst &dst, TileDataSrc &src, TileDataPara &
 | `dst` | Destination tile | Floating-point output tile |
 | `src` | Source tile | Quantized integer tile |
 | `scale` | Parameter tile | Per-row scale values broadcast across columns |
-| `offset` | Parameter tile | Per-row offset values broadcast across columns |
+| `offset` | Parameter tile | Per-row zero-point values broadcast across columns; the current intrinsic names this operand `offset` |
 
 ## Expected Outputs
 

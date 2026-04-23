@@ -88,7 +88,7 @@ The `tmp`-tile overloads exist for conversion paths that need explicit scratch s
 | `mode` | Rounding mode | One of `CAST_RINT`, `CAST_ROUND`, `CAST_FLOOR`, `CAST_CEIL`, `CAST_TRUNC` |
 | `satMode` | Saturation mode (optional) | `ON` or `OFF` |
 | `tmp` | Temporary tile (optional) | Scratch tile for conversion paths that require explicit temporary storage |
-| `WaitEvents...` | Optional synchronisation | `RecordEvent` tokens to wait on before issuing the operation |
+| `WaitEvents...` | Optional synchronization | `RecordEvent` tokens to wait on before issuing the operation |
 
 ## Expected Outputs
 

@@ -467,7 +467,6 @@ nav:
               - TALIAS: docs/isa/TALIAS.md
               - TAXPY: docs/isa/TAXPY.md
               - TCONCAT: docs/isa/TCONCAT.md
-              - TQUANT: docs/isa/tile/ops/irregular-and-complex/tquant.md
               - TDEQUANT: docs/isa/other/ops/non-isa-and-supporting-ops/tdequant.md
               - TFREE: docs/isa/TFREE.md
               - THISTOGRAM: docs/isa/THISTOGRAM.md

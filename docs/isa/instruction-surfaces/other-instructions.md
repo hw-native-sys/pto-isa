@@ -52,7 +52,6 @@ These operations provide higher-level semantics over tile sequences or memory ma
 | `tpop` | Population count of predicate mask | All |
 | `tpush` | Push count of predicate mask | All |
 | `trandom` | Fill tile with random values | A5 |
-| `tquant` | Quantize a tile to quantized format | All |
 
 ## Inputs
 
@@ -76,14 +75,14 @@ Other instructions produce:
 | Class | Side Effects |
 |-------|-------------|
 | Communication And Runtime | Network/interconnect traffic; ordering across NPUs |
-| Non-ISA Supporting Ops | May copy, allocate, or free memory; `tquant`/`tdequant` modify numeric representation |
+| Non-ISA Supporting Ops | May copy, allocate, or free memory; `tdequant` modifies numeric representation |
 
 ## Constraints
 
 - **Communication operations** require all participating NPUs to call the operation with matching `ParallelGroup` handles.
 - **Non-root ranks** for collective operations (broadcast, scatter) must ensure destination buffers are allocated and writable for the duration of the operation.
 - **Tile shape compatibility** for `tconcat` requires compatible dimensions along the concatenation axis.
-- **Quantization parameters** for `tquant`/`tdequant` must be valid scale/zero-point values.
+- **Quantization parameters** for `tdequant` must be valid scale/zero-point values.
 - **CPU simulator** does not support communication operations; using them produces a runtime error.
 
 ## Cases That Are Not Allowed

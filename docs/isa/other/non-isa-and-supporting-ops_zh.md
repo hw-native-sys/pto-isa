@@ -16,7 +16,6 @@
 | `tpop` | 计算谓词 mask 的 population count | Predicate |
 | `tpush` | 计算谓词 mask 的 push count | Predicate |
 | `trandom` | 用随机值填充 tile | Generation |
-| `tquant` | 把 tile 量化为整数或低精度格式 | Quantize |
 
 ## 机制摘要
 
@@ -30,12 +29,7 @@
 
 ### 量化
 
-`tquant` / `tdequant` 在浮点表示和量化表示之间转换。当前作者维护树中：
-
-- [pto.tquant](../tile/ops/irregular-and-complex/tquant_zh.md) 仍位于 tile 不规则与复杂路径；
-- [pto.tdequant](./ops/non-isa-and-supporting-ops/tdequant_zh.md) 位于支撑操作路径。
-
-两者都受 scale、offset / zero-point 以及目标格式约束。
+`tdequant` 负责在量化表示和浮点表示之间转换。当前作者维护树中，[pto.tdequant](./ops/non-isa-and-supporting-ops/tdequant_zh.md) 位于支撑操作路径；`pto.tquant` 仍位于 tile 不规则与复杂路径。
 
 ### Memory
 

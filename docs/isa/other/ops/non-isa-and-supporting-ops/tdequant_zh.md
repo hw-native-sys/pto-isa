@@ -4,11 +4,11 @@
 
 ## 概述
 
-使用按行广播的 `scale` 与 `offset` tile，把整数量化 tile 反量化为浮点 tile。
+使用按行广播的 `scale` 与零点 tile，把整数量化 tile 反量化为浮点 tile。
 
 ## 机制
 
-`pto.tdequant` 把量化整数源 tile 恢复为浮点数值表示。在当前仓内实现里，目标 tile 是浮点型，源 tile 是整型，`scale` / `offset` 为“每行一个值”的参数 tile，并沿列广播。
+`pto.tdequant` 把量化整数源 tile 恢复为浮点数值表示。在当前仓内实现里，目标 tile 是浮点型，源 tile 是整型，`scale` / 零点参数 tile 为“每行一个值”的形式，并沿列广播。当前公共内建接口把零点操作数命名为 `offset`。
 
 对目标 valid region 内的每个 `(r, c)`：
 
@@ -46,7 +46,7 @@ PTO_INST RecordEvent TDEQUANT(TileDataDst &dst, TileDataSrc &src, TileDataPara &
 | `dst` | 目标 tile | 浮点输出 tile |
 | `src` | 源 tile | 量化整数 tile |
 | `scale` | 参数 tile | 每行一个 scale 值，并沿列广播 |
-| `offset` | 参数 tile | 每行一个 offset 值，并沿列广播 |
+| `offset` | 参数 tile | 每行一个零点值，并沿列广播；当前内建接口把这个操作数命名为 `offset` |
 
 ## 预期输出
 

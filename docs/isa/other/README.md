@@ -38,7 +38,6 @@ Convenience operations over tile sequences or memory management.
 | [TPOP](../TPOP.md) | Population count of predicate mask | Predicate |
 | [TPUSH](../TPUSH.md) | Push count of predicate mask | Predicate |
 | [TRANDOM](../TRANDOM.md) | Fill tile with random values | Generation |
-| [TQUANT](../TQUANT.md) | Quantize a tile to integer format | Quantize |
 
 See [Non-ISA and Supporting Ops](./non-isa-and-supporting-ops.md) for the instruction set contract.
 

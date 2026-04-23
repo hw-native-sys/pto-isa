@@ -28,7 +28,7 @@
 |------|------|
 | Tile 序列 | `talias`、`tconcat`、`taxpy` |
 | 内存管理 | `tfree` |
-| 量化 | `tquant`、`tdequant` |
+| 量化 | `tdequant` |
 | 计数 / 谓词辅助 | `tpop`、`tpush` |
 | A5 专属 | `thistogram`、`tpack`、`trandom` |
 

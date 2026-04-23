@@ -105,4 +105,4 @@ void example() {
 
 - 指令集总览：[Tile-标量与立即数](../../tile-scalar-and-immediate_zh.md)
 - 上一条指令：[pto.tmuls](./tmuls_zh.md)
-- 下一条指令：[pto.tfmods](./tfmods_zh.md)
+- 下一条指令：[pto.tdivs](./tdivs_zh.md)
