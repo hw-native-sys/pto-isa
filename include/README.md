@@ -114,8 +114,10 @@ This table tracks per-instruction backend availability:
 | [`TPREFETCH`](../docs/isa/TPREFETCH.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TPRELU`](../docs/isa/TPRELU.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TPRINT`](../docs/isa/TPRINT.md) | TODO | TODO | Yes | Yes | Yes | TODO |
+| [`TPOW`](../docs/isa/TPOW.md) | Yes | TODO | Yes | Yes | Yes | TODO |
 | [`TPUT`](../docs/isa/comm/TPUT.md) | Yes | TODO | Yes | Yes | Yes | TODO |
 | [`TPUT_ASYNC`](../docs/isa/comm/TPUT_ASYNC.md) | Yes | TODO | Yes | Yes | Yes | TODO |
+| [`TPOWS`](../docs/isa/TPOWS.md) | Yes | TODO | Yes | Yes | Yes | TODO |
 | [`TQUANT`](../docs/isa/TQUANT.md) | TODO | TODO | TODO | TODO | Yes | TODO |
 | [`TRANDOM`](../docs/isa/TRANDOM.md) | No | TODO | TODO | TODO | Yes | TODO |
 | [`TRECIP`](../docs/isa/TRECIP.md) | Yes | TODO | Yes | Yes | Yes | Yes |

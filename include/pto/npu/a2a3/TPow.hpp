@@ -48,6 +48,13 @@ PTO_INTERNAL bool IsInteger(float f) noexcept
     return (frac & mask) == 0;
 }
 
+PTO_INTERNAL bool IsInf(float f) noexcept
+{
+    FloatUnion converter;
+    converter.f = f;
+    return ((converter.i & 0x7FFFFFFF) == 0x7F800000);
+}
+
 PTO_INTERNAL int TPowICore(int base, int exp)
 {
     if (exp == 0) {
@@ -98,17 +105,11 @@ PTO_INTERNAL void SwitchPowFResult(__ubuf__ float *dst, float base, float exp, f
 {
     if (exp == 0.0f) {
         *dst = 1.0f;
-        return;
-    }
-    if (base == 0.0f) {
-        if (exp > 0.0f) {
-            *dst = 0.0f;
-            return;
-        }
-        *dst = 1.0f / 0.0f;
-        return;
-    }
-    if (IsInteger(exp)) {
+    } else if (base == 0.0f) {
+        *dst = (exp > 0.0f) ? 0.0f : (1.0f / 0.0f);
+    } else if (base == -1.0f && IsInf(exp)) {
+        *dst = 1.0f;
+    } else if (IsInteger(exp)) {
         if (static_cast<int>(exp) % 2 != 0 && base < 0.0f) {
             *dst = -tmp;
         } else {
@@ -222,13 +223,13 @@ __tf__ PTO_INTERNAL void TPow(typename DstTile::TileDType __out__ dstData, typen
     __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
     __ubuf__ T *base = (__ubuf__ T *)__cce_get_tile_ptr(baseData);
     __ubuf__ T *exp = (__ubuf__ T *)__cce_get_tile_ptr(expData);
-    __ubuf__ T *tmp = (__ubuf__ T *)__cce_get_tile_ptr(tmpData);
 
     if constexpr (std::is_integral_v<T>) {
         PtoSetWaitFlag<PIPE_V, PIPE_S>(EVENT_ID7, EVENT_ID7);
         TPowI<T, DstTile::RowStride, BaseTile::RowStride, ExpTile::RowStride>(dst, base, exp, validRow, validCol);
         PtoSetWaitFlag<PIPE_S, PIPE_V>(EVENT_ID7, EVENT_ID7);
     } else {
+        __ubuf__ T *tmp = (__ubuf__ T *)__cce_get_tile_ptr(tmpData);
         TPowF<T, DstTile::RowStride, BaseTile::RowStride, ExpTile::RowStride, TmpTile::RowStride>(dst, base, exp, tmp,
                                                                                                   validRow, validCol);
     }
@@ -270,12 +271,13 @@ PTO_INTERNAL void TPOW_IMPL(DstTile &dst, BaseTile &base, ExpTile &exp, TmpTile 
 
     unsigned validRows = dst.GetValidRow();
     unsigned validCols = dst.GetValidCol();
-    PTO_ASSERT(base.GetValidRow() == validRows && base.GetValidCol() == validCols,
+    PTO_ASSERT(validRows == base.GetValidRow() && validCols == base.GetValidCol(),
                "Fix: TPOW input tile base valid shape mismatch with output tile dst shape.");
-    PTO_ASSERT(exp.GetValidRow() == validRows && exp.GetValidCol() == validCols,
+    PTO_ASSERT(validRows == exp.GetValidRow() && validCols == exp.GetValidCol(),
                "Fix: TPOW input tile exp valid shape mismatch with output tile dst shape.");
-    PTO_ASSERT(tmp.GetValidRow() == validRows && tmp.GetValidCol() == validCols,
-               "Fix: TPOW input tile tmp valid shape mismatch with output tile dst shape.");
+    PTO_ASSERT(std::is_integral_v<T> || (validRows == tmp.GetValidRow() && validCols == tmp.GetValidCol()),
+               "Fix: TPOW input tile tmp valid shape mismatch with output tile dst shape when the data type is "
+               "floating point.");
 
     TPow<DstTile, BaseTile, ExpTile, TmpTile>(dst.data(), base.data(), exp.data(), tmp.data(), validRows, validCols);
 }
@@ -289,13 +291,13 @@ __tf__ PTO_INTERNAL void TPows(typename DstTile::TileDType __out__ dstData,
 
     __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
     __ubuf__ T *base = (__ubuf__ T *)__cce_get_tile_ptr(baseData);
-    __ubuf__ T *tmp = (__ubuf__ T *)__cce_get_tile_ptr(tmpData);
 
     if constexpr (std::is_integral_v<T>) {
         PtoSetWaitFlag<PIPE_V, PIPE_S>(EVENT_ID7, EVENT_ID7);
         TPowI<T, DstTile::RowStride, BaseTile::RowStride>(dst, base, exp, validRow, validCol);
         PtoSetWaitFlag<PIPE_S, PIPE_V>(EVENT_ID7, EVENT_ID7);
     } else {
+        __ubuf__ T *tmp = (__ubuf__ T *)__cce_get_tile_ptr(tmpData);
         TPowF<T, DstTile, BaseTile, TmpTile>(dst, base, exp, tmp, validRow, validCol);
     }
 }
@@ -308,10 +310,11 @@ PTO_INTERNAL void TPOWS_IMPL(DstTile &dst, BaseTile &base, typename DstTile::DTy
 
     unsigned validRows = dst.GetValidRow();
     unsigned validCols = dst.GetValidCol();
-    PTO_ASSERT(base.GetValidRow() == validRows && base.GetValidCol() == validCols,
+    PTO_ASSERT(validRows == base.GetValidRow() && validCols == base.GetValidCol(),
                "Fix: TPOW input tile base valid shape mismatch with output tile dst shape.");
-    PTO_ASSERT(tmp.GetValidRow() == validRows && tmp.GetValidCol() == validCols,
-               "Fix: TPOW input tile tmp valid shape mismatch with output tile dst shape.");
+    PTO_ASSERT(std::is_integral_v<T> || (validRows == tmp.GetValidRow() && validCols == tmp.GetValidCol()),
+               "Fix: TPOW input tile tmp valid shape mismatch with output tile dst shape when the data type is "
+               "floating point.");
 
     TPows<DstTile, BaseTile, TmpTile>(dst.data(), base.data(), exp, tmp.data(), validRows, validCols);
 }

@@ -3,6 +3,8 @@
 .vscode
 .cursor
 .trae
+.opencode
+.claude
 .DS_Store
 build
 build_tests

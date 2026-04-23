@@ -351,3 +351,19 @@ pto.tsubsc ins(%src0, %scalar, %src1 : !pto.tile_buf<...>, dtype, !pto.tile_buf<
 ```
 
 ---
+
+### TPOWS
+
+For detailed instruction documentation, see [isa/TPOWS](../isa/TPOWS.md)
+
+**AS Level 1 (SSA):**
+```text
+%dst = pto.tpows %base, %exp, %tmp : (!pto.tile<...>, dtype, !pto.tile<...>) -> !pto.tile<...>
+```
+
+**AS Level 2 (DPS):**
+```text
+pto.tpows ins(%base, %exp, %tmp : !pto.tile_buf<...>, dtype, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+```
+
+---

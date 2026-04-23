@@ -132,7 +132,7 @@ PTO_INTERNAL void TIMG2COL_IMPL(TileData &dst, ConvTileData &src, uint16_t posM,
                                src.GetDstMposition());
         SetPadding<FmatrixMode>(src.GetPadValue());
     }
-    constexpr int32_t c0Size = BLOCK_BYTE_SIZE / sizeof(typename TileData::DType);
+    constexpr uint32_t c0Size = BLOCK_BYTE_SIZE / sizeof(typename TileData::DType);
     uint16_t stepK = CeilAlignment(dst.GetValidCol(), c0Size);
     uint16_t stepM = dst.GetValidRow();
     TImg2col<TileData, ConvTileData, FmatrixMode>(

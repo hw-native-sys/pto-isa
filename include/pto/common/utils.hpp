@@ -79,8 +79,7 @@ PTO_INTERNAL int32_t CeilDivision(int32_t num1, int32_t num2)
     return (num1 + num2 - 1) / num2;
 }
 
-template <typename T>
-PTO_INTERNAL T CeilAlignment(T num1, T num2)
+PTO_INTERNAL uint32_t CeilAlignment(uint32_t num1, uint32_t num2)
 {
     if (num2 == 0) {
         return 0;

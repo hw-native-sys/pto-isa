@@ -2,7 +2,7 @@
 
 本文档描述两个 tile 之间的逐元素操作。
 
-**操作总数：** 28
+**操作总数：** 29
 
 ---
 
@@ -509,3 +509,22 @@ pto.trem ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : 
 ```text
 pto.tfmod ins(%src0, %src1 : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
+
+---
+
+### TPOW
+
+该指令的详细介绍请见[isa/TPOW](../isa/TPOW_zh.md)
+
+
+**AS Level 1 (SSA)：**
+```text
+%dst = pto.tpow %base, %exp, %tmp : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+```
+
+**AS Level 2 (DPS)：**
+```text
+pto.tpow ins(%base, %exp, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+```
+
+---

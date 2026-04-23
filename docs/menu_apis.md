@@ -44,6 +44,7 @@
     - [TNEG](isa/TNEG_zh.md)
     - [TREM](isa/TREM_zh.md)
     - [TFMOD](isa/TFMOD_zh.md)
+    - [TPOW](isa/TPOW_zh.md)
 
 - Tile-标量/Tile-立即数
     - [TEXPANDS](isa/TEXPANDS_zh.md)
@@ -65,6 +66,7 @@
     - [TLRELU](isa/TLRELU_zh.md)
     - [TADDSC](isa/TADDSC_zh.md)
     - [TSUBSC](isa/TSUBSC_zh.md)
+    - [TPOWS](isa/TPOWS_zh.md)
 
 - 轴归约/扩展
     - [TROWSUM](isa/TROWSUM_zh.md)

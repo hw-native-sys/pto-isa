@@ -50,8 +50,8 @@ inline uint32_t FloatToBits(float value)
 template <typename TileDataPara>
 inline typename TileDataPara::DType GetParamValue(const TileDataPara &tile, int row, int col)
 {
-    const int paramRow = std::min(row, tile.GetValidRow() - 1);
-    const int paramCol = std::min(col, tile.GetValidCol() - 1);
+    const int paramRow = std::min<int>(row, tile.GetValidRow() - 1);
+    const int paramCol = std::min<int>(col, tile.GetValidCol() - 1);
     return tile.data()[GetTileElementOffset<TileDataPara>(paramRow, paramCol)];
 }
 

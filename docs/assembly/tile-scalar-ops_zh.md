@@ -2,7 +2,7 @@
 
 本文档描述 tile 与标量值或立即常量之间的操作。
 
-**操作总数：** 19
+**操作总数：** 20
 
 ---
 
@@ -349,3 +349,22 @@ pto.taddsc ins(%src0, %scalar, %src1 : !pto.tile_buf<...>, dtype, !pto.tile_buf<
 ```text
 pto.tsubsc ins(%src0, %scalar, %src1 : !pto.tile_buf<...>, dtype, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
+
+---
+
+### TPOWS
+
+该指令的详细介绍请见[isa/TPOWS](../isa/TPOWS_zh.md)
+
+
+**AS Level 1 (SSA)：**
+```text
+%dst = pto.tpows %base, %exp, %tmp : (!pto.tile<...>, dtype, !pto.tile<...>) -> !pto.tile<...>
+```
+
+**AS Level 2 (DPS)：**
+```text
+pto.tpows ins(%base, %exp, %tmp : !pto.tile_buf<...>, dtype, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+```
+
+---
