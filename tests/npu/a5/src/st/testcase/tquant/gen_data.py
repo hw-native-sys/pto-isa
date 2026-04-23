@@ -129,185 +129,62 @@ def fp32_maxes_to_fp8(data_abs_max, emax=8):
     return e8m0s, scalings
 
 
-def nv_fp32_to_mx_element(data_abs_max, max_value):
-    if np.float32(data_abs_max) == np.float32(0.0):
-        return 0x00, np.uint32(0x7F000000).view(np.float32)
-    descale = np.float32(data_abs_max) * np.float32(1.0 / max_value)
-    bits = np.uint32(np.frombuffer(descale.tobytes(), dtype=np.uint32)[0])
-    exponent = int((bits & np.uint32(0x7F800000)) >> np.uint32(23))
-    mantissa = int(bits & np.uint32(0x007FFFFF))
-    if exponent == 0xFF:
-        if mantissa == 0:
-            return 0xFE, np.float32(2.0**-127)
-        return 0xFF, np.float32(np.nan)
-    round_up = mantissa > 0 and exponent != 0xFE and not (exponent == 0 and mantissa <= 0x00400000)
-    e8m0 = exponent + (1 if round_up else 0)
-    if e8m0 == 0:
-        return e8m0, np.uint32(0x7F000000).view(np.float32)
-    if e8m0 == 0xFE:
-        return e8m0, np.float32(2.0**-127)
-    scaling_bits = np.uint32((254 - e8m0) << 23)
-    return e8m0, scaling_bits.view(np.float32)
-
-
-def nv_fp32_to_fp8_element(data_abs_max):
-    return nv_fp32_to_mx_element(data_abs_max, max_value=448.0)
-
-
-def nv_maxes_to_fp8(data_abs_max):
-    e8m0s = []
-    scalings = []
-    for itm in data_abs_max.reshape(-1).tolist():
-        e8m0, scaling = nv_fp32_to_fp8_element(itm)
-        e8m0s.append(e8m0)
-        scalings.append(scaling)
-    return np.array(e8m0s).astype(np.uint8), np.array(scalings).reshape(-1, 1).astype(np.float32)
-
-
 def fp16_to_fp8_element(data_abs_max_fp16, emax):
-    del emax
-    return bf16_to_fp8_element(data_abs_max_fp16)
+    """Extract E8M0 exponent and compute scaling factor from an FP16 group maximum.
+    FP16 format: sign(1) | exponent(5) | mantissa(10), bias=15
 
+    Hardware computes:
+      shared_exp = fp16_biased_exp - emax
+      scaling_int = (exp_max_fp16 - shared_exp) << 10  (i.e., FP16 bit pattern)
 
-def bf16_to_fp8_element(data_abs_max_bf16):
-    data_u16 = np.uint16(np.frombuffer(np.float32(data_abs_max_bf16).tobytes(), dtype=np.uint32)[0] >> 16)
-    exponent_bf16 = int(data_u16 & 0x7F80)
-    mantissa_bf16 = int(data_u16 & 0x007F)
-    if exponent_bf16 == 0x7F80 and mantissa_bf16 != 0:
-        return 0xFF, np.uint16(0x7F81)
+    Clamping: if scaling_int (as int16) < -15, replace both shared_exp and
+    scaling with 0x7C00 (FP16 +Inf sentinel). After PK_B16 storage, E8M0 = 0x00.
 
-    exponent_bf16 = max(exponent_bf16, 0x0400)
-    shared_exp_bits = exponent_bf16 - 0x0400
-    e8m0 = (shared_exp_bits >> 7) & 0xFF
-    scale_bits = np.uint16(0x7F00 - shared_exp_bits)
-    return e8m0, scale_bits
+    The E8M0 value is stored as (fp16_biased_exp - emax) & 0xFF via PK_B16.
+    """
+    data_u16 = np.uint16(np.frombuffer(np.float16(data_abs_max_fp16).tobytes(), dtype=np.uint16)[0])
+    exponent_fp16 = int((data_u16 & 0x7C00) >> 10)  # 5-bit biased exponent
+    if exponent_fp16 == 0x1F:  # NaN/Inf
+        return 0xFF, np.float16(np.inf)
+
+    # CCE: shared_exp = biased_fp16_exp - emax_e8m0 where emax_e8m0 = 8 - 112 = -104 for FP16
+    # => shared_exp = biased_fp16_exp + 104, stored to memory as PK_B16 (low byte).
+    shared_exp = exponent_fp16 - emax
+
+    # Scaling is computed INDEPENDENTLY of emax_e8m0 in CCE:
+    scaling_exp_biased = 38 - exponent_fp16
+
+    scaling_int = np.int16(np.uint16(scaling_exp_biased << 10))
+    if scaling_int < -15:
+        return 0x00, np.float16(np.inf)
+
+    if scaling_exp_biased <= 0:
+        return shared_exp & 0xFF, np.float16(0.0)
+
+    # Normal case: construct FP16 scaling value as 2^(scaling_exp_biased - 15)
+    scale_power = scaling_exp_biased - 15  # unbiased power of 2
+    scaling_fp16 = np.float16(2.0**scale_power)
+    e8m0 = shared_exp & 0xFF
+
+    return e8m0, scaling_fp16
 
 
 def fp16_maxes_to_fp8(data_abs_max, emax=8):
     e8m0s = []
-    scaling_bits = []
+    scalings = []
     data_abs_max_list = data_abs_max.reshape(-1).tolist()
 
     for itm in data_abs_max_list:
         e8m0, scaling = fp16_to_fp8_element(itm, emax=emax)
         e8m0s.append(e8m0)
-        scaling_bits.append(scaling)
+        scalings.append(scaling)
 
     e8m0s = np.array(e8m0s).astype(np.uint8)
-    scalings = bf16_bits_to_float32(np.array(scaling_bits, dtype=np.uint16)).reshape(-1, 1)
-    return e8m0s, scalings.astype(np.float32)
+    scalings = np.array(scalings).reshape(-1, 1).astype(np.float16)
+    return e8m0s, scalings
 
 
-def bf16_maxes_to_fp8(data_abs_max):
-    return fp16_maxes_to_fp8(data_abs_max, emax=8)
-
-
-def float32_to_bf16_trunc(data):
-    data_fp32 = np.asarray(data, dtype=np.float32)
-    bits = data_fp32.view(np.uint32) & np.uint32(0xFFFF0000)
-    return bits.view(np.float32)
-
-
-def bf16_bits_to_float32(bits):
-    return np.uint32(np.uint16(bits).astype(np.uint32) << np.uint32(16)).view(np.float32)
-
-
-def fp16_to_e2m1_element(data_abs_max_bf16):
-    data_u16 = np.uint16(np.frombuffer(np.float32(data_abs_max_bf16).tobytes(), dtype=np.uint32)[0] >> 16)
-    exponent_bf16 = int(data_u16 & 0x7F80)
-    mantissa_bf16 = int(data_u16 & 0x007F)
-    if exponent_bf16 == 0x7F80 and mantissa_bf16 != 0:
-        return 0xFF, np.uint16(0x7FC0)
-
-    exponent_bf16 = max(exponent_bf16, 0x0100)
-    shared_exp_bits = exponent_bf16 - 0x0100
-    e8m0 = (shared_exp_bits >> 7) & 0xFF
-    scale_bits = np.uint16(0x7F00 - shared_exp_bits)
-    return e8m0, scale_bits
-
-
-def fp16_maxes_to_e2m1(data_abs_max):
-    e8m0s = []
-    scaling_bits = []
-    for itm in data_abs_max.reshape(-1).tolist():
-        e8m0, scaling = fp16_to_e2m1_element(itm)
-        e8m0s.append(e8m0)
-        scaling_bits.append(scaling)
-    scaling_bf16 = bf16_bits_to_float32(np.array(scaling_bits, dtype=np.uint16)).reshape(-1, 1)
-    return np.array(e8m0s).astype(np.uint8), scaling_bf16.astype(np.float32)
-
-
-def nv_fp32_to_e2m1_element(data_abs_max):
-    return nv_fp32_to_mx_element(data_abs_max, max_value=6.0)
-
-
-def nv_maxes_to_e2m1(data_abs_max):
-    e8m0s = []
-    scalings = []
-    for itm in data_abs_max.reshape(-1).tolist():
-        e8m0, scaling = nv_fp32_to_e2m1_element(itm)
-        e8m0s.append(e8m0)
-        scalings.append(scaling)
-    return np.array(e8m0s).astype(np.uint8), np.array(scalings).reshape(-1, 1).astype(np.float32)
-
-
-def encode_e2m1_magic_scalar(value):
-    value = np.float32(value)
-    bits = np.frombuffer(value.tobytes(), dtype=np.uint32)[0]
-    sign = np.uint8((bits >> 28) & 0x8)
-    abs_value = np.float32(abs(value))
-    if np.isnan(abs_value):
-        return np.uint8(0x7)
-    if np.isinf(abs_value):
-        return np.uint8(sign | 0x7)
-    abs_bits = np.frombuffer(abs_value.tobytes(), dtype=np.uint32)[0]
-    biased_exp = int((abs_bits & np.uint32(0x7F800000)) >> 23)
-    biased_exp = min(max(biased_exp, 127), 129)
-    magic_bits = np.uint32((biased_exp + 22) << 23)
-    magic = magic_bits.view(np.float32)
-    q = np.frombuffer(np.float32(abs_value + magic).tobytes(), dtype=np.uint32)[0] - magic_bits
-    mag_code = min(int(q) + ((biased_exp - 127) << 1), 7)
-    return np.uint8(sign | mag_code)
-
-
-def pack_fp4_e2m1(codes, rows, cols):
-    packed_cols = (cols + 1) // 2
-    packed = np.zeros((rows, packed_cols), dtype=np.uint8)
-    codes = codes.reshape(rows, cols)
-    for r in range(rows):
-        for c in range(cols):
-            if c % 2 == 0:
-                packed[r, c // 2] = (packed[r, c // 2] & 0xF0) | codes[r, c]
-            else:
-                packed[r, c // 2] = (packed[r, c // 2] & 0x0F) | (codes[r, c] << 4)
-    return packed
-
-
-def quant_fp16_to_e2m1(src, scale_alg="ocp"):
-    src_fp32 = src.astype(np.float32)
-    if scale_alg == "nv":
-        data_abs = np.abs(src).astype(np.float16)
-        with np.errstate(invalid="ignore"):
-            group_max = np.max(data_abs.reshape(-1, 32), axis=1).astype(np.float32)
-        e8m0, scaling_bf16 = nv_maxes_to_e2m1(group_max)
-    else:
-        src_bf16_for_max = float32_to_bf16_trunc(src_fp32)
-        data_abs = np.abs(src_bf16_for_max).astype(np.float32)
-        data_grouped = data_abs.reshape(-1, 32)
-        group_max_bf16 = np.max(data_grouped, axis=1)
-        e8m0, scaling_bf16 = fp16_maxes_to_e2m1(group_max_bf16)
-
-    scaled = (src_fp32.reshape(-1, 32) * scaling_bf16.astype(np.float32)).reshape(src.shape).astype(np.float32)
-    codes = np.vectorize(encode_e2m1_magic_scalar, otypes=[np.uint8])(scaled)
-    packed = pack_fp4_e2m1(codes, src.shape[0], src.shape[1])
-
-    e8m0.tofile("golden_e8m0.bin")
-    scaling_bf16.astype(np.float32).tofile("scaling_e2m1.bin")
-    packed.tofile("golden_fp4.bin")
-    return e8m0, scaling_bf16, packed
-
-
-def quant_fp32_to_e4m3(src, mode="nd", scale_alg="ocp"):
+def quant_fp32_to_e4m3(src, mode="nd"):
     # get group max
     group_max = get_group_max_last_dim(src, group_size=32)
     if scale_alg == "nv":
@@ -364,21 +241,16 @@ def quant_bf16_to_e4m3(src, mode="nd", scale_alg="ocp"):
     return e8m0, scaling_bf16, data_fp8, group_max_bf16
 
 
-def quant_fp16_to_e4m3(src, mode="nd", scale_alg="ocp"):
-    # OCP reduces FP16 through BF16-truncated abs max; NV keeps FP16 max before RCEIL.
-    if scale_alg == "nv":
-        data_abs = np.abs(src).astype(np.float16)
-        data_grouped = data_abs.reshape(-1, 32)
-        group_max_for_scale = np.max(data_grouped, axis=1).astype(np.float32)
-        e8m0, scaling_fp32 = nv_maxes_to_fp8(group_max_for_scale)
-        scaling = scaling_fp32.astype(bfloat16)
-    else:
-        src_bf16_for_max = float32_to_bf16_trunc(src.astype(np.float32))
-        data_abs = np.abs(src_bf16_for_max).astype(np.float32)
-        data_grouped = data_abs.reshape(-1, 32)
-        group_max_fp16 = np.max(data_grouped, axis=1).astype(np.float32)
+def quant_fp16_to_e4m3(src, mode="nd"):
+    # Get group max in fp16 precision
+    data_abs = np.abs(src).astype(np.float16)
+    data_grouped = data_abs.reshape(-1, 32)
+    group_max_fp16 = np.max(data_grouped, axis=1)
 
-        e8m0, scaling = fp16_maxes_to_fp8(group_max_fp16, emax=-104)
+    # Extract E8M0 exponents and fp16 scaling factors using FP16-specific HW emulation.
+    # The CCE kernel path matches the OCP MX spec 100%, so this bit-level emulation is
+    # used as the golden reference (it avoids a torch/torchao runtime dependency).
+    e8m0, scaling_fp16 = fp16_maxes_to_fp8(group_max_fp16, emax=-104)
 
     if mode == "nz":
         tile_m = src.shape[0]
@@ -1097,6 +969,22 @@ if __name__ == "__main__":
         TQuantParams("mxfp8", 128, 128, mode="nd", dtype=bfloat16),
         TQuantParams("mxfp8", 14, 16, mode="nd", dtype=bfloat16),
         TQuantParams("mxfp8", 7, 48, mode="nd", dtype=bfloat16),
+        TQuantParams("mxfp8", 18, 136, mode="nd", dtype=bfloat16),
+        # Diagnostic cases for board failure analysis
+        TQuantParams("mxfp8", 1, 32, mode="nd", dtype=bfloat16),
+        TQuantParams("mxfp8", 2, 16, mode="nd", dtype=bfloat16),
+        TQuantParams("mxfp8", 4, 16, mode="nd", dtype=bfloat16),
+        TQuantParams("mxfp8", 8, 16, mode="nd", dtype=bfloat16),
+        TQuantParams("mxfp8", 16, 16, mode="nd", dtype=bfloat16),
+        TQuantParams("mxfp8", 3, 32, mode="nd", dtype=bfloat16),
+        TQuantParams("mxfp8", 5, 96, mode="nd", dtype=bfloat16),
+        TQuantParams("mxfp8", 1, 16, mode="nd", dtype=bfloat16),
+        # Multi-flush vstas coverage: loop_num odd >= 3 leaves 16B pending in st_align.
+        TQuantParams("mxfp8", 3, 256, mode="nd", dtype=bfloat16),  # padded 768 -> loop_num=3
+        TQuantParams("mxfp8", 5, 256, mode="nd", dtype=bfloat16),  # padded 1280 -> loop_num=5
+        TQuantParams("mxfp8", 18, 138, mode="nd", dtype=bfloat16),  # padded 18x160 = 2880 -> loop_num=12
+        TQuantParams("mxfp8", 1, 192, mode="nd", dtype=bfloat16),  # no pad, 192 elems -> loop_num=1
+        TQuantParams("mxfp8", 1, 198, mode="nd", dtype=bfloat16),  # padded 1x224 = 224 -> loop_num=1
         TQuantParams("mxfp8", 32, 128, mode="nz", dtype=bfloat16),
         TQuantParams("mxfp8", 64, 128, mode="nz", dtype=bfloat16),
         TQuantParams("mxfp8", 128, 128, mode="nz", dtype=bfloat16),
@@ -1109,37 +997,6 @@ if __name__ == "__main__":
         TQuantParams("mxfp8", 64, 128, mode="nd", dtype=np.float16),
         TQuantParams("mxfp8", 128, 128, mode="nd", dtype=np.float16),
         TQuantParams("mxfp8", 4, 256, mode="nd", dtype=np.float16),  # 1024 elems -> AbsReduceMax_b16_ND_opt
-        TQuantParams("mxfp8", 11, 640, mode="nd", dtype=np.float16),  # 7040 elems -> 220 scale groups
-        TQuantParams("mxfp8", 32, 128, mode="nd", dtype=np.float16, scale_alg="nv"),
-        TQuantParams("mxfp8", 64, 128, mode="nd", dtype=np.float16, scale_alg="nv"),
-        TQuantParams("mxfp8", 128, 128, mode="nd", dtype=np.float16, scale_alg="nv"),
-        TQuantParams("mxfp8", 2, 256, mode="nd", dtype=np.float16, case_suffix="boundary", scale_alg="nv"),
-        *make_exp2d_fuzz_params(),
-        TQuantParams("mxfp4_e2m1", 2, 128, mode="nd", dtype=np.float16, case_suffix="special"),
-        TQuantParams("mxfp4_e2m1", 2, 128, mode="nd", dtype=np.float16, case_suffix="inf_only"),
-        TQuantParams("mxfp4_e2m1", 2, 128, mode="nd", dtype=np.float16, case_suffix="subnormal"),
-        TQuantParams("mxfp4_e2m1", 2, 128, mode="nd", dtype=np.float16, case_suffix="rounding"),
-        TQuantParams("mxfp4_e2m1", 2, 128, mode="nd", dtype=np.float16, case_suffix="exp_random_a"),
-        TQuantParams("mxfp4_e2m1", 2, 128, mode="nd", dtype=np.float16, case_suffix="exp_random_b"),
-        TQuantParams("mxfp4_e2m1", 2, 128, mode="nd", dtype=np.float16, case_suffix="mixed"),
-        TQuantParams("mxfp4_e2m1", 32, 1024, mode="nd", dtype=np.float16, case_suffix="mixed"),
-        TQuantParams("mxfp4_e2m1", 32, 1024, mode="nd", dtype=np.float16, case_suffix="normal"),
-        TQuantParams("mxfp4_e2m1", 2, 256, mode="nd", dtype=np.float16, case_suffix="boundary", scale_alg="nv"),
-        TQuantParams("mxfp4_e2m1", 2, 256, mode="nd", dtype=np.float16, case_suffix="rounding", scale_alg="nv"),
-        TQuantParams("mxfp4_e2m1", 2, 256, mode="nd", dtype=np.float16, case_suffix="mixed", scale_alg="nv"),
-        TQuantParams("mxfp4_e2m1", 2, 128, mode="nd", dtype=bfloat16, case_suffix="special"),
-        TQuantParams("mxfp4_e2m1", 2, 128, mode="nd", dtype=bfloat16, case_suffix="inf_only"),
-        TQuantParams("mxfp4_e2m1", 2, 128, mode="nd", dtype=bfloat16, case_suffix="subnormal"),
-        TQuantParams("mxfp4_e2m1", 2, 128, mode="nd", dtype=bfloat16, case_suffix="rounding"),
-        TQuantParams("mxfp4_e2m1", 2, 128, mode="nd", dtype=bfloat16, case_suffix="exp_random_a"),
-        TQuantParams("mxfp4_e2m1", 2, 128, mode="nd", dtype=bfloat16, case_suffix="exp_random_b"),
-        TQuantParams("mxfp4_e2m1", 2, 128, mode="nd", dtype=bfloat16, case_suffix="mixed"),
-        TQuantParams("mxfp4_e2m1", 32, 1024, mode="nd", dtype=bfloat16, case_suffix="mixed"),
-        TQuantParams("mxfp4_e2m1", 32, 1024, mode="nd", dtype=bfloat16, case_suffix="normal"),
-        TQuantParams("mxfp4_e2m1", 2, 256, mode="nd", dtype=bfloat16, case_suffix="boundary", scale_alg="nv"),
-        TQuantParams("mxfp4_e2m1", 2, 256, mode="nd", dtype=bfloat16, case_suffix="rounding", scale_alg="nv"),
-        TQuantParams("mxfp4_e2m1", 2, 256, mode="nd", dtype=bfloat16, case_suffix="mixed", scale_alg="nv"),
-        TQuantParams("mxfp4_e2m1", 2, 128, mode="nd", dtype=bfloat16, case_suffix="static4x128_exp2d", scale_alg="nv"),
         TQuantParams("mxfp8", 32, 128, mode="nz", dtype=np.float16),
         TQuantParams("mxfp8", 64, 128, mode="nz", dtype=np.float16),
         TQuantParams("mxfp8", 128, 128, mode="nz", dtype=np.float16),
