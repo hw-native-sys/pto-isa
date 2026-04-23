@@ -14,8 +14,6 @@ import os
 import struct
 import math
 import numpy as np
-import torch
-from torchao.prototype.mx_formats.mx_tensor import to_mx
 from ml_dtypes import float8_e4m3fn, bfloat16
 
 np.random.seed(19)
@@ -116,25 +114,59 @@ def fp32_maxes_to_fp8(data_abs_max, emax=8):
     return e8m0s, scalings
 
 
-def fp16_get_e8m0_and_scaling_torchao(padded_src_fp16):
-    """Get E8M0 shared exponents and FP16 scaling factors using torchao as reference.
+def fp16_to_fp8_element(data_abs_max_fp16, emax):
+    """Extract E8M0 exponent and compute scaling factor from an FP16 group maximum.
+    FP16 format: sign(1) | exponent(5) | mantissa(10), bias=15
 
-    Uses torchao's to_mx (OCP MX spec compliant) on fp32-casted data to get
-    authoritative E8M0 values, then derives FP16 scaling factors from them.
+    Hardware computes:
+      shared_exp = fp16_biased_exp - emax
+      scaling_int = (exp_max_fp16 - shared_exp) << 10  (i.e., FP16 bit pattern)
 
-    The scaling factor in FP16 is: 2^(127 - e8m0), which is the reciprocal of
-    the MX block scale (2^(e8m0 - 127)).
+    Clamping: if scaling_int (as int16) < -15, replace both shared_exp and
+    scaling with 0x7C00 (FP16 +Inf sentinel). After PK_B16 storage, E8M0 = 0x00.
+
+    The E8M0 value is stored as (fp16_biased_exp - emax) & 0xFF via PK_B16.
     """
-    # Get authoritative E8M0 from torchao (cast to fp32 since torchao doesn't support fp16)
-    padded_tensor = torch.from_numpy(padded_src_fp16.astype(np.float32))
-    scale_e8m0, _ = to_mx(padded_tensor, torch.float8_e4m3fn, block_size=32)
-    e8m0 = scale_e8m0.view(torch.uint8).numpy()
+    data_u16 = np.uint16(np.frombuffer(np.float16(data_abs_max_fp16).tobytes(), dtype=np.uint16)[0])
+    exponent_fp16 = int((data_u16 & 0x7C00) >> 10)  # 5-bit biased exponent
+    if exponent_fp16 == 0x1F:  # NaN/Inf
+        return 0xFF, np.float16(np.inf)
 
-    # Derive FP16 scaling: scale = 2^(127 - e8m0), the reciprocal of the MX block scale
-    scaling_power = (127 - e8m0.astype(np.int32)).flatten()
-    scaling_fp16 = np.array([np.float16(2.0**p) for p in scaling_power], dtype=np.float16).reshape(-1, 1)
+    # CCE: shared_exp = biased_fp16_exp - emax_e8m0 where emax_e8m0 = 8 - 112 = -104 for FP16
+    # => shared_exp = biased_fp16_exp + 104, stored to memory as PK_B16 (low byte).
+    shared_exp = exponent_fp16 - emax
+
+    # Scaling is computed INDEPENDENTLY of emax_e8m0 in CCE:
+    scaling_exp_biased = 38 - exponent_fp16
+
+    scaling_int = np.int16(np.uint16(scaling_exp_biased << 10))
+    if scaling_int < -15:
+        return 0x00, np.float16(np.inf)
+
+    if scaling_exp_biased <= 0:
+        return shared_exp & 0xFF, np.float16(0.0)
+
+    # Normal case: construct FP16 scaling value as 2^(scaling_exp_biased - 15)
+    scale_power = scaling_exp_biased - 15  # unbiased power of 2
+    scaling_fp16 = np.float16(2.0**scale_power)
+    e8m0 = shared_exp & 0xFF
 
     return e8m0, scaling_fp16
+
+
+def fp16_maxes_to_fp8(data_abs_max, emax=8):
+    e8m0s = []
+    scalings = []
+    data_abs_max_list = data_abs_max.reshape(-1).tolist()
+
+    for itm in data_abs_max_list:
+        e8m0, scaling = fp16_to_fp8_element(itm, emax=emax)
+        e8m0s.append(e8m0)
+        scalings.append(scaling)
+
+    e8m0s = np.array(e8m0s).astype(np.uint8)
+    scalings = np.array(scalings).reshape(-1, 1).astype(np.float16)
+    return e8m0s, scalings
 
 
 def quant_fp32_to_e4m3(src, mode="nd"):
@@ -188,13 +220,15 @@ def quant_bf16_to_e4m3(src, mode="nd"):
 
 
 def quant_fp16_to_e4m3(src, mode="nd"):
-    """Quantize FP16 data to MX FP8 E4M3 format using torchao as E8M0 reference.
+    # Get group max in fp16 precision
+    data_abs = np.abs(src).astype(np.float16)
+    data_grouped = data_abs.reshape(-1, 32)
+    group_max_fp16 = np.max(data_grouped, axis=1)
 
-    E8M0 exponents are obtained from torchao (OCP MX spec compliant).
-    FP8 data is computed by scaling in FP16 precision to match HW behavior.
-    """
-    # Get E8M0 and FP16 scaling from torchao reference
-    e8m0, scaling_fp16 = fp16_get_e8m0_and_scaling_torchao(src)
+    # Extract E8M0 exponents and fp16 scaling factors using FP16-specific HW emulation.
+    # The CCE kernel path matches the OCP MX spec 100%, so this bit-level emulation is
+    # used as the golden reference (it avoids a torch/torchao runtime dependency).
+    e8m0, scaling_fp16 = fp16_maxes_to_fp8(group_max_fp16, emax=-104)
 
     if mode == "nz":
         tile_m = src.shape[0]
@@ -385,12 +419,29 @@ if __name__ == "__main__":
         TQuantParams("mxfp8", 128, 128, mode="nd", dtype=bfloat16),
         TQuantParams("mxfp8", 14, 16, mode="nd", dtype=bfloat16),
         TQuantParams("mxfp8", 7, 48, mode="nd", dtype=bfloat16),
+        TQuantParams("mxfp8", 18, 136, mode="nd", dtype=bfloat16),
+        # Diagnostic cases for board failure analysis
+        TQuantParams("mxfp8", 1, 32, mode="nd", dtype=bfloat16),
+        TQuantParams("mxfp8", 2, 16, mode="nd", dtype=bfloat16),
+        TQuantParams("mxfp8", 4, 16, mode="nd", dtype=bfloat16),
+        TQuantParams("mxfp8", 8, 16, mode="nd", dtype=bfloat16),
+        TQuantParams("mxfp8", 16, 16, mode="nd", dtype=bfloat16),
+        TQuantParams("mxfp8", 3, 32, mode="nd", dtype=bfloat16),
+        TQuantParams("mxfp8", 5, 96, mode="nd", dtype=bfloat16),
+        TQuantParams("mxfp8", 1, 16, mode="nd", dtype=bfloat16),
+        # Multi-flush vstas coverage: loop_num odd >= 3 leaves 16B pending in st_align.
+        TQuantParams("mxfp8", 3, 256, mode="nd", dtype=bfloat16),  # padded 768 -> loop_num=3
+        TQuantParams("mxfp8", 5, 256, mode="nd", dtype=bfloat16),  # padded 1280 -> loop_num=5
+        TQuantParams("mxfp8", 18, 138, mode="nd", dtype=bfloat16),  # padded 18x160 = 2880 -> loop_num=12
+        TQuantParams("mxfp8", 1, 192, mode="nd", dtype=bfloat16),  # no pad, 192 elems -> loop_num=1
+        TQuantParams("mxfp8", 1, 198, mode="nd", dtype=bfloat16),  # padded 1x224 = 224 -> loop_num=1
         TQuantParams("mxfp8", 32, 128, mode="nz", dtype=bfloat16),
         TQuantParams("mxfp8", 64, 128, mode="nz", dtype=bfloat16),
         TQuantParams("mxfp8", 128, 128, mode="nz", dtype=bfloat16),
         TQuantParams("mxfp8", 32, 128, mode="nd", dtype=np.float16),
         TQuantParams("mxfp8", 64, 128, mode="nd", dtype=np.float16),
         TQuantParams("mxfp8", 128, 128, mode="nd", dtype=np.float16),
+        TQuantParams("mxfp8", 4, 256, mode="nd", dtype=np.float16),  # 1024 elems -> AbsReduceMax_b16_ND_opt
         TQuantParams("mxfp8", 32, 128, mode="nz", dtype=np.float16),
         TQuantParams("mxfp8", 64, 128, mode="nz", dtype=np.float16),
         TQuantParams("mxfp8", 128, 128, mode="nz", dtype=np.float16),

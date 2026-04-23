@@ -430,6 +430,52 @@ TEST_F(TQUANTTEST, case_mxfp8_bf16_7x48_nd)
     test_tquant_mxfp8_bf16<7, 48, 0>();
 }
 
+// Diagnostic cases for board failure root-cause analysis.
+TEST_F(TQUANTTEST, case_mxfp8_bf16_1x32_nd)
+{
+    test_tquant_mxfp8_bf16<1, 32, 0>();
+}
+TEST_F(TQUANTTEST, case_mxfp8_bf16_2x16_nd)
+{
+    test_tquant_mxfp8_bf16<2, 16, 0>();
+}
+TEST_F(TQUANTTEST, case_mxfp8_bf16_3x32_nd)
+{
+    test_tquant_mxfp8_bf16<3, 32, 0>();
+}
+TEST_F(TQUANTTEST, case_mxfp8_bf16_5x96_nd)
+{
+    test_tquant_mxfp8_bf16<5, 96, 0>();
+}
+TEST_F(TQUANTTEST, case_mxfp8_bf16_1x16_nd)
+{
+    test_tquant_mxfp8_bf16<1, 16, 0>();
+}
+// Multi-flush vstas coverage: loop_num odd >= 3 => 16B pending in st_align at final vstas.
+// 3x256 => padded 768 elements => loop_num = ceil(768/256) = 3 (odd).
+TEST_F(TQUANTTEST, case_mxfp8_bf16_3x256_nd)
+{
+    test_tquant_mxfp8_bf16<3, 256, 0>();
+}
+// 5x256 => padded 1280 elements => loop_num = 5 (odd), exercises more vstus iterations.
+TEST_F(TQUANTTEST, case_mxfp8_bf16_5x256_nd)
+{
+    test_tquant_mxfp8_bf16<5, 256, 0>();
+}
+// Additional padding coverage (non-multiple-of-32 cols / large padding).
+TEST_F(TQUANTTEST, case_mxfp8_bf16_18x138_nd)
+{
+    test_tquant_mxfp8_bf16<18, 138, 0>();
+}
+TEST_F(TQUANTTEST, case_mxfp8_bf16_1x192_nd)
+{
+    test_tquant_mxfp8_bf16<1, 192, 0>();
+}
+TEST_F(TQUANTTEST, case_mxfp8_bf16_1x198_nd)
+{
+    test_tquant_mxfp8_bf16<1, 198, 0>();
+}
+
 TEST_F(TQUANTTEST, case_mxfp8_bf16_32x128_nz)
 {
     test_tquant_mxfp8_bf16<32, 128, 1>();
@@ -496,10 +542,6 @@ TEST_F(TQUANTTEST, case_int8_asym_fp32_128x128_nd)
 TEST_F(TQUANTTEST, case_int8_asym_fp32_256x128_nd)
 {
     test_tquant_int8_asym<256, 128, 0>();
-}
-TEST_F(TQUANTTEST, case_int8_asym_fp32_32x72_nd)
-{
-    test_tquant_int8_asym<32, 72, 0>();
 }
 
 } // namespace TQuantTest

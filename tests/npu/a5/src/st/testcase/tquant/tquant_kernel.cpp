@@ -530,6 +530,27 @@ template void TQuantTest::LaunchTQuantMXFP8_BF16<128, 128, 0>(uint8_t *dst, uint
 template void TQuantTest::LaunchTQuantMXFP8_BF16<14, 16, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
                                                             void *stream);
 template void TQuantTest::LaunchTQuantMXFP8_BF16<7, 48, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp, void *stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<18, 136, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
+                                                             void *stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<1, 32, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp, void *stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<2, 16, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp, void *stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<4, 16, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp, void *stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<8, 16, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp, void *stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<16, 16, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
+                                                            void *stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<3, 32, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp, void *stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<5, 96, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp, void *stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<1, 16, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp, void *stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<3, 256, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
+                                                            void *stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<5, 256, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
+                                                            void *stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<18, 138, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
+                                                             void *stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<1, 192, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
+                                                            void *stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<1, 198, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
+                                                            void *stream);
 template void TQuantTest::LaunchTQuantMXFP8_BF16<32, 128, 1>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
                                                              void *stream);
 template void TQuantTest::LaunchTQuantMXFP8_BF16<64, 128, 1>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
@@ -543,6 +564,8 @@ template void TQuantTest::LaunchTQuantMXFP8_FP16<64, 128, 0>(uint8_t *dst, uint1
                                                              void *stream);
 template void TQuantTest::LaunchTQuantMXFP8_FP16<128, 128, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
                                                               void *stream);
+template void TQuantTest::LaunchTQuantMXFP8_FP16<4, 256, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
+                                                            void *stream);
 template void TQuantTest::LaunchTQuantMXFP8_FP16<32, 128, 1>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
                                                              void *stream);
 template void TQuantTest::LaunchTQuantMXFP8_FP16<64, 128, 1>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
