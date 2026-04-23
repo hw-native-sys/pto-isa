@@ -187,6 +187,8 @@ set(ALL_TESTCASES
     tgatherb
     tpartmin
     tpartmax
+    tpartargmin
+    tpartargmax
     tmov_vect
     texpands
     tmov_acc2mat

@@ -230,6 +230,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TPartMul.hpp"
 #include "pto/npu/a5/TPartMax.hpp"
 #include "pto/npu/a5/TPartMin.hpp"
+#include "pto/npu/a5/TPartArgMax.hpp"
+#include "pto/npu/a5/TPartArgMin.hpp"
 #include "pto/npu/a5/TPow.hpp"
 #include "pto/npu/a5/TQuant.hpp"
 #include "pto/npu/a5/TDeQuant.hpp"

@@ -343,6 +343,8 @@ fi
 if [ "$ENABLE_A5" = "true" ]; then
   if [ "$ENABLE_SIMPLE" = "true" ]; then           # 单个用例
     python3 tests/script/build_st.py $ARGS -v a5 -t all
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tpartargmax -g TPARTARGMAXTest.case_fp32_64x64_64x64_64x64
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tpartargmin -g TPARTARGMINTest.case_fp32_64x64_64x64_64x64
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tconcatidx -g TCONCATTest.case_int16_16x32_16x16_16x16_8x16_8x16
     python3 tests/script/run_st.py $ARGS -w -v a5 -t taxpy -g TAXPYTest.case1
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tdequant -g TDEQUANTTest.case1
@@ -508,6 +510,8 @@ if [ "$ENABLE_A5" = "true" ]; then
 
   elif [ "$ENABLE_ALL" = "true" ]; then            # 所有用例
     python3 tests/script/build_st.py $ARGS -v a5 -t all
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tpartargmax
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tpartargmin
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tconcatidx
     python3 tests/script/run_st.py $ARGS -w -v a5 -t taxpy
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tdequant
