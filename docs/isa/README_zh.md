@@ -87,7 +87,23 @@
 - [系统调度指令集参考](system/README_zh.md)
 - [通用约定](conventions_zh.md)
 
-## 支持性参考
+## 复杂指令
+- [TPRINT](TPRINT_zh.md) - 调试/打印 Tile 中的元素（实现定义）。
+- [TMRGSORT](TMRGSORT_zh.md) - 用于多个已排序列表的归并排序（实现定义的元素格式和布局）。
+- [TSORT32](TSORT32_zh.md) - 对 `src` 的每个 32 元素块，与 `idx` 中对应的索引一起进行排序，并将排序后的值-索引对写入 `dst`。
+- [TGATHER](TGATHER_zh.md) - 使用索引 Tile 或编译时掩码模式来收集/选择元素。
+- [TCI](TCI_zh.md) - 生成连续整数序列到目标 Tile 中。
+- [TTRI](TTRI_zh.md) - 生成三角（下/上）掩码 Tile。
+- [TRANDOM](TRANDOM_zh.md) - 使用基于计数器的密码算法在目标 Tile 中生成随机数。
+- [TPARTADD](TPARTADD_zh.md) - 部分逐元素加法，对不匹配的有效区域具有实现定义的处理方式。
+- [TPARTMUL](TPARTMUL_zh.md) - 部分逐元素乘法，对有效区域不一致的处理为实现定义。
+- [TPARTMAX](TPARTMAX_zh.md) - 部分逐元素最大值，对不匹配的有效区域具有实现定义的处理方式。
+- [TPARTMIN](TPARTMIN_zh.md) - 部分逐元素最小值，对不匹配的有效区域具有实现定义的处理方式。
+- [TPARTARGMAX](TPARTARGMAX_zh.md) - 部分逐元素最大值选择并返回对应索引（argmax），对不匹配的有效区域具有实现定义的处理方式。
+- [TPARTARGMIN](TPARTARGMIN_zh.md) - 部分逐元素最小值选择并返回对应索引（argmin），对不匹配的有效区域具有实现定义的处理方式。
+- [TGATHERB](TGATHERB_zh.md) - 使用字节偏移量收集元素。
+- [TSCATTER](TSCATTER_zh.md) - 使用逐元素行索引将源 Tile 的行散播到目标 Tile 中。
+- [TQUANT](TQUANT_zh.md) - 量化 Tile（例如 FP32 到 FP8），生成指数/缩放/最大值输出。
 
 - [参考注释](reference/README_zh.md)（术语表、诊断、可移植性、规范来源）
 

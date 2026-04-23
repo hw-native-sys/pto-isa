@@ -141,6 +141,8 @@
     - [TPARTMUL](isa/TPARTMUL_zh.md)
     - [TPARTMAX](isa/TPARTMAX_zh.md)
     - [TPARTMIN](isa/TPARTMIN_zh.md)
+    - [TPARTARGMAX](isa/TPARTARGMAX_zh.md)
+    - [TPARTARGMIN](isa/TPARTARGMIN_zh.md)
     - [TGATHERB](isa/TGATHERB_zh.md)
     - [TSCATTER](isa/TSCATTER_zh.md)
     - [TQUANT](isa/TQUANT_zh.md)

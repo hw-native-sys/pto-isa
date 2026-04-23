@@ -247,6 +247,40 @@ pto.tpartargmin ins(%src0Val, %src1Val, %src0Idx, %src1Idx : !pto.tile_buf<...>,
 
 ### TGATHERB
 
+该指令的详细介绍请见[isa/TPARTARGMAX](../isa/TPARTARGMAX_zh.md)
+
+
+**AS Level 1 (SSA)：**
+```text
+%dstVal, %dstIdx = pto.tpartargmax %src0Val, %src1Val, %src0Idx, %src1Idx : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> (!pto.tile<...>, !pto.tile<...>)
+```
+
+**AS Level 2 (DPS)：**
+```text
+pto.tpartargmax ins(%src0Val, %src1Val, %src0Idx, %src1Idx : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dstVal, %dstIdx : !pto.tile_buf<...>, !pto.tile_buf<...>)
+```
+
+---
+
+### TPARTARGMIN
+
+该指令的详细介绍请见[isa/TPARTARGMIN](../isa/TPARTARGMIN_zh.md)
+
+
+**AS Level 1 (SSA)：**
+```text
+%dstVal, %dstIdx = pto.tpartargmin %src0Val, %src1Val, %src0Idx, %src1Idx : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> (!pto.tile<...>, !pto.tile<...>)
+```
+
+**AS Level 2 (DPS)：**
+```text
+pto.tpartargmin ins(%src0Val, %src1Val, %src0Idx, %src1Idx : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dstVal, %dstIdx : !pto.tile_buf<...>, !pto.tile_buf<...>)
+```
+
+---
+
+### TGATHERB
+
 该指令的详细介绍请见[isa/TGATHERB](../isa/tile/ops/irregular-and-complex/tgatherb_zh.md)
 
 **AS Level 1 (SSA)：**

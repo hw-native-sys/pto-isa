@@ -2,7 +2,7 @@
 
 ## 指令示意图
 
-![TPARTARGMIN tile operation](../figures/isa/TPARTARGMIN.svg)
+![TPARTARGMIN tile operation](../figures/isa/TPARTMAX.svg)
 
 ## 简介
 
@@ -26,7 +26,7 @@ $$
 
 ## 汇编语法
 
-PTO-AS 形式：参见[汇编模型](syntax-and-operands/assembly-model_zh.md)。
+PTO-AS 形式：参见 [PTO-AS 规范](../assembly/PTO-AS_zh.md)。
 
 同步形式：
 
@@ -61,29 +61,28 @@ PTO_INST RecordEvent TPARTARGMIN(TileDataDst &dstVal, TileDataSrc0 &src0Val, Til
 
 ## 约束
 
-!!! warning "约束"
-    ### 通用约束或检查
+### 通用约束或检查
 
-    - `dstVal`、`src0Val` 和 `src1Val` 的元素类型必须一致。
-    - `dstIdx`、`src0Idx` 和 `src1Idx` 的元素类型必须一致。
-    - 值类型与索引类型的组合约束：
-        - 若值类型为 `half`，则索引类型必须为 `int16_t` 或 `uint16_t`。
-        - 若值类型为 `float`，则索引类型必须为 `int32_t` 或 `uint32_t`。
-    - 每对值 Tile 和索引 Tile 的有效区域必须一致：
-        - `src0Val` 与 `src0Idx` 的有效区域必须一致。
-        - `src1Val` 与 `src1Idx` 的有效区域必须一致。
-        - `dstVal` 与 `dstIdx` 的有效区域必须一致。
-    - 目标有效区域必须与 `src0Val` 或 `src1Val` 之一的有效区域完全一致。
-    - 若 `dstVal` 的有效区域为零，指令直接返回。
-    - 对目标有效区域内的每个元素：
-        - 若两个输入都有效，则执行逐元素最小值运算，并返回较小值对应的索引；
-        - 若只有一个输入有效，则结果直接取该输入的值和索引。
-    - 上述范围之外的有效区域组合，其行为均由具体实现定义。
+- `dstVal`、`src0Val` 和 `src1Val` 的元素类型必须一致。
+- `dstIdx`、`src0Idx` 和 `src1Idx` 的元素类型必须一致。
+- 值类型与索引类型的组合约束：
+    - 若值类型为 `half`，则索引类型必须为 `int16_t` 或 `uint16_t`。
+    - 若值类型为 `float`，则索引类型必须为 `int32_t` 或 `uint32_t`。
+- 每对值 Tile 和索引 Tile 的有效区域必须一致：
+    - `src0Val` 与 `src0Idx` 的有效区域必须一致。
+    - `src1Val` 与 `src1Idx` 的有效区域必须一致。
+    - `dstVal` 与 `dstIdx` 的有效区域必须一致。
+- 目标有效区域必须与 `src0Val` 或 `src1Val` 之一的有效区域完全一致。
+- 若 `dstVal` 的有效区域为零，指令直接返回。
+- 对目标有效区域内的每个元素：
+    - 若两个输入都有效，则执行逐元素最小值运算，并返回较小值对应的索引；
+    - 若只有一个输入有效，则结果直接取该输入的值和索引。
+- 上述范围之外的有效区域组合，其行为均由具体实现定义。
 
-    ### A5 实现检查
+### A5 实现检查
 
-    - 支持的值类型：`half`、`float`。
-    - 支持的索引类型：`int16_t`、`uint16_t`、`int32_t`、`uint32_t`。
+- 支持的值类型：`half`、`float`。
+- 支持的索引类型：`int16_t`、`uint16_t`、`int32_t`、`uint32_t`。
 
 ## 示例
 

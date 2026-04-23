@@ -139,6 +139,8 @@ This page is the source-synchronized ISA index generated from `docs/isa/manifest
 | Complex | [`TPARTMUL`](isa/TPARTMUL.md) | Partial elementwise multiply with implementation-defined handling of mismatched valid regions. |
 | Complex | [`TPARTMAX`](isa/TPARTMAX.md) | Partial elementwise max with implementation-defined handling of mismatched valid regions. |
 | Complex | [`TPARTMIN`](isa/TPARTMIN.md) | Partial elementwise min with implementation-defined handling of mismatched valid regions. |
+| Complex | [`TPARTARGMAX`](isa/TPARTARGMAX.md) | Partial elementwise max selection returning corresponding index (argmax), with implementation-defined handling of mismatched valid regions. |
+| Complex | [`TPARTARGMIN`](isa/TPARTARGMIN.md) | Partial elementwise min selection returning corresponding index (argmin), with implementation-defined handling of mismatched valid regions. |
 | Complex | [`TGATHERB`](isa/TGATHERB.md) | Gather elements using byte offsets. |
 | Complex | [`TSCATTER`](isa/TSCATTER.md) | Scatter rows of a source tile into a destination tile using per-element row indices. |
 | Complex | [`TQUANT`](isa/TQUANT.md) | Quantize a tile (e.g. FP32 to FP8) producing exponent/scaling/max outputs. |

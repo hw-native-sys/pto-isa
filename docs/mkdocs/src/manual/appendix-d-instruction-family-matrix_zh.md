@@ -16,7 +16,7 @@
 | 内存（GM <-> Tile） | 6 |
 | 矩阵乘 | 8 |
 | 数据搬运 / 布局 | 12 |
-| 复杂指令 | 13 |
+| 复杂指令 | 15 |
 | 通信 | 11 |
 | 总计 | 128 |
 
@@ -147,6 +147,8 @@
 | 复杂指令 | [TPARTMUL](/docs/isa/TPARTMUL_zh.md) | `complex` | `dst, src0, src1` | `docs/isa/TPARTMUL_zh.md` |
 | 复杂指令 | [TPARTMAX](/docs/isa/TPARTMAX_zh.md) | `complex` | `dst, src0, src1` | `docs/isa/TPARTMAX_zh.md` |
 | 复杂指令 | [TPARTMIN](/docs/isa/TPARTMIN_zh.md) | `complex` | `dst, src0, src1` | `docs/isa/TPARTMIN_zh.md` |
+| 复杂指令 | [TPARTARGMAX](/docs/isa/TPARTARGMAX_zh.md) | `complex` | `dstVal, dstIdx, src0Val, src1Val, src0Idx, src1Idx` | `docs/isa/TPARTARGMAX_zh.md` |
+| 复杂指令 | [TPARTARGMIN](/docs/isa/TPARTARGMIN_zh.md) | `complex` | `dstVal, dstIdx, src0Val, src1Val, src0Idx, src1Idx` | `docs/isa/TPARTARGMIN_zh.md` |
 | 复杂指令 | [TGATHERB](/docs/isa/TGATHERB_zh.md) | `complex` | `dst, src0, src1` | `docs/isa/TGATHERB_zh.md` |
 | 复杂指令 | [TSCATTER](/docs/isa/TSCATTER_zh.md) | `complex` | `dst, src0, src1` | `docs/isa/TSCATTER_zh.md` |
 | 复杂指令 | [TQUANT](/docs/isa/TQUANT_zh.md) | `complex` | `dst, src0, src1` | `docs/isa/TQUANT_zh.md` |

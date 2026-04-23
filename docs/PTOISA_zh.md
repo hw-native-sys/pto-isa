@@ -139,6 +139,8 @@
 | 复杂指令 | [`TPARTMUL`](isa/TPARTMUL_zh.md) | 部分逐元素乘法，对有效区域不一致的处理为实现定义。 |
 | 复杂指令 | [`TPARTMAX`](isa/TPARTMAX_zh.md) | 部分逐元素最大值，对不匹配的有效区域具有实现定义的处理方式。 |
 | 复杂指令 | [`TPARTMIN`](isa/TPARTMIN_zh.md) | 部分逐元素最小值，对不匹配的有效区域具有实现定义的处理方式。 |
+| 复杂指令 | [`TPARTARGMAX`](isa/TPARTARGMAX_zh.md) | 部分逐元素最大值选择并返回对应索引（argmax），对不匹配的有效区域具有实现定义的处理方式。 |
+| 复杂指令 | [`TPARTARGMIN`](isa/TPARTARGMIN_zh.md) | 部分逐元素最小值选择并返回对应索引（argmin），对不匹配的有效区域具有实现定义的处理方式。 |
 | 复杂指令 | [`TGATHERB`](isa/TGATHERB_zh.md) | 使用字节偏移量收集元素。 |
 | 复杂指令 | [`TSCATTER`](isa/TSCATTER_zh.md) | 使用逐元素行索引将源 Tile 的行散播到目标 Tile 中。 |
 | 复杂指令 | [`TQUANT`](isa/TQUANT_zh.md) | 量化 Tile（例如 FP32 到 FP8），生成指数/缩放/最大值输出。 |

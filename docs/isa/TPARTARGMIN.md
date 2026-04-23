@@ -3,7 +3,7 @@
 
 ## Tile Operation Diagram
 
-![TPARTARGMIN tile operation](../figures/isa/TPARTARGMIN.svg)
+![TPARTARGMIN tile operation](../figures/isa/TPARTMAX.svg)
 
 ## Introduction
 
@@ -27,7 +27,7 @@ $$
 
 ## Assembly Syntax
 
-PTO-AS form: see [Assembly model](syntax-and-operands/assembly-model.md).
+PTO-AS form: see [PTO-AS Specification](../assembly/PTO-AS.md).
 
 Synchronous form:
 
@@ -62,29 +62,28 @@ PTO_INST RecordEvent TPARTARGMIN(TileDataDst &dstVal, TileDataSrc0 &src0Val, Til
 
 ## Constraints
 
-!!! warning "Constraints"
-    ### General constraints / checks
+### General constraints / checks
 
-    - `dstVal`, `src0Val`, and `src1Val` must use the same element type.
-    - `dstIdx`, `src0Idx`, and `src1Idx` must use the same element type.
-    - Value type and index type combination constraints:
-        - If the value type is `half`, the index type must be `int16_t` or `uint16_t`.
-        - If the value type is `float`, the index type must be `int32_t` or `uint32_t`.
-    - Valid regions must match between value tiles and index tiles for each pair:
-        - `src0Val` and `src0Idx` must have identical valid regions.
-        - `src1Val` and `src1Idx` must have identical valid regions.
-        - `dstVal` and `dstIdx` must have identical valid regions.
-    - The destination valid region must exactly match the valid region of either `src0Val` or `src1Val`.
-    - If `dstVal` has a zero valid region, the instruction returns early.
-    - For each element in the destination valid region:
-        - if both inputs are valid, the instruction applies the elementwise minimum and returns the index of the smaller value;
-        - if only one input is valid, the result copies that input's value and index.
-    - Handling of any validity pattern not explicitly listed above is implementation-defined.
+- `dstVal`, `src0Val`, and `src1Val` must use the same element type.
+- `dstIdx`, `src0Idx`, and `src1Idx` must use the same element type.
+- Value type and index type combination constraints:
+    - If the value type is `half`, the index type must be `int16_t` or `uint16_t`.
+    - If the value type is `float`, the index type must be `int32_t` or `uint32_t`.
+- Valid regions must match between value tiles and index tiles for each pair:
+    - `src0Val` and `src0Idx` must have identical valid regions.
+    - `src1Val` and `src1Idx` must have identical valid regions.
+    - `dstVal` and `dstIdx` must have identical valid regions.
+- The destination valid region must exactly match the valid region of either `src0Val` or `src1Val`.
+- If `dstVal` has a zero valid region, the instruction returns early.
+- For each element in the destination valid region:
+    - if both inputs are valid, the instruction applies the elementwise minimum and returns the index of the smaller value;
+    - if only one input is valid, the result copies that input's value and index.
+- Handling of any validity pattern not explicitly listed above is implementation-defined.
 
-    ### A5 implementation checks
+### A5 implementation checks
 
-    - Supported value types: `half`, `float`.
-    - Supported index types: `int16_t`, `uint16_t`, `int32_t`, `uint32_t`.
+- Supported value types: `half`, `float`.
+- Supported index types: `int16_t`, `uint16_t`, `int32_t`, `uint32_t`.
 
 ## Examples
 

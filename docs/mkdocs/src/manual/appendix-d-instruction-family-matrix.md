@@ -16,7 +16,7 @@ This appendix is generated from `docs/isa/manifest.yaml` and provides a source-s
 | Memory (GM <-> Tile) | 6 |
 | Matrix Multiply | 8 |
 | Data Movement / Layout | 12 |
-| Complex | 13 |
+| Complex | 15 |
 | Communication | 11 |
 | Total | 128 |
 
@@ -147,6 +147,8 @@ This appendix is generated from `docs/isa/manifest.yaml` and provides a source-s
 | Complex | [TPARTMUL](/docs/isa/TPARTMUL.md) | `complex` | `dst, src0, src1` | `docs/isa/TPARTMUL.md` |
 | Complex | [TPARTMAX](/docs/isa/TPARTMAX.md) | `complex` | `dst, src0, src1` | `docs/isa/TPARTMAX.md` |
 | Complex | [TPARTMIN](/docs/isa/TPARTMIN.md) | `complex` | `dst, src0, src1` | `docs/isa/TPARTMIN.md` |
+| Complex | [TPARTARGMAX](/docs/isa/TPARTARGMAX.md) | `complex` | `dstVal, dstIdx, src0Val, src1Val, src0Idx, src1Idx` | `docs/isa/TPARTARGMAX.md` |
+| Complex | [TPARTARGMIN](/docs/isa/TPARTARGMIN.md) | `complex` | `dstVal, dstIdx, src0Val, src1Val, src0Idx, src1Idx` | `docs/isa/TPARTARGMIN.md` |
 | Complex | [TGATHERB](/docs/isa/TGATHERB.md) | `complex` | `dst, src0, src1` | `docs/isa/TGATHERB.md` |
 | Complex | [TSCATTER](/docs/isa/TSCATTER.md) | `complex` | `dst, src0, src1` | `docs/isa/TSCATTER.md` |
 | Complex | [TQUANT](/docs/isa/TQUANT.md) | `complex` | `dst, src0, src1` | `docs/isa/TQUANT.md` |
