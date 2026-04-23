@@ -91,28 +91,82 @@ PTO_INTERNAL void TBinOps_2D_NoPostUpdate(__ubuf__ T *dstPtr, __ubuf__ T *src0Pt
 
 template <typename Op, typename T, unsigned ElementsPerRepeat, unsigned BlockSizeElem, unsigned DstRowStride,
           unsigned Src0RowStride = DstRowStride, unsigned Src1RowStride = DstRowStride>
-PTO_INTERNAL void TBinOps_2D_PostUpdate(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ubuf__ T *src1Ptr,
-                                        unsigned validRows, unsigned validCols)
+PTO_INTERNAL void TBinOps_2D_PostUpdate_FullRepeats(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ubuf__ T *src1Ptr,
+                                                    unsigned validRows, uint16_t fullRepeats)
 {
-    uint16_t repeatTimes = CeilDivision(validCols, ElementsPerRepeat);
-
+    const int32_t rowAdvance = static_cast<int32_t>(fullRepeats) * static_cast<int32_t>(ElementsPerRepeat);
+    const int32_t src0RowAdjust = static_cast<int32_t>(Src0RowStride) - rowAdvance;
+    const int32_t src1RowAdjust = static_cast<int32_t>(Src1RowStride) - rowAdvance;
+    const int32_t dstRowAdjust = static_cast<int32_t>(DstRowStride) - rowAdvance;
     __VEC_SCOPE__
     {
         RegTensor<T> vreg0_PU, vreg1_PU, vreg2_PU;
-        MaskReg preg;
+        MaskReg preg = PSetWithType<T>(PAT_ALL);
         constexpr auto distValue =
             std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
         for (uint16_t i = 0; i < (uint16_t)(validRows); ++i) {
-            for (uint16_t j = 0; j < (uint16_t)repeatTimes; ++j) {
-                vlds(vreg0_PU, src0Ptr, i * Src0RowStride + j * ElementsPerRepeat, NORM);
-                vlds(vreg1_PU, src1Ptr, i * Src1RowStride + j * ElementsPerRepeat, NORM);
-                uint32_t count =
-                    ((j + 1) * ElementsPerRepeat >= validCols ? validCols - j * ElementsPerRepeat : ElementsPerRepeat);
-                preg = CreatePredicate<T>(count);
+            for (uint16_t j = 0; j < (uint16_t)fullRepeats; ++j) {
+                vlds(vreg0_PU, src0Ptr, ElementsPerRepeat, NORM, POST_UPDATE);
+                vlds(vreg1_PU, src1Ptr, ElementsPerRepeat, NORM, POST_UPDATE);
                 Op::BinInstr(vreg2_PU, vreg0_PU, vreg1_PU, preg);
-                vsts(vreg2_PU, dstPtr, i * DstRowStride + j * ElementsPerRepeat, distValue, preg);
+                vsts(vreg2_PU, dstPtr, ElementsPerRepeat, distValue, preg, POST_UPDATE);
             }
+            src0Ptr += src0RowAdjust;
+            src1Ptr += src1RowAdjust;
+            dstPtr += dstRowAdjust;
         }
+    }
+}
+
+template <typename Op, typename T, unsigned ElementsPerRepeat, unsigned BlockSizeElem, unsigned DstRowStride,
+          unsigned Src0RowStride = DstRowStride, unsigned Src1RowStride = DstRowStride>
+PTO_INTERNAL void TBinOps_2D_PostUpdate_FullRepeatsTail(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ubuf__ T *src1Ptr,
+                                                        unsigned validRows, uint16_t fullRepeats, uint32_t tailCount)
+{
+    uint16_t repeatTimes = fullRepeats + 1;
+    const int32_t rowAdvance = static_cast<int32_t>(repeatTimes) * static_cast<int32_t>(ElementsPerRepeat);
+    const int32_t src0RowAdjust = static_cast<int32_t>(Src0RowStride) - rowAdvance;
+    const int32_t src1RowAdjust = static_cast<int32_t>(Src1RowStride) - rowAdvance;
+    const int32_t dstRowAdjust = static_cast<int32_t>(DstRowStride) - rowAdvance;
+    __VEC_SCOPE__
+    {
+        RegTensor<T> vreg0_PU, vreg1_PU, vreg2_PU;
+        MaskReg pregFull = PSetWithType<T>(PAT_ALL);
+        MaskReg pregTail = CreatePredicate<T>(tailCount);
+        constexpr auto distValue =
+            std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
+        for (uint16_t i = 0; i < (uint16_t)(validRows); ++i) {
+            for (uint16_t j = 0; j < (uint16_t)fullRepeats; ++j) {
+                vlds(vreg0_PU, src0Ptr, ElementsPerRepeat, NORM, POST_UPDATE);
+                vlds(vreg1_PU, src1Ptr, ElementsPerRepeat, NORM, POST_UPDATE);
+                Op::BinInstr(vreg2_PU, vreg0_PU, vreg1_PU, pregFull);
+                vsts(vreg2_PU, dstPtr, ElementsPerRepeat, distValue, pregFull, POST_UPDATE);
+            }
+            vlds(vreg0_PU, src0Ptr, ElementsPerRepeat, NORM, POST_UPDATE);
+            vlds(vreg1_PU, src1Ptr, ElementsPerRepeat, NORM, POST_UPDATE);
+            Op::BinInstr(vreg2_PU, vreg0_PU, vreg1_PU, pregTail);
+            vsts(vreg2_PU, dstPtr, ElementsPerRepeat, distValue, pregTail, POST_UPDATE);
+            src0Ptr += src0RowAdjust;
+            src1Ptr += src1RowAdjust;
+            dstPtr += dstRowAdjust;
+        }
+    }
+}
+
+template <typename Op, typename T, unsigned ElementsPerRepeat, unsigned BlockSizeElem, unsigned DstRowStride,
+          unsigned Src0RowStride = DstRowStride, unsigned Src1RowStride = DstRowStride>
+PTO_INTERNAL void TBinOps_2D_PostUpdate(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ubuf__ T *src1Ptr,
+                                        unsigned validRows, unsigned validCols)
+{
+    uint16_t fullRepeats = validCols / ElementsPerRepeat;
+    uint32_t tailCount = validCols - fullRepeats * ElementsPerRepeat;
+    if (tailCount == 0) {
+        TBinOps_2D_PostUpdate_FullRepeats<Op, T, ElementsPerRepeat, BlockSizeElem, DstRowStride, Src0RowStride,
+                                          Src1RowStride>(dstPtr, src0Ptr, src1Ptr, validRows, fullRepeats);
+    } else {
+        TBinOps_2D_PostUpdate_FullRepeatsTail<Op, T, ElementsPerRepeat, BlockSizeElem, DstRowStride, Src0RowStride,
+                                              Src1RowStride>(dstPtr, src0Ptr, src1Ptr, validRows, fullRepeats,
+                                                             tailCount);
     }
 }
 
