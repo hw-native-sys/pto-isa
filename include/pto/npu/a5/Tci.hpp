@@ -69,7 +69,7 @@ __tf__ AICORE void Tci_b32(typename TileData::TileDType __out__ dst, typename Ti
                 vci(index, t);
                 uint32_t count = (i + 1) * batch_size > validCol ? (validCol - i * batch_size) : batch_size;
                 preg = CreatePredicate<Tdst>(count);
-                vsts(index, dstPtr, (i * batch_size), NORM_B32, preg);
+                vsts(index, (__ubuf__ int32_t *)dstPtr, (i * batch_size), NORM_B32, preg);
                 t = t + 64;
             }
         }
@@ -83,7 +83,7 @@ __tf__ AICORE void Tci_b32(typename TileData::TileDType __out__ dst, typename Ti
                 preg = CreatePredicate<Tdst>(count);
                 vmuls(index, index, -1, preg);
                 vadds(index, index, t, preg);
-                vsts(index, dstPtr, (i * batch_size), NORM_B32, preg);
+                vsts(index, (__ubuf__ int32_t *)dstPtr, (i * batch_size), NORM_B32, preg);
                 t = t - 64;
             }
         }
@@ -135,7 +135,8 @@ PTO_INTERNAL void TCI_IMPL(TileData &dst, T start, TileDataTmp &tmp)
 {
     CheckValid<TileData, T>();
     unsigned validCol = dst.GetValidCol();
-    if constexpr (std::is_same_v<typename TileData::DType, int32_t>) {
+    if constexpr (std::is_same_v<typename TileData::DType, int32_t> ||
+                  std::is_same_v<typename TileData::DType, uint32_t>) {
         Tci_b32<TileData, TileDataTmp, T, descending>(dst.data(), tmp.data(), start, validCol);
     } else {
         Tci_b16<TileData, TileDataTmp, T, descending>(dst.data(), tmp.data(), start, validCol);
