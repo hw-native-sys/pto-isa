@@ -84,7 +84,6 @@ tgatherb
 tget
 tget_async
 tget_scale_addr
-tgetscaleaddr
 thistogram
 timg2col
 tinsert
@@ -159,6 +158,7 @@ tsubc
 tsubrelu
 tsubs
 tsubsc
+tsubview
 ttest
 ttrans
 ttrans_conv
@@ -167,9 +167,6 @@ ttrace
 twait
 txor
 txors
-tget_async
-tput_async
-tsubview
 )
 
 foreach(TESTCASE ${ALL_TESTCASES})
