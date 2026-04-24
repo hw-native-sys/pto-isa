@@ -106,6 +106,8 @@ struct HcclDeviceContext {
 typedef int event_t;
 #define EVENT_ID0 0
 
+#define F16_MAX 65504.0f
+
 namespace pto::cpu_sim {
 using SetExecutionContextHookFn = void (*)(uint32_t block_idx, uint32_t subblock_id, uint32_t subblock_dim);
 using GetExecutionContextHookFn = void (*)(uint32_t *block_idx, uint32_t *subblock_id, uint32_t *subblock_dim);

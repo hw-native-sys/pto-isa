@@ -12,27 +12,30 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define TEXTRACT_HPP
 
 #include <cassert>
+#include <cmath>
+
+#include "common.hpp"
 
 namespace pto {
 
-template <typename DstTileData, typename SrcTileData>
+template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode = ReluPreMode::NoRelu>
 PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, uint32_t idxRow = 0, uint32_t idxCol = 0)
 {
+    using D = typename DstTileData::DType;
+    using S = typename SrcTileData::DType;
     assert(src.GetValidRow() - idxRow == dst.GetValidRow() && src.GetValidCol() - idxCol == dst.GetValidCol());
+
     for (size_t rDst = 0; rDst < dst.GetValidRow(); ++rDst) {
         for (size_t cDst = 0; cDst < dst.GetValidCol(); ++cDst) {
             const size_t srcTileIdx = GetTileElementOffset<SrcTileData>(rDst + idxRow, cDst + idxCol);
             const size_t dstTileIdx = GetTileElementOffset<DstTileData>(rDst, cDst);
-            dst.data()[dstTileIdx] = src.data()[srcTileIdx];
+            S data = src.data()[srcTileIdx];
+            if constexpr (reluMode == ReluPreMode::NormalRelu) {
+                data = ReLU(data);
+            }
+            dst.data()[dstTileIdx] = static_cast<D>(data);
         }
     }
-}
-
-template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode>
-PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, uint32_t idxRow = 0, uint32_t idxCol = 0)
-{
-    (void)reluMode;
-    TEXTRACT_IMPL(dst, src, idxRow, idxCol);
 }
 
 template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode>
@@ -40,8 +43,7 @@ PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, uint64_t pre
                                 uint32_t idxCol = 0)
 {
     (void)preQuantScalar;
-    (void)reluMode;
-    TEXTRACT_IMPL(dst, src, idxRow, idxCol);
+    TEXTRACT_IMPL<DstTileData, SrcTileData, reluMode>(dst, src, idxRow, idxCol);
 }
 
 template <typename DstTileData, typename SrcTileData, typename FpTileData, ReluPreMode reluMode>
@@ -49,34 +51,32 @@ PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, FpTileData &
                                 uint32_t idxCol = 0)
 {
     (void)fp;
-    (void)reluMode;
-    TEXTRACT_IMPL(dst, src, idxRow, idxCol);
+    TEXTRACT_IMPL<DstTileData, SrcTileData, reluMode>(dst, src, idxRow, idxCol);
 }
 
-template <auto mode, typename DstTileData, typename SrcTileData>
+template <typename DstTileData, typename SrcTileData, AccToVecMode mode, ReluPreMode reluMode>
 PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, uint32_t idxRow = 0, uint32_t idxCol = 0)
 {
     (void)mode;
-    TEXTRACT_IMPL(dst, src, idxRow, idxCol);
+    TEXTRACT_IMPL<DstTileData, SrcTileData, reluMode>(dst, src, idxRow, idxCol);
 }
 
-template <auto mode, typename DstTileData, typename SrcTileData>
+template <typename DstTileData, typename SrcTileData, AccToVecMode mode, ReluPreMode reluMode>
 PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, uint64_t preQuantScalar, uint32_t idxRow = 0,
                                 uint32_t idxCol = 0)
 {
-    (void)mode;
     (void)preQuantScalar;
-    TEXTRACT_IMPL(dst, src, idxRow, idxCol);
+    (void)mode;
+    TEXTRACT_IMPL<DstTileData, SrcTileData, reluMode>(dst, src, idxRow, idxCol);
 }
 
-template <typename DstTileData, typename SrcTileData, typename FpTileData, auto mode, ReluPreMode reluMode>
+template <typename DstTileData, typename SrcTileData, typename FpTileData, AccToVecMode mode, ReluPreMode reluMode>
 PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, FpTileData &fp, uint32_t idxRow = 0,
                                 uint32_t idxCol = 0)
 {
     (void)mode;
     (void)fp;
-    (void)reluMode;
-    TEXTRACT_IMPL(dst, src, idxRow, idxCol);
+    TEXTRACT_IMPL<DstTileData, SrcTileData, reluMode>(dst, src, idxRow, idxCol);
 }
 
 } // namespace pto
