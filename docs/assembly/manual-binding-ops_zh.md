@@ -26,56 +26,56 @@ pto.tassign ins(%tile, %addr : !pto.tile_buf<...>, dtype)
 
 ---
 
-### TSETFMATRIX
+### SETFMATRIX
 
-该指令的详细介绍请见[isa/TSETFMATRIX](../isa/TSETFMATRIX_zh.md)
+该指令的详细介绍请见[isa/SETFMATRIX](../isa/SETFMATRIX_zh.md)
 
 **AS Level 1 (SSA)：**
 
 ```text
-pto.tsetfmatrix %cfg : !pto.fmatrix_config -> ()
+pto.SETFMATRIX %cfg : !pto.fmatrix_config -> ()
 ```
 
 **AS Level 2 (DPS)：**
 
 ```text
-pto.tsetfmatrix ins(%cfg : !pto.fmatrix_config) outs()
+pto.SETFMATRIX ins(%cfg : !pto.fmatrix_config) outs()
 ```
 
 ---
 
-### TSET_IMG2COL_RPT
+### SET_IMG2COL_RPT
 
-该指令的详细介绍请见[isa/TSET_IMG2COL_RPT](../isa/TSET_IMG2COL_RPT_zh.md)
+该指令的详细介绍请见[isa/SET_IMG2COL_RPT](../isa/SET_IMG2COL_RPT_zh.md)
 
 **AS Level 1 (SSA)：**
 
 ```text
-pto.tset_img2col_rpt %cfg : !pto.fmatrix_config -> ()
+pto.SET_IMG2COL_RPT %cfg : !pto.fmatrix_config -> ()
 ```
 
 **AS Level 2 (DPS)：**
 
 ```text
-pto.tset_img2col_rpt ins(%cfg : !pto.fmatrix_config) outs()
+pto.SET_IMG2COL_RPT ins(%cfg : !pto.fmatrix_config) outs()
 ```
 
 ---
 
-### TSET_IMG2COL_PADDING
+### SET_IMG2COL_PADDING
 
-该指令的详细介绍请见[isa/TSET_IMG2COL_PADDING](../isa/TSET_IMG2COL_PADDING_zh.md)
+该指令的详细介绍请见[isa/SET_IMG2COL_PADDING](../isa/SET_IMG2COL_PADDING_zh.md)
 
 **AS Level 1 (SSA)：**
 
 ```text
-pto.tset_img2col_padding %cfg : !pto.fmatrix_config -> ()
+pto.SET_IMG2COL_PADDING %cfg : !pto.fmatrix_config -> ()
 ```
 
 **AS Level 2 (DPS)：**
 
 ```text
-pto.tset_img2col_padding ins(%cfg : !pto.fmatrix_config) outs()
+pto.SET_IMG2COL_PADDING ins(%cfg : !pto.fmatrix_config) outs()
 ```
 
 ---

@@ -9,8 +9,8 @@ Sync-and-config operations manage tile-visible state: resource binding, event se
 | [pto.tassign](./ops/sync-and-config/tassign.md) | Bind tile register to a UB address | Resource | `TASSIGN(tile, addr)` |
 | [pto.tsync](./ops/sync-and-config/tsync.md) | Synchronize execution, wait on events, insert barrier | Sync | `TSYNC(events...)` |
 | [pto.tsettf32mode](./ops/sync-and-config/tsettf32mode.md) | Set TF32 computation mode | Config | `TSETTF32MODE(mode)` |
-| [pto.tset_img2col_rpt](./ops/sync-and-config/tset-img2col-rpt.md) | Set img2col repetition count | Config | `TSET_IMG2COL_RPT(rpt)` |
-| [pto.tset_img2col_padding](./ops/sync-and-config/tset-img2col-padding.md) | Set img2col padding configuration | Config | `TSET_IMG2COL_PADDING(pad)` |
+| [pto.tset_img2col_rpt](./ops/sync-and-config/tset-img2col-rpt.md) | Set img2col repetition count | Config | `SET_IMG2COL_RPT(rpt)` |
+| [pto.tset_img2col_padding](./ops/sync-and-config/tset-img2col-padding.md) | Set img2col padding configuration | Config | `SET_IMG2COL_PADDING(pad)` |
 | [pto.tsubview](./ops/sync-and-config/tsubview.md) | Create a sub-view of a tile | View | `TSUBVIEW(tile, offsets, shape)` |
 | [pto.tget_scale_addr](./ops/sync-and-config/tget-scale-addr.md) | Get scale address for quantized matmul | Config | `TGET_SCALE_ADDR(tile)` |
 

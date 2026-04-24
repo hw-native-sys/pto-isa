@@ -114,9 +114,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a2a3/TPartArgOp.hpp"
 #include "pto/npu/a2a3/TPow.hpp"
 #include "pto/npu/a2a3/TImg2col.hpp"
-#include "pto/npu/a2a3/TSetFmatrix.hpp"
-#include "pto/npu/a2a3/TSetImg2colRpt.hpp"
-#include "pto/npu/a2a3/TSetImg2colPadding.hpp"
+#include "pto/npu/a2a3/SetFmatrix.hpp"
+#include "pto/npu/a2a3/SetImg2colRpt.hpp"
+#include "pto/npu/a2a3/SetImg2colPadding.hpp"
 #include "pto/npu/a2a3/TSubView.hpp"
 #ifdef _DEBUG
 #include "pto/npu/a2a3/TPrint.hpp"
@@ -237,9 +237,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TQuant.hpp"
 #include "pto/npu/a5/TDeQuant.hpp"
 #include "pto/npu/a5/TImg2col.hpp"
-#include "pto/npu/a5/TSetFmatrix.hpp"
-#include "pto/npu/a5/TSetImg2colRpt.hpp"
-#include "pto/npu/a5/TSetImg2colPadding.hpp"
+#include "pto/npu/a5/SetFmatrix.hpp"
+#include "pto/npu/a5/SetImg2colRpt.hpp"
+#include "pto/npu/a5/SetImg2colPadding.hpp"
 
 #include "pto/npu/a5/THistogram.hpp"
 #ifdef _DEBUG
@@ -340,9 +340,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include "pto/cpu/TPrint.hpp"
 #include "pto/cpu/TRandom.hpp"
-#include "pto/cpu/TSetFmatrix.hpp"
-#include "pto/cpu/TSetImg2colRpt.hpp"
-#include "pto/cpu/TSetImg2colPadding.hpp"
+#include "pto/cpu/SetFmatrix.hpp"
+#include "pto/cpu/SetImg2colRpt.hpp"
+#include "pto/cpu/SetImg2colPadding.hpp"
 #include "pto/cpu/TImg2col.hpp"
 #include "pto/cpu/THistogram.hpp"
 #include "pto/cpu/TQuant.hpp"

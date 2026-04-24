@@ -1,12 +1,12 @@
-# TSET_IMG2COL_PADDING
+# SET_IMG2COL_PADDING
 
 ## 指令示意图
 
-![TSET_IMG2COL_PADDING tile operation](../../../../figures/isa/TSET_IMG2COL_PADDING.svg)
+![SET_IMG2COL_PADDING tile operation](../../../../figures/isa/SET_IMG2COL_PADDING.svg)
 
 ## 简介
 
-`TSET_IMG2COL_PADDING` 把 `Img2colTileConfig` 里的 pad value 写入 IMG2COL 相关 padding 配置寄存器，供后续 `TIMG2COL` 一类操作在边界补值时使用。
+`SET_IMG2COL_PADDING` 把 `Img2colTileConfig` 里的 pad value 写入 IMG2COL 相关 padding 配置寄存器，供后续 `TIMG2COL` 一类操作在边界补值时使用。
 
 它解决的问题不是“pad 多大”，而是“边界外应该补什么值”。
 
@@ -50,10 +50,10 @@ pto.tset_img2col_padding ins(%cfg : !pto.fmatrix_config) outs()
 
 ```cpp
 template <typename ConvTileData, typename... WaitEvents>
-PTO_INST RecordEvent TSET_IMG2COL_PADDING(ConvTileData &src, WaitEvents &... events);
+PTO_INST RecordEvent SET_IMG2COL_PADDING(ConvTileData &src, WaitEvents &... events);
 
 template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL, typename... WaitEvents>
-PTO_INST RecordEvent TSET_IMG2COL_PADDING(ConvTileData &src, WaitEvents &... events);
+PTO_INST RecordEvent SET_IMG2COL_PADDING(ConvTileData &src, WaitEvents &... events);
 ```
 
 ## 约束
@@ -87,12 +87,12 @@ PTO_INST RecordEvent TSET_IMG2COL_PADDING(ConvTileData &src, WaitEvents &... eve
 using namespace pto;
 
 void example_set_img2col_padding(Img2colTileConfig<uint16_t>& cfg) {
-  TSET_IMG2COL_PADDING(cfg);
+  SET_IMG2COL_PADDING(cfg);
 }
 ```
 
 ## 相关页面
 
-- [TSETFMATRIX](../../../scalar/ops/control-and-configuration/tsetfmatrix_zh.md)
-- [TSET_IMG2COL_RPT](./tset-img2col-rpt_zh.md)
+- [SETFMATRIX](../../../scalar/ops/control-and-configuration/tsetfmatrix_zh.md)
+- [SET_IMG2COL_RPT](./tset-img2col-rpt_zh.md)
 - [TIMG2COL](../layout-and-rearrangement/timg2col_zh.md)

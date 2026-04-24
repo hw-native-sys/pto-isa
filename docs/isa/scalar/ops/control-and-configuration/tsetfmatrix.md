@@ -71,7 +71,7 @@ Declared in `include/pto/common/pto_instr.hpp`:
 
 ```cpp
 template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL, typename... WaitEvents>
-PTO_INST RecordEvent TSETFMATRIX(ConvTileData &src, WaitEvents&... events);
+PTO_INST RecordEvent SETFMATRIX(ConvTileData &src, WaitEvents&... events);
 ```
 
 ## Related Ops / Instruction Set Links

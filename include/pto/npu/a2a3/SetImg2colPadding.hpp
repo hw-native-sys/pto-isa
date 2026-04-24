@@ -8,12 +8,12 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-#ifndef TSET_IMG2COL_PADDING_HPP
-#define TSET_IMG2COL_PADDING_HPP
+#ifndef SET_IMG2COL_PADDING_HPP
+#define SET_IMG2COL_PADDING_HPP
 
 namespace pto {
 template <typename ConvTileData>
-PTO_INTERNAL void TSET_IMG2COL_PADDING_IMPL(ConvTileData &src)
+PTO_INTERNAL void SET_IMG2COL_PADDING_IMPL(ConvTileData &src)
 {
     using DataType = typename ConvTileData::DType;
     const DataType dataValue = src.GetPadValue();
@@ -30,4 +30,4 @@ PTO_INTERNAL void TSET_IMG2COL_PADDING_IMPL(ConvTileData &src)
     set_padding(paddingValue);
 }
 } // namespace pto
-#endif // TSET_IMG2COL_PADDING_HPP
+#endif // SET_IMG2COL_PADDING_HPP

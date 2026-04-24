@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-label="TSET_IMG2COL_PADDING tile operation diagram">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-label="SET_IMG2COL_PADDING tile operation diagram">
 <defs>
-  <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0,0 L0,12 L12,6 z" fill="#4C8A25"/></marker>
-  <marker id="axisArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L0,10 L10,5 z" fill="#64748b"/></marker>
+  <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#4C8A25"/></marker>
+  <marker id="axisArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#64748b"/></marker>
 </defs>
 <style>
 svg { font-family: Arial, Helvetica, sans-serif; }
@@ -16,7 +16,7 @@ svg { font-family: Arial, Helvetica, sans-serif; }
 .cellMasked { fill: #e2e8f0; }
 .cellHL { stroke-width: 2; }
 .cellText { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 10px; fill: #0f172a; }
-.arrow { stroke-width: 2.5; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.arrow { stroke-width: 1.5; fill: none; stroke-linejoin: round; stroke-linecap: round; }
 .axisLine { stroke: #64748b; stroke-width: 1.5; fill: none; }
 .axisText { font-size: 10px; fill: #64748b; font-weight: 700; }
 .opCircle { fill: #ffffff; stroke-width: 2; }
@@ -32,7 +32,7 @@ svg { font-family: Arial, Helvetica, sans-serif; }
 </style>
 <rect x="0" y="0" width="1200" height="720" class="frame" />
 <rect x="24" y="24" width="1152" height="672" class="panel" />
-<text x="40" y="46" class="title">TSET_IMG2COL_PADDING</text>
+<text x="40" y="46" class="title">SET_IMG2COL_PADDING</text>
 <text x="40" y="72" class="subtitle">Set IMG2COL padding metadata from an IMG2COL configuration tile.</text>
 <text x="40" y="92" class="meta">Template: config</text>
 <text x="1160" y="92" class="meta" text-anchor="end">Legend: outline=example; dashed=valid rows/cols (Rv,Cv); shaded=masked; r down / c right; ortho arrows=dataflow</text>
@@ -51,7 +51,7 @@ svg { font-family: Arial, Helvetica, sans-serif; }
 <rect x="40" y="502" width="1120" height="194" class="procBox" />
 <text x="56" y="528" class="procTitle">Procedure (conceptual)</text>
 <text x="56" y="554" class="procText" xml:space="preserve">
-  <tspan x="56" dy="0">TSET_IMG2COL_PADDING(enable/mode, ...waitEvents)</tspan>
+  <tspan x="56" dy="0">SET_IMG2COL_PADDING(enable/mode, ...waitEvents)</tspan>
   <tspan x="56" dy="16">1) Update backend transform/rounding mode (implementation-defined).</tspan>
   <tspan x="56" dy="16">2) Ordering: update takes effect before dependent ops.</tspan>
   <tspan x="56" dy="16">3) Affects subsequent GEMV/MATMUL or conversion paths (if applicable).</tspan>

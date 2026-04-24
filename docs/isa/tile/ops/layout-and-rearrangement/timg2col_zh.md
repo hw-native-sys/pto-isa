@@ -120,6 +120,6 @@ void example(LeftTile& dst, ConvTile& src) {
 
 ## 相关页面
 
-- [TSETFMATRIX](../../../scalar/ops/control-and-configuration/tsetfmatrix_zh.md)
-- [TSET_IMG2COL_RPT](../sync-and-config/tset-img2col-rpt_zh.md)
-- [TSET_IMG2COL_PADDING](../sync-and-config/tset-img2col-padding_zh.md)
+- [SETFMATRIX](../../../scalar/ops/control-and-configuration/tsetfmatrix_zh.md)
+- [SET_IMG2COL_RPT](../sync-and-config/tset-img2col-rpt_zh.md)
+- [SET_IMG2COL_PADDING](../sync-and-config/tset-img2col-padding_zh.md)

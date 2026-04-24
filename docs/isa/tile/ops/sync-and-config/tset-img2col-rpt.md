@@ -52,10 +52,10 @@ Declared in `include/pto/common/pto_instr.hpp`:
 
 ```cpp
 template <typename ConvTileData, typename... WaitEvents>
-PTO_INST RecordEvent TSET_IMG2COL_RPT(ConvTileData &src, WaitEvents &... events);
+PTO_INST RecordEvent SET_IMG2COL_RPT(ConvTileData &src, WaitEvents &... events);
 
 template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL, typename... WaitEvents>
-PTO_INST RecordEvent TSET_IMG2COL_RPT(ConvTileData &src, WaitEvents &... events);
+PTO_INST RecordEvent SET_IMG2COL_RPT(ConvTileData &src, WaitEvents &... events);
 ```
 
 For `MEMORY_BASE` targets, an overload without `SetFmatrixMode` is also provided.
@@ -101,7 +101,7 @@ This operation may establish a synchronization edge, bind or configure architect
 using namespace pto;
 
 void example_set_img2col_rpt(Img2colTileConfig<uint64_t>& cfg) {
-  TSET_IMG2COL_RPT(cfg);
+  SET_IMG2COL_RPT(cfg);
 }
 ```
 

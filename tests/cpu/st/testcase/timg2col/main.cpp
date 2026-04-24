@@ -111,9 +111,9 @@ TEST(TImg2colCpuSimTest, ManualMetadataPathMatchesReferenceWithPadding)
     src.SetRepeatMode(0);
     src.SetDstStride(1);
 
-    TSETFMATRIX<SrcTile, SetFmatrixMode::FMATRIX_B_MANUAL>(src);
-    TSET_IMG2COL_PADDING<SrcTile, SetFmatrixMode::FMATRIX_B_MANUAL>(src);
-    TSET_IMG2COL_RPT<SrcTile, SetFmatrixMode::FMATRIX_B_MANUAL>(src);
+    SETFMATRIX<SrcTile, SetFmatrixMode::FMATRIX_B_MANUAL>(src);
+    SET_IMG2COL_PADDING<SrcTile, SetFmatrixMode::FMATRIX_B_MANUAL>(src);
+    SET_IMG2COL_RPT<SrcTile, SetFmatrixMode::FMATRIX_B_MANUAL>(src);
     TIMG2COL<DstTile, SrcTile, SetFmatrixMode::FMATRIX_B_MANUAL>(dst, src, 1, 8);
 
     const auto expected = BuildExpected<DstTile>(src, 1, 8);
@@ -156,9 +156,9 @@ TEST(TImg2colCpuSimTest, AutoMetadataPathMatchesReferenceForSplitKChunk)
     src.SetRepeatMode(0);
     src.SetDstStride(1);
 
-    TSETFMATRIX<SrcTile, SetFmatrixMode::FMATRIX_B_AUTO>(src);
-    TSET_IMG2COL_PADDING<SrcTile, SetFmatrixMode::FMATRIX_B_AUTO>(src);
-    TSET_IMG2COL_RPT<SrcTile, SetFmatrixMode::FMATRIX_B_AUTO>(src);
+    SETFMATRIX<SrcTile, SetFmatrixMode::FMATRIX_B_AUTO>(src);
+    SET_IMG2COL_PADDING<SrcTile, SetFmatrixMode::FMATRIX_B_AUTO>(src);
+    SET_IMG2COL_RPT<SrcTile, SetFmatrixMode::FMATRIX_B_AUTO>(src);
     TIMG2COL<DstTile, SrcTile, SetFmatrixMode::FMATRIX_B_AUTO>(dst, src, 0, 32);
 
     const auto expected = BuildExpected<DstTile>(src, 0, 32);

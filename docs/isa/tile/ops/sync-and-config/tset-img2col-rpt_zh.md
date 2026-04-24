@@ -1,14 +1,14 @@
-# TSET_IMG2COL_RPT
+# SET_IMG2COL_RPT
 
 ## 指令示意图
 
-![TSET_IMG2COL_RPT tile operation](../../../../figures/isa/TSET_IMG2COL_RPT.svg)
+![SET_IMG2COL_RPT tile operation](../../../../figures/isa/SET_IMG2COL_RPT.svg)
 
 ## 简介
 
-`TSET_IMG2COL_RPT` 把 `Img2colTileConfig` 里的重复控制字段写入 IMG2COL 相关寄存器，供后续 `TIMG2COL` 一类操作使用。
+`SET_IMG2COL_RPT` 把 `Img2colTileConfig` 里的重复控制字段写入 IMG2COL 相关寄存器，供后续 `TIMG2COL` 一类操作使用。
 
-如果 `TSETFMATRIX` 负责写“输入特征图几何信息”，那么这条指令负责写“IMG2COL 应该按什么重复方式工作”。
+如果 `SETFMATRIX` 负责写“输入特征图几何信息”，那么这条指令负责写“IMG2COL 应该按什么重复方式工作”。
 
 ## 机制
 
@@ -59,10 +59,10 @@ pto.tset_img2col_rpt ins(%cfg : !pto.fmatrix_config) outs()
 
 ```cpp
 template <typename ConvTileData, typename... WaitEvents>
-PTO_INST RecordEvent TSET_IMG2COL_RPT(ConvTileData &src, WaitEvents &... events);
+PTO_INST RecordEvent SET_IMG2COL_RPT(ConvTileData &src, WaitEvents &... events);
 
 template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL, typename... WaitEvents>
-PTO_INST RecordEvent TSET_IMG2COL_RPT(ConvTileData &src, WaitEvents &... events);
+PTO_INST RecordEvent SET_IMG2COL_RPT(ConvTileData &src, WaitEvents &... events);
 ```
 
 ## 约束
@@ -102,12 +102,12 @@ PTO_INST RecordEvent TSET_IMG2COL_RPT(ConvTileData &src, WaitEvents &... events)
 using namespace pto;
 
 void example_set_img2col_rpt(Img2colTileConfig<uint16_t>& cfg) {
-  TSET_IMG2COL_RPT(cfg);
+  SET_IMG2COL_RPT(cfg);
 }
 ```
 
 ## 相关页面
 
-- [TSETFMATRIX](../../../scalar/ops/control-and-configuration/tsetfmatrix_zh.md)
-- [TSET_IMG2COL_PADDING](./tset-img2col-padding_zh.md)
+- [SETFMATRIX](../../../scalar/ops/control-and-configuration/tsetfmatrix_zh.md)
+- [SET_IMG2COL_PADDING](./tset-img2col-padding_zh.md)
 - [TIMG2COL](../layout-and-rearrangement/timg2col_zh.md)

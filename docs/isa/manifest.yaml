@@ -49,7 +49,7 @@
       "notes": []
     },
     {
-      "instruction": "TSETFMATRIX",
+      "instruction": "SETFMATRIX",
       "category": "Manual / Resource Binding",
       "summary_en": "Set FMATRIX register(s) for IMG2COL-like ops.",
       "summary_zh": "为类 IMG2COL 操作设置 FMATRIX 寄存器。",
@@ -61,7 +61,7 @@
       "notes": []
     },
     {
-      "instruction": "TSET_IMG2COL_RPT",
+      "instruction": "SET_IMG2COL_RPT",
       "category": "Manual / Resource Binding",
       "summary_en": "Set IMG2COL repeat metadata from an IMG2COL configuration tile.",
       "summary_zh": "从 IMG2COL 配置 Tile 设置 IMG2COL 重复次数元数据。",
@@ -73,7 +73,7 @@
       "notes": []
     },
     {
-      "instruction": "TSET_IMG2COL_PADDING",
+      "instruction": "SET_IMG2COL_PADDING",
       "category": "Manual / Resource Binding",
       "summary_en": "Set IMG2COL padding metadata from an IMG2COL configuration tile.",
       "summary_zh": "从 IMG2COL 配置 Tile 设置 IMG2COL 填充元数据。",

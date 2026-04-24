@@ -20,9 +20,9 @@
 | --- | --- | --- |
 | 同步 | [`TSYNC`](isa/TSYNC_zh.md) | 同步 PTO 执行（等待事件或插入每操作流水线屏障）。 |
 | 手动 / 资源绑定 | [`TASSIGN`](isa/TASSIGN_zh.md) | 将 Tile 对象绑定到实现定义的片上地址（手动放置）。 |
-| 手动 / 资源绑定 | [`TSETFMATRIX`](isa/TSETFMATRIX_zh.md) | 为类 IMG2COL 操作设置 FMATRIX 寄存器。 |
-| 手动 / 资源绑定 | [`TSET_IMG2COL_RPT`](isa/TSET_IMG2COL_RPT_zh.md) | 从 IMG2COL 配置 Tile 设置 IMG2COL 重复次数元数据。 |
-| 手动 / 资源绑定 | [`TSET_IMG2COL_PADDING`](isa/TSET_IMG2COL_PADDING_zh.md) | 从 IMG2COL 配置 Tile 设置 IMG2COL 填充元数据。 |
+| 手动 / 资源绑定 | [`SETFMATRIX`](isa/SETFMATRIX_zh.md) | 为类 IMG2COL 操作设置 FMATRIX 寄存器。 |
+| 手动 / 资源绑定 | [`SET_IMG2COL_RPT`](isa/SET_IMG2COL_RPT_zh.md) | 从 IMG2COL 配置 Tile 设置 IMG2COL 重复次数元数据。 |
+| 手动 / 资源绑定 | [`SET_IMG2COL_PADDING`](isa/SET_IMG2COL_PADDING_zh.md) | 从 IMG2COL 配置 Tile 设置 IMG2COL 填充元数据。 |
 | 逐元素（Tile-Tile） | [`TADD`](isa/TADD_zh.md) | 两个 Tile 的逐元素加法。 |
 | 逐元素（Tile-Tile） | [`TABS`](isa/TABS_zh.md) | Tile 的逐元素绝对值。 |
 | 逐元素（Tile-Tile） | [`TAND`](isa/TAND_zh.md) | 两个 Tile 的逐元素按位与。 |
