@@ -171,8 +171,6 @@ bool RunScatterKernel(int rank_id, int n_ranks, int n_devices, int first_device_
         T expected = static_cast<T>(i + rank_id * 10000);
         T actual = dst_host[i];
         if (actual != expected) {
-            std::cout << "Rank " << rank_id << " validation failed at index " << i << ": expected " << (float)expected
-                      << ", got " << (float)actual << std::endl;
             is_ok = false;
             break;
         }
@@ -493,9 +491,6 @@ bool RunScatterLargeShapeKernel(int rank_id, int n_ranks, int n_devices, int fir
         T expected = static_cast<T>(i + rank_id * 100);
         T actual = dst_host[i];
         if (actual != expected) {
-            std::cout << "Rank " << rank_id << " validation failed at index " << i << " (row=" << (i / cols)
-                      << ", col=" << (i % cols) << ")"
-                      << ": expected " << (float)expected << ", got " << (float)actual << std::endl;
             is_ok = false;
             break;
         }
@@ -680,9 +675,6 @@ bool RunScatterPingPongKernel(int rank_id, int n_ranks, int n_devices, int first
         T expected = static_cast<T>(i + rank_id * 100);
         T actual = dst_host[i];
         if (actual != expected) {
-            std::cout << "Rank " << rank_id << " validation failed at index " << i << " (row=" << (i / cols)
-                      << ", col=" << (i % cols) << ")"
-                      << ": expected " << (float)expected << ", got " << (float)actual << std::endl;
             is_ok = false;
             break;
         }
