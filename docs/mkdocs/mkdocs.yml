@@ -94,9 +94,9 @@ nav:
           - TSYNC: docs/isa/TSYNC.md
       - Manual / Resource Binding:
           - TASSIGN: docs/isa/TASSIGN.md
-          - TSETFMATRIX: docs/isa/TSETFMATRIX.md
-          - TSET_IMG2COL_RPT: docs/isa/TSET_IMG2COL_RPT.md
-          - TSET_IMG2COL_PADDING: docs/isa/TSET_IMG2COL_PADDING.md
+          - SETFMATRIX: docs/isa/SETFMATRIX.md
+          - SET_IMG2COL_RPT: docs/isa/SET_IMG2COL_RPT.md
+          - SET_IMG2COL_PADDING: docs/isa/SET_IMG2COL_PADDING.md
       - Elementwise (Tile-Tile):
           - TADD: docs/isa/TADD.md
           - TABS: docs/isa/TABS.md

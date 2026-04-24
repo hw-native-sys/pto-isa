@@ -761,56 +761,47 @@ PTO_INST RecordEvent TIMG2COL(TileData &dst, ConvTileData &src, uint16_t posM = 
 }
 
 template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL, typename... WaitEvents>
-PTO_INST RecordEvent TSETFMATRIX(ConvTileData &src, WaitEvents &... events)
+PTO_INST RecordEvent SETFMATRIX(ConvTileData &src, WaitEvents &... events)
 {
     TSYNC(events...);
-    TSETFMATRIX_IMPL<ConvTileData, FmatrixMode>(src);
+    SETFMATRIX_IMPL<ConvTileData, FmatrixMode>(src);
     return {};
 }
 
 #ifdef PTO_NPU_ARCH_A2A3
 template <typename ConvTileData, typename... WaitEvents>
-PTO_INST RecordEvent TSET_IMG2COL_RPT(ConvTileData &src, WaitEvents &... events)
+PTO_INST RecordEvent SET_IMG2COL_RPT(ConvTileData &src, WaitEvents &... events)
 {
     TSYNC(events...);
-    TSET_IMG2COL_RPT_IMPL<ConvTileData>(src);
+    SET_IMG2COL_RPT_IMPL<ConvTileData>(src);
     return {};
 }
 
 template <typename ConvTileData, typename... WaitEvents>
-PTO_INST RecordEvent TSET_IMG2COL_PADDING(ConvTileData &src, WaitEvents &... events)
+PTO_INST RecordEvent SET_IMG2COL_PADDING(ConvTileData &src, WaitEvents &... events)
 {
     TSYNC(events...);
-    TSET_IMG2COL_PADDING_IMPL<ConvTileData>(src);
+    SET_IMG2COL_PADDING_IMPL<ConvTileData>(src);
     return {};
 }
 #endif
 #if defined(PTO_NPU_ARCH_A5) || defined(__CPU_SIM)
 template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL, typename... WaitEvents>
-PTO_INST RecordEvent TSET_IMG2COL_RPT(ConvTileData &src, WaitEvents &... events)
+PTO_INST RecordEvent SET_IMG2COL_RPT(ConvTileData &src, WaitEvents &... events)
 {
     TSYNC(events...);
-    TSET_IMG2COL_RPT_IMPL<ConvTileData, FmatrixMode>(src);
+    SET_IMG2COL_RPT_IMPL<ConvTileData, FmatrixMode>(src);
     return {};
 }
 
 template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL, typename... WaitEvents>
-PTO_INST RecordEvent TSET_IMG2COL_PADDING(ConvTileData &src, WaitEvents &... events)
+PTO_INST RecordEvent SET_IMG2COL_PADDING(ConvTileData &src, WaitEvents &... events)
 {
     TSYNC(events...);
-    TSET_IMG2COL_PADDING_IMPL<ConvTileData, FmatrixMode>(src);
+    SET_IMG2COL_PADDING_IMPL<ConvTileData, FmatrixMode>(src);
     return {};
 }
 #endif
-
-template <typename DstTileData, typename SrcTileData, typename... WaitEvents>
-PTO_INST RecordEvent TINSERT(DstTileData &dst, SrcTileData &src, uint16_t indexRow, uint16_t indexCol,
-                             WaitEvents &... events)
-{
-    TSYNC(events...);
-    MAP_INSTR_IMPL(TINSERT, dst, src, indexRow, indexCol);
-    return {};
-}
 
 template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode, typename... WaitEvents>
 PTO_INST RecordEvent TINSERT(DstTileData &dst, SrcTileData &src, uint16_t indexRow, uint16_t indexCol,
@@ -818,6 +809,15 @@ PTO_INST RecordEvent TINSERT(DstTileData &dst, SrcTileData &src, uint16_t indexR
 {
     TSYNC(events...);
     TINSERT_IMPL<DstTileData, SrcTileData, reluMode>(dst, src, indexRow, indexCol);
+    return {};
+}
+
+template <typename DstTileData, typename SrcTileData, typename... WaitEvents>
+PTO_INST RecordEvent TINSERT(DstTileData &dst, SrcTileData &src, uint16_t indexRow, uint16_t indexCol,
+                             WaitEvents &... events)
+{
+    TSYNC(events...);
+    MAP_INSTR_IMPL(TINSERT, dst, src, indexRow, indexCol);
     return {};
 }
 

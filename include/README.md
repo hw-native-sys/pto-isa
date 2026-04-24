@@ -146,9 +146,9 @@ This table tracks per-instruction backend availability:
 | [`TSCATTER`](../docs/isa/TSCATTER.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TSEL`](../docs/isa/TSEL.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TSELS`](../docs/isa/TSELS.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TSETFMATRIX`](../docs/isa/TSETFMATRIX.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TSET_IMG2COL_PADDING`](../docs/isa/TSET_IMG2COL_PADDING.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TSET_IMG2COL_RPT`](../docs/isa/TSET_IMG2COL_RPT.md) | TODO | TODO | Yes | Yes | Yes | TODO |
+| [`SETFMATRIX`](../docs/isa/SETFMATRIX.md) | TODO | TODO | Yes | Yes | Yes | TODO |
+| [`SET_IMG2COL_PADDING`](../docs/isa/SET_IMG2COL_PADDING.md) | TODO | TODO | Yes | Yes | Yes | TODO |
+| [`SET_IMG2COL_RPT`](../docs/isa/SET_IMG2COL_RPT.md) | TODO | TODO | Yes | Yes | Yes | TODO |
 | [`TSHL`](../docs/isa/TSHL.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TSHLS`](../docs/isa/TSHLS.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TSHR`](../docs/isa/TSHR.md) | Yes | TODO | Yes | Yes | Yes | Yes |

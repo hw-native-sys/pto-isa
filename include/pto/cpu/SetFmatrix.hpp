@@ -7,15 +7,15 @@ THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, E
 INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 See LICENSE in the root of the software repository for the full text of the License.
 */
-#ifndef TSETFMATRIX_CPU_HPP
-#define TSETFMATRIX_CPU_HPP
+#ifndef SETFMATRIX_CPU_HPP
+#define SETFMATRIX_CPU_HPP
 
 namespace pto {
 template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL>
-PTO_INTERNAL void TSETFMATRIX_IMPL(ConvTileData &src)
+PTO_INTERNAL void SETFMATRIX_IMPL(ConvTileData &src)
 {
     (void)FmatrixMode;
-    PTO_CPU_ASSERT(src.GetFmapH() > 0 && src.GetFmapW() > 0, "Fix: TSETFMATRIX requires non-zero fmap size.");
+    PTO_CPU_ASSERT(src.GetFmapH() > 0 && src.GetFmapW() > 0, "Fix: SETFMATRIX requires non-zero fmap size.");
 }
 } // namespace pto
 

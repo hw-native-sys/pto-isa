@@ -14,9 +14,9 @@ This directory contains the per-instruction reference for the PTO Tile Lib ISA.
 
 ## Manual / Resource Binding
 - [TASSIGN](TASSIGN.md) - Bind a Tile object to an implementation-defined on-chip address (manual placement).
-- [TSETFMATRIX](TSETFMATRIX.md) - Set FMATRIX register(s) for IMG2COL-like ops.
-- [TSET_IMG2COL_RPT](TSET_IMG2COL_RPT.md) - Set IMG2COL repeat metadata from an IMG2COL configuration tile.
-- [TSET_IMG2COL_PADDING](TSET_IMG2COL_PADDING.md) - Set IMG2COL padding metadata from an IMG2COL configuration tile.
+- [SETFMATRIX](SETFMATRIX.md) - Set FMATRIX register(s) for IMG2COL-like ops.
+- [SET_IMG2COL_RPT](SET_IMG2COL_RPT.md) - Set IMG2COL repeat metadata from an IMG2COL configuration tile.
+- [SET_IMG2COL_PADDING](SET_IMG2COL_PADDING.md) - Set IMG2COL padding metadata from an IMG2COL configuration tile.
 
 ## Elementwise (Tile-Tile)
 - [TADD](TADD.md) - Elementwise add of two tiles.

@@ -1,8 +1,8 @@
-﻿# TSET_IMG2COL_RPT
+﻿# SET_IMG2COL_RPT
 
 ## Tile Operation Diagram
 
-![TSET_IMG2COL_RPT tile operation](../figures/isa/TSET_IMG2COL_RPT.svg)
+![SET_IMG2COL_RPT tile operation](../figures/isa/SET_IMG2COL_RPT.svg)
 
 ## Introduction
 
@@ -19,19 +19,19 @@ PTO-AS form: see [PTO-AS Specification](../assembly/PTO-AS.md).
 Schematic form:
 
 ```text
-tset_img2col_rpt %cfg
+SET_IMG2COL_RPT %cfg
 ```
 
 ### AS Level 1 (SSA)
 
 ```text
-pto.tset_img2col_rpt %cfg : !pto.fmatrix_config -> ()
+pto.SET_IMG2COL_RPT %cfg : !pto.fmatrix_config -> ()
 ```
 
 ### AS Level 2 (DPS)
 
 ```text
-pto.tset_img2col_rpt ins(%cfg : !pto.fmatrix_config) outs()
+pto.SET_IMG2COL_RPT ins(%cfg : !pto.fmatrix_config) outs()
 ```
 
 ## C++ Intrinsic
@@ -40,10 +40,10 @@ Declared in `include/pto/common/pto_instr.hpp`:
 
 ```cpp
 template <typename ConvTileData, typename... WaitEvents>
-PTO_INST RecordEvent TSET_IMG2COL_RPT(ConvTileData &src, WaitEvents &... events);
+PTO_INST RecordEvent SET_IMG2COL_RPT(ConvTileData &src, WaitEvents &... events);
 
 template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL, typename... WaitEvents>
-PTO_INST RecordEvent TSET_IMG2COL_RPT(ConvTileData &src, WaitEvents &... events);
+PTO_INST RecordEvent SET_IMG2COL_RPT(ConvTileData &src, WaitEvents &... events);
 ```
 
 For `MEMORY_BASE` targets, an overload without `SetFmatrixMode` is also provided.
@@ -63,7 +63,7 @@ For `MEMORY_BASE` targets, an overload without `SetFmatrixMode` is also provided
 using namespace pto;
 
 void example_set_img2col_rpt(Img2colTileConfig<uint64_t>& cfg) {
-  TSET_IMG2COL_RPT(cfg);
+  SET_IMG2COL_RPT(cfg);
 }
 ```
 
@@ -73,7 +73,7 @@ void example_set_img2col_rpt(Img2colTileConfig<uint64_t>& cfg) {
 
 ```text
 # Auto mode: compiler/runtime-managed placement and scheduling.
-pto.tset_img2col_rpt %cfg : !pto.fmatrix_config -> ()
+pto.SET_IMG2COL_RPT %cfg : !pto.fmatrix_config -> ()
 ```
 
 ### Manual Mode
@@ -83,14 +83,14 @@ pto.tset_img2col_rpt %cfg : !pto.fmatrix_config -> ()
 # Optional for tile operands:
 # pto.tassign %arg0, @tile(0x1000)
 # pto.tassign %arg1, @tile(0x2000)
-pto.tset_img2col_rpt %cfg : !pto.fmatrix_config -> ()
+pto.SET_IMG2COL_RPT %cfg : !pto.fmatrix_config -> ()
 ```
 
 ### PTO Assembly Form
 
 ```text
-pto.tset_img2col_rpt %cfg : !pto.fmatrix_config -> ()
+pto.SET_IMG2COL_RPT %cfg : !pto.fmatrix_config -> ()
 # AS Level 2 (DPS)
-pto.tset_img2col_rpt ins(%cfg : !pto.fmatrix_config) outs()
+pto.SET_IMG2COL_RPT ins(%cfg : !pto.fmatrix_config) outs()
 ```
 

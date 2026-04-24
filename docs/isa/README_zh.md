@@ -14,9 +14,9 @@
 
 ## 手动 / 资源绑定
 - [TASSIGN](TASSIGN_zh.md) - 将 Tile 对象绑定到实现定义的片上地址（手动放置）。
-- [TSETFMATRIX](TSETFMATRIX_zh.md) - 为类 IMG2COL 操作设置 FMATRIX 寄存器。
-- [TSET_IMG2COL_RPT](TSET_IMG2COL_RPT_zh.md) - 从 IMG2COL 配置 Tile 设置 IMG2COL 重复次数元数据。
-- [TSET_IMG2COL_PADDING](TSET_IMG2COL_PADDING_zh.md) - 从 IMG2COL 配置 Tile 设置 IMG2COL 填充元数据。
+- [SETFMATRIX](SETFMATRIX_zh.md) - 为类 IMG2COL 操作设置 FMATRIX 寄存器。
+- [SET_IMG2COL_RPT](SET_IMG2COL_RPT_zh.md) - 从 IMG2COL 配置 Tile 设置 IMG2COL 重复次数元数据。
+- [SET_IMG2COL_PADDING](SET_IMG2COL_PADDING_zh.md) - 从 IMG2COL 配置 Tile 设置 IMG2COL 填充元数据。
 
 ## 逐元素（Tile-Tile）
 - [TADD](TADD_zh.md) - 两个 Tile 的逐元素加法。

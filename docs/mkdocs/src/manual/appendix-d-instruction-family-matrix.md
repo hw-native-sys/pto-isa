@@ -33,7 +33,7 @@ This appendix is generated from `docs/isa/manifest.yaml` and provides a source-s
 |---|---|---|---|---|
 | Synchronization | [TSYNC](/docs/isa/TSYNC.md) | `sync` | `producer, consumer` | `docs/isa/TSYNC.md` |
 | Manual / Resource Binding | [TASSIGN](/docs/isa/TASSIGN.md) | `config` | `config, state` | `docs/isa/TASSIGN.md` |
-| Manual / Resource Binding | [TSETFMATRIX](/docs/isa/TSETFMATRIX.md) | `config` | `config, state` | `docs/isa/TSETFMATRIX.md` |
+| Manual / Resource Binding | [SETFMATRIX](/docs/isa/SETFMATRIX.md) | `config` | `config, state` | `docs/isa/SETFMATRIX.md` |
 | Elementwise (Tile-Tile) | [TADD](/docs/isa/TADD.md) | `elementwise` | `dst, src0, src1` | `docs/isa/TADD.md` |
 | Elementwise (Tile-Tile) | [TABS](/docs/isa/TABS.md) | `elementwise` | `dst, src0, src1` | `docs/isa/TABS.md` |
 | Elementwise (Tile-Tile) | [TAND](/docs/isa/TAND.md) | `elementwise` | `dst, src0, src1` | `docs/isa/TAND.md` |

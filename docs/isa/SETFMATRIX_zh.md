@@ -1,8 +1,8 @@
-﻿# TSETFMATRIX
+﻿# SETFMATRIX
 
 ## 指令示意图
 
-![TSETFMATRIX tile operation](../figures/isa/TSETFMATRIX.svg)
+![SETFMATRIX tile operation](../figures/isa/SETFMATRIX.svg)
 
 ## 简介
 
@@ -19,13 +19,13 @@ PTO-AS 形式：参见 [PTO-AS 规范](../assembly/PTO-AS_zh.md)。
 ### AS Level 1（SSA）
 
 ```text
-pto.tsetfmatrix %cfg : !pto.fmatrix_config -> ()
+pto.SETFMATRIX %cfg : !pto.fmatrix_config -> ()
 ```
 
 ### AS Level 2（DPS）
 
 ```text
-pto.tsetfmatrix ins(%cfg : !pto.fmatrix_config) outs()
+pto.SETFMATRIX ins(%cfg : !pto.fmatrix_config) outs()
 ```
 
 ## C++ 内建接口
@@ -34,7 +34,7 @@ pto.tsetfmatrix ins(%cfg : !pto.fmatrix_config) outs()
 
 ```cpp
 template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL, typename... WaitEvents>
-PTO_INST RecordEvent TSETFMATRIX(ConvTileData &src, WaitEvents &... events);
+PTO_INST RecordEvent SETFMATRIX(ConvTileData &src, WaitEvents &... events);
 ```
 
 ## 约束
@@ -51,7 +51,7 @@ PTO_INST RecordEvent TSETFMATRIX(ConvTileData &src, WaitEvents &... events);
 
 ```text
 # 自动模式：由编译器/运行时负责资源放置与调度。
-pto.tsetfmatrix %cfg : !pto.fmatrix_config -> ()
+pto.SETFMATRIX %cfg : !pto.fmatrix_config -> ()
 ```
 
 ### 手动模式
@@ -61,14 +61,14 @@ pto.tsetfmatrix %cfg : !pto.fmatrix_config -> ()
 # 可选（当该指令包含 tile 操作数时）：
 # pto.tassign %arg0, @tile(0x1000)
 # pto.tassign %arg1, @tile(0x2000)
-pto.tsetfmatrix %cfg : !pto.fmatrix_config -> ()
+pto.SETFMATRIX %cfg : !pto.fmatrix_config -> ()
 ```
 
 ### PTO 汇编形式
 
 ```text
-pto.tsetfmatrix %cfg : !pto.fmatrix_config -> ()
+pto.SETFMATRIX %cfg : !pto.fmatrix_config -> ()
 # AS Level 2 (DPS)
-pto.tsetfmatrix ins(%cfg : !pto.fmatrix_config) outs()
+pto.SETFMATRIX ins(%cfg : !pto.fmatrix_config) outs()
 ```
 

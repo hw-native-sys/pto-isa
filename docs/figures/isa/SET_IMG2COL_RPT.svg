@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-label="TSET_IMG2COL_PADDING tile operation diagram">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-label="SET_IMG2COL_RPT tile operation diagram">
 <defs>
   <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#4C8A25"/></marker>
   <marker id="axisArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#64748b"/></marker>
@@ -32,8 +32,8 @@ svg { font-family: Arial, Helvetica, sans-serif; }
 </style>
 <rect x="0" y="0" width="1200" height="720" class="frame" />
 <rect x="24" y="24" width="1152" height="672" class="panel" />
-<text x="40" y="46" class="title">TSET_IMG2COL_PADDING</text>
-<text x="40" y="72" class="subtitle">Set IMG2COL padding metadata from an IMG2COL configuration tile.</text>
+<text x="40" y="46" class="title">SET_IMG2COL_RPT</text>
+<text x="40" y="72" class="subtitle">Set IMG2COL repeat metadata from an IMG2COL configuration tile.</text>
 <text x="40" y="92" class="meta">Template: config</text>
 <text x="1160" y="92" class="meta" text-anchor="end">Legend: outline=example; dashed=valid rows/cols (Rv,Cv); shaded=masked; r down / c right; ortho arrows=dataflow</text>
 <line x1="36" y1="104" x2="1164" y2="104" stroke="#e2e8f0" stroke-width="1.5" />
@@ -51,7 +51,7 @@ svg { font-family: Arial, Helvetica, sans-serif; }
 <rect x="40" y="502" width="1120" height="194" class="procBox" />
 <text x="56" y="528" class="procTitle">Procedure (conceptual)</text>
 <text x="56" y="554" class="procText" xml:space="preserve">
-  <tspan x="56" dy="0">TSET_IMG2COL_PADDING(enable/mode, ...waitEvents)</tspan>
+  <tspan x="56" dy="0">SET_IMG2COL_RPT(enable/mode, ...waitEvents)</tspan>
   <tspan x="56" dy="16">1) Update backend transform/rounding mode (implementation-defined).</tspan>
   <tspan x="56" dy="16">2) Ordering: update takes effect before dependent ops.</tspan>
   <tspan x="56" dy="16">3) Affects subsequent GEMV/MATMUL or conversion paths (if applicable).</tspan>

@@ -61,9 +61,9 @@ _EXPLICIT_FALLBACK_FORMS: Dict[str, Dict[str, str]] = {
         "level1": "%dst = pto.tquant %src, %qp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>",
         "level2": "pto.tquant ins(%src, %qp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)",
     },
-    "TSETFMATRIX": {
-        "level1": "pto.tsetfmatrix %cfg : !pto.fmatrix_config -> ()",
-        "level2": "pto.tsetfmatrix ins(%cfg : !pto.fmatrix_config) outs()",
+    "SETFMATRIX": {
+        "level1": "pto.SETFMATRIX %cfg : !pto.fmatrix_config -> ()",
+        "level2": "pto.SETFMATRIX ins(%cfg : !pto.fmatrix_config) outs()",
     },
     "TTRI": {
         "level1": "%dst = pto.ttri %src0, %src1 : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>",

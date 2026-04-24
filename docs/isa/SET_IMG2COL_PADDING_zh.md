@@ -1,8 +1,8 @@
-﻿# TSET_IMG2COL_PADDING
+﻿# SET_IMG2COL_PADDING
 
 ## 指令示意图
 
-![TSET_IMG2COL_PADDING tile operation](../figures/isa/TSET_IMG2COL_PADDING.svg)
+![SET_IMG2COL_PADDING tile operation](../figures/isa/SET_IMG2COL_PADDING.svg)
 
 ## 简介
 
@@ -19,19 +19,19 @@ PTO-AS 形式：参见 [PTO-AS 规范](../assembly/PTO-AS_zh.md)。
 示意形式：
 
 ```text
-tset_img2col_padding %cfg
+SET_IMG2COL_PADDING %cfg
 ```
 
 ### AS Level 1（SSA）
 
 ```text
-pto.tset_img2col_padding %cfg : !pto.fmatrix_config -> ()
+pto.SET_IMG2COL_PADDING %cfg : !pto.fmatrix_config -> ()
 ```
 
 ### AS Level 2（DPS）
 
 ```text
-pto.tset_img2col_padding ins(%cfg : !pto.fmatrix_config) outs()
+pto.SET_IMG2COL_PADDING ins(%cfg : !pto.fmatrix_config) outs()
 ```
 
 ## C++ 内建接口
@@ -40,10 +40,10 @@ pto.tset_img2col_padding ins(%cfg : !pto.fmatrix_config) outs()
 
 ```cpp
 template <typename ConvTileData, typename... WaitEvents>
-PTO_INST RecordEvent TSET_IMG2COL_PADDING(ConvTileData &src, WaitEvents &... events);
+PTO_INST RecordEvent SET_IMG2COL_PADDING(ConvTileData &src, WaitEvents &... events);
 
 template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL, typename... WaitEvents>
-PTO_INST RecordEvent TSET_IMG2COL_PADDING(ConvTileData &src, WaitEvents &... events);
+PTO_INST RecordEvent SET_IMG2COL_PADDING(ConvTileData &src, WaitEvents &... events);
 ```
 
 在 `MEMORY_BASE` 目标上，还提供不带 `SetFmatrixMode` 模板参数的重载。
@@ -63,7 +63,7 @@ PTO_INST RecordEvent TSET_IMG2COL_PADDING(ConvTileData &src, WaitEvents &... eve
 using namespace pto;
 
 void example_set_img2col_padding(Img2colTileConfig<uint64_t>& cfg) {
-  TSET_IMG2COL_PADDING(cfg);
+  SET_IMG2COL_PADDING(cfg);
 }
 ```
 
@@ -73,7 +73,7 @@ void example_set_img2col_padding(Img2colTileConfig<uint64_t>& cfg) {
 
 ```text
 # 自动模式：由编译器/运行时负责资源放置与调度。
-pto.tset_img2col_padding %cfg : !pto.fmatrix_config -> ()
+pto.SET_IMG2COL_PADDING %cfg : !pto.fmatrix_config -> ()
 ```
 
 ### 手动模式
@@ -83,14 +83,14 @@ pto.tset_img2col_padding %cfg : !pto.fmatrix_config -> ()
 # 可选（当该指令包含 tile 操作数时）：
 # pto.tassign %arg0, @tile(0x1000)
 # pto.tassign %arg1, @tile(0x2000)
-pto.tset_img2col_padding %cfg : !pto.fmatrix_config -> ()
+pto.SET_IMG2COL_PADDING %cfg : !pto.fmatrix_config -> ()
 ```
 
 ### PTO 汇编形式
 
 ```text
-tset_img2col_padding %cfg
+SET_IMG2COL_PADDING %cfg
 # AS Level 2 (DPS)
-pto.tset_img2col_padding ins(%cfg : !pto.fmatrix_config) outs()
+pto.SET_IMG2COL_PADDING ins(%cfg : !pto.fmatrix_config) outs()
 ```
 

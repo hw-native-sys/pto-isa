@@ -1762,10 +1762,10 @@ def _render_config(instr: str, summary: str, accent: str, bg: str) -> str:
         _draw_procedure(out, lines=proc, accent=accent)
         return _end_svg(out)
 
-    if instr == "TSETFMATRIX":
+    if instr == "SETFMATRIX":
         expr = "set FMATRIX state (used by later ops)"
         proc = [
-            "TSETFMATRIX(value, ...waitEvents)",
+            "SETFMATRIX(value, ...waitEvents)",
             "1) Update FMATRIX register/state.",
             "2) Ordering: update takes effect before dependent ops.",
             "3) Affects subsequent IMG2COL / layout-sensitive operations.",

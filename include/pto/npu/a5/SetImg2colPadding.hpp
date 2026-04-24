@@ -8,30 +8,32 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-#ifndef TSET_IMG2COL_RPT_HPP
-#define TSET_IMG2COL_RPT_HPP
+#ifndef SET_IMG2COL_PADDING_HPP
+#define SET_IMG2COL_PADDING_HPP
 
 namespace pto {
 template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL>
-PTO_INTERNAL void TSET_IMG2COL_RPT_IMPL(ConvTileData &src)
+PTO_INTERNAL void SET_IMG2COL_PADDING_IMPL(ConvTileData &src)
 {
     if constexpr (FmatrixMode == SetFmatrixMode::FMATRIX_A_MANUAL || FmatrixMode == SetFmatrixMode::FMATRIX_B_MANUAL) {
-        constexpr uint32_t repeatTimeShiftBit = 16;
-        constexpr uint32_t repeatModeShiftBit = 24;
-        constexpr uint32_t dstStrideShiftBit = 32;
-        constexpr uint32_t dstMpositionShiftBit = 48;
-        uint64_t rptConfig = 0;
-        rptConfig |= uint64_t(src.GetRepeatStride());
-        rptConfig |= uint64_t(src.GetRepeatTime()) << repeatTimeShiftBit;
-        rptConfig |= uint64_t(src.GetRepeatMode()) << repeatModeShiftBit;
-        rptConfig |= uint64_t(src.GetDstStride()) << dstStrideShiftBit;
-        rptConfig |= uint64_t(src.GetDstMposition()) << dstMpositionShiftBit;
+        using DataType = typename ConvTileData::DType;
+        constexpr uint16_t padValueShiftBit = 8;
+        uint32_t paddingValue = 0;
+        const DataType padValue = src.GetPadValue();
+        if constexpr (sizeof(DataType) == 1) {
+            uint8_t u8Value = *reinterpret_cast<const uint8_t *>(&padValue);
+            paddingValue = (static_cast<uint16_t>(u8Value) << padValueShiftBit) | u8Value;
+        } else if constexpr (sizeof(DataType) == 2) {
+            paddingValue = *reinterpret_cast<const uint16_t *>(&padValue);
+        } else if constexpr (sizeof(DataType) == 4) {
+            paddingValue = *reinterpret_cast<const uint32_t *>(&padValue);
+        }
         if constexpr (FmatrixMode == SetFmatrixMode::FMATRIX_A_MANUAL) {
-            set_l3d_rpt(rptConfig);
+            set_padding(paddingValue);
         } else if constexpr (FmatrixMode == SetFmatrixMode::FMATRIX_B_MANUAL) {
-            set_l3d_rpt_b(rptConfig);
+            set_padding_b(paddingValue);
         }
     }
 }
 } // namespace pto
-#endif // TSET_IMG2COL_RPT_HPP
+#endif // SET_IMG2COL_PADDING_HPP

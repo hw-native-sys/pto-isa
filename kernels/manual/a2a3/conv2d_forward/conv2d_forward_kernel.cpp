@@ -221,7 +221,7 @@ AICORE inline void Compute(__gm__ U *currentSrc0, __gm__ U *currentSrc1, __gm__ 
         }
         ResTile outTile(currentM);
         TASSIGN(outTile, 0x0);
-        TSETFMATRIX(fmapMat[0]);
+        SETFMATRIX(fmapMat[0]);
         TASSIGN(fmapMat[0], 0x0);
         TASSIGN(fmapMat[1], 0x0 + channelSize * win * (hinCount + (hk - 1)) * sizeof(U));
         for (uint32_t nIter = 0; nIter < nLoop; nIter++) {

@@ -1,9 +1,9 @@
-﻿# TSETFMATRIX
+﻿# SETFMATRIX
 
 
 ## Tile Operation Diagram
 
-![TSETFMATRIX tile operation](../figures/isa/TSETFMATRIX.svg)
+![SETFMATRIX tile operation](../figures/isa/SETFMATRIX.svg)
 
 ## Introduction
 
@@ -19,7 +19,7 @@ Declared in `include/pto/common/pto_instr.hpp`:
 
 ```cpp
 template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL, typename... WaitEvents>
-PTO_INST RecordEvent TSETFMATRIX(ConvTileData &src, WaitEvents&... events);
+PTO_INST RecordEvent SETFMATRIX(ConvTileData &src, WaitEvents&... events);
 ```
 
 ## Math Interpretation
@@ -33,13 +33,13 @@ PTO-AS form: see [PTO-AS Specification](../assembly/PTO-AS.md).
 ### AS Level 1 (SSA)
 
 ```text
-pto.tsetfmatrix %cfg : !pto.fmatrix_config -> ()
+pto.SETFMATRIX %cfg : !pto.fmatrix_config -> ()
 ```
 
 ### AS Level 2 (DPS)
 
 ```text
-pto.tsetfmatrix ins(%cfg : !pto.fmatrix_config) outs()
+pto.SETFMATRIX ins(%cfg : !pto.fmatrix_config) outs()
 ```
 ## Constraints
 
@@ -55,7 +55,7 @@ See related examples in `docs/isa/` and `docs/coding/tutorials/`.
 
 ```text
 # Auto mode: compiler/runtime-managed placement and scheduling.
-pto.tsetfmatrix %cfg : !pto.fmatrix_config -> ()
+pto.SETFMATRIX %cfg : !pto.fmatrix_config -> ()
 ```
 
 ### Manual Mode
@@ -65,14 +65,14 @@ pto.tsetfmatrix %cfg : !pto.fmatrix_config -> ()
 # Optional for tile operands:
 # pto.tassign %arg0, @tile(0x1000)
 # pto.tassign %arg1, @tile(0x2000)
-pto.tsetfmatrix %cfg : !pto.fmatrix_config -> ()
+pto.SETFMATRIX %cfg : !pto.fmatrix_config -> ()
 ```
 
 ### PTO Assembly Form
 
 ```text
-pto.tsetfmatrix %cfg : !pto.fmatrix_config -> ()
+pto.SETFMATRIX %cfg : !pto.fmatrix_config -> ()
 # AS Level 2 (DPS)
-pto.tsetfmatrix ins(%cfg : !pto.fmatrix_config) outs()
+pto.SETFMATRIX ins(%cfg : !pto.fmatrix_config) outs()
 ```
 

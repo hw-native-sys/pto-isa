@@ -33,7 +33,7 @@
 |---|---|---|---|---|
 | 同步 | [TSYNC](/docs/isa/TSYNC_zh.md) | `sync` | `producer, consumer` | `docs/isa/TSYNC_zh.md` |
 | 手动 / 资源绑定 | [TASSIGN](/docs/isa/TASSIGN_zh.md) | `config` | `config, state` | `docs/isa/TASSIGN_zh.md` |
-| 手动 / 资源绑定 | [TSETFMATRIX](/docs/isa/TSETFMATRIX_zh.md) | `config` | `config, state` | `docs/isa/TSETFMATRIX_zh.md` |
+| 手动 / 资源绑定 | [SETFMATRIX](/docs/isa/SETFMATRIX_zh.md) | `config` | `config, state` | `docs/isa/SETFMATRIX_zh.md` |
 | 逐元素（Tile-Tile） | [TADD](/docs/isa/TADD_zh.md) | `elementwise` | `dst, src0, src1` | `docs/isa/TADD_zh.md` |
 | 逐元素（Tile-Tile） | [TABS](/docs/isa/TABS_zh.md) | `elementwise` | `dst, src0, src1` | `docs/isa/TABS_zh.md` |
 | 逐元素（Tile-Tile） | [TAND](/docs/isa/TAND_zh.md) | `elementwise` | `dst, src0, src1` | `docs/isa/TAND_zh.md` |
