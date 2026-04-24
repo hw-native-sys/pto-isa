@@ -45,6 +45,7 @@ If you are new to PTO Tile Lib, we recommend reading in the following order:
 - [Tile Programming Model](coding/Tile.md): tile shape, tile mask, and data layout
 - [Events and Synchronization](coding/Event.md): event recording, waiting, and synchronization behavior
 - [Performance Optimization](coding/opt.md): performance analysis and tuning guidance
+- [CostModel Backends (stub / fit)](costmodel-backends.md): backend split, formula-fit path, and run guide
 
 ### 4. Getting Started, Testing, and Documentation Build
 

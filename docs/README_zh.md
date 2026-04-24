@@ -45,6 +45,7 @@ PTO 相关文档主要覆盖以下几类内容：
 - [Tile 编程模型](coding/Tile_zh.md)：介绍 tile shape、tile mask 与数据布局
 - [事件与同步](coding/Event_zh.md)：介绍事件记录、等待与同步机制
 - [性能优化](coding/opt_zh.md)：介绍性能分析与调优建议
+- [CostModel 后端说明（打桩 stub / 拟合 fit）](costmodel-backends_zh.md)：后端拆分、拟合路径与运行方式
 
 ### 4. 入门、测试与文档构建
 
