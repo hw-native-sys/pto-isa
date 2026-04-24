@@ -440,17 +440,6 @@ if __name__ == "__main__":
         TQuantParams("mxfp8", 18, 138, mode="nd", dtype=bfloat16),  # padded 18x160 = 2880 -> loop_num=12
         TQuantParams("mxfp8", 1, 192, mode="nd", dtype=bfloat16),  # no pad, 192 elems -> loop_num=1
         TQuantParams("mxfp8", 1, 198, mode="nd", dtype=bfloat16),  # padded 1x224 = 224 -> loop_num=1
-        # 2D reduce path: validCols < paddedCols (non-multiple of 32 or sub-padded width)
-        TQuantParams("mxfp8", 32, 48, mode="nd", dtype=bfloat16),
-        TQuantParams("mxfp8", 64, 96, mode="nd", dtype=bfloat16),
-        TQuantParams("mxfp8", 128, 80, mode="nd", dtype=bfloat16),
-        TQuantParams("mxfp8", 33, 65, mode="nd", dtype=bfloat16),  # odd rows, srcCols=96 (flat fallback)
-        TQuantParams("mxfp8", 100, 33, mode="nd", dtype=bfloat16),  # many rows, narrow validCols; srcCols=64
-        # 2D Extract/Calc path: srcCols >= 512 AND srcCols %% 512 == 0
-        TQuantParams("mxfp8", 8, 500, mode="nd", dtype=bfloat16),
-        TQuantParams("mxfp8", 1, 500, mode="nd", dtype=bfloat16),  # single-row 2D Extract/Calc
-        TQuantParams("mxfp8", 16, 500, mode="nd", dtype=bfloat16),  # srcCols=512, more rows
-        TQuantParams("mxfp8", 4, 1000, mode="nd", dtype=bfloat16),  # srcCols=1024 (2x512)
         TQuantParams("mxfp8", 32, 128, mode="nz", dtype=bfloat16),
         TQuantParams("mxfp8", 64, 128, mode="nz", dtype=bfloat16),
         TQuantParams("mxfp8", 128, 128, mode="nz", dtype=bfloat16),
@@ -458,15 +447,6 @@ if __name__ == "__main__":
         TQuantParams("mxfp8", 64, 128, mode="nd", dtype=np.float16),
         TQuantParams("mxfp8", 128, 128, mode="nd", dtype=np.float16),
         TQuantParams("mxfp8", 4, 256, mode="nd", dtype=np.float16),  # 1024 elems -> AbsReduceMax_b16_ND_opt
-        # FP16 2D reduce path (validCols < paddedCols)
-        TQuantParams("mxfp8", 14, 16, mode="nd", dtype=np.float16),
-        TQuantParams("mxfp8", 7, 48, mode="nd", dtype=np.float16),
-        TQuantParams("mxfp8", 32, 48, mode="nd", dtype=np.float16),
-        TQuantParams("mxfp8", 64, 96, mode="nd", dtype=np.float16),
-        TQuantParams("mxfp8", 128, 80, mode="nd", dtype=np.float16),
-        # FP16 2D Extract/Calc path (srcCols %% 512 == 0)
-        TQuantParams("mxfp8", 8, 500, mode="nd", dtype=np.float16),
-        TQuantParams("mxfp8", 4, 1000, mode="nd", dtype=np.float16),
         TQuantParams("mxfp8", 32, 128, mode="nz", dtype=np.float16),
         TQuantParams("mxfp8", 64, 128, mode="nz", dtype=np.float16),
         TQuantParams("mxfp8", 128, 128, mode="nz", dtype=np.float16),

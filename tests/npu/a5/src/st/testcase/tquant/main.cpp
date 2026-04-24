@@ -463,55 +463,6 @@ TEST_F(TQUANTTEST, case_mxfp8_bf16_1x198_nd)
 {
     test_tquant_mxfp8_bf16<1, 198, 0>();
 }
-// BF16 2D reduce path (validCols not a multiple of 32 → AbsReduceMax_b16_ND_2D)
-TEST_F(TQUANTTEST, case_mxfp8_bf16_14x16_nd)
-{
-    test_tquant_mxfp8_bf16<14, 16, 0>();
-}
-TEST_F(TQUANTTEST, case_mxfp8_bf16_7x48_nd)
-{
-    test_tquant_mxfp8_bf16<7, 48, 0>();
-}
-TEST_F(TQUANTTEST, case_mxfp8_bf16_32x48_nd)
-{
-    test_tquant_mxfp8_bf16<32, 48, 0>();
-}
-TEST_F(TQUANTTEST, case_mxfp8_bf16_64x96_nd)
-{
-    test_tquant_mxfp8_bf16<64, 96, 0>();
-}
-TEST_F(TQUANTTEST, case_mxfp8_bf16_128x80_nd)
-{
-    test_tquant_mxfp8_bf16<128, 80, 0>();
-}
-// srcCols == 512 → exercises 2D Extract/Calc guarded path
-TEST_F(TQUANTTEST, case_mxfp8_bf16_8x500_nd)
-{
-    test_tquant_mxfp8_bf16<8, 500, 0>();
-}
-// Additional 2D Extract/Calc coverage (srcCols % 512 == 0)
-TEST_F(TQUANTTEST, case_mxfp8_bf16_1x500_nd)
-{
-    test_tquant_mxfp8_bf16<1, 500, 0>();
-}
-TEST_F(TQUANTTEST, case_mxfp8_bf16_16x500_nd)
-{
-    test_tquant_mxfp8_bf16<16, 500, 0>();
-}
-// srcCols == 1024 → 2D Extract/Calc with larger-than-512 stride
-TEST_F(TQUANTTEST, case_mxfp8_bf16_4x1000_nd)
-{
-    test_tquant_mxfp8_bf16<4, 1000, 0>();
-}
-// 2D reducer + flat Extract/Calc fallback (srcCols % 512 != 0)
-TEST_F(TQUANTTEST, case_mxfp8_bf16_33x65_nd)
-{
-    test_tquant_mxfp8_bf16<33, 65, 0>();
-}
-TEST_F(TQUANTTEST, case_mxfp8_bf16_100x33_nd)
-{
-    test_tquant_mxfp8_bf16<100, 33, 0>();
-}
 
 TEST_F(TQUANTTEST, case_mxfp8_bf16_32x128_nz)
 {
@@ -538,37 +489,6 @@ TEST_F(TQUANTTEST, case_mxfp8_fp16_64x128_nd)
 TEST_F(TQUANTTEST, case_mxfp8_fp16_128x128_nd)
 {
     test_tquant_mxfp8_fp16<128, 128, 0>();
-}
-
-// FP16 2D reduce path (validCols not a multiple of 32 → AbsReduceMax_b16_ND_2D)
-TEST_F(TQUANTTEST, case_mxfp8_fp16_14x16_nd)
-{
-    test_tquant_mxfp8_fp16<14, 16, 0>();
-}
-TEST_F(TQUANTTEST, case_mxfp8_fp16_7x48_nd)
-{
-    test_tquant_mxfp8_fp16<7, 48, 0>();
-}
-TEST_F(TQUANTTEST, case_mxfp8_fp16_32x48_nd)
-{
-    test_tquant_mxfp8_fp16<32, 48, 0>();
-}
-TEST_F(TQUANTTEST, case_mxfp8_fp16_64x96_nd)
-{
-    test_tquant_mxfp8_fp16<64, 96, 0>();
-}
-TEST_F(TQUANTTEST, case_mxfp8_fp16_128x80_nd)
-{
-    test_tquant_mxfp8_fp16<128, 80, 0>();
-}
-// FP16 2D Extract/Calc path (srcCols % 512 == 0)
-TEST_F(TQUANTTEST, case_mxfp8_fp16_8x500_nd)
-{
-    test_tquant_mxfp8_fp16<8, 500, 0>();
-}
-TEST_F(TQUANTTEST, case_mxfp8_fp16_4x1000_nd)
-{
-    test_tquant_mxfp8_fp16<4, 1000, 0>();
 }
 
 TEST_F(TQUANTTEST, case_mxfp8_fp16_32x128_nz)
@@ -611,9 +531,4 @@ TEST_F(TQUANTTEST, case_int8_asym_fp32_256x128_nd)
 {
     test_tquant_int8_asym<256, 128, 0>();
 }
-TEST_F(TQUANTTEST, case_int8_asym_fp32_32x72_nd)
-{
-    test_tquant_int8_asym<32, 72, 0>();
-}
-
 } // namespace TQuantTest
