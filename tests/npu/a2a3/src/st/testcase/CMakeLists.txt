@@ -142,6 +142,8 @@ tpartadd
 tpartmul
 tpartmin
 tpartmax
+tpartargmax
+tpartargmin
 tpow
 tpows
 tsel
