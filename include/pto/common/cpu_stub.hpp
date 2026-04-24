@@ -181,6 +181,8 @@ struct CommDeviceContext {
 
 #define F16_MAX 65504.0f
 
+#define F16_MAX 65504.0f
+
 namespace pto::cpu_sim {
 struct RuntimeConfig {
     bool initialized = false;
