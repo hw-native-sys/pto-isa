@@ -43,6 +43,30 @@ PTO_INTERNAL void TPOP_IMPL(Pipe &pipe, TileCons &tile)
     }
 }
 
+template <typename Pipe, typename TileCons, TileSplitAxis Split>
+PTO_INTERNAL void TPOP_IMPL(Pipe &pipe, TileCons &tile, PipeChunk chunk, int entryOffset)
+{
+    const bool doWait = (chunk == PipeChunk::Single || chunk == PipeChunk::First);
+    const bool doFree = (chunk == PipeChunk::Single || chunk == PipeChunk::Last);
+    const bool advanceSlot = (chunk == PipeChunk::Single || chunk == PipeChunk::Last);
+
+    if (doWait) {
+        pipe.cons.wait();
+    }
+
+    auto consumer = pipe.cons;
+    consumer.entryOffset = entryOffset;
+    consumer.template pop<TileCons, Split>(pipe.fifo, tile);
+
+    if (advanceSlot) {
+        pipe.cons.tileIndex++;
+    }
+
+    if (doFree) {
+        consumer.free();
+    }
+}
+
 template <typename Pipe, TileSplitAxis Split>
 PTO_INTERNAL void TFREE_IMPL(Pipe &pipe)
 {

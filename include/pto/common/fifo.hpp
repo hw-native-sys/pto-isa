@@ -37,6 +37,14 @@ enum Direction : uint8_t
 #endif
 };
 
+enum class PipeChunk : uint8_t
+{
+    Single = 0, // Full slot in one call: entry sync + exit sync + advance slot
+    First = 1,  // First partial chunk: entry sync, keep current slot open
+    Middle = 2, // Middle partial chunk: no sync, keep current slot open
+    Last = 3,   // Final partial chunk: exit sync + advance slot
+};
+
 template <int SlotSize, int SlotNum, int LocalSlotNum>
 struct RingFIFO {
     __gm__ void *GM_SLOT_BUFFER = nullptr; // Global memory

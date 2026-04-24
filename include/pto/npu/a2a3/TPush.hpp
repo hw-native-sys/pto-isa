@@ -370,9 +370,11 @@ struct TPipe {
             using T = typename TileCons::DType;
             constexpr int ConsM = TileCons::Rows;
             constexpr int ConsN = TileCons::Cols;
+            constexpr int splitNum = 2;
+            constexpr int ProdN = (Split == TileSplitAxis::TILE_LEFT_RIGHT) ? ConsN * splitNum : ConsN;
             size_t entryBase = (static_cast<size_t>(tileIndex) % RingFiFo::SLOT_NUM) *
                                RingFiFo::SLOT_SIZE; // ConsM * ConsN * sizeof(T);
-            using GlobalData = GlobalTensor<T, pto::Shape<1, 1, 1, ConsM, ConsN>, pto::Stride<1, 1, 1, ConsN, 1>>;
+            using GlobalData = GlobalTensor<T, pto::Shape<1, 1, 1, ConsM, ConsN>, pto::Stride<1, 1, 1, ProdN, 1>>;
             GlobalData globalTensor((__gm__ T *)((uint64_t)fifo.GM_SLOT_BUFFER + entryBase + entryOffset));
 
             uint64_t localTileBase =
@@ -446,6 +448,30 @@ PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
     bool isRecord = pipe.prod.getRecordStatus();
     if (isRecord) {
         pipe.prod.record();
+    }
+}
+
+template <typename Pipe, typename TileProd, TileSplitAxis Split>
+PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile, PipeChunk chunk, int entryOffset)
+{
+    const bool doAllocate = (chunk == PipeChunk::Single || chunk == PipeChunk::First);
+    const bool doRecord = (chunk == PipeChunk::Single || chunk == PipeChunk::Last);
+    const bool advanceSlot = (chunk == PipeChunk::Single || chunk == PipeChunk::Last);
+
+    if (doAllocate) {
+        pipe.prod.allocate();
+    }
+
+    auto producer = pipe.prod;
+    producer.entryOffset = entryOffset;
+    producer.template push<TileProd, Split>(pipe.fifo, tile);
+
+    if (advanceSlot) {
+        pipe.prod.tileIndex++;
+    }
+
+    if (doRecord) {
+        producer.record();
     }
 }
 
