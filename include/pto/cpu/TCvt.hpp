@@ -18,8 +18,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <cmath>
 #include <type_traits>
 
-#define F16_MAX 65504
-
 namespace pto {
 constexpr double CAST_ODD_THRESHHOLD = 0.5;
 
