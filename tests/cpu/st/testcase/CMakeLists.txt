@@ -51,7 +51,6 @@ tassign
 tand
 tands
 targreduceop
-taxpy
 tbroadcast
 tci
 tcmp
