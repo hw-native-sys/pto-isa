@@ -11,9 +11,9 @@
 
 - 手动/资源绑定
     - [TASSIGN](isa/TASSIGN_zh.md)
-    - [TSETFMATRIX](isa/TSETFMATRIX_zh.md)
-    - [TSET_IMG2COL_RPT](isa/TSET_IMG2COL_RPT_zh.md)
-    - [TSET_IMG2COL_PADDING](isa/TSET_IMG2COL_PADDING_zh.md)
+    - [SETFMATRIX](isa/SETFMATRIX_zh.md)
+    - [SET_IMG2COL_RPT](isa/SET_IMG2COL_RPT_zh.md)
+    - [SET_IMG2COL_PADDING](isa/SET_IMG2COL_PADDING_zh.md)
 
 - 逐元素（Tile-Tile）
     - [TADD](isa/TADD_zh.md)

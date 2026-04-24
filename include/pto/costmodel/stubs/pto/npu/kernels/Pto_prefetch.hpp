@@ -7,20 +7,15 @@ THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, E
 INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 See LICENSE in the root of the software repository for the full text of the License.
 */
-
-#ifndef PTO_COSTMODEL_STUBS_PTO_PREFETCH_HPP
-#define PTO_COSTMODEL_STUBS_PTO_PREFETCH_HPP
-
-#include <cstdint>
-#include <pto/pto-inst.hpp>
+#ifndef SET_IMG2COL_RPT_CPU_HPP
+#define SET_IMG2COL_RPT_CPU_HPP
 
 namespace pto {
-
-template <bool UseSdma = true, int AivCores = -1>
-inline void PTO_PREFETCH(__gm__ void *, uint64_t, aclrtStream)
+template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL>
+PTO_INTERNAL void SET_IMG2COL_RPT_IMPL(ConvTileData &src)
 {
-    (void)UseSdma;
-    (void)AivCores;
+    (void)FmatrixMode;
+    PTO_CPU_ASSERT(src.GetRepeatTime() >= 0, "Fix: SET_IMG2COL_RPT metadata must be initialized.");
 }
 
 } // namespace pto

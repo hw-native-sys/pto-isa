@@ -7,8 +7,17 @@ THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, E
 INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 See LICENSE in the root of the software repository for the full text of the License.
 */
+#ifndef SET_IMG2COL_PADDING_CPU_HPP
+#define SET_IMG2COL_PADDING_CPU_HPP
 
-#pragma once
+namespace pto {
+template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL>
+PTO_INTERNAL void SET_IMG2COL_PADDING_IMPL(ConvTileData &src)
+{
+    (void)FmatrixMode;
+    (void)src;
+}
+} // namespace pto
 
 #include <cstddef>
 

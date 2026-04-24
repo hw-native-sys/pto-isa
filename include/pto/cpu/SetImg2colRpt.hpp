@@ -7,29 +7,17 @@ THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, E
 INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 See LICENSE in the root of the software repository for the full text of the License.
 */
-#pragma once
+#ifndef SET_IMG2COL_RPT_CPU_HPP
+#define SET_IMG2COL_RPT_CPU_HPP
 
-inline void printf(...)
-{}
-inline void print(...)
-{}
-inline void print_str(...)
-{}
-inline void print_int(...)
-{}
-inline void print_float(...)
-{}
-inline void print_half(...)
-{}
-inline void print_hex(...)
-{}
-inline void print_matrix(...)
-{}
-inline void print_tensor(...)
-{}
-inline void print_ubuf(...)
-{}
-inline void print_cbuf(...)
-{}
-inline void print_gm(...)
-{}
+namespace pto {
+template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL>
+PTO_INTERNAL void SET_IMG2COL_RPT_IMPL(ConvTileData &src)
+{
+    (void)FmatrixMode;
+    PTO_CPU_ASSERT(src.GetRepeatTime() >= 0, "Fix: SET_IMG2COL_RPT metadata must be initialized.");
+}
+
+} // namespace pto
+
+#endif // PTO_COSTMODEL_STUBS_PTO_PREFETCH_HPP

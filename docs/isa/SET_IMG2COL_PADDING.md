@@ -1,14 +1,96 @@
-# SET_IMG2COL_PADDING
+﻿# SET_IMG2COL_PADDING
 
-Canonical tile-instruction reference: [SET_IMG2COL_PADDING](./tile/ops/sync-and-config/set-img2col-padding.md).
+## Tile Operation Diagram
 
-The PTO ISA manual now treats tile, vector, and scalar/control operations consistently: the canonical per-op pages live under `docs/isa/tile/ops/`, `docs/isa/vector/ops/`, and `docs/isa/scalar/ops/`.
+![SET_IMG2COL_PADDING tile operation](../figures/isa/SET_IMG2COL_PADDING.svg)
 
-## Canonical Location
+## Introduction
 
-- Instruction set overview: [Sync And Config](./tile/sync-and-config.md)
-- Canonical per-op page: [SET_IMG2COL_PADDING](./tile/ops/sync-and-config/set-img2col-padding.md)
+Set IMG2COL padding metadata from an IMG2COL configuration tile (implementation-defined).
 
-## Compatibility Note
+## Math Interpretation
 
-Root-level instruction pages remain as compatibility wrappers so existing links do not break immediately. New PTO ISA documentation should link to the grouped instruction set paths.
+No direct tensor arithmetic is produced by this instruction. It updates IMG2COL padding control state consumed by subsequent data-movement operations.
+
+## Assembly Syntax
+
+PTO-AS form: see [PTO-AS Specification](../assembly/PTO-AS.md).
+
+Schematic form:
+
+```text
+SET_IMG2COL_PADDING %cfg
+```
+
+### AS Level 1 (SSA)
+
+```text
+pto.SET_IMG2COL_PADDING %cfg : !pto.fmatrix_config -> ()
+```
+
+### AS Level 2 (DPS)
+
+```text
+pto.SET_IMG2COL_PADDING ins(%cfg : !pto.fmatrix_config) outs()
+```
+
+## C++ Intrinsic
+
+Declared in `include/pto/common/pto_instr.hpp`:
+
+```cpp
+template <typename ConvTileData, typename... WaitEvents>
+PTO_INST RecordEvent SET_IMG2COL_PADDING(ConvTileData &src, WaitEvents &... events);
+
+template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL, typename... WaitEvents>
+PTO_INST RecordEvent SET_IMG2COL_PADDING(ConvTileData &src, WaitEvents &... events);
+```
+
+For `MEMORY_BASE` targets, an overload without `SetFmatrixMode` is also provided.
+
+## Constraints
+
+- This instruction is backend-specific and available only for backends that expose IMG2COL configuration state.
+- `src` must be a valid IMG2COL configuration tile type accepted by the backend implementation.
+- The exact padding fields updated by this instruction are implementation-defined.
+- Use this instruction before dependent `TIMG2COL` operations in the same execution stream.
+
+## Examples
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_set_img2col_padding(Img2colTileConfig<uint64_t>& cfg) {
+  SET_IMG2COL_PADDING(cfg);
+}
+```
+
+## ASM Form Examples
+
+### Auto Mode
+
+```text
+# Auto mode: compiler/runtime-managed placement and scheduling.
+pto.SET_IMG2COL_PADDING %cfg : !pto.fmatrix_config -> ()
+```
+
+### Manual Mode
+
+```text
+# Manual mode: bind resources explicitly before issuing the instruction.
+# Optional for tile operands:
+# pto.tassign %arg0, @tile(0x1000)
+# pto.tassign %arg1, @tile(0x2000)
+pto.SET_IMG2COL_PADDING %cfg : !pto.fmatrix_config -> ()
+```
+
+### PTO Assembly Form
+
+```text
+pto.SET_IMG2COL_PADDING %cfg : !pto.fmatrix_config -> ()
+# AS Level 2 (DPS)
+pto.SET_IMG2COL_PADDING ins(%cfg : !pto.fmatrix_config) outs()
+```
+

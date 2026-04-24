@@ -8,12 +8,12 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-#ifndef GET_QUANT_SCALAR_HPP
-#define GET_QUANT_SCALAR_HPP
+#ifndef SET_IMG2COL_RPT_HPP
+#define SET_IMG2COL_RPT_HPP
 
 namespace pto {
-
-PTO_INTERNAL uint64_t GET_QUANT_SCALAR_IMPL()
+template <typename ConvTileData>
+PTO_INTERNAL void SET_IMG2COL_RPT_IMPL(ConvTileData &src)
 {
     uint64_t quantConfig = 0;
     char *reg_base = NPUMemoryModel::Instance().GetREGBase();
@@ -24,5 +24,4 @@ PTO_INTERNAL uint64_t GET_QUANT_SCALAR_IMPL()
 }
 
 } // namespace pto
-
-#endif // GET_QUANT_SCALAR_HPP
+#endif // SET_IMG2COL_RPT_HPP

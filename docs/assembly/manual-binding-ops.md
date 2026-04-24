@@ -10,72 +10,66 @@ This document describes manual resource binding and configuration operations.
 
 ### TASSIGN
 
-For detailed instruction documentation, see [isa/TASSIGN](../isa/tile/ops/sync-and-config/tassign.md)
+For detailed instruction documentation, see [isa/TASSIGN](../isa/TASSIGN.md)
 
 **AS Level 1 (SSA):**
-
 ```text
 pto.tassign %tile, %addr : !pto.tile<...>, dtype
 ```
 
 **AS Level 2 (DPS):**
-
 ```text
 pto.tassign ins(%tile, %addr : !pto.tile_buf<...>, dtype)
 ```
 
 ---
 
-### pto.setfmatrix
+### SETFMATRIX
 
-For detailed instruction documentation, see [pto.setfmatrix](../isa/tile/ops/sync-and-config/setfmatrix.md).
+For detailed instruction documentation, see [isa/SETFMATRIX](../isa/SETFMATRIX.md)
+
 
 **AS Level 1 (SSA):**
-
 ```text
-pto.setfmatrix %cfg : !pto.fmatrix_config -> ()
+pto.SETFMATRIX %cfg : !pto.fmatrix_config -> ()
 ```
 
 **AS Level 2 (DPS):**
-
 ```text
-pto.setfmatrix ins(%cfg : !pto.fmatrix_config) outs()
+pto.SETFMATRIX ins(%cfg : !pto.fmatrix_config) outs()
 ```
 
 ---
 
-### pto.set_img2col_rpt
+### SET_IMG2COL_RPT
 
-For detailed instruction documentation, see [pto.set_img2col_rpt](../isa/tile/ops/sync-and-config/set-img2col-rpt.md)
+For detailed instruction documentation, see [isa/SET_IMG2COL_RPT](../isa/SET_IMG2COL_RPT.md)
 
 **AS Level 1 (SSA):**
-
 ```text
-pto.set_img2col_rpt %cfg : !pto.fmatrix_config -> ()
+pto.SET_IMG2COL_RPT %cfg : !pto.fmatrix_config -> ()
 ```
 
 **AS Level 2 (DPS):**
-
 ```text
-pto.set_img2col_rpt ins(%cfg : !pto.fmatrix_config) outs()
+pto.SET_IMG2COL_RPT ins(%cfg : !pto.fmatrix_config) outs()
 ```
 
 ---
 
-### pto.set_img2col_padding
+### SET_IMG2COL_PADDING
 
-For detailed instruction documentation, see [pto.set_img2col_padding](../isa/tile/ops/sync-and-config/set-img2col-padding.md)
+For detailed instruction documentation, see [isa/SET_IMG2COL_PADDING](../isa/SET_IMG2COL_PADDING.md)
 
 **AS Level 1 (SSA):**
-
 ```text
-pto.set_img2col_padding %cfg : !pto.fmatrix_config -> ()
+pto.SET_IMG2COL_PADDING %cfg : !pto.fmatrix_config -> ()
 ```
 
 **AS Level 2 (DPS):**
-
 ```text
-pto.set_img2col_padding ins(%cfg : !pto.fmatrix_config) outs()
+pto.SET_IMG2COL_PADDING ins(%cfg : !pto.fmatrix_config) outs()
 ```
 
 ---
+
