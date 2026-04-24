@@ -11,7 +11,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef PTO_MOCKER_ARCH_CONFIG_HPP
 #define PTO_MOCKER_ARCH_CONFIG_HPP
 
+#include <array>
 #include <cstdint>
+#include <limits>
 #include <string_view>
 
 namespace pto::mocker::evaluator {
@@ -19,6 +21,7 @@ namespace pto::mocker::evaluator {
 inline constexpr uint64_t kBlockBytes = 32;
 inline constexpr long double kBytesPerGb = 1024.0L * 1024.0L * 1024.0L;
 inline constexpr long double kMainFrequencyHz = 1.85e9L;
+inline constexpr long double kMicrosPerSecond = 1.0e6L;
 
 enum class PipeKey
 {
@@ -117,6 +120,102 @@ inline constexpr ArchConfig kA2A3ArchConfig{
 inline const ArchConfig &GetDefaultArchConfig()
 {
     return kA2A3ArchConfig;
+}
+
+inline constexpr bool IsMemoryPipe(PipeKey key)
+{
+    return key != PipeKey::VECTOR && key != PipeKey::CUBE && key != PipeKey::COUNT;
+}
+
+inline constexpr std::array<bool, static_cast<std::size_t>(PipeKey::COUNT)> BuildBandwidthProvided(
+    const BandwidthTable &bandwidth)
+{
+    std::array<bool, static_cast<std::size_t>(PipeKey::COUNT)> provided{};
+    provided[static_cast<std::size_t>(PipeKey::GM_TO_UB)] = (bandwidth.GM_TO_UB > 0.0);
+    provided[static_cast<std::size_t>(PipeKey::GM_TO_L1)] = (bandwidth.GM_TO_L1 > 0.0);
+    provided[static_cast<std::size_t>(PipeKey::UB_TO_GM)] = (bandwidth.UB_TO_GM > 0.0);
+    provided[static_cast<std::size_t>(PipeKey::L1_TO_GM)] = (bandwidth.L1_TO_GM > 0.0);
+    provided[static_cast<std::size_t>(PipeKey::UB_TO_UB)] = (bandwidth.UB_TO_UB > 0.0);
+    provided[static_cast<std::size_t>(PipeKey::L0C_TO_GM)] = (bandwidth.L0C_TO_GM > 0.0);
+    provided[static_cast<std::size_t>(PipeKey::L0C_TO_L1)] = (bandwidth.L0C_TO_L1 > 0.0);
+    provided[static_cast<std::size_t>(PipeKey::L1_TO_L0A)] = (bandwidth.L1_TO_L0A > 0.0);
+    provided[static_cast<std::size_t>(PipeKey::L1_TO_L0B)] = (bandwidth.L1_TO_L0B > 0.0);
+    provided[static_cast<std::size_t>(PipeKey::L1_TO_BT)] = (bandwidth.L1_TO_BT > 0.0);
+    provided[static_cast<std::size_t>(PipeKey::L1_TO_FB)] = (bandwidth.L1_TO_FB > 0.0);
+    provided[static_cast<std::size_t>(PipeKey::L1_FILL)] = (bandwidth.L1_FILL > 0.0);
+    return provided;
+}
+
+inline thread_local long double gPredictFrequencyMHz = GetDefaultArchConfig().frequency_hz / kMicrosPerSecond;
+inline thread_local BandwidthTable gPredictBandwidthBytesPerUs = GetDefaultArchConfig().bandwidth;
+inline thread_local std::array<bool, static_cast<std::size_t>(PipeKey::COUNT)> gPredictBandwidthProvided =
+    BuildBandwidthProvided(gPredictBandwidthBytesPerUs);
+
+inline void SetPredictFrequencyAndBandwidth(long double frequencyMhz, const BandwidthTable &bandwidth)
+{
+    gPredictFrequencyMHz = frequencyMhz;
+    gPredictBandwidthBytesPerUs = bandwidth;
+    gPredictBandwidthProvided = BuildBandwidthProvided(bandwidth);
+}
+
+inline void SetPredictArchConfig(const ArchConfig &archConfig)
+{
+    SetPredictFrequencyAndBandwidth(archConfig.frequency_hz / kMicrosPerSecond, archConfig.bandwidth);
+}
+
+inline void ResetPredictArchConfig()
+{
+    SetPredictArchConfig(GetDefaultArchConfig());
+}
+
+inline long double GetPredictFrequencyMHz()
+{
+    return gPredictFrequencyMHz;
+}
+
+inline bool HasPredictBandwidthBytesPerUs(PipeKey key)
+{
+    if (!IsMemoryPipe(key)) {
+        return false;
+    }
+    return gPredictBandwidthProvided[static_cast<std::size_t>(key)];
+}
+
+inline double GetPredictBandwidthBytesPerUs(PipeKey key)
+{
+    return gPredictBandwidthBytesPerUs[key];
+}
+
+inline long double CyclesToUs(uint64_t cycles, long double frequencyMhz)
+{
+    if (frequencyMhz <= 0.0L) {
+        return 0.0L;
+    }
+    return static_cast<long double>(cycles) / frequencyMhz;
+}
+
+inline long double CyclesToUs(uint64_t cycles)
+{
+    return CyclesToUs(cycles, GetPredictFrequencyMHz());
+}
+
+inline long double TransferBytesToUs(uint64_t bytes, double bandwidthBytesPerUs)
+{
+    if (bytes == 0) {
+        return 0.0L;
+    }
+    if (bandwidthBytesPerUs <= 0.0) {
+        return std::numeric_limits<long double>::quiet_NaN();
+    }
+    return static_cast<long double>(bytes) / static_cast<long double>(bandwidthBytesPerUs);
+}
+
+inline long double TransferBytesToUs(uint64_t bytes, PipeKey pipe)
+{
+    if (!HasPredictBandwidthBytesPerUs(pipe)) {
+        return std::numeric_limits<long double>::quiet_NaN();
+    }
+    return TransferBytesToUs(bytes, GetPredictBandwidthBytesPerUs(pipe));
 }
 
 } // namespace pto::mocker::evaluator

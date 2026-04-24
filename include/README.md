@@ -26,7 +26,7 @@ Include the unified entry header:
 This table tracks per-instruction backend availability:
 
 - **CPU**: `__CPU_SIM` (CPU simulation backend). More information about this backend can be found in [docs/coding/cpu_sim.md](../docs/coding/cpu_sim.md)
-- **Costmodel**: `__COSTMODEL` (A2 / A3 cost model backend).
+- **Costmodel**: `__COSTMODEL` (A2 / A3 cost model backend, including `stub` and `fit` paths; if either path supports an instruction, it is marked as supported).
 - **A2 (Ascend 910B) / A3 (Ascend 910C)**: share the `include/pto/npu/a2a3/` implementation today (so the status is identical for both columns).
 - **A5 (Ascend 950)**: uses the `include/pto/npu/a5/` implementation.
 - **Kirin**: uses the `include/pto/npu/kirin9030/` implementation.
@@ -46,7 +46,7 @@ This table tracks per-instruction backend availability:
 | [`TAXPY`]() | TODO | TODO | Yes | Yes | Yes | TODO |
 | [`TBROADCAST`](../docs/isa/comm/TBROADCAST.md) | Yes | TODO | Yes | Yes | Yes | TODO |
 | [`TCI`](../docs/isa/TCI.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TCMP`](../docs/isa/TCMP.md) | Yes | TODO | Yes | Yes | Yes | Yes |
+| [`TCMP`](../docs/isa/TCMP.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TCMPS`](../docs/isa/TCMPS.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TCOLARGMAX`](../docs/isa/TCOLARGMAX.md) | TODO | TODO | Yes | Yes | Yes | Yes |
 | [`TCOLARGMIN`](../docs/isa/TCOLARGMIN.md) | TODO | TODO | Yes | Yes | Yes | Yes |
@@ -58,23 +58,23 @@ This table tracks per-instruction backend availability:
 | [`TCOLEXPANDMIN`](../docs/isa/TCOLEXPANDMIN.md) | TODO | TODO | Yes | Yes | Yes | TODO |
 | [`TCOLEXPANDMUL`](../docs/isa/TCOLEXPANDMUL.md) | TODO | TODO | Yes | Yes | Yes | TODO |
 | [`TCOLEXPANDSUB`](../docs/isa/TCOLEXPANDSUB.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TCOLMAX`](../docs/isa/TCOLMAX.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TCOLMIN`](../docs/isa/TCOLMIN.md) | Yes | TODO | Yes | Yes | Yes | Yes |
+| [`TCOLMAX`](../docs/isa/TCOLMAX.md) | Yes | Yes | Yes | Yes | Yes | Yes |
+| [`TCOLMIN`](../docs/isa/TCOLMIN.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TCOLPROD`](../docs/isa/TCOLPROD.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TCOLSUM`](../docs/isa/TCOLSUM.md) | Yes | TODO | Yes | Yes | Yes | TODO |
-| [`TCVT`](../docs/isa/TCVT.md) | Yes | TODO | Yes | Yes | Yes | TODO |
-| [`TDIV`](../docs/isa/TDIV.md) | Yes | TODO | Yes | Yes | Yes | Yes |
+| [`TCOLSUM`](../docs/isa/TCOLSUM.md) | Yes | Yes | Yes | Yes | Yes | TODO |
+| [`TCVT`](../docs/isa/TCVT.md) | Yes | Yes | Yes | Yes | Yes | TODO |
+| [`TDIV`](../docs/isa/TDIV.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TDIVS`](../docs/isa/TDIVS.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TEXP`](../docs/isa/TEXP.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TEXPANDS`](../docs/isa/TEXPANDS.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TEXTRACT`](../docs/isa/TEXTRACT.md) | Yes | TODO | Yes | Yes | Yes | Yes |
+| [`TEXTRACT`](../docs/isa/TEXTRACT.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TEXTRACT_FP`](../docs/isa/TEXTRACT_FP.md) | TODO | TODO | Yes | Yes | Yes | Yes |
 | [`TFILLPAD`](../docs/isa/TFILLPAD.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TFILLPAD_EXPAND`](../docs/isa/TFILLPAD_EXPAND.md) | TODO | TODO | Yes | Yes | Yes | Yes |
 | [`TFILLPAD_INPLACE`](../docs/isa/TFILLPAD_INPLACE.md) | TODO | TODO | Yes | Yes | Yes | Yes |
 | [`TFMOD`](../docs/isa/TFMOD.md) | TODO | TODO | Yes | Yes | Yes | TODO |
 | [`TFMODS`](../docs/isa/TFMODS.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TGATHER`](../docs/isa/TGATHER.md) | Yes | TODO | Yes | Yes | Yes | Yes |
+| [`TGATHER`](../docs/isa/TGATHER.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TGATHERB`](../docs/isa/TGATHERB.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TGEMV`](../docs/isa/TGEMV.md) | TODO | TODO | Yes | Yes | Yes | Yes |
 | [`TGEMV_ACC`](../docs/isa/TGEMV_ACC.md) | TODO | TODO | Yes | Yes | Yes | Yes |
@@ -86,23 +86,23 @@ This table tracks per-instruction backend availability:
 | [`TIMG2COL`](../docs/isa/TIMG2COL.md) | TODO | TODO | Yes | Yes | Yes | TODO |
 | [`TINSERT`](../docs/isa/TINSERT.md) | TODO | TODO | TODO | TODO | Yes | TODO |
 | [`TINSERT_FP`](../docs/isa/TINSERT_FP.md) | TODO | TODO | Yes | Yes | Yes | Yes |
-| [`TLOAD`](../docs/isa/TLOAD.md) | Yes | TODO | Yes | Yes | Yes | Yes |
+| [`TLOAD`](../docs/isa/TLOAD.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TLOG`](../docs/isa/TLOG.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TLRELU`](../docs/isa/TLRELU.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TMATMUL`](../docs/isa/TMATMUL.md) | Yes | TODO | Yes | Yes | Yes | Yes |
+| [`TMATMUL`](../docs/isa/TMATMUL.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TMATMUL_ACC`](../docs/isa/TMATMUL_ACC.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TMATMUL_BIAS`](../docs/isa/TMATMUL_BIAS.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TMATMUL_MX`](../docs/isa/TMATMUL_MX.md) | Yes | TODO | TODO | TODO | Yes | Yes |
-| [`TMAX`](../docs/isa/TMAX.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TMAXS`](../docs/isa/TMAXS.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TMIN`](../docs/isa/TMIN.md) | Yes | TODO | Yes | Yes | Yes | Yes |
+| [`TMAX`](../docs/isa/TMAX.md) | Yes | Yes | Yes | Yes | Yes | Yes |
+| [`TMAXS`](../docs/isa/TMAXS.md) | Yes | Yes | Yes | Yes | Yes | Yes |
+| [`TMIN`](../docs/isa/TMIN.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TMINS`](../docs/isa/TMINS.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TMOV`](../docs/isa/TMOV.md) | Yes | TODO | Yes | Yes | Yes | Yes |
+| [`TMOV`](../docs/isa/TMOV.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TMOV_FP`](../docs/isa/TMOV_FP.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TMRGSORT`](../docs/isa/TMRGSORT.md) | Yes | TODO | Yes | Yes | Yes | Yes |
+| [`TMRGSORT`](../docs/isa/TMRGSORT.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TMUL`](../docs/isa/TMUL.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TMULS`](../docs/isa/TMULS.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TNEG`](../docs/isa/TNEG.md) | Yes | TODO | Yes | Yes | Yes | Yes |
+| [`TNEG`](../docs/isa/TNEG.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TNOT`](../docs/isa/TNOT.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TNOTIFY`](../docs/isa/comm/TNOTIFY.md) | Yes | TODO | Yes | Yes | Yes | TODO |
 | [`TOR`](../docs/isa/TOR.md) | Yes | TODO | Yes | Yes | Yes | Yes |
@@ -122,7 +122,7 @@ This table tracks per-instruction backend availability:
 | [`TPOWS`](../docs/isa/TPOWS.md) | Yes | TODO | Yes | Yes | Yes | TODO |
 | [`TQUANT`](../docs/isa/TQUANT.md) | TODO | TODO | TODO | TODO | Yes | TODO |
 | [`TRANDOM`](../docs/isa/TRANDOM.md) | No | TODO | TODO | TODO | Yes | TODO |
-| [`TRECIP`](../docs/isa/TRECIP.md) | Yes | TODO | Yes | Yes | Yes | Yes |
+| [`TRECIP`](../docs/isa/TRECIP.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TREDUCE`](../docs/isa/comm/TREDUCE.md) | Yes | TODO | Yes | Yes | Yes | TODO |
 | [`TRELU`](../docs/isa/TRELU.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TREM`](../docs/isa/TREM.md) | Yes | TODO | Yes | Yes | Yes | Yes |
@@ -130,7 +130,7 @@ This table tracks per-instruction backend availability:
 | [`TRESHAPE`](../docs/isa/TRESHAPE.md) | Yes | TODO | Yes | Yes | Yes | TODO |
 | [`TROWARGMAX`](../docs/isa/TROWARGMAX.md) | TODO | TODO | Yes | Yes | Yes | TODO |
 | [`TROWARGMIN`](../docs/isa/TROWARGMIN.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TROWEXPAND`](../docs/isa/TROWEXPAND.md) | Yes | TODO | Yes | Yes | Yes | Yes |
+| [`TROWEXPAND`](../docs/isa/TROWEXPAND.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TROWEXPANDADD`](../docs/isa/TROWEXPANDADD.md) | TODO | TODO | Yes | Yes | Yes | TODO |
 | [`TROWEXPANDDIV`](../docs/isa/TROWEXPANDDIV.md) | Yes | TODO | Yes | Yes | Yes | TODO |
 | [`TROWEXPANDEXPDIF`](../docs/isa/TROWEXPANDEXPDIF.md) | TODO | TODO | Yes | Yes | Yes | TODO |
@@ -139,13 +139,13 @@ This table tracks per-instruction backend availability:
 | [`TROWEXPANDMUL`](../docs/isa/TROWEXPANDMUL.md) | TODO | TODO | Yes | Yes | Yes | TODO |
 | [`TROWEXPANDSUB`](../docs/isa/TROWEXPANDSUB.md) | Yes | TODO | Yes | Yes | Yes | TODO |
 | [`TROWMAX`](../docs/isa/TROWMAX.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TROWMIN`](../docs/isa/TROWMIN.md) | Yes | TODO | Yes | Yes | Yes | Yes |
+| [`TROWMIN`](../docs/isa/TROWMIN.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TROWPROD`](../docs/isa/TROWPROD.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TROWSUM`](../docs/isa/TROWSUM.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TRSQRT`](../docs/isa/TRSQRT.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TSCATTER`](../docs/isa/TSCATTER.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TSEL`](../docs/isa/TSEL.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TSELS`](../docs/isa/TSELS.md) | Yes | TODO | Yes | Yes | Yes | Yes |
+| [`TROWSUM`](../docs/isa/TROWSUM.md) | Yes | Yes | Yes | Yes | Yes | Yes |
+| [`TRSQRT`](../docs/isa/TRSQRT.md) | Yes | Yes | Yes | Yes | Yes | Yes |
+| [`TSCATTER`](../docs/isa/TSCATTER.md) | Yes | Yes | Yes | Yes | Yes | Yes |
+| [`TSEL`](../docs/isa/TSEL.md) | Yes | Yes | Yes | Yes | Yes | Yes |
+| [`TSELS`](../docs/isa/TSELS.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TSETFMATRIX`](../docs/isa/TSETFMATRIX.md) | TODO | TODO | Yes | Yes | Yes | TODO |
 | [`TSET_IMG2COL_PADDING`](../docs/isa/TSET_IMG2COL_PADDING.md) | TODO | TODO | Yes | Yes | Yes | TODO |
 | [`TSET_IMG2COL_RPT`](../docs/isa/TSET_IMG2COL_RPT.md) | TODO | TODO | Yes | Yes | Yes | TODO |
@@ -153,9 +153,9 @@ This table tracks per-instruction backend availability:
 | [`TSHLS`](../docs/isa/TSHLS.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TSHR`](../docs/isa/TSHR.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TSHRS`](../docs/isa/TSHRS.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TSORT32`](../docs/isa/TSORT32.md) | Yes | TODO | Yes | Yes | Yes | Yes |
+| [`TSORT32`](../docs/isa/TSORT32.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TSQRT`](../docs/isa/TSQRT.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TSTORE`](../docs/isa/TSTORE.md) | Yes | TODO | Yes | Yes | Yes | TODO |
+| [`TSTORE`](../docs/isa/TSTORE.md) | Yes | Yes | Yes | Yes | Yes | TODO |
 | [`TSTORE_FP`](../docs/isa/TSTORE_FP.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TSUB`](../docs/isa/TSUB.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TSUBC`](../docs/isa/TSUBC.md) | Yes | TODO | TODO | TODO | TODO | TODO |
@@ -164,7 +164,7 @@ This table tracks per-instruction backend availability:
 | [`TSUBVIEW`](../docs/isa/TSUBVIEW.md) | TODO | TODO | Yes | Yes | TODO | TODO |
 | [`TSYNC`](../docs/isa/TSYNC.md) | TODO | TODO | Yes | Yes | Yes | Yes |
 | [`TTEST`](../docs/isa/comm/TTEST.md) | Yes | TODO | Yes | Yes | Yes | TODO |
-| [`TTRANS`](../docs/isa/TTRANS.md) | Yes | TODO | Yes | Yes | Yes | Yes |
+| [`TTRANS`](../docs/isa/TTRANS.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TTRI`](../docs/isa/TTRI.md) | TODO | TODO | Yes | Yes | Yes | Yes |
 | [`TWAIT`](../docs/isa/comm/TWAIT.md) | Yes | TODO | Yes | Yes | Yes | TODO |
 | [`TXOR`](../docs/isa/TXOR.md) | Yes | TODO | Yes | Yes | Yes | Yes |
