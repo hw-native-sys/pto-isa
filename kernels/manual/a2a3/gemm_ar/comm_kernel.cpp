@@ -101,29 +101,29 @@ AICORE inline __gm__ int32_t *AgSummarySlotPtr(__gm__ int32_t *signal_base, int 
     return signal_base + G_SIGNAL_AG_SUMMARY_OFFSET + summary_block * G_SIGNAL_AG_SUMMARY_STRIDE;
 }
 
-AICORE inline void RsNotifySubtileReady(__gm__ CommDeviceContext *hcclCtx, __gm__ int32_t *signal_base, int my_rank,
+AICORE inline void RsNotifySubtileReady(__gm__ HcclDeviceContext *hcclCtx, __gm__ int32_t *signal_base, int my_rank,
                                         const RsPendingMeta &meta)
 {
     __gm__ int32_t *counter = signal_base + G_SIGNAL_SUBTILE_READY_OFFSET + meta.local_subtile_id;
     if (meta.owner != my_rank) {
-        counter = CommRemotePtr(hcclCtx, counter, meta.owner);
+        counter = HcclRemotePtr(hcclCtx, counter, meta.owner);
     }
     pto::comm::Signal sig(counter);
     pto::comm::TNOTIFY(sig, static_cast<int32_t>(1), pto::comm::NotifyOp::AtomicAdd);
 }
 
-AICORE inline void RsNotifyAgSummary(__gm__ CommDeviceContext *hcclCtx, __gm__ int32_t *signal_base, int my_rank,
+AICORE inline void RsNotifyAgSummary(__gm__ HcclDeviceContext *hcclCtx, __gm__ int32_t *signal_base, int my_rank,
                                      const RsPendingMeta &meta)
 {
     __gm__ int32_t *counter = AgSummarySlotPtr(signal_base, meta.ag_summary_block);
     if (meta.owner != my_rank) {
-        counter = CommRemotePtr(hcclCtx, counter, meta.owner);
+        counter = HcclRemotePtr(hcclCtx, counter, meta.owner);
     }
     pto::comm::Signal sig(counter);
     pto::comm::TNOTIFY(sig, static_cast<int32_t>(1), pto::comm::NotifyOp::AtomicAdd);
 }
 
-AICORE inline void RsPublishSubtileReady(__gm__ CommDeviceContext *hcclCtx, __gm__ int32_t *signal_base, int my_rank,
+AICORE inline void RsPublishSubtileReady(__gm__ HcclDeviceContext *hcclCtx, __gm__ int32_t *signal_base, int my_rank,
                                          const RsPendingMeta &meta)
 {
     // Match the proven allgather_gemm protocol: flush local pipeline state and
@@ -164,7 +164,7 @@ AICORE inline int32_t RsPollQueues(volatile __gm__ MultiBlockQueueSet *qset, con
 // Ping-pong pipeline: load current tile, optionally store previous tile.
 AICORE inline void RsPipelineStep(RsSubtileData &pingTile, RsSubtileData &pongTile, Global &pp_pending_dst,
                                   RsPendingMeta &pp_pending_meta, Global &dstG, const RsPendingMeta &curMeta,
-                                  Global &srcG, int pp_count, __gm__ CommDeviceContext *hcclCtx,
+                                  Global &srcG, int pp_count, __gm__ HcclDeviceContext *hcclCtx,
                                   __gm__ int32_t *signal_base, int my_rank)
 {
     bool use_ping = (pp_count % 2 == 0);
@@ -194,7 +194,7 @@ AICORE inline void RsPipelineStep(RsSubtileData &pingTile, RsSubtileData &pongTi
 // Drain the last tile still in the pipeline after the RS loop.
 AICORE inline void RsFlushPipeline(RsSubtileData &pingTile, RsSubtileData &pongTile, Global &pp_pending_dst,
                                    const RsPendingMeta &pp_pending_meta, int pp_count,
-                                   __gm__ CommDeviceContext *hcclCtx, __gm__ int32_t *signal_base, int my_rank)
+                                   __gm__ HcclDeviceContext *hcclCtx, __gm__ int32_t *signal_base, int my_rank)
 {
     if (pp_count <= 0)
         return;
@@ -210,7 +210,7 @@ AICORE inline void RsFlushPipeline(RsSubtileData &pingTile, RsSubtileData &pongT
 }
 
 AICORE inline void RsProcessTileStripes(__gm__ half *gemm_output, __gm__ half *reduced_output,
-                                        __gm__ int32_t *signal_base, __gm__ CommDeviceContext *hcclCtx, int my_rank,
+                                        __gm__ int32_t *signal_base, __gm__ HcclDeviceContext *hcclCtx, int my_rank,
                                         int safe_nranks, int32_t tile_idx, const ShapeDyn &subtileShape,
                                         const StrideDyn &subtileStride, RsSubtileData &pingTile,
                                         RsSubtileData &pongTile, Global &pp_pending_dst, RsPendingMeta &pp_pending_meta,
@@ -224,7 +224,7 @@ AICORE inline void RsProcessTileStripes(__gm__ half *gemm_output, __gm__ half *r
         Global srcG(gemm_output + row_offset, subtileShape, subtileStride);
 
         __gm__ half *dst_ptr = (owner == my_rank) ? reduced_output + row_offset :
-                                                    CommRemotePtr(hcclCtx, reduced_output, owner) + row_offset;
+                                                    HcclRemotePtr(hcclCtx, reduced_output, owner) + row_offset;
         Global dstG(dst_ptr, subtileShape, subtileStride);
 
         RsPendingMeta curMeta{owner, local_subtile_id, ag_summary_block};
@@ -285,7 +285,7 @@ AICORE inline int RsInitQueueState(int comm_block_idx, int num_compute_blocks, i
 
 AICORE inline bool RsTryProcessOneTile(__gm__ half *gemm_output, __gm__ half *reduced_output,
                                        __gm__ int32_t *signal_base, volatile __gm__ MultiBlockQueueSet *qset,
-                                       __gm__ CommDeviceContext *hcclCtx, int my_rank, int nranks,
+                                       __gm__ HcclDeviceContext *hcclCtx, int my_rank, int nranks,
                                        const ShapeDyn &subtileShape, const StrideDyn &subtileStride,
                                        RsSubtileData &pingTile, RsSubtileData &pongTile, Global &pp_pending_dst,
                                        RsPendingMeta &pp_pending_meta, const int *my_queue_indices, int my_queue_count,
@@ -323,7 +323,7 @@ AICORE inline bool RsTryProcessOneTile(__gm__ half *gemm_output, __gm__ half *re
 // ============================================================================
 AICORE inline void ReduceScatterPhase(__gm__ half *gemm_output, __gm__ half *reduced_output,
                                       __gm__ int32_t *signal_base, __gm__ MultiBlockQueueSet *queue_set,
-                                      __gm__ CommDeviceContext *hcclCtx, int my_rank, int nranks,
+                                      __gm__ HcclDeviceContext *hcclCtx, int my_rank, int nranks,
                                       int num_compute_blocks, int comm_block_idx, int num_comm_blocks)
 {
     if (num_comm_blocks <= 0 || comm_block_idx >= num_comm_blocks)
@@ -427,7 +427,7 @@ AICORE inline bool AgDecodeLocalSubtile(int local_subtile_id, int my_rank, int n
     return true;
 }
 
-AICORE inline void AgTransferSubtileToAll(__gm__ half *reduced_output, __gm__ CommDeviceContext *hcclCtx,
+AICORE inline void AgTransferSubtileToAll(__gm__ half *reduced_output, __gm__ HcclDeviceContext *hcclCtx,
                                           const StrideDyn &tileStride, int my_rank, int nranks, int total_tiles,
                                           int local_subtile_id)
 {
@@ -461,7 +461,7 @@ AICORE inline void AgTransferSubtileToAll(__gm__ half *reduced_output, __gm__ Co
 // introducing a subtile-granularity executor that later steps can drive from
 // subtile-ready signals instead of a single global RS barrier.
 // ============================================================================
-AICORE inline void AllGatherPhase(__gm__ half *reduced_output, __gm__ CommDeviceContext *hcclCtx, int my_rank,
+AICORE inline void AllGatherPhase(__gm__ half *reduced_output, __gm__ HcclDeviceContext *hcclCtx, int my_rank,
                                   int nranks, int comm_block_idx, int num_comm_blocks)
 {
     const int total_tiles = G_NUM_TILES;
@@ -528,7 +528,7 @@ AICORE inline bool AgAllDone(const AgAssignedState &state)
 }
 
 AICORE inline bool AgDrainReadyAssignedSubtiles(__gm__ half *reduced_output, __gm__ int32_t *signal_base,
-                                                __gm__ CommDeviceContext *hcclCtx, const StrideDyn &tileStride,
+                                                __gm__ HcclDeviceContext *hcclCtx, const StrideDyn &tileStride,
                                                 int my_rank, int nranks, int total_tiles, AgAssignedState &state)
 {
     if (AgAllDone(state) || nranks <= 1 || state.count <= 0) {
@@ -614,7 +614,7 @@ struct RsPipelineState {
 };
 
 AICORE inline bool GemmCommTryRs(__gm__ half *gemm_output, __gm__ half *reduced_output, __gm__ int32_t *signal_matrix,
-                                 volatile __gm__ MultiBlockQueueSet *qset, __gm__ CommDeviceContext *hcclCtx,
+                                 volatile __gm__ MultiBlockQueueSet *qset, __gm__ HcclDeviceContext *hcclCtx,
                                  int my_rank, int nranks, const ShapeDyn &subtileShape, const StrideDyn &subtileStride,
                                  RsSubtileData &pingTile, RsSubtileData &pongTile, RsPipelineState &rsState,
                                  int num_comm_blocks, bool &rs_done)
@@ -629,7 +629,7 @@ AICORE inline bool GemmCommTryRs(__gm__ half *gemm_output, __gm__ half *reduced_
 }
 
 AICORE inline bool GemmCommTryAg(__gm__ half *reduced_output, __gm__ int32_t *signal_matrix,
-                                 __gm__ CommDeviceContext *hcclCtx, const StrideDyn &subtileStride, int my_rank,
+                                 __gm__ HcclDeviceContext *hcclCtx, const StrideDyn &subtileStride, int my_rank,
                                  int nranks, int total_tiles, AgAssignedState &agState, bool &ag_done)
 {
     bool ag_progress = AgDrainReadyAssignedSubtiles(reduced_output, signal_matrix, hcclCtx, subtileStride, my_rank,
@@ -656,7 +656,7 @@ AICORE inline void GemmCommWaitForWork(volatile __gm__ MultiBlockQueueSet *qset,
 //   AG consumes ready subtile counters without a global RS→AG barrier
 // ============================================================================
 AICORE inline void GemmCommAllImpl(__gm__ half *gemm_output, __gm__ half *reduced_output, __gm__ int32_t *signal_matrix,
-                                   __gm__ MultiBlockQueueSet *queue_set, __gm__ CommDeviceContext *hcclCtx, int rank,
+                                   __gm__ MultiBlockQueueSet *queue_set, __gm__ HcclDeviceContext *hcclCtx, int rank,
                                    int nranks, int num_compute_blocks, int comm_block_idx, int num_comm_blocks)
 {
     int my_rank = hcclCtx->rankId;
