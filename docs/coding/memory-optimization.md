@@ -2,17 +2,6 @@
 
 This document covers memory optimization techniques for PTO kernels. For the abstract on-chip memory model see [`docs/machine/abstract-machine.md`](../machine/abstract-machine.md); for example-driven tuning see [`opt.md`](opt.md).
 
-## Contents
-
-- [1. On-Chip Storage Model](#1-on-chip-storage-model)
-- [2. Tile Sizing and Capacity](#2-tile-sizing-and-capacity)
-- [3. Data Reuse](#3-data-reuse)
-- [4. Layout and Alignment](#4-layout-and-alignment)
-- [5. Reducing GM Traffic](#5-reducing-gm-traffic)
-- [6. Double Buffering](#6-double-buffering)
-- [7. Valid Region and Padding](#7-valid-region-and-padding)
-- [8. Checklist](#8-checklist)
-
 ---
 
 ## 1. On-Chip Storage Model
