@@ -120,6 +120,7 @@ trowexpandop
 trowmax
 trowmin
 trowsum
+trowprod
 trsqrt
 tscatter
 tsel
