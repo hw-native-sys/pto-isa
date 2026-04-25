@@ -44,6 +44,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <type_traits>
 #include "pto/cpu/tile_offsets.hpp"
 #include "pto/common/type.hpp"
+#include "pto/cpu/MXTypes.hpp"
 
 template <typename GT>
 void printRawGT(GT &tensor, const std::string name = "", int elementWidth = 5, int maxR = INT32_MAX,
@@ -127,8 +128,9 @@ void printTile(TL &tile, const std::string name = "", int elementWidth = 5, int 
             if constexpr (std::is_integral_v<typename TL::DType>) {
                 std::cout << std::setw(elementWidth) << tile.data()[offset] << " ";
             } else {
-                const auto v = (tile.data()[offset] < 1e-20 ? 0 : tile.data()[offset]);
-                std::cout << std::setw(elementWidth) << std::fixed << std::setprecision(PRECISION) << v << " ";
+                double val = static_cast<double>(tile.data()[offset]);
+                std::cout << std::setw(elementWidth) << std::fixed << std::setprecision(PRECISION)
+                          << (std::abs(val) < 1e-20 ? 0 : val) << " ";
             }
         }
         if (maxC < tile.GetValidCol()) {

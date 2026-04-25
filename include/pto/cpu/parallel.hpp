@@ -22,7 +22,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #endif
 
 #ifndef PTO_CPU_MAX_THREADS
-#define PTO_CPU_MAX_THREADS 0u
+#define PTO_CPU_MAX_THREADS 1u
 #endif
 
 // Vectorization hints (portable fallbacks).
