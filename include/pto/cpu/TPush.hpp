@@ -1146,11 +1146,22 @@ PTO_INTERNAL void TPush_impl(Pipe &pipe, TileProd &tile)
         slotIndex * Pipe::RingFiFo::SLOT_SIZE + static_cast<std::size_t>(pipe.prod.entryOffset);
 
     if (pipe.fifo.GM_SLOT_BUFFER != nullptr) {
-        TPush_gm<Pipe, TileProd, TConfig, Split>(pipe, tile, entryBase);
-    } else if constexpr (Pipe::is_c2v && cpu_pipe::IsC2VProducerTile<TileProd>()) {
-        TPush_c2v<Pipe, TileProd, TConfig, Split>(pipe, tile, entryBase, slotIndex);
-    } else if constexpr (Pipe::is_v2c && cpu_pipe::IsV2CProducerTile<TileProd>()) {
-        TPush_v2c<Pipe, TileProd, TConfig, Split>(pipe, tile, entryBase);
+        using T = typename TileProd::DType;
+        constexpr int rows = TileProd::Rows;
+        constexpr int cols = TileProd::Cols;
+        std::size_t subOffset = 0;
+        if constexpr (Split != TileSplitAxis::TILE_NO_SPLIT) {
+            subOffset = static_cast<std::size_t>(get_subblockid()) * rows * cols * sizeof(T);
+        }
+        using GlobalData = GlobalTensor<T, Shape<1, 1, 1, rows, cols>, Stride<1, 1, 1, cols, 1>>;
+        auto *addr = reinterpret_cast<__gm__ T *>(reinterpret_cast<std::uintptr_t>(pipe.fifo.GM_SLOT_BUFFER) +
+                                                  entryBase + subOffset);
+        GlobalData globalData(addr);
+        TSTORE(globalData, tile);
+    } else if constexpr (Pipe::is_c2v) {
+        TPush_c2v<Pipe, TileProd, Split>(pipe, tile, entryBase, slotIndex);
+    } else if constexpr (Pipe::is_v2c) {
+        TPush_v2c<Pipe, TileProd, Split>(pipe, tile, entryBase);
     }
     if (pipe.prod.getRecordStatus()) {
         pipe.prod.template record<TileProd, Split>();
