@@ -11,12 +11,17 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define TINSERT_HPP
 
 #include <cassert>
+#include "common.hpp"
 
 namespace pto {
-template <typename DstTileData, typename SrcTileData>
-PTO_INTERNAL void TINSERT_IMPL(DstTileData &dst, SrcTileData &src, uint32_t idxRow = 0, uint32_t idxCol = 0)
+
+template <typename DstTileData, typename SrcTileData, bool applyRelu>
+PTO_INTERNAL void TInsert_Impl(DstTileData &dst, SrcTileData &src, uint32_t idxRow, uint32_t idxCol)
 {
     assert(src.GetValidRow() + idxRow <= dst.GetValidRow() && src.GetValidCol() + idxCol <= dst.GetValidCol());
+
+    using D = typename DstTileData::DType;
+    using S = typename SrcTileData::DType;
 
     for (size_t c = 0; c < src.GetValidCol(); c++) {
         const size_t subTileSrcC = c / SrcTileData::InnerCols;
@@ -44,32 +49,42 @@ PTO_INTERNAL void TINSERT_IMPL(DstTileData &dst, SrcTileData &src, uint32_t idxR
                 const size_t innerR = rDst % DstTileData::InnerRows;
                 dstTileIdx = GetTileElementOffsetSubfractals<DstTileData>(subTileR, innerR, subTileDstC, innerDstC);
             }
-            dst.data()[dstTileIdx] = src.data()[srcTileIdx];
+            S val = src.data()[srcTileIdx];
+            if constexpr (applyRelu) {
+                val = ReLU(val);
+            }
+            dst.data()[dstTileIdx] = val;
         }
     }
+}
+
+template <typename DstTileData, typename SrcTileData>
+PTO_INTERNAL void TINSERT_IMPL(DstTileData &dst, SrcTileData &src, uint32_t idxRow = 0, uint32_t idxCol = 0)
+{
+    TInsert_Impl<DstTileData, SrcTileData, false>(dst, src, idxRow, idxCol);
 }
 
 template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode>
 PTO_INTERNAL void TINSERT_IMPL(DstTileData &dst, SrcTileData &src, uint16_t indexRow = 0, uint16_t indexCol = 0)
 {
-    (void)reluMode;
-    TINSERT_IMPL(dst, src, indexRow, indexCol);
+    constexpr bool useRelu = reluMode == ReluPreMode::NormalRelu;
+    TInsert_Impl<DstTileData, SrcTileData, useRelu>(dst, src, indexRow, indexCol);
 }
 
 template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode>
 PTO_INTERNAL void TINSERT_IMPL(DstTileData &dst, SrcTileData &src, uint64_t preQuantScalar, uint16_t indexRow = 0,
                                uint16_t indexCol = 0)
 {
-    (void)preQuantScalar;
-    TINSERT_IMPL(dst, src, indexRow, indexCol);
+    constexpr bool useRelu = reluMode == ReluPreMode::NormalRelu;
+    TInsert_Impl<DstTileData, SrcTileData, useRelu>(dst, src, indexRow, indexCol);
 }
 
 template <typename DstTileData, typename SrcTileData, typename FpTileData, ReluPreMode reluMode>
 PTO_INTERNAL void TINSERT_IMPL(DstTileData &dst, SrcTileData &src, FpTileData &fp, uint16_t indexRow = 0,
                                uint16_t indexCol = 0)
 {
-    (void)fp;
-    TINSERT_IMPL(dst, src, indexRow, indexCol);
+    constexpr bool useRelu = reluMode == ReluPreMode::NormalRelu;
+    TInsert_Impl<DstTileData, SrcTileData, useRelu>(dst, src, indexRow, indexCol);
 }
 
 template <auto mode, typename DstTileData, typename SrcTileData>
