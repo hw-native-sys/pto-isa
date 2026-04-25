@@ -653,7 +653,7 @@ PTO_INTERNAL void CheckGroupConvTile(TileDataDst &dst, TileDataSrc &src, TileDat
         unsigned dstC1 = dst.GetShape(GlobalTensorDim::DIM_2);
         unsigned dstH = dst.GetShape(GlobalTensorDim::DIM_3);
         unsigned dstW = dst.GetShape(GlobalTensorDim::DIM_4);
-        unsigned dstC0 = dst.GetShape(GlobalTensorDim::DIM_5);
+        unsigned dstC0 = dst.GetShape(GlobalTensorDim::TOTAL_DIM);
         unsigned srcSize = srcG * srcN * srcC * srcH * srcW;
         unsigned dstSize = dstG * dstN * dstC1 * dstC0 * dstH * dstW;
         unsigned tmpSize = TileDataTmp::Rows * TileDataTmp::Cols;
