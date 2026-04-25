@@ -11,8 +11,10 @@
 - [更多教程示例](tutorials/README_zh.md)
 - [调试与断言查找](debug_zh.md)
 - [Tile 抽象与布局/有效区域规则](Tile_zh.md)
+- [ConvTile 编程模型](ConvTile_zh.md)
 - [全局内存张量（shape/stride/layout）](GlobalTensor_zh.md)
 - [事件与同步模型](Event_zh.md)
+- [CPU_SIM 后端说明](cpu_sim_zh.md)
 - [标量值、类型助记符与枚举](Scalar_zh.md)
 
 ## 相关文档

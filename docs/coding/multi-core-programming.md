@@ -1,395 +1,175 @@
 # Multi-core Programming
 
-This document introduces PTO multi-core parallel programming techniques, helping developers fully utilize Ascend's multi-core architecture for high-performance operators.
+This document describes common multi-core programming patterns in PTO Tile Lib and emphasizes work partitioning styles that align with the current programming model.
 
-## Contents
+It focuses on tile-based decomposition, output ownership, load balancing, and locality.
 
-- [1. Multi-core Architecture Overview](#1-multi-core-architecture-overview)
-- [2. SPMD Programming Pattern](#2-spmd-programming-pattern)
-- [3. MPMD Programming Pattern](#3-mpmd-programming-pattern)
-- [4. Load Balancing](#4-load-balancing)
-- [5. Inter-core Communication](#5-inter-core-communication)
-- [6. Performance Optimization](#6-performance-optimization)
+## 1. Overview
 
----
+PTO kernels commonly follow an SPMD-style execution model: multiple cores run the same kernel body, and work assignment is derived from block or core identity.
 
-## 1. Multi-core Architecture Overview
+This style matches the tile-oriented programming model used throughout the PTO documentation.
 
-### 1.1 Ascend Multi-core Architecture
+For introductory examples, see:
 
-**Hardware Configuration**:
-- A2/A3: 24 AI Cores
-- A5: More cores (varies by model)
+- [Quickstart Tutorial](tutorial.md)
+- [Vector Add Tutorial](tutorials/vec-add.md)
+- [Optimization Guide](opt.md)
 
-**Architecture Features**:
-```
-┌─────────────────────────────────┐
-│         Host CPU                │
-└────────────┬────────────────────┘
-             │
-    ┌────────┴────────┐
-    │   NPU Device    │
-    │  ┌───┬───┬───┐  │
-    │  │C0 │C1 │...│  │  AI Cores
-    │  └───┴───┴───┘  │
-    │  ┌───────────┐  │
-    │  │    GM     │  │  Global Memory
-    │  └───────────┘  │
-    └─────────────────┘
-```
+## 2. The main multi-core model used in this repository
 
-**Core Features**:
-- Each core executes independently
-- Shared global memory (GM)
-- Independent L1 cache
-- Inter-core communication via GM
+### 2.1 SPMD-style work partitioning
 
-### 1.2 Parallel Programming Models
+The most common model in this repository is:
 
-**Two Main Patterns**:
+- all cores execute the same kernel code
+- each core handles a different region of the input or output
+- partitioning is usually expressed in terms of rows, columns, tiles, or block ranges
 
-| Pattern | Features | Use Case |
-|---------|----------|----------|
-| **SPMD** | All cores run same code | Regular data parallelism |
-| **MPMD** | Different cores run different code | Pipeline, producer-consumer |
+This approach is a natural fit for:
 
----
+- elementwise kernels
+- reductions over tiled data
+- GEMM-like kernels
+- tiled attention-style kernels
 
-## 2. SPMD Programming Pattern
+### 2.2 Why this model is preferred
 
-### 2.1 Basic Concept
+SPMD-style partitioning is easier to reason about in PTO because it aligns with:
 
-**SPMD (Single Program, Multiple Data)**:
-- All cores execute the same program
-- Distinguish different data blocks via `block_idx`
-- Most commonly used parallel pattern
+- tile-based work decomposition
+- predictable GM access patterns
+- straightforward load balancing
+- simpler synchronization structure
 
-### 2.2 Basic Example
+In most cases, keeping each core responsible for a regular, contiguous region is preferable to introducing irregular inter-core coordination.
 
-**Vector Addition**:
-```cpp
-__global__ __aicore__ void VecAddKernel(__gm__ float* out,
-                                        __gm__ const float* in0,
-                                        __gm__ const float* in1,
-                                        uint32_t totalLength) {
-  // Get current core ID
-  int block_idx = get_block_idx();
-  int block_num = get_block_num();
-  
-  // Calculate data range for current core
-  int elements_per_block = (totalLength + block_num - 1) / block_num;
-  int start = block_idx * elements_per_block;
-  int end = min(start + elements_per_block, totalLength);
-  
-  // Process current block
-  for (int i = start; i < end; i += TILE_SIZE) {
-    int size = min(TILE_SIZE, end - i);
-    
-    using TileT = Tile<TileType::Vec, float, 8, 256>;
-    TileT a, b, c;
-    
-    TLOAD(a, GlobalTensor(in0 + i));
-    TLOAD(b, GlobalTensor(in1 + i));
-    TADD(c, a, b);
-    TSTORE(GlobalTensor(out + i), c);
-  }
-}
-```
+## 3. Practical partitioning guidance
 
-### 2.3 2D Data Partitioning
+### 3.1 Partition by output ownership
 
-**Matrix Multiplication Example**:
-```cpp
-__global__ __aicore__ void MatMulKernel(__gm__ float* C,
-                                        __gm__ const float* A,
-                                        __gm__ const float* B,
-                                        int M, int K, int N) {
-  // Get core ID
-  int block_idx = get_block_idx();
-  
-  // 2D partitioning: M and N dimensions
-  int blocks_m = (M + TILE_M - 1) / TILE_M;
-  int blocks_n = (N + TILE_N - 1) / TILE_N;
-  
-  int block_m = block_idx / blocks_n;
-  int block_n = block_idx % blocks_n;
-  
-  // Calculate matrix block for current core
-  int m_start = block_m * TILE_M;
-  int n_start = block_n * TILE_N;
-  
-  // Ensure no out-of-bounds
-  if (m_start >= M || n_start >= N) return;
-  
-  int m_size = min(TILE_M, M - m_start);
-  int n_size = min(TILE_N, N - n_start);
-  
-  // Execute matrix multiplication
-  TileAcc acc;
-  TFILL(acc, 0);
-  
-  for (int k = 0; k < K; k += TILE_K) {
-    int k_size = min(TILE_K, K - k);
-    
-    TLOAD(tileA, A[m_start:m_start+m_size, k:k+k_size]);
-    TLOAD(tileB, B[k:k+k_size, n_start:n_start+n_size]);
-    TMATMUL_ACC(acc, tileA, tileB);
-  }
-  
-  TSTORE(C[m_start:m_start+m_size, n_start:n_start+n_size], acc);
-}
-```
+A good default strategy is to partition work by the output region each core owns.
 
----
+For example:
 
-## 3. MPMD Programming Pattern
+- for vector-style operators, split the output along a linear range
+- for matrix-style operators, split along tile rows, tile columns, or a 2D block grid
+- for row-wise reductions, assign one or more output rows per core
 
-### 3.1 Basic Concept
+This keeps the ownership model simple:
 
-**MPMD (Multiple Program, Multiple Data)**:
-- Different cores execute different programs
-- Suitable for pipeline and producer-consumer patterns
-- Requires inter-core synchronization
+- the core that computes an output tile also stores it
+- intermediate state remains local when possible
+- inter-core write conflicts are avoided
 
-### 3.2 Task Dispatch Pattern
+### 3.2 Balance work across cores
 
-**Method 1: Single Entry + Switch**
-```cpp
-__global__ __aicore__ void MPMDKernel(__gm__ float* out,
-                                      __gm__ const float* in,
-                                      uint32_t task_id) {
-  switch (task_id) {
-    case 0:
-      ProducerTask(out, in);
-      break;
-    case 1:
-      ConsumerTask(out, in);
-      break;
-    case 2:
-      ProcessorTask(out, in);
-      break;
-    default:
-      break;
-  }
-}
-```
+When assigning tiles to cores:
 
-### 3.3 Pipeline Pattern
+- prefer partitions with similar compute cost per core
+- avoid leaving one small tail region to a single overloaded core if it can be redistributed cleanly
+- keep GM access regular and contiguous where possible
 
-**Three-stage Pipeline**:
-```cpp
-__global__ __aicore__ void PipelineKernel(__gm__ float* out,
-                                          __gm__ const float* in,
-                                          uint32_t stage_id) {
-  switch (stage_id) {
-    case 0:  // Stage 1: Load
-      for (int i = 0; i < N; i++) {
-        TLOAD(buffer1[i], in[i]);
-        signal_stage2();
-      }
-      break;
-      
-    case 1:  // Stage 2: Compute
-      for (int i = 0; i < N; i++) {
-        wait_stage1();
-        TCOMPUTE(buffer2[i], buffer1[i]);
-        signal_stage3();
-      }
-      break;
-      
-    case 2:  // Stage 3: Store
-      for (int i = 0; i < N; i++) {
-        wait_stage2();
-        TSTORE(out[i], buffer2[i]);
-      }
-      break;
-  }
-}
-```
+A partition that is mathematically even but creates poor memory locality may still perform badly, so balance and locality should be considered together.
 
----
+### 3.3 Prefer regular tile loops
 
-## 4. Load Balancing
+Multi-core kernels are easier to validate and optimize when each core follows the same tile loop structure.
 
-### 4.1 Static Load Balancing
+Typical structure:
 
-**Uniform Partitioning**:
-```cpp
-// Method 1: Simple division
-int elements_per_block = totalLength / block_num;
-int start = block_idx * elements_per_block;
-int end = (block_idx == block_num - 1) ? 
-          totalLength : start + elements_per_block;
+1. determine the tile range owned by the current core
+2. iterate over the assigned tile range
+3. perform `TLOAD -> transform / compute -> TSTORE`
+4. handle edge tiles through valid-region control when needed
 
-// Method 2: Ceiling division
-int elements_per_block = (totalLength + block_num - 1) / block_num;
-int start = block_idx * elements_per_block;
-int end = min(start + elements_per_block, totalLength);
-```
+This style follows the tile-oriented programming model described in [Quickstart Tutorial](tutorial.md) and [Tile Programming Model](Tile.md).
 
-### 4.2 Load Imbalance Detection
+## 4. Multi-core concerns that matter in PTO
 
-**Detection Method**:
-```cpp
-// Record execution time for each core
-#ifdef PROFILE
-  auto start = GetTime();
-  
-  // Execute task
-  process_block(block_idx);
-  
-  auto end = GetTime();
-  execution_times[block_idx] = end - start;
-#endif
+### 4.1 Load balancing
 
-// Analyze load balance
-float max_time = *max_element(execution_times.begin(), 
-                              execution_times.end());
-float min_time = *min_element(execution_times.begin(), 
-                              execution_times.end());
-float imbalance = (max_time - min_time) / max_time;
+Load balancing is important because PTO kernels often combine:
 
-if (imbalance > 0.2) {
-  printf("Warning: Load imbalance detected: %.2f%%\n", 
-         imbalance * 100);
-}
-```
+- GM movement
+- layout transforms
+- vector or cube compute
+- explicit synchronization
 
----
+If one core receives substantially more tiles or more expensive tiles than the others, overall throughput may be limited by the slowest core.
 
-## 5. Inter-core Communication
+In practice, check:
 
-### 5.1 Communication via Global Memory
+- whether the output space is partitioned evenly
+- whether edge tiles are concentrated on too few cores
+- whether some cores perform extra transform or reduction work
 
-**Basic Pattern**:
-```cpp
-// Core 0: Write data
-__global__ __aicore__ void Writer(__gm__ float* shared_buffer) {
-  if (get_block_idx() == 0) {
-    TLOAD(tile, local_data);
-    TSTORE(shared_buffer, tile);
-    // Set flag indicating data is ready
-    shared_buffer[FLAG_OFFSET] = 1;
-  }
-}
+### 4.2 Memory locality
 
-// Core 1: Read data
-__global__ __aicore__ void Reader(__gm__ float* shared_buffer) {
-  if (get_block_idx() == 1) {
-    // Wait for data ready
-    while (shared_buffer[FLAG_OFFSET] != 1) {
-      // Spin wait
-    }
-    TLOAD(tile, shared_buffer);
-    process(tile);
-  }
-}
-```
+Good multi-core partitioning should preserve locality in GM.
 
-### 5.2 Synchronization with Atomic Operations
+Preferred patterns usually have:
 
-**Counter Synchronization**:
-```cpp
-__gm__ atomic<int> counter = 0;
+- contiguous reads or writes
+- repeated reuse of nearby tensor regions
+- stable tile shapes and strides
 
-__global__ __aicore__ void SyncKernel(...) {
-  // Each core increments counter after completing work
-  process_local_work();
-  
-  counter.fetch_add(1);
-  
-  // Wait for all cores to complete
-  while (counter.load() < block_num) {
-    // Spin wait
-  }
-  
-  // Continue to next stage
-  next_stage_work();
-}
-```
+Poor locality often shows up as a high data-movement cost relative to compute.
 
----
+### 4.3 Cross-core communication
 
-## 6. Performance Optimization
+This repository does document communication instructions under `docs/isa/comm/`, but general multi-core kernels should not assume that arbitrary producer-consumer scheduling across cores is the default model.
 
-### 6.1 Reduce Inter-core Communication
+For most compute kernels, it is better to:
 
-**Strategy 1: Increase Data Block Size**
-```cpp
-// Bad: Frequent communication
-for (int i = 0; i < N; i++) {
-  process_small_block(i);
-  sync_with_other_cores();  // Sync every time
-}
+- minimize cross-core dependencies
+- partition outputs cleanly
+- keep synchronization local to true producer-consumer relationships when required
 
-// Good: Batch processing
-for (int i = 0; i < N; i += BATCH_SIZE) {
-  process_large_block(i, BATCH_SIZE);
-  sync_with_other_cores();  // Batch sync
-}
-```
+If a kernel depends on communication instructions, see [Communication ISA Reference](../isa/comm/README.md) and the corresponding instruction pages.
 
-**Strategy 2: Localize Computation**
-```cpp
-// Make each core complete work independently
-__global__ __aicore__ void LocalizedKernel(...) {
-  int block_idx = get_block_idx();
-  
-  // Each core processes complete subproblem
-  // No need to communicate with other cores
-  process_independent_subproblem(block_idx);
-}
-```
+## 5. Relationship with pipeline optimization
 
-### 6.2 Optimize Data Partitioning
+Multi-core parallelism and pipeline overlap solve different problems:
 
-**Consider Data Locality**:
-```cpp
-// 2D matrix: Partition by blocks rather than rows/columns
-// Good: Each core accesses contiguous memory blocks
-for (int bm = 0; bm < blocks_m; bm++) {
-  for (int bn = 0; bn < blocks_n; bn++) {
-    int block_id = bm * blocks_n + bn;
-    if (block_id == get_block_idx()) {
-      process_block(bm, bn);
-    }
-  }
-}
-```
+- **multi-core parallelism** increases throughput by distributing work across cores
+- **pipeline overlap** increases per-core utilization by overlapping load / transform / compute / store stages
 
-### 6.3 Avoid False Sharing
+A high-performance kernel usually needs both:
 
-**Problem**:
-```cpp
-// Bad: Multiple cores write to adjacent locations
-__gm__ float results[NUM_CORES];
+1. a sensible per-core tile partition
+2. an efficient intra-core pipeline
 
-__global__ __aicore__ void BadKernel(...) {
-  int idx = get_block_idx();
-  results[idx] = compute();  // May cause cache line conflicts
-}
-```
+For overlap and buffering guidance, see [Pipeline Parallelism](pipeline-parallel.md) and [Events and Synchronization](Event.md).
 
-**Solution**:
-```cpp
-// Good: Use padding to avoid false sharing
-constexpr int CACHE_LINE_SIZE = 64;
-constexpr int PADDING = CACHE_LINE_SIZE / sizeof(float);
+## 6. Programming boundaries
 
-__gm__ float results[NUM_CORES * PADDING];
+Multi-core PTO kernels are normally described in terms of tile ownership, regular work partitioning, and explicit dependencies. The following items fall outside that description unless they are introduced by dedicated runtime or backend documents:
 
-__global__ __aicore__ void GoodKernel(...) {
-  int idx = get_block_idx();
-  results[idx * PADDING] = compute();  // Avoid cache line conflicts
-}
-```
+- imaginary runtime APIs such as unspecified `get_block_idx()` contracts without repository context
+- placeholder instructions such as `TCOMPUTE` or `TFILL` when those are not actual PTO public intrinsics in the described form
+- generic pseudo-syntax such as Python-style tensor slicing inside `TLOAD` / `TSTORE`
+- unsupported claims that MPMD is a standard public programming model for ordinary PTO kernels in this repository
 
----
+Such examples may be useful as intuition elsewhere, but they are not rigorous repository documentation.
 
-## References
+## 7. Multi-core development process
 
-- [Programming Model](ProgrammingModel.md)
-- [Pipeline and Parallel Execution](pipeline-parallel.md)
-- [Performance Best Practices](performance-best-practices.md)
-- [GEMM Optimization Case](../../kernels/manual/a2a3/gemm_performance/README.md)
+A common development process is:
 
+1. start from a correct single-tile or single-core structure
+2. define output ownership per core
+3. partition work into regular tile ranges
+4. validate correctness on CPU simulation
+5. tune tile sizes, partitioning, and overlap on the target backend
+
+This workflow keeps the programming model aligned with the rest of the PTO documentation and avoids introducing unnecessary complexity too early.
+
+## 8. Notes
+
+Multi-core programming in PTO Tile Lib is generally organized around:
+
+- SPMD-style work partitioning;
+- output ownership and regular tile ranges;
+- regular, contiguous, and balanced access patterns;
+- coordination between multi-core partitioning and per-core pipeline optimization.

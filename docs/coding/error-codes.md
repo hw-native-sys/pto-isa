@@ -1,16 +1,6 @@
 # Error Codes Reference
 
-This document lists common error codes, error messages, and solutions encountered in PTO development.
-
-## Contents
-
-- [1. Compilation Errors (E001-E099)](#1-compilation-errors-e001-e099)
-- [2. Linking Errors (L001-L099)](#2-linking-errors-l001-l099)
-- [3. Runtime Errors (R001-R099)](#3-runtime-errors-r001-r099)
-- [4. Memory Errors (M001-M099)](#4-memory-errors-m001-m099)
-- [5. Numerical Errors (N001-N099)](#5-numerical-errors-n001-n099)
-- [6. Performance Issues (P001-P099)](#6-performance-issues-p001-p099)
-- [7. Framework Integration Errors (F001-F099)](#7-framework-integration-errors-f001-f099)
+This document summarizes common PTO development failures and practical troubleshooting guidance. The examples are illustrative only: actual diagnostics depend on the compiler toolchain, runtime, and host environment.
 
 ---
 
@@ -68,7 +58,7 @@ using TileT = Tile<TileType::Vec, float, 16, 256>;
 error: no matching function for call to 'TADD(Tile<float>&, Tile<half>&)'
 ```
 
-**Cause**: Tile types are inconsistent
+**Cause**: Tile element types or shapes are inconsistent.
 
 **Solution**:
 ```cpp
@@ -80,11 +70,9 @@ TADD(tile_a, tile_a, tile_b);  // Error!
 // ✅ Correct: consistent types
 Tile<TileType::Vec, float, 16, 256> tile_a, tile_b, tile_c;
 TADD(tile_c, tile_a, tile_b);  // Correct
-
-// Or use type conversion
-TCAST(tile_b_float, tile_b);  // half → float
-TADD(tile_c, tile_a, tile_b_float);
 ```
+
+Use the conversion instruction actually provided by PTO when an explicit type conversion is required; the exact API depends on the available instruction set and target branch.
 
 ### E004: C++ Standard Not Supported
 

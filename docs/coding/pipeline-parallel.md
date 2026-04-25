@@ -1,335 +1,143 @@
-# Pipeline and Parallel Execution
+# Pipeline Parallelism
 
-This document introduces PTO's pipeline model and parallel execution mechanisms, helping developers fully utilize hardware resources for high-performance operators.
+This document describes pipeline overlap in PTO Tile Lib from the perspective of staged execution, buffering, and explicit synchronization.
 
-## Contents
+It focuses on software-visible organization of load, transform, compute, and store stages.
 
-- [1. Pipeline Overview](#1-pipeline-overview)
-- [2. Hardware Pipeline](#2-hardware-pipeline)
-- [3. Software Pipeline](#3-software-pipeline)
-- [4. Parallel Execution Model](#4-parallel-execution-model)
-- [5. Performance Optimization Tips](#5-performance-optimization-tips)
+## 1. Pipeline overlap in PTO
 
----
+In PTO kernels, pipeline optimization usually means overlapping different stages of work so that data movement and compute are not serialized more than necessary.
 
-## 1. Pipeline Overview
+A typical high-level view is:
 
-### 1.1 What is Pipeline
-
-Pipeline is a parallel technique that decomposes tasks into multiple stages, allowing different stages to process different data simultaneously.
-
-**Analogy**: Car assembly line
-- Stage 1: Install chassis
-- Stage 2: Install engine
-- Stage 3: Install body
-- Stage 4: Paint
-
-When Stage 2 processes car B, Stage 1 can simultaneously process car C.
-
-### 1.2 Pipeline in PTO
-
-PTO operators typically include the following stages:
-
-```
-TLOAD → Transform → Compute → TSTORE
-  ↓         ↓          ↓         ↓
- MTE2      MTE1      CUBE/VEC   MTE1
+```text
+TLOAD -> layout / staging transform -> compute -> TSTORE
 ```
 
-**Key Idea**: Overlap execution of different stages to improve hardware utilization.
+Depending on the kernel, the middle stages may include operations such as:
 
----
+- `TEXTRACT`
+- `TMOV`
+- `TTRANS`
+- vector compute instructions
+- matrix instructions such as `TMATMUL`
 
-## 2. Hardware Pipeline
+This interpretation is consistent with the optimization guidance in `docs/coding/opt.md`.
 
-### 2.1 Ascend Hardware Pipeline
+## 2. Hardware-visible stages and software-visible stages
 
-Ascend AI processors contain multiple independent execution units:
+At the software level, PTO developers usually reason about stages such as:
 
-| Pipeline | Function | Typical Instructions |
-|----------|----------|---------------------|
-| **MTE2** | GM → L1 data transfer | `TLOAD` |
-| **MTE1** | L1 → L0 data transfer | `TEXTRACT`, `TMOV` |
-| **CUBE** | Matrix multiplication | `TMATMUL` |
-| **VECTOR** | Element-wise operations | `TADD`, `TEXP`, `TMAX` |
-| **SCALAR** | Scalar operations and control flow | Address calculation, loop control |
+- loading tiles from GM
+- transforming or reshaping staged data
+- executing vector or cube compute
+- storing results back to GM
 
-### 2.2 Pipeline Parallelism
+The exact hardware mapping is backend-dependent, but the programming goal is stable:
 
-Different pipelines can execute **simultaneously**:
+- keep useful stages overlapped when dependencies allow it
+- avoid unnecessary stalls
+- avoid draining the whole pipeline when only a local dependency needs to be enforced
 
-```cpp
-// Time T0: TLOAD executes on MTE2
-TLOAD(tileA[0], ...);
+## 3. Role of buffering
 
-// Time T1: TLOAD continues, TEXTRACT executes on MTE1 simultaneously
-TLOAD(tileA[1], ...);
-TEXTRACT(tileLeft[0], tileA[0]);
+Pipeline overlap usually relies on buffering strategies such as:
 
-// Time T2: Three pipelines work simultaneously
-TLOAD(tileA[2], ...);
-TEXTRACT(tileLeft[1], tileA[1]);
-TMATMUL(acc, tileLeft[0], tileRight[0]);
-```
+- double buffering
+- staged temporary tiles
+- explicit producer-consumer synchronization
 
-**Performance Gain**: Ideally can achieve 3-4× throughput improvement.
+The core idea is simple:
 
----
+- while one tile is being consumed by a later stage, another tile can be prepared for an earlier stage
 
-## 3. Software Pipeline
+Whether this helps depends on:
 
-### 3.1 Double Buffering
+- the kernel structure
+- the dominant bottleneck
+- available on-chip resources
+- correctness of the dependency structure
 
-Double buffering is the most commonly used software pipeline technique:
+## 4. Role of events and synchronization
 
-```cpp
-// Basic version (no pipeline)
-for (int i = 0; i < N; i++) {
-  TLOAD(tile, ...);       // Wait for load
-  TCOMPUTE(result, tile); // Wait for compute
-  TSTORE(..., result);    // Wait for store
-}
-// Total time = N × (T_load + T_compute + T_store)
+The current repository documents an explicit event model in `docs/coding/Event.md`.
 
-// Double buffering version (with pipeline)
-TLOAD(tile[0], ...);  // Preload first
-for (int i = 0; i < N; i++) {
-  int curr = i % 2;
-  int next = (i + 1) % 2;
-  
-  // Compute current iteration
-  TCOMPUTE(result[curr], tile[curr]);
-  
-  // Load next iteration simultaneously
-  if (i + 1 < N) {
-    TLOAD(tile[next], ...);
-  }
-  
-  // Store previous result
-  if (i > 0) {
-    TSTORE(..., result[1 - curr]);
-  }
-}
-TSTORE(..., result[N % 2]);  // Store last result
+That model is the most reliable public basis for describing fine-grained synchronization in PTO.
 
-// Total time ≈ max(T_load, T_compute, T_store) × N
-// Speedup ≈ (T_load + T_compute + T_store) / max(...)
-```
+Practical guidance:
 
-### 3.2 Triple Buffering
+- use synchronization only for true dependencies
+- prefer producer-consumer ordering over unnecessary broad barriers
+- validate event usage against the documented event types and intrinsic signatures
 
-For more complex scenarios, use triple buffering:
+In device builds, typed `Event<SrcOp, DstOp>` objects are used to express dependencies.
+In CPU simulation, some synchronization paths are simplified.
 
-```cpp
-TileT tile[3];
-Event load_event[3], compute_event[3];
+## 5. Warm-up, steady state, and drain
 
-// Preload first two
-TLOAD(tile[0], ..., load_event[0]);
-TLOAD(tile[1], ..., load_event[1]);
+A pipelined kernel is often easiest to understand in three phases:
 
-for (int i = 0; i < N; i++) {
-  int curr = i % 3;
-  int next = (i + 1) % 3;
-  int prev = (i + 2) % 3;
-  
-  // Load next
-  if (i + 2 < N) {
-    TLOAD(tile[next], ..., load_event[next]);
-  }
-  
-  // Compute current
-  WAIT(load_event[curr]);
-  TCOMPUTE(result, tile[curr], compute_event[curr]);
-  
-  // Store previous
-  if (i > 0) {
-    WAIT(compute_event[prev]);
-    TSTORE(..., result);
-  }
-}
-```
+1. **warm-up**: fill the pipeline with the first tiles
+2. **steady state**: overlap stages across successive tiles
+3. **drain**: finish the remaining in-flight work
 
-### 3.3 Event-based Synchronization
+This mental model is useful because many pipeline mistakes come from treating the first or last iteration the same as the steady-state loop when they actually have different dependency structure.
 
-Use events for fine-grained synchronization:
+## 6. What makes a pipeline effective
 
-```cpp
-// Define event types
-Event<Op::TLOAD, Op::TADD> load_event;
-Event<Op::TADD, Op::TSTORE> compute_event;
+A pipeline tends to help when:
 
-// Load with event
-load_event = TLOAD(tile, ...);
+- data movement and compute are both significant
+- intermediate stages can proceed on different tiles with bounded buffering
+- the synchronization graph is precise enough to preserve overlap
 
-// Compute depends on load
-compute_event = TADD(result, tile, ..., load_event);
+A pipeline may help less when:
 
-// Store depends on compute
-TSTORE(..., result, compute_event);
-```
+- one stage dominates almost all execution time
+- buffering pressure becomes too high
+- extra transforms or synchronization eliminate the intended overlap
 
----
+Therefore, pipeline parallelism should be evaluated against the real bottleneck rather than assumed to be beneficial in every kernel.
 
-## 4. Parallel Execution Model
+## 6. Description boundaries
 
-### 4.1 Multi-core Parallelism
+The following should be avoided unless a repository source explicitly defines them:
 
-**SPMD (Single Program, Multiple Data)**:
-```cpp
-__global__ __aicore__ void ParallelKernel(...) {
-  int block_idx = get_block_idx();
-  int block_num = get_block_num();
-  
-  // Each core processes different data
-  int start = block_idx * elements_per_core;
-  int end = min(start + elements_per_core, total_elements);
-  
-  for (int i = start; i < end; i++) {
-    process(i);
-  }
-}
-```
+- placeholder instructions such as `TCOMPUTE`
+- event APIs that do not match `docs/coding/Event.md`
+- blanket claims such as “3-4x throughput improvement”
+- exact hardware-stage mappings presented as universally guaranteed for all targets
+- pseudo-code that omits the real legality constraints of tiles, layouts, and instruction support
 
-### 4.2 Instruction-level Parallelism
+Those patterns may be useful informally, but they are not rigorous public documentation.
 
-Different instruction types can execute in parallel:
+## 7. Pipeline tuning flow
 
-```cpp
-// These can execute simultaneously
-TLOAD(tile_a, ...);      // MTE2
-TEXTRACT(tile_b, ...);   // MTE1
-TMATMUL(acc, ...);       // CUBE
-TADD(vec_result, ...);   // VECTOR
-```
+A practical tuning process is:
 
-### 4.3 Data-level Parallelism
+1. start from a correct non-overlapped or minimally overlapped kernel
+2. identify the dominant stage using profiling or stage-level timing
+3. introduce buffering and fine-grained synchronization gradually
+4. verify correctness after each scheduling change
+5. re-check whether overlap still helps after tile-size or partitioning changes
 
-Process multiple data elements simultaneously:
+This mirrors the tuning philosophy in `docs/coding/opt.md`.
 
-```cpp
-// Tile operations process all elements in parallel
-using TileT = Tile<TileType::Vec, float, 16, 256>;
-TileT a, b, c;
+## 9. Related references
 
-TLOAD(a, ...);
-TLOAD(b, ...);
-TADD(c, a, b);  // All 16×256 elements computed in parallel
-```
+For the current PTO Tile Lib repository, the most relevant documents are:
 
----
+- `docs/coding/Event.md`
+- `docs/coding/Tile.md`
+- `docs/coding/tutorial.md`
+- `docs/coding/opt.md`
 
-## 5. Performance Optimization Tips
+## 9. Conclusion
 
-### 5.1 Maximize Pipeline Overlap
+In PTO Tile Lib, pipeline parallelism is best described as:
 
-**Strategy 1: Preload Data**
-```cpp
-// Preload first batch
-TLOAD(tile[0], data[0]);
+- overlapping load / transform / compute / store stages when legal
+- using buffering and explicit synchronization carefully
+- tuning for the real bottleneck rather than chasing overlap in the abstract
 
-for (int i = 0; i < N; i++) {
-  // Load next while processing current
-  if (i + 1 < N) {
-    TLOAD(tile[(i+1)%2], data[i+1]);
-  }
-  
-  TCOMPUTE(result, tile[i%2]);
-  TSTORE(output[i], result);
-}
-```
-
-**Strategy 2: Use Events Instead of Global Sync**
-```cpp
-// Bad: Global synchronization
-TLOAD(tile, ...);
-TSYNC<Op::TLOAD>();  // Wait for all TLOAD
-TADD(result, tile, ...);
-
-// Good: Event-based synchronization
-Event e = TLOAD(tile, ...);
-TADD(result, tile, ..., e);  // Only wait for this TLOAD
-```
-
-### 5.2 Balance Pipeline Stages
-
-**Identify Bottleneck**:
-```
-TLOAD:    40%  ← Bottleneck
-TCOMPUTE: 20%
-TSTORE:   10%
-Idle:     30%
-```
-
-**Solution**: Increase compute intensity
-```cpp
-// Increase computation per load
-for (int k = 0; k < K; k += TILE_K) {
-  TLOAD(tileA, ...);  // Load once
-  TLOAD(tileB, ...);
-  
-  // Reuse multiple times
-  for (int sub_k = 0; sub_k < TILE_K; sub_k++) {
-    TMATMUL(acc, tileA[sub_k], tileB[sub_k]);
-  }
-}
-```
-
-### 5.3 Reduce Synchronization Overhead
-
-**Minimize WAIT Calls**:
-```cpp
-// Bad: Frequent synchronization
-for (int i = 0; i < N; i++) {
-  Event e = TLOAD(tile, ...);
-  WAIT(e);  // Sync every iteration
-  TCOMPUTE(result, tile);
-}
-
-// Good: Batch synchronization
-Event events[BATCH_SIZE];
-for (int i = 0; i < N; i += BATCH_SIZE) {
-  // Load batch
-  for (int j = 0; j < BATCH_SIZE; j++) {
-    events[j] = TLOAD(tiles[j], ...);
-  }
-  
-  // Process batch
-  for (int j = 0; j < BATCH_SIZE; j++) {
-    WAIT(events[j]);
-    TCOMPUTE(results[j], tiles[j]);
-  }
-}
-```
-
-### 5.4 Optimize Memory Access Pattern
-
-**Contiguous Access**:
-```cpp
-// Good: Sequential access
-for (int i = 0; i < M; i++) {
-  TLOAD(tile, A[i, :]);  // Row-major, contiguous
-}
-
-// Bad: Strided access
-for (int j = 0; j < N; j++) {
-  TLOAD(tile, A[:, j]);  // Column access, may be strided
-}
-```
-
-**Prefetch**:
-```cpp
-// Prefetch next data
-TPREFETCH(next_data, ...);
-TCOMPUTE(current_data);
-```
-
----
-
-## References
-
-- [Multi-core Programming](multi-core-programming.md)
-- [Performance Best Practices](performance-best-practices.md)
-- [Memory Optimization](memory-optimization.md)
-- [GEMM Optimization Case](../../kernels/manual/a2a3/gemm_performance/README.md)
-
+This is more accurate than relying on invented APIs, placeholder instructions, or fixed performance claims.

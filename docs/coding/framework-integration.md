@@ -1,14 +1,6 @@
 # Framework Integration
 
-This document explains how to integrate PTO operators into mainstream inference frameworks (PyTorch, TensorFlow, ONNX Runtime, etc.).
-
-## Contents
-
-- [1. Integration Overview](#1-integration-overview)
-- [2. PyTorch Integration](#2-pytorch-integration)
-- [3. TensorFlow Integration](#3-tensorflow-integration)
-- [4. ONNX Runtime Integration](#4-onnx-runtime-integration)
-- [5. Performance Optimization](#5-performance-optimization)
+This document outlines integration patterns for exposing PTO-based kernels to framework runtimes. The exact registration APIs and backend names depend on the framework version, `torch_npu` integration model, and product release, so treat the snippets below as implementation patterns rather than drop-in code.
 
 ---
 
@@ -17,23 +9,22 @@ This document explains how to integrate PTO operators into mainstream inference 
 ### 1.1 Integration Architecture
 
 ```
-Application Layer (Python/C++)
+Application layer
     ↓
-Framework Layer (PyTorch/TensorFlow/ONNX)
+Framework runtime and operator registration
     ↓
-PTO Operator Layer (C++/CUDA)
+PTO-based kernel implementation
     ↓
-Hardware Layer (NPU/GPU/CPU)
+Target Ascend AI Core execution
 ```
 
 ### 1.2 Integration Methods
 
 | Method | Pros | Cons | Use Case |
 |--------|------|------|----------|
-| **Python Extension** | Fast development | Performance overhead | Prototyping |
-| **C++ Extension** | High performance | Complex development | Production |
-| **JIT Compilation** | Flexible | Slow first run | Dynamic graphs |
-| **AOT Compilation** | Fast startup | Less flexible | Static graphs |
+| **Python Extension** | Fast development | Python/C++ boundary overhead | Prototyping |
+| **C++ Extension** | High performance | More complex build and registration | Production |
+| **Framework plugin / custom backend path** | Closer to deployment path | Higher maintenance cost | Stable product integration |
 
 ---
 

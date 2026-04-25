@@ -2,7 +2,7 @@
 
 本文面向算子/内核开发者：希望尽快跑通第一个 PTO kernel，并建立核心心智模型。
 
-本文**不是**逐条指令百科。逐条指令语义与约束请参见：`docs/isa/README_zh.md`。
+本文**不是**逐条指令百科。逐条指令语义与约束请参见：[ISA 总览](../isa/README_zh.md)。
 
 ## 0. 你将学到什么
 
@@ -31,8 +31,8 @@ __global__ AICORE void MyKernel(__gm__ T* out, __gm__ T* in0, __gm__ T* in1) {
 
 - `__gm__`：全局内存指针（GM）。
 - `AICORE`：在设备后端运行于单个“核心”（CPU 仿真会把它当作普通函数注解）。
-- `GlobalTensor`：对 GM 数据的*视图*，携带 shape/stride/layout 元数据（参见 `docs/coding/GlobalTensor_zh.md`）。
-- `Tile`：片上 Tile 对象，概念上是 Tile 存储中的二维缓冲（参见 `docs/coding/Tile_zh.md`）。
+- `GlobalTensor`：对 GM 数据的*视图*，携带 shape/stride/layout 元数据（参见 [GlobalTensor 编程模型](GlobalTensor_zh.md)）。
+- `Tile`：片上 Tile 对象，概念上是 Tile 存储中的二维缓冲（参见 [Tile 编程模型](Tile_zh.md)）。
 
 ## 2. 一页速查（核心概念）
 
@@ -76,12 +76,12 @@ PTO-Auto（高层）：
 
 - 你描述数据流：`TLOAD → compute → TSTORE`。
 - Tile buffer 管理与部分同步可由编译器/运行时处理。
-- 在 API 模型中，当启用 `__PTO_AUTO__` 时，`TASSIGN(tile, addr)` 可能是 no-op（参见 `docs/isa/TASSIGN_zh.md`）。
+- 在 API 模型中，当启用 `__PTO_AUTO__` 时，`TASSIGN(tile, addr)` 可能是 no-op（参见 [TASSIGN 指令](../isa/TASSIGN.md)）。
 
 PTO-Manual（专家）：
 
-- 你用 `TASSIGN` 显式绑定 Tile 缓冲地址。
-- 你显式表达顺序（events 或低层 flags）。
+- 你可以用 `TASSIGN` 显式绑定 Tile 缓冲地址。
+- 你可以显式表达顺序（events 或低层 flags）。
 - 你可以构造双缓冲流水线并重叠 load/compute/store。
 
 ## 3. 第一个 kernel：向量加法（PTO-Auto 风格）
@@ -124,7 +124,7 @@ AICORE void VecAddAutoOneTile(__gm__ T* out, __gm__ T* in0, __gm__ T* in1) {
 
 ### 4.1 使用 events 的手动顺序（推荐）
 
-对应 `docs/coding/Event_zh.md` 中的事件模型（设备侧 `Event` 类型）。
+对应 [Event 编程模型](Event_zh.md) 中的事件模型（设备侧 `Event` 类型）。
 
 ```cpp
 template <typename T, int kRows, int kCols>
