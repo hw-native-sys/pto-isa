@@ -63,7 +63,7 @@ __tf__ PTO_INLINE void LoadPlainMatrix(typename GlobalData::DType __out__ *dst, 
         const std::size_t srcBase = r * strideBase;
         PTO_CPU_VECTORIZE_LOOP
         for (std::size_t c = 0; c < shape; c++) {
-            dst[dstBase + c] = src[srcBase + c * stride];
+            dst[dstBase + c] = getProperDataPart(src, srcBase + c * stride);
         }
     });
 }
@@ -164,7 +164,6 @@ __tf__ PTO_INLINE void LoadSubfractalMatrix(typename GlobalData::DType __out__ *
                                             typename TileData::TileDType __in__ src, int gShape3, int gShape4,
                                             int gStride3, int gStride4, int validRow, int validCol)
 {
-    // Zn layout
     cpu::parallel_for_1d(
         0, static_cast<std::size_t>(gShape4), static_cast<std::size_t>(gShape3) * gShape4, [&](std::size_t c) {
             size_t subTileC = c / TileData::InnerCols;
@@ -173,16 +172,10 @@ __tf__ PTO_INLINE void LoadSubfractalMatrix(typename GlobalData::DType __out__ *
                 size_t subTileR = r / TileData::InnerRows;
                 size_t innerR = r % TileData::InnerRows;
                 size_t tile_idx;
-                if constexpr (TileData::isRowMajor) {
-                    tile_idx = subTileR * TileData::Cols * TileData::InnerRows + subTileC * TileData::InnerNumel +
-                               innerC * TileData::InnerRows + innerR;
-                } else {
-                    tile_idx = subTileC * TileData::Rows * TileData::InnerCols + subTileR * TileData::InnerNumel +
-                               innerR * TileData::InnerCols + innerC;
-                }
+                tile_idx = GetTileElementOffsetSubfractals<TileData>(subTileR, innerR, subTileC, innerC);
 
                 size_t gd_idx = r * static_cast<std::size_t>(gStride3) + c * static_cast<std::size_t>(gStride4);
-                dst[tile_idx] = src[gd_idx];
+                dst[tile_idx] = getProperDataPart(src, gd_idx);
             }
         });
 }
@@ -245,7 +238,7 @@ PTO_INTERNAL void TLoadInstrGm2L1(__cbuf__ typename TileData::DType *dst, typena
     uint8_t elemNum = C0_SIZE_BYTE / sizeof(typename TileData::DType);
     for (uint16_t i = 0; i < nBurst; i++) {
         for (size_t j = 0; j < lenBurst * elemNum; j++) {
-            dst[dstStride * i + j] = src[srcStride * i + j];
+            dst[dstStride * i + j] = getProperDataPart(src, srcStride * i + j);
         }
     }
 }

@@ -19,7 +19,7 @@ using TypeSum = std::conditional_t<std::is_same_v<typename TileData::DType, half
                                    float, typename TileData::DType>;
 
 template <typename TileData>
-size_t GetTileElementOffsetSubfractals(size_t subTileR, size_t innerR, size_t subTileC, size_t innerC)
+size_t inline GetTileElementOffsetSubfractals(size_t subTileR, size_t innerR, size_t subTileC, size_t innerC)
 {
     if constexpr (!TileData::isRowMajor & (TileData::SFractal == SLayout::RowMajor)) {
         // Nz
@@ -33,13 +33,18 @@ size_t GetTileElementOffsetSubfractals(size_t subTileR, size_t innerR, size_t su
         // Zz
         return subTileR * TileData::Cols * TileData::InnerRows + subTileC * TileData::InnerNumel +
                innerR * TileData::InnerCols + innerC;
+    } else if constexpr (!TileData::isRowMajor & (TileData::SFractal == SLayout::ColMajor)) {
+        // Nn
+        return subTileC * TileData::Rows * TileData::InnerCols + subTileR * TileData::InnerNumel +
+               innerC * TileData::InnerRows + innerR;
     } else {
         assert(false && "Invalid layout");
     }
+    return 0;
 }
 
 template <typename TileData>
-size_t GetTileElementOffsetPlain(size_t r, size_t c)
+size_t inline GetTileElementOffsetPlain(size_t r, size_t c)
 {
     if constexpr (TileData::isRowMajor) {
         return r * TileData::Cols + c;
@@ -49,7 +54,7 @@ size_t GetTileElementOffsetPlain(size_t r, size_t c)
 }
 
 template <typename TileData>
-size_t GetTileElementOffset(size_t r, size_t c)
+size_t inline GetTileElementOffset(size_t r, size_t c)
 {
     if constexpr (TileData::SFractal == SLayout::NoneBox)
         return GetTileElementOffsetPlain<TileData>(r, c);
