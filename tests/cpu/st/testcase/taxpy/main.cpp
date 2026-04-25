@@ -100,8 +100,7 @@ bool TAxpyTestFramework()
     ReadFile(GetGoldenDir() + "/golden.bin", dstByteSize, golden.data(), dstByteSize);
     ReadFile(GetGoldenDir() + "/output.bin", dstByteSize, devFinal.data(), dstByteSize);
 
-    const float tolerance = std::is_same_v<T, aclFloat16> ? 0.04f : 0.001f;
-    return ResultCmp<T>(golden, devFinal, tolerance);
+    return ResultCmp<T>(golden, devFinal, 0.001f);
 }
 
 TEST_F(TAXPYTest, case1)
