@@ -41,6 +41,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <unistd.h>
 
 #include "acl/acl.h"
+#include "acl/error_codes/rt_error_codes.h"
 #include "hccl/hccl.h"
 #include "hccl/hccl_types.h"
 #include "hccl/hccl_comm.h"
@@ -779,51 +780,91 @@ static void PrintPerfReport(bool is_ok, int n_ranks, const std::vector<double> &
                        flops_total, rs_bytes, ag_bytes);
 }
 
+struct DeviceBuffers;
+
+static inline void DebugLog(int, const char *, int, const char *)
+{}
+static inline void DebugDumpState(const char *, int, int, const DeviceBuffers &)
+{}
+static inline aclError WaitStreamWithWatchdog(const char *, const char *, int, int, aclrtStream stream,
+                                              const DeviceBuffers &)
+{
+    return aclrtSynchronizeStream(stream);
+}
+
 template <typename ResetFn, typename LaunchFn, typename SyncFn>
-static void RunComputeOnlyBenchmark(ResetFn &resetState, LaunchFn &launchComp, SyncFn &syncAll,
-                                    aclrtStream computeStream, aclrtStream commStream, HcclComm comm,
-                                    std::vector<double> &compute_times_us)
+static void RunComputeOnlyBenchmark(int rank_id, int n_ranks, const DeviceBuffers &buf, ResetFn &resetState,
+                                    LaunchFn &launchComp, SyncFn &syncAll, aclrtStream computeStream,
+                                    aclrtStream commStream, HcclComm comm, std::vector<double> &compute_times_us)
 {
     for (int iter = 0; iter < COMPUTE_ONLY_ITERS; ++iter) {
+        DebugLog(rank_id, "compute-only", iter, "resetState begin");
         resetState();
+        DebugLog(rank_id, "compute-only", iter, "resetState done");
+        DebugLog(rank_id, "compute-only", iter, "sync compute stream before launch");
         aclrtSynchronizeStream(computeStream);
+        DebugLog(rank_id, "compute-only", iter, "compute stream synchronized");
+        DebugLog(rank_id, "compute-only", iter, "hccl barrier before launch");
         HcclHostBarrier(comm, commStream);
+        DebugLog(rank_id, "compute-only", iter, "hccl barrier done");
         auto t0 = std::chrono::high_resolution_clock::now();
+        DebugLog(rank_id, "compute-only", iter, "launch compute");
         launchComp(computeStream);
+        DebugLog(rank_id, "compute-only", iter, "compute launched");
+        DebugLog(rank_id, "compute-only", iter, "sync compute stream after launch");
         aclrtSynchronizeStream(computeStream);
+        DebugLog(rank_id, "compute-only", iter, "compute stream done");
+        DebugDumpState("compute-only-after-compute", rank_id, n_ranks, buf);
         auto t1 = std::chrono::high_resolution_clock::now();
         compute_times_us.push_back(std::chrono::duration<double, std::micro>(t1 - t0).count());
+        DebugLog(rank_id, "compute-only", iter, "hccl barrier after compute");
         HcclHostBarrier(comm, commStream);
+        DebugLog(rank_id, "compute-only", iter, "hccl barrier after compute done");
     }
 }
 
 template <typename ResetFn, typename LaunchCompFn, typename LaunchCommFn, typename SyncFn>
-static void RunSequentialBenchmark(ResetFn &resetState, LaunchCompFn &launchComp, LaunchCommFn &launchComm,
-                                   SyncFn &syncAll, aclrtStream computeStream, aclrtStream commStream, HcclComm comm,
+static void RunSequentialBenchmark(int rank_id, int n_ranks, const DeviceBuffers &buf, ResetFn &resetState,
+                                   LaunchCompFn &launchComp, LaunchCommFn &launchComm, SyncFn &syncAll,
+                                   aclrtStream computeStream, aclrtStream commStream, HcclComm comm,
                                    std::vector<double> &seq_us, std::vector<double> &seq_comp_us,
                                    std::vector<double> &seq_comm_us)
 {
     for (int iter = 0; iter < MEASURE_ITERS; ++iter) {
+        DebugLog(rank_id, "sequential", iter, "resetState begin");
         resetState();
+        DebugLog(rank_id, "sequential", iter, "resetState done");
+        DebugLog(rank_id, "sequential", iter, "syncAll before iteration");
         syncAll();
+        DebugLog(rank_id, "sequential", iter, "syncAll done");
         auto t0 = std::chrono::high_resolution_clock::now();
+        DebugLog(rank_id, "sequential", iter, "launch compute");
         launchComp(computeStream);
+        DebugLog(rank_id, "sequential", iter, "compute launched");
+        DebugLog(rank_id, "sequential", iter, "sync compute stream after launch");
         aclrtSynchronizeStream(computeStream);
+        DebugLog(rank_id, "sequential", iter, "compute stream done");
+        DebugDumpState("sequential-after-compute", rank_id, n_ranks, buf);
         auto t1 = std::chrono::high_resolution_clock::now();
+        DebugLog(rank_id, "sequential", iter, "launch comm");
         launchComm(commStream);
+        DebugLog(rank_id, "sequential", iter, "comm finished");
+        DebugDumpState("sequential-after-comm", rank_id, n_ranks, buf);
         auto t2 = std::chrono::high_resolution_clock::now();
         seq_comp_us.push_back(std::chrono::duration<double, std::micro>(t1 - t0).count());
         seq_comm_us.push_back(std::chrono::duration<double, std::micro>(t2 - t1).count());
         seq_us.push_back(std::chrono::duration<double, std::micro>(t2 - t0).count());
+        DebugLog(rank_id, "sequential", iter, "hccl barrier after iteration");
         HcclHostBarrier(comm, commStream);
+        DebugLog(rank_id, "sequential", iter, "hccl barrier after iteration done");
     }
 }
 
 template <typename ResetFn, typename LaunchCompFn, typename LaunchCommFn, typename SyncFn>
-static void RunPipelinedBenchmark(ResetFn &resetState, LaunchCompFn &launchComp, LaunchCommFn &launchComm,
-                                  SyncFn &syncAll, aclrtStream computeStream, aclrtStream commStream,
-                                  std::vector<double> &pipe_us, std::vector<double> &pipe_comp_us,
-                                  std::vector<double> &pipe_comm_us)
+static void RunPipelinedBenchmark(int rank_id, int n_ranks, const DeviceBuffers &buf, ResetFn &resetState,
+                                  LaunchCompFn &launchComp, LaunchCommFn &launchComm, SyncFn &syncAll,
+                                  aclrtStream computeStream, aclrtStream commStream, std::vector<double> &pipe_us,
+                                  std::vector<double> &pipe_comp_us, std::vector<double> &pipe_comm_us)
 {
     aclrtEvent evStart = nullptr;
     aclrtEvent evEnd = nullptr;
@@ -831,14 +872,26 @@ static void RunPipelinedBenchmark(ResetFn &resetState, LaunchCompFn &launchComp,
     aclrtCreateEvent(&evEnd);
 
     for (int iter = 0; iter < MEASURE_ITERS; ++iter) {
+        DebugLog(rank_id, "pipelined", iter, "resetState begin");
         resetState();
+        DebugLog(rank_id, "pipelined", iter, "resetState done");
+        DebugLog(rank_id, "pipelined", iter, "syncAll before iteration");
         syncAll();
+        DebugLog(rank_id, "pipelined", iter, "syncAll done");
         auto t0 = std::chrono::high_resolution_clock::now();
         aclrtRecordEvent(evStart, computeStream);
+        DebugLog(rank_id, "pipelined", iter, "launch compute");
         launchComp(computeStream);
+        DebugLog(rank_id, "pipelined", iter, "compute launched");
         aclrtRecordEvent(evEnd, computeStream);
+        DebugLog(rank_id, "pipelined", iter, "launch comm");
         launchComm(commStream);
+        DebugLog(rank_id, "pipelined", iter, "comm finished");
+        DebugDumpState("pipelined-after-comm", rank_id, n_ranks, buf);
+        DebugLog(rank_id, "pipelined", iter, "sync compute stream after launch");
         aclrtSynchronizeStream(computeStream);
+        DebugLog(rank_id, "pipelined", iter, "compute stream done");
+        DebugDumpState("pipelined-after-compute", rank_id, n_ranks, buf);
         auto t1 = std::chrono::high_resolution_clock::now();
 
         float compute_ms = 0.0f;
@@ -872,12 +925,266 @@ struct DeviceBuffers {
     size_t queueSetSize;
 };
 
+static int HostOwnedTileCount(int total_tiles, int my_rank, int nranks)
+{
+    const int safe_nranks = std::max(nranks, 1);
+    if (safe_nranks == 1) {
+        return total_tiles;
+    }
+    const int tiles_per_owner = (total_tiles + safe_nranks - 1) / safe_nranks;
+    const int remainder = total_tiles % safe_nranks;
+    if (remainder == 0) {
+        return tiles_per_owner;
+    }
+    return (my_rank < remainder) ? tiles_per_owner : (total_tiles / safe_nranks);
+}
+
+static void HostSwizzleTileIndex(int linear_idx, uint32_t &mi, uint32_t &ni)
+{
+    const uint32_t row = static_cast<uint32_t>(linear_idx) / G_N_TILES;
+    const uint32_t col = static_cast<uint32_t>(linear_idx) - row * G_N_TILES;
+    mi = row;
+    ni = ((row & 1U) == 0U) ? col : (G_N_TILES - 1U - col);
+}
+
+static std::string BuildLegacySlotSummary(const std::vector<int32_t> &signal_host)
+{
+    std::string legacy_slots;
+    const int legacy_count = std::min<int>(G_SIGNAL_LEGACY_BARRIER_SLOTS, signal_host.size());
+    for (int i = 0; i < legacy_count; ++i) {
+        if (!legacy_slots.empty()) {
+            legacy_slots += ",";
+        }
+        legacy_slots += std::to_string(signal_host[i]);
+    }
+    return legacy_slots;
+}
+
+struct SignalReadyStats {
+    int min = 0;
+    int max = 0;
+    int zero = 0;
+    int partial = 0;
+    std::string bad_samples;
+};
+
+static SignalReadyStats CollectSignalReadyStats(const std::vector<int32_t> &signal_host, int total_local_subtiles,
+                                                int n_ranks)
+{
+    SignalReadyStats stats;
+    for (int i = 0; i < total_local_subtiles; ++i) {
+        const int32_t value = signal_host[G_SIGNAL_SUBTILE_READY_OFFSET + i];
+        stats.min = (i == 0) ? value : std::min<int>(stats.min, value);
+        stats.max = (i == 0) ? value : std::max<int>(stats.max, value);
+        stats.zero += (value == 0) ? 1 : 0;
+        if (value < n_ranks) {
+            stats.partial++;
+            if (stats.bad_samples.size() < 96) {
+                stats.bad_samples += stats.bad_samples.empty() ? "" : ",";
+                stats.bad_samples += std::to_string(i) + ":" + std::to_string(value);
+            }
+        }
+    }
+    return stats;
+}
+
+struct SignalSummaryStats {
+    int min = 0;
+    int max = 0;
+    int zero = 0;
+};
+
+static SignalSummaryStats CollectSignalSummaryStats(const std::vector<int32_t> &signal_host)
+{
+    SignalSummaryStats stats;
+    for (int block = 0; block < COMM_BLOCK_NUM; ++block) {
+        const int32_t value = signal_host[G_SIGNAL_AG_SUMMARY_OFFSET + block * G_SIGNAL_AG_SUMMARY_STRIDE];
+        stats.min = (block == 0) ? value : std::min<int>(stats.min, value);
+        stats.max = (block == 0) ? value : std::max<int>(stats.max, value);
+        stats.zero += (value == 0) ? 1 : 0;
+    }
+    return stats;
+}
+
+static void PrintSignalMatrixReadyStats(int rank_id, int n_ranks, const DeviceBuffers &buf)
+{
+    std::vector<int32_t> signal_host(buf.signalMatrixSize / sizeof(int32_t), 0);
+    aclError aRet = aclrtMemcpy(signal_host.data(), buf.signalMatrixSize, buf.signal_matrix, buf.signalMatrixSize,
+                                ACL_MEMCPY_DEVICE_TO_HOST);
+    if (aRet != ACL_SUCCESS) {
+        std::cerr << "[SIGNAL_DIAG] rank=" << rank_id << " copy signal_matrix failed: " << static_cast<int>(aRet)
+                  << std::endl;
+        return;
+    }
+
+    const int total_local_subtiles = HostOwnedTileCount(G_NUM_TILES, rank_id, n_ranks) * G_COMM_SUBTILES_PER_TILE;
+    const SignalReadyStats ready = CollectSignalReadyStats(signal_host, total_local_subtiles, n_ranks);
+    const SignalSummaryStats summary = CollectSignalSummaryStats(signal_host);
+
+    std::cout << "[SIGNAL_DIAG] rank=" << rank_id << " legacy_slots=" << BuildLegacySlotSummary(signal_host)
+              << " local_subtiles=" << total_local_subtiles << " ready(min/max/zero/partial<" << n_ranks
+              << ")=" << ready.min << "/" << ready.max << "/" << ready.zero << "/" << ready.partial
+              << " summary(min/max/zero)=" << summary.min << "/" << summary.max << "/" << summary.zero;
+    if (!ready.bad_samples.empty()) {
+        std::cout << " bad_ready=" << ready.bad_samples;
+    }
+    std::cout << std::endl;
+}
+
+struct QueueDiagStats {
+    int total_entries = 0;
+    int invalid_tiles = 0;
+    int min_count = 0;
+    int max_count = 0;
+    std::string dup_samples;
+    std::string queue_samples;
+};
+
+static void AppendQueueSample(std::string &queue_samples, int block_id, int count, const PerBlockQueue *pq)
+{
+    if (block_id >= 4 || queue_samples.size() >= 256) {
+        return;
+    }
+    queue_samples += queue_samples.empty() ? "" : " ";
+    queue_samples += "q" + std::to_string(block_id) + "(c=" + std::to_string(count) + ":";
+    const int sample_count = std::min(count, 4);
+    for (int i = 0; i < sample_count; ++i) {
+        queue_samples += (i == 0) ? "" : ",";
+        queue_samples += std::to_string(GetQueueSlot(pq, i)->tile);
+    }
+    if (count > sample_count) {
+        queue_samples += "..." + std::to_string(GetQueueSlot(pq, count - 1)->tile);
+    }
+    queue_samples += ")";
+}
+
+static void CollectQueueBlockStats(int block_id, const PerBlockQueue *pq, std::vector<int> &freq, QueueDiagStats &stats)
+{
+    const int raw_count = static_cast<int>(pq->count);
+    const int raw_capacity = static_cast<int>(pq->capacity);
+    const int count = std::max(0, std::min(raw_count, raw_capacity));
+    stats.min_count = (block_id == 0) ? count : std::min(stats.min_count, count);
+    stats.max_count = (block_id == 0) ? count : std::max(stats.max_count, count);
+    stats.total_entries += count;
+
+    for (int i = 0; i < count; ++i) {
+        const int tile = GetQueueSlot(pq, i)->tile;
+        if (tile < 0 || tile >= static_cast<int>(G_NUM_TILES)) {
+            stats.invalid_tiles++;
+            continue;
+        }
+        if (freq[tile]++ > 0 && stats.dup_samples.size() < 96) {
+            stats.dup_samples += stats.dup_samples.empty() ? "" : ",";
+            stats.dup_samples += std::to_string(tile) + "x" + std::to_string(freq[tile]);
+        }
+    }
+    AppendQueueSample(stats.queue_samples, block_id, count, pq);
+}
+
+static std::string BuildMissingTileSamples(const std::vector<int> &freq, int &unique_tiles, int &missing_tiles)
+{
+    std::string missing_samples;
+    for (int tile = 0; tile < static_cast<int>(G_NUM_TILES); ++tile) {
+        if (freq[tile] > 0) {
+            unique_tiles++;
+        } else {
+            missing_tiles++;
+            if (missing_samples.size() < 96) {
+                missing_samples += missing_samples.empty() ? "" : ",";
+                missing_samples += std::to_string(tile);
+            }
+        }
+    }
+    return missing_samples;
+}
+
+static void PrintQueueDiagLine(const char *tag, int rank_id, const QueueDiagStats &stats, int unique_tiles,
+                               int missing_tiles, const std::string &missing_samples)
+{
+    std::cout << "[" << tag << "] rank=" << rank_id << " total_entries=" << stats.total_entries
+              << " unique=" << unique_tiles << " missing=" << missing_tiles << " invalid=" << stats.invalid_tiles
+              << " per_queue(min/max)=" << stats.min_count << "/" << stats.max_count;
+    if (!stats.dup_samples.empty()) {
+        std::cout << " dup=" << stats.dup_samples;
+    }
+    if (!missing_samples.empty()) {
+        std::cout << " missing_tiles=" << missing_samples;
+    }
+    if (!stats.queue_samples.empty()) {
+        std::cout << " samples=" << stats.queue_samples;
+    }
+    std::cout << std::endl;
+}
+
+static void PrintQueueSetStats(const char *tag, int rank_id, const DeviceBuffers &buf)
+{
+    std::vector<uint8_t> queue_host(buf.queueSetSize, 0);
+    aclError aRet =
+        aclrtMemcpy(queue_host.data(), buf.queueSetSize, buf.queueSet_dev, buf.queueSetSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    if (aRet != ACL_SUCCESS) {
+        std::cerr << "[" << tag << "] rank=" << rank_id << " copy queue_set failed: " << static_cast<int>(aRet)
+                  << std::endl;
+        return;
+    }
+
+    const MultiBlockQueueSet *qset = reinterpret_cast<const MultiBlockQueueSet *>(queue_host.data());
+    const int num_blocks = std::min<int>(qset->num_blocks, MAX_COMPUTE_BLOCKS);
+    std::vector<int> freq(G_NUM_TILES, 0);
+    QueueDiagStats stats;
+
+    for (int b = 0; b < num_blocks; ++b) {
+        const int32_t offset = qset->queue_offsets[b];
+        if (offset < 0 || static_cast<size_t>(offset) + sizeof(PerBlockQueue) > buf.queueSetSize) {
+            stats.invalid_tiles++;
+            continue;
+        }
+
+        const PerBlockQueue *pq = reinterpret_cast<const PerBlockQueue *>(queue_host.data() + offset);
+        CollectQueueBlockStats(b, pq, freq, stats);
+    }
+
+    int unique_tiles = 0;
+    int missing_tiles = 0;
+    const std::string missing_samples = BuildMissingTileSamples(freq, unique_tiles, missing_tiles);
+    PrintQueueDiagLine(tag, rank_id, stats, unique_tiles, missing_tiles, missing_samples);
+}
+
+static void PrintTile0Stats(const char *tag, int rank_id, const void *dev_ptr, size_t bytes)
+{
+    constexpr size_t kTileElems = static_cast<size_t>(G_BASE_M) * G_BASE_N;
+    constexpr size_t kTileBytes = kTileElems * sizeof(uint16_t);
+    const size_t copy_bytes = std::min(bytes, kTileBytes);
+    std::vector<uint16_t> tile_host(kTileElems, 0);
+    aclError aRet = aclrtMemcpy(tile_host.data(), copy_bytes, dev_ptr, copy_bytes, ACL_MEMCPY_DEVICE_TO_HOST);
+    if (aRet != ACL_SUCCESS) {
+        std::cerr << "[" << tag << "] rank=" << rank_id << " copy tile0 failed: " << static_cast<int>(aRet)
+                  << std::endl;
+        return;
+    }
+
+    size_t nonzero = 0;
+    std::string sample;
+    for (size_t i = 0; i < tile_host.size(); ++i) {
+        if (tile_host[i] != 0) {
+            nonzero++;
+        }
+        if (i < 8) {
+            if (!sample.empty()) {
+                sample += ",";
+            }
+            sample += std::to_string(tile_host[i]);
+        }
+    }
+    std::cout << "[" << tag << "] rank=" << rank_id << " tile0_nonzero=" << nonzero << "/" << tile_host.size()
+              << " sample_u16=" << sample << std::endl;
+}
+
 static bool AllocDeviceBuffers(DeviceBuffers &buf, const GemmHcclContext &hctx, int rank_id, const uint16_t *a_data,
                                size_t a_bytes, const uint16_t *b_data, size_t b_bytes, aclrtStream commStream)
 {
     buf.outputSize = static_cast<size_t>(G_M) * G_N * sizeof(uint16_t);
     buf.reducedOutputHeadPadSize = WINDOW_GUARD_BYTES;
-    buf.signalMatrixSize = ((static_cast<size_t>(MAX_RANKS + 2) * sizeof(int32_t) + 63) / 64) * 64;
+    buf.signalMatrixSize = ((static_cast<size_t>(G_SIGNAL_TOTAL_SLOTS) * sizeof(int32_t) + 63) / 64) * 64;
 
     buf.gemm_output = nullptr;
     aclrtMalloc(&buf.gemm_output, buf.outputSize, ACL_MEM_MALLOC_HUGE_FIRST);
@@ -944,17 +1251,67 @@ static void FreeDeviceBuffers(DeviceBuffers &buf)
 // Per-rank execution logic
 // ============================================================================
 template <typename ResetFn, typename LaunchCompFn, typename LaunchCommFn, typename SyncFn>
+static void RunWarmupPasses(int rank_id, int n_ranks, ResetFn &resetState, LaunchCompFn &launchComp,
+                            LaunchCommFn &launchComm, SyncFn &syncAll, aclrtStream computeStream,
+                            aclrtStream commStream, const DeviceBuffers &buf)
+{
+    for (int i = 0; i < WARMUP_ITERS; ++i) {
+        DebugLog(rank_id, "warmup", i, "resetState begin");
+        resetState();
+        DebugLog(rank_id, "warmup", i, "resetState done");
+        DebugLog(rank_id, "warmup", i, "syncAll before launch");
+        syncAll();
+        DebugLog(rank_id, "warmup", i, "syncAll done");
+        DebugLog(rank_id, "warmup", i, "launch compute");
+        launchComp(computeStream);
+        DebugLog(rank_id, "warmup", i, "compute launched");
+        DebugLog(rank_id, "warmup", i, "launch comm");
+        launchComm(commStream);
+        DebugLog(rank_id, "warmup", i, "comm finished");
+        DebugDumpState("warmup-after-comm", rank_id, n_ranks, buf);
+        DebugLog(rank_id, "warmup", i, "syncAll after launch");
+        syncAll();
+        DebugLog(rank_id, "warmup", i, "syncAll after launch done");
+    }
+}
+
+template <typename ResetFn, typename LaunchCompFn, typename LaunchCommFn, typename SyncFn>
+static bool RunFinalVerificationPass(int rank_id, int n_ranks, ResetFn &resetState, LaunchCompFn &launchComp,
+                                     LaunchCommFn &launchComm, SyncFn &syncAll, aclrtStream computeStream,
+                                     aclrtStream commStream, const DeviceBuffers &buf, const float *golden)
+{
+    DebugLog(rank_id, "final-run", -1, "resetState begin");
+    resetState();
+    DebugLog(rank_id, "final-run", -1, "resetState done");
+    DebugLog(rank_id, "final-run", -1, "syncAll before launch");
+    syncAll();
+    DebugLog(rank_id, "final-run", -1, "syncAll done");
+    DebugLog(rank_id, "final-run", -1, "launch compute");
+    launchComp(computeStream);
+    DebugLog(rank_id, "final-run", -1, "compute launched");
+    DebugLog(rank_id, "final-run", -1, "launch comm");
+    launchComm(commStream);
+    DebugLog(rank_id, "final-run", -1, "comm finished");
+    DebugDumpState("final-after-comm", rank_id, n_ranks, buf);
+    DebugLog(rank_id, "final-run", -1, "syncAll after launch");
+    syncAll();
+    DebugLog(rank_id, "final-run", -1, "syncAll after launch done");
+    DebugDumpState("final-before-verify", rank_id, n_ranks, buf);
+
+    uint16_t *output_host_fp16 = nullptr;
+    aclrtMallocHost(reinterpret_cast<void **>(&output_host_fp16), buf.outputSize);
+    aclrtMemcpy(output_host_fp16, buf.outputSize, buf.reduced_output, buf.outputSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    bool is_ok = (rank_id == 0) ? VerifyOutput(output_host_fp16, golden) : true;
+    aclrtFreeHost(output_host_fp16);
+    return is_ok;
+}
+
+template <typename ResetFn, typename LaunchCompFn, typename LaunchCommFn, typename SyncFn>
 static bool RunBenchmarkAndVerify(int rank_id, int n_ranks, ResetFn &resetState, LaunchCompFn &launchComp,
                                   LaunchCommFn &launchComm, SyncFn &syncAll, aclrtStream computeStream,
                                   aclrtStream commStream, HcclComm comm, const DeviceBuffers &buf, const float *golden)
 {
-    for (int i = 0; i < WARMUP_ITERS; ++i) {
-        resetState();
-        syncAll();
-        launchComp(computeStream);
-        launchComm(commStream);
-        syncAll();
-    }
+    RunWarmupPasses(rank_id, n_ranks, resetState, launchComp, launchComm, syncAll, computeStream, commStream, buf);
 
     std::vector<double> compute_us;
     std::vector<double> seq_us;
@@ -963,23 +1320,15 @@ static bool RunBenchmarkAndVerify(int rank_id, int n_ranks, ResetFn &resetState,
     std::vector<double> pipe_us;
     std::vector<double> pipe_comp_us;
     std::vector<double> pipe_comm_us;
-    RunComputeOnlyBenchmark(resetState, launchComp, syncAll, computeStream, commStream, comm, compute_us);
-    RunSequentialBenchmark(resetState, launchComp, launchComm, syncAll, computeStream, commStream, comm, seq_us,
-                           seq_comp_us, seq_comm_us);
-    RunPipelinedBenchmark(resetState, launchComp, launchComm, syncAll, computeStream, commStream, pipe_us, pipe_comp_us,
-                          pipe_comm_us);
+    RunComputeOnlyBenchmark(rank_id, n_ranks, buf, resetState, launchComp, syncAll, computeStream, commStream, comm,
+                            compute_us);
+    RunSequentialBenchmark(rank_id, n_ranks, buf, resetState, launchComp, launchComm, syncAll, computeStream,
+                           commStream, comm, seq_us, seq_comp_us, seq_comm_us);
+    RunPipelinedBenchmark(rank_id, n_ranks, buf, resetState, launchComp, launchComm, syncAll, computeStream, commStream,
+                          pipe_us, pipe_comp_us, pipe_comm_us);
 
-    resetState();
-    syncAll();
-    launchComp(computeStream);
-    launchComm(commStream);
-    syncAll();
-
-    uint16_t *output_host_fp16 = nullptr;
-    aclrtMallocHost(reinterpret_cast<void **>(&output_host_fp16), buf.outputSize);
-    aclrtMemcpy(output_host_fp16, buf.outputSize, buf.reduced_output, buf.outputSize, ACL_MEMCPY_DEVICE_TO_HOST);
-    bool is_ok = (rank_id == 0) ? VerifyOutput(output_host_fp16, golden) : true;
-    aclrtFreeHost(output_host_fp16);
+    const bool is_ok = RunFinalVerificationPass(rank_id, n_ranks, resetState, launchComp, launchComm, syncAll,
+                                                computeStream, commStream, buf, golden);
 
     if (rank_id == 0) {
         PrintPerfReport(is_ok, n_ranks, compute_us, seq_us, pipe_us, seq_comp_us, seq_comm_us, pipe_comp_us,
@@ -988,7 +1337,7 @@ static bool RunBenchmarkAndVerify(int rank_id, int n_ranks, ResetFn &resetState,
     return is_ok;
 }
 
-static void ResetDeviceState(const DeviceBuffers &buf)
+static void ResetDeviceState(int rank_id, int n_ranks, const DeviceBuffers &buf)
 {
     MultiBlockQueueSetInit(buf.queueSet_reset_host, COMPUTE_BLOCK_NUM, G_NUM_TILES);
     aclrtMemcpy(buf.queueSet_dev, buf.queueSetSize, buf.queueSet_reset_host, buf.queueSetSize,
@@ -997,10 +1346,12 @@ static void ResetDeviceState(const DeviceBuffers &buf)
     aclrtMemset(buf.reduced_output_head_pad, buf.reducedOutputHeadPadSize, 0, buf.reducedOutputHeadPadSize);
     aclrtMemset(buf.reduced_output, buf.outputSize, 0, buf.outputSize);
     aclrtMemset(buf.signal_matrix, buf.signalMatrixSize, 0, buf.signalMatrixSize);
+    DebugDumpState("after-reset", rank_id, n_ranks, buf);
 }
 
 static void LaunchCompute(const DeviceBuffers &buf, int rank_id, aclrtStream s)
 {
+    DebugLog(rank_id, "launch-compute", -1, "dispatch kernel");
     launchGemmCompute(reinterpret_cast<uint8_t *>(buf.gemm_output), reinterpret_cast<uint8_t *>(buf.src0_dev),
                       reinterpret_cast<uint8_t *>(buf.src1_dev), reinterpret_cast<uint8_t *>(buf.queueSet_dev), rank_id,
                       s, COMPUTE_BLOCK_NUM, G_K);
@@ -1008,10 +1359,18 @@ static void LaunchCompute(const DeviceBuffers &buf, int rank_id, aclrtStream s)
 
 static void LaunchComm(const DeviceBuffers &buf, uint8_t *hcclCtxPtr, int rank_id, int n_ranks, aclrtStream s)
 {
+    DebugLog(rank_id, "launch-comm", -1, "dispatch kernel");
     launchGemmCommAll(reinterpret_cast<uint8_t *>(buf.gemm_output), reinterpret_cast<uint8_t *>(buf.reduced_output),
                       reinterpret_cast<uint8_t *>(buf.signal_matrix), reinterpret_cast<uint8_t *>(buf.queueSet_dev),
                       hcclCtxPtr, rank_id, n_ranks, s, COMPUTE_BLOCK_NUM);
-    aclrtSynchronizeStream(s);
+    DebugLog(rank_id, "launch-comm", -1, "sync comm stream begin");
+    const aclError sync_ret = WaitStreamWithWatchdog("launch-comm", "sync comm stream", rank_id, n_ranks, s, buf);
+    if (sync_ret != ACL_SUCCESS) {
+        std::cerr << "[ERROR] Rank " << rank_id << ": launch-comm stream sync failed: " << static_cast<int>(sync_ret)
+                  << std::endl;
+    }
+    DebugLog(rank_id, "launch-comm", -1, "sync comm stream done");
+    DebugDumpState("after-launch-comm", rank_id, n_ranks, buf);
 }
 
 static bool RunGemmAllReducePerRank(int rank_id, int n_ranks, const uint16_t *a_data, size_t a_bytes,
@@ -1041,13 +1400,24 @@ static bool RunGemmAllReducePerRank(int rank_id, int n_ranks, const uint16_t *a_
     }
 
     uint8_t *hcclCtxPtr = reinterpret_cast<uint8_t *>(hctx.deviceCtx);
-    auto resetState = [&]() { ResetDeviceState(buf); };
+    auto resetState = [&]() { ResetDeviceState(rank_id, n_ranks, buf); };
     auto launchComp = [&](aclrtStream s) { LaunchCompute(buf, rank_id, s); };
     auto launchComm = [&](aclrtStream s) { LaunchComm(buf, hcclCtxPtr, rank_id, n_ranks, s); };
     auto syncAll = [&]() {
+        DebugLog(rank_id, "sync-all", -1, "compute stream sync begin");
         aclrtSynchronizeStream(computeStream);
-        aclrtSynchronizeStream(commStream);
+        DebugLog(rank_id, "sync-all", -1, "compute stream sync done");
+        DebugLog(rank_id, "sync-all", -1, "comm stream sync begin");
+        const aclError comm_sync_ret =
+            WaitStreamWithWatchdog("sync-all", "sync comm stream", rank_id, n_ranks, commStream, buf);
+        if (comm_sync_ret != ACL_SUCCESS) {
+            std::cerr << "[ERROR] Rank " << rank_id
+                      << ": sync-all comm stream sync failed: " << static_cast<int>(comm_sync_ret) << std::endl;
+        }
+        DebugLog(rank_id, "sync-all", -1, "comm stream sync done");
+        DebugLog(rank_id, "sync-all", -1, "hccl host barrier begin");
         HcclHostBarrier(hctx.comm, commStream);
+        DebugLog(rank_id, "sync-all", -1, "hccl host barrier done");
     };
 
     bool is_ok = RunBenchmarkAndVerify(rank_id, n_ranks, resetState, launchComp, launchComm, syncAll, computeStream,

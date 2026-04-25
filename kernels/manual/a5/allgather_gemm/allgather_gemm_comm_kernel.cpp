@@ -40,13 +40,13 @@ struct CommParams {
     int nRanks;
     int numRemoteRanks;
     int mTilesLocal;
-    int kChunks;
-    int numBlocksPerSrc;
-    int tileSize;
-    int numTiles;
+    int kTiles;
+    int numTilesPerSrc;
+    int chunkSize;
+    int numChunks;
 };
 
-AICORE inline CommParams BuildCommParams(__gm__ HcclDeviceContext *hcclCtx, volatile __gm__ TileFlagMatrix *flags)
+AICORE inline CommParams BuildCommParams(__gm__ HcclDeviceContext *hcclCtx, volatile __gm__ ChunkFlagMatrix *flags)
 {
     CommParams p;
     p.myRank = static_cast<int>(hcclCtx->rankId);
@@ -57,24 +57,24 @@ AICORE inline CommParams BuildCommParams(__gm__ HcclDeviceContext *hcclCtx, vola
     p.numRemoteRanks = p.nRanks - 1;
     int mTiles = static_cast<int>(G_M / G_BASE_M);
     p.mTilesLocal = mTiles / p.nRanks;
-    p.kChunks = static_cast<int>(G_K / G_BASE_N);
-    p.numBlocksPerSrc = p.mTilesLocal * p.kChunks;
-    p.tileSize = flags->tile_size;
-    p.numTiles = flags->num_tiles_per_src;
+    p.kTiles = static_cast<int>(G_K / G_BASE_N);
+    p.numTilesPerSrc = p.mTilesLocal * p.kTiles;
+    p.chunkSize = flags->chunk_size;
+    p.numChunks = flags->num_chunks_per_src;
     return p;
 }
 
-AICORE inline void SetupLocalFlags(volatile __gm__ TileFlagMatrix *flags, volatile __gm__ int32_t *summaryBase,
-                                   int myRank, int numTiles)
+AICORE inline void SetupLocalFlags(volatile __gm__ ChunkFlagMatrix *flags, volatile __gm__ int32_t *summaryBase,
+                                   int myRank, int numChunks)
 {
-    for (int c = 0; c < numTiles; ++c) {
-        SetTileFlagReady(flags, myRank, c);
+    for (int c = 0; c < numChunks; ++c) {
+        SetChunkFlagReady(flags, myRank, c);
     }
     // Use TNOTIFY AtomicAdd (matching TWAIT) instead of direct store,
     // so that TWAIT's hardware signal mechanism is properly triggered.
     volatile __gm__ int32_t *ptr = summaryBase + myRank;
     pto::comm::Signal sig(reinterpret_cast<__gm__ int32_t *>(const_cast<__gm__ int32_t *>(ptr)));
-    pto::comm::TNOTIFY(sig, numTiles, pto::comm::NotifyOp::AtomicAdd);
+    pto::comm::TNOTIFY(sig, numChunks, pto::comm::NotifyOp::AtomicAdd);
 }
 
 AICORE inline void InitTileBuffers(TileData &pingTile, TileData &pongTile)
@@ -89,18 +89,18 @@ AICORE inline int DestIdxToRank(int destIdx, int myRank)
 }
 
 struct RemoteEndpoint {
-    __gm__ TileFlagMatrix *tileFlags;
+    __gm__ ChunkFlagMatrix *chunkFlags;
     __gm__ int32_t *summarySrc;
 };
 
-AICORE inline RemoteEndpoint GetRemoteEndpoint(__gm__ HcclDeviceContext *hcclCtx, __gm__ TileFlagMatrix *flagsMut,
-                                               volatile __gm__ TileFlagMatrix *flags, int destRank, int myRank)
+AICORE inline RemoteEndpoint GetRemoteEndpoint(__gm__ HcclDeviceContext *hcclCtx, __gm__ ChunkFlagMatrix *flagsMut,
+                                               volatile __gm__ ChunkFlagMatrix *flags, int destRank, int myRank)
 {
     RemoteEndpoint ep;
-    ep.tileFlags = reinterpret_cast<__gm__ TileFlagMatrix *>(HcclRemotePtr(hcclCtx, flagsMut, destRank));
+    ep.chunkFlags = reinterpret_cast<__gm__ ChunkFlagMatrix *>(HcclRemotePtr(hcclCtx, flagsMut, destRank));
     ep.summarySrc = reinterpret_cast<__gm__ int32_t *>(
                         reinterpret_cast<__gm__ uint8_t *>(HcclRemotePtr(hcclCtx, flagsMut, destRank)) +
-                        TileFlagMatrixBytes(flags)) +
+                        ChunkFlagMatrixBytes(flags)) +
                     myRank;
     return ep;
 }
@@ -108,7 +108,7 @@ AICORE inline RemoteEndpoint GetRemoteEndpoint(__gm__ HcclDeviceContext *hcclCtx
 struct DispatchContext {
     __gm__ half *shmemInput;
     __gm__ HcclDeviceContext *hcclCtx;
-    volatile __gm__ TileFlagMatrix *flags;
+    volatile __gm__ ChunkFlagMatrix *flags;
     const ShapeDyn *tileShape;
     const StrideDyn *tileStride;
     TileData *pingTile;
@@ -118,24 +118,24 @@ struct DispatchContext {
     int numBlocks;
 };
 
-// 将一个 tile 对应的所有 block 通过 TPUT 传输到远端，完成后设置远端 flag
-AICORE inline void TransferTileToRemote(__gm__ half *shmemInput, __gm__ HcclDeviceContext *hcclCtx,
-                                        __gm__ TileFlagMatrix *remoteTileFlags, __gm__ int32_t *remoteSummarySrc,
-                                        const ShapeDyn &tileShape, const StrideDyn &tileStride, TileData &pingTile,
-                                        TileData &pongTile, const CommParams &p, int destRank, int tileIdx)
+// 将一个 chunk 对应的所有 tile 通过 TPUT 传输到远端，完成后设置远端 flag
+AICORE inline void TransferChunkToRemote(__gm__ half *shmemInput, __gm__ HcclDeviceContext *hcclCtx,
+                                         __gm__ ChunkFlagMatrix *remoteChunkFlags, __gm__ int32_t *remoteSummarySrc,
+                                         const ShapeDyn &tileShape, const StrideDyn &tileStride, TileData &pingTile,
+                                         TileData &pongTile, const CommParams &p, int destRank, int chunkIdx)
 {
-    int blkStart = tileIdx * p.tileSize;
-    int blkEnd = blkStart + p.tileSize;
-    if (blkEnd > p.numBlocksPerSrc) {
-        blkEnd = p.numBlocksPerSrc;
+    int tileStart = chunkIdx * p.chunkSize;
+    int tileEnd = tileStart + p.chunkSize;
+    if (tileEnd > p.numTilesPerSrc) {
+        tileEnd = p.numTilesPerSrc;
     }
 
     __gm__ half *remoteInput = HcclRemotePtr(hcclCtx, shmemInput, destRank);
-    for (int b = blkStart; b < blkEnd; ++b) {
-        int miLocal = b / p.kChunks;
-        int kb = b % p.kChunks;
+    for (int t = tileStart; t < tileEnd; ++t) {
+        int miLocal = t / p.kTiles;
+        int kt = t % p.kTiles;
         int miGlobal = p.myRank * p.mTilesLocal + miLocal;
-        uint64_t colOff = static_cast<uint64_t>(kb * static_cast<int>(G_BASE_N));
+        uint64_t colOff = static_cast<uint64_t>(kt * static_cast<int>(G_BASE_N));
         uint64_t rowOff = static_cast<uint64_t>(miGlobal) * G_BASE_M;
         uint64_t offset = rowOff * G_K + colOff;
         Global srcG(shmemInput + offset, tileShape, tileStride);
@@ -145,31 +145,31 @@ AICORE inline void TransferTileToRemote(__gm__ half *shmemInput, __gm__ HcclDevi
 
     pipe_barrier(PIPE_ALL);
     dsb(DSB_DDR);
-    SetRemoteTileFlagReady(remoteTileFlags, p.myRank, tileIdx, remoteSummarySrc);
+    SetRemoteChunkFlagReady(remoteChunkFlags, p.myRank, chunkIdx, remoteSummarySrc);
 }
 
-// block 数少于 dest 数：按 work_id 均分
+// 硬件 block 数少于 dest 数：按 work_id 均分
 AICORE inline void DispatchFewBlocks(const DispatchContext &ctx)
 {
-    __gm__ TileFlagMatrix *flagsMut = const_cast<__gm__ TileFlagMatrix *>(ctx.flags);
-    int totalWork = ctx.p.numRemoteRanks * ctx.p.numTiles;
+    __gm__ ChunkFlagMatrix *flagsMut = const_cast<__gm__ ChunkFlagMatrix *>(ctx.flags);
+    int totalWork = ctx.p.numRemoteRanks * ctx.p.numChunks;
 
     for (int workId = ctx.blockIdx; workId < totalWork; workId += ctx.numBlocks) {
-        int destIdx = workId / ctx.p.numTiles;
-        int tileIdx = workId % ctx.p.numTiles;
+        int destIdx = workId / ctx.p.numChunks;
+        int chunkIdx = workId % ctx.p.numChunks;
         int destRank = DestIdxToRank(destIdx, ctx.p.myRank);
 
         RemoteEndpoint ep = GetRemoteEndpoint(ctx.hcclCtx, flagsMut, ctx.flags, destRank, ctx.p.myRank);
 
-        TransferTileToRemote(ctx.shmemInput, ctx.hcclCtx, ep.tileFlags, ep.summarySrc, *ctx.tileShape, *ctx.tileStride,
-                             *ctx.pingTile, *ctx.pongTile, ctx.p, destRank, tileIdx);
+        TransferChunkToRemote(ctx.shmemInput, ctx.hcclCtx, ep.chunkFlags, ep.summarySrc, *ctx.tileShape,
+                              *ctx.tileStride, *ctx.pingTile, *ctx.pongTile, ctx.p, destRank, chunkIdx);
     }
 }
 
-// block 数 >= dest 数：每 dest 分配连续 block 区间
+// 硬件 block 数 >= dest 数：每 dest 分配连续 block 区间
 AICORE inline void DispatchManyBlocks(const DispatchContext &ctx)
 {
-    __gm__ TileFlagMatrix *flagsMut = const_cast<__gm__ TileFlagMatrix *>(ctx.flags);
+    __gm__ ChunkFlagMatrix *flagsMut = const_cast<__gm__ ChunkFlagMatrix *>(ctx.flags);
     if (ctx.p.numRemoteRanks <= 0) {
         return;
     }
@@ -186,23 +186,23 @@ AICORE inline void DispatchManyBlocks(const DispatchContext &ctx)
     int destRank = DestIdxToRank(destIdx, ctx.p.myRank);
     RemoteEndpoint ep = GetRemoteEndpoint(ctx.hcclCtx, flagsMut, ctx.flags, destRank, ctx.p.myRank);
 
-    int tilesPerBlock = (ctx.p.numTiles + blocksPerDest - 1) / blocksPerDest;
-    int tileStart = localIdx * tilesPerBlock;
-    int tileEnd = tileStart + tilesPerBlock;
-    if (tileEnd > ctx.p.numTiles) {
-        tileEnd = ctx.p.numTiles;
+    int chunksPerBlock = (ctx.p.numChunks + blocksPerDest - 1) / blocksPerDest;
+    int chunkStart = localIdx * chunksPerBlock;
+    int chunkEnd = chunkStart + chunksPerBlock;
+    if (chunkEnd > ctx.p.numChunks) {
+        chunkEnd = ctx.p.numChunks;
     }
 
-    for (int tileIdx = tileStart; tileIdx < tileEnd; ++tileIdx) {
-        TransferTileToRemote(ctx.shmemInput, ctx.hcclCtx, ep.tileFlags, ep.summarySrc, *ctx.tileShape, *ctx.tileStride,
-                             *ctx.pingTile, *ctx.pongTile, ctx.p, destRank, tileIdx);
+    for (int chunkIdx = chunkStart; chunkIdx < chunkEnd; ++chunkIdx) {
+        TransferChunkToRemote(ctx.shmemInput, ctx.hcclCtx, ep.chunkFlags, ep.summarySrc, *ctx.tileShape,
+                              *ctx.tileStride, *ctx.pingTile, *ctx.pongTile, ctx.p, destRank, chunkIdx);
     }
 }
 
-AICORE inline void CommAIVRoleStreamingParallel(__gm__ half *shmemInput, __gm__ TileFlagMatrix *tileFlags,
+AICORE inline void CommAIVRoleStreamingParallel(__gm__ half *shmemInput, __gm__ ChunkFlagMatrix *chunkFlags,
                                                 __gm__ HcclDeviceContext *hcclCtx, int blockIdx, int numBlocks)
 {
-    volatile __gm__ TileFlagMatrix *flags = reinterpret_cast<volatile __gm__ TileFlagMatrix *>(tileFlags);
+    volatile __gm__ ChunkFlagMatrix *flags = reinterpret_cast<volatile __gm__ ChunkFlagMatrix *>(chunkFlags);
     CommParams p = BuildCommParams(hcclCtx, flags);
 
     if (p.numRemoteRanks <= 0 || numBlocks <= 0) {
@@ -211,7 +211,7 @@ AICORE inline void CommAIVRoleStreamingParallel(__gm__ half *shmemInput, __gm__ 
 
     volatile __gm__ int32_t *summaryBase = GetSummaryBase(flags);
     if (blockIdx == 0) {
-        SetupLocalFlags(flags, summaryBase, p.myRank, p.numTiles);
+        SetupLocalFlags(flags, summaryBase, p.myRank, p.numChunks);
     }
 
     TileData pingTile(G_BASE_M, G_BASE_N);
@@ -233,7 +233,7 @@ AICORE inline void CommAIVRoleStreamingParallel(__gm__ half *shmemInput, __gm__ 
 
 #endif // __CCE_AICORE__
 
-__global__ AICORE void RingCommStreamingKernel(__gm__ uint8_t *shmemInput, __gm__ uint8_t *tileFlags,
+__global__ AICORE void RingCommStreamingKernel(__gm__ uint8_t *shmemInput, __gm__ uint8_t *chunkFlags,
                                                __gm__ uint8_t *hcclCtxRaw, int blockNum)
 {
 #ifdef __CCE_AICORE__
@@ -246,11 +246,11 @@ __global__ AICORE void RingCommStreamingKernel(__gm__ uint8_t *shmemInput, __gm_
     }
 
     CommAIVRoleStreamingParallel(reinterpret_cast<__gm__ half *>(shmemInput),
-                                 reinterpret_cast<__gm__ TileFlagMatrix *>(tileFlags), hcclCtx, blockIdx, blockNum);
+                                 reinterpret_cast<__gm__ ChunkFlagMatrix *>(chunkFlags), hcclCtx, blockIdx, blockNum);
 #endif
 }
 
-void launchRingCommStreaming(uint8_t *shmemInput, uint8_t *tileFlags, uint8_t *hcclCtx, int nRanks, void *stream)
+void launchRingCommStreaming(uint8_t *shmemInput, uint8_t *chunkFlags, uint8_t *hcclCtx, int nRanks, void *stream)
 {
     int numRemoteRanks = nRanks - 1;
     if (numRemoteRanks <= 0) {
@@ -261,5 +261,5 @@ void launchRingCommStreaming(uint8_t *shmemInput, uint8_t *tileFlags, uint8_t *h
         blocksPerDest = 1;
     }
     int totalBlocks = numRemoteRanks * blocksPerDest;
-    RingCommStreamingKernel<<<totalBlocks, nullptr, stream>>>(shmemInput, tileFlags, hcclCtx, totalBlocks);
+    RingCommStreamingKernel<<<totalBlocks, nullptr, stream>>>(shmemInput, chunkFlags, hcclCtx, totalBlocks);
 }

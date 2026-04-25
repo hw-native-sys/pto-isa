@@ -18,7 +18,7 @@ constexpr uint32_t L0_PINGPONG_BYTES = 32 * 1024;
 constexpr uint32_t G_STEP_KA = 4;
 constexpr uint32_t G_STEP_KB = 4;
 
-static_assert(G_BASE_N == G_BASE_K * G_STEP_KA, "Expect one comm K-block equals one compute step pack");
+static_assert(G_BASE_N == G_BASE_K * G_STEP_KA, "Expect one comm K-tile equals one compute step pack");
 static_assert(G_BASE_M > 0, "G_BASE_M must be positive");
 static_assert(G_BASE_N > 0, "G_BASE_N must be positive");
 static_assert(G_BASE_K > 0, "G_BASE_K must be positive");
@@ -138,24 +138,22 @@ AICORE inline void StoreCTile(__gm__ float *tileDst, ResTile &cTile)
     TSTORE(dstGlobal, cTile);
     set_flag(PIPE_FIX, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_FIX, PIPE_M, EVENT_ID0);
-    // Drain the outstanding writeback before the next N-tile reuses L0C on A5.
-    pipe_barrier(PIPE_ALL);
 }
 
 // ---------------------------------------------------------------------------
-// RunKBlockRange: 对连续 K-block 范围 [kb_start, kb_end) 执行矩阵乘
+// RunKTileRange: 对连续 K-tile 范围 [kt_start, kt_end) 执行矩阵乘
 // ---------------------------------------------------------------------------
-AICORE inline void RunKBlockRange(int kb_start, int kb_end, __gm__ half *aRowBase, __gm__ half *bColBase,
-                                  TileMatAData aMatTile[BUFFER_NUM], TileMatBData bMatTile[BUFFER_NUM],
-                                  LeftTile aTile[BUFFER_NUM], RightTile bTile[BUFFER_NUM], ResTile &cTile,
-                                  uint8_t &mte2DBFlag, uint8_t &mte1DBFlag, uint32_t &globalKIter)
+AICORE inline void RunKTileRange(int kt_start, int kt_end, __gm__ half *aRowBase, __gm__ half *bColBase,
+                                 TileMatAData aMatTile[BUFFER_NUM], TileMatBData bMatTile[BUFFER_NUM],
+                                 LeftTile aTile[BUFFER_NUM], RightTile bTile[BUFFER_NUM], ResTile &cTile,
+                                 uint8_t &mte2DBFlag, uint8_t &mte1DBFlag, uint32_t &globalKIter)
 {
-    constexpr uint32_t k_iters_per_block = G_BASE_N / G_BASE_K;
-    for (int kb = kb_start; kb < kb_end; ++kb) {
-        int k_col_offset = kb * static_cast<int>(G_BASE_N);
+    constexpr uint32_t k_iters_per_tile = G_BASE_N / G_BASE_K;
+    for (int kt = kt_start; kt < kt_end; ++kt) {
+        int k_col_offset = kt * static_cast<int>(G_BASE_N);
         __gm__ half *aSrc = aRowBase + k_col_offset;
         __gm__ half *bSrc = bColBase + k_col_offset;
-        for (uint32_t kIter = 0; kIter < k_iters_per_block; ++kIter) {
+        for (uint32_t kIter = 0; kIter < k_iters_per_tile; ++kIter) {
             ProcessKIterationContinuous<float, half, half, G_M, G_K, G_N, G_BASE_M, G_BASE_K, G_BASE_N, G_STEP_KA,
                                         G_STEP_KB>(kIter, globalKIter, aSrc, bSrc, aMatTile, bMatTile, aTile, bTile,
                                                    cTile, mte2DBFlag, mte1DBFlag);
@@ -165,53 +163,54 @@ AICORE inline void RunKBlockRange(int kb_start, int kb_end, __gm__ half *aRowBas
 }
 
 // ---------------------------------------------------------------------------
-// ProcessStreamingTiles: tile-ready 轮询 + K-block 迭代，处理单个 N-tile
+// ProcessStreamingChunks: chunk-ready 轮询 + K-tile 迭代，处理单个 N-tile
 //   在 ComputeRowGroupStreaming 的 ni 循环内调用
 // ---------------------------------------------------------------------------
-AICORE inline void ProcessStreamingTiles(volatile __gm__ TileFlagMatrix *flags, volatile __gm__ int32_t *summary_base,
-                                         int src_rank, int first_streaming_tile, int last_streaming_tile,
-                                         int block_start, int block_end, __gm__ half *aRowBase, __gm__ half *bColBase,
-                                         TileMatAData aMatTile[BUFFER_NUM], TileMatBData bMatTile[BUFFER_NUM],
-                                         LeftTile aTile[BUFFER_NUM], RightTile bTile[BUFFER_NUM], ResTile &cTile,
-                                         uint8_t &mte2DBFlag, uint8_t &mte1DBFlag, uint32_t &globalKIter)
+AICORE inline void ProcessStreamingChunks(volatile __gm__ ChunkFlagMatrix *flags, volatile __gm__ int32_t *summary_base,
+                                          int src_rank, int first_streaming_chunk, int last_streaming_chunk,
+                                          int tile_start, int tile_end, __gm__ half *aRowBase, __gm__ half *bColBase,
+                                          TileMatAData aMatTile[BUFFER_NUM], TileMatBData bMatTile[BUFFER_NUM],
+                                          LeftTile aTile[BUFFER_NUM], RightTile bTile[BUFFER_NUM], ResTile &cTile,
+                                          uint8_t &mte2DBFlag, uint8_t &mte1DBFlag, uint32_t &globalKIter)
 {
-    int num_st = (first_streaming_tile <= last_streaming_tile) ? (last_streaming_tile - first_streaming_tile + 1) : 0;
+    int num_sc =
+        (first_streaming_chunk <= last_streaming_chunk) ? (last_streaming_chunk - first_streaming_chunk + 1) : 0;
 
-    int32_t epoch_base = (flags->epoch - 1) * flags->num_tiles_per_src;
+    int32_t epoch_base = (flags->epoch - 1) * flags->num_chunks_per_src;
 
     uint64_t done = 0;
     int processed_count = 0;
-    int next_st = first_streaming_tile;
+    int next_sc = first_streaming_chunk;
 
-    while (processed_count < num_st) {
+    while (processed_count < num_sc) {
         int32_t ready_count = GetReadyCountFromSrc(summary_base, src_rank);
         if (ready_count <= epoch_base + processed_count) {
             WaitReadyCountFromSrc(summary_base, src_rank, epoch_base + processed_count + 1);
         }
 
-        for (int scan_cnt = 0; scan_cnt < num_st && processed_count < num_st; ++scan_cnt) {
-            int st = next_st;
-            next_st = (next_st >= last_streaming_tile) ? first_streaming_tile : (next_st + 1);
+        for (int scan_cnt = 0; scan_cnt < num_sc && processed_count < num_sc; ++scan_cnt) {
+            int sc = next_sc;
+            next_sc = (next_sc >= last_streaming_chunk) ? first_streaming_chunk : (next_sc + 1);
 
-            int idx = st - first_streaming_tile;
+            int idx = sc - first_streaming_chunk;
             if ((done & (1ULL << idx)) != 0)
                 continue;
-            if (!IsTileReady(flags, src_rank, st))
+            if (!IsChunkReady(flags, src_rank, sc))
                 continue;
 
             done |= (1ULL << idx);
             processed_count++;
 
-            int tile_start_blk = st * flags->tile_size;
-            int tile_end_blk =
-                (tile_start_blk + flags->tile_size > block_end) ? block_end : (tile_start_blk + flags->tile_size);
-            int kb_start = (tile_start_blk > block_start) ? (tile_start_blk - block_start) : 0;
-            int kb_end = tile_end_blk - block_start;
-            if (kb_end <= kb_start)
+            int chunk_start_tile = sc * flags->chunk_size;
+            int chunk_end_tile =
+                (chunk_start_tile + flags->chunk_size > tile_end) ? tile_end : (chunk_start_tile + flags->chunk_size);
+            int kt_start = (chunk_start_tile > tile_start) ? (chunk_start_tile - tile_start) : 0;
+            int kt_end = chunk_end_tile - tile_start;
+            if (kt_end <= kt_start)
                 continue;
 
-            RunKBlockRange(kb_start, kb_end, aRowBase, bColBase, aMatTile, bMatTile, aTile, bTile, cTile, mte2DBFlag,
-                           mte1DBFlag, globalKIter);
+            RunKTileRange(kt_start, kt_end, aRowBase, bColBase, aMatTile, bMatTile, aTile, bTile, cTile, mte2DBFlag,
+                          mte1DBFlag, globalKIter);
         }
     }
 }
@@ -220,30 +219,30 @@ AICORE inline void ProcessStreamingTiles(volatile __gm__ TileFlagMatrix *flags, 
 // ComputeRowGroupStreaming: 远程 rank 数据，等 tile 就绪信号后流式计算
 // ---------------------------------------------------------------------------
 AICORE inline void ComputeRowGroupStreaming(__gm__ float *output, __gm__ half *shmem_input, __gm__ half *src1,
-                                            __gm__ TileFlagMatrix *tile_flags, int mi, int m_tiles_per_rank,
-                                            int k_chunks, TileMatAData aMatTile[BUFFER_NUM],
+                                            __gm__ ChunkFlagMatrix *chunk_flags, int mi, int m_tiles_per_rank,
+                                            int k_tiles, TileMatAData aMatTile[BUFFER_NUM],
                                             TileMatBData bMatTile[BUFFER_NUM], LeftTile aTile[BUFFER_NUM],
                                             RightTile bTile[BUFFER_NUM], ResTile &cTile)
 {
     constexpr uint32_t n_tiles = G_N / G_BASE_N;
 
-    volatile __gm__ TileFlagMatrix *flags = reinterpret_cast<volatile __gm__ TileFlagMatrix *>(tile_flags);
+    volatile __gm__ ChunkFlagMatrix *flags = reinterpret_cast<volatile __gm__ ChunkFlagMatrix *>(chunk_flags);
     volatile __gm__ int32_t *summary_base = GetSummaryBase(flags);
 
     int src_rank = mi / m_tiles_per_rank;
     int mi_local = mi % m_tiles_per_rank;
-    int block_start = mi_local * k_chunks;
-    int block_end = (mi_local + 1) * k_chunks;
+    int tile_start = mi_local * k_tiles;
+    int tile_end = (mi_local + 1) * k_tiles;
 
-    int tile_size = flags->tile_size;
-    int num_tiles_per_src = flags->num_tiles_per_src;
-    int first_streaming_tile = 0;
-    int last_streaming_tile = -1;
-    if (block_end > block_start && num_tiles_per_src > 0 && tile_size > 0) {
-        first_streaming_tile = block_start / tile_size;
-        last_streaming_tile = (block_end - 1) / tile_size;
-        if (last_streaming_tile >= num_tiles_per_src) {
-            last_streaming_tile = num_tiles_per_src - 1;
+    int chunk_size = flags->chunk_size;
+    int num_chunks_per_src = flags->num_chunks_per_src;
+    int first_streaming_chunk = 0;
+    int last_streaming_chunk = -1;
+    if (tile_end > tile_start && num_chunks_per_src > 0 && chunk_size > 0) {
+        first_streaming_chunk = tile_start / chunk_size;
+        last_streaming_chunk = (tile_end - 1) / chunk_size;
+        if (last_streaming_chunk >= num_chunks_per_src) {
+            last_streaming_chunk = num_chunks_per_src - 1;
         }
     }
 
@@ -260,9 +259,9 @@ AICORE inline void ComputeRowGroupStreaming(__gm__ float *output, __gm__ half *s
 
         InitPipelineFlags();
 
-        ProcessStreamingTiles(flags, summary_base, src_rank, first_streaming_tile, last_streaming_tile, block_start,
-                              block_end, aRowBase, bColBase, aMatTile, bMatTile, aTile, bTile, cTile, mte2DBFlag,
-                              mte1DBFlag, globalKIter);
+        ProcessStreamingChunks(flags, summary_base, src_rank, first_streaming_chunk, last_streaming_chunk, tile_start,
+                               tile_end, aRowBase, bColBase, aMatTile, bMatTile, aTile, bTile, cTile, mte2DBFlag,
+                               mte1DBFlag, globalKIter);
 
         DrainPipelineFlags();
         StoreCTile(tileDst, cTile);
@@ -275,7 +274,7 @@ AICORE inline void ComputeRowGroupStreaming(__gm__ float *output, __gm__ half *s
 // ComputeRowGroupDirect: 本地 rank 数据已就绪，直接计算
 // ---------------------------------------------------------------------------
 AICORE inline void ComputeRowGroupDirect(__gm__ float *output, __gm__ half *shmem_input, __gm__ half *src1, int mi,
-                                         int k_chunks, TileMatAData aMatTile[BUFFER_NUM],
+                                         int k_tiles, TileMatAData aMatTile[BUFFER_NUM],
                                          TileMatBData bMatTile[BUFFER_NUM], LeftTile aTile[BUFFER_NUM],
                                          RightTile bTile[BUFFER_NUM], ResTile &cTile)
 {
@@ -294,8 +293,8 @@ AICORE inline void ComputeRowGroupDirect(__gm__ float *output, __gm__ half *shme
 
         InitPipelineFlags();
 
-        RunKBlockRange(0, k_chunks, aRowBase, bColBase, aMatTile, bMatTile, aTile, bTile, cTile, mte2DBFlag, mte1DBFlag,
-                       globalKIter);
+        RunKTileRange(0, k_tiles, aRowBase, bColBase, aMatTile, bMatTile, aTile, bTile, cTile, mte2DBFlag, mte1DBFlag,
+                      globalKIter);
 
         DrainPipelineFlags();
         StoreCTile(tileDst, cTile);
@@ -330,11 +329,11 @@ AICORE inline void AllocateComputeTiles(TileMatAData aMatTile[BUFFER_NUM], TileM
 //   Phase 2: 远程 rank row-group streaming 等待后计算
 // ---------------------------------------------------------------------------
 AICORE inline void AllGatherGemmComputeStreamingImpl(__gm__ float *output, __gm__ half *shmem_input, __gm__ half *src1,
-                                                     __gm__ TileFlagMatrix *tile_flags, int launch_blocks)
+                                                     __gm__ ChunkFlagMatrix *chunk_flags, int launch_block_count)
 {
-    const int block_id = get_block_idx();
+    const int core_idx = get_block_idx();
 
-    volatile __gm__ TileFlagMatrix *flags = reinterpret_cast<volatile __gm__ TileFlagMatrix *>(tile_flags);
+    volatile __gm__ ChunkFlagMatrix *flags = reinterpret_cast<volatile __gm__ ChunkFlagMatrix *>(chunk_flags);
 
     int n_ranks = flags->num_ranks;
     if (n_ranks <= 0) {
@@ -342,7 +341,7 @@ AICORE inline void AllGatherGemmComputeStreamingImpl(__gm__ float *output, __gm_
     }
     int m_tiles = static_cast<int>(G_M / G_BASE_M);
     int m_tiles_per_rank = m_tiles / n_ranks;
-    int k_chunks = static_cast<int>(G_K / G_BASE_N);
+    int k_tiles = static_cast<int>(G_K / G_BASE_N);
 
     TileMatAData aMatTile[BUFFER_NUM];
     TileMatBData bMatTile[BUFFER_NUM];
@@ -356,16 +355,16 @@ AICORE inline void AllGatherGemmComputeStreamingImpl(__gm__ float *output, __gm_
     if (my_rank >= 0 && my_rank < n_ranks) {
         int local_mi_start = my_rank * m_tiles_per_rank;
         int local_mi_end = local_mi_start + m_tiles_per_rank;
-        for (int mi = local_mi_start + block_id; mi < local_mi_end; mi += launch_blocks) {
-            ComputeRowGroupDirect(output, shmem_input, src1, mi, k_chunks, aMatTile, bMatTile, aTile, bTile, cTile);
+        for (int mi = local_mi_start + core_idx; mi < local_mi_end; mi += launch_block_count) {
+            ComputeRowGroupDirect(output, shmem_input, src1, mi, k_tiles, aMatTile, bMatTile, aTile, bTile, cTile);
         }
     }
 
-    for (int mi = block_id; mi < m_tiles; mi += launch_blocks) {
+    for (int mi = core_idx; mi < m_tiles; mi += launch_block_count) {
         int src_rank = mi / m_tiles_per_rank;
         if (src_rank == my_rank)
             continue;
-        ComputeRowGroupStreaming(output, shmem_input, src1, tile_flags, mi, m_tiles_per_rank, k_chunks, aMatTile,
+        ComputeRowGroupStreaming(output, shmem_input, src1, chunk_flags, mi, m_tiles_per_rank, k_tiles, aMatTile,
                                  bMatTile, aTile, bTile, cTile);
     }
 }
@@ -373,19 +372,20 @@ AICORE inline void AllGatherGemmComputeStreamingImpl(__gm__ float *output, __gm_
 #endif // __CCE_AICORE__
 
 __global__ AICORE void AllGatherGemmComputeStreamingKernel(__gm__ uint8_t *output, __gm__ uint8_t *shmem_input,
-                                                           __gm__ uint8_t *src1, __gm__ uint8_t *tile_flags,
-                                                           int launch_blocks)
+                                                           __gm__ uint8_t *src1, __gm__ uint8_t *chunk_flags,
+                                                           int launch_block_count)
 {
 #ifdef __CCE_AICORE__
-    AllGatherGemmComputeStreamingImpl(
-        reinterpret_cast<__gm__ float *>(output), reinterpret_cast<__gm__ half *>(shmem_input),
-        reinterpret_cast<__gm__ half *>(src1), reinterpret_cast<__gm__ TileFlagMatrix *>(tile_flags), launch_blocks);
+    AllGatherGemmComputeStreamingImpl(reinterpret_cast<__gm__ float *>(output),
+                                      reinterpret_cast<__gm__ half *>(shmem_input),
+                                      reinterpret_cast<__gm__ half *>(src1),
+                                      reinterpret_cast<__gm__ ChunkFlagMatrix *>(chunk_flags), launch_block_count);
 #endif
 }
 
-void launchAllGatherGemmComputeStreaming(uint8_t *output, uint8_t *shmem_input, uint8_t *src1, uint8_t *tile_flags,
-                                         void *stream, int launch_blocks = COMPUTE_BLOCK_NUM)
+void launchAllGatherGemmComputeStreaming(uint8_t *output, uint8_t *shmem_input, uint8_t *src1, uint8_t *chunk_flags,
+                                         void *stream, int launch_block_count = COMPUTE_BLOCK_NUM)
 {
-    AllGatherGemmComputeStreamingKernel<<<launch_blocks, nullptr, stream>>>(output, shmem_input, src1, tile_flags,
-                                                                            launch_blocks);
+    AllGatherGemmComputeStreamingKernel<<<launch_block_count, nullptr, stream>>>(output, shmem_input, src1, chunk_flags,
+                                                                                 launch_block_count);
 }

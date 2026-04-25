@@ -9,18 +9,38 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # --------------------------------------------------------------------------------
 
+# AllGather GEMM Demo - Build and Run (HCCL backend)
+
+# Ascend CANN environment: honor ASCEND_CANN_PATH or auto-detect
+: "${ASCEND_CANN_PATH:=$(ls -1d /usr/local/Ascend/cann-*/set_env.sh 2>/dev/null | sort -V | tail -1)}"
+if [ -z "${ASCEND_CANN_PATH}" ]; then
+    echo "[ERROR] Cannot find CANN set_env.sh. Set ASCEND_CANN_PATH to <cann-install>/set_env.sh"
+    exit 1
+fi
+source "${ASCEND_CANN_PATH}"
+
+# MPI setup: search common mpich install locations.
+# Override with MPI_SEARCH_DIRS (space-separated list of bin/ directories).
+if [ -z "${MPI_SEARCH_DIRS:-}" ]; then
+    MPI_SEARCH_DIRS="/usr/local/mpich/bin /home/mpich/bin"
+    for candidate in /home/*/mpich/bin /home/*/*/mpich/bin; do
+        [ -d "$candidate" ] && MPI_SEARCH_DIRS="$MPI_SEARCH_DIRS $candidate"
+    done
+fi
+for d in ${MPI_SEARCH_DIRS}; do
+    if [ -x "$d/mpirun" ]; then
+        export PATH="$d:$PATH"
+        MPI_LIB_DIR="$(dirname "$d")/lib"
+        export LD_LIBRARY_PATH="$MPI_LIB_DIR:${LD_LIBRARY_PATH:-}"
+        export MPI_LIB_PATH="$MPI_LIB_DIR/libmpi.so"
+        break
+    fi
+done
 
 SHORT=r:,v:,n:,m:,k:,
 LONG=run-mode:,soc-version:,n-ranks:,gm:,gk:,gn:,base-m:,base-n:,compute-blocks:,comm-blocks:,
 OPTS=$(getopt -a --options $SHORT --longoptions $LONG -- "$@")
 eval set -- "$OPTS"
-
-N_RANKS=2
-G_M=2048
-G_K=2048
-G_N=1024
-G_BASE_M=128
-G_BASE_N=256
 
 while :
 do
@@ -64,13 +84,21 @@ do
     esac
 done
 
+: "${N_RANKS:=2}"
+: "${RUN_MODE:=npu}"
+: "${SOC_VERSION:=Ascend950PR_958b}"
+: "${G_M:=2048}"
+: "${G_K:=2048}"
+: "${G_N:=1024}"
+: "${G_BASE_M:=128}"
+: "${G_BASE_N:=256}"
+
 if [[ ! "${SOC_VERSION}" =~ ^Ascend ]]; then
     echo "[ERROR] Unsupported SocVersion: ${SOC_VERSION}"
     exit 1
 fi
-if [[ "${SOC_VERSION}" =~ ^Ascend910B4-1 ]] && [ "${RUN_MODE}" == "sim" ]; then
-    echo "[ERROR] SocVersion: ${SOC_VERSION} can not support sim mode, please use Ascend910B4."
-    exit 1
+if [[ "${SOC_VERSION}" =~ ^Ascend950PR ]] && [ "${RUN_MODE}" == "sim" ]; then
+    echo "[WARN] Simulator support depends on the installed ${SOC_VERSION} package. Proceeding with sim mode."
 fi
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
@@ -85,7 +113,15 @@ if [ $((G_M % G_BASE_M)) -ne 0 ] || [ $((G_K % G_BASE_N)) -ne 0 ] || [ $((G_N % 
     exit 1
 fi
 
-echo "[INFO] Shape MxKxN=${G_M}x${G_K}x${G_N}  tile BASE_MxBASE_N=${G_BASE_M}x${G_BASE_N}  ranks=${N_RANKS}"
+# Clean stale HCCL shared-memory state from any previous crashed run
+rm -rf /dev/shm/sem.hccl* 2>/dev/null
+ipcrm -a 2>/dev/null
+
+echo "=== AllGather GEMM Demo (HCCL) ==="
+echo "  RUN_MODE: ${RUN_MODE}  SOC_VERSION: ${SOC_VERSION}"
+echo "  N_RANKS: ${N_RANKS}  G_M: ${G_M}  G_K: ${G_K}  G_N: ${G_N}"
+echo "  G_BASE_M: ${G_BASE_M}  G_BASE_N: ${G_BASE_N}  COMPUTE_BLOCKS: ${COMPUTE_BLOCKS:-default}  COMM_BLOCKS: ${COMM_BLOCKS:-default}"
+echo "==========================="
 
 python3 scripts/gen_data.py --n-ranks "${N_RANKS}" --m "${G_M}" --k "${G_K}" --n "${G_N}" --output-dir ./out
 
@@ -93,9 +129,8 @@ rm -rf build
 mkdir build
 cd build
 
-export LD_LIBRARY_PATH=${ASCEND_HOME_PATH}/tools/simulator/${SOC_VERSION}/lib:$LD_LIBRARY_PATH
-
 set -euo pipefail
+export LD_LIBRARY_PATH=${ASCEND_HOME_PATH}/tools/simulator/${SOC_VERSION}/lib:${LD_LIBRARY_PATH:-}
 
 BLOCK_OPTS=""
 if [ -n "${COMPUTE_BLOCKS:-}" ]; then
@@ -110,6 +145,9 @@ cmake -DRUN_MODE=${RUN_MODE} -DSOC_VERSION=${SOC_VERSION} \
       -DG_BASE_M=${G_BASE_M} -DG_BASE_N=${G_BASE_N} \
       ${BLOCK_OPTS} ..
 make -j16
+
+echo ""
+echo "=== Running AllGather GEMM (HCCL, mpirun) ==="
 
 export N_RANKS=${N_RANKS}
 export ALLGATHER_GEMM_DATA_DIR="${SCRIPT_DIR}/out"

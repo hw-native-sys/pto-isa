@@ -87,12 +87,6 @@ set(CMAKE_CCE_COMPILE_OPTIONS
     "SHELL:-mllvm -cce-aicore-dcci-insert-for-scalar=false"
 )
 
-if(DEBUG_MODE)
-    message(STATUS "Debug Mode Enabled, Add Debug Options")
-    add_compile_definitions(_DEBUG)
-    set(CMAKE_CCE_COMPILE_OPTIONS "${CMAKE_CCE_COMPILE_OPTIONS} --cce-enable-print")
-endif()
-
 set(CMAKE_CPP_COMPILE_OPTIONS
     -xc++
     "SHELL:-include stdint.h"

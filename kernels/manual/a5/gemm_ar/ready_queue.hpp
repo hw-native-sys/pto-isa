@@ -18,6 +18,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 
 #ifndef __CCE_KT_TEST__
@@ -26,14 +27,37 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 constexpr int MAX_COMPUTE_BLOCKS = 32;
 
+struct alignas(64) PerBlockQueueSlot {
+    int32_t tile;
+    int32_t padding[15];
+};
+
+static_assert(sizeof(PerBlockQueueSlot) == 64, "PerBlockQueueSlot must occupy one cache line");
+
 struct alignas(64) PerBlockQueue {
     volatile int32_t tail;
     volatile int32_t count;
     int32_t capacity;
     int32_t block_id;
-    int32_t padding[4];
-    int32_t data[1];
+    // Keep payload on a separate cache line from tail/count. On A5, queue
+    // payload visibility can tear if metadata and payload share a line.
+    int32_t padding[12];
+    PerBlockQueueSlot data[1];
 };
+
+static_assert(offsetof(PerBlockQueue, data) % 64 == 0, "PerBlockQueue data must start on a cache-line boundary");
+
+inline PerBlockQueueSlot *GetQueueSlot(PerBlockQueue *queue, int idx)
+{
+    uint8_t *base = reinterpret_cast<uint8_t *>(queue) + offsetof(PerBlockQueue, data);
+    return reinterpret_cast<PerBlockQueueSlot *>(base + static_cast<size_t>(idx) * sizeof(PerBlockQueueSlot));
+}
+
+inline const PerBlockQueueSlot *GetQueueSlot(const PerBlockQueue *queue, int idx)
+{
+    const uint8_t *base = reinterpret_cast<const uint8_t *>(queue) + offsetof(PerBlockQueue, data);
+    return reinterpret_cast<const PerBlockQueueSlot *>(base + static_cast<size_t>(idx) * sizeof(PerBlockQueueSlot));
+}
 
 struct alignas(64) MultiBlockQueueSet {
     int32_t num_blocks;
@@ -50,7 +74,7 @@ struct alignas(64) MultiBlockQueueSet {
 
 constexpr size_t PerBlockQueueSize(int capacity)
 {
-    return sizeof(PerBlockQueue) - sizeof(int32_t) + capacity * sizeof(int32_t);
+    return sizeof(PerBlockQueue) - sizeof(PerBlockQueueSlot) + capacity * sizeof(PerBlockQueueSlot);
 }
 
 inline size_t MultiBlockQueueSetSize(int num_blocks, int tiles_per_block)
@@ -74,7 +98,7 @@ inline void PerBlockQueueInit(PerBlockQueue *queue, int capacity, int block_id)
     for (int i = 0; i < 4; i++)
         queue->padding[i] = 0;
     for (int i = 0; i < capacity; i++)
-        queue->data[i] = -1;
+        GetQueueSlot(queue, i)->tile = -1;
 }
 
 inline void MultiBlockQueueSetInit(MultiBlockQueueSet *qset, int num_blocks, int total_tiles)
@@ -116,13 +140,25 @@ AICORE inline volatile __gm__ PerBlockQueue *GetMyBlockQueue(volatile __gm__ Mul
                                                              offset);
 }
 
+AICORE inline volatile __gm__ PerBlockQueueSlot *GetQueueSlot(volatile __gm__ PerBlockQueue *queue, int idx)
+{
+    volatile __gm__ uint8_t *base = reinterpret_cast<volatile __gm__ uint8_t *>(queue) + offsetof(PerBlockQueue, data);
+    return reinterpret_cast<volatile __gm__ PerBlockQueueSlot *>(base + static_cast<uint64_t>(idx) *
+                                                                            sizeof(PerBlockQueueSlot));
+}
+
 // Enqueue: caller tracks slot position, reducing 5 dcci → 2 dcci.
 // Consumer only reads count (via TTEST) and data[head], never tail.
 AICORE inline void PerBlockQueueEnqueueFast(volatile __gm__ PerBlockQueue *queue, int32_t tile_idx, int32_t local_slot)
 {
-    queue->data[local_slot] = tile_idx;
-    dcci((__gm__ void *)&queue->data[local_slot], SINGLE_CACHE_LINE);
+    volatile __gm__ PerBlockQueueSlot *slot = GetQueueSlot(queue, local_slot);
+    slot->tile = tile_idx;
+    dcci((__gm__ void *)slot, SINGLE_CACHE_LINE);
     __asm__ __volatile__("");
+
+    // Publish payload before the consumer can observe the updated count.
+    pipe_barrier(PIPE_ALL);
+    dsb(DSB_DDR);
 
     queue->tail = local_slot + 1;
 
@@ -144,9 +180,25 @@ AICORE inline int32_t PerBlockQueueTryDequeue(volatile __gm__ PerBlockQueue *que
     if (!pto::comm::TTEST(sig, local_head + 1, pto::comm::WaitCmp::GE)) {
         return -1;
     }
-    dcci((__gm__ void *)&queue->data[local_head], SINGLE_CACHE_LINE);
-    __asm__ __volatile__("");
-    return queue->data[local_head];
+
+    // After the count doorbell becomes visible, acquire the payload line before
+    // consuming it. On A5, count can become observable slightly earlier than
+    // the corresponding data slot unless the consumer re-fetches under a
+    // matching acquire fence.
+    pipe_barrier(PIPE_ALL);
+    dsb(DSB_DDR);
+    for (int retry = 0; retry < 8; ++retry) {
+        volatile __gm__ PerBlockQueueSlot *slot = GetQueueSlot(queue, local_head);
+        dcci((__gm__ void *)slot, SINGLE_CACHE_LINE);
+        __asm__ __volatile__("");
+        const int32_t tile = slot->tile;
+        if (tile >= 0) {
+            return tile;
+        }
+        pipe_barrier(PIPE_ALL);
+        dsb(DSB_DDR);
+    }
+    return -1;
 }
 
 #endif // __CCE_KT_TEST__

@@ -13,9 +13,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <cstdint>
 
-void launchRingCommStreaming(uint8_t *shmem_input, uint8_t *tile_flags, uint8_t *hccl_ctx, int n_ranks, void *stream);
+void launchRingCommStreaming(uint8_t *shmem_input, uint8_t *chunk_flags, uint8_t *hccl_ctx, int n_ranks, void *stream);
 
-void launchAllGatherGemmComputeStreaming(uint8_t *output, uint8_t *shmem_input, uint8_t *src1, uint8_t *tile_flags,
-                                         void *stream, int block_num);
+void launchAllGatherGemmComputeStreaming(uint8_t *output, uint8_t *shmem_input, uint8_t *src1, uint8_t *chunk_flags,
+                                         void *stream, int launch_block_count);
 
 #endif // KERNEL_LAUNCH_H_

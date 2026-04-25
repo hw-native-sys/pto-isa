@@ -2,7 +2,7 @@
 
 ## Overview
 
-This example demonstrates a fused AllGather + GEMM operator on Ascend AI Cores using **M-dimension splitting** and a **tile streaming pipeline**. In multi-card LLM inference, each rank holds a local slice of matrix `A` along the M dimension. Instead of completing the AllGather before starting GEMM, this implementation overlaps communication and computation at tile granularity — the compute kernel begins processing each tile as soon as the communication kernel signals its arrival, effectively hiding communication latency behind compute.
+This example demonstrates a fused AllGather + GEMM operator on Ascend AI Cores using **M-dimension splitting** and a **chunk streaming pipeline**. In multi-card LLM inference, each rank holds a local slice of matrix `A` along the M dimension. Instead of completing the AllGather before starting GEMM, this implementation overlaps communication and computation at chunk granularity — the compute kernel begins processing each chunk as soon as the communication kernel signals its arrival, effectively hiding communication latency behind compute.
 
 ## Supported AI Processors
 
@@ -14,13 +14,12 @@ This example demonstrates a fused AllGather + GEMM operator on Ascend AI Cores u
 kernels/manual/a5/allgather_gemm/
 ├── main.cpp                           # Host entry: HCCL init, dual-stream dispatch, warmup, verification, perf stats
 ├── allgather_gemm_comm_kernel.cpp     # AIV communication kernel: AllGather via TPUT
-├── allgather_gemm_compute_kernel.cpp  # AIC compute kernel: streaming GEMM with tile-flag waiting
-├── ready_queue.hpp                    # TileFlagMatrix / summary counter metadata
-├── run.sh                             # Generate data, build, and launch mpirun execution
+├── allgather_gemm_compute_kernel.cpp  # AIC compute kernel: streaming GEMM with chunk-flag waiting
+├── kernel_launch.hpp                  # Host-side kernel launcher declarations
+├── ready_queue.hpp                    # ChunkFlagMatrix / summary counter metadata
+├── run.sh                             # Build & run script (env detection, shape/block overrides, multi-rank launch)
 ├── scripts/
-│   ├── gen_data.py                    # Input data generation (FP16 A slices + B)
-│   ├── test_shapes.csv                # Test shape configurations (M, K, N)
-│   └── verify_result.py               # Golden comparison (FP32, rtol/atol=0.001)
+│   └── gen_data.py                    # Input data generation (FP16 A slices + B + golden.bin)
 └── CMakeLists.txt                     # Build configuration
 ```
 
@@ -77,27 +76,27 @@ Sequential execution:
   [ AllGather completes entirely ] ──► [ GEMM completes entirely ]
 
 Streaming pipelined execution:
-  Comm (AIV):   [tile0 TPUT][TNOTIFY] [tile1 TPUT][TNOTIFY] [tile2 TPUT][TNOTIFY] ...
-                      │                     │                     │
-                      ▼                     ▼                     ▼
-  Compute (AIC): [local GEMM]  [TWAIT tile0][GEMM tile0] [TWAIT tile1][GEMM tile1] ...
+  Comm (AIV):   [chunk0 TPUT][TNOTIFY] [chunk1 TPUT][TNOTIFY] [chunk2 TPUT][TNOTIFY] ...
+                      │                      │                      │
+                      ▼                      ▼                      ▼
+  Compute (AIC): [local GEMM]  [TWAIT chunk0][GEMM chunk0] [TWAIT chunk1][GEMM chunk1] ...
                   (zero-wait)
 ```
 
 The compute kernel operates in two phases:
 
 1. **Phase 1 (local)**: Processes the local rank's row-groups immediately (data already resident in shared memory, no waiting).
-2. **Phase 2 (remote)**: For each remote rank's row-groups, uses `TWAIT` on the summary counter to block until tiles arrive, then computes as soon as each tile is ready.
+2. **Phase 2 (remote)**: For each remote rank's row-groups, uses `TWAIT` on the summary counter to block until chunks arrive, then computes as soon as each chunk is ready.
 
 ## Optimization Notes
 
-- **Summary monotonic counter + TWAIT**: The comm kernel atomically increments a per-source summary counter (`TNOTIFY` AtomicAdd) after each tile transfer. The compute kernel uses hardware `TWAIT` (compare-and-block) to wait for the counter to reach the expected value — zero polling overhead, no busy-spin.
-- **Local data zero-wait priority**: The compute kernel processes the local rank's row-groups first (Phase 1) with no flag checks, overlapping with remote tile transfers.
-- **Send order aligned with consumption order**: The comm kernel transmits tiles in the same order the compute kernel consumes them, minimizing wait time.
+- **Summary monotonic counter + TWAIT**: The comm kernel atomically increments a per-source summary counter (`TNOTIFY` AtomicAdd) after each chunk transfer. The compute kernel uses hardware `TWAIT` (compare-and-block) to wait for the counter to reach the expected value — zero polling overhead, no busy-spin.
+- **Local data zero-wait priority**: The compute kernel processes the local rank's row-groups first (Phase 1) with no flag checks, overlapping with remote chunk transfers.
+- **Send order aligned with consumption order**: The comm kernel transmits chunks in the same order the compute kernel consumes them, minimizing wait time.
 - **Continuous K accumulation pipeline**: Within each row-group, K-blocks are processed with `TMATMUL` (first iteration) followed by `TMATMUL_ACC` (subsequent iterations), maintaining a continuous accumulation pipeline without intermediate store/reload.
 - **L1/L0 two-level double buffering**: `aMatTile[2]` / `bMatTile[2]` in L1 and `aTile[2]` / `bTile[2]` in L0A/L0B enable overlapped DMA (`TLOAD`) ↔ extract (`TEXTRACT`) ↔ compute (`TMATMUL`).
 - **Parallel AIV full-mesh communication**: In the full-mesh mode, each rank's AIV cores directly `TPUT` data to all other ranks simultaneously, with multiple AIV blocks assigned per destination for bandwidth utilization.
-- **Dynamic tile size**: `ComputeOptimalTileSize()` automatically selects tile granularity to keep the number of tiles per source in the 64–128 range, balancing pipeline depth against polling overhead.
+- **Dynamic chunk size**: `ComputeOptimalChunkSize()` automatically selects chunk granularity to keep the number of chunks per source in the 64–128 range, balancing pipeline depth against signaling overhead.
 - **Flexible block allocation**: The comm kernel adapts to the available block count — when blocks outnumber destinations, blocks are evenly distributed per destination; otherwise, work items are round-robin scheduled across blocks.
 
 ## Build and Run
@@ -132,7 +131,7 @@ Run with a custom rank count and GEMM shape:
 bash run.sh -r npu -v Ascend950PR_958b -n 4 --gm 4096 --gk 2048 --gn 1536
 ```
 
-Run with custom tile and block settings:
+Run with custom base-tile and block settings:
 
 ```bash
 bash run.sh -r npu -v Ascend950PR_958b -n 2 --gm 2048 --gk 2048 --gn 1024 --base-m 128 --base-n 256 --compute-blocks 32 --comm-blocks 24
@@ -151,6 +150,13 @@ Shape constraints enforced by `run.sh`:
 - `G_K % G_BASE_N == 0`
 - `G_N % G_BASE_N == 0`
 
+The script also:
+
+- auto-detects and sources the latest CANN `set_env.sh` when `ASCEND_CANN_PATH` is not provided
+- searches common MPICH install paths and updates `PATH` / `LD_LIBRARY_PATH`
+- clears stale HCCL shared-memory state before each run
+- prints the selected shape, base-tile, and block configuration before build and launch
+
 
 ### Command-Line Options
 
@@ -167,8 +173,38 @@ Shape constraints enforced by `run.sh`:
 | `--compute-blocks` | Override the compute kernel block count |
 | `--comm-blocks` | Override the communication kernel block count |
 
+## Benchmark and Output
+
+The host program runs three benchmark views before the final functional verification:
+
+1. **Compute-only**: marks all chunks ready from the host side and measures pure compute latency
+2. **Sequential**: runs communication to completion first, then launches compute
+3. **Pipelined**: launches communication and compute on separate streams to measure overlap
+
+After benchmarking, it runs one final functional verification pass and compares the result with `golden.bin`.
+
+A successful run prints a summary similar to:
+
+```text
+[INFO] Running warmup...
+[INFO] Functional run completed. Verification PASSED.
+[SUCCESS] AllGather GEMM (HCCL)
+  Compute-only:   ...
+  Sequential:     ...
+  Pipelined:      ...
+  Speedup:        ...
+  Overlap eff:    ...
+```
+
+The generated output tensor for each rank is also written to:
+
+```text
+out/output_rank<rank_id>.bin
+```
+
 ## Changelog
 
 | Date       | Change |
 | ---------- | ------ |
 | 2025-07-01 | Initial implementation: AllGather+GEMM fusion with M-split streaming pipeline |
+| 2026-04-21 | Synced A5 run/doc conventions with the A2/A3 version: env-aware `run.sh`, clearer launch output, and benchmark/output documentation while keeping the chunk-streaming pipeline unchanged |

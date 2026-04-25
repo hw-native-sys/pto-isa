@@ -147,7 +147,7 @@ AICORE inline void SwizzleTileIndex(int linear_idx, uint32_t &mi, uint32_t &ni)
 AICORE inline void ComputeAndStoreTile(__gm__ half *gemm_output, __gm__ half *src0, __gm__ half *src1,
                                        volatile __gm__ PerBlockQueue *my_queue, TileMatAData aMatTile[2],
                                        TileMatBData bMatTile[2], LeftTileT aTile[2], RightTileT bTile[2],
-                                       ResTileT &cTile, uint32_t mi, uint32_t ni, uint32_t k_per_rank,
+                                       ResTileT &cTile, int linear_idx, uint32_t mi, uint32_t ni, uint32_t k_per_rank,
                                        int32_t &enqueue_slot)
 {
     using NDValidShapeC = TileShape2D<half, G_BASE_M, G_BASE_N>;
@@ -197,8 +197,7 @@ AICORE inline void ComputeAndStoreTile(__gm__ half *gemm_output, __gm__ half *sr
 // Each block handles a subset of tiles (no contention — sole producer per queue).
 // ============================================================================
 AICORE inline void GemmComputeImpl(__gm__ half *gemm_output, __gm__ half *src0, __gm__ half *src1,
-                                   __gm__ MultiBlockQueueSet *queue_set, int rank, int launch_block_count,
-                                   uint32_t k_per_rank)
+                                   __gm__ MultiBlockQueueSet *queue_set, int launch_block_count, uint32_t k_per_rank)
 {
     const int core_idx = get_block_idx();
 
@@ -221,9 +220,8 @@ AICORE inline void GemmComputeImpl(__gm__ half *gemm_output, __gm__ half *src0, 
     TASSIGN(cTile, 0x0);
 
     const int total_tiles = G_NUM_TILES;
-    const int tiles_per_block = (total_tiles + launch_block_count - 1) / launch_block_count;
-    const int my_start_tile = core_idx * tiles_per_block;
-    const int my_end_tile = (core_idx + 1) * tiles_per_block;
+    const int my_start_tile = GEMM_AR_BLOCK_START_TILE(core_idx, total_tiles, launch_block_count);
+    const int my_end_tile = my_start_tile + GEMM_AR_BLOCK_TILE_COUNT(core_idx, total_tiles, launch_block_count);
 
     volatile __gm__ PerBlockQueue *my_queue =
         GetMyBlockQueue((volatile __gm__ MultiBlockQueueSet *)queue_set, core_idx);
@@ -232,8 +230,8 @@ AICORE inline void GemmComputeImpl(__gm__ half *gemm_output, __gm__ half *src0, 
     for (int linear_idx = my_start_tile; linear_idx < my_end_tile && linear_idx < total_tiles; linear_idx++) {
         uint32_t mi, ni;
         SwizzleTileIndex(linear_idx, mi, ni);
-        ComputeAndStoreTile(gemm_output, src0, src1, my_queue, aMatTile, bMatTile, aTile, bTile, cTile, mi, ni,
-                            k_per_rank, enqueue_slot);
+        ComputeAndStoreTile(gemm_output, src0, src1, my_queue, aMatTile, bMatTile, aTile, bTile, cTile, linear_idx, mi,
+                            ni, k_per_rank, enqueue_slot);
     }
 }
 
@@ -246,7 +244,7 @@ __global__ AICORE void GemmComputeKernel(__gm__ uint8_t *gemm_output, __gm__ uin
 {
     GemmComputeImpl(reinterpret_cast<__gm__ half *>(gemm_output), reinterpret_cast<__gm__ half *>(src0),
                     reinterpret_cast<__gm__ half *>(src1), reinterpret_cast<__gm__ MultiBlockQueueSet *>(queue_set),
-                    rank, launch_block_count, k_per_rank);
+                    launch_block_count, k_per_rank);
 }
 
 void launchGemmCompute(uint8_t *gemm_output, uint8_t *src0, uint8_t *src1, uint8_t *queue_set, int rank, void *stream,

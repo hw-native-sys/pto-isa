@@ -89,25 +89,25 @@ struct RankResources {
     aclrtStream commStream = nullptr;
 
     void *shmem_input = nullptr;
-    void *tile_flag_shmem = nullptr;
-    TileFlagMatrix *tile_flag_host = nullptr;
+    void *chunk_flag_shmem = nullptr;
+    ChunkFlagMatrix *chunk_flag_host = nullptr;
     int32_t *summary_host = nullptr;
 
     void *src1_dev = nullptr;
     void *output_dev = nullptr;
 
     size_t inputShmemBytes = 0;
-    size_t tileFlagWithSummarySize = 0;
-    size_t tileFlagMatrixSize = 0;
+    size_t chunkFlagWithSummarySize = 0;
+    size_t chunkFlagMatrixSize = 0;
     size_t bSize = 0;
     size_t outputSize = 0;
     size_t aLocalSize = 0;
 
     int n_ranks = 0;
     int rank_id = 0;
-    int numBlocksPerSrc = 0;
-    int optimalTileSize = 0;
     int numTilesPerSrc = 0;
+    int optimalChunkSize = 0;
+    int numChunksPerSrc = 0;
 
     std::vector<uint16_t> fullInputHost;
 };
@@ -127,7 +127,7 @@ struct BenchmarkSamples {
 // ============================================================================
 static void LaunchCommKernel(RankResources &r)
 {
-    launchRingCommStreaming(reinterpret_cast<uint8_t *>(r.shmem_input), reinterpret_cast<uint8_t *>(r.tile_flag_shmem),
+    launchRingCommStreaming(reinterpret_cast<uint8_t *>(r.shmem_input), reinterpret_cast<uint8_t *>(r.chunk_flag_shmem),
                             reinterpret_cast<uint8_t *>(r.hcclTestCtx.deviceCtx), r.n_ranks, r.commStream);
 }
 
@@ -135,7 +135,7 @@ static void LaunchComputeKernel(RankResources &r)
 {
     launchAllGatherGemmComputeStreaming(
         reinterpret_cast<uint8_t *>(r.output_dev), reinterpret_cast<uint8_t *>(r.shmem_input),
-        reinterpret_cast<uint8_t *>(r.src1_dev), reinterpret_cast<uint8_t *>(r.tile_flag_shmem), r.computeStream,
+        reinterpret_cast<uint8_t *>(r.src1_dev), reinterpret_cast<uint8_t *>(r.chunk_flag_shmem), r.computeStream,
         COMPUTE_BLOCK_NUM);
 }
 
@@ -147,18 +147,18 @@ static int CreateRankStreams(RankResources &r)
     return status;
 }
 
-static void InitTileLayout(RankResources &r, int n_ranks)
+static void InitChunkLayout(RankResources &r, int n_ranks)
 {
     r.inputShmemBytes = static_cast<size_t>(G_M) * G_K * sizeof(uint16_t);
     int m_tiles = static_cast<int>(G_M / G_BASE_M);
     // NOLINTNEXTLINE - n_ranks > 0 guaranteed by caller
     int m_tiles_local = (n_ranks > 0) ? (m_tiles / n_ranks) : 0;
-    int k_chunks = static_cast<int>(G_K / G_BASE_N);
-    r.numBlocksPerSrc = m_tiles_local * k_chunks;
-    r.optimalTileSize = ComputeOptimalTileSize(r.numBlocksPerSrc);
-    r.numTilesPerSrc = (r.numBlocksPerSrc + r.optimalTileSize - 1) / r.optimalTileSize;
-    r.tileFlagMatrixSize = TileFlagMatrixSize(n_ranks, r.numBlocksPerSrc, r.optimalTileSize);
-    r.tileFlagWithSummarySize = TileFlagMatrixWithSummarySize(n_ranks, r.numBlocksPerSrc, r.optimalTileSize);
+    int k_tiles = static_cast<int>(G_K / G_BASE_N);
+    r.numTilesPerSrc = m_tiles_local * k_tiles;
+    r.optimalChunkSize = ComputeOptimalChunkSize(r.numTilesPerSrc);
+    r.numChunksPerSrc = (r.numTilesPerSrc + r.optimalChunkSize - 1) / r.optimalChunkSize;
+    r.chunkFlagMatrixSize = ChunkFlagMatrixSize(n_ranks, r.numTilesPerSrc, r.optimalChunkSize);
+    r.chunkFlagWithSummarySize = ChunkFlagMatrixWithSummarySize(n_ranks, r.numTilesPerSrc, r.optimalChunkSize);
 }
 
 static bool AllocateWindowResources(RankResources &r, int rank_id, int n_ranks)
@@ -169,7 +169,7 @@ static bool AllocateWindowResources(RankResources &r, int rank_id, int n_ranks)
     r.shmem_input = WindowAlloc(localWinBase, winOffset, r.inputShmemBytes);
     aclrtMemset(r.shmem_input, r.inputShmemBytes, 0, r.inputShmemBytes);
 
-    r.tile_flag_shmem = WindowAlloc(localWinBase, winOffset, r.tileFlagWithSummarySize);
+    r.chunk_flag_shmem = WindowAlloc(localWinBase, winOffset, r.chunkFlagWithSummarySize);
     if (winOffset > r.hcclTestCtx.hostCtx.winSize) {
         std::cerr << "[ERROR] Rank " << rank_id << ": HCCL window too small! need=" << winOffset
                   << " have=" << r.hcclTestCtx.hostCtx.winSize << std::endl;
@@ -177,16 +177,17 @@ static bool AllocateWindowResources(RankResources &r, int rank_id, int n_ranks)
     }
     if (rank_id == 0) {
         std::cout << "[INFO] HCCL window usage: guard=" << WINDOW_GUARD_BYTES << " input=" << r.inputShmemBytes
-                  << " flags=" << r.tileFlagWithSummarySize << " total=" << winOffset << " / "
+                  << " flags=" << r.chunkFlagWithSummarySize << " total=" << winOffset << " / "
                   << r.hcclTestCtx.hostCtx.winSize << std::endl;
     }
 
-    aclrtMallocHost(reinterpret_cast<void **>(&r.tile_flag_host), r.tileFlagWithSummarySize);
-    TileFlagMatrixInit(r.tile_flag_host, n_ranks, r.numBlocksPerSrc, r.optimalTileSize);
-    r.tile_flag_host->my_rank = rank_id;
-    r.summary_host = reinterpret_cast<int32_t *>(reinterpret_cast<uint8_t *>(r.tile_flag_host) + r.tileFlagMatrixSize);
-    TileFlagMatrixSummaryInit(r.summary_host, n_ranks);
-    aclrtMemcpy(r.tile_flag_shmem, r.tileFlagWithSummarySize, r.tile_flag_host, r.tileFlagWithSummarySize,
+    aclrtMallocHost(reinterpret_cast<void **>(&r.chunk_flag_host), r.chunkFlagWithSummarySize);
+    ChunkFlagMatrixInit(r.chunk_flag_host, n_ranks, r.numTilesPerSrc, r.optimalChunkSize);
+    r.chunk_flag_host->my_rank = rank_id;
+    r.summary_host =
+        reinterpret_cast<int32_t *>(reinterpret_cast<uint8_t *>(r.chunk_flag_host) + r.chunkFlagMatrixSize);
+    ChunkFlagMatrixSummaryInit(r.summary_host, n_ranks);
+    aclrtMemcpy(r.chunk_flag_shmem, r.chunkFlagWithSummarySize, r.chunk_flag_host, r.chunkFlagWithSummarySize,
                 ACL_MEMCPY_HOST_TO_DEVICE);
     return true;
 }
@@ -335,7 +336,7 @@ static bool AllocateResources(RankResources &r, int rank_id, int n_ranks, const 
     }
 
     int status = CreateRankStreams(r);
-    InitTileLayout(r, n_ranks);
+    InitChunkLayout(r, n_ranks);
     if (!AllocateWindowResources(r, rank_id, n_ranks)) {
         return false;
     }
@@ -374,30 +375,30 @@ static bool LoadInputData(RankResources &r, const std::string &dataDir)
     return true;
 }
 
-static void ResetTileFlagsHost(RankResources &r)
+static void ResetChunkFlagsHost(RankResources &r)
 {
-    TileFlagMatrixReset(r.tile_flag_host);
-    TileFlagMatrixSummaryInit(r.summary_host, r.n_ranks);
-    r.tile_flag_host->my_rank = r.rank_id;
+    ChunkFlagMatrixReset(r.chunk_flag_host);
+    ChunkFlagMatrixSummaryInit(r.summary_host, r.n_ranks);
+    r.chunk_flag_host->my_rank = r.rank_id;
 }
 
-static void MarkAllTilesReadyHost(RankResources &r)
+static void MarkAllChunksReadyHost(RankResources &r)
 {
     int32_t *flag_base =
-        reinterpret_cast<int32_t *>(reinterpret_cast<uint8_t *>(r.tile_flag_host) + sizeof(TileFlagMatrix));
+        reinterpret_cast<int32_t *>(reinterpret_cast<uint8_t *>(r.chunk_flag_host) + sizeof(ChunkFlagMatrix));
     for (int src_rank = 0; src_rank < r.n_ranks; ++src_rank) {
-        int row_offset = src_rank * r.tile_flag_host->stride;
-        for (int tile_idx = 0; tile_idx < r.tile_flag_host->num_tiles_per_src; ++tile_idx) {
-            flag_base[row_offset + tile_idx] = r.tile_flag_host->epoch;
+        int row_offset = src_rank * r.chunk_flag_host->stride;
+        for (int chunk_idx = 0; chunk_idx < r.chunk_flag_host->num_chunks_per_src; ++chunk_idx) {
+            flag_base[row_offset + chunk_idx] = r.chunk_flag_host->epoch;
         }
-        r.summary_host[src_rank] = r.tile_flag_host->num_tiles_per_src;
+        r.summary_host[src_rank] = r.chunk_flag_host->num_chunks_per_src;
     }
 }
 
 static void PrepareStreamingState(RankResources &r)
 {
-    ResetTileFlagsHost(r);
-    aclrtMemcpy(r.tile_flag_shmem, r.tileFlagWithSummarySize, r.tile_flag_host, r.tileFlagWithSummarySize,
+    ResetChunkFlagsHost(r);
+    aclrtMemcpy(r.chunk_flag_shmem, r.chunkFlagWithSummarySize, r.chunk_flag_host, r.chunkFlagWithSummarySize,
                 ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemset(r.output_dev, r.outputSize, 0, r.outputSize);
 
@@ -409,10 +410,10 @@ static void PrepareStreamingState(RankResources &r)
 
 static void PrepareComputeOnlyState(RankResources &r)
 {
-    ResetTileFlagsHost(r);
-    MarkAllTilesReadyHost(r);
+    ResetChunkFlagsHost(r);
+    MarkAllChunksReadyHost(r);
     aclrtMemcpy(r.shmem_input, r.inputShmemBytes, r.fullInputHost.data(), r.inputShmemBytes, ACL_MEMCPY_HOST_TO_DEVICE);
-    aclrtMemcpy(r.tile_flag_shmem, r.tileFlagWithSummarySize, r.tile_flag_host, r.tileFlagWithSummarySize,
+    aclrtMemcpy(r.chunk_flag_shmem, r.chunkFlagWithSummarySize, r.chunk_flag_host, r.chunkFlagWithSummarySize,
                 ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemset(r.output_dev, r.outputSize, 0, r.outputSize);
 }
@@ -590,7 +591,7 @@ static void Cleanup(RankResources &r)
 {
     aclrtFree(r.src1_dev);
     aclrtFree(r.output_dev);
-    aclrtFreeHost(r.tile_flag_host);
+    aclrtFreeHost(r.chunk_flag_host);
     if (r.computeStream)
         aclrtDestroyStream(r.computeStream);
     if (r.commStream)
