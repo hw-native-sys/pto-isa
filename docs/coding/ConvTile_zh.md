@@ -72,7 +72,7 @@ pto::ConvTile<
 
 在自动模式中，`TASSIGN(tile, addr)` 可能根据构建配置被处理为 no-op。
 
-具体约束请参考 [TASSIGN](../isa/tile/ops/sync-and-config/tassign_zh.md)。
+具体约束请参考 `docs/isa/TASSIGN.md`。
 
 ## 最小示例
 
@@ -93,3 +93,4 @@ void example(__gm__ half* in, __gm__ half* out) {
   TLOAD(tile5d, gin);
 }
 ```
+

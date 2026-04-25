@@ -91,3 +91,4 @@ void pipeline(__gm__ float* in0, __gm__ float* in1, __gm__ float* out) {
   TSTORE(gout, c, e2);
 }
 ```
+

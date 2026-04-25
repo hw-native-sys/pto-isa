@@ -173,10 +173,10 @@ TLOAD(tile[0], ...);
 for (int i = 0; i < N; i++) {
   int curr = i % 2;
   int next = (i + 1) % 2;
-
+  
   // 处理当前 Tile
   process_tile(result[curr], tile[curr]);
-
+  
   // 条件允许时并行加载下一个 Tile
   if (i + 1 < N) {
     TLOAD(tile[next], ...);
@@ -594,3 +594,8 @@ constexpr int baseN = 512;
 - [算子调试方法](debug_zh.md)
 - [GEMM 优化案例](../../kernels/manual/a2a3/gemm_performance/README_zh.md)
 - [Flash Attention 案例](../../kernels/manual/common/flash_atten/README_zh.md)
+
+
+
+
+
