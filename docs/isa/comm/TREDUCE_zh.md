@@ -109,4 +109,3 @@ void reduce_max(__gm__ T* group_addrs[NRANKS], __gm__ T* result, int my_rank) {
     comm::TREDUCE(group, dstG, accTile, recvTile, comm::ReduceOp::Max);
 }
 ```
-

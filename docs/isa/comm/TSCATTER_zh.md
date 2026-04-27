@@ -117,4 +117,3 @@ void scatter_pingpong(__gm__ T* local_data, __gm__ T* group_addrs[NRANKS], int m
     comm::TSCATTER(group, srcG, pingTile, pongTile);
 }
 ```
-

@@ -54,5 +54,3 @@ cmake --build build/docs --target pto_docs_serve
 
 - MkDocs 源目录是 `docs/mkdocs/src/`。
 - `docs/mkdocs/gen_pages.py` 只发布来自 `docs/isa/`、`docs/assembly/` 和快速开始页面的规范来源；构建生成的虚拟页面不应提交到 `docs/mkdocs/src/`。
-
-

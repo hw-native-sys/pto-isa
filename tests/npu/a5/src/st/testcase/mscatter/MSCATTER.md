@@ -155,14 +155,14 @@ void example_weight_update(__gm__ T* table, __gm__ int32_t* indices) {
     using TableShape = Shape<1, 1, 1, TableRows, RowWidth>;
     using TableStride = Stride<1, 1, 1, RowWidth, 1>;
     using TableTensor = GlobalTensor<T, TableShape, TableStride, Layout::ND>;
-    
+
     TableTensor tableGM(table);
     IdxTile idx;
     SrcTile src;
-    
+
     TASSIGN(idx, 0x0);
     TASSIGN(src, 0x1000);
-    
+
     // Scatter with skip mode for invalid indices
     MSCATTER<ScatterAtomicOp::None, ScatterOOB::Skip>(tableGM, src, idx);
 }
@@ -181,14 +181,14 @@ void example_gradient_accumulation(__gm__ float* gradTable, __gm__ int32_t* toke
     using TableShape = Shape<1, 1, 1, 65536, 64>;
     using TableStride = Stride<1, 1, 1, 64, 1>;
     using TableTensor = GlobalTensor<float, TableShape, TableStride, Layout::ND>;
-    
+
     TableTensor tableGM(gradTable);
     IdxTile idx;
     GradTile grads;
-    
+
     TASSIGN(idx, 0x0);
     TASSIGN(grads, 0x1000);
-    
+
     // Atomic add for gradient accumulation
     MSCATTER<ScatterAtomicOp::Add, ScatterOOB::Skip>(tableGM, grads, idx);
 }
@@ -207,14 +207,14 @@ void example_sparse_update(__gm__ float* data, __gm__ int32_t* sparseIndices) {
     using DataShape = Shape<1, 1, 1, 1024, 64>;
     using DataStride = Stride<1, 1, 1, 64, 1>;
     using DataTensor = GlobalTensor<float, DataShape, DataStride, Layout::ND>;
-    
+
     DataTensor dataGM(data);
     IdxTile idx;
     SrcTile src;
-    
+
     TASSIGN(idx, 0x0);
     TASSIGN(src, 0x2000);
-    
+
     // Scatter with wrap mode
     MSCATTER<ScatterAtomicOp::None, ScatterOOB::Wrap>(dataGM, src, idx);
 }
@@ -233,16 +233,16 @@ void example_manual() {
     using TableShape = Shape<1, 1, 1, 65536, 64>;
     using TableStride = Stride<1, 1, 1, 64, 1>;
     using TableTensor = GlobalTensor<half, TableShape, TableStride, Layout::ND>;
-    
+
     __gm__ half* tablePtr = /* ... */;
     TableTensor tableGM(tablePtr);
-    
+
     IdxTile idx;
     SrcTile src;
-    
+
     TASSIGN(idx, 0x0);
     TASSIGN(src, 0x1000);
-    
+
     MSCATTER<ScatterAtomicOp::None, ScatterOOB::Clamp>(tableGM, src, idx);
 }
 ```
