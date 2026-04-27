@@ -57,4 +57,4 @@ PTO 明确**不**打算解决以下问题：
 
 - [什么是 PTO 虚拟 ISA](./what-is-pto-visa_zh.md)
 - [范围与边界](./design-goals-and-boundaries_zh.md)
-- [PTO ISA 版本 1.0](./pto-isa-version-1-0_zh.md)
+- [当前 PTO ISA 范围](./current-isa-scope_zh.md)

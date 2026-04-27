@@ -142,6 +142,6 @@ Target profile 只会缩窄 PTO ISA，不会引入新的 ISA 语义。
 ## 相关页面
 
 - [顺序与同步](./ordering-and-synchronization_zh.md)
-- [向量指令集](../instruction-surfaces/vector-instructions_zh.md)
-- [Tile 指令集](../instruction-surfaces/tile-instructions_zh.md)
+- [向量指令集](../vector/README_zh.md)
+- [Tile 指令集](../instruction-families/tile-families_zh.md)
 - [可移植性与目标 Profile](../reference/portability-and-target-profiles_zh.md)

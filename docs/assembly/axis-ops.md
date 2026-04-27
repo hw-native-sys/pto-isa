@@ -10,7 +10,7 @@ This document describes row/column reduction and broadcast operations.
 
 ### TROWSUM
 
-For detailed instruction documentation, see [isa/TROWSUM](../isa/TROWSUM.md)
+For detailed instruction documentation, see [isa/TROWSUM](../isa/tile/ops/reduce-and-expand/trowsum.md)
 
 **AS Level 1 (SSA):**
 
@@ -28,7 +28,7 @@ pto.trowsum ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst :
 
 ### TCOLSUM
 
-For detailed instruction documentation, see [isa/TCOLSUM](../isa/TCOLSUM.md)
+For detailed instruction documentation, see [isa/TCOLSUM](../isa/tile/ops/reduce-and-expand/tcolsum.md)
 
 **AS Level 1 (SSA):**
 
@@ -48,7 +48,7 @@ pto.tcolsum ins(%src, %tmp {isBinary = false} : !pto.tile_buf<...>, !pto.tile_bu
 
 ### TCOLPROD
 
-For detailed instruction documentation, see [isa/TCOLPROD](../isa/TCOLPROD.md)
+For detailed instruction documentation, see [isa/TCOLPROD](../isa/tile/ops/reduce-and-expand/tcolprod.md)
 
 **AS Level 1 (SSA):**
 
@@ -66,7 +66,7 @@ pto.tcolprod ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 
 ### TCOLMAX
 
-For detailed instruction documentation, see [isa/TCOLMAX](../isa/TCOLMAX.md)
+For detailed instruction documentation, see [isa/TCOLMAX](../isa/tile/ops/reduce-and-expand/tcolmax.md)
 
 **AS Level 1 (SSA):**
 
@@ -84,7 +84,7 @@ pto.tcolmax ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 
 ### TROWMAX
 
-For detailed instruction documentation, see [isa/TROWMAX](../isa/TROWMAX.md)
+For detailed instruction documentation, see [isa/TROWMAX](../isa/tile/ops/reduce-and-expand/trowmax.md)
 
 **AS Level 1 (SSA):**
 
@@ -102,7 +102,7 @@ pto.trowmax ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst :
 
 ### TROWMIN
 
-For detailed instruction documentation, see [isa/TROWMIN](../isa/TROWMIN.md)
+For detailed instruction documentation, see [isa/TROWMIN](../isa/tile/ops/reduce-and-expand/trowmin.md)
 
 **AS Level 1 (SSA):**
 
@@ -120,7 +120,7 @@ pto.trowmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst :
 
 ### TROWEXPAND
 
-For detailed instruction documentation, see [isa/TROWEXPAND](../isa/TROWEXPAND.md)
+For detailed instruction documentation, see [isa/TROWEXPAND](../isa/tile/ops/reduce-and-expand/trowexpand.md)
 
 **AS Level 1 (SSA):**
 
@@ -138,7 +138,7 @@ pto.trowexpand ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 
 ### TROWEXPANDDIV
 
-For detailed instruction documentation, see [isa/TROWEXPANDDIV](../isa/TROWEXPANDDIV.md)
+For detailed instruction documentation, see [isa/TROWEXPANDDIV](../isa/tile/ops/reduce-and-expand/trowexpanddiv.md)
 
 **AS Level 1 (SSA):**
 
@@ -156,7 +156,7 @@ pto.tcolexpanddiv ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ### TROWEXPANDMUL
 
-For detailed instruction documentation, see [isa/TROWEXPANDMUL](../isa/TROWEXPANDMUL.md)
+For detailed instruction documentation, see [isa/TROWEXPANDMUL](../isa/tile/ops/reduce-and-expand/trowexpandmul.md)
 
 **AS Level 1 (SSA):**
 
@@ -174,7 +174,7 @@ pto.tcolexpandmul ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ### TROWEXPANDSUB
 
-For detailed instruction documentation, see [isa/TROWEXPANDSUB](../isa/TROWEXPANDSUB.md)
+For detailed instruction documentation, see [isa/TROWEXPANDSUB](../isa/tile/ops/reduce-and-expand/trowexpandsub.md)
 
 **AS Level 1 (SSA):**
 
@@ -192,7 +192,7 @@ pto.tcolexpandsub ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ### TROWEXPANDADD
 
-For detailed instruction documentation, see [isa/TROWEXPANDADD](../isa/TROWEXPANDADD.md)
+For detailed instruction documentation, see [isa/TROWEXPANDADD](../isa/tile/ops/reduce-and-expand/trowexpandadd.md)
 
 **AS Level 1 (SSA):**
 
@@ -210,7 +210,7 @@ pto.trowexpandadd ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ### TROWEXPANDMAX
 
-For detailed instruction documentation, see [isa/TROWEXPANDMAX](../isa/TROWEXPANDMAX.md)
+For detailed instruction documentation, see [isa/TROWEXPANDMAX](../isa/tile/ops/reduce-and-expand/trowexpandmax.md)
 
 **AS Level 1 (SSA):**
 
@@ -228,7 +228,7 @@ pto.trowexpandmax ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ### TROWEXPANDMIN
 
-For detailed instruction documentation, see [isa/TROWEXPANDMIN](../isa/TROWEXPANDMIN.md)
+For detailed instruction documentation, see [isa/TROWEXPANDMIN](../isa/tile/ops/reduce-and-expand/trowexpandmin.md)
 
 **AS Level 1 (SSA):**
 
@@ -246,7 +246,7 @@ pto.trowexpandmin ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ### TROWEXPANDEXPDIF
 
-For detailed instruction documentation, see [isa/TROWEXPANDEXPDIF](../isa/TROWEXPANDEXPDIF.md)
+For detailed instruction documentation, see [isa/TROWEXPANDEXPDIF](../isa/tile/ops/reduce-and-expand/trowexpandexpdif.md)
 
 **AS Level 1 (SSA):**
 
@@ -264,7 +264,7 @@ pto.trowexpandexpdif ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) 
 
 ### TCOLMIN
 
-For detailed instruction documentation, see [isa/TCOLMIN](../isa/TCOLMIN.md)
+For detailed instruction documentation, see [isa/TCOLMIN](../isa/tile/ops/reduce-and-expand/tcolmin.md)
 
 **AS Level 1 (SSA):**
 
@@ -282,7 +282,7 @@ pto.tcolmin ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 
 ### TCOLEXPAND
 
-For detailed instruction documentation, see [isa/TCOLEXPAND](../isa/TCOLEXPAND.md)
+For detailed instruction documentation, see [isa/TCOLEXPAND](../isa/tile/ops/reduce-and-expand/tcolexpand.md)
 
 **AS Level 1 (SSA):**
 
@@ -300,7 +300,7 @@ pto.tcolexpand ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 
 ### TCOLEXPANDDIV
 
-For detailed instruction documentation, see [isa/TCOLEXPANDDIV](../isa/TCOLEXPANDDIV.md)
+For detailed instruction documentation, see [isa/TCOLEXPANDDIV](../isa/tile/ops/reduce-and-expand/tcolexpanddiv.md)
 
 **AS Level 1 (SSA):**
 
@@ -318,7 +318,7 @@ pto.tcolexpanddiv ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ### TCOLEXPANDMUL
 
-For detailed instruction documentation, see [isa/TCOLEXPANDMUL](../isa/TCOLEXPANDMUL.md)
+For detailed instruction documentation, see [isa/TCOLEXPANDMUL](../isa/tile/ops/reduce-and-expand/tcolexpandmul.md)
 
 **AS Level 1 (SSA):**
 
@@ -336,7 +336,7 @@ pto.tcolexpandmul ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ### TCOLEXPANDADD
 
-For detailed instruction documentation, see [isa/TCOLEXPANDADD](../isa/TCOLEXPANDADD.md)
+For detailed instruction documentation, see [isa/TCOLEXPANDADD](../isa/tile/ops/reduce-and-expand/tcolexpandadd.md)
 
 **AS Level 1 (SSA):**
 
@@ -354,7 +354,7 @@ pto.tcolexpandadd ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ### TCOLEXPANDMAX
 
-For detailed instruction documentation, see [isa/TCOLEXPANDMAX](../isa/TCOLEXPANDMAX.md)
+For detailed instruction documentation, see [isa/TCOLEXPANDMAX](../isa/tile/ops/reduce-and-expand/tcolexpandmax.md)
 
 **AS Level 1 (SSA):**
 
@@ -372,7 +372,7 @@ pto.tcolexpandmax ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ### TCOLEXPANDMIN
 
-For detailed instruction documentation, see [isa/TCOLEXPANDMIN](../isa/TCOLEXPANDMIN.md)
+For detailed instruction documentation, see [isa/TCOLEXPANDMIN](../isa/tile/ops/reduce-and-expand/tcolexpandmin.md)
 
 **AS Level 1 (SSA):**
 
@@ -390,7 +390,7 @@ pto.tcolexpandmin ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ### TCOLEXPANDSUB
 
-For detailed instruction documentation, see [isa/TCOLEXPANDSUB](../isa/TCOLEXPANDSUB.md)
+For detailed instruction documentation, see [isa/TCOLEXPANDSUB](../isa/tile/ops/reduce-and-expand/tcolexpandsub.md)
 
 **AS Level 1 (SSA):**
 
@@ -408,7 +408,7 @@ pto.tcolexpandsub ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ### TCOLEXPANDEXPDIF
 
-For detailed instruction documentation, see [isa/TCOLEXPANDEXPDIF](../isa/TCOLEXPANDEXPDIF.md)
+For detailed instruction documentation, see [isa/TCOLEXPANDEXPDIF](../isa/tile/ops/reduce-and-expand/tcolexpandexpdif.md)
 
 **AS Level 1 (SSA):**
 
@@ -426,7 +426,7 @@ pto.tcolexpandexpdif ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) 
 
 ### TROWPROD
 
-For detailed instruction documentation, see [isa/TROWPROD](../isa/TROWPROD.md)
+For detailed instruction documentation, see [isa/TROWPROD](../isa/tile/ops/reduce-and-expand/trowprod.md)
 
 **AS Level 1 (SSA):**
 

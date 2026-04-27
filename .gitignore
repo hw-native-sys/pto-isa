@@ -16,6 +16,7 @@ site_zh/
 output/
 __pycache__/
 *.log
+*.swp
 *.pdf
 *.bin
 bin/
@@ -31,11 +32,16 @@ docs/mkdocs/src/SECURITY_zh.md
 docs/mkdocs/src/all-pages.md
 docs/mkdocs/src/all-pages_zh.md
 docs/mkdocs/src/lang-map.json
+docs/mkdocs/src/.claude/
+docs/mkdocs/src/.codex/
+docs/mkdocs/src/agents/
+docs/mkdocs/src/assembly/
 docs/mkdocs/src/cmake/
 docs/mkdocs/src/demos/
 docs/mkdocs/src/docs/
 docs/mkdocs/src/include/
 docs/mkdocs/src/kernels/
+docs/mkdocs/src/manual/
 docs/mkdocs/src/manual/isa-reference.md
 docs/mkdocs/src/manual/isa-reference_zh.md
 docs/mkdocs/src/scripts/

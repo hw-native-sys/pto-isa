@@ -1,6 +1,6 @@
 # pto.tquant
 
-`pto.tquant` is part of the [Irregular And Complex](../../irregular-and-complex.md) instruction set.
+`pto.tquant` is part of the [Irregular and Complex](../../irregular-and-complex.md) tile instruction family.
 
 ## Summary
 
@@ -10,7 +10,7 @@ Quantize a tile (e.g. FP32 to FP8) producing exponent/scaling/max outputs.
 
 Quantize an FP32 tile into a lower-precision format (e.g. FP8), producing auxiliary exponent/scaling/max tiles. The quantization mode is a compile-time template parameter (`mode`). It belongs to the tile instructions and carries architecture-visible behavior that is not reducible to a plain elementwise compute pattern.
 
-Unless otherwise specified, semantics are defined over the valid region and target-dependent behavior is marked as implementation-defined.
+Unless otherwise specified, semantics are defined over the valid region. On A2/A3 and A5, the quantizer operates on the full valid region with target-specific quantization modes; the CPU simulator emulates the nearest available mode.
 
 ## Syntax
 
@@ -122,5 +122,4 @@ pto.tquant ins(%src, %qp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !
 
 ## Related Ops / Instruction Set Links
 
-- Instruction set overview: [Irregular And Complex](../../irregular-and-complex.md)
-- Previous op in instruction set: [pto.tscatter](./tscatter.md)
+- Instruction set overview: [Irregular And Complex](../../../tile/irregular-and-complex.md)

@@ -34,6 +34,8 @@ rg -n "TADD|static_assert|PTO_STATIC_ASSERT|Unsupported|only support" include/pt
 - backend-only resources such as `ScaleLeft` or `ScaleRight`
 - synchronization or cross-core assumptions
 
+Recent reviews show that the fragile cases are usually combinations, not single constraints. Before changing a backend helper, check the relevant combined axis in [review-derived-guardrails.md](review-derived-guardrails.md): split direction, runtime `subblock_dim`, injected CPU-SIM hooks, tile layout, entry offset, and target backend.
+
 ## A2/A3 vs A5
 
 ### Backend split
@@ -68,8 +70,7 @@ PTO-ISA is the semantic contract and backend library. PTO-AS is the textual asse
 Primary references:
 
 - [docs/assembly/README.md](../../../../docs/assembly/README.md)
-- [docs/assembly/PTO-AS.md](../../../../docs/assembly/PTO-AS.md)
-- [docs/assembly/PTO-AS.bnf](../../../../docs/assembly/PTO-AS.bnf)
+- [docs/isa/syntax-and-operands/assembly-model.md](../../../../docs/isa/syntax-and-operands/assembly-model.md)
 
 ### Typical linkage workflow
 
@@ -84,3 +85,4 @@ Primary references:
 - Guard backend-only capabilities in docs and tests.
 - If a feature is A5-only or A2/A3-only, say so explicitly.
 - Treat CPU-SIM as a portability gate, then verify the intended backend separately.
+- For new public overloads, keep `include/pto/common/pto_instr.hpp`, CPU-SIM, A2/A3, A5, PTO-AS/docs, and tests either aligned or explicitly marked unsupported.

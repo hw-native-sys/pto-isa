@@ -138,6 +138,6 @@ The current repository does not publish an equivalent A5 latency or throughput t
 ## See Also
 
 - [Tile instruction families](../instruction-families/tile-families.md)
-- [Tile instruction surface](../instruction-surfaces/tile-instructions.md)
+- [Tile instruction surface](../instruction-families/tile-families.md)
 - [Location intent and legality](../state-and-types/location-intent-and-legality.md)
 - [Layout](../state-and-types/layout.md)

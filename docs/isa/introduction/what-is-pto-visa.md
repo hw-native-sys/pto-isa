@@ -199,15 +199,16 @@ PTO ISA
 │   ├── DMA Copy                     GM↔vector-tile-buffer transfer configuration
 │   ├── Predicate Load/Store         Mask-based scalar memory access
 │   ├── Predicate Generation         pset, pge, plt, pand, por, pxor, pnot, etc.
-│   ├── Control and Configuration    legacy tile-prefixed mode/config ops such as tsethf32mode and tsetfmatrix
+│   ├── Control and Configuration    tile-prefixed mode/config ops such as settf32mode and setfmatrix
 │   └── Shared Arithmetic/SCF         Scalar arithmetic and structured control flow
 │
-└── Communication Instructions (pto.*)       Collective and runtime operations
+├── Communication Instructions (pto.*)       Collective and runtime operations
     ├── Collective Communication        TBROADCAST, TGET, TPUT, TREDUCE, etc.
-    └── Supporting Operations          TALIAS, TAXPY, TCONCAT, TFREE, etc.
+└── System Scheduling Instructions (pto.t*)  TPipe/TMPipe and lifetime protocol
+    └── Scheduling Runtime Control       TPUSH, TPOP, TFREE
 ```
 
-The **tile instructions** is the primary programming instruction set. The **vector instructions** exists for fine-grained vector-pipe control. The **scalar and control instructions** sets up the execution shell around tile payload regions. The **communication instructions** handles inter-rank communication and runtime support.
+The **tile instructions** is the primary programming instruction set. The **vector instructions** exists for fine-grained vector-pipe control. The **scalar and control instructions** sets up the execution shell around tile payload regions. The **communication instructions** handles inter-rank communication, while **system scheduling** handles TPipe/TMPipe flow and resource lifetime.
 
 ## Machine Model
 
@@ -405,7 +406,7 @@ This manual is written for:
 - [Document structure](./document-structure.md) — Full chapter map
 - [Goals Of PTO](./goals-of-pto.md) — Design objectives
 - [Scope And Boundaries](./design-goals-and-boundaries.md) — ISA scope and boundaries
-- [PTO ISA Version 1.0](./pto-isa-version-1-0.md) — Version baseline decisions
+- [Current PTO ISA Scope](./current-isa-scope.md) — Current scope
 - [Tiles And Valid Regions](../programming-model/tiles-and-valid-regions.md) — Tile semantics
 - [Auto Vs Manual](../programming-model/auto-vs-manual.md) — Execution modes
 - [Format of instruction descriptions](../reference/format-of-instruction-descriptions.md) — How individual opcode pages are structured

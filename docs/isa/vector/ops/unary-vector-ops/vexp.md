@@ -174,5 +174,5 @@ For numerically stable softmax, prefer computing `exp(x - max(x))` rather than `
 - Instruction set overview: [Unary Vector Instructions](../../unary-vector-ops.md)
 - Previous op in instruction set: [pto.vneg](./vneg.md)
 - Next op in instruction set: [pto.vln](./vln.md)
-- Vector instruction overview: [Vector Instructions](../../../instruction-surfaces/vector-instructions.md)
+- Vector instruction overview: [Vector Instructions](../../../instruction-families/vector-families.md)
 - Type system: [Type System](../../../state-and-types/type-system.md)

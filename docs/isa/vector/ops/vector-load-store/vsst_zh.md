@@ -40,7 +40,6 @@ pto.vsst %value, %dest[%offset], "STRIDE" : !pto.vreg<NxT>, !pto.ptr<T, ub>
 
 ## 约束
 
-- 这是一个兼容性保留指令集。
 - 真正决定“写哪些子元素”的是 stride token，而不是单纯的向量 lane 编号。
 
 ## 异常与非法情形

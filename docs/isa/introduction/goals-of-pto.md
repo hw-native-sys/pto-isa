@@ -66,4 +66,4 @@ When the goals conflict, PTO prioritizes in this order:
 
 - [What Is PTO VISA](./what-is-pto-visa.md)
 - [Scope And Boundaries](./design-goals-and-boundaries.md)
-- [PTO ISA Version 1.0](./pto-isa-version-1-0.md)
+- [Current PTO ISA Scope](./current-isa-scope.md)

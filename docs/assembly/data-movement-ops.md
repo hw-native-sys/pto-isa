@@ -10,7 +10,7 @@ This document describes data movement and layout transformation operations.
 
 ### TEXTRACT
 
-For detailed instruction documentation, see [isa/TEXTRACT](../isa/TEXTRACT.md)
+For detailed instruction documentation, see [isa/TEXTRACT](../isa/tile/ops/layout-and-rearrangement/textract.md)
 
 **AS Level 1 (SSA):**
 
@@ -28,7 +28,7 @@ pto.textract ins(%src, %idxrow, %idxcol : !pto.tile_buf<...>, dtype, dtype) outs
 
 ### TEXTRACT_FP
 
-For detailed instruction documentation, see [isa/TEXTRACT_FP](../isa/TEXTRACT_FP.md)
+For detailed instruction documentation, see [isa/TEXTRACT_FP](../isa/tile/ops/layout-and-rearrangement/textract.md)
 
 **AS Level 1 (SSA):**
 
@@ -62,7 +62,7 @@ pto.timg2col ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 
 ### TINSERT
 
-For detailed instruction documentation, see [isa/TINSERT](../isa/TINSERT.md)
+For detailed instruction documentation, see [isa/TINSERT](../isa/tile/ops/layout-and-rearrangement/tinsert.md)
 
 **AS Level 1 (SSA):**
 
@@ -80,7 +80,7 @@ pto.tinsert ins(%src[%r0, %r1] : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<.
 
 ### TINSERT_FP
 
-For detailed instruction documentation, see [isa/TINSERT_FP](../isa/TINSERT_FP.md)
+For detailed instruction documentation, see [isa/TINSERT_FP](../isa/tile/ops/layout-and-rearrangement/tinsert.md)
 
 **AS Level 1 (SSA):**
 
@@ -98,7 +98,7 @@ pto.tinsert_fp ins(%src, %fp, %idxrow, %idxcol : !pto.tile_buf<...>, !pto.tile_b
 
 ### TFILLPAD
 
-For detailed instruction documentation, see [isa/TFILLPAD](../isa/TFILLPAD.md)
+For detailed instruction documentation, see [isa/TFILLPAD](../isa/tile/ops/layout-and-rearrangement/tfillpad.md)
 
 **AS Level 1 (SSA):**
 
@@ -116,7 +116,7 @@ pto.tfillpad ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 
 ### TFILLPAD_INPLACE
 
-For detailed instruction documentation, see [isa/TFILLPAD_INPLACE](../isa/TFILLPAD_INPLACE.md)
+For detailed instruction documentation, see [isa/TFILLPAD_INPLACE](../isa/tile/ops/layout-and-rearrangement/tfillpad-inplace.md)
 
 **AS Level 1 (SSA):**
 
@@ -134,7 +134,7 @@ pto.tfillpad_inplace ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<..
 
 ### TFILLPAD_EXPAND
 
-For detailed instruction documentation, see [isa/TFILLPAD_EXPAND](../isa/TFILLPAD_EXPAND.md)
+For detailed instruction documentation, see [isa/TFILLPAD_EXPAND](../isa/tile/ops/layout-and-rearrangement/tfillpad-expand.md)
 
 **AS Level 1 (SSA):**
 
@@ -152,7 +152,7 @@ pto.tfillpad_expand ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...
 
 ### TMOV
 
-For detailed instruction documentation, see [isa/TMOV](../isa/TMOV.md)
+For detailed instruction documentation, see [isa/TMOV](../isa/tile/ops/layout-and-rearrangement/tmov.md)
 
 **AS Level 1 (SSA):**
 
@@ -170,7 +170,7 @@ pto.tmov ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 
 ### TMOV_FP
 
-For detailed instruction documentation, see [isa/TMOV_FP](../isa/TMOV_FP.md)
+For detailed instruction documentation, see [isa/TMOV_FP](../isa/tile/ops/layout-and-rearrangement/tmov.md)
 
 **AS Level 1 (SSA):**
 
@@ -188,7 +188,7 @@ pto.tmov.fp ins(%src, %fp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : 
 
 ### TRESHAPE
 
-For detailed instruction documentation, see [isa/TRESHAPE](../isa/TRESHAPE.md)
+For detailed instruction documentation, see [isa/TRESHAPE](../isa/tile/ops/layout-and-rearrangement/treshape.md)
 
 **AS Level 1 (SSA):**
 
@@ -206,7 +206,7 @@ pto.treshape ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 
 ### TTRANS
 
-For detailed instruction documentation, see [isa/TTRANS](../isa/TTRANS.md)
+For detailed instruction documentation, see [isa/TTRANS](../isa/tile/ops/layout-and-rearrangement/ttrans.md)
 
 **AS Level 1 (SSA):**
 
@@ -224,7 +224,7 @@ pto.ttrans ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 
 ### TIMG2COL
 
-For detailed instruction documentation, see [isa/TIMG2COL](../isa/TIMG2COL.md)
+For detailed instruction documentation, see [isa/TIMG2COL](../isa/tile/ops/layout-and-rearrangement/timg2col.md)
 
 **AS Level 1 (SSA):**
 

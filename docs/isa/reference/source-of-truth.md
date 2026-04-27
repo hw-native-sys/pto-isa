@@ -4,8 +4,8 @@ Use this order when rewriting or validating PTO ISA documentation:
 
 1. `include/pto/common/pto_instr.hpp` — C++ intrinsic declarations; the public API contract
 2. Current PTO ISA docs in this repo — authoritative prose descriptions
-3. PTO-AS docs ([PTO-AS Specification](../../assembly/PTO-AS.md)) — syntax, assembly spelling, assembly-level forms
-4. Older manual prose only as migration background
+3. PTO-AS syntax page ([Assembly Spelling And Operands](../syntax-and-operands/assembly-model.md)) — syntax, assembly spelling, assembly-level forms
+4. Target profile notes and implementation notes for backend-specific narrowing
 
 If a prose source conflicts with the code-visible PTO instruction set, do not document unsupported behavior as architecture.
 
@@ -15,7 +15,7 @@ When the specification boundary is unclear, use the following order of authority
 
 1. **PTO ISA manual** and per-op ISA pages — architecture-visible semantics
 2. **Code** (C++ headers, backend implementations) — legal instruction set
-3. **PTO-AS docs** ([PTO-AS Specification](../../assembly/PTO-AS.md)) — syntax, assembly spelling, assembly-level forms
+3. **PTO-AS syntax page** ([Assembly Spelling And Operands](../syntax-and-operands/assembly-model.md)) — syntax, assembly spelling, assembly-level forms
 4. **Target profile notes** — backend-specific narrowing
 
 ## Two Compilation Flows
@@ -47,4 +47,4 @@ The `ptoas` tool is the authoritative assembler. When documentation describes wh
 - The parsing and validation rules
 - The lowering semantics from PTO-AS to C++ or binary
 
-When the PTO ISA manual specifies syntax forms (SSA, DPS), it refers to what `ptoas` accepts. See [PTO-AS Specification](../../assembly/PTO-AS.md) for the full grammar reference.
+When the PTO ISA manual specifies syntax forms (SSA, DPS), it refers to what `ptoas` accepts. See [Assembly Spelling And Operands](../syntax-and-operands/assembly-model.md) for the full grammar reference.

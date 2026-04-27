@@ -20,7 +20,10 @@
 | [pto.tpartmul](./ops/irregular-and-complex/tpartmul_zh.md) | 局部乘法规约 | Partial reduction | All |
 | [pto.tpartmax](./ops/irregular-and-complex/tpartmax_zh.md) | 局部最大值规约 | Partial reduction | All |
 | [pto.tpartmin](./ops/irregular-and-complex/tpartmin_zh.md) | 局部最小值规约 | Partial reduction | All |
-| [pto.tquant](./ops/irregular-and-complex/tquant_zh.md) | 量化 | Quantize | A2A3 / A5 |
+| [pto.tquant](./ops/irregular-and-complex/tquant_zh.md) | 把 tile 值量化为低精度表示 | Quantize | A2/A3, A5 |
+| [pto.tdequant](./ops/irregular-and-complex/tdequant_zh.md) | 把整数量化 tile 反量化为浮点值 | Quantize | A2/A3, A5 |
+| [pto.trandom](./ops/irregular-and-complex/trandom.md) | 生成随机值到 tile 状态 | Generation | A5 |
+| [pto.thistogram](./ops/irregular-and-complex/thistogram.md) | 从 tile 值累积直方图 bin | Statistics | A5 |
 
 ## 机制
 
@@ -47,7 +50,11 @@ $$ \mathrm{dst}_{\mathrm{index}_i} = \mathrm{src}_i \quad \text{(scatter)} $$
 
 ### 量化
 
-当前作者维护树中，`TQUANT` 保留在 tile 不规则与复杂路径；`TDEQUANT`、`TPACK`、`TRANDOM`、`THISTOGRAM` 则在“其他 / 支撑操作”路径中单独说明。
+`TQUANT` 把浮点 tile 数据转换为量化表示。`TDEQUANT` 使用按行广播的 scale 和 offset tile，把整数量化 tile 转回浮点值。二者都是 tile payload 变换，因此属于本 tile 指令族，而不是系统调度。
+
+### 生成状态与统计状态
+
+`TRANDOM` 和 `THISTOGRAM` 会产生 tile 可见的 payload 状态。它们的结果是 tile 数据，而不是调度效果，因此归入不规则 tile 操作。
 
 ## 目标 Profile 支持
 
@@ -73,4 +80,4 @@ $$ \mathrm{dst}_{\mathrm{index}_i} = \mathrm{src}_i \quad \text{(scatter)} $$
 ## 相关页面
 
 - [Tile 指令族](../instruction-families/tile-families_zh.md)
-- [Tile 指令表面](../instruction-surfaces/tile-instructions_zh.md)
+- [Tile 指令表面](../instruction-families/tile-families_zh.md)

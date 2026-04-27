@@ -6,24 +6,24 @@
 - 类型定义：`include/pto/comm/comm_types.hpp`
 
 ## 点对点通信（同步）
-- [**TPUT**](TPUT_zh.md)：远程写（GM → UB → GM）
-- [**TGET**](TGET_zh.md)：远程读（GM → UB → GM）
+- [**TPUT**](TPUT.md)：远程写（GM → UB → GM）
+- [**TGET**](TGET.md)：远程读（GM → UB → GM）
 
 ## 点对点通信（异步）
-- [**TPUT_ASYNC**](TPUT_ASYNC_zh.md)：异步远程写（GM → DMA 引擎 → GM）
-- [**TGET_ASYNC**](TGET_ASYNC_zh.md)：异步远程读（GM → DMA 引擎 → GM）
+- [**TPUT_ASYNC**](TPUT_ASYNC.md)：异步远程写（GM → DMA 引擎 → GM）
+- [**TGET_ASYNC**](TGET_ASYNC.md)：异步远程读（GM → DMA 引擎 → GM）
 
 ## 基于信号的同步
-- [**TNOTIFY**](TNOTIFY_zh.md)：向远端 NPU 发送通知
-- [**TWAIT**](TWAIT_zh.md)：阻塞等待信号条件满足
-- [**TTEST**](TTEST_zh.md)：非阻塞检测信号条件
+- [**TNOTIFY**](TNOTIFY.md)：向远端 NPU 发送通知
+- [**TWAIT**](TWAIT.md)：阻塞等待信号条件满足
+- [**TTEST**](TTEST.md)：非阻塞检测信号条件
 
 ## 集合通信
 
-- [**TGATHER**](TGATHER_zh.md)：从所有 rank 收集数据
-- [**TSCATTER**](TSCATTER_zh.md)：向所有 rank 分发数据
-- [**TREDUCE**](TREDUCE_zh.md)：从所有 rank 归约数据到本地
-- [**TBROADCAST**](TBROADCAST_zh.md)：从当前 NPU 广播数据到所有 rank
+- [**TGATHER**](TGATHER.md)：从所有 rank 收集数据
+- [**TSCATTER**](TSCATTER.md)：向所有 rank 分发数据
+- [**TREDUCE**](TREDUCE.md)：从所有 rank 归约数据到本地
+- [**TBROADCAST**](TBROADCAST.md)：从当前 NPU 广播数据到所有 rank
 
 ## 类型定义
 
@@ -31,58 +31,58 @@
 
 `TNOTIFY` 的操作类型：
 
-| 值 | 说明 |
-|-------|-------------|
-| `NotifyOp::Set` | 直接赋值（`signal = value`）|
-| `NotifyOp::AtomicAdd` | 原子加（`signal += value`）|
+| | 值 | 说明 |
+|-|-------|-------------|
+| | `NotifyOp::Set` | 直接赋值（`signal = value`）|
+| | `NotifyOp::AtomicAdd` | 原子加（`signal += value`）|
 
 ### WaitCmp
 
 `TWAIT` 和 `TTEST` 的比较运算符：
 
-| 值 | 说明 |
-|-------|-------------|
-| `WaitCmp::EQ` | 等于（`==`）|
-| `WaitCmp::NE` | 不等于（`!=`）|
-| `WaitCmp::GT` | 大于（`>`）|
-| `WaitCmp::GE` | 大于等于（`>=`）|
-| `WaitCmp::LT` | 小于（`<`）|
-| `WaitCmp::LE` | 小于等于（`<=`）|
+| | 值 | 说明 |
+|-|-------|-------------|
+| | `WaitCmp::EQ` | 等于（`==`）|
+| | `WaitCmp::NE` | 不等于（`!=`）|
+| | `WaitCmp::GT` | 大于（`>`）|
+| | `WaitCmp::GE` | 大于等于（`>=`）|
+| | `WaitCmp::LT` | 小于（`<`）|
+| | `WaitCmp::LE` | 小于等于（`<=`）|
 
 ```cpp
 // 用法示例（统一运行时参数风格）：
-comm::TNOTIFY(signal, 1, comm::NotifyOp::Set);
-comm::TWAIT(signal, 1, comm::WaitCmp::EQ);
-comm::TTEST(signal, 1, comm::WaitCmp::GE);
+comm::NOTIFY(signal, 1, comm::NotifyOp::Set);
+comm::WAIT(signal, 1, comm::WaitCmp::EQ);
+comm::TEST(signal, 1, comm::WaitCmp::GE);
 ```
 
 ### ReduceOp
 
 `TREDUCE` 的归约运算符：
 
-| 值 | 说明 |
-|-------|-------------|
-| `ReduceOp::Sum` | 逐元素求和 |
-| `ReduceOp::Max` | 逐元素取最大值 |
-| `ReduceOp::Min` | 逐元素取最小值 |
+| | 值 | 说明 |
+|-|-------|-------------|
+| | `ReduceOp::Sum` | 逐元素求和 |
+| | `ReduceOp::Max` | 逐元素取最大值 |
+| | `ReduceOp::Min` | 逐元素取最小值 |
 
 ### AtomicType
 
 `TPUT` 的原子操作类型（定义于 `include/pto/common/constants.hpp`）：
 
-| 值 | 说明 |
-|-------|-------------|
-| `AtomicType::AtomicNone` | 无原子操作（默认）|
-| `AtomicType::AtomicAdd` | 原子加操作 |
+| | 值 | 说明 |
+|-|-------|-------------|
+| | `AtomicType::AtomicNone` | 无原子操作（默认）|
+| | `AtomicType::AtomicAdd` | 原子加操作 |
 
 ### DmaEngine
 
 `TPUT_ASYNC` 和 `TGET_ASYNC` 的 DMA 后端选择：
 
-| 值 | 说明 |
-|-------|-------------|
-| `DmaEngine::SDMA` | SDMA 引擎（支持一维传输，Ascend950 上仅支持TGET|
-| `DmaEngine::URMA` | URMA 引擎（支持一维传输，仅Ascend950 / NPU_ARCH 3510）支持|
+| | 值 | 说明 |
+|-|-------|-------------|
+| | `DmaEngine::SDMA` | SDMA 引擎（支持二维传输）|
+| | `DmaEngine::URMA` | URMA 引擎（支持一维传输，仅 Ascend950 / NPU_ARCH 3510）|
 
 ### AsyncEvent
 
@@ -108,7 +108,7 @@ comm::AsyncSession session;
 comm::BuildAsyncSession<comm::DmaEngine::SDMA>(scratchTile, workspace, session);
 ```
 
-定义于 `include/pto/comm/async_common/async_types.hpp`。构建参数详见 [TPUT_ASYNC](TPUT_ASYNC_zh.md)。
+定义于 `include/pto/comm/async/async_types.hpp`。构建参数详见 [TPUT_ASYNC](TPUT_ASYNC.md)。
 
 ### ParallelGroup
 

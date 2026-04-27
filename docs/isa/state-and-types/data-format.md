@@ -52,7 +52,9 @@ The tile-register view is the ISA abstraction presented to authors. It names typ
 | Vector tile buffer DMA transfer | 32-byte block aligned (DMA engine unit) |
 | Local tile-buffer access | Element-size aligned, plus any role-specific backend constraints |
 
-The DMA engine operates on 32-byte blocks (`BLOCK_BYTE_SIZE = 32`). Misaligned GM addresses result in implementation-defined behavior.
+The DMA engine operates on 32-byte blocks (`BLOCK_BYTE_SIZE = 32`). Misaligned GM addresses produce target-specific behavior:
+- **A2/A3 and A5**: The DMA engine requires natural alignment for best performance; unaligned addresses may cause DMA errors or performance degradation. Software should align GM addresses to at least 32-byte boundaries.
+- **CPU simulator**: Unaligned addresses are accepted and handled by the host CPU's memory access instructions.
 
 ## Element Type Encoding
 

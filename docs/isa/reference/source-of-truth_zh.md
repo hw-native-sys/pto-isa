@@ -6,10 +6,10 @@
    公共 C++ 内建接口与可见 API 形态
 2. 当前仓库中的 PTO ISA 文档
    架构可见语义与约束说明
-3. PTO-AS 文档
+3. PTO-AS 语法页面
    语法、汇编拼写与汇编层形式
-4. 较旧的 manual 文本
-   仅作为迁移背景
+4. 目标 profile 说明与实现说明
+   用于判定 backend 专属缩窄
 
 如果 prose 与代码可见的 PTO 指令集冲突，不应把未支持行为写成架构保证。
 
@@ -21,7 +21,7 @@
    架构可见语义
 2. **代码**
    合法指令集与接口形态
-3. **PTO-AS 文档**
+3. **PTO-AS 语法页面**
    语法和文本拼写
 4. **目标 profile 说明**
    backend 专属缩窄
@@ -60,4 +60,4 @@ PTO program (.pto text)
 ## 相关页面
 
 - [指令描述格式](./format-of-instruction-descriptions_zh.md)
-- [PTO-AS 规范](../../assembly/PTO-AS_zh.md)
+- [汇编写法与操作数](../syntax-and-operands/assembly-model_zh.md)

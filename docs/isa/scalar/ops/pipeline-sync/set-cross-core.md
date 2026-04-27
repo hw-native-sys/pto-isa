@@ -60,7 +60,7 @@ None. This form is defined by its side effect on inter-core synchronization stat
 ## Constraints
 
 - **A2A3 only**: `set_cross_core` is only available on the A2A3 profile. Programs that use this operation MUST provide a fallback path for other profiles.
-- **Semaphore pool**: The pool has 16 physical semaphore IDs per cluster. The hardware implements a 4-bit counter (0–15). `set_cross_core` increments the counter; `wait_flag_dev` decrements it. If the counter would overflow past 15, the behavior is **implementation-defined**.
+- **Semaphore pool**: The pool has 16 physical semaphore IDs per cluster. The hardware implements a 4-bit counter (0–15). `set_cross_core` increments the counter; `wait_flag_dev` decrements it. On A2/A3: if the counter would overflow past 15, the hardware wraps the counter and signals an overflow error. On CPU simulator: not applicable.
 - **Broadcast vs. per-subblock**: The broadcast behavior is specific to mode2. Other modes (if supported) may have different semantics.
 - **core_id meaning**: `core_id = 0` targets AIV0 subblock; `core_id = 1` targets AIV1 subblock. Other values are **illegal**.
 

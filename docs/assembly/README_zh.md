@@ -1,6 +1,6 @@
 # PTO AS 文档导航
 
-这里是 PTO AS 文档的主入口页，用于帮助读者按主题快速定位汇编相关文档，而不是逐个文件查找。
+PTO-AS 的规范语法页面是 PTO ISA 手册中的 [汇编写法与操作数](../isa/syntax-and-operands/assembly-model_zh.md)。手册导航与指令页面链接应指向该页面。
 
 PTO AS 文档主要覆盖以下几类内容：
 
@@ -13,18 +13,16 @@ PTO AS 文档主要覆盖以下几类内容：
 
 如果您第一次接触 PTO-AS，建议按以下顺序阅读：
 
-1. [PTO-AS 规范](PTO-AS_zh.md)：先理解文本格式、语法与 directives
-2. [PTO AS 操作参考](README_zh.md)：建立对操作分类及链接入口的整体认识
-3. [PTO-AS 约定](conventions_zh.md)：理解命名与文档编写约定
-4. 各类操作文档：按任务需要继续阅读对应分类页面
+1. [汇编写法与操作数](../isa/syntax-and-operands/assembly-model_zh.md)：PTO-AS 写法、操作数与语法
+2. [PTO-AS 约定](conventions_zh.md)：理解命名与文档编写约定
+3. 各类操作文档：按任务需要继续阅读对应分类页面
 
 ## 文档分类
 
 ### 1. PTO-AS 语法与核心规范
 
-- [PTO-AS 规范](PTO-AS_zh.md)：文本格式、SSA 风格命名、directives 与文法概览
+- [汇编写法与操作数](../isa/syntax-and-operands/assembly-model_zh.md)：PTO ISA 手册发布的规范语法页面
 - [PTO-AS 约定](conventions_zh.md)：汇编语法约定与相关文档规则
-- `PTO-AS.bnf`：PTO-AS 的 BNF 形式文法定义
 
 ### 2. PTO Tile 操作分类
 
@@ -45,8 +43,8 @@ PTO AS 文档主要覆盖以下几类内容：
 
 ### 4. 相关参考
 
-- [ISA 指令参考](../isa/README_zh.md)：逐条指令的规范语义
-- [docs 文档入口](../README_zh.md)：返回 PTO Tile Lib 文档总导航页
+- [ISA 指令参考](../isa/scalar/ops/micro-instruction/README_zh.md)：逐条指令的规范语义
+- [docs 文档入口](../isa/scalar/ops/micro-instruction/README_zh.md)：返回 PTO Tile Lib 文档总导航页
 
 ## 目录结构
 
@@ -70,6 +68,6 @@ PTO AS 文档主要覆盖以下几类内容：
 
 ## 相关入口
 
-- [ISA 指令参考](../isa/README_zh.md)：查看 PTO 指令的规范语义
-- [docs 文档入口](../README_zh.md)：返回文档总导航页
+- [ISA 指令参考](../isa/scalar/ops/micro-instruction/README_zh.md)：查看 PTO 指令的规范语义
+- [docs 文档入口](../isa/scalar/ops/micro-instruction/README_zh.md)：返回文档总导航页
 - [Machine 文档](../machine/README_zh.md)：了解抽象执行模型

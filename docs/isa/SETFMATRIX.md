@@ -1,13 +1,13 @@
 # SETFMATRIX
 
-Canonical scalar/control reference: [SETFMATRIX](./scalar/ops/control-and-configuration/tsetfmatrix.md).
+Canonical tile configuration reference: [SETFMATRIX](./tile/ops/sync-and-config/setfmatrix.md).
 
 The PTO ISA manual now treats tile, vector, and scalar/control operations consistently: the canonical per-op pages live under `docs/isa/tile/ops/`, `docs/isa/vector/ops/`, and `docs/isa/scalar/ops/`.
 
 ## Canonical Location
 
-- Instruction set overview: [Scalar And Control Instruction Set: Control And Configuration](./scalar/control-and-configuration.md)
-- Canonical per-op page: [SETFMATRIX](./scalar/ops/control-and-configuration/tsetfmatrix.md)
+- Instruction set overview: [Sync And Config](./tile/sync-and-config.md)
+- Canonical per-op page: [SETFMATRIX](./tile/ops/sync-and-config/setfmatrix.md)
 
 ## Compatibility Note
 

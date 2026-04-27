@@ -10,7 +10,7 @@ This directory is the canonical PTO ISA tree. It combines the architecture manua
 
 This tree is the canonical PTO ISA manual. Textual assembly spelling belongs to the PTO ISA syntax instruction set, not to a second parallel architecture manual.
 
-- PTO ISA defines architecture-visible semantics, legality, state, ordering, target-profile boundaries, and the visible behavior of `pto.t*`, `pto.v*`, `pto.*`, and other operations.
+- PTO ISA defines architecture-visible semantics, legality, state, ordering, target-profile boundaries, and the visible behavior of tile, vector, scalar, communication, and system scheduling operations.
 - PTO-AS is the assembler-facing spelling used to write those operations and operands. It is part of how PTO ISA is expressed, not a separate ISA with different semantics.
 
 If the question is "what does this legal PTO program mean across CPU, A2/A3, and A5?", stay in this tree. If the question is "what is the operand shape or textual spelling of this operation?", use the syntax-and-operands pages in this same tree.
@@ -28,25 +28,24 @@ Reading order matches the manual chapter map: programming and machine models, th
 - [Location intent and legality](state-and-types/location-intent-and-legality.md)
 - [Memory model](memory-model/consistency-baseline.md)
 
-- [Instruction overview](instruction-surfaces/README.md)
+- [Instruction overview](instruction-families/README.md)
 - [Instruction set contracts](instruction-families/README.md)
 - [Format of instruction descriptions](reference/format-of-instruction-descriptions.md)
 - [Tile instruction reference](tile/README.md)
 - [Vector instruction reference](vector/README.md)
 - [Scalar and control reference](scalar/README.md)
-- [Other and communication reference](other/README.md)
+- [Communication instruction reference](comm/README.md)
+- [System scheduling instruction reference](system/README.md)
 - [Common conventions](conventions.md)
 
 ## Supporting Reference
 
 - [Reference notes](reference/README.md) (glossary, diagnostics, portability, source of truth)
 
-## Compatibility Wrappers
-
-The grouped instruction set trees under `tile/`, `vector/`, `scalar/`, and `other/` are the canonical PTO ISA paths.
-
-Some older root-level pages such as `TADD.md`, `TLOAD.md`, `TMATMUL.md`, and `TDEQUANT.md` now remain only as compatibility wrappers so existing links do not break immediately. New PTO ISA documentation should link to the grouped instruction set paths, especially the standalone per-op pages under:
+The grouped instruction set trees under `tile/`, `vector/`, `scalar/`, `comm/`, and `system/` are the canonical PTO ISA paths.
 
 - `docs/isa/tile/ops/`
 - `docs/isa/vector/ops/`
 - `docs/isa/scalar/ops/`
+- `docs/isa/comm/`
+- `docs/isa/system/ops/`

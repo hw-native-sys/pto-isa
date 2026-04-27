@@ -53,4 +53,4 @@ cmake --build build/docs --target pto_docs_serve
 ## Notes
 
 - The MkDocs source directory is `docs/mkdocs/src/`.
-- `docs/mkdocs/gen_pages.py` mirrors repository markdown into the site at build time, preserving paths so repo-relative links keep working.
+- `docs/mkdocs/gen_pages.py` publishes only curated canonical sources from `docs/isa/`, `docs/assembly/`, and getting-started pages; generated virtual pages should not be committed under `docs/mkdocs/src/`.

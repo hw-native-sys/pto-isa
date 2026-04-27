@@ -170,13 +170,13 @@ GlobalTensor operands follow a separate legality path:
 
 - Using vector-buffer assumptions on a tile-instruction set operand without an explicit bridge.
 - Documenting location-sensitive instruction sets as though any local storage role were equivalent.
-- Hiding target-profile narrowing inside generic "implementation-defined" wording.
+- Hiding target-profile narrowing inside generic "hardware-specific" wording.
 - Relying on the CPU simulator's permissive legality checking as evidence of A5 legality.
 
 ## See Also
 
 - [Type System](./type-system.md)
 - [Tiles And Valid Regions](../programming-model/tiles-and-valid-regions.md)
-- [Tile Instruction Set](../instruction-surfaces/tile-instructions.md)
-- [Vector Instruction Set](../instruction-surfaces/vector-instructions.md)
+- [Tile Instruction Set](../instruction-families/tile-families.md)
+- [Vector Instruction Set](../instruction-families/vector-families.md)
 - [Portability And Target Profiles](../reference/portability-and-target-profiles.md)

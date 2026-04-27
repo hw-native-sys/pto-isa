@@ -14,7 +14,7 @@ For predicate width `Pw` and UB address `base`:
 
 $$ \mathrm{WRITE\_UB}_{64}(base, mask) $$
 
-The predicate register is read atomically. Only bits within the current element-type predicate width are transferred; bits outside are **implementation-defined**.
+The predicate register is read atomically. On A2/A3 and A5 only the low N bits of the predicate register (matching the current element type) are written to UB; bits outside are discarded. On CPU simulator all 64 bits are written.
 
 ## Syntax
 

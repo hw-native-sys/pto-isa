@@ -16,9 +16,9 @@ Let `R = dst.GetValidRow()` and `C = dst.GetValidCol()`. For `0 <= i < R` and `0
 
 $$ \mathrm{dst}_{i,j} = \mathrm{src0}\!\left[\mathrm{indices}_{i,j}\right] $$
 
-Exact index interpretation and bounds behavior are implementation-defined.
+Exact index interpretation and bounds behavior are as follows: On A2/A3 and A5, out-of-range indices produce undefined results (no explicit masking); on the CPU simulator, out-of-range indices wrap modulo the source extent.
 
-Mask-pattern gather is an implementation-defined selection/reduction controlled by `pto::MaskPattern`.
+Mask-pattern gather is a selection controlled by `pto::MaskPattern`. On A2/A3 and A5, the mask selects elements from the source in a pattern-defined order; on the CPU simulator, the same mask semantics apply.
 
 ## Syntax
 
@@ -81,7 +81,7 @@ No architectural side effects beyond producing the destination tile. Does not im
 ## Constraints
 
 - **Bounds / validity**:
-    - Index bounds are not validated by explicit runtime assertions; out-of-range indices are target-defined.
+    - Index bounds are not validated by explicit runtime assertions; on A2/A3 and A5, out-of-range indices produce undefined results; on the CPU simulator, out-of-range indices are clamped to the valid range.
 
 ## Exceptions
 

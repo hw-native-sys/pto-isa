@@ -50,7 +50,7 @@ Reads UB-visible storage, writes UB-visible storage, and consumes the active UB 
 
 - Source and destination regions MUST both satisfy the UB alignment rules of the selected target profile.
 - `%len_burst` MUST fit within both the source and destination row stride.
-- If source and destination alias, portable code MUST provide ordering that avoids implementation-defined overlap behavior.
+- If source and destination regions alias, portable code MUST provide ordering that avoids undefined behavior. On A2/A3 and A5: if source and destination regions alias, the copy may proceed in either forward or backward direction and the exact order is not guaranteed; the programmer must ensure the copy is sequenced to avoid data hazard. On CPU simulator: aliasing is resolved by copying to a temporary buffer first.
 
 ## Exceptions
 

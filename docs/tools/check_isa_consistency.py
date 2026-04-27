@@ -37,7 +37,7 @@ MANIFEST_PATH = REPO_ROOT / "docs" / "isa" / "manifest.yaml"
 ISA_DIR = REPO_ROOT / "docs" / "isa"
 SVG_DIR = REPO_ROOT / "docs" / "figures" / "isa"
 PTO_HEADER = REPO_ROOT / "include" / "pto" / "common" / "pto_instr.hpp"
-DOC_ONLY_MANIFEST_INSTRUCTIONS = {"TSETHF32MODE", "TSETTF32MODE"}
+DOC_ONLY_MANIFEST_INSTRUCTIONS = {"SETTF32MODE", "SETTF32MODE"}
 
 
 def load_manifest(path: Path) -> List[Dict[str, object]]:

@@ -4,22 +4,21 @@
 
 ## 文档内容
 
-构建后的文档覆盖以下内容：
+构建后的文档是经过筛选的 PTO 指令集架构手册站点，覆盖以下内容：
 
-- PTO ISA 指令参考
-- PTO 汇编语法与规范（PTO-AS）
-- 编程模型与开发文档
-- 快速开始与使用指南
-- kernel 示例与目录说明
+- PTO 指令集架构模型章节与指令集契约
+- Tile、Vector、Scalar/Control、Communication 指令参考
+- 作为“语法与操作数”章节一部分的 PTO-AS 拼写
+- 公开手册需要的快速开始入口页
 
 文档的**作者维护源**主要位于主仓库文档树中：
 
 - `docs/isa/`：PTO 指令集架构手册与分组指令参考
-- `docs/assembly/`：PTO-AS 语法与规范
-- `docs/PTO-Virtual-ISA-Manual*.md` 等顶层手册入口页
+- `docs/isa/syntax-and-operands/`：PTO-AS 写法与操作数语法
+- `docs/getting-started*.md`：公开快速开始入口页
 
-`docs/mkdocs/src/` 只保存 MkDocs 自己维护的着陆页、站点资源以及构建期生成的虚拟页面。其中
-`docs/mkdocs/src/docs/**` 应视为 `gen_pages.py` 的生成结果，而不是手工维护的源树。
+`docs/mkdocs/src/` 只保存 MkDocs 自己维护的着陆页与站点资源。构建期虚拟页面由
+`gen_pages.py` 生成，不应提交到 `docs/mkdocs/src/` 作为源码。
 
 ## 推荐方式
 
@@ -89,7 +88,7 @@ cmake --build build/docs --target pto_docs
 
 - `mkdocs.yml`：MkDocs 配置文件
 - `requirements.txt`：文档构建依赖
-- `src/`：MkDocs 自身维护的着陆页与站点资源
+- `src/`：仅保存 MkDocs 自身维护的着陆页与站点资源
 - `gen_pages.py`：文档页面生成脚本
 - `check_mkdocs.py`：文档构建检查脚本
 
@@ -97,4 +96,4 @@ cmake --build build/docs --target pto_docs
 
 - [根目录 README_zh](../../README_zh.md)
 - [快速开始指南](../getting-started_zh.md)
-- [文档入口](../README_zh.md)
+- [文档入口](../isa/scalar/ops/micro-instruction/README_zh.md)

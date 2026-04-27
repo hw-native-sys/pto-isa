@@ -6,13 +6,14 @@
 
 - [指令族总览](README_zh.md) — 完整导航地图和族规范模板
 - [Tile 指令族](tile-families_zh.md) — Tile 指令集下的 8 个指令族（逐元素、归约、布局等）
-- [Vector 指令族](vector-families_zh.md) — Vector 指令集下的 9 个指令族
+- [Vector 指令族](../vector/README_zh.md) — Vector 指令集下的 9 个指令族
 - [标量与控制指令族](scalar-and-control-families_zh.md) — 标量、控制和配置的 6 个指令族
-- [其他指令族](other-families_zh.md) — 通信和其他支持指令族
+- [通信指令族](communication-families_zh.md) — 跨 NPU collective、点到点交换和通知
+- [系统调度指令族](system-scheduling-families_zh.md) — TPipe/TMPipe 生产者-消费者协议和资源生命周期
 
 ## 指令集与指令族的关系
 
-- **指令集（Instruction Set）** 按功能角色分类指令（Tile / Vector / Scalar&Control / Other）
+- **指令集（Instruction Set）** 按功能角色分类指令（Tile / Vector / Scalar / Communication / System Scheduling）
 - **族（Instruction Set）** 共享约束、行为模式和规范语言；同一族的指令共享家族概览页中的共同约束
 
 ## 每个族必须定义的内容

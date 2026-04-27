@@ -39,8 +39,7 @@ This operation reads UB-visible storage and returns SSA results. It does not by 
 
 ## Constraints
 
-This is a deprecated compatibility instruction set. The selected stride token
-  determines which sub-elements are read from each source block.
+The selected stride token determines which sub-elements are read from each source block.
 
 ## Exceptions
 

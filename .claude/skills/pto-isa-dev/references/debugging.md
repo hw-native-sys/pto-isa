@@ -13,7 +13,7 @@ Use this reference to shorten the path from symptom to root cause for Claude Cod
   - reproduce with [tests/script/run_st.py](../../../../tests/script/run_st.py)
   - compare the relevant backend under `include/pto/npu/a2a3` or `include/pto/npu/a5`
 - Fails in textual assembly or lowering:
-  - compare the emitted PTO-AS against [docs/assembly/PTO-AS.md](../../../../docs/assembly/PTO-AS.md)
+  - compare the emitted PTO-AS against [docs/isa/syntax-and-operands/assembly-model.md](../../../../docs/isa/syntax-and-operands/assembly-model.md)
 
 ## Recommended Debug Loop
 
@@ -23,7 +23,8 @@ Use this reference to shorten the path from symptom to root cause for Claude Cod
    - [include/pto/common/pto_instr.hpp](../../../../include/pto/common/pto_instr.hpp)
    - [docs/isa](../../../../docs/isa)
 4. Check backend assertions and helper code.
-5. Add or update a focused regression test.
+5. Match the symptom to [review-derived-guardrails.md](review-derived-guardrails.md) if it touches pipe sync, layout/stride math, template dispatch, ST registration, docs, or hot loops.
+6. Add or update a focused regression test.
 
 ## Useful Commands
 
@@ -55,6 +56,9 @@ python3 tests/script/run_st.py -r npu -v a5 -t tpushpop_cv -g TPushPopCvTest.cas
 - A2/A3 versus A5 implementation divergence
 - PTO-AS text that is legal syntactically but not accepted by the selected backend
 - simulator versus hardware environment mismatch, especially `ASCEND_HOME_PATH`
+- shared CPU-SIM pipe state keyed without every storage-shaping dimension
+- split-lane code using compile-time lane assumptions when runtime `subblock_dim` is narrower
+- layout tests whose golden data does not distinguish row-major, col-major, flattened-row, or multi-column paths
 
 ## Where to Look for Backend-Specific Behavior
 
@@ -81,3 +85,4 @@ If you discover a real backend restriction or portability caveat:
 - fix the code if it is a bug
 - add or update a testcase
 - document the restriction in the nearest instruction or backend reference doc
+- for docs-only fixes, verify signatures and examples against headers or PTO-AS, then run strict docs/link checks when available

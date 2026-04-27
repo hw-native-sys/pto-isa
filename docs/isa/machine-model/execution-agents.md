@@ -209,7 +209,7 @@ The **A5 profile** targets Ascend 950 PR and Ascend 950 DT. These targets suppor
 ## See Also
 
 - [Ordering And Synchronization](./ordering-and-synchronization.md)
-- [Vector Instruction Set](../instruction-surfaces/vector-instructions.md)
-- [Tile Instruction Set](../instruction-surfaces/tile-instructions.md)
+- [Vector Instruction Set](../instruction-families/vector-families.md)
+- [Tile Instruction Set](../instruction-families/tile-families.md)
 - [Portability And Target Profiles](../reference/portability-and-target-profiles.md)
-- [PTO ISA Version 1.0](../introduction/pto-isa-version-1-0.md)
+- [Current PTO ISA Scope](../introduction/current-isa-scope.md)

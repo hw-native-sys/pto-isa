@@ -28,4 +28,4 @@ Instruction docs show PTO-AS examples using MLIR-like conventions:
 - SSA value names use `%name`.
 - Types use MLIR-style spellings such as `!pto.tile<...>` and `!pto.memref<...>`.
 
-See `docs/assembly/PTO-AS.md` for the full syntax and grammar.
+See `docs/isa/syntax-and-operands/assembly-model.md` for the full syntax and grammar.

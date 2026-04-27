@@ -10,7 +10,7 @@ This document describes matrix multiplication and matrix-vector operations.
 
 ### TGEMV_MX
 
-For detailed instruction documentation, see [isa/TGEMV_MX](../isa/TGEMV_MX.md)
+For detailed instruction documentation, see [isa/TGEMV_MX](../isa/tile/ops/matrix-and-matrix-vector/tgemv-mx.md)
 
 **AS Level 1 (SSA):**
 
@@ -28,7 +28,7 @@ pto.tgemv.mx ins(%a, %a_scale, %b, %b_scale : (!pto.tile_buf<...>, !pto.tile_buf
 
 ### TMATMUL_MX
 
-For detailed instruction documentation, see [isa/TMATMUL_MX](../isa/TMATMUL_MX.md)
+For detailed instruction documentation, see [isa/TMATMUL_MX](../isa/tile/ops/matrix-and-matrix-vector/tmatmul-mx.md)
 
 **AS Level 1 (SSA):**
 
@@ -56,7 +56,7 @@ pto.tmatmul.mx.bias ins(%a, %a_scale, %b, %b_scale, %bias : !pto.tile_buf<...>, 
 
 ### TMATMUL
 
-For detailed instruction documentation, see [isa/TMATMUL](../isa/TMATMUL.md)
+For detailed instruction documentation, see [isa/TMATMUL](../isa/tile/ops/matrix-and-matrix-vector/tmatmul.md)
 
 **AS Level 1 (SSA):**
 
@@ -74,7 +74,7 @@ pto.tmatmul ins(%a, %b : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%c : !pto.
 
 ### TMATMUL_ACC
 
-For detailed instruction documentation, see [isa/TMATMUL_ACC](../isa/TMATMUL_ACC.md)
+For detailed instruction documentation, see [isa/TMATMUL_ACC](../isa/tile/ops/matrix-and-matrix-vector/tmatmul-acc.md)
 
 **AS Level 1 (SSA):**
 
@@ -92,7 +92,7 @@ pto.tmatmul.acc ins(%c_in, %a, %b : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto
 
 ### TMATMUL_BIAS
 
-For detailed instruction documentation, see [isa/TMATMUL_BIAS](../isa/TMATMUL_BIAS.md)
+For detailed instruction documentation, see [isa/TMATMUL_BIAS](../isa/tile/ops/matrix-and-matrix-vector/tmatmul-bias.md)
 
 **AS Level 1 (SSA):**
 
@@ -110,7 +110,7 @@ pto.tmatmul.bias ins(%a, %b, %bias : !pto.tile_buf<...>, !pto.tile_buf<...>, !pt
 
 ### TGEMV
 
-For detailed instruction documentation, see [isa/TGEMV](../isa/TGEMV.md)
+For detailed instruction documentation, see [isa/TGEMV](../isa/tile/ops/matrix-and-matrix-vector/tgemv.md)
 
 **AS Level 1 (SSA):**
 
@@ -132,7 +132,7 @@ pto.tgemv.bias ins(%a, %b, %bias : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.
 
 ### TGEMV_ACC
 
-For detailed instruction documentation, see [isa/TGEMV_ACC](../isa/TGEMV_ACC.md)
+For detailed instruction documentation, see [isa/TGEMV_ACC](../isa/tile/ops/matrix-and-matrix-vector/tgemv-acc.md)
 
 **AS Level 1 (SSA):**
 
@@ -154,7 +154,7 @@ pto.tgemv.bias ins(%a, %b, %bias : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.
 
 ### TGEMV_BIAS
 
-For detailed instruction documentation, see [isa/TGEMV_BIAS](../isa/TGEMV_BIAS.md)
+For detailed instruction documentation, see [isa/TGEMV_BIAS](../isa/tile/ops/matrix-and-matrix-vector/tgemv-bias.md)
 
 **AS Level 1 (SSA):**
 

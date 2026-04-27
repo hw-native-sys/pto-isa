@@ -100,5 +100,5 @@ Tile Buffer -> TSTORE / GM -> copy_gm_to_ubuf -> UB -> vlds
 
 - [一致性基线](./consistency-baseline_zh.md)
 - [顺序与同步](../machine-model/ordering-and-synchronization_zh.md)
-- [Tile 指令集](../instruction-surfaces/tile-instructions_zh.md)
-- [向量指令集](../instruction-surfaces/vector-instructions_zh.md)
+- [Tile 指令集](../instruction-families/tile-families_zh.md)
+- [向量指令集](../vector/README_zh.md)

@@ -8,20 +8,25 @@ Scalar and control operations do not carry tile payload semantics themselves. Th
 
 ## Main Subfamilies
 
-- Legacy tile-prefixed control/configuration ops: [`pto.tsethf32mode`](./ops/control-and-configuration/tsethf32mode.md) and [`pto.tsetfmatrix`](./ops/control-and-configuration/tsetfmatrix.md). These keep historic `t`-prefixed API names but are documented here because they configure scalar-visible mode state rather than tile payload state.
-- [Pipeline sync](./pipeline-sync.md): explicit producer-consumer edges, buffer-token protocols, and vector-scope memory barriers.
+This overview groups all scalar/control operations by their architectural role:
+
+- [Pipeline sync](./pipeline-sync.md): explicit producer-consumer edges, buffer-token protocols, and memory barriers.
 - [DMA copy](./dma-copy.md): loop-size and stride configuration plus GM↔vector-tile-buffer and vector-tile-buffer↔vector-tile-buffer copy operations.
 - [Predicate load store](./predicate-load-store.md): moving `!pto.mask` state through UB and handling unaligned predicate-store streams.
 - [Predicate generation and algebra](./predicate-generation-and-algebra.md): mask creation, tail masks, boolean combination, and predicate rearrangement.
+- [Micro-instruction reference](./ops/micro-instruction/README.md): scalar/vector boundary and runtime query operations.
 
 ## Architectural Role
 
 The `pto.*` instruction set is where PTO exposes stateful setup and synchronization explicitly. These forms are still part of the virtual ISA contract, but their visible outputs are control, mask, or configuration state rather than tile or vector payload results.
 
-The manual also places a small number of historic `pto.t*` configuration ops here when their architectural job is scalar/control setup rather than tile-buffer mutation. `tsethf32mode` and `tsetfmatrix` fall into that category.
+The Tile ISA instruction set ([Sync and Config group](../tile/sync-and-config.md)) handles tile-mode configuration such as `pto.settf32mode`, `pto.setfmatrix`, `pto.set_img2col_rpt`, and `pto.set_img2col_padding`. These are Tile ISA instructions because they program tile-mode state; they are **not** in this scalar/control section.
+
+This Control and Configuration section has no standalone operation list. Scalar/control operations are covered by the Pipeline Sync, DMA Copy, Predicate Load Store, Predicate Generation, and Micro-Instruction subfamilies.
 
 ## Related Material
 
-- [Scalar and control instruction set](../instruction-surfaces/scalar-and-control-instructions.md)
+- [Scalar and control instruction set](../instruction-families/scalar-and-control-families.md)
 - [Scalar and control instruction set overview](../instruction-families/scalar-and-control-families.md)
 - [Vector ISA reference](../vector/README.md)
+- [Tile ISA reference: Sync and Config](../tile/sync-and-config.md)

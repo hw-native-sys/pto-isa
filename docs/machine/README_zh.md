@@ -13,4 +13,4 @@
   - [全局内存张量](../coding/GlobalTensor_zh.md)
   - [事件与同步](../coding/Event_zh.md)
   - [标量值与枚举](../coding/Scalar_zh.md)
-- [指令参考](../isa/README_zh.md)
+- [指令参考](../isa/scalar/ops/micro-instruction/README_zh.md)

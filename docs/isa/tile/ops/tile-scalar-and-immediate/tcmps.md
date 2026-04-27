@@ -14,7 +14,7 @@ For each element `(i, j)` in the valid region:
 
 $$ \mathrm{dst}_{i,j} = \left(\mathrm{src}_{i,j}\ \mathrm{cmpMode}\ \mathrm{scalar}\right) $$
 
-The encoding/type of `dst` is implementation-defined (often a mask-like tile).
+The encoding/type of `dst` is target-specific: on A2/A3 the predicate tile uses `uint8_t` with 1 bit per element (packed 8 elements per byte), and on A5 it uses `uint32_t` with 1 bit per element (packed 32 elements per DWORD).
 
 ## Syntax
 

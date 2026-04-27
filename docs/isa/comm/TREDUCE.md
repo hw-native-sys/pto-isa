@@ -1,11 +1,10 @@
-﻿# TREDUCE
+# pto.treduce
 
 ## Introduction
 
 Reduce operation: gather data from multiple remote NPUs and perform element-wise reduction locally.
 
-
-Only the root needs to execute `TREDUCE`. Non-root ranks only need to ensure their source buffers are ready and remain valid for the duration of the operation. Calling `TREDUCE` on non-root ranks is undefined behavior.
+Only the root needs to execute `pto.treduce`. Non-root ranks only need to ensure their source buffers are ready and remain valid for the duration of the operation. Calling `pto.treduce` on non-root ranks is undefined behavior.
 
 **Large Tile Support**: When the GlobalTensor exceeds the UB tile capacity in rows and/or columns, the reduction is automatically chunked via 2D sliding.
 
@@ -24,9 +23,10 @@ Textual spelling is defined by the PTO ISA syntax-and-operands pages.
 Synchronous form:
 
 ```text
-treduce %group, %dst {op = #pto.reduce_op<Sum>} : (!pto.group<...>, !pto.memref<...>)
-treduce %group, %dst {op = #pto.reduce_op<Max>} : (!pto.group<...>, !pto.memref<...>)
+pto.treduce %group, %dst {op = #pto.reduce_op<Sum>} : (!pto.group<...>, !pto.memref<...>)
+pto.treduce %group, %dst {op = #pto.reduce_op<Max>} : (!pto.group<...>, !pto.memref<...>)
 ```
+
 Lowering introduces internal accumulator and receive tiles for the reduce pipeline; the C++ intrinsic requires explicit `accTileData`, `recvTileData` (or `accTileData`, `pingTileData`, `pongTileData`) operand(s).
 
 ## C++ Intrinsic
@@ -36,14 +36,14 @@ Declared in `include/pto/comm/pto_comm_inst.hpp`:
 ```cpp
 // Basic reduce (accumulator + receive tile)
 template <typename ParallelGroupType, typename GlobalDstData, typename TileData, typename... WaitEvents>
-PTO_INST RecordEvent TREDUCE(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
-                              TileData &accTileData, TileData &recvTileData, ReduceOp op, WaitEvents&... events);
+PTO_INST RecordEvent REDUCE(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
+                           TileData &accTileData, TileData &recvTileData, ReduceOp op, WaitEvents&... events);
 
 // Ping-pong reduce (accumulator + ping + pong tiles for double buffering)
 template <typename ParallelGroupType, typename GlobalDstData, typename TileData, typename... WaitEvents>
-PTO_INST RecordEvent TREDUCE(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
-                              TileData &accTileData, TileData &pingTileData, TileData &pongTileData,
-                              ReduceOp op, WaitEvents&... events);
+PTO_INST RecordEvent REDUCE(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
+                           TileData &accTileData, TileData &pingTileData, TileData &pongTileData,
+                           ReduceOp op, WaitEvents&... events);
 ```
 
 ## Constraints
@@ -75,7 +75,7 @@ template <typename T, int SIZE, int NRANKS>
 void reduce_sum(__gm__ T* group_addrs[NRANKS], __gm__ T* result, int my_rank) {
     using TileT = Tile<TileType::Vec, T, 1, SIZE>;
     using GTensor = GlobalTensor<T, Shape<1,1,1,1,SIZE>,
-                                 BaseShape2D<T, 1, SIZE, Layout::ND>, Layout::ND>;
+                                BaseShape2D<T, 1, SIZE, Layout::ND>, Layout::ND>;
 
     // Stack-allocated tensors
     GTensor tensors[NRANKS];
@@ -87,7 +87,7 @@ void reduce_sum(__gm__ T* group_addrs[NRANKS], __gm__ T* result, int my_rank) {
     GTensor dstG(result);
     TileT accTile, recvTile;
 
-    comm::TREDUCE(group, dstG, accTile, recvTile, comm::ReduceOp::Sum);
+    comm::REDUCE(group, dstG, accTile, recvTile, comm::ReduceOp::Sum);
 }
 ```
 
@@ -102,7 +102,7 @@ template <typename T, int SIZE, int NRANKS>
 void reduce_max(__gm__ T* group_addrs[NRANKS], __gm__ T* result, int my_rank) {
     using TileT = Tile<TileType::Vec, T, 1, SIZE>;
     using GTensor = GlobalTensor<T, Shape<1,1,1,1,SIZE>,
-                                 BaseShape2D<T, 1, SIZE, Layout::ND>, Layout::ND>;
+                                BaseShape2D<T, 1, SIZE, Layout::ND>, Layout::ND>;
 
     GTensor tensors[NRANKS];
     for (int i = 0; i < NRANKS; ++i) {
@@ -113,6 +113,6 @@ void reduce_max(__gm__ T* group_addrs[NRANKS], __gm__ T* result, int my_rank) {
     GTensor dstG(result);
     TileT accTile, recvTile;
 
-    comm::TREDUCE(group, dstG, accTile, recvTile, comm::ReduceOp::Max);
+    comm::REDUCE(group, dstG, accTile, recvTile, comm::ReduceOp::Max);
 }
 ```

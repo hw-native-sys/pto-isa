@@ -202,4 +202,4 @@ TINSERT(dstVec, srcLeft, InsertMode::NZ2ND);
 - [Tile Buffer SSA Type](./type-system.md#tile-buffer-types) — `!pto.tile<...>` vs `!pto.tile_buf<...>`
 - [TEXTRACT](../tile/ops/layout-and-rearrangement/textract.md) — Layout conversion with compact mode
 - [TINSERT](../tile/ops/layout-and-rearrangement/tinsert.md) — Layout conversion with compact mode
-- [Tile Instruction Set](../instruction-surfaces/tile-instructions.md) — How layouts interact with tile operations
+- [Tile Instruction Set](../instruction-families/tile-families.md) — How layouts interact with tile operations

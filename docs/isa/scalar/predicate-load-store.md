@@ -30,7 +30,7 @@ A single predicate load/store operation covers the full predicate width for the 
 | `plds` / `psts` | 64-bit (8 bytes) at UB address | Illegal if address not 8-byte aligned |
 | `pld` / `pst` (areg offset) | 64-bit; offset must be register-aligned | Illegal if address or offset violates alignment |
 | `pldi` / `psti` (immediate offset) | 64-bit; offset must be compile-time constant | Illegal if immediate violates alignment |
-| `pstu` (stream form) | None; tracks alignment state internally | Alignment state is implementation-defined on first use |
+| `pstu` (stream form) | None; tracks alignment state internally | On A2/A3 and A5: alignment base is initialized to zero on first use; on CPU simulator: alignment base starts as undefined until the first store updates it. Subsequent stores always update `%align_out` with the new alignment base. |
 
 ## Distribution Modes
 

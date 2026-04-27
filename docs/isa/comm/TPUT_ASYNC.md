@@ -1,13 +1,12 @@
-# TPUT_ASYNC
+# pto.tput_async
 
 ## Introduction
 
-`TPUT_ASYNC` is an asynchronous remote write primitive. It starts a transfer from local GM to remote GM and returns an `AsyncEvent` immediately.
+`pto.tput_async` is an asynchronous remote write primitive. It starts a transfer from local GM to remote GM and returns an `AsyncEvent` immediately.
 
 Data flow:
 
 `srcGlobalData (local GM) -> DMA engine -> dstGlobalData (remote GM)`
-
 
 ## Template Parameter
 
@@ -16,9 +15,8 @@ Data flow:
     - `DmaEngine::URMA` (Ascend950, NPU_ARCH 3510 only)
 
 > **Important (SDMA path)**
-> `TPUT_ASYNC` with `DmaEngine::SDMA` currently supports **only flat contiguous logical 1D tensors**.
+> `pto.tput_async` with `DmaEngine::SDMA` currently supports **only flat contiguous logical 1D tensors**.
 > Non-1D or non-contiguous layouts are not supported by the current SDMA async implementation.
-
 
 ## C++ Intrinsic
 
@@ -27,8 +25,8 @@ Declared in `include/pto/comm/pto_comm_inst.hpp`.
 ```cpp
 template <DmaEngine engine = DmaEngine::SDMA,
           typename GlobalDstData, typename GlobalSrcData, typename... WaitEvents>
-PTO_INST AsyncEvent TPUT_ASYNC(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData,
-                               const AsyncSession &session, WaitEvents &... events);
+PTO_INST AsyncEvent PUT_ASYNC(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData,
+                             const AsyncSession &session, WaitEvents &... events);
 ```
 
 `AsyncSession` is an engine-agnostic session object. Build once with
@@ -46,11 +44,11 @@ There are two overloads — one for SDMA and one for URMA — with different par
 ```cpp
 template <DmaEngine engine = DmaEngine::SDMA, typename ScratchTile>
 PTO_INTERNAL bool BuildAsyncSession(ScratchTile &scratchTile,
-                                    __gm__ uint8_t *workspace,
-                                    AsyncSession &session,
-                                    uint32_t syncId = 0,
-                                    const sdma::SdmaBaseConfig &baseConfig = {sdma::kDefaultSdmaBlockBytes, 0, 1},
-                                    uint32_t channelGroupIdx = sdma::kAutoChannelGroupIdx);
+                                   __gm__ uint8_t *workspace,
+                                   AsyncSession &session,
+                                   uint32_t syncId = 0,
+                                   const sdma::SdmaBaseConfig &baseConfig = {sdma::kDefaultSdmaBlockBytes, 0, 1},
+                                   uint32_t channelGroupIdx = sdma::kAutoChannelGroupIdx);
 ```
 
 | Parameter | Default | Description |
@@ -70,15 +68,15 @@ PTO_INTERNAL bool BuildAsyncSession(ScratchTile &scratchTile,
 #ifdef PTO_URMA_SUPPORTED
 template <DmaEngine engine>
 PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t *workspace,
-                                    uint32_t destRankId,
-                                    AsyncSession &session);
+                                   uint32_t destRankId,
+                                   AsyncSession &session);
 #endif
 ```
 
 | Parameter | Description |
 |---|---|
 | `workspace` | GM pointer allocated by host-side `UrmaWorkspaceManager`. |
-| `destRankId` | Remote PE rank id that this session communicates with. For `TPUT_ASYNC` this is the destination rank. |
+| `destRankId` | Remote PE rank id that this session communicates with. For `pto.tput_async` this is the destination rank. |
 | `session` | Output `AsyncSession` object. |
 
 URMA does not require `scratchTile` — polling uses `ld_dev`/`st_dev` hardware intrinsics directly.
@@ -118,12 +116,12 @@ Recommended: `Tile<TileType::Vec, uint8_t, 1, comm::sdma::UB_ALIGN_SIZE>` (256B)
 
 The completion mechanism differs by engine, but user-facing quiet semantics are identical:
 
-- **SDMA**: `TPUT_ASYNC` only submits data transfer SQEs. The flag SQE is deferred to `Wait`, which polls the flag for completion.
-- **URMA**: `TPUT_ASYNC` submits an RDMA WRITE WQE and rings the doorbell immediately. `Wait` polls the Completion Queue (CQ) until all expected CQEs have been consumed.
+- **SDMA**: `pto.tput_async` only submits data transfer SQEs. The flag SQE is deferred to `Wait`, which polls the flag for completion.
+- **URMA**: `pto.tput_async` submits an RDMA WRITE WQE and rings the doorbell immediately. `Wait` polls the Completion Queue (CQ) until all expected CQEs have been consumed.
 
 - `event.Wait(session)` — blocks until **all async operations issued since the last Wait** are complete
 
-This means after multiple `TPUT_ASYNC` calls, a single `Wait` on the last returned `AsyncEvent` drains all pending operations (similar to shmem's quiet semantics).
+This means after multiple `pto.tput_async` calls, a single `Wait` on the last returned `AsyncEvent` drains all pending operations (similar to shmem's quiet semantics).
 
 After wait succeeds, all issued writes to `dstGlobalData` are complete.
 
@@ -139,7 +137,7 @@ using namespace pto;
 
 template <typename T>
 __global__ AICORE void SimplePut(__gm__ T *remoteDst, __gm__ T *localSrc,
-                                 __gm__ uint8_t *sdmaWorkspace)
+                                __gm__ uint8_t *sdmaWorkspace)
 {
     using ShapeDyn = Shape<DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC>;
     using StrideDyn = Stride<DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC>;
@@ -159,7 +157,7 @@ __global__ AICORE void SimplePut(__gm__ T *remoteDst, __gm__ T *localSrc,
         return;
     }
 
-    auto event = comm::TPUT_ASYNC<comm::DmaEngine::SDMA>(dstG, srcG, session);
+    auto event = comm::PUT_ASYNC<comm::DmaEngine::SDMA>(dstG, srcG, session);
     (void)event.Wait(session);
 }
 ```
@@ -191,7 +189,7 @@ __global__ AICORE void BatchPut(__gm__ T *remoteDstBase, __gm__ T *localSrc,
     comm::AsyncEvent lastEvent;
     for (int rank = 0; rank < nranks; ++rank) {
         GT dstG(remoteDstBase + rank * 1024, shape, stride);
-        lastEvent = comm::TPUT_ASYNC(dstG, srcG, session);
+        lastEvent = comm::PUT_ASYNC(dstG, srcG, session);
     }
     (void)lastEvent.Wait(session);  // single Wait drains all pending ops
 }
@@ -207,7 +205,7 @@ using namespace pto;
 
 template <typename T>
 __global__ AICORE void SimplePutUrma(__gm__ T *remoteDst, __gm__ T *localSrc,
-                                     __gm__ uint8_t *urmaWorkspace, uint32_t destRankId)
+                                      __gm__ uint8_t *urmaWorkspace, uint32_t destRankId)
 {
     using ShapeDyn = Shape<DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC>;
     using StrideDyn = Stride<DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC>;
@@ -223,7 +221,7 @@ __global__ AICORE void SimplePutUrma(__gm__ T *remoteDst, __gm__ T *localSrc,
         return;
     }
 
-    auto event = comm::TPUT_ASYNC<comm::DmaEngine::URMA>(dstG, srcG, session);
+    auto event = comm::PUT_ASYNC<comm::DmaEngine::URMA>(dstG, srcG, session);
     (void)event.Wait(session);
 }
 ```

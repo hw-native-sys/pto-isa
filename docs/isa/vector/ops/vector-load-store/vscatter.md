@@ -43,7 +43,7 @@ This operation writes UB-visible memory and/or updates streamed alignment state.
 Only `b8`, `b16`, and `b32` element sizes are supported. The index vector
   must use a supported integer element type and layout for this instruction set.
   Each computed address MUST be element-aligned. If two or more indices alias,
-  only one write is guaranteed and the winning lane is implementation-defined.
+  only one write is guaranteed and the winning lane is **undefined behavior on A2/A3** (scatter aliases are illegal and must not occur); on A5 the lane with the numerically lowest index wins the write.
 
 ## Exceptions
 

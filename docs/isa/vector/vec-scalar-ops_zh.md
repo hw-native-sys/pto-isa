@@ -161,4 +161,4 @@ for (int i = 0; i < N; i++) {
 
 - [二元向量操作](./binary-vector-ops_zh.md)
 - [一元向量操作](./unary-vector-ops_zh.md)
-- [向量指令面](../instruction-surfaces/vector-instructions_zh.md)
+- [向量指令面](README_zh.md)

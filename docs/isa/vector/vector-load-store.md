@@ -242,8 +242,7 @@ for (int i = 0; i < 64; i++) {
 - **outputs:**
   `%result` is the loaded vector.
 - **constraints and limitations:**
-  This is a deprecated compatibility instruction set. The selected stride token
-  determines which sub-elements are read from each source block.
+  The selected stride token determines which sub-elements are read from each source block.
 
 **Stride modes:** `STRIDE_S3_B16`, `STRIDE_S4_B64`, `STRIDE_S8_B32`, `STRIDE_S2_B64`
 
@@ -400,8 +399,7 @@ for (int i = 0; i < 64; i++) {
 - **outputs:**
   This op writes UB memory and returns no SSA value.
 - **constraints and limitations:**
-  This is a deprecated compatibility instruction set. The stride token, not the vector
-  lane number alone, determines which destination elements are written.
+  The stride token, not the vector lane number alone, determines which destination elements are written.
 
 ---
 
@@ -415,8 +413,7 @@ for (int i = 0; i < 64; i++) {
 - **outputs:**
   This op writes UB memory and returns no SSA value.
 - **constraints and limitations:**
-  `%offset` is a control word, not a plain byte displacement. This is a
-  deprecated compatibility instruction set kept for instruction set coverage.
+  `%offset` is a control word, not a plain byte displacement. It selects the block-strided store pattern.
 
 ---
 
@@ -436,7 +433,7 @@ for (int i = 0; i < 64; i++) {
   Only `b8`, `b16`, and `b32` element sizes are supported. The index vector
   must use a supported integer element type and layout for this instruction set.
   Each computed address MUST be element-aligned. If two or more indices alias,
-  only one write is guaranteed and the winning lane is implementation-defined.
+  only one write is guaranteed and the winning lane is **undefined behavior on A2/A3** (scatter aliases are illegal and must not occur); on A5 the lane with the numerically lowest index wins the write.
 
 ```c
 for (int i = 0; i < active_lanes; i++)

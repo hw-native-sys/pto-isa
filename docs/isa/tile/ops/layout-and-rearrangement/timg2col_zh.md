@@ -35,7 +35,7 @@ CPU 模拟器里的显式计算逻辑是：
 
 ## 汇编语法
 
-PTO-AS 形式：参见 [PTO-AS 规范](../../../../assembly/PTO-AS_zh.md)。
+PTO-AS 形式：参见 [汇编写法与操作数](../../../syntax-and-operands/assembly-model_zh.md)。
 
 ### AS Level 1（SSA）
 
@@ -81,7 +81,7 @@ PTO_INST RecordEvent TIMG2COL(TileData &dst, ConvTileData &src, uint16_t posM = 
   - `fmapH / fmapW`
   - `padList`
   来设置 FMATRIX。
-- A2/A3 的 `TIMG2COL` auto 路径**不会**顺手设置 repeat 和 padding 寄存器；如果后续路径依赖这些状态，应显式使用对应的 `TSET_*` 指令。
+- A2/A3 的 `TIMG2COL` auto 路径**不会**顺手设置 repeat 和 padding 寄存器；如果后续路径依赖这些状态，应显式使用对应的 `pto.set_img2col_rpt` 或 `pto.set_img2col_padding`。
 
 ### A5 实现
 
@@ -120,6 +120,6 @@ void example(LeftTile& dst, ConvTile& src) {
 
 ## 相关页面
 
-- [SETFMATRIX](../../../scalar/ops/control-and-configuration/tsetfmatrix_zh.md)
-- [SET_IMG2COL_RPT](../sync-and-config/tset-img2col-rpt_zh.md)
-- [SET_IMG2COL_PADDING](../sync-and-config/tset-img2col-padding_zh.md)
+- [pto.setfmatrix](../sync-and-config/setfmatrix.md)
+- [pto.set_img2col_rpt](../sync-and-config/set-img2col-rpt.md)
+- [pto.set_img2col_padding](../sync-and-config/set-img2col-padding.md)

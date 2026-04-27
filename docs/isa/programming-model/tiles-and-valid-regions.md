@@ -55,7 +55,9 @@ for i in [0, dst.Rv):
     for j in [0, dst.Cv):
         dst[i, j] = f(src0[i, j], src1[i, j], ...)
 ```
-For source tiles, `src[i, j]` is read regardless of whether `(i, j)` falls within the source's own valid region; the value read for out-of-region lanes is **implementation-defined**.
+For source tiles, `src[i, j]` is read regardless of whether `(i, j)` falls within the source's own valid region; the value read for out-of-region lanes is **target-specific and undefined**:
+  - On A2/A3 and A5: The hardware may read whatever values happen to be in the underlying tile buffer SRAM; the content is not guaranteed to be stable across invocations or consistent with initialization
+  - On CPU simulator: The underlying memory location is read directly, producing whatever bits are stored there
 
 ### Block Layout (BLayout)
 
@@ -145,7 +147,7 @@ Tile-producing operations yield a destination tile whose payload, valid region, 
 ## Constraints
 
 - Semantics are defined only inside the declared valid region unless an instruction page says otherwise
-- Multi-input tile instructions iterate over the **destination** valid region, reading source tiles lane-by-lane at the corresponding indices regardless of the source's own valid region (implementation-defined values for out-of-region source lanes)
+- Multi-input tile instructions iterate over the **destination** valid region, reading source tiles lane-by-lane at the corresponding indices regardless of the source's own valid region (hardware-specific, undefined values for out-of-region source lanes on A2/A3 and A5; raw memory reads on CPU simulator)
 - A legal tile type is not enough by itself; shape, layout, location intent, and target profile also matter
 - The combination of `TileType`, `BLayout`, `SLayout`, and `Fractal` MUST match one of the supported combinations in the layout table above
 
@@ -154,7 +156,7 @@ Tile-producing operations yield a destination tile whose payload, valid region, 
 - Treating out-of-valid-region elements as architecturally meaningful data
 - Assuming every backend will silently repair mismatched valid-region use
 - Using tile roles or layouts that an instruction set or target profile does not permit
-- Relying on any specific implementation-defined value from a source tile lane outside its valid region
+- Relying on any specific value from a source tile lane outside its valid region (undefined on A2/A3 and A5; raw memory on CPU simulator)
 
 ## Examples
 
@@ -197,4 +199,4 @@ TADD(dst, src0, src1);
 - [GlobalTensor And Data Movement](./globaltensor-and-data-movement.md)
 - [Type System](../state-and-types/type-system.md)
 - [Layout Reference](../state-and-types/layout.md)
-- [Tile Instruction Set](../instruction-surfaces/tile-instructions.md)
+- [Tile Instruction Set](../instruction-families/tile-families.md)

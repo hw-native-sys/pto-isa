@@ -14,7 +14,7 @@ Follow this path in order:
 
 1. **[What is PTO VISA](isa/introduction/what-is-pto-visa.md)** — Overview, two compilation flows, key terms, and machine model
 2. **[Programming Model](isa/programming-model/tiles-and-valid-regions.md)** — Tiles, valid regions, layouts, auto vs. manual mode
-3. **[Instruction Overview](isa/instruction-surfaces/README.md)** — Map of all four instruction sets
+3. **[Instruction Overview](isa/instruction-families/README.md)** — Map of all five instruction sets
 4. **[Tile Instruction Reference](isa/tile/README.md)** — Primary programming instruction set
 5. **[Format of Instruction Descriptions](isa/reference/format-of-instruction-descriptions.md)** — How to read each instruction page
 
@@ -41,7 +41,8 @@ Use the instruction set index pages:
 | Tile compute & data movement | [Tile Instructions](isa/tile/README.md) | ~125 operations |
 | Vector micro-instructions | [Vector Instructions](isa/vector/README.md) | ~110 operations |
 | Scalar, control & DMA | [Scalar and Control](isa/scalar/README.md) | ~50 operations |
-| Other and communication | [Other and Communication](isa/other/README.md) | ~20 operations |
+| Communication | [Communication Instructions](isa/comm/README.md) | 11 operations |
+| System scheduling | [System Scheduling Instructions](isa/system/README.md) | 3 operations |
 
 Or jump directly to the alphabetical index: [Instruction Families](isa/instruction-families/README.md)
 
@@ -49,13 +50,14 @@ Or jump directly to the alphabetical index: [Instruction Families](isa/instructi
 
 ## PTO ISA At A Glance
 
-PTO is a virtual ISA that spans multiple targets — CPU simulation, A2A3 (Ascend 910B / 910C), and A5 (Ascend 950 PR / DT). The ISA is organized into four instruction sets:
+PTO is a virtual ISA that spans multiple targets — CPU simulation, A2A3 (Ascend 910B / 910C), and A5 (Ascend 950 PR / DT). The ISA is organized into five instruction sets:
 
 ```
 pto.t*   Tile instructions         Tile-oriented compute and GM↔tile data movement
 pto.v*   Vector instructions       Low-level vector-pipe ops (predication, masks, etc.)
 pto.*    Scalar & control          Scalar setup, DMA config, pipeline sync
-         Other / communication    TBROADCAST, TGET, TPUT, TREDUCE, TWAIT, TDEQUANT, etc.
+pto.t*   Communication             TBROADCAST, TGET, TPUT, TREDUCE, TWAIT
+pto.t*   System scheduling         TPUSH, TPOP, TFREE
 ```
 
 The manual explains what is guaranteed by PTO itself and what is only a target-profile restriction.
@@ -71,7 +73,7 @@ Layer 1:  Introduction & Overview
           ├── What Is PTO VISA
           ├── Document Structure
           ├── Goals Of PTO
-          ├── PTO ISA Version 1.0
+          ├── Current PTO ISA Scope
           └── Scope And Boundaries
 
 Layer 2:  Programming Model
@@ -101,7 +103,8 @@ Layer 7:  Instruction Reference
           ├── Tile ISA Reference
           ├── Vector ISA Reference
           ├── Scalar and Control Reference
-          └── Other and Communication Reference
+          ├── Communication ISA Reference
+          └── System Scheduling ISA Reference
 ```
 
 ---
@@ -113,7 +116,7 @@ Layer 7:  Instruction Reference
 - [Introduction](isa/introduction/what-is-pto-visa.md)
 - [Document structure](isa/introduction/document-structure.md)
 - [Goals Of PTO](isa/introduction/goals-of-pto.md)
-- [PTO ISA Version 1.0](isa/introduction/pto-isa-version-1-0.md)
+- [Current PTO ISA Scope](isa/introduction/current-isa-scope.md)
 - [Scope And Boundaries](isa/introduction/design-goals-and-boundaries.md)
 
 ### Programming and Machine Models
@@ -137,7 +140,7 @@ Layer 7:  Instruction Reference
 
 ### Instruction Reference
 
-- [Instruction overview](isa/instruction-surfaces/README.md)
+- [Instruction overview](isa/instruction-families/README.md)
 - [Instruction set contracts](isa/instruction-families/README.md)
 - [Format of instruction descriptions](isa/reference/format-of-instruction-descriptions.md)
 - [Glossary](isa/reference/glossary.md)
@@ -150,10 +153,11 @@ Layer 7:  Instruction Reference
 - [Tile ISA reference](isa/tile/README.md)
 - [Vector ISA reference](isa/vector/README.md)
 - [Scalar and control reference](isa/scalar/README.md)
-- [Other and communication reference](isa/other/README.md)
+- [Communication ISA reference](isa/comm/README.md)
+- [System scheduling ISA reference](isa/system/README.md)
 
 ---
 
 ## Canonical Hub
 
-The full manual index with all sections and per-op pages is at [PTO ISA manual and reference](isa/README.md).
+The full manual index with all sections and per-op pages is at [PTO ISA manual and reference](isa/scalar/ops/micro-instruction/README.md).

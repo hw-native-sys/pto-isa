@@ -8,11 +8,11 @@ Prefetch data from global memory into a tile-local cache/buffer (hint).
 
 ## Mechanism
 
-Prefetch data from global memory into a tile-local cache/buffer (implementation-defined). This is typically used to reduce latency before a subsequent `TLOAD`.
+Prefetch data from global memory into a tile-local cache/buffer. On A2/A3: the hardware maintains a dedicated on-chip scratchpad that TPREFETCH can populate; the prefetch issues a DMA read into the tile buffer and blocks until the data is resident before returning. On A5: the hardware uses a similar scratchpad mechanism but the cache-line fill granularity may differ (typically 32-byte aligned fills); the prefetch may also overlap with other memory traffic differently than on A2/A3. On the CPU simulator: TPREFETCH is emulated as a blocking tile load and has no effect beyond what TLOAD would do — it cannot be ignored since the simulator must produce correct data.
 
 Note: unlike most PTO instructions, `TPREFETCH` does **not** implicitly call `TSYNC(events...)` in the C++ wrapper. It is part of the tile memory/data-movement instruction set, so the visible behavior includes explicit transfer between GM-visible data and tile-visible state.
 
-Unless otherwise specified, semantics are defined over the valid region and target-dependent behavior is marked as implementation-defined.
+Unless otherwise specified, semantics are defined over the valid region. On A2/A3 and A5 the prefetch transfers data from the specified GM region into the tile buffer; on the CPU simulator it copies the data directly. Whether the data is placed in a dedicated cache or the general tile buffer is target-specific.
 
 ## Syntax
 
@@ -64,7 +64,7 @@ PTO_INST RecordEvent TPREFETCH(TileData &dst, GlobalData &src);
 
 ## Expected Outputs
 
-`dst` holds the prefetched data from `src`. This is a hint; behavior is implementation-defined.
+`dst` holds the prefetched data from `src`. On A2/A3 and A5: the prefetch hint is advisory — the hardware may populate the tile buffer with data from the source GlobalTensor, but the returned token signals only that the operation was issued, not that the data is necessarily cached or privileged; the DMA engine may overlap the fill with subsequent operations. On the CPU simulator: the prefetch performs a blocking copy from GM into the tile buffer, so the data is guaranteed resident when the token is returned.
 
 ## Side Effects
 
@@ -72,7 +72,7 @@ This operation may read from global memory. Prefetch hints may be ignored by som
 
 ## Constraints
 
-- Semantics and caching behavior are target/implementation-defined.
+- Semantics and caching behavior vary by target: on A2/A3, the prefetch issues a DMA read into the tile buffer with no additional caching layer beyond the scratchpad; on A5, the DMA engine may use different memory-transaction scheduling and the hint may be treated as a non-blocking request that does not block subsequent tile operations; on the CPU simulator, the prefetch is a blocking copy that copies data from the source GlobalTensor into the destination tile.
 
 - Some targets may ignore prefetches or treat them as hints.
 

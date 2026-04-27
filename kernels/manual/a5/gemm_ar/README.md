@@ -91,24 +91,19 @@ This example uses a 2-rank Ascend950PR platform as the performance validation ta
 ## Overall Architecture
 
 ```text
-┌──────────────────────────────────────────────────────────────────────────────┐
-│  Compute Stream (32 Cube)              Comm Stream (64 Vector, 958b ini)    │
-│                                                                              │
-│  GemmComputeKernel:                     GemmCommAllKernel:                   │
-│  ┌─────────────────────────┐            ┌──────────────────────────────┐     │
-│  │ for each tile:          │            │ Phase 1: ReduceScatter       │     │
-│  │   K-loop (L1 -> L0 -> Cube)          │   poll Ready Queue           │     │
-│  │   TSTORE -> gemm_output │──Ready──→ │   TLOAD tile from gemm_output│     │
-│  │   pipe_barrier(ALL)     │  Queue    │   TSTORE<AtomicAdd> -> owner │     │
-│  │   Enqueue tile_idx      │            │       (ping/pong buffering)  │     │
-│  └─────────────────────────┘            │            ↓                 │     │
-│                                          │   DeviceBarrier (cross-rank) │     │
-│                                          │            ↓                 │     │
-│                                          │ Phase 2: AllGather          │     │
-│                                          │   row-level flattened split │     │
-│                                          │   TLOAD -> TSTORE to remote │     │
-│                                          └──────────────────────────────┘     │
-└──────────────────────────────────────────────────────────────────────────────┘
+Compute Stream (32 Cube)                 Comm Stream (64 Vector, 958b ini)
+┌──────────────────────────────┐         ┌────────────────────────────────┐
+│ GemmComputeKernel            │         │ GemmCommAllKernel              │
+│ for each tile:               │         │ Phase 1: ReduceScatter         │
+│ K-loop (L1 -> L0 -> Cube)    │         │ poll Ready Queue               │
+│ TSTORE -> gemm_output        │──Ready─►│ TLOAD tile from gemm_output    │
+│ pipe_barrier(ALL)            │  Queue  │ TSTORE<AtomicAdd> -> owner     │
+│ Enqueue tile_idx             │         │ (ping/pong buffering)          │
+└──────────────────────────────┘         │ DeviceBarrier (cross-rank)     │
+                                         │ Phase 2: AllGather             │
+                                         │ row-level flattened split      │
+                                         │ TLOAD -> TSTORE to remote      │
+                                         └────────────────────────────────┘
 ```
 
 ## Compute Kernel Details

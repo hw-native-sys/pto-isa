@@ -7,6 +7,7 @@ Tile-scalar operations combine a tile operand with a scalar value or immediate o
 | Operation | Description | Category | C++ Intrinsic |
 |-----------|-------------|----------|----------------|
 | [pto.tadds](./ops/tile-scalar-and-immediate/tadds.md) | Elementwise addition with scalar | Binary | `TADDS(dst, src, scalar)` |
+| [pto.taxpy](./ops/tile-scalar-and-immediate/taxpy.md) | AXPY-style fused tile-scalar update | Fused binary | `TAXPY(dst, src0, scalar, src1)` |
 | [pto.tsubs](./ops/tile-scalar-and-immediate/tsubs.md) | Elementwise subtraction with scalar | Binary | `TSUBS(dst, src, scalar)` |
 | [pto.tmuls](./ops/tile-scalar-and-immediate/tmuls.md) | Elementwise multiplication with scalar | Binary | `TMULS(dst, src, scalar)` |
 | [pto.tpows](./ops/tile-scalar-and-immediate/tpows.md) | Elementwise power with scalar exponent | Binary | `TPOWS(dst, base, exp, tmp)` |
@@ -34,6 +35,10 @@ For each lane `(r, c)` in the destination's valid region:
 $$ \mathrm{dst}_{r,c} = f(\mathrm{src}_{r,c}, \mathrm{scalar}) $$
 
 The scalar operand is broadcast to all lanes. Comparison operations produce a predicate tile: lane `(r, c)` is `1` where the condition holds, `0` otherwise.
+
+`TAXPY` belongs in this family because its defining contract is a tile payload update using a scalar coefficient:
+
+$$ \mathrm{dst}_{r,c} = \mathrm{src0}_{r,c} \times \mathrm{scalar} + \mathrm{src1}_{r,c} $$
 
 ## Scalar Operand
 
@@ -110,4 +115,4 @@ PTO_INST RecordEvent TCMPS(TileDst& dst, TileSrc& src, ScalarT scalar, CompareMo
 ## See Also
 
 - [Tile instruction set](../instruction-families/tile-families.md) — Instruction set overview
-- [Tile instruction set](../instruction-surfaces/tile-instructions.md) — Instruction Set description
+- [Tile instruction set](../instruction-families/tile-families.md) — Instruction Set description

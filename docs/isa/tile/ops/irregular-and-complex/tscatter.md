@@ -16,7 +16,7 @@ $$ \mathrm{dst\_flat}_{k} = \mathrm{src}_{i,j} $$
 
 Here `dst_flat` denotes the destination tile viewed as a single linear storage sequence. `TSCATTER` does **not** interpret `idx[i,j]` as a destination row selector. On the standard row-major tile layout, this is equivalent to writing the `k`-th flattened destination element.
 
-If multiple elements map to the same destination location, the final value is implementation-defined (last writer wins in the current implementation).
+If multiple elements map to the same destination location, the final value is undefined. On A2/A3 and A5, the last writer wins according to the hardware scheduling order; on the CPU simulator, the last writer wins according to the iteration order.
 
 ## Syntax
 
@@ -61,7 +61,7 @@ Elements from `src` are scattered to positions in `dst` specified by `indexes`.
 
 ## Side Effects
 
-No architectural side effects beyond producing the destination tile. Concurrent writes to the same location produce implementation-defined results.
+No architectural side effects beyond producing the destination tile. Concurrent writes to the same location produce undefined results. On A2/A3 and A5, the final value is determined by hardware scheduling order; on the CPU simulator, the final value is determined by iteration order.
 
 ## Constraints
 
@@ -164,4 +164,3 @@ pto.tscatter ins(%src, %idx : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst 
 
 - Instruction set overview: [Irregular And Complex](../../irregular-and-complex.md)
 - Previous op in instruction set: [pto.tgatherb](./tgatherb.md)
-- Next op in instruction set: [pto.tquant](./tquant.md)

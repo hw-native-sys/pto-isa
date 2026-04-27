@@ -10,7 +10,7 @@ This document describes manual resource binding and configuration operations.
 
 ### TASSIGN
 
-For detailed instruction documentation, see [isa/TASSIGN](../isa/TASSIGN.md)
+For detailed instruction documentation, see [isa/TASSIGN](../isa/tile/ops/sync-and-config/tassign.md)
 
 **AS Level 1 (SSA):**
 
@@ -26,56 +26,56 @@ pto.tassign ins(%tile, %addr : !pto.tile_buf<...>, dtype)
 
 ---
 
-### SETFMATRIX
+### pto.setfmatrix
 
-For detailed instruction documentation, see [isa/SETFMATRIX](../isa/SETFMATRIX.md)
+For detailed instruction documentation, see [pto.setfmatrix](../isa/tile/ops/sync-and-config/setfmatrix.md).
 
 **AS Level 1 (SSA):**
 
 ```text
-pto.SETFMATRIX %cfg : !pto.fmatrix_config -> ()
+pto.setfmatrix %cfg : !pto.fmatrix_config -> ()
 ```
 
 **AS Level 2 (DPS):**
 
 ```text
-pto.SETFMATRIX ins(%cfg : !pto.fmatrix_config) outs()
+pto.setfmatrix ins(%cfg : !pto.fmatrix_config) outs()
 ```
 
 ---
 
-### SET_IMG2COL_RPT
+### pto.set_img2col_rpt
 
-For detailed instruction documentation, see [isa/SET_IMG2COL_RPT](../isa/SET_IMG2COL_RPT.md)
+For detailed instruction documentation, see [pto.set_img2col_rpt](../isa/tile/ops/sync-and-config/set-img2col-rpt.md)
 
 **AS Level 1 (SSA):**
 
 ```text
-pto.SET_IMG2COL_RPT %cfg : !pto.fmatrix_config -> ()
+pto.set_img2col_rpt %cfg : !pto.fmatrix_config -> ()
 ```
 
 **AS Level 2 (DPS):**
 
 ```text
-pto.SET_IMG2COL_RPT ins(%cfg : !pto.fmatrix_config) outs()
+pto.set_img2col_rpt ins(%cfg : !pto.fmatrix_config) outs()
 ```
 
 ---
 
-### SET_IMG2COL_PADDING
+### pto.set_img2col_padding
 
-For detailed instruction documentation, see [isa/SET_IMG2COL_PADDING](../isa/SET_IMG2COL_PADDING.md)
+For detailed instruction documentation, see [pto.set_img2col_padding](../isa/tile/ops/sync-and-config/set-img2col-padding.md)
 
 **AS Level 1 (SSA):**
 
 ```text
-pto.SET_IMG2COL_PADDING %cfg : !pto.fmatrix_config -> ()
+pto.set_img2col_padding %cfg : !pto.fmatrix_config -> ()
 ```
 
 **AS Level 2 (DPS):**
 
 ```text
-pto.SET_IMG2COL_PADDING ins(%cfg : !pto.fmatrix_config) outs()
+pto.set_img2col_padding ins(%cfg : !pto.fmatrix_config) outs()
 ```
 
 ---

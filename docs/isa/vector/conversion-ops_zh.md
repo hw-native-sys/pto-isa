@@ -71,4 +71,4 @@
 ## 相关页面
 
 - [类型系统](../state-and-types/type-system_zh.md)
-- [向量指令族](./vector-families_zh.md)
+- [向量指令族](README_zh.md)

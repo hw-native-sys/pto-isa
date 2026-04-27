@@ -21,7 +21,7 @@
 
 ## 汇编语法
 
-PTO-AS 形式：参见 [PTO-AS 规范](../../../../assembly/PTO-AS_zh.md)。
+PTO-AS 形式：参见 [汇编写法与操作数](../../../syntax-and-operands/assembly-model_zh.md)。
 
 ```text
 %dst = treshape %src : !pto.tile<...>
@@ -91,6 +91,6 @@ void example() {
 
 ## 相关页面
 
-- [TALIAS](../../../TALIAS_zh.md)
+- [TALIAS](../sync-and-config/talias.md)
 - [TMOV](./tmov_zh.md)
 - [布局与重排指令集](../../layout-and-rearrangement_zh.md)

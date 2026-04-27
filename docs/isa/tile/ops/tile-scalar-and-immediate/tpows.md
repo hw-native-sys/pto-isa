@@ -1,6 +1,6 @@
 # pto.tpows
 
-`pto.tpows` is part of the [Tile-Scalar and Immediate](../../tile-scalar-and-immediate.md) instruction set.
+`pto.tpows` is part of the [Tile Scalar And Immediate](../../tile-scalar-and-immediate.md) instruction set.
 
 ## Summary
 
@@ -36,7 +36,7 @@ pto.tpows ins(%base, %exp : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp` (signature shown verbatim from the current header):
+Declared in `include/pto/common/pto_instr.hpp`:
 
 ```cpp
 template <auto PrecisionType = PowAlgorithm::DEFAULT, typename DstTile, typename BaseTile, typename TmpTile,
@@ -102,6 +102,6 @@ void example() {
 
 ## Related Ops / Instruction Set Links
 
-- Instruction set overview: [Tile-Scalar and Immediate](../../tile-scalar-and-immediate.md)
+- Instruction set overview: [Tile Scalar And Immediate](../../tile-scalar-and-immediate.md)
 - Previous op in instruction set: [pto.tmuls](./tmuls.md)
-- Next op in instruction set: [pto.tdivs](./tdivs.md)
+- Next op in instruction set: [pto.tfmods](./tfmods.md)

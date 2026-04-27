@@ -200,7 +200,7 @@ for (int i = 0; i < 64; i++) {
 - **语法：** `%result = pto.vsld %source[%offset], "STRIDE" : !pto.ptr<T, ub> -> !pto.vreg<NxT>`
 - **语义：** 用固定 stride 模式装载。
 
-这是兼容性保留指令。真正决定“从哪里读”的是 stride token，而不只是 lane 编号。
+真正决定“从哪里读”的是 stride token，而不只是 lane 编号。
 
 ### `pto.vsldb`
 
@@ -288,7 +288,7 @@ for (int i = 0; i < 64; i++) {
 - **语法：** `pto.vsst %value, %dest[%offset], "STRIDE" : !pto.vreg<NxT>, !pto.ptr<T, ub>`
 - **语义：** 用固定 stride 模式存储。
 
-这是兼容性保留形式。真正定义写入模式的是 stride token。
+真正定义写入模式的是 stride token。
 
 ### `pto.vsstb`
 

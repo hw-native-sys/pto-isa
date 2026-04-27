@@ -14,12 +14,12 @@ This document is the execution backlog for upgrading the PTO manual from a templ
 
 ### Wave 1
 
-Files:
+Canonical files:
 
-- `docs/mkdocs/src/manual/index.md`
-- `docs/mkdocs/src/manual/01-overview.md`
-- `docs/mkdocs/src/manual/02-machine-model.md`
-- `docs/mkdocs/src/manual/08-programming.md`
+- `docs/isa/README.md`
+- `docs/isa/introduction/*.md`
+- `docs/isa/machine-model/*.md`
+- `docs/isa/programming-model/*.md`
 - Chinese mirrors for the same files
 
 Goals:
@@ -31,11 +31,11 @@ Goals:
 
 ### Wave 2
 
-Files:
+Canonical files:
 
-- `docs/mkdocs/src/manual/03-state-and-types.md`
-- `docs/mkdocs/src/manual/04-tiles-and-globaltensor.md`
-- `docs/mkdocs/src/manual/05-synchronization.md`
+- `docs/isa/state-and-types/*.md`
+- `docs/isa/programming-model/globaltensor-and-data-movement.md`
+- `docs/isa/memory-model/*.md`
 - Chinese mirrors for the same files
 
 Goals:
@@ -46,13 +46,12 @@ Goals:
 
 ### Wave 3
 
-Files:
+Canonical files:
 
-- `docs/mkdocs/src/manual/09-virtual-isa-and-ir.md`
-- `docs/mkdocs/src/manual/10-bytecode-and-toolchain.md`
-- `docs/mkdocs/src/manual/11-memory-ordering-and-consistency.md`
-- `docs/mkdocs/src/manual/12-backend-profiles-and-conformance.md`
-- appendices as needed
+- `docs/isa/syntax-and-operands/*.md`
+- `docs/isa/instruction-families/*.md`
+- `docs/isa/tile/**`, `docs/isa/vector/**`, `docs/isa/scalar/**`, `docs/isa/comm/**`, and `docs/isa/system/**`
+- `docs/isa/reference/*.md`
 - Chinese mirrors for the same files
 
 Goals:

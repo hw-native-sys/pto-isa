@@ -12,7 +12,7 @@ Bind a Tile object to an on-chip physical address. In Manual mode, this is how t
 
 Without `TASSIGN`, the compiler/runtime assigns tile buffers automatically (Auto mode). With `TASSIGN`, the author overrides this assignment for Manual mode code.
 
-The physical address is interpreted by the tile buffer controller on the AI Core. The exact encoding and addressing scheme within the buffer space is implementation-defined.
+The physical address is interpreted by the tile buffer controller on the AI Core. On A2/A3, physical addresses are byte offsets within the declared memory space (UB, L0A, L0B, L0C, Bias, or FBuffer) and the controller routes each access to the appropriate physical buffer based on the address range. On A5, physical addresses follow the same byte-offset model but the address space may be larger (e.g., 256 KB UB vs. 192 KB on A2/A3); the controller similarly routes based on declared capacity and alignment boundaries. On the CPU simulator, addresses are validated against the same logical capacity/alignment model but resolve to heap allocations with no hardware routing.
 
 ## Syntax
 
@@ -177,4 +177,4 @@ void pingpong() {
 
 - Instruction set overview: [Sync And Config](../../sync-and-config.md)
 - Previous op in instruction set: [pto.tsync](./tsync.md)
-- Next op in instruction set: [pto.tsettf32mode](./tsettf32mode.md)
+- Next op in instruction set: [pto.settf32mode](./settf32mode.md)

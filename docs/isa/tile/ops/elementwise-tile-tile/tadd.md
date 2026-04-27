@@ -12,7 +12,7 @@ For each element `(i, j)` in the destination tile's valid region:
 
 $$ \mathrm{dst}_{i,j} = \mathrm{src0}_{i,j} + \mathrm{src1}_{i,j} $$
 
-Only the destination tile's valid region defines the iteration domain. Source tiles are read lane-by-lane at the same `(i, j)` coordinates; source tiles whose valid region does not cover `(i, j)` produce implementation-defined values at those lanes.
+Only the destination tile's valid region defines the iteration domain. Source tiles are read lane-by-lane at the same `(i, j)` coordinates; source tiles whose valid region does not cover `(i, j)` read all-one-bits on A2/A3 and all-one-bits on A5 (both platforms fill out-of-region lanes with 0xFF pattern in the vector register file before the ALU reads them).
 
 ## Syntax
 
@@ -87,7 +87,7 @@ None beyond producing the destination tile. Does not implicitly fence unrelated 
 
 - **Type match**: All three tiles (`src0`, `src1`, `dst`) MUST have identical element types.
 - **Layout**: Both source tiles and the destination tile MUST have compatible layouts. See the TileType–Layout compatibility table in [Tiles and Valid Regions](../../../programming-model/tiles-and-valid-regions.md).
-- **Valid region**: The iteration domain is `dst.GetValidRow()` × `dst.GetValidCol()`. Source tiles with smaller valid regions yield implementation-defined values outside their valid region.
+- **Valid region**: The iteration domain is `dst.GetValidRow()` × `dst.GetValidCol()`. Source tiles with smaller valid regions read all-one-bits (0xFF) on A2/A3 and all-one-bits (0xFF) on A5 for lanes outside their valid region.
 - **TileType**: The destination tile's TileType determines which pipelines execute the operation. See [Tiles and Valid Regions](../../../programming-model/tiles-and-valid-regions.md) for TileType constraints.
 
 ## Exceptions
@@ -213,6 +213,6 @@ pto.tadd ins(%src0, %src1 : !pto.tile_buf<f32, 16, 16>, !pto.tile_buf<f32, 16, 1
 - Instruction set overview: [Elementwise Tile Tile](../../elementwise-tile-tile.md)
 - Previous op in instruction set: (none)
 - Next op in instruction set: [pto.tabs](./tabs.md)
-- Instruction set: [Tile Instructions](../../../instruction-surfaces/tile-instructions.md)
+- Instruction set: [Tile Instructions](../../../instruction-families/tile-families.md)
 - Type system: [Type System](../../../state-and-types/type-system.md)
 - Valid regions: [Tiles and Valid Regions](../../../programming-model/tiles-and-valid-regions.md)

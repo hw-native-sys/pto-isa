@@ -166,5 +166,5 @@ void vector_add(Ptr<ub_space_t, ub_t> ub_a, Ptr<ub_space_t, ub_t> ub_b,
 
 - 指令集总览：[二元向量操作](../../binary-vector-ops_zh.md)
 - 下一条指令：[pto.vsub](./vsub_zh.md)
-- 向量指令总览：[向量指令面](../../../instruction-surfaces/vector-instructions_zh.md)
+- 向量指令总览：[向量指令面](../../README_zh.md)
 - 类型系统：[类型系统](../../../state-and-types/type-system_zh.md)

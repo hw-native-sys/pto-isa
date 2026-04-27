@@ -10,7 +10,7 @@
 
 ### TEXTRACT
 
-该指令的详细介绍请见[isa/TEXTRACT](../isa/TEXTRACT_zh.md)
+该指令的详细介绍请见[isa/TEXTRACT](../isa/tile/ops/layout-and-rearrangement/textract_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -28,7 +28,7 @@ pto.textract ins(%src, %idxrow, %idxcol : !pto.tile_buf<...>, dtype, dtype) outs
 
 ### TEXTRACT_FP
 
-该指令的详细介绍请见[isa/TEXTRACT_FP](../isa/TEXTRACT_FP_zh.md)
+该指令的详细介绍请见[isa/TEXTRACT_FP](../isa/tile/ops/layout-and-rearrangement/textract_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -62,7 +62,7 @@ pto.timg2col ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 
 ### TINSERT
 
-该指令的详细介绍请见[isa/TINSERT](../isa/TINSERT_zh.md)
+该指令的详细介绍请见[isa/TINSERT](../isa/tile/ops/layout-and-rearrangement/tinsert_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -80,7 +80,7 @@ pto.tinsert ins(%src[%r0, %r1] : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<.
 
 ### TINSERT_FP
 
-该指令的详细介绍请见[isa/TINSERT_FP](../isa/TINSERT_FP_zh.md)
+该指令的详细介绍请见[isa/TINSERT_FP](../isa/tile/ops/layout-and-rearrangement/tinsert_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -98,7 +98,7 @@ pto.tinsert_fp ins(%src, %fp, %idxrow, %idxcol : !pto.tile_buf<...>, !pto.tile_b
 
 ### TFILLPAD
 
-该指令的详细介绍请见[isa/TFILLPAD](../isa/TFILLPAD_zh.md)
+该指令的详细介绍请见[isa/TFILLPAD](../isa/tile/ops/layout-and-rearrangement/tfillpad_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -116,7 +116,7 @@ pto.tfillpad ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 
 ### TFILLPAD_INPLACE
 
-该指令的详细介绍请见[isa/TFILLPAD_INPLACE](../isa/TFILLPAD_INPLACE_zh.md)
+该指令的详细介绍请见[isa/TFILLPAD_INPLACE](../isa/tile/ops/layout-and-rearrangement/tfillpad-inplace_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -134,7 +134,7 @@ pto.tfillpad_inplace ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<..
 
 ### TFILLPAD_EXPAND
 
-该指令的详细介绍请见[isa/TFILLPAD_EXPAND](../isa/TFILLPAD_EXPAND_zh.md)
+该指令的详细介绍请见[isa/TFILLPAD_EXPAND](../isa/tile/ops/layout-and-rearrangement/tfillpad-expand_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -152,7 +152,7 @@ pto.tfillpad_expand ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...
 
 ### TMOV
 
-该指令的详细介绍请见[isa/TMOV](../isa/TMOV_zh.md)
+该指令的详细介绍请见[isa/TMOV](../isa/tile/ops/layout-and-rearrangement/tmov_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -170,7 +170,7 @@ pto.tmov ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 
 ### TMOV_FP
 
-该指令的详细介绍请见[isa/TMOV_FP](../isa/TMOV_FP_zh.md)
+该指令的详细介绍请见[isa/TMOV_FP](../isa/tile/ops/layout-and-rearrangement/tmov_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -188,7 +188,7 @@ pto.tmov.fp ins(%src, %fp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : 
 
 ### TRESHAPE
 
-该指令的详细介绍请见[isa/TRESHAPE](../isa/TRESHAPE_zh.md)
+该指令的详细介绍请见[isa/TRESHAPE](../isa/tile/ops/layout-and-rearrangement/treshape_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -206,7 +206,7 @@ pto.treshape ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 
 ### TTRANS
 
-该指令的详细介绍请见[isa/TTRANS](../isa/TTRANS_zh.md)
+该指令的详细介绍请见[isa/TTRANS](../isa/tile/ops/layout-and-rearrangement/ttrans_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -222,7 +222,7 @@ pto.ttrans ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 
 ### TIMG2COL
 
-该指令的详细介绍请见[isa/TIMG2COL](../isa/TIMG2COL_zh.md)
+该指令的详细介绍请见[isa/TIMG2COL](../isa/tile/ops/layout-and-rearrangement/timg2col_zh.md)
 
 **AS Level 1 (SSA)：**
 

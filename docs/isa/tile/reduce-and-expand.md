@@ -271,4 +271,4 @@ Tests are in `tests/costmodel/trowsum_kernel.cpp`, `tcolsum_kernel.cpp`, etc. Va
 ## See Also
 
 - [Tile instruction set](../instruction-families/tile-families.md) — Instruction set overview
-- [Tile instruction set](../instruction-surfaces/tile-instructions.md) — Instruction Set description
+- [Tile instruction set](../instruction-families/tile-families.md) — Instruction Set description

@@ -10,7 +10,7 @@ This document describes complex operations including sorting, gathering, quantiz
 
 ### TPRINT
 
-For detailed instruction documentation, see [isa/TPRINT](../isa/TPRINT.md)
+For detailed instruction documentation, see [isa/TPRINT](../isa/tile/ops/irregular-and-complex/tprint.md)
 
 
 **AS Level 1 (SSA):**
@@ -27,7 +27,7 @@ pto.tprint ins(%src : !pto.tile_buf<...> | !pto.partition_tensor_view<MxNxdtype>
 
 ### TMRGSORT
 
-For detailed instruction documentation, see [isa/TMRGSORT](../isa/TMRGSORT.md)
+For detailed instruction documentation, see [isa/TMRGSORT](../isa/tile/ops/irregular-and-complex/tmrgsort.md)
 
 
 **AS Level 1 (SSA):**
@@ -48,7 +48,7 @@ outs(%dst, %executed : !pto.tile_buf<...>, vector<4xi16>)
 
 ### TSORT32
 
-For detailed instruction documentation, see [isa/TSORT32](../isa/TSORT32.md)
+For detailed instruction documentation, see [isa/TSORT32](../isa/tile/ops/irregular-and-complex/tsort32.md)
 
 **AS Level 1 (SSA):**
 ```text
@@ -64,7 +64,7 @@ pto.tsort32 ins(%src : !pto.tile_buf<...>) outs(%dst, %idx : !pto.tile_buf<...>,
 
 ### TGATHER
 
-For detailed instruction documentation, see [isa/TGATHER](../isa/TGATHER.md)
+For detailed instruction documentation, see [isa/TGATHER](../isa/tile/ops/irregular-and-complex/tgather.md)
 
 
 **AS Level 1 (SSA):**
@@ -83,7 +83,7 @@ pto.tgather ins(%src, {maskPattern = #pto.mask_pattern<P0101>} : !pto.tile_buf<.
 
 ### TCI
 
-For detailed instruction documentation, see [isa/TCI](../isa/TCI.md)
+For detailed instruction documentation, see [isa/TCI](../isa/tile/ops/irregular-and-complex/tci.md)
 
 
 **AS Level 1 (SSA):**
@@ -100,7 +100,7 @@ pto.tci ins(%scalar {descending = false} : dtype) outs(%dst : !pto.tile_buf<...>
 
 ### TTRI
 
-For detailed instruction documentation, see [isa/TTRI](../isa/TTRI.md)
+For detailed instruction documentation, see [isa/TTRI](../isa/tile/ops/irregular-and-complex/ttri.md)
 
 
 **AS Level 1 (SSA):**
@@ -117,7 +117,7 @@ pto.ttri ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : 
 
 ### TRANDOM
 
-For detailed instruction documentation, see [isa/TRANDOM](../isa/TRANDOM.md)
+For detailed instruction documentation, see [isa/TRANDOM](../isa/tile/ops/irregular-and-complex/trandom.md)
 
 
 **AS Level 1 (SSA):**
@@ -134,7 +134,7 @@ pto.trandom ins(%key, %counter {rounds = 10} : dtype) outs(%dst : !pto.tile_buf<
 
 ### TPARTADD
 
-For detailed instruction documentation, see [isa/TPARTADD](../isa/TPARTADD.md)
+For detailed instruction documentation, see [isa/TPARTADD](../isa/tile/ops/irregular-and-complex/tpartadd.md)
 
 
 **AS Level 1 (SSA):**
@@ -151,7 +151,7 @@ pto.tpartadd ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%ds
 
 ### TPARTMUL
 
-For detailed instruction documentation, see [isa/TPARTMUL](../isa/TPARTMUL.md)
+For detailed instruction documentation, see [isa/TPARTMUL](../isa/tile/ops/irregular-and-complex/tpartmul.md)
 
 
 **AS Level 1 (SSA):**
@@ -168,7 +168,7 @@ pto.tpartmul ins(%src0, %src1 : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<..
 
 ### TPARTMAX
 
-For detailed instruction documentation, see [isa/TPARTMAX](../isa/TPARTMAX.md)
+For detailed instruction documentation, see [isa/TPARTMAX](../isa/tile/ops/irregular-and-complex/tpartmax.md)
 
 
 **AS Level 1 (SSA):**
@@ -185,7 +185,7 @@ pto.tpartmax ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%ds
 
 ### TPARTMIN
 
-For detailed instruction documentation, see [isa/TPARTMIN](../isa/TPARTMIN.md)
+For detailed instruction documentation, see [isa/TPARTMIN](../isa/tile/ops/irregular-and-complex/tpartmin.md)
 
 
 **AS Level 1 (SSA):**
@@ -236,7 +236,7 @@ pto.tpartargmin ins(%src0Val, %src1Val, %src0Idx, %src1Idx : !pto.tile_buf<...>,
 
 ### TGATHERB
 
-For detailed instruction documentation, see [isa/TGATHERB](../isa/TGATHERB.md)
+For detailed instruction documentation, see [isa/TGATHERB](../isa/tile/ops/irregular-and-complex/tgatherb.md)
 
 
 **AS Level 1 (SSA):**
@@ -253,7 +253,7 @@ pto.tgatherb ins(%src, %offsets : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%
 
 ### TSCATTER
 
-For detailed instruction documentation, see [isa/TSCATTER](../isa/TSCATTER.md)
+For detailed instruction documentation, see [isa/TSCATTER](../isa/tile/ops/irregular-and-complex/tscatter.md)
 
 
 **AS Level 1 (SSA):**
@@ -270,7 +270,7 @@ pto.tscatter ins(%src, %idx : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst 
 
 ### TQUANT
 
-For detailed instruction documentation, see [isa/TQUANT](../isa/TQUANT.md)
+For detailed instruction documentation, see [isa/TQUANT](../isa/tile/ops/irregular-and-complex/tquant.md)
 
 
 **AS Level 1 (SSA):**

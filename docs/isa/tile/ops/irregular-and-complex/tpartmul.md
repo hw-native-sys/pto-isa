@@ -4,11 +4,11 @@
 
 ## Summary
 
-Partial elementwise multiply with implementation-defined handling of mismatched valid regions.
+Partial elementwise multiply with handling of mismatched valid regions. On A2/A3 and A5, when only one input is valid at an element, the result copies that input value; on the CPU simulator, the same behavior applies.
 
 ## Mechanism
 
-Performs elementwise multiplication over the destination valid region. When both `src0` and `src1` are valid at an element, the result is their product; when only one input is valid there, the result copies that input value. Handling of other mismatched-validity cases is implementation-defined. It belongs to the tile instructions and carries architecture-visible behavior that is not reducible to a plain elementwise compute pattern.
+Performs elementwise multiplication over the destination valid region. When both `src0` and `src1` are valid at an element, the result is their product; when only one input is valid there, the result copies that input value. On A2/A3 and A5, when neither input is valid at an element, the result is undefined; on the CPU simulator, the same behavior applies. It belongs to the tile instructions and carries architecture-visible behavior that is not reducible to a plain elementwise compute pattern.
 
 For each element `(i, j)` in the destination valid region:
 
@@ -105,7 +105,7 @@ No architectural side effects beyond producing the destination tile. Does not im
 
 ## Target-Profile Restrictions
 
-- Handling of any validity pattern not explicitly listed above is implementation-defined.
+- On A2/A3 and A5, handling of validity patterns not explicitly listed above results in undefined behavior; on the CPU simulator, the same behavior applies.
 
 ### A2A3 implementation checks
 

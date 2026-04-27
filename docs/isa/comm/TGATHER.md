@@ -1,11 +1,10 @@
-﻿# TGATHER
+# pto.tgather
 
 ## Introduction
 
 Gather operation: the calling NPU (root) collects data from all ranks in the parallel group and concatenates the results along **DIM_3** (row dimension) into a local output buffer.
 
-
-Only the root needs to execute `TGATHER`. Non-root ranks only need to ensure their source buffers are ready and remain valid for the duration of the operation. Calling `TGATHER` on non-root ranks is undefined behavior.
+Only the root needs to execute `pto.tgather`. Non-root ranks only need to ensure their source buffers are ready and remain valid for the duration of the operation. Calling `pto.tgather` on non-root ranks is undefined behavior.
 
 **Large Tile Support**: When the GlobalTensor exceeds the UB tile capacity in rows and/or columns, the transfer is automatically chunked via 2D sliding — the same mechanism used by other PTO-COMM instructions.
 
@@ -19,13 +18,14 @@ The destination tensor has shape $(D_0, D_1, D_2, N \times H, W)$.
 
 ## Assembly Syntax
 
-PTO-AS form: see [PTO-AS Specification](../../assembly/PTO-AS.md).
+PTO-AS form: see [Assembly Spelling And Operands](../syntax-and-operands/assembly-model.md).
 
 Synchronous form:
 
 ```text
-tgather %group, %dst : (!pto.group<...>, !pto.memref<...>)
+pto.tgather %group, %dst : (!pto.group<...>, !pto.memref<...>)
 ```
+
 Lowering introduces UB staging tile(s) for the GM→UB→GM data path; the C++ intrinsic requires explicit `stagingTileData` (or `pingTile` / `pongTile`) operand(s).
 
 ## C++ Intrinsic
@@ -35,13 +35,13 @@ Declared in `include/pto/comm/pto_comm_inst.hpp`:
 ```cpp
 // Basic gather (single staging tile)
 template <typename ParallelGroupType, typename GlobalDstData, typename TileData, typename... WaitEvents>
-PTO_INST RecordEvent TGATHER(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
-                             TileData &stagingTileData, WaitEvents&... events);
+PTO_INST RecordEvent GATHER(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
+                            TileData &stagingTileData, WaitEvents&... events);
 
 // Ping-pong gather (double buffering with two staging tiles)
 template <typename ParallelGroupType, typename GlobalDstData, typename TileData, typename... WaitEvents>
-PTO_INST RecordEvent TGATHER(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
-                             TileData &pingTile, TileData &pongTile, WaitEvents&... events);
+PTO_INST RecordEvent GATHER(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
+                            TileData &pingTile, TileData &pongTile, WaitEvents&... events);
 ```
 
 ## Constraints
@@ -90,7 +90,7 @@ void gather(__gm__ T* group_addrs[NRANKS], __gm__ T* result, int my_rank) {
     GResult dstG(result);
     TileT stagingTile(TILE_ROWS, TILE_COLS);
 
-    comm::TGATHER(group, dstG, stagingTile);
+    comm::GATHER(group, dstG, stagingTile);
 }
 ```
 
@@ -105,7 +105,6 @@ using namespace pto;
 
 template <typename T, int ROWS, int COLS, int TILE_ROWS, int TILE_COLS, int NRANKS>
 void gather_pingpong(__gm__ T* group_addrs[NRANKS], __gm__ T* result, int my_rank) {
-    // Tile can be smaller than the data in both dimensions
     using TileT = Tile<TileType::Vec, T, TILE_ROWS, TILE_COLS, BLayout::RowMajor, -1, -1>;
     using GPerRank = GlobalTensor<T, Shape<1,1,1,ROWS,COLS>,
                                   BaseShape2D<T, ROWS, COLS, Layout::ND>, Layout::ND>;
@@ -122,7 +121,6 @@ void gather_pingpong(__gm__ T* group_addrs[NRANKS], __gm__ T* result, int my_ran
     TileT pingTile(TILE_ROWS, TILE_COLS);
     TileT pongTile(TILE_ROWS, TILE_COLS);
 
-    // Ping-pong: overlaps TLOAD and TSTORE for better throughput
-    comm::TGATHER(group, dstG, pingTile, pongTile);
+    comm::GATHER(group, dstG, pingTile, pongTile);
 }
 ```

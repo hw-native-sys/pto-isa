@@ -28,8 +28,8 @@
 
 ## 相关页面
 
-- [向量指令集](../instruction-surfaces/vector-instructions_zh.md)
-- [向量指令族](../instruction-families/vector-families_zh.md)
+- [向量指令集](README_zh.md)
+- [向量指令族](README_zh.md)
 - [指令描述格式](../reference/format-of-instruction-descriptions_zh.md)
 
 ## 来源与时序披露

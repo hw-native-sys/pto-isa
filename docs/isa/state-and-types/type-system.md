@@ -68,7 +68,7 @@ Tile buffer SSA type (see [Tiles And Valid Regions](../programming-model/tiles-a
 
 ## NaN and Inf Behavior
 
-For floating-point types, PTO follows IEEE 754 semantics with the following implementation-defined variation points:
+For floating-point types, PTO follows IEEE 754 semantics with the following hardware-specific variation points:
 
 | Behavior | Rule |
 |----------|------|
@@ -78,7 +78,11 @@ For floating-point types, PTO follows IEEE 754 semantics with the following impl
 | Denormalized numbers | Hardware may flush denormals to zero (FTZ behavior) |
 | Rounding | Controlled by `rnd` attribute: `rne` (default), `rz`, `rp`, `rm` |
 
-The FTZ (flush-to-zero) behavior for denormals is **implementation-defined** — the manual does not mandate a specific choice. The `rnd` attribute allows control over rounding direction for operations that change exponent range (e.g., `vcvt` between f16 and f32).
+The FTZ (flush-to-zero) behavior for denormals is **hardware-specific**:
+
+- **A2/A3**: Denormals are flushed to zero by default. Hardware does not generate subnormal results during arithmetic; operands that are denormal are treated as zero.
+- **A5**: Denormals are flushed to zero by default. The `settf32mode`/`settf32mode` instructions can modify this behavior on A5-class targets.
+- **CPU simulator**: Denormals may be preserved or flushed depending on the host CPU's SSE/AVX floating-point configuration; behavior is not guaranteed to match the hardware targets.
 
 ## Type Conversion Rules
 
@@ -100,7 +104,7 @@ The FTZ (flush-to-zero) behavior for denormals is **implementation-defined** —
 | Widening (e.g., i8 → i16) | Zero/_sign extend | Zero-extend for unsigned; sign-extend for signed |
 | Narrowing (e.g., i16 → i8) | Truncation | Truncate high bits; may lose significant bits |
 | i32 → f32 | Conversion | Exact for values in [-2^24, 2^24]; may lose precision outside |
-| f32 → i32 | Conversion | Truncates toward zero; may overflow (implementation-defined) |
+| f32 → i32 | Conversion | Truncates toward zero; on overflow, result is undefined behavior on A2/A3 and A5 (saturates on CPU simulator) |
 
 ### Between Float and Integer
 

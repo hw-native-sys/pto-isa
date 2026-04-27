@@ -170,5 +170,5 @@ void exp_vector(VReg<64, float>& dst, const VReg<64, float>& src, Mask<64>& mask
 - 指令集总览：[一元向量操作](../../unary-vector-ops_zh.md)
 - 上一条指令：[pto.vneg](./vneg_zh.md)
 - 下一条指令：[pto.vln](./vln_zh.md)
-- 向量指令总览：[向量指令面](../../../instruction-surfaces/vector-instructions_zh.md)
+- 向量指令总览：[向量指令面](../../README_zh.md)
 - 类型系统：[类型系统](../../../state-and-types/type-system_zh.md)

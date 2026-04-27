@@ -545,21 +545,21 @@ void measure_fusion_benefit() {
   msprof_start();
   run_unfused_kernels();
   auto metrics_unfused = msprof_stop();
-  
+
   // 2. 测量融合后
   msprof_start();
   run_fused_kernel();
   auto metrics_fused = msprof_stop();
-  
+
   // 3. 分析收益
   printf("Memory access reduction: %.1f%%\n",
-         100.0 * (1 - metrics_fused.memory_bytes / 
+         100.0 * (1 - metrics_fused.memory_bytes /
                       metrics_unfused.memory_bytes));
-  
+
   printf("Kernel launch reduction: %d → %d\n",
          metrics_unfused.num_kernels,
          metrics_fused.num_kernels);
-  
+
   printf("Overall speedup: %.2fx\n",
          metrics_unfused.time / metrics_fused.time);
 }

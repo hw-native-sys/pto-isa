@@ -1,4 +1,4 @@
-﻿# TNOTIFY
+# pto.tnotify
 
 ## Introduction
 
@@ -19,8 +19,8 @@ $$ \mathrm{signal}^{\mathrm{remote}} \mathrel{+}= \mathrm{value} \quad (\text{at
 Textual spelling is defined by the PTO ISA syntax-and-operands pages.
 
 ```text
-tnotify %signal_remote, %value {op = #pto.notify_op<Set>} : (!pto.memref<i32>, i32)
-tnotify %signal_remote, %value {op = #pto.notify_op<AtomicAdd>} : (!pto.memref<i32>, i32)
+pto.tnotify %signal_remote, %value {op = #pto.notify_op<Set>} : (!pto.memref<i32>, i32)
+pto.tnotify %signal_remote, %value {op = #pto.notify_op<AtomicAdd>} : (!pto.memref<i32>, i32)
 ```
 
 ## C++ Intrinsic
@@ -29,7 +29,7 @@ Declared in `include/pto/comm/pto_comm_inst.hpp`:
 
 ```cpp
 template <typename GlobalSignalData, typename... WaitEvents>
-PTO_INST void TNOTIFY(GlobalSignalData &dstSignalData, int32_t value, NotifyOp op, WaitEvents&... events);
+PTO_INST void NOTIFY(GlobalSignalData &dstSignalData, int32_t value, NotifyOp op, WaitEvents&... events);
 ```
 
 ## Constraints
@@ -56,7 +56,7 @@ void notify_set(__gm__ int32_t* remote_signal) {
     comm::Signal sig(remote_signal);
 
     // Set remote signal to 1
-    comm::TNOTIFY(sig, 1, comm::NotifyOp::Set);
+    comm::NOTIFY(sig, 1, comm::NotifyOp::Set);
 }
 ```
 
@@ -71,7 +71,7 @@ void atomic_increment(__gm__ int32_t* remote_counter) {
     comm::Signal counter(remote_counter);
 
     // Atomically add 1 to remote counter
-    comm::TNOTIFY(counter, 1, comm::NotifyOp::AtomicAdd);
+    comm::NOTIFY(counter, 1, comm::NotifyOp::AtomicAdd);
 }
 ```
 
@@ -87,13 +87,13 @@ void producer(__gm__ int32_t* remote_flag) {
     // ... produce data ...
 
     comm::Signal flag(remote_flag);
-    comm::TNOTIFY(flag, 1, comm::NotifyOp::Set);
+    comm::NOTIFY(flag, 1, comm::NotifyOp::Set);
 }
 
 // Consumer: wait for data
 void consumer(__gm__ int32_t* local_flag) {
     comm::Signal flag(local_flag);
-    comm::TWAIT(flag, 1, comm::WaitCmp::EQ);
+    comm::WAIT(flag, 1, comm::WaitCmp::EQ);
 
     // ... consume data ...
 }

@@ -4,27 +4,119 @@
 
 ## Summary
 
-Move/copy between tiles, optionally applying implementation-defined conversion modes.
+`TMOV` copies or transforms tile data between tiles. It is the workhorse for tile-to-tile data movement, accumulator-to-vector conversion, and fix-pipe quantization paths.
+
+Two variants are documented here:
+
+| Variant | Suffix | Description | Typical Use |
+|---------|---------|-------------|-------------|
+| Standard move | *(none)* | Direct tile-to-tile copy or conversion | Vec→Vec, Mat→Left/Right, Acc→Mat |
+| Fix-pipe move | `_fp` | Move through fix-pipe quantization path | Acc→Vec/int8_t with scaling |
 
 ## Mechanism
 
-Move/copy between tiles, optionally applying implementation-defined conversion modes selected by template parameters and overloads.
+Conceptually copies or transforms elements from `src` into `dst` over the valid region. Exact transformation depends on the selected mode and variant.
 
-`TMOV` is used for:
-
-- Vec -> Vec moves
-- Mat -> Left/Right/Bias/Scaling/Scale(Microscaling) moves (target-dependent)
-- Acc -> Mat/Vec moves (target-dependent) It belongs to the tile instructions and carries architecture-visible behavior that is not reducible to a plain elementwise compute pattern.
-
-Conceptually copies or transforms elements from `src` into `dst` over the valid region. Exact transformation depends on the selected mode and target.
-
-For the pure copy case:
+**Standard move (pure copy case):**
 
 $$ \mathrm{dst}_{i,j} = \mathrm{src}_{i,j} $$
 
+**Fix-pipe variant** (`TMOV_FP`): Routes through the hardware fix-pipe quantization pipeline, applying conversion configured by the `fp` sideband tile:
+
+$$ \mathrm{dst}_{i,j} = \mathrm{Convert}\!\left(\mathrm{src}_{i,j};\ \mathrm{fp}\right) $$
+
+## Variants
+
+### Variant 1: Standard Move
+
+`TMOV(dst, src)` — plain tile-to-tile copy with optional ReLU mode.
+
+### Variant 2: ReLU Move
+
+`TMOV<..., reluMode>(dst, src)` — copy with ReLU pre-processing.
+
+### Variant 3: Accumulator-to-Vector
+
+`TMOV<..., mode, reluMode>(dst, src)` — converts accumulator tile to vector tile with optional ReLU. The `mode` parameter selects the splitting strategy for multi-core configurations.
+
+### Variant 4: Vector-Quant Move
+
+`TMOV<..., FpTileData, mode, reluMode>(dst, src, fp)` — converts accumulator to vector through the fix-pipe quantization path. The `fp` tile carries scale factors.
+
+### Variant 5: Scalar-Quant Move
+
+`TMOV<..., reluMode>(dst, src, preQuantScalar)` — converts accumulator with a scalar quantization parameter.
+
+### Variant 6: Fix-Pipe Move (`TMOV_FP`)
+
+`TMOV_FP(dst, src, fp)` — explicit fix-pipe move. Same semantics as the vector-quant move but named explicitly for the assembly spelling.
+
+## AccToVecMode Reference
+
+The `AccToVecMode` parameter controls how accumulator tiles are split and transferred to vector tiles, especially in multi-core (dual-mode) configurations:
+
+| Mode | Meaning | Used When |
+|------|---------|----------|
+| `SingleModeVec0` | Transfer to vector 0 only | 1-Cube, 1-Vec configurations |
+| `SingleModeVec1` | Transfer to vector 1 only | Single-mode targeting Vec1 |
+| `DualModeSplitM` | Split accumulator rows evenly across two vectors | 1-Cube, 2-Vec with row-wise split |
+| `DualModeSplitN` | Split accumulator columns across two vectors | 1-Cube, 2-Vec with column-wise split |
+
+## Supported Tile-Type Pairs
+
+### A2/A3
+
+| Source Type | Destination Type | Notes |
+|------------|----------------|-------|
+| `TileType::Mat` | `TileType::Left/Right/Bias/Scaling` | MX block-format extraction |
+| `TileType::Vec` | `TileType::Vec` | Direct copy |
+| `TileType::Acc` | `TileType::Mat` | Accumulator-to-matrix conversion |
+
+**Mat→Bias restrictions:**
+- Supported dtype pairs: `int32_t → int32_t`, `float → float`, `half → float`
+- Source row must be `1`
+- `SrcTileData::Cols * sizeof(SrcType)` must be aligned to 64 bytes
+
+**Mat→Scaling restrictions:**
+- Destination dtype must be `uint64_t`
+- Source row must be `1`
+- `SrcTileData::Cols * sizeof(SrcType)` must be aligned to 128 bytes
+
+### A5
+
+In addition to A2/A3 pairs:
+
+| Source Type | Destination Type | Notes |
+|------------|----------------|-------|
+| `TileType::Mat` | `TileType::Left/Right/Bias/Scaling/ScaleLeft/ScaleRight` | Extended MX formats |
+| `TileType::Vec` | `TileType::Mat` | Vector-to-matrix conversion |
+| `TileType::Acc` | `TileType::Vec` | Accumulator-to-vector with mode selection |
+| `TileType::Acc` | `TileType::Mat` | Accumulator-to-matrix |
+
+**A5 Mat→Bias:**
+- Supported dtype pairs: `int32_t → int32_t`, `float → float`, `half → float`, `bfloat16_t → float`
+- `DstTileData::Cols * sizeof(DstType)` must be aligned to 64 bytes
+- Bias-table footprint ≤ 4096 bytes
+
+**A5 Mat→Scaling:**
+- `DstTileData::Cols * sizeof(DstType)` must be aligned to 128 bytes
+- Fix-pipe-buffer footprint ≤ 4096 bytes
+
+**A5 Acc→Vec:**
+- `mode` selects `SingleModeVec0`, `SingleModeVec1`, `DualModeSplitM`, `DualModeSplitN`
+- Dual-mode requires `QuantMode_t::NoQuant`
+- Dual-mode does not support the `nz2dn` path
+- `dstStride * sizeof(dstType)` must be a multiple of 32 bytes
+
 ## Syntax
 
-Textual spelling is defined by the PTO ISA syntax-and-operands pages.
+### PTO Assembly Form
+
+Standard move:
+
+```text
+%dst = tmov.s2d %src : !pto.tile<...> -> !pto.tile<...>
+```
 
 The PTO AS design recommends splitting `TMOV` into a small set of instructions:
 
@@ -37,207 +129,172 @@ The PTO AS design recommends splitting `TMOV` into a small set of instructions:
 %v1    = tmov.v2v %v0   : !pto.tile<...> -> !pto.tile<...>
 ```
 
-### AS Level 1 (SSA)
+Fix-pipe move:
 
 ```text
+%dst = tmov.fp %src, %fp : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
+```
+
+### AS Level 1 (SSA)
+
+```mlir
+// Standard
 %dst = pto.tmov.s2d %src  : !pto.tile<...> -> !pto.tile<...>
+
+// Fix-pipe
+%dst = pto.tmov.fp %src, %fp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
 ### AS Level 2 (DPS)
 
-```text
+```mlir
+// Standard
 pto.tmov ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+
+// Fix-pipe
+pto.tmov.fp ins(%src, %fp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp` and `include/pto/common/constants.hpp`:
-
 ```cpp
+#include <pto/pto-inst.hpp>
+using namespace pto;
+
+// Variant 1: Plain move
 template <typename DstTileData, typename SrcTileData, typename... WaitEvents>
 PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, WaitEvents &... events);
 
+// Variant 2: ReLU move
 template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode, typename... WaitEvents>
 PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, WaitEvents &... events);
 
-template <typename DstTileData, typename SrcTileData, AccToVecMode mode, ReluPreMode reluMode = ReluPreMode::NoRelu,
-          typename... WaitEvents>
+// Variant 3: Accumulator-to-vector with mode
+template <typename DstTileData, typename SrcTileData, AccToVecMode mode,
+          ReluPreMode reluMode = ReluPreMode::NoRelu, typename... WaitEvents>
 PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, WaitEvents &... events);
 
-template <typename DstTileData, typename SrcTileData, typename FpTileData, AccToVecMode mode,
-          ReluPreMode reluMode = ReluPreMode::NoRelu, typename... WaitEvents>
+// Variant 4: Vector-quant (fix-pipe) move
+template <typename DstTileData, typename SrcTileData, typename FpTileData,
+          AccToVecMode mode, ReluPreMode reluMode = ReluPreMode::NoRelu,
+          typename... WaitEvents>
 PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, FpTileData &fp, WaitEvents &... events);
 
-template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode = ReluPreMode::NoRelu,
-          typename... WaitEvents>
+// Variant 5: Scalar-quant move
+template <typename DstTileData, typename SrcTileData,
+          ReluPreMode reluMode = ReluPreMode::NoRelu, typename... WaitEvents>
 PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, uint64_t preQuantScalar, WaitEvents &... events);
 
-template <typename DstTileData, typename SrcTileData, AccToVecMode mode, ReluPreMode reluMode = ReluPreMode::NoRelu,
-          typename... WaitEvents>
+// Variant 5b: Scalar-quant with mode
+template <typename DstTileData, typename SrcTileData, AccToVecMode mode,
+          ReluPreMode reluMode = ReluPreMode::NoRelu, typename... WaitEvents>
 PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, uint64_t preQuantScalar, WaitEvents &... events);
+
+// Variant 6: Explicit fix-pipe move
+template <typename DstTileData, typename SrcTileData, typename FpTileData,
+          ReluPreMode reluMode = ReluPreMode::NoRelu, typename... WaitEvents>
+PTO_INST RecordEvent TMOV_FP(DstTileData &dst, SrcTileData &src, FpTileData &fp, WaitEvents &... events);
 ```
-
-## Inputs
-
-- `src` is the source tile.
-- `dst` names the destination tile. The operation iterates over dst's valid region.
-- `fp` (optional for TMOV_FP): auxiliary fix-pipe tile consumed by the backend FPC path.
-
-## Expected Outputs
-
-`dst` holds a copy or transformed version of `src`, with optional conversion applied (relu, quantization, etc.).
-
-## Side Effects
-
-No architectural side effects beyond producing the destination tile. Does not implicitly fence unrelated traffic.
 
 ## Constraints
 
-### General constraints / checks
+- **Shape**: `SrcTileData::Rows == DstTileData::Rows` and `SrcTileData::Cols == DstTileData::Cols`
+- **`reluMode`**: `ReluPreMode::{NoRelu, NormalRelu}`
+- **`mode`**: `AccToVecMode::{SingleModeVec0, SingleModeVec1, DualModeSplitM, DualModeSplitN}`
+- **`FpTileData::Loc`**: Must be `TileType::Scaling` on both A2/A3 and A5 (verified by `static_assert`)
+- **Vec→Vec**: Shape must match exactly
+- **Mat→Left/Right/Bias/Scaling**: Compile-time restricted by tile type
 
-- `TMOV` has these overload instruction sets:
-  - plain move: `TMOV(dst, src)`
-  - relu form: `TMOV<..., reluMode>(dst, src)`
-  - accumulator-to-vector form: `TMOV<..., mode, reluMode>(dst, src)`
-  - vector-quant form: `TMOV<..., FpTileData, mode, reluMode>(dst, src, fp)`
-  - scalar-quant form: `TMOV<..., reluMode>(dst, src, preQuantScalar)` and `TMOV<..., mode, reluMode>(dst, src, preQuantScalar)`
+## Common Patterns
 
-- `reluMode` is `ReluPreMode::{NoRelu, NormalRelu}`.
-
-- Shape must match: `SrcTileData::Rows == DstTileData::Rows` and `SrcTileData::Cols == DstTileData::Cols`.
-
-- Supported tile-type pairs are compile-time restricted to:
-  - `TileType::Mat -> TileType::Left/Right/Bias/Scaling`
-  - `TileType::Vec -> TileType::Vec`
-  - `TileType::Acc -> TileType::Mat`
-
-- For `TileType::Mat -> TileType::Bias`:
-  - supported source/destination dtype pairs are `int32_t -> int32_t`, `float -> float`, and `half -> float`
-  - source row must be `1`
-  - `SrcTileData::Cols * sizeof(SrcType)` must be aligned to `64` bytes
-
-- For `TileType::Mat -> TileType::Scaling`:
-  - destination dtype must equal source dtype and must be `uint64_t`
-  - source row must be `1`
-  - `SrcTileData::Cols * sizeof(SrcType)` must be aligned to `128` bytes
-
-- `CommonCheck()` requires:
-  - destination/source dtype must be identical
-  - supported element types are `int8_t`, `hifloat8_t`, `float8_e5m2_t`, `float8_e4m3_t`, `half`, `bfloat16_t`, `float`, `float4_e2m1x2_t`, `float4_e1m2x2_t`
-  - source layout must satisfy one of:
-    - `(SrcTileData::SFractal == SLayout::ColMajor && SrcTileData::isRowMajor)`
-    - `(SrcTileData::SFractal == SLayout::RowMajor && !SrcTileData::isRowMajor)`
-    - `SrcTileData::isRowMajor`
-
-- `CommonCheckMX()` for MX paths requires identical source/destination dtype and supports `float8_e8m0_t`.
-
-- For `TileType::Mat -> TileType::Bias`:
-  - supported dtype pairs are `int32_t -> int32_t`, `float -> float`, `half -> float`, `bfloat16_t -> float`
-  - source row must be `1`
-  - `DstTileData::Cols * sizeof(DstType)` must be aligned to `64` bytes
-  - bias-table footprint `DstTileData::Cols * sizeof(DstType)` must not exceed `4096` bytes
-
-- For `TileType::Mat -> TileType::Scaling`:
-  - source row must be `1`
-  - `DstTileData::Cols * sizeof(DstType)` must be aligned to `128` bytes
-  - fixpipe-buffer footprint `DstTileData::Cols * sizeof(DstType)` must not exceed `4096` bytes
-
-- For `TileType::Acc -> TileType::Vec`:
-  - `mode` selects `SingleModeVec0`, `SingleModeVec1`, `DualModeSplitM`, or `DualModeSplitN`
-  - dual-destination modes require `QuantMode_t::NoQuant`
-  - dual-destination modes do not support the `nz2dn` path
-  - destination stride must be non-zero and `dstStride * sizeof(dstType)` must be a multiple of `32` bytes
-
-- For `TileType::Acc -> TileType::Mat`:
-  - destination stride must be non-zero and `dstStride * sizeof(dstType)` must be a multiple of `32` bytes
-  - relu/scalar-quant/vector-quant forms are supported through the corresponding overloads
-
-## Exceptions
-
-- Illegal operand tuples, unsupported types, invalid layout combinations, or unsupported target-profile modes are rejected by the verifier or by the selected backend instruction set.
-- Programs must not rely on behavior outside the documented legal domain of this operation, even if one backend currently accepts it.
-
-## Target-Profile Restrictions
-
-- `mode` is `AccToVecMode::{SingleModeVec0, SingleModeVec1, DualModeSplitM, DualModeSplitN}`.
-
-### A2A3 implementation checks
-
-- For `TileType::Acc -> TileType::Mat`:
-  - additional `CheckTMovAccToMat<...>` compile-time checks are enforced
-  - plain/relu forms use cast pre-quant mode derived by `GetCastPreQuantMode<SrcDType, DstDType>()`
-  - scalar-quant forms use `GetScalarPreQuantMode<SrcDType, DstDType>()`
-  - vector-quant forms require an `FpTileData` operand with `FpTileData::Loc == TileType::Scaling`, and use `GetVectorPreQuantMode<SrcDType, DstDType>()`
-
-### A5 implementation checks
-
-- Supported paths include:
-  - `TileType::Mat -> TileType::Left/Right/Bias/Scaling/ScaleLeft/ScaleRight`
-  - `TileType::Vec -> TileType::Vec/TileType::Mat`
-  - `TileType::Acc -> TileType::Vec/TileType::Mat`
-  - specific `ND -> ZZ` and related internal path variants handled by the A5 implementation
-
-## Examples
-
-### Auto
+### Pattern 1: Vec-to-Vec Tile Copy
 
 ```cpp
-#include <pto/pto-inst.hpp>
-
-using namespace pto;
-
-void example_auto() {
-  using TileT = Tile<TileType::Vec, float, 16, 16>;
-  TileT src, dst;
-  TMOV(dst, src);
+// Copy one vector tile to another (e.g., for double-buffering)
+void tileCopy(TileT& dst, TileT& src) {
+    TMOV(dst, src);  // Straight copy
 }
 ```
 
-### Manual
+### Pattern 2: MX Block Extraction (GEMM Setup)
 
 ```cpp
-#include <pto/pto-inst.hpp>
+// Extract Left and Right block tiles from a matrix in NC1HWO layout
+using MatT = Tile<TileType::Mat, float, 64, 64, BLayout::RowMajor, 64, 64, SLayout::ColMajor>;
+using LeftT = TileLeft<float, 64, 64>;
+using RightT = TileRight<float, 64, 64>;
 
-using namespace pto;
+MatT mat;
+LeftT left;
+RightT right;
+TASSIGN(mat, 0x1000);
 
-void example_manual() {
-  using SrcT = Tile<TileType::Mat, float, 16, 16, BLayout::RowMajor, 16, 16, SLayout::ColMajor>;
-  using DstT = TileLeft<float, 16, 16>;
-  SrcT mat;
-  DstT left;
-  TASSIGN(mat, 0x1000);
-  TASSIGN(left, 0x2000);
-  TMOV(left, mat);
-}
+TMOV(left, mat);   // Mat → Left
+TMOV(right, mat);  // Mat → Right
 ```
 
-### Auto Mode
+### Pattern 3: Accumulator-to-Vector Conversion (Single Mode)
 
-```text
-# Auto mode: compiler/runtime-managed placement and scheduling.
-%dst = pto.tmov.s2d %src  : !pto.tile<...> -> !pto.tile<...>
+```cpp
+// Convert accumulator to vector in single-mode (1 Cube, 1 Vec)
+using AccT = TileAcc<float, 64, 128>;
+using VecT = Tile<TileType::Vec, float, 64, 128>;
+
+AccT acc;
+VecT vec;
+TASSIGN(acc, 0x1000);
+
+TMOV<VecT, AccT, AccToVecMode::SingleModeVec0>(vec, acc);
 ```
 
-### Manual Mode
+### Pattern 4: Dual-Mode Accumulator-to-Vector (GEMM with 2 Vectors)
 
-```text
-# Manual mode: bind resources explicitly before issuing the instruction.
-# Optional for tile operands:
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
-%dst = pto.tmov.s2d %src  : !pto.tile<...> -> !pto.tile<...>
+```cpp
+// Accumulator split across two vector cores (1 Cube, 2 Vec)
+using AccT = TileAcc<float, 64, 256>;
+using VecT = Tile<TileType::Vec, float, 64, 128>;  // Half-width per vector
+
+AccT acc;
+VecT vec0, vec1;
+TMOV<VecT, AccT, AccToVecMode::DualModeSplitN>(vec0, acc);  // Columns 0-127
+TMOV<VecT, AccT, AccToVecMode::DualModeSplitN>(vec1, acc);  // Columns 128-255
 ```
 
-### PTO Assembly Form
+### Pattern 5: Fix-Pipe Quantized Move (Production Inference)
 
-```text
-%dst = pto.tmov.s2d %src  : !pto.tile<...> -> !pto.tile<...>
-# AS Level 2 (DPS)
-pto.tmov ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+```cpp
+// Move accumulator through fix-pipe: float32 → int8_t with per-channel scaling
+using AccT = TileAcc<float, 32, 32>;
+using VecT = Tile<TileType::Vec, int8_t, 32, 32>;
+using FpT = Tile<TileType::Scaling, uint64_t, 1, 32>;
+
+AccT acc;
+VecT vec;
+FpT fp(32);  // 32 scale factors (one per output channel)
+TASSIGN(acc, 0x1000);
+TASSIGN(fp, 0x2000);
+
+TMOV_FP(vec, acc, fp);  // Quantize through fix-pipe
 ```
 
-## Related Ops / Instruction Set Links
+### Pattern 6: Bias Tile Extraction
 
-- Instruction set overview: [Layout And Rearrangement](../../layout-and-rearrangement.md)
-- Previous op in instruction set: [pto.tfillpad_expand](./tfillpad-expand.md)
-- Next op in instruction set: [pto.tmov_fp](./tmov-fp.md)
+```cpp
+// Extract a bias vector from a wider matrix (row=1 requirement)
+using MatT = Tile<TileType::Mat, float, 1, 64, BLayout::RowMajor, 1, 64, SLayout::ColMajor>;
+using BiasT = TileBias<float, 64>;
+
+MatT mat;
+BiasT bias;
+TASSIGN(mat, 0x3000);
+
+TMOV(bias, mat);  // Mat → Bias (row must be 1, width aligned to 64 bytes)
+```
+
+## See Also
+
+- [Layout And Rearrangement](../../layout-and-rearrangement.md)
+- [pto.tmov_fp](./tmov.md) — The fix-pipe variant (merged into this page; see Variant 6 above)
+- [pto.treshape](./treshape.md)
+- [pto.ttrans](./ttrans.md)
+- [Assembly Spelling And Operands](../../../syntax-and-operands/assembly-model.md)

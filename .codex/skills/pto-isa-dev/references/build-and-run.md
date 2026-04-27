@@ -39,6 +39,7 @@ python3 tests/run_cpu.py --demo flash_attn --verbose
 - The script auto-detects a suitable compiler.
 - BF16 CPU-SIM coverage requires a compiler with `std::bfloat16_t` support.
 - The fast CI smoke gate currently uses `tadd`; the full gate uses `tests/run_cpu_tests.sh`.
+- For pipe, split-lane, layout, or backend-template changes, pair the focused testcase with the matching review gate in [review-derived-guardrails.md](review-derived-guardrails.md).
 
 ## Costmodel
 
@@ -92,6 +93,17 @@ To keep work portable:
 - Treat A2/A3 and A5 as separate conformance targets, not just separate compile flags.
 - Use [docs/mkdocs/src/manual/12-backend-profiles-and-conformance.md](../../../../docs/mkdocs/src/manual/12-backend-profiles-and-conformance.md) plus [include/README.md](../../../../include/README.md) to decide whether a behavior is meant to be portable.
 
+## Regression Closure Checklist
+
+Before calling a targeted test addition complete:
+
+- the testcase directory exists and has its local `CMakeLists.txt`
+- the parent `CMakeLists.txt` registers the target
+- generated/golden data distinguishes the layouts or offsets under test
+- the gtest filter matches a real test name
+- stale interface names were searched with `rg` when an enum, overload, or public signature changed
+- backend-specific code has an A2/A3 or A5 smoke command when local hardware/sim access is available
+
 ## Documentation Build
 
 When you change docs, build them locally:
@@ -102,3 +114,9 @@ cmake --build build/docs --target pto_docs
 ```
 
 The generated site lands in `build/docs/site/`.
+
+For ISA manual taxonomy or bilingual navigation changes, prefer the stricter MkDocs path used in recent doc PRs when the local environment has it available:
+
+```bash
+python -m mkdocs build -f docs/mkdocs/mkdocs.yml --strict
+```

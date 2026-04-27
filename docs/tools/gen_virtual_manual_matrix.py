@@ -10,7 +10,7 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # --------------------------------------------------------------------------------
 
-"""Generate Appendix D instruction-family matrix pages from the ISA manifest.
+"""Generate an instruction-family matrix from the ISA manifest.
 
 This script is intentionally source-synchronized with:
 - docs/isa/manifest.yaml
@@ -30,8 +30,8 @@ from typing import Dict, Iterable, List, Tuple
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MANIFEST = REPO_ROOT / "docs" / "isa" / "manifest.yaml"
 DEFAULT_HEADER = REPO_ROOT / "include" / "pto" / "common" / "pto_instr.hpp"
-DEFAULT_OUT_EN = REPO_ROOT / "docs" / "mkdocs" / "src" / "manual" / "appendix-d-instruction-family-matrix.md"
-DEFAULT_OUT_ZH = REPO_ROOT / "docs" / "mkdocs" / "src" / "manual" / "appendix-d-instruction-family-matrix_zh.md"
+DEFAULT_OUT_EN = REPO_ROOT / "build" / "docs" / "generated" / "instruction-family-matrix.md"
+DEFAULT_OUT_ZH = REPO_ROOT / "build" / "docs" / "generated" / "instruction-family-matrix_zh.md"
 
 CATEGORY_ZH = {
     "Synchronization": "同步",
@@ -210,7 +210,7 @@ def write_or_check(path: Path, content: str, check: bool) -> List[str]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate Virtual ISA manual Appendix D matrix")
+    parser = argparse.ArgumentParser(description="Generate PTO ISA instruction-family matrix")
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--header", type=Path, default=DEFAULT_HEADER)
     parser.add_argument("--out-en", type=Path, default=DEFAULT_OUT_EN)

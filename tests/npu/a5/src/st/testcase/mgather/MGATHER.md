@@ -31,7 +31,7 @@ Indices are interpreted as linear element offsets into the source.
 
 ## Assembly Syntax
 
-PTO-AS form: see [PTO-AS Specification](../../../../../../../docs/assembly/PTO-AS.md).
+PTO-AS form: see [Assembly Spelling And Operands](../../../../../../../docs/isa/syntax-and-operands/assembly-model.md).
 
 Row-indexed gather:
 

@@ -14,9 +14,12 @@ exclude_docs: |
   /README_zh.md
   .claude/**
   .codex/**
+  agents/**
   AGENTS.md
   CONTRIBUTING.md
+  CONTRIBUTING_zh.md
   ReleaseNote.md
+  ReleaseNote_zh.md
   SECURITY.md
   SECURITY_zh.md
   all-pages.md
@@ -82,7 +85,7 @@ nav:
       - Introduction: docs/isa/introduction/what-is-pto-visa.md
       - Document Structure: docs/isa/introduction/document-structure.md
       - Goals Of PTO: docs/isa/introduction/goals-of-pto.md
-      - PTO ISA Version 1.0: docs/isa/introduction/pto-isa-version-1-0.md
+      - Current PTO ISA Scope: docs/isa/introduction/current-isa-scope.md
       - Scope And Boundaries: docs/isa/introduction/design-goals-and-boundaries.md
   - 2. Programming Model:
       - Tiles And Valid Regions: docs/isa/programming-model/tiles-and-valid-regions.md
@@ -104,30 +107,25 @@ nav:
       - Consistency Baseline: docs/isa/memory-model/consistency-baseline.md
       - Producer Consumer Ordering: docs/isa/memory-model/producer-consumer-ordering.md
   - 7. Instruction Set Overview:
-      - Overview: docs/isa/instruction-surfaces/README.md
-      - Tile Instructions: docs/isa/instruction-surfaces/tile-instructions.md
-      - Vector Instructions: docs/isa/instruction-surfaces/vector-instructions.md
-      - Scalar And Control Instructions: docs/isa/instruction-surfaces/scalar-and-control-instructions.md
-      - Other Instructions: docs/isa/instruction-surfaces/other-instructions.md
-  - 8. Instruction Set Contracts:
       - Overview: docs/isa/instruction-families/README.md
       - Tile Instruction Set: docs/isa/instruction-families/tile-families.md
       - Vector Instruction Set: docs/isa/instruction-families/vector-families.md
       - Scalar And Control Instruction Set: docs/isa/instruction-families/scalar-and-control-families.md
-      - Other Instruction Set: docs/isa/instruction-families/other-families.md
-  - 9. Tile Instruction Reference:
+      - Communication Instruction Set: docs/isa/instruction-families/communication-families.md
+      - System Scheduling Instruction Set: docs/isa/instruction-families/system-scheduling-families.md
+  - 8. Tile Instruction Reference:
           - Overview: docs/isa/tile/README.md
           - Sync And Config:
               - Instruction Set Contract: docs/isa/tile/sync-and-config.md
               - pto.tsync: docs/isa/tile/ops/sync-and-config/tsync.md
               - pto.tassign: docs/isa/tile/ops/sync-and-config/tassign.md
-              - pto.tsethf32mode: docs/isa/tile/ops/sync-and-config/tsethf32mode.md
-              - pto.tsettf32mode: docs/isa/tile/ops/sync-and-config/tsettf32mode.md
-              - pto.tsetfmatrix: docs/isa/tile/ops/sync-and-config/tsetfmatrix.md
-              - pto.tset_img2col_rpt: docs/isa/tile/ops/sync-and-config/tset-img2col-rpt.md
-              - pto.tset_img2col_padding: docs/isa/tile/ops/sync-and-config/tset-img2col-padding.md
-              - pto.tsubview: docs/isa/tile/ops/sync-and-config/tsubview.md
-              - pto.tget_scale_addr: docs/isa/tile/ops/sync-and-config/tget-scale-addr.md
+              - pto.talias: docs/isa/tile/ops/sync-and-config/talias.md
+              - pto.setfmatrix: docs/isa/tile/ops/sync-and-config/setfmatrix.md
+              - pto.settf32mode: docs/isa/tile/ops/sync-and-config/settf32mode.md
+              - pto.set_img2col_rpt: docs/isa/tile/ops/sync-and-config/set-img2col-rpt.md
+              - pto.set_img2col_padding: docs/isa/tile/ops/sync-and-config/set-img2col-padding.md
+              - pto.subview: docs/isa/tile/ops/sync-and-config/subview.md
+              - pto.get_scale_addr: docs/isa/tile/ops/sync-and-config/get-scale-addr.md
           - Elementwise Tile Tile:
               - Instruction Set Contract: docs/isa/tile/elementwise-tile-tile.md
               - pto.tadd: docs/isa/tile/ops/elementwise-tile-tile/tadd.md
@@ -162,6 +160,7 @@ nav:
           - Tile Scalar And Immediate:
               - Instruction Set Contract: docs/isa/tile/tile-scalar-and-immediate.md
               - pto.texpands: docs/isa/tile/ops/tile-scalar-and-immediate/texpands.md
+              - pto.taxpy: docs/isa/tile/ops/tile-scalar-and-immediate/taxpy.md
               - pto.tcmps: docs/isa/tile/ops/tile-scalar-and-immediate/tcmps.md
               - pto.tsels: docs/isa/tile/ops/tile-scalar-and-immediate/tsels.md
               - pto.tmins: docs/isa/tile/ops/tile-scalar-and-immediate/tmins.md
@@ -216,7 +215,6 @@ nav:
               - pto.tload: docs/isa/tile/ops/memory-and-data-movement/tload.md
               - pto.tprefetch: docs/isa/tile/ops/memory-and-data-movement/tprefetch.md
               - pto.tstore: docs/isa/tile/ops/memory-and-data-movement/tstore.md
-              - pto.tstore_fp: docs/isa/tile/ops/memory-and-data-movement/tstore-fp.md
               - pto.mgather: docs/isa/tile/ops/memory-and-data-movement/mgather.md
               - pto.mscatter: docs/isa/tile/ops/memory-and-data-movement/mscatter.md
           - Matrix And Matrix Vector:
@@ -232,15 +230,14 @@ nav:
           - Layout And Rearrangement:
               - Instruction Set Contract: docs/isa/tile/layout-and-rearrangement.md
               - pto.textract: docs/isa/tile/ops/layout-and-rearrangement/textract.md
-              - pto.textract_fp: docs/isa/tile/ops/layout-and-rearrangement/textract-fp.md
               - pto.timg2col: docs/isa/tile/ops/layout-and-rearrangement/timg2col.md
               - pto.tinsert: docs/isa/tile/ops/layout-and-rearrangement/tinsert.md
-              - pto.tinsert_fp: docs/isa/tile/ops/layout-and-rearrangement/tinsert-fp.md
               - pto.tfillpad: docs/isa/tile/ops/layout-and-rearrangement/tfillpad.md
               - pto.tfillpad_inplace: docs/isa/tile/ops/layout-and-rearrangement/tfillpad-inplace.md
               - pto.tfillpad_expand: docs/isa/tile/ops/layout-and-rearrangement/tfillpad-expand.md
               - pto.tmov: docs/isa/tile/ops/layout-and-rearrangement/tmov.md
-              - pto.tmov_fp: docs/isa/tile/ops/layout-and-rearrangement/tmov-fp.md
+              - pto.tconcat: docs/isa/tile/ops/layout-and-rearrangement/tconcat.md
+              - pto.tpack: docs/isa/tile/ops/layout-and-rearrangement/tpack.md
               - pto.treshape: docs/isa/tile/ops/layout-and-rearrangement/treshape.md
               - pto.ttrans: docs/isa/tile/ops/layout-and-rearrangement/ttrans.md
           - Irregular And Complex:
@@ -258,7 +255,10 @@ nav:
               - pto.tpartmax: docs/isa/tile/ops/irregular-and-complex/tpartmax.md
               - pto.tpartmin: docs/isa/tile/ops/irregular-and-complex/tpartmin.md
               - pto.tquant: docs/isa/tile/ops/irregular-and-complex/tquant.md
-  - 10. Vector ISA Reference:
+              - pto.tdequant: docs/isa/tile/ops/irregular-and-complex/tdequant.md
+              - pto.trandom: docs/isa/tile/ops/irregular-and-complex/trandom.md
+              - pto.thistogram: docs/isa/tile/ops/irregular-and-complex/thistogram.md
+  - 9. Vector Instruction Reference:
           - Overview: docs/isa/vector/README.md
           - Vector Load Store:
               - Instruction Set Overview: docs/isa/vector/vector-load-store.md
@@ -380,9 +380,10 @@ nav:
               - pto.vsort32: docs/isa/vector/ops/sfu-and-dsa-ops/vsort32.md
               - pto.vbitsort: docs/isa/vector/ops/sfu-and-dsa-ops/vbitsort.md
               - pto.vmrgsort: docs/isa/vector/ops/sfu-and-dsa-ops/vmrgsort.md
-  - 11. Scalar And Control Reference:
+  - 10. Scalar And Control Reference:
           - Overview: docs/isa/scalar/README.md
-          - Control And Configuration: docs/isa/scalar/control-and-configuration.md
+          - Control And Configuration:
+              - Instruction Set Overview: docs/isa/scalar/control-and-configuration.md
           - Pipeline Sync:
               - Instruction Set Overview: docs/isa/scalar/pipeline-sync.md
               - pto.set_flag: docs/isa/scalar/ops/pipeline-sync/set-flag.md
@@ -443,37 +444,26 @@ nav:
               - Pointer Operations: docs/isa/scalar/ops/micro-instruction/pointer-operations.md
               - Vector Execution Scope: docs/isa/scalar/ops/micro-instruction/vecscope.md
               - Alignment State Type: docs/isa/scalar/ops/micro-instruction/align-type.md
-  - 11A. PTO-AS Reference:
-          - PTO-AS Specification: docs/assembly/PTO-AS.md
-          - PTO-AS 规范: docs/assembly/PTO-AS_zh.md
-  - 12. Other And Communication Reference:
-          - Overview: docs/isa/other/README.md
-          - Communication And Runtime:
-              - Instruction Set Contract: docs/isa/other/communication-and-runtime.md
-              - Communication Overview: docs/isa/comm/README.md
-              - TBROADCAST: docs/isa/comm/TBROADCAST.md
-              - TGET: docs/isa/comm/TGET.md
-              - TGET_ASYNC: docs/isa/comm/TGET_ASYNC.md
-              - TGATHER: docs/isa/comm/TGATHER.md
-              - TNOTIFY: docs/isa/comm/TNOTIFY.md
-              - TPUT: docs/isa/comm/TPUT.md
-              - TPUT_ASYNC: docs/isa/comm/TPUT_ASYNC.md
-              - TREDUCE: docs/isa/comm/TREDUCE.md
-              - TSCATTER: docs/isa/comm/TSCATTER.md
-              - TTEST: docs/isa/comm/TTEST.md
-              - TWAIT: docs/isa/comm/TWAIT.md
-          - Non ISA And Supporting Ops:
-              - Instruction Set Contract: docs/isa/other/non-isa-and-supporting-ops.md
-              - TALIAS: docs/isa/TALIAS.md
-              - TAXPY: docs/isa/TAXPY.md
-              - TCONCAT: docs/isa/TCONCAT.md
-              - TDEQUANT: docs/isa/other/ops/non-isa-and-supporting-ops/tdequant.md
-              - TFREE: docs/isa/TFREE.md
-              - THISTOGRAM: docs/isa/THISTOGRAM.md
-              - TPACK: docs/isa/TPACK.md
-              - TPOP: docs/isa/TPOP.md
-              - TPUSH: docs/isa/TPUSH.md
-              - TRANDOM: docs/isa/TRANDOM.md
+  - 11. Communication ISA Reference:
+      - Overview: docs/isa/comm/README.md
+      - Instruction Set Contract: docs/isa/comm/communication-runtime.md
+      - pto.tbroadcast: docs/isa/comm/TBROADCAST.md
+      - pto.tget: docs/isa/comm/TGET.md
+      - pto.tget_async: docs/isa/comm/TGET_ASYNC.md
+      - pto.tgather: docs/isa/comm/TGATHER.md
+      - pto.tnotify: docs/isa/comm/TNOTIFY.md
+      - pto.tput: docs/isa/comm/TPUT.md
+      - pto.tput_async: docs/isa/comm/TPUT_ASYNC.md
+      - pto.treduce: docs/isa/comm/TREDUCE.md
+      - pto.tscatter: docs/isa/comm/TSCATTER.md
+      - pto.ttest: docs/isa/comm/TTEST.md
+      - pto.twait: docs/isa/comm/TWAIT.md
+  - 12. System Scheduling ISA Reference:
+      - Overview: docs/isa/system/README.md
+      - Instruction Set Contract: docs/isa/instruction-families/system-scheduling-families.md
+      - pto.tfree: docs/isa/system/ops/TFREE.md
+      - pto.tpop: docs/isa/system/ops/TPOP.md
+      - pto.tpush: docs/isa/system/ops/TPUSH.md
   - 13. Reference Notes:
       - Overview: docs/isa/reference/README.md
       - Format Of Instruction Descriptions: docs/isa/reference/format-of-instruction-descriptions.md

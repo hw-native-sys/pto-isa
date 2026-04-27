@@ -144,6 +144,6 @@ cycles = 14 + repeat_count * repeat_cost
 ## 相关页面
 
 - [Tile 指令族](../instruction-families/tile-families_zh.md)
-- [Tile 指令表面](../instruction-surfaces/tile-instructions_zh.md)
+- [Tile 指令表面](../instruction-families/tile-families_zh.md)
 - [位置意图与合法性](../state-and-types/location-intent-and-legality_zh.md)
 - [布局](../state-and-types/layout_zh.md)

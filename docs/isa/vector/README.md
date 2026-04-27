@@ -48,6 +48,6 @@ Timing disclosure policy for the per-op pages is intentionally strict:
 
 ## See Also
 
-- [Vector instructions](../instruction-surfaces/vector-instructions.md)
+- [Vector instructions](../instruction-families/vector-families.md)
 - [Vector Instruction Set](../instruction-families/vector-families.md)
 - [Format of instruction descriptions](../reference/format-of-instruction-descriptions.md)

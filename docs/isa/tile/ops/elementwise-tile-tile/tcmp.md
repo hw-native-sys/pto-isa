@@ -83,7 +83,7 @@ No architectural side effects beyond producing the predicate tile. Does not impl
 
 - The iteration domain is `dst.GetValidRow()` × `dst.GetValidCol()`.
 - `src0.GetValidRow()` and `src0.GetValidCol()` MUST match `dst`'s valid region.
-- `src1`'s shape/validity is not verified by runtime assertions; out-of-region lanes read **implementation-defined values**.
+- `src1`'s shape/validity is not verified by runtime assertions; out-of-region lanes read all-one-bits (0xFF) on A2/A3 and all-one-bits (0xFF) on A5 for source lanes outside their valid region.
 - The output predicate tile uses a **packed encoding** (not one boolean per lane). Use `TSEL` with the predicate tile to apply it.
 
 ## Cases That Are Not Allowed

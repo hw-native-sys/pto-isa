@@ -23,7 +23,7 @@ This document provides PTO development-related references, academic papers, onli
   - Hardware abstraction model
   - Programming model details
 
-- **[ISA Instruction Reference](../isa/README.md)**
+- **[ISA Instruction Reference](../isa/scalar/ops/micro-instruction/README.md)**
   - Detailed description of all PTO instructions
   - Instruction syntax and semantics
   - Usage examples

@@ -20,7 +20,7 @@ For `0 <= j < N` (adds a bias term to the matrix product):
 
 $$ \mathrm{C}_{0,j} = \mathrm{Bias}_{0,j} + \sum_{k=0}^{K-1} \mathrm{A}_{0,k} \cdot \mathrm{B}_{k,j} $$
 
-**Note:** Exact accumulator behavior and datatype promotion are target/implementation-defined.
+Accumulator behavior and datatype promotion are concrete per target. On A2/A3: accumulation uses the accumulator tile's native datatype (int32_t or float), with int8 accumulation performed in 32-bit and fp accumulation using standard IEEE round-to-nearest-even; bias is added after the final accumulation round. On A5: accumulation is always in the accumulator tile's native type, fp accumulation follows the accumulator's native rounding mode, and bias is added after accumulation using the accumulator's rounding mode. On CPU simulator: follows A5 semantics.
 
 ## Syntax
 

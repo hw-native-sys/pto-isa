@@ -48,9 +48,9 @@
         <li><a href="docs/isa/tile/README.md">Tile ISA reference</a></li>
         <li><a href="docs/isa/vector/README.md">Vector ISA reference</a></li>
         <li><a href="docs/isa/scalar/README.md">Scalar and control reference</a></li>
-        <li><a href="docs/isa/other/README.md">Other and communication reference</a></li>
-        <li><a href="docs/isa/instruction-surfaces/README.md">Instruction overview</a></li>
-        <li><a href="docs/isa/instruction-families/README.md">Instruction set contracts</a></li>
+        <li><a href="docs/isa/comm/README.md">Communication reference</a></li>
+        <li><a href="docs/isa/system/README.md">System scheduling reference</a></li>
+        <li><a href="docs/isa/instruction-families/README.md">Instruction overview</a></li>
       </ul>
     </article>
 

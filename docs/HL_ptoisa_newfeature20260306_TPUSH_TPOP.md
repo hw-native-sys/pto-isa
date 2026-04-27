@@ -9,17 +9,17 @@ This document specifies an enhanced ISA design for `TPUSH` and `TPOP` instructio
 Each cluster contains **1 Cube core** and **2 buddy Vector cores** that share a hardware flag-based synchronization mechanism:
 
 ```
-┌─────────────────────── Cluster ───────────────────────┐
-│                                                       │
-│  ┌──────────┐    flags (8 per dir)    ┌──────────┐   │
-│  │  Vector 0 │◄══════════════════════►│          │   │
-│  └──────────┘   SET/WAIT V→C, C→V    │   Cube   │   │
-│                                       │          │   │
-│  ┌──────────┐    flags (8 per dir)    │          │   │
-│  │  Vector 1 │◄══════════════════════►│          │   │
-│  └──────────┘   SET/WAIT V→C, C→V    └──────────┘   │
-│                                                       │
-└───────────────────────────────────────────────────────┘
+┌──────────────────────── Cluster ─────────────────────────┐
+│                                                          │
+│  ┌──────────┐      flags (8 per dir)      ┌──────────┐   │
+│  │ Vector 0 │ ◄═════════════════════════► │          │   │
+│  └──────────┘      SET/WAIT V↔C           │   Cube   │   │
+│                                           │          │   │
+│  ┌──────────┐      flags (8 per dir)      │          │   │
+│  │ Vector 1 │ ◄═════════════════════════► │          │   │
+│  └──────────┘      SET/WAIT V↔C           └──────────┘   │
+│                                                          │
+└──────────────────────────────────────────────────────────┘
 ```
 
 - A Vector core can **SET** a flag that the Cube core **WAITs** on, and vice versa.
@@ -305,12 +305,12 @@ On A5, the ring buffer for each direction resides in the **consumer's on-chip SR
 ```
 A5 Problem: C2V direction (Cube produces → Vector consumes)
 
-    Cube InCore function:                    Vector InCore function:
-    ┌─────────────────────┐                 ┌─────────────────────┐
-    │  TPUSH(prod, ...) │   ??? how to    │  consumer_buf =     │
-    │  DMA to Vector's UB │ ──────────────▶ │  UB[BASE..BASE+SIZE]│
-    │  at what address?   │   get address?  │  // local segment   │
-    └─────────────────────┘                 └─────────────────────┘
+    Cube InCore function:                  Vector InCore function:
+    ┌──────────────────────┐               ┌──────────────────────┐
+    │ TPUSH(prod, ...)     │   ??? how to  │ consumer_buf =       │
+    │ DMA to Vector's UB   │ ────────────▶ │ UB[BASE..BASE+SIZE]  │
+    │ at what address?     │   get addr?   │ // local segment     │
+    └──────────────────────┘               └──────────────────────┘
 ```
 
 ##### Solution: `CONSUMER_BUFFER_BASE` / `CONSUMER_BUFFER_SIZE` Constant Symbols

@@ -47,9 +47,9 @@
         <li><a href="../docs/isa/tile/README_zh.md">Tile 指令参考</a></li>
         <li><a href="../docs/isa/vector/README_zh.md">Vector 指令参考</a></li>
         <li><a href="../docs/isa/scalar/README_zh.md">Scalar 与控制参考</a></li>
-        <li><a href="../docs/isa/other/README_zh.md">其他与通信参考</a></li>
-        <li><a href="../docs/isa/instruction-surfaces/README_zh.md">指令表面总览</a></li>
-        <li><a href="../docs/isa/instruction-families/README_zh.md">指令族总览</a></li>
+        <li><a href="../docs/isa/comm/README_zh.md">通信指令集参考</a></li>
+        <li><a href="../docs/isa/system/README_zh.md">系统调度指令集参考</a></li>
+        <li><a href="../docs/isa/instruction-families/README_zh.md">指令总览</a></li>
       </ul>
     </article>
 

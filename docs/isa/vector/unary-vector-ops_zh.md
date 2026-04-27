@@ -210,4 +210,4 @@ pto.vecscope {
 
 - [SFU 与 DSA 操作](./sfu-and-dsa-ops_zh.md)
 - [二元向量操作](./binary-vector-ops_zh.md)
-- [向量指令面](../instruction-surfaces/vector-instructions_zh.md)
+- [向量指令面](README_zh.md)

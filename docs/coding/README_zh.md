@@ -2,7 +2,7 @@
 
 本目录描述 **从 C++ 角度看到的 PTO Tile Lib 编程模型**（Tiles、GlobalTensor、事件、标量参数），并提供扩展库的指导。
 
-如果你在寻找 *ISA 参考*，请从 [docs/isa/README_zh.md](../isa/README_zh.md) 开始。
+如果你在寻找 *ISA 参考*，请从 [docs/isa/README_zh.md](../isa/scalar/ops/micro-instruction/README_zh.md) 开始。
 
 ## 文档列表
 

@@ -1,8 +1,8 @@
-# TGET_ASYNC
+# pto.tget_async
 
 ## Introduction
 
-`TGET_ASYNC` is an asynchronous remote read primitive. It starts a transfer from remote GM to local GM and returns an `AsyncEvent` immediately.
+`pto.tget_async` is an asynchronous remote read primitive. It starts a transfer from remote GM to local GM and returns an `AsyncEvent` immediately.
 
 Data flow:
 
@@ -15,7 +15,7 @@ Data flow:
     - `DmaEngine::URMA` (Ascend950, NPU_ARCH 3510 only)
 
 > **Important (SDMA path)**
-> `TGET_ASYNC` with `DmaEngine::SDMA` currently supports **only flat contiguous logical 1D tensors**.
+> `pto.tget_async` with `DmaEngine::SDMA` currently supports **only flat contiguous logical 1D tensors**.
 > Non-1D or non-contiguous layouts are not supported by the current SDMA async implementation.
 
 ## C++ Intrinsic
@@ -25,8 +25,8 @@ Declared in `include/pto/comm/pto_comm_inst.hpp`.
 ```cpp
 template <DmaEngine engine = DmaEngine::SDMA,
           typename GlobalDstData, typename GlobalSrcData, typename... WaitEvents>
-PTO_INST AsyncEvent TGET_ASYNC(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData,
-                               const AsyncSession &session, WaitEvents &... events);
+PTO_INST AsyncEvent GET_ASYNC(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData,
+                              const AsyncSession &session, WaitEvents &... events);
 ```
 
 `AsyncSession` is an engine-agnostic session object. Build once with
@@ -44,11 +44,11 @@ There are two overloads — one for SDMA and one for URMA — with different par
 ```cpp
 template <DmaEngine engine = DmaEngine::SDMA, typename ScratchTile>
 PTO_INTERNAL bool BuildAsyncSession(ScratchTile &scratchTile,
-                                    __gm__ uint8_t *workspace,
-                                    AsyncSession &session,
-                                    uint32_t syncId = 0,
-                                    const sdma::SdmaBaseConfig &baseConfig = {sdma::kDefaultSdmaBlockBytes, 0, 1},
-                                    uint32_t channelGroupIdx = sdma::kAutoChannelGroupIdx);
+                                   __gm__ uint8_t *workspace,
+                                   AsyncSession &session,
+                                   uint32_t syncId = 0,
+                                   const sdma::SdmaBaseConfig &baseConfig = {sdma::kDefaultSdmaBlockBytes, 0, 1},
+                                   uint32_t channelGroupIdx = sdma::kAutoChannelGroupIdx);
 ```
 
 | Parameter | Default | Description |
@@ -68,15 +68,15 @@ PTO_INTERNAL bool BuildAsyncSession(ScratchTile &scratchTile,
 #ifdef PTO_URMA_SUPPORTED
 template <DmaEngine engine>
 PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t *workspace,
-                                    uint32_t destRankId,
-                                    AsyncSession &session);
+                                  uint32_t destRankId,
+                                  AsyncSession &session);
 #endif
 ```
 
 | Parameter | Description |
 |---|---|
 | `workspace` | GM pointer allocated by host-side `UrmaWorkspaceManager`. |
-| `destRankId` | Remote PE rank id that this session communicates with. For `TGET_ASYNC` this is the source rank. |
+| `destRankId` | Remote PE rank id that this session communicates with. For `pto.tget_async` this is the source rank. |
 | `session` | Output `AsyncSession` object. |
 
 URMA does not require `scratchTile` — polling uses `ld_dev`/`st_dev` hardware intrinsics directly.
@@ -116,12 +116,12 @@ Recommended: `Tile<TileType::Vec, uint8_t, 1, comm::sdma::UB_ALIGN_SIZE>` (256B)
 
 The completion mechanism differs by engine, but user-facing quiet semantics are identical:
 
-- **SDMA**: `TGET_ASYNC` only submits data transfer SQEs. The flag SQE is deferred to `Wait`, which polls the flag for completion.
-- **URMA**: `TGET_ASYNC` submits an RDMA READ WQE and rings the doorbell immediately. `Wait` polls the Completion Queue (CQ) until all expected CQEs have been consumed.
+- **SDMA**: `pto.tget_async` only submits data transfer SQEs. The flag SQE is deferred to `Wait`, which polls the flag for completion.
+- **URMA**: `pto.tget_async` submits an RDMA READ WQE and rings the doorbell immediately. `Wait` polls the Completion Queue (CQ) until all expected CQEs have been consumed.
 
 - `event.Wait(session)` — blocks until **all async operations issued since the last Wait** are complete
 
-This means after multiple `TGET_ASYNC` calls, a single `Wait` on the last returned `AsyncEvent` drains all pending operations (similar to shmem's quiet semantics).
+This means after multiple `pto.tget_async` calls, a single `Wait` on the last returned `AsyncEvent` drains all pending operations (similar to shmem's quiet semantics).
 
 After wait succeeds, all issued reads into `dstGlobalData` are complete.
 
@@ -157,7 +157,7 @@ __global__ AICORE void SimpleGet(__gm__ T *localDst, __gm__ T *remoteSrc,
         return;
     }
 
-    auto event = comm::TGET_ASYNC<comm::DmaEngine::SDMA>(dstG, srcG, session);
+    auto event = comm::GET_ASYNC<comm::DmaEngine::SDMA>(dstG, srcG, session);
     (void)event.Wait(session);
 }
 ```
@@ -189,7 +189,7 @@ __global__ AICORE void BatchGet(__gm__ T *localDstBase, __gm__ T *remoteSrcBase,
     for (int rank = 0; rank < nranks; ++rank) {
         GT dstG(localDstBase + rank * 1024, shape, stride);
         GT srcG(remoteSrcBase + rank * 1024, shape, stride);
-        lastEvent = comm::TGET_ASYNC(dstG, srcG, session);
+        lastEvent = comm::GET_ASYNC(dstG, srcG, session);
     }
     (void)lastEvent.Wait(session);  // single Wait drains all pending ops
 }
@@ -221,7 +221,7 @@ __global__ AICORE void SimpleGetUrma(__gm__ T *localDst, __gm__ T *remoteSrc,
         return;
     }
 
-    auto event = comm::TGET_ASYNC<comm::DmaEngine::URMA>(dstG, srcG, session);
+    auto event = comm::GET_ASYNC<comm::DmaEngine::URMA>(dstG, srcG, session);
     (void)event.Wait(session);
 }
 ```

@@ -10,7 +10,7 @@ This document describes memory operations between global memory and tiles.
 
 ### TLOAD
 
-For detailed instruction documentation, see [isa/TLOAD](../isa/TLOAD.md)
+For detailed instruction documentation, see [isa/TLOAD](../isa/tile/ops/memory-and-data-movement/tload.md)
 
 **AS Level 1 (SSA):**
 
@@ -29,7 +29,7 @@ pto.tload ins(%mem : !pto.partition_tensor_view<MxNxdtype>) outs(%dst : !pto.til
 
 ### TPREFETCH
 
-For detailed instruction documentation, see [isa/TPREFETCH](../isa/TPREFETCH.md)
+For detailed instruction documentation, see [isa/TPREFETCH](../isa/tile/ops/memory-and-data-movement/tprefetch.md)
 
 **AS Level 1 (SSA):**
 
@@ -47,7 +47,7 @@ pto.tprefetch ins(%src : !pto.global<...>) outs(%dst : !pto.tile_buf<...>)
 
 ### TSTORE
 
-For detailed instruction documentation, see [isa/TSTORE](../isa/TSTORE.md)
+For detailed instruction documentation, see [isa/TSTORE](../isa/tile/ops/memory-and-data-movement/tstore.md)
 
 **AS Level 1 (SSA):**
 
@@ -65,7 +65,7 @@ pto.tstore ins(%src : !pto.tile_buf<...>) outs(%mem : !pto.partition_tensor_view
 
 ### TSTORE_FP
 
-For detailed instruction documentation, see [isa/TSTORE_FP](../isa/TSTORE_FP.md)
+For detailed instruction documentation, see [isa/TSTORE_FP](../isa/tile/ops/memory-and-data-movement/tstore.md)
 
 **AS Level 1 (SSA):**
 
@@ -83,7 +83,7 @@ pto.tstore.fp ins(%src, %fp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%mem 
 
 ### MGATHER
 
-For detailed instruction documentation, see [isa/MGATHER](../isa/MGATHER.md)
+For detailed instruction documentation, see [isa/MGATHER](../isa/tile/ops/memory-and-data-movement/mgather.md)
 
 **AS Level 1 (SSA):**
 
@@ -102,7 +102,7 @@ pto.mgather ins(%mem, %idx : !pto.partition_tensor_view<MxNxdtype>, !pto.tile_bu
 
 ### MSCATTER
 
-For detailed instruction documentation, see [isa/MSCATTER](../isa/MSCATTER.md)
+For detailed instruction documentation, see [isa/MSCATTER](../isa/tile/ops/memory-and-data-movement/mscatter.md)
 
 **AS Level 1 (SSA):**
 

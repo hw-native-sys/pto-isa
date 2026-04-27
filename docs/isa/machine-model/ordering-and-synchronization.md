@@ -94,44 +94,23 @@ The `RecordEvent` return value is the **ISA-visible mechanism** for chaining til
 The AI Core contains multiple execution units that operate concurrently. The following diagram shows the dependency relationships:
 
 ```
-         ┌──────────────────────────────────────────────────────┐
-         │                   AI CORE                            │
-         │                                                      │
-  GM ────│─── MTE1 ──► UB ──┬─────────────────────────────┐    │
-         │                  │                             │    │
-         │                  │  MTE2 ──► UB ──┐            │    │
-         │                  │                  │            │    │
-         │    ┌─────────────┴──────────────────┴─────────┐  │    │
-         │    │                                       │  │    │
-         │    │   ┌───────────────────────────────────┘  │    │
-         │    │   │                                      │  │    │
-         │    │   │   Tile Register File                 │  │    │
-         │    │   │   ┌───────┐  ┌───────┐  ┌───────┐  │  │    │
-         │    │   │   │ Vec   │  │ Mat   │  │ Acc   │  │  │    │
-         │    │   │   └───────┘  └───────┘  └───────┘  │  │    │
-         │    │   │      │          │          │       │  │    │
-         │    │   │      ▼          ▼          ▼       │  │    │
-         │    │   │   ┌─────────────────────────┐      │  │    │
-         │    │   │   │     Vector Pipeline     │      │  │    │
-         │    │   │   │   (pto.v* ops)          │      │  │    │
-         │    │   │   └─────────────────────────┘      │  │    │
-         │    │   │            │                       │  │    │
-         │    │   │            │  ┌───────────────────┘  │    │
-         │    │   │            ▼  ▼                      │    │
-         │    │   │   ┌─────────────────────┐            │    │
-         │    │   │   │  Matrix Multiply (M)│            │    │
-         │    │   │   │  (pto.tmatmul*)     │            │    │
-         │    │   │   └─────────────────────┘            │    │
-         │    │   │              │                     │    │
-         │    │   └──────────────┼─────────────────────┘    │
-         │    │                  │                          │
-         │    │    ┌─────────────┴────────────┐             │
-         │    │    │                           │             │
-         │    │    ▼                           ▼             │
-         │    │ MTE3 ──► UB ────────────────────────────────┼───► GM
-         │    └──────────────────────────────────────────────┘
-         │
-         └── Scalar Unit (control flow, address gen, system queries)
+               ┌──────────────────────────────────────────────┐
+GM ──► MTE2 ──►│ Unified Buffer / Tile Buffer                 │──► MTE3 ──► GM
+               │                                              │
+               │  ┌───────────────┐     ┌──────────────────┐  │
+GM ──► MTE1 ──►│  │ Tile Register │────►│ Vector Pipeline  │  │
+               │  │ File          │     │ (pto.v* ops)     │  │
+               │  │ Vec / Mat /   │     └────────┬─────────┘  │
+               │  │ Acc locations │              │            │
+               │  └───────┬───────┘              │            │
+               │          │                      ▼            │
+               │          │             ┌──────────────────┐  │
+               │          └────────────►│ Matrix Pipeline  │  │
+               │                        │ (pto.tmatmul*)   │  │
+               │                        └────────┬─────────┘  │
+               └─────────────────────────────────┼────────────┘
+                                                 │
+              Scalar Unit: control flow, address generation, system queries
 ```
 
 ### Dependency Types

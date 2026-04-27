@@ -42,5 +42,5 @@
 
 ## 相关页面
 
-- [标量与控制指令集](../instruction-surfaces/scalar-and-control-instructions_zh.md)
+- [标量与控制指令集](scalar-and-control-families_zh.md)
 - [标量参考入口](../scalar/README_zh.md)

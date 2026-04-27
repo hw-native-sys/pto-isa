@@ -236,5 +236,5 @@ for (int i = 0; i < N; i++)
 ## 相关页面
 
 - [归约操作](./reduction-ops_zh.md)
-- [向量指令面](../instruction-surfaces/vector-instructions_zh.md)
+- [向量指令面](README_zh.md)
 - [数据重排](./data-rearrangement_zh.md)

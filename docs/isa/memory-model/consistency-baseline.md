@@ -77,7 +77,9 @@ Data written to GM by `TSTORE` or `copy_ubuf_to_gm` is guaranteed visible to sub
 2. Any required `mem_bar`, `pipe_barrier`, or collective synchronization has been issued.
 3. The host runtime has confirmed completion (via event or runtime call).
 
-The exact moment of GM visibility across blocks is **implementation-defined** — the ISA guarantees that the ordering contract is satisfied, but the exact timing of cross-block visibility depends on the target profile.
+The exact moment of GM visibility across blocks is **hardware-specific**: the ISA guarantees that the ordering contract is satisfied, but the exact timing of cross-block visibility depends on the target profile:
+- **A2/A3 and A5**: Visibility is guaranteed after the block-level synchronization (e.g., `wait_flag`/`pipe_barrier` or collective op) completes; the hardware enforces visibility within a bounded time window after the sync operation.
+- **CPU simulator**: Visibility is immediate within the same process address space, since there is no physical DMA or device memory hierarchy.
 
 ## UB Visibility
 

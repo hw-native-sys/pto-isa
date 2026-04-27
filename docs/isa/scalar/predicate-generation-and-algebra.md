@@ -12,7 +12,7 @@ Predicate generation and algebra operations create, combine, pack, unpack, and i
 | f16 / bf16 | 128 | 128 bits |
 | i8 / u8 | 256 | 256 bits |
 
-A predicate mask with bit value `1` at position `i` means lane `i` is **active**; bit value `0` means lane `i` is **inactive**. Vector operations execute on active lanes only; inactive lanes produce implementation-defined results.
+A predicate mask with bit value `1` at position `i` means lane `i` is **active**; bit value `0` means lane `i` is **inactive**. Vector operations execute on active lanes only; inactive lanes produce zero on A2/A3 and A5, and may produce zero or undefined values on the CPU simulator.
 
 ## Sub-category Overview
 

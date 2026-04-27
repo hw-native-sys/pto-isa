@@ -1,10 +1,10 @@
-# TGET
+# pto.tget
 
 ## Introduction
 
 Remote read operation: read remote NPU's data to local memory. Data is transferred via a UB tile as intermediate staging buffer.
 
-When the GlobalTensor exceeds the UB tile capacity, TGET automatically performs **2D sliding**: chunking rows (DIM_3) and columns (DIM_4) to fit each chunk into the tile, iterating over all outer dimensions (DIM_0, DIM_1, DIM_2).
+When the GlobalTensor exceeds the UB tile capacity, `pto.tget` automatically performs **2D sliding**: chunking rows (DIM_3) and columns (DIM_4) to fit each chunk into the tile, iterating over all outer dimensions (DIM_0, DIM_1, DIM_2).
 
 ## Math Interpretation
 
@@ -12,17 +12,18 @@ For each element `(i, j)` in the valid region:
 
 $$ \mathrm{dst}^{\mathrm{local}}_{i,j} = \mathrm{src}^{\mathrm{remote}}_{i,j} $$
 
-Data flow: `srcGlobalData (remote GM)` ->`stagingTileData (UB)` ->`dstGlobalData (local GM)`
+Data flow: `srcGlobalData (remote GM)` → `stagingTileData (UB)` → `dstGlobalData (local GM)`
 
 ## Assembly Syntax
 
-PTO-AS form: see [PTO-AS Specification](../../assembly/PTO-AS.md).
+PTO-AS form: see [Assembly Spelling And Operands](../syntax-and-operands/assembly-model.md).
 
 Synchronous form:
 
 ```text
-tget %dst_local, %src_remote : (!pto.memref<...>, !pto.memref<...>)
+pto.tget %dst_local, %src_remote : (!pto.memref<...>, !pto.memref<...>)
 ```
+
 Lowering introduces UB staging tile(s) for the GM→UB→GM data path; the C++ intrinsic requires explicit `stagingTileData` (or `pingTile` / `pongTile`) operand(s).
 
 ## C++ Intrinsic
@@ -33,8 +34,8 @@ Declared in `include/pto/comm/pto_comm_inst.hpp`
 
 ```cpp
 template <typename GlobalDstData, typename GlobalSrcData, typename TileData, typename... WaitEvents>
-PTO_INST RecordEvent TGET(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData,
-                          TileData &stagingTileData, WaitEvents&... events);
+PTO_INST RecordEvent GET(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData,
+                        TileData &stagingTileData, WaitEvents&... events);
 ```
 
 ### Ping-pong double buffering
@@ -43,8 +44,8 @@ Uses two staging tiles to overlap TLOAD and TSTORE for adjacent chunks, hiding o
 
 ```cpp
 template <typename GlobalDstData, typename GlobalSrcData, typename TileData, typename... WaitEvents>
-PTO_INST RecordEvent TGET(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData,
-                          TileData &pingTile, TileData &pongTile, WaitEvents&... events);
+PTO_INST RecordEvent GET(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData,
+                        TileData &pingTile, TileData &pongTile, WaitEvents&... events);
 ```
 
 ## Constraints
@@ -74,12 +75,12 @@ PTO_INST RecordEvent TGET(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobal
 using namespace pto;
 
 template <typename T>
-void example_tget(__gm__ T* local_data, __gm__ T* remote_addr) {
+void example_get(__gm__ T* local_data, __gm__ T* remote_addr) {
     using TileT = Tile<TileType::Vec, T, 16, 16>;
     using GShape = Shape<1, 1, 1, 16, 16>;
     using GStride = BaseShape2D<T, 16, 16, Layout::ND>;
     /*
-    If the globalTensor is larger than UB Tile, TGET will perform 2D sliding automatically.
+    If the globalTensor is larger than UB Tile, GET will perform 2D sliding automatically.
     using GShape = Shape<1, 1, 1, 4096, 4096>;
     using GStride = BaseShape2D<T, 4096, 4096, Layout::ND>;
     */
@@ -91,7 +92,7 @@ void example_tget(__gm__ T* local_data, __gm__ T* remote_addr) {
     TASSIGN(stagingTile, 0);
 
     // Basic remote read
-    comm::TGET(dstG, srcG, stagingTile);
+    comm::GET(dstG, srcG, stagingTile);
 }
 ```
 
@@ -105,5 +106,5 @@ TASSIGN(pingTile, 0);
 TASSIGN(pongTile, tileUBBytes);  // Non-overlapping UB region
 
 // Overlaps TLOAD[i+1] with TSTORE[i] for better pipeline utilization
-comm::TGET(dstG, srcG, pingTile, pongTile);
+comm::GET(dstG, srcG, pingTile, pongTile);
 ```

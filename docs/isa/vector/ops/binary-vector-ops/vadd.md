@@ -169,5 +169,5 @@ void vector_add(Ptr<ub_space_t, ub_t> ub_a, Ptr<ub_space_t, ub_t> ub_b,
 
 - Instruction set overview: [Binary Vector Instructions](../../binary-vector-ops.md)
 - Next op in instruction set: [pto.vsub](./vsub.md)
-- Vector instruction overview: [Vector Instructions](../../../instruction-surfaces/vector-instructions.md)
+- Vector instruction overview: [Vector Instructions](../../../instruction-families/vector-families.md)
 - Type system: [Type System](../../../state-and-types/type-system.md)

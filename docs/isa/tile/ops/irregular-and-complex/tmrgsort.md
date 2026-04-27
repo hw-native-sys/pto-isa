@@ -4,13 +4,13 @@
 
 ## Summary
 
-Merge sort for multiple sorted lists (implementation-defined element format and layout).
+Merge sort for multiple sorted lists. On A2/A3 and A5, elements are stored in row-major order with a single row (Rows == 1); on the CPU simulator, elements are stored in the natural tile row-major order.
 
 ## Mechanism
 
-Merge sort for multiple sorted lists (implementation-defined element format and layout). It belongs to the tile instructions and carries architecture-visible behavior that is not reducible to a plain elementwise compute pattern.
+Merge sort for multiple sorted lists. On A2/A3 and A5, elements are stored in row-major order with a single row (Rows == 1); on the CPU simulator, elements are stored in the natural tile row-major order. It belongs to the tile instructions and carries architecture-visible behavior that is not reducible to a plain elementwise compute pattern.
 
-Merges sorted input lists into `dst`. Ordering, element format (e.g., value/index pairs), and the meaning of executed counts depend on the implementation.
+Merges sorted input lists into `dst`. On A2/A3 and A5, the merge produces a single sorted list in row-major order; the CPU simulator follows the natural tile row-major ordering.
 
 $$ \mathrm{dst} = \mathrm{merge}(\mathrm{src}_0, \mathrm{src}_1, \ldots) $$
 

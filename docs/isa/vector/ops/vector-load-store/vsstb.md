@@ -39,8 +39,7 @@ This operation writes UB-visible memory and/or updates streamed alignment state.
 
 ## Constraints
 
-`%offset` is a control word, not a plain byte displacement. This is a
-  deprecated compatibility instruction set kept for instruction set coverage.
+`%offset` is a control word, not a plain byte displacement. It selects the block-strided store pattern.
 
 ## Exceptions
 

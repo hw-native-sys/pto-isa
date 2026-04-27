@@ -8,9 +8,9 @@ Fill/pad while allowing dst to be larger than src.
 
 ## Mechanism
 
-Expand fill/pad variant of TFILLPAD (allows dst to be larger than src; implementation-defined). It belongs to the tile instructions and carries architecture-visible behavior that is not reducible to a plain elementwise compute pattern.
+Expand fill/pad variant of TFILLPAD — allows dst to be larger than src, copying the valid region from src and filling the remainder with PadVal. On A2/A3: the operation iterates over dst's valid region via GetValidRow/GetValidCol, copying the src valid region into the corresponding top-left portion of dst and filling all other elements with PadVal; if src is smaller than dst in either dimension, the padded portion receives PadVal. On A5: behavior is identical — the valid region copy and pad fill follow the same semantics; the hardware enforces 32-byte alignment on the major dimension which may affect the effective valid region boundaries for some tile shapes. On the CPU simulator: the operation is emulated by iterating over the destination shape and performing elementwise copies or fills, matching the A2/A3/A5 semantics exactly.
 
-Unless otherwise specified, semantics are defined over the valid region and target-dependent behavior is marked as implementation-defined.
+Unless otherwise specified, semantics are defined over the valid region. On A2/A3 and A5: TFILLPAD_EXPAND iterates over the destination valid region (defined by GetValidRow/GetValidCol on the destination tile), copying elements from the corresponding source positions and filling any positions that fall outside the source's valid region with PadVal. On the CPU simulator: the operation is emulated element-by-element, following the same valid-region iteration semantics as the hardware targets.
 
 ## Syntax
 

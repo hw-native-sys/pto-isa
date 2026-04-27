@@ -20,7 +20,7 @@ For a linearized index `k` over the valid elements:
 
   $$ \mathrm{dst}_{k} = S - k $$
 
-The linearization order depends on the tile layout (implementation-defined).
+The linearization order depends on the tile layout. On A2/A3 and A5, the linearization order follows row-major order: elements are visited left-to-right within each row, then top-to-bottom across rows.
 
 ## Syntax
 

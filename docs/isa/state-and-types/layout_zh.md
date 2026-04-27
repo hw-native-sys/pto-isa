@@ -158,4 +158,4 @@ TINSERT(dstVec, srcLeft, InsertMode::NZ2ND);
 - [类型系统](./type-system_zh.md)
 - [TEXTRACT](../tile/ops/layout-and-rearrangement/textract_zh.md)
 - [TINSERT](../tile/ops/layout-and-rearrangement/tinsert_zh.md)
-- [Tile 指令集](../instruction-surfaces/tile-instructions_zh.md)
+- [Tile 指令集](../instruction-families/tile-families_zh.md)

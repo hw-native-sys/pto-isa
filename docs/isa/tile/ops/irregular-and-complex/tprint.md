@@ -4,7 +4,7 @@
 
 ## Summary
 
-Debug/print elements from a tile (implementation-defined).
+Debug/print elements from a tile. On A2/A3/A5, output is emitted via `cce::printf` to the device-to-host debug channel; on the CPU simulator, output is printed to stdout.
 
 ## Mechanism
 
@@ -18,7 +18,7 @@ The `TPRINT` instruction outputs the logical view of data stored in a Tile or Gl
 > - Output may be **truncated** if it exceeds the internal print buffer. The print buffer can be adjusted with `-DCCEBlockMaxSize=16384`; the default is 16 KiB.
 > - **Requires CCE compilation option `-D_DEBUG --cce-enable-print`**. It belongs to the tile instructions and carries architecture-visible behavior that is not reducible to a plain elementwise compute pattern.
 
-Unless otherwise specified, semantics are defined over the valid region and target-dependent behavior is marked as implementation-defined.
+Unless otherwise specified, semantics are defined over the valid region. On A2/A3 and A5, output is emitted via `cce::printf` to the device-to-host debug channel; on the CPU simulator, output is printed to stdout.
 
 - **Mandatory Compilation Flag**:
 

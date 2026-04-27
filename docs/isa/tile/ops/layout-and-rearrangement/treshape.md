@@ -12,7 +12,7 @@ Reinterpret a tile as another tile type/shape while preserving the underlying by
 
 This is a *bitwise* reshape: it does not change values, it only changes how the same byte buffer is viewed. It belongs to the tile instructions and carries architecture-visible behavior that is not reducible to a plain elementwise compute pattern.
 
-Unless otherwise specified, semantics are defined over the valid region and target-dependent behavior is marked as implementation-defined.
+Unless otherwise specified, semantics are defined over the valid region. On A2/A3 and A5: TRESHAPE respects the valid region defined by GetValidRow/GetValidCol — only elements within the valid region are guaranteed to be preserved in the output reinterpretation; elements in the padding region of the source may or may not be accessible depending on the tile layout. On the CPU simulator: TRESHAPE is a direct memory reinterpretation that preserves all bytes in the underlying buffer without applying any valid-region filtering.
 
 ## Syntax
 
@@ -136,5 +136,5 @@ pto.treshape ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ## Related Ops / Instruction Set Links
 
 - Instruction set overview: [Layout And Rearrangement](../../layout-and-rearrangement.md)
-- Previous op in instruction set: [pto.tmov_fp](./tmov-fp.md)
+- Previous op in instruction set: [pto.tmov_fp](./tmov.md)
 - Next op in instruction set: [pto.ttrans](./ttrans.md)

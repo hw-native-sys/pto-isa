@@ -93,7 +93,7 @@ Source Languages / DSLs
 
 ## 分层指令集结构
 
-PTO ISA 按四类指令集组织：
+PTO ISA 按五类指令集组织：
 
 - `pto.t*`
   Tile 指令集
@@ -101,10 +101,12 @@ PTO ISA 按四类指令集组织：
   向量微指令集
 - `pto.*`
   标量与控制指令集
-- communication / supporting ops
-  通信与支撑操作
+- communication ops
+  通信指令
+- system scheduling ops
+  TPipe/TMPipe 调度与资源生命周期指令
 
-Tile 指令集是主要的编程层；向量指令集提供更细粒度的向量流水控制；标量与控制指令集负责执行外壳；通信与支撑操作覆盖跨 rank 行为和辅助语义。
+Tile 指令集是主要的编程层；向量指令集提供更细粒度的向量流水控制；标量与控制指令集负责执行外壳；通信指令覆盖跨 rank 行为；系统调度指令覆盖 TPipe/TMPipe 生产者-消费者协议和资源生命周期。
 
 ## 相关页面
 

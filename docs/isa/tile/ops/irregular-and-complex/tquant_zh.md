@@ -43,7 +43,7 @@ $$ q = \mathrm{round}(x \cdot scale + offset) $$
 
 ## 汇编语法
 
-PTO-AS 形式：参见 [PTO-AS 规范](../../../../assembly/PTO-AS_zh.md)。
+PTO-AS 形式：参见 [汇编写法与操作数](../../../syntax-and-operands/assembly-model_zh.md)。
 
 ### AS Level 1（SSA）
 
@@ -165,6 +165,5 @@ void example_mxfp8() {
 
 ## 相关页面
 
-- [TMOV](../layout-and-rearrangement/tmov_zh.md)
-- [TMOV_FP](../layout-and-rearrangement/tmov-fp_zh.md)
-- [不规则与复杂指令集](../../irregular-and-complex_zh.md)
+- [TMOV](../../../tile/ops/layout-and-rearrangement/tmov_zh.md)
+- [不规则与复杂指令集](../../../tile/irregular-and-complex_zh.md)

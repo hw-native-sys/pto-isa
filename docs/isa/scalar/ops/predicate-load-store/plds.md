@@ -14,7 +14,7 @@ For predicate width `Pw` and UB address `base`:
 
 $$ \mathrm{mask} = \mathrm{READ\_UB}_{64}(base) $$
 
-The predicate register is updated atomically. All bits are meaningful only within the current element-type context; unused upper bits for narrower types are **implementation-defined**.
+The predicate register is updated atomically. All bits are meaningful only within the current element-type context; on A2/A3 and A5 unused upper bits are zeroed by the hardware; on CPU simulator they retain the value from the UB read.
 
 ## Syntax
 

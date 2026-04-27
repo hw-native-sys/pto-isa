@@ -8,12 +8,12 @@ The `pto.t*` tile instruction set of PTO ISA is organized by instruction set, wi
 |--------|-------------|------------|
 | [Sync and Config](./sync-and-config.md) | Resource binding, event setup, mode control | 9 |
 | [Elementwise Tile-Tile](./elementwise-tile-tile.md) | Lane-wise binary and unary operations | 29 |
-| [Tile-Scalar and Immediate](./tile-scalar-and-immediate.md) | Tile combined with scalar operand | 20 |
+| [Tile-Scalar and Immediate](./tile-scalar-and-immediate.md) | Tile combined with scalar operand | 21 |
 | [Reduce and Expand](./reduce-and-expand.md) | Row/column reductions and expansions | 28 |
-| [Memory and Data Movement](./memory-and-data-movement.md) | GM↔tile transfer, gather/scatter | 6 |
+| [Memory and Data Movement](./memory-and-data-movement.md) | GM↔tile transfer, gather/scatter | 5 |
 | [Matrix and Matrix-Vector](./matrix-and-matrix-vector.md) | GEMV, matmul, and variants | 8 |
-| [Layout and Rearrangement](./layout-and-rearrangement.md) | Reshape, transpose, extract, insert | 12 |
-| [Irregular and Complex](./irregular-and-complex.md) | Sort, quantize, index movement, partial reductions | 13 |
+| [Layout and Rearrangement](./layout-and-rearrangement.md) | Reshape, transpose, extract, insert, concatenate, pack | 11 |
+| [Irregular and Complex](./irregular-and-complex.md) | Sort, quantize, generated state, index movement, partial reductions | 16 |
 
 ## Quick Reference
 
@@ -44,6 +44,6 @@ The left sidebar provides standalone per-op pages for all tile instructions. Use
 
 ## See Also
 
-- [Tile instructions](../instruction-surfaces/tile-instructions.md)
+- [Tile instructions](../instruction-families/tile-families.md)
 - [Tile Instruction Set](../instruction-families/tile-families.md)
 - [Format of instruction descriptions](../reference/format-of-instruction-descriptions.md)

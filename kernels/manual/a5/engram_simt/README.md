@@ -382,7 +382,7 @@ All **input data** (table, hidden, gate_weight, indices) and **output data** byp
                           └─────┬────┘
                                 ↓ warp_dot only (B=1 or kColWarps>1)
                           ┌────────────┐
-                          │ UB scratch │ ← kColWarps partial sums
+                          │ UB scratch │  ← kColWarps partial sums
                           └────────────┘
                      __sync_workitems()
 ```

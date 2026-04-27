@@ -19,7 +19,7 @@ $$ \mathrm{C}_{i,j} = \sum_{k=0}^{K-1} \mathrm{A}_{i,k} \cdot \mathrm{B}_{k,j} $
 
 The operation consumes three tiles with specific roles: `aMatrix` (left input, `TileType::Left`), `bMatrix` (right input, `TileType::Right`), and `cMatrix` (accumulator, `TileType::Acc`). The accumulator tile may start with existing values (accumulation semantics) or may be zero-initialized first.
 
-Exact accumulator behavior and datatype promotion are target/implementation-defined. Consult the target profile for precision and rounding details.
+Accumulator behavior and datatype promotion are concrete per target. On A2/A3: accumulation uses the accumulator tile's native datatype (int32_t or float), with zero-initialization performed implicitly before the first phase; subsequent phases accumulate in-place. On A5: accumulation is always in the accumulator tile's native type, and multi-phase accumulation follows a fixed sequence with no implicit zero-initialization between phases. On CPU simulator: accumulation follows A5 semantics by default but may be configurable.
 
 ## Syntax
 

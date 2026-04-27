@@ -228,6 +228,6 @@ for (int i = 1; i < N; i++)
 
 ## 相关页面
 
-- [向量指令面](../instruction-surfaces/vector-instructions_zh.md)
+- [向量指令面](README_zh.md)
 - [向量加载与存储](./vector-load-store_zh.md)
 - [SFU 与 DSA 操作](./sfu-and-dsa-ops_zh.md)

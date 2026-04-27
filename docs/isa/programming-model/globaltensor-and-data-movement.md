@@ -227,7 +227,7 @@ copy_ubuf_to_gm(%ub_out, %gm_out, %sid, %n_burst, %len_burst, %reserved, %stride
 ## See Also
 
 - [Tiles And Valid Regions](./tiles-and-valid-regions.md)
-- [Vector Instruction Set](../instruction-surfaces/vector-instructions.md)
+- [Vector Instruction Set](../instruction-families/vector-families.md)
 - [Tile Memory And Data Movement Instruction Sets](../tile/memory-and-data-movement.md)
 - [Vector Load/Store Reference](../vector/vector-load-store.md)
 - [Scalar DMA Copy Reference](../scalar/dma-copy.md)

@@ -37,7 +37,7 @@ $$ \mathrm{table}[\mathrm{idx}_{i,j}] \mathrel{+}= \mathrm{src}_{i,j} $$
 
 ## Assembly Syntax
 
-PTO-AS form: see [PTO-AS Specification](../../../../../../../docs/assembly/PTO-AS.md).
+PTO-AS form: see [Assembly Spelling And Operands](../../../../../../../docs/isa/syntax-and-operands/assembly-model.md).
 
 Row-indexed scatter:
 

@@ -144,4 +144,4 @@ total_cycles = startup + completion + repeats × per_repeat + (repeats - 1) × i
 ## 相关页面
 
 - [Tile 指令族](../instruction-families/tile-families_zh.md)
-- [Tile 指令面](../instruction-surfaces/tile-instructions_zh.md)
+- [Tile 指令面](../instruction-families/tile-families_zh.md)

@@ -1,7 +1,7 @@
 # PTO虚拟指令集
 
 - 产品介绍
-    - [什么是PTO](../README_zh.md)
+    - [什么是PTO](isa/scalar/ops/micro-instruction/README_zh.md)
     - [PTO ISA概述](PTOISA_zh.md)
     - [支持的硬件平台](../include/README_zh.md)
     - [PTO与其他算子开发方式对比](coding/pto-comparison_zh.md)
@@ -13,8 +13,8 @@
     - [编程模型](coding/ProgrammingModel_zh.md)
     - [抽象机器模型](machine/abstract-machine_zh.md)
     - [编程范式与约定](coding/README_zh.md)
-    - [执行模型与内存层次](mkdocs/src/manual/02-machine-model_zh.md)
-    - [数据类型与状态模型](mkdocs/src/manual/03-state-and-types_zh.md)
+    - [执行模型与内存层次](isa/machine-model/execution-agents_zh.md)
+    - [数据类型与状态模型](isa/state-and-types/type-system_zh.md)
 - 核心编程概念
     - [Tile抽象](coding/Tile_zh.md)
     - [全局内存张量](coding/GlobalTensor_zh.md)
@@ -51,16 +51,16 @@
     - [内存优化技巧](coding/memory-optimization_zh.md)
 - 进阶主题
     - [汇编语言编程](assembly/README_zh.md)
-    - [汇编语法说明](assembly/PTO-AS_zh.md)
+    - [汇编语法说明](isa/syntax-and-operands/assembly-model_zh.md)
     - [C++内建函数参考](reference/pto-intrinsics-header_zh.md)
-    - [虚拟ISA与IR](mkdocs/src/manual/09-virtual-isa-and-ir_zh.md)
-    - [字节码与工具链](mkdocs/src/manual/10-bytecode-and-toolchain_zh.md)
-    - [内存顺序与一致性](mkdocs/src/manual/11-memory-ordering-and-consistency_zh.md)
+    - [虚拟ISA与IR](isa/introduction/what-is-pto-visa_zh.md)
+    - [字节码与工具链](isa/syntax-and-operands/assembly-model_zh.md)
+    - [内存顺序与一致性](isa/memory-model/consistency-baseline_zh.md)
     - [多核并行编程](coding/multi-core-programming_zh.md)
     - [算子融合技术](coding/operator-fusion_zh.md)
 - 附录
     - [PTO虚拟ISA手册](PTO-Virtual-ISA-Manual_zh.md)
-    - [术语表](mkdocs/src/manual/appendix-a-glossary_zh.md)
+    - [术语表](isa/reference/glossary_zh.md)
     - [示例代码索引](../demos/README_zh.md)
     - [Kernel实现参考](../kernels/README_zh.md)
     - [常见错误码说明](coding/error-codes_zh.md)

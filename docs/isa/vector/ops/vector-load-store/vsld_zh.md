@@ -39,7 +39,6 @@ vsld %result, %source[%offset], "STRIDE"
 
 ## 约束
 
-- 这是一个兼容性保留指令集。
 - 真正决定“从源块里读哪些子元素”的是 stride token，而不是简单的 lane 编号或普通偏移。
 
 ## 异常与非法情形

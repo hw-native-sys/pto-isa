@@ -40,7 +40,6 @@ vgather2_bc %result, %source, %offsets, %mask
 
 ## 约束
 
-- 这是一个兼容性保留的 gather 形式。
 - 被 mask 关闭的 lane 不参与地址合并，也不会触发地址越界异常。
 - 被 mask 关闭的 lane 在结果里写零。
 

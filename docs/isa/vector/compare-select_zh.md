@@ -61,4 +61,4 @@ vselr / vselrv2: 选择语义由具体变体定义
 ## 相关页面
 
 - [谓词与物化](./predicate-and-materialization_zh.md)
-- [向量指令族](./vector-families_zh.md)
+- [向量指令族](README_zh.md)

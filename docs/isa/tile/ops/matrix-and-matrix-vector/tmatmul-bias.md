@@ -20,7 +20,7 @@ For `0 <= i < M` and `0 <= j < N`:
 
 $$ \mathrm{C}_{i,j} = \sum_{k=0}^{K-1} \mathrm{A}_{i,k} \cdot \mathrm{B}_{k,j} + \mathrm{Bias}_{0,j} $$
 
-Bias broadcasting behavior is implementation-defined.
+Bias broadcasting extends across the M dimension. On A2/A3: bias must have exactly 1 row and N columns, broadcast along M=1 rows; no other broadcasting configurations are supported. On A5: bias must have exactly 1 row and N columns with row-major layout, broadcast along M=1 rows; no other broadcasting configurations are supported. On CPU simulator: follows A5 semantics.
 
 ## Syntax
 

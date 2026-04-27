@@ -14,12 +14,12 @@
 
 ### Wave 1
 
-文件：
+规范来源文件：
 
-- `docs/mkdocs/src/manual/index.md`
-- `docs/mkdocs/src/manual/01-overview.md`
-- `docs/mkdocs/src/manual/02-machine-model.md`
-- `docs/mkdocs/src/manual/08-programming.md`
+- `docs/isa/README.md`
+- `docs/isa/introduction/*.md`
+- `docs/isa/machine-model/*.md`
+- `docs/isa/programming-model/*.md`
 - 对应中文镜像
 
 目标：
@@ -31,11 +31,11 @@
 
 ### Wave 2
 
-文件：
+规范来源文件：
 
-- `docs/mkdocs/src/manual/03-state-and-types.md`
-- `docs/mkdocs/src/manual/04-tiles-and-globaltensor.md`
-- `docs/mkdocs/src/manual/05-synchronization.md`
+- `docs/isa/state-and-types/*.md`
+- `docs/isa/programming-model/globaltensor-and-data-movement.md`
+- `docs/isa/memory-model/*.md`
 - 对应中文镜像
 
 目标：
@@ -46,13 +46,12 @@
 
 ### Wave 3
 
-文件：
+规范来源文件：
 
-- `docs/mkdocs/src/manual/09-virtual-isa-and-ir.md`
-- `docs/mkdocs/src/manual/10-bytecode-and-toolchain.md`
-- `docs/mkdocs/src/manual/11-memory-ordering-and-consistency.md`
-- `docs/mkdocs/src/manual/12-backend-profiles-and-conformance.md`
-- 需要时连同附录一起调整
+- `docs/isa/syntax-and-operands/*.md`
+- `docs/isa/instruction-families/*.md`
+- `docs/isa/tile/**`、`docs/isa/vector/**`、`docs/isa/scalar/**`、`docs/isa/comm/**`、`docs/isa/system/**`
+- `docs/isa/reference/*.md`
 - 对应中文镜像
 
 目标：

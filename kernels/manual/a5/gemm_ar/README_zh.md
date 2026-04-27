@@ -95,24 +95,19 @@ $$
 ## 整体架构
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│  Compute Stream (32 Cube)              Comm Stream (64 Vector, 958b ini)    │
-│                                                                              │
-│  GemmComputeKernel:                     GemmCommAllKernel:                   │
-│  ┌─────────────────────────┐            ┌──────────────────────────────┐     │
-│  │ for each tile:          │            │ Phase 1: ReduceScatter       │     │
-│  │   K-loop (L1→L0→Cube)  │            │   轮询 Ready Queue            │     │
-│  │   TSTORE → gemm_output │──Ready──→ │   TLOAD tile from gemm_output│     │
-│  │   pipe_barrier(ALL)     │  Queue    │   TSTORE<AtomicAdd> → owner  │     │
-│  │   Enqueue tile_idx      │            │       (ping/pong 双缓冲)      │     │
-│  └─────────────────────────┘            │         ↓                    │     │
-│                                          │   DeviceBarrier (跨 rank)    │     │
-│                                          │         ↓                    │     │
-│                                          │ Phase 2: AllGather           │     │
-│                                          │   行级展平分配                 │     │
-│                                          │   TLOAD → TSTORE 到远端 rank │     │
-│                                          └──────────────────────────────┘     │
-└──────────────────────────────────────────────────────────────────────────────┘
+Compute Stream (32 Cube)                 Comm Stream (64 Vector, 958b ini)
+┌──────────────────────────────┐         ┌────────────────────────────────┐
+│ GemmComputeKernel            │         │ GemmCommAllKernel              │
+│ for each tile:               │         │ Phase 1: ReduceScatter         │
+│ K-loop (L1→L0→Cube)          │         │ 轮询 Ready Queue               │
+│ TSTORE → gemm_output         │──Ready─►│ TLOAD tile from gemm_output    │
+│ pipe_barrier(ALL)            │  Queue  │ TSTORE<AtomicAdd> → owner      │
+│ Enqueue tile_idx             │         │ (ping/pong 双缓冲)             │
+└──────────────────────────────┘         │ DeviceBarrier (跨 rank)        │
+                                         │ Phase 2: AllGather             │
+                                         │ 行级展平分配                   │
+                                         │ TLOAD → TSTORE 到远端 rank     │
+                                         └────────────────────────────────┘
 ```
 
 ## 计算内核详解

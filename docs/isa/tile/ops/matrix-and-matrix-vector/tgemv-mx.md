@@ -108,7 +108,7 @@ No architectural side effects beyond producing the destination tile. Does not im
 
 - Uses backend-specific mx legality checks for data types, tile locations, fractal/layout combinations, and scaling formats.
 
-- Scale tile compatibility and accumulator promotion are implementation-defined by target backend.
+- Scale tile compatibility and accumulator promotion are concrete per target. On A2/A3: scale tiles must match the input element type (e.g., float8 scales for float8 inputs) and the accumulator must be float32; no other type combinations are supported. On A5: scale tiles follow MX format block scaling rules where each scale tile encodes per-block scaling factors for both A and B operands, and the accumulator must be float32; fp8 scale tile types follow the selected fp8 variant. On CPU simulator: follows A5 semantics.
 
 - For portability, validate the exact `(A, B, scaleA, scaleB, C)` type tuple and tile layout against target implementation constraints.
 

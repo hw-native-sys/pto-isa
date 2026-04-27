@@ -7,13 +7,15 @@ Layout operations change how tile data is organized within the unified buffer. T
 | Operation | Description | Category | C++ Intrinsic |
 |-----------|-------------|----------|---------------|
 | [pto.tmov](./ops/layout-and-rearrangement/tmov.md) | Move/copy tile data | Copy | `TMOV(dst, src)` |
-| [pto.tmov_fp](./ops/layout-and-rearrangement/tmov-fp.md) | Move/copy with fill/pad | Copy | `TMOV_FP(dst, src, fp)` |
+| [pto.tmov_fp](./ops/layout-and-rearrangement/tmov.md) | Move/copy with fill/pad | Copy | `TMOV_FP(dst, src, fp)` |
 | [pto.treshape](./ops/layout-and-rearrangement/treshape.md) | Change tile shape | Transform | `TRESHAPE(dst, src, newShape)` |
 | [pto.ttrans](./ops/layout-and-rearrangement/ttrans.md) | Transpose tile dimensions | Transform | `TTRANS(dst, src)` |
+| [pto.tconcat](./ops/layout-and-rearrangement/tconcat.md) | Concatenate tile sequences along a dimension | Transform | `TCONCAT(dst, lhs, rhs)` |
+| [pto.tpack](./ops/layout-and-rearrangement/tpack.md) | Pack tile elements into a compact destination representation | Pack | `TPACK(dst, src)` |
 | [pto.textract](./ops/layout-and-rearrangement/textract.md) | Extract a subtile | Extract | `TEXTRACT(dst, src, offset)` |
-| [pto.textract_fp](./ops/layout-and-rearrangement/textract-fp.md) | Extract with fill/pad | Extract | `TEXTRACT_FP(dst, src, offset, fp)` |
+| [pto.textract_fp](./ops/layout-and-rearrangement/textract.md) | Extract with fill/pad | Extract | `TEXTRACT_FP(dst, src, offset, fp)` |
 | [pto.tinsert](./ops/layout-and-rearrangement/tinsert.md) | Insert a subtile into a tile | Insert | `TINSERT(dst, src, offset)` |
-| [pto.tinsert_fp](./ops/layout-and-rearrangement/tinsert-fp.md) | Insert with fill/pad | Insert | `TINSERT_FP(dst, src, offset, fp)` |
+| [pto.tinsert_fp](./ops/layout-and-rearrangement/tinsert.md) | Insert with fill/pad | Insert | `TINSERT_FP(dst, src, offset, fp)` |
 | [pto.tfillpad](./ops/layout-and-rearrangement/tfillpad.md) | Fill tile padding region | Fill | `TFILLPAD(dst, fp)` |
 | [pto.tfillpad_inplace](./ops/layout-and-rearrangement/tfillpad-inplace.md) | Fill padding in place | Fill | `TFILLPAD_INPLACE(dst, fp)` |
 | [pto.tfillpad_expand](./ops/layout-and-rearrangement/tfillpad-expand.md) | Fill padding and expand | Fill | `TFILLPAD_EXPAND(dst, fp)` |
@@ -35,6 +37,8 @@ $$ \mathrm{dst}_{i,j} = \mathrm{src}_{\mathrm{index}(i,j)} $$
 
 - `TTRANS`: swaps row and column indices: `dst[i,j] = src[j,i]`
 - `TRESHAPE`: reinterprets the flat element sequence with a new `(Rows, Cols)` shape
+- `TCONCAT`: joins tile element sequences along the documented dimension
+- `TPACK`: repacks tile elements into the destination layout or compact representation
 - `TIMG2COL`: rearranges image patches into column format for convolution lowering
 
 ### Extract/Insert (TEXTRACT, TINSERT, TEXTRACT_FP, TINSERT_FP)
@@ -120,4 +124,4 @@ PTO_INST RecordEvent TIMG2COL(TileDst& dst, TileSrc& src, Cfg cfg);
 ## See Also
 
 - [Tile instruction set](../instruction-families/tile-families.md) — Instruction set overview
-- [Tile instruction set](../instruction-surfaces/tile-instructions.md) — Instruction Set description
+- [Tile instruction set](../instruction-families/tile-families.md) — Instruction Set description

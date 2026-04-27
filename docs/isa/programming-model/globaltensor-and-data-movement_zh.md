@@ -181,6 +181,6 @@ copy_ubuf_to_gm(%ub_out, %gm_out, ...);
 ## 相关页面
 
 - [Tile 与有效区域](./tiles-and-valid-regions_zh.md)
-- [向量指令集](../instruction-surfaces/vector-instructions_zh.md)
+- [向量指令集](../vector/README_zh.md)
 - [向量加载存储参考](../vector/vector-load-store_zh.md)
 - [DMA 拷贝参考](../scalar/dma-copy_zh.md)

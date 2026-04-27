@@ -25,7 +25,7 @@
       "notes": []
     },
     {
-      "instruction": "TSETHF32MODE",
+      "instruction": "SETHF32MODE",
       "category": "Manual / Resource Binding",
       "summary_en": "Configure HF32 transform mode (implementation-defined).",
       "summary_zh": "设置 HF32 变换模式（实现定义）。",
@@ -37,7 +37,7 @@
       "notes": []
     },
     {
-      "instruction": "TSETTF32MODE",
+      "instruction": "SETTF32MODE",
       "category": "Manual / Resource Binding",
       "summary_en": "Configure TF32 transform mode (implementation-defined).",
       "summary_zh": "设置 TF32 变换模式（实现定义）。",

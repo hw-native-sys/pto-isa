@@ -13,5 +13,5 @@ This folder defines the abstract execution model used by the PTO ISA and PTO Til
   - [Global memory tensors](../coding/GlobalTensor.md)
   - [Events and synchronization](../coding/Event.md)
   - [Scalar values and enums](../coding/Scalar.md)
-- [Instruction reference](../isa/README.md)
+- [Instruction reference](../isa/scalar/ops/micro-instruction/README.md)
 

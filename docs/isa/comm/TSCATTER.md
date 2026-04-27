@@ -1,11 +1,10 @@
-﻿# TSCATTER
+# pto.tscatter
 
 ## Introduction
 
-Scatter operation: the calling NPU (root) distributes data to all ranks in the parallel group by splitting the local source tensor along **DIM_3** (row dimension). This is the inverse of `TGATHER`.
+Scatter operation: the calling NPU (root) distributes data to all ranks in the parallel group by splitting the local source tensor along **DIM_3** (row dimension). This is the inverse of `pto.tgather`.
 
-
-Only the root needs to execute `TSCATTER`. Non-root ranks only need to ensure their destination buffers are allocated and writable for the duration of the operation. Calling `TSCATTER` on non-root ranks is undefined behavior.
+Only the root needs to execute `pto.tscatter`. Non-root ranks only need to ensure their destination buffers are allocated and writable for the duration of the operation. Calling `pto.tscatter` on non-root ranks is undefined behavior.
 
 **Large Tile Support**: When the per-rank data exceeds the UB tile capacity in rows and/or columns, the transfer is automatically chunked via 2D sliding.
 
@@ -17,13 +16,14 @@ $$\mathrm{dst}^{(r)}_{d_0, d_1, d_2,\; i,\; j} = \mathrm{src}^{\mathrm{local}}_{
 
 ## Assembly Syntax
 
-PTO-AS form: see [PTO-AS Specification](../../assembly/PTO-AS.md).
+PTO-AS form: see [Assembly Spelling And Operands](../syntax-and-operands/assembly-model.md).
 
 Synchronous form:
 
 ```text
-tscatter %group, %src : (!pto.group<...>, !pto.memref<...>)
+pto.tscatter %group, %src : (!pto.group<...>, !pto.memref<...>)
 ```
+
 Lowering introduces UB staging tile(s) for the GM→UB→GM data path; the C++ intrinsic requires explicit `stagingTileData` (or `pingTile` / `pongTile`) operand(s).
 
 ## C++ Intrinsic
@@ -33,13 +33,13 @@ Declared in `include/pto/comm/pto_comm_inst.hpp`:
 ```cpp
 // Basic scatter (single staging tile)
 template <typename ParallelGroupType, typename GlobalSrcData, typename TileData, typename... WaitEvents>
-PTO_INST RecordEvent TSCATTER(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData,
-                              TileData &stagingTileData, WaitEvents&... events);
+PTO_INST RecordEvent SCATTER(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData,
+                             TileData &stagingTileData, WaitEvents&... events);
 
 // Ping-pong scatter (double buffering with two staging tiles)
 template <typename ParallelGroupType, typename GlobalSrcData, typename TileData, typename... WaitEvents>
-PTO_INST RecordEvent TSCATTER(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData,
-                              TileData &pingTile, TileData &pongTile, WaitEvents&... events);
+PTO_INST RecordEvent SCATTER(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData,
+                             TileData &pingTile, TileData &pongTile, WaitEvents&... events);
 ```
 
 ## Constraints
@@ -88,7 +88,7 @@ void scatter(__gm__ T* local_data, __gm__ T* group_addrs[NRANKS], int my_rank) {
     GSource srcG(local_data);
     TileT stagingTile(TILE_ROWS, TILE_COLS);
 
-    comm::TSCATTER(group, srcG, stagingTile);
+    comm::SCATTER(group, srcG, stagingTile);
 }
 ```
 
@@ -103,7 +103,6 @@ using namespace pto;
 
 template <typename T, int ROWS, int COLS, int TILE_ROWS, int TILE_COLS, int NRANKS>
 void scatter_pingpong(__gm__ T* local_data, __gm__ T* group_addrs[NRANKS], int my_rank) {
-    // Tile can be smaller than the data in both dimensions
     using TileT = Tile<TileType::Vec, T, TILE_ROWS, TILE_COLS, BLayout::RowMajor, -1, -1>;
     using GPerRank = GlobalTensor<T, Shape<1,1,1,ROWS,COLS>,
                                   BaseShape2D<T, ROWS, COLS, Layout::ND>, Layout::ND>;
@@ -120,7 +119,6 @@ void scatter_pingpong(__gm__ T* local_data, __gm__ T* group_addrs[NRANKS], int m
     TileT pingTile(TILE_ROWS, TILE_COLS);
     TileT pongTile(TILE_ROWS, TILE_COLS);
 
-    // Ping-pong: overlaps TLOAD and TSTORE for better throughput
-    comm::TSCATTER(group, srcG, pingTile, pongTile);
+    comm::SCATTER(group, srcG, pingTile, pongTile);
 }
 ```

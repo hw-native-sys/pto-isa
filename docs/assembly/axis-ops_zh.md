@@ -10,7 +10,7 @@
 
 ### TROWSUM
 
-该指令的详细介绍请见[isa/TROWSUM](../isa/TROWSUM_zh.md)
+该指令的详细介绍请见[isa/TROWSUM](../isa/tile/ops/reduce-and-expand/trowsum_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -28,7 +28,7 @@ pto.trowsum ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst :
 
 ### TCOLSUM
 
-该指令的详细介绍请见[isa/TCOLSUM](../isa/TCOLSUM_zh.md)
+该指令的详细介绍请见[isa/TCOLSUM](../isa/tile/ops/reduce-and-expand/tcolsum_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -48,7 +48,7 @@ pto.tcolsum ins(%src, %tmp {isBinary = false} : !pto.tile_buf<...>, !pto.tile_bu
 
 ### TCOLPROD
 
-该指令的详细介绍请见[isa/TCOLPROD](../isa/TCOLPROD_zh.md)
+该指令的详细介绍请见[isa/TCOLPROD](../isa/tile/ops/reduce-and-expand/tcolprod_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -66,7 +66,7 @@ pto.tcolprod ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 
 ### TCOLMAX
 
-该指令的详细介绍请见[isa/TCOLMAX](../isa/TCOLMAX_zh.md)
+该指令的详细介绍请见[isa/TCOLMAX](../isa/tile/ops/reduce-and-expand/tcolmax_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -84,7 +84,7 @@ pto.tcolmax ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 
 ### TROWMAX
 
-该指令的详细介绍请见[isa/TROWMAX](../isa/TROWMAX_zh.md)
+该指令的详细介绍请见[isa/TROWMAX](../isa/tile/ops/reduce-and-expand/trowmax_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -102,7 +102,7 @@ pto.trowmax ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst :
 
 ### TROWMIN
 
-该指令的详细介绍请见[isa/TROWMIN](../isa/TROWMIN_zh.md)
+该指令的详细介绍请见[isa/TROWMIN](../isa/tile/ops/reduce-and-expand/trowmin_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -120,7 +120,7 @@ pto.trowmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst :
 
 ### TROWEXPAND
 
-该指令的详细介绍请见[isa/TROWEXPAND](../isa/TROWEXPAND_zh.md)
+该指令的详细介绍请见[isa/TROWEXPAND](../isa/tile/ops/reduce-and-expand/trowexpand_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -138,7 +138,7 @@ pto.trowexpand ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 
 ### TROWEXPANDDIV
 
-该指令的详细介绍请见[isa/TROWEXPANDDIV](../isa/TROWEXPANDDIV_zh.md)
+该指令的详细介绍请见[isa/TROWEXPANDDIV](../isa/tile/ops/reduce-and-expand/trowexpanddiv_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -156,7 +156,7 @@ pto.tcolexpanddiv ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ### TROWEXPANDMUL
 
-该指令的详细介绍请见[isa/TROWEXPANDMUL](../isa/TROWEXPANDMUL_zh.md)
+该指令的详细介绍请见[isa/TROWEXPANDMUL](../isa/tile/ops/reduce-and-expand/trowexpandmul_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -174,7 +174,7 @@ pto.tcolexpandmul ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ### TROWEXPANDSUB
 
-该指令的详细介绍请见[isa/TROWEXPANDSUB](../isa/TROWEXPANDSUB_zh.md)
+该指令的详细介绍请见[isa/TROWEXPANDSUB](../isa/tile/ops/reduce-and-expand/trowexpandsub_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -192,7 +192,7 @@ pto.tcolexpandsub ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ### TROWEXPANDADD
 
-该指令的详细介绍请见[isa/TROWEXPANDADD](../isa/TROWEXPANDADD_zh.md)
+该指令的详细介绍请见[isa/TROWEXPANDADD](../isa/tile/ops/reduce-and-expand/trowexpandadd_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -210,7 +210,7 @@ pto.trowexpandadd ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ### TROWEXPANDMAX
 
-该指令的详细介绍请见[isa/TROWEXPANDMAX](../isa/TROWEXPANDMAX_zh.md)
+该指令的详细介绍请见[isa/TROWEXPANDMAX](../isa/tile/ops/reduce-and-expand/trowexpandmax_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -228,7 +228,7 @@ pto.trowexpandmax ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ### TROWEXPANDMIN
 
-该指令的详细介绍请见[isa/TROWEXPANDMIN](../isa/TROWEXPANDMIN_zh.md)
+该指令的详细介绍请见[isa/TROWEXPANDMIN](../isa/tile/ops/reduce-and-expand/trowexpandmin_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -246,7 +246,7 @@ pto.trowexpandmin ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ### TROWEXPANDEXPDIF
 
-该指令的详细介绍请见[isa/TROWEXPANDEXPDIF](../isa/TROWEXPANDEXPDIF_zh.md)
+该指令的详细介绍请见[isa/TROWEXPANDEXPDIF](../isa/tile/ops/reduce-and-expand/trowexpandexpdif_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -264,7 +264,7 @@ pto.trowexpandexpdif ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) 
 
 ### TCOLMIN
 
-该指令的详细介绍请见[isa/TCOLMIN](../isa/TCOLMIN_zh.md)
+该指令的详细介绍请见[isa/TCOLMIN](../isa/tile/ops/reduce-and-expand/tcolmin_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -282,7 +282,7 @@ pto.tcolmin ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 
 ### TCOLEXPAND
 
-该指令的详细介绍请见[isa/TCOLEXPAND](../isa/TCOLEXPAND_zh.md)
+该指令的详细介绍请见[isa/TCOLEXPAND](../isa/tile/ops/reduce-and-expand/tcolexpand_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -300,7 +300,7 @@ pto.tcolexpand ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 
 ### TCOLEXPANDDIV
 
-该指令的详细介绍请见[isa/TCOLEXPANDDIV](../isa/TCOLEXPANDDIV_zh.md)
+该指令的详细介绍请见[isa/TCOLEXPANDDIV](../isa/tile/ops/reduce-and-expand/tcolexpanddiv_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -318,7 +318,7 @@ pto.tcolexpanddiv ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ### TCOLEXPANDMUL
 
-该指令的详细介绍请见[isa/TCOLEXPANDMUL](../isa/TCOLEXPANDMUL_zh.md)
+该指令的详细介绍请见[isa/TCOLEXPANDMUL](../isa/tile/ops/reduce-and-expand/tcolexpandmul_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -336,7 +336,7 @@ pto.tcolexpandmul ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ### TCOLEXPANDADD
 
-该指令的详细介绍请见[isa/TCOLEXPANDADD](../isa/TCOLEXPANDADD_zh.md)
+该指令的详细介绍请见[isa/TCOLEXPANDADD](../isa/tile/ops/reduce-and-expand/tcolexpandadd_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -354,7 +354,7 @@ pto.tcolexpandadd ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ### TCOLEXPANDMAX
 
-该指令的详细介绍请见[isa/TCOLEXPANDMAX](../isa/TCOLEXPANDMAX_zh.md)
+该指令的详细介绍请见[isa/TCOLEXPANDMAX](../isa/tile/ops/reduce-and-expand/tcolexpandmax_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -372,7 +372,7 @@ pto.tcolexpandmax ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ### TCOLEXPANDMIN
 
-该指令的详细介绍请见[isa/TCOLEXPANDMIN](../isa/TCOLEXPANDMIN_zh.md)
+该指令的详细介绍请见[isa/TCOLEXPANDMIN](../isa/tile/ops/reduce-and-expand/tcolexpandmin_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -390,7 +390,7 @@ pto.tcolexpandmin ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ### TCOLEXPANDSUB
 
-该指令的详细介绍请见[isa/TCOLEXPANDSUB](../isa/TCOLEXPANDSUB_zh.md)
+该指令的详细介绍请见[isa/TCOLEXPANDSUB](../isa/tile/ops/reduce-and-expand/tcolexpandsub_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -408,7 +408,7 @@ pto.tcolexpandsub ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 
 ### TCOLEXPANDEXPDIF
 
-该指令的详细介绍请见[isa/TCOLEXPANDEXPDIF](../isa/TCOLEXPANDEXPDIF_zh.md)
+该指令的详细介绍请见[isa/TCOLEXPANDEXPDIF](../isa/tile/ops/reduce-and-expand/tcolexpandexpdif_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -424,7 +424,7 @@ pto.tcolexpandexpdif ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) 
 
 ### TROWPROD
 
-该指令的详细介绍请见[isa/TROWPROD](../isa/TROWPROD_zh.md)
+该指令的详细介绍请见[isa/TROWPROD](../isa/tile/ops/reduce-and-expand/trowprod_zh.md)
 
 **AS Level 1 (SSA)：**
 

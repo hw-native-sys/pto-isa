@@ -18,7 +18,10 @@ Irregular operations cover tile compute that does not fit the standard elementwi
 | [pto.tpartmul](./ops/irregular-and-complex/tpartmul.md) | Partial multiplication | Reduce | All |
 | [pto.tpartmax](./ops/irregular-and-complex/tpartmax.md) | Partial maximum | Reduce | All |
 | [pto.tpartmin](./ops/irregular-and-complex/tpartmin.md) | Partial minimum | Reduce | All |
-| [pto.tquant](./ops/irregular-and-complex/tquant.md) | Quantize tile to integer format | Quantize | A2/A3, A5 |
+| [pto.tquant](./ops/irregular-and-complex/tquant.md) | Quantize tile values into a lower-precision representation | Quantize | A2/A3, A5 |
+| [pto.tdequant](./ops/irregular-and-complex/tdequant.md) | Dequantize integer tile values back to floating-point values | Quantize | A2/A3, A5 |
+| [pto.trandom](./ops/irregular-and-complex/trandom.md) | Generate random values into tile state | Generation | A5 |
+| [pto.thistogram](./ops/irregular-and-complex/thistogram.md) | Accumulate histogram bins from tile values | Statistics | A5 |
 
 ## Mechanism
 
@@ -38,9 +41,13 @@ $$ \mathrm{dst}_{\mathrm{index}_i} = \mathrm{src}_i \quad \text{(scatter)} $$
 
 Partial reductions compute intermediate results that are later combined across tiles. Unlike full row/column reductions, partial reductions produce tiles with reduced but non-singular extent — they divide the reduction axis into segments.
 
-### Quantization (TQUANT)
+### Quantization (TQUANT, TDEQUANT)
 
-`TQUANT` converts floating-point tile data into quantized representations. In the current authored tree, `TDEQUANT`, `TPACK`, `TRANDOM`, and `THISTOGRAM` are documented under the supporting-op / other path rather than this tile family page.
+`TQUANT` converts floating-point tile data into quantized representations. `TDEQUANT` converts quantized integer tile data back into floating-point values using row-broadcast scale and offset tiles. Both are tile payload transforms, so they belong here rather than in system scheduling.
+
+### Generated and Statistical State
+
+`TRANDOM` and `THISTOGRAM` create tile-visible payload state with algorithm-specific behavior. They are irregular tile operations because their result is tile data, not a scheduling effect.
 
 ## Type Support by Target Profile
 
@@ -101,4 +108,4 @@ PTO_INST RecordEvent TQUANT(TileDst& dst, TileSrc& src, TileScale& scale, TileZp
 ## See Also
 
 - [Tile instruction set](../instruction-families/tile-families.md) — Instruction set overview
-- [Tile instruction set](../instruction-surfaces/tile-instructions.md) — Instruction Set description
+- [Tile instruction set](../instruction-families/tile-families.md) — Instruction Set description

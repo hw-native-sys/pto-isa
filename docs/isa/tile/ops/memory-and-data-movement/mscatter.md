@@ -14,7 +14,7 @@ For each element `(i, j)` in the source valid region:
 
 $$ \mathrm{mem}[\mathrm{idx}_{i,j}] = \mathrm{src}_{i,j} $$
 
-If multiple elements map to the same destination location, the final value is implementation-defined (CPU simulator: last writer wins in row-major iteration order).
+If multiple elements map to the same destination location, the final value is **undefined on A2/A3 and A5** (MSCATTER aliases are illegal and must not occur in correct programs); on the CPU simulator, the last writer in row-major iteration order wins.
 
 ## Syntax
 
@@ -59,7 +59,7 @@ Elements from `src` are scattered to positions in `dst` specified by `indexes`.
 
 ## Side Effects
 
-This operation writes to global memory. Concurrent writes to the same location produce implementation-defined results.
+This operation writes to global memory. Concurrent writes to the same location produce undefined behavior on A2/A3 and A5 (MSCATTER concurrent aliases are illegal and must not occur in correct programs); on the CPU simulator, the last writer wins.
 
 ## Constraints
 

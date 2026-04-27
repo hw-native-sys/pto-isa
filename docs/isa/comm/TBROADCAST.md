@@ -1,6 +1,6 @@
-﻿# TBROADCAST
+﻿# pto.tbroadcast
 
-`TBROADCAST` is part of the [Collective Communication](../collective-communication.md) instruction set.
+`pto.tbroadcast` is part of the [Collective Communication](communication-runtime.md) instruction set.
 
 ## Summary
 
@@ -23,7 +23,7 @@ The data path uses UB as a staging area: GM → local UB (root) → interconnect
 ## Assembly Syntax
 
 ```text
-tbroadcast %group, %src : (!pto.group<...>, !pto.memref<...>)
+pto.tbroadcast %group, %src : (!pto.group<...>, !pto.memref<...>)
 ```
 
 Lowering introduces UB staging tile(s) for the GM → UB → interconnect → GM data path. The C++ intrinsic requires explicit `stagingTileData` (or `pingTile` / `pongTile`) operand(s).
@@ -35,13 +35,13 @@ Declared in `include/pto/comm/pto_comm_inst.hpp`:
 ```cpp
 // Basic broadcast (single staging tile)
 template <typename ParallelGroupType, typename GlobalSrcData, typename TileData, typename... WaitEvents>
-PTO_INST RecordEvent TBROADCAST(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData,
-                                TileData &stagingTileData, WaitEvents&... events);
+PTO_INST RecordEvent BROADCAST(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData,
+                              TileData &stagingTileData, WaitEvents&... events);
 
 // Ping-pong broadcast (double buffering with two staging tiles)
 template <typename ParallelGroupType, typename GlobalSrcData, typename TileData, typename... WaitEvents>
-PTO_INST RecordEvent TBROADCAST(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData,
-                                TileData &pingTile, TileData &pongTile, WaitEvents&... events);
+PTO_INST RecordEvent BROADCAST(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData,
+                              TileData &pingTile, TileData &pongTile, WaitEvents&... events);
 ```
 
 ## Inputs
@@ -83,7 +83,7 @@ Participates in collective communication over the interconnect. Only the root ra
 
 ## Exceptions
 
-- Non-root ranks calling `TBROADCAST` produces undefined behavior.
+- Non-root ranks calling `pto.tbroadcast` produces undefined behavior.
 - Using incompatible tensor types or ranks is rejected by the verifier.
 - Accessing a rank's destination buffer outside its declared shape is undefined.
 
@@ -109,7 +109,7 @@ void broadcast(__gm__ T* group_addrs[NRANKS], __gm__ T* my_data, int my_rank) {
   GTensor srcG(my_data);
   TileT stagingTile(TILE_ROWS, TILE_COLS);
 
-  comm::TBROADCAST(group, srcG, stagingTile);
+  comm::BROADCAST(group, srcG, stagingTile);
 }
 ```
 
@@ -131,10 +131,10 @@ void broadcast_pingpong(__gm__ T* group_addrs[NRANKS], __gm__ T* my_data, int my
   TileT pingTile(TILE_ROWS, TILE_COLS);
   TileT pongTile(TILE_ROWS, TILE_COLS);
 
-  comm::TBROADCAST(group, srcG, pingTile, pongTile);
+  comm::BROADCAST(group, srcG, pingTile, pongTile);
 }
 ```
 
 ## See Also
 
-- Instruction set overview: [Collective Communication](../collective-communication.md)
+- Instruction set overview: [Collective Communication](communication-runtime.md)

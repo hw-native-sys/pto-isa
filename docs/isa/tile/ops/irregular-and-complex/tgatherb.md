@@ -14,7 +14,7 @@ For each element in the valid region:
 
 $$ \mathrm{dst}_{i,j} = *\left(\mathrm{srcBase} + \mathrm{offset}_{i,j}\right) $$
 
-Exact bounds behavior is implementation-defined.
+On A2/A3 and A5, out-of-range offsets produce undefined results; on the CPU simulator, out-of-range offsets are clamped to the source tile boundary.
 
 ## Syntax
 
@@ -77,7 +77,7 @@ No architectural side effects beyond producing the destination tile. Does not im
 
 - **Offset interpretation**:
     - Offsets are interpreted as `uint32_t` values (byte offsets) by the implementation.
-    - Offset bounds are not validated by explicit runtime assertions; out-of-range offsets are target-defined.
+    - Offset bounds are not validated by explicit runtime assertions; on A2/A3 and A5, out-of-range offsets produce undefined results; on the CPU simulator, out-of-range offsets are clamped to the source tile boundary.
 
 ## Exceptions
 

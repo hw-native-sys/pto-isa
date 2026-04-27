@@ -1774,7 +1774,7 @@ def _render_config(instr: str, summary: str, accent: str, bg: str) -> str:
         scalar_value = "set"
         state_lines = ["FMATRIX state updated", "consulted by later ops"]
     else:
-        mode = "HF32" if instr == "TSETHF32MODE" else "TF32" if instr == "TSETTF32MODE" else "mode"
+        mode = "HF32" if instr == "SETTF32MODE" else "TF32" if instr == "SETTF32MODE" else "mode"
         expr = f"set transform mode ({mode})"
         proc = [
             f"{instr}(enable/mode, ...waitEvents)",

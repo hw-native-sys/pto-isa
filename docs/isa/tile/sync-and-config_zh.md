@@ -10,16 +10,13 @@
 | --- | --- | --- |
 | [pto.tassign](./ops/sync-and-config/tassign_zh.md) | 把 tile 绑定到 tile-buffer 地址 | 资源绑定 |
 | [pto.tsync](./ops/sync-and-config/tsync_zh.md) | 等待事件或插入屏障 | 同步 |
-| [pto.tsettf32mode](./ops/sync-and-config/tsettf32mode_zh.md) | 设置 tile 路径的 TF32 行为 | 模式配置 |
-| [pto.tset_img2col_rpt](./ops/sync-and-config/tset-img2col-rpt_zh.md) | 设置 img2col 重复次数 | 模式配置 |
-| [pto.tset_img2col_padding](./ops/sync-and-config/tset-img2col-padding_zh.md) | 设置 img2col padding 形态 | 模式配置 |
-| [pto.tsubview](./ops/sync-and-config/tsubview_zh.md) | 基于已有 tile 创建子视图 | 视图 |
-| [pto.tget_scale_addr](./ops/sync-and-config/tget-scale-addr_zh.md) | 取得量化 / MX 路径使用的 scale 地址 | 辅助查询 |
-
-兼容性说明：
-
-- [tsethf32mode](./ops/sync-and-config/tsethf32mode_zh.md) 和 [tsetfmatrix](./ops/sync-and-config/tsetfmatrix_zh.md) 仍保留旧路径入口；
-- 但它们的规范位置已经迁移到 [标量控制与配置](../scalar/control-and-configuration_zh.md)，因为它们配置的是标量可见状态，而不是 tile 载荷合同。
+| [pto.talias](./ops/sync-and-config/talias.md) | 基于同一底层存储创建 tile alias 视图 | 视图 |
+| [pto.settf32mode](./ops/sync-and-config/settf32mode.md) | 设置 tile 路径的 TF32 行为 | 模式配置 |
+| [pto.setfmatrix](./ops/sync-and-config/setfmatrix.md) | 设置 FMATRIX engine 模式与地址 | 模式配置 |
+| [pto.set_img2col_rpt](./ops/sync-and-config/set-img2col-rpt.md) | 设置 img2col 重复次数 | 模式配置 |
+| [pto.set_img2col_padding](./ops/sync-and-config/set-img2col-padding.md) | 设置 img2col padding 形态 | 模式配置 |
+| [pto.subview](./ops/sync-and-config/subview.md) | 基于已有 tile 创建子视图 | 视图 |
+| [pto.get_scale_addr](./ops/sync-and-config/get-scale-addr.md) | 取得量化 / MX 路径使用的 scale 地址 | 辅助查询 |
 
 ## 机制
 
@@ -40,13 +37,17 @@
 
 它的核心价值不在“暂停一下”，而在于把 producer-consumer 关系写成可验证的显式合同。
 
-### TSET*
+### Tile 侧配置
 
 本页只保留 tile 侧配置，例如 TF32 或 img2col 相关模式。它们会影响后续同类 tile 指令，直到再次被覆盖。
 
 ### TSUBVIEW
 
 `TSUBVIEW` 创建的是逻辑子视图，不会复制底层数据。源 tile 和子视图共享同一份底层存储，因此它的价值在于“改变解释与访问窗口”，而不是搬运数据。
+
+### TALIAS
+
+`TALIAS` 创建的是 alias 视图，不复制 tile payload。它改变的是可见 tile 视图与合法访问关系；底层字节仍由源 tile 和 alias 共同引用。
 
 ### TGET_SCALE_ADDR
 
@@ -59,8 +60,9 @@
 ## 约束
 
 - `TASSIGN` 绑定的是地址。若两个没有别名关系的 tile 同时复用同一地址，其行为不受手册保证。
+- `TALIAS` 必须保留源 tile 的底层 payload identity；通过任一视图写入后的可见性由 alias 合同决定。
 - 空参数 `TSYNC()` 是 no-op。
-- `TSET*` 的配置会影响后续依赖该模式的同类指令，直到下一次同类设置覆盖它。
+- `SET*` 配置操作会影响后续依赖该模式的同类指令，直到下一次同类设置覆盖它。
 - `TSUBVIEW` 与源 tile 共享底层存储，超出子视图范围的访问不受手册保证。
 
 ## 不允许的情形

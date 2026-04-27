@@ -215,6 +215,6 @@ Textual spelling does not replace:
 
 - [Operands and Attributes](./operands-and-attributes.md)
 - [Type System](../state-and-types/type-system.md)
-- [Parallel Tile Operation ISA Version 1.0](../introduction/what-is-pto-visa.md)
+- [Parallel Tile Operation ISA current scope](../introduction/what-is-pto-visa.md)
 - [Instruction sets](../instruction-families/README.md)
 - [Common conventions](../conventions.md)

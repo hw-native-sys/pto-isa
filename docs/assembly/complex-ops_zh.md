@@ -10,7 +10,7 @@
 
 ### TPRINT
 
-该指令的详细介绍请见[isa/TPRINT](../isa/TPRINT_zh.md)
+该指令的详细介绍请见[isa/TPRINT](../isa/tile/ops/irregular-and-complex/tprint_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -28,7 +28,7 @@ pto.tprint ins(%src : !pto.tile_buf<...> | !pto.partition_tensor_view<MxNxdtype>
 
 ### TMRGSORT
 
-该指令的详细介绍请见[isa/TMRGSORT](../isa/TMRGSORT_zh.md)
+该指令的详细介绍请见[isa/TMRGSORT](../isa/tile/ops/irregular-and-complex/tmrgsort_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -50,7 +50,7 @@ outs(%dst, %executed : !pto.tile_buf<...>, vector<4xi16>)
 
 ### TSORT32
 
-该指令的详细介绍请见[isa/TSORT32](../isa/TSORT32_zh.md)
+该指令的详细介绍请见[isa/TSORT32](../isa/tile/ops/irregular-and-complex/tsort32_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -68,7 +68,7 @@ pto.tsort32 ins(%src : !pto.tile_buf<...>) outs(%dst, %idx : !pto.tile_buf<...>,
 
 ### TGATHER
 
-该指令的详细介绍请见[isa/TGATHER](../isa/TGATHER_zh.md)
+该指令的详细介绍请见[isa/TGATHER](../isa/tile/ops/irregular-and-complex/tgather_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -88,7 +88,7 @@ pto.tgather ins(%src, {maskPattern = #pto.mask_pattern<P0101>} : !pto.tile_buf<.
 
 ### TCI
 
-该指令的详细介绍请见[isa/TCI](../isa/TCI_zh.md)
+该指令的详细介绍请见[isa/TCI](../isa/tile/ops/irregular-and-complex/tci_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -106,7 +106,7 @@ pto.tci ins(%scalar {descending = false} : dtype) outs(%dst : !pto.tile_buf<...>
 
 ### TTRI
 
-该指令的详细介绍请见[isa/TTRI](../isa/TTRI_zh.md)
+该指令的详细介绍请见[isa/TTRI](../isa/tile/ops/irregular-and-complex/ttri_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -124,7 +124,7 @@ pto.ttri ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : 
 
 ### TRANDOM
 
-该指令的详细介绍请见[isa/TRANDOM](../isa/TRANDOM_zh.md)
+该指令的详细介绍请见[isa/TRANDOM](../isa/tile/irregular-and-complex_zh.md)
 
 
 **AS Level 1 (SSA)：**
@@ -141,7 +141,7 @@ pto.trandom ins(%key, %counter {rounds = 10} : dtype) outs(%dst : !pto.tile_buf<
 
 ### TPARTADD
 
-该指令的详细介绍请见[isa/TPARTADD](../isa/TPARTADD_zh.md)
+该指令的详细介绍请见[isa/TPARTADD](../isa/tile/ops/irregular-and-complex/tpartadd_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -159,7 +159,7 @@ pto.tpartadd ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%ds
 
 ### TPARTMUL
 
-该指令的详细介绍请见[isa/TPARTMUL](../isa/TPARTMUL_zh.md)
+该指令的详细介绍请见[isa/TPARTMUL](../isa/tile/ops/irregular-and-complex/tpartmul_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -177,7 +177,7 @@ pto.tpartmul ins(%src0, %src1 : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<..
 
 ### TPARTMAX
 
-该指令的详细介绍请见[isa/TPARTMAX](../isa/TPARTMAX_zh.md)
+该指令的详细介绍请见[isa/TPARTMAX](../isa/tile/ops/irregular-and-complex/tpartmax_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -195,7 +195,7 @@ pto.tpartmax ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%ds
 
 ### TPARTMIN
 
-该指令的详细介绍请见[isa/TPARTMIN](../isa/TPARTMIN_zh.md)
+该指令的详细介绍请见[isa/TPARTMIN](../isa/tile/ops/irregular-and-complex/tpartmin_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -247,7 +247,7 @@ pto.tpartargmin ins(%src0Val, %src1Val, %src0Idx, %src1Idx : !pto.tile_buf<...>,
 
 ### TGATHERB
 
-该指令的详细介绍请见[isa/TGATHERB](../isa/TGATHERB_zh.md)
+该指令的详细介绍请见[isa/TGATHERB](../isa/tile/ops/irregular-and-complex/tgatherb_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -265,7 +265,7 @@ pto.tgatherb ins(%src, %offsets : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%
 
 ### TSCATTER
 
-该指令的详细介绍请见[isa/TSCATTER](../isa/TSCATTER_zh.md)
+该指令的详细介绍请见[isa/TSCATTER](../isa/tile/ops/irregular-and-complex/tscatter_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -283,7 +283,7 @@ pto.tscatter ins(%src, %idx : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst 
 
 ### TQUANT
 
-该指令的详细介绍请见[isa/TQUANT](../isa/TQUANT_zh.md)
+该指令的详细介绍请见[isa/TQUANT](../isa/tile/ops/irregular-and-complex/tquant_zh.md)
 
 **AS Level 1 (SSA)：**
 

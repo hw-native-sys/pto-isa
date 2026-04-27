@@ -26,6 +26,6 @@
 
 ## 相关页面
 
-- [标量与控制指令集](../instruction-surfaces/scalar-and-control-instructions_zh.md)
+- [标量与控制指令集](../instruction-families/scalar-and-control-families_zh.md)
 - [标量与控制指令族](../instruction-families/scalar-and-control-families_zh.md)
 - [指令描述格式](../reference/format-of-instruction-descriptions_zh.md)

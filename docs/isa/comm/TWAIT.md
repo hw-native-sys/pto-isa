@@ -1,14 +1,14 @@
-﻿# TWAIT
+﻿# pto.twait
 
-`TWAIT` is part of the [Non-ISA Supporting Ops](../non-isa-supporting-ops.md) instruction set.
+`pto.twait` is part of the [Collective Communication](communication-runtime.md) instruction set.
 
 ## Summary
 
-Blocking wait until a signal (or all elements of a signal tensor) satisfies a comparison condition against a constant. Used with `TNOTIFY` for inter-NPU flag-based synchronization.
+Blocking wait until a signal (or all elements of a signal tensor) satisfies a comparison condition against a constant. Used with `pto.tnotify` for inter-NPU flag-based synchronization.
 
 ## Mechanism
 
-`TWAIT` spins on a signal location until the comparison condition is satisfied. The operation halts the current NPU's scalar unit until the condition becomes true.
+`pto.twait` spins on a signal location until the comparison condition is satisfied. The operation halts the current NPU's scalar unit until the condition becomes true.
 
 Single signal: the NPU waits until the scalar at the signal address satisfies `signal cmp cmpValue`.
 
@@ -19,8 +19,8 @@ The signal address must point to local (on-chip) memory on the current NPU.
 ## Assembly Syntax
 
 ```text
-twait %signal, %cmp_value {cmp = #pto.cmp<EQ>} : (!pto.memref<i32>, i32)
-twait %signal_matrix, %cmp_value {cmp = #pto.cmp<GE>} : (!pto.memref<i32, MxN>, i32)
+pto.twait %signal, %cmp_value {cmp = #pto.cmp<EQ>} : (!pto.memref<i32>, i32)
+pto.twait %signal_matrix, %cmp_value {cmp = #pto.cmp<GE>} : (!pto.memref<i32, MxN>, i32)
 ```
 
 ## C++ Intrinsic
@@ -29,7 +29,7 @@ Declared in `include/pto/comm/pto_comm_inst.hpp`:
 
 ```cpp
 template <typename GlobalSignalData, typename... WaitEvents>
-PTO_INST void TWAIT(GlobalSignalData &signalData, int32_t cmpValue, WaitCmp cmp, WaitEvents&... events);
+PTO_INST void WAIT(GlobalSignalData &signalData, int32_t cmpValue, WaitCmp cmp, WaitEvents&... events);
 ```
 
 ## Inputs
@@ -81,7 +81,7 @@ using namespace pto;
 
 void wait_ready(__gm__ int32_t* local_signal) {
   comm::Signal sig(local_signal);
-  comm::TWAIT(sig, 1, comm::WaitCmp::EQ);
+  comm::WAIT(sig, 1, comm::WaitCmp::EQ);
 }
 ```
 
@@ -90,7 +90,7 @@ void wait_ready(__gm__ int32_t* local_signal) {
 ```cpp
 void wait_worker_grid(__gm__ int32_t* signal_matrix) {
   comm::Signal2D<4, 8> grid(signal_matrix);
-  comm::TWAIT(grid, 1, comm::WaitCmp::EQ);  // waits until all 32 signals == 1
+  comm::WAIT(grid, 1, comm::WaitCmp::EQ);  // waits until all 32 signals == 1
 }
 ```
 
@@ -100,17 +100,17 @@ void wait_worker_grid(__gm__ int32_t* signal_matrix) {
 // Producer
 void producer(__gm__ int32_t* remote_flag) {
   comm::Signal flag(remote_flag);
-  comm::TNOTIFY(flag, 1, comm::NotifyOp::Set);
+  comm::NOTIFY(flag, 1, comm::NotifyOp::Set);
 }
 
 // Consumer
 void consumer(__gm__ int32_t* local_flag) {
   comm::Signal flag(local_flag);
-  comm::TWAIT(flag, 1, comm::WaitCmp::EQ);
+  comm::WAIT(flag, 1, comm::WaitCmp::EQ);
 }
 ```
 
 ## See Also
 
-- [Collective Communication](../collective-communication.md) for related operations
-- `TNOTIFY` for the signaling half of this protocol
+- [Collective Communication](communication-runtime.md) for related operations
+- `pto.tnotify` for the signaling half of this protocol

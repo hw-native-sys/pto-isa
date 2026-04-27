@@ -185,4 +185,4 @@ for (int i = 0; i < N; i++) {
 
 - [向量加载与存储](./vector-load-store_zh.md)
 - [谓词与物化](./predicate-and-materialization_zh.md)
-- [向量指令面](../instruction-surfaces/vector-instructions_zh.md)
+- [向量指令面](README_zh.md)

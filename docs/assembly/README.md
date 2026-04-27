@@ -1,6 +1,6 @@
 # PTO AS Documentation Guide
 
-This page is the main entry for PTO AS documentation. It helps readers quickly locate assembly-related documents by topic instead of navigating individual files one by one.
+The canonical PTO-AS syntax page is [Assembly Spelling And Operands](../isa/syntax-and-operands/assembly-model.md) in the PTO ISA manual. Use that page for manual navigation and for links from instruction pages.
 
 PTO AS documentation mainly covers the following areas:
 
@@ -13,18 +13,16 @@ PTO AS documentation mainly covers the following areas:
 
 If you are new to PTO-AS, we recommend reading in the following order:
 
-1. [PTO-AS Specification](PTO-AS.md): understand the textual format, syntax, and directives
-2. [PTO AS Operations Reference](README.md): get an overview of operation categories and linked references
-3. [PTO-AS Conventions](conventions.md): understand naming and documentation conventions
-4. Operation category documents: read the category pages relevant to your task
+1. [Assembly Spelling And Operands](../isa/syntax-and-operands/assembly-model.md): PTO-AS spelling, operands, and syntax
+2. [PTO-AS Conventions](conventions.md): naming and documentation conventions
+3. Operation category documents: read the category pages relevant to your task
 
 ## Documentation Categories
 
 ### 1. PTO-AS Syntax and Core Specification
 
-- [PTO-AS Specification](PTO-AS.md): textual format, SSA-style naming, directives, and grammar overview
+- [Assembly Spelling And Operands](../isa/syntax-and-operands/assembly-model.md): canonical syntax page published in the PTO ISA manual
 - [PTO-AS Conventions](conventions.md): assembly syntax conventions and related documentation rules
-- `PTO-AS.bnf`: formal BNF grammar definition for PTO-AS
 
 ### 2. PTO Tile Operation Categories
 
@@ -45,8 +43,8 @@ If you are new to PTO-AS, we recommend reading in the following order:
 
 ### 4. Related References
 
-- [ISA Instruction Reference](../isa/README.md): canonical per-instruction semantics
-- [docs Entry Guide](../README.md): top-level documentation navigation for PTO Tile Lib
+- [ISA Instruction Reference](../isa/scalar/ops/micro-instruction/README.md): canonical per-instruction semantics
+- [docs Entry Guide](../isa/scalar/ops/micro-instruction/README.md): top-level documentation navigation for PTO Tile Lib
 
 ## Directory Structure
 
@@ -70,6 +68,6 @@ Key entries are listed below:
 
 ## Related Entry Points
 
-- [ISA Instruction Reference](../isa/README.md): browse canonical PTO instruction semantics
-- [docs Entry Guide](../README.md): return to the main docs navigation page
+- [ISA Instruction Reference](../isa/scalar/ops/micro-instruction/README.md): browse canonical PTO instruction semantics
+- [docs Entry Guide](../isa/scalar/ops/micro-instruction/README.md): return to the main docs navigation page
 - [Machine Documentation](../machine/README.md): understand the abstract execution model

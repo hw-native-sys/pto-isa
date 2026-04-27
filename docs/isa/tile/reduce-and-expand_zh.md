@@ -105,4 +105,4 @@ $$ \mathrm{dst}_{r,c} = \mathrm{src}_{c} $$
 ## 相关页面
 
 - [Tile 指令族](../instruction-families/tile-families_zh.md)
-- [Tile 指令面](../instruction-surfaces/tile-instructions_zh.md)
+- [Tile 指令面](../instruction-families/tile-families_zh.md)

@@ -11,7 +11,7 @@
   - 硬件抽象模型
   - 编程模型详解
 
-- **[ISA 指令参考](../isa/README_zh.md)**
+- **[ISA 指令参考](../isa/scalar/ops/micro-instruction/README_zh.md)**
   - 所有 PTO 指令的详细说明
   - 指令语法和语义
   - 使用示例

@@ -39,8 +39,7 @@ This operation writes UB-visible memory and/or updates streamed alignment state.
 
 ## Constraints
 
-This is a deprecated compatibility instruction set. The stride token, not the vector
-  lane number alone, determines which destination elements are written.
+The stride token, not the vector lane number alone, determines which destination elements are written.
 
 ## Exceptions
 

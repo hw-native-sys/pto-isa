@@ -9,7 +9,7 @@ Memory operations transfer data between global memory (GM) and tile buffers. The
 | [pto.tload](./ops/memory-and-data-movement/tload.md) | Load from GM into tile | GM → local tile buffer | `TLOAD(dst, gtensor)` |
 | [pto.tprefetch](./ops/memory-and-data-movement/tprefetch.md) | Prefetch from GM into tile (non-blocking) | GM → local tile buffer | `TPREFETCH(dst, gtensor)` |
 | [pto.tstore](./ops/memory-and-data-movement/tstore.md) | Store from tile to GM | local tile buffer → GM | `TSTORE(gtensor, src)` |
-| [pto.tstore_fp](./ops/memory-and-data-movement/tstore-fp.md) | Store through the fix-pipe path | Tile → local tile buffer → GM | `TSTORE_FP(gtensor, src, fp)` |
+| [pto.tstore_fp](./ops/memory-and-data-movement/tstore.md) | Store through the fix-pipe path | Tile → local tile buffer → GM | `TSTORE_FP(gtensor, src, fp)` |
 | [pto.mgather](./ops/memory-and-data-movement/mgather.md) | Gather scattered elements from GM | GM → local tile buffer | `MGATHER(dst, gtensor, indices)` |
 | [pto.mscatter](./ops/memory-and-data-movement/mscatter.md) | Scatter tile elements to GM | local tile buffer → GM | `MSCATTER(gtensor, indices, src)` |
 
@@ -127,4 +127,4 @@ PTO_INST RecordEvent MSCATTER(GlobalData& dst, IndexData& indices, TileData& src
 - [Memory model](../memory-model/consistency-baseline.md) — GM ordering and consistency
 - [Producer consumer ordering](../memory-model/producer-consumer-ordering.md) — Sync rules
 - [Tile instruction set](../instruction-families/tile-families.md) — Instruction set overview
-- [Tile instruction set](../instruction-surfaces/tile-instructions.md) — Instruction Set description
+- [Tile instruction set](../instruction-families/tile-families.md) — Instruction Set description

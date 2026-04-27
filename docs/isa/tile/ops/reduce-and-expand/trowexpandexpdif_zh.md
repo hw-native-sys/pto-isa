@@ -102,4 +102,4 @@ void example() {
 
 - 指令集总览：[归约与扩展](../../reduce-and-expand_zh.md)
 - 上一条指令：[pto.trowexpandmin](./trowexpandmin_zh.md)
-- [pto.texp](../../../TEXP_zh.md)
+- [pto.texp](../elementwise-tile-tile/texp_zh.md)

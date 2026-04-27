@@ -4,11 +4,11 @@
 
 ## Summary
 
-Transpose with an implementation-defined temporary tile.
+Transpose with a temporary tile whose allocation and usage depend on the target. On A2/A3 the transpose is performed in-place using the scratchpad as staging; on A5 the operation requires an explicit `tmp` tile passed via the C++ API because the A5 DMA engine cannot perform a true in-place transpose and needs a scratch buffer of the same shape as the source. On the CPU simulator the `tmp` tile is not used but must still be provided.
 
 ## Mechanism
 
-Transpose with an implementation-defined temporary tile. It belongs to the tile instructions and carries architecture-visible behavior that is not reducible to a plain elementwise compute pattern.
+Transpose with a temporary tile whose allocation and usage depend on the target. On A2/A3 the transpose is performed in-place using the scratchpad as staging; on A5 the operation requires an explicit `tmp` tile passed via the C++ API because the A5 DMA engine cannot perform a true in-place transpose and needs a scratch buffer of the same shape as the source. On the CPU simulator the `tmp` tile is not used but must still be provided. It belongs to the tile instructions and carries architecture-visible behavior that is not reducible to a plain elementwise compute pattern.
 
 For a 2D tile, over the effective transpose domain:
 

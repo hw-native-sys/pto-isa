@@ -10,7 +10,7 @@
 
 ### TEXPANDS
 
-该指令的详细介绍请见[isa/TEXPANDS](../isa/TEXPANDS_zh.md)
+该指令的详细介绍请见[isa/TEXPANDS](../isa/tile/ops/tile-scalar-and-immediate/texpands_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -28,7 +28,7 @@ pto.texpands ins(%scalar : dtype) outs(%dst : !pto.tile_buf<...>)
 
 ### TCMPS
 
-该指令的详细介绍请见[isa/TCMPS](../isa/TCMPS_zh.md)
+该指令的详细介绍请见[isa/TCMPS](../isa/tile/ops/elementwise-tile-tile/tcmps_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -46,7 +46,7 @@ pto.tcmps ins(%src, %scalar{cmpMode = #pto<cmp xx>}: !pto.tile_buf<...>, dtype) 
 
 ### TSELS
 
-该指令的详细介绍请见[isa/TSELS](../isa/TSELS_zh.md)
+该指令的详细介绍请见[isa/TSELS](../isa/tile/ops/elementwise-tile-tile/tsels_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -64,7 +64,7 @@ pto.tsels ins(%src0, %src1, %scalar : !pto.tile_buf<...>, !pto.tile_buf<...>, dt
 
 ### TMINS
 
-该指令的详细介绍请见[isa/TMINS](../isa/TMINS_zh.md)
+该指令的详细介绍请见[isa/TMINS](../isa/tile/ops/elementwise-tile-tile/tmins_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -82,7 +82,7 @@ pto.tmins ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_b
 
 ### TADDS
 
-该指令的详细介绍请见[isa/TADDS](../isa/TADDS_zh.md)
+该指令的详细介绍请见[isa/TADDS](../isa/tile/ops/elementwise-tile-tile/tadds_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -100,7 +100,7 @@ pto.tadds ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_b
 
 ### TSUBS
 
-该指令的详细介绍请见[isa/TSUBS](../isa/TSUBS_zh.md)
+该指令的详细介绍请见[isa/TSUBS](../isa/tile/ops/elementwise-tile-tile/tsubs_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -118,7 +118,7 @@ pto.tsubs ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_b
 
 ### TDIVS
 
-该指令的详细介绍请见[isa/TDIVS](../isa/TDIVS_zh.md)
+该指令的详细介绍请见[isa/TDIVS](../isa/tile/ops/elementwise-tile-tile/tdivs_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -138,7 +138,7 @@ pto.tdivs ins(%scalar, %src : dtype, !pto.tile_buf<...>) outs(%dst : !pto.tile_b
 
 ### TMULS
 
-该指令的详细介绍请见[isa/TMULS](../isa/TMULS_zh.md)
+该指令的详细介绍请见[isa/TMULS](../isa/tile/ops/elementwise-tile-tile/tmuls_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -156,7 +156,7 @@ pto.tmuls ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_b
 
 ### TFMODS
 
-该指令的详细介绍请见[isa/TFMODS](../isa/TFMODS_zh.md)
+该指令的详细介绍请见[isa/TFMODS](../isa/tile/ops/elementwise-tile-tile/tfmods_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -174,7 +174,7 @@ pto.tfmods ins(%src, %scalar : !pto.tile_buf<...>, f32) outs(%dst : !pto.tile_bu
 
 ### TREMS
 
-该指令的详细介绍请见[isa/TREMS](../isa/TREMS_zh.md)
+该指令的详细介绍请见[isa/TREMS](../isa/tile/ops/elementwise-tile-tile/trems_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -192,7 +192,7 @@ pto.trems ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_b
 
 ### TMAXS
 
-该指令的详细介绍请见[isa/TMAXS](../isa/TMAXS_zh.md)
+该指令的详细介绍请见[isa/TMAXS](../isa/tile/ops/elementwise-tile-tile/tmaxs_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -210,7 +210,7 @@ pto.tmaxs ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_b
 
 ### TANDS
 
-该指令的详细介绍请见[isa/TANDS](../isa/TANDS_zh.md)
+该指令的详细介绍请见[isa/TANDS](../isa/tile/ops/elementwise-tile-tile/tands_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -228,7 +228,7 @@ pto.tands ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_b
 
 ### TORS
 
-该指令的详细介绍请见[isa/TORS](../isa/TORS_zh.md)
+该指令的详细介绍请见[isa/TORS](../isa/tile/ops/elementwise-tile-tile/tors_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -246,7 +246,7 @@ pto.tors ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_bu
 
 ### TSHLS
 
-该指令的详细介绍请见[isa/TSHLS](../isa/TSHLS_zh.md)
+该指令的详细介绍请见[isa/TSHLS](../isa/tile/ops/tile-scalar-and-immediate/tshls_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -264,7 +264,7 @@ pto.tshls ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_b
 
 ### TSHRS
 
-该指令的详细介绍请见[isa/TSHRS](../isa/TSHRS_zh.md)
+该指令的详细介绍请见[isa/TSHRS](../isa/tile/ops/tile-scalar-and-immediate/tshrs_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -282,7 +282,7 @@ pto.tshrs ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_b
 
 ### TXORS
 
-该指令的详细介绍请见[isa/TXORS](../isa/TXORS_zh.md)
+该指令的详细介绍请见[isa/TXORS](../isa/tile/ops/elementwise-tile-tile/txors_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -300,7 +300,7 @@ pto.txors ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_b
 
 ### TLRELU
 
-该指令的详细介绍请见[isa/TLRELU](../isa/TLRELU_zh.md)
+该指令的详细介绍请见[isa/TLRELU](../isa/tile/ops/tile-scalar-and-immediate/tlrelu_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -318,7 +318,7 @@ pto.tlrelu ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_
 
 ### TADDSC
 
-该指令的详细介绍请见[isa/TADDSC](../isa/TADDSC_zh.md)
+该指令的详细介绍请见[isa/TADDSC](../isa/tile/ops/tile-scalar-and-immediate/taddsc_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -336,7 +336,7 @@ pto.taddsc ins(%src0, %scalar, %src1 : !pto.tile_buf<...>, dtype, !pto.tile_buf<
 
 ### TSUBSC
 
-该指令的详细介绍请见[isa/TSUBSC](../isa/TSUBSC_zh.md)
+该指令的详细介绍请见[isa/TSUBSC](../isa/tile/ops/tile-scalar-and-immediate/tsubsc_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -354,7 +354,7 @@ pto.tsubsc ins(%src0, %scalar, %src1 : !pto.tile_buf<...>, dtype, !pto.tile_buf<
 
 ### TPOWS
 
-该指令的详细介绍请见[isa/TPOWS](../isa/TPOWS_zh.md)
+该指令的详细介绍请见[isa/TPOWS](../isa/tile/ops/tile-scalar-and-immediate/tpows_zh.md)
 
 
 **AS Level 1 (SSA)：**

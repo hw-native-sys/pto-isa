@@ -10,7 +10,7 @@
 
 ### TGEMV_MX
 
-该指令的详细介绍请见[isa/TGEMV_MX](../isa/TGEMV_MX_zh.md)
+该指令的详细介绍请见[isa/TGEMV_MX](../isa/tile/ops/matrix-and-matrix-vector/tgemv-mx_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -28,7 +28,7 @@ pto.tgemv.mx ins(%a, %a_scale, %b, %b_scale : (!pto.tile_buf<...>, !pto.tile_buf
 
 ### TMATMUL_MX
 
-该指令的详细介绍请见[isa/TMATMUL_MX](../isa/TMATMUL_MX_zh.md)
+该指令的详细介绍请见[isa/TMATMUL_MX](../isa/tile/ops/matrix-and-matrix-vector/tmatmul-mx_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -56,7 +56,7 @@ pto.tmatmul.mx.bias ins(%a, %a_scale, %b, %b_scale, %bias : !pto.tile_buf<...>, 
 
 ### TMATMUL
 
-该指令的详细介绍请见[isa/TMATMUL](../isa/TMATMUL_zh.md)
+该指令的详细介绍请见[isa/TMATMUL](../isa/tile/ops/matrix-and-matrix-vector/tmatmul_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -74,7 +74,7 @@ pto.tmatmul ins(%a, %b : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%c : !pto.
 
 ### TMATMUL_ACC
 
-该指令的详细介绍请见[isa/TMATMUL_ACC](../isa/TMATMUL_ACC_zh.md)
+该指令的详细介绍请见[isa/TMATMUL_ACC](../isa/tile/ops/matrix-and-matrix-vector/tmatmul-acc_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -92,7 +92,7 @@ pto.tmatmul.acc ins(%c_in, %a, %b : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto
 
 ### TMATMUL_BIAS
 
-该指令的详细介绍请见[isa/TMATMUL_BIAS](../isa/TMATMUL_BIAS_zh.md)
+该指令的详细介绍请见[isa/TMATMUL_BIAS](../isa/tile/ops/matrix-and-matrix-vector/tmatmul-bias_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -110,7 +110,7 @@ pto.tmatmul.bias ins(%a, %b, %bias : !pto.tile_buf<...>, !pto.tile_buf<...>, !pt
 
 ### TGEMV
 
-该指令的详细介绍请见[isa/TGEMV](../isa/TGEMV_zh.md)
+该指令的详细介绍请见[isa/TGEMV](../isa/tile/ops/matrix-and-matrix-vector/tgemv_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -132,7 +132,7 @@ pto.tgemv.bias ins(%a, %b, %bias : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.
 
 ### TGEMV_ACC
 
-该指令的详细介绍请见[isa/TGEMV_ACC](../isa/TGEMV_ACC_zh.md)
+该指令的详细介绍请见[isa/TGEMV_ACC](../isa/tile/ops/matrix-and-matrix-vector/tgemv-acc_zh.md)
 
 **AS Level 1 (SSA)：**
 
@@ -154,7 +154,7 @@ pto.tgemv.bias ins(%a, %b, %bias : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.
 
 ### TGEMV_BIAS
 
-该指令的详细介绍请见[isa/TGEMV_BIAS](../isa/TGEMV_BIAS_zh.md)
+该指令的详细介绍请见[isa/TGEMV_BIAS](../isa/tile/ops/matrix-and-matrix-vector/tgemv-bias_zh.md)
 
 **AS Level 1 (SSA)：**
 

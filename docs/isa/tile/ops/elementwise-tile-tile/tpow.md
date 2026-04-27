@@ -1,6 +1,6 @@
 # pto.tpow
 
-`pto.tpow` is part of the [Elementwise Tile-Tile](../../elementwise-tile-tile.md) instruction set.
+`pto.tpow` is part of the [Elementwise Tile Tile](../../elementwise-tile-tile.md) instruction set.
 
 ## Summary
 
@@ -36,7 +36,7 @@ pto.tpow ins(%base, %exp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp` (signature shown verbatim from the current header):
+Declared in `include/pto/common/pto_instr.hpp`:
 
 ```cpp
 template <auto PrecisionType = PowAlgorithm::DEFAULT, typename DstTile, typename BaseTile, typename ExpTile,
@@ -106,6 +106,6 @@ void example() {
 
 ## Related Ops / Instruction Set Links
 
-- Instruction set overview: [Elementwise Tile-Tile](../../elementwise-tile-tile.md)
+- Instruction set overview: [Elementwise Tile Tile](../../elementwise-tile-tile.md)
 - Previous op in instruction set: [pto.texp](./texp.md)
 - Next op in instruction set: [pto.tnot](./tnot.md)

@@ -129,6 +129,6 @@ GlobalTensor 操作数遵循单独的合法性路径：
 
 - [类型系统](./type-system_zh.md)
 - [Tile 与有效区域](../programming-model/tiles-and-valid-regions_zh.md)
-- [Tile 指令集](../instruction-surfaces/tile-instructions_zh.md)
-- [向量指令集](../instruction-surfaces/vector-instructions_zh.md)
+- [Tile 指令集](../instruction-families/tile-families_zh.md)
+- [向量指令集](../vector/README_zh.md)
 - [可移植性与目标 Profile](../reference/portability-and-target-profiles_zh.md)
