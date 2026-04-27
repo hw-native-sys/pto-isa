@@ -112,7 +112,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install numpy
+          python -m pip install numpy ml-dtypes en-dtypes
 
       - name: Run CPU SIM smoke testcase
         run: |
@@ -147,7 +147,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install numpy
+          python -m pip install numpy ml-dtypes en-dtypes
 
       - name: Run CPU SIM ST suite
         run: |
