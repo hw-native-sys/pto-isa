@@ -60,6 +60,15 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TColExpand.hpp"
 #include "pto/npu/a5/TMaxs.hpp"
 #include "pto/npu/a5/TMins.hpp"
+#include "pto/npu/a5/TColMax.hpp"
+#include "pto/npu/a5/TColMin.hpp"
+#include "pto/npu/a5/TColExpandDiv.hpp"
+#include "pto/npu/a5/TColExpandMul.hpp"
+#include "pto/npu/a5/TColExpandSub.hpp"
+#include "pto/npu/a5/TColExpandExpdif.hpp"
+#include "pto/npu/a5/TColExpandAdd.hpp"
+#include "pto/npu/a5/TColExpandMax.hpp"
+#include "pto/npu/a5/TColExpandMin.hpp"
 #undef bfloat16_t
 #undef float8_e4m3_t
 #undef float8_e5m2_t
