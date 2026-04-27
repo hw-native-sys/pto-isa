@@ -42,8 +42,8 @@ template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, un
 __tf__ AICORE OP_NAME(TROWEXPANDSUB)
     OP_TYPE(broadcast) void TRowExpandSub(typename TileDataDst::TileDType __out__ dst,
                                           typename TileDataSrc0::TileDType __in__ src0,
-                                          typename TileDataSrc1::TileDType __in__ src1, unsigned validRow,
-                                          unsigned validCol, bool src0eqdst,
+                                          typename TileDataSrc1::TileDType __in__ src1, bool src0eqdst,
+                                          unsigned validRow, unsigned validCol,
                                           unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
     using T = typename TileDataDst::DType;
@@ -93,7 +93,7 @@ PTO_INTERNAL void TROWEXPANDSUB_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileD
                        src1.GetValidRow() == validRow,
                    "TROWEXPANDSUB: invalid src1 shape.");
         TRowExpandSub<TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem>(
-            dst.data(), src0.data(), src1.data(), validRow, validCol, src0eqdst);
+            dst.data(), src0.data(), src1.data(), src0eqdst, validRow, validCol);
     } else {
         unsigned src0ValidCol = src0.GetValidCol();
         PTO_ASSERT(((TileDataSrc0::isRowMajor && src0ValidCol == 32 / sizeof(T)) ||
@@ -101,7 +101,7 @@ PTO_INTERNAL void TROWEXPANDSUB_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileD
                        src0.GetValidRow() == validRow,
                    "TROWEXPANDSUB: invalid src0 shape.");
         TRowExpandSub<TileDataDst, TileDataSrc1, TileDataSrc0, elementsPerRepeat, blockSizeElem>(
-            dst.data(), src1.data(), src0.data(), validRow, validCol, src0eqdst);
+            dst.data(), src1.data(), src0.data(), src0eqdst, validRow, validCol);
     }
 }
 } // namespace pto

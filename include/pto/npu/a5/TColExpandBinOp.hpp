@@ -67,7 +67,7 @@ PTO_INTERNAL void TColExpandBinOps_PostUpdate(__ubuf__ typename TileData::DType 
         constexpr auto distValue =
             std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
         for (uint16_t i = 0; i < (uint16_t)(kValidRows); ++i) {
-            uint32_t cols = (uint32_t)(kValidRows);
+            uint32_t cols = (uint32_t)(kValidCols);
             src0Offset = src0Ptr + i * rowStride;
             dstOffset = dstPtr + i * rowStride;
             for (uint16_t j = 0; j < (uint16_t)repeatTimes; ++j) {
