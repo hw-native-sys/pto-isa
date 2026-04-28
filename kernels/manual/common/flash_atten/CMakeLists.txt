@@ -77,7 +77,9 @@ set(CMAKE_CPP_COMPILE_OPTIONS
 include_directories(
     ${PROJECT_SOURCE_DIR}/../../../../include/
     ${ASCEND_HOME_PATH}/include
+    ${ASCEND_HOME_PATH}/pkg_inc
     ${ASCEND_HOME_PATH}/pkg_inc/runtime
+    ${ASCEND_HOME_PATH}/pkg_inc/profiling
     ${ASCEND_DRIVER_PATH}/kernel/inc
     ${ASCEND_HOME_PATH}/include/experiment/runtime
     ${ASCEND_HOME_PATH}/include/experiment/msprof    
