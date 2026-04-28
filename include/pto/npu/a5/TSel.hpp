@@ -28,9 +28,10 @@ __tf__ PTO_INTERNAL void TSel_b32(TileT __out__ dstData, MaskT __in__ maskData, 
     __VEC_SCOPE__
     {
         MaskReg pReg, selMask0, selMask1, selMask2, tmpMask;
-        MaskReg tmpMask1 = pset_b16(PAT_ALL);
         RegTensor<T> vreg0, vreg1, vreg2, vreg3, dreg0, dreg1;
-        unsigned sReg, colOffset0, colOffset1;
+        unsigned colOffset0, colOffset1;
+        unsigned sReg = validCol;
+        MaskReg tmpMask1 = CreatePredicate<T>(sReg);
         constexpr auto distValue =
             std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
         for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
@@ -51,9 +52,13 @@ __tf__ PTO_INTERNAL void TSel_b32(TileT __out__ dstData, MaskT __in__ maskData, 
                 pReg = CreatePredicate<T>(sReg);
                 vsts(dreg1, dst, (int32_t)(i * dstRowStride + colOffset1), distValue, pReg);
             }
+        }
 
-            if (sReg > 0) {
-                colOffset0 = 2 * loopTimes * nRepeatElem;
+        if (sReg > 0) {
+            uint32_t remain = sReg;
+            colOffset0 = 2 * loopTimes * nRepeatElem;
+            for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
+                sReg = remain;
                 plds(tmpMask, (__ubuf__ uint32_t *)mask, i * maskRowStride + 2 * 8 * loopTimes, US);
                 punpack(selMask0, tmpMask, LOWER);
                 vlds(vreg0, src0, (int32_t)(i * src0RowStride + colOffset0), NORM);

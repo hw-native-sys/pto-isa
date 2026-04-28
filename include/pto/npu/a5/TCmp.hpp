@@ -20,8 +20,8 @@ namespace pto {
 
 const int32_t CMP_BITS_PER_INDEX = 32;
 
-template <typename RegTensorDst, typename RegTensorSrc>
-AICORE void CmpCall(RegTensorDst &dst, RegTensorSrc &src0, RegTensorSrc &src1, CmpMode cmpMode, vector_bool &preg)
+template <typename T>
+AICORE void CmpCall(MaskReg &dst, T &src0, T &src1, CmpMode cmpMode, MaskReg &preg)
 {
     switch (static_cast<CmpMode>(cmpMode)) {
         case CmpMode::EQ:
@@ -48,122 +48,121 @@ AICORE void CmpCall(RegTensorDst &dst, RegTensorSrc &src0, RegTensorSrc &src1, C
     }
 }
 
-template <typename TileDataDst, typename TileDataSrc, typename dataType0, unsigned dTypeSize>
+template <typename DstTile, typename SrcTile>
 __tf__ PTO_INTERNAL OP_NAME(TCMP)
-    OP_TYPE(element_wise) void TCmp(typename TileDataDst::TileDType __out__ dst,
-                                    typename TileDataSrc::TileDType __in__ src0,
-                                    typename TileDataSrc::TileDType __in__ src1, CmpMode mode, unsigned validRow,
-                                    unsigned validCol, unsigned version = VFImplKind::VFIMPL_DEFAULT)
+    OP_TYPE(element_wise) void TCmp_8B_16B(typename DstTile::TileDType __out__ dstData,
+                                           typename SrcTile::TileDType __in__ src0Data,
+                                           typename SrcTile::TileDType __in__ src1Data, CmpMode mode, unsigned validRow,
+                                           unsigned validCol, unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
-    __ubuf__ typename TileDataSrc::DType *srcPtr0 = (__ubuf__ typename TileDataSrc::DType *)__cce_get_tile_ptr(src0);
-    __ubuf__ typename TileDataSrc::DType *srcPtr1 = (__ubuf__ typename TileDataSrc::DType *)__cce_get_tile_ptr(src1);
-    __ubuf__ typename TileDataDst::DType *dstPtr = (__ubuf__ typename TileDataDst::DType *)__cce_get_tile_ptr(dst);
+    using TIN = typename SrcTile::DType;
+    using TOUT = typename DstTile::DType;
+    __ubuf__ TIN *src0 = (__ubuf__ TIN *)__cce_get_tile_ptr(src0Data);
+    __ubuf__ TIN *src1 = (__ubuf__ TIN *)__cce_get_tile_ptr(src1Data);
+    __ubuf__ uint32_t *dst = (__ubuf__ uint32_t *)__cce_get_tile_ptr(dstData);
 
     __VEC_SCOPE__
     {
-        dataType0 vreg0;
-        dataType0 vreg1;
-        uint32_t sreg = (uint32_t)(validCol * validRow);
-        vector_bool preg0;
-        vector_bool preg1;
-        uint32_t repeatElm = REPEAT_BYTE / dTypeSize;
-        int32_t dstStride = repeatElm / CMP_BITS_PER_INDEX;
-        uint16_t repeatTimes = CeilDivision(validCol * validRow, repeatElm);
-        for (uint16_t i = 0; i < (uint16_t)(repeatTimes); ++i) {
-            if (dTypeSize == 1) {
-                preg0 = plt_b8(sreg, POST_UPDATE);
-            } else {
-                preg0 = plt_b16(sreg, POST_UPDATE);
+        RegTensor<TIN> src0Reg;
+        RegTensor<TIN> src1Reg;
+        uint32_t sReg;
+        MaskReg pReg;
+        MaskReg dstReg;
+        using DistType = std::conditional_t<sizeof(TIN) == 2, decltype(PK), decltype(NORM)>;
+        constexpr DistType distValue{};
+        constexpr uint32_t repeatElm = CCE_VL / sizeof(TIN);
+        constexpr int32_t dstRepeatStride = repeatElm / CMP_BITS_PER_INDEX;
+        constexpr uint32_t dstStride = DstTile::RowStride * sizeof(TOUT) / sizeof(uint32_t);
+        uint16_t repeatTimes = CeilDivision(validCol, repeatElm);
+        for (uint16_t i = 0; i < (uint16_t)(validRow); ++i) {
+            sReg = validCol;
+            for (uint16_t j = 0; j < (uint16_t)(repeatTimes); ++j) {
+                pReg = CreatePredicate<TIN>(sReg);
+
+                vlds(src0Reg, src0, i * SrcTile::RowStride + j * repeatElm, NORM);
+                vlds(src1Reg, src1, i * SrcTile::RowStride + j * repeatElm, NORM);
+                CmpCall(dstReg, src0Reg, src1Reg, mode, pReg);
+                psts(dstReg, dst + i * dstStride + j * dstRepeatStride, 0, distValue);
             }
-            vlds(vreg0, srcPtr0, i * repeatElm, NORM);
-            vlds(vreg1, srcPtr1, i * repeatElm, NORM);
-            CmpCall<vector_bool, dataType0>(preg1, vreg0, vreg1, mode, preg0);
-            psts(preg1, ((__ubuf__ uint32_t *)dstPtr + i * dstStride), 0, PK);
         }
     }
 }
 
-template <typename TileDataDst, typename TileDataSrc, typename dataType0>
+template <typename DstTile, typename SrcTile>
 __tf__ PTO_INTERNAL OP_NAME(TCMP)
-    OP_TYPE(element_wise) void TCmp_32B(typename TileDataDst::TileDType __out__ dst,
-                                        typename TileDataSrc::TileDType __in__ src0,
-                                        typename TileDataSrc::TileDType __in__ src1, CmpMode mode, unsigned validRow,
+    OP_TYPE(element_wise) void TCmp_32B(typename DstTile::TileDType __out__ dstData,
+                                        typename SrcTile::TileDType __in__ src0Data,
+                                        typename SrcTile::TileDType __in__ src1Data, CmpMode mode, unsigned validRow,
                                         unsigned validCol, unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
-    __ubuf__ typename TileDataSrc::DType *srcPtr0 = (__ubuf__ typename TileDataSrc::DType *)__cce_get_tile_ptr(src0);
-    __ubuf__ typename TileDataSrc::DType *srcPtr1 = (__ubuf__ typename TileDataSrc::DType *)__cce_get_tile_ptr(src1);
-    __ubuf__ typename TileDataDst::DType *dstPtr = (__ubuf__ typename TileDataDst::DType *)__cce_get_tile_ptr(dst);
+    using TIN = typename SrcTile::DType;
+    using TOUT = typename DstTile::DType;
+    __ubuf__ TIN *src0 = (__ubuf__ TIN *)__cce_get_tile_ptr(src0Data);
+    __ubuf__ TIN *src1 = (__ubuf__ TIN *)__cce_get_tile_ptr(src1Data);
+    __ubuf__ uint32_t *dst = (__ubuf__ uint32_t *)__cce_get_tile_ptr(dstData);
 
     __VEC_SCOPE__
     {
-        dataType0 vreg2;
-        dataType0 vreg0;
-        dataType0 vreg1;
-        dataType0 vreg3;
-        uint32_t sreg = (uint32_t)(validCol * validRow);
-        vector_bool preg0;
-        vector_bool preg1;
-        vector_bool preg2;
-        vector_bool preg3;
-        vector_bool preg4;
-        uint32_t repeatElm = REPEAT_BYTE / sizeof(uint32_t);
-        uint16_t repeatTimes = CeilDivision(validCol * validRow, repeatElm) + 1;
-        for (uint16_t i = 0; i < (uint16_t)(repeatTimes / 2); ++i) {
-            preg0 = plt_b32(sreg, POST_UPDATE);
-            vlds(vreg0, srcPtr0, i * 2 * repeatElm, NORM);
-            vlds(vreg1, srcPtr1, i * 2 * repeatElm, NORM);
-            CmpCall<vector_bool, dataType0>(preg1, vreg0, vreg1, mode, preg0);
-            preg0 = plt_b32(sreg, POST_UPDATE);
-            vlds(vreg2, srcPtr0, (i * 2 + 1) * repeatElm, NORM);
-            vlds(vreg3, srcPtr1, (i * 2 + 1) * repeatElm, NORM);
-            CmpCall<vector_bool, dataType0>(preg2, vreg2, vreg3, mode, preg0);
-            pdintlv_b8(preg3, preg4, preg1, preg2);
-            psts(preg3, ((__ubuf__ uint32_t *)dstPtr + i * 4), 0, PK);
+        uint32_t sReg;
+        RegTensor<TIN> src0Reg0;
+        RegTensor<TIN> src0Reg1;
+        RegTensor<TIN> src1Reg0;
+        RegTensor<TIN> src1Reg1;
+        MaskReg pReg;
+        MaskReg tmpMask0;
+        MaskReg tmpMask1;
+        MaskReg dstReg;
+        MaskReg tmpMask2;
+        constexpr uint32_t repeatElm = CCE_VL / sizeof(uint32_t);
+        constexpr uint32_t dstStride = DstTile::RowStride * sizeof(TOUT) / sizeof(uint32_t);
+        uint16_t repeatTimes = CeilDivision(validCol, repeatElm) + 1;
+
+        for (uint16_t i = 0; i < (uint16_t)(validRow); ++i) {
+            sReg = validCol;
+            for (uint16_t j = 0; j < (uint16_t)(repeatTimes / 2); ++j) {
+                vlds(src0Reg0, src0, i * SrcTile::RowStride + j * 2 * repeatElm, NORM);
+                vlds(src0Reg1, src1, i * SrcTile::RowStride + j * 2 * repeatElm, NORM);
+                vlds(src1Reg0, src0, i * SrcTile::RowStride + (j * 2 + 1) * repeatElm, NORM);
+                vlds(src1Reg1, src1, i * SrcTile::RowStride + (j * 2 + 1) * repeatElm, NORM);
+                pReg = plt_b32(sReg, POST_UPDATE);
+                CmpCall(tmpMask0, src0Reg0, src0Reg1, mode, pReg);
+                pReg = plt_b32(sReg, POST_UPDATE);
+                CmpCall(tmpMask1, src1Reg0, src1Reg1, mode, pReg);
+                pdintlv_b8(dstReg, tmpMask2, tmpMask0, tmpMask1);
+                psts(dstReg, dst + i * dstStride + j * 4, 0, PK);
+            }
         }
     }
 }
 
-template <typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TCMP_IMPL(TileDataDst &dst, TileDataSrc &src0, TileDataSrc &src1, CmpMode cmpMode)
+template <typename DstTile, typename SrcTile>
+PTO_INTERNAL void TcmpCheck()
 {
+    using T = typename SrcTile::DType;
+    static_assert(std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float> ||
+                      std::is_same_v<T, int16_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, half> ||
+                      std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t>,
+                  "TCMP: Invalid data type.");
+    static_assert(DstTile::isRowMajor && SrcTile::isRowMajor, "TCMP: not supported Layout type");
+    static_assert(DstTile::Loc == TileType::Vec && SrcTile::Loc == TileType::Vec,
+                  "TCMP: TileType of tile must be TileType::Vec.");
+    static_assert(DstTile::ValidCol <= DstTile::Cols && SrcTile::ValidCol <= SrcTile::Cols,
+                  "TCMP: Number of valid columns must not be greater than number of tile columns.");
+    static_assert(DstTile::ValidRow <= DstTile::Rows && SrcTile::ValidRow <= SrcTile::Rows,
+                  "TCMP: Number of valid rows must not be greater than number of tile rows.");
+}
+
+template <typename DstTile, typename SrcTile>
+PTO_INTERNAL void TCMP_IMPL(DstTile &dst, SrcTile &src0, SrcTile &src1, CmpMode cmpMode)
+{
+    TcmpCheck<DstTile, SrcTile>();
+    using T = typename SrcTile::DType;
     unsigned validRow = src0.GetValidRow();
     unsigned validCol = src0.GetValidCol();
-    if constexpr (sizeof(typename TileDataSrc::DType) == 4) {
-        if constexpr (std::is_same<typename TileDataSrc::DType, int32_t>::value) {
-            TCmp_32B<TileDataDst, TileDataSrc, vector_s32>(dst.data(), src0.data(), src1.data(), cmpMode, validRow,
-                                                           validCol);
-        }
-        if constexpr (std::is_same<typename TileDataSrc::DType, float>::value) {
-            TCmp_32B<TileDataDst, TileDataSrc, vector_f32>(dst.data(), src0.data(), src1.data(), cmpMode, validRow,
-                                                           validCol);
-        }
-        if constexpr (std::is_same<typename TileDataSrc::DType, uint32_t>::value) {
-            TCmp_32B<TileDataDst, TileDataSrc, vector_u32>(dst.data(), src0.data(), src1.data(), cmpMode, validRow,
-                                                           validCol);
-        }
-
-    } else if constexpr (sizeof(typename TileDataSrc::DType) == 2) {
-        if constexpr (std::is_same<typename TileDataSrc::DType, int16_t>::value) {
-            TCmp<TileDataDst, TileDataSrc, vector_s16, sizeof(uint16_t)>(dst.data(), src0.data(), src1.data(), cmpMode,
-                                                                         validRow, validCol);
-        }
-        if constexpr (std::is_same<typename TileDataSrc::DType, half>::value) {
-            TCmp<TileDataDst, TileDataSrc, vector_f16, sizeof(uint16_t)>(dst.data(), src0.data(), src1.data(), cmpMode,
-                                                                         validRow, validCol);
-        }
-        if constexpr (std::is_same<typename TileDataSrc::DType, uint16_t>::value) {
-            TCmp<TileDataDst, TileDataSrc, vector_u16, sizeof(uint16_t)>(dst.data(), src0.data(), src1.data(), cmpMode,
-                                                                         validRow, validCol);
-        }
-    } else if constexpr (sizeof(typename TileDataSrc::DType) == 1) {
-        if constexpr (std::is_same<typename TileDataSrc::DType, int8_t>::value) {
-            TCmp<TileDataDst, TileDataSrc, vector_s8, sizeof(uint8_t)>(dst.data(), src0.data(), src1.data(), cmpMode,
-                                                                       validRow, validCol);
-        }
-        if constexpr (std::is_same<typename TileDataSrc::DType, uint8_t>::value) {
-            TCmp<TileDataDst, TileDataSrc, vector_u8, sizeof(uint8_t)>(dst.data(), src0.data(), src1.data(), cmpMode,
-                                                                       validRow, validCol);
-        }
+    if constexpr (sizeof(T) == 4) {
+        TCmp_32B<DstTile, SrcTile>(dst.data(), src0.data(), src1.data(), cmpMode, validRow, validCol);
+    } else if constexpr ((sizeof(T) == 2) || (sizeof(T) == 1)) {
+        TCmp_8B_16B<DstTile, SrcTile>(dst.data(), src0.data(), src1.data(), cmpMode, validRow, validCol);
     }
 }
 

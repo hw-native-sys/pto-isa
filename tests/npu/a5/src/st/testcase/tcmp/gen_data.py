@@ -14,67 +14,55 @@ import os
 import numpy as np
 np.random.seed(19)
 
-def gen_golden_data_tcmp(case_name, param):
+
+def gen_golden_data_tcmp(param):
     dtype = param.dtype
 
     # Valid row/cols always larger than tile row/cols
-    H, W = [param.tile_row, param.tile_col]
-    h_valid, w_valid = [param.valid_row, param.valid_col]
+    row, col = [param.row, param.col]
+    valid_row, valid_col = [param.valid_row, param.valid_col]
 
     # Generate random input arrays
-    input1, input2 = [], []
     if dtype == np.int16 or dtype == np.int32:
-        input1 = np.random.randint(-1000, 1000, size=[H, W]).astype(dtype)
-        input2 = np.random.randint(-1000, 1000, size=[H, W]).astype(dtype)
+        input1 = np.random.randint(-10, 10, size=[row, col]).astype(dtype)
+        input2 = np.random.randint(-10, 10, size=[row, col]).astype(dtype)
     else:
-        input1 = np.random.uniform(-10, 10, size=[H, W]).astype(dtype)
-        input2 = np.random.uniform(-10, 10, size=[H, W]).astype(dtype)
+        input1 = np.random.uniform(-10, 10, size=[row, col]).astype(dtype)
+        input2 = np.random.uniform(-10, 10, size=[row, col]).astype(dtype)
 
-    if param.mode == "CmpMode::EQ":
-        golden = (abs(input1 - input2) < 10e-9)
-    if param.mode == "CmpMode::NE":
-        golden = (abs(input1 - input2) > 10e-9) 
-    if param.mode == "CmpMode::LT":
-        golden = (input1 < input2) 
-    if param.mode == "CmpMode::GT":
-        golden = (input1 > input2) 
-    if param.mode == "CmpMode::GE":
-        golden = (input1 >= input2) 
-    if param.mode == "CmpMode::LE":
-        golden = (input1 <= input2) 
+    if param.mode == "EQ":
+        bool_result = np.isclose(input1, input2, rtol=0, atol=1e-9)
+    if param.mode == "NE":
+        bool_result = ~np.isclose(input1, input2, rtol=0, atol=1e-9)
+    if param.mode == "LT":
+        bool_result = (input1 < input2)
+    if param.mode == "GT":
+        bool_result = (input1 > input2) 
+    if param.mode == "GE":
+        bool_result = (input1 >= input2) 
+    if param.mode == "LE":
+        bool_result = (input1 <= input2) 
 
     # Apply valid region constraints
-    output = np.zeros([H, W]).astype(dtype)
-    for h in range(H):
-        for w in range(W):
-            if h >= h_valid or w >= w_valid:
-                golden[h][w] = np.uint8(output[h][w])
+    output = np.zeros((row, col), dtype=np.uint8)
+    output[:valid_row, :valid_col] = bool_result[:valid_row, :valid_col]
 
-    func_binar = lambda bits: sum(np.uint8(bit * 2 **(i)) for i, bit in enumerate(np.uint8(bits)))
-    out_uint8 = []
-    golden = golden.astype(np.uint8)
-    bits_per_row = W // 8
-    for row in golden:
-        for i in range(bits_per_row):
-            out_uint8.append(func_binar(row[i*8:i*8+8]))
+    golden = np.packbits(output, axis=1, bitorder='little')
 
-    # Save the input and golden data to binary files
+    # Save the input and bool_result data to binary files
     input1.tofile("input1.bin")
     input2.tofile("input2.bin")
-    np.array(out_uint8).astype(np.uint8).tofile("golden.bin")
+    golden.tofile("golden.bin")
 
-    return output, input1, input2, golden
 
 class TcmpParams:
-    def __init__(self, dtype, global_row, global_col, tile_row, tile_col, valid_row, valid_col, cmpMode):
+    def __init__(self, dtype, row, col, valid_row, valid_col, cmp_mode):
         self.dtype = dtype
-        self.global_row = global_row
-        self.global_col = global_col
-        self.tile_row = tile_row
-        self.tile_col = tile_col
+        self.row = row
+        self.col = col
         self.valid_row = valid_row
         self.valid_col = valid_col
-        self.mode = cmpMode
+        self.mode = cmp_mode
 
 def generate_case_name(param):
     dtype_str = {
@@ -83,7 +71,7 @@ def generate_case_name(param):
         np.int32: 'int32',
         np.int16: 'int16'
     }[param.dtype]
-    return f"TCMPTest.case_{dtype_str}_{param.global_row}x{param.global_col}_{param.tile_row}x{param.tile_col}_{param.valid_row}x{param.valid_col}"
+    return f"TCMPTest.case_{dtype_str}_{param.row}x{param.col}_{param.valid_row}x{param.valid_col}"
 
 if __name__ == "__main__":
     # Get the absolute path of the script
@@ -95,11 +83,17 @@ if __name__ == "__main__":
         os.makedirs(testcases_dir)
 
     case_params_list = [ # Comment out test cases that do not handle size corectly
-        TcmpParams(np.float16, 32, 32, 32, 32, 32, 32, "CmpMode::EQ"),
-        TcmpParams(np.float32, 8, 64, 8, 64, 8, 64, "CmpMode::GT"),
-        TcmpParams(np.int32, 4, 64, 4, 64, 4, 64, "CmpMode::NE"),
-        TcmpParams(np.int32, 16, 32, 16, 32, 16, 32, "CmpMode::EQ"),
-        TcmpParams(np.int32, 32, 32, 32, 32, 32, 32, "CmpMode::EQ"),
+        TcmpParams(np.float16, 32, 32, 32, 32, "EQ"),
+        TcmpParams(np.float32, 8, 64, 8, 64, "GT"),
+        TcmpParams(np.int32, 4, 64, 4, 64, "NE"),
+        TcmpParams(np.int32, 128, 128, 64, 64, "LT"),
+        TcmpParams(np.int32, 64, 64, 32, 32, "EQ"),
+        TcmpParams(np.int32, 16, 32, 16, 32, "EQ"),
+        TcmpParams(np.float32, 128, 128, 64, 64, "LE"),
+        TcmpParams(np.int32, 77, 80, 32, 32, "EQ"),
+        TcmpParams(np.int32, 32, 32, 32, 32, "EQ"),
+        TcmpParams(np.int16, 32, 32, 16, 32, "EQ"),
+        TcmpParams(np.int16, 77, 80, 32, 32, "LE"),
     ]
 
     for i, param in enumerate(case_params_list):
@@ -108,5 +102,5 @@ if __name__ == "__main__":
             os.makedirs(case_name)
         original_dir = os.getcwd()
         os.chdir(case_name)
-        gen_golden_data_tcmp(case_name, param)
+        gen_golden_data_tcmp(param)
         os.chdir(original_dir)

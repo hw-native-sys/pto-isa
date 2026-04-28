@@ -46,57 +46,66 @@ AICORE void GenCmpCall(MaskReg &dst, RegTensor<T> &src0, T src1, CmpMode cmpMode
     }
 }
 
-template <typename TOUT, typename TIN>
-PTO_INTERNAL void TCmps_8B_16B(__ubuf__ TOUT *dst, __ubuf__ TIN *src0, TIN src1, CmpMode mode, unsigned validRow,
+template <typename T, uint32_t SrcStride, uint32_t DstStride>
+PTO_INTERNAL void TCmps_8B_16B(__ubuf__ uint32_t *dst, __ubuf__ T *src0, T src1, CmpMode mode, unsigned validRow,
                                unsigned validCol)
 {
-    constexpr uint32_t repeatElm = CCE_VL / sizeof(TIN);
+    constexpr uint32_t repeatElm = CCE_VL / sizeof(T);
     constexpr uint16_t dstOffset = repeatElm / RESULT_NUM_PER_INT32;
     __VEC_SCOPE__
     {
-        RegTensor<TIN> srcReg;
+        RegTensor<T> srcReg;
         MaskReg pReg;
         MaskReg dstReg;
 
-        uint32_t sReg = validCol * validRow;
-        uint16_t repeatTimes = CeilDivision(validCol * validRow, repeatElm);
-        for (uint16_t i = 0; i < (uint16_t)(repeatTimes); ++i) {
-            pReg = CreatePredicate<TIN>(sReg);
-            vlds(srcReg, src0, i * repeatElm, NORM);
-            GenCmpCall<TIN>(dstReg, srcReg, src1, mode, pReg);
-            psts(dstReg, ((__ubuf__ uint32_t *)dst + i * dstOffset), 0, PK);
+        using DistType = std::conditional_t<sizeof(T) == 2, decltype(PK), decltype(NORM)>;
+        constexpr DistType distValue{};
+        uint32_t sReg;
+        uint16_t repeatTimes = CeilDivision(validCol, repeatElm);
+
+        for (uint16_t i = 0; i < (uint16_t)(validRow); ++i) {
+            sReg = validCol;
+            for (uint16_t j = 0; j < (uint16_t)(repeatTimes); ++j) {
+                pReg = CreatePredicate<T>(sReg);
+                vlds(srcReg, src0, i * SrcStride + j * repeatElm, NORM);
+                GenCmpCall<T>(dstReg, srcReg, src1, mode, pReg);
+                psts(dstReg, dst + i * DstStride + j * dstOffset, 0, distValue);
+            }
         }
     }
 }
 
-template <typename TOUT, typename TIN>
-PTO_INTERNAL void TCmps_32B(__ubuf__ TOUT *dst, __ubuf__ TIN *src0, TIN src1, CmpMode mode, unsigned validRow,
+template <typename T, uint32_t SrcStride, uint32_t DstStride>
+PTO_INTERNAL void TCmps_32B(__ubuf__ uint32_t *dst, __ubuf__ T *src0, T src1, CmpMode mode, unsigned validRow,
                             unsigned validCol)
 {
-    constexpr uint32_t repeatElm = CCE_VL / sizeof(TIN);
+    constexpr uint32_t repeatElm = CCE_VL / sizeof(T);
     constexpr uint16_t dstOffset = 2 * repeatElm / RESULT_NUM_PER_INT32;
     __VEC_SCOPE__
     {
-        RegTensor<TIN> srcReg0;
-        RegTensor<TIN> srcReg1;
-        uint32_t sReg = validCol * validRow;
+        RegTensor<T> srcReg0;
+        RegTensor<T> srcReg1;
+        uint32_t sReg;
         MaskReg pReg;
         MaskReg tmpReg0;
         MaskReg tmpReg1;
         MaskReg tmpReg2;
         MaskReg dstReg;
 
-        // for odd repeat number, add 1 to include remainder
-        uint16_t repeatTimes = CeilDivision(validCol * validRow, repeatElm) + 1;
-        for (uint16_t i = 0; i < (uint16_t)(repeatTimes / 2); ++i) {
-            vlds(srcReg0, src0, i * 2 * repeatElm, NORM);
-            vlds(srcReg1, src0, (i * 2 + 1) * repeatElm, NORM);
-            pReg = CreatePredicate<TIN>(sReg);
-            GenCmpCall<TIN>(tmpReg0, srcReg0, src1, mode, pReg);
-            pReg = CreatePredicate<TIN>(sReg);
-            GenCmpCall<TIN>(tmpReg1, srcReg1, src1, mode, pReg);
-            pdintlv_b8(dstReg, tmpReg2, tmpReg0, tmpReg1);
-            psts(dstReg, ((__ubuf__ uint32_t *)dst + i * dstOffset), 0, PK);
+        for (uint16_t i = 0; i < (uint16_t)(validRow); ++i) {
+            sReg = validCol;
+            // for odd repeat number, add 1 to include remainder
+            uint16_t repeatTimes = CeilDivision(validCol, repeatElm) + 1;
+            for (uint16_t j = 0; j < (uint16_t)(repeatTimes / 2); ++j) {
+                vlds(srcReg0, src0, i * SrcStride + j * 2 * repeatElm, NORM);
+                vlds(srcReg1, src0, i * SrcStride + (j * 2 + 1) * repeatElm, NORM);
+                pReg = CreatePredicate<T>(sReg);
+                GenCmpCall<T>(tmpReg0, srcReg0, src1, mode, pReg);
+                pReg = CreatePredicate<T>(sReg);
+                GenCmpCall<T>(tmpReg1, srcReg1, src1, mode, pReg);
+                pdintlv_b8(dstReg, tmpReg2, tmpReg0, tmpReg1);
+                psts(dstReg, dst + i * DstStride + j * dstOffset, 0, PK);
+            }
         }
     }
 }
@@ -108,13 +117,16 @@ __tf__ PTO_INTERNAL OP_NAME(TCMPS)
                                             unsigned validRow, unsigned validCol,
                                             unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
-    using TOUT = typename TileDataDst::DType;
-    __ubuf__ TOUT *dst = (__ubuf__ TOUT *)__cce_get_tile_ptr(dstData);
     __ubuf__ T *src0 = (__ubuf__ T *)__cce_get_tile_ptr(src0Data);
+    __ubuf__ uint32_t *dst = (__ubuf__ uint32_t *)__cce_get_tile_ptr(dstData);
+
+    constexpr uint32_t srcStride = TileDataSrc::RowStride;
+    constexpr uint32_t dstStride = TileDataDst::RowStride * sizeof(typename TileDataDst::DType) / sizeof(uint32_t);
+
     if constexpr (sizeof(T) == 4) {
-        TCmps_32B<TOUT, T>(dst, src0, src1, mode, validRow, validCol);
+        TCmps_32B<T, srcStride, dstStride>(dst, src0, src1, mode, validRow, validCol);
     } else {
-        TCmps_8B_16B<TOUT, T>(dst, src0, src1, mode, validRow, validCol);
+        TCmps_8B_16B<T, srcStride, dstStride>(dst, src0, src1, mode, validRow, validCol);
     }
 }
 
@@ -126,31 +138,33 @@ __tf__ PTO_INTERNAL OP_NAME(TCMPS)
                                           unsigned validRow, unsigned validCol,
                                           unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
-    using TOUT = typename TileDataDst::DType;
-    using TIN = typename TileDataSrc0::DType;
-    __ubuf__ TOUT *dst = (__ubuf__ TOUT *)__cce_get_tile_ptr(dstData);
-    __ubuf__ TIN *src0 = (__ubuf__ TIN *)__cce_get_tile_ptr(src0Data);
-    __ubuf__ TIN *src1 = (__ubuf__ TIN *)__cce_get_tile_ptr(src1Data);
+    using T = typename TileDataSrc0::DType;
+    __ubuf__ T *src0 = (__ubuf__ T *)__cce_get_tile_ptr(src0Data);
+    __ubuf__ T *src1 = (__ubuf__ T *)__cce_get_tile_ptr(src1Data);
+    __ubuf__ uint32_t *dst = (__ubuf__ uint32_t *)__cce_get_tile_ptr(dstData);
+
+    constexpr uint32_t srcStride = TileDataSrc0::RowStride;
+    constexpr uint32_t dstStride = TileDataDst::RowStride * sizeof(typename TileDataDst::DType) / sizeof(uint32_t);
+
     set_flag(PIPE_V, PIPE_S, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
     set_flag(PIPE_MTE2, PIPE_S, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_S, EVENT_ID0);
-    TIN src1Value = *src1;
-    if constexpr (sizeof(TIN) == 4) {
-        TCmps_32B<TOUT, TIN>(dst, src0, src1Value, mode, validRow, validCol);
+    T src1Value = *src1;
+    if constexpr (sizeof(T) == 4) {
+        TCmps_32B<T, srcStride, dstStride>(dst, src0, src1Value, mode, validRow, validCol);
     } else {
-        TCmps_8B_16B<TOUT, TIN>(dst, src0, src1Value, mode, validRow, validCol);
+        TCmps_8B_16B<T, srcStride, dstStride>(dst, src0, src1Value, mode, validRow, validCol);
     }
 }
 
 template <typename TileDataDst, typename TileDataSrc>
 PTO_INTERNAL void TcmpsCheck()
 {
-    using TOUT = typename TileDataDst::DType;
-    using TIN = typename TileDataSrc::DType;
-    static_assert(std::is_same_v<TIN, int32_t> || std::is_same_v<TIN, uint32_t> || std::is_same_v<TIN, float> ||
-                      std::is_same_v<TIN, int16_t> || std::is_same_v<TIN, uint16_t> || std::is_same_v<TIN, half> ||
-                      std::is_same_v<TIN, uint8_t> || std::is_same_v<TIN, int8_t>,
+    using T = typename TileDataSrc::DType;
+    static_assert(std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float> ||
+                      std::is_same_v<T, int16_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, half> ||
+                      std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t>,
                   "TCMPS: Invalid data type.");
     static_assert(TileDataDst::isRowMajor, "TCMPS: not supported Layout type");
     static_assert(TileDataDst::Loc == TileType::Vec, "TileType of dst tile must be TileType::Vec.");

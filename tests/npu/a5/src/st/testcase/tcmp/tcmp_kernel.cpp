@@ -9,31 +9,37 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include <pto/pto-inst.hpp>
-#include <pto/common/constants.hpp>
 #include "acl/acl.h"
 
 using namespace pto;
 
-template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, CmpMode cmpMode>
-__global__ AICORE void runTCmp(__gm__ uint32_t __out__ *out, __gm__ T __in__ *src0, __gm__ T __in__ *src1)
+template <typename T, int Rows, int Cols, int ValidRows, int ValidCols, CmpMode cmpMode>
+__global__ AICORE void runTCmp(__gm__ uint8_t *out, __gm__ T *src0, __gm__ T *src1)
 {
-    using DynShapeDim5 = Shape<1, 1, 1, kGRows_, kGCols_>;
-    using DynStridDim5 = pto::Stride<1, 1, 1, kTCols_, 1>;
-    using GlobalData_src = GlobalTensor<T, DynShapeDim5, DynStridDim5>;
-    using GlobalData_dst = GlobalTensor<uint32_t, DynShapeDim5, DynStridDim5>;
-    using TileData_src = Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>;
-    using TileData_dst = Tile<TileType::Vec, uint32_t, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>;
+    using SrcShapeDim2 = Shape<1, 1, 1, ValidRows, ValidCols>;
+    using SrcStrideDim2 = pto::Stride<Rows * Cols, Rows * Cols, Rows * Cols, Cols, 1>;
+    using SrcGlobal = GlobalTensor<T, SrcShapeDim2, SrcStrideDim2>;
 
-    TileData_src src0Tile(kTRows_, kTCols_);
-    TileData_src src1Tile(kTRows_, kTCols_);
-    TileData_dst dstTile(kTRows_, kTCols_);
-    TASSIGN(src0Tile, 0x0 + 0x400 * block_idx);
-    TASSIGN(src1Tile, 0x8000 + 0x400 * block_idx);
-    TASSIGN(dstTile, 0x16000 + 0x400 * block_idx);
+    constexpr int dstCols = (Cols + 7) / 8;
+    constexpr int dstValidCols = (ValidCols + 7) / 8;
+    constexpr int dstTileCols = ((Cols / 8) + 31) / 32 * 32;
+    using DstShapeDim2 = Shape<1, 1, 1, ValidRows, dstValidCols>;
+    using DstStrideDim2 = pto::Stride<Rows * dstCols, Rows * dstCols, Rows * dstCols, dstCols, 1>;
+    using DstGlobal = GlobalTensor<uint8_t, DstShapeDim2, DstStrideDim2>;
 
-    GlobalData_src src0Global(src0);
-    GlobalData_src src1Global(src1);
-    GlobalData_dst dstGlobal(out);
+    SrcGlobal src0Global(src0);
+    SrcGlobal src1Global(src1);
+    DstGlobal dstGlobal(out);
+
+    using SrcTile = Tile<TileType::Vec, T, Rows, Cols, BLayout::RowMajor, ValidRows, ValidCols>;
+    using DstTile = Tile<TileType::Vec, uint8_t, Rows, dstTileCols, BLayout::RowMajor, ValidRows, dstValidCols>;
+
+    SrcTile src0Tile;
+    SrcTile src1Tile;
+    DstTile dstTile;
+    TASSIGN<0x0>(src0Tile);
+    TASSIGN<1 * SrcTile::Numel * sizeof(T)>(src1Tile);
+    TASSIGN<2 * SrcTile::Numel * sizeof(T)>(dstTile);
 
     TLOAD(src0Tile, src0Global);
     TLOAD(src1Tile, src1Global);
@@ -47,33 +53,34 @@ __global__ AICORE void runTCmp(__gm__ uint32_t __out__ *out, __gm__ T __in__ *sr
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
 #endif
     TSTORE(dstGlobal, dstTile);
-    out = dstGlobal.data();
 }
 
-template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, CmpMode cmpMode>
-void LaunchTCmp(uint32_t *out, T *src0, T *src1, void *stream)
+template <typename T, int Rows, int Cols, int ValidRows, int ValidCols, CmpMode cmpMode>
+void LaunchTCmp(uint8_t *out, T *src0, T *src1, void *stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>)
-        runTCmp<half, kGRows_, kGCols_, kTRows_, kTCols_, cmpMode>
+        runTCmp<half, Rows, Cols, ValidRows, ValidCols, cmpMode>
             <<<1, nullptr, stream>>>((out), (half *)(src0), (half *)(src1));
     else
-        runTCmp<T, kGRows_, kGCols_, kTRows_, kTCols_, cmpMode><<<1, nullptr, stream>>>(out, src0, src1);
+        runTCmp<T, Rows, Cols, ValidRows, ValidCols, cmpMode><<<1, nullptr, stream>>>(out, src0, src1);
 }
 
-template void LaunchTCmp<aclFloat16, 32, 32, 32, 32, CmpMode::EQ>(uint32_t *out, aclFloat16 *src0, aclFloat16 *src1,
+template void LaunchTCmp<aclFloat16, 32, 32, 32, 32, CmpMode::EQ>(uint8_t *out, aclFloat16 *src0, aclFloat16 *src1,
                                                                   void *stream);
-template void LaunchTCmp<float, 8, 64, 8, 64, CmpMode::GT>(uint32_t *out, float *src0, float *src1, void *stream);
-template void LaunchTCmp<int32_t, 4, 64, 4, 64, CmpMode::NE>(uint32_t *out, int32_t *src0, int32_t *src1, void *stream);
-// template void LaunchTCmp<int32_t, 128, 128, 64, 64, CmpMode::LT>(uint32_t *out, int32_t *src0, int32_t *src1, void
-// *stream); template void LaunchTCmp<int32_t, 64, 64, 32, 32, CmpMode::EQ>(uint32_t *out, int32_t *src0, int32_t *src1,
-// void *stream);
-template void LaunchTCmp<int32_t, 16, 32, 16, 32, CmpMode::EQ>(uint32_t *out, int32_t *src0, int32_t *src1,
+template void LaunchTCmp<float, 8, 64, 8, 64, CmpMode::GT>(uint8_t *out, float *src0, float *src1, void *stream);
+template void LaunchTCmp<int32_t, 4, 64, 4, 64, CmpMode::NE>(uint8_t *out, int32_t *src0, int32_t *src1, void *stream);
+template void LaunchTCmp<int32_t, 128, 128, 64, 64, CmpMode::LT>(uint8_t *out, int32_t *src0, int32_t *src1,
+                                                                 void *stream);
+template void LaunchTCmp<int32_t, 64, 64, 32, 32, CmpMode::EQ>(uint8_t *out, int32_t *src0, int32_t *src1,
                                                                void *stream);
-// template void LaunchTCmp<float, 128, 128, 64, 64, CmpMode::LE>(uint32_t *out, float *src0, float *src1, void
-// *stream); template void LaunchTCmp<int32_t, 77, 81, 32, 32, CmpMode::EQ>(uint32_t *out, int32_t *src0, int32_t *src1,
-// void *stream);
-template void LaunchTCmp<int32_t, 32, 32, 32, 32, CmpMode::EQ>(uint32_t *out, int32_t *src0, int32_t *src1,
+template void LaunchTCmp<int32_t, 16, 32, 16, 32, CmpMode::EQ>(uint8_t *out, int32_t *src0, int32_t *src1,
                                                                void *stream);
-// template void LaunchTCmp<int16_t, 32, 32, 16, 32, CmpMode::EQ>(uint32_t *out, int16_t *src0, int16_t *src1, void
-// *stream); template void LaunchTCmp<int16_t, 77, 81, 32, 32, CmpMode::LE>(uint32_t *out, int16_t *src0, int16_t *src1,
-// void *stream);
+template void LaunchTCmp<float, 128, 128, 64, 64, CmpMode::LE>(uint8_t *out, float *src0, float *src1, void *stream);
+template void LaunchTCmp<int32_t, 77, 80, 32, 32, CmpMode::EQ>(uint8_t *out, int32_t *src0, int32_t *src1,
+                                                               void *stream);
+template void LaunchTCmp<int32_t, 32, 32, 32, 32, CmpMode::EQ>(uint8_t *out, int32_t *src0, int32_t *src1,
+                                                               void *stream);
+template void LaunchTCmp<int16_t, 32, 32, 16, 32, CmpMode::EQ>(uint8_t *out, int16_t *src0, int16_t *src1,
+                                                               void *stream);
+template void LaunchTCmp<int16_t, 77, 80, 32, 32, CmpMode::LE>(uint8_t *out, int16_t *src0, int16_t *src1,
+                                                               void *stream);
