@@ -86,8 +86,7 @@ __tf__ PTO_INLINE void StoreSubfractalMatrix(typename GlobalData::DType __out__ 
                 size_t subTileR = r / TileData::InnerRows;
                 size_t innerR = r % TileData::InnerRows;
 
-                size_t tile_idx = subTileR * TileData::Cols * TileData::InnerRows + subTileC * TileData::InnerNumel +
-                                  innerC * TileData::InnerRows + innerR;
+                size_t tile_idx = GetTileElementOffsetSubfractals<TileData>(subTileR, innerR, subTileC, innerC);
 
                 size_t gd_idx = r * static_cast<std::size_t>(gStride3) + c * static_cast<std::size_t>(gStride4);
                 dst[gd_idx] = src[tile_idx];
