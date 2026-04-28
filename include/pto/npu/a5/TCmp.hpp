@@ -121,13 +121,13 @@ __tf__ PTO_INTERNAL OP_NAME(TCMP)
             sReg = validCol;
             for (uint16_t j = 0; j < (uint16_t)(repeatTimes / 2); ++j) {
                 vlds(src0Reg0, src0, i * SrcTile::RowStride + j * 2 * repeatElm, NORM);
-                vlds(src0Reg1, src1, i * SrcTile::RowStride + j * 2 * repeatElm, NORM);
-                vlds(src1Reg0, src0, i * SrcTile::RowStride + (j * 2 + 1) * repeatElm, NORM);
+                vlds(src1Reg0, src1, i * SrcTile::RowStride + j * 2 * repeatElm, NORM);
+                vlds(src0Reg1, src0, i * SrcTile::RowStride + (j * 2 + 1) * repeatElm, NORM);
                 vlds(src1Reg1, src1, i * SrcTile::RowStride + (j * 2 + 1) * repeatElm, NORM);
                 pReg = plt_b32(sReg, POST_UPDATE);
-                CmpCall(tmpMask0, src0Reg0, src0Reg1, mode, pReg);
+                CmpCall(tmpMask0, src0Reg0, src1Reg0, mode, pReg);
                 pReg = plt_b32(sReg, POST_UPDATE);
-                CmpCall(tmpMask1, src1Reg0, src1Reg1, mode, pReg);
+                CmpCall(tmpMask1, src0Reg1, src1Reg1, mode, pReg);
                 pdintlv_b8(dstReg, tmpMask2, tmpMask0, tmpMask1);
                 psts(dstReg, dst + i * dstStride + j * 4, 0, PK);
             }

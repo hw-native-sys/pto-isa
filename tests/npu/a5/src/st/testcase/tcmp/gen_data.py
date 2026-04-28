@@ -32,15 +32,15 @@ def gen_golden_data_tcmp(param):
 
     if param.mode == "EQ":
         bool_result = np.isclose(input1, input2, rtol=0, atol=1e-9)
-    if param.mode == "NE":
+    elif param.mode == "NE":
         bool_result = ~np.isclose(input1, input2, rtol=0, atol=1e-9)
-    if param.mode == "LT":
+    elif param.mode == "LT":
         bool_result = (input1 < input2)
-    if param.mode == "GT":
+    elif param.mode == "GT":
         bool_result = (input1 > input2) 
-    if param.mode == "GE":
+    elif param.mode == "GE":
         bool_result = (input1 >= input2) 
-    if param.mode == "LE":
+    elif param.mode == "LE":
         bool_result = (input1 <= input2) 
 
     # Apply valid region constraints

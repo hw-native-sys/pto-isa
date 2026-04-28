@@ -71,7 +71,7 @@ void test_tcmp()
     LaunchTCmp<T, Row, Col, ValidRow, ValidCol, cmpMode>(dstDevice, src0Device, src1Device, stream);
 
     aclrtSynchronizeStream(stream);
-    aclrtMemcpy(dstHost, fileSize, dstDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    aclrtMemcpy(dstHost, dstFileSize, dstDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
 
     WriteFile(GetGoldenDir() + "/output.bin", dstHost, dstFileSize);
 

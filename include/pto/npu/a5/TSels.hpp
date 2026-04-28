@@ -33,10 +33,10 @@ __tf__ PTO_INTERNAL void TSels_b32(typename TileDataDst::TileDType __out__ dst,
         MaskReg pReg, selMask0, selMask1, selMask2, tmpMask;
         MaskReg tmpMask1 = pset_b16(PAT_ALL);
         RegTensor<T> vregScalar, vreg0, vreg2, vreg3, dreg0, dreg1;
-        vdup(vregScalar, scalar, pReg, MODE_ZEROING);
         uint32_t colOffset0, colOffset1;
         uint32_t sReg = validCol;
         pReg = CreatePredicate<T>(sReg);
+        vdup(vregScalar, scalar, pReg, MODE_ZEROING);
         constexpr auto distValue =
             std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
         for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
