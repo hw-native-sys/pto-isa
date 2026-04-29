@@ -15,6 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <cstring>
 #include <iostream>
 #include <dlfcn.h>
+#include <stdlib.h>
 
 // ============================================================================
 // MPI dynamic loading infrastructure (following PyPTO's approach).
@@ -42,6 +43,20 @@ inline void *&MpiHandle()
     return handle;
 }
 
+// Defensive sanity check on a user-supplied MPI library path.
+// This is NOT a security boundary (the program runs with the invoking user's
+// privileges and many other env vars such as LD_LIBRARY_PATH/LD_PRELOAD have
+// equivalent effect). It only catches obvious misconfiguration and makes the
+// loaded path explicit in logs.
+inline bool LooksLikeMpiLibName(const char *path)
+{
+    const char *slash = std::strrchr(path, '/');
+    const char *base = slash ? slash + 1 : path;
+    if (std::strncmp(base, "libmpi", 6) != 0 && std::strncmp(base, "libmpich", 8) != 0)
+        return false;
+    return std::strstr(base, ".so") != nullptr;
+}
+
 inline void *LoadMpiLibrary()
 {
     void *&h = MpiHandle();
@@ -49,11 +64,20 @@ inline void *LoadMpiLibrary()
         return h;
 
     const char *envPath = std::getenv("MPI_LIB_PATH");
-    if (envPath) {
-        h = dlopen(envPath, RTLD_NOW);
-        if (h) {
-            std::cerr << "[MPI] Loaded from MPI_LIB_PATH: " << envPath << std::endl;
-            return h;
+    if (envPath && envPath[0] != '\0') {
+        if (envPath[0] != '/') {
+            std::cerr << "[MPI] Ignoring MPI_LIB_PATH (must be an absolute path): " << envPath << std::endl;
+        } else if (!LooksLikeMpiLibName(envPath)) {
+            std::cerr << "[MPI] Ignoring MPI_LIB_PATH (filename does not look like an MPI library, "
+                         "expected libmpi*.so* or libmpich*.so*): "
+                      << envPath << std::endl;
+        } else {
+            h = dlopen(envPath, RTLD_NOW);
+            if (h) {
+                std::cerr << "[MPI] Loaded from MPI_LIB_PATH: " << envPath << std::endl;
+                return h;
+            }
+            std::cerr << "[MPI] dlopen failed for MPI_LIB_PATH=" << envPath << ": " << dlerror() << std::endl;
         }
     }
 
