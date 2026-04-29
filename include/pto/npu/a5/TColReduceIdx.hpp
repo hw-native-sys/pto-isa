@@ -21,8 +21,6 @@ template <typename TileDataOut, typename TileDataIn>
 PTO_INTERNAL void TColReduceIdxCheck(unsigned srcValidRow, unsigned srcValidCol, unsigned dstValidRow,
                                      unsigned dstValidCol)
 {
-    static_assert(TileDataIn::ValidCol == 1 || TileDataIn::ValidCol == -1,
-                  "Fix: TCOLREDUCEIDX Src ValidCol must be 1 or -1");
     static_assert((sizeof(typename TileDataIn::DType) == 1) || (sizeof(typename TileDataIn::DType) == 2) ||
                       (sizeof(typename TileDataIn::DType) == 4),
                   "Fix: TCOLREDUCEIDX data type must be b8/b16/b32");

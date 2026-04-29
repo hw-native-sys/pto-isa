@@ -19,8 +19,6 @@ template <typename TileDataOut, typename TileDataIn, typename TileDataTmp>
 PTO_INTERNAL void TColReduceIdxCheck(unsigned srcValidRow, unsigned srcValidCol, unsigned dstValidRow,
                                      unsigned dstValidCol)
 {
-    static_assert(TileDataIn::ValidCol == 1 || TileDataIn::ValidCol == -1,
-                  "Fix: TCOLARGMAX Src ValidCol must be 1 or -1");
     static_assert(
         std::is_same_v<typename TileDataIn::DType, uint32_t> || std::is_same_v<typename TileDataIn::DType, uint16_t> ||
             std::is_same_v<typename TileDataIn::DType, half> || std::is_same_v<typename TileDataIn::DType, float>,
