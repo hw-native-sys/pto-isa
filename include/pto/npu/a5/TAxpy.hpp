@@ -52,7 +52,7 @@ PTO_INTERNAL void AxpyInstr(__ubuf__ T *dstPtr, __ubuf__ U *src0Ptr, U scalar, u
                 vlds(vreg2, dstPtr, i * dstRowStride + j * elementsPerRepeat, NORM);
                 uint32_t count =
                     ((j + 1) * elementsPerRepeat >= validCol ? validCol - j * elementsPerRepeat : elementsPerRepeat);
-                preg = CreatePredicate<U>(count);
+                preg = CreatePredicate<T>(count);
                 CallAxpy<T, U>(vreg2, vreg0, scalar, preg);
                 vsts(vreg2, dstPtr, i * dstRowStride + j * elementsPerRepeat, distValue, preg);
             }
