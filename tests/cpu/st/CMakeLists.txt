@@ -31,6 +31,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 add_definitions(-D__CPU_SIM)
 if (PTO_CPU_SIM_ENABLE_BF16)
     add_compile_definitions(PTO_CPU_SIM_ENABLE_BF16=1)
+    add_compile_definitions(CPU_SIM_BFLOAT_ENABLED=1)
     include(CheckCXXSourceCompiles)
     set(CMAKE_REQUIRED_FLAGS "-std=c++23")
     check_cxx_source_compiles(
