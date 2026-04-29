@@ -423,7 +423,6 @@ typedef float float32_t;
 #if defined(__has_include) && __has_include(<stdfloat>) && __cplusplus >= 202302L && defined(__STDCPP_BFLOAT16_T__)
 #include <stdfloat>
 typedef std::bfloat16_t bfloat16_t;
-#define CPU_SIM_BFLOAT_ENABLED
 #elif defined(PTO_CPU_SIM_ENABLE_BF16)
 #error "PTO_CPU_SIM_ENABLE_BF16 requires C++23 <stdfloat> with std::bfloat16_t support."
 #else

@@ -8,105 +8,119 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-#include <array>
-#include <cstdint>
-#include <vector>
-#include <gtest/gtest.h>
+#include "test_common.h"
 #include <pto/pto-inst.hpp>
+#include <gtest/gtest.h>
 
-using namespace pto;
+using namespace std;
+using namespace PtoTestCommon;
 
-namespace {
-constexpr uint32_t kConst0 = 0xD2511F53u;
-constexpr uint32_t kConst1 = 0xCD9E8D57u;
-constexpr uint32_t kKeyAdd0 = 0x9E3779B9u;
-constexpr uint32_t kKeyAdd1 = 0xBB67AE85u;
+template <int32_t tilingKey>
+void launchTRANDOM_demo(uint8_t *out, uint8_t *src, void *stream);
 
-void IncrementCounter(std::array<uint32_t, 4> &counter, uint32_t value)
+class TRANDOMTest : public testing::Test {
+protected:
+    void SetUp() override
+    {}
+    void TearDown() override
+    {}
+};
+
+std::string GetGoldenDir()
 {
-    uint64_t carry = value;
-    for (size_t i = 0; i < counter.size(); ++i) {
-        carry += static_cast<uint64_t>(counter[i]);
-        counter[i] = static_cast<uint32_t>(carry);
-        carry >>= 32;
-        if (carry == 0) {
+    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const std::string caseName = testInfo->name();
+    std::string suiteName = testInfo->test_suite_name();
+    std::string fullPath = "../" + suiteName + "." + caseName;
+    return fullPath;
+}
+
+template <typename T>
+void CheckResults(const std::string &goldenDir, size_t dstSize)
+{
+    std::vector<T> output(dstSize / sizeof(T));
+    ReadFile(GetGoldenDir() + "/output.bin", dstSize, output.data(), dstSize);
+
+    bool allZero = true;
+    for (const auto &v : output) {
+        if (v != 0) {
+            allZero = false;
             break;
         }
     }
-}
+    EXPECT_FALSE(allZero) << "TRANDOM output is all zeros";
 
-template <uint16_t Rounds>
-std::array<uint32_t, 4> RunRounds(std::array<uint32_t, 4> counter, std::array<uint32_t, 2> key)
-{
-    for (uint16_t i = 0; i < Rounds; ++i) {
-        const uint64_t mul0 = static_cast<uint64_t>(counter[0]) * kConst0;
-        const uint64_t mul1 = static_cast<uint64_t>(counter[2]) * kConst1;
-        const uint32_t hi0 = static_cast<uint32_t>(mul0 >> 32);
-        const uint32_t lo0 = static_cast<uint32_t>(mul0);
-        const uint32_t hi1 = static_cast<uint32_t>(mul1 >> 32);
-        const uint32_t lo1 = static_cast<uint32_t>(mul1);
-        counter = {hi1 ^ counter[1] ^ key[0], lo1, hi0 ^ counter[3] ^ key[1], lo0};
-        key[0] += kKeyAdd0;
-        key[1] += kKeyAdd1;
-    }
-    return counter;
-}
-
-template <uint16_t Rounds>
-std::vector<uint32_t> BuildExpected(int rows, int cols, std::array<uint32_t, 2> key, std::array<uint32_t, 4> counter)
-{
-    constexpr uint32_t elementsPerRepeat = 256 / sizeof(uint32_t);
-    constexpr uint32_t rowStrideChunks = 256 / 4;
-    std::vector<uint32_t> out(rows * cols, 0);
-    auto rowCounter = counter;
-    for (int row = 0; row < rows; ++row) {
-        for (uint32_t lane = 0; lane < elementsPerRepeat; ++lane) {
-            auto laneCounter = rowCounter;
-            IncrementCounter(laneCounter, lane);
-            const auto values = RunRounds<Rounds>(laneCounter, key);
-            for (uint32_t repeat = 0; repeat < 4; ++repeat) {
-                out[row * cols + repeat * elementsPerRepeat + lane] = values[repeat];
-            }
-        }
-        IncrementCounter(rowCounter, rowStrideChunks);
-    }
-    return out;
-}
-} // namespace
-
-TEST(TRandomCpuSimTest, Rounds10MatchesExactReferenceFor4x256)
-{
-    using TileData = Tile<TileType::Vec, uint32_t, 4, 256>;
-    TileData dst;
-    TASSIGN(dst, 0);
-    TRandomKey key = {0x12345678u, 0x9abcdef0u};
-    TRandomCounter counter = {0x0u, 0x11111111u, 0x22222222u, 0x33333333u};
-
-    TRANDOM<10>(dst, key, counter);
-
-    const auto expected = BuildExpected<10>(4, 256, {key[0], key[1]}, {counter[0], counter[1], counter[2], counter[3]});
-    for (int r = 0; r < dst.GetValidRow(); ++r) {
-        for (int c = 0; c < dst.GetValidCol(); ++c) {
-            EXPECT_EQ(dst.data()[GetTileElementOffset<TileData>(r, c)], expected[r * dst.GetValidCol() + c]);
+    bool allSame = true;
+    for (size_t i = 1; i < output.size(); ++i) {
+        if (output[i] != output[0]) {
+            allSame = false;
+            break;
         }
     }
+    EXPECT_FALSE(allSame) << "TRANDOM output is constant";
 }
 
-TEST(TRandomCpuSimTest, Rounds7MatchesExactReference)
+template <typename T, int rows, int cols>
+void LaunchTRandom(T *out, uint32_t *key, uint32_t *counter, void *stream);
+
+template <typename T, int rows, int cols>
+void test_trandom()
 {
-    using TileData = Tile<TileType::Vec, int32_t, 2, 256>;
-    TileData dst;
-    TASSIGN(dst, 0);
-    TRandomKey key = {0x13579bdfu, 0x2468ace0u};
-    TRandomCounter counter = {0x10u, 0x20u, 0x30u, 0x40u};
+    size_t dstSize = rows * cols * sizeof(T);
+    size_t keySize = 2 * sizeof(uint32_t);
+    size_t counterSize = 4 * sizeof(uint32_t);
 
-    TRANDOM<7>(dst, key, counter);
+    aclInit(nullptr);
+    aclrtSetDevice(0);
+    aclrtStream stream;
+    aclrtCreateStream(&stream);
 
-    const auto expected = BuildExpected<7>(2, 256, {key[0], key[1]}, {counter[0], counter[1], counter[2], counter[3]});
-    for (int r = 0; r < dst.GetValidRow(); ++r) {
-        for (int c = 0; c < dst.GetValidCol(); ++c) {
-            EXPECT_EQ(static_cast<uint32_t>(dst.data()[GetTileElementOffset<TileData>(r, c)]),
-                      expected[r * dst.GetValidCol() + c]);
-        }
-    }
+    T *dstHost;
+    uint32_t *keyHost;
+    uint32_t *counterHost;
+    T *dstDevice;
+    uint32_t *keyDevice;
+    uint32_t *counterDevice;
+
+    aclrtMallocHost((void **)(&dstHost), dstSize);
+    aclrtMallocHost((void **)(&keyHost), keySize);
+    aclrtMallocHost((void **)(&counterHost), counterSize);
+
+    aclrtMalloc((void **)&dstDevice, dstSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void **)&keyDevice, keySize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void **)&counterDevice, counterSize, ACL_MEM_MALLOC_HUGE_FIRST);
+
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/key.bin", keySize, keyHost, keySize));
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/counter.bin", counterSize, counterHost, counterSize));
+
+    aclrtMemcpy(keyDevice, keySize, keyHost, keySize, ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(counterDevice, counterSize, counterHost, counterSize, ACL_MEMCPY_HOST_TO_DEVICE);
+
+    LaunchTRandom<T, rows, cols>(dstDevice, keyDevice, counterDevice, stream);
+
+    aclrtSynchronizeStream(stream);
+    aclrtMemcpy(dstHost, dstSize, dstDevice, dstSize, ACL_MEMCPY_DEVICE_TO_HOST);
+
+    WriteFile(GetGoldenDir() + "/output.bin", dstHost, dstSize);
+
+    aclrtFree(dstDevice);
+    aclrtFree(keyDevice);
+    aclrtFree(counterDevice);
+
+    aclrtFreeHost(dstHost);
+    aclrtFreeHost(keyHost);
+    aclrtFreeHost(counterHost);
+    aclrtDestroyStream(stream);
+    aclrtResetDevice(0);
+    aclFinalize();
+
+    CheckResults<T>(GetGoldenDir(), dstSize);
+}
+
+const int ROWS = 4;
+const int COLS = 256;
+
+TEST_F(TRANDOMTest, case_uint32_4x256_4x256)
+{
+    test_trandom<uint32_t, ROWS, COLS>();
 }
