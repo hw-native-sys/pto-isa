@@ -481,7 +481,11 @@ PTO_INTERNAL void ExtractB8ExponentAndScaling(__ubuf__ T *maxPtr, __ubuf__ uint8
     constexpr uint32_t elementsPerVL = REPEAT_BYTE / sizeof(T);
 
     for (uint16_t i = 0; i < (uint16_t)exp_max_loop_count; ++i) {
-        ExtractB8ExponentAndScalingVL<T>(maxPtr, expPtr, scalingPtr, i * elementsPerVL, total_elements_count);
+        uint32_t off = i * elementsPerVL;
+        uint32_t rem = (total_elements_count > off) ? (total_elements_count - off) : 0;
+        if (rem > elementsPerVL)
+            rem = elementsPerVL;
+        ExtractB8ExponentAndScalingVL<T>(maxPtr, expPtr, scalingPtr, off, rem);
     }
 }
 
@@ -571,12 +575,22 @@ PTO_INTERNAL void CalcQuantizedFP8Values_B16_Window(__ubuf__ T *srcPtr, __ubuf__
     RegTensor<T> vb16_scaling, vb16_in_1, vb16_in_2, vb16_out_1, vb16_out_2;
     vector_f32 vb32_cvt_1, vb32_cvt_2, vb32_cvt_3, vb32_cvt_4;
     vector_f8e4m3 vb8_or1, vb8_or2, vb8_out, vb8_p0, vb8_p1, vb8_p2, vb8_p3;
-    uint32_t even_count = (remaining + 1) / 2;
-    uint32_t odd_count = remaining / 2;
-    uint32_t b8_count = remaining;
-    MaskReg preg_b16_1 = CreatePredicate<T>(even_count);
-    MaskReg preg_b16_2 = CreatePredicate<T>(odd_count);
-    MaskReg preg_b8 = CreatePredicate<uint8_t>(b8_count);
+    uint32_t evenCount = (remaining + 1) / 2;
+    uint32_t oddCount = remaining / 2;
+    uint32_t b8Count = remaining;
+    uint32_t b16Count1 = evenCount;
+    uint32_t b16Count2 = oddCount;
+    uint32_t f32Count1Even = (evenCount + 1) / 2;
+    uint32_t f32Count1Odd = evenCount / 2;
+    uint32_t f32Count2Even = (oddCount + 1) / 2;
+    uint32_t f32Count2Odd = oddCount / 2;
+    MaskReg preg_b16_1 = CreatePredicate<T>(b16Count1);
+    MaskReg preg_b16_2 = CreatePredicate<T>(b16Count2);
+    MaskReg preg_f32_1_even = CreatePredicate<float>(f32Count1Even);
+    MaskReg preg_f32_1_odd = CreatePredicate<float>(f32Count1Odd);
+    MaskReg preg_f32_2_even = CreatePredicate<float>(f32Count2Even);
+    MaskReg preg_f32_2_odd = CreatePredicate<float>(f32Count2Odd);
+    MaskReg preg_b8 = CreatePredicate<uint8_t>(b8Count);
     vlds(vb16_in_1, vb16_in_2, srcPtr, offset_b16, DINTLV_B16);
     if constexpr (std::is_same<T, half>::value) {
         vector_bf16 vb16_scaling_bf16;
@@ -589,10 +603,10 @@ PTO_INTERNAL void CalcQuantizedFP8Values_B16_Window(__ubuf__ T *srcPtr, __ubuf__
         vcvt(vb32_cvt_2, vb16_in_1, preg_b16_1, PART_ODD);
         vcvt(vb32_cvt_3, vb16_in_2, preg_b16_2, PART_EVEN);
         vcvt(vb32_cvt_4, vb16_in_2, preg_b16_2, PART_ODD);
-        vmul(vb32_cvt_1, vb32_cvt_1, vb32_scaling, preg_b16_1, MODE_ZEROING);
-        vmul(vb32_cvt_2, vb32_cvt_2, vb32_scaling, preg_b16_1, MODE_ZEROING);
-        vmul(vb32_cvt_3, vb32_cvt_3, vb32_scaling, preg_b16_2, MODE_ZEROING);
-        vmul(vb32_cvt_4, vb32_cvt_4, vb32_scaling, preg_b16_2, MODE_ZEROING);
+        vmul(vb32_cvt_1, vb32_cvt_1, vb32_scaling, preg_f32_1_even, MODE_ZEROING);
+        vmul(vb32_cvt_2, vb32_cvt_2, vb32_scaling, preg_f32_1_odd, MODE_ZEROING);
+        vmul(vb32_cvt_3, vb32_cvt_3, vb32_scaling, preg_f32_2_even, MODE_ZEROING);
+        vmul(vb32_cvt_4, vb32_cvt_4, vb32_scaling, preg_f32_2_odd, MODE_ZEROING);
     } else {
         vlds((vector_u16 &)vb16_scaling, (__ubuf__ uint16_t *)scalingPtr, 8 * i, E2B_B16);
         vmul(vb16_out_1, vb16_in_1, vb16_scaling, preg_b16_1, MODE_ZEROING);
@@ -604,10 +618,10 @@ PTO_INTERNAL void CalcQuantizedFP8Values_B16_Window(__ubuf__ T *srcPtr, __ubuf__
         vcvt(vb32_cvt_4, vb16_out_2, preg_b16_2, PART_ODD);
     }
     // fp32->fp8 P0..P3 writes to bytes 0..3 of each 32-bit slot; pair with mod-4 index.
-    vcvt(vb8_p0, vb32_cvt_1, preg_b16_1, ROUND_R, RS_ENABLE, PART_P0);
-    vcvt(vb8_p1, vb32_cvt_3, preg_b16_2, ROUND_R, RS_ENABLE, PART_P1);
-    vcvt(vb8_p2, vb32_cvt_2, preg_b16_1, ROUND_R, RS_ENABLE, PART_P2);
-    vcvt(vb8_p3, vb32_cvt_4, preg_b16_2, ROUND_R, RS_ENABLE, PART_P3);
+    vcvt(vb8_p0, vb32_cvt_1, preg_f32_1_even, ROUND_R, RS_ENABLE, PART_P0);
+    vcvt(vb8_p1, vb32_cvt_3, preg_f32_2_even, ROUND_R, RS_ENABLE, PART_P1);
+    vcvt(vb8_p2, vb32_cvt_2, preg_f32_1_odd, ROUND_R, RS_ENABLE, PART_P2);
+    vcvt(vb8_p3, vb32_cvt_4, preg_f32_2_odd, ROUND_R, RS_ENABLE, PART_P3);
     vor(vb8_or1, vb8_p0, vb8_p1, preg_b8);
     vor(vb8_or2, vb8_p2, vb8_p3, preg_b8);
     vor(vb8_out, vb8_or1, vb8_or2, preg_b8);
@@ -702,14 +716,20 @@ PTO_INTERNAL void TQuant_MXFP8_F32(__ubuf__ float *srcPtr, __ubuf__ uint8_t *exp
     }
     mem_bar(VST_VLD);
     maxPtr = maxPtr_backup;
-    constexpr bool unroll = (StaticRows * StaticCols > 1024) && (StaticRows * StaticCols % 256 == 0);
-    ExtractB8ExponentAndScaling<unroll>(maxPtr, expPtr, scalingPtr, exp_loop_count, numGroups, elementsPerRepeat);
+    constexpr bool canUnroll = (StaticRows * StaticCols > 1024) && (StaticRows * StaticCols % 256 == 0);
+    if constexpr (canUnroll) {
+        if (total_elements_count % 256 == 0) {
+            ExtractB8ExponentAndScaling<true>(maxPtr, expPtr, scalingPtr, exp_loop_count, numGroups, elementsPerRepeat);
+            mem_bar(VST_VLD);
+            CalcQuantizedFP8Values_Unroll2(srcPtr, scalingPtr, dstPtr, vl_count, elementsPerRepeat,
+                                           total_elements_count);
+            return;
+        }
+    }
+    ExtractB8ExponentAndScaling<false>(maxPtr, expPtr, scalingPtr, exp_loop_count, numGroups, elementsPerRepeat);
     mem_bar(VST_VLD);
-    if constexpr (unroll)
-        CalcQuantizedFP8Values_Unroll2(srcPtr, scalingPtr, dstPtr, vl_count, elementsPerRepeat, total_elements_count);
-    else
-        CalcQuantizedFP8Values(srcPtr, scalingPtr, dstPtr, vl_count, elementsPerRepeat, total_elements_count,
-                               preg_lower32, preg_upper32);
+    CalcQuantizedFP8Values(srcPtr, scalingPtr, dstPtr, vl_count, elementsPerRepeat, total_elements_count, preg_lower32,
+                           preg_upper32);
 }
 
 // B16 (BF16/FP16) -> MXFP8 quantization: AbsReduceMax + ExponentScaling + FP8 conversion.
