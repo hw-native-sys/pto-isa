@@ -14,17 +14,54 @@
 
 import random
 import math
+from pathlib import Path
+
+import matplotlib.pyplot as plt
 import torch
 import torch_npu
 from jit_util_flash import jit_compile_flash
+from util.device import get_test_device
+from util.bench import do_bench
 
-NUM_ITERATIONS = 50
+_DEVICE = get_test_device()
+torch.npu.set_device(_DEVICE)
+
+NUM_ITERATIONS = 15
 WARMUP = 10
 SEED = 1
 
 random.seed(SEED)
 torch.manual_seed(SEED)
 torch.npu.manual_seed(SEED)
+
+
+def attn_flops_matmul_softmax_scale(
+    batch_size: int,
+    s_q: int,
+    s_k: int,
+    h: int,
+    include_scale: bool = True,
+    count_exp_as_flop: bool = True,
+    count_max_as_flop: bool = True,
+):
+    flops_matmul = 4 * batch_size * s_q * s_k * h
+    flops_scale = (batch_size * s_q * s_k) if include_scale else 0
+
+    rows = batch_size * s_q
+    softmax_ops = 0
+    if count_max_as_flop:
+        softmax_ops += rows * (s_k - 1)
+    softmax_ops += rows * s_k
+    if count_exp_as_flop:
+        softmax_ops += rows * s_k
+    softmax_ops += rows * (s_k - 1)
+    softmax_ops += rows * s_k
+
+    return flops_matmul + flops_scale + softmax_ops
+
+
+def tflops(flops: int, ms: float) -> float:
+    return flops / (ms * 1e-3) / 1e12
 
 
 # ---------------------------
@@ -57,72 +94,108 @@ def fused_attention(q, k, v, is_causal=False):
     return out.squeeze(0)
 
 
-def time_op_npu(fn):
-    """
-    Accurate device timing:
-    - warmup to stabilize
-    - synchronize around measurement
-    - measure average per-iter ms
-    """
-    for _ in range(WARMUP):
-        _ = fn()
-    torch.npu.synchronize()
-
-    start = torch.npu.Event(enable_timing=True)
-    end = torch.npu.Event(enable_timing=True)
-
-    start.record()
-    for _ in range(NUM_ITERATIONS):
-        _ = fn()
-    end.record()
-    torch.npu.synchronize()
-
-    total_ms = start.elapsed_time(end)
-    return total_ms / NUM_ITERATIONS
-
-
 def test_flash():
-    s0, s1, head = 128, 2048, 128
-
-    device = "npu:0"
-    torch.npu.set_device(device)
+    s0, head = 128 * 24, 128
+    s1_values = [1024, 2048, 4096, 8192, 16384, 32768, 64*1024, 128*1024]
 
     dtype = torch.float16
-
-    # ==========================
-    # Inputs
-    # ==========================
     q2d = torch.randn((s0, head), dtype=dtype).npu()
-    k2d = torch.randn((s1, head), dtype=dtype).npu()
-    v2d = torch.randn((s1, head), dtype=dtype).npu()
 
     # ==========================
     # Compile flash ONCE
     # ==========================
     flash = jit_compile_flash(verbose=False)
 
-    # ==========================
-    # Benchmark reference ops
-    # ==========================
-    ref_ms = time_op_npu(lambda: fa_reference(q2d, k2d, v2d))
-    npu_ms = time_op_npu(lambda: fused_attention(q2d, k2d, v2d))
-    flash_ms = time_op_npu(lambda: flash(q2d, k2d, v2d))
+    flash_ms_values = []
+    npu_ms_values = []
+    ref_ms_values = []
+    flash_tflops_values = []
+    npu_tflops_values = []
+    ref_tflops_values = []
 
-    # ==========================
-    # Correctness check
-    # ==========================
-    o_out = flash(q2d, k2d, v2d)
-    o_ref = fa_reference(q2d, k2d, v2d).to(torch.float32)
-    o_npu = fused_attention(q2d, k2d, v2d).to(torch.float32)
+    for s1 in s1_values:
+        flops_total = attn_flops_matmul_softmax_scale(1, s0, s1, head)
 
-    print(f"JIT flash kernel           : {flash_ms:.3f} ms/iter")
-    print(f"npu_fused_infer_attention  : {npu_ms:.3f} ms/iter")
-    print(f"torch reference            : {ref_ms:.3f} ms/iter")
-    torch.testing.assert_close(o_out, o_ref, rtol=1e-3, atol=1e-3)
-    print("vs torch reference: PASSED")
-    torch.testing.assert_close(o_out, o_npu, rtol=1e-3, atol=1e-3)
-    print("vs npu_fused_attention: PASSED")
+        # ==========================
+        # Inputs
+        # ==========================
+        k2d = torch.randn((s1, head), dtype=dtype).npu()
+        v2d = torch.randn((s1, head), dtype=dtype).npu()
+
+        # ==========================
+        # Benchmark reference ops
+        # ==========================
+        ref_ms = do_bench(
+            lambda: fa_reference(q2d, k2d, v2d),
+            warmup_iters=WARMUP,
+            benchmark_iters=NUM_ITERATIONS,
+            unit="ms",
+        )
+        npu_ms = do_bench(
+            lambda: fused_attention(q2d, k2d, v2d),
+            warmup_iters=WARMUP,
+            benchmark_iters=NUM_ITERATIONS,
+            unit="ms",
+        )
+        flash_ms = do_bench(
+            lambda: flash(q2d, k2d, v2d),
+            warmup_iters=WARMUP,
+            benchmark_iters=NUM_ITERATIONS,
+            unit="ms",
+        )
+
+        flash_ms_values.append(flash_ms)
+        npu_ms_values.append(npu_ms)
+        ref_ms_values.append(ref_ms)
+        flash_tflops_values.append(tflops(flops_total, flash_ms))
+        npu_tflops_values.append(tflops(flops_total, npu_ms))
+        ref_tflops_values.append(tflops(flops_total, ref_ms))
+
+        # ==========================
+        # Correctness check
+        # ==========================
+        o_out = flash(q2d, k2d, v2d)
+        o_ref = fa_reference(q2d, k2d, v2d).to(torch.float32)
+        o_npu = fused_attention(q2d, k2d, v2d).to(torch.float32)
+
+        print(f"S1                         : {s1}")
+        print(f"FLOPs total                : {flops_total}")
+        print(
+            f"JIT flash kernel           : {flash_ms:.3f} ms/iter  "
+            f"({tflops(flops_total, flash_ms):.3f} TFLOP/s)"
+        )
+        print(
+            f"npu_fused_infer_attention  : {npu_ms:.3f} ms/iter  "
+            f"({tflops(flops_total, npu_ms):.3f} TFLOP/s)"
+        )
+        print(
+            f"torch reference            : {ref_ms:.3f} ms/iter  "
+            f"({tflops(flops_total, ref_ms):.3f} TFLOP/s)"
+        )
+        torch.testing.assert_close(o_out, o_ref, rtol=1e-3, atol=1e-3)
+        print("vs torch reference: PASSED")
+        torch.testing.assert_close(o_out, o_npu, rtol=1e-3, atol=1e-3)
+        print("vs npu_fused_attention: PASSED")
+        print("")
+
+    plot_path = Path(__file__).with_name("fa_compile_and_run_s1_plot.png")
+    plt.figure(figsize=(8, 5))
+    plt.plot(s1_values, flash_tflops_values, marker="o", label="flash")
+    plt.plot(s1_values, ref_tflops_values, marker="o", label="ref")
+    plt.plot(s1_values, npu_tflops_values, marker="o", label="torch_npu")
+    plt.xscale("log", base=2)
+    plt.xticks(s1_values, [str(v) for v in s1_values])
+    plt.xlabel("S1")
+    plt.ylabel("TFLOP/s")
+    plt.title(f"Flash Attention TFLOP/s vs S1 (S0={s0}, head={head})")
+    plt.grid(True, which="both", axis="both", linestyle="--", linewidth=0.5)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(plot_path, dpi=160)
+    plt.close()
+    print(f"Saved plot to {plot_path}")
 
 
 if __name__ == "__main__":
     test_flash()
+
