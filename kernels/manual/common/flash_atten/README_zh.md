@@ -62,9 +62,24 @@ test success
 - `S0`：query 序列长度（Q/O 的行数）。
 - `S1`：key/value 序列长度（K/V 的行数）。
 - `Total task time (us)`：每个 task 的端到端 kernel 时间（微秒）。
-- `GOps`：该 task 计数的总运算量。
-- `TFLOPS`：`GOps / time`。
+- `MOps`：该 task 计数的总运算量，单位为百万次运算。
+- `TFLOPS`：`MOps / time_us`，因为百万次运算每微秒等于万亿次运算每秒。
 - `Normalized TFLOPS`：`TFLOPS × (24 / cores_used)`，用于估算在 24 核 A3 上的满芯吞吐。
+
+### 910B2 多核对比
+
+以下全序列数据在 Ascend 910B2（A2/A3 代际）上测得，基线为 `torch_npu`。`Sequence length` 为 Q/K/V 共用的序列长度；host benchmark 使用 `S0 * S1 * HEAD_SIZE * 4 / 1e6` 计算 `MOps`，其中 `S0 = S1 = Sequence length` 且 `HEAD_SIZE = 128`。
+
+| Sequence length | PTO time (us) | torch_npu time (us) | MOps | PTO TFLOPS | torch_npu TFLOPS | PTO utilization | torch_npu utilization | PTO speedup |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1024 | 20.960 | 58.461 | 536.87 | 25.61 | 9.18 | 7.24% | 2.59% | 2.79x |
+| 2048 | 32.461 | 70.801 | 2147.48 | 66.16 | 30.33 | 18.69% | 8.57% | 2.18x |
+| 4096 | 88.902 | 118.302 | 8589.93 | 96.62 | 72.61 | 27.30% | 20.52% | 1.33x |
+| 8192 | 292.626 | 353.147 | 34359.74 | 117.42 | 97.30 | 33.18% | 27.49% | 1.21x |
+| 16384 | 909.058 | 1118.462 | 137438.95 | 151.19 | 122.88 | 42.72% | 34.72% | 1.23x |
+| 32768 | 3262.645 | 3646.173 | 549755.81 | 168.50 | 150.78 | 47.61% | 42.60% | 1.12x |
+
+![Flash Attention 910B2 PTO vs torch_npu](../../../../docs/figures/performance/fa_910b2_pto_vs_torch_npu.png)
 
 ### 小结
 
@@ -93,7 +108,7 @@ Total task time（us，越低越好）：
 | 4 | 512 | 41.721 | 55.441 | 46.621 | 86.322 |
 | 8 | 1024 | 63.72 | 85.882 | 64.461 | 107.342 |
 
-GOps：
+MOps：
 
 | Cores | S0 | S1=1024 | S1=2048 | S1=4096 | S1=8192 |
 | --- | --- | --- | --- | --- | --- |

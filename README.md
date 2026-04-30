@@ -130,10 +130,26 @@ This repository also demonstrates how standard tile operations can be mapped to 
 
 ### Flash Attention
 
-- Reference implementation: `kernels/manual/common/flash_atten/`
+- Reference implementations: `kernels/manual/common/flash_atten/` for A2/A3 and `kernels/manual/a5/flash_atten/` for A5
 - Detailed analysis and tuning notes: [Flash Attention Operator Implementation](kernels/manual/common/flash_atten/README.md)
+- A5 build guide, with A5 performance numbers still pending: [Flash Attention Performance Kernel (A5)](kernels/manual/a5/flash_atten/README.md)
 - S0: query sequence length (number of rows in Q/O)
 - S1: key/value sequence length (number of rows in K/V)
+
+Ascend 910B2 (A2/A3) multi-core comparison, using `torch_npu` as the baseline:
+
+| Sequence length | PTO time (us) | torch_npu time (us) | PTO TFLOPS | torch_npu TFLOPS | Speedup |
+| --- | --- | --- | --- | --- | --- |
+| 1024 | 20.960 | 58.461 | 25.61 | 9.18 | 2.79x |
+| 2048 | 32.461 | 70.801 | 66.16 | 30.33 | 2.18x |
+| 4096 | 88.902 | 118.302 | 96.62 | 72.61 | 1.33x |
+| 8192 | 292.626 | 353.147 | 117.42 | 97.30 | 1.21x |
+| 16384 | 909.058 | 1118.462 | 151.19 | 122.88 | 1.23x |
+| 32768 | 3262.645 | 3646.173 | 168.50 | 150.78 | 1.12x |
+
+![Flash Attention 910B2 PTO vs torch_npu](docs/figures/performance/fa_910b2_pto_vs_torch_npu.png)
+
+Additional A2/A3 normalized reference:
 
 ![Flash Attention normalized TFLOPS (A2/A3)](docs/figures/performance/fa_normalized_tflops_a2a3.svg)
 
