@@ -21,13 +21,13 @@ The CPU simulator is the easiest way to get started. It works on macOS, Linux, a
 
 **Required:**
 - Git
-- Python `>= 3.8` (3.10+ recommended)
+- Python `>= 3.11`
 - CMake `>= 3.16`
 - A C++ compiler with C++20 support:
   - Linux: GCC 13+ or Clang 15+ (bfloat16 support enabled for GCC >= 14)
   - macOS: Xcode/AppleClang (or Homebrew LLVM)
   - Windows: Visual Studio 2022 Build Tools (MSVC)
-- Python package: `numpy`
+- Python package: `numpy >= 1.22.0`
 
 `tests/run_cpu.py` can install `numpy` automatically (unless you pass `--no-install`).
 

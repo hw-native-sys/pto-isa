@@ -164,14 +164,18 @@ python3 tests/script/run_st.py -r sim -v a3 -t tadd -g TADDTest.case_float_64x64
 
 未来计划发布的特性：
 
-| 功能 | 描述 | 范围 |
-| --- | --- | --- |
-| PTO Auto Mode | BiSheng 编译器支持：自动分配 tile buffer 并插入同步。 | 编译器 / 工具链 |
-| PTO Tile Fusion | BiSheng 编译器支持：自动融合 tile 操作。 | 编译器 / 工具链 |
-| PTO-AS | PTO ISA 的字节码（Byte Code）支持。 | 编译器 / 工具链 |
-| **卷积扩展** | PTO ISA 对卷积 kernel 的支持。 | ISA 扩展 |
-| **集合通信扩展** | PTO ISA 对集合通信 kernel 的支持。 | ISA 扩展 |
-| **系统调度扩展** | PTO ISA 对 SPMD/MPMD 编程的调度支持。 | ISA 扩展 |
+| 功能 | 描述 | 范围 | 进度 / 完成时间 |
+| --- | --- | --- | --- |
+| **PTO Auto Mode** | BiSheng 编译器支持：自动分配 tile buffer 并插入同步。 | 编译器 / 工具链 | 持续演进 |
+| **PTO Tile Fusion** | BiSheng 编译器支持：自动融合 tile 操作。 | 编译器 / 工具链 | 持续演进 |
+| **PTO-AS** | PTO ISA 的字节码（Byte Code）支持。 | 编译器 / 工具链 | 持续演进 |
+| **卷积扩展** | PTO ISA 对卷积 kernel 的支持。 | ISA 扩展 | 持续演进 |
+| **集合通信扩展** | 新增支持 Ccu 及 Roce 异步通信指令，新增 TPREFECTH（AIV 直驱）通信指令。 | 通信 ISA 扩展 | 2026 Q2 |
+| **系统调度扩展** | PTO ISA 对 SPMD/MPMD 编程的调度支持。 | ISA 扩展 | 规划中 |
+| **微指令** | 支持用户通过微指令表达高性能算子，同时提供基础的高性能微指令库。 | ISA 扩展 / 算子开发 | 2026 Q2 |
+| **基础指令** | 进一步优化 A5 指令性能，新增 Pooling 相关基础指令，并增强卷积、量化、Fixpipe 类指令能力。 | ISA 扩展 | 2026 Q2 |
+| **CostModel** | 支持 A5 指令的 CostModel 性能仿真。 | 工具链 / 性能建模 | 2026 Q2 |
+| **CPU-SIM** | CPU-SIM 随指令增强同步构建。 | CPU 仿真 | 2026 Q2 |
 
 ## 🗃️ 目录结构
 

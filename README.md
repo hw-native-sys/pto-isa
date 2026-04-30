@@ -164,14 +164,18 @@ For more details, see [include/README.md](include/README.md).
 
 Planned future features:
 
-| Feature | Description | Scope |
-| --- | --- | --- |
-| PTO Auto Mode | BiSheng compiler support for automatic tile buffer allocation and synchronization insertion. | Compiler / toolchain |
-| PTO Tile Fusion | BiSheng compiler support for automatic tile operation fusion. | Compiler / toolchain |
-| PTO-AS | Bytecode support for PTO ISA. | Compiler / toolchain |
-| **Convolution extension** | PTO ISA support for convolution kernels. | ISA extension |
-| **Collective communication extension** | PTO ISA support for collective communication kernels. | ISA extension |
-| **System scheduling extension** | PTO ISA support for SPMD/MPMD programming schedules. | ISA extension |
+| Feature | Description | Scope | Progress / target completion |
+| --- | --- | --- | --- |
+| **PTO Auto Mode** | BiSheng compiler support for automatic tile buffer allocation and synchronization insertion. | Compiler / toolchain | Ongoing |
+| **PTO Tile Fusion** | BiSheng compiler support for automatic tile operation fusion. | Compiler / toolchain | Ongoing |
+| **PTO-AS** | Bytecode support for PTO ISA. | Compiler / toolchain | Ongoing |
+| **Convolution extension** | PTO ISA support for convolution kernels. | ISA extension | Ongoing |
+| **Collective communication extension** | Add asynchronous communication instructions for Ccu and Roce, and add the TPREFECTH (AIV direct-drive) communication instruction. | Communication ISA extension | 2026 Q2 |
+| **System scheduling extension** | PTO ISA support for SPMD/MPMD programming schedules. | ISA extension | Planned |
+| **Micro-instructions** | Support expressing high-performance operators through micro-instructions, together with a foundational high-performance micro-instruction library. | ISA extension / operator development | 2026 Q2 |
+| **Base instructions** | Further optimize A5 instruction performance, add Pooling-related base instructions, and enhance convolution, quantization, and Fixpipe instruction capabilities. | ISA extension | 2026 Q2 |
+| **CostModel** | Support CostModel performance simulation for A5 instructions. | Toolchain / performance modeling | 2026 Q2 |
+| **CPU-SIM** | Keep CPU-SIM built in sync with instruction enhancements. | CPU simulation | 2026 Q2 |
 
 ## 🗃️ Directory Structure
 

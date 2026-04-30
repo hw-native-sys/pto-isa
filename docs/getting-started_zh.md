@@ -21,13 +21,13 @@ CPU 模拟器是最简单的入门方式。它可以在 macOS、Linux 和 Window
 
 **必需项：**
 - Git
-- Python `>= 3.8`（推荐 3.10+）
+- Python `>= 3.11`
 - CMake `>= 3.16`
 - 支持 C++20 的 C++ 编译器：
   - Linux: GCC 13+ 或 Clang 15+（GCC >= 14 启用 bfloat16 支持）
   - macOS: Xcode/AppleClang（或 Homebrew LLVM）
   - Windows: Visual Studio 2022 Build Tools (MSVC)
-- Python 包：`numpy`
+- Python 包：`numpy >= 1.22.0`
 
 `tests/run_cpu.py` 可以自动安装 `numpy`（除非您传递 `--no-install` 参数）。
 
