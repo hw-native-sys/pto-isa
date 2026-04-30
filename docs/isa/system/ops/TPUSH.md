@@ -263,7 +263,7 @@ total ≈ alloc_wait_latency + push_phase + record_overhead
 |-----------|------|-------------|
 | `C2V_UB` (A5) | `TMOV` Acc → consumer UB | FIXP drain; ~4× read/write BW asymmetry on A5 |
 | `C2V` (A2/A3) / `C2V_GM` (A5) | FIXP → GM via `TSTORE` | FIXP + MTE3 |
-| `V2C_MAT` (A2/A3, A5) | `TINSERT` into consumer MAT | Layout-converting; vector-pipe |
+| `V2C_MAT` (A5) | `TINSERT` into consumer MAT | Layout-converting; vector-pipe |
 | `V2C` / `V2C_GM` | Vec → GM via `TSTORE` | MTE3 bandwidth, `SlotSize` |
 | `V2C_CTRL` | 32-bit control signal | Sync only; trivial write |
 
