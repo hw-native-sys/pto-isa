@@ -80,6 +80,18 @@ No architectural side effects beyond producing the destination tile. Does not im
         - Offsets are interpreted as `uint32_t` values (byte offsets) by the implementation.
         - Offset bounds are not validated by explicit runtime assertions; on A2/A3 and A5, out-of-range offsets produce undefined results; on the CPU simulator, out-of-range offsets are clamped to the source tile boundary.
 
+## Performance
+
+### A2/A3 Cycle Count
+
+`pto.tgatherb` is the block-mode gather: indices select whole rows or sub-blocks rather than individual elements. Cost scales with the number of selected blocks rather than the number of elements; throughput is therefore higher than `tgather` for block-aligned access patterns.
+
+**Cycle model**: `total ≈ startup + N_block × per_block_load`.
+
+Block-aligned indices (multiples of the block stride) are the intended fast path.
+
+> Note: cycle numbers below are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
+
 ## Exceptions
 
 !!! danger "Exceptions"
@@ -164,8 +176,9 @@ void example_manual() {
 pto.tgatherb ins(%src, %offsets : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
+## See Also
 
 - Instruction set overview: [Irregular And Complex](../../irregular-and-complex.md)
-- Previous op in instruction set: [pto.tpartmin](./tpartmin.md)
+- Previous op in instruction set: [pto.tgather](./tgather.md)
 - Next op in instruction set: [pto.tscatter](./tscatter.md)
+

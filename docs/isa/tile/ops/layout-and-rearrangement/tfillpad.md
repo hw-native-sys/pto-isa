@@ -100,6 +100,16 @@ No architectural side effects beyond producing the destination tile. Does not im
 
     - `TFILLPAD(TileData &dst, TileData &src)`:`if TileData::TileType is Mat, layout only support (!TileData::isRowMajor && TileData::Slayout::RowMajor), and PadVal only support PadValue::Zero`
 
+## Performance
+
+### A2/A3 Cycle Count
+
+`pto.tfillpad` writes the pad value into the destination's invalid region and copies `src` into the valid region. Cost is one row-wide vector store per row plus a fast-path scalar broadcast for the padding lanes.
+
+**Cycle model**: `total ≈ startup + R × (per_row_store + per_row_pad)`.
+
+> Note: cycle numbers below are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
+
 ## Exceptions
 
 !!! danger "Exceptions"
@@ -162,8 +172,9 @@ void example2() {
 pto.tfillpad ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
+## See Also
 
 - Instruction set overview: [Layout And Rearrangement](../../layout-and-rearrangement.md)
-- Previous op in instruction set: [pto.tinsert_fp](./tinsert.md)
+- Previous op in instruction set: [pto.tinsert](./tinsert.md)
 - Next op in instruction set: [pto.tfillpad_inplace](./tfillpad-inplace.md)
+

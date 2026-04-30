@@ -68,6 +68,16 @@ No architectural side effects beyond producing the destination tile. Does not im
 !!! warning "Constraints"
     Type/layout/location/shape legality is backend-dependent; treat implementation-specific notes as normative for that backend.
 
+## Performance
+
+### A2/A3 Cycle Count
+
+`pto.tfillpad-expand` is the shape-expanding variant of `tfillpad`: the destination region is larger than the source, and rows beyond `src.GetValidRow()` are filled entirely with the pad value. Cost scales with the destination shape, not the source shape.
+
+**Cycle model**: `total ≈ startup + R_dst × per_row_store`.
+
+> Note: cycle numbers below are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
+
 ## Exceptions
 
 !!! danger "Exceptions"
@@ -110,8 +120,9 @@ See related examples in `docs/isa/` and `docs/coding/tutorials/`.
 pto.tfillpad_expand ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
+## See Also
 
 - Instruction set overview: [Layout And Rearrangement](../../layout-and-rearrangement.md)
 - Previous op in instruction set: [pto.tfillpad_inplace](./tfillpad-inplace.md)
-- Next op in instruction set: [pto.tmov](./tmov.md)
+- Next op in instruction set: [pto.timg2col](./timg2col.md)
+

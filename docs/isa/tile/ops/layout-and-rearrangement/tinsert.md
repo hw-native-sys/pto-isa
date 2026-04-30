@@ -165,6 +165,19 @@ PTO_INST RecordEvent TINSERT(DstTileData &dst, SrcTileData &src,
 - `reluMode` (optional) — `ReluPreMode::{NoRelu, NormalRelu}`.
 - `preQuantScalar` (scalar-quant variant only) — scalar quantization factor.
 
+## Expected Outputs
+
+| Result | Type | Description |
+|---|---|---|
+| `RecordEvent` | token | Signals completion of the insertion. |
+| `dst` | tile | The `(SrcRows, SrcCols)` sub-region of `dst` starting at `(indexRow, indexCol)` is overwritten with `src` (or with quantized `src` for `TINSERT_FP`); the rest of `dst` is unchanged. |
+
+## Side Effects
+
+- **Standard variants**: No architectural side effects beyond updating the destination region.
+- **Fix-pipe variant (`TINSERT_FP`)**: Programs the FPC sideband state before the fix-pipe quantization. On the CPU simulator the `fp` parameter is ignored and the call falls back to standard `TINSERT`.
+- Does not implicitly fence unrelated tile traffic.
+
 ## Constraints
 
 !!! warning "Constraints"
@@ -174,7 +187,44 @@ PTO_INST RecordEvent TINSERT(DstTileData &dst, SrcTileData &src,
     - **A5 fix-pipe**: Destination must be `TileType::Mat` with `BLayout::ColMajor + SLayout::RowMajor`; source must be `float` or `int32_t` `Acc`
     - **Cpu simulator**: `TINSERT_FP` accepts the interface but ignores the `fp` parameter, falling back to standard `TINSERT`
 
-## Common Patterns
+## Performance
+
+### A2/A3 Cycle Count
+
+`pto.tinsert` is a layout-rearrangement op that writes a sub-window into a larger destination tile. Standard variants execute as a layout-converting move within UB / L0 buffers; the fix-pipe variant (`TINSERT_FP`) routes through the **FIXP** path before the destination write.
+
+**Cycle model**:
+
+```
+# Standard / ReLU / scalar-quant
+total ≈ startup + SrcRows × SrcCols / insert_throughput
+
+# Fix-pipe
+total ≈ startup + fixp_drain(SrcRows, SrcCols)
+```
+
+### Layout and Shape Impact
+
+| Source → Dest | Path | Notes |
+|---|---|---|
+| `Vec → Mat` | Layout-converting | Common Vec→Cube tile-passing path (TPipe) |
+| `Acc → Mat` (A5) | Layout-converting | Used by output-stationary GEMM postprocessing |
+| `Acc → Mat` (`TINSERT_FP`) | FIXP | FIXP-bound; A5 has ~4× read/write bandwidth asymmetry |
+
+The `(indexRow, indexCol)` offset is free at issue time. The CPU simulator ignores the `fp` parameter and routes through the standard path.
+
+> Note: cycle numbers are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
+
+## Exceptions
+
+!!! danger "Exceptions"
+    - Illegal operand tuples, unsupported tile-type pairs, invalid layout combinations, or unsupported target-profile modes are rejected by the verifier or by the selected backend instruction set.
+    - Out-of-range `(indexRow, indexCol)` (window exceeds `dst` bounds) is rejected at compile time when shapes are static, otherwise undefined at runtime.
+    - `TINSERT_FP` with `FpTileData::Loc != TileType::Scaling` is rejected by `static_assert`.
+    - On A5, `TINSERT_FP` requires destination `TileType::Mat` with `BLayout::ColMajor + SLayout::RowMajor`; other layouts are rejected.
+    - Programs must not rely on behavior outside the documented legal domain of this operation.
+
+## Examples
 
 ### Pattern 1: Accumulator Insert into Matrix
 

@@ -1,6 +1,8 @@
 # pto.tgather
 
-## Introduction
+`pto.tgather` is part of the [Communication](./README.md) instruction set.
+
+## Summary
 
 Gather operation: the calling NPU (root) collects data from all ranks in the parallel group and concatenates the results along **DIM_3** (row dimension) into a local output buffer.
 
@@ -8,7 +10,7 @@ Only the root needs to execute `pto.tgather`. Non-root ranks only need to ensure
 
 **Large Tile Support**: When the GlobalTensor exceeds the UB tile capacity in rows and/or columns, the transfer is automatically chunked via 2D sliding — the same mechanism used by other PTO-COMM instructions.
 
-## Math Interpretation
+## Mechanism
 
 Each rank $r$ has source data of shape $(D_0, D_1, D_2, H, W)$. The gather concatenates all $N$ ranks along DIM_3:
 
@@ -16,7 +18,7 @@ $$\mathrm{dst}_{d_0, d_1, d_2,\; r \cdot H + i,\; j} = \mathrm{src}^{(r)}_{d_0, 
 
 The destination tensor has shape $(D_0, D_1, D_2, N \times H, W)$.
 
-## Assembly Syntax
+## Syntax
 
 PTO-AS form: see [Assembly Spelling And Operands](../syntax-and-operands/assembly-model.md).
 
@@ -44,6 +46,30 @@ PTO_INST RecordEvent GATHER(ParallelGroupType &parallelGroup, GlobalDstData &dst
                             TileData &pingTile, TileData &pongTile, WaitEvents&... events);
 ```
 
+## Inputs
+
+| Operand | Description |
+|---------|-------------|
+| `parallelGroup` | A `ParallelGroup<GPerRank>` enumerating each rank's source buffer; root identified via `GetRootIdx()`. |
+| `dstGlobalData` | Destination GlobalTensor on the root NPU; receives the concatenated result. |
+| `stagingTileData` | UB staging tile used as the GM→UB→GM relay buffer (single-buffer form). |
+| `pingTile`, `pongTile` | Two UB staging tiles for double-buffered (ping-pong) form, enabling MTE2/MTE3 overlap. |
+| `events...` | Optional `RecordEvent` tokens to wait on before issuing. |
+
+## Expected Outputs
+
+| Result | Type | Description |
+|--------|------|-------------|
+| `RecordEvent` | token | Signals completion of the gather across all participating ranks. |
+| `dstGlobalData` | GlobalTensor | First `N × H` rows along DIM_3 hold the concatenated rank data; rows beyond `N × H` (if `dstGlobalData.GetShape(DIM_3) > N × H`) are left unchanged. |
+
+## Side Effects
+
+- Issues remote MTE2 reads from each rank's source buffer and MTE3 writes into the local destination.
+- Cross-core synchronisation flags are toggled as part of the rank-fan-in protocol.
+- Non-root ranks must keep their source buffers live until the root signals completion; otherwise behavior is undefined.
+- No implicit fence on unrelated tile traffic.
+
 ## Constraints
 
 !!! warning "Constraints"
@@ -61,6 +87,41 @@ PTO_INST RecordEvent GATHER(ParallelGroupType &parallelGroup, GlobalDstData &dst
     - **Chunked mode constraints** (when source data exceeds a single UB tile):
         - If `TileData` has static `ValidRow`, `GetShape(DIM_3)` of each rank's source must be divisible by `ValidRow`. Use a Tile with `DYNAMIC` ValidRow for partial row support.
         - If `TileData` has static `ValidCol`, `GetShape(DIM_4)` must be divisible by `ValidCol`. Use a Tile with `DYNAMIC` ValidCol for partial column support.
+
+## Performance
+
+### A2/A3 Cycle Count
+
+`pto.tgather` is bounded by the **inter-NPU MTE2** path: the root reads each rank's source buffer over the cross-core fabric and writes the concatenated result locally via MTE3.
+
+**Cycle model**:
+
+```
+total ≈ startup + N × (per_rank_remote_load + per_rank_local_store) + sync_overhead
+```
+
+where `N` is the participating rank count.
+
+The ping-pong form overlaps remote MTE2 of chunk `k+1` with local MTE3 of chunk `k`, hiding most of `per_rank_local_store` behind `per_rank_remote_load`.
+
+### Layout and Shape Impact
+
+| Form | When to use | Effect |
+|------|------------|--------|
+| Single staging tile | Small per-rank data (≤ one tile) | Simpler control flow; serialised MTE2/MTE3 |
+| Ping-pong (double buffering) | Large per-rank data | MTE2/MTE3 overlap; near-2× throughput on long transfers |
+| 2D sliding (per-tile chunking) | Per-rank data > UB tile | Automatic; chunk size set by `TileData::ValidRow/ValidCol` |
+
+> Note: cycle numbers are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
+
+## Exceptions
+
+!!! danger "Exceptions"
+    - Calling `pto.tgather` on a non-root NPU is undefined behavior.
+    - Mismatched per-rank tensor shapes / strides yield undefined behavior; no runtime check is guaranteed.
+    - Using a `dstGlobalData` shape with `GetShape(DIM_3) < N × H` is rejected by the verifier on static shapes; on dynamic shapes the call writes only what fits and silently truncates.
+    - Type-mismatch between `ParallelGroup::value_type::RawDType` and `TileData::DType` / `GlobalDstData::RawDType` is rejected at compile time via `static_assert`.
+    - Programs must not rely on behavior outside the documented legal domain of this operation.
 
 ## Examples
 
@@ -125,3 +186,10 @@ void gather_pingpong(__gm__ T* group_addrs[NRANKS], __gm__ T* result, int my_ran
     comm::GATHER(group, dstG, pingTile, pongTile);
 }
 ```
+
+## See Also
+
+- Instruction set overview: [Communication](./README.md)
+- Inverse op: [pto.tscatter](./TSCATTER.md)
+- Related collective ops: [pto.treduce](./TREDUCE.md), [pto.tbroadcast](./TBROADCAST.md)
+- One-sided variants: [pto.tput](./TPUT.md), [pto.tget](./TGET.md)

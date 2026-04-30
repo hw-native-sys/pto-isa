@@ -84,6 +84,25 @@ No architectural side effects beyond producing the destination tile. Does not im
     - **Bounds / validity**:
         - Index bounds are not validated by explicit runtime assertions; on A2/A3 and A5, out-of-range indices produce undefined results; on the CPU simulator, out-of-range indices are clamped to the valid range.
 
+## Performance
+
+### A2/A3 Cycle Count
+
+`pto.tgather` issues an indirect vector-load through an index tile. Cost is dominated by the indirect-fetch throughput of the LSU/MTE2 path; uniform indices (sequential or broadcast) hit the fast path, while scattered indices serialize.
+
+**Cycle model**: `total ≈ startup + N_idx × per_index + bank_conflict_penalty`.
+
+### Layout and Shape Impact
+
+| Index pattern | Effect |
+|---|---|
+| Sequential / contiguous | Fast path; coalesces to wide loads |
+| Strided | Stride-bound throughput |
+| Random | Worst-case; per-element issue |
+| Out-of-range | Returns implementation-defined value (see Constraints) |
+
+> Note: cycle numbers below are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
+
 ## Exceptions
 
 !!! danger "Exceptions"
@@ -182,8 +201,9 @@ void example_manual() {
 pto.tgather ins(%src, %indices : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
+## See Also
 
 - Instruction set overview: [Irregular And Complex](../../irregular-and-complex.md)
 - Previous op in instruction set: [pto.tsort32](./tsort32.md)
-- Next op in instruction set: [pto.tci](./tci.md)
+- Next op in instruction set: [pto.tgatherb](./tgatherb.md)
+

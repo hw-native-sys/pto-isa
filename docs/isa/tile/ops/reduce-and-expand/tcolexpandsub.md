@@ -74,6 +74,41 @@ No architectural side effects beyond producing the destination tile. Does not im
 
     - Exact layout/fractal constraints are target-specific; see backend headers under `include/pto/npu/*/TColExpand*.hpp`.
 
+## Performance
+
+### A2/A3 Cycle Count
+
+`pto.tcolexpandsub` lowers to a per-column `vsub` sequence in which a single per-column scalar from `src1` is broadcast across the working tile and combined with each element of `src0` via subtraction.
+
+**Cycle model**:
+
+```
+total = startup + R × (per_column_vsub + interval)
+```
+
+where `R = dst.GetValidRow()` (row-direction) or `R = dst.GetValidCol()` (column-direction), and `per_column_vsub` scales with `C = dst.GetValidCol()` rounded up to the native vector width.
+
+### Instruction Sequence by Shape (FP32)
+
+| Valid Shape | Instruction Sequence | Estimated Cycles |
+|-------------|----------------------|------------------|
+| 16×16 | `vsub`*16 → PIPE_V | ~O(64) |
+| 32×32 | `vsub`*32 → PIPE_V | ~O(128) |
+| 64×64 | `vsub`*64 → PIPE_V | ~O(256) |
+| R×C   | `vsub`*R → PIPE_V  | ~O(R × ⌈C / vlen⌉) |
+
+> Note: per-shape cycle counts are illustrative templates; populate with measured numbers from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
+
+### Layout and Shape Impact
+
+| Layout | validCol | Optimization |
+|--------|----------|--------------|
+| `RowMajor` | ≥ vlen (FP32) | Continuous fast path; one `vsub` per column |
+| `RowMajor` | < vlen | General path with tail masking |
+| Other | any | Not supported (compile-time `isRowMajor` constraint) |
+
+The column-broadcast scalar is reused across all columns without re-fetching.
+
 ## Exceptions
 
 !!! danger "Exceptions"
@@ -155,8 +190,9 @@ void example_manual() {
 pto.tcolexpandsub ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
+## See Also
 
 - Instruction set overview: [Reduce And Expand](../../reduce-and-expand.md)
-- Previous op in instruction set: [pto.tcolexpandmin](./tcolexpandmin.md)
-- Next op in instruction set: [pto.tcolexpandexpdif](./tcolexpandexpdif.md)
+- Previous op in instruction set: [pto.tcolexpandadd](./tcolexpandadd.md)
+- Next op in instruction set: [pto.tcolexpandmul](./tcolexpandmul.md)
+

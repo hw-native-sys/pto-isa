@@ -74,6 +74,39 @@ No architectural side effects beyond producing the destination tile. Does not im
 
     - Exact layout/fractal constraints are target-specific; see backend headers under `include/pto/npu/*/TColExpand*.hpp`.
 
+## Performance
+
+### A2/A3 Cycle Count
+
+`TCOLEXPANDADD` lowers to a per-row vector-add sequence in which the per-column scalar vector `src1` is broadcast across all `R` rows of `src0`.
+
+**Cycle model**:
+
+```
+total = startup + R × (per_row_vadd + interval)
+```
+
+where `R = dst.GetValidRow()` and `per_row_vadd` is the cost of one row-wide `vadd` over `C = dst.GetValidCol()` elements.
+
+### Instruction Sequence by Shape (FP32)
+
+| Valid Shape | Instruction Sequence | Estimated Cycles |
+|-------------|----------------------|------------------|
+| 16×16 | `vadd`*16 → PIPE_V | ~O(64) |
+| 32×32 | `vadd`*32 → PIPE_V | ~O(128) |
+| 64×64 | `vadd`*64 → PIPE_V | ~O(256) |
+| R×C | `vadd`*R → PIPE_V | ~O(R × ⌈C/vlen⌉) |
+
+### Layout and Shape Impact
+
+| Layout | validCol | Optimization |
+|--------|----------|--------------|
+| `RowMajor` | ≥ vlen (FP32) | Continuous fast path; one `vadd` per row |
+| `RowMajor` | < vlen | General path with tail masking |
+| Other | any | Not supported (compile-time `isRowMajor` constraint) |
+
+Broadcast of `src1` is free per row: the per-column scalar vector is reused across all rows without re-fetching.
+
 ## Exceptions
 
 !!! danger "Exceptions"
@@ -155,7 +188,7 @@ void example_manual() {
 pto.tcolexpandadd ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
+## See Also
 
 - Instruction set overview: [Reduce And Expand](../../reduce-and-expand.md)
 - Previous op in instruction set: [pto.tcolexpandmul](./tcolexpandmul.md)
