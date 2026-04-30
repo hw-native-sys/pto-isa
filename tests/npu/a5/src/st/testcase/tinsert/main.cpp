@@ -57,6 +57,15 @@ void launchTInsertNZDoubleInput(uint64_t *out, uint64_t *src, void *stream);
 template <int32_t testKey>
 void launchTInsertNZFp4Offset(uint64_t *out, uint64_t *src, void *stream);
 
+template <int32_t testKey>
+void launchTInsertCompactNullTLoad(uint64_t *out, uint64_t *src, void *stream);
+
+template <int32_t testKey>
+void launchTInsertCompactNormalTMov(uint64_t *out, uint64_t *src, void *stream);
+
+template <int32_t testKey>
+void launchTInsertCompactRowPlusOneTMov(uint64_t *out, uint64_t *src, void *stream);
+
 class TInsertTest : public testing::Test {
 protected:
     void SetUp() override
@@ -724,4 +733,74 @@ TEST_F(TInsertTest, case_nz_fp4_offset_e2m1_rowcol)
 TEST_F(TInsertTest, case_nz_fp4_offset_e1m2_rowcol)
 {
     testTInsertNZFp4Offset<4, 16, 32, 16, 128>();
+}
+
+template <int32_t testKey, typename dType, int32_t SrcRows, int32_t SrcCols, int32_t ValidRow, int32_t ValidCol,
+          int32_t DstRows, int32_t DstCols>
+void testTInsertCompactNullTLoad()
+{
+    constexpr size_t initBytes = static_cast<size_t>(DstRows) * DstCols * sizeof(dType);
+    constexpr size_t srcBytes = static_cast<size_t>(SrcRows) * SrcCols * sizeof(dType);
+    constexpr size_t dstBytes = static_cast<size_t>(DstRows) * DstCols * sizeof(dType);
+    testSingleSrc<dType>(initBytes + srcBytes, dstBytes, launchTInsertCompactNullTLoad<testKey>);
+}
+
+template <int32_t testKey, typename dType, int32_t ValidRow, int32_t ValidCol, int32_t DstRows, int32_t DstCols>
+void testTInsertCompactTMov(LaunchFn2 launch)
+{
+    constexpr size_t initBytes = static_cast<size_t>(DstRows) * DstCols * sizeof(dType);
+    constexpr size_t srcBytes = static_cast<size_t>(ValidRow) * ValidCol * sizeof(dType);
+    constexpr size_t dstBytes = static_cast<size_t>(DstRows) * DstCols * sizeof(dType);
+    testSingleSrc<dType>(initBytes + srcBytes, dstBytes, launch);
+}
+
+TEST_F(TInsertTest, case_compact_null_tload_fp16_idx0_0)
+{
+    testTInsertCompactNullTLoad<1, uint16_t, 128, 64, 64, 32, 128, 128>();
+}
+TEST_F(TInsertTest, case_compact_null_tload_fp16_idx0_32)
+{
+    testTInsertCompactNullTLoad<2, uint16_t, 128, 64, 64, 32, 128, 128>();
+}
+TEST_F(TInsertTest, case_compact_null_tload_fp32_idx0_8)
+{
+    testTInsertCompactNullTLoad<3, float, 64, 32, 32, 16, 64, 64>();
+}
+TEST_F(TInsertTest, case_compact_null_tload_bf16_unaligned_idx0_16)
+{
+    testTInsertCompactNullTLoad<4, uint16_t, 128, 128, 80, 48, 128, 128>();
+}
+
+TEST_F(TInsertTest, case_compact_normal_tmov_fp16_idx0_0)
+{
+    testTInsertCompactTMov<1, uint16_t, 64, 32, 128, 128>(launchTInsertCompactNormalTMov<1>);
+}
+TEST_F(TInsertTest, case_compact_normal_tmov_fp16_idx0_32)
+{
+    testTInsertCompactTMov<2, uint16_t, 64, 32, 128, 128>(launchTInsertCompactNormalTMov<2>);
+}
+TEST_F(TInsertTest, case_compact_normal_tmov_fp32_idx0_8)
+{
+    testTInsertCompactTMov<3, float, 32, 16, 128, 64>(launchTInsertCompactNormalTMov<3>);
+}
+TEST_F(TInsertTest, case_compact_normal_tmov_bf16_idx0_16)
+{
+    testTInsertCompactTMov<4, uint16_t, 64, 48, 128, 128>(launchTInsertCompactNormalTMov<4>);
+}
+
+TEST_F(TInsertTest, case_compact_rowplusone_tmov_fp16_idx0_0)
+{
+    testTInsertCompactTMov<1, uint16_t, 64, 32, 128, 128>(launchTInsertCompactRowPlusOneTMov<1>);
+}
+TEST_F(TInsertTest, case_compact_rowplusone_tmov_fp16_idx0_32)
+{
+    testTInsertCompactTMov<2, uint16_t, 64, 32, 128, 128>(launchTInsertCompactRowPlusOneTMov<2>);
+}
+TEST_F(TInsertTest, case_compact_rowplusone_tmov_fp32_idx0_8)
+{
+    testTInsertCompactTMov<3, float, 32, 16, 128, 64>(launchTInsertCompactRowPlusOneTMov<3>);
+}
+TEST_F(TInsertTest, case_compact_rowplusone_tmov_bf16_idx0_16)
+{
+    testTInsertCompactTMov<4, uint16_t, 64, 48, 128, 128>(launchTInsertCompactRowPlusOneTMov<4>);
 }

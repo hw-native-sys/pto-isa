@@ -345,6 +345,66 @@ def gen_double_twoinput(p):
 
 
 @dataclass
+class CompactNullTLoadParams:
+    dtype: object
+    src_rows: int
+    src_cols: int
+    valid_row: int
+    valid_col: int
+    dst_rows: int
+    dst_cols: int
+    idx_row: int
+    idx_col: int
+
+
+def gen_compact_null_tload(p):
+    ds = np.dtype(p.dtype).itemsize
+    init_nd = np.full((p.dst_rows, p.dst_cols), 1, dtype=p.dtype)
+    init_nd.tofile("init.bin")
+
+    valid_block = rand_nonzero(p.dtype, (p.valid_row, p.valid_col))
+    src_padded = np.zeros((p.src_rows, p.src_cols), dtype=p.dtype)
+    src_padded[: p.valid_row, : p.valid_col] = valid_block
+
+    init_nz = nd_to_nz(init_nd, p.dst_rows, p.dst_cols, ds).flatten()
+    src_nz = nd_to_nz(src_padded, p.src_rows, p.src_cols, ds).flatten()
+    np.concatenate([init_nz, src_nz]).tofile("input_arr.bin")
+
+    result = init_nd.copy()
+    r_end = p.idx_row + p.valid_row
+    c_end = p.idx_col + p.valid_col
+    result[p.idx_row : r_end, p.idx_col : c_end] = valid_block
+    nd_to_nz(result, p.dst_rows, p.dst_cols, ds).tofile("golden_output.bin")
+
+
+@dataclass
+class CompactTMovParams:
+    dtype: object
+    valid_row: int
+    valid_col: int
+    dst_rows: int
+    dst_cols: int
+    idx_row: int
+    idx_col: int
+
+
+def gen_compact_tmov(p):
+    ds = np.dtype(p.dtype).itemsize
+    init_nd = np.full((p.dst_rows, p.dst_cols), 1, dtype=p.dtype)
+
+    valid_block = rand_nonzero(p.dtype, (p.valid_row, p.valid_col))
+
+    init_nz = nd_to_nz(init_nd, p.dst_rows, p.dst_cols, ds).flatten()
+    np.concatenate([init_nz, valid_block.flatten()]).tofile("input_arr.bin")
+
+    result = init_nd.copy()
+    r_end = p.idx_row + p.valid_row
+    c_end = p.idx_col + p.valid_col
+    result[p.idx_row : r_end, p.idx_col : c_end] = valid_block
+    nd_to_nz(result, p.dst_rows, p.dst_cols, ds).tofile("golden_output.bin")
+
+
+@dataclass
 class Fp4OffsetParams:
     src_rows: int
     src_byte_cols: int
@@ -518,6 +578,66 @@ if __name__ == "__main__":
         ("TInsertTest.case_nz_fp4_offset_e1m2_col", gen_fp4_offset, Fp4OffsetParams(16, 32, 16, 16, 128, 0, 32)),
         ("TInsertTest.case_nz_fp4_offset_e2m1_rowcol", gen_fp4_offset, Fp4OffsetParams(16, 32, 8, 16, 128, 4, 64)),
         ("TInsertTest.case_nz_fp4_offset_e1m2_rowcol", gen_fp4_offset, Fp4OffsetParams(16, 32, 8, 16, 128, 4, 64)),
+        (
+            "TInsertTest.case_compact_null_tload_fp16_idx0_0",
+            gen_compact_null_tload,
+            CompactNullTLoadParams(np.float16, 128, 64, 64, 32, 128, 128, 0, 0),
+        ),
+        (
+            "TInsertTest.case_compact_null_tload_fp16_idx0_32",
+            gen_compact_null_tload,
+            CompactNullTLoadParams(np.float16, 128, 64, 64, 32, 128, 128, 0, 32),
+        ),
+        (
+            "TInsertTest.case_compact_null_tload_fp32_idx0_8",
+            gen_compact_null_tload,
+            CompactNullTLoadParams(np.float32, 64, 32, 32, 16, 64, 64, 0, 8),
+        ),
+        (
+            "TInsertTest.case_compact_null_tload_bf16_unaligned_idx0_16",
+            gen_compact_null_tload,
+            CompactNullTLoadParams(np.uint16, 128, 128, 80, 48, 128, 128, 0, 16),
+        ),
+        (
+            "TInsertTest.case_compact_normal_tmov_fp16_idx0_0",
+            gen_compact_tmov,
+            CompactTMovParams(np.float16, 64, 32, 128, 128, 0, 0),
+        ),
+        (
+            "TInsertTest.case_compact_normal_tmov_fp16_idx0_32",
+            gen_compact_tmov,
+            CompactTMovParams(np.float16, 64, 32, 128, 128, 0, 32),
+        ),
+        (
+            "TInsertTest.case_compact_normal_tmov_fp32_idx0_8",
+            gen_compact_tmov,
+            CompactTMovParams(np.float32, 32, 16, 128, 64, 0, 8),
+        ),
+        (
+            "TInsertTest.case_compact_normal_tmov_bf16_idx0_16",
+            gen_compact_tmov,
+            CompactTMovParams(np.uint16, 64, 48, 128, 128, 0, 16),
+        ),
+        (
+            "TInsertTest.case_compact_rowplusone_tmov_fp16_idx0_0",
+            gen_compact_tmov,
+            CompactTMovParams(np.float16, 64, 32, 128, 128, 0, 0),
+        ),
+        (
+            "TInsertTest.case_compact_rowplusone_tmov_fp16_idx0_32",
+            gen_compact_tmov,
+            CompactTMovParams(np.float16, 64, 32, 128, 128, 0, 32),
+        ),
+        (
+            "TInsertTest.case_compact_rowplusone_tmov_fp32_idx0_8",
+            gen_compact_tmov,
+            CompactTMovParams(np.float32, 32, 16, 128, 64, 0, 8),
+        ),
+        (
+            "TInsertTest.case_compact_rowplusone_tmov_bf16_idx0_16",
+            gen_compact_tmov,
+            CompactTMovParams(np.uint16, 64, 48, 128, 128, 0, 16),
+        ),
     ]
 
     for name, gen_fn, *args in cases:

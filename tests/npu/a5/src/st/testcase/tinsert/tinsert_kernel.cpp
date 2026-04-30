@@ -1745,9 +1745,9 @@ AICORE void runTInsertNZDoubleInput(__gm__ T *out, __gm__ T *src)
     constexpr uint32_t ubSrc2Offset = ((nz1Size + 511) / 512) * 512;
 
     using SrcVecTile1 = Tile<TileType::Vec, T, TileRows, Cols, BLayout::ColMajor, ValidRows1, Cols, SLayout::RowMajor,
-                             512, PadValue::Null, CompactMode::RowPlusOne>;
+                             512, PadValue::Null, CompactMode::Null>;
     using SrcVecTile2 = Tile<TileType::Vec, T, TileRows, Cols, BLayout::ColMajor, ValidRows2, Cols, SLayout::RowMajor,
-                             512, PadValue::Null, CompactMode::RowPlusOne>;
+                             512, PadValue::Null, CompactMode::Null>;
     using DstVecTile = Tile<TileType::Vec, T, DstRows, Cols, BLayout::ColMajor, -1, -1, SLayout::RowMajor>;
     using MatTile = Tile<TileType::Mat, T, DstRows, Cols, BLayout::ColMajor, -1, -1, SLayout::RowMajor>;
 
@@ -1960,6 +1960,235 @@ __global__ AICORE void launchTInsertNZFp4OffsetKernel(__gm__ uint64_t *out, __gm
         reinterpret_cast<__gm__ T *>(out), reinterpret_cast<__gm__ T *>(src));
 }
 
+template <typename T, uint32_t SrcRows, uint32_t SrcCols, uint32_t ValidRow, uint32_t ValidCol, uint32_t DstRows,
+          uint32_t DstCols, uint32_t IdxRow, uint32_t IdxCol>
+AICORE void runTInsertCompactNullTLoad(__gm__ T *out, __gm__ T *src)
+{
+    constexpr uint32_t c0Size = CUBE_BLOCK_SIZE / (FRACTAL_NZ_ROW * sizeof(T));
+
+    using InitGmShape = pto::Shape<1, DstCols / c0Size, DstRows / FRACTAL_NZ_ROW, FRACTAL_NZ_ROW, c0Size>;
+    using InitGmStride =
+        pto::Stride<DstCols / c0Size * DstRows * c0Size, DstRows * c0Size, FRACTAL_NZ_ROW * c0Size, c0Size, 1>;
+    using InitGlobal = GlobalTensor<T, InitGmShape, InitGmStride, Layout::NZ>;
+
+    using SrcGmShape = pto::Shape<1, SrcCols / c0Size, SrcRows / FRACTAL_NZ_ROW, FRACTAL_NZ_ROW, c0Size>;
+    using SrcGmStride =
+        pto::Stride<SrcCols / c0Size * SrcRows * c0Size, SrcRows * c0Size, FRACTAL_NZ_ROW * c0Size, c0Size, 1>;
+    using SrcGlobal = GlobalTensor<T, SrcGmShape, SrcGmStride, Layout::NZ>;
+
+    using DstGmShape = pto::Shape<1, DstCols / c0Size, DstRows / FRACTAL_NZ_ROW, FRACTAL_NZ_ROW, c0Size>;
+    using DstGmStride =
+        pto::Stride<DstCols / c0Size * DstRows * c0Size, DstRows * c0Size, FRACTAL_NZ_ROW * c0Size, c0Size, 1>;
+    using DstGlobal = GlobalTensor<T, DstGmShape, DstGmStride, Layout::NZ>;
+
+    using NzSrcTile = Tile<TileType::Vec, T, SrcRows, SrcCols, BLayout::ColMajor, ValidRow, ValidCol, SLayout::RowMajor,
+                           512, PadValue::Null, CompactMode::Null>;
+    using DstUbTile = Tile<TileType::Vec, T, DstRows, DstCols, BLayout::ColMajor, DstRows, DstCols, SLayout::RowMajor>;
+    using MatTile = Tile<TileType::Mat, T, DstRows, DstCols, BLayout::ColMajor, -1, -1, SLayout::RowMajor>;
+
+    NzSrcTile nzTile;
+    DstUbTile dstTile;
+    MatTile matTile(IdxRow + ValidRow, IdxCol + ValidCol);
+
+    TASSIGN(nzTile, 0x10000);
+    TASSIGN(dstTile, 0x20000);
+    TASSIGN(matTile, 0x0);
+
+    InitGlobal initGlobal(src);
+    SrcGlobal srcGlobal(src + DstRows * DstCols);
+    DstGlobal dstGlobal(out);
+
+    constexpr uint32_t initBurstNum = DstCols / c0Size;
+    constexpr uint16_t initBurstLen = (DstRows * c0Size * sizeof(T)) / BLOCK_BYTE_SIZE;
+
+    __cbuf__ T *matAddr = matTile.data();
+    __ubuf__ T *dstUbAddr = dstTile.data();
+    __ubuf__ T *nzUbAddr = nzTile.data();
+
+    uint8_t syncId = 0;
+    uint8_t eventIdNum = 16;
+
+#if defined(__DAV_VEC__)
+    copy_gm_to_ubuf((__ubuf__ void *)dstUbAddr, (__gm__ void *)initGlobal.data(), 0, initBurstNum, initBurstLen, 0, 0);
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    copy_ubuf_to_cbuf((__cbuf__ void *)matAddr, (__ubuf__ void *)dstUbAddr, 0, initBurstNum, initBurstLen, 0, 0);
+
+    pipe_barrier(PIPE_ALL);
+
+    TLOAD(nzTile, srcGlobal);
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    (void)nzUbAddr;
+    TINSERT(matTile, nzTile, static_cast<uint16_t>(IdxRow), static_cast<uint16_t>(IdxCol));
+    set_intra_block(PIPE_MTE3, syncId);
+#endif
+
+#if defined(__DAV_CUBE__)
+    ReadbackCbufToUbuf((__ubuf__ void *)dstUbAddr, (__cbuf__ void *)matAddr, initBurstNum, initBurstLen, 0, syncId,
+                       eventIdNum);
+#endif
+
+#if defined(__DAV_VEC__)
+    WaitAndStore(dstGlobal, dstTile, syncId);
+#endif
+}
+
+template <typename T, uint32_t NzRows, uint32_t NzCols, uint32_t ValidRow, uint32_t ValidCol, uint32_t DstRows,
+          uint32_t DstCols, uint32_t IdxRow, uint32_t IdxCol, CompactMode CMode>
+AICORE void runTInsertCompactTMov(__gm__ T *out, __gm__ T *src)
+{
+    constexpr uint32_t c0Size = CUBE_BLOCK_SIZE / (FRACTAL_NZ_ROW * sizeof(T));
+
+    using InitGmShape = pto::Shape<1, DstCols / c0Size, DstRows / FRACTAL_NZ_ROW, FRACTAL_NZ_ROW, c0Size>;
+    using InitGmStride =
+        pto::Stride<DstCols / c0Size * DstRows * c0Size, DstRows * c0Size, FRACTAL_NZ_ROW * c0Size, c0Size, 1>;
+    using InitGlobal = GlobalTensor<T, InitGmShape, InitGmStride, Layout::NZ>;
+
+    using SrcNdGmShape = pto::Shape<1, 1, 1, ValidRow, ValidCol>;
+    using SrcNdGmStride = pto::Stride<1, 1, 1, ValidCol, 1>;
+    using SrcNdGlobal = GlobalTensor<T, SrcNdGmShape, SrcNdGmStride>;
+
+    using DstGmShape = pto::Shape<1, DstCols / c0Size, DstRows / FRACTAL_NZ_ROW, FRACTAL_NZ_ROW, c0Size>;
+    using DstGmStride =
+        pto::Stride<DstCols / c0Size * DstRows * c0Size, DstRows * c0Size, FRACTAL_NZ_ROW * c0Size, c0Size, 1>;
+    using DstGlobal = GlobalTensor<T, DstGmShape, DstGmStride, Layout::NZ>;
+
+    using NdSrcTile = Tile<TileType::Vec, T, ValidRow, ValidCol, BLayout::RowMajor, -1, -1>;
+    using NzSrcTile = Tile<TileType::Vec, T, NzRows, NzCols, BLayout::ColMajor, ValidRow, ValidCol, SLayout::RowMajor,
+                           512, PadValue::Null, CMode>;
+    using DstUbTile = Tile<TileType::Vec, T, DstRows, DstCols, BLayout::ColMajor, DstRows, DstCols, SLayout::RowMajor>;
+    using MatTile = Tile<TileType::Mat, T, DstRows, DstCols, BLayout::ColMajor, -1, -1, SLayout::RowMajor>;
+
+    NdSrcTile ndTile(ValidRow, ValidCol);
+    NzSrcTile nzTile;
+    DstUbTile dstTile;
+    MatTile matTile(IdxRow + ValidRow, IdxCol + ValidCol);
+
+    TASSIGN(ndTile, 0x0);
+    TASSIGN(nzTile, 0x10000);
+    TASSIGN(dstTile, 0x20000);
+    TASSIGN(matTile, 0x0);
+
+    InitGlobal initGlobal(src);
+    SrcNdGlobal srcGlobal(src + DstRows * DstCols);
+    DstGlobal dstGlobal(out);
+
+    constexpr uint32_t initBurstNum = DstCols / c0Size;
+    constexpr uint16_t initBurstLen = (DstRows * c0Size * sizeof(T)) / BLOCK_BYTE_SIZE;
+
+    __cbuf__ T *matAddr = matTile.data();
+    __ubuf__ T *dstUbAddr = dstTile.data();
+
+    uint8_t syncId = 0;
+    uint8_t eventIdNum = 16;
+
+#if defined(__DAV_VEC__)
+    copy_gm_to_ubuf((__ubuf__ void *)dstUbAddr, (__gm__ void *)initGlobal.data(), 0, initBurstNum, initBurstLen, 0, 0);
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    copy_ubuf_to_cbuf((__cbuf__ void *)matAddr, (__ubuf__ void *)dstUbAddr, 0, initBurstNum, initBurstLen, 0, 0);
+
+    pipe_barrier(PIPE_ALL);
+
+    TLOAD(ndTile, srcGlobal);
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+
+    TMOV(nzTile, ndTile);
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID1);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID1);
+
+    TINSERT(matTile, nzTile, static_cast<uint16_t>(IdxRow), static_cast<uint16_t>(IdxCol));
+    set_intra_block(PIPE_MTE3, syncId);
+#endif
+
+#if defined(__DAV_CUBE__)
+    ReadbackCbufToUbuf((__ubuf__ void *)dstUbAddr, (__cbuf__ void *)matAddr, initBurstNum, initBurstLen, 0, syncId,
+                       eventIdNum);
+#endif
+
+#if defined(__DAV_VEC__)
+    WaitAndStore(dstGlobal, dstTile, syncId);
+#endif
+}
+
+template <typename T, uint32_t SrcRows, uint32_t SrcCols, uint32_t ValidRow, uint32_t ValidCol, uint32_t DstRows,
+          uint32_t DstCols, uint32_t IdxRow, uint32_t IdxCol>
+__global__ AICORE void launchTInsertCompactNullTLoadKernel(__gm__ uint64_t *out, __gm__ uint64_t *src)
+{
+    runTInsertCompactNullTLoad<T, SrcRows, SrcCols, ValidRow, ValidCol, DstRows, DstCols, IdxRow, IdxCol>(
+        reinterpret_cast<__gm__ T *>(out), reinterpret_cast<__gm__ T *>(src));
+}
+
+template <typename T, uint32_t NzRows, uint32_t NzCols, uint32_t ValidRow, uint32_t ValidCol, uint32_t DstRows,
+          uint32_t DstCols, uint32_t IdxRow, uint32_t IdxCol, CompactMode CMode>
+__global__ AICORE void launchTInsertCompactTMovKernel(__gm__ uint64_t *out, __gm__ uint64_t *src)
+{
+    runTInsertCompactTMov<T, NzRows, NzCols, ValidRow, ValidCol, DstRows, DstCols, IdxRow, IdxCol, CMode>(
+        reinterpret_cast<__gm__ T *>(out), reinterpret_cast<__gm__ T *>(src));
+}
+
+template <int32_t testKey>
+void launchTInsertCompactNullTLoad(uint64_t *out, uint64_t *src, void *stream)
+{
+    if constexpr (testKey == 1) {
+        launchTInsertCompactNullTLoadKernel<half, 128, 64, 64, 32, 128, 128, 0, 0><<<1, nullptr, stream>>>(out, src);
+    } else if constexpr (testKey == 2) {
+        launchTInsertCompactNullTLoadKernel<half, 128, 64, 64, 32, 128, 128, 0, 32><<<1, nullptr, stream>>>(out, src);
+    } else if constexpr (testKey == 3) {
+        launchTInsertCompactNullTLoadKernel<float, 64, 32, 32, 16, 64, 64, 0, 8><<<1, nullptr, stream>>>(out, src);
+    } else if constexpr (testKey == 4) {
+        launchTInsertCompactNullTLoadKernel<bfloat16_t, 128, 128, 80, 48, 128, 128, 0, 16>
+            <<<1, nullptr, stream>>>(out, src);
+    }
+}
+
+template <int32_t testKey>
+void launchTInsertCompactNormalTMov(uint64_t *out, uint64_t *src, void *stream)
+{
+    if constexpr (testKey == 1) {
+        launchTInsertCompactTMovKernel<half, 128, 64, 64, 32, 128, 128, 0, 0, CompactMode::Normal>
+            <<<1, nullptr, stream>>>(out, src);
+    } else if constexpr (testKey == 2) {
+        launchTInsertCompactTMovKernel<half, 128, 64, 64, 32, 128, 128, 0, 32, CompactMode::Normal>
+            <<<1, nullptr, stream>>>(out, src);
+    } else if constexpr (testKey == 3) {
+        launchTInsertCompactTMovKernel<float, 128, 32, 32, 16, 128, 64, 0, 8, CompactMode::Normal>
+            <<<1, nullptr, stream>>>(out, src);
+    } else if constexpr (testKey == 4) {
+        launchTInsertCompactTMovKernel<bfloat16_t, 128, 128, 64, 48, 128, 128, 0, 16, CompactMode::Normal>
+            <<<1, nullptr, stream>>>(out, src);
+    }
+}
+
+template <int32_t testKey>
+void launchTInsertCompactRowPlusOneTMov(uint64_t *out, uint64_t *src, void *stream)
+{
+    if constexpr (testKey == 1) {
+        launchTInsertCompactTMovKernel<half, 65, 64, 64, 32, 128, 128, 0, 0, CompactMode::RowPlusOne>
+            <<<1, nullptr, stream>>>(out, src);
+    } else if constexpr (testKey == 2) {
+        launchTInsertCompactTMovKernel<half, 65, 64, 64, 32, 128, 128, 0, 32, CompactMode::RowPlusOne>
+            <<<1, nullptr, stream>>>(out, src);
+    } else if constexpr (testKey == 3) {
+        launchTInsertCompactTMovKernel<float, 65, 32, 32, 16, 128, 64, 0, 8, CompactMode::RowPlusOne>
+            <<<1, nullptr, stream>>>(out, src);
+    } else if constexpr (testKey == 4) {
+        launchTInsertCompactTMovKernel<bfloat16_t, 65, 128, 64, 48, 128, 128, 0, 16, CompactMode::RowPlusOne>
+            <<<1, nullptr, stream>>>(out, src);
+    }
+}
+
 template <int32_t testKey>
 void launchTInsertNZFp4Offset(uint64_t *out, uint64_t *src, void *stream)
 {
@@ -1982,6 +2211,21 @@ template void launchTInsertNZFp4Offset<1>(uint64_t *out, uint64_t *src, void *st
 template void launchTInsertNZFp4Offset<2>(uint64_t *out, uint64_t *src, void *stream);
 template void launchTInsertNZFp4Offset<3>(uint64_t *out, uint64_t *src, void *stream);
 template void launchTInsertNZFp4Offset<4>(uint64_t *out, uint64_t *src, void *stream);
+
+template void launchTInsertCompactNullTLoad<1>(uint64_t *out, uint64_t *src, void *stream);
+template void launchTInsertCompactNullTLoad<2>(uint64_t *out, uint64_t *src, void *stream);
+template void launchTInsertCompactNullTLoad<3>(uint64_t *out, uint64_t *src, void *stream);
+template void launchTInsertCompactNullTLoad<4>(uint64_t *out, uint64_t *src, void *stream);
+
+template void launchTInsertCompactNormalTMov<1>(uint64_t *out, uint64_t *src, void *stream);
+template void launchTInsertCompactNormalTMov<2>(uint64_t *out, uint64_t *src, void *stream);
+template void launchTInsertCompactNormalTMov<3>(uint64_t *out, uint64_t *src, void *stream);
+template void launchTInsertCompactNormalTMov<4>(uint64_t *out, uint64_t *src, void *stream);
+
+template void launchTInsertCompactRowPlusOneTMov<1>(uint64_t *out, uint64_t *src, void *stream);
+template void launchTInsertCompactRowPlusOneTMov<2>(uint64_t *out, uint64_t *src, void *stream);
+template void launchTInsertCompactRowPlusOneTMov<3>(uint64_t *out, uint64_t *src, void *stream);
+template void launchTInsertCompactRowPlusOneTMov<4>(uint64_t *out, uint64_t *src, void *stream);
 
 template void launchTInsertNZDoubleInput<1>(uint64_t *out, uint64_t *src, void *stream);
 template void launchTInsertNZDoubleInput<2>(uint64_t *out, uint64_t *src, void *stream);
