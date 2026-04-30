@@ -62,9 +62,24 @@ Definitions:
 - `S0`: query sequence length (rows of Q/O).
 - `S1`: key/value sequence length (rows of K/V).
 - `Total task time (us)`: end-to-end kernel time per task (microseconds).
-- `GOps`: total operations counted for the task.
-- `TFLOPS`: `GOps / time`.
+- `MOps`: total operations counted for the task, in millions of operations.
+- `TFLOPS`: `MOps / time_us`, since millions of operations per microsecond equals trillions of operations per second.
 - `Normalized TFLOPS`: `TFLOPS × (24 / cores_used)` to estimate full-device throughput on a 24-core A3.
+
+### 910B2 Multi-Core Comparison
+
+The following full-sequence data were measured on Ascend 910B2 (A2/A3 generation), using `torch_npu` as the baseline. `Sequence length` is shared by Q/K/V, and the host benchmark counts `MOps` as `S0 * S1 * HEAD_SIZE * 4 / 1e6`, with `S0 = S1 = Sequence length` and `HEAD_SIZE = 128`.
+
+| Sequence length | PTO time (us) | torch_npu time (us) | MOps | PTO TFLOPS | torch_npu TFLOPS | PTO utilization | torch_npu utilization | PTO speedup |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1024 | 20.960 | 58.461 | 536.87 | 25.61 | 9.18 | 7.24% | 2.59% | 2.79x |
+| 2048 | 32.461 | 70.801 | 2147.48 | 66.16 | 30.33 | 18.69% | 8.57% | 2.18x |
+| 4096 | 88.902 | 118.302 | 8589.93 | 96.62 | 72.61 | 27.30% | 20.52% | 1.33x |
+| 8192 | 292.626 | 353.147 | 34359.74 | 117.42 | 97.30 | 33.18% | 27.49% | 1.21x |
+| 16384 | 909.058 | 1118.462 | 137438.95 | 151.19 | 122.88 | 42.72% | 34.72% | 1.23x |
+| 32768 | 3262.645 | 3646.173 | 549755.81 | 168.50 | 150.78 | 47.61% | 42.60% | 1.12x |
+
+![Flash Attention 910B2 PTO vs torch_npu](../../../../docs/figures/performance/fa_910b2_pto_vs_torch_npu.png)
 
 ### Summary
 
@@ -93,7 +108,7 @@ Total task time (us, lower is better):
 | 4 | 512 | 41.721 | 55.441 | 46.621 | 86.322 |
 | 8 | 1024 | 63.72 | 85.882 | 64.461 | 107.342 |
 
-GOps:
+MOps:
 
 | Cores | S0 | S1=1024 | S1=2048 | S1=4096 | S1=8192 |
 | --- | --- | --- | --- | --- | --- |
@@ -137,7 +152,7 @@ Sim vs NPU comparison (Seq = 2K):
     $$O = P\,V \in \mathbb{R}^{S0\times H}$$
 
     For Flash Attention the computation of QK and P is split into tile of (S0,S1) and keep updating a running partial sum O as follows:
-        
+
 
     **Step 1: Local Row Max**
     For each row \(i\), compute the maximum value within the current tile:
@@ -145,7 +160,7 @@ Sim vs NPU comparison (Seq = 2K):
     $$
     m_i = \max_j X_{ij}
     $$
-    
+
     **Description:** `local_max` — the maximum of the current tile row.
 
     **Step 2: Updated Global Max**
@@ -200,8 +215,8 @@ Sim vs NPU comparison (Seq = 2K):
 
     **Notes**
     - scale $s = \frac{1}{\sqrt{\mathbb{HEAD\_SIZE}}}$
-    - The recurrence ensures numerical stability by rescaling prior sums whenever the global max increases.  
-    - The kernel stores $e_{ij}$ (`x_exp`) for the PV matmul, while $\text{exp\_max}_i$ and ${S_i}$ are kept for GU accumulation. 
+    - The recurrence ensures numerical stability by rescaling prior sums whenever the global max increases.
+    - The kernel stores $e_{ij}$ (`x_exp`) for the PV matmul, while $\text{exp\_max}_i$ and ${S_i}$ are kept for GU accumulation.
 
     <!-- Embedded SVG diagram -->
     <div>
@@ -211,8 +226,8 @@ Sim vs NPU comparison (Seq = 2K):
   - **Tensor shape progression:**
 
     - Inputs:
-      - Q: `S0 × HEAD_SIZE` (fp16) 
-      - K: `S1 x HEAD_SIZE` (fp16) 
+      - Q: `S0 × HEAD_SIZE` (fp16)
+      - K: `S1 x HEAD_SIZE` (fp16)
       - V: `S1 × HEAD_SIZE` (fp16)
 
     - Per-tile intermediate (tile t):
@@ -230,8 +245,8 @@ Sim vs NPU comparison (Seq = 2K):
     - Implementation notes:
       - Q tile load is optimized for leftTile stationary: when `tile_idx==0` Q is loaded once per cube invocation; subsequent tiles only load K tiles, reduce reloading from global memory.
       - Writes partial qk results either into a per-tile into a compact ping-pong global buffer.
-      - make use of general matmul_macro_pto function to carry out computation from matTile to accTile, which determine the CubeK tiling for defining left and right tile, and keep a running state for left and right tile doing ping/pong. 
-    - Optimizations: 
+      - make use of general matmul_macro_pto function to carry out computation from matTile to accTile, which determine the CubeK tiling for defining left and right tile, and keep a running state for left and right tile doing ping/pong.
+    - Optimizations:
      - Use assign_running_acc_tile to allow output accTile doing double buffer between different compute_qk and compute_pv calls
      - `qkPreloadNum` (default 4) also sets `qkp_tile_fifo_size = 1 + qkPreloadNum` to double-buffer qk tiles between the cube producer and vector softmax consumer.
 
@@ -278,7 +293,7 @@ Sim vs NPU comparison (Seq = 2K):
       - Keep `runningOTile` accumulator assigned.
       - Use TROWEXPANDMUL and TROWEXPANDDIV inplace computation (dst==src) to mininize buffer allocation
 
-  ### 3. Pipeline orchestration & cube/vector parallelism 
+  ### 3. Pipeline orchestration & cube/vector parallelism
 
   - **FA pipeline stages inter-CV FIFOs and intra-stage ping/pong**
 
@@ -316,24 +331,24 @@ Sim vs NPU comparison (Seq = 2K):
     </div>
 
     With pre-execution of qk, p (and later pv) would resolve the data depenency and keep the vector compute resoruce fully busy, below showing the intra-core (tload,tcompute,tstore) and inter-CV-stage pipeline
-    
+
     QK pre-execution = 2 (Theory)
-    
+
     <div>
     <img src="fa_pipeline_preload2_generated.svg" alt="Pre-execution of QK twice" />
-    </div>    
+    </div>
 
     QK pre-execution = 4 (Theory)
     <div>
     <img src="fa_pipeline_preload4_generated.svg" alt="Pre-execution of QK=4" />
-    </div>    
+    </div>
 
     Actual kernel exection using simulation result for H128 Seqlen=1024, behaviour is similar to the theory one as we excepted.
 
     Kernel Execution - QK pre-execution = 4 (Sim)
     <div>
     <img src="fa_sim_run_pipeline_h128_s0_128_s1_1024.svg" alt="Pre-execution of QK=4" />
-    </div>    
+    </div>
 
     From the pipeline diagram, we could see the actual bound right now is on TSTORE on the cube side, and the cube utilization is bound ~30%, Next vesion we would see how we could further optiminize this case.
 

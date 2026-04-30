@@ -66,26 +66,9 @@ test success
 
 ## Performance
 
-This section records reference performance numbers for the manual Flash Attention kernel on the A5 platform in this directory.
+A5 reference performance numbers are not yet published for this kernel.
 
-Definitions:
-- `S0`: query sequence length (rows of Q/O).
-- `S1`: key/value sequence length (rows of K/V).
-- `Total task time (us)`: end-to-end kernel time per task (microseconds).
-- `GOps`: total operations counted for the task.
-- `TFLOPS`: `GOps / time`.
-
-### Measured Performance (Reference)
-
-The following data were collected on Ascend A5:
-
-| Cores | S0 | S1 | Total task time (us) | GOps | TFLOPS |
-| --- | --- | --- | --- | --- | --- |
-| 1 | 128 | 1024 | TBD | 67.11 | TBD |
-| 1 | 128 | 2048 | TBD | 134.22 | TBD |
-| 1 | 128 | 4096 | TBD | 268.44 | TBD |
-
-*Note: TBD indicates data to be measured.*
+For the current 910B2 (A2/A3 generation) Flash Attention performance reference, see [../../common/flash_atten/README.md](../../common/flash_atten/README.md).
 
 ## Operator Description
 
@@ -107,10 +90,3 @@ Compared to the A2/A3 platform, the A5 version of the Flash Attention kernel has
 - Adjusted buffer allocation strategy for A5's memory hierarchy
 - Optimized synchronization mechanisms between Cube and Vector cores
 - Tuned pipeline depth parameters to match A5 hardware characteristics
-
-Specific tuning parameters and performance data will be continuously updated in future versions.
-
-
-
-
-
