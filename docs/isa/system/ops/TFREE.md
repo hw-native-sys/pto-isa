@@ -25,13 +25,13 @@ Textual spelling is defined by the PTO ISA syntax-and-operands pages.
 ### IR Level 1 (SSA)
 
 ```text
-pto.tfree %pipe, %tile : (!pto.pipe<...>, !pto.tile_buf<...>)
+%event = pto.tfree %pipe, %tile : (!pto.pipe<...>, !pto.tile_buf<...>) -> !pto.record_event
 ```
 
 ### IR Level 2 (DPS)
 
 ```text
-pto.tfree ins(%pipe, %tile) outs()
+pto.tfree ins(%pipe, %tile) outs(%event : !pto.record_event)
 ```
 
 ## C++ Intrinsic

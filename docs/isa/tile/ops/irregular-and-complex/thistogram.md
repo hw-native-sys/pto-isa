@@ -23,13 +23,13 @@ Textual spelling is defined by the PTO ISA syntax-and-operands pages.
 ### IR Level 1 (SSA)
 
 ```text
-%dst = pto.thistogram %src : (!pto.tile<...>) -> !pto.tile<...>
+%event = pto.thistogram %src, %dst_in : (!pto.tile<...>, !pto.tile<...>) -> !pto.record_event
 ```
 
 ### IR Level 2 (DPS)
 
 ```text
-pto.thistogram ins(%src) outs(%dst : !pto.tile_buf<...>)
+pto.thistogram ins(%src, %dst_in) outs(%dst : !pto.tile_buf<...>)
 ```
 
 ## C++ Intrinsic

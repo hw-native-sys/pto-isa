@@ -215,7 +215,7 @@ total ≈ wait_latency + load_phase + release_overhead
 
 | Direction | Path | Cost driver |
 |-----------|------|-------------|
-| `C2V_UB` / `V2C_MAT` (A2/A3, A5) | Local buffer + `TASSIGN` | Sync only; no DMA |
+| `C2V_UB` / `V2C_MAT` (A5) | Local buffer + `TASSIGN` | Sync only; no DMA |
 | `C2V` / `V2C` (A2/A3) | GM slot via `TLOAD` over MTE2 | MTE2 bandwidth, `SlotSize` |
 | `C2V_GM` / `V2C_GM` (A5) | GM slot via `TLOAD` over MTE2 | MTE2 bandwidth, `SlotSize` |
 | `V2C_CTRL` | 32-bit control signal | Sync only; trivial read |
