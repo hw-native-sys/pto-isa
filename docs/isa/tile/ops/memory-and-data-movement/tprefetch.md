@@ -77,6 +77,16 @@ This operation may read from global memory. Prefetch hints may be ignored by som
 
     - Some targets may ignore prefetches or treat them as hints.
 
+## Performance
+
+### A2/A3 Cycle Count
+
+`pto.tprefetch` issues a non-blocking prefetch hint into the L1/UB cache hierarchy; it does not produce architectural data and is effectively free in the pipeline if scheduled in parallel with compute. Its purpose is to hide MTE2 latency on subsequent `tload` issues.
+
+**Cycle model**: `total ≈ startup` (compute-overlapped); the perceived cost is the latency saved on a later `tload`, not the issue latency itself.
+
+> Note: cycle numbers below are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
+
 ## Exceptions
 
 !!! danger "Exceptions"
@@ -119,8 +129,9 @@ See related examples in `docs/isa/` and `docs/coding/tutorials/`.
 pto.tprefetch ins(%src : !pto.global<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
+## See Also
 
 - Instruction set overview: [Memory And Data Movement](../../memory-and-data-movement.md)
 - Previous op in instruction set: [pto.tload](./tload.md)
 - Next op in instruction set: [pto.tstore](./tstore.md)
+

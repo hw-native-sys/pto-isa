@@ -81,6 +81,20 @@ No architectural side effects beyond producing the destination tile. Does not im
 
     - Input type requirements and output tile types are mode/target-dependent.
 
+## Performance
+
+### A2/A3 Cycle Count
+
+`pto.tquant` is dispatched on the **fix-pipe (FIXP)** pipeline rather than the vector pipe. Cost is dominated by FIXP throughput and the L0C → UB / OUT bandwidth on the asymmetric FIXP write path.
+
+On A5 the FIXP pipe has roughly 4× write-bandwidth asymmetry between L0C-side reads and UB/OUT writes, so wide quantized stores are usually FIXP-bound rather than vector-pipe-bound.
+
+**Cycle model**: `total ≈ startup + R × C / FIXP_throughput + drain`.
+
+MXFP8 quantization (A5) uses block-wise scales; cost includes one scale-fetch per block in addition to the per-element conversion.
+
+> Note: cycle numbers below are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
+
 ## Exceptions
 
 !!! danger "Exceptions"
@@ -123,6 +137,9 @@ See related examples in `docs/isa/` and `docs/coding/tutorials/`.
 pto.tquant ins(%src, %qp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
+## See Also
 
-- Instruction set overview: [Irregular And Complex](../../../tile/irregular-and-complex.md)
+- Instruction set overview: [Irregular And Complex](../../irregular-and-complex.md)
+- Previous op in instruction set: [pto.tpartmin](./tpartmin.md)
+- Next op in instruction set: [pto.tdequant](./tdequant.md)
+

@@ -87,6 +87,18 @@ No architectural side effects beyond producing the destination tile. Does not im
 
     - Supported element types: `uint8_t`, `int8_t`, `uint16_t`, `int16_t`, `uint32_t`, `int32_t`, `half`, `float`, `bfloat16_t`.
 
+## Performance
+
+### A2/A3 Cycle Count
+
+`pto.tpartadd` performs a partitioned reduction: the source is split into K partitions of size R/K rows each, and a sum reduction is applied within each partition.
+
+**Cycle model**: `total ≈ startup + K × (per_partition_vadd + interval)`, where `per_partition_vadd` is the cost of summing `R/K × C` elements.
+
+Cost grows linearly with `R × C`; partition count `K` mainly affects the issue/merge overhead, not the arithmetic work.
+
+> Note: cycle numbers below are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
+
 ## Exceptions
 
 !!! danger "Exceptions"
@@ -162,8 +174,9 @@ void example_manual() {
 pto.tpartadd ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
+## See Also
 
 - Instruction set overview: [Irregular And Complex](../../irregular-and-complex.md)
 - Previous op in instruction set: [pto.ttri](./ttri.md)
 - Next op in instruction set: [pto.tpartmul](./tpartmul.md)
+

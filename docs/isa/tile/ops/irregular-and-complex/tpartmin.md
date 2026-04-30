@@ -87,6 +87,16 @@ No architectural side effects beyond producing the destination tile. Does not im
 
     - Supported element types: `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `half`, `bfloat16_t`, `float`.
 
+## Performance
+
+### A2/A3 Cycle Count
+
+`pto.tpartmin` is the partitioned min-reduction counterpart of `tpartadd`; per-partition cost is one `vmin` tree.
+
+**Cycle model**: `total ≈ startup + K × (per_partition_vmin + interval)`.
+
+> Note: cycle numbers below are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
+
 ## Exceptions
 
 !!! danger "Exceptions"
@@ -162,8 +172,9 @@ void example_manual() {
 pto.tpartmin ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
+## See Also
 
 - Instruction set overview: [Irregular And Complex](../../irregular-and-complex.md)
 - Previous op in instruction set: [pto.tpartmax](./tpartmax.md)
-- Next op in instruction set: [pto.tgatherb](./tgatherb.md)
+- Next op in instruction set: [pto.tquant](./tquant.md)
+

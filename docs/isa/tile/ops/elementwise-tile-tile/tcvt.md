@@ -109,12 +109,50 @@ No architectural side effects beyond producing the destination tile. Does not im
     - When a conversion path requires explicit scratch storage, callers MUST use one of the `tmp`-tile overloads.
     - Disabling saturation may change overflow behavior for some backend/type paths, especially low-precision integer conversions.
 
-## Cases That Are Not Allowed
+## Performance
 
-!!! danger "Cases That Are Not Allowed"
+### A2/A3 Cycle Count
+
+`pto.tcvt` is dispatched on the **vector pipe** for in-pipe type conversions and on the **fix-pipe (FIXP)** for accumulator-source paths (e.g. `Acc → Mat` quantization). The dominant cost depends on the source/dest type pair:
+
+- **Same-width FP↔FP** (e.g. `half ↔ bfloat16`): single `vcvt`-class issue per row.
+- **FP → low-precision int** (e.g. `fp16 → int8`): may take a sub-chunked path with row-aware tail handling and an explicit scratch tile; cost is roughly 2× a same-width conversion plus the tail overhead.
+- **Acc → low-precision** (`Acc → int8/fp8`): runs through FIXP, which is bounded by the L0C → UB / OUT write asymmetry on A5.
+
+**Cycle model**:
+
+```
+total ≈ startup + R × ⌈C / vlen⌉ × per_issue + tail_handling
+```
+
+### Instruction Sequence by Shape (FP32 → FP16)
+
+| Valid Shape | Instruction Sequence | Estimated Cycles |
+|-------------|----------------------|------------------|
+| 16×16 | `vcvt`*16 → PIPE_V | ~O(64) |
+| 32×32 | `vcvt`*32 → PIPE_V | ~O(128) |
+| 64×64 | `vcvt`*64 → PIPE_V | ~O(256) |
+| R×C   | `vcvt`*R → PIPE_V  | ~O(R × ⌈C/vlen⌉) |
+
+### Layout and Shape Impact
+
+| Path | Effect |
+|---|---|
+| Same-width FP↔FP | Single-issue per row; fastest |
+| FP → low-precision int | Sub-chunked + scratch tile; ~2× cost |
+| Saturating vs non-saturating | Non-saturating may take a fix-up branch on overflow |
+| `Acc → Mat` (FIXP) | FIXP-bound; overlap-friendly with PIPE_V |
+
+> Note: cycle numbers are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
+
+## Exceptions
+
+!!! danger "Exceptions"
+    - Illegal operand tuples, unsupported types, invalid layout combinations, or unsupported target-profile modes are rejected by the verifier or by the selected backend instruction set.
     - **MUST NOT** use a type pair not supported by the target profile.
     - **MUST NOT** use a rounding mode not supported for the given type pair.
     - **MUST NOT** assume that disabling saturation still clamps overflow to the destination range.
+    - Programs must not rely on behavior outside the documented legal domain of this operation.
 
 ## Target-Profile Restrictions
 
@@ -156,7 +194,7 @@ TCVT(dst, src, tmp, RoundMode::CAST_TRUNC, SaturationMode::OFF);
 pto.tcvt ins(%src {rmode = #pto.round_mode<CAST_RINT>}: !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
+## See Also
 
 - Instruction set overview: [Elementwise Tile Tile](../../elementwise-tile-tile.md)
 - Previous op in instruction set: [pto.tsubc](./tsubc.md)

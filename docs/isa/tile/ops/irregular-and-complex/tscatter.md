@@ -68,6 +68,16 @@ No architectural side effects beyond producing the destination tile. Concurrent 
 !!! warning "Constraints"
     - Operand shape, mode, and state tuples MUST match the documented contract of this operation and its instruction set overview.
 
+## Performance
+
+### A2/A3 Cycle Count
+
+`pto.tscatter` is the dual of `tgather`: an indirect store through an index tile. Cost is dominated by MTE3 / scatter throughput; duplicate destination indices may serialize via atomic resolution.
+
+**Cycle model**: `total ≈ startup + N_idx × per_index + conflict_penalty`.
+
+> Note: cycle numbers below are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
+
 ## Exceptions
 
 !!! danger "Exceptions"
@@ -163,7 +173,9 @@ void example_manual() {
 pto.tscatter ins(%src, %idx : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
+## See Also
 
 - Instruction set overview: [Irregular And Complex](../../irregular-and-complex.md)
 - Previous op in instruction set: [pto.tgatherb](./tgatherb.md)
+- Next op in instruction set: [pto.tci](./tci.md)
+

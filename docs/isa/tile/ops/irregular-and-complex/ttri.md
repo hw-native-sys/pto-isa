@@ -82,6 +82,16 @@ No architectural side effects beyond producing the destination tile. Does not im
 
     - Destination tile must be row-major on some targets (see `include/pto/npu/*/TTri.hpp`).
 
+## Performance
+
+### A2/A3 Cycle Count
+
+`pto.ttri` materialises an upper/lower triangular mask into a tile. It lowers to a small vector-pipe sequence (one issue per row) and is typically dwarfed by surrounding compute.
+
+**Cycle model**: `total ≈ startup + R × per_row_issue`.
+
+> Note: cycle numbers below are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
+
 ## Exceptions
 
 !!! danger "Exceptions"
@@ -124,8 +134,9 @@ See related examples in `docs/isa/` and `docs/coding/tutorials/`.
 pto.ttri ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
+## See Also
 
 - Instruction set overview: [Irregular And Complex](../../irregular-and-complex.md)
 - Previous op in instruction set: [pto.tci](./tci.md)
 - Next op in instruction set: [pto.tpartadd](./tpartadd.md)
+

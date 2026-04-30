@@ -73,6 +73,24 @@ No architectural side effects beyond producing the destination tile. Does not im
         - Format transformation from `NCHW` to `NC1HWC0` is supported, while `C1 == (C + C0 - 1)/C0`，HW matches alignment constraint，which means `H*W*sizeof(T)==0`. C0 means `c0_size`, which `C0 * sizeof(T) == 32`。C0 can also be 4.
         - Format transformation from `NC1HWC0` to `FRACTAL_Z` is supported， while `N1 == (N + N0 - 1)/N0`。N0 should be 16.
 
+## Performance
+
+### A2/A3 Cycle Count
+
+`pto.ttrans` performs a transpose via the data-rearrangement path. On the vector pipe this lowers to a `vtranspose` sequence operating on 16×16 (FP16) or 8×8 (FP32) sub-blocks; the full tile is built by tiling these blocks.
+
+**Cycle model**: `total ≈ startup + ⌈R/B⌉ × ⌈C/B⌉ × per_block_transpose`, where `B = 16` (FP16) or `B = 8` (FP32).
+
+### Layout and Shape Impact
+
+| Source/Dest layout | Effect |
+|---|---|
+| RowMajor → ColMajor | Native fast path |
+| ColMajor → RowMajor | Native fast path |
+| Same major axis | Forbidden (verifier rejects) |
+
+> Note: cycle numbers below are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
+
 ## Exceptions
 
 !!! danger "Exceptions"
@@ -167,7 +185,9 @@ void example_manual() {
 pto.ttrans ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
+## See Also
 
 - Instruction set overview: [Layout And Rearrangement](../../layout-and-rearrangement.md)
 - Previous op in instruction set: [pto.treshape](./treshape.md)
+- Next op in instruction set: [pto.tconcat](./tconcat.md)
+
