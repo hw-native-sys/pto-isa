@@ -12,7 +12,26 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <cstddef>
 
-// Single-card host runner for the public TPREFETCH_ASYNC GlobalTensor API
-// correctness test. Defined in tprefetch_async_kernel.cpp.
-template <typename T, size_t count>
-bool RunPrefetchAsyncCorrectness(int deviceId);
+enum class ScatterAtomicOp : uint8_t
+{
+    None = 0,
+    Add = 1,
+    Max = 2,
+    Min = 3
+};
+
+enum class ScatterOOB : uint8_t
+{
+    Undefined = 0,
+    Skip = 1,
+    Clamp = 2,
+    Wrap = 3
+};
+
+enum class ScatterConflict : uint8_t
+{
+    Last = 0,
+    First = 1
+};
+
+#endif // MSCATTER_COMMON_H
