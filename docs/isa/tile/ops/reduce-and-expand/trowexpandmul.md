@@ -71,6 +71,41 @@ No architectural side effects beyond producing the destination tile. Does not im
 
     - Programs must not assume implicit broadcasting, reshaping, or valid-region repair unless the operation documents it.
 
+## Performance
+
+### A2/A3 Cycle Count
+
+`pto.trowexpandmul` lowers to a per-row `vmul` sequence in which a single per-row scalar from `src1` is broadcast across the working tile and combined with each element of `src0` via multiplication.
+
+**Cycle model**:
+
+```
+total = startup + R × (per_row_vmul + interval)
+```
+
+where `R = dst.GetValidRow()` (row-direction) or `R = dst.GetValidCol()` (row-direction), and `per_row_vmul` scales with `C = dst.GetValidCol()` rounded up to the native vector width.
+
+### Instruction Sequence by Shape (FP32)
+
+| Valid Shape | Instruction Sequence | Estimated Cycles |
+|-------------|----------------------|------------------|
+| 16×16 | `vmul`*16 → PIPE_V | ~O(64) |
+| 32×32 | `vmul`*32 → PIPE_V | ~O(128) |
+| 64×64 | `vmul`*64 → PIPE_V | ~O(256) |
+| R×C   | `vmul`*R → PIPE_V  | ~O(R × ⌈C / vlen⌉) |
+
+> Note: per-shape cycle counts are illustrative templates; populate with measured numbers from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
+
+### Layout and Shape Impact
+
+| Layout | validCol | Optimization |
+|--------|----------|--------------|
+| `RowMajor` | ≥ vlen (FP32) | Continuous fast path; one `vmul` per row |
+| `RowMajor` | < vlen | General path with tail masking |
+| Other | any | Not supported (compile-time `isRowMajor` constraint) |
+
+The row-broadcast scalar is reused across all rows without re-fetching.
+
 ## Exceptions
 
 !!! danger "Exceptions"
@@ -151,8 +186,9 @@ void example_manual() {
 pto.trowexpandmul ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
+## See Also
 
 - Instruction set overview: [Reduce And Expand](../../reduce-and-expand.md)
-- Previous op in instruction set: [pto.trowexpanddiv](./trowexpanddiv.md)
-- Next op in instruction set: [pto.trowexpandsub](./trowexpandsub.md)
+- Previous op in instruction set: [pto.trowexpandsub](./trowexpandsub.md)
+- Next op in instruction set: [pto.trowexpanddiv](./trowexpanddiv.md)
+
