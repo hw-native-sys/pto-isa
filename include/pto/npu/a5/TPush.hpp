@@ -11,6 +11,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef TPUSH_HPP
 #define TPUSH_HPP
 
+#include <type_traits>
 #include <pto/common/fifo.hpp>
 #include <pto/npu/a5/TStore.hpp>
 #include <pto/npu/a5/TLoad.hpp>
@@ -29,6 +30,7 @@ struct TPipe {
     static constexpr bool is_c2v_gm = (DIR_TYPE == Direction::DIR_C2V_GM);     // 5
     static constexpr bool is_v2c_gm = (DIR_TYPE == Direction::DIR_V2C_GM);     // 6
     static constexpr bool is_both_gm = (DIR_TYPE == Direction::DIR_BOTH_GM);   // 7
+    static constexpr uint32_t SyncPeriod = (SlotNum <= 2) ? SlotNum : SlotNum / 2;
     static constexpr bool is_c2v = is_c2v_gm || is_c2v_ub;
     static constexpr bool is_v2c = is_v2c_gm || is_v2c_mat || is_v2c_ctrl;
     static_assert(is_c2v || is_v2c || is_both || is_both_gm,
@@ -40,14 +42,30 @@ struct TPipe {
     // -------------------------------------------------------------------------
     using RingFiFo = RingFIFO<SlotSize, SlotNum, LocalSlotNum>;
 
+    PTO_INTERNAL static bool shouldWaitFree(uint32_t tileIndex)
+    {
+        // Startup protection: Don't check flags when buffer is empty
+        if (tileIndex < SlotNum) {
+            return false;
+        }
+        // Sparse sync: Only check flags periodically to reduce overhead
+        return (tileIndex % SyncPeriod) == 0;
+    }
+
+    PTO_INTERNAL static bool shouldNotifyFree(uint32_t tileIndex)
+    {
+        // Notify consumer to free buffer when producer is one slot ahead of consumer
+        return ((tileIndex + 1) % SyncPeriod) == 0;
+    }
+
     // -------------------------------------------------------------------------
     // Producer Interface
     // -------------------------------------------------------------------------
     struct Producer {
-        uint32_t tileIndex = 0;
         uint32_t subTileIndex = 0;
-        bool isAllocate = true;
+        uint32_t tileIndex = 0;
         bool isRecord = true;
+        bool isAllocate = true;
         int entryOffset = 0;
 
         PTO_INTERNAL Producer() = default;
@@ -573,20 +591,24 @@ struct TPipe {
     PTO_INTERNAL explicit TPipe(__gm__ void *GM_SLOT_BUFFER, uint32_t C2V_CONSUMER_BUF, uint32_t V2C_CONSUMER_BUF)
         : fifo(GM_SLOT_BUFFER, C2V_CONSUMER_BUF, V2C_CONSUMER_BUF), prod(), cons()
     {
-        if constexpr (IsNoSplit) {
-            cons.template free<TileSplitAxis::TILE_NO_SPLIT>();
-        } else {
-            cons.template free<TileSplitAxis::TILE_UP_DOWN>();
+        for (uint32_t i = 0; i < SyncPeriod; ++i) {
+            if constexpr (IsNoSplit) {
+                cons.template free<TileSplitAxis::TILE_NO_SPLIT>();
+            } else {
+                cons.template free<TileSplitAxis::TILE_UP_DOWN>();
+            }
         }
     }
 
     // Destructor for TPipe
     PTO_INTERNAL ~TPipe()
     {
-        if constexpr (IsNoSplit) {
-            prod.template allocate<TileSplitAxis::TILE_NO_SPLIT>();
-        } else {
-            prod.template allocate<TileSplitAxis::TILE_UP_DOWN>();
+        for (uint32_t i = 0; i < SyncPeriod; ++i) {
+            if constexpr (IsNoSplit) {
+                prod.template allocate<TileSplitAxis::TILE_NO_SPLIT>();
+            } else {
+                prod.template allocate<TileSplitAxis::TILE_UP_DOWN>();
+            }
         }
     }
 };
@@ -599,11 +621,11 @@ struct TPipe {
  * 3. [Commit]  Signal Consumer (Cross-Core)
  */
 
-template <typename Pipe, typename TileProd, TileSplitAxis Split>
+template <typename Pipe, typename TileProd, TileSplitAxis Split, std::enable_if_t<is_tile_data_v<TileProd>, int> = 0>
 PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
 {
     // 1. Cross-Core: Wait for space
-    bool isAllocate = pipe.prod.getAllocateStatus();
+    bool isAllocate = pipe.prod.getAllocateStatus() && Pipe::shouldWaitFree(pipe.prod.tileIndex);
     if (isAllocate) {
         pipe.prod.template allocate<Split>();
     }
@@ -617,6 +639,17 @@ PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
     if (isRecord) {
         pipe.prod.template record<Split>();
     }
+}
+
+// interfaces when push data from GM FIFO
+template <typename Pipe, typename GlobalData, TileSplitAxis Split,
+          std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
+PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, GlobalData &gmTensor)
+{
+    (void)gmTensor;
+    static_assert(Pipe::is_c2v_gm || Pipe::is_v2c_gm || Pipe::is_both_gm,
+                  "Fix: TPUSH with GlobalTensor is only supported by GM FIFO directions on A5.");
+    pipe.prod.template record<Split>();
 }
 
 //------------------------multiple pipe------------------------

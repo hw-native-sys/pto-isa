@@ -87,52 +87,6 @@ constexpr bool DAV_VEC = false;
 constexpr std::size_t MAX_TILE_L1_BYTES = 512U * 1024U;
 constexpr std::size_t MAX_VEC_UB_BYTES = 192U * 1024U;
 
-// Decide whether to block or signal consumption flags for a given tile index.
-// Reverse dependency: notify one step before the corresponding wait within each sync period.
-template <int FifoSize, int SyncPeriod>
-AICORE inline bool should_wait_consumption(int sync_iter)
-{
-    static_assert(FifoSize >= 1, "CV FIFO size must be >= 1");
-    constexpr int period = (SyncPeriod > 0) ? SyncPeriod : 1;
-    static_assert(period >= 1, "CV FIFO consume sync period must be >= 1");
-    if (sync_iter < static_cast<int>(FifoSize))
-        return false;
-    return (sync_iter % period) == 0;
-}
-
-template <int FifoSize, int SyncPeriod>
-AICORE inline bool should_notify_consumption(int sync_iter)
-{
-    static_assert(FifoSize >= 1, "CV FIFO size must be >= 1");
-    constexpr int period = (SyncPeriod > 0) ? SyncPeriod : 1;
-    static_assert(period >= 1, "CV FIFO consume sync period must be >= 1");
-    return ((sync_iter + 1) % period) == 0; // notify one tile earlier than the wait check
-}
-
-// Compute how many consumption notifications have not been waited on yet so we can drain them at kernel tail.
-AICORE inline int pending_consumption_events(int tiles_processed, int fifo_size, int sync_period)
-{
-    if (tiles_processed <= 0 || sync_period <= 0 || fifo_size <= 0)
-        return 0;
-
-    const int notify_count = tiles_processed / sync_period; // notifications fire every sync_period tiles
-
-    int wait_count = 0;
-    if (tiles_processed > fifo_size) {
-        const int last_iter = tiles_processed - 1;
-        wait_count = (last_iter / sync_period) - ((fifo_size - 1) / sync_period); // waits start after FIFO is filled
-        if (wait_count < 0)
-            wait_count = 0;
-    }
-
-    int pending = notify_count - wait_count;
-    if (pending < 0)
-        pending = 0;
-
-    const int max_pending = (fifo_size + sync_period - 1) / sync_period; // ceil(fifo_size / sync_period)
-    return (pending > max_pending) ? max_pending : pending;
-}
-
 template <typename TileType>
 constexpr AICORE std::size_t tile_storage_bytes()
 {
@@ -276,10 +230,12 @@ AICORE inline int assign_running_acc_tile(AccTileT &accTile, int initial_id = -1
 }
 
 template <typename QKPipe, int S0, int HEAD_SIZE, int S1, int CUBE_S0, int CUBE_S1, int TILE_S1,
-          bool INTERMEDIATE_CHECK, bool CAUSAL_MASK, typename TileMatQData, typename TileMatKData, typename TileQKData>
+          int CV_FIFO_CONS_SYNC_PERIOD, bool INTERMEDIATE_CHECK, bool CAUSAL_MASK, typename TileMatQData,
+          typename TileMatKData, typename TileQKData, typename QKSlotGlobal>
 AICORE inline void compute_qk(QKPipe &qkPipe, int tile_id, int sub_tile_id, __gm__ half *q, __gm__ half *k,
-                              TileMatQData &qMatTile, TileMatKData &kMatTile, TileQKData &qkAccTile,
-                              uint64_t qkMatTileEventId, int accTileEvtID, int blk_idx)
+                              __gm__ float *qk_tile_fifo, TileMatQData &qMatTile, TileMatKData &kMatTile,
+                              TileQKData &qkAccTile, QKSlotGlobal &qkSlotGlobal, uint64_t qkMatTileEventId,
+                              int accTileEvtID, int blk_idx)
 {
     if constexpr (DAV_CUBE) {
         constexpr uint32_t Cube_S0 = CUBE_S0;
@@ -288,21 +244,19 @@ AICORE inline void compute_qk(QKPipe &qkPipe, int tile_id, int sub_tile_id, __gm
         constexpr uint32_t kTileFactor = Tile_S1 / Cube_S1;
         constexpr uint32_t Cube_HEAD = HEAD_SIZE;
 
-        constexpr int QKP_CV_FIFO = QKPipe::DataFiFo::fifoDepth;
-        constexpr int CV_FIFO_CONS_SYNC_PERIOD = QKPipe::DataFiFo::fifoPeriod;
+        constexpr int QKP_CV_FIFO = QKPipe::RingFiFo::SLOT_NUM;
+        static_assert(QKP_CV_FIFO >= 1, "QKP_CV_FIFO must be >= 1");
         static_assert(Tile_S1 % Cube_S1 == 0, "TILE_S1 must be divisible by CUBE_S1");
 
         const int s0_index = blk_idx * CUBE_S0;
         const int s1_index = tile_id * static_cast<int>(Tile_S1) + sub_tile_id * static_cast<int>(Cube_S1);
-        const int sync_iter = tile_id;
-        const bool should_wait_consume = should_wait_consumption<QKP_CV_FIFO, CV_FIFO_CONS_SYNC_PERIOD>(sync_iter);
+        if (sub_tile_id == 0) {
+            TALLOC<QKPipe, QKSlotGlobal, TileSplitAxis::TILE_UP_DOWN>(qkPipe, qkSlotGlobal);
+        }
         if constexpr (CAUSAL_MASK) {
             if (s1_index > s0_index) {
-                if (sub_tile_id == 0 && should_wait_consume) {
-                    qkPipe.prod.allocate(); // wait for SM consume data
-                }
                 if (sub_tile_id == static_cast<int>(kTileFactor) - 1) {
-                    qkPipe.prod.record(); // notify for QK produce data
+                    TPUSH<QKPipe, QKSlotGlobal, TileSplitAxis::TILE_UP_DOWN>(qkPipe, qkSlotGlobal);
                 }
                 return;
             }
@@ -339,12 +293,23 @@ AICORE inline void compute_qk(QKPipe &qkPipe, int tile_id, int sub_tile_id, __gm
         wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
 #endif
 
-        bool isAllocate = (sub_tile_id == 0 && should_wait_consume);
-        bool isRecord = (sub_tile_id == (static_cast<int>(kTileFactor) - 1));
-        qkPipe.prod.setAllocateStatus(isAllocate);
-        qkPipe.prod.setRecordStatus(isRecord);
-        qkPipe.prod.setEntryOffset(sub_tile_id * Cube_S0 * Cube_S1 * sizeof(float));
-        TPUSH(qkAccTile, qkPipe);
+        using QKStoreGlobal =
+            GlobalTensor<float, pto::Shape<1, 1, 1, Cube_S0, Cube_S1>, pto::Stride<1, 1, 1, Cube_S1, 1>>;
+        const uint32_t buf_idx = static_cast<uint32_t>(tile_id % QKP_CV_FIFO);
+        const size_t base_elems =
+            static_cast<size_t>(buf_idx) * static_cast<size_t>(kTileFactor) * static_cast<size_t>(Cube_S0) *
+                static_cast<size_t>(Cube_S1) +
+            static_cast<size_t>(sub_tile_id) * static_cast<size_t>(Cube_S0) * static_cast<size_t>(Cube_S1);
+        QKStoreGlobal qkStoreGlobal(qk_tile_fifo + base_elems);
+#if UF_ENABLE
+        TSTORE<STPhase::Final>(qkStoreGlobal, qkAccTile);
+#else
+        TSTORE(qkStoreGlobal, qkAccTile);
+#endif
+
+        if (sub_tile_id == static_cast<int>(kTileFactor) - 1) {
+            TPUSH<QKPipe, QKSlotGlobal, TileSplitAxis::TILE_UP_DOWN>(qkPipe, qkSlotGlobal);
+        }
 
 #if !UF_ENABLE
         set_flag(PIPE_FIX, PIPE_M, accTileEvtID);
@@ -353,10 +318,12 @@ AICORE inline void compute_qk(QKPipe &qkPipe, int tile_id, int sub_tile_id, __gm
 }
 
 template <typename PPipe, typename PVPipe, int S0, int HEAD_SIZE, int S1, int CUBE_S0, int CUBE_S1, int TILE_S1,
-          int PV_CV_FIFO, bool INTERMEDIATE_CHECK, bool CAUSAL_MASK, typename TileMatPData, typename TileMatVData,
-          typename TilePVData>
+          int PV_CV_FIFO, int CV_FIFO_CONS_SYNC_PERIOD, bool INTERMEDIATE_CHECK, bool CAUSAL_MASK,
+          typename TileMatPData, typename TileMatVData, typename TilePVData, typename PSlotGlobal,
+          typename PVSlotGlobal>
 AICORE inline void compute_pv(PPipe &pPipe, PVPipe &pvPipe, int tile_id, int sub_tile_id, __gm__ half *v,
-                              TileMatPData &pMatTile, TileMatVData &vMatTile, TilePVData &pvAccTile,
+                              __gm__ half *p_tile_fifo, TileMatPData &pMatTile, TileMatVData &vMatTile,
+                              TilePVData &pvAccTile, PSlotGlobal &pSlotGlobal, PVSlotGlobal &pvSlotGlobal,
                               uint64_t svMatTileEventId, int accTileEvtID, int blk_idx)
 {
     constexpr uint32_t Cube_S0 = CUBE_S0;
@@ -365,26 +332,23 @@ AICORE inline void compute_pv(PPipe &pPipe, PVPipe &pvPipe, int tile_id, int sub
     constexpr uint32_t kTileFactor = Tile_S1 / Cube_S1;
     constexpr uint32_t Cube_HEAD = HEAD_SIZE;
     constexpr uint32_t TileElems = Cube_S0 * Tile_S1;
-    constexpr int QKP_CV_FIFO = PVPipe::DataFiFo::fifoDepth;
-    constexpr int CV_FIFO_CONS_SYNC_PERIOD = PVPipe::DataFiFo::fifoPeriod;
+    constexpr int QKP_CV_FIFO = PVPipe::RingFiFo::SLOT_NUM;
     static_assert(QKP_CV_FIFO >= 1, "PV_CV_FIFO must be >= 1");
     static_assert(Tile_S1 % Cube_S1 == 0, "TILE_S1 must be divisible by CUBE_S1");
 
     const int s0_index = blk_idx * Cube_S0;
     const int s1_index = tile_id * static_cast<int>(Tile_S1) + sub_tile_id * static_cast<int>(Cube_S1);
-    const int sync_iter = tile_id;
-    const bool should_notify_consume = should_notify_consumption<QKP_CV_FIFO, CV_FIFO_CONS_SYNC_PERIOD>(sync_iter);
     const bool is_last_subtile = (sub_tile_id + 1 == static_cast<int>(kTileFactor));
     const bool next_will_be_skipped = (s1_index + static_cast<int>(Cube_S1)) > s0_index && CAUSAL_MASK;
 
     if constexpr (DAV_CUBE) {
+        if (sub_tile_id == 0) {
+            TPOP<PPipe, PSlotGlobal, TileSplitAxis::TILE_UP_DOWN>(pPipe, pSlotGlobal);
+        }
         if constexpr (CAUSAL_MASK) {
             if (s1_index > s0_index) {
-                if (sub_tile_id == 0) {
-                    pPipe.cons.wait(); // wait for softmax produce data
-                }
-                if (sub_tile_id == static_cast<int>(kTileFactor) - 1 && should_notify_consume) {
-                    pPipe.cons.free(); // notify SV consume data
+                if (is_last_subtile) {
+                    TFREE<PPipe, PSlotGlobal, TileSplitAxis::TILE_UP_DOWN>(pPipe, pSlotGlobal);
                 }
                 return;
             }
@@ -398,12 +362,16 @@ AICORE inline void compute_pv(PPipe &pPipe, PVPipe &pvPipe, int tile_id, int sub
         GlobalVT vLoad((__gm__ half *)(v + s1_index * HEAD_SIZE));
         TLOAD(vMatTile, vLoad);
 
-        bool isWait = (sub_tile_id == 0);
-        bool isFree = (sub_tile_id == static_cast<int>(kTileFactor) - 1 && should_notify_consume);
-        pPipe.cons.setWaitStatus(isWait);
-        pPipe.cons.setFreeStatus(isFree);
-        pPipe.cons.setEntryOffset(sub_tile_id * Cube_S0 * Cube_S1 * sizeof(half));
-        TPOP(pMatTile, pPipe);
+        using PLoadGlobal = GlobalTensor<half, pto::Shape<1, 1, 1, Cube_S0, Cube_S1>, pto::Stride<1, 1, 1, Cube_S1, 1>>;
+        const uint32_t buf_idx = static_cast<uint32_t>(tile_id % PPipe::RingFiFo::SLOT_NUM);
+        const size_t base_elems =
+            static_cast<size_t>(buf_idx) * static_cast<size_t>(Cube_S0) * static_cast<size_t>(Tile_S1) +
+            static_cast<size_t>(sub_tile_id) * static_cast<size_t>(Cube_S0) * static_cast<size_t>(Cube_S1);
+        PLoadGlobal pLoadGlobal(p_tile_fifo + base_elems);
+        TLOAD(pMatTile, pLoadGlobal);
+        if (is_last_subtile) {
+            TFREE<PPipe, PSlotGlobal, TileSplitAxis::TILE_UP_DOWN>(pPipe, pSlotGlobal);
+        }
 
         set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
         wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
@@ -433,34 +401,41 @@ AICORE inline void compute_pv(PPipe &pPipe, PVPipe &pvPipe, int tile_id, int sub
             wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
 #endif
 
-            const bool should_wait_consume = should_wait_consumption<QKP_CV_FIFO, CV_FIFO_CONS_SYNC_PERIOD>(sync_iter);
-            pvPipe.prod.setAllocateStatus(should_wait_consume);
-            pvPipe.prod.setRecordStatus(true);
-            pvPipe.prod.setEntryOffset(0);
-            TPUSH(pvAccTile, pvPipe);
+            using PVStoreGlobal =
+                GlobalTensor<float, pto::Shape<1, 1, 1, Cube_S0, HEAD_SIZE>, pto::Stride<1, 1, 1, HEAD_SIZE, 1>>;
+            TALLOC<PVPipe, PVSlotGlobal, TileSplitAxis::TILE_UP_DOWN>(pvPipe, pvSlotGlobal);
+            PVStoreGlobal pvStoreGlobal(pvSlotGlobal.data());
+#if UF_ENABLE
+            TSTORE<STPhase::Final>(pvStoreGlobal, pvAccTile);
+#else
+            TSTORE(pvStoreGlobal, pvAccTile);
+#endif
+            TPUSH<PVPipe, PVSlotGlobal, TileSplitAxis::TILE_UP_DOWN>(pvPipe, pvSlotGlobal);
 
 #if !UF_ENABLE
             set_flag(PIPE_FIX, PIPE_M, accTileEvtID);
 #endif
         } // end loop
-    }     // end if DAV_CUBE
+    } // end if DAV_CUBE
 }
 
 template <typename QKPipe, typename PPipe, int S0, int HEAD_SIZE, int S1, int CUBE_S0, int CUBE_S1, int TILE_S1,
-          bool INTERMEDIATE_CHECK, bool CAUSAL_MASK, typename TileDataF_T, typename TileDataH_T, typename ReduceTileF_T>
+          int CV_FIFO_CONS_SYNC_PERIOD, bool INTERMEDIATE_CHECK, bool CAUSAL_MASK, typename TileDataF_T,
+          typename TileDataH_T, typename ReduceTileF_T, typename QKVecSlotGlobal, typename PVecSlotGlobal>
 AICORE inline void compute_p(QKPipe &qkPipe, PPipe &pPipe, int tile_id, int row_slice, __gm__ float *exp_max_ififo,
-                             __gm__ float *global_sum_out, __gm__ float *exp_max_out, TileDataF_T &qkVecTile,
-                             TileDataH_T &x_expT, TileDataF_T &input_reduce_tmp, ReduceTileF_T &m1_local_max,
-                             ReduceTileF_T &l1_local_sum, ReduceTileF_T &m2_global_max, ReduceTileF_T &l2_global_sum,
-                             ReduceTileF_T &l1_exp_max_ififo, TileDataF_T triu, uint64_t pTileEventId, int blk_idx)
+                             __gm__ float *qk_tile_fifo, __gm__ half *p_tile_fifo, __gm__ float *global_sum_out,
+                             __gm__ float *exp_max_out, TileDataF_T &qkVecTile, TileDataH_T &x_expT,
+                             TileDataF_T &input_reduce_tmp, ReduceTileF_T &m1_local_max, ReduceTileF_T &l1_local_sum,
+                             ReduceTileF_T &m2_global_max, ReduceTileF_T &l2_global_sum,
+                             ReduceTileF_T &l1_exp_max_ififo, TileDataF_T triu, QKVecSlotGlobal &qkVecSlotGlobal,
+                             PVecSlotGlobal &pVecSlotGlobal, uint64_t pTileEventId, int blk_idx)
 {
     constexpr uint32_t Cube_S0 = CUBE_S0;
     constexpr uint32_t Cube_S1 = CUBE_S1;
     constexpr uint32_t Tile_S1 = TILE_S1;
     constexpr uint32_t kTileFactor = Tile_S1 / Cube_S1;
     constexpr uint32_t Vec_S0 = Cube_S0 / VEC_CORES / kTileFactor;
-    constexpr int QKP_CV_FIFO = QKPipe::DataFiFo::fifoDepth;
-    constexpr int CV_FIFO_CONS_SYNC_PERIOD = QKPipe::DataFiFo::fifoPeriod;
+    constexpr int QKP_CV_FIFO = QKPipe::RingFiFo::SLOT_NUM;
     static_assert(QKP_CV_FIFO >= 1, "QKP_CV_FIFO must be >= 1");
     static_assert(Tile_S1 % Cube_S1 == 0, "TILE_S1 must be divisible by CUBE_S1");
     static_assert(Cube_S0 % (VEC_CORES * kTileFactor) == 0, "Vec rows must divide evenly across tile slices");
@@ -468,21 +443,34 @@ AICORE inline void compute_p(QKPipe &qkPipe, PPipe &pPipe, int tile_id, int row_
     if constexpr (DAV_VEC) {
         const size_t subblock_base_rows =
             static_cast<size_t>(Cube_S0 / VEC_CORES) * static_cast<size_t>(get_subblockid());
-        const size_t row_offset = subblock_base_rows + static_cast<size_t>(row_slice * Vec_S0);
+        const size_t local_row_offset = static_cast<size_t>(row_slice * Vec_S0);
+        const size_t row_offset = subblock_base_rows + local_row_offset;
         const int s0_index = blk_idx * Cube_S0 + row_offset;
         const int s1_index = tile_id * static_cast<int>(Tile_S1);
-        const int sync_iter = tile_id;
-
-        const bool should_notify_consume = should_notify_consumption<QKP_CV_FIFO, CV_FIFO_CONS_SYNC_PERIOD>(sync_iter);
-
         wait_flag(PIPE_V, PIPE_MTE2, pTileEventId);
 
-        bool isWait = (row_slice == 0);
-        bool isFree = (row_slice == static_cast<int>(kTileFactor) - 1 && should_notify_consume);
-        qkPipe.cons.setWaitStatus(isWait);
-        qkPipe.cons.setFreeStatus(isFree);
-        qkPipe.cons.setEntryOffset(row_offset * Cube_S1 * sizeof(float));
-        TPOP(qkVecTile, qkPipe);
+        if (row_slice == 0) {
+            TPOP<QKPipe, QKVecSlotGlobal, TileSplitAxis::TILE_UP_DOWN>(qkPipe, qkVecSlotGlobal);
+        }
+
+        const uint32_t qk_buf_idx = static_cast<uint32_t>(tile_id % QKP_CV_FIFO);
+        const size_t qk_base_elems = static_cast<size_t>(qk_buf_idx) * static_cast<size_t>(kTileFactor) *
+                                     static_cast<size_t>(Cube_S0) * static_cast<size_t>(Cube_S1);
+        __gm__ float *qk_ptr = qk_tile_fifo + qk_base_elems + row_offset * static_cast<size_t>(Cube_S1);
+        using QKLoadGlobal =
+            GlobalTensor<float, pto::Shape<1, 1, 1, Vec_S0, Cube_S1>, pto::Stride<1, 1, 1, Cube_S1, 1>>;
+        using TileDataFSub = Tile<TileType::Vec, float, Vec_S0, Tile_S1, BLayout::RowMajor, Vec_S0, Cube_S1>;
+        for (int sub_col = 0; sub_col < static_cast<int>(kTileFactor); ++sub_col) {
+            QKLoadGlobal qkLoadGlobal(qk_ptr + static_cast<size_t>(sub_col) * static_cast<size_t>(Cube_S0) *
+                                                   static_cast<size_t>(Cube_S1));
+            TileDataFSub qkVecSub;
+            TASSIGN(qkVecSub, (uint64_t)qkVecTile.data() +
+                                  static_cast<uint64_t>(sub_col) * static_cast<uint64_t>(Cube_S1) * sizeof(float));
+            TLOAD(qkVecSub, qkLoadGlobal);
+        }
+        if (row_slice == static_cast<int>(kTileFactor) - 1) {
+            TFREE<QKPipe, QKVecSlotGlobal, TileSplitAxis::TILE_UP_DOWN>(qkPipe, qkVecSlotGlobal);
+        }
 
         set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
         wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
@@ -521,13 +509,23 @@ AICORE inline void compute_p(QKPipe &qkPipe, PPipe &pPipe, int tile_id, int row_
         set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
         wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
 
-        const bool should_wait_consume = should_wait_consumption<QKP_CV_FIFO, CV_FIFO_CONS_SYNC_PERIOD>(sync_iter);
-        bool isAllocate = (row_slice == 0 && should_wait_consume);
-        const bool isRecord = (row_slice == (static_cast<int>(kTileFactor) - 1));
-        pPipe.prod.setAllocateStatus(isAllocate);
-        pPipe.prod.setRecordStatus(isRecord);
-        pPipe.prod.setEntryOffset(row_offset * Cube_S1 * sizeof(half));
-        TPUSH(x_expT, pPipe);
+        if (row_slice == 0) {
+            TALLOC<PPipe, PVecSlotGlobal, TileSplitAxis::TILE_UP_DOWN>(pPipe, pVecSlotGlobal);
+        }
+        using PStoreGlobal = GlobalTensor<half, pto::Shape<1, 1, 1, Vec_S0, Cube_S1>, pto::Stride<1, 1, 1, Cube_S1, 1>>;
+        using TileDataHSub = Tile<TileType::Vec, half, Vec_S0, Tile_S1, BLayout::RowMajor, Vec_S0, Cube_S1>;
+        __gm__ half *p_ptr = p_tile_fifo + qk_base_elems + row_offset * static_cast<size_t>(Cube_S1);
+        for (int sub_col = 0; sub_col < static_cast<int>(kTileFactor); ++sub_col) {
+            PStoreGlobal pStoreGlobal(p_ptr + static_cast<size_t>(sub_col) * static_cast<size_t>(Cube_S0) *
+                                                  static_cast<size_t>(Cube_S1));
+            TileDataHSub xExpSub;
+            TASSIGN(xExpSub, (uint64_t)x_expT.data() +
+                                 static_cast<uint64_t>(sub_col) * static_cast<uint64_t>(Cube_S1) * sizeof(half));
+            TSTORE(pStoreGlobal, xExpSub);
+        }
+        if (row_slice == static_cast<int>(kTileFactor) - 1) {
+            TPUSH<PPipe, PVecSlotGlobal, TileSplitAxis::TILE_UP_DOWN>(pPipe, pVecSlotGlobal);
+        }
 
         set_flag(PIPE_MTE3, PIPE_V, pTileEventId);
         if constexpr (INTERMEDIATE_CHECK) {
@@ -564,13 +562,13 @@ AICORE inline void compute_gu(PVPipe &pvPipe, int tile_id, int num_tiles, __gm__
         const size_t subblock_base_rows =
             static_cast<size_t>(Cube_S0 / VEC_CORES) * static_cast<size_t>(get_subblockid());
 
-        const bool should_notify_consume = should_notify_consumption<PV_CV_FIFO, CV_FIFO_CONS_SYNC_PERIOD>(tile_id);
-        pvPipe.cons.setWaitStatus(true);
-        pvPipe.cons.setFreeStatus(should_notify_consume);
-        pvPipe.cons.setEntryOffset(subblock_base_rows * HEAD_SIZE * sizeof(float));
+        using PVVecGlobal =
+            GlobalTensor<float, pto::Shape<1, 1, 1, Vec_S0, HEAD_SIZE>, pto::Stride<1, 1, 1, HEAD_SIZE, 1>>;
+        PVVecGlobal pvGlobal;
+        TPOP<PVPipe, PVVecGlobal, TileSplitAxis::TILE_UP_DOWN>(pvPipe, pvGlobal);
 
         if (tile_id == 0) {
-            TPOP(runningOTile, pvPipe);
+            TLOAD(runningOTile, pvGlobal);
             set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
             wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
             if constexpr (CAUSAL_MASK) {
@@ -578,7 +576,7 @@ AICORE inline void compute_gu(PVPipe &pvPipe, int tile_id, int num_tiles, __gm__
                     pto_macro_fa_gu_single_and_last_tile(runningOTile, l2_global_sum);
             }
         } else {
-            TPOP(pvVecTile, pvPipe);
+            TLOAD(pvVecTile, pvGlobal);
             set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
             wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 
@@ -588,6 +586,7 @@ AICORE inline void compute_gu(PVPipe &pvPipe, int tile_id, int num_tiles, __gm__
                 pto_macro_fa_gu_last<ReduceTileF_T, TileOutT>(runningOTile, pvVecTile, l1_exp_max_ififo, l2_global_sum);
             }
         }
+        TFREE<PVPipe, PVVecGlobal, TileSplitAxis::TILE_UP_DOWN>(pvPipe, pvGlobal);
 
         set_flag(PIPE_V, PIPE_MTE2, guEventId);
 
@@ -776,21 +775,44 @@ __global__ AICORE void runTFA(__gm__ uint64_t *ffts_addr, __gm__ half *q, __gm__
     int qkAccTileEvtID = 0;
     int pvAccTileEvtID = 0;
 
-    // fifio definitions
+    // FIFO definitions
     constexpr uint8_t FiFoDepth = CV_FIFO_SIZE;
-    constexpr uint8_t FiFoSyncT = CV_FIFO_CONS_SYNC_PERIOD;
-    using QKPipe = TMPipe<BUF0_QK_READY, FIFOType::GM_FIFO, FiFoDepth, FiFoSyncT, TileQKData, TileDataF_T,
-                          UF_ENABLE ? true : false, 0>;
-    QKPipe qkPipe(qk_tile_fifo_block, (uint32_t)(uint64_t)qkVecTile[0].data());
+#if defined(__DAV_C220_CUBE__) || defined(__DAV_C220_VEC__)
+    constexpr uint8_t QK_PIPE_DIR = Direction::DIR_C2V;
+    constexpr uint8_t P_PIPE_DIR = Direction::DIR_V2C;
+    constexpr uint8_t PV_PIPE_DIR = Direction::DIR_C2V;
+#elif defined(__DAV_C310_CUBE__) || defined(__DAV_C310_VEC__)
+    constexpr uint8_t QK_PIPE_DIR = Direction::DIR_C2V_GM;
+    constexpr uint8_t P_PIPE_DIR = Direction::DIR_V2C_GM;
+    constexpr uint8_t PV_PIPE_DIR = Direction::DIR_C2V_GM;
+#endif
+
+    using QKPipe = TPipe<BUF0_QK_READY, QK_PIPE_DIR, Cube_S0 * Tile_S1 * sizeof(float), FiFoDepth, 2, false,
+                         UF_ENABLE ? true : false>;
+    QKPipe qkPipe(qk_tile_fifo_block, (uint32_t)(uint64_t)qkVecTile[0].data(), 0x0);
 
     // pFiFo, pProd, pCons
-    using PPipe = TMPipe<BUF1_SM_READY, FIFOType::GM_FIFO, FiFoDepth, FiFoSyncT, TileDataH_T, TileMatPData, false, 0>;
-    PPipe pPipe(p_tile_fifo_block, (uint32_t)(uint64_t)pMatTile[0].data());
+    using PPipe = TPipe<BUF1_SM_READY, P_PIPE_DIR, Cube_S0 * Tile_S1 * sizeof(half), FiFoDepth>;
+    PPipe pPipe(p_tile_fifo_block, 0x0, (uint32_t)(uint64_t)pMatTile[0].data());
 
     // pvFiFo, pvProd, pvCons
-    using PVPipe = TMPipe<UPDATE_READY, FIFOType::GM_FIFO, FiFoDepth, FiFoSyncT, TilePVData, TileOutGuT,
-                          UF_ENABLE ? true : false, 0>;
-    PVPipe pvPipe(pv_tile_fifo_block, (uint32_t)(uint64_t)pvVecTile[0].data());
+    using PVPipe = TPipe<UPDATE_READY, PV_PIPE_DIR, Cube_S0 * HEAD_SIZE * sizeof(float), FiFoDepth, 2, false,
+                         UF_ENABLE ? true : false>;
+    PVPipe pvPipe(pv_tile_fifo_block, (uint32_t)(uint64_t)pvVecTile[0].data(), 0x0);
+
+    using QKSlotGlobal = GlobalTensor<float, pto::Shape<1, 1, 1, Cube_S0, Tile_S1>, pto::Stride<1, 1, 1, Tile_S1, 1>>;
+    using QKVecSlotGlobal =
+        GlobalTensor<float, pto::Shape<1, 1, 1, VecGuRows, Tile_S1>, pto::Stride<1, 1, 1, Tile_S1, 1>>;
+    using PSlotGlobal = GlobalTensor<half, pto::Shape<1, 1, 1, Cube_S0, Tile_S1>, pto::Stride<1, 1, 1, Tile_S1, 1>>;
+    using PVecSlotGlobal =
+        GlobalTensor<half, pto::Shape<1, 1, 1, VecGuRows, Tile_S1>, pto::Stride<1, 1, 1, Tile_S1, 1>>;
+    using PVSlotGlobal =
+        GlobalTensor<float, pto::Shape<1, 1, 1, Cube_S0, HEAD_SIZE>, pto::Stride<1, 1, 1, HEAD_SIZE, 1>>;
+    QKSlotGlobal qkSlotGlobal;
+    QKVecSlotGlobal qkVecSlotGlobal;
+    PSlotGlobal pSlotGlobal;
+    PVecSlotGlobal pVecSlotGlobal;
+    PVSlotGlobal pvSlotGlobal;
 
     // QK and P pre-computation (tile_id based)
     for (int preload_tile = 0; preload_tile < static_cast<int>(qkPreloadNum) && preload_tile < num_tiles_s1;
@@ -798,25 +820,24 @@ __global__ AICORE void runTFA(__gm__ uint64_t *ffts_addr, __gm__ half *q, __gm__
         if constexpr (DAV_CUBE) {
             for (int sub_tile = 0; sub_tile < static_cast<int>(kTileFactor); ++sub_tile) {
                 qkAccTileEvtID = assign_running_acc_tile(qkAccTile);
-                qkPipe.prod.setTileId(preload_tile, sub_tile);
-                compute_qk<QKPipe, S0, HEAD_SIZE, S1, CUBE_S0, CUBE_S1, Tile_S1, INTERMEDIATE_CHECK, CAUSAL_MASK>(
-                    qkPipe, preload_tile, sub_tile, q_block, k, qMatTile[0],
-                    kMatTile[k_src_pingpong_id % kMatTNBuffers], qkAccTile, k_src_pingpong_id % kMatTNBuffers,
-                    qkAccTileEvtID, block_idx);
+                compute_qk<QKPipe, S0, HEAD_SIZE, S1, CUBE_S0, CUBE_S1, Tile_S1, CV_FIFO_CONS_SYNC_PERIOD,
+                           INTERMEDIATE_CHECK, CAUSAL_MASK>(
+                    qkPipe, preload_tile, sub_tile, q_block, k, qk_tile_fifo_block, qMatTile[0],
+                    kMatTile[k_src_pingpong_id % kMatTNBuffers], qkAccTile, qkSlotGlobal,
+                    k_src_pingpong_id % kMatTNBuffers, qkAccTileEvtID, block_idx);
                 k_src_pingpong_id++;
             }
         }
         if constexpr (DAV_VEC) {
             for (int row_slice = 0; row_slice < static_cast<int>(kTileFactor); ++row_slice) {
                 // Init only on the very first S1 tile; row_slice partitions rows within that tile
-                pPipe.prod.setTileId(preload_tile, row_slice);
-                qkPipe.cons.setTileId(preload_tile, row_slice);
-                compute_p<QKPipe, PPipe, S0, HEAD_SIZE, S1, CUBE_S0, CUBE_S1, Tile_S1, INTERMEDIATE_CHECK, CAUSAL_MASK>(
-                    qkPipe, pPipe, preload_tile, row_slice, exp_max_ififo_block, global_sum_block, exp_max_block,
-                    qkVecTile[p_gu_src_pingpong_id % srcVecTNBuffers], x_expT[p_gu_src_pingpong_id % xexpVecTNBuffers],
-                    input_reduce_tmp, m1_local_max, l1_local_sum, m2_global_max, l2_global_sum,
-                    l1_exp_max_ififo[preload_tile % qkp_tile_fifo_size], triu, p_gu_src_pingpong_id % xexpVecTNBuffers,
-                    block_idx);
+                compute_p<QKPipe, PPipe, S0, HEAD_SIZE, S1, CUBE_S0, CUBE_S1, Tile_S1, CV_FIFO_CONS_SYNC_PERIOD,
+                          INTERMEDIATE_CHECK, CAUSAL_MASK>(
+                    qkPipe, pPipe, preload_tile, row_slice, exp_max_ififo_block, qk_tile_fifo_block, p_tile_fifo_block,
+                    global_sum_block, exp_max_block, qkVecTile[p_gu_src_pingpong_id % srcVecTNBuffers],
+                    x_expT[p_gu_src_pingpong_id % xexpVecTNBuffers], input_reduce_tmp, m1_local_max, l1_local_sum,
+                    m2_global_max, l2_global_sum, l1_exp_max_ififo[preload_tile % qkp_tile_fifo_size], triu,
+                    qkVecSlotGlobal, pVecSlotGlobal, p_gu_src_pingpong_id % xexpVecTNBuffers, block_idx);
                 p_gu_src_pingpong_id++;
             }
         }
@@ -834,44 +855,41 @@ __global__ AICORE void runTFA(__gm__ uint64_t *ffts_addr, __gm__ half *q, __gm__
         for (int sub_tile = 0; sub_tile < static_cast<int>(kTileFactor); ++sub_tile) {
             if constexpr (DAV_CUBE) {
                 if (next_qk_tile != -1) {
-                    qkPipe.prod.setTileId(next_qk_tile, sub_tile);
-                    compute_qk<QKPipe, S0, HEAD_SIZE, S1, CUBE_S0, CUBE_S1, Tile_S1, INTERMEDIATE_CHECK, CAUSAL_MASK>(
-                        qkPipe, next_qk_tile, sub_tile, q_block, k, qMatTile[0],
-                        kMatTile[k_src_pingpong_id % kMatTNBuffers], qkAccTile, k_src_pingpong_id % kMatTNBuffers,
-                        qkAccTileEvtID, block_idx);
+                    compute_qk<QKPipe, S0, HEAD_SIZE, S1, CUBE_S0, CUBE_S1, Tile_S1, CV_FIFO_CONS_SYNC_PERIOD,
+                               INTERMEDIATE_CHECK, CAUSAL_MASK>(
+                        qkPipe, next_qk_tile, sub_tile, q_block, k, qk_tile_fifo_block, qMatTile[0],
+                        kMatTile[k_src_pingpong_id % kMatTNBuffers], qkAccTile, qkSlotGlobal,
+                        k_src_pingpong_id % kMatTNBuffers, qkAccTileEvtID, block_idx);
                     k_src_pingpong_id++;
                 }
             }
 
             if constexpr (DAV_VEC) {
                 if (next_qk_tile != -1) {
-                    pPipe.prod.setTileId(next_qk_tile, sub_tile);
-                    qkPipe.cons.setTileId(next_qk_tile, sub_tile);
-                    compute_p<QKPipe, PPipe, S0, HEAD_SIZE, S1, CUBE_S0, CUBE_S1, Tile_S1, INTERMEDIATE_CHECK,
-                              CAUSAL_MASK>(qkPipe, pPipe, next_qk_tile, sub_tile, exp_max_ififo_block, global_sum_block,
-                                           exp_max_block, qkVecTile[p_gu_src_pingpong_id % srcVecTNBuffers],
-                                           x_expT[p_gu_src_pingpong_id % xexpVecTNBuffers], input_reduce_tmp,
-                                           m1_local_max, l1_local_sum, m2_global_max, l2_global_sum,
-                                           l1_exp_max_ififo[next_qk_tile % qkp_tile_fifo_size], triu,
-                                           p_gu_src_pingpong_id % xexpVecTNBuffers, block_idx);
+                    compute_p<QKPipe, PPipe, S0, HEAD_SIZE, S1, CUBE_S0, CUBE_S1, Tile_S1, CV_FIFO_CONS_SYNC_PERIOD,
+                              INTERMEDIATE_CHECK, CAUSAL_MASK>(
+                        qkPipe, pPipe, next_qk_tile, sub_tile, exp_max_ififo_block, qk_tile_fifo_block,
+                        p_tile_fifo_block, global_sum_block, exp_max_block,
+                        qkVecTile[p_gu_src_pingpong_id % srcVecTNBuffers],
+                        x_expT[p_gu_src_pingpong_id % xexpVecTNBuffers], input_reduce_tmp, m1_local_max, l1_local_sum,
+                        m2_global_max, l2_global_sum, l1_exp_max_ififo[next_qk_tile % qkp_tile_fifo_size], triu,
+                        qkVecSlotGlobal, pVecSlotGlobal, p_gu_src_pingpong_id % xexpVecTNBuffers, block_idx);
                     p_gu_src_pingpong_id++;
                 }
             }
 
             if constexpr (DAV_CUBE) {
-                pPipe.cons.setTileId(tile_id, sub_tile);
-                pvPipe.prod.setTileId(tile_id, sub_tile);
                 compute_pv<PPipe, PVPipe, S0, HEAD_SIZE, S1, CUBE_S0, CUBE_S1, Tile_S1, pv_tile_fifo_size,
-                           INTERMEDIATE_CHECK, CAUSAL_MASK>(
-                    pPipe, pvPipe, tile_id, sub_tile, v, pMatTile[pv_src_pingpong_id % pMatTNBuffers],
-                    vMatTile[pv_src_pingpong_id % vMatTNBuffers], pvAccTile,
-                    pv_src_pingpong_id % vMatTNBuffers + PV_EVENT_ID0, pvAccTileEvtID, block_idx);
+                           CV_FIFO_CONS_SYNC_PERIOD, INTERMEDIATE_CHECK, CAUSAL_MASK>(
+                    pPipe, pvPipe, tile_id, sub_tile, v, p_tile_fifo_block,
+                    pMatTile[pv_src_pingpong_id % pMatTNBuffers], vMatTile[pv_src_pingpong_id % vMatTNBuffers],
+                    pvAccTile, pSlotGlobal, pvSlotGlobal, pv_src_pingpong_id % vMatTNBuffers + PV_EVENT_ID0,
+                    pvAccTileEvtID, block_idx);
                 pv_src_pingpong_id++;
             }
         }
 
         if constexpr (DAV_VEC) {
-            pvPipe.cons.setTileId(tile_id, -1);
             compute_gu<PVPipe, S0, HEAD_SIZE, S1, CUBE_S0, Tile_S1, pv_tile_fifo_size, CV_FIFO_CONS_SYNC_PERIOD,
                        INTERMEDIATE_CHECK, CAUSAL_MASK>(
                 pvPipe, tile_id, num_tiles_s1, o_out_block, o_parts_block, runningOTile,
@@ -880,12 +898,6 @@ __global__ AICORE void runTFA(__gm__ uint64_t *ffts_addr, __gm__ half *q, __gm__
             p_gu_src_pingpong_id++;
         }
     }
-
-    const int pending_qk_sm_consumed =
-        pending_consumption_events(num_tiles_s1, static_cast<int>(qkp_tile_fifo_size), CV_FIFO_CONS_SYNC_PERIOD);
-    const int pending_sv_consumed = pending_qk_sm_consumed; // same schedule and FIFO settings
-    const int pending_update_consumed =
-        pending_consumption_events(num_tiles_s1, static_cast<int>(qkp_tile_fifo_size), CV_FIFO_CONS_SYNC_PERIOD);
 
     if constexpr (DAV_CUBE) {
         wait_flag(PIPE_M, PIPE_MTE1, EVENT_ID0);
@@ -896,13 +908,6 @@ __global__ AICORE void runTFA(__gm__ uint64_t *ffts_addr, __gm__ half *q, __gm__
         wait_flag(PIPE_MTE1, PIPE_MTE2, EVENT_ID3);
         wait_flag(PIPE_FIX, PIPE_M, EVENT_ID0);
         wait_flag(PIPE_FIX, PIPE_M, EVENT_ID1);
-        for (int i = 0; i < pending_qk_sm_consumed; ++i)
-            qkPipe.prod.allocate();
-        for (int i = 0; i < pending_update_consumed; ++i)
-            pvPipe.prod.allocate();
-#ifdef __DAV_C220_CUBE__
-        wait_flag_dev(CV_BLOCK_END); // wait for vector done all reading
-#endif
     }
 
     if constexpr (DAV_VEC) {
@@ -910,11 +915,6 @@ __global__ AICORE void runTFA(__gm__ uint64_t *ffts_addr, __gm__ half *q, __gm__
         wait_flag(PIPE_V, PIPE_MTE2, EVENT_ID1);
         wait_flag(PIPE_MTE3, PIPE_V, EVENT_ID0);
         wait_flag(PIPE_MTE3, PIPE_V, EVENT_ID1);
-        for (int i = 0; i < pending_sv_consumed; ++i)
-            pPipe.prod.allocate();
-#ifdef __DAV_C220_VEC__
-        ffts_cross_core_sync(PIPE_MTE2, _getFFTSMsg(CV_CORE_SYNC, CV_BLOCK_END)); // cube can exit CV comm now
-#endif
     }
 
     pipe_barrier(PIPE_ALL);

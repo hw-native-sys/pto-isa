@@ -215,7 +215,7 @@ if (NOT AUTO_MODE)
   # TPUSH and TPOP currently directly use TASSIGN inside their implementations,
   # which doesn't work for auto mode. They need to be disabled for auto mode 
   # until rewritten to adapt to auto mode
-  list(APPEND ALL_TESTCASES tpushpop_cv tpushpop_vc tpushpop_cv_nosplit tpushpop_vc_nosplit tpushpop_dir_both)
+  list(APPEND ALL_TESTCASES tpushpop_cv tpushpop_vc tpushpop_cv_nosplit tpushpop_vc_nosplit tpushpop_dir_both tpushpop_subtile)
 endif()
 
 if((TEST_CASE IN_LIST ALL_TESTCASES) OR (TEST_CASE STREQUAL "all"))
