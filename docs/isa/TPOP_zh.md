@@ -4,22 +4,19 @@
 
 从 `TPipe` FIFO 中弹出消费者 tile，用于 Cube-Vector 通信。
 
-本指令支持两类数据的弹出，分别为Tile类型的数据和GlobalTensor类型的数据。所以分别设计了基于`Tile` 重载和 `GlobalTensor` 重载。
+本文同时描述 TileData 重载和 `GlobalData` 槽位视图重载。在 TileData 流程中，`TPOP` 同时执行数据就绪等待和空闲空间通知；同一个 tile 不需要再单独调用 `TFREE`。在 `GlobalData` 流程中，`TPOP` 返回 FIFO 槽位视图，调用者必须使用 `TFREE(Pipe&, GlobalData&)` 释放该槽位。
 
 ## 操作语义
 
-对于 TileData 流程：
+对于 TileData 重载，`TPOP` 执行三个步骤：
 
-1. `TPUSH(Pipe&, TileData&, Split)` 将生产者 tile 存入当前 FIFO 槽位，并为消费者记录数据就绪同步。生产者 tile 索引在槽位地址计算完成后递增。
-2. `TPOP(Pipe&, TileData&, Split)` 等待生产者的数据就绪同步，将当前 FIFO 槽位加载到消费者 tile 中。消费者 tile 索引在槽位地址计算完成后递增。
-3. `TFREE(Pipe&, Split)` 释放 FIFO 中的槽位空间。A2A3 平台上此接口为空操作（`TPOP` 已在内部执行空闲空间通知），A5 平台上会释放 `TPOP` 使用的 FIFO 槽位空间。
+1. 等待生产者的数据就绪同步。
+2. 将当前 FIFO 槽位加载到消费者 tile 中。
+3. 当 `Pipe::shouldNotifyFree(tileIndex)` 为 true 时，通知空闲空间。
 
-对于 GlobalData 流程:
+消费者 tile 索引会在 FIFO 槽位地址计算完成后递增。空闲空间通知使用已经弹出的 tile 索引。
 
-1. `TALLOC(Pipe&, GlobalData&)` 从 `TPipe` 中分配一个生产者 FIFO 槽位，并将其暴露为 `GlobalTensor` 视图。生产者可通过 `TSTORE` 等指令向该槽位写入数据。
-2. `TPUSH(Pipe&, GlobalData&)` 为已经由 `TALLOC` 分配的槽位记录数据就绪同步，将 FIFO 槽位提交给消费者。它本身不会存储 tile 数据。
-3. `TPOP(Pipe&, GlobalData&)` 等待数据就绪，将 `gmTensor` 赋值为当前 FIFO 槽位地址，并递增消费者 tile 索引。它不会将数据加载到本地 tile，也不会释放槽位。消费者可通过 `TLOAD` 等指令从槽位中读取数据。
-4. `TFREE(Pipe&, GlobalData&)` 释放由 `TPOP(Pipe&, GlobalData&)` 返回的 FIFO 槽位视图，通知生产者该槽位空间已空闲。
+对于 `GlobalData` 重载，`TPOP` 会等待数据就绪，将 `gmTensor` 赋值为当前 FIFO 槽位地址，并递增消费者 tile 索引。它不会把数据加载到本地 tile，也不会释放槽位。
 
 ## C++ Intrinsic
 
@@ -53,10 +50,10 @@ struct TPipe;
 - **本地消费者缓冲区**：
     - 对于 C2V vector 消费者，`TPipe` 会将 tile 分配到 `C2V_CONSUMER_BUF`，并使用本地 FIFO 轮转。
     - 对于 V2C matrix 消费者，`TPipe` 会将 tile 分配到 `V2C_CONSUMER_BUF`，并使用本地 FIFO 轮转。
-- **切分行为**：
-    - `TileSplitAxis::TILE_NO_SPLIT`：不进行切分， A2A3上需要AIV0/AIV1陪跑核间同步操作。
-    - `TileSplitAxis::TILE_UP_DOWN`：消费上下两个行半区。
-    - `TileSplitAxis::TILE_LEFT_RIGHT`：消费左右两个列半区。
+- **分裂行为**：
+    - `TileSplitAxis::TILE_NO_SPLIT`：不应用子向量偏移。
+    - `TileSplitAxis::TILE_UP_DOWN`：向量子块消费上下两个行半区。
+    - `TileSplitAxis::TILE_LEFT_RIGHT`：向量子块消费左右两个列半区。
 - **同步**：
     - 每次 `TPOP` 都会执行数据就绪等待。
     - 空闲空间通知是稀疏的，并由 `Pipe::SyncPeriod` 控制。

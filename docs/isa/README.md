@@ -108,7 +108,13 @@ Reading order matches the manual chapter map: programming and machine models, th
 - [TSCATTER](TSCATTER.md) - Scatter rows of a source tile into a destination tile using per-element row indices.
 - [TQUANT](TQUANT.md) - Quantize a tile (e.g. FP32 to FP8) producing exponent/scaling/max outputs.
 
-- [Reference notes](reference/README.md) (glossary, diagnostics, portability, source of truth)
+## Cross-core Communication
+- [TALLOC](TALLOC.md) - Allocate a TPipe FIFO slot as a GlobalTensor view.
+- [TPUSH](TPUSH.md) - Push a producer tile into a TPipe FIFO for Cube-Vector communication.
+- [TPOP](TPOP.md) - Pop a consumer tile from a TPipe FIFO for Cube-Vector communication.
+- [TFREE](TFREE.md) - Release FIFO space for a TPipe entry; no-op for TileData TPOP flow.
+
+## Communication
 
 ## Cross-Core Communication
 

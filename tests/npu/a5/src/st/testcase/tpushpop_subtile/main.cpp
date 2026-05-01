@@ -16,7 +16,7 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
-void LaunchTPushTpopSubtile(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *fifoMem, void *stream);
+void LaunchTPushTpopSubtile(uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *fifoMem, void *stream);
 
 class TPushTpopSubtileTest : public testing::Test {
 protected:
@@ -66,10 +66,7 @@ void TPushTpopSubtileTestFunc(uint32_t m, uint32_t k, uint32_t n, uint32_t repea
     aclrtMemcpy(srcADevice, aFileSize, srcAHost, aFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(srcBDevice, bFileSize, srcBHost, bFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
-    uint64_t ffts{0};
-    uint32_t fftsLen{0};
-
-    LaunchTPushTpopSubtile<key>((uint8_t *)ffts, dstDevice, srcADevice, srcBDevice, fifoMemDevice, stream);
+    LaunchTPushTpopSubtile<key>(dstDevice, srcADevice, srcBDevice, fifoMemDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, cFileSize, dstDevice, cFileSize, ACL_MEMCPY_DEVICE_TO_HOST);

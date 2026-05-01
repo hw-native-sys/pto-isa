@@ -8,13 +8,6 @@ Allocate a producer FIFO slot from a `TPipe` and expose it as a `GlobalTensor` v
 
 ## Operation Semantics
 
-For the GlobalData flow:
-
-1. `TALLOC(Pipe&, GlobalData&)` allocates a producer FIFO slot from a `TPipe` and exposes it as a `GlobalTensor` view. The producer can write data into the slot using instructions such as `TSTORE`.
-2. `TPUSH(Pipe&, GlobalData&)` records data-ready synchronization for the slot allocated by `TALLOC`, committing the FIFO slot to the consumer. It does not store tile data itself.
-3. `TPOP(Pipe&, GlobalData&)` waits for data-ready, assigns `gmTensor` to the current FIFO slot address, and increments the consumer tile index. It does not load data into a local tile or release the slot. The consumer can read data from the slot using instructions such as `TLOAD`.
-4. `TFREE(Pipe&, GlobalData&)` releases the FIFO slot view returned by `TPOP(Pipe&, GlobalData&)`, notifying the producer that the slot space is free.
-
 `TALLOC` performs three steps:
 
 1. Wait for FIFO free space when `pipe.prod.getAllocateStatus()` and `Pipe::shouldWaitFree(pipe.prod.tileIndex)` are both true.

@@ -54,8 +54,11 @@ __global__ AICORE void runTPushTpopSubtile(__gm__ uint64_t *fftsAddr, __gm__ Out
     MatPipe mPipe((__gm__ void *)(uint64_t)fifoMem, LOCAL_FIFO_BASE, 0x0);
 
     using AccTile = TileAcc<OutT, M, N, M, N>;
-    using PushGlobal = GlobalTensor<OutT, pto::Shape<1, 1, 1, M, FULL_N>, pto::Stride<1, 1, 1, FULL_N, 1>>;
+    using SlotGlobal = GlobalTensor<OutT, pto::Shape<1, 1, 1, M, FULL_N>, pto::Stride<1, 1, 1, FULL_N, 1>>;
     using PopGlobal = GlobalTensor<OutT, pto::Shape<1, 1, 1, M / VEC_CORES, FULL_N>, pto::Stride<1, 1, 1, FULL_N, 1>>;
+    using VecTileData = Tile<TileType::Vec, OutT, RepeatN * VEC_M, N, BLayout::RowMajor, RepeatN * VEC_M, N>;
+    using LoadGlobal3D = GlobalTensor<OutT, pto::Shape<1, 1, RepeatN, VEC_M, N>, pto::Stride<1, 1, N, FULL_N, 1>>;
+    using OutGlobal3D = GlobalTensor<OutT, pto::Shape<1, 1, RepeatN, VEC_M, N>, pto::Stride<1, 1, N, FULL_N, 1>>;
 
     constexpr int blockAlign = C0_SIZE_BYTE / sizeof(InT);
     constexpr int ALIGNED_M = CeilAlign<int>(M, 16);
@@ -101,68 +104,62 @@ __global__ AICORE void runTPushTpopSubtile(__gm__ uint64_t *fftsAddr, __gm__ Out
         set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
         wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
 
-        PushGlobal pushGlobal;
-        TALLOC<MatPipe, PushGlobal, TileSplitAxis::TILE_UP_DOWN>(mPipe, pushGlobal);
+        SlotGlobal pushGlobal;
+        TALLOC<MatPipe, SlotGlobal, TileSplitAxis::TILE_UP_DOWN>(mPipe, pushGlobal);
 
         using StoreGlobal = GlobalTensor<OutT, pto::Shape<1, 1, 1, M, N>, pto::Stride<1, 1, 1, FULL_N, 1>>;
         StoreGlobal storeGlobal;
         for (int nTile = 0; nTile < RepeatN; ++nTile) { // 4
-            // Place each [M, N] slice at column offset nTile * N in the [M, FULL_N] slot.
+            // store [128, 128] data into one horizontal block of the [128, 512] slot
             TASSIGN(storeGlobal, pushGlobal.data() + nTile * N);
             TSTORE(storeGlobal, accTile);
         } // [128, 512] in Global memory
 
-        TPUSH<MatPipe, PushGlobal, TileSplitAxis::TILE_UP_DOWN>(mPipe, pushGlobal);
+        TPUSH<MatPipe, SlotGlobal, TileSplitAxis::TILE_UP_DOWN>(mPipe, pushGlobal);
 
         pipe_barrier(PIPE_ALL);
     }
 
     if constexpr (DAV_VEC) {
-        using VecTileData = Tile<TileType::Vec, OutT, VEC_M, FULL_N, BLayout::RowMajor, VEC_M, FULL_N>;
-        VecTileData vecTile;
-        VecTileData dstTile;
-        TASSIGN(vecTile, 0x0);
-        TASSIGN(dstTile, 0x20000);
+        VecTileData vecTile[2];
+        VecTileData dstTile[2];
+        TASSIGN(vecTile[0], 0x0);
+        TASSIGN(vecTile[1], 0x10000);
+        TASSIGN(dstTile[0], 0x20000);
+        TASSIGN(dstTile[1], 0x30000);
 
         uint32_t subBlockIdx = get_subblockid();
 
-        PopGlobal popGlobal; // [64, 512]
+        PopGlobal popGlobal;
         TPOP<MatPipe, PopGlobal, TileSplitAxis::TILE_UP_DOWN>(mPipe, popGlobal);
 
-        using LoadGlobal = GlobalTensor<OutT, pto::Shape<1, 1, 1, VEC_M, FULL_N>, pto::Stride<1, 1, 1, FULL_N, 1>>;
-        using OutGlobal = GlobalTensor<OutT, pto::Shape<1, 1, 1, VEC_M, FULL_N>, pto::Stride<1, 1, 1, FULL_N, 1>>;
-        LoadGlobal loadGlobal;
-        OutGlobal outGlobal;
-
-        set_flag(PIPE_V, PIPE_MTE2, EVENT_ID0);
-        set_flag(PIPE_MTE3, PIPE_V, EVENT_ID0);
+        LoadGlobal3D loadGlobal;
+        OutGlobal3D outGlobal;
+        set_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
+        set_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID1);
         for (int rowSlice = 0; rowSlice < VEC_LOAD_TIMES; ++rowSlice) { // 4
-            const size_t vecBaseRow = static_cast<size_t>(M / VEC_CORES) * subBlockIdx;
+            const uint32_t bufferIndex = static_cast<uint32_t>(rowSlice & 1);
+            const size_t vecBaseRow = static_cast<size_t>(M / VEC_CORES) * static_cast<size_t>(subBlockIdx);
             const size_t localRowOffset = static_cast<size_t>(rowSlice * VEC_M);
-            const size_t outRowOffset = (vecBaseRow + localRowOffset) * FULL_N;
-            __gm__ OutT *loadPtr = popGlobal.data() + rowSlice * VEC_M * FULL_N;
+            const size_t outRowOffset = (vecBaseRow + localRowOffset) * static_cast<size_t>(FULL_N);
+            __gm__ OutT *loadPtr = popGlobal.data() + localRowOffset * static_cast<size_t>(FULL_N);
 
-            wait_flag(PIPE_V, PIPE_MTE2, EVENT_ID0);
             TASSIGN(loadGlobal, loadPtr);
-            TLOAD(vecTile, loadGlobal); // load [16, 512] from [64, 512]
+            wait_flag(PIPE_MTE3, PIPE_MTE2, rowSlice & 1);
+            TLOAD(vecTile[bufferIndex], loadGlobal);
+            set_flag(PIPE_MTE2, PIPE_V, rowSlice & 1);
+            wait_flag(PIPE_MTE2, PIPE_V, rowSlice & 1);
 
-            set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-            wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-
-            // [16, 512]
-            wait_flag(PIPE_MTE3, PIPE_V, EVENT_ID0);
-            TADDS(dstTile, vecTile, static_cast<OutT>(3.14));
-            set_flag(PIPE_V, PIPE_MTE2, EVENT_ID0);
-
-            set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-            wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+            TADDS(dstTile[bufferIndex], vecTile[bufferIndex], static_cast<OutT>(3.14));
+            set_flag(PIPE_V, PIPE_MTE3, rowSlice & 1);
+            wait_flag(PIPE_V, PIPE_MTE3, rowSlice & 1);
 
             TASSIGN(outGlobal, out + outRowOffset);
-            TSTORE(outGlobal, dstTile);
-            set_flag(PIPE_MTE3, PIPE_V, EVENT_ID0);
+            TSTORE(outGlobal, dstTile[bufferIndex]);
+            set_flag(PIPE_MTE3, PIPE_MTE2, rowSlice & 1);
         }
-        wait_flag(PIPE_V, PIPE_MTE2, EVENT_ID0);
-        wait_flag(PIPE_MTE3, PIPE_V, EVENT_ID0);
+        wait_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
+        wait_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID1);
         TFREE<MatPipe, PopGlobal, TileSplitAxis::TILE_UP_DOWN>(mPipe, popGlobal);
 
         pipe_barrier(PIPE_ALL);

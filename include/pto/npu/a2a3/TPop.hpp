@@ -37,26 +37,6 @@ PTO_INTERNAL void TPOP_IMPL(Pipe &pipe, TileCons &tile)
     pipe.cons.tileIndex++;
 }
 
-template <typename Pipe, typename TileCons, TileSplitAxis Split>
-PTO_INTERNAL void TPOP_IMPL(Pipe &pipe, TileCons &tile, int32_t subBlockId)
-{
-    // 1. Cross-Core: Wait for Data
-    bool isWait = pipe.cons.getWaitStatus();
-    if (isWait) {
-        pipe.cons.wait();
-    }
-
-    // 2. Address Calculation & Load
-    pipe.cons.template pop<TileCons, Split>(pipe.fifo, tile, subBlockId);
-
-    // 3. Cross-Core: Free Space
-    bool isFree = pipe.cons.getFreeStatus() && Pipe::shouldNotifyFree(pipe.cons.tileIndex);
-    if (isFree) {
-        pipe.cons.free();
-    }
-    pipe.cons.tileIndex++;
-}
-
 // get sub-block offset for global data
 template <typename GlobalData, TileSplitAxis Split>
 PTO_INTERNAL uint64_t getPopSubAIVOffset()

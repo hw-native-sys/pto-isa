@@ -271,82 +271,10 @@ if (AUTO_MODE)
   set(AUTO_MODE_WHITELIST
   # TPUSH and TPOP currently directly use TASSIGN inside their implementations,
   # which doesn't work for auto mode. They need to be disabled for auto mode
-  # until rewritten to adapt to auto mode
-    tpushpop_cv
-    tpushpop_cv_nosplit
-    tpushpop_fixpipe
-    tpushpop_vc
-    tpushpop_vc_nosplit
-    tpushpop_dir_both
-    tpushpop_subtile
-  # the following case wait to be fix
-    tcvt
-    ttrans
-    ttrans_conv
-    tci
-    tquant
-    texpands_mat
-    tinsert
-    tscatter
-    tcolargmin
-    tcolargmax
-    tmov
-    tmatmul
-    tmatmul_mx
-    tmov_zz
-    tquant_dn
-    thistogram
-    tsubreluconv
-    tsubrelu
-    taddreluconv
-    tcolgather
-    tshrs
-    tcolscatter
-    tdequant
-    tci
-    tcolargmax
-    tcolargmin
-    tcolsum
-    tcolprod
-    tcvt
-    textract
-    textract_acc2vec
-    tfillpad
-    tgather
-    tgatherb
-    tload_mix
-    tload_mx_ND_DN
-    tload_mx_gmtensor
-    tload_shape2d
-    tmov
-    tpartadd
-    tpartmul
-    tpartmax
-    tpartmin
-    ttrans
-    ttrans_conv
-    tscatter
-    tquant
-    tinsert
-    tinsert_acc2vec
-    tmov_zz
-    tmatmul
-    tmatmul_mx
-    tmov_acc2vec
-    txor
-    txors
-    mgather_gm2l1
-    tcmp
-  )
-
-  foreach(whitelisted_case ${AUTO_MODE_WHITELIST})
-    list(REMOVE_ITEM ALL_TESTCASES ${whitelisted_case})
-  endforeach()
-
-  # TPREFETCH_ASYNC relies on manual-mode Tile::data() returning a raw __ubuf__
-  # pointer. In auto mode the CCE tile_size type system prevents this cast, and
-  # auto-mode scheduling makes manual prefetch unnecessary.
-  list(REMOVE_ITEM OPT_IN_TESTCASES tprefetch_async)
+  # until rewritten to adapt to auto mode. texpands_mat currently has to
+  # directly call CCE intrinsics in the kernel, which won't compile in auto
+  # mode; besides the auto-sync won't work with raw CCE intrinsics
+  list(APPEND ALL_TESTCASES tpushpop_cv tpushpop_cv_nosplit tpushpop_vc tpushpop_vc_nosplit tpushpop_dir_both tpushpop_subtile texpands_mat)
 endif()
 
 if((TEST_CASE IN_LIST ALL_TESTCASES) OR (TEST_CASE IN_LIST OPT_IN_TESTCASES) OR (TEST_CASE STREQUAL "all"))

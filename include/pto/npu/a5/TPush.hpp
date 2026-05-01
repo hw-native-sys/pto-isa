@@ -34,9 +34,6 @@ struct TPipe {
     static constexpr bool is_v2c_gm = (DIR_TYPE == Direction::DIR_V2C_GM);     // 6
     static constexpr bool is_both_gm = (DIR_TYPE == Direction::DIR_BOTH_GM);   // 7
     static constexpr uint32_t SyncPeriod = (SlotNum <= 2) ? SlotNum : SlotNum / 2;
-    static constexpr uint8_t FlagIDPlusOne = FlagID + 1;
-    static constexpr uint8_t FlagIDPlusTwo = FlagID + 2;
-    static constexpr uint8_t FlagIDPlusThree = FlagID + 3;
     static constexpr bool is_c2v = is_c2v_gm || is_c2v_ub;
     static constexpr bool is_v2c = is_v2c_gm || is_v2c_mat || is_v2c_ctrl;
     static_assert(is_c2v || is_v2c || is_both || is_both_gm,
@@ -52,24 +49,18 @@ struct TPipe {
 
     PTO_INTERNAL static bool shouldWaitFree(uint32_t tileIndex)
     {
-        if constexpr (SlotNum == 1) {
-            // First push uses the empty slot; later pushes wait for TPOP free.
-            return tileIndex > 0;
-        } else {
-            if (tileIndex < SlotNum) {
-                return false;
-            }
-            return (tileIndex % SyncPeriod) == 0;
+        // Startup protection: Don't check flags when buffer is empty
+        if (tileIndex < SlotNum) {
+            return false;
         }
+        // Sparse sync: Only check flags periodically to reduce overhead
+        return (tileIndex % SyncPeriod) == 0;
     }
 
     PTO_INTERNAL static bool shouldNotifyFree(uint32_t tileIndex)
     {
-        if constexpr (SlotNum == 1) {
-            return true;
-        } else {
-            return ((tileIndex + 1) % SyncPeriod) == 0;
-        }
+        // Notify consumer to free buffer when producer is one slot ahead of consumer
+        return ((tileIndex + 1) % SyncPeriod) == 0;
     }
 
     // -------------------------------------------------------------------------
@@ -702,27 +693,20 @@ struct TPipe {
 
     PTO_INTERNAL explicit TPipe(__gm__ void *GM_SLOT_BUFFER, uint32_t C2V_CONSUMER_BUF, uint32_t V2C_CONSUMER_BUF)
         : fifo(GM_SLOT_BUFFER, C2V_CONSUMER_BUF, V2C_CONSUMER_BUF), prod(), cons()
-    {}
+    {
+        for (uint32_t i = 0; i < SyncPeriod; ++i) {
+            if constexpr (IsNoSplit) {
+                cons.template free<TileSplitAxis::TILE_NO_SPLIT>();
+            } else {
+                cons.template free<TileSplitAxis::TILE_UP_DOWN>();
+            }
+        }
+    }
 
     // Destructor for TPipe
     PTO_INTERNAL ~TPipe()
     {
-        const uint32_t numPopFree = prod.tileIndex / SyncPeriod;
-        uint32_t numPushWait = 0;
-        if constexpr (SlotNum == 1) {
-            numPushWait = (prod.tileIndex > 0) ? prod.tileIndex - 1 : 0;
-        } else {
-            if (prod.tileIndex > SlotNum) {
-                constexpr uint32_t firstAligned =
-                    (SlotNum % SyncPeriod == 0) ? SlotNum : ((SlotNum / SyncPeriod) + 1) * SyncPeriod;
-                const uint32_t lastAligned = ((prod.tileIndex - 1) / SyncPeriod) * SyncPeriod;
-                if (lastAligned >= firstAligned) {
-                    numPushWait = (lastAligned - firstAligned) / SyncPeriod + 1;
-                }
-            }
-        }
-        const uint32_t drainCount = (numPopFree > numPushWait) ? (numPopFree - numPushWait) : 0;
-        for (uint32_t i = 0; i < drainCount; ++i) {
+        for (uint32_t i = 0; i < SyncPeriod; ++i) {
             if constexpr (IsNoSplit) {
                 prod.template allocate<TileSplitAxis::TILE_NO_SPLIT>();
             } else {
@@ -739,6 +723,7 @@ struct TPipe {
  * 2. [Store]   Write data to GM
  * 3. [Commit]  Signal Consumer (Cross-Core)
  */
+
 template <typename Pipe, typename TileProd, TileSplitAxis Split, std::enable_if_t<is_tile_data_v<TileProd>, int> = 0>
 PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
 {
@@ -759,27 +744,7 @@ PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
     }
 }
 
-template <typename Pipe, typename TileProd, TileSplitAxis Split>
-PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile, int32_t subBlockId)
-{
-    // 1. Cross-Core: Wait for space
-    bool isAllocate = pipe.prod.getAllocateStatus() && Pipe::shouldWaitFree(pipe.prod.tileIndex);
-    if (isAllocate) {
-        pipe.prod.template allocate<Split>();
-    }
-
-    // 2. Address Calculation
-    pipe.prod.template push<TileProd, Split>(pipe.fifo, tile, subBlockId);
-    pipe.prod.tileIndex++;
-
-    // 3. Cross-Core: Commit & Signal
-    bool isRecord = pipe.prod.getRecordStatus();
-    if (isRecord) {
-        pipe.prod.template record<Split>();
-    }
-}
-
-// TPUSH interface when push data from GM FIFO
+// interfaces when push data from GM FIFO
 template <typename Pipe, typename GlobalData, TileSplitAxis Split,
           std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
 PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, GlobalData &gmTensor)
@@ -788,24 +753,6 @@ PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, GlobalData &gmTensor)
     static_assert(Pipe::is_c2v_gm || Pipe::is_v2c_gm || Pipe::is_both_gm,
                   "Fix: TPUSH with GlobalTensor is only supported by GM FIFO directions on A5.");
     pipe.prod.template record<Split>();
-}
-
-// TPUSH interface with quant(Noquant, cast, scalar, vector, scalar)
-template <typename Pipe, typename TileProd, typename TConfig>
-PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
-{
-    bool isAllocate = pipe.prod.getAllocateStatus() && Pipe::shouldWaitFree(pipe.prod.tileIndex);
-    if (isAllocate) {
-        pipe.prod.template allocate<TileSplitAxis::TILE_NO_SPLIT>();
-    }
-
-    pipe.prod.template push<TileProd, TConfig>(pipe.fifo, tile);
-    pipe.prod.tileIndex++;
-
-    bool isRecord = pipe.prod.getRecordStatus();
-    if (isRecord) {
-        pipe.prod.template record<TileSplitAxis::TILE_NO_SPLIT>();
-    }
 }
 
 //------------------------multiple pipe------------------------

@@ -2,26 +2,23 @@
 
 ## 简介
 
-释放FIFO中的槽位(slot)空间。
+释放 `TPipe` 条目的 FIFO 空间。
 
-对于 TileData `TPOP` 流程，A2A3平台上`TPOP` 已经在内部执行空闲空间通知步骤。因此，面向 TileData 的 `TFREE(Pipe &pipe)` 接口当前是空操作，只是为了与 `GlobalData` 流程保持 API 对称。 A5平台上TFREE会释放TPOP使用的FIFO 槽位空间。
+对于 TileData `TPOP` 流程，`TPOP` 已经在内部执行空闲空间通知步骤。因此，面向 TileData 的 `TFREE(Pipe &pipe)` 接口当前是空操作，只是为了与 `GlobalData` 流程保持 API 对称。
 
 对于 `GlobalData` 流程，`TFREE(Pipe&, GlobalData&)` 会释放由 `TPOP(Pipe&, GlobalData&)` 返回的 FIFO 槽位视图。
 
 ## 操作语义
 
-对于 TileData 流程：
+对于 TileData push/pop：
 
-1. `TPUSH(Pipe&, TileData&, Split)` 将生产者 tile 存入当前 FIFO 槽位，并为消费者记录数据就绪同步。生产者 tile 索引在槽位地址计算完成后递增。
-2. `TPOP(Pipe&, TileData&, Split)` 等待生产者的数据就绪同步，将当前 FIFO 槽位加载到消费者 tile 中。消费者 tile 索引在槽位地址计算完成后递增。
-3. `TFREE(Pipe&, Split)` 释放 FIFO 中的槽位空间。A2A3 平台上此接口为空操作（`TPOP` 已在内部执行空闲空间通知），A5 平台上会释放 `TPOP` 使用的 FIFO 槽位空间。
+1. `TPUSH(Pipe&, TileData&)` 将 tile 存入 FIFO，并记录数据就绪。
+2. `TPOP(Pipe&, TileData&)` 等待数据就绪，将 FIFO 槽位加载到 tile 中，并根据 `Pipe::SyncPeriod` 通知空闲空间。
+3. `TFREE(Pipe&)` 不执行额外操作。
 
-对于 GlobalData 流程:
+只有在使用 `GlobalData` 分裂接口时才需要使用 `TFREE(Pipe&, GlobalData&)`。在该接口中，`TPOP` 返回 FIFO 槽位视图，由调用者显式决定何时可以释放槽位。
 
-1. `TALLOC(Pipe&, GlobalData&)` 从 `TPipe` 中分配一个生产者 FIFO 槽位，并将其暴露为 `GlobalTensor` 视图。生产者可通过 `TSTORE` 等指令向该槽位写入数据。
-2. `TPUSH(Pipe&, GlobalData&)` 为已经由 `TALLOC` 分配的槽位记录数据就绪同步，将 FIFO 槽位提交给消费者。它本身不会存储 tile 数据。
-3. `TPOP(Pipe&, GlobalData&)` 等待数据就绪，将 `gmTensor` 赋值为当前 FIFO 槽位地址，并递增消费者 tile 索引。它不会将数据加载到本地 tile，也不会释放槽位。消费者可通过 `TLOAD` 等指令从槽位中读取数据。
-4. `TFREE(Pipe&, GlobalData&)` 释放由 `TPOP(Pipe&, GlobalData&)` 返回的 FIFO 槽位视图，通知生产者该槽位空间已空闲。
+对于 `GlobalData`，`TFREE` 会在发出空闲空间通知前检查 `pipe.cons.getFreeStatus()` 和 `Pipe::shouldNotifyFree(...)`。
 
 ## C++ Intrinsic
 
@@ -49,14 +46,12 @@ PTO_INTERNAL void TFREE_IMPL(Pipe &pipe)
 ## 约束
 
 - **TileData 流程**：
-    - 当弹出的 FIFO 槽位中的数据不再需要时，使用 `TFREE(Pipe&, GlobalData&)`。
-    - 搭配使用TPUSH/TPOP/TFREE实现核间同步和数据传输，数据传输时推入的tileshape和弹出的tileshape的大小比例关系是1:1或者1:2。
-    
+    - 不要使用 `TFREE(Pipe&)` 去释放由 `TPOP(Pipe&, TileData&)` 弹出的 tile；释放已经在 TileData `TPOP` 内部完成。
+    - 在 A2A3 上，TileData `TPOP` 之后调用 `TFREE(Pipe&)` 没有效果。
 - **GlobalData 流程**：
     - 当弹出的 FIFO 槽位中的数据不再需要时，使用 `TFREE(Pipe&, GlobalData&)`。
     - `gmTensor` 只用于选择重载；实现不会读取或写入 tensor 内容。
     - 空闲空间通知是稀疏的，并由 `Pipe::SyncPeriod` 控制。
-    - 如果非1:1或者1:2关系，即存在subtile的数据传输，需要搭配使用TALLOC/TPUSH/TPOP/TFREE来实现核间同步和数据传输。
 
 ## 示例
 
@@ -82,8 +77,22 @@ AICORE void example_tiledata(__gm__ void *fifoMem)
     VecTile tile;
 
     TPOP<Pipe, VecTile, TileSplitAxis::TILE_UP_DOWN>(pipe, tile);
-    ...  // final use of VecTile
-    TFREE<Pipe, VecTile, TileSplitAxis::TILE_UP_DOWN>(pipe, slot);
+
+    // No TFREE is required here. TileData TPOP already handles free-space notification.
+}
+```
+
+### 空操作 API 对称性
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+template <typename Pipe>
+AICORE void example_noop(Pipe &pipe)
+{
+    TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(pipe);
 }
 ```
 

@@ -515,14 +515,13 @@ if [ "$ENABLE_A5" = "true" ]; then
     if [ "$IS_AUTO_MODE" = "false" ]; then
       # this testcase has to directly call CCE intrinsics now, which won't compile for auto mode;
       # besides, auto-sync doesn't work with CCE intrisics
-      python3 tests/script/run_st.py $ARGS -v a5 -t texpands_mat -g TEXPANDSTest.case1
-      python3 tests/script/run_st.py $ARGS -v a5 -t tpushpop_cv -g TPushPopCVTest.case1_half_single_tile
-      python3 tests/script/run_st.py $ARGS -v a5 -t tpushpop_vc -g TPushPopVCTest.case1_int8_single_k_tile
-      python3 tests/script/run_st.py $ARGS -v a5 -t tpushpop_cv_nosplit -g TPushPopCVNoSplitTest.case1_half_single_tile
-      python3 tests/script/run_st.py $ARGS -v a5 -t tpushpop_vc_nosplit -g TPushPopVCNSTest.case1_int8_single_k_tile
-      python3 tests/script/run_st.py $ARGS -v a5 -t tpushpop_dir_both -g TPushPopDirBothTest.case1_float_dir_both
-      # Temporarily skip: current merged A5 TPush/TPop/TAlloc/TFree APIs no longer compile this smoke testcase.
-      # python3 tests/script/run_st.py $ARGS -v a5 -t tpushpop_subtile -g TPushTpopSubtileTest.case1_half_128x512
+      python3 tests/script/run_st.py $ARGS -w -v a5 -t texpands_mat -g TEXPANDSTest.case1
+      python3 tests/script/run_st.py $ARGS -w -v a5 -t tpushpop_cv -g TPushPopCvTest.case1_half_single_tile
+      python3 tests/script/run_st.py $ARGS -w -v a5 -t tpushpop_vc -g TPushPopVcTest.case1_int8_single_k_tile
+      python3 tests/script/run_st.py $ARGS -w -v a5 -t tpushpop_cv_nosplit -g TPushPopCvNoSplitTest.case1_half_single_tile
+      python3 tests/script/run_st.py $ARGS -w -v a5 -t tpushpop_vc_nosplit -g TPushPopVcNoSplitTest.case1_int8_single_k_tile
+      python3 tests/script/run_st.py $ARGS -w -v a5 -t tpushpop_dir_both -g TPushPopDirBothTest.case1_float_dir_both
+      python3 tests/script/run_st.py $ARGS -w -v a5 -t tpushpop_subtile -g TPushTpopSubtileTest.case1_half_128x512
     fi
     python3 tests/script/run_st.py $ARGS -w -v a5 -t textract -g TEXTRACTTest.case1
     python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_acc2vec -g TMOVTest.case_nz2nd_sc_quant_1
@@ -665,51 +664,6 @@ if [ "$ENABLE_A5" = "true" ]; then
       python3 tests/script/run_st.py $ARGS -w -v a5 -t tpushpop_vc_nosplit
       python3 tests/script/run_st.py $ARGS -w -v a5 -t tpushpop_dir_both
       python3 tests/script/run_st.py $ARGS -w -v a5 -t tpushpop_subtile
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t thistogram
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tsubreluconv
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t taddreluconv
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tsubrelu
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolgather
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolscatter
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tshrs
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tdequant
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tci
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolargmax
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolargmin
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolsum
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolprod
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tcvt
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t textract
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_acc2vec
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tfillpad
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tgather
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tgatherb
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tload_mix
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tload_mx_ND_DN
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tload_mx_gmtensor
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tload_shape2d
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tmov
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tpartadd
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tpartmul
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tpartmax
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tpartmin
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t ttrans
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t ttrans_conv
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tscatter
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tquant
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert_acc2vec
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tmov_zz
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tmatmul
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tmatmul_mx
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tmov_acc2vec
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t txor
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t txors
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t mgather_gm2l1
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tcmp
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tfusedmuladd
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tfusedmuladdrelu
-      python3 tests/script/run_st.py $ARGS -w -v a5 -t tmuladddst
     fi
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tload
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tload_mx_NZ
@@ -887,18 +841,18 @@ if [ "$ENABLE_KIRIN9030" = "true" ]; then
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t texpands_mat
 fi
 
-# if [ "$ENABLE_COMM" = "true" ]; then
-#   if [ "$ENABLE_A3" = "true" ]; then
-#     python3 tests/script/run_st.py $ARGS -v a3 -t comm/tput
-#     python3 tests/script/run_st.py $ARGS -v a3 -t comm/tget
-#     python3 tests/script/run_st.py $ARGS -v a3 -t comm/tnotify
-#     python3 tests/script/run_st.py $ARGS -v a3 -t comm/twait
-#     python3 tests/script/run_st.py $ARGS -v a3 -t comm/ttest
-#     python3 tests/script/run_st.py $ARGS -v a3 -t comm/tgather
-#     python3 tests/script/run_st.py $ARGS -v a3 -t comm/tscatter
-#     python3 tests/script/run_st.py $ARGS -v a3 -t comm/treduce
-#     python3 tests/script/run_st.py $ARGS -v a3 -t comm/tbroadcast
-#     python3 tests/script/run_st.py $ARGS -v a3 -t comm/tput_async
-#     python3 tests/script/run_st.py $ARGS -v a3 -t comm/tget_async
-#   fi
-# fi
+if [ "$ENABLE_COMM" = "true" ]; then
+  if [ "$ENABLE_A3" = "true" ]; then
+    python3 tests/script/run_st.py $ARGS -v a3 -t comm/tput
+    python3 tests/script/run_st.py $ARGS -v a3 -t comm/tget
+    python3 tests/script/run_st.py $ARGS -v a3 -t comm/tnotify
+    python3 tests/script/run_st.py $ARGS -v a3 -t comm/twait
+    python3 tests/script/run_st.py $ARGS -v a3 -t comm/ttest
+    python3 tests/script/run_st.py $ARGS -v a3 -t comm/tgather
+    python3 tests/script/run_st.py $ARGS -v a3 -t comm/tscatter
+    python3 tests/script/run_st.py $ARGS -v a3 -t comm/treduce
+    python3 tests/script/run_st.py $ARGS -v a3 -t comm/tbroadcast
+    python3 tests/script/run_st.py $ARGS -v a3 -t comm/tput_async
+    python3 tests/script/run_st.py $ARGS -v a3 -t comm/tget_async
+  fi
+fi

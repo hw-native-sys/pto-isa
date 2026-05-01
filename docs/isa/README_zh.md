@@ -108,7 +108,13 @@
 - [TSCATTER](TSCATTER_zh.md) - 使用逐元素行索引将源 Tile 的行散播到目标 Tile 中。
 - [TQUANT](TQUANT_zh.md) - 量化 Tile（例如 FP32 到 FP8），生成指数/缩放/最大值输出。
 
-- [参考注释](reference/README_zh.md)（术语表、诊断、可移植性、规范来源）
+## 核间通信
+- [TALLOC](TALLOC_zh.md) - 将 TPipe FIFO 槽位分配为一个 GlobalTensor 视图。
+- [TPUSH](TPUSH_zh.md) - 将生产者 tile 推入 TPipe FIFO，用于 Cube-Vector 通信。
+- [TPOP](TPOP_zh.md) - 从 TPipe FIFO 弹出消费者 tile/globalTensor，用于 Cube-Vector 通信。
+- [TFREE](TFREE_zh.md) - 释放 TPipe 的 FIFO 空间；对于 TileData/GlobalTensor 的 TPOP 流程，该操作为空操作。
+
+## 通信
 
 ## 核间通信
 
