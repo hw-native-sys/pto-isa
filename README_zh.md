@@ -130,10 +130,26 @@ python3 tests/script/run_st.py -r sim -v a3 -t tadd -g TADDTest.case_float_64x64
 
 ### Flash Attention
 
-- 参考实现：`kernels/manual/common/flash_atten/`
-- 详细分析与调参说明：[Flash Attention 算子实现](kernels/manual/common/flash_atten/README_zh.md)
+- 参考实现：`kernels/manual/common/flash_atten/` 用于 A2/A3，`kernels/manual/a5/flash_atten/` 用于 A5
+- 详细分析与调优说明：[Flash Attention 算子实现](kernels/manual/common/flash_atten/README_zh.md)
+- A5 构建说明（A5 性能数据仍待补充）：[Flash Attention Performance Kernel (A5)](kernels/manual/a5/flash_atten/README.md)
 - S0：query 序列长度（Q/O 的行数）
 - S1：key/value 序列长度（K/V 的行数）
+
+Ascend 910B2（A2/A3）多核对比，基线为 `torch_npu`：
+
+| 序列长度 | PTO 时间 (us) | torch_npu 时间 (us) | PTO TFLOPS | torch_npu TFLOPS | 加速比 |
+| --- | --- | --- | --- | --- | --- |
+| 1024 | 20.960 | 58.461 | 25.61 | 9.18 | 2.79x |
+| 2048 | 32.461 | 70.801 | 66.16 | 30.33 | 2.18x |
+| 4096 | 88.902 | 118.302 | 96.62 | 72.61 | 1.33x |
+| 8192 | 292.626 | 353.147 | 117.42 | 97.30 | 1.21x |
+| 16384 | 909.058 | 1118.462 | 151.19 | 122.88 | 1.23x |
+| 32768 | 3262.645 | 3646.173 | 168.50 | 150.78 | 1.12x |
+
+![Flash Attention 910B2 PTO vs torch_npu](docs/figures/performance/fa_910b2_pto_vs_torch_npu.png)
+
+附：A2/A3 归一化性能参考：
 
 ![Flash Attention 归一化 TFLOPS（A2/A3）](docs/figures/performance/fa_normalized_tflops_a2a3.svg)
 
