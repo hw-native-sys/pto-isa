@@ -7,7 +7,7 @@ Tile-scalar operations combine a tile operand with a scalar value or immediate o
 | Operation | Description | Category | C++ Intrinsic |
 |-----------|-------------|----------|----------------|
 | [pto.tadds](./ops/tile-scalar-and-immediate/tadds.md) | Elementwise addition with scalar | Binary | `TADDS(dst, src, scalar)` |
-| [pto.taxpy](./ops/tile-scalar-and-immediate/taxpy.md) | AXPY-style fused tile-scalar update | Fused binary | `TAXPY(dst, src0, scalar, src1)` |
+| [pto.taxpy](./ops/tile-scalar-and-immediate/taxpy.md) | AXPY-style fused tile-scalar update | Fused binary | `TAXPY(dst, src0, scalar)` |
 | [pto.tsubs](./ops/tile-scalar-and-immediate/tsubs.md) | Elementwise subtraction with scalar | Binary | `TSUBS(dst, src, scalar)` |
 | [pto.tmuls](./ops/tile-scalar-and-immediate/tmuls.md) | Elementwise multiplication with scalar | Binary | `TMULS(dst, src, scalar)` |
 | [pto.tpows](./ops/tile-scalar-and-immediate/tpows.md) | Elementwise power with scalar exponent | Binary | `TPOWS(dst, base, exp, tmp)` |

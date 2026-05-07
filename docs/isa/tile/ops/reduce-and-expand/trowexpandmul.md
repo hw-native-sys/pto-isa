@@ -191,4 +191,3 @@ pto.trowexpandmul ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 - Instruction set overview: [Reduce And Expand](../../reduce-and-expand.md)
 - Previous op in instruction set: [pto.trowexpandsub](./trowexpandsub.md)
 - Next op in instruction set: [pto.trowexpanddiv](./trowexpanddiv.md)
-

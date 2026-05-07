@@ -192,4 +192,3 @@ pto.tsort32 ins(%src, %idx : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst :
 - Instruction set overview: [Irregular And Complex](../../irregular-and-complex.md)
 - Previous op in instruction set: [pto.tmrgsort](./tmrgsort.md)
 - Next op in instruction set: [pto.tgather](./tgather.md)
-

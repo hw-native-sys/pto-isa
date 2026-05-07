@@ -204,4 +204,3 @@ pto.trowexpandmin ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 - Instruction set overview: [Reduce And Expand](../../reduce-and-expand.md)
 - Previous op in instruction set: [pto.trowexpandmax](./trowexpandmax.md)
 - Next op in instruction set: [pto.trowexpandexpdif](./trowexpandexpdif.md)
-

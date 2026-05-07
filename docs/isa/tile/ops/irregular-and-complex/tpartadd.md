@@ -179,4 +179,3 @@ pto.tpartadd ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%ds
 - Instruction set overview: [Irregular And Complex](../../irregular-and-complex.md)
 - Previous op in instruction set: [pto.ttri](./ttri.md)
 - Next op in instruction set: [pto.tpartmul](./tpartmul.md)
-

@@ -34,7 +34,10 @@ Textual spelling is defined by the PTO ISA syntax-and-operands pages.
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp`:
+!!! warning "No public C++ intrinsic yet"
+    `pto.tpack` is reserved in the ISA but **does not currently expose a public `TPACK(...)` declaration in `include/pto/common/pto_instr.hpp`** or in the per-backend headers. The signature shown below is the intended contract once the intrinsic lands; until then, `tpack` is reachable only through internal lowering paths and tests, and user code must not depend on the C++ form.
+
+Intended (not-yet-public) signature:
 
 ```cpp
 template <typename DstTileData, typename SrcTileData, typename... WaitEvents>
@@ -101,6 +104,8 @@ A `tpack` followed by a layout-converting move is the canonical path for produci
     - Programs must not rely on behavior outside the documented legal domain of this operation.
 
 ## Examples
+
+No public C++ intrinsic is declared yet (see the C++ Intrinsic section above), so user kernels cannot call `TPACK(...)` directly. Once the intrinsic lands, follow the canonical pattern of declaring source/destination tiles with the matching packing ratio and issuing a single `TPACK(dst, src);` on the vector pipe.
 
 See related instruction pages in `docs/isa/` for concrete Auto/Manual usage patterns.
 

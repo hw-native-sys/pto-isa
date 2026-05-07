@@ -206,4 +206,3 @@ pto.tgather ins(%src, %indices : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%d
 - Instruction set overview: [Irregular And Complex](../../irregular-and-complex.md)
 - Previous op in instruction set: [pto.tsort32](./tsort32.md)
 - Next op in instruction set: [pto.tgatherb](./tgatherb.md)
-

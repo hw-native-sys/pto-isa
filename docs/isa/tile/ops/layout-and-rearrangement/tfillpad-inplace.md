@@ -125,4 +125,3 @@ pto.tfillpad_inplace ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<..
 - Instruction set overview: [Layout And Rearrangement](../../layout-and-rearrangement.md)
 - Previous op in instruction set: [pto.tfillpad](./tfillpad.md)
 - Next op in instruction set: [pto.tfillpad_expand](./tfillpad-expand.md)
-

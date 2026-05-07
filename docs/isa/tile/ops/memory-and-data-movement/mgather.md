@@ -144,4 +144,3 @@ pto.mgather ins(%mem, %idx : !pto.partition_tensor_view<MxNxdtype>, !pto.tile_bu
 - Instruction set overview: [Memory And Data Movement](../../memory-and-data-movement.md)
 - Previous op in instruction set: [pto.tstore](./tstore.md)
 - Next op in instruction set: [pto.mscatter](./mscatter.md)
-

@@ -6,15 +6,15 @@
 
 ## Summary
 
-`pto.taxpy` is the tile-level form of the BLAS AXPY primitive. It computes `dst = src0 * scalar + src1` elementwise across the destination valid region in a single fused vector operation, avoiding the temporary tile that a separate TMULS + TADD pair would materialise.
+`pto.taxpy` is the tile-level form of the BLAS AXPY primitive. It updates `dst` in place with `dst = dst + src0 * scalar` elementwise across the destination valid region in a single fused vector operation, avoiding the temporary tile that a separate TMULS + TADD pair would materialise.
 
 ## Mechanism
 
 For every element index `i` in the destination valid region:
 
-$$\mathrm{dst}_i = \alpha \cdot \mathrm{src0}_i + \mathrm{src1}_i$$
+$$\mathrm{dst}_i \mathrel{+}= \alpha \cdot \mathrm{src0}_i$$
 
-where $\alpha$ is the scalar argument. The op executes on the **vector pipe** (PIPE_V) as a fused multiply-add against a broadcast scalar, with no intermediate tile written back.
+where $\alpha$ is the scalar argument. The op executes on the **vector pipe** (PIPE_V) as a fused multiply-add against a broadcast scalar, accumulating into `dst` with no intermediate tile written back.
 
 ## Syntax
 
@@ -23,13 +23,13 @@ Textual spelling is defined by the PTO ISA syntax-and-operands pages.
 ### IR Level 1 (SSA)
 
 ```text
-%dst, %event = pto.taxpy %src0, %scalar, %src1 : (!pto.tile<...>, <scalar>, !pto.tile<...>) -> (!pto.tile<...>, !pto.record_event)
+%dst, %event = pto.taxpy %dst_in, %src0, %scalar : (!pto.tile<...>, !pto.tile<...>, <scalar>) -> (!pto.tile<...>, !pto.record_event)
 ```
 
 ### IR Level 2 (DPS)
 
 ```text
-%event = pto.taxpy ins(%src0, %scalar, %src1) outs(%dst : !pto.tile_buf<...>) -> !pto.record_event
+%event = pto.taxpy ins(%src0, %scalar) outs(%dst : !pto.tile_buf<...>) -> !pto.record_event
 ```
 
 ## C++ Intrinsic
@@ -37,19 +37,19 @@ Textual spelling is defined by the PTO ISA syntax-and-operands pages.
 Declared in `include/pto/common/pto_instr.hpp`:
 
 ```cpp
-template <typename DstTileData, typename SrcTileData0, typename ScalarT, typename SrcTileData1,
-          typename... WaitEvents>
-PTO_INST RecordEvent TAXPY(DstTileData &dst, SrcTileData0 &src0, ScalarT scalar,
-                           SrcTileData1 &src1, WaitEvents&... events);
+template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
+PTO_INST RecordEvent TAXPY(TileDataDst &dst, TileDataSrc &src0,
+                           typename TileDataSrc::DType scalar,
+                           WaitEvents&... events);
 ```
 
 ## Inputs
 
 | Operand | Description |
 |---------|-------------|
+| `dst` | Accumulator tile; read and written in place (`dst += src0 * scalar`). |
 | `src0` | Tile multiplied by `scalar`. |
-| `scalar` | Broadcast scalar coefficient (same element type as `src0`/`src1`). |
-| `src1` | Tile added to the scaled `src0`. |
+| `scalar` | Broadcast scalar coefficient with element type `TileDataSrc::DType`. |
 | `events...` | Optional `RecordEvent` tokens to wait on before issuing. |
 
 ## Expected Outputs
@@ -57,7 +57,7 @@ PTO_INST RecordEvent TAXPY(DstTileData &dst, SrcTileData0 &src0, ScalarT scalar,
 | Result | Type | Description |
 |--------|------|-------------|
 | `RecordEvent` | token | Signals completion of the fused multiply-add. |
-| `dst` | tile | Holds `src0 * scalar + src1` over the valid region; padding region is unmodified. |
+| `dst` | tile | Holds `dst + src0 * scalar` over the valid region; padding region is unmodified. |
 
 ## Side Effects
 
@@ -68,9 +68,9 @@ PTO_INST RecordEvent TAXPY(DstTileData &dst, SrcTileData0 &src0, ScalarT scalar,
 ## Constraints
 
 !!! warning "Constraints"
-    - `dst`, `src0`, `src1` must share the same shape, layout, and element type.
-    - `scalar` must be an arithmetic type compatible with the tile element type (no implicit narrowing conversions).
-    - `dst` may alias `src0` or `src1` (in-place fused update is supported).
+    - `dst` and `src0` must share the same shape, layout, and element type.
+    - `scalar` must match `TileDataSrc::DType`; no implicit narrowing conversions are performed.
+    - `dst` is read-modify-written in place; the prior contents of `dst` are part of the result.
     - Refer to backend-specific legality checks for data type/layout/location/shape constraints not covered above.
 
 ## Performance
@@ -102,15 +102,15 @@ Replacing a TMULS + TADD pair with a single `taxpy` halves the vector-pipe issue
 ## Exceptions
 
 !!! danger "Exceptions"
-    - Mismatched element types between `src0`, `src1`, and `dst` are rejected at compile time via `static_assert`.
+    - Mismatched element types between `src0` and `dst` are rejected at compile time via `static_assert`.
     - A `scalar` whose type cannot be broadcast-converted to the tile element type is rejected at compile time.
     - Programs must not rely on behavior outside the documented legal domain of this operation.
 
 ## Examples
 
 ```cpp
-// dst = 0.5f * src0 + src1, fused, in-place into src1's storage when desired.
-TAXPY(dst, src0, 0.5f, src1);
+// dst += 0.5f * src0, fused multiply-accumulate in place.
+TAXPY(dst, src0, 0.5f);
 ```
 
 See related instruction pages in `docs/isa/` for concrete Auto/Manual usage patterns.

@@ -181,4 +181,3 @@ pto.tci ins(%scalar {descending = false} : dtype) outs(%dst : !pto.tile_buf<...>
 - Instruction set overview: [Irregular And Complex](../../irregular-and-complex.md)
 - Previous op in instruction set: [pto.tscatter](./tscatter.md)
 - Next op in instruction set: [pto.ttri](./ttri.md)
-

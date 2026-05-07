@@ -134,4 +134,3 @@ pto.tprefetch ins(%src : !pto.global<...>) outs(%dst : !pto.tile_buf<...>)
 - Instruction set overview: [Memory And Data Movement](../../memory-and-data-movement.md)
 - Previous op in instruction set: [pto.tload](./tload.md)
 - Next op in instruction set: [pto.tstore](./tstore.md)
-

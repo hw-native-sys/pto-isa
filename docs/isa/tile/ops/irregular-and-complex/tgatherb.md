@@ -181,4 +181,3 @@ pto.tgatherb ins(%src, %offsets : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%
 - Instruction set overview: [Irregular And Complex](../../irregular-and-complex.md)
 - Previous op in instruction set: [pto.tgather](./tgather.md)
 - Next op in instruction set: [pto.tscatter](./tscatter.md)
-

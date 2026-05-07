@@ -149,4 +149,3 @@ pto.mscatter ins(%src, %idx : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%mem 
 
 - Instruction set overview: [Memory And Data Movement](../../memory-and-data-movement.md)
 - Previous op in instruction set: [pto.mgather](./mgather.md)
-
