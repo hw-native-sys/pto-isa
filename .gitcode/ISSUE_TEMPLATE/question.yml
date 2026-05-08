@@ -9,7 +9,7 @@ body:
         Welcome to ask questions and discuss with other members.
   - type: textarea
     attributes:
-      label: 问题描述
-      description: 请描述下您的问题
+      label: 问题描述|Problem Description
+      description: 请描述下您的问题|Please describe your issue.
     validations:
       required: true

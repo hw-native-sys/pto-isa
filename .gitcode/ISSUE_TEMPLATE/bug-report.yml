@@ -10,32 +10,32 @@ body:
   - type: textarea
     attributes:
       label: 发生了什么问题？
-      description:
+      description: What happened?
     validations:
       required: true
 
   - type: textarea
     attributes:
       label: 期望的行为是什么？
-      description:
+      description: What is the expected behavior?
     validations:
       required: true
 
   - type: textarea
     attributes:
       label: 如何复现该缺陷？
-      description:
+      description: How can this defect be reproduced?
     validations:
       required: true
 
   - type: textarea
     attributes:
       label: 环境&版本信息
-      description:
+      description: Environment and Version Information
     validations:
       required: true
 
   - type: textarea
     attributes:
       label: 其他
-      description:
+      description: Other

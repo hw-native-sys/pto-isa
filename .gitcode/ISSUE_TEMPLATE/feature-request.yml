@@ -10,20 +10,20 @@ body:
   - type: textarea
     attributes:
       label: 应用场景
-      description:
+      description: Application Scenarios
     validations:
       required: true
 
   - type: textarea
     attributes:
       label: 期望支持的硬件
-      description:
+      description: Expected hardware support.
     validations:
       required: true
 
   - type: textarea
     attributes:
       label: 期望支持的数据类型、Shape、布局等
-      description:
+      description: Expected support for data types, shapes, layouts, etc.
     validations:
       required: true
