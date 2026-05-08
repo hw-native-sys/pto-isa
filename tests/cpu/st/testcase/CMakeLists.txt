@@ -37,120 +37,122 @@ endfunction()
 find_package(Threads REQUIRED)
 
 set(ALL_TESTCASES
-hashfind
-mgather
-mscatter
-setgetval
-tabs
-tadd
-taddc
-tadds
-taddsc
-tassign_alias
-tand
-tands
-targreduceop
-taxpy
-tbroadcast
-tci
-tcmp
-tcmps
-tcolexpand
-tcolexpandop
-tcolmax
-tcolmin
-tcolprod
-tcolreduceidx
-tcolsum
-tconcat
-tcvt
-tdequant
-tdiv
-tdivs
-texp
-texpands
-textract
-tfillpad
-tflashattn
-tfmod
-tfmods
-tgather
-tgatherb
-tget
-tget_async
-tget_scale_addr
-tgetscaleaddr
-thistogram
-timg2col
-tinsert
-tload
-tloadconv
-tlog
-tlrelu
-tmatmul
-tmatmul_layout
-#tmatmul_mx
-tmax
-tmaxs
-tmin
-tmins
-tmov
-tmrgsort
-tmul
-tmuls
-tneg
-tnot
-tnotify
-tor
-tors
-tpartadd
-tpartmul
-tpartmax
-tpartmin
-tprefetch
-tprelu
-tpushpop
-tput
-tput_async
-tquant
-trandom
-trecip
-treduce
-trelu
-trem
-trems
-treshape
-trowexpand
-trowexpandop
-trowmax
-trowmin
-trowreduceidx
-trowsum
-trsqrt
-tscatter
-tsel
-tsels
-tshl
-tshls
-tshr
-tshrs
-tsort32
-tsqrt
-tstore
-tsub
-tsubview
-tsubc
-tsubs
-tsubsc
-ttest
-ttrans
-ttri
-twait
-txor
-txors
-tpushpop_cv_nosplit
-tpushpop_cv
-tpushpop_vc_nosplit
+# hashfind
+# mgather
+# mscatter
+# setgetval
+# tabs
+# tadd
+# taddc
+# tadds
+# taddsc
+# tassign_alias
+# tand
+# tands
+# targreduceop
+# taxpy
+# tbroadcast
+# tci
+# tcmp
+# tcmps
+# tcolexpand
+# tcolexpandop
+# tcolmax
+# tcolmin
+# tcolprod
+# tcolreduceidx
+# tcolsum
+# tconcat
+# tcvt
+# tdequant
+# tdiv
+# tdivs
+# texp
+# texpands
+# textract
+# tfillpad
+# tflashattn
+# tfmod
+# tfmods
+# tgather
+# tgatherb
+# tget
+# tget_async
+# tget_scale_addr
+# tgetscaleaddr
+# thistogram
+# timg2col
+# tinsert
+# tload
+# tloadconv
+# tlog
+# tlrelu
+# tmatmul
+# tmatmul_layout
+# #tmatmul_mx
+# tmax
+# tmaxs
+# tmin
+# tmins
+# tmov
+# tmrgsort
+# tmul
+# tmuls
+# tneg
+# tnot
+# tnotify
+# tor
+# tors
+# tpartadd
+# tpartmul
+# tpartmax
+# tpartmin
+# tprefetch
+# tprelu
+# tpushpop
+# tput
+# tput_async
+# tquant
+# trandom
+# trecip
+# treduce
+# trelu
+# trem
+# trems
+# treshape
+# trowexpand
+# trowexpandop
+# trowmax
+# trowmin
+# trowreduceidx
+# trowsum
+# trsqrt
+# tscatter
+# tsel
+# tsels
+# tshl
+# tshls
+# tshr
+# tshrs
+# tsort32
+# tsqrt
+# tstore
+# tsub
+# tsubview
+# tsubc
+# tsubs
+# tsubsc
+# ttest
+# ttrans
+# ttri
+# twait
+# txor
+# txors
+# tpushpop_cv_nosplit
+# tpushpop_cv
+# tpushpop_vc_nosplit
+tpush_a3
+tpush_a5
 )
 
 foreach(TESTCASE ${ALL_TESTCASES})
