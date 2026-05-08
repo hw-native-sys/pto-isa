@@ -82,26 +82,6 @@ PTO_INST RecordEvent THISTOGRAM(TileDataDst &dst, TileDataSrc &src, TileDataIdx 
     - `dst` must be initialised by the caller (e.g. via `TASSIGN`, `TFILL`, or `TMOV`) before the first accumulation.
     - Refer to backend-specific legality checks for data type/layout/location/shape constraints not covered above.
 
-## Performance
-
-### A2/A3 Cycle Count
-
-Not applicable — `pto.thistogram` is **A5-only**.
-
-### A5 Cycle Count
-
-The cost is dominated by per-element bin lookup and the serialised increment write-back. Throughput is approximately one source element per inner-loop cycle, with a startup cost for setting up the bin map.
-
-**Cycle model**:
-
-```
-total ≈ startup + R × C / hist_throughput
-```
-
-The shape of `dst` (number of bins) does not change throughput, but a histogram with strong bin-locality (many increments to the same bin) can stall on the bin-write port.
-
-> Note: cycle numbers are first-order estimates; populate with measured values from `pto-isa/a5_benchmark.csv`.
-
 ## Exceptions
 
 !!! danger "Exceptions"

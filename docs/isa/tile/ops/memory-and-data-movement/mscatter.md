@@ -91,18 +91,6 @@ This operation writes to global memory. Concurrent writes to the same location p
         - Index interpretation is target-defined. The CPU simulator treats indices as linear element indices into `dst.data()`.
         - The CPU simulator does not enforce bounds checks on `indexes`.
 
-## Performance
-
-### A2/A3 Cycle Count
-
-`pto.mscatter` is the matrix-scatter DMA dual of `mgather`: indexed stores from a `Mat` tile to GM, on the MTE3/DMA path.
-
-**Cycle model**: `total ≈ startup + N_idx × per_index_dma + drain`.
-
-Duplicate destination indices may serialize via the atomic resolution path.
-
-> Note: cycle numbers below are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
-
 ## Exceptions
 
 !!! danger "Exceptions"

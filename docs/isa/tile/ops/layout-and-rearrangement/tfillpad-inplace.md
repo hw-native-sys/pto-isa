@@ -68,16 +68,6 @@ No architectural side effects beyond producing the destination tile. Does not im
 !!! warning "Constraints"
     Type/layout/location/shape legality is backend-dependent; treat implementation-specific notes as normative for that backend.
 
-## Performance
-
-### A2/A3 Cycle Count
-
-`pto.tfillpad-inplace` writes the pad value directly into the tile without copying any source data; it is typically used to clear the invalid region of a tile that was just produced.
-
-**Cycle model**: `total ≈ startup + R × per_row_pad_store`.
-
-> Note: cycle numbers below are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
-
 ## Exceptions
 
 !!! danger "Exceptions"

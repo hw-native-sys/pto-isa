@@ -69,26 +69,6 @@ PTO_INST RecordEvent TFREE(Pipe &pipe, WaitEvents&... events);
     - `pto.tfree` must not be issued from the producer side; it is consumer-side only.
     - Refer to backend-specific legality checks for data type/layout/location/shape constraints not covered above.
 
-## Performance
-
-### A2/A3 Cycle Count
-
-`pto.tfree` is a control-only update. Cost is dominated by the cross-core synchronisation flag write that releases the slot.
-
-**Cycle model**:
-
-```
-total ≈ startup + sync_release_overhead
-```
-
-The op does not consume vector or DMA bandwidth and is independent of tile shape.
-
-### Layout and Shape Impact
-
-Tile shape does not affect cost; the op is metadata-only.
-
-> Note: cycle numbers are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
-
 ## Exceptions
 
 !!! danger "Exceptions"

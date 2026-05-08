@@ -83,41 +83,6 @@ No architectural side effects beyond producing the destination tile. Does not im
 
     - Exact layout/fractal constraints are target-specific; see backend headers under `include/pto/npu/*/TRowExpand*.hpp`.
 
-## Performance
-
-### A2/A3 Cycle Count
-
-`pto.trowexpandadd` lowers to a per-row `vadd` sequence in which a single per-row scalar from `src1` is broadcast across the working tile and combined with each element of `src0` via addition.
-
-**Cycle model**:
-
-```
-total = startup + R × (per_row_vadd + interval)
-```
-
-where `R = dst.GetValidRow()` (row-direction) or `R = dst.GetValidCol()` (row-direction), and `per_row_vadd` scales with `C = dst.GetValidCol()` rounded up to the native vector width.
-
-### Instruction Sequence by Shape (FP32)
-
-| Valid Shape | Instruction Sequence | Estimated Cycles |
-|-------------|----------------------|------------------|
-| 16×16 | `vadd`*16 → PIPE_V | ~O(64) |
-| 32×32 | `vadd`*32 → PIPE_V | ~O(128) |
-| 64×64 | `vadd`*64 → PIPE_V | ~O(256) |
-| R×C   | `vadd`*R → PIPE_V  | ~O(R × ⌈C / vlen⌉) |
-
-> Note: per-shape cycle counts are illustrative templates; populate with measured numbers from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
-
-### Layout and Shape Impact
-
-| Layout | validCol | Optimization |
-|--------|----------|--------------|
-| `RowMajor` | ≥ vlen (FP32) | Continuous fast path; one `vadd` per row |
-| `RowMajor` | < vlen | General path with tail masking |
-| Other | any | Not supported (compile-time `isRowMajor` constraint) |
-
-The row-broadcast scalar is reused across all rows without re-fetching.
-
 ## Exceptions
 
 !!! danger "Exceptions"

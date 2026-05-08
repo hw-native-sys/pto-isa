@@ -99,16 +99,6 @@ No architectural side effects beyond producing the destination tile. Does not im
 
     - Supported element types: `uint8_t`, `int8_t`, `uint16_t`, `int16_t`, `uint32_t`, `int32_t`, `half`, `float`, `bfloat16_t`.
 
-## Performance
-
-### A2/A3 Cycle Count
-
-`pto.tpartmul` is the partitioned product-reduction counterpart of `tpartadd`; semantics and cost model are identical with `vmul` replacing `vadd` in each partition.
-
-**Cycle model**: `total ≈ startup + K × (per_partition_vmul + interval)`.
-
-> Note: cycle numbers below are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
-
 ## Exceptions
 
 !!! danger "Exceptions"

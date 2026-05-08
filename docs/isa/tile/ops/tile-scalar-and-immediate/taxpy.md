@@ -73,32 +73,6 @@ PTO_INST RecordEvent TAXPY(TileDataDst &dst, TileDataSrc &src0,
     - `dst` is read-modify-written in place; the prior contents of `dst` are part of the result.
     - Refer to backend-specific legality checks for data type/layout/location/shape constraints not covered above.
 
-## Performance
-
-### A2/A3 Cycle Count
-
-`pto.taxpy` runs on the **vector pipe** as a fused multiply-add. Throughput matches PIPE_V for the target element type — the same as the underlying TMULS or TADD, but without the temporary tile and the intervening write-back.
-
-**Cycle model**:
-
-```
-total ≈ startup + R × C / vfmla_throughput
-```
-
-where `R × C` is the destination valid shape and `vfmla_throughput` is the per-cycle FP/INT FMA width on the vector unit.
-
-### Layout and Shape Impact
-
-| Element type | Path | Notes |
-|--------------|------|-------|
-| FP32 | PIPE_V | Native FMA; one round of rounding |
-| FP16 / BF16 | PIPE_V | FP32-accumulate FMA available; check backend |
-| INT32 / INT16 | PIPE_V | Integer mul-add; saturation depends on variant |
-
-Replacing a TMULS + TADD pair with a single `taxpy` halves the vector-pipe issues for the same work and removes one tile of intermediate UB pressure.
-
-> Note: cycle numbers are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
-
 ## Exceptions
 
 !!! danger "Exceptions"

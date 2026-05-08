@@ -71,31 +71,6 @@ PTO_INST RecordEvent TPACK(DstTileData &dst, SrcTileData &src, WaitEvents&... ev
     - `dst` and `src` may not alias for non-1:1 packing ratios; use a separate buffer.
     - Refer to backend-specific legality checks for data type/layout/location/shape constraints not covered above.
 
-## Performance
-
-### A2/A3 Cycle Count
-
-`pto.tpack` runs on the **vector pipe** as a narrow/shuffle. Cost scales with the source element count, since the pack is throughput-bound by the source read width.
-
-**Cycle model**:
-
-```
-total ≈ startup + (Rsrc × Csrc) / vpack_throughput
-```
-
-### Layout and Shape Impact
-
-| (Src → Dst) | Ratio `k` | Path |
-|-------------|-----------|------|
-| FP32 → FP16 | 2:1 | PIPE_V narrow |
-| FP16 → INT8 | 2:1 | PIPE_V narrow |
-| INT16 → INT8 | 2:1 | PIPE_V narrow |
-| INT32 → INT16 | 2:1 | PIPE_V narrow |
-
-A `tpack` followed by a layout-converting move is the canonical path for producing quantised activations destined for INT8 GEMM.
-
-> Note: cycle numbers are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
-
 ## Exceptions
 
 !!! danger "Exceptions"

@@ -190,42 +190,6 @@ After the store completes, the data is written to `dst`. With atomic modes, valu
         | Source dtype | `int32_t` or `float` |
         | FpTileData | Used via `CheckStaticAcc<..., true>()` validation |
 
-## Performance
-
-### A2/A3 Cycle Count
-
-`pto.tstore` is an **MTE3** DMA that writes a tile to GM. The fix-pipe variant (`TSTORE_FP`) routes the accumulator through the **FIXP** quantization pipeline before the MTE3 store, so its critical path includes both FIXP and MTE3.
-
-**Cycle model**:
-
-```
-# Standard store
-total ≈ startup + R × C × bytes_per_elem / mte3_throughput + drain
-
-# Fix-pipe store
-total ≈ startup + fixp_drain(R, C) + mte3_drain
-```
-
-On A5, the FIXP write path has a ~4× bandwidth asymmetry between L0C-side reads and the UB/OUT write side, so wide quantized stores are typically FIXP-bound rather than MTE3-bound.
-
-### Layout-Conversion Path Impact
-
-| Source TileType | Path | Notes |
-|---|---|---|
-| `Vec` (ND → ND) | Direct DMA | Fastest |
-| `Vec` (NZ → NZ) | Direct DMA | Native fractal layout |
-| `Acc` (ND/NZ) | Layout-converting DMA | Hardware drains accumulator into tiled GM rows |
-| `Acc` + `AtomicAdd` | Atomic DMA | Throughput slightly below non-atomic; conflicts serialize |
-| `Acc` + Fix-pipe (`TSTORE_FP`) | FIXP → MTE3 | FIXP-bound for wide rows |
-
-### Atomic Mode Behaviour
-
-- `AtomicNone`: peak throughput.
-- `AtomicAdd`: same throughput when destinations are conflict-free; serialised on per-element conflicts.
-- `AtomicMax` / `AtomicMin` (A5): same characteristics as `AtomicAdd`.
-
-> Note: cycle numbers are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
-
 ## Exceptions
 
 !!! danger "Exceptions"

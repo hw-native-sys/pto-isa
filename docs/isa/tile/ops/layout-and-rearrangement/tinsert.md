@@ -187,34 +187,6 @@ PTO_INST RecordEvent TINSERT(DstTileData &dst, SrcTileData &src,
     - **A5 fix-pipe**: Destination must be `TileType::Mat` with `BLayout::ColMajor + SLayout::RowMajor`; source must be `float` or `int32_t` `Acc`
     - **Cpu simulator**: `TINSERT_FP` accepts the interface but ignores the `fp` parameter, falling back to standard `TINSERT`
 
-## Performance
-
-### A2/A3 Cycle Count
-
-`pto.tinsert` is a layout-rearrangement op that writes a sub-window into a larger destination tile. Standard variants execute as a layout-converting move within UB / L0 buffers; the fix-pipe variant (`TINSERT_FP`) routes through the **FIXP** path before the destination write.
-
-**Cycle model**:
-
-```
-# Standard / ReLU / scalar-quant
-total ≈ startup + SrcRows × SrcCols / insert_throughput
-
-# Fix-pipe
-total ≈ startup + fixp_drain(SrcRows, SrcCols)
-```
-
-### Layout and Shape Impact
-
-| Source → Dest | Path | Notes |
-|---|---|---|
-| `Vec → Mat` | Layout-converting | Common Vec→Cube tile-passing path (TPipe) |
-| `Acc → Mat` (A5) | Layout-converting | Used by output-stationary GEMM postprocessing |
-| `Acc → Mat` (`TINSERT_FP`) | FIXP | FIXP-bound; A5 has ~4× read/write bandwidth asymmetry |
-
-The `(indexRow, indexCol)` offset is free at issue time. The CPU simulator ignores the `fp` parameter and routes through the standard path.
-
-> Note: cycle numbers are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
-
 ## Exceptions
 
 !!! danger "Exceptions"

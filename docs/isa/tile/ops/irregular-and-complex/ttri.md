@@ -82,16 +82,6 @@ No architectural side effects beyond producing the destination tile. Does not im
 
     - Destination tile must be row-major on some targets (see `include/pto/npu/*/TTri.hpp`).
 
-## Performance
-
-### A2/A3 Cycle Count
-
-`pto.ttri` materialises an upper/lower triangular mask into a tile. It lowers to a small vector-pipe sequence (one issue per row) and is typically dwarfed by surrounding compute.
-
-**Cycle model**: `total ≈ startup + R × per_row_issue`.
-
-> Note: cycle numbers below are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
-
 ## Exceptions
 
 !!! danger "Exceptions"

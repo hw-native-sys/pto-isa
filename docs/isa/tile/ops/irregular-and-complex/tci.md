@@ -85,27 +85,6 @@ No architectural side effects beyond producing the destination tile. Does not im
     - **Valid region**:
         - The implementation uses `dst.GetValidCol()` as the sequence length and does not consult `dst.GetValidRow()`.
 
-## Performance
-
-### A2/A3 Cycle Count
-
-`pto.tci` lowers to a vector-pipe sequence generator. The cost is linear in `R × ⌈C / vlen⌉` PIPE_V issues plus a small startup. The scalar `start` is materialised once and incremented in-pipe.
-
-**Cycle model**: `total ≈ startup + R × ⌈C / vlen⌉ × (per_issue + interval)`.
-
-### Instruction Sequence by Shape (FP32 / int32)
-
-| Valid Shape | Instruction Sequence | Estimated Cycles |
-|-------------|----------------------|------------------|
-| 1×16  | `vci` → PIPE_V | ~O(8) |
-| 1×64  | `vci`*1 → PIPE_V | ~O(16) |
-| 16×16 | `vci`*16 → PIPE_V | ~O(64) |
-| R×C   | `vci`*R → PIPE_V  | ~O(R × ⌈C/vlen⌉) |
-
-Descending mode (`descending = true`) has the same cost as the ascending path.
-
-> Note: cycle numbers below are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
-
 ## Exceptions
 
 !!! danger "Exceptions"

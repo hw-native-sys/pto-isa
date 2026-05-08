@@ -192,38 +192,6 @@ void consumer_mat(MatTile& matTile) {
     - **A2/A3**: `DIR_C2V`, `DIR_V2C`, `DIR_BOTH`, `DIR_V2C_CTRL`. Synchronization via `wait_flag_dev` and `ffts_cross_core_sync`.
     - **A5**: All direction types. Synchronization via `wait_intra_block` and `set_intra_block`. Additional `*_GM` paths with GM load. Sub-block support (`FlagID + 16`) for 2-Vec-core configurations.
 
-## Performance
-
-### A2/A3 Cycle Count
-
-`pto.tpop` is dominated by two phases: the producer-wait (variable, depends on producer latency) and the data-load phase. The release-signal phase is a single cross-core write.
-
-**Cycle model**:
-
-```
-total ≈ wait_latency + load_phase + release_overhead
-
-# load_phase by path:
-  C2V_UB / V2C_MAT (A5 local):  TASSIGN-only — ~startup, no DMA
-  C2V / V2C (A2/A3, A5 *_GM):   TLOAD over MTE1 / MTE2 — SlotSize / mte_throughput
-  V2C_CTRL:                     32-bit scalar read — ~startup
-```
-
-`wait_latency` is the steady-state latency between the producer's ready-signal and the consumer's wakeup; on a well-balanced pipeline it is hidden by the previous iteration's compute.
-
-### FIFO-Path Impact
-
-| Direction | Path | Cost driver |
-|-----------|------|-------------|
-| `C2V_UB` / `V2C_MAT` (A5) | Local buffer + `TASSIGN` | Sync only; no DMA |
-| `C2V` / `V2C` (A2/A3) | GM slot via `TLOAD` over MTE2 | MTE2 bandwidth, `SlotSize` |
-| `C2V_GM` / `V2C_GM` (A5) | GM slot via `TLOAD` over MTE2 | MTE2 bandwidth, `SlotSize` |
-| `V2C_CTRL` | 32-bit control signal | Sync only; trivial read |
-
-Doubling `LocalSlotNum` (or `LocalFiFoDepth` on `TMPipe`) extends double-buffering depth and is the primary lever for hiding `wait_latency` behind compute.
-
-> Note: cycle numbers are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
-
 ## Exceptions
 
 !!! danger "Exceptions"

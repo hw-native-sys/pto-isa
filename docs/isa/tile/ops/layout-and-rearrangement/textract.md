@@ -167,35 +167,6 @@ PTO_INST RecordEvent TEXTRACT_FP(DstTileData &dst, SrcTileData &src, FpTileData 
     - **Fp tile location**: `FpTileData::Loc` must be `TileType::Scaling` (A2/A3 and A5 both enforce this via `static_assert`)
     - **Fix-pipe path**: The backend offsets the FPC address by `indexCol` (counted in units of the fp tile's element width) before configuring the fix-pipe
 
-## Performance
-
-### A2/A3 Cycle Count
-
-`pto.textract` is a layout-rearrangement op that pulls a sub-window out of a larger tile. Standard variants execute on the **vector pipe** (or as a layout-converting move within UB); the fix-pipe variant (`TEXTRACT_FP`) routes through the **FIXP** path.
-
-**Cycle model**:
-
-```
-# Standard / ReLU / scalar-quant
-total ≈ startup + DstRows × DstCols / extract_throughput
-
-# Fix-pipe
-total ≈ startup + fixp_drain(DstRows, DstCols)
-```
-
-### Layout and Shape Impact
-
-| Source → Dest | Path | Notes |
-|---|---|---|
-| `Mat → Left/Right` (MX) | Native | Used as GEMM input feeder; preferred fast path |
-| `Mat → ScaleLeft/ScaleRight` (A5) | Native | Block-format scaling extraction |
-| `Acc → Mat` | Layout-converting | Drains accumulator into matrix tile |
-| `Acc → Mat` (`TEXTRACT_FP`) | FIXP | FIXP-bound; A5 has ~4× read/write bandwidth asymmetry |
-
-The `(indexRow, indexCol)` offset is free at issue time — it does not add cycles, but a non-zero `indexCol` shifts the FPC scale-array index.
-
-> Note: cycle numbers are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
-
 ## Exceptions
 
 !!! danger "Exceptions"

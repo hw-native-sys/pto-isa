@@ -88,32 +88,6 @@ PTO_INST RecordEvent GATHER(ParallelGroupType &parallelGroup, GlobalDstData &dst
         - If `TileData` has static `ValidRow`, `GetShape(DIM_3)` of each rank's source must be divisible by `ValidRow`. Use a Tile with `DYNAMIC` ValidRow for partial row support.
         - If `TileData` has static `ValidCol`, `GetShape(DIM_4)` must be divisible by `ValidCol`. Use a Tile with `DYNAMIC` ValidCol for partial column support.
 
-## Performance
-
-### A2/A3 Cycle Count
-
-`pto.tgather` is bounded by the **inter-NPU MTE2** path: the root reads each rank's source buffer over the cross-core fabric and writes the concatenated result locally via MTE3.
-
-**Cycle model**:
-
-```
-total ≈ startup + N × (per_rank_remote_load + per_rank_local_store) + sync_overhead
-```
-
-where `N` is the participating rank count.
-
-The ping-pong form overlaps remote MTE2 of chunk `k+1` with local MTE3 of chunk `k`, hiding most of `per_rank_local_store` behind `per_rank_remote_load`.
-
-### Layout and Shape Impact
-
-| Form | When to use | Effect |
-|------|------------|--------|
-| Single staging tile | Small per-rank data (≤ one tile) | Simpler control flow; serialised MTE2/MTE3 |
-| Ping-pong (double buffering) | Large per-rank data | MTE2/MTE3 overlap; near-2× throughput on long transfers |
-| 2D sliding (per-tile chunking) | Per-rank data > UB tile | Automatic; chunk size set by `TileData::ValidRow/ValidCol` |
-
-> Note: cycle numbers are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
-
 ## Exceptions
 
 !!! danger "Exceptions"

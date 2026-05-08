@@ -93,18 +93,6 @@ No architectural side effects beyond producing the destination tile. Does not im
         - The implementation uses `src.GetValidCol()` to determine how many elements participate in sorting in each row.
         - Sorting is performed independently per 32-element block; the 4-argument overload additionally supports non-32-aligned tails with `tmp`.
 
-## Performance
-
-### A2/A3 Cycle Count
-
-`pto.tsort32` is dispatched on the **SFU** (special-function unit) as a 32-element bitonic sort. Each 32-element group sorts in a fixed number of SFU cycles; longer sequences are decomposed into groups of 32 and merged.
-
-**Cycle model**: `total ≈ startup + ⌈N / 32⌉ × per_group_sort + merge`.
-
-Throughput is SFU-bound, not vector-pipe-bound, so `tsort32` can overlap with PIPE_V issues in well-scheduled kernels.
-
-> Note: cycle numbers below are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
-
 ## Exceptions
 
 !!! danger "Exceptions"

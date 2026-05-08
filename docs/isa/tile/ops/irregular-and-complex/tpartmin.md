@@ -87,16 +87,6 @@ No architectural side effects beyond producing the destination tile. Does not im
 
     - Supported element types: `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `half`, `bfloat16_t`, `float`.
 
-## Performance
-
-### A2/A3 Cycle Count
-
-`pto.tpartmin` is the partitioned min-reduction counterpart of `tpartadd`; per-partition cost is one `vmin` tree.
-
-**Cycle model**: `total ≈ startup + K × (per_partition_vmin + interval)`.
-
-> Note: cycle numbers below are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
-
 ## Exceptions
 
 !!! danger "Exceptions"

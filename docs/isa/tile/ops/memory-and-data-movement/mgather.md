@@ -85,18 +85,6 @@ This operation reads from global memory. Index bounds are target-defined.
         - Index interpretation is target-defined. The CPU simulator treats indices as linear element indices into `src.data()`.
         - The CPU simulator does not enforce bounds checks on `indexes`.
 
-## Performance
-
-### A2/A3 Cycle Count
-
-`pto.mgather` is the matrix-gather DMA: it issues indexed loads from GM into a `Mat` tile. Cost is bound by the MTE2/DMA gather throughput rather than the vector pipe.
-
-**Cycle model**: `total ≈ startup + N_idx × per_index_dma + drain`.
-
-Sequential or block-aligned indices coalesce; random indices serialize at one fetch per index.
-
-> Note: cycle numbers below are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
-
 ## Exceptions
 
 !!! danger "Exceptions"

@@ -236,41 +236,6 @@ void producer_vec(VecTile& vTile) {
     - **A2/A3**: Supports `DIR_C2V`, `DIR_V2C`, `DIR_BOTH`, `DIR_V2C_CTRL`. FIFO paths: GM and local UB/MAT. Does not support `DIR_*_GM` variants.
     - **A5**: Supports all direction types including `DIR_C2V_GM`, `DIR_V2C_GM`, `DIR_BOTH_GM`. FIFO paths: GM, VEC_FIFO, MAT_FIFO, CTRL_FIFO. Intra-block synchronization uses `set_intra_block`/`wait_intra_block` instead of cross-core `ffts_*`.
 
-## Performance
-
-### A2/A3 Cycle Count
-
-`pto.tpush` is dominated by two phases: the consumer-wait (variable, depends on consumer drain rate) and the data-write phase. The data-ready signal phase is a single cross-core write.
-
-**Cycle model**:
-
-```
-total ≈ alloc_wait_latency + push_phase + record_overhead
-
-# push_phase by path:
-  C2V_UB (A5 local):       TMOV into consumer UB — vector-pipe write
-  C2V (A2/A3, A5 *_GM):    Acc → GM via FIXP + MTE3 — fix-pipe drain dominates
-  V2C_MAT (A5 local):      TINSERT into consumer MAT buffer — layout-converting move
-  V2C (A2/A3, A5 *_GM):    Vec → GM via TSTORE on MTE3 — SlotSize / mte3_throughput
-  V2C_CTRL:                32-bit scalar write — ~startup
-```
-
-`alloc_wait_latency` is the steady-state latency between the consumer's release and the producer's wakeup; on a well-balanced pipeline it is hidden by previous-iteration compute.
-
-### FIFO-Path Impact
-
-| Direction | Path | Cost driver |
-|-----------|------|-------------|
-| `C2V_UB` (A5) | `TMOV` Acc → consumer UB | FIXP drain; ~4× read/write BW asymmetry on A5 |
-| `C2V` (A2/A3) / `C2V_GM` (A5) | FIXP → GM via `TSTORE` | FIXP + MTE3 |
-| `V2C_MAT` (A5) | `TINSERT` into consumer MAT | Layout-converting; vector-pipe |
-| `V2C` / `V2C_GM` | Vec → GM via `TSTORE` | MTE3 bandwidth, `SlotSize` |
-| `V2C_CTRL` | 32-bit control signal | Sync only; trivial write |
-
-Deeper FIFOs (larger `SlotNum` / `FiFoDepth`) hide `alloc_wait_latency` better at the cost of GM footprint; `EN_UNIT_FLAG` enables per-slot synchronization for fine-grained flow control.
-
-> Note: cycle numbers are first-order estimates; populate with measured values from `pto-isa/a2a3_benchmark.csv` and `pto-isa/a5_benchmark.csv`.
-
 ## Exceptions
 
 !!! danger "Exceptions"
