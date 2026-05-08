@@ -28,8 +28,6 @@ struct CategoryBinSOps : std::false_type {};
 template <>
 struct CategoryBinSOps<ElementOp::OP_ADDS> : std::integral_constant<int, CONSTRAINT_VEC_ROWMAJOR> {};
 template <>
-struct CategoryBinSOps<ElementOp::OP_POWS> : std::integral_constant<int, CONSTRAINT_VEC_ROWMAJOR> {};
-template <>
 struct CategoryBinSOps<ElementOp::OP_DIVS> : std::integral_constant<int, CONSTRAINT_VEC_ROWMAJOR> {};
 template <>
 struct CategoryBinSOps<ElementOp::OP_RDIVS> : std::integral_constant<int, CONSTRAINT_VEC_ROWMAJOR> {};
@@ -184,18 +182,6 @@ template <typename TileDst, typename TileSrc>
 PTO_INTERNAL void TMINS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar)
 {
     UnaryTileScalarOpImpl<TileDst, TileSrc, ElementOp::OP_MINS>(dst, src, scalar);
-}
-
-template <typename TileDst, typename TileSrc>
-PTO_INTERNAL void TPOWS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar)
-{
-    UnaryTileScalarOpImpl<TileDst, TileSrc, ElementOp::OP_POWS>(dst, src, scalar);
-}
-template <auto PrecisionType = PowAlgorithm::DEFAULT, typename TileDst, typename TileSrc, typename TmpTile>
-PTO_INTERNAL void TPOWS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar, TmpTile &tmp)
-{
-    (void)tmp;
-    TPOWS_IMPL(dst, src, scalar);
 }
 
 template <auto PrecisionType = RemSAlgorithm::DEFAULT, typename TileDst, typename TileSrc>

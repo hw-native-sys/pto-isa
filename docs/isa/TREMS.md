@@ -41,10 +41,16 @@ pto.trems ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_b
 Declared in `include/pto/common/pto_instr.hpp`:
 
 ```cpp
-template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp, typename... WaitEvents>
-PTO_INST RecordEvent TREMS(TileDataDst &dst, TileDataSrc &src, typename TileDataSrc::DType scalar,
-                           TileDataTmp &tmp, WaitEvents &... events);
+template <auto PrecisionType = RemSAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc, typename TileDataTmp,
+          typename... WaitEvents>
+PTO_INST RecordEvent TREMS(TileDataDst &dst, TileDataSrc &src, typename TileDataSrc::DType scalar, TileDataTmp &tmp,
+                           WaitEvents &...events);
 ```
+
+`PrecisionType` has the following values available:
+
+* `RemSAlgorithm::DEFAULT`: Normal algorithm, faster but with lower precision.
+* `RemSAlgorithm::HIGH_PRECISION`: High precision algorithm, but slower, only support `float` type.
 
 ## Constraints
 
@@ -70,6 +76,8 @@ PTO_INST RecordEvent TREMS(TileDataDst &dst, TileDataSrc &src, typename TileData
 - **Valid Region**:
     - The op uses `dst.GetValidRow()` / `dst.GetValidCol()` as the iteration domain.
 - **For `int32_t` Inputs (A2A3 Only)**: Both `src` elements and `scalar` must be in the range `[-2^24, 2^24]` (i.e., `[-16777216, 16777216]`) to ensure exact conversion to float32 during computation.
+- **High Precision Algorithm**
+    - Only available on A5, `PrecisionType` option is ignored on A3.
 
 ## Examples
 

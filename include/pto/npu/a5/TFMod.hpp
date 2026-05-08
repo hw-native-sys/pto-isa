@@ -26,7 +26,9 @@ struct FModOp {
     PTO_INTERNAL static void BinInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, RegTensor<T> &reg_src1,
                                       MaskReg &preg)
     {
-        if constexpr (std::is_same<T, float>::value) {
+        if constexpr (PrecisionType == FmodAlgorithm::HIGH_PRECISION && std::is_same<T, float>::value) {
+            TFmodRemHP<true>(reg_dst, reg_src0, reg_src1, preg);
+        } else if constexpr (std::is_same<T, float>::value) {
             vdiv(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);
             vtrc(reg_dst, reg_dst, ROUND_Z, preg);
             vmul(reg_dst, reg_dst, reg_src1, preg, MODE_ZEROING);
@@ -70,23 +72,8 @@ __tf__ PTO_INTERNAL void TFMod(typename TileDataDst::TileDType __out__ dst,
     __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
     __ubuf__ T *src0Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src0);
     __ubuf__ T *src1Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src1);
-    if constexpr (PrecisionType == FmodAlgorithm::HIGH_PRECISION && std::is_same_v<T, float>) {
-        constexpr uint32_t FMOD_INTERATION_NUM_MAX = 11;
-        constexpr unsigned dstRowStride = TileDataDst::RowStride;
-        constexpr unsigned src0RowStride = TileDataSrc0::RowStride;
-        constexpr unsigned src1RowStride = TileDataSrc1::RowStride;
-        uint32_t mainRepeatTimes = validCols / ElementsPerRepeat;
-        uint32_t tailCount = validCols - mainRepeatTimes * ElementsPerRepeat;
-        for (uint16_t i = 0; i < validRows; i++) {
-            ComputeIterationF32<FMOD_INTERATION_NUM_MAX>(dstPtr + i * dstRowStride, src0Ptr + i * src0RowStride,
-                                                         src1Ptr + i * src1RowStride, mainRepeatTimes,
-                                                         ElementsPerRepeat, tailCount, true);
-        }
-    } else {
-        BinaryInstr<FModOp<T>, TileDataDst, TileDataSrc0, TileDataSrc1, ElementsPerRepeat, BlockSizeElem>(
-            dstPtr, src0Ptr, src1Ptr, validRows, validCols, version);
-    }
-    return;
+    BinaryInstr<FModOp<PrecisionType, T>, TileDataDst, TileDataSrc0, TileDataSrc1, ElementsPerRepeat, BlockSizeElem>(
+        dstPtr, src0Ptr, src1Ptr, validRows, validCols, version);
 }
 
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
