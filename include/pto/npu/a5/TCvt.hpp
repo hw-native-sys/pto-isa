@@ -3031,8 +3031,16 @@ PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, RoundMode mode, Satu
             }
             break;
         default:
-            implTCVT<TileDataD, TileDataS, RoundRType>(dst.data(), src.data(), satMode, dst.GetValidRow(),
-                                                       dst.GetValidCol());
+            // PyTorch-compatible default rounding (also matches a2a3 per-(src,dst) defaults):
+            //   float -> integer : truncate toward zero (RoundZType)
+            //   everything else  : round-to-nearest-even (RoundRType)
+            if constexpr (is_any_float<SrcType>::value && std::is_integral<DstType>::value) {
+                implTCVT<TileDataD, TileDataS, RoundZType>(dst.data(), src.data(), satMode, dst.GetValidRow(),
+                                                           dst.GetValidCol());
+            } else {
+                implTCVT<TileDataD, TileDataS, RoundRType>(dst.data(), src.data(), satMode, dst.GetValidRow(),
+                                                           dst.GetValidCol());
+            }
             break;
     }
 
