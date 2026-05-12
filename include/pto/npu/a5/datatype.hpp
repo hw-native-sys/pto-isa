@@ -39,6 +39,10 @@ template <>
 struct TypeGet<float4_e1m2x2_t> {
     using T = vector_f4e1m2x2;
 };
+template <>
+struct TypeGet<float4_e2m1x2_t> {
+    using T = vector_f4e2m1x2;
+};
 #endif
 template <>
 struct TypeGet<uint64_t> {
