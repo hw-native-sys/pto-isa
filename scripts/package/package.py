@@ -12,6 +12,7 @@
 
 import os
 import sys
+import subprocess
 import argparse
 import traceback
 import csv
@@ -31,11 +32,11 @@ from common.py.packer import (
     PackageName, create_makeself_pkg_params_factory, create_run_package_command
 )
 from common.py.pkg_parser import (
-    ParseOption, XmlConfig, parse_xml_config, get_cann_version_info
+    ParseOption, XmlConfig, parse_xml_config, get_cann_version_info, get_target_name
 )
 from common.py.utils.pkg_utils import (
     CONFIG_SCRIPT_PATH, CompressError, ContainAsteriskError, DELIVERY_PATH, FAIL,
-    FilelistError, GenerateFilelistError, PackageNameEmptyError, SUCCESS, TOP_DIR,
+    FilelistError, GenerateFilelistError, PackageNameEmptyError, SUCC, TOP_DIR,
     UnknownOperateTypeError, path_join
 )
 from common.py.utils.funcbase import invoke, pipe
@@ -105,6 +106,95 @@ class PackageOption(PrivatePackageOption):
         return super().__new__(cls, *package_option_args, **kwargs)
 
 
+def do_copy(target_conf=None,
+            delivery_dir='',
+            release_dir='',
+            package_name=None):
+    '''
+    功能描述：根据拷贝类型来执行文件或目录拷贝
+    返回值：SUCC/FAIL
+    '''
+    if target_conf is None:
+        target_conf = {}
+    target_name = get_target_name(target_conf)
+    dst_path = os.path.join(release_dir, target_conf.get('dst_path', ''))
+    dst_fullpath = os.path.join(dst_path, target_name)
+
+    pkg_softlink = target_conf.get('pkg_softlink')
+    if pkg_softlink:
+        rets = [
+            create_softlink(dst_fullpath, os.path.join(release_dir, link))
+            for link in pkg_softlink
+        ]
+        if not all(rets):
+            return FAIL
+    return SUCC
+
+
+def do_chmod(target_conf=None, release_dir=''):
+    """打包时设置权限 。"""
+    if target_conf is None:
+        target_conf = {}
+    target_name = get_target_name(target_conf)
+    dst_path = os.path.join(release_dir, target_conf.get('dst_path', ''))
+    dst_fullpath = os.path.join(dst_path, target_name)
+    pkg_mod = target_conf.get('pkg_mod', '')
+    if pkg_mod:
+        # 将命令拆分为列表，不使用 shell=True
+        cmd_list = ['chmod', '-R', pkg_mod, dst_fullpath]
+
+        try:
+            result = subprocess.run(cmd_list, capture_output=True, text=True, check=False)
+            status = result.returncode
+            output = result.stdout + result.stderr
+
+            if status != 0: # 这里的 SUCC 通常对应 0
+                CommLog.cilog_error("chmod failed! Command: %s", " ".join(cmd_list))
+                CommLog.cilog_info("%s", output)
+                return FAIL
+        except Exception as e:
+            CommLog.cilog_error("Execute chmod exception: %s", str(e))
+            return FAIL
+
+    return SUCC
+
+
+def create_softlink(source, target) -> bool:
+    '''
+    功能描述：创建软连接
+    参数：source, target
+    返回值：成功或失败
+    '''
+    source = os.path.abspath(source.strip())
+    target = os.path.abspath(target.strip())
+
+    link_target_path = os.path.dirname(target)
+    link_target_name = os.path.basename(target)
+    relative_path = os.path.relpath(source, link_target_path)
+    if os.path.isfile(target):
+        cmd_list = ['rm', '-f', target]
+        try:
+            result = subprocess.run(cmd_list, capture_output=True, text=True, check=False)
+            status = result.returncode
+            output = result.stdout + result.stderr
+            if status != 0:
+                CommLog.cilog_error("Error: rm -f %s failed, %s", target, output)
+                return False
+        except Exception as e:
+            CommLog.cilog_error("Execute rm exception: %s", str(e))
+            return False
+    if os.path.isdir(target):
+        CommLog.cilog_warning("Warning: %s is already a directory, skipping soft link creation.", target)
+        return True
+    if not os.path.exists(link_target_path):
+        os.makedirs(link_target_path)
+    tmp_dir = os.getcwd()
+    os.chdir(link_target_path)
+    os.symlink(relative_path, link_target_name)
+    os.chdir(tmp_dir)
+    return True
+
+
 def generate_info_content(target_conf, ext_name) -> List[str]:
     """生成info内容。"""
 
@@ -156,7 +246,7 @@ def generate_customized_file(target_conf, ext_name):
         CommLog.cilog_error(f"generate customized file {filepath} failed: {ex}!")
         return FAIL
 
-    return SUCCESS
+    return SUCC
 
 
 def get_module(target_config) -> str:
@@ -231,9 +321,24 @@ def get_pkg_inner_softlink(target_config) -> List[str]:
     return softlink_str.split(';')
 
 
-def parse_install_info(infos: List,
-                       operate_type,
-                       filter_key) -> Iterator[FileItem]:
+def validate_path_consistency(target_config, target_name):
+    """验证 dst_path 和 install_path 一致性，不一致则抛出异常。"""
+    dst_path_val = target_config.get('dst_path', '')
+    install_path_val = target_config.get('install_path', '')
+
+    if dst_path_val != install_path_val:
+        value_path = target_config.get('value', 'unknown')
+        CommLog.cilog_error(
+            f"Configuration Error: 'dst_path' MUST be equal to 'install_path'.\n"
+            f"  - Current dst_path: {dst_path_val}\n"
+            f"  - Current install_path: {install_path_val}\n"
+        )
+        raise GenerateFilelistError(
+            f"dst_path ({dst_path_val}) does not match install_path ({install_path_val})"
+        )
+
+
+def parse_install_info(infos: List, operate_type, filter_key) -> Iterator[FileItem]:
     """根据配置解析生成安装信息。"""
     for target_config in infos:
         target_name = get_target_name(target_config)
@@ -248,6 +353,8 @@ def parse_install_info(infos: List,
             relative_path_in_pkg = os.path.join(target_config.get('dst_path'), target_name)
             relative_install_path = path_join(target_config.get('install_path'), target_name)
             is_dir = target_config.get('is_dir', False)
+            # 验证dst_path和install_path的一致性
+            validate_path_consistency(target_config, target_name)
         elif operate_type == 'mkdir':
             relative_path_in_pkg = 'NA'
             relative_install_path = target_config.get('value')
@@ -291,21 +398,32 @@ def parse_install_info(infos: List,
         yield file_item
 
 
-def execute_repack_process(xml_config: XmlConfig,
-                           delivery_dir: str,
-                           pkg_args: Namespace,
-                           package_name: PackageName = None,
-                           package_option: PackageOption = None):
+def execute_repack_process(xmlconfig: XmlConfig,
+                            delivery_dir: str,
+                            pkg_args: Namespace,
+                            package_name: PackageName = None,
+                            package_option: PackageOption = None):
     """
     功能描述: 执行打包流程(拷贝--->签名--->打包)
-    返回值: SUCCESS/FAIL
+    返回值: SUCC/FAIL
     """
-    release_dir = os.path.join(
-        delivery_dir, xml_config.default_config.get('name', 'default'))
+    status = SUCC
+    release_dir = delivery_dir
     # 生成自定义文件
-    for item in xml_config.generate_infos:
+    for item in xmlconfig.generate_infos:
         if generate_customized_file(item, package_option.ext_name):
             return FAIL
+
+    for item in chain(xmlconfig.package_content_list, xmlconfig.move_content_list):
+        #拷贝文件
+        if do_copy(item,
+                   delivery_dir,
+                   release_dir,
+                   package_name):
+            status = FAIL
+            continue
+    if status != SUCC:
+        return FAIL
 
     # 校验包中文件或目录大小
     if pkg_args.check_size == "True":
@@ -321,20 +439,20 @@ def execute_repack_process(xml_config: XmlConfig,
             if not result:
                 return FAIL
     try:
-        package_name = get_compress_cmd(pkg_args, xml_config)
+        package_name = get_compress_cmd(pkg_args, xmlconfig)
     except CompressError:
         return FAIL
 
     CommLog.cilog_info("package %s generate filelist.csv and makeself cmd successfully!",
                        package_name)
-    return SUCCESS
+    return SUCC
 
 
 def check_path_is_conflict(xml_config):
     """
     功能描述: 检查打包时安装路径与软连接路径是否冲突
     参数: xml_config
-    返回值: SUCCESS/FAIL
+    返回值: SUCC/FAIL
     """
     install_path_list = set()
     pkg_softlink_list = set()
@@ -352,7 +470,7 @@ def check_path_is_conflict(xml_config):
         CommLog.cilog_info('intersection:{}'.format(install_path_list & pkg_softlink_list))
         CommLog.cilog_info('path conflicting: pkg_inner_softlink dir equals install_path!!')
         return FAIL
-    return SUCCESS
+    return SUCC
 
 
 def checksum_value(limit_value, release_dir):
@@ -445,17 +563,6 @@ def check_add_dir(package_path, dirs, limit_list, ret=True):
         elif os.path.isdir(path) and relative_path not in limit_list:
             ret = check_add_dir(package_path, path, limit_list, ret)
     return ret
-
-
-def get_target_name(target_conf) -> str:
-    """获取目标名。"""
-    rename = target_conf.get('rename')
-    if rename:
-        return rename
-
-    value_list = target_conf.get('value').split('/')
-    target_name = value_list[-1] if value_list[-1] else value_list[-2]
-    return target_name
 
 
 def gen_file_install_list(xml_config: XmlConfig,
@@ -561,7 +668,7 @@ def main(pkg_name='', xml_file='', main_args=None):
     """
     功能描述: 执行打包流程(解析配置--->生成文件列表--->执行拷贝/打包动作)
     参数: pkg_name, os_arch, type
-    返回值: SUCCESS/FAIL
+    返回值: SUCC/FAIL
     """
     delivery_dir = os.path.join(TOP_DIR, DELIVERY_PATH)
     if not os.path.exists(delivery_dir):

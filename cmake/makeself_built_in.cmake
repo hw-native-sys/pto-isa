@@ -69,9 +69,22 @@ configure_file(
 )
 configure_file(
         ${NN_VERSION_OUT_PUT}
-        ${STAGING_DIR}/share/info/pto_isa/
+        ${STAGING_DIR}/${CMAKE_SYSTEM_PROCESSOR}-linux/include/version/pto_isa_version.h
         COPYONLY
 )
+
+# 统一设置安装的文件权限为555
+execute_process(
+    COMMAND find ${STAGING_DIR} -type f -exec chmod 555 {} \;
+    RESULT_VARIABLE CHMOD_RESULT
+)
+if(EXISTS "${STAGING_DIR}/${CMAKE_SYSTEM_PROCESSOR}-linux/include/version/pto_isa_version.h")
+    execute_process(COMMAND chmod 440 "${STAGING_DIR}/${CMAKE_SYSTEM_PROCESSOR}-linux/include/version/pto_isa_version.h")
+endif()
+if(EXISTS "${STAGING_DIR}/${CMAKE_SYSTEM_PROCESSOR}-linux/conf/path.cfg")
+    execute_process(COMMAND chmod 440 "${STAGING_DIR}/${CMAKE_SYSTEM_PROCESSOR}-linux/conf/path.cfg")
+endif()
+
 # makeself打包
 file(STRINGS ${CPACK_CMAKE_BINARY_DIR}/makeself.txt script_output)
 string(REPLACE " " ";" makeself_param_string "${script_output}")

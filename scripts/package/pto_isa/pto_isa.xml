@@ -10,7 +10,7 @@
         <cleanup>share/info/pto_isa/script/cleanup.sh</cleanup>
         <parallel>true</parallel>
     </package_info>
-    <generate_info value="pto_isa_version.h" dst_path="share/info/pto_isa" install_path="$(TARGET_ENV)/include/version" install_mod="440" install_type="devel" generator="version_header">
+    <generate_info value="pto_isa_version.h" dst_path="$(TARGET_ENV)/include/version" install_path="$(TARGET_ENV)/include/version" install_mod="440" install_type="devel" generator="version_header">
        <pto_isa_VERSION>$(ASCEND_VER)</pto_isa_VERSION>
        <pto_isa_TIMESTAMP>$(TIMESTAMP_NO)</pto_isa_TIMESTAMP>
     </generate_info>
@@ -23,7 +23,7 @@
         <file value="script" entity="true"/>
         <file value="version.info" dst_path="share/info/pto_isa" install_path="share/info/pto_isa"/>
     </file_info>
-    <file_info copy_type="source" src_path="" dst_path="share/info/pto_isa/include/pto/" install_path="$(TARGET_ENV)/include/pto" install_type="all">
+    <file_info copy_type="source" src_path="" dst_path="$(TARGET_ENV)/include/pto" install_path="$(TARGET_ENV)/include/pto" install_type="all">
         <file value="common" install_mod="550" entity="true"/>
         <file value="comm" install_mod="550" entity="true"/>
         <file value="npu" install_mod="550" entity="true"/>
@@ -31,11 +31,11 @@
         <file value="costmodel" install_mod="550" entity="true"/>
         <file value="pto-inst.hpp" install_mod="550" entity="true"/>
     </file_info>
-    <file_info copy_type="source" src_path="" dst_path="share/info/pto_isa/include/pto/npu" install_path="$(TARGET_ENV)/include/pto/npu" install_type="all">
+    <file_info copy_type="source" src_path="" dst_path="$(TARGET_ENV)/include/pto/npu" install_path="$(TARGET_ENV)/include/pto/npu" install_type="all">
         <file value="a2a3" install_mod="550" entity="true"/>
         <file value="a5" install_mod="550" entity="true"/>
     </file_info>
-    <block_info dependtree="false" dst_path="share/info/pto_isa" block_conf_path="ascend">
+    <block_info dependtree="false" dst_path="" block_conf_path="ascend">
         <block name="EngineeringCommon"/>
         <block name="EngineeringFiles"/>
     </block_info>

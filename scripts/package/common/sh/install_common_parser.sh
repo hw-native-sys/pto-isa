@@ -961,21 +961,26 @@ do_copy_files() {
     local feature_param="$5"
     local total_uninstall_path exec_mode ret
 
-    if [ "$PARALLEL" = "true" ]; then
-        exec_mode="concurrency"
+    if [ "$COPY_ALL" = "y" ]; then
+        cp -af * "$install_path"
+        ret="$?" && [ $ret -ne 0 ] && return $ret
     else
-        exec_mode="normal"
+        if [ "$PARALLEL" = "true" ]; then
+            exec_mode="concurrency"
+        else
+            exec_mode="normal"
+        fi
+        if [ "${USE_MOVE}" = "true" ]; then
+            foreach_filelist "NA" "copy_files" "$install_type" "$install_path" "move" "$filelist_path" "${feature_param}" \
+                            "no" "$exec_mode" "--move"
+            foreach_filelist "NA" "copy_files" "$install_type" "$install_path" "copy copy_entity" "$filelist_path" "${feature_param}" \
+                            "no" "$exec_mode"
+        else
+            foreach_filelist "NA" "copy_files" "$install_type" "$install_path" "copy copy_entity move" "$filelist_path" "${feature_param}" \
+                            "no" "$exec_mode"
+        fi
+        ret="$?" && [ $ret -ne 0 ] && return $ret
     fi
-    if [ "${USE_MOVE}" = "true" ]; then
-        foreach_filelist "NA" "copy_files" "$install_type" "$install_path" "move" "$filelist_path" "${feature_param}" \
-                         "no" "$exec_mode" "--move"
-        foreach_filelist "NA" "copy_files" "$install_type" "$install_path" "copy copy_entity" "$filelist_path" "${feature_param}" \
-                         "no" "$exec_mode"
-    else
-        foreach_filelist "NA" "copy_files" "$install_type" "$install_path" "copy copy_entity move" "$filelist_path" "${feature_param}" \
-                         "no" "$exec_mode"
-    fi
-    ret="$?" && [ $ret -ne 0 ] && return $ret
 
     if [ "${package}" != "" ] && [ "${SET_CANN_UNINSTALL}" = "y" ]; then
         add_cann_uninstall_package "${install_path}" "${package}" "${USERNAME}" "${USERGROUP}" "${INSTALL_FOR_ALL}"
@@ -1057,8 +1062,10 @@ do_chmod_file_dir() {
     local package="$5"
     local ret
 
-    foreach_filelist "NA" "change_mod_and_own_files" "$install_type" "$install_path" "copy del move" "$filelist_path" "${feature_param}" "no" "concurrency"
-    ret="$?" && [ $ret -ne 0 ] && return $ret
+    if [ "$COPY_ALL" != "y" ] || [ "$INSTALL_FOR_ALL" = "y" ]; then
+        foreach_filelist "NA" "change_mod_and_own_files" "$install_type" "$install_path" "copy del move" "$filelist_path" "${feature_param}" "no" "concurrency"
+        ret="$?" && [ $ret -ne 0 ] && return $ret
+    fi
 
     foreach_filelist "NA" "change_mod_and_own_files_recursive" "$install_type" "$install_path" "copy_entity" "$filelist_path" "${feature_param}" "no" "concurrency"
     ret="$?" && [ $ret -ne 0 ] && return $ret
@@ -1506,7 +1513,7 @@ do_install() {
     local feature_param="$5"
     local docker_root="$6"
     local is_simple="$7"
-    local install_path_real ret 
+    local install_path_real ret
 
     check_param_not_empty "package" "need set package parameter in install!"
     ret="$?" && [ ${ret} -ne 0 ] && return ${ret}
@@ -1964,9 +1971,14 @@ DOCKER_ROOT=""
 INSTALL_PATH=""
 # 输入的latest_dir
 INPUT_LATEST_DIR=""
+COPY_ALL=""
 
 while true; do
     case "$1" in
+    --copy_all)
+        COPY_ALL="y"
+        shift
+        ;;
     --spc-install | -i)
         OPERATE_TYPE="spc_install"
         shift

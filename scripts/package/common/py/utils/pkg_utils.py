@@ -12,7 +12,7 @@
 
 """基础构件。"""
 
-import os 
+import os
 from functools import partial
 from itertools import chain, tee
 from operator import methodcaller
@@ -25,7 +25,7 @@ DELIVERY_PATH = "build/_CPack_Packages/makeself_staging"
 CONFIG_SCRIPT_PATH = 'package'
 BLOCK_CONFIG_PATH = 'package/module'
 
-SUCCESS = 0
+SUCC = 0
 FAIL = -1
 
 
@@ -42,6 +42,14 @@ class PackageConfigError(PackageError):
 
 class BlockConfigError(PackageError):
     """块配置错误异常。"""
+
+
+class MultiPkgModError(PackageError):
+    """多个pkg_mod元素报错。"""
+
+
+class MultiPkgSoftlinkError(PackageError):
+    """多个pkg_softlink元素报错。"""
 
 
 class ParseOsArchError(PackageError):
@@ -66,6 +74,10 @@ class FilelistError(PackageError):
 
 class UnknownOperateTypeError(PackageError):
     """未知的操作类型。"""
+
+
+class PkgInnerSoftlinkNotAllowed(PackageError):
+    """不允许使用pkg_inner_softlink。"""
 
 
 class PackageNameEmptyError(PackageError):

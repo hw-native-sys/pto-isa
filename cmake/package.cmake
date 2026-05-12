@@ -77,24 +77,22 @@ function(pack_built_in)
       RENAME version.info
   )
   install(FILES ${CONF_FILES}
-      DESTINATION share/info/pto_isa/conf
+      DESTINATION ${CMAKE_SYSTEM_PROCESSOR}-linux/conf
   )
   install(FILES ${PACKAGE_FILES}
       DESTINATION share/info/pto_isa/script
   )
-  install(FILES ${LATEST_MANGER_FILES}
-      DESTINATION latest_manager
-  )
-  install(DIRECTORY ${CMAKE_SOURCE_DIR}/scripts/package/latest_manager/scripts/
-      DESTINATION latest_manager
-  )
 
   set(pto_source ${CMAKE_SOURCE_DIR}/include)
   install(DIRECTORY ${pto_source}/
-      DESTINATION share/info/pto_isa/include/
+      DESTINATION ${CMAKE_SYSTEM_PROCESSOR}-linux/include
       FILE_PERMISSIONS
       OWNER_READ OWNER_WRITE
       GROUP_READ GROUP_EXECUTE
+      REGEX "include/README\\.md$" EXCLUDE
+      REGEX "include/README_zh\\.md$" EXCLUDE
+      REGEX "include/pto/README\\.md$" EXCLUDE
+      REGEX "include/pto/README_zh\\.md$" EXCLUDE
   )
 
   string(FIND "${ASCEND_COMPUTE_UNIT}" ";" SEMICOLON_INDEX)
