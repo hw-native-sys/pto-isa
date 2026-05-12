@@ -38,18 +38,25 @@ template <typename DstDType, typename SrcDType, unsigned dstRowStride, unsigned 
 PTO_INTERNAL void ConvertForDequant(__ubuf__ DstDType *dstPtr, __ubuf__ SrcDType *srcPtr, unsigned dstValidRows,
                                     unsigned dstValidCols)
 {
-    constexpr unsigned repeatWidth = sizeof(DstDType) > sizeof(SrcDType) ? sizeof(DstDType) : sizeof(SrcDType);
-    constexpr unsigned dstRepeatStride = repeatWidth == sizeof(DstDType) ?
-                                             BLOCK_MAX_PER_REPEAT :
-                                             (BLOCK_MAX_PER_REPEAT / sizeof(SrcDType) * sizeof(DstDType));
-    constexpr unsigned srcRepeatStride = repeatWidth == sizeof(SrcDType) ?
-                                             BLOCK_MAX_PER_REPEAT :
-                                             (BLOCK_MAX_PER_REPEAT / sizeof(DstDType) * sizeof(SrcDType));
     set_mask_count();
     set_vector_mask(0, dstValidCols);
     for (uint32_t i = 0; i < dstValidRows; i++) {
-        ConvertToDstDtype<DstDType, SrcDType>(dstPtr + i * dstRowStride, srcPtr + i * srcRowStride, 0, 1, 1,
-                                              dstRepeatStride, srcRepeatStride);
+        if constexpr (std::is_same_v<DstDType, float> && std::is_same_v<SrcDType, int8_t>) {
+            ConvertToDstDtype<half, SrcDType>((__ubuf__ half *)(dstPtr + i * dstRowStride), srcPtr + i * srcRowStride,
+                                              0, 2, 1, BLOCK_MAX_PER_REPEAT * 2, BLOCK_MAX_PER_REPEAT / 2);
+            ConvertToDstDtype<DstDType, half>(dstPtr + i * dstRowStride, (__ubuf__ half *)(dstPtr + i * dstRowStride),
+                                              0, 1, 2, BLOCK_MAX_PER_REPEAT, BLOCK_MAX_PER_REPEAT);
+        } else {
+            constexpr unsigned repeatWidth = sizeof(DstDType) > sizeof(SrcDType) ? sizeof(DstDType) : sizeof(SrcDType);
+            constexpr unsigned dstRepeatStride = repeatWidth == sizeof(DstDType) ?
+                                                     BLOCK_MAX_PER_REPEAT :
+                                                     (BLOCK_MAX_PER_REPEAT / sizeof(SrcDType) * sizeof(DstDType));
+            constexpr unsigned srcRepeatStride = repeatWidth == sizeof(SrcDType) ?
+                                                     BLOCK_MAX_PER_REPEAT :
+                                                     (BLOCK_MAX_PER_REPEAT / sizeof(DstDType) * sizeof(SrcDType));
+            ConvertToDstDtype<DstDType, SrcDType>(dstPtr + i * dstRowStride, srcPtr + i * srcRowStride, 0, 1, 1,
+                                                  dstRepeatStride, srcRepeatStride);
+        }
     }
     set_mask_norm();
     set_vector_mask(-1, -1);
@@ -88,23 +95,11 @@ __tf__ PTO_INTERNAL void TDequant(typename TileDataDst::TileDType __out__ dst,
 {
     __ubuf__ typename TileDataDst::DType *dstPtr = (__ubuf__ typename TileDataDst::DType *)__cce_get_tile_ptr(dst);
     __ubuf__ typename TileDataSrc::DType *srcPtr = (__ubuf__ typename TileDataSrc::DType *)__cce_get_tile_ptr(src);
-
-    if constexpr (std::is_same_v<typename TileDataDst::DType, float> &&
-                  std::is_same_v<typename TileDataSrc::DType, int16_t>) {
-        ConvertForDequant<float, int16_t, dstRowStride, srcRowStride>(dstPtr, srcPtr, dstValidRows, dstValidCols);
-    } else if constexpr (std::is_same_v<typename TileDataDst::DType, float> &&
-                         std::is_same_v<typename TileDataSrc::DType, int8_t>) {
-        __ubuf__ half *tempDstHalfPtr = (__ubuf__ half *)(dstPtr);
-        ConvertForDequant<half, int8_t, dstRowStride * 2, srcRowStride>(tempDstHalfPtr, srcPtr, dstValidRows,
-                                                                        dstValidCols);
-        ConvertForDequant<float, half, dstRowStride, dstRowStride * 2>(dstPtr, tempDstHalfPtr, dstValidRows,
-                                                                       dstValidCols);
-    }
-
+    ConvertForDequant<typename TileDataDst::DType, typename TileDataSrc::DType, dstRowStride, srcRowStride>(
+        dstPtr, srcPtr, dstValidRows, dstValidCols);
     using T = typename TileDataPara::DType;
     __ubuf__ T *scalePtr = (__ubuf__ T *)__cce_get_tile_ptr(scale);
     __ubuf__ T *offsetPtr = (__ubuf__ T *)__cce_get_tile_ptr(offset);
-
     ApplyScaleAndOffset<T, dstRowStride, TileDataPara::RowStride>(dstPtr, scalePtr, offsetPtr, dstValidRows,
                                                                   dstValidCols);
 }

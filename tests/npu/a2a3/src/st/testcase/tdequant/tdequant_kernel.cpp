@@ -90,3 +90,9 @@ template void LaunchTDequant<float, int8_t, 2, 128, 2, 128, 2, 127, 2, 128>(floa
                                                                             float *offset, void *stream);
 template void LaunchTDequant<float, int8_t, 2, 512, 2, 512, 2, 511, 2, 512>(float *out, int8_t *src, float *scale,
                                                                             float *offset, void *stream);
+template void LaunchTDequant<float, int8_t, 1, 12288, 1, 12288, 1, 12288, 1, 12288>(float *out, int8_t *src,
+                                                                                    float *scale, float *offset,
+                                                                                    void *stream);
+template void LaunchTDequant<float, int16_t, 1, 12288, 1, 12288, 1, 12288, 1, 12288>(float *out, int16_t *src,
+                                                                                     float *scale, float *offset,
+                                                                                     void *stream);
