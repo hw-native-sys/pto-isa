@@ -1,0 +1,428 @@
+/**
+Copyright (c) 2026 Huawei Technologies Co., Ltd.
+This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+CANN Open Software License Agreement Version 2.0 (the "License").
+Please refer to the License for details. You may not use this file except in compliance with the License.
+THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+See LICENSE in the root of the software repository for the full text of the License.
+*/
+
+// Single-device multi-block FFN GridPipe driver.
+//
+// gridRows*gridCols blocks form a logical grid on one NPU.  Each cell computes
+// one model-parallel FFN shard, then cells in the same row reduce their fp32
+// down partials through a same-device GridPipe EAST mock backed by local GM
+// windows and a fake HcclDeviceContext.
+
+#include <chrono>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
+#include <string>
+#include <vector>
+
+#ifdef AICORE
+#undef AICORE
+#endif
+#define AICORE
+
+#ifndef __gm__
+#define __gm__
+#endif
+
+#include "common.hpp"
+
+#ifdef DT_UNDEFINED
+#define DT_UNDEFINED_SAVED DT_UNDEFINED
+#undef DT_UNDEFINED
+#endif
+#include "test_common.h"
+#ifdef DT_UNDEFINED_SAVED
+#define DT_UNDEFINED DT_UNDEFINED_SAVED
+#undef DT_UNDEFINED_SAVED
+#endif
+
+#include "ffn_config.hpp"
+#include "kernel_launch.hpp"
+
+struct DeviceResources {
+    aclrtStream stream = nullptr;
+    void *x_dev = nullptr;
+    void *w_gate_dev = nullptr;
+    void *w_up_dev = nullptr;
+    void *w_down_dev = nullptr;
+    void *gate_partial_dev = nullptr;
+    void *up_partial_dev = nullptr;
+    void *hidden_dev = nullptr;
+    void *down_partial_dev = nullptr;
+    void *y_output_dev = nullptr;
+    void *reduce_pipe_windows_dev = nullptr;
+    void *fake_hccl_ctx_dev = nullptr;
+
+    size_t rows = static_cast<size_t>(FFN_GRID_ROWS);
+    size_t cols = static_cast<size_t>(FFN_GRID_COLS);
+    size_t cells = static_cast<size_t>(FFN_GRID_ROWS) * static_cast<size_t>(FFN_GRID_COLS);
+    size_t xBytes = 0;
+    size_t wGateBytes = 0;
+    size_t wUpBytes = 0;
+    size_t wDownBytes = 0;
+    size_t gatePartialBytes = 0;
+    size_t upPartialBytes = 0;
+    size_t hiddenBytes = 0;
+    size_t downPartialBytes = 0;
+    size_t yOutputBytes = 0;
+    size_t reducePipeBytes = 0;
+
+    std::string dataDir = "./out";
+};
+
+static bool InitAcl(int device_id)
+{
+    constexpr int kAclRepeatInit = 100002;
+    aclError aRet = aclInit(nullptr);
+    if (aRet != ACL_SUCCESS && static_cast<int>(aRet) != kAclRepeatInit) {
+        std::cerr << "[ERROR] aclInit failed: " << static_cast<int>(aRet) << std::endl;
+        return false;
+    }
+    rtSetDevice(device_id);
+    aRet = aclrtSetDevice(device_id);
+    if (aRet != ACL_SUCCESS) {
+        std::cerr << "[ERROR] aclrtSetDevice(" << device_id << ") failed: " << static_cast<int>(aRet) << std::endl;
+        return false;
+    }
+    return true;
+}
+
+static bool InitLocalGridPipeContext(DeviceResources &r)
+{
+    r.reducePipeBytes = r.cells * static_cast<size_t>(FFN_GRID_WINDOW_BYTES);
+    if (aclrtMalloc(&r.reduce_pipe_windows_dev, r.reducePipeBytes, ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) {
+        std::cerr << "[ERROR] aclrtMalloc(reduce_pipe_windows) failed" << std::endl;
+        return false;
+    }
+    aclrtMemset(r.reduce_pipe_windows_dev, r.reducePipeBytes, 0, r.reducePipeBytes);
+
+    HcclDeviceContext hostCtx{};
+    hostCtx.rankId = 0;
+    hostCtx.rankNum = static_cast<uint32_t>(r.cells);
+    hostCtx.winSize = static_cast<uint64_t>(FFN_GRID_WINDOW_BYTES);
+    uint64_t base = reinterpret_cast<uint64_t>(r.reduce_pipe_windows_dev);
+    for (size_t i = 0; i < r.cells && i < HCCL_MAX_RANK_NUM; ++i) {
+        hostCtx.windowsIn[i] = base + i * static_cast<size_t>(FFN_GRID_WINDOW_BYTES);
+        hostCtx.windowsOut[i] = hostCtx.windowsIn[i];
+    }
+
+    if (aclrtMalloc(&r.fake_hccl_ctx_dev, sizeof(HcclDeviceContext), ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) {
+        std::cerr << "[ERROR] aclrtMalloc(fake_hccl_ctx) failed" << std::endl;
+        return false;
+    }
+    if (aclrtMemcpy(r.fake_hccl_ctx_dev, sizeof(HcclDeviceContext), &hostCtx, sizeof(HcclDeviceContext),
+                    ACL_MEMCPY_HOST_TO_DEVICE) != ACL_SUCCESS) {
+        std::cerr << "[ERROR] aclrtMemcpy(fake_hccl_ctx) failed" << std::endl;
+        return false;
+    }
+    return true;
+}
+
+static bool AllocateResources(DeviceResources &r)
+{
+    if (r.cells == 0 || r.cells > HCCL_MAX_RANK_NUM) {
+        std::cerr << "[ERROR] invalid cell count " << r.cells << "; supported range is 1.." << HCCL_MAX_RANK_NUM
+                  << std::endl;
+        return false;
+    }
+    if (const char *env = std::getenv("FFN_GRID_DATA_DIR")) {
+        r.dataDir = env;
+    }
+
+    if (aclrtCreateStream(&r.stream) != ACL_SUCCESS) {
+        std::cerr << "[ERROR] aclrtCreateStream failed" << std::endl;
+        return false;
+    }
+
+    r.xBytes = r.cells * static_cast<size_t>(FFN_X_BYTES);
+    r.wGateBytes = r.cells * static_cast<size_t>(FFN_W_GATE_BYTES);
+    r.wUpBytes = r.cells * static_cast<size_t>(FFN_W_UP_BYTES);
+    r.wDownBytes = r.cells * static_cast<size_t>(FFN_W_DOWN_BYTES);
+    r.gatePartialBytes = r.cells * static_cast<size_t>(FFN_GATE_PARTIAL_BYTES);
+    r.upPartialBytes = r.cells * static_cast<size_t>(FFN_UP_PARTIAL_BYTES);
+    r.hiddenBytes = r.cells * static_cast<size_t>(FFN_HIDDEN_BYTES);
+    r.downPartialBytes = r.cells * static_cast<size_t>(FFN_DOWN_PARTIAL_BYTES);
+    r.yOutputBytes = r.rows * static_cast<size_t>(FFN_Y_OUTPUT_BYTES);
+
+    aclrtMalloc(&r.x_dev, r.xBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc(&r.w_gate_dev, r.wGateBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc(&r.w_up_dev, r.wUpBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc(&r.w_down_dev, r.wDownBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc(&r.gate_partial_dev, r.gatePartialBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc(&r.up_partial_dev, r.upPartialBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc(&r.hidden_dev, r.hiddenBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc(&r.down_partial_dev, r.downPartialBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc(&r.y_output_dev, r.yOutputBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+
+    if (!r.x_dev || !r.w_gate_dev || !r.w_up_dev || !r.w_down_dev || !r.gate_partial_dev || !r.up_partial_dev ||
+        !r.hidden_dev || !r.down_partial_dev || !r.y_output_dev) {
+        std::cerr << "[ERROR] aclrtMalloc failed" << std::endl;
+        return false;
+    }
+
+    aclrtMemset(r.x_dev, r.xBytes, 0, r.xBytes);
+    aclrtMemset(r.gate_partial_dev, r.gatePartialBytes, 0, r.gatePartialBytes);
+    aclrtMemset(r.up_partial_dev, r.upPartialBytes, 0, r.upPartialBytes);
+    aclrtMemset(r.hidden_dev, r.hiddenBytes, 0, r.hiddenBytes);
+    aclrtMemset(r.down_partial_dev, r.downPartialBytes, 0, r.downPartialBytes);
+    aclrtMemset(r.y_output_dev, r.yOutputBytes, 0, r.yOutputBytes);
+
+    if (!InitLocalGridPipeContext(r)) {
+        return false;
+    }
+
+    std::cout << "[INFO] grid=" << r.rows << "x" << r.cols << " cells=" << r.cells << " dataDir=" << r.dataDir
+              << " reducePipeBytes=" << r.reducePipeBytes << " yOutputBytes=" << r.yOutputBytes << std::endl;
+    return true;
+}
+
+static bool LoadInputs(DeviceResources &r)
+{
+    std::vector<uint8_t> hostX(r.xBytes);
+    for (size_t cell = 0; cell < r.cells; ++cell) {
+        std::string xPath = r.dataDir + "/pe_" + std::to_string(cell) + "_x.bin";
+        size_t fileSize = 0;
+        uint8_t *dst = hostX.data() + cell * static_cast<size_t>(FFN_X_BYTES);
+        if (!PtoTestCommon::ReadFile(xPath, fileSize, dst, static_cast<size_t>(FFN_X_BYTES)) ||
+            fileSize != static_cast<size_t>(FFN_X_BYTES)) {
+            std::cerr << "[ERROR] X file load mismatch: " << xPath << " (got " << fileSize << " bytes, expected "
+                      << FFN_X_BYTES << ")" << std::endl;
+            return false;
+        }
+    }
+    if (aclrtMemcpy(r.x_dev, r.xBytes, hostX.data(), r.xBytes, ACL_MEMCPY_HOST_TO_DEVICE) != ACL_SUCCESS) {
+        std::cerr << "[ERROR] aclrtMemcpy(x_dev) failed" << std::endl;
+        return false;
+    }
+    return true;
+}
+
+static bool LoadWeights(DeviceResources &r)
+{
+    struct WeightSpec {
+        const char *suffix;
+        void *dev;
+        size_t tileBytes;
+        size_t totalBytes;
+    };
+    WeightSpec specs[] = {
+        {"_w_gate.bin", r.w_gate_dev, static_cast<size_t>(FFN_W_GATE_BYTES), r.wGateBytes},
+        {"_w_up.bin", r.w_up_dev, static_cast<size_t>(FFN_W_UP_BYTES), r.wUpBytes},
+        {"_w_down.bin", r.w_down_dev, static_cast<size_t>(FFN_W_DOWN_BYTES), r.wDownBytes},
+    };
+
+    for (const auto &w : specs) {
+        std::vector<uint8_t> hostBuf(w.totalBytes);
+        for (size_t cell = 0; cell < r.cells; ++cell) {
+            std::string path = r.dataDir + "/pe_" + std::to_string(cell) + w.suffix;
+            size_t fileSize = 0;
+            uint8_t *dst = hostBuf.data() + cell * w.tileBytes;
+            if (!PtoTestCommon::ReadFile(path, fileSize, dst, w.tileBytes) || fileSize != w.tileBytes) {
+                std::cerr << "[ERROR] weight load mismatch: " << path << " (got " << fileSize << " bytes, expected "
+                          << w.tileBytes << ")" << std::endl;
+                return false;
+            }
+        }
+        if (aclrtMemcpy(w.dev, w.totalBytes, hostBuf.data(), w.totalBytes, ACL_MEMCPY_HOST_TO_DEVICE) !=
+            ACL_SUCCESS) {
+            std::cerr << "[ERROR] aclrtMemcpy(weight " << w.suffix << ") failed" << std::endl;
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool VerifyOutput(DeviceResources &r)
+{
+    const size_t outputElems = r.rows * static_cast<size_t>(FFN_TILE_ELEMS);
+    const size_t outputBytes = r.rows * static_cast<size_t>(FFN_Y_OUTPUT_BYTES);
+
+    std::vector<float> outHost(outputElems);
+    if (aclrtMemcpy(outHost.data(), outputBytes, r.y_output_dev, outputBytes,
+                    ACL_MEMCPY_DEVICE_TO_HOST) != ACL_SUCCESS) {
+        std::cerr << "[ERROR] y_output D2H memcpy failed" << std::endl;
+        return false;
+    }
+
+    std::string goldenPath = r.dataDir + "/golden.bin";
+    std::vector<float> golden(outputElems);
+    size_t fileSize = 0;
+    if (!PtoTestCommon::ReadFile(goldenPath, fileSize, golden.data(), outputBytes) || fileSize != outputBytes) {
+        std::cerr << "[ERROR] golden.bin mismatch: " << goldenPath << " (got " << fileSize << " bytes, expected "
+                  << outputBytes << ")" << std::endl;
+        return false;
+    }
+
+    std::cout << "[INFO] ResultCmp single-device GridPipe EAST-reduced output vs golden:" << std::endl;
+    return PtoTestCommon::ResultCmp(golden, outHost.data(), 0.001f);
+}
+
+static const char *GridPipeFaultName(uint32_t code)
+{
+    switch (code) {
+        case 0x101: return "push north boundary";
+        case 0x102: return "push east boundary";
+        case 0x103: return "push west boundary";
+        case 0x104: return "push source boundary";
+        case 0x201: return "pop north boundary";
+        case 0x202: return "pop east boundary";
+        case 0x203: return "pop west boundary";
+        case 0x301: return "wait ready timeout";
+        case 0x302: return "wait free timeout";
+        default: return "unknown";
+    }
+}
+
+static bool CheckGridPipeFaults(DeviceResources &r)
+{
+    constexpr size_t kFlagWordsPerWindow = static_cast<size_t>(FFN_GRID_FLAGS_BYTES) / sizeof(uint32_t);
+    std::vector<uint32_t> flags(r.cells * kFlagWordsPerWindow, 0);
+    for (size_t cell = 0; cell < r.cells; ++cell) {
+        auto *src = reinterpret_cast<uint8_t *>(r.reduce_pipe_windows_dev) + cell * FFN_GRID_WINDOW_BYTES;
+        auto *dst = flags.data() + cell * kFlagWordsPerWindow;
+        if (aclrtMemcpy(dst, kFlagWordsPerWindow * sizeof(uint32_t), src, kFlagWordsPerWindow * sizeof(uint32_t),
+                        ACL_MEMCPY_DEVICE_TO_HOST) != ACL_SUCCESS) {
+            std::cerr << "[ERROR] GridPipe flag D2H memcpy failed for cell " << cell << std::endl;
+            return false;
+        }
+    }
+
+    bool ok = true;
+    for (size_t cell = 0; cell < r.cells; ++cell) {
+        size_t row = cell / r.cols;
+        size_t col = cell - row * r.cols;
+        const uint32_t *cellFlags = flags.data() + cell * kFlagWordsPerWindow;
+        for (size_t i = 0; i < kFlagWordsPerWindow; ++i) {
+            uint32_t value = cellFlags[i];
+            if (value >= 0x100U) {
+                std::cerr << "[ERROR] GridPipe fault cell=" << cell << " row=" << row << " col=" << col
+                          << " flagWord=" << i << " code=0x" << std::hex << value << std::dec << " ("
+                          << GridPipeFaultName(value) << ")" << std::endl;
+                ok = false;
+            }
+        }
+    }
+    return ok;
+}
+
+static void Cleanup(DeviceResources &r)
+{
+    if (r.fake_hccl_ctx_dev) { aclrtFree(r.fake_hccl_ctx_dev); r.fake_hccl_ctx_dev = nullptr; }
+    if (r.reduce_pipe_windows_dev) { aclrtFree(r.reduce_pipe_windows_dev); r.reduce_pipe_windows_dev = nullptr; }
+    if (r.w_gate_dev) { aclrtFree(r.w_gate_dev); r.w_gate_dev = nullptr; }
+    if (r.w_up_dev) { aclrtFree(r.w_up_dev); r.w_up_dev = nullptr; }
+    if (r.w_down_dev) { aclrtFree(r.w_down_dev); r.w_down_dev = nullptr; }
+    if (r.x_dev) { aclrtFree(r.x_dev); r.x_dev = nullptr; }
+    if (r.gate_partial_dev) { aclrtFree(r.gate_partial_dev); r.gate_partial_dev = nullptr; }
+    if (r.up_partial_dev) { aclrtFree(r.up_partial_dev); r.up_partial_dev = nullptr; }
+    if (r.hidden_dev) { aclrtFree(r.hidden_dev); r.hidden_dev = nullptr; }
+    if (r.down_partial_dev) { aclrtFree(r.down_partial_dev); r.down_partial_dev = nullptr; }
+    if (r.y_output_dev) { aclrtFree(r.y_output_dev); r.y_output_dev = nullptr; }
+    if (r.stream) { aclrtDestroyStream(r.stream); r.stream = nullptr; }
+}
+
+static bool RunSingleDevice()
+{
+    DeviceResources r;
+    if (!AllocateResources(r) || !LoadInputs(r) || !LoadWeights(r)) {
+        Cleanup(r);
+        return false;
+    }
+
+    auto t0 = std::chrono::high_resolution_clock::now();
+
+    launchDistributedFfnGridComputeKernel(reinterpret_cast<uint8_t *>(r.x_dev),
+                                          reinterpret_cast<uint8_t *>(r.w_gate_dev),
+                                          reinterpret_cast<uint8_t *>(r.w_up_dev),
+                                          reinterpret_cast<uint8_t *>(r.w_down_dev),
+                                          reinterpret_cast<uint8_t *>(r.gate_partial_dev),
+                                          reinterpret_cast<uint8_t *>(r.up_partial_dev),
+                                          reinterpret_cast<uint8_t *>(r.hidden_dev),
+                                          reinterpret_cast<uint8_t *>(r.down_partial_dev),
+                                          reinterpret_cast<uint8_t *>(r.y_output_dev),
+                                          nullptr, FFN_GRID_ROWS, FFN_GRID_COLS, 0, 0, r.stream);
+    aclError phase0Ret = aclrtSynchronizeStream(r.stream);
+
+    launchDistributedFfnGridCommKernel(reinterpret_cast<uint8_t *>(r.reduce_pipe_windows_dev),
+                                       reinterpret_cast<uint8_t *>(r.gate_partial_dev),
+                                       reinterpret_cast<uint8_t *>(r.up_partial_dev),
+                                       reinterpret_cast<uint8_t *>(r.hidden_dev),
+                                       reinterpret_cast<uint8_t *>(r.down_partial_dev),
+                                       reinterpret_cast<uint8_t *>(r.y_output_dev),
+                                       reinterpret_cast<uint8_t *>(r.fake_hccl_ctx_dev), nullptr,
+                                       FFN_GRID_ROWS, FFN_GRID_COLS, 0, r.stream);
+    aclError activationRet = aclrtSynchronizeStream(r.stream);
+
+    launchDistributedFfnGridComputeKernel(reinterpret_cast<uint8_t *>(r.x_dev),
+                                          reinterpret_cast<uint8_t *>(r.w_gate_dev),
+                                          reinterpret_cast<uint8_t *>(r.w_up_dev),
+                                          reinterpret_cast<uint8_t *>(r.w_down_dev),
+                                          reinterpret_cast<uint8_t *>(r.gate_partial_dev),
+                                          reinterpret_cast<uint8_t *>(r.up_partial_dev),
+                                          reinterpret_cast<uint8_t *>(r.hidden_dev),
+                                          reinterpret_cast<uint8_t *>(r.down_partial_dev),
+                                          reinterpret_cast<uint8_t *>(r.y_output_dev),
+                                          nullptr, FFN_GRID_ROWS, FFN_GRID_COLS, 0, 1, r.stream);
+    aclError phase1Ret = aclrtSynchronizeStream(r.stream);
+
+    launchDistributedFfnGridCommKernel(reinterpret_cast<uint8_t *>(r.reduce_pipe_windows_dev),
+                                       reinterpret_cast<uint8_t *>(r.gate_partial_dev),
+                                       reinterpret_cast<uint8_t *>(r.up_partial_dev),
+                                       reinterpret_cast<uint8_t *>(r.hidden_dev),
+                                       reinterpret_cast<uint8_t *>(r.down_partial_dev),
+                                       reinterpret_cast<uint8_t *>(r.y_output_dev),
+                                       reinterpret_cast<uint8_t *>(r.fake_hccl_ctx_dev), nullptr,
+                                       FFN_GRID_ROWS, FFN_GRID_COLS, 1, r.stream);
+    aclError reduceRet = aclrtSynchronizeStream(r.stream);
+    bool gridPipeOk = (reduceRet == ACL_SUCCESS) && CheckGridPipeFaults(r);
+
+    auto t1 = std::chrono::high_resolution_clock::now();
+    double us = std::chrono::duration<double, std::micro>(t1 - t0).count();
+    std::cout << "[INFO] launch+sync " << us << " us  (phase0 rc=" << static_cast<int>(phase0Ret)
+              << " activation rc=" << static_cast<int>(activationRet)
+              << " phase1 rc=" << static_cast<int>(phase1Ret)
+              << " reduce rc=" << static_cast<int>(reduceRet)
+              << " gridpipe_ok=" << (gridPipeOk ? 1 : 0);
+    std::cout << ")" << std::endl;
+
+    bool syncOk = (phase0Ret == ACL_SUCCESS) && (activationRet == ACL_SUCCESS) && (phase1Ret == ACL_SUCCESS) &&
+                  (reduceRet == ACL_SUCCESS) && gridPipeOk;
+    bool verifyOk = syncOk && VerifyOutput(r);
+    Cleanup(r);
+    return syncOk && verifyOk;
+}
+
+int main(int argc, char **argv)
+{
+    (void)argc;
+    (void)argv;
+    if (!InitAcl(/*device_id=*/0)) {
+        return 1;
+    }
+
+    std::cout << "\n================================================================" << std::endl;
+    std::cout << "  Single-device multi-block FFN GridPipe demo" << std::endl;
+    std::cout << "  grid=" << FFN_GRID_ROWS << "x" << FFN_GRID_COLS << " cells="
+              << (FFN_GRID_ROWS * FFN_GRID_COLS) << " tile=" << FFN_TOKEN_TILE << "x" << FFN_MODEL_TILE
+              << " ffnTile=" << FFN_FFN_TILE << std::endl;
+    std::cout << "  Mode: row=data-parallel, col=model-parallel on one device; EAST reduce uses local GM windows"
+              << std::endl;
+    std::cout << "================================================================" << std::endl;
+
+    bool ok = RunSingleDevice();
+    std::cout << (ok ? "[SUCCESS] Single-device multi-block FFN GridPipe PASS."
+                     : "[FAILED] Single-device multi-block FFN GridPipe FAILED.")
+              << std::endl;
+    aclrtResetDevice(0);
+    aclFinalize();
+    return ok ? 0 : 1;
+}

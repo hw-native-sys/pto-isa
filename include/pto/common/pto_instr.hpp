@@ -14,6 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/common/debug.h"
 #include "pto/common/event.hpp"
 #include "pto/common/fifo.hpp"
+#include "pto/common/grid_pipe.hpp"
 #include "pto/common/tassign_check.hpp"
 #include "pto/common/pto_instr_impl.hpp"
 #if !defined(__COSTMODEL) && !defined(PTO_COMM_NOT_SUPPORTED)
@@ -1991,6 +1992,48 @@ PTO_INST RecordEvent TGET_SCALE_ADDR(TileDataOut &dst, TileDataIn &src, WaitEven
 {
     TSYNC(events...);
     MAP_INSTR_IMPL(TGET_SCALE_ADDR, dst, src);
+    return {};
+}
+
+// ---------------------------------------------------------------------------
+// GridPipe TPUSH / TPOP overloads (design doc section 4.1, "neighbor-core
+// FIFO" form).  These coexist with the cluster-local TPipe overloads above:
+// SFINAE on is_grid_pipe_v keeps overload resolution unambiguous.  The
+// `Direction` non-type template parameter is constant-folded by the compiler,
+// matching design doc section 4.2's requirement that direction be a constant
+// at lowering time.
+// ---------------------------------------------------------------------------
+
+template <pto::GridDirection Direction, typename Pipe, typename TileProd,
+          std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0, typename... WaitEvents>
+PTO_INST RecordEvent TPUSH(Pipe &pipe, TileProd &tile, WaitEvents &...events)
+{
+    static_assert(Direction != pto::GridDirection::SOURCE,
+                  "GridPipe TPUSH<SOURCE> is illegal (design doc section 4.3): "
+                  "SOURCE is only valid for TPOP.");
+#if defined(PTO_NPU_ARCH_A2A3) || defined(__CPU_SIM)
+    TSYNC(events...);
+    GRID_TPUSH_IMPL<Direction, Pipe, TileProd>(pipe, tile);
+#else
+    static_assert(sizeof(Pipe) == 0,
+                  "GridPipe TPUSH not supported on this target profile "
+                  "(design doc section 5.4 forbids silent GM fallback).");
+#endif
+    return {};
+}
+
+template <pto::GridDirection Direction, typename Pipe, typename TileCons,
+          std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0, typename... WaitEvents>
+PTO_INST RecordEvent TPOP(Pipe &pipe, TileCons &tile, WaitEvents &...events)
+{
+#if defined(PTO_NPU_ARCH_A2A3) || defined(__CPU_SIM)
+    TSYNC(events...);
+    GRID_TPOP_IMPL<Direction, Pipe, TileCons>(pipe, tile);
+#else
+    static_assert(sizeof(Pipe) == 0,
+                  "GridPipe TPOP not supported on this target profile "
+                  "(design doc section 5.4 forbids silent GM fallback).");
+#endif
     return {};
 }
 
