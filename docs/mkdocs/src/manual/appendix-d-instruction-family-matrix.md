@@ -15,10 +15,10 @@ This appendix is generated from `docs/isa/manifest.yaml` and provides a source-s
 | Axis Reduce / Expand | 24 |
 | Memory (GM <-> Tile) | 6 |
 | Matrix Multiply | 8 |
-| Data Movement / Layout | 12 |
+| Data Movement / Layout | 13 |
 | Complex | 15 |
 | Communication | 11 |
-| Total | 128 |
+| Total | 129 |
 
 ## D.3 Header synchronization status
 
@@ -137,6 +137,7 @@ This appendix is generated from `docs/isa/manifest.yaml` and provides a source-s
 | Data Movement / Layout | [TTRANS](/docs/isa/TTRANS.md) | `reshape_move` | `dst, src` | `docs/isa/TTRANS.md` |
 | Data Movement / Layout | [TSUBVIEW](/docs/isa/TSUBVIEW.md) | `reshape_move` | `dst, src, rowOffset, colOffset` | `docs/isa/TSUBVIEW.md` |
 | Data Movement / Layout | [TGET_SCALE_ADDR](/docs/isa/TGET_SCALE_ADDR.md) | `reshape_move` | `dst, src` | `docs/isa/TGET_SCALE_ADDR.md` |
+| Data Movement / Layout | [TCONCAT](/docs/isa/TCONCAT.md) | `reshape_move` | `dst, src0, src1` | `docs/isa/TCONCAT.md` |
 | Complex | [TPRINT](/docs/isa/TPRINT.md) | `complex` | `dst, src0, src1` | `docs/isa/TPRINT.md` |
 | Complex | [TMRGSORT](/docs/isa/TMRGSORT.md) | `complex` | `dst, src0, src1` | `docs/isa/TMRGSORT.md` |
 | Complex | [TSORT32](/docs/isa/TSORT32.md) | `complex` | `dst, src0, src1` | `docs/isa/TSORT32.md` |

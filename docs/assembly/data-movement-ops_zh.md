@@ -255,3 +255,21 @@ pto.timg2col ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
 ---
+
+### TCONCAT
+
+该指令的详细介绍请见[isa/TCONCAT](../isa/TCONCAT_zh.md)
+
+**AS Level 1 (SSA)：**
+```text
+%dst = pto.tconcat %src0, %src1 : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+```
+
+**AS Level 2 (DPS)：**
+```text
+pto.tconcat ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+```
+
+---
+
+

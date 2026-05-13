@@ -457,61 +457,47 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
 fi
 
 if [ "$ENABLE_A5" = "true" ]; then
-  if [ "$ENABLE_SIMPLE" = "true" ]; then           # simple cases
-    # Smoke cases are built again by run_st.py per testcase. Avoid a front-loaded
-    # full A5 build here so business-side compile regressions outside the trimmed
-    # smoke set do not block the smoke pipeline.
-    # Temporarily skip: current merged A5 TSCATTER signatures no longer match this smoke testcase.
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolscatter -g TCOLSCATTERTest.case_mask_half_16x64_16x64_P1111
-    # Temporarily skip: current merged A5 TCONCATDSTIDX runtime result mismatches the expected smoke output on runner host 39.
-    # python3 tests/script/run_st.py $ARGS -v a5 -t tconcatdstidx -g TCONCATTest.case_int16_16x32_16x16_16x16_8x16_8x16
-    # Temporarily skip the unstable A5 partargmax smoke case because the binary exits with SIGSEGV after execution.
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t tpartargmax -g TPARTARGMAXTest.case_fp32_64x64_64x64_64x64
-    # Temporarily skip the unstable A5 partargmin smoke case because the binary exits with SIGSEGV after execution.
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t tpartargmin -g TPARTARGMINTest.case_fp32_64x64_64x64_64x64
-    # Temporarily skip the unstable A5 concatidx smoke case until the kernel/result mismatch is fixed.
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t tconcatidx -g TCONCATTest.case_int16_16x32_16x16_16x16_8x16_8x16
-    python3 tests/script/run_st.py $ARGS -w -v a5 -t tsubreluconv -g TSUBRELUCONVTest.case1
-    python3 tests/script/run_st.py $ARGS -w -v a5 -t taddreluconv -g TADDRELUCONVTest.case1
-    python3 tests/script/run_st.py $ARGS -v a5 -t taxpy -g TAXPYTest.case1
-    python3 tests/script/run_st.py $ARGS -v a5 -t tdequant -g TDEQUANTTest.case1
-    python3 tests/script/run_st.py $ARGS -v a5 -t tconcat -g TCONCATTest.case_half_16x128_16x64_16x64_16x63_16x64
-    # Synced from cann/pto-isa PR920: trim these cases from the A5 simple list.
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t tfmods -g TFMODSTest.case1
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t tfmod -g TFMODTest.case1
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t tsubs -g TSUBSTest.case1
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t tmaxs -g TMAXSTest.case_float_64x64_32x32_32x32
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t trems -g TREMSTest.case1
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t tlrelu -g TLRELUTest.case1
-    python3 tests/script/run_st.py $ARGS -v a5 -t tadd -g TADDTest.case_float_64x64_64x64_64x64_64x64
-    python3 tests/script/run_st.py $ARGS -v a5 -t tadds -g TADDSTest.case1
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t tand -g TANDTest.case1
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t tands -g TANDSTest.case1
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t tors -g TORSTest.case1
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t txors -g TXORSTest.case1
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t txor -g TXORTest.case1
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t tshls -g TSHLSTest.case_int16_64x64_64x64_64x64
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t tshrs -g TSHRSTest.case_int16_64x64_64x64_64x64
-    python3 tests/script/run_st.py $ARGS -v a5 -t tci -g TCITest.case5
-    python3 tests/script/run_st.py $ARGS -v a5 -t tcmps -g TCMPSTest.case_float_8x64_8x64
-    python3 tests/script/run_st.py $ARGS -v a5 -t tcolexpandadd -g TColExpandAddTest.case_fp32_16_128_1_128
-    # Temporarily skip the unstable A5 colexpandmax smoke case because the binary exits with SIGSEGV after execution.
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolexpandmax -g TColExpandMaxTest.case_fp32_32_32_1_32
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolexpandmin -g TColExpandMinTest.case_fp16_4_256_1_256
-    python3 tests/script/run_st.py $ARGS -v a5 -t tcolmax -g TCOLMAXTest.case01
-    # Temporarily skip: this A6-only tcolmin invocation does not belong in the A5 smoke list.
-    # python3 tests/script/run_st.py $ARGS -w -v a6 -t tcolmin -g TCOLCMAXTest.case01
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolmin -g TCOLMINTest.case01
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolmin -g TCOLMINTest.case01
-    python3 tests/script/run_st.py $ARGS -v a5 -t tcolsum -g TCOLSUMTest.case01
-    python3 tests/script/run_st.py $ARGS -v a5 -t tcolprod -g TCOLPRODTest.case01
-    python3 tests/script/run_st.py $ARGS -v a5 -t tcvt -g TCVTTest.case_fp16_fp32_2x64
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t tdivs -g TDIVSTest.case4
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t tdivs -g TDIVSTest.case5
-    python3 tests/script/run_st.py $ARGS -v a5 -t texp -g TEXPTest.case1
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t tlog -g TLOGTest.case_float_64x64_64x64_64x64
-    # Temporarily skip the unstable A5 texpands smoke case because the binary exits with SIGSEGV after execution.
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t texpands -g TEXPANDSTest.case_float_64x64_64x64_64x64_PAD_VALUE_NULL
+  if [ "$ENABLE_SIMPLE" = "true" ]; then           # 单个用例
+    python3 tests/script/build_st.py $ARGS -v a5 -t all
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tconcatdstidx -g TCONCATTest.case_int16_16x32_16x16_16x16_8x16_8x16
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tpartargmax -g TPARTARGMAXTest.case_fp32_64x64_64x64_64x64
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tpartargmin -g TPARTARGMINTest.case_fp32_64x64_64x64_64x64
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tconcatidx -g TCONCATTest.case_int16_16x32_16x16_16x16_8x16_8x16
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t taxpy -g TAXPYTest.case1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tdequant -g TDEQUANTTest.case1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tconcat -g TCONCATTest.case_half_16x128_16x64_16x64_16x63_16x64
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tfmods -g TFMODSTest.case1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tfmod -g TFMODTest.case1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tsubs -g TSUBSTest.case1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tmaxs -g TMAXSTest.case_float_64x64_32x32_32x32
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t trems -g TREMSTest.case1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tlrelu -g TLRELUTest.case1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tadd -g TADDTest.case_float_64x64_64x64_64x64_64x64
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tadds -g TADDSTest.case1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tand -g TANDTest.case1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tands -g TANDSTest.case1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tors -g TORSTest.case1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t txors -g TXORSTest.case1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t txor -g TXORTest.case1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tshls -g TSHLSTest.case_int16_64x64_64x64_64x64
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tshrs -g TSHRSTest.case_int16_64x64_64x64_64x64
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tci -g TCITest.case5
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tcmps -g TCMPSTest.case_float_8x64_8x64_8x64
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolexpandadd -g TColExpandAddTest.case_fp32_16_128_1_128
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolexpandmax -g TColExpandMaxTest.case_fp32_32_32_1_32
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolexpandmin -g TColExpandMinTest.case_fp16_4_256_1_256
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolmax -g TCOLMAXTest.case01
+    python3 tests/script/run_st.py $ARGS -w -v a6 -t tcolmin -g TCOLCMAXTest.case01
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolmin -g TCOLMINTest.case01
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolmin -g TCOLCMINTest.case01
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolsum -g TCOLSUMTest.case01
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolprod -g TCOLPRODTest.case01
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tcvt -g TCVTTest.case_fp16_fp32_2x64
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tdivs -g TDIVSTest.case4
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tdivs -g TDIVSTest.case5
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t texp -g TEXPTest.case1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tlog -g TLOGTest.case_float_64x64_64x64_64x64
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t texpands -g TEXPANDSTest.case_float_64x64_64x64_64x64_PAD_VALUE_NULL
     if [ "$IS_AUTO_MODE" = "false" ]; then
       # this testcase has to directly call CCE intrinsics now, which won't compile for auto mode;
       # besides, auto-sync doesn't work with CCE intrisics

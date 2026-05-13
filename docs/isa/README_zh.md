@@ -80,15 +80,22 @@
 - [位置意图与合法性](state-and-types/location-intent-and-legality_zh.md)
 - [内存模型](memory-model/consistency-baseline_zh.md)
 
-- [指令集总览](instruction-families/README_zh.md)
-- [指令族](instruction-families/README_zh.md)
-- [指令描述格式](reference/format-of-instruction-descriptions_zh.md)
-- [Tile 指令集参考](tile/README_zh.md)
-- [Vector 指令集参考](vector/README_zh.md)
-- [标量与控制参考](scalar/README_zh.md)
-- [通信指令集参考](comm/README_zh.md)
-- [系统调度指令集参考](system/README_zh.md)
-- [通用约定](conventions_zh.md)
+## 数据搬运 / 布局
+- [TEXTRACT](TEXTRACT_zh.md) - 从源 Tile 中提取子 Tile。
+- [TEXTRACT_FP](TEXTRACT_FP_zh.md) - 带 fp/缩放 Tile 的提取（向量量化参数）。
+- [TIMG2COL](TIMG2COL_zh.md) - 用于类卷积工作负载的图像到列变换。
+- [TINSERT](TINSERT_zh.md) - 在 (indexRow, indexCol) 偏移处将子 Tile 插入到目标 Tile 中。
+- [TINSERT_FP](TINSERT_FP_zh.md) - 带 fp/缩放 Tile 的插入（向量量化参数）。
+- [TFILLPAD](TFILLPAD_zh.md) - 复制 Tile 并在有效区域外使用编译时填充值进行填充。
+- [TFILLPAD_INPLACE](TFILLPAD_INPLACE_zh.md) - 原地填充/填充变体。
+- [TFILLPAD_EXPAND](TFILLPAD_EXPAND_zh.md) - 填充/填充时允许目标大于源。
+- [TMOV](TMOV_zh.md) - 在 Tile 之间移动/复制，可选应用实现定义的转换模式。
+- [TMOV_FP](TMOV_FP_zh.md) - 使用缩放 (`fp`) Tile 作为向量量化参数，将累加器 Tile 移动/转换到目标 Tile。
+- [TRESHAPE](TRESHAPE_zh.md) - 将 Tile 重新解释为另一种 Tile 类型/形状，同时保留底层字节。
+- [TTRANS](TTRANS_zh.md) - 使用实现定义的临时 Tile 进行转置。
+- [TSUBVIEW](TSUBVIEW_zh.md) - 表达一个tile是另一个tile的subview。
+- [TGET_SCALE_ADDR](TGET_SCALE_ADDR_zh.md) - 将输出tile的片上内存值绑定为扩展后的输入tile内存的值。
+- [TCONCAT](TCONCAT_zh.md) - 将两个 Tile 沿列维度水平拼接。
 
 ## 复杂指令
 - [TPRINT](TPRINT_zh.md) - 调试/打印 Tile 中的元素（实现定义）。

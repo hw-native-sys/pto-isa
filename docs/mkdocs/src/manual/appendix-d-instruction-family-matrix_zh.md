@@ -15,10 +15,10 @@
 | 轴归约 / 扩展 | 24 |
 | 内存（GM <-> Tile） | 6 |
 | 矩阵乘 | 8 |
-| 数据搬运 / 布局 | 12 |
+| 数据搬运 / 布局 | 13 |
 | 复杂指令 | 15 |
 | 通信 | 11 |
-| 总计 | 128 |
+| 总计 | 129 |
 
 ## D.3 头文件同步状态
 
@@ -137,6 +137,7 @@
 | 数据搬运 / 布局 | [TTRANS](/docs/isa/TTRANS_zh.md) | `reshape_move` | `dst, src` | `docs/isa/TTRANS_zh.md` |
 | 数据搬运 / 布局 | [TSUBVIEW](/docs/isa/TSUBVIEW_zh.md) | `reshape_move` | `dst, src, rowOffset, colOffset` | `docs/isa/TSUBVIEW_zh.md` |
 | 数据搬运 / 布局 | [TGET_SCALE_ADDR](/docs/isa/TGET_SCALE_ADDR_zh.md) | `reshape_move` | `dst, src` | `docs/isa/TGET_SCALE_ADDR_zh.md` |
+| 数据搬运 / 布局 | [TCONCAT](/docs/isa/TCONCAT_zh.md) | `reshape_move` | `dst, src0, src1` | `docs/isa/TCONCAT_zh.md` |
 | 复杂指令 | [TPRINT](/docs/isa/TPRINT_zh.md) | `complex` | `dst, src0, src1` | `docs/isa/TPRINT_zh.md` |
 | 复杂指令 | [TMRGSORT](/docs/isa/TMRGSORT_zh.md) | `complex` | `dst, src0, src1` | `docs/isa/TMRGSORT_zh.md` |
 | 复杂指令 | [TSORT32](/docs/isa/TSORT32_zh.md) | `complex` | `dst, src0, src1` | `docs/isa/TSORT32_zh.md` |
