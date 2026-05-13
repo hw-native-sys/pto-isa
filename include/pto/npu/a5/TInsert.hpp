@@ -216,9 +216,9 @@ PTO_INTERNAL void TINSERT_IMPL(DstTileData &dst, SrcTileData &src, FpTileData &f
 }
 
 template <typename T, typename DstTileData, typename SrcTileData>
-PTO_INTERNAL inline void ComputeNZBlockParams(uint32_t validRow, uint32_t validCol, uint32_t dstRow, uint16_t &burstNum,
-                                              uint16_t &burstLen, uint16_t &srcGap, uint16_t &dstGap,
-                                              uint32_t &dstOffset, uint16_t indexRow = 0, uint16_t indexCol = 0)
+PTO_INTERNAL void ComputeNZBlockParams(uint32_t validRow, uint32_t validCol, uint32_t dstRow, uint16_t &burstNum,
+                                       uint16_t &burstLen, uint16_t &srcGap, uint16_t &dstGap, uint32_t &dstOffset,
+                                       uint16_t indexRow = 0, uint16_t indexCol = 0)
 {
     constexpr uint32_t typeSize = sizeof(T);
     constexpr bool isFp4Type = std::is_same_v<T, float4_e2m1x2_t> || std::is_same_v<T, float4_e1m2x2_t>;
