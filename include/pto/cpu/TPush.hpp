@@ -20,11 +20,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <new>
 #include <sstream>
 #include <thread>
-#include <type_traits>
-#ifdef __CPU_SIM
-#include <unordered_map>
-#include <vector>
-#endif
 #include <pto/common/fifo.hpp>
 #include <pto/common/fixpipe.hpp>
 
@@ -517,7 +512,7 @@ struct TPipe {
             ss << "pto-pipe-" << static_cast<unsigned long long>(get_task_cookie()) << "-" << get_block_idx() << "-"
                << static_cast<uint32_t>(FlagID) << "-" << static_cast<uint32_t>(DirType) << "-" << SlotSize << "-"
                << SlotNum << "-" << LocalSlotNum;
-            auto *storage = reinterpret_cast<SharedStateStorage *>(hook(ss.str(), sizeof(SharedStateStorage)));
+            auto *storage = reinterpret_cast<SharedStateStorage *>(hook(ss.str().c_str(), sizeof(SharedStateStorage)));
             EnsureSharedStateInitialized(*storage);
             return *std::launder(reinterpret_cast<SharedState *>(storage->payload));
         }
