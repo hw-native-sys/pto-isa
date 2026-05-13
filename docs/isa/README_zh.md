@@ -134,6 +134,7 @@
 - [TTRANS](TTRANS_zh.md) - 使用实现定义的临时 Tile 进行转置。
 - [TSUBVIEW](TSUBVIEW_zh.md) - 表达一个tile是另一个tile的subview。
 - [TGET_SCALE_ADDR](TGET_SCALE_ADDR_zh.md) - 将输出tile的片上内存值绑定为扩展后的输入tile内存的值。
+- [TCONCAT](TCONCAT_zh.md) - 将两个 Tile 沿列维度水平拼接。
 
 ## 复杂指令
 - [TPRINT](TPRINT_zh.md) - 调试/打印 Tile 中的元素（实现定义）。

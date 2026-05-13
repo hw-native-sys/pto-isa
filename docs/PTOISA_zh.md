@@ -128,6 +128,7 @@
 | 数据搬运 / 布局 | [`TTRANS`](isa/TTRANS_zh.md) | 使用实现定义的临时 Tile 进行转置。 |
 | 数据搬运 / 布局 | [`TSUBVIEW`](isa/TSUBVIEW_zh.md) | 表达一个tile是另一个tile的subview |
 | 数据搬运 / 布局 | [`TGET_SCALE_ADDR`](isa/TGET_SCALE_ADDR_zh.md) | 将输出tile的片上内存值绑定为扩展后的输入tile内存的值。 |
+| 数据搬运 / 布局 | [`TCONCAT`](isa/TCONCAT_zh.md) | 将两个 Tile 沿列维度水平拼接。 |
 | 复杂指令 | [`TPRINT`](isa/TPRINT_zh.md) | 调试/打印 Tile 中的元素（实现定义）。 |
 | 复杂指令 | [`TMRGSORT`](isa/TMRGSORT_zh.md) | 用于多个已排序列表的归并排序（实现定义的元素格式和布局）。 |
 | 复杂指令 | [`TSORT32`](isa/TSORT32_zh.md) | 对 `src` 的每个 32 元素块连同对应的 `idx` 条目一起排序，并输出排序后的 value-index 对。 |

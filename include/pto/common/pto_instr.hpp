@@ -215,6 +215,17 @@ PTO_INST RecordEvent TCONCAT(DstTile &dst, Src0Tile &src0, Src1Tile &src1, Src0I
     return {};
 }
 
+template <typename DstTile, typename Src0Tile, typename Src1Tile, typename DstIdxTile, typename Src0IdxTile,
+          typename Src1IdxTile, typename... WaitEvents,
+          std::enable_if_t<is_tile_data_v<Src1IdxTile> && all_events_v<WaitEvents...>, int> = 0>
+PTO_INST RecordEvent TCONCAT(DstTile &dst, Src0Tile &src0, Src1Tile &src1, DstIdxTile &dstIdx, Src0IdxTile &src0Idx,
+                             Src1IdxTile &src1Idx, WaitEvents &...events)
+{
+    TSYNC(events...);
+    MAP_INSTR_IMPL(TCONCAT, dst, src0, src1, dstIdx, src0Idx, src1Idx);
+    return {};
+}
+
 template <typename TileData, typename GlobalData, typename... WaitEvents>
 PTO_INST RecordEvent TSTORE(GlobalData &dst, TileData &src, WaitEvents &...events)
 {

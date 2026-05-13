@@ -228,6 +228,7 @@ set(ALL_TESTCASES
     t_dhrystone
     tpow
     tpows
+    tconcatdstidx
     tconcatidx
     tconcat
     thistogram

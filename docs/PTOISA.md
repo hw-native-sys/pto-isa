@@ -128,6 +128,7 @@ This page is the source-synchronized ISA index generated from `docs/isa/manifest
 | Data Movement / Layout | [`TTRANS`](isa/TTRANS.md) | Transpose with an implementation-defined temporary tile. |
 | Data Movement / Layout | [`TSUBVIEW`](isa/TSUBVIEW.md) | Reinterpret a tile as a subtile of another tile. |
 | Data Movement / Layout | [`TGET_SCALE_ADDR`](isa/TGET_SCALE_ADDR.md) | Bind the on-chip address of output tile to a scaled factor of that of input tile. |
+| Data Movement / Layout | [`TCONCAT`](isa/TCONCAT.md) | Concatenate two tiles horizontally along the column dimension. |
 | Complex | [`TPRINT`](isa/TPRINT.md) | Debug/print elements from a tile (implementation-defined). |
 | Complex | [`TMRGSORT`](isa/TMRGSORT.md) | Merge sort for multiple sorted lists (implementation-defined element format and layout). |
 | Complex | [`TSORT32`](isa/TSORT32.md) | Sort 32-element blocks of `src` with accompanying `idx` entries and output sorted value-index pairs. |

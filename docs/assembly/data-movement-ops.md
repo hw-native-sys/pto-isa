@@ -2,7 +2,7 @@
 
 This document describes data movement and layout transformation operations.
 
-**Total Operations:** 14
+**Total Operations:** 15
 
 ---
 
@@ -221,6 +221,22 @@ For detailed instruction documentation, see [isa/TIMG2COL](../isa/TIMG2COL.md)
 **AS Level 2 (DPS):**
 ```text
 pto.timg2col ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+```
+
+---
+
+### TCONCAT
+
+For detailed instruction documentation, see [isa/TCONCAT](../isa/TCONCAT.md)
+
+**AS Level 1 (SSA):**
+```text
+%dst = pto.tconcat %src0, %src1 : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+```
+
+**AS Level 2 (DPS):**
+```text
+pto.tconcat ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
 ---

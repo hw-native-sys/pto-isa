@@ -62,6 +62,7 @@ This table tracks per-instruction backend availability:
 | [`TCOLMIN`](../docs/isa/TCOLMIN.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TCOLPROD`](../docs/isa/TCOLPROD.md) | TODO | TODO | Yes | Yes | Yes | TODO |
 | [`TCOLSUM`](../docs/isa/TCOLSUM.md) | Yes | Yes | Yes | Yes | Yes | TODO |
+| [`TConcat`](../docs/isa/TCONCAT.md) | TODO | TODO | TODO | TODO | Yes | TODO |
 | [`TCVT`](../docs/isa/TCVT.md) | Yes | Yes | Yes | Yes | Yes | TODO |
 | [`TDIV`](../docs/isa/TDIV.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TDIVS`](../docs/isa/TDIVS.md) | Yes | Yes | Yes | Yes | Yes | Yes |

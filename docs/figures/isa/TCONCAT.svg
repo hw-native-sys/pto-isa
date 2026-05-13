@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="820" viewBox="0 0 1200 820" role="img" aria-label="TCONCAT basic form diagram">
+<defs>
+  <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#515151"/></marker>
+  <marker id="axisArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#64748b"/></marker>
+  <marker id="arrowBlue" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#2563eb"/></marker>
+  <marker id="arrowOrange" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#ea580c"/></marker>
+</defs>
+<style>
+svg { font-family: Arial, Helvetica, sans-serif; }
+.title { font-size: 28px; font-weight: 700; fill: #0f172a; }
+.subtitle { font-size: 13px; fill: #334155; }
+.meta { font-size: 11px; fill: #64748b; }
+.frame { fill: white; }
+.panel { fill: #F5F5F5; stroke: #e2e8f0; stroke-width: 1.5; rx: 14; }
+.tileLabel { font-size: 13px; font-weight: 700; fill: #0f172a; }
+.tileBorder { fill: none; stroke: #475569; stroke-width: 1.5; }
+.cell { fill: #ffffff; stroke: #94a3b8; stroke-width: 1; }
+.cellSrc0 { fill: #dbeafe; stroke: #94a3b8; stroke-width: 1; }
+.cellSrc1 { fill: #fed7aa; stroke: #94a3b8; stroke-width: 1; }
+.cellMasked { fill: #e2e8f0; }
+.cellHL0 { stroke-width: 2; stroke: #2563eb; }
+.cellHL1 { stroke-width: 2; stroke: #ea580c; }
+.arrow { stroke-width: 1.5; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.arrowBlue { stroke-width: 1.5; fill: none; stroke-linejoin: round; stroke-linecap: round; stroke: #2563eb; }
+.arrowOrange { stroke-width: 1.5; fill: none; stroke-linejoin: round; stroke-linecap: round; stroke: #ea580c; }
+.axisLine { stroke: #64748b; stroke-width: 1.5; fill: none; }
+.axisText { font-size: 9px; fill: #64748b; font-weight: 700; }
+.opCircle { fill: #ffffff; stroke-width: 2; }
+.opRect { fill: #ffffff; stroke-width: 2; }
+.opText { font-size: 9px; font-weight: 800; fill: #0f172a; }
+.procBox { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.5; rx: 12; }
+.procTitle { font-size: 13px; font-weight: 700; fill: #0f172a; }
+.procText { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 11px; fill: #0f172a; }
+.validBox { fill: none; stroke-width: 2; stroke-dasharray: 6 4; }
+.concatLine { stroke: #475569; stroke-width: 2; stroke-dasharray: 4 2; }
+.implNote { font-size: 10px; fill: #64748b; }
+</style>
+<rect x="0" y="0" width="1200" height="820" class="frame" />
+<rect x="24" y="24" width="1152" height="772" class="panel" />
+<text x="40" y="44" class="title">TCONCAT (Basic Form)</text>
+<text x="40" y="68" class="subtitle">Concatenate two tiles horizontally. TCONCAT(dst, src0, src1)</text>
+<text x="40" y="88" class="meta">API: 3 arguments - dst, src0, src1. ValidCols must match: dst.Cv = src0.Cv + src1.Cv</text>
+<text x="1160" y="88" class="meta" text-anchor="end">Legend: blue=src0; orange=src1; dashed=valid region; shaded=masked/padding</text>
+<line x1="36" y1="100" x2="1164" y2="100" stroke="#e2e8f0" stroke-width="1.5" />
+<text x="600" y="130" class="subtitle" text-anchor="middle" fill="#515151">dst[r, 0:validCols0] = src0[r, :]   dst[r, validCols0:validColsDst] = src1[r, :]</text>
+
+<text x="220" y="160" class="tileLabel" text-anchor="middle">src0</text>
+<text x="220" y="175" class="implNote" text-anchor="middle">vlds → vsts (contiguous)</text>
+<rect x="170" y="188" width="100" height="100" class="tileBorder" />
+<rect x="170" y="188" width="25" height="25" class="cellSrc0 cellHL0" />
+<rect x="195" y="188" width="25" height="25" class="cellSrc0" />
+<rect x="220" y="188" width="25" height="25" class="cellSrc0" />
+<rect x="245" y="188" width="25" height="25" class="cell cellMasked" />
+<rect x="170" y="213" width="25" height="25" class="cellSrc0" />
+<rect x="195" y="213" width="25" height="25" class="cellSrc0" />
+<rect x="220" y="213" width="25" height="25" class="cellSrc0" />
+<rect x="245" y="213" width="25" height="25" class="cell cellMasked" />
+<rect x="170" y="238" width="25" height="25" class="cellSrc0" />
+<rect x="195" y="238" width="25" height="25" class="cellSrc0" />
+<rect x="220" y="238" width="25" height="25" class="cellSrc0" />
+<rect x="245" y="238" width="25" height="25" class="cell cellMasked" />
+<rect x="170" y="263" width="25" height="25" class="cell cellMasked" />
+<rect x="195" y="263" width="25" height="25" class="cell cellMasked" />
+<rect x="220" y="263" width="25" height="25" class="cell cellMasked" />
+<rect x="245" y="263" width="25" height="25" class="cell cellMasked" />
+<rect x="170" y="188" width="75" height="75" class="validBox" stroke="#2563eb" />
+<text x="172" y="260" class="axisText" fill="#2563eb">Rv</text>
+<text x="242" y="196" class="axisText" text-anchor="end" fill="#2563eb">C0</text>
+<path d="M 180 198 L 240 198" class="axisLine" marker-end="url(#axisArrow)" />
+<path d="M 180 198 L 180 258" class="axisLine" marker-end="url(#axisArrow)" />
+
+<text x="850" y="160" class="tileLabel" text-anchor="middle">src1</text>
+<text x="850" y="175" class="implNote" text-anchor="middle">vlds → vscatter (offset=C0)</text>
+<rect x="800" y="188" width="100" height="100" class="tileBorder" />
+<rect x="800" y="188" width="25" height="25" class="cellSrc1 cellHL1" />
+<rect x="825" y="188" width="25" height="25" class="cellSrc1" />
+<rect x="850" y="188" width="25" height="25" class="cellSrc1" />
+<rect x="875" y="188" width="25" height="25" class="cell cellMasked" />
+<rect x="800" y="213" width="25" height="25" class="cellSrc1" />
+<rect x="825" y="213" width="25" height="25" class="cellSrc1" />
+<rect x="850" y="213" width="25" height="25" class="cellSrc1" />
+<rect x="875" y="213" width="25" height="25" class="cell cellMasked" />
+<rect x="800" y="238" width="25" height="25" class="cellSrc1" />
+<rect x="825" y="238" width="25" height="25" class="cellSrc1" />
+<rect x="850" y="238" width="25" height="25" class="cellSrc1" />
+<rect x="875" y="238" width="25" height="25" class="cell cellMasked" />
+<rect x="800" y="263" width="25" height="25" class="cell cellMasked" />
+<rect x="825" y="263" width="25" height="25" class="cell cellMasked" />
+<rect x="850" y="263" width="25" height="25" class="cell cellMasked" />
+<rect x="875" y="263" width="25" height="25" class="cell cellMasked" />
+<rect x="800" y="188" width="75" height="75" class="validBox" stroke="#ea580c" />
+<text x="802" y="260" class="axisText" fill="#ea580c">Rv</text>
+<text x="872" y="196" class="axisText" text-anchor="end" fill="#ea580c">C1</text>
+<path d="M 810 198 L 870 198" class="axisLine" marker-end="url(#axisArrow)" />
+<path d="M 810 198 L 810 258" class="axisLine" marker-end="url(#axisArrow)" />
+
+<text x="530" y="340" class="tileLabel" text-anchor="middle">dst (output)</text>
+<rect x="430" y="355" width="200" height="100" class="tileBorder" />
+<rect x="430" y="355" width="25" height="25" class="cellSrc0 cellHL0" />
+<rect x="455" y="355" width="25" height="25" class="cellSrc0" />
+<rect x="480" y="355" width="25" height="25" class="cellSrc0" />
+<rect x="505" y="355" width="25" height="25" class="cellSrc1 cellHL1" />
+<rect x="530" y="355" width="25" height="25" class="cellSrc1" />
+<rect x="555" y="355" width="25" height="25" class="cellSrc1" />
+<rect x="580" y="355" width="25" height="25" class="cell cellMasked" />
+<rect x="605" y="355" width="25" height="25" class="cell cellMasked" />
+<rect x="430" y="380" width="25" height="25" class="cellSrc0" />
+<rect x="455" y="380" width="25" height="25" class="cellSrc0" />
+<rect x="480" y="380" width="25" height="25" class="cellSrc0" />
+<rect x="505" y="380" width="25" height="25" class="cellSrc1" />
+<rect x="530" y="380" width="25" height="25" class="cellSrc1" />
+<rect x="555" y="380" width="25" height="25" class="cellSrc1" />
+<rect x="580" y="380" width="25" height="25" class="cell cellMasked" />
+<rect x="605" y="380" width="25" height="25" class="cell cellMasked" />
+<rect x="430" y="405" width="25" height="25" class="cellSrc0" />
+<rect x="455" y="405" width="25" height="25" class="cellSrc0" />
+<rect x="480" y="405" width="25" height="25" class="cellSrc0" />
+<rect x="505" y="405" width="25" height="25" class="cellSrc1" />
+<rect x="530" y="405" width="25" height="25" class="cellSrc1" />
+<rect x="555" y="405" width="25" height="25" class="cellSrc1" />
+<rect x="580" y="405" width="25" height="25" class="cell cellMasked" />
+<rect x="605" y="405" width="25" height="25" class="cell cellMasked" />
+<rect x="430" y="430" width="25" height="25" class="cell cellMasked" />
+<rect x="455" y="430" width="25" height="25" class="cell cellMasked" />
+<rect x="480" y="430" width="25" height="25" class="cell cellMasked" />
+<rect x="505" y="430" width="25" height="25" class="cell cellMasked" />
+<rect x="530" y="430" width="25" height="25" class="cell cellMasked" />
+<rect x="555" y="430" width="25" height="25" class="cell cellMasked" />
+<rect x="580" y="430" width="25" height="25" class="cell cellMasked" />
+<rect x="605" y="430" width="25" height="25" class="cell cellMasked" />
+<rect x="430" y="355" width="150" height="75" class="validBox" stroke="#515151" />
+<line x1="505" y1="355" x2="505" y2="430" class="concatLine" />
+<text x="434" y="427" class="axisText">Rv</text>
+<text x="574" y="363" class="axisText" text-anchor="end">C0+C1</text>
+<text x="485" y="363" class="axisText" text-anchor="end" fill="#2563eb">C0</text>
+<text x="555" y="363" class="axisText" text-anchor="end" fill="#ea580c">C1</text>
+<path d="M 440 365 L 570 365" class="axisLine" marker-end="url(#axisArrow)" />
+<path d="M 440 365 L 440 420" class="axisLine" marker-end="url(#axisArrow)" />
+
+<circle cx="530" cy="310" r="20" class="opCircle" stroke="#515151" />
+<rect x="515" y="295" width="30" height="30" rx="5" class="opRect" stroke="#515151" />
+<text x="530" y="308" class="opText" font-size="8px" text-anchor="middle">TCON</text>
+<text x="530" y="318" class="opText" font-size="8px" text-anchor="middle">CAT</text>
+
+<path d="M 220 300 L 220 310 L 510 310" class="arrowBlue" marker-end="url(#arrowBlue)" />
+<path d="M 850 300 L 850 310 L 550 310" class="arrowOrange" marker-end="url(#arrowOrange)" />
+<path d="M 530 330 L 530 356" class="arrow" stroke="#515151" marker-end="url(#arrow)" />
+
+<rect x="40" y="490" width="1120" height="310" class="procBox" />
+<text x="56" y="514" class="procTitle">Procedure (per-row, A5 implementation)</text>
+<text x="56" y="538" class="procText" xml:space="preserve">
+  <tspan x="56" dy="0">for r in range(validRows):</tspan>
+  <tspan x="56" dy="16">  # Phase 1: Copy src0 to dst left part (vlds → vsts)</tspan>
+  <tspan x="56" dy="16">  for j in range(ceil(C0 / elementsPerRepeat)):</tspan>
+  <tspan x="56" dy="16">    preg = CreatePredicate(remainingCols0)</tspan>
+  <tspan x="56" dy="16">    vlds(vreg_0, src0, row*r + j*repeat)  # load src0 chunk</tspan>
+  <tspan x="56" dy="16">    vsts(vreg_0, dst, row*r + j*repeat)   # store to dst same position</tspan>
+  <tspan x="56" dy="16">  mem_bar(VST_VLD)  # barrier: ensure vsts completes before vscatter</tspan>
+  <tspan x="56" dy="16">  # Phase 2: Copy src1 to dst right part at offset C0 (vlds → vscatter)</tspan>
+  <tspan x="56" dy="16">  for j in range(ceil(C1 / elementsPerRepeat)):</tspan>
+  <tspan x="56" dy="16">    preg = CreatePredicate(remainingCols1)</tspan>
+  <tspan x="56" dy="16">    vlds(vreg_1, src1, row*r + j*repeat)</tspan>
+  <tspan x="56" dy="16">    vci(vreg_idx, C0 + r*stride + j*repeat)  # generate scatter indices</tspan>
+  <tspan x="56" dy="16">    vscatter(vreg_1, dst, vreg_idx, preg)    # scatter to dst at offset</tspan>
+</text>
+<text x="56" y="790" class="meta">Constraints: Row-major layout required; validRows(src0)=validRows(src1)=validRows(dst); validColsDst=validCols0+validCols1</text>
+</svg>

@@ -129,6 +129,7 @@
     - [TMOV_FP](isa/TMOV_FP_zh.md)
     - [TRESHAPE](isa/TRESHAPE_zh.md)
     - [TTRANS](isa/TTRANS_zh.md)
+    - [TCONCAT](isa/TCONCAT_zh.md)
 
 - 复杂指令
     - [TPRINT](isa/TPRINT_zh.md)
