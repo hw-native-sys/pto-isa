@@ -71,7 +71,6 @@ tdivs
 texp
 texpands
 textract
-textract_conv
 textract_quant
 tfillpad
 tflashattn

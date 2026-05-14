@@ -180,8 +180,6 @@ __tf__ PTO_INLINE void StoreSubfractalMatrix(typename GlobalData::DType __out__ 
                                              const std::vector<uint64_t> &scalars, int gShape3, int gShape4,
                                              int gStride3, int gStride4, int validRow, int validCol)
 {
-    using D = typename GlobalData::DType;
-    using S = typename TileData::DType;
     cpu::parallel_for_1d(
         0, static_cast<std::size_t>(gShape4), static_cast<std::size_t>(gShape3) * gShape4, [&](std::size_t c) {
             size_t subTileC = c / TileData::InnerCols;
