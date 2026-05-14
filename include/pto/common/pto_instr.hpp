@@ -993,6 +993,15 @@ PTO_INST RecordEvent TGATHER(DstTileData &dst, SrcTileData &src, WaitEvents &...
     return {};
 }
 
+template <MaskPattern maskPattern = MaskPattern::P1111, typename DstTileData, typename SrcTileData,
+          typename... WaitEvents>
+PTO_INST RecordEvent TSCATTER(DstTileData &dst, SrcTileData &src, WaitEvents &...events)
+{
+    TSYNC(events...);
+    TSCATTER_IMPL<maskPattern>(dst, src);
+    return {};
+}
+
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
 PTO_INST RecordEvent TPARTADD(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, WaitEvents &...events)
 {

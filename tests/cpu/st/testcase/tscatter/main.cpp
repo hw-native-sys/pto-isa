@@ -9,6 +9,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include "test_common.h"
+#include "tscatter_common.h"
 #include <pto/pto-inst.hpp>
 #include <gtest/gtest.h>
 
@@ -95,4 +96,159 @@ void test_tscatter()
 TEST_F(TSCATTERTest, case_float_16x16_16x16_16x16)
 {
     test_tscatter<16, 16>();
+}
+
+// --- Mask-pattern TSCATTER tests ---
+
+template <int32_t tilingKey>
+void launchTSCATTER_masked(uint8_t *out, uint8_t *src, void *stream);
+
+template <typename T, uint8_t PATTERN, uint32_t ROW, uint32_t DST_COL, uint32_t MASK_DIVISOR>
+void test_scatter_masked()
+{
+    constexpr uint32_t SRC_COL = DST_COL / MASK_DIVISOR;
+    size_t srcSize = ROW * SRC_COL * sizeof(T);
+    size_t dstSize = ROW * DST_COL * sizeof(T);
+
+    aclInit(nullptr);
+    aclrtSetDevice(0);
+    aclrtStream stream;
+    aclrtCreateStream(&stream);
+
+    uint8_t *dstHost, *srcHost;
+    uint8_t *dstDevice, *srcDevice;
+
+    aclrtMallocHost((void **)(&dstHost), dstSize);
+    aclrtMallocHost((void **)(&srcHost), srcSize);
+    aclrtMalloc((void **)&dstDevice, dstSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void **)&srcDevice, srcSize, ACL_MEM_MALLOC_HUGE_FIRST);
+
+    size_t readSize = srcSize;
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/x1_gm.bin", readSize, srcHost, srcSize));
+
+    aclrtMemcpy(srcDevice, srcSize, srcHost, srcSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    launchTSCATTER_masked<PATTERN>(dstDevice, srcDevice, stream);
+
+    aclrtSynchronizeStream(stream);
+    aclrtMemcpy(dstHost, dstSize, dstDevice, dstSize, ACL_MEMCPY_DEVICE_TO_HOST);
+
+    WriteFile(GetGoldenDir() + "/output_z.bin", dstHost, dstSize);
+
+    aclrtFree(dstDevice);
+    aclrtFree(srcDevice);
+    aclrtFreeHost(dstHost);
+    aclrtFreeHost(srcHost);
+    aclrtDestroyStream(stream);
+    aclrtResetDevice(0);
+    aclFinalize();
+
+    constexpr size_t numElements = ROW * DST_COL;
+    std::vector<T> golden(numElements);
+    std::vector<T> devFinal(numElements);
+    readSize = dstSize;
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/golden.bin", readSize, golden.data(), dstSize));
+    readSize = dstSize;
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/output_z.bin", readSize, devFinal.data(), dstSize));
+
+    bool ret = ResultCmp<T>(golden, devFinal, 0.001f);
+    EXPECT_TRUE(ret);
+}
+
+// float
+TEST_F(TSCATTERTest, case_masked_float_P0101)
+{
+    test_scatter_masked<float, FP0101, FLOAT_P0101_ROW, FLOAT_P0101_COL, 2>();
+}
+
+TEST_F(TSCATTERTest, case_masked_float_P1010)
+{
+    test_scatter_masked<float, FP1010, FLOAT_P1010_ROW, FLOAT_P1010_COL, 2>();
+}
+
+TEST_F(TSCATTERTest, case_masked_float_P0001)
+{
+    test_scatter_masked<float, FP0001, FLOAT_P0001_ROW, FLOAT_P0001_COL, 4>();
+}
+
+TEST_F(TSCATTERTest, case_masked_float_P0010)
+{
+    test_scatter_masked<float, FP0010, FLOAT_P0010_ROW, FLOAT_P0010_COL, 4>();
+}
+
+TEST_F(TSCATTERTest, case_masked_float_P0100)
+{
+    test_scatter_masked<float, FP0100, FLOAT_P0100_ROW, FLOAT_P0100_COL, 4>();
+}
+
+TEST_F(TSCATTERTest, case_masked_float_P1000)
+{
+    test_scatter_masked<float, FP1000, FLOAT_P1000_ROW, FLOAT_P1000_COL, 4>();
+}
+
+TEST_F(TSCATTERTest, case_masked_float_P1111)
+{
+    test_scatter_masked<float, FP1111, FLOAT_P1111_ROW, FLOAT_P1111_COL, 1>();
+}
+
+// half
+TEST_F(TSCATTERTest, case_masked_half_P0101)
+{
+    test_scatter_masked<half, HP0101, HALF_P0101_ROW, HALF_P0101_COL, 2>();
+}
+
+TEST_F(TSCATTERTest, case_masked_half_P1010)
+{
+    test_scatter_masked<half, HP1010, HALF_P1010_ROW, HALF_P1010_COL, 2>();
+}
+
+TEST_F(TSCATTERTest, case_masked_half_P0001)
+{
+    test_scatter_masked<half, HP0001, HALF_P0001_ROW, HALF_P0001_COL, 4>();
+}
+
+TEST_F(TSCATTERTest, case_masked_half_P0100)
+{
+    test_scatter_masked<half, HP0100, HALF_P0100_ROW, HALF_P0100_COL, 4>();
+}
+
+TEST_F(TSCATTERTest, case_masked_half_P1000)
+{
+    test_scatter_masked<half, HP1000, HALF_P1000_ROW, HALF_P1000_COL, 4>();
+}
+
+// uint16 / int16
+TEST_F(TSCATTERTest, case_masked_U16_P0101)
+{
+    test_scatter_masked<uint16_t, U16P0101, HALF_P0101_ROW, HALF_P0101_COL, 2>();
+}
+
+TEST_F(TSCATTERTest, case_masked_U16_P1010)
+{
+    test_scatter_masked<uint16_t, U16P1010, HALF_P1010_ROW, HALF_P1010_COL, 2>();
+}
+
+TEST_F(TSCATTERTest, case_masked_I16_P0001)
+{
+    test_scatter_masked<int16_t, I16P0001, HALF_P0001_ROW, HALF_P0001_COL, 4>();
+}
+
+TEST_F(TSCATTERTest, case_masked_I16_P0010)
+{
+    test_scatter_masked<int16_t, I16P0010, HALF_P0010_ROW, HALF_P0010_COL, 4>();
+}
+
+// uint32 / int32
+TEST_F(TSCATTERTest, case_masked_U32_P0100)
+{
+    test_scatter_masked<uint32_t, U32P0100, FLOAT_P0100_ROW, FLOAT_P0100_COL, 4>();
+}
+
+TEST_F(TSCATTERTest, case_masked_I32_P1000)
+{
+    test_scatter_masked<int32_t, I32P1000, FLOAT_P1000_ROW, FLOAT_P1000_COL, 4>();
+}
+
+TEST_F(TSCATTERTest, case_masked_I32_P1111)
+{
+    test_scatter_masked<int32_t, I32P1111, FLOAT_P1111_ROW, FLOAT_P1111_COL, 1>();
 }
