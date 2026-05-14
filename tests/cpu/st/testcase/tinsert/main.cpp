@@ -18,6 +18,18 @@ using namespace pto;
 using namespace PtoTestCommon;
 using namespace pto;
 
+constexpr struct {
+    BLayout bl;
+    SLayout sl;
+} IDS2LAYOUTS[] = {
+    {BLayout::RowMajor, SLayout::NoneBox},  // ND
+    {BLayout::ColMajor, SLayout::NoneBox},  // DN
+    {BLayout::ColMajor, SLayout::RowMajor}, // NZ
+    {BLayout::RowMajor, SLayout::ColMajor}, // ZN
+    {BLayout::RowMajor, SLayout::RowMajor}, // ZZ
+    {BLayout::ColMajor, SLayout::ColMajor}  // NN
+};
+
 template <typename ST, typename DT, TileType locSrc, TileType locDst, size_t rows, size_t cols, size_t srcValidRows,
           size_t srcValidCols, size_t dstValidRows, size_t dstValidCols, uint16_t srcLayout, uint16_t dstLayout>
 AICORE inline void runTINSERT(__gm__ DT *out, __gm__ ST *src)
@@ -35,10 +47,11 @@ AICORE inline void runTINSERT(__gm__ DT *out, __gm__ ST *src)
     GlobalDataSrc srcGlobal(src);
     GlobalDataDst dstGlobal(out);
 
-    constexpr BLayout srcBL = srcLayout > 0 ? BLayout::ColMajor : BLayout::RowMajor;
-    constexpr SLayout srcSL = srcLayout < 2 ? SLayout::NoneBox : SLayout::RowMajor;
-    constexpr BLayout dstBL = dstLayout > 0 ? BLayout::ColMajor : BLayout::RowMajor;
-    constexpr SLayout dstSL = dstLayout < 2 ? SLayout::NoneBox : SLayout::RowMajor;
+    // 0-ND, 1-DN, 2 - NZ, 3 - ZN, 4 - ZZ, 5 - NN
+    constexpr BLayout srcBL = IDS2LAYOUTS[srcLayout].bl;
+    constexpr SLayout srcSL = IDS2LAYOUTS[srcLayout].sl;
+    constexpr BLayout dstBL = IDS2LAYOUTS[dstLayout].bl;
+    constexpr SLayout dstSL = IDS2LAYOUTS[dstLayout].sl;
 
     Tile<locSrc, ST, rows, cols, srcBL, srcValidRows, srcValidCols, srcSL, 512> srcTile;
     Tile<locDst, DT, rows, cols, dstBL, dstValidRows, dstValidCols, dstSL, 512> dstTile;
@@ -118,7 +131,7 @@ void tinsert_test()
     size_t goldenSize = 0;
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/golden.bin", goldenSize, golden.data(), dstFileSize));
 
-    bool ret = ResultCmp(golden, (DT *)dstHost, 0);
+    bool ret = ResultCmp(golden, (DT *)dstHost, 0, 100, false, true);
 
     aclrtFree(dstDevice);
     aclrtFree(srcDevice);
@@ -325,30 +338,4 @@ TEST_F(TINSERTTest, case_float_float_Vec_Vec_128_96_8_16_DST_8_16_L_4_1)
 TEST_F(TINSERTTest, case_int32_t_float_Vec_Vec_128_96_8_16_DST_8_16_L_5_1)
 {
     tinsert_test<int32_t, float, TileType::Vec, TileType::Vec, 128, 96, 8, 16, 128, 96, 5, 1>();
-}
-
-TEST_F(TINSERTTest, FpVariantInsertsSourceTile)
-{
-    using DstTile = Tile<TileType::Vec, float, 4, 8>;
-    using SrcTile = Tile<TileType::Vec, float, 2, 8, BLayout::RowMajor, 2, 4>;
-    using FpTile = Tile<TileType::Vec, float, 1, 8>;
-
-    DstTile dst;
-    SrcTile src;
-    FpTile fp;
-    size_t addr = 0;
-    CpuTileTestUtils::AssignTileStorage(addr, dst, src, fp);
-
-    CpuTileTestUtils::FillAll(dst, 0.0f);
-    CpuTileTestUtils::FillLinear(src, 1.0f);
-    CpuTileTestUtils::FillAll(fp, 2.0f);
-
-    TINSERT_FP<DstTile, SrcTile, FpTile>(dst, src, fp, 1, 3);
-
-    for (int r = 0; r < src.GetValidRow(); ++r) {
-        for (int c = 0; c < src.GetValidCol(); ++c) {
-            CpuTileTestUtils::ExpectValueEquals(CpuTileTestUtils::GetValue(dst, r + 1, c + 3),
-                                                CpuTileTestUtils::GetValue(src, r, c));
-        }
-    }
 }

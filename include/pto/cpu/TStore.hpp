@@ -174,7 +174,7 @@ __tf__ PTO_INLINE void StorePlain(typename GlobalData::DType __out__ *dst, typen
     }
 }
 
-template <typename GlobalData, typename TileData, QuantMode_t quantMode, bool applyRelu, bool atomicAdd = false>
+template <typename GlobalData, typename TileData>
 __tf__ PTO_INLINE void StoreSubfractalMatrix(typename GlobalData::DType __out__ *dst,
                                              typename TileData::TileDType __in__ src,
                                              const std::vector<uint64_t> &scalars, int gShape3, int gShape4,
@@ -197,29 +197,16 @@ __tf__ PTO_INLINE void StoreSubfractalMatrix(typename GlobalData::DType __out__ 
         });
 }
 
-template <typename GlobalData, typename TileData, QuantMode_t quantMode, bool applyRelu, bool atomicAdd = false>
+template <typename GlobalData, typename TileData>
 __tf__ PTO_INLINE void TStore(typename GlobalData::DType __out__ *dst, typename TileData::TileDType __in__ src,
                               const std::vector<uint64_t> &scalars, int gShape0, int gShape1, int gShape2, int gShape3,
                               int gShape4, int gStride0, int gStride1, int gStride2, int gStride3, int gStride4,
                               int validRow, int validCol)
 {
-    if constexpr (GlobalData::layout == pto::Layout::NZ) {
-        assert(validRow == gShape2 * gShape3 && validCol == gShape0 * gShape1 * gShape4);
-    } else {
-        assert(gShape0 * gShape1 * gShape2 * gShape3 * gShape4 >= validRow * validCol);
-    }
-    if constexpr (GlobalData::layout == pto::Layout::NZ) {
-        using D = typename GlobalData::DType;
-        using S = typename TileData::DType;
-        ForEachNZElement<TileData>(validRow, validCol, gShape1, gShape3, gShape4, gStride0, gStride1, gStride2,
-                                   gStride3, gStride4, [&](size_t r, size_t c, size_t tile_idx, size_t gd_idx) {
-                                       StoreElement<D, S, TileData, quantMode, applyRelu, atomicAdd>(
-                                           dst, gd_idx, src[tile_idx], r, c, scalars);
-                                   });
-    } else if (TileData::SFractal == SLayout::NoneBox) {
-        StorePlain<GlobalData, TileData, quantMode, applyRelu, atomicAdd>(
-            dst, src, scalars, gShape0, gShape1, gShape2, gShape3, gShape4, gStride0, gStride1, gStride2, gStride3,
-            gStride4, validRow, validCol);
+    assert(gShape0 * gShape1 * gShape2 * gShape3 * gShape4 >= validRow * validCol);
+    if (TileData::SFractal == SLayout::NoneBox) {
+        StorePlain<GlobalData, TileData>(dst, src, gShape0, gShape1, gShape2, gShape3, gShape4, gStride0, gStride1,
+                                         gStride2, gStride3, gStride4, validRow, validCol);
     } else {
         assert(gShape0 == 1 && gShape1 == 1 && gShape2 == 1 && "Nz,Zn -> ND,DN convertion does support only 2D GMs");
         StoreSubfractalMatrix<GlobalData, TileData, quantMode, applyRelu, atomicAdd>(
