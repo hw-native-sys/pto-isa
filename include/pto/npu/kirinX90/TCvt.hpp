@@ -2286,35 +2286,35 @@ PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, RoundMode mode, Satu
     // Execute the conversion with appropriate rounding mode
     switch (mode) {
         case RoundMode::CAST_RINT:
-            implTCVT<TileDataD, TileDataS, RoundRType>(dst.data(), src.data(), satMode, dst.GetValidRow(),
-                                                       dst.GetValidCol());
+            implTCVT<TileDataD, TileDataS, decltype(ROUND_R)>(dst.data(), src.data(), satMode, dst.GetValidRow(),
+                                                              dst.GetValidCol());
             break;
         case RoundMode::CAST_ROUND:
-            implTCVT<TileDataD, TileDataS, RoundAType>(dst.data(), src.data(), satMode, dst.GetValidRow(),
-                                                       dst.GetValidCol());
+            implTCVT<TileDataD, TileDataS, decltype(ROUND_A)>(dst.data(), src.data(), satMode, dst.GetValidRow(),
+                                                              dst.GetValidCol());
             break;
         case RoundMode::CAST_FLOOR:
-            implTCVT<TileDataD, TileDataS, RoundFType>(dst.data(), src.data(), satMode, dst.GetValidRow(),
-                                                       dst.GetValidCol());
+            implTCVT<TileDataD, TileDataS, decltype(ROUND_F)>(dst.data(), src.data(), satMode, dst.GetValidRow(),
+                                                              dst.GetValidCol());
             break;
         case RoundMode::CAST_CEIL:
-            implTCVT<TileDataD, TileDataS, RoundCType>(dst.data(), src.data(), satMode, dst.GetValidRow(),
-                                                       dst.GetValidCol());
+            implTCVT<TileDataD, TileDataS, decltype(ROUND_C)>(dst.data(), src.data(), satMode, dst.GetValidRow(),
+                                                              dst.GetValidCol());
             break;
         case RoundMode::CAST_TRUNC:
-            implTCVT<TileDataD, TileDataS, RoundZType>(dst.data(), src.data(), satMode, dst.GetValidRow(),
-                                                       dst.GetValidCol());
+            implTCVT<TileDataD, TileDataS, decltype(ROUND_Z)>(dst.data(), src.data(), satMode, dst.GetValidRow(),
+                                                              dst.GetValidCol());
             break;
         case RoundMode::CAST_ODD:
             if constexpr (std::is_same<typename TileDataD::DType, half>::value &&
                           std::is_same<typename TileDataS::DType, float>::value) {
-                implTCVT<TileDataD, TileDataS, RoundOType>(dst.data(), src.data(), satMode, dst.GetValidRow(),
-                                                           dst.GetValidCol());
+                implTCVT<TileDataD, TileDataS, decltype(ROUND_O)>(dst.data(), src.data(), satMode, dst.GetValidRow(),
+                                                                  dst.GetValidCol());
             }
             break;
         default:
-            implTCVT<TileDataD, TileDataS, RoundRType>(dst.data(), src.data(), satMode, dst.GetValidRow(),
-                                                       dst.GetValidCol());
+            implTCVT<TileDataD, TileDataS, decltype(ROUND_R)>(dst.data(), src.data(), satMode, dst.GetValidRow(),
+                                                              dst.GetValidCol());
             break;
     }
 

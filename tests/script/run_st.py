@@ -68,32 +68,24 @@ def set_env_variables(run_mode, soc_version):
         else:
             print(f"warning: not found {setenv_path}")
 
-        resolved_soc, resolved_dir = resolve_simulator_dir(ascend_home, soc_version)
-        if resolved_dir:
-            simulator_lib_path = os.path.join(resolved_dir, "lib")
-        else:
-            simulator_lib_path = os.path.join(ascend_home, "tools", "simulator", soc_version, "lib")
+        _, simulator_lib_path = get_simulator_info(ascend_home, soc_version)
         os.environ["LD_LIBRARY_PATH"] = f"{simulator_lib_path}:{os.environ.get('LD_LIBRARY_PATH', '')}"
 
 
-def get_simulator_roots(ascend_home):
-    return [
-        os.path.join(ascend_home, "tools", "simulator"),
-        os.path.join(ascend_home, "x86_64-linux", "simulator"),
-        os.path.join(ascend_home, "aarch64-linux", "simulator"),
-    ]
-
-
-def resolve_simulator_dir(ascend_home, soc_version):
+def get_simulator_info(ascend_home, soc_version):
+    simulator_home = os.path.join(ascend_home, "tools", "simulator")
     soc_candidates = [soc_version]
     if soc_version == "Ascend950PR_9599":
-        soc_candidates.extend(["Ascend910_9599", "Ascend910B1"])
-    for simulator_root in get_simulator_roots(ascend_home):
-        for candidate in soc_candidates:
-            candidate_dir = os.path.join(simulator_root, candidate)
-            if os.path.isdir(candidate_dir):
-                return candidate, candidate_dir
-    return soc_version, ""
+        soc_candidates.extend(["Ascend910_9599"])
+    for candidate in soc_candidates:
+        candidate_dir = os.path.join(simulator_home, candidate)
+        if os.path.isdir(candidate_dir):
+            if candidate == "Ascend950PR_9599":
+                candidate_dir = os.path.join(candidate_dir, "camodel")
+            else:
+                candidate_dir = os.path.join(candidate_dir, "lib")
+            return candidate, candidate_dir
+    return soc_version, os.path.join(simulator_home, soc_version, "lib")
 
 
 def build_project(run_mode, soc_version, testcase="all", debug_enable=False, auto_enable=False):
@@ -107,11 +99,10 @@ def build_project(run_mode, soc_version, testcase="all", debug_enable=False, aut
 
     # Resolve SOC_VERSION for simulator path (e.g. Ascend950PR_9599 -> Ascend910_9599)
     ascend_home = os.environ.get("ASCEND_HOME_PATH", "")
-    cmake_soc = soc_version
     if run_mode == "sim" and ascend_home:
-        resolved_soc, resolved_dir = resolve_simulator_dir(ascend_home, soc_version)
-        if resolved_dir:
-            cmake_soc = resolved_soc
+        cmake_soc, _ = get_simulator_info(ascend_home, soc_version)
+    else:
+        cmake_soc = soc_version
 
     try:
         cmake_cmd = [
@@ -215,10 +206,13 @@ def run_binary(testcase, run_mode, args="all", is_comm=False, nranks=2):
         build_dir = "build/bin/"
         os.chdir(build_dir)
 
+        if run_mode == "sim":
+            camodel_log_dir = "camodel_log"
+            os.makedirs(camodel_log_dir, exist_ok=True)
+            os.environ["CAMODEL_LOG_PATH"] = camodel_log_dir
+
         cmd = ["./" + testcase]
         if args != "all":
-            if run_mode == "sim":
-                os.environ["CAMODEL_LOG_PATH"] = f"../{args}"
             cmd.append("--gtest_filter=" + args)
 
         if is_comm:
