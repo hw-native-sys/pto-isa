@@ -72,12 +72,14 @@ void test_tconcat()
     aclrtMalloc((void **)&src1Device, fileSizeSrc1, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMalloc((void **)&src0IdxDevice, fileSizeSrc0Idx, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMalloc((void **)&src1IdxDevice, fileSizeSrc1Idx, ACL_MEM_MALLOC_HUGE_FIRST);
+    memset(dstHost, 0, fileSizeDst);
 
     ReadFile(GetGoldenDir() + "/input0.bin", fileSizeSrc0, src0Host, fileSizeSrc0);
     ReadFile(GetGoldenDir() + "/input1.bin", fileSizeSrc1, src1Host, fileSizeSrc1);
     ReadFile(GetGoldenDir() + "/src0_idx.bin", fileSizeSrc0Idx, src0IdxHost, fileSizeSrc0Idx);
     ReadFile(GetGoldenDir() + "/src1_idx.bin", fileSizeSrc1Idx, src1IdxHost, fileSizeSrc1Idx);
 
+    aclrtMemcpy(dstDevice, fileSizeDst, dstHost, fileSizeDst, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src0Device, fileSizeSrc0, src0Host, fileSizeSrc0, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, fileSizeSrc1, src1Host, fileSizeSrc1, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src0IdxDevice, fileSizeSrc0Idx, src0IdxHost, fileSizeSrc0Idx, ACL_MEMCPY_HOST_TO_DEVICE);
