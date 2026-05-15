@@ -22,6 +22,7 @@ namespace pto {
 
 template <RemSAlgorithm PrecisionType, typename T>
 struct RemSOp {
+    static constexpr bool isDynFunc = false;
     PTO_INTERNAL static void BinSInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, T scalar, MaskReg &preg)
     {
         RegTensor<T> reg_src1;

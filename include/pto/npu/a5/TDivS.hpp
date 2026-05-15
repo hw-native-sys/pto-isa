@@ -24,6 +24,7 @@ namespace pto {
 
 template <DivAlgorithm PrecisionType, typename T>
 struct DivSOp {
+    static constexpr bool isDynFunc = false;
 #ifndef STRAIGHT_INTRINSICS_IMPL
     PTO_INTERNAL static void BinSInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, T reg_src1, MaskReg &preg)
     {
@@ -70,6 +71,7 @@ struct DivSOp {
 
 template <enum DivAlgorithm PrecisionType, typename T>
 struct DivSOpS {
+    static constexpr bool isDynFunc = false;
     PTO_INTERNAL static void BinSInstr(RegTensor<T> &vregdst, RegTensor<T> &vregsrc, T src0, MaskReg &preg)
     {
         if constexpr (PrecisionType == DivAlgorithm::HIGH_PRECISION && std::is_same_v<T, float>) {

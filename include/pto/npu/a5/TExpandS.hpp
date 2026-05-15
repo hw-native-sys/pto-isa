@@ -23,6 +23,7 @@ constexpr const int EXPANDS_MAX_SUPPORT_REPEAT_TIMES = 32767; // [0:14]
 } // namespace TExpandsInternel
 template <typename T>
 struct ExpandSOp {
+    static constexpr bool isDynFunc = false;
     PTO_INTERNAL static void BinSInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, T scalar, MaskReg &preg)
     {
         vdup(reg_dst, scalar, preg, MODE_ZEROING);

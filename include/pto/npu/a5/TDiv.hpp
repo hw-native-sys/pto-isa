@@ -17,22 +17,12 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/npu/a5/utils.hpp>
 #include <pto/npu/a5/TBinOp.hpp>
 #include <pto/common/debug.h>
-
-#ifndef STRAIGHT_INTRINSICS_IMPL
 #include "custom/Div754.hpp"
-#endif
 
 namespace pto {
 
 template <DivAlgorithm PrecisionType, typename T>
 struct DivOp {
-#ifdef STRAIGHT_INTRINSICS_IMPL
-    PTO_INTERNAL static void BinInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, RegTensor<T> &reg_src1,
-                                      MaskReg &preg)
-    {
-        vdiv(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);
-    }
-#else
     PTO_INTERNAL static void BinInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, RegTensor<T> &reg_src1,
                                       MaskReg &preg)
     {
@@ -44,7 +34,6 @@ struct DivOp {
             vdiv(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);
         }
     }
-#endif
 };
 
 template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc0,

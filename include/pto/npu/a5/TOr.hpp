@@ -22,10 +22,10 @@ namespace pto {
 
 template <typename T>
 struct OrOp {
-    PTO_INTERNAL static void BinInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, RegTensor<T> &reg_src1,
-                                      MaskReg &preg)
+    using U = std::conditional_t<sizeof(T) == 1, uint8_t, std::conditional_t<sizeof(T) == 2, uint16_t, uint32_t>>;
+    PTO_INTERNAL static void BinInstr(RegTensor<T> &dstReg, RegTensor<T> &src0Reg, RegTensor<T> &src1Reg, MaskReg &pReg)
     {
-        vor(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);
+        vor((RegTensor<U> &)dstReg, (RegTensor<U> &)src0Reg, (RegTensor<U> &)src1Reg, pReg);
     }
 };
 
@@ -50,10 +50,7 @@ template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
 PTO_INTERNAL void TOrCheck(const TileDataDst &dst, const TileDataSrc0 &src0, const TileDataSrc1 &src1)
 {
     using T = typename TileDataDst::DType;
-    static_assert(std::is_same<T, uint8_t>::value || std::is_same<T, int8_t>::value ||
-                      std::is_same<T, uint16_t>::value || std::is_same<T, int16_t>::value ||
-                      std::is_same<T, uint32_t>::value || std::is_same<T, int32_t>::value,
-                  "Fix: TOR has invalid data type.");
+    static_assert(sizeof(T) == 4 || sizeof(T) == 2 || sizeof(T) == 1, "Fix: TOR has invalid data type.");
     static_assert(TileDataDst::isRowMajor && TileDataSrc0::isRowMajor && TileDataSrc1::isRowMajor,
                   "Fix: TOR only support row major layout.");
     static_assert(std::is_same_v<T, typename TileDataSrc0::DType> && std::is_same_v<T, typename TileDataSrc1::DType>,

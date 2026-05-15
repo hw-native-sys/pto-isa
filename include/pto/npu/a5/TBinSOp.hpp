@@ -17,6 +17,39 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "utils.hpp"
 
 namespace pto {
+
+template <typename Op, bool isDynFunc = Op::isDynFunc>
+class BinSOpCaller;
+
+template <typename Op>
+class BinSOpCaller<Op, false> {
+public:
+    template <typename S>
+    PTO_INTERNAL BinSOpCaller(S scalar)
+    {}
+
+    template <typename Dst, typename Src0, typename S1, typename Preg>
+    PTO_INTERNAL void operator()(Dst &dst, Src0 &src0, S1 s1, Preg &preg)
+    {
+        Op::BinSInstr(dst, src0, s1, preg);
+    }
+};
+template <typename Op>
+class BinSOpCaller<Op, true> {
+    Op op;
+
+public:
+    template <typename S>
+    PTO_INTERNAL BinSOpCaller(S scalar) : op(scalar)
+    {}
+
+    template <typename Dst, typename Src0, typename S1, typename Preg>
+    PTO_INTERNAL void operator()(Dst &dst, Src0 &src0, S1 s1, Preg &preg)
+    {
+        op.BinSInstr(dst, src0, s1, preg);
+    }
+};
+
 template <typename Op, typename TileData, typename T, typename ScalarType, unsigned elementsPerRepeat,
           unsigned blockSizeElem, unsigned rowStride>
 PTO_INTERNAL void TBinSOps_1D_NoPostUpdate(__ubuf__ typename TileData::DType *dstPtr,
@@ -30,13 +63,14 @@ PTO_INTERNAL void TBinSOps_1D_NoPostUpdate(__ubuf__ typename TileData::DType *ds
         RegTensor<T> vreg2;
         MaskReg preg;
 
+        BinSOpCaller<Op> binOp(src1);
         constexpr auto distValue =
             std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
         unsigned sreg = kValidRows * kValidCols;
         for (uint16_t i = 0; i < (uint16_t)repeatTimes; ++i) {
             preg = CreatePredicate<T>(sreg);
             vlds(vreg0, src0Ptr, i * elementsPerRepeat, NORM);
-            Op::BinSInstr(vreg2, vreg0, src1, preg);
+            binOp(vreg2, vreg0, src1, preg);
             vsts(vreg2, dstPtr, i * elementsPerRepeat, distValue, preg);
         }
     }
@@ -55,13 +89,14 @@ PTO_INTERNAL void TBinSOps_1D_PostUpdate(__ubuf__ typename TileData::DType *dstP
         RegTensor<T> vreg2_pu;
         MaskReg preg_pu;
 
+        BinSOpCaller<Op> binOp(src1);
         constexpr auto distValue_pu =
             std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
         unsigned sreg_pu = kValidRows * kValidCols;
         for (uint16_t i = 0; i < (uint16_t)repeatTimes_pu; ++i) {
             preg_pu = CreatePredicate<T>(sreg_pu);
             vlds(vreg0_pu, src0Ptr, elementsPerRepeat, NORM, POST_UPDATE);
-            Op::BinSInstr(vreg2_pu, vreg0_pu, src1, preg_pu);
+            binOp(vreg2_pu, vreg0_pu, src1, preg_pu);
             vsts(vreg2_pu, dstPtr, elementsPerRepeat, distValue_pu, preg_pu, POST_UPDATE);
         }
     }
@@ -80,6 +115,7 @@ PTO_INTERNAL void TBinSOps_2D_NoPostUpdate(__ubuf__ typename TileDataDst::DType 
         RegTensor<T> vreg0;
         RegTensor<T> vreg2;
         MaskReg preg;
+        BinSOpCaller<Op> binOp(src1);
         constexpr auto distValue =
             std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
         for (uint16_t i = 0; i < (uint16_t)(kValidRows); ++i) {
@@ -87,7 +123,7 @@ PTO_INTERNAL void TBinSOps_2D_NoPostUpdate(__ubuf__ typename TileDataDst::DType 
             for (uint16_t j = 0; j < (uint16_t)repeatTimes; ++j) {
                 preg = CreatePredicate<T>(sreg);
                 vlds(vreg0, src0Ptr, i * srcRowStride + j * elementsPerRepeat, NORM);
-                Op::BinSInstr(vreg2, vreg0, src1, preg);
+                binOp(vreg2, vreg0, src1, preg);
                 vsts(vreg2, dstPtr, i * dstRowStride + j * elementsPerRepeat, distValue, preg);
             }
         }
@@ -108,12 +144,13 @@ PTO_INTERNAL void TBinSOps_2D_PostUpdate_FullRepeats(__ubuf__ typename TileDataD
         RegTensor<T> vreg0_pu;
         RegTensor<T> vreg2_pu;
         MaskReg preg = PSetWithType<T>(PAT_ALL);
+        BinSOpCaller<Op> binOp(src1);
         constexpr auto distValue_pu =
             std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
         for (uint16_t i = 0; i < (uint16_t)(kValidRows); ++i) {
             for (uint16_t j = 0; j < (uint16_t)fullRepeats; ++j) {
                 vlds(vreg0_pu, src0Ptr, elementsPerRepeat, NORM, POST_UPDATE);
-                Op::BinSInstr(vreg2_pu, vreg0_pu, src1, preg);
+                binOp(vreg2_pu, vreg0_pu, src1, preg);
                 vsts(vreg2_pu, dstPtr, elementsPerRepeat, distValue_pu, preg, POST_UPDATE);
             }
             src0Ptr += srcRowAdjust;
@@ -138,16 +175,17 @@ PTO_INTERNAL void TBinSOps_2D_PostUpdate_FullRepeatsTail(__ubuf__ typename TileD
         RegTensor<T> vreg2_pu;
         MaskReg pregFull = PSetWithType<T>(PAT_ALL);
         MaskReg pregTail = CreatePredicate<T>(tailCount);
+        BinSOpCaller<Op> binOp(src1);
         constexpr auto distValue_pu =
             std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
         for (uint16_t i = 0; i < (uint16_t)(kValidRows); ++i) {
             for (uint16_t j = 0; j < (uint16_t)fullRepeats; ++j) {
                 vlds(vreg0_pu, src0Ptr, elementsPerRepeat, NORM, POST_UPDATE);
-                Op::BinSInstr(vreg2_pu, vreg0_pu, src1, pregFull);
+                binOp(vreg2_pu, vreg0_pu, src1, pregFull);
                 vsts(vreg2_pu, dstPtr, elementsPerRepeat, distValue_pu, pregFull, POST_UPDATE);
             }
             vlds(vreg0_pu, src0Ptr, elementsPerRepeat, NORM, POST_UPDATE);
-            Op::BinSInstr(vreg2_pu, vreg0_pu, src1, pregTail);
+            binOp(vreg2_pu, vreg0_pu, src1, pregTail);
             vsts(vreg2_pu, dstPtr, elementsPerRepeat, distValue_pu, pregTail, POST_UPDATE);
             src0Ptr += srcRowAdjust;
             dstPtr += dstRowAdjust;

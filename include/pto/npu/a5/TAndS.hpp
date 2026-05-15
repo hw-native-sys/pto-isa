@@ -18,12 +18,55 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "TBinSOp.hpp"
 
 namespace pto {
+template <typename T>
+struct AndSOp {
+    static constexpr bool isDynFunc = true;
+    RegTensor<T> reg_src1;
+
+    template <typename S>
+    PTO_INTERNAL AndSOp(S scalar)
+    {
+        vbr(reg_src1, scalar);
+    };
+
+    using U = std::conditional_t<sizeof(T) == 1, uint8_t, std::conditional_t<sizeof(T) == 2, uint16_t, uint32_t>>;
+    PTO_INTERNAL void BinSInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, T src1, MaskReg &preg)
+    {
+        vand((RegTensor<U> &)reg_dst, (RegTensor<U> &)reg_src0, (RegTensor<U> &)reg_src1, preg);
+    }
+};
+
+template <typename T, typename TileDataDst, typename TileDataSrc>
+__tf__ PTO_INTERNAL OP_NAME(TANDS)
+    OP_TYPE(element_wise) void TAndS(typename TileDataDst::TileDType __out__ dst,
+                                     typename TileDataSrc::TileDType __in__ src0, T src1, unsigned validRows,
+                                     unsigned validCols, VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
+{
+    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
+    __ubuf__ T *src0Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src0);
+    constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
+    constexpr unsigned dstRowStride = TileDataDst::RowStride;
+    constexpr unsigned src0RowStride = TileDataSrc::RowStride;
+    BinaryInstr<AndSOp<T>, TileDataDst, TileDataSrc, T, elementsPerRepeat, blockSizeElem, dstRowStride, src0RowStride>(
+        dstPtr, src0Ptr, src1, validRows, validCols, version);
+}
 
 template <typename TileDataDst, typename TileDataSrc>
 PTO_INTERNAL void TANDS_IMPL(TileDataDst &dst, TileDataSrc &src0, typename TileDataSrc::DType src1)
 {
-    TEXPANDS_IMPL(dst, src1);
-    TAND_IMPL(dst, src0, dst);
+    using T = typename TileDataDst::DType;
+    static_assert(sizeof(T) == 4 || sizeof(T) == 2 || sizeof(T) == 1, "Fix: TANDS has invalid data type.");
+    static_assert(TileDataDst::isRowMajor && TileDataSrc::isRowMajor, "Fix: TANDS only support row major layout.");
+    static_assert(std::is_same_v<T, typename TileDataSrc::DType>,
+                  "Fix: TANDS input tile src0, src1 and dst tile data type mismatch.");
+
+    unsigned validRow = dst.GetValidRow();
+    unsigned validCol = dst.GetValidCol();
+    PTO_ASSERT(src0.GetValidRow() == validRow && src0.GetValidCol() == validCol,
+               "Fix: TANDS input tile src0 valid shape mismatch with output tile dst shape.");
+
+    TAndS<T, TileDataDst, TileDataSrc>(dst.data(), src0.data(), src1, validRow, validCol);
 }
 } // namespace pto
 #endif
