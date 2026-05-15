@@ -81,8 +81,8 @@
 - [TROWMIN](TROWMIN_zh.md) - 通过取列间最小值来归约每一行。
 - [TROWARGMAX](TROWARGMAX_zh.md) - 获取每行最大值对应列索引。
 - [TROWARGMIN](TROWARGMIN_zh.md) - 获取每行最小值对应列索引。
-- [TCOLARGMAX](TCOLARGMAX_zh.md) - 获取每列最大值对应行索引。
-- [TCOLARGMIN](TCOLARGMIN_zh.md) - 获取每列最小值对应行索引。
+- [TCOLARGMAX](TCOLARGMAX_zh.md) - 获取每列最大值对应行索引/获取每列最大值对应值和行索引。
+- [TCOLARGMIN](TCOLARGMIN_zh.md) - 获取每列最小值对应行索引/获取每列最大值对应值和行索引。
 - [TROWEXPAND](TROWEXPAND_zh.md) - 将每个源行的第一个元素广播到目标行中。
 - [TROWEXPANDDIV](TROWEXPANDDIV_zh.md) - 行广播除法：将 `src0` 的每一行除以一个每行标量向量 `src1`。
 - [TROWEXPANDMUL](TROWEXPANDMUL_zh.md) - 行广播乘法：将 `src0` 的每一行乘以一个每行标量向量 `src1`。

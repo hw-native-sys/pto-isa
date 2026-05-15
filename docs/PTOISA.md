@@ -81,8 +81,8 @@ This page is the source-synchronized ISA index generated from `docs/isa/manifest
 | Axis Reduce / Expand | [`TROWMIN`](isa/TROWMIN.md) | Reduce each row by taking the minimum across columns. |
 | Axis Reduce / Expand | [`TROWARGMAX`](isa/TROWARGMAX.md) | Get the column index of the maximum element for each row. |
 | Axis Reduce / Expand | [`TROWARGMIN`](isa/TROWARGMIN.md) | Get the column index of the minimum element for each row. |
-| Axis Reduce / Expand | [`TCOLARGMAX`](isa/TCOLARGMAX.md) | Get the row index of the maximum element for each column. |
-| Axis Reduce / Expand | [`TCOLARGMIN`](isa/TCOLARGMIN.md) | Get the row index of the minimum element for each column. |
+| Axis Reduce / Expand | [`TCOLARGMAX`](isa/TCOLARGMAX.md) | Get the row index of the maximum element for each column/Get the row value and index of the maximum element for each column|
+| Axis Reduce / Expand | [`TCOLARGMIN`](isa/TCOLARGMIN.md) | Get the row index of the minimum element for each column/Get the row value and index of the minimum element for each column|
 | Axis Reduce / Expand | [`TROWEXPAND`](isa/TROWEXPAND.md) | Broadcast the first element of each source row across the destination row. |
 | Axis Reduce / Expand | [`TROWEXPANDDIV`](isa/TROWEXPANDDIV.md) | Row-wise broadcast divide: divide each row of `src0` by a per-row scalar vector `src1`. |
 | Axis Reduce / Expand | [`TROWEXPANDMUL`](isa/TROWEXPANDMUL.md) | Row-wise broadcast multiply: multiply each row of `src0` by a per-row scalar vector `src1`. |

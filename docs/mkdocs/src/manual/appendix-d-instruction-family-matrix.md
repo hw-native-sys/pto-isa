@@ -92,6 +92,8 @@ This appendix is generated from `docs/isa/manifest.yaml` and provides a source-s
 | Axis Reduce / Expand | [TROWMIN](/docs/isa/TROWMIN.md) | `reduce_expand` | `dst, src` | `docs/isa/TROWMIN.md` |
 | Axis Reduce / Expand | [TCOLARGMAX](/docs/isa/TCOLARGMAX.md) | `reduce_expand` | `dst, src` | `docs/isa/TCOLARGMAX.md` |
 | Axis Reduce / Expand | [TCOLARGMIN](/docs/isa/TCOLARGMIN.md) | `reduce_expand` | `dst, src` | `docs/isa/TCOLARGMIN.md` |
+| Axis Reduce / Expand | [TCOLARGMAX](/docs/isa/TCOLARGMAX.md) | `reduce_expand` | `dstval, dstidx, src` | `docs/isa/TCOLARGMAX.md` |
+| Axis Reduce / Expand | [TCOLARGMIN](/docs/isa/TCOLARGMIN.md) | `reduce_expand` | `dstval, dstidx, src` | `docs/isa/TCOLARGMIN.md` |
 | Axis Reduce / Expand | [TROWEXPAND](/docs/isa/TROWEXPAND.md) | `reduce_expand` | `dst, src` | `docs/isa/TROWEXPAND.md` |
 | Axis Reduce / Expand | [TROWEXPANDDIV](/docs/isa/TROWEXPANDDIV.md) | `reduce_expand` | `dst, src` | `docs/isa/TROWEXPANDDIV.md` |
 | Axis Reduce / Expand | [TROWEXPANDMUL](/docs/isa/TROWEXPANDMUL.md) | `reduce_expand` | `dst, src` | `docs/isa/TROWEXPANDMUL.md` |
