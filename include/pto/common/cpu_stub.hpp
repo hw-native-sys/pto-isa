@@ -157,8 +157,7 @@ inline uint64_t sbitset0(uint64_t value, int)
 #define SKIP_IF_RANKS_LT(n)
 static constexpr uint32_t HCCL_MAX_RANK_NUM = 64;
 
-static constexpr uint32_t QUANT_SCALAR_REG_OFFSET = 0;
-static constexpr uint32_t QUANT_VECTOR_REG_OFFSET = 1;
+struct HcclRootInfo {};
 
 struct HcclRootInfo {};
 
@@ -702,26 +701,5 @@ inline void SYNCALL_SOFT_MIX_IMPL(int32_t *gmWorkspace, int32_t *ubWorkspace, in
     (void)usedCores;
 }
 } // namespace pto
-
-inline uint64_t get_sys_cnt()
-{
-    const auto now = std::chrono::steady_clock::now();
-    return static_cast<uint64_t>(
-        std::chrono::duration_cast<std::chrono::nanoseconds>(now - pto::cpu_sim::g_time_origin).count());
-}
-
-inline void set_ffts_base_addr(uint64_t)
-{}
-
-inline int rtGetC2cCtrlAddr(uint64_t *addr, uint32_t *len)
-{
-    if (addr != nullptr) {
-        *addr = 0;
-    }
-    if (len != nullptr) {
-        *len = 0;
-    }
-    return 0;
-}
 
 #endif

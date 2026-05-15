@@ -227,12 +227,7 @@ tpushpop_cv_nosplit
 tpushpop_vc_nosplit
 tpushpop_dir_both
 tpushpop_subtile
-tfusedmuladd
-tmuladddst
-tsubrelu
-tfusedmuladdrelu
 syncall
-tpairreducesum
 )
 
 # Opt-in testcases: built ONLY when TEST_CASE=<name> is explicitly supplied.

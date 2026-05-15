@@ -19,6 +19,7 @@ This page is the source-synchronized ISA index generated from `docs/isa/manifest
 | Category | Instruction | Description |
 |---|---|---|
 | Synchronization | [`TSYNC`](isa/TSYNC.md) | Synchronize PTO execution (wait on events or insert a per-op pipeline barrier). |
+| Synchronization | [`SYNCALL`](isa/SYNCALL.md) | Cross-core synchronization barrier (hardware FFTS or software GM polling). |
 | Manual / Resource Binding | [`TASSIGN`](isa/TASSIGN.md) | Bind a Tile object to an implementation-defined on-chip address (manual placement). |
 | Manual / Resource Binding | [`SETFMATRIX`](isa/SETFMATRIX.md) | Set FMATRIX register(s) for IMG2COL-like ops. |
 | Manual / Resource Binding | [`SET_IMG2COL_RPT`](isa/SET_IMG2COL_RPT.md) | Set IMG2COL repeat metadata from an IMG2COL configuration tile. |

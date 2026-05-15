@@ -8,7 +8,9 @@
 
 ## PTO ISA 中的文本汇编
 
-本树是权威的 PTO ISA 手册。文本汇编拼写属于 PTO ISA 的语法层，而非第二份并行的架构手册。
+## 同步
+- [TSYNC](TSYNC_zh.md) - 同步 PTO 执行（等待事件或插入每操作流水线屏障）。
+- [SYNCALL](SYNCALL_zh.md) - 跨核同步屏障（硬件 FFTS 或软件 GM 轮询）。
 
 ## 手动 / 资源绑定
 - [TASSIGN](TASSIGN_zh.md) - 将 Tile 对象绑定到实现定义的片上地址（手动放置）。

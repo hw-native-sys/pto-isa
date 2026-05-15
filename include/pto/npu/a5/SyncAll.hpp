@@ -62,14 +62,11 @@ PTO_INTERNAL int32_t SYNCALL_GET_MIX_AIV_RATIO()
 #endif
 }
 
-PTO_INTERNAL int32_t SYNCALL_GET_MIX_PARTICIPANT_IDX(int32_t totalParticipants = 0)
+PTO_INTERNAL int32_t SYNCALL_GET_MIX_PARTICIPANT_IDX()
 {
 #if defined(__DAV_VEC__)
-    const int32_t ratio = SYNCALL_GET_MIX_AIV_RATIO();
-    const int32_t aicCnt = (totalParticipants > 0) ? (totalParticipants / (1 + ratio)) : SYNCALL_GET_MIX_AIC_BLOCKS();
-    return static_cast<int32_t>(aicCnt + get_block_idx() * get_subblockdim() + get_subblockid());
+    return static_cast<int32_t>(SYNCALL_GET_MIX_AIC_BLOCKS() + get_block_idx() * get_subblockdim() + get_subblockid());
 #else
-    (void)totalParticipants;
     return static_cast<int32_t>(get_block_idx());
 #endif
 }
@@ -143,8 +140,8 @@ PTO_INTERNAL void SYNCALL_SOFT_AIV_PROXY_WRITE(__gm__ int32_t *dst, __ubuf__ int
 {
     wait_intra_block(PIPE_S, SYNC_PROXY_WRITE_REQ);
     pipe_barrier(PIPE_ALL);
-    pto_copy_ubuf_to_gm_align_v2(static_cast<__gm__ void *>(dst), static_cast<__ubuf__ void *>(ubWorkspace), 0, 1, 1, 0,
-                                 0, 0);
+    copy_ubuf_to_gm_align_v2(static_cast<__gm__ void *>(dst), static_cast<__ubuf__ void *>(ubWorkspace), 0, 1, 1, 0, 0,
+                             0);
     pipe_barrier(PIPE_ALL);
     SYNCALL_SOFT_DCCI(static_cast<__gm__ void *>(dst));
     dsb(DSB_DDR);
@@ -166,8 +163,8 @@ PTO_INTERNAL int32_t SYNCALL_SOFT_AIV_WRITE_SLOT(__gm__ int32_t *localSyncGM, __
 
     set_flag(PIPE_S, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_S, PIPE_MTE3, EVENT_ID0);
-    pto_copy_ubuf_to_gm_align_v2(static_cast<__gm__ void *>(localSyncGM), static_cast<__ubuf__ void *>(ubWorkspace), 0,
-                                 1, 1, 0, 0, 0);
+    copy_ubuf_to_gm_align_v2(static_cast<__gm__ void *>(localSyncGM), static_cast<__ubuf__ void *>(ubWorkspace), 0, 1,
+                             1, 0, 0, 0);
     set_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
     wait_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
     SYNCALL_SOFT_DCCI(static_cast<__gm__ void *>(localSyncGM));
@@ -221,7 +218,7 @@ PTO_INTERNAL void SYNCALL_SOFT_MIX_IMPL(__gm__ int32_t *gmWorkspace, __ubuf__ in
 
 #if defined(__DAV_CUBE__)
     const int32_t totalBlks = (usedCores != 0) ? usedCores : SYNCALL_GET_MIX_PARTICIPANT_COUNT();
-    const int32_t blockIdx = SYNCALL_GET_MIX_PARTICIPANT_IDX(totalBlks);
+    const int32_t blockIdx = SYNCALL_GET_MIX_PARTICIPANT_IDX();
     __gm__ int32_t *localSyncGM = gmWorkspace + blockIdx * SYNCALL_SOFT_SLOT_INT32;
 
     const int32_t curValue = SYNCALL_SOFT_GM_LOAD(localSyncGM) + 1;
@@ -252,7 +249,7 @@ PTO_INTERNAL void SYNCALL_SOFT_MIX_IMPL(__gm__ int32_t *gmWorkspace, __ubuf__ in
 #elif defined(__DAV_VEC__)
     (void)l1Workspace;
     const int32_t totalBlks = (usedCores != 0) ? usedCores : SYNCALL_GET_MIX_PARTICIPANT_COUNT();
-    const int32_t blockIdx = SYNCALL_GET_MIX_PARTICIPANT_IDX(totalBlks);
+    const int32_t blockIdx = SYNCALL_GET_MIX_PARTICIPANT_IDX();
     const int32_t aicBlockIdx = static_cast<int32_t>(get_block_idx());
 
     if (get_subblockid() == 0) {
