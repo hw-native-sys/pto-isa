@@ -61,7 +61,7 @@ PTO_INTERNAL void TPartArgOps(__ubuf__ TVal *dstValPtr, __ubuf__ TIdx *dstIdxPtr
             pipe_barrier(PIPE_V);
             vsel(dstValPtr + row * TileDstVal::RowStride + i * elementsPerRepeat,
                  srcVal0Ptr + row * TileSrcVal0::RowStride + i * elementsPerRepeat,
-                 srcVal1Ptr + row * TileSrcVal0::RowStride + i * elementsPerRepeat, 1, 1, 1, 1, 0, 0, 0);
+                 srcVal1Ptr + row * TileSrcVal1::RowStride + i * elementsPerRepeat, 1, 1, 1, 1, 0, 0, 0);
             vsel((__ubuf__ TVal *)dstIdxPtr + row * TileDstIdx::RowStride + i * elementsPerRepeat,
                  (__ubuf__ TVal *)srcIdx0Ptr + row * TileSrcIdx0::RowStride + i * elementsPerRepeat,
                  (__ubuf__ TVal *)srcIdx1Ptr + row * TileSrcIdx1::RowStride + i * elementsPerRepeat, 1, 1, 1, 1, 0, 0,
@@ -78,7 +78,7 @@ PTO_INTERNAL void TPartArgOps(__ubuf__ TVal *dstValPtr, __ubuf__ TIdx *dstIdxPtr
             pipe_barrier(PIPE_V);
             vsel(dstValPtr + row * TileDstVal::RowStride + completeRepeats * elementsPerRepeat,
                  srcVal0Ptr + row * TileSrcVal0::RowStride + completeRepeats * elementsPerRepeat,
-                 srcVal1Ptr + row * TileSrcVal0::RowStride + completeRepeats * elementsPerRepeat, 1, 1, 1, 1, 0, 0, 0);
+                 srcVal1Ptr + row * TileSrcVal1::RowStride + completeRepeats * elementsPerRepeat, 1, 1, 1, 1, 0, 0, 0);
             vsel((__ubuf__ TVal *)dstIdxPtr + row * TileDstIdx::RowStride + completeRepeats * elementsPerRepeat,
                  (__ubuf__ TVal *)srcIdx0Ptr + row * TileSrcIdx0::RowStride + completeRepeats * elementsPerRepeat,
                  (__ubuf__ TVal *)srcIdx1Ptr + row * TileSrcIdx1::RowStride + completeRepeats * elementsPerRepeat, 1, 1,
