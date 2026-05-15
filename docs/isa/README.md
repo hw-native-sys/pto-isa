@@ -69,7 +69,35 @@ This tree is the canonical PTO ISA manual. Textual assembly spelling belongs to 
 - [TSUBSC](TSUBSC.md) - Elementwise fused op: `src0 - scalar + src1`.
 - [TPOWS](TPOWS.md) - Elementwise power of a tile by a scalar.
 
-## Model Layers
+## Axis Reduce / Expand
+- [TROWSUM](TROWSUM.md) - Reduce each row by summing across columns.
+- [TROWPROD](TROWPROD.md) - Reduce each row by multiplying across columns.
+- [TCOLSUM](TCOLSUM.md) - Reduce each column by summing across rows.
+- [TCOLPROD](TCOLPROD.md) - Reduce each column by multiplying across rows.
+- [TCOLMAX](TCOLMAX.md) - Reduce each column by taking the maximum across rows.
+- [TROWMAX](TROWMAX.md) - Reduce each row by taking the maximum across columns.
+- [TROWMIN](TROWMIN.md) - Reduce each row by taking the minimum across columns.
+- [TROWARGMAX](TROWARGMAX.md) - Get the column index of the maximum element for each row.
+- [TROWARGMIN](TROWARGMIN.md) - Get the column index of the minimum element for each row.
+- [TCOLARGMAX](TCOLARGMAX.md) - Get the row index /(value and row index) of the maximum element for each column.
+- [TCOLARGMIN](TCOLARGMIN.md) - Get the row index /(value and row index) of the minimum element for each column.
+- [TROWEXPAND](TROWEXPAND.md) - Broadcast the first element of each source row across the destination row.
+- [TROWEXPANDDIV](TROWEXPANDDIV.md) - Row-wise broadcast divide: divide each row of `src0` by a per-row scalar vector `src1`.
+- [TROWEXPANDMUL](TROWEXPANDMUL.md) - Row-wise broadcast multiply: multiply each row of `src0` by a per-row scalar vector `src1`.
+- [TROWEXPANDSUB](TROWEXPANDSUB.md) - Row-wise broadcast subtract: subtract a per-row scalar vector `src1` from each row of `src0`.
+- [TROWEXPANDADD](TROWEXPANDADD.md) - Row-wise broadcast add: add a per-row scalar vector.
+- [TROWEXPANDMAX](TROWEXPANDMAX.md) - Row-wise broadcast max with a per-row scalar vector.
+- [TROWEXPANDMIN](TROWEXPANDMIN.md) - Row-wise broadcast min with a per-row scalar vector.
+- [TROWEXPANDEXPDIF](TROWEXPANDEXPDIF.md) - Row-wise exp-diff: compute exp(src0 - src1) with per-row scalars.
+- [TCOLMIN](TCOLMIN.md) - Reduce each column by taking the minimum across rows.
+- [TCOLEXPAND](TCOLEXPAND.md) - Broadcast the first element of each source column across the destination column.
+- [TCOLEXPANDDIV](TCOLEXPANDDIV.md) - Column-wise broadcast divide: divide each column by a per-column scalar vector.
+- [TCOLEXPANDMUL](TCOLEXPANDMUL.md) - Column-wise broadcast multiply: multiply each column by a per-column scalar vector.
+- [TCOLEXPANDADD](TCOLEXPANDADD.md) - Column-wise broadcast add with per-column scalar vector.
+- [TCOLEXPANDMAX](TCOLEXPANDMAX.md) - Column-wise broadcast max with per-column scalar vector.
+- [TCOLEXPANDMIN](TCOLEXPANDMIN.md) - Column-wise broadcast min with per-column scalar vector.
+- [TCOLEXPANDSUB](TCOLEXPANDSUB.md) - Column-wise broadcast subtract: subtract a per-column scalar vector from each column.
+- [TCOLEXPANDEXPDIF](TCOLEXPANDEXPDIF.md) - Column-wise exp-diff: compute exp(src0 - src1) with per-column scalars.
 
 Reading order matches the manual chapter map: programming and machine models, then syntax and state, then memory, then opcode reference.
 

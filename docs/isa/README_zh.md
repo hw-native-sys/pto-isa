@@ -69,7 +69,35 @@
 - [TSUBSC](TSUBSC_zh.md) - 融合逐元素运算：`src0 - scalar + src1`。
 - [TPOWS](TPOWS_zh.md) - Tile 逐元素与标量幂运算。
 
-## 模型层次
+## 轴归约 / 扩展
+- [TROWSUM](TROWSUM_zh.md) - 通过对列求和来归约每一行。
+- [TROWPROD](TROWPROD_zh.md) - 通过跨列乘积来归约每一行。
+- [TCOLSUM](TCOLSUM_zh.md) - 通过对行求和来归约每一列。
+- [TCOLPROD](TCOLPROD_zh.md) - 通过跨行乘积来归约每一列。
+- [TCOLMAX](TCOLMAX_zh.md) - 通过取行间最大值来归约每一列。
+- [TROWMAX](TROWMAX_zh.md) - 通过取列间最大值来归约每一行。
+- [TROWMIN](TROWMIN_zh.md) - 通过取列间最小值来归约每一行。
+- [TROWARGMAX](TROWARGMAX_zh.md) - 获取每行最大值对应列索引。
+- [TROWARGMIN](TROWARGMIN_zh.md) - 获取每行最小值对应列索引。
+- [TCOLARGMAX](TCOLARGMAX_zh.md) - 获取每列最大值对应行索引/获取每列最大值对应值和行索引。
+- [TCOLARGMIN](TCOLARGMIN_zh.md) - 获取每列最小值对应行索引/获取每列最大值对应值和行索引。
+- [TROWEXPAND](TROWEXPAND_zh.md) - 将每个源行的第一个元素广播到目标行中。
+- [TROWEXPANDDIV](TROWEXPANDDIV_zh.md) - 行广播除法：将 `src0` 的每一行除以一个每行标量向量 `src1`。
+- [TROWEXPANDMUL](TROWEXPANDMUL_zh.md) - 行广播乘法：将 `src0` 的每一行乘以一个每行标量向量 `src1`。
+- [TROWEXPANDSUB](TROWEXPANDSUB_zh.md) - 行广播减法：从 `src0` 的每一行中减去一个每行标量向量 `src1`。
+- [TROWEXPANDADD](TROWEXPANDADD_zh.md) - 行广播加法：加上一个每行标量向量。
+- [TROWEXPANDMAX](TROWEXPANDMAX_zh.md) - 行广播最大值：与每行标量向量取最大值。
+- [TROWEXPANDMIN](TROWEXPANDMIN_zh.md) - 行广播最小值：与每行标量向量取最小值。
+- [TROWEXPANDEXPDIF](TROWEXPANDEXPDIF_zh.md) - 行指数差运算：计算 exp(src0 - src1)，其中 src1 为每行标量。
+- [TCOLMIN](TCOLMIN_zh.md) - 通过取行间最小值来归约每一列。
+- [TCOLEXPAND](TCOLEXPAND_zh.md) - 将每个源列的第一个元素广播到目标列中。
+- [TCOLEXPANDDIV](TCOLEXPANDDIV_zh.md) - 列广播除法：将每一列除以一个每列标量向量。
+- [TCOLEXPANDMUL](TCOLEXPANDMUL_zh.md) - 列广播乘法：将每一列乘以一个每列标量向量。
+- [TCOLEXPANDADD](TCOLEXPANDADD_zh.md) - 列广播加法：对每一列加上每列标量向量。
+- [TCOLEXPANDMAX](TCOLEXPANDMAX_zh.md) - 列广播最大值：与每列标量向量取最大值。
+- [TCOLEXPANDMIN](TCOLEXPANDMIN_zh.md) - 列广播最小值：与每列标量向量取最小值。
+- [TCOLEXPANDSUB](TCOLEXPANDSUB_zh.md) - 列广播减法：从每一列中减去一个每列标量向量。
+- [TCOLEXPANDEXPDIF](TCOLEXPANDEXPDIF_zh.md) - 列指数差运算：计算 exp(src0 - src1)，其中 src1 为每列标量。
 
 阅读顺序与手册章节地图一致：先编程模型与机器模型，再语法与状态，再内存，最后是操作码参考。
 

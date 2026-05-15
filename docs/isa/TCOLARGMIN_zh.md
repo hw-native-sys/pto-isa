@@ -1,84 +1,83 @@
 # TCOLARGMIN
 
-## Tile Operation Diagram
+## 指令示意图
 
 ![TCOLARGMIN tile operation](../figures/isa/TCOLARGMIN.svg)
 
-## Introduction
+## 简介
 
-Get the row index of the minimum element for each column.
-A value+index variant is also available that returns both the minimum value and its row index.
+获取每列最小值对应行索引。同时提供值+索引模式，可同时返回每列的最小值及其行索引。
 
-## Math Interpretation
+## 数学语义
 
-### Pure Index Mode
+### 纯索引模式
 
-Let `R = src.GetValidRow()` and `C = src.GetValidCol()`. For `0 <= j < C`:
+设 `R = src.GetValidRow()` 和 `C = src.GetValidCol()`。对 `0 <= j < C`：
 
 $$ \mathrm{dstIdx}_{0,j} = \underset{0 \le i < R}{\operatorname{argmin}} \; \mathrm{src}_{i,j} $$
 
-### Value + Index Mode
+### 值 + 索引模式
 
 $$ \mathrm{dstVal}_{0,j} = \min_{0 \le i < R} \mathrm{src}_{i,j} $$
 
 $$ \mathrm{dstIdx}_{0,j} = \underset{0 \le i < R}{\operatorname{argmin}} \; \mathrm{src}_{i,j} $$
 
-## Assembly Syntax
+## 汇编语法
 
-PTO-AS form: see `docs/grammar/PTO-AS.md`.
+PTO-AS 形式：参见 `docs/grammar/PTO-AS.md`.
 
-### Pure Index Mode
+### 纯索引模式
 
-Synchronous form:
+同步形式：
 
 ```text
 %dstIdx = tcolargmin %src : !pto.tile<...> -> !pto.tile<...>
 ```
 
-IR Level 1 (SSA):
+IR Level 1（SSA）：
 
 ```text
 %dstIdx = pto.tcolargmin %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
-IR Level 2 (DPS):
+IR Level 2（DPS）：
 
 ```text
 pto.tcolargmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dstIdx : !pto.tile_buf<...>)
 ```
 
-### Value + Index Mode
+### 值 + 索引模式
 
-Synchronous form:
+同步形式：
 
 ```text
 %dstVal, %dstIdx = tcolargmin %src : !pto.tile<...> -> !pto.tile<...>, !pto.tile<...>
 ```
 
-IR Level 1 (SSA):
+IR Level 1（SSA）：
 
 ```text
 %dstVal, %dstIdx = pto.tcolargmin %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> (!pto.tile<...>, !pto.tile<...>)
 ```
 
-IR Level 2 (DPS):
+IR Level 2（DPS）：
 
 ```text
 pto.tcolargmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dstVal, %dstIdx : !pto.tile_buf<...>, !pto.tile_buf<...>)
 ```
 
-## C++ Intrinsic
+## C++ 内建接口
 
-Declared in `include/pto/common/pto_instr.hpp`:
+声明于 `include/pto/common/pto_instr.hpp`:
 
-### Pure Index Mode (3-argument)
+### 纯索引模式（3 参数）
 
 ```cpp
 template <typename TileDataOut, typename TileDataIn, typename TileDataTmp, typename... WaitEvents>
 PTO_INST RecordEvent TCOLARGMIN(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp, WaitEvents &...events)
 ```
 
-### Value + Index Mode (4-argument)
+### 值 + 索引模式（4 参数）
 
 ```cpp
 template <typename TileDataOutVal, typename TileDataOutIdx, typename TileDataIn, typename TileDataTmp,
@@ -87,92 +86,92 @@ PTO_INST RecordEvent TCOLARGMIN(TileDataOutVal& dstVal, TileDataOutIdx& dstIdx, 
                                 WaitEvents&... events);
 ```
 
-## Constraints
+## 约束
 
-### General constraints / checks
+### 通用约束或检查
 
-- `dstIdx` and `src` must be `TileType::Vec`.
-- `src` may use ND or DN non-fractal layout (`SLayout::NoneBox`).
-- `dstIdx` must use standard ND layout: row-major and non-fractal (`BLayout::RowMajor`, `SLayout::NoneBox`).
-- Supported destination index element types: `uint32_t`, `int32_t`.
-- Runtime checks:
+- `dstIdx` 和 `src` 必须为 `TileType::Vec`。
+- `src` 可使用 ND 或 DN 的非分形布局（`SLayout::NoneBox`）。
+- `dstIdx` 必须使用标准 ND 布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
+- 支持的索引目标元素类型：`uint32_t`、`int32_t`。
+- 运行时检查：
     - `src.GetValidRow() != 0`
     - `src.GetValidCol() != 0`
     - `dstIdx.GetValidRow() == 1`
     - `src.GetValidCol() == dstIdx.GetValidCol()`
 
-### Pure Index Mode (3-argument)
+### 纯索引模式（3 参数）
 
-#### A2A3 implementation checks
+#### A2A3 实现检查
 
-- Supported source element types: `half`, `float`, `uint16_t`, `uint32_t`.
-- `tmp` must use the same element type as `src`.
-- `tmp` is used as scratch storage for index tracking and current comparison values.
+- 支持的源元素类型：`half`、`float`、`uint16_t`、`uint32_t`。
+- `tmp` 的元素类型必须与 `src` 一致。
+- `tmp` 用作索引跟踪和当前比较值的临时存储。
 
-#### A5 implementation checks
+#### A5 实现检查
 
-- Supported source element sizes are 8-bit, 16-bit, or 32-bit; covers `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `half`, `float`.
-- `tmp` is accepted by the interface but not used by the implementation.
+- 支持的源元素宽度为 8 位、16 位或 32 位，覆盖 `int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`float`。
+- 接口接收 `tmp`，但实现实际并不使用它。
 
-### Value + Index Mode (4-argument)
+### 值 + 索引模式（4 参数）
 
-In addition to the general constraints:
+除通用约束外：
 
-- `dstVal` must be `TileType::Vec` with standard ND layout (row-major, non-fractal).
-- `dstVal` element type must match the source element type `TileDataIn::DType`.
-- 8-bit source types are **not** supported.
-- Runtime checks:
+- `dstVal` 必须为 `TileType::Vec`，使用标准 ND 布局（行主、非分形）。
+- `dstVal` 元素类型必须与源元素类型 `TileDataIn::DType` 一致。
+- **不支持** 8 位源类型。
+- 运行时检查：
     - `dstVal.GetValidRow() == 1`
     - `dstVal.GetValidCol() != 0`
     - `src.GetValidCol() == dstVal.GetValidCol()`
     - `dstVal.GetValidRow() == dstIdx.GetValidRow()`
     - `dstVal.GetValidCol() == dstIdx.GetValidCol()`
 
-#### A2A3 implementation checks
+#### A2A3 实现检查
 
-- Supported source element types: `half`, `float`, `uint16_t`, `uint32_t`.
-- When source element size is 2 bytes (`half`, `uint16_t`): `dstIdx` element type must be `uint16_t` or `int16_t`.
-- When source element size is 4 bytes (`float`, `uint32_t`): `dstIdx` element type must be `uint32_t` or `int32_t`.
-- `tmp` must use the same element type as `src`.
-- `tmp` is used as scratch storage; for half input types an internal s16->f16->s32 conversion path is used for the index.
+- 支持的源元素类型：`half`、`float`、`uint16_t`、`uint32_t`。
+- 当源元素大小为 2 字节（`half`、`uint16_t`）时：`dstIdx` 元素类型必须为 `uint16_t` 或 `int16_t`。
+- 当源元素大小为 4 字节（`float`、`uint32_t`）时：`dstIdx` 元素类型必须为 `uint32_t` 或 `int32_t`。
+- `tmp` 的元素类型必须与 `src` 一致。
+- `tmp` 用作临时存储；对 half 输入类型，内部执行 s16->f16->s32 转换路径。
 
-#### A5 implementation checks
+#### A5 实现检查
 
-- Source element size must be 16-bit or 32-bit (`sizeof(T) != 1`).
-- When source element size is 2 bytes (`half`, `int16_t`, `uint16_t`): `dstIdx` element type must be `uint16_t` or `int16_t`.
-- When source element size is 4 bytes (`float`, `int32_t`, `uint32_t`): `dstIdx` element type must be `uint32_t` or `int32_t`.
-- `tmp` is accepted by the interface but not used by the implementation.
+- 源元素大小必须为 16 位或 32 位（`sizeof(T) != 1`）。
+- 当源元素大小为 2 字节（`half`、`int16_t`、`uint16_t`）时：`dstIdx` 元素类型必须为 `uint16_t` 或 `int16_t`。
+- 当源元素大小为 4 字节（`float`、`int32_t`、`uint32_t`）时：`dstIdx` 元素类型必须为 `uint32_t` 或 `int32_t`。
+- 接口接收 `tmp`，但实现实际并不使用它。
 
-### About temporary tile `tmp` for A2A3
+### A2A3 `tmp` 临时 Tile 相关说明
 
-* `tmp` **is always used** in the A2A3 implementation as scratch space for intermediate results (current row index, argmin index, and current minimum elements).
-* `tmp` tile's data type must be the same as `src`'s data type.
-* `tmp` tile is organized into three regions within a single row:
-  - Region 0 (`[0, tmpGapEles)`): current row index counter (incremented per row).
-  - Region 1 (`[tmpGapEles, 2 * tmpGapEles)`): current minimum elements for comparison.
-  - Region 2 (`[2 * tmpGapEles, 3 * tmpGapEles)`): argmin index result (before final conversion to `dstIdx`).
-* `tmpGapEles` is determined as follows:
-  - When `srcValidCol >= elemPerRpt`: `tmpGapEles = elemPerRpt`.
-  - When `srcValidCol < elemPerRpt`: `tmpGapEles = ceil(srcValidCol / elemPerBlock) * elemPerBlock`.
-* Simply set `tmp` tile size the same as `src` when `src` is small, or calculate using:
+- A2A3 实现中 `tmp` **始终被使用**，作为中间结果的临时存储空间（当前行索引、argmin 索引、当前最小值元素）。
+- `tmp` Tile 的数据类型必须与 `src` 的数据类型一致。
+- `tmp` Tile 在单行内被划分为三个区域：
+  - 区域 0（`[0, tmpGapEles)`）：当前行索引计数器（每行递增）。
+  - 区域 1（`[tmpGapEles, 2 * tmpGapEles)`）：当前最小值元素，用于比较。
+  - 区域 2（`[2 * tmpGapEles, 3 * tmpGapEles)`）：argmin 索引结果（最终转换后写入 `dstIdx`）。
+- `tmpGapEles` 的确定方式：
+  - 当 `srcValidCol >= elemPerRpt` 时：`tmpGapEles = elemPerRpt`。
+  - 当 `srcValidCol < elemPerRpt` 时：`tmpGapEles = ceil(srcValidCol / elemPerBlock) * elemPerBlock`。
+- 当 `src` 较小时，可直接将 `tmp` Tile 大小设为与 `src` 相同；也可按以下公式根据 `src` 的 `validCol` 算出 `tmp` Tile 所需 stride：
 
   ```text
   repeats = ceil(validCol / elementPerRepeat)
   stride = ceil(repeats * 2 / elementPerBlock) * elementPerBlock + ceil(repeats / elementPerBlock) * elementPerBlock
   ```
 
-* In Value + Index mode with half input, `tmp` region 2 data undergoes s16->f16->s32 conversion before being stored to `dstIdx`.
+- 在值+索引模式下，若输入为 half 类型，`tmp` 区域 2 的数据将经过 s16->f16->s32 转换后才写入 `dstIdx`。
 
-### About temporary tile `tmp` for A5
+### A5 `tmp` 临时 Tile 相关说明
 
-* `tmp` temporary tile is **not used** in the A5 implementation for either mode. The A5 uses vector register-based computation (`__VEC_SCOPE__`) and does not require scratch tile storage.
-* `tmp` is retained in the C++ intrinsic signature solely for API compatibility with A2A3.
+- A5 实现中 `tmp` 临时 Tile **在两种模式下均不使用**。A5 使用基于向量寄存器的计算方式（`__VEC_SCOPE__`），不需要临时 Tile 存储。
+- `tmp` 在 C++ 内建接口签名中保留，仅为了与 A2A3 的 API 兼容。
 
-## Examples
+## 示例
 
-### Pure Index Mode
+### 纯索引模式
 
-#### Auto
+#### 自动（Auto）
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -190,7 +189,7 @@ void example_auto() {
 }
 ```
 
-#### Manual
+#### 手动（Manual）
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -211,9 +210,9 @@ void example_manual() {
 }
 ```
 
-### Value + Index Mode
+### 值 + 索引模式
 
-#### Auto
+#### 自动（Auto）
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -233,7 +232,7 @@ void example_auto_val_idx() {
 }
 ```
 
-#### Manual
+#### 手动（Manual）
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -257,52 +256,52 @@ void example_manual_val_idx() {
 }
 ```
 
-## ASM Form Examples
+## 汇编示例（ASM）
 
-### Pure Index Auto Mode
+### 纯索引自动模式
 
 ```text
-# Auto mode: compiler/runtime-managed placement and scheduling.
+# 自动模式：由编译器/运行时负责资源放置与调度。
 %dstIdx = pto.tcolargmin %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
-### Pure Index Manual Mode
+### 纯索引手动模式
 
 ```text
-# Manual mode: resources must be bound explicitly before issuing the instruction.
+# 手动模式：先显式绑定资源，再发射指令。
 # pto.tassign %arg0, @tile(0x1000)
 # pto.tassign %arg1, @tile(0x2000)
 %dstIdx = pto.tcolargmin %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
-### Value + Index Auto Mode
+### 值 + 索引自动模式
 
 ```text
-# Auto mode: compiler/runtime-managed placement and scheduling.
+# 自动模式：由编译器/运行时负责资源放置与调度。
 %dstVal, %dstIdx = pto.tcolargmin %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> (!pto.tile<...>, !pto.tile<...>)
 ```
 
-### Value + Index Manual Mode
+### 值 + 索引手动模式
 
 ```text
-# Manual mode: resources must be bound explicitly before issuing the instruction.
+# 手动模式：先显式绑定资源，再发射指令。
 # pto.tassign %arg0, @tile(0x1000)
 # pto.tassign %arg1, @tile(0x2000)
 # pto.tassign %arg2, @tile(0x3000)
 %dstVal, %dstIdx = pto.tcolargmin %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> (!pto.tile<...>, !pto.tile<...>)
 ```
 
-### PTO Assembly Form
+### PTO 汇编形式
 
 ```text
-# Pure index
+# 纯索引
 %dstIdx = tcolargmin %src : !pto.tile<...> -> !pto.tile<...>
-# Value + index
+# 值 + 索引
 %dstVal, %dstIdx = tcolargmin %src : !pto.tile<...> -> !pto.tile<...>, !pto.tile<...>
 
-# IR Level 2 (DPS) - pure index
+# IR Level 2 (DPS) - 纯索引
 pto.tcolargmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dstIdx : !pto.tile_buf<...>)
 
-# IR Level 2 (DPS) - value + index
+# IR Level 2 (DPS) - 值 + 索引
 pto.tcolargmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dstVal, %dstIdx : !pto.tile_buf<...>, !pto.tile_buf<...>)
 ```
