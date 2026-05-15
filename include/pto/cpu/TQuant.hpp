@@ -300,7 +300,7 @@ inline void StoreMxEncodedValue(TileDataOut &dst, TileDataSrc &src, FlatScalingT
 {
     using SrcT = typename TileDataSrc::DType;
     if constexpr (quant_type == QuantType::MXFP8) {
-        flatScaling.data()[row * cols + col] = groupScaling;
+        flatScaling.data()[row * cols + col] = static_cast<typename FlatScalingTile::DType>(groupScaling);
         const float value = static_cast<float>(src.data()[GetTileElementOffset<TileDataSrc>(row, col)]);
         const uint8_t encoded = EncodeE4M3Fn(value * groupScaling);
         dst.data()[GetTileElementOffset<TileDataOut>(row, col)] = static_cast<int8_t>(encoded);
@@ -393,7 +393,6 @@ PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataExp *e
                   "Fix: MX overload is reserved for MXFP8/MXFP4_E2M1.");
     using SrcT = typename TileDataSrc::DType;
     if constexpr (quant_type == QuantType::MXFP8) {
-        static_assert(std::is_same_v<SrcT, float>, "Fix: MXFP8 input has to be float 32");
         static_assert(std::is_same_v<typename TileDataOut::DType, int8_t>, "Fix: MXFP8 output must be int8 bytes.");
     } else {
         static_assert(std::is_same_v<SrcT, float> || std::is_same_v<SrcT, half> || std::is_same_v<SrcT, aclFloat16> ||

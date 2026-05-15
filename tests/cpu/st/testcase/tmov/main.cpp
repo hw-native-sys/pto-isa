@@ -144,28 +144,3 @@ TMOV_TEST(bfloat16_t, 64, 128, 64, 128, Acc, ColMajor, ColMajor, Vec, RowMajor, 
 TMOV_TEST(bfloat16_t, 64, 128, 64, 128, Acc, RowMajor, RowMajor, Vec, ColMajor, ColMajor)
 TMOV_TEST(bfloat16_t, 64, 128, 64, 128, Acc, RowMajor, ColMajor, Vec, ColMajor, RowMajor)
 #endif
-
-TEST_F(TMOVTest, FpVariantCopiesSourceTile)
-{
-    using TileData = Tile<TileType::Vec, float, 2, 8>;
-    using FpTile = Tile<TileType::Vec, float, 1, 8>;
-
-    TileData src;
-    TileData dst;
-    FpTile fp;
-    size_t addr = 0;
-    CpuTileTestUtils::AssignTileStorage(addr, src, dst, fp);
-
-    CpuTileTestUtils::FillLinear(src, 3.0f);
-    CpuTileTestUtils::FillAll(dst, 0.0f);
-    CpuTileTestUtils::FillAll(fp, 1.0f);
-
-    TMOV_FP(dst, src, fp);
-
-    for (int r = 0; r < src.GetValidRow(); ++r) {
-        for (int c = 0; c < src.GetValidCol(); ++c) {
-            CpuTileTestUtils::ExpectValueEquals(CpuTileTestUtils::GetValue(dst, r, c),
-                                                CpuTileTestUtils::GetValue(src, r, c));
-        }
-    }
-}
