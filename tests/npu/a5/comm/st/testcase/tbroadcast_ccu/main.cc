@@ -35,9 +35,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "hcomm/ccu/hccl_ccu_res.h"
 #include "hcomm/ccu/ccu_assist_pub.h"
 
-#include "pto/comm/async/ccu/ccu_types.hpp"
-#include "pto/comm/async/ccu/ccu_gate_registry.hpp"
-#include "pto/comm/async/ccu/ccu_broadcast_kernel.hpp"
+#include "pto/npu/comm/async/ccu/ccu_types.hpp"
+#include "pto/npu/comm/async/ccu/ccu_gate_registry.hpp"
+#include "pto/npu/comm/async/ccu/ccu_broadcast_kernel.hpp"
 
 #include <gtest/gtest.h>
 #include "../comm_mpi.h"
@@ -87,10 +87,6 @@ struct CcuEnv {
     uint64_t inputVa = 0;
     uint64_t outputVa = 0;
     uint64_t token = 0;
-
-    uint64_t allInputVa[pto::comm::ccu::kMaxBroadcastRanks]{};
-    uint64_t allOutputVa[pto::comm::ccu::kMaxBroadcastRanks]{};
-    uint64_t allToken[pto::comm::ccu::kMaxBroadcastRanks]{};
 
     uint64_t mmioAddr = 0;
     uint32_t gateMask = 0;
@@ -146,27 +142,6 @@ bool SetupChannelsForCcu(HcclComm comm, int rankId, int nRanks, std::vector<Chan
     return true;
 }
 
-// TBroadcast: AllGather every rank's (inputVa, outputVa, token) at setup time
-// so the broadcast CCU kernel receives all peer addresses via GeneArgs and can
-// skip the runtime address-exchange PreSync.
-void ExchangePeerAddrs()
-{
-    struct AddrPack {
-        uint64_t inputVa;
-        uint64_t outputVa;
-        uint64_t token;
-    };
-    AddrPack myPack{g_env.inputVa, g_env.outputVa, g_env.token};
-    std::vector<AddrPack> allPacks(g_env.nRanks);
-    CommMpiAllgather(&myPack, sizeof(AddrPack), allPacks.data(), sizeof(AddrPack));
-    for (int i = 0; i < g_env.nRanks && i < static_cast<int>(pto::comm::ccu::kMaxBroadcastRanks); ++i) {
-        g_env.allInputVa[i] = allPacks[i].inputVa;
-        g_env.allOutputVa[i] = allPacks[i].outputVa;
-        g_env.allToken[i] = allPacks[i].token;
-    }
-    std::fprintf(stderr, "[TBROADCAST_CCU] rank=%d AllGather done, %d peers exchanged\n", g_env.rankId, g_env.nRanks);
-}
-
 bool EnsureEnvReady()
 {
     if (g_env.ready)
@@ -213,8 +188,6 @@ bool EnsureEnvReady()
     const uint64_t spanEnd =
         (g_env.inputVa < g_env.outputVa) ? (g_env.outputVa + kMaxPayload) : (g_env.inputVa + kMaxPayload);
     g_env.token = hcomm::CcuRep::GetTokenInfo(spanBase, spanEnd - spanBase);
-
-    ExchangePeerAddrs();
 
     g_env.ready = true;
     return true;
@@ -337,7 +310,6 @@ static bool RegisterAndLaunchBroadcastCcu(int rankId, int nRanks, uint32_t rootI
     HCCL_OK(HcclCcuKernelRegisterFinish(g_env.comm));
 
     pto::comm::ccu::CcuBroadcastTaskArg targ{g_env.inputVa, g_env.outputVa, payloadSize, g_env.token};
-    targ.SetPeerAddrs(static_cast<uint32_t>(nRanks), g_env.allInputVa, g_env.allOutputVa, g_env.allToken);
     HCCL_OK(HcclCcuKernelLaunch(g_env.comm, g_env.threadHandle, kHandle, &targ));
     std::fprintf(stderr, "[TBROADCAST_CCU] rank=%d KernelLaunch done\n", rankId);
     return true;

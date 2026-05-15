@@ -1,4 +1,4 @@
-# pto.tbroadcast
+# TBROADCAST
 
 ## 简介
 
@@ -18,12 +18,12 @@ $$ \mathrm{dst}^{(k)}_{i,j} = \mathrm{src}^{(\text{root})}_{i,j} \quad \forall k
 
 ## 汇编语法
 
-PTO-AS 形式见[汇编拼写与操作数](../syntax-and-operands/assembly-model_zh.md)。
+PTO-AS 形式：参见 [PTO-AS 规范](../../assembly/PTO-AS_zh.md)。
 
 同步形式：
 
 ```text
-pto.tbroadcast %group, %src : (!pto.group<...>, !pto.memref<...>)
+tbroadcast %group, %src : (!pto.group<...>, !pto.memref<...>)
 ```
 
 降级时会为 GM→UB→GM 数据路径引入 UB 暂存 Tile；C++ 内建接口需要显式传入 `stagingTileData`（或 `pingTile` / `pongTile`）操作数。

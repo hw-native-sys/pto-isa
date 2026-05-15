@@ -35,9 +35,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "hcomm/ccu/hccl_ccu_res.h"
 #include "hcomm/ccu/ccu_assist_pub.h"
 
-#include "pto/comm/async/ccu/ccu_types.hpp"
-#include "pto/comm/async/ccu/ccu_gate_registry.hpp"
-#include "pto/comm/async/ccu/ccu_gather_kernel.hpp"
+#include "pto/npu/comm/async/ccu/ccu_types.hpp"
+#include "pto/npu/comm/async/ccu/ccu_gate_registry.hpp"
+#include "pto/npu/comm/async/ccu/ccu_gather_kernel.hpp"
 
 #include <gtest/gtest.h>
 #include "../comm_mpi.h"
@@ -323,27 +323,6 @@ static bool RegisterAndLaunchGatherCcu(int rankId, int nRanks, uint32_t rootId, 
     HCCL_OK(HcclCcuKernelRegisterFinish(g_env.comm));
 
     pto::comm::ccu::CcuGatherTaskArg targ{g_env.inputVa, myOutputSliceVA, payloadSize, g_env.token};
-
-    // Exchange (inputVa, outputSliceVa, token) across all ranks at launch time
-    // so the CCU kernel can skip runtime PreSync (NotifyRecord/NotifyWait).
-    struct AddrPack {
-        uint64_t inputVa;
-        uint64_t outputVa;
-        uint64_t token;
-    };
-    AddrPack myPack{g_env.inputVa, myOutputSliceVA, g_env.token};
-    std::vector<AddrPack> allPacks(nRanks);
-    CommMpiAllgather(&myPack, sizeof(AddrPack), allPacks.data(), sizeof(AddrPack));
-    uint64_t allInputVa[pto::comm::ccu::kMaxGatherRanks]{};
-    uint64_t allOutputVa[pto::comm::ccu::kMaxGatherRanks]{};
-    uint64_t allToken[pto::comm::ccu::kMaxGatherRanks]{};
-    for (int i = 0; i < nRanks && i < static_cast<int>(pto::comm::ccu::kMaxGatherRanks); ++i) {
-        allInputVa[i] = allPacks[i].inputVa;
-        allOutputVa[i] = allPacks[i].outputVa;
-        allToken[i] = allPacks[i].token;
-    }
-    targ.SetPeerAddrs(static_cast<uint32_t>(nRanks), allInputVa, allOutputVa, allToken);
-
     HCCL_OK(HcclCcuKernelLaunch(g_env.comm, g_env.threadHandle, kHandle, &targ));
     std::fprintf(stderr, "[TGATHER_CCU] rank=%d KernelLaunch done\n", rankId);
     return true;

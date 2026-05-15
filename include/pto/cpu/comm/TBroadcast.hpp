@@ -67,21 +67,17 @@ PTO_INTERNAL void TBROADCAST_IMPL(ParallelGroupType &parallelGroup, GlobalSrcDat
     TBroadcast_Impl<ParallelGroupType, GlobalSrcData>(parallelGroup, srcGlobalData);
 }
 
-template <CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalSrcData, typename TileData,
-          typename... WaitEvents>
-PTO_INTERNAL void TBROADCAST_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData,
-                                      TileData &stagingTileData, const CcuTriggerContext &ctx, WaitEvents &...events)
+// CCU engine is only available on A5 NPU hardware.  Deferred-fail stub
+// mirroring the a2a3 pattern: the template name must exist in `pto::comm`
+// so that `::pto::comm::TBROADCAST_CCU_IMPL<engine>(...)` in pto_comm_inst.hpp
+// parses on CPU simulator builds; the static_assert depends on `engine` and
+// fires only if the overload is actually instantiated.
+template <CollEngine engine = CollEngine::CCU, typename... Args>
+PTO_INTERNAL void TBROADCAST_CCU_IMPL(Args &&...)
 {
-    TBroadcast_Impl<ParallelGroupType, GlobalSrcData>(parallelGroup, srcGlobalData);
-}
-
-template <CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalSrcData, typename TileData,
-          typename... WaitEvents>
-PTO_INTERNAL void TBROADCAST_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData,
-                                      TileData &pingTile, TileData &pongTile, const CcuTriggerContext &ctx,
-                                      WaitEvents &...events)
-{
-    TBroadcast_Impl<ParallelGroupType, GlobalSrcData>(parallelGroup, srcGlobalData);
+    static_assert(engine != CollEngine::CCU,
+                  "TBROADCAST<CollEngine::CCU> is not supported on the CPU simulator; "
+                  "CCU engine requires A5 NPU hardware.");
 }
 
 } // namespace comm

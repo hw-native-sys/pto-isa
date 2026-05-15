@@ -1,8 +1,8 @@
-# pto.treduce
+﻿# TREDUCE
 
 ## Introduction
 
-Reduce operation: gather data from multiple remote NPUs and perform element-wise reduction locally.
+Reduce operation: gather data from multiple remote NPUs and perform element-wise reduction locally. 
 
 
 Only the root needs to execute `TREDUCE`. Non-root ranks only need to ensure their source buffers are ready and remain valid for the duration of the operation. Calling `TREDUCE` on non-root ranks is undefined behavior.
@@ -19,13 +19,13 @@ where $N$ is the number of ranks and $\oplus$ is the reduction operation (sum, m
 
 ## Assembly Syntax
 
-PTO-AS form: see [Assembly Spelling And Operands](../syntax-and-operands/assembly-model.md).
+PTO-AS form: see [PTO-AS Specification](../../assembly/PTO-AS.md).
 
 Synchronous form:
 
 ```text
-pto.treduce %group, %dst {op = #pto.reduce_op<Sum>} : (!pto.group<...>, !pto.memref<...>)
-pto.treduce %group, %dst {op = #pto.reduce_op<Max>} : (!pto.group<...>, !pto.memref<...>)
+treduce %group, %dst {op = #pto.reduce_op<Sum>} : (!pto.group<...>, !pto.memref<...>)
+treduce %group, %dst {op = #pto.reduce_op<Max>} : (!pto.group<...>, !pto.memref<...>)
 ```
 Lowering introduces internal accumulator and receive tiles for the reduce pipeline; the C++ intrinsic requires explicit `accTileData`, `recvTileData` (or `accTileData`, `pingTileData`, `pongTileData`) operand(s).
 
@@ -43,7 +43,7 @@ Declared in `include/pto/comm/pto_comm_inst.hpp`:
 // Basic reduce (accumulator + receive tile)
 template <CollEngine engine = CollEngine::AIV,
           typename ParallelGroupType, typename GlobalDstData, typename TileData, typename... Args>
-PTO_INST RecordEvent TREDUCE(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
+PTO_INST RecordEvent TREDUCE(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData, 
                               TileData &accTileData, TileData &recvTileData, ReduceOp op, Args&... args);
 
 // Ping-pong reduce (accumulator + ping + pong tiles for double buffering)
@@ -86,7 +86,7 @@ using namespace pto;
 template <typename T, int SIZE, int NRANKS>
 void reduce_sum(__gm__ T* group_addrs[NRANKS], __gm__ T* result, int my_rank) {
     using TileT = Tile<TileType::Vec, T, 1, SIZE>;
-    using GTensor = GlobalTensor<T, Shape<1,1,1,1,SIZE>,
+    using GTensor = GlobalTensor<T, Shape<1,1,1,1,SIZE>, 
                                  BaseShape2D<T, 1, SIZE, Layout::ND>, Layout::ND>;
 
     // Stack-allocated tensors
@@ -94,7 +94,7 @@ void reduce_sum(__gm__ T* group_addrs[NRANKS], __gm__ T* result, int my_rank) {
     for (int i = 0; i < NRANKS; ++i) {
         tensors[i] = GTensor(group_addrs[i]);
     }
-
+    
     comm::ParallelGroup<GTensor> group(tensors, NRANKS, my_rank);
     GTensor dstG(result);
     TileT accTile, recvTile;
@@ -113,14 +113,14 @@ using namespace pto;
 template <typename T, int SIZE, int NRANKS>
 void reduce_max(__gm__ T* group_addrs[NRANKS], __gm__ T* result, int my_rank) {
     using TileT = Tile<TileType::Vec, T, 1, SIZE>;
-    using GTensor = GlobalTensor<T, Shape<1,1,1,1,SIZE>,
+    using GTensor = GlobalTensor<T, Shape<1,1,1,1,SIZE>, 
                                  BaseShape2D<T, 1, SIZE, Layout::ND>, Layout::ND>;
 
     GTensor tensors[NRANKS];
     for (int i = 0; i < NRANKS; ++i) {
         tensors[i] = GTensor(group_addrs[i]);
     }
-
+    
     comm::ParallelGroup<GTensor> group(tensors, NRANKS, my_rank);
     GTensor dstG(result);
     TileT accTile, recvTile;

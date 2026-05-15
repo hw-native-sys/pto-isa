@@ -17,7 +17,6 @@ import argparse
 import fnmatch
 import re
 
-
 def run_command(command, cwd=None, check=True):
     try:
         print(f"run command: {' '.join(command)}")
@@ -163,10 +162,12 @@ def list_gtest_cases(testcase_dir, gtest_filter="*"):
     if "-" in gtest_filter:
         pos, neg = gtest_filter.split("-", 1)
         neg_patterns = [p for p in neg.split(":") if p]
-        tests = [t for t in tests if not any(fnmatch.fnmatch(t, p) for p in neg_patterns)]
+        tests = [t for t in tests
+                 if not any(fnmatch.fnmatch(t, p) for p in neg_patterns)]
     elif gtest_filter != "*":
         patterns = [p for p in gtest_filter.split(":") if p]
-        tests = [t for t in tests if any(fnmatch.fnmatch(t, p) for p in patterns)]
+        tests = [t for t in tests
+                 if any(fnmatch.fnmatch(t, p) for p in patterns)]
     return tests
 
 
@@ -181,7 +182,6 @@ def detect_npu_count():
     running on a host without NPUs — let downstream checks decide).
     """
     import glob
-
     pattern = re.compile(r"^/dev/davinci(\d+)$")
     devs = [p for p in glob.glob("/dev/davinci*") if pattern.match(p)]
     if not devs:
@@ -348,7 +348,8 @@ def main():
                 if nranks > args.nranks:
                     continue
                 if available_npus is not None and nranks > available_npus:
-                    print(f"[SKIP] {testcase} (nranks={nranks}): only {available_npus} NPU(s) available")
+                    print(f"[SKIP] {testcase} (nranks={nranks}): "
+                          f"only {available_npus} NPU(s) available")
                     continue
                 gtest_filter = get_gtest_filter_for_nranks(nranks)
 
@@ -360,24 +361,26 @@ def main():
                         continue
                     os.environ.pop("GTEST_FILTER", None)
                     for case in cases:
-                        print("============================================================")
+                        print(f"============================================================")
                         print(f"[INFO] Running comm test: {testcase} / {case}  (nranks={nranks}, isolated)")
-                        print("============================================================")
+                        print(f"============================================================")
                         total_runs += 1
                         try:
-                            run_binary(testcase, args.run_mode, case, is_comm=True, nranks=nranks)
-                        except Exception:
+                            run_binary(testcase, args.run_mode, case,
+                                       is_comm=True, nranks=nranks)
+                        except Exception as e:
                             print(f"[ERROR] Testcase failed: {testcase}/{case} (nranks={nranks})")
                             fail_count += 1
                 else:
-                    print("============================================================")
+                    print(f"============================================================")
                     print(f"[INFO] Running comm test: {testcase}  (nranks={nranks}, GTEST_FILTER={gtest_filter})")
-                    print("============================================================")
+                    print(f"============================================================")
                     os.environ["GTEST_FILTER"] = gtest_filter
                     total_runs += 1
                     try:
-                        run_binary(testcase, args.run_mode, default_cases, is_comm=True, nranks=nranks)
-                    except Exception:
+                        run_binary(testcase, args.run_mode, default_cases,
+                                   is_comm=True, nranks=nranks)
+                    except Exception as e:
                         print(f"[ERROR] Testcase failed: {testcase} (nranks={nranks})")
                         fail_count += 1
             os.environ.pop("GTEST_FILTER", None)

@@ -151,6 +151,19 @@ PTO_INTERNAL void TGATHER_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalDstDa
     TGATHER_IMPL(parallelGroup, dstGlobalData, pingTile);
 }
 
+// CCU engine is only available on A5 NPU hardware.  Deferred-fail stub
+// mirroring the a2a3 pattern: the template name must exist in `pto::comm`
+// so that `::pto::comm::TGATHER_CCU_IMPL<engine>(...)` in pto_comm_inst.hpp
+// parses on CPU simulator builds; the static_assert depends on `engine` and
+// fires only if the overload is actually instantiated.
+template <CollEngine engine = CollEngine::CCU, typename... Args>
+PTO_INTERNAL void TGATHER_CCU_IMPL(Args &&...)
+{
+    static_assert(engine != CollEngine::CCU,
+                  "TGATHER<CollEngine::CCU> is not supported on the CPU simulator; "
+                  "CCU engine requires A5 NPU hardware.");
+}
+
 } // namespace comm
 } // namespace pto
 

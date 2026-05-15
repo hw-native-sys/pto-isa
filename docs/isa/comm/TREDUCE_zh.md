@@ -1,4 +1,4 @@
-# pto.treduce
+# TREDUCE
 
 ## 简介
 
@@ -18,13 +18,13 @@ $$\mathrm{dst}^{\mathrm{local}}_{i,j} = \bigoplus_{r=0}^{N-1} \mathrm{src}^{(r)}
 
 ## 汇编语法
 
-PTO-AS 形式见[汇编拼写与操作数](../syntax-and-operands/assembly-model_zh.md)。
+PTO-AS 形式：参见 [PTO-AS 规范](../../assembly/PTO-AS_zh.md)。
 
 同步形式：
 
 ```text
-pto.treduce %group, %dst {op = #pto.reduce_op<Sum>} : (!pto.group<...>, !pto.memref<...>)
-pto.treduce %group, %dst {op = #pto.reduce_op<Max>} : (!pto.group<...>, !pto.memref<...>)
+treduce %group, %dst {op = #pto.reduce_op<Sum>} : (!pto.group<...>, !pto.memref<...>)
+treduce %group, %dst {op = #pto.reduce_op<Max>} : (!pto.group<...>, !pto.memref<...>)
 ```
 
 降级时会为 reduce 流水线引入内部累加 Tile 和接收 Tile；C++ 内建接口需要显式传入 `accTileData`、`recvTileData`（或 `accTileData`、`pingTileData`、`pongTileData`）操作数。
@@ -121,3 +121,4 @@ void reduce_max(__gm__ T* group_addrs[NRANKS], __gm__ T* result, int my_rank) {
     comm::TREDUCE(group, dstG, accTile, recvTile, comm::ReduceOp::Max);
 }
 ```
+

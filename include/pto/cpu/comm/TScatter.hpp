@@ -151,6 +151,19 @@ PTO_INTERNAL void TSCATTER_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalSrcD
     pto::comm::TSCATTER_IMPL(parallelGroup, srcGlobalData, pingTile);
 }
 
+// CCU engine is only available on A5 NPU hardware.  Deferred-fail stub
+// mirroring the a2a3 pattern: the template name must exist in `pto::comm`
+// so that `::pto::comm::TSCATTER_CCU_IMPL<engine>(...)` in pto_comm_inst.hpp
+// parses on CPU simulator builds; the static_assert depends on `engine` and
+// fires only if the overload is actually instantiated.
+template <CollEngine engine = CollEngine::CCU, typename... Args>
+PTO_INTERNAL void TSCATTER_CCU_IMPL(Args &&...)
+{
+    static_assert(engine != CollEngine::CCU,
+                  "TSCATTER<CollEngine::CCU> is not supported on the CPU simulator; "
+                  "CCU engine requires A5 NPU hardware.");
+}
+
 } // namespace comm
 } // namespace pto
 
