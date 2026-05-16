@@ -44,7 +44,6 @@ PTO_INTERNAL void CheckCMValid()
                   ,
                   "TCOLMAX: Not supported data type");
     static_assert((TileSrc::Cols == TileDst::Cols), "Inconsistent number of cols");
-    static_assert((TileDst::Rows == 1), "Inconsistent number of dst tile rows");
 }
 
 template <typename TileDst, typename TileSrc>

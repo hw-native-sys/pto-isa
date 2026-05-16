@@ -274,7 +274,7 @@ template <>
 struct ElementOpCal<half, ElementOp::OP_EXPDIF> {
     static void apply(half &dst, const half &src0, const half &src1)
     {
-        dst = static_cast<half>(std::exp(static_cast<float>(src0 - src1)));
+        dst = std::exp(src0 - src1);
     }
 };
 #endif
