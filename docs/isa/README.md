@@ -101,7 +101,14 @@ This directory is the canonical PTO ISA tree. It combines the architecture manua
 - [TCOLEXPANDSUB](TCOLEXPANDSUB.md) - Column-wise broadcast subtract: subtract a per-column scalar vector from each column.
 - [TCOLEXPANDEXPDIF](TCOLEXPANDEXPDIF.md) - Column-wise exp-diff: compute exp(src0 - src1) with per-column scalars.
 
-Reading order matches the manual chapter map: programming and machine models, then syntax and state, then memory, then opcode reference.
+## Memory (GM <-> Tile)
+- [TLOAD](TLOAD.md) - Load data from a GlobalTensor (GM) into a Tile.
+- [TPREFETCH](TPREFETCH.md) - Prefetch data from global memory into a tile-local cache/buffer (hint).
+- [TPREFETCH_ASYNC](TPREFETCH_ASYNC.md) - Asynchronously prefetch a GlobalTensor region from GM into L2 cache via SDMA CMO.
+- [TSTORE](TSTORE.md) - Store data from a Tile into a GlobalTensor (GM), optionally using atomic write or quantization parameters.
+- [TSTORE_FP](TSTORE_FP.md) - Store an accumulator tile into global memory using a scaling (`fp`) tile for vector quantization parameters.
+- [MGATHER](MGATHER.md) - Gather-load elements from global memory into a tile using per-element indices.
+- [MSCATTER](MSCATTER.md) - Scatter-store elements from a tile into global memory using per-element indices.
 
 - [Programming model](programming-model/tiles-and-valid-regions.md)
 - [Machine model](machine-model/execution-agents.md)

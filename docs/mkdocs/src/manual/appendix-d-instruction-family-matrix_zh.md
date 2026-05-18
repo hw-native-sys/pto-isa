@@ -13,17 +13,17 @@
 | 逐元素（Tile-Tile） | 29 |
 | Tile-标量 / Tile-立即数 | 20 |
 | 轴归约 / 扩展 | 24 |
-| 内存（GM <-> Tile） | 6 |
+| 内存（GM <-> Tile） | 7 |
 | 矩阵乘 | 8 |
 | 数据搬运 / 布局 | 13 |
 | 复杂指令 | 15 |
 | 通信 | 11 |
-| 总计 | 129 |
+| 总计 | 130 |
 
 ## D.3 头文件同步状态
 
-- 头文件清单来源：`include/pto/common/pto_instr.hpp`（115 个唯一指令 API）
-- Manifest 清单来源：`docs/isa/manifest.yaml`（115 条目）
+- 头文件清单来源：`include/pto/common/pto_instr.hpp`（116 个唯一指令 API）
+- Manifest 清单来源：`docs/isa/manifest.yaml`（116 条目）
 - 头文件有但 manifest 缺失：无
 - manifest 有但头文件缺失：无
 
@@ -113,6 +113,7 @@
 | 轴归约 / 扩展 | [TCOLEXPANDEXPDIF](/docs/isa/TCOLEXPANDEXPDIF_zh.md) | `reduce_expand` | `dst, src` | `docs/isa/TCOLEXPANDEXPDIF_zh.md` |
 | 内存（GM <-> Tile） | [TLOAD](/docs/isa/TLOAD_zh.md) | `memory` | `tile, global` | `docs/isa/TLOAD_zh.md` |
 | 内存（GM <-> Tile） | [TPREFETCH](/docs/isa/TPREFETCH_zh.md) | `memory` | `tile, global` | `docs/isa/TPREFETCH_zh.md` |
+| 内存（GM <-> Tile） | [TPREFETCH_ASYNC](/docs/isa/TPREFETCH_ASYNC_zh.md) | `memory` | `global, context` | `docs/isa/TPREFETCH_ASYNC_zh.md` |
 | 内存（GM <-> Tile） | [TSTORE](/docs/isa/TSTORE_zh.md) | `memory` | `tile, global` | `docs/isa/TSTORE_zh.md` |
 | 内存（GM <-> Tile） | [TSTORE_FP](/docs/isa/TSTORE_FP_zh.md) | `memory` | `tile, global` | `docs/isa/TSTORE_FP_zh.md` |
 | 内存（GM <-> Tile） | [MGATHER](/docs/isa/MGATHER_zh.md) | `memory` | `tile, global` | `docs/isa/MGATHER_zh.md` |
