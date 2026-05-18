@@ -297,6 +297,25 @@ PTO_INST RecordEvent TPREFETCH(TileData &dst, GlobalData &src)
     return {};
 }
 
+// ============================================================================
+// TPREFETCH_ASYNC - L2 cache prefetch via SDMA CMO (opcode = 6).
+//
+// Stages a contiguous GlobalTensor region into L2 cache so subsequent TLOADs
+// hit warm lines. The public compute API takes a compute-side prefetch context;
+// the implementation builds the SDMA session in that context, and callers can
+// wait on the returned event with evt.Wait(ctx.session).
+// ============================================================================
+#if (defined(__CCE_AICORE__) || defined(__CPU_SIM)) && !defined(__COSTMODEL) && !defined(PTO_COMM_NOT_SUPPORTED)
+
+template <typename GlobalData, typename... WaitEvents, std::enable_if_t<all_events_v<WaitEvents...>, int> = 0>
+PTO_INST comm::AsyncEvent TPREFETCH_ASYNC(GlobalData &srcGlobalData, PrefetchAsyncContext &ctx, WaitEvents &...events)
+{
+    TSYNC(events...);
+    return TPREFETCH_ASYNC_IMPL(srcGlobalData, ctx);
+}
+
+#endif // (__CCE_AICORE__ || __CPU_SIM) && !__COSTMODEL && !PTO_COMM_NOT_SUPPORTED
+
 template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents,
           std::enable_if_t<all_events_v<WaitEvents...>, int> = 0>
 PTO_INST RecordEvent TCMPS(TileDataDst &dst, TileDataSrc &src0, typename TileDataSrc::DType src1, CmpMode mode,
