@@ -425,7 +425,7 @@ __tf__ PTO_INTERNAL void TMovToVecNd2Nz(typename DstTileData::TileDType __out__ 
                                               (alignRow * C0_SIZE_BYTE) / BLOCK_BYTE_SIZE;
     uint32_t virtualRow = isOptForConflict ? alignRow + 1 : alignRow;
     uint32_t repeatStride = 1;
-    uint16_t innerLoopNum = validRow - 1;
+    uint16_t innerLoopNum = srcValidRow - 1;
     uint32_t cfgVsstb = (blockStride << 16u) | (1 & 0xFFFFU);
     uint32_t repeatStrideLast = (REPEAT_BYTE * virtualRow - innerLoopNum * BLOCK_BYTE_SIZE) / BLOCK_BYTE_SIZE;
     uint32_t cfgVsstbLast = (blockStride << 16u) | (repeatStrideLast & 0xFFFFU);

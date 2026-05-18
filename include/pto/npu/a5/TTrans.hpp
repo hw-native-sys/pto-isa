@@ -601,7 +601,7 @@ PTO_INTERNAL void CheckConvTile(TileDataDst &dst, TileDataSrc &src, TileDataTmp 
 #ifdef _DEBUG
     using T = typename TileDataSrc::DType;
     constexpr const int UB_SIZE = 262144; // 256*1024 B
-    if (TileDataSrc::layout == Layout::NCHW && TileDataDst::layout == Layout::NC1HWC0) {
+    if constexpr (TileDataSrc::layout == Layout::NCHW && TileDataDst::layout == Layout::NC1HWC0) {
         unsigned srcN = src.GetShape(GlobalTensorDim::DIM_0);
         unsigned srcC = src.GetShape(GlobalTensorDim::DIM_1);
         unsigned srcH = src.GetShape(GlobalTensorDim::DIM_2);
@@ -618,7 +618,7 @@ PTO_INTERNAL void CheckConvTile(TileDataDst &dst, TileDataSrc &src, TileDataTmp 
         PTO_ASSERT(srcN == dstN && srcH == dstH && srcW == dstW && dstC1 == (srcC + dstC0 - 1) / dstC0,
                    "expect same size for src and dst.");
         PTO_ASSERT((srcSize + dstSize + tmpSize) * sizeof(T) < UB_SIZE, "ERROR: memory usage exceeds UB limit!");
-    } else if (TileDataSrc::layout == Layout::NC1HWC0 && TileDataDst::layout == Layout::FRACTAL_Z) {
+    } else if constexpr (TileDataSrc::layout == Layout::NC1HWC0 && TileDataDst::layout == Layout::FRACTAL_Z) {
         unsigned srcN = src.GetShape(GlobalTensorDim::DIM_0);
         unsigned srcC1 = src.GetShape(GlobalTensorDim::DIM_1);
         unsigned srcH = src.GetShape(GlobalTensorDim::DIM_2);
@@ -644,7 +644,7 @@ PTO_INTERNAL void CheckGroupConvTile(TileDataDst &dst, TileDataSrc &src, TileDat
 #ifdef _DEBUG
     using T = typename TileDataSrc::DType;
     constexpr const int UB_SIZE = 262144; // 256*1024 B
-    if (TileDataSrc::layout == Layout::GNCHW && TileDataDst::layout == Layout::GNC1HWC0) {
+    if constexpr (TileDataSrc::layout == Layout::GNCHW && TileDataDst::layout == Layout::GNC1HWC0) {
         unsigned srcG = src.GetShape(GlobalTensorDim::DIM_0);
         unsigned srcN = src.GetShape(GlobalTensorDim::DIM_1);
         unsigned srcC = src.GetShape(GlobalTensorDim::DIM_2);
@@ -663,7 +663,7 @@ PTO_INTERNAL void CheckGroupConvTile(TileDataDst &dst, TileDataSrc &src, TileDat
         PTO_ASSERT(srcG == dstG && srcN == dstN && srcH == dstH && srcW == dstW && dstC1 == (srcC + dstC0 - 1) / dstC0,
                    "expect same size for src and dst.");
         PTO_ASSERT((srcSize + dstSize + tmpSize) * sizeof(T) < UB_SIZE, "ERROR: memory usage exceeds UB limit!");
-    } else if (TileDataSrc::layout == Layout::GNC1HWC0 && TileDataDst::layout == Layout::FRACTAL_Z) {
+    } else if constexpr (TileDataSrc::layout == Layout::GNC1HWC0 && TileDataDst::layout == Layout::FRACTAL_Z) {
         unsigned srcG = src.GetShape(GlobalTensorDim::DIM_0);
         unsigned srcN = src.GetShape(GlobalTensorDim::DIM_1);
         unsigned srcC1 = src.GetShape(GlobalTensorDim::DIM_2);
@@ -697,7 +697,7 @@ PTO_INTERNAL void TTransImplConvTile(TileDataDst &dst, TileDataSrc &src, TileDat
         unsigned srcW = src.GetShape(GlobalTensorDim::DIM_3);
         unsigned dstC0 = dst.GetShape(GlobalTensorDim::DIM_4);
         TTransConvNCHW2NC1HWC0<TileDataSrc, blockSizeElem>(dst.data(), src.data(), srcN, srcC, srcH, srcW, dstC0);
-    } else if (TileDataSrc::layout == Layout::NC1HWC0 && TileDataDst::layout == Layout::FRACTAL_Z) {
+    } else if constexpr (TileDataSrc::layout == Layout::NC1HWC0 && TileDataDst::layout == Layout::FRACTAL_Z) {
         CheckConvTile<TileDataDst, TileDataSrc, TileDataTmp>(dst, src, tmp);
         unsigned srcN = src.GetShape(GlobalTensorDim::DIM_0);
         unsigned srcC1 = src.GetShape(GlobalTensorDim::DIM_1);
@@ -718,7 +718,7 @@ PTO_INTERNAL void TTransImplConvTile(TileDataDst &dst, TileDataSrc &src, TileDat
         unsigned dstC0 = dst.GetShape(GlobalTensorDim::TOTAL_DIM);
         TTransConvGNCHW2GNC1HWC0<TileDataSrc, blockSizeElem>(dst.data(), src.data(), srcG, srcN, srcC, srcH, srcW,
                                                              dstC0);
-    } else if (TileDataSrc::layout == Layout::GNC1HWC0 && TileDataDst::layout == Layout::FRACTAL_Z) {
+    } else if constexpr (TileDataSrc::layout == Layout::GNC1HWC0 && TileDataDst::layout == Layout::FRACTAL_Z) {
         CheckGroupConvTile<TileDataDst, TileDataSrc, TileDataTmp>(dst, src, tmp);
         unsigned srcG = src.GetShape(GlobalTensorDim::DIM_0);
         unsigned srcN = src.GetShape(GlobalTensorDim::DIM_1);
