@@ -210,6 +210,8 @@ tconcatidx
 tconcat
 textract_vec
 tinsert_vec
+mgather
+mscatter
 tpushpop_cv
 tpushpop_vc
 tpushpop_cv_nosplit
