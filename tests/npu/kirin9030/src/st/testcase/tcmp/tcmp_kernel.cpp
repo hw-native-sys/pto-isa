@@ -27,9 +27,9 @@ __global__ AICORE void runTCmp(__gm__ uint32_t *out, __gm__ T *src0, __gm__ T *s
     TileData_src src0Tile(kTRows_, kTCols_);
     TileData_src src1Tile(kTRows_, kTCols_);
     TileData_dst dstTile(kTRows_, kTCols_);
-    TASSIGN<0x0 + 0x400 * block_idx>(src0Tile);
-    TASSIGN<0x8000 + 0x400 * block_idx>(src1Tile);
-    TASSIGN<0x16000 + 0x400 * block_idx>(dstTile);
+    TASSIGN<0x0>(src0Tile);
+    TASSIGN<TileData_src::Numel * sizeof(T)>(src1Tile);
+    TASSIGN<2 * TileData_src::Numel * sizeof(T)>(dstTile);
 
     GlobalData_src src0Global(src0);
     GlobalData_src src1Global(src1);

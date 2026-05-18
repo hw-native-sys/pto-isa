@@ -106,11 +106,6 @@ TEST_F(TSHLTest, case3)
     test_tshl<uint16_t, 1, 16384, 1, 16384>();
 }
 
-TEST_F(TSHLTest, case4)
-{
-    test_tshl<uint16_t, 2048, 16, 2048, 16>();
-}
-
 TEST_F(TSHLTest, case5)
 {
     test_tshl<uint8_t, 32, 32, 32, 32>();

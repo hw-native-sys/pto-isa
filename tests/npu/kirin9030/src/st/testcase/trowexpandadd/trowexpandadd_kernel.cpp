@@ -31,9 +31,8 @@ __global__ AICORE void runROWEXPANDADD(__gm__ T *out, __gm__ T *src0, __gm__ T *
     DstTileData src0Tile(dstRow, dstCol);
     TileData src1Tile(src1Row, 1);
     DstTileData dstTile(dstRow, dstCol);
-    size_t size = dstRow * dstCol * sizeof(T);
     TASSIGN<0x0>(src0Tile);
-    TASSIGN<size>(src1Tile);
+    TASSIGN<DstTileData::Numel * sizeof(T)>(src1Tile);
     TASSIGN<0x0>(dstTile);
 
     int offset = 0;
@@ -72,9 +71,8 @@ __global__ AICORE void runROWEXPANDADD2(__gm__ T *out, __gm__ T *src0, __gm__ T 
     DstTileData src0Tile(dstRow, dstCol);
     TileData src1Tile(src1Row, src1Col);
     DstTileData dstTile(dstRow, dstCol);
-    size_t size = dstRow * dstCol * sizeof(T);
     TASSIGN<0x0>(src0Tile);
-    TASSIGN<size>(src1Tile);
+    TASSIGN<DstTileData::Numel * sizeof(T)>(src1Tile);
     TASSIGN<0x0>(dstTile);
 
     int offset = 0;

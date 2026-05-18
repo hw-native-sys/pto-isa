@@ -37,10 +37,10 @@ PTO_INTERNAL void GetSignBit(RegTensor<float> &dstReg, RegTensor<float> &srcReg,
     RegTensor<uint32_t> oneReg, tmpReg;
     uint32_t len32 = static_cast<uint16_t>(VECTOR_REG_WIDTH / sizeof(float));
     MaskReg preg_b32 = CreatePredicate<float>(len32);
-    vdup(oneReg, static_cast<float>(1), mask, MODE_ZEROING);
+    vdup(oneReg, 1, mask, MODE_ZEROING);
     vshrs(tmpReg, (RegTensor<uint32_t> &)srcReg, signRightNum, mask, MODE_ZEROING);
     vand(tmpReg, tmpReg, oneReg, mask, MODE_ZEROING);
-    vcvt(dstReg, (RegTensor<int32_t> &)tmpReg, preg_b32, __cce_simd::RoundRType());
+    vcvt(dstReg, (RegTensor<int32_t> &)tmpReg, preg_b32, ROUND_R);
 }
 
 template <typename RoundMode, int32_t iterationNum>

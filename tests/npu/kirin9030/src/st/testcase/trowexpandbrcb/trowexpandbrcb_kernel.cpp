@@ -31,7 +31,7 @@ __global__ AICORE void runROWEXPAND(__gm__ T *out, __gm__ T *src)
     SrcTileData srcTile;
     DstTileData dstTile;
     TASSIGN<0x0>(srcTile);
-    TASSIGN<sizeof(T) * 1 * dstRows>(dstTile); // UB最大到0x40000
+    TASSIGN<sizeof(T) * 1 * dstRows>(dstTile); // UB最大到0x20000
 
     GlobalData srcGlobal(src);
     DstGlobalData dstGlobal(out);
@@ -61,7 +61,7 @@ void launchTROWEXPAND(T *out, T *src, void *stream)
     }
 }
 
-template void launchTROWEXPAND<aclFloat16, 4800, 16>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void launchTROWEXPAND<float, 7280, 8>(float *out, float *src, void *stream);
+template void launchTROWEXPAND<aclFloat16, 2400, 16>(aclFloat16 *out, aclFloat16 *src, void *stream);
+template void launchTROWEXPAND<float, 3640, 8>(float *out, float *src, void *stream);
 template void launchTROWEXPAND<float, 16, 8>(float *out, float *src, void *stream);
 } // namespace TRowExpandTest

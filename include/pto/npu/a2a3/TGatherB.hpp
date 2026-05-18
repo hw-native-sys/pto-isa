@@ -21,13 +21,13 @@ struct GatherB {
     PTO_INTERNAL static void GatherBInstr(__ubuf__ T *dst, __ubuf__ uint32_t *offset, uint32_t srcAddr,
                                           uint16_t dstRepeatStride, uint8_t repeats)
     {
-        vgatherb((__ubuf__ T *)dst, offset, srcAddr, dstRepeatStride, 1, repeats);
+        pto_vgatherb((__ubuf__ T *)dst, offset, srcAddr, dstRepeatStride, 1, repeats);
     }
 
     PTO_INTERNAL static void GatherBInstrB8(__ubuf__ uint16_t *dst, __ubuf__ uint32_t *offset, uint32_t srcAddr,
                                             uint16_t dstRepeatStride, uint8_t repeats)
     {
-        vgatherb((__ubuf__ uint16_t *)dst, offset, srcAddr, dstRepeatStride, 1, repeats);
+        pto_vgatherb((__ubuf__ uint16_t *)dst, offset, srcAddr, dstRepeatStride, 1, repeats);
     }
 };
 

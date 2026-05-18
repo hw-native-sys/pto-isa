@@ -32,8 +32,8 @@ __global__ AICORE void runCOLEXPANDDIV(__gm__ T *out, __gm__ T *src0, __gm__ T *
     TileData src1Tile(src1Row, src1Col);
     DstTileData dstTile(dstRow, dstCol);
     TASSIGN<0x0>(src0Tile);
-    TASSIGN<0x10000>(src1Tile);
-    TASSIGN<0x20000>(dstTile);
+    TASSIGN<DstTileData::Numel * sizeof(T)>(dstTile);
+    TASSIGN<2 * DstTileData::Numel * sizeof(T)>(src1Tile);
 
     int offset = 0;
     DstGlobalData src0Global(src0 + offset);

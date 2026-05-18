@@ -24,8 +24,8 @@ __global__ AICORE void runTOr(__gm__ T *out, __gm__ T *src0, __gm__ T *src1)
     TileData src1Tile(vRows, vCols);
     TileData dstTile(vRows, vCols);
     TASSIGN<0x0>(src0Tile);
-    TASSIGN<0x10000>(src1Tile);
-    TASSIGN<0x20000>(dstTile);
+    TASSIGN<TileData::Numel * sizeof(T)>(src1Tile);
+    TASSIGN<2 * TileData::Numel * sizeof(T)>(dstTile);
 
     GlobalData src0Global(src0);
     GlobalData src1Global(src1);
@@ -50,7 +50,6 @@ void LaunchTOr(T *out, T *src0, T *src1, void *stream)
 template void LaunchTOr<uint16_t, 64, 64, 64, 64>(uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream);
 template void LaunchTOr<uint16_t, 64, 64, 63, 63>(uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream);
 template void LaunchTOr<uint16_t, 1, 16384, 1, 16384>(uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream);
-template void LaunchTOr<uint16_t, 2048, 16, 2048, 16>(uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream);
 template void LaunchTOr<uint8_t, 32, 32, 32, 32>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
 template void LaunchTOr<uint32_t, 8, 8, 8, 8>(uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream);
 template void LaunchTOr<int8_t, 32, 32, 32, 32>(int8_t *out, int8_t *src0, int8_t *src1, void *stream);

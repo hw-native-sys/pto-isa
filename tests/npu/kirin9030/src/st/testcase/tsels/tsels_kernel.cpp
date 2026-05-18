@@ -18,9 +18,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kPadValue_>
-struct GenericDataSelector {
-};
+struct GenericDataSelector {};
 
+#ifdef __CCE_AICORE__
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
 struct GenericDataSelector<T, kGRows_, kGCols_, kTRows_, kTCols_, PAD_VALUE_NULL> {
     using DynShapeDim5 = Shape<1, 1, 1, kTRows_, kTCols_>;
@@ -38,6 +38,7 @@ struct GenericDataSelector<T, kGRows_, kGCols_, kTRows_, kTCols_, PAD_VALUE_MAX>
     using TileType = Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, kGRows_, kGCols_, SLayout::NoneBox,
                           512, PadValue::Max>;
 };
+#endif
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kPadValue_>
 __global__ AICORE void runTSELS(__gm__ T *out, __gm__ T *src0, __gm__ T *src1, uint8_t selectMode)
@@ -50,14 +51,13 @@ __global__ AICORE void runTSELS(__gm__ T *out, __gm__ T *src0, __gm__ T *src1, u
     TileData src1Tile;
     TileData dstTile;
     TmpTile tmpTile(1, 32);
-    TASSIGN<0x0 + 0x400 * block_idx>(src0Tile);
-    TASSIGN<0x4000 + 0x400 * block_idx>(src1Tile);
-    TASSIGN<0x8000 + 0x400 * block_idx>(dstTile);
-    TASSIGN<0x12000>(tmpTile);
-    int offset = (block_idx / 4) * (64 * 16) + (block_idx % 4) * 16;
-    GlobalData src0Global(src0 + offset);
-    GlobalData src1Global(src1 + offset);
-    GlobalData dstGlobal(out + offset);
+    TASSIGN<0x0>(src0Tile);
+    TASSIGN<TileData::Numel * sizeof(T)>(src1Tile);
+    TASSIGN<2 * TileData::Numel * sizeof(T)>(dstTile);
+    TASSIGN<3 * TileData::Numel * sizeof(T)>(tmpTile);
+    GlobalData src0Global(src0);
+    GlobalData src1Global(src1);
+    GlobalData dstGlobal(out);
 
     TLOAD(src0Tile, src0Global);
     TLOAD(src1Tile, src1Global);
@@ -67,7 +67,6 @@ __global__ AICORE void runTSELS(__gm__ T *out, __gm__ T *src0, __gm__ T *src1, u
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     TSTORE(dstGlobal, dstTile);
-    out = dstGlobal.data();
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kPadValue_>

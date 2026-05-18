@@ -83,14 +83,14 @@ __tf__ PTO_INTERNAL void TMovToVecImpl(typename TileDataDst::TileDType __out__ d
     if constexpr (TileDataDst::Cols == TileDataSrc::Cols || TileDataDst::Rows == 1) {
         unsigned blockLen = (TileDataDst::Cols * validRow * sizeof(T) + BLOCK_BYTE_SIZE - 1) / BLOCK_BYTE_SIZE;
         if constexpr (TileDataDst::Cols == TileDataDst::ValidCol) {
-            pto_copy_ubuf_to_ubuf(dstPtr, srcPtr, 1, blockLen, 1, 1);
+            pto_copy_ubuf_to_ubuf(dstPtr, srcPtr, 1, blockLen, 0, 0);
         } else {
             if (TileDataDst::Cols == validCol) {
-                pto_copy_ubuf_to_ubuf(dstPtr, srcPtr, 1, blockLen, 1, 1);
+                pto_copy_ubuf_to_ubuf(dstPtr, srcPtr, 1, blockLen, 0, 0);
             } else {
                 blockLen = (validCol * sizeof(T) + BLOCK_BYTE_SIZE - 1) / BLOCK_BYTE_SIZE;
                 for (int i = 0; i < validRow; i++) {
-                    pto_copy_ubuf_to_ubuf(dstPtr + i * dstStride, srcPtr + i * srcStride, 1, blockLen, 1, 1);
+                    pto_copy_ubuf_to_ubuf(dstPtr + i * dstStride, srcPtr + i * srcStride, 1, blockLen, 0, 0);
                 }
             }
         }
