@@ -38,15 +38,27 @@ PTO_INTERNAL void runTScatter(__gm__ Tsrc0 *out, __gm__ Tsrc0 *src0, __gm__ Tsrc
     GlobalData dstGlobal(out);
     GlobalIdx src1Global(src1);
 
-    TLOAD(srcTile, src0Global);
-    TLOAD(idxTile, src1Global);
-#ifndef __PTO_AUTO__
-    PtoSetWaitFlag<PIPE_MTE2, PIPE_V>();
-#endif
-    TSCATTER(dstTile, srcTile, idxTile);
-#ifndef __PTO_AUTO__
-    PtoSetWaitFlag<PIPE_V, PIPE_MTE3>();
-#endif
+    using TileData_src0 = Tile<TileType::Vec, Tsrc0, kGRows0_, kGCols0_, BLayout::RowMajor, -1, -1>;
+    using TileData_src1 = Tile<TileType::Vec, Tsrc1, kGRows1_, kGCols1_, BLayout::RowMajor, -1, -1>;
+    using TileData_dst = Tile<TileType::Vec, Tsrc0, kGRows0_, kGCols0_, BLayout::RowMajor, -1, -1>;
+    TileData_src0 src0Tile(src0_row, src0_col);
+    TileData_src1 src1Tile(src1_row, src1_col); // index
+    TileData_dst dstTile(dst_row, dst_col);
+    TASSIGN<0x0>(src0Tile);
+    TASSIGN<TileData_src0::Numel * sizeof(Tsrc0)>(src1Tile);
+    TASSIGN<TileData_src0::Numel * sizeof(Tsrc0) + TileData_src1::Numel * sizeof(Tsrc1)>(dstTile);
+
+    GlobalData_src0 src0Global(src0);
+    GlobalData_src1 src1Global(src1);
+    GlobalData_dst dstGlobal(out);
+
+    TLOAD(src0Tile, src0Global);
+    TLOAD(src1Tile, src1Global);
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    TSCATTER(dstTile, src0Tile, src1Tile);
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     TSTORE(dstGlobal, dstTile);
 }
 

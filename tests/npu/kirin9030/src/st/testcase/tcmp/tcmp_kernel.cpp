@@ -20,12 +20,12 @@ __global__ AICORE void runTCmp(__gm__ uint8_t *out, __gm__ T *src0, __gm__ T *sr
     using SrcStrideDim2 = pto::Stride<Rows * Cols, Rows * Cols, Rows * Cols, Cols, 1>;
     using SrcGlobal = GlobalTensor<T, SrcShapeDim2, SrcStrideDim2>;
 
-    constexpr int dstCols = (Cols + 7) / 8;
-    constexpr int dstValidCols = (ValidCols + 7) / 8;
-    constexpr int dstTileCols = ((Cols / 8) + 31) / 32 * 32;
-    using DstShapeDim2 = Shape<1, 1, 1, ValidRows, dstValidCols>;
-    using DstStrideDim2 = pto::Stride<Rows * dstCols, Rows * dstCols, Rows * dstCols, dstCols, 1>;
-    using DstGlobal = GlobalTensor<uint8_t, DstShapeDim2, DstStrideDim2>;
+    TileData_src src0Tile(kTRows_, kTCols_);
+    TileData_src src1Tile(kTRows_, kTCols_);
+    TileData_dst dstTile(kTRows_, kTCols_);
+    TASSIGN<0x0>(src0Tile);
+    TASSIGN<TileData_src::Numel * sizeof(T)>(src1Tile);
+    TASSIGN<2 * TileData_src::Numel * sizeof(T)>(dstTile);
 
     SrcGlobal src0Global(src0);
     SrcGlobal src1Global(src1);

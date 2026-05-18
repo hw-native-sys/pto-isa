@@ -778,7 +778,9 @@ if [ "$ENABLE_KIRIN9030" = "true" ]; then
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tmul
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tlrelu
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tdiv
-  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tcmps
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t texp
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tmov_vect
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tmuls
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tsel
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tsels
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t trsqrt

@@ -29,7 +29,7 @@ __tf__ PTO_INTERNAL void TMovToBt(typename DstTile::TileDType __out__ dst, typen
     static_assert(DstTile::Cols * sizeof(DstType) % BIAS_TABLE_UNIT == 0,
                   "TMov: When TileType is Bias, col * sizeof(Dtype) must be aligned to 64.");
     static_assert(DstTile::Cols * sizeof(DstType) <= PTO_BIAS_SIZE_BYTES,
-                  "TMov: The memory occupation of BiasTile exceeds 1.0KB bias table size.");
+                  "TMov: The memory occupation of BiasTile exceeds 4.0KB bias table size.");
 
     __cbuf__ SrcType *srcAddrP = (__cbuf__ SrcType *)__cce_get_tile_ptr(src);
     uint64_t dstAddrP = (uint64_t)dst;
@@ -135,15 +135,15 @@ __tf__ PTO_INTERNAL void TMovCcToCb(typename DstTile::TileDType __out__ dst, typ
     __cbuf__ dstType *dstAddr = (__cbuf__ dstType *)__cce_get_tile_ptr(dst);
     __cc__ srcType *srcData = (__cc__ srcType *)__cce_get_tile_ptr(src);
 
-    pto_copy_matrix_cc_to_cbuf(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, 0, 0, 0, QuantPre,
-                               static_cast<uint8_t>(reluMode), channelSplitEnable, enableNz2Nd, 0, 0, false, false, 0,
-                               false, false, false, false, false, enableNz2Dn);
+    copy_matrix_cc_to_cbuf(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, 0, 0, QuantPre, reluMode,
+                           channelSplitEnable, enableNz2Nd, 0, 0, false, false, 0, false, false, false, false, false,
+                           enableNz2Dn);
 }
 
 template <typename DstTile, typename SrcTile, AccToVecMode mode, QuantMode_t quantPre, ReluPreMode reluMode,
           STPhase Phase = STPhase::Unspecified>
-__tf__ PTO_INTERNAL void TMovCcToUb(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src,
-                                    uint16_t validRow, uint16_t validCol)
+__tf__ AICORE void TMovCcToUb(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src,
+                              uint16_t validRow, uint16_t validCol)
 {
     using dstType = typename DstTile::DType;
     using srcType = typename SrcTile::DType;
@@ -186,9 +186,9 @@ __tf__ PTO_INTERNAL void TMovCcToUb(typename DstTile::TileDType __out__ dst, typ
     auto srcStride = (validRow + BLOCK_LEN - 1) / BLOCK_LEN * BLOCK_LEN;
     __ubuf__ dstType *dstAddr = (__ubuf__ dstType *)__cce_get_tile_ptr(dst);
     __cc__ srcType *srcData = (__cc__ srcType *)__cce_get_tile_ptr(src);
-    pto_copy_matrix_cc_to_ub(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, 0, false, 0, unitFlagCtrl,
-                             quantPre, static_cast<uint8_t>(reluMode), channelSplitEnable, enableNz2Nd, 0, 0, false,
-                             false, 0, false, false, false, false, false, enableNz2Dn);
+    copy_matrix_cc_to_ub(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, 0, unitFlagCtrl, quantPre,
+                         reluMode, channelSplitEnable, enableNz2Nd, 0, 0, false, false, 0, false, false, false, false,
+                         false, enableNz2Dn);
 }
 
 template <typename DstTile, typename SrcTile>

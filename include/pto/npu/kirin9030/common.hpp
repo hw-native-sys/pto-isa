@@ -144,58 +144,18 @@ PTO_INTERNAL void CheckTMovAccValid()
                       (!DstTileData::isRowMajor && DstTileData::SFractal == SLayout::RowMajor),
                   "Only support nz2nz, nz2nd or nz2dn.");
 }
-#endif
+
 template <typename DstTile, typename SrcTile, AccToVecMode mode, QuantMode_t quantPre>
 PTO_INTERNAL constexpr uint8_t GetDualDstCtl()
 {
+    if constexpr (mode == AccToVecMode::DualModeSplitM || mode == AccToVecMode::DualModeSplitN) {
+        static_assert(quantPre == QuantMode_t::NoQuant, "Quant is not support in dual Dst Mode.");
+        static_assert((!(!DstTile::isRowMajor && DstTile::SFractal == SLayout::NoneBox)),
+                      "Dual Dst Mode is not support in nz2dn.");
+        return ((mode == AccToVecMode::DualModeSplitM) ? 1 : 2);
+    }
     return 0;
 }
-
-template <typename T>
-struct Padding {
-    using Type = std::conditional_t<sizeof(T) == sizeof(uint32_t), uint32_t,
-                                    std::conditional_t<sizeof(T) == sizeof(uint16_t), uint16_t, uint8_t>>;
-
-    PTO_INTERNAL static constexpr Type GetPaddingMin()
-    {
-        if constexpr (std::is_same_v<T, float>) {
-            return (Type)0xff800000UL;
-        } else if constexpr (std::is_same_v<T, half>) {
-            return (Type)0xfc00UL;
-        } else if constexpr (std::is_same_v<T, int32_t>) {
-            return (Type)0x80000000UL;
-        } else if constexpr (std::is_same_v<T, int16_t>) {
-            return (Type)0x8000UL;
-        } else if constexpr (std::is_same_v<T, int8_t>) {
-            return (Type)0x80UL;
-        } else {
-            return (Type)0;
-        }
-    }
-
-    PTO_INTERNAL static constexpr Type GetPaddingMax()
-    {
-        if constexpr (std::is_same_v<T, float>) {
-            return (Type)0x7f800000UL;
-        } else if constexpr (std::is_same_v<T, half>) {
-            return (Type)0x7c00UL;
-        } else if constexpr (std::is_same_v<T, int32_t>) {
-            return (Type)0x7fffffffUL;
-        } else if constexpr (std::is_same_v<T, int16_t>) {
-            return (Type)0x7fffUL;
-        } else if constexpr (std::is_same_v<T, int8_t>) {
-            return (Type)0x7fUL;
-        } else {
-            return (Type)(~(Type)0);
-        }
-    }
-
-    static constexpr Type Null = (Type)0;
-    static constexpr Type Zero = (Type)0;
-    static constexpr Type Min = GetPaddingMin();
-    static constexpr Type Max = GetPaddingMax();
-};
-
 } // namespace pto
 
 #endif

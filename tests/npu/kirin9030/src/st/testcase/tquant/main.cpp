@@ -68,7 +68,8 @@ void test_tquant_int8_sym()
     LaunchTQuantInt8<validRows, validCols, mode, true>(dstDevice, srcDevice, scaleDevice, stream);
 
     aclError syncRet = aclrtSynchronizeStream(stream);
-
+    ASSERT_EQ(syncRet, ACL_SUCCESS) << "aclrtSynchronizeStream failed (ret=" << syncRet
+                                    << "): " << aclGetRecentErrMsg();
     aclrtMemcpy(dstHost, dstFileSize, dstDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
     WriteFile(GetGoldenDir() + "/output_s8.bin", dstHost, dstFileSize);
     aclrtFree(dstDevice);
@@ -118,7 +119,8 @@ void test_tquant_int8_asym()
     aclrtMemcpy(offDev, offSize, offHost, offSize, ACL_MEMCPY_HOST_TO_DEVICE);
     LaunchTQuantInt8<validRows, validCols, mode, false>(dstDev, srcDev, scaleDev, stream, offDev);
     aclError syncRet = aclrtSynchronizeStream(stream);
-
+    ASSERT_EQ(syncRet, ACL_SUCCESS) << "aclrtSynchronizeStream failed (ret=" << syncRet
+                                    << "): " << aclGetRecentErrMsg();
     aclrtMemcpy(dstHost, dstSize, dstDev, dstSize, ACL_MEMCPY_DEVICE_TO_HOST);
     WriteFile(GetGoldenDir() + "/output_u8.bin", dstHost, dstSize);
     aclrtFree(dstDev);

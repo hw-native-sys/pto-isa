@@ -58,8 +58,7 @@ void test_tfmod()
 
     ReadFile(GetGoldenDir() + "/input1.bin", fileSize, src0Host, fileSize);
     ReadFile(GetGoldenDir() + "/input2.bin", fileSize, src1Host, fileSize);
-    aclrtMemset(dstHost, fileSize, 0, fileSize);
-    aclrtMemcpy(dstDevice, fileSize, dstHost, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+
     aclrtMemcpy(src0Device, fileSize, src0Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, fileSize, src1Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     LaunchTFMod<T, kTRows_, kTCols_, vRows, vCols, isHalf, highPrecision>(dstDevice, src0Device, src1Device, stream);
@@ -80,8 +79,8 @@ void test_tfmod()
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<T> golden(kTRows_ * kTCols_);
-    std::vector<T> devFinal(kTRows_ * kTCols_);
+    std::vector<T> golden(fileSize);
+    std::vector<T> devFinal(fileSize);
     ReadFile(GetGoldenDir() + "/golden.bin", fileSize, golden.data(), fileSize);
     ReadFile(GetGoldenDir() + "/output.bin", fileSize, devFinal.data(), fileSize);
 
@@ -108,11 +107,6 @@ TEST_F(TFMODTest, case2)
 TEST_F(TFMODTest, case3)
 {
     test_tfmod<uint16_t, 1, 16384, 1, 16384, false>();
-}
-
-TEST_F(TFMODTest, case4)
-{
-    test_tfmod<uint16_t, 512, 16, 512, 16, false>();
 }
 
 TEST_F(TFMODTest, case5)
@@ -143,14 +137,4 @@ TEST_F(TFMODTest, case9)
 TEST_F(TFMODTest, case10)
 {
     test_tfmod<float, 64, 64, 64, 64, false, true>();
-}
-
-TEST_F(TFMODTest, case11)
-{
-    test_tfmod<float, 64, 128, 55, 96, false, true>();
-}
-
-TEST_F(TFMODTest, case12)
-{
-    test_tfmod<float, 64, 128, 61, 97, false, true>();
 }

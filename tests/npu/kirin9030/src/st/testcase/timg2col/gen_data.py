@@ -55,10 +55,10 @@ def calculate_output_shape(input_shape, weight_shape, stride=(1, 1), dilation=(1
     stride_h, stride_w = stride
     dilation_h, dilation_w = dilation
     pad_top, pad_bottom, pad_left, pad_right = padding
-
+    
     if c_in != c_in_w:
         raise ValueError("输入通道数不匹配: 输入有%d个通道，但权重有%d个输入通道" % (c_in, c_in_w))
-
+    
     h_out = (h + pad_top + pad_bottom - dilation_h * (h_k - 1) - 1) // stride_h + 1
     w_out = (w + pad_left + pad_right - dilation_w * (w_k - 1) - 1) // stride_w + 1
     return (n, h_out, w_out, c_out)
@@ -101,7 +101,7 @@ def img2col_nhwc(input_data, kernel_size, stride=(1, 1), dilation=(1, 1), paddin
 
     h_out = (h + pad_top + pad_bottom - dilation_h * (h_k - 1) - 1) // stride_h + 1
     w_out = (w + pad_left + pad_right - dilation_w * (w_k - 1) - 1) // stride_w + 1
-
+    
     #padding
     input_padded = np.pad(
         input_data,
@@ -116,7 +116,7 @@ def img2col_nhwc(input_data, kernel_size, stride=(1, 1), dilation=(1, 1), paddin
             for w_out_idx in range(w_out):
                 col_idx = n_idx * h_out * w_out + h_out_idx * w_out + w_out_idx
                 col = np.zeros((c_in, h_k, w_k), dtype=input_data.dtype)
-
+                
                 for hk in range(h_k):
                     for wk in range(w_k):
                         h_in = h_out_idx * stride_h + hk * dilation_h
@@ -142,13 +142,13 @@ def conv2d_matmul_nhwc_float(input_data, weight, stride=(1, 1), dilation=(1, 1),
     Return: (output feature map [N, H_out, W_out, C_out], col_matrix, kernel_matrix)
     """
     h_k, w_k = weight.shape[2], weight.shape[3]
-
+    
     col_matrix, (n, h_out, w_out) = img2col_nhwc(input_data, (h_k, w_k), stride, dilation, padding)
     kernel_matrix = kernel2matrix_new(weight)
-
+    
     # matmul
     output_flat = np.dot(
-        kernel_matrix.astype(np.float32),
+        kernel_matrix.astype(np.float32), 
         col_matrix.astype(np.float32)
     )
     # reshape
@@ -167,7 +167,7 @@ def conv2d_matmul_nhwc_int8(input_data, weight, stride=(1, 1), dilation=(1, 1), 
     kernel_matrix = kernel2matrix_new(weight)
     # matmuls
     output_flat = np.dot(
-        kernel_matrix.astype(np.int32),
+        kernel_matrix.astype(np.int32), 
         col_matrix.astype(np.int32)
     )
     # reshape
@@ -188,14 +188,14 @@ def gen_golden_data(case_name: str, params: ConvTestParams):
     #input
     n, c1_input, h, w, c0_input = params.input_shape_nc1hwc0
     c_in = c1_input * c0_input
-
+    
     # weight
     c1_weight, h_k, w_k, n_out, c0_weight = params.weight_shape
     dtype = params.dtype
-
+    
     if c1_input != c1_weight or c0_input != c0_weight:
         raise ValueError(f"输入通道分块不匹配: 输入有(C1={c1_input}, C0={c0_input})，但权重有(C1={c1_weight}, C0={c0_weight})")
-
+    
     # 1. Generate an input tensor (in NC1HWC0 format) using the provided data type.
     if dtype == np.int8:
         input_nc1hwc0 = np.random.randint(-128, 128, size=params.input_shape_nc1hwc0, dtype=np.int8)
@@ -203,7 +203,7 @@ def gen_golden_data(case_name: str, params: ConvTestParams):
         input_nc1hwc0 = np.random.uniform(-5, 5, size=params.input_shape_nc1hwc0).astype(dtype)
     input_nhwc_path_bin = "x1_gm.bin"
     save_matrix_bin(input_nc1hwc0, input_nhwc_path_bin)
-
+    
     # 2. Generate a weight tensor using the provided data type.
     if dtype == np.int8:
         weight = np.random.randint(-128, 128, size=params.weight_shape, dtype=np.int8)
@@ -217,7 +217,7 @@ def gen_golden_data(case_name: str, params: ConvTestParams):
             raise ValueError(f"4维权重格式要求N({n_out})必须是16的倍数")
         weight_reshaped = weight.reshape(c1_weight * h_k * w_k, n_out, c0_weight)
         weight_to_save = weight_reshaped.reshape(c1_weight * h_k * w_k, n_out // 16, 16, c0_weight)
-
+    
     weight_path_bin = "x2_gm.bin"
     save_matrix_bin(weight_to_save, weight_path_bin)
 
@@ -228,21 +228,21 @@ def gen_golden_data(case_name: str, params: ConvTestParams):
     # Convert the weights from [C1, H_k, W_k, N, C0] to [N, C1*C0, H_k, W_k] for computation.
     weight_for_calc = weight.transpose(3, 0, 4, 1, 2).reshape(n_out, c1_weight * c0_weight, h_k, w_k)
     output_shape = calculate_output_shape(
-        (n, h, w, c_in), (n_out, c1_weight * c0_weight, h_k, w_k),
-        params.stride, params.dilation,
+        (n, h, w, c_in), (n_out, c1_weight * c0_weight, h_k, w_k), 
+        params.stride, params.dilation, 
         params.padding
     )
     n_out_calc, h_out, w_out, c_out_calc = output_shape
     if dtype == np.int8:
         output_nhwc, col_matrix, kernel_matrix = conv2d_matmul_nhwc_int8(
-            input_nhwc, weight_for_calc,
-            params.stride, params.dilation,
+            input_nhwc, weight_for_calc, 
+            params.stride, params.dilation, 
             params.padding
         )
     else:
         output_nhwc, col_matrix, kernel_matrix = conv2d_matmul_nhwc_float(
-            input_nhwc, weight_for_calc,
-            params.stride, params.dilation,
+            input_nhwc, weight_for_calc, 
+            params.stride, params.dilation, 
             params.padding
         )
     # 5. Convert the output to NC1HWC0 format.
@@ -252,12 +252,12 @@ def gen_golden_data(case_name: str, params: ConvTestParams):
     # 6. Compute and save the 2D matrix (in M×N format).
     if dtype == np.int8:
         output_2d = np.dot(
-            kernel_matrix.astype(np.int32),
+            kernel_matrix.astype(np.int32), 
             col_matrix.astype(np.int32)
         )
     else:
         output_2d = np.dot(
-            kernel_matrix.astype(np.float32),
+            kernel_matrix.astype(np.float32), 
             col_matrix.astype(np.float32)
         )
     # Transpose the matrix to the [M, N_out_ch] format.
@@ -268,13 +268,13 @@ def gen_golden_data(case_name: str, params: ConvTestParams):
 if __name__ == "__main__":
     # Define a list of test cases.
     case_name_list = [
-        "TIMG2COLTest.case2_float16",
-        "TIMG2COLTest.case3_float16",
-        "TIMG2COLTest.case4_int8",
-        "TIMG2COLTest.case6_float16_splitk",
+        "TIMG2COLTest.case2_float16", 
+        "TIMG2COLTest.case3_float16", 
+        "TIMG2COLTest.case4_int8", 
+        "TIMG2COLTest.case6_float16_splitk", 
         "TIMG2COLTest.case7_float16_splitk",
         "TIMG2COLTest.case8_int8_splitk",
-        "TIMG2COLTest.case10_float16_fractalZ4d",
+        "TIMG2COLTest.case10_float16_fractalZ4d", 
         "TIMG2COLTest.case11_float16_fractalZ4d",
         "TIMG2COLTest.case12_int8_fractalZ4d",
     ]

@@ -15,9 +15,16 @@ using namespace pto;
 template <typename T, int Rows, int Cols, int ValidRows, int ValidCols, CmpMode cmpMode, bool isSrc1Tile>
 __global__ AICORE void runTCmps(__gm__ uint8_t *out, __gm__ T *src0, __gm__ T *src1)
 {
-    using Src0Shape = Shape<1, 1, 1, ValidRows, ValidCols>;
-    using Src0Stride = pto::Stride<Rows * Cols, Rows * Cols, Rows * Cols, Cols, 1>;
-    using Src0Global = GlobalTensor<T, Src0Shape, Src0Stride>;
+    using DynShapeDim5 = Shape<1, 1, 1, kGRows_, kGCols_>;
+    using DynStridDim5 = pto::Stride<1, 1, 1, kGCols_, 1>;
+    using GlobalData_src0 = GlobalTensor<T, DynShapeDim5, DynStridDim5>;
+    using GlobalData_dst = GlobalTensor<uint8_t, DynShapeDim5, DynStridDim5>;
+    using TileData_src0 = Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, kGRows_, kGCols_>;
+    using TileData_dst = Tile<TileType::Vec, uint8_t, kTRows_, kTCols_, BLayout::RowMajor, kGRows_, kGCols_>;
+    TileData_src0 src0Tile;
+    TileData_dst dstTile;
+    TASSIGN<0x0>(src0Tile);
+    TASSIGN<TileData_src0::Numel * sizeof(T)>(dstTile);
 
     using Src1Shape = Shape<1, 1, 1, 1, 1>;
     using Src1Stride = pto::Stride<32 / sizeof(T), 32 / sizeof(T), 32 / sizeof(T), 32 / sizeof(T), 1>;

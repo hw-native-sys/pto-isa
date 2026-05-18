@@ -19,13 +19,11 @@ template <typename T, int row, int validRow, int srcCol, int srcValidCol, int ds
 PTO_INTERNAL void runTRowProd(__gm__ T *out, __gm__ T *src)
 {
     using DynDim2Shape = Shape<1, 1, 1, -1, -1>;
-    using DynDim2Stride = pto::Stride<-1, -1, -1, -1, 1>;
+    using DynDim2Stride = pto::Stride<1, 1, -1, -1, 1>;
 
     using GlobalData = GlobalTensor<T, DynDim2Shape, DynDim2Stride>;
-    GlobalData srcGlobal(src, DynDim2Shape(validRow, srcValidCol),
-                         DynDim2Stride(row * srcCol, row * srcCol, row * srcCol, srcCol));
-    GlobalData dstGlobal(out, DynDim2Shape(validRow, dstCol),
-                         DynDim2Stride(row * dstCol, row * dstCol, row * dstCol, dstCol));
+    GlobalData srcGlobal(src, DynDim2Shape(validRow, srcValidCol), DynDim2Stride(row, srcCol));
+    GlobalData dstGlobal(out, DynDim2Shape(validRow, dstCol), DynDim2Stride(row, dstCol));
     using srcTileData = Tile<TileType::Vec, T, row, srcCol, BLayout::RowMajor, -1, -1>;
     using dstTileData = Tile<TileType::Vec, T, row, 16, BLayout::RowMajor, -1, -1>;
     srcTileData srcTile(validRow, srcValidCol);

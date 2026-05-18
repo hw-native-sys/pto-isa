@@ -14,50 +14,56 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-template <typename T, typename TMask, int dstTileH, int dstTileW, int maskTileH, int maskTileW, int srcTileH,
-          int srcTileW, int vRows, int vCols>
-__global__ AICORE void runTSELS(__gm__ T *out, __gm__ TMask *mask, __gm__ T *src, T scalar)
+template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kPadValue_>
+struct GenericDataSelector {};
+
+#ifdef __CCE_AICORE__
+template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
+struct GenericDataSelector<T, kGRows_, kGCols_, kTRows_, kTCols_, PAD_VALUE_NULL> {
+    using DynShapeDim5 = Shape<1, 1, 1, kTRows_, kTCols_>;
+    using DynStridDim5 = pto::Stride<1, 1, 1, kTCols_, 1>;
+    using GlobalType = GlobalTensor<T, DynShapeDim5, DynStridDim5>;
+    using TileType = Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, kTRows_, kTCols_, SLayout::NoneBox,
+                          512, PadValue::Null>;
+};
+
+template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
+struct GenericDataSelector<T, kGRows_, kGCols_, kTRows_, kTCols_, PAD_VALUE_MAX> {
+    using DynShapeDim5 = Shape<1, 1, 1, kGRows_, kGCols_>;
+    using DynStridDim5 = pto::Stride<1, 1, 1, kGCols_, 1>;
+    using GlobalType = GlobalTensor<T, DynShapeDim5, DynStridDim5>;
+    using TileType = Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, kGRows_, kGCols_, SLayout::NoneBox,
+                          512, PadValue::Max>;
+};
+#endif
+
+template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kPadValue_>
+__global__ AICORE void runTSELS(__gm__ T *out, __gm__ T *src0, __gm__ T *src1, uint8_t selectMode)
 {
-    using DynShape = pto::Shape<-1, -1, -1, -1, -1>;
-    using DynStride = pto::Stride<-1, -1, -1, -1, -1>;
-    using GlobalData = GlobalTensor<T, DynShape, DynStride>;
-    using GlobalDataMask = GlobalTensor<TMask, DynShape, DynStride>;
-    GlobalData dstGlobal(out, pto::Shape(1, 1, 1, vRows, vCols),
-                         pto::Stride(dstTileH * dstTileW, dstTileH * dstTileW, dstTileH * dstTileW, dstTileW, 1));
-    GlobalDataMask maskGlobal(
-        mask, pto::Shape(1, 1, 1, vRows, maskTileW),
-        pto::Stride(maskTileH * maskTileW, maskTileH * maskTileW, maskTileH * maskTileW, maskTileW, 1));
-    GlobalData srcGlobal(src, pto::Shape(1, 1, 1, vRows, vCols),
-                         pto::Stride(srcTileH * srcTileW, srcTileH * srcTileW, srcTileH * srcTileW, srcTileW, 1));
-
-    using TileDataDst = Tile<TileType::Vec, T, dstTileH, dstTileW, BLayout::RowMajor, -1, -1>;
-    using TileDataMask = Tile<TileType::Vec, TMask, maskTileH, maskTileW, BLayout::RowMajor, -1, -1>;
-    using TileDataSrc = Tile<TileType::Vec, T, srcTileH, srcTileW, BLayout::RowMajor, -1, -1>;
+    using GDS = GenericDataSelector<T, kGRows_, kGCols_, kTRows_, kTCols_, kPadValue_>;
+    using GlobalData = typename GDS::GlobalType;
+    using TileData = typename GDS::TileType;
     using TmpTile = Tile<TileType::Vec, uint8_t, 1, 32, BLayout::RowMajor, -1, -1>;
-    TileDataDst dstTile(vRows, vCols);
-    TileDataMask maskTile(vRows, maskTileW);
-    TileDataSrc srcTile(vRows, vCols);
+    TileData src0Tile;
+    TileData src1Tile;
+    TileData dstTile;
     TmpTile tmpTile(1, 32);
-    size_t dstSize = sizeof(T) * dstTileH * dstTileW;
-    size_t srcSize = sizeof(T) * srcTileH * srcTileW;
-    size_t maskSize = sizeof(TMask) * maskTileH * maskTileW;
-    size_t totalSize = dstSize + srcSize + maskSize;
-    size_t dstOffset = totalSize * block_idx;
-    size_t srcOffset = totalSize * block_idx + dstSize;
-    size_t maskOffset = totalSize * block_idx + dstSize + srcSize;
-    TASSIGN(dstTile, dstOffset);
-    TASSIGN(maskTile, maskOffset);
-    TASSIGN(srcTile, srcOffset);
-    TASSIGN(tmpTile, totalSize);
+    TASSIGN<0x0>(src0Tile);
+    TASSIGN<TileData::Numel * sizeof(T)>(src1Tile);
+    TASSIGN<2 * TileData::Numel * sizeof(T)>(dstTile);
+    TASSIGN<3 * TileData::Numel * sizeof(T)>(tmpTile);
+    GlobalData src0Global(src0);
+    GlobalData src1Global(src1);
+    GlobalData dstGlobal(out);
 
-    Event<Op::TLOAD, Op::TSELS> event0;
-    Event<Op::TSELS, Op::TSTORE_VEC> event1;
-
-    TLOAD(maskTile, maskGlobal);
-    event0 = TLOAD(srcTile, srcGlobal);
-    event1 = TSELS(dstTile, maskTile, srcTile, tmpTile, scalar, event0);
-    TSTORE(dstGlobal, dstTile, event1);
-    out = dstGlobal.data();
+    TLOAD(src0Tile, src0Global);
+    TLOAD(src1Tile, src1Global);
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    TSELS(dstTile, src0Tile, src1Tile, tmpTile, selectMode);
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    TSTORE(dstGlobal, dstTile);
 }
 
 template <typename T, typename TMask, int dstTileH, int dstTileW, int maskTileH, int maskTileW, int srcTileH,

@@ -82,8 +82,8 @@ void test_tcolexpandadd()
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<T> golden(dstRow * dstCol);
-    std::vector<T> devFinal(dstRow * dstCol);
+    std::vector<float> golden(outputFileSize);
+    std::vector<float> devFinal(outputFileSize);
     ReadFile(GetGoldenDir() + "/golden.bin", outputFileSize, golden.data(), outputFileSize);
     ReadFile(GetGoldenDir() + "/output.bin", outputFileSize, devFinal.data(), outputFileSize);
     bool ret = ResultCmp(golden, devFinal, 0.001f);

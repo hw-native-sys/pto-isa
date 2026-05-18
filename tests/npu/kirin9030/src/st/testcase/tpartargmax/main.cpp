@@ -74,11 +74,7 @@ void test_tpartargmax()
     ReadFile(GetGoldenDir() + "/input1_val.bin", src1ValFileSize, src1Host, src1ValFileSize);
     ReadFile(GetGoldenDir() + "/input0_idx.bin", src0IdxFileSize, src0IdxHost, src0IdxFileSize);
     ReadFile(GetGoldenDir() + "/input1_idx.bin", src1IdxFileSize, src1IdxHost, src1IdxFileSize);
-    aclrtMemset(dstHost, dstValFileSize, 0, dstValFileSize);
-    aclrtMemset(dstIdxHost, dstIdxFileSize, 0, dstIdxFileSize);
 
-    aclrtMemcpy(dstDevice, dstValFileSize, dstHost, dstValFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    aclrtMemcpy(dstIdxDevice, dstIdxFileSize, dstIdxHost, dstIdxFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src0Device, src0ValFileSize, src0Host, src0ValFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, src1ValFileSize, src1Host, src1ValFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src0IdxDevice, src0IdxFileSize, src0IdxHost, src0IdxFileSize, ACL_MEMCPY_HOST_TO_DEVICE);

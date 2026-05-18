@@ -117,3 +117,11 @@ TEST_F(TGATHERBTest, case_int8_2x256_2x8_2x256)
 {
     test_tgatherb<int8_t, 2, 256, 2, 8, 2, 256>();
 }
+TEST_F(TGATHERBTest, case_int8_2x16384_2x1024_2x16384)
+{
+    test_tgatherb<int8_t, 2, 16384, 2, 1024, 2, 16384>();
+}
+TEST_F(TGATHERBTest, case_uint8_2x16384_2x1024_2x16384)
+{
+    test_tgatherb<uint8_t, 2, 16384, 2, 1024, 2, 16384>();
+}

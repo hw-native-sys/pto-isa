@@ -29,10 +29,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/kirin9030/TMov.hpp"
 #include "pto/npu/kirin9030/TQuant.hpp"
 #include "pto/npu/kirin9030/TStore.hpp"
-#include "pto/npu/kirin9030/TSubS.hpp"
 #include "pto/npu/kirin9030/TSync.hpp"
-#include "pto/npu/kirin9030/TRem.hpp"
-#include "pto/npu/kirin9030/TRemS.hpp"
 
 #include "pto/npu/a5/TAssign.hpp"
 #include "pto/npu/a5/TAdd.hpp"
@@ -42,15 +39,18 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TOrS.hpp"
 #include "pto/npu/a5/TXor.hpp"
 #include "pto/npu/a5/TXorS.hpp"
-#include "pto/npu/a5/TFModS.hpp"
+// #include "pto/npu/a5/TFModS.hpp"
+// #include "pto/npu/a5/TRemS.hpp"
 #include "pto/npu/a5/TShl.hpp"
 #include "pto/npu/a5/TShlS.hpp"
 #include "pto/npu/a5/TShr.hpp"
 #include "pto/npu/a5/TShrS.hpp"
 #include "pto/npu/a5/TPrelu.hpp"
-#include "pto/npu/a5/TFMod.hpp"
+// #include "pto/npu/a5/TFMod.hpp"
+// #include "pto/npu/a5/TRem.hpp"
 #include "pto/npu/a5/TAddS.hpp"
 #include "pto/npu/a5/TAxpy.hpp"
+#include "pto/npu/a5/TSubS.hpp"
 #include "pto/npu/a5/TDivS.hpp"
 #include "pto/npu/a5/TMulS.hpp"
 #include "pto/npu/a5/TSub.hpp"
@@ -88,7 +88,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TRowExpandMin.hpp"
 #include "pto/npu/a5/TRowExpandMul.hpp"
 #include "pto/npu/a5/TRowExpandSub.hpp"
-#include "pto/npu/a5/TRowExpandExpdif.hpp"
+// #include "pto/npu/a5/TRowExpandExpdif.hpp"
 #include "pto/npu/a5/TPartAdd.hpp"
 #include "pto/npu/a5/TPartMul.hpp"
 #include "pto/npu/a5/TPartMax.hpp"
@@ -115,7 +115,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TColExpandDiv.hpp"
 #include "pto/npu/a5/TColExpandMul.hpp"
 #include "pto/npu/a5/TColExpandSub.hpp"
-#include "pto/npu/a5/TColExpandExpdif.hpp"
+// #include "pto/npu/a5/TColExpandExpdif.hpp"
 #include "pto/npu/a5/TColExpandAdd.hpp"
 #include "pto/npu/a5/TColExpandMax.hpp"
 #include "pto/npu/a5/TColExpandMin.hpp"
@@ -126,8 +126,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // TAlloc to be evaluated
 // TFree to be evaluated
 #include "pto/npu/a5/TColReduceIdx.hpp"
-#include "pto/npu/a5/SetQuantScalar.hpp"
-#include "pto/npu/a5/SetQuantVector.hpp"
 
 #undef bfloat16_t
 #undef float8_e4m3_t

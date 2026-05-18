@@ -11,11 +11,18 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef TQUANT_HPP
 #define TQUANT_HPP
 
-#include <pto/common/type.hpp>
 #include "pto/npu/a5/TReshape.hpp"
 #include <type_traits>
 
 namespace pto {
+
+enum class QuantType
+{
+    MXFP8,
+    MXFP4_E2M1,
+    INT8_SYM,
+    INT8_ASYM
+};
 
 template <typename TileDataOut, typename TileDataSrc, typename TileDataPara>
 __tf__ PTO_INTERNAL void TQuant_Int8Sym(typename TileDataOut::TileDType __out__ dst,
@@ -54,7 +61,7 @@ __tf__ PTO_INTERNAL void TQuant_Int8Sym(typename TileDataOut::TileDType __out__ 
     }
 }
 
-// TQUANT: fp32 -> u8 conversion, Int8Asym
+// TQuant: fp32 -> u8 conversion, Int8Asym
 template <typename TileDataOut, typename TileDataSrc, typename TileDataPara>
 __tf__ PTO_INTERNAL void TQuant_Int8Asym(typename TileDataOut::TileDType __out__ dst,
                                          typename TileDataSrc::TileDType __in__ src,
@@ -96,7 +103,7 @@ __tf__ PTO_INTERNAL void TQuant_Int8Asym(typename TileDataOut::TileDType __out__
     }
 }
 
-// TQUANT Interface for FP32/FP16/BF16->INT4/8/16
+// TQuant Interface for FP32/FP16/BF16->INT4/8/16
 template <QuantType quant_type, typename TileDataOut, typename TileDataSrc, typename TileDataPara>
 PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataPara &scale, TileDataPara *offset = nullptr)
 {

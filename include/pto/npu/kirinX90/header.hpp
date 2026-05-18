@@ -17,10 +17,12 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define float8_e8m0_t int8_t
 #define float4_e2m1x2_t int64_t
 #define float4_e1m2x2_t int64_t
-#include "pto/common/utils.hpp"
-#include "pto/common/constants.hpp"
-#include "pto/npu/kirinX90/datatype.hpp"
+#include <pto/common/constants.hpp>
+#include <pto/common/utils.hpp>
 #include "pto/npu/kirinX90/common.hpp"
+#include "pto/npu/kirin9030/utils.hpp"
+#include "pto/npu/kirinX90/datatype.hpp"
+#include "pto/npu/a2a3/TSubView.hpp"
 #include "pto/npu/kirinX90/TLoad.hpp"
 #include "pto/npu/kirinX90/TStore.hpp"
 #include "pto/npu/kirinX90/TExtract.hpp"
@@ -35,16 +37,15 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #endif
 #include "pto/npu/a2a3/TAssign.hpp"
 #include "pto/npu/a2a3/TExtract.hpp"
-#include "pto/npu/kirin9030/utils.hpp"
 #include "pto/npu/kirin9030/TSync.hpp"
-#include "pto/npu/kirin9030/TAdd.hpp"
-#include "pto/npu/kirin9030/TAddS.hpp"
-#include "pto/npu/kirin9030/TDivS.hpp"
-#include "pto/npu/kirin9030/TMulS.hpp"
-#include "pto/npu/kirin9030/TSub.hpp"
-#include "pto/npu/kirin9030/TMin.hpp"
-#include "pto/npu/kirin9030/TMax.hpp"
-#include "pto/npu/kirin9030/TMrgSort.hpp"
+#include "pto/npu/a5/TAdd.hpp"
+#include "pto/npu/a5/TAddS.hpp"
+#include "pto/npu/a5/TDivS.hpp"
+#include "pto/npu/a5/TMulS.hpp"
+#include "pto/npu/a5/TSub.hpp"
+#include "pto/npu/a5/TMin.hpp"
+#include "pto/npu/a5/TMax.hpp"
+#include "pto/npu/a5/TMrgSort.hpp"
 #include "pto/npu/kirin9030/TMatmul.hpp"
 #include "pto/npu/a5/TCmps.hpp"
 #include "pto/npu/a5/TColSum.hpp"
@@ -59,12 +60,13 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TPartAdd.hpp"
 #include "pto/npu/a5/TPartMax.hpp"
 #include "pto/npu/a5/TPartMin.hpp"
+// #include "pto/npu/kirin9030/TInsert.hpp"
 #include "pto/npu/kirin9030/TGather.hpp"
-#include "pto/npu/kirin9030/TRsqrt.hpp"
-#include "pto/npu/kirin9030/TUnaryOp.hpp"
-#include "pto/npu/kirin9030/TBinSOp.hpp"
-#include "pto/npu/kirin9030/TDiv.hpp"
-#include "pto/npu/kirin9030/TMul.hpp"
+#include "pto/npu/a5/TRsqrt.hpp"
+#include "pto/npu/a5/TUnaryOp.hpp"
+#include "pto/npu/a5/TBinSOp.hpp"
+#include "pto/npu/a5/TDiv.hpp"
+#include "pto/npu/a5/TMul.hpp"
 #undef bfloat16_t
 #undef hifloat8_t
 #undef float8_e4m3_t

@@ -79,7 +79,7 @@ def gen_golden_data_tpartargmax(case_name, param):
     src1_in.tofile("input1_val.bin")
     src0_idx_in.tofile("input0_idx.bin")
     src1_idx_in.tofile("input1_idx.bin")
-
+    
     dst_out.tofile("golden_val.bin")
     dst_idx_out.tofile("golden_idx.bin")
 

@@ -74,7 +74,8 @@ void texpands_test(Dims... dims)
     ReadFile(GetGoldenDir() + "/golden.bin", fileSize, golden.data(), fileSize);
     ReadFile(GetGoldenDir() + "/output.bin", fileSize, devFinal.data(), fileSize);
 
-    EXPECT_TRUE(ResultCmp(golden, devFinal, 0));
+    bool ret = ResultCmp(golden, devFinal, 0);
+    EXPECT_TRUE(ret);
 }
 
 TEST_F(TEXPANDSTest, case1)
@@ -89,10 +90,35 @@ TEST_F(TEXPANDSTest, case2)
 
 TEST_F(TEXPANDSTest, case3)
 {
-    texpands_test<6, uint16_t>(1, 16, 7, 7, 16);
+    texpands_test<3, float>(32, 32);
 }
 
 TEST_F(TEXPANDSTest, case4)
 {
+    texpands_test<4, int8_t>(32, 32);
+}
+
+TEST_F(TEXPANDSTest, case5)
+{
+    texpands_test<5, uint16_t>(256, 256);
+}
+
+TEST_F(TEXPANDSTest, case6)
+{
+    texpands_test<6, uint16_t>(1, 16, 7, 7, 16);
+}
+
+TEST_F(TEXPANDSTest, case7)
+{
     texpands_test<7, int16_t>(2, 5, 2, 3, 8);
+}
+
+TEST_F(TEXPANDSTest, case8)
+{
+    texpands_test<8, int32_t>(2, 2, 3, 2, 1, 8);
+}
+
+TEST_F(TEXPANDSTest, case9)
+{
+    texpands_test<9, uint32_t>(2, 3, 4, 1, 2, 8);
 }

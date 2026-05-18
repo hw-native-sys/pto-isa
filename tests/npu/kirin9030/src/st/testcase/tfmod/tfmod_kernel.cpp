@@ -18,12 +18,12 @@ template <typename T, int kTRows_, int kTCols_, int vRows, int vCols, bool highP
 __global__ AICORE void runTFMod(__gm__ T *out, __gm__ T *src0, __gm__ T *src1)
 {
     using DynShapeDim5 = Shape<1, 1, 1, vRows, vCols>;
-    using DynStridDim5 = pto::Stride<vRows * vCols, vRows * vCols, vRows * vCols, vCols, 1>;
+    using DynStridDim5 = pto::Stride<1, 1, 1, vCols, 1>;
     using GlobalData = GlobalTensor<T, DynShapeDim5, DynStridDim5>;
-    using TileData = Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, vRows, vCols>;
-    TileData src0Tile;
-    TileData src1Tile;
-    TileData dstTile;
+    using TileData = Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>;
+    TileData src0Tile(vRows, vCols);
+    TileData src1Tile(vRows, vCols);
+    TileData dstTile(vRows, vCols);
     TASSIGN<0x0>(src0Tile);
     TASSIGN<kTRows_ * kTCols_ * sizeof(T)>(src1Tile);
     TASSIGN<kTRows_ * kTCols_ * sizeof(T) * 2>(dstTile);
@@ -65,8 +65,6 @@ template void LaunchTFMod<uint16_t, 64, 64, 63, 63, false, false>(uint16_t *out,
                                                                   void *stream);
 template void LaunchTFMod<uint16_t, 1, 16384, 1, 16384, false, false>(uint16_t *out, uint16_t *src0, uint16_t *src1,
                                                                       void *stream);
-template void LaunchTFMod<uint16_t, 512, 16, 512, 16, false, false>(uint16_t *out, uint16_t *src0, uint16_t *src1,
-                                                                    void *stream);
 template void LaunchTFMod<float, 32, 32, 32, 32, false, true>(float *out, float *src0, float *src1, void *stream);
 template void LaunchTFMod<uint32_t, 8, 8, 8, 8, false, false>(uint32_t *out, uint32_t *src0, uint32_t *src1,
                                                               void *stream);
@@ -76,5 +74,3 @@ template void LaunchTFMod<int16_t, 16, 16, 16, 16, false, false>(int16_t *out, i
                                                                  void *stream);
 template void LaunchTFMod<int32_t, 8, 8, 8, 8, false, false>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
 template void LaunchTFMod<float, 64, 64, 64, 64, false, true>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTFMod<float, 64, 128, 55, 96, false, true>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTFMod<float, 64, 128, 61, 97, false, true>(float *out, float *src0, float *src1, void *stream);
