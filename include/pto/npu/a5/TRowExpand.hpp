@@ -181,9 +181,10 @@ __tf__ PTO_INTERNAL OP_NAME(TROWEXPAND)
 }
 
 template <typename TileDataOut, typename TileDataIn>
-__tf__ PTO_INTERNAL void TRowExpand_ColMajor(typename TileDataOut::TileDType __out__ dst,
-                                             typename TileDataIn::TileDType __in__ src, unsigned dstValidRow,
-                                             unsigned dstValidCol)
+__tf__ PTO_INTERNAL OP_NAME(TROWEXPAND)
+    OP_TYPE(broadcast) void TRowExpand_ColMajor(typename TileDataOut::TileDType __out__ dst,
+                                                typename TileDataIn::TileDType __in__ src, unsigned dstValidRow,
+                                                unsigned dstValidCol, unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
     using T = typename TileDataOut::DType;
     __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);

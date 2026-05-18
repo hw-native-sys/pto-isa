@@ -31,9 +31,9 @@ struct ExpandSOp {
 };
 
 template <typename TileData>
-__tf__ PTO_INTERNAL void TExpandS(typename TileData::TileDType __out__ dst, typename TileData::DType scalar,
-                                  unsigned kValidRows, unsigned kValidCols,
-                                  VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
+__tf__ OP_NAME(TEXPANDS) OP_TYPE(broadcast) PTO_INTERNAL
+    void TExpandS(typename TileData::TileDType __out__ dst, typename TileData::DType scalar, unsigned kValidRows,
+                  unsigned kValidCols, VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
 {
     using T = typename TileData::DType;
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
