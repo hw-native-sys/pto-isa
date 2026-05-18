@@ -269,7 +269,7 @@ struct ElementOpCal<DType, ElementOp::OP_EXPDIF> {
     }
 };
 
-#if defined(__GNUC__) && !defined(__clang__)
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 14
 template <>
 struct ElementOpCal<half, ElementOp::OP_EXPDIF> {
     static void apply(half &dst, const half &src0, const half &src1)
