@@ -144,6 +144,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a2a3/TPrefetch.hpp"
 #include "pto/npu/a2a3/TPrelu.hpp"
 #include "pto/npu/a2a3/TInsert.hpp"
+#include "pto/npu/a2a3/MGather.hpp"
+#include "pto/npu/a2a3/MScatter.hpp"
 #include "pto/npu/a2a3/TRowExpandExpdif.hpp"
 #include "pto/npu/a2a3/TColExpandAdd.hpp"
 #include "pto/npu/a2a3/TColExpandMax.hpp"
