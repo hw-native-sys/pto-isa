@@ -137,7 +137,7 @@ def process_quant(data_array, quant_array, src_dtype, dst_dtype, is_vector, use_
         q_param = quant_array[j] if is_vector else quant_array[0]
         for i in range(rows):
             out[i, j] = apply_quant_element(data_array[i, j], q_param, mode, dst_dtype, use_relu, saturate_inf)
-
+    
     return out
 
 
@@ -165,7 +165,7 @@ def gen_golden_data(case_name, gInfo):
         active_slice = (slice(0, g_shape_0), slice(0, g_shape_1), slice(0, g_shape_2), slice(0, g_shape_4), slice(0, g_shape_3))
 
     input_arr = np.random.randint(-5, 5, size=input_shape).astype(src_type)
-
+    
     # 2. Prepare for Quantization
     # We collapse everything except the last physical dimension into "Rows"
     # This matches how vector quantization usually applies per-channel (last dim)
@@ -182,9 +182,9 @@ def gen_golden_data(case_name, gInfo):
     # 4. Apply Quantization
     # We pass the reshaped 2D data into your existing process_quant
     quantized_2d = process_quant(
-        reshaped_input,
-        quant_array,
-        src_dtype=src_type,
+        reshaped_input, 
+        quant_array, 
+        src_dtype=src_type, 
         dst_dtype=dst_type, # Or your target dst_dtype
         is_vector=gInfo.is_v_quant,
         use_relu=gInfo.use_relu,
@@ -193,8 +193,8 @@ def gen_golden_data(case_name, gInfo):
 
     # 5. Restore Shape and handle Padding
     output_arr = quantized_2d.reshape(original_shape)
-
-    # Masking: Ensure only the "active" shape contains quantized data,
+    
+    # Masking: Ensure only the "active" shape contains quantized data, 
     # and the padding (WholeShape - Shape) is zeroed out as per your requirement.
     final_output = np.zeros_like(output_arr)
     final_output[active_slice] = output_arr[active_slice]
@@ -207,7 +207,7 @@ def gen_golden_data(case_name, gInfo):
 
 class GlobalTensorInfo:
     def __init__(self, src_type, dst_type, layout_format,
-                is_v_quant: bool,
+                is_v_quant: bool, 
                 saturate_inf: bool,
                 use_relu: bool,
                 g_shape_0, g_shape_1, g_shape_2, g_shape_3, g_shape_4,
