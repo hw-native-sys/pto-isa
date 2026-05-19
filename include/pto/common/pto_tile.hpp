@@ -1540,8 +1540,16 @@ public:
 #endif
 #endif
 
-#if (defined(__CPU_SIM) && defined(__PTO_AUTO__)) || defined(__COSTMODEL)
+#if defined(__CPU_SIM) || defined(__COSTMODEL)
     TileDType &data()
+    {
+        if (!data_) {
+            internalBuffer.resize(Rows * Cols);
+            data_ = internalBuffer.data();
+        }
+        return data_;
+    }
+    const TileDType &data() const
     {
         if (!data_) {
             internalBuffer.resize(Rows * Cols);
@@ -1670,9 +1678,9 @@ private:
     }
     bool isKAligned_; // K-Alignedment for A3
 
-#if (defined(__CPU_SIM) && defined(__PTO_AUTO__)) || defined(__COSTMODEL)
-    std::vector<DType> internalBuffer;
-    TileDType data_ = nullptr;
+#if defined(__CPU_SIM) || defined(__COSTMODEL)
+    mutable std::vector<DType> internalBuffer;
+    mutable TileDType data_ = nullptr;
 #else
     TileDType data_;
 #endif
