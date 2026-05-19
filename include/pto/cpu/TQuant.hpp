@@ -22,22 +22,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/cpu/tile_offsets.hpp"
 
 namespace pto {
-#if !defined(PTO_NPU_ARCH_A2A3) && !defined(PTO_NPU_ARCH_A5) && !defined(PTO_NPU_ARCH_KIRIN9030)
-enum class QuantType
-{
-    MXFP8,
-    MXFP4_E2M1,
-    INT8_SYM,
-    INT8_ASYM
-};
-
-enum class VecStoreMode
-{
-    ND,
-    NZ
-};
-#endif
-
 namespace cpu_quant {
 
 constexpr uint16_t bf16Bits = 16;

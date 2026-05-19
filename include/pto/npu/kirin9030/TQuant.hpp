@@ -11,18 +11,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef TQUANT_HPP
 #define TQUANT_HPP
 
+#include <pto/common/type.hpp>
 #include "pto/npu/a5/TReshape.hpp"
 #include <type_traits>
 
 namespace pto {
-
-enum class QuantType
-{
-    MXFP8,
-    MXFP4_E2M1,
-    INT8_SYM,
-    INT8_ASYM
-};
 
 template <typename TileDataOut, typename TileDataSrc, typename TileDataPara>
 __tf__ PTO_INTERNAL void TQuant_Int8Sym(typename TileDataOut::TileDType __out__ dst,
