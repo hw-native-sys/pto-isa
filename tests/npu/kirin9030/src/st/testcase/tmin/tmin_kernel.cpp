@@ -23,14 +23,13 @@ __global__ AICORE void runTMin(__gm__ T *out, __gm__ T *src0, __gm__ T *src1)
     TileData src0Tile(kTRows_, kTCols_);
     TileData src1Tile(kTRows_, kTCols_);
     TileData dstTile(kTRows_, kTCols_);
-    TASSIGN<0x0 + 0x400 * block_idx>(src0Tile);
-    TASSIGN<0x4000 + 0x400 * block_idx>(src1Tile);
-    TASSIGN<0x8000 + 0x400 * block_idx>(dstTile);
+    TASSIGN<0x0>(src0Tile);
+    TASSIGN<TileData::Numel * sizeof(T)>(src1Tile);
+    TASSIGN<2 * TileData::Numel * sizeof(T)>(dstTile);
 
-    int offset = (block_idx / 4) * (64 * 16) + (block_idx % 4) * 16;
-    GlobalData src0Global(src0 + offset);
-    GlobalData src1Global(src1 + offset);
-    GlobalData dstGlobal(out + offset);
+    GlobalData src0Global(src0);
+    GlobalData src1Global(src1);
+    GlobalData dstGlobal(out);
 
     TLOAD(src0Tile, src0Global);
     TLOAD(src1Tile, src1Global);
@@ -66,8 +65,8 @@ __global__ AICORE void runTMin(__gm__ T *out, __gm__ T *src0, __gm__ T *src1)
     TileDataSrc0 src0Tile(vRows, vCols);
     TileDataSrc1 src1Tile(vRows, vCols);
     TASSIGN<0x0>(src0Tile);
-    TASSIGN<0x10000>(src1Tile);
-    TASSIGN<0x20000>(dstTile);
+    TASSIGN<TileDataSrc0::Numel * sizeof(T)>(src1Tile);
+    TASSIGN<(TileDataSrc0::Numel + TileDataSrc1::Numel) * sizeof(T)>(dstTile);
 
     TLOAD(src0Tile, src0Global);
     TLOAD(src1Tile, src1Global);

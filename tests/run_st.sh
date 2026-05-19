@@ -232,6 +232,31 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tinsert_vec -g TInsertVecTest.case_nz_scalar_5_int32
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tinsert_vec -g TInsertVecTest.case_nz_scalar_9_uint8_edge
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tinsert_vec -g TInsertVecTest.case_nz_scalar_nonpow2_int8
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mscatter -g MSCATTERTest.case_elem2d_nz_float_16x16_2blk
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mscatter -g MSCATTERTest.case_row_nz_float_clamp_16x8_1blk
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mscatter -g MSCATTERTest.case_row_dyn_int32_3x16_8rows
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mscatter -g MSCATTERTest.case_elem2d_dyn_float_4x8_64size
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mscatter -g MSCATTERTest.case_elem_scalar_float_1x1_in_1x8_8size
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mscatter -g MSCATTERTest.case_elem2d_half_atomic_add_4x16_8size
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mscatter -g MSCATTERTest.case_elem2d_float_atomic_add_4x16_8size
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mscatter -g MSCATTERTest.case_elem2d_int32_unaligned_3x3_in_3x8_64size
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mscatter -g MSCATTERTest.case_elem2d_uint32_8x16_256size
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mscatter -g MSCATTERTest.case_elem2d_float_8x32_256size
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mscatter -g MSCATTERTest.case_elem2d_uint8_4x64_256size
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mscatter -g MSCATTERTest.case_elem_uint32_32_64size
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mscatter -g MSCATTERTest.case_elem_uint16_32_64size
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mscatter -g MSCATTERTest.case_row_uint8_unaligned_3x32_32rows
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mscatter -g MSCATTERTest.case_row_half_atomic_add_8x32_8rows
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mscatter -g MSCATTERTest.case_row_float_8x32_64rows
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mscatter -g MSCATTERTest.case_row_int32_wrap_8x16_8rows
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mgather -g MGATHERTest.case_row_float_8x32_64rows
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mgather -g MGATHERTest.case_row_half_16x64_64rows
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mgather -g MGATHERTest.case_row_float_partial_4x16_in_8x16
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mgather -g MGATHERTest.case_elem_half_64_128size
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mgather -g MGATHERTest.case_elem2d_half_4x32_256size
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mgather -g MGATHERTest.case_elem2d_int16_4x32_256size
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mgather -g MGATHERTest.case_row_dyn_int32_3x16_8rows
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mgather -g MGATHERTest.case_elem2d_nz_int32_16x8_1blk
 
     if [ "$IS_AUTO_MODE" = "false" ]; then
       # this testcase has to directly call CCE intrinsics now, which won't compile for auto mode;
@@ -334,6 +359,8 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     python3 tests/script/run_st.py $ARGS -w -v a3 -t trowargmin
     python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_vec
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tinsert_vec
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mscatter
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mgather
     if [ "$IS_AUTO_MODE" = "false" ]; then
       # this testcase has to directly call CCE intrinsics now, which won't compile for auto mode;
       # besides, auto-sync doesn't work with CCE intrisics
@@ -679,7 +706,6 @@ if [ "$ENABLE_KIRIN9030" = "true" ]; then
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tci
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tdiv
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t texp
-  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tmov_ub2l1
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tmov_vect
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tmuls
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tsel

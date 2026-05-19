@@ -25,9 +25,9 @@ __global__ AICORE void runTRem(__gm__ T *out, __gm__ T *src0, __gm__ T *src1)
     TileData dstTile(vRows, vCols);
     TileData tmpTile(1, vCols);
     TASSIGN<0x0>(src0Tile);
-    TASSIGN<0x10000>(src1Tile);
-    TASSIGN<0x20000>(dstTile);
-    TASSIGN<0x30000>(tmpTile);
+    TASSIGN<TileData::Numel * sizeof(T)>(src1Tile);
+    TASSIGN<2 * TileData::Numel * sizeof(T)>(dstTile);
+    TASSIGN<3 * TileData::Numel * sizeof(T)>(tmpTile);
 
     GlobalData src0Global(src0);
     GlobalData src1Global(src1);
@@ -56,8 +56,6 @@ void LaunchTRem(T *out, T *src0, T *src1, void *stream)
 template void LaunchTRem<uint16_t, 64, 64, 64, 64, false>(uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream);
 template void LaunchTRem<uint16_t, 64, 64, 63, 63, false>(uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream);
 template void LaunchTRem<uint16_t, 1, 16384, 1, 16384, false>(uint16_t *out, uint16_t *src0, uint16_t *src1,
-                                                              void *stream);
-template void LaunchTRem<uint16_t, 2048, 16, 2048, 16, false>(uint16_t *out, uint16_t *src0, uint16_t *src1,
                                                               void *stream);
 template void LaunchTRem<float, 32, 32, 32, 32, false>(float *out, float *src0, float *src1, void *stream);
 template void LaunchTRem<uint32_t, 8, 8, 8, 8, false>(uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream);

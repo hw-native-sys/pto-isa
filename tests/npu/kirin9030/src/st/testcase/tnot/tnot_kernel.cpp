@@ -24,12 +24,11 @@ __global__ AICORE void runTNOT(__gm__ T *out, __gm__ T *input)
     TileData srcTile(kGRows_, kGCols_);
     TileData dstTile(kGRows_, kGCols_);
 
-    TASSIGN<0x0 + 0x400 * block_idx>(srcTile);
-    TASSIGN<0x4000 + 0x400 * block_idx>(dstTile);
+    TASSIGN<0x0>(srcTile);
+    TASSIGN<TileData::Numel * sizeof(T)>(dstTile);
 
-    int offset = (block_idx / 4) * (64 * 16) + (block_idx % 4) * 16;
-    GlobalData srcGlobal(input + offset);
-    GlobalData dstGlobal(out + offset);
+    GlobalData srcGlobal(input);
+    GlobalData dstGlobal(out);
 
     TLOAD(srcTile, srcGlobal);
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);

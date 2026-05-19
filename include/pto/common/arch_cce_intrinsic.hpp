@@ -11,6 +11,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef ARCH_CCE_INTRINSIC_HPP
 #define ARCH_CCE_INTRINSIC_HPP
 #include <pto/common/arch_macro.hpp>
+#ifndef __CPU_SIM
 
 PTO_INTERNAL void pto_copy_ubuf_to_ubuf(__ubuf__ void *dst, __ubuf__ void *src, uint16_t nBurst, uint16_t lenBurst,
                                         uint16_t srcGap, uint16_t dstGap)
@@ -43,4 +44,38 @@ PTO_INTERNAL void pto_load_cbuf_to_cb(__cb__ T *dst, __cbuf__ T *src, uint16_t m
 }
 #endif
 
+#if defined(PTO_NPU_ARCH_A2A3)
+template <typename T>
+PTO_INTERNAL void pto_vgatherb(__ubuf__ T *dst, __ubuf__ uint32_t *src, uint32_t offsetAddr, uint16_t dstRepeatStride,
+                               uint8_t dstBlockStride, uint8_t repeat)
+{
+    vgatherb(dst, src, offsetAddr, dstRepeatStride, dstBlockStride, repeat);
+}
+#elif defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90)
+template <typename T, typename U, typename S>
+PTO_INTERNAL void pto_vgatherb(T &dstReg, __ubuf__ U *base, S &idxReg, vector_bool &mask)
+{
+#if defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90)
+    vgatherb(dstReg, base, idxReg);
+#else
+    vgatherb(dstReg, base, idxReg, mask);
+#endif
+}
+#endif
+
+template <typename T, typename U>
+PTO_INTERNAL void pto_create_cbuf_matrix(__cbuf__ T *dst, int64_t repeatConfig, U value)
+{
+#if defined(PTO_NPU_ARCH_KIRIN9030)
+    set_l0_set_value_ui((uint32_t)value);
+    set_l1_2d(dst, repeatConfig);
+#else
+    if constexpr (std::is_same<T, bfloat16_t>::value) {
+        create_cbuf_matrix_bf16(dst, repeatConfig, value);
+    } else {
+        create_cbuf_matrix(dst, repeatConfig, value);
+    }
+#endif
+}
+#endif // __CPU_SIM
 #endif // ARCH_CCE_INTRINSIC_HPP

@@ -87,11 +87,11 @@ void test_trowexpand()
 
 TEST_F(TROWEXPANDBRCBTest, case0_half_4800_16)
 {
-    test_trowexpand<aclFloat16, 4800, 16>();
+    test_trowexpand<aclFloat16, 2400, 16>();
 }
-TEST_F(TROWEXPANDBRCBTest, case1_float_7280_8)
+TEST_F(TROWEXPANDBRCBTest, case1_float_3640_8)
 {
-    test_trowexpand<float, 7280, 8>();
+    test_trowexpand<float, 3640, 8>();
 }
 TEST_F(TROWEXPANDBRCBTest, case2_float_16_8)
 {

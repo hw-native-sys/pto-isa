@@ -20,6 +20,7 @@ template <typename T, typename... Types>
 using isSupportTypeImpl = std::disjunction<std::is_same<T, Types>...>;
 template <typename T, typename... Types>
 inline constexpr bool isSupportType = isSupportTypeImpl<T, Types...>::value;
+
 template <typename T>
 struct LoadTypeBySize {
     using type = std::conditional_t<sizeof(T) == sizeof(uint8_t), uint8_t,

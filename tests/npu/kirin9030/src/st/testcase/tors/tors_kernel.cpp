@@ -23,7 +23,7 @@ __global__ AICORE void runTorS(__gm__ T *out, __gm__ T *src0, T src1)
     TileData src0Tile(vRows, vCols);
     TileData dstTile(vRows, vCols);
     TASSIGN<0x0>(src0Tile);
-    TASSIGN<0x20000>(dstTile);
+    TASSIGN<TileData::Numel * sizeof(T)>(dstTile);
 
     GlobalData src0Global(src0);
     GlobalData dstGlobal(out);

@@ -44,11 +44,11 @@ __tf__ PTO_INTERNAL void TGatherBRowWise(typename TileDataDst::TileDType __out__
             uint32_t perRowDstOffset = i * dstRowStride;
             for (uint16_t j = 0; j < (uint16_t)lastRepeat; ++j) {
                 vlds(vregOffset, offsetPtr, (perRowOffset + j * 8), NORM);
-                vgatherb(vregDst, srcAddr, vregOffset, preg0);
+                pto_vgatherb(vregDst, srcAddr, vregOffset, preg0);
                 vsts(vregDst, dstPtr, (perRowDstOffset + j * elementsPerRepeat), NORM_B32, preg0);
             }
             vlds(vregOffset, offsetPtr, (perRowOffset + lastRepeat * 8), NORM);
-            vgatherb(vregDst, srcAddr, vregOffset, preg1);
+            pto_vgatherb(vregDst, srcAddr, vregOffset, preg1);
             vsts(vregDst, dstPtr, (perRowDstOffset + lastRepeat * elementsPerRepeat), NORM_B32, preg1);
         }
     }
@@ -80,13 +80,13 @@ __tf__ PTO_INTERNAL void TGatherBColWise(typename TileDataDst::TileDType __out__
             uint32_t perRowDstOffset = i * elementsPerRepeat;
             for (uint16_t j = 0; j < (uint16_t)validRow; j++) {
                 vlds(vregOffset, offsetPtr, (perRowOffset + j * offsetRowStride), NORM);
-                vgatherb(vregDst, srcAddr, vregOffset, preg0);
+                pto_vgatherb(vregDst, srcAddr, vregOffset, preg0);
                 vsts(vregDst, dstPtr, (perRowDstOffset + j * dstRowStride), distValue, preg0);
             }
         }
         for (uint16_t j = 0; j < (uint16_t)validRow; j++) {
             vlds(vregOffset, offsetPtr, (lastRepeat * 8 + j * offsetRowStride), NORM);
-            vgatherb(vregDst, srcAddr, vregOffset, preg1);
+            pto_vgatherb(vregDst, srcAddr, vregOffset, preg1);
             vsts(vregDst, dstPtr, (lastRepeat * elementsPerRepeat + j * dstRowStride), distValue, preg1);
         }
     }

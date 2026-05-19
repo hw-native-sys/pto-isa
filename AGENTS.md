@@ -38,7 +38,7 @@ python3 tests/script/run_st.py -r sim -v a3 -a -t tadd -g TADDTest.case_float_64
 ### Lint / Format Commands
 ```bash
 # Format C++ code (Google style, 120 char limit)
-clang-format -i -style=Google <file>
+clang-format -i -style=file <file>
 
 # Format Python code (Ruff)
 ruff format <file>

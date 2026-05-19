@@ -15,14 +15,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a2a3/TRowExpandAdd.hpp"
 #include "pto/npu/a2a3/TCvt.hpp"
 #include "pto/npu/a2a3/TAssign.hpp"
+#include <pto/common/type.hpp>
 
 namespace pto {
-
-enum class QuantType
-{
-    INT8_SYM,
-    INT8_ASYM
-};
 
 // Check whether two UB buffers overlap (runtime address comparison).
 template <typename TileA, typename TileB>

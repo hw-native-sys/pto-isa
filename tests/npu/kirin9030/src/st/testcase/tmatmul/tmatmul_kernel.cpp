@@ -12,8 +12,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-constexpr uint16_t BLOCK_CUBE_M_N = 16;
-
 template <typename T>
 AICORE constexpr inline T CeilAlign(T num_1, T num_2)
 {
@@ -27,7 +25,7 @@ template <typename OutType, typename AType, typename BType, typename BiasType, i
           bool isBias>
 __global__ AICORE void RunTMATMUL(__gm__ OutType *out, __gm__ AType *src0, __gm__ BType *src1, __gm__ BiasType *src2)
 {
-    constexpr int blockAlign = (sizeof(AType) == 1) ? 32 : 16;
+    constexpr int blockAlign = 32;
     constexpr int M = CeilAlign<int>(validM, 16);
     constexpr int N = CeilAlign<int>(validN, blockAlign);
     constexpr int K = CeilAlign<int>(validK, blockAlign);

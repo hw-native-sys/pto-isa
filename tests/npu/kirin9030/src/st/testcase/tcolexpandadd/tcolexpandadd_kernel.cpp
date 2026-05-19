@@ -1,0 +1,83 @@
+/**
+Copyright (c) 2026 Huawei Technologies Co., Ltd.
+This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+CANN Open Software License Agreement Version 2.0 (the "License").
+Please refer to the License for details. You may not use this file except in compliance with the License.
+THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+See LICENSE in the root of the software repository for the full text of the License.
+*/
+
+#include <pto/pto-inst.hpp>
+#include <pto/common/constants.hpp>
+#include "acl/acl.h"
+
+using namespace pto;
+namespace TColExpandAddTest {
+
+template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col>
+__global__ AICORE void runCOLEXPANDADD(__gm__ T *out, __gm__ T *src0, __gm__ T *src1)
+{
+    using DynShapeDim5 = Shape<1, 1, 1, src1Row, src1Col>;
+    using DynStridDim5 = pto::Stride<1, 1, 1, src1Col, 1>;
+    using GlobalData = GlobalTensor<T, DynShapeDim5, DynStridDim5>;
+    using TileData = Tile<TileType::Vec, T, src1Row, src1Col, BLayout::RowMajor, -1, -1>;
+
+    using DstDynShapeDim5 = Shape<1, 1, 1, dstRow, dstCol>;
+    using DstDynStridDim5 = pto::Stride<1, 1, 1, dstCol, 1>;
+    using DstGlobalData = GlobalTensor<T, DstDynShapeDim5, DstDynStridDim5>;
+    using DstTileData = Tile<TileType::Vec, T, dstRow, dstCol, BLayout::RowMajor, -1, -1>;
+
+    DstTileData src0Tile(dstRow, dstCol);
+    TileData src1Tile(src1Row, src1Col);
+    DstTileData dstTile(dstRow, dstCol);
+    TASSIGN<0x0>(src0Tile);
+    TASSIGN<DstTileData::Numel * sizeof(T)>(dstTile);
+    TASSIGN<2 * DstTileData::Numel * sizeof(T)>(src1Tile);
+
+    int offset = 0;
+    DstGlobalData src0Global(src0 + offset);
+    GlobalData src1Global(src1 + offset);
+    DstGlobalData dstGlobal(out + offset);
+
+    TLOAD(dstTile, dstGlobal);
+    TLOAD(src0Tile, src0Global);
+    TLOAD(src1Tile, src1Global);
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
+    TCOLEXPANDADD(dstTile, src0Tile, src1Tile);
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
+    TSTORE(dstGlobal, dstTile);
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE3, PIPE_S, EVENT_ID0);
+    wait_flag(PIPE_MTE3, PIPE_S, EVENT_ID0);
+    pipe_barrier(PIPE_ALL);
+#endif
+    out = dstGlobal.data();
+}
+
+template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col>
+void launchTColExpandAdd(T *out, T *src0, T *src1, void *stream)
+{
+    if constexpr (std::is_same_v<T, aclFloat16>) {
+        runCOLEXPANDADD<half, dstRow, dstCol, src1Row, src1Col>
+            <<<1, nullptr, stream>>>((half *)out, (half *)src0, (half *)src1);
+    } else {
+        runCOLEXPANDADD<T, dstRow, dstCol, src1Row, src1Col><<<1, nullptr, stream>>>(out, src0, src1);
+    }
+}
+
+template void launchTColExpandAdd<float, 16, 128, 1, 128>(float *out, float *src0, float *src1, void *stream);
+template void launchTColExpandAdd<float, 32, 32, 1, 32>(float *out, float *src0, float *src1, void *stream);
+template void launchTColExpandAdd<aclFloat16, 4, 256, 1, 256>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
+                                                              void *stream);
+template void launchTColExpandAdd<aclFloat16, 10, 64, 1, 64>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
+                                                             void *stream);
+template void launchTColExpandAdd<int32_t, 16, 32, 1, 32>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
+template void launchTColExpandAdd<int16_t, 16, 64, 1, 64>(int16_t *out, int16_t *src0, int16_t *src1, void *stream);
+} // namespace TColExpandAddTest

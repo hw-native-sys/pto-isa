@@ -156,10 +156,10 @@ __global__ AICORE void runTCVTSaturationTest(__gm__ T *outSaturated, __gm__ T *o
     TileDataDst dstTileTrunc;
     TileDataDst dstTileDefault;
 
-    TASSIGN(srcTile, 0x0);
-    TASSIGN(dstTileSat, 0x1000);
-    TASSIGN(dstTileTrunc, 0x2000);
-    TASSIGN(dstTileDefault, 0x3000);
+    TASSIGN<0x0>(srcTile);
+    TASSIGN<TileDataSrc::Numel * sizeof(S)>(dstTileSat);
+    TASSIGN<TileDataSrc::Numel * sizeof(S) + TileDataDst::Numel * sizeof(T)>(dstTileTrunc);
+    TASSIGN<TileDataSrc::Numel * sizeof(S) + 2 * TileDataDst::Numel * sizeof(T)>(dstTileDefault);
 
     GlobalData_src srcGlobal(src);
     GlobalData_dst dstGlobalSat(outSaturated);

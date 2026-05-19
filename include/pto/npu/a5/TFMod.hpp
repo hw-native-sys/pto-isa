@@ -63,10 +63,11 @@ struct FModOp {
 
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, unsigned ElementsPerRepeat,
           unsigned BlockSizeElem, auto PrecisionType = FmodAlgorithm::DEFAULT>
-__tf__ PTO_INTERNAL void TFMod(typename TileDataDst::TileDType __out__ dst,
-                               typename TileDataSrc0::TileDType __in__ src0,
-                               typename TileDataSrc1::TileDType __in__ src1, unsigned validRows, unsigned validCols,
-                               VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
+__tf__ PTO_INTERNAL OP_NAME(TFMODS)
+    OP_TYPE(element_wise) void TFMod(typename TileDataDst::TileDType __out__ dst,
+                                     typename TileDataSrc0::TileDType __in__ src0,
+                                     typename TileDataSrc1::TileDType __in__ src1, unsigned validRows,
+                                     unsigned validCols, VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
 {
     using T = typename TileDataDst::DType;
     __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);

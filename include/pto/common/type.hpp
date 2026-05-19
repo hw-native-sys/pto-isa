@@ -201,6 +201,26 @@ enum class CmpMode : uint8_t
     GE = 5,
 };
 
+enum class QuantType
+{
+    MXFP8 = 0,
+    MXFP4_E2M1 = 1,
+    INT8_SYM = 2,
+    INT8_ASYM = 3,
+};
+
+enum class QuantScaleAlg
+{
+    OCP = 0,
+    NV = 1,
+};
+
+enum class VecStoreMode
+{
+    ND = 0,
+    NZ = 1,
+};
+
 // UF store phase encodes unit flag behavior for accumulator stores.
 enum class STPhase : uint8_t
 {

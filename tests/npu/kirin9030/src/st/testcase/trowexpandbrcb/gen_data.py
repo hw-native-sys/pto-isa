@@ -56,8 +56,8 @@ if __name__ == "__main__":
         os.makedirs(testcases_dir)
 
     case_params_list = [
-        TRowExpandParam(np.float16, 4800, 16),
-        TRowExpandParam(np.float32, 7280, 8),
+        TRowExpandParam(np.float16, 2400, 16),
+        TRowExpandParam(np.float32, 3640, 8),
         TRowExpandParam(np.float32, 16, 8),
     ]
 

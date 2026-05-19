@@ -27,7 +27,7 @@ __global__ AICORE void runTRecip(__gm__ T *out, __gm__ T *src)
     if constexpr (isInPlace) {
         TASSIGN<0x0>(dstTile);
     } else {
-        TASSIGN<0x20000>(dstTile);
+        TASSIGN<TileData::Numel * sizeof(T)>(dstTile);
     }
 
     GlobalData srcGlobal(src);

@@ -53,7 +53,7 @@ __global__ AICORE void CONCAT(run, CASENAME)(__gm__ T *out, __gm__ T *src0, __gm
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols>
 void CONCAT(Launch, CASENAME)(T *out, T *src0, T *src1, void *stream)
 {
-    if constexpr (_v<T, aclFloat16>)
+    if constexpr (std::is_same_v<T, aclFloat16>)
         CONCAT(run, CASENAME)<half, kTRows_, kTCols_, vRows, vCols>
             <<<1, nullptr, stream>>>((half *)(out), (half *)(src0), (half *)(src1));
     else

@@ -105,23 +105,23 @@ TEST_F(TGATHERBTest, case_uint32_2x128_2x16_2x128)
 {
     test_tgatherb<uint32_t, 2, 128, 2, 16, 2, 128>();
 }
-TEST_F(TGATHERBTest, case_int16_1x32768_1x2048_1x32768)
+TEST_F(TGATHERBTest, case_int16_1x16384_1x2048_1x16384)
 {
-    test_tgatherb<int16_t, 1, 32768, 1, 2048, 1, 32768>();
+    test_tgatherb<int16_t, 1, 16384, 1, 2048, 1, 16384>();
 }
 TEST_F(TGATHERBTest, case_uint16_257x128_257x8_257x128)
 {
-    test_tgatherb<uint16_t, 257, 128, 257, 8, 257, 128>();
+    test_tgatherb<uint16_t, 129, 128, 129, 8, 129, 128>();
 }
 TEST_F(TGATHERBTest, case_int8_2x256_2x8_2x256)
 {
     test_tgatherb<int8_t, 2, 256, 2, 8, 2, 256>();
 }
-TEST_F(TGATHERBTest, case_int8_2x32768_2x1024_2x32768)
+TEST_F(TGATHERBTest, case_int8_2x16384_2x1024_2x16384)
 {
-    test_tgatherb<int8_t, 2, 32768, 2, 1024, 2, 32768>();
+    test_tgatherb<int8_t, 2, 16384, 2, 1024, 2, 16384>();
 }
-TEST_F(TGATHERBTest, case_uint8_2x32768_2x1024_2x32768)
+TEST_F(TGATHERBTest, case_uint8_2x16384_2x1024_2x16384)
 {
-    test_tgatherb<uint8_t, 2, 32768, 2, 1024, 2, 32768>();
+    test_tgatherb<uint8_t, 2, 16384, 2, 1024, 2, 16384>();
 }

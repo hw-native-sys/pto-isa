@@ -9,21 +9,14 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 #include <gtest/gtest.h>
 #include <type_traits>
+#include <pto/common/type.hpp>
 #include "acl/acl.h"
 #include "test_common.h"
 
-#define DIV_ROUNDUP(a, b) (((a) + (b)-1) / (b))
+#define DIV_ROUNDUP(a, b) (((a) + (b) - 1) / (b))
 
 using namespace std;
 using namespace PtoTestCommon;
-
-namespace pto {
-enum class QuantType
-{
-    INT8_SYM,
-    INT8_ASYM
-};
-}
 
 namespace TQuantTest {
 

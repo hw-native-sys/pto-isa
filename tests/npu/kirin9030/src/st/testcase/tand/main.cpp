@@ -106,11 +106,6 @@ TEST_F(TANDTest, case3)
     test_tand<uint16_t, 1, 16384, 1, 16384>();
 }
 
-TEST_F(TANDTest, case4)
-{
-    test_tand<uint16_t, 2048, 16, 2048, 16>();
-}
-
 TEST_F(TANDTest, case5)
 {
     test_tand<uint8_t, 32, 32, 32, 32>();

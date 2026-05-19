@@ -27,7 +27,7 @@ PTO_INTERNAL void runTSubS(__gm__ T *out, __gm__ T *src, T scalar)
     srcTileData srcTile(validRow, validCol);
     dstTileData dstTile(validRow, validCol);
     TASSIGN<0x0>(srcTile);
-    TASSIGN<0x28000>(dstTile);
+    TASSIGN<srcTileData::Numel * sizeof(T)>(dstTile);
     TLOAD(dstTile, dstGlobal);
     TLOAD(srcTile, srcGlobal);
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
