@@ -23,9 +23,10 @@ struct TColMinOp {
 };
 
 template <typename T, typename TileDataOut, typename TileDataIn>
-__tf__ PTO_INTERNAL void TColMin(typename TileDataOut::TileDType __out__ dstData,
+__tf__ PTO_INTERNAL OP_NAME(TCOLMIN)
+    OP_TYPE(reduce) void TColMin(typename TileDataOut::TileDType __out__ dstData,
                                  typename TileDataIn::TileDType __in__ srcData, uint16_t validRow, int validCol,
-                                 unsigned version)
+                                 unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
     __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
     __ubuf__ T *src = (__ubuf__ T *)__cce_get_tile_ptr(srcData);
@@ -42,8 +43,7 @@ PTO_INTERNAL void TCOLMIN_IMPL(TileDataOut &dst, TileDataIn &src)
     if (validCol == 0 || validRow == 0) {
         return;
     }
-    TColMin<typename TileDataIn::DType, TileDataOut, TileDataIn>(dst.data(), src.data(), validRow, validCol,
-                                                                 VFImplKind::VFIMPL_DEFAULT);
+    TColMin<typename TileDataIn::DType, TileDataOut, TileDataIn>(dst.data(), src.data(), validRow, validCol);
 }
 } // namespace pto
 #endif
