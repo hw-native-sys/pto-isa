@@ -30,14 +30,14 @@ vaddc %dst, %carry, %lhs, %rhs, %mask : !pto.vreg<NxT>
 ### AS Level 1（SSA）
 
 ```mlir
-%result, %carry = pto.vaddc %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask) -> !pto.vreg<NxT>, !pto.mask
+%result, %carry = pto.vaddc %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>) -> !pto.vreg<NxT>, !pto.mask<G>
 ```
 
 ### AS Level 2（DPS）
 
 ```mlir
-pto.vaddc ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask)
-          outs(%result, %carry : !pto.vreg<NxT>, !pto.mask)
+pto.vaddc ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>)
+          outs(%result, %carry : !pto.vreg<NxT>, !pto.mask<G>)
 ```
 
 ## 输入
@@ -46,7 +46,7 @@ pto.vaddc ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask)
 |--------|------|------|
 | `%lhs` | `!pto.vreg<NxT>` | 第一个加数 |
 | `%rhs` | `!pto.vreg<NxT>` | 第二个加数 |
-| `%mask` | `!pto.mask` | 谓词掩码；掩码位为 1 的 lane 参与加法 |
+| `%mask` | `!pto.mask<G>` | 谓词掩码；掩码位为 1 的 lane 参与加法 |
 
 两个源寄存器必须具有相同的元素类型和相同的向量宽度 `N`。掩码宽度必须与 `N` 一致。
 
@@ -55,7 +55,7 @@ pto.vaddc ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask)
 | 结果 | 类型 | 说明 |
 |------|------|------|
 | `%result` | `!pto.vreg<NxT>` | 活跃 lane 上得到截断后的和；非活跃 lane 保持原值 |
-| `%carry` | `!pto.mask` | 逐 lane 的进位 / 溢出谓词；无符号加法发生溢出时，对应 lane 为 1 |
+| `%carry` | `!pto.mask<G>` | 逐 lane 的进位 / 溢出谓词；无符号加法发生溢出时，对应 lane 为 1 |
 
 ## 副作用
 
@@ -106,7 +106,7 @@ for (int i = 0; i < N; i++) {
 
 ```mlir
 %result, %carry = pto.vaddc %a, %b, %active
-    : (!pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask) -> !pto.vreg<64xi32>, !pto.mask
+    : (!pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask<b32>) -> !pto.vreg<64xi32>, !pto.mask<b32>
 
 %sum0, %carry0 = pto.vaddc %a0, %b0, %active : ...
 %sum1, %carry1 = pto.vaddc %a1, %b1, %carry0 : ...

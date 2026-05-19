@@ -30,7 +30,7 @@ vsqz %dst, %src, %mask
 ### AS Level 1（SSA）
 
 ```mlir
-%result = pto.vsqz %src, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vsqz %src, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 ## 输入
@@ -38,7 +38,7 @@ vsqz %dst, %src, %mask
 | 操作数 | 类型 | 说明 |
 |--------|------|------|
 | `%src` | `!pto.vreg<NxT>` | 源向量 |
-| `%mask` | `!pto.mask` | 选出要保留 lane 的谓词掩码 |
+| `%mask` | `!pto.mask<G>` | 选出要保留 lane 的谓词掩码 |
 
 ## 预期输出
 

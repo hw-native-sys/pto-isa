@@ -23,13 +23,13 @@ carry[i]  = carry_out(sum)
 ### PTO 汇编形式
 
 ```text
-vaddcs %dst, %carry_out, %lhs, %rhs, %carry_in, %mask : !pto.vreg<NxT>, !pto.mask
+vaddcs %dst, %carry_out, %lhs, %rhs, %carry_in, %mask : !pto.vreg<NxT>, !pto.mask<G>
 ```
 
 ### AS Level 1（SSA）
 
 ```mlir
-%result, %carry = pto.vaddcs %lhs, %rhs, %carry_in, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask, !pto.mask -> !pto.vreg<NxT>, !pto.mask
+%result, %carry = pto.vaddcs %lhs, %rhs, %carry_in, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>, !pto.mask<G> -> !pto.vreg<NxT>, !pto.mask<G>
 ```
 
 ## 输入
@@ -38,15 +38,15 @@ vaddcs %dst, %carry_out, %lhs, %rhs, %carry_in, %mask : !pto.vreg<NxT>, !pto.mas
 |--------|------|------|
 | `%lhs` | `!pto.vreg<NxT>` | 左值向量 |
 | `%rhs` | `!pto.vreg<NxT>` | 右值向量 |
-| `%carry_in` | `!pto.mask` | 每个 lane 的输入进位 bit |
-| `%mask` | `!pto.mask` | 谓词掩码；只有掩码位为 1 的 lane 参与运算 |
+| `%carry_in` | `!pto.mask<G>` | 每个 lane 的输入进位 bit |
+| `%mask` | `!pto.mask<G>` | 谓词掩码；只有掩码位为 1 的 lane 参与运算 |
 
 ## 预期输出
 
 | 结果 | 类型 | 说明 |
 |------|------|------|
 | `%result` | `!pto.vreg<NxT>` | 活跃 lane 上得到算术结果 |
-| `%carry` | `!pto.mask` | 每个活跃 lane 产生的 carry-out bit |
+| `%carry` | `!pto.mask<G>` | 每个活跃 lane 产生的 carry-out bit |
 
 ## 副作用
 
@@ -84,7 +84,7 @@ for (int i = 0; i < N; i++) {
 
 ```mlir
 %result, %carry = pto.vaddcs %lhs, %rhs, %carry_in, %mask
-    : !pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask, !pto.mask -> !pto.vreg<64xi32>, !pto.mask
+    : !pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask<b32>, !pto.mask<b32> -> !pto.vreg<64xi32>, !pto.mask<b32>
 ```
 
 ## 性能

@@ -21,19 +21,19 @@ $$ \mathrm{dst}_i = \exp(\mathrm{src}_i) $$
 ### PTO 汇编形式
 
 ```text
-%result = vexp %input, %mask : !pto.vreg<NxT>, !pto.mask
+%result = vexp %input, %mask : !pto.vreg<NxT>, !pto.mask<G>
 ```
 
 ### AS Level 1（SSA）
 
 ```mlir
-%result = pto.vexp %input, %mask : (!pto.vreg<NxT>, !pto.mask) -> !pto.vreg<NxT>
+%result = pto.vexp %input, %mask : (!pto.vreg<NxT>, !pto.mask<G>) -> !pto.vreg<NxT>
 ```
 
 ### AS Level 2（DPS）
 
 ```mlir
-pto.vexp ins(%input, %mask : !pto.vreg<NxT>, !pto.mask)
+pto.vexp ins(%input, %mask : !pto.vreg<NxT>, !pto.mask<G>)
           outs(%result : !pto.vreg<NxT>)
 ```
 
@@ -69,7 +69,7 @@ for (int i = 0; i < N; i++)
 | 操作数 | 类型 | 说明 |
 |--------|------|------|
 | `%input` | `!pto.vreg<NxT>` | 源向量寄存器 |
-| `%mask` | `!pto.mask` | 谓词掩码；掩码位为 1 的 lane 为活跃 lane |
+| `%mask` | `!pto.mask<G>` | 谓词掩码；掩码位为 1 的 lane 为活跃 lane |
 
 ## 预期输出
 
@@ -132,7 +132,7 @@ A5（流水重叠）：16 + 15×2 = 46 周期
 A2/A3：13 + 26 + 32 + 270 = 341 周期
 ```
 
-**性能说明：** 对数值稳定的 softmax，更推荐使用 `vexpdiff` 融合形式，而不是先 `vsub` 再 `vexp`。
+**性能说明：** 对数值稳定的 softmax，更推荐使用 `vexpdif` 融合形式，而不是先 `vsub` 再 `vexp`。
 
 ## 示例
 
@@ -141,8 +141,8 @@ A2/A3：13 + 26 + 32 + 270 = 341 周期
 ```mlir
 %max_bc = pto.vlds %ub_max[%c0] {dist = "BRC"} : !pto.ptr<f32, ub> -> !pto.vreg<64xf32>
 %sub = pto.vsub %x, %max_bc, %mask
-    : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
-%exp = pto.vexp %sub, %mask : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+    : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
+%exp = pto.vexp %sub, %mask : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 ```
 
 ### C++ 用法

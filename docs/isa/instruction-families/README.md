@@ -9,7 +9,7 @@ PTO ISA is organized into five instruction sets, each representing a distinct ha
 | | Instruction Set | Prefix | Domain | Primary Role | Operand Types |
 |-|-----------------|--------|--------|-------------|--------------|
 | | [Tile Instruction Set](./tile-families.md) | `pto.t*` | Tile Buffers (Vec/Mat/Acc/Left/Right) | Tile-oriented compute, data movement, layout transforms, synchronization | `!pto.tile<...>`, `!pto.tile_buf<...>`, `!pto.partition_tensor_view<...>` |
-| | [Vector Instruction Set](../instruction-families/vector-families.md) | `pto.v*` | Vector Pipeline (V) | Lane-level compute, masking, vector load/store, SFU operations | `!pto.vreg<NxT>`, `!pto.mask`, `!pto.ptr<T, ub>` |
+| | [Vector Instruction Set](../instruction-families/vector-families.md) | `pto.v*` | Vector Pipeline (V) | Lane-level compute, masking, vector load/store, SFU operations | `!pto.vreg<NxT>`, `!pto.mask<G>`, `!pto.ptr<T, ub>` |
 | | [Scalar/Control Instruction Set](./scalar-and-control-families.md) | `pto.*` | Scalar Unit, DMA Controller | Configuration, synchronization, DMA setup, predicate generation and load/store | Scalar registers, pipe IDs, event IDs, buffer IDs, predicate masks |
 | | [Communication Instruction Set](./communication-families.md) | `pto.tbroadcast`, `pto.tget`, etc. | Inter-NPU Interconnect | Collective communication, point-to-point exchange, runtime synchronization | `!pto.group<N>`, tile operands, allocation handles |
 | | [System Scheduling Instruction Set](../system/README.md) | `pto.tpush`, `pto.tpop`, `pto.tfree` | Runtime-visible scheduling state | TPipe/TMPipe producer-consumer flow and resource lifetime | Tile handles, stream state, resource handles |
@@ -121,7 +121,7 @@ Instruction Sets
 │   ├── Compare and Select         → pto.vcmp, pto.vcmps, pto.vsel, pto.vselr, pto.vselrv2
 │   ├── Data Rearrangement         → pto.vintlv, pto.vdintlv, pto.vslide, pto.vshift,
 │   │                                  pto.vpack, pto.vzunpack, pto.vperm, etc.
-│   └── SFU and DSA Instructions  → pto.vprelu, pto.vexpdiff, pto.vaxpy, pto.vtranspose,
+│   └── SFU and DSA Instructions  → pto.vprelu, pto.vexpdif, pto.vaxpy, pto.vtranspose,
 │                                      pto.vsort32, pto.vmrgsort, etc.
 │
 ├── Scalar And Control Instruction Set

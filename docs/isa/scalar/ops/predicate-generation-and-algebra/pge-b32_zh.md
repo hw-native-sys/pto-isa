@@ -7,19 +7,19 @@
 ### PTO 汇编形式
 
 ```text
-pge_b32 %dst, %scalar : !pto.mask, i32
+pge_b32 %dst, %scalar : !pto.mask<b32>, i32
 ```
 
 ### AS Level 1（SSA）
 
 ```mlir
-%mask = pto.pge_b32 %scalar : i32 -> !pto.mask
+%mask = pto.pge_b32 %scalar : i32 -> !pto.mask<b32>
 ```
 
 ### AS Level 2（DPS）
 
 ```mlir
-pto.pge_b32 ins(%scalar : i32) outs(%mask : !pto.mask)
+pto.pge_b32 ins(%scalar : i32) outs(%mask : !pto.mask<b32>)
 ```
 
 ## 关键约束

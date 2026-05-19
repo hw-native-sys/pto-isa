@@ -2,6 +2,9 @@
 
 `pto.set_loop1_stride_outtoub` is part of the [DMA Copy](../../dma-copy.md) instruction set.
 
+!!! warning "Deprecated in PTO ISA v0.6"
+    The v0.6 PTO micro-instruction surface no longer uses standalone loop / stride configuration registers for GM→UB DMA. The stride information previously carried by `pto.set_loop1_stride_outtoub` is now expressed inline on the grouped transfer op as part of the inner `nburst(%n_burst, %src_stride, %dst_stride)` clause on [`pto.mte_gm_ub`](./copy-gm-to-ubuf.md). New code should use the grouped form. This page is retained for historical reference and pre-v0.6 ports.
+
 ## Summary
 
 Configure the inner-loop pointer advance used by the GM→UB DMA engine.

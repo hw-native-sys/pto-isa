@@ -31,11 +31,15 @@ The page defines the contract of `!pto.align` and the stream discipline around i
 
 ## Alignment State Operations
 
-### `pto.init_align`
+### `pto.init_align` — Initialize Store-Side Align Carrier
 
-**Syntax:** `%align = pto.init_align : -> !pto.align`
+**Syntax:** `%result = pto.init_align : !pto.align`
 
-**Semantics:** Initialize a new alignment state carrier.
+**Semantics:** Initialize store-side align carrier state.
+
+**Outputs:** `%result` is a fresh zero-initialized align carrier for **store-side** unaligned streams such as `pto.vstus`, `pto.vstur`, `pto.vstar`, `pto.vstas`, and `pto.pstu`.
+
+**Constraints:** This op is for store-family initialization only. Unaligned load streams still start from `pto.vldas`, not `pto.init_align`.
 
 ```c
 align = init_align();
@@ -43,9 +47,20 @@ align = init_align();
 
 ### `pto.vldas` — Prime Alignment for Unaligned Load
 
-**Syntax:** `%align = pto.vldas %ub : !pto.ptr<T, ub> -> !pto.align`
+**Syntax:** `%result = pto.vldas %source : !pto.ptr<T, ub> -> !pto.align`
 
-**Semantics:** Prime the alignment buffer for a subsequent unaligned load. The source address's surrounding aligned block seeds the load alignment state.
+**Semantics:** Prime alignment buffer for subsequent unaligned load.
+
+**Inputs:** `%source` is the UB address whose surrounding aligned block seeds the load alignment state.
+
+**Outputs:** `%result` is the initialized load-alignment state.
+
+**Constraints:**
+
+- This op is the required leading operation for a `pto.vldus` stream using the same alignment state.
+- The source address itself need not be 32-byte aligned; hardware truncates it to the aligned block boundary for the priming load.
+
+**Latency:** **9** cycles.
 
 ```mlir
 %align = pto.vldas %ub : !pto.ptr<f32, ub> -> !pto.align
@@ -53,22 +68,46 @@ align = init_align();
 
 ### `pto.vldus` — Unaligned Load with Alignment State Update
 
-**Syntax:** `%vec, %align_out = pto.vldus %ub, %align : !pto.ptr<T, ub>, !pto.align -> !pto.vreg<NxT>, !pto.align`
+**Syntax:** `%result, %align_out = pto.vldus %source, %align : !pto.ptr<T, ub>, !pto.align -> !pto.vreg<NxT>, !pto.align`
 
-**Semantics:** Perform an unaligned load using the provided alignment state, and produce both the loaded vector and the updated alignment state.
+**Semantics:** Unaligned load using primed align state.
+
+**Inputs:** `%source` is the current UB address; `%align` is the incoming load alignment state primed by `pto.vldas` or a prior `pto.vldus`.
+
+**Outputs:** `%result` is the assembled vector value; `%align_out` is the updated alignment state.
+
+**Constraints:**
+
+- A matching `pto.vldas` MUST appear before the first dependent `pto.vldus` stream in the same vector loop.
+- The installed no-post A5 interface keeps a struct-shaped internal return for lowering convenience, but its no-post `base` field is not meaningful user-visible state. VPTO therefore hides that value and only exposes the updated align carrier.
+- Reusing the original `%source` starts a new explicit access point; if the caller wants another no-post access, it should compute the next source pointer explicitly and pair it with the required align setup.
+
+**Latency:** **9** cycles.
 
 ```mlir
 %vec, %align_out = pto.vldus %ub, %align : !pto.ptr<f32, ub>, !pto.align -> !pto.vreg<64xf32>, !pto.align
 ```
 
-### `pto.vstus` — Unaligned Store with Alignment State Update
+### `pto.vstus` — No-Post Unaligned Store with Scalar Offset
 
-**Syntax:** `%align_out = pto.vstus %align, %offset, %vec, %ub : !pto.align, i32, !pto.vreg<NxT>, !pto.ptr<T, ub> -> !pto.align`
+**Syntax:** `%align_out = pto.vstus %align_in, %offset, %value, %base : !pto.align, i32, !pto.vreg<NxT>, !pto.ptr<T, ub> -> !pto.align`
 
-**Semantics:** Perform an unaligned store using the provided alignment state, and produce the updated alignment state.
+**Semantics:** No-post unaligned store with scalar offset.
+
+**Inputs:** `%align_in` is the incoming store-alignment state, `%offset` is the scalar displacement, `%value` is the vector being stored, and `%base` is the UB base pointer.
+
+**Outputs:** `%align_out` is the updated buffered-tail state.
+
+**Constraints:**
+
+- This is the scalar-offset stateful form of the unaligned store family. The first `%align_in` in the stream should come from `pto.init_align`.
+- This op does **not** mean "store a full vector starting at `%base + %offset`". Instead, `%offset` describes how far the store stream advances at this step, and `%align_out` carries any residual tail that could not be committed yet.
+- The no-post surface does not expose an updated base pointer. A later flush op (`pto.vstas` / `pto.vstar`) must therefore use an explicit destination/offset pair that identifies the same logical flush point as this `pto.vstus`.
+
+**Latency:** **9** cycles.
 
 ```mlir
-%store_align = pto.init_align : -> !pto.align
+%store_align = pto.init_align : !pto.align
 %next_align = pto.vstus %store_align, %offset, %vec, %ub
     : !pto.align, i32, !pto.vreg<64xf32>, !pto.ptr<f32, ub> -> !pto.align
 ```
@@ -91,7 +130,7 @@ The following example shows the complete unaligned load/store stream lifecycle:
 %result1 = pto.vabs %v1, %mask : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 // ─── Store stream ───
-%store_align0 = pto.init_align : -> !pto.align
+%store_align0 = pto.init_align : !pto.align
 %align_out1 = pto.vstus %store_align0, %c32, %result0, %ub_out : !pto.align, i32, !pto.vreg<64xf32>, !pto.ptr<f32, ub> -> !pto.align
 %align_out2 = pto.vstus %align_out1, %c32, %result1, %ub_out : !pto.align, i32, !pto.vreg<64xf32>, !pto.ptr<f32, ub> -> !pto.align
 ```
@@ -101,9 +140,9 @@ The following example shows the complete unaligned load/store stream lifecycle:
 !!! warning "Constraints"
     - `pto.vldas` must be the leading operation of an unaligned load stream.
     - `pto.vldus` must follow `pto.vldas` using the same alignment state.
-    - `pto.vstus` must be preceded by `pto.init_align` to start a new store alignment stream.
+    - Store-side unaligned streams (`pto.vstus` and the related `pto.vstur`, `pto.vstar`, `pto.vstas`, `pto.pstu`) must be initialized by `pto.init_align`. `pto.init_align` is **store-side only** — it cannot be used to prime a load stream.
     - The alignment state must be threaded through all operations in the stream without branching.
-    - For `pto.vstus`, the `%offset` parameter controls the per-operation stride within the stream.
+    - For `pto.vstus`, `%offset` controls how far the store stream advances at each step, not the absolute store displacement from `%base`. A later flush op (`pto.vstas` / `pto.vstar`) must reuse the matching destination/offset pair.
 
 ## Why Explicit Alignment State?
 

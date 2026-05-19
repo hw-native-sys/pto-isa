@@ -25,13 +25,13 @@ vor %dst, %lhs, %rhs, %mask : !pto.vreg<NxT>
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vor %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask) -> !pto.vreg<NxT>
+%result = pto.vor %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>) -> !pto.vreg<NxT>
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.vor ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask)
+pto.vor ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>)
           outs(%result : !pto.vreg<NxT>)
 ```
 
@@ -43,7 +43,7 @@ Supported element types: all integer types (`i8`–`i64`, `u8`–`u64`).
 |---------|------|-------------|
 | `%lhs` | `!pto.vreg<NxT>` | Left-hand source vector register |
 | `%rhs` | `!pto.vreg<NxT>` | Right-hand source vector register |
-| `%mask` | `!pto.mask` | Predicate mask; lanes where mask bit is 1 are active |
+| `%mask` | `!pto.mask<G>` | Predicate mask; lanes where mask bit is 1 are active |
 
 Both source registers MUST have the same integer element type and the same vector width `N`. The mask width MUST match `N`.
 
@@ -114,11 +114,11 @@ for (int i = 0; i < N; i++)
 
 ```mlir
 // Bitwise OR of two integer vectors
-%result = pto.vor %a, %b, %active : (!pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask) -> !pto.vreg<64xi32>
+%result = pto.vor %a, %b, %active : (!pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask<b32>) -> !pto.vreg<64xi32>
 
 // Set specific bits
 %flags = pto.vbroadcast %c1 : i32 -> !pto.vreg<64xi32>
-%set = pto.vor %data, %flags, %active : (!pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask) -> !pto.vreg<64xi32>
+%set = pto.vor %data, %flags, %active : (!pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask<b32>) -> !pto.vreg<64xi32>
 ```
 
 ## Related Ops / Instruction Set Links

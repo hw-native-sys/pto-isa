@@ -21,7 +21,7 @@ vaddrelu %dst, %lhs, %rhs, %mask : !pto.vreg<NxT>
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vaddrelu %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask) -> !pto.vreg<NxT>
+%result = pto.vaddrelu %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>) -> !pto.vreg<NxT>
 ```
 
 Documented A5 types: `f16, f32`.
@@ -32,7 +32,7 @@ Documented A5 types: `f16, f32`.
 ||---------|------|-------------|
 || `%lhs` | `!pto.vreg<NxT>` | Left-hand source vector register |
 || `%rhs` | `!pto.vreg<NxT>` | Right-hand source vector register |
-|| `%mask` | `!pto.mask` | Predicate mask; lanes where mask bit is 1 are active |
+|| `%mask` | `!pto.mask<G>` | Predicate mask; lanes where mask bit is 1 are active |
 
 Both source registers MUST have the same element type and the same vector width `N`. The mask width MUST match `N`.
 
@@ -97,7 +97,7 @@ for (int i = 0; i < N; i++)
 ### MLIR form
 
 ```mlir
-%result = pto.vaddrelu %lhs, %rhs, %mask : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask) -> !pto.vreg<64xf32>
+%result = pto.vaddrelu %lhs, %rhs, %mask : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32>) -> !pto.vreg<64xf32>
 ```
 
 ### C++ intrinsic
@@ -115,5 +115,5 @@ VADDRELU(vdst, va, vb, mask);
 ## Related Ops / Instruction Set Links
 
 - Instruction set overview: [SFU And DSA Instructions](../../sfu-and-dsa-ops.md)
-- Previous op in instruction set: [pto.vexpdiff](./vexpdiff.md)
+- Previous op in instruction set: [pto.vexpdif](./vexpdif.md)
 - Next op in instruction set: [pto.vsubrelu](./vsubrelu.md)

@@ -17,19 +17,19 @@ $$ \mathrm{dst}_i = \neg \mathrm{src}_i $$
 ### PTO Assembly Form
 
 ```mlir
-%dst = pto.pnot %src, %mask : !pto.mask, !pto.mask -> !pto.mask
+%dst = pto.pnot %src, %mask : !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-%dst = pto.pnot %src, %mask : !pto.mask, !pto.mask -> !pto.mask
+%dst = pto.pnot %src, %mask : !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.pnot ins(%src, %mask : !pto.mask, !pto.mask) outs(%dst : !pto.mask)
+pto.pnot ins(%src, %mask : !pto.mask<G>, !pto.mask<G>) outs(%dst : !pto.mask<G>)
 ```
 
 ## C++ Intrinsic
@@ -45,14 +45,14 @@ pnot(dst, src, mask);
 
 | Operand | Type | Description |
 |---------|------|-------------|
-| `%src` | `!pto.mask` | Source predicate to invert |
-| `%mask` | `!pto.mask` | Optional masking predicate |
+| `%src` | `!pto.mask<G>` | Source predicate to invert |
+| `%mask` | `!pto.mask<G>` | Optional masking predicate |
 
 ## Expected Outputs
 
 | Result | Type | Description |
 |--------|------|-------------|
-| `%dst` | `!pto.mask` | Bitwise NOT of src |
+| `%dst` | `!pto.mask<G>` | Bitwise NOT of src |
 
 ## Side Effects
 
@@ -94,16 +94,16 @@ void invert_mask(RegBuf<predicate_t>& dst,
 
 ```mlir
 // %cmp: lanes where a[i] < b[i]
-%cmp = pto.vcmp %va, %vb, %seed, "lt" : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.mask
+%cmp = pto.vcmp %va, %vb, %seed, "lt" : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.mask<b32>
 
 // %tail: lanes in remainder region
-%tail = pto.pge_b32 %rem : i32 -> !pto.mask
+%tail = pto.pge_b32 %rem : i32 -> !pto.mask<G>
 
 // Complement: lanes NOT in remainder region
-%not_tail = pto.pnot %tail, %tail : !pto.mask, !pto.mask -> !pto.mask
+%not_tail = pto.pnot %tail, %tail : !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
 
 // Combine: lanes in remainder region AND NOT in comparison result
-%active = pto.pand %tail, %not_tail, %tail : !pto.mask, !pto.mask, !pto.mask -> !pto.mask
+%active = pto.pand %tail, %not_tail, %tail : !pto.mask<G>, !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
 ```
 
 ## Related Ops / Instruction Set Links

@@ -7,19 +7,19 @@
 ### PTO 汇编形式
 
 ```text
-psti %mask, %ub_ptr[%imm], "DIST" : !pto.mask, !pto.ptr<i64, ub>, i32
+psti %mask, %ub_ptr[%imm], "DIST" : !pto.mask<G>, !pto.ptr<i64, ub>, i32
 ```
 
 ### AS Level 1（SSA）
 
 ```mlir
-pto.psti %mask, %ub_ptr, %imm, "DIST" : !pto.mask, !pto.ptr<i64, ub>, i32
+pto.psti %mask, %ub_ptr, %imm, "DIST" : !pto.mask<G>, !pto.ptr<i64, ub>, i32
 ```
 
 ### AS Level 2（DPS）
 
 ```mlir
-pto.psti ins(%mask, %ub_ptr, %imm, "DIST" : !pto.mask, !pto.ptr<i64, ub>, i32)
+pto.psti ins(%mask, %ub_ptr, %imm, "DIST" : !pto.mask<G>, !pto.ptr<i64, ub>, i32)
 ```
 
 ## 关键约束

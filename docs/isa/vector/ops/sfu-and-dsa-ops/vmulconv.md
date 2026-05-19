@@ -21,7 +21,7 @@ vmulconv %dst, %lhs, %rhs, %mask : !pto.vreg<NxT0>
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vmulconv %lhs, %rhs, %mask : (!pto.vreg<NxT0>, !pto.vreg<NxT0>, !pto.mask) -> !pto.vreg<MxT1>
+%result = pto.vmulconv %lhs, %rhs, %mask : (!pto.vreg<NxT0>, !pto.vreg<NxT0>, !pto.mask<G>) -> !pto.vreg<MxT1>
 ```
 
 ## Inputs
@@ -30,7 +30,7 @@ vmulconv %dst, %lhs, %rhs, %mask : !pto.vreg<NxT0>
 ||---------|------|-------------|
 || `%lhs` | `!pto.vreg<NxT0>` | Left-hand source vector |
 || `%rhs` | `!pto.vreg<NxT0>` | Right-hand source vector |
-|| `%mask` | `!pto.mask` | Predicate mask; lanes where mask bit is 1 are active |
+|| `%mask` | `!pto.mask<G>` | Predicate mask; lanes where mask bit is 1 are active |
 
 Both source vectors MUST have the same element type `T0` and the same vector width `N`. The mask width MUST match `N`.
 
@@ -98,7 +98,7 @@ for (int i = 0; i < 128; i++)
 ### MLIR form
 
 ```mlir
-%result = pto.vmulconv %lhs, %rhs, %mask : (!pto.vreg<128xf16>, !pto.vreg<128xf16>, !pto.mask) -> !pto.vreg<128xi8>
+%result = pto.vmulconv %lhs, %rhs, %mask : (!pto.vreg<128xf16>, !pto.vreg<128xf16>, !pto.mask<G>) -> !pto.vreg<128xi8>
 ```
 
 ## Extended Arithmetic

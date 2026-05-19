@@ -21,13 +21,13 @@ vmul %dst, %lhs, %rhs, %mask : !pto.vreg<NxT>
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vmul %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vmul %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.vmul ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask)
+pto.vmul ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>)
     outs(%result : !pto.vreg<NxT>)
 ```
 

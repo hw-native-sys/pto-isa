@@ -92,4 +92,4 @@ vldus %result, %align_out, %base_out, %source, %align
 
 - 指令集总览：[向量加载与存储](../../vector-load-store_zh.md)
 - 上一条指令：[pto.vldas](./vldas_zh.md)
-- 下一条指令：[pto.vldx2](./vldx2_zh.md)
+- 下一条指令：[pto.vldsx2](./vldsx2_zh.md)

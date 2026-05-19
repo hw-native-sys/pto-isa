@@ -24,7 +24,7 @@ The `pto.v*` vector micro-instruction set of PTO ISA is organized by instruction
 | Type | Description |
 |------|-------------|
 | `!pto.vreg<NxT>` | Vector register with N lanes of type T |
-| `!pto.mask` | Predicate mask (width matches vector length) |
+| `!pto.mask<G>` | Predicate mask (width matches vector length) |
 | `!pto.scalar<T>` | Scalar register |
 
 ### Vector Lengths

@@ -10,9 +10,10 @@
 | 分组 | 说明 | 操作 |
 |-------|------|------|
 | [BlockDim 与运行时查询](./block-dim-query_zh.md) | 查询 block / subblock 编号与数量 | `pto.get_block_idx`、`pto.get_subblock_idx`、`pto.get_block_num`、`pto.get_subblock_num` |
+| [VMS4 状态查询](./vms4-status-query_zh.md) | 读取 4 路合并排序状态寄存器 | `pto.get_vms4_sr` |
 | [指针操作](./pointer-operations_zh.md) | 构造类型化指针并做指针算术 | `pto.castptr`、`pto.addptr`、`pto.load_scalar`、`pto.store_scalar` |
 | [向量执行作用域](./vecscope_zh.md) | 向量函数启动与作用域边界 | `pto.vecscope`、`pto.strict_vecscope` |
-| [对齐状态类型](./align-type_zh.md) | 非对齐 load/store 的对齐状态管理 | `pto.init_align`、`pto.vldas`、`pto.vldus`、`pto.vstus` |
+| [对齐状态类型](./align-type_zh.md) | 非对齐 load/store 的对齐状态管理。load 流由 `pto.vldas` 起始；store 流由 `pto.init_align` 起始。 | `pto.vldas`、`pto.vldus`（load）；`pto.init_align`、`pto.vstus`（store） |
 
 ## 覆盖范围
 

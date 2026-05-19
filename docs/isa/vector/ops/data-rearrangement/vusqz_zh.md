@@ -30,14 +30,14 @@ vusqz %dst, %mask
 ### AS Level 1（SSA）
 
 ```mlir
-%result = pto.vusqz %mask : !pto.mask -> !pto.vreg<NxT>
+%result = pto.vusqz %mask : !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 ## 输入
 
 | 操作数 | 类型 | 说明 |
 |--------|------|------|
-| `%mask` | `!pto.mask` | 指定哪些 lane 应接收前部压紧流元素的谓词 |
+| `%mask` | `!pto.mask<G>` | 指定哪些 lane 应接收前部压紧流元素的谓词 |
 
 ## 预期输出
 

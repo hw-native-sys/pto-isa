@@ -24,27 +24,27 @@
 
 ### `pto.vadds`
 
-- **语法：** `%result = pto.vadds %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vadds %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 执行 `src[i] + scalar`。
 
 ### `pto.vsubs`
 
-- **语法：** `%result = pto.vsubs %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vsubs %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 执行 `src[i] - scalar`。
 
 ### `pto.vmuls`
 
-- **语法：** `%result = pto.vmuls %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vmuls %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 执行 `src[i] * scalar`。
 
 ### `pto.vmaxs`
 
-- **语法：** `%result = pto.vmaxs %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vmaxs %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 与同一个标量取最大值。
 
 ### `pto.vmins`
 
-- **语法：** `%result = pto.vmins %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vmins %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 与同一个标量取最小值。
 
 这些指令的关键语义不是“标量先被编译器显式广播，再套用普通二元运算”，而是广播本身就是这条指令的定义。
@@ -55,17 +55,17 @@
 
 ### `pto.vands`
 
-- **语法：** `%result = pto.vands %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vands %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 与统一标量做按位与。
 
 ### `pto.vors`
 
-- **语法：** `%result = pto.vors %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vors %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 与统一标量做按位或。
 
 ### `pto.vxors`
 
-- **语法：** `%result = pto.vxors %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vxors %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 与统一标量做按位异或。
 
 这三条只对整数元素类型合法。
@@ -76,12 +76,12 @@
 
 ### `pto.vshls`
 
-- **语法：** `%result = pto.vshls %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vshls %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 把统一位移量应用到每个活跃 lane 的左移。
 
 ### `pto.vshrs`
 
-- **语法：** `%result = pto.vshrs %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vshrs %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 把统一位移量应用到每个活跃 lane 的右移。
 
 这两条与 `vshl` / `vshr` 的差别在于：后者的位移量来自第二个向量寄存器，前者是单一标量统一广播。
@@ -94,7 +94,7 @@
 
 ### `pto.vlrelu`
 
-- **语法：** `%result = pto.vlrelu %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vlrelu %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** Leaky ReLU，其中 `%scalar` 是统一斜率。
 
 ```c
@@ -110,7 +110,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vaddcs`
 
-- **语法：** `%result, %carry = pto.vaddcs %lhs, %rhs, %carry_in, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask, !pto.mask -> !pto.vreg<NxT>, !pto.mask`
+- **语法：** `%result, %carry = pto.vaddcs %lhs, %rhs, %carry_in, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>, !pto.mask<G> -> !pto.vreg<NxT>, !pto.mask<G>`
 - **语义：** 带 carry-in 和 carry-out 的加法。
 
 ```c
@@ -123,7 +123,7 @@ for (int i = 0; i < N; i++) {
 
 ### `pto.vsubcs`
 
-- **语法：** `%result, %borrow = pto.vsubcs %lhs, %rhs, %borrow_in, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask, !pto.mask -> !pto.vreg<NxT>, !pto.mask`
+- **语法：** `%result, %borrow = pto.vsubcs %lhs, %rhs, %borrow_in, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>, !pto.mask<G> -> !pto.vreg<NxT>, !pto.mask<G>`
 - **语义：** 带 borrow-in 和 borrow-out 的减法。
 
 ```c
@@ -141,18 +141,18 @@ for (int i = 0; i < N; i++) {
 
 ```mlir
 %biased = pto.vadds %activation, %bias_scalar, %mask
-    : !pto.vreg<64xf32>, f32, !pto.mask -> !pto.vreg<64xf32>
+    : !pto.vreg<64xf32>, f32, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 %scaled = pto.vmuls %input, %scale, %mask
-    : !pto.vreg<64xf32>, f32, !pto.mask -> !pto.vreg<64xf32>
+    : !pto.vreg<64xf32>, f32, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 %clamped_low = pto.vmaxs %input, %c0, %mask
-    : !pto.vreg<64xf32>, f32, !pto.mask -> !pto.vreg<64xf32>
+    : !pto.vreg<64xf32>, f32, !pto.mask<b32> -> !pto.vreg<64xf32>
 %clamped = pto.vmins %clamped_low, %c255, %mask
-    : !pto.vreg<64xf32>, f32, !pto.mask -> !pto.vreg<64xf32>
+    : !pto.vreg<64xf32>, f32, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 %shifted = pto.vshrs %data, %c4, %mask
-    : !pto.vreg<64xi32>, i32, !pto.mask -> !pto.vreg<64xi32>
+    : !pto.vreg<64xi32>, i32, !pto.mask<b32> -> !pto.vreg<64xi32>
 ```
 
 ---

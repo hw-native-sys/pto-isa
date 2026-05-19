@@ -21,7 +21,7 @@ vcpadd %dst, %src, %mask : !pto.vreg<NxT>
 ### AS Level 1（SSA）
 
 ```mlir
-%result = pto.vcpadd %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vcpadd %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 ## 输入
@@ -29,7 +29,7 @@ vcpadd %dst, %src, %mask : !pto.vreg<NxT>
 | 操作数 | 类型 | 说明 |
 |--------|------|------|
 | `%input` | `!pto.vreg<NxT>` | 做 scan 的源向量 |
-| `%mask` | `!pto.mask` | 谓词掩码；inactive lane 贡献 0 |
+| `%mask` | `!pto.mask<G>` | 谓词掩码；inactive lane 贡献 0 |
 
 ## 预期输出
 
@@ -71,7 +71,7 @@ for (int i = 0; i < N; i++) {
 ```
 
 ```mlir
-%cdf = pto.vcpadd %pdf, %mask : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+%cdf = pto.vcpadd %pdf, %mask : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 ```
 
 ## 性能

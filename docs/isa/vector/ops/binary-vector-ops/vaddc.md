@@ -31,14 +31,14 @@ vaddc %dst, %carry, %lhs, %rhs, %mask : !pto.vreg<NxT>
 ### AS Level 1 (SSA)
 
 ```mlir
-%result, %carry = pto.vaddc %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask) -> !pto.vreg<NxT>, !pto.mask
+%result, %carry = pto.vaddc %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>) -> !pto.vreg<NxT>, !pto.mask<G>
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.vaddc ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask)
-            outs(%result, %carry : !pto.vreg<NxT>, !pto.mask)
+pto.vaddc ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>)
+            outs(%result, %carry : !pto.vreg<NxT>, !pto.mask<G>)
 ```
 
 ## Inputs
@@ -47,7 +47,7 @@ pto.vaddc ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask)
 |---------|------|-------------|
 | `%lhs` | `!pto.vreg<NxT>` | Minuend: the first addend |
 | `%rhs` | `!pto.vreg<NxT>` | Subtrahend: the second addend |
-| `%mask` | `!pto.mask` | Predicate mask; lanes where mask bit is 1 are active |
+| `%mask` | `!pto.mask<G>` | Predicate mask; lanes where mask bit is 1 are active |
 
 Both source registers MUST have the same element type and the same vector width `N`. The mask width MUST match `N`.
 
@@ -56,7 +56,7 @@ Both source registers MUST have the same element type and the same vector width 
 | Result | Type | Description |
 |--------|------|-------------|
 | `%result` | `!pto.vreg<NxT>` | Lane-wise truncated sum on active lanes; inactive lanes are unmodified |
-| `%carry` | `!pto.mask` | Per-lane carry/overflow predicate: lane `i` is 1 if unsigned overflow occurred in lane `i` |
+| `%carry` | `!pto.mask<G>` | Per-lane carry/overflow predicate: lane `i` is 1 if unsigned overflow occurred in lane `i` |
 
 ## Side Effects
 
@@ -110,7 +110,7 @@ for (int i = 0; i < N; i++) {
 
 ```mlir
 // Single-element addition with carry
-%result, %carry = pto.vaddc %a, %b, %active : (!pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask) -> !pto.vreg<64xi32>, !pto.mask
+%result, %carry = pto.vaddc %a, %b, %active : (!pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask<b32>) -> !pto.vreg<64xi32>, !pto.mask<b32>
 
 // Multi-word addition: chain carries into next segment
 %sum0, %carry0 = pto.vaddc %a0, %b0, %active : ...  // low words

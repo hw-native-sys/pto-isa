@@ -21,7 +21,7 @@ vrelu %result, %input, %mask
 ### AS Level 1（SSA）
 
 ```mlir
-%result = pto.vrelu %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vrelu %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 A5 当前文档化支持的类型：`f16`、`f32`。
@@ -31,7 +31,7 @@ A5 当前文档化支持的类型：`f16`、`f32`。
 | 操作数 | 类型 | 说明 |
 |--------|------|------|
 | `%input` | `!pto.vreg<NxT>` | 源向量寄存器；在每个活跃 lane 上读取 |
-| `%mask` | `!pto.mask` | 谓词掩码；掩码位为 1 的 lane 为活跃 lane |
+| `%mask` | `!pto.mask<G>` | 谓词掩码；掩码位为 1 的 lane 为活跃 lane |
 
 ## 预期输出
 

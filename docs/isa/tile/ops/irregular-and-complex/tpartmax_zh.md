@@ -1,4 +1,4 @@
-﻿# TPARTMAX
+# TPARTMAX
 
 ## 指令示意图
 

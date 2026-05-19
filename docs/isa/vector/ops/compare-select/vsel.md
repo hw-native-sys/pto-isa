@@ -21,7 +21,7 @@ vsel %dst, %src_true, %src_false, %mask : !pto.vreg<NxT>
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vsel %src0, %src1, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vsel %src0, %src1, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 ## Inputs
@@ -30,7 +30,7 @@ vsel %dst, %src_true, %src_false, %mask : !pto.vreg<NxT>
 | --- | --- | --- |
 | %src0 | `!pto.vreg<NxT>` | Value selected when the mask bit is 1 |
 | %src1 | `!pto.vreg<NxT>` | Value selected when the mask bit is 0 |
-| %mask | `!pto.mask` | Predicate mask that chooses between `%src0` and `%src1` per lane |
+| %mask | `!pto.mask<G>` | Predicate mask that chooses between `%src0` and `%src1` per lane |
 
 ## Expected Outputs
 
@@ -68,7 +68,7 @@ for (int i = 0; i < N; i++)
 ```
 
 ```mlir
-%result = pto.vsel %true_vals, %false_vals, %condition : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+%result = pto.vsel %true_vals, %false_vals, %condition : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 ```
 
 ## Related Ops / Instruction Set Links

@@ -1,6 +1,6 @@
-# pto.vldx2
+# pto.vldsx2
 
-`pto.vldx2` 属于[向量加载与存储](../../vector-load-store_zh.md)指令集。
+`pto.vldsx2` 属于[向量加载与存储](../../vector-load-store_zh.md)指令集。
 
 ## 概述
 
@@ -8,20 +8,20 @@
 
 ## 机制
 
-`pto.vldx2` 属于 PTO 的向量内存 / 数据搬运指令。它从 UB 中读取交错布局的数据，并一次返回两路结果向量。关键点不只是“读两次”，而是这两路结果构成一个有顺序的语义对。
+`pto.vldsx2` 属于 PTO 的向量内存 / 数据搬运指令。它从 UB 中读取交错布局的数据，并一次返回两路结果向量。关键点不只是“读两次”，而是这两路结果构成一个有顺序的语义对。
 
 ## 语法
 
 ### PTO 汇编形式
 
 ```text
-vldx2 %low, %high, %source[%offset], "DIST"
+vldsx2 %low, %high, %source[%offset], "DIST"
 ```
 
 ### AS Level 1（SSA）
 
 ```mlir
-%low, %high = pto.vldx2 %source[%offset], "DIST" : !pto.ptr<T, ub>, index -> !pto.vreg<NxT>, !pto.vreg<NxT>
+%low, %high = pto.vldsx2 %source[%offset], "DIST" : !pto.ptr<T, ub>, index -> !pto.vreg<NxT>, !pto.vreg<NxT>
 ```
 
 ## 输入
@@ -48,12 +48,23 @@ vldx2 %low, %high, %source[%offset], "DIST"
 
 !!! danger "异常与非法情形"
     - 使用超出 UB 可见空间的地址，或违反所选分布模式的地址 / 对齐契约，都是非法的。
-    - 约束部分列出的额外非法情形，同样属于 `pto.vldx2` 的契约。
+    - 约束部分列出的额外非法情形，同样属于 `pto.vldsx2` 的契约。
 
 ## 目标 Profile 限制
 
 ??? info "目标 Profile 限制"
     - A5 是当前手册里最细的具体 profile；CPU 模拟器和 A2/A3 类目标可以在保留可见 PTO 契约的前提下做等效模拟。
+
+## 性能
+
+PTO-Gym v0.6 SPEC 为 A5 profile 上 `pto.vldsx2` 的所有分布族公布了统一的 9 周期时延。
+
+| 指标 | 值 | 来源 |
+|------|------|------|
+| A5 时延（`BDINTLV`、`DINTLV_B8`、`DINTLV_B16`、`DINTLV_B32`） | **9** 周期 | PTO-Gym v0.6 SPEC §III 向量加载/存储 |
+| 稳态吞吐 | 未公开 | 当前公开 VPTO 时序材料 |
+
+CPU 模拟和 A2/A3 类目标按 target-defined 处理；如需精确成本，请在具体 backend 实测，不要直接套用 A5 数值。
 
 ## 示例
 
@@ -66,7 +77,7 @@ for (int i = 0; i < 64; i++) {
 ```
 
 ```mlir
-%x, %y = pto.vldx2 %ub[%offset], "DINTLV_B32" : !pto.ptr<f32, ub>, index -> !pto.vreg<64xf32>, !pto.vreg<64xf32>
+%x, %y = pto.vldsx2 %ub[%offset], "DINTLV_B32" : !pto.ptr<f32, ub>, index -> !pto.vreg<64xf32>, !pto.vreg<64xf32>
 ```
 
 ## 详细说明

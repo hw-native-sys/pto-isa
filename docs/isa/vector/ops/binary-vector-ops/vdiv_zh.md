@@ -27,7 +27,7 @@ vdiv %result, %lhs, %rhs, %mask
 ### AS Level 1（SSA）
 
 ```mlir
-%result = pto.vdiv %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vdiv %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 A5 当前文档化的形式只有 `f16` 与 `f32`。

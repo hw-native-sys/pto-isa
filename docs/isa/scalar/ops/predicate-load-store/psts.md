@@ -8,7 +8,7 @@ Store the full predicate register to a contiguous UB location.
 
 ## Mechanism
 
-`pto.psts` writes a predicate word from `!pto.mask` to a UB address. The operation covers the full predicate width for the active element type (64 bits for f32, 128 bits for f16/bf16, 256 bits for i8/u8).
+`pto.psts` writes a predicate word from `!pto.mask<G>` to a UB address. The operation covers the full predicate width for the active element type (64 bits for f32, 128 bits for f16/bf16, 256 bits for i8/u8).
 
 For predicate width `Pw` and UB address `base`:
 
@@ -21,19 +21,19 @@ The predicate register is read atomically. On A2/A3 and A5 only the low N bits o
 ### PTO Assembly Form
 
 ```mlir
-pto.psts %mask, %ub_ptr : !pto.mask, !pto.ptr<i64, ub>
+pto.psts %mask, %ub_ptr : !pto.mask<G>, !pto.ptr<i64, ub>
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-pto.psts %mask, %ub_ptr : !pto.mask, !pto.ptr<i64, ub>
+pto.psts %mask, %ub_ptr : !pto.mask<G>, !pto.ptr<i64, ub>
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.psts ins(%mask, %ub_ptr : !pto.mask, !pto.ptr<i64, ub>)
+pto.psts ins(%mask, %ub_ptr : !pto.mask<G>, !pto.ptr<i64, ub>)
 ```
 
 ## C++ Intrinsic
@@ -50,7 +50,7 @@ psts(src, base, offset, __cce_simd::NORM, __cce_simd::POST_UPDATE);
 
 | Operand | Type | Description |
 |---------|------|-------------|
-| `%mask` | `!pto.mask` | Predicate register to store |
+| `%mask` | `!pto.mask<G>` | Predicate register to store |
 | `%ub_ptr` | `!pto.ptr<i64, ub>` | UB destination address (must be 64-bit aligned) |
 
 ## Expected Outputs
@@ -103,10 +103,10 @@ void save_mask(RegBuf<predicate_t>& src, Ptr<ub_space_t, ub_t> dst) {
 
 ```mlir
 // Generate comparison mask
-%mask = pto.vcmp %v0, %v1, %seed, "lt" : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.mask
+%mask = pto.vcmp %v0, %v1, %seed, "lt" : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.mask<b32>
 
 // Store predicate to UB for later reuse
-pto.psts %mask, %ub_mask_slot0 : !pto.mask, !pto.ptr<i64, ub>
+pto.psts %mask, %ub_mask_slot0 : !pto.mask<G>, !pto.ptr<i64, ub>
 ```
 
 ## Related Ops / Instruction Set Links

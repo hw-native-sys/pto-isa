@@ -1,6 +1,6 @@
-# pto.vexpdiff
+# pto.vexpdif
 
-`pto.vexpdiff` is part of the [SFU And DSA Instructions](../../sfu-and-dsa-ops.md) instruction set.
+`pto.vexpdif` is part of the [SFU And DSA Instructions](../../sfu-and-dsa-ops.md) instruction set.
 
 ## Summary
 
@@ -8,20 +8,20 @@ Fused exp(x - max) for numerically stable softmax.
 
 ## Mechanism
 
-`pto.vexpdiff` is a specialized `pto.v*` operation. It exposes fused, widening, or domain-specific hardware behavior through one stable virtual mnemonic so the instruction set can be reasoned about at the ISA level.
+`pto.vexpdif` is a specialized `pto.v*` operation. It exposes fused, widening, or domain-specific hardware behavior through one stable virtual mnemonic so the instruction set can be reasoned about at the ISA level.
 
 ## Syntax
 
 ### PTO Assembly Form
 
 ```text
-vexpdiff %result, %input, %max
+vexpdif %result, %input, %max
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vexpdiff %input, %max : !pto.vreg<NxT>, !pto.vreg<NxT> -> !pto.vreg<NxT>
+%result = pto.vexpdif %input, %max : !pto.vreg<NxT>, !pto.vreg<NxT> -> !pto.vreg<NxT>
 ```
 
 Documented A5 types or forms: `f16, f32`.
@@ -63,14 +63,14 @@ This operation has no architectural side effect beyond producing its SSA results
 ### Timing Disclosure
 
 The current public VPTO timing material for PTO micro instructions remains limited.
-For `pto.vexpdiff`, those public sources describe the instruction semantics, operand legality, and pipeline placement, but they do **not** publish a numeric latency or steady-state throughput.
+For `pto.vexpdif`, those public sources describe the instruction semantics, operand legality, and pipeline placement, but they do **not** publish a numeric latency or steady-state throughput.
 
 | Metric | Status | Source Basis |
 |--------|--------|--------------|
 | A5 latency | Not publicly published | Current public VPTO timing material |
 | Steady-state throughput | Not publicly published | Current public VPTO timing material |
 
-If software scheduling or performance modeling depends on the exact cost of `pto.vexpdiff`, treat that cost as target-profile-specific and measure it on the concrete backend rather than inferring a manual constant.
+If software scheduling or performance modeling depends on the exact cost of `pto.vexpdif`, treat that cost as target-profile-specific and measure it on the concrete backend rather than inferring a manual constant.
 
 ## Examples
 

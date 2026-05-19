@@ -1,4 +1,4 @@
-﻿# TEXPANDS
+# TEXPANDS
 
 ## 指令示意图
 

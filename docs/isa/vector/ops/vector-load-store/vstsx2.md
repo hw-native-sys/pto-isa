@@ -1,6 +1,6 @@
-# pto.vstx2
+# pto.vstsx2
 
-`pto.vstx2` is part of the [Vector Load Store](../../vector-load-store.md) instruction set.
+`pto.vstsx2` is part of the [Vector Load Store](../../vector-load-store.md) instruction set.
 
 ## Summary
 
@@ -8,20 +8,20 @@ Dual interleaved store (SoA → AoS conversion).
 
 ## Mechanism
 
-`pto.vstx2` is part of the PTO vector memory/data-movement instruction set. It keeps UB addressing, distribution, mask behavior, and any alignment-state threading explicit in SSA form rather than hiding those details in backend-specific lowering.
+`pto.vstsx2` is part of the PTO vector memory/data-movement instruction set. It keeps UB addressing, distribution, mask behavior, and any alignment-state threading explicit in SSA form rather than hiding those details in backend-specific lowering.
 
 ## Syntax
 
 ### PTO Assembly Form
 
 ```text
-vstx2 %low, %high, %dest[%offset], "DIST", %mask
+vstsx2 %low, %high, %dest[%offset], "DIST", %mask
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-pto.vstx2 %low, %high, %dest[%offset], "DIST", %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.ptr<T, ub>, index, !pto.mask
+pto.vstsx2 %low, %high, %dest[%offset], "DIST", %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.ptr<T, ub>, index, !pto.mask<G>
 ```
 
 ## Inputs
@@ -62,15 +62,14 @@ This operation writes UB-visible memory and/or updates streamed alignment state.
 
 ### Timing Disclosure
 
-The current public VPTO timing material for PTO micro instructions remains limited.
-For `pto.vstx2`, those public sources describe the instruction semantics, operand legality, and pipeline placement, but they do **not** publish a numeric latency or steady-state throughput.
+PTO-Gym v0.6 SPEC publishes a uniform 12-cycle latency for the `INTLV` distribution family of `pto.vstsx2` on the A5 profile.
 
-| Metric | Status | Source Basis |
-|--------|--------|--------------|
-| A5 latency | Not publicly published | Current public VPTO timing material |
+| Metric | Value | Source Basis |
+|--------|-------|--------------|
+| A5 latency (`INTLV`, all element widths) | **12** cycles | PTO-Gym v0.6 SPEC, §III Vector Load/Store |
 | Steady-state throughput | Not publicly published | Current public VPTO timing material |
 
-If software scheduling or performance modeling depends on the exact cost of `pto.vstx2`, treat that cost as target-profile-specific and measure it on the concrete backend rather than inferring a manual constant.
+Other target profiles (CPU simulation, A2/A3) treat the cost as target-defined; measure on the concrete backend rather than reusing the A5 number.
 
 ## Examples
 

@@ -8,7 +8,7 @@ Load the full predicate register from a contiguous UB location.
 
 ## Mechanism
 
-`pto.plds` reads a predicate word from a UB address and materializes it as `!pto.mask`. The operation covers the full predicate width for the active element type (64 bits for f32, 128 bits for f16/bf16, 256 bits for i8/u8).
+`pto.plds` reads a predicate word from a UB address and materializes it as `!pto.mask<G>`. The operation covers the full predicate width for the active element type (64 bits for f32, 128 bits for f16/bf16, 256 bits for i8/u8).
 
 For predicate width `Pw` and UB address `base`:
 
@@ -21,19 +21,19 @@ The predicate register is updated atomically. All bits are meaningful only withi
 ### PTO Assembly Form
 
 ```mlir
-%mask = pto.plds %ub_ptr : !pto.ptr<i64, ub> -> !pto.mask
+%mask = pto.plds %ub_ptr : !pto.ptr<i64, ub> -> !pto.mask<G>
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-%mask = pto.plds %ub_ptr : !pto.ptr<i64, ub> -> !pto.mask
+%mask = pto.plds %ub_ptr : !pto.ptr<i64, ub> -> !pto.mask<G>
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.plds ins(%ub_ptr : !pto.ptr<i64, ub>) outs(%mask : !pto.mask)
+pto.plds ins(%ub_ptr : !pto.ptr<i64, ub>) outs(%mask : !pto.mask<G>)
 ```
 
 ## C++ Intrinsic
@@ -56,7 +56,7 @@ plds(dst, base, offset, __cce_simd::NORM, __cce_simd::POST_UPDATE);
 
 | Result | Type | Description |
 |--------|------|-------------|
-| `%mask` | `!pto.mask` | Loaded predicate register |
+| `%mask` | `!pto.mask<G>` | Loaded predicate register |
 
 ## Side Effects
 
@@ -103,10 +103,10 @@ void load_saved_mask(RegBuf<predicate_t>& dst, Ptr<ub_space_t, ub_t> src) {
 
 ```mlir
 // Load predicate from UB slot 0
-%mask = pto.plds %ub_mask_slot0 : !pto.ptr<i64, ub> -> !pto.mask
+%mask = pto.plds %ub_mask_slot0 : !pto.ptr<i64, ub> -> !pto.mask<G>
 
 // Use predicate in vector select
-%result = pto.vsel %v_true, %v_false, %mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+%result = pto.vsel %v_true, %v_false, %mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 ```
 
 ## Related Ops / Instruction Set Links

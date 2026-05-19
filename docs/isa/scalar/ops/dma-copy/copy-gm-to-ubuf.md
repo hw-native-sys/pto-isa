@@ -1,44 +1,41 @@
-# pto.copy_gm_to_ubuf
+# pto.mte_gm_ub
 
-`pto.copy_gm_to_ubuf` is part of the [DMA Copy](../../dma-copy.md) instruction set.
+`pto.mte_gm_ub` is part of the [DMA Copy](../../dma-copy.md) instruction set.
+
+!!! note "PTO ISA v0.6 surface"
+    The v0.6 PTO micro-instruction surface replaces the earlier `pto.copy_gm_to_ubuf` plus standalone `set_loop_size_*` / `set_loop_stride_*` configuration ops with a single grouped instruction: `pto.mte_gm_ub` with inline `nburst(...)`, optional `loop(...)`, and optional `pad(...)` clauses. The information previously carried in separate loop / stride configuration registers is now expressed directly on the transfer op.
 
 ## Summary
 
-Execute a DMA transfer from Global Memory into Unified Buffer using the current GM→UB loop and stride configuration.
+Execute a grouped GM→UB DMA transfer. `nburst(...)` defines the innermost repeated burst transfer, optional `loop(...)` groups add outer repetition levels, and optional `pad(...)` controls UB row padding.
 
 ## Mechanism
 
-The DMA engine reads `%n_burst` rows from `%gm_src` and writes them to `%ub_dst`. `%len_burst` controls the contiguous byte count copied per row. `%left_padding`, `%right_padding`, and `%data_select_bit` control whether the destination row is padded beyond the copied byte range. `%src_stride` and `%dst_stride` specify the row-to-row start offsets for this copy invocation.
+The MTE2 engine reads `%n_burst` source rows from `%gm_src` and writes them to `%ub_dst`. Each row transfers `%len_burst` contiguous bytes, and the source / destination stride operands give the start-to-start byte distance from one row to the next. Optional outer `loop(...)` groups wrap `nburst(...)` to express multi-level repetition without external loop-config state. When `pad(...)` is present, UB rows are padded up to the next 32-byte aligned boundary using the supplied fill value.
 
 ## Syntax
 
-### PTO Assembly Form
-
-```text
-copy_gm_to_ubuf %gm_src, %ub_dst, %sid, %n_burst, %len_burst, %left_padding, %right_padding, %data_select_bit, %l2_cache_ctl, %src_stride, %dst_stride
-```
-
-### AS Level 1 (SSA)
-
 ```mlir
-pto.copy_gm_to_ubuf %gm_src, %ub_dst, %sid, %n_burst, %len_burst, %left_padding, %right_padding, %data_select_bit, %l2_cache_ctl, %src_stride, %dst_stride : !pto.ptr<T, gm>, !pto.ptr<T, ub>, i64, i64, i64, i64, i64, i1, i64, i64, i64
+pto.mte_gm_ub %gm_src, %ub_dst, %l2_cache_ctl, %len_burst
+  nburst(%n_burst, %src_stride, %dst_stride)
+  [loop(%loop_count, %loop_src_stride, %loop_dst_stride)]*
+  [pad(%pad_value[, %left_padding_count, %right_padding_count])]
+  : !pto.ptr<T, gm>, !pto.ptr<T, ub>, i64, i64, i64, i64, i64,
+    [loop i64, i64, i64,]*
+    [pad T[, i64, i64]]
 ```
 
 ## Inputs
 
-| Operand | Type | Description |
-| --- | --- | --- |
-| %gm_src | `!pto.ptr<T, gm>` | GM source pointer |
-| %ub_dst | `!pto.ptr<T, ub>` | UB destination pointer |
-| %sid | `i64` | DMA stream identifier |
-| %n_burst | `i64` | Number of burst rows to transfer |
-| %len_burst | `i64` | Contiguous byte count transferred per row |
-| %left_padding | `i64` | Left padding byte count applied in the destination row |
-| %right_padding | `i64` | Right padding byte count applied in the destination row |
-| %data_select_bit | `i1` | Controls whether padding bytes are materialized according to the configured pad behavior |
-| %l2_cache_ctl | `i64` | Target-specific L2 cache allocation hint |
-| %src_stride | `i64` | GM row-to-row start offset in bytes |
-| %dst_stride | `i64` | UB row-to-row start offset in bytes |
+| Parameter | Width | Description |
+|-----------|-------|-------------|
+| `%gm_src` | ptr | GM source pointer (`!pto.ptr<T, gm>`) |
+| `%ub_dst` | ptr | UB destination pointer (`!pto.ptr<T, ub>`, 32B-aligned) |
+| `%l2_cache_ctl` | 2 bits | L2 cache allocate control |
+| `%len_burst` | 16 bits | Contiguous bytes transferred per burst row |
+| `nburst(%n_burst, %src_stride, %dst_stride)` | 16 bits / 40 bits / 21 bits | Required innermost burst group: count, GM source stride, UB destination stride |
+| `loop(%loop_count, %loop_src_stride, %loop_dst_stride)` | 21 bits / 40 bits / 21 bits | Optional outer repetition group: count, GM source stride, UB destination stride |
+| `pad(%pad_value[, %left_padding_count, %right_padding_count])` | scalar / 8 bits / 8 bits | Optional padding: fill value, optional left padding count, optional right padding count |
 
 ## Expected Outputs
 
@@ -48,19 +45,23 @@ pto.copy_gm_to_ubuf %gm_src, %ub_dst, %sid, %n_burst, %len_burst, %left_padding,
 
 ## Side Effects
 
-Reads GM-visible storage, writes UB-visible storage, and consumes the active GM→UB loop and stride configuration.
+Reads GM-visible storage and writes UB-visible storage. The MTE2 pipe is engaged for the duration of the transfer; downstream consumers must synchronize through `pto.set_flag` / `pto.wait_flag` (`PIPE_MTE2` → `PIPE_V`).
 
 ## Constraints
 
 !!! warning "Constraints"
-    - `%ub_dst` MUST satisfy the UB alignment requirements of the selected target profile.
-    - `%len_burst` MUST fit within the configured row stride and DMA limits of the selected target profile.
-    - If padding is enabled, the padded destination footprint MUST still fit in the destination UB region.
+    - `nburst(...)` is always required.
+    - Each `loop(...)` group must be provided as a complete triple when present.
+    - `nburst(...)` is the innermost group.
+    - `loop(...)` groups are ordered from inner to outer; the first `loop(...)` group wraps `nburst(...)`, and each additional `loop(...)` group wraps all earlier groups.
+    - `pad(...)` may contain only `%pad_value`; omitted left and right padding counts default to 0. If either left or right count is provided, both must be provided.
+    - `pad(...)` is independent of the optional `loop(...)` groups. A DMA load may use `nburst(...) pad(...)` without any `loop(...)` group.
+    - `%ub_dst` MUST be 32-byte aligned. When `pad(...)` is present, each UB row is padded from `%len_burst` up to the 32B-aligned boundary of the UB destination stride, ensuring every row starts at a 32B-aligned offset.
 
 ## Exceptions
 
 !!! danger "Exceptions"
-    - The verifier rejects illegal operand shapes, unsupported pipe or event identifiers, and attribute combinations that are not valid for the selected instruction set or target profile.
+    - The verifier rejects illegal operand shapes, malformed clause groups, and attribute combinations not valid for the selected target profile.
     - Any additional illegality stated in the constraints section is also part of the contract.
 
 ## Target-Profile Restrictions
@@ -72,12 +73,29 @@ Reads GM-visible storage, writes UB-visible storage, and consumes the active GM�
 ## Examples
 
 ```mlir
-pto.copy_gm_to_ubuf %gm_src, %ub_dst, %sid, %n_burst, %len_burst, %left_padding, %right_padding, %data_select_bit, %l2_cache_ctl, %src_stride, %dst_stride : !pto.ptr<f32, gm>, !pto.ptr<f32, ub>, i64, i64, i64, i64, i64, i1, i64, i64, i64
+// Single-level transfer with padding: rows of `%len_burst` bytes,
+// padded to 32B-aligned UB rows using %pad as fill.
+pto.mte_gm_ub %gm_in, %ub_out, %cache, %len_burst
+  nburst(%rows, %gm_row_stride, %ub_row_stride)
+  pad(%pad)
+  : !pto.ptr<f16, gm>, !pto.ptr<f16, ub>, i64, i64, i64, i64, i64,
+    pad f16
+```
+
+```mlir
+// Two-level transfer: rows × tiles, with UB row padding.
+pto.mte_gm_ub %gm_in, %ub_out, %cache, %len_burst
+  nburst(%rows, %gm_row_stride, %ub_row_stride)
+  loop(%tiles, %gm_tile_stride, %ub_tile_stride)
+  pad(%pad)
+  : !pto.ptr<f16, gm>, !pto.ptr<f16, ub>, i64, i64, i64, i64, i64,
+    loop i64, i64, i64, pad f16
 ```
 
 ## Related Ops / Instruction Set Links
 
 - Instruction set overview: [DMA Copy](../../dma-copy.md)
-- Previous op in instruction set: [pto.set_loop1_stride_ubtoout](./set-loop1-stride-ubtoout.md)
-- Next op in instruction set: [pto.copy_ubuf_to_gm](./copy-ubuf-to-gm.md)
+- Reverse direction: [pto.mte_ub_gm](./copy-ubuf-to-gm.md)
+- Intra-UB copy: [pto.mte_ub_ub](./copy-ubuf-to-ubuf.md)
+- Pipeline sync: [pto.set_flag](../pipeline-sync/set-flag.md), [pto.wait_flag](../pipeline-sync/wait-flag.md)
 - Control-shell overview: [Control and configuration](../../control-and-configuration.md)

@@ -1,6 +1,6 @@
-# pto.vexpdiff
+# pto.vexpdif
 
-`pto.vexpdiff` 属于[SFU 与 DSA 操作](../../sfu-and-dsa-ops_zh.md)指令集。
+`pto.vexpdif` 属于[SFU 与 DSA 操作](../../sfu-and-dsa-ops_zh.md)指令集。
 
 ## 概述
 
@@ -8,7 +8,7 @@
 
 ## 机制
 
-`pto.vexpdiff` 把“先减去最大值，再做指数”这两个步骤压成一条指令：
+`pto.vexpdif` 把“先减去最大值，再做指数”这两个步骤压成一条指令：
 
 ```text
 dst[i] = exp(input[i] - max[i])
@@ -21,13 +21,13 @@ dst[i] = exp(input[i] - max[i])
 ### PTO 汇编形式
 
 ```text
-vexpdiff %result, %input, %max
+vexpdif %result, %input, %max
 ```
 
 ### AS Level 1（SSA）
 
 ```mlir
-%result = pto.vexpdiff %input, %max : !pto.vreg<NxT>, !pto.vreg<NxT> -> !pto.vreg<NxT>
+%result = pto.vexpdif %input, %max : !pto.vreg<NxT>, !pto.vreg<NxT> -> !pto.vreg<NxT>
 ```
 
 A5 当前文档化支持的类型：`f16`、`f32`。
@@ -55,7 +55,7 @@ A5 当前文档化支持的类型：`f16`、`f32`。
 !!! danger "异常与非法情形"
     - verifier 会拒绝非法的操作数形状、不支持的元素类型以及不合法的属性组合。
     - 数值异常仍由目标 profile 决定。
-    - 约束部分列出的额外非法情形，同样属于 `pto.vexpdiff` 的契约。
+    - 约束部分列出的额外非法情形，同样属于 `pto.vexpdif` 的契约。
 
 ## 目标 Profile 限制
 
@@ -67,7 +67,7 @@ A5 当前文档化支持的类型：`f16`、`f32`。
 
 ### A5 时延
 
-当前手册未给出 `vexpdiff` 的独立周期表，但它正是为了替代 `vsub + vexp` 的两段式路径而存在，通常应视为 softmax 路径的优先形式。
+当前手册未给出 `vexpdif` 的独立周期表，但它正是为了替代 `vsub + vexp` 的两段式路径而存在，通常应视为 softmax 路径的优先形式。
 
 ### A2/A3 吞吐
 

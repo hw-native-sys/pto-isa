@@ -21,7 +21,7 @@ vsubs %dst, %src, %scalar, %mask : !pto.vreg<NxT>, T
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vsubs %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vsubs %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 ## Inputs
@@ -30,7 +30,7 @@ vsubs %dst, %src, %scalar, %mask : !pto.vreg<NxT>, T
 | --- | --- | --- |
 | %input | `!pto.vreg<NxT>` | Source vector register |
 | %scalar | `T` | Scalar operand subtracted from every active lane |
-| %mask | `!pto.mask` | Predicate mask; only lanes with mask bit 1 participate |
+| %mask | `!pto.mask<G>` | Predicate mask; only lanes with mask bit 1 participate |
 
 ## Expected Outputs
 
@@ -70,7 +70,7 @@ for (int i = 0; i < N; i++)
 ```
 
 ```mlir
-%result = pto.vsubs %values, %delta, %mask : !pto.vreg<64xf32>, f32, !pto.mask -> !pto.vreg<64xf32>
+%result = pto.vsubs %values, %delta, %mask : !pto.vreg<64xf32>, f32, !pto.mask<b32> -> !pto.vreg<64xf32>
 ```
 
 ## Related Ops / Instruction Set Links

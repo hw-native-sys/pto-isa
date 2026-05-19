@@ -17,19 +17,19 @@ This page therefore models `pto.pge_b32` as pattern-based predicate materializat
 ### PTO Assembly Form
 
 ```mlir
-%mask = pto.pge_b32 "PAT_VL16" : !pto.mask
+%mask = pto.pge_b32 "PAT_VL16" : !pto.mask<b32>
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-%mask = pto.pge_b32 "PAT_VL16" : !pto.mask
+%mask = pto.pge_b32 "PAT_VL16" : !pto.mask<b32>
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.pge_b32 "PAT_VL16" outs(%mask : !pto.mask)
+pto.pge_b32 "PAT_VL16" outs(%mask : !pto.mask<b32>)
 ```
 
 ## C++ Intrinsic
@@ -48,7 +48,7 @@ vector_bool mask = pge_b32(__cce_simd::PAT_VL16);
 
 | Result | Type | Description |
 |--------|------|-------------|
-| `%mask` | `!pto.mask` | 32-bit predicate generated from the selected pattern token |
+| `%mask` | `!pto.mask<b32>` | 32-bit predicate generated from the selected pattern token |
 
 ## Side Effects
 
@@ -86,7 +86,7 @@ vector_bool mask = pge_b32(__cce_simd::PAT_VL16);
 ### SSA form
 
 ```mlir
-%mask = pto.pge_b32 "PAT_VL16" : !pto.mask
+%mask = pto.pge_b32 "PAT_VL16" : !pto.mask<b32>
 ```
 
 ## Related Ops / Instruction Set Links

@@ -113,7 +113,7 @@ For conversions that change width (e.g., f32→f16), use even/odd parts and comb
     : !pto.vreg<64xf32> -> !pto.vreg<128xf16>
 %odd  = pto.vcvt %in1 {round_mode = "ROUND_R", sat = "RS_ENABLE", part = "PART_ODD"}
     : !pto.vreg<64xf32> -> !pto.vreg<128xf16>
-%result = pto.vor %even, %odd, %mask : !pto.vreg<128xf16>, !pto.vreg<128xf16>, !pto.mask -> !pto.vreg<128xf16>
+%result = pto.vor %even, %odd, %mask : !pto.vreg<128xf16>, !pto.vreg<128xf16>, !pto.mask<b16> -> !pto.vreg<128xf16>
 ```
 
 ---
@@ -148,11 +148,40 @@ for (int i = 0; i < N; i++)
 
 ---
 
+## `pto.vbitcast`
+
+- **syntax:** `%result = pto.vbitcast %input : !pto.vreg<NxT0> -> !pto.vreg<MxT1>`
+- **semantics:** Bitwise reinterpretation of a vreg vector without changing the underlying bit pattern. Performs a pure type cast that preserves the exact bits of each element, changing only their interpretation (for example, from floating-point to integer).
+- **inputs:** `%input` is the source vector register value.
+- **outputs:** `%result` is the reinterpreted vector register value.
+- **constraints and limitations:**
+  - Both source and result must be `!pto.vreg<...>` types.
+  - Source and result vectors must have the same total bit width (currently 2048 bits): `N * bitwidth(T0) = M * bitwidth(T1) = 2048`.
+  - Only integer and floating-point element types are supported.
+
+See [`pto.vbitcast`](./ops/conversion-ops/vbitcast.md) for full details, type-pair examples, and the comparison with `pto.vcvt`.
+
+---
+
+## `pto.pbitcast`
+
+- **syntax:** `%result = pto.pbitcast %input : !pto.mask<G0> -> !pto.mask<G1>`
+- **semantics:** Bitwise reinterpretation of a predicate register without changing the underlying predicate-register image. Makes mask-family granularity reinterpretation explicit in VPTO IR when a producer and consumer expect different `!pto.mask<...>` views of the same hardware predicate state.
+- **inputs:** `%input` is the source predicate register value.
+- **outputs:** `%result` is the reinterpreted predicate register value.
+- **constraints and limitations:**
+  - Both source and result must be `!pto.mask<...>` types.
+  - `pto.pbitcast` does not materialize or normalize predicate contents; it only changes which mask granularity the surrounding VPTO IR uses to interpret the same predicate bits.
+
+See [`pto.pbitcast`](./ops/conversion-ops/pbitcast.md) for full details and examples.
+
+---
+
 ## Typical Usage
 
 ```mlir
 // Quantization: f32 → i8 with saturation
-%scaled = pto.vmuls %input, %scale, %mask : !pto.vreg<64xf32>, f32, !pto.mask -> !pto.vreg<64xf32>
+%scaled = pto.vmuls %input, %scale, %mask : !pto.vreg<64xf32>, f32, !pto.mask<b32> -> !pto.vreg<64xf32>
 %quantized = pto.vcvt %scaled {round_mode = "ROUND_R", sat = "RS_ENABLE"}
     : !pto.vreg<64xf32> -> !pto.vreg<64xi32>
 // Then narrow i32 → i8 via pack ops

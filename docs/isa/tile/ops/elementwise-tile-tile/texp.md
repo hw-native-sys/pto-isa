@@ -114,7 +114,7 @@ R = 16 × 64 / 8 = 128
 total ≈ 13 + 26 + 256 + (128-1) × 18 = 2571 cycles
 ```
 
-**Note**: `TEXP` is significantly more expensive than `TADD`/`TMUL` due to SFU pipeline. For numerically stable softmax kernels, prefer the vector-level `vexpdiff` fused operation instead.
+**Note**: `TEXP` is significantly more expensive than `TADD`/`TMUL` due to SFU pipeline. For numerically stable softmax kernels, prefer the vector-level `vexpdif` fused operation instead.
 
 ---
 

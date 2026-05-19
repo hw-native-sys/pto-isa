@@ -7,19 +7,19 @@
 ### PTO 汇编形式
 
 ```text
-pset_b16 %dst, "PATTERN" : !pto.mask
+pset_b16 %dst, "PATTERN" : !pto.mask<b16>
 ```
 
 ### AS Level 1（SSA）
 
 ```mlir
-%mask = pto.pset_b16 "PATTERN" : !pto.mask
+%mask = pto.pset_b16 "PATTERN" : !pto.mask<b16>
 ```
 
 ### AS Level 2（DPS）
 
 ```mlir
-pto.pset_b16 "PATTERN" outs(%mask : !pto.mask)
+pto.pset_b16 "PATTERN" outs(%mask : !pto.mask<b16>)
 ```
 
 ## 关键约束

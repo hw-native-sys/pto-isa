@@ -15,13 +15,13 @@ For each active lane `i`, `diff = lhs[i] - rhs[i] - borrow_in[i]`, `result[i] = 
 ### PTO Assembly Form
 
 ```text
-vsubcs %dst, %borrow_out, %lhs, %rhs, %borrow_in, %mask : !pto.vreg<NxT>, !pto.mask
+vsubcs %dst, %borrow_out, %lhs, %rhs, %borrow_in, %mask : !pto.vreg<NxT>, !pto.mask<G>
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-%result, %borrow = pto.vsubcs %lhs, %rhs, %borrow_in, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask, !pto.mask -> !pto.vreg<NxT>, !pto.mask
+%result, %borrow = pto.vsubcs %lhs, %rhs, %borrow_in, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>, !pto.mask<G> -> !pto.vreg<NxT>, !pto.mask<G>
 ```
 
 ## Inputs
@@ -30,15 +30,15 @@ vsubcs %dst, %borrow_out, %lhs, %rhs, %borrow_in, %mask : !pto.vreg<NxT>, !pto.m
 | --- | --- | --- |
 | %lhs | `!pto.vreg<NxT>` | Minuend vector |
 | %rhs | `!pto.vreg<NxT>` | Subtrahend vector |
-| %borrow_in | `!pto.mask` | Incoming borrow bit per lane |
-| %mask | `!pto.mask` | Predicate mask; only lanes with mask bit 1 participate |
+| %borrow_in | `!pto.mask<G>` | Incoming borrow bit per lane |
+| %mask | `!pto.mask<G>` | Predicate mask; only lanes with mask bit 1 participate |
 
 ## Expected Outputs
 
 | Result | Type | Description |
 | --- | --- | --- |
 | %result | `!pto.vreg<NxT>` | Lane-wise arithmetic result on the active lanes |
-| %borrow | `!pto.mask` | Borrow-out bit produced for each active lane |
+| %borrow | `!pto.mask<G>` | Borrow-out bit produced for each active lane |
 
 ## Side Effects
 
@@ -75,7 +75,7 @@ for (int i = 0; i < N; i++) {
 ```
 
 ```mlir
-%result, %borrow = pto.vsubcs %lhs, %rhs, %borrow_in, %mask : !pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask, !pto.mask -> !pto.vreg<64xi32>, !pto.mask
+%result, %borrow = pto.vsubcs %lhs, %rhs, %borrow_in, %mask : !pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask<b32>, !pto.mask<b32> -> !pto.vreg<64xi32>, !pto.mask<b32>
 ```
 
 ## Related Ops / Instruction Set Links

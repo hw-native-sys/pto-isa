@@ -29,7 +29,7 @@ vcgadd %dst, %src, %mask : !pto.vreg<NxT>
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vcgadd %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vcgadd %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 Supported element types on A5: `i16-i32`, `f16`, `f32`.
@@ -105,13 +105,13 @@ for (int g = 0; g < 8; g++) {
 
 ```mlir
 // Lane-group sum reduction: one result per 32-byte VLane
-%result = pto.vcgadd %input, %mask : !pto.vreg<128xf32>, !pto.mask -> !pto.vreg<128xf32>
+%result = pto.vcgadd %input, %mask : !pto.vreg<128xf32>, !pto.mask<b32> -> !pto.vreg<128xf32>
 ```
 
 ### MLIR — DPS Form
 
 ```mlir
-pto.vcgadd ins(%input, %mask : !pto.vreg<128xf32>, !pto.mask)
+pto.vcgadd ins(%input, %mask : !pto.vreg<128xf32>, !pto.mask<b32>)
             outs(%result : !pto.vreg<128xf32>)
 ```
 
@@ -119,9 +119,9 @@ pto.vcgadd ins(%input, %mask : !pto.vreg<128xf32>, !pto.mask)
 
 ```mlir
 // Compute row-wise softmax: step 1 — compute exp and lane-group sum
-%exp = pto.vexpdiff %row, %c0 : !pto.vreg<128xf32>, f32 -> !pto.vreg<128xf32>
-%mask = pto vidu %c128 : i1 -> !pto.mask
-%sum = pto.vcgadd %exp, %mask : !pto.vreg<128xf32>, !pto.mask -> !pto.vreg<128xf32>
+%exp = pto.vexpdif %row, %c0 : !pto.vreg<128xf32>, f32 -> !pto.vreg<128xf32>
+%mask = pto vidu %c128 : i1 -> !pto.mask<G>
+%sum = pto.vcgadd %exp, %mask : !pto.vreg<128xf32>, !pto.mask<b32> -> !pto.vreg<128xf32>
 // %sum[0,8,16,...] holds per-VLane exp sums for normalization
 ```
 

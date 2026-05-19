@@ -21,7 +21,7 @@ vdiv %result, %lhs, %rhs, %mask
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vdiv %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vdiv %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 Documented A5 types or forms: `f16, f32 only (no integer division)`.

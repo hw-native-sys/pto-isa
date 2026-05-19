@@ -1,4 +1,4 @@
-﻿# TPRINT
+# TPRINT
 
 ## 指令示意图
 

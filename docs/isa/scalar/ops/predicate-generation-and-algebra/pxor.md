@@ -19,19 +19,19 @@ XOR is commonly used to invert one predicate within a mask context: `pxor %p, %i
 ### PTO Assembly Form
 
 ```mlir
-%dst = pto.pxor %src0, %src1, %mask : !pto.mask, !pto.mask, !pto.mask -> !pto.mask
+%dst = pto.pxor %src0, %src1, %mask : !pto.mask<G>, !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-%dst = pto.pxor %src0, %src1, %mask : !pto.mask, !pto.mask, !pto.mask -> !pto.mask
+%dst = pto.pxor %src0, %src1, %mask : !pto.mask<G>, !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.pxor ins(%src0, %src1, %mask : !pto.mask, !pto.mask, !pto.mask) outs(%dst : !pto.mask)
+pto.pxor ins(%src0, %src1, %mask : !pto.mask<G>, !pto.mask<G>, !pto.mask<G>) outs(%dst : !pto.mask<G>)
 ```
 
 ## C++ Intrinsic
@@ -48,15 +48,15 @@ pxor(dst, src0, src1, mask);
 
 | Operand | Type | Description |
 |---------|------|-------------|
-| `%src0` | `!pto.mask` | First source predicate |
-| `%src1` | `!pto.mask` | Second source predicate |
-| `%mask` | `!pto.mask` | Optional masking predicate |
+| `%src0` | `!pto.mask<G>` | First source predicate |
+| `%src1` | `!pto.mask<G>` | Second source predicate |
+| `%mask` | `!pto.mask<G>` | Optional masking predicate |
 
 ## Expected Outputs
 
 | Result | Type | Description |
 |--------|------|-------------|
-| `%dst` | `!pto.mask` | Bitwise XOR of src0 and src1 |
+| `%dst` | `!pto.mask<G>` | Bitwise XOR of src0 and src1 |
 
 ## Side Effects
 
@@ -102,11 +102,11 @@ void invert_with_mask(RegBuf<predicate_t>& dst,
 // %mask_b: lanes active in set B
 
 // Symmetric difference: lanes active in exactly one set
-%diff = pto.pxor %mask_a, %mask_b, %mask_a : !pto.mask, !pto.mask, !pto.mask -> !pto.mask
+%diff = pto.pxor %mask_a, %mask_b, %mask_a : !pto.mask<G>, !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
 
 // Intersection: lanes active in both sets (via De Morgan: A AND B = NOT(A XOR B))
-%inv = pto.pnot %diff, %diff : !pto.mask, !pto.mask -> !pto.mask
-%intersection = pto.pand %mask_a, %mask_b, %mask_a : !pto.mask, !pto.mask, !pto.mask -> !pto.mask
+%inv = pto.pnot %diff, %diff : !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
+%intersection = pto.pand %mask_a, %mask_b, %mask_a : !pto.mask<G>, !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
 ```
 
 ## Related Ops / Instruction Set Links

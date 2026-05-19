@@ -10,11 +10,11 @@ Vector instructions can consume predicate masks produced by scalar load/store op
 
 ## Vector ISA Predicate Consumption
 
-Vector instructions consume `!pto.mask` operands for conditional lane execution:
+Vector instructions consume `!pto.mask<G>` operands for conditional lane execution:
 
 ```mlir
 %vdst = pto.vadd %vsrc0, %vsrc1, %mask
-    : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask) -> !pto.vreg<64xf32>
+    : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32>) -> !pto.vreg<64xf32>
 ```
 
 The mask is produced by the scalar predicate load/store operations documented in [Predicate Load/Store](../scalar/predicate-load-store.md). See the scalar page for full semantics including distribution modes, scalar load semantics, and constraint tables.

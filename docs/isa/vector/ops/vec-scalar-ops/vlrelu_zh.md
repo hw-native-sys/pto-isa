@@ -27,7 +27,7 @@ vlrelu %dst, %src, %slope, %mask : !pto.vreg<NxT>, T
 ### AS Level 1（SSA）
 
 ```mlir
-%result = pto.vlrelu %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vlrelu %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 ## 输入
@@ -36,7 +36,7 @@ vlrelu %dst, %src, %slope, %mask : !pto.vreg<NxT>, T
 |--------|------|------|
 | `%input` | `!pto.vreg<NxT>` | 源激活向量 |
 | `%scalar` | `T` | 广播到每个活跃 lane 的负半轴斜率 |
-| `%mask` | `!pto.mask` | 谓词掩码；只有掩码位为 1 的 lane 参与运算 |
+| `%mask` | `!pto.mask<G>` | 谓词掩码；只有掩码位为 1 的 lane 参与运算 |
 
 ## 预期输出
 
@@ -76,7 +76,7 @@ for (int i = 0; i < N; i++)
 ```
 
 ```mlir
-%result = pto.vlrelu %activations, %alpha, %mask : !pto.vreg<64xf32>, f32, !pto.mask -> !pto.vreg<64xf32>
+%result = pto.vlrelu %activations, %alpha, %mask : !pto.vreg<64xf32>, f32, !pto.mask<b32> -> !pto.vreg<64xf32>
 ```
 
 ## 性能

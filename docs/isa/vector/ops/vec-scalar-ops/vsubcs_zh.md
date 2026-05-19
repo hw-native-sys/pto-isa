@@ -23,13 +23,13 @@ borrow[i] = borrow_out(diff)
 ### PTO 汇编形式
 
 ```text
-vsubcs %dst, %borrow_out, %lhs, %rhs, %borrow_in, %mask : !pto.vreg<NxT>, !pto.mask
+vsubcs %dst, %borrow_out, %lhs, %rhs, %borrow_in, %mask : !pto.vreg<NxT>, !pto.mask<G>
 ```
 
 ### AS Level 1（SSA）
 
 ```mlir
-%result, %borrow = pto.vsubcs %lhs, %rhs, %borrow_in, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask, !pto.mask -> !pto.vreg<NxT>, !pto.mask
+%result, %borrow = pto.vsubcs %lhs, %rhs, %borrow_in, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>, !pto.mask<G> -> !pto.vreg<NxT>, !pto.mask<G>
 ```
 
 ## 输入
@@ -38,15 +38,15 @@ vsubcs %dst, %borrow_out, %lhs, %rhs, %borrow_in, %mask : !pto.vreg<NxT>, !pto.m
 |--------|------|------|
 | `%lhs` | `!pto.vreg<NxT>` | 被减数向量 |
 | `%rhs` | `!pto.vreg<NxT>` | 减数向量 |
-| `%borrow_in` | `!pto.mask` | 每个 lane 的输入借位 bit |
-| `%mask` | `!pto.mask` | 谓词掩码；只有掩码位为 1 的 lane 参与运算 |
+| `%borrow_in` | `!pto.mask<G>` | 每个 lane 的输入借位 bit |
+| `%mask` | `!pto.mask<G>` | 谓词掩码；只有掩码位为 1 的 lane 参与运算 |
 
 ## 预期输出
 
 | 结果 | 类型 | 说明 |
 |------|------|------|
 | `%result` | `!pto.vreg<NxT>` | 活跃 lane 上得到算术结果 |
-| `%borrow` | `!pto.mask` | 每个活跃 lane 产生的 borrow-out bit |
+| `%borrow` | `!pto.mask<G>` | 每个活跃 lane 产生的 borrow-out bit |
 
 ## 副作用
 
@@ -84,7 +84,7 @@ for (int i = 0; i < N; i++) {
 
 ```mlir
 %result, %borrow = pto.vsubcs %lhs, %rhs, %borrow_in, %mask
-    : !pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask, !pto.mask -> !pto.vreg<64xi32>, !pto.mask
+    : !pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask<b32>, !pto.mask<b32> -> !pto.vreg<64xi32>, !pto.mask<b32>
 ```
 
 ## 性能

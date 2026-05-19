@@ -12,7 +12,7 @@ This overview groups all scalar/control operations by their architectural role:
 
 - [Pipeline sync](./pipeline-sync.md): explicit producer-consumer edges, buffer-token protocols, and memory barriers.
 - [DMA copy](./dma-copy.md): loop-size and stride configuration plus GM↔vector-tile-buffer and vector-tile-buffer↔vector-tile-buffer copy operations.
-- [Predicate load store](./predicate-load-store.md): moving `!pto.mask` state through UB and handling unaligned predicate-store streams.
+- [Predicate load store](./predicate-load-store.md): moving `!pto.mask<G>` state through UB and handling unaligned predicate-store streams.
 - [Predicate generation and algebra](./predicate-generation-and-algebra.md): mask creation, tail masks, boolean combination, and predicate rearrangement.
 - [Micro-instruction reference](./ops/micro-instruction/README.md): scalar/vector boundary and runtime query operations.
 

@@ -31,14 +31,14 @@ vsubc %dst, %borrow, %lhs, %rhs, %mask : !pto.vreg<NxT>
 ### AS Level 1 (SSA)
 
 ```mlir
-%result, %borrow = pto.vsubc %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask) -> !pto.vreg<NxT>, !pto.mask
+%result, %borrow = pto.vsubc %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>) -> !pto.vreg<NxT>, !pto.mask<G>
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.vsubc ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask)
-            outs(%result, %borrow : !pto.vreg<NxT>, !pto.mask)
+pto.vsubc ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>)
+            outs(%result, %borrow : !pto.vreg<NxT>, !pto.mask<G>)
 ```
 
 ## Inputs
@@ -47,7 +47,7 @@ pto.vsubc ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask)
 |---------|------|-------------|
 | `%lhs` | `!pto.vreg<NxT>` | Minuend: the value being subtracted from |
 | `%rhs` | `!pto.vreg<NxT>` | Subtrahend: the value being subtracted |
-| `%mask` | `!pto.mask` | Predicate mask; lanes where mask bit is 1 are active |
+| `%mask` | `!pto.mask<G>` | Predicate mask; lanes where mask bit is 1 are active |
 
 Both source registers MUST have the same element type and the same vector width `N`. The mask width MUST match `N`.
 
@@ -56,7 +56,7 @@ Both source registers MUST have the same element type and the same vector width 
 | Result | Type | Description |
 |--------|------|-------------|
 | `%result` | `!pto.vreg<NxT>` | Lane-wise arithmetic difference on active lanes; inactive lanes are unmodified |
-| `%borrow` | `!pto.mask` | Per-lane borrow predicate: lane `i` is 1 if unsigned underflow occurred in lane `i` |
+| `%borrow` | `!pto.mask<G>` | Per-lane borrow predicate: lane `i` is 1 if unsigned underflow occurred in lane `i` |
 
 ## Side Effects
 
@@ -109,7 +109,7 @@ for (int i = 0; i < N; i++) {
 
 ```mlir
 // Single-element subtraction with borrow
-%result, %borrow = pto.vsubc %a, %b, %active : (!pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask) -> !pto.vreg<64xi32>, !pto.mask
+%result, %borrow = pto.vsubc %a, %b, %active : (!pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask<b32>) -> !pto.vreg<64xi32>, !pto.mask<b32>
 
 // Multi-word subtraction: chain borrows into next segment
 %diff0, %borrow0 = pto.vsubc %a0, %b0, %active : ...  // low words

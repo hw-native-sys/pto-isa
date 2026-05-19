@@ -11,7 +11,7 @@ PTO 定义七种操作数类别：
 | **Tile** | `!pto.tile<...>` / `!pto.tile_buf<...>` | `Tile<...>` | 带 shape、layout、valid-region 元数据的 tile |
 | **GlobalTensor** | `!pto.partition_tensor_view<...>` / `!pto.memref<...>` | `GlobalTensor<...>` | 面向 GM 的视图 |
 | **Scalar** | `i8`–`i64`, `u8`–`u64`, `f16`, `bf16`, `f32` | 标准 C++ 标量类型 | 立即数或运行时标量 |
-| **Predicate** | `!pto.mask` | IR 层 | 控制向量 lane 参与的 mask |
+| **Predicate** | `!pto.mask<G>` | IR 层 | 控制向量 lane 参与的 mask |
 | **Event** | `!pto.event` | `RecordEvent` | 顺序令牌 |
 | **UB Pointer** | `!pto.ptr<T, ub>` | IR 层 | 指向 UB 的指针 |
 | **GM Pointer** | `!pto.ptr<T, gm>` | `__gm__ T*` | 指向 GM 的指针 |
@@ -44,7 +44,7 @@ Tile 是 `pto.t*` 的主要有效载荷类型。
 
 ### Predicate
 
-谓词 `!pto.mask` 控制向量操作中哪些 lane 参与。
+谓词 `!pto.mask<G>` 控制向量操作中哪些 lane 参与。
 
 ### UB Pointer
 

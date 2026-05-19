@@ -25,13 +25,13 @@ vsub %dst, %lhs, %rhs, %mask : !pto.vreg<NxT>
 ### AS Level 1（SSA）
 
 ```mlir
-%result = pto.vsub %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask) -> !pto.vreg<NxT>
+%result = pto.vsub %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>) -> !pto.vreg<NxT>
 ```
 
 ### AS Level 2（DPS）
 
 ```mlir
-pto.vsub ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask)
+pto.vsub ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>)
           outs(%result : !pto.vreg<NxT>)
 ```
 
@@ -43,7 +43,7 @@ A5 当前记录的支持类型包括 `i8-i64`、`f16`、`bf16`、`f32`。
 |--------|------|------|
 | `%lhs` | `!pto.vreg<NxT>` | 被减数 |
 | `%rhs` | `!pto.vreg<NxT>` | 减数 |
-| `%mask` | `!pto.mask` | 谓词掩码；掩码位为 1 的 lane 参与减法 |
+| `%mask` | `!pto.mask<G>` | 谓词掩码；掩码位为 1 的 lane 参与减法 |
 
 两个源寄存器必须有相同的元素类型和相同的向量宽度 `N`。掩码宽度必须与 `N` 相同。
 
@@ -117,10 +117,10 @@ for (int i = 0; i < N; i++)
 
 ```mlir
 %result = pto.vsub %lhs, %rhs, %active
-    : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask) -> !pto.vreg<64xf32>
+    : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32>) -> !pto.vreg<64xf32>
 
 %diff = pto.vsub %a, %b, %cond
-    : (!pto.vreg<128xf16>, !pto.vreg<128xf16>, !pto.mask) -> !pto.vreg<128xf16>
+    : (!pto.vreg<128xf16>, !pto.vreg<128xf16>, !pto.mask<b16>) -> !pto.vreg<128xf16>
 ```
 
 ## 相关页面

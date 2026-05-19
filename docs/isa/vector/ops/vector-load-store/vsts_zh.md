@@ -21,7 +21,7 @@ vsts %value, %dest[%offset], %mask {dist = "DIST"}
 ### AS Level 1（SSA）
 
 ```mlir
-pto.vsts %value, %dest[%offset], %mask {dist = "DIST"} : !pto.vreg<NxT>, !pto.ptr<T, ub>, !pto.mask
+pto.vsts %value, %dest[%offset], %mask {dist = "DIST"} : !pto.vreg<NxT>, !pto.ptr<T, ub>, !pto.mask<G>
 ```
 
 ## 输入
@@ -61,7 +61,7 @@ pto.vsts %value, %dest[%offset], %mask {dist = "DIST"} : !pto.vreg<NxT>, !pto.pt
 ## 示例
 
 ```mlir
-pto.vsts %v, %ub[%offset], %mask {dist = "NORM_B32"} : !pto.vreg<64xf32>, !pto.ptr<f32, ub>, !pto.mask
+pto.vsts %v, %ub[%offset], %mask {dist = "NORM_B32"} : !pto.vreg<64xf32>, !pto.ptr<f32, ub>, !pto.mask<b32>
 ```
 
 ## 详细说明
@@ -93,4 +93,4 @@ PTO 微指令页面当前使用的时序来源是 `~/visa.txt` 与最新抓取�
 
 - 指令集总览：[向量加载与存储](../../vector-load-store_zh.md)
 - 上一条指令：[pto.vgather2_bc](./vgather2-bc_zh.md)
-- 下一条指令：[pto.vstx2](./vstx2_zh.md)
+- 下一条指令：[pto.vstsx2](./vstsx2_zh.md)

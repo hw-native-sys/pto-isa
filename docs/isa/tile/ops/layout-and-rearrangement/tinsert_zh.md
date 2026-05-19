@@ -1,4 +1,4 @@
-﻿# TINSERT
+# TINSERT
 
 ## 指令示意图
 

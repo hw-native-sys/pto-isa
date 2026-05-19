@@ -21,7 +21,7 @@ vmuls %dst, %src, %scalar, %mask : !pto.vreg<NxT>, T
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vmuls %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vmuls %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 ## Inputs
@@ -30,7 +30,7 @@ vmuls %dst, %src, %scalar, %mask : !pto.vreg<NxT>, T
 | --- | --- | --- |
 | %input | `!pto.vreg<NxT>` | Source vector register |
 | %scalar | `T` | Scalar multiplier broadcast to every active lane |
-| %mask | `!pto.mask` | Predicate mask; only lanes with mask bit 1 participate |
+| %mask | `!pto.mask<G>` | Predicate mask; only lanes with mask bit 1 participate |
 
 ## Expected Outputs
 
@@ -70,7 +70,7 @@ for (int i = 0; i < N; i++)
 ```
 
 ```mlir
-%result = pto.vmuls %values, %scale, %mask : !pto.vreg<64xf16>, f16, !pto.mask -> !pto.vreg<64xf16>
+%result = pto.vmuls %values, %scale, %mask : !pto.vreg<64xf16>, f16, !pto.mask<b16> -> !pto.vreg<64xf16>
 ```
 
 ## Related Ops / Instruction Set Links

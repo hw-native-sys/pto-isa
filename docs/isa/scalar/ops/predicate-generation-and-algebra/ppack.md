@@ -19,19 +19,19 @@ $$ \mathrm{dst}_{2N} = \begin{cases} \mathrm{ZERO}(N) \Vert \mathrm{src}_N & \te
 ### PTO Assembly Form
 
 ```mlir
-%dst = pto.ppack %src, "PART" : !pto.mask -> !pto.mask
+%dst = pto.ppack %src, "PART" : !pto.mask<G> -> !pto.mask<G>
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-%dst = pto.ppack %src, "PART" : !pto.mask -> !pto.mask
+%dst = pto.ppack %src, "PART" : !pto.mask<G> -> !pto.mask<G>
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.ppack ins(%src, "PART" : !pto.mask) outs(%dst : !pto.mask)
+pto.ppack ins(%src, "PART" : !pto.mask<G>) outs(%dst : !pto.mask<G>)
 ```
 
 ## C++ Intrinsic
@@ -46,14 +46,14 @@ ppack(dst, src, __cce_simd::LOWER);
 
 | Operand | Type | Description |
 |---------|------|-------------|
-| `%src` | `!pto.mask` | Source N-bit predicate |
+| `%src` | `!pto.mask<G>` | Source N-bit predicate |
 | `"PART"` | string attribute | Partition token: `"LOWER"` or `"HIGHER"` |
 
 ## Expected Outputs
 
 | Result | Type | Description |
 |--------|------|-------------|
-| `%dst` | `!pto.mask` | 2N-bit predicate with the source in the selected half |
+| `%dst` | `!pto.mask<G>` | 2N-bit predicate with the source in the selected half |
 
 ## Side Effects
 
@@ -106,26 +106,26 @@ void pack_for_f32(RegBuf<predicate_t>& dst,
 // %hi: lanes 0-14 active (from plt_b32 iteration 2, rem = 15)
 
 // Pack %lo into lower half of 64-bit predicate
-%full_lo = pto.ppack %lo, "LOWER" : !pto.mask -> !pto.mask
+%full_lo = pto.ppack %lo, "LOWER" : !pto.mask<G> -> !pto.mask<G>
 
 // Pack %hi into upper half of 64-bit predicate
-%full_hi = pto.ppack %hi, "HIGHER" : !pto.mask -> !pto.mask
+%full_hi = pto.ppack %hi, "HIGHER" : !pto.mask<G> -> !pto.mask<G>
 
 // OR them together to get full 64-lane tail mask
-%tail = pto.por %full_lo, %full_hi, %full_lo : !pto.mask, !pto.mask, !pto.mask -> !pto.mask
+%tail = pto.por %full_lo, %full_hi, %full_lo : !pto.mask<G>, !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
 ```
 
 ### Construct a full-width mask from two half-width masks
 
 ```mlir
 // Pack lower half
-%dst_lower = pto.ppack %src_lower, "LOWER" : !pto.mask -> !pto.mask
+%dst_lower = pto.ppack %src_lower, "LOWER" : !pto.mask<G> -> !pto.mask<G>
 
 // Pack upper half
-%dst_upper = pto.ppack %src_upper, "HIGHER" : !pto.mask -> !pto.mask
+%dst_upper = pto.ppack %src_upper, "HIGHER" : !pto.mask<G> -> !pto.mask<G>
 
 // Combine with OR to get full-width predicate
-%combined = pto.por %dst_lower, %dst_upper, %dst_lower : !pto.mask, !pto.mask, !pto.mask -> !pto.mask
+%combined = pto.por %dst_lower, %dst_upper, %dst_lower : !pto.mask<G>, !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
 ```
 
 ## Related Ops / Instruction Set Links

@@ -27,7 +27,7 @@ vaxpy %dst, %x, %y, %alpha, %mask : !pto.vreg<NxT>
 ### AS Level 1（SSA）
 
 ```mlir
-%result = pto.vaxpy %x, %y, %alpha, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, T, !pto.mask) -> !pto.vreg<NxT>
+%result = pto.vaxpy %x, %y, %alpha, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, T, !pto.mask<G>) -> !pto.vreg<NxT>
 ```
 
 A5 当前文档化支持的类型：`f16`、`f32`。
@@ -39,7 +39,7 @@ A5 当前文档化支持的类型：`f16`、`f32`。
 | `%x` | `!pto.vreg<NxT>` | 被标量缩放的向量 |
 | `%y` | `!pto.vreg<NxT>` | 加数向量 |
 | `%alpha` | `T` | 广播到各 lane 的标量乘子 |
-| `%mask` | `!pto.mask` | 谓词掩码；掩码位为 1 的 lane 为活跃 lane |
+| `%mask` | `!pto.mask<G>` | 谓词掩码；掩码位为 1 的 lane 为活跃 lane |
 
 ## 预期输出
 
@@ -96,7 +96,7 @@ for (int i = 0; i < N; i++)
 
 ```mlir
 %result = pto.vaxpy %x, %y, %alpha, %mask
-    : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, f32, !pto.mask) -> !pto.vreg<64xf32>
+    : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, f32, !pto.mask<b32>) -> !pto.vreg<64xf32>
 ```
 
 ## 性能

@@ -7,19 +7,19 @@
 ### PTO 汇编形式
 
 ```text
-punpack %dst, %src, "PART" : !pto.mask, !pto.mask
+punpack %dst, %src, "PART" : !pto.mask<G>, !pto.mask<G>
 ```
 
 ### AS Level 1（SSA）
 
 ```mlir
-%dst = pto.punpack %src, "PART" : !pto.mask -> !pto.mask
+%dst = pto.punpack %src, "PART" : !pto.mask<G> -> !pto.mask<G>
 ```
 
 ### AS Level 2（DPS）
 
 ```mlir
-pto.punpack ins(%src, "PART" : !pto.mask) outs(%dst : !pto.mask)
+pto.punpack ins(%src, "PART" : !pto.mask<G>) outs(%dst : !pto.mask<G>)
 ```
 
 ## 关键约束

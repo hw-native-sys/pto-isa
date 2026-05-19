@@ -8,7 +8,7 @@ Store the full predicate register to a UB location with an immediate (compile-ti
 
 ## Mechanism
 
-`pto.psti` writes a predicate word from `!pto.mask` to a UB address computed as `base + imm * 8`. The offset is a compile-time immediate, enabling address resolution at assembly time.
+`pto.psti` writes a predicate word from `!pto.mask<G>` to a UB address computed as `base + imm * 8`. The offset is a compile-time immediate, enabling address resolution at assembly time.
 
 For predicate `mask`, UB base `base`, and immediate offset `imm`:
 
@@ -22,19 +22,19 @@ The immediate offset is encoded directly in the instruction word, in units of 8 
 ### PTO Assembly Form
 
 ```mlir
-pto.psti %mask, %ub_ptr, %imm, "DIST" : !pto.mask, !pto.ptr<i64, ub>, i32
+pto.psti %mask, %ub_ptr, %imm, "DIST" : !pto.mask<G>, !pto.ptr<i64, ub>, i32
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-pto.psti %mask, %ub_ptr, %imm, "DIST" : !pto.mask, !pto.ptr<i64, ub>, i32
+pto.psti %mask, %ub_ptr, %imm, "DIST" : !pto.mask<G>, !pto.ptr<i64, ub>, i32
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.psti ins(%mask, %ub_ptr, %imm, "DIST" : !pto.mask, !pto.ptr<i64, ub>, i32)
+pto.psti ins(%mask, %ub_ptr, %imm, "DIST" : !pto.mask<G>, !pto.ptr<i64, ub>, i32)
 ```
 
 ## C++ Intrinsic
@@ -51,7 +51,7 @@ psti(src, base, offset, __cce_simd::NORM, __cce_simd::POST_UPDATE);
 
 | Operand | Type | Description |
 |---------|------|-------------|
-| `%mask` | `!pto.mask` | Predicate register to store |
+| `%mask` | `!pto.mask<G>` | Predicate register to store |
 | `%ub_ptr` | `!pto.ptr<i64, ub>` | UB base address |
 | `%imm` | `i32` | Immediate byte offset in 8-byte units (compile-time constant) |
 | `"DIST"` | string attribute | Distribution mode: `"NORM"` or `"PK"` |
@@ -112,10 +112,10 @@ void store_immediate(RegBuf<predicate_t>& src,
 
 ```mlir
 // Generate predicate from comparison
-%mask = pto.vcmp %v0, %v1, %seed, "lt" : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.mask
+%mask = pto.vcmp %v0, %v1, %seed, "lt" : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.mask<b32>
 
 // Store predicate to UB at base + 4 * 8 = base + 32 bytes
-pto.psti %mask, %ub_base, 4, "NORM" : !pto.mask, !pto.ptr<i64, ub>, i32
+pto.psti %mask, %ub_base, 4, "NORM" : !pto.mask<G>, !pto.ptr<i64, ub>, i32
 ```
 
 ## Related Ops / Instruction Set Links

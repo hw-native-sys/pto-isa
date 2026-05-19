@@ -82,5 +82,5 @@ The instruction set overview carries the remaining shared rules for this operati
 ## Related Ops / Instruction Set Links
 
 - Instruction set overview: [Vector Load Store](../../vector-load-store.md)
-- Previous op in instruction set: [pto.vstx2](./vstx2.md)
+- Previous op in instruction set: [pto.vstsx2](./vstsx2.md)
 - Next op in instruction set: [pto.vsstb](./vsstb.md)

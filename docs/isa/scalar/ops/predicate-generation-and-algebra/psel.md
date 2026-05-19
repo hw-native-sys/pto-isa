@@ -19,19 +19,19 @@ This is a predicate-level ternary select, analogous to vector `vsel` but operati
 ### PTO Assembly Form
 
 ```mlir
-%dst = pto.psel %src0, %src1, %sel, %mask : !pto.mask, !pto.mask, !pto.mask, !pto.mask -> !pto.mask
+%dst = pto.psel %src0, %src1, %sel, %mask : !pto.mask<G>, !pto.mask<G>, !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-%dst = pto.psel %src0, %src1, %sel, %mask : !pto.mask, !pto.mask, !pto.mask, !pto.mask -> !pto.mask
+%dst = pto.psel %src0, %src1, %sel, %mask : !pto.mask<G>, !pto.mask<G>, !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.psel ins(%src0, %src1, %sel, %mask : !pto.mask, !pto.mask, !pto.mask, !pto.mask) outs(%dst : !pto.mask)
+pto.psel ins(%src0, %src1, %sel, %mask : !pto.mask<G>, !pto.mask<G>, !pto.mask<G>, !pto.mask<G>) outs(%dst : !pto.mask<G>)
 ```
 
 ## C++ Intrinsic
@@ -48,16 +48,16 @@ psel(dst, src0, src1, mask);
 
 | Operand | Type | Description |
 |---------|------|-------------|
-| `%src0` | `!pto.mask` | Predicate selected when corresponding sel bit is 1 |
-| `%src1` | `!pto.mask` | Predicate selected when corresponding sel bit is 0 |
-| `%sel` | `!pto.mask` | Per-lane selection predicate |
-| `%mask` | `!pto.mask` | Optional masking predicate |
+| `%src0` | `!pto.mask<G>` | Predicate selected when corresponding sel bit is 1 |
+| `%src1` | `!pto.mask<G>` | Predicate selected when corresponding sel bit is 0 |
+| `%sel` | `!pto.mask<G>` | Per-lane selection predicate |
+| `%mask` | `!pto.mask<G>` | Optional masking predicate |
 
 ## Expected Outputs
 
 | Result | Type | Description |
 |--------|------|-------------|
-| `%dst` | `!pto.mask` | Per-lane selection between src0 and src1 |
+| `%dst` | `!pto.mask<G>` | Per-lane selection between src0 and src1 |
 
 ## Side Effects
 
@@ -106,8 +106,8 @@ void select_predicate(RegBuf<predicate_t>& dst,
 
 // If condition is true, use set A; otherwise use set B
 %active = pto.psel %active_a, %active_b, %condition, %condition
-    : !pto.mask, !pto.mask, !pto.mask, !pto.mask
-    -> !pto.mask
+    : !pto.mask<G>, !pto.mask<G>, !pto.mask<G>, !pto.mask<G>
+    -> !pto.mask<G>
 ```
 
 ### Equivalent to boolean expression
@@ -118,10 +118,10 @@ The `psel` operation is equivalent to the following boolean expression:
 // psel %dst, %src0, %src1, %sel
 // = (src0 AND sel) OR (src1 AND NOT sel)
 
-%sel_inv = pto.pnot %sel, %sel : !pto.mask, !pto.mask -> !pto.mask
-%and0 = pto.pand %src0, %sel, %sel : !pto.mask, !pto.mask, !pto.mask -> !pto.mask
-%and1 = pto.pand %src1, %sel_inv, %sel : !pto.mask, !pto.mask, !pto.mask -> !pto.mask
-%dst = pto.por %and0, %and1, %and0 : !pto.mask, !pto.mask, !pto.mask -> !pto.mask
+%sel_inv = pto.pnot %sel, %sel : !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
+%and0 = pto.pand %src0, %sel, %sel : !pto.mask<G>, !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
+%and1 = pto.pand %src1, %sel_inv, %sel : !pto.mask<G>, !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
+%dst = pto.por %and0, %and1, %and0 : !pto.mask<G>, !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
 ```
 
 ## Related Ops / Instruction Set Links

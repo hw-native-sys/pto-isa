@@ -25,13 +25,13 @@ vmin %dst, %lhs, %rhs, %mask : !pto.vreg<NxT>
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vmin %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask) -> !pto.vreg<NxT>
+%result = pto.vmin %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>) -> !pto.vreg<NxT>
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.vmin ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask)
+pto.vmin ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>)
           outs(%result : !pto.vreg<NxT>)
 ```
 
@@ -43,7 +43,7 @@ Supported element types on A5: `i8-i32`, `f16`, `bf16`, `f32`.
 |---------|------|-------------|
 | `%lhs` | `!pto.vreg<NxT>` | First source vector register (first operand of the comparison) |
 | `%rhs` | `!pto.vreg<NxT>` | Second source vector register (second operand of the comparison) |
-| `%mask` | `!pto.mask` | Predicate mask; lanes where mask bit is 1 are active |
+| `%mask` | `!pto.mask<G>` | Predicate mask; lanes where mask bit is 1 are active |
 
 Both source registers MUST have the same element type and the same vector width `N`. The mask width MUST match `N`.
 
@@ -119,10 +119,10 @@ for (int i = 0; i < N; i++)
 
 ```mlir
 // Element-wise min of two vectors
-%result = pto.vmin %a, %b, %active : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask) -> !pto.vreg<64xf32>
+%result = pto.vmin %a, %b, %active : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32>) -> !pto.vreg<64xf32>
 
 // Clamp to a maximum value: min(x, upper)
-%clamped = pto.vmin %input, %upper, %active : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask) -> !pto.vreg<64xf32>
+%clamped = pto.vmin %input, %upper, %active : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32>) -> !pto.vreg<64xf32>
 ```
 
 ## Related Ops / Instruction Set Links

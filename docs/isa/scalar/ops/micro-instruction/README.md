@@ -10,9 +10,10 @@ This section documents the PTO micro-instruction surface for the A5 (Ascend 950)
 | Group | Description | Operations |
 |-------|-------------|-----------|
 | [BlockDim and Runtime Query](./block-dim-query.md) | Block and subblock index/number queries | `pto.get_block_idx`, `pto.get_subblock_idx`, `pto.get_block_num`, `pto.get_subblock_num` |
+| [VMS4 Status Query](./vms4-status-query.md) | Read 4-way merge-sort status register | `pto.get_vms4_sr` |
 | [Pointer Operations](./pointer-operations.md) | Typed pointer construction and arithmetic | `pto.castptr`, `pto.addptr`, `pto.load_scalar`, `pto.store_scalar` |
 | [Vector Execution Scope](./vecscope.md) | Vector function launch and scope boundary | `pto.vecscope`, `pto.strict_vecscope` |
-| [Alignment State Type](./align-type.md) | Unaligned load/store alignment management | `pto.init_align`, `pto.vldas`, `pto.vldus`, `pto.vstus` |
+| [Alignment State Type](./align-type.md) | Unaligned load/store alignment management. Load streams start from `pto.vldas`; store streams start from `pto.init_align`. | `pto.vldas`, `pto.vldus` (load); `pto.init_align`, `pto.vstus` (store) |
 
 ## Scope
 

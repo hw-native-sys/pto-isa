@@ -1,6 +1,6 @@
-# pto.vstx2
+# pto.vstsx2
 
-`pto.vstx2` 属于[向量加载与存储](../../vector-load-store_zh.md)指令集。
+`pto.vstsx2` 属于[向量加载与存储](../../vector-load-store_zh.md)指令集。
 
 ## 概述
 
@@ -8,20 +8,20 @@
 
 ## 机制
 
-`pto.vstx2` 属于 PTO 的向量内存 / 数据搬运指令。它把两路源向量按选定交错布局写回 UB。这里的关键语义不是“写两次”，而是“两个源向量构成有顺序的交错对”。
+`pto.vstsx2` 属于 PTO 的向量内存 / 数据搬运指令。它把两路源向量按选定交错布局写回 UB。这里的关键语义不是“写两次”，而是“两个源向量构成有顺序的交错对”。
 
 ## 语法
 
 ### PTO 汇编形式
 
 ```text
-vstx2 %low, %high, %dest[%offset], "DIST", %mask
+vstsx2 %low, %high, %dest[%offset], "DIST", %mask
 ```
 
 ### AS Level 1（SSA）
 
 ```mlir
-pto.vstx2 %low, %high, %dest[%offset], "DIST", %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.ptr<T, ub>, index, !pto.mask
+pto.vstsx2 %low, %high, %dest[%offset], "DIST", %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.ptr<T, ub>, index, !pto.mask<G>
 ```
 
 ## 输入
@@ -50,7 +50,7 @@ pto.vstx2 %low, %high, %dest[%offset], "DIST", %mask : !pto.vreg<NxT>, !pto.vreg
 
 !!! danger "异常与非法情形"
     - 使用超出 UB 可见空间的地址，或违反所选分布模式的地址 / 对齐契约，都是非法的。
-    - 约束部分列出的额外非法情形，同样属于 `pto.vstx2` 的契约。
+    - 约束部分列出的额外非法情形，同样属于 `pto.vstsx2` 的契约。
 
 ## 目标 Profile 限制
 
@@ -77,15 +77,14 @@ for (int i = 0; i < 64; i++) {
 
 ### 时延与吞吐披露
 
-PTO 微指令页面当前使用的时序来源是 `~/visa.txt` 与最新抓取的 `PTOAS/docs/vpto-spec.md`（`feature_vpto_backend` 分支）。
-对于 `pto.vstx2`，这些公开来源说明了指令语义、操作数合法性和流水线位置，但**没有**发布数字时延或稳态吞吐。
+PTO-Gym v0.6 SPEC 为 A5 profile 上 `pto.vstsx2` 的 `INTLV` 分布族公布了统一的 12 周期时延。
 
-| 指标 | 状态 | 来源依据 |
-|------|------|----------|
-| A5 时延 | 公开来源未给出 | `visa.txt`、`PTOAS/docs/vpto-spec.md` |
-| 稳态吞吐 | 公开来源未给出 | `visa.txt`、`PTOAS/docs/vpto-spec.md` |
+| 指标 | 值 | 来源 |
+|------|------|------|
+| A5 时延（`INTLV`，所有元素宽度） | **12** 周期 | PTO-Gym v0.6 SPEC §III 向量加载/存储 |
+| 稳态吞吐 | 未公开 | 当前公开 VPTO 时序材料 |
 
-如果软件调度或性能建模依赖 `pto.vstx2` 的确切成本，必须在具体 backend 上实测，而不能从当前公开手册里推导出一个并未公布的常数。
+CPU 模拟和 A2/A3 类目标按 target-defined 处理；如需精确成本，请在具体 backend 实测，不要直接套用 A5 数值。
 
 ## 相关页面
 

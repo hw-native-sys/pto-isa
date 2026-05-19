@@ -1,4 +1,4 @@
-﻿<p align="center">
+<p align="center">
   <img src="../figures/pto_logo.svg" alt="PTO Tile Lib" width="180" />
 </p>
 

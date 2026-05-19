@@ -22,7 +22,7 @@ Operations that combine a vector with a scalar value, applying the scalar to eve
 
 ### `pto.vadds`
 
-- **syntax:** `%result = pto.vadds %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vadds %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>`
 
 ```c
 for (int i = 0; i < N; i++)
@@ -40,7 +40,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vsubs`
 
-- **syntax:** `%result = pto.vsubs %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vsubs %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>`
 
 ```c
 for (int i = 0; i < N; i++)
@@ -56,7 +56,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vmuls`
 
-- **syntax:** `%result = pto.vmuls %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vmuls %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>`
 
 ```c
 for (int i = 0; i < N; i++)
@@ -72,7 +72,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vmaxs`
 
-- **syntax:** `%result = pto.vmaxs %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vmaxs %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>`
 
 ```c
 for (int i = 0; i < N; i++)
@@ -87,7 +87,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vmins`
 
-- **syntax:** `%result = pto.vmins %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vmins %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>`
 
 ```c
 for (int i = 0; i < N; i++)
@@ -104,7 +104,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vands`
 
-- **syntax:** `%result = pto.vands %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vands %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>`
 
 ```c
 for (int i = 0; i < N; i++)
@@ -119,7 +119,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vors`
 
-- **syntax:** `%result = pto.vors %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vors %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>`
 
 ```c
 for (int i = 0; i < N; i++)
@@ -134,7 +134,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vxors`
 
-- **syntax:** `%result = pto.vxors %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vxors %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>`
 
 ```c
 for (int i = 0; i < N; i++)
@@ -151,7 +151,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vshls`
 
-- **syntax:** `%result = pto.vshls %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vshls %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>`
 
 ```c
 for (int i = 0; i < N; i++)
@@ -168,7 +168,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vshrs`
 
-- **syntax:** `%result = pto.vshrs %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vshrs %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>`
 
 ```c
 for (int i = 0; i < N; i++)
@@ -184,7 +184,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vlrelu`
 
-- **syntax:** `%result = pto.vlrelu %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vlrelu %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>`
 
 ```c
 for (int i = 0; i < N; i++)
@@ -203,7 +203,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vaddcs`
 
-- **syntax:** `%result, %carry = pto.vaddcs %lhs, %rhs, %carry_in, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask, !pto.mask -> !pto.vreg<NxT>, !pto.mask`
+- **syntax:** `%result, %carry = pto.vaddcs %lhs, %rhs, %carry_in, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>, !pto.mask<G> -> !pto.vreg<NxT>, !pto.mask<G>`
 - **semantics:** Add with carry-in and carry-out.
 
 ```c
@@ -226,7 +226,7 @@ for (int i = 0; i < N; i++) {
 
 ### `pto.vsubcs`
 
-- **syntax:** `%result, %borrow = pto.vsubcs %lhs, %rhs, %borrow_in, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask, !pto.mask -> !pto.vreg<NxT>, !pto.mask`
+- **syntax:** `%result, %borrow = pto.vsubcs %lhs, %rhs, %borrow_in, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>, !pto.mask<G> -> !pto.vreg<NxT>, !pto.mask<G>`
 - **semantics:** Subtract with borrow-in and borrow-out.
 
 ```c
@@ -249,15 +249,15 @@ for (int i = 0; i < N; i++) {
 
 ```mlir
 // Add bias to all elements
-%biased = pto.vadds %activation, %bias_scalar, %mask : !pto.vreg<64xf32>, f32, !pto.mask -> !pto.vreg<64xf32>
+%biased = pto.vadds %activation, %bias_scalar, %mask : !pto.vreg<64xf32>, f32, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 // Scale by constant
-%scaled = pto.vmuls %input, %scale, %mask : !pto.vreg<64xf32>, f32, !pto.mask -> !pto.vreg<64xf32>
+%scaled = pto.vmuls %input, %scale, %mask : !pto.vreg<64xf32>, f32, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 // Clamp to [0, 255] for uint8 quantization
-%clamped_low = pto.vmaxs %input, %c0, %mask : !pto.vreg<64xf32>, f32, !pto.mask -> !pto.vreg<64xf32>
-%clamped = pto.vmins %clamped_low, %c255, %mask : !pto.vreg<64xf32>, f32, !pto.mask -> !pto.vreg<64xf32>
+%clamped_low = pto.vmaxs %input, %c0, %mask : !pto.vreg<64xf32>, f32, !pto.mask<b32> -> !pto.vreg<64xf32>
+%clamped = pto.vmins %clamped_low, %c255, %mask : !pto.vreg<64xf32>, f32, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 // Shift right by fixed amount
-%shifted = pto.vshrs %data, %c4, %mask : !pto.vreg<64xi32>, i32, !pto.mask -> !pto.vreg<64xi32>
+%shifted = pto.vshrs %data, %c4, %mask : !pto.vreg<64xi32>, i32, !pto.mask<b32> -> !pto.vreg<64xi32>
 ```

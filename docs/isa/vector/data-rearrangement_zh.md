@@ -69,7 +69,7 @@
 
 ### `pto.vsqz`
 
-- **语法：** `%result = pto.vsqz %src, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vsqz %src, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 把 mask 选中的活跃 lane 压紧到结果前部。
 
 ```c
@@ -83,7 +83,7 @@ while (j < N) dst[j++] = 0;
 
 ### `pto.vusqz`
 
-- **语法：** `%result = pto.vusqz %mask : !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vusqz %mask : !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 把前部压紧流再按 `%mask` 的活跃位置展开回固定形状。
 
 当前指令面把“前部压紧流”的来源隐含在形式之中，因此后端更不能随意改写其放置规则。
@@ -150,14 +150,14 @@ for (int i = 0; i < N; i++) {
     : !pto.vreg<64xf32>, !pto.vreg<64xf32> -> !pto.vreg<64xf32>, !pto.vreg<64xf32>
 
 %pass_mask = pto.vcmps %values, %threshold, %all, "gt"
-    : !pto.vreg<64xf32>, f32, !pto.mask -> !pto.mask
+    : !pto.vreg<64xf32>, f32, !pto.mask<b32> -> !pto.mask<b32>
 %compacted = pto.vsqz %values, %pass_mask
-    : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+    : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 %prev_window = pto.vslide %curr, %prev, %c1
     : !pto.vreg<64xf32>, !pto.vreg<64xf32>, i16 -> !pto.vreg<64xf32>
 %window_sum = pto.vadd %curr, %prev_window, %all
-    : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+    : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 %packed_i16 = pto.vpack %wide0_i32, %wide1_i32, %c0
     : !pto.vreg<64xi32>, !pto.vreg<64xi32>, index -> !pto.vreg<128xi16>

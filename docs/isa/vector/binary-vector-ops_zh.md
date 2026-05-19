@@ -33,12 +33,12 @@ pto.rls_buf "PIPE_MTE2", %bufid, %c0 : i64, i64
 pto.get_buf "PIPE_V", %bufid, %c0 : i64, i64
 pto.vecscope {
   scf.for %offset = %c0 to %N step %c64 iter_args(%remaining = %N_i32) -> (i32) {
-    %mask, %next = pto.plt_b32 %remaining : i32 -> !pto.mask, i32
+    %mask, %next = pto.plt_b32 %remaining : i32 -> !pto.mask<G>, i32
     %lhs = pto.vlds %ub_a[%offset] : !pto.ptr -> !pto.vreg<64xf32>
     %rhs = pto.vlds %ub_b[%offset] : !pto.ptr -> !pto.vreg<64xf32>
     %out = pto.vadd %lhs, %rhs, %mask
-        : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
-    pto.vsts %out, %ub_out[%offset], %mask : !pto.vreg<64xf32>, !pto.ptr, !pto.mask
+        : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
+    pto.vsts %out, %ub_out[%offset], %mask : !pto.vreg<64xf32>, !pto.ptr, !pto.mask<b32>
     scf.yield %next : i32
   }
 }
@@ -90,7 +90,7 @@ total_cycles = startup + completion + repeats × per_repeat + (repeats - 1) × i
 
 ### `pto.vadd`
 
-- **语法：** `%result = pto.vadd %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vadd %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 相加。
 
 ```c
@@ -100,33 +100,33 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vsub`
 
-- **语法：** `%result = pto.vsub %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vsub %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 相减。
 
 `%lhs` 是被减数，`%rhs` 是减数。
 
 ### `pto.vmul`
 
-- **语法：** `%result = pto.vmul %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vmul %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 相乘。
 
 当前 A5 文档没有把 `i8/u8` 形式纳入这条指令的常规范畴。整数溢出的精确行为由目标平台决定。
 
 ### `pto.vdiv`
 
-- **语法：** `%result = pto.vdiv %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vdiv %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 相除。
 
 这是最贵的常见二元运算之一。A5 上 f32 需要 17 周期，f16 需要 22 周期，显著高于乘法。如果精度允许，更推荐通过倒数与乘法来近似。
 
 ### `pto.vmax`
 
-- **语法：** `%result = pto.vmax %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vmax %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 取较大值。
 
 ### `pto.vmin`
 
-- **语法：** `%result = pto.vmin %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vmin %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 取较小值。
 
 ---
@@ -135,17 +135,17 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vand`
 
-- **语法：** `%result = pto.vand %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vand %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 按位与。
 
 ### `pto.vor`
 
-- **语法：** `%result = pto.vor %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vor %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 按位或。
 
 ### `pto.vxor`
 
-- **语法：** `%result = pto.vxor %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vxor %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 按位异或。
 
 这三条都只对整数元素类型合法。
@@ -156,14 +156,14 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vshl`
 
-- **语法：** `%result = pto.vshl %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vshl %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 左移。
 
 这里右操作数 `%rhs` 不是一个统一的立即数，而是“每个 lane 自带一个位移量”的第二个向量寄存器。
 
 ### `pto.vshr`
 
-- **语法：** `%result = pto.vshr %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vshr %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 右移。
 
 对有符号整数通常是算术右移，对无符号整数通常是逻辑右移；真正的行为由元素类型的 signedness 决定。
@@ -176,7 +176,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vaddc`
 
-- **语法：** `%result, %carry = pto.vaddc %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>, !pto.mask`
+- **语法：** `%result, %carry = pto.vaddc %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>, !pto.mask<G>`
 - **语义：** 带 carry-out 的逐 lane 加法。
 
 ```c
@@ -191,7 +191,7 @@ for (int i = 0; i < N; i++) {
 
 ### `pto.vsubc`
 
-- **语法：** `%result, %borrow = pto.vsubc %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>, !pto.mask`
+- **语法：** `%result, %borrow = pto.vsubc %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>, !pto.mask<G>`
 - **语义：** 带 borrow-out 的逐 lane 减法。
 
 ```c
@@ -209,18 +209,18 @@ for (int i = 0; i < N; i++) {
 
 ```mlir
 %sum = pto.vadd %a, %b, %mask
-    : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+    : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 %prod = pto.vmul %x, %y, %mask
-    : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+    : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 %clamped_low = pto.vmax %input, %min_vec, %mask
-    : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+    : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 %clamped = pto.vmin %clamped_low, %max_vec, %mask
-    : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+    : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 %masked = pto.vand %data, %bitmask, %mask
-    : !pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask -> !pto.vreg<64xi32>
+    : !pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask<b32> -> !pto.vreg<64xi32>
 ```
 
 ---

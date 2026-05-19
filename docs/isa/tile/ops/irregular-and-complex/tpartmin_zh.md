@@ -1,4 +1,4 @@
-﻿# TPARTMIN
+# TPARTMIN
 
 ## 指令示意图
 

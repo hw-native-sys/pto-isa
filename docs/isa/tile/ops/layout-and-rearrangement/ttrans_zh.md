@@ -1,4 +1,4 @@
-﻿# TTRANS
+# TTRANS
 
 ## 指令示意图
 

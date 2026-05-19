@@ -7,19 +7,19 @@
 ### PTO 汇编形式
 
 ```text
-pstu %align_in, %mask, %base_in : !pto.align, !pto.mask, !pto.ptr<T, ub> -> !pto.align, !pto.ptr<T, ub>
+pstu %align_in, %mask, %base_in : !pto.align, !pto.mask<G>, !pto.ptr<T, ub> -> !pto.align, !pto.ptr<T, ub>
 ```
 
 ### AS Level 1（SSA）
 
 ```mlir
-%align_out, %base_out = pto.pstu %align_in, %mask, %base_in : !pto.align, !pto.mask, !pto.ptr<T, ub> -> !pto.align, !pto.ptr<T, ub>
+%align_out, %base_out = pto.pstu %align_in, %mask, %base_in : !pto.align, !pto.mask<G>, !pto.ptr<T, ub> -> !pto.align, !pto.ptr<T, ub>
 ```
 
 ### AS Level 2（DPS）
 
 ```mlir
-pto.pstu ins(%align_in, %mask, %base_in : !pto.align, !pto.mask, !pto.ptr<T, ub>)
+pto.pstu ins(%align_in, %mask, %base_in : !pto.align, !pto.mask<G>, !pto.ptr<T, ub>)
        outs(%align_out, %base_out : !pto.align, !pto.ptr<T, ub>)
 ```
 

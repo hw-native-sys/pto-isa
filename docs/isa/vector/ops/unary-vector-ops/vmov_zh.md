@@ -21,7 +21,7 @@ vmov %result, %input, %mask
 ### AS Level 1（SSA）
 
 ```mlir
-%result = pto.vmov %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vmov %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 ## 输入
@@ -29,7 +29,7 @@ vmov %result, %input, %mask
 | 操作数 | 类型 | 说明 |
 |--------|------|------|
 | `%input` | `!pto.vreg<NxT>` | 源向量寄存器；在每个活跃 lane 上读取 |
-| `%mask` | `!pto.mask` | 谓词掩码；掩码位为 1 的 lane 为活跃 lane |
+| `%mask` | `!pto.mask<G>` | 谓词掩码；掩码位为 1 的 lane 为活跃 lane |
 
 ## 预期输出
 
@@ -71,7 +71,7 @@ for (int i = 0; i < N; i++)
 ### MLIR 用法
 
 ```mlir
-%copy = pto.vmov %src, %mask : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+%copy = pto.vmov %src, %mask : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 ```
 
 ## 性能

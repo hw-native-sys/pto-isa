@@ -23,19 +23,19 @@ Inactive lanes (`mask[i] == 0`): `dst[i]` is **unmodified** (preserves the prior
 ### PTO Assembly Form
 
 ```mlir
-%result = pto.vexp %input, %mask : (!pto.vreg<NxT>, !pto.mask) -> !pto.vreg<NxT>
+%result = pto.vexp %input, %mask : (!pto.vreg<NxT>, !pto.mask<G>) -> !pto.vreg<NxT>
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vexp %input, %mask : (!pto.vreg<NxT>, !pto.mask) -> !pto.vreg<NxT>
+%result = pto.vexp %input, %mask : (!pto.vreg<NxT>, !pto.mask<G>) -> !pto.vreg<NxT>
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.vexp ins(%input, %mask : !pto.vreg<NxT>, !pto.mask)
+pto.vexp ins(%input, %mask : !pto.vreg<NxT>, !pto.mask<G>)
           outs(%result : !pto.vreg<NxT>)
 ```
 
@@ -70,7 +70,7 @@ Where `N` is the vector lane count determined by the element type:
 | Operand | Type | Description |
 |---------|------|-------------|
 | `%input` | `!pto.vreg<NxT>` | Source vector register; holds the input values |
-| `%mask` | `!pto.mask` | Predicate mask; lanes where mask bit is 1 are active |
+| `%mask` | `!pto.mask<G>` | Predicate mask; lanes where mask bit is 1 are active |
 
 ## Expected Outputs
 
@@ -134,7 +134,7 @@ A5 (pipelined): 16 + 15×2 = 46 cycles
 A2/A3: 13 + 26 + 32 + 270 = 341 cycles
 ```
 
-**Performance note**: For numerically stable softmax, prefer `vexpdiff` (fused exp-diff) over `vexp` + `vsub` since it avoids a separate max-subtraction kernel and has better combined throughput.
+**Performance note**: For numerically stable softmax, prefer `vexpdif` (fused exp-diff) over `vexp` + `vsub` since it avoids a separate max-subtraction kernel and has better combined throughput.
 
 ---
 
@@ -145,8 +145,8 @@ A2/A3: 13 + 26 + 32 + 270 = 341 cycles
 ```mlir
 // Softmax: exp(x - max) for numerical stability
 %max_bc = pto.vlds %ub_max[%c0] {dist = "BRC"} : !pto.ptr<f32, ub> -> !pto.vreg<64xf32>
-%sub = pto.vsub %x, %max_bc, %mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
-%exp = pto.vexp %sub, %mask : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+%sub = pto.vsub %x, %max_bc, %mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
+%exp = pto.vexp %sub, %mask : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 ```
 
 ### C++ usage

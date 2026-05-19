@@ -355,7 +355,7 @@ GM ──(copy_gm_to_ubuf)──► UB ──(vlds)──► Vector Register ─
 | Data movement | TLOAD/TSTORE (implicit tile↔UB) | copy_gm_to_ubuf / copy_ubuf_to_gm + vlds/vsts |
 | Synchronization | TSYNC, set_flag/wait_flag | set_flag/wait_flag on vector pipe, mem_bar |
 | Layout control | Via tile layout parameters | Via distribution mode (NORM, BRC, DS, etc.) |
-| Predicate support | No per-lane masking | Yes — `%mask : !pto.mask` on every vector op |
+| Predicate support | No per-lane masking | Yes — `%mask : !pto.mask<G>` on every vector op |
 | Target portability | All profiles | A5 hardware; emulated on CPU/A2/A3 |
 
 ## Audience: Who Reads This Manual
