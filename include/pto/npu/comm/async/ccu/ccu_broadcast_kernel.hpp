@@ -29,6 +29,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <cstdlib>
 #include <cstring>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -196,31 +197,41 @@ private:
     inline HcclResult InitResource()
     {
         gateOnly_ = ownChannels_.empty();
-
         if (gateOnly_) {
-            std::fprintf(stderr,
-                         "[CCU_BROADCAST/init] rank=%u — no channels, "
-                         "gate-only mode (SetDieId fallback).\n",
-                         rankId_);
-            uint32_t pinDieId = 1U;
-            const char *env = std::getenv("HCCL_PTO_GATE_DIE_ID");
-            if (env != nullptr && *env != '\0') {
-                char *end = nullptr;
-                unsigned long v = std::strtoul(env, &end, 10);
-                if (end != env && v < 64U)
-                    pinDieId = static_cast<uint32_t>(v);
-            }
-            SetDieId(pinDieId);
-
-            gateEvent_ = CreateCompletedEvent();
-            gateEvent_.SetMask(gateMask_);
-            doneEvent_ = CreateCompletedEvent();
-            doneEvent_.SetMask(doneMask_);
-
-            BroadcastTrace("init", rankId_, "InitResource done (gate-only)");
-            return HcclResult::HCCL_SUCCESS;
+            return InitResourceGateOnly();
         }
+        return InitResourceWithChannels();
+    }
 
+    inline HcclResult InitResourceGateOnly()
+    {
+        std::fprintf(stderr,
+                     "[CCU_BROADCAST/init] rank=%u — no channels, "
+                     "gate-only mode (SetDieId fallback).\n",
+                     rankId_);
+        uint32_t pinDieId = 1U;
+        const char *env = std::getenv("HCCL_PTO_GATE_DIE_ID");
+        if (env != nullptr && *env != '\0') {
+            try {
+                unsigned long v = std::stoul(std::string(env), nullptr, 10);
+                if (v < 64U)
+                    pinDieId = static_cast<uint32_t>(v);
+            } catch (...) {
+            }
+        }
+        SetDieId(pinDieId);
+
+        gateEvent_ = CreateCompletedEvent();
+        gateEvent_.SetMask(gateMask_);
+        doneEvent_ = CreateCompletedEvent();
+        doneEvent_.SetMask(doneMask_);
+
+        BroadcastTrace("init", rankId_, "InitResource done (gate-only)");
+        return HcclResult::HCCL_SUCCESS;
+    }
+
+    inline HcclResult InitResourceWithChannels()
+    {
         uint16_t channelIdx = 0;
         for (uint32_t peerId = 0; peerId < rankSize_; peerId++) {
             if (peerId == rankId_) {

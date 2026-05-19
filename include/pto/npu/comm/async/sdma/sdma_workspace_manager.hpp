@@ -125,8 +125,6 @@ public:
 
     void Finalize()
     {
-        if (!inited_)
-            return;
         if (streamsDevicePtr_) {
             aclrtFree(streamsDevicePtr_);
             streamsDevicePtr_ = nullptr;
@@ -225,6 +223,50 @@ private:
         }
     }
 
+    bool InitOneStarsStream(detail::HostStreamInfo &info, int32_t channelIdx, int32_t dieId)
+    {
+        info.stream_ = 0;
+
+        void *stream = nullptr;
+        if (aclrtCreateStreamWithConfig(reinterpret_cast<aclrtStream *>(&stream), 0, ACL_STREAM_DEVICE_USE_ONLY) != 0) {
+            std::cerr << "[SDMA] aclrtCreateStreamWithConfig channel " << channelIdx << " failed" << std::endl;
+            return false;
+        }
+        info.stream_ = reinterpret_cast<uint64_t>(stream);
+
+        int32_t streamId = 0;
+        if (aclrtStreamGetId(reinterpret_cast<aclrtStream>(stream), &streamId) != 0) {
+            std::cerr << "[SDMA] aclrtStreamGetId channel " << channelIdx << " failed" << std::endl;
+            return false;
+        }
+
+        uint32_t sqId = 0;
+        if (pRtStreamGetSqid_(stream, &sqId) != 0) {
+            std::cerr << "[SDMA] rtStreamGetSqid channel " << channelIdx << " failed" << std::endl;
+            return false;
+        }
+
+        uint32_t cqId = 0, logicCqId = 0;
+        if (pRtStreamGetCqid_(stream, &cqId, &logicCqId) != 0) {
+            std::cerr << "[SDMA] rtStreamGetCqid channel " << channelIdx << " failed" << std::endl;
+            return false;
+        }
+
+        void *ctx = nullptr;
+        if (aclrtGetCurrentContext(&ctx) != 0) {
+            std::cerr << "[SDMA] aclrtGetCurrentContext channel " << channelIdx << " failed" << std::endl;
+            return false;
+        }
+
+        info.ctx_ = reinterpret_cast<uint64_t>(ctx);
+        info.stream_id = streamId;
+        info.sq_id = sqId;
+        info.cq_id = cqId;
+        info.logic_cq_id = logicCqId;
+        info.dev_id = dieId;
+        return true;
+    }
+
     bool CreateStarsStreams(int32_t channelNum)
     {
         int32_t deviceId = -1;
@@ -242,46 +284,9 @@ private:
 
         streams_.resize(channelNum);
         for (int32_t i = 0; i < channelNum; ++i) {
-            streams_[i].stream_ = 0;
-
-            void *stream = nullptr;
-            if (aclrtCreateStreamWithConfig(reinterpret_cast<aclrtStream *>(&stream), 0, ACL_STREAM_DEVICE_USE_ONLY) !=
-                0) {
-                std::cerr << "[SDMA] aclrtCreateStreamWithConfig channel " << i << " failed" << std::endl;
+            if (!InitOneStarsStream(streams_[i], i, static_cast<int32_t>(dieId))) {
                 return false;
             }
-            streams_[i].stream_ = reinterpret_cast<uint64_t>(stream);
-
-            int32_t streamId = 0;
-            if (aclrtStreamGetId(reinterpret_cast<aclrtStream>(stream), &streamId) != 0) {
-                std::cerr << "[SDMA] aclrtStreamGetId channel " << i << " failed" << std::endl;
-                return false;
-            }
-
-            uint32_t sqId = 0;
-            if (pRtStreamGetSqid_(stream, &sqId) != 0) {
-                std::cerr << "[SDMA] rtStreamGetSqid channel " << i << " failed" << std::endl;
-                return false;
-            }
-
-            uint32_t cqId = 0, logicCqId = 0;
-            if (pRtStreamGetCqid_(stream, &cqId, &logicCqId) != 0) {
-                std::cerr << "[SDMA] rtStreamGetCqid channel " << i << " failed" << std::endl;
-                return false;
-            }
-
-            void *ctx = nullptr;
-            if (aclrtGetCurrentContext(&ctx) != 0) {
-                std::cerr << "[SDMA] aclrtGetCurrentContext channel " << i << " failed" << std::endl;
-                return false;
-            }
-
-            streams_[i].ctx_ = reinterpret_cast<uint64_t>(ctx);
-            streams_[i].stream_id = streamId;
-            streams_[i].sq_id = sqId;
-            streams_[i].cq_id = cqId;
-            streams_[i].logic_cq_id = logicCqId;
-            streams_[i].dev_id = static_cast<int32_t>(dieId);
         }
 
         std::cerr << "[SDMA] Created " << channelNum << " STARS streams OK" << std::endl;
@@ -405,6 +410,50 @@ private:
         return true;
     }
 
+    bool ExecuteAicpuQuery(aclrtStream aicpuStream, uint64_t streamsAddr, uint64_t workspaceAddr)
+    {
+        TensorGuard inputGuard, outputGuard;
+        std::vector<int64_t> inShape = {2};
+        std::vector<int64_t> outShape = {1};
+        std::vector<uint64_t> inData = {streamsAddr, workspaceAddr};
+        std::vector<uint64_t> outData = {0};
+
+        if (!CreateAclTensor(inData, inShape, inputGuard))
+            return false;
+        if (!CreateAclTensor(outData, outShape, outputGuard))
+            return false;
+
+        uint64_t aclnnWsSize = 0;
+        aclOpExecutor *executor = nullptr;
+        if (pAclnnGetWsSize_(inputGuard.tensor, outputGuard.tensor, &aclnnWsSize, &executor) != 0) {
+            std::cerr << "[SDMA] aclnnShmemSdmaStarsQueryGetWorkspaceSize failed" << std::endl;
+            return false;
+        }
+
+        void *aclnnWs = nullptr;
+        if (aclnnWsSize > 0) {
+            if (aclrtMalloc(&aclnnWs, aclnnWsSize, ACL_MEM_MALLOC_HUGE_FIRST) != 0) {
+                std::cerr << "[SDMA] aclrtMalloc aclnn workspace failed" << std::endl;
+                return false;
+            }
+        }
+
+        bool ok = false;
+        if (pAclnnExec_(aclnnWs, aclnnWsSize, executor, aicpuStream) != 0) {
+            std::cerr << "[SDMA] aclnnShmemSdmaStarsQuery exec failed" << std::endl;
+        } else if (aclrtSynchronizeStream(aicpuStream) != 0) {
+            std::cerr << "[SDMA] aclrtSynchronizeStream (aicpu) failed" << std::endl;
+        } else {
+            ok = true;
+        }
+
+        if (aclnnWs)
+            aclrtFree(aclnnWs);
+        inputGuard.Release();
+        outputGuard.Release();
+        return ok;
+    }
+
     bool LaunchAicpuKernel(uint64_t streamsAddr, uint64_t workspaceAddr)
     {
         aclrtStream aicpuStream = nullptr;
@@ -417,55 +466,7 @@ private:
         value.failureMode = 1;
         aclrtSetStreamAttribute(aicpuStream, ACL_STREAM_ATTR_FAILURE_MODE, &value);
 
-        TensorGuard inputGuard, outputGuard;
-        bool ok = false;
-        do {
-            std::vector<int64_t> inShape = {2};
-            std::vector<int64_t> outShape = {1};
-            std::vector<uint64_t> inData = {streamsAddr, workspaceAddr};
-            std::vector<uint64_t> outData = {0};
-
-            if (!CreateAclTensor(inData, inShape, inputGuard))
-                break;
-            if (!CreateAclTensor(outData, outShape, outputGuard))
-                break;
-
-            uint64_t aclnnWsSize = 0;
-            aclOpExecutor *executor = nullptr;
-            if (pAclnnGetWsSize_(inputGuard.tensor, outputGuard.tensor, &aclnnWsSize, &executor) != 0) {
-                std::cerr << "[SDMA] aclnnShmemSdmaStarsQueryGetWorkspaceSize failed" << std::endl;
-                break;
-            }
-
-            void *aclnnWs = nullptr;
-            if (aclnnWsSize > 0) {
-                if (aclrtMalloc(&aclnnWs, aclnnWsSize, ACL_MEM_MALLOC_HUGE_FIRST) != 0) {
-                    std::cerr << "[SDMA] aclrtMalloc aclnn workspace failed" << std::endl;
-                    break;
-                }
-            }
-
-            if (pAclnnExec_(aclnnWs, aclnnWsSize, executor, aicpuStream) != 0) {
-                std::cerr << "[SDMA] aclnnShmemSdmaStarsQuery exec failed" << std::endl;
-                if (aclnnWs)
-                    aclrtFree(aclnnWs);
-                break;
-            }
-
-            if (aclrtSynchronizeStream(aicpuStream) != 0) {
-                std::cerr << "[SDMA] aclrtSynchronizeStream (aicpu) failed" << std::endl;
-                if (aclnnWs)
-                    aclrtFree(aclnnWs);
-                break;
-            }
-
-            if (aclnnWs)
-                aclrtFree(aclnnWs);
-            ok = true;
-        } while (false);
-
-        inputGuard.Release();
-        outputGuard.Release();
+        bool ok = ExecuteAicpuQuery(aicpuStream, streamsAddr, workspaceAddr);
         aclrtDestroyStream(aicpuStream);
 
         if (ok) {

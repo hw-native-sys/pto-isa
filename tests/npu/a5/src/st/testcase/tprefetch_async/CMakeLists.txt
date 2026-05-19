@@ -11,7 +11,7 @@
 add_library(tprefetch_async_kernel SHARED
     tprefetch_async_kernel.cpp
 )
-target_compile_options(tprefetch_async_kernel PRIVATE ${CMAKE_CCE_COMPILE_OPTIONS} --cce-aicore-arch=dav-c220-vec -DMEMORY_BASE -std=c++17)
+target_compile_options(tprefetch_async_kernel PRIVATE ${CMAKE_CCE_COMPILE_OPTIONS} --cce-aicore-arch=dav-c310-vec -DREGISTER_BASE -std=c++17)
 target_include_directories(tprefetch_async_kernel PRIVATE
     ${ASCEND_HOME_PATH}/pkg_inc/
     ${ASCEND_HOME_PATH}/pkg_inc/profiling/
@@ -33,7 +33,6 @@ target_include_directories(tprefetch_async PRIVATE
 
 target_link_directories(tprefetch_async PUBLIC
     ${ASCEND_HOME_PATH}/lib64
-    ${ASCEND_HOME_PATH}/simulator/${SOC_VERSION}/lib
     ${ASCEND_HOME_PATH}/tools/simulator/${SOC_VERSION}/lib
 )
 
