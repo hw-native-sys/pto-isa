@@ -578,7 +578,7 @@ inline uint32_t get_subblockdim()
 
 inline uint32_t get_block_num()
 {
-    return get_subblockdim();
+    return pto::cpu_sim::GetConfiguredCoreCount();
 }
 
 inline uint32_t get_coreid()

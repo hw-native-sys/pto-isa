@@ -467,9 +467,9 @@ private:
     }
 
     template <typename TileData>
-    void AddOutputCapture(TileData *&tile)
+    void AddOutputCapture(TileData *tile)
     {
-        output_tile_captures_.push_back([&tile](InstructionTraceRecord &record) {
+        output_tile_captures_.push_back([tile](InstructionTraceRecord &record) {
             if (tile != nullptr) {
                 record.output_tiles.push_back(CaptureTileOperand(*tile));
             }

@@ -1948,7 +1948,11 @@ PTO_INST RecordEvent TPUSH(TileData &tile, Pipe &pipe, WaitEvents &...events)
 {
     TSYNC(events...);
     PTO_INSTR_SCOPE_OUTS(TPUSH, 0, tile, pipe);
+#ifdef __CPU_SIM
     TPUSH_REVERSED_IMPL<TileData, Pipe>(tile, pipe);
+#else
+    TPUSH_IMPL(tile, pipe);
+#endif
     return {};
 }
 
@@ -1967,7 +1971,11 @@ PTO_INST RecordEvent TPOP(TileData &tile, Pipe &pipe, WaitEvents &...events)
 {
     TSYNC(events...);
     PTO_INSTR_SCOPE(TPOP, tile, pipe);
+#ifdef __CPU_SIM
     TPOP_REVERSED_IMPL<TileData, Pipe>(tile, pipe);
+#else
+    TPOP_IMPL(tile, pipe);
+#endif
     return {};
 }
 
@@ -1986,7 +1994,11 @@ PTO_INST RecordEvent TALLOC(Pipe &pipe, GlobalData &gmTensor, WaitEvents &...eve
 {
     TSYNC(events...);
     PTO_INSTR_SCOPE(TALLOC, pipe, gmTensor);
+#ifdef __CPU_SIM
     TALLOC_GLOBAL_IMPL<Pipe, GlobalData, Split>(pipe, gmTensor);
+#else
+    TALLOC_IMPL(pipe, gmTensor);
+#endif
     return {};
 }
 
@@ -1996,7 +2008,11 @@ PTO_INST RecordEvent TPUSH(Pipe &pipe, GlobalData &gmTensor, WaitEvents &...even
 {
     TSYNC(events...);
     PTO_INSTR_SCOPE_OUTS(TPUSH, 0, pipe, gmTensor);
+#ifdef __CPU_SIM
     TPUSH_GLOBAL_IMPL<Pipe, GlobalData, Split>(pipe, gmTensor);
+#else
+    TPUSH_IMPL(pipe, gmTensor);
+#endif
     return {};
 }
 
@@ -2006,7 +2022,11 @@ PTO_INST RecordEvent TPOP(Pipe &pipe, GlobalData &gmTensor, WaitEvents &...event
 {
     TSYNC(events...);
     PTO_INSTR_SCOPE(TPOP, pipe, gmTensor);
+#ifdef __CPU_SIM
     TPOP_GLOBAL_IMPL<Pipe, GlobalData, Split>(pipe, gmTensor);
+#else
+    TPOP_IMPL(pipe, gmTensor);
+#endif
     return {};
 }
 
@@ -2016,7 +2036,11 @@ PTO_INST RecordEvent TFREE(Pipe &pipe, GlobalData &gmTensor, WaitEvents &...even
 {
     TSYNC(events...);
     PTO_INSTR_SCOPE_OUTS(TFREE, 0, pipe, gmTensor);
+#ifdef __CPU_SIM
     TFREE_GLOBAL_IMPL<Pipe, GlobalData, Split>(pipe, gmTensor);
+#else
+    TFREE_IMPL(pipe, gmTensor);
+#endif
     return {};
 }
 
