@@ -11,7 +11,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef FA_PERFORMANCE_KERNEL_H
 #define FA_PERFORMANCE_KERNEL_H
 
+#ifdef __CPU_SIM
+#include <pto/common/cpu_stub.hpp>
+#else
 #include <acl/acl.h>
+#endif
 #include <cstddef>
 #include <cstdint>
 
@@ -23,7 +27,11 @@ constexpr int kFaTileS1 = 256;
 constexpr int kFaQkPreload = 4;
 constexpr std::size_t kFaProfileBytesPerBlock = 1024 * 3; // cube + two vec subblocks
 constexpr std::size_t kFaCvCommSlotBytes = 512U;
+#ifdef __CPU_SIM
+constexpr int VEC_CORES = 1;
+#else
 constexpr int VEC_CORES = 2; // Default to 2 vector cores per cube
+#endif
 
 template <int S0, int HEAD_SIZE, int S1, int CUBE_S0, int CUBE_S1 = kFaCubeS1, int TILE_S1 = kFaTileS1,
           int QK_PRELOAD = kFaQkPreload, int CV_FIFO_SIZE = kFaCvFifoSize, bool INTERMEDIATE_CHECK = false,

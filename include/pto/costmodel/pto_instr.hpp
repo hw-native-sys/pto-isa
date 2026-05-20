@@ -21,14 +21,12 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifdef __COSTMODEL
 #include "pto/costmodel/trace.hpp"
 #endif
-#if !defined(PTO_COMM_NOT_SUPPORTED)
-#include "pto/comm/pto_comm_inst.hpp"
-#endif
 
 #define TSTORE_FP_IMPL TSTORE_IMPL
 #define TEXTRACT_FP_IMPL TEXTRACT_IMPL
 #define TINSERT_FP_IMPL TINSERT_IMPL
 #define TMOV_FP_IMPL TMOV_IMPL
+#define PTO_TEMPLATE_ARGS(...) <__VA_ARGS__>
 
 #ifdef __COSTMODEL
 namespace pto::mocker {
@@ -61,24 +59,44 @@ inline void InjectTileCycles(T &obj)
 } // namespace pto::mocker
 
 #define PTO_FIRST_ARG(first, ...) first
-#define PTO_TEMPLATE_ARGS(...) <__VA_ARGS__>
-#define MAP_INSTR_IMPL(API, ...)                                     \
-    do {                                                             \
-        ::pto::mocker::PtoInstrScope _scope(#API);                   \
-        API##_IMPL(__VA_ARGS__);                                     \
-        ::pto::mocker::InjectTileCycles(PTO_FIRST_ARG(__VA_ARGS__)); \
+#define PTO_INJECT_TILE_CYCLES(...) __VA_OPT__(::pto::mocker::InjectTileCycles(PTO_FIRST_ARG(__VA_ARGS__));)
+#define PTO_INSTR_SCOPE(API, ...) ::pto::mocker::PtoInstrScope _pto_instr_scope(#API)
+#define PTO_INSTR_SCOPE_OUTS(API, OUT_COUNT, ...) ::pto::mocker::PtoInstrScope _pto_instr_scope(#API)
+#define PTO_INSTR_SCOPE_ROLES(API, ROLES, ...) ::pto::mocker::PtoInstrScope _pto_instr_scope(#API)
+#define MAP_INSTR_IMPL(API, ...)        \
+    do {                                \
+        PTO_INSTR_SCOPE(API, __VA_ARGS__); \
+        API##_IMPL(__VA_ARGS__);        \
+        PTO_INJECT_TILE_CYCLES(__VA_ARGS__) \
     } while (0)
+#define MAP_INSTR_IMPL_OUTS(API, OUT_COUNT, ...) \
+    MAP_INSTR_IMPL(API, __VA_ARGS__)
 // Template calls use a dedicated macro because the preprocessor does not parse
 // template commas in a generic `_IMPL(...)` wrapper reliably.
-#define MAP_INSTR_IMPL_T(API, TEMPLATE_ARGS, ...)                    \
-    do {                                                             \
-        ::pto::mocker::PtoInstrScope _scope(#API);                   \
-        API##_IMPL TEMPLATE_ARGS(__VA_ARGS__);                       \
-        ::pto::mocker::InjectTileCycles(PTO_FIRST_ARG(__VA_ARGS__)); \
+#define MAP_INSTR_IMPL_T(API, TEMPLATE_ARGS, ...) \
+    do { \
+        PTO_INSTR_SCOPE(API, __VA_ARGS__); \
+        API##_IMPL TEMPLATE_ARGS(__VA_ARGS__); \
+        PTO_INJECT_TILE_CYCLES(__VA_ARGS__) \
     } while (0)
+#define MAP_INSTR_IMPL_T_OUTS(API, TEMPLATE_ARGS, OUT_COUNT, ...) \
+    MAP_INSTR_IMPL_T(API, TEMPLATE_ARGS, __VA_ARGS__)
+#define MAP_INSTR_IMPL_ROLES(API, ROLES, ...) MAP_INSTR_IMPL(API, __VA_ARGS__)
+#define MAP_INSTR_IMPL_T_ROLES(API, TEMPLATE_ARGS, ROLES, ...) MAP_INSTR_IMPL_T(API, TEMPLATE_ARGS, __VA_ARGS__)
 #else
 #define MAP_INSTR_IMPL(API, ...) API##_IMPL(__VA_ARGS__)
+#define MAP_INSTR_IMPL_OUTS(API, OUT_COUNT, ...) API##_IMPL(__VA_ARGS__)
 #define MAP_INSTR_IMPL_T(API, TEMPLATE_ARGS, ...) API##_IMPL TEMPLATE_ARGS(__VA_ARGS__)
+#define MAP_INSTR_IMPL_T_OUTS(API, TEMPLATE_ARGS, OUT_COUNT, ...) API##_IMPL TEMPLATE_ARGS(__VA_ARGS__)
+#define MAP_INSTR_IMPL_ROLES(API, ROLES, ...) API##_IMPL(__VA_ARGS__)
+#define MAP_INSTR_IMPL_T_ROLES(API, TEMPLATE_ARGS, ROLES, ...) API##_IMPL TEMPLATE_ARGS(__VA_ARGS__)
+#define PTO_INSTR_SCOPE(API, ...)
+#define PTO_INSTR_SCOPE_OUTS(API, OUT_COUNT, ...)
+#define PTO_INSTR_SCOPE_ROLES(API, ROLES, ...)
+#endif
+
+#if !defined(PTO_COMM_NOT_SUPPORTED)
+#include "pto/comm/pto_comm_inst.hpp"
 #endif
 
 namespace pto {

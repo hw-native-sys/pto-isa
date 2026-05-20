@@ -12,6 +12,7 @@ cmake_minimum_required(VERSION 3.16)
 project(pto_cpu_sim_comm_st)
 
 option(PTO_CPU_SIM_ENABLE_BF16 "Enable CPU-SIM BF16 coverage. Requires C++23 std::bfloat16_t support." OFF)
+option(PTO_CPU_SIM_TRACE_MODE "Enable PTO instruction tracing in CPU-SIM." OFF)
 option(PTO_CPU_SIM_PREFER_FETCH_GTEST "Build googletest from source instead of using a preinstalled package." OFF)
 
 if (PTO_CPU_SIM_ENABLE_BF16)
@@ -51,6 +52,9 @@ if (PTO_CPU_SIM_ENABLE_BF16)
             "and std::bfloat16_t support."
         )
     endif()
+endif()
+if (PTO_CPU_SIM_TRACE_MODE)
+    add_compile_definitions(PTO_CPU_SIM_TRACE_MODE=1)
 endif()
 
 # GTest is required for CPU STs. Prefer a system installation, but fall back to
@@ -134,7 +138,7 @@ if (NOT PTO_CPU_SIM_GTEST_TARGET OR NOT PTO_CPU_SIM_GTEST_MAIN_TARGET)
     message(FATAL_ERROR "Failed to resolve a usable GTest target for CPU ST builds.")
 endif()
 
-message("-- COMPILER: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}; Using standard C++${CMAKE_CXX_STANDARD}; BF16 CPU-SIM: ${PTO_CPU_SIM_ENABLE_BF16}")
+message("-- COMPILER: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}; Using standard C++${CMAKE_CXX_STANDARD}; BF16 CPU-SIM: ${PTO_CPU_SIM_ENABLE_BF16}; Trace mode: ${PTO_CPU_SIM_TRACE_MODE}")
 
 add_compile_options(
     -D_FORTIFY_SOURCE=2

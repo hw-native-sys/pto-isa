@@ -11,7 +11,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef PTO_PREFETCH_HPP
 #define PTO_PREFETCH_HPP
 
+#ifdef __CPU_SIM
+#include <pto/common/cpu_stub.hpp>
+#else
 #include <acl/acl.h>
+#endif
 #include <pto/pto-inst.hpp>
 #include <pto/npu/a2a3/TLoad.hpp>
 
@@ -21,7 +25,11 @@ constexpr uint32_t kPtoPrefetchTileBytes = 64U * 1024U;
 constexpr uint32_t kPtoPrefetchDefaultBlocks = 20U;
 
 #define PTO_AIV_ATTR __attribute__((aiv))
+#ifdef __CPU_SIM
+#define PTO_PREFETCH_DEVICE_ENABLED 0
+#else
 #define PTO_PREFETCH_DEVICE_ENABLED 1
+#endif
 
 #if PTO_PREFETCH_DEVICE_ENABLED
 namespace detail {
@@ -80,6 +88,12 @@ __global__ AICORE PTO_AIV_ATTR void PTO_PREFETCH_AIV(__gm__ uint8_t *tensor, uin
 template <bool UseSdma = true, int AivCores = -1>
 void PTO_PREFETCH(__gm__ void *tensor, uint64_t tensor_bytes, aclrtStream stream)
 {
+#ifdef __CPU_SIM
+    (void)tensor;
+    (void)tensor_bytes;
+    (void)stream;
+    return;
+#else
     if (tensor_bytes == 0)
         return;
 
@@ -89,6 +103,7 @@ void PTO_PREFETCH(__gm__ void *tensor, uint64_t tensor_bytes, aclrtStream stream
         static_assert(AivCores > 0, "AivCores must be > 0 when UseSdma is false");
         PTO_PREFETCH_AIV<<<AivCores, nullptr, stream>>>((__gm__ uint8_t *)tensor, tensor_bytes);
     }
+#endif
 }
 
 } // namespace pto

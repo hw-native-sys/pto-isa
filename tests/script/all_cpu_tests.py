@@ -37,6 +37,11 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="Enable BF16 CPU-SIM coverage. This switches to a compiler that supports std::bfloat16_t and C++23.",
     )
+    parser.add_argument(
+        "--trace-mode",
+        action="store_true",
+        help="Enable PTO instruction tracing in CPU-SIM via PTO_CPU_SIM_TRACE_MODE.",
+    )
     parser.add_argument("-g", "--generator", required=False,
                         help="Optional CMake generator, for example Ninja.")
     parser.add_argument(
@@ -121,6 +126,7 @@ def build_single_test(repo_root: Path, tests_path: Path, build_dir: Path, args: 
         str(build_dir),
         "-DCMAKE_BUILD_TYPE=Release",
         f"-DPTO_CPU_SIM_ENABLE_BF16={'ON' if args.enable_bf16 else 'OFF'}",
+        f"-DPTO_CPU_SIM_TRACE_MODE={'ON' if args.trace_mode else 'OFF'}",
     ]
     if cc:
         configure_cmd.append(f"-DCMAKE_C_COMPILER={cc}")
