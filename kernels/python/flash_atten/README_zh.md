@@ -23,6 +23,50 @@ https://github.com/huawei-csl/pto-dsl/tree/main/examples/aot/flash_attention/140
 - PTO 汇编器 `ptoas`
 - 包含 `ptodsl`、`torch`、`torch_npu` 的 Python 环境
 
+## 外部依赖
+
+本用例不是自包含示例。它依赖外部 `huawei-csl/pto-dsl` 仓提供的 PTO Python DSL 包：
+
+```text
+https://github.com/huawei-csl/pto-dsl
+```
+
+本用例已验证的版本信息如下：
+
+```text
+pto-dsl package version: 0.1.2
+upstream branch: main
+commit: 6755794cfc145c8ffe4fae92483aa20148e57327
+commit date: 2026-05-18 11:18:56 +0200
+```
+
+`ptodsl` 在两处被使用：
+
+- `kernels/fa_builder.py` 导入 `ptodsl` 来构造 PTO MLIR module。
+- `run.py` 导入 `ptodsl` 的 benchmark 和 NPU device helper。
+
+构建或运行本用例前，需要先安装兼容版本的 `pto-dsl` 包。例如安装当前上游 main 分支：
+
+```bash
+python3 -m pip install --user --upgrade git+https://github.com/huawei-csl/pto-dsl.git
+```
+
+可以用下面的命令确认 Python 实际导入的是哪个 `ptodsl` 包：
+
+```bash
+python3 -c "import ptodsl, inspect; from ptodsl import to_ir_module; print(ptodsl.__file__); print(inspect.signature(to_ir_module))"
+```
+
+`compile.sh` 使用的 `PTO_LIB_PATH` 与 Python `ptodsl` 包是两类不同依赖。`PTO_LIB_PATH` 必须指向当前 PTO-ISA tile library 仓库 checkout，以便 `bisheng` 找到 `include/` 下的头文件。
+
+完整的构建/运行依赖包括：
+
+- 来自 `https://github.com/huawei-csl/pto-dsl` 的 `ptodsl`
+- `torch` 和 `torch_npu`
+- 包含 `bisheng` 的 Ascend CANN runtime/toolkit
+- 与已安装 `ptodsl` 生成的 MLIR 兼容的 `ptoas`
+- 通过 `PTO_LIB_PATH` 提供的本仓 PTO C++ 头文件
+
 ## 目录结构
 
 ```text
@@ -30,7 +74,11 @@ kernels/python/flash_atten/
 ├── caller.cpp              # Host 侧 shim，导出供 ctypes 调用的 call_kernel
 ├── compile.sh              # 生成 MLIR/C++，并构建 build_artifacts/fa.so
 ├── kernels/
-│   └── fa_builder.py       # PTO Python DSL Flash Attention kernel 构造器
+│   ├── fa_builder.py       # PTO Python DSL Flash Attention kernel 构造器
+│   └── ptodsl_compat.py    # ptodsl 0.1.2 本地兼容层
+├── scripts/
+│   └── patch_vec_barriers.py
+│                           # 生成 C++ 的 PIPE_V barrier patch helper
 └── run.py                  # 构建、运行、校验和性能测试入口
 ```
 
@@ -39,6 +87,8 @@ kernels/python/flash_atten/
 ```text
 build_artifacts/fa.mlir     # fa_builder.py 生成的 MLIR
 build_artifacts/fa.cpp      # ptoas 生成的 C++
+build_artifacts/fa_patched.cpp
+                           # compile.sh 删除 barrier 后的可选 C++ 产物
 build_artifacts/fa.so       # run.py 加载的动态库
 build_artifacts/fa_summary_*.tsv
 ```
@@ -49,12 +99,12 @@ build_artifacts/fa_summary_*.tsv
 
 - `HEAD = 128`
 - 每个 Q block 的 `S0 = 128`
-- `TILE_S1 = 256`
+- 默认 `TILE_S1 = 256`；可通过 `FA_S1_TILE=512` 进行实验
 - `CUBE_S1 = 128`
-- `QK_PRELOAD = 4`
+- DSL 调优后的运行路径使用 `QK_PRELOAD = 3`（可通过 `FA_QK_PRELOAD=4` 进行实验；`MANUAL_QK_PRELOAD = 4` 仅保留为 parity 目标元数据）
 - 仅支持非 causal attention
 - Q 总行数通过 `FA_Q_ROWS` 配置，并且必须是 `128` 的整数倍
-- KV 总行数由 `run.py` 在运行时传入；每个 S1 长度需要满足 `S1_TILE=256` 和 `QK_PRELOAD=4` 的整除约束
+- KV 总行数由 `run.py` 在运行时传入；每个 S1 长度需要不小于 `S1_TILE * QK_PRELOAD`，并且能被所选 `S1_TILE` 整除
 
 生成的动态库会针对当前 `FA_Q_ROWS` 特化，S1 长度则在运行时处理。
 
@@ -92,7 +142,7 @@ python3 run.py --case case1
 python3 run.py
 ```
 
-默认集合会运行 `case1` 到 `case8`，并针对每个 `FA_Q_ROWS` 重新编译 kernel：
+默认集合会运行 `case1` 到 `case8`，并针对每个 `FA_Q_ROWS` 重新编译 kernel。`case1` 到 `case4` 使用 `TILE_S1=256`，`case5` 到 `case8`（`S1 >= 16384`）使用 `TILE_S1=512`：
 
 | Case | Q rows（S0 total） | KV rows（S1） |
 | --- | ---: | ---: |
@@ -130,6 +180,48 @@ FA_Q_ROWS=1024 FA_BENCH_LENGTHS=1024 FA_BENCH_WARMUP=20 FA_BENCH_ITERS=200 pytho
 ```bash
 FA_Q_ROWS=1024 bash compile.sh
 FA_Q_ROWS=1024 FA_BENCH_LENGTHS=1024 python3 run.py --no-build
+```
+
+## 删除冗余 PIPE_V Barrier
+
+`compile.sh` 支持在 `ptoas` 生成 C++ 后、`bisheng` 编译前删除选定的 `pipe_barrier(PIPE_V);`。推荐使用基于 op pattern 的方式，而不是依赖生成文件中的固定行号：
+
+稳定的 `gu` pattern 已作为 `compile.sh` 和 `run.py` 的默认行为启用。需要额外 pattern 时可以显式传入：
+
+```bash
+python3 run.py --case case1
+python3 run.py --remove-vec-barrier-patterns gu,softmax-sum-add
+```
+
+也可以通过环境变量传入：
+
+```bash
+FA_REMOVE_VEC_BARRIER_PATTERNS=gu,softmax-sum-add python3 run.py
+```
+
+需要关闭默认 `gu` patch 做对比时，可以传入 `--remove-vec-barrier-patterns none`。
+
+当前支持的 pattern：
+
+| Pattern | 别名 | 作用 | 说明 |
+| --- | --- | --- | --- |
+| `gu` | `trowexpandmul-tadd` | 删除 `TROWEXPANDMUL -> pipe_barrier(PIPE_V) -> wait_flag(PIPE_MTE2, PIPE_V) -> TADD` 中的 vector barrier | 当前稳定策略，用于减少 `compute_gu` 阶段中 MTE wait 已经提供间隔时的冗余 V pipe barrier。 |
+| `softmax-exp-sum` | `texp-trowsum` | 尝试删除 `TEXP -> pipe_barrier(PIPE_V) -> TROWSUM` 中的 barrier | 带直接 tile 依赖检查。若 `TROWSUM` 读取 `TEXP` 写出的 tile，该候选会被保留并在编译日志中报告 skipped。 |
+| `softmax-sum-add` | `trowsum-tadd` | 删除 `TROWSUM -> pipe_barrier(PIPE_V) -> TADD` 中无直接 tile 依赖的 barrier | 实验策略，可与 `gu` 组合验证；对小/中尺寸 case 可能有收益，大尺寸通常接近持平。 |
+
+编译日志会输出实际删除数量，例如：
+
+```text
+Patched generated C++ -> .../fa_patched.cpp (removed 74 PIPE_V barriers; lines=0, patterns=74)
+Skipped PIPE_V barrier pattern candidates: softmax-exp-sum:direct-tile-dependency=2
+```
+
+需要按行号复现实验时，也可以使用 `--remove-vec-barriers line1,line2,...` 或 `FA_REMOVE_VEC_BARRIERS`，但该方式依赖当前生成 C++ 的行号，不适合作为默认方案。
+
+性能验证时建议至少运行默认全量 case。`ptodsl` event timing 对 `ctypes` 自定义 kernel launch 偶发可能出现不可信的 0.x us 结果；此时应使用更保守的同步计时模式：
+
+```bash
+python3 run.py --timing sync
 ```
 
 ## 输出与正确性

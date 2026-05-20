@@ -11,8 +11,8 @@ Runner for the pto-dsl flash-attention port. By default this invokes
 resulting .so, then benchmarks each `FA_BENCH_LENGTHS` entry as the KV seqlen
 S1. Pass `--no-build` to reuse an existing `build_artifacts/fa.so`.
 
-When `FA_Q_ROWS` and `FA_BENCH_LENGTHS` are not set, the default benchmark
-matrix matches `fa_benchmark_shapes.md` and is named case1..case8.
+When `FA_Q_ROWS` and `FA_BENCH_LENGTHS` are not set, the built-in default
+benchmark matrix is named case1..case8.
 """
 
 import argparse
@@ -23,21 +23,21 @@ import math
 import os
 import subprocess
 import sys
-
-import torch
-import torch_npu  # noqa: F401  -- registers the npu backend
+import time
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(THIS_DIR, "kernels"))
-import fa_builder  # noqa: E402
-
-from ptodsl import do_bench  # noqa: E402
-from ptodsl.utils.npu_info import get_num_cube_cores, get_test_device  # noqa: E402
 
 ARTIFACT_DIR = os.path.join(THIS_DIR, "build_artifacts")
 COMPILE_SCRIPT = os.path.join(THIS_DIR, "compile.sh")
 SUMMARY_TSV = os.environ.get("FA_SUMMARY_TSV", "")
 CASE_ID = os.environ.get("FA_CASE_ID", "direct")
+
+fa_builder = None
+torch = None
+torch_npu = None
+do_bench = None
+get_num_cube_cores = None
+get_test_device = None
 
 # Default single-case length. The top-level default path runs DEFAULT_BENCH_CASES
 # unless FA_Q_ROWS or FA_BENCH_LENGTHS is explicitly set.
@@ -63,33 +63,68 @@ ATOL_FUSED_ONLY = 5e-3
 RTOL_FUSED_ONLY = 5e-3
 
 
+def _load_builder():
+    global fa_builder
+    if fa_builder is not None:
+        return fa_builder
+
+    kernels_dir = os.path.join(THIS_DIR, "kernels")
+    if kernels_dir not in sys.path:
+        sys.path.insert(0, kernels_dir)
+    import fa_builder as _fa_builder
+
+    fa_builder = _fa_builder
+    return fa_builder
+
+
+def _load_runtime_deps():
+    global torch, torch_npu, do_bench, get_num_cube_cores, get_test_device
+    if torch is not None:
+        return
+
+    _load_builder()
+    import torch as _torch
+    import torch_npu as _torch_npu
+    from ptodsl import do_bench as _do_bench
+    from ptodsl.utils.npu_info import get_num_cube_cores as _get_num_cube_cores
+    from ptodsl.utils.npu_info import get_test_device as _get_test_device
+
+    torch = _torch
+    torch_npu = _torch_npu
+    do_bench = _do_bench
+    get_num_cube_cores = _get_num_cube_cores
+    get_test_device = _get_test_device
+
+
 def _manual_target_summary():
+    builder = _load_builder()
     return (
         "manual target: S0={s0} HEAD={head} CUBE_S0={cube_s0} "
         "CUBE_S1={cube_s1} TILE_S1={tile_s1} QK_PRELOAD={preload} "
         "causal={causal}"
     ).format(
-        s0=fa_builder.MANUAL_S0,
-        head=fa_builder.MANUAL_HEAD,
-        cube_s0=fa_builder.MANUAL_CUBE_S0,
-        cube_s1=fa_builder.MANUAL_CUBE_S1,
-        tile_s1=fa_builder.MANUAL_TILE_S1,
-        preload=fa_builder.MANUAL_QK_PRELOAD,
-        causal=fa_builder.MANUAL_CAUSAL_MASK,
+        s0=builder.MANUAL_S0,
+        head=builder.MANUAL_HEAD,
+        cube_s0=builder.MANUAL_CUBE_S0,
+        cube_s1=builder.MANUAL_CUBE_S1,
+        tile_s1=builder.MANUAL_TILE_S1,
+        preload=builder.MANUAL_QK_PRELOAD,
+        causal=builder.MANUAL_CAUSAL_MASK,
     )
 
 
 def _dsl_effective_summary():
+    builder = _load_builder()
     return (
         "dsl effective: Q_ROWS={q_rows} HEAD={head} CUBE_S0={cube_s0} "
         "S1_TILE={s1_tile} QK_PRELOAD={preload} NUM_Q_BLOCKS={q_blocks}"
     ).format(
-        q_rows=fa_builder.Q_ROWS,
-        head=fa_builder.HEAD,
-        cube_s0=fa_builder.S0,
-        s1_tile=fa_builder.S1_TILE,
-        preload=fa_builder.QK_PRELOAD,
-        q_blocks=fa_builder.NUM_Q_BLOCKS,
+        q_rows=builder.Q_ROWS,
+        head=builder.HEAD,
+        cube_s0=builder.S0,
+        s1_tile=builder.S1_TILE,
+        preload=builder.QK_PRELOAD,
+        q_blocks=builder.NUM_Q_BLOCKS,
     )
 
 
@@ -106,6 +141,29 @@ def _bench_iters():
 
 def _bench_warmup():
     return int(os.environ.get("FA_BENCH_WARMUP", "10"))
+
+
+def _bench_timing_mode():
+    mode = os.environ.get("FA_BENCH_TIMING", "event").strip().lower()
+    if mode not in {"event", "sync"}:
+        raise ValueError("FA_BENCH_TIMING must be 'event' or 'sync', got {!r}".format(mode))
+    return mode
+
+
+def _sync_bench(fn, warmup_iters, benchmark_iters, unit="us"):
+    _load_runtime_deps()
+    factor = {"s": 1.0, "ms": 1e3, "us": 1e6, "ns": 1e9}[unit]
+    for _ in range(warmup_iters):
+        fn()
+    torch.npu.synchronize()
+
+    total = 0.0
+    for _ in range(benchmark_iters):
+        start = time.perf_counter()
+        fn()
+        torch.npu.synchronize()
+        total += time.perf_counter() - start
+    return total * factor / benchmark_iters
 
 
 def _default_suite_requested(args):
@@ -131,6 +189,10 @@ def _selected_default_cases(case_arg):
 def _default_summary_tsv():
     stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     return os.path.join(ARTIFACT_DIR, "fa_summary_{}_{}.tsv".format(stamp, os.getpid()))
+
+
+def _default_case_s1_tile(seq_len):
+    return 512 if seq_len >= 16384 else 256
 
 
 def _summary_fields():
@@ -167,15 +229,14 @@ def _append_summary_row(row):
 
 
 def _num_tiles(seq_len):
-    if seq_len % fa_builder.S1_TILE != 0:
-        raise ValueError("seq_len {} is not a multiple of S1_TILE={}".format(seq_len, fa_builder.S1_TILE))
-    num_tiles = seq_len // fa_builder.S1_TILE
-    if num_tiles < fa_builder.QK_PRELOAD or (num_tiles - fa_builder.QK_PRELOAD) % fa_builder.QK_PRELOAD != 0:
+    builder = _load_builder()
+    if seq_len % builder.S1_TILE != 0:
+        raise ValueError("seq_len {} is not a multiple of S1_TILE={}".format(seq_len, builder.S1_TILE))
+    num_tiles = seq_len // builder.S1_TILE
+    if num_tiles < builder.QK_PRELOAD:
         raise ValueError(
             "seq_len {} maps to {} tiles; the current QK_PRELOAD={} runtime loop requires "
-            "num_tiles >= QK_PRELOAD and (num_tiles - QK_PRELOAD) % QK_PRELOAD == 0".format(
-                seq_len, num_tiles, fa_builder.QK_PRELOAD
-            )
+            "num_tiles >= QK_PRELOAD".format(seq_len, num_tiles, builder.QK_PRELOAD)
         )
     return num_tiles
 
@@ -185,19 +246,25 @@ def _lib_path():
 
 
 def _require_lib():
+    builder = _load_builder()
     p = _lib_path()
     if not os.path.exists(p):
         raise FileNotFoundError(
             "Missing prebuilt .so: {}\n"
             "    Run `bash compile.sh` (or `python3 run.py` without --no-build) for the current "
-            "FA_Q_ROWS={} to build the runtime-S1 kernel.".format(p, fa_builder.Q_ROWS)
+            "FA_Q_ROWS={} to build the runtime-S1 kernel.".format(p, builder.Q_ROWS)
         )
     return p
 
 
-def _build_lib():
+def _build_lib(remove_vec_barriers="", remove_vec_barrier_patterns=""):
     print("[fa] compiling PTODSL flash kernel...")
-    subprocess.run(["bash", COMPILE_SCRIPT], cwd=THIS_DIR, check=True)
+    cmd = ["bash", COMPILE_SCRIPT]
+    if remove_vec_barriers:
+        cmd.extend(["--remove-vec-barriers", remove_vec_barriers])
+    if remove_vec_barrier_patterns:
+        cmd.extend(["--remove-vec-barrier-patterns", remove_vec_barrier_patterns])
+    subprocess.run(cmd, cwd=THIS_DIR, check=True)
     return _require_lib()
 
 
@@ -213,11 +280,14 @@ def _to_void_p(t):
 
 
 def _block_dim():
-    return min(fa_builder.NUM_Q_BLOCKS, get_num_cube_cores())
+    _load_runtime_deps()
+    builder = _load_builder()
+    return min(builder.NUM_Q_BLOCKS, get_num_cube_cores())
 
 
 def _slot_elems(block_dim):
-    return fa_builder.GM_ELEMS_PER_BLOCK * block_dim
+    builder = _load_builder()
+    return builder.GM_ELEMS_PER_BLOCK * block_dim
 
 
 def attn_flops_matmul_softmax_scale(
@@ -245,6 +315,7 @@ def tflops(flops, ms):
 
 def fa_reference(q, k, v):
     """Plain torch fp32 reference: O = softmax(QK^T * scale) @ V."""
+    _load_runtime_deps()
     scale = 1.0 / math.sqrt(q.shape[1])
     scores = q.float() @ k.float().T * scale
     return (torch.softmax(scores, dim=-1) @ v.float()).float()
@@ -252,6 +323,7 @@ def fa_reference(q, k, v):
 
 def fused_attention(q, k, v):
     """torch_npu fused reference for benchmarking the speedup ratio."""
+    _load_runtime_deps()
     scale = 1.0 / math.sqrt(q.shape[1])
     out, _ = torch_npu.npu_fused_infer_attention_score(
         q.unsqueeze(0), k.unsqueeze(0), v.unsqueeze(0), num_heads=1, input_layout="BSH", scale=scale, next_tokens=65535
@@ -260,8 +332,10 @@ def fused_attention(q, k, v):
 
 
 def _alloc_io(seq_len, device):
-    Q_ROWS = fa_builder.Q_ROWS
-    HEAD = fa_builder.HEAD
+    _load_runtime_deps()
+    builder = _load_builder()
+    Q_ROWS = builder.Q_ROWS
+    HEAD = builder.HEAD
     block_dim = _block_dim()
 
     q = torch.randn((Q_ROWS, HEAD), dtype=torch.float16, device=device)
@@ -286,9 +360,11 @@ def _invoke(lib, block_dim, gm_slot, q, k, v, o, stream_ptr):
     )
 
 
-def benchmark(lib, device, num_tiles, warmup, iters):
+def benchmark(lib, device, num_tiles, warmup, iters, timing_mode):
+    _load_runtime_deps()
+    builder = _load_builder()
     torch.manual_seed(0)
-    seq_len = fa_builder.S1_TILE * num_tiles
+    seq_len = builder.S1_TILE * num_tiles
     q, k, v, gm_slot, o, block_dim = _alloc_io(seq_len, device)
     stream_ptr = torch.npu.current_stream()._as_parameter_
 
@@ -298,8 +374,12 @@ def benchmark(lib, device, num_tiles, warmup, iters):
     def run_fused():
         fused_attention(q, k, v)
 
-    kernel_us = do_bench(run_kernel, warmup_iters=warmup, benchmark_iters=iters, unit="us")
-    fused_us = do_bench(run_fused, warmup_iters=warmup, benchmark_iters=iters, unit="us")
+    if timing_mode == "sync":
+        kernel_us = _sync_bench(run_kernel, warmup_iters=warmup, benchmark_iters=iters, unit="us")
+        fused_us = _sync_bench(run_fused, warmup_iters=warmup, benchmark_iters=iters, unit="us")
+    else:
+        kernel_us = do_bench(run_kernel, warmup_iters=warmup, benchmark_iters=iters, unit="us")
+        fused_us = do_bench(run_fused, warmup_iters=warmup, benchmark_iters=iters, unit="us")
 
     # One untimed correctness probe per length so silent miscompiles don't
     # hide behind a passing benchmark.
@@ -328,8 +408,8 @@ def benchmark(lib, device, num_tiles, warmup, iters):
         )
         ref_label = "npu_fused (host fp32 ref skipped, qk_elems={:.1e})".format(qk_elems)
 
-    matmul_flops = 4 * fa_builder.Q_ROWS * fa_builder.HEAD * seq_len
-    attention_flops = attn_flops_matmul_softmax_scale(1, fa_builder.Q_ROWS, seq_len, fa_builder.HEAD)
+    matmul_flops = 4 * builder.Q_ROWS * builder.HEAD * seq_len
+    attention_flops = attn_flops_matmul_softmax_scale(1, builder.Q_ROWS, seq_len, builder.HEAD)
     kernel_ms = kernel_us / 1000.0
     fused_ms = fused_us / 1000.0
     return {
@@ -349,6 +429,7 @@ def benchmark(lib, device, num_tiles, warmup, iters):
 
 
 def _print_row(r):
+    builder = _load_builder()
     print(
         "  s0={s0:>6} s1={seq_len:>6}  tiles={num_tiles:>3}  "
         "fa={kernel_us:8.2f}us ({kernel_gflops:7.1f} GF/s, {kernel_tflops:6.2f} TFLOP/s)  "
@@ -356,15 +437,16 @@ def _print_row(r):
         "({fused_gflops:7.1f} GF/s, {fused_tflops:6.2f} TFLOP/s)  "
         "speedup={speedup:.2f}x  "
         "err: ours={err_kernel:.2e} npu_fused_infer_attention={err_fused:.2e}  "
-        "ref={ref}".format(s0=fa_builder.Q_ROWS, **r)
+        "ref={ref}".format(s0=builder.Q_ROWS, **r)
     )
 
 
 def _append_benchmark_summary(result, status="OK", note=""):
+    builder = _load_builder()
     _append_summary_row(
         {
             "case_id": CASE_ID,
-            "q_rows": fa_builder.Q_ROWS,
+            "q_rows": builder.Q_ROWS,
             "seq_len": result["seq_len"],
             "tiles": result["num_tiles"],
             "status": status,
@@ -389,6 +471,31 @@ def _parse_args():
     parser.add_argument(
         "--case", help="comma-separated default benchmark cases to run (case1..case8); defaults to all cases"
     )
+    parser.add_argument(
+        "--timing",
+        choices=("event", "sync"),
+        default=_bench_timing_mode(),
+        help="benchmark timing mode; event uses torch NPU events, sync uses host timing with torch.npu.synchronize()",
+    )
+    parser.add_argument(
+        "--remove-vec-barriers",
+        default=os.environ.get("FA_REMOVE_VEC_BARRIERS", ""),
+        metavar="LINES",
+        help=(
+            "comma-separated generated-C++ line numbers whose pipe_barrier(PIPE_V) should be removed "
+            "during build; also accepted via FA_REMOVE_VEC_BARRIERS"
+        ),
+    )
+    parser.add_argument(
+        "--remove-vec-barrier-patterns",
+        default=os.environ.get("FA_REMOVE_VEC_BARRIER_PATTERNS", "gu"),
+        metavar="PATTERNS",
+        help=(
+            "comma-separated generated-C++ PIPE_V barrier patterns to remove during build; "
+            "defaults to stable pattern: gu; experimental: softmax-exp-sum, softmax-sum-add; "
+            "also accepted via FA_REMOVE_VEC_BARRIER_PATTERNS"
+        ),
+    )
     return parser.parse_args()
 
 
@@ -402,19 +509,31 @@ def _run_default_suite(args):
         )
 
     summary_tsv = SUMMARY_TSV or _default_summary_tsv()
-    print("[fa] running default benchmark suite from fa_benchmark_shapes.md")
+    print("[fa] running built-in default benchmark suite")
     print("[fa] selected cases: {}".format(", ".join(case_id for case_id, _, _ in cases)))
     print("[fa] summary TSV: {}".format(summary_tsv))
 
     for case_id, s0, s1 in cases:
-        print("\n{:=^110}".format(" {} S0={} S1={} ".format(case_id, s0, s1)))
+        s1_tile = _default_case_s1_tile(s1)
+        print("\n{:=^110}".format(" {} S0={} S1={} TILE_S1={} ".format(case_id, s0, s1, s1_tile)))
         env = os.environ.copy()
         env.update(
-            {"FA_CASE_ID": case_id, "FA_Q_ROWS": str(s0), "FA_BENCH_LENGTHS": str(s1), "FA_SUMMARY_TSV": summary_tsv}
+            {
+                "FA_CASE_ID": case_id,
+                "FA_Q_ROWS": str(s0),
+                "FA_BENCH_LENGTHS": str(s1),
+                "FA_S1_TILE": str(s1_tile),
+                "FA_SUMMARY_TSV": summary_tsv,
+            }
         )
         cmd = [sys.executable, os.path.abspath(__file__)]
         if args.no_build:
             cmd.append("--no-build")
+        if (not args.no_build) and args.remove_vec_barriers:
+            cmd.extend(["--remove-vec-barriers", args.remove_vec_barriers])
+        if (not args.no_build) and args.remove_vec_barrier_patterns:
+            cmd.extend(["--remove-vec-barrier-patterns", args.remove_vec_barrier_patterns])
+        cmd.extend(["--timing", args.timing])
         subprocess.run(cmd, cwd=THIS_DIR, env=env, check=True)
 
     print("\n[fa] default benchmark suite done.")
@@ -427,30 +546,39 @@ def main():
         _run_default_suite(args)
         return
 
+    _load_runtime_deps()
+    builder = _load_builder()
     device = get_test_device()
     torch.npu.set_device(device)
 
     lengths = _bench_lengths()
     targets = [(L, _num_tiles(L)) for L in lengths]
-    lib_path = _require_lib() if args.no_build else _build_lib()
+    lib_path = (
+        _require_lib() if args.no_build else _build_lib(args.remove_vec_barriers, args.remove_vec_barrier_patterns)
+    )
     lib = _load_lib(lib_path)
 
     warmup = _bench_warmup()
     iters = _bench_iters()
+    timing_mode = args.timing
 
     print("\n{:=^110}".format(" Benchmark (pto-dsl fa) "))
     print("  " + _manual_target_summary())
     print("  " + _dsl_effective_summary())
-    print("  same host-visible shape and QK_PRELOAD as the manual non-causal S0=128 path")
+    print("  same host-visible shape as the manual non-causal S0=128 path; QK_PRELOAD is DSL-tuned")
     print("  TFLOP/s counts matmul + scale + softmax operations, matching 140tflops/run.py")
     print("  reference kernel: torch_npu.npu_fused_infer_attention_score")
     print("  host fp32 reference is skipped when Q_ROWS*S1 > {}".format(HOST_REF_MAX_QK_ELEMS))
-    print("  cores={}  warmup={}  iters={}".format(get_num_cube_cores(), warmup, iters))
-    print("  S0(Q_ROWS)={}  S1 lengths: {}".format(fa_builder.Q_ROWS, list(lengths)))
+    if (not args.no_build) and args.remove_vec_barriers:
+        print("  removed PIPE_V barrier lines: {}".format(args.remove_vec_barriers))
+    if (not args.no_build) and args.remove_vec_barrier_patterns:
+        print("  removed PIPE_V barrier patterns: {}".format(args.remove_vec_barrier_patterns))
+    print("  cores={}  warmup={}  iters={} timing={}".format(get_num_cube_cores(), warmup, iters, timing_mode))
+    print("  S0(Q_ROWS)={}  S1 lengths: {}".format(builder.Q_ROWS, list(lengths)))
     print("-" * 110)
 
     for _, nt in targets:
-        result = benchmark(lib, device, num_tiles=nt, warmup=warmup, iters=iters)
+        result = benchmark(lib, device, num_tiles=nt, warmup=warmup, iters=iters, timing_mode=timing_mode)
         _print_row(result)
         _append_benchmark_summary(result)
 

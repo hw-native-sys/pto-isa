@@ -5,10 +5,9 @@
  * Please refer to the License for details. You may not use this file except in compliance with the License.
  *
  * Host shim for the pto-dsl flash-attention kernel. compile.sh injects
- *   -DKERNEL_CPP="\"build_artifacts/fa.cpp\""
- * which makes this TU include the ptoas-generated kernel that defines
- * `call_both`. The single exported symbol `call_kernel` is what run.py
- * calls via ctypes.
+ * KERNEL_CPP with the generated or patched kernel source that defines
+ * `call_both`. The single exported symbol `call_kernel` is what run.py calls
+ * via ctypes.
  */
 
 #ifndef KERNEL_CPP
