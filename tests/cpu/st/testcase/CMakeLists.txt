@@ -138,6 +138,7 @@ tshrs
 tsort32
 tsqrt
 tstore
+tstore_quant
 tsub
 tsubview
 tsubc
