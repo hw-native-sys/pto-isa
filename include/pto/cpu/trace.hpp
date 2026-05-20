@@ -235,10 +235,9 @@ inline constexpr bool kTraceTileLikeOperand =
 
 template <typename T>
 inline constexpr bool kTraceTilePointerOperand =
-    std::is_pointer_v<std::remove_cvref_t<T>> &&
-    (is_tile_data_v<std::remove_pointer_t<std::remove_cvref_t<T>>> ||
-     is_conv_tile_v<std::remove_pointer_t<std::remove_cvref_t<T>>> ||
-     is_global_data_v<std::remove_pointer_t<std::remove_cvref_t<T>>>);
+    std::is_pointer_v<std::remove_cvref_t<T>> && (is_tile_data_v<std::remove_pointer_t<std::remove_cvref_t<T>>> ||
+                                                  is_conv_tile_v<std::remove_pointer_t<std::remove_cvref_t<T>>> ||
+                                                  is_global_data_v<std::remove_pointer_t<std::remove_cvref_t<T>>>);
 
 template <typename T>
 inline constexpr bool kTraceScalarOperand =
@@ -407,7 +406,7 @@ inline void DumpInstructionTraceJson(std::ostream &os)
 class PtoInstrTraceScope {
 public:
     template <typename... Args>
-    explicit PtoInstrTraceScope(std::string_view opcode, std::size_t output_tile_count, Args &&... args)
+    explicit PtoInstrTraceScope(std::string_view opcode, std::size_t output_tile_count, Args &&...args)
     {
         if constexpr (!kInstructionTraceEnabled) {
             (void)opcode;
@@ -421,7 +420,7 @@ public:
     }
 
     template <typename... Args>
-    explicit PtoInstrTraceScope(std::string_view opcode, std::string_view roles, Args &&... args)
+    explicit PtoInstrTraceScope(std::string_view opcode, std::string_view roles, Args &&...args)
     {
         if constexpr (!kInstructionTraceEnabled) {
             (void)opcode;
@@ -461,9 +460,8 @@ private:
     template <typename TileData>
     void AddOutputCapture(TileData &tile)
     {
-        output_tile_captures_.push_back([&tile](InstructionTraceRecord &record) {
-            record.output_tiles.push_back(CaptureTileOperand(tile));
-        });
+        output_tile_captures_.push_back(
+            [&tile](InstructionTraceRecord &record) { record.output_tiles.push_back(CaptureTileOperand(tile)); });
     }
 
     template <typename TileData>

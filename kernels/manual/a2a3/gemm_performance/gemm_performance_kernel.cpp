@@ -258,15 +258,14 @@ void LaunchGEMME2E(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream)
     constexpr uint32_t stepKb = 4;
     constexpr uint32_t stepN = 1;
 #ifdef __CPU_SIM
-    pto::cpu_sim::LaunchKernelMultiCore({.kernel_name = "gemm_performance", .requested_cores = blockDim}, stream,
-                                        [&]() {
-                                            GemmPerformance<T, blockDim, m, k, n, singleCoreM, singleCoreK,
-                                                            singleCoreN, baseM, baseK, baseN, stepM, stepKa, stepKb,
-                                                            stepN>(out, src0, src1);
-                                        });
+    pto::cpu_sim::LaunchKernelMultiCore(
+        {.kernel_name = "gemm_performance", .requested_cores = blockDim}, stream, [&]() {
+            GemmPerformance<T, blockDim, m, k, n, singleCoreM, singleCoreK, singleCoreN, baseM, baseK, baseN, stepM,
+                            stepKa, stepKb, stepN>(out, src0, src1);
+        });
 #else
     GemmPerformance<T, blockDim, m, k, n, singleCoreM, singleCoreK, singleCoreN, baseM, baseK, baseN, stepM, stepKa,
-                    stepKb, stepN><<<blockDim, nullptr, stream>>>(out, src0, src1);
+                    stepKb, stepN><<<blockDim, nullptr, stream> > >(out, src0, src1);
 #endif
 }
 

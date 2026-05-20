@@ -479,13 +479,12 @@ AICORE inline void compute_p(QKPipe &qkPipe, PPipe &pPipe, int tile_id, int row_
             // `TLOAD` zero-fills `Rows * Cols` from the assigned base pointer before copying the valid region.
             // For offset row-major subviews that would clobber neighboring columns in `qkVecTile`, so copy the
             // `Cube_S1` window directly into the destination slice instead.
-            const size_t src_tile_base = static_cast<size_t>(sub_col) * static_cast<size_t>(Cube_S0) *
-                                         static_cast<size_t>(Cube_S1);
+            const size_t src_tile_base =
+                static_cast<size_t>(sub_col) * static_cast<size_t>(Cube_S0) * static_cast<size_t>(Cube_S1);
             const size_t dst_col_base = static_cast<size_t>(sub_col) * static_cast<size_t>(Cube_S1);
             for (int r = 0; r < static_cast<int>(Vec_S0); ++r) {
                 const size_t src_row_base = src_tile_base + static_cast<size_t>(r) * static_cast<size_t>(Cube_S1);
-                const size_t dst_row_base =
-                    static_cast<size_t>(r) * static_cast<size_t>(Tile_S1) + dst_col_base;
+                const size_t dst_row_base = static_cast<size_t>(r) * static_cast<size_t>(Tile_S1) + dst_col_base;
                 for (int c = 0; c < static_cast<int>(Cube_S1); ++c) {
                     qkVecTile.data()[dst_row_base + static_cast<size_t>(c)] =
                         qk_ptr[src_row_base + static_cast<size_t>(c)];
@@ -982,11 +981,10 @@ void LaunchTFA(uint16_t *ffts, aclFloat16 *q, aclFloat16 *k, aclFloat16 *v, aclF
 
 #ifdef __CPU_SIM
     pto::cpu_sim::LaunchKernelMultiCore({.kernel_name = "flash_atten", .requested_cores = block_rows}, stream, [&]() {
-        runTFA<S0, HEAD_SIZE, S1, CUBE_S0, CUBE_S1, TILE_S1, QK_PRELOAD, CV_FIFO_SIZE, INTERMEDIATE_CHECK,
-               CAUSAL_MASK, CV_FIFO_CONS_SYNC_PERIOD>((__gm__ uint64_t *)ffts, (half *)q, (half *)k, (half *)v,
-                                                     (half *)p_tile_fifo, exp_max_ififo, global_sum_out, exp_max_out,
-                                                     o_out, o_parts_out, qk_tile_fifo, pv_tile_fifo, cv_comm_buf,
-                                                     profile_data);
+        runTFA<S0, HEAD_SIZE, S1, CUBE_S0, CUBE_S1, TILE_S1, QK_PRELOAD, CV_FIFO_SIZE, INTERMEDIATE_CHECK, CAUSAL_MASK,
+               CV_FIFO_CONS_SYNC_PERIOD>((__gm__ uint64_t *)ffts, (half *)q, (half *)k, (half *)v, (half *)p_tile_fifo,
+                                         exp_max_ififo, global_sum_out, exp_max_out, o_out, o_parts_out, qk_tile_fifo,
+                                         pv_tile_fifo, cv_comm_buf, profile_data);
     });
     return;
 #endif
@@ -1013,20 +1011,19 @@ void LaunchTFA(uint16_t *ffts, aclFloat16 *q, aclFloat16 *k, aclFloat16 *v, aclF
 #endif
 #endif
 
-    #ifdef __CPU_SIM
+#ifdef __CPU_SIM
     pto::cpu_sim::LaunchKernelMultiCore({.kernel_name = "flash_atten", .requested_cores = block_rows}, stream, [&]() {
-        runTFA<S0, HEAD_SIZE, S1, CUBE_S0, CUBE_S1, TILE_S1, QK_PRELOAD, CV_FIFO_SIZE, INTERMEDIATE_CHECK,
-               CAUSAL_MASK, CV_FIFO_CONS_SYNC_PERIOD>((__gm__ uint64_t *)ffts, (half *)q, (half *)k, (half *)v,
-                                                     (half *)p_tile_fifo, exp_max_ififo, global_sum_out, exp_max_out,
-                                                     o_out, o_parts_out, qk_tile_fifo, pv_tile_fifo, cv_comm_buf,
-                                                     profile_data);
+        runTFA<S0, HEAD_SIZE, S1, CUBE_S0, CUBE_S1, TILE_S1, QK_PRELOAD, CV_FIFO_SIZE, INTERMEDIATE_CHECK, CAUSAL_MASK,
+               CV_FIFO_CONS_SYNC_PERIOD>((__gm__ uint64_t *)ffts, (half *)q, (half *)k, (half *)v, (half *)p_tile_fifo,
+                                         exp_max_ififo, global_sum_out, exp_max_out, o_out, o_parts_out, qk_tile_fifo,
+                                         pv_tile_fifo, cv_comm_buf, profile_data);
     });
-    #else
+#else
     runTFA<S0, HEAD_SIZE, S1, CUBE_S0, CUBE_S1, TILE_S1, QK_PRELOAD, CV_FIFO_SIZE, INTERMEDIATE_CHECK, CAUSAL_MASK,
            CV_FIFO_CONS_SYNC_PERIOD><<<block_rows, nullptr, stream>>>(
         (__gm__ uint64_t *)ffts, (half *)q, (half *)k, (half *)v, (half *)p_tile_fifo, exp_max_ififo, global_sum_out,
         exp_max_out, o_out, o_parts_out, qk_tile_fifo, pv_tile_fifo, cv_comm_buf, profile_data);
-    #endif
+#endif
 }
 
 // Backward-compatible overload without profiling buffer
@@ -1154,8 +1151,8 @@ void ComputeFlashBlock(int block_idx, aclFloat16 *q, aclFloat16 *k, aclFloat16 *
             for (int h = 0; h < HEAD_SIZE; ++h) {
                 float pv_acc = 0.0f;
                 for (int c = 0; c < TILE_S1; ++c) {
-                    pv_acc += exp_tile[static_cast<std::size_t>(r) * TILE_S1 + c] *
-                              ToFloat(v[(c0 + c) * HEAD_SIZE + h]);
+                    pv_acc +=
+                        exp_tile[static_cast<std::size_t>(r) * TILE_S1 + c] * ToFloat(v[(c0 + c) * HEAD_SIZE + h]);
                 }
                 pv_tile[static_cast<std::size_t>(r) * HEAD_SIZE + h] = pv_acc;
                 if (ti == 0) {
@@ -1187,11 +1184,11 @@ void ComputeFlashBlock(int block_idx, aclFloat16 *q, aclFloat16 *k, aclFloat16 *
         }
     }
 
-    std::memcpy(o_out + static_cast<std::size_t>(row0) * HEAD_SIZE, running.data(),
-                running.size() * sizeof(float));
+    std::memcpy(o_out + static_cast<std::size_t>(row0) * HEAD_SIZE, running.data(), running.size() * sizeof(float));
     const uint64_t end = get_sys_cnt();
     if (profile_data != nullptr) {
-        auto *entry = reinterpret_cast<uint64_t *>(profile_data + static_cast<std::size_t>(block_idx) * profile_bytes_per_block);
+        auto *entry =
+            reinterpret_cast<uint64_t *>(profile_data + static_cast<std::size_t>(block_idx) * profile_bytes_per_block);
         entry[0] = start;
         entry[1] = end;
     }

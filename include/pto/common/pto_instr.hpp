@@ -24,40 +24,40 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #ifdef __CPU_SIM
 #define PTO_INSTR_SCOPE(API, ...) \
-    ::pto::cpu_sim::PtoInstrTraceScope _pto_instr_trace_scope(#API, 1 __VA_OPT__(,) __VA_ARGS__)
+    ::pto::cpu_sim::PtoInstrTraceScope _pto_instr_trace_scope(#API, 1 __VA_OPT__(, ) __VA_ARGS__)
 #define PTO_INSTR_SCOPE_OUTS(API, OUT_COUNT, ...) \
-    ::pto::cpu_sim::PtoInstrTraceScope _pto_instr_trace_scope(#API, OUT_COUNT __VA_OPT__(,) __VA_ARGS__)
+    ::pto::cpu_sim::PtoInstrTraceScope _pto_instr_trace_scope(#API, OUT_COUNT __VA_OPT__(, ) __VA_ARGS__)
 #define PTO_INSTR_SCOPE_ROLES(API, ROLES, ...) \
-    ::pto::cpu_sim::PtoInstrTraceScope _pto_instr_trace_scope(#API, ROLES __VA_OPT__(,) __VA_ARGS__)
-#define MAP_INSTR_IMPL(API, ...) \
-    do { \
+    ::pto::cpu_sim::PtoInstrTraceScope _pto_instr_trace_scope(#API, ROLES __VA_OPT__(, ) __VA_ARGS__)
+#define MAP_INSTR_IMPL(API, ...)           \
+    do {                                   \
         PTO_INSTR_SCOPE(API, __VA_ARGS__); \
-        API##_IMPL(__VA_ARGS__); \
+        API##_IMPL(__VA_ARGS__);           \
     } while (0)
-#define MAP_INSTR_IMPL_OUTS(API, OUT_COUNT, ...) \
-    do { \
+#define MAP_INSTR_IMPL_OUTS(API, OUT_COUNT, ...)           \
+    do {                                                   \
         PTO_INSTR_SCOPE_OUTS(API, OUT_COUNT, __VA_ARGS__); \
-        API##_IMPL(__VA_ARGS__); \
+        API##_IMPL(__VA_ARGS__);                           \
     } while (0)
 #define MAP_INSTR_IMPL_T(API, TEMPLATE_ARGS, ...) \
-    do { \
-        PTO_INSTR_SCOPE(API, __VA_ARGS__); \
-        API##_IMPL TEMPLATE_ARGS(__VA_ARGS__); \
+    do {                                          \
+        PTO_INSTR_SCOPE(API, __VA_ARGS__);        \
+        API##_IMPL TEMPLATE_ARGS(__VA_ARGS__);    \
     } while (0)
 #define MAP_INSTR_IMPL_T_OUTS(API, TEMPLATE_ARGS, OUT_COUNT, ...) \
-    do { \
-        PTO_INSTR_SCOPE_OUTS(API, OUT_COUNT, __VA_ARGS__); \
-        API##_IMPL TEMPLATE_ARGS(__VA_ARGS__); \
+    do {                                                          \
+        PTO_INSTR_SCOPE_OUTS(API, OUT_COUNT, __VA_ARGS__);        \
+        API##_IMPL TEMPLATE_ARGS(__VA_ARGS__);                    \
     } while (0)
-#define MAP_INSTR_IMPL_ROLES(API, ROLES, ...) \
-    do { \
+#define MAP_INSTR_IMPL_ROLES(API, ROLES, ...)           \
+    do {                                                \
         PTO_INSTR_SCOPE_ROLES(API, ROLES, __VA_ARGS__); \
-        API##_IMPL(__VA_ARGS__); \
+        API##_IMPL(__VA_ARGS__);                        \
     } while (0)
 #define MAP_INSTR_IMPL_T_ROLES(API, TEMPLATE_ARGS, ROLES, ...) \
-    do { \
-        PTO_INSTR_SCOPE_ROLES(API, ROLES, __VA_ARGS__); \
-        API##_IMPL TEMPLATE_ARGS(__VA_ARGS__); \
+    do {                                                       \
+        PTO_INSTR_SCOPE_ROLES(API, ROLES, __VA_ARGS__);        \
+        API##_IMPL TEMPLATE_ARGS(__VA_ARGS__);                 \
     } while (0)
 #else
 #define PTO_INSTR_SCOPE(API, ...)
@@ -707,10 +707,10 @@ PTO_INST RecordEvent TMRGSORT(DstTileData &dst, MrgSortExecutedNumList &executed
                               WaitEvents &...events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TMRGSORT,
-                     PTO_TEMPLATE_ARGS(DstTileData, TmpTileData, Src0TileData, Src1TileData, Src2TileData,
-                                       Src3TileData, exhausted),
-                     dst, executedNumList, tmp, src0, src1, src2, src3);
+    MAP_INSTR_IMPL_T(
+        TMRGSORT,
+        PTO_TEMPLATE_ARGS(DstTileData, TmpTileData, Src0TileData, Src1TileData, Src2TileData, Src3TileData, exhausted),
+        dst, executedNumList, tmp, src0, src1, src2, src3);
     return {};
 }
 
@@ -732,8 +732,7 @@ PTO_INST RecordEvent TMRGSORT(DstTileData &dst, MrgSortExecutedNumList &executed
                               Src0TileData &src0, Src1TileData &src1, WaitEvents &...events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TMRGSORT,
-                     PTO_TEMPLATE_ARGS(DstTileData, TmpTileData, Src0TileData, Src1TileData, exhausted), dst,
+    MAP_INSTR_IMPL_T(TMRGSORT, PTO_TEMPLATE_ARGS(DstTileData, TmpTileData, Src0TileData, Src1TileData, exhausted), dst,
                      executedNumList, tmp, src0, src1);
     return {};
 }
@@ -792,8 +791,8 @@ PTO_INST RecordEvent TEXTRACT(DstTileData &dst, SrcTileData &src, uint64_t preQu
                               uint16_t indexCol, WaitEvents &...events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TEXTRACT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, mode, reluMode), dst, src,
-                     preQuantScalar, indexRow, indexCol);
+    MAP_INSTR_IMPL_T(TEXTRACT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, mode, reluMode), dst, src, preQuantScalar,
+                     indexRow, indexCol);
     return {};
 }
 
@@ -907,8 +906,8 @@ PTO_INST RecordEvent TINSERT(DstTileData &dst, SrcTileData &src, uint64_t preQua
                              uint16_t indexCol, WaitEvents &...events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TINSERT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, reluMode), dst, src, preQuantScalar,
-                     indexRow, indexCol);
+    MAP_INSTR_IMPL_T(TINSERT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, reluMode), dst, src, preQuantScalar, indexRow,
+                     indexCol);
     return {};
 }
 template <typename DstTileData, typename SrcTileData, AccToVecMode mode, ReluPreMode reluMode = ReluPreMode::NoRelu,
@@ -917,8 +916,8 @@ PTO_INST RecordEvent TINSERT(DstTileData &dst, SrcTileData &src, uint64_t preQua
                              uint16_t indexCol, WaitEvents &...events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TINSERT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, mode, reluMode), dst, src,
-                     preQuantScalar, indexRow, indexCol);
+    MAP_INSTR_IMPL_T(TINSERT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, mode, reluMode), dst, src, preQuantScalar,
+                     indexRow, indexCol);
     return {};
 }
 template <typename DstTileData, typename SrcTileData, typename FpTileData, ReluPreMode reluMode = ReluPreMode::NoRelu,
@@ -927,8 +926,8 @@ PTO_INST RecordEvent TINSERT_FP(DstTileData &dst, SrcTileData &src, FpTileData &
                                 uint16_t indexCol, WaitEvents &...events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TINSERT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, FpTileData, reluMode), dst, src, fp,
-                     indexRow, indexCol);
+    MAP_INSTR_IMPL_T(TINSERT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, FpTileData, reluMode), dst, src, fp, indexRow,
+                     indexCol);
     return {};
 }
 
@@ -1019,9 +1018,8 @@ PTO_INST RecordEvent TGATHER(TileDataD &dst, TileDataS &src0, TileDataS1 &k_valu
                              int offset, WaitEvents &...events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TGATHER,
-                     PTO_TEMPLATE_ARGS(TileDataD, TileDataS, TileDataS1, TileDataC, TileDataTmp, cmpMode), dst, src0,
-                     k_value, cdst, tmp, offset);
+    MAP_INSTR_IMPL_T(TGATHER, PTO_TEMPLATE_ARGS(TileDataD, TileDataS, TileDataS1, TileDataC, TileDataTmp, cmpMode), dst,
+                     src0, k_value, cdst, tmp, offset);
     return {};
 }
 
@@ -1208,8 +1206,7 @@ template <typename DstTileData, typename SrcTileData, AccToVecMode mode, ReluPre
 PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, uint64_t preQuantScalar, WaitEvents &...events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TMOV, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, mode, reluMode), dst, src,
-                     preQuantScalar);
+    MAP_INSTR_IMPL_T(TMOV, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, mode, reluMode), dst, src, preQuantScalar);
     return {};
 }
 
@@ -2068,10 +2065,9 @@ PTO_INST RecordEvent TQUANT(TileDataOut &dst, TileDataSrc &src, TileDataExp *exp
                             TileDataScaling *scaling, WaitEvents &...events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T_ROLES(TQUANT,
-                           PTO_TEMPLATE_ARGS(quant_type, TileDataOut, TileDataSrc, TileDataExp, TileDataMax,
-                                             TileDataScaling),
-                           "OIOOO", dst, src, exp, max, scaling);
+    MAP_INSTR_IMPL_T_ROLES(
+        TQUANT, PTO_TEMPLATE_ARGS(quant_type, TileDataOut, TileDataSrc, TileDataExp, TileDataMax, TileDataScaling),
+        "OIOOO", dst, src, exp, max, scaling);
     return {};
 }
 

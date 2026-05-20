@@ -140,4 +140,3 @@ function(pto_custom_kernel NAME)
 endfunction()
 
 pto_custom_kernel(fused_add_relu_mul)
-

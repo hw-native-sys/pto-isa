@@ -101,7 +101,7 @@ void PTO_PREFETCH(__gm__ void *tensor, uint64_t tensor_bytes, aclrtStream stream
         aclrtCmoAsync((void *)(uint64_t)tensor, static_cast<size_t>(tensor_bytes), ACL_RT_CMO_TYPE_PREFETCH, stream);
     } else {
         static_assert(AivCores > 0, "AivCores must be > 0 when UseSdma is false");
-        PTO_PREFETCH_AIV<<<AivCores, nullptr, stream>>>((__gm__ uint8_t *)tensor, tensor_bytes);
+        PTO_PREFETCH_AIV<<<AivCores, nullptr, stream> > >((__gm__ uint8_t *)tensor, tensor_bytes);
     }
 #endif
 }

@@ -63,11 +63,13 @@ inline void pipe_barrier(pipe_t pipe)
 
 constexpr pipe_t opPipeList[] = {};
 
-enum {
+enum
+{
     ACL_MEM_MALLOC_HUGE_FIRST = 0,
 };
 
-enum {
+enum
+{
     ACL_MEMCPY_HOST_TO_DEVICE = 0,
     ACL_MEMCPY_DEVICE_TO_HOST = 1,
     ACL_MEMCPY_DEVICE_TO_DEVICE = 2,
@@ -303,13 +305,14 @@ inline void LaunchKernelMultiCore(const KernelLaunchOptions &options, aclrtStrea
     EnsureRuntimeInitialized();
 
     const uint32_t subblocks_per_block = std::max<uint32_t>(1, options.subblocks_per_block);
-    const uint32_t active_blocks = options.explicit_block_count != 0 ?
-                                       options.explicit_block_count :
-                                       ResolveActiveCoreCount(options.requested_cores, options.total_work_items,
-                                                              options.work_quantum);
+    const uint32_t active_blocks =
+        options.explicit_block_count != 0 ?
+            options.explicit_block_count :
+            ResolveActiveCoreCount(options.requested_cores, options.total_work_items, options.work_quantum);
     const uint32_t active_cores = active_blocks * subblocks_per_block;
     const bool trace_enabled = IsTraceEnabled() && options.write_trace_files;
-    const std::filesystem::path trace_dir = trace_enabled ? CreateKernelTraceDir(options.kernel_name) : std::filesystem::path{};
+    const std::filesystem::path trace_dir =
+        trace_enabled ? CreateKernelTraceDir(options.kernel_name) : std::filesystem::path{};
 
     std::vector<std::thread> workers;
     workers.reserve(active_cores);

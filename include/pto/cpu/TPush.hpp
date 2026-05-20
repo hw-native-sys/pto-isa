@@ -834,14 +834,16 @@ PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
     }
 }
 
-template <typename TileProd, typename Pipe,
-          std::enable_if_t<(is_tile_data_v<TileProd> || is_conv_tile_v<TileProd>) && !is_global_data_v<TileProd>, int> = 0>
+template <
+    typename TileProd, typename Pipe,
+    std::enable_if_t<(is_tile_data_v<TileProd> || is_conv_tile_v<TileProd>)&&!is_global_data_v<TileProd>, int> = 0>
 PTO_INTERNAL void TPUSH_REVERSED_IMPL(TileProd &tile, Pipe &pipe)
 {
     TPUSH_IMPL<Pipe, TileProd, TileSplitAxis::TILE_NO_SPLIT>(pipe, tile);
 }
 
-template <typename Pipe, typename GlobalData, TileSplitAxis Split, std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
+template <typename Pipe, typename GlobalData, TileSplitAxis Split,
+          std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
 PTO_INTERNAL void TALLOC_GLOBAL_IMPL(Pipe &pipe, GlobalData &gmTensor)
 {
     if (pipe.prod.getAllocateStatus()) {
@@ -850,14 +852,14 @@ PTO_INTERNAL void TALLOC_GLOBAL_IMPL(Pipe &pipe, GlobalData &gmTensor)
     const std::size_t slotIndex = static_cast<std::size_t>(pipe.prod.getTileId() % Pipe::RingFiFo::SLOT_NUM);
     const std::size_t entryBase =
         slotIndex * Pipe::RingFiFo::SLOT_SIZE + static_cast<std::size_t>(pipe.prod.entryOffset);
-    auto *addr =
-        reinterpret_cast<typename GlobalData::DType *>(reinterpret_cast<std::uintptr_t>(pipe.fifo.GM_SLOT_BUFFER) +
-                                                       entryBase);
+    auto *addr = reinterpret_cast<typename GlobalData::DType *>(
+        reinterpret_cast<std::uintptr_t>(pipe.fifo.GM_SLOT_BUFFER) + entryBase);
     TASSIGN_IMPL(gmTensor, addr);
     pipe.prod.setAllocateStatus(false);
 }
 
-template <typename Pipe, typename GlobalData, TileSplitAxis Split, std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
+template <typename Pipe, typename GlobalData, TileSplitAxis Split,
+          std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
 PTO_INTERNAL void TPUSH_GLOBAL_IMPL(Pipe &pipe, GlobalData &gmTensor)
 {
     (void)gmTensor;

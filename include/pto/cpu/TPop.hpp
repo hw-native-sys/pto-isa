@@ -32,14 +32,16 @@ PTO_INTERNAL void TPOP_IMPL(Pipe &pipe, TileCons &tile)
     pipe.cons.template pop<TileCons, Split>(pipe.fifo, tile);
 }
 
-template <typename TileCons, typename Pipe,
-          std::enable_if_t<(is_tile_data_v<TileCons> || is_conv_tile_v<TileCons>) && !is_global_data_v<TileCons>, int> = 0>
+template <
+    typename TileCons, typename Pipe,
+    std::enable_if_t<(is_tile_data_v<TileCons> || is_conv_tile_v<TileCons>)&&!is_global_data_v<TileCons>, int> = 0>
 PTO_INTERNAL void TPOP_REVERSED_IMPL(TileCons &tile, Pipe &pipe)
 {
     TPOP_IMPL<Pipe, TileCons, TileSplitAxis::TILE_NO_SPLIT>(pipe, tile);
 }
 
-template <typename Pipe, typename GlobalData, TileSplitAxis Split, std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
+template <typename Pipe, typename GlobalData, TileSplitAxis Split,
+          std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
 PTO_INTERNAL void TPOP_GLOBAL_IMPL(Pipe &pipe, GlobalData &gmTensor)
 {
     if (pipe.cons.getWaitStatus()) {
@@ -48,9 +50,8 @@ PTO_INTERNAL void TPOP_GLOBAL_IMPL(Pipe &pipe, GlobalData &gmTensor)
     const std::size_t slotIndex = static_cast<std::size_t>(pipe.cons.getTileId() % Pipe::RingFiFo::SLOT_NUM);
     const std::size_t entryBase =
         slotIndex * Pipe::RingFiFo::SLOT_SIZE + static_cast<std::size_t>(pipe.cons.entryOffset);
-    auto *addr =
-        reinterpret_cast<typename GlobalData::DType *>(reinterpret_cast<std::uintptr_t>(pipe.fifo.GM_SLOT_BUFFER) +
-                                                       entryBase);
+    auto *addr = reinterpret_cast<typename GlobalData::DType *>(
+        reinterpret_cast<std::uintptr_t>(pipe.fifo.GM_SLOT_BUFFER) + entryBase);
     TASSIGN_IMPL(gmTensor, addr);
 }
 
@@ -71,7 +72,8 @@ PTO_INTERNAL void TFREE_IMPL(Pipe &pipe)
     TFREE_IMPL<Pipe, TileSplitAxis::TILE_NO_SPLIT>(pipe);
 }
 
-template <typename Pipe, typename GlobalData, TileSplitAxis Split, std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
+template <typename Pipe, typename GlobalData, TileSplitAxis Split,
+          std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
 PTO_INTERNAL void TFREE_GLOBAL_IMPL(Pipe &pipe, GlobalData &)
 {
     if (cpu_pipe::IsInactiveNoSplitVecConsumerLane<Pipe, Split>()) {
