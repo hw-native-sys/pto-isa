@@ -1199,6 +1199,13 @@ public:
     template <typename T, typename AddrType>
     friend AICORE void TASSIGN_IMPL(T &tile, AddrType addr);
 
+#ifdef __CPU_SIM
+    PTO_INTERNAL std::uintptr_t GetAssignedAddress() const
+    {
+        return assignedAddress_;
+    }
+#endif
+
     PTO_INTERNAL uint16_t GetFmapH() const
     {
         return fmapH_;
@@ -1353,7 +1360,16 @@ private:
     {
         data_ = data;
     }
+#ifdef __CPU_SIM
+    PTO_INTERNAL void setAssignedAddress(std::uintptr_t assignedAddress)
+    {
+        assignedAddress_ = assignedAddress;
+    }
+#endif
     TileDType data_;
+#ifdef __CPU_SIM
+    std::uintptr_t assignedAddress_ = 0;
+#endif
     uint8_t padList_[4] = {0};
     uint16_t fmapH_ = 0;
     uint16_t fmapW_ = 0;
@@ -1641,6 +1657,13 @@ public:
     template <typename T, typename AddrType>
     friend AICORE void TASSIGN_IMPL(T &tile, AddrType addr);
 
+#ifdef __CPU_SIM
+    PTO_INTERNAL std::uintptr_t GetAssignedAddress() const
+    {
+        return assignedAddress_;
+    }
+#endif
+
     PTO_INTERNAL bool GetKAligned() const
     {
         return isKAligned_;
@@ -1676,6 +1699,12 @@ private:
     {
         data_ = data;
     }
+#ifdef __CPU_SIM
+    PTO_INTERNAL void setAssignedAddress(std::uintptr_t assignedAddress)
+    {
+        assignedAddress_ = assignedAddress;
+    }
+#endif
     bool isKAligned_; // K-Alignedment for A3
 
 #if defined(__CPU_SIM) || defined(__COSTMODEL)
@@ -1683,6 +1712,9 @@ private:
     mutable TileDType data_ = nullptr;
 #else
     TileDType data_;
+#endif
+#ifdef __CPU_SIM
+    std::uintptr_t assignedAddress_ = 0;
 #endif
 };
 

@@ -476,6 +476,11 @@ def parse_arguments():
         action="store_true",
         help="Enable BF16 CPU-SIM coverage. Requires a compiler with C++23 std::bfloat16_t support.",
     )
+    parser.add_argument(
+        "--trace-mode",
+        action="store_true",
+        help="Enable PTO instruction tracing in CPU-SIM via PTO_CPU_SIM_TRACE_MODE.",
+    )
     args = parser.parse_args()
     return args
 
@@ -500,6 +505,7 @@ def resolve_bf16_compiler_pair(args) -> None:
 def log_build_info(args, cxx, cc) -> None:
     logging.info(f"[INFO] build_type={args.build_type}")
     logging.info(f"[INFO] bf16={'ON' if args.enable_bf16 else 'OFF'}")
+    logging.info(f"[INFO] trace_mode={'ON' if args.trace_mode else 'OFF'}")
     if cxx:
         logging.info(f"[INFO] cxx={cxx}")
     if cc:
@@ -627,6 +633,7 @@ def perform_build(args, source_dir, build_dir, cxx, cc) -> bool:
             str(build_dir),
             f"-DCMAKE_BUILD_TYPE={args.build_type}",
             f"-DPTO_CPU_SIM_ENABLE_BF16={'ON' if args.enable_bf16 else 'OFF'}",
+            f"-DPTO_CPU_SIM_TRACE_MODE={'ON' if args.trace_mode else 'OFF'}",
             *([f"-DTEST_CASE={args.testcase}"] if args.testcase else []),
             *([f"-DCMAKE_C_COMPILER={cc}"] if cc else []),
             *([f"-DCMAKE_CXX_COMPILER={cxx}"] if cxx else []),

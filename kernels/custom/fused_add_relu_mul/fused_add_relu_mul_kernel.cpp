@@ -67,6 +67,14 @@ static inline void PerformFusedComputation(TileT &tile_result, const TileT &tile
     TMULS(tile_result, tile_result, scale);
 }
 
+template <typename TileT>
+static inline void AssignTileStorage(TileT &tile, std::size_t &addr)
+{
+    TASSIGN(tile, addr);
+    addr += sizeof(typename TileT::DType) * static_cast<std::size_t>(TileT::Numel);
+    addr = (addr + 63u) & ~static_cast<std::size_t>(63u);
+}
+
 /**
  * @brief Tile 配置常量（标准尺寸）
  */
@@ -121,13 +129,22 @@ static inline void FusedAddReLUMulKernelImpl(__gm__ float *out, __gm__ const flo
                                              uint32_t totalLength)
 {
     INIT_KERNEL_CONTEXT(Config);
+    using GlobalShape = Shape<1, 1, 1, Config::TILE_H, Config::TILE_W>;
+    using GlobalStride = Stride<1, 1, 1, Config::TILE_W, 1>;
+    using GlobalData = GlobalTensor<float, GlobalShape, GlobalStride>;
+
+    TileT tile_x, tile_result;
+    std::size_t tile_addr = 0;
+    AssignTileStorage(tile_x, tile_addr);
+    AssignTileStorage(tile_result, tile_addr);
 
     for (int i = ctx.start; i < ctx.end; i += TILE_SIZE) {
-        TileT tile_x, tile_result;
+        GlobalData src_global(const_cast<float *>(x + i));
+        GlobalData dst_global(out + i);
 
-        TLOAD(tile_x, GlobalTensor(x + i));
+        TLOAD(tile_x, src_global);
         PerformFusedComputation(tile_result, tile_x, bias, scale);
-        TSTORE(GlobalTensor(out + i), tile_result);
+        TSTORE(dst_global, tile_result);
     }
 }
 
@@ -139,13 +156,22 @@ static inline void FusedAddReLUMulOptimizedKernelImpl(__gm__ float *out, __gm__ 
                                                       uint32_t totalLength)
 {
     INIT_KERNEL_CONTEXT(Config);
+    using GlobalShape = Shape<1, 1, 1, Config::TILE_H, Config::TILE_W>;
+    using GlobalStride = Stride<1, 1, 1, Config::TILE_W, 1>;
+    using GlobalData = GlobalTensor<float, GlobalShape, GlobalStride>;
 
     TileT tile_x[2];
     TileT tile_result[2];
-    Event load_event[2];
+    RecordEvent load_event[2];
+    std::size_t tile_addr = 0;
+    AssignTileStorage(tile_x[0], tile_addr);
+    AssignTileStorage(tile_x[1], tile_addr);
+    AssignTileStorage(tile_result[0], tile_addr);
+    AssignTileStorage(tile_result[1], tile_addr);
 
     if (ctx.start < ctx.end) {
-        load_event[0] = TLOAD(tile_x[0], GlobalTensor(x + ctx.start));
+        GlobalData src_global(const_cast<float *>(x + ctx.start));
+        load_event[0] = TLOAD(tile_x[0], src_global);
     }
 
     int num_tiles = (ctx.end - ctx.start + TILE_SIZE - 1) / TILE_SIZE;
@@ -157,12 +183,16 @@ static inline void FusedAddReLUMulOptimizedKernelImpl(__gm__ float *out, __gm__ 
 
         if (tile_idx + 1 < num_tiles) {
             int next_i = ctx.start + (tile_idx + 1) * TILE_SIZE;
-            load_event[next] = TLOAD(tile_x[next], GlobalTensor(x + next_i));
+            GlobalData next_src_global(const_cast<float *>(x + next_i));
+            load_event[next] = TLOAD(tile_x[next], next_src_global);
         }
 
-        WAIT(load_event[curr]);
+#ifndef __CPU_SIM
+        TSYNC(load_event[curr]);
+#endif
         PerformFusedComputation(tile_result[curr], tile_x[curr], bias, scale);
-        TSTORE(GlobalTensor(out + i), tile_result[curr]);
+        GlobalData dst_global(out + i);
+        TSTORE(dst_global, tile_result[curr]);
     }
 }
 
@@ -222,3 +252,44 @@ __global__ __aicore__ void FusedAddReLUMulLargeTileKernel(__gm__ float *out, __g
 {
     FusedAddReLUMulKernelImpl<LargeTileConfig>(out, x, bias, scale, totalLength);
 }
+
+#ifdef __CPU_SIM
+template <typename T>
+void LaunchFusedAddReLUMul(uint8_t *out, uint8_t *x, float bias, float scale, uint32_t totalLength, void *stream)
+{
+    auto *out_ptr = reinterpret_cast<T *>(out);
+    const auto *x_ptr = reinterpret_cast<const T *>(x);
+    pto::cpu_sim::LaunchKernelMultiCore(
+        {.kernel_name = "basic", .total_work_items = totalLength, .work_quantum = StandardTileConfig::TILE_SIZE},
+        stream, [&]() { FusedAddReLUMulKernel(out_ptr, x_ptr, bias, scale, totalLength); });
+}
+
+template <typename T>
+void LaunchFusedAddReLUMulOptimized(uint8_t *out, uint8_t *x, float bias, float scale, uint32_t totalLength,
+                                    void *stream)
+{
+    auto *out_ptr = reinterpret_cast<T *>(out);
+    const auto *x_ptr = reinterpret_cast<const T *>(x);
+    pto::cpu_sim::LaunchKernelMultiCore(
+        {.kernel_name = "optimized", .total_work_items = totalLength, .work_quantum = StandardTileConfig::TILE_SIZE},
+        stream, [&]() { FusedAddReLUMulOptimizedKernel(out_ptr, x_ptr, bias, scale, totalLength); });
+}
+
+template <typename T>
+void LaunchFusedAddReLUMulLargeTile(uint8_t *out, uint8_t *x, float bias, float scale, uint32_t totalLength,
+                                    void *stream)
+{
+    auto *out_ptr = reinterpret_cast<T *>(out);
+    const auto *x_ptr = reinterpret_cast<const T *>(x);
+    pto::cpu_sim::LaunchKernelMultiCore(
+        {.kernel_name = "large_tile", .total_work_items = totalLength, .work_quantum = LargeTileConfig::TILE_SIZE},
+        stream, [&]() { FusedAddReLUMulLargeTileKernel(out_ptr, x_ptr, bias, scale, totalLength); });
+}
+
+template void LaunchFusedAddReLUMul<float>(uint8_t *out, uint8_t *x, float bias, float scale, uint32_t totalLength,
+                                           void *stream);
+template void LaunchFusedAddReLUMulOptimized<float>(uint8_t *out, uint8_t *x, float bias, float scale,
+                                                    uint32_t totalLength, void *stream);
+template void LaunchFusedAddReLUMulLargeTile<float>(uint8_t *out, uint8_t *x, float bias, float scale,
+                                                    uint32_t totalLength, void *stream);
+#endif

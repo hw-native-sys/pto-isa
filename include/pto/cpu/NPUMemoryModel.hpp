@@ -31,6 +31,7 @@
 #include <cstddef>
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib>
 #include <vector>
 #include <pto/common/pto_tile.hpp>
 
@@ -78,6 +79,29 @@ private:
         256 * 1024  // L0C: 256 KB
     };
 
+    static std::size_t ReadSizeOverride(const char *name, std::size_t fallback)
+    {
+        const char *value = std::getenv(name);
+        if (value == nullptr || *value == '\0') {
+            return fallback;
+        }
+        char *end = nullptr;
+        const unsigned long long parsed = std::strtoull(value, &end, 10);
+        if (end == value || *end != '\0' || parsed == 0) {
+            return fallback;
+        }
+        return static_cast<std::size_t>(parsed);
+    }
+
+    void ApplySizeOverrides()
+    {
+        sizes_[MemoryRegion::UB] = ReadSizeOverride("PTO_CPU_SIM_UB_BYTES", sizes_[MemoryRegion::UB]);
+        sizes_[MemoryRegion::L1] = ReadSizeOverride("PTO_CPU_SIM_L1_BYTES", sizes_[MemoryRegion::L1]);
+        sizes_[MemoryRegion::L0A] = ReadSizeOverride("PTO_CPU_SIM_L0A_BYTES", sizes_[MemoryRegion::L0A]);
+        sizes_[MemoryRegion::L0B] = ReadSizeOverride("PTO_CPU_SIM_L0B_BYTES", sizes_[MemoryRegion::L0B]);
+        sizes_[MemoryRegion::L0C] = ReadSizeOverride("PTO_CPU_SIM_L0C_BYTES", sizes_[MemoryRegion::L0C]);
+    }
+
 public:
     // Each thread gets its own NPUMemoryModel instance, accurately modeling
     // the hardware where each AICore has physically separate memory.
@@ -110,6 +134,8 @@ public:
                 }
                 break;
         }
+
+        ApplySizeOverrides();
 
         for (int i = 0; i < MemoryRegion::_MAX_REGIONS; i++) {
             buffers_[i].resize(sizes_[i], 0);
@@ -160,6 +186,25 @@ public:
             return direct;
         }
         return GetPointer<TileDef>(static_cast<std::size_t>(addr));
+    }
+
+    template <typename TileDef>
+    std::uintptr_t NormalizeAssignedAddress(std::uintptr_t addr)
+    {
+        static_assert(is_tile_data_v<TileDef>);
+        EnsureInitialized();
+
+        const int region = GetRegionForTile<TileDef>();
+        if (region < 0 || region >= MemoryRegion::_MAX_REGIONS || buffers_[region].empty()) {
+            return addr;
+        }
+
+        const auto begin = reinterpret_cast<std::uintptr_t>(buffers_[region].data());
+        const auto end = begin + buffers_[region].size();
+        if (addr >= begin && addr < end) {
+            return addr - begin;
+        }
+        return addr;
     }
 
     // Get raw buffer bases (for debugging/direct access)
@@ -244,6 +289,22 @@ public:
     }
 
 private:
+    template <typename TileDef>
+    static constexpr int GetRegionForTile()
+    {
+        if constexpr (TileDef::Loc == TileType::Mat) {
+            return MemoryRegion::L1;
+        } else if constexpr (TileDef::Loc == TileType::Left) {
+            return MemoryRegion::L0A;
+        } else if constexpr (TileDef::Loc == TileType::Right) {
+            return MemoryRegion::L0B;
+        } else if constexpr (TileDef::Loc == TileType::Acc) {
+            return MemoryRegion::L0C;
+        } else {
+            return MemoryRegion::UB;
+        }
+    }
+
     template <typename T>
     T *TryResolveExistingPointer(std::uintptr_t addr)
     {

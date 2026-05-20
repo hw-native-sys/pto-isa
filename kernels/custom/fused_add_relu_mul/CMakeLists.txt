@@ -11,6 +11,44 @@
 cmake_minimum_required(VERSION 3.16)
 project(fused_add_relu_mul_example)
 
+option(PTO_CPU_SIM_STANDALONE "Build a local CPU-sim runner for this kernel example." OFF)
+option(PTO_CPU_SIM_TRACE_MODE "Enable PTO instruction tracing in local CPU-sim runner." OFF)
+
+if (PTO_CPU_SIM_STANDALONE)
+    set(CMAKE_CXX_STANDARD 20)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+
+    add_compile_definitions(__CPU_SIM)
+    if (PTO_CPU_SIM_TRACE_MODE)
+        add_compile_definitions(PTO_CPU_SIM_TRACE_MODE=1)
+    endif()
+
+    add_compile_options(
+        -D_FORTIFY_SOURCE=2
+        -Wno-macro-redefined -Wno-ignored-attributes
+        -fstack-protector-strong
+    )
+
+    find_package(Threads REQUIRED)
+
+    add_executable(fused_add_relu_mul_cpu_sim main.cpp fused_add_relu_mul_kernel.cpp)
+    target_include_directories(fused_add_relu_mul_cpu_sim PRIVATE
+        ${PROJECT_SOURCE_DIR}/../../../include/
+        ${PROJECT_SOURCE_DIR}/../../../tests/common
+    )
+    target_link_libraries(fused_add_relu_mul_cpu_sim PRIVATE Threads::Threads)
+    if (UNIX)
+        target_link_libraries(fused_add_relu_mul_cpu_sim PRIVATE m)
+    endif()
+    if (UNIX AND NOT APPLE)
+        target_link_libraries(fused_add_relu_mul_cpu_sim PRIVATE dl)
+    endif()
+    return()
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -102,4 +140,3 @@ function(pto_custom_kernel NAME)
 endfunction()
 
 pto_custom_kernel(fused_add_relu_mul)
-

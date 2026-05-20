@@ -41,7 +41,7 @@ PTO_INTERNAL void SetContinuousMask(unsigned n)
 template <int index>
 PTO_INTERNAL void movemask(uint64_t mask)
 {
-#if defined(__COSTMODEL)
+#if defined(__COSTMODEL) || defined(__CPU_SIM)
     static_cast<void>(mask);
     PTO_STATIC_ASSERT((index <= 1), "movemask: error mask index.");
 #else

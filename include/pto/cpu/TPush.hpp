@@ -18,13 +18,13 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <cstdint>
 #include <mutex>
 #include <new>
-#include <sstream>
 #include <thread>
 #include <type_traits>
 #ifdef __CPU_SIM
 #include <unordered_map>
 #include <vector>
 #endif
+#include <format>
 #include <pto/common/fifo.hpp>
 
 #include <pto/cpu/TAssign.hpp>
@@ -46,19 +46,34 @@ enum class TransferDir : uint8_t
 template <typename TileProd>
 PTO_INTERNAL constexpr bool IsC2VProducerTile()
 {
-    return TileProd::Loc == TileType::Acc || TileProd::Loc == TileType::Mat;
+    using CleanTileProd = std::remove_cv_t<std::remove_reference_t<TileProd>>;
+    if constexpr (is_global_data_v<CleanTileProd>) {
+        return false;
+    } else {
+        return CleanTileProd::Loc == TileType::Acc || CleanTileProd::Loc == TileType::Mat;
+    }
 }
 
 template <typename TileProd>
 PTO_INTERNAL constexpr bool IsV2CProducerTile()
 {
-    return TileProd::Loc == TileType::Vec;
+    using CleanTileProd = std::remove_cv_t<std::remove_reference_t<TileProd>>;
+    if constexpr (is_global_data_v<CleanTileProd>) {
+        return false;
+    } else {
+        return CleanTileProd::Loc == TileType::Vec;
+    }
 }
 
 template <typename TileCons>
 PTO_INTERNAL constexpr bool IsC2VConsumerTile()
 {
-    return TileCons::Loc == TileType::Vec;
+    using CleanTileCons = std::remove_cv_t<std::remove_reference_t<TileCons>>;
+    if constexpr (is_global_data_v<CleanTileCons>) {
+        return false;
+    } else {
+        return CleanTileCons::Loc == TileType::Vec;
+    }
 }
 
 template <typename Pipe>
@@ -128,12 +143,16 @@ PTO_INTERNAL constexpr uint32_t GetAllSplitLaneMask()
 template <typename TileData>
 PTO_INTERNAL constexpr uint32_t GetThreadSubblockDim()
 {
-    static_assert(is_tile_data_v<TileData> || is_conv_tile_v<TileData>,
-                  "GetThreadSubblockDim requires a Tile or ConvTile type.");
-    constexpr uint32_t kVecSubblockDim = 2u;
-    constexpr uint32_t kDefaultSubblockDim = 1u;
-
-    return (TileData::Loc == TileType::Vec) ? kVecSubblockDim : kDefaultSubblockDim;
+    using CleanTileData = std::remove_cv_t<std::remove_reference_t<TileData>>;
+    if constexpr (is_global_data_v<CleanTileData>) {
+        return 1u;
+    } else {
+        static_assert(is_tile_data_v<CleanTileData> || is_conv_tile_v<CleanTileData>,
+                      "GetThreadSubblockDim requires a Tile or ConvTile type.");
+        constexpr uint32_t kVecSubblockDim = 2u;
+        constexpr uint32_t kDefaultSubblockDim = 1u;
+        return (CleanTileData::Loc == TileType::Vec) ? kVecSubblockDim : kDefaultSubblockDim;
+    }
 }
 
 template <typename TileData, TileSplitAxis Split>
@@ -153,15 +172,20 @@ PTO_INTERNAL constexpr uint32_t GetActiveSplitLaneMask()
 template <typename TileData, TileSplitAxis Split>
 PTO_INTERNAL bool IsInactiveNoSplitVecLane()
 {
-    static_assert(is_tile_data_v<TileData> || is_conv_tile_v<TileData>,
-                  "IsInactiveNoSplitVecLane requires a Tile or ConvTile type.");
-    if constexpr (Split != TileSplitAxis::TILE_NO_SPLIT) {
+    using CleanTileData = std::remove_cv_t<std::remove_reference_t<TileData>>;
+    if constexpr (is_global_data_v<CleanTileData>) {
         return false;
+    } else {
+        static_assert(is_tile_data_v<CleanTileData> || is_conv_tile_v<CleanTileData>,
+                      "IsInactiveNoSplitVecLane requires a Tile or ConvTile type.");
+        if constexpr (Split != TileSplitAxis::TILE_NO_SPLIT) {
+            return false;
+        }
+        if constexpr (CleanTileData::Loc != TileType::Vec) {
+            return false;
+        }
+        return get_subblockid() != 0;
     }
-    if constexpr (TileData::Loc != TileType::Vec) {
-        return false;
-    }
-    return get_subblockid() != 0;
 }
 
 template <typename Pipe, TileSplitAxis Split>
@@ -298,7 +322,7 @@ PTO_INTERNAL uint32_t GetSplitColOffset()
 } // namespace cpu_pipe
 
 template <uint8_t FlagID, uint8_t DirType, uint32_t SlotSize, uint32_t SlotNum, uint32_t LocalSlotNum = 2,
-          bool EN_UNIT_FLAG = false>
+          bool IsNoSplit = false, bool EN_UNIT_FLAG = false>
 struct TPipe {
     static constexpr uint8_t DIR_MASK = 0x7;
     static constexpr uint8_t DIR_TYPE = DIR_MASK & DirType;
@@ -363,11 +387,10 @@ struct TPipe {
             }
         }
         if (auto hook = cpu_sim::ResolveSharedStorageHook(); hook != nullptr) {
-            std::stringstream ss;
-            ss << "pto-pipe-" << static_cast<unsigned long long>(get_task_cookie()) << "-" << get_block_idx() << "-"
-               << static_cast<uint32_t>(FlagID) << "-" << static_cast<uint32_t>(DirType) << "-" << SlotSize << "-"
-               << SlotNum << "-" << LocalSlotNum;
-            auto *storage = reinterpret_cast<SharedStateStorage *>(hook(ss.str().c_str(), sizeof(SharedStateStorage)));
+            char key[128] = {};
+            std::format_to(key, "pto-pipe-%llu-%u-%u-%u-%u-%u-%u", static_cast<unsigned long long>(get_task_cookie()),
+                           get_block_idx(), FlagID, DirType, SlotSize, SlotNum, LocalSlotNum);
+            auto *storage = reinterpret_cast<SharedStateStorage *>(hook(key, sizeof(SharedStateStorage)));
             EnsureSharedStateInitialized(*storage);
             return *std::launder(reinterpret_cast<SharedState *>(storage->payload));
         }
@@ -694,10 +717,14 @@ struct TPipe {
             if (fifo.GM_SLOT_BUFFER != nullptr) {
                 popTileFromGMFiFo<TileCons, Split>(fifo, tile);
                 return true;
-            } else if constexpr (TPipe::is_c2v && TileCons::Loc == TileType::Vec) {
-                popTileFromVecFiFoSplit<TileCons, Split>(fifo, tile);
+            } else if constexpr (TPipe::is_c2v) {
+                if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT) {
+                    popTileFromVecFiFo<TileCons, Split>(fifo, tile);
+                } else {
+                    popTileFromVecFiFoSplit<TileCons, Split>(fifo, tile);
+                }
                 return false;
-            } else if constexpr (TPipe::is_v2c && TileCons::Loc != TileType::Vec) {
+            } else if constexpr (TPipe::is_v2c) {
                 popTileFromMatFiFo<TileCons, Split>(fifo, tile);
                 return false;
             }
@@ -724,13 +751,20 @@ PTO_INTERNAL void TPush_c2v(Pipe &pipe, TileProd &tile, size_t entryBase, size_t
     constexpr int consCols =
         (Split == TileSplitAxis::TILE_LEFT_RIGHT) ? (TileProd::Cols / 2) : static_cast<int>(TileProd::Cols);
 
-    auto &slotStorage = Pipe::GetSharedState().local_slot_storage[slotIndex];
-    for (uint32_t splitIndex = 0; splitIndex < cpu_pipe::GetSplitCount<Split>(); ++splitIndex) {
-        auto *slotPtr =
-            reinterpret_cast<T *>(slotStorage.data() + splitIndex * Pipe::RingFiFo::SLOT_SIZE + pipe.prod.entryOffset);
-        const uint32_t rowOffset = (Split == TileSplitAxis::TILE_UP_DOWN) ? splitIndex * consRows : 0;
-        const uint32_t colOffset = (Split == TileSplitAxis::TILE_LEFT_RIGHT) ? splitIndex * consCols : 0;
-        cpu_pipe::CopyTileWindowToLinear(slotPtr, consCols, tile, consRows, rowOffset, colOffset);
+    if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT) {
+        using SlotTile = Tile<TileType::Vec, T, consRows, consCols, BLayout::RowMajor, consRows, consCols>;
+        SlotTile slotTile;
+        TASSIGN(slotTile, static_cast<uint64_t>(pipe.fifo.C2V_CONSUMER_BUF + entryBase));
+        cpu_pipe::CopyTileWindow(slotTile, tile, 0, 0);
+    } else {
+        auto &slotStorage = Pipe::GetSharedState().local_slot_storage[slotIndex];
+        for (uint32_t splitIndex = 0; splitIndex < cpu_pipe::GetSplitCount<Split>(); ++splitIndex) {
+            auto *slotPtr = reinterpret_cast<T *>(slotStorage.data() + splitIndex * Pipe::RingFiFo::SLOT_SIZE +
+                                                  pipe.prod.entryOffset);
+            const uint32_t rowOffset = (Split == TileSplitAxis::TILE_UP_DOWN) ? splitIndex * consRows : 0;
+            const uint32_t colOffset = (Split == TileSplitAxis::TILE_LEFT_RIGHT) ? splitIndex * consCols : 0;
+            cpu_pipe::CopyTileWindowToLinear(slotPtr, consCols, tile, consRows, rowOffset, colOffset);
+        }
     }
 }
 
@@ -754,7 +788,7 @@ PTO_INTERNAL void TPush_v2c(Pipe &pipe, TileProd &tile, size_t entryBase)
     cpu_pipe::InsertTileWindowToLinear(slotPtr, static_cast<uint32_t>(consCols), tile, rowOff, colOff);
 }
 
-template <typename Pipe, typename TileProd, TileSplitAxis Split>
+template <typename Pipe, typename TileProd, TileSplitAxis Split, std::enable_if_t<!is_global_data_v<TileProd>, int> = 0>
 PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
 {
     if (cpu_pipe::IsInactiveNoSplitVecLane<TileProd, Split>()) {
@@ -790,20 +824,52 @@ PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
             GlobalData globalData(addr);
             TSTORE(globalData, tile);
         }
-    } else if constexpr (Pipe::is_v2c && TileProd::Loc == TileType::Vec) {
-        TPush_v2c<Pipe, TileProd, Split>(pipe, tile, entryBase);
-    } else if constexpr (Pipe::is_c2v && TileProd::Loc != TileType::Vec) {
+    } else if constexpr (Pipe::is_c2v) {
         TPush_c2v<Pipe, TileProd, Split>(pipe, tile, entryBase, slotIndex);
+    } else if constexpr (Pipe::is_v2c) {
+        TPush_v2c<Pipe, TileProd, Split>(pipe, tile, entryBase);
     }
     if (pipe.prod.getRecordStatus()) {
         pipe.prod.template record<TileProd, Split>();
     }
 }
 
-template <typename TileProd, typename Pipe>
-PTO_INTERNAL void TPUSH_IMPL(TileProd &tile, Pipe &pipe)
+template <
+    typename TileProd, typename Pipe,
+    std::enable_if_t<(is_tile_data_v<TileProd> || is_conv_tile_v<TileProd>)&&!is_global_data_v<TileProd>, int> = 0>
+PTO_INTERNAL void TPUSH_REVERSED_IMPL(TileProd &tile, Pipe &pipe)
 {
     TPUSH_IMPL<Pipe, TileProd, TileSplitAxis::TILE_NO_SPLIT>(pipe, tile);
+}
+
+template <typename Pipe, typename GlobalData, TileSplitAxis Split,
+          std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
+PTO_INTERNAL void TALLOC_GLOBAL_IMPL(Pipe &pipe, GlobalData &gmTensor)
+{
+    if (pipe.prod.getAllocateStatus()) {
+        pipe.prod.template allocate<GlobalData, Split>();
+    }
+    const std::size_t slotIndex = static_cast<std::size_t>(pipe.prod.getTileId() % Pipe::RingFiFo::SLOT_NUM);
+    const std::size_t entryBase =
+        slotIndex * Pipe::RingFiFo::SLOT_SIZE + static_cast<std::size_t>(pipe.prod.entryOffset);
+    auto *addr = reinterpret_cast<typename GlobalData::DType *>(
+        reinterpret_cast<std::uintptr_t>(pipe.fifo.GM_SLOT_BUFFER) + entryBase);
+    TASSIGN_IMPL(gmTensor, addr);
+    pipe.prod.setAllocateStatus(false);
+}
+
+template <typename Pipe, typename GlobalData, TileSplitAxis Split,
+          std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
+PTO_INTERNAL void TPUSH_GLOBAL_IMPL(Pipe &pipe, GlobalData &gmTensor)
+{
+    (void)gmTensor;
+    if (pipe.prod.getAllocateStatus()) {
+        pipe.prod.template allocate<GlobalData, Split>();
+    }
+    if (pipe.prod.getRecordStatus()) {
+        pipe.prod.template record<GlobalData, Split>();
+    }
+    pipe.prod.setAllocateStatus(true);
 }
 
 } // namespace pto

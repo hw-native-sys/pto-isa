@@ -12,6 +12,63 @@
 cmake_minimum_required(VERSION 3.16)
 project(pto_example)
 
+option(PTO_CPU_SIM_STANDALONE "Build a local CPU-sim runner for this kernel example." OFF)
+option(PTO_CPU_SIM_TRACE_MODE "Enable PTO instruction tracing in local CPU-sim runner." OFF)
+
+if (PTO_CPU_SIM_STANDALONE)
+    set(CMAKE_CXX_STANDARD 20)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+
+    add_compile_definitions(__CPU_SIM)
+    add_compile_definitions(__DAV_C220_CUBE__)
+    add_compile_definitions(__DAV_CUBE__)
+    add_compile_definitions(__DAV_VEC__)
+    add_compile_definitions(PTO_CPU_SIM_RUN_ORIGINAL_FLASH=1)
+    if (PTO_CPU_SIM_TRACE_MODE)
+        add_compile_definitions(PTO_CPU_SIM_TRACE_MODE=1)
+    endif()
+
+    find_package(Threads REQUIRED)
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
+    set(GENERATED_CASES_H ${CMAKE_BINARY_DIR}/generated_cases.h)
+    set(GENERATED_CASES_JSON ${CMAKE_BINARY_DIR}/generated_cases.json)
+    add_custom_command(
+        OUTPUT ${GENERATED_CASES_H} ${GENERATED_CASES_JSON}
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/generate_cases.py
+                --output-header ${GENERATED_CASES_H}
+                --output-json ${GENERATED_CASES_JSON}
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/scripts/generate_cases.py
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        VERBATIM
+    )
+    add_custom_target(fa_generated_cases DEPENDS ${GENERATED_CASES_H} ${GENERATED_CASES_JSON})
+
+    add_executable(fa_performance_cpu_sim main.cpp fa_performance_kernel.cpp ${GENERATED_CASES_H})
+    add_dependencies(fa_performance_cpu_sim fa_generated_cases)
+    target_compile_options(fa_performance_cpu_sim PRIVATE
+        -D_FORTIFY_SOURCE=2
+        -Wno-macro-redefined -Wno-ignored-attributes
+        -fstack-protector-strong
+    )
+    target_include_directories(fa_performance_cpu_sim PRIVATE
+        ${PROJECT_SOURCE_DIR}/../../../../include/
+        ${PROJECT_SOURCE_DIR}/../../../../tests/common
+        ${CMAKE_BINARY_DIR}
+    )
+    target_link_libraries(fa_performance_cpu_sim PRIVATE Threads::Threads)
+    if (UNIX)
+        target_link_libraries(fa_performance_cpu_sim PRIVATE m)
+    endif()
+    if (UNIX AND NOT APPLE)
+        target_link_libraries(fa_performance_cpu_sim PRIVATE dl)
+    endif()
+    return()
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -82,7 +139,7 @@ include_directories(
     ${ASCEND_HOME_PATH}/pkg_inc/profiling
     ${ASCEND_DRIVER_PATH}/kernel/inc
     ${ASCEND_HOME_PATH}/include/experiment/runtime
-    ${ASCEND_HOME_PATH}/include/experiment/msprof    
+    ${ASCEND_HOME_PATH}/include/experiment/msprof
 )
 
 function(pto_example_mixed NAME)

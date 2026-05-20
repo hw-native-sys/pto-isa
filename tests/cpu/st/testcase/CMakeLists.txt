@@ -147,6 +147,7 @@ tsubsc
 ttest
 ttrans
 ttri
+ttrace
 twait
 txor
 txors
