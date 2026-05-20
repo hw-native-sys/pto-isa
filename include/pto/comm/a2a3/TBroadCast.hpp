@@ -122,6 +122,31 @@ PTO_INTERNAL void TbroadcastChunkedSingle(ParallelGroupType &parallelGroup, Glob
     }
 }
 
+// Validate chunked constraints and dispatch to single-buffer chunked broadcast
+template <typename ParallelGroupType, typename GlobalSrcData, typename TileData>
+PTO_INTERNAL void TbroadcastChunkedSingleDispatch(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData,
+                                                  TileData &stagingTileData, int gShape0, int gShape1, int gShape2,
+                                                  int gShape3, int gShape4, int tileValidRow, int tileValidCol,
+                                                  int nranks)
+{
+    constexpr bool isDynamicRow = (TileData::ValidRow == DYNAMIC);
+    constexpr bool isDynamicCol = (TileData::ValidCol == DYNAMIC);
+    if constexpr (!isDynamicRow) {
+        PTO_ASSERT(gShape3 % tileValidRow == 0,
+                   "TBROADCAST chunked: shape3 must be divisible by tile ValidRow when ValidRow is static. "
+                   "Use a Tile with DYNAMIC ValidRow for partial row chunk support.");
+    }
+    if constexpr (!isDynamicCol) {
+        PTO_ASSERT(gShape4 % tileValidCol == 0,
+                   "TBROADCAST chunked: shape4 must be divisible by tile ValidCol when ValidCol is static. "
+                   "Use a Tile with DYNAMIC ValidCol for partial column chunk support.");
+    }
+
+    TbroadcastChunkedSingle<ParallelGroupType, GlobalSrcData, TileData>(parallelGroup, srcGlobalData, stagingTileData,
+                                                                        gShape0, gShape1, gShape2, gShape3, gShape4,
+                                                                        tileValidRow, tileValidCol, nranks);
+}
+
 // ============================================================================
 // TBROADCAST_IMPL: Broadcast data from root NPU to all ranks
 //
@@ -184,7 +209,6 @@ PTO_INTERNAL void TBROADCAST_IMPL(ParallelGroupType &parallelGroup, GlobalSrcDat
         return;
     }
 
-    // Simple path: data fits in UB tile
     if (totalRows <= tileValidRow && gShape4 <= tileValidCol) {
         TLOAD(stagingTileData, srcGlobalData);
         PtoSetWaitFlag<PIPE_MTE2, PIPE_MTE3>();
@@ -195,25 +219,9 @@ PTO_INTERNAL void TBROADCAST_IMPL(ParallelGroupType &parallelGroup, GlobalSrcDat
         return;
     }
 
-    // 2D sliding chunked path
-    PTO_ASSERT(tileValidRow > 0, "TBROADCAST: tile ValidRow must be greater than 0 for chunked transfer");
-    PTO_ASSERT(tileValidCol > 0, "TBROADCAST: tile ValidCol must be greater than 0 for chunked transfer");
-    constexpr bool isDynamicRow = (TileData::ValidRow == DYNAMIC);
-    constexpr bool isDynamicCol = (TileData::ValidCol == DYNAMIC);
-    if constexpr (!isDynamicRow) {
-        PTO_ASSERT(gShape3 % tileValidRow == 0,
-                   "TBROADCAST chunked: shape3 must be divisible by tile ValidRow when ValidRow is static. "
-                   "Use a Tile with DYNAMIC ValidRow for partial row chunk support.");
-    }
-    if constexpr (!isDynamicCol) {
-        PTO_ASSERT(gShape4 % tileValidCol == 0,
-                   "TBROADCAST chunked: shape4 must be divisible by tile ValidCol when ValidCol is static. "
-                   "Use a Tile with DYNAMIC ValidCol for partial column chunk support.");
-    }
-
-    TbroadcastChunkedSingle<ParallelGroupType, GlobalSrcData, TileData>(parallelGroup, srcGlobalData, stagingTileData,
-                                                                        gShape0, gShape1, gShape2, gShape3, gShape4,
-                                                                        tileValidRow, tileValidCol, nranks);
+    TbroadcastChunkedSingleDispatch<ParallelGroupType, GlobalSrcData, TileData>(
+        parallelGroup, srcGlobalData, stagingTileData, gShape0, gShape1, gShape2, gShape3, gShape4, tileValidRow,
+        tileValidCol, nranks);
 }
 
 // Process one chunk iteration with ping-pong for broadcast
@@ -357,6 +365,30 @@ PTO_INTERNAL void TbroadcastChunkedPingPong(ParallelGroupType &parallelGroup, Gl
                                                             nranks);
 }
 
+// Validate chunked constraints and dispatch to ping-pong chunked broadcast
+template <typename ParallelGroupType, typename GlobalSrcData, typename TileData>
+PTO_INTERNAL void TbroadcastChunkedPingPongDispatch(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData,
+                                                    TileData &pingTile, TileData &pongTile, const int (&dims)[5],
+                                                    int tileValidRow, int tileValidCol, int nranks)
+{
+    constexpr bool hasDynRow = (TileData::ValidRow == DYNAMIC);
+    constexpr bool hasDynCol = (TileData::ValidCol == DYNAMIC);
+    if constexpr (!hasDynRow) {
+        PTO_ASSERT(dims[3] % tileValidRow == 0,
+                   "TBROADCAST chunked: shape3 must be divisible by tile ValidRow when ValidRow is static. "
+                   "Use a Tile with DYNAMIC ValidRow for partial row chunk support.");
+    }
+    if constexpr (!hasDynCol) {
+        PTO_ASSERT(dims[4] % tileValidCol == 0,
+                   "TBROADCAST chunked: shape4 must be divisible by tile ValidCol when ValidCol is static. "
+                   "Use a Tile with DYNAMIC ValidCol for partial column chunk support.");
+    }
+
+    TbroadcastChunkedPingPong<ParallelGroupType, GlobalSrcData, TileData>(parallelGroup, srcGlobalData, pingTile,
+                                                                          pongTile, dims[0], dims[1], dims[2], dims[3],
+                                                                          dims[4], tileValidRow, tileValidCol, nranks);
+}
+
 // ============================================================================
 // TBROADCAST_IMPL (ping-pong): Broadcast with double buffering
 //
@@ -416,7 +448,6 @@ PTO_INTERNAL void TBROADCAST_IMPL(ParallelGroupType &parallelGroup, GlobalSrcDat
         return;
     }
 
-    // Simple path: single chunk, no ping-pong benefit
     if (totalRows <= tileValidRow && dims[4] <= tileValidCol) {
         TLOAD(pingTile, srcGlobalData);
         PtoSetWaitFlag<PIPE_MTE2, PIPE_MTE3>();
@@ -427,23 +458,8 @@ PTO_INTERNAL void TBROADCAST_IMPL(ParallelGroupType &parallelGroup, GlobalSrcDat
         return;
     }
 
-    // 2D sliding chunked path with ping-pong double buffering
-    constexpr bool hasDynRow = (TileData::ValidRow == DYNAMIC);
-    constexpr bool hasDynCol = (TileData::ValidCol == DYNAMIC);
-    if constexpr (!hasDynRow) {
-        PTO_ASSERT(dims[3] % tileValidRow == 0,
-                   "TBROADCAST chunked: shape3 must be divisible by tile ValidRow when ValidRow is static. "
-                   "Use a Tile with DYNAMIC ValidRow for partial row chunk support.");
-    }
-    if constexpr (!hasDynCol) {
-        PTO_ASSERT(dims[4] % tileValidCol == 0,
-                   "TBROADCAST chunked: shape4 must be divisible by tile ValidCol when ValidCol is static. "
-                   "Use a Tile with DYNAMIC ValidCol for partial column chunk support.");
-    }
-
-    TbroadcastChunkedPingPong<ParallelGroupType, GlobalSrcData, TileData>(parallelGroup, srcGlobalData, pingTile,
-                                                                          pongTile, dims[0], dims[1], dims[2], dims[3],
-                                                                          dims[4], tileValidRow, tileValidCol, nranks);
+    TbroadcastChunkedPingPongDispatch<ParallelGroupType, GlobalSrcData, TileData>(
+        parallelGroup, srcGlobalData, pingTile, pongTile, dims, tileValidRow, tileValidCol, nranks);
 }
 
 // CCU engine is only available on A5 hardware.  Stub mirrors the URMA branch

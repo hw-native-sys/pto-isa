@@ -181,6 +181,54 @@ PTO_INTERNAL void TputChunkedSingle(GlobalDstData &dstGlobalData, GlobalSrcData 
 }
 
 // ============================================================================
+// TputChunkedDispatch: Validate chunked constraints and dispatch to the
+// appropriate chunked transfer path (with or without intra-tile ping-pong).
+// ============================================================================
+
+template <typename GlobalDstData, typename GlobalSrcData, typename TileData,
+          AtomicType atomicType = AtomicType::AtomicNone>
+PTO_INTERNAL void TputChunkedDispatch(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData,
+                                      TileData &stagingTileData, const int (&logicalDims)[5], int ubChunkRows,
+                                      int ubChunkCols)
+{
+    constexpr bool isDynamicRow = (TileData::ValidRow == DYNAMIC);
+    constexpr bool isDynamicCol = (TileData::ValidCol == DYNAMIC);
+
+    if constexpr (!isDynamicRow) {
+        PTO_ASSERT(logicalDims[3] % ubChunkRows == 0,
+                   "TPUT chunked: shape3 must be divisible by tile ValidRow when ValidRow is static. "
+                   "Use a Tile with DYNAMIC ValidRow for partial row chunk support.");
+    }
+    if constexpr (!isDynamicCol) {
+        PTO_ASSERT(logicalDims[4] % ubChunkCols == 0,
+                   "TPUT chunked: shape4 must be divisible by tile ValidCol when ValidCol is static. "
+                   "Use a Tile with DYNAMIC ValidCol for partial column chunk support.");
+    }
+
+    constexpr bool canUseIntraTilePingPong = (TileData::Loc == TileType::Vec) &&
+                                             (TileData::BFractal == BLayout::RowMajor) &&
+                                             (TileData::SFractal == SLayout::NoneBox) && (TileData::Rows % 2 == 0);
+    if constexpr (canUseIntraTilePingPong) {
+        const int64_t outerChunkGroups = static_cast<int64_t>(logicalDims[0]) * logicalDims[1] * logicalDims[2];
+        const int64_t rowChunkCount = (static_cast<int64_t>(logicalDims[3]) + ubChunkRows - 1) / ubChunkRows;
+        const int64_t colChunkCount = (static_cast<int64_t>(logicalDims[4]) + ubChunkCols - 1) / ubChunkCols;
+        const int64_t totalChunkCount = outerChunkGroups * rowChunkCount * colChunkCount;
+
+        if (ubChunkRows == TileData::Rows && ubChunkCols == TileData::Cols && ubChunkRows >= 2 &&
+            totalChunkCount >= 8 && totalChunkCount <= 16) {
+            TputChunkedSingle<GlobalDstData, GlobalSrcData, TileData, atomicType, true>(
+                dstGlobalData, srcGlobalData, stagingTileData, logicalDims[0], logicalDims[1], logicalDims[2],
+                logicalDims[3], logicalDims[4], ubChunkRows, ubChunkCols);
+            return;
+        }
+    }
+
+    TputChunkedSingle<GlobalDstData, GlobalSrcData, TileData, atomicType, false>(
+        dstGlobalData, srcGlobalData, stagingTileData, logicalDims[0], logicalDims[1], logicalDims[2], logicalDims[3],
+        logicalDims[4], ubChunkRows, ubChunkCols);
+}
+
+// ============================================================================
 // TPUT_IMPL: Remote write operation implementation
 //
 // Data flow: srcGlobalData (local GM) → stagingTileData (UB) → dstGlobalData (remote GM)
@@ -229,7 +277,6 @@ PTO_INTERNAL void TPUT_IMPL(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlob
         return;
     }
 
-    // ---- Simple path: data fits in UB tile in both dimensions ----
     if (totalLogicalRows <= ubChunkRows && logicalDims[4] <= ubChunkCols) {
         TLOAD(stagingTileData, srcGlobalData);
         set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
@@ -240,45 +287,8 @@ PTO_INTERNAL void TPUT_IMPL(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlob
         return;
     }
 
-    // ---- 2D sliding chunked path ----
-    PTO_ASSERT(ubChunkRows > 0, "TPUT: tile ValidRow must be greater than 0 for chunked transfer");
-    PTO_ASSERT(ubChunkCols > 0, "TPUT: tile ValidCol must be greater than 0 for chunked transfer");
-
-    constexpr bool isDynamicRow = (TileData::ValidRow == DYNAMIC);
-    constexpr bool isDynamicCol = (TileData::ValidCol == DYNAMIC);
-
-    if constexpr (!isDynamicRow) {
-        PTO_ASSERT(logicalDims[3] % ubChunkRows == 0,
-                   "TPUT chunked: shape3 must be divisible by tile ValidRow when ValidRow is static. "
-                   "Use a Tile with DYNAMIC ValidRow for partial row chunk support.");
-    }
-    if constexpr (!isDynamicCol) {
-        PTO_ASSERT(logicalDims[4] % ubChunkCols == 0,
-                   "TPUT chunked: shape4 must be divisible by tile ValidCol when ValidCol is static. "
-                   "Use a Tile with DYNAMIC ValidCol for partial column chunk support.");
-    }
-
-    constexpr bool canUseIntraTilePingPong = (TileData::Loc == TileType::Vec) &&
-                                             (TileData::BFractal == BLayout::RowMajor) &&
-                                             (TileData::SFractal == SLayout::NoneBox) && (TileData::Rows % 2 == 0);
-    if constexpr (canUseIntraTilePingPong) {
-        const int64_t outerChunkGroups = static_cast<int64_t>(logicalDims[0]) * logicalDims[1] * logicalDims[2];
-        const int64_t rowChunkCount = (static_cast<int64_t>(logicalDims[3]) + ubChunkRows - 1) / ubChunkRows;
-        const int64_t colChunkCount = (static_cast<int64_t>(logicalDims[4]) + ubChunkCols - 1) / ubChunkCols;
-        const int64_t totalChunkCount = outerChunkGroups * rowChunkCount * colChunkCount;
-
-        if (ubChunkRows == TileData::Rows && ubChunkCols == TileData::Cols && ubChunkRows >= 2 &&
-            totalChunkCount >= 8 && totalChunkCount <= 16) {
-            TputChunkedSingle<GlobalDstData, GlobalSrcData, TileData, atomicType, true>(
-                dstGlobalData, srcGlobalData, stagingTileData, logicalDims[0], logicalDims[1], logicalDims[2],
-                logicalDims[3], logicalDims[4], ubChunkRows, ubChunkCols);
-            return;
-        }
-    }
-
-    TputChunkedSingle<GlobalDstData, GlobalSrcData, TileData, atomicType, false>(
-        dstGlobalData, srcGlobalData, stagingTileData, logicalDims[0], logicalDims[1], logicalDims[2], logicalDims[3],
-        logicalDims[4], ubChunkRows, ubChunkCols);
+    TputChunkedDispatch<GlobalDstData, GlobalSrcData, TileData, atomicType>(
+        dstGlobalData, srcGlobalData, stagingTileData, logicalDims, ubChunkRows, ubChunkCols);
 }
 
 // Process one chunk in the ping-pong pipeline: overlap TSTORE of previous chunk with TLOAD of current chunk

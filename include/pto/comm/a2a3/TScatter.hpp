@@ -62,6 +62,47 @@ PTO_INTERNAL void TscatterSimple(ParallelGroupType &parallelGroup, GlobalSrcData
     }
 }
 
+// Inner row/col 2D sliding loop for chunked scatter
+template <typename TileData, typename T, Layout srcLayout, Layout dstLayout>
+PTO_INTERNAL void TscatterChunkedRowColLoop(TileData &stagingTileData, __gm__ T *srcPtr, __gm__ T *dstPtr,
+                                            int64_t srcBase, int64_t dstBase, int gShape3, int gShape4,
+                                            int tileValidRow, int tileValidCol, const int (&srcStep)[5],
+                                            const int (&dstStep)[5])
+{
+    constexpr bool isDynamicRow = (TileData::ValidRow == DYNAMIC);
+    constexpr bool isDynamicCol = (TileData::ValidCol == DYNAMIC);
+    using DynShape = Shape<1, 1, 1, DYNAMIC, DYNAMIC>;
+    using DynStride = Stride<DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC>;
+    using SrcViewT = GlobalTensor<T, DynShape, DynStride, srcLayout>;
+    using DstViewT = GlobalTensor<T, DynShape, DynStride, dstLayout>;
+    DynStride srcChunkStride(srcStep[0], srcStep[1], srcStep[2], srcStep[3], srcStep[4]);
+    DynStride dstChunkStride(dstStep[0], dstStep[1], dstStep[2], dstStep[3], dstStep[4]);
+
+    for (int rowOff = 0; rowOff < gShape3; rowOff += tileValidRow) {
+        int curRows = (rowOff + tileValidRow <= gShape3) ? tileValidRow : (gShape3 - rowOff);
+        if constexpr (isDynamicRow)
+            stagingTileData.RowMaskInternal = curRows;
+        for (int colOff = 0; colOff < gShape4; colOff += tileValidCol) {
+            int curCols = (colOff + tileValidCol <= gShape4) ? tileValidCol : (gShape4 - colOff);
+            if constexpr (isDynamicCol)
+                stagingTileData.ColMaskInternal = curCols;
+            int64_t srcOff =
+                srcBase + static_cast<int64_t>(rowOff) * srcStep[3] + static_cast<int64_t>(colOff) * srcStep[4];
+            int64_t dstOff =
+                dstBase + static_cast<int64_t>(rowOff) * dstStep[3] + static_cast<int64_t>(colOff) * dstStep[4];
+            DynShape chunkShape(1, 1, 1, curRows, curCols);
+            SrcViewT srcView(srcPtr + srcOff, chunkShape, srcChunkStride);
+            TLOAD(stagingTileData, srcView);
+            set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+            wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+            DstViewT dstView(dstPtr + dstOff, chunkShape, dstChunkStride);
+            TSTORE(dstView, stagingTileData);
+            set_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
+            wait_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
+        }
+    }
+}
+
 // 2D sliding chunked scatter with single buffer
 template <typename ParallelGroupType, typename GlobalSrcData, typename TileData>
 PTO_INTERNAL void TscatterChunkedSingle(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData,
@@ -70,59 +111,30 @@ PTO_INTERNAL void TscatterChunkedSingle(ParallelGroupType &parallelGroup, Global
 {
     using GlobalDstData = typename ParallelGroupTraits<ParallelGroupType>::GlobalDataType;
     using T = typename GlobalSrcData::RawDType;
-    constexpr bool isDynamicRow = (TileData::ValidRow == DYNAMIC);
-    constexpr bool isDynamicCol = (TileData::ValidCol == DYNAMIC);
 
-    const int srcPitch0 = srcGlobalData.GetStride(GlobalTensorDim::DIM_0);
-    const int srcPitch1 = srcGlobalData.GetStride(GlobalTensorDim::DIM_1);
-    const int srcPitch2 = srcGlobalData.GetStride(GlobalTensorDim::DIM_2);
-    const int srcPitch3 = srcGlobalData.GetStride(GlobalTensorDim::DIM_3);
-    const int srcPitch4 = srcGlobalData.GetStride(GlobalTensorDim::DIM_4);
-    const int dstPitch0 = parallelGroup[0].GetStride(GlobalTensorDim::DIM_0);
-    const int dstPitch1 = parallelGroup[0].GetStride(GlobalTensorDim::DIM_1);
-    const int dstPitch2 = parallelGroup[0].GetStride(GlobalTensorDim::DIM_2);
-    const int dstPitch3 = parallelGroup[0].GetStride(GlobalTensorDim::DIM_3);
-    const int dstPitch4 = parallelGroup[0].GetStride(GlobalTensorDim::DIM_4);
-
-    using DynShape = Shape<1, 1, 1, DYNAMIC, DYNAMIC>;
-    using DynStride = Stride<DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC>;
-    using SrcViewT = GlobalTensor<T, DynShape, DynStride, GlobalSrcData::layout>;
-    using DstViewT = GlobalTensor<T, DynShape, DynStride, GlobalDstData::layout>;
-    DynStride srcChunkStride(srcPitch0, srcPitch1, srcPitch2, srcPitch3, srcPitch4);
-    DynStride dstChunkStride(dstPitch0, dstPitch1, dstPitch2, dstPitch3, dstPitch4);
+    const int srcStep[5] = {static_cast<int>(srcGlobalData.GetStride(GlobalTensorDim::DIM_0)),
+                            static_cast<int>(srcGlobalData.GetStride(GlobalTensorDim::DIM_1)),
+                            static_cast<int>(srcGlobalData.GetStride(GlobalTensorDim::DIM_2)),
+                            static_cast<int>(srcGlobalData.GetStride(GlobalTensorDim::DIM_3)),
+                            static_cast<int>(srcGlobalData.GetStride(GlobalTensorDim::DIM_4))};
+    const int dstStep[5] = {static_cast<int>(parallelGroup[0].GetStride(GlobalTensorDim::DIM_0)),
+                            static_cast<int>(parallelGroup[0].GetStride(GlobalTensorDim::DIM_1)),
+                            static_cast<int>(parallelGroup[0].GetStride(GlobalTensorDim::DIM_2)),
+                            static_cast<int>(parallelGroup[0].GetStride(GlobalTensorDim::DIM_3)),
+                            static_cast<int>(parallelGroup[0].GetStride(GlobalTensorDim::DIM_4))};
 
     for (int r = 0; r < nranks; ++r) {
-        int64_t rankSrcBase = static_cast<int64_t>(r) * perRankRows * srcPitch3;
+        int64_t rankSrcBase = static_cast<int64_t>(r) * perRankRows * srcStep[3];
         for (int i0 = 0; i0 < gShape0; ++i0) {
             for (int i1 = 0; i1 < gShape1; ++i1) {
                 for (int i2 = 0; i2 < gShape2; ++i2) {
-                    int64_t srcBase = rankSrcBase + static_cast<int64_t>(i0) * srcPitch0 +
-                                      static_cast<int64_t>(i1) * srcPitch1 + static_cast<int64_t>(i2) * srcPitch2;
-                    int64_t dstBase = static_cast<int64_t>(i0) * dstPitch0 + static_cast<int64_t>(i1) * dstPitch1 +
-                                      static_cast<int64_t>(i2) * dstPitch2;
-                    for (int rowOff = 0; rowOff < gShape3; rowOff += tileValidRow) {
-                        int curRows = (rowOff + tileValidRow <= gShape3) ? tileValidRow : (gShape3 - rowOff);
-                        if constexpr (isDynamicRow)
-                            stagingTileData.RowMaskInternal = curRows;
-                        for (int colOff = 0; colOff < gShape4; colOff += tileValidCol) {
-                            int curCols = (colOff + tileValidCol <= gShape4) ? tileValidCol : (gShape4 - colOff);
-                            if constexpr (isDynamicCol)
-                                stagingTileData.ColMaskInternal = curCols;
-                            int64_t srcOff = srcBase + static_cast<int64_t>(rowOff) * srcPitch3 +
-                                             static_cast<int64_t>(colOff) * srcPitch4;
-                            int64_t dstOff = dstBase + static_cast<int64_t>(rowOff) * dstPitch3 +
-                                             static_cast<int64_t>(colOff) * dstPitch4;
-                            DynShape chunkShape(1, 1, 1, curRows, curCols);
-                            SrcViewT srcView(srcGlobalData.data() + srcOff, chunkShape, srcChunkStride);
-                            TLOAD(stagingTileData, srcView);
-                            set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
-                            wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
-                            DstViewT dstView(parallelGroup[r].data() + dstOff, chunkShape, dstChunkStride);
-                            TSTORE(dstView, stagingTileData);
-                            set_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
-                            wait_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
-                        }
-                    }
+                    int64_t srcBase = rankSrcBase + static_cast<int64_t>(i0) * srcStep[0] +
+                                      static_cast<int64_t>(i1) * srcStep[1] + static_cast<int64_t>(i2) * srcStep[2];
+                    int64_t dstBase = static_cast<int64_t>(i0) * dstStep[0] + static_cast<int64_t>(i1) * dstStep[1] +
+                                      static_cast<int64_t>(i2) * dstStep[2];
+                    TscatterChunkedRowColLoop<TileData, T, GlobalSrcData::layout, GlobalDstData::layout>(
+                        stagingTileData, srcGlobalData.data(), parallelGroup[r].data(), srcBase, dstBase, gShape3,
+                        gShape4, tileValidRow, tileValidCol, srcStep, dstStep);
                 }
             }
         }

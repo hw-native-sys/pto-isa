@@ -88,7 +88,7 @@ PTO_INTERNAL void AddOneCmoSqe(__gm__ BatchWriteChannelInfo *channelInfo, __gm__
 
 template <typename = void>
 PTO_INTERNAL void SubmitCmoPrefetchSqes(__gm__ BatchWriteChannelInfo *batchWriteChannelInfo, __gm__ uint8_t *src,
-                                        const SdmaConfig &config, uint32_t *sqTail)
+                                        const SdmaConfig &config, uint32_t *sqTail, uint32_t sqTailLen)
 {
     for (uint32_t idx = 0U; idx < config.iter_num; ++idx) {
         uint32_t queueIdx = idx % config.queue_num;
@@ -116,9 +116,9 @@ PTO_INTERNAL uint64_t SdmaCmoPrefetch(__gm__ uint8_t *src, uint64_t messageLen, 
         return 0;
     }
 
-    UbTmpBuf tmpBuf = execCtx.tmpBuf;
     const uint32_t syncId = execCtx.syncId;
-    const uint32_t channelGroupIdx = execCtx.channelGroupIdx;
+    const uint32_t channelGroupIndex = execCtx.channelGroupIdx;
+    UbTmpBuf tmpBuf = execCtx.tmpBuf;
 
     SdmaConfig config;
     if (!BuildTransferConfig(execCtx.baseConfig, messageLen, config)) {
@@ -128,22 +128,22 @@ PTO_INTERNAL uint64_t SdmaCmoPrefetch(__gm__ uint8_t *src, uint64_t messageLen, 
     if (config.iter_num == 0) {
         return 0;
     }
-    const uint32_t sqePerQueue = (config.iter_num + config.queue_num - 1) / config.queue_num + 1;
-    if (sqePerQueue > kSqDepth) {
+    if (channelGroupIndex >= (kSdmaMaxChannel / config.queue_num)) {
         return 0;
     }
-    if (channelGroupIdx >= (kSdmaMaxChannel / config.queue_num)) {
+    const uint32_t sqePerQue = (config.iter_num + config.queue_num - 1) / config.queue_num + 1;
+    if (sqePerQue > kSqDepth) {
         return 0;
     }
 
     __gm__ BatchWriteChannelInfo *batchWriteChannelBase =
         (__gm__ BatchWriteChannelInfo *)(contextGm + sizeof(BatchWriteFlagInfo));
-    __gm__ BatchWriteChannelInfo *batchWriteChannelInfo = batchWriteChannelBase + channelGroupIdx * config.queue_num;
+    __gm__ BatchWriteChannelInfo *batchWriteChannelInfo = batchWriteChannelBase + channelGroupIndex * config.queue_num;
 
     uint32_t sqTail[64] = {0};
-    InitSqTailArray(batchWriteChannelInfo, config.queue_num, sqTail, tmpBuf);
+    InitSqTailArray(batchWriteChannelInfo, config.queue_num, sqTail, 64, tmpBuf);
 
-    SubmitCmoPrefetchSqes(batchWriteChannelInfo, src, config, sqTail);
+    SubmitCmoPrefetchSqes(batchWriteChannelInfo, src, config, sqTail, 64);
 
     FlushCacheAndRingDoorbell(batchWriteChannelInfo, config, sqTail, tmpBuf, syncId);
     UpdateSqTailState(batchWriteChannelInfo, config, sqTail, tmpBuf, syncId);

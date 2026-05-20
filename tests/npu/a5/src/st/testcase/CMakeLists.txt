@@ -249,6 +249,14 @@ set(ALL_TESTCASES
     tpushpop_subtile
 )
 
+# Opt-in testcases: built ONLY when TEST_CASE=<name> is explicitly supplied.
+# These are excluded from the default "build everything" path so they do not
+# slow down CI. They are still valid TEST_CASE targets for local ST runs.
+set(OPT_IN_TESTCASES
+# Device-side async L2 prefetch: correctness + focused perf comparison
+tprefetch_async
+)
+
 if (AUTO_MODE)
   set(AUTO_MODE_WHITELIST
   # TPUSH and TPOP currently directly use TASSIGN inside their implementations,
@@ -280,12 +288,17 @@ if (AUTO_MODE)
   foreach(whitelisted_case ${AUTO_MODE_WHITELIST})
     list(REMOVE_ITEM ALL_TESTCASES ${whitelisted_case})
   endforeach()
+
+  # TPREFETCH_ASYNC relies on manual-mode Tile::data() returning a raw __ubuf__
+  # pointer. In auto mode the CCE tile_size type system prevents this cast, and
+  # auto-mode scheduling makes manual prefetch unnecessary.
+  list(REMOVE_ITEM OPT_IN_TESTCASES tprefetch_async)
 endif()
 
-if((TEST_CASE IN_LIST ALL_TESTCASES) OR (TEST_CASE STREQUAL "all"))
+if((TEST_CASE IN_LIST ALL_TESTCASES) OR (TEST_CASE IN_LIST OPT_IN_TESTCASES) OR (TEST_CASE STREQUAL "all"))
     message(STATUS "run : ${TEST_CASE}")
 else()
-    message(FATAL_ERROR "not found TEST_CASE: ${TEST_CASE}, support case is : ${ALL_TESTCASES}")
+    message(FATAL_ERROR "not found TEST_CASE: ${TEST_CASE}, support case is : ${ALL_TESTCASES} ${OPT_IN_TESTCASES}")
 endif()
 
 
@@ -293,4 +306,11 @@ foreach(TESTCASE ${ALL_TESTCASES})
     if((DEFINED TEST_CASE AND TEST_CASE STREQUAL TESTCASE) OR (NOT DEFINED TEST_CASE) OR (TEST_CASE STREQUAL "all"))
         add_subdirectory(${TESTCASE})
     endif()
+endforeach()
+
+# Opt-in cases are built only when the user asked for them by name (or "all").
+foreach(TESTCASE ${OPT_IN_TESTCASES})
+if((DEFINED TEST_CASE AND TEST_CASE STREQUAL TESTCASE) OR (TEST_CASE STREQUAL "all"))
+    add_subdirectory(${TESTCASE})
+endif()
 endforeach()

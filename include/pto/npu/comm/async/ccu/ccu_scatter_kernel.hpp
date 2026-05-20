@@ -36,6 +36,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <cstdlib>
 #include <cstring>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -221,10 +222,12 @@ private:
         uint32_t pinDieId = 1U;
         const char *env = std::getenv("HCCL_PTO_GATE_DIE_ID");
         if (env != nullptr && *env != '\0') {
-            char *end = nullptr;
-            unsigned long v = std::strtoul(env, &end, 10);
-            if (end != env && v < 64U)
-                pinDieId = static_cast<uint32_t>(v);
+            try {
+                unsigned long v = std::stoul(std::string(env), nullptr, 10);
+                if (v < 64U)
+                    pinDieId = static_cast<uint32_t>(v);
+            } catch (...) {
+            }
         }
         SetDieId(pinDieId);
 
