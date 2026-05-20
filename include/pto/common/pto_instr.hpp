@@ -2060,13 +2060,14 @@ PTO_INST RecordEvent THISTOGRAM(TileDataDst &dst, TileDataSrc &src, TileDataIdx 
 }
 
 template <auto quant_type, typename TileDataOut, typename TileDataSrc, typename TileDataExp, typename TileDataMax,
-          typename TileDataScaling, typename... WaitEvents>
+          typename TileDataScaling, auto scale_alg = QuantScaleAlg::OCP, typename... WaitEvents>
 PTO_INST RecordEvent TQUANT(TileDataOut &dst, TileDataSrc &src, TileDataExp *exp, TileDataMax *max,
                             TileDataScaling *scaling, WaitEvents &...events)
 {
     TSYNC(events...);
     MAP_INSTR_IMPL_T_ROLES(
-        TQUANT, PTO_TEMPLATE_ARGS(quant_type, TileDataOut, TileDataSrc, TileDataExp, TileDataMax, TileDataScaling),
+        TQUANT,
+        PTO_TEMPLATE_ARGS(quant_type, scale_alg, TileDataOut, TileDataSrc, TileDataExp, TileDataMax, TileDataScaling),
         "OIOOO", dst, src, exp, max, scaling);
     return {};
 }
