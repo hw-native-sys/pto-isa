@@ -31,8 +31,9 @@ PTO_INTERNAL void TExtract_Impl(DstTileData &dst, SrcTileData &src, uint32_t idx
             size_t srcTileIdx = GetTileElementOffset<SrcTileData>(r + idxRow, c + idxCol);
             size_t dstTileIdx = GetTileElementOffset<DstTileData>(r, c);
             if constexpr (quantMode != QuantModeCPU_t::NoQuant) {
-                uint64_t scalar = scalars[c];
-                dst.data()[dstTileIdx] = quantize_element<D, S, quantMode, applyRelu>(src.data()[srcTileIdx], scalar);
+                size_t scalarIndex = SrcTileData::isRowMajor ? c : r;
+                dst.data()[dstTileIdx] =
+                    quantize_element<D, S, quantMode, applyRelu>(src.data()[srcTileIdx], scalars[scalarIndex]);
             } else {
                 S val = src.data()[srcTileIdx];
                 if constexpr (applyRelu) {
