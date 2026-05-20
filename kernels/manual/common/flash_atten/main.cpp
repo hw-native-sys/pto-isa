@@ -86,7 +86,7 @@ static std::vector<std::string> SplitAny(const std::string &s, const std::string
 static thread_local std::string g_case_name;
 static bool g_enable_intermediate = false;
 static thread_local std::string g_fifo_summary;
-static int g_chip_id = 0; // device id selected via CLI
+static int g_chip_id = 0;                // device id selected via CLI
 static const std::string kReportCsv = "./report.csv";
 static double g_sys_cnt_multiple = 20.0; // Default A2/A3
 
@@ -165,7 +165,7 @@ void run_tfa()
     aclFloat16 *xexpHost;
     float *tmpFloatExpHost;
     aclFloat16 *vHost;
-    T *outDevice; // qk_out
+    T *outDevice;           // qk_out
     aclFloat16 *xexpDevice;
     T *midDevice = nullptr; // not used by this test but kept for symmetry
     aclFloat16 *qDevice, *kDevice;
