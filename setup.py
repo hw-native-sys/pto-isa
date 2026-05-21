@@ -34,12 +34,10 @@ setup(
     packages=find_packages(exclude=["tests*", "demos*", "scripts*", "kernels*"]),
     data_files=get_include_files(),
     include_package_data=True,
-    python_requires=">=3.8",
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",

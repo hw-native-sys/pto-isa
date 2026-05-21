@@ -79,6 +79,9 @@ python3 tests/script/run_st.py -r sim -v a3 -t tadd -g TADDTest.case_float_64x64
 
 # One-click build and run recommended tests
 ./build.sh --run_all --a3 --sim
+
+# Build a wheel package (artifacts will be placed under dist/)
+python3 -m build --wheel
 ```
 
 For more complete build, test, and scripting details, see the [Getting Started Guide](docs/getting-started.md) and [Test Guide](tests/README.md).

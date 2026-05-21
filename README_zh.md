@@ -79,6 +79,9 @@ python3 tests/script/run_st.py -r sim -v a3 -t tadd -g TADDTest.case_float_64x64
 
 # 一键构建并运行推荐测试
 ./build.sh --run_all --a3 --sim
+
+# 在代码根目录下打 whl 包，产物位于 dist/ 目录
+python3 -m build --wheel
 ```
 
 更完整的构建、测试和脚本说明请参见：[快速开始指南](docs/getting-started_zh.md)、[测试说明](tests/README_zh.md)
