@@ -35,6 +35,7 @@ inline constexpr bool kInstructionTraceEnabled = false;
 
 struct TileOperandTrace {
     std::uintptr_t address = 0;
+    std::string tile_type;
     std::vector<int64_t> shape;
     std::string layout;
     std::string dtype;
@@ -156,6 +157,33 @@ inline const char *CompactModeToString(CompactMode mode)
             return "row_aligned_padding";
     }
     return "unknown";
+}
+
+inline const char *TileTypeToString(TileType tile_type)
+{
+    switch (tile_type) {
+        case TileType::Vec:
+            return "Vec";
+        case TileType::Mat:
+            return "Mat";
+        case TileType::Left:
+            return "Left";
+        case TileType::Right:
+            return "Right";
+        case TileType::Acc:
+            return "Acc";
+        case TileType::Bias:
+            return "Bias";
+        case TileType::Scaling:
+            return "Scaling";
+        case TileType::ScaleLeft:
+            return "ScaleLeft";
+        case TileType::ScaleRight:
+            return "ScaleRight";
+        case TileType::Ctrl:
+            return "Ctrl";
+    }
+    return "Unknown";
 }
 
 template <typename T>
@@ -295,10 +323,12 @@ TileOperandTrace CaptureTileOperand(TileData &tile)
     }
 
     if constexpr (is_tile_data_v<CleanTileData>) {
+        operand.tile_type = TileTypeToString(CleanTileData::Loc);
         operand.shape = {static_cast<int64_t>(tile.GetValidRow()), static_cast<int64_t>(tile.GetValidCol())};
         operand.layout = TileLayoutString<CleanTileData>();
         operand.dtype = TraceDTypeName<typename CleanTileData::DType>();
     } else if constexpr (is_conv_tile_v<CleanTileData>) {
+        operand.tile_type = "Mat";
         operand.shape.reserve(CleanTileData::totalDimCount);
         for (int dim = 0; dim < CleanTileData::totalDimCount; ++dim) {
             operand.shape.push_back(tile.GetShape(dim));
@@ -306,6 +336,7 @@ TileOperandTrace CaptureTileOperand(TileData &tile)
         operand.layout = LayoutToString(CleanTileData::layout);
         operand.dtype = TraceDTypeName<typename CleanTileData::DType>();
     } else {
+        operand.tile_type = "Global";
         operand.shape.reserve(GlobalTensorDim::TOTAL_DIM);
         for (int dim = 0; dim < GlobalTensorDim::TOTAL_DIM; ++dim) {
             operand.shape.push_back(tile.GetShape(dim));
@@ -364,7 +395,8 @@ inline void DumpInstructionTraceJson(std::ostream &os)
             if (i != 0) {
                 os << ",";
             }
-            os << "{\"address\":\"" << HexAddress(operand.address) << "\",\"shape\":[";
+            os << "{\"address\":\"" << HexAddress(operand.address) << "\",\"tile_type\":\""
+               << JsonEscape(operand.tile_type) << "\",\"shape\":[";
             for (std::size_t dim = 0; dim < operand.shape.size(); ++dim) {
                 if (dim != 0) {
                     os << ",";
@@ -389,7 +421,8 @@ inline void DumpInstructionTraceJson(std::ostream &os)
             if (i != 0) {
                 os << ",";
             }
-            os << "{\"address\":\"" << HexAddress(operand.address) << "\",\"shape\":[";
+            os << "{\"address\":\"" << HexAddress(operand.address) << "\",\"tile_type\":\""
+               << JsonEscape(operand.tile_type) << "\",\"shape\":[";
             for (std::size_t dim = 0; dim < operand.shape.size(); ++dim) {
                 if (dim != 0) {
                     os << ",";
