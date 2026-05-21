@@ -1,25 +1,18 @@
 # docs/mkdocs Documentation Build Guide
 
-This directory is used to build the online documentation and local static documentation site for PTO Tile Lib, based on MkDocs.
+This directory is used to build the online documentation and local static documentation site for PTO Tile Lib, based on MkDocs (Material theme).
 
 ## Documentation Content
 
-The generated documentation is a curated PTO ISA manual site. It covers:
+The generated documentation covers:
 
-- PTO ISA model chapters and instruction-set contracts
-- Tile, vector, scalar/control, and communication instruction references
-- PTO-AS spelling as part of the Syntax and Operands chapter
-- Getting started pages needed by the manual
+- PTO ISA instruction reference
+- PTO assembly syntax and specification (PTO-AS)
+- Programming model and developer documentation
+- Getting started and usage guides
+- Kernel examples and directory guides
 
-The authored documentation sources are mainly located in the main repo trees:
-
-- `docs/isa/` for the PTO ISA manual and grouped instruction reference
-- `docs/isa/syntax-and-operands/` for PTO-AS spelling and operand syntax
-- `docs/getting-started*.md` for the public getting-started entry points
-
-`docs/mkdocs/src/` only contains MkDocs-owned landing pages and theme assets.
-Generated virtual pages are produced by `gen_pages.py` at build time and should
-not be committed under `docs/mkdocs/src/`.
+The documentation source files are mainly located under `docs/mkdocs/src/`.
 
 ## Recommended Usage
 
@@ -57,7 +50,7 @@ After startup, the documentation is available at `http://127.0.0.1:8000`, and lo
 python -m mkdocs build -f docs/mkdocs/mkdocs.yml
 ```
 
-The output is generated in the repo-level `site/` directory.
+The output is generated in `docs/mkdocs/site/`.
 
 ## Option 2: Build via CMake
 
@@ -91,7 +84,7 @@ The build output is located in `build/docs/site/`.
 
 - `mkdocs.yml`: MkDocs configuration file
 - `requirements.txt`: documentation build dependencies
-- `src/`: MkDocs-owned landing pages and assets only
+- `src/`: documentation source directory
 - `gen_pages.py`: documentation page generation script
 - `check_mkdocs.py`: documentation build check script
 
@@ -99,4 +92,4 @@ The build output is located in `build/docs/site/`.
 
 - [Root README](../../README.md)
 - [Getting Started Guide](../getting-started.md)
-- [Documentation Entry](../isa/scalar/ops/micro-instruction/README.md)
+- [Documentation Entry](../README.md)
