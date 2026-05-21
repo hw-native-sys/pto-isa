@@ -48,17 +48,17 @@ def scatter(src, indices):
 
 
 def get_idx_by_pattern(pattern, i, j, row_stride):
-    if pattern == "P1010":
+    if pattern == "P0101":
         return i * row_stride + TIMES_TWO * j + INDEX_ZERO
-    elif pattern == "P0101":
+    elif pattern == "P1010":
         return i * row_stride + TIMES_TWO * j + INDEX_ONE
-    elif pattern == "P1000":
-        return i * row_stride + TIMES_FOUR * j + INDEX_ZERO
-    elif pattern == "P0100":
-        return i * row_stride + TIMES_FOUR * j + INDEX_ONE
-    elif pattern == "P0010":
-        return i * row_stride + TIMES_FOUR * j + INDEX_TWO
     elif pattern == "P0001":
+        return i * row_stride + TIMES_FOUR * j + INDEX_ZERO
+    elif pattern == "P0010":
+        return i * row_stride + TIMES_FOUR * j + INDEX_ONE
+    elif pattern == "P0100":
+        return i * row_stride + TIMES_FOUR * j + INDEX_TWO
+    elif pattern == "P1000":
         return i * row_stride + TIMES_FOUR * j + INDEX_THREE
     else:
         return i * row_stride + j
@@ -101,7 +101,7 @@ class TScatterMaskParams:
 
 
 def gen_golden_data(param):
-    src_data = np.random.randint(0, 100, (param.row, param.col)).astype(param.data_type)
+    src_data = np.random.uniform(0, 100, (param.row, param.col)).astype(param.data_type)
 
     if isinstance(param, TScatterParams):
         indices = np.random.randint(0, 2, (param.idx_row, param.idx_col)).astype(param.idx_type)

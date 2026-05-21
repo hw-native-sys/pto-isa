@@ -102,6 +102,4 @@ include_directories(
     ${ASCEND_DRIVER_PATH}/kernel/inc
 )
 
-option(STRAIGHT_INTRINSICS_IMPL "Use straight intrinsics-based implementation for some operations" OFF)
-
 add_subdirectory(testcase)
