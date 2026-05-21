@@ -9,7 +9,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include <pto/pto-inst.hpp>
-#include <pto/common/constants.hpp>
 #include <acl/acl.h>
 
 using namespace std;
@@ -18,13 +17,13 @@ using namespace pto;
 template <typename Tsrc0, typename Tsrc1, int kGRows0_, int kGCols0_, int kGRows1_, int kGCols1_>
 PTO_INTERNAL void runTScatter(__gm__ Tsrc0 *out, __gm__ Tsrc0 *src0, __gm__ Tsrc1 *src1)
 {
-    using DynShapeDim5_src0 = pto::Shape<1, 1, 1, kGRows0_, kGCols0_>;
-    using DynStridDim5_src0 = pto::Stride<1, 1, 1, kGCols0_, 1>;
-    using GlobalData = GlobalTensor<Tsrc0, DynShapeDim5_src0, DynStridDim5_src0>;
+    using DataShape = pto::Shape<1, 1, 1, kGRows0_, kGCols0_>;
+    using DataStride = pto::Stride<kGRows0_ * kGCols0_, kGRows0_ * kGCols0_, kGRows0_ * kGCols0_, kGCols0_, 1>;
+    using GlobalData = GlobalTensor<Tsrc0, DataShape, DataStride>;
 
-    using DynShapeDim5_src1 = pto::Shape<1, 1, 1, kGRows1_, kGCols1_>;
-    using DynStridDim5_src1 = pto::Stride<1, 1, 1, kGCols1_, 1>;
-    using GlobalIdx = GlobalTensor<Tsrc1, DynShapeDim5_src1, DynStridDim5_src1>;
+    using IdxShape = pto::Shape<1, 1, 1, kGRows1_, kGCols1_>;
+    using IdxStride = pto::Stride<kGRows1_ * kGCols1_, kGRows1_ * kGCols1_, kGRows1_ * kGCols1_, kGCols1_, 1>;
+    using GlobalIdx = GlobalTensor<Tsrc1, IdxShape, IdxStride>;
 
     using TileData = Tile<TileType::Vec, Tsrc0, kGRows0_, kGCols0_>;
     using TileIdx = Tile<TileType::Vec, Tsrc1, kGRows1_, kGCols1_>;
@@ -41,13 +40,10 @@ PTO_INTERNAL void runTScatter(__gm__ Tsrc0 *out, __gm__ Tsrc0 *src0, __gm__ Tsrc
 
     TLOAD(srcTile, src0Global);
     TLOAD(idxTile, src1Global);
-#ifndef __PTO_AUTO__
+
     PtoSetWaitFlag<PIPE_MTE2, PIPE_V>();
-#endif
     TSCATTER(dstTile, srcTile, idxTile);
-#ifndef __PTO_AUTO__
-    PtoSetWaitFlag<PIPE_V, PIPE_MTE2>();
-#endif
+    PtoSetWaitFlag<PIPE_V, PIPE_MTE3>();
     TSTORE(dstGlobal, dstTile);
 }
 

@@ -90,48 +90,44 @@ PTO_INTERNAL void TSCATTER_IMPL(DstTile &dst, SrcTile &src, IdxTile &idx)
     TScatterImpl<DstTile, SrcTile, IdxTile>(dst.data(), src.data(), idx.data(), validRow, validCol);
 }
 
+constexpr uint16_t PTO_TSCATTER_TIME_1 = 1;
+constexpr uint16_t PTO_TSCATTER_TIME_2 = 2;
+constexpr uint16_t PTO_TSCATTER_TIME_4 = 4;
+constexpr uint16_t PTO_TSCATTER_IDX_0 = 0;
+constexpr uint16_t PTO_TSCATTER_IDX_1 = 1;
+constexpr uint16_t PTO_TSCATTER_IDX_2 = 2;
+constexpr uint16_t PTO_TSCATTER_IDX_3 = 3;
 template <MaskPattern mask>
 PTO_INTERNAL constexpr int GetTimesByMask()
 {
-    constexpr uint16_t TIMES_1 = 1;
-    constexpr uint16_t TIMES_2 = 2;
-    constexpr uint16_t TIMES_4 = 4;
-
     switch (mask) {
         case MaskPattern::P1111:
-            return TIMES_1;
+            return PTO_TSCATTER_TIME_1;
         case MaskPattern::P1010:
-            return TIMES_2;
+            return PTO_TSCATTER_TIME_2;
         case MaskPattern::P0101:
-            return TIMES_2;
+            return PTO_TSCATTER_TIME_2;
         default:
-            return TIMES_4;
+            return PTO_TSCATTER_TIME_4;
     }
 }
 
 template <MaskPattern mask, int RowStride>
 PTO_INTERNAL int GetIdxByMask(int i, int j)
 {
-    constexpr uint16_t TIMES_2 = 2;
-    constexpr uint16_t TIMES_4 = 4;
-    constexpr uint16_t INDEX_0 = 0;
-    constexpr uint16_t INDEX_1 = 1;
-    constexpr uint16_t INDEX_2 = 2;
-    constexpr uint16_t INDEX_3 = 3;
-
     switch (mask) {
-        case MaskPattern::P1010:
-            return i * RowStride + TIMES_2 * j + INDEX_0;
         case MaskPattern::P0101:
-            return i * RowStride + TIMES_2 * j + INDEX_1;
-        case MaskPattern::P1000:
-            return i * RowStride + TIMES_4 * j + INDEX_0;
-        case MaskPattern::P0100:
-            return i * RowStride + TIMES_4 * j + INDEX_1;
-        case MaskPattern::P0010:
-            return i * RowStride + TIMES_4 * j + INDEX_2;
+            return i * RowStride + PTO_TSCATTER_TIME_2 * j + PTO_TSCATTER_IDX_0;
+        case MaskPattern::P1010:
+            return i * RowStride + PTO_TSCATTER_TIME_2 * j + PTO_TSCATTER_IDX_1;
         case MaskPattern::P0001:
-            return i * RowStride + TIMES_4 * j + INDEX_3;
+            return i * RowStride + PTO_TSCATTER_TIME_4 * j + PTO_TSCATTER_IDX_0;
+        case MaskPattern::P0010:
+            return i * RowStride + PTO_TSCATTER_TIME_4 * j + PTO_TSCATTER_IDX_1;
+        case MaskPattern::P0100:
+            return i * RowStride + PTO_TSCATTER_TIME_4 * j + PTO_TSCATTER_IDX_2;
+        case MaskPattern::P1000:
+            return i * RowStride + PTO_TSCATTER_TIME_4 * j + PTO_TSCATTER_IDX_3;
         default:
             return i * RowStride + j;
     }

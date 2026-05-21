@@ -15,90 +15,50 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "common.hpp"
 #include "utils.hpp"
 #include "TBinSOp.hpp"
-
-#ifndef STRAIGHT_INTRINSICS_IMPL
 #include "custom/Div754.hpp"
-#endif
 
 namespace pto {
 
 template <DivAlgorithm PrecisionType, typename T>
 struct DivSOp {
-    static constexpr bool isDynFunc = false;
-#ifndef STRAIGHT_INTRINSICS_IMPL
-    PTO_INTERNAL static void BinSInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, T reg_src1, MaskReg &preg)
+    static constexpr bool isDynFunc = true;
+    RegTensor<T> scalarReg;
+
+    PTO_INTERNAL DivSOp(T scalar)
+    {
+        vbr(scalarReg, scalar);
+    };
+
+    PTO_INTERNAL void BinSInstr(RegTensor<T> &dstReg, RegTensor<T> &srcReg, T scalar, MaskReg &pReg)
     {
         if constexpr (PrecisionType == DivAlgorithm::HIGH_PRECISION && std::is_same_v<T, float>) {
-            vdup(reg_dst, reg_src1, preg, MODE_ZEROING);
-            DivIEEE754FloatImpl<T, RegTensor<T>>(reg_dst, reg_src0, reg_dst, preg);
+            DivIEEE754FloatImpl<T, RegTensor<T>>(dstReg, srcReg, scalarReg, pReg);
         } else if constexpr (PrecisionType == DivAlgorithm::HIGH_PRECISION && std::is_same_v<T, half>) {
-            vdup(reg_dst, reg_src1, preg, MODE_ZEROING);
-            DivIEEE754HalfImpl<T, RegTensor<T>>(reg_dst, reg_src0, reg_dst, preg);
+            DivIEEE754HalfImpl<T, RegTensor<T>>(dstReg, srcReg, scalarReg, pReg);
         } else {
-            vdup(reg_dst, reg_src1, preg, MODE_ZEROING);
-            vdiv(reg_dst, reg_src0, reg_dst, preg, MODE_ZEROING);
+            vdiv(dstReg, srcReg, scalarReg, pReg, MODE_ZEROING);
         }
     }
-#else
-    PTO_INTERNAL static void BinSInstr(RegTensor<T> &vregdst, RegTensor<T> &vregsrc, T src1, MaskReg &preg)
-    {
-        float divider = static_cast<float>(src1);
-        if (divider != 0.0f) {
-            divider = 1.0f / divider;
-        } else {
-            divider = 1.0 / 0.0;
-        }
-        if constexpr (std::is_same<T, float>::value) {
-            vdup(vregdst, src1, preg, MODE_ZEROING);
-            vdiv(vregdst, vregsrc, vregdst, preg);
-        } else if constexpr (std::is_same<T, half>::value) {
-            vdup(vregdst, src1, preg, MODE_ZEROING);
-            vdiv(vregdst, vregsrc, vregdst, preg);
-        } else if constexpr (std::is_same<T, int32_t>::value) {
-            RegTensor<float> tempDst;
-            vcvt(tempDst, vregsrc, preg, ROUND_R);
-            vmuls(tempDst, tempDst, divider, preg);
-            vcvt(vregdst, tempDst, preg, ROUND_Z, RS_ENABLE);
-        } else if constexpr (std::is_same<T, int16_t>::value) {
-            RegTensor<half> tempDst;
-            vcvt(tempDst, vregsrc, preg, ROUND_R);
-            vmuls(tempDst, tempDst, divider, preg);
-            vcvt(vregdst, tempDst, preg, ROUND_Z, RS_ENABLE);
-        }
-    }
-#endif
 };
 
 template <enum DivAlgorithm PrecisionType, typename T>
 struct DivSOpS {
-    static constexpr bool isDynFunc = false;
-    PTO_INTERNAL static void BinSInstr(RegTensor<T> &vregdst, RegTensor<T> &vregsrc, T src0, MaskReg &preg)
+    static constexpr bool isDynFunc = true;
+    RegTensor<T> scalarReg;
+
+    PTO_INTERNAL DivSOpS(T scalar)
+    {
+        vbr(scalarReg, scalar);
+    };
+
+    PTO_INTERNAL void BinSInstr(RegTensor<T> &dstReg, RegTensor<T> &srcReg, T scalar, MaskReg &pReg)
     {
         if constexpr (PrecisionType == DivAlgorithm::HIGH_PRECISION && std::is_same_v<T, float>) {
-            vdup(vregdst, src0, preg, MODE_ZEROING);
-            DivIEEE754FloatImpl<T, RegTensor<T>>(vregdst, vregdst, vregsrc, preg);
+            DivIEEE754FloatImpl<T, RegTensor<T>>(dstReg, scalarReg, srcReg, pReg);
         } else if constexpr (PrecisionType == DivAlgorithm::HIGH_PRECISION && std::is_same_v<T, half>) {
-            vdup(vregdst, src0, preg, MODE_ZEROING);
-            DivIEEE754HalfImpl<T, RegTensor<T>>(vregdst, vregdst, vregsrc, preg);
-        } else if constexpr (std::is_same<T, float>::value || std::is_same<T, half>::value) {
-            vdup(vregdst, src0, preg, MODE_ZEROING);
-            vdiv(vregdst, vregdst, vregsrc, preg);
-        } else if constexpr (std::is_same<T, int32_t>::value) {
-            RegTensor<float> tempDst;
-            RegTensor<float> tempSrc;
-            vdup(vregdst, src0, preg, MODE_ZEROING);
-            vcvt(tempDst, vregdst, preg, ROUND_R);
-            vcvt(tempSrc, vregsrc, preg, ROUND_R);
-            vdiv(tempDst, tempDst, tempSrc, preg);
-            vcvt(vregdst, tempDst, preg, ROUND_Z, RS_ENABLE);
-        } else if constexpr (std::is_same<T, int16_t>::value) {
-            RegTensor<half> tempDst;
-            RegTensor<half> tempSrc;
-            vdup(vregdst, src0, preg, MODE_ZEROING);
-            vcvt(tempDst, vregdst, preg, ROUND_R);
-            vcvt(tempSrc, vregsrc, preg, ROUND_R);
-            vdiv(tempDst, tempDst, tempSrc, preg);
-            vcvt(vregdst, tempDst, preg, ROUND_Z, RS_ENABLE);
+            DivIEEE754HalfImpl<T, RegTensor<T>>(dstReg, scalarReg, srcReg, pReg);
+        } else {
+            vdiv(dstReg, scalarReg, srcReg, pReg);
         }
     }
 };
@@ -137,8 +97,8 @@ template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDataDst, type
           unsigned elementsPerRepeat, unsigned blockSizeElem, unsigned dstRowStride, unsigned srcRowStride>
 __tf__ PTO_INTERNAL OP_NAME(TDIVS)
     OP_TYPE(element_wise) void TDivS(typename TileDataDst::TileDType __out__ dst,
-                                     typename TileDataSrc::TileDType __in__ src0,
-                                     typename TileDataSrc::DType __in__ src1, unsigned validRow, unsigned validCol,
+                                     typename TileDataSrc::TileDType __in__ src0, typename TileDataSrc::DType src1,
+                                     unsigned validRow, unsigned validCol,
                                      VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
 {
     using T = typename TileDataDst::DType;
@@ -155,8 +115,7 @@ __tf__ PTO_INTERNAL OP_NAME(TDIVS)
 template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc,
           unsigned elementsPerRepeat, unsigned blockSizeElem, unsigned dstRowStride, unsigned srcRowStride>
 __tf__ PTO_INTERNAL OP_NAME(TDIVS)
-    OP_TYPE(element_wise) void TDivS(typename TileDataDst::TileDType __out__ dst,
-                                     typename TileDataSrc::DType __in__ src1,
+    OP_TYPE(element_wise) void TDivS(typename TileDataDst::TileDType __out__ dst, typename TileDataSrc::DType src1,
                                      typename TileDataSrc::TileDType __in__ src0, unsigned validRow, unsigned validCol,
                                      VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
 {
@@ -176,15 +135,10 @@ PTO_INTERNAL void TDIVS_IMPL(TileDataDst &dst, TileDataSrc &src0, typename TileD
 {
     static_assert(std::is_same<typename TileDataDst::DType, uint32_t>::value ||
                       std::is_same<typename TileDataDst::DType, int32_t>::value ||
-                      std::is_same<typename TileDataDst::DType, int>::value ||
                       std::is_same<typename TileDataDst::DType, uint16_t>::value ||
                       std::is_same<typename TileDataDst::DType, int16_t>::value ||
-                      std::is_same<typename TileDataDst::DType, uint8_t>::value ||
-                      std::is_same<typename TileDataDst::DType, int8_t>::value ||
                       std::is_same<typename TileDataDst::DType, half>::value ||
-                      std::is_same<typename TileDataDst::DType, float16_t>::value ||
-                      std::is_same<typename TileDataDst::DType, float>::value ||
-                      std::is_same<typename TileDataDst::DType, float32_t>::value,
+                      std::is_same<typename TileDataDst::DType, float>::value,
                   "TDIVS: Invalid data type");
 
     static_assert(TileDataSrc::Loc == TileType::Vec, "TileType of src and dst tiles must be TileType::Vec.");

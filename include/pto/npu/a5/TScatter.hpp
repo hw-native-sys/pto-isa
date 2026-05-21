@@ -17,167 +17,222 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "utils.hpp"
 
 namespace pto {
-template <typename TileDataD>
-__tf__ AICORE void InitUBBuffer(TileDataD &dst)
+template <uint32_t numel, typename T>
+PTO_INTERNAL void InitUBBuffer(__ubuf__ T *dst)
 {
-    using TD = typename TileDataD::DType;
-    __ubuf__ TD *dstPtr = dst.data();
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(TD);
-    unsigned numRepeatPerRow = CeilDivision(TileDataD::Cols, elementsPerRepeat);
-    __VEC_SCOPE__
-    {
-        constexpr auto distValue =
-            std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<TD, DistVST::DIST_NORM>())>();
-        RegTensor<TD> v_zeros;
-        vbr(v_zeros, (TD)0);
-        for (uint16_t i = 0; i < (uint16_t)TileDataD::Rows; ++i) {
-            uint32_t num_elements = TileDataD::Cols;
-            for (uint16_t j = 0; j < (uint16_t)numRepeatPerRow; ++j) {
-                vector_bool preg_st = CreatePredicate<TD>(num_elements);
-                vsts(v_zeros, dstPtr, i * TileDataD::Cols + j * elementsPerRepeat, distValue, preg_st);
-            }
-        }
-        mem_bar(VST_VLD);
+    constexpr uint16_t nElemPerVL = CCE_VL / sizeof(T);
+    constexpr uint16_t nRepeat = (numel + nElemPerVL - 1) / nElemPerVL;
+
+    MaskReg preg;
+    constexpr auto distValue =
+        std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
+    RegTensor<T> v_zeros;
+    vbr(v_zeros, (T)0);
+    uint32_t num = numel;
+    for (uint16_t i = 0; i < nRepeat; ++i) {
+        preg = CreatePredicate<T>(num);
+        vsts(v_zeros, dst, i * nElemPerVL, distValue, preg);
     }
+    mem_bar(VST_VLD);
+    mem_bar(VST_VST);
 }
 
-template <typename TileDataD, typename TileDataS, typename TileDataI>
-__tf__ AICORE void TScatter_b32(typename TileDataD::TileDType __out__ dst, typename TileDataS::TileDType __in__ src0,
-                                typename TileDataI::TileDType __in__ src1, unsigned validRow, unsigned validCol)
+template <typename DstTile, typename SrcTile, typename IdxTile>
+__tf__ PTO_INTERNAL void TScatterImpl(typename DstTile::TileDType __out__ dstData,
+                                      typename SrcTile::TileDType __in__ src0Data,
+                                      typename IdxTile::TileDType __in__ src1Data, unsigned validRow, unsigned validCol)
 {
-    using TD = typename TileDataD::DType;
-    using TS = typename TileDataS::DType;
-    using TI = typename TileDataI::DType;
-    __ubuf__ TD *dstPtr = (__ubuf__ TD *)__cce_get_tile_ptr(dst);
-    __ubuf__ TS *srcPtr = (__ubuf__ TS *)__cce_get_tile_ptr(src0);
-    __ubuf__ TI *indPtr = (__ubuf__ TI *)__cce_get_tile_ptr(src1);
+    using T = typename DstTile::DType;
+    using U = std::conditional_t<sizeof(typename IdxTile::DType) == 4, uint32_t, uint16_t>;
+    __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
+    __ubuf__ T *src = (__ubuf__ T *)__cce_get_tile_ptr(src0Data);
+    __ubuf__ U *index = (__ubuf__ U *)__cce_get_tile_ptr(src1Data);
     __VEC_SCOPE__
     {
-        uint16_t batchSize = 256 / static_cast<uint16_t>(sizeof(TI));
-        uint16_t innerLoopNum = CeilDivision(validCol, batchSize);
+        // Initialize dst UB buffer
+        InitUBBuffer<DstTile::Numel>(dst);
+
+        uint32_t sReg;
+        MaskReg pReg;
+        RegTensor<U> idxReg;
+        RegTensor<T> v_src;
+        constexpr uint16_t batchSize = CCE_VL / sizeof(U);
+        uint16_t repeat = CeilDivision(validCol, batchSize);
+        using VldsType = std::conditional_t<sizeof(T) == 1, decltype(UNPK_B8), decltype(NORM)>;
+        constexpr VldsType vldsValue{};
+
         for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
-            for (uint16_t j = 0; j < innerLoopNum; ++j) {
-                RegTensor<TI> index;
-                vlds(index, indPtr, (i * TileDataI::Cols + j * batchSize), NORM);
-
-                uint32_t count = ((j + 1) * batchSize >= validCol ? validCol - j * batchSize : batchSize);
-                vector_bool preg = CreatePredicate<TI>(count);
-
-                RegTensor<TS> v_src;
-                vlds(v_src, srcPtr, (i * TileDataS::Cols + j * batchSize), NORM);
-                vscatter(v_src, dstPtr, (vector_u32 &)index, preg);
+            sReg = validCol;
+            for (uint16_t j = 0; j < repeat; ++j) {
+                pReg = CreatePredicate<U>(sReg);
+                vlds(v_src, src, i * SrcTile::Cols + j * batchSize, vldsValue);
+                vlds(idxReg, index, i * IdxTile::Cols + j * batchSize, NORM);
+                vscatter(v_src, dst, idxReg, pReg);
             }
         }
     }
 }
 
-template <typename TileDataD, typename TileDataS, typename TileDataI>
-__tf__ AICORE void TScatter_b16(typename TileDataD::TileDType __out__ dst, typename TileDataS::TileDType __in__ src0,
-                                typename TileDataI::TileDType __in__ src1, unsigned validRow, unsigned validCol)
+template <typename DstTile, typename SrcTile, typename IdxTile>
+PTO_INTERNAL void TSCATTER_IMPL(DstTile &dst, SrcTile &src, IdxTile &idx)
 {
-    using TD = typename TileDataD::DType;
-    using TS = typename TileDataS::DType;
-    using TI = typename TileDataI::DType;
-    __ubuf__ TD *dstPtr = (__ubuf__ TD *)__cce_get_tile_ptr(dst);
-    __ubuf__ TS *srcPtr = (__ubuf__ TS *)__cce_get_tile_ptr(src0);
-    __ubuf__ TI *indPtr = (__ubuf__ TI *)__cce_get_tile_ptr(src1);
-    __VEC_SCOPE__
-    {
-        uint16_t batchSize = 256 / static_cast<uint16_t>(sizeof(TI));
-        uint16_t innerLoopNum = CeilDivision(validCol, batchSize);
-        for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
-            for (uint16_t j = 0; j < innerLoopNum; ++j) {
-                RegTensor<TI> index;
-                vlds(index, indPtr, (i * TileDataI::Cols + j * batchSize), NORM);
-
-                uint32_t count = ((j + 1) * batchSize >= validCol ? validCol - j * batchSize : batchSize);
-                vector_bool preg = CreatePredicate<TI>(count);
-
-                RegTensor<TS> v_src;
-                vlds(v_src, srcPtr, (i * TileDataS::Cols + j * batchSize), NORM);
-                vscatter(v_src, dstPtr, (vector_u16 &)index, preg);
-            }
-        }
-    }
-}
-
-template <typename TileDataD, typename TileDataS, typename TileDataI>
-__tf__ AICORE void TScatter_b8(typename TileDataD::TileDType __out__ dst, typename TileDataS::TileDType __in__ src0,
-                               typename TileDataI::TileDType __in__ src1, unsigned validRow, unsigned validCol)
-{
-    using TD = typename TileDataD::DType;
-    using TS = typename TileDataS::DType;
-    using TI = typename TileDataI::DType;
-    __ubuf__ TD *dstPtr = (__ubuf__ TD *)__cce_get_tile_ptr(dst);
-    __ubuf__ TS *srcPtr = (__ubuf__ TS *)__cce_get_tile_ptr(src0);
-    __ubuf__ TI *indPtr = (__ubuf__ TI *)__cce_get_tile_ptr(src1);
-    __VEC_SCOPE__
-    {
-        uint16_t batchSize = 256 / static_cast<uint16_t>(sizeof(TI));
-        uint16_t innerLoopNum = CeilDivision(validCol, batchSize);
-        for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
-            for (uint16_t j = 0; j < innerLoopNum; ++j) {
-                RegTensor<TI> index;
-                vlds(index, indPtr, (i * TileDataI::Cols + j * batchSize), NORM);
-
-                uint32_t count = ((j + 1) * batchSize >= validCol ? validCol - j * batchSize : batchSize);
-                vector_bool preg = plt_b16(count, POST_UPDATE);
-
-                RegTensor<TS> v_src;
-                // even-numbered bytes only valid and stored
-                vlds(v_src, srcPtr, (i * TileDataS::Cols + j * batchSize), UNPK_B8);
-                vscatter(v_src, dstPtr, (vector_u16 &)index, preg);
-            }
-        }
-    }
-}
-
-template <typename TileDataD, typename TileDataS, typename TileDataI>
-PTO_INTERNAL void TSCATTER_IMPL(TileDataD &dst, TileDataS &src, TileDataI &idx)
-{
-    using TD = typename TileDataD::DType;
-    using TS = typename TileDataS::DType;
-    using TI = typename TileDataI::DType;
-    static_assert(std::is_same<TD, int32_t>::value || std::is_same<TD, int16_t>::value ||
-                      std::is_same<TD, int8_t>::value || std::is_same<TD, uint32_t>::value ||
-                      std::is_same<TD, uint16_t>::value || std::is_same<TD, uint8_t>::value ||
-                      std::is_same<TD, half>::value || std::is_same<TD, float16_t>::value ||
-                      std::is_same<TD, float32_t>::value || std::is_same<TD, bfloat16_t>::value,
-                  "TSCATTER: Invalid data type.");
-    static_assert(std::is_same<TD, TS>::value, "TSCATTER: Data type of dst and src must be the same.");
+    using TD = typename DstTile::DType;
+    using TI = typename IdxTile::DType;
+    static_assert(std::is_same_v<TD, int32_t> || std::is_same_v<TD, int16_t> || std::is_same_v<TD, int8_t> ||
+                      std::is_same_v<TD, uint32_t> || std::is_same_v<TD, uint16_t> || std::is_same_v<TD, uint8_t> ||
+                      std::is_same_v<TD, half> || std::is_same_v<TD, float16_t> || std::is_same_v<TD, float32_t> ||
+                      std::is_same_v<TD, bfloat16_t>,
+                  "Fix: TSCATTER: Invalid data type.");
+    static_assert(std::is_same_v<TD, typename SrcTile::DType>,
+                  "Fix: TSCATTER: Data type of dst and src must be the same.");
     static_assert((sizeof(TD) == 4 && sizeof(TI) == 4) || (sizeof(TD) == 2 && sizeof(TI) == 2) ||
                       (sizeof(TD) == 1 && sizeof(TI) == 2),
-                  "TSCATTER: Invalid data type of idx.");
-    static_assert(std::is_same<TI, uint16_t>::value || std::is_same<TI, uint32_t>::value ||
-                      std::is_same<TI, int16_t>::value || std::is_same<TI, int32_t>::value,
-                  "TSCATTER: Invalid data type of idx.");
-    static_assert(TileDataD::Loc == TileType::Vec && TileDataS::Loc == TileType::Vec && TileDataI::Loc == TileType::Vec,
-                  "TSCATTER: TileType of src and dst tiles must be TileType::Vec.");
-    static_assert(TileDataD::ValidCol <= TileDataD::Cols && TileDataS::ValidCol <= TileDataS::Cols &&
-                      TileDataI::ValidCol <= TileDataI::Cols,
-                  "TSCATTER: Number of valid columns must not be greater than number of tile columns.");
-    static_assert(TileDataD::ValidRow <= TileDataD::Rows && TileDataS::ValidRow <= TileDataS::Rows &&
-                      TileDataI::ValidRow <= TileDataI::Rows,
-                  "TSCATTER: Number of valid rows must not be greater than number of tile rows.");
+                  "Fix: TSCATTER: Invalid data type of idx.");
+    static_assert(std::is_same_v<TI, uint16_t> || std::is_same_v<TI, uint32_t> || std::is_same_v<TI, int16_t> ||
+                      std::is_same_v<TI, int32_t>,
+                  "Fix: TSCATTER: Invalid data type of idx.");
+    static_assert(DstTile::Loc == TileType::Vec && SrcTile::Loc == TileType::Vec && IdxTile::Loc == TileType::Vec,
+                  "Fix: TSCATTER: TileType of src and dst tiles must be TileType::Vec.");
+    static_assert(
+        DstTile::ValidCol <= DstTile::Cols && SrcTile::ValidCol <= SrcTile::Cols && IdxTile::ValidCol <= IdxTile::Cols,
+        "Fix: TSCATTER: Number of valid columns must not be greater than number of tile columns.");
+    static_assert(
+        DstTile::ValidRow <= DstTile::Rows && SrcTile::ValidRow <= SrcTile::Rows && IdxTile::ValidRow <= IdxTile::Rows,
+        "Fix: TSCATTER: Number of valid rows must not be greater than number of tile rows.");
 
-    unsigned validRow = idx.GetValidRow();
-    unsigned validCol = idx.GetValidCol();
+    TScatterImpl<DstTile, SrcTile, IdxTile>(dst.data(), src.data(), idx.data(), idx.GetValidRow(), idx.GetValidCol());
+}
 
-    // Initialize dst UB buffer
-    InitUBBuffer(dst);
+constexpr uint16_t PTO_TSCATTER_TIME_1 = 1;
+constexpr uint16_t PTO_TSCATTER_TIME_2 = 2;
+constexpr uint16_t PTO_TSCATTER_TIME_4 = 4;
+template <MaskPattern mask>
+PTO_INTERNAL constexpr int GetTimesByMask()
+{
+    switch (mask) {
+        case MaskPattern::P1010:
+            return PTO_TSCATTER_TIME_2;
+        case MaskPattern::P0101:
+            return PTO_TSCATTER_TIME_2;
+        case MaskPattern::P1111:
+            return PTO_TSCATTER_TIME_1;
+        default:
+            return PTO_TSCATTER_TIME_4;
+    }
+}
 
-    if constexpr (sizeof(TD) == 4) {
-        TScatter_b32<TileDataD, TileDataS, TileDataI>(dst.data(), src.data(), idx.data(), validRow, validCol);
-    } else if constexpr (sizeof(TD) == 2 && sizeof(TI) == 2) {
-        TScatter_b16<TileDataD, TileDataS, TileDataI>(dst.data(), src.data(), idx.data(), validRow, validCol);
-    } else {
-        TScatter_b8<TileDataD, TileDataS, TileDataI>(dst.data(), src.data(), idx.data(), validRow, validCol);
+template <MaskPattern mask, uint16_t SrcRowStride, uint16_t DstRowStride, uint16_t Times, typename T>
+PTO_INTERNAL void ScatterMask(__ubuf__ T *src, __ubuf__ T *dstPtr, RegTensor<T> &zeros, uint16_t i, uint16_t j,
+                              uint32_t &sReg)
+{
+    constexpr uint16_t nElemPerVL = CCE_VL / sizeof(T);
+    constexpr auto distValue =
+        std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
+
+    RegTensor<T> srcReg, dstReg0, dstReg1, dstReg2, dstReg3, tmpReg0, tmpReg1;
+    MaskReg pReg;
+
+    vlds(srcReg, src, i * SrcRowStride + j * nElemPerVL, NORM);
+
+    if constexpr (Times == PTO_TSCATTER_TIME_2) {
+        if constexpr (mask == MaskPattern::P1010) {
+            vintlv(dstReg0, dstReg1, zeros, srcReg);
+        } else if (mask == MaskPattern::P0101) {
+            vintlv(dstReg0, dstReg1, srcReg, zeros);
+        }
+        pReg = CreatePredicate<T>(sReg);
+        vsts(dstReg0, dstPtr, i * DstRowStride + (Times * j + 0) * nElemPerVL, distValue, pReg);
+        pReg = CreatePredicate<T>(sReg);
+        vsts(dstReg1, dstPtr, i * DstRowStride + (Times * j + 1) * nElemPerVL, distValue, pReg);
+    } else if (Times == PTO_TSCATTER_TIME_4) {
+        if constexpr (mask == MaskPattern::P1000) {
+            vintlv(tmpReg0, tmpReg1, zeros, srcReg);
+            vintlv(dstReg0, dstReg1, zeros, tmpReg0);
+            vintlv(dstReg2, dstReg3, zeros, tmpReg1);
+        } else if (mask == MaskPattern::P0100) {
+            vintlv(tmpReg0, tmpReg1, zeros, srcReg);
+            vintlv(dstReg0, dstReg1, tmpReg0, zeros);
+            vintlv(dstReg2, dstReg3, tmpReg1, zeros);
+        } else if (mask == MaskPattern::P0010) {
+            vintlv(tmpReg0, tmpReg1, srcReg, zeros);
+            vintlv(dstReg0, dstReg1, zeros, tmpReg0);
+            vintlv(dstReg2, dstReg3, zeros, tmpReg1);
+        } else if (mask == MaskPattern::P0001) {
+            vintlv(tmpReg0, tmpReg1, srcReg, zeros);
+            vintlv(dstReg0, dstReg1, tmpReg0, zeros);
+            vintlv(dstReg2, dstReg3, tmpReg1, zeros);
+        }
+        pReg = CreatePredicate<T>(sReg);
+        vsts(dstReg0, dstPtr, i * DstRowStride + (Times * j + 0) * nElemPerVL, distValue, pReg);
+        pReg = CreatePredicate<T>(sReg);
+        vsts(dstReg1, dstPtr, i * DstRowStride + (Times * j + 1) * nElemPerVL, distValue, pReg);
+        pReg = CreatePredicate<T>(sReg);
+        vsts(dstReg2, dstPtr, i * DstRowStride + (Times * j + 2) * nElemPerVL, distValue, pReg);
+        pReg = CreatePredicate<T>(sReg);
+        vsts(dstReg3, dstPtr, i * DstRowStride + (Times * j + 3) * nElemPerVL, distValue, pReg);
+    }
+}
+
+template <MaskPattern mask, typename DstTile, typename SrcTile>
+__tf__ PTO_INTERNAL void TScatterMaskImpl(typename DstTile::TileDType __out__ dstData,
+                                          typename SrcTile::TileDType __in__ srcData, unsigned validRow,
+                                          unsigned validCol)
+{
+    using T = typename DstTile::DType;
+    __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
+    __ubuf__ T *src = (__ubuf__ T *)__cce_get_tile_ptr(srcData);
+    constexpr uint16_t nElemPerVL = CCE_VL / sizeof(T);
+    constexpr uint16_t times = GetTimesByMask<mask>();
+
+    __VEC_SCOPE__
+    {
+        InitUBBuffer<DstTile::Numel>(dst);
+
+        RegTensor<T> zeros;
+        vbr(zeros, (T)0);
+        uint32_t sReg;
+        uint32_t dstValidCol = validCol * times;
+        uint16_t repeatTimes = CeilDivision(validCol, nElemPerVL);
+        for (uint16_t i = 0; i < (uint16_t)(validRow); ++i) {
+            sReg = dstValidCol;
+            for (uint16_t j = 0; j < repeatTimes; ++j) {
+                ScatterMask<mask, SrcTile::RowStride, DstTile::RowStride, times>(src, dst, zeros, i, j, sReg);
+            }
+        }
     }
 }
 
 template <MaskPattern mask, typename DstTile, typename SrcTile>
 PTO_INTERNAL void TSCATTER_IMPL(DstTile &dst, SrcTile &src)
-{}
+{
+    if constexpr (mask == MaskPattern::P1111) {
+        return TMOV_IMPL(dst, src);
+    } else {
+        using T = typename DstTile::DType;
+        static_assert(std::is_same_v<T, int32_t> || std::is_same_v<T, int16_t> || std::is_same_v<T, int8_t> ||
+                          std::is_same_v<T, uint32_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, uint8_t> ||
+                          std::is_same_v<T, half> || std::is_same_v<T, float16_t> || std::is_same_v<T, float32_t> ||
+                          std::is_same_v<T, bfloat16_t>,
+                      "Fix: TSCATTER: Invalid dst data type.");
+        static_assert(std::is_same_v<T, typename SrcTile::DType>,
+                      "Fix: TSCATTER: Data type of dst and src must be the same.");
+
+        static_assert(SrcTile::Loc == TileType::Vec && DstTile::Loc == TileType::Vec,
+                      "Fix: TSCATTER: TileType of src and dst tiles must be TileType::Vec.");
+        static_assert(SrcTile::ValidCol <= SrcTile::Cols && DstTile::ValidCol <= DstTile::Cols,
+                      "Fix: TSCATTER: Number of valid columns must not be greater than number of tile columns.");
+        static_assert(SrcTile::ValidRow <= SrcTile::Rows && DstTile::ValidRow <= DstTile::Rows,
+                      "Fix: TSCATTER: Number of valid rows must not be greater than number of tile rows.");
+        static_assert(mask >= MaskPattern::P0101 && mask <= MaskPattern::P1111,
+                      "Fix: TSCATTER: MaskPattern parameter value out of range: must be P0101...P1111 inclusive.");
+        unsigned validRow = src.GetValidRow();
+        unsigned validCol = src.GetValidCol();
+
+        PTO_ASSERT(validRow == dst.GetValidRow(), "TSCATTER: validRow of src must match dst.");
+        PTO_ASSERT(validCol == dst.GetValidCol() * GetTimesByMask<mask>, "TSCATTER: validRow of src must match dst.");
+        TScatterMaskImpl<mask, DstTile, SrcTile>(dst.data(), src.data(), validRow, validCol);
+    }
+}
 } // namespace pto
 
 #endif

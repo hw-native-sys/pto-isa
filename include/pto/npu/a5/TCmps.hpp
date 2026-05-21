@@ -15,6 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/common/utils.hpp>
 #include "common.hpp"
 #include "utils.hpp"
+#include "TCmp.hpp"
 
 namespace pto {
 constexpr const uint16_t RESULT_NUM_PER_INT32 = 32;
@@ -130,6 +131,72 @@ __tf__ PTO_INTERNAL OP_NAME(TCMPS)
     }
 }
 
+template <typename T, uint32_t SrcStride, uint32_t DstStride>
+PTO_INTERNAL void TCmpsTileB8B16(__ubuf__ uint32_t *dst, __ubuf__ T *src0, __ubuf__ T *src1, CmpMode mode,
+                                 unsigned validRow, unsigned validCol)
+{
+    constexpr uint32_t repeatElm = CCE_VL / sizeof(T);
+    constexpr uint16_t dstOffset = repeatElm / RESULT_NUM_PER_INT32;
+    __VEC_SCOPE__
+    {
+        using DistType = std::conditional_t<sizeof(T) == 2, decltype(PK), decltype(NORM)>;
+        using VldsType = std::conditional_t<sizeof(T) == 2, decltype(BRC_B16), decltype(BRC_B8)>;
+        constexpr DistType distValue{};
+        constexpr VldsType vldsValue{};
+
+        RegTensor<T> src0Reg;
+        RegTensor<T> src1Reg;
+        MaskReg pReg;
+        MaskReg dstReg;
+        uint32_t sReg;
+        uint16_t repeatTimes = CeilDivision(validCol, repeatElm);
+
+        vlds(src1Reg, src1, 0, vldsValue);
+        for (uint16_t i = 0; i < (uint16_t)(validRow); ++i) {
+            sReg = validCol;
+            for (uint16_t j = 0; j < (uint16_t)(repeatTimes); ++j) {
+                pReg = CreatePredicate<T>(sReg);
+                vlds(src0Reg, src0, i * SrcStride + j * repeatElm, NORM);
+                CmpCall(dstReg, src0Reg, src1Reg, mode, pReg);
+                psts(dstReg, dst + i * DstStride + j * dstOffset, 0, distValue);
+            }
+        }
+    }
+}
+
+template <typename T, uint32_t SrcStride, uint32_t DstStride>
+PTO_INTERNAL void TCmpsTileB32(__ubuf__ uint32_t *dst, __ubuf__ T *src0, __ubuf__ T *src1, CmpMode mode,
+                               unsigned validRow, unsigned validCol)
+{
+    constexpr uint32_t repeatElm = CCE_VL / sizeof(T);
+    constexpr uint16_t dstOffset = 2 * repeatElm / RESULT_NUM_PER_INT32;
+    __VEC_SCOPE__
+    {
+        RegTensor<T> src0Reg0;
+        RegTensor<T> src0Reg1;
+        RegTensor<T> src1Reg;
+        uint32_t sReg;
+        MaskReg pReg, tmpReg0, tmpReg1, tmpReg2, dstReg;
+
+        vlds(src1Reg, src1, 0, BRC_B32);
+        for (uint16_t i = 0; i < (uint16_t)(validRow); ++i) {
+            sReg = validCol;
+            // for odd repeat number, add 1 to include remainder
+            uint16_t repeatTimes = CeilDivision(validCol, repeatElm) + 1;
+            for (uint16_t j = 0; j < (uint16_t)(repeatTimes / 2); ++j) {
+                vlds(src0Reg0, src0, i * SrcStride + j * 2 * repeatElm, NORM);
+                vlds(src0Reg1, src0, i * SrcStride + (j * 2 + 1) * repeatElm, NORM);
+                pReg = CreatePredicate<T>(sReg);
+                CmpCall(tmpReg0, src0Reg0, src1Reg, mode, pReg);
+                pReg = CreatePredicate<T>(sReg);
+                CmpCall(tmpReg1, src0Reg1, src1Reg, mode, pReg);
+                pdintlv_b8(dstReg, tmpReg2, tmpReg0, tmpReg1);
+                psts(dstReg, dst + i * DstStride + j * dstOffset, 0, PK);
+            }
+        }
+    }
+}
+
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
 __tf__ PTO_INTERNAL OP_NAME(TCMPS)
     OP_TYPE(element_wise) void TCmps_Tile(typename TileDataDst::TileDType __out__ dstData,
@@ -146,15 +213,10 @@ __tf__ PTO_INTERNAL OP_NAME(TCMPS)
     constexpr uint32_t srcStride = TileDataSrc0::RowStride;
     constexpr uint32_t dstStride = TileDataDst::RowStride * sizeof(typename TileDataDst::DType) / sizeof(uint32_t);
 
-    set_flag(PIPE_V, PIPE_S, EVENT_ID0);
-    wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
-    set_flag(PIPE_MTE2, PIPE_S, EVENT_ID0);
-    wait_flag(PIPE_MTE2, PIPE_S, EVENT_ID0);
-    T src1Value = *src1;
     if constexpr (sizeof(T) == 4) {
-        TCmps_32B<T, srcStride, dstStride>(dst, src0, src1Value, mode, validRow, validCol);
+        TCmpsTileB32<T, srcStride, dstStride>(dst, src0, src1, mode, validRow, validCol);
     } else {
-        TCmps_8B_16B<T, srcStride, dstStride>(dst, src0, src1Value, mode, validRow, validCol);
+        TCmpsTileB8B16<T, srcStride, dstStride>(dst, src0, src1, mode, validRow, validCol);
     }
 }
 

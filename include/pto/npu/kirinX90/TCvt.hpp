@@ -54,14 +54,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <array>
 namespace pto {
 
-// Import rounding type definitions from __cce_simd namespace
-using ::RoundAType;
-using ::RoundCType;
-using ::RoundFType;
-using ::RoundOType;
-using ::RoundRType;
-using ::RoundZType;
-
 // ============================================================================
 // CTRL Register Bit Definitions for Saturation Mode Control
 // ============================================================================

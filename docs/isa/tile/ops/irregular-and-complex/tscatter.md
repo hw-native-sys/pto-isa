@@ -4,9 +4,14 @@
 
 ## Summary
 
-Scatter rows of a source tile into a destination tile using per-element row indices.
+`pto.tscatter` supports two operation modes:
+
+1. Index-based scatter: scatter source elements into destination positions using per-element flattened offsets.
+2. Mask scatter: scatter source elements into a wider destination with a mask pattern, filling unselected positions with zero.
 
 ## Mechanism
+
+### Index-Based Scatter
 
 Scatter source elements into a destination tile using per-element flattened destination offsets. It belongs to the tile instructions and carries architecture-visible behavior that is not reducible to a plain elementwise compute pattern.
 
@@ -17,6 +22,16 @@ $$ \mathrm{dst\_flat}_{k} = \mathrm{src}_{i,j} $$
 Here `dst_flat` denotes the destination tile viewed as a single linear storage sequence. `TSCATTER` does **not** interpret `idx[i,j]` as a destination row selector. On the standard row-major tile layout, this is equivalent to writing the `k`-th flattened destination element.
 
 If multiple elements map to the same destination location, the final value is undefined. On A2/A3 and A5, the last writer wins according to the hardware scheduling order; on the CPU simulator, the last writer wins according to the iteration order.
+
+### Mask Scatter
+
+Mask scatter is an A5-only overload that writes each source element into one selected lane of an expanded destination group and writes zero to the other lanes in the group.
+
+For each source element `(i, j)` and mask pattern `P`, the destination column group is selected by the mask expansion factor:
+
+$$ \mathrm{dst}_{i,\ F_P \cdot j + \mathrm{pos}_P} = \mathrm{src}_{i,j} $$
+
+All other columns in that expanded group are zero-filled. `F_P` is 1 for `P1111`, 2 for `P0101`/`P1010`, and 4 for `P0001`/`P0010`/`P0100`/`P1000`.
 
 ## Syntax
 
@@ -47,7 +62,23 @@ Declared in `include/pto/common/pto_instr.hpp`:
 ```cpp
 template <typename TileDataD, typename TileDataS, typename TileDataI, typename... WaitEvents>
 PTO_INST RecordEvent TSCATTER(TileDataD &dst, TileDataS &src, TileDataI &indexes, WaitEvents &... events);
+
+template <MaskPattern maskPattern = MaskPattern::P1111, typename DstTileData, typename SrcTileData,
+          typename... WaitEvents>
+PTO_INST RecordEvent TSCATTER(DstTileData &dst, SrcTileData &src, WaitEvents &... events);
 ```
+
+`MaskPattern` is defined in `include/pto/common/type.hpp`:
+
+| Value | Pattern | Selected lane | Expansion |
+|-------|---------|---------------|-----------|
+| `P0101` | `0101...` | first lane in each 2-lane group | x2 |
+| `P1010` | `1010...` | second lane in each 2-lane group | x2 |
+| `P0001` | `0001...` | first lane in each 4-lane group | x4 |
+| `P0010` | `0010...` | second lane in each 4-lane group | x4 |
+| `P0100` | `0100...` | third lane in each 4-lane group | x4 |
+| `P1000` | `1000...` | fourth lane in each 4-lane group | x4 |
+| `P1111` | `1111...` | all lanes, equivalent to `TMOV` | x1 |
 
 ## Inputs
 
@@ -101,6 +132,16 @@ No architectural side effects beyond producing the destination tile. Concurrent 
       - When size of `TileDataD::DType` is 2 bytes, the size of `TileDataI::DType` must be 2 bytes.
       - When size of `TileDataD::DType` is 1 bytes, the size of `TileDataI::DType` must be 2 bytes.
 
+    - **Mask scatter checks (A5 only)**:
+      - `DstTileData::Loc` and `SrcTileData::Loc` must be `TileType::Vec`.
+      - `DstTileData::DType` and `SrcTileData::DType` must be the same supported TSCATTER data type.
+      - `maskPattern` must be one of `P0101`, `P1010`, `P0001`, `P0010`, `P0100`, `P1000`, or `P1111`.
+      - `SrcTileData::ValidRow` must equal `DstTileData::ValidRow`.
+      - `DstTileData::ValidCol` must equal `SrcTileData::ValidCol * F_P`, where `F_P` is the pattern expansion factor.
+
+!!! warning "Mask scatter zero fill"
+    Before mask scatter writes source elements, the A5 implementation initializes the destination tile buffer to zero across the full tile allocation, not only the valid region. Code must not overlap that destination UB allocation with other live data.
+
 ## Examples
 
 ### Auto
@@ -135,6 +176,22 @@ void example_manual() {
   TASSIGN(dst, 0x2000);
   TASSIGN(idx, 0x3000);
   TSCATTER(dst, src, idx);
+}
+```
+
+### Mask Scatter
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_mask_scatter() {
+  using SrcTileT = Tile<TileType::Vec, half, 16, 64>;
+  using DstTileT = Tile<TileType::Vec, half, 16, 128>;
+  SrcTileT src;
+  DstTileT dst;
+  TSCATTER<MaskPattern::P1010>(dst, src);
 }
 ```
 
