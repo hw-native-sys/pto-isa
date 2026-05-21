@@ -106,7 +106,6 @@ struct HcclDeviceContext {
 };
 /* </Hccl> */
 
-typedef int event_t;
 #define EVENT_ID0 0
 
 #define F16_MAX 65504.0f

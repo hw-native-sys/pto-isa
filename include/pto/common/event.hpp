@@ -17,6 +17,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/common/type.hpp>
 
 namespace pto {
+
+using event_t = int;
 enum class Op : uint16_t
 {
     TLOAD,      /* GM to Vec/Mat/ */
