@@ -6,11 +6,7 @@ Packaging and release scripts/templates for PTO Tile Lib. This directory is used
 
 - `pto_isa/`: Package templates and helper scripts specific to PTO Tile Lib
 - `module/`: Module-level packaging descriptors
-
-Common helpers (`package.py`, `install_common_parser.sh`, install/cleanup
-fragments, etc.) are reused from the CANN engineering cmake repo
-(`https://gitcode.com/cann/cmake`) and pulled in at configure time via
-`cmake/fetch_cann_cmake.cmake`.
+- `common/`: Shared helpers and configuration fragments
 
 ## Build and Install
 
@@ -21,7 +17,7 @@ cd ${git_clone_path}
 ./build.sh --pkg
 ```
 
-After the build completes, the `.run` installer package is generated under `build_out/`.
+After the build completes, the `.run` installer package is generated under `scripts/package/output/`.
 
 ### Installation
 
@@ -35,13 +31,13 @@ Install via the `.run` self-extracting package. An install type is required (cho
 
 ```bash
 # Full installation to a custom path
-./build_out/pto_isa_*.run --full --install-path=/your/install/path
+./scripts/package/output/pto_isa_*.run --full --install-path=/your/install/path
 
 # Quiet install, skip interactive prompts (for CI/CD and non-interactive environments)
-./build_out/pto_isa_*.run --full --quiet --install-path=/your/install/path
+./scripts/package/output/pto_isa_*.run --full --quiet --install-path=/your/install/path
 
 # Runtime-only installation
-./build_out/pto_isa_*.run --run --install-path=/your/install/path
+./scripts/package/output/pto_isa_*.run --run --install-path=/your/install/path
 ```
 
 Common install options:
@@ -59,5 +55,5 @@ Common install options:
 For a full list of options:
 
 ```bash
-./build_out/pto_isa_*.run --help
+./scripts/package/output/pto_isa_*.run --help
 ```

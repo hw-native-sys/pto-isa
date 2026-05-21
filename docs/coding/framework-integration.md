@@ -22,9 +22,38 @@ Target Ascend AI Core execution
 
 | Method | Pros | Cons | Use Case |
 |--------|------|------|----------|
-| **Python Extension** | Fast development | Python/C++ boundary overhead | Prototyping |
-| **C++ Extension** | High performance | More complex build and registration | Production |
+| **Python Extension** | Fast development, easy debugging | Python/C++ boundary overhead | Prototyping, quick validation |
+| **C++ Extension** | High performance, type safety | More complex build and registration | Production, performance-critical |
 | **Framework plugin / custom backend path** | Closer to deployment path | Higher maintenance cost | Stable product integration |
+
+### 1.3 Integration Workflow
+
+```
+1. Define operator interface
+   ├─ Input/Output tensor specification
+   ├─ Parameter types and defaults
+   └─ Operator attributes (inplace, deterministic)
+
+2. Implement operator logic
+   ├─ Forward computation
+   ├─ Backward propagation (training)
+   └─ Shape inference
+
+3. Register operator
+   ├─ Framework operator registration
+   ├─ Backend binding
+   └─ Type inference
+
+4. Test and validate
+   ├─ Unit tests
+   ├─ Numerical correctness
+   └─ Performance benchmarks
+
+5. Documentation and examples
+   ├─ API documentation
+   ├─ Usage examples
+   └─ Performance reports
+```
 
 ---
 
@@ -52,11 +81,16 @@ TORCH_LIBRARY_FRAGMENT(npu, m) {
   
   // Inplace operator
   m.def("my_relu_(Tensor(a!) self) -> Tensor(a!)");
+  
+  // Optional parameters
+  m.def("my_conv(Tensor input, Tensor weight, Tensor? bias=None, "
+        "int stride=1, int padding=0) -> Tensor");
 }
 ```
 
 #### Step 2: Implement Operator
 
+**Simple operator implementation**:
 ```cpp
 #include <pto/pto-inst.hpp>
 
@@ -91,6 +125,7 @@ at::Tensor my_add_impl(const at::Tensor& x, const at::Tensor& y) {
   // Check inputs
   TORCH_CHECK(x.device() == y.device(), "Inputs must be on same device");
   TORCH_CHECK(x.sizes() == y.sizes(), "Inputs must have same shape");
+  TORCH_CHECK(x.scalar_type() == at::kFloat, "Only float32 supported");
   
   // Allocate output
   at::Tensor out = at::empty_like(x);
@@ -109,12 +144,81 @@ at::Tensor my_add_impl(const at::Tensor& x, const at::Tensor& y) {
 }
 ```
 
+**Complex operator implementation (with backward pass)**:
+```cpp
+// Forward
+class MyConvFunction : public torch::autograd::Function<MyConvFunction> {
+ public:
+  static at::Tensor forward(
+      torch::autograd::AutogradContext* ctx,
+      const at::Tensor& input,
+      const at::Tensor& weight,
+      const at::Tensor& bias,
+      int stride,
+      int padding) {
+    
+    // Save tensors for backward pass
+    ctx->save_for_backward({input, weight, bias});
+    ctx->saved_data["stride"] = stride;
+    ctx->saved_data["padding"] = padding;
+    
+    // Call PTO kernel
+    at::Tensor output = run_conv_forward(input, weight, bias, stride, padding);
+    
+    return output;
+  }
+  
+  static std::vector<at::Tensor> backward(
+      torch::autograd::AutogradContext* ctx,
+      std::vector<at::Tensor> grad_outputs) {
+    
+    // Restore saved tensors
+    auto saved = ctx->get_saved_variables();
+    auto input = saved[0];
+    auto weight = saved[1];
+    auto bias = saved[2];
+    
+    int stride = ctx->saved_data["stride"].toInt();
+    int padding = ctx->saved_data["padding"].toInt();
+    
+    auto grad_output = grad_outputs[0];
+    
+    // Compute gradients
+    at::Tensor grad_input = run_conv_backward_input(
+        grad_output, weight, stride, padding);
+    at::Tensor grad_weight = run_conv_backward_weight(
+        grad_output, input, stride, padding);
+    at::Tensor grad_bias = run_conv_backward_bias(grad_output);
+    
+    return {grad_input, grad_weight, grad_bias, 
+            at::Tensor(), at::Tensor()};  // stride, padding have no gradient
+  }
+};
+
+// Wrapper function
+at::Tensor my_conv(
+    const at::Tensor& input,
+    const at::Tensor& weight,
+    const at::Tensor& bias,
+    int stride,
+    int padding) {
+  return MyConvFunction::apply(input, weight, bias, stride, padding);
+}
+```
+
 #### Step 3: Register Implementation
 
 ```cpp
 // Register to NPU backend
 TORCH_LIBRARY_IMPL(npu, PrivateUse1, m) {
   m.impl("my_add", TORCH_FN(my_add_impl));
+  m.impl("my_mul", TORCH_FN(my_mul_impl));
+  m.impl("my_conv", TORCH_FN(my_conv));
+}
+
+// Register autograd
+TORCH_LIBRARY_IMPL(npu, Autograd, m) {
+  m.impl("my_conv", TORCH_FN(my_conv));
 }
 ```
 
@@ -135,7 +239,9 @@ setup(
                 '/path/to/pto-isa/include',
                 '/path/to/torch_npu/include',
             ],
-            library_dirs=['/path/to/pto-isa/lib'],
+            library_dirs=[
+                '/path/to/pto-isa/lib',
+            ],
             libraries=['pto'],
             extra_compile_args=['-std=c++20', '-O3'],
         )
@@ -170,6 +276,34 @@ assert torch.allclose(z, expected, rtol=1e-5)
 print("✓ Custom op works correctly!")
 ```
 
+### 2.2 Integration via torch.library (PyTorch 2.0+)
+
+**Simpler registration approach**:
+```python
+import torch
+from torch.library import custom_op
+
+@custom_op("mylib::my_add", mutates_args=())
+def my_add(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    """Custom add operator"""
+    return torch.ops.mylib.my_add_impl(x, y)
+
+@my_add.register_fake
+def _(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    """Shape inference"""
+    assert x.shape == y.shape
+    return torch.empty_like(x)
+
+# Usage
+x = torch.randn(10, 10)
+y = torch.randn(10, 10)
+z = torch.ops.mylib.my_add(x, y)
+```
+
+### 2.3 Complete Example: Add Operator
+
+For a detailed tutorial, refer to: [demos/baseline/add/README.md](../../demos/baseline/add/README.md)
+
 ---
 
 ## 3. TensorFlow Integration
@@ -188,6 +322,7 @@ REGISTER_OP("MyAdd")
     .Input("y: float")
     .Output("z: float")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
+      // Shape inference
       c->set_output(0, c->input(0));
       return tensorflow::Status::OK();
     })
@@ -221,7 +356,8 @@ class MyAddOp : public tensorflow::OpKernel {
     
     // Check shapes
     OP_REQUIRES(context, x.shape() == y.shape(),
-                tensorflow::errors::InvalidArgument("Inputs must have same shape"));
+                tensorflow::errors::InvalidArgument(
+                    "Inputs must have same shape"));
     
     // Allocate output
     tensorflow::Tensor* z = nullptr;
@@ -246,6 +382,7 @@ REGISTER_KERNEL_BUILDER(
 #### Step 3: Build
 
 ```bash
+# Use TensorFlow build utilities
 TF_CFLAGS=( $(python -c 'import tensorflow as tf; print(" ".join(tf.sysconfig.get_compile_flags()))') )
 TF_LFLAGS=( $(python -c 'import tensorflow as tf; print(" ".join(tf.sysconfig.get_link_flags()))') )
 
@@ -272,6 +409,15 @@ z = my_ops.my_add(x, y)
 print(z.numpy())
 # [[6. 8.]
 #  [10. 12.]]
+```
+
+### 3.2 Register Gradient
+
+```python
+@tf.RegisterGradient("MyAdd")
+def _my_add_grad(op, grad):
+    """Gradient for MyAdd"""
+    return grad, grad  # ∂z/∂x = 1, ∂z/∂y = 1
 ```
 
 ---
@@ -322,7 +468,23 @@ ONNX_OPERATOR_KERNEL_EX(
     MyAddKernel);
 ```
 
-#### Step 3: Python Usage
+#### Step 3: Create Execution Provider
+
+```cpp
+class NpuExecutionProvider : public onnxruntime::IExecutionProvider {
+ public:
+  NpuExecutionProvider() : IExecutionProvider(kNpuExecutionProvider) {}
+  
+  std::vector<std::unique_ptr<onnxruntime::ComputeCapability>>
+  GetCapability(const onnxruntime::GraphViewer& graph,
+                const std::vector<const onnxruntime::KernelRegistry*>& registries) const override {
+    // Return supported operators
+    // ...
+  }
+};
+```
+
+#### Step 4: Python Usage
 
 ```python
 import onnxruntime as ort
@@ -344,9 +506,39 @@ outputs = session.run(None, {'input': input_data})
 
 ---
 
-## 5. Performance Optimization
+## 5. Inference Framework Integration
 
-### 5.1 Operator Fusion
+### 5.1 MindSpore Lite Integration
+
+```cpp
+// Register custom operator
+#include "include/registry/register_kernel.h"
+
+class MyAddKernel : public mindspore::kernel::Kernel {
+ public:
+  int Prepare() override { return RET_OK; }
+  
+  int Execute() override {
+    auto input0 = in_tensors_[0];
+    auto input1 = in_tensors_[1];
+    auto output = out_tensors_[0];
+    
+    // Call PTO kernel
+    // ...
+    
+    return RET_OK;
+  }
+};
+
+// Register
+REGISTER_CUSTOM_KERNEL(NPU, MyProvider, kNumberTypeFloat32, Add, MyAddKernel);
+```
+
+---
+
+## 6. Performance Optimization
+
+### 6.1 Operator Fusion
 
 ```python
 # PyTorch example: Fuse Add + ReLU
@@ -354,11 +546,11 @@ outputs = session.run(None, {'input': input_data})
 def fused_add_relu(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     return torch.relu(x + y)
 
-# Use custom fused operator
+# Replace with custom fused operator
 torch.ops.npu.fused_add_relu(x, y)
 ```
 
-### 5.2 Memory Optimization
+### 6.2 Memory Optimization
 
 ```cpp
 // Inplace operator
@@ -374,7 +566,7 @@ at::Tensor& my_add_inplace(at::Tensor& x, const at::Tensor& y) {
 }
 ```
 
-### 5.3 Asynchronous Execution
+### 6.3 Asynchronous Execution
 
 ```cpp
 // Use CUDA Stream (or NPU Stream)
@@ -397,6 +589,121 @@ at::Tensor my_add_async(const at::Tensor& x, const at::Tensor& y) {
 
 ---
 
+## 7. Debugging and Testing
+
+### 7.1 Unit Tests
+
+```python
+import unittest
+import torch
+import my_pto_ops
+
+class TestMyOps(unittest.TestCase):
+    def test_my_add(self):
+        x = torch.randn(100, 100).npu()
+        y = torch.randn(100, 100).npu()
+        
+        # Custom operator
+        z_custom = torch.ops.npu.my_add(x, y)
+        
+        # Reference implementation
+        z_ref = x + y
+        
+        # Verify
+        self.assertTrue(torch.allclose(z_custom, z_ref, rtol=1e-5))
+    
+    def test_my_add_backward(self):
+        x = torch.randn(100, 100, requires_grad=True).npu()
+        y = torch.randn(100, 100, requires_grad=True).npu()
+        
+        z = torch.ops.npu.my_add(x, y)
+        loss = z.sum()
+        loss.backward()
+        
+        # Verify gradients
+        self.assertIsNotNone(x.grad)
+        self.assertIsNotNone(y.grad)
+        self.assertTrue(torch.allclose(x.grad, torch.ones_like(x)))
+
+if __name__ == '__main__':
+    unittest.main()
+```
+
+### 7.2 Performance Benchmarking
+
+```python
+import torch
+import time
+
+def benchmark(func, *args, warmup=10, iterations=100):
+    # Warmup
+    for _ in range(warmup):
+        func(*args)
+    
+    # Synchronize
+    torch.npu.synchronize()
+    
+    # Measure
+    start = time.time()
+    for _ in range(iterations):
+        func(*args)
+    torch.npu.synchronize()
+    end = time.time()
+    
+    avg_time = (end - start) / iterations * 1000  # ms
+    return avg_time
+
+# Performance comparison
+x = torch.randn(1024, 1024).npu()
+y = torch.randn(1024, 1024).npu()
+
+time_custom = benchmark(lambda: torch.ops.npu.my_add(x, y))
+time_builtin = benchmark(lambda: x + y)
+
+print(f"Custom op: {time_custom:.3f} ms")
+print(f"Built-in op: {time_builtin:.3f} ms")
+print(f"Speedup: {time_builtin / time_custom:.2f}x")
+```
+
+---
+
+## 8. Best Practices
+
+### 8.1 Design Principles
+
+**DO**:
+- Keep operator interfaces simple and clear
+- Provide complete type support (float32, float16, int32, etc.)
+- Implement shape inference and type inference
+- Provide thorough documentation and examples
+- Write comprehensive unit tests
+
+**DON'T**:
+- Don't allocate large temporary memory inside the operator
+- Don't assume inputs are always contiguous (use contiguous())
+- Don't ignore edge cases (empty tensors, single-element tensors)
+- Don't use global state inside the operator
+
+### 8.2 Performance Checklist
+
+- [ ] Does the operator support inplace operations?
+- [ ] Is operator fusion implemented?
+- [ ] Is asynchronous execution used?
+- [ ] Are unnecessary memory copies avoided?
+- [ ] Are multiple data types supported?
+- [ ] Have performance benchmarks been run?
+
+### 8.3 Compatibility Checklist
+
+- [ ] Are dynamic shapes supported?
+- [ ] Are broadcast semantics supported?
+- [ ] Is gradient computation supported (for training)?
+- [ ] Is JIT compilation supported?
+- [ ] Is ONNX export supported?
+- [ ] Is a CPU fallback provided?
+
+---
+
 ## References
 
 - [PyTorch Custom Operators](https://pytorch.org/tutorials/advanced/cpp_extension.html)
@@ -405,4 +712,3 @@ at::Tensor my_add_async(const at::Tensor& x, const at::Tensor& y) {
 - [Add Operator Example](../../demos/baseline/add/README.md)
 - [Debugging Guide](debug.md)
 - [Performance Optimization](opt.md)
-

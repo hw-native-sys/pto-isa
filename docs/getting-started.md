@@ -376,7 +376,7 @@ ulimit -n 65536
   ./build.sh --pkg
   ```
 
-  After the build completes, the `.run` installer package is generated under `build_out/`.
+  After the build completes, the `.run` installer package is generated under `scripts/package/output/`.
 
 **Installation:**
 
@@ -390,19 +390,19 @@ ulimit -n 65536
 
   ```bash
   # Full installation to default path (requires root)
-  ./build_out/pto_isa_*.run --full
+  ./scripts/package/output/pto_isa_*.run --full
 
   # Install to a custom path (no root required)
-  ./build_out/pto_isa_*.run --full --install-path=/your/install/path
+  ./scripts/package/output/pto_isa_*.run --full --install-path=/your/install/path
 
   # Quiet install, skip interactive prompts (for CI/CD and non-interactive environments)
-  ./build_out/pto_isa_*.run --full --quiet
+  ./scripts/package/output/pto_isa_*.run --full --quiet
 
   # Runtime-only installation
-  ./build_out/pto_isa_*.run --run --install-path=/your/install/path
+  ./scripts/package/output/pto_isa_*.run --run --install-path=/your/install/path
 
   # Development installation
-  ./build_out/pto_isa_*.run --devel --install-path=/your/install/path --quiet
+  ./scripts/package/output/pto_isa_*.run --devel --install-path=/your/install/path --quiet
   ```
 
   Common install options:
@@ -420,7 +420,7 @@ ulimit -n 65536
   For a full list of options:
 
   ```bash
-  ./build_out/pto_isa_*.run --help
+  ./scripts/package/output/pto_isa_*.run --help
   ```
 
 ---

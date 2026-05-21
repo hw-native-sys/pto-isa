@@ -375,7 +375,7 @@ ulimit -n 65536
   ./build.sh --pkg
   ```
 
-  构建完成后，`.run` 安装包生成在 `build_out/` 目录下。
+  构建完成后，`.run` 安装包生成在 `scripts/package/output/` 目录下。
 
 **安装：**
 
@@ -389,19 +389,19 @@ ulimit -n 65536
 
   ```bash
   # 完整安装到默认路径（需 root 权限）
-  ./build_out/pto_isa_*.run --full
+  ./scripts/package/output/pto_isa_*.run --full
 
   # 安装到指定路径（无需 root）
-  ./build_out/pto_isa_*.run --full --install-path=/your/install/path
+  ./scripts/package/output/pto_isa_*.run --full --install-path=/your/install/path
 
   # 静默安装，跳过交互确认（适用于 CI/CD 等非交互环境）
-  ./build_out/pto_isa_*.run --full --quiet
+  ./scripts/package/output/pto_isa_*.run --full --quiet
 
   # 仅安装运行时组件
-  ./build_out/pto_isa_*.run --run --install-path=/your/install/path
+  ./scripts/package/output/pto_isa_*.run --run --install-path=/your/install/path
 
   # 开发环境安装
-  ./build_out/pto_isa_*.run --devel --install-path=/your/install/path --quiet
+  ./scripts/package/output/pto_isa_*.run --devel --install-path=/your/install/path --quiet
   ```
 
   常用安装参数说明：
@@ -419,7 +419,7 @@ ulimit -n 65536
   更多参数可通过 `--help` 查看：
 
   ```bash
-  ./build_out/pto_isa_*.run --help
+  ./scripts/package/output/pto_isa_*.run --help
   ```
 
 ---
