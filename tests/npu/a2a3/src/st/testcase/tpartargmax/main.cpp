@@ -300,3 +300,7 @@ TEST_F(TPARTARGMAXTest, case_float_uint32_tile_diff_32k_small_1)
 {
     this->Launch<float, uint32_t, 57, 128, 57, 120, 57, 112, 57, 104, 57, 144, 57, 136, 57, 101, 51, 97>();
 }
+TEST_F(TPARTARGMAXTest, case_float_uint32_same_tile)
+{
+    this->Launch<float, uint32_t, 4, 8, 4, 8, 4, 8, 4, 8, 4, 8, 4, 8, 4, 8, 4, 8>();
+}
