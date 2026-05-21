@@ -4,8 +4,8 @@ This example demonstrates how to implement a mixed FA operator using PTO, includ
 
 ## Supported AI Processors
 
-- Ascend A2 (Ascend 910B)
-- Ascend A3 (Ascend 910C)
+- Ascend A2
+- Ascend A3
 
 ## Directory Layout
 

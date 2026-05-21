@@ -111,8 +111,6 @@ __global__ __aicore__ void MyAddKernel(
   using TileT = Tile<TileType::Vec, float, 16, 256>;
   
   for (int i = start; i < end; i += 16 * 256) {
-    int size = min(16 * 256, end - i);
-    
     TileT tile_x, tile_y, tile_out;
     
     TLOAD(tile_x, GlobalTensor(x + i));
@@ -533,31 +531,7 @@ class MyAddKernel : public mindspore::kernel::Kernel {
 };
 
 // 注册
-REGISTER_CUSTOM_KERNEL(NPU, MyProvider, kNumberTypeFloat32, Add, MyAddKernel)
-```
-
-### 5.2 TensorRT 集成
-
-```cpp
-// 自定义 Plugin
-class MyAddPlugin : public nvinfer1::IPluginV2DynamicExt {
- public:
-  int enqueue(const nvinfer1::PluginTensorDesc* inputDesc,
-              const nvinfer1::PluginTensorDesc* outputDesc,
-              const void* const* inputs,
-              void* const* outputs,
-              void* workspace,
-              cudaStream_t stream) noexcept override {
-    
-    // 调用 PTO kernel
-    // ...
-    
-    return 0;
-  }
-};
-
-// 注册
-REGISTER_TENSORRT_PLUGIN(MyAddPluginCreator);
+REGISTER_CUSTOM_KERNEL(NPU, MyProvider, kNumberTypeFloat32, Add, MyAddKernel);
 ```
 
 ---

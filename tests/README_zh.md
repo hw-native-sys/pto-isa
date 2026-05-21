@@ -15,19 +15,36 @@ PTO Tile Lib 的测试与示例，覆盖 CPU 仿真与 NPU（`sim` 和板上 `np
 ## 目录结构
 
 - `script/`：推荐的入口脚本
-  - `run_st.py`：构建并运行 NPU ST（`-r sim|npu -v a3|a5 -t <testcase> -g <gtest_filter>`）
+  - `run_st.py`：构建并运行 NPU ST
   - `build_st.py`：仅构建 NPU ST
   - `all_cpu_tests.py`：批量构建并运行 CPU ST 套件
+  - `cpu_bfloat16.py`：CPU bfloat16 测试脚本
   - `README.md`：脚本使用说明
 - `cpu/`：CPU 侧 ST 测试（gtest + CMake）
-  - `cpu/st/`：CPU ST 工程与 testcase 数据生成脚本
+  - `st/`：CPU 计算 ST 工程与 testcase 数据生成脚本
+  - `comm/st/`：CPU 通信 ST
 - `npu/`：按 SoC 拆分的 NPU 侧 ST 测试
-  - `npu/a2a3/src/st/`：A2/A3 计算 ST
-  - `npu/a2a3/comm/st/`：A2/A3 通信 ST
-  - `npu/a5/src/st/`：A5 计算 ST
-  - `npu/a5/comm/st/`：A5 通信 ST
-- `common/`：共享测试资源（如存在）
-- `run_comm_test.sh`：通信 ST 一键运行脚本（详见下方说明）
+  - `a2a3/src/st/`：A2/A3 计算 ST
+  - `a2a3/src/common/`：A2/A3 共享测试资源
+  - `a2a3/comm/st/`：A2/A3 通信 ST
+  - `a5/src/st/`：A5 计算 ST
+  - `a5/src/common/`：A5 共享测试资源
+  - `a5/comm/st/`：A5 通信 ST
+  - `kirin9030/src/st/`：Kirin9030 计算 ST
+  - `kirin9030/src/common/`：Kirin9030 共享测试资源
+- `costmodel/`：代价模型测试
+  - `st/`：代价模型 ST（算子代价测量）
+  - `st_fit/`：代价模型拟合测试
+- `common/`：共享测试资源
+- `run_cpu.py`：CPU 仿真器全量运行入口
+- `run_cpu_tests.sh`：CPU ST 一键脚本
+- `run_st.sh`：NPU ST 一键脚本
+- `run_comm_test.sh`：通信 ST 一键脚本（详见下方说明）
+- `run_costmodel.py`：代价模型运行脚本
+- `run_costmodel_tests.sh`：代价模型一键脚本
+- `run_pipeline.sh`：流水线测试脚本
+- `validate_op_coverage.py`：算子覆盖率验证脚本
+- `validate_testcase_names.py`：用例命名规范验证脚本
 
 ## 通信测试（Comm ST）
 
@@ -127,7 +144,7 @@ python3 tests/script/run_st.py -r npu -v a3 -t comm/tput_async -n 2
 | 参数 | 说明 | 默认值 |
 |------|------|--------|
 | `-n` | 可用 NPU 数量：2、4 或 8 | 8 |
-| `-v` | SoC 版本：`a3`（Ascend910B）或 `a5`（Ascend910_9599） | a3 |
+| `-v` | SoC 版本：`a3`（Ascend910B）或 `a5`（Ascend950） | a3 |
 | `-t` | 指定测试用例（可多次使用），如 `tput`、`treduce` | 全部 |
 | `-a` | 包含异步指令测试（`*_async`），需 CANN 9.0+ | 关闭 |
 | `-d` | 开启调试模式，打印详细初始化与同步日志 | 关闭 |

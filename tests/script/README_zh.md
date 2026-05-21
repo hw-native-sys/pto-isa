@@ -40,6 +40,6 @@ python3 tests/script/all_cpu_tests.py --verbose
 ## 便捷封装脚本
 
 - 推荐测试集：`tests/run_st.sh`
-- CPU 测试：`run_cpu_tests.sh`
+- CPU 测试：`tests/run_cpu_tests.sh`
 
 最新参数请以 `python3 <script> -h` 输出为准。
