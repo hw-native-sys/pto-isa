@@ -7,15 +7,33 @@
 
 ## Introduction
 
-Scatter rows of a source tile into a destination tile using per-element row indices.
+TSCATTER provides two operation modes:
+
+1. **Index-based Scatter**: Scatter rows of a source tile into a destination tile using per-element row indices.
+2. **Mask Scatter**: Scatter source elements into destination with a mask pattern, interleaving zeros between elements.
 
 ## Math Interpretation
+
+### Index-based Scatter
 
 For each source element `(i, j)`, write:
 
 $$ \mathrm{dst}_{\mathrm{idx}_{i,j},\ j} = \mathrm{src}_{i,j} $$
 
 If multiple elements map to the same destination location, the final value is implementation-defined (last writer wins in the current implementation).
+
+### Mask Scatter
+
+For mask pattern `P`, scatter source elements with interleaved zeros:
+
+$$ \mathrm{dst}_{i, P \cdot j + \mathrm{pos}_P} = \mathrm{src}_{i,j} $$
+
+$$ \mathrm{dst}_{i, P \cdot j + \mathrm{zeros}_P} = 0 $$
+
+Where:
+- For `P1010` or `P0101`: destination size = source size × 2
+- For `P0001`, `P0010`, `P0100`, or `P1000`: destination size = source size × 4
+- For `P1111`: destination size = source size × 1 (equivalent to `TMOV`)
 
 ## Assembly Syntax
 
@@ -42,12 +60,37 @@ pto.tscatter ins(%src, %idx : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst 
 
 Declared in `include/pto/common/pto_instr.hpp`:
 
+### Index-based Scatter
+
 ```cpp
 template <typename TileDataD, typename TileDataS, typename TileDataI, typename... WaitEvents>
 PTO_INST RecordEvent TSCATTER(TileDataD& dst, TileDataS& src, TileDataI& indexes, WaitEvents&... events);
 ```
 
+### Mask Scatter
+
+```cpp
+template <MaskPattern maskPattern = MaskPattern::P1111, typename DstTileData, typename SrcTileData, typename... WaitEvents>
+PTO_INST RecordEvent TSCATTER(DstTileData& dst, SrcTileData& src, WaitEvents&... events);
+```
+
+### MaskPattern Enum
+
+Defined in `include/pto/common/type.hpp`:
+
+| Value | Pattern | Description | Expansion Factor |
+|-------|---------|-------------|-----------------|
+| `P0101` | 01010101... | Take first element every 2 elements | ×2 |
+| `P1010` | 10101010... | Take second element every 2 elements | ×2 |
+| `P0001` | 00010001... | Take first element every 4 elements | ×4 |
+| `P0010` | 00100010... | Take second element every 4 elements | ×4 |
+| `P0100` | 01000100... | Take third element every 4 elements | ×4 |
+| `P1000` | 10001000... | Take fourth element every 4 elements | ×4 |
+| `P1111` | 11111111... | Take all elements (equivalent to TMOV) | ×1 |
+
 ## Constraints
+
+### Index-based Scatter
 
 - **Implementation checks (A2A3)**:
     - `TileDataD::Loc`, `TileDataS::Loc`, `TileDataI::Loc` must be `TileType::Vec`.
@@ -70,9 +113,28 @@ PTO_INST RecordEvent TSCATTER(TileDataD& dst, TileDataS& src, TileDataI& indexes
     - When size of `TileDataD::DType` is 2 bytes, the size of `TileDataI::DType` must be 2 bytes.
     - When size of `TileDataD::DType` is 1 bytes, the size of `TileDataI::DType` must be 2 bytes.
 
+### Mask Scatter (A5 only)
+
+- **Implementation checks (A5)**:
+    - `DstTileData::Loc`, `SrcTileData::Loc` must be `TileType::Vec`.
+    - `DstTileData::DType`, `SrcTileData::DType` must be one of: `int32_t`, `int16_t`, `int8_t`, `half`, `float32_t`, `uint32_t`, `uint16_t`, `uint8_t`, `bfloat16_t`.
+    - `DstTileData::DType` and `SrcTileData::DType` must be the same.
+    - `maskPattern` must be in range `P0101` to `P1111`.
+    - Static valid bounds: `DstTileData::ValidRow <= DstTileData::Rows`, `DstTileData::ValidCol <= DstTileData::Cols`, `SrcTileData::ValidRow <= SrcTileData::Rows`, `SrcTileData::ValidCol <= SrcTileData::Cols`.
+    - Runtime assertions:
+        - `SrcTileData::ValidRow` must equal `DstTileData::ValidRow`.
+        - `SrcTileData::ValidCol` must equal `DstTileData::ValidCol * expansion_factor`, where expansion_factor depends on mask pattern (1 for P1111, 2 for P1010/P0101, 4 for P0001/P0010/P0100/P1000).
+
+## Important Notes
+
+> **Warning**: Before scattering, the destination tile buffer is **fully initialized to zero** across the entire tile size (`Rows × Cols`), **not** limited by `ValidRow` and `ValidCol`. This means:
+> - The entire UB buffer allocated for `dstTile` will be written with zeros.
+> - Elements outside `ValidRow`/`ValidCol` will be zero after the operation.
+> - Ensure the destination tile's UB buffer does not overlap with other active data.
+
 ## Examples
 
-### Auto
+### Index-based Scatter (Auto)
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -88,7 +150,7 @@ void example_auto() {
 }
 ```
 
-### Manual
+### Index-based Scatter (Manual)
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -104,6 +166,50 @@ void example_manual() {
   TASSIGN(dst, 0x2000);
   TASSIGN(idx, 0x3000);
   TSCATTER(dst, src, idx);
+}
+```
+
+### Mask Scatter (Auto)
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_mask_auto() {
+  // P1010: destination size = source size × 2
+  using SrcTileT = Tile<TileType::Vec, half, 16, 64>;
+  using DstTileT = Tile<TileType::Vec, half, 16, 128>;
+  SrcTileT src;
+  DstTileT dst;
+  TSCATTER<MaskPattern::P1010>(dst, src);
+}
+
+void example_mask_p1000() {
+  // P1000: destination size = source size × 4
+  using SrcTileT = Tile<TileType::Vec, float, 16, 64>;
+  using DstTileT = Tile<TileType::Vec, float, 16, 256>;
+  SrcTileT src;
+  DstTileT dst;
+  TSCATTER<MaskPattern::P1000>(dst, src);
+}
+```
+
+### Mask Scatter (Manual)
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_mask_manual() {
+  using SrcTileT = Tile<TileType::Vec, half, 16, 64>;
+  using DstTileT = Tile<TileType::Vec, half, 16, 128>;
+  SrcTileT src;
+  DstTileT dst;
+  TASSIGN(src, 0x1000);
+  TASSIGN(dst, 0x2000);
+  TSCATTER<MaskPattern::P1010>(dst, src);
 }
 ```
 
