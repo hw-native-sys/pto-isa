@@ -21,8 +21,10 @@
 
 ## 前置条件
 
-- Python >= 3.8
+- Python >= 3.9.x
 - pip
+
+> **备注：** Python 宣布 3.7.x/3.8.x 已经 EOL，CANN 即将停止对该版本的支持，请升级到 Python >= 3.9.x 的版本。
 
 建议先创建独立的 Python 虚拟环境。
 

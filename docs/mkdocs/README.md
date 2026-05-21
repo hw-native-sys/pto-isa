@@ -21,8 +21,10 @@ The documentation source files are mainly located under `docs/mkdocs/src/`.
 
 ## Prerequisites
 
-- Python >= 3.8
+- Python >= 3.9.x
 - pip
+
+> **Note:** Python has announced that 3.7.x/3.8.x are EOL. CANN will soon stop supporting these versions. Please upgrade to Python >= 3.9.x.
 
 It is recommended to create a dedicated Python virtual environment first.
 

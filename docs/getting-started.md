@@ -199,9 +199,11 @@ The root `README.md` keeps only the shortest onboarding path and the most common
 
 **System Requirements:**
 - Linux (Ubuntu 20.04+ recommended)
-- Python >= 3.8.0
+- Python >= 3.9.x
 - GCC >= 7.3.0
 - CMake >= 3.16.0
+
+> **Note:** Python has announced that 3.7.x/3.8.x are EOL. CANN will soon stop supporting these versions. Please upgrade to Python >= 3.9.x.
 
 **GoogleTest (required for unit tests):**
 
