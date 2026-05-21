@@ -206,6 +206,7 @@ tcolexpandsub
 tquant
 tdequant
 t_dhrystone
+tconcatdstidx
 tconcatidx
 tconcat
 textract_vec
