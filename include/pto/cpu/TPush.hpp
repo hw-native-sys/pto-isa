@@ -31,6 +31,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 namespace cpu_pipe {
+
+constexpr uint16_t PSTATE_INITIALIZED = 2;
+
 template <TileSplitAxis Split>
 PTO_INTERNAL constexpr uint32_t GetSplitCount()
 {
@@ -142,10 +145,10 @@ struct TPipe {
         uint32_t expected = 0;
         if (storage.init_state.compare_exchange_strong(expected, 1, std::memory_order_acq_rel)) {
             new (storage.payload) SharedState();
-            storage.init_state.store(2, std::memory_order_release);
+            storage.init_state.store(cpu_pipe::PSTATE_INITIALIZED, std::memory_order_release);
             return;
         }
-        while (storage.init_state.load(std::memory_order_acquire) != 2) {
+        while (storage.init_state.load(std::memory_order_acquire) != cpu_pipe::PSTATE_INITIALIZED) {
             std::this_thread::yield();
         }
     }

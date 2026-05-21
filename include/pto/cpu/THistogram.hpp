@@ -16,6 +16,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
+constexpr int kBitsPerByte = 8;
+
 // ---- uint16 helper: histogram one byte of a 2-byte element ----
 template <HistByte byte, typename TileDst, typename TileSrc, typename TileIdx>
 PTO_INTERNAL std::enable_if_t<std::is_same_v<typename TileSrc::DType, uint16_t>> THISTOGRAM_IMPL(TileDst &dst,
@@ -57,7 +59,7 @@ PTO_INTERNAL std::enable_if_t<std::is_same_v<typename TileSrc::DType, uint16_t>>
 // ---- uint32 helper: extract one byte from a 4-byte element ----
 inline uint8_t extractByte(uint32_t val, HistByte b)
 {
-    return static_cast<uint8_t>((val >> (static_cast<unsigned>(b) * 8)) & 0xFFu);
+    return static_cast<uint8_t>((val >> (static_cast<unsigned>(b) * kBitsPerByte)) & 0xFFu);
 }
 
 // ---- uint32: histogram one byte of a 4-byte element with cascaded filtering ----
