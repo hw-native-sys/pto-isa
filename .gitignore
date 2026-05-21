@@ -8,6 +8,8 @@
 .claude
 build
 build_tests
+dist/
+*.egg-info/
 demos/**/build/
 site/
 site_zh/
