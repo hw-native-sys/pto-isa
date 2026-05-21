@@ -16,6 +16,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // windows and a fake HcclDeviceContext.
 
 #include <chrono>
+#include <climits>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -86,20 +87,89 @@ struct DeviceResources {
     std::string dataDir = "./out";
 };
 
+static bool ParseDeviceIdValue(const char *value, int &deviceId)
+{
+    if (value == nullptr || value[0] == '\0') {
+        return false;
+    }
+
+    char *end = nullptr;
+    long parsed = std::strtol(value, &end, 10);
+    if (end == value || *end != '\0' || parsed < 0 || parsed > INT_MAX) {
+        return false;
+    }
+    deviceId = static_cast<int>(parsed);
+    return true;
+}
+
+static bool ParseDeviceIdEnv(const char *name, int &deviceId)
+{
+    const char *value = std::getenv(name);
+    if (value == nullptr || value[0] == '\0') {
+        return false;
+    }
+    if (!ParseDeviceIdValue(value, deviceId)) {
+        std::cerr << "[WARN] ignoring invalid " << name << "=" << value << std::endl;
+        return false;
+    }
+    return true;
+}
+
+static int GetDeviceId(int argc, char **argv)
+{
+    int deviceId = 0;
+    for (int i = 1; i < argc; ++i) {
+        if (std::strcmp(argv[i], "--device-id") == 0 || std::strcmp(argv[i], "-d") == 0) {
+            if (i + 1 >= argc || !ParseDeviceIdValue(argv[i + 1], deviceId)) {
+                std::cerr << "[ERROR] invalid --device-id value" << std::endl;
+                std::exit(1);
+            }
+            return deviceId;
+        }
+        constexpr const char *kPrefix = "--device-id=";
+        constexpr size_t kPrefixLen = 12;
+        if (std::strncmp(argv[i], kPrefix, kPrefixLen) == 0) {
+            if (!ParseDeviceIdValue(argv[i] + kPrefixLen, deviceId)) {
+                std::cerr << "[ERROR] invalid --device-id value" << std::endl;
+                std::exit(1);
+            }
+            return deviceId;
+        }
+    }
+
+    if (ParseDeviceIdEnv("FFN_GRID_DEVICE_ID", deviceId) || ParseDeviceIdEnv("ASCEND_DEVICE_ID", deviceId) ||
+        ParseDeviceIdEnv("DEVICE_ID", deviceId)) {
+        return deviceId;
+    }
+    return 0;
+}
+
 static bool InitAcl(int device_id)
 {
     constexpr int kAclRepeatInit = 100002;
+    std::cout << "[INFO] aclInit begin" << std::endl;
     aclError aRet = aclInit(nullptr);
     if (aRet != ACL_SUCCESS && static_cast<int>(aRet) != kAclRepeatInit) {
         std::cerr << "[ERROR] aclInit failed: " << static_cast<int>(aRet) << std::endl;
         return false;
     }
-    rtSetDevice(device_id);
+    std::cout << "[INFO] aclInit done rc=" << static_cast<int>(aRet) << std::endl;
+
+    std::cout << "[INFO] rtSetDevice(" << device_id << ") begin" << std::endl;
+    rtError_t rtRet = rtSetDevice(device_id);
+    if (rtRet != RT_ERROR_NONE) {
+        std::cerr << "[ERROR] rtSetDevice(" << device_id << ") failed: " << static_cast<int>(rtRet) << std::endl;
+        return false;
+    }
+    std::cout << "[INFO] rtSetDevice(" << device_id << ") done" << std::endl;
+
+    std::cout << "[INFO] aclrtSetDevice(" << device_id << ") begin" << std::endl;
     aRet = aclrtSetDevice(device_id);
     if (aRet != ACL_SUCCESS) {
         std::cerr << "[ERROR] aclrtSetDevice(" << device_id << ") failed: " << static_cast<int>(aRet) << std::endl;
         return false;
     }
+    std::cout << "[INFO] aclrtSetDevice(" << device_id << ") done" << std::endl;
     return true;
 }
 
@@ -423,9 +493,9 @@ static bool RunSingleDevice()
 
 int main(int argc, char **argv)
 {
-    (void)argc;
-    (void)argv;
-    if (!InitAcl(/*device_id=*/0)) {
+    int deviceId = GetDeviceId(argc, argv);
+    std::cout << "[INFO] using device " << deviceId << std::endl;
+    if (!InitAcl(deviceId)) {
         return 1;
     }
 
@@ -441,7 +511,7 @@ int main(int argc, char **argv)
     std::cout << (ok ? "[SUCCESS] Single-device multi-block FFN GridPipe PASS." :
                        "[FAILED] Single-device multi-block FFN GridPipe FAILED.")
               << std::endl;
-    aclrtResetDevice(0);
+    aclrtResetDevice(deviceId);
     aclFinalize();
     return ok ? 0 : 1;
 }

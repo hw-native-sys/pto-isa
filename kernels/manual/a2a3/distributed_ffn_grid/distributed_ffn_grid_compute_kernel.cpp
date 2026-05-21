@@ -305,6 +305,8 @@ __global__ AICORE void DistributedFfnGridMixedKernel(__gm__ uint8_t *fftsAddr, _
         if (col > 0) {
             TPOP<GridDirection::EAST>(reducePipe, addF32);
 #ifndef __PTO_AUTO__
+            set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+            wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
             pipe_barrier(PIPE_ALL);
 #endif
             dsb(DSB_DDR);
@@ -316,6 +318,13 @@ __global__ AICORE void DistributedFfnGridMixedKernel(__gm__ uint8_t *fftsAddr, _
 
         if (col + 1 < gridCols) {
 #ifndef __PTO_AUTO__
+            if (col > 0) {
+                set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+                wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+            } else {
+                set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+                wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+            }
             pipe_barrier(PIPE_ALL);
 #endif
             dsb(DSB_DDR);

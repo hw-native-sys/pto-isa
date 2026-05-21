@@ -2011,7 +2011,7 @@ PTO_INST RecordEvent TPUSH(Pipe &pipe, TileProd &tile, WaitEvents &...events)
     static_assert(Direction != pto::GridDirection::SOURCE,
                   "GridPipe TPUSH<SOURCE> is illegal (design doc section 4.3): "
                   "SOURCE is only valid for TPOP.");
-#if defined(PTO_NPU_ARCH_A2A3) || defined(__CPU_SIM)
+#if defined(PTO_NPU_ARCH_A2A3)
     TSYNC(events...);
     GRID_TPUSH_IMPL<Direction, Pipe, TileProd>(pipe, tile);
 #else
@@ -2026,7 +2026,7 @@ template <pto::GridDirection Direction, typename Pipe, typename TileCons,
           std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0, typename... WaitEvents>
 PTO_INST RecordEvent TPOP(Pipe &pipe, TileCons &tile, WaitEvents &...events)
 {
-#if defined(PTO_NPU_ARCH_A2A3) || defined(__CPU_SIM)
+#if defined(PTO_NPU_ARCH_A2A3)
     TSYNC(events...);
     GRID_TPOP_IMPL<Direction, Pipe, TileCons>(pipe, tile);
 #else

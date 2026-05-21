@@ -10,10 +10,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 // A2/A3 backend for GridPipe TPUSH<Direction>.
 //
-// Implements design doc section 5.3 producer expansion template using:
+// Producer-side expansion uses:
 //   - wfe_neighbor_counter / mtspr_neighbor_counter for free/ready counters
-//   - HcclRemotePtr                  (resolve neighbor rank's GM window)
-//   - TSTORE / TLOAD                 (existing A2/A3 tile <-> GM movers)
+//   - get_neighbor_ubuf_addr         (resolve neighbor rank's Vector UB slot)
+//   - TSTORE / TLOAD                 (mock tile <-> fake-window movers)
 //
 // payload transfer (GRID_PAYLOAD_STORE_IMPL) is intentionally pluggable: the
 // general type-erased copy is provided here for byte-aligned tiles, and
@@ -27,33 +27,33 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/common/grid_counter_intrinsic.hpp>
 #include <pto/common/grid_pipe.hpp>
 #include <pto/common/grid_pipe_mock_spr.hpp>
+#include <pto/common/grid_sram_intrinsic.hpp>
 #include <pto/npu/a2a3/grid_pipe_runtime.hpp>
 
 // Forward declaration: provided by demo's gridpipe_runtime adaptor.
 // At the demo level we inject a concrete implementation that knows how to
-// move a specific tile type to/from a GM slot via TSTORE/TLOAD.  Keeping the
-// hook out-of-line avoids tying GridPipe to a specific tile shape.
+// move a specific tile type to/from a mock SRAM slot via TSTORE/TLOAD. Keeping
+// the hook out-of-line avoids tying GridPipe to a specific tile shape.
 namespace pto {
 namespace a2a3_grid_payload {
 
 template <typename TileT>
-AICORE void CopyTileToGmSlot(__gm__ uint8_t *remoteSlot, TileT &tile, int slotBytes);
+__tf__ AICORE void CopyTileToNeighborUbufSlot(neighbor_ubuf_addr remoteSlot, TileT &tile, int slotBytes);
 
 template <typename TileT>
-AICORE void CopyGmSlotToTile(TileT &tile, __gm__ uint8_t *localSlot, int slotBytes);
+__tf__ AICORE void CopyNeighborUbufSlotToTile(TileT &tile, neighbor_ubuf_addr localSlot, int slotBytes);
 
-// Resolve a pointer in our local GM window to the same field in `peerRank`'s
-// window.  Implemented in the demo's gridpipe_runtime adaptor on top of
-// HcclRemotePtr.
-template <typename PtrT>
-AICORE PtrT *RemotePtr(__gm__ void *runtimeCtx, PtrT *localPtr, int peerRank);
+AICORE neighbor_sram_addr LocalSramAddr(__gm__ uint8_t *localSlot);
+AICORE neighbor_ubuf_addr LocalUbufAddr(__gm__ uint8_t *localSlot);
+
+AICORE __gm__ uint32_t *RemoteCounterPtr(__gm__ void *runtimeCtx, __gm__ uint32_t *localCounter, int peerRank);
 
 } // namespace a2a3_grid_payload
 } // namespace pto
 
 namespace pto {
 
-// SOURCE direction is illegal as a TPUSH target (design doc 4.3).  Provide an
+// SOURCE direction is illegal as a TPUSH target.  Provide an
 // undefined primary template so attempts to instantiate it fail at link time
 // with a clear symbol name; the static_assert in pto_instr.hpp catches this
 // earlier at compile time.
@@ -64,9 +64,9 @@ AICORE bool GRID_TRY_TPUSH_IMPL(Pipe &pipe, TileProd &tile, uint32_t maxSpins = 
 
     constexpr int dirIdx = GridDirectionIndex(Dir);
 
-    // Boundary check (design doc 2.3 + 5.4).  In production builds the
-    // compiler folds CanPush() against constexpr coord; here we keep the
-    // runtime check so dynamic coordinates still trap.
+    // Boundary check. In production builds the compiler folds CanPush() against
+    // constexpr coord; here we keep the runtime check so dynamic coordinates
+    // still trap.
     if (!CanPush(Dir, pipe.coord, pipe.shape)) {
         grid_mock::MockBoundaryFault(pipe.readyFlags[dirIdx], grid_mock::PushFaultCode(Dir));
         return false;
@@ -81,7 +81,7 @@ AICORE bool GRID_TRY_TPUSH_IMPL(Pipe &pipe, TileProd &tile, uint32_t maxSpins = 
 #else
         NeighborCounterOperand freeCounter{pipe.freeFlags[dirIdx]};
 #endif
-        if (!wfe_neighbor_counter(freeCounter, NeighborCounterKind::Free, dirIdx, expectedFree - Pipe::SlotCount,
+        if (!wfe_neighbor_counter(NeighborCounterKind::Free, dirIdx, expectedFree - Pipe::SlotCount, freeCounter,
                                   maxSpins)) {
             grid_mock::MockSetFault(pipe.freeFlags[dirIdx] + grid_mock::kFaultFlagWordOffset,
                                     grid_mock::kFaultWaitFreeTimeout);
@@ -89,22 +89,28 @@ AICORE bool GRID_TRY_TPUSH_IMPL(Pipe &pipe, TileProd &tile, uint32_t maxSpins = 
         }
     }
 
-    // Step 2: compute slot address.
+    // Step 2: compute local SRAM slot address.
     //   LPU WSE: mfspr r_idx, SPR_PROD_IDX_<DIR>
     //            mfspr r_base, SPR_SLOT_BASE_<DIR>
     //            and / mla -> r_slot
     const uint32_t idx = pipe.prodIndex[dirIdx];
     const uint32_t slotOff = (idx % Pipe::SlotCount) * Pipe::SlotBytes;
     __gm__ uint8_t *localSlot = pipe.slotBase[dirIdx] + slotOff;
+    neighbor_sram_addr localSramSlot = a2a3_grid_payload::LocalSramAddr(localSlot);
 
-    // Step 3: payload transfer to *neighbor's* slot region.
+    // Step 3: payload transfer to *neighbor's* SRAM slot region.
     //   LPU WSE: tmov [r_slot], tile_buf   (slot is neighbor-mapped)
     const int peerRank = NeighborRankForPush(Dir, pipe.coord, pipe.shape);
-    __gm__ uint8_t *remoteSlot = a2a3_grid_payload::RemotePtr<__gm__ uint8_t>(pipe.runtimeCtx, localSlot, peerRank);
-    a2a3_grid_payload::CopyTileToGmSlot<TileProd>(remoteSlot, tile, Pipe::SlotBytes);
+    neighbor_ubuf_addr remoteUbufSlot{};
+    NeighborSramOperand sramOperand{pipe.runtimeCtx};
+    get_neighbor_ubuf_addr(remoteUbufSlot, localSramSlot, dirIdx, peerRank, sramOperand);
+    // Adapter keeps TPUSH independent of Tile internals; it immediately calls
+    // copy_ubuf_to_neighbor_ubuf(...) after extracting the tile's UB pointer.
+    a2a3_grid_payload::CopyTileToNeighborUbufSlot<TileProd>(remoteUbufSlot, tile, Pipe::SlotBytes);
 
-    // Publish fence (D-5).  Required between the slot TSTORE (MTE3, into peer
-    // window via HcclRemotePtr) and the cross-rank ready flag write below.
+    // Publish fence (D-5). Required between the slot TSTORE (MTE3, into peer
+    // SRAM window via the mock address adapter) and the cross-rank ready flag
+    // write below.
     // Mirrors allgather_gemm's TPUT-loop -> `pipe_barrier(PIPE_ALL); dsb(DSB_DDR);`
     // -> SetRemoteChunkFlagReady ordering (see
     // kernels/manual/a2a3/allgather_gemm/allgather_gemm_comm_kernel.cpp:146).
@@ -124,10 +130,10 @@ AICORE bool GRID_TRY_TPUSH_IMPL(Pipe &pipe, TileProd &tile, uint32_t maxSpins = 
     NeighborCounterOperand readyCounter{};
 #else
     __gm__ uint32_t *neighborReady =
-        a2a3_grid_payload::RemotePtr<__gm__ uint32_t>(pipe.runtimeCtx, pipe.readyFlags[dirIdx], peerRank);
+        a2a3_grid_payload::RemoteCounterPtr(pipe.runtimeCtx, pipe.readyFlags[dirIdx], peerRank);
     NeighborCounterOperand readyCounter{neighborReady};
 #endif
-    mtspr_neighbor_counter(readyCounter, NeighborCounterKind::Ready, dirIdx, idx + 1);
+    mtspr_neighbor_counter(NeighborCounterKind::Ready, dirIdx, idx + 1, readyCounter);
 
     // Step 5: bump local producer index.
     //   LPU WSE: mtspr SPR_PROD_IDX_<DIR>, r_idx + 1

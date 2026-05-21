@@ -8,8 +8,7 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-// A2/A3 backend for GridPipe TPOP<Direction>.  Mirrors GridTPush.hpp.
-// See design doc section 5.3 consumer expansion template.
+// A2/A3 backend for GridPipe TPOP<Direction>. Mirrors GridTPush.hpp.
 
 #ifndef PTO_A2A3_GRID_TPOP_HPP
 #define PTO_A2A3_GRID_TPOP_HPP
@@ -44,20 +43,22 @@ AICORE bool GRID_TRY_TPOP_IMPL(Pipe &pipe, TileCons &tile, uint32_t maxSpins = g
 #else
     NeighborCounterOperand readyCounter{pipe.readyFlags[dirIdx]};
 #endif
-    if (!wfe_neighbor_counter(readyCounter, NeighborCounterKind::Ready, dirIdx, expectedReady, maxSpins)) {
+    if (!wfe_neighbor_counter(NeighborCounterKind::Ready, dirIdx, expectedReady, readyCounter, maxSpins)) {
         grid_mock::MockSetFault(pipe.readyFlags[dirIdx] + grid_mock::kFaultFlagWordOffset,
                                 grid_mock::kFaultWaitReadyTimeout);
         return false;
     }
 
-    // Step 2: compute slot address (local; producer wrote it here).
+    // Step 2: compute local SRAM slot address; producer wrote it here.
     const uint32_t idx = pipe.consIndex[dirIdx];
     const uint32_t slotOff = (idx % Pipe::SlotCount) * Pipe::SlotBytes;
     __gm__ uint8_t *localSlot = pipe.slotBase[dirIdx] + slotOff;
+    neighbor_ubuf_addr localUbufSlot = a2a3_grid_payload::LocalUbufAddr(localSlot);
 
     // Step 3: payload transfer from local slot to consumer tile buffer.
     //   LPU WSE: tmov tile_buf, [r_slot]
-    a2a3_grid_payload::CopyGmSlotToTile<TileCons>(tile, localSlot, Pipe::SlotBytes);
+    // Adapter bridges Tile storage to copy_neighbor_ubuf_to_ubuf(...).
+    a2a3_grid_payload::CopyNeighborUbufSlotToTile<TileCons>(tile, localUbufSlot, Pipe::SlotBytes);
 
     // Step 4: notify upstream producer that slot is free.
     //   LPU WSE: mtspr SPR_FREE_<DIR>, r_idx + 1
@@ -70,10 +71,10 @@ AICORE bool GRID_TRY_TPOP_IMPL(Pipe &pipe, TileCons &tile, uint32_t maxSpins = g
 #else
         const int peerRank = NeighborRankForPop(Dir, pipe.coord, pipe.shape);
         __gm__ uint32_t *peerFree =
-            a2a3_grid_payload::RemotePtr<__gm__ uint32_t>(pipe.runtimeCtx, pipe.freeFlags[dirIdx], peerRank);
+            a2a3_grid_payload::RemoteCounterPtr(pipe.runtimeCtx, pipe.freeFlags[dirIdx], peerRank);
         NeighborCounterOperand freeCounter{peerFree};
 #endif
-        mtspr_neighbor_counter(freeCounter, NeighborCounterKind::Free, dirIdx, idx + 1);
+        mtspr_neighbor_counter(NeighborCounterKind::Free, dirIdx, idx + 1, freeCounter);
     }
 
     // Step 5: bump local consumer index.

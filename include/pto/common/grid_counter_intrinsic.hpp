@@ -55,8 +55,8 @@ struct NeighborCounterOperand {
 //
 // Memory ordering: release.  Earlier payload writes must become visible before
 // the peer can observe this counter update.
-AICORE inline void mtspr_neighbor_counter(NeighborCounterOperand operand, NeighborCounterKind kind, uint32_t dir,
-                                          uint32_t value)
+AICORE inline void mtspr_neighbor_counter(NeighborCounterKind kind, uint32_t dir, uint32_t value,
+                                          NeighborCounterOperand operand = {})
 {
 #if defined(PTO_GRID_COUNTER_NATIVE_INTRINSIC)
     (void)operand;
@@ -79,8 +79,8 @@ AICORE inline void mtspr_neighbor_counter(NeighborCounterOperand operand, Neighb
 //
 // Memory ordering: acquire.  Operations after the wait must not be reordered
 // before the counter condition has been satisfied.
-AICORE inline bool wfe_neighbor_counter(NeighborCounterOperand operand, NeighborCounterKind kind, uint32_t dir,
-                                        uint32_t threshold, uint32_t maxSpins = 0)
+AICORE inline bool wfe_neighbor_counter(NeighborCounterKind kind, uint32_t dir, uint32_t threshold,
+                                        NeighborCounterOperand operand = {}, uint32_t maxSpins = 0)
 {
 #if defined(PTO_GRID_COUNTER_NATIVE_INTRINSIC)
     (void)operand;

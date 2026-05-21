@@ -20,8 +20,8 @@ if [ -z "${ASCEND_CANN_PATH}" ]; then
 fi
 source "${ASCEND_CANN_PATH}"
 
-SHORT=r:,v:,n:
-LONG=run-mode:,soc-version:,n-ranks:,grid-rows:,grid-cols:,token-tile:,model-tile:,ffn-tile:,build-only
+SHORT=r:,v:,n:,d:
+LONG=run-mode:,soc-version:,n-ranks:,device-id:,grid-rows:,grid-cols:,token-tile:,model-tile:,ffn-tile:,build-only
 OPTS=$(getopt -a --options $SHORT --longoptions $LONG -- "$@")
 eval set -- "$OPTS"
 
@@ -31,6 +31,7 @@ while :; do
         (-r | --run-mode)    RUN_MODE="$2"; shift 2;;
         (-v | --soc-version) SOC_VERSION="$2"; shift 2;;
         (-n | --n-ranks)     N_RANKS="$2"; shift 2;;
+        (-d | --device-id)   DEVICE_ID="$2"; shift 2;;
         (--grid-rows)        GRID_ROWS="$2"; shift 2;;
         (--grid-cols)        GRID_COLS="$2"; shift 2;;
         (--token-tile)       TOKEN_TILE="$2"; shift 2;;
@@ -50,6 +51,7 @@ done
 : "${MODEL_TILE:=64}"
 : "${FFN_TILE:=64}"
 : "${N_RANKS:=1}"
+: "${DEVICE_ID:=${FFN_GRID_DEVICE_ID:-${ASCEND_DEVICE_ID:-${DEVICE_ID:-0}}}}"
 
 if [ "${N_RANKS}" -ne 1 ]; then
     echo "[ERROR] Single-device multi-block mode requires -n/--n-ranks 1."
@@ -70,7 +72,7 @@ ipcrm -a 2>/dev/null
 
 echo "=== Single-device Multi-block FFN GridPipe Demo ==="
 echo "  RUN_MODE: ${RUN_MODE}  SOC_VERSION: ${SOC_VERSION}"
-echo "  Grid: ${GRID_ROWS}x${GRID_COLS}  N_RANKS: ${N_RANKS}"
+echo "  Grid: ${GRID_ROWS}x${GRID_COLS}  N_RANKS: ${N_RANKS}  DEVICE_ID: ${DEVICE_ID}"
 echo "  Tile: ${TOKEN_TILE}x${MODEL_TILE}  FfnTile: ${FFN_TILE}"
 echo "==================================================="
 
@@ -78,7 +80,7 @@ SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 cd "${SCRIPT_DIR}"
 
 # Regenerate per-cell inputs + golden before running.  The host maps all
-# grid_rows * grid_cols cells to blocks on device 0.
+# grid_rows * grid_cols cells to blocks on the selected single device.
 if [ "${BUILD_ONLY}" -eq 0 ]; then
     python3 "${SCRIPT_DIR}/scripts/gen_data.py" \
         --grid-rows "${GRID_ROWS}" --grid-cols "${GRID_COLS}" \
@@ -108,4 +110,4 @@ echo ""
 echo "=== Running Single-device Multi-block FFN GridPipe ==="
 export N_RANKS=${N_RANKS}
 export FFN_GRID_DATA_DIR="${SCRIPT_DIR}/out"
-./distributed_ffn_grid
+./distributed_ffn_grid --device-id "${DEVICE_ID}"
