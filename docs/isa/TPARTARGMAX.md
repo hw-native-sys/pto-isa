@@ -3,7 +3,7 @@
 
 ## Tile Operation Diagram
 
-![TPARTARGMAX tile operation](../figures/isa/TPARTMAX.svg)
+![TPARTARGMAX tile operation](../figures/isa/TPARTARGMAX.svg)
 
 ## Introduction
 
