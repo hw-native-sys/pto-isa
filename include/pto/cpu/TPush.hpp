@@ -32,85 +32,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 namespace cpu_pipe {
+
 constexpr uint16_t PSTATE_INITIALIZED = 2;
-
-enum class TransferDir : uint8_t
-{
-    None = 0,
-    C2V = 1,
-    V2C = 2,
-};
-
-template <typename TileProd>
-PTO_INTERNAL constexpr bool IsC2VProducerTile()
-{
-    using CleanTileProd = std::remove_cv_t<std::remove_reference_t<TileProd>>;
-    if constexpr (is_global_data_v<CleanTileProd>) {
-        return false;
-    } else {
-        return CleanTileProd::Loc == TileType::Acc || CleanTileProd::Loc == TileType::Mat;
-    }
-}
-
-template <typename TileProd>
-PTO_INTERNAL constexpr bool IsV2CProducerTile()
-{
-    using CleanTileProd = std::remove_cv_t<std::remove_reference_t<TileProd>>;
-    if constexpr (is_global_data_v<CleanTileProd>) {
-        return false;
-    } else {
-        return CleanTileProd::Loc == TileType::Vec;
-    }
-}
-
-template <typename TileCons>
-PTO_INTERNAL constexpr bool IsC2VConsumerTile()
-{
-    using CleanTileCons = std::remove_cv_t<std::remove_reference_t<TileCons>>;
-    if constexpr (is_global_data_v<CleanTileCons>) {
-        return false;
-    } else {
-        return CleanTileCons::Loc == TileType::Vec;
-    }
-}
-
-template <typename Pipe>
-PTO_INTERNAL constexpr TransferDir GetPipeTransferDir()
-{
-    if constexpr (Pipe::is_c2v && !Pipe::is_v2c) {
-        return TransferDir::C2V;
-    }
-    if constexpr (Pipe::is_v2c && !Pipe::is_c2v) {
-        return TransferDir::V2C;
-    }
-    return TransferDir::None;
-}
-
-template <typename Pipe, typename TileProd>
-PTO_INTERNAL constexpr TransferDir GetProducerTransferDir()
-{
-    constexpr auto pipeDir = GetPipeTransferDir<Pipe>();
-    if constexpr (pipeDir != TransferDir::None) {
-        return pipeDir;
-    }
-    if constexpr (IsC2VProducerTile<TileProd>()) {
-        return TransferDir::C2V;
-    }
-    return TransferDir::V2C;
-}
-
-template <typename Pipe, typename TileCons>
-PTO_INTERNAL constexpr TransferDir GetConsumerTransferDir()
-{
-    constexpr auto pipeDir = GetPipeTransferDir<Pipe>();
-    if constexpr (pipeDir != TransferDir::None) {
-        return pipeDir;
-    }
-    if constexpr (IsC2VConsumerTile<TileCons>()) {
-        return TransferDir::C2V;
-    }
-    return TransferDir::V2C;
-}
 
 template <TileSplitAxis Split>
 PTO_INTERNAL constexpr uint32_t GetSplitCount()

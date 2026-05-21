@@ -24,7 +24,6 @@ constexpr uint32_t kKeyAdd1 = 0xBB67AE85u;
 constexpr uint32_t kRepeatBytes = 256u;
 constexpr uint16_t BLOCK_SIZE = 32;
 constexpr uint16_t kCounterWords = 4;
-constexpr uint16_t kKeyCount = 2;
 
 inline void IncrementCounter(std::array<uint32_t, kCounterWords> &counter, uint32_t value)
 {
@@ -41,7 +40,7 @@ inline void IncrementCounter(std::array<uint32_t, kCounterWords> &counter, uint3
 
 template <uint16_t Rounds>
 inline std::array<uint32_t, kCounterWords> RunRounds(std::array<uint32_t, kCounterWords> counter,
-                                                     std::array<uint32_t, kKeyCount> key)
+                                                     std::array<uint32_t, 2> key)
 {
     for (uint16_t i = 0; i < Rounds; ++i) {
         const uint64_t mul0 = static_cast<uint64_t>(counter[0]) * static_cast<uint64_t>(kConst0);
