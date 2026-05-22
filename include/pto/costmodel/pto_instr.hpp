@@ -1424,6 +1424,14 @@ PTO_INST RecordEvent TSCATTER(TileDataD &dst, TileDataS &src, TileDataI &indexes
     return {};
 }
 
+template <MaskPattern maskPattern, typename TileDataD, typename TileDataS, typename... WaitEvents>
+PTO_INST RecordEvent TSCATTER(TileDataD &dst, TileDataS &src, WaitEvents &...events)
+{
+    TSYNC(events...);
+    MAP_INSTR_IMPL_T(TSCATTER, PTO_TEMPLATE_ARGS(maskPattern), dst, src);
+    return {};
+}
+
 template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
 PTO_INST RecordEvent TCOLEXPAND(TileDataDst &dst, TileDataSrc &src, WaitEvents &...events)
 {
