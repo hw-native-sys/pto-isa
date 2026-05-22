@@ -21,7 +21,7 @@ inline void ffts_cross_core_sync(auto srcPipe, auto msg)
     const uint64_t cycles = EstimateConstCycles();
     ::pto::mocker::RecordCceCall("ffts_cross_core_sync", cycles, srcPipe, msg);
 }
-inline void pipe_barrier(auto pipe)
+inline void pto_costmodel_pipe_barrier(auto pipe)
 {
     FlushTailsForPipe(pipe);
     const uint64_t cycles = EstimateConstCycles();
