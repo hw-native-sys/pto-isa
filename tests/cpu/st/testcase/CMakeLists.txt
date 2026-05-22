@@ -102,8 +102,12 @@ tnotify
 tor
 tors
 tpartadd
+tpartargmax
+tpartargmin
 tpartmax
 tpartmin
+tpow
+tpows
 tprefetch
 tprelu
 tpushpop
