@@ -32,47 +32,50 @@ if [ "$2" = "sim" ]; then
 elif [ "$2" = "npu" ]; then
   RUN_TYPE=npu
 fi
+set -x
+if [ -n "$3" ]; then
+  CARD_NAME="$3"
+fi
 
-CARD_NAME="$3"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [ "$ENABLE_A3" = "true" ]; then
-  cd kernels/manual/a2a3/flash_atten
+  cd "$SCRIPT_DIR"/manual/a2a3/flash_atten
   python3 scripts/gen_data.py
   bash run.sh -r $RUN_TYPE -v $CARD_NAME
-  cd ../../../../
+  cd "$SCRIPT_DIR"
 
-  cd kernels/manual/a2a3/gemm_performance
+  cd "$SCRIPT_DIR"/manual/a2a3/gemm_performance
   python3 scripts/gen_data.py
   bash run.sh -r $RUN_TYPE -v $CARD_NAME
-  cd ../../../../
+  cd "$SCRIPT_DIR"
 
-  cd kernels/manual/a2a3/topk
+  cd "$SCRIPT_DIR"/manual/a2a3/topk
   python3 scripts/gen_data.py
   bash run.sh -r $RUN_TYPE -v $CARD_NAME
-  cd ../../../../
+  cd "$SCRIPT_DIR"
   echo "run kernels success"
 fi
 
 if [ "$ENABLE_A5" = "true" ]; then
-  cd kernels/manual/a5/flash_atten
+  cd "$SCRIPT_DIR"/manual/a5/flash_atten
   python3 scripts/gen_data.py
   bash run.sh -r $RUN_TYPE -v $CARD_NAME --cases "128,16384,16384,128,128" --qk-preload 2
-  cd ../../../../
+  cd "$SCRIPT_DIR"
 
-  cd kernels/manual/a5/matmul_mxfp4_performance
+  cd "$SCRIPT_DIR"/manual/a5/matmul_mxfp4_performance
   python3 scripts/gen_data.py
   bash run.sh -r $RUN_TYPE -v $CARD_NAME -n 0 --cases "128,16384,16384,128,128" --qk-preload 2 --mode 1
-  cd ../../../../
+  cd "$SCRIPT_DIR"
 
-  cd kernels/manual/a5/matmul_mxfp8_performance
+  cd "$SCRIPT_DIR"/manual/a5/matmul_mxfp8_performance
   python3 scripts/gen_data.py
   bash run.sh -r $RUN_TYPE -v $CARD_NAME -n 0 --cases "128,16384,16384,128,128" --qk-preload 2 --mode 1
-  cd ../../../../
+  cd "$SCRIPT_DIR"
 
-  cd kernels/manual/a5/engram_simt
+  cd "$SCRIPT_DIR"/manual/a5/engram_simt
   bash run.sh -r $RUN_TYPE -v $CARD_NAME -c "ENGRAMSIMTTest.baseline_E128_B1_T64K"
-  cd ../../../../
-  
+  cd "$SCRIPT_DIR"
+
   echo "run kernels success"
 fi
-
