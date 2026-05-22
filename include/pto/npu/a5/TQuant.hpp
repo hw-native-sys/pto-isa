@@ -20,6 +20,109 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
+namespace tquant_detail {
+
+/*
+ * Floating-point bit fields used by the vector bit operations below.
+ *
+ * FP32 lane:
+ *   bit 31       30..23        22..0
+ *   +------------+-------------+--------------------+
+ *   | sign       | exponent    | mantissa           |
+ *   +------------+-------------+--------------------+
+ *                 ^ exponentOffset == mantissaBits
+ *
+ * BF16 uses the same exponent width in a 16-bit container:
+ *   bit 15       14..7         6..0
+ *   +------------+-------------+--------------------+
+ *   | sign       | exponent    | mantissa           |
+ *   +------------+-------------+--------------------+
+ */
+template <typename BitsT, int16_t StorageBits, int16_t ExponentBits, int16_t MantissaBits, BitsT PositiveInfBits>
+struct FloatBitFieldLayout {
+    using BitsType = BitsT;
+
+    static constexpr int16_t storageBits = StorageBits;
+    static constexpr int16_t exponentBits = ExponentBits;
+    static constexpr int16_t mantissaBits = MantissaBits;
+    static constexpr int16_t signBitOffset = storageBits - 1;
+    static constexpr int16_t signClearShift = 1;
+    static constexpr int16_t exponentOffset = mantissaBits;
+    static constexpr uint32_t exponentBias = (1u << (exponentBits - 1)) - 1u;
+    static constexpr int32_t negativeExponentBias = -static_cast<int32_t>(exponentBias);
+    static constexpr BitsT signMask = static_cast<BitsT>(BitsT{1} << signBitOffset);
+    static constexpr BitsT absMask = static_cast<BitsT>(~signMask);
+    static constexpr BitsT positiveInfBits = PositiveInfBits;
+};
+
+using F32BitFieldLayout = FloatBitFieldLayout<uint32_t, 32, 8, 23, 0x7F800000u>;
+using Bf16BitFieldLayout = FloatBitFieldLayout<uint16_t, 16, 8, 7, 0x7F80u>;
+
+/*
+ * FP4 values are packed as two 4-bit codes per byte.
+ *
+ * Packed byte:
+ *   bit 7..4       bit 3..0
+ *   +--------------+--------------+
+ *   | odd code     | even code    |
+ *   +--------------+--------------+
+ *
+ * The vector shift intrinsics operate on 32-bit lanes.  left/right by
+ * lowCodeShift extracts the low code bits; right by highCodeShift moves
+ * the odd code into byte bits [7:4].
+ */
+template <int16_t CodeBits, int16_t PackedByteBits = 8, int16_t VectorLaneBits = 32>
+struct PackedSubBytePairLayout {
+    static constexpr int16_t codeBits = CodeBits;
+    static constexpr int16_t packedByteBits = PackedByteBits;
+    static constexpr int16_t vectorLaneBits = VectorLaneBits;
+    static constexpr int16_t lowCodeShift = vectorLaneBits - codeBits;
+    static constexpr int16_t highCodeShift = vectorLaneBits - packedByteBits;
+};
+
+using Fp4PackedPairLayout = PackedSubBytePairLayout<4>;
+
+/*
+ * E2M1 code layout used after source values have been scaled to FP32 lanes.
+ *
+ * 4-bit code:
+ *   bit 3        bit 2..1       bit 0
+ *   +------------+--------------+------------+
+ *   | sign       | exponent     | mantissa   |
+ *   +------------+--------------+------------+
+ *
+ * maxBiasedExponent clamps the FP32 exponent into the finite E2M1 range.
+ * magicRoundingExponentOffset builds the FP32 addend used to round while
+ * retaining one E2M1 mantissa bit.  negativeCodeOffset maps positive
+ * magnitude codes into signed 4-bit code space before the pack step.
+ */
+template <typename SourceFloatLayout, typename PackedPairLayout>
+struct Fp4E2M1CodeLayout {
+    static constexpr int16_t exponentBits = 2;
+    static constexpr int16_t mantissaBits = 1;
+    static constexpr uint32_t maxExponentDelta = (1u << exponentBits) - 2u;
+    static constexpr uint32_t maxBiasedExponent = SourceFloatLayout::exponentBias + maxExponentDelta;
+    static constexpr int32_t magicRoundingExponentOffset = SourceFloatLayout::mantissaBits - mantissaBits;
+    static constexpr int16_t magnitudeCodeShift = mantissaBits;
+    static constexpr uint32_t signBitMask = 1u << (PackedPairLayout::codeBits - 1);
+    static constexpr uint32_t maxMagnitudeCode = signBitMask - 1u;
+    static constexpr int32_t negativeCodeOffset = -static_cast<int32_t>(signBitMask);
+};
+
+using Fp4E2M1Code = Fp4E2M1CodeLayout<F32BitFieldLayout, Fp4PackedPairLayout>;
+
+/*
+ * TQUANT flattens auxiliary exp/max/scaling tiles to a single logical row
+ * while keeping their valid extents runtime-sized.
+ */
+struct FlatTile1DLayout {
+    static constexpr int rows = 1;
+    static constexpr int runtimeValidExtent = -1;
+    static constexpr int sFractalSize = TileConfig::fractalABSize;
+};
+
+} // namespace tquant_detail
+
 struct NvMxFp8E4M3Spec {
     static constexpr float descaleMultiplier = 1.0f / 448.0f;
     static constexpr uint32_t b16SpecialScaleBits = 0x7F81u;
@@ -46,8 +149,11 @@ struct OcpMxFp4E2M1Spec {
 
 // Helper alias: creates a 1D flat tile from a 2D tile's total element count.
 template <typename TileData>
-using FlatTile1D = Tile<TileType::Vec, typename TileData::DType, 1, TileData::Rows * TileData::Cols, BLayout::RowMajor,
-                        -1, -1, SLayout::NoneBox, 512, PadValue::Zero>;
+using FlatTile1D =
+    Tile<TileType::Vec, typename TileData::DType, tquant_detail::FlatTile1DLayout::rows,
+         TileData::Rows * TileData::Cols, BLayout::RowMajor, tquant_detail::FlatTile1DLayout::runtimeValidExtent,
+         tquant_detail::FlatTile1DLayout::runtimeValidExtent, SLayout::NoneBox,
+         tquant_detail::FlatTile1DLayout::sFractalSize, PadValue::Zero>;
 
 template <typename T, typename U>
 PTO_INTERNAL MaskReg TQuantPSetTyped(U dist)
@@ -940,31 +1046,33 @@ PTO_INTERNAL void CalcQuantizedFP8Values_2D(__ubuf__ T *srcPtr, __ubuf__ T *scal
 
 PTO_INTERNAL void CalcE2M1SignedCodeI32(vector_s32 &signedCode, vector_f32 scaled, MaskReg &preg_f32)
 {
-    constexpr uint32_t kInfBits = 0x7F800000;
+    using F32 = tquant_detail::F32BitFieldLayout;
+    using E2M1 = tquant_detail::Fp4E2M1Code;
+
     vector_u32 vu32_abs_bits, vu32_exp, vu32_tmp;
     vector_bool preg_sign, preg_nan;
 
-    vshrs(vu32_tmp, (vector_u32 &)scaled, (int16_t)31, preg_f32, MODE_ZEROING);
+    vshrs(vu32_tmp, (vector_u32 &)scaled, F32::signBitOffset, preg_f32, MODE_ZEROING);
     vcmps_ne(preg_sign, vu32_tmp, (uint32_t)0, preg_f32);
-    vshls(vu32_abs_bits, (vector_u32 &)scaled, (int16_t)1, preg_f32, MODE_ZEROING);
-    vshrs(vu32_abs_bits, vu32_abs_bits, (int16_t)1, preg_f32, MODE_ZEROING);
-    vcmps_gt(preg_nan, vu32_abs_bits, kInfBits, preg_f32);
+    vshls(vu32_abs_bits, (vector_u32 &)scaled, F32::signClearShift, preg_f32, MODE_ZEROING);
+    vshrs(vu32_abs_bits, vu32_abs_bits, F32::signClearShift, preg_f32, MODE_ZEROING);
+    vcmps_gt(preg_nan, vu32_abs_bits, F32::positiveInfBits, preg_f32);
 
-    vshrs(vu32_exp, vu32_abs_bits, (int16_t)23, preg_f32, MODE_ZEROING);
-    vmaxs(vu32_exp, vu32_exp, (uint32_t)127, preg_f32, MODE_ZEROING);
-    vmins(vu32_exp, vu32_exp, (uint32_t)129, preg_f32, MODE_ZEROING);
+    vshrs(vu32_exp, vu32_abs_bits, F32::exponentOffset, preg_f32, MODE_ZEROING);
+    vmaxs(vu32_exp, vu32_exp, F32::exponentBias, preg_f32, MODE_ZEROING);
+    vmins(vu32_exp, vu32_exp, E2M1::maxBiasedExponent, preg_f32, MODE_ZEROING);
 
-    vadds((vector_s32 &)vu32_tmp, (vector_s32 &)vu32_exp, (int32_t)22, preg_f32, MODE_ZEROING);
-    vshls(vu32_tmp, vu32_tmp, (int16_t)23, preg_f32, MODE_ZEROING);
+    vadds((vector_s32 &)vu32_tmp, (vector_s32 &)vu32_exp, E2M1::magicRoundingExponentOffset, preg_f32, MODE_ZEROING);
+    vshls(vu32_tmp, vu32_tmp, F32::exponentOffset, preg_f32, MODE_ZEROING);
     vadd(scaled, (vector_f32 &)vu32_abs_bits, (vector_f32 &)vu32_tmp, preg_f32, MODE_ZEROING);
     vsub(vu32_abs_bits, (vector_u32 &)scaled, vu32_tmp, preg_f32);
 
-    vadds((vector_s32 &)vu32_exp, (vector_s32 &)vu32_exp, (int32_t)-127, preg_f32, MODE_ZEROING);
-    vshls(vu32_exp, vu32_exp, (int16_t)1, preg_f32, MODE_ZEROING);
+    vadds((vector_s32 &)vu32_exp, (vector_s32 &)vu32_exp, F32::negativeExponentBias, preg_f32, MODE_ZEROING);
+    vshls(vu32_exp, vu32_exp, E2M1::magnitudeCodeShift, preg_f32, MODE_ZEROING);
     vadd(vu32_abs_bits, vu32_abs_bits, vu32_exp, preg_f32, MODE_ZEROING);
-    vmins(vu32_abs_bits, vu32_abs_bits, (uint32_t)7, preg_f32, MODE_ZEROING);
+    vmins(vu32_abs_bits, vu32_abs_bits, E2M1::maxMagnitudeCode, preg_f32, MODE_ZEROING);
 
-    vadds(signedCode, (vector_s32 &)vu32_abs_bits, (int32_t)-8, preg_f32, MODE_ZEROING);
+    vadds(signedCode, (vector_s32 &)vu32_abs_bits, E2M1::negativeCodeOffset, preg_f32, MODE_ZEROING);
     vsel(signedCode, signedCode, (vector_s32 &)vu32_abs_bits, preg_sign);
 
     vsel(signedCode, (vector_s32 &)vu32_abs_bits, signedCode, preg_nan);
@@ -973,27 +1081,29 @@ PTO_INTERNAL void CalcE2M1SignedCodeI32(vector_s32 &signedCode, vector_f32 scale
 PTO_INTERNAL void PackE2M1SignedCodeBytes(vector_u8 &packedBytes, vector_s32 evenCode, vector_s32 oddCode,
                                           vector_u8 &packIndex, MaskReg &preg_f32)
 {
+    using Pack = tquant_detail::Fp4PackedPairLayout;
+
     vector_u32 vu32_even, vu32_odd;
 
-    vshls(vu32_even, (vector_u32 &)evenCode, (int16_t)28, preg_f32, MODE_ZEROING);
-    vshrs(vu32_even, vu32_even, (int16_t)28, preg_f32, MODE_ZEROING);
-    vshls(vu32_odd, (vector_u32 &)oddCode, (int16_t)28, preg_f32, MODE_ZEROING);
-    vshrs(vu32_odd, vu32_odd, (int16_t)24, preg_f32, MODE_ZEROING);
+    vshls(vu32_even, (vector_u32 &)evenCode, Pack::lowCodeShift, preg_f32, MODE_ZEROING);
+    vshrs(vu32_even, vu32_even, Pack::lowCodeShift, preg_f32, MODE_ZEROING);
+    vshls(vu32_odd, (vector_u32 &)oddCode, Pack::lowCodeShift, preg_f32, MODE_ZEROING);
+    vshrs(vu32_odd, vu32_odd, Pack::highCodeShift, preg_f32, MODE_ZEROING);
     vor(vu32_even, vu32_even, vu32_odd, preg_f32, MODE_ZEROING);
     vselr(packedBytes, (vector_u8 &)vu32_even, packIndex);
 }
 
 PTO_INTERNAL void SaturateBf16NaNToPosInf(vector_u16 &value, MaskReg &preg_b16)
 {
-    constexpr uint16_t kBf16AbsMask = 0x7FFF;
-    constexpr uint16_t kBf16Inf = 0x7F80;
+    using Bf16 = tquant_detail::Bf16BitFieldLayout;
+
     vector_u16 v_abs, v_abs_mask, v_inf;
     vector_bool preg_nan;
 
-    vbr(v_abs_mask, kBf16AbsMask);
-    vbr(v_inf, kBf16Inf);
+    vbr(v_abs_mask, Bf16::absMask);
+    vbr(v_inf, Bf16::positiveInfBits);
     vand(v_abs, value, v_abs_mask, preg_b16, MODE_ZEROING);
-    vcmps_gt(preg_nan, v_abs, kBf16Inf, preg_b16);
+    vcmps_gt(preg_nan, v_abs, Bf16::positiveInfBits, preg_b16);
     vsel(value, v_inf, value, preg_nan);
 }
 
