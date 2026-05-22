@@ -253,21 +253,24 @@ inline bool TryEstimateMatmulCycles(const CostModelInput &input, uint64_t &cycle
 
 inline bool TryGetDTypeSizeBytes(DType dtype, uint64_t &bytes)
 {
+    constexpr uint64_t kByteOne = 1;
+    constexpr uint64_t kByteTwo = 2;
+    constexpr uint64_t kByteFour = 4;
     switch (dtype) {
         case DType::Int8:
         case DType::Uint8:
-            bytes = 1;
+            bytes = kByteOne;
             return true;
         case DType::Half:
         case DType::Int16:
         case DType::Uint16:
         case DType::BFloat16:
-            bytes = 2;
+            bytes = kByteTwo;
             return true;
         case DType::Float:
         case DType::Int32:
         case DType::Uint32:
-            bytes = 4;
+            bytes = kByteFour;
             return true;
         default:
             return false;

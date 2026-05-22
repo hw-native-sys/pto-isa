@@ -39,7 +39,9 @@ enum class TransferTileType : uint8_t
 inline bool TryResolveTransferPipe(TransferOp op, TransferTileType tile_type, evaluator::PipeKey &pipe)
 {
     constexpr evaluator::PipeKey kInvalid = evaluator::PipeKey::COUNT;
-    constexpr evaluator::PipeKey kPipeMap[3][8] = {
+    constexpr int kTransferOpCount = 3;
+    constexpr int kTransferTileTypeCount = 8;
+    constexpr evaluator::PipeKey kPipeMap[kTransferOpCount][kTransferTileTypeCount] = {
         // TLoad
         {kInvalid, evaluator::PipeKey::GM_TO_UB, evaluator::PipeKey::GM_TO_L1, kInvalid, kInvalid, kInvalid, kInvalid,
          kInvalid},
@@ -53,7 +55,7 @@ inline bool TryResolveTransferPipe(TransferOp op, TransferTileType tile_type, ev
 
     const int op_idx = static_cast<int>(op);
     const int tile_idx = static_cast<int>(tile_type);
-    if (op_idx >= 3 || tile_idx >= 8) {
+    if (op_idx >= kTransferOpCount || tile_idx >= kTransferTileTypeCount) {
         return false;
     }
 
