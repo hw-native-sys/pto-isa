@@ -26,11 +26,11 @@ __global__ AICORE void runTTRANS3D(__gm__ T __out__ *out, __gm__ T __in__ *src)
     constexpr int dstElemNum = dstDC1HW * dstN1 * dstN0 * dstC0;
     constexpr int paddedC = dstC1 * dstC0;
     constexpr int ncplaneElem = srcN * paddedC * srcH * srcW;
+    constexpr int tmpElemNum = (srcD + 1) * ncplaneElem;
     constexpr unsigned yTileSizeElem = (sizeof(T) == 1) ? 32 : 16;
     constexpr int subTmpW = (dstC0 + yTileSizeElem - 1) / yTileSizeElem * yTileSizeElem;
     constexpr int subTmpElemNum = srcH * srcW * subTmpW;
-    constexpr int secondElem = (ncplaneElem > subTmpElemNum) ? ncplaneElem : subTmpElemNum;
-    constexpr int tmpTotalElem = ncplaneElem + secondElem;
+    constexpr int tmpTotalElem = tmpElemNum + subTmpElemNum;
     constexpr int elemPerBlock = 32 / sizeof(T);
     constexpr int srcAlignedElem = (srcElemNum + elemPerBlock - 1) / elemPerBlock * elemPerBlock;
     constexpr int tmpAlignedElem = (tmpTotalElem + elemPerBlock - 1) / elemPerBlock * elemPerBlock;
