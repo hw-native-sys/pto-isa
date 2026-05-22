@@ -12,12 +12,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 TARGET_DIR="${SCRIPT_DIR}/.."
 
-# ST/ST_FIT 测试用例目录
+# ST/ST_FIT/ST_A5_FIT 测试用例目录
 ST_TESTCASE_DIR="${SCRIPT_DIR}/costmodel/st/testcase"
 ST_FIT_TESTCASE_DIR="${SCRIPT_DIR}/costmodel/st_fit/testcase"
+ST_A5_FIT_TESTCASE_DIR="${SCRIPT_DIR}/costmodel/st_a5_fit/testcase"
 
-# 需要执行的测试用例列表（留空则自动发现 ST_TESTCASE_DIR 与 ST_FIT_TESTCASE_DIR 下所有子目录）
-# 用法：TESTCASES=("tsub" "time_predict")
+# 需要执行的测试用例列表（留空则自动发现 ST/ST_FIT/ST_A5_FIT 下所有子目录）
+# 用法：TESTCASES=("tsub" "time_predict" "st_a5_fit:tadd_fit")
 TESTCASES=()
 
 # 测试命令的固定参数
@@ -60,6 +61,8 @@ is_case_in_suite() {
         base_dir="${ST_TESTCASE_DIR}"
     elif [ "${suite}" = "st_fit" ]; then
         base_dir="${ST_FIT_TESTCASE_DIR}"
+    elif [ "${suite}" = "st_a5_fit" ]; then
+        base_dir="${ST_A5_FIT_TESTCASE_DIR}"
     else
         return 1
     fi
@@ -75,42 +78,38 @@ append_run_item() {
 
 resolve_suite_for_case() {
     local testcase="$1"
-    local found_st=0
-    local found_st_fit=0
+    local matches=()
+    local suite=""
 
-    if is_case_in_suite "st" "${testcase}"; then
-        found_st=1
-    fi
-    if is_case_in_suite "st_fit" "${testcase}"; then
-        found_st_fit=1
-    fi
+    for suite in "st" "st_fit" "st_a5_fit"; do
+        if is_case_in_suite "${suite}" "${testcase}"; then
+            matches+=("${suite}")
+        fi
+    done
 
-    if [ ${found_st} -eq 1 ] && [ ${found_st_fit} -eq 0 ]; then
-        echo "st"
+    if [ ${#matches[@]} -eq 1 ]; then
+        echo "${matches[0]}"
         return 0
     fi
 
-    if [ ${found_st} -eq 0 ] && [ ${found_st_fit} -eq 1 ]; then
-        echo "st_fit"
-        return 0
+    if [ ${#matches[@]} -gt 1 ]; then
+        error_exit "Testcase '${testcase}' exists in multiple suites: ${matches[*]}. Please use '<suite>:${testcase}'"
     fi
 
-    if [ ${found_st} -eq 1 ] && [ ${found_st_fit} -eq 1 ]; then
-        error_exit "Testcase '${testcase}' exists in both st and st_fit. Please use 'st:${testcase}' or 'st_fit:${testcase}'"
-    fi
-
-    error_exit "Unknown testcase '${testcase}', not found in st/st_fit"
+    error_exit "Unknown testcase '${testcase}', not found in st/st_fit/st_a5_fit"
 }
 
 auto_discover_testcases() {
     local dir=""
     local suite=""
 
-    for suite in "st" "st_fit"; do
+    for suite in "st" "st_fit" "st_a5_fit"; do
         if [ "${suite}" = "st" ]; then
             dir="${ST_TESTCASE_DIR}"
-        else
+        elif [ "${suite}" = "st_fit" ]; then
             dir="${ST_FIT_TESTCASE_DIR}"
+        else
+            dir="${ST_A5_FIT_TESTCASE_DIR}"
         fi
 
         if [ ! -d "${dir}" ]; then
@@ -126,17 +125,24 @@ auto_discover_testcases() {
 normalize_manual_testcases() {
     local item=""
     local suite=""
+    local testcase=""
 
     for item in "${TESTCASES[@]}"; do
         if [[ "${item}" == *":"* ]]; then
-            error_exit "Invalid testcase '${item}'. run_costmodel_tests.sh does not support explicit suite."
+            suite="${item%%:*}"
+            testcase="${item#*:}"
+            if ! is_case_in_suite "${suite}" "${testcase}"; then
+                error_exit "Invalid testcase '${item}', not found in suite '${suite}'"
+            fi
+            append_run_item "${suite}" "${testcase}"
+            continue
         fi
         suite="$(resolve_suite_for_case "${item}")"
         append_run_item "${suite}" "${item}"
     done
 }
 
-# 若 TESTCASES 为空，自动发现 st/st_fit 两个目录下所有子目录
+# 若 TESTCASES 为空，自动发现 st/st_fit/st_a5_fit 三个目录下所有子目录
 if [ ${#TESTCASES[@]} -eq 0 ]; then
     auto_discover_testcases
     echo -e "${YELLOW}[INFO] Auto-discovered run items: ${RUN_ITEMS[*]}${NC}"

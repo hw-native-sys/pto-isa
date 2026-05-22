@@ -460,10 +460,11 @@ def _parse_duration_seconds(s: str) -> float:
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description="Build & run costmodel simulator ST unit tests (tests/costmodel/st and st_fit)",
+        description="Build & run costmodel simulator ST unit tests (tests/costmodel/st, st_fit, and st_a5_fit)",
         epilog=("Examples:\n  python run_costmodel.py --build-type Release\n"
             "  python run_costmodel.py --testcase tadd --build-type Release\n"
             "  python run_costmodel.py --testcase tadds_fit --suite st_fit --build-type Release\n"
+            "  python run_costmodel.py --testcase tadd_fit --suite st_a5_fit --build-type Release\n"
             "  python run_costmodel.py --no-build --gtest_filter TADDTest.*\n"
             "  python run_costmodel.py --demo gemm\n"
             "  python run_costmodel.py --demo flash_attn\n"
@@ -477,7 +478,7 @@ def parse_arguments():
     parser.add_argument("-t", "--testcase", help="Run a single testcase (e.g. tadd). Default: run all built bin.",)
     parser.add_argument(
         "--suite",
-        choices=["st", "st_fit"],
+        choices=["st", "st_fit", "st_a5_fit"],
         default="st",
         help="Test suite to run.",
     )
@@ -540,20 +541,30 @@ def run_demo_mode(args, repo_root, cxx, cc) -> int:
 
 
 def maybe_generate_formula_params(source_dir: Path, repo_root: Path, verbose: bool) -> None:
-    if source_dir.name != "st_fit":
+    if source_dir.name not in {"st_fit", "st_a5_fit"}:
         return
 
-    gen_script = repo_root.parent / "include" / "pto" / "costmodel" / "a2a3" / "formula_costmodel" / \
-        "gen_formula_params_header.py"
-    if not gen_script.exists():
-        raise RuntimeError(f"formula params generator not found: {gen_script}")
+    # lightweight_costmodel.hpp includes both backends, so clean builds need both
+    # generated headers even when the selected suite only exercises one backend.
+    for costmodel_dir in ("a2a3", "a5"):
+        gen_script = (
+            repo_root.parent
+            / "include"
+            / "pto"
+            / "costmodel"
+            / costmodel_dir
+            / "formula_costmodel"
+            / "gen_formula_params_header.py"
+        )
+        if not gen_script.exists():
+            raise RuntimeError(f"formula params generator not found: {gen_script}")
 
-    run_command(
-        [sys.executable, str(gen_script)],
-        cwd=repo_root.parent,
-        title="[STEP] st_fit: generate formula_params_generated.hpp",
-        verbose=verbose,
-    )
+        run_command(
+            [sys.executable, str(gen_script)],
+            cwd=repo_root.parent,
+            title=f"[STEP] {source_dir.name}: generate {costmodel_dir} formula_params_generated.hpp",
+            verbose=verbose,
+        )
 
 
 def run_test_mode(args, repo_root, cxx, cc) -> int:
