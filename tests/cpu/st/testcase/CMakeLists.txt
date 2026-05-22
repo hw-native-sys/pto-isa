@@ -107,8 +107,12 @@ tor
 tors
 tpartadd
 tpartmul
+tpartargmax
+tpartargmin
 tpartmax
 tpartmin
+tpow
+tpows
 tprefetch
 tprelu
 tpushpop
