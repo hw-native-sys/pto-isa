@@ -45,8 +45,8 @@ struct TPartArgKernelCommon {
     static constexpr size_t idx0Size = kRows * kCols * sizeof(uint32_t);
     static constexpr size_t idx1Size = kValidRows1 * kValidCols1 * sizeof(uint32_t);
 
-    PTO_INTERNAL static void AssignTiles(TileVal0 &dstValTile, TileVal0 &src0ValTile, TileVal1 &src1ValTile,
-                                         TileIdx0 &dstIdxTile, TileIdx0 &src0IdxTile, TileIdx1 &src1IdxTile)
+    PTO_INTERNAL static void AssignTiles(TileVal0 &src0ValTile, TileVal1 &src1ValTile, TileVal0 &dstValTile,
+                                         TileIdx0 &src0IdxTile, TileIdx1 &src1IdxTile, TileIdx0 &dstIdxTile)
     {
         TASSIGN(src0ValTile, 0);
         TASSIGN(src1ValTile, val0Size);
@@ -95,10 +95,10 @@ AICORE void RunPartArgKernel(__gm__ float *__out__ outVal, __gm__ float *__in__ 
     typename Common::GlobalData1Idx src1IdxGlobal(src1Idx);
     typename Common::GlobalDataIdx dstIdxGlobal(outIdx);
 
-    Common::AssignTiles(dstValTile, src0ValTile, src1ValTile, dstIdxTile, src0IdxTile, src1IdxTile);
+    Common::AssignTiles(src0ValTile, src1ValTile, dstValTile, src0IdxTile, src1IdxTile, dstIdxTile);
     Common::LoadTiles(src0ValTile, src1ValTile, src0IdxTile, src1IdxTile, src0ValGlobal, src1ValGlobal, src0IdxGlobal,
                       src1IdxGlobal);
-    Runner::Run(dstValTile, src0ValTile, src1ValTile, dstIdxTile, src0IdxTile, src1IdxTile);
+    Runner::Run(dstValTile, dstIdxTile, src0ValTile, src0IdxTile, src1ValTile, src1IdxTile);
     Common::StoreTiles(dstValTile, dstIdxTile, dstValGlobal, dstIdxGlobal);
 
     outVal = dstValGlobal.data();

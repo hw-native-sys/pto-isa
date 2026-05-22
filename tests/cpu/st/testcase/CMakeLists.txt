@@ -109,7 +109,6 @@ tnotify
 tor
 tors
 tpartadd
-tpartmul
 tpartargmax
 tpartargmin
 tpartmax

@@ -32,13 +32,13 @@ def gen_case():
     dst_idx = np.zeros((H, W), dtype=np.uint32)
     dst_val[:, :] = src0_val
     dst_idx[:, :] = src0_idx
-
+    
     for i in range(VALID_H):
         for j in range(VALID_W):
-            if src1_val[i, j] <= dst_val[i, j]:
+            if src1_val[i, j] < dst_val[i, j]:
                 dst_val[i, j] = src1_val[i, j]
                 dst_idx[i, j] = src1_idx[i, j]
-
+    
     src0_val.tofile("input0_val.bin")
     src1_val.tofile("input1_val.bin")
     src0_idx.tofile("input0_idx.bin")

@@ -162,45 +162,6 @@ struct ElementOpCal<DType, ElementOp::OP_DIV> {
 };
 
 template <typename DType>
-struct ElementOpCal<DType, ElementOp::OP_MULADDDST> {
-    static void apply(DType &dst, DType &src0, DType &src1, size_t)
-    {
-        dst = src0 * src1 + dst;
-    }
-
-    static void apply(DType &dst, const DType &src0, const DType &src1)
-    {
-        dst = src0 * src1 + dst;
-    }
-};
-
-template <typename DType>
-struct ElementOpCal<DType, ElementOp::OP_FUSEDMULADD> {
-    static void apply(DType &dst, DType &src0, DType &src1, size_t)
-    {
-        dst = src0 * dst + src1;
-    }
-
-    static void apply(DType &dst, const DType &src0, const DType &src1)
-    {
-        dst = src0 * dst + src1;
-    }
-};
-
-template <typename DType>
-struct ElementOpCal<DType, ElementOp::OP_FUSEDMULADDRELU> {
-    static void apply(DType &dst, DType &src0, DType &src1, size_t)
-    {
-        dst = ReLU(src0 * dst + src1);
-    }
-
-    static void apply(DType &dst, const DType &src0, const DType &src1)
-    {
-        dst = ReLU(src0 * dst + src1);
-    }
-};
-
-template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_POW> {
     static void apply(DType &dst, DType &src0, DType &src1, size_t)
     {

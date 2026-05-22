@@ -22,7 +22,7 @@ def gen_golden_data_tpow(case_name, param):
     dtype = param.dtype
     row, col = [param.tile_row, param.tile_col]
     row_valid, col_valid = [param.valid_row, param.valid_col]
-
+    
     if dtype == NumExt.bf16:
         kind = 'f'
     else:
@@ -65,15 +65,15 @@ class TPowParams:
 
 def generate_case_name(param):
     dtype_str = NumExt.get_short_type_name(param.dtype)
-
+    
     def substring(a, b) -> str:
         return f"_{a}x{b}"
-
-    name = f"TPOWTest.case_{dtype_str}"
+        
+    name = f"TPOWTest.case_{dtype_str}" 
     name += substring(param.global_row, param.global_col)
     name += substring(param.tile_row, param.tile_col)
     name += substring(param.valid_row, param.valid_col)
-
+    
     return name
 
 

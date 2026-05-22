@@ -40,11 +40,11 @@ PTO_INTERNAL void TPartInstr(typename TileDataDst::TileDType dst, typename TileD
     }
 }
 
-template <typename InstrOp, typename TileDataDstVal, typename TileDataSrc0Val, typename TileDataSrc1Val,
-          typename TileDataDstIdx, typename TileDataSrc0Idx, typename TileDataSrc1Idx>
-PTO_INTERNAL void TPartInstr2(typename TileDataDstVal::TileDType dstVal, typename TileDataSrc0Val::TileDType src0Val,
-                              typename TileDataSrc1Val::TileDType src1Val, typename TileDataDstIdx::TileDType dstIdx,
-                              typename TileDataSrc0Idx::TileDType src0Idx, typename TileDataSrc1Idx::TileDType src1Idx,
+template <typename InstrOp, typename TileDataDstVal, typename TileDataDstIdx, typename TileDataSrc0Val,
+          typename TileDataSrc0Idx, typename TileDataSrc1Val, typename TileDataSrc1Idx>
+PTO_INTERNAL void TPartInstr2(typename TileDataDstVal::TileDType dstVal, typename TileDataDstIdx::TileDType dstIdx,
+                              typename TileDataSrc0Val::TileDType src0Val, typename TileDataSrc0Idx::TileDType src0Idx,
+                              typename TileDataSrc1Val::TileDType src1Val, typename TileDataSrc1Idx::TileDType src1Idx,
                               int DstValidRow, int DstValidCol, int Src0ValidRow, int Src0ValidCol, int Src1ValidRow,
                               int Src1ValidCol)
 {
@@ -56,7 +56,7 @@ PTO_INTERNAL void TPartInstr2(typename TileDataDstVal::TileDType dstVal, typenam
             const size_t Src0Offset = InSrc0 ? GetTileElementOffset<TileDataSrc0Val>(i, j) : -1;
             const size_t Src1Offset = InSrc1 ? GetTileElementOffset<TileDataSrc1Val>(i, j) : -1;
             if (InSrc0 && InSrc1) {
-                InstrOp::PartInstr(dstVal, src0Val, src1Val, dstIdx, src0Idx, src1Idx, DstOffset, Src0Offset,
+                InstrOp::PartInstr(dstVal, dstIdx, src0Val, src0Idx, src1Val, src1Idx, DstOffset, Src0Offset,
                                    Src1Offset);
             } else if (InSrc0 && !InSrc1) {
                 dstVal[DstOffset] = src0Val[Src0Offset];
