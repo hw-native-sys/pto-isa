@@ -46,6 +46,9 @@ extern "C" int32_t rtSetDevice(int32_t deviceId);
 
 extern "C" int treduce_ccu_trigger_launch(void *stream, uint64_t ckeVA, uint32_t mask);
 
+extern "C" int treduce_ccu_fused_launch(void *stream, uint64_t inputVa, uint64_t outputVa, uint32_t selfIdx, int nranks,
+                                        float fillValue, uint64_t ckeVA, uint32_t mask);
+
 namespace {
 
 static constexpr size_t kMaxElements = 1024;
@@ -341,6 +344,23 @@ static bool TriggerAndSyncReduceCcu(int rankId)
     return true;
 }
 
+static bool TriggerAndSyncReduceCcuFused(int rankId, int nRanks, float fillValue)
+{
+    if (!ResolveGateOnce())
+        return false;
+
+    usleep(200000);
+
+    int rc = treduce_ccu_fused_launch(g_env.aivStream, g_env.inputVa, g_env.outputVa, static_cast<uint32_t>(rankId),
+                                      nRanks, fillValue, g_env.mmioAddr, g_env.gateMask);
+    if (rc != 0)
+        return false;
+
+    ACL_OK(aclrtSynchronizeStream(g_env.aivStream));
+    ACL_OK(aclrtSynchronizeStream(g_env.stream));
+    return true;
+}
+
 static bool VerifyReduceResult(int rankId, int nRanks, uint32_t rootId, size_t numElements, size_t payloadSize)
 {
     if (static_cast<uint32_t>(rankId) != rootId)
@@ -348,17 +368,17 @@ static bool VerifyReduceResult(int rankId, int nRanks, uint32_t rootId, size_t n
     std::vector<float> outputHost(numElements);
     ACL_OK(aclrtMemcpy(outputHost.data(), payloadSize, g_env.outputDev, payloadSize, ACL_MEMCPY_DEVICE_TO_HOST));
     const float expected = static_cast<float>(nRanks * (nRanks + 1) / 2);
+
     int mismatch = 0;
     for (size_t i = 0; i < numElements; ++i) {
-        if (std::fabs(outputHost[i] - expected) > 1e-3f) {
+        if (!std::isfinite(outputHost[i]) || std::fabs(outputHost[i] - expected) > 1e-3f) {
             if (mismatch < 8)
                 std::fprintf(stderr, "[TREDUCE_CCU] mismatch [%zu]: got=%f expected=%f\n", i, outputHost[i], expected);
             ++mismatch;
         }
     }
-    bool pass = (mismatch == 0);
-    std::fprintf(stderr, "[TREDUCE_CCU] root %s: %zu elements\n", pass ? "PASS" : "FAIL", numElements);
-    return pass;
+    std::fprintf(stderr, "[TREDUCE_CCU] root %s: %zu elements\n", mismatch == 0 ? "PASS" : "FAIL", numElements);
+    return (mismatch == 0);
 }
 
 bool RunReduceCcu(size_t numElements, uint32_t rootId)
@@ -381,6 +401,47 @@ bool RunReduceCcu(size_t numElements, uint32_t rootId)
     if (!RegisterAndLaunchReduceCcu(rankId, nRanks, rootId, payloadSize, seq))
         return false;
     if (!TriggerAndSyncReduceCcu(rankId))
+        return false;
+
+    bool pass = VerifyReduceResult(rankId, nRanks, rootId, numElements, payloadSize);
+    CommMpiBarrier();
+    return pass;
+}
+
+// Fused variant: do NOT pre-populate inputDev. The AIV trigger kernel produces
+// `rankId + 1` into accTile and TSTOREs it into inputDev (driven by the new
+// CcuInputSource::AivStored branch in a5/TReduce.hpp::TREDUCE_CCU_IMPL).
+// Expected reduce result is identical to the HostManaged path so we can
+// reuse VerifyReduceResult unchanged.
+bool RunReduceCcuFused(size_t numElements, uint32_t rootId)
+{
+    CommMpiBarrier();
+    if (!EnsureEnvReady())
+        return false;
+
+    const int rankId = g_env.rankId;
+    const int nRanks = g_env.nRanks;
+    const size_t payloadSize = numElements * sizeof(float);
+
+    // Zero only outputDev so the verify pass can distinguish "AIV/CCU wrote"
+    // from "stale". inputDev is intentionally left untouched - the AIV
+    // trigger kernel is the sole producer of CCU's input port.
+    {
+        std::vector<float> zeroHost(kMaxElements, 0.0f);
+        ACL_OK(aclrtMemcpy(g_env.outputDev, kMaxPayload, zeroHost.data(), kMaxPayload, ACL_MEMCPY_HOST_TO_DEVICE));
+        std::vector<float> sentinelHost(kMaxElements, std::nanf(""));
+        ACL_OK(aclrtMemcpy(g_env.inputDev, kMaxPayload, sentinelHost.data(), kMaxPayload, ACL_MEMCPY_HOST_TO_DEVICE));
+    }
+
+    uint64_t seq = g_seqNo++;
+    std::fprintf(stderr, "[TREDUCE_CCU/fused] rank=%d RunReduceCcuFused seq=%llu elems=%zu root=%u\n", rankId,
+                 (unsigned long long)seq, numElements, rootId);
+
+    if (!RegisterAndLaunchReduceCcu(rankId, nRanks, rootId, payloadSize, seq))
+        return false;
+
+    const float fillValue = static_cast<float>(rankId + 1);
+    if (!TriggerAndSyncReduceCcuFused(rankId, nRanks, fillValue))
         return false;
 
     bool pass = VerifyReduceResult(rankId, nRanks, rootId, numElements, payloadSize);
@@ -420,6 +481,19 @@ TEST_F(TReduceCcuTest, Root1_Float_1024_Sum)
 {
     SKIP_IF_RANKS_LT(2);
     ASSERT_TRUE(RunReduceCcu(1024, 1));
+}
+
+// AivStored / fused path: AIV is the sole producer of CCU input. Exercises
+// the new TSTORE+pipe_barrier branch in a5/TReduce.hpp::TREDUCE_CCU_IMPL.
+TEST_F(TReduceCcuTest, Fused_Float_1024_Sum_2Ranks)
+{
+    SKIP_IF_RANKS_LT(2);
+    ASSERT_TRUE(RunReduceCcuFused(1024, 0));
+}
+TEST_F(TReduceCcuTest, Fused_Float_1024_Sum_4Ranks)
+{
+    SKIP_IF_RANKS_LT(4);
+    ASSERT_TRUE(RunReduceCcuFused(1024, 0));
 }
 
 } // namespace

@@ -10,11 +10,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef PTO_COMM_A5_TREDUCE_HPP
 #define PTO_COMM_A5_TREDUCE_HPP
 
-// Suppress the A2/A3 deferred-fail CCU stub: A5 provides the real
-// implementation below.  Without this guard the stub would join the real
-// overload set in `pto::comm` and the generic `Args&&...` pack would
-// out-rank the real `T&` parameters under partial ordering on some
-// compilers.
+// Suppress the a2a3-side deferred-fail TREDUCE_CCU_IMPL stub when we are
+// building for A5 — the real overload lives below. Without this guard the
+// `Args&&...` stub competes with our typed signature in the overload set and
+// can win under partial ordering on some compilers (observed on bisheng).
+// Mirrors a5/TBroadCast.hpp / a5/TScatter.hpp / a5/TGather.hpp.
 #define PTO_COMM_A5_TREDUCE_PROVIDED 1
 
 // AIV path - shared with a2a3, forwarded to avoid code duplication.
@@ -27,18 +27,16 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 namespace comm {
 
-// Leading `CollEngine` placeholder mirrors the TPUT_ASYNC_IMPL<engine> pattern:
-// callers write `TREDUCE_CCU_IMPL<engine>(...)`, which turns the qualified
-// template-id into a dependent name so the discarded `if constexpr (engine ==
-// CCU)` branch in pto_comm_inst.hpp performs no lookup on non-A5 builds.
 template <CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalDstData, typename TileData,
           typename... WaitEvents>
 PTO_INTERNAL void TREDUCE_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
                                    TileData &accTileData, TileData &recvTileData, ReduceOp op,
                                    const CcuTriggerContext &ctx, WaitEvents &...events)
 {
-    WaitAllEvents(events...);
-    pto::comm::ccu::CkeTriggerFromTile(ctx.ckeSlotVA, ctx.mask, accTileData);
+    CcuStoreTriggerSelf(parallelGroup, accTileData, ctx, events...);
+    (void)dstGlobalData;
+    (void)recvTileData;
+    (void)op;
 }
 
 template <CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalDstData, typename TileData,
@@ -47,8 +45,11 @@ PTO_INTERNAL void TREDUCE_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalDstDa
                                    TileData &accTileData, TileData &pingTileData, TileData &pongTileData, ReduceOp op,
                                    const CcuTriggerContext &ctx, WaitEvents &...events)
 {
-    WaitAllEvents(events...);
-    pto::comm::ccu::CkeTriggerFromTile(ctx.ckeSlotVA, ctx.mask, accTileData);
+    CcuStoreTriggerSelf(parallelGroup, accTileData, ctx, events...);
+    (void)dstGlobalData;
+    (void)pingTileData;
+    (void)pongTileData;
+    (void)op;
 }
 
 } // namespace comm

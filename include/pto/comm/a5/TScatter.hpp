@@ -36,8 +36,7 @@ template <CollEngine = CollEngine::CCU, typename ParallelGroupType, typename Glo
 PTO_INTERNAL void TSCATTER_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData,
                                     TileData &stagingTileData, const CcuTriggerContext &ctx, WaitEvents &...events)
 {
-    WaitAllEvents(events...);
-    pto::comm::ccu::CkeTriggerFromTile(ctx.ckeSlotVA, ctx.mask, stagingTileData);
+    CcuStoreTriggerRoot(parallelGroup, srcGlobalData, stagingTileData, ctx, events...);
 }
 
 template <CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalSrcData, typename TileData,
@@ -45,8 +44,8 @@ template <CollEngine = CollEngine::CCU, typename ParallelGroupType, typename Glo
 PTO_INTERNAL void TSCATTER_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData, TileData &pingTile,
                                     TileData &pongTile, const CcuTriggerContext &ctx, WaitEvents &...events)
 {
-    WaitAllEvents(events...);
-    pto::comm::ccu::CkeTriggerFromTile(ctx.ckeSlotVA, ctx.mask, pingTile);
+    CcuStoreTriggerRoot(parallelGroup, srcGlobalData, pingTile, ctx, events...);
+    (void)pongTile;
 }
 
 } // namespace comm

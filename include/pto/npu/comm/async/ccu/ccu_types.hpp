@@ -22,7 +22,7 @@ namespace ccu {
 
 // Gate descriptor: minimal ABI struct describing one CKE-based gate that a
 // CCU stream is waiting on. Produced by the CCU kernel (GeneArgs → Publish)
-// and consumed by the AIV trigger entry (pto::comm::ccu::CkeTrigger) or
+// and consumed by the AIV trigger entry (pto::comm::CkeTrigger) or
 // host trigger path.
 struct CcuGateDescriptor {
     uint32_t dieId;    // Physical die index (matches driver udie_idx, typically 0 or 1)
