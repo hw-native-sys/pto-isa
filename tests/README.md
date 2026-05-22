@@ -15,19 +15,36 @@ Common test entry points:
 ## Layout
 
 - `script/`: Recommended entry scripts
-  - `run_st.py`: Build and run NPU ST (`-r sim|npu -v a3|a5 -t <testcase> -g <gtest_filter>`)
+  - `run_st.py`: Build and run NPU ST
   - `build_st.py`: Build NPU ST only
   - `all_cpu_tests.py`: Build and run CPU ST suites in batch
+  - `cpu_bfloat16.py`: CPU bfloat16 test script
   - `README.md`: Script usage
 - `cpu/`: CPU-side ST tests (gtest + CMake)
-  - `cpu/st/`: CPU ST projects and testcase data generation scripts
+  - `st/`: CPU compute ST projects and testcase data generation scripts
+  - `comm/st/`: CPU communication ST
 - `npu/`: NPU-side ST tests split by SoC
-  - `npu/a2a3/src/st/`: A2/A3 compute ST
-  - `npu/a2a3/comm/st/`: A2/A3 communication ST
-  - `npu/a5/src/st/`: A5 compute ST
-  - `npu/a5/comm/st/`: A5 communication ST
-- `common/`: Shared test resources (if present)
-- `run_comm_test.sh`: One-click script for communication ST (see below)
+  - `a2a3/src/st/`: A2/A3 compute ST
+  - `a2a3/src/common/`: A2/A3 shared test resources
+  - `a2a3/comm/st/`: A2/A3 communication ST
+  - `a5/src/st/`: A5 compute ST
+  - `a5/src/common/`: A5 shared test resources
+  - `a5/comm/st/`: A5 communication ST
+  - `kirin9030/src/st/`: Kirin9030 compute ST
+  - `kirin9030/src/common/`: Kirin9030 shared test resources
+- `costmodel/`: Cost model tests
+  - `st/`: Cost model ST (operator cost measurement)
+  - `st_fit/`: Cost model fitting tests
+- `common/`: Shared test resources
+- `run_cpu.py`: CPU simulator full run entry point
+- `run_cpu_tests.sh`: CPU ST one-click script
+- `run_st.sh`: NPU ST one-click script
+- `run_comm_test.sh`: Communication ST one-click script (see below)
+- `run_costmodel.py`: Cost model run script
+- `run_costmodel_tests.sh`: Cost model one-click script
+- `run_pipeline.sh`: Pipeline test script
+- `validate_op_coverage.py`: Operator coverage validation script
+- `validate_testcase_names.py`: Testcase name validation script
 
 ## Communication Tests (Comm ST)
 
@@ -80,11 +97,28 @@ mpirun --version
 mpirun -n 2 echo "MPI OK"
 ```
 
+### Sync vs Async Instruction Tests
+
+Communication tests are split into **sync instructions** (e.g. `tput`, `tget`) and **async instructions** (e.g. `tput_async`, `tget_async`):
+
+| Type | Test Case Examples | CANN Version Required |
+|------|-------------------|----------------------|
+| Sync | `tput`, `tget`, `treduce`, `tbroadcast`, etc. | CANN 8.x and above |
+| Async | `tput_async`, `tget_async` | **CANN 9.0 and above** |
+
+Async instructions depend on the SDMA opapi interface (e.g. `aclnnShmemSdmaStarsQuery`) introduced in CANN 9.0. They will fail on lower CANN versions due to missing symbols. Therefore, `run_comm_test.sh` **excludes async tests by default** — use the `-a` flag to enable them.
+
 ### Quick Start
 
 ```bash
-# Run all tests with 8 NPUs (default A2/A3)
+# Run all tests with 8 NPUs (default A2/A3, excludes async)
 ./run_comm_test.sh
+
+# Include async instruction tests (requires CANN 9.0+)
+./run_comm_test.sh -a
+
+# Run only the async tput testcase
+./run_comm_test.sh -t tput_async
 
 # A5 SoC, 2 NPUs
 ./run_comm_test.sh -v a5 -n 2
@@ -96,13 +130,24 @@ mpirun -n 2 echo "MPI OK"
 ./run_comm_test.sh -d -t tput
 ```
 
+You can also run directly via `run_st.py`, which automatically splits execution by rank count:
+
+```bash
+# Auto-split tput_async across 2/4/8 ranks
+python3 tests/script/run_st.py -r npu -v a3 -t comm/tput_async
+
+# Limit to 2 ranks
+python3 tests/script/run_st.py -r npu -v a3 -t comm/tput_async -n 2
+```
+
 ### Options
 
 | Flag | Description | Default |
 |------|-------------|---------|
 | `-n` | Number of available NPUs: 2, 4, or 8 | 8 |
-| `-v` | SoC version: `a3` (Ascend910B) or `a5` (Ascend910_9599) | a3 |
+| `-v` | SoC version: `a3` (Ascend910B) or `a5` (Ascend950) | a3 |
 | `-t` | Run specific testcase(s) (repeatable), e.g. `tput`, `treduce` | all |
+| `-a` | Include async instruction tests (`*_async`), requires CANN 9.0+ | off |
 | `-d` | Enable debug mode with verbose init/sync logging | off |
 
 ### How It Works

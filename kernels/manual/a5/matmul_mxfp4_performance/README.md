@@ -55,7 +55,7 @@ The default reference configuration in `main.cpp` is `m=2040, k=8192, n=8100` an
 This example uses Ascend A5 platform as the performance validation platform.
 
 - **Core Partitioning**：
-  
+
   The core goal is to fully utilize multi-core parallel computing power and evenly split the overall computing task across different Cube cores.
   - In this example, `m=2040, k=8192, n=8100`; it is generally not recommended to partition the `k`，dimension within a single core, but instead partition the `m` and `n` dimensions.
   - The global task is partitioned across cores in a 4 × 8 manner, with a single core responsible for submatrices of dimensions `singleCoreM=512`、`singleCoreK=8192` and `singleCoreN=1024`, ensuring load balancing across all cores and maximizing parallelism.
@@ -119,7 +119,7 @@ python3 scripts/gen_data.py
 3. Run the example:
 
 ```bash
-bash run.sh -r npu -v Ascend910_9599
+bash run.sh -r npu -v Ascend950
 ```
 
 If the run succeeds, the output prints:

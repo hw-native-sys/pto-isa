@@ -11,13 +11,15 @@
 ## 目录结构
 
 ```
-kernels/topk/
+kernels/manual/a2a3/topk/
 ├── scripts/
 │   └── gen_data.py              # 生成输入与 golden 输出
 ├── CMakeLists.txt               # 构建配置
-├── topk_kernel.cpp              # Kernel 实现
 ├── main.cpp                     # Host 侧入口
-└── run.sh                       # 便捷脚本
+├── README.md                    # 英文说明
+├── README_zh.md                 # 中文说明
+├── run.sh                       # 便捷脚本
+└── topk_kernel.cpp              # Kernel 实现
 ```
 
 ## 算子说明

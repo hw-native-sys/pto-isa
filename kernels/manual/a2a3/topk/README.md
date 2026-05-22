@@ -11,13 +11,15 @@ This example demonstrates how to implement a Topk operator using PTO, including 
 ## Directory Layout
 
 ```
-kernels/topk/
+kernels/manual/a2a3/topk/
 ├── scripts/
 │   └── gen_data.py              # Generates input and golden output
 ├── CMakeLists.txt               # Build configuration
-├── topk_kernel.cpp              # Kernel implementation
 ├── main.cpp                     # Host-side entry point
-└── run.sh                       # Convenience script
+├── README.md                    # English documentation
+├── README_zh.md                 # Chinese documentation
+├── run.sh                       # Convenience script
+└── topk_kernel.cpp              # Kernel implementation
 ```
 
 ## Operator Description
