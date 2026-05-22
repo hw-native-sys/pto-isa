@@ -112,6 +112,7 @@ tmov
 tload
 ttrans
 ttrans_conv
+ttrans_3d
 tmrgsort
 tfillpad
 tgather
