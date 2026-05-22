@@ -387,7 +387,7 @@ struct PadValueMap<int8_t, PadValue::Zero> {
 };
 template <>
 struct PadValueMap<int8_t, PadValue::Min> {
-    static constexpr auto value = uint8_t(0xff);
+    static constexpr auto value = uint8_t(0x80);
 };
 template <>
 struct PadValueMap<int8_t, PadValue::Max> {

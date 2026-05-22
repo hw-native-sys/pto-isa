@@ -230,6 +230,34 @@ void launchTFILLPAD_12(uint8_t *out, uint8_t *src, int gShape0, int gShape1, int
         (half *)out, (half *)src, gShape0, gShape1, gShape2, gRows, gCols);
 }
 
+// Test case 13: s8, 1x32 tile, 15 valid cols, pad zero
+void launchTFILLPAD_13(uint8_t *out, uint8_t *src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
+{
+    runTFILLPAD<int8_t, 1, 1, 1, 1, 15, 1, 32, 0, PadValue::Null, PadValue::Zero>((int8_t *)out, (int8_t *)src, gShape0,
+                                                                                  gShape1, gShape2, gRows, gCols);
+}
+
+// Test case 14: s8, 1x32 tile, 16 valid cols, pad zero
+void launchTFILLPAD_14(uint8_t *out, uint8_t *src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
+{
+    runTFILLPAD<int8_t, 1, 1, 1, 1, 16, 1, 32, 0, PadValue::Null, PadValue::Zero>((int8_t *)out, (int8_t *)src, gShape0,
+                                                                                  gShape1, gShape2, gRows, gCols);
+}
+
+// Test case 15: u8, 1x32 tile, 15 valid cols, pad zero
+void launchTFILLPAD_15(uint8_t *out, uint8_t *src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
+{
+    runTFILLPAD<uint8_t, 1, 1, 1, 1, 15, 1, 32, 0, PadValue::Null, PadValue::Zero>(
+        (uint8_t *)out, (uint8_t *)src, gShape0, gShape1, gShape2, gRows, gCols);
+}
+
+// Test case 16: u8, 1x32 tile, 16 valid cols, pad zero
+void launchTFILLPAD_16(uint8_t *out, uint8_t *src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
+{
+    runTFILLPAD<uint8_t, 1, 1, 1, 1, 16, 1, 32, 0, PadValue::Null, PadValue::Zero>(
+        (uint8_t *)out, (uint8_t *)src, gShape0, gShape1, gShape2, gRows, gCols);
+}
+
 template <int32_t testKey>
 void launchTFILLPAD(uint8_t *out, uint8_t *src, void *stream)
 {
@@ -259,6 +287,14 @@ void launchTFILLPAD(uint8_t *out, uint8_t *src, void *stream)
 #endif
     } else if constexpr (testKey == 12) {
         launchTFILLPAD_12(out, src, 1, 1, 1, 128, 64);
+    } else if constexpr (testKey == 13) {
+        launchTFILLPAD_13(out, src, 1, 1, 1, 1, 15);
+    } else if constexpr (testKey == 14) {
+        launchTFILLPAD_14(out, src, 1, 1, 1, 1, 16);
+    } else if constexpr (testKey == 15) {
+        launchTFILLPAD_15(out, src, 1, 1, 1, 1, 15);
+    } else if constexpr (testKey == 16) {
+        launchTFILLPAD_16(out, src, 1, 1, 1, 1, 16);
     }
 }
 
@@ -350,6 +386,14 @@ int get_input_golden(uint8_t *input, uint8_t *golden)
 #endif
     } else if constexpr (testKey == 12) {
         return get_input_golden_case<half, 1, 1, 1, 128, 64, 128, 128, PadCustomNeg1_Half>(input, golden);
+    } else if constexpr (testKey == 13) {
+        return get_input_golden_case<int8_t, 1, 1, 1, 1, 15, 1, 32, PadValue::Zero>(input, golden);
+    } else if constexpr (testKey == 14) {
+        return get_input_golden_case<int8_t, 1, 1, 1, 1, 16, 1, 32, PadValue::Zero>(input, golden);
+    } else if constexpr (testKey == 15) {
+        return get_input_golden_case<uint8_t, 1, 1, 1, 1, 15, 1, 32, PadValue::Zero>(input, golden);
+    } else if constexpr (testKey == 16) {
+        return get_input_golden_case<uint8_t, 1, 1, 1, 1, 16, 1, 32, PadValue::Zero>(input, golden);
     }
     return 0;
 }
@@ -368,6 +412,10 @@ template void launchTFILLPAD<10>(uint8_t *out, uint8_t *src, void *stream);
 template void launchTFILLPAD<11>(uint8_t *out, uint8_t *src, void *stream);
 #endif
 template void launchTFILLPAD<12>(uint8_t *out, uint8_t *src, void *stream);
+template void launchTFILLPAD<13>(uint8_t *out, uint8_t *src, void *stream);
+template void launchTFILLPAD<14>(uint8_t *out, uint8_t *src, void *stream);
+template void launchTFILLPAD<15>(uint8_t *out, uint8_t *src, void *stream);
+template void launchTFILLPAD<16>(uint8_t *out, uint8_t *src, void *stream);
 
 template int get_input_golden<1>(uint8_t *input, uint8_t *golden);
 template int get_input_golden<2>(uint8_t *input, uint8_t *golden);
@@ -383,3 +431,7 @@ template int get_input_golden<10>(uint8_t *input, uint8_t *golden);
 template int get_input_golden<11>(uint8_t *input, uint8_t *golden);
 #endif
 template int get_input_golden<12>(uint8_t *input, uint8_t *golden);
+template int get_input_golden<13>(uint8_t *input, uint8_t *golden);
+template int get_input_golden<14>(uint8_t *input, uint8_t *golden);
+template int get_input_golden<15>(uint8_t *input, uint8_t *golden);
+template int get_input_golden<16>(uint8_t *input, uint8_t *golden);

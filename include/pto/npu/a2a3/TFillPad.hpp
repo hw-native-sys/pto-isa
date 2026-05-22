@@ -47,9 +47,8 @@ PTO_INTERNAL uint64_t getPadMask(uint64_t validCol)
 
 // Helper: handle 32B-aligned padding for byte-sized elements (sizeof==1)
 template <typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void Handle32BAlignedPad_Byte(decltype(getCopyNullPtr<TileDataDst>()) dstPtr, uint64_t srcValidRow,
-                                           uint64_t srcValidCol, uint64_t /* srcValidCol32B */,
-                                           decltype(GetPadValue<TileDataDst>()) padValue)
+PTO_INTERNAL void Handle32BAlignedPad_Byte(__ubuf__ uint8_t *dstPtr, uint64_t srcValidRow, uint64_t srcValidCol,
+                                           uint64_t /* srcValidCol32B */, uint8_t padValue)
 {
     using T = typename TileDataSrc::DType;
     uint64_t pad_32B = 32 / sizeof(T) - srcValidCol;
@@ -195,8 +194,8 @@ __tf__ PTO_INTERNAL void TFillPad(typename TileDataDst::TileDType __out__ dst,
     // handle 32B-aligned padding (was inlined previously)
     if constexpr (TileDataDst::PadVal != TileDataSrc::PadVal) {
         if constexpr (sizeof(T) == 1) {
-            Handle32BAlignedPad_Byte<TileDataDst, TileDataSrc>(dstPtr, srcValidRow, srcValidCol, srcValidCol32B,
-                                                               padValue);
+            Handle32BAlignedPad_Byte<TileDataDst, TileDataSrc>((__ubuf__ uint8_t *)dstPtr, srcValidRow, srcValidCol,
+                                                               srcValidCol32B, (uint8_t)(padValue & 0xff));
         } else {
             Handle32BAlignedPad_Other<TileDataDst, TileDataSrc>(dstPtr, srcValidRow, srcValidCol, srcValidCol32B,
                                                                 padValue);
@@ -243,8 +242,8 @@ __tf__ PTO_INTERNAL void TFillPad_Inplace(typename TileDataDst::TileDType __out_
     // handle 32B-aligned padding (was inlined previously)
     if constexpr (TileDataDst::PadVal != TileDataSrc::PadVal) {
         if constexpr (sizeof(T) == 1) {
-            Handle32BAlignedPad_Byte<TileDataDst, TileDataSrc>(dstPtr, srcValidRow, srcValidCol, srcValidCol32B,
-                                                               padValue);
+            Handle32BAlignedPad_Byte<TileDataDst, TileDataSrc>((__ubuf__ uint8_t *)dstPtr, srcValidRow, srcValidCol,
+                                                               srcValidCol32B, (uint8_t)(padValue & 0xff));
         } else {
             Handle32BAlignedPad_Other<TileDataDst, TileDataSrc>(dstPtr, srcValidRow, srcValidCol, srcValidCol32B,
                                                                 padValue);

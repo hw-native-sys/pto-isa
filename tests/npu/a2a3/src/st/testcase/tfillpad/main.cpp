@@ -209,3 +209,43 @@ TEST_F(TFILLPADTest, case_float_GT_128_127_VT_128_160_BLK1_PADCUSTOM_NEG1_PADCUS
 {
     tfillpad_test<13, float, 1>();
 }
+
+TEST_F(TFILLPADTest, case_s8_GT_1_15_VT_1_32_BLK1_PADZERO)
+{
+    tfillpad_test<14, int8_t, 1>();
+}
+
+TEST_F(TFILLPADTest, case_s8_GT_1_16_VT_1_32_BLK1_PADZERO)
+{
+    tfillpad_test<15, int8_t, 1>();
+}
+
+TEST_F(TFILLPADTest, case_u8_GT_1_15_VT_1_32_BLK1_PADZERO)
+{
+    tfillpad_test<16, uint8_t, 1>();
+}
+
+TEST_F(TFILLPADTest, case_u8_GT_1_16_VT_1_32_BLK1_PADZERO)
+{
+    tfillpad_test<17, uint8_t, 1>();
+}
+
+TEST_F(TFILLPADTest, case_s8_GT_1_15_VT_1_32_BLK1_PADMIN)
+{
+    tfillpad_test<18, int8_t, 1>();
+}
+
+TEST_F(TFILLPADTest, case_s8_GT_1_15_VT_1_32_BLK1_PADMAX)
+{
+    tfillpad_test<19, int8_t, 1>();
+}
+
+TEST_F(TFILLPADTest, case_u8_GT_1_15_VT_1_32_BLK1_PADMIN)
+{
+    tfillpad_test<20, uint8_t, 1>();
+}
+
+TEST_F(TFILLPADTest, case_u8_GT_1_15_VT_1_32_BLK1_PADMAX)
+{
+    tfillpad_test<21, uint8_t, 1>();
+}

@@ -334,6 +334,70 @@ extern "C" __global__ AICORE void launchTFILLPAD_13(__gm__ uint8_t *out, __gm__ 
         (__gm__ float *)out, (__gm__ float *)src, gShape0, gShape1, gShape2, gRows, gCols, gLog);
 }
 
+// Case 14: s8, 1x32 tile, 15 valid cols, pad zero
+extern "C" __global__ AICORE void launchTFILLPAD_14(__gm__ uint8_t *out, __gm__ uint8_t *src, int gShape0, int gShape1,
+                                                    int gShape2, int gRows, int gCols, __gm__ uint64_t *gLog)
+{
+    runTFILLPAD<int8_t, 1, 1, 1, 1, 15, 1, 32, 0, PadValue::Null, PadValue::Zero>(
+        (__gm__ int8_t *)out, (__gm__ int8_t *)src, gShape0, gShape1, gShape2, gRows, gCols, gLog);
+}
+
+// Case 15: s8, 1x32 tile, 16 valid cols, pad zero
+extern "C" __global__ AICORE void launchTFILLPAD_15(__gm__ uint8_t *out, __gm__ uint8_t *src, int gShape0, int gShape1,
+                                                    int gShape2, int gRows, int gCols, __gm__ uint64_t *gLog)
+{
+    runTFILLPAD<int8_t, 1, 1, 1, 1, 16, 1, 32, 0, PadValue::Null, PadValue::Zero>(
+        (__gm__ int8_t *)out, (__gm__ int8_t *)src, gShape0, gShape1, gShape2, gRows, gCols, gLog);
+}
+
+// Case 16: u8, 1x32 tile, 15 valid cols, pad zero
+extern "C" __global__ AICORE void launchTFILLPAD_16(__gm__ uint8_t *out, __gm__ uint8_t *src, int gShape0, int gShape1,
+                                                    int gShape2, int gRows, int gCols, __gm__ uint64_t *gLog)
+{
+    runTFILLPAD<uint8_t, 1, 1, 1, 1, 15, 1, 32, 0, PadValue::Null, PadValue::Zero>(
+        (__gm__ uint8_t *)out, (__gm__ uint8_t *)src, gShape0, gShape1, gShape2, gRows, gCols, gLog);
+}
+
+// Case 17: u8, 1x32 tile, 16 valid cols, pad zero
+extern "C" __global__ AICORE void launchTFILLPAD_17(__gm__ uint8_t *out, __gm__ uint8_t *src, int gShape0, int gShape1,
+                                                    int gShape2, int gRows, int gCols, __gm__ uint64_t *gLog)
+{
+    runTFILLPAD<uint8_t, 1, 1, 1, 1, 16, 1, 32, 0, PadValue::Null, PadValue::Zero>(
+        (__gm__ uint8_t *)out, (__gm__ uint8_t *)src, gShape0, gShape1, gShape2, gRows, gCols, gLog);
+}
+
+// Case 18: s8, 1x32 tile, 15 valid cols, pad min
+extern "C" __global__ AICORE void launchTFILLPAD_18(__gm__ uint8_t *out, __gm__ uint8_t *src, int gShape0, int gShape1,
+                                                    int gShape2, int gRows, int gCols, __gm__ uint64_t *gLog)
+{
+    runTFILLPAD<int8_t, 1, 1, 1, 1, 15, 1, 32, 0, PadValue::Null, PadValue::Min>(
+        (__gm__ int8_t *)out, (__gm__ int8_t *)src, gShape0, gShape1, gShape2, gRows, gCols, gLog);
+}
+
+// Case 19: s8, 1x32 tile, 15 valid cols, pad max
+extern "C" __global__ AICORE void launchTFILLPAD_19(__gm__ uint8_t *out, __gm__ uint8_t *src, int gShape0, int gShape1,
+                                                    int gShape2, int gRows, int gCols, __gm__ uint64_t *gLog)
+{
+    runTFILLPAD<int8_t, 1, 1, 1, 1, 15, 1, 32, 0, PadValue::Null, PadValue::Max>(
+        (__gm__ int8_t *)out, (__gm__ int8_t *)src, gShape0, gShape1, gShape2, gRows, gCols, gLog);
+}
+
+// Case 20: u8, 1x32 tile, 15 valid cols, pad min
+extern "C" __global__ AICORE void launchTFILLPAD_20(__gm__ uint8_t *out, __gm__ uint8_t *src, int gShape0, int gShape1,
+                                                    int gShape2, int gRows, int gCols, __gm__ uint64_t *gLog)
+{
+    runTFILLPAD<uint8_t, 1, 1, 1, 1, 15, 1, 32, 0, PadValue::Null, PadValue::Min>(
+        (__gm__ uint8_t *)out, (__gm__ uint8_t *)src, gShape0, gShape1, gShape2, gRows, gCols, gLog);
+}
+
+// Case 21: u8, 1x32 tile, 15 valid cols, pad max
+extern "C" __global__ AICORE void launchTFILLPAD_21(__gm__ uint8_t *out, __gm__ uint8_t *src, int gShape0, int gShape1,
+                                                    int gShape2, int gRows, int gCols, __gm__ uint64_t *gLog)
+{
+    runTFILLPAD<uint8_t, 1, 1, 1, 1, 15, 1, 32, 0, PadValue::Null, PadValue::Max>(
+        (__gm__ uint8_t *)out, (__gm__ uint8_t *)src, gShape0, gShape1, gShape2, gRows, gCols, gLog);
+}
+
 template <int32_t testKey>
 void launchTFILLPAD(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream)
 {
@@ -363,6 +427,22 @@ void launchTFILLPAD(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream)
         launchTFILLPAD_12<<<1, nullptr, stream>>>(out, src, 1, 1, 1, 128, 64, gLog);
     } else if constexpr (testKey == 13) {
         launchTFILLPAD_13<<<1, nullptr, stream>>>(out, src, 1, 1, 1, 128, 127, gLog);
+    } else if constexpr (testKey == 14) {
+        launchTFILLPAD_14<<<1, nullptr, stream>>>(out, src, 1, 1, 1, 1, 15, gLog);
+    } else if constexpr (testKey == 15) {
+        launchTFILLPAD_15<<<1, nullptr, stream>>>(out, src, 1, 1, 1, 1, 16, gLog);
+    } else if constexpr (testKey == 16) {
+        launchTFILLPAD_16<<<1, nullptr, stream>>>(out, src, 1, 1, 1, 1, 15, gLog);
+    } else if constexpr (testKey == 17) {
+        launchTFILLPAD_17<<<1, nullptr, stream>>>(out, src, 1, 1, 1, 1, 16, gLog);
+    } else if constexpr (testKey == 18) {
+        launchTFILLPAD_18<<<1, nullptr, stream>>>(out, src, 1, 1, 1, 1, 15, gLog);
+    } else if constexpr (testKey == 19) {
+        launchTFILLPAD_19<<<1, nullptr, stream>>>(out, src, 1, 1, 1, 1, 15, gLog);
+    } else if constexpr (testKey == 20) {
+        launchTFILLPAD_20<<<1, nullptr, stream>>>(out, src, 1, 1, 1, 1, 15, gLog);
+    } else if constexpr (testKey == 21) {
+        launchTFILLPAD_21<<<1, nullptr, stream>>>(out, src, 1, 1, 1, 1, 15, gLog);
     }
 }
 
@@ -453,6 +533,22 @@ int get_input_golden(uint8_t *input, uint8_t *golden)
         return get_input_golden_case<float, 1, 1, 1, 128, 64, 128, 128, PadCustomNeg1>(input, golden);
     } else if constexpr (testKey == 13) {
         return get_input_golden_case<float, 1, 1, 1, 128, 127, 128, 160, PadCustomNeg1>(input, golden);
+    } else if constexpr (testKey == 14) {
+        return get_input_golden_case<int8_t, 1, 1, 1, 1, 15, 1, 32, PadValue::Zero>(input, golden);
+    } else if constexpr (testKey == 15) {
+        return get_input_golden_case<int8_t, 1, 1, 1, 1, 16, 1, 32, PadValue::Zero>(input, golden);
+    } else if constexpr (testKey == 16) {
+        return get_input_golden_case<uint8_t, 1, 1, 1, 1, 15, 1, 32, PadValue::Zero>(input, golden);
+    } else if constexpr (testKey == 17) {
+        return get_input_golden_case<uint8_t, 1, 1, 1, 1, 16, 1, 32, PadValue::Zero>(input, golden);
+    } else if constexpr (testKey == 18) {
+        return get_input_golden_case<int8_t, 1, 1, 1, 1, 15, 1, 32, PadValue::Min>(input, golden);
+    } else if constexpr (testKey == 19) {
+        return get_input_golden_case<int8_t, 1, 1, 1, 1, 15, 1, 32, PadValue::Max>(input, golden);
+    } else if constexpr (testKey == 20) {
+        return get_input_golden_case<uint8_t, 1, 1, 1, 1, 15, 1, 32, PadValue::Min>(input, golden);
+    } else if constexpr (testKey == 21) {
+        return get_input_golden_case<uint8_t, 1, 1, 1, 1, 15, 1, 32, PadValue::Max>(input, golden);
     }
 
     return 0;
@@ -471,6 +567,14 @@ template void launchTFILLPAD<10>(uint8_t *out, uint8_t *src, uint64_t *gLog, voi
 template void launchTFILLPAD<11>(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream);
 template void launchTFILLPAD<12>(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream); // 实例化 Key=0 的版本
 template void launchTFILLPAD<13>(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream);
+template void launchTFILLPAD<14>(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream);
+template void launchTFILLPAD<15>(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream);
+template void launchTFILLPAD<16>(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream);
+template void launchTFILLPAD<17>(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream);
+template void launchTFILLPAD<18>(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream);
+template void launchTFILLPAD<19>(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream);
+template void launchTFILLPAD<20>(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream);
+template void launchTFILLPAD<21>(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream);
 
 template int get_input_golden<1>(uint8_t *input, uint8_t *golden);
 template int get_input_golden<2>(uint8_t *input, uint8_t *golden);
@@ -485,3 +589,11 @@ template int get_input_golden<10>(uint8_t *input, uint8_t *golden);
 template int get_input_golden<11>(uint8_t *input, uint8_t *golden);
 template int get_input_golden<12>(uint8_t *input, uint8_t *golden);
 template int get_input_golden<13>(uint8_t *input, uint8_t *golden);
+template int get_input_golden<14>(uint8_t *input, uint8_t *golden);
+template int get_input_golden<15>(uint8_t *input, uint8_t *golden);
+template int get_input_golden<16>(uint8_t *input, uint8_t *golden);
+template int get_input_golden<17>(uint8_t *input, uint8_t *golden);
+template int get_input_golden<18>(uint8_t *input, uint8_t *golden);
+template int get_input_golden<19>(uint8_t *input, uint8_t *golden);
+template int get_input_golden<20>(uint8_t *input, uint8_t *golden);
+template int get_input_golden<21>(uint8_t *input, uint8_t *golden);
