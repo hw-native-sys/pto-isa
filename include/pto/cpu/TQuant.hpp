@@ -52,14 +52,16 @@ inline uint16_t FloatToBf16BitsTrunc(float value)
 
 inline uint16_t FloatToBf16BitsRound(float value)
 {
+    constexpr uint32_t bitsShift = 16;
     const uint32_t bits = FloatToBits(value);
-    const uint32_t lsb = (bits >> 16) & 1u;
-    return static_cast<uint16_t>((bits + 0x7FFFu + lsb) >> 16);
+    const uint32_t lsb = (bits >> bitsShift) & 1u;
+    return static_cast<uint16_t>((bits + 0x7FFFu + lsb) >> bitsShift);
 }
 
 inline float Bf16BitsToFloat(uint16_t bits)
 {
-    return BitsToFloat(static_cast<uint32_t>(bits) << 16);
+    constexpr uint32_t bitsShift = 16;
+    return BitsToFloat(static_cast<uint32_t>(bits) << bitsShift);
 }
 
 inline uint16_t AbsBf16BitsFromFloat(float value)
@@ -106,13 +108,15 @@ inline float DecodeE4M3Fn(uint8_t code)
         if (mant == 0) {
             return sign < 0 ? -0.0f : 0.0f;
         }
-        return static_cast<float>(sign) * std::ldexp(static_cast<float>(mant), -9);
+        constexpr int scaleExp = 9;
+        return static_cast<float>(sign) * std::ldexp(static_cast<float>(mant), -scaleExp);
     }
     if (exp == 0x0F && mant == 0x07) {
         return std::numeric_limits<float>::quiet_NaN();
     }
     const float significand = 1.0f + static_cast<float>(mant) / 8.0f;
-    return static_cast<float>(sign) * std::ldexp(significand, exp - 7);
+    constexpr int scaleExp = 7;
+    return static_cast<float>(sign) * std::ldexp(significand, exp - scaleExp);
 }
 
 inline uint8_t EncodeE4M3Fn(float value)
@@ -124,7 +128,8 @@ inline uint8_t EncodeE4M3Fn(float value)
     uint8_t bestCode = 0;
     float bestDistance = std::numeric_limits<float>::infinity();
     bool bestEven = true;
-    for (int code = 0; code < 256; ++code) {
+    constexpr int codeMax = 256;
+    for (int code = 0; code < codeMax; ++code) {
         if ((code & 0x7F) == 0x7F) {
             continue;
         }
@@ -210,6 +215,8 @@ inline uint8_t ComputeE2M1SharedExponent(float maxAbsValue)
     return static_cast<uint8_t>(exponent - 2u);
 }
 
+constexpr int SCALE_MIN_EXP = -127;
+
 inline float ComputeMxScalingFromExponent(uint8_t e8m0)
 {
     if (e8m0 == 0xFFu) {
@@ -218,7 +225,7 @@ inline float ComputeMxScalingFromExponent(uint8_t e8m0)
     const uint32_t scaleExp = 254u - static_cast<uint32_t>(e8m0);
     float scaling = BitsToFloat(scaleExp << 23);
     if (scaling == 0.0f) {
-        scaling = std::ldexp(1.0f, -127);
+        scaling = std::ldexp(1.0f, SCALE_MIN_EXP);
     }
     return scaling;
 }
@@ -229,7 +236,7 @@ inline float ComputeNvScalingFromExponent(uint8_t e8m0)
         return std::numeric_limits<float>::quiet_NaN();
     }
     if (e8m0 == 0xFEu) {
-        return std::ldexp(1.0f, -127);
+        return std::ldexp(1.0f, SCALE_MIN_EXP);
     }
     return ComputeMxScalingFromExponent(e8m0);
 }
@@ -246,19 +253,21 @@ inline float ComputeScalingFromExponent(uint8_t e8m0)
 
 inline std::vector<uint8_t> ReorderExponentZZ(const std::vector<uint8_t> &exp, int rows, int groupCols)
 {
-    PTO_CPU_ASSERT(rows % 16 == 0 && groupCols % 2 == 0,
+    constexpr int groupBlockSize = 2;
+    constexpr int rowBlockSize = 16;
+    PTO_CPU_ASSERT(rows % rowBlockSize == 0 && groupCols % groupBlockSize == 0,
                    "Fix: MXFP8 NZ exponent reorder currently requires rows "
                    "multiple of 16 and group cols multiple of 2.");
-    const int rowBlocks = rows / 16;
-    const int groupBlocks = groupCols / 2;
+    const int rowBlocks = rows / rowBlockSize;
+    const int groupBlocks = groupCols / groupBlockSize;
     std::vector<uint8_t> reordered;
     reordered.reserve(exp.size());
     for (int rb = 0; rb < rowBlocks; ++rb) {
         for (int gb = 0; gb < groupBlocks; ++gb) {
-            for (int innerRow = 0; innerRow < 16; ++innerRow) {
-                for (int innerGroup = 0; innerGroup < 2; ++innerGroup) {
-                    const int row = rb * 16 + innerRow;
-                    const int group = gb * 2 + innerGroup;
+            for (int innerRow = 0; innerRow < rowBlockSize; ++innerRow) {
+                for (int innerGroup = 0; innerGroup < groupBlockSize; ++innerGroup) {
+                    const int row = rb * rowBlockSize + innerRow;
+                    const int group = gb * groupBlockSize + innerGroup;
                     reordered.push_back(exp[row * groupCols + group]);
                 }
             }
@@ -272,8 +281,9 @@ inline float ComputeMxGroupMax(TileDataSrc &src, int row, int group)
 {
     float maxAbsValue = 0.0f;
     uint16_t maxAbsBf16Bits = 0;
-    for (int inner = 0; inner < 32; ++inner) {
-        const float value = src.data()[GetTileElementOffset<TileDataSrc>(row, group * 32 + inner)];
+    constexpr int colGroupSize = 32;
+    for (int inner = 0; inner < colGroupSize; ++inner) {
+        const float value = src.data()[GetTileElementOffset<TileDataSrc>(row, group * colGroupSize + inner)];
         if constexpr (quant_type == QuantType::MXFP8 ||
                       (quant_type == QuantType::MXFP4_E2M1 && scale_alg == QuantScaleAlg::NV)) {
             maxAbsValue = std::max(maxAbsValue, std::fabs(value));
@@ -345,7 +355,8 @@ inline void StoreMxEncodedValue(TileDataOut &dst, TileDataSrc &src, FlatScalingT
         if ((col & 1) == 0) {
             dstBytes[byteOffset] = static_cast<uint8_t>((dstBytes[byteOffset] & 0xF0u) | encoded);
         } else {
-            dstBytes[byteOffset] = static_cast<uint8_t>((dstBytes[byteOffset] & 0x0Fu) | (encoded << 4));
+            constexpr uint8_t encodedShift = 4;
+            dstBytes[byteOffset] = static_cast<uint8_t>((dstBytes[byteOffset] & 0x0Fu) | (encoded << encodedShift));
         }
     }
 }
@@ -354,8 +365,9 @@ template <QuantType quant_type, typename TileDataOut, typename TileDataSrc, type
 inline void QuantizeMxGroup(TileDataOut &dst, TileDataSrc &src, FlatScalingTile &flatScaling, int row, int group,
                             int cols, int flatGroupIdx, float groupScaling)
 {
-    for (int inner = 0; inner < 32; ++inner) {
-        const int col = group * 32 + inner;
+    constexpr int colGroupSize = 32;
+    for (int inner = 0; inner < colGroupSize; ++inner) {
+        const int col = group * colGroupSize + inner;
         StoreMxEncodedValue<quant_type>(dst, src, flatScaling, row, col, cols, flatGroupIdx, groupScaling);
     }
 }
@@ -391,8 +403,9 @@ inline void CheckMxQuantTypes()
 template <typename TileDataSrc, typename TileDataExp, typename TileDataMax, typename TileDataScaling>
 inline void CheckMxQuantInputs(TileDataSrc &src, TileDataExp *exp, TileDataMax *max, TileDataScaling *scaling)
 {
+    constexpr unsigned srcColDiv = 32;
     PTO_CPU_ASSERT(exp != nullptr && max != nullptr && scaling != nullptr, "Fix: MX quant requires tiles.");
-    PTO_CPU_ASSERT(src.GetValidCol() % 32 == 0,
+    PTO_CPU_ASSERT(src.GetValidCol() % srcColDiv == 0,
                    "Fix: MX CPU sim currently requires valid cols to be a multiple of 32.");
 }
 
