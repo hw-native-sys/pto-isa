@@ -37,6 +37,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 typedef void *aclrtStream;
 typedef int pipe_t;
+using event_t = int;
 const pipe_t PIPE_S = 0;
 const pipe_t PIPE_V = 1;
 const pipe_t PIPE_MTE1 = 2;
