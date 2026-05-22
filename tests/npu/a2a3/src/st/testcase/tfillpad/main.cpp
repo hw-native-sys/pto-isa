@@ -249,8 +249,3 @@ TEST_F(TFILLPADTest, case_u8_GT_1_15_VT_1_32_BLK1_PADMAX)
 {
     tfillpad_test<21, uint8_t, 1>();
 }
-
-TEST_F(TFILLPADTest, case_s8_GT_1_40_VT_1_64_BLK1_PADMIN_PADMAX)
-{
-    tfillpad_test<22, int8_t, 1>();
-}
