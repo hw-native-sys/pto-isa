@@ -335,6 +335,45 @@ AICORE void example_row_colidx(__gm__ half* tablePtr, __gm__ int32_t* idxPtr)
 
 7. **Register pressure / MRF.** The kernels carry `LAUNCH_BOUND(1024)` (32 regs/thread budget) and use ≤ 12 live registers per thread in the hot path. No spills are produced; the compile flag `-mllvm -cce-aicore-record-overflow=true` reports no overflow events for any of the instantiations.
 
+## SIMT Usage Restrictions
+
+`MGATHER` is a SIMT launch on the AIV vector core. Every byte the runtime, the compiler, and the user store in UB must coexist inside the single 256 KB Unified Buffer that the AIV exposes. The following table itemises every region the toolchain carves out before user tiles are allocated, with the source of each value so the budget is reproducible:
+
+| Region                         | Size on a5 (V310)               | Source                                                                                                       |
+|--------------------------------|----------------------------------|--------------------------------------------------------------------------------------------------------------|
+| Physical UB                    | 256 KB                           | Hardware                                                                                                     |
+| Hardware D-cache scratch       | 8 KB (top of UB)                 | `TOTAL_UB_SIZE = 248 * 1024` for `__NPU_ARCH__ == 3510` in `kernel_utils_constants.h` (256 − 248)             |
+| AscendC / TBE reserved         | 2 KB                             | `--user-reserved-ub-size` default (`2048` bytes from `ccec -mllvm --print-all-options`)                      |
+| Scalar main stack              | 32 KB                            | `--cce-aicore-stack-size=0x8000` set in `tests/npu/a5/src/st/CMakeLists.txt`                                  |
+| Per-call-depth scalar stack    | 32 KB × depth                    | `--cce-aicore-function-stack-size=0x8000` set in `tests/npu/a5/src/st/CMakeLists.txt`                        |
+| Vector-fragment (VF) stack     | 8 KB                             | `--cce-vf-stack-size` default (`8192` bytes from `ccec -mllvm --print-all-options`)                          |
+| Per-thread SIMT stack          | 4 KB                             | `--cce-simt-stack-size` default (`4096` bytes from `ccec -mllvm --print-all-options`)                        |
+
+The `MGATHER` call chain is `runMGATHER_* → MGATHER<...> → MGather{Row,Elem}Impl → cce::async_invoke<simt_mgather_*_kernel>`. The `Impl` layer is marked `__tf__ + PTO_INLINE`, but on-board testing of the matching `MSCATTER` SIMT path has shown the compiler retains it as a separate scalar frame in this configuration, so the effective scalar call-depth is **2**. The SIMT-VF kernel launched by `async_invoke` runs in its own VF + per-thread context whose stacks are counted separately and do not extend the scalar chain.
+
+Plugging depth = 2 into the table:
+
+```
+256 KB  physical UB
+−  8 KB  D-cache scratch
+−  2 KB  AscendC / TBE reservation
+− 32 KB  scalar main stack
+− 64 KB  function stack  (2 frames × 32 KB)
+−  8 KB  VF stack
+−  4 KB  per-thread SIMT stack
+= 138 KB  user-addressable UB
+```
+
+A depth-1 path would lift the budget to 170 KB, but on a5 with the current flag set the inliner does not deliver it (empirically confirmed on the matching `MSCATTER` cases: tile footprints of 170 KB fall back to silent zeroed output on-board even though they pass the CPU simulator). All designs should therefore size against the **138 KB depth-2 ceiling**.
+
+When sizing a workload, account for both the **destination** tile (`R * C * sizeof(T)`, padded up to the 32-byte burst alignment) and the **index** tile (`R * C * sizeof(TIdx)`, same padding rule). `MGATHER` itself does not allocate any UB scratch — every read flows GM → register → UB.
+
+Overflowing the ceiling is **silent**. The compiler does not error, the simulator does not flag it, and small overruns may even appear to work on hardware. Once the overflow reaches the stack region, however, the first spilled value from any SIMT thread corrupts a tile byte and the kernel returns all-zero (or otherwise undefined) output on-board while still passing the CPU simulator.
+
+### Large-Workload Tiling
+
+A single `TSTORE` after the gather is bounded by the same UB window. When the destination + index tile pair approaches the 138 KB on-board ceiling, split the work across multiple iterations: invoke `MGATHER` for a slice of indices, `TSTORE` that slice to its GM region, then advance to the next slice. A combined footprint of **≤ 128 KB** per iteration (for example `2048 × 8` with `float` and `int32_t`) keeps a 10 KB safety margin against the ceiling. `MGATHER` has no cross-element ordering semantics, so slice order is unconstrained.
+
 ## Runtime Dispatch Requirement
 
 `MGATHER` (like every SIMT kernel in PTO and CANN) uses `cce::async_invoke<simt_mgather_*_kernel>(cce::dim3{WARP_SIZE, kLaunchWarps}, …)` internally to fan a per-warp/per-lane workload out across up to `32 × 32 = 1024` threads. `cce::async_invoke` consumes hardware/runtime state — TID registers (`__cce_simt_get_TID_X/Y`), warp/lane configuration, vector-pipe scheduling — that the **launch path** has to install **before** the kernel function is entered. The standard CANN launch (`rtKernelLaunch`, used by the `<<<1, nullptr, stream>>>` syntax in every ST in this suite) installs that state correctly.
