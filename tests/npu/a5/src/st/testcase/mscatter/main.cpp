@@ -120,7 +120,7 @@ DECLARE_LAUNCH(elem_int32_atomicadd_skip_32_16size, int32_t, int32_t)
 DECLARE_LAUNCH(elem_float_skip_32_16size, float, int32_t)
 DECLARE_LAUNCH(elem_int32_clamp_32_16size, int32_t, int32_t)
 DECLARE_LAUNCH(elem_half_wrap_32_16size, aclFloat16, int32_t)
-DECLARE_LAUNCH(elem_float_first_seq_32_32size, float, int32_t)
+DECLARE_LAUNCH(elem_float_default_seq_32_32size, float, int32_t)
 DECLARE_LAUNCH(elem_float_small_16_32size, float, int32_t)
 DECLARE_LAUNCH(elem_int32_atomicmax_random_32_32size, int32_t, int32_t)
 DECLARE_LAUNCH(elem_float_atomicmin_random_32_32size, float, int32_t)
@@ -140,6 +140,16 @@ DECLARE_LAUNCH(elem2d_int32_unaligned_9x9_in_9x16_256size, int32_t, int32_t)
 DECLARE_LAUNCH(elem2d_int32_scalar_1x1_in_1x8_8size, int32_t, int32_t)
 DECLARE_LAUNCH(row_int32_unaligned_3x8_8rows, int32_t, int32_t)
 DECLARE_LAUNCH(row_int32_unaligned_9x16_16rows, int32_t, int32_t)
+
+DECLARE_LAUNCH(elem2d_float_2048x8_last_256size, float, int32_t)
+DECLARE_LAUNCH(elem2d_float_2048x8_default_16384size, float, int32_t)
+
+DECLARE_LAUNCH(elem2d_dyn_user_float_1x9_in_1x16_3x10, float, int32_t)
+DECLARE_LAUNCH(elem2d_dyn_int32_4x8_in_4x8_64size, int32_t, int32_t)
+DECLARE_LAUNCH(elem2d_dyn_float_3x3_in_3x8_64size, float, int32_t)
+DECLARE_LAUNCH(elem2d_dyn_half_8x16_in_8x16_4x32, aclFloat16, int32_t)
+DECLARE_LAUNCH(row_dyn_int32_3x16_8rows, int32_t, int32_t)
+DECLARE_LAUNCH(row_dyn_half_4x32_16rows, aclFloat16, int32_t)
 
 #define ROW_TEST(NAME, THOST, TIDX, R, C, TR)                                                    \
     TEST_F(MSCATTERTest, case_##NAME)                                                            \
@@ -186,7 +196,7 @@ ELEM_TEST(elem_int32_atomicadd_skip_32_16size, int32_t, int32_t, 32, 16)
 ELEM_TEST(elem_float_skip_32_16size, float, int32_t, 32, 16)
 ELEM_TEST(elem_int32_clamp_32_16size, int32_t, int32_t, 32, 16)
 ELEM_TEST(elem_half_wrap_32_16size, aclFloat16, int32_t, 32, 16)
-ELEM_TEST(elem_float_first_seq_32_32size, float, int32_t, 32, 32)
+ELEM_TEST(elem_float_default_seq_32_32size, float, int32_t, 32, 32)
 ELEM_TEST(elem_float_small_16_32size, float, int32_t, 16, 32)
 ELEM_TEST(elem_int32_atomicmax_random_32_32size, int32_t, int32_t, 32, 32)
 ELEM_TEST(elem_float_atomicmin_random_32_32size, float, int32_t, 32, 32)
@@ -206,3 +216,19 @@ ELEM2D_TEST(elem2d_int32_unaligned_9x9_in_9x16_256size, int32_t, int32_t, 9, 9, 
 ELEM2D_TEST(elem2d_int32_scalar_1x1_in_1x8_8size, int32_t, int32_t, 1, 1, 8)
 ROW_TEST(row_int32_unaligned_3x8_8rows, int32_t, int32_t, 3, 8, 8)
 ROW_TEST(row_int32_unaligned_9x16_16rows, int32_t, int32_t, 9, 16, 16)
+
+#define ELEM2D_DYN_TEST(NAME, THOST, TIDX, RVR, RVC, RTR, RTC)                                                  \
+    TEST_F(MSCATTERTest, case_##NAME)                                                                           \
+    {                                                                                                           \
+        run_mscatter_test<THOST, TIDX>((size_t)RVR * RVC, (size_t)RVR * RVC, (size_t)RTR * RTC, Launch_##NAME); \
+    }
+
+ELEM2D_TEST(elem2d_float_2048x8_last_256size, float, int32_t, 2048, 8, 256)
+ELEM2D_TEST(elem2d_float_2048x8_default_16384size, float, int32_t, 2048, 8, 16384)
+
+ELEM2D_DYN_TEST(elem2d_dyn_user_float_1x9_in_1x16_3x10, float, int32_t, 1, 9, 3, 10)
+ELEM2D_DYN_TEST(elem2d_dyn_int32_4x8_in_4x8_64size, int32_t, int32_t, 4, 8, 1, 64)
+ELEM2D_DYN_TEST(elem2d_dyn_float_3x3_in_3x8_64size, float, int32_t, 3, 3, 1, 64)
+ELEM2D_DYN_TEST(elem2d_dyn_half_8x16_in_8x16_4x32, aclFloat16, int32_t, 8, 16, 4, 32)
+ROW_TEST(row_dyn_int32_3x16_8rows, int32_t, int32_t, 3, 16, 8)
+ROW_TEST(row_dyn_half_4x32_16rows, aclFloat16, int32_t, 4, 32, 16)

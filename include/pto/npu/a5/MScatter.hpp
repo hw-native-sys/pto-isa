@@ -37,7 +37,7 @@ enum class ScatterOOB : uint8_t
 enum class ScatterConflict : uint8_t
 {
     Last = 0,
-    First = 1
+    Default = 1
 };
 
 #ifndef PTO_COALESCE_ENUM_DEFINED
@@ -136,56 +136,66 @@ __simt_callee__ AICORE PTO_INLINE uint32_t tile_offset_2d(uint32_t r, uint32_t c
 }
 #endif
 
-template <ScatterOOB Oob, typename T, typename TIdx, typename TileSrc, typename TileIdx, uint32_t ValidRows,
-          uint32_t ValidCols>
-__simt_callee__ AICORE PTO_INLINE T last_winner_value_elem(__ubuf__ const TIdx *__restrict__ indices,
-                                                           __ubuf__ const T *__restrict__ src, uint32_t selfSafeIdx,
-                                                           uint32_t cap, T fallback)
+template <ScatterOOB Oob, typename TIdx, typename TileIdx>
+__simt_callee__ AICORE PTO_INLINE bool last_owner_find_elem(__ubuf__ const TIdx *__restrict__ indices,
+                                                            uint32_t targetSlot, uint32_t cap, uint32_t totalElems,
+                                                            uint32_t validCols, uint32_t &winnerR, uint32_t &winnerC)
 {
-    T result = fallback;
 #pragma unroll(1)
-    for (uint32_t j = 0; j < ValidRows * ValidCols; ++j) {
-        const uint32_t r = (ValidCols == 1u) ? j : (j / ValidCols);
-        const uint32_t c = (ValidCols == 1u) ? 0u : (j - r * ValidCols);
+    for (uint32_t k = 0u; k < totalElems; ++k) {
+        const uint32_t j = totalElems - 1u - k;
+        const uint32_t r = (validCols == 1u) ? j : (j / validCols);
+        const uint32_t c = (validCols == 1u) ? 0u : (j - r * validCols);
         uint32_t doW;
         const uint32_t s = scatter_remap<Oob>(static_cast<uint32_t>(indices[tile_offset_2d<TileIdx>(r, c)]), cap, doW);
-        if (doW && s == selfSafeIdx) {
-            result = src[tile_offset_2d<TileSrc>(r, c)];
+        if (doW && s == targetSlot) {
+            winnerR = r;
+            winnerC = c;
+            return true;
         }
     }
-    return result;
+    return false;
 }
 
-template <ScatterOOB Oob, typename T, typename TIdx, typename TileSrc, uint32_t NumRows>
-__simt_callee__ AICORE PTO_INLINE T last_winner_value_row(__ubuf__ const TIdx *__restrict__ indices,
-                                                          __ubuf__ const T *__restrict__ src, uint32_t selfSafeIdx,
-                                                          uint32_t col, uint32_t cap, T fallback)
+template <ScatterOOB Oob, typename TIdx>
+__simt_callee__ AICORE PTO_INLINE bool last_owner_find_row(__ubuf__ const TIdx *__restrict__ indices,
+                                                           uint32_t targetSlot, uint32_t cap, uint32_t numRows,
+                                                           uint32_t &winnerRow)
 {
-    T result = fallback;
 #pragma unroll(1)
-    for (uint32_t row = 0; row < NumRows; ++row) {
+    for (uint32_t k = 0u; k < numRows; ++k) {
+        const uint32_t row = numRows - 1u - k;
         uint32_t doW;
         const uint32_t s = scatter_remap<Oob>(static_cast<uint32_t>(indices[row]), cap, doW);
-        if (doW && s == selfSafeIdx) {
-            result = src[tile_offset_2d<TileSrc>(row, col)];
+        if (doW && s == targetSlot) {
+            winnerRow = row;
+            return true;
         }
     }
-    return result;
+    return false;
 }
 
-template <typename T, typename TIdx, typename TileSrc, ScatterAtomicOp Atomic, ScatterOOB Oob, ScatterConflict Conflict,
-          uint32_t ValidRows, uint32_t ValidCols, uint32_t TableRows>
+template <typename T, typename TIdx, typename TileSrc, ScatterAtomicOp Atomic, ScatterOOB Oob, uint32_t ValidRowsT,
+          uint32_t ValidColsT, uint32_t TableRowsT>
 AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE
     void simt_mscatter_row_kernel(__gm__ T *__restrict__ table, __ubuf__ const T *__restrict__ src,
                                   __ubuf__ const TIdx *__restrict__ indices, uint32_t validRowsRT, uint32_t validColsRT,
                                   uint32_t tableRowsRT)
 {
-    constexpr bool kIsAtomic = (Atomic != ScatterAtomicOp::None);
-    constexpr bool kIsLast = !kIsAtomic && (Conflict == ScatterConflict::Last);
-    using Launch = mscatter_cfg::RowLaunch<ValidRows, ValidCols>;
-    constexpr uint32_t kRowWarps = Launch::kRowWarps;
-    constexpr uint32_t kWarpsPerRow = (Launch::kWarpsPerRow == 0u) ? 1u : Launch::kWarpsPerRow;
-    constexpr uint32_t kColStride = kWarpsPerRow * mscatter_cfg::WARP_SIZE;
+    constexpr bool kStaticR = (ValidRowsT > 0u);
+    constexpr bool kStaticC = (ValidColsT > 0u);
+    constexpr bool kStaticTR = (TableRowsT > 0u);
+    const uint32_t validRows = kStaticR ? ValidRowsT : validRowsRT;
+    const uint32_t validCols = kStaticC ? ValidColsT : validColsRT;
+    const uint32_t tableRows = kStaticTR ? TableRowsT : tableRowsRT;
+
+    const uint32_t kRowWarps =
+        (validRows == 0u) ? 1u : ((validRows < mscatter_cfg::MAX_WARPS) ? validRows : mscatter_cfg::MAX_WARPS);
+    const uint32_t kFreeWarps = mscatter_cfg::MAX_WARPS / kRowWarps;
+    const uint32_t kColChunks = (validCols + mscatter_cfg::WARP_SIZE - 1u) / mscatter_cfg::WARP_SIZE;
+    const uint32_t kWarpsPerRowRaw = (kFreeWarps < kColChunks) ? kFreeWarps : kColChunks;
+    const uint32_t kWarpsPerRow = (kWarpsPerRowRaw == 0u) ? 1u : kWarpsPerRowRaw;
+    const uint32_t kColStride = kWarpsPerRow * mscatter_cfg::WARP_SIZE;
 
     const uint32_t tx = threadIdx.x;
     const uint32_t ty = threadIdx.y;
@@ -196,47 +206,78 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE
     for (uint32_t row = rowWarp; row < ValidRows; row += kRowWarps) {
         const uint32_t rawIdx = static_cast<uint32_t>(indices[row]);
         uint32_t doWrite;
-        const uint32_t safeIdx = scatter_remap<Oob>(rawIdx, TableRows, doWrite);
-        __gm__ T *dstRow = table + safeIdx * ValidCols;
-        if constexpr (kIsAtomic) {
+        const uint32_t safeIdx = scatter_remap<Oob>(rawIdx, tableRows, doWrite);
+        if constexpr (Atomic != ScatterAtomicOp::None) {
             if (doWrite) {
+                __gm__ T *dstRow = table + safeIdx * validCols;
 #pragma unroll(4)
                 for (uint32_t col = colSeg * mscatter_cfg::WARP_SIZE + tx; col < ValidCols; col += kColStride) {
                     scatter_apply<Atomic>(&dstRow[col], src[tile_offset_2d<TileSrc>(row, col)]);
                 }
             }
         } else {
-            const uint32_t loadRow = (rawIdx < TableRows) ? rawIdx : 0u;
-            __gm__ T *loadDst = table + loadRow * ValidCols;
+            if (doWrite) {
+                __gm__ T *dstRow = table + safeIdx * validCols;
 #pragma unroll(4)
-            for (uint32_t col = colSeg * mscatter_cfg::WARP_SIZE + tx; col < ValidCols; col += kColStride) {
-                const T cur = loadDst[col];
-                const T newval = kIsLast ? last_winner_value_row<Oob, T, TIdx, TileSrc, ValidRows>(
-                                               indices, src, safeIdx, col, TableRows, cur) :
-                                           src[tile_offset_2d<TileSrc>(row, col)];
-                if (doWrite && newval != cur) {
-                    dstRow[col] = newval;
+                for (uint32_t col = colSeg * mscatter_cfg::WARP_SIZE + tx; col < validCols; col += kColStride) {
+                    dstRow[col] = src[tile_offset_2d<TileSrc>(row, col)];
                 }
             }
         }
     }
 }
 
-template <typename T, typename TIdx, typename TileSrc, typename TileIdx, ScatterAtomicOp Atomic, ScatterOOB Oob,
-          ScatterConflict Conflict, uint32_t ValidRows, uint32_t ValidCols, uint32_t TableSize>
+template <typename T, typename TIdx, typename TileSrc, ScatterOOB Oob, uint32_t ValidRowsT, uint32_t ValidColsT,
+          uint32_t TableRowsT>
 AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE
     void simt_mscatter_row_last_kernel(__gm__ T *__restrict__ table, __ubuf__ const T *__restrict__ src,
                                        __ubuf__ const TIdx *__restrict__ indices, uint32_t validRowsRT,
                                        uint32_t validColsRT, uint32_t tableRowsRT)
 {
-    constexpr bool kIsAtomic = (Atomic != ScatterAtomicOp::None);
-    constexpr bool kIsLast = !kIsAtomic && (Conflict == ScatterConflict::Last);
-    constexpr uint32_t kTotalElems = ValidRows * ValidCols;
-    constexpr uint32_t kLaunchThreads = mscatter_cfg::ElemLaunch<kTotalElems>::kLaunchWarps * mscatter_cfg::WARP_SIZE;
+    constexpr bool kStaticR = (ValidRowsT > 0u);
+    constexpr bool kStaticC = (ValidColsT > 0u);
+    constexpr bool kStaticTR = (TableRowsT > 0u);
+    const uint32_t validRows = kStaticR ? ValidRowsT : validRowsRT;
+    const uint32_t validCols = kStaticC ? ValidColsT : validColsRT;
+    const uint32_t tableRows = kStaticTR ? TableRowsT : tableRowsRT;
 
-    const uint32_t tx = threadIdx.x;
-    const uint32_t ty = threadIdx.y;
-    const uint32_t tid = ty * mscatter_cfg::WARP_SIZE + tx;
+    const uint32_t tid = threadIdx.y * mscatter_cfg::WARP_SIZE + threadIdx.x;
+    const uint32_t totalThreads = mscatter_cfg::MAX_THREADS;
+
+#pragma unroll(1)
+    for (uint32_t s = tid; s < tableRows; s += totalThreads) {
+        uint32_t winnerRow = 0u;
+        if (last_owner_find_row<Oob, TIdx>(indices, s, tableRows, validRows, winnerRow)) {
+            __gm__ T *dstRow = table + s * validCols;
+#pragma unroll(4)
+            for (uint32_t col = 0u; col < validCols; ++col) {
+                dstRow[col] = src[tile_offset_2d<TileSrc>(winnerRow, col)];
+            }
+        }
+    }
+}
+
+template <typename T, typename TIdx, typename TileSrc, typename TileIdx, ScatterAtomicOp Atomic, ScatterOOB Oob,
+          uint32_t ValidRowsT, uint32_t ValidColsT, uint32_t TableSizeT>
+AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE
+    void simt_mscatter_row_last_kernel(__gm__ T *__restrict__ table, __ubuf__ const T *__restrict__ src,
+                                       __ubuf__ const TIdx *__restrict__ indices, uint32_t validRowsRT,
+                                       uint32_t validColsRT, uint32_t tableRowsRT)
+{
+    constexpr bool kStaticR = (ValidRowsT > 0u);
+    constexpr bool kStaticC = (ValidColsT > 0u);
+    constexpr bool kStaticTS = (TableSizeT > 0u);
+    const uint32_t validRows = kStaticR ? ValidRowsT : validRowsRT;
+    const uint32_t validCols = kStaticC ? ValidColsT : validColsRT;
+    const uint32_t tableSize = kStaticTS ? TableSizeT : tableSizeRT;
+
+    const uint32_t totalElems = validRows * validCols;
+    const uint32_t kNeededWarps = (totalElems + mscatter_cfg::WARP_SIZE - 1u) / mscatter_cfg::WARP_SIZE;
+    const uint32_t kLaunchWarps =
+        (kNeededWarps == 0u) ? 1u : ((kNeededWarps < mscatter_cfg::MAX_WARPS) ? kNeededWarps : mscatter_cfg::MAX_WARPS);
+    const uint32_t kLaunchThreads = kLaunchWarps * mscatter_cfg::WARP_SIZE;
+
+    const uint32_t tid = threadIdx.y * mscatter_cfg::WARP_SIZE + threadIdx.x;
 
 #pragma unroll(1)
     for (uint32_t i = tid; i < kTotalElems; i += kLaunchThreads) {
@@ -246,20 +287,44 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE
         const uint32_t idxOff = tile_offset_2d<TileIdx>(r, c);
         const uint32_t rawIdx = static_cast<uint32_t>(indices[idxOff]);
         uint32_t doWrite;
-        const uint32_t safeIdx = scatter_remap<Oob>(rawIdx, TableSize, doWrite);
-        if constexpr (kIsAtomic) {
+        const uint32_t safeIdx = scatter_remap<Oob>(rawIdx, tableSize, doWrite);
+        if constexpr (Atomic != ScatterAtomicOp::None) {
             if (doWrite) {
                 scatter_apply<Atomic>(&table[safeIdx], src[srcOff]);
             }
         } else {
-            const uint32_t loadIdx = (rawIdx < TableSize) ? rawIdx : 0u;
-            const T cur = table[loadIdx];
-            const T newval = kIsLast ? last_winner_value_elem<Oob, T, TIdx, TileSrc, TileIdx, ValidRows, ValidCols>(
-                                           indices, src, safeIdx, TableSize, cur) :
-                                       src[srcOff];
-            if (doWrite && newval != cur) {
-                table[safeIdx] = newval;
+            if (doWrite) {
+                table[safeIdx] = src[srcOff];
             }
+        }
+    }
+}
+
+template <typename T, typename TIdx, typename TileSrc, typename TileIdx, ScatterOOB Oob, uint32_t ValidRowsT,
+          uint32_t ValidColsT, uint32_t TableSizeT>
+AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE
+    void simt_mscatter_elem_last_kernel(__gm__ T *__restrict__ table, __ubuf__ const T *__restrict__ src,
+                                        __ubuf__ const TIdx *__restrict__ indices, uint32_t validRowsRT,
+                                        uint32_t validColsRT, uint32_t tableSizeRT)
+{
+    constexpr bool kStaticR = (ValidRowsT > 0u);
+    constexpr bool kStaticC = (ValidColsT > 0u);
+    constexpr bool kStaticTS = (TableSizeT > 0u);
+    const uint32_t validRows = kStaticR ? ValidRowsT : validRowsRT;
+    const uint32_t validCols = kStaticC ? ValidColsT : validColsRT;
+    const uint32_t tableSize = kStaticTS ? TableSizeT : tableSizeRT;
+
+    const uint32_t totalElems = validRows * validCols;
+    const uint32_t tid = threadIdx.y * mscatter_cfg::WARP_SIZE + threadIdx.x;
+    const uint32_t totalThreads = mscatter_cfg::MAX_THREADS;
+
+#pragma unroll(1)
+    for (uint32_t s = tid; s < tableSize; s += totalThreads) {
+        uint32_t winnerR = 0u;
+        uint32_t winnerC = 0u;
+        if (last_owner_find_elem<Oob, TIdx, TileIdx>(indices, s, tableSize, totalElems, validCols, winnerR, winnerC)) {
+            const uint32_t srcOff = tile_offset_2d<TileSrc>(winnerR, winnerC);
+            table[s] = src[srcOff];
         }
     }
 }
@@ -273,10 +338,30 @@ __tf__ AICORE void MScatterRowImpl(__gm__ T *__restrict__ tablePtr, typename Src
     __ubuf__ const T *srcPtr = (__ubuf__ const T *)__cce_get_tile_ptr(src);
     __ubuf__ const TIdx *idxPtr = (__ubuf__ const TIdx *)__cce_get_tile_ptr(indices);
 
-    constexpr uint32_t kLaunchWarps = mscatter_cfg::RowLaunch<ValidRows, ValidCols>::kLaunchWarps;
-    cce::async_invoke<
-        simt_mscatter_row_kernel<T, TIdx, SrcTileData, Atomic, Oob, Conflict, ValidRows, ValidCols, TableRows>>(
-        cce::dim3{mscatter_cfg::WARP_SIZE, kLaunchWarps}, tablePtr, srcPtr, idxPtr);
+    constexpr bool kIsLast = (Atomic == ScatterAtomicOp::None) && (Conflict == ScatterConflict::Last);
+
+    if constexpr (kIsLast) {
+        const uint32_t slotWarps =
+            (tableRows == 0u) ?
+                1u :
+                (((tableRows + mscatter_cfg::WARP_SIZE - 1u) / mscatter_cfg::WARP_SIZE) < mscatter_cfg::MAX_WARPS ?
+                     ((tableRows + mscatter_cfg::WARP_SIZE - 1u) / mscatter_cfg::WARP_SIZE) :
+                     mscatter_cfg::MAX_WARPS);
+        cce::async_invoke<simt_mscatter_row_last_kernel<T, TIdx, SrcTileData, Oob, ValidRowsT, ValidColsT, TableRowsT>>(
+            cce::dim3{mscatter_cfg::WARP_SIZE, slotWarps}, tablePtr, srcPtr, idxPtr, validRows, validCols, tableRows);
+    } else {
+        const uint32_t rowWarps =
+            (validRows == 0u) ? 1u : ((validRows < mscatter_cfg::MAX_WARPS) ? validRows : mscatter_cfg::MAX_WARPS);
+        const uint32_t freeWarps = mscatter_cfg::MAX_WARPS / rowWarps;
+        const uint32_t colChunks = (validCols + mscatter_cfg::WARP_SIZE - 1u) / mscatter_cfg::WARP_SIZE;
+        const uint32_t warpsPerRowRaw = (freeWarps < colChunks) ? freeWarps : colChunks;
+        const uint32_t warpsPerRow = (warpsPerRowRaw == 0u) ? 1u : warpsPerRowRaw;
+        const uint32_t launchWarps = rowWarps * warpsPerRow;
+
+        cce::async_invoke<
+            simt_mscatter_row_kernel<T, TIdx, SrcTileData, Atomic, Oob, ValidRowsT, ValidColsT, TableRowsT>>(
+            cce::dim3{mscatter_cfg::WARP_SIZE, launchWarps}, tablePtr, srcPtr, idxPtr, validRows, validCols, tableRows);
+    }
 }
 
 template <typename T, typename TIdx, ScatterAtomicOp Atomic, ScatterOOB Oob, ScatterConflict Conflict,
@@ -288,10 +373,27 @@ __tf__ AICORE void MScatterElemImpl(__gm__ T *__restrict__ tablePtr, typename Sr
     __ubuf__ const T *srcPtr = (__ubuf__ const T *)__cce_get_tile_ptr(src);
     __ubuf__ const TIdx *idxPtr = (__ubuf__ const TIdx *)__cce_get_tile_ptr(indices);
 
-    constexpr uint32_t kLaunchWarps = mscatter_cfg::ElemLaunch<ValidRows * ValidCols>::kLaunchWarps;
-    cce::async_invoke<simt_mscatter_elem_kernel<T, TIdx, SrcTileData, IdxTileData, Atomic, Oob, Conflict, ValidRows,
-                                                ValidCols, TableSize>>(cce::dim3{mscatter_cfg::WARP_SIZE, kLaunchWarps},
-                                                                       tablePtr, srcPtr, idxPtr);
+    constexpr bool kIsLast = (Atomic == ScatterAtomicOp::None) && (Conflict == ScatterConflict::Last);
+
+    if constexpr (kIsLast) {
+        const uint32_t slotWarps =
+            (tableSize == 0u) ?
+                1u :
+                (((tableSize + mscatter_cfg::WARP_SIZE - 1u) / mscatter_cfg::WARP_SIZE) < mscatter_cfg::MAX_WARPS ?
+                     ((tableSize + mscatter_cfg::WARP_SIZE - 1u) / mscatter_cfg::WARP_SIZE) :
+                     mscatter_cfg::MAX_WARPS);
+        cce::async_invoke<
+            simt_mscatter_elem_last_kernel<T, TIdx, SrcTileData, IdxTileData, Oob, ValidRowsT, ValidColsT, TableSizeT>>(
+            cce::dim3{mscatter_cfg::WARP_SIZE, slotWarps}, tablePtr, srcPtr, idxPtr, validRows, validCols, tableSize);
+    } else {
+        const uint32_t totalElems = validRows * validCols;
+        const uint32_t needed = (totalElems + mscatter_cfg::WARP_SIZE - 1u) / mscatter_cfg::WARP_SIZE;
+        const uint32_t launchWarps =
+            (needed == 0u) ? 1u : ((needed < mscatter_cfg::MAX_WARPS) ? needed : mscatter_cfg::MAX_WARPS);
+        cce::async_invoke<simt_mscatter_elem_kernel<T, TIdx, SrcTileData, IdxTileData, Atomic, Oob, ValidRowsT,
+                                                    ValidColsT, TableSizeT>>(
+            cce::dim3{mscatter_cfg::WARP_SIZE, launchWarps}, tablePtr, srcPtr, idxPtr, validRows, validCols, tableSize);
+    }
 }
 
 template <typename T, typename TIdx, ScatterAtomicOp Atomic, ScatterOOB Oob, typename SrcTileData, typename IdxTileData,

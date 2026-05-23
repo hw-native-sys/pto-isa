@@ -40,8 +40,8 @@ $$ \mathrm{table}[\cdot] \mathrel{\oplus}= \mathrm{src}_{\cdot} \quad \oplus \in
 
 With `Atomic::None`:
 
-- **`Conflict::Last`** (default) — the **largest** source index targeting a given destination slot is the one whose value is stored, matching the sequential CPU loop `for i in 0..N: table[idx[i]] = src[i]`. Implemented by an in-register `last_winner_value` scan over the index/source UB tiles: every thread targeting the same destination computes the **same** winner value, so concurrent writes from colliding threads write identical bytes (no race) and a `cur != newval` guard skips the store entirely when the destination already holds the winning value. **No UB workspace is allocated for the election.**
-- **`Conflict::First`** — surviving writer is **warp-scheduler dependent** (no extra computation). For collision-free index sets the result is identical to `Last`.
+- **`Conflict::Last`** (default) — the **largest** source index targeting a given destination slot is the one whose value is stored, matching the sequential CPU loop `for i in 0..N: table[idx[i]] = src[i]`. Implemented as a **slot-centric reverse scan**: the SIMT launch is sized by the destination table (`min(ceil(TableSize / 32), 32)` warps); each lane owns a distinct destination slot, walks the index tile from `N-1` down to `0`, exits on the first match, and issues a single coalesced GM store for that slot. Race-free by construction — no two lanes target the same slot — so no UB workspace, GM atomics, or post-pass cleanup are required.
+- **`Conflict::Default`** — surviving writer is **warp-scheduler dependent** (no extra computation). For collision-free index sets the result is identical to `Last`.
 
 ## Assembly Syntax
 
@@ -137,8 +137,8 @@ enum class ScatterOOB : uint8_t {
 
 ```cpp
 enum class ScatterConflict : uint8_t {
-    Last  = 0,  // Deterministic: largest source index wins (in-register scan, no UB writes)
-    First = 1   // Warp-scheduler dependent (no extra computation, race semantics)
+    Last    = 0,  // Deterministic: largest source index wins (slot-centric reverse scan, no UB writes)
+    Default = 1   // Warp-scheduler dependent (no extra computation, race semantics)
 };
 ```
 
@@ -261,7 +261,7 @@ AICORE void example_gradient_accumulation(__gm__ float* gradTable)
     SrcTile    grads;  TASSIGN(grads,  0x0000);
     IdxTile    idx;    TASSIGN(idx,    0x4000);
 
-    MSCATTER<ScatterAtomicOp::Add, ScatterOOB::Skip, ScatterConflict::First, Coalesce::Row>(
+    MSCATTER<ScatterAtomicOp::Add, ScatterOOB::Skip, ScatterConflict::Default, Coalesce::Row>(
         tableGM, grads, idx);
 }
 ```
@@ -350,26 +350,64 @@ AICORE void example_last_deterministic(__gm__ half* tablePtr)
 
 ## Performance Considerations
 
-1. **Shape-adaptive launch (compile-time).** `mscatter_cfg::RowLaunch<NumRows, RowWidth>` and `mscatter_cfg::ElemLaunch<TotalElems>` derive the launch `dim3{32, kLaunchWarps}` at compile time so small tiles do not pay the cost of launching 1024 idle threads.
-   - **Row.** `kRowWarps = min(NumRows, 32)` own rows; `kWarpsPerRow = min(32 / kRowWarps, ceil(RowWidth / 32))` cooperate on each row's column chunks. `kLaunchWarps = kRowWarps * kWarpsPerRow`. Lane writes form 128-byte coalesced stores; `kColStride = kWarpsPerRow * 32`.
-   - **Elem.** `kLaunchWarps = min(ceil(TotalElems / 32), 32)`. Threads with `tid >= TotalElems` skip the loop body (no garbage access). For `TotalElems > 1024` the strided loop walks `kLaunchThreads` at a time.
+1. **Shape-adaptive launch.** `MScatterRowImpl` / `MScatterElemImpl` size the SIMT grid as `dim3{WARP_SIZE, kLaunchWarps}` from the resolved `validRows` / `validCols` / `tableSize` (compile-time constants for static tiles, runtime values for dynamic tiles). Small tiles do not pay the cost of launching 1024 idle threads.
+   - **Row, non-`Last`.** `kRowWarps = min(validRows, 32)` own rows; `kWarpsPerRow = min(32 / kRowWarps, ceil(validCols / 32))` cooperate on each row's column chunks. `kLaunchWarps = kRowWarps * kWarpsPerRow`. Lane writes form 128-byte coalesced stores; `kColStride = kWarpsPerRow * 32`.
+   - **Elem, non-`Last`.** `kLaunchWarps = min(ceil(validRows*validCols / 32), 32)`. Threads with `tid >= totalElems` skip the loop body (no garbage access). For `totalElems > 1024` the strided loop walks `launchThreads` at a time.
+   - **`Conflict::Last` (Row and Elem).** Launch is sized by the **destination** instead of the source: `kLaunchWarps = min(ceil(TableSize / 32), 32)`. Each lane owns one slot per outer iteration, so partitioning by `tableSize` keeps the slot-centric kernels balanced even when `N >> TableSize`.
 
-2. **Linear thread mapping (Elem).** Each thread handles one element via stride-`kLaunchThreads` iteration over the flat `[0, R*C)` range. Lanes 0..31 of each warp read/write 32 consecutive UB / GM addresses per iteration (UB reads are bank-conflict-free; GM writes are scatter-stride-driven by the `idx` values).
+2. **Linear thread mapping (non-`Last`).** Each thread handles one element / row via stride-`kLaunchThreads` iteration over the flat work set. Lanes 0..31 of each warp read/write 32 consecutive UB / GM addresses per iteration (UB reads are bank-conflict-free; GM writes are scatter-stride-driven by the `idx` values).
 
-3. **No thread divergence for mode / policy control.** All mode / atomic / OOB / conflict decisions are `if constexpr`. In Row coalesce the `doWrite` predicate depends only on `row` (warp-uniform) and is hoisted outside the inner 32-lane column loop, so the whole warp takes the branch together. The `newval != cur` skip-store predicate is per-lane and compiles to a predicated store (no control-flow divergence).
+3. **No thread divergence for mode / policy control.** All mode / atomic / OOB / conflict decisions are `if constexpr`. In Row coalesce the `doWrite` predicate depends only on `row` (warp-uniform) and is hoisted outside the inner 32-lane column loop, so the whole warp takes the branch together. The slot-centric `Last` kernels have a per-lane `found` predicate that compiles to a predicated store (no control-flow divergence).
 
 4. **Conflict policy cost.**
-   - `Last`: in-register `last_winner_value` scan over the index/source UB tiles. Every claimant of a destination computes the **same** winner value, so colliding writes are byte-identical (race-free) and the `newval != cur` guard skips redundant stores. `O(N)` UB reads per source claim, amortized across the launched threads. **No UB scratch is allocated.**
-   - `First`: zero extra work — the surviving lane is whatever the warp scheduler picked. Use only when collisions are impossible (unique indices) or the result is order-insensitive.
-   - **Atomic modes (`Add` / `Max` / `Min`) skip the conflict gate entirely** and serialize via the GM atomic instruction itself; the `cur` preload is also skipped (the atomic R-M-W binds the destination region naturally).
+   - `Last`: each lane owns a distinct destination slot and runs an in-register reverse scan over the index tile, terminating on the first matching source position. The race is removed by construction — no two lanes write the same slot — so the kernel never reads back the GM table, never issues an atomic, and never allocates UB scratch. Worst-case work per warp is `O(N)` (uncoalesced index space), but a uniformly random workload averages `O(TableSize / 32)` lockstep iterations per warp.
+   - `Default`: zero extra work — the surviving lane is whatever the warp scheduler picked. Use only when collisions are impossible (unique indices) or the result is order-insensitive.
+   - **Atomic modes (`Add` / `Max` / `Min`) skip the conflict gate entirely** and serialize via the GM atomic instruction itself; no `cur` preload is performed (the atomic R-M-W binds the destination region naturally).
 
-5. **Unrolled inner loops.** Inner column loop in Row coalesce carries `#pragma unroll(4)` so the compiler unrolls for small compile-time trip counts (e.g. `RowWidth=32, kColStride=32` ⇒ 1 iter, fully unrolled). The outer scatter loop and the in-register scan loop are `#pragma unroll(1)` to keep code size bounded for large `N`.
+5. **Unrolled inner loops.** Inner column loop in Row coalesce carries `#pragma unroll(4)` so the compiler unrolls for small compile-time trip counts (e.g. `RowWidth=32, kColStride=32` ⇒ 1 iter, fully unrolled). The outer scatter loop and the slot-centric reverse-scan loop are `#pragma unroll(1)` to keep code size bounded for large `N`.
 
 6. **Out-of-bounds mode.** `ScatterOOB::Undefined` is fastest but requires valid indices. Use `Skip`/`Clamp`/`Wrap` when indices may exceed bounds.
 
 7. **Row vs. Elem.** Row coalesce achieves the best GM write bandwidth (32 consecutive lanes per coalesced store). Elem coalesce performs one scalar GM store per active lane — non-coalesced at GM in general.
 
 8. **Register pressure / MRF.** The kernels carry `LAUNCH_BOUND(1024)` (32 regs/thread budget) and use ≤ 16 live registers per thread in the hot path. No spills are produced; the compile flag `-mllvm -cce-aicore-record-overflow=true` reports no overflow events for any of the instantiations.
+
+## SIMT Usage Restrictions
+
+`MSCATTER` is a SIMT launch on the AIV vector core. Every byte the runtime, the compiler, and the user store in UB must coexist inside the single 256 KB Unified Buffer that the AIV exposes. The on-board ceiling is fixed by two top-of-UB reservations the toolchain installs before any user tile is allocated:
+
+| Region                  | Size on a5 (V310) | Source                                                                                              |
+|-------------------------|-------------------|-----------------------------------------------------------------------------------------------------|
+| Physical UB             | 256 KB            | Hardware                                                                                            |
+| Hardware D-cache        | 32 KB             | Top of UB, scalar/SIMT D-cache working set                                                          |
+| Compiler stack (scalar + VF + SIMT) | 8 KB              | All scalar, vector-fragment, and per-thread SIMT spill traffic for the `MSCATTER` call chain        |
+
+The remaining `256 − 32 − 8 = 216 KB` is what user tiles can address. In practice the **safe per-call budget for `src + idx` in UB is `≤ 128 KB`** — at that point both tiles are already at the 64 KB-each comfort line and any further growth starts to push the SIMT spill region into the user-tile band, which the compiler does not flag and which surfaces on-board as a silent all-zero output (the CPU simulator does not model the spill, so it still passes).
+
+When sizing a workload, account for both the **source** tile (`R * C * sizeof(T)`, padded up to the 32-byte burst alignment) and the **index** tile (`R * C * sizeof(TIdx)`, same padding rule). For `Conflict::Last` the destination side adds no extra UB pressure — the slot-centric scan operates directly out of the same `src` / `idx` UB tiles and stores straight to GM.
+
+### Tiled-Iteration Pattern for Large Inputs
+
+Once a single `src + idx` footprint exceeds the safe budget, the caller must process the input in **chunks** that each fit comfortably under the ceiling. Each chunk does its own `TLOAD → MSCATTER` round-trip into the same destination GM tensor; semantics are preserved because:
+
+- **`Conflict::Last`**: each chunk writes its in-chunk last-writer to GM; later chunks overwrite earlier ones for any shared slot, so the surviving value is the global largest source index targeting that slot.
+- **`Conflict::Default`** / atomic modes: writes from later chunks naturally compose with writes from earlier chunks (overwrite, add, max, min) into the same GM table.
+
+The `case_elem2d_float_2048x8_*` ST cases use this pattern: a `2048 × 8` `float` source plus matching `int32_t` index would total `128 KB` in a single shot, so the wrapper splits it into **16 chunks of `128 × 8`** (`4 KB src + 4 KB idx = 8 KB UB per iteration`) and re-issues `MSCATTER` per chunk. The same shape with no chunking failed silently on-board while passing the CPU simulator — a textbook example of the over-budget mode described above.
+
+### Cache-Coherence Flush
+
+Every `runMSCATTER_*` wrapper finishes with a `FlushScatterOutput()` helper:
+
+```cpp
+AICORE PTO_INLINE void FlushScatterOutput()
+{
+    dcci(static_cast<__gm__ void *>(0), ENTIRE_DATA_CACHE);
+    dsb(DSB_DDR);
+}
+```
+
+`dcci(0, ENTIRE_DATA_CACHE)` invalidates the AIV scalar D-cache so any GM writes still buffered in the cache are forced down to HBM, and `dsb(DSB_DDR)` waits until the writes are observable at the DDR boundary. On a5/V310 the compiler default `--cce-no-dcache-flush=0` already emits a similar flush before kernel exit, but `MSCATTER` issues its GM writes from inside an `async_invoke` SIMT VF call, so adding the explicit flush guarantees the writes are committed regardless of where the compiler decides to insert the implicit one.
 
 ## Runtime Dispatch Requirement
 
@@ -415,7 +453,7 @@ In dependency order (cheapest first): Note - We will try to resolve this issue a
 | case_row_int32_random_8x16_32rows       | int32 | 8×16  | 32 | None | Undefined | Last  | random |
 | case_row_uint8_random_8x32_32rows       | uint8 | 8×32  | 32 | None | Undefined | Last  | random |
 | case_row_int16_random_8x16_32rows       | int16 | 8×16  | 32 | None | Undefined | Last  | random |
-| case_row_float_atomicadd_8x32_8rows     | float | 8×32  | 8  | Add  | Undefined | First | random |
+| case_row_float_atomicadd_8x32_8rows     | float | 8×32  | 8  | Add  | Undefined | Default | random |
 | case_row_float_skip_8x32_8rows          | float | 8×32  | 8  | None | Skip      | Last  | oob    |
 | case_row_int32_clamp_8x16_8rows         | int32 | 8×16  | 8  | None | Clamp     | Last  | oob    |
 | case_row_half_wrap_8x32_8rows           | half  | 8×32  | 8  | None | Wrap      | Last  | oob    |
@@ -439,15 +477,15 @@ In dependency order (cheapest first): Note - We will try to resolve this issue a
 | case_elem_int32_random_32_64size           | int32 | 32  / 64   | None | Undefined | Last  | random |
 | case_elem_uint8_random_64_128size          | uint8 | 64  / 128  | None | Undefined | Last  | random |
 | case_elem_int16_random_32_64size           | int16 | 32  / 64   | None | Undefined | Last  | random |
-| case_elem_float_atomicadd_32_32size        | float | 32  / 32   | Add  | Undefined | First | random |
-| case_elem_int32_atomicadd_skip_32_16size   | int32 | 32  / 16   | Add  | Skip      | First | oob    |
-| case_elem_float_skip_32_16size             | float | 32  / 16   | None | Skip      | Last  | oob    |
-| case_elem_int32_clamp_32_16size            | int32 | 32  / 16   | None | Clamp     | Last  | oob    |
-| case_elem_half_wrap_32_16size              | half  | 32  / 16   | None | Wrap      | Last  | oob    |
-| case_elem_float_first_seq_32_32size        | float | 32  / 32   | None | Undefined | First | seq    |
-| case_elem_float_small_16_32size            | float | 16  / 32   | None | Undefined | Last  | random |
-| case_elem_int32_atomicmax_random_32_32size | int32 | 32  / 32   | Max  | Undefined | First | random |
-| case_elem_float_atomicmin_random_32_32size | float | 32  / 32   | Min  | Undefined | First | random |
+| case_elem_float_atomicadd_32_32size        | float | 32  / 32   | Add  | Undefined | Default | random |
+| case_elem_int32_atomicadd_skip_32_16size   | int32 | 32  / 16   | Add  | Skip      | Default | oob    |
+| case_elem_float_skip_32_16size             | float | 32  / 16   | None | Skip      | Last    | oob    |
+| case_elem_int32_clamp_32_16size            | int32 | 32  / 16   | None | Clamp     | Last    | oob    |
+| case_elem_half_wrap_32_16size              | half  | 32  / 16   | None | Wrap      | Last    | oob    |
+| case_elem_float_default_seq_32_32size      | float | 32  / 32   | None | Undefined | Default | seq    |
+| case_elem_float_small_16_32size            | float | 16  / 32   | None | Undefined | Last    | random |
+| case_elem_int32_atomicmax_random_32_32size | int32 | 32  / 32   | Max  | Undefined | Default | random |
+| case_elem_float_atomicmin_random_32_32size | float | 32  / 32   | Min  | Undefined | Default | random |
 | case_elem_float_last_same_32_8size         | float | 32  / 8    | None | Undefined | Last  | same   |
 | case_elem_int32_last_seq_32_32size         | int32 | 32  / 32   | None | Undefined | Last  | seq    |
 | case_elem_float_clamp_no_dup_32_16size     | float | 32  / 16   | None | Clamp     | Last  | random |
@@ -458,9 +496,18 @@ In dependency order (cheapest first): Note - We will try to resolve this issue a
 
 | Case | Data Type | Src Size | TableSize | Atomic | OOB Mode | Conflict | Idx Pattern |
 |------|-----------|----------|-----------|--------|----------|----------|-------------|
-| case_elem2d_float_8x32_random_256size | float | 8×32 | 256 | None | Undefined | Last | random |
-| case_elem2d_int32_8x16_random_256size | int32 | 8×16 | 256 | None | Undefined | Last | random |
-| case_elem2d_half_4x32_random_256size  | half  | 4×32 | 256 | None | Undefined | Last | random |
+| case_elem2d_float_8x32_random_256size       | float | 8×32     | 256   | None | Undefined | Last    | random |
+| case_elem2d_int32_8x16_random_256size       | int32 | 8×16     | 256   | None | Undefined | Last    | random |
+| case_elem2d_half_4x32_random_256size        | half  | 4×32     | 256   | None | Undefined | Last    | random |
+
+### Element Coalesce — Tiled Iteration
+
+These cases would exceed the safe `src + idx` UB budget if loaded in one shot, so the wrapper drives `MSCATTER` per-chunk and lets later chunks overwrite earlier ones to compose the final result (see [Tiled-Iteration Pattern for Large Inputs](#tiled-iteration-pattern-for-large-inputs)).
+
+| Case | Data Type | Total Src | Chunk | UB per Chunk | TableSize | Atomic | OOB Mode | Conflict | Idx Pattern |
+|------|-----------|-----------|-------|--------------|-----------|--------|----------|----------|-------------|
+| case_elem2d_float_2048x8_last_256size       | float | 2048×8 | 128×8 (16 iters) | 4 KB src + 4 KB idx | 256   | None | Undefined | Last    | random |
+| case_elem2d_float_2048x8_default_16384size  | float | 2048×8 | 128×8 (16 iters) | 4 KB src + 4 KB idx | 16384 | None | Undefined | Default | seq    |
 
 ### Unaligned / Odd-Dimension Tiles
 

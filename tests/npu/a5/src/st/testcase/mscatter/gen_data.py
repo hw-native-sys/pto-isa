@@ -55,27 +55,16 @@ def golden_row(src, idx, table_rows, table_cols, atomic, oob, conflict):
         safe, skip = resolve(raw, table_rows, oob)
         if skip:
             continue
-        if atomic == "none":
-            if conflict == "last":
-                overridden = False
-                for j in range(i + 1, n_rows):
-                    raw2 = int(idx[j, 0]) if idx.ndim == 2 and idx.shape[1] == 1 else int(idx.reshape(-1)[j])
-                    safe2, skip2 = resolve(raw2, table_rows, oob)
-                    if not skip2 and safe2 == safe:
-                        overridden = True
-                        break
-                if overridden:
-                    continue
-            elif conflict == "first":
-                earlier = False
-                for j in range(0, i):
-                    raw2 = int(idx[j, 0]) if idx.ndim == 2 and idx.shape[1] == 1 else int(idx.reshape(-1)[j])
-                    safe2, skip2 = resolve(raw2, table_rows, oob)
-                    if not skip2 and safe2 == safe:
-                        earlier = True
-                        break
-                if earlier:
-                    continue
+        if atomic == "none" and conflict == "last":
+            overridden = False
+            for j in range(i + 1, n_rows):
+                raw2 = int(idx[j, 0]) if idx.ndim == 2 and idx.shape[1] == 1 else int(idx.reshape(-1)[j])
+                safe2, skip2 = resolve(raw2, table_rows, oob)
+                if not skip2 and safe2 == safe:
+                    overridden = True
+                    break
+            if overridden:
+                continue
         apply_atomic_row(table, safe, src[i, :], atomic)
     return table
 
@@ -148,7 +137,7 @@ add("MSCATTERTest.case_row_uint8_random_8x32_32rows", lambda n: case_row(n, np.u
 add("MSCATTERTest.case_row_int16_random_8x16_32rows", lambda n: case_row(n, np.int16, 8, 16, 32))
 add(
     "MSCATTERTest.case_row_float_atomicadd_8x32_8rows",
-    lambda n: case_row(n, np.float32, 8, 32, 8, atomic="add", conflict="first", idx_kind="random"),
+    lambda n: case_row(n, np.float32, 8, 32, 8, atomic="add", conflict="default", idx_kind="random"),
 )
 add(
     "MSCATTERTest.case_row_float_skip_8x32_8rows",
@@ -181,27 +170,16 @@ def golden_elem(src, idx, table_size, atomic, oob, conflict):
         safe, skip = resolve(raw, table_size, oob)
         if skip:
             continue
-        if atomic == "none":
-            if conflict == "last":
-                overridden = False
-                for j in range(i + 1, n):
-                    raw2 = int(idx_flat[j])
-                    safe2, skip2 = resolve(raw2, table_size, oob)
-                    if not skip2 and safe2 == safe:
-                        overridden = True
-                        break
-                if overridden:
-                    continue
-            elif conflict == "first":
-                earlier = False
-                for j in range(0, i):
-                    raw2 = int(idx_flat[j])
-                    safe2, skip2 = resolve(raw2, table_size, oob)
-                    if not skip2 and safe2 == safe:
-                        earlier = True
-                        break
-                if earlier:
-                    continue
+        if atomic == "none" and conflict == "last":
+            overridden = False
+            for j in range(i + 1, n):
+                raw2 = int(idx_flat[j])
+                safe2, skip2 = resolve(raw2, table_size, oob)
+                if not skip2 and safe2 == safe:
+                    overridden = True
+                    break
+            if overridden:
+                continue
         if atomic == "add":
             table[safe] = src.dtype.type(table[safe] + src_flat[i])
         elif atomic == "max":
@@ -257,11 +235,11 @@ add("MSCATTERTest.case_elem_uint8_random_64_128size", lambda n: case_elem(n, np.
 add("MSCATTERTest.case_elem_int16_random_32_64size", lambda n: case_elem(n, np.int16, 32, 64))
 add(
     "MSCATTERTest.case_elem_float_atomicadd_32_32size",
-    lambda n: case_elem(n, np.float32, 32, 32, atomic="add", conflict="first", idx_kind="random"),
+    lambda n: case_elem(n, np.float32, 32, 32, atomic="add", conflict="default", idx_kind="random"),
 )
 add(
     "MSCATTERTest.case_elem_int32_atomicadd_skip_32_16size",
-    lambda n: case_elem(n, np.int32, 32, 16, atomic="add", oob="skip", conflict="first", idx_kind="oob"),
+    lambda n: case_elem(n, np.int32, 32, 16, atomic="add", oob="skip", conflict="default", idx_kind="oob"),
 )
 add(
     "MSCATTERTest.case_elem_float_skip_32_16size",
@@ -275,17 +253,17 @@ add(
     "MSCATTERTest.case_elem_half_wrap_32_16size", lambda n: case_elem(n, np.float16, 32, 16, oob="wrap", idx_kind="oob")
 )
 add(
-    "MSCATTERTest.case_elem_float_first_seq_32_32size",
-    lambda n: case_elem(n, np.float32, 32, 32, conflict="first", idx_kind="seq"),
+    "MSCATTERTest.case_elem_float_default_seq_32_32size",
+    lambda n: case_elem(n, np.float32, 32, 32, conflict="default", idx_kind="seq"),
 )
 add("MSCATTERTest.case_elem_float_small_16_32size", lambda n: case_elem(n, np.float32, 16, 32))
 add(
     "MSCATTERTest.case_elem_int32_atomicmax_random_32_32size",
-    lambda n: case_elem(n, np.int32, 32, 32, atomic="max", conflict="first", idx_kind="random"),
+    lambda n: case_elem(n, np.int32, 32, 32, atomic="max", conflict="default", idx_kind="random"),
 )
 add(
     "MSCATTERTest.case_elem_float_atomicmin_random_32_32size",
-    lambda n: case_elem(n, np.float32, 32, 32, atomic="min", conflict="first", idx_kind="random"),
+    lambda n: case_elem(n, np.float32, 32, 32, atomic="min", conflict="default", idx_kind="random"),
 )
 add(
     "MSCATTERTest.case_elem_float_last_same_32_8size",
@@ -319,6 +297,15 @@ add("MSCATTERTest.case_elem2d_int32_unaligned_9x9_in_9x16_256size", lambda n: ca
 add("MSCATTERTest.case_elem2d_int32_scalar_1x1_in_1x8_8size", lambda n: case_elem2d(n, np.int32, 1, 1, 8))
 add("MSCATTERTest.case_row_int32_unaligned_3x8_8rows", lambda n: case_row(n, np.int32, 3, 8, 8))
 add("MSCATTERTest.case_row_int32_unaligned_9x16_16rows", lambda n: case_row(n, np.int32, 9, 16, 16))
+
+add(
+    "MSCATTERTest.case_elem2d_float_2048x8_last_256size",
+    lambda n: case_elem2d(n, np.float32, 2048, 8, 256, conflict="last", idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_elem2d_float_2048x8_default_16384size",
+    lambda n: case_elem2d(n, np.float32, 2048, 8, 16384, conflict="default", idx_kind="seq"),
+)
 
 
 if __name__ == "__main__":
