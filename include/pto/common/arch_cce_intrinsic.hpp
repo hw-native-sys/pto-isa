@@ -67,7 +67,11 @@ template <typename T, typename U>
 PTO_INTERNAL void pto_create_cbuf_matrix(__cbuf__ T *dst, int64_t repeatConfig, U value)
 {
 #if defined(PTO_NPU_ARCH_KIRIN9030)
-    set_l0_set_value_ui((uint32_t)value);
+    if constexpr (std::is_integral_v<U>) {
+        set_l0_set_value_ui(value);
+    } else if (std::is_same_v<U, half>) {
+        set_l0_set_value_h(value);
+    }
     set_l1_2d(dst, repeatConfig);
 #else
     if constexpr (std::is_same<T, bfloat16_t>::value) {
@@ -77,5 +81,36 @@ PTO_INTERNAL void pto_create_cbuf_matrix(__cbuf__ T *dst, int64_t repeatConfig, 
     }
 #endif
 }
+
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90)
+template <typename T, typename U, typename S>
+PTO_INTERNAL void pto_vexpdif(T &dst, U &src0, U &src1, vector_bool mask, S part)
+{
+#if defined(PTO_NPU_ARCH_A5)
+    vexpdif(dst, src0, src1, mask, part);
+#elif defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90)
+    vsub(dst, src0, src1, mask, MODE_ZEROING);
+    vexp(dst, dst, mask, MODE_ZEROING);
+#endif
+}
+#endif
+
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90)
+template <typename T>
+PTO_INTERNAL void pto_copy_gm_to_ubuf_align_v2(__ubuf__ T *dst, __gm__ T *src, uint8_t sid, uint32_t nBurst,
+                                               uint32_t lenBurst, uint8_t leftPaddingCount, uint8_t rightPaddingCount,
+                                               bool constantPaddingCtl, uint8_t l2CacheCtl, uint64_t burstSrcStride,
+                                               uint32_t burstDstStride)
+{
+#if defined(PTO_NPU_ARCH_A5)
+    copy_gm_to_ubuf_align_v2(dst, src, sid, nBurst, lenBurst, leftPaddingCount, rightPaddingCount, constantPaddingCtl,
+                             l2CacheCtl, burstSrcStride, burstDstStride);
+#elif defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90)
+    copy_gm_to_ubuf_align_v2(dst, src, sid, nBurst, lenBurst, leftPaddingCount, rightPaddingCount, constantPaddingCtl,
+                             burstSrcStride, burstDstStride);
+#endif
+}
+#endif
+
 #endif // __CPU_SIM
 #endif // ARCH_CCE_INTRINSIC_HPP

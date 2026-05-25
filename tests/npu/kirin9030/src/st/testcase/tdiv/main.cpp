@@ -154,3 +154,11 @@ TEST_F(TDIVTest, case_int32_16x32_16x64_16x32_16x31)
 {
     test_tdiv<int32_t, 16, 32, 16, 64, 16, 32, 16, 31>();
 }
+TEST_F(TDIVTest, case_float_hp_2x16_2x16_2x16_2x16)
+{
+    test_tdiv<float, 2, 16, 2, 16, 2, 16, 2, 16, false, true>();
+}
+TEST_F(TDIVTest, case_half_hp_2x32_2x32_2x32_2x32)
+{
+    test_tdiv<aclFloat16, 2, 32, 2, 32, 2, 32, 2, 32, true, true>();
+}

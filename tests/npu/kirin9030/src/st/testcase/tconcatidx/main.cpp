@@ -78,7 +78,9 @@ void test_tconcat()
     ReadFile(GetGoldenDir() + "/input1.bin", fileSizeSrc1, src1Host, fileSizeSrc1);
     ReadFile(GetGoldenDir() + "/src0_idx.bin", fileSizeSrc0Idx, src0IdxHost, fileSizeSrc0Idx);
     ReadFile(GetGoldenDir() + "/src1_idx.bin", fileSizeSrc1Idx, src1IdxHost, fileSizeSrc1Idx);
+    aclrtMemset(dstHost, fileSizeDst, 0, fileSizeDst);
 
+    aclrtMemcpy(dstDevice, fileSizeDst, dstHost, fileSizeDst, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(dstDevice, fileSizeDst, dstHost, fileSizeDst, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src0Device, fileSizeSrc0, src0Host, fileSizeSrc0, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, fileSizeSrc1, src1Host, fileSizeSrc1, ACL_MEMCPY_HOST_TO_DEVICE);

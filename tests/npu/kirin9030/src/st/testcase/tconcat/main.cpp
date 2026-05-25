@@ -44,9 +44,9 @@ template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, 
           int vCols0, int vCols1>
 void test_tconcat()
 {
-    size_t fileSizeDst = dstTileH * dstTileW * sizeof(T);
-    size_t fileSizeSrc0 = src0TileH * src0TileW * sizeof(T);
-    size_t fileSizeSrc1 = src1TileH * src1TileW * sizeof(T);
+    size_t dstSize = dstTileH * dstTileW * sizeof(T);
+    size_t src0Size = src0TileH * src0TileW * sizeof(T);
+    size_t src1Size = src1TileH * src1TileW * sizeof(T);
 
     aclInit(nullptr);
     aclrtSetDevice(0);
@@ -56,19 +56,21 @@ void test_tconcat()
     T *dstHost, *src0Host, *src1Host;
     T *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), fileSizeDst);
-    aclrtMallocHost((void **)(&src0Host), fileSizeSrc0);
-    aclrtMallocHost((void **)(&src1Host), fileSizeSrc1);
+    aclrtMallocHost((void **)(&src0Host), src0Size);
+    aclrtMallocHost((void **)(&src1Host), src1Size);
+    aclrtMallocHost((void **)(&dstHost), dstSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSizeDst, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, fileSizeSrc0, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, fileSizeSrc1, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void **)&src0Device, src0Size, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void **)&src1Device, src1Size, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void **)&dstDevice, dstSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
-    ReadFile(GetGoldenDir() + "/input1.bin", fileSizeSrc0, src0Host, fileSizeSrc0);
-    ReadFile(GetGoldenDir() + "/input2.bin", fileSizeSrc1, src1Host, fileSizeSrc1);
+    ReadFile(GetGoldenDir() + "/input1.bin", src0Size, src0Host, src0Size);
+    ReadFile(GetGoldenDir() + "/input2.bin", src1Size, src1Host, src1Size);
+    aclrtMemset(dstHost, dstSize, 0, dstSize);
 
-    aclrtMemcpy(src0Device, fileSizeSrc0, src0Host, fileSizeSrc0, ACL_MEMCPY_HOST_TO_DEVICE);
-    aclrtMemcpy(src1Device, fileSizeSrc1, src1Host, fileSizeSrc1, ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(src0Device, src0Size, src0Host, src0Size, ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(src1Device, src1Size, src1Host, src1Size, ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(dstDevice, dstSize, dstHost, dstSize, ACL_MEMCPY_HOST_TO_DEVICE);
     if constexpr (std::is_same<T, aclFloat16>::value) {
         LaunchTConcatHalf<dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols0, vCols1>(
             dstDevice, src0Device, src1Device, stream);
@@ -78,25 +80,24 @@ void test_tconcat()
     }
 
     aclrtSynchronizeStream(stream);
-    aclrtMemcpy(dstHost, fileSizeDst, dstDevice, fileSizeDst, ACL_MEMCPY_DEVICE_TO_HOST);
+    aclrtMemcpy(dstHost, dstSize, dstDevice, dstSize, ACL_MEMCPY_DEVICE_TO_HOST);
 
-    WriteFile(GetGoldenDir() + "/output.bin", dstHost, fileSizeDst);
-
-    aclrtFree(dstDevice);
-    aclrtFree(src0Device);
-    aclrtFree(src1Device);
-
-    aclrtFreeHost(dstHost);
+    WriteFile(GetGoldenDir() + "/output.bin", dstHost, dstSize);
     aclrtFreeHost(src0Host);
     aclrtFreeHost(src1Host);
+    aclrtFreeHost(dstHost);
+    aclrtFree(src0Device);
+    aclrtFree(src1Device);
+    aclrtFree(dstDevice);
+
     aclrtDestroyStream(stream);
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<T> golden(fileSizeDst);
-    std::vector<T> devFinal(fileSizeDst);
-    ReadFile(GetGoldenDir() + "/golden.bin", fileSizeDst, golden.data(), fileSizeDst);
-    ReadFile(GetGoldenDir() + "/output.bin", fileSizeDst, devFinal.data(), fileSizeDst);
+    std::vector<T> devFinal(dstTileH * dstTileW);
+    std::vector<T> golden(dstTileH * dstTileW);
+    ReadFile(GetGoldenDir() + "/golden.bin", dstSize, golden.data(), dstSize);
+    ReadFile(GetGoldenDir() + "/output.bin", dstSize, devFinal.data(), dstSize);
 
     bool ret = ResultCmp<T>(golden, devFinal, 0.001f);
     ASSERT_TRUE(ret);

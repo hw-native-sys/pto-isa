@@ -27,42 +27,16 @@ PTO_INTERNAL void AxpyInstrSame(__ubuf__ T *dstPtr, __ubuf__ U *src0Ptr, U scala
         RegTensor<U> vreg0;
         RegTensor<T> vreg2;
         MaskReg preg;
+        uint32_t sreg;
         constexpr auto distValue =
             std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
         for (uint16_t i = 0; i < (uint16_t)(validRow); ++i) {
-            uint32_t sreg = validCol;
+            sreg = validCol;
             for (uint16_t j = 0; j < (uint16_t)repeatTimes; ++j) {
                 vlds(vreg0, src0Ptr, i * srcRowStride + j * elementsPerRepeat, NORM);
                 vlds(vreg2, dstPtr, i * dstRowStride + j * elementsPerRepeat, NORM);
                 preg = CreatePredicate<T>(sreg);
-                vaxpy(vreg2, vreg0, scalar, preg);
-                vsts(vreg2, dstPtr, i * dstRowStride + j * elementsPerRepeat, distValue, preg);
-            }
-        }
-    }
-}
-
-template <typename T, typename U, unsigned elementsPerRepeat, unsigned dstRowStride, unsigned srcRowStride>
-PTO_INTERNAL void AxpyInstrDiff(__ubuf__ T *dstPtr, __ubuf__ U *src0Ptr, U scalar, unsigned validRow, unsigned validCol)
-{
-    uint16_t repeatTimes = CeilDivision(validCol, elementsPerRepeat);
-
-    __VEC_SCOPE__
-    {
-        RegTensor<U> vreg0;
-        RegTensor<T> vreg2;
-        RegTensor<T> reg_src_tmp;
-        MaskReg preg;
-        constexpr auto distValue =
-            std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
-        for (uint16_t i = 0; i < (uint16_t)(validRow); ++i) {
-            uint32_t sreg = validCol;
-            for (uint16_t j = 0; j < (uint16_t)repeatTimes; ++j) {
-                vlds(vreg0, src0Ptr, i * srcRowStride + j * elementsPerRepeat, UNPK_B16);
-                vlds(vreg2, dstPtr, i * dstRowStride + j * elementsPerRepeat, NORM);
-                preg = CreatePredicate<T>(sreg);
-                vcvt(reg_src_tmp, vreg0, preg, PART_EVEN);
-                vaxpy(vreg2, reg_src_tmp, (T)(scalar), preg);
+                CallAxpy<T, U>(vreg2, vreg0, scalar, preg);
                 vsts(vreg2, dstPtr, i * dstRowStride + j * elementsPerRepeat, distValue, preg);
             }
         }

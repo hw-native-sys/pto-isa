@@ -19,7 +19,8 @@ namespace pto {
 
 template <typename T>
 struct Padding {
-    using Type = std::conditional_t<sizeof(T) == 4, uint32_t, std::conditional_t<sizeof(T) == 2, uint16_t, uint8_t>>;
+    using Type = std::conditional_t<sizeof(T) == sizeof(uint32_t), uint32_t,
+                                    std::conditional_t<sizeof(T) == sizeof(uint16_t), uint16_t, uint8_t>>;
 
     PTO_INTERNAL static constexpr Type GetPaddingMin()
     {
@@ -194,17 +195,16 @@ PTO_INTERNAL void TPARTOP_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc
     unsigned src1ValidCol = src1.GetValidCol();
     unsigned dstValidRow = dst.GetValidRow();
     unsigned dstValidCol = dst.GetValidCol();
-    constexpr unsigned dstRowStride = TileDataDst::RowStride;
-    constexpr unsigned src0RowStride = TileDataSrc0::RowStride;
-    constexpr unsigned src1RowStride = TileDataSrc1::RowStride;
-    PTO_ASSERT(
-        ((dstValidRow == src0ValidRow && dstValidCol == src0ValidCol) ||
-         (dstValidRow == src1ValidRow && dstValidCol == src1ValidCol)) &&
-            max(src0ValidRow, src1ValidRow) == dstValidRow && max(src0ValidCol, src1ValidCol) == dstValidCol,
-        "Fix: TPARTADD/MUL At most one entry in the valid-rows and valid-cols of src0 and src1 is smaller than dst.");
-    TPartOp<Op, TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem, dstRowStride, src0RowStride,
-            src1RowStride>(dst.data(), src0.data(), src1.data(), src0ValidRow, src0ValidCol, src1ValidRow, src1ValidCol,
-                           dstValidRow, dstValidCol, version);
+
+    // dst has to be larger than or equal to both sources
+    bool condDstgeSrc = (src1ValidRow <= dstValidRow && src1ValidCol <= dstValidCol) &&
+                        (src0ValidRow <= dstValidRow && src0ValidCol <= dstValidCol);
+
+    if (condDstgeSrc) { // src0 <= dst && src1 <= dst
+        TCopyPadOp<Op, DstTileData, Src0TileData, Src1TileData, elementsPerRepeat, Src0RowStride, Src1RowStride,
+                   DstRowStride>(dst.data(), src0.data(), src1.data(), src0ValidRow, src0ValidCol, src1ValidRow,
+                                 src1ValidCol, dstValidRow, dstValidCol);
+    } // other conditions not supported
 }
 
 } // namespace pto

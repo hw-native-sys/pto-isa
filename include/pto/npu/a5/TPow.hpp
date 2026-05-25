@@ -75,17 +75,13 @@ PTO_INTERNAL void ProcessFloatSpecialCase(RegTensor<float> &dstReg, RegTensor<fl
     RegTensor<float> tmpFloatReg, tmpFloatReg2;
     MaskReg cmpMask1, cmpMask2, curMask;
 
-    // 1. 基本情况
-    // if (exp == 0.0f || base == 1.0f)
-    //     return 1.0f;
+    // 1. base^0=1     1^exp=1
     vcmps_eq(cmpMask1, expReg, 0.0f, mask);
     vcmps_eq(cmpMask2, baseReg, 1.0f, mask);
     por(cmpMask2, cmpMask1, cmpMask2, mask);
     vdup(dstReg, 1.0f, cmpMask2, MODE_MERGING);
 
-    // 2. NaN处理
-    // if (isnan(base) || isnan(exp))
-    //     return NAN;
+    // 2. base^(NaN)=NaN   (NaN)^exp=NaN
     pnot(curMask, cmpMask2, mask);
     IsNanNum(cmpMask1, baseReg, mask);
     IsNanNum(cmpMask2, expReg, mask);
@@ -93,11 +89,10 @@ PTO_INTERNAL void ProcessFloatSpecialCase(RegTensor<float> &dstReg, RegTensor<fl
     vdup((RegTensor<int32_t> &)dstReg, F32_NAN, cmpMask2, MODE_MERGING);
 
     // 3. 无穷大和零处理
-    // if (isinf(base) || base == 0.0f) {
-    //     if (exp < 0.0f)
-    //         return base ^ 0x7F800000;  // 反转指数位
-    //     return base & 0x7FFFFFFF;  // 取绝对值
-    // }
+    // if base=±inf or base=0:
+    //     若 exp < 0 则base进行指数位翻转(0x7F800000)
+    //     若 exp为奇数 则返回base
+    //     若 exp为偶数 则返回abs(base)
     pxor(curMask, cmpMask2, curMask, mask);
     IsInfNum(cmpMask1, baseReg, tmpR12Reg, curMask);
     vcmps_eq(cmpMask2, baseReg, 0.0f, curMask);
@@ -110,13 +105,9 @@ PTO_INTERNAL void ProcessFloatSpecialCase(RegTensor<float> &dstReg, RegTensor<fl
     vsel(tmpFloatReg, tmpFloatReg, tmpFloatReg2, cmpMask2);
     vsel(dstReg, tmpFloatReg, dstReg, cmpMask1);
 
-    // 4. 负数底数处理
-    // if (base < 0.0f) {
-    //     if (exp != floor(exp))
-    //         return NAN;  // 负数的非整数幂为NaN
-    //     if (is_odd(exp))
-    //         return -result;
-    // }
+    // 4-1. 负数底数处理
+    // 若base < 0 且 exp不为整数 则返回NaN
+    // 若base < 0 且 exp为奇数 则符号取反
     pxor(curMask, cmpMask1, curMask, mask);
     vneg(tmpFloatReg, dstReg, curMask);
     vsel(tmpFloatReg, tmpFloatReg, dstReg, cmpMask2);
@@ -126,12 +117,8 @@ PTO_INTERNAL void ProcessFloatSpecialCase(RegTensor<float> &dstReg, RegTensor<fl
     vcmps_lt(cmpMask2, baseReg, 0.0f, curMask);
     vsel(dstReg, tmpFloatReg, dstReg, cmpMask2);
 
-    // 5. 特殊组合处理
-    // if (base == -1.0f && isinf(exp))
-    //     return 1.0f;
-    vcmps_eq(cmpMask1, expReg, INF, curMask);
-    vcmps_eq(cmpMask2, expReg, NEG_INF, curMask);
-    por(cmpMask1, cmpMask1, cmpMask2, mask);
+    // 4-2. (-1)^(±inf)=1
+    IsInfNum(cmpMask1, expReg, tmpR12Reg, curMask);
     vcmps_eq(cmpMask2, baseReg, -1.0f, cmpMask1);
     vdup(dstReg, 1.0f, cmpMask2, MODE_MERGING);
 }
@@ -475,6 +462,7 @@ PTO_INTERNAL void ProcessSpecialCaseForPowI(T &dstReg, T &baseReg, T &expReg, Ma
     T tmpReg;
     vdup(tmpReg, 1, mask, MODE_ZEROING);
 
+    // base^0=1     1^exp=1
     MaskReg cmpMask1, cmpMask2, condMask;
     vcmps_eq(cmpMask1, expReg, 0, mask);
     vcmps_eq(cmpMask2, baseReg, 1, mask);
@@ -482,12 +470,20 @@ PTO_INTERNAL void ProcessSpecialCaseForPowI(T &dstReg, T &baseReg, T &expReg, Ma
 
     vsel(dstReg, tmpReg, dstReg, condMask);
     pxor(mask, mask, condMask, mask);
+
+    // 若exp < 0 且 base != -1 则返回0
+    if constexpr (std::is_signed_v<ConvType>) {
+        vdup(tmpReg, 0, mask, MODE_ZEROING);
+        vcmps_ne(cmpMask1, baseReg, -1, mask);
+        vcmps_lt(cmpMask2, expReg, 0, mask);
+        pand(condMask, cmpMask1, cmpMask2, mask);
+        vsel(dstReg, tmpReg, dstReg, condMask);
+    }
 }
 
 template <typename ConvType, typename T>
 PTO_INTERNAL void GetPowICompute(T &dstReg, T &baseReg, T &expReg, MaskReg &mask)
 {
-    // TODO: vcmax(dst, exp); maxLoop = __buildin_clz(dst[0])
     constexpr uint16_t maxLoop = sizeof(ConvType) * BITS_PER_BYTE;
     T tmpBaseReg = baseReg;
     T tmpExpReg = expReg;

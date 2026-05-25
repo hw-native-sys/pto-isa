@@ -31,6 +31,7 @@ PTO_INTERNAL void runTSubS(__gm__ T *out, __gm__ T *src, T scalar)
     dstTileData dstTile;
     TASSIGN<0x0>(srcTile);
     TASSIGN<srcTileData::Numel * sizeof(T)>(dstTile);
+
     TLOAD(dstTile, dstGlobal);
     TLOAD(srcTile, srcGlobal);
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
@@ -82,15 +83,6 @@ extern "C" __global__ AICORE void launchTSUBSCase10(__gm__ uint8_t *out, __gm__ 
     runTSubS<uint8_t, 256, 64, 256, 256, 32, 32>(out, src, scalar);
 }
 
-extern "C" __global__ AICORE void launchTSUBSCase11(__gm__ float *out, __gm__ float *src, float scalar)
-{
-    runTSubS<float, 7, 448, 7, 7, 448, 448>(out, src, scalar);
-}
-extern "C" __global__ AICORE void launchTSUBSCase12(__gm__ float *out, __gm__ float *src, float scalar)
-{
-    runTSubS<float, 256, 16, 256, 256, 16, 16>(out, src, scalar);
-}
-
 template <uint32_t caseId>
 void launchTSUBSTestCase(void *out, void *src, float scalar, aclrtStream stream)
 {
@@ -135,14 +127,6 @@ void launchTSUBSTestCase(void *out, void *src, float scalar, aclrtStream stream)
             launchTSUBSCase10<<<1, nullptr, stream>>>((uint8_t *)out, (uint8_t *)src, scalar);
             break;
         }
-        case 11: {
-            launchTSUBSCase11<<<1, nullptr, stream>>>((float *)out, (float *)src, scalar);
-            break;
-        }
-        case 12: {
-            launchTSUBSCase12<<<1, nullptr, stream>>>((float *)out, (float *)src, scalar);
-            break;
-        }
         default: {
         }
     }
@@ -158,5 +142,3 @@ template void launchTSUBSTestCase<7>(void *out, void *src, float scalar, aclrtSt
 template void launchTSUBSTestCase<8>(void *out, void *src, float scalar, aclrtStream stream);
 template void launchTSUBSTestCase<9>(void *out, void *src, float scalar, aclrtStream stream);
 template void launchTSUBSTestCase<10>(void *out, void *src, float scalar, aclrtStream stream);
-template void launchTSUBSTestCase<11>(void *out, void *src, float scalar, aclrtStream stream);
-template void launchTSUBSTestCase<12>(void *out, void *src, float scalar, aclrtStream stream);

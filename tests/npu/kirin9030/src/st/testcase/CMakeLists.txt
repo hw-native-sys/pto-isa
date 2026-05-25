@@ -167,12 +167,12 @@ set(ALL_TESTCASES
     trowexpandmin
     trowexpandmul
     trowexpandsub
-    # trowexpandexpdif
+    trowexpandexpdif
     tgather
     tcvt
     tsub
-    # trem
-    # tfmod
+    trem
+    tfmod
     tprelu
     tand
     tor
@@ -198,7 +198,7 @@ set(ALL_TESTCASES
     tcmps
     # tmov_acc2vec
     tsel
-    # tsels
+    tsels
     trsqrt
     tsqrt
     texp
@@ -209,7 +209,7 @@ set(ALL_TESTCASES
     tdivs
     tmuls
     tadds
-    # taxpy
+    taxpy
     tgatherb
     tpartmin
     tpartmax
@@ -230,8 +230,8 @@ set(ALL_TESTCASES
     trowexpand_trowsum
     trowsum_trowexpand
     trowexpand_tdiv
-    # trems
-    # tfmods
+    trems
+    tfmods
     tscatter
     tneg
     tcolexpandadd
@@ -240,14 +240,14 @@ set(ALL_TESTCASES
     tcolexpanddiv
     tcolexpandmul
     tcolexpandsub
-    # tcolexpandexpdif
+    tcolexpandexpdif
     trowexpandbrcb
     ttri
     tcolexpand
     tnot
     trelu
     tquant
-    # tdequant
+    tdequant
     # t_dhrystone
     tpow
     tpows
@@ -262,7 +262,7 @@ set(ALL_TESTCASES
     # tmov_zz
     # tmov_nd2nz
     # textract_acc2vec
-    # texpands_mat
+    texpands_mat
 )
 
 if((TEST_CASE IN_LIST ALL_TESTCASES) OR (TEST_CASE STREQUAL "all"))

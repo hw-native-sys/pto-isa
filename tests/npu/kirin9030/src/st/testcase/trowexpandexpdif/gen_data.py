@@ -17,7 +17,7 @@ np.random.seed(2025)
 
 def gen_golden_data(param):
     dtype = param.dtype
-
+    
     if param.src0eqdst:
         src0_shape = (param.src0_row, param.src0_col)
         src1_shape = (param.src1_row, param.src1_col)
@@ -26,16 +26,16 @@ def gen_golden_data(param):
         src0_shape = (param.src1_row, param.src1_col)
         src1_shape = (param.src0_row, param.src0_col)
         expand_col = param.src0_col
-
+    
     src0 = np.random.uniform(-5, 5, src0_shape).astype(dtype)
     src1 = np.random.uniform(-5, 5, src1_shape).astype(dtype)
-
+    
     reps = (param.dst_col + expand_col - 1) // expand_col
     src1_expand = np.tile(src1, (1, reps))[:, :param.dst_col]
-
+    
     diff = src0 - src1_expand if param.src0eqdst else src1_expand - src0
     golden = np.exp(diff).astype(dtype)
-
+    
     src0.tofile("input0.bin")
     src1.tofile("input1.bin")
     golden.tofile("golden.bin")
