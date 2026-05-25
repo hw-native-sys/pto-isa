@@ -29,7 +29,8 @@ struct OrSOp {
         vbr(reg_src1, scalar);
     };
 
-    using U = std::conditional_t<sizeof(T) == 1, uint8_t, std::conditional_t<sizeof(T) == 2, uint16_t, uint32_t>>;
+    using U = std::conditional_t<sizeof(T) == sizeof(uint8_t), uint8_t,
+                                 std::conditional_t<sizeof(T) == sizeof(uint16_t), uint16_t, uint32_t>>;
     PTO_INTERNAL void BinSInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, T src1, MaskReg &preg)
     {
         vor((RegTensor<U> &)reg_dst, (RegTensor<U> &)reg_src0, (RegTensor<U> &)reg_src1, preg);

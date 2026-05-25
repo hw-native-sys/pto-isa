@@ -67,6 +67,9 @@ bool TSubSTestFramework()
     file.read(reinterpret_cast<char *>(&scalar), 4);
     file.close();
 
+    aclrtMemset(dstHost, dstByteSize, 0, dstByteSize);
+
+    aclrtMemcpy(dstDevice, dstByteSize, dstHost, dstByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(srcDevice, srcByteSize, srcHost, srcByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
     launchTSUBSTestCase<caseId>(dstDevice, srcDevice, scalar, stream);
     aclrtSynchronizeStream(stream);
@@ -84,8 +87,8 @@ bool TSubSTestFramework()
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<T> golden(dstByteSize);
-    std::vector<T> devFinal(dstByteSize);
+    std::vector<T> golden(dstTileRow * dstTileCol);
+    std::vector<T> devFinal(dstTileRow * dstTileCol);
     ReadFile(GetGoldenDir() + "/golden.bin", dstByteSize, golden.data(), dstByteSize);
     ReadFile(GetGoldenDir() + "/output.bin", dstByteSize, devFinal.data(), dstByteSize);
 
@@ -125,5 +128,29 @@ TEST_F(TSUBSTest, case5)
 TEST_F(TSUBSTest, case6)
 {
     bool ret = TSubSTestFramework<6, float, 256, 32, 256, 256, 16, 16>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TSUBSTest, case7)
+{
+    bool ret = TSubSTestFramework<7, uint32_t, 256, 32, 256, 256, 16, 16>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TSUBSTest, case8)
+{
+    bool ret = TSubSTestFramework<8, uint16_t, 256, 32, 256, 256, 16, 16>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TSUBSTest, case9)
+{
+    bool ret = TSubSTestFramework<9, int8_t, 256, 64, 256, 256, 32, 32>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TSUBSTest, case10)
+{
+    bool ret = TSubSTestFramework<10, uint8_t, 256, 64, 256, 256, 32, 32>();
     EXPECT_TRUE(ret);
 }

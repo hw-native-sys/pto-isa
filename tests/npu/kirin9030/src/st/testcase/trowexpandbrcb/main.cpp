@@ -76,8 +76,8 @@ void test_trowexpand()
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<T> golden(outputFileSize);
-    std::vector<T> devFinal(outputFileSize);
+    std::vector<T> golden(dstRows * dstCols);
+    std::vector<T> devFinal(dstRows * dstCols);
     ReadFile(GetGoldenDir() + "/golden.bin", outputFileSize, golden.data(), outputFileSize);
     ReadFile(GetGoldenDir() + "/output.bin", outputFileSize, devFinal.data(), outputFileSize);
     bool ret = ResultCmp(golden, devFinal, 0.001f);

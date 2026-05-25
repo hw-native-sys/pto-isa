@@ -18,7 +18,8 @@ namespace pto {
 
 template <typename T>
 struct Padding {
-    using Type = std::conditional_t<sizeof(T) == 4, uint32_t, std::conditional_t<sizeof(T) == 2, uint16_t, uint8_t>>;
+    using Type = std::conditional_t<sizeof(T) == sizeof(uint32_t), uint32_t,
+                                    std::conditional_t<sizeof(T) == sizeof(uint16_t), uint16_t, uint8_t>>;
 
     PTO_INTERNAL static constexpr Type GetPaddingMin()
     {
@@ -168,11 +169,6 @@ PTO_INTERNAL void TPartMasterImpl(DstTileData &dst, Src0TileData &src0, Src1Tile
     unsigned src1ValidCol = src1.GetValidCol();
     unsigned dstValidRow = dst.GetValidRow();
     unsigned dstValidCol = dst.GetValidCol();
-
-    if (src0ValidRow == 0U || src0ValidCol == 0U || src1ValidRow == 0U || src1ValidCol == 0U || dstValidRow == 0U ||
-        dstValidCol == 0U) {
-        return;
-    }
 
     // dst has to be larger than or equal to both sources
     bool condDstgeSrc = (src1ValidRow <= dstValidRow && src1ValidCol <= dstValidCol) &&

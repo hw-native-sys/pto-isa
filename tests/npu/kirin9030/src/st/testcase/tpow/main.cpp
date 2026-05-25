@@ -57,6 +57,9 @@ void test_tpow()
 
     ReadFile(GetGoldenDir() + "/base.bin", fileSize, baseHost, fileSize);
     ReadFile(GetGoldenDir() + "/exp.bin", fileSize, expHost, fileSize);
+    aclrtMemset(dstHost, fileSize, 0, fileSize);
+
+    aclrtMemcpy(dstDevice, fileSize, dstHost, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(baseDevice, fileSize, baseHost, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(expDevice, fileSize, expHost, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     LaunchTPow<T, Row, Col, validRow, validCol, isHighPrecision>(dstDevice, baseDevice, expDevice, stream);

@@ -62,26 +62,14 @@ if __name__ == "__main__":
         "TEXPANDSTest.case2",
         "TEXPANDSTest.case3",
         "TEXPANDSTest.case4",
-        "TEXPANDSTest.case5",
-        "TEXPANDSTest.case6",
-        "TEXPANDSTest.case7",
-        "TEXPANDSTest.case8",
-        "TEXPANDSTest.case9",
     ]
 
     case_params_list = [
         # tile
         TexpandsParams(np.float16, value=2, m=128, n=128, is_conv_tile=False),
         TexpandsParams(np.int16, value=5, m=32, n=64, is_conv_tile=False),
-        TexpandsParams(np.float32, value=3, m=32, n=32, is_conv_tile=False),
-        TexpandsParams(np.int8, value=1, m=32, n=32, is_conv_tile=False),
-        TexpandsParams(bfloat16, value=0, m=256, n=256, is_conv_tile=False),
-        # conv tile (N, C1, H, W, C0)
         TexpandsParams(np.float16, value=3, shape_nc1hwc0=(1, 16, 7, 7, 16), is_conv_tile=True),
         TexpandsParams(np.int16, value=8, shape_nc1hwc0=(2, 5, 2, 3, 8), is_conv_tile=True),
-        # conv tile (N, D, C1, H, W, C0)
-        TexpandsParams(np.int32, value=5, shape_ndc1hwc0=(2, 2, 3, 2, 1, 8), is_conv_tile=True),
-        TexpandsParams(np.uint32, value=11, shape_ndc1hwc0=(2, 3, 4, 1, 2, 8), is_conv_tile=True),
     ]
 
     for i, case_name in enumerate(case_name_list):

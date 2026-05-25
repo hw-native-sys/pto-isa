@@ -25,7 +25,7 @@ struct RowExpandExpdifOp {
                                                   MaskReg &preg)
     {
         if constexpr (std::is_same_v<T, float>) {
-            vexpdif(reg_dst, reg_src0, reg_src1, preg, PART_ODD);
+            pto_vexpdif(reg_dst, reg_src0, reg_src1, preg, PART_ODD);
         } else {
             vsub(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);
             vexp(reg_dst, reg_dst, preg, MODE_ZEROING);
@@ -39,7 +39,7 @@ struct RowExpandExpdifOp2 {
                                                   MaskReg &preg)
     {
         if constexpr (std::is_same_v<T, float>) {
-            vexpdif(reg_dst, reg_src1, reg_src0, preg, PART_ODD);
+            pto_vexpdif(reg_dst, reg_src1, reg_src0, preg, PART_ODD);
         } else {
             vsub(reg_dst, reg_src1, reg_src0, preg, MODE_ZEROING);
             vexp(reg_dst, reg_dst, preg, MODE_ZEROING);

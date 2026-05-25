@@ -28,7 +28,7 @@ struct ColExpandExpdifOp {
             vsub(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);
             vexp(reg_dst, reg_dst, preg, MODE_ZEROING);
         } else {
-            vexpdif(reg_dst, reg_src0, reg_src1, preg, PART_ODD);
+            pto_vexpdif(reg_dst, reg_src0, reg_src1, preg, PART_ODD);
         }
     }
 };
@@ -42,7 +42,7 @@ struct ColExpandExpdifOp2 {
             vsub(reg_dst, reg_src1, reg_src0, preg, MODE_ZEROING);
             vexp(reg_dst, reg_dst, preg, MODE_ZEROING);
         } else {
-            vexpdif(reg_dst, reg_src1, reg_src0, preg, PART_ODD);
+            pto_vexpdif(reg_dst, reg_src1, reg_src0, preg, PART_ODD);
         }
     }
 };

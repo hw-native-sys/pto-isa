@@ -22,7 +22,8 @@ namespace pto {
 
 template <typename T>
 struct OrOp {
-    using U = std::conditional_t<sizeof(T) == 1, uint8_t, std::conditional_t<sizeof(T) == 2, uint16_t, uint32_t>>;
+    using U = std::conditional_t<sizeof(T) == sizeof(uint8_t), uint8_t,
+                                 std::conditional_t<sizeof(T) == sizeof(uint16_t), uint16_t, uint32_t>>;
     PTO_INTERNAL static void BinInstr(RegTensor<T> &dstReg, RegTensor<T> &src0Reg, RegTensor<T> &src1Reg, MaskReg &pReg)
     {
         vor((RegTensor<U> &)dstReg, (RegTensor<U> &)src0Reg, (RegTensor<U> &)src1Reg, pReg);

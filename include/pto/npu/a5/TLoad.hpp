@@ -10,6 +10,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #ifndef TLOAD_HPP
 #define TLOAD_HPP
+#include <pto/common/utils.hpp>
 #include "common.hpp"
 
 namespace pto {
@@ -17,23 +18,10 @@ template <typename TileData, typename GlobalData>
 PTO_INTERNAL void TLoadInstr(__ubuf__ typename TileData::DType *dst, typename GlobalData::DType *src, uint32_t nBurst,
                              uint32_t lenBurst, uint64_t gmStride, uint32_t ubStride, bool enableUBPad)
 {
-    if constexpr (sizeof(typename TileData::DType) == 1) {
-        copy_gm_to_ubuf_align_v2(reinterpret_cast<__ubuf__ uint8_t *>(dst), reinterpret_cast<__gm__ uint8_t *>(src),
+    using LoadT = LoadTypeBySize_t<typename TileData::DType>;
+    pto_copy_gm_to_ubuf_align_v2(reinterpret_cast<__ubuf__ LoadT *>(dst), reinterpret_cast<__gm__ LoadT *>(src),
                                  0 /*sid*/, nBurst, lenBurst, 0 /*left padding count*/, 0 /*right padding count*/,
                                  enableUBPad /*data select bit*/, 0 /*l2 cache ctl*/, gmStride, ubStride);
-    } else if constexpr (sizeof(typename TileData::DType) == 2) {
-        copy_gm_to_ubuf_align_v2(reinterpret_cast<__ubuf__ uint16_t *>(dst), reinterpret_cast<__gm__ uint16_t *>(src),
-                                 0 /*sid*/, nBurst, lenBurst, 0 /*left padding count*/, 0 /*right padding count*/,
-                                 enableUBPad /*data select bit*/, 0 /*l2 cache ctl*/, gmStride, ubStride);
-    } else if constexpr (sizeof(typename TileData::DType) == 4) {
-        copy_gm_to_ubuf_align_v2(reinterpret_cast<__ubuf__ uint32_t *>(dst), reinterpret_cast<__gm__ uint32_t *>(src),
-                                 0 /*sid*/, nBurst, lenBurst, 0 /*left padding count*/, 0 /*right padding count*/,
-                                 enableUBPad /*data select bit*/, 0 /*l2 cache ctl*/, gmStride, ubStride);
-    } else if constexpr (sizeof(typename TileData::DType) == 8) {
-        copy_gm_to_ubuf_align_v2(reinterpret_cast<__ubuf__ uint32_t *>(dst), reinterpret_cast<__gm__ uint32_t *>(src),
-                                 0 /*sid*/, nBurst, lenBurst, 0 /*left padding count*/, 0 /*right padding count*/,
-                                 enableUBPad /*data select bit*/, 0 /*l2 cache ctl*/, gmStride, ubStride);
-    }
 }
 
 template <typename TileData, typename GlobalData>

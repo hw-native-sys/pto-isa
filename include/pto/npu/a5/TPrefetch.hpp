@@ -26,9 +26,10 @@ __tf__ AICORE void TPrefetchDoCopy(typename TileData::TileDType __out__ dstTile,
     const uint64_t gmStride = static_cast<uint64_t>(lenBurst) + static_cast<uint64_t>(gmGap);
     const uint32_t ubStride = lenBurst; // pack rows tightly in UB for prefetch
     __ubuf__ typename TileData::DType *dstPtr = (__ubuf__ typename TileData::DType *)__cce_get_tile_ptr(dstTile);
-    copy_gm_to_ubuf_align_v2(reinterpret_cast<__ubuf__ uint8_t *>(dstPtr), reinterpret_cast<__gm__ uint8_t *>(srcPtr),
-                             0 /*sid*/, nBurst, lenBurst, 0 /*left padding count*/, 0 /*right padding count*/,
-                             false /*data select bit*/, 0 /*l2 cache ctl*/, gmStride, ubStride);
+    pto_copy_gm_to_ubuf_align_v2(reinterpret_cast<__ubuf__ uint8_t *>(dstPtr),
+                                 reinterpret_cast<__gm__ uint8_t *>(srcPtr), 0 /*sid*/, nBurst, lenBurst,
+                                 0 /*left padding count*/, 0 /*right padding count*/, false /*data select bit*/,
+                                 0 /*l2 cache ctl*/, gmStride, ubStride);
 }
 
 template <typename TileData, typename GlobalData>

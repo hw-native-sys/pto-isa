@@ -79,8 +79,8 @@ void test_tfmod()
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<T> golden(fileSize);
-    std::vector<T> devFinal(fileSize);
+    std::vector<T> golden(kTRows_ * kTCols_);
+    std::vector<T> devFinal(kTRows_ * kTCols_);
     ReadFile(GetGoldenDir() + "/golden.bin", fileSize, golden.data(), fileSize);
     ReadFile(GetGoldenDir() + "/output.bin", fileSize, devFinal.data(), fileSize);
 
@@ -107,6 +107,11 @@ TEST_F(TFMODTest, case2)
 TEST_F(TFMODTest, case3)
 {
     test_tfmod<uint16_t, 1, 16384, 1, 16384, false>();
+}
+
+TEST_F(TFMODTest, case4)
+{
+    test_tfmod<uint16_t, 512, 16, 512, 16, false>();
 }
 
 TEST_F(TFMODTest, case5)
@@ -137,4 +142,14 @@ TEST_F(TFMODTest, case9)
 TEST_F(TFMODTest, case10)
 {
     test_tfmod<float, 64, 64, 64, 64, false, true>();
+}
+
+TEST_F(TFMODTest, case11)
+{
+    test_tfmod<float, 64, 128, 55, 96, false, true>();
+}
+
+TEST_F(TFMODTest, case12)
+{
+    test_tfmod<float, 64, 128, 61, 97, false, true>();
 }

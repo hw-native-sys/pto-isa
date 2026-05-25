@@ -14,87 +14,75 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace pto;
 
-template <typename Tsrc0, typename Tsrc1, int kGRows0_, int kGCols0_, int kGRows1_, int kGCols1_, int kTRows_,
-          int kTCols_>
+template <typename Tsrc0, typename Tsrc1, int kGRows0_, int kGCols0_, int kGRows1_, int kGCols1_>
 PTO_INTERNAL void runTScatter(__gm__ Tsrc0 *out, __gm__ Tsrc0 *src0, __gm__ Tsrc1 *src1)
 {
-    using DynShapeDim5_src0 = pto::Shape<1, 1, 1, kGRows0_, kGCols0_>;
-    using DynStridDim5_src0 = pto::Stride<1, 1, 1, kGCols0_, 1>;
-    using GlobalData_src0 = GlobalTensor<Tsrc0, DynShapeDim5_src0, DynStridDim5_src0>;
+    using DataShape = pto::Shape<1, 1, 1, kGRows0_, kGCols0_>;
+    using DataStride = pto::Stride<kGRows0_ * kGCols0_, kGRows0_ * kGCols0_, kGRows0_ * kGCols0_, kGCols0_, 1>;
+    using GlobalData = GlobalTensor<Tsrc0, DataShape, DataStride>;
 
-    using DynShapeDim5_src1 = pto::Shape<1, 1, 1, kGRows1_, kGCols1_>;
-    using DynStridDim5_src1 = pto::Stride<1, 1, 1, kGCols1_, 1>;
-    using GlobalData_src1 = GlobalTensor<Tsrc1, DynShapeDim5_src1, DynStridDim5_src1>;
+    using IdxShape = pto::Shape<1, 1, 1, kGRows1_, kGCols1_>;
+    using IdxStride = pto::Stride<kGRows1_ * kGCols1_, kGRows1_ * kGCols1_, kGRows1_ * kGCols1_, kGCols1_, 1>;
+    using GlobalIdx = GlobalTensor<Tsrc1, IdxShape, IdxStride>;
 
-    using DynShapeDim5_dst = pto::Shape<1, 1, 1, kGRows0_, kGCols0_>;
-    using DynStridDim5_dst = pto::Stride<1, 1, 1, kGCols0_, 1>;
-    using GlobalData_dst = GlobalTensor<Tsrc0, DynShapeDim5_dst, DynStridDim5_dst>;
+    using TileData = Tile<TileType::Vec, Tsrc0, kGRows0_, kGCols0_>;
+    using TileIdx = Tile<TileType::Vec, Tsrc1, kGRows1_, kGCols1_>;
+    TileData srcTile;
+    TileData dstTile;
+    TileIdx idxTile;
+    TASSIGN<0x0>(srcTile);
+    TASSIGN<TileData::Numel * sizeof(Tsrc0)>(dstTile);
+    TASSIGN<2 * TileData::Numel * sizeof(Tsrc0)>(idxTile);
 
-    constexpr int src0_row = kGRows0_;
-    constexpr int src0_col = kGCols0_;
-    constexpr int src1_row = kGRows1_;
-    constexpr int src1_col = kGCols1_;
-    constexpr int dst_row = kGRows0_;
-    constexpr int dst_col = kGCols0_;
+    GlobalData src0Global(src0);
+    GlobalData dstGlobal(out);
+    GlobalIdx src1Global(src1);
 
-    using TileData_src0 = Tile<TileType::Vec, Tsrc0, kGRows0_, kGCols0_, BLayout::RowMajor, -1, -1>;
-    using TileData_src1 = Tile<TileType::Vec, Tsrc1, kGRows1_, kGCols1_, BLayout::RowMajor, -1, -1>;
-    using TileData_dst = Tile<TileType::Vec, Tsrc0, kGRows0_, kGCols0_, BLayout::RowMajor, -1, -1>;
-    TileData_src0 src0Tile(src0_row, src0_col);
-    TileData_src1 src1Tile(src1_row, src1_col); // index
-    TileData_dst dstTile(dst_row, dst_col);
-    TASSIGN<0x0>(src0Tile);
-    TASSIGN<TileData_src0::Numel * sizeof(Tsrc0)>(src1Tile);
-    TASSIGN<TileData_src0::Numel * sizeof(Tsrc0) + TileData_src1::Numel * sizeof(Tsrc1)>(dstTile);
-
-    GlobalData_src0 src0Global(src0);
-    GlobalData_src1 src1Global(src1);
-    GlobalData_dst dstGlobal(out);
-
-    TLOAD(src0Tile, src0Global);
-    TLOAD(src1Tile, src1Global);
-    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    TSCATTER(dstTile, src0Tile, src1Tile);
-    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    TLOAD(srcTile, src0Global);
+    TLOAD(idxTile, src1Global);
+#ifndef __PTO_AUTO__
+    PtoSetWaitFlag<PIPE_MTE2, PIPE_V>();
+#endif
+    TSCATTER(dstTile, srcTile, idxTile);
+#ifndef __PTO_AUTO__
+    PtoSetWaitFlag<PIPE_V, PIPE_MTE3>();
+#endif
     TSTORE(dstGlobal, dstTile);
-    out = dstGlobal.data();
 }
 
 extern "C" __global__ AICORE void launchTSCATTERCase1(__gm__ int16_t *out, __gm__ int16_t *src,
                                                       __gm__ uint16_t *indexes)
 {
-    runTScatter<int16_t, uint16_t, 2, 32, 1, 32, 2, 32>(out, src, indexes);
+    runTScatter<int16_t, uint16_t, 2, 32, 1, 32>(out, src, indexes);
 }
 extern "C" __global__ AICORE void launchTSCATTERCase2(__gm__ half *out, __gm__ half *src, __gm__ uint16_t *indexes)
 {
-    runTScatter<half, uint16_t, 63, 64, 63, 64, 63, 63>(out, src, indexes);
+    runTScatter<half, uint16_t, 63, 64, 63, 64>(out, src, indexes);
 }
 extern "C" __global__ AICORE void launchTSCATTERCase3(__gm__ int32_t *out, __gm__ int32_t *src,
                                                       __gm__ uint32_t *indexes)
 {
-    runTScatter<int32_t, uint32_t, 31, 128, 31, 128, 31, 128>(out, src, indexes);
+    runTScatter<int32_t, uint32_t, 31, 128, 31, 128>(out, src, indexes);
 }
 extern "C" __global__ AICORE void launchTSCATTERCase4(__gm__ int16_t *out, __gm__ int16_t *src, __gm__ int16_t *indexes)
 {
-    runTScatter<int16_t, int16_t, 15, 192, 15, 192, 15, 192>(out, src, indexes);
+    runTScatter<int16_t, int16_t, 15, 192, 15, 192>(out, src, indexes);
 }
 extern "C" __global__ AICORE void launchTSCATTERCase5(__gm__ float *out, __gm__ float *src, __gm__ int32_t *indexes)
 {
-    runTScatter<float, int32_t, 7, 448, 7, 448, 7, 448>(out, src, indexes);
+    runTScatter<float, int32_t, 7, 448, 7, 448>(out, src, indexes);
 }
 extern "C" __global__ AICORE void launchTSCATTERCase6(__gm__ int8_t *out, __gm__ int8_t *src, __gm__ uint16_t *indexes)
 {
-    runTScatter<int8_t, uint16_t, 256, 32, 256, 32, 256, 32>(out, src, indexes);
+    runTScatter<int8_t, uint16_t, 256, 32, 256, 32>(out, src, indexes);
 }
 extern "C" __global__ AICORE void launchTSCATTERCase7(__gm__ float *out, __gm__ float *src, __gm__ uint32_t *indexes)
 {
-    runTScatter<float, uint32_t, 32, 64, 32, 64, 32, 64>(out, src, indexes);
+    runTScatter<float, uint32_t, 32, 64, 32, 64>(out, src, indexes);
 }
 
 template <uint32_t caseId>
-void launchTScatterTestCase(void *out, void *src, void *indexes, aclrtStream stream)
+void launchTScatterTestCase(void *out, void *src, void *indexes, void *stream)
 {
     switch (caseId) {
         case 1: {
@@ -130,11 +118,76 @@ void launchTScatterTestCase(void *out, void *src, void *indexes, aclrtStream str
     }
 }
 
-template void launchTScatterTestCase<1>(void *out, void *src, void *indexes, aclrtStream stream);
-template void launchTScatterTestCase<2>(void *out, void *src, void *indexes, aclrtStream stream);
-template void launchTScatterTestCase<3>(void *out, void *src, void *indexes, aclrtStream stream);
-template void launchTScatterTestCase<4>(void *out, void *src, void *indexes, aclrtStream stream);
-template void launchTScatterTestCase<5>(void *out, void *src, void *indexes, aclrtStream stream);
-template void launchTScatterTestCase<6>(void *out, void *src, void *indexes, aclrtStream stream);
-template void launchTScatterTestCase<7>(void *out, void *src, void *indexes, aclrtStream stream);
-template void launchTScatterTestCase<8>(void *out, void *src, void *indexes, aclrtStream stream);
+template void launchTScatterTestCase<1>(void *out, void *src, void *indexes, void *stream);
+template void launchTScatterTestCase<2>(void *out, void *src, void *indexes, void *stream);
+template void launchTScatterTestCase<3>(void *out, void *src, void *indexes, void *stream);
+template void launchTScatterTestCase<4>(void *out, void *src, void *indexes, void *stream);
+template void launchTScatterTestCase<5>(void *out, void *src, void *indexes, void *stream);
+template void launchTScatterTestCase<6>(void *out, void *src, void *indexes, void *stream);
+template void launchTScatterTestCase<7>(void *out, void *src, void *indexes, void *stream);
+
+template <typename T, int DstRow, int DstCol, int SrcRow, int SrcCol, pto::MaskPattern maskPattern>
+__global__ AICORE void runTScatterMask(__gm__ T *out, __gm__ T *src)
+{
+    using SrcShape = pto::Shape<1, 1, 1, SrcRow, SrcCol>;
+    using SrcStride = pto::Stride<SrcRow * SrcCol, SrcRow * SrcCol, SrcRow * SrcCol, SrcCol, 1>;
+    using SrcGlobal = GlobalTensor<T, SrcShape, SrcStride>;
+    using DstShape = pto::Shape<1, 1, 1, DstRow, DstCol>;
+    using DstStride = pto::Stride<DstRow * DstCol, DstRow * DstCol, DstRow * DstCol, DstCol, 1>;
+    using DstGlobal = GlobalTensor<T, DstShape, DstStride>;
+
+    SrcGlobal srcGlobal(src);
+    DstGlobal dstGlobal(out);
+
+    using DstTile = Tile<TileType::Vec, T, DstRow, DstCol>;
+    using SrcTile = Tile<TileType::Vec, T, SrcRow, SrcCol>;
+
+    SrcTile srcTile;
+    DstTile dstTile;
+    TASSIGN<0x0>(srcTile);
+    TASSIGN<SrcTile::Numel * sizeof(T)>(dstTile);
+
+    TLOAD(srcTile, srcGlobal);
+    PtoSetWaitFlag<PIPE_MTE2, PIPE_V>();
+    TSCATTER<maskPattern>(dstTile, srcTile);
+    PtoSetWaitFlag<PIPE_V, PIPE_MTE3>();
+    TSTORE(dstGlobal, dstTile);
+}
+
+template <typename T, int DstRow, int DstCol, int SrcRow, int SrcCol, pto::MaskPattern mask>
+void launchTScatterMask(void *out, void *src, void *stream)
+{
+    if constexpr (std::is_same_v<T, uint16_t>) {
+        runTScatterMask<half, DstRow, DstCol, SrcRow, SrcCol, mask><<<1, nullptr, stream>>>((half *)out, (half *)src);
+    } else {
+        runTScatterMask<T, DstRow, DstCol, SrcRow, SrcCol, mask><<<1, nullptr, stream>>>((T *)out, (T *)src);
+    }
+}
+
+template void launchTScatterMask<uint16_t, 16, 64, 16, 64, pto::MaskPattern::P1111>(void *out, void *src, void *stream);
+template void launchTScatterMask<float, 16, 64, 16, 64, pto::MaskPattern::P1111>(void *out, void *src, void *stream);
+template void launchTScatterMask<int32_t, 16, 64, 16, 64, pto::MaskPattern::P1111>(void *out, void *src, void *stream);
+template void launchTScatterMask<uint16_t, 16, 128, 16, 64, pto::MaskPattern::P1010>(void *out, void *src,
+                                                                                     void *stream);
+template void launchTScatterMask<uint16_t, 16, 128, 16, 64, pto::MaskPattern::P0101>(void *out, void *src,
+                                                                                     void *stream);
+template void launchTScatterMask<float, 16, 128, 16, 64, pto::MaskPattern::P1010>(void *out, void *src, void *stream);
+template void launchTScatterMask<float, 16, 128, 16, 64, pto::MaskPattern::P0101>(void *out, void *src, void *stream);
+template void launchTScatterMask<int32_t, 16, 128, 16, 64, pto::MaskPattern::P1010>(void *out, void *src, void *stream);
+template void launchTScatterMask<int32_t, 16, 128, 16, 64, pto::MaskPattern::P0101>(void *out, void *src, void *stream);
+template void launchTScatterMask<uint16_t, 16, 256, 16, 64, pto::MaskPattern::P1000>(void *out, void *src,
+                                                                                     void *stream);
+template void launchTScatterMask<uint16_t, 16, 256, 16, 64, pto::MaskPattern::P0100>(void *out, void *src,
+                                                                                     void *stream);
+template void launchTScatterMask<uint16_t, 16, 256, 16, 64, pto::MaskPattern::P0010>(void *out, void *src,
+                                                                                     void *stream);
+template void launchTScatterMask<uint16_t, 16, 256, 16, 64, pto::MaskPattern::P0001>(void *out, void *src,
+                                                                                     void *stream);
+template void launchTScatterMask<float, 16, 256, 16, 64, pto::MaskPattern::P1000>(void *out, void *src, void *stream);
+template void launchTScatterMask<float, 16, 256, 16, 64, pto::MaskPattern::P0100>(void *out, void *src, void *stream);
+template void launchTScatterMask<float, 16, 256, 16, 64, pto::MaskPattern::P0010>(void *out, void *src, void *stream);
+template void launchTScatterMask<float, 16, 256, 16, 64, pto::MaskPattern::P0001>(void *out, void *src, void *stream);
+template void launchTScatterMask<int32_t, 16, 256, 16, 64, pto::MaskPattern::P1000>(void *out, void *src, void *stream);
+template void launchTScatterMask<int32_t, 16, 256, 16, 64, pto::MaskPattern::P0100>(void *out, void *src, void *stream);
+template void launchTScatterMask<int32_t, 16, 256, 16, 64, pto::MaskPattern::P0010>(void *out, void *src, void *stream);
+template void launchTScatterMask<int32_t, 16, 256, 16, 64, pto::MaskPattern::P0001>(void *out, void *src, void *stream);

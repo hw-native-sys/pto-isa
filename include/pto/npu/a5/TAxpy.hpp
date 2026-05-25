@@ -41,9 +41,11 @@ PTO_INTERNAL void AxpyInstr(__ubuf__ T *dstPtr, __ubuf__ U *src0Ptr, U scalar, u
         RegTensor<U> vreg0;
         RegTensor<T> vreg2;
         MaskReg preg;
+        uint32_t sreg;
         constexpr auto distValue =
             std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
         for (uint16_t i = 0; i < (uint16_t)(validRow); ++i) {
+            sreg = validCol;
             for (uint16_t j = 0; j < (uint16_t)repeatTimes; ++j) {
                 if constexpr (std::is_same_v<T, U>) {
                     vlds(vreg0, src0Ptr, i * srcRowStride + j * elementsPerRepeat, NORM);
@@ -51,9 +53,7 @@ PTO_INTERNAL void AxpyInstr(__ubuf__ T *dstPtr, __ubuf__ U *src0Ptr, U scalar, u
                     vlds(vreg0, src0Ptr, i * srcRowStride + j * elementsPerRepeat, UNPK_B16);
                 }
                 vlds(vreg2, dstPtr, i * dstRowStride + j * elementsPerRepeat, NORM);
-                uint32_t count =
-                    ((j + 1) * elementsPerRepeat >= validCol ? validCol - j * elementsPerRepeat : elementsPerRepeat);
-                preg = CreatePredicate<T>(count);
+                preg = CreatePredicate<T>(sreg);
                 CallAxpy<T, U>(vreg2, vreg0, scalar, preg);
                 vsts(vreg2, dstPtr, i * dstRowStride + j * elementsPerRepeat, distValue, preg);
             }
@@ -89,7 +89,7 @@ PTO_INTERNAL void TAXPY_IMPL(TileDataDst &dst, TileDataSrc &src0, typename TileD
 
     static_assert(TileDataDst::Loc == TileType::Vec, "TileType of dst tiles must be TileType::Vec.");
 
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
     constexpr unsigned dstRowStride = TileDataDst::RowStride;
     constexpr unsigned src0RowStride = TileDataSrc::RowStride;
 

@@ -12,144 +12,201 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "acl/acl.h"
 #include <gtest/gtest.h>
 
-#include "acl/acl.h"
-
 using namespace std;
 using namespace PtoTestCommon;
 
+template <typename T, typename TMask, int dstTileH, int dstTileW, int maskTileH, int maskTileW, int srcTileH,
+          int srcTileW, int vRows, int vCols>
+void LaunchTSels(T *out, TMask *mask, T *src, T scalar, void *stream);
+template <typename TMask, int dstTileH, int dstTileW, int maskTileH, int maskTileW, int srcTileH, int srcTileW,
+          int vRows, int vCols>
+void LaunchTSelsHalf(aclFloat16 *out, TMask *mask, aclFloat16 *src, aclFloat16 scalar, void *stream);
+
 class TSELSTest : public testing::Test {
+private:
+    aclrtStream stream;
+    void *dstHost;
+    void *srcHost;
+    void *maskHost;
+    void *dstDevice;
+    void *srcDevice;
+    void *maskDevice;
+    size_t dstFileSize;
+    size_t maskFileSize;
+    size_t srcFileSize;
+
 protected:
+    std::string GetGoldenDir()
+    {
+        const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+        const std::string caseName = testInfo->name();
+        std::string suiteName = testInfo->test_suite_name();
+        std::string fullPath = "../" + suiteName + "." + caseName;
+        return fullPath;
+    }
     void SetUp() override
-    {}
+    {
+        aclInit(nullptr);
+        aclrtSetDevice(0);
+        aclrtCreateStream(&this->stream);
+    }
     void TearDown() override
-    {}
+    {
+        aclrtDestroyStream(this->stream);
+        aclrtResetDevice(0);
+        aclFinalize();
+    }
+    template <typename T, typename TMask, int dstTileH, int dstTileW, int maskTileH, int maskTileW, int srcTileH,
+              int srcTileW>
+    void BeforeLaunch(T &scalar)
+    {
+        this->dstFileSize = sizeof(T) * dstTileH * dstTileW;
+        this->maskFileSize = sizeof(TMask) * maskTileH * maskTileW;
+        this->srcFileSize = sizeof(T) * srcTileH * srcTileW;
+        size_t scalarFileSize = sizeof(T);
+
+        aclrtMallocHost(&this->dstHost, this->dstFileSize);
+        aclrtMallocHost(&this->maskHost, this->maskFileSize);
+        aclrtMallocHost(&this->srcHost, this->srcFileSize);
+        memset(this->dstHost, 0, this->dstFileSize);
+        ReadFile(GetGoldenDir() + "/mask.bin", this->maskFileSize, this->maskHost, this->maskFileSize);
+        ReadFile(GetGoldenDir() + "/input1.bin", this->srcFileSize, this->srcHost, this->srcFileSize);
+        ReadFile(GetGoldenDir() + "/input2.bin", scalarFileSize, &scalar, scalarFileSize);
+
+        aclrtMalloc(&this->dstDevice, this->dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+        aclrtMalloc(&this->maskDevice, this->maskFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+        aclrtMalloc(&this->srcDevice, this->srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+        aclrtMemcpy(dstDevice, dstFileSize, dstHost, dstFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+        aclrtMemcpy(maskDevice, maskFileSize, maskHost, maskFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+        aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    }
+
+    template <typename T>
+    bool AfterLaunch()
+    {
+        aclrtSynchronizeStream(this->stream);
+        std::vector<T> golden(this->dstFileSize);
+        std::vector<T> devFinal(this->dstFileSize);
+        aclrtMemcpy(devFinal.data(), this->dstFileSize, this->dstDevice, this->dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
+
+        aclrtFree(this->dstDevice);
+        aclrtFree(this->maskDevice);
+        aclrtFree(this->srcDevice);
+        aclrtFreeHost(this->maskHost);
+        aclrtFreeHost(this->srcHost);
+        aclrtFreeHost(this->dstHost);
+
+        ReadFile(GetGoldenDir() + "/golden.bin", this->dstFileSize, golden.data(), this->dstFileSize);
+        bool res = ResultCmp<T>(golden, devFinal, 0.0001f);
+        if (!res) {
+            WriteFile(GetGoldenDir() + "/output.bin", devFinal.data(), this->dstFileSize);
+        }
+        return res;
+    }
+
+    template <typename T, typename TMask, int dstTileH, int dstTileW, int maskTileH, int maskTileW, int srcTileH,
+              int srcTileW, int vRows, int vCols, bool isHalf = false>
+    void Launch()
+    {
+        T scalar;
+        this->BeforeLaunch<T, TMask, dstTileH, dstTileW, maskTileH, maskTileW, srcTileH, srcTileW>(scalar);
+        if constexpr (isHalf) {
+            LaunchTSelsHalf<TMask, dstTileH, dstTileW, maskTileH, maskTileW, srcTileH, srcTileW, vRows, vCols>(
+                (T *)this->dstDevice, (TMask *)this->maskDevice, (T *)this->srcDevice, scalar, this->stream);
+        } else {
+            LaunchTSels<T, TMask, dstTileH, dstTileW, maskTileH, maskTileW, srcTileH, srcTileW, vRows, vCols>(
+                (T *)this->dstDevice, (TMask *)this->maskDevice, (T *)this->srcDevice, scalar, this->stream);
+        }
+        bool res = this->AfterLaunch<T>();
+        EXPECT_TRUE(res);
+    }
 };
 
-std::string GetGoldenDir()
+TEST_F(TSELSTest, case_uint8_uint8_2x32_2x32_2x32_2x32)
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
-    const std::string caseName = testInfo->name();
-    std::string suiteName = testInfo->test_suite_name();
-    std::string fullPath = "../" + suiteName + "." + caseName;
-    return fullPath;
+    this->Launch<uint8_t, uint8_t, 2, 32, 2, 32, 2, 32, 2, 32>();
 }
-
-template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kPadValue_>
-void LaunchTSels(T *out, T *src0, T *src1, uint8_t selectMode, void *stream);
-
-template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kPadValue_>
-void test_tsels()
+TEST_F(TSELSTest, case_uint8_uint16_2x32_2x16_2x32_2x32)
 {
-    size_t fileSize = kTRows_ * kTCols_ * sizeof(T);
-    if (kPadValue_ == PAD_VALUE_MAX) {
-        fileSize = kGRows_ * kGCols_ * sizeof(T);
-    }
-    size_t scalarFileSize = sizeof(T);
-
-    aclInit(nullptr);
-    aclrtSetDevice(0);
-    aclrtStream stream;
-    aclrtCreateStream(&stream);
-
-    T *dstHost, *src0Host, *src1Host;
-    T *dstDevice, *src0Device, *src1Device;
-    uint8_t selectMode, *srcScalarHost;
-
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&src0Host), fileSize);
-    aclrtMallocHost((void **)(&src1Host), fileSize);
-    aclrtMallocHost((void **)(&srcScalarHost), scalarFileSize);
-
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-
-    ReadFile(GetGoldenDir() + "/input1.bin", fileSize, src0Host, fileSize);
-    ReadFile(GetGoldenDir() + "/input2.bin", fileSize, src1Host, fileSize);
-    ReadFile(GetGoldenDir() + "/input_scalar.bin", scalarFileSize, srcScalarHost, scalarFileSize);
-
-    aclrtMemcpy(src0Device, fileSize, src0Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    aclrtMemcpy(src1Device, fileSize, src1Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    selectMode = srcScalarHost[0];
-    LaunchTSels<T, kGRows_, kGCols_, kTRows_, kTCols_, kPadValue_>(dstDevice, src0Device, src1Device, selectMode,
-                                                                   stream);
-
-    aclrtSynchronizeStream(stream);
-    aclrtMemcpy(dstHost, fileSize, dstDevice, fileSize, ACL_MEMCPY_DEVICE_TO_HOST);
-
-    WriteFile(GetGoldenDir() + "/output.bin", dstHost, fileSize);
-
-    aclrtFree(dstDevice);
-    aclrtFree(src0Device);
-    aclrtFree(src1Device);
-
-    aclrtFreeHost(dstHost);
-    aclrtFreeHost(src0Host);
-    aclrtFreeHost(src1Host);
-    aclrtFreeHost(srcScalarHost);
-    aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
-
-    std::vector<T> golden(fileSize);
-    std::vector<T> devFinal(fileSize);
-    ReadFile(GetGoldenDir() + "/golden.bin", fileSize, golden.data(), fileSize);
-    ReadFile(GetGoldenDir() + "/output.bin", fileSize, devFinal.data(), fileSize);
-
-    bool ret = ResultCmp<T>(golden, devFinal, 0.0001f);
-
-    EXPECT_TRUE(ret);
+    this->Launch<uint8_t, uint16_t, 2, 32, 2, 16, 2, 32, 2, 32>();
 }
-
-TEST_F(TSELSTest, case_float_64x64_32x32_64x64)
+TEST_F(TSELSTest, case_uint8_uint32_2x32_2x8_2x32_2x32)
 {
-    test_tsels<float, 64, 64, 32, 32, PAD_VALUE_NULL>();
+    this->Launch<uint8_t, uint32_t, 2, 32, 2, 8, 2, 32, 2, 32>();
 }
-TEST_F(TSELSTest, case_float_128x128_64x64_128x128)
+TEST_F(TSELSTest, case_uint16_uint8_2x16_2x32_2x16_2x16)
 {
-    test_tsels<float, 128, 128, 64, 64, PAD_VALUE_NULL>();
+    this->Launch<uint16_t, uint8_t, 2, 16, 2, 32, 2, 16, 2, 16>();
 }
-TEST_F(TSELSTest, case_float_2x32_2x32_2x32)
+TEST_F(TSELSTest, case_uint16_uint16_2x16_2x16_2x16_2x16)
 {
-    test_tsels<float, 2, 32, 2, 32, PAD_VALUE_NULL>();
+    this->Launch<uint16_t, uint16_t, 2, 16, 2, 16, 2, 16, 2, 16>();
 }
-TEST_F(TSELSTest, case_int32_2x32_2x32_2x32)
+TEST_F(TSELSTest, case_uint16_uint32_2x16_2x8_2x16_2x16)
 {
-    test_tsels<int32_t, 2, 32, 2, 32, PAD_VALUE_NULL>();
+    this->Launch<uint16_t, uint32_t, 2, 16, 2, 8, 2, 16, 2, 16>();
 }
-TEST_F(TSELSTest, case_uint32_2x32_2x32_2x32)
+TEST_F(TSELSTest, case_uint32_uint8_2x8_2x32_2x8_2x8)
 {
-    test_tsels<uint32_t, 2, 32, 2, 32, PAD_VALUE_NULL>();
+    this->Launch<uint32_t, uint8_t, 2, 8, 2, 32, 2, 8, 2, 8>();
 }
-TEST_F(TSELSTest, case_int16_2x32_2x32_2x32)
+TEST_F(TSELSTest, case_uint32_uint16_2x8_2x16_2x8_2x8)
 {
-    test_tsels<int16_t, 2, 32, 2, 32, PAD_VALUE_NULL>();
+    this->Launch<uint32_t, uint16_t, 2, 8, 2, 16, 2, 8, 2, 8>();
 }
-TEST_F(TSELSTest, case_int8_2x32_2x32_2x32)
+TEST_F(TSELSTest, case_uint32_uint32_2x8_2x8_2x8_2x8)
 {
-    test_tsels<int8_t, 2, 32, 2, 32, PAD_VALUE_NULL>();
+    this->Launch<uint32_t, uint32_t, 2, 8, 2, 8, 2, 8, 2, 8>();
 }
-TEST_F(TSELSTest, case_uint8_2x32_2x32_2x32)
+TEST_F(TSELSTest, case_half_uint8_2x16_2x32_2x16_2x16)
 {
-    test_tsels<uint8_t, 2, 32, 2, 32, PAD_VALUE_NULL>();
+    this->Launch<aclFloat16, uint8_t, 2, 16, 2, 32, 2, 16, 2, 16, true>();
 }
-TEST_F(TSELSTest, case_float_60x60_64x64_60x60)
+TEST_F(TSELSTest, case_half_uint16_2x16_2x16_2x16_2x16)
 {
-    test_tsels<float, 60, 60, 64, 64, PAD_VALUE_MAX>();
+    this->Launch<aclFloat16, uint16_t, 2, 16, 2, 16, 2, 16, 2, 16, true>();
 }
-TEST_F(TSELSTest, case_float_16x200_20x224_16x200)
+TEST_F(TSELSTest, case_half_uint32_2x16_2x8_2x16_2x16)
 {
-    test_tsels<float, 16, 200, 20, 224, PAD_VALUE_MAX>();
+    this->Launch<aclFloat16, uint32_t, 2, 16, 2, 8, 2, 16, 2, 16, true>();
 }
-TEST_F(TSELSTest, case_float_16x200_20x256_16x200)
+TEST_F(TSELSTest, case_float_uint8_2x8_2x32_2x8_2x8)
 {
-    test_tsels<float, 16, 200, 20, 256, PAD_VALUE_MAX>();
+    this->Launch<float, uint8_t, 2, 8, 2, 32, 2, 8, 2, 8>();
 }
-TEST_F(TSELSTest, case_float_1x3600_2x4096_1x3600)
+TEST_F(TSELSTest, case_float_uint16_2x8_2x16_2x8_2x8)
 {
-    test_tsels<float, 1, 3600, 2, 4096, PAD_VALUE_MAX>();
+    this->Launch<float, uint16_t, 2, 8, 2, 16, 2, 8, 2, 8>();
 }
-TEST_F(TSELSTest, case_uint16_16x200_20x224_16x200)
+TEST_F(TSELSTest, case_float_uint32_2x8_2x8_2x8_2x8)
 {
-    test_tsels<uint16_t, 16, 200, 20, 224, PAD_VALUE_MAX>();
+    this->Launch<float, uint32_t, 2, 8, 2, 8, 2, 8, 2, 8>();
+}
+TEST_F(TSELSTest, case_uint8_uint8_2x32_2x64_2x128_2x31)
+{
+    this->Launch<uint8_t, uint8_t, 2, 32, 2, 64, 2, 128, 2, 31>();
+}
+TEST_F(TSELSTest, case_uint16_uint8_2x32_2x64_2x128_2x31)
+{
+    this->Launch<uint16_t, uint8_t, 2, 32, 2, 64, 2, 128, 2, 31>();
+}
+TEST_F(TSELSTest, case_float_uint8_2x32_2x64_2x128_2x31)
+{
+    this->Launch<float, uint8_t, 2, 32, 2, 64, 2, 128, 2, 31>();
+}
+TEST_F(TSELSTest, case_uint8_uint8_32x672_32x96_32x672_32x666)
+{
+    this->Launch<uint8_t, uint8_t, 32, 672, 32, 96, 32, 672, 32, 666>();
+}
+TEST_F(TSELSTest, case_half_uint8_32x672_32x96_32x672_32x666)
+{
+    this->Launch<aclFloat16, uint8_t, 32, 672, 32, 96, 32, 672, 32, 666, true>();
+}
+TEST_F(TSELSTest, case_float_uint8_32x672_32x96_32x672_32x666)
+{
+    this->Launch<float, uint8_t, 32, 672, 32, 96, 32, 672, 32, 666>();
+}
+TEST_F(TSELSTest, case_float_uint8_1x8192_1x4096_1x8192_1x8192)
+{
+    this->Launch<float, uint8_t, 1, 8192, 1, 4096, 1, 8192, 1, 8192>();
 }

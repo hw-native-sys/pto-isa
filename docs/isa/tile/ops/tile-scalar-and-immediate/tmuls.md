@@ -88,14 +88,14 @@ No architectural side effects beyond producing the destination tile. Does not im
 
 ??? info "Target-Profile Restrictions"
     - **Implementation checks (A2A3)**:
-        - `TileData::DType` must be one of: `int32_t`, `int`, `int16_t`, `half`, `float16_t`, `float`, `float32_t`.
+        - `TileData::DType` must be one of: `int32_t`, `int16_t`, `half`, `float`.
         - Tile location must be vector (`TileData::Loc == TileType::Vec`).
         - Static valid bounds: `TileData::ValidRow <= TileData::Rows` and `TileData::ValidCol <= TileData::Cols`.
         - Runtime: `src0.GetValidRow() == dst.GetValidRow()` and `src0.GetValidCol() == dst.GetValidCol()`.
         - Tile layout must be row-major (`TileData::isRowMajor`).
 
     - **Implementation checks (A5)**:
-        - `TileData::DType` must be one of: `uint8_t`, `int8_t`, `uint16_t`, `int16_t`, `uint32_t`, `int32_t`, `half`, `float`, `bfloat16_t`.
+        - `TileData::DType` must be one of: `uint16_t`, `int16_t`, `uint32_t`, `int32_t`, `half`, `float`, `bfloat16_t`.
         - Tile location must be vector (`TileData::Loc == TileType::Vec`).
         - Static valid bounds: `TileData::ValidRow <= TileData::Rows` and `TileData::ValidCol <= TileData::Cols`.
         - Runtime: `src0.GetValidCol() == dst.GetValidCol()`.
