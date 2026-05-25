@@ -435,7 +435,7 @@ struct TPipe {
             ss << "pto-pipe-" << static_cast<unsigned long long>(get_task_cookie()) << "-" << get_block_idx() << "-"
                << static_cast<uint32_t>(FlagID) << "-" << static_cast<uint32_t>(DirType) << "-" << SlotSize << "-"
                << SlotNum << "-" << LocalSlotNum;
-            auto *storage = reinterpret_cast<SharedStateStorage *>(hook(ss.str().c_str(), sizeof(SharedStateStorage)));
+            auto *storage = reinterpret_cast<SharedStateStorage *>(hook(ss.str(), sizeof(SharedStateStorage)));
             EnsureSharedStateInitialized(*storage);
             return *std::launder(reinterpret_cast<SharedState *>(storage->payload));
         }

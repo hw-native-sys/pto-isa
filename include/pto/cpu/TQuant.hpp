@@ -38,7 +38,7 @@ inline uint32_t FloatToBits(float value)
 
 inline uint16_t FloatToBf16BitsTrunc(float value)
 {
-    return static_cast<uint16_t>(FloatToBits(value) >> 16);
+    return static_cast<uint16_t>(FloatToBits(value) >> bf16Bits);
 }
 
 inline uint16_t FloatToBf16BitsRound(float value)
