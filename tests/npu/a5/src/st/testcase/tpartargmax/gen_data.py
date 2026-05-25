@@ -12,7 +12,6 @@
 
 import os
 import numpy as np
-np.random.seed(19)
 
 
 def gen_golden_data_tpartargmax(case_name, param):
@@ -34,10 +33,16 @@ def gen_golden_data_tpartargmax(case_name, param):
     dst_idx_out = np.zeros([dst_tile_rows, dst_tile_cols]).astype(idx_type)
 
     # Generate random input arrays
-    src0_in[:src0_rows, :src0_cols] = np.random.uniform(low=-255, high=255, size=(src0_rows, src0_cols)).astype(dtype)
-    src1_in[:src1_rows, :src1_cols] = np.random.uniform(low=-255, high=255, size=(src1_rows, src1_cols)).astype(dtype)
-    src0_idx_in[:src0_rows, :src0_cols] = np.random.uniform(low=0, high=src0_cols, size=(src0_rows, src0_cols)).astype(idx_type)
-    src1_idx_in[:src1_rows, :src1_cols] = np.random.uniform(low=0, high=src1_cols, size=(src1_rows, src1_cols)).astype(idx_type)
+    if src0_rows > 0 and src0_cols > 0:
+        src0_in[:src0_rows, :src0_cols] =\
+            np.random.uniform(low=-255, high=255, size=(src0_rows, src0_cols)).astype(dtype)
+        src0_idx_in[:src0_rows, :src0_cols] =\
+            np.random.uniform(low=0, high=src0_cols, size=(src0_rows, src0_cols)).astype(idx_type)
+    if src1_rows > 0 and src1_cols > 0:
+        src1_in[:src1_rows, :src1_cols] =\
+            np.random.uniform(low=-255, high=255, size=(src1_rows, src1_cols)).astype(dtype)
+        src1_idx_in[:src1_rows, :src1_cols] =\
+            np.random.uniform(low=0, high=src1_cols, size=(src1_rows, src1_cols)).astype(idx_type)
 
     pad_value = {
         np.float32: np.float32(-np.inf),
@@ -134,6 +139,10 @@ if __name__ == "__main__":
         TPartArgMaxParams(np.float32, np.uint32, 12, 63, 12, 63, 6, 60, 12, 64, 12, 64, 6, 64),
         TPartArgMaxParams(np.float16, np.int16, 10, 31, 8, 16, 10, 31, 10, 32, 8, 32, 12, 32),
         TPartArgMaxParams(np.float16, np.uint16, 5, 33, 5, 33, 5, 30, 8, 48, 5, 48, 6, 48),
+        TPartArgMaxParams(np.float32, np.uint32, 8, 7, 8, 7, 8, 0, 8, 8, 8, 8, 1, 8),
+        TPartArgMaxParams(np.float32, np.uint32, 8, 7, 8, 7, 0, 7, 8, 8, 8, 8, 1, 8),
+        TPartArgMaxParams(np.float32, np.uint32, 8, 7, 8, 0, 8, 7, 8, 8, 1, 8, 8, 8),
+        TPartArgMaxParams(np.float32, np.uint32, 8, 7, 0, 7, 8, 7, 8, 8, 1, 8, 8, 8),
     ]
 
     for param in case_params_list:

@@ -20,7 +20,7 @@ struct TPartMaxOp {
     static constexpr typename Padding<T>::Type PadVal = Padding<T>::Min;
     PTO_INTERNAL static void BinInstr(RegTensor<T> &dst, RegTensor<T> &src0, RegTensor<T> &src1, MaskReg preg)
     {
-        vmax(dst, src0, src1, preg, MODE_ZEROING);
+        vmax(dst, src0, src1, preg, MODE_MERGING);
     }
 };
 
