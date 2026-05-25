@@ -24,15 +24,7 @@ struct SubSOp {
     static constexpr bool isDynFunc = false;
     PTO_INTERNAL static void BinSInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src, T scalar, MaskReg &preg)
     {
-#if defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90)
-        if constexpr (std::is_same_v<T, half>) {
-            vadds(reg_dst, reg_src, (half)(-((float)scalar)), preg, MODE_ZEROING);
-        } else {
-            vadds(reg_dst, reg_src, -scalar, preg, MODE_ZEROING);
-        }
-#else
         vadds(reg_dst, reg_src, -scalar, preg, MODE_ZEROING);
-#endif
     }
 };
 
