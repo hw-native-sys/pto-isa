@@ -23,6 +23,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 namespace cpu_quant {
+
+constexpr uint16_t bf16Bits = 16;
+
 inline float BitsToFloat(uint32_t bits)
 {
     return std::bit_cast<float>(bits);
@@ -47,7 +50,7 @@ struct NvMxFp4E2M1Spec {
 
 inline uint16_t FloatToBf16BitsTrunc(float value)
 {
-    return static_cast<uint16_t>(FloatToBits(value) >> 16);
+    return static_cast<uint16_t>(FloatToBits(value) >> bf16Bits);
 }
 
 inline uint16_t FloatToBf16BitsRound(float value)
