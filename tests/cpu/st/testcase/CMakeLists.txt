@@ -164,6 +164,7 @@ ttrace
 twait
 txor
 txors
+ttrans_conv
 )
 
 foreach(TESTCASE ${ALL_TESTCASES})
