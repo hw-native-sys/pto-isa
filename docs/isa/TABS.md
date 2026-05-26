@@ -51,7 +51,7 @@ PTO_INST RecordEvent TABS(TileDataDst &dst, TileDataSrc &src, WaitEvents &... ev
     - `TileData::DType` must be one of: `int32_t`, `int`, `int16_t`, `half`, `float`.
     - The implementation iterates over `dst.GetValidRow()` / `dst.GetValidCol()`.
 - **Implementation checks (Costmodel)**:
-    - `TileData::DType` must be one of: `int32_t`、`int16_t`、`int8_t`、`uint8_t`、`half`、`float`.
+    - `TileData::DType` must be one of: `int32_t`, `int16_t`, `int8_t`, `uint8_t`, `half`, `float`.
 - **Implementation checks (NPU)**:
     - `TileData::DType` must be one of: `float` or `half`;
     - Tile location must be vector (`TileData::Loc == TileType::Vec`);
