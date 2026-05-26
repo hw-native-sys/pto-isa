@@ -1,6 +1,8 @@
 name: A5 Smoke
 
 on:
+  issue_comment:
+    types: [created]
   workflow_dispatch:
     inputs:
       remote_host:
@@ -26,18 +28,31 @@ on:
         required: false
         default: ""
         type: string
-  schedule:
-    - cron: "0 18 * * *"
 
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 
 concurrency:
-  group: a5-smoke-${{ github.workflow }}-${{ github.ref }}
+  group: >-
+    a5-smoke-${{ github.workflow }}-${{
+      github.event_name == 'issue_comment' && format('pr-{0}', github.event.issue.number) || github.ref
+    }}
   cancel-in-progress: false
 
 jobs:
   smoke:
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event_name == 'issue_comment' &&
+          github.event.issue.pull_request &&
+          startsWith(github.event.comment.body, '/a5-smoke') &&
+          contains(fromJson('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+        )
+      }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -45,8 +60,61 @@ jobs:
       PAYLOAD_TGZ: ${{ github.workspace }}/_payload/pto-isa-a5-smoke.tgz
 
     steps:
-      - name: Checkout
+      - name: Resolve trigger context
+        id: trigger
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const isIssueComment = context.eventName === "issue_comment";
+            let repository = `${context.repo.owner}/${context.repo.repo}`;
+            let ref = context.ref.replace("refs/heads/", "");
+            let sha = context.sha;
+            let prNumber = "";
+
+            if (isIssueComment) {
+              const pull_number = context.payload.issue.number;
+              const { data: pr } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number,
+              });
+
+              if (pr.head.repo.full_name !== repository) {
+                core.setFailed(
+                  `A5 smoke only supports PR branches in ${repository}. ` +
+                  `Fork PR ${pr.head.repo.full_name} cannot access the remote-run secrets safely.`
+                );
+                return;
+              }
+
+              repository = pr.head.repo.full_name;
+              ref = pr.head.ref;
+              sha = pr.head.sha;
+              prNumber = String(pr.number);
+            }
+
+            core.setOutput("repository", repository);
+            core.setOutput("ref", ref);
+            core.setOutput("sha", sha);
+            core.setOutput("pr_number", prNumber);
+
+      - name: Checkout target ref
         uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.trigger.outputs.repository }}
+          ref: ${{ steps.trigger.outputs.ref }}
+          fetch-depth: 1
+
+      - name: Record trigger summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "A5 smoke target repository: ${{ steps.trigger.outputs.repository }}"
+          echo "A5 smoke target ref: ${{ steps.trigger.outputs.ref }}"
+          echo "A5 smoke target sha: ${{ steps.trigger.outputs.sha }}"
+          if [[ -n "${{ steps.trigger.outputs.pr_number }}" ]]; then
+            echo "Triggered from PR #${{ steps.trigger.outputs.pr_number }} by comment command /a5-smoke"
+          fi
 
       - name: Resolve remote parameters
         shell: bash
