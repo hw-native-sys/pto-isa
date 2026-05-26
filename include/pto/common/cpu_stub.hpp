@@ -31,8 +31,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <type_traits>
 #include <cstdio>
 #include <dlfcn.h>
-#include "pto/common/type.hpp"
 #include <string>
+#include "type.hpp"
 
 #define __global__
 #define AICORE
@@ -107,10 +107,9 @@ typedef int mem_dsb_t;
 
 constexpr pipe_t opPipeList[] = {};
 
-enum
-{
-    ACL_MEM_MALLOC_HUGE_FIRST = 0,
-};
+#define aclFloat16ToFloat(x) (float)(x)
+#define aclInit(x)
+#define aclrtSetDevice(x)
 
 enum
 {
