@@ -77,8 +77,8 @@ PTO_INTERNAL void runTColIdxValMax(__gm__ TVal __out__ *outVal, __gm__ TIdx __ou
     TmpTile tmpTile(1, 32);
 
     TASSIGN(srcTile, 0x0);
-    TASSIGN(idxTile, srcRow * col * sizeof(TVal));
-    TASSIGN(valTile, (srcRow + 1) * col * sizeof(TVal));
+    TASSIGN(valTile, srcRow * col * sizeof(TVal));
+    TASSIGN(idxTile, (srcRow + 1) * col * sizeof(TVal));
     TASSIGN(tmpTile, (srcRow + 2) * col * sizeof(TVal));
 
     TLOAD(srcTile, srcGlobal);
@@ -88,8 +88,8 @@ PTO_INTERNAL void runTColIdxValMax(__gm__ TVal __out__ *outVal, __gm__ TIdx __ou
     TCOLARGMAX(valTile, idxTile, srcTile, tmpTile);
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-    TSTORE(dstValGlobal, valTile);
     TSTORE(dstIdxGlobal, idxTile);
+    TSTORE(dstValGlobal, valTile);
 
     outVal = dstValGlobal.data();
     outIdx = dstIdxGlobal.data();

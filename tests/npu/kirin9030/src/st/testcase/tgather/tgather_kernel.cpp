@@ -10,7 +10,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <type_traits>
 #include <pto/pto-inst.hpp>
-#include <iostream>
 #include "acl/acl.h"
 #include "tgather_common.h"
 
@@ -92,30 +91,22 @@ extern "C" __global__ AICORE void test_tgather_int16(__gm__ int16_t *out, __gm__
 
 void launchTGATHER_demo_float(float *out, float *src0, int32_t *src1, aclrtStream stream)
 {
-    cout << "launch TGATHER float start!" << endl;
     test_tgather_float<<<1, nullptr, stream>>>(out, src0, src1);
-    cout << "launch TGATHER float end!" << endl;
 }
 
 void launchTGATHER_demo_int32(int32_t *out, int32_t *src0, int32_t *src1, aclrtStream stream)
 {
-    cout << "launch TGATHER int32 start!" << endl;
     test_tgather_int32<<<1, nullptr, stream>>>(out, src0, src1);
-    cout << "launch TGATHER int32 end!" << endl;
 }
 
 void launchTGATHER_demo_half(int16_t *out, int16_t *src0, int16_t *src1, aclrtStream stream)
 {
-    cout << "launch TGATHER half start!" << endl;
     test_tgather_half<<<1, nullptr, stream>>>(out, src0, src1);
-    cout << "launch TGATHER half end!" << endl;
 }
 
 void launchTGATHER_demo_int16(int16_t *out, int16_t *src0, int16_t *src1, aclrtStream stream)
 {
-    cout << "launch TGATHER int16 start!" << endl;
     test_tgather_int16<<<1, nullptr, stream>>>(out, src0, src1);
-    cout << "launch TGATHER int16 end!" << endl;
 }
 
 template <typename srcT, typename dstT, int kGRows_, int kGCols_, int kTRows_, int kTCols_, MaskPattern maskPattern>

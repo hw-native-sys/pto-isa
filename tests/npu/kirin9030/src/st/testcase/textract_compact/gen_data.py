@@ -105,7 +105,6 @@ if __name__ == "__main__":
     case_name_list = [
         "TEXTRACTTest.case11",
         "TEXTRACTTest.case12",
-        "TEXTRACTTest.case13",
         "TEXTRACTTest.case14",
         "TEXTRACTTest.case21",
         "TEXTRACTTest.case22",

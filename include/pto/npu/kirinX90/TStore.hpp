@@ -13,6 +13,40 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
+template <typename SrcType, typename DstType>
+PTO_INTERNAL constexpr QuantMode_t GetCastPreQuantModeGm()
+{
+    return QuantMode_t::NoQuant;
+}
+
+template <typename SrcType, typename DstType>
+PTO_INTERNAL constexpr QuantMode_t GetScalarPreQuantModeGm()
+{
+    QuantMode_t quantPre = QuantMode_t::NoQuant;
+    if constexpr (std::is_same<SrcType, int32_t>::value) {
+        if constexpr ((std::is_same<DstType, __gm__ int8_t>::value) || (std::is_same<DstType, __gm__ uint8_t>::value)) {
+            quantPre = QuantMode_t::REQ8;
+        } else if constexpr (std::is_same<DstType, __gm__ half>::value) {
+            quantPre = QuantMode_t::DEQF16;
+        }
+    }
+    return quantPre;
+}
+
+template <typename SrcType, typename DstType>
+PTO_INTERNAL constexpr QuantMode_t GetVectorPreQuantModeGm()
+{
+    QuantMode_t quantPre = QuantMode_t::NoQuant;
+    if constexpr (std::is_same<SrcType, int32_t>::value) {
+        if constexpr ((std::is_same<DstType, __gm__ int8_t>::value) || (std::is_same<DstType, __gm__ uint8_t>::value)) {
+            quantPre = QuantMode_t::VREQ8;
+        } else if constexpr (std::is_same<DstType, __gm__ half>::value) {
+            quantPre = QuantMode_t::VDEQF16;
+        }
+    }
+    return quantPre;
+}
+
 template <typename GlobalData, typename TileData>
 PTO_INTERNAL void TStoreUb2gmInstr(typename GlobalData::DType *dst, __ubuf__ typename TileData::DType *src,
                                    uint16_t nBurst, uint32_t lenBurst, uint32_t gmGap, uint32_t ubGap)
@@ -584,7 +618,7 @@ PTO_INTERNAL void TSTORE_IMPL(GlobalData &dst, TileData &src)
             dst.GetStride(pto::GlobalTensorDim::DIM_4), src.GetValidRow(), src.GetValidCol());
     } else if constexpr (TileData::Loc == pto::TileType::Acc) {
         CheckAcc2gm<TileData, GlobalData, false>(dst, src);
-        constexpr QuantMode_t quantMode = GetCastPreQuantMode<typename TileData::DType, typename GlobalData::DType>();
+        constexpr QuantMode_t quantMode = GetCastPreQuantModeGm<typename TileData::DType, typename GlobalData::DType>();
         TStoreAcc<GlobalData, TileData, quantMode, ReluPreMode::NoRelu, Phase>(
             dst.data(), src.data(), dst.GetShape(pto::GlobalTensorDim::DIM_0),
             dst.GetShape(pto::GlobalTensorDim::DIM_1), dst.GetShape(pto::GlobalTensorDim::DIM_2),
@@ -616,7 +650,7 @@ PTO_INTERNAL void TSTORE_IMPL(GlobalData &dst, TileData &src)
     if constexpr (currentAtomicType == AtomicType::AtomicAdd) {
         SetAtomicAdd<typename GlobalData::DType>();
     }
-    constexpr QuantMode_t quantMode = GetCastPreQuantMode<typename TileData::DType, typename GlobalData::DType>();
+    constexpr QuantMode_t quantMode = GetCastPreQuantModeGm<typename TileData::DType, typename GlobalData::DType>();
     TStoreAcc<GlobalData, TileData, quantMode, reluPreMode, Phase>(
         dst.data(), src.data(), dst.GetShape(pto::GlobalTensorDim::DIM_0), dst.GetShape(pto::GlobalTensorDim::DIM_1),
         dst.GetShape(pto::GlobalTensorDim::DIM_2), dst.GetShape(pto::GlobalTensorDim::DIM_3),
@@ -639,7 +673,7 @@ PTO_INTERNAL void TSTORE_IMPL(GlobalData &dst, TileData &src, uint64_t preQuantS
         SetAtomicAdd<typename GlobalData::DType>();
     }
     set_quant_pre(preQuantScalar);
-    constexpr QuantMode_t quantMode = GetScalarPreQuantMode<typename TileData::DType, typename GlobalData::DType>();
+    constexpr QuantMode_t quantMode = GetScalarPreQuantModeGm<typename TileData::DType, typename GlobalData::DType>();
     TStoreAcc<GlobalData, TileData, quantMode, reluPreMode, Phase>(
         dst.data(), src.data(), dst.GetShape(pto::GlobalTensorDim::DIM_0), dst.GetShape(pto::GlobalTensorDim::DIM_1),
         dst.GetShape(pto::GlobalTensorDim::DIM_2), dst.GetShape(pto::GlobalTensorDim::DIM_3),
@@ -661,7 +695,7 @@ PTO_INTERNAL void TSTORE_IMPL(GlobalData &dst, TileData &src, FpTileData &fp)
     if constexpr (AtomicType::AtomicAdd == currentAtomicType) {
         SetAtomicAdd<typename GlobalData::DType>();
     }
-    constexpr QuantMode_t quantMode = GetVectorPreQuantMode<typename TileData::DType, typename GlobalData::DType>();
+    constexpr QuantMode_t quantMode = GetVectorPreQuantModeGm<typename TileData::DType, typename GlobalData::DType>();
     TStoreAccFp<GlobalData, TileData, FpTileData, quantMode, reluPreMode>(
         dst.data(), src.data(), fp.data(), dst.GetShape(pto::GlobalTensorDim::DIM_0),
         dst.GetShape(pto::GlobalTensorDim::DIM_1), dst.GetShape(pto::GlobalTensorDim::DIM_2),
