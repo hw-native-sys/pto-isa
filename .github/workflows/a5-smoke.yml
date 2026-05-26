@@ -1,0 +1,206 @@
+name: A5 Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      remote_host:
+        description: "Override remote host (defaults to repo variable A5_SMOKE_REMOTE_HOST)"
+        required: false
+        type: string
+      remote_user:
+        description: "Override remote user (defaults to repo variable A5_SMOKE_REMOTE_USER)"
+        required: false
+        type: string
+      remote_port:
+        description: "Override remote SSH port"
+        required: false
+        default: "22"
+        type: string
+      device_id:
+        description: "task-submit device id, or auto"
+        required: false
+        default: "auto"
+        type: string
+      ascend_home_path:
+        description: "Override ASCEND_HOME_PATH on the remote host"
+        required: false
+        default: ""
+        type: string
+  schedule:
+    - cron: "0 18 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: a5-smoke-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      PAYLOAD_DIR: ${{ github.workspace }}/_payload
+      PAYLOAD_TGZ: ${{ github.workspace }}/_payload/pto-isa-a5-smoke.tgz
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve remote parameters
+        shell: bash
+        env:
+          INPUT_REMOTE_HOST: ${{ github.event.inputs.remote_host || '' }}
+          INPUT_REMOTE_USER: ${{ github.event.inputs.remote_user || '' }}
+          INPUT_REMOTE_PORT: ${{ github.event.inputs.remote_port || '' }}
+          INPUT_DEVICE_ID: ${{ github.event.inputs.device_id || '' }}
+          INPUT_ASCEND_HOME_PATH: ${{ github.event.inputs.ascend_home_path || '' }}
+          DEFAULT_REMOTE_HOST: ${{ vars.A5_SMOKE_REMOTE_HOST }}
+          DEFAULT_REMOTE_USER: ${{ vars.A5_SMOKE_REMOTE_USER }}
+          DEFAULT_REMOTE_PORT: ${{ vars.A5_SMOKE_REMOTE_PORT }}
+          DEFAULT_DEVICE_ID: ${{ vars.A5_SMOKE_DEVICE_ID }}
+          DEFAULT_ASCEND_HOME_PATH: ${{ vars.A5_SMOKE_ASCEND_HOME_PATH }}
+        run: |
+          set -euo pipefail
+
+          remote_host="${INPUT_REMOTE_HOST:-${DEFAULT_REMOTE_HOST:-}}"
+          remote_user="${INPUT_REMOTE_USER:-${DEFAULT_REMOTE_USER:-}}"
+          remote_port="${INPUT_REMOTE_PORT:-${DEFAULT_REMOTE_PORT:-22}}"
+          device_id="${INPUT_DEVICE_ID:-${DEFAULT_DEVICE_ID:-auto}}"
+          ascend_home_path="${INPUT_ASCEND_HOME_PATH:-${DEFAULT_ASCEND_HOME_PATH:-}}"
+
+          if [[ -z "${remote_host}" ]]; then
+            echo "A5 smoke remote host is not set. Configure repo variable A5_SMOKE_REMOTE_HOST or pass workflow_dispatch input remote_host."
+            exit 1
+          fi
+          if [[ -z "${remote_user}" ]]; then
+            echo "A5 smoke remote user is not set. Configure repo variable A5_SMOKE_REMOTE_USER or pass workflow_dispatch input remote_user."
+            exit 1
+          fi
+
+          remote_dir="/tmp/pto-isa_a5_smoke/${GITHUB_REPOSITORY}/${GITHUB_RUN_ID}"
+
+          {
+            echo "REMOTE_HOST=${remote_host}"
+            echo "REMOTE_USER=${remote_user}"
+            echo "REMOTE_PORT=${remote_port}"
+            echo "DEVICE_ID=${device_id}"
+            echo "ASCEND_HOME_PATH=${ascend_home_path}"
+            echo "REMOTE_DIR=${remote_dir}"
+          } >> "${GITHUB_ENV}"
+
+      - name: Setup SSH
+        shell: bash
+        env:
+          SSH_KEY: ${{ secrets.A5_SMOKE_SSH_KEY || secrets.SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.A5_SMOKE_SSH_KNOWN_HOSTS || secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${SSH_KEY}" ]]; then
+            echo "Missing A5 smoke SSH key. Set secret A5_SMOKE_SSH_KEY or SSH_KEY."
+            exit 1
+          fi
+          if [[ -z "${SSH_KNOWN_HOSTS}" ]]; then
+            echo "Missing A5 smoke known_hosts. Set secret A5_SMOKE_SSH_KNOWN_HOSTS or SSH_KNOWN_HOSTS."
+            exit 1
+          fi
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${SSH_KEY}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "${SSH_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Prepare payload
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p "${PAYLOAD_DIR}"
+          cat > "${PAYLOAD_DIR}/a5_smoke.env" <<EOF
+          ASCEND_HOME_PATH=${ASCEND_HOME_PATH}
+          EOF
+
+          cat > "${PAYLOAD_DIR}/remote_entrypoint.sh" <<EOF
+          #!/usr/bin/env bash
+          set -euo pipefail
+          cd "${REMOTE_DIR}"
+          set -a
+          . "${REMOTE_DIR}/a5_smoke.env"
+          set +a
+          bash ./tests/script/run_a5_smoke_ci.sh 2>&1 | tee "${REMOTE_DIR}/a5_smoke.log"
+          EOF
+          chmod +x "${PAYLOAD_DIR}/remote_entrypoint.sh"
+
+          tar \
+            --exclude=.git \
+            --exclude=_payload \
+            --exclude=build \
+            --exclude=.venv \
+            -czf "${PAYLOAD_TGZ}" \
+            -C "${GITHUB_WORKSPACE}" .
+
+      - name: Copy payload to remote
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ssh -p "${REMOTE_PORT}" "${REMOTE_USER}@${REMOTE_HOST}" \
+            "rm -rf '${REMOTE_DIR}' && mkdir -p '${REMOTE_DIR}'"
+          scp -P "${REMOTE_PORT}" "${PAYLOAD_TGZ}" \
+            "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/payload.tgz"
+          scp -P "${REMOTE_PORT}" "${PAYLOAD_DIR}/a5_smoke.env" \
+            "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/a5_smoke.env"
+          scp -P "${REMOTE_PORT}" "${PAYLOAD_DIR}/remote_entrypoint.sh" \
+            "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/remote_entrypoint.sh"
+
+      - name: Run remote A5 smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ssh -p "${REMOTE_PORT}" "${REMOTE_USER}@${REMOTE_HOST}" \
+            "set -euo pipefail; \
+             cd '${REMOTE_DIR}'; \
+             tar -xzf payload.tgz; \
+             if command -v task-submit >/dev/null 2>&1; then \
+               task-submit --device '${DEVICE_ID}' --timeout 0 --max-time 0 --run \"bash '${REMOTE_DIR}/remote_entrypoint.sh'\"; \
+             else \
+               bash '${REMOTE_DIR}/remote_entrypoint.sh'; \
+             fi"
+
+      - name: Fetch remote logs
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${REMOTE_DIR:-}" ]]; then
+            exit 0
+          fi
+
+          scp -P "${REMOTE_PORT}" \
+            "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/a5_smoke.log" \
+            ./a5_smoke.log || true
+
+      - name: Upload remote logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: a5_smoke_logs
+          path: a5_smoke.log
+          if-no-files-found: warn
+
+      - name: Cleanup remote workspace
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -n "${REMOTE_DIR:-}" ]]; then
+            ssh -p "${REMOTE_PORT}" "${REMOTE_USER}@${REMOTE_HOST}" \
+              "rm -rf '${REMOTE_DIR}'" || true
+          fi
