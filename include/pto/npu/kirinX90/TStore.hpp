@@ -29,10 +29,6 @@ PTO_INTERNAL constexpr QuantMode_t GetScalarPreQuantModeGm()
         } else if constexpr (std::is_same<DstType, __gm__ half>::value) {
             quantPre = QuantMode_t::DEQF16;
         }
-    } else if constexpr (std::is_same<SrcType, half>::value) {
-        if constexpr ((std::is_same<DstType, __gm__ int8_t>::value) || (std::is_same<DstType, __gm__ uint8_t>::value)) {
-            quantPre = QuantMode_t::QF162B8_PRE;
-        }
     }
     return quantPre;
 }
@@ -46,10 +42,6 @@ PTO_INTERNAL constexpr QuantMode_t GetVectorPreQuantModeGm()
             quantPre = QuantMode_t::VREQ8;
         } else if constexpr (std::is_same<DstType, __gm__ half>::value) {
             quantPre = QuantMode_t::VDEQF16;
-        }
-    } else if constexpr (std::is_same<SrcType, half>::value) {
-        if constexpr ((std::is_same<DstType, __gm__ int8_t>::value) || (std::is_same<DstType, __gm__ uint8_t>::value)) {
-            quantPre = QuantMode_t::VQF162B8_PRE;
         }
     }
     return quantPre;
