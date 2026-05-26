@@ -99,7 +99,7 @@ The following data were collected on Ascend A5, covering multiple sizes with m=k
 | `m=2048` `k=8192` `n=8192` | 90.7% | 88.1% | 45.8% | 4.6% | 0.3489 |
 | `m=2040` `k=8192` `n=8100` | 83.0% | 83.0% | 42.1% | 12.3% | 0.3773 |
 
-For the meaning of the parameters in the table and the performance optimization scheme, please refer to[gemm_performance Measured Performance](../../a2a3/gemm_performance/README.md#measured-performance-reference)。
+For the meaning of the parameters in the table and the performance optimization scheme, please refer to [gemm_performance Measured Performance](../../a2a3/gemm_performance/README.md#measured-performance-reference).
 
 ## Build and Run
 

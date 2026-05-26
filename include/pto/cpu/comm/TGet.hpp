@@ -23,10 +23,10 @@ PTO_INTERNAL void Copy_Data(GlobalDstData &dstTensor, GlobalSrcData &srcTensor)
 {
     typename GlobalDstData::DType *dst = dstTensor.data();
     typename GlobalSrcData::DType *src = srcTensor.data();
-    long shape[] = {dstTensor.GetShape(0), dstTensor.GetShape(1), dstTensor.GetShape(2), dstTensor.GetShape(3),
-                    dstTensor.GetShape(4)};
-    long stride[] = {dstTensor.GetStride(0), dstTensor.GetStride(1), dstTensor.GetStride(2), dstTensor.GetStride(3),
-                     dstTensor.GetStride(4)};
+    int64_t shape[] = {dstTensor.GetShape(0), dstTensor.GetShape(1), dstTensor.GetShape(2), dstTensor.GetShape(3),
+                       dstTensor.GetShape(4)};
+    int64_t stride[] = {dstTensor.GetStride(0), dstTensor.GetStride(1), dstTensor.GetStride(2), dstTensor.GetStride(3),
+                        dstTensor.GetStride(4)};
 
     for (size_t i = 0; i < shape[0]; i++) {
         for (size_t j = 0; j < shape[1]; j++) {

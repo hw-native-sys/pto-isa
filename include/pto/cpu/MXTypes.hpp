@@ -96,11 +96,11 @@ public:
         } else {
             int i = MAN_SZ - 1; // Idx of the first mantissa bit equal to 1
             for (; i >= 0 && !((mantissa >> i) & 1); i--)
-
-                // Subnormal representation
-                *((uint64_t *)&retVal) = (sign << (MAN_DBL + EXP_DBL)) |
-                                         (((uint64_t)(EXP_DBL_BIAS - EXP_BIAS + 1 + (i - MAN_SZ))) << MAN_DBL) |
-                                         ((mantissa & ((1 << i) - 1)) << (MAN_DBL - i));
+                ;
+            // Subnormal representation
+            *((uint64_t *)&retVal) = (sign << (MAN_DBL + EXP_DBL)) |
+                                     (((uint64_t)(EXP_DBL_BIAS - EXP_BIAS + 1 + (i - MAN_SZ))) << MAN_DBL) |
+                                     ((mantissa & ((1 << i) - 1)) << (MAN_DBL - i));
         }
         return retVal;
     }

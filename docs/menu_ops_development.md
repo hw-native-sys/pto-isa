@@ -5,36 +5,58 @@
     - [PTO ISA概述](PTOISA_zh.md)
     - [支持的硬件平台](../include/README_zh.md)
     - [PTO与其他算子开发方式对比](coding/pto-comparison_zh.md)
-- 开发环境准备
+- 快速入门
     - [环境配置与安装](getting-started_zh.md)
-    - [快速入门](coding/tutorial_zh.md)
+    - [快速入门教程](coding/tutorial_zh.md)
     - [第一个PTO算子](../demos/baseline/add/README_zh.md)
-- 编程基础
+- PTO虚拟ISA手册
+    - [前言](mkdocs/src/manual/index_zh.md)
+    - [概述](mkdocs/src/manual/01-overview_zh.md)
+    - [执行模型](mkdocs/src/manual/02-machine-model_zh.md)
+    - [状态与类型](mkdocs/src/manual/03-state-and-types_zh.md)
+    - [Tile与GlobalTensor](mkdocs/src/manual/04-tiles-and-globaltensor_zh.md)
+    - [同步机制](mkdocs/src/manual/05-synchronization_zh.md)
+    - [PTO汇编（PTO-AS）](mkdocs/src/manual/06-assembly_zh.md)
+    - [指令集概述](mkdocs/src/manual/07-instructions_zh.md)
+    - [编程指南](mkdocs/src/manual/08-programming_zh.md)
+    - [虚拟ISA与IR](mkdocs/src/manual/09-virtual-isa-and-ir_zh.md)
+    - [字节码与工具链](mkdocs/src/manual/10-bytecode-and-toolchain_zh.md)
+    - [内存顺序与一致性](mkdocs/src/manual/11-memory-ordering-and-consistency_zh.md)
+    - [后端配置与一致性](mkdocs/src/manual/12-backend-profiles-and-conformance_zh.md)
+    - 附录
+        - [术语表](mkdocs/src/manual/appendix-a-glossary_zh.md)
+        - [指令合约模板](mkdocs/src/manual/appendix-b-instruction-contract-template_zh.md)
+        - [诊断分类](mkdocs/src/manual/appendix-c-diagnostics-taxonomy_zh.md)
+        - [指令族矩阵](mkdocs/src/manual/appendix-d-instruction-family-matrix_zh.md)
+- 编程模型
+    - [概述](coding/README_zh.md)
     - [编程模型](coding/ProgrammingModel_zh.md)
-    - [抽象机器模型](machine/abstract-machine_zh.md)
-    - [编程范式与约定](coding/README_zh.md)
-    - [执行模型与内存层次](mkdocs/src/manual/02-machine-model_zh.md)
-    - [数据类型与状态模型](mkdocs/src/manual/03-state-and-types_zh.md)
-- 核心编程概念
     - [Tile抽象](coding/Tile_zh.md)
     - [全局内存张量](coding/GlobalTensor_zh.md)
-    - [事件与同步机制](coding/Event_zh.md)
     - [标量与枚举类型](coding/Scalar_zh.md)
+    - [事件与同步机制](coding/Event_zh.md)
     - [流水线与并行执行](coding/pipeline-parallel_zh.md)
+    - 教程
+        - [概述](coding/tutorials/README_zh.md)
+        - [向量加法](coding/tutorials/vec-add_zh.md)
+        - [Softmax](coding/tutorials/row-softmax_zh.md)
+        - [矩阵乘法](coding/tutorials/gemm_zh.md)
+    - [性能优化](coding/opt_zh.md)
+    - [调试方法](coding/debug_zh.md)
+- 机器模型
+    - [抽象机器模型](machine/abstract-machine_zh.md)
+    - [机器索引](machine/README_zh.md)
 - 算子开发实践
-    - 基础算子开发
+    - 基础算子
         - [向量加法示例](../demos/baseline/add/README_zh.md)
-        - [向量加法详解](coding/tutorials/vec-add_zh.md)
         - [矩阵乘法示例](../demos/baseline/gemm_basic/README_zh.md)
-        - [矩阵乘法详解](coding/tutorials/gemm_zh.md)
-        - [Softmax算子详解](coding/tutorials/row-softmax_zh.md)
-    - 高级算子开发
-        - [Flash Attention算子](../demos/baseline/flash_atten/README_zh.md)
+        - [Flash Attention示例](../demos/baseline/flash_atten/README_zh.md)
+    - 高级算子
         - [TopK算子](../kernels/manual/a2a3/topk/README_zh.md)
         - [自定义算子开发](../kernels/custom/fused_add_relu_mul/README_zh.md)
     - 性能优化实践
         - [GEMM性能优化](../kernels/manual/a2a3/gemm_performance/README_zh.md)
-        - [Flash Attention优化（A2/A3）](../kernels/manual/common/flash_atten/README_zh.md)
+        - [Flash Attention优化](../kernels/manual/common/flash_atten/README_zh.md)
         - [混合精度优化（MXFP8）](../kernels/manual/a5/matmul_mxfp8_performance/README_zh.md)
         - [混合精度优化（MXFP4）](../kernels/manual/a5/matmul_mxfp4_performance/README_zh.md)
 - 编译与部署
@@ -42,7 +64,7 @@
     - [算子集成到推理框架](coding/framework-integration_zh.md)
 - 测试与验证
     - [测试框架说明](../tests/README_zh.md)
-    - [CPU仿真测试](../tests/README_zh.md)
+    - [CPU仿真测试](coding/cpu_sim_zh.md)
     - [NPU测试与验证](../tests/script/README_zh.md)
 - 调试与优化
     - [算子调试方法](coding/debug_zh.md)
@@ -50,20 +72,14 @@
     - [性能调优最佳实践](coding/performance-best-practices_zh.md)
     - [内存优化技巧](coding/memory-optimization_zh.md)
 - 进阶主题
-    - [汇编语言编程](assembly/README_zh.md)
-    - [汇编语法说明](assembly/PTO-AS_zh.md)
-    - [C++内建函数参考](reference/pto-intrinsics-header_zh.md)
-    - [虚拟ISA与IR](mkdocs/src/manual/09-virtual-isa-and-ir_zh.md)
-    - [字节码与工具链](mkdocs/src/manual/10-bytecode-and-toolchain_zh.md)
-    - [内存顺序与一致性](mkdocs/src/manual/11-memory-ordering-and-consistency_zh.md)
     - [多核并行编程](coding/multi-core-programming_zh.md)
     - [算子融合技术](coding/operator-fusion_zh.md)
 - 附录
     - [PTO虚拟ISA手册](PTO-Virtual-ISA-Manual_zh.md)
-    - [术语表](mkdocs/src/manual/appendix-a-glossary_zh.md)
     - [示例代码索引](../demos/README_zh.md)
     - [Kernel实现参考](../kernels/README_zh.md)
     - [常见错误码说明](coding/error-codes_zh.md)
     - [版本兼容性说明](coding/version-compatibility_zh.md)
-    - [参考资料与扩展阅读](coding/references_zh.md)
-
+- 文档
+    - [文档索引](README_zh.md)
+    - [构建文档](website_zh.md)

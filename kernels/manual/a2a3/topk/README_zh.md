@@ -49,7 +49,7 @@ kernels/manual/a2a3/topk/
 
 ### 类型定义
 
-Topk 实现： 从GM上加载数据和索引到ub上，使用TSort对每32个数据进行排序，使用TMrgsort对每个Tile内部做归并排序. 分别取出topk个数据和索引，存回GM.
+Topk 实现： 从GM上加载数据和索引到ub上，使用TSort对每32个数据进行排序，使用TMrgsort对每个Tile内部做归并排序。分别取出topk个数据和索引，存回GM。
 
 ```cpp
     // data

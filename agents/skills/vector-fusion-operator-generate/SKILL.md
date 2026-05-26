@@ -97,14 +97,14 @@ using namespace pto;
 
 namespace FusedOperatorName {
 
-// Device 函数：使用 __global__ AICORE 标注，同时定义于 host 和 device 侧
+// Device 函数:使用 __global__ AICORE 标注,同时定义于 host 和 device 侧
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols>
 __global__ AICORE void runFusedOp(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in__ *src1)
 {
-    // Device 侧实现：gm → ub → vector → ub → gm
+    // Device 侧实现:gm → ub → vector → ub → gm
 }
 
-// Host 函数：负责调用 Device 函数
+// Host 函数:负责调用 Device 函数
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols>
 void launchFusedOp(T *out, T *src0, T *src1, void *stream)
 {
@@ -169,12 +169,12 @@ tests/npu/a2a3/src/st/testcase/
 GlobalTensor 用于描述 gm 上的数据布局，Tile 用于描述 ub 上的数据布局：
 
 ```cpp
-// GlobalTensor：描述全局内存上的数据，使用 Shape 和 Stride 指定布局
+// GlobalTensor:描述全局内存上的数据,使用 Shape 和 Stride 指定布局
 using DynShapeDim5 = Shape<1, 1, 1, vRows, vCols>;
 using DynStridDim5 = Stride<vRows * vCols, vRows * vCols, vRows * vCols, vCols, 1>;
 using GlobalData = GlobalTensor<T, DynShapeDim5, DynStridDim5>;
 
-// Tile：描述片上缓冲区，TileType::Vec 表示向量操作
+// Tile:描述片上缓冲区,TileType::Vec 表示向量操作
 using TileData = Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>;
 ```
 
@@ -191,20 +191,20 @@ Tile 的 BLayout 决定了对齐要求：
 
 **对齐计算公式**：
 ```cpp
-// RowMajor：cols 对齐
+// RowMajor:cols 对齐
 constexpr int alignedCols = ((cols * sizeof(T) + 31) / 32) * (32 / sizeof(T));
 
-// ColMajor：rows 对齐
+// ColMajor:rows 对齐
 constexpr int alignedRows = ((rows * sizeof(T) + 31) / 32) * (32 / sizeof(T));
 ```
 
 **示例**：
 ```cpp
-// RowMajor：cols 必须对齐
+// RowMajor:cols 必须对齐
 constexpr int kTCols_ = ((64 * sizeof(float) + 31) / 32) * (32 / sizeof(float));  // 64
 using TileData = Tile<TileType::Vec, float, 64, kTCols_, BLayout::RowMajor, -1, -1>;
 
-// ColMajor：rows 必须对齐
+// ColMajor:rows 必须对齐
 constexpr int kTRows_ = ((16 * sizeof(half) + 31) / 32) * (32 / sizeof(half));  // 16
 using TileData = Tile<TileType::Vec, half, kTRows_, 256, BLayout::ColMajor, -1, -1>;
 ```
@@ -218,7 +218,7 @@ TileData src0Tile(vRows, vCols);
 TileData src1Tile(vRows, vCols);
 TileData dstTile(vRows, vCols);
 
-// 紧密排布：每个 tile 使用不同的偏移量
+// 紧密排布:每个 tile 使用不同的偏移量
 TASSIGN(src0Tile, 0x0);
 TASSIGN(src1Tile, sizeof(T) * TileData::Numel);
 TASSIGN(dstTile, 2 * sizeof(T) * TileData::Numel);
@@ -260,14 +260,14 @@ GlobalData dstGlobal(out);
 Event<Op::TLOAD, Op::TADD> event0;
 Event<Op::TADD, Op::TSTORE_VEC> event1;
 
-// gm → ub：从全局内存加载到片上缓冲区
+// gm → ub:从全局内存加载到片上缓冲区
 TLOAD(src0Tile, src0Global);
 event0 = TLOAD(src1Tile, src1Global);
 
-// vector：在片上缓冲区进行计算，等待 TLOAD 完成
+// vector:在片上缓冲区进行计算,等待 TLOAD 完成
 event1 = TADD(dstTile, src0Tile, src1Tile, event0);
 
-// ub → gm：从片上缓冲区存储到全局内存，等待 TADD 完成
+// ub → gm:从片上缓冲区存储到全局内存,等待 TADD 完成
 TSTORE(dstGlobal, dstTile, event1);
 ```
 
@@ -290,26 +290,26 @@ TSTORE(dstGlobal, dstTile, event1);
 **数据流向**：gm → ub (TLOAD) → vector (TADD) → ub → gm (TSTORE)
 
 ```cpp
-// gm → ub：从全局内存加载到片上缓冲区
+// gm → ub:从全局内存加载到片上缓冲区
 TLOAD(src0Tile, src0Global);
 TLOAD(src1Tile, src1Global);
 
-// 等待 TLOAD 完成，然后执行 TADD
+// 等待 TLOAD 完成,然后执行 TADD
 #ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 #endif
 
-// vector：在片上缓冲区进行计算
+// vector:在片上缓冲区进行计算
 TADD(dstTile, src0Tile, src1Tile);
 
-// 等待 TADD 完成，然后执行 TSTORE
+// 等待 TADD 完成,然后执行 TSTORE
 #ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
 #endif
 
-// ub → gm：从片上缓冲区存储到全局内存
+// ub → gm:从片上缓冲区存储到全局内存
 TSTORE(dstGlobal, dstTile);
 ```
 
@@ -334,14 +334,14 @@ TSTORE(dstGlobal, dstTile);
 Event<Op::TLOAD, Op::TAXPY> event0;
 Event<Op::TAXPY, Op::TSTORE_VEC> event1;
 
-// gm → ub：加载 X 和 Y 到片上缓冲区
+// gm → ub:加载 X 和 Y 到片上缓冲区
 TLOAD(src0Tile, src0Global);
 event0 = TLOAD(dstTile, dstGlobal);
 
-// vector：原地操作 Y = a*X + Y，等待 TLOAD 完成
+// vector:原地操作 Y = a*X + Y,等待 TLOAD 完成
 event1 = TAXPY(dstTile, src0Tile, (T)scalar, event0);
 
-// ub → gm：存储结果到全局内存，等待 TAXPY 完成
+// ub → gm:存储结果到全局内存,等待 TAXPY 完成
 TSTORE(dstGlobal, dstTile, event1);
 ```
 
@@ -363,26 +363,26 @@ using TileDataSrc1 = Tile<TileType::Vec, T, src1Row, 1, BLayout::ColMajor, -1, -
 
 TileDataSrc1 src1Tile(validRow, 1);
 
-// gm → ub：加载主数据和广播数据到片上缓冲区
+// gm → ub:加载主数据和广播数据到片上缓冲区
 TLOAD(src0Tile, src0Global);
 TLOAD(src1Tile, src1Global);
 
-// 等待 TLOAD 完成，然后执行 TROWEXPANDADD
+// 等待 TLOAD 完成,然后执行 TROWEXPANDADD
 #ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 #endif
 
-// vector：行广播加法，将 src1 沿行广播加到 src0
+// vector:行广播加法,将 src1 沿行广播加到 src0
 TROWEXPANDADD(dstTile, src0Tile, src1Tile);
 
-// 等待 TROWEXPANDADD 完成，然后执行 TSTORE
+// 等待 TROWEXPANDADD 完成,然后执行 TSTORE
 #ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
 #endif
 
-// ub → gm：存储结果到全局内存
+// ub → gm:存储结果到全局内存
 TSTORE(dstGlobal, dstTile);
 ```
 
@@ -414,36 +414,36 @@ LeftTile aTile;
 RightTile bTile;
 AccTile cTile;
 
-// gm → ub：加载矩阵 A 和 B 到片上缓冲区
+// gm → ub:加载矩阵 A 和 B 到片上缓冲区
 TLOAD(aMatTile, src0Global);
 TLOAD(bMatTile, src1Global);
 
-// 等待 TLOAD 完成，然后执行 TMOV
+// 等待 TLOAD 完成,然后执行 TMOV
 #ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
 #endif
 
-// mat：将 Mat tile 转换为操作 tile
+// mat:将 Mat tile 转换为操作 tile
 TMOV(aTile, aMatTile);
 TMOV(bTile, bMatTile);
 
-// 等待 TMOV 完成，然后执行 TMATMUL
+// 等待 TMOV 完成,然后执行 TMATMUL
 #ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
 #endif
 
-// matrix：矩阵乘法
+// matrix:矩阵乘法
 TMATMUL(cTile, aTile, bTile);
 
-// 等待 TMATMUL 完成，然后执行 TSTORE
+// 等待 TMATMUL 完成,然后执行 TSTORE
 #ifndef __PTO_AUTO__
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
 #endif
 
-// ub → gm：存储结果到全局内存
+// ub → gm:存储结果到全局内存
 TSTORE(dstGlobal, cTile);
 ```
 
@@ -1061,18 +1061,18 @@ void test_fused_op()
     ReadFile(GetGoldenDir() + "/input1.bin", fileSize, src0Host, fileSize);
     ReadFile(GetGoldenDir() + "/input2.bin", fileSize, src1Host, fileSize);
 
-    // 数据传输：Host → Device
+    // 数据传输:Host → Device
     aclrtMemcpy(src0Device, fileSize, src0Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, fileSize, src1Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
-    // 调用 kernel，函数名需与kernel中的launch函数保持一致
-    // 例如：kernel中定义了launchTAddSub，这里就调用launchTAddSub
+    // 调用 kernel,函数名需与kernel中的launch函数保持一致
+    // 例如:kernel中定义了launchTAddSub,这里就调用launchTAddSub
     LaunchFusedOp<T, kTRows_, kTCols_, vRows, vCols>(dstDevice, src0Device, src1Device, stream);
 
     // 同步流
     aclrtSynchronizeStream(stream);
 
-    // 数据传输：Device → Host
+    // 数据传输:Device → Host
     aclrtMemcpy(dstHost, fileSize, dstDevice, fileSize, ACL_MEMCPY_DEVICE_TO_HOST);
 
     // 写入输出结果
@@ -1181,10 +1181,10 @@ aclrtMemcpy(dstHost, fileSize, dstDevice, fileSize, ACL_MEMCPY_DEVICE_TO_HOST);
 #### 5. Kernel 调用
 
 ```cpp
-// 调用 kernel，函数名需与kernel中的launch函数保持一致
-// 例如：kernel中定义了launchTMulDiv，这里就调用launchTMulDiv
+// 调用 kernel,函数名需与kernel中的launch函数保持一致
+// 例如:kernel中定义了launchTMulDiv,这里就调用launchTMulDiv
 // 模板参数必须与kernel中的模板参数完全一致
-// 例如：kernel中定义了launchTMulDiv<T, 64, 64, 64, 64>，这里就调用launchTMulDiv<float, 64, 64, 64, 64>
+// 例如:kernel中定义了launchTMulDiv<T, 64, 64, 64, 64>,这里就调用launchTMulDiv<float, 64, 64, 64, 64>
 LaunchTMulDiv<T, kTRows_, kTCols_, vRows, vCols>(dstDevice, src0Device, src1Device, stream);
 aclrtSynchronizeStream(stream);
 ```
@@ -1385,7 +1385,7 @@ if __name__ == "__main__":
 ```python
 import os
 import numpy as np
-np.random.seed(19)  # 固定随机种子，确保结果可复现
+np.random.seed(19)  # 固定随机种子,确保结果可复现
 ```
 
 **关键点**：
@@ -1737,7 +1737,7 @@ namespace TADD {
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols>
 __global__ AICORE void runTAdd(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in__ *src1)
 {
-    // Device 侧实现：gm → ub → vector → ub → gm
+    // Device 侧实现:gm → ub → vector → ub → gm
 }
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols>

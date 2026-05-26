@@ -125,7 +125,7 @@ For detailed instruction documentation, see [isa/TRANDOM](../isa/TRANDOM.md)
 %dst = pto.trandom %key, %counter {rounds = 10} : -> !pto.tile<...>
 ```
 
-**AS Level 2 (DPS)：**
+**AS Level 2 (DPS):**
 ```text
 pto.trandom ins(%key, %counter {rounds = 10} : dtype) outs(%dst : !pto.tile_buf<...>)
 ```

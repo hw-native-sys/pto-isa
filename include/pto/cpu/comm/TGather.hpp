@@ -23,21 +23,24 @@ namespace pto {
 namespace comm {
 
 template <typename GlobalDataDst, typename GlobalDataSrc>
-void Gather(typename GlobalDataDst::DType *dst, typename GlobalDataSrc::DType *src, long int srcShape[],
-            long int srcStride[], long int dstStride[], long int dstOffset)
+void Gather(typename GlobalDataDst::DType *dst, typename GlobalDataSrc::DType *src, int64_t srcShape[],
+            int64_t srcStride[], int64_t dstStride[], int64_t dstOffset)
 {
+    auto gatherInner = [&](size_t i, size_t j, size_t k) {
+        for (size_t l = 0; l < srcShape[3]; l++) {
+            for (size_t m = 0; m < srcShape[4]; m++) {
+                int srcIndex =
+                    i * srcStride[0] + j * srcStride[1] + k * srcStride[2] + l * srcStride[3] + m * srcStride[4];
+                int dstIndex = i * dstStride[0] + j * dstStride[1] + k * dstStride[2] + (l + dstOffset) * dstStride[3] +
+                               m * dstStride[4];
+                dst[dstIndex] = src[srcIndex];
+            }
+        }
+    };
     for (size_t i = 0; i < srcShape[0]; i++) {
         for (size_t j = 0; j < srcShape[1]; j++) {
             for (size_t k = 0; k < srcShape[2]; k++) {
-                for (size_t l = 0; l < srcShape[3]; l++) {
-                    for (size_t m = 0; m < srcShape[4]; m++) {
-                        int srcIndex = i * srcStride[0] + j * srcStride[1] + k * srcStride[2] + l * srcStride[3] +
-                                       m * srcStride[4];
-                        int dstIndex = i * dstStride[0] + j * dstStride[1] + k * dstStride[2] +
-                                       (l + dstOffset) * dstStride[3] + m * dstStride[4];
-                        dst[dstIndex] = src[srcIndex];
-                    }
-                }
+                gatherInner(i, j, k);
             }
         }
     }
@@ -85,15 +88,15 @@ PTO_INTERNAL void TGATHER_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &
 
     constexpr size_t numDims = 5;
 
-    long int dstStride[numDims] = {dstGlobalData.GetStride(0), dstGlobalData.GetStride(1), dstGlobalData.GetStride(2),
-                                   dstGlobalData.GetStride(3), dstGlobalData.GetStride(4)};
+    int64_t dstStride[numDims] = {dstGlobalData.GetStride(0), dstGlobalData.GetStride(1), dstGlobalData.GetStride(2),
+                                  dstGlobalData.GetStride(3), dstGlobalData.GetStride(4)};
 
     GlobalSrcData &srcTensor = parallelGroup[0];
-    long int srcShape[numDims] = {srcTensor.GetShape(0), srcTensor.GetShape(1), srcTensor.GetShape(2),
-                                  srcTensor.GetShape(3), srcTensor.GetShape(4)};
-    long int srcStride[numDims] = {srcTensor.GetStride(0), srcTensor.GetStride(1), srcTensor.GetStride(2),
-                                   srcTensor.GetStride(3), srcTensor.GetStride(4)};
-    long int DST_DIM_3 = srcTensor.GetShape(3);
+    int64_t srcShape[numDims] = {srcTensor.GetShape(0), srcTensor.GetShape(1), srcTensor.GetShape(2),
+                                 srcTensor.GetShape(3), srcTensor.GetShape(4)};
+    int64_t srcStride[numDims] = {srcTensor.GetStride(0), srcTensor.GetStride(1), srcTensor.GetStride(2),
+                                  srcTensor.GetStride(3), srcTensor.GetStride(4)};
+    int64_t DST_DIM_3 = srcTensor.GetShape(3);
 
     PTO_ASSERT(dstGlobalData.GetShape(0) == srcTensor.GetShape(0), "TSCATTER: src DIM0 must equal dst DIM0!");
     PTO_ASSERT(dstGlobalData.GetShape(1) == srcTensor.GetShape(1), "TSCATTER: src DIM1 must equal dst DIM1!");
@@ -104,7 +107,7 @@ PTO_INTERNAL void TGATHER_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &
 
     for (int r = 0; r < nranks; ++r) {
         GlobalSrcData &srcGlobalData = parallelGroup[r];
-        long int currentSrcOffset = r * DST_DIM_3;
+        int64_t currentSrcOffset = r * DST_DIM_3;
         Gather<GlobalDstData, GlobalSrcData>(dstGlobalData.data(), srcGlobalData.data(), srcShape, srcStride, dstStride,
                                              currentSrcOffset);
     }

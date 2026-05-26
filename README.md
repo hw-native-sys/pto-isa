@@ -226,6 +226,7 @@ Key directories are listed below:
 - [PyPTO](https://gitcode.com/cann/pypto/): an upper-layer programming framework in the PTO ecosystem
 - [PTOAS](https://github.com/PTO-ISA/PTOAS/): PTO assembler and compiler backend for PTO workflows
 - [pto-dsl](https://github.com/PTO-ISA/pto-dsl/): Pythonic frontend and JIT workflow exploration for PTO
+- [FAQ](FAQ.md): common issues and solutions
 
 ## 📬 Contact Us
 

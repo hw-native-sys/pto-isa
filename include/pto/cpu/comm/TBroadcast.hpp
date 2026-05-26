@@ -19,18 +19,21 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 namespace comm {
 template <typename GlobalData>
-void Copy(typename GlobalData::DType *dst, typename GlobalData::DType *src, long int shape[], long int stride[],
+void Copy(typename GlobalData::DType *dst, typename GlobalData::DType *src, int64_t shape[], int64_t stride[],
           size_t size)
 {
+    auto copyInner = [&](size_t i, size_t j, size_t k) {
+        for (size_t l = 0; l < shape[3]; l++) {
+            for (size_t m = 0; m < shape[4]; m++) {
+                int index = i * stride[0] + j * stride[1] + k * stride[2] + l * stride[3] + m * stride[4];
+                dst[index] = src[index];
+            }
+        }
+    };
     for (size_t i = 0; i < shape[0]; i++) {
         for (size_t j = 0; j < shape[1]; j++) {
             for (size_t k = 0; k < shape[2]; k++) {
-                for (size_t l = 0; l < shape[3]; l++) {
-                    for (size_t m = 0; m < shape[4]; m++) {
-                        int index = i * stride[0] + j * stride[1] + k * stride[2] + l * stride[3] + m * stride[4];
-                        dst[index] = src[index];
-                    }
-                }
+                copyInner(i, j, k);
             }
         }
     }
@@ -40,9 +43,9 @@ template <typename ParallelGroupType, typename GlobalData>
 PTO_INTERNAL void TBroadcast_Impl(ParallelGroupType &parallelGroup, GlobalData &src)
 {
     constexpr size_t numDims = 5;
-    long int shape[numDims] = {src.GetShape(0), src.GetShape(1), src.GetShape(2), src.GetShape(3), src.GetShape(4)};
-    long int stride[numDims] = {src.GetStride(0), src.GetStride(1), src.GetStride(2), src.GetStride(3),
-                                src.GetStride(4)};
+    int64_t shape[numDims] = {src.GetShape(0), src.GetShape(1), src.GetShape(2), src.GetShape(3), src.GetShape(4)};
+    int64_t stride[numDims] = {src.GetStride(0), src.GetStride(1), src.GetStride(2), src.GetStride(3),
+                               src.GetStride(4)};
     int groupSize = parallelGroup.GetSize();
     for (unsigned n = 0; n < groupSize; ++n) {
         GlobalData &member = parallelGroup[n];
