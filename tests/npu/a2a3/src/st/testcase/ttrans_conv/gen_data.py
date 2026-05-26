@@ -23,6 +23,8 @@ class DataFormat(Enum):
     NC1HWC02C1HWN1N0C0 = 2
     GNCHW2GNC1HWC0 = 3
     GNC1HWC02C1HWN1N0C0 = 4
+    NC1HWC02NC1C0HW = 5
+    GNC1HWC02GNC1C0HW = 6
 
 
 def nchw_to_nc1hwc0(nchw_tensor: np.ndarray, c0: int) -> np.ndarray:
@@ -175,6 +177,43 @@ def _golden_gnc1hwc0_to_c1hwn1n0c0(g_info):
     return input_arr, output_arr
 
 
+def _golden_nc1hwc0_to_nc1c0hw(g_info):
+    """[N, C1, H, W, C0] -> [N, C1, C0, H, W]; pads ??? when needed."""
+    dtype = g_info.data_type
+    src_n = g_info.g_whole_shape0
+    src_c1 = g_info.g_whole_shape1
+    src_h = g_info.g_whole_shape2
+    src_w = g_info.g_whole_shape3
+    src_c0 = g_info.g_whole_shape4
+
+    input_arr = np.random.randint(1, 5, size=(src_n, src_c1, src_h, src_w, src_c0)).astype(dtype)
+
+    # NC1HWC0 → NC1C0HW
+    # origin index：0(n),1(c1),2(h),3(w),4(C0) → new index ：0,1,4,2,3
+    output_arr = np.transpose(input_arr, axes=(0, 1, 4, 2, 3))
+    output_arr = np.reshape(output_arr, (src_n, src_c1 * src_c0, src_h, src_w))
+    return input_arr, output_arr
+
+
+def _golden_gnc1hwc0_to_gnc1c0hw(g_info):
+    """[G, N, C1, H, W, C0] -> [G, N, C1, C0, H, W]; pads ??? when needed."""
+    dtype = g_info.data_type
+    src_g = g_info.g_whole_shape0
+    src_n = g_info.g_whole_shape1
+    src_c1 = g_info.g_whole_shape2
+    src_h = g_info.g_whole_shape3
+    src_w = g_info.g_whole_shape4
+    src_c0 = g_info.g_whole_shape5
+
+    input_arr = np.random.randint(1, 5, size=(src_g, src_n, src_c1, src_h, src_w, src_c0)).astype(dtype)
+
+    # GNC1HWC0 → GNC1C0HW
+    # origin index：0(g),1(n),2(c1),3(h),4(w),5(C0) → new index ：0,1,2,5,3,4
+    output_arr = np.transpose(input_arr, axes=(0, 1, 2, 5, 3, 4))
+    output_arr = np.reshape(output_arr, (src_g, src_n, src_c1 * src_c0, src_h, src_w))
+    return input_arr, output_arr
+
+
 def gen_golden_data(g_info):
     shape1 = g_info.shape
     if shape1 == DataFormat["NCHW2NC1HWC0"].value:
@@ -185,6 +224,10 @@ def gen_golden_data(g_info):
         input_arr, output_arr = _golden_gnchw2_gnc1hwc0(g_info)
     elif shape1 == DataFormat["GNC1HWC02C1HWN1N0C0"].value:
         input_arr, output_arr = _golden_gnc1hwc0_to_c1hwn1n0c0(g_info)
+    elif shape1 == DataFormat["NC1HWC02NC1C0HW"].value:
+        input_arr, output_arr = _golden_nc1hwc0_to_nc1c0hw(g_info)
+    elif shape1 == DataFormat["GNC1HWC02GNC1C0HW"].value:
+        input_arr, output_arr = _golden_gnc1hwc0_to_gnc1c0hw(g_info)
     else:
         data_type = g_info.data_type
         g_shape3 = g_info.g_shape3
@@ -710,6 +753,108 @@ if __name__ == "__main__":
             4,
             4,
             4,
+        ),
+        TTRANSParams(
+            "TTRANSConvTest.float32_NC1HWC02NC1C0HW_0",
+            np.float32,
+            DataFormat["NC1HWC02NC1C0HW"].value,
+            1,
+            1,
+            2,
+            4,
+            8,
+            1,
+            1,
+            1,
+            2,
+            4,
+            8
+        ),
+        TTRANSParams(
+            "TTRANSConvTest.float32_NC1HWC02NC1C0HW_1",
+            np.float32,
+            DataFormat["NC1HWC02NC1C0HW"].value,
+            2,
+            2,
+            2,
+            2,
+            4,
+            8,
+            2,
+            2,
+            2,
+            4,
+            8
+        ),
+        TTRANSParams(
+            "TTRANSConvTest.float32_NC1HWC02NC1C0HW_2",
+            np.float32,
+            DataFormat["NC1HWC02NC1C0HW"].value,
+            2,
+            2,
+            2,
+            3,
+            4,
+            8,
+            2,
+            2,
+            3,
+            4,
+            8
+        ),
+        TTRANSParams(
+            "TTRANSConvTest.float32_GNC1HWC02GNC1C0HW_0",
+            np.float32,
+            DataFormat["GNC1HWC02GNC1C0HW"].value,
+            1,
+            1,
+            1,
+            2,
+            4,
+            8,
+            1,
+            1,
+            1,
+            2,
+            4,
+            1,
+            8
+        ),
+        TTRANSParams(
+            "TTRANSConvTest.float32_GNC1HWC02GNC1C0HW_1",
+            np.float32,
+            DataFormat["GNC1HWC02GNC1C0HW"].value,
+            2,
+            2,
+            2,
+            2,
+            4,
+            8,
+            2,
+            2,
+            2,
+            2,
+            4,
+            1,
+            8
+        ),
+        TTRANSParams(
+            "TTRANSConvTest.float32_GNC1HWC02GNC1C0HW_2",
+            np.float32,
+            DataFormat["GNC1HWC02GNC1C0HW"].value,
+            2,
+            2,
+            2,
+            3,
+            4,
+            8,
+            2,
+            2,
+            2,
+            3,
+            4,
+            1,
+            8
         ),
     ]
 
