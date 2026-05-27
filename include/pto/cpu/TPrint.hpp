@@ -7,44 +7,53 @@ THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, E
 INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 See LICENSE in the root of the software repository for the full text of the License.
 */
+
 #ifndef TPRINT_CPU_HPP
 #define TPRINT_CPU_HPP
 
 #include <iomanip>
 #include <iostream>
-#include <pto/common/pto_tile.hpp>
+#include <type_traits>
+
 #include "pto/cpu/tile_offsets.hpp"
+#include <pto/common/pto_tile.hpp>
 
 namespace pto {
 
-template <typename T>
-constexpr bool is_half_type_v = std::is_same_v<T, half> || std::is_same_v<T, bfloat16_t>;
+template <PrintFormat Format>
+struct PrintFormatTraits;
+
+template <>
+struct PrintFormatTraits<PrintFormat::Width8_Precision4> {
+    static constexpr int Width = 8;
+    static constexpr int Precision = 4;
+};
+
+template <>
+struct PrintFormatTraits<PrintFormat::Width8_Precision2> {
+    static constexpr int Width = 8;
+    static constexpr int Precision = 2;
+};
+
+template <>
+struct PrintFormatTraits<PrintFormat::Width10_Precision6> {
+    static constexpr int Width = 10;
+    static constexpr int Precision = 6;
+};
 
 template <PrintFormat Format, typename T>
-PTO_INTERNAL void PrintValue(std::ostream &os, T val)
+PTO_INTERNAL void PrintValue(const T &value)
 {
-    if constexpr (std::is_floating_point_v<T> || is_half_type_v<T>) {
-        if constexpr (Format == PrintFormat::Width8_Precision4) {
-            os << std::setw(8) << std::fixed << std::setprecision(4) << static_cast<float>(val);
-        } else if constexpr (Format == PrintFormat::Width8_Precision2) {
-            os << std::setw(8) << std::fixed << std::setprecision(2) << static_cast<float>(val);
-        } else if constexpr (Format == PrintFormat::Width10_Precision6) {
-            os << std::setw(10) << std::fixed << std::setprecision(6) << static_cast<float>(val);
-        }
-    } else if constexpr (std::is_signed_v<T>) {
-        if constexpr (Format == PrintFormat::Width10_Precision6) {
-            os << std::setw(10) << static_cast<int>(val);
-        } else {
-            os << std::setw(8) << static_cast<int>(val);
-        }
-    } else if constexpr (std::is_unsigned_v<T>) {
-        if constexpr (Format == PrintFormat::Width10_Precision6) {
-            os << std::setw(10) << static_cast<unsigned int>(val);
-        } else {
-            os << std::setw(8) << static_cast<unsigned int>(val);
-        }
+    constexpr int width = PrintFormatTraits<Format>::Width;
+    if constexpr (std::is_floating_point_v<T>) {
+        constexpr int precision = PrintFormatTraits<Format>::Precision;
+        std::cout << std::fixed << std::setw(width) << std::setprecision(precision) << value;
+    } else if constexpr (std::is_same_v<T, int8_t> || std::is_same_v<T, uint8_t>) {
+        std::cout << std::setw(width) << static_cast<int>(value);
+    } else if constexpr (std::is_integral_v<T>) {
+        std::cout << std::setw(width) << value;
     } else {
-        os << val;
+        std::cout << value;
     }
 }
 
@@ -58,7 +67,8 @@ PTO_INTERNAL void TPRINT_IMPL(T &src)
             if (c != 0) {
                 std::cout << ' ';
             }
-            PrintValue<Format>(std::cout, static_cast<DType>(src.data()[GetTileElementOffset<T>(r, c)]));
+            using DataType = typename T::DType;
+            PrintValue<Format, DataType>(src.data()[GetTileElementOffset<T>(r, c)]);
         }
         std::cout << '\n';
     }
