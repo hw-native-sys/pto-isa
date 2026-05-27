@@ -452,6 +452,12 @@ enum class RemSAlgorithm : uint8_t
     HIGH_PRECISION
 };
 
+enum class ScatterAxis : uint8_t
+{
+    SCATTER_ROW = 0,
+    SCATTER_COL = 1
+};
+
 namespace GlobalTensorDim {
 constexpr int DIM_0 = 0;
 constexpr int DIM_1 = 1;

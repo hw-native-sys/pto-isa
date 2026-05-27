@@ -70,28 +70,6 @@ PTO_INTERNAL void TScatter(typename DstTileData::TileDType dst, typename SrcTile
     }
 }
 
-template <MaskPattern maskPattern, typename DstTileData, typename SrcTileData>
-PTO_INTERNAL void TScatterCol(typename DstTileData::TileDType dst, typename SrcTileData::TileDType src,
-                              unsigned validRow, unsigned validCol)
-{
-    unsigned srcRow = 0;
-    for (unsigned r = 0; r < validRow; r++) {
-        if (MaskSelect(maskPattern, r)) {
-            for (unsigned c = 0; c < validCol; c++) {
-                const size_t sidx = GetTileElementOffset<SrcTileData>(srcRow, c);
-                const size_t didx = GetTileElementOffset<DstTileData>(r, c);
-                dst[didx] = static_cast<typename DstTileData::DType>(src[sidx]);
-            }
-            srcRow++;
-        } else {
-            for (unsigned c = 0; c < validCol; c++) {
-                const size_t didx = GetTileElementOffset<DstTileData>(r, c);
-                dst[didx] = static_cast<typename DstTileData::DType>(0);
-            }
-        }
-    }
-}
-
 template <MaskPattern maskPattern, auto ScatterType = ScatterAxis::SCATTER_ROW, typename DstTileData,
           typename SrcTileData>
 PTO_INTERNAL void TSCATTER_IMPL(DstTileData &dst, SrcTileData &src)

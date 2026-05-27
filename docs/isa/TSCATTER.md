@@ -10,7 +10,7 @@
 TSCATTER provides two operation modes:
 
 1. **Index-based Scatter**: Scatter rows of a source tile into a destination tile using per-element row indices.
-2. **Mask Scatter**: Scatter source elements into destination with a mask pattern, interleaving zeros between elements.
+2. **Mask Scatter**: Scatter source elements into destination with a mask pattern, interleaving zeros between elements. Supports both row-wise (`SCATTER_ROW`) and column-wise (`SCATTER_COL`) scatter modes.
 
 ## Math Interpretation
 
@@ -24,16 +24,37 @@ If multiple elements map to the same destination location, the final value is im
 
 ### Mask Scatter
 
-For mask pattern `P`, scatter source elements with interleaved zeros:
+For mask pattern `P`, scatter source elements with interleaved zeros. The scatter direction is controlled by `ScatterAxis`:
+
+#### SCATTER_ROW (default)
+
+Scatter along columns, expanding column dimension:
 
 $$ \mathrm{dst}_{i, P \cdot j + \mathrm{pos}_P} = \mathrm{src}_{i,j} $$
 
 $$ \mathrm{dst}_{i, P \cdot j + \mathrm{zeros}_P} = 0 $$
 
 Where:
-- For `P1010` or `P0101`: destination size = source size × 2
-- For `P0001`, `P0010`, `P0100`, or `P1000`: destination size = source size × 4
-- For `P1111`: destination size = source size × 1 (equivalent to `TMOV`)
+- `SrcTileData::ValidCol` = `DstTileData::ValidCol` × expansion_factor
+- `SrcTileData::ValidRow` = `DstTileData::ValidRow`
+
+#### SCATTER_COL
+
+Scatter along rows, expanding row dimension:
+
+$$ \mathrm{dst}_{P \cdot i + \mathrm{pos}_P, j} = \mathrm{src}_{i,j} $$
+
+$$ \mathrm{dst}_{P \cdot i + \mathrm{zeros}_P, j} = 0 $$
+
+Where:
+- `SrcTileData::ValidRow` = `DstTileData::ValidRow` × expansion_factor
+- `SrcTileData::ValidCol` = `DstTileData::ValidCol`
+
+#### Expansion Factor
+
+- For `P1010` or `P0101`: expansion_factor = 2
+- For `P0001`, `P0010`, `P0100`, or `P1000`: expansion_factor = 4
+- For `P1111`: expansion_factor = 1 (equivalent to `TMOV`)
 
 ## Assembly Syntax
 
@@ -70,7 +91,8 @@ PTO_INST RecordEvent TSCATTER(TileDataD& dst, TileDataS& src, TileDataI& indexes
 ### Mask Scatter
 
 ```cpp
-template <MaskPattern maskPattern = MaskPattern::P1111, typename DstTileData, typename SrcTileData, typename... WaitEvents>
+template <MaskPattern maskPattern = MaskPattern::P1111, auto ScatterType = ScatterAxis::SCATTER_ROW,
+          typename DstTileData, typename SrcTileData, typename... WaitEvents>
 PTO_INST RecordEvent TSCATTER(DstTileData& dst, SrcTileData& src, WaitEvents&... events);
 ```
 
@@ -87,6 +109,15 @@ Defined in `include/pto/common/type.hpp`:
 | `P0100` | 01000100... | Take third element every 4 elements | ×4 |
 | `P1000` | 10001000... | Take fourth element every 4 elements | ×4 |
 | `P1111` | 11111111... | Take all elements (equivalent to TMOV) | ×1 |
+
+### ScatterAxis Enum
+
+Defined in `include/pto/common/type.hpp`:
+
+| Value | Description |
+|-------|-------------|
+| `SCATTER_ROW` | Scatter along columns, expanding column dimension (default) |
+| `SCATTER_COL` | Scatter along rows, expanding row dimension |
 
 ## Constraints
 
@@ -121,9 +152,12 @@ Defined in `include/pto/common/type.hpp`:
     - `DstTileData::DType` and `SrcTileData::DType` must be the same.
     - `maskPattern` must be in range `P0101` to `P1111`.
     - Static valid bounds: `DstTileData::ValidRow <= DstTileData::Rows`, `DstTileData::ValidCol <= DstTileData::Cols`, `SrcTileData::ValidRow <= SrcTileData::Rows`, `SrcTileData::ValidCol <= SrcTileData::Cols`.
-    - Runtime assertions:
+    - Runtime assertions for `SCATTER_ROW`:
         - `SrcTileData::ValidRow` must equal `DstTileData::ValidRow`.
         - `SrcTileData::ValidCol` must equal `DstTileData::ValidCol * expansion_factor`, where expansion_factor depends on mask pattern (1 for P1111, 2 for P1010/P0101, 4 for P0001/P0010/P0100/P1000).
+    - Runtime assertions for `SCATTER_COL`:
+        - `SrcTileData::ValidCol` must equal `DstTileData::ValidCol`.
+        - `SrcTileData::ValidRow` must equal `DstTileData::ValidRow * expansion_factor`, where expansion_factor depends on mask pattern (1 for P1111, 2 for P1010/P0101, 4 for P0001/P0010/P0100/P1000).
 
 ## Important Notes
 
@@ -193,6 +227,16 @@ void example_mask_p1000() {
   DstTileT dst;
   TSCATTER<MaskPattern::P1000>(dst, src);
 }
+
+void example_mask_scatter_col() {
+  // SCATTER_COL: scatter along rows, expanding row dimension
+  // P1010: destination rows = source rows × 2
+  using SrcTileT = Tile<TileType::Vec, half, 64, 16>;
+  using DstTileT = Tile<TileType::Vec, half, 128, 16>;
+  SrcTileT src;
+  DstTileT dst;
+  TSCATTER<MaskPattern::P1010, ScatterAxis::SCATTER_COL>(dst, src);
+}
 ```
 
 ### Mask Scatter (Manual)
@@ -210,6 +254,17 @@ void example_mask_manual() {
   TASSIGN(src, 0x1000);
   TASSIGN(dst, 0x2000);
   TSCATTER<MaskPattern::P1010>(dst, src);
+}
+
+void example_mask_manual_scatter_col() {
+  // SCATTER_COL with manual binding
+  using SrcTileT = Tile<TileType::Vec, half, 64, 16>;
+  using DstTileT = Tile<TileType::Vec, half, 128, 16>;
+  SrcTileT src;
+  DstTileT dst;
+  TASSIGN(src, 0x1000);
+  TASSIGN(dst, 0x2000);
+  TSCATTER<MaskPattern::P1010, ScatterAxis::SCATTER_COL>(dst, src);
 }
 ```
 

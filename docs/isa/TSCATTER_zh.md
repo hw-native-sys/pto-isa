@@ -9,7 +9,7 @@
 TSCATTER 提供两种操作模式：
 
 1. **索引散播（Index-based Scatter）**：使用逐元素行索引将源 Tile 的行散播到目标 Tile 中。
-2. **掩码散播（Mask Scatter）**：按照掩码模式将源元素散播到目标位置，并在元素间交错填充零值。
+2. **掩码散播（Mask Scatter）**：按照掩码模式将源元素散播到目标位置，并在元素间交错填充零值。支持按行散播（`SCATTER_ROW`）和按列散播（`SCATTER_COL`）两种模式。
 
 ## 数学语义
 
@@ -23,16 +23,37 @@ $$ \mathrm{dst}_{\mathrm{idx}_{i,j},\ j} = \mathrm{src}_{i,j} $$
 
 ### 掩码散播
 
-对于掩码模式 `P`，将源元素散播并交错填充零值：
+对于掩码模式 `P`，将源元素散播并交错填充零值。散播方向由 `ScatterAxis` 控制：
+
+#### SCATTER_ROW（默认）
+
+沿列方向散播，扩展列维度：
 
 $$ \mathrm{dst}_{i, P \cdot j + \mathrm{pos}_P} = \mathrm{src}_{i,j} $$
 
 $$ \mathrm{dst}_{i, P \cdot j + \mathrm{zeros}_P} = 0 $$
 
 其中：
-- `P1010` 或 `P0101`：目标大小 = 源大小 × 2
-- `P0001`、`P0010`、`P0100`、`P1000`：目标大小 = 源大小 × 4
-- `P1111`：目标大小 = 源大小 × 1（等同于 `TMOV`）
+- `SrcTileData::ValidCol` = `DstTileData::ValidCol` × 扩展倍数
+- `SrcTileData::ValidRow` = `DstTileData::ValidRow`
+
+#### SCATTER_COL
+
+沿行方向散播，扩展行维度：
+
+$$ \mathrm{dst}_{P \cdot i + \mathrm{pos}_P, j} = \mathrm{src}_{i,j} $$
+
+$$ \mathrm{dst}_{P \cdot i + \mathrm{zeros}_P, j} = 0 $$
+
+其中：
+- `SrcTileData::ValidRow` = `DstTileData::ValidRow` × 扩展倍数
+- `SrcTileData::ValidCol` = `DstTileData::ValidCol`
+
+#### 扩展倍数
+
+- `P1010` 或 `P0101`：扩展倍数 = 2
+- `P0001`、`P0010`、`P0100`、`P1000`：扩展倍数 = 4
+- `P1111`：扩展倍数 = 1（等同于 `TMOV`）
 
 ## 汇编语法
 
@@ -70,7 +91,8 @@ PTO_INST RecordEvent TSCATTER(TileDataD& dst, TileDataS& src, TileDataI& indexes
 ### 掩码散播
 
 ```cpp
-template <MaskPattern maskPattern = MaskPattern::P1111, typename DstTileData, typename SrcTileData, typename... WaitEvents>
+template <MaskPattern maskPattern = MaskPattern::P1111, auto ScatterType = ScatterAxis::SCATTER_ROW,
+          typename DstTileData, typename SrcTileData, typename... WaitEvents>
 PTO_INST RecordEvent TSCATTER(DstTileData& dst, SrcTileData& src, WaitEvents&... events);
 ```
 
@@ -87,6 +109,15 @@ PTO_INST RecordEvent TSCATTER(DstTileData& dst, SrcTileData& src, WaitEvents&...
 | `P0100` | 01000100... | 每四个元素取第三个 | ×4 |
 | `P1000` | 10001000... | 每四个元素取第四个 | ×4 |
 | `P1111` | 11111111... | 取全部元素（等同于 TMOV） | ×1 |
+
+### ScatterAxis 枚举
+
+定义于 `include/pto/common/type.hpp`：
+
+| 值 | 描述 |
+|---|------|
+| `SCATTER_ROW` | 沿列方向散播，扩展列维度（默认） |
+| `SCATTER_COL` | 沿行方向散播，扩展行维度 |
 
 ## 约束
 
@@ -121,9 +152,12 @@ PTO_INST RecordEvent TSCATTER(DstTileData& dst, SrcTileData& src, WaitEvents&...
     - `DstTileData::DType` 与 `SrcTileData::DType` 必须相同。
     - `maskPattern` 必须在 `P0101` 到 `P1111` 范围内。
     - 静态有效边界：`DstTileData::ValidRow <= DstTileData::Rows`、`DstTileData::ValidCol <= DstTileData::Cols`、`SrcTileData::ValidRow <= SrcTileData::Rows`、`SrcTileData::ValidCol <= SrcTileData::Cols`。
-    - 运行时断言：
+    - `SCATTER_ROW` 模式运行时断言：
         - `SrcTileData::ValidRow` 必须等于 `DstTileData::ValidRow`。
         - `SrcTileData::ValidCol` 必须等于 `DstTileData::ValidCol * 扩展倍数`，扩展倍数取决于掩码模式（P1111 为 1，P1010/P0101 为 2，P0001/P0010/P0100/P1000 为 4）。
+    - `SCATTER_COL` 模式运行时断言：
+        - `SrcTileData::ValidCol` 必须等于 `DstTileData::ValidCol`。
+        - `SrcTileData::ValidRow` 必须等于 `DstTileData::ValidRow * 扩展倍数`，扩展倍数取决于掩码模式（P1111 为 1，P1010/P0101 为 2，P0001/P0010/P0100/P1000 为 4）。
 
 ## 重要提示
 
@@ -193,6 +227,16 @@ void example_mask_p1000() {
   DstTileT dst;
   TSCATTER<MaskPattern::P1000>(dst, src);
 }
+
+void example_mask_scatter_col() {
+  // SCATTER_COL: 沿行方向散播，扩展行维度
+  // P1010: 目标行数 = 源行数 × 2
+  using SrcTileT = Tile<TileType::Vec, half, 64, 16>;
+  using DstTileT = Tile<TileType::Vec, half, 128, 16>;
+  SrcTileT src;
+  DstTileT dst;
+  TSCATTER<MaskPattern::P1010, ScatterAxis::SCATTER_COL>(dst, src);
+}
 ```
 
 ### 掩码散播（手动 Manual）
@@ -210,6 +254,17 @@ void example_mask_manual() {
   TASSIGN(src, 0x1000);
   TASSIGN(dst, 0x2000);
   TSCATTER<MaskPattern::P1010>(dst, src);
+}
+
+void example_mask_manual_scatter_col() {
+  // SCATTER_COL 手动绑定模式
+  using SrcTileT = Tile<TileType::Vec, half, 64, 16>;
+  using DstTileT = Tile<TileType::Vec, half, 128, 16>;
+  SrcTileT src;
+  DstTileT dst;
+  TASSIGN(src, 0x1000);
+  TASSIGN(dst, 0x2000);
+  TSCATTER<MaskPattern::P1010, ScatterAxis::SCATTER_COL>(dst, src);
 }
 ```
 
