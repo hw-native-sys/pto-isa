@@ -58,7 +58,8 @@ __tf__ AICORE void TMovToFb(typename DstTileData::TileDType __out__ dst, typenam
 
     static_assert(std::is_same<DstType, SrcType>::value,
                   "TMov: Destination and Source tile data types must be the same.");
-    static_assert(std::is_same<DstType, uint64_t>::value, "TMov: Invalid data type.");
+    static_assert(std::is_same<DstType, uint64_t>::value || std::is_same<DstType, int64_t>::value,
+                  "TMov: Invalid data type.");
     static_assert(SrcTileData::Rows == 1, "TMov: When TileType is Scaling, row must be 1");
     static_assert(SrcTileData::Cols * sizeof(SrcType) % BURST_LEN_UNIT == 0,
                   "TMov: When TileType is Scaling, col * sizeof(srcType) must be aligned to 128");

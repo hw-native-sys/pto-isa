@@ -72,7 +72,8 @@ __tf__ AICORE void TMovToFb(typename DstTileData::TileDType __out__ dst, typenam
                   "TMov: When TileType is Scaling, col * sizeof(Dtype) must be aligned to 128.");
     static_assert(dstCol * sizeof(DstType) <= FIXPIPE_BUFFER_SIZE,
                   "TMov: The memory occupation of FbTile exceeds 4.0KB fixpipe buffer size.");
-
+    static_assert(std::is_same<DstType, uint64_t>::value || std::is_same<DstType, int64_t>::value,
+                  "TMov: Invalid data type.");
     __cbuf__ SrcType *srcAddrP = (__cbuf__ SrcType *)__cce_get_tile_ptr(src);
     __fbuf__ DstType *dstAddrP = (__fbuf__ DstType *)__cce_get_tile_ptr(dst);
 
