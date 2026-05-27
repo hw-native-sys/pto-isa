@@ -10,6 +10,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef TTRANS_HPP
 #define TTRANS_HPP
 
+#include <array>
+
 #include <pto/common/pto_tile.hpp>
 #include "pto/cpu/tile_offsets.hpp"
 #include <type_traits>
@@ -182,30 +184,20 @@ template <typename DstTileData, typename SrcTileData>
 void TTrans_Impl(typename DstTileData::TileDType dst, typename SrcTileData::TileDType src, unsigned validRow,
                  unsigned validCol)
 {
+    using SrcDType = typename SrcTileData::DType;
+    std::array<SrcDType, SrcTileData::Rows * SrcTileData::Cols> srcSnapshot;
+
+    for (size_t r = 0; r < validRow; r++) {
+        for (size_t c = 0; c < validCol; c++) {
+            size_t srcTileIdx = GetTileElementOffset<SrcTileData>(r, c);
+            srcSnapshot[r * validCol + c] = src[srcTileIdx];
+        }
+    }
+
     for (size_t c = 0; c < validCol; c++) {
-        size_t subTileSrcC = c / SrcTileData::InnerCols;
-        size_t innerSrcC = c % SrcTileData::InnerCols;
-        size_t subTileDstC = c / DstTileData::InnerCols;
-        size_t innerDstC = c % DstTileData::InnerCols;
-
         for (size_t r = 0; r < validRow; r++) {
-            size_t srcTileIdx, dstTileIdx;
-            if constexpr (SrcTileData::SFractal == SLayout::NoneBox)
-                srcTileIdx = GetTileElementOffsetPlain<SrcTileData>(r, c);
-            else {
-                size_t subTileR = r / SrcTileData::InnerRows;
-                size_t innerR = r % SrcTileData::InnerRows;
-                srcTileIdx = GetElementOffsetSubfractals<SrcTileData>(subTileSrcC, innerSrcC, subTileR, innerR);
-            }
-
-            if constexpr (DstTileData::SFractal == SLayout::NoneBox)
-                dstTileIdx = GetTileElementOffsetPlain<DstTileData>(c, r);
-            else {
-                size_t subTileR = r / DstTileData::InnerRows;
-                size_t innerR = r % DstTileData::InnerRows;
-                dstTileIdx = GetElementOffsetSubfractals<DstTileData>(subTileR, innerR, subTileDstC, innerDstC);
-            }
-            dst[dstTileIdx] = src[srcTileIdx];
+            size_t dstTileIdx = GetTileElementOffset<DstTileData>(c, r);
+            dst[dstTileIdx] = srcSnapshot[r * validCol + c];
         }
     }
 }

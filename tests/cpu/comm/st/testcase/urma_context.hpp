@@ -35,6 +35,8 @@ public:
 
 struct UrmaTestContext {
     int deviceId{-1};
+    aclrtStream stream{nullptr};
+    int aclStatus{0};
     void *devBuf{nullptr};
     UrmaWorkspaceManager urmaMgr;
 
@@ -45,6 +47,10 @@ struct UrmaTestContext {
 
     bool Setup(int rank_id, int n_ranks, int n_devices, int first_device_id, int root_rank, size_t commBytesNeeded)
     {
+        if (n_devices <= 0 || n_ranks <= 0) {
+            return false;
+        }
+        deviceId = rank_id % n_devices + first_device_id;
         if (commBytesNeeded > 0) {
             devBuf = malloc(commBytesNeeded);
             urmaMgr.urmaInfoDevice_ = devBuf;
