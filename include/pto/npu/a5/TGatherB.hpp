@@ -104,17 +104,33 @@ PTO_INTERNAL void TGATHERB_IMPL(TileDataDst &dst, TileDataSrc &src, TileDataOffs
     constexpr unsigned dstRowStride = TileDataDst::RowStride;
     constexpr unsigned offsetRowStride = TileDataOffset::RowStride;
     unsigned validRow = dst.GetValidRow();
-    unsigned validCol = dst.GetValidCol();
-    uint16_t repeatTimes = CeilDivision(validCol, elementsPerRepeat);
-    uint32_t remainEleNum = validCol % elementsPerRepeat ?: elementsPerRepeat;
-    if constexpr (staticRepeatTimes > TileDataDst::Rows) {
-        TGatherBRowWise<TileDataDst, TileDataSrc, TileDataOffset, elementsPerRepeat, blockSizeElem, dstRowStride,
-                        offsetRowStride>(dst.data(), src.data(), offset.data(), validRow, validCol, repeatTimes,
-                                         remainEleNum);
+    if constexpr (TileDataDst::ValidCol > 0) {
+        constexpr unsigned validCol = static_cast<unsigned>(TileDataDst::ValidCol);
+        constexpr uint16_t repeatTimes = static_cast<uint16_t>((validCol + elementsPerRepeat - 1) / elementsPerRepeat);
+        constexpr uint32_t remainEleNum =
+            (validCol % elementsPerRepeat) == 0 ? elementsPerRepeat : (validCol % elementsPerRepeat);
+        if constexpr (staticRepeatTimes > TileDataDst::Rows) {
+            TGatherBRowWise<TileDataDst, TileDataSrc, TileDataOffset, elementsPerRepeat, blockSizeElem, dstRowStride,
+                            offsetRowStride>(dst.data(), src.data(), offset.data(), validRow, validCol, repeatTimes,
+                                             remainEleNum);
+        } else {
+            TGatherBColWise<TileDataDst, TileDataSrc, TileDataOffset, elementsPerRepeat, blockSizeElem, dstRowStride,
+                            offsetRowStride>(dst.data(), src.data(), offset.data(), validRow, validCol, repeatTimes,
+                                             remainEleNum);
+        }
     } else {
-        TGatherBColWise<TileDataDst, TileDataSrc, TileDataOffset, elementsPerRepeat, blockSizeElem, dstRowStride,
-                        offsetRowStride>(dst.data(), src.data(), offset.data(), validRow, validCol, repeatTimes,
-                                         remainEleNum);
+        unsigned validCol = dst.GetValidCol();
+        uint16_t repeatTimes = CeilDivision(validCol, elementsPerRepeat);
+        uint32_t remainEleNum = validCol % elementsPerRepeat ?: elementsPerRepeat;
+        if constexpr (staticRepeatTimes > TileDataDst::Rows) {
+            TGatherBRowWise<TileDataDst, TileDataSrc, TileDataOffset, elementsPerRepeat, blockSizeElem, dstRowStride,
+                            offsetRowStride>(dst.data(), src.data(), offset.data(), validRow, validCol, repeatTimes,
+                                             remainEleNum);
+        } else {
+            TGatherBColWise<TileDataDst, TileDataSrc, TileDataOffset, elementsPerRepeat, blockSizeElem, dstRowStride,
+                            offsetRowStride>(dst.data(), src.data(), offset.data(), validRow, validCol, repeatTimes,
+                                             remainEleNum);
+        }
     }
 }
 } // namespace pto
