@@ -1,5 +1,5 @@
 /**
-Copyright (c) 2025 Huawei Technologies Co., Ltd.
+Copyright (c) 2026 Huawei Technologies Co., Ltd.
 This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 CANN Open Software License Agreement Version 2.0 (the "License").
 Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -577,10 +577,6 @@ __tf__ PTO_INTERNAL void TExtractVecToMat(typename DstTile::TileDType __out__ ds
                       (SrcTile::isRowMajor && SrcTile::SFractal == SLayout::RowMajor && DstTile::isRowMajor &&
                        DstTile::SFractal == SLayout::RowMajor),
                   "TExtract Vec->Mat: Only support ND->ND or ZZ->ZZ on kirinX90.");
-
-    // TODO: 实现 Vec->Mat 搬运
-    // ND->ND: 使用 copy_ubuf_to_cbuf 单次搬运
-    // ZZ->ZZ: 使用 copy_ubuf_to_cbuf 多块搬运
 }
 
 template <typename T, typename DstTileData, typename SrcTileData>

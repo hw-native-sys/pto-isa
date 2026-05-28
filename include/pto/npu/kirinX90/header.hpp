@@ -107,6 +107,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TScatter.hpp"
 #include "pto/npu/a5/TDiv.hpp"
 #include "pto/npu/a5/TMul.hpp"
+#include "pto/npu/a5/TFMod.hpp"
+#include "pto/npu/a5/TFModS.hpp"
+#include "pto/npu/a5/TColProd.hpp"
 #undef bfloat16_t
 #undef hifloat8_t
 #undef float8_e4m3_t

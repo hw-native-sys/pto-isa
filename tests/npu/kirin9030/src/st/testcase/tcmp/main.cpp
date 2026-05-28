@@ -58,13 +58,14 @@ void test_tcmp()
     aclrtMallocHost((void **)(&dstHost), fileSize);
     aclrtMallocHost((void **)(&src0Host), fileSize);
     aclrtMallocHost((void **)(&src1Host), fileSize);
-
     aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMalloc((void **)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMalloc((void **)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input1.bin", fileSize, src0Host, fileSize);
     ReadFile(GetGoldenDir() + "/input2.bin", fileSize, src1Host, fileSize);
+    aclrtMemset(dstHost, file_size_dst, 0, file_size_dst);
+    aclrtMemcpy(dstDevice, file_size_dst, dstHost, file_size_dst, ACL_MEMCPY_HOST_TO_DEVICE);
 
     aclrtMemcpy(src0Device, fileSize, src0Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, fileSize, src1Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
