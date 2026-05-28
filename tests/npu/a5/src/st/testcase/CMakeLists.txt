@@ -137,6 +137,7 @@ set(ALL_TESTCASES
     trowexpandmul
     trowexpandsub
     trowexpandexpdif
+    tcolgather
     tgather
     tcvt
     tsub

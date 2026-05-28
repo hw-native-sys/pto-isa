@@ -234,45 +234,62 @@ PTO_INTERNAL MaskReg GetMaskVal()
     return dstPg0;
 }
 
-template <typename DstTileData, typename SrcTileData, MaskPattern maskPattern>
+template <typename DstTileData, typename SrcTileData, MaskPattern maskPattern, auto gatherType = GatherAxis::GATHER_ROW>
 __tf__ AICORE void TGather(typename DstTileData::TileDType __out__ dst, typename SrcTileData::TileDType __in__ src,
                            unsigned validRow, unsigned validCol)
 {
     using T = typename DstTileData::DType;
-    constexpr unsigned rowStride = SrcTileData::RowStride;
+    constexpr unsigned srcStride = SrcTileData::RowStride;
+    constexpr unsigned dstStride = DstTileData::RowStride;
     __ubuf__ typename DstTileData::DType *dstPtr = (__ubuf__ typename DstTileData::DType *)__cce_get_tile_ptr(dst);
     __ubuf__ typename DstTileData::DType *srcPtr = (__ubuf__ typename DstTileData::DType *)__cce_get_tile_ptr(src);
+    constexpr uint16_t nElemPerVL = CCE_VL / sizeof(T);
+    uint16_t repeatTimes = CeilDivision(validCol, nElemPerVL);
+
     __VEC_SCOPE__
     {
-        constexpr uint8_t SPR_AR_VALUE = 74;
-        constexpr auto sprValue = std::integral_constant<::Spr, static_cast<::Spr>(SPR_AR_VALUE)>();
-        sprclr(sprValue);
-
-        MaskReg dstPg0 = GetMaskVal<T, maskPattern>();
-        RegTensor<T> dstReg;
         RegTensor<T> srcReg;
         MaskReg loadMask;
-        MaskReg executeMask;
-        UnalignReg ureg;
-
-        constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
-        uint16_t innerRepeatTimes = CeilDivision(validCol, elementsPerRepeat);
-
-        for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
-            uint32_t maskValue = validCol;
-            for (uint16_t j = 0; j < innerRepeatTimes; ++j) {
-                loadMask = CreatePredicate<T>(maskValue);
-                vlds(srcReg, srcPtr + i * rowStride, j * elementsPerRepeat, NORM);
-                pand(executeMask, dstPg0, loadMask, loadMask);
-                vsqz(dstReg, srcReg, executeMask, MODE_STORED);
-                vstur(ureg, dstReg, dstPtr, POST_UPDATE);
+        uint32_t maskValue = 0;
+        if constexpr (gatherType == GatherAxis::GATHER_COL) {
+            uint16_t stride = 0;
+            constexpr auto distValue =
+                std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
+            for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
+                stride = GetStrideByMask<maskPattern, srcStride>(i);
+                maskValue = validCol;
+                for (uint16_t j = 0; j < repeatTimes; ++j) {
+                    loadMask = CreatePredicate<T>(maskValue);
+                    vlds(srcReg, srcPtr, stride + j * nElemPerVL, NORM);
+                    vsts(srcReg, dstPtr, i * dstStride + j * nElemPerVL, distValue, loadMask);
+                }
             }
+        } else {
+            constexpr uint8_t SPR_AR_VALUE = 74;
+            constexpr auto sprValue = std::integral_constant<::Spr, static_cast<::Spr>(SPR_AR_VALUE)>();
+            sprclr(sprValue);
+
+            MaskReg dstPg0 = GetMaskVal<T, maskPattern>();
+            RegTensor<T> dstReg;
+            MaskReg executeMask;
+            UnalignReg ureg;
+
+            for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
+                maskValue = validCol;
+                for (uint16_t j = 0; j < repeatTimes; ++j) {
+                    loadMask = CreatePredicate<T>(maskValue);
+                    vlds(srcReg, srcPtr + i * srcStride, j * nElemPerVL, NORM);
+                    pand(executeMask, dstPg0, loadMask, loadMask);
+                    vsqz(dstReg, srcReg, executeMask, MODE_STORED);
+                    vstur(ureg, dstReg, dstPtr, POST_UPDATE);
+                }
+            }
+            vstar(ureg, dstPtr);
         }
-        vstar(ureg, dstPtr);
     }
 }
 
-template <typename DstTileData, typename SrcTileData, MaskPattern maskPattern>
+template <typename DstTileData, typename SrcTileData, MaskPattern maskPattern, auto gatherType = GatherAxis::GATHER_ROW>
 PTO_INTERNAL void TGATHER_IMPL(DstTileData &dst, SrcTileData &src)
 {
     using T = typename SrcTileData::DType;
@@ -297,7 +314,7 @@ PTO_INTERNAL void TGATHER_IMPL(DstTileData &dst, SrcTileData &src)
     static_assert((DstTileData::isRowMajor && SrcTileData::isRowMajor), "Fix: TGATHER expect row major");
     unsigned rows = src.GetValidRow();
     unsigned cols = src.GetValidCol();
-    TGather<DstTileData, SrcTileData, maskPattern>(dst.data(), src.data(), rows, cols);
+    TGather<DstTileData, SrcTileData, maskPattern, gatherType>(dst.data(), src.data(), rows, cols);
 }
 
 template <typename TileDataD, typename TileDataS, typename TileDataS1, typename TileDataC, CmpMode cmpMode>

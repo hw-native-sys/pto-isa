@@ -86,6 +86,7 @@ checkopts "$@"
 if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
   if [ "$ENABLE_SIMPLE" = "true" ]; then           # 单个用例
     python3 tests/script/build_st.py $ARGS -v a3 -t all
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolgather -g TCOLGATHERTest.case_mask_half_16x64_16x64_P1111
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolscatter -g TCOLSCATTERTest.case_mask_half_16x64_16x64_P1111
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tconcatdstidx -g TCONCATTest.case_int16_16x32_16x16_16x16_8x16_8x16
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tconcatidx -g TCONCATTest.case_int16_16x32_16x16_16x16_8x16_8x16
@@ -277,6 +278,7 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
 
   elif [ "$ENABLE_ALL" = "true" ]; then            # 所有用例
     python3 tests/script/build_st.py $ARGS -v a3 -t all
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolgather
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolscatter
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tconcatdstidx
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tconcatidx
@@ -386,6 +388,7 @@ fi
 if [ "$ENABLE_A5" = "true" ]; then
   if [ "$ENABLE_SIMPLE" = "true" ]; then           # 单个用例
     python3 tests/script/build_st.py $ARGS -v a5 -t all
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolgather -g TCOLGATHERTest.case_mask_half_16x64_16x64_P1111
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolscatter -g TCOLSCATTERTest.case_mask_half_16x64_16x64_P1111
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tconcatdstidx -g TCONCATTest.case_int16_16x32_16x16_16x16_8x16_8x16
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tpartargmax -g TPARTARGMAXTest.case_fp32_64x64_64x64_64x64
@@ -558,6 +561,7 @@ if [ "$ENABLE_A5" = "true" ]; then
 
   elif [ "$ENABLE_ALL" = "true" ]; then            # 所有用例
     python3 tests/script/build_st.py $ARGS -v a5 -t all
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolgather
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolscatter
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tconcatdstidx
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tpartargmax

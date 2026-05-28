@@ -115,7 +115,7 @@ PTO_INTERNAL void TGather(typename DstTileData::TileDType dst, typename SrcTileD
     }
 }
 
-template <typename DstTileData, typename SrcTileData, MaskPattern maskPattern>
+template <typename DstTileData, typename SrcTileData, MaskPattern maskPattern, auto gatherType = GatherAxis::GATHER_ROW>
 PTO_INTERNAL void TGATHER_IMPL(DstTileData &dst, SrcTileData &src)
 {
     using T = typename SrcTileData::DType;

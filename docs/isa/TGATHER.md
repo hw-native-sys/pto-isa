@@ -54,21 +54,53 @@ pto.tgather ins(%src, {maskPattern = #pto.mask_pattern<P0101>} : !pto.tile_buf<.
 
 Declared in `include/pto/common/pto_instr.hpp`:
 
+### Index-based Gather
+
 ```cpp
 template <typename TileDataD, typename TileDataS0, typename TileDataS1, typename TileDataTmp, typename... WaitEvents>
 PTO_INST RecordEvent TGATHER(TileDataD &dst, TileDataS0 &src0, TileDataS1 &src1, TileDataTmp &tmp, WaitEvents &... events);
+```
 
+### Mask-pattern Gather
+
+```cpp
 template <typename DstTileData, typename SrcTileData, MaskPattern maskPattern, typename... WaitEvents>
 PTO_INST RecordEvent TGATHER(DstTileData &dst, SrcTileData &src, WaitEvents &... events);
 ```
 
+### Comparison-based Gather (TGather_cmp)
+
+Gather indices of elements that satisfy a comparison condition with a scalar threshold value per row.
+
+```cpp
+template <typename TileDataD, typename TileDataS, typename TileDataS1, typename TileDataC, typename TileDataTmp, CmpMode cmpMode, typename... WaitEvents>
+PTO_INST RecordEvent TGATHER(TileDataD &dst, TileDataS &src0, TileDataS1 &k_value, TileDataC &cdst, TileDataTmp &tmp, uint32_t offset, WaitEvents &... events);
+```
+
+For each row `i` in `src0`, compare each element `src0[i, j]` against threshold `k_value[i]` using `cmpMode` (GT or EQ). The indices of matching elements are gathered into `dst[i]`. The count of matches per row is stored in `cdst[i]`. The `offset` parameter specifies the starting index value.
+
+#### Comparison-based Gather Constraints
+
+- **A2A3**:
+    - `TileDataD::DType` must be `int32_t` or `uint32_t`.
+    - `TileDataS::DType` must be `float`, `half`, or `int32_t` (EQ mode only).
+    - `TileDataS1::DType` must be `int32_t` or `uint32_t`.
+    - `cmpMode` must be `CmpMode::GT` or `CmpMode::EQ`.
+- **A5**:
+    - `TileDataD::DType` must be `int32_t` or `uint32_t`.
+    - `TileDataS::DType` must be `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `half`, or `float`.
+    - `TileDataS1::DType` must be `uint16_t` or `uint32_t`.
+    - `cmpMode` must be `CmpMode::GT` or `CmpMode::EQ`.
+
 ## Constraints
 
 - **Index-based gather: implementation checks (A2A3)**:
-    - `sizeof(DstTileData::DType)` must be `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `half`, `float`.
-    - `sizeof(Src1TileData::DType)` must be `int32_t`, `uint32_t`.
+    - `sizeof(DstTileData::DType)` must be 2 or 4 bytes (b16/b32).
+    - `sizeof(Src1TileData::DType)` must be 4 bytes (b32: `int32_t`, `uint32_t`).
     - `DstTileData::DType` must be the same type as `Src0TileData::DType`.
-    - `src1.GetValidCol() == Src1TileData::Cols` and `dst.GetValidCol() == DstTileData::Cols`.
+    - `TmpTileData::DType` must be the same type as `Src1TileData::DType`.
+    - `src1.GetValidCol() == TmpTileData::Cols` and `src1.GetValidRow() == TmpTileData::Rows`.
+    - `dst.GetValidCol() == DstTileData::Cols` (continuous dst storage).
 - **Index-based gather: implementation checks (A5)**:
     - `sizeof(DstTileData::DType)` must be `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `half`, `float`.
     - `sizeof(Src1TileData::DType)` must be `int16_t`, `uint16_t`, `int32_t`, `uint32_t`.
