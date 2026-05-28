@@ -18,13 +18,13 @@ namespace TColExpandTest {
 template <typename T, uint32_t srcRows, uint32_t dstRows, uint32_t cols, uint32_t validCols>
 __global__ AICORE void runCOLEXPAND(__gm__ T __out__ *out, __gm__ T __in__ *src)
 {
-    using DynShapeDim5 = Shape<1, 1, 1, srcRows, cols>;
-    using DynStridDim5 = pto::Stride<1, 1, 1, cols, 1>;
+    using DynShapeDim5 = Shape<1, 1, 1, srcRows, validCols>;
+    using DynStridDim5 = pto::Stride<srcRows * cols, srcRows * cols, srcRows * cols, cols, 1>;
     using GlobalData = GlobalTensor<T, DynShapeDim5, DynStridDim5>;
     using TileData = Tile<TileType::Vec, T, srcRows, cols, BLayout::RowMajor, -1, -1>;
 
-    using DstDynShapeDim5 = Shape<1, 1, 1, dstRows, cols>;
-    using DstDynStridDim5 = pto::Stride<1, 1, 1, cols, 1>;
+    using DstDynShapeDim5 = Shape<1, 1, 1, dstRows, validCols>;
+    using DstDynStridDim5 = pto::Stride<dstRows * cols, dstRows * cols, dstRows * cols, cols, 1>;
     using DstGlobalData = GlobalTensor<T, DstDynShapeDim5, DstDynStridDim5>;
     using DstTileData = Tile<TileType::Vec, T, dstRows, cols, BLayout::RowMajor, -1, -1>;
 

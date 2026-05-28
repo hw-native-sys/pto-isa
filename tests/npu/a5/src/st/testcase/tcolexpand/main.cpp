@@ -57,7 +57,8 @@ void test_tcolexpand()
     aclrtMalloc((void **)&src0Device, inputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", inputFileSize, src0Host, inputFileSize);
-
+    aclrtMemset(dstHost, outputFileSize, 0, outputFileSize);
+    aclrtMemcpy(dstDevice, outputFileSize, dstHost, outputFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src0Device, inputFileSize, src0Host, inputFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     launchTCOLEXPAND<T, srcRows, dstRows, cols, validCols>(dstDevice, src0Device, stream);
 

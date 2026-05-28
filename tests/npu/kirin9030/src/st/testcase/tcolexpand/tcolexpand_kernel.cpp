@@ -18,26 +18,24 @@ namespace TColExpandTest {
 template <typename T, uint32_t srcRows, uint32_t dstRows, uint32_t cols, uint32_t validCols>
 __global__ AICORE void runCOLEXPAND(__gm__ T *out, __gm__ T *src)
 {
-    using DynShapeDim5 = Shape<1, 1, 1, srcRows, cols>;
-    using DynStridDim5 = pto::Stride<1, 1, 1, cols, 1>;
+    using DynShapeDim5 = Shape<1, 1, 1, srcRows, validCols>;
+    using DynStridDim5 = pto::Stride<srcRows * cols, srcRows * cols, srcRows * cols, cols, 1>;
     using GlobalData = GlobalTensor<T, DynShapeDim5, DynStridDim5>;
     using TileData = Tile<TileType::Vec, T, srcRows, cols, BLayout::RowMajor, -1, -1>;
 
-    using DstDynShapeDim5 = Shape<1, 1, 1, dstRows, cols>;
-    using DstDynStridDim5 = pto::Stride<1, 1, 1, cols, 1>;
+    using DstDynShapeDim5 = Shape<1, 1, 1, dstRows, validCols>;
+    using DstDynStridDim5 = pto::Stride<dstRows * cols, dstRows * cols, dstRows * cols, cols, 1>;
     using DstGlobalData = GlobalTensor<T, DstDynShapeDim5, DstDynStridDim5>;
     using DstTileData = Tile<TileType::Vec, T, dstRows, cols, BLayout::RowMajor, -1, -1>;
 
     TileData srcTile(srcRows, validCols);
     DstTileData dstTile(dstRows, validCols);
     TASSIGN<0x0>(srcTile);
-    TASSIGN<0xF000>(dstTile); // UB最大到0x40000
+    TASSIGN<srcRows * cols * sizeof(T)>(dstTile); // UB最大到0x40000
 
-    int offset = 0;
-    GlobalData srcGlobal(src + offset);
-    DstGlobalData dstGlobal(out + offset);
+    GlobalData srcGlobal(src);
+    DstGlobalData dstGlobal(out);
 
-    TLOAD(dstTile, dstGlobal);
     TLOAD(srcTile, srcGlobal);
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
@@ -45,10 +43,6 @@ __global__ AICORE void runCOLEXPAND(__gm__ T *out, __gm__ T *src)
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     TSTORE(dstGlobal, dstTile);
-    set_flag(PIPE_MTE3, PIPE_S, EVENT_ID0);
-    wait_flag(PIPE_MTE3, PIPE_S, EVENT_ID0);
-    pipe_barrier(PIPE_ALL);
-    out = dstGlobal.data();
 }
 
 template <typename T, uint32_t srcRows, uint32_t dstRows, uint32_t cols, uint32_t validCols>

@@ -67,7 +67,8 @@ void test_tcmps()
 
     ReadFile(GetGoldenDir() + "/input1.bin", fileSize, src0Host, fileSize);
     ReadFile(GetGoldenDir() + "/input2.bin", scalarfileSize, src1Host, scalarfileSize);
-
+    aclrtMemset(dstHost, file_size_dst, 0, file_size_dst);
+    aclrtMemcpy(dstDevice, file_size_dst, dstHost, file_size_dst, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src0Device, fileSize, src0Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, scalarfileSize, src1Host, scalarfileSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
