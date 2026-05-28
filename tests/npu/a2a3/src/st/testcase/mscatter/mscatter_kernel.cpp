@@ -16,6 +16,18 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
+AICORE PTO_INLINE void FlushScatterOutput()
+{
+    pipe_barrier(PIPE_ALL);
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    set_flag(PIPE_MTE3, PIPE_S, EVENT_ID0);
+    wait_flag(PIPE_MTE3, PIPE_S, EVENT_ID0);
+    dcci(static_cast<__gm__ void *>(0), ENTIRE_DATA_CACHE);
+    dsb(DSB_DDR);
+    pipe_barrier(PIPE_ALL);
+}
+
 template <pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kSrcRows,
           uint32_t kSrcCols, uint32_t kTableRows>
 inline AICORE void runRow(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indices)
@@ -43,10 +55,11 @@ inline AICORE void runRow(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indices)
 
     TLOAD(idxTile, idxGlobal);
     TLOAD(srcTile, srcGlobal);
-    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    pipe_barrier(PIPE_ALL);
 
     MSCATTER<Coalesce::Row, Atomic, Oob>(tableGlobal, srcTile, idxTile);
+
+    FlushScatterOutput();
 }
 
 template <pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kValidRows,
@@ -76,10 +89,11 @@ inline AICORE void runRowPadded(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indic
 
     TLOAD(idxTile, idxGlobal);
     TLOAD(srcTile, srcGlobal);
-    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    pipe_barrier(PIPE_ALL);
 
     MSCATTER<Coalesce::Row, Atomic, Oob>(tableGlobal, srcTile, idxTile);
+
+    FlushScatterOutput();
 }
 
 template <pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kSrcCols,
@@ -109,10 +123,11 @@ inline AICORE void runElem(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indices)
 
     TLOAD(idxTile, idxGlobal);
     TLOAD(srcTile, srcGlobal);
-    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    pipe_barrier(PIPE_ALL);
 
     MSCATTER<Coalesce::Elem, Atomic, Oob>(tableGlobal, srcTile, idxTile);
+
+    FlushScatterOutput();
 }
 
 template <pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kSrcRows,
@@ -142,10 +157,11 @@ inline AICORE void runElem2D(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indices)
 
     TLOAD(idxTile, idxGlobal);
     TLOAD(srcTile, srcGlobal);
-    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    pipe_barrier(PIPE_ALL);
 
     MSCATTER<Coalesce::Elem, Atomic, Oob>(tableGlobal, srcTile, idxTile);
+
+    FlushScatterOutput();
 }
 
 template <pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kValidRows,
@@ -175,10 +191,11 @@ inline AICORE void runElem2DPadded(__gm__ T *out, __gm__ T *src, __gm__ TIdx *in
 
     TLOAD(idxTile, idxGlobal);
     TLOAD(srcTile, srcGlobal);
-    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    pipe_barrier(PIPE_ALL);
 
     MSCATTER<Coalesce::Elem, Atomic, Oob>(tableGlobal, srcTile, idxTile);
+
+    FlushScatterOutput();
 }
 
 template <pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kPadCols,
@@ -208,10 +225,11 @@ inline AICORE void runElemScalar(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indi
 
     TLOAD(idxTile, idxGlobal);
     TLOAD(srcTile, srcGlobal);
-    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    pipe_barrier(PIPE_ALL);
 
     MSCATTER<Coalesce::Elem, Atomic, Oob>(tableGlobal, srcTile, idxTile);
+
+    FlushScatterOutput();
 }
 
 template <pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kPadRows,
@@ -248,10 +266,11 @@ inline AICORE void runElem2DDyn(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indic
 
     TLOAD(idxTile, idxGlobal);
     TLOAD(srcTile, srcGlobal);
-    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    pipe_barrier(PIPE_ALL);
 
     MSCATTER<Coalesce::Elem, Atomic, Oob>(tableGlobal, srcTile, idxTile);
+
+    FlushScatterOutput();
 }
 
 template <pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kPadRows,
@@ -288,10 +307,11 @@ inline AICORE void runRowDyn(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indices)
 
     TLOAD(idxTile, idxGlobal);
     TLOAD(srcTile, srcGlobal);
-    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    pipe_barrier(PIPE_ALL);
 
     MSCATTER<Coalesce::Row, Atomic, Oob>(tableGlobal, srcTile, idxTile);
+
+    FlushScatterOutput();
 }
 
 template <pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kSrcRows,
@@ -323,10 +343,11 @@ inline AICORE void runRowNz(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indices)
 
     TLOAD(idxTile, idxGlobal);
     TLOAD(srcTile, srcGlobal);
-    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    pipe_barrier(PIPE_ALL);
 
     MSCATTER<Coalesce::Row, Atomic, Oob>(tableGlobal, srcTile, idxTile);
+
+    FlushScatterOutput();
 }
 
 template <pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kSrcRows,
@@ -358,10 +379,11 @@ inline AICORE void runElem2DNz(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indice
 
     TLOAD(idxTile, idxGlobal);
     TLOAD(srcTile, srcGlobal);
-    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    pipe_barrier(PIPE_ALL);
 
     MSCATTER<Coalesce::Elem, Atomic, Oob>(tableGlobal, srcTile, idxTile);
+
+    FlushScatterOutput();
 }
 
 #define DEFINE_ROW(NAME, THOST, T, TIDX, R, C, TR, ATOMIC, OOB)                                                      \
@@ -473,6 +495,9 @@ DEFINE_ROW(row_float_atomic_add_8x32_8rows, float, float, int32_t, 8, 32, 8, Add
 DEFINE_ROW(row_int32_atomic_add_8x16_8rows, int32_t, int32_t, int32_t, 8, 16, 8, Add, Undefined)
 DEFINE_ROW(row_half_atomic_add_8x32_8rows, aclFloat16, half, int32_t, 8, 32, 8, Add, Undefined)
 DEFINE_ROW(row_int16_atomic_add_8x16_8rows, int16_t, int16_t, int32_t, 8, 16, 8, Add, Undefined)
+DEFINE_ROW(row_bfloat16_atomic_add_8x32_8rows, uint16_t, bfloat16_t, int32_t, 8, 32, 8, Add, Undefined)
+DEFINE_ROW(row_bfloat16_atomic_add_16x16_16rows, uint16_t, bfloat16_t, int32_t, 16, 16, 16, Add, Undefined)
+DEFINE_ROW(row_bfloat16_atomic_add_8x64_16rows, uint16_t, bfloat16_t, int32_t, 8, 64, 16, Add, Undefined)
 
 DEFINE_ROW_PAD(row_int32_unaligned_3x8_8rows, int32_t, int32_t, int32_t, 3, 8, 3, 8, 8, 8, None, Undefined)
 DEFINE_ROW_PAD(row_float_partial_4x16_in_8x16, float, float, int32_t, 4, 16, 8, 16, 8, 8, None, Undefined)
@@ -514,7 +539,10 @@ DEFINE_ELEM2D_PAD(elem2d_int8_unaligned_3x17_in_3x32_64size, int8_t, int8_t, int
 DEFINE_ELEM2D_ATOMIC(elem2d_float_atomic_add_4x16_8size, float, float, int32_t, 4, 16, 8, Add, Undefined)
 DEFINE_ELEM2D_ATOMIC(elem2d_int32_atomic_add_4x8_8size, int32_t, int32_t, int32_t, 4, 8, 8, Add, Undefined)
 DEFINE_ELEM2D_ATOMIC(elem2d_half_atomic_add_4x16_8size, aclFloat16, half, int32_t, 4, 16, 8, Add, Undefined)
+DEFINE_ELEM2D_ATOMIC(elem2d_bfloat16_atomic_add_4x16_8size, uint16_t, bfloat16_t, int32_t, 4, 16, 8, Add, Undefined)
+DEFINE_ELEM2D_ATOMIC(elem2d_bfloat16_atomic_add_8x16_64size, uint16_t, bfloat16_t, int32_t, 8, 16, 64, Add, Undefined)
 DEFINE_ELEM_ATOMIC(elem_int32_atomic_add_16_8size, int32_t, int32_t, int32_t, 16, 8, Add, Undefined)
+DEFINE_ELEM_ATOMIC(elem_bfloat16_atomic_add_32_16size, uint16_t, bfloat16_t, int32_t, 32, 16, Add, Undefined)
 
 DEFINE_ELEM_SCALAR(elem_scalar_float_1x1_in_1x8_8size, float, float, int32_t, 8, 8, Undefined)
 DEFINE_ELEM_SCALAR(elem_scalar_int32_1x1_in_1x8_8size, int32_t, int32_t, int32_t, 8, 8, Undefined)
