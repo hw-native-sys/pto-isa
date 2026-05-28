@@ -458,6 +458,12 @@ enum class ScatterAxis : uint8_t
     SCATTER_COL = 1
 };
 
+enum class GatherAxis : uint8_t
+{
+    GATHER_ROW = 0,
+    GATHER_COL = 1
+};
+
 namespace GlobalTensorDim {
 constexpr int DIM_0 = 0;
 constexpr int DIM_1 = 1;

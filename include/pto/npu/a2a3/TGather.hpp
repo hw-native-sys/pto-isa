@@ -140,7 +140,7 @@ PTO_INTERNAL void TGATHER_IMPL(DstTileData &dst, SrcTileData &src)
     if constexpr (gatherType == GatherAxis::GATHER_ROW) {
         PTO_ASSERT(dst.GetValidCol() == DstTileData::Cols, "Fix: TGATHER expect continuous memory for dst.");
     } else {
-        PTO_ASSERT(validRow == dst.GetValidRow() * GetTimesByMask<maskPattern>,
+        PTO_ASSERT(validRow == dst.GetValidRow() * GetTimesByMask<mask>,
                    "Fix: TGATHER validRow of dst must be 2 or 4 times that of src.");
     }
     TGather<DstTileData, SrcTileData, maskPattern, gatherType>(dst.data(), src.data(), validRow, validCol);

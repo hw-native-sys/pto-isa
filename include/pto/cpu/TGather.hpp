@@ -126,24 +126,6 @@ PTO_INTERNAL void TGather(typename DstTileData::TileDType dst, typename SrcTileD
     }
 }
 
-template <typename DstTileData, typename SrcTileData, MaskPattern maskPattern>
-PTO_INTERNAL void TGatherCol(typename DstTileData::TileDType dst, typename SrcTileData::TileDType src,
-                             unsigned validRow, unsigned validCol)
-{
-    unsigned dstRow = 0;
-    for (unsigned r = 0; r < validRow; ++r) {
-        if (!MaskSelect(maskPattern, r)) {
-            continue;
-        }
-        for (unsigned c = 0; c < validCol; ++c) {
-            const size_t sidx = GetTileElementOffset<SrcTileData>(r, c);
-            const size_t didx = GetTileElementOffset<DstTileData>(dstRow, c);
-            dst[didx] = static_cast<typename DstTileData::DType>(src[sidx]);
-        }
-        ++dstRow;
-    }
-}
-
 template <typename DstTileData, typename SrcTileData, MaskPattern maskPattern, auto gatherType = GatherAxis::GATHER_ROW>
 PTO_INTERNAL void TGATHER_IMPL(DstTileData &dst, SrcTileData &src)
 {
