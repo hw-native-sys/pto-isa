@@ -639,8 +639,14 @@ struct TPipe {
         {
             const std::size_t slotIndex = static_cast<std::size_t>(tileIndex % RingFiFo::SLOT_NUM);
             const std::size_t entryBase = slotIndex * RingFiFo::SLOT_SIZE + static_cast<std::size_t>(entryOffset);
-            uint64_t localTileBase = fifo.C2V_CONSUMER_BUF + entryBase;
-            TASSIGN_IMPL(tile, localTileBase);
+            (void)fifo;
+            (void)entryBase;
+
+            using T = typename TileCons::DType;
+            const auto &slotStorage = TPipe::GetSharedState().local_slot_storage[slotIndex];
+            const auto *slotPtr = reinterpret_cast<const T *>(slotStorage.data() + entryOffset);
+            cpu_pipe::EnsureTileStorage(tile);
+            cpu_pipe::CopyLinearToTile(tile, slotPtr, static_cast<uint32_t>(TileCons::Cols));
         }
 
         template <typename TileCons, TileSplitAxis Split>
@@ -654,7 +660,7 @@ struct TPipe {
             const auto *slotPtr =
                 reinterpret_cast<const T *>(slotStorage.data() + splitIndex * RingFiFo::SLOT_SIZE + entryOffset);
             cpu_pipe::EnsureTileStorage(tile);
-            cpu_pipe::CopyLinearToTile(tile, slotPtr, static_cast<uint32_t>(tile.GetValidCol()));
+            cpu_pipe::CopyLinearToTile(tile, slotPtr, static_cast<uint32_t>(TileCons::Cols));
         }
 
         template <typename TileCons, TileSplitAxis Split>
@@ -720,7 +726,7 @@ struct TPipe {
             if (fifo.GM_SLOT_BUFFER != nullptr) {
                 popTileFromGMFiFo<TileCons, Split>(fifo, tile);
                 return true;
-            } else if constexpr (TPipe::is_c2v) {
+            } else if constexpr (TPipe::is_c2v && cpu_pipe::IsC2VConsumerTile<TileCons>()) {
                 if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT) {
                     popTileFromVecFiFo<TileCons, Split>(fifo, tile);
                 } else {
@@ -728,8 +734,12 @@ struct TPipe {
                 }
                 return false;
             } else if constexpr (TPipe::is_v2c) {
-                popTileFromMatFiFo<TileCons, Split>(fifo, tile);
-                return false;
+                if constexpr (!is_global_data_v<TileCons>) {
+                    if constexpr (TileCons::Loc == TileType::Mat) {
+                        popTileFromMatFiFo<TileCons, Split>(fifo, tile);
+                        return false;
+                    }
+                }
             }
             return false;
         }
@@ -755,10 +765,10 @@ PTO_INTERNAL void TPush_c2v(Pipe &pipe, TileProd &tile, size_t entryBase, size_t
         (Split == TileSplitAxis::TILE_LEFT_RIGHT) ? (TileProd::Cols / 2) : static_cast<int>(TileProd::Cols);
 
     if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT) {
-        using SlotTile = Tile<TileType::Vec, T, consRows, consCols, BLayout::RowMajor, consRows, consCols>;
-        SlotTile slotTile;
-        TASSIGN(slotTile, static_cast<uint64_t>(pipe.fifo.C2V_CONSUMER_BUF + entryBase));
-        cpu_pipe::CopyTileWindow(slotTile, tile, 0, 0);
+        (void)entryBase;
+        auto &slotStorage = Pipe::GetSharedState().local_slot_storage[slotIndex];
+        auto *slotPtr = reinterpret_cast<T *>(slotStorage.data() + pipe.prod.entryOffset);
+        cpu_pipe::CopyTileWindowToLinear(slotPtr, consCols, tile, consRows, 0, 0);
     } else {
         auto &slotStorage = Pipe::GetSharedState().local_slot_storage[slotIndex];
         for (uint32_t splitIndex = 0; splitIndex < cpu_pipe::GetSplitCount<Split>(); ++splitIndex) {
@@ -827,9 +837,9 @@ PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
             GlobalData globalData(addr);
             TSTORE(globalData, tile);
         }
-    } else if constexpr (Pipe::is_c2v) {
+    } else if constexpr (Pipe::is_c2v && cpu_pipe::IsC2VProducerTile<TileProd>()) {
         TPush_c2v<Pipe, TileProd, Split>(pipe, tile, entryBase, slotIndex);
-    } else if constexpr (Pipe::is_v2c) {
+    } else if constexpr (Pipe::is_v2c && cpu_pipe::IsV2CProducerTile<TileProd>()) {
         TPush_v2c<Pipe, TileProd, Split>(pipe, tile, entryBase);
     }
     if (pipe.prod.getRecordStatus()) {
