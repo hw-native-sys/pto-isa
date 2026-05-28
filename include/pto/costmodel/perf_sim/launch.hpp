@@ -16,8 +16,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "reporter.hpp"
 #include "tile_dep_tracker.hpp"
 #include <pto/common/cpu_stub.hpp>
-#include <pto/costmodel/arch_config.hpp>
-#include <pto/costmodel/trace.hpp>
 
 #define PTO_EXPAND(...) __VA_ARGS__
 
@@ -31,12 +29,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
         ::pto::perf_sim::TileDepTracker::Clear();                                              \
         ::pto::perf_sim::SetLaunchConfig(PTO_EXPAND launch_cfg);                               \
         const uint32_t _blk_dim = ::pto::perf_sim::GetConfig().block_dim;                      \
-        ::pto::mocker::evaluator::SetActiveCoreCount(_blk_dim);                                \
         constexpr uint32_t _vec_cores = ::pto::perf_sim::VEC_CORES_PER_AIC;                    \
         for (uint32_t _core = 0; _core < _blk_dim; ++_core) {                                  \
             for (uint32_t _sub = 0; _sub < _vec_cores; ++_sub) {                               \
                 ::pto::perf_sim::current_subblock_id = _sub;                                   \
-                ::pto::mocker::ResetVectorStream();                                            \
                 uint32_t _logical = _core * _vec_cores + _sub;                                 \
                 ::pto::perf_sim::PtoRecorder::SetActiveCore(_logical);                         \
                 ::pto::perf_sim::SyncRecorder::SetActiveCore(_logical);                        \

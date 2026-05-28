@@ -184,7 +184,11 @@ for item in "${RUN_ITEMS[@]}"; do
     echo -e "========================================"
 
     # 构建测试命令
-    test_cmd="${PYTHON_BIN} tests/run_costmodel.py --testcase ${testcase} ${TEST_ARGS}"
+    if [[ "${item}" == "perf_sim_st:"* ]]; then
+        test_cmd="${PERF_SIM_ST_DIR}/${testcase}"
+    else
+        test_cmd="${PYTHON_BIN} tests/run_costmodel.py --suite ${suite} --testcase ${testcase} ${TEST_ARGS}"
+    fi
     echo -e "${YELLOW}[INFO] Execute cmd:${test_cmd}${NC}"
 
     # 执行命令并捕获退出码

@@ -937,7 +937,8 @@ __global__ AICORE void runTFA(__gm__ uint64_t *ffts_addr, __gm__ half *q, __gm__
 __global__ AICORE __attribute__((aic)) void warmup_kernel()
 {}
 
-// Host wrapper
+// Host wrapper (NPU launch — skipped under costmodel)
+#ifndef __COSTMODEL
 template <int S0, int HEAD_SIZE, int S1, int CUBE_S0, int CUBE_S1, int TILE_S1, int QK_PRELOAD, int CV_FIFO_SIZE,
           bool INTERMEDIATE_CHECK, bool CAUSAL_MASK, int CV_FIFO_CONS_SYNC_PERIOD>
 void LaunchTFA(uint16_t *ffts, aclFloat16 *q, aclFloat16 *k, aclFloat16 *v, aclFloat16 *p_tile_fifo,
@@ -1013,3 +1014,4 @@ void LaunchTFA(uint16_t *ffts, aclFloat16 *q, aclFloat16 *k, aclFloat16 *v, aclF
 TFA_FOR_EACH_CASE(INSTANTIATE_TFA)
 
 #undef INSTANTIATE_TFA
+#endif // __COSTMODEL

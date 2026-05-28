@@ -19,18 +19,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto::perf_sim {
 
-// ── Magic number constants ──
-static constexpr uint64_t kPercentMultiplier = 100;
-static constexpr uint64_t kMatrixLatencyBase = 4;
-static constexpr uint64_t kElemsPerMatrixUnit = 16;
-static constexpr uint64_t kGMLatencyBase = 3;
-static constexpr uint64_t kGMCycleMultiplier = 2;
-static constexpr uint64_t kGMElemsPerUnit = 64;
-static constexpr uint64_t kMTE1LatencyBase = 1;
-static constexpr uint64_t kMTE1ElemsPerUnit = 64;
-static constexpr uint64_t kDefaultLatencyBase = 2;
-static constexpr uint64_t kDefaultElemsPerUnit = 32;
-
 // ── Runtime context passed to costmodel ──
 
 struct CostModelRuntimeCtx {
@@ -84,10 +72,9 @@ inline bool TryMapOpcode(const std::string &opcode, ::pto::mocker::lightweight::
 
 inline ::pto::mocker::lightweight::DType MapDType(const std::string &dtype)
 {
-#define X(str, enum_val)                                    \
-    if (dtype == str) {                                     \
-        return ::pto::mocker::lightweight::DType::enum_val; \
-    }
+#define X(str, enum_val) \
+    if (dtype == str)    \
+        return ::pto::mocker::lightweight::DType::enum_val;
     PTO_PERF_SIM_DTYPE_LIST
 #undef X
     return ::pto::mocker::lightweight::DType::Half;
@@ -126,15 +113,16 @@ inline uint64_t FallbackCycles(const std::string &opcode, int rows, int cols)
 {
     uint64_t elems = static_cast<uint64_t>(rows) * cols;
     PipeStage stage = StaticPipeStageLookup(opcode);
+
     if (stage == PipeStage::Scalar)
         return 1;
     if (stage == PipeStage::Matrix)
-        return kMatrixLatencyBase + elems / kElemsPerMatrixUnit;
+        return 4 + elems / 16;
     if (IsGMAccessPipe(stage))
-        return kGMLatencyBase + elems * kGMCycleMultiplier / kGMElemsPerUnit;
+        return 3 + elems * 2 / 64;
     if (stage == PipeStage::MTE1)
-        return kMTE1LatencyBase + elems / kMTE1ElemsPerUnit;
-    return kDefaultLatencyBase + elems / kDefaultElemsPerUnit;
+        return 1 + elems / 64;
+    return 2 + elems / 32;
 }
 
 // ── Unified estimation entry (used when CCE mock trace is unavailable) ──

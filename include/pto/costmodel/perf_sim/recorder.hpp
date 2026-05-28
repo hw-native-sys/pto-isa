@@ -72,7 +72,7 @@ inline bool IsAIVStage(PipeStage s)
 // IsCubeSidePipe: hardware pipe IDs belonging to CubeCore (AIC)
 inline bool IsCubeSidePipe(int hw_pipe)
 {
-    return hw_pipe == PIPE_MTE1 || hw_pipe == PIPE_M || hw_pipe == PIPE_FIX;
+    return hw_pipe == 2 /*PIPE_MTE1*/ || hw_pipe == 5 /*PIPE_M*/ || hw_pipe == 7 /*PIPE_FIX*/;
 }
 
 // ── PTO instruction record ──
@@ -96,7 +96,7 @@ struct InstrRecord {
     uint32_t core_id = 0;     // recording core
     uint32_t subblock_id = 0; // VecCore index (0 or 1)
     CvSyncKind cv_kind = CvSyncKind::None;
-    uint64_t cv_key = 0;      // logical FIFO identity for TPUSH/TPOP token matching
+    uint64_t cv_key = 0; // logical FIFO identity for TPUSH/TPOP token matching
 };
 
 enum class SyncKind : uint8_t
@@ -210,7 +210,7 @@ public:
             if (IsCubeSidePipe(src))
                 return;
             // PIPE_MTE2(3) with Cube dst is MTE2_AIC → skip
-            if (src == PIPE_MTE2 && IsCubeSidePipe(dst))
+            if (src == 3 /*PIPE_MTE2*/ && IsCubeSidePipe(dst))
                 return;
         }
         Get().push_back({SyncKind::Signal, id, src, dst, cross, NextSeq(), ActiveCore(), sub_id});
@@ -296,9 +296,7 @@ enum class TPipeDir : uint8_t
 
 inline uint8_t CvKeyDirection(uint64_t key)
 {
-    constexpr uint8_t DIR_TYPE_MASK = 0xffu;
-    constexpr int DIR_TYPE_SHIFT = 8;
-    return static_cast<uint8_t>((key >> DIR_TYPE_SHIFT) & DIR_TYPE_MASK);
+    return static_cast<uint8_t>((key >> 8) & 0xffu);
 }
 
 inline uint64_t NextCvFifoTypeId()
@@ -317,9 +315,7 @@ uint64_t CvFifoTypeId()
 template <typename Pipe>
 uint64_t MakeCvFifoKey()
 {
-    constexpr int DIR_SHIFT = 8;
-    constexpr int TYPE_SHIFT = 16;
-    return (static_cast<uint64_t>(Pipe::DIR_TYPE) << DIR_SHIFT) | (CvFifoTypeId<Pipe>() << TYPE_SHIFT);
+    return (static_cast<uint64_t>(Pipe::DIR_TYPE) << 8) | (CvFifoTypeId<Pipe>() << 16);
 }
 
 // ── Compile-time tile traits (duck typing for pto::Tile<...>) ──
@@ -337,12 +333,8 @@ struct TileTraits {
 template <typename T>
 concept HasTileDims = requires {
     typename T::DType;
-    {
-        T::Rows
-    } -> std::convertible_to<int>;
-    {
-        T::Cols
-    } -> std::convertible_to<int>;
+    { T::Rows } -> std::convertible_to<int>;
+    { T::Cols } -> std::convertible_to<int>;
 };
 
 template <HasTileDims T>
