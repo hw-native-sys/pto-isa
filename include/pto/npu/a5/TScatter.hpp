@@ -116,7 +116,7 @@ PTO_INTERNAL void ScatterMask(__ubuf__ T *src, __ubuf__ T *dstPtr, RegTensor<T> 
 
     vlds(srcReg, src, i * SrcRowStride + j * nElemPerVL, NORM);
 
-    if constexpr (Times == PTO_TSCATTER_TIME_2) {
+    if constexpr (Times == PTO_TIME_2) {
         if constexpr (mask == MaskPattern::P1010) {
             vintlv(dstReg0, dstReg1, zeros, srcReg);
         } else if constexpr (mask == MaskPattern::P0101) {
@@ -126,7 +126,7 @@ PTO_INTERNAL void ScatterMask(__ubuf__ T *src, __ubuf__ T *dstPtr, RegTensor<T> 
         vsts(dstReg0, dstPtr, i * DstRowStride + (Times * j + 0) * nElemPerVL, distValue, pReg);
         pReg = CreatePredicate<T>(sReg);
         vsts(dstReg1, dstPtr, i * DstRowStride + (Times * j + 1) * nElemPerVL, distValue, pReg);
-    } else if constexpr (Times == PTO_TSCATTER_TIME_4) {
+    } else if constexpr (Times == PTO_TIME_4) {
         if constexpr (mask == MaskPattern::P1000) {
             vintlv(tmpReg0, tmpReg1, zeros, srcReg);
             vintlv(dstReg0, dstReg1, zeros, tmpReg0);
@@ -164,7 +164,7 @@ __tf__ PTO_INTERNAL void TScatterMaskImpl(typename DstTile::TileDType __out__ ds
     __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
     __ubuf__ T *src = (__ubuf__ T *)__cce_get_tile_ptr(srcData);
     constexpr uint16_t nElemPerVL = CCE_VL / sizeof(T);
-    constexpr uint16_t times = GetScatterTimesByMask<mask>();
+    constexpr uint16_t times = GetTimesByMask<mask>();
     constexpr unsigned dstStride = DstTile::RowStride;
     constexpr unsigned srcStride = SrcTile::RowStride;
     uint16_t repeatTimes = CeilDivision(validCol, nElemPerVL);
@@ -182,7 +182,7 @@ __tf__ PTO_INTERNAL void TScatterMaskImpl(typename DstTile::TileDType __out__ ds
             constexpr auto distValue =
                 std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
             for (uint16_t i = 0; i < (uint16_t)(validRow); ++i) {
-                stride = GetScatterStrideByMask<mask, dstStride>(i);
+                stride = GetStrideByMask<mask, dstStride>(i);
                 sReg = (uint32_t)validCol;
                 for (uint16_t j = 0; j < repeatTimes; ++j) {
                     pReg = CreatePredicate<T>(sReg);
@@ -231,11 +231,11 @@ PTO_INTERNAL void TSCATTER_IMPL(DstTile &dst, SrcTile &src)
                       "Fix: TSCATTER: MaskPattern parameter value out of range: must be P0101...P1111 inclusive.");
         if constexpr (ScatterType == ScatterAxis::SCATTER_COL) {
             PTO_ASSERT(validCol == dst.GetValidCol(), "TSCATTER: validCol of src must match dst.");
-            PTO_ASSERT(validRow == dst.GetValidRow() * GetScatterTimesByMask<mask>,
+            PTO_ASSERT(validRow == dst.GetValidRow() * GetTimesByMask<mask>,
                        "TSCATTER: validRow of dst must be 2 or 4 times that of src.");
         } else {
             PTO_ASSERT(validRow == dst.GetValidRow(), "TSCATTER: validRow of src must match dst.");
-            PTO_ASSERT(validCol == dst.GetValidCol() * GetScatterTimesByMask<mask>,
+            PTO_ASSERT(validCol == dst.GetValidCol() * GetTimesByMask<mask>,
                        "TSCATTER: validRow of src must match dst.");
         }
 

@@ -54,22 +54,54 @@ pto.tgather ins(%src, {maskPattern = #pto.mask_pattern<P0101>} : !pto.tile_buf<.
 
 声明于 `include/pto/common/pto_instr.hpp`：
 
+### 基于索引的 Gather
+
 ```cpp
 template <typename TileDataD, typename TileDataS0, typename TileDataS1, typename TileDataTmp, typename... WaitEvents>
 PTO_INST RecordEvent TGATHER(TileDataD &dst, TileDataS0 &src0, TileDataS1 &src1, TileDataTmp &tmp, WaitEvents &... events);
+```
 
+### 基于掩码模式的 Gather
+
+```cpp
 template <typename DstTileData, typename SrcTileData, MaskPattern maskPattern, typename... WaitEvents>
 PTO_INST RecordEvent TGATHER(DstTileData &dst, SrcTileData &src, WaitEvents &... events);
 ```
+
+### 基于比较的 Gather（TGather_cmp）
+
+收集满足与每行阈值标量比较条件的元素的索引。
+
+```cpp
+template <typename TileDataD, typename TileDataS, typename TileDataS1, typename TileDataC, typename TileDataTmp, CmpMode cmpMode, typename... WaitEvents>
+PTO_INST RecordEvent TGATHER(TileDataD &dst, TileDataS &src0, TileDataS1 &k_value, TileDataC &cdst, TileDataTmp &tmp, uint32_t offset, WaitEvents &... events);
+```
+
+对于 `src0` 的每一行 `i`，使用 `cmpMode`（GT 或 EQ）将每个元素 `src0[i, j]` 与阈值 `k_value[i]` 比较。匹配元素的索引被收集到 `dst[i]` 中。每行的匹配数量存储在 `cdst[i]` 中。`offset` 参数指定起始索引值。
+
+#### 基于比较的 Gather 约束
+
+- **A2A3**:
+    - `TileDataD::DType` 必须是 `int32_t` 或 `uint32_t`。
+    - `TileDataS::DType` 必须是 `float`、`half`，或 `int32_t`（仅 EQ 模式）。
+    - `TileDataS1::DType` 必须是 `int32_t` 或 `uint32_t`。
+    - `cmpMode` 必须是 `CmpMode::GT` 或 `CmpMode::EQ`。
+- **A5**:
+    - `TileDataD::DType` 必须是 `int32_t` 或 `uint32_t`。
+    - `TileDataS::DType` 必须是 `int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half` 或 `float`。
+    - `TileDataS1::DType` 必须是 `uint16_t` 或 `uint32_t`。
+    - `cmpMode` 必须是 `CmpMode::GT` 或 `CmpMode::EQ`。
 
 ## 约束
 
 !!! warning "约束"
     - **基于索引的 gather：实现检查 (A2A3)**:
-        - `sizeof(DstTileData::DType)` 对应类型必须是 `int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`float` 之一。
-        - `sizeof(Src1TileData::DType)` 对应类型必须是 `int32_t`、`uint32_t` 之一。
+        - `sizeof(DstTileData::DType)` 必须是 2 或 4 字节（b16/b32）。
+        - `sizeof(Src1TileData::DType)` 必须是 4 字节（b32: `int32_t`、`uint32_t`）。
         - `DstTileData::DType` 必须与 `Src0TileData::DType` 类型相同。
-        - `src1.GetValidCol() == Src1TileData::Cols` 且 `dst.GetValidCol() == DstTileData::Cols`。
+        - `TmpTileData::DType` 必须与 `Src1TileData::DType` 类型相同。
+        - `src1.GetValidCol() == TmpTileData::Cols` 且 `src1.GetValidRow() == TmpTileData::Rows`。
+        - `dst.GetValidCol() == DstTileData::Cols`（连续的目标存储）。
     - **基于索引的 gather：实现检查 (A5)**:
         - `sizeof(DstTileData::DType)` 对应类型必须是 `int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`float` 之一。
         - `sizeof(Src1TileData::DType)` 对应类型必须是 `int16_t`、`uint16_t`、`int32_t`、`uint32_t` 之一。

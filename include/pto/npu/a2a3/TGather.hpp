@@ -95,7 +95,7 @@ PTO_INTERNAL void TGATHER_IMPL(TileDataD &dst, TileDataS0 &src0, TileDataS1 &src
                                                             validRow);
 }
 
-template <typename DstTileData, typename SrcTileData, MaskPattern maskPattern>
+template <typename DstTileData, typename SrcTileData, MaskPattern maskPattern, auto gatherType = GatherAxis::GATHER_ROW>
 __tf__ AICORE void TGather(typename DstTileData::TileDType __out__ dst, typename SrcTileData::TileDType __in__ src,
                            unsigned validRow, unsigned validCol)
 {
@@ -103,30 +103,47 @@ __tf__ AICORE void TGather(typename DstTileData::TileDType __out__ dst, typename
     using U = std::conditional_t<sizeof(T) == sizeof(uint32_t), uint32_t, uint16_t>;
 
     constexpr unsigned srcRepeatStride = SrcTileData::Cols * sizeof(T) / BLOCK_BYTE_SIZE;
+    constexpr unsigned dstStride = DstTileData::RowStride;
+    constexpr unsigned srcStride = SrcTileData::RowStride;
 
     __ubuf__ typename DstTileData::DType *dstPtr = (__ubuf__ typename DstTileData::DType *)__cce_get_tile_ptr(dst);
     __ubuf__ typename SrcTileData::DType *srcPtr = (__ubuf__ typename SrcTileData::DType *)__cce_get_tile_ptr(src);
 
     set_mask_count();
     set_vector_mask(0, validCol);
-    vreducev2(reinterpret_cast<__ubuf__ U *>(dstPtr), reinterpret_cast<__ubuf__ U *>(srcPtr),
-              reinterpret_cast<__ubuf__ U *>(srcPtr), validRow, 1, maskPattern, srcRepeatStride, 0);
+    if constexpr (gatherType == GatherAxis::GATHER_COL) {
+        uint16_t stride = 0;
+        for (int i = 0; i < validRow; i++) {
+            stride = GetStrideByMask<maskPattern, srcStride>(i);
+            vcopy((__ubuf__ U *)(dstPtr + i * dstStride), (__ubuf__ U *)(srcPtr + stride), 1, 1, 1, 8, 8);
+        }
+    } else {
+        vreducev2(reinterpret_cast<__ubuf__ U *>(dstPtr), reinterpret_cast<__ubuf__ U *>(srcPtr),
+                  reinterpret_cast<__ubuf__ U *>(srcPtr), validRow, 1, maskPattern, srcRepeatStride, 0);
+    }
     set_mask_norm();
     set_vector_mask(-1, -1);
 }
 
-template <typename DstTileData, typename SrcTileData, MaskPattern maskPattern>
+template <typename DstTileData, typename SrcTileData, MaskPattern maskPattern, auto gatherType = GatherAxis::GATHER_ROW>
 PTO_INTERNAL void TGATHER_IMPL(DstTileData &dst, SrcTileData &src)
 {
     using T = typename SrcTileData::DType;
+    unsigned validRow = src.GetValidRow();
+    unsigned validCol = src.GetValidCol();
     static_assert(sizeof(T) == 2 || sizeof(T) == 4, "Fix: TGATHER src element type must be 16 or 32-bit wide");
     static_assert((DstTileData::Loc == TileType::Vec) && (SrcTileData::Loc == TileType::Vec),
                   "Fix: TGATHER expect vec TileType");
     static_assert((DstTileData::isRowMajor && SrcTileData::isRowMajor), "Fix: TGATHER expect row major");
     static_assert((sizeof(typename DstTileData::DType) == sizeof(T)),
                   "Fix: TGATHER expect same type size for dst and src");
-    PTO_ASSERT(dst.GetValidCol() == DstTileData::Cols, "Fix: TGATHER expect continuous memory for dst.");
-    TGather<DstTileData, SrcTileData, maskPattern>(dst.data(), src.data(), src.GetValidRow(), src.GetValidCol());
+    if constexpr (gatherType == GatherAxis::GATHER_ROW) {
+        PTO_ASSERT(dst.GetValidCol() == DstTileData::Cols, "Fix: TGATHER expect continuous memory for dst.");
+    } else {
+        PTO_ASSERT(validRow == dst.GetValidRow() * GetTimesByMask<mask>,
+                   "Fix: TGATHER validRow of dst must be 2 or 4 times that of src.");
+    }
+    TGather<DstTileData, SrcTileData, maskPattern, gatherType>(dst.data(), src.data(), validRow, validCol);
 }
 
 template <typename TileDataD, typename TileDataS, typename TileDataS1>

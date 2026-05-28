@@ -58,8 +58,11 @@ Declared in `include/pto/common/pto_instr.hpp`:
 template <typename TileDataD, typename TileDataS0, typename TileDataS1, typename TileDataTmp, typename... WaitEvents>
 PTO_INST RecordEvent TGATHER(TileDataD &dst, TileDataS0 &src0, TileDataS1 &src1, TileDataTmp &tmp, WaitEvents &... events);
 
-template <typename DstTileData, typename SrcTileData, MaskPattern maskPattern, typename... WaitEvents>
+template <typename DstTileData, typename SrcTileData, MaskPattern maskPattern, auto gatherType = GatherAxis::GATHER_ROW, typename... WaitEvents>
 PTO_INST RecordEvent TGATHER(DstTileData &dst, SrcTileData &src, WaitEvents &... events);
+
+template <typename TileDataD, typename TileDataS, typename TileDataS1, typename TileDataC, typename TileDataTmp, CmpMode cmpMode, typename... WaitEvents>
+PTO_INST RecordEvent TGATHER(TileDataD &dst, TileDataS &src0, TileDataS1 &k_value, TileDataC &cdst, TileDataTmp &tmp, uint32_t offset, WaitEvents &... events);
 ```
 
 ## Inputs
@@ -68,11 +71,15 @@ PTO_INST RecordEvent TGATHER(DstTileData &dst, SrcTileData &src, WaitEvents &...
 - `indices` (index-based gather): index tile providing gather indices.
 - `tmp` (optional): temporary tile for index-based gather.
 - `maskPattern` (mask-pattern gather): compile-time mask pattern.
+- `gatherType` (mask-pattern gather): compile-time gather axis; defaults to `GatherAxis::GATHER_ROW`.
+- `k_value` (comparison-based gather): per-row threshold tile.
+- `cdst` (comparison-based gather): per-row match-count output tile.
+- `offset` (comparison-based gather): starting index value for gathered indices.
 - `dst` names the destination tile. The operation iterates over dst's valid region.
 
 ## Expected Outputs
 
-`dst` holds gathered elements from `src0` at positions specified by `indices` or `maskPattern`.
+`dst` holds gathered elements from `src0` at positions specified by `indices` or `maskPattern`. For comparison-based gather, `dst` holds the matching indices and `cdst` holds the match count per row.
 
 ## Side Effects
 
@@ -94,10 +101,12 @@ No architectural side effects beyond producing the destination tile. Does not im
 
 ??? info "Target-Profile Restrictions"
     - **Index-based gather: implementation checks (A2A3)**:
-        - `sizeof(DstTileData::DType)` must be must be `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `half`, `float`.
-        - `sizeof(Src1TileData::DType)` must be must be `int32_t`, `uint32_t`.
+        - `sizeof(DstTileData::DType)` must be 2 or 4 bytes (b16/b32).
+        - `sizeof(Src1TileData::DType)` must be 4 bytes (b32: `int32_t`, `uint32_t`).
         - `DstTileData::DType` must be the same type as `Src0TileData::DType`.
-        - `src1.GetValidCol() == Src1TileData::Cols` and `dst.GetValidCol() == DstTileData::Cols`.
+        - `TmpTileData::DType` must be the same type as `Src1TileData::DType`.
+        - `src1.GetValidCol() == TmpTileData::Cols` and `src1.GetValidRow() == TmpTileData::Rows`.
+        - `dst.GetValidCol() == DstTileData::Cols` (continuous dst storage).
 
     - **Index-based gather: implementation checks (A5)**:
         - `sizeof(DstTileData::DType)` must be must be `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `half`, `float`.
@@ -118,6 +127,18 @@ No architectural side effects beyond producing the destination tile. Does not im
         - `SrcTileData::DType`/`DstTileData::DType` must be `int8_t` or `uint8_t` or `int16_t` or `uint16_t` or `int32_t` or `uint32_t`
         or `half` or `bfloat16_t` or `float` or `float8_e4m3_t`or `float8_e5m2_t` or `hifloat8_t`.
         - Supported dtypes are restricted to a target-defined set (checked via `static_assert` in the implementation), and `sizeof(dst element) == sizeof(src element)`, `dst.GetValidCol() == DstTileData::Cols` (continuous dst storage).
+
+    - **Comparison-based gather: implementation checks (A2A3)**:
+        - `TileDataD::DType` must be `int32_t` or `uint32_t`.
+        - `TileDataS::DType` must be `float`, `half`, or `int32_t` (EQ mode only).
+        - `TileDataS1::DType` must be `int32_t` or `uint32_t`.
+        - `cmpMode` must be `CmpMode::GT` or `CmpMode::EQ`.
+
+    - **Comparison-based gather: implementation checks (A5)**:
+        - `TileDataD::DType` must be `int32_t` or `uint32_t`.
+        - `TileDataS::DType` must be `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `half`, or `float`.
+        - `TileDataS1::DType` must be `uint16_t` or `uint32_t`.
+        - `cmpMode` must be `CmpMode::GT` or `CmpMode::EQ`.
 
 ## Examples
 
