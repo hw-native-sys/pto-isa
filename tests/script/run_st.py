@@ -149,6 +149,11 @@ def build_project(run_mode, soc_version, testcase="all", debug_enable=False, aut
     finally:
         os.chdir(original_dir)
 
+
+def testcase_binary_exists(testcase):
+    return os.path.isfile(os.path.join("build", "bin", testcase))
+
+
 def run_gen_data(golden_path):
     original_dir = os.getcwd()
     try:
@@ -348,6 +353,8 @@ def main():
             subprocess.run(["rm", "-rf", "build/T*"],
                 cwd=original_dir,
                 check=True)
+            if not testcase_binary_exists(testcase):
+                build_project(args.run_mode, default_soc_version, testcase, args.debug_enable, args.auto_mode_enable)
         else:
             build_project(args.run_mode, default_soc_version, testcase, args.debug_enable, args.auto_mode_enable)
 

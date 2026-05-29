@@ -1,0 +1,142 @@
+name: A5 Smoke
+
+on:
+  pull_request:
+    branches: ["main"]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      device_id:
+        description: "task-submit device id, or auto"
+        required: false
+        default: "auto"
+        type: string
+      ascend_home_path:
+        description: "Override ASCEND_HOME_PATH on the runner"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: >-
+    a5-smoke-${{ github.workflow }}-${{
+      github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.ref
+    }}
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    # The active A5 runner is managed by the non-root zoujiangjiangCI account on host 39.
+    runs-on: [self-hosted, a5]
+    timeout-minutes: 120
+
+    steps:
+      - name: Resolve trigger context
+        id: trigger
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const isPullRequest = context.eventName === "pull_request";
+            let repository = `${context.repo.owner}/${context.repo.repo}`;
+            let ref = context.ref.replace("refs/heads/", "");
+            let sha = context.sha;
+            let prNumber = "";
+
+            if (isPullRequest) {
+              const pr = context.payload.pull_request;
+              repository = pr.head.repo.full_name;
+              ref = pr.head.sha;
+              sha = pr.head.sha;
+              prNumber = String(pr.number);
+            }
+
+            core.setOutput("repository", repository);
+            core.setOutput("ref", ref);
+            core.setOutput("sha", sha);
+            core.setOutput("pr_number", prNumber);
+
+      - name: Checkout target ref
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.trigger.outputs.repository }}
+          ref: ${{ steps.trigger.outputs.ref }}
+          fetch-depth: 1
+
+      - name: Record trigger summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "A5 smoke target repository: ${{ steps.trigger.outputs.repository }}"
+          echo "A5 smoke target ref: ${{ steps.trigger.outputs.ref }}"
+          echo "A5 smoke target sha: ${{ steps.trigger.outputs.sha }}"
+          if [[ -n "${{ steps.trigger.outputs.pr_number }}" ]]; then
+            echo "Triggered from PR #${{ steps.trigger.outputs.pr_number }}"
+          fi
+
+      - name: Resolve runner parameters
+        shell: bash
+        env:
+          INPUT_DEVICE_ID: ${{ github.event.inputs.device_id || '' }}
+          INPUT_ASCEND_HOME_PATH: ${{ github.event.inputs.ascend_home_path || '' }}
+          DEFAULT_DEVICE_ID: ${{ vars.A5_SMOKE_DEVICE_ID }}
+          DEFAULT_ASCEND_HOME_PATH: ${{ vars.A5_SMOKE_ASCEND_HOME_PATH }}
+          DEFAULT_PYTHON_BIN_DIR: /home/pto/.conda/envs/a5ci/bin
+          DEFAULT_CANN_SETENV_PATH: /usr/local/Ascend/cann-9.0.0/aarch64-linux/bin/setenv.bash
+          DEFAULT_GTEST_PREFIX: /home/zoujiangjiangCI/.local/gtest
+          DEFAULT_TOOLCHAIN_PATH_PREFIX: /usr/local/bin:/usr/bin:/bin:/usr/local/Ascend/cann-9.0.0/bin
+        run: |
+          set -euo pipefail
+
+          device_id="${INPUT_DEVICE_ID:-${DEFAULT_DEVICE_ID:-auto}}"
+          ascend_home_path="${INPUT_ASCEND_HOME_PATH:-${DEFAULT_ASCEND_HOME_PATH:-}}"
+
+          {
+            echo "DEVICE_ID=${device_id}"
+            echo "ASCEND_HOME_PATH=${ascend_home_path}"
+            echo "A5_PYTHON_BIN_DIR=${DEFAULT_PYTHON_BIN_DIR}"
+            echo "A5_CANN_SETENV_PATH=${DEFAULT_CANN_SETENV_PATH}"
+            echo "A5_GTEST_PREFIX=${DEFAULT_GTEST_PREFIX}"
+            echo "A5_TOOLCHAIN_PATH_PREFIX=${DEFAULT_TOOLCHAIN_PATH_PREFIX}"
+          } >> "${GITHUB_ENV}"
+
+      - name: Run A5 smoke on self-hosted runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x ./.github/scripts/a5/run_smoke.sh
+          if ! command -v task-submit >/dev/null 2>&1; then
+            echo "ERROR: task-submit is required so the non-root runner can submit A5 smoke to root." >&2
+            exit 1
+          fi
+
+          cat > ./a5_smoke.env <<EOF
+          ASCEND_HOME_PATH=${ASCEND_HOME_PATH}
+          A5_PYTHON_BIN_DIR=${A5_PYTHON_BIN_DIR}
+          A5_CANN_SETENV_PATH=${A5_CANN_SETENV_PATH}
+          A5_GTEST_PREFIX=${A5_GTEST_PREFIX}
+          A5_TOOLCHAIN_PATH_PREFIX=${A5_TOOLCHAIN_PATH_PREFIX}
+          EOF
+
+          task_args=(--env-file ./a5_smoke.env --timeout 0 --max-time 0)
+          if [[ "${DEVICE_ID}" =~ ^[0-9]+$ ]]; then
+            task_args+=(--device "${DEVICE_ID}")
+          fi
+
+          task-submit "${task_args[@]}" \
+            --run "bash '${GITHUB_WORKSPACE}/.github/scripts/a5/run_smoke.sh'" \
+            2>&1 | tee ./a5_smoke.log
+
+      - name: Print A5 smoke log tail
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f ./a5_smoke.log ]]; then
+            echo "===== a5_smoke.log (tail -200) ====="
+            tail -n 200 ./a5_smoke.log || true
+          else
+            echo "a5_smoke.log was not generated."
+          fi
