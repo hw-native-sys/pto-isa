@@ -304,11 +304,9 @@ PTO_INTERNAL void GenCastCallFp32ToBf16(__ubuf__ typename TileDataD::DType *dst,
 }
 
 // FP16 -> INT32 conversion
-template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void GenCastCallFp16ToInt32(__ubuf__ typename TileDataD::DType *dst,
-                                         __ubuf__ typename TileDataS::DType *src, uint8_t repeatNum, RoundMode mode,
-                                         uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride,
-                                         uint16_t srcRepeatStride)
+PTO_INTERNAL void GenCastCallFp16ToInt32ByRoundMode(__ubuf__ int32_t *dst, __ubuf__ half *src, uint8_t repeatNum,
+                                                    RoundMode mode, uint16_t dstBlockStride, uint16_t srcBlockStride,
+                                                    uint16_t dstRepeatStride, uint16_t srcRepeatStride)
 {
     switch (static_cast<RoundMode>(mode)) {
         case RoundMode::CAST_RINT:
@@ -324,12 +322,20 @@ PTO_INTERNAL void GenCastCallFp16ToInt32(__ubuf__ typename TileDataD::DType *dst
             vconv_f162s32c(dst, src, repeatNum, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
             break;
         case RoundMode::CAST_TRUNC:
-            vconv_f162s32z(dst, src, repeatNum, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
-            break;
         default:
             vconv_f162s32z(dst, src, repeatNum, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
             break;
     }
+}
+
+template <typename TileDataD, typename TileDataS>
+PTO_INTERNAL void GenCastCallFp16ToInt32(__ubuf__ typename TileDataD::DType *dst,
+                                         __ubuf__ typename TileDataS::DType *src, uint8_t repeatNum, RoundMode mode,
+                                         uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride,
+                                         uint16_t srcRepeatStride)
+{
+    GenCastCallFp16ToInt32ByRoundMode((__ubuf__ int32_t *)dst, (__ubuf__ half *)src, repeatNum, mode, dstBlockStride,
+                                      srcBlockStride, dstRepeatStride, srcRepeatStride);
 }
 
 // FP16 -> INT16 conversion
@@ -362,72 +368,65 @@ PTO_INTERNAL void GenCastCallFp16ToInt16(__ubuf__ typename TileDataD::DType *dst
 }
 
 // FP16 -> INT16 conversion (PyTorch-compatible for inf/-inf): fp16 -> int32 -> int16
+//
+// Per-repeat hardware element capacity:
+//   int32 ops (vconv_f162s32*, vconv_s322s16) : 64
+//   fp16/int16 native ops                     : 128
+//
+// Strategy: iterate row-by-row, splitting each row into sub-chunks of <=64 elements so every
+// instruction stays within the int32 capacity.  Each sub-chunk sets its own continuous mask,
+// runs one fp16->int32 repeat and one int32->int16 repeat.
+//
+// Params:
+//   repeatNum        logical repeats (rows).
+//   src/dstRepeatStride  block-stride between rows (in src fp16 / dst int16 blocks).
+//   numElemsPerRow   valid elements per row.  0 means "head default" (= 128);
+//                    tail callers pass numRemainPerLine in [1, 128].
+//
+// Caller contexts:
+//   HEAD (TCvtHead): numElemsPerRow=0, caller mask full.
+//   TAIL (TCvtTail): numElemsPerRow=numRemainPerLine; caller's mask is overridden per sub-chunk.
 template <typename TileDataD, typename TileDataS>
 PTO_INTERNAL void GenCastCallFp16ToInt16_NonSatTorch(__ubuf__ typename TileDataD::DType *dst,
                                                      __ubuf__ typename TileDataS::DType *src, uint8_t repeatNum,
                                                      RoundMode mode, uint16_t dstBlockStride, uint16_t srcBlockStride,
                                                      uint16_t dstRepeatStride, uint16_t srcRepeatStride,
-                                                     __ubuf__ int32_t *tempInt32Buf)
+                                                     __ubuf__ int32_t *tempInt32Buf, uint16_t numElemsPerRow = 0)
 {
-    bool isHead = (dstRepeatStride == BLOCK_MAX_PER_REPEAT);
+    constexpr uint16_t fp16ElemsPerBlock = BLOCK_BYTE_SIZE / sizeof(half);     // 16
+    constexpr uint16_t int16ElemsPerBlock = BLOCK_BYTE_SIZE / sizeof(int16_t); // 16
+    constexpr uint16_t maxChunkElems = 64;                                     // int32 hw cap per repeat
 
-    // Stride calculations for two-step conversion
-    // When isHead: fp16→int32 doubles repeats (128 fp16 elements needs 2 hw repeats of 64)
-    // When !isHead: repeats stay the same (each repeat covers one row)
-    const uint16_t totalRepeats = isHead ? static_cast<uint16_t>(2 * static_cast<uint16_t>(repeatNum)) : repeatNum;
-    uint16_t step1DstRepeatStride = isHead ? BLOCK_MAX_PER_REPEAT : static_cast<uint16_t>(srcRepeatStride * 2);
-    uint16_t step1SrcRepeatStride = isHead ? static_cast<uint16_t>(BLOCK_MAX_PER_REPEAT / 2) : srcRepeatStride;
-    uint16_t step2DstRepeatStride = isHead ? static_cast<uint16_t>(BLOCK_MAX_PER_REPEAT / 2) : dstRepeatStride;
-    uint16_t step2SrcRepeatStride = isHead ? BLOCK_MAX_PER_REPEAT : static_cast<uint16_t>(srcRepeatStride * 2);
+    // elemsPerRow: head path leaves numElemsPerRow=0 → full 128; tail forwards actual count.
+    const uint16_t elemsPerRow = (numElemsPerRow == 0) ? static_cast<uint16_t>(128) : numElemsPerRow;
+    const uint16_t numSubChunks = (elemsPerRow + maxChunkElems - 1) / maxChunkElems; // 1 or 2
+    const uint16_t lastChunkMask = elemsPerRow - (numSubChunks - 1) * maxChunkElems; // [1, 64]
 
-    constexpr uint16_t fp16ElemsPerBlock = BLOCK_BYTE_SIZE / sizeof(half);
-    constexpr uint16_t int16ElemsPerBlock = BLOCK_BYTE_SIZE / sizeof(int16_t);
+    for (uint16_t r = 0; r < repeatNum; r++) {
+        __ubuf__ half *rowSrc = src + static_cast<uint32_t>(r) * srcRepeatStride * fp16ElemsPerBlock;
+        __ubuf__ int16_t *rowDst = dst + static_cast<uint32_t>(r) * dstRepeatStride * int16ElemsPerBlock;
 
-    // Loop over chunks of at most REPEAT_MAX to stay within hardware limits.
-    // The temp buffer is reused each iteration; only src and dst pointers advance.
-    uint16_t repeatsDone = 0;
-    while (repeatsDone < totalRepeats) {
-        const uint8_t chunkRepeats = (totalRepeats - repeatsDone > REPEAT_MAX) ?
-                                         static_cast<uint8_t>(REPEAT_MAX) :
-                                         static_cast<uint8_t>(totalRepeats - repeatsDone);
+        for (uint16_t c = 0; c < numSubChunks; c++) {
+            __ubuf__ int16_t *chunkDst = rowDst + static_cast<uint32_t>(c) * maxChunkElems;
+            __ubuf__ half *chunkSrc = rowSrc + static_cast<uint32_t>(c) * maxChunkElems;
+            const uint16_t chunkMask = (c + 1 == numSubChunks) ? lastChunkMask : maxChunkElems;
 
-        __ubuf__ half *chunkSrc = src + static_cast<uint32_t>(repeatsDone) * step1SrcRepeatStride * fp16ElemsPerBlock;
-        __ubuf__ int16_t *chunkDst =
-            dst + static_cast<uint32_t>(repeatsDone) * step2DstRepeatStride * int16ElemsPerBlock;
+            SetContinuousMask(chunkMask);
 
-        set_ctrl(sbitset0(get_ctrl(), SAT_MODE_BIT)); // Turn on saturation for int32 conversion
+            // Step 1: fp16 -> int32 with saturation (clamps inf/overflow into int32 range).
+            set_ctrl(sbitset0(get_ctrl(), SAT_MODE_BIT));
+            GenCastCallFp16ToInt32ByRoundMode(tempInt32Buf, chunkSrc, 1, mode, srcBlockStride, srcBlockStride, 8, 8);
+            pipe_barrier(PIPE_V);
 
-        // Step 1: fp16 -> int32
-        switch (static_cast<RoundMode>(mode)) {
-            case RoundMode::CAST_RINT:
-                vconv_f162s32r(tempInt32Buf, chunkSrc, chunkRepeats, 1, srcBlockStride, step1DstRepeatStride,
-                               step1SrcRepeatStride);
-                break;
-            case RoundMode::CAST_ROUND:
-                vconv_f162s32a(tempInt32Buf, chunkSrc, chunkRepeats, 1, srcBlockStride, step1DstRepeatStride,
-                               step1SrcRepeatStride);
-                break;
-            case RoundMode::CAST_FLOOR:
-                vconv_f162s32f(tempInt32Buf, chunkSrc, chunkRepeats, 1, srcBlockStride, step1DstRepeatStride,
-                               step1SrcRepeatStride);
-                break;
-            case RoundMode::CAST_CEIL:
-                vconv_f162s32c(tempInt32Buf, chunkSrc, chunkRepeats, 1, srcBlockStride, step1DstRepeatStride,
-                               step1SrcRepeatStride);
-                break;
-            default:
-                vconv_f162s32z(tempInt32Buf, chunkSrc, chunkRepeats, 1, srcBlockStride, step1DstRepeatStride,
-                               step1SrcRepeatStride);
+            // Step 2: int32 -> int16 (non-saturating wrap-around — PyTorch low-16-bit semantics).
+            set_ctrl(sbitset1(get_ctrl(), SAT_MODE_BIT));
+            vconv_s322s16(chunkDst, tempInt32Buf, 1, dstBlockStride, srcBlockStride, 8, 8);
+            pipe_barrier(PIPE_V);
         }
-        pipe_barrier(PIPE_V);
-
-        set_ctrl(sbitset1(get_ctrl(), SAT_MODE_BIT)); // Turn off saturation
-        // Step 2: int32 -> int16 (same repeat count as step 1)
-        vconv_s322s16(chunkDst, tempInt32Buf, chunkRepeats, dstBlockStride, 1, step2DstRepeatStride,
-                      step2SrcRepeatStride);
-
-        repeatsDone += chunkRepeats;
     }
+
+    // Leave mask in a predictable (full) state so downstream vector ops are unaffected.
+    set_vector_mask(-1, -1);
 }
 
 // FP16 -> INT8 conversion
@@ -526,24 +525,7 @@ PTO_INTERNAL void GenCastCallFp16ToInt8_NonSatTorch(__ubuf__ typename TileDataD:
 
             // Step 1: fp16 -> int32 with saturation (clamps inf/overflow into int32 range).
             set_ctrl(sbitset0(get_ctrl(), SAT_MODE_BIT));
-            switch (static_cast<RoundMode>(mode)) {
-                case RoundMode::CAST_RINT:
-                    vconv_f162s32r(tempInt32Buf, chunkSrc, 1, srcBlockStride, srcBlockStride, 8, 8);
-                    break;
-                case RoundMode::CAST_ROUND:
-                    vconv_f162s32a(tempInt32Buf, chunkSrc, 1, srcBlockStride, srcBlockStride, 8, 8);
-                    break;
-                case RoundMode::CAST_FLOOR:
-                    vconv_f162s32f(tempInt32Buf, chunkSrc, 1, srcBlockStride, srcBlockStride, 8, 8);
-                    break;
-                case RoundMode::CAST_CEIL:
-                    vconv_f162s32c(tempInt32Buf, chunkSrc, 1, srcBlockStride, srcBlockStride, 8, 8);
-                    break;
-                case RoundMode::CAST_TRUNC:
-                default:
-                    vconv_f162s32z(tempInt32Buf, chunkSrc, 1, srcBlockStride, srcBlockStride, 8, 8);
-                    break;
-            }
+            GenCastCallFp16ToInt32ByRoundMode(tempInt32Buf, chunkSrc, 1, mode, srcBlockStride, srcBlockStride, 8, 8);
             pipe_barrier(PIPE_V);
 
             // Switch to non-saturating (wrap-around) mode for the remaining narrowing stages —
@@ -919,8 +901,9 @@ AICORE void GenCastCall(__ubuf__ typename TileDataD::DType *dst, __ubuf__ typena
         bool isSatOn = (get_ctrl() & (1ULL << SAT_MODE_BIT)) == 0;
 #if EDGE_CASE_ALIGN_ENABLE
         if (!isSatOn) {
-            GenCastCallFp16ToInt16_NonSatTorch<TileDataD, TileDataS>(
-                dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride, tmpPtr);
+            GenCastCallFp16ToInt16_NonSatTorch<TileDataD, TileDataS>(dst, src, repeatNum, mode, dstBlockStride,
+                                                                     srcBlockStride, dstRepeatStride, srcRepeatStride,
+                                                                     tmpPtr, numElemsPerRow);
         } else {
             GenCastCallFp16ToInt16<TileDataD, TileDataS>(dst, src, repeatNum, mode, dstBlockStride, srcBlockStride,
                                                          dstRepeatStride, srcRepeatStride);
