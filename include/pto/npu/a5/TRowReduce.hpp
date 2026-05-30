@@ -194,6 +194,72 @@ PTO_INTERNAL void TRowReduceCheck(uint32_t srcValidRows, uint32_t srcValidCols, 
  * @param cols 列数
  * @param version 实现版本（默认/无POST_UPDATE）
  */
+template <typename ReduceOp, typename TileDataOut, typename TileDataIn, unsigned elementsPerRepeat,
+          bool postUpdate = true>
+PTO_INTERNAL void TRowReduceProc(__ubuf__ typename TileDataOut::DType *dstPtr,
+                                 __ubuf__ typename TileDataOut::DType *srcPtr, uint32_t rows, uint32_t cols)
+{
+    using TIN = typename ReduceOp::TIN;       ///< 输入数据类型
+    using TOUT = typename ReduceOp::TOUT;     ///< 归约中间结果类型
+    using TDST = typename TileDataOut::DType; ///< 最终输出类型
+    uint16_t repeatTimes = CeilDivision(cols, elementsPerRepeat);
+    int32_t srcRowAdjust =
+        postUpdate ? static_cast<int32_t>(TileDataIn::RowStride) - repeatTimes * elementsPerRepeat : 0;
+    __VEC_SCOPE__
+    {
+        // 寄存器分配
+        RegTensor<TIN> vreg0;        ///< 加载输入数据
+        RegTensor<TOUT> vreg1;       ///< Reduce结果
+        RegTensor<TOUT> vregdst;     ///< 累加器
+        RegTensor<TDST> vreg_result; ///< 最终结果（仅TOUT!=TDST时使用）
+        constexpr auto distValue =
+            std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<TDST, DistVST::DIST_ONEPT>())>();
+        uint32_t destItems = 1;
+        MaskReg pregdst = CreatePredicate<TIN>(destItems);
+        for (uint16_t i = 0; i < (uint16_t)rows; ++i) {
+            // Step 1: 初始化累加器
+            vbr((RegTensor<typename Padding<TOUT>::Type> &)vregdst, ReduceOp::InitVal);
+            uint32_t sreg = cols;
+
+            // Step 2-4: 分块处理
+            for (uint16_t j = 0; j < (uint16_t)repeatTimes; j++) {
+                MaskReg preg = CreatePredicate<TIN>(sreg);
+                // 加载数据块
+                if constexpr (postUpdate) {
+                    vlds(vreg0, srcPtr, elementsPerRepeat, NORM, POST_UPDATE);
+                } else {
+                    vlds(vreg0, srcPtr, i * TileDataIn::RowStride + j * elementsPerRepeat, NORM);
+                }
+                // 归约：向量→标量
+                ReduceOp::Reduce(vreg1, vreg0, preg);
+                // 累加到结果
+                ReduceOp::Accumulate(vregdst, vregdst, vreg1, pregdst);
+            }
+
+            // Step 5: 存储结果（必要时类型转换）
+            if constexpr (!std::is_same_v<TOUT, TDST>) {
+                // int16 ROWSUM: int32 → int16 回绕溢出转换（截断高16位）
+                // CTRL寄存器已设置为非饱和模式
+                vcvt(vreg_result, vregdst, pregdst, RS_DISABLE, PART_EVEN);
+                if constexpr (postUpdate) {
+                    vsts(vreg_result, dstPtr, TileDataOut::RowStride, distValue, pregdst, POST_UPDATE);
+                } else {
+                    vsts(vreg_result, dstPtr, i * TileDataOut::RowStride, distValue, pregdst);
+                }
+            } else {
+                if constexpr (postUpdate) {
+                    vsts(vregdst, dstPtr, TileDataOut::RowStride, distValue, pregdst, POST_UPDATE);
+                } else {
+                    vsts(vregdst, dstPtr, i * TileDataOut::RowStride, distValue, pregdst);
+                }
+            }
+            if constexpr (postUpdate) {
+                srcPtr += srcRowAdjust;
+            }
+        }
+    }
+}
+
 template <typename ReduceOp, typename TileDataOut, typename TileDataIn, unsigned elementsPerRepeat>
 PTO_INTERNAL void TRowReduceImpl(__ubuf__ typename TileDataOut::DType *dstPtr,
                                  __ubuf__ typename TileDataOut::DType *srcPtr, uint32_t rows, uint32_t cols,
@@ -219,73 +285,11 @@ PTO_INTERNAL void TRowReduceImpl(__ubuf__ typename TileDataOut::DType *dstPtr,
         set_ctrl(sbitset1(get_ctrl(), SAT_MODE_BIT_59));
     }
 
-    uint16_t repeatTimes = CeilDivision(cols, elementsPerRepeat);
-    __VEC_SCOPE__
-    {
-        // 寄存器分配
-        RegTensor<TIN> vreg0;        ///< 加载输入数据
-        RegTensor<TOUT> vreg1;       ///< Reduce结果
-        RegTensor<TOUT> vregdst;     ///< 累加器
-        RegTensor<TDST> vreg_result; ///< 最终结果（仅TOUT!=TDST时使用）
-
-        constexpr auto distValue =
-            std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<TDST, DistVST::DIST_ONEPT>())>();
-        uint32_t destItems = 1;
-        MaskReg pregdst = CreatePredicate<TIN>(destItems);
-
-        if (version == VFIMPL_2D_NO_POST_UPDATE) {
-            // 版本1：无POST_UPDATE，使用二维索引访问
-            for (uint16_t i = 0; i < (uint16_t)rows; ++i) {
-                // Step 1: 初始化累加器
-                vbr((RegTensor<typename Padding<TOUT>::Type> &)vregdst, ReduceOp::InitVal);
-                uint32_t sreg = cols;
-
-                // Step 2-4: 分块处理
-                for (uint16_t j = 0; j < (uint16_t)repeatTimes; j++) {
-                    MaskReg preg = CreatePredicate<TIN>(sreg);
-                    // 加载数据块
-                    vlds(vreg0, srcPtr, i * TileDataIn::RowStride + j * elementsPerRepeat, NORM);
-                    // 归约：向量→标量
-                    ReduceOp::Reduce(vreg1, vreg0, preg);
-                    // 累加到结果
-                    ReduceOp::Accumulate(vregdst, vregdst, vreg1, pregdst);
-                }
-
-                // Step 5: 存储结果（必要时类型转换）
-                if constexpr (!std::is_same_v<TOUT, TDST>) {
-                    // int16 ROWSUM: int32 → int16 回绕溢出转换（截断高16位）
-                    // CTRL寄存器已设置为非饱和模式
-                    vcvt(vreg_result, vregdst, pregdst, RS_DISABLE, PART_EVEN);
-                    vsts(vreg_result, dstPtr, i * TileDataOut::RowStride, distValue, pregdst);
-                } else {
-                    vsts(vregdst, dstPtr, i * TileDataOut::RowStride, distValue, pregdst);
-                }
-            }
-        } else {
-            // 版本2：使用POST_UPDATE优化地址计算
-            for (uint16_t i = 0; i < (uint16_t)rows; ++i) {
-                vbr((RegTensor<typename Padding<TOUT>::Type> &)vregdst, ReduceOp::InitVal);
-                __ubuf__ TIN *row_ptr = srcPtr + i * TileDataIn::RowStride;
-                uint32_t sreg = cols;
-
-                for (uint16_t j = 0; j < (uint16_t)repeatTimes; j++) {
-                    MaskReg preg = CreatePredicate<TIN>(sreg);
-                    vlds(vreg0, row_ptr, elementsPerRepeat, NORM, POST_UPDATE);
-                    ReduceOp::Reduce(vreg1, vreg0, preg);
-                    ReduceOp::Accumulate(vregdst, vregdst, vreg1, pregdst);
-                }
-
-                if constexpr (!std::is_same_v<TOUT, TDST>) {
-                    // int16 ROWSUM: int32 → int16 回绕溢出转换（截断高16位）
-                    // CTRL寄存器已设置为非饱和模式
-                    vcvt(vreg_result, vregdst, pregdst, RS_DISABLE, PART_EVEN);
-                    vsts(vreg_result, dstPtr, TileDataOut::RowStride, distValue, pregdst, POST_UPDATE);
-                } else {
-                    vsts(vregdst, dstPtr, TileDataOut::RowStride, distValue, pregdst, POST_UPDATE);
-                }
-            }
-        }
-    } // end VF
+    if (version == VFIMPL_2D_NO_POST_UPDATE) {
+        TRowReduceProc<ReduceOp, TileDataOut, TileDataIn, elementsPerRepeat, false>(dstPtr, srcPtr, rows, cols);
+    } else {
+        TRowReduceProc<ReduceOp, TileDataOut, TileDataIn, elementsPerRepeat, true>(dstPtr, srcPtr, rows, cols);
+    }
 
     // 恢复原始CTRL寄存器状态
     if constexpr (needsNonSatMode) {

@@ -169,6 +169,10 @@ TEST_F(TROWARGMAXTest, case_uint32_float_8x1_8x8_8x8)
 {
     this->Launch<uint32_t, float, 8, 1, 8, 8, 8, 8>();
 }
+TEST_F(TROWARGMAXTest, case_uint32_float_184x1_184x128_184x128)
+{
+    this->Launch<uint32_t, float, 184, 1, 184, 128, 184, 128>();
+}
 TEST_F(TROWARGMAXTest, case_uint32_float_1024x1_1024x8_1024x8)
 {
     this->Launch<uint32_t, float, 1024, 1, 1024, 8, 1024, 8>();
