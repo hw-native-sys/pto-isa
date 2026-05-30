@@ -22,6 +22,19 @@ namespace pto {
 
 namespace tquant_detail {
 
+constexpr int16_t kF32StorageBits = 32;
+constexpr int16_t kF32MantissaBits = 23;
+constexpr uint32_t kF32PositiveInfBits = 0x7F800000u;
+constexpr int16_t kBf16StorageBits = 16;
+constexpr int16_t kBf16MantissaBits = 7;
+constexpr uint16_t kBf16PositiveInfBits = 0x7F80u;
+constexpr int16_t kIeee754ExponentBits = 8;
+constexpr int16_t kFp4CodeBits = 4;
+constexpr int16_t kPackedByteBits = 8;
+constexpr int16_t kVectorLaneBits = 32;
+constexpr int16_t kSignBitCount = 1;
+constexpr uint32_t kSingleBitMask = 1u;
+
 /*
  * Floating-point bit fields used by the vector bit operations below.
  *
@@ -45,18 +58,20 @@ struct FloatBitFieldLayout {
     static constexpr int16_t storageBits = StorageBits;
     static constexpr int16_t exponentBits = ExponentBits;
     static constexpr int16_t mantissaBits = MantissaBits;
-    static constexpr int16_t signBitOffset = storageBits - 1;
-    static constexpr int16_t signClearShift = 1;
+    static constexpr int16_t signBitOffset = storageBits - kSignBitCount;
+    static constexpr int16_t signClearShift = kSignBitCount;
     static constexpr int16_t exponentOffset = mantissaBits;
-    static constexpr uint32_t exponentBias = (1u << (exponentBits - 1)) - 1u;
+    static constexpr uint32_t exponentBias = (kSingleBitMask << (exponentBits - kSignBitCount)) - kSingleBitMask;
     static constexpr int32_t negativeExponentBias = -static_cast<int32_t>(exponentBias);
-    static constexpr BitsT signMask = static_cast<BitsT>(BitsT{1} << signBitOffset);
+    static constexpr BitsT signMask = static_cast<BitsT>(BitsT{kSingleBitMask} << signBitOffset);
     static constexpr BitsT absMask = static_cast<BitsT>(~signMask);
     static constexpr BitsT positiveInfBits = PositiveInfBits;
 };
 
-using F32BitFieldLayout = FloatBitFieldLayout<uint32_t, 32, 8, 23, 0x7F800000u>;
-using Bf16BitFieldLayout = FloatBitFieldLayout<uint16_t, 16, 8, 7, 0x7F80u>;
+using F32BitFieldLayout =
+    FloatBitFieldLayout<uint32_t, kF32StorageBits, kIeee754ExponentBits, kF32MantissaBits, kF32PositiveInfBits>;
+using Bf16BitFieldLayout =
+    FloatBitFieldLayout<uint16_t, kBf16StorageBits, kIeee754ExponentBits, kBf16MantissaBits, kBf16PositiveInfBits>;
 
 /*
  * FP4 values are packed as two 4-bit codes per byte.
@@ -71,7 +86,7 @@ using Bf16BitFieldLayout = FloatBitFieldLayout<uint16_t, 16, 8, 7, 0x7F80u>;
  * lowCodeShift extracts the low code bits; right by highCodeShift moves
  * the odd code into byte bits [7:4].
  */
-template <int16_t CodeBits, int16_t PackedByteBits = 8, int16_t VectorLaneBits = 32>
+template <int16_t CodeBits, int16_t PackedByteBits = kPackedByteBits, int16_t VectorLaneBits = kVectorLaneBits>
 struct PackedSubBytePairLayout {
     static constexpr int16_t codeBits = CodeBits;
     static constexpr int16_t packedByteBits = PackedByteBits;
@@ -80,7 +95,7 @@ struct PackedSubBytePairLayout {
     static constexpr int16_t highCodeShift = vectorLaneBits - packedByteBits;
 };
 
-using Fp4PackedPairLayout = PackedSubBytePairLayout<4>;
+using Fp4PackedPairLayout = PackedSubBytePairLayout<kFp4CodeBits>;
 
 /*
  * E2M1 code layout used after source values have been scaled to FP32 lanes.
@@ -863,7 +878,7 @@ PTO_INTERNAL void ExtractB8ExponentAndScaling_2D(__ubuf__ T *maxPtr, __ubuf__ ui
                   "ExtractB8ExponentAndScaling_2D: T must be bfloat16_t or half");
     constexpr uint32_t elementsPerVL = REPEAT_BYTE / sizeof(T); // 128 group-maxes per VL
 
-    uint32_t groupsPerRow = srcCols / 32; // srcCols is 32-aligned
+    uint32_t groupsPerRow = srcCols / 32;                       // srcCols is 32-aligned
     uint32_t validGroupsPerRow = CeilDivision((uint32_t)validCols, 32u);
     uint16_t loopsPerRow = CeilDivision(validGroupsPerRow, elementsPerVL);
     for (uint16_t row = 0; row < (uint16_t)validRows; ++row) {
@@ -1692,6 +1707,15 @@ PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataPara &
         TQuant_Int8Asym<TileDataOut, TileDataSrc, TileDataPara>(dst.data(), src.data(), scale.data(), offset->data(),
                                                                 src.GetValidRow(), src.GetValidCol());
     }
+}
+
+// Tmp-aware overload to keep the INT8 SYM/ASYM interface identical to A2/A3.
+// A5 broadcasts scale/offset natively (vlds BRC_B32) and needs no scratch tile, so tmp is unused.
+template <QuantType quant_type, typename TileDataOut, typename TileDataSrc, typename TileDataPara, typename TileDataTmp>
+PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataPara &scale,
+                              [[maybe_unused]] TileDataTmp &tmp, TileDataPara *offset = nullptr)
+{
+    TQUANT_IMPL<quant_type, TileDataOut, TileDataSrc, TileDataPara>(dst, src, scale, offset);
 }
 
 // TQuant Interface for FP32/BF16/FP16->MXFP8 (ND mode)

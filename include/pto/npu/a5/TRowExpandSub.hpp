@@ -104,5 +104,13 @@ PTO_INTERNAL void TROWEXPANDSUB_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileD
             dst.data(), src1.data(), src0.data(), src0eqdst, validRow, validCol);
     }
 }
+// 4-arg overload for cross-architecture portability with A2/A3.
+// A5 hardware does not require a scratch broadcast tile; the tmp tile is accepted and ignored.
+template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataTmp>
+PTO_INTERNAL void TROWEXPANDSUB_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1,
+                                     [[maybe_unused]] TileDataTmp &tmp)
+{
+    TROWEXPANDSUB_IMPL(dst, src0, src1);
+}
 } // namespace pto
 #endif

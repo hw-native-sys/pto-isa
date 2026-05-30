@@ -154,11 +154,60 @@ AICORE PTO_INLINE uint64_t MScatterNZGmOffset(uint32_t logicalRow, uint32_t logi
            (uint64_t)colInBlock * (uint64_t)gStride4;
 }
 
+AICORE PTO_INLINE float MScatterBf16BitsToFloat(uint16_t bits)
+{
+    union {
+        uint32_t u;
+        float f;
+    } conv;
+    conv.u = static_cast<uint32_t>(bits) << 16;
+    return conv.f;
+}
+
+AICORE PTO_INLINE uint16_t MScatterFloatToBf16Bits(float value)
+{
+    union {
+        float f;
+        uint32_t u;
+    } conv;
+    conv.f = value;
+    uint32_t lsb = (conv.u >> 16) & 1u;
+    uint32_t bias = 0x7FFFu + lsb;
+    return static_cast<uint16_t>((conv.u + bias) >> 16);
+}
+
+AICORE PTO_INLINE uint16_t MScatterBf16ToBits(bfloat16_t value)
+{
+    union {
+        bfloat16_t bf;
+        uint16_t u;
+    } conv;
+    conv.bf = value;
+    return conv.u;
+}
+
+AICORE PTO_INLINE bfloat16_t MScatterBitsToBf16(uint16_t bits)
+{
+    union {
+        uint16_t u;
+        bfloat16_t bf;
+    } conv;
+    conv.u = bits;
+    return conv.bf;
+}
+
 template <ScatterAtomicOp Atomic, typename T>
 AICORE PTO_INLINE void MScatterScalarStore(__gm__ T *dst, T value)
 {
     if constexpr (Atomic == ScatterAtomicOp::Add) {
-        if constexpr (std::is_same_v<T, half> || std::is_same_v<T, bfloat16_t>) {
+        if constexpr (std::is_same_v<T, bfloat16_t>) {
+            uint16_t prevBits = MScatterBf16ToBits(*dst);
+            uint16_t valBits = MScatterBf16ToBits(value);
+            float prev = MScatterBf16BitsToFloat(prevBits);
+            float vsrc = MScatterBf16BitsToFloat(valBits);
+            float sum = prev + vsrc;
+            *dst = MScatterBitsToBf16(MScatterFloatToBf16Bits(sum));
+        } else if constexpr (std::is_same_v<T, half>) {
             float prev = static_cast<float>(*dst);
             float vsrc = static_cast<float>(value);
             *dst = static_cast<T>(prev + vsrc);
@@ -206,6 +255,9 @@ __tf__ AICORE void MScatterRowImpl(__gm__ T *tablePtr, typename SrcTile::TileDTy
             __gm__ T *dstRow = tablePtr + static_cast<uint64_t>(safeIdx) * tableRowStride;
             __ubuf__ T *srcRow = srcPtr + r * kRowStride;
             MScatterRowDma<T>(dstRow, srcRow, lenBytes);
+            if constexpr (Atomic == ScatterAtomicOp::None) {
+                PtoSetWaitFlag<PIPE_MTE3, PIPE_S>();
+            }
         }
     }
 
@@ -264,6 +316,9 @@ __tf__ AICORE void MScatterRowNzImpl(__gm__ T *tablePtr, typename SrcTile::TileD
                                       (int64_t)srcBlockRow * (int64_t)kFRow * (int64_t)kC0 +
                                       (int64_t)srcRowInBlock * (int64_t)kC0;
                 MScatterRowMultiDma<T>(dstAddr, srcAddr, (uint16_t)gShape1, kFractalRowBytes, ubGapBlocks, gmGapBytes);
+            }
+            if constexpr (Atomic == ScatterAtomicOp::None) {
+                PtoSetWaitFlag<PIPE_MTE3, PIPE_S>();
             }
         }
     }

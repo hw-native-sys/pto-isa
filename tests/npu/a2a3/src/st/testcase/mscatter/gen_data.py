@@ -15,8 +15,38 @@ import numpy as np
 
 np.random.seed(42)
 
+BF16_MARK = "__bf16__"
+
+
+def f32_to_bf16_bits(arr_f32):
+    f32 = np.ascontiguousarray(arr_f32, dtype=np.float32)
+    u32 = f32.view(np.uint32).copy()
+    lsb = (u32 >> np.uint32(16)) & np.uint32(1)
+    bias = np.uint32(0x7FFF) + lsb
+    rounded = (u32 + bias) >> np.uint32(16)
+    return rounded.astype(np.uint16)
+
+
+def bf16_bits_to_f32(arr_u16):
+    u16 = np.ascontiguousarray(arr_u16, dtype=np.uint16)
+    u32 = u16.astype(np.uint32) << np.uint32(16)
+    return u32.view(np.float32).copy()
+
+
+def bf16_add(a_u16, b_u16):
+    a_shape = np.shape(a_u16)
+    fa = bf16_bits_to_f32(np.atleast_1d(np.asarray(a_u16, dtype=np.uint16)))
+    fb = bf16_bits_to_f32(np.atleast_1d(np.asarray(b_u16, dtype=np.uint16)))
+    out = f32_to_bf16_bits(fa + fb)
+    if a_shape == ():
+        return np.uint16(out.item())
+    return out.reshape(a_shape)
+
 
 def make_src(dtype, count, start=1):
+    if dtype == BF16_MARK:
+        vals = ((np.arange(start, start + count) % 31) + 1).astype(np.float32) * np.float32(0.125)
+        return f32_to_bf16_bits(vals)
     if np.issubdtype(dtype, np.integer):
         info = np.iinfo(dtype)
         mod = min(info.max - info.min + 1, 251)
@@ -24,6 +54,18 @@ def make_src(dtype, count, start=1):
         mod = 251
     arr = (np.arange(start, start + count) % mod) + 1
     return arr.astype(dtype)
+
+
+def add_typed(a, b, dtype):
+    if dtype == BF16_MARK:
+        return bf16_add(a, b)
+    return np.dtype(dtype).type(a + b)
+
+
+def zeros_like_dtype(shape, dtype):
+    if dtype == BF16_MARK:
+        return np.zeros(shape, dtype=np.uint16)
+    return np.zeros(shape, dtype=dtype)
 
 
 def resolve(raw, table_size, oob):
@@ -36,33 +78,33 @@ def resolve(raw, table_size, oob):
     return (raw, False)
 
 
-def golden_row(src, idx, table_rows, table_cols, atomic, oob):
+def golden_row(src, idx, table_rows, table_cols, atomic, oob, dtype_id):
     n_rows = src.shape[0]
-    table = np.zeros((table_rows, table_cols), dtype=src.dtype)
+    table = zeros_like_dtype((table_rows, table_cols), dtype_id)
     for i in range(n_rows):
         raw = int(idx.reshape(-1)[i])
         safe, skip = resolve(raw, table_rows, oob)
         if skip:
             continue
         if atomic == "add":
-            table[safe, :] = src.dtype.type(table[safe, :] + src[i, :])
+            table[safe, :] = add_typed(table[safe, :], src[i, :], dtype_id)
         else:
             table[safe, :] = src[i, :]
     return table
 
 
-def golden_elem(src, idx, table_size, atomic, oob):
+def golden_elem(src, idx, table_size, atomic, oob, dtype_id):
     n = src.shape[0] * src.shape[1]
     src_flat = src.reshape(n)
     idx_flat = idx.reshape(n)
-    table = np.zeros(table_size, dtype=src.dtype)
+    table = zeros_like_dtype(table_size, dtype_id)
     for i in range(n):
         raw = int(idx_flat[i])
         safe, skip = resolve(raw, table_size, oob)
         if skip:
             continue
         if atomic == "add":
-            table[safe] = src.dtype.type(table[safe] + src_flat[i])
+            table[safe] = add_typed(table[safe], src_flat[i], dtype_id)
         else:
             table[safe] = src_flat[i]
     return table
@@ -99,7 +141,7 @@ def case_row(name, dtype, r, c, tr, atomic="none", oob="undefined", idx_kind="no
         idx = make_idx_with_oob(rng, (r, 1), tr, max(1, r // 2))
     else:
         raise ValueError(idx_kind)
-    golden = golden_row(src, idx, tr, c, atomic, oob)
+    golden = golden_row(src, idx, tr, c, atomic, oob, dtype)
     return src, idx, golden
 
 
@@ -114,7 +156,7 @@ def case_elem(name, dtype, n, ts, atomic="none", oob="undefined", idx_kind="no_d
         idx = make_idx_with_oob(rng, (1, n), ts, max(1, n // 2))
     else:
         raise ValueError(idx_kind)
-    golden = golden_elem(src, idx, ts, atomic, oob)
+    golden = golden_elem(src, idx, ts, atomic, oob, dtype)
     return src, idx, golden
 
 
@@ -130,7 +172,7 @@ def case_elem2d(name, dtype, r, c, ts, atomic="none", oob="undefined", idx_kind=
         idx = make_idx_with_oob(rng, (r, c), ts, max(1, n // 2))
     else:
         raise ValueError(idx_kind)
-    golden = golden_elem(src, idx, ts, atomic, oob)
+    golden = golden_elem(src, idx, ts, atomic, oob, dtype)
     return src, idx, golden
 
 
@@ -162,7 +204,7 @@ def case_row_nz(
         idx = make_idx_with_oob(rng, (src_rows, 1), table_rows, max(1, src_rows // 2))
     else:
         raise ValueError(idx_kind)
-    golden_nd = golden_row(src_nd, idx, table_rows, table_cols, atomic, oob)
+    golden_nd = golden_row(src_nd, idx, table_rows, table_cols, atomic, oob, dtype)
     src_nz = nd_to_nz(src_nd, c0)
     golden_nz = nd_to_nz(golden_nd, c0)
     return src_nz, idx, golden_nz
@@ -184,7 +226,7 @@ def case_elem2d_nz(
         idx = make_idx_with_oob(rng, (src_rows, src_cols), table_size, max(1, (src_rows * src_cols) // 2))
     else:
         raise ValueError(idx_kind)
-    golden_flat = golden_elem(src_nd, idx, table_size, atomic, oob)
+    golden_flat = golden_elem(src_nd, idx, table_size, atomic, oob, dtype)
     golden_nd = golden_flat.reshape(table_rows, table_cols)
     src_nz = nd_to_nz(src_nd, c0)
     golden_nz = nd_to_nz(golden_nd, c0)
@@ -345,6 +387,31 @@ add(
 add("MSCATTERTest.case_elem2d_nz_float_16x16_2blk", lambda n: case_elem2d_nz(n, np.float32, 16, 16, 2, 2, 8))
 add("MSCATTERTest.case_elem2d_nz_half_16x16_1blk", lambda n: case_elem2d_nz(n, np.float16, 16, 16, 2, 1, 16))
 add("MSCATTERTest.case_elem2d_nz_int32_16x8_1blk", lambda n: case_elem2d_nz(n, np.int32, 16, 8, 2, 1, 8))
+
+add(
+    "MSCATTERTest.case_row_bfloat16_atomic_add_8x32_8rows",
+    lambda n: case_row(n, BF16_MARK, 8, 32, 8, atomic="add", idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_row_bfloat16_atomic_add_16x16_16rows",
+    lambda n: case_row(n, BF16_MARK, 16, 16, 16, atomic="add", idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_row_bfloat16_atomic_add_8x64_16rows",
+    lambda n: case_row(n, BF16_MARK, 8, 64, 16, atomic="add", idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_elem_bfloat16_atomic_add_32_16size",
+    lambda n: case_elem(n, BF16_MARK, 32, 16, atomic="add", idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_elem2d_bfloat16_atomic_add_4x16_8size",
+    lambda n: case_elem2d(n, BF16_MARK, 4, 16, 8, atomic="add", idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_elem2d_bfloat16_atomic_add_8x16_64size",
+    lambda n: case_elem2d(n, BF16_MARK, 8, 16, 64, atomic="add", idx_kind="random"),
+)
 
 
 if __name__ == "__main__":

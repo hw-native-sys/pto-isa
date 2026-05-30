@@ -172,6 +172,9 @@ struct HcclDeviceContext {
 /* </Hccl> */
 
 #define EVENT_ID0 0
+#define EVENT_ID1 1
+#define EVENT_ID2 2
+#define EVENT_ID3 3
 
 #define F16_MAX 65504.0f
 

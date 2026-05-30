@@ -63,8 +63,9 @@ __tf__ PTO_INTERNAL void TQuantCvtS32ToFp16(typename TileDataCvtF16::TileDType _
     }
 }
 
-template <QuantType quant_type, typename TileDataOut, typename TileDataSrc, typename TileDataPara>
-PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataPara &scale, TileDataPara *offset = nullptr)
+template <QuantType quant_type, typename TileDataOut, typename TileDataSrc, typename TileDataPara, typename TileDataTmp>
+PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataPara &scale, TileDataTmp &tmp,
+                              TileDataPara *offset = nullptr)
 {
     using T = typename TileDataSrc::DType;
     using U = typename TileDataOut::DType;
@@ -81,10 +82,12 @@ PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataPara &
     using TileDataCvtS32 =
         Tile<TileType::Vec, int32_t, TileDataSrc::Rows, TileDataSrc::Cols, BLayout::RowMajor, -1, -1>;
 
-    TROWEXPANDMUL_IMPL(src, src, scale);
+    // scale/offset are per-row scalars (column-major), so TROWEXPANDMUL/ADD take the vbrcb broadcast
+    // path and need an explicit scratch tile (one 32B block per row, <= 8KB for up to 256 rows).
+    TROWEXPANDMUL_IMPL(src, src, scale, tmp);
     pipe_barrier(PIPE_V);
     if constexpr (quant_type == QuantType::INT8_ASYM) {
-        TROWEXPANDADD_IMPL(src, src, *offset);
+        TROWEXPANDADD_IMPL(src, src, *offset, tmp);
         pipe_barrier(PIPE_V);
     }
 

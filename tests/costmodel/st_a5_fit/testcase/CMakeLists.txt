@@ -12,6 +12,7 @@ function(pto_costmodel_a5_fit_sim_st NAME)
     add_executable(${NAME} main.cpp)
     target_compile_options(${NAME} PRIVATE ${CMAKE_CPP_COMPILE_OPTIONS} -std=c++23)
     target_include_directories(${NAME} PRIVATE
+        ${PROJECT_SOURCE_DIR}/../../../include/pto/costmodel/stubs
         ${PROJECT_SOURCE_DIR}/../../../include/
         ${PROJECT_SOURCE_DIR}/../../../include/common
         ${PROJECT_SOURCE_DIR}/common

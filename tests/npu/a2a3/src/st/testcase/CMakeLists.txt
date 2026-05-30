@@ -115,6 +115,7 @@ ttrans_conv
 ttrans_3d
 tmrgsort
 tfillpad
+tcolgather
 tgather
 tsort32
 tcmps

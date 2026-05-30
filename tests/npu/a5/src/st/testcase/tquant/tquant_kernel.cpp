@@ -15,8 +15,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-#define PTO_CEIL(x, y) ((((x) + (y) - 1) / (y)) * (y))
-#define PTO_DIV_ROUNDUP(x, y) (((x) + (y) - 1) / (y))
+#define PTO_CEIL(x, y) ((((x) + (y)-1) / (y)) * (y))
+#define PTO_DIV_ROUNDUP(x, y) (((x) + (y)-1) / (y))
 
 namespace TQuantTest {
 
@@ -151,10 +151,13 @@ __global__ AICORE void runTQuantInt8Sym(__gm__ int8_t __out__ *out_s8, __gm__ fl
     using SrcTile = Tile<TileType::Vec, float, validRows, paddedCols_b32, BLayout::RowMajor, -1, -1>;
     using DstTile = Tile<TileType::Vec, int8_t, validRows, paddedCols_b8, BLayout::RowMajor, -1, -1>;
     using ParaTile = Tile<TileType::Vec, float, validRows, 1, BLayout::ColMajor, -1, -1>;
+    // tmp is unused on A5 (native broadcast); declared only to keep the interface identical to A2/A3.
+    using TmpTile = Tile<TileType::Vec, float, validRows, BLOCK_BYTE_SIZE / sizeof(float), BLayout::ColMajor, -1, -1>;
 
     SrcTile srcTile(validRows, validCols);
     DstTile dstS8Tile(validRows, validCols);
     ParaTile scaleTile(validRows, 1);
+    TmpTile tmpTile(validRows, BLOCK_BYTE_SIZE / sizeof(float));
 
     SrcGlobal srcGlobal(src);
     DstGlobal dstGlobal(out_s8);
@@ -163,6 +166,7 @@ __global__ AICORE void runTQuantInt8Sym(__gm__ int8_t __out__ *out_s8, __gm__ fl
     TASSIGN(srcTile, 0x0);
     TASSIGN(dstS8Tile, 0x0);
     TASSIGN(scaleTile, 0x20100);
+    TASSIGN(tmpTile, 0x28000);
 
     TLOAD(srcTile, srcGlobal);
     TLOAD(scaleTile, scaleGlobal);
@@ -172,7 +176,7 @@ __global__ AICORE void runTQuantInt8Sym(__gm__ int8_t __out__ *out_s8, __gm__ fl
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 #endif
 
-    TQUANT<pto::QuantType::INT8_SYM, DstTile, SrcTile, ParaTile>(dstS8Tile, srcTile, scaleTile);
+    TQUANT<pto::QuantType::INT8_SYM, DstTile, SrcTile, ParaTile>(dstS8Tile, srcTile, scaleTile, tmpTile);
 
 #ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
@@ -197,11 +201,14 @@ __global__ AICORE void runTQuantInt8Asym(__gm__ uint8_t __out__ *out_u8, __gm__ 
     using SrcTile = Tile<TileType::Vec, float, validRows, paddedCols_b32, BLayout::RowMajor, -1, -1>;
     using DstTile = Tile<TileType::Vec, uint8_t, validRows, paddedCols_b8, BLayout::RowMajor, -1, -1>;
     using ParaTile = Tile<TileType::Vec, float, validRows, 1, BLayout::ColMajor, -1, -1>;
+    // tmp is unused on A5 (native broadcast); declared only to keep the interface identical to A2/A3.
+    using TmpTile = Tile<TileType::Vec, float, validRows, BLOCK_BYTE_SIZE / sizeof(float), BLayout::ColMajor, -1, -1>;
 
     SrcTile srcTile(validRows, validCols);
     DstTile dstU8Tile(validRows, validCols);
     ParaTile scaleTile(validRows, 1);
     ParaTile offsetTile(validRows, 1);
+    TmpTile tmpTile(validRows, BLOCK_BYTE_SIZE / sizeof(float));
 
     SrcGlobal srcGlobal(src);
     DstGlobal dstGlobal(out_u8);
@@ -212,6 +219,7 @@ __global__ AICORE void runTQuantInt8Asym(__gm__ uint8_t __out__ *out_u8, __gm__ 
     TASSIGN(dstU8Tile, 0x20100); // 32 KB
     TASSIGN(scaleTile, 0x30100);
     TASSIGN(offsetTile, 0x32500);
+    TASSIGN(tmpTile, 0x34000);
 
     TLOAD(srcTile, srcGlobal);
     TLOAD(scaleTile, scaleGlobal);
@@ -222,7 +230,7 @@ __global__ AICORE void runTQuantInt8Asym(__gm__ uint8_t __out__ *out_u8, __gm__ 
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 #endif
 
-    TQUANT<pto::QuantType::INT8_ASYM, DstTile, SrcTile, ParaTile>(dstU8Tile, srcTile, scaleTile, &offsetTile);
+    TQUANT<pto::QuantType::INT8_ASYM, DstTile, SrcTile, ParaTile>(dstU8Tile, srcTile, scaleTile, tmpTile, &offsetTile);
 
 #ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);

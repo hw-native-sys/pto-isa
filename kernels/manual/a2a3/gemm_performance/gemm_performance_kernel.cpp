@@ -240,6 +240,7 @@ __global__ AICORE void GemmPerformance(__gm__ uint8_t *out, __gm__ uint8_t *src0
                                                            reinterpret_cast<__gm__ half *>(src1));
 }
 
+#ifndef __COSTMODEL
 template <typename T>
 void LaunchGEMME2E(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream)
 {
@@ -270,3 +271,4 @@ void LaunchGEMME2E(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream)
 }
 
 template void LaunchGEMME2E<uint16_t>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
+#endif

@@ -17,6 +17,9 @@ ST_TESTCASE_DIR="${SCRIPT_DIR}/costmodel/st/testcase"
 ST_FIT_TESTCASE_DIR="${SCRIPT_DIR}/costmodel/st_fit/testcase"
 ST_A5_FIT_TESTCASE_DIR="${SCRIPT_DIR}/costmodel/st_a5_fit/testcase"
 
+# perf_sim_st 测试用例目录（独立二进制，不走 Python runner）
+PERF_SIM_ST_DIR="${SCRIPT_DIR}/costmodel/perf_sim_st/build/bin"
+
 # 需要执行的测试用例列表（留空则自动发现 ST/ST_FIT/ST_A5_FIT 下所有子目录）
 # 用法：TESTCASES=("tsub" "time_predict" "st_a5_fit:tadd_fit")
 TESTCASES=()
@@ -55,8 +58,13 @@ fi
 is_case_in_suite() {
     local suite="$1"
     local testcase="$2"
-    local base_dir=""
 
+    if [[ "${suite}" == "perf_sim_st" ]]; then
+        [ -x "${PERF_SIM_ST_DIR}/${testcase}" ]
+        return $?
+    fi
+
+    local base_dir=""
     if [ "${suite}" = "st" ]; then
         base_dir="${ST_TESTCASE_DIR}"
     elif [ "${suite}" = "st_fit" ]; then
@@ -81,7 +89,7 @@ resolve_suite_for_case() {
     local matches=()
     local suite=""
 
-    for suite in "st" "st_fit" "st_a5_fit"; do
+    for suite in "st" "st_fit" "st_a5_fit" "perf_sim_st"; do
         if is_case_in_suite "${suite}" "${testcase}"; then
             matches+=("${suite}")
         fi
@@ -96,7 +104,7 @@ resolve_suite_for_case() {
         error_exit "Testcase '${testcase}' exists in multiple suites: ${matches[*]}. Please use '<suite>:${testcase}'"
     fi
 
-    error_exit "Unknown testcase '${testcase}', not found in st/st_fit/st_a5_fit"
+    error_exit "Unknown testcase '${testcase}', not found in st/st_fit/st_a5_fit/perf_sim_st"
 }
 
 auto_discover_testcases() {
@@ -150,6 +158,13 @@ else
     normalize_manual_testcases
 fi
 
+# perf_sim_st: 发现独立二进制
+if [ -d "${PERF_SIM_ST_DIR}" ]; then
+    while IFS= read -r -d '' bin; do
+        RUN_ITEMS+=("perf_sim_st:$(basename "${bin}")")
+    done < <(find "${PERF_SIM_ST_DIR}" -mindepth 1 -maxdepth 1 -type f -perm +111 -print0 | sort -z)
+fi
+
 if [ ${#RUN_ITEMS[@]} -eq 0 ]; then
     error_exit "No runnable testcase found"
 fi
@@ -169,7 +184,11 @@ for item in "${RUN_ITEMS[@]}"; do
     echo -e "========================================"
 
     # 构建测试命令
-    test_cmd="${PYTHON_BIN} tests/run_costmodel.py --suite ${suite} --testcase ${testcase} ${TEST_ARGS}"
+    if [[ "${item}" == "perf_sim_st:"* ]]; then
+        test_cmd="${PERF_SIM_ST_DIR}/${testcase}"
+    else
+        test_cmd="${PYTHON_BIN} tests/run_costmodel.py --suite ${suite} --testcase ${testcase} ${TEST_ARGS}"
+    fi
     echo -e "${YELLOW}[INFO] Execute cmd:${test_cmd}${NC}"
 
     # 执行命令并捕获退出码

@@ -541,7 +541,7 @@ def run_demo_mode(args, repo_root, cxx, cc) -> int:
 
 
 def maybe_generate_formula_params(source_dir: Path, repo_root: Path, verbose: bool) -> None:
-    if source_dir.name not in {"st_fit", "st_a5_fit"}:
+    if source_dir.name not in {"st", "st_fit", "st_a5_fit", "perf_sim_st"}:
         return
 
     # lightweight_costmodel.hpp includes both backends, so clean builds need both

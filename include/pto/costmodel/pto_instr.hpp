@@ -10,6 +10,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #ifndef PTO_INSTR_HPP
 #define PTO_INSTR_HPP
+#include <string_view>
 
 // Intentionally reuse the common PTO include guard so this header can act as a
 // drop-in replacement when <pto/pto-inst.hpp> selects it for __COSTMODEL.
@@ -20,6 +21,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/common/pto_instr_impl.hpp"
 #ifdef __COSTMODEL
 #include "pto/costmodel/trace.hpp"
+#include "pto/costmodel/perf_sim/recorder.hpp"
+#include "pto/costmodel/perf_sim/tile_dep_tracker.hpp"
+#include "pto/costmodel/perf_sim/latency.hpp"
+#include "pto/costmodel/perf_sim/costmodel_provider.hpp"
+namespace perf_sim = ::pto::perf_sim;
 #endif
 
 #define TSTORE_FP_IMPL TSTORE_IMPL
@@ -56,10 +62,147 @@ inline void InjectTileCycles(T &obj)
     }
 }
 
+// ── Perf-Sim instruction recording ──────────────────────────────────────────
+// Record one PTO instruction to the pipeline simulator.
+// Called from MAP_INSTR_IMPL after the _IMPL call and InjectTileCycles.
+
+// Helper: try to extract dimensions + dtype from a single tile; returns true if successful.
+template <typename T>
+inline bool TryTileInfo(int &rows, int &cols, std::string &dtype, T &&tile)
+{
+    if constexpr (requires {
+                      tile.GetValidRow();
+                      tile.GetValidCol();
+                  }) {
+        rows = static_cast<int>(tile.GetValidRow());
+        cols = static_cast<int>(tile.GetValidCol());
+        dtype = perf_sim::TileTraits<std::remove_reference_t<T>>::dtype_str();
+        return true;
+    } else if constexpr (requires {
+                             tile.Rows;
+                             tile.Cols;
+                         }) {
+        rows = tile.Rows;
+        cols = tile.Cols;
+        dtype = perf_sim::TileTraits<std::remove_reference_t<T>>::dtype_str();
+        return true;
+    }
+    return false;
+}
+
+// Recursive: try tiles in order, extract dims+dtype from first one that has them.
+template <typename T>
+inline void ExtractFirstTileInfo(int &rows, int &cols, std::string &dtype, T &&tile)
+{
+    TryTileInfo(rows, cols, dtype, std::forward<T>(tile));
+}
+
+template <typename T, typename T2, typename... Rest>
+inline void ExtractFirstTileInfo(int &rows, int &cols, std::string &dtype, T &&first, T2 &&second, Rest &&...rest)
+{
+    if (!TryTileInfo(rows, cols, dtype, std::forward<T>(first))) {
+        ExtractFirstTileInfo(rows, cols, dtype, std::forward<T2>(second), std::forward<Rest>(rest)...);
+    }
+}
+
+inline void RecordInstr(const char *opcode, auto &&first_tile, auto &&...rest_tiles)
+{
+    // Look up pipeline stage from opcode name and tile types (TLOAD/TSTORE need tile routing)
+    perf_sim::PipeStage stage = perf_sim::ResolvePipeStageArgs(opcode, first_tile, rest_tiles...);
+
+    // 1. Track data dependencies (cross-pipe waits + signal event for this instr)
+    auto dep = perf_sim::TileDepTracker::TrackByAddr(opcode, stage, first_tile, rest_tiles...);
+
+    // 2. Build InstrRecord
+    perf_sim::InstrRecord r;
+    r.opcode = opcode;
+    r.stage = stage;
+    r.signal_event = dep.signal_event;
+    for (int i = 0; i < dep.wait_count && i < perf_sim::InstrRecord::MAX_WAIT_EVENTS; ++i) {
+        r.wait_events[i] = dep.wait_events[i];
+    }
+    r.wait_count = dep.wait_count;
+
+    // Tile dimensions + dtype: try each tile argument in order, use first one with info.
+    // For TSTORE(dst=GlobalData, src=TileData), this skips GlobalData and uses TileData.
+    ExtractFirstTileInfo(r.rows, r.cols, r.dtype, first_tile, rest_tiles...);
+
+    // Cycle estimate: use captured CCE cycles, else fallback
+    uint64_t cycles = GetLastPtoInstrCycles();
+    if (cycles == 0) {
+        cycles = perf_sim::EstimateInstrCycles(opcode, r.rows, r.cols, r.dtype.empty() ? "unknown" : r.dtype.c_str());
+    }
+    r.estimated_cycles = cycles;
+
+    perf_sim::CvSyncRecorder::ApplyPending(opcode, r);
+    perf_sim::PtoRecorder::Record(std::move(r));
+}
+
+// Scalar-stage overload for instructions with no tile arguments
+// Scalar-stage ops don't register as data producers (per TileDepTracker design),
+// so we skip TrackByAddr and use signal_event=-1.
+inline void RecordInstr(const char *opcode)
+{
+    perf_sim::PipeStage stage = perf_sim::StaticPipeStageLookup(opcode);
+    perf_sim::InstrRecord r;
+    r.opcode = opcode;
+    r.stage = stage;
+    r.signal_event = -1;
+    r.estimated_cycles = perf_sim::EstimateInstrCycles(opcode, 0, 0, "unknown");
+    perf_sim::CvSyncRecorder::ApplyPending(opcode, r);
+    perf_sim::PtoRecorder::Record(std::move(r));
+}
+
 } // namespace pto::mocker
 
+// RecordInstr variant: first_tile is in the variadic position (MAP_INSTR_IMPL style)
+// Accepts any types (tiles or scalars); filters to only tile references before passing to RecordInstr.
+template <typename OpcodeStr, typename... Args>
+inline void RecordInstrFromFirst(OpcodeStr &&opcode_str, Args &&...args)
+{
+    // Forward only tile-type arguments to RecordInstr
+    ::pto::mocker::RecordInstr(std::forward<OpcodeStr>(opcode_str), std::forward<Args>(args)...);
+}
+
+// ── CV Ring Buffer sync for TPUSH/TPOP ────────────────────────────────────────
+// TPUSH record(): ffts_cross_core_sync(PIPE_FIX/MTE3, FlagID) — data ready
+// TPOP wait():   wait_flag_dev(FlagID)                     — wait data ready
+//
+// TPUSH alloc(): wait_flag_dev(FlagID+1)                   — wait free space
+// TPOP free():   ffts_cross_core_sync(PIPE_MTE2, FlagID+1)  — buffer freed
+
+// TPUSH: Record push event to CV ring buffer
+// pipe: TPipe<FlagID, DirType, ...> or TMPipe<FlagID, ...> instance
+// tile: Tile being pushed
+// tile_index: pipe.prod.tileIndex (sequential counter)
+template <typename Pipe, typename TileProd>
+inline void RecordTPushSync(Pipe &pipe, TileProd &tile, int tile_index)
+{
+    uint64_t key = perf_sim::MakeCvFifoKey<Pipe>();
+    perf_sim::CvSyncRecorder::SetPending(perf_sim::CvSyncKind::Push, key);
+    (void)pipe;
+    (void)tile;
+    (void)tile_index;
+}
+
+// TPOP: Record pop event to CV ring buffer
+// pipe: TPipe<FlagID, DirType, ...> or TMPipe<FlagID, ...> instance
+// tile: Tile being popped
+// tile_index: pipe.cons.tileIndex (sequential counter)
+template <typename Pipe, typename TileCons>
+inline void RecordTPopSync(Pipe &pipe, TileCons &tile, int tile_index)
+{
+    uint64_t key = perf_sim::MakeCvFifoKey<Pipe>();
+    perf_sim::CvSyncRecorder::SetPending(perf_sim::CvSyncKind::Pop, key);
+    (void)pipe;
+    (void)tile;
+    (void)tile_index;
+}
+
+#define PTO_SECOND_ARG(_first, second, ...) second
 #define PTO_FIRST_ARG(first, ...) first
 #define PTO_INJECT_TILE_CYCLES(...) __VA_OPT__(::pto::mocker::InjectTileCycles(PTO_FIRST_ARG(__VA_ARGS__));)
+#define PTO_RECORD_INSTR(API, ...) ::RecordInstrFromFirst(#API __VA_OPT__(, ) __VA_ARGS__)
 #define PTO_INSTR_SCOPE(API, ...) ::pto::mocker::PtoInstrScope _pto_instr_scope(#API)
 #define PTO_INSTR_SCOPE_OUTS(API, OUT_COUNT, ...) ::pto::mocker::PtoInstrScope _pto_instr_scope(#API)
 #define PTO_INSTR_SCOPE_ROLES(API, ROLES, ...) ::pto::mocker::PtoInstrScope _pto_instr_scope(#API)
@@ -68,6 +211,7 @@ inline void InjectTileCycles(T &obj)
         PTO_INSTR_SCOPE(API, __VA_ARGS__);  \
         API##_IMPL(__VA_ARGS__);            \
         PTO_INJECT_TILE_CYCLES(__VA_ARGS__) \
+        PTO_RECORD_INSTR(API, __VA_ARGS__); \
     } while (0)
 #define MAP_INSTR_IMPL_OUTS(API, OUT_COUNT, ...) MAP_INSTR_IMPL(API, __VA_ARGS__)
 // Template calls use a dedicated macro because the preprocessor does not parse
@@ -77,15 +221,40 @@ inline void InjectTileCycles(T &obj)
         PTO_INSTR_SCOPE(API, __VA_ARGS__);        \
         API##_IMPL TEMPLATE_ARGS(__VA_ARGS__);    \
         PTO_INJECT_TILE_CYCLES(__VA_ARGS__)       \
+        PTO_RECORD_INSTR(API, __VA_ARGS__);       \
     } while (0)
 #define MAP_INSTR_IMPL_T_OUTS(API, TEMPLATE_ARGS, OUT_COUNT, ...) MAP_INSTR_IMPL_T(API, TEMPLATE_ARGS, __VA_ARGS__)
 #define MAP_INSTR_IMPL_ROLES(API, ROLES, ...) MAP_INSTR_IMPL(API, __VA_ARGS__)
 #define MAP_INSTR_IMPL_T_ROLES(API, TEMPLATE_ARGS, ROLES, ...) MAP_INSTR_IMPL_T(API, TEMPLATE_ARGS, __VA_ARGS__)
+// Special macro for TPUSH: includes CV ring buffer FFTS sync recording
+// Args: API, TEMPLATE_ARGS, pipe, tile, [tile_index]
+#define MAP_INSTR_IMPL_T_TPUSH(API, TEMPLATE_ARGS, ...)                            \
+    do {                                                                           \
+        PTO_INSTR_SCOPE(API, __VA_ARGS__);                                         \
+        API##_IMPL TEMPLATE_ARGS(__VA_ARGS__);                                     \
+        PTO_INJECT_TILE_CYCLES(__VA_ARGS__)                                        \
+        ::RecordTPushSync(PTO_FIRST_ARG(__VA_ARGS__), PTO_SECOND_ARG(__VA_ARGS__), \
+                          PTO_FIRST_ARG(__VA_ARGS__).prod.tileIndex);              \
+        PTO_RECORD_INSTR(API, __VA_ARGS__);                                        \
+    } while (0)
+
+// Special macro for TPOP: includes CV ring buffer FFTS sync recording
+#define MAP_INSTR_IMPL_T_TPOP(API, TEMPLATE_ARGS, ...)                            \
+    do {                                                                          \
+        PTO_INSTR_SCOPE(API, __VA_ARGS__);                                        \
+        API##_IMPL TEMPLATE_ARGS(__VA_ARGS__);                                    \
+        PTO_INJECT_TILE_CYCLES(__VA_ARGS__)                                       \
+        ::RecordTPopSync(PTO_FIRST_ARG(__VA_ARGS__), PTO_SECOND_ARG(__VA_ARGS__), \
+                         PTO_FIRST_ARG(__VA_ARGS__).cons.tileIndex);              \
+        PTO_RECORD_INSTR(API, __VA_ARGS__);                                       \
+    } while (0)
 #else
 #define MAP_INSTR_IMPL(API, ...) API##_IMPL(__VA_ARGS__)
 #define MAP_INSTR_IMPL_OUTS(API, OUT_COUNT, ...) API##_IMPL(__VA_ARGS__)
 #define MAP_INSTR_IMPL_T(API, TEMPLATE_ARGS, ...) API##_IMPL TEMPLATE_ARGS(__VA_ARGS__)
 #define MAP_INSTR_IMPL_T_OUTS(API, TEMPLATE_ARGS, OUT_COUNT, ...) API##_IMPL TEMPLATE_ARGS(__VA_ARGS__)
+#define MAP_INSTR_IMPL_T_TPUSH(API, TEMPLATE_ARGS, ...) API##_IMPL TEMPLATE_ARGS(__VA_ARGS__)
+#define MAP_INSTR_IMPL_T_TPOP(API, TEMPLATE_ARGS, ...) API##_IMPL TEMPLATE_ARGS(__VA_ARGS__)
 #define MAP_INSTR_IMPL_ROLES(API, ROLES, ...) API##_IMPL(__VA_ARGS__)
 #define MAP_INSTR_IMPL_T_ROLES(API, TEMPLATE_ARGS, ROLES, ...) API##_IMPL TEMPLATE_ARGS(__VA_ARGS__)
 #define PTO_INSTR_SCOPE(API, ...)
@@ -1545,11 +1714,12 @@ PTO_INST RecordEvent TFMOD(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &s
     return {};
 }
 
-template <typename Pipe, typename TileProd, TileSplitAxis Split, typename... WaitEvents>
+template <typename Pipe, typename TileProd, TileSplitAxis Split, std::enable_if_t<!is_global_data_v<TileProd>, int> = 0,
+          typename... WaitEvents>
 PTO_INST RecordEvent TPUSH(Pipe &pipe, TileProd &tile, WaitEvents &...events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TPUSH, PTO_TEMPLATE_ARGS(Pipe, TileProd, Split), pipe, tile);
+    MAP_INSTR_IMPL_T_TPUSH(TPUSH, PTO_TEMPLATE_ARGS(Pipe, TileProd, Split), pipe, tile);
     return {};
 }
 
@@ -1561,11 +1731,12 @@ PTO_INST RecordEvent TPUSH(TileData &tile, Pipe &pipe, WaitEvents &...events)
     return {};
 }
 
-template <typename Pipe, typename TileCons, TileSplitAxis Split, typename... WaitEvents>
+template <typename Pipe, typename TileCons, TileSplitAxis Split, std::enable_if_t<!is_global_data_v<TileCons>, int> = 0,
+          typename... WaitEvents>
 PTO_INST RecordEvent TPOP(Pipe &pipe, TileCons &tile, WaitEvents &...events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TPOP, PTO_TEMPLATE_ARGS(Pipe, TileCons, Split), pipe, tile);
+    MAP_INSTR_IMPL_T_TPOP(TPOP, PTO_TEMPLATE_ARGS(Pipe, TileCons, Split), pipe, tile);
     return {};
 }
 
@@ -1590,6 +1761,42 @@ PTO_INST RecordEvent TFREE(Pipe &pipe, WaitEvents &...events)
 {
     TSYNC(events...);
     MAP_INSTR_IMPL_T(TFREE, PTO_TEMPLATE_ARGS(Pipe), pipe);
+    return {};
+}
+
+template <typename Pipe, typename GlobalData, TileSplitAxis Split,
+          std::enable_if_t<is_global_data_v<GlobalData>, int> = 0, typename... WaitEvents>
+PTO_INST RecordEvent TALLOC(Pipe &pipe, GlobalData &gmTensor, WaitEvents &...events)
+{
+    TSYNC(events...);
+    MAP_INSTR_IMPL_T(TALLOC, PTO_TEMPLATE_ARGS(Pipe, GlobalData, Split), pipe, gmTensor);
+    return {};
+}
+
+template <typename Pipe, typename GlobalData, TileSplitAxis Split,
+          std::enable_if_t<is_global_data_v<GlobalData>, int> = 0, typename... WaitEvents>
+PTO_INST RecordEvent TPUSH(Pipe &pipe, GlobalData &gmTensor, WaitEvents &...events)
+{
+    TSYNC(events...);
+    MAP_INSTR_IMPL_T_TPUSH(TPUSH, PTO_TEMPLATE_ARGS(Pipe, GlobalData, Split), pipe, gmTensor);
+    return {};
+}
+
+template <typename Pipe, typename GlobalData, TileSplitAxis Split,
+          std::enable_if_t<is_global_data_v<GlobalData>, int> = 0, typename... WaitEvents>
+PTO_INST RecordEvent TPOP(Pipe &pipe, GlobalData &gmTensor, WaitEvents &...events)
+{
+    TSYNC(events...);
+    MAP_INSTR_IMPL_T_TPOP(TPOP, PTO_TEMPLATE_ARGS(Pipe, GlobalData, Split), pipe, gmTensor);
+    return {};
+}
+
+template <typename Pipe, typename GlobalData, TileSplitAxis Split,
+          std::enable_if_t<is_global_data_v<GlobalData>, int> = 0, typename... WaitEvents>
+PTO_INST RecordEvent TFREE(Pipe &pipe, GlobalData &gmTensor, WaitEvents &...events)
+{
+    TSYNC(events...);
+    MAP_INSTR_IMPL_T(TFREE, PTO_TEMPLATE_ARGS(Pipe, GlobalData, Split), pipe, gmTensor);
     return {};
 }
 

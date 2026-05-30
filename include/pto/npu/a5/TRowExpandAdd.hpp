@@ -89,5 +89,16 @@ PTO_INTERNAL void TROWEXPANDADD_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileD
             dst.data(), src1.data(), src0.data(), validRow, validCol);
     }
 }
+
+// 4-arg overload for cross-architecture portability with A2/A3.
+// A5 hardware does not require a scratch broadcast tile (the underlying instruction
+// supports the row-broadcast operand mode natively); the tmp tile is accepted and ignored.
+// Provided to keep a single source-compatible TROWEXPANDADD signature across A2/A3 and A5.
+template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataTmp>
+PTO_INTERNAL void TROWEXPANDADD_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1,
+                                     [[maybe_unused]] TileDataTmp &tmp)
+{
+    TROWEXPANDADD_IMPL(dst, src0, src1);
+}
 } // namespace pto
 #endif

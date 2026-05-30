@@ -95,17 +95,17 @@ PTO_INTERNAL int GetIdxByMask(int i, int j)
 {
     switch (mask) {
         case MaskPattern::P0101:
-            return i * RowStride + PTO_TSCATTER_TIME_2 * j + PTO_TSCATTER_IDX_0;
+            return i * RowStride + PTO_TIME_2 * j + PTO_IDX_0;
         case MaskPattern::P1010:
-            return i * RowStride + PTO_TSCATTER_TIME_2 * j + PTO_TSCATTER_IDX_1;
+            return i * RowStride + PTO_TIME_2 * j + PTO_IDX_1;
         case MaskPattern::P0001:
-            return i * RowStride + PTO_TSCATTER_TIME_4 * j + PTO_TSCATTER_IDX_0;
+            return i * RowStride + PTO_TIME_4 * j + PTO_IDX_0;
         case MaskPattern::P0010:
-            return i * RowStride + PTO_TSCATTER_TIME_4 * j + PTO_TSCATTER_IDX_1;
+            return i * RowStride + PTO_TIME_4 * j + PTO_IDX_1;
         case MaskPattern::P0100:
-            return i * RowStride + PTO_TSCATTER_TIME_4 * j + PTO_TSCATTER_IDX_2;
+            return i * RowStride + PTO_TIME_4 * j + PTO_IDX_2;
         case MaskPattern::P1000:
-            return i * RowStride + PTO_TSCATTER_TIME_4 * j + PTO_TSCATTER_IDX_3;
+            return i * RowStride + PTO_TIME_4 * j + PTO_IDX_3;
         default:
             return i * RowStride + j;
     }
@@ -130,7 +130,7 @@ __tf__ PTO_INTERNAL void TScatterMaskImpl(typename DstTile::TileDType __out__ ds
         set_mask_count();
         set_vector_mask(0, validCol);
         for (int i = 0; i < validRow; i++) {
-            stride = GetScatterStrideByMask<mask, dstStride>(i);
+            stride = GetStrideByMask<mask, dstStride>(i);
             vcopy((copyType *)(dstPtr + stride), (copyType *)(srcPtr + i * srcStride), 1, 1, 1, 8, 8);
         }
         set_mask_norm();
@@ -179,12 +179,11 @@ PTO_INTERNAL void TSCATTER_IMPL(DstTile &dst, SrcTile &src)
                       "TSCATTER: MaskPattern parameter value out of range: must be P0101...P1111 inclusive.");
 
         if constexpr (ScatterType == ScatterAxis::SCATTER_COL) {
-            PTO_ASSERT(validCol == dst.GetValidCol(), "TSCATTER: validCol of src must match dst.");
-            PTO_ASSERT(validRow == dst.GetValidRow() * GetScatterTimesByMask<mask>,
+            PTO_ASSERT(dst.GetValidRow() == validRow * GetTimesByMask<mask>,
                        "TSCATTER: validRow of dst must be 2 or 4 times that of src.");
         } else {
             PTO_ASSERT(validRow == dst.GetValidRow(), "TSCATTER: validRow of src must match dst.");
-            PTO_ASSERT(validCol == dst.GetValidCol() * GetScatterTimesByMask<mask>,
+            PTO_ASSERT(validCol == dst.GetValidCol() * GetTimesByMask<mask>,
                        "TSCATTER: validRow of src must match dst.");
         }
         TScatterMaskImpl<mask, ScatterType, DstTile, SrcTile>(dst.data(), src.data(), validRow, validCol);

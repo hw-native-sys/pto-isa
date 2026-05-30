@@ -291,6 +291,8 @@ __global__ AICORE void Conv2dForward(__gm__ uint8_t *out, __gm__ uint8_t *src0, 
         reinterpret_cast<__gm__ half *>(out), reinterpret_cast<__gm__ half *>(src0),
         reinterpret_cast<__gm__ half *>(src1));
 }
+
+#ifndef __COSTMODEL
 template <typename T>
 void launchConv2dForward(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream)
 {
@@ -332,3 +334,4 @@ void launchConv2dForward(uint8_t *out, uint8_t *src0, uint8_t *src1, void *strea
         <<<blockDim, nullptr, stream>>>(out, src0, src1);
 }
 template void launchConv2dForward<uint16_t>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
+#endif

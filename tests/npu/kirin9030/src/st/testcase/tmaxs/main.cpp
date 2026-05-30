@@ -60,7 +60,8 @@ void test_tmaxs()
 
     ReadFile(GetGoldenDir() + "/input1.bin", srcfileSize, src0Host, srcfileSize);
     ReadFile(GetGoldenDir() + "/input_scalar.bin", scalarFileSize, src1Host, scalarFileSize);
-
+    aclrtMemset(dstHost, dstfileSize, 0, dstfileSize);
+    aclrtMemcpy(dstDevice, dstfileSize, dstHost, dstfileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src0Device, srcfileSize, src0Host, srcfileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, scalarFileSize, src1Host, scalarFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     LaunchTMaxs<T, dstRow, dstCol, srcRow, srcCol, kVRows_, kVCols_, kPadValue_>(dstDevice, src0Device, src1Device,

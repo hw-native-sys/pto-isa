@@ -402,23 +402,52 @@ __tf__ PTO_INTERNAL OP_NAME(TINSERT)
     constexpr uint32_t srcRowStride = SrcTileData::RowStride;
     constexpr uint32_t dstRowStride = DstTileData::RowStride;
     constexpr uint32_t elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr int32_t kStaticValidCol = SrcTileData::ValidCol;
+    constexpr bool kSingleChunkStatic =
+        (kStaticValidCol > 0) && (static_cast<uint32_t>(kStaticValidCol) <= elementsPerRepeat);
 
-    __VEC_SCOPE__
-    {
-        constexpr auto distValue =
-            std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
-        RegTensor<T> vreg;
-        MaskReg preg;
+    if constexpr (kSingleChunkStatic) {
+        uint32_t kTail = static_cast<uint32_t>(kStaticValidCol);
+        __VEC_SCOPE__
+        {
+            constexpr auto distValue =
+                std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
+            RegTensor<T> vreg;
+            MaskReg pregTail = CreatePredicate<T>(kTail);
+            for (uint16_t i = 0; i < validRow; ++i) {
+                uint32_t srcRowOff = static_cast<uint32_t>(i) * srcRowStride;
+                uint32_t dstRowOff = (indexRow + static_cast<uint32_t>(i)) * dstRowStride + indexCol;
+                vlds(vreg, srcAddr, srcRowOff, NORM);
+                vsts(vreg, dstAddr, dstRowOff, distValue, pregTail);
+            }
+        }
+    } else {
         uint16_t repeatTimes = CeilDivision(static_cast<uint32_t>(validCol), elementsPerRepeat);
+        uint32_t tailEleNum = static_cast<uint32_t>(validCol) % elementsPerRepeat;
+        if (tailEleNum == 0) {
+            tailEleNum = elementsPerRepeat;
+        }
+        uint32_t fullEleNum = elementsPerRepeat;
+        uint16_t lastRepeat = repeatTimes - 1;
 
-        for (uint16_t i = 0; i < validRow; ++i) {
-            uint32_t sreg = static_cast<uint32_t>(validCol);
-            uint32_t srcRowOff = static_cast<uint32_t>(i) * srcRowStride;
-            uint32_t dstRowOff = (indexRow + static_cast<uint32_t>(i)) * dstRowStride + indexCol;
-            for (uint16_t j = 0; j < repeatTimes; ++j) {
-                preg = CreatePredicate<T>(sreg);
-                vlds(vreg, srcAddr, srcRowOff + static_cast<uint32_t>(j) * elementsPerRepeat, NORM);
-                vsts(vreg, dstAddr, dstRowOff + static_cast<uint32_t>(j) * elementsPerRepeat, distValue, preg);
+        __VEC_SCOPE__
+        {
+            constexpr auto distValue =
+                std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
+            RegTensor<T> vreg;
+            MaskReg pregFull = CreatePredicate<T>(fullEleNum);
+            MaskReg pregTail = CreatePredicate<T>(tailEleNum);
+
+            for (uint16_t i = 0; i < validRow; ++i) {
+                uint32_t srcRowOff = static_cast<uint32_t>(i) * srcRowStride;
+                uint32_t dstRowOff = (indexRow + static_cast<uint32_t>(i)) * dstRowStride + indexCol;
+                for (uint16_t j = 0; j < lastRepeat; ++j) {
+                    vlds(vreg, srcAddr, srcRowOff + static_cast<uint32_t>(j) * elementsPerRepeat, NORM);
+                    vsts(vreg, dstAddr, dstRowOff + static_cast<uint32_t>(j) * elementsPerRepeat, distValue, pregFull);
+                }
+                vlds(vreg, srcAddr, srcRowOff + static_cast<uint32_t>(lastRepeat) * elementsPerRepeat, NORM);
+                vsts(vreg, dstAddr, dstRowOff + static_cast<uint32_t>(lastRepeat) * elementsPerRepeat, distValue,
+                     pregTail);
             }
         }
     }

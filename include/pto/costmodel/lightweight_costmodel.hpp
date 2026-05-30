@@ -70,6 +70,7 @@ enum class PtoOpcode
     TROWEXPAND,
     TCOLEXPAND,
     TLOADCONV,
+    TPREFETCH,
 };
 
 enum class DType : uint8_t
@@ -187,6 +188,22 @@ inline constexpr const char *DTypeToString(DType dtype)
     }
 }
 
+inline constexpr const char *PtoOpcodeToString(PtoOpcode op)
+{
+    constexpr std::array<const char *, 45> names = {
+        "TADD",     "TSUB",    "TMUL",     "TDIV",     "TRECIP",  "TADDS",      "TSUBS",      "TMULS",     "TDIVS",
+        "TMINS",    "TMAXS",   "TABS",     "TNEG",     "TEXP",    "TSQRT",      "TRSQRT",     "TLOG",      "TRELU",
+        "TLRELU",   "TNOT",    "TROWSUM",  "TROWMAX",  "TROWMIN", "TROWPROD",   "TCOLSUM",    "TCOLMAX",   "TCOLMIN",
+        "TCOLPROD", "TMATMUL", "TGEMV",    "TCVT",     "TMOV",    "TLOAD",      "TSTORE",     "TTRANS",    "TSORT32",
+        "TMRGSORT", "TSEL",    "TSCATTER", "TEXTRACT", "TINSERT", "TROWEXPAND", "TCOLEXPAND", "TLOADCONV", "TPREFETCH",
+    };
+    auto idx = static_cast<std::underlying_type_t<PtoOpcode>>(op);
+    if (idx >= 0 && static_cast<size_t>(idx) < names.size()) {
+        return names[static_cast<size_t>(idx)];
+    }
+    return "Unknown";
+}
+
 inline constexpr const char *TransferTileTypeToString(TransferTileType tile_type)
 {
     switch (tile_type) {
@@ -216,7 +233,7 @@ inline bool WarnAndFallbackToZero(const CostModelInput &input, CostModelResult &
     result.cycles = 0.0;
     result.latency_us = 0.0L;
     std::cerr << "[WARN] lightweight::EstimateCycles fallback to 0 cycles: " << reason
-              << ", op=" << static_cast<int>(input.op) << ", dtype=" << DTypeToString(input.dtype)
+              << ", op=" << PtoOpcodeToString(input.op) << ", dtype=" << DTypeToString(input.dtype)
               << ", rows=" << input.rows << ", cols=" << input.cols
               << ", tile_type=" << TransferTileTypeToString(input.tile_type) << ", data_size=" << input.data_size
               << '\n';

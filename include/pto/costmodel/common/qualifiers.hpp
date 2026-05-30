@@ -42,6 +42,21 @@ using aclrtStreamAttrValue = int;
 #endif
 #define aclFloat16ToFloat(x) ((float)(x))
 #ifdef __COSTMODEL
+#ifdef dsb
+#undef dsb
+#endif
+#ifdef SINGLE_CACHE_LINE
+#undef SINGLE_CACHE_LINE
+#endif
+#ifdef DSB_DDR
+#undef DSB_DDR
+#endif
+#ifdef DSB_ALL
+#undef DSB_ALL
+#endif
+#ifdef DSB_UB
+#undef DSB_UB
+#endif
 #ifdef set_flag
 #undef set_flag
 #endif
