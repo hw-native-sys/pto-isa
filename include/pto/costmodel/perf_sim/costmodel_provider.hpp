@@ -19,6 +19,18 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto::perf_sim {
 
+// ── Magic number constants ──
+static constexpr uint64_t kPercentMultiplier = 100;
+static constexpr uint64_t kMatrixLatencyBase = 4;
+static constexpr uint64_t kElemsPerMatrixUnit = 16;
+static constexpr uint64_t kGMLatencyBase = 3;
+static constexpr uint64_t kGMCycleMultiplier = 2;
+static constexpr uint64_t kGMElemsPerUnit = 64;
+static constexpr uint64_t kMTE1LatencyBase = 1;
+static constexpr uint64_t kMTE1ElemsPerUnit = 64;
+static constexpr uint64_t kDefaultLatencyBase = 2;
+static constexpr uint64_t kDefaultElemsPerUnit = 32;
+
 // ── Runtime context passed to costmodel ──
 
 struct CostModelRuntimeCtx {
@@ -117,12 +129,12 @@ inline uint64_t FallbackCycles(const std::string &opcode, int rows, int cols)
     if (stage == PipeStage::Scalar)
         return 1;
     if (stage == PipeStage::Matrix)
-        return 4 + elems / 16;
+        return kMatrixLatencyBase + elems / kElemsPerMatrixUnit;
     if (IsGMAccessPipe(stage))
-        return 3 + elems * 2 / 64;
+        return kGMLatencyBase + elems * kGMCycleMultiplier / kGMElemsPerUnit;
     if (stage == PipeStage::MTE1)
-        return 1 + elems / 64;
-    return 2 + elems / 32;
+        return kMTE1LatencyBase + elems / kMTE1ElemsPerUnit;
+    return kDefaultLatencyBase + elems / kDefaultElemsPerUnit;
 }
 
 // ── Unified estimation entry (used when CCE mock trace is unavailable) ──
