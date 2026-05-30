@@ -18,6 +18,46 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/cpu/parallel.hpp"
 
 namespace pto {
+template <typename T>
+inline T integer_pow(T base, int64_t exponent)
+{
+    if (exponent == 0)
+        return 1;
+    if (exponent < 0)
+        return 0;
+
+    T result = 1;
+    T base_val = base;
+    uint64_t exp = static_cast<uint64_t>(exponent);
+    while (exp > 0) {
+        if (exp & 1) {
+            result *= base_val;
+        }
+        base_val *= base_val;
+        exp >>= 1;
+    }
+    return result;
+}
+
+template <typename T>
+inline T compute_pow(T base_val, T exp_val)
+{
+    if constexpr (std::is_integral_v<T>) {
+        int64_t exponent = static_cast<int64_t>(exp_val);
+        if (exponent < 0) {
+            return 0;
+        }
+        return integer_pow(base_val, exponent);
+    } else {
+        double result = std::pow(static_cast<double>(base_val), static_cast<double>(exp_val));
+        if constexpr (std::is_same_v<T, half>) {
+            return static_cast<T>(static_cast<float>(result));
+        } else {
+            return static_cast<T>(result);
+        }
+    }
+}
+
 template <typename tile_shape>
 PTO_INTERNAL void TPow_Impl(typename tile_shape::TileDType dst, typename tile_shape::TileDType base,
                             typename tile_shape::TileDType exp, unsigned validRow, unsigned validCol)
@@ -30,7 +70,7 @@ PTO_INTERNAL void TPow_Impl(typename tile_shape::TileDType dst, typename tile_sh
                 PTO_CPU_VECTORIZE_LOOP
                 for (std::size_t c = 0; c < validCol; ++c) {
                     const std::size_t idx = rowBase + c;
-                    dst[idx] = static_cast<T>(std::pow(static_cast<double>(base[idx]), static_cast<double>(exp[idx])));
+                    dst[idx] = compute_pow<T>(base[idx], exp[idx]);
                 }
             });
 
@@ -40,7 +80,7 @@ PTO_INTERNAL void TPow_Impl(typename tile_shape::TileDType dst, typename tile_sh
                 PTO_CPU_VECTORIZE_LOOP
                 for (std::size_t r = 0; r < validRow; ++r) {
                     const std::size_t idx = colBase + r;
-                    dst[idx] = static_cast<T>(std::pow(static_cast<double>(base[idx]), static_cast<double>(exp[idx])));
+                    dst[idx] = compute_pow<T>(base[idx], exp[idx]);
                 }
             });
         }
@@ -50,7 +90,7 @@ PTO_INTERNAL void TPow_Impl(typename tile_shape::TileDType dst, typename tile_sh
             cpu::parallel_for_rows(validRow, validCol, [&](std::size_t r) {
                 for (std::size_t c = 0; c < validCol; ++c) {
                     const std::size_t idx = GetTileElementOffset<tile_shape>(r, c);
-                    dst[idx] = static_cast<T>(std::pow(static_cast<double>(base[idx]), static_cast<double>(exp[idx])));
+                    dst[idx] = compute_pow<T>(base[idx], exp[idx]);
                 }
             });
 
@@ -58,7 +98,7 @@ PTO_INTERNAL void TPow_Impl(typename tile_shape::TileDType dst, typename tile_sh
             cpu::parallel_for_rows(validCol, validRow, [&](std::size_t c) {
                 for (std::size_t r = 0; r < validRow; ++r) {
                     const std::size_t idx = GetTileElementOffset<tile_shape>(r, c);
-                    dst[idx] = static_cast<T>(std::pow(static_cast<double>(base[idx]), static_cast<double>(exp[idx])));
+                    dst[idx] = compute_pow<T>(base[idx], exp[idx]);
                 }
             });
         }
@@ -69,6 +109,7 @@ template <PowAlgorithm algo, typename DstTile, typename BaseTile, typename ExpTi
 PTO_INTERNAL void TPOW_IMPL(DstTile &dst, BaseTile &base, ExpTile &exp, TmpTile &tmp)
 {
     (void)tmp;
+    (void)algo;
     unsigned row = dst.GetValidRow();
     unsigned col = dst.GetValidCol();
     TPow_Impl<DstTile>(dst.data(), base.data(), exp.data(), row, col);
