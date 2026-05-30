@@ -12,6 +12,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define TCMPS_HPP
 #include <pto/common/pto_tile.hpp>
 #include "pto/cpu/tile_offsets.hpp"
+#include <algorithm>
 #include <cmath>
 #include <vector>
 
@@ -61,7 +62,7 @@ AICORE void TCmps(typename TileDataDst::TileDType __out__ dst, typename TileData
 
     for (size_t i = 0; i < srcValidRow; i++) {
         for (size_t j = 0; j < srcValidCol; j++) {
-            T a = src0[i * srcStride + j];
+            T a = src0[GetTileElementOffset<TileDataSrc>(i, j)];
             golden[i * W + j] = CmpCall<T>(a, src1, mode);
         }
     }
@@ -81,11 +82,16 @@ AICORE void TCmps(typename TileDataDst::TileDType __out__ dst, typename TileData
         }
     }
 
-    int c = 0;
-    for (size_t i = 0; i < dstValidRow && c < out_uint8.size(); i++) {
-        for (size_t j = 0; j < dstValidCol && c < out_uint8.size(); j++) {
-            dst[i * W + j] = out_uint8[c++];
-            uint8_t b = dst[i * W + j];
+    std::fill(dst, dst + TileDataDst::Numel, static_cast<typename TileDataDst::DType>(0));
+    const size_t dstPackedCols = static_cast<size_t>(dstValidCol);
+    if (dstPackedCols == 0) {
+        return;
+    }
+    for (size_t c = 0; c < out_uint8.size() && c < TileDataDst::Numel; ++c) {
+        const size_t i = c / dstPackedCols;
+        const size_t j = c % dstPackedCols;
+        if (i < dstValidRow && j < dstValidCol) {
+            dst[GetTileElementOffset<TileDataDst>(i, j)] = static_cast<typename TileDataDst::DType>(out_uint8[c]);
         }
     }
 }
@@ -132,8 +138,8 @@ PTO_INTERNAL void TCMPS_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 
 
     for (size_t i = 0; i < srcValidRow; i++) {
         for (size_t j = 0; j < srcValidCol; j++) {
-            T a = src0.data()[i * srcStride + j];
-            T b = src1.data()[i * src1Stride + j];
+            T a = src0.data()[GetTileElementOffset<TileDataSrc0>(i, j)];
+            T b = src1.data()[GetTileElementOffset<TileDataSrc1>(i, j)];
             golden[i * W + j] = CmpCall<T>(a, b, cmpMode);
         }
     }
@@ -152,10 +158,17 @@ PTO_INTERNAL void TCMPS_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 
         }
     }
 
-    int c = 0;
-    for (size_t i = 0; i < dstValidRow && c < out_uint8.size(); i++) {
-        for (size_t j = 0; j < dstValidCol && c < out_uint8.size(); j++) {
-            dst.data()[GetTileElementOffset<TileDataDst>(i, j)] = out_uint8[c++];
+    std::fill(dst.data(), dst.data() + TileDataDst::Numel, static_cast<typename TileDataDst::DType>(0));
+    const size_t dstPackedCols = static_cast<size_t>(dstValidCol);
+    if (dstPackedCols == 0) {
+        return;
+    }
+    for (size_t c = 0; c < out_uint8.size() && c < TileDataDst::Numel; ++c) {
+        const size_t i = c / dstPackedCols;
+        const size_t j = c % dstPackedCols;
+        if (i < dstValidRow && j < dstValidCol) {
+            dst.data()[GetTileElementOffset<TileDataDst>(i, j)] =
+                static_cast<typename TileDataDst::DType>(out_uint8[c]);
         }
     }
 }

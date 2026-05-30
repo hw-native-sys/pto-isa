@@ -14,6 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <cstdint>
 #include <functional>
 #include <iomanip>
+#include <mutex>
 #include <ostream>
 #include <sstream>
 #include <string>
@@ -57,23 +58,76 @@ struct InstructionTraceRecord {
 struct InstructionTraceState {
     uint64_t next_sequence_id = 0;
     std::vector<InstructionTraceRecord> records;
+    mutable std::mutex mutex;
 };
 
 inline thread_local InstructionTraceState g_instruction_trace_state;
+inline thread_local InstructionTraceState *g_instruction_trace_override = nullptr;
+
+inline InstructionTraceState &CurrentInstructionTraceState()
+{
+    return g_instruction_trace_override == nullptr ? g_instruction_trace_state : *g_instruction_trace_override;
+}
 
 inline void ResetInstructionTrace()
 {
-    g_instruction_trace_state = {};
+    auto &trace = CurrentInstructionTraceState();
+    std::scoped_lock lock(trace.mutex);
+    trace.next_sequence_id = 0;
+    trace.records.clear();
 }
 
 inline InstructionTraceState &GetMutableInstructionTrace()
 {
-    return g_instruction_trace_state;
+    return CurrentInstructionTraceState();
 }
 
+// Returns the active trace state for advanced consumers that need direct access
+// to the state object. Callers must lock InstructionTraceState::mutex before
+// reading records or mutating shared members.
 inline const InstructionTraceState &GetInstructionTrace()
 {
-    return g_instruction_trace_state;
+    return CurrentInstructionTraceState();
+}
+
+inline std::vector<InstructionTraceRecord> CopyInstructionTraceRecords()
+{
+    const auto &trace = GetInstructionTrace();
+    std::scoped_lock lock(trace.mutex);
+    return trace.records;
+}
+
+class ScopedInstructionTraceState {
+public:
+    explicit ScopedInstructionTraceState(InstructionTraceState &state) : saved_(g_instruction_trace_override)
+    {
+        g_instruction_trace_override = &state;
+    }
+
+    ~ScopedInstructionTraceState()
+    {
+        g_instruction_trace_override = saved_;
+    }
+
+    ScopedInstructionTraceState(const ScopedInstructionTraceState &) = delete;
+    ScopedInstructionTraceState &operator=(const ScopedInstructionTraceState &) = delete;
+
+private:
+    InstructionTraceState *saved_ = nullptr;
+};
+
+inline uint64_t ReserveInstructionTraceSequenceId()
+{
+    auto &trace = GetMutableInstructionTrace();
+    std::scoped_lock lock(trace.mutex);
+    return trace.next_sequence_id++;
+}
+
+inline void AppendInstructionTraceRecord(InstructionTraceRecord record)
+{
+    auto &trace = GetMutableInstructionTrace();
+    std::scoped_lock lock(trace.mutex);
+    trace.records.push_back(std::move(record));
 }
 
 inline const char *LayoutToString(Layout layout)
@@ -355,8 +409,8 @@ inline std::string HexAddress(std::uintptr_t address)
 
 inline void DumpInstructionTraceJson(std::ostream &os)
 {
-    const auto &trace = GetInstructionTrace();
-    for (const auto &record : trace.records) {
+    const auto records = CopyInstructionTraceRecords();
+    for (const auto &record : records) {
         os << "{\"block_idx\":" << record.block_idx << ",\"sequence_id\":" << record.sequence_id << ",\"opcode\":\""
            << JsonEscape(record.opcode) << "\",\"input_tiles\":[";
         for (std::size_t i = 0; i < record.input_tiles.size(); ++i) {
@@ -441,7 +495,7 @@ public:
             for (const auto &capture : output_tile_captures_) {
                 capture(record_);
             }
-            GetMutableInstructionTrace().records.push_back(std::move(record_));
+            AppendInstructionTraceRecord(std::move(record_));
         }
     }
 
@@ -453,7 +507,7 @@ private:
     {
         active_ = true;
         record_.block_idx = ::get_block_idx();
-        record_.sequence_id = GetMutableInstructionTrace().next_sequence_id++;
+        record_.sequence_id = ReserveInstructionTraceSequenceId();
         record_.opcode = std::string(opcode);
     }
 

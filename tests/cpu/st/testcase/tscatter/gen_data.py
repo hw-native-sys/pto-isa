@@ -57,12 +57,13 @@ def gen_case(case_dir: str, rows: int, cols: int):
     os.chdir(case_dir)
 
     src = np.random.uniform(low=-4, high=4, size=[rows, cols]).astype(np.float32)
-    idx = np.random.randint(0, rows, size=[rows, cols]).astype(np.uint16)
+    idx = np.random.randint(0, rows, size=[rows, cols]).astype(np.uint32)
+    idx = idx * cols + np.arange(cols, dtype=np.uint32)
 
     dst = np.zeros([rows, cols], dtype=np.float32)
     for i in range(rows):
         for j in range(cols):
-            dst[idx[i, j], j] = src[i, j]
+            dst.flat[idx[i, j]] = src[i, j]
 
     src.tofile("input1.bin")
     idx.tofile("input2.bin")

@@ -1456,20 +1456,20 @@ def _render_complex(instr: str, summary: str, accent: str, bg: str) -> str:
         return _end_svg(out)
 
     if instr == "TSCATTER":
-        expr = "dst[ idx[r,c], c ] = src[r,c]"
+        expr = "dst_flat[ idx[r,c] ] = src[r,c]"
         proc = [
             "for r,c in valid(src):",
-            "  rr = idx[r,c]",
-            "  dst[rr, c] = src[r,c]",
+            "  k = idx[r,c]",
+            "  dst_flat[k] = src[r,c]",
         ]
         out.append(
             f'<text x="{CANVAS_W // 2}" y="{EXPR_Y}" class="subtitle" text-anchor="middle" fill="{_esc(accent)}">{_esc(expr)}</text>'
         )
         xs = _layout_row_lefts(CANVAS_W // 2, [tile_w, tile_w], 120)
         x_src, x_idx = xs[0], xs[1]
-        idx_text = {(EX_R, EX_C): "rr"}
+        idx_text = {(EX_R, EX_C): "k"}
         _draw_tile_grid(out, x=x_src, y=y_src, label="src", prefix="a", highlight_cells=[(EX_R, EX_C)], accent=accent)
-        _draw_tile_grid(out, x=x_idx, y=y_src, label="row idx", prefix="i", highlight_cells=[(EX_R, EX_C)], text_override=idx_text, accent=accent)
+        _draw_tile_grid(out, x=x_idx, y=y_src, label="flat idx", prefix="i", highlight_cells=[(EX_R, EX_C)], text_override=idx_text, accent=accent)
 
         x_dst = (CANVAS_W - tile_w) // 2
         dst_r = min(TILE_ROWS - 2, EX_R + 1) if TILE_ROWS > 2 else EX_R

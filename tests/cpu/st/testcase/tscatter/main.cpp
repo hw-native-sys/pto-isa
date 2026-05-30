@@ -33,13 +33,13 @@ std::string GetGoldenDir()
 }
 
 template <int kTRows_, int kTCols_>
-void LaunchTScatter(float *out, float *src, uint16_t *idx, void *stream);
+void LaunchTScatter(float *out, float *src, uint32_t *idx, void *stream);
 
 template <int kTRows_, int kTCols_>
 void test_tscatter()
 {
     const size_t tileBytes = kTRows_ * kTCols_ * sizeof(float);
-    const size_t idxBytes = kTRows_ * kTCols_ * sizeof(uint16_t);
+    const size_t idxBytes = kTRows_ * kTCols_ * sizeof(uint32_t);
 
     aclInit(nullptr);
     aclrtSetDevice(0);
@@ -47,9 +47,9 @@ void test_tscatter()
     aclrtCreateStream(&stream);
 
     float *dstHost, *srcHost;
-    uint16_t *idxHost;
+    uint32_t *idxHost;
     float *dstDevice, *srcDevice;
-    uint16_t *idxDevice;
+    uint32_t *idxDevice;
 
     aclrtMallocHost((void **)(&dstHost), tileBytes);
     aclrtMallocHost((void **)(&srcHost), tileBytes);

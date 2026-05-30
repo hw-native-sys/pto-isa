@@ -64,29 +64,29 @@ TEST_F(TTraceTest, CapturesZeroOperandAndBasicTileInstructions)
     pto::TADD(dst, src0, src1);
     pto::TDIV(dst, src0, src1);
 
-    const auto &trace = pto::cpu_sim::GetInstructionTrace();
-    ASSERT_EQ(trace.records.size(), 3u);
+    const auto trace = pto::cpu_sim::CopyInstructionTraceRecords();
+    ASSERT_EQ(trace.size(), 3u);
 
-    EXPECT_EQ(trace.records[0].opcode, "TSYNC");
-    EXPECT_EQ(trace.records[0].block_idx, 7u);
-    EXPECT_EQ(trace.records[0].sequence_id, 0u);
-    EXPECT_TRUE(trace.records[0].input_tiles.empty());
-    EXPECT_TRUE(trace.records[0].scalar_inputs.empty());
-    EXPECT_TRUE(trace.records[0].output_tiles.empty());
+    EXPECT_EQ(trace[0].opcode, "TSYNC");
+    EXPECT_EQ(trace[0].block_idx, 7u);
+    EXPECT_EQ(trace[0].sequence_id, 0u);
+    EXPECT_TRUE(trace[0].input_tiles.empty());
+    EXPECT_TRUE(trace[0].scalar_inputs.empty());
+    EXPECT_TRUE(trace[0].output_tiles.empty());
 
-    EXPECT_EQ(trace.records[1].opcode, "TADD");
-    EXPECT_EQ(trace.records[1].sequence_id, 1u);
-    ASSERT_EQ(trace.records[1].input_tiles.size(), 2u);
-    ASSERT_EQ(trace.records[1].output_tiles.size(), 1u);
-    EXPECT_EQ(trace.records[1].input_tiles[0].address, src0.GetAssignedAddress());
-    EXPECT_EQ(trace.records[1].input_tiles[1].address, src1.GetAssignedAddress());
-    EXPECT_EQ(trace.records[1].output_tiles[0].address, dst.GetAssignedAddress());
-    EXPECT_EQ(trace.records[1].output_tiles[0].shape, (std::vector<int64_t>{2, 32}));
+    EXPECT_EQ(trace[1].opcode, "TADD");
+    EXPECT_EQ(trace[1].sequence_id, 1u);
+    ASSERT_EQ(trace[1].input_tiles.size(), 2u);
+    ASSERT_EQ(trace[1].output_tiles.size(), 1u);
+    EXPECT_EQ(trace[1].input_tiles[0].address, src0.GetAssignedAddress());
+    EXPECT_EQ(trace[1].input_tiles[1].address, src1.GetAssignedAddress());
+    EXPECT_EQ(trace[1].output_tiles[0].address, dst.GetAssignedAddress());
+    EXPECT_EQ(trace[1].output_tiles[0].shape, (std::vector<int64_t>{2, 32}));
 
-    EXPECT_EQ(trace.records[2].opcode, "TDIV");
-    EXPECT_EQ(trace.records[2].sequence_id, 2u);
-    ASSERT_EQ(trace.records[2].input_tiles.size(), 2u);
-    ASSERT_EQ(trace.records[2].output_tiles.size(), 1u);
+    EXPECT_EQ(trace[2].opcode, "TDIV");
+    EXPECT_EQ(trace[2].sequence_id, 2u);
+    ASSERT_EQ(trace[2].input_tiles.size(), 2u);
+    ASSERT_EQ(trace[2].output_tiles.size(), 1u);
 
     std::ostringstream json;
     pto::cpu_sim::DumpInstructionTraceJson(json);
@@ -116,15 +116,15 @@ TEST_F(TTraceTest, CapturesInterleavedAndMultiOutputOperands)
 
     pto::TROWARGMAX(dstVal, dstIdx, src, tmp);
 
-    const auto &trace = pto::cpu_sim::GetInstructionTrace();
-    ASSERT_EQ(trace.records.size(), 1u);
-    EXPECT_EQ(trace.records[0].opcode, "TROWARGMAX");
-    ASSERT_EQ(trace.records[0].output_tiles.size(), 2u);
-    ASSERT_EQ(trace.records[0].input_tiles.size(), 2u);
-    EXPECT_EQ(trace.records[0].output_tiles[0].address, dstVal.GetAssignedAddress());
-    EXPECT_EQ(trace.records[0].output_tiles[1].address, dstIdx.GetAssignedAddress());
-    EXPECT_EQ(trace.records[0].input_tiles[0].address, src.GetAssignedAddress());
-    EXPECT_EQ(trace.records[0].input_tiles[1].address, tmp.GetAssignedAddress());
+    const auto trace = pto::cpu_sim::CopyInstructionTraceRecords();
+    ASSERT_EQ(trace.size(), 1u);
+    EXPECT_EQ(trace[0].opcode, "TROWARGMAX");
+    ASSERT_EQ(trace[0].output_tiles.size(), 2u);
+    ASSERT_EQ(trace[0].input_tiles.size(), 2u);
+    EXPECT_EQ(trace[0].output_tiles[0].address, dstVal.GetAssignedAddress());
+    EXPECT_EQ(trace[0].output_tiles[1].address, dstIdx.GetAssignedAddress());
+    EXPECT_EQ(trace[0].input_tiles[0].address, src.GetAssignedAddress());
+    EXPECT_EQ(trace[0].input_tiles[1].address, tmp.GetAssignedAddress());
 }
 
 TEST_F(TTraceTest, CapturesPointerOutputsForMxQuant)
@@ -157,22 +157,22 @@ TEST_F(TTraceTest, CapturesPointerOutputsForMxQuant)
     pto::TQUANT<pto::QuantType::MXFP8>(dst, src, &exp, &max, &scaling);
     pto::TQUANT<pto::QuantType::MXFP8, pto::VecStoreMode::NZ>(dst, src, &exp, &max, &scaling, &expZz);
 
-    const auto &trace = pto::cpu_sim::GetInstructionTrace();
-    ASSERT_EQ(trace.records.size(), 2u);
+    const auto trace = pto::cpu_sim::CopyInstructionTraceRecords();
+    ASSERT_EQ(trace.size(), 2u);
 
-    EXPECT_EQ(trace.records[0].opcode, "TQUANT");
-    ASSERT_EQ(trace.records[0].input_tiles.size(), 1u);
-    ASSERT_EQ(trace.records[0].output_tiles.size(), 4u);
-    EXPECT_EQ(trace.records[0].input_tiles[0].address, src.GetAssignedAddress());
-    EXPECT_EQ(trace.records[0].output_tiles[0].address, dst.GetAssignedAddress());
-    EXPECT_EQ(trace.records[0].output_tiles[1].address, exp.GetAssignedAddress());
-    EXPECT_EQ(trace.records[0].output_tiles[2].address, max.GetAssignedAddress());
-    EXPECT_EQ(trace.records[0].output_tiles[3].address, scaling.GetAssignedAddress());
+    EXPECT_EQ(trace[0].opcode, "TQUANT");
+    ASSERT_EQ(trace[0].input_tiles.size(), 1u);
+    ASSERT_EQ(trace[0].output_tiles.size(), 4u);
+    EXPECT_EQ(trace[0].input_tiles[0].address, src.GetAssignedAddress());
+    EXPECT_EQ(trace[0].output_tiles[0].address, dst.GetAssignedAddress());
+    EXPECT_EQ(trace[0].output_tiles[1].address, exp.GetAssignedAddress());
+    EXPECT_EQ(trace[0].output_tiles[2].address, max.GetAssignedAddress());
+    EXPECT_EQ(trace[0].output_tiles[3].address, scaling.GetAssignedAddress());
 
-    EXPECT_EQ(trace.records[1].opcode, "TQUANT");
-    ASSERT_EQ(trace.records[1].input_tiles.size(), 1u);
-    ASSERT_EQ(trace.records[1].output_tiles.size(), 5u);
-    EXPECT_EQ(trace.records[1].output_tiles[4].address, expZz.GetAssignedAddress());
+    EXPECT_EQ(trace[1].opcode, "TQUANT");
+    ASSERT_EQ(trace[1].input_tiles.size(), 1u);
+    ASSERT_EQ(trace[1].output_tiles.size(), 5u);
+    EXPECT_EQ(trace[1].output_tiles[4].address, expZz.GetAssignedAddress());
 }
 
 TEST_F(TTraceTest, WritesKernelTraceFile)

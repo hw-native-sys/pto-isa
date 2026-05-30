@@ -33,11 +33,11 @@ svg { font-family: Arial, Helvetica, sans-serif; }
 <rect x="0" y="0" width="1200" height="720" class="frame" />
 <rect x="24" y="24" width="1152" height="672" class="panel" />
 <text x="40" y="46" class="title">TSCATTER</text>
-<text x="40" y="72" class="subtitle">Scatter rows of a source tile into a destination tile using per-element row indices.</text>
+<text x="40" y="72" class="subtitle">Scatter source elements into a destination tile using per-element flattened offsets.</text>
 <text x="40" y="92" class="meta">Template: complex</text>
 <text x="1160" y="92" class="meta" text-anchor="end">Legend: outline=example; dashed=valid rows/cols (Rv,Cv); shaded=masked; r down / c right; ortho arrows=dataflow</text>
 <line x1="36" y1="104" x2="1164" y2="104" stroke="#e2e8f0" stroke-width="1.5" />
-<text x="600" y="140" class="subtitle" text-anchor="middle" fill="#C53A79">dst[ idx[r,c], c ] = src[r,c]</text>
+<text x="600" y="140" class="subtitle" text-anchor="middle" fill="#C53A79">dst_flat[ idx[r,c] ] = src[r,c]</text>
 <text x="485" y="168" class="tileLabel" text-anchor="middle">src</text>
 <rect x="430" y="178" width="110" height="110" class="tileBorder" />
 <rect x="430" y="178" width="22" height="22" class="cell" />
@@ -72,7 +72,7 @@ svg { font-family: Arial, Helvetica, sans-serif; }
 <path d="M 440 188 L 440 222" class="axisLine" marker-end="url(#axisArrow)" />
 <text x="478" y="192" class="axisText">c</text>
 <text x="438" y="226" class="axisText" text-anchor="end">r</text>
-<text x="715" y="168" class="tileLabel" text-anchor="middle">row idx</text>
+<text x="715" y="168" class="tileLabel" text-anchor="middle">flat idx</text>
 <rect x="660" y="178" width="110" height="110" class="tileBorder" />
 <rect x="660" y="178" width="22" height="22" class="cell" />
 <rect x="682" y="178" width="22" height="22" class="cell" />
@@ -82,7 +82,7 @@ svg { font-family: Arial, Helvetica, sans-serif; }
 <rect x="660" y="200" width="22" height="22" class="cell" />
 <rect x="682" y="200" width="22" height="22" class="cell" />
 <rect x="704" y="200" width="22" height="22" class="cell cellHL" stroke="#C53A79" />
-<text x="715" y="212" class="cellText" text-anchor="middle" dominant-baseline="middle">rr</text>
+<text x="715" y="212" class="cellText" text-anchor="middle" dominant-baseline="middle">k</text>
 <rect x="726" y="200" width="22" height="22" class="cell" />
 <rect x="748" y="200" width="22" height="22" class="cell cellMasked" />
 <rect x="660" y="222" width="22" height="22" class="cell" />
@@ -152,8 +152,8 @@ svg { font-family: Arial, Helvetica, sans-serif; }
 <text x="56" y="528" class="procTitle">Procedure (conceptual)</text>
 <text x="56" y="554" class="procText" xml:space="preserve">
   <tspan x="56" dy="0">for r,c in valid(src):</tspan>
-  <tspan x="56" dy="16">  rr = idx[r,c]</tspan>
-  <tspan x="56" dy="16">  dst[rr, c] = src[r,c]</tspan>
+  <tspan x="56" dy="16">  k = idx[r,c]</tspan>
+  <tspan x="56" dy="16">  dst_flat[k] = src[r,c]</tspan>
 </text>
 <text x="56" y="680" class="meta">Note: semantics apply to the valid region unless stated otherwise.</text>
 </svg>

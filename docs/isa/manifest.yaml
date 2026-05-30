@@ -1512,8 +1512,8 @@
     {
       "instruction": "TSCATTER",
       "category": "Complex",
-      "summary_en": "Scatter rows of a source tile into a destination tile using per-element row indices.",
-      "summary_zh": "使用逐元素行索引将源 Tile 的行散播到目标 Tile 中。",
+      "summary_en": "Scatter source elements into a destination tile using per-element flattened offsets.",
+      "summary_zh": "使用逐元素扁平偏移将源 Tile 元素散播到目标 Tile 中。",
       "diagram_template": "complex",
       "operands": [
         "dst",

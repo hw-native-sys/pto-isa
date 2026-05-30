@@ -15,15 +15,15 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <int kTRows_, int kTCols_>
-AICORE void runTScatter(__gm__ float __out__ *out, __gm__ float __in__ *src, __gm__ uint16_t __in__ *idx)
+AICORE void runTScatter(__gm__ float __out__ *out, __gm__ float __in__ *src, __gm__ uint32_t __in__ *idx)
 {
     using TileT = Tile<TileType::Vec, float, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>;
-    using IdxT = Tile<TileType::Vec, uint16_t, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>;
+    using IdxT = Tile<TileType::Vec, uint32_t, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>;
 
     using SrcShape = Shape<1, 1, 1, kTRows_, kTCols_>;
     using SrcStride = Stride<1, 1, 1, kTCols_, 1>;
     using GTf = GlobalTensor<float, SrcShape, SrcStride>;
-    using GTi = GlobalTensor<uint16_t, SrcShape, SrcStride>;
+    using GTi = GlobalTensor<uint32_t, SrcShape, SrcStride>;
 
     TileT srcTile(kTRows_, kTCols_);
     TileT dstTile(kTRows_, kTCols_);
@@ -46,12 +46,12 @@ AICORE void runTScatter(__gm__ float __out__ *out, __gm__ float __in__ *src, __g
 }
 
 template <int kTRows_, int kTCols_>
-void LaunchTScatter(float *out, float *src, uint16_t *idx, void *stream)
+void LaunchTScatter(float *out, float *src, uint32_t *idx, void *stream)
 {
     runTScatter<kTRows_, kTCols_>(out, src, idx);
 }
 
-template void LaunchTScatter<16, 16>(float *out, float *src, uint16_t *idx, void *stream);
+template void LaunchTScatter<16, 16>(float *out, float *src, uint32_t *idx, void *stream);
 
 // --- Mask-pattern TSCATTER ---
 

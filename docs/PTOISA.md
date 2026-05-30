@@ -141,7 +141,7 @@ This page is the source-synchronized ISA index generated from `docs/isa/manifest
 | Complex | [`TPARTMAX`](isa/tile/ops/irregular-and-complex/tpartmax.md) | Partial elementwise max with implementation-defined handling of mismatched valid regions. |
 | Complex | [`TPARTMIN`](isa/tile/ops/irregular-and-complex/tpartmin.md) | Partial elementwise min with implementation-defined handling of mismatched valid regions. |
 | Complex | [`TGATHERB`](isa/tile/ops/irregular-and-complex/tgatherb.md) | Gather elements using byte offsets. |
-| Complex | [`TSCATTER`](isa/tile/ops/irregular-and-complex/tscatter.md) | Scatter rows of a source tile into a destination tile using per-element row indices. |
+| Complex | [`TSCATTER`](isa/tile/ops/irregular-and-complex/tscatter.md) | Scatter source elements into a destination tile using per-element flattened offsets. |
 | Complex | [`TQUANT`](isa/tile/ops/irregular-and-complex/tquant.md) | Quantize a tile (e.g. FP32 to FP8) producing exponent/scaling/max outputs. |
 | Communication | [`TPUT`](isa/comm/TPUT.md) | Remote write: transfer local data to remote NPU memory (GM → UB → GM). |
 | Communication | [`TGET`](isa/comm/TGET.md) | Remote read: read remote NPU data to local memory (GM → UB → GM). |

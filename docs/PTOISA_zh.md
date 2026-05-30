@@ -141,7 +141,7 @@
 | 复杂指令 | [`TPARTMAX`](isa/tile/ops/irregular-and-complex/tpartmax_zh.md) | 部分逐元素最大值，对不匹配的有效区域具有实现定义的处理方式。 |
 | 复杂指令 | [`TPARTMIN`](isa/tile/ops/irregular-and-complex/tpartmin_zh.md) | 部分逐元素最小值，对不匹配的有效区域具有实现定义的处理方式。 |
 | 复杂指令 | [`TGATHERB`](isa/tile/ops/irregular-and-complex/tgatherb_zh.md) | 使用字节偏移量收集元素。 |
-| 复杂指令 | [`TSCATTER`](isa/tile/ops/irregular-and-complex/tscatter_zh.md) | 使用逐元素行索引将源 Tile 的行散播到目标 Tile 中。 |
+| 复杂指令 | [`TSCATTER`](isa/tile/ops/irregular-and-complex/tscatter_zh.md) | 使用逐元素扁平偏移将源 Tile 元素散播到目标 Tile 中。 |
 | 复杂指令 | [`TQUANT`](isa/tile/ops/irregular-and-complex/tquant_zh.md) | 量化 Tile（例如 FP32 到 FP8），生成指数/缩放/最大值输出。 |
 | 通信 | [`TPUT`](isa/comm/communication-runtime_zh.md) | 远程写：将本地数据传输到远端 NPU 内存（GM → UB → GM）。 |
 | 通信 | [`TGET`](isa/comm/communication-runtime_zh.md) | 远程读：将远端 NPU 数据读取到本地内存（GM → UB → GM）。 |

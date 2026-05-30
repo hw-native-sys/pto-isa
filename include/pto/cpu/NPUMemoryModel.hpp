@@ -31,6 +31,7 @@
 #include <cstddef>
 #include <algorithm>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <vector>
 #include <pto/common/pto_tile.hpp>
@@ -60,6 +61,8 @@ public:
     using ArchMemorySizes = std::size_t[MemoryRegion::_MAX_REGIONS];
 
 private:
+    static inline constexpr std::size_t kDefaultCpuSimUBScratchSize = 512 * 1024;
+
     // Memory sizes by architecture
     // A2/A3:
     // https://www.hiascend.com/doc_center/source/zh/canncommercial/80RC3/devguide/appdevg/sdpdevg/atlasprogramming_12_0003.html
@@ -95,7 +98,8 @@ private:
 
     void ApplySizeOverrides()
     {
-        sizes_[MemoryRegion::UB] = ReadSizeOverride("PTO_CPU_SIM_UB_BYTES", sizes_[MemoryRegion::UB]);
+        sizes_[MemoryRegion::UB] =
+            ReadSizeOverride("PTO_CPU_SIM_UB_BYTES", std::max(sizes_[MemoryRegion::UB], kDefaultCpuSimUBScratchSize));
         sizes_[MemoryRegion::L1] = ReadSizeOverride("PTO_CPU_SIM_L1_BYTES", sizes_[MemoryRegion::L1]);
         sizes_[MemoryRegion::L0A] = ReadSizeOverride("PTO_CPU_SIM_L0A_BYTES", sizes_[MemoryRegion::L0A]);
         sizes_[MemoryRegion::L0B] = ReadSizeOverride("PTO_CPU_SIM_L0B_BYTES", sizes_[MemoryRegion::L0B]);
@@ -324,7 +328,12 @@ private:
     {
         EnsureInitialized();
 
-        assert(byteOffset + numel * sizeof(T) <= sizes_[region]);
+        if (byteOffset > sizes_[region] || numel > (sizes_[region] - byteOffset) / sizeof(T)) {
+            std::fprintf(stderr,
+                         "PTO CPU sim TASSIGN out of range: region=%d offset=%zu numel=%zu elem_size=%zu size=%zu\n",
+                         static_cast<int>(region), byteOffset, numel, sizeof(T), sizes_[region]);
+            std::abort();
+        }
         return reinterpret_cast<T *>(buffers_[region].data() + byteOffset);
     }
 
