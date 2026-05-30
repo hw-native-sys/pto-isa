@@ -47,7 +47,6 @@ public:
 
         uint64_t line_addr = AlignToLine(addr);
         bool hit = Lookup(line_addr);
-
         if (hit) {
             stats_.hits++;
             // Hit: use L2 bandwidth (faster)
@@ -67,7 +66,7 @@ public:
         double HitRate() const
         {
             auto total = hits + misses;
-            return total > 0 ? 100.0 * hits / total : 0.0;
+            return total > 0 ? kPercentMultiplier * hits / total : 0.0;
         }
     };
 
@@ -83,6 +82,7 @@ public:
     }
 
 private:
+    static constexpr uint64_t kPercentMultiplier = 100;
     uint64_t line_size_;
     uint64_t capacity_;
     uint32_t l2_read_bw_;

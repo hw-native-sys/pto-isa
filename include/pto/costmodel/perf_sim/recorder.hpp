@@ -72,7 +72,7 @@ inline bool IsAIVStage(PipeStage s)
 // IsCubeSidePipe: hardware pipe IDs belonging to CubeCore (AIC)
 inline bool IsCubeSidePipe(int hw_pipe)
 {
-    return hw_pipe == 2 /*PIPE_MTE1*/ || hw_pipe == 5 /*PIPE_M*/ || hw_pipe == 7 /*PIPE_FIX*/;
+    return hw_pipe == PIPE_MTE1 || hw_pipe == PIPE_M || hw_pipe == PIPE_FIX;
 }
 
 // ── PTO instruction record ──
@@ -210,7 +210,7 @@ public:
             if (IsCubeSidePipe(src))
                 return;
             // PIPE_MTE2(3) with Cube dst is MTE2_AIC → skip
-            if (src == 3 /*PIPE_MTE2*/ && IsCubeSidePipe(dst))
+            if (src == PIPE_MTE2 && IsCubeSidePipe(dst))
                 return;
         }
         Get().push_back({SyncKind::Signal, id, src, dst, cross, NextSeq(), ActiveCore(), sub_id});
@@ -296,7 +296,8 @@ enum class TPipeDir : uint8_t
 
 inline uint8_t CvKeyDirection(uint64_t key)
 {
-    return static_cast<uint8_t>((key >> 8) & 0xffu);
+    constexpr uint8_t DIR_TYPE_MASK = 0xffu;
+    return static_cast<uint8_t>((key >> 8) & DIR_TYPE_MASK);
 }
 
 inline uint64_t NextCvFifoTypeId()
@@ -315,7 +316,9 @@ uint64_t CvFifoTypeId()
 template <typename Pipe>
 uint64_t MakeCvFifoKey()
 {
-    return (static_cast<uint64_t>(Pipe::DIR_TYPE) << 8) | (CvFifoTypeId<Pipe>() << 16);
+    constexpr int DIR_SHIFT = 8;
+    constexpr int TYPE_SHIFT = 16;
+    return (static_cast<uint64_t>(Pipe::DIR_TYPE) << DIR_SHIFT) | (CvFifoTypeId<Pipe>() << TYPE_SHIFT);
 }
 
 // ── Compile-time tile traits (duck typing for pto::Tile<...>) ──
