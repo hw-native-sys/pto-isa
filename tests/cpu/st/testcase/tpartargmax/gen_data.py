@@ -35,7 +35,7 @@ def gen_case():
     
     for i in range(VALID_H):
         for j in range(VALID_W):
-            if src1_val[i, j] > dst_val[i, j]:
+            if src1_val[i, j] >= dst_val[i, j]:
                 dst_val[i, j] = src1_val[i, j]
                 dst_idx[i, j] = src1_idx[i, j]
 

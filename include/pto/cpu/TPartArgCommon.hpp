@@ -32,7 +32,7 @@ static inline void CheckAndGetValidRegions(const DstVal &dstVal, const Src0Val &
 
 template <typename CompareOp, typename ValType, typename IdxType>
 struct PartArgSelectOp {
-    static inline void apply(ValType &dstVal, IdxType &dstIdx, ValType src0Val, IdxType src0Idx, ValType src1Val,
+    static inline void apply(ValType &dstVal, ValType src0Val, ValType src1Val, IdxType &dstIdx, IdxType src0Idx,
                              IdxType src1Idx)
     {
         if (CompareOp::apply(src0Val, src1Val)) {

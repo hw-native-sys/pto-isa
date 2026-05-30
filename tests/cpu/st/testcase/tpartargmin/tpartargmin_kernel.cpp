@@ -13,12 +13,12 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 struct PartArgMinRunner {
-    template <typename TileDataDstVal, typename TileDataDstIdx, typename TileDataSrc0Val, typename TileDataSrc0Idx,
-              typename TileDataSrc1Val, typename TileDataSrc1Idx>
-    PTO_INTERNAL static void Run(TileDataDstVal &dstVal, TileDataDstIdx &dstIdx, TileDataSrc0Val &src0Val,
-                                 TileDataSrc0Idx &src0Idx, TileDataSrc1Val &src1Val, TileDataSrc1Idx &src1Idx)
+    template <typename TileDataDstVal, typename TileDataSrc0Val, typename TileDataSrc1Val, typename TileDataDstIdx,
+              typename TileDataSrc0Idx, typename TileDataSrc1Idx>
+    PTO_INTERNAL static void Run(TileDataDstVal &dstVal, TileDataSrc0Val &src0Val, TileDataSrc1Val &src1Val,
+                                 TileDataDstIdx &dstIdx, TileDataSrc0Idx &src0Idx, TileDataSrc1Idx &src1Idx)
     {
-        TPARTARGMIN(dstVal, dstIdx, src0Val, src0Idx, src1Val, src1Idx);
+        TPARTARGMIN(dstVal, src0Val, src1Val, dstIdx, src0Idx, src1Idx);
     }
 };
 
