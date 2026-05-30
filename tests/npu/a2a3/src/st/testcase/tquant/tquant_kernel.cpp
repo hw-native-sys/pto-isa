@@ -15,7 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-#define PTO_CEIL(x, y) ((((x) + (y) - 1) / (y)) * (y))
+#define PTO_CEIL(x, y) ((((x) + (y)-1) / (y)) * (y))
 
 namespace TQuantTest {
 

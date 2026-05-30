@@ -878,7 +878,7 @@ PTO_INTERNAL void ExtractB8ExponentAndScaling_2D(__ubuf__ T *maxPtr, __ubuf__ ui
                   "ExtractB8ExponentAndScaling_2D: T must be bfloat16_t or half");
     constexpr uint32_t elementsPerVL = REPEAT_BYTE / sizeof(T); // 128 group-maxes per VL
 
-    uint32_t groupsPerRow = srcCols / 32; // srcCols is 32-aligned
+    uint32_t groupsPerRow = srcCols / 32;                       // srcCols is 32-aligned
     uint32_t validGroupsPerRow = CeilDivision((uint32_t)validCols, 32u);
     uint16_t loopsPerRow = CeilDivision(validGroupsPerRow, elementsPerVL);
     for (uint16_t row = 0; row < (uint16_t)validRows; ++row) {

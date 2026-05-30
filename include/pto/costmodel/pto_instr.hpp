@@ -216,12 +216,12 @@ inline void RecordTPopSync(Pipe &pipe, TileCons &tile, int tile_index)
 #define MAP_INSTR_IMPL_OUTS(API, OUT_COUNT, ...) MAP_INSTR_IMPL(API, __VA_ARGS__)
 // Template calls use a dedicated macro because the preprocessor does not parse
 // template commas in a generic `_IMPL(...)` wrapper reliably.
-#define MAP_INSTR_IMPL_T(API, TEMPLATE_ARGS, ...)                    \
-    do {                                                             \
-        PTO_INSTR_SCOPE(API, __VA_ARGS__);                           \
-        API##_IMPL TEMPLATE_ARGS(__VA_ARGS__);                       \
-        PTO_INJECT_TILE_CYCLES(__VA_ARGS__)                          \
-        PTO_RECORD_INSTR(API, __VA_ARGS__);                          \
+#define MAP_INSTR_IMPL_T(API, TEMPLATE_ARGS, ...) \
+    do {                                          \
+        PTO_INSTR_SCOPE(API, __VA_ARGS__);        \
+        API##_IMPL TEMPLATE_ARGS(__VA_ARGS__);    \
+        PTO_INJECT_TILE_CYCLES(__VA_ARGS__)       \
+        PTO_RECORD_INSTR(API, __VA_ARGS__);       \
     } while (0)
 #define MAP_INSTR_IMPL_T_OUTS(API, TEMPLATE_ARGS, OUT_COUNT, ...) MAP_INSTR_IMPL_T(API, TEMPLATE_ARGS, __VA_ARGS__)
 #define MAP_INSTR_IMPL_ROLES(API, ROLES, ...) MAP_INSTR_IMPL(API, __VA_ARGS__)
@@ -234,7 +234,7 @@ inline void RecordTPopSync(Pipe &pipe, TileCons &tile, int tile_index)
         API##_IMPL TEMPLATE_ARGS(__VA_ARGS__);                                     \
         PTO_INJECT_TILE_CYCLES(__VA_ARGS__)                                        \
         ::RecordTPushSync(PTO_FIRST_ARG(__VA_ARGS__), PTO_SECOND_ARG(__VA_ARGS__), \
-                           PTO_FIRST_ARG(__VA_ARGS__).prod.tileIndex);              \
+                          PTO_FIRST_ARG(__VA_ARGS__).prod.tileIndex);              \
         PTO_RECORD_INSTR(API, __VA_ARGS__);                                        \
     } while (0)
 
@@ -245,7 +245,7 @@ inline void RecordTPopSync(Pipe &pipe, TileCons &tile, int tile_index)
         API##_IMPL TEMPLATE_ARGS(__VA_ARGS__);                                    \
         PTO_INJECT_TILE_CYCLES(__VA_ARGS__)                                       \
         ::RecordTPopSync(PTO_FIRST_ARG(__VA_ARGS__), PTO_SECOND_ARG(__VA_ARGS__), \
-                          PTO_FIRST_ARG(__VA_ARGS__).cons.tileIndex);              \
+                         PTO_FIRST_ARG(__VA_ARGS__).cons.tileIndex);              \
         PTO_RECORD_INSTR(API, __VA_ARGS__);                                       \
     } while (0)
 #else

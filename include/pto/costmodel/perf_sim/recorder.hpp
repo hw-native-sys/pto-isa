@@ -96,7 +96,7 @@ struct InstrRecord {
     uint32_t core_id = 0;     // recording core
     uint32_t subblock_id = 0; // VecCore index (0 or 1)
     CvSyncKind cv_kind = CvSyncKind::None;
-    uint64_t cv_key = 0; // logical FIFO identity for TPUSH/TPOP token matching
+    uint64_t cv_key = 0;      // logical FIFO identity for TPUSH/TPOP token matching
 };
 
 enum class SyncKind : uint8_t
@@ -333,8 +333,12 @@ struct TileTraits {
 template <typename T>
 concept HasTileDims = requires {
     typename T::DType;
-    { T::Rows } -> std::convertible_to<int>;
-    { T::Cols } -> std::convertible_to<int>;
+    {
+        T::Rows
+    } -> std::convertible_to<int>;
+    {
+        T::Cols
+    } -> std::convertible_to<int>;
 };
 
 template <HasTileDims T>

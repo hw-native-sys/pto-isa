@@ -415,9 +415,9 @@ __tf__ PTO_INTERNAL void TExtractAccToMat(typename DstTileData::TileDType __out_
 {
     using dstType = typename DstTileData::DType;
     using srcType = typename SrcTileData::DType;
-    constexpr bool channelSplitEnable = (!DstTileData::isRowMajor && (DstTileData::SFractal == SLayout::RowMajor)) &&
-                                        (std::is_same_v<dstType, float>) &&
-                                        (DstTileData::SFractalSize == CUBE_BLOCK_SIZE);
+    constexpr bool channelSplitEnable =
+        (!DstTileData::isRowMajor && (DstTileData::SFractal == SLayout::RowMajor)) &&
+        (std::is_same_v<dstType, float>)&&(DstTileData::SFractalSize == CUBE_BLOCK_SIZE);
     constexpr int32_t c0Size = (!channelSplitEnable) && (DstTileData::SFractalSize == 2 * CUBE_BLOCK_SIZE) ?
                                    2 * C0_SIZE_BYTE / sizeof(dstType) :
                                    C0_SIZE_BYTE / sizeof(dstType);

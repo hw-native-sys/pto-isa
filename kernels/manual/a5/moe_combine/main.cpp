@@ -106,7 +106,8 @@ std::vector<double> ExtractTimingSamples(const std::vector<IterationTiming> &tim
 void PrintOneTimingStats(const char *label, const std::vector<IterationTiming> &timings, double IterationTiming::*field)
 {
     PerfStats stats = CalcStats(ExtractTimingSamples(timings, field));
-    std::cout << "  " << label << ": avg=" << stats.avg << " us" << " max=" << stats.max << " us" << std::endl;
+    std::cout << "  " << label << ": avg=" << stats.avg << " us"
+              << " max=" << stats.max << " us" << std::endl;
 }
 
 bool VerboseRuntimeLogs(const MoeCombineArgs &args)
