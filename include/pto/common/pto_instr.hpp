@@ -282,8 +282,8 @@ PTO_INST RecordEvent TCMPS(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &s
     return {};
 }
 
-template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
-PTO_INST RecordEvent TCMP(TileDataDst &dst, TileDataSrc &src0, TileDataSrc &src1, CmpMode cmpMode,
+template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
+PTO_INST RecordEvent TCMP(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, CmpMode cmpMode,
                           WaitEvents &...events)
 {
     TSYNC(events...);
