@@ -52,7 +52,7 @@ enum class AccMode
 #define L0C_BUF0 ((__ca__ half *)(__ca__ char *)0x0)
 #define L0C_BUF1 ((__ca__ half *)(__ca__ char *)0x20000)
 
-#define LAST_LOOP(x, n) ((x) == ((n)-1))
+#define LAST_LOOP(x, n) ((x) == ((n) - 1))
 #define UNIT_FLAG_ENABLE(i, n) (LAST_LOOP(i, n) ? 3 : 2)
 
 AICORE inline uint64_t getPingPong(uint32_t flip)

@@ -713,4 +713,7 @@ PTO_INTERNAL void TINSERT_IMPL(DstTileData &dst, SrcTileData &src, uint16_t inde
 }
 
 } // namespace pto
+#ifdef COPY_CC_TO_CUBF
+#undef COPY_CC_TO_CUBF
+#endif
 #endif // TInsert_HPP
