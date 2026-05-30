@@ -30,6 +30,11 @@ concurrency:
 
 jobs:
   smoke:
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        github.event.pull_request.head.repo.full_name == github.repository
+      }}
     # The active A5 runner is managed by the non-root zoujiangjiangCI account on host 39.
     runs-on: [self-hosted, a5]
     timeout-minutes: 120
@@ -65,7 +70,7 @@ jobs:
           repository: ${{ steps.trigger.outputs.repository }}
           ref: ${{ steps.trigger.outputs.ref }}
           fetch-depth: 1
-          clean: false
+          clean: true
 
       - name: Record trigger summary
         shell: bash
