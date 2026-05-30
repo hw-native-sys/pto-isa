@@ -37,9 +37,16 @@ pto.tfmods ins(%src, %scalar : !pto.tile_buf<...>, f32) outs(%dst : !pto.tile_bu
 ## C++ 内建接口
 
 ```cpp
-template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
-PTO_INST RecordEvent TFMODS(TileDataDst &dst, TileDataSrc &src, typename TileDataSrc::DType scalar, WaitEvents &... events);
+template <auto PrecisionType = FmodSAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc,
+          typename... WaitEvents>
+PTO_INST RecordEvent TFMODS(TileDataDst &dst, TileDataSrc &src, typename TileDataSrc::DType scalar,
+                            WaitEvents &... events);
 ```
+
+`PrecisionType` 用于选择标量求余算法：
+
+- `FmodSAlgorithm::DEFAULT`：普通算法，速度较快但精度较低。
+- `FmodSAlgorithm::HIGH_PRECISION`：高精度算法，速度较慢且仅支持 `float` 类型。
 
 ## 输入
 
@@ -61,6 +68,7 @@ PTO_INST RecordEvent TFMODS(TileDataDst &dst, TileDataSrc &src, typename TileDat
 !!! warning "约束"
     - 除零行为由目标平台定义；CPU 模拟器在调试构建下会断言。
     - 操作迭代域由 `dst.GetValidRow()` / `dst.GetValidCol()` 决定。
+    - 高精度算法仅在 A5 上有效；A2A3 会忽略 `PrecisionType` 选项。
 
 ## 异常与非法情形
 

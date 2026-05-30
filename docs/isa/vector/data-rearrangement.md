@@ -106,7 +106,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vsqz`
 
-- **syntax:** `%result = pto.vsqz %src, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vsqz %src, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **semantics:** Compress — pack active lanes to front.
 
 ```c
@@ -128,7 +128,7 @@ while (j < N) dst[j++] = 0;
 
 ### `pto.vusqz`
 
-- **syntax:** `%result = pto.vusqz %mask : !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vusqz %mask : !pto.mask<G> -> !pto.vreg<NxT>`
 - **semantics:** Expand — scatter front elements to active positions.
 
 ```c
@@ -255,15 +255,15 @@ for (int i = 0; i < N/2; i++)
 
 // Filter: keep only elements passing condition
 %pass_mask = pto.vcmps %values, %threshold, %all, "gt"
-    : !pto.vreg<64xf32>, f32, !pto.mask -> !pto.mask
+    : !pto.vreg<64xf32>, f32, !pto.mask<b32> -> !pto.mask<b32>
 %compacted = pto.vsqz %values, %pass_mask
-    : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+    : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 // Sliding window sum
 %prev_window = pto.vslide %curr, %prev, %c1
     : !pto.vreg<64xf32>, !pto.vreg<64xf32>, i16 -> !pto.vreg<64xf32>
 %window_sum = pto.vadd %curr, %prev_window, %all
-    : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+    : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 // Type narrowing via pack
 %packed_i16 = pto.vpack %wide0_i32, %wide1_i32, %c0

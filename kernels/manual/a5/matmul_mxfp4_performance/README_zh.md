@@ -55,7 +55,7 @@ $$
 本示例以 A5 平台为性能验证基准，针对矩阵乘法的算力与访存瓶颈，实施以下分层优化策略：
 
 - **多核切分（core partitioning）**：
-  
+
   核心目标是充分利用多核并行算力，将整体计算任务均衡拆分至不同Cube核上。
   - 本示例中 `m=2040, k=8192, n=8100`，通常不建议在单核内再切 `k`，而是切分 `m` 和 `n` 。
   - 将全局任务按 4 × 8 分核，单核负责的子矩阵维度为 `singleCoreM=512`、`singleCoreK=8192`、`singleCoreN=1024`，确保各核负载均衡，最大化并行度。
@@ -119,7 +119,7 @@ python3 scripts/gen_data.py
 3. 运行示例：
 
 ```bash
-bash run.sh -r npu -v Ascend910_9599
+bash run.sh -r npu -v Ascend950
 ```
 
 成功时输出：

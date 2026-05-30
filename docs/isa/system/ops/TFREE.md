@@ -1,4 +1,4 @@
-# TFREE
+# pto.tfree
 
 ## Tile Operation Diagram
 
@@ -6,17 +6,17 @@
 
 ## Summary
 
-`pto.tfree` releases the consumer-side reservation on a tile pipe previously acquired by `pto.tpop`, returning the slot to the producer side of the FIFO. It is the primary reclaim hook in the system-side three-phase tile-pipe protocol and is paired with `pto.tpop` on the consumer side.
+`pto.tfree` is the explicit release operation for the `GlobalData` slot-view form of `TPOP`. The simpler TileData `TPOP(pipe, tile)` flow already performs its free-space notification internally, so `TFREE(Pipe&)` is currently a no-op kept for API symmetry and synchronization spelling.
 
 ## Mechanism
 
-`pto.tfree` performs a single release transaction against the tile-pipe metadata:
+The public API has two relevant shapes:
 
-1. The current consumer signals it is done with the slot it last popped from `pipe`.
-2. The slot's reference is decremented; when it drops to zero, the slot is returned to the producer pool.
-3. Any waiter blocked on `pto.tpush` for an empty slot is unblocked.
+1. `TFREE(Pipe&)` waits on any supplied events and then calls the backend no-op `TFREE_IMPL(pipe)`.
+2. `TFREE(Pipe&, GlobalData&)` releases a FIFO slot view previously produced by `TPOP(Pipe&, GlobalData&)`.
+3. The `GlobalData` form checks the consumer free state and emits a free-space notification only when the pipe direction and split mode require one.
 
-The op executes on the system pipe and does not move tile data; it only updates pipe-control state. The slot identity is implicit in `pipe` — there is no tile handle operand.
+The op executes on the system/control side and does not move tile data. There is no public `TFREE(pipe, tile)` overload.
 
 ## Syntax
 
@@ -41,49 +41,61 @@ Declared in `include/pto/common/pto_instr.hpp`:
 ```cpp
 template <typename Pipe, typename... WaitEvents>
 PTO_INST RecordEvent TFREE(Pipe &pipe, WaitEvents&... events);
+
+template <typename Pipe, TileSplitAxis Split, typename... WaitEvents>
+PTO_INST RecordEvent TFREE(Pipe &pipe, WaitEvents&... events);
+
+template <typename Pipe, typename GlobalData, TileSplitAxis Split, typename... WaitEvents>
+PTO_INST RecordEvent TFREE(Pipe &pipe, GlobalData &gmTensor, WaitEvents&... events);
 ```
 
 ## Inputs
 
 | Operand | Description |
 |---------|-------------|
-| `pipe` | The tile pipe (`TMPipe` or compatible) whose most recently popped slot is being released. |
+| `pipe` | The tile pipe (`TPipe` / `TMPipe` or compatible) whose consumer-side free state is being updated. |
+| `gmTensor` | Optional `GlobalTensor` slot view returned by the `TPOP(Pipe&, GlobalData&)` form. |
 | `events...` | Optional `RecordEvent` tokens to wait on before issuing. |
 
 ## Expected Outputs
 
 | Result | Type | Description |
 |--------|------|-------------|
-| `RecordEvent` | token | Signals that the slot has been released and is reusable by the producer. |
+| `RecordEvent` | token | Signals that the `TFREE` control operation has completed. |
 
 ## Side Effects
 
-- Updates pipe-control metadata in place; no tile data is moved.
-- May unblock a producer waiting on `pto.tpush`.
-- After `pto.tfree`, the tile previously returned by `pto.tpop` on the same pipe must not be read or written by the consumer.
+- `TFREE(Pipe&)` has no backend-visible data movement or free notification in the current TileData flow.
+- `TFREE(Pipe&, GlobalData&)` may notify producer-side free space for a FIFO slot view.
+- No tile payload is read or written.
 
 ## Constraints
 
 !!! warning "Constraints"
-    - Each `pto.tpop` on a pipe must be matched by exactly one `pto.tfree` on the same pipe; double-free is undefined.
-    - `pto.tfree` must not be issued from the producer side; it is consumer-side only.
+    - Do not pass a tile operand to `TFREE`; no public tile-handle overload exists.
+    - TileData `TPOP(pipe, tile)` does not require a matching `TFREE(Pipe&)`.
+    - The `GlobalData` slot-view flow must call `TFREE(Pipe&, gmTensor)` after all loads from the popped slot are complete.
+    - `TFREE` is consumer-side only; producer-side release is handled by `TPUSH`.
     - Refer to backend-specific legality checks for data type/layout/location/shape constraints not covered above.
 
 ## Exceptions
 
 !!! danger "Exceptions"
-    - Issuing `pto.tfree` on a pipe with no outstanding `pto.tpop` is undefined behavior.
-    - Calling `pto.tfree` more times than `pto.tpop` on the same pipe is undefined behavior.
-    - Calling `pto.tfree` from the producer side is rejected by the verifier.
+    - Calling `TFREE(Pipe&, GlobalData&)` with a `gmTensor` that was not produced by the matching `TPOP` slot-view flow is outside the supported contract.
+    - Calling `TFREE` from the producer side is rejected by the verifier.
     - Programs must not rely on behavior outside the documented legal domain of this operation.
 
 ## Examples
 
 ```cpp
-// Consumer side of a TMPipe loop.
-auto tile = TPOP(pipe);
-// ... compute on tile ...
-TFREE(pipe);
+// TileData TPOP already performs the free-space notification.
+TPOP(pipe, tile);
+// ... compute on tile; no TFREE is required for this tile.
+
+// GlobalData slot-view flow: release the slot after all reads are complete.
+TPOP<Pipe, SlotGlobal, TileSplitAxis::TILE_UP_DOWN>(pipe, slot);
+TLOAD(tile, slot);
+TFREE<Pipe, SlotGlobal, TileSplitAxis::TILE_UP_DOWN>(pipe, slot);
 ```
 
 See related instruction pages in `docs/isa/` for concrete Auto/Manual usage patterns.

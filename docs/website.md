@@ -6,7 +6,9 @@ MkDocs is configured under `docs/mkdocs/` and is set up to browse markdown acros
 
 ## Prerequisites
 
-- Python 3.8+
+- Python >= 3.9.x
+
+> **Note:** Python has announced that 3.7.x/3.8.x are EOL. CANN will soon stop supporting these versions. Please upgrade to Python >= 3.9.x.
 
 ## Install (recommended: virtual environment)
 

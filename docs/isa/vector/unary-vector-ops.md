@@ -31,10 +31,10 @@ pto.vecscope {
   %remaining_init = arith.constant 1024 : i32
   %_:1 = scf.for %offset = %c0 to %total step %c64
       iter_args(%remaining = %remaining_init) -> (i32) {
-    %mask, %next_remaining = pto.plt_b32 %remaining : i32 -> !pto.mask, i32
+    %mask, %next_remaining = pto.plt_b32 %remaining : i32 -> !pto.mask<G>, i32
     %vec = pto.vlds %ub_in[%offset] : !pto.ptr -> !pto.vreg<64xf32>
-    %out = pto.vabs %vec, %mask : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
-    pto.vsts %out, %ub_out[%offset], %mask : !pto.vreg<64xf32>, !pto.ptr, !pto.mask
+    %out = pto.vabs %vec, %mask : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
+    pto.vsts %out, %ub_out[%offset], %mask : !pto.vreg<64xf32>, !pto.ptr, !pto.mask<b32>
     scf.yield %next_remaining : i32
   }
 }
@@ -98,7 +98,7 @@ total_cycles = startup + completion + repeats × per_repeat + (repeats - 1) × i
 
 ### `pto.vabs`
 
-- **syntax:** `%result = pto.vabs %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vabs %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **A5 RV:** `RV_VABS_FP`; **Latency:** 5 (f32/f16), 5 (i32/i16/i8)
 - **A2/A3 throughput:** 1 cycle/repeat; **interval:** 18 cycles
 
@@ -115,7 +115,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vneg`
 
-- **syntax:** `%result = pto.vneg %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vneg %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **A5 RV:** `RV_VMULS` (uses scalar-multiply hardware); **Latency:** 8 (f32/f16), 8 (i32/i16/i8)
 - **A2/A3 throughput:** 1 cycle/repeat; **interval:** 18 cycles
 
@@ -134,7 +134,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vexp`
 
-- **syntax:** `%result = pto.vexp %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vexp %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **A5 RV:** `RV_VEXP`; **Latency:** 16 (f32), 21 (f16)
 - **A2/A3 throughput:** 2 cycles/repeat (f32), 4 cycles/repeat (f16); **interval:** 18 cycles
 
@@ -146,13 +146,13 @@ for (int i = 0; i < N; i++)
 - **inputs:** `%input` is the source vector and `%mask` selects active lanes.
 - **outputs:** `%result` holds `exp(input[i])` per active lane.
 - **constraints and limitations:** Only floating-point element types are legal.
-- **Performance note:** f32 is significantly faster than f16 on A5 (16 vs 21 cycles). For f16, prefer `vexpdiff` (fused exp-diff) for numerical stability in softmax.
+- **Performance note:** f32 is significantly faster than f16 on A5 (16 vs 21 cycles). For f16, prefer `vexpdif` (fused exp-diff) for numerical stability in softmax.
 
 ---
 
 ### `pto.vln`
 
-- **syntax:** `%result = pto.vln %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vln %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **A5 RV:** `RV_VLN`; **Latency:** 18 (f32), 23 (f16)
 - **A2/A3 throughput:** 2 cycles/repeat (f32), 4 cycles/repeat (f16); **interval:** 18 cycles
 
@@ -169,7 +169,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vsqrt`
 
-- **syntax:** `%result = pto.vsqrt %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vsqrt %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **A5 RV:** `RV_VSQRT`; **Latency:** 17 (f32), 22 (f16)
 - **A2/A3 throughput:** 2 cycles/repeat (f32), 4 cycles/repeat (f16); **interval:** 18 cycles
 
@@ -187,7 +187,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vrsqrt`
 
-- **syntax:** `%result = pto.vrsqrt %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vrsqrt %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **Latency:** equivalent to `vsqrt`; uses `RV_VRSQRT` hardware path
 - **A2/A3 throughput:** 2 cycles/repeat (f32), 4 cycles/repeat (f16); **interval:** 18 cycles
 
@@ -204,7 +204,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vrec`
 
-- **syntax:** `%result = pto.vrec %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vrec %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **Latency:** synthesized via `vdiv`; throughput matches `vdiv`
 - **A2/A3 throughput:** 1 cycle/repeat; **interval:** 18 cycles
 
@@ -223,7 +223,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vrelu`
 
-- **syntax:** `%result = pto.vrelu %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vrelu %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **A5 RV:** `RV_VRELU`; **Latency:** 5 (f32/f16)
 - **A2/A3 throughput:** 1 cycle/repeat; **interval:** 18 cycles
 
@@ -243,7 +243,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vnot`
 
-- **syntax:** `%result = pto.vnot %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vnot %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **A5 RV:** `RV_VNOT`; **Latency:** 5 (integer types only)
 - **A2/A3 throughput:** 1 cycle/repeat; **interval:** 18 cycles
 
@@ -260,7 +260,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vbcnt`
 
-- **syntax:** `%result = pto.vbcnt %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vbcnt %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **semantics:** Population count — counts the number of set bits in each lane's element.
 
 ```c
@@ -276,7 +276,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vcls`
 
-- **syntax:** `%result = pto.vcls %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vcls %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **semantics:** Count leading sign bits — for a signed integer, counts how many bits from the MSB are equal to the sign bit.
 
 ```c
@@ -294,7 +294,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vmov`
 
-- **syntax:** `%result = pto.vmov %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vmov %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **A5 RV:** `RV_VLD` (proxy); **Latency:** 9 (f32/f16), 9 (integer)
 - **A2/A3 throughput:** 1 cycle/repeat; **interval:** 13 cycles (`A2A3_INTERVAL_VCOPY`)
 
@@ -313,12 +313,12 @@ for (int i = 0; i < N; i++)
 
 ```mlir
 // Softmax numerator: exp(x - max) using vexp
-%sub = pto.vsub %x, %max_broadcast, %mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
-%exp = pto.vexp %sub, %mask : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+%sub = pto.vsub %x, %max_broadcast, %mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
+%exp = pto.vexp %sub, %mask : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 // Reciprocal for division
-%sum_rcp = pto.vrec %sum, %mask : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+%sum_rcp = pto.vrec %sum, %mask : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 // ReLU activation (lowest latency unary on A5: 5 cycles)
-%activated = pto.vrelu %linear_out, %mask : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+%activated = pto.vrelu %linear_out, %mask : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 ```

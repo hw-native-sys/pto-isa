@@ -200,13 +200,23 @@ PTO_INTERNAL void TransTailTiles(__ubuf__ T *dstPtr, __ubuf__ T *srcPtr, unsigne
                                  unsigned validCol, unsigned dstStride, unsigned srcStride)
 {
     // we can use constexpr if tmpStride is known in static way
+#ifndef __PTO_AUTO__
     PtoSetWaitFlag<PIPE_V, PIPE_S>();
+#else
+    set_flag(PIPE_V, PIPE_S, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
+#endif
     for (int i = 0; i < validRow; i++) {
         for (int j = 0; j < validCol; j++) {
             dstPtr[j * dstStride + i] = srcPtr[i * srcStride + j];
         }
     }
+#ifndef __PTO_AUTO__
     PtoSetWaitFlag<PIPE_S, PIPE_V>();
+#else
+    set_flag(PIPE_S, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_S, PIPE_V, EVENT_ID0);
+#endif
     return;
 }
 
@@ -380,21 +390,30 @@ PTO_INTERNAL void TTransRepeatXOperation(__ubuf__ T *dstPtr, __ubuf__ T *srcPtr,
 
 ///////////////////
 
-template <typename T, unsigned blockSizeElem>
+template <typename T, unsigned blockSizeElem, bool reverse = false>
 PTO_INTERNAL void ConvNCHW2NC1HWC0Unalign(__ubuf__ T *dst, __ubuf__ T *src, unsigned srcN, unsigned srcC, unsigned srcH,
-                                          unsigned srcW, unsigned dstC0)
+                                          unsigned srcW, unsigned validC0)
 {
-    unsigned srcStride = srcH * srcW;
-    unsigned dstStride = dstC0;
-    unsigned validCol = srcH * srcW;
-    unsigned validRow = dstC0;
-    unsigned dstC1 = (srcC + dstC0 - 1) / dstC0;
-    unsigned nStride = dstC1 * dstC0 * srcH * srcW;
-    unsigned cStride = dstC0 * srcH * srcW;
+    unsigned srcStride, dstStride, validCol, validRow, validC1;
+    if constexpr (reverse) {
+        srcStride = validC0;
+        dstStride = srcH * srcW;
+        validCol = validC0;
+        validRow = srcH * srcW;
+        validC1 = srcC;
+    } else {
+        srcStride = srcH * srcW;
+        dstStride = validC0;
+        validCol = srcH * srcW;
+        validRow = validC0;
+        validC1 = (srcC + validC0 - 1) / validC0;
+    }
+    unsigned cStride = validC0 * srcH * srcW;
+    unsigned nStride = validC1 * cStride;
     constexpr unsigned yTileSizeElem = (sizeof(T) == 1) ? Y_ELEM_B8 : Y_ELEM_OTHER;
-    // N C1 C0 HW -> N C1 HW C0
+    // N C1 C0 HW -> N C1 HW C0 or N C1 HW C0 -> N C1 C0 HW
     for (int n = 0; n < srcN; n++) {
-        for (int c = 0; c < dstC1; c++) {
+        for (int c = 0; c < validC1; c++) {
             __ubuf__ T *srcPtr = src + n * nStride + c * cStride;
             __ubuf__ T *dstPtr = dst + n * nStride + c * cStride;
             // tmpStride should computed in static way
@@ -405,56 +424,74 @@ PTO_INTERNAL void ConvNCHW2NC1HWC0Unalign(__ubuf__ T *dst, __ubuf__ T *src, unsi
     }
 }
 
-template <typename TileData, unsigned blockSizeElem>
-__tf__ PTO_INTERNAL void TTransConvNCHW2NC1HWC0(typename TileData::TileDType __out__ dst,
-                                                typename TileData::TileDType __in__ src,
-                                                typename TileData::TileDType __in__ tmp, unsigned srcN, unsigned srcC,
-                                                unsigned srcH, unsigned srcW, unsigned dstC0)
+template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp, unsigned blockSizeElem,
+          bool reverse = false>
+__tf__ PTO_INTERNAL void TTransConvNCHW2NC1HWC0(typename TileDataDst::TileDType __out__ dst,
+                                                typename TileDataSrc::TileDType __in__ src,
+                                                typename TileDataTmp::TileDType __in__ tmp, unsigned srcN,
+                                                unsigned srcC, unsigned srcH, unsigned srcW, unsigned validC0)
 {
-    using T = typename TileData::DType;
-    __ubuf__ T *dstPtrOrig = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *srcPtrOrig = (__ubuf__ T *)__cce_get_tile_ptr(src);
-    __ubuf__ T *tmpPtr = (__ubuf__ T *)__cce_get_tile_ptr(tmp);
-    unsigned srcStride = srcH * srcW;
-    unsigned dstStride = dstC0;
+    using Tdst = typename TileDataDst::DType;
+    using Tsrc = typename TileDataSrc::DType;
+    using Ttmp = typename TileDataTmp::DType;
+
+    __ubuf__ Tdst *dstPtrOrig = (__ubuf__ Tdst *)__cce_get_tile_ptr(dst);
+    __ubuf__ Tsrc *srcPtrOrig = (__ubuf__ Tsrc *)__cce_get_tile_ptr(src);
+    __ubuf__ Ttmp *tmpPtr = (__ubuf__ Ttmp *)__cce_get_tile_ptr(tmp);
+
+    unsigned srcStride, dstStride, validCol, validRow, validC1;
+    if constexpr (reverse) {
+        validCol = validC0;
+        validRow = srcH * srcW;
+        srcStride = validC0;
+        dstStride = srcH * srcW;
+        validC1 = srcC;
+    } else {
+        validCol = srcH * srcW;
+        validRow = validC0;
+        srcStride = srcH * srcW;
+        dstStride = validC0;
+        validC1 = (srcC + validC0 - 1) / validC0;
+    }
     if (((dstStride % blockSizeElem) != 0) || ((srcStride % blockSizeElem) != 0) || srcStride / blockSizeElem > 255) {
-        ConvNCHW2NC1HWC0Unalign<T, blockSizeElem>(dstPtrOrig, srcPtrOrig, srcN, srcC, srcH, srcW, dstC0);
+        ConvNCHW2NC1HWC0Unalign<Tsrc, blockSizeElem, reverse>(dstPtrOrig, srcPtrOrig, srcN, srcC, srcH, srcW, validC0);
         return;
     }
-    unsigned validCol = srcH * srcW;
-    unsigned validRow = dstC0;
-    unsigned dstC1 = (srcC + dstC0 - 1) / dstC0;
-    unsigned nStride = dstC1 * dstC0 * srcH * srcW;
-    unsigned cStride = dstC0 * srcH * srcW;
+
+    unsigned cStride = validC0 * srcH * srcW;
+    unsigned nStride = validC1 * cStride;
     // N C1 C0 HW -> N C1 HW C0
     for (int n = 0; n < srcN; n++) {
-        for (int c = 0; c < dstC1; c++) {
-            __ubuf__ T *srcPtr = srcPtrOrig + n * nStride + c * cStride;
-            __ubuf__ T *dstPtr = dstPtrOrig + n * nStride + c * cStride;
-            TTransRepeatXOperation<T, blockSizeElem>(dstPtr, srcPtr, tmpPtr, validRow, validCol, dstStride, srcStride);
+        for (int c = 0; c < validC1; c++) {
+            __ubuf__ Tsrc *srcPtr = srcPtrOrig + n * nStride + c * cStride;
+            __ubuf__ Tdst *dstPtr = dstPtrOrig + n * nStride + c * cStride;
+            TTransRepeatXOperation<Tsrc, blockSizeElem>(dstPtr, srcPtr, tmpPtr, validRow, validCol, dstStride,
+                                                        srcStride);
         }
     }
 }
 
-template <typename TileData, unsigned blockSizeElem>
-__tf__ PTO_INTERNAL void TTransConvNC1HWC02C1HWNC0(typename TileData::TileDType __out__ dst,
-                                                   typename TileData::TileDType __in__ src,
-                                                   typename TileData::TileDType __in__ tmp, unsigned dstN,
+template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp, unsigned blockSizeElem>
+__tf__ PTO_INTERNAL void TTransConvNC1HWC02C1HWNC0(typename TileDataDst::TileDType __out__ dst,
+                                                   typename TileDataSrc::TileDType __in__ src,
+                                                   typename TileDataTmp::TileDType __in__ tmp, unsigned dstN,
                                                    unsigned srcN, unsigned srcC1HW, unsigned srcC0)
 {
-    using T = typename TileData::DType;
-    __ubuf__ T *dstPtrOrig = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *srcPtrOrig = (__ubuf__ T *)__cce_get_tile_ptr(src);
-    if (srcC0 * sizeof(T) % BLOCK_BYTE_SIZE == 0) {
+    using Tdst = typename TileDataDst::DType;
+    using Tsrc = typename TileDataSrc::DType;
+
+    __ubuf__ Tdst *dstPtrOrig = (__ubuf__ Tdst *)__cce_get_tile_ptr(dst);
+    __ubuf__ Tsrc *srcPtrOrig = (__ubuf__ Tsrc *)__cce_get_tile_ptr(src);
+    if (srcC0 * sizeof(Tsrc) % BLOCK_BYTE_SIZE == 0) {
         uint32_t burstNum = srcC1HW;
-        uint32_t lenBurst = (srcC0 * sizeof(T) + BLOCK_BYTE_SIZE - 1) / BLOCK_BYTE_SIZE;
+        uint32_t lenBurst = (srcC0 * sizeof(Tsrc) + BLOCK_BYTE_SIZE - 1) / BLOCK_BYTE_SIZE;
         uint32_t srcGap = 0;
-        uint32_t dstGap = (dstN * srcC0 * sizeof(T) + BLOCK_BYTE_SIZE - 1) / BLOCK_BYTE_SIZE - lenBurst;
+        uint32_t dstGap = (dstN * srcC0 * sizeof(Tsrc) + BLOCK_BYTE_SIZE - 1) / BLOCK_BYTE_SIZE - lenBurst;
         // N C1HW C0 -> C1HW N C0
         uint32_t nStride = srcC1HW * srcC0;
         for (int i = 0; i < srcN; i++) {
-            __ubuf__ T *srcPtr = srcPtrOrig + i * nStride;
-            __ubuf__ T *dstPtr = dstPtrOrig + i * srcC0;
+            __ubuf__ Tsrc *srcPtr = srcPtrOrig + i * nStride;
+            __ubuf__ Tdst *dstPtr = dstPtrOrig + i * srcC0;
             pto_copy_ubuf_to_ubuf(dstPtr, srcPtr, burstNum, lenBurst, srcGap, dstGap);
         }
     } else {
@@ -463,75 +500,89 @@ __tf__ PTO_INTERNAL void TTransConvNC1HWC02C1HWNC0(typename TileData::TileDType 
         unsigned srcStride = srcC0;
         unsigned dstStride = dstN * srcC0;
         unsigned nStride = srcC1HW * srcC0;
+#ifndef __PTO_AUTO__
         PtoSetWaitFlag<PIPE_V, PIPE_S>();
+#else
+        set_flag(PIPE_V, PIPE_S, EVENT_ID0);
+        wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
+#endif
         for (uint16_t num = 0; num < (uint16_t)srcN; num++) {
-            __ubuf__ T *srcPtr = srcPtrOrig + num * nStride;
-            __ubuf__ T *dstPtr = dstPtrOrig + num * srcC0;
+            __ubuf__ Tsrc *srcPtr = srcPtrOrig + num * nStride;
+            __ubuf__ Tdst *dstPtr = dstPtrOrig + num * srcC0;
             for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
                 for (uint16_t j = 0; j < (uint16_t)validCol; ++j) {
                     dstPtr[i * dstStride + j] = srcPtr[i * srcStride + j];
                 }
             }
         }
+#ifndef __PTO_AUTO__
         PtoSetWaitFlag<PIPE_S, PIPE_V>();
+#else
+        set_flag(PIPE_S, PIPE_V, EVENT_ID0);
+        wait_flag(PIPE_S, PIPE_V, EVENT_ID0);
+#endif
     }
 }
 
-template <typename T, unsigned blockSizeElem>
+template <typename T, unsigned blockSizeElem, bool reverse = false>
 PTO_INTERNAL void ConvGNCHW2GNC1HWC0Unalign(__ubuf__ T *dst, __ubuf__ T *src, unsigned srcG, unsigned srcN,
-                                            unsigned srcC, unsigned srcH, unsigned srcW, unsigned dstC0)
+                                            unsigned srcC, unsigned srcH, unsigned srcW, unsigned validC0)
 {
-    unsigned srcStride = srcH * srcW;
-    unsigned dstStride = dstC0;
-    unsigned validCol = srcH * srcW;
-    unsigned validRow = dstC0;
-    unsigned dstC1 = (srcC + dstC0 - 1) / dstC0;
-    unsigned gStride = srcN * dstC1 * dstC0 * srcH * srcW;
-    unsigned nStride = dstC1 * dstC0 * srcH * srcW;
-    unsigned cStride = dstC0 * srcH * srcW;
+    unsigned validC1 = reverse ? srcC : ((srcC + validC0 - 1) / validC0);
+    unsigned cStride = validC0 * srcH * srcW;
+    unsigned nStride = validC1 * cStride;
+    unsigned gStride = srcN * nStride;
     constexpr unsigned yTileSizeElem = (sizeof(T) == 1) ? Y_ELEM_B8 : Y_ELEM_OTHER;
     for (unsigned g = 0; g < srcG; g++) {
-        for (unsigned n = 0; n < srcN; n++) {
-            for (unsigned c = 0; c < dstC1; c++) {
-                __ubuf__ T *srcPtr = src + g * gStride + n * nStride + c * cStride;
-                __ubuf__ T *dstPtr = dst + g * gStride + n * nStride + c * cStride;
-                unsigned tmpStride = (validRow + yTileSizeElem - 1) / yTileSizeElem * yTileSizeElem;
-                TransTailTiles<T, blockSizeElem, yTileSizeElem>(dstPtr, srcPtr, tmpStride, validRow, validCol,
-                                                                dstStride, srcStride);
-            }
-        }
+        __ubuf__ T *srcPtr = src + g * gStride;
+        __ubuf__ T *dstPtr = dst + g * gStride;
+        ConvNCHW2NC1HWC0Unalign<T, blockSizeElem, reverse>(dstPtr, srcPtr, srcN, srcC, srcH, srcW, validC0);
     }
 }
 
-template <typename TileData, unsigned blockSizeElem>
-__tf__ PTO_INTERNAL void TTransConvGNCHW2GNC1HWC0(typename TileData::TileDType __out__ dst,
-                                                  typename TileData::TileDType __in__ src,
-                                                  typename TileData::TileDType __in__ tmp, unsigned srcG, unsigned srcN,
-                                                  unsigned srcC, unsigned srcH, unsigned srcW, unsigned dstC0)
+template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp, unsigned blockSizeElem,
+          bool reverse = false>
+__tf__ PTO_INTERNAL void TTransConvGNCHW2GNC1HWC0(typename TileDataDst::TileDType __out__ dst,
+                                                  typename TileDataSrc::TileDType __in__ src,
+                                                  typename TileDataTmp::TileDType __in__ tmp, unsigned srcG,
+                                                  unsigned srcN, unsigned srcC, unsigned srcH, unsigned srcW,
+                                                  unsigned validC0)
 {
-    using T = typename TileData::DType;
-    __ubuf__ T *dstPtrOrig = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *srcPtrOrig = (__ubuf__ T *)__cce_get_tile_ptr(src);
-    __ubuf__ T *tmpPtr = (__ubuf__ T *)__cce_get_tile_ptr(tmp);
-    unsigned srcStride = srcH * srcW;
-    unsigned dstStride = dstC0;
+    using Tdst = typename TileDataDst::DType;
+    using Tsrc = typename TileDataSrc::DType;
+    using Ttmp = typename TileDataTmp::DType;
+
+    __ubuf__ Tdst *dstPtrOrig = (__ubuf__ Tdst *)__cce_get_tile_ptr(dst);
+    __ubuf__ Tsrc *srcPtrOrig = (__ubuf__ Tsrc *)__cce_get_tile_ptr(src);
+    __ubuf__ Ttmp *tmpPtr = (__ubuf__ Ttmp *)__cce_get_tile_ptr(tmp);
+
+    unsigned srcStride, dstStride, validCol, validRow, validC1;
+    if constexpr (reverse) {
+        validCol = validC0;
+        validRow = srcH * srcW;
+        validC1 = srcC;
+    } else {
+        validCol = srcH * srcW;
+        validRow = validC0;
+        validC1 = (srcC + validC0 - 1) / validC0;
+    }
+    srcStride = validCol;
+    dstStride = validRow;
     if (((dstStride % blockSizeElem) != 0) || ((srcStride % blockSizeElem) != 0) || srcStride / blockSizeElem > 255) {
-        ConvGNCHW2GNC1HWC0Unalign<T, blockSizeElem>(dstPtrOrig, srcPtrOrig, srcG, srcN, srcC, srcH, srcW, dstC0);
+        ConvGNCHW2GNC1HWC0Unalign<Tsrc, blockSizeElem, reverse>(dstPtrOrig, srcPtrOrig, srcG, srcN, srcC, srcH, srcW,
+                                                                validC0);
         return;
     }
-    unsigned validCol = srcH * srcW;
-    unsigned validRow = dstC0;
-    unsigned dstC1 = (srcC + dstC0 - 1) / dstC0;
-    unsigned gStride = srcN * dstC1 * dstC0 * srcH * srcW;
-    unsigned nStride = dstC1 * dstC0 * srcH * srcW;
-    unsigned cStride = dstC0 * srcH * srcW;
+    unsigned cStride = validC0 * srcH * srcW;
+    unsigned nStride = validC1 * cStride;
+    unsigned gStride = srcN * nStride;
     for (unsigned g = 0; g < srcG; g++) {
         for (unsigned n = 0; n < srcN; n++) {
-            for (unsigned c = 0; c < dstC1; c++) {
-                __ubuf__ T *srcPtr = srcPtrOrig + g * gStride + n * nStride + c * cStride;
-                __ubuf__ T *dstPtr = dstPtrOrig + g * gStride + n * nStride + c * cStride;
-                TTransRepeatXOperation<T, blockSizeElem>(dstPtr, srcPtr, tmpPtr, validRow, validCol, dstStride,
-                                                         srcStride);
+            for (unsigned c = 0; c < validC1; c++) {
+                __ubuf__ Tsrc *srcPtr = srcPtrOrig + g * gStride + n * nStride + c * cStride;
+                __ubuf__ Tdst *dstPtr = dstPtrOrig + g * gStride + n * nStride + c * cStride;
+                TTransRepeatXOperation<Tsrc, blockSizeElem>(dstPtr, srcPtr, tmpPtr, validRow, validCol, dstStride,
+                                                            srcStride);
             }
         }
     }
@@ -569,47 +620,335 @@ PTO_INTERNAL void ConvGNC1HWC02GC1HWNC0Unalign(__ubuf__ T *dst, __ubuf__ T *src,
     }
 }
 
-template <typename TileData, unsigned blockSizeElem>
-__tf__ PTO_INTERNAL void TTransConvGNC1HWC02GC1HWNC0(typename TileData::TileDType __out__ dst,
-                                                     typename TileData::TileDType __in__ src,
-                                                     typename TileData::TileDType __in__ tmp, unsigned dstN,
+template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp, unsigned blockSizeElem>
+__tf__ PTO_INTERNAL void TTransConvGNC1HWC02GC1HWNC0(typename TileDataDst::TileDType __out__ dst,
+                                                     typename TileDataSrc::TileDType __in__ src,
+                                                     typename TileDataTmp::TileDType __in__ tmp, unsigned dstN,
                                                      unsigned srcG, unsigned srcN, unsigned srcC1HW, unsigned srcC0)
 {
     (void)tmp;
-    using T = typename TileData::DType;
-    __ubuf__ T *dstPtrOrig = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *srcPtrOrig = (__ubuf__ T *)__cce_get_tile_ptr(src);
-    if (srcC0 * sizeof(T) % BLOCK_BYTE_SIZE == 0) {
+    using Tdst = typename TileDataDst::DType;
+    using Tsrc = typename TileDataSrc::DType;
+
+    __ubuf__ Tdst *dstPtrOrig = (__ubuf__ Tdst *)__cce_get_tile_ptr(dst);
+    __ubuf__ Tsrc *srcPtrOrig = (__ubuf__ Tsrc *)__cce_get_tile_ptr(src);
+    if (srcC0 * sizeof(Tsrc) % BLOCK_BYTE_SIZE == 0) {
         unsigned nStride = srcC1HW * srcC0;
         unsigned gStride2 = dstN * srcC1HW * srcC0;
         uint32_t burstNum = srcC1HW;
-        uint32_t lenBurst = (srcC0 * sizeof(T) + BLOCK_BYTE_SIZE - 1) / BLOCK_BYTE_SIZE;
+        uint32_t lenBurst = (srcC0 * sizeof(Tsrc) + BLOCK_BYTE_SIZE - 1) / BLOCK_BYTE_SIZE;
         uint32_t srcGap = 0;
-        uint32_t dstGap = (dstN * srcC0 * sizeof(T) + BLOCK_BYTE_SIZE - 1) / BLOCK_BYTE_SIZE - lenBurst;
+        uint32_t dstGap = (dstN * srcC0 * sizeof(Tsrc) + BLOCK_BYTE_SIZE - 1) / BLOCK_BYTE_SIZE - lenBurst;
         const unsigned remain = dstN - srcN;
         const unsigned dstStride = dstN * srcC0;
         const unsigned c1hwTimesC0 = srcC1HW * srcC0;
         for (unsigned g = 0; g < srcG; g++) {
             for (int i = 0; i < (int)srcN; i++) {
-                __ubuf__ T *srcPtr = srcPtrOrig + g * gStride2 + (unsigned)i * nStride;
-                __ubuf__ T *dstPtr = dstPtrOrig + g * gStride2 + (unsigned)i * srcC0;
+                __ubuf__ Tsrc *srcPtr = srcPtrOrig + g * gStride2 + (unsigned)i * nStride;
+                __ubuf__ Tdst *dstPtr = dstPtrOrig + g * gStride2 + (unsigned)i * srcC0;
                 pto_copy_ubuf_to_ubuf(dstPtr, srcPtr, burstNum, lenBurst, srcGap, dstGap);
             }
             if (remain != 0U) {
-                __ubuf__ T *const padBase = dstPtrOrig + g * gStride2 + srcN * srcC0;
+                __ubuf__ Tsrc *const padBase = dstPtrOrig + g * gStride2 + srcN * srcC0;
                 const unsigned totalPad = remain * c1hwTimesC0;
                 for (unsigned k = 0; k < totalPad; ++k) {
                     const unsigned r = k / c1hwTimesC0;
                     const unsigned rem = k - r * c1hwTimesC0;
                     const unsigned ii = rem / srcC0;
                     const unsigned j = rem - ii * srcC0;
-                    padBase[r * srcC0 + ii * dstStride + j] = static_cast<T>(0);
+                    padBase[r * srcC0 + ii * dstStride + j] = static_cast<Tsrc>(0);
                 }
             }
         }
     } else {
-        ConvGNC1HWC02GC1HWNC0Unalign<T>(dstPtrOrig, srcPtrOrig, dstN, srcG, srcN, srcC1HW, srcC0);
+        ConvGNC1HWC02GC1HWNC0Unalign<Tsrc>(dstPtrOrig, srcPtrOrig, dstN, srcG, srcN, srcC1HW, srcC0);
     }
+}
+
+template <typename T>
+PTO_INTERNAL void ConvNCDHW2DNCHWUnalign(__ubuf__ T *dst, __ubuf__ T *src, unsigned srcN, unsigned srcC, unsigned srcD,
+                                         unsigned srcH, unsigned srcW, unsigned dstC0)
+{
+    unsigned dstC1 = (srcC + dstC0 - 1) / dstC0;
+    unsigned paddedC = dstC1 * dstC0;
+    unsigned hw = srcH * srcW;
+    unsigned ncStride = srcD * hw;
+    unsigned dPlane = srcN * paddedC * hw;
+#ifndef __PTO_AUTO__
+    PtoSetWaitFlag<PIPE_V, PIPE_S>();
+#else
+    set_flag(PIPE_V, PIPE_S, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
+#endif
+    for (unsigned d = 0; d < srcD; d++) {
+        for (unsigned n = 0; n < srcN; n++) {
+            for (unsigned c = 0; c < paddedC; c++) {
+                __ubuf__ T *dstPtr = dst + d * dPlane + n * paddedC * hw + c * hw;
+                if (c < srcC) {
+                    __ubuf__ T *srcPtr = src + n * srcC * ncStride + c * ncStride + d * hw;
+                    for (unsigned i = 0; i < hw; ++i) {
+                        dstPtr[i] = srcPtr[i];
+                    }
+                } else {
+                    for (unsigned i = 0; i < hw; ++i) {
+                        dstPtr[i] = static_cast<T>(0);
+                    }
+                }
+            }
+        }
+    }
+#ifndef __PTO_AUTO__
+    PtoSetWaitFlag<PIPE_S, PIPE_V>();
+#else
+    set_flag(PIPE_S, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_S, PIPE_V, EVENT_ID0);
+#endif
+}
+
+template <typename T>
+PTO_INTERNAL void ConvNCDHW2DNCHW(__ubuf__ T *dst, __ubuf__ T *src, unsigned srcN, unsigned srcC, unsigned srcD,
+                                  unsigned srcH, unsigned srcW, unsigned dstC0)
+{
+    unsigned hw = srcH * srcW;
+    if ((hw * sizeof(T)) % BLOCK_BYTE_SIZE != 0) {
+        ConvNCDHW2DNCHWUnalign<T>(dst, src, srcN, srcC, srcD, srcH, srcW, dstC0);
+        return;
+    }
+    unsigned dstC1 = (srcC + dstC0 - 1) / dstC0;
+    unsigned paddedC = dstC1 * dstC0;
+    unsigned padC = paddedC - srcC;
+    unsigned ncStride = srcD * hw;
+    unsigned dPlane = srcN * paddedC * hw;
+    uint32_t lenBurst = (hw * sizeof(T)) / BLOCK_BYTE_SIZE;
+    uint16_t srcGap = 0;
+    uint16_t dstGap = (uint16_t)((dPlane - hw) * sizeof(T) / BLOCK_BYTE_SIZE);
+    for (unsigned n = 0; n < srcN; n++) {
+        for (unsigned c = 0; c < srcC; c++) {
+            __ubuf__ T *srcPtr = src + n * srcC * ncStride + c * ncStride;
+            __ubuf__ T *dstPtr = dst + n * paddedC * hw + c * hw;
+            pto_copy_ubuf_to_ubuf(dstPtr, srcPtr, (uint16_t)srcD, (uint16_t)lenBurst, srcGap, dstGap);
+        }
+    }
+    if (padC > 0) {
+#ifndef __PTO_AUTO__
+        PtoSetWaitFlag<PIPE_MTE3, PIPE_S>();
+#else
+        set_flag(PIPE_MTE3, PIPE_S, EVENT_ID0);
+        wait_flag(PIPE_MTE3, PIPE_S, EVENT_ID0);
+#endif
+        for (unsigned d = 0; d < srcD; d++) {
+            for (unsigned n = 0; n < srcN; n++) {
+                for (unsigned c = srcC; c < paddedC; c++) {
+                    __ubuf__ T *dstPtr = dst + d * dPlane + n * paddedC * hw + c * hw;
+                    for (unsigned i = 0; i < hw; ++i) {
+                        dstPtr[i] = static_cast<T>(0);
+                    }
+                }
+            }
+        }
+#ifndef __PTO_AUTO__
+        PtoSetWaitFlag<PIPE_S, PIPE_MTE3>();
+#else
+        set_flag(PIPE_S, PIPE_MTE3, EVENT_ID0);
+        wait_flag(PIPE_S, PIPE_MTE3, EVENT_ID0);
+#endif
+    }
+}
+
+template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp, unsigned blockSizeElem>
+__tf__ PTO_INTERNAL void TTransConvNCDHW2FractalZ3D(typename TileDataDst::TileDType __out__ dst,
+                                                    typename TileDataSrc::TileDType __in__ src,
+                                                    typename TileDataTmp::TileDType __in__ tmp, unsigned srcN,
+                                                    unsigned srcC, unsigned srcD, unsigned srcH, unsigned srcW,
+                                                    unsigned dstN0, unsigned dstC0)
+{
+    using Tdst = typename TileDataDst::DType;
+    using Tsrc = typename TileDataSrc::DType;
+    using Ttmp = typename TileDataTmp::DType;
+
+    __ubuf__ Tdst *dstPtrOrig = (__ubuf__ Tdst *)__cce_get_tile_ptr(dst);
+    __ubuf__ Tsrc *srcPtrOrig = (__ubuf__ Tsrc *)__cce_get_tile_ptr(src);
+    __ubuf__ Ttmp *tmpPtrOrig = (__ubuf__ Ttmp *)__cce_get_tile_ptr(tmp);
+
+    unsigned dstC1 = (srcC + dstC0 - 1) / dstC0;
+    unsigned dstN1 = (srcN + dstN0 - 1) / dstN0;
+    unsigned paddedC = dstC1 * dstC0;
+    unsigned paddedN = dstN1 * dstN0;
+    unsigned hw = srcH * srcW;
+    unsigned ncplaneSize = srcN * paddedC * hw;
+    unsigned c1hw = dstC1 * hw;
+    unsigned dstSliceSize = c1hw * paddedN * dstC0;
+    bool useScalarNCHW = ((dstC0 % blockSizeElem) != 0) || ((hw % blockSizeElem) != 0) || hw / blockSizeElem > 255;
+    bool useScalarC1HW = ((dstC0 * sizeof(Tsrc)) % BLOCK_BYTE_SIZE) != 0;
+
+    ConvNCDHW2DNCHW<Tsrc>(tmpPtrOrig, srcPtrOrig, srcN, srcC, srcD, srcH, srcW, dstC0);
+#ifndef __PTO_AUTO__
+    PtoSetWaitFlag<PIPE_MTE3, PIPE_V>();
+    PtoSetWaitFlag<PIPE_MTE3, PIPE_S>();
+    PtoSetWaitFlag<PIPE_S, PIPE_V>();
+#else
+    set_flag(PIPE_MTE3, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE3, PIPE_V, EVENT_ID0);
+    set_flag(PIPE_MTE3, PIPE_S, EVENT_ID0);
+    wait_flag(PIPE_MTE3, PIPE_S, EVENT_ID0);
+    set_flag(PIPE_S, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_S, PIPE_V, EVENT_ID0);
+#endif
+
+    __ubuf__ Ttmp *stagePtr = tmpPtrOrig + srcD * ncplaneSize;
+    __ubuf__ Ttmp *subTmpPtr = stagePtr + ncplaneSize;
+    for (unsigned d = 0; d < srcD; d++) {
+        __ubuf__ Tsrc *planePtr = tmpPtrOrig + d * ncplaneSize;
+        __ubuf__ Tsrc *nc1hwc0Ptr;
+        unsigned srcStride = hw;
+        unsigned dstStride = dstC0;
+        if (useScalarNCHW) {
+            ConvNCHW2NC1HWC0Unalign<Tsrc, blockSizeElem>(stagePtr, planePtr, srcN, srcC, srcH, srcW, dstC0);
+            nc1hwc0Ptr = stagePtr;
+        } else {
+            if (d > 0) {
+#ifndef __PTO_AUTO__
+                PtoSetWaitFlag<PIPE_MTE3, PIPE_V>();
+#else
+                set_flag(PIPE_MTE3, PIPE_V, EVENT_ID0);
+                wait_flag(PIPE_MTE3, PIPE_V, EVENT_ID0);
+#endif
+            }
+            unsigned validCol = hw;
+            unsigned validRow = dstC0;
+            unsigned nStride = dstC1 * dstC0 * hw;
+            unsigned cStride = dstC0 * hw;
+            for (unsigned n = 0; n < srcN; n++) {
+                for (unsigned c = 0; c < dstC1; c++) {
+                    __ubuf__ Tsrc *innerSrc = planePtr + n * nStride + c * cStride;
+                    __ubuf__ Tsrc *innerDst = planePtr + n * nStride + c * cStride;
+                    TTransRepeatXOperation<Tsrc, blockSizeElem>(innerDst, innerSrc, subTmpPtr, validRow, validCol,
+                                                                dstStride, srcStride);
+                }
+            }
+            nc1hwc0Ptr = planePtr;
+        }
+
+        __ubuf__ Tdst *dstSlicePtr = dstPtrOrig + d * dstSliceSize;
+        if (!useScalarC1HW) {
+            if (useScalarNCHW) {
+#ifndef __PTO_AUTO__
+                PtoSetWaitFlag<PIPE_S, PIPE_MTE3>();
+#else
+                set_flag(PIPE_S, PIPE_MTE3, EVENT_ID0);
+                wait_flag(PIPE_S, PIPE_MTE3, EVENT_ID0);
+#endif
+            } else {
+#ifndef __PTO_AUTO__
+                PtoSetWaitFlag<PIPE_V, PIPE_MTE3>();
+#else
+                set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+                wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
+            }
+            uint32_t burstNum = c1hw;
+            uint32_t lenBurst = (dstC0 * sizeof(Tsrc) + BLOCK_BYTE_SIZE - 1) / BLOCK_BYTE_SIZE;
+            uint32_t srcGap = 0;
+            uint32_t dstGap = (paddedN * dstC0 * sizeof(Tsrc) + BLOCK_BYTE_SIZE - 1) / BLOCK_BYTE_SIZE - lenBurst;
+            unsigned nStride = c1hw * dstC0;
+            for (unsigned i = 0; i < srcN; i++) {
+                __ubuf__ Tsrc *innerSrc = nc1hwc0Ptr + i * nStride;
+                __ubuf__ Tdst *innerDst = dstSlicePtr + i * dstC0;
+                pto_copy_ubuf_to_ubuf(innerDst, innerSrc, burstNum, lenBurst, srcGap, dstGap);
+            }
+            unsigned remain = paddedN - srcN;
+            if (remain != 0U) {
+#ifndef __PTO_AUTO__
+                PtoSetWaitFlag<PIPE_MTE3, PIPE_S>();
+#else
+                set_flag(PIPE_MTE3, PIPE_S, EVENT_ID0);
+                wait_flag(PIPE_MTE3, PIPE_S, EVENT_ID0);
+#endif
+                unsigned dstStride2 = paddedN * dstC0;
+                __ubuf__ Tdst *padBase = dstSlicePtr + srcN * dstC0;
+                for (unsigned r = 0; r < remain; r++) {
+                    for (unsigned i = 0; i < c1hw; ++i) {
+                        for (unsigned j = 0; j < dstC0; ++j) {
+                            padBase[r * dstC0 + i * dstStride2 + j] = static_cast<Tdst>(0);
+                        }
+                    }
+                }
+#ifndef __PTO_AUTO__
+                PtoSetWaitFlag<PIPE_S, PIPE_MTE3>();
+#else
+                set_flag(PIPE_S, PIPE_MTE3, EVENT_ID0);
+                wait_flag(PIPE_S, PIPE_MTE3, EVENT_ID0);
+#endif
+            }
+        } else {
+            unsigned validCol = dstC0;
+            unsigned validRow = c1hw;
+            unsigned srcStride2 = dstC0;
+            unsigned dstStride2 = paddedN * dstC0;
+            unsigned nStride = c1hw * dstC0;
+            unsigned remain = paddedN - srcN;
+            if (!useScalarNCHW) {
+#ifndef __PTO_AUTO__
+                PtoSetWaitFlag<PIPE_V, PIPE_S>();
+#else
+                set_flag(PIPE_V, PIPE_S, EVENT_ID0);
+                wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
+#endif
+            }
+            for (unsigned i = 0; i < srcN; i++) {
+                __ubuf__ Tsrc *innerSrc = nc1hwc0Ptr + i * nStride;
+                __ubuf__ Tdst *innerDst = dstSlicePtr + i * dstC0;
+                for (unsigned r = 0; r < validRow; ++r) {
+                    for (unsigned j = 0; j < validCol; ++j) {
+                        innerDst[r * dstStride2 + j] = innerSrc[r * srcStride2 + j];
+                    }
+                }
+            }
+            for (unsigned r = 0; r < remain; r++) {
+                __ubuf__ Tdst *innerDst = dstSlicePtr + (r + srcN) * dstC0;
+                for (unsigned i = 0; i < validRow; ++i) {
+                    for (unsigned j = 0; j < validCol; ++j) {
+                        innerDst[i * dstStride2 + j] = static_cast<Tdst>(0);
+                    }
+                }
+            }
+            if (!useScalarNCHW) {
+#ifndef __PTO_AUTO__
+                PtoSetWaitFlag<PIPE_S, PIPE_V>();
+#else
+                set_flag(PIPE_S, PIPE_V, EVENT_ID0);
+                wait_flag(PIPE_S, PIPE_V, EVENT_ID0);
+#endif
+            }
+        }
+    }
+}
+
+template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp>
+PTO_INTERNAL void CheckConv3DTile(TileDataDst &dst, TileDataSrc &src, TileDataTmp &tmp)
+{
+#ifdef _DEBUG
+    using T = typename TileDataSrc::DType;
+    constexpr const int UB_SIZE = 196608; // 192*1024 B
+    if constexpr (TileDataSrc::layout == Layout::NCDHW && TileDataDst::layout == Layout::FRACTAL_Z_3D) {
+        unsigned srcN = src.GetShape(GlobalTensorDim::DIM_0);
+        unsigned srcC = src.GetShape(GlobalTensorDim::DIM_1);
+        unsigned srcD = src.GetShape(GlobalTensorDim::DIM_2);
+        unsigned srcH = src.GetShape(GlobalTensorDim::DIM_3);
+        unsigned srcW = src.GetShape(GlobalTensorDim::DIM_4);
+        unsigned dstDC1HW = dst.GetShape(GlobalTensorDim::DIM_0);
+        unsigned dstN1 = dst.GetShape(GlobalTensorDim::DIM_1);
+        unsigned dstN0 = dst.GetShape(GlobalTensorDim::DIM_2);
+        unsigned dstC0 = dst.GetShape(GlobalTensorDim::DIM_3);
+        unsigned dstC1 = (srcC + dstC0 - 1) / dstC0;
+        unsigned srcSize = srcN * srcC * srcD * srcH * srcW;
+        unsigned dstSize = dstDC1HW * dstN1 * dstN0 * dstC0;
+        unsigned tmpSize = TileDataTmp::Rows * TileDataTmp::Cols;
+        PTO_ASSERT(srcD * dstC1 * srcH * srcW == dstDC1HW && dstN1 == (srcN + dstN0 - 1) / dstN0,
+                   "expect same size for src and dst.");
+        PTO_ASSERT((srcSize + dstSize + tmpSize) * sizeof(T) < UB_SIZE, "ERROR: memory usage exceeds UB limit!");
+    }
+#endif
 }
 
 template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp>
@@ -715,8 +1054,8 @@ PTO_INTERNAL void TTransImplConvTile(TileDataDst &dst, TileDataSrc &src, TileDat
         unsigned srcC0 = src.GetShape(GlobalTensorDim::DIM_4);
         unsigned dstN1 = dst.GetShape(GlobalTensorDim::DIM_1);
         unsigned dstN0 = dst.GetShape(GlobalTensorDim::DIM_2);
-        TTransConvNC1HWC02C1HWNC0<TileDataSrc, blockSizeElem>(dst.data(), src.data(), tmp.data(), dstN1 * dstN0, srcN,
-                                                              srcC1 * srcH * srcW, srcC0);
+        TTransConvNC1HWC02C1HWNC0<TileDataDst, TileDataSrc, TileDataTmp, blockSizeElem>(
+            dst.data(), src.data(), tmp.data(), dstN1 * dstN0, srcN, srcC1 * srcH * srcW, srcC0);
     } else if constexpr (TileDataSrc::layout == Layout::GNCHW && TileDataDst::layout == Layout::GNC1HWC0) {
         CheckGroupConvTile<TileDataDst, TileDataSrc, TileDataTmp>(dst, src, tmp);
         unsigned srcG = src.GetShape(GlobalTensorDim::DIM_0);
@@ -725,9 +1064,9 @@ PTO_INTERNAL void TTransImplConvTile(TileDataDst &dst, TileDataSrc &src, TileDat
         unsigned srcH = src.GetShape(GlobalTensorDim::DIM_3);
         unsigned srcW = src.GetShape(GlobalTensorDim::DIM_4);
         unsigned dstC0 = dst.GetShape(GlobalTensorDim::TOTAL_DIM);
-        TTransConvGNCHW2GNC1HWC0<TileDataSrc, blockSizeElem>(dst.data(), src.data(), tmp.data(), srcG, srcN, srcC, srcH,
-                                                             srcW, dstC0);
-    } else if (TileDataSrc::layout == Layout::GNC1HWC0 && TileDataDst::layout == Layout::FRACTAL_Z) {
+        TTransConvGNCHW2GNC1HWC0<TileDataDst, TileDataSrc, TileDataTmp, blockSizeElem>(
+            dst.data(), src.data(), tmp.data(), srcG, srcN, srcC, srcH, srcW, dstC0);
+    } else if constexpr (TileDataSrc::layout == Layout::GNC1HWC0 && TileDataDst::layout == Layout::FRACTAL_Z) {
         CheckGroupConvTile<TileDataDst, TileDataSrc, TileDataTmp>(dst, src, tmp);
         unsigned dstN1 = dst.GetShape(GlobalTensorDim::DIM_1);
         unsigned dstN0 = dst.GetShape(GlobalTensorDim::DIM_2);
@@ -737,17 +1076,47 @@ PTO_INTERNAL void TTransImplConvTile(TileDataDst &dst, TileDataSrc &src, TileDat
         unsigned srcH = src.GetShape(GlobalTensorDim::DIM_3);
         unsigned srcW = src.GetShape(GlobalTensorDim::DIM_4);
         unsigned srcC0 = src.GetShape(GlobalTensorDim::TOTAL_DIM);
-        TTransConvGNC1HWC02GC1HWNC0<TileDataSrc, blockSizeElem>(dst.data(), src.data(), tmp.data(), dstN0 * dstN1, srcG,
-                                                                srcN, srcC1 * srcH * srcW, srcC0);
-    } else if (TileDataSrc::layout == Layout::NCHW && TileDataDst::layout == Layout::NC1HWC0) {
+        TTransConvGNC1HWC02GC1HWNC0<TileDataDst, TileDataSrc, TileDataTmp, blockSizeElem>(
+            dst.data(), src.data(), tmp.data(), dstN0 * dstN1, srcG, srcN, srcC1 * srcH * srcW, srcC0);
+    } else if constexpr (TileDataSrc::layout == Layout::NCHW && TileDataDst::layout == Layout::NC1HWC0) {
         CheckConvTile<TileDataDst, TileDataSrc, TileDataTmp>(dst, src, tmp);
         unsigned srcN = src.GetShape(GlobalTensorDim::DIM_0);
         unsigned srcC = src.GetShape(GlobalTensorDim::DIM_1);
         unsigned srcH = src.GetShape(GlobalTensorDim::DIM_2);
         unsigned srcW = src.GetShape(GlobalTensorDim::DIM_3);
         unsigned dstC0 = dst.GetShape(GlobalTensorDim::DIM_4);
-        TTransConvNCHW2NC1HWC0<TileDataSrc, blockSizeElem>(dst.data(), src.data(), tmp.data(), srcN, srcC, srcH, srcW,
-                                                           dstC0);
+        TTransConvNCHW2NC1HWC0<TileDataDst, TileDataSrc, TileDataTmp, blockSizeElem>(dst.data(), src.data(), tmp.data(),
+                                                                                     srcN, srcC, srcH, srcW, dstC0);
+    } else if constexpr (TileDataSrc::layout == Layout::NCDHW && TileDataDst::layout == Layout::FRACTAL_Z_3D) {
+        CheckConv3DTile<TileDataDst, TileDataSrc, TileDataTmp>(dst, src, tmp);
+        unsigned srcN = src.GetShape(GlobalTensorDim::DIM_0);
+        unsigned srcC = src.GetShape(GlobalTensorDim::DIM_1);
+        unsigned srcD = src.GetShape(GlobalTensorDim::DIM_2);
+        unsigned srcH = src.GetShape(GlobalTensorDim::DIM_3);
+        unsigned srcW = src.GetShape(GlobalTensorDim::DIM_4);
+        unsigned dstN0 = dst.GetShape(GlobalTensorDim::DIM_2);
+        unsigned dstC0 = dst.GetShape(GlobalTensorDim::DIM_3);
+        TTransConvNCDHW2FractalZ3D<TileDataDst, TileDataSrc, TileDataTmp, blockSizeElem>(
+            dst.data(), src.data(), tmp.data(), srcN, srcC, srcD, srcH, srcW, dstN0, dstC0);
+    } else if constexpr (TileDataSrc::layout == Layout::NC1HWC0 && TileDataDst::layout == Layout::NCHW) {
+        CheckConvTile<TileDataDst, TileDataSrc, TileDataTmp>(dst, src, tmp);
+        unsigned srcN = src.GetShape(GlobalTensorDim::DIM_0);
+        unsigned srcC1 = src.GetShape(GlobalTensorDim::DIM_1);
+        unsigned srcH = src.GetShape(GlobalTensorDim::DIM_2);
+        unsigned srcW = src.GetShape(GlobalTensorDim::DIM_3);
+        unsigned srcC0 = src.GetShape(GlobalTensorDim::DIM_4);
+        TTransConvNCHW2NC1HWC0<TileDataDst, TileDataSrc, TileDataTmp, blockSizeElem, true>(
+            dst.data(), src.data(), tmp.data(), srcN, srcC1, srcH, srcW, srcC0);
+    } else if constexpr (TileDataSrc::layout == Layout::GNC1HWC0 && TileDataDst::layout == Layout::GNCHW) {
+        CheckGroupConvTile<TileDataDst, TileDataSrc, TileDataTmp>(dst, src, tmp);
+        unsigned srcG = src.GetShape(GlobalTensorDim::DIM_0);
+        unsigned srcN = src.GetShape(GlobalTensorDim::DIM_1);
+        unsigned srcC1 = src.GetShape(GlobalTensorDim::DIM_2);
+        unsigned srcH = src.GetShape(GlobalTensorDim::DIM_3);
+        unsigned srcW = src.GetShape(GlobalTensorDim::DIM_4);
+        constexpr unsigned srcC0 = BLOCK_BYTE_SIZE / sizeof(T);
+        TTransConvGNCHW2GNC1HWC0<TileDataDst, TileDataSrc, TileDataTmp, blockSizeElem, true>(
+            dst.data(), src.data(), tmp.data(), srcG, srcN, srcC1, srcH, srcW, srcC0);
     }
 }
 

@@ -201,6 +201,26 @@ enum class CmpMode : uint8_t
     GE = 5,
 };
 
+enum class QuantType
+{
+    MXFP8 = 0,
+    MXFP4_E2M1 = 1,
+    INT8_SYM = 2,
+    INT8_ASYM = 3,
+};
+
+enum class QuantScaleAlg
+{
+    OCP = 0,
+    NV = 1,
+};
+
+enum class VecStoreMode
+{
+    ND = 0,
+    NZ = 1,
+};
+
 // UF store phase encodes unit flag behavior for accumulator stores.
 enum class STPhase : uint8_t
 {
@@ -243,6 +263,29 @@ enum class TCopyMode : uint8_t
     SHALLOW_COPY = 0,
     DEEP_COPY = 1,
 };
+
+enum class SyncAllMode : uint8_t
+{
+    Hard = 0,
+    Soft = 1,
+};
+
+enum class SyncCoreType : uint8_t
+{
+    AIVOnly = 0,
+    AICOnly = 1,
+    Mix = 2,
+};
+
+constexpr uint16_t SYNC_AIC_FLAG = 11;
+constexpr uint16_t SYNC_AIV_FLAG = 12;
+constexpr uint16_t SYNC_AIC_AIV_FLAG = 13;
+constexpr uint16_t SYNC_AIV_ONLY_ALL = 14;
+constexpr uint16_t SYNC_FLAG_ID_MAX = 16;
+
+constexpr int32_t SYNCALL_SOFT_SLOT_INT32 = 8;
+constexpr int32_t SYNCALL_SOFT_BACKOFF_THRESHOLD = 16;
+constexpr int32_t SYNCALL_SOFT_MAX_POLL_ITERATIONS = 1000000;
 
 enum class AccToVecMode : uint8_t
 {
@@ -389,10 +432,34 @@ enum class FmodAlgorithm : uint8_t
     HIGH_PRECISION
 };
 
+enum class FmodSAlgorithm : uint8_t
+{
+    DEFAULT,
+    HIGH_PRECISION
+};
+
 enum class RemAlgorithm : uint8_t
 {
     DEFAULT,
     HIGH_PRECISION
+};
+
+enum class RemSAlgorithm : uint8_t
+{
+    DEFAULT,
+    HIGH_PRECISION
+};
+
+enum class ScatterAxis : uint8_t
+{
+    SCATTER_ROW = 0,
+    SCATTER_COL = 1
+};
+
+enum class GatherAxis : uint8_t
+{
+    GATHER_ROW = 0,
+    GATHER_COL = 1
 };
 
 namespace GlobalTensorDim {

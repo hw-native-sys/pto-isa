@@ -137,6 +137,55 @@ enum class DmaEngine : uint8_t
 };
 
 // ============================================================================
+// CollEngine: Backend engine selector for collective instructions
+//   AIV  — default tile-based path (TLOAD + compute + TSTORE)
+//   CCU  — AIV triggers CKE gate, CCU hardware performs the collective
+// ============================================================================
+
+enum class CollEngine : uint8_t
+{
+    AIV = 0,
+    CCU = 1,
+};
+
+// ============================================================================
+// CcuInputSource: Selects who is responsible for writing the CCU input HBM.
+//
+//   HostManaged — Host (e.g. aclrtMemcpy / a prior op) has already populated
+//                 parallelGroup[selfIdx]; the AIV trigger kernel only doorbells
+//                 the CKE gate. accTileData / recvTileData are not consumed by
+//                 the CCU IMPL. This is the legacy behaviour.
+//
+//   AivStored  — The AIV trigger kernel carries this rank's partial in
+//                accTileData. The CCU IMPL TSTOREs it into
+//                parallelGroup[selfIdx] (== host-registered inputAddr VA),
+//                pipe_barrier(PIPE_MTE3)s, then doorbells. This enables
+//                AIV-fused collectives: previous AIV stage → accTile →
+//                CCU reduce → outputAddr, all without host memcpy.
+// ============================================================================
+
+enum class CcuInputSource : uint8_t
+{
+    HostManaged = 0,
+    AivStored = 1,
+};
+
+// ============================================================================
+// CcuTriggerContext: Opaque context passed from host to AIV kernel for CCU path.
+// Host fills it from ccu::TryGet() + rtGetDevResAddress() before kernel launch.
+//
+// `selfIdx` and `inputSource` are only consulted by the CCU IMPL when
+// `inputSource == AivStored`; HostManaged callers may leave them at default.
+// ============================================================================
+
+struct CcuTriggerContext {
+    uint64_t ckeSlotVA{0};                                   // CKE slot VA from rtGetDevResAddress(dieId, ckeId)
+    uint32_t mask{0};                                        // 16-bit CKE trigger mask
+    uint32_t selfIdx{0};                                     // This rank's index inside the ParallelGroup
+    CcuInputSource inputSource{CcuInputSource::HostManaged}; // Who fills CCU's input HBM
+};
+
+// ============================================================================
 // AsyncEvent: Returned by TPUT_ASYNC / TGET_ASYNC for asynchronous DMA
 // ============================================================================
 

@@ -79,6 +79,9 @@ python3 tests/script/run_st.py -r sim -v a3 -t tadd -g TADDTest.case_float_64x64
 
 # 一键构建并运行推荐测试
 ./build.sh --run_all --a3 --sim
+
+# 在代码根目录下打 whl 包，产物位于 dist/ 目录
+python3 -m build --wheel
 ```
 
 更完整的构建、测试和脚本说明请参见：[快速开始指南](docs/getting-started_zh.md)、[测试说明](tests/README_zh.md)
@@ -223,6 +226,7 @@ Ascend 910B2 多核对比，基线为 `torch_npu`：
 - [PyPTO](https://gitcode.com/cann/pypto/)：PTO 生态中的上层编程框架
 - [PTOAS](https://github.com/PTO-ISA/PTOAS/)：面向 PTO 工作流的汇编器与编译后端
 - [pto-dsl](https://github.com/PTO-ISA/pto-dsl/)：面向 PTO 的 Python 前端与 JIT 工作流探索
+- [FAQ](FAQ_zh.md)：常见问题与解决方案
 
 ## 📬 联系我们
 

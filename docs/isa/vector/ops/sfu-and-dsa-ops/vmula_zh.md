@@ -27,7 +27,7 @@ vmula %dst, %add, %lhs, %rhs, %mask : !pto.vreg<NxT>
 ### AS Level 1（SSA）
 
 ```mlir
-%result = pto.vmula %add, %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask) -> !pto.vreg<NxT>
+%result = pto.vmula %add, %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>) -> !pto.vreg<NxT>
 ```
 
 ## 输入
@@ -37,7 +37,7 @@ vmula %dst, %add, %lhs, %rhs, %mask : !pto.vreg<NxT>
 | `%add` | `!pto.vreg<NxT>` | 累加输入向量 |
 | `%lhs` | `!pto.vreg<NxT>` | 左乘数向量 |
 | `%rhs` | `!pto.vreg<NxT>` | 右乘数向量 |
-| `%mask` | `!pto.mask` | 谓词掩码；掩码位为 1 的 lane 为活跃 lane |
+| `%mask` | `!pto.mask<G>` | 谓词掩码；掩码位为 1 的 lane 为活跃 lane |
 
 ## 预期输出
 
@@ -88,7 +88,7 @@ vmula %dst, %add, %lhs, %rhs, %mask : !pto.vreg<NxT>
 
 ```mlir
 %result = pto.vmula %acc, %lhs, %rhs, %mask
-    : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask) -> !pto.vreg<64xf32>
+    : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32>) -> !pto.vreg<64xf32>
 ```
 
 ## 性能

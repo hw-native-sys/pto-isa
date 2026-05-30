@@ -17,19 +17,19 @@ $$ \mathrm{dst}_i = \mathrm{src0}_i \lor \mathrm{src1}_i $$
 ### PTO Assembly Form
 
 ```mlir
-%dst = pto.por %src0, %src1, %mask : !pto.mask, !pto.mask, !pto.mask -> !pto.mask
+%dst = pto.por %src0, %src1, %mask : !pto.mask<G>, !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-%dst = pto.por %src0, %src1, %mask : !pto.mask, !pto.mask, !pto.mask -> !pto.mask
+%dst = pto.por %src0, %src1, %mask : !pto.mask<G>, !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.por ins(%src0, %src1, %mask : !pto.mask, !pto.mask, !pto.mask) outs(%dst : !pto.mask)
+pto.por ins(%src0, %src1, %mask : !pto.mask<G>, !pto.mask<G>, !pto.mask<G>) outs(%dst : !pto.mask<G>)
 ```
 
 ## C++ Intrinsic
@@ -46,15 +46,15 @@ por(dst, src0, src1, mask);
 
 | Operand | Type | Description |
 |---------|------|-------------|
-| `%src0` | `!pto.mask` | First source predicate |
-| `%src1` | `!pto.mask` | Second source predicate |
-| `%mask` | `!pto.mask` | Optional masking predicate |
+| `%src0` | `!pto.mask<G>` | First source predicate |
+| `%src1` | `!pto.mask<G>` | Second source predicate |
+| `%mask` | `!pto.mask<G>` | Optional masking predicate |
 
 ## Expected Outputs
 
 | Result | Type | Description |
 |--------|------|-------------|
-| `%dst` | `!pto.mask` | Bitwise OR of src0 and src1 |
+| `%dst` | `!pto.mask<G>` | Bitwise OR of src0 and src1 |
 
 ## Side Effects
 
@@ -99,11 +99,11 @@ void union_masks(RegBuf<predicate_t>& dst,
 // %mask_b: lanes where b[i] > threshold_b
 
 // Union: lanes satisfying either condition
-%combined = pto.por %mask_a, %mask_b, %mask_a : !pto.mask, !pto.mask, !pto.mask -> !pto.mask
+%combined = pto.por %mask_a, %mask_b, %mask_a : !pto.mask<G>, !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
 
 // Reconstruct full-width predicate from two halves
-%lo_combined = pto.por %mask_a_lo, %mask_b_lo, %mask_a_lo : !pto.mask, !pto.mask, !pto.mask -> !pto.mask
-%hi_combined = pto.por %mask_a_hi, %mask_b_hi, %mask_a_hi : !pto.mask, !pto.mask, !pto.mask -> !pto.mask
+%lo_combined = pto.por %mask_a_lo, %mask_b_lo, %mask_a_lo : !pto.mask<G>, !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
+%hi_combined = pto.por %mask_a_hi, %mask_b_hi, %mask_a_hi : !pto.mask<G>, !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
 ```
 
 ## Related Ops / Instruction Set Links

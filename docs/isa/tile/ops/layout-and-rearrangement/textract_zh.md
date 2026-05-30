@@ -1,4 +1,4 @@
-﻿# TEXTRACT
+# TEXTRACT
 
 ## 指令示意图
 

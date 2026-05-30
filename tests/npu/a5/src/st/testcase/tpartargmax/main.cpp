@@ -142,3 +142,19 @@ TEST_F(TPARTARGMAXTest, case_fp16_5x33_5x33_5x30)
 {
     test_tpartargmax<aclFloat16, uint16_t, 5, 33, 5, 33, 5, 30, 8, 48, 5, 48, 6, 48, true>();
 }
+TEST_F(TPARTARGMAXTest, case_fp32_8x7_8x7_8x0)
+{
+    test_tpartargmax<float, uint32_t, 8, 7, 8, 7, 8, 0, 8, 8, 8, 8, 1, 8>();
+}
+TEST_F(TPARTARGMAXTest, case_fp32_8x7_8x7_0x7)
+{
+    test_tpartargmax<float, uint32_t, 8, 7, 8, 7, 0, 7, 8, 8, 8, 8, 1, 8>();
+}
+TEST_F(TPARTARGMAXTest, case_fp32_8x7_8x0_8x7)
+{
+    test_tpartargmax<float, uint32_t, 8, 7, 8, 0, 8, 7, 8, 8, 1, 8, 8, 8>();
+}
+TEST_F(TPARTARGMAXTest, case_fp32_8x7_0x7_8x7)
+{
+    test_tpartargmax<float, uint32_t, 8, 7, 0, 7, 8, 7, 8, 8, 1, 8, 8, 8>();
+}

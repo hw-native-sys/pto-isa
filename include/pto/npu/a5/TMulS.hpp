@@ -21,6 +21,7 @@ namespace pto {
 
 template <typename T>
 struct MulSOp {
+    static constexpr bool isDynFunc = false;
     PTO_INTERNAL static void BinSInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, T src1, MaskReg &preg)
     {
         vmuls(reg_dst, reg_src0, src1, preg, MODE_ZEROING);
@@ -46,9 +47,9 @@ template <typename TileDataDst, typename TileDataSrc>
 PTO_INTERNAL void TMULS_IMPL(TileDataDst &dst, TileDataSrc &src0, typename TileDataSrc::DType src1)
 {
     using T = typename TileDataDst::DType;
-    static_assert(std::is_same<T, int32_t>::value || std::is_same<T, int>::value || std::is_same<T, int16_t>::value ||
-                      std::is_same<T, half>::value || std::is_same<T, float16_t>::value ||
-                      std::is_same<T, float>::value || std::is_same<T, float32_t>::value ||
+    static_assert(std::is_same<T, int32_t>::value || std::is_same<T, int16_t>::value ||
+                      std::is_same<T, uint32_t>::value || std::is_same<T, uint16_t>::value ||
+                      std::is_same<T, half>::value || std::is_same<T, float>::value ||
                       std::is_same<T, bfloat16_t>::value,
                   "TMULS: Invalid data type");
     static_assert(TileDataDst::Loc == TileType::Vec, "TileType of dst tiles must be TileType::Vec.");

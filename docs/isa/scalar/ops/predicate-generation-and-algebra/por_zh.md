@@ -7,19 +7,19 @@
 ### PTO 汇编形式
 
 ```text
-por %dst, %src0, %src1 : !pto.mask, !pto.mask, !pto.mask
+por %dst, %src0, %src1 : !pto.mask<G>, !pto.mask<G>, !pto.mask<G>
 ```
 
 ### AS Level 1（SSA）
 
 ```mlir
-%dst = pto.por %src0, %src1, %mask : !pto.mask, !pto.mask, !pto.mask -> !pto.mask
+%dst = pto.por %src0, %src1, %mask : !pto.mask<G>, !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
 ```
 
 ### AS Level 2（DPS）
 
 ```mlir
-pto.por ins(%src0, %src1, %mask : !pto.mask, !pto.mask, !pto.mask) outs(%dst : !pto.mask)
+pto.por ins(%src0, %src1, %mask : !pto.mask<G>, !pto.mask<G>, !pto.mask<G>) outs(%dst : !pto.mask<G>)
 ```
 
 ## 关键约束

@@ -21,6 +21,7 @@ enum class ElementOp
 {
     // binary operation
     OP_ADD = 0,
+    OP_POW,
     OP_SUB,
     OP_MUL,
     OP_DIV,
@@ -58,6 +59,7 @@ enum class ElementOp
     OP_EXPANDS,
     // Input tile and scala
     OP_ADDS,
+    OP_POWS,
     OP_SUBS,
     OP_MULS,
     OP_DIVS,
@@ -138,6 +140,19 @@ struct ElementOpCal<DType, ElementOp::OP_DIV> {
     {
         assert(src1 != static_cast<DType>(0) && "Divider cannot be equal to zero");
         dst = src0 / src1;
+    }
+};
+
+template <typename DType>
+struct ElementOpCal<DType, ElementOp::OP_POW> {
+    static void apply(DType &dst, DType &src0, DType &src1, size_t)
+    {
+        dst = static_cast<DType>(std::pow(static_cast<double>(src0), static_cast<double>(src1)));
+    }
+
+    static void apply(DType &dst, const DType &src0, const DType &src1)
+    {
+        dst = static_cast<DType>(std::pow(static_cast<double>(src0), static_cast<double>(src1)));
     }
 };
 
@@ -268,16 +283,6 @@ struct ElementOpCal<DType, ElementOp::OP_EXPDIF> {
         dst = static_cast<DType>(std::exp(static_cast<double>(src0 - src1)));
     }
 };
-
-#if defined(__GNUC__) && !defined(__clang__)
-template <>
-struct ElementOpCal<half, ElementOp::OP_EXPDIF> {
-    static void apply(half &dst, const half &src0, const half &src1)
-    {
-        dst = static_cast<half>(std::exp(static_cast<float>(src0 - src1)));
-    }
-};
-#endif
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_FMOD> {
@@ -444,6 +449,14 @@ struct ElementOpCal<DType, ElementOp::OP_RDIVS> {
     {
         assert(src != static_cast<DType>(0) && "Divider cannot be equal to zero");
         dst = scalar / src;
+    }
+};
+
+template <typename DType>
+struct ElementOpCal<DType, ElementOp::OP_POWS> {
+    static void apply(DType &dst, DType &src, DType &scalar, size_t)
+    {
+        dst = static_cast<DType>(std::pow(static_cast<double>(src), static_cast<double>(scalar)));
     }
 };
 

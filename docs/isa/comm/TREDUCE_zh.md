@@ -1,4 +1,4 @@
-# TREDUCE
+# pto.treduce
 
 ## 简介
 
@@ -18,16 +18,22 @@ $$\mathrm{dst}^{\mathrm{local}}_{i,j} = \bigoplus_{r=0}^{N-1} \mathrm{src}^{(r)}
 
 ## 汇编语法
 
-PTO-AS 形式：参见 [PTO ISA 语法与操作数](../syntax-and-operands/assembly-model_zh.md)。
+PTO-AS 形式见[汇编拼写与操作数](../syntax-and-operands/assembly-model_zh.md)。
 
 同步形式：
 
 ```text
-treduce %group, %dst {op = #pto.reduce_op<Sum>} : (!pto.group<...>, !pto.memref<...>)
-treduce %group, %dst {op = #pto.reduce_op<Max>} : (!pto.group<...>, !pto.memref<...>)
+pto.treduce %group, %dst {op = #pto.reduce_op<Sum>} : (!pto.group<...>, !pto.memref<...>)
+pto.treduce %group, %dst {op = #pto.reduce_op<Max>} : (!pto.group<...>, !pto.memref<...>)
 ```
 
 降级时会为 reduce 流水线引入内部累加 Tile 和接收 Tile；C++ 内建接口需要显式传入 `accTileData`、`recvTileData`（或 `accTileData`、`pingTileData`、`pongTileData`）操作数。
+
+## 模板参数
+
+- `engine`：
+    - `CollEngine::AIV`（默认）
+    - `CollEngine::CCU`（Ascend950，仅 NPU_ARCH 3510）
 
 ## C++ 内建接口
 
@@ -35,33 +41,38 @@ treduce %group, %dst {op = #pto.reduce_op<Max>} : (!pto.group<...>, !pto.memref<
 
 ```cpp
 // 基础 reduce（累加 Tile + 接收 Tile）
-template <typename ParallelGroupType, typename GlobalDstData, typename TileData, typename... WaitEvents>
+template <CollEngine engine = CollEngine::AIV,
+          typename ParallelGroupType, typename GlobalDstData, typename TileData, typename... Args>
 PTO_INST RecordEvent TREDUCE(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
-                              TileData &accTileData, TileData &recvTileData, ReduceOp op, WaitEvents&... events);
+                              TileData &accTileData, TileData &recvTileData, ReduceOp op, Args&... args);
 
 // 乒乓 reduce（累加 Tile + ping/pong Tile 实现双缓冲）
-template <typename ParallelGroupType, typename GlobalDstData, typename TileData, typename... WaitEvents>
+template <CollEngine engine = CollEngine::AIV,
+          typename ParallelGroupType, typename GlobalDstData, typename TileData, typename... Args>
 PTO_INST RecordEvent TREDUCE(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
                               TileData &accTileData, TileData &pingTileData, TileData &pongTileData,
-                              ReduceOp op, WaitEvents&... events);
+                              ReduceOp op, Args&... args);
 ```
+
+当 `engine == CollEngine::CCU` 时，可变参数的第一个参数必须是包含 CKE slot 虚拟地址和 gate mask 的 `CcuTriggerContext`。AIV kernel 触发 CKE gate，实际的 reduce 数据路径在 CCU 引擎上执行。
 
 ## 约束
 
-!!! warning "约束"
-    - **类型约束**：
-        - `ParallelGroup::value_type::RawDType` 必须等于 `GlobalDstData::RawDType`。
-        - `TileData::DType` 必须等于 `GlobalDstData::RawDType`。
-    - **内存约束**：
-        - `dstGlobalData` 必须指向本地内存（当前 NPU）。
-        - `accTileData`、`recvTileData`（或 `accTileData`、`pingTileData`、`pongTileData`）必须为预先分配的 UB Tile。
-    - **ParallelGroup 约束**：
-        - `parallelGroup.tensors[r]` 必须指向 rank `r` 的源缓冲区（从根节点视角看到的远端 GM）。
-        - `parallelGroup.GetRootIdx()` 标识调用方 NPU 为 reduce 根节点。
-        - 所有源 tensor 假定具有相同的形状和步幅。
-    - **分块模式约束**（数据超出单个 UB Tile 时）：
-        - 若 `TileData` 具有静态 `ValidRow`，则 `GetShape(DIM_3)` 必须能被 `ValidRow` 整除。如需支持不足一行的情况，请使用 `DYNAMIC` ValidRow 的 Tile。
-        - 若 `TileData` 具有静态 `ValidCol`，则 `GetShape(DIM_4)` 必须能被 `ValidCol` 整除。如需支持不足一列的情况，请使用 `DYNAMIC` ValidCol 的 Tile。
+- **类型约束**：
+    - `ParallelGroup::value_type::RawDType` 必须等于 `GlobalDstData::RawDType`。
+    - `TileData::DType` 必须等于 `GlobalDstData::RawDType`。
+- **内存约束**：
+    - `dstGlobalData` 必须指向本地内存（当前 NPU）。
+    - `accTileData`、`recvTileData`（或 `accTileData`、`pingTileData`、`pongTileData`）必须为预先分配的 UB Tile。
+- **ParallelGroup 约束**：
+    - `parallelGroup.tensors[r]` 必须指向 rank `r` 的源缓冲区（从根节点视角看到的远端 GM）。
+    - `parallelGroup.GetRootIdx()` 标识调用方 NPU 为 reduce 根节点。
+    - 所有源 tensor 假定具有相同的形状和步幅。
+- **分块模式约束**（数据超出单个 UB Tile 时）：
+    - 若 `TileData` 具有静态 `ValidRow`，则 `GetShape(DIM_3)` 必须能被 `ValidRow` 整除。如需支持不足一行的情况，请使用 `DYNAMIC` ValidRow 的 Tile。
+    - 若 `TileData` 具有静态 `ValidCol`，则 `GetShape(DIM_4)` 必须能被 `ValidCol` 整除。如需支持不足一列的情况，请使用 `DYNAMIC` ValidCol 的 Tile。
+
+> **CCU 路径**：与 AIV 路径（仅根节点调用 `TREDUCE`）不同，CCU 路径要求所有 rank 通过宿主侧 `HcclCcuKernelRegister` / `HcclCcuKernelLaunch` 注册并启动 CCU kernel。完整示例参见 `tests/npu/a5/comm/st/testcase/treduce_ccu/`。
 
 ## 示例
 

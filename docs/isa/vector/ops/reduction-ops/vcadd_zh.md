@@ -25,7 +25,7 @@ vcadd %dst, %src, %mask : !pto.vreg<NxT>
 ### AS Level 1（SSA）
 
 ```mlir
-%result = pto.vcadd %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vcadd %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 A5 当前文档化支持的类型：`i16-i64`、`f16`、`f32`。
@@ -88,7 +88,7 @@ for (int i = 1; i < N; i++)
 ### MLIR
 
 ```mlir
-%result = pto.vcadd %input, %mask : !pto.vreg<128xf32>, !pto.mask -> !pto.vreg<128xf32>
+%result = pto.vcadd %input, %mask : !pto.vreg<128xf32>, !pto.mask<b32> -> !pto.vreg<128xf32>
 ```
 
 ## 性能

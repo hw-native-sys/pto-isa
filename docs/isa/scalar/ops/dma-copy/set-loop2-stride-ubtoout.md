@@ -2,6 +2,9 @@
 
 `pto.set_loop2_stride_ubtoout` is part of the [DMA Copy](../../dma-copy.md) instruction set.
 
+!!! warning "Deprecated in PTO ISA v0.6"
+    The v0.6 PTO micro-instruction surface no longer uses standalone loop / stride configuration registers for UB→GM DMA. The outer-loop stride information previously carried by `pto.set_loop2_stride_ubtoout` is now expressed inline on the grouped transfer op as part of the outer `loop(%loop_count, %loop_src_stride, %loop_dst_stride)` clause on [`pto.mte_ub_gm`](./copy-ubuf-to-gm.md). New code should use the grouped form. This page is retained for historical reference and pre-v0.6 ports.
+
 ## Summary
 
 Configure the outer-loop pointer advance used by the UB→GM DMA engine.

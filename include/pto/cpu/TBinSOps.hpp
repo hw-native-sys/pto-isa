@@ -28,6 +28,8 @@ struct CategoryBinSOps : std::false_type {};
 template <>
 struct CategoryBinSOps<ElementOp::OP_ADDS> : std::integral_constant<int, CONSTRAINT_VEC_ROWMAJOR> {};
 template <>
+struct CategoryBinSOps<ElementOp::OP_POWS> : std::integral_constant<int, CONSTRAINT_VEC_ROWMAJOR> {};
+template <>
 struct CategoryBinSOps<ElementOp::OP_DIVS> : std::integral_constant<int, CONSTRAINT_VEC_ROWMAJOR> {};
 template <>
 struct CategoryBinSOps<ElementOp::OP_RDIVS> : std::integral_constant<int, CONSTRAINT_VEC_ROWMAJOR> {};
@@ -185,17 +187,29 @@ PTO_INTERNAL void TMINS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType
 }
 
 template <typename TileDst, typename TileSrc>
+PTO_INTERNAL void TPOWS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar)
+{
+    UnaryTileScalarOpImpl<TileDst, TileSrc, ElementOp::OP_POWS>(dst, src, scalar);
+}
+template <auto PrecisionType = PowAlgorithm::DEFAULT, typename TileDst, typename TileSrc, typename TmpTile>
+PTO_INTERNAL void TPOWS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar, TmpTile &tmp)
+{
+    (void)tmp;
+    TPOWS_IMPL(dst, src, scalar);
+}
+
+template <auto PrecisionType = RemSAlgorithm::DEFAULT, typename TileDst, typename TileSrc>
 PTO_INTERNAL void TREMS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar)
 {
     UnaryTileScalarOpImpl<TileDst, TileSrc, ElementOp::OP_REMS>(dst, src, scalar);
 }
 
-template <typename TileDst, typename TileSrc>
+template <auto PrecisionType = RemSAlgorithm::DEFAULT, typename TileDst, typename TileSrc>
 PTO_INTERNAL void TREMS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar, TileDst &tmp)
 {
     (void)tmp;
     if (scalar != static_cast<TileSrc::DType>(0)) {
-        TREMS_IMPL(dst, src, scalar);
+        TREMS_IMPL<PrecisionType>(dst, src, scalar);
     } else {
         PTO_ASSERT(false, "illegal src is zero");
     }
@@ -238,7 +252,7 @@ PTO_INTERNAL void TLRELU_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DTyp
     UnaryTileScalarOpImpl<TileDst, TileSrc, ElementOp::OP_LRELU>(dst, src, scalar);
 }
 
-template <typename TileDst, typename TileSrc>
+template <auto PrecisionType = FmodSAlgorithm::DEFAULT, typename TileDst, typename TileSrc>
 PTO_INTERNAL void TFMODS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar)
 {
     if (scalar != static_cast<TileSrc::DType>(0)) {

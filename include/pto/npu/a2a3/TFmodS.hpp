@@ -60,7 +60,7 @@ __tf__ PTO_INTERNAL void TFmodS(typename TileDataDst::TileDType __out__ dst, typ
     set_vector_mask(-1, -1);
 }
 
-template <typename TileDataDst, typename TileDataSrc>
+template <auto PrecisionType = FmodSAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc>
 PTO_INTERNAL void TFMODS_IMPL(TileDataDst &dst, TileDataSrc &src, typename TileDataSrc::DType scalar)
 {
     using T = typename TileDataDst::DType;

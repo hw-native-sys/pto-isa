@@ -28,7 +28,15 @@ if __name__ == "__main__":
         "TFILLPADTest.case_s16_GT_260_7_VT_260_32_BLK1_PADMIN_PADMIN",
         "TFILLPADTest.case_s32_GT_260_7_VT_260_32_BLK1_PADMIN_PADMIN",
         "TFILLPADTest.case_float_GT_128_64_VT_128_128_PADCUSTOM_NEG1",
-        "TFILLPADTest.case_float_GT_128_127_VT_128_160_BLK1_PADCUSTOM_NEG1_PADCUSTOM_NEG1",               
+        "TFILLPADTest.case_float_GT_128_127_VT_128_160_BLK1_PADCUSTOM_NEG1_PADCUSTOM_NEG1",
+        "TFILLPADTest.case_s8_GT_1_15_VT_1_32_BLK1_PADZERO",
+        "TFILLPADTest.case_s8_GT_1_16_VT_1_32_BLK1_PADZERO",
+        "TFILLPADTest.case_u8_GT_1_15_VT_1_32_BLK1_PADZERO",
+        "TFILLPADTest.case_u8_GT_1_16_VT_1_32_BLK1_PADZERO",
+        "TFILLPADTest.case_s8_GT_1_15_VT_1_32_BLK1_PADMIN",
+        "TFILLPADTest.case_s8_GT_1_15_VT_1_32_BLK1_PADMAX",
+        "TFILLPADTest.case_u8_GT_1_15_VT_1_32_BLK1_PADMIN",
+        "TFILLPADTest.case_u8_GT_1_15_VT_1_32_BLK1_PADMAX",
     ]
 
     for i, case_name in enumerate(case_name_list):

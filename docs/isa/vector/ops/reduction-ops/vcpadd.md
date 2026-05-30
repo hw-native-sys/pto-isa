@@ -21,7 +21,7 @@ vcpadd %dst, %src, %mask : !pto.vreg<NxT>
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vcpadd %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vcpadd %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 ## Inputs
@@ -29,7 +29,7 @@ vcpadd %dst, %src, %mask : !pto.vreg<NxT>
 | Operand | Type | Description |
 | --- | --- | --- |
 | %input | `!pto.vreg<NxT>` | Source vector register to scan |
-| %mask | `!pto.mask` | Predicate mask; inactive lanes contribute zero |
+| %mask | `!pto.mask<G>` | Predicate mask; inactive lanes contribute zero |
 
 ## Expected Outputs
 
@@ -71,7 +71,7 @@ for (int i = 0; i < N; i++) {
 ```
 
 ```mlir
-%cdf = pto.vcpadd %pdf, %mask : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+%cdf = pto.vcpadd %pdf, %mask : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 ```
 
 ## Related Ops / Instruction Set Links

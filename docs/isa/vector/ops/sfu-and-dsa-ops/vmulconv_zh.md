@@ -27,7 +27,7 @@ vmulconv %dst, %lhs, %rhs, %mask : !pto.vreg<NxT0>
 ### AS Level 1（SSA）
 
 ```mlir
-%result = pto.vmulconv %lhs, %rhs, %mask : (!pto.vreg<NxT0>, !pto.vreg<NxT0>, !pto.mask) -> !pto.vreg<MxT1>
+%result = pto.vmulconv %lhs, %rhs, %mask : (!pto.vreg<NxT0>, !pto.vreg<NxT0>, !pto.mask<G>) -> !pto.vreg<MxT1>
 ```
 
 ## 输入
@@ -36,7 +36,7 @@ vmulconv %dst, %lhs, %rhs, %mask : !pto.vreg<NxT0>
 |--------|------|------|
 | `%lhs` | `!pto.vreg<NxT0>` | 左操作数向量 |
 | `%rhs` | `!pto.vreg<NxT0>` | 右操作数向量 |
-| `%mask` | `!pto.mask` | 谓词掩码；掩码位为 1 的 lane 为活跃 lane |
+| `%mask` | `!pto.mask<G>` | 谓词掩码；掩码位为 1 的 lane 为活跃 lane |
 
 ## 预期输出
 

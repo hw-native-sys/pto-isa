@@ -1020,6 +1020,18 @@
       "notes": []
     },
     {
+      "instruction": "TPREFETCH_ASYNC",
+      "category": "Memory (GM <-> Tile)",
+      "summary_en": "Asynchronously prefetch a GlobalTensor region from GM into L2 cache via SDMA CMO.",
+      "summary_zh": "通过 SDMA CMO 将 GlobalTensor 区域从 GM 异步预取到 L2 Cache。",
+      "diagram_template": "memory",
+      "operands": [
+        "global",
+        "context"
+      ],
+      "notes": []
+    },
+    {
       "instruction": "TSTORE",
       "category": "Memory (GM <-> Tile)",
       "summary_en": "Store data from a Tile into a GlobalTensor (GM), optionally using atomic write or quantization parameters.",
@@ -1312,6 +1324,19 @@
       "operands": [
         "dst",
         "src"
+      ],
+      "notes": []
+    },
+    {
+      "instruction": "TCONCAT",
+      "category": "Data Movement / Layout",
+      "summary_en": "Concatenate two tiles horizontally along the column dimension.",
+      "summary_zh": "将两个 Tile 沿列维度水平拼接。",
+      "diagram_template": "reshape_move",
+      "operands": [
+        "dst",
+        "src0",
+        "src1"
       ],
       "notes": []
     },

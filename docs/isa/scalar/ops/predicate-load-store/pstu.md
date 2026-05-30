@@ -8,7 +8,7 @@ Stream predicate register to UB with alignment state tracking. High-throughput v
 
 ## Mechanism
 
-`pto.pstu` writes a predicate word from `!pto.mask` to a UB address while tracking and updating alignment state. Unlike `psts`, this operation does not require 64-bit alignment and may batch multiple predicate writes into a single DMA transaction.
+`pto.pstu` writes a predicate word from `!pto.mask<G>` to a UB address while tracking and updating alignment state. Unlike `psts`, this operation does not require 64-bit alignment and may batch multiple predicate writes into a single DMA transaction.
 
 For alignment state `align_in`, predicate `mask`, and base address `base`:
 
@@ -22,19 +22,19 @@ The `%align_out` state carries forward into the next `pstu` call, enabling strea
 ### PTO Assembly Form
 
 ```mlir
-%align_out, %base_out = pto.pstu %align_in, %mask, %base_in : !pto.align, !pto.mask, !pto.ptr<T, ub> -> !pto.align, !pto.ptr<T, ub>
+%align_out, %base_out = pto.pstu %align_in, %mask, %base_in : !pto.align, !pto.mask<G>, !pto.ptr<T, ub> -> !pto.align, !pto.ptr<T, ub>
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-%align_out, %base_out = pto.pstu %align_in, %mask, %base_in : !pto.align, !pto.mask, !pto.ptr<T, ub> -> !pto.align, !pto.ptr<T, ub>
+%align_out, %base_out = pto.pstu %align_in, %mask, %base_in : !pto.align, !pto.mask<G>, !pto.ptr<T, ub> -> !pto.align, !pto.ptr<T, ub>
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.pstu ins(%align_in, %mask, %base_in : !pto.align, !pto.mask, !pto.ptr<T, ub>)
+pto.pstu ins(%align_in, %mask, %base_in : !pto.align, !pto.mask<G>, !pto.ptr<T, ub>)
        outs(%align_out, %base_out : !pto.align, !pto.ptr<T, ub>)
 ```
 
@@ -52,7 +52,7 @@ pstu(alignData, src, base);
 | Operand | Type | Description |
 |---------|------|-------------|
 | `%align_in` | `!pto.align` | Alignment state from previous `pstu` or `pld`-instruction set operation |
-| `%mask` | `!pto.mask` | Predicate register to stream-store |
+| `%mask` | `!pto.mask<G>` | Predicate register to stream-store |
 | `%base_in` | `!pto.ptr<T, ub>` | UB base address (no alignment requirement) |
 
 ## Expected Outputs
@@ -118,13 +118,13 @@ void stream_masks(Ptr<ub_space_t, ub_t> dst_base,
 
 ```mlir
 // Initialize alignment state (e.g., from a dummy load or zero)
-%align0 = pto.plds %ub_dummy : !pto.ptr<i64, ub> -> !pto.mask
+%align0 = pto.plds %ub_dummy : !pto.ptr<i64, ub> -> !pto.mask<G>
 
 // Stream store first predicate; align_out carries forward
-%align1, %base1 = pto.pstu %align0, %mask0, %base0 : !pto.align, !pto.mask, !pto.ptr<i64, ub> -> !pto.align, !pto.ptr<i64, ub>
+%align1, %base1 = pto.pstu %align0, %mask0, %base0 : !pto.align, !pto.mask<G>, !pto.ptr<i64, ub> -> !pto.align, !pto.ptr<i64, ub>
 
 // Stream store second predicate using updated alignment state
-%align2, %base2 = pto.pstu %align1, %mask1, %base1 : !pto.align, !pto.mask, !pto.ptr<i64, ub> -> !pto.align, !pto.ptr<i64, ub>
+%align2, %base2 = pto.pstu %align1, %mask1, %base1 : !pto.align, !pto.mask<G>, !pto.ptr<i64, ub> -> !pto.align, !pto.ptr<i64, ub>
 ```
 
 !!! note "Note"

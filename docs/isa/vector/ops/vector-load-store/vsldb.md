@@ -21,7 +21,7 @@ vsldb %result, %source, %offset, %mask
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vsldb %source, %offset, %mask : !pto.ptr<T, ub>, i32, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vsldb %source, %offset, %mask : !pto.ptr<T, ub>, i32, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 ## Inputs
@@ -74,7 +74,7 @@ If software scheduling or performance modeling depends on the exact cost of `pto
 ## Examples
 
 ```mlir
-%result = pto.vsldb %source, %offset, %mask : !pto.ptr<T, ub>, i32, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vsldb %source, %offset, %mask : !pto.ptr<T, ub>, i32, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 ## Related Ops / Instruction Set Links

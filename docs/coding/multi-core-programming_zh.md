@@ -1,636 +1,177 @@
 # 多核并行编程
 
-本文档介绍 PTO 的多核并行编程技术，帮助开发者充分利用 Ascend 多核架构实现高性能算子。
-
-## 目录
-
-- [1. 多核架构概述](#1-多核架构概述)
-- [2. SPMD 编程模式](#2-spmd-编程模式)
-- [3. MPMD 编程模式](#3-mpmd-编程模式)
-- [4. 负载均衡](#4-负载均衡)
-- [5. 核间通信](#5-核间通信)
-- [6. 性能优化](#6-性能优化)
-
----
-
-## 1. 多核架构概述
-
-### 1.1 Ascend 多核架构
-
-**硬件配置**：
-- A2/A3：24 个 AI Core
-- A5：更多核心（具体数量依型号）
-
-**架构特点**：
-```
-┌─────────────────────────────────┐
-│         Host CPU                │
-└────────────┬────────────────────┘
-             │
-    ┌────────┴────────┐
-    │   NPU Device    │
-    │  ┌───┬───┬───┐  │
-    │  │C0 │C1 │...│  │  AI Cores
-    │  └───┴───┴───┘  │
-    │  ┌───────────┐  │
-    │  │    GM     │  │  Global Memory
-    │  └───────────┘  │
-    └─────────────────┘
-```
-
-**核心特性**：
-- 每个核心独立执行
-- 共享全局内存（GM）
-- 独立的 L1 缓存
-- 通过 GM 进行核间通信
-
-### 1.2 并行编程模型
-
-**两种主要模式**：
-
-| 模式 | 特点 | 适用场景 |
-|------|------|----------|
-| **SPMD** | 所有核运行相同代码 | 规则的数据并行 |
-| **MPMD** | 不同核运行不同代码 | 流水线、生产者-消费者 |
-
----
-
-## 2. SPMD 编程模式
-
-### 2.1 基本概念
-
-**SPMD (Single Program, Multiple Data)**：
-- 所有核心执行相同的程序
-- 通过 `block_idx` 区分不同的数据块
-- 最常用的并行模式
-
-### 2.2 基础示例
-
-**向量加法**：
-```cpp
-__global__ __aicore__ void VecAddKernel(__gm__ float* out,
-                                        __gm__ const float* in0,
-                                        __gm__ const float* in1,
-                                        uint32_t totalLength) {
-  // 获取当前核心 ID
-  int block_idx = get_block_idx();
-  int block_num = get_block_num();
-
-  // 计算当前核心负责的数据范围
-  int elements_per_block = (totalLength + block_num - 1) / block_num;
-  int start = block_idx * elements_per_block;
-  int end = min(start + elements_per_block, totalLength);
-
-  // 处理当前块
-  for (int i = start; i < end; i += TILE_SIZE) {
-    int size = min(TILE_SIZE, end - i);
-
-    using TileT = Tile<TileType::Vec, float, 8, 256>;
-    TileT a, b, c;
-
-    TLOAD(a, GlobalTensor(in0 + i));
-    TLOAD(b, GlobalTensor(in1 + i));
-    TADD(c, a, b);
-    TSTORE(GlobalTensor(out + i), c);
-  }
-}
-```
-
-### 2.3 2D 数据划分
-
-**矩阵乘法示例**：
-```cpp
-__global__ __aicore__ void MatMulKernel(__gm__ float* C,
-                                        __gm__ const float* A,
-                                        __gm__ const float* B,
-                                        int M, int K, int N) {
-  // 获取核心 ID
-  int block_idx = get_block_idx();
-
-  // 2D 划分：M 和 N 维度
-  int blocks_m = (M + TILE_M - 1) / TILE_M;
-  int blocks_n = (N + TILE_N - 1) / TILE_N;
-
-  int block_m = block_idx / blocks_n;
-  int block_n = block_idx % blocks_n;
-
-  // 计算当前核心负责的矩阵块
-  int m_start = block_m * TILE_M;
-  int n_start = block_n * TILE_N;
-
-  // 确保不越界
-  if (m_start >= M || n_start >= N) return;
-
-  int m_size = min(TILE_M, M - m_start);
-  int n_size = min(TILE_N, N - n_start);
-
-  // 执行矩阵乘法
-  TileAcc acc;
-  TFILL(acc, 0);
-
-  for (int k = 0; k < K; k += TILE_K) {
-    int k_size = min(TILE_K, K - k);
-
-    TLOAD(tileA, A[m_start:m_start+m_size, k:k+k_size]);
-    TLOAD(tileB, B[k:k+k_size, n_start:n_start+n_size]);
-    TMATMUL_ACC(acc, tileA, tileB);
-  }
-
-  TSTORE(C[m_start:m_start+m_size, n_start:n_start+n_size], acc);
-}
-```
-
-### 2.4 3D 数据划分
-
-**卷积示例**：
-```cpp
-__global__ __aicore__ void ConvKernel(...) {
-  int block_idx = get_block_idx();
-
-  // 3D 划分：Batch, Height, Width
-  int blocks_h = (H + TILE_H - 1) / TILE_H;
-  int blocks_w = (W + TILE_W - 1) / TILE_W;
-
-  int block_b = block_idx / (blocks_h * blocks_w);
-  int block_h = (block_idx / blocks_w) % blocks_h;
-  int block_w = block_idx % blocks_w;
-
-  // 处理当前 3D 块
-  process_conv_block(block_b, block_h, block_w);
-}
-```
-
----
-
-## 3. MPMD 编程模式
-
-### 3.1 基本概念
-
-**MPMD (Multiple Program, Multiple Data)**：
-- 不同核心执行不同的程序
-- 适合流水线和生产者-消费者模式
-- 需要核间同步
-
-### 3.2 任务分派模式
-
-**方法1：单入口 + switch**
-```cpp
-__global__ __aicore__ void MPMDKernel(__gm__ float* out,
-                                      __gm__ const float* in,
-                                      uint32_t task_id) {
-  switch (task_id) {
-    case 0:
-      ProducerTask(out, in);
-      break;
-    case 1:
-      ConsumerTask(out, in);
-      break;
-    case 2:
-      ProcessorTask(out, in);
-      break;
-    default:
-      break;
-  }
-}
-```
-
-**方法2：多入口**
-```cpp
-// 生产者 kernel
-__global__ __aicore__ void ProducerKernel(...) {
-  // 生产数据
-  for (int i = 0; i < N; i++) {
-    produce_data(buffer[i]);
-    signal_consumer();  // 通知消费者
-  }
-}
-
-// 消费者 kernel
-__global__ __aicore__ void ConsumerKernel(...) {
-  // 消费数据
-  for (int i = 0; i < N; i++) {
-    wait_producer();  // 等待生产者
-    consume_data(buffer[i]);
-  }
-}
-```
-
-### 3.3 流水线模式
-
-**三阶段流水线**：
-```cpp
-__global__ __aicore__ void PipelineKernel(__gm__ float* out,
-                                          __gm__ const float* in,
-                                          uint32_t stage_id) {
-  switch (stage_id) {
-    case 0:  // Stage 1: Load
-      for (int i = 0; i < N; i++) {
-        TLOAD(buffer1[i], in[i]);
-        signal_stage2();
-      }
-      break;
-
-    case 1:  // Stage 2: Compute
-      for (int i = 0; i < N; i++) {
-        wait_stage1();
-        TCOMPUTE(buffer2[i], buffer1[i]);
-        signal_stage3();
-      }
-      break;
-
-    case 2:  // Stage 3: Store
-      for (int i = 0; i < N; i++) {
-        wait_stage2();
-        TSTORE(out[i], buffer2[i]);
-      }
-      break;
-  }
-}
-```
-
----
-
-## 4. 负载均衡
-
-### 4.1 静态负载均衡
-
-**均匀划分**：
-```cpp
-// 方法1：简单均分
-int elements_per_block = totalLength / block_num;
-int start = block_idx * elements_per_block;
-int end = (block_idx == block_num - 1) ?
-          totalLength : start + elements_per_block;
-
-// 方法2：向上取整均分
-int elements_per_block = (totalLength + block_num - 1) / block_num;
-int start = block_idx * elements_per_block;
-int end = min(start + elements_per_block, totalLength);
-```
-
-**2D 均匀划分**：
-```cpp
-// 计算最优的 2D 划分
-int blocks_m = (int)sqrt(block_num * M / N);
-int blocks_n = block_num / blocks_m;
-
-// 调整以充分利用所有核心
-while (blocks_m * blocks_n < block_num && blocks_n < N / TILE_N) {
-  blocks_n++;
-  blocks_m = block_num / blocks_n;
-}
-```
-
-### 4.2 动态负载均衡
-
-**工作窃取模式**：
-```cpp
-// 使用原子操作实现动态任务分配
-__gm__ atomic<int> next_task = 0;
-
-__global__ __aicore__ void DynamicKernel(...) {
-  while (true) {
-    // 原子获取下一个任务
-    int task_id = next_task.fetch_add(1);
-
-    if (task_id >= total_tasks) break;
-
-    // 处理任务
-    process_task(task_id);
-  }
-}
-```
-
-### 4.3 负载不均衡检测
-
-**检测方法**：
-```cpp
-// 记录每个核心的执行时间
-#ifdef PROFILE
-  auto start = GetTime();
-
-  // 执行任务
-  process_block(block_idx);
-
-  auto end = GetTime();
-  execution_times[block_idx] = end - start;
-#endif
-
-// 分析负载均衡性
-float max_time = *max_element(execution_times.begin(),
-                              execution_times.end());
-float min_time = *min_element(execution_times.begin(),
-                              execution_times.end());
-float imbalance = (max_time - min_time) / max_time;
-
-if (imbalance > 0.2) {
-  printf("Warning: Load imbalance detected: %.2f%%\n",
-         imbalance * 100);
-}
-```
-
----
-
-## 5. 核间通信
-
-### 5.1 通过全局内存通信
-
-**基本模式**：
-```cpp
-// 核心 0：写入数据
-__global__ __aicore__ void Writer(__gm__ float* shared_buffer) {
-  if (get_block_idx() == 0) {
-    TLOAD(tile, local_data);
-    TSTORE(shared_buffer, tile);
-    // 设置标志表示数据已就绪
-    shared_buffer[FLAG_OFFSET] = 1;
-  }
-}
-
-// 核心 1：读取数据
-__global__ __aicore__ void Reader(__gm__ float* shared_buffer) {
-  if (get_block_idx() == 1) {
-    // 等待数据就绪
-    while (shared_buffer[FLAG_OFFSET] != 1) {
-      // 自旋等待
-    }
-    TLOAD(tile, shared_buffer);
-    process(tile);
-  }
-}
-```
-
-### 5.2 使用原子操作同步
-
-**计数器同步**：
-```cpp
-__gm__ atomic<int> counter = 0;
-
-__global__ __aicore__ void SyncKernel(...) {
-  // 每个核心完成工作后增加计数器
-  process_local_work();
-
-  counter.fetch_add(1);
-
-  // 等待所有核心完成
-  while (counter.load() < block_num) {
-    // 自旋等待
-  }
-
-  // 继续下一阶段
-  next_stage_work();
-}
-```
-
-### 5.3 屏障同步
-
-**软件屏障**：
-```cpp
-class Barrier {
-  __gm__ atomic<int> counter;
-  __gm__ atomic<int> generation;
-  int num_threads;
-
-public:
-  void wait() {
-    int gen = generation.load();
-
-    if (counter.fetch_add(1) == num_threads - 1) {
-      // 最后一个到达的线程
-      counter.store(0);
-      generation.fetch_add(1);
-    } else {
-      // 等待所有线程到达
-      while (generation.load() == gen) {
-        // 自旋等待
-      }
-    }
-  }
-};
-
-__global__ __aicore__ void BarrierKernel(...) {
-  Barrier barrier(block_num);
-
-  // 阶段 1
-  phase1_work();
-  barrier.wait();
-
-  // 阶段 2
-  phase2_work();
-  barrier.wait();
-
-  // 阶段 3
-  phase3_work();
-}
-```
-
----
-
-## 6. 性能优化
-
-### 6.1 减少核间通信
-
-**策略1：增大数据块**
-```cpp
-// 不好：频繁通信
-for (int i = 0; i < N; i++) {
-  process_small_block(i);
-  sync_with_other_cores();  // 每次都同步
-}
-
-// 好：批量处理
-for (int i = 0; i < N; i += BATCH_SIZE) {
-  process_large_block(i, BATCH_SIZE);
-  sync_with_other_cores();  // 批量同步
-}
-```
-
-**策略2：本地化计算**
-```cpp
-// 尽量让每个核心独立完成工作
-__global__ __aicore__ void LocalizedKernel(...) {
-  int block_idx = get_block_idx();
-
-  // 每个核心处理完整的子问题
-  // 无需与其他核心通信
-  process_independent_subproblem(block_idx);
-}
-```
-
-### 6.2 优化数据划分
-
-**考虑数据局部性**：
-```cpp
-// 2D 矩阵：按块划分而非按行/列
-// 好：每个核心访问连续的内存块
-for (int bm = 0; bm < blocks_m; bm++) {
-  for (int bn = 0; bn < blocks_n; bn++) {
-    int block_id = bm * blocks_n + bn;
-    if (block_id == get_block_idx()) {
-      process_block(bm, bn);
-    }
-  }
-}
-```
-
-### 6.3 避免伪共享
-
-**问题**：
-```cpp
-// 不好：多个核心写入相邻位置
-__gm__ float results[NUM_CORES];
-
-__global__ __aicore__ void BadKernel(...) {
-  int idx = get_block_idx();
-  results[idx] = compute();  // 可能导致缓存行冲突
-}
-```
-
-**解决方案**：
-```cpp
-// 好：使用 padding 避免伪共享
-constexpr int CACHE_LINE_SIZE = 64;
-constexpr int PADDING = CACHE_LINE_SIZE / sizeof(float);
-
-__gm__ float results[NUM_CORES * PADDING];
-
-__global__ __aicore__ void GoodKernel(...) {
-  int idx = get_block_idx();
-  results[idx * PADDING] = compute();  // 避免缓存行冲突
-}
-```
-
-### 6.4 性能测量
-
-**测量核心利用率**：
-```cpp
-#ifdef PROFILE
-  __gm__ uint64_t start_times[NUM_CORES];
-  __gm__ uint64_t end_times[NUM_CORES];
-
-  __global__ __aicore__ void ProfileKernel(...) {
-    int idx = get_block_idx();
-
-    start_times[idx] = GetCycles();
-
-    // 执行工作
-    do_work();
-
-    end_times[idx] = GetCycles();
-  }
-
-  // 分析结果
-  uint64_t max_time = 0;
-  uint64_t total_time = 0;
-
-  for (int i = 0; i < NUM_CORES; i++) {
-    uint64_t time = end_times[i] - start_times[i];
-    max_time = max(max_time, time);
-    total_time += time;
-  }
-
-  float efficiency = (float)total_time / (NUM_CORES * max_time);
-  printf("Core efficiency: %.2f%%\n", efficiency * 100);
-#endif
-```
-
----
-
-## 7. 最佳实践
-
-### 7.1 选择合适的并行模式
-
-**决策树**：
-```
-数据可以均匀划分？
-├─ 是 → 使用 SPMD
-│   └─ 数据是规则的矩阵/张量？
-│       ├─ 是 → 2D/3D 划分
-│       └─ 否 → 1D 划分
-└─ 否 → 考虑 MPMD 或动态负载均衡
-    └─ 有明显的流水线阶段？
-        ├─ 是 → 使用 MPMD 流水线
-        └─ 否 → 使用动态任务分配
-```
-
-### 7.2 优化检查清单
-
-**并行设计**：
-- [ ] 选择了合适的并行模式（SPMD/MPMD）
-- [ ] 数据划分均匀
-- [ ] 考虑了数据局部性
-- [ ] 最小化核间通信
-
-**负载均衡**：
-- [ ] 每个核心的工作量相近
-- [ ] 处理了边界情况
-- [ ] 测量了核心利用率
-
-**同步优化**：
-- [ ] 只在必要时同步
-- [ ] 使用细粒度同步
-- [ ] 避免死锁
-
-**性能验证**：
-- [ ] 测量了并行加速比
-- [ ] 分析了核心利用率
-- [ ] 识别了性能瓶颈
-
----
-
-## 8. 实战案例
-
-### 案例1：GEMM 多核优化
-
-**2D 划分策略**：
-```cpp
-// 24 核：4×6 划分
-constexpr int BLOCKS_M = 4;
-constexpr int BLOCKS_N = 6;
-
-__global__ __aicore__ void GEMMKernel(...) {
-  int block_idx = get_block_idx();
-  int block_m = block_idx / BLOCKS_N;
-  int block_n = block_idx % BLOCKS_N;
-
-  // 每个核心处理 M/4 × N/6 的块
-  int m_start = block_m * (M / BLOCKS_M);
-  int n_start = block_n * (N / BLOCKS_N);
-
-  // 执行局部 GEMM
-  local_gemm(m_start, n_start, ...);
-}
-```
-
-**性能结果**：
-- 单核：50 TFLOPS
-- 24 核：1100 TFLOPS
-- 加速比：22× (效率 92%)
-
-### 案例2：Flash Attention 多核
-
-**序列维度划分**：
-```cpp
-__global__ __aicore__ void FlashAttnKernel(...) {
-  int block_idx = get_block_idx();
-  int seq_per_block = (SEQ_LEN + block_num - 1) / block_num;
-
-  int seq_start = block_idx * seq_per_block;
-  int seq_end = min(seq_start + seq_per_block, SEQ_LEN);
-
-  // 每个核心处理一段序列
-  // 无需核间通信
-  for (int i = seq_start; i < seq_end; i += TILE_SIZE) {
-    process_attention_block(i);
-  }
-}
-```
-
----
-
-## 参考资源
-
-- [编程模型](ProgrammingModel_zh.md)
-- [流水线与并行执行](pipeline-parallel_zh.md)
-- [性能调优最佳实践](performance-best-practices_zh.md)
-- [GEMM 优化案例](../../kernels/manual/a2a3/gemm_performance/README_zh.md)
+本文档说明 PTO Tile Lib 中常见的多核编程方式，并重点介绍与当前编程模型相匹配的工作划分模式。
+
+本文档围绕基于 tile 的工作分解、输出归属、负载均衡和局部性展开。
+
+## 1. 概述
+
+PTO kernel 通常采用类似 SPMD 的执行方式：多个核心运行同一份 kernel 主体代码，不同核心根据 block 或 core 身份处理不同的工作范围。
+
+这种方式与 PTO 文档中一贯采用的 tile 化编程模型相匹配。
+
+入门示例可参考：
+
+- [快速开始教程](tutorial.md)
+- [向量加法教程](tutorials/vec-add.md)
+- [优化指南](opt.md)
+
+## 2. 当前仓库中最主要的多核模型
+
+### 2.1 类 SPMD 的工作划分
+
+本仓库中最常见的模式是：
+
+- 所有核心执行相同的 kernel 代码
+- 每个核心处理输入或输出的不同区域
+- 划分方式通常围绕行、列、tile 或 block 范围展开
+
+这种方式天然适用于：
+
+- 逐元素算子
+- 基于 tile 的归约算子
+- GEMM 类算子
+- attention 类的分块计算
+
+### 2.2 为什么更推荐这种方式
+
+类 SPMD 的划分方式更符合 PTO 的编程特点，因为它与以下因素天然一致：
+
+- 基于 tile 的工作分解
+- 可预测的 GM 访问模式
+- 更直接的负载均衡
+- 更简单的同步结构
+
+在大多数情况下，让每个核心负责一段规则且连续的工作区域，通常比引入不规则的核间协作更容易分析与优化。
+
+## 3. 实际划分建议
+
+### 3.1 按输出归属划分
+
+一个常见且稳妥的默认策略，是按输出区域的归属来划分工作。
+
+例如：
+
+- 对于向量类算子，可以按线性输出区间划分
+- 对于矩阵类算子，可以按 tile 行、tile 列或二维 block 网格划分
+- 对于按行归约的算子，可以给每个核心分配一行或多行输出
+
+这样做的好处是：
+
+- 负责计算输出 tile 的核心也负责存储该 tile
+- 中间状态尽量保持在本地
+- 可以避免核间写冲突
+
+### 3.2 尽量保持工作量均衡
+
+为核心分配 tile 时，建议：
+
+- 尽量让每个核心承担相近的计算量
+- 避免把尾部的小块工作全部集中到单个过载核心上
+- 在可能的情况下同时兼顾规则访问与均衡划分
+
+需要注意的是，数学上平均的划分如果破坏了内存局部性，依然可能导致较差性能，因此负载均衡和局部性应同时考虑。
+
+### 3.3 保持规则的 tile 循环结构
+
+当每个核心都遵循相同的 tile 循环结构时，多核 kernel 往往更容易验证和优化。
+
+典型结构通常是：
+
+1. 确定当前核心负责的 tile 范围
+2. 在该范围内迭代
+3. 执行 `TLOAD -> transform / compute -> TSTORE`
+4. 在需要时通过 valid region 处理边界 tile
+
+这种写法也遵循了 [快速开始教程](tutorial.md) 和 [Tile 编程模型](Tile.md) 中描述的 tile 化编程模型。
+
+## 4. PTO 中真正重要的多核问题
+
+### 4.1 负载均衡
+
+负载均衡之所以重要，是因为 PTO kernel 常常同时包含：
+
+- GM 数据搬运
+- 布局变换
+- vector 或 cube 计算
+- 显式同步
+
+如果某个核心分到了明显更多的 tile，或者分到的 tile 计算代价更高，整体吞吐最终就会受最慢核心限制。
+
+在实践中，建议重点检查：
+
+- 输出空间是否划分得足够均匀
+- 边界 tile 是否过度集中在少数核心上
+- 是否只有部分核心承担了额外的变换或归约工作
+
+### 4.2 内存局部性
+
+良好的多核划分还需要尽量保持 GM 局部性。
+
+更理想的模式通常具备以下特点：
+
+- 连续的读写访问
+- 对邻近 tensor 区域的重复利用
+- 稳定的 tile shape 与 stride
+
+如果局部性不好，常见表现就是数据搬运开销相对计算开销偏高。
+
+### 4.3 核间通信
+
+本仓库在 `docs/isa/comm/` 下提供了通信指令文档，但对于一般计算 kernel，不应默认把任意的跨核 producer-consumer 调度视为 PTO 的标准日常模型。
+
+对大多数计算 kernel，更稳妥的方式仍然是：
+
+- 尽量减少跨核依赖
+- 清晰划分输出归属
+- 仅在确有必要时保留真实的 producer-consumer 同步关系
+
+如果某个 kernel 依赖通信指令，应参考 [通信 ISA 参考](../isa/comm/README.md) 及相应指令文档。
+
+## 5. 与流水线优化的关系
+
+多核并行和流水线重叠解决的是两个不同层面的问题：
+
+- **多核并行**：通过把工作分配到多个核心来提升吞吐
+- **流水线重叠**：通过重叠 load / transform / compute / store 阶段来提升单核利用率
+
+一个高性能 kernel 往往同时需要：
+
+1. 合理的每核 tile 划分
+2. 高效的核内流水线组织
+
+关于重叠、缓冲与同步，可参考 [流水线并行](pipeline-parallel.md) 和 [事件与同步](Event.md)。
+
+## 6. 编程边界
+
+多核 PTO kernel 通常围绕 tile 归属、规则工作划分和显式依赖来描述。除非在专门的运行时或 backend 文档中另行定义，以下内容不属于本文档的描述范围：
+
+- 脱离仓库上下文、凭空假设的 `get_block_idx()` 一类运行时接口契约
+- `TCOMPUTE`、`TFILL` 这类并非当前公开 PTO intrinsic 的占位式指令
+- 在 `TLOAD` / `TSTORE` 中使用 Python 风格张量切片的伪语法
+- 把 MPMD 直接写成当前仓库普通 PTO kernel 的标准公开编程模型
+
+这类写法在其他场景中可以用于说明思路，但不适合作为严谨的仓库文档。
+
+## 7. 多核开发流程
+
+在开发多核 PTO kernel 时，一个更实用的流程是：
+
+1. 先从单 tile 或单核的正确实现开始
+2. 明确每个核心的输出归属
+3. 将工作划分为规则的 tile 范围
+4. 先在 CPU 仿真上验证正确性
+5. 再在目标 backend 上调优 tile 大小、划分方式和重叠策略
+
+这种流程更容易与现有 PTO 文档保持一致，也能避免过早引入不必要的复杂度。
+
+## 8. 结语
+
+在当前 PTO Tile Lib 仓库中，更可靠的多核编程理解方式是：
+
+- 默认采用类 SPMD 的工作划分
+- 以输出归属和规则 tile 范围为核心组织工作
+- 保持规则、连续、均衡的访问模式
+- 将多核划分与单核流水线优化结合起来
+
+相比把一些推测性的伪 API 或未经验证的执行模型写成既定接口，这种写法更准确，也更符合本仓库的实际情况。

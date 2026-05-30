@@ -8,6 +8,7 @@
 | --- | --- |
 | `pto.tload` | 从 GlobalTensor 加载到 tile |
 | `pto.tprefetch` | 预取数据到本地缓冲 |
+| `pto.tprefetch_async` | 通过 SDMA CMO 异步预取 GM 数据到 L2 Cache |
 | `pto.tstore` | 从 tile 写回 GlobalTensor |
 | `pto.tstore_fp` | 经 fix-pipe 路径写回 |
 | `pto.mgather` | 索引式 gather |
@@ -32,6 +33,8 @@ TSTORE: dst[r0 + i, c0 + j] = src[i, j]
 ### 预取：TPREFETCH
 
 `TPREFETCH` 会提前把后续可能要用到的 GM 数据搬进 tile 可见的本地路径。它的意义不在于改变数据布局，而在于把“稍后会访问的数据”尽早拉近。
+
+`TPREFETCH_ASYNC` 使用 SDMA CMO 将扁平连续的 GlobalTensor 区域预热到 L2 Cache。它返回 `comm::AsyncEvent`；依赖该预取结果的后续消费者需要在发起相关加载前等待该事件。
 
 ### 索引搬运：MGATHER / MSCATTER
 

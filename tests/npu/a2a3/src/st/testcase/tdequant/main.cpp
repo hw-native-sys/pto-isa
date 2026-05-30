@@ -148,3 +148,13 @@ TEST_F(TDEQUANTTest, case9)
 {
     test_tdequant<float, int8_t, 2, 512, 2, 512, 2, 511, 2, 512>();
 }
+
+TEST_F(TDEQUANTTest, case10)
+{
+    test_tdequant<float, int8_t, 1, 12288, 1, 12288, 1, 12288, 1, 12288>();
+}
+
+TEST_F(TDEQUANTTest, case11)
+{
+    test_tdequant<float, int16_t, 1, 12288, 1, 12288, 1, 12288, 1, 12288>();
+}

@@ -21,6 +21,7 @@ namespace pto {
 
 template <typename T>
 struct SubSOp {
+    static constexpr bool isDynFunc = false;
     PTO_INTERNAL static void BinSInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src, T scalar, MaskReg &preg)
     {
         vadds(reg_dst, reg_src, -scalar, preg, MODE_ZEROING);

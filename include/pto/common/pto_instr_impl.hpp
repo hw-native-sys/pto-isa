@@ -57,10 +57,21 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a2a3/TUnaryOp.hpp"
 #include "pto/npu/a2a3/TPush.hpp"
 #include "pto/npu/a2a3/TPop.hpp"
+#include "pto/npu/a2a3/TAlloc.hpp"
+#include "pto/npu/a2a3/TFree.hpp"
+#include "pto/npu/a2a3/TReshape.hpp"
+#include "pto/npu/a2a3/TPrefetch.hpp"
+#include "pto/npu/a2a3/TRowExpandSub.hpp"
+#include "pto/npu/a2a3/TRowExpandMul.hpp"
+#include "pto/npu/a2a3/TRowExpandDiv.hpp"
+#include "pto/npu/a2a3/TRowExpandAdd.hpp"
+#include "pto/npu/a2a3/TImg2col.hpp"
+#include "pto/npu/a2a3/SetFmatrix.hpp"
 #else
 #include "pto/npu/a2a3/TAssign.hpp"
 #include "pto/npu/a2a3/TAlias.hpp"
 #include "pto/npu/a2a3/TSync.hpp"
+#include "pto/npu/a2a3/SyncAll.hpp"
 #include "pto/npu/a2a3/TAdd.hpp"
 #include "pto/npu/a2a3/TAnd.hpp"
 #include "pto/npu/a2a3/TOr.hpp"
@@ -143,6 +154,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a2a3/TPrefetch.hpp"
 #include "pto/npu/a2a3/TPrelu.hpp"
 #include "pto/npu/a2a3/TInsert.hpp"
+#include "pto/npu/a2a3/MGather.hpp"
+#include "pto/npu/a2a3/MScatter.hpp"
 #include "pto/npu/a2a3/TRowExpandExpdif.hpp"
 #include "pto/npu/a2a3/TColExpandAdd.hpp"
 #include "pto/npu/a2a3/TColExpandMax.hpp"
@@ -158,12 +171,16 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a2a3/TAlloc.hpp"
 #include "pto/npu/a2a3/TFree.hpp"
 #include "pto/npu/a2a3/TColReduceIdx.hpp"
+#include "pto/npu/a2a3/grid_pipe_runtime.hpp"
+#include "pto/npu/a2a3/GridTPush.hpp"
+#include "pto/npu/a2a3/GridTPop.hpp"
 #endif
 #endif
 
 #ifdef PTO_NPU_ARCH_A5
 #include "pto/npu/a5/TAssign.hpp"
 #include "pto/npu/a5/TSync.hpp"
+#include "pto/npu/a5/SyncAll.hpp"
 #include "pto/npu/a5/TAdd.hpp"
 #include "pto/npu/a5/TAnd.hpp"
 #include "pto/npu/a5/TAndS.hpp"
@@ -282,6 +299,15 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/kirinX90/header.hpp"
 #endif
 
+// Async L2 cache prefetch via SDMA CMO. Same backend file is reused across A2/A3
+// and A5 because the SDMA infrastructure is common to both architectures
+// (the actual SQE-field differences are handled inside the SDMA helpers via
+// `#ifdef PTO_NPU_ARCH_A5`). Guarded so that costmodel and CPU sim builds
+// pick up their own variant from the blocks below.
+#if defined(__CCE_AICORE__) && !(defined(__CPU_SIM) || defined(__COSTMODEL))
+#include "pto/npu/TPrefetchAsync.hpp"
+#endif
+
 #ifdef __CPU_SIM
 #include "pto/cpu/TSync.hpp"
 #include "pto/cpu/ElementTileOp.h"
@@ -325,8 +351,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/cpu/TSort32.hpp"
 #include "pto/cpu/TPartAdd.hpp"
 #include "pto/cpu/TPartMul.hpp"
+#include "pto/cpu/TPartArgMax.hpp"
 #include "pto/cpu/TPartMax.hpp"
+#include "pto/cpu/TPartArgMin.hpp"
 #include "pto/cpu/TPartMin.hpp"
+#include "pto/cpu/TPow.hpp"
 #include "pto/cpu/TConcat.hpp"
 #include "pto/cpu/TRowExpand.hpp"
 #include "pto/cpu/TRowExpandOp.hpp"
@@ -359,6 +388,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/cpu/comm/TGet.hpp"
 #include "pto/cpu/comm/TWait.hpp"
 #include "pto/cpu/comm/TReduce.hpp"
+
+// Async L2 cache prefetch (no-op on CPU sim - kept for API surface compatibility).
+#include "pto/cpu/TPrefetchAsync.hpp"
 
 #endif
 

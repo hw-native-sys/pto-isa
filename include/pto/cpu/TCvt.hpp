@@ -19,22 +19,26 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <type_traits>
 
 namespace pto {
-constexpr double CAST_ODD_THRESHHOLD = 0.5;
+constexpr double CAST_ODD_THRESHOLD = 0.5;
 
 inline void PrintFloatBits(double val, const char *name)
 {
+    constexpr uint32_t signShift = 63;
+    constexpr uint32_t expShift = 52;
     uint64_t bits = *reinterpret_cast<const uint64_t *>(&val);
     std::printf("[PTO][TCVT] %s: %.17g bits=0x%016lx sign=%lu exp=%lu(0x%lx) mantissa=0x%lx\n", name, val, bits,
-                (unsigned long)((bits >> 63) & 1), (unsigned long)((bits >> 52) & 0x7FF),
-                (unsigned long)((bits >> 52) & 0x7FF), (unsigned long)(bits & 0xFFFFFFFFFFFFF));
+                (unsigned long)((bits >> signShift) & 1), (unsigned long)((bits >> expShift) & 0x7FF),
+                (unsigned long)((bits >> expShift) & 0x7FF), (unsigned long)(bits & 0xFFFFFFFFFFFFF));
 }
 
 inline void PrintFloatBits(float val, const char *name)
 {
+    constexpr uint32_t signShift = 31;
+    constexpr uint32_t expShift = 23;
     uint32_t bits = *reinterpret_cast<const uint32_t *>(&val);
     std::printf("[PTO][TCVT] %s: %.9g bits=0x%08x sign=%u exp=%u(0x%x) mantissa=0x%x\n", name, val, bits,
-                (unsigned)((bits >> 31) & 1), (unsigned)((bits >> 23) & 0xFF), (unsigned)((bits >> 23) & 0xFF),
-                bits & 0x7FFFFF);
+                (unsigned)((bits >> signShift) & 1), (unsigned)((bits >> expShift) & 0xFF),
+                (unsigned)((bits >> expShift) & 0xFF), bits & 0x7FFFFF);
 }
 
 template <typename T>
@@ -63,9 +67,9 @@ inline double applyRoundingToIntegral(double v, RoundMode mode)
             const double f = std::floor(v);
             const double frac = v - f;
 
-            if (frac > CAST_ODD_THRESHHOLD)
+            if (frac > CAST_ODD_THRESHOLD)
                 return f + 1;
-            if (frac < CAST_ODD_THRESHHOLD)
+            if (frac < CAST_ODD_THRESHOLD)
                 return f;
 
             // tie (.5) → round to odd

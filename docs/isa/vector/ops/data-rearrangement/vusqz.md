@@ -21,14 +21,14 @@ vusqz %dst, %mask
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vusqz %mask : !pto.mask -> !pto.vreg<NxT>
+%result = pto.vusqz %mask : !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 ## Inputs
 
 | Operand | Type | Description |
 | --- | --- | --- |
-| %mask | `!pto.mask` | Predicate mask that selects the lanes that should receive front-packed elements |
+| %mask | `!pto.mask<G>` | Predicate mask that selects the lanes that should receive front-packed elements |
 
 ## Expected Outputs
 

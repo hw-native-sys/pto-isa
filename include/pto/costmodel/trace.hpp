@@ -189,7 +189,7 @@ inline void EndPtoInstr()
 inline constexpr std::size_t kInvalidCceCallIndex = static_cast<std::size_t>(-1);
 
 template <typename... Args>
-inline std::size_t AppendCceCall(std::string_view name, uint64_t cycles, Args &&... args)
+inline std::size_t AppendCceCall(std::string_view name, uint64_t cycles, Args &&...args)
 {
     auto &trace = g_trace_state;
     if (trace.active_pto_stack.empty()) {
@@ -211,13 +211,13 @@ inline std::size_t AppendCceCall(std::string_view name, uint64_t cycles, Args &&
 }
 
 template <typename... Args>
-inline void RecordCceCall(std::string_view name, uint64_t cycles, Args &&... args)
+inline void RecordCceCall(std::string_view name, uint64_t cycles, Args &&...args)
 {
     (void)AppendCceCall(name, cycles, std::forward<Args>(args)...);
 }
 
 template <typename... Args>
-inline void RecordCceCall(evaluator::PipeKey pipe, std::string_view name, uint64_t cycles, Args &&... args)
+inline void RecordCceCall(evaluator::PipeKey pipe, std::string_view name, uint64_t cycles, Args &&...args)
 {
     auto &trace = g_trace_state;
     const std::size_t call_index = AppendCceCall(name, cycles, std::forward<Args>(args)...);

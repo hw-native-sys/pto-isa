@@ -33,17 +33,15 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
-          int vCols, bool sameTile>
+          int vCols, bool highPrecision>
 void LaunchTDiv(T *out, T *src0, T *src1, void *stream);
 
 template <int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows, int vCols,
-          bool sameTile>
+          bool highPrecision>
 void LaunchTDivHalf(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1, void *stream);
 
 template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
-          int vCols, bool isHalf = false,
-          bool sameTile = (dstTileH == src0TileH && dstTileH == src1TileH && dstTileW == src0TileW &&
-                           dstTileW == src1TileW)>
+          int vCols, bool isHalf = false, bool highPrecision = false>
 void test_tdiv()
 {
     size_t fileSizeDst = dstTileH * dstTileW * sizeof(T);
@@ -74,10 +72,10 @@ void test_tdiv()
     aclrtMemcpy(src0Device, fileSizeSrc0, src0Host, fileSizeSrc0, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, fileSizeSrc1, src1Host, fileSizeSrc1, ACL_MEMCPY_HOST_TO_DEVICE);
     if constexpr (isHalf) {
-        LaunchTDivHalf<dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols, sameTile>(
+        LaunchTDivHalf<dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols, highPrecision>(
             dstDevice, src0Device, src1Device, stream);
     } else {
-        LaunchTDiv<T, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols, sameTile>(
+        LaunchTDiv<T, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols, highPrecision>(
             dstDevice, src0Device, src1Device, stream);
     }
 
@@ -97,12 +95,13 @@ void test_tdiv()
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<T> golden(fileSizeDst);
-    std::vector<T> devFinal(fileSizeDst);
+    std::vector<T> golden(dstTileH * dstTileW);
+    std::vector<T> devFinal(dstTileH * dstTileW);
     ReadFile(GetGoldenDir() + "/golden.bin", fileSizeDst, golden.data(), fileSizeDst);
     ReadFile(GetGoldenDir() + "/output.bin", fileSizeDst, devFinal.data(), fileSizeDst);
 
-    bool ret = ResultCmp<T>(golden, devFinal, 0.001f);
+    auto resPrecision = highPrecision ? 0.0000001f : 0.001f;
+    bool ret = ResultCmp<T>(golden, devFinal, resPrecision);
 
     EXPECT_TRUE(ret);
 }
@@ -154,4 +153,12 @@ TEST_F(TDIVTest, case_int16_32x128_32x128_32x256_32x127)
 TEST_F(TDIVTest, case_int32_16x32_16x64_16x32_16x31)
 {
     test_tdiv<int32_t, 16, 32, 16, 64, 16, 32, 16, 31>();
+}
+TEST_F(TDIVTest, case_float_hp_2x16_2x16_2x16_2x16)
+{
+    test_tdiv<float, 2, 16, 2, 16, 2, 16, 2, 16, false, true>();
+}
+TEST_F(TDIVTest, case_half_hp_2x32_2x32_2x32_2x32)
+{
+    test_tdiv<aclFloat16, 2, 32, 2, 32, 2, 32, 2, 32, true, true>();
 }

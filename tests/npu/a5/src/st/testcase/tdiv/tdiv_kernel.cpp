@@ -15,7 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
-          int vCols, bool highPrecision = false>
+          int vCols, bool highPrecision>
 __global__ AICORE void runTDIV(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in__ *src1)
 {
     using DynShape = pto::Shape<-1, -1, -1, -1, -1>;
@@ -60,7 +60,7 @@ template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, 
           int vCols, bool highPrecision>
 void LaunchTDiv(T *out, T *src0, T *src1, void *stream)
 {
-    runTDIV<T, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols>
+    runTDIV<T, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols, highPrecision>
         <<<1, nullptr, stream>>>(out, src0, src1);
 }
 
@@ -68,7 +68,7 @@ template <int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1Tile
           bool highPrecision>
 void LaunchTDivHalf(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1, void *stream)
 {
-    runTDIV<half, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols>
+    runTDIV<half, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols, highPrecision>
         <<<1, nullptr, stream>>>((half *)(out), (half *)(src0), (half *)(src1));
 }
 

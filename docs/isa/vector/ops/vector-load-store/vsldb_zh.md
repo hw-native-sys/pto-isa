@@ -21,7 +21,7 @@ vsldb %result, %source, %offset, %mask
 ### AS Level 1（SSA）
 
 ```mlir
-%result = pto.vsldb %source, %offset, %mask : !pto.ptr<T, ub>, i32, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vsldb %source, %offset, %mask : !pto.ptr<T, ub>, i32, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 ## 输入
@@ -58,7 +58,7 @@ vsldb %result, %source, %offset, %mask
 ## 示例
 
 ```mlir
-%result = pto.vsldb %source, %offset, %mask : !pto.ptr<T, ub>, i32, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vsldb %source, %offset, %mask : !pto.ptr<T, ub>, i32, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 ## 性能

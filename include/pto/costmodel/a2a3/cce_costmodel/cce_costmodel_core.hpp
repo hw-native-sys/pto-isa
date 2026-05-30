@@ -9,9 +9,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 #pragma once
 
-#include <cstddef>
-#include <cstdint>
-
 #include <pto/costmodel/arch_config.hpp>
 #include <pto/costmodel/trace.hpp>
 
@@ -48,7 +45,6 @@ enum QuantMode_t
 
 constexpr int DSB_UB = 0;
 constexpr int ONLY_VALUE = 0;
-constexpr int PIPE_FIX = 0;
 constexpr int VA0 = 0;
 constexpr int VA1 = 1;
 constexpr int VA2 = 2;
@@ -67,10 +63,6 @@ inline int sbitset1(int val, int bit)
     return val | (1 << bit);
 }
 
-inline int get_ctrl(...)
-{
-    return 0;
-}
 inline int get_vms4_sr(...)
 {
     return 0;
@@ -169,9 +161,12 @@ inline uint64_t ExtractBits(uint64_t value, uint32_t shift, uint64_t mask)
 }
 
 // Temporary common latency model for vconv_*; the detailed behavior is not fully understood yet.
-inline uint64_t _EstimateVconvCycles(uint64_t repeat)
+inline uint64_t EstimateVconvCycles(uint64_t repeat)
 {
-    return EstimateLinearCycles(repeat, 14, 2, 18);
+    constexpr uint64_t kConvHeadCycles = 14;
+    constexpr uint64_t kConvSlope = 2;
+    constexpr uint64_t kConvTailCycles = 18;
+    return EstimateLinearCycles(repeat, kConvHeadCycles, kConvSlope, kConvTailCycles);
 }
 
 inline void copy_cbuf_to_gm(...)

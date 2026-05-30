@@ -70,7 +70,7 @@ PTO_INST RecordEvent TMULS(TileDataDst &dst, TileDataSrc &src0, typename TileDat
 
 ### A2A3
 
-- `TileData::DType` 必须属于：`int32_t`、`int`、`int16_t`、`half`、`float16_t`、`float`、`float32_t`
+- `TileData::DType` 必须属于：`int32_t`、`int16_t`、`half`、`float`
 - tile 位置必须是向量 tile
 - 静态 valid 边界必须合法
 - 运行时要求：`src0.GetValidRow() == dst.GetValidRow()` 且 `src0.GetValidCol() == dst.GetValidCol()`
@@ -78,7 +78,7 @@ PTO_INST RecordEvent TMULS(TileDataDst &dst, TileDataSrc &src0, typename TileDat
 
 ### A5
 
-- `TileData::DType` 必须属于：`uint8_t`、`int8_t`、`uint16_t`、`int16_t`、`uint32_t`、`int32_t`、`half`、`float`、`bfloat16_t`
+- `TileData::DType` 必须属于：`uint16_t`、`int16_t`、`uint32_t`、`int32_t`、`half`、`float`、`bfloat16_t`
 - tile 位置必须是向量 tile
 - 静态 valid 边界必须合法
 - 运行时要求：`src0.GetValidCol() == dst.GetValidCol()`

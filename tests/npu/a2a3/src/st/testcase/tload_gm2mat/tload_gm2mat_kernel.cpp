@@ -281,6 +281,47 @@ AICORE inline void RunTLoad5HD(__gm__ T __out__ *out, __gm__ T __in__ *src)
     tf_copy_cbuf_to_gm<T, OutTileData>(out, outTile.data(), (uint8_t)0, 1, validRow, 0, 0);
 }
 
+template <typename T, int dstN, int dstD, int dstC1, int dstH, int dstW, int gWholeShape0, int gWholeShape1,
+          int gWholeShape2, int gWholeShape3, int gWholeShape4>
+AICORE inline void RunTLoad6HD(__gm__ T __out__ *out, __gm__ T __in__ *src)
+{
+    constexpr int dstC0 = 32 / sizeof(T);
+    constexpr int gStride[5] = {gWholeShape1 * gWholeShape2 * gWholeShape3 * gWholeShape4 * dstC0,
+                                gWholeShape2 * gWholeShape3 * gWholeShape4 * dstC0, gWholeShape3 * gWholeShape4 * dstC0,
+                                gWholeShape4 * dstC0, dstC0};
+    constexpr int blockSize = 32 / sizeof(T);
+    // for auto mode, bufferSize is a misleading variable name in convTile, it shouldn't be number of bytes it should be
+    // the number of elements
+    constexpr int bufferSize = dstN * dstD * dstC1 * dstH * dstW * dstC0; // * sizeof(T);
+    constexpr int validRow = dstN * dstD * dstC1 * dstH * dstW;
+    constexpr int validCol = dstC0;
+    constexpr int Rows = dstN * dstD * dstC1 * dstH * dstW;
+    constexpr int Cols = (dstC0 + blockSize - 1) / blockSize * blockSize;
+
+    using ShapeDim5 = pto::Shape<dstN, dstD, dstC1, dstH, dstW>;
+    using StridDim5 = pto::Stride<gStride[0], gStride[1], gStride[2], gStride[3], gStride[4]>;
+    using GlobalDataIn = GlobalTensor<T, ShapeDim5, StridDim5, Layout::NDC1HWC0>;
+    using TileData = ConvTile<TileType::Mat, T, bufferSize, Layout::NDC1HWC0,
+                              pto::ConvTileShape<dstN, dstD, dstC1, dstH, dstW, dstC0>>;
+
+    TileData srcTile;
+    static_assert(srcTile.totalDimCount == 6);
+    TASSIGN(srcTile, 0x0);
+
+    GlobalDataIn srcGlobal(src);
+    TLOAD(srcTile, srcGlobal);
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+#endif
+
+    using OutTileData = Tile<TileType::Mat, T, Rows, Cols, BLayout::RowMajor, validRow, validCol>;
+    OutTileData outTile;
+    TASSIGN(outTile, 0x0);
+    // __cbuf__ typename TileData::DType *srcAddr = (__cbuf__ typename TileData::DType *)outTile.data();
+    tf_copy_cbuf_to_gm<T, OutTileData>(out, outTile.data(), (uint8_t)0, 1, validRow, 0, 0);
+}
+
 // C1HWNC0
 template <typename T, int dstC1, int dstH, int dstW, int dstN, int dstC0, int gWholeShape0, int gWholeShape1,
           int gWholeShape2, int gWholeShape3, int gWholeShape4>
@@ -390,6 +431,9 @@ __global__ AICORE void TLoadKernel(__gm__ T *out, __gm__ T *src)
     } else if constexpr (format == 7) { // format = 7: FRACTALZ4D2FRACTALZ4D
         RunTLoadFractalZ4D<T, gShape0, gShape1, gShape2, gShape3, gShape4, gWholeShape0, gWholeShape1, gWholeShape2,
                            gWholeShape3, gWholeShape4>(out, src);
+    } else if constexpr (format == 8) { // format = 8: NDC1HWC02NDC1HWC0
+        RunTLoad6HD<T, gShape0, gShape1, gShape2, gShape3, gShape4, gWholeShape0, gWholeShape1, gWholeShape2,
+                    gWholeShape3, gWholeShape4>(out, src);
     }
 }
 
@@ -472,3 +516,12 @@ template void LaunchTLoad<7, uint16_t, 1, 81, 3, 16, 16, 1, 90, 3, 16, 16>(uint1
 template void LaunchTLoad<7, int8_t, 1, 63, 3, 16, 32, 1, 63, 9, 16, 32>(int8_t *out, int8_t *src, void *stream);
 template void LaunchTLoad<7, int8_t, 1, 125, 3, 16, 32, 1, 250, 5, 16, 32>(int8_t *out, int8_t *src, void *stream);
 template void LaunchTLoad<7, float, 1, 256, 3, 16, 8, 1, 4704, 7, 16, 8>(float *out, float *src, void *stream);
+template void LaunchTLoad<8, int8_t, 1, 2, 3, 16, 128, 2, 3, 4, 1024, 1024>(int8_t *out, int8_t *src, void *stream);
+template void LaunchTLoad<8, int8_t, 1, 3, 4, 128, 8, 2, 3, 4, 128, 128>(int8_t *out, int8_t *src, void *stream);
+template void LaunchTLoad<8, int8_t, 1, 3, 4, 8, 128, 2, 3, 8, 8, 128>(int8_t *out, int8_t *src, void *stream);
+template void LaunchTLoad<8, uint16_t, 1, 1, 16, 10, 100, 2, 1, 16, 100, 100>(uint16_t *out, uint16_t *src,
+                                                                              void *stream);
+template void LaunchTLoad<8, uint16_t, 1, 1, 10, 16, 2, 2, 2, 256, 16, 100>(uint16_t *out, uint16_t *src, void *stream);
+template void LaunchTLoad<8, uint16_t, 1, 1, 1, 1, 8192, 2, 8, 16, 16, 8192>(uint16_t *out, uint16_t *src,
+                                                                             void *stream);
+template void LaunchTLoad<8, float, 1, 1, 1, 112, 112, 2, 2, 3, 224, 224>(float *out, float *src, void *stream);

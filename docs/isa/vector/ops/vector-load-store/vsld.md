@@ -82,5 +82,5 @@ If software scheduling or performance modeling depends on the exact cost of `pto
 ## Related Ops / Instruction Set Links
 
 - Instruction set overview: [Vector Load Store](../../vector-load-store.md)
-- Previous op in instruction set: [pto.vldx2](./vldx2.md)
+- Previous op in instruction set: [pto.vldsx2](./vldsx2.md)
 - Next op in instruction set: [pto.vsldb](./vsldb.md)

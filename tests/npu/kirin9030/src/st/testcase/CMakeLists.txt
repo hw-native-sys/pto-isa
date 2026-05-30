@@ -133,39 +133,135 @@ endfunction()
 
 # 定义测试用例列表 testcase下如有新增用例目录需要在此加
 set(ALL_TESTCASES
+    tsubs
+    tmaxs
+    tci
     tmatmul
+    # tload_mix
+    # tload_shape2d
     tload
     tmrgsort
     ttrans
+    # ttrans_conv
     tstore
     textract
+    textract_compact
     trowsum
+    trowprod
+    trowmax
+    trowargmax
+    trowmin
+    trowargmin
     tcolsum
+    tcolprod
+    tcolmax
+    tcolargmax
+    tcolmin
+    tcolargmin
     tsort32
     trowexpand
+    trowexpandadd
+    trowexpanddiv
+    trowexpandmax
+    trowexpandmin
+    trowexpandmul
+    trowexpandsub
+    trowexpandexpdif
     tgather
-    tfillpad
     tcvt
     tsub
+    trem
+    tfmod
+    tprelu
+    tand
+    tor
+    tands
+    tors
+    txor
+    txors
+    tshl
+    tshls
+    tshr
+    tshrs
     tadd
     tpartadd
-    tmov
-    tdivs
-    trsqrt
-    tadds
+    tpartmul
+    tfillpad
+    tmin
     tmax
-    tpartmax
-    tpartmin
-    trowmax
+    tmins
+    tmov
     tmul
-    tmov_acc2mat
-    tci
+    tlrelu
     tdiv
-    texp
-    tmov_ub2l1
-    tmov_vect
-    tmuls
+    tcmps
+    # tmov_acc2vec
     tsel
+    tsels
+    trsqrt
+    tsqrt
+    texp
+    tabs
+    tlog
+    trecip
+    # tstore_acc2gm
+    tdivs
+    tmuls
+    tadds
+    taxpy
+    tgatherb
+    tpartmin
+    tpartmax
+    tpartargmin
+    tpartargmax
+    tmov_vect
+    texpands
+    tmov_acc2mat
+    # timg2col
+    tassign
+    tmov_ub2l1
+    tcmp
+    tadd_tdiv
+    tmul_tadds
+    tsub_texp
+    tmuls_trowsum
+    trowexpand_tsqrt
+    trowexpand_trowsum
+    trowsum_trowexpand
+    trowexpand_tdiv
+    trems
+    tfmods
+    tscatter
+    tneg
+    tcolexpandadd
+    tcolexpandmax
+    tcolexpandmin
+    tcolexpanddiv
+    tcolexpandmul
+    tcolexpandsub
+    tcolexpandexpdif
+    trowexpandbrcb
+    ttri
+    tcolexpand
+    tnot
+    trelu
+    tquant
+    tdequant
+    # t_dhrystone
+    tpow
+    tpows
+    tconcatdstidx
+    tconcatidx
+    tconcat
+    thistogram
+    # tinsert
+    # tinsert_acc2vec
+    textract_nd_vec
+    textract_vec
+    # tmov_zz
+    # tmov_nd2nz
+    # textract_acc2vec
+    texpands_mat
 )
 
 if((TEST_CASE IN_LIST ALL_TESTCASES) OR (TEST_CASE STREQUAL "all"))

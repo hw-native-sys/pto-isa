@@ -297,6 +297,36 @@ TEST_F(TINSERTTest, case_int8_t_int32_t_Vec_Vec_128_64_8_16_DST_8_16_L_0_0)
     tinsert_test<int8_t, int32_t, TileType::Vec, TileType::Vec, 128, 64, 8, 16, 128, 64, 0, 0>();
 }
 
+TEST_F(TINSERTTest, case_half_float_Vec_Vec_32_32_8_16_DST_8_16_L_0_3)
+{
+    tinsert_test<half, float, TileType::Vec, TileType::Vec, 32, 32, 8, 16, 32, 32, 0, 3>();
+}
+
+TEST_F(TINSERTTest, case_float_float_Vec_Vec_128_96_8_16_DST_8_16_L_0_4)
+{
+    tinsert_test<float, float, TileType::Vec, TileType::Vec, 128, 96, 8, 16, 128, 96, 0, 4>();
+}
+
+TEST_F(TINSERTTest, case_int32_t_float_Vec_Vec_128_96_8_16_DST_8_16_L_0_5)
+{
+    tinsert_test<int32_t, float, TileType::Vec, TileType::Vec, 128, 96, 8, 16, 128, 96, 0, 5>();
+}
+
+TEST_F(TINSERTTest, case_half_float_Vec_Vec_32_32_8_16_DST_8_16_L_3_1)
+{
+    tinsert_test<half, float, TileType::Vec, TileType::Vec, 32, 32, 8, 16, 32, 32, 3, 1>();
+}
+
+TEST_F(TINSERTTest, case_float_float_Vec_Vec_128_96_8_16_DST_8_16_L_4_1)
+{
+    tinsert_test<float, float, TileType::Vec, TileType::Vec, 128, 96, 8, 16, 128, 96, 4, 1>();
+}
+
+TEST_F(TINSERTTest, case_int32_t_float_Vec_Vec_128_96_8_16_DST_8_16_L_5_1)
+{
+    tinsert_test<int32_t, float, TileType::Vec, TileType::Vec, 128, 96, 8, 16, 128, 96, 5, 1>();
+}
+
 TEST_F(TINSERTTest, FpVariantInsertsSourceTile)
 {
     using DstTile = Tile<TileType::Vec, float, 4, 8>;

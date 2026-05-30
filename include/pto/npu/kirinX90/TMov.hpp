@@ -1,5 +1,5 @@
 /**
-Copyright (c) 2025 Huawei Technologies Co., Ltd.
+Copyright (c) 2026 Huawei Technologies Co., Ltd.
 This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 CANN Open Software License Agreement Version 2.0 (the "License").
 Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -11,8 +11,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef TMOV_HPP
 #define TMOV_HPP
 
-#include "pto/npu/a2a3/TExtract.hpp"
-#include "pto/npu/a2a3/TCopy.hpp"
+#include "pto/npu/kirinX90/TExtract.hpp"
 
 namespace pto {
 template <typename DstTileData, typename SrcTileData>
@@ -64,19 +63,147 @@ __tf__ AICORE void TMovToFb(typename DstTileData::TileDType __out__ dst, typenam
     copy_cbuf_to_fbuf(dstAddrP, srcAddrP, (uint16_t)1, burstLen, (uint16_t)0, (uint16_t)0);
 }
 
+template <typename DstTileData, typename SrcTileData, unsigned blockSizeElem, unsigned srcStride, unsigned dstStride>
+__tf__ PTO_INTERNAL void TMovToVecImpl(typename DstTileData::TileDType __out__ dst,
+                                       typename SrcTileData::TileDType __in__ src, uint64_t validRow, uint64_t validCol)
+{
+    using T = typename SrcTileData::DType;
+    using U = typename DstTileData::DType;
+    __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src);
+    __ubuf__ U *dstPtr = (__ubuf__ U *)__cce_get_tile_ptr(dst);
+
+    static_assert(sizeof(T) == sizeof(U), "TMOV: src and dst data type is different!");
+    if constexpr (DstTileData::Cols == SrcTileData::Cols || DstTileData::Rows == 1) {
+        unsigned blockLen = (DstTileData::Cols * validRow * sizeof(T) + BLOCK_BYTE_SIZE - 1) / BLOCK_BYTE_SIZE;
+        if constexpr (DstTileData::Cols == DstTileData::ValidCol) {
+            pto_copy_ubuf_to_ubuf(dstPtr, srcPtr, 1, blockLen, 0, 0);
+        } else {
+            if (DstTileData::Cols == validCol) {
+                pto_copy_ubuf_to_ubuf(dstPtr, srcPtr, 1, blockLen, 0, 0);
+            } else {
+                blockLen = (validCol * sizeof(T) + BLOCK_BYTE_SIZE - 1) / BLOCK_BYTE_SIZE;
+                for (int i = 0; i < validRow; i++) {
+                    pto_copy_ubuf_to_ubuf(dstPtr + i * dstStride, srcPtr + i * srcStride, 1, blockLen, 0, 0);
+                }
+            }
+        }
+    } else {
+        unsigned blockLen = CeilDivision(validCol * sizeof(T), BLOCK_BYTE_SIZE);
+        unsigned srcGap = SrcTileData::Cols * sizeof(T) / BLOCK_BYTE_SIZE - blockLen;
+        unsigned dstGap = DstTileData::Cols * sizeof(T) / BLOCK_BYTE_SIZE - blockLen;
+        for (int i = 0; i < validRow; i++) {
+            pto_copy_ubuf_to_ubuf(dstPtr + i * dstStride, srcPtr + i * srcStride, 1, blockLen, srcGap, dstGap);
+        }
+    }
+}
+
 template <typename DstTileData, typename SrcTileData>
 AICORE void TMovToVec(DstTileData &dst, SrcTileData &src)
 {
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename SrcTileData::DType);
-    constexpr unsigned srcStride = SrcTileData::RowStride;
-    constexpr unsigned dstStride = DstTileData::RowStride;
     uint64_t validSrcRow = src.GetValidRow();
     uint64_t validSrcCol = src.GetValidCol();
     uint64_t validDstRow = dst.GetValidRow();
     uint64_t validDstCol = dst.GetValidCol();
     uint64_t validRow = (validSrcRow < validDstRow) ? validSrcRow : validDstRow;
     uint64_t validCol = (validSrcCol < validDstCol) ? validSrcCol : validDstCol;
-    TCopy<DstTileData, SrcTileData, blockSizeElem, srcStride, dstStride>(dst.data(), src.data(), validRow, validCol);
+    TMovToVecImpl<DstTileData, SrcTileData, blockSizeElem, SrcTileData::RowStride, DstTileData::RowStride>(
+        dst.data(), src.data(), validRow, validCol);
+}
+
+template <typename T, typename DstTile, typename SrcTile>
+__tf__ PTO_INTERNAL void TMovToVecNd2Nz(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src,
+                                        uint32_t validRow, uint32_t validCol, uint32_t srcValidRow,
+                                        unsigned version = VFImplKind::VFIMPL_DEFAULT)
+{
+    static_assert((std::is_same<T, half>::value) || (std::is_same<T, float>::value) ||
+                      (std::is_same<T, int32_t>::value) || (std::is_same<T, int8_t>::value),
+                  "Dst and src must be float/int32_t/half/int8_t/.");
+
+    using U = std::conditional_t<sizeof(T) == 1, uint8_t, T>;
+    __ubuf__ U *dstPtr = (__ubuf__ U *)__cce_get_tile_ptr(dst);
+    __ubuf__ U *srcPtr = (__ubuf__ U *)__cce_get_tile_ptr(src);
+    constexpr int32_t srcRow = SrcTile::Rows;
+    constexpr int32_t srcCol = SrcTile::Cols;
+    constexpr int32_t srcByteSize = srcRow * srcCol * sizeof(U);
+    constexpr int32_t dstByteSize = DstTile::Rows * DstTile::Cols * sizeof(U);
+
+    constexpr uint32_t elementsPerRepeat = REPEAT_BYTE / sizeof(U);
+    uint16_t repeatTimes = CeilDivision(validCol, elementsPerRepeat);
+    constexpr bool isOptForConflict = DstTile::Compact == CompactMode::RowPlusOne;
+    uint32_t alignRow = (srcRow + FRACTAL_NZ_ROW - 1) / FRACTAL_NZ_ROW * FRACTAL_NZ_ROW;
+    uint32_t blockStride = isOptForConflict ? ((alignRow + 1) * C0_SIZE_BYTE) / BLOCK_BYTE_SIZE :
+                                              (alignRow * C0_SIZE_BYTE) / BLOCK_BYTE_SIZE;
+    uint32_t virtualRow = isOptForConflict ? alignRow + 1 : alignRow;
+    uint32_t repeatStride = 1;
+    uint16_t innerLoopNum = validRow - 1;
+    uint32_t cfgVsstb = (blockStride << 16u) | (1 & 0xFFFFU);
+    uint32_t repeatStrideLast = (REPEAT_BYTE * virtualRow - innerLoopNum * BLOCK_BYTE_SIZE) / BLOCK_BYTE_SIZE;
+    uint32_t cfgVsstbLast = (blockStride << 16u) | (repeatStrideLast & 0xFFFFU);
+    uint32_t srcOffset = innerLoopNum * SrcTile::RowStride;
+    __VEC_SCOPE__
+    {
+        RegTensor<U> vreg;
+        MaskReg preg;
+        uint32_t cols = validCol;
+        for (uint16_t j = 0; j < repeatTimes; ++j) {
+            preg = CreatePredicate<U>(cols);
+            for (uint16_t i = 0; i < innerLoopNum; ++i) {
+                vlds(vreg, srcPtr, SrcTile::RowStride, NORM, POST_UPDATE);
+                vsstb(vreg, dstPtr, cfgVsstb, preg, POST_UPDATE);
+            }
+            vlds(vreg, srcPtr, elementsPerRepeat, NORM, POST_UPDATE);
+            vsstb(vreg, dstPtr, cfgVsstbLast, preg, POST_UPDATE);
+            srcPtr -= srcOffset;
+        }
+    } // end of VF
+}
+
+template <typename T, typename DstTile, typename SrcTile>
+__tf__ PTO_INTERNAL void TMovToVecNd2Zz(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src,
+                                        uint32_t validRow, uint32_t validCol, uint32_t srcValidRow,
+                                        unsigned version = VFImplKind::VFIMPL_DEFAULT)
+{
+    static_assert((std::is_same<T, half>::value) || (std::is_same<T, float>::value) ||
+                      (std::is_same<T, int32_t>::value) || (std::is_same<T, int8_t>::value),
+                  "Dst and src must be float/int32_t/half/int8_t/.");
+
+    using U = std::conditional_t<sizeof(T) == 1, uint8_t, T>;
+    __ubuf__ U *dstPtr = (__ubuf__ U *)__cce_get_tile_ptr(dst);
+    __ubuf__ U *srcPtr = (__ubuf__ U *)__cce_get_tile_ptr(src);
+    constexpr int32_t srcRow = SrcTile::Rows;
+    constexpr int32_t srcCol = SrcTile::Cols;
+    constexpr int32_t srcByteSize = srcRow * srcCol * sizeof(U);
+    constexpr int32_t dstByteSize = DstTile::Rows * DstTile::Cols * sizeof(U);
+
+    constexpr uint32_t elementsPerRepeat = REPEAT_BYTE / sizeof(U);
+    uint16_t repeatTimesCols = CeilDivision(validCol, elementsPerRepeat);
+    uint32_t alignRow = (srcRow + FRACTAL_NZ_ROW - 1) / FRACTAL_NZ_ROW * FRACTAL_NZ_ROW;
+    uint32_t blockStride = (alignRow * C0_SIZE_BYTE) / BLOCK_BYTE_SIZE;
+    uint32_t repeatStride = 1;
+    uint32_t cfgVsstb = (blockStride << 16u) | (1 & 0xFFFFU);
+    uint16_t repeatTimesRows = alignRow / FRACTAL_NZ_ROW;
+
+    __VEC_SCOPE__
+    {
+        RegTensor<U> vreg;
+        MaskReg preg;
+        uint32_t rows;
+        uint16_t innerLoopNum;
+        for (uint16_t i = 0; i < repeatTimesRows; ++i) {
+            uint32_t cols = validCol;
+            preg = CreatePredicate<U>(cols);
+            rows = validRow;
+            for (uint16_t j = 0; j < repeatTimesCols; ++j) {
+                innerLoopNum = rows % FRACTAL_ZZ_ROW;
+                rows -= FRACTAL_ZZ_ROW;
+                for (uint16_t k = 0; k < innerLoopNum; ++k) {
+                    vlds(vreg, srcPtr, (i * FRACTAL_ZZ_ROW) + k * SrcTile::RowStride + j * elementsPerRepeat, NORM);
+                    vsstb(vreg, dstPtr, cfgVsstb, preg, POST_UPDATE);
+                }
+            }
+        }
+    } // end of VF
 }
 
 template <typename DstTileData, typename SrcTileData, QuantMode_t QuantPre, ReluPreMode reluMode>
@@ -154,6 +281,7 @@ PTO_INTERNAL void TMOV_TILE_IMPL(DstTileData &dst, SrcTileData &src)
                    (DstTileData::Loc == TileType::Left || DstTileData::Loc == TileType::Right ||
                     DstTileData::Loc == TileType::Bias || DstTileData::Loc == TileType::Scaling)) ||
                       (DstTileData::Loc == TileType::Vec && SrcTileData::Loc == TileType::Vec) ||
+                      (DstTileData::Loc == TileType::Mat && SrcTileData::Loc == TileType::Vec) ||
                       (DstTileData::Loc == TileType::Mat && SrcTileData::Loc == TileType::Acc),
                   "TMov: Invalid TileType.");
     if constexpr (SrcTileData::Loc == TileType::Mat && DstTileData::Loc == TileType::Left) {
@@ -165,7 +293,30 @@ PTO_INTERNAL void TMOV_TILE_IMPL(DstTileData &dst, SrcTileData &src)
     } else if constexpr (SrcTileData::Loc == TileType::Mat && DstTileData::Loc == TileType::Scaling) {
         TMovToFb<DstTileData, SrcTileData>(dst.data(), src.data());
     } else if constexpr (SrcTileData::Loc == TileType::Vec && DstTileData::Loc == TileType::Vec) {
-        TMovToVec<DstTileData, SrcTileData>(dst, src);
+        if constexpr ((SrcTileData::isRowMajor && (SrcTileData::SFractal == SLayout::NoneBox)) &&
+                      (!DstTileData::isRowMajor && (DstTileData::SFractal == SLayout::RowMajor))) {
+            TMovToVecNd2Nz<typename DstTileData::DType, DstTileData, SrcTileData>(
+                dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(), src.GetValidRow());
+        } else if constexpr ((SrcTileData::isRowMajor && SrcTileData::SFractal == SLayout::NoneBox) &&
+                             (DstTileData::isRowMajor && DstTileData::SFractal == SLayout::RowMajor)) {
+            TMovToVecNd2Zz<typename DstTileData::DType, DstTileData, SrcTileData>(
+                dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(), src.GetValidRow());
+        } else {
+            TMovToVec<DstTileData, SrcTileData>(dst, src);
+        }
+    } else if constexpr (SrcTileData::Loc == TileType::Vec && DstTileData::Loc == TileType::Mat) {
+        if constexpr ((SrcTileData::isRowMajor && SrcTileData::SFractal == SLayout::NoneBox) &&
+                      (DstTileData::isRowMajor && DstTileData::SFractal == SLayout::NoneBox)) {
+            TExtractVecToMat<DstTileData, SrcTileData>(dst.data(), src.data(), 0, 0, src.GetValidRow(),
+                                                       src.GetValidCol(), dst.GetValidRow(), dst.GetValidCol());
+        } else if constexpr ((SrcTileData::isRowMajor && SrcTileData::SFractal == SLayout::RowMajor) &&
+                             (DstTileData::isRowMajor && DstTileData::SFractal == SLayout::RowMajor)) {
+            TExtractVecToMat<DstTileData, SrcTileData>(dst.data(), src.data(), 0, 0, src.GetValidRow(),
+                                                       src.GetValidCol(), dst.GetValidRow(), dst.GetValidCol());
+        } else {
+            static_assert(sizeof(typename DstTileData::DType) == 0,
+                          "TMov Vec->Mat: Only support ND->ND or ZZ->ZZ on kirinX90.");
+        }
     } else if constexpr (SrcTileData::Loc == TileType::Acc && DstTileData::Loc == TileType::Mat) {
         CheckTMovAccToMat<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, true>();
         uint16_t m = src.GetValidRow();

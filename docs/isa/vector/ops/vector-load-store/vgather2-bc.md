@@ -21,7 +21,7 @@ vgather2_bc %result, %source, %offsets, %mask
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vgather2_bc %source, %offsets, %mask : !pto.ptr<T, ub>, !pto.vreg<NxI>, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vgather2_bc %source, %offsets, %mask : !pto.ptr<T, ub>, !pto.vreg<NxI>, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 ## Inputs
@@ -74,7 +74,7 @@ If software scheduling or performance modeling depends on the exact cost of `pto
 ## Examples
 
 ```mlir
-%result = pto.vgather2_bc %source, %offsets, %mask : !pto.ptr<T, ub>, !pto.vreg<NxI>, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vgather2_bc %source, %offsets, %mask : !pto.ptr<T, ub>, !pto.vreg<NxI>, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 ## Related Ops / Instruction Set Links

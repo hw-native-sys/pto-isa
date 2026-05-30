@@ -24,19 +24,19 @@ For each lane `i` where the predicate is false (inactive lanes):
 ### PTO Assembly Form
 
 ```mlir
-%result = pto.vadd %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask) -> !pto.vreg<NxT>
+%result = pto.vadd %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>) -> !pto.vreg<NxT>
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vadd %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask) -> !pto.vreg<NxT>
+%result = pto.vadd %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>) -> !pto.vreg<NxT>
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.vadd ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask)
+pto.vadd ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>)
           outs(%result : !pto.vreg<NxT>)
 ```
 
@@ -56,7 +56,7 @@ vadd(dst, src0, src1, mask);
 |---------|------|-------------|
 | `%lhs` | `!pto.vreg<NxT>` | Left-hand source vector register |
 | `%rhs` | `!pto.vreg<NxT>` | Right-hand source vector register |
-| `%mask` | `!pto.mask` | Predicate mask; lanes where mask bit is 1 are active |
+| `%mask` | `!pto.mask<G>` | Predicate mask; lanes where mask bit is 1 are active |
 
 All three registers must have the same element type and same vector width `N`. The mask width must match `N`.
 
@@ -144,7 +144,7 @@ VADD(vdst, va, vb, mask);
 
 ```mlir
 // Only lanes where %cond is true participate in addition
-%result = pto.vadd %va, %vb, %cond : (!pto.vreg<128xf16>, !pto.vreg<128xf16>, !pto.mask) -> !pto.vreg<128xf16>
+%result = pto.vadd %va, %vb, %cond : (!pto.vreg<128xf16>, !pto.vreg<128xf16>, !pto.mask<b16>) -> !pto.vreg<128xf16>
 ```
 
 ### Complete vector-load / compute / vector-store pipeline

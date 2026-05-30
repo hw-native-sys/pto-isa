@@ -52,6 +52,10 @@ AICORE inline uint16_t _getFFTSMsg(CVSyncMode mode, uint16_t flag_id, uint16_t b
 template <int CV_COMM_SLOT_BYTES = kCvCommSlotBytes, int CV_MAX_CORES = kCvMaxCores>
 AICORE inline int TSYNC_CVID(int block_idx, __gm__ uint8_t *cv_comm_buf)
 {
+#ifdef __CPU_SIM
+    (void)cv_comm_buf;
+    return block_idx;
+#else
     int comm_slot = block_idx;
 #ifdef __DAV_CUBE__
     PTO_ASSERT(cv_comm_buf != nullptr, "cv_comm_buf must be non-null when CV comm is enabled on cube cores");
@@ -81,6 +85,7 @@ AICORE inline int TSYNC_CVID(int block_idx, __gm__ uint8_t *cv_comm_buf)
 #endif
 #endif
     return comm_slot;
+#endif
 }
 } // namespace pto
 

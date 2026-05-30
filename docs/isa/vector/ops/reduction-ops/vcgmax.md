@@ -21,7 +21,7 @@ vcgmax %dst, %src, %mask : !pto.vreg<NxT>
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vcgmax %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vcgmax %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 ## Inputs
@@ -29,7 +29,7 @@ vcgmax %dst, %src, %mask : !pto.vreg<NxT>
 | Operand | Type | Description |
 | --- | --- | --- |
 | %input | `!pto.vreg<NxT>` | Source vector register to reduce per VLane group |
-| %mask | `!pto.mask` | Predicate mask; inactive lanes do not participate |
+| %mask | `!pto.mask<G>` | Predicate mask; inactive lanes do not participate |
 
 ## Expected Outputs
 
@@ -71,7 +71,7 @@ for (int g = 0; g < GROUPS; g++) {
 ```
 
 ```mlir
-%result = pto.vcgmax %input, %mask : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+%result = pto.vcgmax %input, %mask : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 ```
 
 ## Related Ops / Instruction Set Links

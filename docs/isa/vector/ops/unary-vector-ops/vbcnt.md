@@ -21,7 +21,7 @@ vbcnt %result, %input, %mask
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vbcnt %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vbcnt %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 Documented A5 types or forms: `all integer types`.
@@ -31,7 +31,7 @@ Documented A5 types or forms: `all integer types`.
 | Operand | Type | Description |
 |---------|------|-------------|
 | `%input` | `!pto.vreg<NxT>` | Source vector register; read at each active lane `i` |
-| `%mask` | `!pto.mask` | Predicate mask; lanes where mask bit is 1 (true) are active |
+| `%mask` | `!pto.mask<G>` | Predicate mask; lanes where mask bit is 1 (true) are active |
 
 ## Expected Outputs
 

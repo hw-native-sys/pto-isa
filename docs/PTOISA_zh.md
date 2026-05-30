@@ -19,6 +19,7 @@
 | 分类 | 指令 | 描述 |
 | --- | --- | --- |
 | 同步 | [`TSYNC`](isa/tile/ops/sync-and-config/tsync_zh.md) | 同步 PTO 执行（等待事件或插入每操作流水线屏障）。 |
+| 同步 | [`SYNCALL`](isa/tile/ops/sync-and-config/syncall_zh.md) | 面向 A2/A3 与 A5 后端的跨核同步屏障。 |
 | 手动 / 资源绑定 | [`TASSIGN`](isa/tile/ops/sync-and-config/tassign_zh.md) | 将 Tile 对象绑定到实现定义的片上地址（手动放置）。 |
 | 手动 / 资源绑定 | [`pto.setfmatrix`](isa/tile/ops/sync-and-config/setfmatrix.md) | 为类 IMG2COL 操作设置 FMATRIX 寄存器。 |
 | 手动 / 资源绑定 | [`pto.set_img2col_rpt`](isa/tile/ops/sync-and-config/set-img2col-rpt.md) | 从 IMG2COL 配置 Tile 设置 IMG2COL 重复次数元数据。 |
@@ -79,8 +80,8 @@
 | 轴归约 / 扩展 | [`TROWMIN`](isa/tile/ops/reduce-and-expand/trowmin_zh.md) | 通过取列间最小值来归约每一行。 |
 | 轴归约 / 扩展 | [`TROWARGMAX`](isa/tile/ops/reduce-and-expand/trowargmax_zh.md) | 获取每行最大值对应列索引。 |
 | 轴归约 / 扩展 | [`TROWARGMIN`](isa/tile/ops/reduce-and-expand/trowargmin_zh.md) | 获取每行最小值对应列索引。 |
-| 轴归约 / 扩展 | [`TCOLARGMAX`](isa/tile/ops/reduce-and-expand/tcolargmax_zh.md) | 获取每列最大值对应行索引。 |
-| 轴归约 / 扩展 | [`TCOLARGMIN`](isa/tile/ops/reduce-and-expand/tcolargmin_zh.md) | 获取每列最小值对应行索引。 |
+| 轴归约 / 扩展 | [`TCOLARGMAX`](isa/tile/ops/reduce-and-expand/tcolargmax_zh.md) | 获取每列最大值对应行索引，或同步输出最大值及其行索引。 |
+| 轴归约 / 扩展 | [`TCOLARGMIN`](isa/tile/ops/reduce-and-expand/tcolargmin_zh.md) | 获取每列最小值对应行索引，或同步输出最小值及其行索引。 |
 | 轴归约 / 扩展 | [`TROWEXPAND`](isa/tile/ops/reduce-and-expand/trowexpand_zh.md) | 将每个源行的第一个元素广播到目标行中。 |
 | 轴归约 / 扩展 | [`TROWEXPANDDIV`](isa/tile/ops/reduce-and-expand/trowexpanddiv_zh.md) | 行广播除法：将 `src0` 的每一行除以一个每行标量向量 `src1`。 |
 | 轴归约 / 扩展 | [`TROWEXPANDMUL`](isa/tile/ops/reduce-and-expand/trowexpandmul_zh.md) | 行广播乘法：将 `src0` 的每一行乘以一个每行标量向量 `src1`。 |
@@ -100,6 +101,7 @@
 | 轴归约 / 扩展 | [`TCOLEXPANDEXPDIF`](isa/tile/ops/reduce-and-expand/tcolexpandexpdif_zh.md) | 列指数差运算：计算 exp(src0 - src1)，其中 src1 为每列标量。 |
 | 内存（GM <-> Tile） | [`TLOAD`](isa/tile/ops/memory-and-data-movement/tload_zh.md) | 从 GlobalTensor (GM) 加载数据到 Tile。 |
 | 内存（GM <-> Tile） | [`TPREFETCH`](isa/tile/ops/memory-and-data-movement/tprefetch_zh.md) | 将数据从全局内存预取到 Tile 本地缓存/缓冲区（提示）。 |
+| 内存（GM <-> Tile） | [`TPREFETCH_ASYNC`](isa/tile/ops/memory-and-data-movement/tprefetch-async_zh.md) | 通过 SDMA CMO 将 GlobalTensor 区域从 GM 异步预取到 L2 Cache。 |
 | 内存（GM <-> Tile） | [`TSTORE`](isa/tile/ops/memory-and-data-movement/tstore_zh.md) | 将 Tile 中的数据存储到 GlobalTensor (GM)，可选使用原子写入或量化参数。 |
 | 内存（GM <-> Tile） | [`TSTORE_FP`](isa/tile/ops/memory-and-data-movement/tstore_zh.md) | 使用缩放 (`fp`) Tile 作为向量量化参数，将累加器 Tile 存储到全局内存。 |
 | 内存（GM <-> Tile） | [`MGATHER`](isa/tile/ops/memory-and-data-movement/mgather_zh.md) | 使用逐元素索引从全局内存收集加载元素到 Tile 中。 |
@@ -124,6 +126,7 @@
 | 数据搬运 / 布局 | [`TMOV_FP`](isa/tile/ops/layout-and-rearrangement/tmov_zh.md) | 使用缩放 (`fp`) Tile 作为向量量化参数，将累加器 Tile 移动/转换到目标 Tile。 |
 | 数据搬运 / 布局 | [`TRESHAPE`](isa/tile/ops/layout-and-rearrangement/treshape_zh.md) | 将 Tile 重新解释为另一种 Tile 类型/形状，同时保留底层字节。 |
 | 数据搬运 / 布局 | [`TTRANS`](isa/tile/ops/layout-and-rearrangement/ttrans_zh.md) | 使用实现定义的临时 Tile 进行转置。 |
+| 数据搬运 / 布局 | [`TCONCAT`](isa/tile/ops/layout-and-rearrangement/tconcat_zh.md) | 将两个 Tile 沿列维度水平拼接。 |
 | 数据搬运 / 布局 | [`TSUBVIEW`](isa/tile/sync-and-config_zh.md) | 表达一个tile是另一个tile的subview |
 | 数据搬运 / 布局 | [`TGET_SCALE_ADDR`](isa/tile/sync-and-config_zh.md) | 将输出tile的片上内存值绑定为扩展后的输入tile内存的值。 |
 | 复杂指令 | [`TPRINT`](isa/tile/ops/irregular-and-complex/tprint_zh.md) | 调试/打印 Tile 中的元素（实现定义）。 |

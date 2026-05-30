@@ -21,19 +21,19 @@ The pattern token fully determines which bits are set.
 ### PTO Assembly Form
 
 ```mlir
-%mask = pto.pset_b16 "PATTERN" : !pto.mask
+%mask = pto.pset_b16 "PATTERN" : !pto.mask<b16>
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-%mask = pto.pset_b16 "PATTERN" : !pto.mask
+%mask = pto.pset_b16 "PATTERN" : !pto.mask<b16>
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.pset_b16 "PATTERN" outs(%mask : !pto.mask)
+pto.pset_b16 "PATTERN" outs(%mask : !pto.mask<b16>)
 ```
 
 ## C++ Intrinsic
@@ -64,7 +64,7 @@ vector_bool mask = pset_b16(__cce_simd::PAT_VL8);
 
 | Result | Type | Description |
 |--------|------|-------------|
-| `%mask` | `!pto.mask` | Constructed 16-bit predicate |
+| `%mask` | `!pto.mask<b16>` | Constructed 16-bit predicate |
 
 ## Side Effects
 
@@ -107,14 +107,14 @@ void set_all_active(RegBuf<predicate_t>& dst) {
 
 ```mlir
 // Modular 3 pattern: lanes 3, 7, 11, 15 active
-%mod3 = pto.pset_b16 "PAT_M3" : !pto.mask
+%mod3 = pto.pset_b16 "PAT_M3" : !pto.mask<b16>
 ```
 
 ### Construct first-half-active mask
 
 ```mlir
 // High half: bits 8–15 active, bits 0–7 inactive
-%high = pto.pset_b16 "PAT_H" : !pto.mask
+%high = pto.pset_b16 "PAT_H" : !pto.mask<b16>
 ```
 
 ## Related Ops / Instruction Set Links

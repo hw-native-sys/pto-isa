@@ -21,7 +21,7 @@ vsts %value, %dest[%offset], %mask {dist = "DIST"}
 ### AS Level 1 (SSA)
 
 ```mlir
-pto.vsts %value, %dest[%offset], %mask {dist = "DIST"} : !pto.vreg<NxT>, !pto.ptr<T, ub>, !pto.mask
+pto.vsts %value, %dest[%offset], %mask {dist = "DIST"} : !pto.vreg<NxT>, !pto.ptr<T, ub>, !pto.mask<G>
 ```
 
 ## Inputs
@@ -76,7 +76,7 @@ If software scheduling or performance modeling depends on the exact cost of `pto
 ## Examples
 
 ```mlir
-pto.vsts %v, %ub[%offset], %mask {dist = "NORM_B32"} : !pto.vreg<64xf32>, !pto.ptr<f32, ub>, !pto.mask
+pto.vsts %v, %ub[%offset], %mask {dist = "NORM_B32"} : !pto.vreg<64xf32>, !pto.ptr<f32, ub>, !pto.mask<b32>
 ```
 
 ## Detailed Notes
@@ -92,11 +92,11 @@ pto.vsts %v, %ub[%offset], %mask {dist = "NORM_B32"} : !pto.vreg<64xf32>, !pto.p
 
 **Example — Contiguous store:**
 ```mlir
-pto.vsts %v, %ub[%offset], %mask {dist = "NORM_B32"} : !pto.vreg<64xf32>, !pto.ptr<f32, ub>, !pto.mask
+pto.vsts %v, %ub[%offset], %mask {dist = "NORM_B32"} : !pto.vreg<64xf32>, !pto.ptr<f32, ub>, !pto.mask<b32>
 ```
 
 ## Related Ops / Instruction Set Links
 
 - Instruction set overview: [Vector Load Store](../../vector-load-store.md)
 - Previous op in instruction set: [pto.vgather2_bc](./vgather2-bc.md)
-- Next op in instruction set: [pto.vstx2](./vstx2.md)
+- Next op in instruction set: [pto.vstsx2](./vstsx2.md)

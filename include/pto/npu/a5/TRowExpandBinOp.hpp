@@ -31,13 +31,10 @@ PTO_INTERNAL void TRowExpandBinOps_2D_NoPostUpdate(__ubuf__ typename TileData::D
 
     __VEC_SCOPE__
     {
-        RegTensor<T> vreg0;
-        RegTensor<T> vreg1;
-        RegTensor<T> vreg2;
-        RegTensor<T> vreg_uld;
+        RegTensor<T> vreg0, vreg1, vreg2, vreg_uld;
         MaskReg preg;
-        vector_bool preg_b8_all = pset_b8(PAT_ALL);
         vector_align ureg_1;
+        vector_bool preg_b8_all = pset_b8(PAT_ALL);
         constexpr auto distValue =
             std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
         for (uint16_t i = 0; i < (uint16_t)(kValidRows); ++i) {
@@ -70,9 +67,7 @@ PTO_INTERNAL void TRowExpandBinOps_2D_NoPostUpdate2(__ubuf__ typename TileData::
 
     __VEC_SCOPE__
     {
-        RegTensor<T> vreg0;
-        RegTensor<T> vreg1;
-        RegTensor<T> vreg2;
+        RegTensor<T> vreg0, vreg1, vreg2;
         MaskReg preg;
         constexpr auto distValue =
             std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
@@ -84,46 +79,6 @@ PTO_INTERNAL void TRowExpandBinOps_2D_NoPostUpdate2(__ubuf__ typename TileData::
                 vlds(vreg0, src0Ptr, i * Src0RowStride + j * elementsPerRepeat, NORM);
                 Op::RowExpandBinaryInstr(vreg2, vreg0, vreg1, preg);
                 vsts(vreg2, dstPtr, i * DstRowStride + j * elementsPerRepeat, distValue, preg);
-            }
-        }
-    }
-}
-
-template <typename Op, typename TileData, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
-          unsigned blockSizeElem>
-PTO_INTERNAL void TRowExpandBinOps_2D_PostUpdate(__ubuf__ typename TileData::DType *dstPtr,
-                                                 __ubuf__ typename TileDataSrc0::DType *src0Ptr,
-                                                 __ubuf__ typename TileDataSrc1::DType *src1Ptr, unsigned kValidRows,
-                                                 unsigned kValidCols)
-{
-    using T = typename TileData::DType;
-    uint16_t repeatTimes = CeilDivision(kValidCols, elementsPerRepeat);
-    constexpr unsigned stride = TileDataSrc1::Cols;
-    constexpr unsigned Src0RowStride = TileDataSrc0::RowStride;
-    constexpr unsigned DstRowStride = TileData::RowStride;
-
-    __VEC_SCOPE__
-    {
-        RegTensor<T> vreg0_PU;
-        RegTensor<T> vreg1_PU;
-        RegTensor<T> vreg2_PU;
-        RegTensor<T> vreg_PU_uld;
-        MaskReg preg;
-        vector_bool preg_b8_all = pset_b8(PAT_ALL);
-        vector_align ureg_1;
-        constexpr auto distValue =
-            std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
-        for (uint16_t i = 0; i < (uint16_t)(kValidRows); ++i) {
-            vldas(ureg_1, (__ubuf__ T *)(src1Ptr + i * stride));
-            vldus(vreg_PU_uld, ureg_1, (__ubuf__ T *)(src1Ptr + i * stride));
-            vdup(vreg1_PU, vreg_PU_uld, preg_b8_all, POS_LOWEST, MODE_ZEROING);
-            for (uint16_t j = 0; j < (uint16_t)repeatTimes; ++j) {
-                vlds(vreg0_PU, src0Ptr, i * Src0RowStride + j * elementsPerRepeat, NORM);
-                uint32_t count = ((j + 1) * elementsPerRepeat >= kValidCols ? kValidCols - j * elementsPerRepeat :
-                                                                              elementsPerRepeat);
-                preg = CreatePredicate<T>(count);
-                Op::RowExpandBinaryInstr(vreg2_PU, vreg0_PU, vreg1_PU, preg);
-                vsts(vreg2_PU, dstPtr, i * DstRowStride + j * elementsPerRepeat, distValue, preg);
             }
         }
     }

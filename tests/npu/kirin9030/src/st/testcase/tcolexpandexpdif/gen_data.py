@@ -17,7 +17,7 @@ import numpy as np
 np.random.seed(2025)
 
 
-def gen_golden_data(params):
+def gen_golden_data(param):
     dtype = param.dtype
     [dst_row, dst_col] = [param.dst_row, param.dst_col]
     [src1_row, src1_col] = [param.src1_row, param.src1_col]

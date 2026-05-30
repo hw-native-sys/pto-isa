@@ -10,11 +10,11 @@ Vector 指令可以消费标量 load/store 操作产生的 predicate mask。Vect
 
 ## Vector ISA Predicate 消费
 
-Vector 指令消费 `!pto.mask` 操作数以实现条件 lane 执行：
+Vector 指令消费 `!pto.mask<G>` 操作数以实现条件 lane 执行：
 
 ```mlir
 %vdst = pto.vadd %vsrc0, %vsrc1, %mask
-    : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask) -> !pto.vreg<64xf32>
+    : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32>) -> !pto.vreg<64xf32>
 ```
 
 Mask 由标量 predicate load/store 操作产生，详见 [Predicate Load/Store（标量）](../scalar/predicate-load-store_zh.md)。

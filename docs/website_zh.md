@@ -6,7 +6,9 @@ MkDocs 配置位于 `docs/mkdocs/` 目录下，设置为浏览整个仓库的 ma
 
 ## 前置要求
 
-- Python 3.8+
+- Python >= 3.9.x
+
+> **备注：** Python 宣布 3.7.x/3.8.x 已经 EOL，CANN 即将停止对该版本的支持，请升级到 Python >= 3.9.x 的版本。
 
 ## 安装（推荐：使用虚拟环境）
 

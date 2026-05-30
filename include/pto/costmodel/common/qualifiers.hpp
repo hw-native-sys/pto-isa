@@ -10,35 +10,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef PTO_MOCKER_COMMON_QUALIFIERS_HPP
 #define PTO_MOCKER_COMMON_QUALIFIERS_HPP
 
-#include <cstdint>
+#include <pto/common/cpu_stub.hpp>
 
-#define __global__
-#define AICORE
-#define __aicore__
-#define __gm__
-#define __out__
-#define __in__
-#define __ubuf__
-#define __cbuf__
-#define __ca__
-#define __cb__
-#define __cc__
-#define __fbuf__
-#define __tf__
-#define __biasbuf__
-
-using aclrtStream = void *;
 using aclrtContext = void *;
-using pipe_t = int;
-
-inline constexpr pipe_t PIPE_S = 0;
-inline constexpr pipe_t PIPE_V = 1;
-inline constexpr pipe_t PIPE_MTE1 = 2;
-inline constexpr pipe_t PIPE_MTE2 = 3;
-inline constexpr pipe_t PIPE_MTE3 = 4;
-inline constexpr pipe_t PIPE_M = 5;
-inline constexpr pipe_t PIPE_ALL = 6;
-
 using event_t = int;
 using CceEventIdType = event_t;
 using pad_t = int;
@@ -48,11 +22,12 @@ namespace __cce_scalar {
 using addr_cal_mode_t = ::addr_cal_mode_t;
 }
 
-inline constexpr event_t EVENT_ID0 = 0;
-inline constexpr int ACL_MEM_MALLOC_HUGE_FIRST = 0;
-inline constexpr int ACL_MEMCPY_HOST_TO_DEVICE = 0;
-inline constexpr int ACL_MEMCPY_DEVICE_TO_HOST = 1;
-inline constexpr int ACL_MEMCPY_DEVICE_TO_DEVICE = 2;
+// NOLINTNEXTLINE(bugprone-reserved-identifier): compatibility with legacy intrinsic qualifier tokens.
+#ifndef __biasbuf__
+// NOLINTNEXTLINE(bugprone-reserved-identifier): compatibility with legacy intrinsic qualifier tokens.
+#define __biasbuf__
+#endif
+
 inline constexpr int ACL_STREAM_FAST_LAUNCH = 0;
 inline constexpr int ACL_STREAM_FAST_SYNC = 0;
 inline constexpr int ACL_STREAM_ATTR_FAILURE_MODE = 0;
@@ -62,7 +37,39 @@ inline constexpr int VALUE_INDEX = 1;
 
 using aclrtStreamAttrValue = int;
 
+#ifdef aclFloat16ToFloat
+#undef aclFloat16ToFloat
+#endif
 #define aclFloat16ToFloat(x) ((float)(x))
-#define __cce_get_tile_ptr(x) x
+#ifdef __COSTMODEL
+#ifdef dsb
+#undef dsb
+#endif
+#ifdef SINGLE_CACHE_LINE
+#undef SINGLE_CACHE_LINE
+#endif
+#ifdef DSB_DDR
+#undef DSB_DDR
+#endif
+#ifdef DSB_ALL
+#undef DSB_ALL
+#endif
+#ifdef DSB_UB
+#undef DSB_UB
+#endif
+#ifdef set_flag
+#undef set_flag
+#endif
+#ifdef wait_flag
+#undef wait_flag
+#endif
+#ifdef set_mask_norm
+#undef set_mask_norm
+#endif
+#ifdef set_vector_mask
+#undef set_vector_mask
+#endif
+#define pipe_barrier(...) pto_costmodel_pipe_barrier(__VA_ARGS__)
+#endif
 
 #endif

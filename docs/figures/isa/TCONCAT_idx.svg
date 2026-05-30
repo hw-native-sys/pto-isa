@@ -1,0 +1,211 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="950" viewBox="0 0 1400 950" role="img" aria-label="TCONCAT indexed form diagram">
+<defs>
+  <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#515151"/></marker>
+  <marker id="axisArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#64748b"/></marker>
+  <marker id="arrowBlue" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#2563eb"/></marker>
+  <marker id="arrowOrange" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#ea580c"/></marker>
+  <marker id="arrowGreen" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#16a34a"/></marker>
+  <marker id="arrowPurple" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#9333ea"/></marker>
+</defs>
+<style>
+svg { font-family: Arial, Helvetica, sans-serif; }
+.title { font-size: 28px; font-weight: 700; fill: #0f172a; }
+.subtitle { font-size: 13px; fill: #334155; }
+.meta { font-size: 11px; fill: #64748b; }
+.frame { fill: white; }
+.panel { fill: #F5F5F5; stroke: #e2e8f0; stroke-width: 1.5; rx: 14; }
+.tileLabel { font-size: 13px; font-weight: 700; fill: #0f172a; }
+.tileBorder { fill: none; stroke: #475569; stroke-width: 1.5; }
+.cell { fill: #ffffff; stroke: #94a3b8; stroke-width: 1; }
+.cellSrc0 { fill: #dbeafe; stroke: #94a3b8; stroke-width: 1; }
+.cellSrc1 { fill: #fed7aa; stroke: #94a3b8; stroke-width: 1; }
+.cellMasked { fill: #e2e8f0; }
+.cellIdx0 { fill: #bbf7d0; stroke: #94a3b8; stroke-width: 1; }
+.cellIdx1 { fill: #c4b5fd; stroke: #94a3b8; stroke-width: 1; }
+.cellDstIdx { fill: #fef08a; stroke: #94a3b8; stroke-width: 1; }
+.cellHL0 { stroke-width: 2; stroke: #2563eb; }
+.cellHL1 { stroke-width: 2; stroke: #ea580c; }
+.cellHLIdx { stroke-width: 2; stroke: #16a34a; }
+.idxValue { font-size: 11px; font-weight: 700; fill: #334155; }
+.arrow { stroke-width: 1.5; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.arrowBlue { stroke-width: 1.5; fill: none; stroke-linejoin: round; stroke-linecap: round; stroke: #2563eb; }
+.arrowOrange { stroke-width: 1.5; fill: none; stroke-linejoin: round; stroke-linecap: round; stroke: #ea580c; }
+.arrowGreen { stroke-width: 1.5; fill: none; stroke-linejoin: round; stroke-linecap: round; stroke: #16a34a; }
+.arrowPurple { stroke-width: 1.5; fill: none; stroke-linejoin: round; stroke-linecap: round; stroke: #9333ea; }
+.axisLine { stroke: #64748b; stroke-width: 1.5; fill: none; }
+.axisText { font-size: 10px; fill: #64748b; font-weight: 700; }
+.opCircle { fill: #ffffff; stroke-width: 2; }
+.opRect { fill: #ffffff; stroke-width: 2; }
+.opText { font-size: 9px; font-weight: 800; fill: #0f172a; }
+.procBox { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.5; rx: 12; }
+.procTitle { font-size: 14px; font-weight: 700; fill: #0f172a; }
+.procText { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; fill: #0f172a; }
+.validBox { fill: none; stroke-width: 2; stroke-dasharray: 6 4; }
+.concatLine { stroke: #475569; stroke-width: 2; stroke-dasharray: 4 2; }
+.implNote { font-size: 11px; fill: #64748b; }
+.idxBox { fill: #f0fdf4; stroke: #16a34a; stroke-width: 1.5; rx: 6; }
+.idxBoxPurple { fill: #faf5ff; stroke: #9333ea; stroke-width: 1.5; rx: 6; }
+.idxBoxYellow { fill: #fefce8; stroke: #ca8a04; stroke-width: 1.5; rx: 6; }
+.rowNote { font-size: 11px; fill: #334155; font-weight: 600; }
+</style>
+<rect x="0" y="0" width="1400" height="950" class="frame" />
+<rect x="24" y="24" width="1352" height="902" class="panel" />
+<text x="40" y="44" class="title">TCONCAT (Indexed Form)</text>
+<text x="40" y="68" class="subtitle">Concatenate with per-row dynamic column counts from index tiles.</text>
+<text x="40" y="92" class="meta">API: TCONCAT(dst, src0, src1, src0Idx, src1Idx) or TCONCAT(dst, src0, src1, dstIdx, src0Idx, src1Idx)</text>
+<text x="1360" y="92" class="meta" text-anchor="end">Legend: green=src0Idx; purple=src1Idx; yellow=dstIdx</text>
+<line x1="36" y1="105" x2="1364" y2="105" stroke="#e2e8f0" stroke-width="1.5" />
+<text x="700" y="135" class="subtitle" text-anchor="middle" fill="#515151">dst[r, 0:idx0Num[r]] = src0[r, 0:idx0Num[r]]  |  dst[r, idx0Num[r]:] = src1[r, 0:idx1Num[r]]</text>
+
+<text x="180" y="165" class="tileLabel" text-anchor="middle">src0</text>
+<text x="180" y="182" class="implNote" text-anchor="middle">rows with varying C0</text>
+<rect x="130" y="198" width="100" height="100" class="tileBorder" />
+<rect x="130" y="198" width="25" height="25" class="cellSrc0 cellHL0" />
+<rect x="155" y="198" width="25" height="25" class="cellSrc0" />
+<rect x="180" y="198" width="25" height="25" class="cellSrc0" />
+<rect x="205" y="198" width="25" height="25" class="cell cellMasked" />
+<rect x="130" y="223" width="25" height="25" class="cellSrc0" />
+<rect x="155" y="223" width="25" height="25" class="cellSrc0" />
+<rect x="180" y="223" width="25" height="25" class="cell cellMasked" />
+<rect x="205" y="223" width="25" height="25" class="cell cellMasked" />
+<rect x="130" y="248" width="25" height="25" class="cellSrc0" />
+<rect x="155" y="248" width="25" height="25" class="cellSrc0" />
+<rect x="180" y="248" width="25" height="25" class="cellSrc0" />
+<rect x="205" y="248" width="25" height="25" class="cellSrc0" />
+<rect x="130" y="273" width="25" height="25" class="cell cellMasked" />
+<rect x="155" y="273" width="25" height="25" class="cell cellMasked" />
+<rect x="180" y="273" width="25" height="25" class="cell cellMasked" />
+<rect x="205" y="273" width="25" height="25" class="cell cellMasked" />
+
+<text x="180" y="310" class="tileLabel" text-anchor="middle">src0Idx</text>
+<rect x="130" y="325" width="100" height="75" class="idxBox" rx="6" />
+<rect x="145" y="340" width="70" height="22" class="cellIdx0 cellHLIdx" />
+<text x="180" y="355" class="idxValue" text-anchor="middle">3</text>
+<rect x="145" y="365" width="70" height="22" class="cellIdx0" />
+<text x="180" y="380" class="idxValue" text-anchor="middle">2</text>
+<rect x="145" y="390" width="70" height="22" class="cellIdx0" />
+<text x="180" y="405" class="idxValue" text-anchor="middle">4</text>
+<text x="180" y="415" class="implNote" text-anchor="middle">C0 per row</text>
+
+<text x="380" y="165" class="tileLabel" text-anchor="middle">src1</text>
+<text x="380" y="182" class="implNote" text-anchor="middle">rows with varying C1</text>
+<rect x="330" y="198" width="100" height="100" class="tileBorder" />
+<rect x="330" y="198" width="25" height="25" class="cellSrc1 cellHL1" />
+<rect x="355" y="198" width="25" height="25" class="cellSrc1" />
+<rect x="380" y="198" width="25" height="25" class="cellSrc1" />
+<rect x="405" y="198" width="25" height="25" class="cell cellMasked" />
+<rect x="330" y="223" width="25" height="25" class="cellSrc1" />
+<rect x="355" y="223" width="25" height="25" class="cellSrc1" />
+<rect x="380" y="223" width="25" height="25" class="cellSrc1" />
+<rect x="405" y="223" width="25" height="25" class="cell cellMasked" />
+<rect x="330" y="248" width="25" height="25" class="cellSrc1" />
+<rect x="355" y="248" width="25" height="25" class="cellSrc1" />
+<rect x="380" y="248" width="25" height="25" class="cell cellMasked" />
+<rect x="405" y="248" width="25" height="25" class="cell cellMasked" />
+<rect x="330" y="273" width="25" height="25" class="cellSrc1" />
+<rect x="355" y="273" width="25" height="25" class="cellSrc1" />
+<rect x="380" y="273" width="25" height="25" class="cellSrc1" />
+<rect x="405" y="273" width="25" height="25" class="cellSrc1" />
+<rect x="330" y="273" width="25" height="25" class="cell cellMasked" />
+
+<text x="380" y="310" class="tileLabel" text-anchor="middle">src1Idx</text>
+<rect x="330" y="325" width="100" height="75" class="idxBoxPurple" rx="6" />
+<rect x="345" y="340" width="70" height="22" class="cellIdx1" />
+<text x="380" y="355" class="idxValue" text-anchor="middle">3</text>
+<rect x="345" y="365" width="70" height="22" class="cellIdx1" />
+<text x="380" y="380" class="idxValue" text-anchor="middle">3</text>
+<rect x="345" y="390" width="70" height="22" class="cellIdx1" />
+<text x="380" y="405" class="idxValue" text-anchor="middle">4</text>
+<text x="380" y="415" class="implNote" text-anchor="middle">C1 per row</text>
+
+<text x="1050" y="310" class="tileLabel" text-anchor="middle">dstIdx</text>
+<text x="1050" y="325" class="implNote" text-anchor="middle">(optional output)</text>
+<rect x="1000" y="340" width="100" height="75" class="idxBoxYellow" rx="6" />
+<rect x="1015" y="355" width="70" height="22" class="cellDstIdx" />
+<text x="1050" y="370" class="idxValue" text-anchor="middle">6</text>
+<rect x="1015" y="380" width="70" height="22" class="cellDstIdx" />
+<text x="1050" y="395" class="idxValue" text-anchor="middle">5</text>
+<rect x="1015" y="405" width="70" height="22" class="cellDstIdx" />
+<text x="1050" y="420" class="idxValue" text-anchor="middle">8</text>
+<text x="1050" y="430" class="implNote" text-anchor="middle">= C0+C1</text>
+
+<text x="700" y="470" class="tileLabel" text-anchor="middle">dst (output)</text>
+<rect x="550" y="488" width="300" height="100" class="tileBorder" />
+
+<rect x="550" y="488" width="25" height="25" class="cellSrc0 cellHL0" />
+<rect x="575" y="488" width="25" height="25" class="cellSrc0" />
+<rect x="600" y="488" width="25" height="25" class="cellSrc0" />
+<rect x="625" y="488" width="25" height="25" class="cellSrc1 cellHL1" />
+<rect x="650" y="488" width="25" height="25" class="cellSrc1" />
+<rect x="675" y="488" width="25" height="25" class="cellSrc1" />
+<rect x="700" y="488" width="25" height="25" class="cell cellMasked" />
+<rect x="725" y="488" width="25" height="25" class="cell cellMasked" />
+<rect x="750" y="488" width="25" height="25" class="cell cellMasked" />
+<rect x="775" y="488" width="25" height="25" class="cell cellMasked" />
+<rect x="800" y="488" width="25" height="25" class="cell cellMasked" />
+<rect x="825" y="488" width="25" height="25" class="cell cellMasked" />
+
+<rect x="550" y="513" width="25" height="25" class="cellSrc0" />
+<rect x="575" y="513" width="25" height="25" class="cellSrc0" />
+<rect x="600" y="513" width="25" height="25" class="cell cellMasked" />
+<rect x="625" y="513" width="25" height="25" class="cellSrc1" />
+<rect x="650" y="513" width="25" height="25" class="cellSrc1" />
+<rect x="675" y="513" width="25" height="25" class="cellSrc1" />
+<rect x="700" y="513" width="25" height="25" class="cell cellMasked" />
+<rect x="725" y="513" width="25" height="25" class="cell cellMasked" />
+<rect x="750" y="513" width="25" height="25" class="cell cellMasked" />
+<rect x="775" y="513" width="25" height="25" class="cell cellMasked" />
+<rect x="800" y="513" width="25" height="25" class="cell cellMasked" />
+<rect x="825" y="513" width="25" height="25" class="cell cellMasked" />
+
+<rect x="550" y="538" width="25" height="25" class="cellSrc0" />
+<rect x="575" y="538" width="25" height="25" class="cellSrc0" />
+<rect x="600" y="538" width="25" height="25" class="cellSrc0" />
+<rect x="625" y="538" width="25" height="25" class="cellSrc0" />
+<rect x="650" y="538" width="25" height="25" class="cellSrc1" />
+<rect x="675" y="538" width="25" height="25" class="cellSrc1" />
+<rect x="700" y="538" width="25" height="25" class="cellSrc1" />
+<rect x="725" y="538" width="25" height="25" class="cellSrc1" />
+<rect x="750" y="538" width="25" height="25" class="cell cellMasked" />
+<rect x="775" y="538" width="25" height="25" class="cell cellMasked" />
+<rect x="800" y="538" width="25" height="25" class="cell cellMasked" />
+<rect x="825" y="538" width="25" height="25" class="cell cellMasked" />
+
+<line x1="625" y1="488" x2="625" y2="563" class="concatLine" />
+<line x1="600" y1="488" x2="600" y2="538" class="concatLine" stroke-dasharray="2 2" />
+<line x1="650" y1="488" x2="650" y2="563" class="concatLine" stroke-dasharray="2 2" />
+
+<text x="554" y="585" class="rowNote">Row 0: C0=3, C1=3 → dst.Cv=6</text>
+<text x="554" y="600" class="rowNote">Row 1: C0=2, C1=3 → dst.Cv=5</text>
+<text x="554" y="615" class="rowNote">Row 2: C0=4, C1=4 → dst.Cv=8</text>
+
+<circle cx="700" cy="445" r="22" class="opCircle" stroke="#515151" />
+<rect x="683" y="428" width="34" height="34" rx="6" class="opRect" stroke="#515151" />
+<text x="700" y="443" class="opText" font-size="9px" text-anchor="middle">TCON</text>
+<text x="700" y="455" class="opText" font-size="9px" text-anchor="middle">CAT</text>
+
+<path d="M 180 420 L 180 445 L 678 445" class="arrowBlue" marker-end="url(#arrowBlue)" />
+<path d="M 380 420 L 380 445 L 722 445" class="arrowOrange" marker-end="url(#arrowOrange)" />
+<path d="M 180 420 L 180 445" class="arrowGreen" marker-end="url(#arrowGreen)" />
+<path d="M 380 420 L 380 445" class="arrowPurple" marker-end="url(#arrowPurple)" />
+<path d="M 700 467 L 700 489" class="arrow" stroke="#515151" marker-end="url(#arrow)" />
+<path d="M 1050 430 L 1050 445 L 722 445" class="arrow" stroke="#ca8a04" stroke-dasharray="3 2" marker-end="url(#arrow)" />
+
+<rect x="40" y="620" width="1320" height="310" class="procBox" />
+<text x="56" y="645" class="procTitle">Procedure (indexed form, per-row)</text>
+<text x="56" y="670" class="procText" xml:space="preserve">
+  <tspan x="56" dy="0">for r in range(validRows):</tspan>
+  <tspan x="56" dy="18">  # Read dynamic column counts from index tiles (stored as byte counts)</tspan>
+  <tspan x="56" dy="18">  idx0Num = *(idx0Ptr + r * idx0Stride) / sizeof(idxType)</tspan>
+  <tspan x="56" dy="18">  idx1Num = *(idx1Ptr + r * idx1Stride) / sizeof(idxType)</tspan>
+  <tspan x="56" dy="18">  if (dstIdx):</tspan>
+  <tspan x="56" dy="18">    dstIdxNum = min(idx0Num + idx1Num, dstValidCol)</tspan>
+  <tspan x="56" dy="18">    *(dstIdxPtr + r * dstIdxStride) = dstIdxNum * sizeof(idxType)</tspan>
+  <tspan x="56" dy="18">  # Apply same concatenation logic as basic form with row-specific counts</tspan>
+  <tspan x="56" dy="18">  sreg0 = min(idx0Num, dstValidCol)</tspan>
+  <tspan x="76" dy="0">sreg1 = min(idx1Num, dstValidCol - sreg0)</tspan>
+  <tspan x="56" dy="18">  # Phase 1: vlds(src0) → vsts(dst) for sreg0 columns</tspan>
+  <tspan x="56" dy="18">  # Phase 2: mem_bar → vlds(src1) → vscatter(dst, offset=sreg0)</tspan>
+</text>
+<text x="56" y="920" class="meta">Index tiles store byte counts; divide by sizeof(dtype) to get element counts. dstIdx.ValidRow must be 1. idx types: int8/16/32, uint8/16/32.</text>
+</svg>

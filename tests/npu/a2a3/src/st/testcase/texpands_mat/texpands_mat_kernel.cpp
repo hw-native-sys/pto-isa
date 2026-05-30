@@ -17,10 +17,11 @@ using namespace std;
 using namespace pto;
 
 template <typename GlobalData, typename TileData, int reshapeRow, int reshapeCol>
-__tf__ AICORE inline void TSTORE_MAT2GM_CONVTILE(GlobalData &dst, TileData &src)
+__tf__ AICORE inline void TSTORE_MAT2GM_CONVTILE(typename GlobalData::DType __out__ *dst,
+                                                 typename TileData::TileDType __in__ src)
 {
-    __cbuf__ typename TileData::DType *srcAddr = __cce_get_tile_ptr(src.data());
-    typename GlobalData::DType *dstAddr = dst.data();
+    __cbuf__ typename TileData::DType *srcAddr = __cce_get_tile_ptr(src);
+    typename GlobalData::DType *dstAddr = dst;
 
     constexpr uint32_t blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename TileData::DType);
 
@@ -60,7 +61,7 @@ AICORE inline void runTSetValue_ConvTile(__gm__ T *out, T value)
                                     pto::Stride<elementSize, elementSize, elementSize, elementSize, 1>>;
     GlobalData dstGlobal(out);
 
-    using TileData = ConvTile<TileType::Mat, T, bufferSizeA, Layout::NC1HWC0, pto::ConvTileShape<N, C1, H, W, C0>>;
+    using TileData = ConvTile<TileType::Mat, T, elementSize, Layout::NC1HWC0, pto::ConvTileShape<N, C1, H, W, C0>>;
     TileData MatTile;
     TASSIGN(MatTile, 0x0);
 
@@ -71,7 +72,7 @@ AICORE inline void runTSetValue_ConvTile(__gm__ T *out, T value)
 #endif
     constexpr int reshapeRow = N;
     constexpr int reshapeCol = C1 * H * W * C0;
-    TSTORE_MAT2GM_CONVTILE<GlobalData, TileData, reshapeRow, reshapeCol>(dstGlobal, MatTile);
+    TSTORE_MAT2GM_CONVTILE<GlobalData, TileData, reshapeRow, reshapeCol>(dstGlobal.data(), MatTile.data());
     out = dstGlobal.data();
 }
 

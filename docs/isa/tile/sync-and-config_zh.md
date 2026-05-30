@@ -10,6 +10,7 @@
 | --- | --- | --- |
 | [pto.tassign](./ops/sync-and-config/tassign_zh.md) | 把 tile 绑定到 tile-buffer 地址 | 资源绑定 |
 | [pto.tsync](./ops/sync-and-config/tsync_zh.md) | 等待事件或插入屏障 | 同步 |
+| [pto.syncall](./ops/sync-and-config/syncall_zh.md) | 跨核同步屏障 | 同步 |
 | [pto.talias](./ops/sync-and-config/talias.md) | 基于同一底层存储创建 tile alias 视图 | 视图 |
 | [pto.sethf32mode](./ops/sync-and-config/sethf32mode_zh.md) | 设置 tile 路径的 HF32 行为 | 模式配置 |
 | [pto.settf32mode](./ops/sync-and-config/settf32mode_zh.md) | 设置 tile 路径的 TF32 行为 | 模式配置 |

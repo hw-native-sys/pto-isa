@@ -13,27 +13,35 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include "pto/common/pto_tile.hpp"
 #include "tile_offsets.hpp"
+#include <type_traits>
+#include <climits>
+#include <cassert>
 
 namespace pto {
-template <typename TileData>
-void TSelS_Impl(typename TileData::TileDType dst, typename TileData::DType scalar, typename TileData::TileDType src0,
-                typename TileData::TileDType src1, unsigned validRow, unsigned validCol)
+template <typename TileDataDst, typename TileDataMask, typename TileDataSrc, typename TileDataTmp>
+__aicore__ PTO_INLINE void TSELS_IMPL(TileDataDst &dst, TileDataMask &mask, TileDataSrc &src, TileDataTmp &tmp,
+                                      typename TileDataSrc::DType scalar)
 {
-    for (size_t c = 0; c < validCol; c++) {
-        for (size_t r = 0; r < validRow; r++) {
-            size_t idx = GetTileElementOffset<TileData>(r, c);
-            // if 1: take src1, else: take src2
-            dst[idx] = scalar == 1 ? src0[idx] : src1[idx];
+    static_assert(std::is_same_v<typename TileDataDst::DType, typename TileDataSrc::DType>);
+    unsigned validRow = dst.GetValidRow();
+    unsigned validCol = dst.GetValidCol();
+    assert(validRow == src.GetValidRow() && validCol == src.GetValidCol());
+
+    using MaskT = typename TileDataMask::DType;
+    constexpr size_t bitsPerElement = sizeof(MaskT) * CHAR_BIT;
+
+    for (size_t r = 0; r < validRow; r++) {
+        for (size_t c = 0; c < validCol; c++) {
+            size_t idxSrc = GetTileElementOffset<TileDataSrc>(r, c);
+            size_t idxMask = GetTileElementOffset<TileDataMask>(r, c / bitsPerElement);
+            size_t idxDst = GetTileElementOffset<TileDataDst>(r, c);
+
+            MaskT maskBits = mask.data()[idxMask];
+            bool isBitSet = (maskBits >> (c % bitsPerElement)) & 1;
+            dst.data()[idxDst] = isBitSet ? src.data()[idxSrc] : scalar;
         }
     }
 }
 
-template <typename TileData, typename TmpTile>
-__aicore__ PTO_INLINE void TSELS_IMPL(TileData &dst, TileData &src0, TileData &src1, TmpTile &tmp, uint8_t selectMode)
-{
-    unsigned row = dst.GetValidRow();
-    unsigned col = dst.GetValidCol();
-    TSelS_Impl<TileData>(dst.data(), selectMode, src0.data(), src1.data(), row, col);
-}
 } // namespace pto
 #endif

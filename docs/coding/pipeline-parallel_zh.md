@@ -1,436 +1,142 @@
-# 流水线与并行执行
+# 流水线并行
 
-本文档介绍 PTO 的流水线模型和并行执行机制，帮助开发者充分利用硬件资源实现高性能算子。
+本文档从阶段执行、缓冲组织和显式同步等角度，说明 PTO Tile Lib 中的流水线重叠方式。
 
-## 目录
+本文档重点讨论 load、transform、compute、store 等阶段在软件层面的组织方式。
 
-- [1. 流水线概述](#1-流水线概述)
-- [2. 硬件流水线](#2-硬件流水线)
-- [3. 软件流水线](#3-软件流水线)
-- [4. 并行执行模型](#4-并行执行模型)
-- [5. 性能优化技巧](#5-性能优化技巧)
+## 1. PTO 中的流水线重叠
 
----
+在 PTO kernel 中，流水线优化通常指：让不同阶段的工作尽量重叠执行，从而避免数据搬运与计算被不必要地串行化。
 
-## 1. 流水线概述
+一个常见的高层视角是：
 
-### 1.1 什么是流水线
-
-流水线是一种并行技术，将任务分解为多个阶段，不同阶段可以同时处理不同的数据。
-
-**类比**：汽车装配线
-- 阶段1：安装底盘
-- 阶段2：安装发动机
-- 阶段3：安装车身
-- 阶段4：喷漆
-
-当阶段2在处理车辆B时，阶段1可以同时处理车辆C。
-
-### 1.2 PTO 中的流水线
-
-PTO 算子通常包含以下阶段：
-
-```
-TLOAD → Transform → Compute → TSTORE
-  ↓         ↓          ↓         ↓
- MTE2      MTE1      CUBE/VEC   MTE1
+```text
+TLOAD -> 布局 / 暂存变换 -> compute -> TSTORE
 ```
 
-**关键思想**：让不同阶段重叠执行，提高硬件利用率。
+根据 kernel 不同，中间阶段可能包括：
 
----
+- `TEXTRACT`
+- `TMOV`
+- `TTRANS`
+- 各类向量计算指令
+- `TMATMUL` 等矩阵指令
 
-## 2. 硬件流水线
+这种理解与 `docs/coding/opt.md` 中的优化思路是一致的。
 
-### 2.1 Ascend 硬件流水线
+## 2. 硬件可见阶段与软件可见阶段
 
-Ascend AI 处理器包含多个独立的执行单元：
+从软件层面看，PTO 开发者通常围绕以下阶段来组织思路：
 
-| 流水线 | 功能 | 典型指令 |
-|--------|------|----------|
-| **MTE2** | GM → L1 数据搬运 | `TLOAD` |
-| **MTE1** | L1 → L0 数据搬运 | `TEXTRACT`, `TMOV` |
-| **CUBE** | 矩阵乘法 | `TMATMUL` |
-| **VECTOR** | 逐元素运算 | `TADD`, `TEXP`, `TMAX` |
-| **SCALAR** | 标量运算和控制流 | 地址计算、循环控制 |
+- 从 GM 加载 tile
+- 对已暂存数据做变换或重排
+- 执行 vector 或 cube 计算
+- 把结果写回 GM
 
-### 2.2 流水线并行
+这些阶段在硬件上的精确映射会受到 backend 影响，但编程目标是稳定的：
 
-不同流水线可以**同时执行**：
+- 在依赖允许时尽量让有价值的阶段重叠
+- 减少不必要的停顿
+- 避免为了局部依赖而把整个流水线全部排空
 
-```cpp
-// 时间 T0: TLOAD 在 MTE2 上执行
-TLOAD(tileA[0], ...);
+## 3. 缓冲的作用
 
-// 时间 T1: TLOAD 继续，同时 TEXTRACT 在 MTE1 上执行
-TLOAD(tileA[1], ...);
-TEXTRACT(tileLeft[0], tileA[0]);
+流水线重叠通常依赖以下缓冲方式：
 
-// 时间 T2: 三个流水线同时工作
-TLOAD(tileA[2], ...);
-TEXTRACT(tileLeft[1], tileA[1]);
-TMATMUL(acc, tileLeft[0], tileRight[0]);
-```
+- 双缓冲
+- 分阶段临时 tile
+- 显式的 producer-consumer 同步
 
-**性能提升**：理想情况下可以达到 3-4× 的吞吐量提升。
+核心思想可以概括为：
 
----
+- 当一个 tile 正在被后续阶段消费时，另一个 tile 可以同时为更早阶段做好准备
 
-## 3. 软件流水线
+这种方式是否有收益，取决于：
 
-### 3.1 双缓冲技术
+- kernel 结构
+- 主导瓶颈
+- 可用片上资源
+- 依赖关系是否建立正确
 
-双缓冲是最常用的软件流水线技术：
+## 4. Event 与同步的作用
 
-```cpp
-// 基础版本（无流水线）
-for (int i = 0; i < N; i++) {
-  TLOAD(tile, ...);      // 等待加载
-  TCOMPUTE(result, tile); // 等待计算
-  TSTORE(..., result);    // 等待存储
-}
-// 总时间 = N × (T_load + T_compute + T_store)
+当前仓库已经在 `docs/coding/Event.md` 中给出了显式事件模型。
 
-// 双缓冲版本（有流水线）
-TLOAD(tile[0], ...);  // 预加载第一个
-for (int i = 0; i < N; i++) {
-  int curr = i % 2;
-  int next = (i + 1) % 2;
+对于 PTO 中的细粒度同步，这份文档是当前最可靠的公开依据。
 
-  // 当前迭代计算
-  TCOMPUTE(result[curr], tile[curr]);
+更稳妥的原则包括：
 
-  // 同时加载下一个
-  if (i + 1 < N) {
-    TLOAD(tile[next], ...);
-  }
+- 只为真实依赖加入同步
+- 更偏向 producer-consumer 顺序控制，而不是不必要的宽泛屏障
+- 事件使用方式应与文档中给出的 event 类型和 intrinsic 签名保持一致
 
-  // 存储结果
-  TSTORE(..., result[curr]);
-}
-// 总时间 ≈ N × max(T_load, T_compute, T_store)
-```
+在 device build 下，会使用类型化的 `Event<SrcOp, DstOp>` 表达依赖；在 CPU 仿真下，部分同步路径会被简化。
 
-**性能提升**：当三个阶段时间相近时，可以达到接近 3× 的加速。
+## 5. 预热、稳态与收尾
 
-### 3.2 多级流水线
+一个流水线 kernel 往往更适合分成三个阶段来理解：
 
-对于复杂算子，可以使用多级流水线：
+1. **预热**：把第一批 tile 放入流水线
+2. **稳态**：让连续 tile 之间的各阶段尽量重叠
+3. **收尾**：完成剩余尚未结束的阶段
 
-```cpp
-// GEMM 的三级流水线
-for (int k = 0; k < K; k += tileK) {
-  int curr = k % 2;
-  int next = (k + tileK) % 2;
+这种思路很有用，因为很多流水线问题并不是出在主循环本身，而是把首尾迭代错误地按稳态逻辑处理，导致依赖关系不正确。
 
-  // 阶段1: MTE2 加载下一批数据
-  if (k + tileK < K) {
-    TLOAD(tileA_L1[next], ...);
-    TLOAD(tileB_L1[next], ...);
-  }
+## 6. 什么样的流水线更可能有效
 
-  // 阶段2: MTE1 提取当前数据到 L0
-  TEXTRACT(tileA_L0[curr], tileA_L1[curr]);
-  TEXTRACT(tileB_L0[curr], tileB_L1[curr]);
+当以下条件成立时，流水线通常更容易带来收益：
 
-  // 阶段3: CUBE 计算
-  TMATMUL(acc, tileA_L0[curr], tileB_L0[curr]);
-}
-```
+- 数据搬运和计算都占有一定比例
+- 不同 tile 可以在有限缓冲下进入不同阶段
+- 同步关系足够精确，不会破坏预期重叠
 
-### 3.3 事件同步
+而在以下情况下，流水线收益可能有限：
 
-使用 Event 确保流水线的正确性：
+- 某个单一阶段占据了几乎全部执行时间
+- 缓冲压力过高
+- 额外的变换或同步抵消了原本的重叠收益
 
-```cpp
-Event<Op::TLOAD, Op::TEXTRACT> e_load;
-Event<Op::TEXTRACT, Op::TMATMUL> e_extract;
-Event<Op::TMATMUL, Op::TMOV> e_compute;
+因此，是否采用流水线并行，应围绕真实瓶颈判断，而不应默认所有 kernel 都会明显受益。
 
-for (int k = 0; k < K; k += tileK) {
-  // 加载并记录事件
-  e_load = TLOAD(tileA, ...);
+## 6. 表述边界
 
-  // 等待加载完成，然后提取
-  e_extract = TEXTRACT(tileLeft, tileA, e_load);
+除非仓库源码或正式文档明确给出依据，否则以下内容都不应直接写成既定事实：
 
-  // 等待提取完成，然后计算
-  e_compute = TMATMUL(acc, tileLeft, tileRight, e_extract);
-}
-```
+- `TCOMPUTE` 这类占位式指令
+- 与 `docs/coding/Event.md` 不一致的事件 API
+- “一定能达到 3-4× 吞吐提升”之类的统一结论
+- 把某种硬件阶段映射写成适用于所有目标的固定保证
+- 忽略 tile 合法性、布局约束和指令支持情况的伪代码示例
 
-**关键原则**：
-- 只等待真实的数据依赖
-- 避免不必要的全局同步
-- 使用细粒度的 producer-consumer 事件
+这些写法在非正式讨论中可以帮助说明概念，但不适合作为严格的仓库文档。
 
----
+## 7. 流水线调优流程
 
-## 4. 并行执行模型
+一个更稳妥的调优流程是：
 
-### 4.1 多核并行（Block 级）
+1. 先从正确的非重叠或最小重叠 kernel 出发
+2. 通过 profiling 或分阶段计时找出主导阶段
+3. 逐步引入缓冲和细粒度同步
+4. 每次调度修改后都重新验证正确性
+5. 当 tile 大小或划分方式变化后，再次确认重叠是否仍然有效
 
-PTO 支持多核并行执行，每个核处理不同的数据块：
+这与 `docs/coding/opt.md` 中的调优思路是相互一致的。
 
-```cpp
-__global__ __aicore__ void MatMulKernel(...) {
-  // 获取当前核的 ID
-  int block_idx = get_block_idx();
-  int block_m = block_idx / N_blocks;
-  int block_n = block_idx % N_blocks;
+## 9. 相关参考文档
 
-  // 计算当前核负责的数据范围
-  int m_start = block_m * TILE_M;
-  int n_start = block_n * TILE_N;
+在当前 PTO Tile Lib 仓库中，最相关的参考包括：
 
-  // 处理当前块
-  for (int k = 0; k < K; k += TILE_K) {
-    TLOAD(tileA, A[m_start:m_start+TILE_M, k:k+TILE_K]);
-    TLOAD(tileB, B[k:k+TILE_K, n_start:n_start+TILE_N]);
-    TMATMUL(acc, tileA, tileB);
-  }
+- `docs/coding/Event.md`
+- `docs/coding/Tile.md`
+- `docs/coding/tutorial.md`
+- `docs/coding/opt.md`
 
-  TSTORE(C[m_start:m_start+TILE_M, n_start:n_start+TILE_N], acc);
-}
-```
+## 9. 结语
 
-**并行策略**：
-- 2D 划分：同时切分 M 和 N 维度
-- 负载均衡：确保每个核的工作量相近
-- 数据局部性：减少核间通信
+在 PTO Tile Lib 中，更准确的流水线并行描述方式应当是：
 
-### 4.2 核内并行（Tile 级）
+- 在合法前提下重叠 load / transform / compute / store 等阶段
+- 谨慎使用缓冲与显式同步
+- 围绕真实瓶颈进行调优，而不是抽象追求“更多重叠”
 
-单个核内，Tile 操作本身是并行的：
-
-```cpp
-// TADD 会并行处理 Tile 中的所有元素
-TADD(c, a, b);  // 16×16 = 256 个元素并行相加
-```
-
-**硬件实现**：
-- Vector 单元：SIMD 并行处理多个元素
-- Cube 单元：矩阵乘法的并行计算
-
-### 4.3 流水线并行（阶段级）
-
-如前所述，不同流水线阶段可以并行执行。
-
-**三级并行**：
-```
-Block 级并行（多核）
-  ↓
-Tile 级并行（SIMD）
-  ↓
-Pipeline 级并行（阶段重叠）
-```
-
----
-
-## 5. 性能优化技巧
-
-### 5.1 识别瓶颈
-
-使用 profiler 分析各阶段的时间占比：
-
-```bash
-msprof --application="your_app" --output=./profiling_data
-```
-
-**瓶颈类型**：
-- **TLOAD 占主导**：内存带宽受限 → 提升数据复用
-- **TMATMUL 占主导**：计算受限 → 已接近理论峰值
-- **TEXTRACT 占主导**：布局转换开销大 → 优化数据布局
-
-### 5.2 优化流水线重叠
-
-**目标**：让最慢的阶段决定总时间。
-
-```cpp
-// 不好的例子：串行执行
-for (int i = 0; i < N; i++) {
-  TLOAD(tile, ...);       // 10ms
-  TCOMPUTE(result, tile); // 5ms
-  TSTORE(..., result);    // 3ms
-}
-// 总时间 = N × 18ms
-
-// 好的例子：流水线重叠
-// 预加载 + 双缓冲
-// 总时间 ≈ N × 10ms（由最慢的 TLOAD 决定）
-```
-
-### 5.3 调整 Tile 大小
-
-**权衡**：
-- **大 Tile**：更好的数据复用，但可能超出片上容量
-- **小 Tile**：更灵活，但开销占比增大
-
-```cpp
-// 示例：GEMM 的 Tile 大小选择
-// A2/A3: baseM=128, baseK=64, baseN=256
-// A5: baseM=256, baseK=128, baseN=512（更大的片上容量）
-```
-
-### 5.4 减少同步开销
-
-**原则**：
-- 只在必要时同步
-- 使用细粒度事件而非全局屏障
-- 在稳态循环中避免 drain
-
-```cpp
-// 不好：每次迭代都全局同步
-for (int i = 0; i < N; i++) {
-  TLOAD(tile, ...);
-  TSYNC<Op::TLOAD>();  // 全局同步，开销大
-  TCOMPUTE(result, tile);
-}
-
-// 好：使用事件表达依赖
-Event<Op::TLOAD, Op::TADD> e;
-for (int i = 0; i < N; i++) {
-  e = TLOAD(tile, ...);
-  TCOMPUTE(result, tile, e);  // 只等待 TLOAD 完成
-}
-```
-
-### 5.5 数据复用
-
-**策略**：
-- 在 L1 中缓存频繁访问的数据
-- 在 K 维度分块以复用 A 和 B
-
-```cpp
-// GEMM 示例：K 维度分块
-for (int k = 0; k < K; k += TILE_K) {
-  TLOAD(tileA, A[m:m+M, k:k+TILE_K]);  // 加载一次
-  TLOAD(tileB, B[k:k+TILE_K, n:n+N]);  // 加载一次
-  TMATMUL(acc, tileA, tileB);          // 复用计算
-}
-// 每个元素被加载一次，但参与多次计算
-```
-
----
-
-## 6. 实战案例
-
-### 6.1 GEMM 流水线优化
-
-**优化前**：
-```cpp
-for (int k = 0; k < K; k += tileK) {
-  TLOAD(tileA, ...);
-  TLOAD(tileB, ...);
-  TEXTRACT(tileLeft, tileA);
-  TEXTRACT(tileRight, tileB);
-  TMATMUL(acc, tileLeft, tileRight);
-}
-// TLOAD 占比 80%，TMATMUL 占比 15%
-```
-
-**优化后（双缓冲 + 流水线）**：
-```cpp
-// 预加载
-TLOAD(tileA[0], ...);
-TLOAD(tileB[0], ...);
-
-for (int k = 0; k < K; k += tileK) {
-  int curr = k % 2;
-  int next = (k + tileK) % 2;
-
-  // 提取当前数据
-  TEXTRACT(tileLeft[curr], tileA[curr]);
-  TEXTRACT(tileRight[curr], tileB[curr]);
-
-  // 同时加载下一批
-  if (k + tileK < K) {
-    TLOAD(tileA[next], ...);
-    TLOAD(tileB[next], ...);
-  }
-
-  // 计算
-  TMATMUL(acc, tileLeft[curr], tileRight[curr]);
-}
-// TLOAD 占比 45%，TMATMUL 占比 55%
-// 性能提升 3.2×
-```
-
-详细分析：[GEMM 性能优化案例](../../kernels/manual/a2a3/gemm_performance/README_zh.md)
-
-### 6.2 Flash Attention 多阶段流水线
-
-Flash Attention 包含多个计算阶段，需要精心设计流水线：
-
-```cpp
-// 阶段1: 计算 QK^T
-// 阶段2: Softmax
-// 阶段3: 计算 PV
-// 阶段4: 更新输出
-
-// 使用多级流水线重叠这些阶段
-```
-
-详细实现：[Flash Attention 优化](../../kernels/manual/common/flash_atten/README_zh.md)
-
----
-
-## 7. 调试技巧
-
-### 7.1 验证流水线正确性
-
-**步骤**：
-1. 先实现串行版本，验证正确性
-2. 逐步添加流水线优化
-3. 每次优化后验证数值结果
-
-```cpp
-#ifdef DEBUG
-  // 在关键点检查中间结果
-  float max_diff = CheckNumericalError(result, expected);
-  assert(max_diff < 1e-5);
-#endif
-```
-
-### 7.2 性能分析
-
-**工具**：
-- `msprof`：硬件性能分析
-- 手动计时：关键阶段的时间测量
-
-```cpp
-// 手动计时示例
-auto start = GetTime();
-for (int i = 0; i < N; i++) {
-  TLOAD(tile, ...);
-}
-auto end = GetTime();
-printf("TLOAD time: %f ms\n", (end - start) / N);
-```
-
----
-
-## 8. 最佳实践总结
-
-✅ **DO**：
-- 使用双缓冲实现流水线重叠
-- 用事件表达细粒度依赖
-- 分析 profiler 数据识别瓶颈
-- 调整 Tile 大小平衡复用和容量
-- 在稳态循环中最大化重叠
-
-❌ **DON'T**：
-- 过度同步（避免不必要的全局屏障）
-- 忽略数据复用机会
-- Tile 过大导致溢出片上容量
-- 在优化前不验证正确性
-
----
-
-## 参考资源
-
-- [编程模型](ProgrammingModel_zh.md)
-- [事件与同步](Event_zh.md)
-- [性能优化指南](opt_zh.md)
-- [GEMM 优化案例](../../kernels/manual/a2a3/gemm_performance/README_zh.md)
-- [Flash Attention 案例](../../kernels/manual/common/flash_atten/README_zh.md)
+相比依赖虚构 API、占位式指令或固定性能结论，这种写法更符合当前仓库事实，也更适合作为严谨文档。

@@ -346,7 +346,7 @@ __global__ AICORE void RunTGEMV(__gm__ T *out, __gm__ U *src0, __gm__ S *src1, _
     GlobalDataSrc2 src2Global(src2);
     constexpr int blockLeft = CUBE_BLOCK_SIZE / sizeof(U);
     constexpr int KLeft = CeilAlign<int>(validK, blockLeft);
-    using TileMatADataGemv = Tile<TileType::Mat, U, 1, blockLeft, BLayout::RowMajor, 1, validK>;
+    using TileMatADataGemv = Tile<TileType::Mat, U, 1, KLeft, BLayout::RowMajor, 1, validK>;
     using TileMatBData = Tile<TileType::Mat, S, K, N, BLayout::ColMajor, validK, validN, SLayout::RowMajor, 512>;
     using TileBiasData = Tile<TileType::Mat, B, 1, N, BLayout::RowMajor, 1, validN>;
 

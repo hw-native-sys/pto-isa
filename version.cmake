@@ -8,13 +8,13 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
 
-set_package(pto-isa VERSION "9.0.0")
+set_cann_package(pto-isa VERSION "9.1.0")
 
-set_run_dependencies(runtime "CUR_MAJOR_MINOR_VER")
-set_run_dependencies(opbase "CUR_MAJOR_MINOR_VER")
-set_run_dependencies(asc-devkit "CUR_MAJOR_MINOR_VER")
-set_run_dependencies(metadef "CUR_MAJOR_MINOR_VER")
-set_run_dependencies(ge-executor "CUR_MAJOR_MINOR_VER")
-set_run_dependencies(bisheng-compiler "CUR_MAJOR_MINOR_VER")
-set_run_dependencies(asc-tools "CUR_MAJOR_MINOR_VER")
-set_run_dependencies(ge-compiler "CUR_MAJOR_MINOR_VER")
+set_cann_run_dependencies(runtime "CUR_MAJOR_MINOR_VER")
+set_cann_run_dependencies(opbase "CUR_MAJOR_MINOR_VER")
+set_cann_run_dependencies(asc-devkit "CUR_MAJOR_MINOR_VER")
+set_cann_run_dependencies(metadef "CUR_MAJOR_MINOR_VER")
+set_cann_run_dependencies(ge-executor "CUR_MAJOR_MINOR_VER")
+set_cann_run_dependencies(bisheng-compiler "CUR_MAJOR_MINOR_VER")
+set_cann_run_dependencies(asc-tools "CUR_MAJOR_MINOR_VER")
+set_cann_run_dependencies(ge-compiler "CUR_MAJOR_MINOR_VER")

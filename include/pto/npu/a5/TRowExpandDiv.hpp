@@ -51,7 +51,7 @@ struct RowExpandDivOp2 {
 
 template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc0,
           typename TileDataSrc1, unsigned elementsPerRepeat, unsigned blockSizeElem>
-__tf__ AICORE OP_NAME(TROWEXPANDDIV)
+__tf__ PTO_INTERNAL OP_NAME(TROWEXPANDDIV)
     OP_TYPE(broadcast) void TRowExpandDiv(typename TileDataDst::TileDType __out__ dst,
                                           typename TileDataSrc0::TileDType __in__ src0,
                                           typename TileDataSrc1::TileDType __in__ src1, bool src0eqdst,
@@ -116,6 +116,15 @@ PTO_INTERNAL void TROWEXPANDDIV_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileD
         TRowExpandDiv<PrecisionType, TileDataDst, TileDataSrc1, TileDataSrc0, elementsPerRepeat, blockSizeElem>(
             dst.data(), src1.data(), src0.data(), src0eqdst, validRow, validCol);
     }
+}
+// 4-arg overload for cross-architecture portability with A2/A3.
+// A5 hardware does not require a scratch broadcast tile; the tmp tile is accepted and ignored.
+template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc0,
+          typename TileDataSrc1, typename TileDataTmp>
+PTO_INTERNAL void TROWEXPANDDIV_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1,
+                                     [[maybe_unused]] TileDataTmp &tmp)
+{
+    TROWEXPANDDIV_IMPL<PrecisionType>(dst, src0, src1);
 }
 } // namespace pto
 #endif

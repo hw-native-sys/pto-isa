@@ -1,4 +1,4 @@
-﻿# TPARTADD
+# TPARTADD
 
 ## 指令示意图
 

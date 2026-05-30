@@ -29,7 +29,7 @@
 
 ### `pto.vlrelu`
 
-- **语法：** `%result = pto.vlrelu %input, %alpha, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vlrelu %input, %alpha, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>`
 - **A5 类型：** f16、f32
 - **语义：** Leaky ReLU，斜率由标量 `%alpha` 给出。
 
@@ -49,9 +49,9 @@ for (int i = 0; i < N; i++)
     dst[i] = (src[i] >= 0) ? src[i] : alpha[i] * src[i];
 ```
 
-### `pto.vexpdiff`
+### `pto.vexpdif`
 
-- **语法：** `%result = pto.vexpdiff %input, %max : !pto.vreg<NxT>, !pto.vreg<NxT> -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vexpdif %input, %max : !pto.vreg<NxT>, !pto.vreg<NxT> -> !pto.vreg<NxT>`
 - **A5 类型：** f16、f32
 - **语义：** 计算 `exp(x - max)` 的融合形式，典型用途是数值稳定版 softmax。
 
@@ -112,7 +112,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vmull`
 
-- **语法：** `%low, %high = pto.vmull %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>, !pto.vreg<NxT>`
+- **语法：** `%low, %high = pto.vmull %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>, !pto.vreg<NxT>`
 - **A5 类型：** i32 / u32 的原生 32×32→64 扩宽乘
 - **语义：** 返回扩宽乘积的低半部分和高半部分。
 
@@ -126,7 +126,7 @@ for (int i = 0; i < 64; i++) {
 
 ### `pto.vmula`
 
-- **语法：** `%result = pto.vmula %acc, %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vmula %acc, %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 乘加融合。
 
 ```c
@@ -216,12 +216,12 @@ for (int i = 0; i < N; i++)
 // Softmax：先减去最大值，再走 expdiff
 %max_broadcast = pto.vlds %ub_max[%c0] {dist = "BRC_B32"}
     : !pto.ptr<f32, ub> -> !pto.vreg<64xf32>
-%exp_stable = pto.vexpdiff %logits, %max_broadcast
+%exp_stable = pto.vexpdif %logits, %max_broadcast
     : !pto.vreg<64xf32>, !pto.vreg<64xf32> -> !pto.vreg<64xf32>
 
 // Leaky ReLU
 %activated = pto.vlrelu %linear_out, %alpha_scalar, %mask
-    : !pto.vreg<64xf32>, f32, !pto.mask -> !pto.vreg<64xf32>
+    : !pto.vreg<64xf32>, f32, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 // 残差加法 + ReLU
 %residual = pto.vaddrelu %conv_out, %skip_connection

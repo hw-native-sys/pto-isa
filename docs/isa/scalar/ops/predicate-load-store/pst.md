@@ -8,7 +8,7 @@ Store the full predicate register to a UB location with a register-relative addr
 
 ## Mechanism
 
-`pto.pst` writes a predicate word from `!pto.mask` to a UB address computed as `base + areg * 8`. The offset is sourced from a scalar register, enabling data-dependent addressing.
+`pto.pst` writes a predicate word from `!pto.mask<G>` to a UB address computed as `base + areg * 8`. The offset is sourced from a scalar register, enabling data-dependent addressing.
 
 For predicate `mask`, UB base `base`, and offset register `areg`:
 
@@ -22,19 +22,19 @@ The predicate register is read atomically. Only bits within the current element-
 ### PTO Assembly Form
 
 ```mlir
-pto.pst %mask, %ub_ptr, %areg, "DIST" : !pto.mask, !pto.ptr<i64, ub>, i32
+pto.pst %mask, %ub_ptr, %areg, "DIST" : !pto.mask<G>, !pto.ptr<i64, ub>, i32
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-pto.pst %mask, %ub_ptr, %areg, "DIST" : !pto.mask, !pto.ptr<i64, ub>, i32
+pto.pst %mask, %ub_ptr, %areg, "DIST" : !pto.mask<G>, !pto.ptr<i64, ub>, i32
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.pst ins(%mask, %ub_ptr, %areg, "DIST" : !pto.mask, !pto.ptr<i64, ub>, i32)
+pto.pst ins(%mask, %ub_ptr, %areg, "DIST" : !pto.mask<G>, !pto.ptr<i64, ub>, i32)
 ```
 
 ## C++ Intrinsic
@@ -50,7 +50,7 @@ pst(src, base, offset, __cce_simd::NORM);
 
 | Operand | Type | Description |
 |---------|------|-------------|
-| `%mask` | `!pto.mask` | Predicate register to store |
+| `%mask` | `!pto.mask<G>` | Predicate register to store |
 | `%ub_ptr` | `!pto.ptr<i64, ub>` | UB base address |
 | `%areg` | `i32` | Scalar register holding the byte offset in 8-byte units |
 | `"DIST"` | string attribute | Distribution mode: `"NORM"` or `"PK"` |
@@ -109,10 +109,10 @@ void store_with_offset(RegBuf<predicate_t>& src,
 
 ```mlir
 // Generate predicate from comparison
-%mask = pto.vcmp %v0, %v1, %seed, "lt" : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.mask
+%mask = pto.vcmp %v0, %v1, %seed, "lt" : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.mask<b32>
 
 // Store predicate to UB at base + slot * 8
-pto.pst %mask, %ub_base, %slot, "NORM" : !pto.mask, !pto.ptr<i64, ub>, i32
+pto.pst %mask, %ub_base, %slot, "NORM" : !pto.mask<G>, !pto.ptr<i64, ub>, i32
 ```
 
 ## Related Ops / Instruction Set Links

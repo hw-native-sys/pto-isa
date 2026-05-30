@@ -26,6 +26,10 @@ PTO 定义五套具名指令集，并为每条指令提供明确参考页：
 
 ## Tile 指令清单
 
+### 视图与 Tile Buffer
+
+`make_tensor_view`、`get_tensor_view_dim`、`get_tensor_view_stride`、`tensor_view_addr`、`partition_view`、`alloc_tile`、`subset`、`set_validshape`、`tile_buf_addr`
+
 ### 同步与配置
 
 `tsync`、`tassign`、`talias`、`sethf32mode`、`settf32mode`、`setfmatrix`、`set_img2col_rpt`、`set_img2col_padding`、`subview`、`get_scale_addr`
@@ -62,7 +66,7 @@ PTO 定义五套具名指令集，并为每条指令提供明确参考页：
 
 ### 向量加载存储
 
-`vgather2`、`vgather2_bc`、`vgatherb`、`vldas`、`vlds`、`vldus`、`vldx2`、`vscatter`、`vsld`、`vsldb`、`vsst`、`vsstb`、`vsta`、`vstar`、`vstas`、`vsts`、`vstu`、`vstur`、`vstus`、`vstx2`
+`vgather2`、`vgather2_bc`、`vgatherb`、`vldas`、`vlds`、`vldus`、`vldsx2`、`vscatter`、`vsld`、`vsldb`、`vsst`、`vsstb`、`vsta`、`vstar`、`vstas`、`vsts`、`vstu`、`vstur`、`vstus`、`vstsx2`
 
 ### 谓词与物化
 
@@ -98,7 +102,7 @@ PTO 定义五套具名指令集，并为每条指令提供明确参考页：
 
 ### SFU 与 DSA 操作
 
-`vaddrelu`、`vaddreluconv`、`vaxpy`、`vexpdiff`、`vmrgsort`、`vmula`、`vmulconv`、`vmull`、`vprelu`、`vsort32`、`vsubrelu`、`vtranspose`
+`vaddrelu`、`vaddreluconv`、`vaxpy`、`vexpdif`、`vmrgsort`、`vmula`、`vmulconv`、`vmull`、`vprelu`、`vsort32`、`vsubrelu`、`vtranspose`
 
 ## 标量与控制指令清单
 

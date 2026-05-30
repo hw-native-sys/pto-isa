@@ -7,19 +7,19 @@
 ### PTO 汇编形式
 
 ```text
-plt_b16 %dst, %scalar_in : !pto.mask, i16 -> !pto.mask, i16
+plt_b16 %dst, %scalar_in : !pto.mask<b16>, i16 -> !pto.mask<b16>, i16
 ```
 
 ### AS Level 1（SSA）
 
 ```mlir
-%mask, %scalar_out = pto.plt_b16 %scalar_in : i16 -> !pto.mask, i16
+%mask, %scalar_out = pto.plt_b16 %scalar_in : i16 -> !pto.mask<b16>, i16
 ```
 
 ### AS Level 2（DPS）
 
 ```mlir
-pto.plt_b16 ins(%scalar_in : i16) outs(%mask, %scalar_out : !pto.mask, i16)
+pto.plt_b16 ins(%scalar_in : i16) outs(%mask, %scalar_out : !pto.mask<b16>, i16)
 ```
 
 ## 关键约束

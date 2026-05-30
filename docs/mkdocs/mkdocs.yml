@@ -120,9 +120,21 @@ nav:
       - System Scheduling Instruction Set: docs/isa/instruction-families/system-scheduling-families.md
   - 8. Tile Instruction Reference:
           - Overview: docs/isa/tile/README.md
+          - View And Tile Buffer:
+              - Instruction Set Contract: docs/isa/tile/view-and-tile-buf.md
+              - pto.make_tensor_view: docs/isa/tile/ops/view-and-tile-buf/make-tensor-view.md
+              - pto.get_tensor_view_dim: docs/isa/tile/ops/view-and-tile-buf/get-tensor-view-dim.md
+              - pto.get_tensor_view_stride: docs/isa/tile/ops/view-and-tile-buf/get-tensor-view-stride.md
+              - pto.tensor_view_addr: docs/isa/tile/ops/view-and-tile-buf/tensor-view-addr.md
+              - pto.partition_view: docs/isa/tile/ops/view-and-tile-buf/partition-view.md
+              - pto.alloc_tile: docs/isa/tile/ops/view-and-tile-buf/alloc-tile.md
+              - pto.subset: docs/isa/tile/ops/view-and-tile-buf/subset.md
+              - pto.set_validshape: docs/isa/tile/ops/view-and-tile-buf/set-validshape.md
+              - pto.tile_buf_addr: docs/isa/tile/ops/view-and-tile-buf/tile-buf-addr.md
           - Sync And Config:
               - Instruction Set Contract: docs/isa/tile/sync-and-config.md
               - pto.tsync: docs/isa/tile/ops/sync-and-config/tsync.md
+              - pto.syncall: docs/isa/tile/ops/sync-and-config/syncall.md
               - pto.tassign: docs/isa/tile/ops/sync-and-config/tassign.md
               - pto.talias: docs/isa/tile/ops/sync-and-config/talias.md
               - pto.sethf32mode: docs/isa/tile/ops/sync-and-config/sethf32mode.md
@@ -220,6 +232,7 @@ nav:
               - Instruction Set Contract: docs/isa/tile/memory-and-data-movement.md
               - pto.tload: docs/isa/tile/ops/memory-and-data-movement/tload.md
               - pto.tprefetch: docs/isa/tile/ops/memory-and-data-movement/tprefetch.md
+              - pto.tprefetch_async: docs/isa/tile/ops/memory-and-data-movement/tprefetch-async.md
               - pto.tstore: docs/isa/tile/ops/memory-and-data-movement/tstore.md
               - pto.mgather: docs/isa/tile/ops/memory-and-data-movement/mgather.md
               - pto.mscatter: docs/isa/tile/ops/memory-and-data-movement/mscatter.md
@@ -271,14 +284,14 @@ nav:
               - pto.vlds: docs/isa/vector/ops/vector-load-store/vlds.md
               - pto.vldas: docs/isa/vector/ops/vector-load-store/vldas.md
               - pto.vldus: docs/isa/vector/ops/vector-load-store/vldus.md
-              - pto.vldx2: docs/isa/vector/ops/vector-load-store/vldx2.md
+              - pto.vldsx2: docs/isa/vector/ops/vector-load-store/vldsx2.md
               - pto.vsld: docs/isa/vector/ops/vector-load-store/vsld.md
               - pto.vsldb: docs/isa/vector/ops/vector-load-store/vsldb.md
               - pto.vgather2: docs/isa/vector/ops/vector-load-store/vgather2.md
               - pto.vgatherb: docs/isa/vector/ops/vector-load-store/vgatherb.md
               - pto.vgather2_bc: docs/isa/vector/ops/vector-load-store/vgather2-bc.md
               - pto.vsts: docs/isa/vector/ops/vector-load-store/vsts.md
-              - pto.vstx2: docs/isa/vector/ops/vector-load-store/vstx2.md
+              - pto.vstsx2: docs/isa/vector/ops/vector-load-store/vstsx2.md
               - pto.vsst: docs/isa/vector/ops/vector-load-store/vsst.md
               - pto.vsstb: docs/isa/vector/ops/vector-load-store/vsstb.md
               - pto.vscatter: docs/isa/vector/ops/vector-load-store/vscatter.md
@@ -374,7 +387,7 @@ nav:
           - SFU And DSA Instructions:
               - Instruction Set Overview: docs/isa/vector/sfu-and-dsa-ops.md
               - pto.vprelu: docs/isa/vector/ops/sfu-and-dsa-ops/vprelu.md
-              - pto.vexpdiff: docs/isa/vector/ops/sfu-and-dsa-ops/vexpdiff.md
+              - pto.vexpdif: docs/isa/vector/ops/sfu-and-dsa-ops/vexpdif.md
               - pto.vaddrelu: docs/isa/vector/ops/sfu-and-dsa-ops/vaddrelu.md
               - pto.vsubrelu: docs/isa/vector/ops/sfu-and-dsa-ops/vsubrelu.md
               - pto.vaxpy: docs/isa/vector/ops/sfu-and-dsa-ops/vaxpy.md

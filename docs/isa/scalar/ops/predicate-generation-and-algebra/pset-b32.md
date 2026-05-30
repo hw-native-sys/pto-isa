@@ -21,19 +21,19 @@ The `_b32` variant is the widest directly-constructable predicate segment. For w
 ### PTO Assembly Form
 
 ```mlir
-%mask = pto.pset_b32 "PATTERN" : !pto.mask
+%mask = pto.pset_b32 "PATTERN" : !pto.mask<b32>
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-%mask = pto.pset_b32 "PATTERN" : !pto.mask
+%mask = pto.pset_b32 "PATTERN" : !pto.mask<b32>
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.pset_b32 "PATTERN" outs(%mask : !pto.mask)
+pto.pset_b32 "PATTERN" outs(%mask : !pto.mask<b32>)
 ```
 
 ## C++ Intrinsic
@@ -64,7 +64,7 @@ vector_bool mask = pset_b32(__cce_simd::PAT_VL16);
 
 | Result | Type | Description |
 |--------|------|-------------|
-| `%mask` | `!pto.mask` | Constructed 32-bit predicate |
+| `%mask` | `!pto.mask<b32>` | Constructed 32-bit predicate |
 
 ## Side Effects
 
@@ -107,17 +107,17 @@ void set_all_active(RegBuf<predicate_t>& dst) {
 
 ```mlir
 // All lanes active for f32 (64-bit predicate = pack two b32)
-%all32 = pto.pset_b32 "PAT_ALL" : !pto.mask
-%all64_lo = pto.pset_b32 "PAT_ALL" : !pto.mask
-%all64_hi = pto.pset_b32 "PAT_ALL" : !pto.mask
-%all64 = pto.ppack %all64_lo, "LOWER" : !pto.mask -> !pto.mask
+%all32 = pto.pset_b32 "PAT_ALL" : !pto.mask<b32>
+%all64_lo = pto.pset_b32 "PAT_ALL" : !pto.mask<b32>
+%all64_hi = pto.pset_b32 "PAT_ALL" : !pto.mask<b32>
+%all64 = pto.ppack %all64_lo, "LOWER" : !pto.mask<b32> -> !pto.mask<b32>
 ```
 
 ### Construct remainder mask
 
 ```mlir
 // First 12 lanes active (remainder loop)
-%remainder = pto.pset_b32 "PAT_VL12" : !pto.mask
+%remainder = pto.pset_b32 "PAT_VL12" : !pto.mask<b32>
 ```
 
 ## Related Ops / Instruction Set Links

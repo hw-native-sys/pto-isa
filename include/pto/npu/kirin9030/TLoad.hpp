@@ -22,9 +22,9 @@ PTO_INTERNAL void TLoadInstr(__ubuf__ typename DstTile::DType *dst, typename Src
                              uint32_t lenBurst, uint64_t gmStride, uint32_t ubStride, bool enableUBPad)
 {
     using LoadT = LoadTypeBySize_t<typename DstTile::DType>;
-    copy_gm_to_ubuf_align_v2(reinterpret_cast<__ubuf__ LoadT *>(dst), reinterpret_cast<__gm__ LoadT *>(src), 0 /*sid*/,
-                             nBurst, lenBurst, 0 /*left padding count*/, 0 /*right padding count*/,
-                             enableUBPad /*data select bit*/, gmStride, ubStride);
+    pto_copy_gm_to_ubuf_align_v2(reinterpret_cast<__ubuf__ LoadT *>(dst), reinterpret_cast<__gm__ LoadT *>(src), 0,
+                                 nBurst, lenBurst, 0 /*left padding count*/, 0 /*right padding count*/,
+                                 enableUBPad /*data select bit*/, 0, gmStride, ubStride);
 }
 
 template <typename DstTile, typename SrcGlobal>

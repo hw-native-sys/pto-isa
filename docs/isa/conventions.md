@@ -1,4 +1,4 @@
-﻿# PTO ISA Conventions
+# PTO ISA Conventions
 
 Shared conventions for the per-instruction ISA reference pages in `docs/isa/` and the corresponding C++ intrinsics in `include/pto/common/pto_instr.hpp` are defined below.
 

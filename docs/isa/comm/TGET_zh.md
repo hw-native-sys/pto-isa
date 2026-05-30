@@ -1,4 +1,4 @@
-# pto.tget / TGET
+# pto.tget
 
 ## 简介
 

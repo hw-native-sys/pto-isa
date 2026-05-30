@@ -15,20 +15,22 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace pto;
 
-template <typename T, int dstTileRow, int dstTileCol, int row, int validRow, int col, int validCol>
-PTO_INTERNAL void runTFModS(__gm__ T *out, __gm__ T *src, T scalar)
+template <typename T, int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
+          bool highPrecision>
+__global__ AICORE void runTFModS(__gm__ T *out, __gm__ T *src, T scalar)
 {
     using DynDim2Shape = Shape<1, 1, 1, -1, -1>;
     using DynDim2Stride = pto::Stride<1, 1, -1, -1, 1>;
     using GlobalData = GlobalTensor<T, DynDim2Shape, DynDim2Stride>;
-    using srcTileData = Tile<TileType::Vec, T, row, col, BLayout::RowMajor, -1, -1>;
+    using srcTileData = Tile<TileType::Vec, T, srcTileRow, srcTileCol, BLayout::RowMajor, -1, -1>;
     using dstTileData = Tile<TileType::Vec, T, dstTileRow, dstTileCol, BLayout::RowMajor, -1, -1>;
-    GlobalData srcGlobal(src, DynDim2Shape(validRow, validCol), DynDim2Stride(row, col));
+    GlobalData srcGlobal(src, DynDim2Shape(validRow, validCol), DynDim2Stride(srcTileRow, srcTileCol));
     GlobalData dstGlobal(out, DynDim2Shape(validRow, validCol), DynDim2Stride(dstTileRow, dstTileCol));
     srcTileData srcTile(validRow, validCol);
     dstTileData dstTile(validRow, validCol);
     TASSIGN(srcTile, 0x0);
-    TASSIGN(dstTile, row * col * sizeof(T));
+    TASSIGN(dstTile, srcTileRow * srcTileCol * sizeof(T));
+    constexpr auto precisionType = highPrecision ? FmodSAlgorithm::HIGH_PRECISION : FmodSAlgorithm::DEFAULT;
 // causes issues in automode as the tile returned from the TLOAD tfcall appears unused and this tload may not finish
 // before the second tload
 #ifndef __PTO_AUTO__
@@ -39,7 +41,7 @@ PTO_INTERNAL void runTFModS(__gm__ T *out, __gm__ T *src, T scalar)
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 #endif
-    TFMODS(dstTile, srcTile, scalar);
+    TFMODS<precisionType>(dstTile, srcTile, scalar);
 #ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
@@ -48,67 +50,30 @@ PTO_INTERNAL void runTFModS(__gm__ T *out, __gm__ T *src, T scalar)
     out = dstGlobal.data();
 }
 
-extern "C" __global__ AICORE void launchTFMODSCase1(__gm__ float *out, __gm__ float *src, float scalar)
+template <typename T, int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
+          bool highPrecision = false>
+void LaunchTFModS(T *out, T *src, T scalar, void *stream)
 {
-    runTFModS<float, 32, 128, 32, 32, 64, 64>(out, src, scalar);
-}
-extern "C" __global__ AICORE void launchTFMODSCase2(__gm__ aclFloat16 *out, __gm__ aclFloat16 *src, float scalar)
-{
-    runTFModS<half, 63, 128, 63, 63, 64, 64>((__gm__ half *)out, (__gm__ half *)src, (half)scalar);
-}
-extern "C" __global__ AICORE void launchTFMODSCase3(__gm__ int32_t *out, __gm__ int32_t *src, int32_t scalar)
-{
-    runTFModS<int32_t, 31, 256, 31, 31, 128, 128>(out, src, scalar);
-}
-extern "C" __global__ AICORE void launchTFMODSCase4(__gm__ int16_t *out, __gm__ int16_t *src, int16_t scalar)
-{
-    runTFModS<int16_t, 15, 192, 15, 15, 192, 192>(out, src, scalar);
-}
-extern "C" __global__ AICORE void launchTFMODSCase5(__gm__ float *out, __gm__ float *src, float scalar)
-{
-    runTFModS<float, 7, 512, 7, 7, 448, 448>(out, src, scalar);
-}
-extern "C" __global__ AICORE void launchTFMODSCase6(__gm__ float *out, __gm__ float *src, float scalar)
-{
-    runTFModS<float, 256, 32, 256, 256, 16, 16>(out, src, scalar);
+    runTFModS<T, dstTileRow, dstTileCol, srcTileRow, srcTileCol, validRow, validCol, highPrecision>
+        <<<1, nullptr, stream>>>(out, src, scalar);
 }
 
-template <uint32_t caseId>
-void launchTFMODSTestCase(void *out, void *src, float scalar, aclrtStream stream)
+template <int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
+          bool highPrecision = false>
+void LaunchTFModSHalf(aclFloat16 *out, aclFloat16 *src, aclFloat16 scalar, void *stream)
 {
-    switch (caseId) {
-        case 1: {
-            launchTFMODSCase1<<<1, nullptr, stream>>>((float *)out, (float *)src, scalar);
-            break;
-        }
-        case 2: {
-            launchTFMODSCase2<<<1, nullptr, stream>>>((aclFloat16 *)out, (aclFloat16 *)src, scalar);
-            break;
-        }
-        case 3: {
-            launchTFMODSCase3<<<1, nullptr, stream>>>((int32_t *)out, (int32_t *)src, scalar);
-            break;
-        }
-        case 4: {
-            launchTFMODSCase4<<<1, nullptr, stream>>>((int16_t *)out, (int16_t *)src, scalar);
-            break;
-        }
-        case 5: {
-            launchTFMODSCase5<<<1, nullptr, stream>>>((float *)out, (float *)src, scalar);
-            break;
-        }
-        case 6: {
-            launchTFMODSCase6<<<1, nullptr, stream>>>((float *)out, (float *)src, scalar);
-            break;
-        }
-        default: {
-        }
-    }
+    runTFModS<half, dstTileRow, dstTileCol, srcTileRow, srcTileCol, validRow, validCol, highPrecision>
+        <<<1, nullptr, stream>>>((half *)out, (half *)src, *(half *)&scalar);
 }
 
-template void launchTFMODSTestCase<1>(void *out, void *src, float scalar, aclrtStream stream);
-template void launchTFMODSTestCase<2>(void *out, void *src, float scalar, aclrtStream stream);
-template void launchTFMODSTestCase<3>(void *out, void *src, float scalar, aclrtStream stream);
-template void launchTFMODSTestCase<4>(void *out, void *src, float scalar, aclrtStream stream);
-template void launchTFMODSTestCase<5>(void *out, void *src, float scalar, aclrtStream stream);
-template void launchTFMODSTestCase<6>(void *out, void *src, float scalar, aclrtStream stream);
+template void LaunchTFModS<float, 32, 128, 32, 128, 32, 64>(float *out, float *src, float scalar, void *stream);
+template void LaunchTFModSHalf<63, 128, 63, 128, 63, 64>(aclFloat16 *out, aclFloat16 *src, aclFloat16 scalar,
+                                                         void *stream);
+template void LaunchTFModS<int32_t, 31, 256, 31, 256, 31, 128>(int32_t *out, int32_t *src, int32_t scalar,
+                                                               void *stream);
+template void LaunchTFModS<int16_t, 15, 192, 15, 192, 15, 192>(int16_t *out, int16_t *src, int16_t scalar,
+                                                               void *stream);
+template void LaunchTFModS<float, 7, 512, 7, 512, 7, 448>(float *out, float *src, float scalar, void *stream);
+template void LaunchTFModS<float, 256, 32, 256, 32, 256, 31>(float *out, float *src, float scalar, void *stream);
+template void LaunchTFModS<float, 64, 64, 64, 64, 64, 64, true>(float *out, float *src, float scalar, void *stream);
+template void LaunchTFModS<float, 64, 64, 64, 64, 64, 61, true>(float *out, float *src, float scalar, void *stream);

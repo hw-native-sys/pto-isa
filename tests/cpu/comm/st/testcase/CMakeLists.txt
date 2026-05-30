@@ -39,6 +39,8 @@ find_package(Threads REQUIRED)
 set(ALL_TESTCASES
 tscatter
 tgather
+tget_async_urma
+tput_async_urma
 )
 
 foreach(TESTCASE ${ALL_TESTCASES})

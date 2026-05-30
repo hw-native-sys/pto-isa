@@ -35,6 +35,12 @@ def gen_golden_data(case_name, gInfo):
                                     gWholeShape2, gWholeShape3, gWholeShape4)).astype(data_type)
         output_arr = np.zeros(shape=(gShape0, gShape1, gShape2, gShape3, gShape4), dtype=data_type)
         output_arr = input_arr[0:gShape0, 0:gShape1, 0:gShape2, 0:gShape3, 0:gShape4]
+    elif gInfo.format == "NDC1HWC02NDC1HWC0":
+        c0_size = 32 // np.dtype(data_type).itemsize
+        input_arr = np.random.randint(-5, 5, size=(gWholeShape0, gWholeShape1,
+                                    gWholeShape2, gWholeShape3, gWholeShape4, c0_size)).astype(data_type)
+        output_arr = np.zeros(shape=(gShape0, gShape1, gShape2, gShape3, gShape4, c0_size), dtype=data_type)
+        output_arr = input_arr[0:gShape0, 0:gShape1, 0:gShape2, 0:gShape3, 0:gShape4, :]
     elif gInfo.format == "DN":
         input_arr = np.random.randint(-5, 5, size=(gWholeShape0, gWholeShape1,
                                     gWholeShape2, gWholeShape4, gWholeShape3)).astype(data_type)
@@ -139,6 +145,13 @@ if __name__ == "__main__":
         "TLoadGM2L1Test.FZ4D2FZ4D_int8_t_1_125_3_16_32_1_250_5_16_32", # cut C1HW N
         "TLoadGM2L1Test.FZ4D2FZ4D_float_1_256_3_16_8_1_4704_7_16_8", # cut C1HW N
 
+        "TLoadGM2L1Test.NDC1HWC02NDC1HWC0_int8_t_1_2_3_16_128_2_3_4_1024_1024", # cut N H
+        "TLoadGM2L1Test.NDC1HWC02NDC1HWC0_int8_t_1_3_4_128_8_2_3_4_128_128", # cut W
+        "TLoadGM2L1Test.NDC1HWC02NDC1HWC0_int8_t_1_3_4_8_128_2_3_8_8_128", # cut C1
+        "TLoadGM2L1Test.NDC1HWC02NDC1HWC0_bfloat16_1_1_16_10_100_2_1_16_100_100", # cut H
+        "TLoadGM2L1Test.NDC1HWC02NDC1HWC0_bfloat16_1_1_10_16_2_2_2_256_16_100", # cut N D C1 W
+        "TLoadGM2L1Test.NDC1HWC02NDC1HWC0_bfloat16_1_1_1_1_8192_2_8_16_16_8192", # cut N D C1 H
+        "TLoadGM2L1Test.NDC1HWC02NDC1HWC0_float_1_1_1_112_112_2_2_3_224_224", # cut N D C1 H W
     ]
 
     case_params_list = [
@@ -194,6 +207,14 @@ if __name__ == "__main__":
         GlobalTensorInfo(np.int8, "FZ4D2FZ4D", 1, 63, 3, 16, 32, 1, 63, 9, 16, 32),
         GlobalTensorInfo(np.int8, "FZ4D2FZ4D", 1, 125, 3, 16, 32, 1, 250, 5, 16, 32),
         GlobalTensorInfo(np.float32, "FZ4D2FZ4D", 1, 256, 3, 16, 8, 1, 4704, 7, 16, 8),
+
+        GlobalTensorInfo(np.int8, "NDC1HWC02NDC1HWC0", 1, 2, 3, 16, 128, 2, 3, 4, 1024, 1024),
+        GlobalTensorInfo(np.int8, "NDC1HWC02NDC1HWC0", 1, 3, 4, 128, 8, 2, 3, 4, 128, 128),
+        GlobalTensorInfo(np.int8, "NDC1HWC02NDC1HWC0", 1, 3, 4, 8, 128, 2, 3, 8, 8, 128),
+        GlobalTensorInfo(np.float16, "NDC1HWC02NDC1HWC0", 1, 1, 16, 10, 100, 2, 1, 16, 100, 100),
+        GlobalTensorInfo(np.float16, "NDC1HWC02NDC1HWC0", 1, 1, 10, 16, 2, 2, 2, 256, 16, 100),
+        GlobalTensorInfo(np.float16, "NDC1HWC02NDC1HWC0", 1, 1, 1, 1, 8192, 2, 8, 16, 16, 8192),
+        GlobalTensorInfo(np.float32, "NDC1HWC02NDC1HWC0", 1, 1, 1, 112, 112, 2, 2, 3, 224, 224),
 
     ]
 

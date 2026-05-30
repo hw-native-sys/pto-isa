@@ -5,13 +5,14 @@
 ## 目录内容
 
 - 与打包相关的 CMake 逻辑（`package` 目标）
-- 内置的 `makeself` 安装包生成
+- 通过 FetchContent 复用 CANN 工程公共 cmake 仓
 - `cmake/third_party/` 下的第三方依赖下载/集成脚本
 
 ## 关键文件
 
-- `cmake/package.cmake`：由顶层 `CMakeLists.txt` 引入的打包入口函数
-- `cmake/makeself_built_in.cmake`：内置 `makeself` 打包逻辑
+- `cmake/package.cmake`：由顶层 `CMakeLists.txt` 引入的打包入口函数，调用工程仓提供的 `set_cann_cpack_config` 完成 cpack 配置
+- `cmake/fetch_cann_cmake.cmake`：拉取 `https://gitcode.com/cann/cmake`，并暴露公共函数（`init_cann_project`、`set_cann_cpack_config`、内置 `makeself` 及 install 脚本等）
+- `cmake/func.cmake`：项目内本地辅助函数（protobuf、签名、打包）
 - `cmake/third_party/`：第三方依赖辅助脚本
 
 ## 入口

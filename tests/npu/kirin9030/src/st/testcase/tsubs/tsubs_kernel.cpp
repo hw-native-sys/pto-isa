@@ -14,20 +14,24 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace pto;
 
-template <typename T, int dstTileRow, int dstTileCol, int row, int validRow, int col, int validCol>
+template <typename T, int dstRow, int dstCol, int row, int validRow, int col, int validCol>
 PTO_INTERNAL void runTSubS(__gm__ T *out, __gm__ T *src, T scalar)
 {
-    using DynDim2Shape = Shape<1, 1, 1, -1, -1>;
-    using DynDim2Stride = pto::Stride<1, 1, -1, -1, 1>;
-    using GlobalData = GlobalTensor<T, DynDim2Shape, DynDim2Stride>;
-    using srcTileData = Tile<TileType::Vec, T, row, col, BLayout::RowMajor, -1, -1>;
-    using dstTileData = Tile<TileType::Vec, T, dstTileRow, dstTileCol, BLayout::RowMajor, -1, -1>;
-    GlobalData srcGlobal(src, DynDim2Shape(validRow, validCol), DynDim2Stride(row, col));
-    GlobalData dstGlobal(out, DynDim2Shape(validRow, validCol), DynDim2Stride(dstTileRow, dstTileCol));
-    srcTileData srcTile(validRow, validCol);
-    dstTileData dstTile(validRow, validCol);
+    using Dim2Shape = Shape<1, 1, 1, validRow, validCol>;
+    using SrcShape = pto::Stride<row * col, row * col, row * col, col, 1>;
+    using DstShape = pto::Stride<dstRow * dstCol, dstRow * dstCol, dstRow * dstCol, dstCol, 1>;
+    using SrcGlobal = GlobalTensor<T, Dim2Shape, SrcShape>;
+    using DstGlobal = GlobalTensor<T, Dim2Shape, DstShape>;
+    SrcGlobal srcGlobal(src);
+    DstGlobal dstGlobal(out);
+
+    using srcTileData = Tile<TileType::Vec, T, row, col, BLayout::RowMajor, validRow, validCol>;
+    using dstTileData = Tile<TileType::Vec, T, dstRow, dstCol, BLayout::RowMajor, validRow, validCol>;
+    srcTileData srcTile;
+    dstTileData dstTile;
     TASSIGN<0x0>(srcTile);
-    TASSIGN<0x28000>(dstTile);
+    TASSIGN<srcTileData::Numel * sizeof(T)>(dstTile);
+
     TLOAD(dstTile, dstGlobal);
     TLOAD(srcTile, srcGlobal);
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
@@ -36,7 +40,6 @@ PTO_INTERNAL void runTSubS(__gm__ T *out, __gm__ T *src, T scalar)
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     TSTORE(dstGlobal, dstTile);
-    out = dstGlobal.data();
 }
 
 extern "C" __global__ AICORE void launchTSUBSCase1(__gm__ float *out, __gm__ float *src, float scalar)
@@ -62,6 +65,22 @@ extern "C" __global__ AICORE void launchTSUBSCase5(__gm__ float *out, __gm__ flo
 extern "C" __global__ AICORE void launchTSUBSCase6(__gm__ float *out, __gm__ float *src, float scalar)
 {
     runTSubS<float, 256, 32, 256, 256, 16, 16>(out, src, scalar);
+}
+extern "C" __global__ AICORE void launchTSUBSCase7(__gm__ uint32_t *out, __gm__ uint32_t *src, uint32_t scalar)
+{
+    runTSubS<uint32_t, 256, 32, 256, 256, 16, 16>(out, src, scalar);
+}
+extern "C" __global__ AICORE void launchTSUBSCase8(__gm__ uint16_t *out, __gm__ uint16_t *src, uint16_t scalar)
+{
+    runTSubS<uint16_t, 256, 32, 256, 256, 16, 16>(out, src, scalar);
+}
+extern "C" __global__ AICORE void launchTSUBSCase9(__gm__ int8_t *out, __gm__ int8_t *src, int8_t scalar)
+{
+    runTSubS<int8_t, 256, 64, 256, 256, 32, 32>(out, src, scalar);
+}
+extern "C" __global__ AICORE void launchTSUBSCase10(__gm__ uint8_t *out, __gm__ uint8_t *src, uint8_t scalar)
+{
+    runTSubS<uint8_t, 256, 64, 256, 256, 32, 32>(out, src, scalar);
 }
 
 template <uint32_t caseId>
@@ -92,6 +111,22 @@ void launchTSUBSTestCase(void *out, void *src, float scalar, aclrtStream stream)
             launchTSUBSCase6<<<1, nullptr, stream>>>((float *)out, (float *)src, scalar);
             break;
         }
+        case 7: {
+            launchTSUBSCase7<<<1, nullptr, stream>>>((uint32_t *)out, (uint32_t *)src, scalar);
+            break;
+        }
+        case 8: {
+            launchTSUBSCase8<<<1, nullptr, stream>>>((uint16_t *)out, (uint16_t *)src, scalar);
+            break;
+        }
+        case 9: {
+            launchTSUBSCase9<<<1, nullptr, stream>>>((int8_t *)out, (int8_t *)src, scalar);
+            break;
+        }
+        case 10: {
+            launchTSUBSCase10<<<1, nullptr, stream>>>((uint8_t *)out, (uint8_t *)src, scalar);
+            break;
+        }
         default: {
         }
     }
@@ -103,3 +138,7 @@ template void launchTSUBSTestCase<3>(void *out, void *src, float scalar, aclrtSt
 template void launchTSUBSTestCase<4>(void *out, void *src, float scalar, aclrtStream stream);
 template void launchTSUBSTestCase<5>(void *out, void *src, float scalar, aclrtStream stream);
 template void launchTSUBSTestCase<6>(void *out, void *src, float scalar, aclrtStream stream);
+template void launchTSUBSTestCase<7>(void *out, void *src, float scalar, aclrtStream stream);
+template void launchTSUBSTestCase<8>(void *out, void *src, float scalar, aclrtStream stream);
+template void launchTSUBSTestCase<9>(void *out, void *src, float scalar, aclrtStream stream);
+template void launchTSUBSTestCase<10>(void *out, void *src, float scalar, aclrtStream stream);

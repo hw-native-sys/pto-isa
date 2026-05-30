@@ -15,23 +15,26 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace PtoTestCommon;
 
+template <typename T, int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
+          bool highPrecision = false>
+void LaunchTFModS(T *out, T *src, T scalar, void *stream);
 
-template <uint32_t caseId>
-void launchTFMODSTestCase(void *out, void *src, float scalar, aclrtStream stream);
+template <int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
+          bool highPrecision = false>
+void LaunchTFModSHalf(aclFloat16 *out, aclFloat16 *src, aclFloat16 scalar, void *stream);
 
 class TFMODSTest : public testing::Test {
-public: 
+public:
 protected:
     void SetUp() override
-    { 
-    }
+    {}
 
     void TearDown() override
-    {
-    }
+    {}
 };
 
-std::string GetGoldenDir() {
+std::string GetGoldenDir()
+{
     const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
@@ -39,22 +42,24 @@ std::string GetGoldenDir() {
     return fullPath;
 }
 
-template <uint32_t caseId, typename T, int dstTileRow, int dstTileCol, int row, int vaildRow, int col, int srcVaildCol>
-bool TFModSTestFramework()
+template <typename T, int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
+          bool isHalf = false, bool highPrecision = false>
+inline void TFModSTestFramework()
 {
     aclInit(nullptr);
     aclrtSetDevice(0);
-    
+
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
     size_t dstByteSize = dstTileRow * dstTileCol * sizeof(T);
-    size_t srcByteSize = row * col * sizeof(T);
+    size_t srcByteSize = srcTileRow * srcTileCol * sizeof(T);
+    size_t scalarByteSize = sizeof(T);
     T *dstHost;
     T *srcHost;
     T *dstDevice;
     T *srcDevice;
-    float scalar;
+    T scalar;
 
     aclrtMallocHost((void **)(&dstHost), dstByteSize);
     aclrtMallocHost((void **)(&srcHost), srcByteSize);
@@ -63,17 +68,18 @@ bool TFModSTestFramework()
     aclrtMalloc((void **)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", srcByteSize, srcHost, srcByteSize);
-    std::string scalar_file = GetGoldenDir() + "/divider.bin";
-    std::ifstream file(scalar_file, std::ios::binary);
-    
-    file.read(reinterpret_cast<char*>(&scalar), 4);
-    file.close();
+    ReadFile(GetGoldenDir() + "/divider.bin", scalarByteSize, &scalar, scalarByteSize);
 
     aclrtMemcpy(srcDevice, srcByteSize, srcHost, srcByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    launchTFMODSTestCase<caseId>(dstDevice, srcDevice, scalar, stream);
+    if constexpr (isHalf) {
+        LaunchTFModSHalf<dstTileRow, dstTileCol, srcTileRow, srcTileCol, validRow, validCol, highPrecision>(
+            dstDevice, srcDevice, scalar, stream);
+    } else {
+        LaunchTFModS<T, dstTileRow, dstTileCol, srcTileRow, srcTileCol, validRow, validCol, highPrecision>(
+            dstDevice, srcDevice, scalar, stream);
+    }
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, dstByteSize, dstDevice, dstByteSize, ACL_MEMCPY_DEVICE_TO_HOST);
-
     WriteFile(GetGoldenDir() + "/output.bin", dstHost, dstByteSize);
 
     aclrtFree(dstDevice);
@@ -91,41 +97,46 @@ bool TFModSTestFramework()
     ReadFile(GetGoldenDir() + "/golden.bin", dstByteSize, golden.data(), dstByteSize);
     ReadFile(GetGoldenDir() + "/output.bin", dstByteSize, devFinal.data(), dstByteSize);
 
-    return ResultCmp<T>(golden, devFinal, 0.001f);
+    bool res = ResultCmp<T>(golden, devFinal, 0.001f);
+    EXPECT_TRUE(res);
 }
 
 TEST_F(TFMODSTest, case1)
 {
-    bool ret = TFModSTestFramework<1, float, 32, 128, 32, 32, 64, 64>();
-    EXPECT_TRUE(ret);
+    TFModSTestFramework<float, 32, 128, 32, 128, 32, 64>();
 }
 
 TEST_F(TFMODSTest, case2)
 {
-    bool ret = TFModSTestFramework<2, aclFloat16, 63, 128, 63, 63, 64, 64>();
-    EXPECT_TRUE(ret);
+    TFModSTestFramework<aclFloat16, 63, 128, 63, 128, 63, 64, true>();
 }
 
 TEST_F(TFMODSTest, case3)
 {
-    bool ret = TFModSTestFramework<3, int32_t, 31, 256, 31, 31, 128, 128>();
-    EXPECT_TRUE(ret);
+    TFModSTestFramework<int32_t, 31, 256, 31, 256, 31, 128>();
 }
 
 TEST_F(TFMODSTest, case4)
 {
-    bool ret = TFModSTestFramework<4, int16_t, 15, 192, 15, 15, 192, 192>();
-    EXPECT_TRUE(ret);
+    TFModSTestFramework<int16_t, 15, 192, 15, 192, 15, 192>();
 }
 
 TEST_F(TFMODSTest, case5)
 {
-    bool ret = TFModSTestFramework<5, float, 7, 512, 7, 7, 448, 448>();
-    EXPECT_TRUE(ret);
+    TFModSTestFramework<float, 7, 512, 7, 512, 7, 448>();
 }
 
 TEST_F(TFMODSTest, case6)
 {
-    bool ret = TFModSTestFramework<6, float, 256, 32, 256, 256, 16, 16>();
-    EXPECT_TRUE(ret);
+    TFModSTestFramework<float, 256, 32, 256, 32, 256, 31>();
+}
+
+TEST_F(TFMODSTest, caseHP1)
+{
+    TFModSTestFramework<float, 64, 64, 64, 64, 64, 64, false, true>();
+}
+
+TEST_F(TFMODSTest, caseHP2)
+{
+    TFModSTestFramework<float, 64, 64, 64, 64, 64, 61, false, true>();
 }

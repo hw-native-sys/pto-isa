@@ -15,13 +15,13 @@ For each lane `i` where `%seed[i]` is true, `result[i]` is set to the outcome of
 ### PTO Assembly Form
 
 ```text
-vcmps %dst, %src, %scalar, %seed, "CMP_MODE" : !pto.mask
+vcmps %dst, %src, %scalar, %seed, "CMP_MODE" : !pto.mask<G>
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vcmps %src, %scalar, %seed, "CMP_MODE" : !pto.vreg<NxT>, T, !pto.mask -> !pto.mask
+%result = pto.vcmps %src, %scalar, %seed, "CMP_MODE" : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.mask<G>
 ```
 
 ## Inputs
@@ -30,14 +30,14 @@ vcmps %dst, %src, %scalar, %seed, "CMP_MODE" : !pto.mask
 | --- | --- | --- |
 | %src | `!pto.vreg<NxT>` | Vector operand |
 | %scalar | `T` | Scalar comparison value broadcast to every active lane |
-| %seed | `!pto.mask` | Incoming predicate mask that limits which lanes are compared |
+| %seed | `!pto.mask<G>` | Incoming predicate mask that limits which lanes are compared |
 | `CMP_MODE` | enum | Comparison predicate such as `eq`, `ne`, `lt`, `le`, `gt`, or `ge` |
 
 ## Expected Outputs
 
 | Result | Type | Description |
 | --- | --- | --- |
-| %result | `!pto.mask` | Predicate mask whose active bits record the comparison result |
+| %result | `!pto.mask<G>` | Predicate mask whose active bits record the comparison result |
 
 ## Side Effects
 
@@ -71,7 +71,7 @@ for (int i = 0; i < N; i++)
 ```
 
 ```mlir
-%positive_mask = pto.vcmps %values, %c0_f32, %all_active, "gt" : !pto.vreg<64xf32>, f32, !pto.mask -> !pto.mask
+%positive_mask = pto.vcmps %values, %c0_f32, %all_active, "gt" : !pto.vreg<64xf32>, f32, !pto.mask<b32> -> !pto.mask<b32>
 ```
 
 ## Related Ops / Instruction Set Links

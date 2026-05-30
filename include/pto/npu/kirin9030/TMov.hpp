@@ -12,7 +12,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define TMOV_HPP
 #include "common.hpp"
 #include "TExtract.hpp"
-#include "TPartAdd.hpp"
+#include "pto/npu/a5/TPartAdd.hpp"
 
 namespace pto {
 template <typename DstTile, typename SrcTile>
@@ -23,18 +23,25 @@ __tf__ AICORE void TMovToBt(typename DstTile::TileDType __out__ dst, typename Sr
     static_assert((std::is_same_v<SrcType, int32_t> && std::is_same_v<DstType, int32_t>) ||
                       (std::is_same_v<SrcType, half> && std::is_same_v<DstType, half>),
                   "Fix: TMOV: Bias data type only supports int32_t or half.");
-    constexpr const int BIAS_TABLE_UNIT_ELEM = 16;
-    static_assert(SrcTile::Rows == 1, "Fix: TMov: When TileType is Bias, row must be 1.");
-    static_assert(DstTile::Cols % BIAS_TABLE_UNIT_ELEM == 0,
-                  "Fix: TMov: When TileType is Bias, col must be aligned to 16.");
+
+    constexpr const int BIAS_TABLE_UNIT = 64;
+    static_assert(SrcTile::Rows == 1, "TMov: When TileType is Bias, row must be 1.");
+    static_assert(DstTile::Cols * sizeof(DstType) % BIAS_TABLE_UNIT == 0,
+                  "TMov: When TileType is Bias, col * sizeof(Dtype) must be aligned to 64.");
     static_assert(DstTile::Cols * sizeof(DstType) <= PTO_BIAS_SIZE_BYTES,
-                  "Fix: TMov: The memory occupation of BiasTile exceeds 1.0KB bias table size.");
+                  "TMov: The memory occupation of BiasTile exceeds 4.0KB bias table size.");
 
-    __cbuf__ SrcType *srcP = (__cbuf__ SrcType *)(src);
-    uint64_t dstAddr = (uint64_t)dst;
-    constexpr uint16_t burstLen = SrcTile::Numel * sizeof(SrcType) / BLOCK_BYTE_SIZE;
+    __cbuf__ SrcType *srcAddrP = (__cbuf__ SrcType *)__cce_get_tile_ptr(src);
+    uint64_t dstAddrP = (uint64_t)dst;
 
-    copy_cbuf_to_bt(dstAddr, srcP, false /* convControl */, 1 /* nBurst */, burstLen, 0 /* srcGap */, 0 /* dstGap */);
+    constexpr bool convControl = false;
+    constexpr uint16_t burstNum = 1;
+    constexpr const int BURST_LEN_UNIT_SHIFT = 5; // BURST_LEN_UNIT = 32;
+    constexpr uint16_t burstLen = SrcTile::Numel * sizeof(SrcType) >> BURST_LEN_UNIT_SHIFT;
+    constexpr uint16_t srcGap = 0;
+    constexpr uint16_t dstGap = 0;
+
+    copy_cbuf_to_bt(dstAddrP, srcAddrP, convControl, burstNum, burstLen, srcGap, dstGap);
 }
 
 template <typename DstTile, typename SrcTile>
@@ -43,38 +50,28 @@ __tf__ AICORE void TMovToFb(typename DstTile::TileDType __out__ dst, typename Sr
     using SrcType = typename SrcTile::DType;
     using DstType = typename DstTile::DType;
     constexpr const int FIXPIPE_BUFFER_UNIT = 128;
-    constexpr const int FIXPIPE_BUFFER_SIZE = 7 * 1024;
     static_assert(SrcTile::Rows == 1, "TMov: When TileType is Scaling, row must be 1.");
     static_assert(DstTile::Cols * sizeof(DstType) % FIXPIPE_BUFFER_UNIT == 0,
                   "TMov: When TileType is Scaling, col * sizeof(Dtype) must be aligned to 128.");
-    static_assert(DstTile::Cols * sizeof(DstType) <= FIXPIPE_BUFFER_SIZE,
+    static_assert(DstTile::Cols * sizeof(DstType) <= PTO_FBUF_SIZE_BYTES,
                   "TMov: The memory occupation of FbTile exceeds 7.0KB fixpipe buffer size.");
 
-    __cbuf__ SrcType *srcP = (__cbuf__ SrcType *)(src);
-    __fbuf__ DstType *dstP = (__fbuf__ DstType *)(dst);
+    __cbuf__ SrcType *srcAddrP = (__cbuf__ SrcType *)__cce_get_tile_ptr(src);
+    __fbuf__ DstType *dstAddrP = (__fbuf__ DstType *)__cce_get_tile_ptr(dst);
 
+    constexpr uint16_t burstNum = 1;
     constexpr uint16_t burstLen = SrcTile::Numel * sizeof(SrcType) / FIXP_BURST_UNIT_LEN;
+    constexpr uint16_t srcGap = 0;
+    constexpr uint16_t dstGap = 0;
 
-    copy_cbuf_to_fbuf(dstP, srcP, 1 /* nBurst */, burstLen, 0 /* srcGap */, 0 /* dstGap */);
-}
-
-template <typename DstTile, typename SrcTile, AccToVecMode mode, QuantMode_t quantPre>
-PTO_INTERNAL constexpr uint8_t GetDualDstCtl()
-{
-    if constexpr (mode == AccToVecMode::DualModeSplitM || mode == AccToVecMode::DualModeSplitN) {
-        static_assert(quantPre == QuantMode_t::NoQuant, "Quant is not support in dual Dst Mode.");
-        static_assert((!(!DstTile::isRowMajor && DstTile::SFractal == SLayout::NoneBox)),
-                      "Dual Dst Mode is not support in nz2dn.");
-        return ((mode == AccToVecMode::DualModeSplitM) ? 1 : 2);
-    }
-    return 0;
+    copy_cbuf_to_fbuf(dstAddrP, srcAddrP, burstNum, burstLen, srcGap, dstGap);
 }
 
 PTO_INTERNAL void SetLoop3Para()
 {
     constexpr uint16_t ndNum = 1;
-    constexpr uint16_t dstNdStride = 0x0;
-    constexpr uint16_t srcNdStride = 0x0;
+    constexpr uint16_t dstNdStride = 0;
+    constexpr uint16_t srcNdStride = 0;
     constexpr uint64_t loop3Para = static_cast<uint64_t>(dstNdStride) << 32 | static_cast<uint64_t>(srcNdStride) << 16 |
                                    static_cast<uint64_t>(ndNum);
     set_loop3_para(loop3Para);
@@ -88,9 +85,9 @@ PTO_INTERNAL constexpr uint32_t GetTmovAccDstStride()
     } else if constexpr (!DstTile::isRowMajor && DstTile::SFractal == SLayout::NoneBox) {
         return DstTile::Rows;
     }
-    constexpr bool channelSplitEnable =
-        (!DstTile::isRowMajor && (DstTile::SFractal == SLayout::RowMajor)) &&
-        (std::is_same_v<typename DstTile::DType, float>)&&(DstTile::SFractalSize == 512);
+    constexpr bool channelSplitEnable = (!DstTile::isRowMajor && (DstTile::SFractal == SLayout::RowMajor)) &&
+                                        (std::is_same_v<typename DstTile::DType, float>) &&
+                                        (DstTile::SFractalSize == 512);
     constexpr uint32_t c0Size = (!channelSplitEnable) &&
                                         (!DstTile::isRowMajor && (DstTile::SFractal == SLayout::RowMajor)) &&
                                         (DstTile::SFractalSize == 1024) ?
@@ -112,16 +109,16 @@ __tf__ AICORE void TMovCcToCb(typename DstTile::TileDType __out__ dst, typename 
             Dst Tile Cols * sizeof(dstType) must be multiples of 32 and not 0 when nz2nz.");
     constexpr int32_t c0Size = BLOCK_BYTE_SIZE / sizeof(dstType);
     constexpr bool enableNz2Nz = (!DstTile::isRowMajor && DstTile::SFractal == SLayout::RowMajor);
-    constexpr bool channelSplitEnable =
-        (!DstTile::isRowMajor && (DstTile::SFractal == SLayout::RowMajor)) &&
-        (std::is_same_v<typename DstTile::DType, float>)&&(DstTile::SFractalSize == 512);
+    constexpr bool channelSplitEnable = (!DstTile::isRowMajor && (DstTile::SFractal == SLayout::RowMajor)) &&
+                                        (std::is_same_v<typename DstTile::DType, float>) &&
+                                        (DstTile::SFractalSize == 512);
     if constexpr (enableNz2Nz) {
         validRow = SrcTile::Rows;
         if constexpr (std::is_same_v<typename DstTile::DType, float>) {
-            constexpr int32_t alignSize = channelSplitEnable ? c0Size : FRACTAL_NZ_ROW;
-            validCol = CeilDivision(validCol, alignSize) * alignSize;
+            constexpr int32_t align = channelSplitEnable ? c0Size : FRACTAL_NZ_ROW;
+            validCol = CeilAlignment(validCol, align);
         } else {
-            validCol = CeilDivision(validCol, c0Size) * c0Size;
+            validCol = CeilAlignment(validCol, c0Size);
         }
     }
 
@@ -134,30 +131,30 @@ __tf__ AICORE void TMovCcToCb(typename DstTile::TileDType __out__ dst, typename 
         constexpr uint64_t channelPara = static_cast<uint64_t>(1) << 48;
         set_channel_para(channelPara);
     }
-
+    auto srcStride = CeilAlignment(validRow, BLOCK_LEN);
     __cbuf__ dstType *dstAddr = (__cbuf__ dstType *)__cce_get_tile_ptr(dst);
-    __cc__ srcType *srcData = (__cc__ srcType *)(src);
+    __cc__ srcType *srcData = (__cc__ srcType *)__cce_get_tile_ptr(src);
 
-    copy_matrix_cc_to_cbuf(dstAddr, srcData, 0, validCol, validRow, dstStride, SrcTile::Rows, 0, 0, QuantPre, reluMode,
+    copy_matrix_cc_to_cbuf(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, 0, 0, QuantPre, reluMode,
                            channelSplitEnable, enableNz2Nd, 0, 0, false, false, 0, false, false, false, false, false,
                            enableNz2Dn);
 }
 
-template <typename DstTile, typename SrcTile, AccToVecMode mode, QuantMode_t quantPre, ReluPreMode reluMode>
+template <typename DstTile, typename SrcTile, AccToVecMode mode, QuantMode_t quantPre, ReluPreMode reluMode,
+          STPhase Phase = STPhase::Unspecified>
 __tf__ AICORE void TMovCcToUb(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src,
                               uint16_t validRow, uint16_t validCol)
 {
     using dstType = typename DstTile::DType;
     using srcType = typename SrcTile::DType;
     constexpr int32_t c0Size = BLOCK_BYTE_SIZE / sizeof(dstType);
-    constexpr bool subBlockId = (mode == AccToVecMode::SingleModeVec1);
-    constexpr uint8_t dualDstCtl = GetDualDstCtl<DstTile, SrcTile, mode, quantPre>();
+    constexpr uint8_t unitFlagCtrl = static_cast<uint8_t>(Phase);
     constexpr bool enableNz2Nd = (DstTile::isRowMajor && DstTile::SFractal == SLayout::NoneBox);
     constexpr bool enableNz2Dn = (!DstTile::isRowMajor && DstTile::SFractal == SLayout::NoneBox);
     constexpr bool enableNz2Nz = (!DstTile::isRowMajor && DstTile::SFractal == SLayout::RowMajor);
-    constexpr bool channelSplitEnable =
-        (!DstTile::isRowMajor && (DstTile::SFractal == SLayout::RowMajor)) &&
-        (std::is_same_v<typename DstTile::DType, float>)&&(DstTile::SFractalSize == 512);
+    constexpr bool channelSplitEnable = (!DstTile::isRowMajor && (DstTile::SFractal == SLayout::RowMajor)) &&
+                                        (std::is_same_v<typename DstTile::DType, float>) &&
+                                        (DstTile::SFractalSize == 512);
     constexpr uint32_t dstStride = GetTmovAccDstStride<DstTile, SrcTile>();
     static_assert(((dstStride * sizeof(dstType) % C0_SIZE_BYTE == 0) && ((dstStride) > 0)),
                   "Dst Tile Cols * sizeof(dstT) must be multiples of 32 and not 0 when nz2nd. \
@@ -168,8 +165,8 @@ __tf__ AICORE void TMovCcToUb(typename DstTile::TileDType __out__ dst, typename 
         validRow = SrcTile::Rows;
         if constexpr ((mode == AccToVecMode::SingleModeVec0 || mode == AccToVecMode::SingleModeVec1)) {
             if constexpr (std::is_same_v<typename DstTile::DType, float>) {
-                constexpr int32_t alignSize = channelSplitEnable ? c0Size : FRACTAL_NZ_ROW;
-                validCol = CeilDivision(validCol, alignSize) * alignSize;
+                constexpr int32_t align = channelSplitEnable ? c0Size : FRACTAL_NZ_ROW;
+                validCol = CeilDivision(validCol, align) * align;
             } else {
                 validCol = CeilDivision(validCol, c0Size) * c0Size;
             }
@@ -179,19 +176,19 @@ __tf__ AICORE void TMovCcToUb(typename DstTile::TileDType __out__ dst, typename 
             validCol = CeilDivision(validCol, BLOCK_BYTE_SIZE) * BLOCK_BYTE_SIZE;
         }
     }
-    if constexpr (enableNz2Dn) {
+    if constexpr (enableNz2Nd) {
+        SetLoop3Para();
+    } else if constexpr (enableNz2Dn) {
         SetLoop3Para();
         constexpr uint64_t channelPara = static_cast<uint64_t>(1) << 48;
         set_channel_para(channelPara);
-    } else if constexpr (enableNz2Nd) {
-        SetLoop3Para();
     }
-
+    auto srcStride = (validRow + BLOCK_LEN - 1) / BLOCK_LEN * BLOCK_LEN;
     __ubuf__ dstType *dstAddr = (__ubuf__ dstType *)__cce_get_tile_ptr(dst);
     __cc__ srcType *srcData = (__cc__ srcType *)__cce_get_tile_ptr(src);
-    copy_matrix_cc_to_ub(dstAddr, srcData, 0, validCol, validRow, dstStride, SrcTile::Rows, 0, 0, quantPre, reluMode,
-                         channelSplitEnable, enableNz2Nd, 0, 0, false, false, 0, false, false, false, false, false,
-                         enableNz2Dn);
+    copy_matrix_cc_to_ub(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, 0, unitFlagCtrl, quantPre,
+                         reluMode, channelSplitEnable, enableNz2Nd, 0, 0, false, false, 0, false, false, false, false,
+                         false, enableNz2Dn);
 }
 
 template <typename DstTile, typename SrcTile>
@@ -221,45 +218,50 @@ PTO_INTERNAL constexpr void CommonCheck()
 
 template <typename T, typename DstTile, typename SrcTile>
 __tf__ PTO_INTERNAL void TMovToVecNd2Nz(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src,
-                                        uint32_t validRow, uint32_t validCol,
+                                        uint32_t validRow, uint32_t validCol, uint32_t srcValidRow,
                                         unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
     static_assert((std::is_same<T, half>::value) || (std::is_same<T, float>::value) ||
                       (std::is_same<T, int32_t>::value) || (std::is_same<T, int8_t>::value),
-                  "Dst and src must be float/int32_t/half/int8_t.");
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src);
+                  "Dst and src must be float/int32_t/half/int8_t/.");
+
+    using U = std::conditional_t<sizeof(T) == 1, uint8_t, T>;
+    __ubuf__ U *dstPtr = (__ubuf__ U *)__cce_get_tile_ptr(dst);
+    __ubuf__ U *srcPtr = (__ubuf__ U *)__cce_get_tile_ptr(src);
     constexpr int32_t srcRow = SrcTile::Rows;
     constexpr int32_t srcCol = SrcTile::Cols;
-    constexpr int32_t srcByteSize = srcRow * srcCol * sizeof(T);
-    constexpr int32_t dstByteSize = DstTile::Rows * DstTile::Cols * sizeof(T);
+    constexpr int32_t srcByteSize = srcRow * srcCol * sizeof(U);
+    constexpr int32_t dstByteSize = DstTile::Rows * DstTile::Cols * sizeof(U);
 
-    constexpr uint32_t elementsPerRepeat = CCE_VL / sizeof(T);
+    constexpr uint32_t elementsPerRepeat = REPEAT_BYTE / sizeof(U);
     uint16_t repeatTimes = CeilDivision(validCol, elementsPerRepeat);
-    constexpr bool isOptForConflict = (dstByteSize >= (srcRow + 1) * srcCol * sizeof(T)) ? true : false;
-    uint32_t alignRow = (validRow + FRACTAL_NZ_ROW - 1) / FRACTAL_NZ_ROW * FRACTAL_NZ_ROW;
+    constexpr bool isOptForConflict = DstTile::Compact == CompactMode::RowPlusOne;
+    uint32_t alignRow = (srcRow + FRACTAL_NZ_ROW - 1) / FRACTAL_NZ_ROW * FRACTAL_NZ_ROW;
     uint32_t blockStride = isOptForConflict ? ((alignRow + 1) * C0_SIZE_BYTE) / BLOCK_BYTE_SIZE :
                                               (alignRow * C0_SIZE_BYTE) / BLOCK_BYTE_SIZE;
     uint32_t virtualRow = isOptForConflict ? alignRow + 1 : alignRow;
     uint32_t repeatStride = 1;
     uint16_t innerLoopNum = validRow - 1;
+    uint32_t cfgVsstb = (blockStride << 16u) | (1 & 0xFFFFU);
+    uint32_t repeatStrideLast = (REPEAT_BYTE * virtualRow - innerLoopNum * BLOCK_BYTE_SIZE) / BLOCK_BYTE_SIZE;
+    uint32_t cfgVsstbLast = (blockStride << 16u) | (repeatStrideLast & 0xFFFFU);
+    uint32_t srcOffset = innerLoopNum * SrcTile::RowStride;
     __VEC_SCOPE__
     {
-        RegTensor<T> vreg;
-        MaskReg pReg;
-        for (uint16_t j = 0; j < (uint16_t)repeatTimes; ++j) {
-            uint32_t count =
-                ((j + 1) * elementsPerRepeat >= validCol ? (validCol - j * elementsPerRepeat) : elementsPerRepeat);
-            pReg = CreatePredicate<T>(count);
-            for (uint16_t i = 0; i < (uint16_t)innerLoopNum; ++i) {
-                vlds(vreg, srcPtr, (i * SrcTile::RowStride + j * elementsPerRepeat), NORM);
-                vsstb(vreg, dstPtr, (blockStride << 16u) | (1 & 0xFFFFU), pReg, POST_UPDATE);
+        RegTensor<U> vreg;
+        MaskReg preg;
+        uint32_t cols = validCol;
+        for (uint16_t j = 0; j < repeatTimes; ++j) {
+            preg = CreatePredicate<U>(cols);
+            for (uint16_t i = 0; i < innerLoopNum; ++i) {
+                vlds(vreg, srcPtr, SrcTile::RowStride, NORM, POST_UPDATE);
+                vsstb(vreg, dstPtr, cfgVsstb, preg, POST_UPDATE);
             }
-            vlds(vreg, srcPtr, (innerLoopNum * SrcTile::RowStride + j * elementsPerRepeat), NORM);
-            repeatStride = (CCE_VL * virtualRow - innerLoopNum * BLOCK_BYTE_SIZE) / BLOCK_BYTE_SIZE;
-            vsstb(vreg, dstPtr, (blockStride << 16u) | (repeatStride & 0xFFFFU), pReg, POST_UPDATE);
+            vlds(vreg, srcPtr, elementsPerRepeat, NORM, POST_UPDATE);
+            vsstb(vreg, dstPtr, cfgVsstbLast, preg, POST_UPDATE);
+            srcPtr -= srcOffset;
         }
-    }
+    } // end of VF
 }
 
 template <typename DstTile, typename SrcTile>
@@ -379,8 +381,8 @@ PTO_INTERNAL void TMOV_IMPL(DstTile &dst, SrcTile &src)
         if constexpr (DstTile::Loc == TileType::Vec) {
             if constexpr ((SrcTile::isRowMajor && (SrcTile::SFractal == SLayout::NoneBox)) &&
                           (!DstTile::isRowMajor && (DstTile::SFractal == SLayout::RowMajor))) {
-                TMovToVecNd2Nz<typename DstTile::DType, DstTile, SrcTile>(dst.data(), src.data(), src.GetValidRow(),
-                                                                          src.GetValidCol());
+                TMovToVecNd2Nz<typename DstTile::DType, DstTile, SrcTile>(dst.data(), src.data(), dst.GetValidRow(),
+                                                                          dst.GetValidCol(), src.GetValidRow());
             } else {
                 TMovToVec<DstTile, SrcTile>(dst, src);
             }

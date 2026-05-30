@@ -54,7 +54,7 @@ struct RegTensor {
     using RegType = typename TypeGet<T>::T;
     RegType reg;
 
-    PTO_INTERNAL RegTensor(){};
+    PTO_INTERNAL RegTensor() {};
     PTO_INTERNAL operator RegType &()
     {
         return reg;
@@ -64,6 +64,9 @@ struct RegTensor {
 template <typename SrcType, typename DstType>
 PTO_INTERNAL constexpr QuantMode_t GetCastPreQuantMode()
 {
+    static_assert(std::is_same_v<SrcType, DstType>,
+                  "Fix: For Kirin, when Acc -> Mat/Vec/GM without quantization "
+                  "parameter configured, the srcType must be consistent with the DstType.");
     return QuantMode_t::NoQuant;
 }
 
@@ -139,6 +142,18 @@ PTO_INTERNAL void CheckTMovAccValid()
                       (!DstTileData::isRowMajor && DstTileData::SFractal == SLayout::NoneBox) ||
                       (!DstTileData::isRowMajor && DstTileData::SFractal == SLayout::RowMajor),
                   "Only support nz2nz, nz2nd or nz2dn.");
+}
+
+template <typename DstTile, typename SrcTile, AccToVecMode mode, QuantMode_t quantPre>
+PTO_INTERNAL constexpr uint8_t GetDualDstCtl()
+{
+    if constexpr (mode == AccToVecMode::DualModeSplitM || mode == AccToVecMode::DualModeSplitN) {
+        static_assert(quantPre == QuantMode_t::NoQuant, "Quant is not support in dual Dst Mode.");
+        static_assert((!(!DstTile::isRowMajor && DstTile::SFractal == SLayout::NoneBox)),
+                      "Dual Dst Mode is not support in nz2dn.");
+        return ((mode == AccToVecMode::DualModeSplitM) ? 1 : 2);
+    }
+    return 0;
 }
 } // namespace pto
 

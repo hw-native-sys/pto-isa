@@ -12,21 +12,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define TROWMAX_HPP
 
 #include "TRowReduceOps.hpp"
-#include <limits>
 
 namespace pto {
-
-// Scalar reduction for integer types
-template <typename T, unsigned N>
-PTO_INTERNAL T ScalarReduceMax(__ubuf__ T *tmp)
-{
-    T result = tmp[0];
-    for (unsigned i = 1; i < N; ++i) {
-        result = result > tmp[i] ? result : tmp[i];
-    }
-    return result;
-}
-
 // Float/Half operation traits (for vcmax-based implementation)
 template <typename T>
 struct TRowMaxOp : TRowReduceOp<T, TRowMaxOp<T>> {
@@ -52,6 +39,23 @@ struct TRowMaxOp : TRowReduceOp<T, TRowMaxOp<T>> {
     }
 };
 
+template <uint16_t elemsPerVL, typename T>
+PTO_INTERNAL void MaxLastBlockElements(__ubuf__ T *dst, __ubuf__ T *tmp)
+{
+    set_flag(PIPE_V, PIPE_S, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
+
+    T max = tmp[0];
+    for (uint16_t i = 1; i < elemsPerVL; ++i) {
+        T tmpVal = tmp[i];
+        max = max > tmpVal ? max : tmpVal;
+    }
+    dst[0] = max;
+
+    set_flag(PIPE_S, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_S, PIPE_V, EVENT_ID0);
+}
+
 template <typename T, typename TileDataOut, typename TileDataIn, typename TileDataTmp>
 __tf__ PTO_INTERNAL void TRowMax(typename TileDataOut::TileDType __out__ dstData,
                                  typename TileDataIn::TileDType __in__ srcData,
@@ -76,11 +80,7 @@ __tf__ PTO_INTERNAL void TRowMax(typename TileDataOut::TileDType __out__ dstData
             set_vector_mask(0, elemsPerBlock);
 
             // Initialize tmp with minimum value
-            if constexpr (std::is_same_v<T, int32_t>) {
-                vector_dup(tmp, (T)std::numeric_limits<int32_t>::min(), 1, 1, 1, 0, 0);
-            } else {
-                vector_dup(tmp, (T)std::numeric_limits<int16_t>::min(), 1, 1, 1, 0, 0);
-            }
+            vector_dup(tmp, (T)PadValueMap<T, PadValue::Min>::value, 1, 1, 1, 0, 0);
             pipe_barrier(PIPE_V);
 
             // Accumulate using vmax
@@ -96,14 +96,7 @@ __tf__ PTO_INTERNAL void TRowMax(typename TileDataOut::TileDType __out__ dstData
                 pipe_barrier(PIPE_V);
             }
 
-            pipe_barrier(PIPE_ALL);
-
-            // Final scalar reduction
-            if constexpr (std::is_same_v<T, int32_t>) {
-                dst[0] = ScalarReduceMax<T, 8>(tmp);
-            } else {
-                dst[0] = ScalarReduceMax<T, 16>(tmp);
-            }
+            MaxLastBlockElements<elemsPerBlock>(dst, tmp);
         }
 
         set_mask_norm();

@@ -13,38 +13,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-template <typename T, int kTRows_, int kTCols_, int kGRows_, int kGCols_>
-__global__ AICORE void runTDIV(__gm__ T *out, __gm__ T *src0, __gm__ T *src1)
-{
-    using DynShapeDim5 = Shape<1, 1, 1, kGRows_, kGCols_>;
-    using DynStridDim5 = pto::Stride<1, 1, 1, kGCols_, 1>;
-    using GlobalData = GlobalTensor<T, DynShapeDim5, DynStridDim5>;
-    using TileData = Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>;
-    TileData src0Tile(kTRows_, kTCols_);
-    TileData src1Tile(kTRows_, kTCols_);
-    TileData dstTile(kTRows_, kTCols_);
-    TASSIGN<0x0>(src0Tile);
-    TASSIGN<TileData::Numel * sizeof(T)>(src1Tile);
-    TASSIGN<2 * TileData::Numel * sizeof(T)>(dstTile);
-
-    int offset = (block_idx / 4) * (64 * 16) + (block_idx % 4) * 16;
-    GlobalData src0Global(src0 + offset);
-    GlobalData src1Global(src1 + offset);
-    GlobalData dstGlobal(out + offset);
-
-    TLOAD(src0Tile, src0Global);
-    TLOAD(src1Tile, src1Global);
-    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    TDIV(dstTile, src0Tile, src1Tile);
-    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-    TSTORE(dstGlobal, dstTile);
-    out = dstGlobal.data();
-}
-
 template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
-          int vCols>
+          int vCols, bool highPrecision>
 __global__ AICORE void runTDIV(__gm__ T *out, __gm__ T *src0, __gm__ T *src1)
 {
     using DynShape = pto::Shape<-1, -1, -1, -1, -1>;
@@ -73,7 +43,8 @@ __global__ AICORE void runTDIV(__gm__ T *out, __gm__ T *src0, __gm__ T *src1)
     TLOAD(src1Tile, src1Global);
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    TDIV(dstTile, src0Tile, src1Tile);
+    constexpr auto precisionType = highPrecision ? DivAlgorithm::HIGH_PRECISION : DivAlgorithm::DEFAULT;
+    TDIV<precisionType>(dstTile, src0Tile, src1Tile);
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     TSTORE(dstGlobal, dstTile);
@@ -81,38 +52,29 @@ __global__ AICORE void runTDIV(__gm__ T *out, __gm__ T *src0, __gm__ T *src1)
 }
 
 template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
-          int vCols, bool sameTile>
+          int vCols, bool highPrecision>
 void LaunchTDiv(T *out, T *src0, T *src1, void *stream)
 {
-    if constexpr (sameTile) {
-        runTDIV<T, dstTileH, dstTileW, vRows, vCols><<<1, nullptr, stream>>>(out, src0, src1);
-    } else {
-        runTDIV<T, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols>
-            <<<1, nullptr, stream>>>(out, src0, src1);
-    }
+    runTDIV<T, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols, highPrecision>
+        <<<1, nullptr, stream>>>(out, src0, src1);
 }
 
 template <int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows, int vCols,
-          bool sameTile>
+          bool highPrecision>
 void LaunchTDivHalf(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1, void *stream)
 {
-    if constexpr (sameTile) {
-        runTDIV<half, dstTileH, dstTileW, vRows, vCols>
-            <<<1, nullptr, stream>>>((half *)(out), (half *)(src0), (half *)(src1));
-    } else {
-        runTDIV<half, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols>
-            <<<1, nullptr, stream>>>((half *)(out), (half *)(src0), (half *)(src1));
-    }
+    runTDIV<half, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols, highPrecision>
+        <<<1, nullptr, stream>>>((half *)(out), (half *)(src0), (half *)(src1));
 }
 
-template void LaunchTDiv<float, 64, 64, 64, 64, 64, 64, 64, 64, true>(float *out, float *src0, float *src1,
-                                                                      void *stream);
-template void LaunchTDiv<int32_t, 64, 64, 64, 64, 64, 64, 64, 64, true>(int32_t *out, int32_t *src0, int32_t *src1,
-                                                                        void *stream);
-template void LaunchTDiv<int16_t, 64, 64, 64, 64, 64, 64, 64, 64, true>(int16_t *out, int16_t *src0, int16_t *src1,
-                                                                        void *stream);
-template void LaunchTDivHalf<16, 256, 16, 256, 16, 256, 16, 256, true>(aclFloat16 *out, aclFloat16 *src0,
-                                                                       aclFloat16 *src1, void *stream);
+template void LaunchTDiv<float, 64, 64, 64, 64, 64, 64, 64, 64, false>(float *out, float *src0, float *src1,
+                                                                       void *stream);
+template void LaunchTDiv<int32_t, 64, 64, 64, 64, 64, 64, 64, 64, false>(int32_t *out, int32_t *src0, int32_t *src1,
+                                                                         void *stream);
+template void LaunchTDiv<int16_t, 64, 64, 64, 64, 64, 64, 64, 64, false>(int16_t *out, int16_t *src0, int16_t *src1,
+                                                                         void *stream);
+template void LaunchTDivHalf<16, 256, 16, 256, 16, 256, 16, 256, false>(aclFloat16 *out, aclFloat16 *src0,
+                                                                        aclFloat16 *src1, void *stream);
 template void LaunchTDivHalf<16, 64, 16, 128, 16, 128, 16, 64, false>(aclFloat16 *out, aclFloat16 *src0,
                                                                       aclFloat16 *src1, void *stream);
 template void LaunchTDiv<float, 16, 32, 16, 64, 16, 32, 16, 32, false>(float *out, float *src0, float *src1,
@@ -129,3 +91,6 @@ template void LaunchTDiv<int16_t, 32, 128, 32, 128, 32, 256, 32, 127, false>(int
                                                                              void *stream);
 template void LaunchTDiv<int32_t, 16, 32, 16, 64, 16, 32, 16, 31, false>(int32_t *out, int32_t *src0, int32_t *src1,
                                                                          void *stream);
+template void LaunchTDiv<float, 2, 16, 2, 16, 2, 16, 2, 16, true>(float *out, float *src0, float *src1, void *stream);
+template void LaunchTDivHalf<2, 32, 2, 32, 2, 32, 2, 32, true>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
+                                                               void *stream);

@@ -32,7 +32,7 @@ enum class ScatterOOB : uint8_t
 enum class ScatterConflict : uint8_t
 {
     Last = 0,
-    First = 1
+    Default = 1
 };
 
 #endif // MSCATTER_COMMON_H

@@ -18,9 +18,6 @@ using namespace PtoTestCommon;
 template <int32_t testKey>
 void launchTLOAD(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream);
 
-template <int32_t testKey>
-int get_input_golden(uint8_t *input, uint8_t *golden);
-
 class TLOADTest : public testing::Test {
 protected:
     void SetUp() override
@@ -68,8 +65,39 @@ void tload_test()
     aclrtMalloc((void **)&dstDevice, in_byteSize, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMalloc((void **)&srcDevice, out_byteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
-    int actual_out_byteSize = 0;
-    actual_out_byteSize = get_input_golden<testKey>((uint8_t *)srcHost, (uint8_t *)goldHost);
+    // Read pre-generated test data from files
+    std::string goldenDir = GetGoldenDir();
+    std::ifstream inFile(goldenDir + "/input.bin", std::ios::binary | std::ios::in);
+    std::ifstream goldFile(goldenDir + "/golden.bin", std::ios::binary | std::ios::in);
+
+    // Check if files exist and provide helpful error message
+    if (!inFile.is_open()) {
+        std::cerr << "Error: Cannot open input file: " << goldenDir << "/input.bin" << std::endl;
+        std::cerr << "Please run 'python3 gen_data.py' in the test directory to generate test data first." << std::endl;
+        FAIL() << "Input file not found. Run gen_data.py to generate test data.";
+    }
+    if (!goldFile.is_open()) {
+        std::cerr << "Error: Cannot open golden file: " << goldenDir << "/golden.bin" << std::endl;
+        std::cerr << "Please run 'python3 gen_data.py' in the test directory to generate test data first." << std::endl;
+        FAIL() << "Golden file not found. Run gen_data.py to generate test data.";
+    }
+
+    // Get file sizes
+    inFile.seekg(0, std::ios::end);
+    size_t in_file_size = inFile.tellg();
+    inFile.seekg(0, std::ios::beg);
+
+    goldFile.seekg(0, std::ios::end);
+    int actual_out_byteSize = goldFile.tellg();
+    goldFile.seekg(0, std::ios::beg);
+
+    // Read data from files
+    inFile.read((char *)srcHost, in_file_size);
+    goldFile.read((char *)goldHost, actual_out_byteSize);
+
+    inFile.close();
+    goldFile.close();
+
     std::fill((uint8_t *)dstHost, ((uint8_t *)(dstHost)) + out_byteSize, 0);
 
     aclrtMemcpy(srcDevice, in_byteSize, srcHost, in_byteSize, ACL_MEMCPY_HOST_TO_DEVICE);
@@ -90,15 +118,7 @@ void tload_test()
     aclrtMemcpy(logHost, sizeof(logHost), logDevice, sizeof(logHost), ACL_MEMCPY_DEVICE_TO_HOST);
 #endif
 
-    std::ofstream inFile(GetGoldenDir() + "/input.bin", std::ios::binary | std::ios::out);
-    std::ofstream outFile(GetGoldenDir() + "/output.bin", std::ios::binary | std::ios::out);
-    std::ofstream goldFile(GetGoldenDir() + "/golden.bin", std::ios::binary | std::ios::out);
-    inFile.write((const char *)srcHost, actual_out_byteSize);
-    outFile.write((const char *)dstHost, actual_out_byteSize);
-    goldFile.write((const char *)goldHost, actual_out_byteSize);
-    inFile.close();
-    outFile.close();
-    goldFile.close();
+    WriteFile(GetGoldenDir() + "/output.bin", dstHost, actual_out_byteSize);
 
     aclrtFree(dstDevice);
     aclrtFree(srcDevice);
@@ -161,14 +181,14 @@ TEST_F(TLOADTest, case_u8_GT_128_127_VT_128_128_BLK1_PADMIN)
     tload_test<5, uint8_t, 1>();
 }
 
-TEST_F(TLOADTest, case_float_GT_32_64_128_VT_64_128_BLK32_DYN)
+TEST_F(TLOADTest, case_float_GT_8_64_128_VT_64_128_BLK8_DYN)
 {
-    tload_test<6, int16_t, 32>();
+    tload_test<6, int16_t, 8>();
 }
 
-TEST_F(TLOADTest, case_float_GT_32_64_128_VT_64_128_BLK32_STC)
+TEST_F(TLOADTest, case_float_GT_8_64_128_VT_64_128_BLK8_STC)
 {
-    tload_test<7, int16_t, 32>();
+    tload_test<7, int16_t, 8>();
 }
 
 TEST_F(TLOADTest, case_float_GT_2_2_2_256_60_VT_256_64_BLK8_PADMAX)

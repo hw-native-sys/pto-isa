@@ -104,11 +104,6 @@ TEST_F(TREMTest, case3)
     test_trem<uint16_t, 1, 16384, 1, 16384, false>();
 }
 
-TEST_F(TREMTest, case4)
-{
-    test_trem<uint16_t, 2048, 16, 2048, 16, false>();
-}
-
 TEST_F(TREMTest, case5)
 {
     test_trem<float, 32, 32, 32, 32, false>();

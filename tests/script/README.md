@@ -39,7 +39,7 @@ python3 tests/script/all_cpu_tests.py --verbose
 
 ## Convenience Wrappers
 
-- Recommended suites: `run_st.sh`
-- CPU tests: `run_cpu_tests.sh`
+- Recommended suites: `tests/run_st.sh`
+- CPU tests: `tests/run_cpu_tests.sh`
 
 For the latest arguments, run `python3 <script> -h`.

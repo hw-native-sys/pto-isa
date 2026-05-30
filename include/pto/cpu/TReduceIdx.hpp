@@ -87,6 +87,24 @@ PTO_INTERNAL void CheckRowArgTiles(TileDst &dstIdx, TileSrc &src)
 }
 
 template <typename TileDstVal, typename TileDstIdx, typename TileSrc>
+PTO_INTERNAL void CheckColArgTiles(TileDstVal &dstVal, TileDstIdx &dstIdx, TileSrc &src)
+{
+    CheckColArgTiles(dstIdx, src);
+    static_assert(std::is_same_v<typename TileDstVal::DType, typename TileSrc::DType>,
+                  "TColArgMin(Max): The data type of dstVal and src must match");
+
+    static_assert(TileDstVal::Loc == TileType::Vec,
+                  "TColArgMin(Max): TileType of dstVal tiles must be `TileType::Vec`.");
+    static_assert(TileDstVal::isRowMajor && TileDstVal::SFractal == SLayout::NoneBox,
+                  "TColArgMin(Max): `dstVal` must use standard ND layout: row-major and non-fractal");
+
+    PTO_ASSERT(dstVal.GetValidRow() == dstIdx.GetValidRow(),
+               "Number of rows of dstVal and dstIdx must be the same.");
+    PTO_ASSERT(dstVal.GetValidCol() == dstIdx.GetValidCol(),
+               "Number of cols of dstVal and dstIdx must be the same.");
+}
+
+template <typename TileDstVal, typename TileDstIdx, typename TileSrc>
 PTO_INTERNAL void CheckRowArgTiles(TileDstVal &dstVal, TileDstIdx &dstIdx, TileSrc &src)
 {
     CheckRowArgTiles(dstIdx, src);
@@ -121,6 +139,31 @@ PTO_INTERNAL void TColReduceIdxImpl(TileDst &dstIdx, TileSrc &src)
             }
         }
         dstIdx.data()[GetTileElementOffset<TileDst>(0, c)] = static_cast<TIdx>(bestIdx);
+    });
+}
+
+template <typename TileDstVal, typename TileDstIdx, typename TileSrc, ElementCmp cmp>
+PTO_INTERNAL void TColReduceValImpl(TileDstVal &dstVal, TileDstIdx &dstIdx, TileSrc &src)
+{
+    CheckColArgTiles(dstVal, dstIdx, src);
+    using T = typename TileSrc::DType;
+    using TIdx = typename TileDstIdx::DType;
+
+    const std::size_t rows = src.GetValidRow();
+    const std::size_t cols = src.GetValidCol();
+
+    cpu::parallel_for_1d(0, cols, rows * cols, [&](std::size_t c) {
+        std::size_t bestIdx = 0;
+        T bestVal = src.data()[GetTileElementOffset<TileSrc>(0, c)];
+        for (std::size_t r = 1; r < rows; ++r) {
+            auto value = src.data()[GetTileElementOffset<TileSrc>(r, c)];
+            if (ElementCmpCal<T, cmp>::apply(value, bestVal)) {
+                bestIdx = r;
+                bestVal = value;
+            }
+        }
+        dstIdx.data()[GetTileElementOffset<TileDstIdx>(0, c)] = static_cast<TIdx>(bestIdx);
+        dstVal.data()[GetTileElementOffset<TileDstVal>(0, c)] = static_cast<T>(bestVal);
     });
 }
 
@@ -213,6 +256,20 @@ PTO_INTERNAL void TROWARGMAX_IMPL(TileDstVal &dstVal, TileDstIdx &dstIdx, TileSr
 {
     (void)tmp;
     TRowReduceValImpl<TileDstVal, TileDstIdx, TileSrc, ElementCmp::CMP_BT>(dstVal, dstIdx, src);
+}
+
+template <typename TileDstVal, typename TileDstIdx, typename TileSrc, typename TileTmp>
+PTO_INTERNAL void TCOLARGMIN_IMPL(TileDstVal &dstVal, TileDstIdx &dstIdx, TileSrc &src, TileTmp &tmp)
+{
+    (void)tmp;
+    TColReduceValImpl<TileDstVal, TileDstIdx, TileSrc, ElementCmp::CMP_LT>(dstVal, dstIdx, src);
+}
+
+template <typename TileDstVal, typename TileDstIdx, typename TileSrc, typename TileTmp>
+PTO_INTERNAL void TCOLARGMAX_IMPL(TileDstVal &dstVal, TileDstIdx &dstIdx, TileSrc &src, TileTmp &tmp)
+{
+    (void)tmp;
+    TColReduceValImpl<TileDstVal, TileDstIdx, TileSrc, ElementCmp::CMP_BT>(dstVal, dstIdx, src);
 }
 } // namespace pto
 

@@ -7,6 +7,8 @@
 - `pto.vci`
 - `pto.vcvt`
 - `pto.vtrc`
+- `pto.vbitcast`
+- `pto.pbitcast`
 
 ## 操作数模型
 
@@ -29,6 +31,14 @@
 ### `pto.vtrc`
 
 把浮点值按指定舍入模式变成“整数值的浮点数”，但不改变元素类型。
+
+### `pto.vbitcast`
+
+对 `!pto.vreg<...>` 值做按位重新解释，保持位模式不变（总位宽恒为 2048 bits），只改变元素类型与车道数。源与目标都必须是 `!pto.vreg<...>`，且 `N * bitwidth(T0) = M * bitwidth(T1) = 2048`。仅支持整型和浮点元素类型。详细说明见 [`pto.vbitcast`](./ops/conversion-ops/vbitcast_zh.md)。
+
+### `pto.pbitcast`
+
+对 `!pto.mask<...>` 值做按位重新解释，不改变底层谓词位，仅切换 mask 粒度视图（`b8` / `b16` / `b32`）。常用于生产者与消费者对同一谓词状态采用不同粒度的场景。详细说明见 [`pto.pbitcast`](./ops/conversion-ops/pbitcast_zh.md)。
 
 ## 舍入模式
 

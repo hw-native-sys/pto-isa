@@ -19,8 +19,8 @@ TEST(TMatmulFit, cycles_on_dtype_half)
         .dtype = ::pto::mocker::lightweight::DType::Half,
         .rows = 31,
         .cols = 17,
-        .k = 33,
         .dtype2 = ::pto::mocker::lightweight::DType::Float,
+        .k = 33,
         .dst_dtype = ::pto::mocker::lightweight::DType::Float,
     };
 
@@ -36,8 +36,8 @@ TEST(TMatmulFit, cycles_on_dtype_float)
         .dtype = ::pto::mocker::lightweight::DType::Float,
         .rows = 31,
         .cols = 17,
-        .k = 33,
         .dtype2 = ::pto::mocker::lightweight::DType::Half,
+        .k = 33,
         .dst_dtype = ::pto::mocker::lightweight::DType::Float,
     };
 

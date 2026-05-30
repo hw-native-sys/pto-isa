@@ -27,7 +27,7 @@ vcadd %dst, %src, %mask : !pto.vreg<NxT>
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vcadd %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vcadd %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 Supported element types on A5: `i16-i64`, `f16`, `f32`.
@@ -94,13 +94,13 @@ for (int i = 1; i < N; i++)
 
 ```mlir
 // Full-vector sum reduction: result in lane 0
-%result = pto.vcadd %input, %mask : !pto.vreg<128xf32>, !pto.mask -> !pto.vreg<128xf32>
+%result = pto.vcadd %input, %mask : !pto.vreg<128xf32>, !pto.mask<b32> -> !pto.vreg<128xf32>
 ```
 
 ### MLIR — DPS Form
 
 ```mlir
-pto.vcadd ins(%input, %mask : !pto.vreg<128xf32>, !pto.mask)
+pto.vcadd ins(%input, %mask : !pto.vreg<128xf32>, !pto.mask<b32>)
           outs(%result : !pto.vreg<128xf32>)
 ```
 
@@ -108,8 +108,8 @@ pto.vcadd ins(%input, %mask : !pto.vreg<128xf32>, !pto.mask)
 
 ```mlir
 // Compute the sum of a 128-element f32 vector tile
-%mask = pto vidu %c128 : i1 -> !pto.mask
-%sum = pto.vcadd %vec, %mask : !pto.vreg<128xf32>, !pto.mask -> !pto.vreg<128xf32>
+%mask = pto vidu %c128 : i1 -> !pto.mask<G>
+%sum = pto.vcadd %vec, %mask : !pto.vreg<128xf32>, !pto.mask<b32> -> !pto.vreg<128xf32>
 // %sum[0] contains the total; %sum[1..127] are zero
 ```
 

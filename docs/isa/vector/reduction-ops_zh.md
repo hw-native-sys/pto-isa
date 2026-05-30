@@ -27,11 +27,11 @@
 
 ```mlir
 pto.vecscope {
-  %active = pto.pset_b32 "PAT_ALL" : !pto.mask
+  %active = pto.pset_b32 "PAT_ALL" : !pto.mask<G>
   scf.for %row = %c0 to %row_count step %c1 {
     %vec = pto.vlds %ub_q[%row] : !pto.ptr -> !pto.vreg<64xf32>
     %row_sum_raw = pto.vcadd %vec, %active
-        : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+        : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
     pto.vsts %row_sum_raw, %ub_sum[%row], %one_mask {dist = "1PT"} : ...
   }
 }
@@ -86,7 +86,7 @@ total_cycles = startup + completion + repeats × per_repeat + (repeats - 1) × i
 
 ### `pto.vcadd`
 
-- **语法：** `%result = pto.vcadd %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vcadd %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **A5 类型：** i16-i64、f16、f32
 - **语义：** 对整个向量求和，结果写到 lane 0，其他位置清零。
 
@@ -107,7 +107,7 @@ for (int i = 1; i < N; i++)
 
 ### `pto.vcmax`
 
-- **语法：** `%result = pto.vcmax %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vcmax %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **A5 类型：** i16-i32、f16、f32
 - **语义：** 在整个向量里找最大值，同时产出 argmax 信息。
 
@@ -123,7 +123,7 @@ dst_idx[0] = idx;
 
 ### `pto.vcmin`
 
-- **语法：** `%result = pto.vcmin %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vcmin %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **A5 类型：** i16-i32、f16、f32
 - **语义：** 在整个向量里找最小值，同时产出 argmin 信息。
 
@@ -143,7 +143,7 @@ VLane 4: [32..39]  VLane 5: [40..47]  VLane 6: [48..55]  VLane 7: [56..63]
 
 ### `pto.vcgadd`
 
-- **语法：** `%result = pto.vcgadd %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vcgadd %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **A5 类型：** i16-i32、f16、f32
 - **语义：** 在每个 VLane 内求和，每组产生一个结果。
 
@@ -163,12 +163,12 @@ for (int g = 0; g < 8; g++) {
 
 ### `pto.vcgmax`
 
-- **语法：** `%result = pto.vcgmax %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vcgmax %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 在每个 VLane 内求局部最大值。
 
 ### `pto.vcgmin`
 
-- **语法：** `%result = pto.vcgmin %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vcgmin %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 在每个 VLane 内求局部最小值。
 
 这三条指令最容易被误解的地方是：它们不是“把寄存器拆成任意八段”的软件概念，而是严格按硬件 32 字节 VLane 分组。
@@ -179,7 +179,7 @@ for (int g = 0; g < 8; g++) {
 
 ### `pto.vcpadd`
 
-- **语法：** `%result = pto.vcpadd %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vcpadd %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **A5 类型：** f16、f32
 - **语义：** 做 inclusive prefix sum。
 
@@ -205,7 +205,7 @@ for (int i = 1; i < N; i++)
 ```mlir
 // Softmax：先找最大值，做数值稳定化
 %max_vec = pto.vcmax %logits, %mask
-    : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+    : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 // max 位于 lane 0，可再配合广播用到全向量
 %max_broadcast = pto.vlds %ub_tmp[%c0] {dist = "BRC_B32"}
@@ -213,15 +213,15 @@ for (int i = 1; i < N; i++)
 
 // 用 vcgadd 做按组求和
 %row_sums = pto.vcgadd %tile, %mask
-    : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+    : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 // 对整向量求和
 %total = pto.vcadd %values, %mask
-    : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+    : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 // 做前缀和
 %cdf = pto.vcpadd %pdf, %mask
-    : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+    : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 ```
 
 ---

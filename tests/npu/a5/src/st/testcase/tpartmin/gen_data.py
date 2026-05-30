@@ -109,6 +109,13 @@ if __name__ == "__main__":
         TPartMinParams(np.uint16, 122, 123, 104, 123, 122, 110),
         TPartMinParams(np.uint32, 122, 123, 104, 123, 122, 110),
         TPartMinParams(np.float16, 5, 33, 5, 33, 5, 33),
+        TPartMinParams(np.float32, 8, 8, 0, 0, 0, 0),
+        TPartMinParams(np.float32, 8, 8, 8, 0, 8, 8),
+        TPartMinParams(np.float32, 8, 8, 0, 8, 8, 8),
+        TPartMinParams(np.float32, 8, 8, 8, 8, 8, 0),
+        TPartMinParams(np.float32, 8, 8, 8, 8, 0, 8),
+        TPartMinParams(np.float32, 8, 8, 5, 4, 3, 0),
+        TPartMinParams(np.float32, 8, 8, 3, 0, 5, 4),
     ]
 
     for param in case_params_list:

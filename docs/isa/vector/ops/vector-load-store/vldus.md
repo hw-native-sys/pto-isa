@@ -92,4 +92,4 @@ When documentation or scheduling depends on the throughput claim, treat it as a 
 
 - Instruction set overview: [Vector Load Store](../../vector-load-store.md)
 - Previous op in instruction set: [pto.vldas](./vldas.md)
-- Next op in instruction set: [pto.vldx2](./vldx2.md)
+- Next op in instruction set: [pto.vldsx2](./vldsx2.md)

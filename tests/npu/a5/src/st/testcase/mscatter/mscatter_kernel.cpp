@@ -17,6 +17,15 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace pto;
 
+__global__ AICORE __attribute__((aiv)) void mscatter_warmup_kernel()
+{}
+
+AICORE PTO_INLINE void FlushScatterOutput()
+{
+    dcci(static_cast<__gm__ void *>(0), ENTIRE_DATA_CACHE);
+    dsb(DSB_DDR);
+}
+
 template <pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, pto::ScatterConflict Conflict, typename T, typename TIdx,
           int kSrcRows, int kSrcCols, int kTableRows>
 inline AICORE void runRow(__gm__ T __out__ *out, __gm__ T __in__ *src, __gm__ TIdx __in__ *indices)
@@ -54,6 +63,7 @@ inline AICORE void runRow(__gm__ T __out__ *out, __gm__ T __in__ *src, __gm__ TI
     pipe_barrier(PIPE_ALL);
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    FlushScatterOutput();
 #endif
 }
 
@@ -94,6 +104,7 @@ inline AICORE void runRowPadded(__gm__ T __out__ *out, __gm__ T __in__ *src, __g
     pipe_barrier(PIPE_ALL);
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    FlushScatterOutput();
 #endif
     (void)srcBytes;
 }
@@ -135,6 +146,7 @@ inline AICORE void runRowColIdx(__gm__ T __out__ *out, __gm__ T __in__ *src, __g
     pipe_barrier(PIPE_ALL);
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    FlushScatterOutput();
 #endif
 }
 
@@ -175,6 +187,7 @@ inline AICORE void runElem(__gm__ T __out__ *out, __gm__ T __in__ *src, __gm__ T
     pipe_barrier(PIPE_ALL);
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    FlushScatterOutput();
 #endif
 }
 
@@ -215,6 +228,7 @@ inline AICORE void runElem2DPadded(__gm__ T __out__ *out, __gm__ T __in__ *src, 
     pipe_barrier(PIPE_ALL);
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    FlushScatterOutput();
 #endif
     (void)srcBytes;
 }
@@ -263,6 +277,7 @@ inline AICORE void runElem2DDyn(__gm__ T __out__ *out, __gm__ T __in__ *src, __g
     pipe_barrier(PIPE_ALL);
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    FlushScatterOutput();
 #endif
     (void)srcBytes;
 }
@@ -311,6 +326,7 @@ inline AICORE void runRowDyn(__gm__ T __out__ *out, __gm__ T __in__ *src, __gm__
     pipe_barrier(PIPE_ALL);
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    FlushScatterOutput();
 #endif
     (void)srcBytes;
 }
@@ -352,7 +368,62 @@ inline AICORE void runElem2D(__gm__ T __out__ *out, __gm__ T __in__ *src, __gm__
     pipe_barrier(PIPE_ALL);
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    FlushScatterOutput();
 #endif
+}
+
+template <pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, pto::ScatterConflict Conflict, typename T, typename TIdx,
+          int kTotalRows, int kSrcCols, int kChunkRows, int kTableSize>
+inline AICORE void runElem2DChunked(__gm__ T __out__ *out, __gm__ T __in__ *src, __gm__ TIdx __in__ *indices)
+{
+    static_assert(kTotalRows % kChunkRows == 0, "kTotalRows must be a whole multiple of kChunkRows.");
+
+    using ChunkSrcShape = pto::Shape<1, 1, 1, kChunkRows, kSrcCols>;
+    using ChunkSrcStride = pto::Stride<1, 1, 1, kSrcCols, 1>;
+    using ChunkIdxShape = pto::Shape<1, 1, 1, kChunkRows, kSrcCols>;
+    using ChunkIdxStride = pto::Stride<1, 1, 1, kSrcCols, 1>;
+    using OutShape = pto::Shape<1, 1, 1, 1, kTableSize>;
+    using OutStride = pto::Stride<1, 1, 1, kTableSize, 1>;
+
+    GlobalTensor<T, OutShape, OutStride> outGlobal(out);
+
+    using SrcTile = Tile<TileType::Vec, T, kChunkRows, kSrcCols, BLayout::RowMajor, kChunkRows, kSrcCols>;
+    using IdxTile = Tile<TileType::Vec, TIdx, kChunkRows, kSrcCols, BLayout::RowMajor, kChunkRows, kSrcCols>;
+
+    SrcTile srcTile;
+    IdxTile idxTile;
+
+    constexpr int idxBytes = ((kChunkRows * kSrcCols * (int)sizeof(TIdx) + 31) / 32) * 32;
+    constexpr int srcBytes = ((kChunkRows * kSrcCols * (int)sizeof(T) + 31) / 32) * 32;
+    TASSIGN(idxTile, 0x0);
+    TASSIGN(srcTile, idxBytes);
+
+    constexpr int kChunkElems = kChunkRows * kSrcCols;
+    constexpr int kNumChunks = kTotalRows / kChunkRows;
+
+    for (int chunk = 0; chunk < kNumChunks; ++chunk) {
+        GlobalTensor<T, ChunkSrcShape, ChunkSrcStride> srcGlobal(src + chunk * kChunkElems);
+        GlobalTensor<TIdx, ChunkIdxShape, ChunkIdxStride> idxGlobal(indices + chunk * kChunkElems);
+
+        TLOAD(idxTile, idxGlobal);
+        TLOAD(srcTile, srcGlobal);
+#ifndef __PTO_AUTO__
+        set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+        wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
+        MSCATTER<Coalesce::Elem, Atomic, Oob, Conflict>(outGlobal, srcTile, idxTile);
+#ifndef __PTO_AUTO__
+        pipe_barrier(PIPE_ALL);
+        set_flag(PIPE_V, PIPE_MTE2, EVENT_ID0);
+        wait_flag(PIPE_V, PIPE_MTE2, EVENT_ID0);
+#endif
+    }
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    FlushScatterOutput();
+#endif
+    (void)srcBytes;
 }
 
 #define DEFINE_ROW(NAME, THOST, T, TIDX, R, C, TR, ATOMIC, OOB, CONFLICT)                                              \
@@ -363,6 +434,7 @@ inline AICORE void runElem2D(__gm__ T __out__ *out, __gm__ T __in__ *src, __gm__
     }                                                                                                                  \
     void Launch_##NAME(THOST *out, THOST *src, TIDX *indices, void *stream)                                            \
     {                                                                                                                  \
+        mscatter_warmup_kernel<<<64, nullptr, stream>>>();                                                             \
         runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T *>(out), reinterpret_cast<T *>(src), indices);   \
     }
 
@@ -374,6 +446,7 @@ inline AICORE void runElem2D(__gm__ T __out__ *out, __gm__ T __in__ *src, __gm__
     }                                                                                                                 \
     void Launch_##NAME(THOST *out, THOST *src, TIDX *indices, void *stream)                                           \
     {                                                                                                                 \
+        mscatter_warmup_kernel<<<64, nullptr, stream>>>();                                                            \
         runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T *>(out), reinterpret_cast<T *>(src), indices);  \
     }
 
@@ -385,6 +458,7 @@ inline AICORE void runElem2D(__gm__ T __out__ *out, __gm__ T __in__ *src, __gm__
     }                                                                                                                \
     void Launch_##NAME(THOST *out, THOST *src, TIDX *indices, void *stream)                                          \
     {                                                                                                                \
+        mscatter_warmup_kernel<<<64, nullptr, stream>>>();                                                           \
         runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T *>(out), reinterpret_cast<T *>(src), indices); \
     }
 
@@ -396,6 +470,7 @@ inline AICORE void runElem2D(__gm__ T __out__ *out, __gm__ T __in__ *src, __gm__
     }                                                                                                                \
     void Launch_##NAME(THOST *out, THOST *src, TIDX *indices, void *stream)                                          \
     {                                                                                                                \
+        mscatter_warmup_kernel<<<64, nullptr, stream>>>();                                                           \
         runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T *>(out), reinterpret_cast<T *>(src), indices); \
     }
 
@@ -407,6 +482,7 @@ inline AICORE void runElem2D(__gm__ T __out__ *out, __gm__ T __in__ *src, __gm__
     }                                                                                                                \
     void Launch_##NAME(THOST *out, THOST *src, TIDX *indices, void *stream)                                          \
     {                                                                                                                \
+        mscatter_warmup_kernel<<<64, nullptr, stream>>>();                                                           \
         runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T *>(out), reinterpret_cast<T *>(src), indices); \
     }
 
@@ -418,6 +494,7 @@ inline AICORE void runElem2D(__gm__ T __out__ *out, __gm__ T __in__ *src, __gm__
     }                                                                                                                \
     void Launch_##NAME(THOST *out, THOST *src, TIDX *indices, void *stream)                                          \
     {                                                                                                                \
+        mscatter_warmup_kernel<<<64, nullptr, stream>>>();                                                           \
         runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T *>(out), reinterpret_cast<T *>(src), indices); \
     }
 
@@ -429,6 +506,7 @@ inline AICORE void runElem2D(__gm__ T __out__ *out, __gm__ T __in__ *src, __gm__
     }                                                                                                                 \
     void Launch_##NAME(THOST *out, THOST *src, TIDX *indices, void *stream)                                           \
     {                                                                                                                 \
+        mscatter_warmup_kernel<<<64, nullptr, stream>>>();                                                            \
         runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T *>(out), reinterpret_cast<T *>(src), indices);  \
     }
 
@@ -440,7 +518,20 @@ inline AICORE void runElem2D(__gm__ T __out__ *out, __gm__ T __in__ *src, __gm__
     }                                                                                                                  \
     void Launch_##NAME(THOST *out, THOST *src, TIDX *indices, void *stream)                                            \
     {                                                                                                                  \
+        mscatter_warmup_kernel<<<64, nullptr, stream>>>();                                                             \
         runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T *>(out), reinterpret_cast<T *>(src), indices);   \
+    }
+
+#define DEFINE_ELEM2D_CHUNKED(NAME, THOST, T, TIDX, R, C, CR, TS, ATOMIC, OOB, CONFLICT)                              \
+    extern "C" __global__ AICORE void runMSCATTER_##NAME(__gm__ T *out, __gm__ T *src, __gm__ TIDX *indices)          \
+    {                                                                                                                 \
+        runElem2DChunked<pto::ScatterAtomicOp::ATOMIC, pto::ScatterOOB::OOB, pto::ScatterConflict::CONFLICT, T, TIDX, \
+                         R, C, CR, TS>(out, src, indices);                                                            \
+    }                                                                                                                 \
+    void Launch_##NAME(THOST *out, THOST *src, TIDX *indices, void *stream)                                           \
+    {                                                                                                                 \
+        mscatter_warmup_kernel<<<64, nullptr, stream>>>();                                                            \
+        runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T *>(out), reinterpret_cast<T *>(src), indices);  \
     }
 
 DEFINE_ROW(row_float_random_8x32_64rows, float, float, int32_t, 8, 32, 64, None, Undefined, Last)
@@ -449,7 +540,7 @@ DEFINE_ROW(row_half_random_16x64_64rows, aclFloat16, half, int32_t, 16, 64, 64, 
 DEFINE_ROW(row_int32_random_8x16_32rows, int32_t, int32_t, int32_t, 8, 16, 32, None, Undefined, Last)
 DEFINE_ROW(row_uint8_random_8x32_32rows, uint8_t, uint8_t, int32_t, 8, 32, 32, None, Undefined, Last)
 DEFINE_ROW(row_int16_random_8x16_32rows, int16_t, int16_t, int32_t, 8, 16, 32, None, Undefined, Last)
-DEFINE_ROW(row_float_atomicadd_8x32_8rows, float, float, int32_t, 8, 32, 8, Add, Undefined, First)
+DEFINE_ROW(row_float_atomicadd_8x32_8rows, float, float, int32_t, 8, 32, 8, Add, Undefined, Default)
 DEFINE_ROW(row_float_skip_8x32_8rows, float, float, int32_t, 8, 32, 8, None, Skip, Last)
 DEFINE_ROW(row_int32_clamp_8x16_8rows, int32_t, int32_t, int32_t, 8, 16, 8, None, Clamp, Last)
 DEFINE_ROW(row_half_wrap_8x32_8rows, aclFloat16, half, int32_t, 8, 32, 8, None, Wrap, Last)
@@ -465,15 +556,15 @@ DEFINE_ELEM(elem_half_random_64_128size, aclFloat16, half, int32_t, 64, 128, Non
 DEFINE_ELEM(elem_int32_random_32_64size, int32_t, int32_t, int32_t, 32, 64, None, Undefined, Last)
 DEFINE_ELEM(elem_uint8_random_64_128size, uint8_t, uint8_t, int32_t, 64, 128, None, Undefined, Last)
 DEFINE_ELEM(elem_int16_random_32_64size, int16_t, int16_t, int32_t, 32, 64, None, Undefined, Last)
-DEFINE_ELEM(elem_float_atomicadd_32_32size, float, float, int32_t, 32, 32, Add, Undefined, First)
-DEFINE_ELEM(elem_int32_atomicadd_skip_32_16size, int32_t, int32_t, int32_t, 32, 16, Add, Skip, First)
+DEFINE_ELEM(elem_float_atomicadd_32_32size, float, float, int32_t, 32, 32, Add, Undefined, Default)
+DEFINE_ELEM(elem_int32_atomicadd_skip_32_16size, int32_t, int32_t, int32_t, 32, 16, Add, Skip, Default)
 DEFINE_ELEM(elem_float_skip_32_16size, float, float, int32_t, 32, 16, None, Skip, Last)
 DEFINE_ELEM(elem_int32_clamp_32_16size, int32_t, int32_t, int32_t, 32, 16, None, Clamp, Last)
 DEFINE_ELEM(elem_half_wrap_32_16size, aclFloat16, half, int32_t, 32, 16, None, Wrap, Last)
-DEFINE_ELEM(elem_float_first_seq_32_32size, float, float, int32_t, 32, 32, None, Undefined, First)
+DEFINE_ELEM(elem_float_default_seq_32_32size, float, float, int32_t, 32, 32, None, Undefined, Default)
 DEFINE_ELEM(elem_float_small_16_32size, float, float, int32_t, 16, 32, None, Undefined, Last)
-DEFINE_ELEM(elem_int32_atomicmax_random_32_32size, int32_t, int32_t, int32_t, 32, 32, Max, Undefined, First)
-DEFINE_ELEM(elem_float_atomicmin_random_32_32size, float, float, int32_t, 32, 32, Min, Undefined, First)
+DEFINE_ELEM(elem_int32_atomicmax_random_32_32size, int32_t, int32_t, int32_t, 32, 32, Max, Undefined, Default)
+DEFINE_ELEM(elem_float_atomicmin_random_32_32size, float, float, int32_t, 32, 32, Min, Undefined, Default)
 DEFINE_ELEM(elem_float_last_same_32_8size, float, float, int32_t, 32, 8, None, Undefined, Last)
 DEFINE_ELEM(elem_int32_last_seq_32_32size, int32_t, int32_t, int32_t, 32, 32, None, Undefined, Last)
 DEFINE_ELEM(elem_float_clamp_no_dup_32_16size, float, float, int32_t, 32, 16, None, Clamp, Last)
@@ -492,6 +583,10 @@ DEFINE_ELEM2D_PAD(elem2d_int32_unaligned_9x9_in_9x16_256size, int32_t, int32_t, 
 DEFINE_ELEM2D_PAD(elem2d_int32_scalar_1x1_in_1x8_8size, int32_t, int32_t, int32_t, 1, 1, 1, 8, 8, None, Undefined, Last)
 DEFINE_ROW_PAD(row_int32_unaligned_3x8_8rows, int32_t, int32_t, int32_t, 3, 8, 8, 8, None, Undefined, Last)
 DEFINE_ROW_PAD(row_int32_unaligned_9x16_16rows, int32_t, int32_t, int32_t, 9, 16, 16, 16, None, Undefined, Last)
+
+DEFINE_ELEM2D_CHUNKED(elem2d_float_2048x8_last_256size, float, float, int32_t, 2048, 8, 128, 256, None, Undefined, Last)
+DEFINE_ELEM2D_CHUNKED(elem2d_float_2048x8_default_16384size, float, float, int32_t, 2048, 8, 128, 16384, None,
+                      Undefined, Default)
 
 DEFINE_ELEM2D_DYN(elem2d_dyn_user_float_1x9_in_1x16_3x10, float, float, int32_t, 1, 16, 1, 9, 3, 10, None, Skip, Last)
 DEFINE_ELEM2D_DYN(elem2d_dyn_int32_4x8_in_4x8_64size, int32_t, int32_t, int32_t, 4, 8, 4, 8, 8, 8, None, Undefined,

@@ -1,7 +1,37 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pto-isa"
+version = "9.1.0"
+description = "PTO Tile Library - A tile-based programming library for AI Core"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "CANN Open Software License Agreement Version 2.0"}
+authors = [
+    {name = "Huawei Technologies Co., Ltd."}
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: C++",
+    "Topic :: Software Development :: Libraries",
+]
+keywords = ["ascend", "npu", "tile", "programming", "ai-core"]
+
+[tool.setuptools]
+include-package-data = true
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
-skip-magic-trailing-comma = true    # 跳过魔法逗号，减少不必要的换行
+skip-magic-trailing-comma = true
 line-ending = "auto"
 
 [tool.ruff]

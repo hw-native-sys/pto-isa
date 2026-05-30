@@ -6,7 +6,12 @@
 
 ## 简介
 
-`TSCATTER` 按索引 Tile 给出的目标偏移，把源 Tile 中的元素分散写入目标 Tile。它适合表达“不规则写回到本地 Tile”这类模式：数据仍然留在 tile 空间里，但目的位置不再由规则的行列映射决定。
+`TSCATTER` 提供两种操作模式：
+
+- 索引散播：按索引 Tile 给出的目标偏移，把源 Tile 中的元素分散写入目标 Tile。
+- 掩码散播：按掩码模式把源元素写入更宽的目标 Tile，并把未选中的位置填零。
+
+索引散播适合表达“不规则写回到本地 Tile”这类模式：数据仍然留在 tile 空间里，但目的位置不再由规则的行列映射决定。
 
 和规则搬运不同，`TSCATTER` 的关键输入不是另一个 shape，而是 `indexes`。每个索引元素都表示目标 Tile 在线性存储视角下的一个元素偏移。
 
@@ -28,6 +33,16 @@ $$ \mathrm{dst\_flat}_{\mathrm{indexes}_{i,j}} = \mathrm{src}_{i,j} $$
 - `TSCATTER` 按 `indexes` 的 valid region 遍历，而不是按 `dst` 的 valid region 遍历。
 - 没有被任何索引命中的目标位置，在当前实现里保持为零值，而不是保留调用前的 `dst` 内容。
 - 如果多个源元素落到同一个目标位置，最终值属于实现定义行为；当前实现按行优先顺序遍历，因此后写入的元素会覆盖前值。
+
+### 掩码散播
+
+掩码散播是 A5-only 重载。它把每个源元素写入扩展后目标分组中的一个选中 lane，并把同一分组中其他 lane 填零。
+
+对于源元素 `(i, j)` 和掩码模式 `P`：
+
+$$ \mathrm{dst}_{i,\ F_P \cdot j + \mathrm{pos}_P} = \mathrm{src}_{i,j} $$
+
+其中 `F_P` 是扩展倍数：`P1111` 为 1，`P0101`/`P1010` 为 2，`P0001`/`P0010`/`P0100`/`P1000` 为 4。同一扩展分组中未选中的列会被写为 0。
 
 ## 汇编语法
 
@@ -58,7 +73,23 @@ pto.tscatter ins(%src, %idx : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst 
 ```cpp
 template <typename TileDataD, typename TileDataS, typename TileDataI, typename... WaitEvents>
 PTO_INST RecordEvent TSCATTER(TileDataD &dst, TileDataS &src, TileDataI &indexes, WaitEvents &... events);
+
+template <MaskPattern maskPattern = MaskPattern::P1111, typename DstTileData, typename SrcTileData,
+          typename... WaitEvents>
+PTO_INST RecordEvent TSCATTER(DstTileData &dst, SrcTileData &src, WaitEvents &... events);
 ```
+
+`MaskPattern` 定义于 `include/pto/common/type.hpp`：
+
+| 值 | 模式 | 选中 lane | 扩展倍数 |
+| --- | --- | --- | --- |
+| `P0101` | `0101...` | 每 2-lane 分组的第一个 lane | x2 |
+| `P1010` | `1010...` | 每 2-lane 分组的第二个 lane | x2 |
+| `P0001` | `0001...` | 每 4-lane 分组的第一个 lane | x4 |
+| `P0010` | `0010...` | 每 4-lane 分组的第二个 lane | x4 |
+| `P0100` | `0100...` | 每 4-lane 分组的第三个 lane | x4 |
+| `P1000` | `1000...` | 每 4-lane 分组的第四个 lane | x4 |
+| `P1111` | `1111...` | 全部 lane，等同于 `TMOV` | x1 |
 
 ## 约束
 
@@ -94,6 +125,17 @@ PTO_INST RecordEvent TSCATTER(TileDataD &dst, TileDataS &src, TileDataI &indexes
       - `dst/src` 支持 `int32_t`、`int16_t`、`int8_t`、`uint32_t`、`uint16_t`、`uint8_t`、`half`、`float32_t`、`bfloat16_t`
       - `indexes` 支持 `int16_t`、`int32_t`、`uint16_t`、`uint32_t`
 
+    ### 掩码散播检查（仅 A5）
+
+    - `DstTileData::Loc` 与 `SrcTileData::Loc` 必须是 `TileType::Vec`。
+    - `DstTileData::DType` 与 `SrcTileData::DType` 必须一致，且属于 TSCATTER 支持的数据类型。
+    - `maskPattern` 必须是 `P0101`、`P1010`、`P0001`、`P0010`、`P0100`、`P1000` 或 `P1111`。
+    - `SrcTileData::ValidRow` 必须等于 `DstTileData::ValidRow`。
+    - `DstTileData::ValidCol` 必须等于 `SrcTileData::ValidCol * F_P`，其中 `F_P` 为对应掩码的扩展倍数。
+
+!!! warning "掩码散播填零"
+    A5 掩码散播在写入源元素前，会把目标 Tile 的整个 UB 分配区域初始化为 0，而不只限于 valid region。代码不得让该目标 UB 分配区域与其他仍然活跃的数据重叠。
+
 ## 示例
 
 ### 自动（Auto）
@@ -128,6 +170,22 @@ void example_manual() {
   TASSIGN(dst, 0x2000);
   TASSIGN(idx, 0x3000);
   TSCATTER(dst, src, idx);
+}
+```
+
+### 掩码散播
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_mask_scatter() {
+  using SrcTileT = Tile<TileType::Vec, half, 16, 64>;
+  using DstTileT = Tile<TileType::Vec, half, 16, 128>;
+  SrcTileT src;
+  DstTileT dst;
+  TSCATTER<MaskPattern::P1010>(dst, src);
 }
 ```
 

@@ -70,6 +70,7 @@ tdivs
 texp
 texpands
 textract
+textract_quant
 tfillpad
 tflashattn
 tfmod
@@ -83,6 +84,7 @@ tgetscaleaddr
 thistogram
 timg2col
 tinsert
+tinsert_quant
 tload
 tloadconv
 tlog
@@ -105,10 +107,15 @@ tor
 tors
 tpartadd
 tpartmul
+tpartargmax
+tpartargmin
 tpartmax
 tpartmin
+tpow
+tpows
 tprefetch
 tprelu
+tprint
 tpushpop
 tput
 tput_async
@@ -126,6 +133,7 @@ trowmax
 trowmin
 trowreduceidx
 trowsum
+trowprod
 trsqrt
 tscatter
 tsel
@@ -137,6 +145,7 @@ tshrs
 tsort32
 tsqrt
 tstore
+tstore_quant
 tsub
 tsubview
 tsubc
@@ -145,6 +154,7 @@ tsubsc
 ttest
 ttrans
 ttri
+ttrace
 twait
 txor
 txors

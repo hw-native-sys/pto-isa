@@ -18,7 +18,8 @@ namespace pto {
 
 template <typename T>
 struct Padding {
-    using Type = std::conditional_t<sizeof(T) == 4, uint32_t, std::conditional_t<sizeof(T) == 2, uint16_t, uint8_t>>;
+    using Type = std::conditional_t<sizeof(T) == sizeof(uint32_t), uint32_t,
+                                    std::conditional_t<sizeof(T) == sizeof(uint16_t), uint16_t, uint8_t>>;
 
     PTO_INTERNAL static constexpr Type GetPaddingMin()
     {
@@ -64,80 +65,44 @@ struct Padding {
     static constexpr Type Max = GetPaddingMax();
 };
 
-template <typename Op, typename T, unsigned elementsPerRepeat, unsigned dstStride>
-PTO_INTERNAL void TPadOp(__ubuf__ T *dstPtr, uint64_t DstvalidRow, uint64_t DstvalidCol)
-{
-    constexpr auto distValue =
-        std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
-    RegTensor<typename Padding<T>::Type> vreg;
-    MaskReg preg;
-    vbr(vreg, Op::PadVal);
-    uint16_t repeatTimes = CeilDivision(DstvalidCol, elementsPerRepeat);
-    for (uint16_t i = 0; i < (uint16_t)DstvalidRow; ++i) {
-        uint32_t sreg = (uint32_t)(DstvalidCol);
-        for (uint16_t j = 0; j < (uint16_t)repeatTimes; ++j) {
-            preg = CreatePredicate<T>(sreg);
-            vsts((RegTensor<T> &)vreg, dstPtr + i * dstStride, j * elementsPerRepeat, distValue, preg);
-        }
-    }
-
-    mem_bar(VST_VLD);
-}
-
 template <typename Op, typename DstTileData, typename Src0TileData, typename Src1TileData, unsigned elementsPerRepeat,
           unsigned src0Stride, unsigned src1Stride, unsigned dstStride>
 __tf__ PTO_INTERNAL void TCopyPadOp(typename DstTileData::TileDType __out__ dst,
                                     typename Src0TileData::TileDType __in__ src0,
-                                    typename Src1TileData::TileDType __in__ src1, uint64_t Src0validRow,
-                                    uint64_t Src0validCol, uint64_t Src1validRow, uint64_t Src1validCol,
-                                    uint64_t DstvalidRow, uint64_t DstvalidCol)
+                                    typename Src1TileData::TileDType __in__ src1, uint32_t Src0validRow,
+                                    uint32_t Src0validCol, uint32_t Src1validRow, uint32_t Src1validCol,
+                                    uint32_t DstvalidRow, uint32_t DstvalidCol)
 {
     using T = typename DstTileData::DType;
     __ubuf__ T *src0Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src0);
     __ubuf__ T *src1Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src1);
     __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-
-#pragma no_simd_vf_fusion
-
     __VEC_SCOPE__
     {
-        TPadOp<Op, T, elementsPerRepeat, dstStride>(dstPtr, DstvalidRow, DstvalidCol);
-
-        MaskReg preg;
-        RegTensor<T> vreg0;
-        RegTensor<T> vreg1;
-        RegTensor<T> vreg2;
-
         constexpr auto distValue =
             std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
+        MaskReg dstMask, src0Mask, src1Mask;
+        RegTensor<T> src0Reg;
+        RegTensor<T> src1Reg;
+        RegTensor<T> dstReg;
         uint16_t repeatTimes = CeilDivision(DstvalidCol, elementsPerRepeat);
-
-        // COPY source0 into dst
-        repeatTimes = CeilDivision(Src0validCol, elementsPerRepeat);
-        for (uint16_t i = 0; i < (uint16_t)Src0validRow; ++i) {
-            uint32_t sreg = (uint32_t)(Src0validCol);
+        for (uint16_t i = 0; i < (uint16_t)DstvalidRow; ++i) {
+            uint32_t dstSReg = DstvalidCol;
+            uint32_t src0SReg = static_cast<uint32_t>(i < Src0validRow) * Src0validCol;
+            uint32_t src1SReg = static_cast<uint32_t>(i < Src1validRow) * Src1validCol;
             for (uint16_t j = 0; j < (uint16_t)repeatTimes; ++j) {
-                preg = CreatePredicate<T>(sreg);
-                vlds(vreg0, src0Ptr + i * src0Stride, j * elementsPerRepeat, NORM);
-                vsts(vreg0, dstPtr + i * dstStride, j * elementsPerRepeat, distValue, preg);
+                dstMask = CreatePredicate<T>(dstSReg);
+                src0Mask = CreatePredicate<T>(src0SReg);
+                src1Mask = CreatePredicate<T>(src1SReg);
+                vdup((RegTensor<typename Padding<T>::Type> &)dstReg, Op::PadVal, dstMask, MODE_ZEROING);
+                vlds(src0Reg, src0Ptr + i * src0Stride, j * elementsPerRepeat, NORM);
+                vlds(src1Reg, src1Ptr + i * src1Stride, j * elementsPerRepeat, NORM);
+                Op::BinInstr(dstReg, dstReg, src0Reg, src0Mask);
+                Op::BinInstr(dstReg, dstReg, src1Reg, src1Mask);
+                vsts(dstReg, dstPtr + i * dstStride, j * elementsPerRepeat, distValue, dstMask);
             }
         }
-
-        mem_bar(VST_VLD);
-
-        // MAX (between dst and source 1)
-        repeatTimes = CeilDivision(Src1validCol, elementsPerRepeat);
-        for (uint16_t i = 0; i < (uint16_t)Src1validRow; ++i) {
-            uint32_t sreg = (uint32_t)(Src1validCol);
-            for (uint16_t j = 0; j < (uint16_t)repeatTimes; ++j) {
-                preg = CreatePredicate<T>(sreg);
-                vlds(vreg0, dstPtr + i * dstStride, j * elementsPerRepeat, NORM);
-                vlds(vreg1, src1Ptr + i * src1Stride, j * elementsPerRepeat, NORM);
-                Op::BinInstr(vreg2, vreg0, vreg1, preg);
-                vsts(vreg2, dstPtr + i * dstStride, j * elementsPerRepeat, distValue, preg);
-            }
-        }
-    } // end __VEC_SCOPE__
+    }
 }
 
 template <typename Op, typename DstTileData, typename Src0TileData, typename Src1TileData>
@@ -168,11 +133,6 @@ PTO_INTERNAL void TPartMasterImpl(DstTileData &dst, Src0TileData &src0, Src1Tile
     unsigned src1ValidCol = src1.GetValidCol();
     unsigned dstValidRow = dst.GetValidRow();
     unsigned dstValidCol = dst.GetValidCol();
-
-    if (src0ValidRow == 0U || src0ValidCol == 0U || src1ValidRow == 0U || src1ValidCol == 0U || dstValidRow == 0U ||
-        dstValidCol == 0U) {
-        return;
-    }
 
     // dst has to be larger than or equal to both sources
     bool condDstgeSrc = (src1ValidRow <= dstValidRow && src1ValidCol <= dstValidCol) &&

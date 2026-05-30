@@ -11,6 +11,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "test_common.h"
 #include <pto/pto-inst.hpp>
 #include <gtest/gtest.h>
+#include <climits>
 
 using namespace std;
 using namespace PtoTestCommon;
@@ -36,40 +37,45 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTSelS(T *out, int8_t scalar, T *src0, T *src1, void *stream);
+void LaunchTSelS(T *out, T scalar, uint32_t *src0, T *src1, void *stream);
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
 void test_tsels()
 {
-    size_t fileSize = kGRows_ * kGCols_ * sizeof(T);
+    size_t totalElements = kGRows_ * kGCols_;
+    size_t fileSize = totalElements * sizeof(T);
+
+    // --- UPDATED: Calculate memory footprint for the 1-bit packed mask ---
+    constexpr size_t bitsPerWord = sizeof(uint32_t) * CHAR_BIT; // 32 bits
+    size_t totalMaskWords = (totalElements + bitsPerWord - 1) / bitsPerWord;
+    size_t maskSize = totalMaskWords * sizeof(uint32_t);
 
     aclInit(nullptr);
     aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    T *dstHost, *src0Host, *src1Host;
-    T *dstDevice, *src0Device, *src1Device;
-    float scalar;
+    T *dstHost, *src1Host;
+    T *dstDevice, *src1Device;
+    uint32_t *src0Host, *src0Device;
+
+    T scalar;
     aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&src0Host), fileSize);
+    aclrtMallocHost((void **)(&src0Host), maskSize);
     aclrtMallocHost((void **)(&src1Host), fileSize);
 
     aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void **)&src0Device, maskSize, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMalloc((void **)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
-    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input1.bin", fileSize, src0Host, fileSize));
-    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input2.bin", fileSize, src1Host, fileSize));
-    std::string scalar_file = GetGoldenDir() + "/scalar.bin";
-    std::ifstream file(scalar_file, std::ios::binary);
+    size_t actualSize = 0;
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/mask.bin", actualSize, src0Host, maskSize));
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input.bin", actualSize, src1Host, fileSize));
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/scalar.bin", actualSize, &scalar, sizeof(scalar)));
 
-    file.read(reinterpret_cast<char *>(&scalar), 4);
-    file.close();
-    aclrtMemcpy(src0Device, fileSize, src0Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(src0Device, maskSize, src0Host, maskSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, fileSize, src1Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    LaunchTSelS<T, kGRows_, kGCols_, kTRows_, kTCols_>(dstDevice, static_cast<int8_t>(scalar), src0Device, src1Device,
-                                                       stream);
+    LaunchTSelS<T, kGRows_, kGCols_, kTRows_, kTCols_>(dstDevice, scalar, src0Device, src1Device, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, fileSize, dstDevice, fileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -87,8 +93,8 @@ void test_tsels()
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<T> golden(fileSize);
-    std::vector<T> devFinal(fileSize);
+    std::vector<T> golden(totalElements);
+    std::vector<T> devFinal(totalElements);
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/golden.bin", fileSize, golden.data(), fileSize));
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/output.bin", fileSize, devFinal.data(), fileSize));
 

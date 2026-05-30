@@ -47,13 +47,17 @@ PTO_INTERNAL uint64_t getPadMask(uint64_t validCol)
 
 // Helper: handle 32B-aligned padding for byte-sized elements (sizeof==1)
 template <typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void Handle32BAlignedPad_Byte(decltype(getCopyNullPtr<TileDataDst>()) dstPtr, uint64_t srcValidRow,
-                                           uint64_t srcValidCol, uint64_t /* srcValidCol32B */,
-                                           decltype(GetPadValue<TileDataDst>()) padValue)
+PTO_INTERNAL void Handle32BAlignedPad_Byte(__ubuf__ uint8_t *dstPtr, uint64_t srcValidRow, uint64_t srcValidCol,
+                                           uint64_t /* srcValidCol32B */, uint8_t padValue)
 {
     using T = typename TileDataSrc::DType;
     uint64_t pad_32B = 32 / sizeof(T) - srcValidCol;
+#ifndef __PTO_AUTO__
     PtoSetWaitFlag<PIPE_V, PIPE_S>();
+#else
+    set_flag(PIPE_V, PIPE_S, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
+#endif
     using TP = decltype(padValue);
     for (uint64_t r = 0; r < srcValidRow; r++) {
         __ubuf__ TP *dstPadPtr = &((__ubuf__ TP *)dstPtr)[r * TileDataDst::Cols + srcValidCol];
@@ -190,8 +194,8 @@ __tf__ PTO_INTERNAL void TFillPad(typename TileDataDst::TileDType __out__ dst,
     // handle 32B-aligned padding (was inlined previously)
     if constexpr (TileDataDst::PadVal != TileDataSrc::PadVal) {
         if constexpr (sizeof(T) == 1) {
-            Handle32BAlignedPad_Byte<TileDataDst, TileDataSrc>(dstPtr, srcValidRow, srcValidCol, srcValidCol32B,
-                                                               padValue);
+            Handle32BAlignedPad_Byte<TileDataDst, TileDataSrc>((__ubuf__ uint8_t *)dstPtr, srcValidRow, srcValidCol,
+                                                               srcValidCol32B, (uint8_t)(padValue & 0xff));
         } else {
             Handle32BAlignedPad_Other<TileDataDst, TileDataSrc>(dstPtr, srcValidRow, srcValidCol, srcValidCol32B,
                                                                 padValue);
@@ -238,8 +242,8 @@ __tf__ PTO_INTERNAL void TFillPad_Inplace(typename TileDataDst::TileDType __out_
     // handle 32B-aligned padding (was inlined previously)
     if constexpr (TileDataDst::PadVal != TileDataSrc::PadVal) {
         if constexpr (sizeof(T) == 1) {
-            Handle32BAlignedPad_Byte<TileDataDst, TileDataSrc>(dstPtr, srcValidRow, srcValidCol, srcValidCol32B,
-                                                               padValue);
+            Handle32BAlignedPad_Byte<TileDataDst, TileDataSrc>((__ubuf__ uint8_t *)dstPtr, srcValidRow, srcValidCol,
+                                                               srcValidCol32B, (uint8_t)(padValue & 0xff));
         } else {
             Handle32BAlignedPad_Other<TileDataDst, TileDataSrc>(dstPtr, srcValidRow, srcValidCol, srcValidCol32B,
                                                                 padValue);
@@ -337,7 +341,7 @@ __tf__ PTO_INTERNAL void TFillPad(typename TileData::TileDType __out__ dst, uint
                 (static_cast<uint64_t>(blockLen) << 16) |  // [30:16] is the block number of each repeat
                 (static_cast<uint64_t>(repeatGap) << 32) | // [46:32] is the repeat gap between two consecutive repeats
                 static_cast<uint64_t>(repeat);             // [14:0] is the repeat times
-            create_cbuf_matrix((__cbuf__ uint16_t *)(dstPtr + dstValidRow * elementsPerBlock), repeatConfig, 0);
+            pto_create_cbuf_matrix((__cbuf__ uint16_t *)(dstPtr + dstValidRow * elementsPerBlock), repeatConfig, 0);
         }
     } else {
         uint16_t blockLen = TileData::Rows - dstValidRow; // unit is 32B
@@ -349,14 +353,14 @@ __tf__ PTO_INTERNAL void TFillPad(typename TileData::TileDType __out__ dst, uint
             (static_cast<uint64_t>(repeatGap) << 32) | // [46:32] is the repeat gap between two consecutive repeats
             static_cast<uint64_t>(repeat);             // [14:0] is the repeat times
         if (blockLen != 0) {
-            create_cbuf_matrix((__cbuf__ uint16_t *)(dstPtr + dstValidRow * elementsPerBlock), repeatConfig, 0);
+            pto_create_cbuf_matrix((__cbuf__ uint16_t *)(dstPtr + dstValidRow * elementsPerBlock), repeatConfig, 0);
         }
         if (alignedValidCol <
             TileData::Cols) { // if alignedValidCol is not equal to TileData::Cols, need to pad the left column
             blockLen = TileData::Rows * (TileData::Cols - alignedValidCol) / elementsPerBlock; // unit is 32B
             repeatConfig = (static_cast<uint64_t>(blockLen) << 16) | // [30:16] is the block number of each repeat
                            (static_cast<uint64_t>(0) << 32) | 1;     // [46:32] is the repeat gap
-            create_cbuf_matrix((__cbuf__ uint16_t *)(dstPtr + TileData::Rows * alignedValidCol), repeatConfig, 0);
+            pto_create_cbuf_matrix((__cbuf__ uint16_t *)(dstPtr + TileData::Rows * alignedValidCol), repeatConfig, 0);
         }
     }
 #endif

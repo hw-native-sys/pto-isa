@@ -112,7 +112,7 @@ __tf__ PTO_INTERNAL void TRemS(typename TileDataDst::TileDType __out__ dst, type
     set_vector_mask(-1, -1);
 }
 
-template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp>
+template <auto PrecisionType = RemSAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc, typename TileDataTmp>
 PTO_INTERNAL void TREMS_IMPL(TileDataDst &dst, TileDataSrc &src, typename TileDataSrc::DType scalar, TileDataTmp &tmp)
 {
     using T = typename TileDataDst::DType;

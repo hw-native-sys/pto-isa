@@ -8,7 +8,6 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-#include <iostream>
 #include <pto/pto-inst.hpp>
 
 using namespace std;
@@ -91,7 +90,6 @@ __global__ AICORE void launchTmovUb2l1(__gm__ uint64_t *out, __gm__ uint64_t *sr
 template <int32_t testKey>
 void launchTmovUb2l1(uint64_t *out, uint64_t *src, void *stream)
 {
-    cout << "launchTmovUb2l1 start!" << endl;
     if constexpr (testKey == 1) {
         launchTmovUb2l1<half, 16, 32, 17><<<1, nullptr, stream>>>(out, src);
     } else if constexpr (testKey == 2) {
@@ -107,7 +105,6 @@ void launchTmovUb2l1(uint64_t *out, uint64_t *src, void *stream)
     } else if constexpr (testKey == 7) {
         launchTmovUb2l1<half, 64, 64, 65, 48, 48, 16, 16><<<1, nullptr, stream>>>(out, src);
     }
-    cout << "launchTmovUb2l1 end!" << endl;
 }
 
 template void launchTmovUb2l1<1>(uint64_t *out, uint64_t *src, void *stream);

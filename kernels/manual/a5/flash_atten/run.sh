@@ -106,6 +106,13 @@ echo "[RUN.SH] DN_MODE=${MODE_DN:-0}"
 
 python3 ../scripts/generate_cases.py --qk-preload "${QK_PRELOAD}" "${GEN_CASE_ARGS[@]}" --causal-mask "${CAUSAL_MASK:-0}"
 
+# Validate buffer usage for all generated cases
+if [[ -n "${MODE_DN:-}" ]]; then
+    python3 ../scripts/validate_buffer_usage.py --mode dn --cases generated_cases.json
+else
+    python3 ../scripts/validate_buffer_usage.py --mode nd --cases generated_cases.json
+fi
+
 CMAKE_EXTRA=()
 if [[ -n "${DEBUG_BUILD:-}" ]]; then
     CMAKE_EXTRA+=(-DDEBUG_MODE=ON)

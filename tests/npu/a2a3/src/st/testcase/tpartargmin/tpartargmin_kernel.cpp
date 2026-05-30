@@ -48,8 +48,8 @@ __global__ AICORE void runTPartArgMin(__gm__ TVal __out__ *dstVal, __gm__ TIdx _
     TileDstIdx dstIdxTile(vRowsDst, vColsDst);
     TileSrc0Val src0ValTile(vRows0, vCols0);
     TileSrc0Idx src0IdxTile(vRows0, vCols0);
-    TileSrc0Val src1ValTile(vRows1, vCols1);
-    TileSrc0Idx src1IdxTile(vRows1, vCols1);
+    TileSrc1Val src1ValTile(vRows1, vCols1);
+    TileSrc1Idx src1IdxTile(vRows1, vCols1);
     size_t dstValSize = sizeof(TVal) * dstValH * dstValW;
     size_t dstIdxSize = sizeof(TIdx) * dstIdxH * dstIdxW;
     size_t src0ValSize = sizeof(TVal) * src0ValH * src0ValW;
@@ -180,24 +180,24 @@ template void LaunchTPartArgMinHalf<uint16_t, 128, 128, 128, 128, 128, 128, 128,
 template void LaunchTPartArgMin<float, uint32_t, 4, 8, 4, 16, 4, 24, 4, 32, 4, 40, 4, 48, 4, 7, 4, 7>(
     float *outVal, uint32_t *outIdx, float *src0Val, uint32_t *src0Idx, float *src1Val, uint32_t *src1Idx,
     void *stream);
-template void LaunchTPartArgMin<float, uint32_t, 67, 128, 67, 120, 67, 112, 67, 104, 67, 144, 67, 136, 67, 97, 67, 97>(
+template void LaunchTPartArgMin<float, uint32_t, 57, 128, 57, 120, 57, 112, 57, 104, 57, 144, 57, 136, 57, 97, 57, 97>(
     float *outVal, uint32_t *outIdx, float *src0Val, uint32_t *src0Idx, float *src1Val, uint32_t *src1Idx,
     void *stream);
-template void LaunchTPartArgMin<float, uint32_t, 67, 128, 67, 120, 61, 112, 61, 104, 67, 144, 67, 136, 61, 97, 67, 97>(
+template void LaunchTPartArgMin<float, uint32_t, 57, 128, 57, 120, 51, 112, 51, 104, 57, 144, 57, 136, 51, 97, 57, 97>(
     float *outVal, uint32_t *outIdx, float *src0Val, uint32_t *src0Idx, float *src1Val, uint32_t *src1Idx,
     void *stream);
-template void LaunchTPartArgMin<float, uint32_t, 67, 128, 67, 120, 67, 112, 67, 104, 61, 144, 61, 136, 67, 97, 61, 97>(
+template void LaunchTPartArgMin<float, uint32_t, 57, 128, 57, 120, 57, 112, 57, 104, 51, 144, 51, 136, 57, 97, 51, 97>(
     float *outVal, uint32_t *outIdx, float *src0Val, uint32_t *src0Idx, float *src1Val, uint32_t *src1Idx,
     void *stream);
-template void LaunchTPartArgMin<float, uint32_t, 67, 128, 67, 120, 67, 112, 67, 104, 67, 144, 67, 136, 67, 97, 67, 101>(
+template void LaunchTPartArgMin<float, uint32_t, 57, 128, 57, 120, 57, 112, 57, 104, 57, 144, 57, 136, 57, 97, 57, 101>(
     float *outVal, uint32_t *outIdx, float *src0Val, uint32_t *src0Idx, float *src1Val, uint32_t *src1Idx,
     void *stream);
-template void LaunchTPartArgMin<float, uint32_t, 67, 128, 67, 120, 67, 112, 67, 104, 67, 144, 67, 136, 67, 101, 67, 97>(
+template void LaunchTPartArgMin<float, uint32_t, 57, 128, 57, 120, 57, 112, 57, 104, 57, 144, 57, 136, 57, 101, 57, 97>(
     float *outVal, uint32_t *outIdx, float *src0Val, uint32_t *src0Idx, float *src1Val, uint32_t *src1Idx,
     void *stream);
-template void LaunchTPartArgMin<float, uint32_t, 67, 128, 67, 120, 67, 112, 67, 104, 67, 144, 67, 136, 61, 97, 67, 101>(
+template void LaunchTPartArgMin<float, uint32_t, 57, 128, 57, 120, 57, 112, 57, 104, 57, 144, 57, 136, 51, 97, 57, 101>(
     float *outVal, uint32_t *outIdx, float *src0Val, uint32_t *src0Idx, float *src1Val, uint32_t *src1Idx,
     void *stream);
-template void LaunchTPartArgMin<float, uint32_t, 67, 128, 67, 120, 67, 112, 67, 104, 67, 144, 67, 136, 67, 101, 61, 97>(
+template void LaunchTPartArgMin<float, uint32_t, 57, 128, 57, 120, 57, 112, 57, 104, 57, 144, 57, 136, 57, 101, 51, 97>(
     float *outVal, uint32_t *outIdx, float *src0Val, uint32_t *src0Idx, float *src1Val, uint32_t *src1Idx,
     void *stream);

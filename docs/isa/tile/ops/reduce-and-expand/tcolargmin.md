@@ -4,15 +4,23 @@
 
 ## Summary
 
-Get the row index of the minimum element for each column.
+Get the row index of the minimum element for each column. A value+index variant also returns the minimum
+value for each column.
 
 ## Mechanism
 
-Get the row index of the minimum element for each column.
+Get the row index of the minimum element for each column. The 4-operand overload returns both the minimum
+value and the row index for each column.
 
 Let `R = src.GetValidRow()` and `C = src.GetValidCol()`. For `0 <= j < C`:
 
 $$ \mathrm{dst}_{0,j} = \underset{0 \le i < R}{\operatorname{argmin}} \; \mathrm{src}_{i,j} $$
+
+For value+index mode:
+
+$$ \mathrm{dstVal}_{0,j} = \min_{0 \le i < R} \mathrm{src}_{i,j} $$
+
+$$ \mathrm{dstIdx}_{0,j} = \underset{0 \le i < R}{\operatorname{argmin}} \; \mathrm{src}_{i,j} $$
 
 ## Syntax
 
@@ -22,6 +30,7 @@ Synchronous form:
 
 ```text
 %dst = tcolargmin %src : !pto.tile<...> -> !pto.tile<...>
+%dstVal, %dstIdx = tcolargmin %src : !pto.tile<...> -> !pto.tile<...>, !pto.tile<...>
 ```
 
 Lowering may introduce internal scratch tiles; the C++ intrinsic requires an explicit `tmp` operand.
@@ -36,12 +45,14 @@ Lowering may introduce internal scratch tiles; the C++ intrinsic requires an exp
 
 ```text
 %dst = pto.tcolargmin %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+%dstVal, %dstIdx = pto.tcolargmin %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> (!pto.tile<...>, !pto.tile<...>)
 ```
 
 ### AS Level 2 (DPS)
 
 ```text
 pto.tcolargmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+pto.tcolargmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dstVal, %dstIdx : !pto.tile_buf<...>, !pto.tile_buf<...>)
 ```
 
 ## C++ Intrinsic
@@ -51,6 +62,11 @@ Declared in `include/pto/common/pto_instr.hpp`:
 ```cpp
 template <typename TileDataOut, typename TileDataIn, typename TileDataTmp, typename... WaitEvents>
 PTO_INST RecordEvent TCOLARGMIN(TileDataOut& dst, TileDataIn& src, TileDataTmp& tmp, WaitEvents&... events);
+
+template <typename TileDataOutVal, typename TileDataOutIdx, typename TileDataIn, typename TileDataTmp,
+          typename... WaitEvents>
+PTO_INST RecordEvent TCOLARGMIN(TileDataOutVal& dstVal, TileDataOutIdx& dstIdx, TileDataIn& src, TileDataTmp& tmp,
+                                WaitEvents&... events);
 ```
 
 ## Inputs
@@ -58,10 +74,12 @@ PTO_INST RecordEvent TCOLARGMIN(TileDataOut& dst, TileDataIn& src, TileDataTmp& 
 - `src` is the source tile.
 - `tmp` is a temporary tile used for intermediate storage.
 - `dst` names the destination tile. The operation writes the column-wise argmin to `dst[0, j]` for each column `j`.
+- In value+index mode, `dstVal` names the value output tile and `dstIdx` names the index output tile.
 
 ## Expected Outputs
 
 `dst` holds the row index of the column-wise minimum: for each column `j`, `dst[0,j]` = argmin of all elements in column `j` of `src`. The output tile has shape `(1, C)` where `C` is the number of columns in `src`.
+In value+index mode, `dstVal[0,j]` holds the minimum value and `dstIdx[0,j]` holds its row index.
 
 ## Side Effects
 
@@ -117,6 +135,17 @@ No architectural side effects beyond producing the destination tile. Does not im
     - `tmp` temporary tile is **not used** in the A5 implementation. The A5 uses vector register-based computation (`__VEC_SCOPE__`) and does not require scratch tile storage.
     - `tmp` is retained in the C++ intrinsic signature solely for API compatibility with A2A3.
 
+    ### Value+index mode
+
+    - `dstVal` must be a `TileType::Vec` tile with standard ND layout.
+    - `dstVal` element type must match `src`.
+    - 8-bit source element types are not supported by the value+index overload.
+    - `dstVal.GetValidRow() == 1`
+    - `dstVal.GetValidCol() == dstIdx.GetValidCol()`
+    - `dstVal.GetValidCol() == src.GetValidCol()`
+    - For 16-bit source element types, `dstIdx` must use `uint16_t` or `int16_t`.
+    - For 32-bit source element types, `dstIdx` must use `uint32_t` or `int32_t`.
+
 ## Exceptions
 
 !!! danger "Exceptions"
@@ -149,6 +178,26 @@ void example_auto() {
   DstT dst(1, 255);
   TmpT tmp(1, 32);
   TCOLARGMIN(dst, src, tmp);
+}
+```
+
+### Auto Value + Index
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_auto_value_index() {
+  using SrcT = Tile<TileType::Vec, float, 16, 256, BLayout::RowMajor, -1, -1>;
+  using DstValT = Tile<TileType::Vec, float, 1, 256, BLayout::RowMajor, -1, -1>;
+  using DstIdxT = Tile<TileType::Vec, int32_t, 1, 256, BLayout::RowMajor, -1, -1>;
+  using TmpT = Tile<TileType::Vec, float, 1, 32, BLayout::RowMajor, -1, -1>;
+  SrcT src(16, 255);
+  DstValT dstVal(1, 255);
+  DstIdxT dstIdx(1, 255);
+  TmpT tmp(1, 32);
+  TCOLARGMIN(dstVal, dstIdx, src, tmp);
 }
 ```
 
@@ -194,8 +243,10 @@ void example_manual() {
 
 ```text
 %dst = tcolargmin %src : !pto.tile<...> -> !pto.tile<...>
+%dstVal, %dstIdx = tcolargmin %src : !pto.tile<...> -> !pto.tile<...>, !pto.tile<...>
 # AS Level 2 (DPS)
 pto.tcolargmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+pto.tcolargmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dstVal, %dstIdx : !pto.tile_buf<...>, !pto.tile_buf<...>)
 ```
 
 ## Related Ops / Instruction Set Links

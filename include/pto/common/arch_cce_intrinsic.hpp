@@ -11,6 +11,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef ARCH_CCE_INTRINSIC_HPP
 #define ARCH_CCE_INTRINSIC_HPP
 #include <pto/common/arch_macro.hpp>
+#ifndef __CPU_SIM
 
 PTO_INTERNAL void pto_copy_ubuf_to_ubuf(__ubuf__ void *dst, __ubuf__ void *src, uint16_t nBurst, uint16_t lenBurst,
                                         uint16_t srcGap, uint16_t dstGap)
@@ -43,4 +44,73 @@ PTO_INTERNAL void pto_load_cbuf_to_cb(__cb__ T *dst, __cbuf__ T *src, uint16_t m
 }
 #endif
 
+#if defined(PTO_NPU_ARCH_A2A3)
+template <typename T>
+PTO_INTERNAL void pto_vgatherb(__ubuf__ T *dst, __ubuf__ uint32_t *src, uint32_t offsetAddr, uint16_t dstRepeatStride,
+                               uint8_t dstBlockStride, uint8_t repeat)
+{
+    vgatherb(dst, src, offsetAddr, dstRepeatStride, dstBlockStride, repeat);
+}
+#elif defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90)
+template <typename T, typename U, typename S>
+PTO_INTERNAL void pto_vgatherb(T &dstReg, __ubuf__ U *base, S &idxReg, vector_bool &mask)
+{
+#if defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90)
+    vgatherb(dstReg, base, idxReg);
+#else
+    vgatherb(dstReg, base, idxReg, mask);
+#endif
+}
+#endif
+
+template <typename T, typename U>
+PTO_INTERNAL void pto_create_cbuf_matrix(__cbuf__ T *dst, int64_t repeatConfig, U value)
+{
+#if defined(PTO_NPU_ARCH_KIRIN9030)
+    if constexpr (std::is_integral_v<U>) {
+        set_l0_set_value_ui(value);
+    } else if (std::is_same_v<U, half>) {
+        set_l0_set_value_h(value);
+    }
+    set_l1_2d(dst, repeatConfig);
+#else
+    if constexpr (std::is_same<T, bfloat16_t>::value) {
+        create_cbuf_matrix_bf16(dst, repeatConfig, value);
+    } else {
+        create_cbuf_matrix(dst, repeatConfig, value);
+    }
+#endif
+}
+
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90)
+template <typename T, typename U, typename S>
+PTO_INTERNAL void pto_vexpdif(T &dst, U &src0, U &src1, vector_bool mask, S part)
+{
+#if defined(PTO_NPU_ARCH_A5)
+    vexpdif(dst, src0, src1, mask, part);
+#elif defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90)
+    vsub(dst, src0, src1, mask, MODE_ZEROING);
+    vexp(dst, dst, mask, MODE_ZEROING);
+#endif
+}
+#endif
+
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90)
+template <typename T>
+PTO_INTERNAL void pto_copy_gm_to_ubuf_align_v2(__ubuf__ T *dst, __gm__ T *src, uint8_t sid, uint32_t nBurst,
+                                               uint32_t lenBurst, uint8_t leftPaddingCount, uint8_t rightPaddingCount,
+                                               bool constantPaddingCtl, uint8_t l2CacheCtl, uint64_t burstSrcStride,
+                                               uint32_t burstDstStride)
+{
+#if defined(PTO_NPU_ARCH_A5)
+    copy_gm_to_ubuf_align_v2(dst, src, sid, nBurst, lenBurst, leftPaddingCount, rightPaddingCount, constantPaddingCtl,
+                             l2CacheCtl, burstSrcStride, burstDstStride);
+#elif defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90)
+    copy_gm_to_ubuf_align_v2(dst, src, sid, nBurst, lenBurst, leftPaddingCount, rightPaddingCount, constantPaddingCtl,
+                             burstSrcStride, burstDstStride);
+#endif
+}
+#endif
+
+#endif // __CPU_SIM
 #endif // ARCH_CCE_INTRINSIC_HPP

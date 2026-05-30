@@ -39,6 +39,24 @@ std::string GetGoldenDir()
     return fullPath;
 }
 
+template <typename T>
+T *load_data(size_t srcRows, size_t srcCols, std::string filePath)
+{
+    T *srcHost;
+    T *srcDevice;
+    if (srcRows == 0 || srcCols == 0) {
+        aclrtMalloc((void **)&srcDevice, 1, ACL_MEM_MALLOC_HUGE_FIRST);
+    } else {
+        size_t tileSize = srcRows * srcCols * sizeof(T);
+        aclrtMallocHost((void **)(&srcHost), tileSize);
+        aclrtMalloc((void **)&srcDevice, tileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+        ReadFile(filePath, tileSize, srcHost, tileSize);
+        aclrtMemcpy(srcDevice, tileSize, srcHost, tileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+        aclrtFreeHost(srcHost);
+    }
+    return srcDevice;
+}
+
 template <typename T, int dstVR, int dstVC, int src0VR, int src0VC, int src1VR, int src1VC, int dstTR, int dstTC,
           int src0TR, int src0TC, int src1TR, int src1TC, bool isHalf = false>
 void test_tpartmin()
@@ -52,22 +70,12 @@ void test_tpartmin()
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    T *dstHost, *src0Host, *src1Host;
-    T *dstDevice, *src0Device, *src1Device;
+    T *dstHost, *dstDevice;
 
     aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&src0Host), src0FileSize);
-    aclrtMallocHost((void **)(&src1Host), src1FileSize);
-
     aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, src0FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, src1FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-
-    ReadFile(GetGoldenDir() + "/input1.bin", src0FileSize, src0Host, src0FileSize);
-    ReadFile(GetGoldenDir() + "/input2.bin", src1FileSize, src1Host, src1FileSize);
-
-    aclrtMemcpy(src0Device, src0FileSize, src0Host, src0FileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    aclrtMemcpy(src1Device, src1FileSize, src1Host, src1FileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    T *src0Device = load_data<T>(src0VR, src0VC, GetGoldenDir() + "/input1.bin");
+    T *src1Device = load_data<T>(src1VR, src1VC, GetGoldenDir() + "/input2.bin");
     if constexpr (dstTR == 0 || dstTC == 0 || src0TR == 0 || src0TC == 0 || src1TR == 0 || src1TC == 0) {
         LaunchTPartMin<T, dstVR, dstVC, src0VR, src0VC, src1VR, src1VC, isHalf>(dstDevice, src0Device, src1Device,
                                                                                 stream);
@@ -82,12 +90,9 @@ void test_tpartmin()
     WriteFile(GetGoldenDir() + "/output.bin", dstHost, dstFileSize);
 
     aclrtFree(dstDevice);
+    aclrtFreeHost(dstHost);
     aclrtFree(src0Device);
     aclrtFree(src1Device);
-
-    aclrtFreeHost(dstHost);
-    aclrtFreeHost(src0Host);
-    aclrtFreeHost(src1Host);
     aclrtDestroyStream(stream);
     aclrtResetDevice(0);
     aclFinalize();
@@ -159,5 +164,33 @@ TEST_F(TPARTMINTest, case_fp16_122x123_104x123_122x110)
 TEST_F(TPARTMINTest, case_fp16_5x33_5x33_5x33)
 {
     test_tpartmin<aclFloat16, 5, 33, 5, 33, 5, 33, 6, 1520, 6, 1520, 6, 464, true>();
+}
+TEST_F(TPARTMINTest, case_fp32_8x8_0x0_0x0)
+{
+    test_tpartmin<float, 8, 8, 0, 0, 0, 0, 1, 8, 1, 8, 1, 8>();
+}
+TEST_F(TPARTMINTest, case_fp32_8x8_8x0_8x8)
+{
+    test_tpartmin<float, 8, 8, 8, 0, 8, 8, 8, 8, 1, 8, 8, 8>();
+}
+TEST_F(TPARTMINTest, case_fp32_8x8_0x8_8x8)
+{
+    test_tpartmin<float, 8, 8, 0, 8, 8, 8, 8, 8, 1, 8, 8, 8>();
+}
+TEST_F(TPARTMINTest, case_fp32_8x8_8x8_8x0)
+{
+    test_tpartmin<float, 8, 8, 8, 8, 8, 0, 8, 8, 8, 8, 1, 8>();
+}
+TEST_F(TPARTMINTest, case_fp32_8x8_8x8_0x8)
+{
+    test_tpartmin<float, 8, 8, 8, 8, 0, 8, 8, 8, 8, 8, 1, 8>();
+}
+TEST_F(TPARTMINTest, case_fp32_8x8_5x4_3x0)
+{
+    test_tpartmin<float, 8, 8, 5, 4, 3, 0, 8, 8, 8, 8, 1, 8>();
+}
+TEST_F(TPARTMINTest, case_fp32_8x8_3x0_5x4)
+{
+    test_tpartmin<float, 8, 8, 3, 0, 5, 4, 8, 8, 1, 8, 8, 8>();
 }
 } // namespace TPartMinTest

@@ -2,6 +2,9 @@
 
 `pto.set_loop_size_outtoub` is part of the [DMA Copy](../../dma-copy.md) instruction set.
 
+!!! warning "Deprecated in PTO ISA v0.6"
+    The v0.6 PTO micro-instruction surface no longer uses standalone loop / stride configuration registers for GM→UB DMA. The information previously carried in `pto.set_loop_size_outtoub` (loop counts) is now expressed inline on the grouped transfer op via `loop(%loop_count, %loop_src_stride, %loop_dst_stride)` clauses on [`pto.mte_gm_ub`](./copy-gm-to-ubuf.md). New code should use the grouped form. This page is retained for historical reference and pre-v0.6 ports.
+
 ## Summary
 
 Configure the inner and outer loop counts that the GM→UB DMA engine will use for subsequent transfers.

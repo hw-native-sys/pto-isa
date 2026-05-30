@@ -14,6 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 constexpr unsigned int MAN_DBL = 52;
 constexpr unsigned int EXP_DBL = 11;
 constexpr int EXP_DBL_BIAS = 1023;
+constexpr int RESERVED_EXPONENT_COUNT = 2;
 
 template <int EXP_SZ, int MAN_SZ, int EXP_BIAS, bool IS_X2>
 class MXType {
@@ -46,7 +47,7 @@ public:
         uint64_t outMantissa = 0;
 
         // Out-of-bounds values
-        if (dblExponent - EXP_DBL_BIAS > (1ULL << EXP_SZ) - 2) {
+        if (dblExponent - EXP_DBL_BIAS > (1ULL << EXP_SZ) - RESERVED_EXPONENT_COUNT) {
             // MIN, MAX, INF
             if (((dblBits >> MAN_DBL) & ((1ULL << EXP_DBL) - 1)) == (1ULL << EXP_DBL) - 1) {
                 outExponent = (1ULL << EXP_SZ) - 1;
@@ -95,11 +96,11 @@ public:
         } else {
             int i = MAN_SZ - 1; // Idx of the first mantissa bit equal to 1
             for (; i >= 0 && !((mantissa >> i) & 1); i--)
-
-                // Subnormal representation
-                *((uint64_t *)&retVal) = (sign << (MAN_DBL + EXP_DBL)) |
-                                         (((uint64_t)(EXP_DBL_BIAS - EXP_BIAS + 1 + (i - MAN_SZ))) << MAN_DBL) |
-                                         ((mantissa & ((1 << i) - 1)) << (MAN_DBL - i));
+                ;
+            // Subnormal representation
+            *((uint64_t *)&retVal) = (sign << (MAN_DBL + EXP_DBL)) |
+                                     (((uint64_t)(EXP_DBL_BIAS - EXP_BIAS + 1 + (i - MAN_SZ))) << MAN_DBL) |
+                                     ((mantissa & ((1 << i) - 1)) << (MAN_DBL - i));
         }
         return retVal;
     }
@@ -146,11 +147,39 @@ protected:
     uint8_t data;
 };
 
-using float4_e2m1x2_t = MXType<2, 1, 1, true>;
-using float4_e1m2x2_t = MXType<1, 2, 1, true>;
-using float8_e8m0_t = MXType<8, 0, 127, false>;
-using float8_e4m3_t = MXType<4, 3, 7, false>;
-using float8_e5m2_t = MXType<5, 2, 15, false>;
+// ========== Constants for MXType template parameters ==========
+
+// float4_e2m1x2_t: exponent=2 bits, mantissa=1 bit, bias=1
+constexpr int kFloat4E2M1ExponentBits = 2;
+constexpr int kFloat4E2M1MantissaBits = 1;
+constexpr int kFloat4E2M1Bias = 1;
+
+// float4_e1m2x2_t: exponent=1 bit, mantissa=2 bits, bias=1
+constexpr int kFloat4E1M2ExponentBits = 1;
+constexpr int kFloat4E1M2MantissaBits = 2;
+constexpr int kFloat4E1M2Bias = 1;
+
+// float8_e8m0_t: exponent=8 bits, mantissa=0 bits, bias=127
+constexpr int kFloat8E8M0ExponentBits = 8;
+constexpr int kFloat8E8M0MantissaBits = 0;
+constexpr int kFloat8E8M0Bias = 127;
+
+// float8_e4m3_t: exponent=4 bits, mantissa=3 bits, bias=7
+constexpr int kFloat8E4M3ExponentBits = 4;
+constexpr int kFloat8E4M3MantissaBits = 3;
+constexpr int kFloat8E4M3Bias = 7;
+
+// float8_e5m2_t: exponent=5 bits, mantissa=2 bits, bias=15
+constexpr int kFloat8E5M2ExponentBits = 5;
+constexpr int kFloat8E5M2MantissaBits = 2;
+constexpr int kFloat8E5M2Bias = 15;
+
+// Using declarations (can remain as is, or use the constants as shown below)
+using float4_e2m1x2_t = MXType<kFloat4E2M1ExponentBits, kFloat4E2M1MantissaBits, kFloat4E2M1Bias, true>;
+using float4_e1m2x2_t = MXType<kFloat4E1M2ExponentBits, kFloat4E1M2MantissaBits, kFloat4E1M2Bias, true>;
+using float8_e8m0_t = MXType<kFloat8E8M0ExponentBits, kFloat8E8M0MantissaBits, kFloat8E8M0Bias, false>;
+using float8_e4m3_t = MXType<kFloat8E4M3ExponentBits, kFloat8E4M3MantissaBits, kFloat8E4M3Bias, false>;
+using float8_e5m2_t = MXType<kFloat8E5M2ExponentBits, kFloat8E5M2MantissaBits, kFloat8E5M2Bias, false>;
 
 template <typename T>
 constexpr bool isTwinType()

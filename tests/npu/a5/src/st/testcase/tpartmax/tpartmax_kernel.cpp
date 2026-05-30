@@ -12,7 +12,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "acl/acl.h"
 
 using namespace pto;
-#define PTO_CEIL(x, y) ((((x) + (y)-1) / (y)) * (y))
+#define PTO_CEIL(x, y) ((((x) + (y) - 1) / (y)) * (y))
 
 namespace TPartMaxTest {
 
@@ -109,3 +109,17 @@ template void TPartMaxTest::LaunchTPartMax<uint8_t, 122, 123, 104, 123, 122, 110
                                                                                   uint8_t *src1, void *stream);
 template void TPartMaxTest::LaunchTPartMax<aclFloat16, 5, 33, 5, 33, 5, 33, 6, 1520, 6, 1520, 6, 464, true>(
     aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1, void *stream);
+template void TPartMaxTest::LaunchTPartMax<float, 8, 8, 0, 0, 0, 0, 1, 8, 1, 8, 1, 8>(float *out, float *src0,
+                                                                                      float *src1, void *stream);
+template void TPartMaxTest::LaunchTPartMax<float, 8, 8, 8, 0, 8, 8, 8, 8, 1, 8, 8, 8>(float *out, float *src0,
+                                                                                      float *src1, void *stream);
+template void TPartMaxTest::LaunchTPartMax<float, 8, 8, 0, 8, 8, 8, 8, 8, 1, 8, 8, 8>(float *out, float *src0,
+                                                                                      float *src1, void *stream);
+template void TPartMaxTest::LaunchTPartMax<float, 8, 8, 8, 8, 8, 0, 8, 8, 8, 8, 1, 8>(float *out, float *src0,
+                                                                                      float *src1, void *stream);
+template void TPartMaxTest::LaunchTPartMax<float, 8, 8, 8, 8, 0, 8, 8, 8, 8, 8, 1, 8>(float *out, float *src0,
+                                                                                      float *src1, void *stream);
+template void TPartMaxTest::LaunchTPartMax<float, 8, 8, 5, 4, 3, 0, 8, 8, 8, 8, 1, 8>(float *out, float *src0,
+                                                                                      float *src1, void *stream);
+template void TPartMaxTest::LaunchTPartMax<float, 8, 8, 3, 0, 5, 4, 8, 8, 1, 8, 8, 8>(float *out, float *src0,
+                                                                                      float *src1, void *stream);

@@ -11,7 +11,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef TPARTARGMIN_HPP
 #define TPARTARGMIN_HPP
 
-#include "TPartBinOps.hpp"
 #include "TPartArgBinOps.hpp"
 
 namespace pto {

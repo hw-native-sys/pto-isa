@@ -29,24 +29,35 @@ PTO_INTERNAL void TTransB32ColWise(__ubuf__ typename TileDataDst::DType *dstPtr,
     using T = typename TileDataSrc::DType;
     if constexpr (std::is_same_v<T, uint32_t> || std::is_same_v<T, int32_t> || std::is_same_v<T, float>) {
         uint16_t repeatTimes = CeilDivision(numRows, elementsPerRepeat);
+        uint32_t tailEleNum = numRows % elementsPerRepeat;
+        if (tailEleNum == 0) {
+            tailEleNum = elementsPerRepeat;
+        }
+        uint32_t fullEleNum = elementsPerRepeat;
+        uint16_t lastRepeat = repeatTimes - 1;
         __VEC_SCOPE__
         {
             RegTensor<uint32_t> vreg0;
             RegTensor<T> vreg1;
-            MaskReg preg;
+            MaskReg pregFull = CreatePredicate<T>(fullEleNum);
+            MaskReg pregTail = CreatePredicate<T>(tailEleNum);
             constexpr auto distValue =
                 std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM_B32>())>();
             for (uint16_t col = 0; col < (uint16_t)numCols; ++col) {
-                uint32_t sreg = (uint32_t)numRows;
-                for (uint16_t chunk = 0; chunk < repeatTimes; ++chunk) {
-                    preg = CreatePredicate<T>(sreg);
+                for (uint16_t chunk = 0; chunk < lastRepeat; ++chunk) {
                     vci((RegTensor<int32_t> &)vreg0, (int32_t)(chunk * elementsPerRepeat), INC_ORDER);
-                    vmins(vreg0, vreg0, (uint32_t)(numRows - 1), preg);
-                    vmuls(vreg0, vreg0, srcStride, preg);
-                    vadds(vreg0, vreg0, col, preg);
-                    vgather2(vreg1, srcPtr, (RegTensor<uint32_t> &)vreg0, preg);
-                    vsts(vreg1, dstPtr, (col * dstStride + chunk * elementsPerRepeat), distValue, preg);
+                    vmins(vreg0, vreg0, (uint32_t)(numRows - 1), pregFull);
+                    vmuls(vreg0, vreg0, srcStride, pregFull);
+                    vadds(vreg0, vreg0, col, pregFull);
+                    vgather2(vreg1, srcPtr, (RegTensor<uint32_t> &)vreg0, pregFull);
+                    vsts(vreg1, dstPtr, (col * dstStride + chunk * elementsPerRepeat), distValue, pregFull);
                 }
+                vci((RegTensor<int32_t> &)vreg0, (int32_t)(lastRepeat * elementsPerRepeat), INC_ORDER);
+                vmins(vreg0, vreg0, (uint32_t)(numRows - 1), pregTail);
+                vmuls(vreg0, vreg0, srcStride, pregTail);
+                vadds(vreg0, vreg0, col, pregTail);
+                vgather2(vreg1, srcPtr, (RegTensor<uint32_t> &)vreg0, pregTail);
+                vsts(vreg1, dstPtr, (col * dstStride + lastRepeat * elementsPerRepeat), distValue, pregTail);
             }
         }
     } else {
@@ -63,22 +74,33 @@ PTO_INTERNAL void TTransB32RowWise(__ubuf__ typename TileDataDst::DType *dstPtr,
 
     if constexpr (std::is_same_v<T, uint32_t> || std::is_same_v<T, int32_t> || std::is_same_v<T, float>) {
         uint16_t repeatTimes = CeilDivision(numCols, elementsPerRepeat);
+        uint32_t tailEleNum = numCols % elementsPerRepeat;
+        if (tailEleNum == 0) {
+            tailEleNum = elementsPerRepeat;
+        }
+        uint32_t fullEleNum = elementsPerRepeat;
+        uint16_t lastRepeat = repeatTimes - 1;
         __VEC_SCOPE__
         {
             RegTensor<uint32_t> vreg0;
             RegTensor<T> vreg1;
-            MaskReg preg;
+            MaskReg pregFull = CreatePredicate<T>(fullEleNum);
+            MaskReg pregTail = CreatePredicate<T>(tailEleNum);
             for (uint16_t row = 0; row < (uint16_t)numRows; ++row) {
-                uint32_t sreg = (uint32_t)numCols;
-                for (uint16_t chunk = 0; chunk < repeatTimes; ++chunk) {
-                    preg = CreatePredicate<T>(sreg);
+                for (uint16_t chunk = 0; chunk < lastRepeat; ++chunk) {
                     vlds(vreg1, srcPtr, (row * srcStride + chunk * elementsPerRepeat), NORM);
                     vci((RegTensor<int32_t> &)vreg0, (int32_t)(chunk * elementsPerRepeat), INC_ORDER);
-                    vmins(vreg0, vreg0, (uint32_t)(numCols - 1), preg);
-                    vmuls(vreg0, vreg0, dstStride, preg);
-                    vadds(vreg0, vreg0, row, preg);
-                    vscatter(vreg1, dstPtr, (RegTensor<uint32_t> &)vreg0, preg);
+                    vmins(vreg0, vreg0, (uint32_t)(numCols - 1), pregFull);
+                    vmuls(vreg0, vreg0, dstStride, pregFull);
+                    vadds(vreg0, vreg0, row, pregFull);
+                    vscatter(vreg1, dstPtr, (RegTensor<uint32_t> &)vreg0, pregFull);
                 }
+                vlds(vreg1, srcPtr, (row * srcStride + lastRepeat * elementsPerRepeat), NORM);
+                vci((RegTensor<int32_t> &)vreg0, (int32_t)(lastRepeat * elementsPerRepeat), INC_ORDER);
+                vmins(vreg0, vreg0, (uint32_t)(numCols - 1), pregTail);
+                vmuls(vreg0, vreg0, dstStride, pregTail);
+                vadds(vreg0, vreg0, row, pregTail);
+                vscatter(vreg1, dstPtr, (RegTensor<uint32_t> &)vreg0, pregTail);
             }
         }
     } else {
@@ -95,24 +117,35 @@ PTO_INTERNAL void TTransB16ColWise(__ubuf__ typename TileDataDst::DType *dstPtr,
     if constexpr (std::is_same_v<T, uint16_t> || std::is_same_v<T, int16_t> || std::is_same_v<T, half> ||
                   std::is_same_v<T, bfloat16_t>) {
         uint16_t repeatTimes = CeilDivision(numRows, elementsPerRepeat);
+        uint32_t tailEleNum = numRows % elementsPerRepeat;
+        if (tailEleNum == 0) {
+            tailEleNum = elementsPerRepeat;
+        }
+        uint32_t fullEleNum = elementsPerRepeat;
+        uint16_t lastRepeat = repeatTimes - 1;
         __VEC_SCOPE__
         {
             RegTensor<uint16_t> vreg0;
             RegTensor<T> vreg1;
-            MaskReg preg;
+            MaskReg pregFull = CreatePredicate<T>(fullEleNum);
+            MaskReg pregTail = CreatePredicate<T>(tailEleNum);
             constexpr auto distValue =
                 std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM_B16>())>();
             for (uint16_t col = 0; col < (uint16_t)numCols; ++col) {
-                uint32_t sreg = (uint32_t)numRows;
-                for (uint16_t chunk = 0; chunk < repeatTimes; ++chunk) {
-                    preg = CreatePredicate<T>(sreg);
+                for (uint16_t chunk = 0; chunk < lastRepeat; ++chunk) {
                     vci((RegTensor<int16_t> &)vreg0, (int16_t)(chunk * elementsPerRepeat), INC_ORDER);
-                    vmins(vreg0, vreg0, (uint16_t)(numRows - 1), preg);
-                    vmuls(vreg0, vreg0, srcStride, preg);
-                    vadds(vreg0, vreg0, col, preg);
-                    vgather2(vreg1, srcPtr, (RegTensor<uint16_t> &)vreg0, preg);
-                    vsts(vreg1, dstPtr, (col * dstStride + chunk * elementsPerRepeat), distValue, preg);
+                    vmins(vreg0, vreg0, (uint16_t)(numRows - 1), pregFull);
+                    vmuls(vreg0, vreg0, srcStride, pregFull);
+                    vadds(vreg0, vreg0, col, pregFull);
+                    vgather2(vreg1, srcPtr, (RegTensor<uint16_t> &)vreg0, pregFull);
+                    vsts(vreg1, dstPtr, (col * dstStride + chunk * elementsPerRepeat), distValue, pregFull);
                 }
+                vci((RegTensor<int16_t> &)vreg0, (int16_t)(lastRepeat * elementsPerRepeat), INC_ORDER);
+                vmins(vreg0, vreg0, (uint16_t)(numRows - 1), pregTail);
+                vmuls(vreg0, vreg0, srcStride, pregTail);
+                vadds(vreg0, vreg0, col, pregTail);
+                vgather2(vreg1, srcPtr, (RegTensor<uint16_t> &)vreg0, pregTail);
+                vsts(vreg1, dstPtr, (col * dstStride + lastRepeat * elementsPerRepeat), distValue, pregTail);
             }
         }
     } else {
@@ -130,22 +163,33 @@ PTO_INTERNAL void TTransB16RowWise(__ubuf__ typename TileDataDst::DType *dstPtr,
     if constexpr (std::is_same_v<T, uint16_t> || std::is_same_v<T, int16_t> || std::is_same_v<T, half> ||
                   std::is_same_v<T, bfloat16_t>) {
         uint16_t repeatTimes = CeilDivision(numCols, elementsPerRepeat);
+        uint32_t tailEleNum = numCols % elementsPerRepeat;
+        if (tailEleNum == 0) {
+            tailEleNum = elementsPerRepeat;
+        }
+        uint32_t fullEleNum = elementsPerRepeat;
+        uint16_t lastRepeat = repeatTimes - 1;
         __VEC_SCOPE__
         {
             RegTensor<uint16_t> vreg0;
             RegTensor<T> vreg1;
-            MaskReg preg;
+            MaskReg pregFull = CreatePredicate<T>(fullEleNum);
+            MaskReg pregTail = CreatePredicate<T>(tailEleNum);
             for (uint16_t row = 0; row < (uint16_t)numRows; ++row) {
-                uint32_t sreg = (uint32_t)numCols;
-                for (uint16_t chunk = 0; chunk < repeatTimes; ++chunk) {
-                    preg = CreatePredicate<T>(sreg);
+                for (uint16_t chunk = 0; chunk < lastRepeat; ++chunk) {
                     vlds(vreg1, srcPtr, (row * srcStride + chunk * elementsPerRepeat), NORM);
                     vci((RegTensor<int16_t> &)vreg0, (int16_t)(chunk * elementsPerRepeat), INC_ORDER);
-                    vmins(vreg0, vreg0, (uint16_t)(numCols - 1), preg);
-                    vmuls(vreg0, vreg0, dstStride, preg);
-                    vadds(vreg0, vreg0, row, preg);
-                    vscatter(vreg1, dstPtr, (RegTensor<uint16_t> &)vreg0, preg);
+                    vmins(vreg0, vreg0, (uint16_t)(numCols - 1), pregFull);
+                    vmuls(vreg0, vreg0, dstStride, pregFull);
+                    vadds(vreg0, vreg0, row, pregFull);
+                    vscatter(vreg1, dstPtr, (RegTensor<uint16_t> &)vreg0, pregFull);
                 }
+                vlds(vreg1, srcPtr, (row * srcStride + lastRepeat * elementsPerRepeat), NORM);
+                vci((RegTensor<int16_t> &)vreg0, (int16_t)(lastRepeat * elementsPerRepeat), INC_ORDER);
+                vmins(vreg0, vreg0, (uint16_t)(numCols - 1), pregTail);
+                vmuls(vreg0, vreg0, dstStride, pregTail);
+                vadds(vreg0, vreg0, row, pregTail);
+                vscatter(vreg1, dstPtr, (RegTensor<uint16_t> &)vreg0, pregTail);
             }
         }
     } else {
@@ -162,25 +206,37 @@ PTO_INTERNAL void TTransB8ColWise(__ubuf__ typename TileDataDst::DType *dstPtr,
     if constexpr (std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t>) {
         constexpr uint32_t sregLower = elementsPerRepeat >> 1;
         uint16_t repeatTimes = CeilDivision(numRows, sregLower);
+        uint32_t tailEleNum = numRows % sregLower;
+        if (tailEleNum == 0) {
+            tailEleNum = sregLower;
+        }
+        uint32_t fullEleNum = sregLower;
+        uint16_t lastRepeat = repeatTimes - 1;
         __VEC_SCOPE__
         {
             RegTensor<uint16_t> vreg0;
             RegTensor<T> vreg1;
-            MaskReg preg;
+            MaskReg pregFull = CreatePredicate<uint16_t>(fullEleNum);
+            MaskReg pregTail = CreatePredicate<uint16_t>(tailEleNum);
             constexpr auto distValue =
                 std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_PK_B16>())>();
             for (uint16_t col = 0; col < (uint16_t)numCols; ++col) {
-                uint32_t sreg = (uint32_t)numRows;
-                for (uint16_t chunk = 0; chunk < repeatTimes; ++chunk) {
-                    preg = CreatePredicate<uint16_t>(sreg);
+                for (uint16_t chunk = 0; chunk < lastRepeat; ++chunk) {
                     vci((RegTensor<int16_t> &)vreg0, (int16_t)(chunk * sregLower), INC_ORDER);
-                    vmins(vreg0, vreg0, (uint16_t)(numRows - 1), preg);
-                    vmuls(vreg0, vreg0, srcStride, preg);
-                    vadds(vreg0, vreg0, col, preg);
+                    vmins(vreg0, vreg0, (uint16_t)(numRows - 1), pregFull);
+                    vmuls(vreg0, vreg0, srcStride, pregFull);
+                    vadds(vreg0, vreg0, col, pregFull);
                     vgather2((RegTensor<uint16_t> &)vreg1, (__ubuf__ uint8_t *)srcPtr, (RegTensor<uint16_t> &)vreg0,
-                             preg);
-                    vsts(vreg1, dstPtr, (col * dstStride + chunk * sregLower), distValue, preg);
+                             pregFull);
+                    vsts(vreg1, dstPtr, (col * dstStride + chunk * sregLower), distValue, pregFull);
                 }
+                vci((RegTensor<int16_t> &)vreg0, (int16_t)(lastRepeat * sregLower), INC_ORDER);
+                vmins(vreg0, vreg0, (uint16_t)(numRows - 1), pregTail);
+                vmuls(vreg0, vreg0, srcStride, pregTail);
+                vadds(vreg0, vreg0, col, pregTail);
+                vgather2((RegTensor<uint16_t> &)vreg1, (__ubuf__ uint8_t *)srcPtr, (RegTensor<uint16_t> &)vreg0,
+                         pregTail);
+                vsts(vreg1, dstPtr, (col * dstStride + lastRepeat * sregLower), distValue, pregTail);
             }
         }
     } else {
@@ -198,22 +254,33 @@ PTO_INTERNAL void TTransB8RowWise(__ubuf__ typename TileDataDst::DType *dstPtr,
     if constexpr (std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t>) {
         constexpr uint32_t sregLower = elementsPerRepeat >> 1;
         uint16_t repeatTimes = CeilDivision(numCols, sregLower);
+        uint32_t tailEleNum = numCols % sregLower;
+        if (tailEleNum == 0) {
+            tailEleNum = sregLower;
+        }
+        uint32_t fullEleNum = sregLower;
+        uint16_t lastRepeat = repeatTimes - 1;
         __VEC_SCOPE__
         {
             RegTensor<uint16_t> vreg0;
             RegTensor<T> vreg1;
-            MaskReg preg;
+            MaskReg pregFull = CreatePredicate<uint16_t>(fullEleNum);
+            MaskReg pregTail = CreatePredicate<uint16_t>(tailEleNum);
             for (uint16_t row = 0; row < (uint16_t)numRows; ++row) {
-                uint32_t sreg = (uint32_t)numCols;
-                for (uint16_t chunk = 0; chunk < repeatTimes; ++chunk) {
-                    preg = CreatePredicate<uint16_t>(sreg);
+                for (uint16_t chunk = 0; chunk < lastRepeat; ++chunk) {
                     vlds(vreg1, srcPtr, (row * srcStride + chunk * sregLower), UNPK_B8);
                     vci((RegTensor<int16_t> &)vreg0, (int16_t)(chunk * sregLower), INC_ORDER);
-                    vmins(vreg0, vreg0, (uint16_t)(numCols - 1), preg);
-                    vmuls(vreg0, vreg0, dstStride, preg);
-                    vadds(vreg0, vreg0, row, preg);
-                    vscatter(vreg1, dstPtr, (RegTensor<uint16_t> &)vreg0, preg);
+                    vmins(vreg0, vreg0, (uint16_t)(numCols - 1), pregFull);
+                    vmuls(vreg0, vreg0, dstStride, pregFull);
+                    vadds(vreg0, vreg0, row, pregFull);
+                    vscatter(vreg1, dstPtr, (RegTensor<uint16_t> &)vreg0, pregFull);
                 }
+                vlds(vreg1, srcPtr, (row * srcStride + lastRepeat * sregLower), UNPK_B8);
+                vci((RegTensor<int16_t> &)vreg0, (int16_t)(lastRepeat * sregLower), INC_ORDER);
+                vmins(vreg0, vreg0, (uint16_t)(numCols - 1), pregTail);
+                vmuls(vreg0, vreg0, dstStride, pregTail);
+                vadds(vreg0, vreg0, row, pregTail);
+                vscatter(vreg1, dstPtr, (RegTensor<uint16_t> &)vreg0, pregTail);
             }
         }
     } else {
@@ -222,8 +289,10 @@ PTO_INTERNAL void TTransB8RowWise(__ubuf__ typename TileDataDst::DType *dstPtr,
 }
 
 template <typename TileDataDst, typename TileDataSrc, unsigned elementsPerRepeat, unsigned blockSizeElem>
-__tf__ PTO_INTERNAL void TTransTile(typename TileDataDst::TileDType __out__ dst,
-                                    typename TileDataSrc::TileDType __in__ src, unsigned numRows, unsigned numCols)
+__tf__ PTO_INTERNAL OP_NAME(TTRANS)
+    OP_TYPE(element_wise) void TTransTile(typename TileDataDst::TileDType __out__ dst,
+                                          typename TileDataSrc::TileDType __in__ src, unsigned validRows,
+                                          unsigned validCols, VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
 {
     using T = typename TileDataSrc::DType;
     __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
@@ -235,42 +304,42 @@ __tf__ PTO_INTERNAL void TTransTile(typename TileDataDst::TileDType __out__ dst,
             static_assert(
                 (unsigned long long)(TileDataDst::Rows - 1) * dstStride + (TileDataDst::Cols - 1) <= 0xFFFFFFFFULL,
                 "Fix: TTRANS scatter index may overflow uint32_t register");
-            TTransB32RowWise<TileDataSrc, TileDataDst, elementsPerRepeat, blockSizeElem>(dstPtr, srcPtr, numRows,
-                                                                                         numCols, dstStride, srcStride);
+            TTransB32RowWise<TileDataSrc, TileDataDst, elementsPerRepeat, blockSizeElem>(
+                dstPtr, srcPtr, validRows, validCols, dstStride, srcStride);
         } else {
             static_assert(
                 (unsigned long long)(TileDataSrc::Rows - 1) * srcStride + (TileDataSrc::Cols - 1) <= 0xFFFFFFFFULL,
                 "Fix: TTRANS gather index may overflow uint32_t register");
-            TTransB32ColWise<TileDataSrc, TileDataDst, elementsPerRepeat, blockSizeElem>(dstPtr, srcPtr, numRows,
-                                                                                         numCols, dstStride, srcStride);
+            TTransB32ColWise<TileDataSrc, TileDataDst, elementsPerRepeat, blockSizeElem>(
+                dstPtr, srcPtr, validRows, validCols, dstStride, srcStride);
         }
     } else if constexpr (sizeof(T) == 2) {
         if constexpr (TileDataSrc::Rows < TileDataSrc::Cols) {
             static_assert(
                 (unsigned long long)(TileDataDst::Rows - 1) * dstStride + (TileDataDst::Cols - 1) <= 0xFFFFULL,
                 "Fix: TTRANS scatter index may overflow uint16_t register");
-            TTransB16RowWise<TileDataSrc, TileDataDst, elementsPerRepeat, blockSizeElem>(dstPtr, srcPtr, numRows,
-                                                                                         numCols, dstStride, srcStride);
+            TTransB16RowWise<TileDataSrc, TileDataDst, elementsPerRepeat, blockSizeElem>(
+                dstPtr, srcPtr, validRows, validCols, dstStride, srcStride);
         } else {
             static_assert(
                 (unsigned long long)(TileDataSrc::Rows - 1) * srcStride + (TileDataSrc::Cols - 1) <= 0xFFFFULL,
                 "Fix: TTRANS gather index may overflow uint16_t register");
-            TTransB16ColWise<TileDataSrc, TileDataDst, elementsPerRepeat, blockSizeElem>(dstPtr, srcPtr, numRows,
-                                                                                         numCols, dstStride, srcStride);
+            TTransB16ColWise<TileDataSrc, TileDataDst, elementsPerRepeat, blockSizeElem>(
+                dstPtr, srcPtr, validRows, validCols, dstStride, srcStride);
         }
     } else if constexpr (sizeof(T) == 1) {
         if constexpr (TileDataSrc::Rows < TileDataSrc::Cols) {
             static_assert(
                 (unsigned long long)(TileDataDst::Rows - 1) * dstStride + (TileDataDst::Cols - 1) <= 0xFFFFULL,
                 "Fix: TTRANS scatter index may overflow uint16_t register");
-            TTransB8RowWise<TileDataSrc, TileDataDst, elementsPerRepeat, blockSizeElem>(dstPtr, srcPtr, numRows,
-                                                                                        numCols, dstStride, srcStride);
+            TTransB8RowWise<TileDataSrc, TileDataDst, elementsPerRepeat, blockSizeElem>(
+                dstPtr, srcPtr, validRows, validCols, dstStride, srcStride);
         } else {
             static_assert(
                 (unsigned long long)(TileDataSrc::Rows - 1) * srcStride + (TileDataSrc::Cols - 1) <= 0xFFFFULL,
                 "Fix: TTRANS gather index may overflow uint16_t register");
-            TTransB8ColWise<TileDataSrc, TileDataDst, elementsPerRepeat, blockSizeElem>(dstPtr, srcPtr, numRows,
-                                                                                        numCols, dstStride, srcStride);
+            TTransB8ColWise<TileDataSrc, TileDataDst, elementsPerRepeat, blockSizeElem>(
+                dstPtr, srcPtr, validRows, validCols, dstStride, srcStride);
         }
     }
 }
@@ -452,24 +521,30 @@ PTO_INTERNAL void ConvNC1HWC02C1HWNC0Align(__ubuf__ T *dst, __ubuf__ T *src, uns
     unsigned dstStride = dstN * srcC0;
     constexpr unsigned nRepeatElem = REPEAT_BYTE / sizeof(T);
     uint16_t repeatTimes = CeilDivision(validCol, nRepeatElem);
+    uint32_t tailEleNum = validCol % nRepeatElem;
+    if (tailEleNum == 0) {
+        tailEleNum = nRepeatElem;
+    }
+    uint32_t fullEleNum = nRepeatElem;
+    uint16_t lastRepeat = repeatTimes - 1;
     unsigned nStride = srcC1HW * srcC0;
     __VEC_SCOPE__
     {
+        RegTensor<T> vreg0;
+        MaskReg pregFull = CreatePredicate<T>(fullEleNum);
+        MaskReg pregTail = CreatePredicate<T>(tailEleNum);
+        constexpr auto distValue =
+            std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
         for (uint16_t num = 0; num < (uint16_t)srcN; num++) {
             __ubuf__ T *srcPtr = src + num * nStride;
             __ubuf__ T *dstPtr = dst + num * srcC0;
-            RegTensor<T> vreg0;
-            MaskReg preg;
-            uint32_t sreg;
-            constexpr auto distValue =
-                std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
             for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
-                sreg = (uint32_t)validCol;
-                for (uint16_t j = 0; j < (uint16_t)repeatTimes; ++j) {
-                    preg = CreatePredicate<T>(sreg);
+                for (uint16_t j = 0; j < (uint16_t)lastRepeat; ++j) {
                     vlds(vreg0, srcPtr, i * srcStride + j * nRepeatElem, NORM);
-                    vsts(vreg0, dstPtr, i * dstStride + j * nRepeatElem, distValue, preg);
+                    vsts(vreg0, dstPtr, i * dstStride + j * nRepeatElem, distValue, pregFull);
                 }
+                vlds(vreg0, srcPtr, i * srcStride + lastRepeat * nRepeatElem, NORM);
+                vsts(vreg0, dstPtr, i * dstStride + lastRepeat * nRepeatElem, distValue, pregTail);
             }
         }
     }
@@ -550,14 +625,20 @@ PTO_INTERNAL void ConvGNC1HWC02GC1HWNC0Align(__ubuf__ T *dst, __ubuf__ T *src, u
     unsigned dstStride = dstN * srcC0;
     constexpr unsigned nRepeatElem = REPEAT_BYTE / sizeof(T);
     uint16_t repeatTimes = CeilDivision(validCol, nRepeatElem);
+    uint32_t tailEleNum = validCol % nRepeatElem;
+    if (tailEleNum == 0) {
+        tailEleNum = nRepeatElem;
+    }
+    uint32_t fullEleNum = nRepeatElem;
+    uint16_t lastRepeat = repeatTimes - 1;
     unsigned gStride2 = dstN * srcC1HW * srcC0;
     unsigned nStride = srcC1HW * srcC0;
     const unsigned gnCount = srcG * srcN;
     __VEC_SCOPE__
     {
         RegTensor<T> vreg0;
-        MaskReg preg;
-        uint32_t sreg1;
+        MaskReg pregFull = CreatePredicate<T>(fullEleNum);
+        MaskReg pregTail = CreatePredicate<T>(tailEleNum);
         constexpr auto distValue =
             std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
         for (uint16_t gn = 0; gn < (uint16_t)gnCount; ++gn) {
@@ -566,12 +647,12 @@ PTO_INTERNAL void ConvGNC1HWC02GC1HWNC0Align(__ubuf__ T *dst, __ubuf__ T *src, u
             __ubuf__ T *srcPtr = src + g * gStride2 + num * nStride;
             __ubuf__ T *dstPtr = dst + g * gStride2 + num * srcC0;
             for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
-                sreg1 = (uint32_t)validCol;
-                for (uint16_t j = 0; j < (uint16_t)repeatTimes; ++j) {
-                    preg = CreatePredicate<T>(sreg1);
+                for (uint16_t j = 0; j < (uint16_t)lastRepeat; ++j) {
                     vlds(vreg0, srcPtr, i * srcStride + j * nRepeatElem, NORM);
-                    vsts(vreg0, dstPtr, i * dstStride + j * nRepeatElem, distValue, preg);
+                    vsts(vreg0, dstPtr, i * dstStride + j * nRepeatElem, distValue, pregFull);
                 }
+                vlds(vreg0, srcPtr, i * srcStride + lastRepeat * nRepeatElem, NORM);
+                vsts(vreg0, dstPtr, i * dstStride + lastRepeat * nRepeatElem, distValue, pregTail);
             }
         }
     }
@@ -599,7 +680,7 @@ PTO_INTERNAL void CheckConvTile(TileDataDst &dst, TileDataSrc &src, TileDataTmp 
 #ifdef _DEBUG
     using T = typename TileDataSrc::DType;
     constexpr const int UB_SIZE = 262144; // 256*1024 B
-    if (TileDataSrc::layout == Layout::NCHW && TileDataDst::layout == Layout::NC1HWC0) {
+    if constexpr (TileDataSrc::layout == Layout::NCHW && TileDataDst::layout == Layout::NC1HWC0) {
         unsigned srcN = src.GetShape(GlobalTensorDim::DIM_0);
         unsigned srcC = src.GetShape(GlobalTensorDim::DIM_1);
         unsigned srcH = src.GetShape(GlobalTensorDim::DIM_2);
@@ -616,7 +697,7 @@ PTO_INTERNAL void CheckConvTile(TileDataDst &dst, TileDataSrc &src, TileDataTmp 
         PTO_ASSERT(srcN == dstN && srcH == dstH && srcW == dstW && dstC1 == (srcC + dstC0 - 1) / dstC0,
                    "expect same size for src and dst.");
         PTO_ASSERT((srcSize + dstSize + tmpSize) * sizeof(T) < UB_SIZE, "ERROR: memory usage exceeds UB limit!");
-    } else if (TileDataSrc::layout == Layout::NC1HWC0 && TileDataDst::layout == Layout::FRACTAL_Z) {
+    } else if constexpr (TileDataSrc::layout == Layout::NC1HWC0 && TileDataDst::layout == Layout::FRACTAL_Z) {
         unsigned srcN = src.GetShape(GlobalTensorDim::DIM_0);
         unsigned srcC1 = src.GetShape(GlobalTensorDim::DIM_1);
         unsigned srcH = src.GetShape(GlobalTensorDim::DIM_2);
@@ -642,7 +723,7 @@ PTO_INTERNAL void CheckGroupConvTile(TileDataDst &dst, TileDataSrc &src, TileDat
 #ifdef _DEBUG
     using T = typename TileDataSrc::DType;
     constexpr const int UB_SIZE = 262144; // 256*1024 B
-    if (TileDataSrc::layout == Layout::GNCHW && TileDataDst::layout == Layout::GNC1HWC0) {
+    if constexpr (TileDataSrc::layout == Layout::GNCHW && TileDataDst::layout == Layout::GNC1HWC0) {
         unsigned srcG = src.GetShape(GlobalTensorDim::DIM_0);
         unsigned srcN = src.GetShape(GlobalTensorDim::DIM_1);
         unsigned srcC = src.GetShape(GlobalTensorDim::DIM_2);
@@ -661,7 +742,7 @@ PTO_INTERNAL void CheckGroupConvTile(TileDataDst &dst, TileDataSrc &src, TileDat
         PTO_ASSERT(srcG == dstG && srcN == dstN && srcH == dstH && srcW == dstW && dstC1 == (srcC + dstC0 - 1) / dstC0,
                    "expect same size for src and dst.");
         PTO_ASSERT((srcSize + dstSize + tmpSize) * sizeof(T) < UB_SIZE, "ERROR: memory usage exceeds UB limit!");
-    } else if (TileDataSrc::layout == Layout::GNC1HWC0 && TileDataDst::layout == Layout::FRACTAL_Z) {
+    } else if constexpr (TileDataSrc::layout == Layout::GNC1HWC0 && TileDataDst::layout == Layout::FRACTAL_Z) {
         unsigned srcG = src.GetShape(GlobalTensorDim::DIM_0);
         unsigned srcN = src.GetShape(GlobalTensorDim::DIM_1);
         unsigned srcC1 = src.GetShape(GlobalTensorDim::DIM_2);
@@ -695,7 +776,7 @@ PTO_INTERNAL void TTransImplConvTile(TileDataDst &dst, TileDataSrc &src, TileDat
         unsigned srcW = src.GetShape(GlobalTensorDim::DIM_3);
         unsigned dstC0 = dst.GetShape(GlobalTensorDim::DIM_4);
         TTransConvNCHW2NC1HWC0<TileDataSrc, blockSizeElem>(dst.data(), src.data(), srcN, srcC, srcH, srcW, dstC0);
-    } else if (TileDataSrc::layout == Layout::NC1HWC0 && TileDataDst::layout == Layout::FRACTAL_Z) {
+    } else if constexpr (TileDataSrc::layout == Layout::NC1HWC0 && TileDataDst::layout == Layout::FRACTAL_Z) {
         CheckConvTile<TileDataDst, TileDataSrc, TileDataTmp>(dst, src, tmp);
         unsigned srcN = src.GetShape(GlobalTensorDim::DIM_0);
         unsigned srcC1 = src.GetShape(GlobalTensorDim::DIM_1);
@@ -716,7 +797,7 @@ PTO_INTERNAL void TTransImplConvTile(TileDataDst &dst, TileDataSrc &src, TileDat
         unsigned dstC0 = dst.GetShape(GlobalTensorDim::TOTAL_DIM);
         TTransConvGNCHW2GNC1HWC0<TileDataSrc, blockSizeElem>(dst.data(), src.data(), srcG, srcN, srcC, srcH, srcW,
                                                              dstC0);
-    } else if (TileDataSrc::layout == Layout::GNC1HWC0 && TileDataDst::layout == Layout::FRACTAL_Z) {
+    } else if constexpr (TileDataSrc::layout == Layout::GNC1HWC0 && TileDataDst::layout == Layout::FRACTAL_Z) {
         CheckGroupConvTile<TileDataDst, TileDataSrc, TileDataTmp>(dst, src, tmp);
         unsigned srcG = src.GetShape(GlobalTensorDim::DIM_0);
         unsigned srcN = src.GetShape(GlobalTensorDim::DIM_1);

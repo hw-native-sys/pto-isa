@@ -22,7 +22,7 @@ Operations that compare vectors and conditionally select elements.
 
 ### `pto.vcmp`
 
-- **syntax:** `%result = pto.vcmp %src0, %src1, %seed, "CMP_MODE" : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.mask`
+- **syntax:** `%result = pto.vcmp %src0, %src1, %seed, "CMP_MODE" : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.mask<G>`
 - **semantics:** Element-wise comparison, output predicate mask.
 
 ```c
@@ -44,8 +44,8 @@ for (int i = 0; i < N; i++)
 
 **Example:**
 ```mlir
-%all_active = pto.pset_b32 "PAT_ALL" : !pto.mask
-%lt_mask = pto.vcmp %a, %b, %all_active, "lt" : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.mask
+%all_active = pto.pset_b32 "PAT_ALL" : !pto.mask<G>
+%lt_mask = pto.vcmp %a, %b, %all_active, "lt" : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.mask<b32>
 // lt_mask[i] = 1 if a[i] < b[i]
 ```
 
@@ -60,7 +60,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vcmps`
 
-- **syntax:** `%result = pto.vcmps %src, %scalar, %seed, "CMP_MODE" : !pto.vreg<NxT>, T, !pto.mask -> !pto.mask`
+- **syntax:** `%result = pto.vcmps %src, %scalar, %seed, "CMP_MODE" : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.mask<G>`
 - **semantics:** Compare vector against scalar.
 
 ```c
@@ -72,7 +72,7 @@ for (int i = 0; i < N; i++)
 **Example:**
 ```mlir
 %positive_mask = pto.vcmps %values, %c0_f32, %all_active, "gt"
-    : !pto.vreg<64xf32>, f32, !pto.mask -> !pto.mask
+    : !pto.vreg<64xf32>, f32, !pto.mask<b32> -> !pto.mask<b32>
 // positive_mask[i] = 1 if values[i] > 0
 ```
 
@@ -88,7 +88,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vsel`
 
-- **syntax:** `%result = pto.vsel %src0, %src1, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vsel %src0, %src1, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **semantics:** Per-lane select based on mask.
 
 ```c
@@ -100,7 +100,7 @@ for (int i = 0; i < N; i++)
 ```mlir
 // dst = mask ? true_vals : false_vals
 %result = pto.vsel %true_vals, %false_vals, %condition
-    : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+    : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 ```
 
 - **inputs:** `%src0` is the true-path vector, `%src1` is the false-path vector,
@@ -144,18 +144,18 @@ for (int i = 0; i < N; i++)
 
 ```mlir
 // Clamp negative values to zero (manual ReLU)
-%all = pto.pset_b32 "PAT_ALL" : !pto.mask
+%all = pto.pset_b32 "PAT_ALL" : !pto.mask<G>
 %zero = pto.vbr %c0_f32 : f32 -> !pto.vreg<64xf32>
-%neg_mask = pto.vcmps %input, %c0_f32, %all, "lt" : !pto.vreg<64xf32>, f32, !pto.mask -> !pto.mask
-%clamped = pto.vsel %zero, %input, %neg_mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+%neg_mask = pto.vcmps %input, %c0_f32, %all, "lt" : !pto.vreg<64xf32>, f32, !pto.mask<b32> -> !pto.mask<b32>
+%clamped = pto.vsel %zero, %input, %neg_mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 // Element-wise max via compare+select
-%gt_mask = pto.vcmp %a, %b, %all, "gt" : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.mask
-%max_ab = pto.vsel %a, %b, %gt_mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+%gt_mask = pto.vcmp %a, %b, %all, "gt" : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.mask<b32>
+%max_ab = pto.vsel %a, %b, %gt_mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 // Threshold filter
-%above_thresh = pto.vcmps %scores, %threshold, %all, "ge" : !pto.vreg<64xf32>, f32, !pto.mask -> !pto.mask
-%filtered = pto.vsel %scores, %zero, %above_thresh : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+%above_thresh = pto.vcmps %scores, %threshold, %all, "ge" : !pto.vreg<64xf32>, f32, !pto.mask<b32> -> !pto.mask<b32>
+%filtered = pto.vsel %scores, %zero, %above_thresh : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 ```
 
 ---
@@ -166,16 +166,16 @@ for (int i = 0; i < N; i++)
 // Softmax safe exp: exp(x - max) where x < max returns exp of negative
 // but we want to clamp to avoid underflow
 
-%all = pto.pset_b32 "PAT_ALL" : !pto.mask
+%all = pto.pset_b32 "PAT_ALL" : !pto.mask<G>
 
 // 1. Compare against threshold
 %too_small = pto.vcmps %x_minus_max, %min_exp_arg, %all, "lt"
-    : !pto.vreg<64xf32>, f32, !pto.mask -> !pto.mask
+    : !pto.vreg<64xf32>, f32, !pto.mask<b32> -> !pto.mask<b32>
 
 // 2. Clamp values below threshold
 %clamped = pto.vsel %min_exp_arg_vec, %x_minus_max, %too_small
-    : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+    : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 // 3. Safe exp
-%exp_result = pto.vexp %clamped, %all : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+%exp_result = pto.vexp %clamped, %all : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 ```

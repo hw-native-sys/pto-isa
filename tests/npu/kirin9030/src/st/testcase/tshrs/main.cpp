@@ -59,7 +59,9 @@ void test_tshrs()
 
     ReadFile(GetGoldenDir() + "/input1.bin", fileSizeSrc0, src0Host, fileSizeSrc0);
     ReadFile(GetGoldenDir() + "/input2.bin", fileSizeSrc1, (void *)&scalar, sizeof(T));
+    aclrtMemset(dstHost, fileSizeDst, 0, fileSizeDst);
 
+    aclrtMemcpy(dstDevice, fileSizeDst, dstHost, fileSizeDst, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src0Device, fileSizeSrc0, src0Host, fileSizeSrc0, ACL_MEMCPY_HOST_TO_DEVICE);
     LaunchTShrS<T, dstTileH, dstTileW, srcTileH, srcTileW, vRows, vCols>(dstDevice, src0Device, scalar, stream);
 

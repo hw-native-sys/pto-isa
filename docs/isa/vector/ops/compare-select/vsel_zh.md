@@ -27,7 +27,7 @@ vsel %dst, %src_true, %src_false, %mask : !pto.vreg<NxT>
 ### AS Level 1（SSA）
 
 ```mlir
-%result = pto.vsel %src0, %src1, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vsel %src0, %src1, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 ## 输入
@@ -36,7 +36,7 @@ vsel %dst, %src_true, %src_false, %mask : !pto.vreg<NxT>
 |--------|------|------|
 | `%src0` | `!pto.vreg<NxT>` | 当掩码位为 1 时被选中的值 |
 | `%src1` | `!pto.vreg<NxT>` | 当掩码位为 0 时被选中的值 |
-| `%mask` | `!pto.mask` | 逐 lane 选择 `%src0` 与 `%src1` 的谓词 |
+| `%mask` | `!pto.mask<G>` | 逐 lane 选择 `%src0` 与 `%src1` 的谓词 |
 
 ## 预期输出
 
@@ -75,7 +75,7 @@ for (int i = 0; i < N; i++)
 
 ```mlir
 %result = pto.vsel %true_vals, %false_vals, %condition
-    : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+    : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 ```
 
 ## 性能

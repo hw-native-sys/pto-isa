@@ -12,6 +12,7 @@ function(pto_costmodel_sim_st NAME)
     add_executable(${NAME} main.cpp)
     target_compile_options(${NAME} PRIVATE ${CMAKE_CPP_COMPILE_OPTIONS} -std=c++23)
     target_include_directories(${NAME} PRIVATE
+        ${PROJECT_SOURCE_DIR}/../../../include/pto/costmodel/stubs
         ${PROJECT_SOURCE_DIR}/../../../include/
         ${PROJECT_SOURCE_DIR}/../../../include/common
         ${PROJECT_SOURCE_DIR}/common
@@ -71,6 +72,11 @@ set(ALL_TESTCASES
     tsub
     tsubs
     ttrans
+    perf_sim_pipeline
+    fa_perf_sim
+    gemm_perf_sim
+    conv2d_perf_sim
+    topk_perf_sim
 )
 
 foreach(TESTCASE ${ALL_TESTCASES})

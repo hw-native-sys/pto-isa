@@ -12,7 +12,6 @@
 
 import os
 import numpy as np
-np.random.seed(19)
 
 
 def gen_golden_data_tdequant(case_name, param):
@@ -97,6 +96,8 @@ if __name__ == "__main__":
         TDequantParams("TDEQUANTTest.case7", np.float32, np.int8, 2, 128, 2, 128, 2, 128, 2, 128),
         TDequantParams("TDEQUANTTest.case8", np.float32, np.int8, 2, 128, 2, 128, 2, 127, 2, 128),
         TDequantParams("TDEQUANTTest.case9", np.float32, np.int8, 2, 512, 2, 512, 2, 511, 2, 512),
+        TDequantParams("TDEQUANTTest.case10", np.float32, np.int8, 1, 12288, 1, 12288, 1, 12288, 1, 12288),
+        TDequantParams("TDEQUANTTest.case11", np.float32, np.int16, 1, 12288, 1, 12288, 1, 12288, 1, 12288),
     ]
 
     for param in case_params_list:

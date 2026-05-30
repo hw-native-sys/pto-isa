@@ -216,9 +216,9 @@ PTO_INTERNAL void TINSERT_IMPL(DstTileData &dst, SrcTileData &src, FpTileData &f
 }
 
 template <typename T, typename DstTileData, typename SrcTileData>
-AICORE inline void ComputeNZBlockParams(uint32_t validRow, uint32_t validCol, uint32_t dstRow, uint16_t &burstNum,
-                                        uint16_t &burstLen, uint16_t &srcGap, uint16_t &dstGap, uint32_t &dstOffset,
-                                        uint16_t indexRow = 0, uint16_t indexCol = 0)
+PTO_INTERNAL void ComputeNZBlockParams(uint32_t validRow, uint32_t validCol, uint32_t dstRow, uint16_t &burstNum,
+                                       uint16_t &burstLen, uint16_t &srcGap, uint16_t &dstGap, uint32_t &dstOffset,
+                                       uint16_t indexRow = 0, uint16_t indexCol = 0)
 {
     constexpr uint32_t typeSize = sizeof(T);
     constexpr bool isFp4Type = std::is_same_v<T, float4_e2m1x2_t> || std::is_same_v<T, float4_e1m2x2_t>;
@@ -243,9 +243,9 @@ AICORE inline void ComputeNZBlockParams(uint32_t validRow, uint32_t validCol, ui
 }
 
 template <typename T, typename DstTileData, typename SrcTileData>
-__tf__ AICORE void TInsertImpl(typename DstTileData::TileDType __out__ dst, typename SrcTileData::TileDType __in__ src,
-                               uint16_t validRow, uint16_t validCol, uint16_t dstRow, uint16_t indexRow = 0,
-                               uint16_t indexCol = 0)
+__tf__ PTO_INTERNAL void TInsertImpl(typename DstTileData::TileDType __out__ dst,
+                                     typename SrcTileData::TileDType __in__ src, uint16_t validRow, uint16_t validCol,
+                                     uint16_t dstRow, uint16_t indexRow = 0, uint16_t indexCol = 0)
 {
     __cbuf__ T *dstAddr = (__cbuf__ T *)__cce_get_tile_ptr(dst);
     __ubuf__ T *srcAddr = (__ubuf__ T *)__cce_get_tile_ptr(src);
@@ -258,9 +258,9 @@ __tf__ AICORE void TInsertImpl(typename DstTileData::TileDType __out__ dst, type
 }
 
 template <uint32_t SplitCount, typename T, typename DstTileData, typename SrcTileData>
-__tf__ AICORE void TInsertSplitImpl(typename DstTileData::TileDType __out__ dst,
-                                    typename SrcTileData::TileDType __in__ src, uint16_t validRow, uint16_t validCol,
-                                    uint16_t indexRow = 0, uint16_t indexCol = 0)
+__tf__ PTO_INTERNAL void TInsertSplitImpl(typename DstTileData::TileDType __out__ dst,
+                                          typename SrcTileData::TileDType __in__ src, uint16_t validRow,
+                                          uint16_t validCol, uint16_t indexRow = 0, uint16_t indexCol = 0)
 {
     __cbuf__ T *dstAddr = (__cbuf__ T *)__cce_get_tile_ptr(dst);
     __ubuf__ T *srcAddr = (__ubuf__ T *)__cce_get_tile_ptr(src);
@@ -316,9 +316,9 @@ __tf__ AICORE void TInsertSplitImpl(typename DstTileData::TileDType __out__ dst,
 }
 
 template <typename T, typename DstTileData, typename SrcTileData>
-__tf__ AICORE void TInsertNDImpl(typename DstTileData::TileDType __out__ dst,
-                                 typename SrcTileData::TileDType __in__ src, uint16_t validRow, uint16_t validCol,
-                                 uint16_t dstCols, uint16_t indexRow = 0, uint16_t indexCol = 0)
+__tf__ PTO_INTERNAL void TInsertNDImpl(typename DstTileData::TileDType __out__ dst,
+                                       typename SrcTileData::TileDType __in__ src, uint16_t validRow, uint16_t validCol,
+                                       uint16_t dstCols, uint16_t indexRow = 0, uint16_t indexCol = 0)
 {
     __cbuf__ T *dstAddr = (__cbuf__ T *)__cce_get_tile_ptr(dst);
     __ubuf__ T *srcAddr = (__ubuf__ T *)__cce_get_tile_ptr(src);
@@ -344,9 +344,9 @@ __tf__ AICORE void TInsertNDImpl(typename DstTileData::TileDType __out__ dst,
 }
 
 template <typename T, typename DstTileData, typename SrcTileData>
-__tf__ AICORE void TInsertVecToVecNDImpl(typename DstTileData::TileDType __out__ dst,
-                                         typename SrcTileData::TileDType __in__ src, uint16_t validRow,
-                                         uint16_t validCol, uint16_t indexRow, uint16_t indexCol)
+__tf__ PTO_INTERNAL void TInsertVecToVecNDImpl(typename DstTileData::TileDType __out__ dst,
+                                               typename SrcTileData::TileDType __in__ src, uint16_t validRow,
+                                               uint16_t validCol, uint16_t indexRow, uint16_t indexCol)
 {
     __ubuf__ T *dstAddr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
     __ubuf__ T *srcAddr = (__ubuf__ T *)__cce_get_tile_ptr(src);
@@ -373,10 +373,10 @@ __tf__ AICORE void TInsertVecToVecNDImpl(typename DstTileData::TileDType __out__
 }
 
 template <typename T, typename DstTileData, typename SrcTileData>
-__tf__ AICORE void TInsertVecToVecNZImpl(typename DstTileData::TileDType __out__ dst,
-                                         typename SrcTileData::TileDType __in__ src, uint16_t validRow,
-                                         uint16_t validCol, uint16_t dstRow, uint16_t indexRow = 0,
-                                         uint16_t indexCol = 0)
+__tf__ PTO_INTERNAL void TInsertVecToVecNZImpl(typename DstTileData::TileDType __out__ dst,
+                                               typename SrcTileData::TileDType __in__ src, uint16_t validRow,
+                                               uint16_t validCol, uint16_t dstRow, uint16_t indexRow = 0,
+                                               uint16_t indexCol = 0)
 {
     __ubuf__ T *dstAddr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
     __ubuf__ T *srcAddr = (__ubuf__ T *)__cce_get_tile_ptr(src);
@@ -390,32 +390,64 @@ __tf__ AICORE void TInsertVecToVecNZImpl(typename DstTileData::TileDType __out__
 
 // vlds+vsts path: strides + indexCol are 32B-aligned, ValidCol may not be.
 template <typename T, typename DstTileData, typename SrcTileData>
-__tf__ AICORE void TInsertVecToVecNDAlignedImpl(typename DstTileData::TileDType __out__ dst,
-                                                typename SrcTileData::TileDType __in__ src, uint16_t validRow,
-                                                uint16_t validCol, uint16_t indexRow, uint16_t indexCol)
+__tf__ PTO_INTERNAL OP_NAME(TINSERT)
+    OP_TYPE(element_wise) void TInsertVecToVecNDAlignedImpl(typename DstTileData::TileDType __out__ dst,
+                                                            typename SrcTileData::TileDType __in__ src,
+                                                            uint16_t indexRow, uint16_t indexCol, uint16_t validRow,
+                                                            uint16_t validCol,
+                                                            VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
 {
     __ubuf__ T *dstAddr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
     __ubuf__ T *srcAddr = (__ubuf__ T *)__cce_get_tile_ptr(src);
-    constexpr uint32_t dstRowStride = DstTileData::RowStride;
     constexpr uint32_t srcRowStride = SrcTileData::RowStride;
+    constexpr uint32_t dstRowStride = DstTileData::RowStride;
     constexpr uint32_t elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr int32_t kStaticValidCol = SrcTileData::ValidCol;
+    constexpr bool kSingleChunkStatic =
+        (kStaticValidCol > 0) && (static_cast<uint32_t>(kStaticValidCol) <= elementsPerRepeat);
 
-    __VEC_SCOPE__
-    {
-        constexpr auto distValue =
-            std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
-        RegTensor<T> vreg;
-        MaskReg preg;
+    if constexpr (kSingleChunkStatic) {
+        uint32_t kTail = static_cast<uint32_t>(kStaticValidCol);
+        __VEC_SCOPE__
+        {
+            constexpr auto distValue =
+                std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
+            RegTensor<T> vreg;
+            MaskReg pregTail = CreatePredicate<T>(kTail);
+            for (uint16_t i = 0; i < validRow; ++i) {
+                uint32_t srcRowOff = static_cast<uint32_t>(i) * srcRowStride;
+                uint32_t dstRowOff = (indexRow + static_cast<uint32_t>(i)) * dstRowStride + indexCol;
+                vlds(vreg, srcAddr, srcRowOff, NORM);
+                vsts(vreg, dstAddr, dstRowOff, distValue, pregTail);
+            }
+        }
+    } else {
         uint16_t repeatTimes = CeilDivision(static_cast<uint32_t>(validCol), elementsPerRepeat);
+        uint32_t tailEleNum = static_cast<uint32_t>(validCol) % elementsPerRepeat;
+        if (tailEleNum == 0) {
+            tailEleNum = elementsPerRepeat;
+        }
+        uint32_t fullEleNum = elementsPerRepeat;
+        uint16_t lastRepeat = repeatTimes - 1;
 
-        for (uint16_t i = 0; i < validRow; ++i) {
-            uint32_t sreg = static_cast<uint32_t>(validCol);
-            uint32_t srcRowOff = static_cast<uint32_t>(i) * srcRowStride;
-            uint32_t dstRowOff = (indexRow + static_cast<uint32_t>(i)) * dstRowStride + indexCol;
-            for (uint16_t j = 0; j < repeatTimes; ++j) {
-                preg = CreatePredicate<T>(sreg);
-                vlds(vreg, srcAddr, srcRowOff + static_cast<uint32_t>(j) * elementsPerRepeat, NORM);
-                vsts(vreg, dstAddr, dstRowOff + static_cast<uint32_t>(j) * elementsPerRepeat, distValue, preg);
+        __VEC_SCOPE__
+        {
+            constexpr auto distValue =
+                std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
+            RegTensor<T> vreg;
+            MaskReg pregFull = CreatePredicate<T>(fullEleNum);
+            MaskReg pregTail = CreatePredicate<T>(tailEleNum);
+
+            for (uint16_t i = 0; i < validRow; ++i) {
+                uint32_t srcRowOff = static_cast<uint32_t>(i) * srcRowStride;
+                uint32_t dstRowOff = (indexRow + static_cast<uint32_t>(i)) * dstRowStride + indexCol;
+                for (uint16_t j = 0; j < lastRepeat; ++j) {
+                    vlds(vreg, srcAddr, srcRowOff + static_cast<uint32_t>(j) * elementsPerRepeat, NORM);
+                    vsts(vreg, dstAddr, dstRowOff + static_cast<uint32_t>(j) * elementsPerRepeat, distValue, pregFull);
+                }
+                vlds(vreg, srcAddr, srcRowOff + static_cast<uint32_t>(lastRepeat) * elementsPerRepeat, NORM);
+                vsts(vreg, dstAddr, dstRowOff + static_cast<uint32_t>(lastRepeat) * elementsPerRepeat, distValue,
+                     pregTail);
             }
         }
     }
@@ -423,12 +455,15 @@ __tf__ AICORE void TInsertVecToVecNDAlignedImpl(typename DstTileData::TileDType 
 
 // vlds+vstus path: strides or indexCol NOT 32B-aligned.
 template <typename T, typename DstTileData, typename SrcTileData>
-__tf__ AICORE void TInsertVecToVecNDVectorImpl(typename DstTileData::TileDType __out__ dst,
-                                               typename SrcTileData::TileDType __in__ src, uint16_t validRow,
-                                               uint16_t validCol, uint16_t indexRow, uint16_t indexCol)
+__tf__ PTO_INTERNAL OP_NAME(TINSERT)
+    OP_TYPE(element_wise) void TInsertVecToVecNDVectorImpl(typename DstTileData::TileDType __out__ dst,
+                                                           typename SrcTileData::TileDType __in__ src,
+                                                           uint16_t indexRow, uint16_t indexCol, uint16_t validRow,
+                                                           uint16_t validCol,
+                                                           VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
 {
-    __ubuf__ T *dstAddr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
     __ubuf__ T *srcAddr = (__ubuf__ T *)__cce_get_tile_ptr(src);
+    __ubuf__ T *dstAddr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
     constexpr uint32_t dstRowStride = DstTileData::RowStride;
     constexpr uint32_t srcRowStride = SrcTileData::RowStride;
     constexpr uint32_t elementsPerRepeat = REPEAT_BYTE / sizeof(T);
@@ -459,9 +494,9 @@ __tf__ AICORE void TInsertVecToVecNDVectorImpl(typename DstTileData::TileDType _
 
 // Scalar path: ValidRow==1, ValidCol==1 — Scalar array element copy.
 template <typename T, typename DstTileData, typename SrcTileData>
-__tf__ AICORE void TInsertVecToVecNDScalarImpl(typename DstTileData::TileDType __out__ dst,
-                                               typename SrcTileData::TileDType __in__ src, uint16_t indexRow,
-                                               uint16_t indexCol)
+__tf__ PTO_INTERNAL void TInsertVecToVecNDScalarImpl(typename DstTileData::TileDType __out__ dst,
+                                                     typename SrcTileData::TileDType __in__ src, uint16_t indexRow,
+                                                     uint16_t indexCol)
 {
     __ubuf__ T *dstAddr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
     __ubuf__ T *srcAddr = (__ubuf__ T *)__cce_get_tile_ptr(src);
@@ -494,16 +529,16 @@ PTO_INTERNAL void TInsertVecToVecNDDispatch(DstTileData &dst, SrcTileData &src, 
                 TInsertVecToVecNDImpl<T, DstTileData, SrcTileData>(dst.data(), src.data(), validRow, validCol, indexRow,
                                                                    indexCol);
             } else {
-                TInsertVecToVecNDAlignedImpl<T, DstTileData, SrcTileData>(dst.data(), src.data(), validRow, validCol,
-                                                                          indexRow, indexCol);
+                TInsertVecToVecNDAlignedImpl<T, DstTileData, SrcTileData>(dst.data(), src.data(), indexRow, indexCol,
+                                                                          validRow, validCol);
             }
         } else {
-            TInsertVecToVecNDVectorImpl<T, DstTileData, SrcTileData>(dst.data(), src.data(), validRow, validCol,
-                                                                     indexRow, indexCol);
+            TInsertVecToVecNDVectorImpl<T, DstTileData, SrcTileData>(dst.data(), src.data(), indexRow, indexCol,
+                                                                     validRow, validCol);
         }
     } else {
-        TInsertVecToVecNDVectorImpl<T, DstTileData, SrcTileData>(dst.data(), src.data(), validRow, validCol, indexRow,
-                                                                 indexCol);
+        TInsertVecToVecNDVectorImpl<T, DstTileData, SrcTileData>(dst.data(), src.data(), indexRow, indexCol, validRow,
+                                                                 validCol);
     }
 }
 

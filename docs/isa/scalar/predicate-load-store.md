@@ -1,6 +1,6 @@
 # Predicate Load Store
 
-Predicate load/store instruction set moves predicate-register state (`!pto.mask`) between UB-visible storage and the architectural predicate instruction set. Predicates are the lane-masking mechanism that `pto.v*` vector operations consume.
+Predicate load/store instruction set moves predicate-register state (`!pto.mask<G>`) between UB-visible storage and the architectural predicate instruction set. Predicates are the lane-masking mechanism that `pto.v*` vector operations consume.
 
 ## Mechanism
 
@@ -72,13 +72,13 @@ A typical predicate load/store lifecycle:
 
 ```
 // Kernel entry: load saved predicate
-%mask = pto.plds %ub_saved : !pto.ptr<i64, ub> -> !pto.mask
+%mask = pto.plds %ub_saved : !pto.ptr<i64, ub> -> !pto.mask<G>
 
 // Use predicate for vector computation
-%result = pto.vsel %v_true, %v_false, %mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+%result = pto.vsel %v_true, %v_false, %mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 // At kernel exit: save predicate for next kernel
-pto.psts %mask, %ub_saved : !pto.mask, !pto.ptr<i64, ub>
+pto.psts %mask, %ub_saved : !pto.mask<G>, !pto.ptr<i64, ub>
 ```
 
 ## Target-Profile Restrictions

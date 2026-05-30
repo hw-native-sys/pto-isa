@@ -21,7 +21,7 @@ vln %result, %input, %mask
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vln %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vln %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 Documented A5 types or forms: `f16, f32`.
@@ -31,7 +31,7 @@ Documented A5 types or forms: `f16, f32`.
 | Operand | Type | Description |
 |---------|------|-------------|
 | `%input` | `!pto.vreg<NxT>` | Source vector register; read at each active lane `i` |
-| `%mask` | `!pto.mask` | Predicate mask; lanes where mask bit is 1 (true) are active |
+| `%mask` | `!pto.mask<G>` | Predicate mask; lanes where mask bit is 1 (true) are active |
 
 ## Expected Outputs
 
@@ -95,7 +95,7 @@ for (int i = 0; i < N; i++)
 
 ### Numerical stability note
 
-For softmax denominator (`log(sum(exp(x - max)))`), use `vexpdiff` fused operation rather than separate `vsub` + `vln` for better combined throughput.
+For softmax denominator (`log(sum(exp(x - max)))`), use `vexpdif` fused operation rather than separate `vsub` + `vln` for better combined throughput.
 
 ---
 

@@ -23,6 +23,7 @@ constexpr const int EXPANDS_MAX_SUPPORT_REPEAT_TIMES = 32767; // [0:14]
 } // namespace TExpandsInternel
 template <typename T>
 struct ExpandSOp {
+    static constexpr bool isDynFunc = false;
     PTO_INTERNAL static void BinSInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, T scalar, MaskReg &preg)
     {
         vdup(reg_dst, scalar, preg, MODE_ZEROING);
@@ -30,9 +31,9 @@ struct ExpandSOp {
 };
 
 template <typename TileData>
-__tf__ PTO_INTERNAL void TExpandS(typename TileData::TileDType __out__ dst, typename TileData::DType scalar,
-                                  unsigned kValidRows, unsigned kValidCols,
-                                  VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
+__tf__ OP_NAME(TEXPANDS) OP_TYPE(broadcast) PTO_INTERNAL
+    void TExpandS(typename TileData::TileDType __out__ dst, typename TileData::DType scalar, unsigned kValidRows,
+                  unsigned kValidCols, VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
 {
     using T = typename TileData::DType;
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
@@ -62,19 +63,15 @@ PTO_INTERNAL void TExpandSInstrMat(__cbuf__ typename TileData::DType *dstPtr, in
         auto dstCast = reinterpret_cast<__cbuf__ uint32_t *>(dstPtr);
         uint16_t expanded16 = static_cast<uint16_t>(value) | (static_cast<uint16_t>(value) << 8);
         uint32_t expanded32 = static_cast<uint32_t>(expanded16) | (static_cast<uint32_t>(expanded16) << 16);
-        create_cbuf_matrix(dstCast, repeatConfig, expanded32);
+        pto_create_cbuf_matrix(dstCast, repeatConfig, expanded32);
     } else if constexpr (sizeof(typename TileData::DType) == 2) {
-        if constexpr (std::is_same<typename TileData::DType, bfloat16_t>::value) {
-            create_cbuf_matrix_bf16(reinterpret_cast<__cbuf__ bfloat16_t *>(dstPtr), repeatConfig, value);
-        } else {
-            create_cbuf_matrix(dstPtr, repeatConfig, value);
-        }
+        pto_create_cbuf_matrix(dstPtr, repeatConfig, value);
     } else if constexpr (sizeof(typename TileData::DType) == 4) {
         if constexpr (std::is_same_v<typename TileData::DType, float>) {
             uint32_t bits = *(uint32_t *)(&value);
-            create_cbuf_matrix(dstPtr, repeatConfig, bits);
+            pto_create_cbuf_matrix(dstPtr, repeatConfig, bits);
         } else {
-            create_cbuf_matrix(dstPtr, repeatConfig, static_cast<uint32_t>(value));
+            pto_create_cbuf_matrix(dstPtr, repeatConfig, static_cast<uint32_t>(value));
         }
     }
 }

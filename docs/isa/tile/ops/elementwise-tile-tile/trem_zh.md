@@ -10,9 +10,12 @@
 
 对目标 tile 的 valid region 中每个 `(i, j)`：
 
-$$ \mathrm{dst}_{i,j} = \mathrm{src0}_{i,j} \bmod \mathrm{src1}_{i,j} $$
+$$\mathrm{dst}_{i,j} = \mathrm{remainder}(\mathrm{src0}_{i,j}, \mathrm{src1}_{i,j}) = \mathrm{src0}_{i,j} - \mathrm{floor}(\frac{\mathrm{src0}_{i,j}}{\mathrm{src1}_{i,j}}) \times \mathrm{src1}_{i,j}$$
 
-它和 `tfmod` 的差别在于这里强调整数式 remainder 语义，而不是浮点 `fmod`。
+结果符号会被修正为与除数（`src1`）的符号相同。
+
+!!! note "注意"
+    这与 `TFMOD` 不同，`TFMOD` 的结果符号与被除数（`src0`）相同。
 
 ## 语法
 
@@ -37,7 +40,8 @@ pto.trem ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : 
 ## C++ 内建接口
 
 ```cpp
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataTmp, typename... WaitEvents>
+template <auto PrecisionType = RemAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc0,
+          typename TileDataSrc1, typename TileDataTmp, typename... WaitEvents>
 PTO_INST RecordEvent TREM(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, TileDataTmp &tmp, WaitEvents &... events);
 ```
 
@@ -72,12 +76,13 @@ PTO_INST RecordEvent TREM(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &sr
 
 ### A2A3
 
+- `TileData::DType` 必须是以下之一：`float`、`float32_t`、`int32_t`
 - `dst`、`src0`、`src1` 必须使用相同元素类型
-- 支持类型：`float`、`int32_t`
 - 三者都必须是行主序向量 tile
-- 运行时要求：`dst.GetValidRow() == src0.GetValidRow() == src1.GetValidRow() > 0`，且列数也一致
-- `tmp` 需要至少 1 行，且列数不少于 `dst`
+- 运行时要求：`src0`、`src1` 和 `dst` 具有相同的 `validRow` 和 `validCol`
+- `tmp` 需要至少 2 行且列数不少于 `dst`；第 0 行用于中间结果，第 1 行用于比较掩码
 - 对 `int32_t` 输入，还要求数值落在 `[-2^24, 2^24]`
+- `PrecisionType` 高精度选项在 A2A3 上会被忽略
 
 ### A5
 
@@ -86,6 +91,7 @@ PTO_INST RecordEvent TREM(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &sr
 - 三者必须是向量 tile
 - 静态 valid 边界必须合法
 - `tmp` 在 A5 形参存在，但不参与约束和实现
+- 高精度算法仅在 A5 上对 `float` 类型有效
 
 ## 性能
 
@@ -111,10 +117,11 @@ PTO_INST RecordEvent TREM(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &sr
 using namespace pto;
 
 void example() {
-  using TileT = Tile<TileType::Vec, int32_t, 16, 16>;
-  TileT out, a, b;
-  Tile<TileType::Vec, int32_t, 16, 16> tmp;
-  TREM(out, a, b, tmp);
+  using TileT = Tile<TileType::Vec, float, 16, 16>;
+  using TmpT = Tile<TileType::Vec, float, 2, 16>;
+  TileT dst, src0, src1;
+  TmpT tmp;
+  TREM(dst, src0, src1, tmp);
 }
 ```
 

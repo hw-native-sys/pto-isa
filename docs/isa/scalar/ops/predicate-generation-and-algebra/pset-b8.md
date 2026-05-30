@@ -21,19 +21,19 @@ The pattern token fully determines which bits are set. The operation is purely c
 ### PTO Assembly Form
 
 ```mlir
-%mask = pto.pset_b8 "PATTERN" : !pto.mask
+%mask = pto.pset_b8 "PATTERN" : !pto.mask<b8>
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-%mask = pto.pset_b8 "PATTERN" : !pto.mask
+%mask = pto.pset_b8 "PATTERN" : !pto.mask<b8>
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.pset_b8 "PATTERN" outs(%mask : !pto.mask)
+pto.pset_b8 "PATTERN" outs(%mask : !pto.mask<b8>)
 ```
 
 ## C++ Intrinsic
@@ -63,7 +63,7 @@ vector_bool mask = pset_b8(__cce_simd::PAT_VL4);
 
 | Result | Type | Description |
 |--------|------|-------------|
-| `%mask` | `!pto.mask` | Constructed 8-bit predicate |
+| `%mask` | `!pto.mask<b8>` | Constructed 8-bit predicate |
 
 ## Side Effects
 
@@ -106,13 +106,13 @@ void set_all_active(RegBuf<predicate_t>& dst) {
 ### Construct all-inactive mask
 
 ```mlir
-%none = pto.pset_b8 "PAT_ALLF" : !pto.mask
+%none = pto.pset_b8 "PAT_ALLF" : !pto.mask<b8>
 ```
 
 ### Construct first-3-lanes-active mask
 
 ```mlir
-%first3 = pto.pset_b8 "PAT_VL3" : !pto.mask
+%first3 = pto.pset_b8 "PAT_VL3" : !pto.mask<b8>
 ```
 
 ## Related Ops / Instruction Set Links

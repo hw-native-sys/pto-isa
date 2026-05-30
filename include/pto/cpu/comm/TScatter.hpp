@@ -45,21 +45,24 @@ namespace comm {
 // ============================================================================
 
 template <typename GlobalDataDst, typename GlobalDataSrc>
-void Scatter(typename GlobalDataDst::DType *dst, typename GlobalDataSrc::DType *src, long int dstShape[],
-             long int dstStride[], long int srcStride[], long int srcOffset)
+void Scatter(typename GlobalDataDst::DType *dst, typename GlobalDataSrc::DType *src, int64_t dstShape[],
+             int64_t dstStride[], int64_t srcStride[], int64_t srcOffset)
 {
+    auto scatterInner = [&](size_t i, size_t j, size_t k) {
+        for (size_t l = 0; l < dstShape[3]; l++) {
+            for (size_t m = 0; m < dstShape[4]; m++) {
+                int dstIndex =
+                    i * dstStride[0] + j * dstStride[1] + k * dstStride[2] + l * dstStride[3] + m * dstStride[4];
+                int srcIndex = i * srcStride[0] + j * srcStride[1] + k * srcStride[2] + (l + srcOffset) * srcStride[3] +
+                               m * srcStride[4];
+                dst[dstIndex] = src[srcIndex];
+            }
+        }
+    };
     for (size_t i = 0; i < dstShape[0]; i++) {
         for (size_t j = 0; j < dstShape[1]; j++) {
             for (size_t k = 0; k < dstShape[2]; k++) {
-                for (size_t l = 0; l < dstShape[3]; l++) {
-                    for (size_t m = 0; m < dstShape[4]; m++) {
-                        int dstIndex = i * dstStride[0] + j * dstStride[1] + k * dstStride[2] + l * dstStride[3] +
-                                       m * dstStride[4];
-                        int srcIndex = i * srcStride[0] + j * srcStride[1] + k * srcStride[2] +
-                                       (l + srcOffset) * srcStride[3] + m * srcStride[4];
-                        dst[dstIndex] = src[srcIndex];
-                    }
-                }
+                scatterInner(i, j, k);
             }
         }
     }
@@ -85,15 +88,15 @@ PTO_INTERNAL void TSCATTER_IMPL(ParallelGroupType &parallelGroup, GlobalSrcData 
 
     constexpr size_t numDims = 5;
 
-    long int srcStride[numDims] = {srcGlobalData.GetStride(0), srcGlobalData.GetStride(1), srcGlobalData.GetStride(2),
-                                   srcGlobalData.GetStride(3), srcGlobalData.GetStride(4)};
+    int64_t srcStride[numDims] = {srcGlobalData.GetStride(0), srcGlobalData.GetStride(1), srcGlobalData.GetStride(2),
+                                  srcGlobalData.GetStride(3), srcGlobalData.GetStride(4)};
 
     GlobalDstData &dstTensor = parallelGroup[0];
-    long int dstShape[numDims] = {dstTensor.GetShape(0), dstTensor.GetShape(1), dstTensor.GetShape(2),
-                                  dstTensor.GetShape(3), dstTensor.GetShape(4)};
-    long int dstStride[numDims] = {dstTensor.GetStride(0), dstTensor.GetStride(1), dstTensor.GetStride(2),
-                                   dstTensor.GetStride(3), dstTensor.GetStride(4)};
-    long int DST_DIM_3 = dstTensor.GetShape(3);
+    int64_t dstShape[numDims] = {dstTensor.GetShape(0), dstTensor.GetShape(1), dstTensor.GetShape(2),
+                                 dstTensor.GetShape(3), dstTensor.GetShape(4)};
+    int64_t dstStride[numDims] = {dstTensor.GetStride(0), dstTensor.GetStride(1), dstTensor.GetStride(2),
+                                  dstTensor.GetStride(3), dstTensor.GetStride(4)};
+    int64_t DST_DIM_3 = dstTensor.GetShape(3);
 
     PTO_ASSERT(srcGlobalData.GetShape(0) == dstTensor.GetShape(0), "TSCATTER: src DIM0 must equal dst DIM0!");
     PTO_ASSERT(srcGlobalData.GetShape(1) == dstTensor.GetShape(1), "TSCATTER: src DIM1 must equal dst DIM1!");
@@ -104,7 +107,7 @@ PTO_INTERNAL void TSCATTER_IMPL(ParallelGroupType &parallelGroup, GlobalSrcData 
 
     for (int r = 0; r < nranks; ++r) {
         GlobalDstData &dstGlobalData = parallelGroup[r];
-        long int currentSrcOffset = r * DST_DIM_3;
+        int64_t currentSrcOffset = r * DST_DIM_3;
         Scatter<GlobalDstData, GlobalSrcData>(dstGlobalData.data(), srcGlobalData.data(), dstShape, dstStride,
                                               srcStride, currentSrcOffset);
     }
@@ -144,6 +147,19 @@ PTO_INTERNAL void TSCATTER_IMPL(ParallelGroupType &parallelGroup, GlobalSrcData 
     PTO_ASSERT(rootIdx >= 0 && rootIdx < nranks, "rootIdx must be in range [0, nranks)!");
 
     pto::comm::TSCATTER_IMPL(parallelGroup, srcGlobalData, pingTile);
+}
+
+// CCU engine is only available on A5 NPU hardware.  Deferred-fail stub
+// mirroring the a2a3 pattern: the template name must exist in `pto::comm`
+// so that `::pto::comm::TSCATTER_CCU_IMPL<engine>(...)` in pto_comm_inst.hpp
+// parses on CPU simulator builds; the static_assert depends on `engine` and
+// fires only if the overload is actually instantiated.
+template <CollEngine engine = CollEngine::CCU, typename... Args>
+PTO_INTERNAL void TSCATTER_CCU_IMPL(Args &&...)
+{
+    static_assert(engine != CollEngine::CCU,
+                  "TSCATTER<CollEngine::CCU> is not supported on the CPU simulator; "
+                  "CCU engine requires A5 NPU hardware.");
 }
 
 } // namespace comm

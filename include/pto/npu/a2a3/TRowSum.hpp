@@ -82,6 +82,22 @@ struct TRowSumOp : TRowReduceOp<T, TRowSumOp<T>> {
     }
 };
 
+template <uint16_t elemsPerVL, typename T>
+PTO_INTERNAL void SumLastBlockElements(__ubuf__ T *dst, __ubuf__ T *tmp)
+{
+    set_flag(PIPE_V, PIPE_S, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
+
+    T sum = 0;
+    for (uint16_t i = 0; i < elemsPerVL; ++i) {
+        sum += tmp[i];
+    }
+    dst[0] = sum;
+
+    set_flag(PIPE_S, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_S, PIPE_V, EVENT_ID0);
+}
+
 template <typename T, typename TileDataOut, typename TileDataIn, typename TileDataTmp>
 __tf__ PTO_INTERNAL void TRowSum(typename TileDataOut::TileDType __out__ dstData,
                                  typename TileDataIn::TileDType __in__ srcData,
@@ -105,7 +121,7 @@ __tf__ PTO_INTERNAL void TRowSum(typename TileDataOut::TileDType __out__ dstData
             set_vector_mask(0, elemsPerBlock);
 
             // Initialize tmp with 0
-            vector_dup(tmp, (T)0, 1, 1, 1, 0, 0);
+            vector_dup(tmp, (T)PadValueMap<T, PadValue::Zero>::value, 1, 1, 1, 0, 0);
             pipe_barrier(PIPE_V);
 
             // Accumulate using vadd
@@ -121,15 +137,7 @@ __tf__ PTO_INTERNAL void TRowSum(typename TileDataOut::TileDType __out__ dstData
                 pipe_barrier(PIPE_V);
             }
 
-            pipe_barrier(PIPE_ALL);
-
-            // Final scalar reduction
-            if constexpr (std::is_same_v<T, int32_t>) {
-                dst[0] = tmp[0] + tmp[1] + tmp[2] + tmp[3] + tmp[4] + tmp[5] + tmp[6] + tmp[7];
-            } else if constexpr (std::is_same_v<T, int16_t>) {
-                dst[0] = tmp[0] + tmp[1] + tmp[2] + tmp[3] + tmp[4] + tmp[5] + tmp[6] + tmp[7] + tmp[8] + tmp[9] +
-                         tmp[10] + tmp[11] + tmp[12] + tmp[13] + tmp[14] + tmp[15];
-            }
+            SumLastBlockElements<elemsPerBlock>(dst, tmp);
         }
 
         set_mask_norm();

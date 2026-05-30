@@ -25,7 +25,7 @@ AICORE void runTPutAsync(__gm__ T __out__ *out, __gm__ T __in__ *input)
     GlobalData inputGlobal(input);
     GlobalData outputGlobal(out);
 
-    comm::TPUT_ASYNC(inputGlobal, outputGlobal, session);
+    comm::TPUT_ASYNC(outputGlobal, inputGlobal, session);
     out = outputGlobal.data();
 }
 

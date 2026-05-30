@@ -8,7 +8,7 @@
 
 | 指令族 | 说明 | 典型指令 |
 | --- | --- | --- |
-| [同步与配置](./sync-and-config_zh.md) | 资源绑定、事件等待、alias 视图、tile 侧模式设置 | `TASSIGN`、`TSYNC`、`TALIAS` |
+| [同步与配置](./sync-and-config_zh.md) | 资源绑定、事件等待、alias 视图、tile 侧模式设置 | `TASSIGN`、`TSYNC`、`SYNCALL`、`TALIAS` |
 | [逐元素 Tile-Tile](./elementwise-tile-tile_zh.md) | tile 与 tile 的逐元素算术、比较和选择 | `TADD`、`TMUL`、`TPOW` |
 | [Tile-标量与立即数](./tile-scalar-and-immediate_zh.md) | tile 与标量或立即数的组合运算 | `TADDS`、`TAXPY`、`TMULS`、`TPOWS` |
 | [归约与扩展](./reduce-and-expand_zh.md) | 行 / 列归约和按轴扩展 | `TROWSUM`、`TROWEXPAND` |

@@ -8,6 +8,8 @@
 .DS_Store
 build
 build_tests
+dist/
+*.egg-info/
 demos/**/build/
 site/
 site_zh/
@@ -15,6 +17,7 @@ site_zh/
 *.o
 output/
 __pycache__/
+kernels/python/flash_atten/build_artifacts/
 *.log
 *.swp
 *.pdf

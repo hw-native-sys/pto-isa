@@ -36,11 +36,11 @@ pto.rls_buf "PIPE_MTE2", %bufid, %c0 : i64, i64
 pto.get_buf "PIPE_V", %bufid, %c0 : i64, i64
 pto.vecscope {
   scf.for %offset = %c0 to %N step %c64 iter_args(%remaining = %N_i32) -> (i32) {
-    %mask, %next = pto.plt_b32 %remaining : i32 -> !pto.mask, i32
+    %mask, %next = pto.plt_b32 %remaining : i32 -> !pto.mask<G>, i32
     %lhs = pto.vlds %ub_a[%offset] : !pto.ptr -> !pto.vreg<64xf32>
     %rhs = pto.vlds %ub_b[%offset] : !pto.ptr -> !pto.vreg<64xf32>
-    %out = pto.vadd %lhs, %rhs, %mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
-    pto.vsts %out, %ub_out[%offset], %mask : !pto.vreg<64xf32>, !pto.ptr, !pto.mask
+    %out = pto.vadd %lhs, %rhs, %mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
+    pto.vsts %out, %ub_out[%offset], %mask : !pto.vreg<64xf32>, !pto.ptr, !pto.mask<b32>
     scf.yield %next : i32
   }
 }
@@ -98,7 +98,7 @@ total_cycles = startup + completion + repeats × per_repeat + (repeats - 1) × i
 
 ### `pto.vadd`
 
-- **syntax:** `%result = pto.vadd %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vadd %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **A5 RV:** `RV_VADD`; **Latency:** 7 (f32/f16), 7 (i32/i16/i8)
 - **A2/A3 throughput:** 2 cycles/repeat; **interval:** 18 cycles
 
@@ -115,7 +115,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vsub`
 
-- **syntax:** `%result = pto.vsub %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vsub %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **A5 RV:** `RV_VSUB`; **Latency:** 7 (f32/f16), 7 (i32/i16/i8)
 - **A2/A3 throughput:** 2 cycles/repeat; **interval:** 18 cycles
 
@@ -132,7 +132,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vmul`
 
-- **syntax:** `%result = pto.vmul %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vmul %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **A5 RV:** `RV_VMUL`; **Latency:** 8 (f32/f16), 8 (i32/i16)
 - **A2/A3 throughput:** 2 cycles/repeat; **interval:** 18 cycles
 
@@ -149,7 +149,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vdiv`
 
-- **syntax:** `%result = pto.vdiv %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vdiv %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **A5 RV:** `RV_VDIV`; **Latency:** 17 (f32), 22 (f16)
 - **A2/A3 throughput:** 2 cycles/repeat (f32), 4 cycles/repeat (f16); **interval:** 18 cycles
 
@@ -167,7 +167,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vmax`
 
-- **syntax:** `%result = pto.vmax %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vmax %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **A5 RV:** `RV_VMAX`; **Latency:** 7 (f32/f16), 7 (i32/i16/i8)
 - **A2/A3 throughput:** 2 cycles/repeat; **interval:** 18 cycles
 
@@ -184,7 +184,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vmin`
 
-- **syntax:** `%result = pto.vmin %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vmin %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **A5 RV:** `RV_VMAX`; **Latency:** 7 (f32/f16), 7 (i32/i16/i8)
 - **A2/A3 throughput:** 2 cycles/repeat; **interval:** 18 cycles
 
@@ -203,7 +203,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vand`
 
-- **syntax:** `%result = pto.vand %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vand %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **A5 RV:** `RV_VAND`; **Latency:** 7 (integer types)
 - **A2/A3 throughput:** 1 cycle/repeat; **interval:** 18 cycles
 
@@ -220,7 +220,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vor`
 
-- **syntax:** `%result = pto.vor %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vor %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **A5 RV:** `RV_VOR`; **Latency:** 7 (integer types)
 - **A2/A3 throughput:** 1 cycle/repeat; **interval:** 18 cycles
 
@@ -237,7 +237,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vxor`
 
-- **syntax:** `%result = pto.vxor %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vxor %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **A5 RV:** `RV_VXOR`; **Latency:** 7 (integer types)
 - **A2/A3 throughput:** 1 cycle/repeat; **interval:** 18 cycles
 
@@ -256,7 +256,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vshl`
 
-- **syntax:** `%result = pto.vshl %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vshl %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **A5 RV:** `RV_VSHL`; **Latency:** 7 (integer types)
 - **A2/A3 throughput:** 1 cycle/repeat; **interval:** 18 cycles
 
@@ -273,7 +273,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vshr`
 
-- **syntax:** `%result = pto.vshr %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **syntax:** `%result = pto.vshr %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **A5 RV:** `RV_VSHR`; **Latency:** 7 (integer types)
 - **A2/A3 throughput:** 1 cycle/repeat; **interval:** 18 cycles
 
@@ -292,7 +292,7 @@ for (int i = 0; i < N; i++)
 
 ### `pto.vaddc`
 
-- **syntax:** `%result, %carry = pto.vaddc %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>, !pto.mask`
+- **syntax:** `%result, %carry = pto.vaddc %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>, !pto.mask<G>`
 - **A5 RV:** `RV_VADDC`; **Latency:** 7 (i32, unsigned carry semantics)
 - **A2/A3 throughput:** 1 cycle/repeat; **interval:** 18 cycles
 
@@ -313,7 +313,7 @@ for (int i = 0; i < N; i++) {
 
 ### `pto.vsubc`
 
-- **syntax:** `%result, %borrow = pto.vsubc %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>, !pto.mask`
+- **syntax:** `%result, %borrow = pto.vsubc %lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>, !pto.mask<G>`
 - **A5 RV:** `RV_VSUBC`; **Latency:** 7 (i32, unsigned borrow semantics)
 - **A2/A3 throughput:** 1 cycle/repeat; **interval:** 18 cycles
 
@@ -335,15 +335,15 @@ for (int i = 0; i < N; i++) {
 
 ```mlir
 // Vector addition
-%sum = pto.vadd %a, %b, %mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+%sum = pto.vadd %a, %b, %mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 // Element-wise multiply
-%prod = pto.vmul %x, %y, %mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+%prod = pto.vmul %x, %y, %mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 // Clamp to range [min, max]
-%clamped_low = pto.vmax %input, %min_vec, %mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
-%clamped = pto.vmin %clamped_low, %max_vec, %mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+%clamped_low = pto.vmax %input, %min_vec, %mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
+%clamped = pto.vmin %clamped_low, %max_vec, %mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 // Bit manipulation
-%masked = pto.vand %data, %bitmask, %mask : !pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask -> !pto.vreg<64xi32>
+%masked = pto.vand %data, %bitmask, %mask : !pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask<b32> -> !pto.vreg<64xi32>
 ```

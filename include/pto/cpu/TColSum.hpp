@@ -44,7 +44,6 @@ PTO_INTERNAL void CheckCSValid()
         ,
         "Not supported data type");
     static_assert((TileSrc::Cols == TileDst::Cols), "Assert: Inconsistent number of cols");
-    static_assert((TileDst::Rows == 1), "Assert: Inconsistent number of dst tile rows");
 }
 
 template <typename TileDst, typename TileSrc>

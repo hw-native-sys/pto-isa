@@ -120,7 +120,7 @@ __tf__ AICORE void TExtractToAVector(typename DstTileData::TileDType __out__ dst
     int32_t kAlign = (dstValidCol + fractalSize - 1) & ~(fractalSize - 1);
     uint16_t baseIdx = indexCol * sizeof(DataType) >> SHIFT_FRACTAL_BYTE;
     uint8_t repeatTimes = kAlign / fractalSize;
-    load_cbuf_to_ca(dstAddr, srcAddr, baseIdx, repeatTimes, 1, 0, false);
+    load_cbuf_to_ca(dstAddr, srcAddr, baseIdx, repeatTimes, 1, 0, 0, false, false, addr_cal_mode_t(0));
 }
 
 template <typename DstType, typename SrcType, int32_t srcRow, int32_t srcCol, int32_t dstRow, int32_t dstCol>

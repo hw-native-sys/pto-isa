@@ -30,14 +30,14 @@ vsubc %dst, %borrow, %lhs, %rhs, %mask : !pto.vreg<NxT>
 ### AS Level 1（SSA）
 
 ```mlir
-%result, %borrow = pto.vsubc %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask) -> !pto.vreg<NxT>, !pto.mask
+%result, %borrow = pto.vsubc %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>) -> !pto.vreg<NxT>, !pto.mask<G>
 ```
 
 ### AS Level 2（DPS）
 
 ```mlir
-pto.vsubc ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask)
-          outs(%result, %borrow : !pto.vreg<NxT>, !pto.mask)
+pto.vsubc ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>)
+          outs(%result, %borrow : !pto.vreg<NxT>, !pto.mask<G>)
 ```
 
 ## 输入
@@ -46,7 +46,7 @@ pto.vsubc ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask)
 |--------|------|------|
 | `%lhs` | `!pto.vreg<NxT>` | 被减数 |
 | `%rhs` | `!pto.vreg<NxT>` | 减数 |
-| `%mask` | `!pto.mask` | 谓词掩码；掩码位为 1 的 lane 参与减法 |
+| `%mask` | `!pto.mask<G>` | 谓词掩码；掩码位为 1 的 lane 参与减法 |
 
 两个源寄存器必须具有相同的元素类型和相同的向量宽度 `N`。掩码宽度必须与 `N` 一致。
 
@@ -55,7 +55,7 @@ pto.vsubc ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask)
 | 结果 | 类型 | 说明 |
 |------|------|------|
 | `%result` | `!pto.vreg<NxT>` | 活跃 lane 上得到逐 lane 差值；非活跃 lane 保持原值 |
-| `%borrow` | `!pto.mask` | 逐 lane 的借位谓词；无符号下溢时，对应 lane 为 1 |
+| `%borrow` | `!pto.mask<G>` | 逐 lane 的借位谓词；无符号下溢时，对应 lane 为 1 |
 
 ## 副作用
 
@@ -105,7 +105,7 @@ for (int i = 0; i < N; i++) {
 
 ```mlir
 %result, %borrow = pto.vsubc %a, %b, %active
-    : (!pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask) -> !pto.vreg<64xi32>, !pto.mask
+    : (!pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask<b32>) -> !pto.vreg<64xi32>, !pto.mask<b32>
 
 %diff0, %borrow0 = pto.vsubc %a0, %b0, %active : ...
 %diff1, %borrow1 = pto.vsubc %a1, %b1, %borrow0 : ...

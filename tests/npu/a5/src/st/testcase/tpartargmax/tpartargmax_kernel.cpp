@@ -100,3 +100,19 @@ template void LaunchTPartArgMax<aclFloat16, int16_t, 10, 31, 8, 16, 10, 31, 10, 
 template void LaunchTPartArgMax<aclFloat16, uint16_t, 5, 33, 5, 33, 5, 30, 8, 48, 5, 48, 6, 48, true>(
     aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1, uint16_t *outIdx, uint16_t *src0Idx, uint16_t *src1Idx,
     void *stream);
+template void LaunchTPartArgMax<float, uint32_t, 8, 7, 8, 7, 8, 0, 8, 8, 8, 8, 1, 8>(float *out, float *src0,
+                                                                                     float *src1, uint32_t *outIdx,
+                                                                                     uint32_t *src0Idx,
+                                                                                     uint32_t *src1Idx, void *stream);
+template void LaunchTPartArgMax<float, uint32_t, 8, 7, 8, 7, 0, 7, 8, 8, 8, 8, 1, 8>(float *out, float *src0,
+                                                                                     float *src1, uint32_t *outIdx,
+                                                                                     uint32_t *src0Idx,
+                                                                                     uint32_t *src1Idx, void *stream);
+template void LaunchTPartArgMax<float, uint32_t, 8, 7, 8, 0, 8, 7, 8, 8, 1, 8, 8, 8>(float *out, float *src0,
+                                                                                     float *src1, uint32_t *outIdx,
+                                                                                     uint32_t *src0Idx,
+                                                                                     uint32_t *src1Idx, void *stream);
+template void LaunchTPartArgMax<float, uint32_t, 8, 7, 0, 7, 8, 7, 8, 8, 1, 8, 8, 8>(float *out, float *src0,
+                                                                                     float *src1, uint32_t *outIdx,
+                                                                                     uint32_t *src0Idx,
+                                                                                     uint32_t *src1Idx, void *stream);

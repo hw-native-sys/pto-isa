@@ -79,7 +79,7 @@ PTO_INST RecordEvent TMUL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &sr
 
 ### A5
 
-- 支持类型：`int32_t`、`uint32_t`、`float`、`int16_t`、`uint16_t`、`half`
+- 支持类型：`int32_t`、`uint32_t`、`float`、`int16_t`、`uint16_t`、`half`、`bfloat16`
 - tile 必须是行主序向量 tile
 
 ## 性能

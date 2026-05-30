@@ -21,7 +21,7 @@ vmov %result, %input, %mask
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vmov %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vmov %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 ## Inputs
@@ -29,7 +29,7 @@ vmov %result, %input, %mask
 | Operand | Type | Description |
 |---------|------|-------------|
 | `%input` | `!pto.vreg<NxT>` | Source vector register; read at each active lane `i` |
-| `%mask` | `!pto.mask` | Predicate mask; lanes where mask bit is 1 (true) are active |
+| `%mask` | `!pto.mask<G>` | Predicate mask; lanes where mask bit is 1 (true) are active |
 
 ## Expected Outputs
 
@@ -72,14 +72,14 @@ for (int i = 0; i < N; i++)
 
 ```mlir
 // Softmax numerator: exp(x - max)
-%sub = pto.vsub %x, %max_broadcast, %mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
-%exp = pto.vexp %sub, %mask : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+%sub = pto.vsub %x, %max_broadcast, %mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
+%exp = pto.vexp %sub, %mask : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 // Reciprocal for division
-%sum_rcp = pto.vrec %sum, %mask : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+%sum_rcp = pto.vrec %sum, %mask : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 // ReLU activation
-%activated = pto.vrelu %linear_out, %mask : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+%activated = pto.vrelu %linear_out, %mask : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 ```
 
 ## Related Ops / Instruction Set Links

@@ -1,10 +1,10 @@
 # 谓词生成与代数
 
-谓词生成与代数操作在标量与控制指令集中创建、组合、打包、解包和交错 `!pto.mask`。`!pto.mask` 是 `pto.v*` 向量操作消费的 lane mask 机制。
+谓词生成与代数操作在标量与控制指令集中创建、组合、打包、解包和交错 `!pto.mask<G>`。`!pto.mask<G>` 是 `pto.v*` 向量操作消费的 lane mask 机制。
 
-## `!pto.mask` 类型
+## `!pto.mask<G>` 类型
 
-`!pto.mask` 的宽度与当前元素类型绑定：
+`!pto.mask<G>` 的宽度与当前元素类型绑定：
 
 | 元素类型 | 向量宽度 N | 谓词宽度 |
 | --- | :---: | :---: |
@@ -22,11 +22,11 @@
 | Comparison generation | `pge_*`, `plt_*` |
 | Predicate pack / unpack | `ppack`, `punpack` |
 | Boolean algebra | `pand`, `por`, `pxor`, `pnot`, `psel` |
-| Interleave / deinterleave | `pdintlv_b8`, `pintlv_b16` |
+| Interleave / deinterleave | `pdintlv_b8`、`pdintlv_b16`、`pdintlv_b32`、`pintlv_b8`、`pintlv_b16`、`pintlv_b32` |
 
 ## 共享约束
 
-- 所有谓词操作数必须是 `!pto.mask`
+- 所有谓词操作数必须是 `!pto.mask<G>`
 - 同一操作中的谓词宽度必须一致
 - pattern token 必须被当前 profile 支持
 - `pge_*` / `plt_*` 的标量类型必须与后缀匹配

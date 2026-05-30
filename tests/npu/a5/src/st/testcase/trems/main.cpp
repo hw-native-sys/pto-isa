@@ -15,8 +15,13 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace PtoTestCommon;
 
-template <uint32_t caseId>
-void launchTREMSTestCase(void *out, void *src, float scalar, aclrtStream stream);
+template <typename T, int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
+          bool highPrecision = false>
+void LaunchTRemS(T *out, T *src, T scalar, void *stream);
+
+template <int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
+          bool highPrecision = false>
+void LaunchTRemSHalf(aclFloat16 *out, aclFloat16 *src, aclFloat16 scalar, void *stream);
 
 class TREMSTest : public testing::Test {
 public:
@@ -37,8 +42,9 @@ std::string GetGoldenDir()
     return fullPath;
 }
 
-template <uint32_t caseId, typename T, int dstTileRow, int dstTileCol, int row, int vaildRow, int col, int srcVaildCol>
-bool TRemSTestFramework()
+template <typename T, int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
+          bool isHalf = false, bool highPrecision = false>
+inline void TRemSTestFramework()
 {
     aclInit(nullptr);
     aclrtSetDevice(0);
@@ -47,12 +53,13 @@ bool TRemSTestFramework()
     aclrtCreateStream(&stream);
 
     size_t dstByteSize = dstTileRow * dstTileCol * sizeof(T);
-    size_t srcByteSize = row * col * sizeof(T);
+    size_t srcByteSize = srcTileRow * srcTileCol * sizeof(T);
+    size_t scalarByteSize = sizeof(T);
     T *dstHost;
     T *srcHost;
     T *dstDevice;
     T *srcDevice;
-    float scalar;
+    T scalar;
 
     aclrtMallocHost((void **)(&dstHost), dstByteSize);
     aclrtMallocHost((void **)(&srcHost), srcByteSize);
@@ -61,17 +68,18 @@ bool TRemSTestFramework()
     aclrtMalloc((void **)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", srcByteSize, srcHost, srcByteSize);
-    std::string scalar_file = GetGoldenDir() + "/divider.bin";
-    std::ifstream file(scalar_file, std::ios::binary);
-
-    file.read(reinterpret_cast<char *>(&scalar), 4);
-    file.close();
+    ReadFile(GetGoldenDir() + "/divider.bin", scalarByteSize, &scalar, scalarByteSize);
 
     aclrtMemcpy(srcDevice, srcByteSize, srcHost, srcByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    launchTREMSTestCase<caseId>(dstDevice, srcDevice, scalar, stream);
+    if constexpr (isHalf) {
+        LaunchTRemSHalf<dstTileRow, dstTileCol, srcTileRow, srcTileCol, validRow, validCol, highPrecision>(
+            dstDevice, srcDevice, scalar, stream);
+    } else {
+        LaunchTRemS<T, dstTileRow, dstTileCol, srcTileRow, srcTileCol, validRow, validCol, highPrecision>(
+            dstDevice, srcDevice, scalar, stream);
+    }
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, dstByteSize, dstDevice, dstByteSize, ACL_MEMCPY_DEVICE_TO_HOST);
-
     WriteFile(GetGoldenDir() + "/output.bin", dstHost, dstByteSize);
 
     aclrtFree(dstDevice);
@@ -89,41 +97,46 @@ bool TRemSTestFramework()
     ReadFile(GetGoldenDir() + "/golden.bin", dstByteSize, golden.data(), dstByteSize);
     ReadFile(GetGoldenDir() + "/output.bin", dstByteSize, devFinal.data(), dstByteSize);
 
-    return ResultCmp<T>(golden, devFinal, 0.001f);
+    bool res = ResultCmp<T>(golden, devFinal, 0.001f);
+    EXPECT_TRUE(res);
 }
 
 TEST_F(TREMSTest, case1)
 {
-    bool ret = TRemSTestFramework<1, float, 32, 128, 32, 32, 64, 64>();
-    EXPECT_TRUE(ret);
+    TRemSTestFramework<float, 32, 128, 32, 128, 32, 64>();
 }
 
 TEST_F(TREMSTest, case2)
 {
-    bool ret = TRemSTestFramework<2, aclFloat16, 63, 128, 63, 63, 64, 64>();
-    EXPECT_TRUE(ret);
+    TRemSTestFramework<aclFloat16, 63, 128, 63, 128, 63, 64, true>();
 }
 
 TEST_F(TREMSTest, case3)
 {
-    bool ret = TRemSTestFramework<3, int32_t, 31, 256, 31, 31, 128, 128>();
-    EXPECT_TRUE(ret);
+    TRemSTestFramework<int32_t, 31, 256, 31, 256, 31, 128>();
 }
 
 TEST_F(TREMSTest, case4)
 {
-    bool ret = TRemSTestFramework<4, int16_t, 15, 192, 15, 15, 192, 192>();
-    EXPECT_TRUE(ret);
+    TRemSTestFramework<int16_t, 15, 192, 15, 192, 15, 192>();
 }
 
 TEST_F(TREMSTest, case5)
 {
-    bool ret = TRemSTestFramework<5, float, 7, 512, 7, 7, 448, 448>();
-    EXPECT_TRUE(ret);
+    TRemSTestFramework<float, 7, 512, 7, 512, 7, 448>();
 }
 
 TEST_F(TREMSTest, case6)
 {
-    bool ret = TRemSTestFramework<6, float, 256, 32, 256, 256, 16, 16>();
-    EXPECT_TRUE(ret);
+    TRemSTestFramework<float, 256, 32, 256, 32, 256, 31>();
+}
+
+TEST_F(TREMSTest, caseHP1)
+{
+    TRemSTestFramework<float, 64, 64, 64, 64, 64, 64, false, true>();
+}
+
+TEST_F(TREMSTest, caseHP2)
+{
+    TRemSTestFramework<float, 64, 64, 64, 64, 64, 61, false, true>();
 }

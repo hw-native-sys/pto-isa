@@ -14,8 +14,10 @@ import os
 import numpy as np
 
 
-def gen_tile(dtype, size):
-    if dtype in (np.int8, np.uint8, np.int16, np.uint16, np.int32, np.uint32):
+def gen_tile(dtype, size, val=None):
+    if val is not None:
+        return np.full(size, val).astype(dtype)
+    elif dtype in (np.int8, np.uint8, np.int16, np.uint16, np.int32, np.uint32):
         dtype_info = np.iinfo(dtype)
         return np.random.randint(dtype_info.min, dtype_info.max, size=size).astype(dtype)
     else:
@@ -30,9 +32,13 @@ def gen_golden_data(param):
     valid_height_big, valid_width_big = max(valid_height0, valid_height1), max(valid_width0, valid_width1)
     valid_height_small, valid_width_small = min(valid_height0, valid_height1), min(valid_width0, valid_width1)
 
-    src_val0 = gen_tile(val_dtype, param.src_val0_size)
+    val = None
+    if param.equal:
+        val = np.random.rand()
+
+    src_val0 = gen_tile(val_dtype, param.src_val0_size, val)
     src_idx0 = gen_tile(idx_dtype, param.src_idx0_size)
-    src_val1 = gen_tile(val_dtype, param.src_val1_size)
+    src_val1 = gen_tile(val_dtype, param.src_val1_size, val)
     src_idx1 = gen_tile(idx_dtype, param.src_idx1_size)
     dst_val = np.full(param.dst_val_size, 0).astype(val_dtype)
     dst_idx = np.full(param.dst_idx_size, 0).astype(idx_dtype)
@@ -46,7 +52,7 @@ def gen_golden_data(param):
 
     src0 = src_val0[0:valid_height_small, 0:valid_width_small]
     src1 = src_val1[0:valid_height_small, 0:valid_width_small]
-    mask = src0 < src1
+    mask = src0 <= src1
     dst_val[:valid_height_small, :valid_width_small] = np.where(mask, src0, src1)
     dst_val = dst_val.astype(val_dtype)
     src_idx_part0 = src_idx0[:valid_height_small, :valid_width_small]
@@ -76,7 +82,7 @@ class TestParams:
     }
 
     def __init__(self, val_dtype, idx_dtype, comment, dst_val_size, dst_idx_size, src_val0_size, src_idx0_size,
-        src_val1_size, src_idx1_size, valid_size0, valid_size1):
+        src_val1_size, src_idx1_size, valid_size0, valid_size1, equal=False):
         self.val_dtype, self.idx_dtype = val_dtype, idx_dtype
         self.dst_val_size = dst_val_size
         self.dst_idx_size = dst_idx_size
@@ -86,6 +92,7 @@ class TestParams:
         self.src_idx1_size = src_idx1_size
         self.valid_size0 = valid_size0
         self.valid_size1 = valid_size1
+        self.equal = equal
         val_dtype_str, idx_dtype_str = self.DTYPE_STR_TABLE[val_dtype], self.DTYPE_STR_TABLE[idx_dtype]
         self.name = f'{self.TEST_NAME}.case_{val_dtype_str}_{idx_dtype_str}_{comment}'
 
@@ -143,19 +150,21 @@ if __name__ == "__main__":
         TestParams(np.float32, np.uint32, 'tile_diff',
             (4, 8), (4, 16), (4, 24), (4, 32), (4, 40), (4, 48), (4, 7), (4, 7)),
         TestParams(np.float32, np.uint32, 'tile_diff_32k',
-            (67, 128), (67, 120), (67, 112), (67, 104), (67, 144), (67, 136), (67, 97), (67, 97)),
+            (57, 128), (57, 120), (57, 112), (57, 104), (57, 144), (57, 136), (57, 97), (57, 97)),
         TestParams(np.float32, np.uint32, 'tile_diff_32k_row_diff_0',
-            (67, 128), (67, 120), (61, 112), (61, 104), (67, 144), (67, 136), (61, 97), (67, 97)),
+            (57, 128), (57, 120), (51, 112), (51, 104), (57, 144), (57, 136), (51, 97), (57, 97)),
         TestParams(np.float32, np.uint32, 'tile_diff_32k_row_diff_1',
-            (67, 128), (67, 120), (67, 112), (67, 104), (61, 144), (61, 136), (67, 97), (61, 97)),
+            (57, 128), (57, 120), (57, 112), (57, 104), (51, 144), (51, 136), (57, 97), (51, 97)),
         TestParams(np.float32, np.uint32, 'tile_diff_32k_col_diff_0',
-            (67, 128), (67, 120), (67, 112), (67, 104), (67, 144), (67, 136), (67, 97), (67, 101)),
+            (57, 128), (57, 120), (57, 112), (57, 104), (57, 144), (57, 136), (57, 97), (57, 101)),
         TestParams(np.float32, np.uint32, 'tile_diff_32k_col_diff_1',
-            (67, 128), (67, 120), (67, 112), (67, 104), (67, 144), (67, 136), (67, 101), (67, 97)),
+            (57, 128), (57, 120), (57, 112), (57, 104), (57, 144), (57, 136), (57, 101), (57, 97)),
         TestParams(np.float32, np.uint32, 'tile_diff_32k_small_0',
-            (67, 128), (67, 120), (67, 112), (67, 104), (67, 144), (67, 136), (61, 97), (67, 101)),
+            (57, 128), (57, 120), (57, 112), (57, 104), (57, 144), (57, 136), (51, 97), (57, 101)),
         TestParams(np.float32, np.uint32, 'tile_diff_32k_small_1',
-            (67, 128), (67, 120), (67, 112), (67, 104), (67, 144), (67, 136), (67, 101), (61, 97)),
+            (57, 128), (57, 120), (57, 112), (57, 104), (57, 144), (57, 136), (57, 101), (51, 97)),
+        TestParams(np.float32, np.uint32, 'same_tile',
+            (4, 8), (4, 8), (4, 8), (4, 8), (4, 8), (4, 8), (4, 8), (4, 8), True),
     ]
 
     for case in case_list:

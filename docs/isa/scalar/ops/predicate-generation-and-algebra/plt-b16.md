@@ -17,19 +17,19 @@ In practice, this is the public CCE helper used for remainder-mask generation: t
 ### PTO Assembly Form
 
 ```mlir
-%mask, %scalar_out = pto.plt_b16 %scalar_in {post_update} : i32 -> !pto.mask, i32
+%mask, %scalar_out = pto.plt_b16 %scalar_in {post_update} : i32 -> !pto.mask<b16>, i32
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-%mask, %scalar_out = pto.plt_b16 %scalar_in {post_update} : i32 -> !pto.mask, i32
+%mask, %scalar_out = pto.plt_b16 %scalar_in {post_update} : i32 -> !pto.mask<b16>, i32
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.plt_b16 ins(%scalar_in : i32) outs(%mask, %scalar_out : !pto.mask, i32)
+pto.plt_b16 ins(%scalar_in : i32) outs(%mask, %scalar_out : !pto.mask<b16>, i32)
 ```
 
 ## C++ Intrinsic
@@ -50,7 +50,7 @@ vector_bool mask = plt_b16(scalar, __cce_simd::POST_UPDATE);
 
 | Result | Type | Description |
 |--------|------|-------------|
-| `%mask` | `!pto.mask` | 16-bit predicate generated from the current scalar value |
+| `%mask` | `!pto.mask<b16>` | 16-bit predicate generated from the current scalar value |
 | `%scalar_out` | `i32` | Scalar value after the intrinsic's post-update step |
 
 ## Side Effects
@@ -90,7 +90,7 @@ vector_bool mask = plt_b16(scalar, __cce_simd::POST_UPDATE);
 ### SSA form
 
 ```mlir
-%mask, %scalar_out = pto.plt_b16 %scalar_in {post_update} : i32 -> !pto.mask, i32
+%mask, %scalar_out = pto.plt_b16 %scalar_in {post_update} : i32 -> !pto.mask<b16>, i32
 ```
 
 ## Related Ops / Instruction Set Links

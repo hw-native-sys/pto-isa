@@ -91,7 +91,7 @@ PTO-AS 中的 tile 操作数可以带修饰：
 ### 谓词操作数
 
 ```text
-%mask : !pto.mask
+%mask : !pto.mask<G>
 ```
 
 向量指令把 mask 作为显式操作数：
@@ -168,13 +168,13 @@ tload %tile, %tensor[%r, %c] : (!pto.tile<f32,16,16>, !pto.memref<f32,5>) -> !pt
 ### 向量加法
 
 ```text
-%result = pto.vadd %src0, %src1, %mask : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask) -> !pto.vreg<64xf32>
+%result = pto.vadd %src0, %src1, %mask : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32>) -> !pto.vreg<64xf32>
 ```
 
 ### 谓词生成
 
 ```text
-%pred = pto.pge_b32 %src0, %src1 : (!pto.vreg<64xi32>, !pto.vreg<64xi32>) -> !pto.mask
+%pred = pto.pge_b32 %src0, %src1 : (!pto.vreg<64xi32>, !pto.vreg<64xi32>) -> !pto.mask<b32>
 ```
 
 ## 文本拼写不能替代的内容

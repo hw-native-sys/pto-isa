@@ -1,10 +1,10 @@
 # Predicate Generation And Algebra
 
-Predicate generation and algebra operations create, combine, pack, unpack, and interleave `!pto.mask` values on the scalar and control instructions. The `!pto.mask` type is the lane-masking mechanism that `pto.v*` vector operations consume.
+Predicate generation and algebra operations create, combine, pack, unpack, and interleave `!pto.mask<G>` values on the scalar and control instructions. The `!pto.mask<G>` type is the lane-masking mechanism that `pto.v*` vector operations consume.
 
-## The `!pto.mask` Type
+## The `!pto.mask<G>` Type
 
-`!pto.mask` is a predicate mask type whose width is tied to the active element type rather than being a fixed number of bits:
+`!pto.mask<G>` is a predicate mask type whose width is tied to the active element type rather than being a fixed number of bits:
 
 | Element Type | Vector Width N | Predicate Width |
 |-------------|:-------------:|:--------------:|
@@ -25,8 +25,8 @@ A predicate mask with bit value `1` at position `i` means lane `i` is **active**
 | Predicate unpack | `punpack` | Widen: extract half from a 2N-bit mask | Static (partition token) |
 | Boolean algebra | `pand`, `por`, `pxor`, `pnot` | AND / OR / XOR / NOT | Dynamic (runtime operands) |
 | Predicate select | `psel` | `mask0 ? mask1 : mask2` | Dynamic (runtime operands) |
-| Deinterleave | `pdintlv_b8` | Split one 2N-bit mask into two N-bit masks | Static |
-| Interleave | `pintlv_b16` | Combine two N-bit masks into one 2N-bit mask | Static |
+| Deinterleave | `pdintlv_b8`, `pdintlv_b16`, `pdintlv_b32` | Deinterleave two predicate sources into two predicate outputs at the matching granularity | Static |
+| Interleave | `pintlv_b8`, `pintlv_b16`, `pintlv_b32` | Interleave two predicate sources into two predicate outputs at the matching granularity | Static |
 
 ## Pattern Tokens
 
@@ -55,7 +55,7 @@ A predicate mask with bit value `1` at position `i` means lane `i` is **active**
 
 All predicate generation and algebra operations MUST satisfy:
 
-1. **Operand type**: All predicate operands MUST be `!pto.mask`. Mixing predicate operands with scalar or vector register operands is **illegal**.
+1. **Operand type**: All predicate operands MUST be `!pto.mask<G>`. Mixing predicate operands with scalar or vector register operands is **illegal**.
 2. **Predicate width consistency**: All operands in a single operation MUST share the same predicate width. Operations that mix N-bit and 2N-bit predicates MUST use explicit pack/unpack.
 3. **Pattern token validity**: Pattern tokens MUST be supported by the target profile. Using a pattern token outside its supported width context is **illegal**.
 4. **Scalar operand type**: For `pge_*` and `plt_*` operations, the scalar operand type MUST match the variant suffix (`_b8` → i8, `_b16` → i16, `_b32` → i32).
@@ -99,7 +99,11 @@ All predicate generation and algebra operations MUST satisfy:
 
 ### Interleave / Deinterleave
 - [pto.pdintlv_b8](./ops/predicate-generation-and-algebra/pdintlv-b8.md)
+- [pto.pdintlv_b16](./ops/predicate-generation-and-algebra/pdintlv-b16.md)
+- [pto.pdintlv_b32](./ops/predicate-generation-and-algebra/pdintlv-b32.md)
+- [pto.pintlv_b8](./ops/predicate-generation-and-algebra/pintlv-b8.md)
 - [pto.pintlv_b16](./ops/predicate-generation-and-algebra/pintlv-b16.md)
+- [pto.pintlv_b32](./ops/predicate-generation-and-algebra/pintlv-b32.md)
 
 ## Related Material
 

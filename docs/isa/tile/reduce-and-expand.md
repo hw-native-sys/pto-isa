@@ -23,8 +23,8 @@ Reduce operations collapse a 2D tile along one axis into a 1D result (or a tile 
 | [pto.tcolprod](./ops/reduce-and-expand/tcolprod.md) | Product reduction along columns | `TCOLPROD(dst, src)` |
 | [pto.tcolmax](./ops/reduce-and-expand/tcolmax.md) | Maximum reduction along columns | `TCOLMAX(dst, src)` |
 | [pto.tcolmin](./ops/reduce-and-expand/tcolmin.md) | Minimum reduction along columns | `TCOLMIN(dst, src)` |
-| [pto.tcolargmax](./ops/reduce-and-expand/tcolargmax.md) | Index of maximum along columns | `TCOLARGMAX(dst, src, tmp)` |
-| [pto.tcolargmin](./ops/reduce-and-expand/tcolargmin.md) | Index of minimum along columns | `TCOLARGMIN(dst, src, tmp)` |
+| [pto.tcolargmax](./ops/reduce-and-expand/tcolargmax.md) | Index, or value and index, of maximum along columns | `TCOLARGMAX(dst, src, tmp)` / `TCOLARGMAX(dstVal, dstIdx, src, tmp)` |
+| [pto.tcolargmin](./ops/reduce-and-expand/tcolargmin.md) | Index, or value and index, of minimum along columns | `TCOLARGMIN(dst, src, tmp)` / `TCOLARGMIN(dstVal, dstIdx, src, tmp)` |
 
 ### Expand (Row)
 

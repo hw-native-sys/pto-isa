@@ -30,6 +30,7 @@ enum class PtoOpcode
     TSUB,
     TMUL,
     TDIV,
+    TRECIP,
     TADDS,
     TSUBS,
     TMULS,
@@ -69,6 +70,7 @@ enum class PtoOpcode
     TROWEXPAND,
     TCOLEXPAND,
     TLOADCONV,
+    TPREFETCH,
 };
 
 enum class DType : uint8_t
@@ -82,17 +84,31 @@ enum class DType : uint8_t
     Uint16,
     Uint32,
     BFloat16,
+    Float8E4M3,
+    Float8E5M2,
+    HFloat8,
+    Float4E1M2,
+    Float4E2M1,
 };
 
 using MemLayout = ::pto::Layout;
 using RoundMode = ::pto::RoundMode;
+using SaturationMode = ::pto::SaturationMode;
 using TransferTileType = fit::TransferTileType;
+using VFImplKind = ::pto::VFImplKind;
+
+enum class CostModelArch : uint8_t
+{
+    A2A3,
+    A5,
+};
 
 struct CostModelInput {
     PtoOpcode op;
     DType dtype;
     int64_t rows;
     int64_t cols;
+    CostModelArch arch = CostModelArch::A2A3;
 
     DType dtype2 = DType::Float;
     int64_t k = 0;
@@ -114,6 +130,12 @@ struct CostModelInput {
 
     TransferTileType tile_type = TransferTileType::Unknown;
     int64_t data_size = 0;
+
+    int64_t valid_rows = 0;
+    int64_t valid_cols = 0;
+    VFImplKind vf_impl_kind = VFImplKind::VFIMPL_DEFAULT;
+    SaturationMode saturation_mode = SaturationMode::ON;
+    std::string_view a5_op_params{};
 };
 
 struct CostModelResult {
@@ -126,6 +148,10 @@ struct PredictRuntimeConfig {
     evaluator::BandwidthTable bandwidth_bytes_per_us{};
 };
 
+namespace a5 {
+inline bool TryEstimateA5VfCycles(const CostModelInput &input, uint64_t &cycles);
+}
+
 inline constexpr const char *DTypeToString(DType dtype)
 {
     switch (dtype) {
@@ -133,6 +159,16 @@ inline constexpr const char *DTypeToString(DType dtype)
             return "Float";
         case DType::Half:
             return "Half";
+        case DType::Float8E4M3:
+            return "Float8E4M3";
+        case DType::Float8E5M2:
+            return "Float8E5M2";
+        case DType::HFloat8:
+            return "HFloat8";
+        case DType::Float4E1M2:
+            return "Float4E1M2";
+        case DType::Float4E2M1:
+            return "Float4E2M1";
         case DType::Int8:
             return "Int8";
         case DType::Int16:
@@ -150,6 +186,22 @@ inline constexpr const char *DTypeToString(DType dtype)
         default:
             return "Unknown";
     }
+}
+
+inline constexpr const char *PtoOpcodeToString(PtoOpcode op)
+{
+    constexpr std::array<const char *, 45> names = {
+        "TADD",     "TSUB",    "TMUL",     "TDIV",     "TRECIP",  "TADDS",      "TSUBS",      "TMULS",     "TDIVS",
+        "TMINS",    "TMAXS",   "TABS",     "TNEG",     "TEXP",    "TSQRT",      "TRSQRT",     "TLOG",      "TRELU",
+        "TLRELU",   "TNOT",    "TROWSUM",  "TROWMAX",  "TROWMIN", "TROWPROD",   "TCOLSUM",    "TCOLMAX",   "TCOLMIN",
+        "TCOLPROD", "TMATMUL", "TGEMV",    "TCVT",     "TMOV",    "TLOAD",      "TSTORE",     "TTRANS",    "TSORT32",
+        "TMRGSORT", "TSEL",    "TSCATTER", "TEXTRACT", "TINSERT", "TROWEXPAND", "TCOLEXPAND", "TLOADCONV", "TPREFETCH",
+    };
+    auto idx = static_cast<std::underlying_type_t<PtoOpcode>>(op);
+    if (idx >= 0 && static_cast<size_t>(idx) < names.size()) {
+        return names[static_cast<size_t>(idx)];
+    }
+    return "Unknown";
 }
 
 inline constexpr const char *TransferTileTypeToString(TransferTileType tile_type)
@@ -181,7 +233,7 @@ inline bool WarnAndFallbackToZero(const CostModelInput &input, CostModelResult &
     result.cycles = 0.0;
     result.latency_us = 0.0L;
     std::cerr << "[WARN] lightweight::EstimateCycles fallback to 0 cycles: " << reason
-              << ", op=" << static_cast<int>(input.op) << ", dtype=" << DTypeToString(input.dtype)
+              << ", op=" << PtoOpcodeToString(input.op) << ", dtype=" << DTypeToString(input.dtype)
               << ", rows=" << input.rows << ", cols=" << input.cols
               << ", tile_type=" << TransferTileTypeToString(input.tile_type) << ", data_size=" << input.data_size
               << '\n';
@@ -253,21 +305,24 @@ inline bool TryEstimateMatmulCycles(const CostModelInput &input, uint64_t &cycle
 
 inline bool TryGetDTypeSizeBytes(DType dtype, uint64_t &bytes)
 {
+    constexpr uint64_t kByteOne = 1;
+    constexpr uint64_t kByteTwo = 2;
+    constexpr uint64_t kByteFour = 4;
     switch (dtype) {
         case DType::Int8:
         case DType::Uint8:
-            bytes = 1;
+            bytes = kByteOne;
             return true;
         case DType::Half:
         case DType::Int16:
         case DType::Uint16:
         case DType::BFloat16:
-            bytes = 2;
+            bytes = kByteTwo;
             return true;
         case DType::Float:
         case DType::Int32:
         case DType::Uint32:
-            bytes = 4;
+            bytes = kByteFour;
             return true;
         default:
             return false;
@@ -315,6 +370,16 @@ inline bool TryEstimateTransferLatency(const CostModelInput &input, const Predic
 inline bool EstimateCycles(const CostModelInput &input, const PredictRuntimeConfig &predict_config,
                            CostModelResult &result)
 {
+    if (input.arch == CostModelArch::A5) {
+        uint64_t cycles = 0;
+        if (!a5::TryEstimateA5VfCycles(input, cycles)) {
+            return WarnAndFallbackToZero(input, result, "unsupported A5 VF curve key");
+        }
+        result.cycles = static_cast<double>(cycles);
+        result.latency_us = evaluator::CyclesToUs(cycles, predict_config.frequency_mhz);
+        return true;
+    }
+
     if (input.op == PtoOpcode::TLOAD || input.op == PtoOpcode::TSTORE || input.op == PtoOpcode::TMOV) {
         if (TryEstimateTransferLatency(input, predict_config, result)) {
             return true;
@@ -373,5 +438,7 @@ inline CostModelResult EstimateCycles(const CostModelInput &input)
 }
 
 } // namespace pto::mocker::lightweight
+
+#include <pto/costmodel/a5/vf_costmodel.hpp>
 
 #endif

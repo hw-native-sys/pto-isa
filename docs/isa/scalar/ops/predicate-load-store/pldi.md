@@ -8,7 +8,7 @@ Load the full predicate register from a UB location with an immediate (compile-t
 
 ## Mechanism
 
-`pto.pldi` reads a predicate word from a UB address computed as `base + imm * 8`, then materializes it as `!pto.mask`. The offset is a compile-time immediate, enabling address resolution at assembly time.
+`pto.pldi` reads a predicate word from a UB address computed as `base + imm * 8`, then materializes it as `!pto.mask<G>`. The offset is a compile-time immediate, enabling address resolution at assembly time.
 
 For predicate width `Pw`, UB base `base`, and immediate offset `imm`:
 
@@ -22,19 +22,19 @@ The immediate offset is encoded directly in the instruction word, in units of 8 
 ### PTO Assembly Form
 
 ```mlir
-%mask = pto.pldi %ub_ptr, %imm, "DIST" : !pto.ptr<i64, ub>, i32 -> !pto.mask
+%mask = pto.pldi %ub_ptr, %imm, "DIST" : !pto.ptr<i64, ub>, i32 -> !pto.mask<G>
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-%mask = pto.pldi %ub_ptr, %imm, "DIST" : !pto.ptr<i64, ub>, i32 -> !pto.mask
+%mask = pto.pldi %ub_ptr, %imm, "DIST" : !pto.ptr<i64, ub>, i32 -> !pto.mask<G>
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.pldi ins(%ub_ptr, %imm, "DIST" : !pto.ptr<i64, ub>, i32) outs(%mask : !pto.mask)
+pto.pldi ins(%ub_ptr, %imm, "DIST" : !pto.ptr<i64, ub>, i32) outs(%mask : !pto.mask<G>)
 ```
 
 ## C++ Intrinsic
@@ -59,7 +59,7 @@ pldi(dst, base, offset, __cce_simd::NORM, __cce_simd::POST_UPDATE);
 
 | Result | Type | Description |
 |--------|------|-------------|
-| `%mask` | `!pto.mask` | Loaded predicate register |
+| `%mask` | `!pto.mask<G>` | Loaded predicate register |
 
 ## Side Effects
 
@@ -111,10 +111,10 @@ void load_immediate(RegBuf<predicate_t>& dst,
 
 ```mlir
 // Load predicate from slot 2 (2 * 8 = 16 bytes offset)
-%mask = pto.pldi %ub_base, 2, "NORM" : !pto.ptr<i64, ub>, i32 -> !pto.mask
+%mask = pto.pldi %ub_base, 2, "NORM" : !pto.ptr<i64, ub>, i32 -> !pto.mask<G>
 
 // Use in predicated vector select
-%result = pto.vsel %v_true, %v_false, %mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+%result = pto.vsel %v_true, %v_false, %mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 ```
 
 ## Related Ops / Instruction Set Links

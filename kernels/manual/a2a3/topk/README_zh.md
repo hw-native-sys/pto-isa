@@ -11,13 +11,15 @@
 ## 目录结构
 
 ```
-kernels/topk/
+kernels/manual/a2a3/topk/
 ├── scripts/
 │   └── gen_data.py              # 生成输入与 golden 输出
 ├── CMakeLists.txt               # 构建配置
-├── topk_kernel.cpp              # Kernel 实现
 ├── main.cpp                     # Host 侧入口
-└── run.sh                       # 便捷脚本
+├── README.md                    # 英文说明
+├── README_zh.md                 # 中文说明
+├── run.sh                       # 便捷脚本
+└── topk_kernel.cpp              # Kernel 实现
 ```
 
 ## 算子说明
@@ -47,7 +49,7 @@ kernels/topk/
 
 ### 类型定义
 
-Topk 实现： 从GM上加载数据和索引到ub上，使用TSort对每32个数据进行排序，使用TMrgsort对每个Tile内部做归并排序. 分别取出topk个数据和索引，存回GM.
+Topk 实现： 从GM上加载数据和索引到ub上，使用TSort对每32个数据进行排序，使用TMrgsort对每个Tile内部做归并排序。分别取出topk个数据和索引，存回GM。
 
 ```cpp
     // data

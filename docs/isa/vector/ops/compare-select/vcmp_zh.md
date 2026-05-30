@@ -19,13 +19,13 @@ result[i] = seed[i] ? cmp(src0[i], src1[i], CMP_MODE) : 0
 ### PTO 汇编形式
 
 ```text
-vcmp %dst, %src0, %src1, %seed, "CMP_MODE" : !pto.mask
+vcmp %dst, %src0, %src1, %seed, "CMP_MODE" : !pto.mask<G>
 ```
 
 ### AS Level 1（SSA）
 
 ```mlir
-%result = pto.vcmp %src0, %src1, %seed, "CMP_MODE" : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.mask
+%result = pto.vcmp %src0, %src1, %seed, "CMP_MODE" : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.mask<G>
 ```
 
 ## 输入
@@ -34,14 +34,14 @@ vcmp %dst, %src0, %src1, %seed, "CMP_MODE" : !pto.mask
 |--------|------|------|
 | `%src0` | `!pto.vreg<NxT>` | 左操作数向量 |
 | `%src1` | `!pto.vreg<NxT>` | 右操作数向量 |
-| `%seed` | `!pto.mask` | 限定哪些 lane 真正参与比较的输入谓词 |
+| `%seed` | `!pto.mask<G>` | 限定哪些 lane 真正参与比较的输入谓词 |
 | `CMP_MODE` | 枚举 | 比较模式，如 `eq`、`ne`、`lt`、`le`、`gt`、`ge` |
 
 ## 预期输出
 
 | 结果 | 类型 | 说明 |
 |------|------|------|
-| `%result` | `!pto.mask` | 每个活跃 bit 记录比较结果的谓词掩码 |
+| `%result` | `!pto.mask<G>` | 每个活跃 bit 记录比较结果的谓词掩码 |
 
 ## 副作用
 
@@ -76,7 +76,7 @@ for (int i = 0; i < N; i++)
 
 ```mlir
 %lt_mask = pto.vcmp %a, %b, %all_active, "lt"
-    : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.mask
+    : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.mask<b32>
 ```
 
 ## 性能

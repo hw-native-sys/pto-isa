@@ -11,68 +11,48 @@
 # --------------------------------------------------------------------------------
 
 import os
+import math
 import numpy as np
 np.random.seed(19)
 
-PAD_VALUE_NULL = "PAD_VAL_NULL"
-PAD_VALUE_MAX = "PAD_VAL_MAX"
-
-
-def gen_golden_data_tsels(case_name, param):
+def gen_golden_data(case_name, param):
     dtype = param.dtype
-
-    if param.pad_value == PAD_VALUE_MAX:
-        height, width = [param.global_row, param.global_col]
-    else:
-        height, width = [param.tile_row, param.tile_col]
-    h_valid, w_valid = [param.valid_row, param.valid_col]
+    dst_tile_row, dst_tile_col = param.dst_tile_row, param.dst_tile_col
+    mask_tile_row, mask_tile_col = param.mask_tile_row, param.mask_tile_col
+    src_tile_row, src_tile_col = param.src_tile_row, param.src_tile_col
+    height, width = param.valid_row, param.valid_col
 
     # Generate random input arrays
     if dtype in (np.int8, np.uint8, np.int16, np.uint16, np.int32, np.uint32):
-        input1 = np.random.randint(1, 10, size=[height, width]).astype(dtype)
-        input2 = np.random.randint(10, 20, size=[height, width]).astype(dtype)
+        dtype_info = np.iinfo(dtype)
+        input1 = np.random.randint(dtype_info.min, dtype_info.max, size=[src_tile_row, src_tile_col]).astype(dtype)
+        input2 = np.random.randint(dtype_info.min, dtype_info.max, size=[1]).astype(dtype)
     else:
-        input1 = np.random.uniform(low=-1303.033, high=33003.033, size=[height, width]).astype(dtype)
-        input2 = np.random.uniform(low=-1303.033, high=33003.033, size=[height, width]).astype(dtype)
-    select_mode = np.random.randint(0, 2, dtype=np.uint8)
+        dtype_info = np.finfo(dtype)
+        input1 = np.random.uniform(low=dtype_info.min, high=dtype_info.max,
+            size=[src_tile_row, src_tile_col]).astype(dtype)
+        input2 = np.random.uniform(low=dtype_info.min, high=dtype_info.max, size=[1]).astype(dtype)
+    mask_dtype_info = np.iinfo(param.dtype_mask)
+    mask = np.random.randint(mask_dtype_info.min, mask_dtype_info.max,
+        size=[mask_tile_row, mask_tile_col]).astype(param.dtype_mask)
+    mask_u8view = mask.view(np.uint8).reshape(mask.shape[0], -1)
+    golden = np.zeros([dst_tile_row, dst_tile_col]).astype(dtype)
 
-    golden = np.empty_like(input1)
-
-    for i in range(height):
-        for j in range(width):
-            golden[i, j] = input1[i, j] if select_mode == 1 else input2[i, j]
-
-    # Apply valid region constraints
-    output = np.zeros([height, width]).astype(dtype)
-    for h in range(height):
-        for w in range(width):
-            if h >= h_valid or w >= w_valid:
-                golden[h][w] = output[h][w]
+    # Apply mask
+    for y in range(height):
+        for x in range(width):
+            do_select = (1 << (x & 7)) & mask_u8view[y, x >> 3]
+            golden[y, x] = input1[y, x] if do_select != 0 else input2[0]
 
     # Save the input and golden data to binary files
     input1.tofile("input1.bin")
     input2.tofile("input2.bin")
-    select_mode.tofile("input_scalar.bin")
+    mask.tofile("mask.bin")
     golden.tofile("golden.bin")
-
-    return output, input1, input2, golden
 
 
 class TestParams:
-    def __init__(self, dtype, global_row, global_col, tile_row, tile_col,
-                 valid_row, valid_col,
-                 pad_value=PAD_VALUE_NULL):
-        self.dtype = dtype
-        self.global_row = global_row
-        self.global_col = global_col
-        self.tile_row = tile_row
-        self.tile_col = tile_col
-        self.valid_row = valid_row
-        self.valid_col = valid_col
-        self.pad_value = pad_value
-
-def generate_case_name(param):
-    dtype_str = {
+    DTYPE_STR_TABLE = {
         np.float32: 'float',
         np.float16: 'half',
         np.int32: 'int32',
@@ -81,9 +61,23 @@ def generate_case_name(param):
         np.uint16: 'uint16',
         np.int8: 'int8',
         np.uint8: 'uint8',
-    }[param.dtype]
-    return f"TSELSTest.case_{dtype_str}_{param.global_row}x{param.global_col}"\
-        f"_{param.tile_row}x{param.tile_col}_{param.valid_row}x{param.valid_col}"
+    }
+
+    def __init__(self, dtype, dtype_mask, dst_tile_row, dst_tile_col, mask_tile_row, mask_tile_col,
+        src_tile_row, src_tile_col, valid_row, valid_col):
+        self.dtype = dtype
+        self.dtype_mask = dtype_mask
+        self.dst_tile_row = dst_tile_row
+        self.dst_tile_col = dst_tile_col
+        self.mask_tile_row = mask_tile_row
+        self.mask_tile_col = mask_tile_col
+        self.src_tile_row = src_tile_row
+        self.src_tile_col = src_tile_col
+        self.valid_row = valid_row
+        self.valid_col = valid_col
+        self.name = f"TSELSTest.case_{self.DTYPE_STR_TABLE[dtype]}_{self.DTYPE_STR_TABLE[dtype_mask]}"\
+            f"_{dst_tile_row}x{dst_tile_col}_{mask_tile_row}x{mask_tile_col}"\
+            f"_{src_tile_row}x{src_tile_col}_{valid_row}x{valid_col}"
 
 if __name__ == "__main__":
     # Get the absolute path of the script
@@ -94,29 +88,36 @@ if __name__ == "__main__":
     if not os.path.exists(testcases_dir):
         os.makedirs(testcases_dir)
 
-    case_params_list = [
-        TestParams(np.float32, 64, 64, 32, 32, 64, 64),
-        TestParams(np.float32, 128, 128, 64, 64, 128, 128),
-        TestParams(np.float32, 2, 32, 2, 32, 2, 32),
-        TestParams(np.int32, 2, 32, 2, 32, 2, 32),
-        TestParams(np.uint32, 2, 32, 2, 32, 2, 32),
-        TestParams(np.float16, 2, 32, 2, 32, 2, 32),
-        TestParams(np.int16, 2, 32, 2, 32, 2, 32),
-        TestParams(np.int8, 2, 32, 2, 32, 2, 32),
-        TestParams(np.uint8, 2, 32, 2, 32, 2, 32),
-
-        TestParams(np.float32, 60, 60, 64, 64, 60, 60, PAD_VALUE_MAX),
-        TestParams(np.float32, 16, 200, 20, 224, 16, 200, PAD_VALUE_MAX),
-        TestParams(np.float32, 16, 200, 20, 256, 16, 200, PAD_VALUE_MAX),
-        TestParams(np.float32, 1, 3600, 2, 4096, 1, 3600, PAD_VALUE_MAX),
-        TestParams(np.uint16, 16, 200, 20, 224, 16, 200, PAD_VALUE_MAX),
+    case_list = [
+        TestParams(np.uint8, np.uint8, 2, 32, 2, 32, 2, 32, 2, 32),
+        TestParams(np.uint8, np.uint16, 2, 32, 2, 16, 2, 32, 2, 32),
+        TestParams(np.uint8, np.uint32, 2, 32, 2, 8, 2, 32, 2, 32),
+        TestParams(np.uint16, np.uint8, 2, 16, 2, 32, 2, 16, 2, 16),
+        TestParams(np.uint16, np.uint16, 2, 16, 2, 16, 2, 16, 2, 16),
+        TestParams(np.uint16, np.uint32, 2, 16, 2, 8, 2, 16, 2, 16),
+        TestParams(np.uint32, np.uint8, 2, 8, 2, 32, 2, 8, 2, 8),
+        TestParams(np.uint32, np.uint16, 2, 8, 2, 16, 2, 8, 2, 8),
+        TestParams(np.uint32, np.uint32, 2, 8, 2, 8, 2, 8, 2, 8),
+        TestParams(np.float16, np.uint8, 2, 16, 2, 32, 2, 16, 2, 16),
+        TestParams(np.float16, np.uint16, 2, 16, 2, 16, 2, 16, 2, 16),
+        TestParams(np.float16, np.uint32, 2, 16, 2, 8, 2, 16, 2, 16),
+        TestParams(np.float32, np.uint8, 2, 8, 2, 32, 2, 8, 2, 8),
+        TestParams(np.float32, np.uint16, 2, 8, 2, 16, 2, 8, 2, 8),
+        TestParams(np.float32, np.uint32, 2, 8, 2, 8, 2, 8, 2, 8),
+        TestParams(np.uint8, np.uint8, 2, 32, 2, 64, 2, 128, 2, 31),
+        TestParams(np.uint16, np.uint8, 2, 32, 2, 64, 2, 128, 2, 31),
+        TestParams(np.float32, np.uint8, 2, 32, 2, 64, 2, 128, 2, 31),
+        TestParams(np.uint8, np.uint8, 32, 672, 32, 96, 32, 672, 32, 666),
+        TestParams(np.float16, np.uint8, 32, 672, 32, 96, 32, 672, 32, 666),
+        TestParams(np.float32, np.uint8, 32, 672, 32, 96, 32, 672, 32, 666),
+        TestParams(np.float32, np.uint8, 1, 8192, 1, 4096, 1, 8192, 1, 8192),
     ]
 
-    for i, param in enumerate(case_params_list):
-        case_name = generate_case_name(param)
+    for param in case_list:
+        case_name = param.name
         if not os.path.exists(case_name):
             os.makedirs(case_name)
         original_dir = os.getcwd()
         os.chdir(case_name)
-        gen_golden_data_tsels(case_name, param)
+        gen_golden_data(case_name, param)
         os.chdir(original_dir)

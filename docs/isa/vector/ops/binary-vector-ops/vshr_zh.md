@@ -35,13 +35,13 @@ vshr %dst, %lhs, %rhs, %mask : !pto.vreg<NxT>
 ### AS Level 1（SSA）
 
 ```mlir
-%result = pto.vshr %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask) -> !pto.vreg<NxT>
+%result = pto.vshr %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>) -> !pto.vreg<NxT>
 ```
 
 ### AS Level 2（DPS）
 
 ```mlir
-pto.vshr ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask)
+pto.vshr ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>)
           outs(%result : !pto.vreg<NxT>)
 ```
 
@@ -53,7 +53,7 @@ pto.vshr ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask)
 |--------|------|------|
 | `%lhs` | `!pto.vreg<NxT>` | 被右移的值 |
 | `%rhs` | `!pto.vreg<NxT>` | 每个 lane 的无符号位移计数 |
-| `%mask` | `!pto.mask` | 谓词掩码；掩码位为 1 的 lane 参与位移 |
+| `%mask` | `!pto.mask<G>` | 谓词掩码；掩码位为 1 的 lane 参与位移 |
 
 ## 预期输出
 
@@ -122,10 +122,10 @@ for (int i = 0; i < N; i++)
 ```mlir
 %count = pto.vbroadcast %c2 : i32 -> !pto.vreg<64xi32>
 %shifted = pto.vshr %data, %count, %active
-    : (!pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask) -> !pto.vreg<64xi32>
+    : (!pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask<b32>) -> !pto.vreg<64xi32>
 
 %shifted2 = pto.vshr %data, %counts, %active
-    : (!pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask) -> !pto.vreg<64xi32>
+    : (!pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask<b32>) -> !pto.vreg<64xi32>
 ```
 
 ## 性能

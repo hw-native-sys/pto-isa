@@ -21,7 +21,7 @@ vgather2_bc %result, %source, %offsets, %mask
 ### AS Level 1（SSA）
 
 ```mlir
-%result = pto.vgather2_bc %source, %offsets, %mask : !pto.ptr<T, ub>, !pto.vreg<NxI>, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vgather2_bc %source, %offsets, %mask : !pto.ptr<T, ub>, !pto.vreg<NxI>, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 ## 输入
@@ -58,7 +58,7 @@ vgather2_bc %result, %source, %offsets, %mask
 ## 示例
 
 ```mlir
-%result = pto.vgather2_bc %source, %offsets, %mask : !pto.ptr<T, ub>, !pto.vreg<NxI>, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vgather2_bc %source, %offsets, %mask : !pto.ptr<T, ub>, !pto.vreg<NxI>, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 ## 性能

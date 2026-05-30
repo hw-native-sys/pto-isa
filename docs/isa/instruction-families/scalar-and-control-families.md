@@ -41,7 +41,7 @@ Scalar/control instructions produce:
 
 - Control state changes (pipeline barriers, control flow)
 - Event tokens for explicit synchronization (`RecordEvent`)
-- Predicate masks (`!pto.mask`)
+- Predicate masks (`!pto.mask<G>`)
 - Configured DMA state ready for transfer
 - UB buffer handles
 

@@ -6,7 +6,8 @@
 
 Gather operation: the calling NPU (root) collects data from all ranks in the parallel group and concatenates the results along **DIM_3** (row dimension) into a local output buffer.
 
-Only the root needs to execute `pto.tgather`. Non-root ranks only need to ensure their source buffers are ready and remain valid for the duration of the operation. Calling `pto.tgather` on non-root ranks is undefined behavior.
+
+Only the root needs to execute `TGATHER`. Non-root ranks only need to ensure their source buffers are ready and remain valid for the duration of the operation. Calling `TGATHER` on non-root ranks is undefined behavior.
 
 **Large Tile Support**: When the GlobalTensor exceeds the UB tile capacity in rows and/or columns, the transfer is automatically chunked via 2D sliding — the same mechanism used by other PTO-COMM instructions.
 
@@ -27,8 +28,13 @@ Synchronous form:
 ```text
 pto.tgather %group, %dst : (!pto.group<...>, !pto.memref<...>)
 ```
-
 Lowering introduces UB staging tile(s) for the GM→UB→GM data path; the C++ intrinsic requires explicit `stagingTileData` (or `pingTile` / `pongTile`) operand(s).
+
+## Template Parameter
+
+- `engine`:
+    - `CollEngine::AIV` (default)
+    - `CollEngine::CCU` (Ascend950, NPU_ARCH 3510 only)
 
 ## C++ Intrinsic
 
@@ -36,14 +42,16 @@ Declared in `include/pto/comm/pto_comm_inst.hpp`:
 
 ```cpp
 // Basic gather (single staging tile)
-template <typename ParallelGroupType, typename GlobalDstData, typename TileData, typename... WaitEvents>
-PTO_INST RecordEvent GATHER(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
-                            TileData &stagingTileData, WaitEvents&... events);
+template <CollEngine engine = CollEngine::AIV,
+          typename ParallelGroupType, typename GlobalDstData, typename TileData, typename... Args>
+PTO_INST RecordEvent TGATHER(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
+                             TileData &stagingTileData, Args&... args);
 
 // Ping-pong gather (double buffering with two staging tiles)
-template <typename ParallelGroupType, typename GlobalDstData, typename TileData, typename... WaitEvents>
-PTO_INST RecordEvent GATHER(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
-                            TileData &pingTile, TileData &pongTile, WaitEvents&... events);
+template <CollEngine engine = CollEngine::AIV,
+          typename ParallelGroupType, typename GlobalDstData, typename TileData, typename... Args>
+PTO_INST RecordEvent TGATHER(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
+                             TileData &pingTile, TileData &pongTile, Args&... args);
 ```
 
 ## Inputs
@@ -70,23 +78,26 @@ PTO_INST RecordEvent GATHER(ParallelGroupType &parallelGroup, GlobalDstData &dst
 - Non-root ranks must keep their source buffers live until the root signals completion; otherwise behavior is undefined.
 - No implicit fence on unrelated tile traffic.
 
+When `engine == CollEngine::CCU`, the first variadic argument must be a `CcuTriggerContext` containing the CKE slot VA and gate mask. The AIV kernel triggers the CKE gate; the actual gather data path runs on the CCU engine.
+
 ## Constraints
 
-!!! warning "Constraints"
-    - **Type constraints**:
-        - `ParallelGroup::value_type::RawDType` must equal `GlobalDstData::RawDType`.
-        - `TileData::DType` must equal `GlobalDstData::RawDType`.
-    - **Memory constraints**:
-        - `dstGlobalData` must point to local memory (current NPU) and be large enough to hold the concatenated result from all ranks. Specifically, `dstGlobalData.GetShape(DIM_3)` must be $\geq N \times H$ where $H$ is each rank's `GetShape(DIM_3)`.
-        - If `dstGlobalData.GetShape(DIM_3) > N × H`, only the first `N × H` rows are written; remaining rows are left unchanged.
-        - `stagingTileData` (or `pingTile` / `pongTile`) must be pre-allocated in UB.
-    - **ParallelGroup constraints**:
-        - `parallelGroup.tensors[r]` must refer to rank `r`'s source buffer (remote GM as seen by the root).
-        - `parallelGroup.GetRootIdx()` identifies the calling NPU as the gather root.
-        - All source tensors are assumed to have the same shape and strides; behavior is undefined if they differ.
-    - **Chunked mode constraints** (when source data exceeds a single UB tile):
-        - If `TileData` has static `ValidRow`, `GetShape(DIM_3)` of each rank's source must be divisible by `ValidRow`. Use a Tile with `DYNAMIC` ValidRow for partial row support.
-        - If `TileData` has static `ValidCol`, `GetShape(DIM_4)` must be divisible by `ValidCol`. Use a Tile with `DYNAMIC` ValidCol for partial column support.
+- **Type constraints**:
+    - `ParallelGroup::value_type::RawDType` must equal `GlobalDstData::RawDType`.
+    - `TileData::DType` must equal `GlobalDstData::RawDType`.
+- **Memory constraints**:
+    - `dstGlobalData` must point to local memory (current NPU) and be large enough to hold the concatenated result from all ranks. Specifically, `dstGlobalData.GetShape(DIM_3)` must be $\geq N \times H$ where $H$ is each rank's `GetShape(DIM_3)`.
+    - If `dstGlobalData.GetShape(DIM_3) > N × H`, only the first `N × H` rows are written; remaining rows are left unchanged.
+    - `stagingTileData` (or `pingTile` / `pongTile`) must be pre-allocated in UB.
+- **ParallelGroup constraints**:
+    - `parallelGroup.tensors[r]` must refer to rank `r`'s source buffer (remote GM as seen by the root).
+    - `parallelGroup.GetRootIdx()` identifies the calling NPU as the gather root.
+    - All source tensors are assumed to have the same shape and strides; behavior is undefined if they differ.
+- **Chunked mode constraints** (when source data exceeds a single UB tile):
+    - If `TileData` has static `ValidRow`, `GetShape(DIM_3)` of each rank's source must be divisible by `ValidRow`. Use a Tile with `DYNAMIC` ValidRow for partial row support.
+    - If `TileData` has static `ValidCol`, `GetShape(DIM_4)` must be divisible by `ValidCol`. Use a Tile with `DYNAMIC` ValidCol for partial column support.
+
+> **CCU path**: Unlike the AIV path where only root calls `TGATHER`, the CCU path requires all ranks to register and launch the CCU kernel via host-side `HcclCcuKernelRegister` / `HcclCcuKernelLaunch`. See `tests/npu/a5/comm/st/testcase/tgather_ccu/` for a complete example.
 
 ## Exceptions
 
@@ -126,7 +137,7 @@ void gather(__gm__ T* group_addrs[NRANKS], __gm__ T* result, int my_rank) {
     GResult dstG(result);
     TileT stagingTile(TILE_ROWS, TILE_COLS);
 
-    comm::GATHER(group, dstG, stagingTile);
+    comm::TGATHER(group, dstG, stagingTile);
 }
 ```
 
@@ -141,6 +152,7 @@ using namespace pto;
 
 template <typename T, int ROWS, int COLS, int TILE_ROWS, int TILE_COLS, int NRANKS>
 void gather_pingpong(__gm__ T* group_addrs[NRANKS], __gm__ T* result, int my_rank) {
+    // Tile can be smaller than the data in both dimensions
     using TileT = Tile<TileType::Vec, T, TILE_ROWS, TILE_COLS, BLayout::RowMajor, -1, -1>;
     using GPerRank = GlobalTensor<T, Shape<1,1,1,ROWS,COLS>,
                                   BaseShape2D<T, ROWS, COLS, Layout::ND>, Layout::ND>;
@@ -157,7 +169,8 @@ void gather_pingpong(__gm__ T* group_addrs[NRANKS], __gm__ T* result, int my_ran
     TileT pingTile(TILE_ROWS, TILE_COLS);
     TileT pongTile(TILE_ROWS, TILE_COLS);
 
-    comm::GATHER(group, dstG, pingTile, pongTile);
+    // Ping-pong: overlaps TLOAD and TSTORE for better throughput
+    comm::TGATHER(group, dstG, pingTile, pongTile);
 }
 ```
 

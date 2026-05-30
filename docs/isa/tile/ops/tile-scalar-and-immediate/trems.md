@@ -41,10 +41,16 @@ pto.trems ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_b
 Declared in `include/pto/common/pto_instr.hpp`:
 
 ```cpp
-template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp, typename... WaitEvents>
+template <auto PrecisionType = RemSAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc,
+          typename TileDataTmp, typename... WaitEvents>
 PTO_INST RecordEvent TREMS(TileDataDst &dst, TileDataSrc &src, typename TileDataSrc::DType scalar,
                            TileDataTmp &tmp, WaitEvents &... events);
 ```
+
+`PrecisionType` selects the scalar remainder algorithm:
+
+- `RemSAlgorithm::DEFAULT`: normal algorithm, faster with lower precision.
+- `RemSAlgorithm::HIGH_PRECISION`: high-precision algorithm, slower and supported only for `float`.
 
 ## Inputs
 
@@ -69,6 +75,9 @@ No architectural side effects beyond producing the destination tile. Does not im
 
     - **Valid Region**:
         - The op uses `dst.GetValidRow()` / `dst.GetValidCol()` as the iteration domain.
+
+    - **High-precision algorithm**:
+        - Only available on A5; A2A3 ignores the `PrecisionType` option.
 
 ## Exceptions
 

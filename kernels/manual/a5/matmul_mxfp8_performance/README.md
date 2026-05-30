@@ -55,7 +55,7 @@ The default reference configuration in `main.cpp` is `m=k=n=6144` and `scaleK=k/
 This example uses Ascend A5 platform as the performance validation platform.
 
 - **Core Partitioning**：
-  
+
   The core goal is to fully utilize multi-core parallel computing power and evenly split the overall computing task across different Cube cores.
   - In this example, `m = n = k`; it is generally not recommended to partition the `k`，dimension within a single core, but instead partition the `m` and `n` dimensions.
   - The global task is partitioned across cores in a 4 × 8 manner, with a single core responsible for submatrices of dimensions `singleCoreM=1536`, `singleCoreK=6144` and `singleCoreN=768`, ensuring load balancing across all cores and maximizing parallelism.
@@ -97,7 +97,7 @@ The following data were collected on Ascend A5, covering multiple sizes with m=k
 | `m=6144` `k=6144` `n=6144` | 91.6% | 57.3% | 98.2% | 3.5% | 0.6020 |
 | `m=8192` `k=8192` `n=8192` | 90.1% | 56.2% | 99.6% | 2.6% | 1.4749 |
 
-For the meaning of the parameters in the table and the performance optimization scheme, please refer to[gemm_performance Measured Performance](../../a2a3/gemm_performance/README.md#measured-performance-reference)。
+For the meaning of the parameters in the table and the performance optimization scheme, please refer to [gemm_performance Measured Performance](../../a2a3/gemm_performance/README.md#measured-performance-reference).
 
 ## Build and Run
 
@@ -117,7 +117,7 @@ python3 scripts/gen_data.py
 3. Run the example:
 
 ```bash
-bash run.sh -r npu -v Ascend910_9599
+bash run.sh -r npu -v Ascend950
 ```
 
 If the run succeeds, the output prints:

@@ -10,6 +10,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #pragma once
 
 #include <pto/costmodel/a2a3/cce_costmodel/cce_costmodel_core.hpp>
+#include <pto/costmodel/perf_sim/recorder.hpp>
 
 inline void dsb(auto barrierType)
 {
@@ -18,11 +19,14 @@ inline void dsb(auto barrierType)
 }
 inline void ffts_cross_core_sync(auto srcPipe, auto msg)
 {
+    uint16_t flag_id = (msg >> 8) & 0xf;
+    ::pto::perf_sim::SyncRecorder::Signal(static_cast<int>(flag_id), srcPipe, -1, true);
     const uint64_t cycles = EstimateConstCycles();
     ::pto::mocker::RecordCceCall("ffts_cross_core_sync", cycles, srcPipe, msg);
 }
-inline void pipe_barrier(auto pipe)
+inline void pto_costmodel_pipe_barrier(auto pipe)
 {
+    ::pto::perf_sim::SyncRecorder::Barrier(pipe);
     FlushTailsForPipe(pipe);
     const uint64_t cycles = EstimateConstCycles();
     ::pto::mocker::RecordCceCall("pipe_barrier", cycles, pipe);
@@ -89,6 +93,7 @@ inline void set_ffts_base_addr(auto fftsAddr)
 }
 inline void set_flag(auto srcPipe, auto dstPipe, auto token)
 {
+    ::pto::perf_sim::SyncRecorder::Signal(static_cast<int>(token), srcPipe, dstPipe);
     const uint64_t cycles = EstimateConstCycles();
     ::pto::mocker::RecordCceCall("set_flag", cycles, srcPipe, dstPipe, token);
 }
@@ -149,12 +154,14 @@ inline void set_vector_mask(auto mask0, auto mask1)
 }
 inline void wait_flag(auto srcPipe, auto dstPipe, auto token)
 {
+    ::pto::perf_sim::SyncRecorder::Wait(static_cast<int>(token), srcPipe, dstPipe);
     FlushTailsForPipe(srcPipe);
     const uint64_t cycles = EstimateConstCycles();
     ::pto::mocker::RecordCceCall("wait_flag", cycles, srcPipe, dstPipe, token);
 }
 inline void wait_flag_dev(auto flagId)
 {
+    ::pto::perf_sim::SyncRecorder::Wait(static_cast<int>(flagId), -1, -1, true);
     const uint64_t cycles = EstimateConstCycles();
     ::pto::mocker::RecordCceCall("wait_flag_dev", cycles, flagId);
 }

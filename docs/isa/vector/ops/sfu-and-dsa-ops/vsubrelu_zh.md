@@ -27,7 +27,7 @@ vsubrelu %dst, %lhs, %rhs, %mask : !pto.vreg<NxT>
 ### AS Level 1（SSA）
 
 ```mlir
-%result = pto.vsubrelu %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask) -> !pto.vreg<NxT>
+%result = pto.vsubrelu %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>) -> !pto.vreg<NxT>
 ```
 
 A5 当前文档化支持的类型：`f16`、`f32`。
@@ -38,7 +38,7 @@ A5 当前文档化支持的类型：`f16`、`f32`。
 |--------|------|------|
 | `%lhs` | `!pto.vreg<NxT>` | 被减数向量 |
 | `%rhs` | `!pto.vreg<NxT>` | 减数向量 |
-| `%mask` | `!pto.mask` | 谓词掩码；掩码位为 1 的 lane 为活跃 lane |
+| `%mask` | `!pto.mask<G>` | 谓词掩码；掩码位为 1 的 lane 为活跃 lane |
 
 ## 预期输出
 
@@ -95,7 +95,7 @@ for (int i = 0; i < N; i++)
 
 ```mlir
 %result = pto.vsubrelu %lhs, %rhs, %mask
-    : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask) -> !pto.vreg<64xf32>
+    : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32>) -> !pto.vreg<64xf32>
 ```
 
 ## 性能

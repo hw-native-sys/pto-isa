@@ -9,7 +9,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include <pto/pto-inst.hpp>
-#include <iostream>
 
 using namespace std;
 using namespace pto;
@@ -19,25 +18,24 @@ template <typename T, uint32_t ROWS_, uint32_t COLS_, uint32_t VALID_R_, uint32_
 __global__ AICORE void runTSORT32(__gm__ T *out, __gm__ T *src, __gm__ uint32_t *idx, __gm__ T *tmp)
 {
     constexpr uint32_t TYPE_COEF = sizeof(float) / sizeof(T);
+    constexpr uint32_t OUT_COLS = TYPE_COEF * 2 * COLS_;
+    constexpr uint32_t ALIGN_COLS = TYPE_COEF * 2 * ALIGN_C;
     using SrcShapeDim5 = pto::Shape<1, 1, 1, ROWS_, COLS_>;
-    using SrcStridDim5 = pto::Stride<1, 1, 1, COLS_, 1>;
+    using SrcStridDim5 = pto::Stride<ROWS_ * COLS_, ROWS_ * COLS_, ROWS_ * COLS_, COLS_, 1>;
     using SrcGlobalData = GlobalTensor<T, SrcShapeDim5, SrcStridDim5>;
-
-    using IdxShapeDim5 = pto::Shape<1, 1, 1, ROWS_, COLS_>;
-    using IdxStridDim5 = pto::Stride<1, 1, 1, COLS_, 1>;
-    using IdxGlobalData = GlobalTensor<uint32_t, IdxShapeDim5, IdxStridDim5>;
+    using IdxGlobalData = GlobalTensor<uint32_t, SrcShapeDim5, SrcStridDim5>;
 
     using TmpShapeDim5 = pto::Shape<1, 1, 1, 1, ALIGN_C>;
-    using TmpStridDim5 = pto::Stride<1, 1, 1, 1, 1>;
+    using TmpStridDim5 = pto::Stride<ALIGN_C, ALIGN_C, ALIGN_C, ALIGN_C, 1>;
     using TmpGlobalData = GlobalTensor<T, TmpShapeDim5, TmpStridDim5>;
 
-    using OutShapeDim5 = pto::Shape<1, 1, 1, ROWS_, TYPE_COEF * 2 * COLS_>;
-    using OutStridDim5 = pto::Stride<1, 1, 1, TYPE_COEF * 2 * COLS_, 1>;
+    using OutShapeDim5 = pto::Shape<1, 1, 1, ROWS_, OUT_COLS>;
+    using OutStridDim5 = pto::Stride<ROWS_ * OUT_COLS, ROWS_ * OUT_COLS, ROWS_ * OUT_COLS, OUT_COLS, 1>;
     using OutGlobalData = GlobalTensor<T, OutShapeDim5, OutStridDim5>;
 
     using SrcTileData = Tile<TileType::Vec, T, ROWS_, ALIGN_C, BLayout::RowMajor, -1, -1>;
     using IdxTileData = Tile<TileType::Vec, uint32_t, ROWS_, ALIGN_C, BLayout::RowMajor, -1, -1>;
-    using DstTileData = Tile<TileType::Vec, T, ROWS_, TYPE_COEF * 2 * ALIGN_C, BLayout::RowMajor, -1, -1>;
+    using DstTileData = Tile<TileType::Vec, T, ROWS_, ALIGN_COLS, BLayout::RowMajor, -1, -1>;
     using TmpTileData = Tile<TileType::Vec, T, 1, ALIGN_C, BLayout::RowMajor>;
 
     SrcTileData srcTile(VALID_R_, VALID_C);

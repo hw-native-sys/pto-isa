@@ -47,16 +47,30 @@ void TestTload()
     // format = 4: DN2ZN
     // format = 5: NC1HWC02NC1HWC0
     // format = 6: FRACTALZ2FRACTALZ
-    size_t srcDataSize = gWholeShape0 * gWholeShape1 * gWholeShape2 * gWholeShape3 * gWholeShape4 * sizeof(DataType);
-    size_t dstDataSize = gShape0 * gShape1 * gShape2 * gShape3 * gShape4 * sizeof(DataType);
+    // format = 7: FRACTALZ4D2FRACTALZ4D
+    // format = 8: NDC1HWC02NDC1HWC0
+    size_t srcDataSize = static_cast<size_t>(gWholeShape0) * static_cast<size_t>(gWholeShape1) *
+                         static_cast<size_t>(gWholeShape2) * static_cast<size_t>(gWholeShape3) *
+                         static_cast<size_t>(gWholeShape4) * sizeof(DataType);
 
+    size_t dstDataSize = static_cast<size_t>(gShape0) * static_cast<size_t>(gShape1) * static_cast<size_t>(gShape2) *
+                         static_cast<size_t>(gShape3) * static_cast<size_t>(gShape4) * sizeof(DataType);
     constexpr int c0Size = 32 / sizeof(DataType);
     if (format == 3) {
         int gShape4Align = (gShape4 + c0Size - 1) / c0Size * c0Size;
-        dstDataSize = gShape0 * gShape1 * gShape2 * gShape3 * gShape4Align * sizeof(DataType);
+        dstDataSize = static_cast<size_t>(gShape0) * static_cast<size_t>(gShape1) * static_cast<size_t>(gShape2) *
+                      static_cast<size_t>(gShape3) * static_cast<size_t>(gShape4Align) * sizeof(DataType);
     } else if (format == 4) {
         int gShape3Align = (gShape3 + c0Size - 1) / c0Size * c0Size;
-        dstDataSize = gShape0 * gShape1 * gShape2 * gShape3Align * gShape4 * sizeof(DataType);
+        dstDataSize = static_cast<size_t>(gShape0) * static_cast<size_t>(gShape1) * static_cast<size_t>(gShape2) *
+                      static_cast<size_t>(gShape3Align) * static_cast<size_t>(gShape4) * sizeof(DataType);
+    } else if (format == 8) {
+        srcDataSize = static_cast<size_t>(gWholeShape0) * static_cast<size_t>(gWholeShape1) *
+                      static_cast<size_t>(gWholeShape2) * static_cast<size_t>(gWholeShape3) *
+                      static_cast<size_t>(gWholeShape4) * static_cast<size_t>(c0Size) * sizeof(DataType);
+        dstDataSize = static_cast<size_t>(gShape0) * static_cast<size_t>(gShape1) * static_cast<size_t>(gShape2) *
+                      static_cast<size_t>(gShape3) * static_cast<size_t>(gShape4) * static_cast<size_t>(c0Size) *
+                      sizeof(DataType);
     }
 
     aclInit(nullptr);
@@ -331,4 +345,34 @@ TEST_F(TLoadGM2L1Test, FZ4D2FZ4D_int8_t_1_125_3_16_32_1_250_5_16_32)
 TEST_F(TLoadGM2L1Test, FZ4D2FZ4D_float_1_256_3_16_8_1_4704_7_16_8)
 {
     TestTload<7, float, 1, 256, 3, 16, 8, 1, 4704, 7, 16, 8>();
+}
+
+TEST_F(TLoadGM2L1Test, NDC1HWC02NDC1HWC0_int8_t_1_2_3_16_128_2_3_4_1024_1024)
+{
+    TestTload<8, int8_t, 1, 2, 3, 16, 128, 2, 3, 4, 1024, 1024>();
+}
+TEST_F(TLoadGM2L1Test, NDC1HWC02NDC1HWC0_int8_t_1_3_4_128_8_2_3_4_128_128)
+{
+    TestTload<8, int8_t, 1, 3, 4, 128, 8, 2, 3, 4, 128, 128>();
+}
+TEST_F(TLoadGM2L1Test, NDC1HWC02NDC1HWC0_int8_t_1_3_4_8_128_2_3_8_8_128)
+{
+    TestTload<8, int8_t, 1, 3, 4, 8, 128, 2, 3, 8, 8, 128>();
+}
+
+TEST_F(TLoadGM2L1Test, NDC1HWC02NDC1HWC0_bfloat16_1_1_16_10_100_2_1_16_100_100)
+{
+    TestTload<8, uint16_t, 1, 1, 16, 10, 100, 2, 1, 16, 100, 100>();
+}
+TEST_F(TLoadGM2L1Test, NDC1HWC02NDC1HWC0_bfloat16_1_1_10_16_2_2_2_256_16_100)
+{
+    TestTload<8, uint16_t, 1, 1, 10, 16, 2, 2, 2, 256, 16, 100>();
+}
+TEST_F(TLoadGM2L1Test, NDC1HWC02NDC1HWC0_bfloat16_1_1_1_1_8192_2_8_16_16_8192)
+{
+    TestTload<8, uint16_t, 1, 1, 1, 1, 8192, 2, 8, 16, 16, 8192>();
+}
+TEST_F(TLoadGM2L1Test, NDC1HWC02NDC1HWC0_float_1_1_1_112_112_2_2_3_224_224)
+{
+    TestTload<8, float, 1, 1, 1, 112, 112, 2, 2, 3, 224, 224>();
 }

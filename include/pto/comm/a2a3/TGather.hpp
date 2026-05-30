@@ -62,6 +62,46 @@ PTO_INTERNAL void TgatherSimple(ParallelGroupType &parallelGroup, GlobalDstData 
     }
 }
 
+// Inner row/col 2D sliding loop for chunked gather
+template <typename TileData, typename T, Layout srcLayout, Layout dstLayout>
+PTO_INTERNAL void TgatherChunkedRowColLoop(TileData &stagingTileData, __gm__ T *srcPtr, __gm__ T *dstPtr,
+                                           int64_t srcBase, int64_t dstBase, int gShape3, int gShape4, int tileValidRow,
+                                           int tileValidCol, const int (&srcStep)[5], const int (&dstStep)[5])
+{
+    constexpr bool isDynamicRow = (TileData::ValidRow == DYNAMIC);
+    constexpr bool isDynamicCol = (TileData::ValidCol == DYNAMIC);
+    using ChunkShape = Shape<1, 1, 1, DYNAMIC, DYNAMIC>;
+    using DynStride = Stride<DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC>;
+    using SrcChunkView = GlobalTensor<T, ChunkShape, DynStride, srcLayout>;
+    using DstChunkView = GlobalTensor<T, ChunkShape, DynStride, dstLayout>;
+    DynStride srcChunkStride(srcStep[0], srcStep[1], srcStep[2], srcStep[3], srcStep[4]);
+    DynStride dstChunkStride(dstStep[0], dstStep[1], dstStep[2], dstStep[3], dstStep[4]);
+
+    for (int rowOff = 0; rowOff < gShape3; rowOff += tileValidRow) {
+        int curRows = (gShape3 - rowOff < tileValidRow) ? (gShape3 - rowOff) : tileValidRow;
+        if constexpr (isDynamicRow)
+            stagingTileData.RowMaskInternal = curRows;
+        for (int colOff = 0; colOff < gShape4; colOff += tileValidCol) {
+            int curCols = (gShape4 - colOff < tileValidCol) ? (gShape4 - colOff) : tileValidCol;
+            if constexpr (isDynamicCol)
+                stagingTileData.ColMaskInternal = curCols;
+            const int64_t srcOff =
+                srcBase + static_cast<int64_t>(rowOff) * srcStep[3] + static_cast<int64_t>(colOff) * srcStep[4];
+            const int64_t dstOff =
+                dstBase + static_cast<int64_t>(rowOff) * dstStep[3] + static_cast<int64_t>(colOff) * dstStep[4];
+            ChunkShape chunkShape(1, 1, 1, curRows, curCols);
+            SrcChunkView srcView(srcPtr + srcOff, chunkShape, srcChunkStride);
+            TLOAD(stagingTileData, srcView);
+            set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+            wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+            DstChunkView dstChunk(dstPtr + dstOff, chunkShape, dstChunkStride);
+            TSTORE(dstChunk, stagingTileData);
+            set_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
+            wait_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
+        }
+    }
+}
+
 // 2D sliding chunked gather with single buffer
 template <typename ParallelGroupType, typename GlobalDstData, typename TileData>
 PTO_INTERNAL void TgatherChunkedSingle(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
@@ -70,8 +110,6 @@ PTO_INTERNAL void TgatherChunkedSingle(ParallelGroupType &parallelGroup, GlobalD
 {
     using GlobalSrcData = typename ParallelGroupTraits<ParallelGroupType>::GlobalDataType;
     using T = typename GlobalSrcData::RawDType;
-    constexpr bool isDynamicRow = (TileData::ValidRow == DYNAMIC);
-    constexpr bool isDynamicCol = (TileData::ValidCol == DYNAMIC);
 
     auto &refSrc = parallelGroup[0];
     const int srcStep[5] = {static_cast<int>(refSrc.GetStride(GlobalTensorDim::DIM_0)),
@@ -85,13 +123,6 @@ PTO_INTERNAL void TgatherChunkedSingle(ParallelGroupType &parallelGroup, GlobalD
                             static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_3)),
                             static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_4))};
 
-    using ChunkShape = Shape<1, 1, 1, DYNAMIC, DYNAMIC>;
-    using DynStride = Stride<DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC>;
-    using SrcChunkView = GlobalTensor<T, ChunkShape, DynStride, GlobalSrcData::layout>;
-    using DstChunkView = GlobalTensor<T, ChunkShape, DynStride, GlobalDstData::layout>;
-    DynStride srcChunkStride(srcStep[0], srcStep[1], srcStep[2], srcStep[3], srcStep[4]);
-    DynStride dstChunkStride(dstStep[0], dstStep[1], dstStep[2], dstStep[3], dstStep[4]);
-
     for (int r = 0; r < nranks; ++r) {
         const int64_t rankDstBase = static_cast<int64_t>(r) * perRankRows * dstStep[3];
         for (int i0 = 0; i0 < gShape0; ++i0) {
@@ -103,29 +134,9 @@ PTO_INTERNAL void TgatherChunkedSingle(ParallelGroupType &parallelGroup, GlobalD
                     const int64_t dstBase = rankDstBase + static_cast<int64_t>(i0) * dstStep[0] +
                                             static_cast<int64_t>(i1) * dstStep[1] +
                                             static_cast<int64_t>(i2) * dstStep[2];
-                    for (int rowOff = 0; rowOff < gShape3; rowOff += tileValidRow) {
-                        int curRows = (gShape3 - rowOff < tileValidRow) ? (gShape3 - rowOff) : tileValidRow;
-                        if constexpr (isDynamicRow)
-                            stagingTileData.RowMaskInternal = curRows;
-                        for (int colOff = 0; colOff < gShape4; colOff += tileValidCol) {
-                            int curCols = (gShape4 - colOff < tileValidCol) ? (gShape4 - colOff) : tileValidCol;
-                            if constexpr (isDynamicCol)
-                                stagingTileData.ColMaskInternal = curCols;
-                            const int64_t srcOff = srcBase + static_cast<int64_t>(rowOff) * srcStep[3] +
-                                                   static_cast<int64_t>(colOff) * srcStep[4];
-                            const int64_t dstOff = dstBase + static_cast<int64_t>(rowOff) * dstStep[3] +
-                                                   static_cast<int64_t>(colOff) * dstStep[4];
-                            ChunkShape chunkShape(1, 1, 1, curRows, curCols);
-                            SrcChunkView srcView(parallelGroup[r].data() + srcOff, chunkShape, srcChunkStride);
-                            TLOAD(stagingTileData, srcView);
-                            set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
-                            wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
-                            DstChunkView dstChunk(dstGlobalData.data() + dstOff, chunkShape, dstChunkStride);
-                            TSTORE(dstChunk, stagingTileData);
-                            set_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
-                            wait_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
-                        }
-                    }
+                    TgatherChunkedRowColLoop<TileData, T, GlobalSrcData::layout, GlobalDstData::layout>(
+                        stagingTileData, parallelGroup[r].data(), dstGlobalData.data(), srcBase, dstBase, gShape3,
+                        gShape4, tileValidRow, tileValidCol, srcStep, dstStep);
                 }
             }
         }
@@ -446,6 +457,27 @@ PTO_INTERNAL void TGATHER_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &
                                                                        dims[0], dims[1], dims[2], dims[3], dims[4],
                                                                        tileValidRow, tileValidCol, nranks, perRankRows);
 }
+
+// CCU engine is only available on A5 hardware.  This stub mirrors the
+// `a2a3/async/TPutAsync.hpp` URMA branch: the name must exist as a template
+// in `pto::comm` so that `::pto::comm::TGATHER_CCU_IMPL<engine>(...)` in
+// pto_comm_inst.hpp parses on A2/A3 builds; the body's static_assert depends
+// on the `engine` template parameter and only fires if the overload is
+// actually instantiated, which is the misuse it flags.
+// `a5/TGather.hpp` defines `PTO_COMM_A5_TGATHER_PROVIDED` before including
+// this header so the stub is omitted on A5 builds, where the real
+// `TGATHER_CCU_IMPL` overload lives.  Otherwise the generic `Args&&...` pack
+// would compete with the real `T&` parameters in `pto::comm`'s overload set
+// and could win under partial ordering on some compilers.
+#ifndef PTO_COMM_A5_TGATHER_PROVIDED
+template <CollEngine engine = CollEngine::CCU, typename... Args>
+PTO_INTERNAL void TGATHER_CCU_IMPL(Args &&...)
+{
+    static_assert(engine != CollEngine::CCU,
+                  "TGATHER<CollEngine::CCU> requires A5 hardware; "
+                  "CCU engine is not available on A2/A3.");
+}
+#endif // PTO_COMM_A5_TGATHER_PROVIDED
 
 } // namespace comm
 } // namespace pto

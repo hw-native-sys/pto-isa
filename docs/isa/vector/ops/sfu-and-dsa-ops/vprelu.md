@@ -21,7 +21,7 @@ vprelu %dst, %src, %alpha, %mask : !pto.vreg<NxT>
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vprelu %input, %alpha, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vprelu %input, %alpha, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 Documented A5 types: `f16, f32`.
@@ -32,7 +32,7 @@ Documented A5 types: `f16, f32`.
 ||---------|------|-------------|
 || `%input` | `!pto.vreg<NxT>` | Activation input vector |
 || `%alpha` | `!pto.vreg<NxT>` | Per-element slope (alpha) vector |
-|| `%mask` | `!pto.mask` | Predicate mask; lanes where mask bit is 1 are active |
+|| `%mask` | `!pto.mask<G>` | Predicate mask; lanes where mask bit is 1 are active |
 
 ## Expected Outputs
 
@@ -95,10 +95,10 @@ for (int i = 0; i < N; i++)
 ### MLIR form
 
 ```mlir
-%result = pto.vprelu %input, %alpha, %mask : (!pto.vreg<64xf16>, !pto.vreg<64xf16>, !pto.mask) -> !pto.vreg<64xf16>
+%result = pto.vprelu %input, %alpha, %mask : (!pto.vreg<64xf16>, !pto.vreg<64xf16>, !pto.mask<b16>) -> !pto.vreg<64xf16>
 ```
 
 ## Related Ops / Instruction Set Links
 
 - Instruction set overview: [SFU And DSA Instructions](../../sfu-and-dsa-ops.md)
-- Next op in instruction set: [pto.vexpdiff](./vexpdiff.md)
+- Next op in instruction set: [pto.vexpdif](./vexpdif.md)

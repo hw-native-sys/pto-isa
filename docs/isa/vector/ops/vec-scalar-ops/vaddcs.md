@@ -15,13 +15,13 @@ For each active lane `i`, `sum = lhs[i] + rhs[i] + carry_in[i]`, `result[i] = lo
 ### PTO Assembly Form
 
 ```text
-vaddcs %dst, %carry_out, %lhs, %rhs, %carry_in, %mask : !pto.vreg<NxT>, !pto.mask
+vaddcs %dst, %carry_out, %lhs, %rhs, %carry_in, %mask : !pto.vreg<NxT>, !pto.mask<G>
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-%result, %carry = pto.vaddcs %lhs, %rhs, %carry_in, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask, !pto.mask -> !pto.vreg<NxT>, !pto.mask
+%result, %carry = pto.vaddcs %lhs, %rhs, %carry_in, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>, !pto.mask<G> -> !pto.vreg<NxT>, !pto.mask<G>
 ```
 
 ## Inputs
@@ -30,15 +30,15 @@ vaddcs %dst, %carry_out, %lhs, %rhs, %carry_in, %mask : !pto.vreg<NxT>, !pto.mas
 | --- | --- | --- |
 | %lhs | `!pto.vreg<NxT>` | Left-hand value vector |
 | %rhs | `!pto.vreg<NxT>` | Right-hand value vector |
-| %carry_in | `!pto.mask` | Incoming carry bit per lane |
-| %mask | `!pto.mask` | Predicate mask; only lanes with mask bit 1 participate |
+| %carry_in | `!pto.mask<G>` | Incoming carry bit per lane |
+| %mask | `!pto.mask<G>` | Predicate mask; only lanes with mask bit 1 participate |
 
 ## Expected Outputs
 
 | Result | Type | Description |
 | --- | --- | --- |
 | %result | `!pto.vreg<NxT>` | Lane-wise arithmetic result on the active lanes |
-| %carry | `!pto.mask` | Carry-out bit produced for each active lane |
+| %carry | `!pto.mask<G>` | Carry-out bit produced for each active lane |
 
 ## Side Effects
 
@@ -75,7 +75,7 @@ for (int i = 0; i < N; i++) {
 ```
 
 ```mlir
-%result, %carry = pto.vaddcs %lhs, %rhs, %carry_in, %mask : !pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask, !pto.mask -> !pto.vreg<64xi32>, !pto.mask
+%result, %carry = pto.vaddcs %lhs, %rhs, %carry_in, %mask : !pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask<b32>, !pto.mask<b32> -> !pto.vreg<64xi32>, !pto.mask<b32>
 ```
 
 ## Related Ops / Instruction Set Links

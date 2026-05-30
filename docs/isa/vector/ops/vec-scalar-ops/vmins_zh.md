@@ -21,7 +21,7 @@ vmins %dst, %src, %scalar, %mask : !pto.vreg<NxT>, T
 ### AS Level 1（SSA）
 
 ```mlir
-%result = pto.vmins %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vmins %input, %scalar, %mask : !pto.vreg<NxT>, T, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 ## 输入
@@ -30,7 +30,7 @@ vmins %dst, %src, %scalar, %mask : !pto.vreg<NxT>, T
 |--------|------|------|
 | `%input` | `!pto.vreg<NxT>` | 源向量寄存器 |
 | `%scalar` | `T` | 与每个活跃 lane 比较的标量值 |
-| `%mask` | `!pto.mask` | 谓词掩码；只有掩码位为 1 的 lane 参与比较 |
+| `%mask` | `!pto.mask<G>` | 谓词掩码；只有掩码位为 1 的 lane 参与比较 |
 
 ## 预期输出
 
@@ -70,7 +70,7 @@ for (int i = 0; i < N; i++)
 ```
 
 ```mlir
-%result = pto.vmins %values, %limit, %mask : !pto.vreg<64xf32>, f32, !pto.mask -> !pto.vreg<64xf32>
+%result = pto.vmins %values, %limit, %mask : !pto.vreg<64xf32>, f32, !pto.mask<b32> -> !pto.vreg<64xf32>
 ```
 
 ## 相关页面

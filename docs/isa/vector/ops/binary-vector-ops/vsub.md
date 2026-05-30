@@ -25,13 +25,13 @@ vsub %dst, %lhs, %rhs, %mask : !pto.vreg<NxT>
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vsub %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask) -> !pto.vreg<NxT>
+%result = pto.vsub %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>) -> !pto.vreg<NxT>
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.vsub ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask)
+pto.vsub ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>)
           outs(%result : !pto.vreg<NxT>)
 ```
 
@@ -43,7 +43,7 @@ Supported element types on A5: `i8-i64`, `f16`, `bf16`, `f32`.
 |---------|------|-------------|
 | `%lhs` | `!pto.vreg<NxT>` | Minuend: the value being subtracted from |
 | `%rhs` | `!pto.vreg<NxT>` | Subtrahend: the value being subtracted |
-| `%mask` | `!pto.mask` | Predicate mask; lanes where mask bit is 1 are active |
+| `%mask` | `!pto.mask<G>` | Predicate mask; lanes where mask bit is 1 are active |
 
 Both source registers MUST have the same element type and the same vector width `N`. The mask width MUST match `N`.
 
@@ -119,10 +119,10 @@ for (int i = 0; i < N; i++)
 
 ```mlir
 // Full-vector subtraction (all lanes active)
-%result = pto.vsub %lhs, %rhs, %active : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask) -> !pto.vreg<64xf32>
+%result = pto.vsub %lhs, %rhs, %active : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32>) -> !pto.vreg<64xf32>
 
 // Partial predication: only subtract where %cond is true
-%diff = pto.vsub %a, %b, %cond : (!pto.vreg<128xf16>, !pto.vreg<128xf16>, !pto.mask) -> !pto.vreg<128xf16>
+%diff = pto.vsub %a, %b, %cond : (!pto.vreg<128xf16>, !pto.vreg<128xf16>, !pto.mask<b16>) -> !pto.vreg<128xf16>
 ```
 
 ## Related Ops / Instruction Set Links

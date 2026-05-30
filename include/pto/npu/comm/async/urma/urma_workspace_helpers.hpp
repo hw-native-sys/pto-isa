@@ -183,7 +183,8 @@ inline void InitDefaultQpAttr(hccp::QpCreateAttr &qpAttr, void *cqHandle, void *
     qpAttr.ub.mode = hccp::JETTY_MODE_USER_CTL_NORMAL;
     qpAttr.ub.jettyId = 0;
     qpAttr.ub.flag.value = 1;
-    qpAttr.ub.jfsFlag.value = 2;
+    constexpr uint32_t kJfsFlagValueDefault = 2;
+    qpAttr.ub.jfsFlag.value = kJfsFlagValueDefault;
     qpAttr.ub.tokenValue = hccp::kTokenValue;
     qpAttr.ub.priority = 0;
     qpAttr.ub.rnrRetry = hccp::kRnrRetryCountDefault;
@@ -241,7 +242,8 @@ inline void PopulateLocalMemInfo(UrmaMemInfo &memInfo, uint32_t tokenId, uint64_
     memInfo.rmtJettyType = 1;
     memInfo.targetHint = 0;
     memInfo.tpn = 0;
-    memInfo.tid = tokenId >> 8;
+    constexpr uint32_t kTokenIdTidShift = 8;
+    memInfo.tid = tokenId >> kTokenIdTidShift;
     memInfo.rmtTokenValue = hccp::kTokenValue;
     memInfo.len = static_cast<uint32_t>(symmetricSize);
     memInfo.addr = reinterpret_cast<uint64_t>(symmetricAddr);

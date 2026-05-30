@@ -1,0 +1,218 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-label="TPARTARGMAX tile operation diagram">
+<defs>
+  <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+    <path d="M0,0 L0,8 L8,4 z" fill="#C53A79"/>
+  </marker>
+  <marker id="axisArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+    <path d="M0,0 L0,8 L8,4 z" fill="#64748b"/>
+  </marker>
+</defs>
+<style>
+svg { font-family: Arial, Helvetica, sans-serif; }
+.title { font-size: 30px; font-weight: 700; fill: #0f172a; }
+.subtitle { font-size: 14px; fill: #334155; }
+.meta { font-size: 12px; fill: #64748b; }
+.frame { fill: white; }
+.panel { fill: #FDF0F6; stroke: #e2e8f0; stroke-width: 1.5; rx: 14; }
+.tileLabel { font-size: 15px; font-weight: 700; fill: #0f172a; }
+.tileNote { font-size: 12px; fill: #475569; }
+.tileBorder { fill: none; stroke: #475569; stroke-width: 1.5; }
+.cell { fill: #ffffff; stroke: #94a3b8; stroke-width: 1; }
+.cellMasked { fill: #e2e8f0; }
+.cellHL { stroke-width: 2; }
+.arrow { stroke-width: 2.5; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.axisLine { stroke: #64748b; stroke-width: 1.5; fill: none; }
+.axisText { font-size: 10px; fill: #64748b; font-weight: 700; }
+.opRect { fill: #ffffff; stroke: #C53A79; stroke-width: 2; rx: 10; }
+.opText { font-size: 16px; font-weight: 800; fill: #0f172a; }
+.validBox { fill: none; stroke-width: 2; stroke-dasharray: 6 4; }
+.caption { font-size: 12px; fill: #475569; }
+.idxCell { fill: #E8F4FD; stroke: #94a3b8; stroke-width: 1; }
+</style>
+<rect x="0" y="0" width="1200" height="800" class="frame" />
+<rect x="24" y="24" width="1152" height="752" class="panel" />
+<text x="40" y="58" class="title">TPARTARGMAX</text>
+<text x="40" y="84" class="subtitle">Partial elementwise max selection returning value and corresponding index.</text>
+<text x="40" y="104" class="meta">Legend: dashed=valid region, shaded=outside valid region, r down / c right, blue cells=index tiles</text>
+<line x1="36" y1="118" x2="1164" y2="118" stroke="#e2e8f0" stroke-width="1.5" />
+<text x="600" y="152" class="subtitle" text-anchor="middle" fill="#C53A79">dstVal[r,c] = max(src0Val[r,c], src1Val[r,c]); dstIdx[r,c] = index of max value</text>
+
+<text x="200" y="194" class="tileLabel" text-anchor="middle">src0Val</text>
+<text x="200" y="212" class="tileNote" text-anchor="middle">value tile</text>
+<rect x="145" y="228" width="110" height="110" class="tileBorder" />
+<rect x="145" y="228" width="22" height="22" class="cell" />
+<rect x="167" y="228" width="22" height="22" class="cell" />
+<rect x="189" y="228" width="22" height="22" class="cell" />
+<rect x="211" y="228" width="22" height="22" class="cell cellMasked" />
+<rect x="233" y="228" width="22" height="22" class="cell cellMasked" />
+<rect x="145" y="250" width="22" height="22" class="cell" />
+<rect x="167" y="250" width="22" height="22" class="cell cellHL" stroke="#C53A79" />
+<rect x="189" y="250" width="22" height="22" class="cell" />
+<rect x="211" y="250" width="22" height="22" class="cell cellMasked" />
+<rect x="233" y="250" width="22" height="22" class="cell cellMasked" />
+<rect x="145" y="272" width="22" height="22" class="cell" />
+<rect x="167" y="272" width="22" height="22" class="cell" />
+<rect x="189" y="272" width="22" height="22" class="cell" />
+<rect x="211" y="272" width="22" height="22" class="cell cellMasked" />
+<rect x="233" y="272" width="22" height="22" class="cell cellMasked" />
+<rect x="145" y="294" width="22" height="22" class="cell cellMasked" />
+<rect x="167" y="294" width="22" height="22" class="cell cellMasked" />
+<rect x="189" y="294" width="22" height="22" class="cell cellMasked" />
+<rect x="211" y="294" width="22" height="22" class="cell cellMasked" />
+<rect x="233" y="294" width="22" height="22" class="cell cellMasked" />
+<rect x="145" y="228" width="66" height="66" class="validBox" stroke="#C53A79" />
+<path d="M 155 238 L 189 238" class="axisLine" marker-end="url(#axisArrow)" />
+<path d="M 155 238 L 155 272" class="axisLine" marker-end="url(#axisArrow)" />
+<text x="193" y="242" class="axisText">c</text>
+<text x="153" y="276" class="axisText" text-anchor="end">r</text>
+
+<text x="200" y="360" class="tileLabel" text-anchor="middle">src0Idx</text>
+<text x="200" y="378" class="tileNote" text-anchor="middle">index tile (same shape as src0Val)</text>
+<rect x="145" y="394" width="110" height="110" class="tileBorder" />
+<rect x="145" y="394" width="22" height="22" class="idxCell" />
+<rect x="167" y="394" width="22" height="22" class="idxCell" />
+<rect x="189" y="394" width="22" height="22" class="idxCell" />
+<rect x="211" y="394" width="22" height="22" class="idxCell cellMasked" />
+<rect x="233" y="394" width="22" height="22" class="idxCell cellMasked" />
+<rect x="145" y="416" width="22" height="22" class="idxCell" />
+<rect x="167" y="416" width="22" height="22" class="idxCell cellHL" stroke="#3B82F6" />
+<rect x="189" y="416" width="22" height="22" class="idxCell" />
+<rect x="211" y="416" width="22" height="22" class="idxCell cellMasked" />
+<rect x="233" y="416" width="22" height="22" class="idxCell cellMasked" />
+<rect x="145" y="438" width="22" height="22" class="idxCell" />
+<rect x="167" y="438" width="22" height="22" class="idxCell" />
+<rect x="189" y="438" width="22" height="22" class="idxCell" />
+<rect x="211" y="438" width="22" height="22" class="idxCell cellMasked" />
+<rect x="233" y="438" width="22" height="22" class="idxCell cellMasked" />
+<rect x="145" y="460" width="22" height="22" class="idxCell cellMasked" />
+<rect x="167" y="460" width="22" height="22" class="idxCell cellMasked" />
+<rect x="189" y="460" width="22" height="22" class="idxCell cellMasked" />
+<rect x="211" y="460" width="22" height="22" class="idxCell cellMasked" />
+<rect x="233" y="460" width="22" height="22" class="idxCell cellMasked" />
+<rect x="145" y="394" width="66" height="66" class="validBox" stroke="#3B82F6" />
+
+<text x="480" y="194" class="tileLabel" text-anchor="middle">src1Val</text>
+<text x="480" y="212" class="tileNote" text-anchor="middle">value tile (smaller valid region)</text>
+<rect x="425" y="228" width="110" height="110" class="tileBorder" />
+<rect x="425" y="228" width="22" height="22" class="cell" />
+<rect x="447" y="228" width="22" height="22" class="cell cellMasked" />
+<rect x="469" y="228" width="22" height="22" class="cell cellMasked" />
+<rect x="491" y="228" width="22" height="22" class="cell cellMasked" />
+<rect x="513" y="228" width="22" height="22" class="cell cellMasked" />
+<rect x="425" y="250" width="22" height="22" class="cell cellHL" stroke="#C53A79" />
+<rect x="447" y="250" width="22" height="22" class="cell cellMasked" />
+<rect x="469" y="250" width="22" height="22" class="cell cellMasked" />
+<rect x="491" y="250" width="22" height="22" class="cell cellMasked" />
+<rect x="513" y="250" width="22" height="22" class="cell cellMasked" />
+<rect x="425" y="272" width="22" height="22" class="cell" />
+<rect x="447" y="272" width="22" height="22" class="cell cellMasked" />
+<rect x="469" y="272" width="22" height="22" class="cell cellMasked" />
+<rect x="491" y="272" width="22" height="22" class="cell cellMasked" />
+<rect x="513" y="272" width="22" height="22" class="cell cellMasked" />
+<rect x="425" y="294" width="22" height="22" class="cell cellMasked" />
+<rect x="447" y="294" width="22" height="22" class="cell cellMasked" />
+<rect x="469" y="294" width="22" height="22" class="cell cellMasked" />
+<rect x="491" y="294" width="22" height="22" class="cell cellMasked" />
+<rect x="513" y="294" width="22" height="22" class="cell cellMasked" />
+<rect x="425" y="228" width="22" height="66" class="validBox" stroke="#C53A79" />
+<path d="M 435 238 L 469 238" class="axisLine" marker-end="url(#axisArrow)" />
+<path d="M 435 238 L 435 272" class="axisLine" marker-end="url(#axisArrow)" />
+<text x="473" y="242" class="axisText">c</text>
+<text x="433" y="276" class="axisText" text-anchor="end">r</text>
+
+<text x="480" y="360" class="tileLabel" text-anchor="middle">src1Idx</text>
+<text x="480" y="378" class="tileNote" text-anchor="middle">index tile (same shape as src1Val)</text>
+<rect x="425" y="394" width="110" height="110" class="tileBorder" />
+<rect x="425" y="394" width="22" height="22" class="idxCell" />
+<rect x="447" y="394" width="22" height="22" class="idxCell cellMasked" />
+<rect x="469" y="394" width="22" height="22" class="idxCell cellMasked" />
+<rect x="491" y="394" width="22" height="22" class="idxCell cellMasked" />
+<rect x="513" y="394" width="22" height="22" class="idxCell cellMasked" />
+<rect x="425" y="416" width="22" height="22" class="idxCell cellHL" stroke="#3B82F6" />
+<rect x="447" y="416" width="22" height="22" class="idxCell cellMasked" />
+<rect x="469" y="416" width="22" height="22" class="idxCell cellMasked" />
+<rect x="491" y="416" width="22" height="22" class="idxCell cellMasked" />
+<rect x="513" y="416" width="22" height="22" class="idxCell cellMasked" />
+<rect x="425" y="438" width="22" height="22" class="idxCell" />
+<rect x="447" y="438" width="22" height="22" class="idxCell cellMasked" />
+<rect x="469" y="438" width="22" height="22" class="idxCell cellMasked" />
+<rect x="491" y="438" width="22" height="22" class="idxCell cellMasked" />
+<rect x="513" y="438" width="22" height="22" class="idxCell cellMasked" />
+<rect x="425" y="460" width="22" height="22" class="idxCell cellMasked" />
+<rect x="447" y="460" width="22" height="22" class="idxCell cellMasked" />
+<rect x="469" y="460" width="22" height="22" class="idxCell cellMasked" />
+<rect x="491" y="460" width="22" height="22" class="idxCell cellMasked" />
+<rect x="513" y="460" width="22" height="22" class="idxCell cellMasked" />
+<rect x="425" y="394" width="22" height="66" class="validBox" stroke="#3B82F6" />
+
+<rect x="270" y="310" width="120" height="50" class="opRect" />
+<text x="330" y="340" class="opText" text-anchor="middle">TPARTARGMAX</text>
+<path d="M 255 314 L 270 332" class="arrow" stroke="#C53A79" marker-end="url(#arrow)" />
+<path d="M 535 314 L 390 332" class="arrow" stroke="#C53A79" marker-end="url(#arrow)" />
+
+<text x="900" y="194" class="tileLabel" text-anchor="middle">dstVal</text>
+<text x="900" y="212" class="tileNote" text-anchor="middle">output value tile</text>
+<rect x="845" y="228" width="110" height="110" class="tileBorder" />
+<rect x="845" y="228" width="22" height="22" class="cell" />
+<rect x="867" y="228" width="22" height="22" class="cell" />
+<rect x="889" y="228" width="22" height="22" class="cell" />
+<rect x="911" y="228" width="22" height="22" class="cell cellMasked" />
+<rect x="933" y="228" width="22" height="22" class="cell cellMasked" />
+<rect x="845" y="250" width="22" height="22" class="cell" />
+<rect x="867" y="250" width="22" height="22" class="cell cellHL" stroke="#C53A79" />
+<rect x="889" y="250" width="22" height="22" class="cell" />
+<rect x="911" y="250" width="22" height="22" class="cell cellMasked" />
+<rect x="933" y="250" width="22" height="22" class="cell cellMasked" />
+<rect x="845" y="272" width="22" height="22" class="cell" />
+<rect x="867" y="272" width="22" height="22" class="cell" />
+<rect x="889" y="272" width="22" height="22" class="cell" />
+<rect x="911" y="272" width="22" height="22" class="cell cellMasked" />
+<rect x="933" y="272" width="22" height="22" class="cell cellMasked" />
+<rect x="845" y="294" width="22" height="22" class="cell cellMasked" />
+<rect x="867" y="294" width="22" height="22" class="cell cellMasked" />
+<rect x="889" y="294" width="22" height="22" class="cell cellMasked" />
+<rect x="911" y="294" width="22" height="22" class="cell cellMasked" />
+<rect x="933" y="294" width="22" height="22" class="cell cellMasked" />
+<rect x="845" y="228" width="66" height="66" class="validBox" stroke="#C53A79" />
+<path d="M 855 238 L 889 238" class="axisLine" marker-end="url(#axisArrow)" />
+<path d="M 855 238 L 855 272" class="axisLine" marker-end="url(#axisArrow)" />
+<text x="893" y="242" class="axisText">c</text>
+<text x="853" y="276" class="axisText" text-anchor="end">r</text>
+<path d="M 390 360 L 845 284" class="arrow" stroke="#C53A79" marker-end="url(#arrow)" />
+
+<text x="900" y="360" class="tileLabel" text-anchor="middle">dstIdx</text>
+<text x="900" y="378" class="tileNote" text-anchor="middle">output index tile (same shape as dstVal)</text>
+<rect x="845" y="394" width="110" height="110" class="tileBorder" />
+<rect x="845" y="394" width="22" height="22" class="idxCell" />
+<rect x="867" y="394" width="22" height="22" class="idxCell" />
+<rect x="889" y="394" width="22" height="22" class="idxCell" />
+<rect x="911" y="394" width="22" height="22" class="idxCell cellMasked" />
+<rect x="933" y="394" width="22" height="22" class="idxCell cellMasked" />
+<rect x="845" y="416" width="22" height="22" class="idxCell" />
+<rect x="867" y="416" width="22" height="22" class="idxCell cellHL" stroke="#3B82F6" />
+<rect x="889" y="416" width="22" height="22" class="idxCell" />
+<rect x="911" y="416" width="22" height="22" class="idxCell cellMasked" />
+<rect x="933" y="416" width="22" height="22" class="idxCell cellMasked" />
+<rect x="845" y="438" width="22" height="22" class="idxCell" />
+<rect x="867" y="438" width="22" height="22" class="idxCell" />
+<rect x="889" y="438" width="22" height="22" class="idxCell" />
+<rect x="911" y="438" width="22" height="22" class="idxCell cellMasked" />
+<rect x="933" y="438" width="22" height="22" class="idxCell cellMasked" />
+<rect x="845" y="460" width="22" height="22" class="idxCell cellMasked" />
+<rect x="867" y="460" width="22" height="22" class="idxCell cellMasked" />
+<rect x="889" y="460" width="22" height="22" class="idxCell cellMasked" />
+<rect x="911" y="460" width="22" height="22" class="idxCell cellMasked" />
+<rect x="933" y="460" width="22" height="22" class="idxCell cellMasked" />
+<rect x="845" y="394" width="66" height="66" class="validBox" stroke="#3B82F6" />
+
+<path d="M 255 476 L 845 440" class="arrow" stroke="#3B82F6" marker-end="url(#arrow)" />
+<path d="M 535 476 L 845 454" class="arrow" stroke="#3B82F6" marker-end="url(#arrow)" />
+
+<text x="40" y="568" class="tileLabel">Key Points:</text>
+<text x="40" y="588" class="tileNote">- Value tiles (white cells) and index tiles (blue cells) must have matching valid regions</text>
+<text x="40" y="606" class="tileNote">- dstVal and dstIdx valid region must match src0Val or src1Val valid region</text>
+<text x="40" y="624" class="tileNote">- When both inputs valid: select max value and its corresponding index</text>
+<text x="40" y="642" class="tileNote">- When only one input valid: copy that input's value and index</text>
+
+<text x="40" y="720" class="caption">Example: src0Val valid region matches dstVal; src1Val has smaller valid region within dstVal bounds.</text>
+</svg>

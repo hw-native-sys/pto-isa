@@ -1,0 +1,127 @@
+# --------------------------------------------------------------------------------
+# Copyright (c) 2026 Huawei Technologies Co., Ltd.
+# This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+# CANN Open Software License Agreement Version 2.0 (the "License").
+# Please refer to the License for details. You may not use this file except in compliance with the License.
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+# INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+# See LICENSE in the root of the software repository for the full text of the License.
+# --------------------------------------------------------------------------------
+
+cmake_minimum_required(VERSION 3.16)
+project(pto_test_perf_sim_st)
+
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+
+add_definitions(-D__COSTMODEL -D__NPU_ARCH__=2201 -DPTO_COMM_NOT_SUPPORTED)
+
+# GTest is required for CPU STs. Prefer a system installation, but fall back to
+# fetching googletest to make macOS builds self-contained.
+find_package(GTest QUIET)
+if (NOT GTest_FOUND)
+    include(FetchContent)
+    message(STATUS "GTest not found; fetching googletest via FetchContent")
+    set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+    set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(
+        googletest
+        URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
+    )
+    FetchContent_MakeAvailable(googletest)
+    if (NOT TARGET GTest::gtest)
+        add_library(GTest::gtest ALIAS gtest)
+    endif()
+    if (NOT TARGET GTest::gtest_main)
+        add_library(GTest::gtest_main ALIAS gtest_main)
+    endif()
+endif()
+
+set(PTO_GLIBCXX_USE_CXX11_ABI "auto" CACHE STRING "Force _GLIBCXX_USE_CXX11_ABI (auto/0/1) for linking with system libs such as GTest.")
+set_property(CACHE PTO_GLIBCXX_USE_CXX11_ABI PROPERTY STRINGS auto 0 1)
+if (PTO_GLIBCXX_USE_CXX11_ABI STREQUAL "auto")
+    if (UNIX AND NOT APPLE AND TARGET GTest::gtest AND (CMAKE_NM OR EXISTS "/usr/bin/nm"))
+        get_target_property(_pto_gtest_loc GTest::gtest IMPORTED_LOCATION)
+        if (NOT _pto_gtest_loc)
+            get_target_property(_pto_gtest_loc GTest::gtest LOCATION)
+        endif()
+        if (_pto_gtest_loc AND EXISTS "${_pto_gtest_loc}")
+            execute_process(
+                COMMAND bash -lc "nm -C \"${_pto_gtest_loc}\" 2>/dev/null | grep -q 'GetBoolAssertionFailureMessage\\[abi:cxx11\\]'"
+                RESULT_VARIABLE _pto_gtest_is_abi1
+            )
+            if (NOT _pto_gtest_is_abi1 EQUAL 0)
+                set(PTO_GLIBCXX_USE_CXX11_ABI "0" CACHE STRING "" FORCE)
+            endif()
+        endif()
+        unset(_pto_gtest_loc)
+        unset(_pto_gtest_is_abi1)
+    endif()
+endif()
+if (PTO_GLIBCXX_USE_CXX11_ABI STREQUAL "0")
+    add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=0)
+endif()
+
+add_compile_options(
+    -D_FORTIFY_SOURCE=2
+    -std=c++23
+    -Wno-macro-redefined -Wno-ignored-attributes
+    -fstack-protector-strong
+)
+
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+    add_compile_options(-O2)
+endif()
+if (CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
+    add_compile_options(-O2)
+endif()
+
+if (UNIX AND NOT APPLE)
+    add_link_options(
+        -Wl,-z,relro
+        -Wl,-z,now
+    )
+endif()
+
+
+set(CMAKE_CPP_COMPILE_OPTIONS
+    -xc++
+    "SHELL:-include stdint.h"
+    "SHELL:-include stddef.h"
+)
+
+# On macOS 26+ (Tahoe / Xcode 17), libc++ headers were moved inside the SDK and
+# are no longer present at the traditional CommandLineTools path. Add them explicitly
+# so that #include <iostream> etc. resolve correctly.
+if (APPLE)
+    execute_process(
+        COMMAND xcrun --show-sdk-path
+        OUTPUT_VARIABLE APPLE_SDK_PATH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    if (APPLE_SDK_PATH)
+        include_directories(SYSTEM "${APPLE_SDK_PATH}/usr/include/c++/v1")
+    endif()
+
+    # Embed the GTest library directory into each target's RPATH so that
+    # @rpath-linked GTest dylibs (e.g. from Anaconda) are found at runtime.
+    if (GTest_FOUND)
+        get_target_property(_gtest_lib GTest::gtest IMPORTED_LOCATION)
+        if (NOT _gtest_lib)
+            get_target_property(_gtest_lib GTest::gtest LOCATION)
+        endif()
+        if (_gtest_lib)
+            get_filename_component(_gtest_lib_dir "${_gtest_lib}" DIRECTORY)
+            list(APPEND CMAKE_BUILD_RPATH "${_gtest_lib_dir}")
+            list(APPEND CMAKE_INSTALL_RPATH "${_gtest_lib_dir}")
+        endif()
+        unset(_gtest_lib)
+        unset(_gtest_lib_dir)
+    endif()
+endif()
+
+add_subdirectory(testcase)

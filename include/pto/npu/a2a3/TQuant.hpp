@@ -15,38 +15,39 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a2a3/TRowExpandAdd.hpp"
 #include "pto/npu/a2a3/TCvt.hpp"
 #include "pto/npu/a2a3/TAssign.hpp"
+#include <pto/common/type.hpp>
 
 namespace pto {
-
-enum class QuantType
-{
-    INT8_SYM,
-    INT8_ASYM
-};
 
 // Check whether two UB buffers overlap (runtime address comparison).
 template <typename TileA, typename TileB>
 PTO_INTERNAL bool TQuantBuffersOverlap(TileA &a, TileB &b)
 {
+#ifndef __PTO_AUTO__
     auto aStart = reinterpret_cast<uintptr_t>(a.data());
     auto aEnd = aStart + TileA::Rows * TileA::RowStride * sizeof(typename TileA::DType);
     auto bStart = reinterpret_cast<uintptr_t>(b.data());
     auto bEnd = bStart + TileB::Rows * TileB::RowStride * sizeof(typename TileB::DType);
     return (aStart < bEnd) && (bStart < aEnd);
+#else
+    return true;
+#endif
 }
 
-// Row-by-row s32→fp16 conversion for in-place aliased buffers with a tail.
-// Processes each row's head + tail atomically to avoid cross-row data corruption.
-template <typename TileDataCvtF16, typename TileDataCvtS32, int PadColsSrc>
-PTO_INTERNAL void TQuantCvtS32ToFp16RowByRow(TileDataCvtF16 &src_f16, TileDataCvtS32 &src_s32, uint32_t validRow)
+// s32→fp16 dispatch: uses row-by-row when buffers overlap and there's a tail.
+template <int PadColsSrc, typename TileDataCvtF16, typename TileDataCvtS32>
+__tf__ PTO_INTERNAL void TQuantCvtS32ToFp16(typename TileDataCvtF16::TileDType __out__ src_f16,
+                                            typename TileDataCvtS32::TileDType __in__ src_s32, uint32_t validRow)
 {
+    // Row-by-row s32→fp16 conversion for in-place aliased buffers with a tail.
+    // Processes each row's head + tail atomically to avoid cross-row data corruption.
     constexpr int kCols = TileDataCvtS32::Cols;
     constexpr int kS32ElemsPerRepeat = static_cast<int>(REPEAT_BYTE / sizeof(int32_t)); // 64
     constexpr int kHeadRepeats = kCols / kS32ElemsPerRepeat;
     constexpr int kTailElems = kCols % kS32ElemsPerRepeat;
 
-    __ubuf__ half *fp16Ptr = (__ubuf__ half *)src_f16.data();
-    __ubuf__ int32_t *s32Ptr = (__ubuf__ int32_t *)src_s32.data();
+    __ubuf__ half *fp16Ptr = (__ubuf__ half *)__cce_get_tile_ptr(src_f16);
+    __ubuf__ int32_t *s32Ptr = (__ubuf__ int32_t *)__cce_get_tile_ptr(src_s32);
 
     set_deqscale(static_cast<half>(1.0));
     pipe_barrier(PIPE_V);
@@ -62,24 +63,9 @@ PTO_INTERNAL void TQuantCvtS32ToFp16RowByRow(TileDataCvtF16 &src_f16, TileDataCv
     }
 }
 
-// s32→fp16 dispatch: uses row-by-row when buffers overlap and there's a tail, otherwise TCVT.
-template <int PadColsSrc, typename TileDataCvtF16, typename TileDataCvtS32>
-PTO_INTERNAL void TQuantCvtS32ToFp16(TileDataCvtF16 &src_f16, TileDataCvtS32 &src_s32, uint32_t validRow)
-{
-    constexpr int kS32ElemsPerRepeat = static_cast<int>(REPEAT_BYTE / sizeof(int32_t));
-    constexpr bool kHasTail = (TileDataCvtS32::Cols % kS32ElemsPerRepeat != 0);
-
-    if constexpr (kHasTail) {
-        if (TQuantBuffersOverlap(src_f16, src_s32)) {
-            TQuantCvtS32ToFp16RowByRow<TileDataCvtF16, TileDataCvtS32, PadColsSrc>(src_f16, src_s32, validRow);
-            return;
-        }
-    }
-    TCVT_IMPL(src_f16, src_s32, RoundMode::CAST_RINT);
-}
-
-template <QuantType quant_type, typename TileDataOut, typename TileDataSrc, typename TileDataPara>
-PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataPara &scale, TileDataPara *offset = nullptr)
+template <QuantType quant_type, typename TileDataOut, typename TileDataSrc, typename TileDataPara, typename TileDataTmp>
+PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataPara &scale, TileDataTmp &tmp,
+                              TileDataPara *offset = nullptr)
 {
     using T = typename TileDataSrc::DType;
     using U = typename TileDataOut::DType;
@@ -96,10 +82,12 @@ PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataPara &
     using TileDataCvtS32 =
         Tile<TileType::Vec, int32_t, TileDataSrc::Rows, TileDataSrc::Cols, BLayout::RowMajor, -1, -1>;
 
-    TROWEXPANDMUL_IMPL(src, src, scale);
+    // scale/offset are per-row scalars (column-major), so TROWEXPANDMUL/ADD take the vbrcb broadcast
+    // path and need an explicit scratch tile (one 32B block per row, <= 8KB for up to 256 rows).
+    TROWEXPANDMUL_IMPL(src, src, scale, tmp);
     pipe_barrier(PIPE_V);
     if constexpr (quant_type == QuantType::INT8_ASYM) {
-        TROWEXPANDADD_IMPL(src, src, *offset);
+        TROWEXPANDADD_IMPL(src, src, *offset, tmp);
         pipe_barrier(PIPE_V);
     }
 
@@ -115,7 +103,18 @@ PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataPara &
 
     TCVT_IMPL(src_s32, src, RoundMode::CAST_RINT); // fp32->s32
     pipe_barrier(PIPE_V);
-    TQuantCvtS32ToFp16<PadColsSrc>(src_f16, src_s32, src.GetValidRow()); // s32->fp16
+
+    constexpr int kS32ElemsPerRepeat = static_cast<int>(REPEAT_BYTE / sizeof(int32_t));
+    constexpr bool kHasTail = (TileDataCvtS32::Cols % kS32ElemsPerRepeat != 0);
+    if constexpr (kHasTail) {
+        if (TQuantBuffersOverlap(src_f16, src_s32)) {
+            TQuantCvtS32ToFp16<PadColsSrc, TileDataCvtF16, TileDataCvtS32>(src_f16.data(), src_s32.data(),
+                                                                           src.GetValidRow()); // s32->fp16
+        }
+    } else {
+        TCVT_IMPL(src_f16, src_s32, RoundMode::CAST_RINT);
+    }
+
     pipe_barrier(PIPE_V);
     TCVT_IMPL(dst, src_f16, RoundMode::CAST_RINT, SaturationMode::ON); // fp16->int8
     pipe_barrier(PIPE_V);

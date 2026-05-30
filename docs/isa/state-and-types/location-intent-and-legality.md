@@ -160,7 +160,7 @@ Different instruction sets have different legality rules beyond the four-stage p
 ### Vector Compute (vadd, vmul, etc.)
 
 - Operands MUST be `!pto.vreg<NxDTYPE>`.
-- Mask operand MUST be `!pto.mask` with matching width.
+- Mask operand MUST be `!pto.mask<G>` with matching width.
 - `dtype` MUST be in the vector instruction set type list (varies by profile).
 
 ## GM-Facing Operands (GlobalTensor)

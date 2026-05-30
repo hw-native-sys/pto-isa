@@ -23,8 +23,8 @@
 | `pto.tcolprod` | 对每一列按行求积 |
 | `pto.tcolmax` | 对每一列按行取最大值 |
 | `pto.tcolmin` | 对每一列按行取最小值 |
-| `pto.tcolargmax` | 求每一列最大值所在行索引 |
-| `pto.tcolargmin` | 求每一列最小值所在行索引 |
+| `pto.tcolargmax` | 求每一列最大值所在行索引，或同步输出最大值及其行索引 |
+| `pto.tcolargmin` | 求每一列最小值所在行索引，或同步输出最小值及其行索引 |
 
 ### 按行扩展
 

@@ -12,7 +12,12 @@ Elementwise remainder of two tiles. The result has the same sign as the divider.
 
 For each element `(i, j)` in the valid region:
 
-$$\mathrm{dst}_{i,j} = \mathrm{src0}_{i,j} \bmod \mathrm{src1}_{i,j}$$
+$$\mathrm{dst}_{i,j} = \mathrm{remainder}(\mathrm{src0}_{i,j}, \mathrm{src1}_{i,j}) = \mathrm{src0}_{i,j} - \mathrm{floor}(\frac{\mathrm{src0}_{i,j}}{\mathrm{src1}_{i,j}}) \times \mathrm{src1}_{i,j}$$
+
+The result sign is corrected to match the sign of the divider (`src1`).
+
+!!! note
+    This differs from `TFMOD`, where the result sign follows the dividend (`src0`).
 
 ## Syntax
 
@@ -41,7 +46,8 @@ pto.trem ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : 
 Declared in `include/pto/common/pto_instr.hpp`:
 
 ```cpp
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataTmp, typename... WaitEvents>
+template <auto PrecisionType = RemAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc0,
+          typename TileDataSrc1, typename TileDataTmp, typename... WaitEvents>
 PTO_INST RecordEvent TREM(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, TileDataTmp &tmp, WaitEvents &... events);
 ```
 
@@ -83,14 +89,13 @@ No architectural side effects beyond producing the destination tile. Does not im
 
 ??? info "Target-Profile Restrictions"
     - **Implementation Checks (A2A3)**:
+        - `TileData::DType` must be one of: `float`, `float32_t`, `int32_t`.
         - `dst`, `src0`, and `src1` must use the same element type.
-        - Supported element types: `float` and `int32_t`.
-        - `dst`, `src0`, and `src1` must be vector tiles.
-        - `dst`, `src0`, and `src1` must be row-major.
-        - Runtime: `dst.GetValidRow() == src0.GetValidRow() == src1.GetValidRow() > 0` and `dst.GetValidCol() == src0.GetValidCol() == src1.GetValidCol() > 0`.
+        - `dst`, `src0`, and `src1` must be row-major vector tiles.
+        - Runtime: `src0`, `src1`, and `dst` must have the same `validRow` and `validCol`.
         - **tmp Buffer Requirements**:
           - `tmp.GetValidCol() >= dst.GetValidCol()` (at least as many columns as dst)
-          - `tmp.GetValidRow() >= 1` (at least 1 row)
+          - `tmp.GetValidRow() >= 2` (row 0 for intermediate results, row 1 for comparison mask storage)
           - Data type must match `TileDataDst::DType`.
 
     - **Implementation Checks (A5)**:
@@ -102,6 +107,8 @@ No architectural side effects beyond producing the destination tile. Does not im
         - Note: tmp parameter is accepted but not validated or used on A5.
 
     - **For `int32_t` Inputs (A2A3 Only)**: Both `src0` and `src1` elements must be in the range `[-2^24, 2^24]` (i.e., `[-16777216, 16777216]`) to ensure exact conversion to float32 during computation.
+
+    - **High Precision Algorithm**: Only available on A5 for `float`; `PrecisionType` is ignored on A2A3.
 
 ## Performance
 
@@ -126,10 +133,11 @@ No architectural side effects beyond producing the destination tile. Does not im
 using namespace pto;
 
 void example() {
-  using TileT = Tile<TileType::Vec, int32_t, 16, 16>;
-  TileT out, a, b;
-  Tile<TileType::Vec, int32_t, 16, 16> tmp;
-  TREM(out, a, b, tmp);
+  using TileT = Tile<TileType::Vec, float, 16, 16>;
+  using TmpT = Tile<TileType::Vec, float, 2, 16>;
+  TileT dst, src0, src1;
+  TmpT tmp;
+  TREM(dst, src0, src1, tmp);
 }
 ```
 

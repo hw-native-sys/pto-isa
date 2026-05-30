@@ -24,7 +24,7 @@ __global__ AICORE void runTNeg(__gm__ T *out, __gm__ T *src)
     TileData srcTile(kTRows_, kTCols_);
     TileData dstTile(kTRows_, kTCols_);
     TASSIGN<0x0>(srcTile);
-    TASSIGN<0x20000>(dstTile);
+    TASSIGN<TileData::Numel * sizeof(T)>(dstTile);
 
     GlobalData srcGlobal(src);
     GlobalData dstGlobal(out);

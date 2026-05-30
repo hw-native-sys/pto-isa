@@ -19,19 +19,19 @@ $$ \mathrm{dst}_N = \begin{cases} \mathrm{LOWER}(\mathrm{src}_{2N}) & \text{if }
 ### PTO Assembly Form
 
 ```mlir
-%dst = pto.punpack %src, "PART" : !pto.mask -> !pto.mask
+%dst = pto.punpack %src, "PART" : !pto.mask<G> -> !pto.mask<G>
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-%dst = pto.punpack %src, "PART" : !pto.mask -> !pto.mask
+%dst = pto.punpack %src, "PART" : !pto.mask<G> -> !pto.mask<G>
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.punpack ins(%src, "PART" : !pto.mask) outs(%dst : !pto.mask)
+pto.punpack ins(%src, "PART" : !pto.mask<G>) outs(%dst : !pto.mask<G>)
 ```
 
 ## C++ Intrinsic
@@ -46,14 +46,14 @@ punpack(dst, src, __cce_simd::LOWER);
 
 | Operand | Type | Description |
 |---------|------|-------------|
-| `%src` | `!pto.mask` | Source 2N-bit predicate |
+| `%src` | `!pto.mask<G>` | Source 2N-bit predicate |
 | `"PART"` | string attribute | Partition token: `"LOWER"` or `"HIGHER"` |
 
 ## Expected Outputs
 
 | Result | Type | Description |
 |--------|------|-------------|
-| `%dst` | `!pto.mask` | N-bit predicate extracted from the selected half |
+| `%dst` | `!pto.mask<G>` | N-bit predicate extracted from the selected half |
 
 ## Side Effects
 
@@ -101,18 +101,18 @@ void extract_upper(RegBuf<predicate_t>& dst,
 // %full_64: 64-bit predicate from a comparison
 
 // Extract lower half
-%lo = pto.punpack %full_64, "LOWER" : !pto.mask -> !pto.mask
+%lo = pto.punpack %full_64, "LOWER" : !pto.mask<G> -> !pto.mask<G>
 
 // Extract upper half
-%hi = pto.punpack %full_64, "HIGHER" : !pto.mask -> !pto.mask
+%hi = pto.punpack %full_64, "HIGHER" : !pto.mask<G> -> !pto.mask<G>
 
 // Modify lower half (e.g., invert)
-%lo_inv = pto.pnot %lo, %lo : !pto.mask, !pto.mask -> !pto.mask
+%lo_inv = pto.pnot %lo, %lo : !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
 
 // Re-pack into 64-bit predicate
-%new_lo = pto.ppack %lo_inv, "LOWER" : !pto.mask -> !pto.mask
-%new_hi = pto.ppack %hi, "HIGHER" : !pto.mask -> !pto.mask
-%new_full = pto.por %new_lo, %new_hi, %new_lo : !pto.mask, !pto.mask, !pto.mask -> !pto.mask
+%new_lo = pto.ppack %lo_inv, "LOWER" : !pto.mask<G> -> !pto.mask<G>
+%new_hi = pto.ppack %hi, "HIGHER" : !pto.mask<G> -> !pto.mask<G>
+%new_full = pto.por %new_lo, %new_hi, %new_lo : !pto.mask<G>, !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
 ```
 
 ## Related Ops / Instruction Set Links

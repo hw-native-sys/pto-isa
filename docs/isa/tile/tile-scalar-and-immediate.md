@@ -38,7 +38,7 @@ The scalar operand is broadcast to all lanes. Comparison operations produce a pr
 
 `TAXPY` belongs in this family because its defining contract is a tile payload update using a scalar coefficient:
 
-$$ \mathrm{dst}_{r,c} = \mathrm{src0}_{r,c} \times \mathrm{scalar} + \mathrm{src1}_{r,c} $$
+$$ \mathrm{dst}_{r,c} \mathrel{+}= \mathrm{src0}_{r,c} \times \mathrm{scalar} $$
 
 ## Scalar Operand
 

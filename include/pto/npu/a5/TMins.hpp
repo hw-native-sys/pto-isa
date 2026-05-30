@@ -21,6 +21,7 @@ namespace pto {
 
 template <typename T>
 struct MinSOp {
+    static constexpr bool isDynFunc = false;
     PTO_INTERNAL static void BinSInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, T src1, MaskReg &preg)
     {
         vmins(reg_dst, reg_src0, src1, preg, MODE_ZEROING);

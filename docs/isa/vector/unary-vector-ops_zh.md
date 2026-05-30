@@ -28,10 +28,10 @@ pto.vecscope {
   %remaining_init = arith.constant 1024 : i32
   %_:1 = scf.for %offset = %c0 to %total step %c64
       iter_args(%remaining = %remaining_init) -> (i32) {
-    %mask, %next_remaining = pto.plt_b32 %remaining : i32 -> !pto.mask, i32
+    %mask, %next_remaining = pto.plt_b32 %remaining : i32 -> !pto.mask<G>, i32
     %vec = pto.vlds %ub_in[%offset] : !pto.ptr -> !pto.vreg<64xf32>
-    %out = pto.vabs %vec, %mask : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
-    pto.vsts %out, %ub_out[%offset], %mask : !pto.vreg<64xf32>, !pto.ptr, !pto.mask
+    %out = pto.vabs %vec, %mask : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
+    pto.vsts %out, %ub_out[%offset], %mask : !pto.vreg<64xf32>, !pto.ptr, !pto.mask<b32>
     scf.yield %next_remaining : i32
   }
 }
@@ -89,14 +89,14 @@ pto.vecscope {
 
 ### `pto.vabs`
 
-- **语法：** `%result = pto.vabs %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vabs %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 对每个活跃 lane 取绝对值。
 
 整数最小负数的溢出行为由目标平台定义。
 
 ### `pto.vneg`
 
-- **语法：** `%result = pto.vneg %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vneg %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 对每个活跃 lane 做算术取负。
 
 在 A5 上它借用标量乘法类硬件路径，因此延迟不像 `vabs` 那么低。
@@ -107,35 +107,35 @@ pto.vecscope {
 
 ### `pto.vexp`
 
-- **语法：** `%result = pto.vexp %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vexp %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 计算 `exp(input[i])`。
 
-只对浮点类型合法。f16 的成本高于 f32，因此 softmax 等场景通常更偏好融合形式 `vexpdiff`。
+只对浮点类型合法。f16 的成本高于 f32，因此 softmax 等场景通常更偏好融合形式 `vexpdif`。
 
 ### `pto.vln`
 
-- **语法：** `%result = pto.vln %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vln %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 计算自然对数。
 
 对实数语义而言，活跃输入最好严格大于 0；非正输入的异常或 NaN 行为由目标平台决定。
 
 ### `pto.vsqrt`
 
-- **语法：** `%result = pto.vsqrt %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vsqrt %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 求平方根。
 
 负输入的行为由目标平台定义。
 
 ### `pto.vrsqrt`
 
-- **语法：** `%result = pto.vrsqrt %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vrsqrt %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 求倒数平方根。
 
 它与 `vsqrt` 共享一类硬件路径，因此成本也接近。
 
 ### `pto.vrec`
 
-- **语法：** `%result = pto.vrec %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vrec %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 求倒数。
 
 本质上走的是除法路径，因此不该把它当成廉价的一元 ALU 操作。
@@ -146,7 +146,7 @@ pto.vecscope {
 
 ### `pto.vrelu`
 
-- **语法：** `%result = pto.vrelu %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vrelu %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 执行 `max(input, 0)`。
 
 这是 A5 上延迟最低的一元浮点操作之一。需要带斜率的版本时，应使用 `vlrelu`。
@@ -157,21 +157,21 @@ pto.vecscope {
 
 ### `pto.vnot`
 
-- **语法：** `%result = pto.vnot %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vnot %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 按位取反。
 
 仅对整数类型合法。
 
 ### `pto.vbcnt`
 
-- **语法：** `%result = pto.vbcnt %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vbcnt %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 统计设置位个数。
 
 统计范围是“单个元素的位宽”，不是整个寄存器的总位数。
 
 ### `pto.vcls`
 
-- **语法：** `%result = pto.vcls %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vcls %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 逐 lane 统计前导符号位数量。
 
 它依赖元素的有符号解释，因此 signedness 是语义的一部分。
@@ -182,7 +182,7 @@ pto.vecscope {
 
 ### `pto.vmov`
 
-- **语法：** `%result = pto.vmov %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>`
+- **语法：** `%result = pto.vmov %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>`
 - **语义：** 受谓词控制的寄存器复制。
 
 无谓词形式是完整寄存器复制；有谓词时则更接近 masked copy。
@@ -193,15 +193,15 @@ pto.vecscope {
 
 ```mlir
 %sub = pto.vsub %x, %max_broadcast, %mask
-    : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+    : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 %exp = pto.vexp %sub, %mask
-    : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+    : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 %sum_rcp = pto.vrec %sum, %mask
-    : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+    : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 
 %activated = pto.vrelu %linear_out, %mask
-    : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+    : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 ```
 
 ---

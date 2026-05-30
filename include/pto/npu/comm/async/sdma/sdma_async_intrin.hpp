@@ -187,7 +187,7 @@ PTO_INTERNAL void PrepareWorkspace(__gm__ uint8_t *workspace, const SdmaConfig &
 }
 
 PTO_INTERNAL void InitSqTailArray(__gm__ BatchWriteChannelInfo *batchWriteChannelInfo, uint32_t queueNum,
-                                  uint32_t *sqTail, UbTmpBuf &tmpBuf)
+                                  uint32_t *sqTail, uint32_t sqTailLen, UbTmpBuf &tmpBuf)
 {
     for (uint32_t queueId = 0U; queueId < queueNum; ++queueId) {
         __gm__ BatchWriteChannelInfo *channelInfo = batchWriteChannelInfo + queueId;
@@ -328,7 +328,7 @@ PTO_INTERNAL bool PrepareEventCheck(const SdmaSession &session, UbTmpBuf &tmpBuf
     PrepareWorkspace(workspace, config, workspaceLayout, channelGroupIdx, tmpBuf, syncId);
 
     uint32_t sqTail[64] = {0};
-    InitSqTailArray(batchWriteChannelInfo, config.queue_num, sqTail, tmpBuf);
+    InitSqTailArray(batchWriteChannelInfo, config.queue_num, sqTail, 64, tmpBuf);
 
     SubmitFlagTransferSqes(batchWriteChannelInfo, workspaceLayout, config, sqTail, tmpBuf, syncId);
 
@@ -455,7 +455,7 @@ PTO_INTERNAL uint64_t SdmaPostSendAsyncWithCtx(__gm__ uint8_t *recvBuffer, __gm_
     __gm__ BatchWriteChannelInfo *batchWriteChannelInfo = batchWriteChannelBase + channelGroupIdx * config.queue_num;
 
     uint32_t sqTail[64] = {0};
-    InitSqTailArray(batchWriteChannelInfo, config.queue_num, sqTail, tmpBuf);
+    InitSqTailArray(batchWriteChannelInfo, config.queue_num, sqTail, 64, tmpBuf);
 
     SubmitDataTransferSqes(batchWriteChannelInfo, sendBuffer, recvBuffer, static_cast<uint32_t>(opcode), config,
                            sqTail);

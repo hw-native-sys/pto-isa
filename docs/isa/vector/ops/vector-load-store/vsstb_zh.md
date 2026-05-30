@@ -21,7 +21,7 @@ vsstb %value, %dest, %offset, %mask
 ### AS Level 1（SSA）
 
 ```mlir
-pto.vsstb %value, %dest, %offset, %mask : !pto.vreg<NxT>, !pto.ptr<T, ub>, i32, !pto.mask
+pto.vsstb %value, %dest, %offset, %mask : !pto.vreg<NxT>, !pto.ptr<T, ub>, i32, !pto.mask<G>
 ```
 
 ## 输入
@@ -59,7 +59,7 @@ pto.vsstb %value, %dest, %offset, %mask : !pto.vreg<NxT>, !pto.ptr<T, ub>, i32, 
 ## 示例
 
 ```mlir
-pto.vsstb %value, %dest, %offset, %mask : !pto.vreg<NxT>, !pto.ptr<T, ub>, i32, !pto.mask
+pto.vsstb %value, %dest, %offset, %mask : !pto.vreg<NxT>, !pto.ptr<T, ub>, i32, !pto.mask<G>
 ```
 
 ## 性能

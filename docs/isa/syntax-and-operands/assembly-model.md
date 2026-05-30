@@ -93,7 +93,7 @@ In PTO-AS, a `GlobalTensor` operand appears as a `memref` or `partition_tensor_v
 A predicate operand is written as a mask register:
 
 ```
-%mask : !pto.mask           -- predicate operand in SSA form
+%mask : !pto.mask<G>           -- predicate operand in SSA form
 ```
 
 Vector instructions that take a mask write it as an explicit operand:
@@ -185,14 +185,14 @@ tload %tile, %tensor[%r, %c] : (!pto.tile<f32,16,16>, !pto.memref<f32,5>) -> !pt
 
 **SSA Form (AS Level 1)**:
 ```
-%result = pto.vadd %src0, %src1, %mask : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask) -> !pto.vreg<64xf32>
+%result = pto.vadd %src0, %src1, %mask : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32>) -> !pto.vreg<64xf32>
 ```
 
 ### Scalar Compare: Predicate Generation
 
 **SSA Form (AS Level 1)**:
 ```
-%pred = pto.pge_b32 %src0, %src1 : (!pto.vreg<64xi32>, !pto.vreg<64xi32>) -> !pto.mask
+%pred = pto.pge_b32 %src0, %src1 : (!pto.vreg<64xi32>, !pto.vreg<64xi32>) -> !pto.mask<b32>
 ```
 
 ## What Textual Spelling Does Not Replace

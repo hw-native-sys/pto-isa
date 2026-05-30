@@ -199,9 +199,11 @@ Windows 特定选项（如需要）：
 
 **系统要求：**
 - Linux（推荐 Ubuntu 20.04+）
-- Python >= 3.8.0
+- Python >= 3.9.x
 - GCC >= 7.3.0
 - CMake >= 3.16.0
+
+> **备注：** Python 宣布 3.7.x/3.8.x 已经 EOL，CANN 即将停止对该版本的支持，请升级到 Python >= 3.9.x 的版本。
 
 **GoogleTest（单元测试所需）：**
 
@@ -371,6 +373,53 @@ ulimit -n 65536
   ```bash
   chmod +x build.sh
   ./build.sh --pkg
+  ```
+
+  构建完成后，`.run` 安装包生成在 `scripts/package/output/` 目录下。
+
+**安装：**
+
+  通过 `.run` 自解压包安装，需指定安装类型（三选一）：
+
+  | 参数 | 说明 |
+  |------|------|
+  | `--full` | 完整安装，包含头文件、库、测试资源等全部内容 |
+  | `--run` | 运行时安装，仅安装运行所需的库和依赖 |
+  | `--devel` | 开发环境安装，包含头文件和库 |
+
+  ```bash
+  # 完整安装到默认路径（需 root 权限）
+  ./scripts/package/output/pto_isa_*.run --full
+
+  # 安装到指定路径（无需 root）
+  ./scripts/package/output/pto_isa_*.run --full --install-path=/your/install/path
+
+  # 静默安装，跳过交互确认（适用于 CI/CD 等非交互环境）
+  ./scripts/package/output/pto_isa_*.run --full --quiet
+
+  # 仅安装运行时组件
+  ./scripts/package/output/pto_isa_*.run --run --install-path=/your/install/path
+
+  # 开发环境安装
+  ./scripts/package/output/pto_isa_*.run --devel --install-path=/your/install/path --quiet
+  ```
+
+  常用安装参数说明：
+
+  | 参数 | 说明 |
+  |------|------|
+  | `--install-path=<path>` | 指定安装目标目录 |
+  | `--quiet` | 静默模式，跳过交互确认（适用于非交互环境） |
+  | `--install-for-all` | 为所有用户安装 |
+  | `--uninstall` | 卸载已安装的产品 |
+  | `--upgrade` | 升级已有安装 |
+  | `--version` | 查看包版本信息 |
+  | `--pre-check` | 安装前预依赖检查 |
+
+  更多参数可通过 `--help` 查看：
+
+  ```bash
+  ./scripts/package/output/pto_isa_*.run --help
   ```
 
 ---

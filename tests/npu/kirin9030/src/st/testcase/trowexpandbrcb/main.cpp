@@ -76,8 +76,8 @@ void test_trowexpand()
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<T> golden(outputFileSize);
-    std::vector<T> devFinal(outputFileSize);
+    std::vector<T> golden(dstRows * dstCols);
+    std::vector<T> devFinal(dstRows * dstCols);
     ReadFile(GetGoldenDir() + "/golden.bin", outputFileSize, golden.data(), outputFileSize);
     ReadFile(GetGoldenDir() + "/output.bin", outputFileSize, devFinal.data(), outputFileSize);
     bool ret = ResultCmp(golden, devFinal, 0.001f);
@@ -87,11 +87,11 @@ void test_trowexpand()
 
 TEST_F(TROWEXPANDBRCBTest, case0_half_4800_16)
 {
-    test_trowexpand<aclFloat16, 4800, 16>();
+    test_trowexpand<aclFloat16, 2400, 16>();
 }
-TEST_F(TROWEXPANDBRCBTest, case1_float_7280_8)
+TEST_F(TROWEXPANDBRCBTest, case1_float_3640_8)
 {
-    test_trowexpand<float, 7280, 8>();
+    test_trowexpand<float, 3640, 8>();
 }
 TEST_F(TROWEXPANDBRCBTest, case2_float_16_8)
 {

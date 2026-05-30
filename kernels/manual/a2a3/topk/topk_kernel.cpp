@@ -351,6 +351,7 @@ __global__ AICORE void Topk(__gm__ uint8_t *out, __gm__ uint8_t *index, __gm__ u
     }
 }
 
+#ifndef __COSTMODEL
 template <typename T>
 void launchTopk(uint8_t *out, uint8_t *index, uint8_t *src, uint8_t *inIdx, void *stream)
 {
@@ -365,3 +366,4 @@ void launchTopk(uint8_t *out, uint8_t *index, uint8_t *src, uint8_t *inIdx, void
 }
 
 template void launchTopk<float>(uint8_t *out, uint8_t *index, uint8_t *src, uint8_t *inIdx, void *stream);
+#endif

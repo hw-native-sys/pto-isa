@@ -22,10 +22,11 @@ namespace pto {
 
 template <typename T>
 struct XorOp {
-    PTO_INTERNAL static void BinInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, RegTensor<T> &reg_src1,
-                                      MaskReg &preg)
+    using U = std::conditional_t<sizeof(T) == sizeof(uint8_t), uint8_t,
+                                 std::conditional_t<sizeof(T) == sizeof(uint16_t), uint16_t, uint32_t>>;
+    PTO_INTERNAL static void BinInstr(RegTensor<T> &dstReg, RegTensor<T> &src0Reg, RegTensor<T> &src1Reg, MaskReg &pReg)
     {
-        vxor(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);
+        vxor((RegTensor<U> &)dstReg, (RegTensor<U> &)src0Reg, (RegTensor<U> &)src1Reg, pReg);
     }
 };
 

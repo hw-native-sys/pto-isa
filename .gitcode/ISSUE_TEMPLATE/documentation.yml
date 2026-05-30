@@ -10,13 +10,13 @@ body:
   - type: input
     attributes:
       label: 文档链接
-      description:
+      description: Document Link
     validations:
       required: true
 
   - type: textarea
     attributes:
       label: 问题文档片段描述/截图
-      description:
+      description: Problem Document Segment Description/Screenshot
     validations:
       required: true

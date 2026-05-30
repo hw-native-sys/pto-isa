@@ -27,13 +27,13 @@ vadd %dst, %lhs, %rhs, %mask : !pto.vreg<NxT>
 ### AS Level 1（SSA）
 
 ```mlir
-%result = pto.vadd %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask) -> !pto.vreg<NxT>
+%result = pto.vadd %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>) -> !pto.vreg<NxT>
 ```
 
 ### AS Level 2（DPS）
 
 ```mlir
-pto.vadd ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask)
+pto.vadd ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>)
           outs(%result : !pto.vreg<NxT>)
 ```
 
@@ -53,7 +53,7 @@ PTO_INST RecordEvent VADD(VecDst& dst, const VecLhs& lhs, const VecRhs& rhs,
 |--------|------|------|
 | `%lhs` | `!pto.vreg<NxT>` | 左操作数向量寄存器 |
 | `%rhs` | `!pto.vreg<NxT>` | 右操作数向量寄存器 |
-| `%mask` | `!pto.mask` | 谓词掩码；掩码位为 1 的 lane 参与运算 |
+| `%mask` | `!pto.mask<G>` | 谓词掩码；掩码位为 1 的 lane 参与运算 |
 
 两个源寄存器必须有相同的元素类型和相同的向量宽度 `N`。掩码宽度也必须与 `N` 一致。
 
@@ -143,7 +143,7 @@ VADD(vdst, va, vb, mask);
 
 ```mlir
 %result = pto.vadd %va, %vb, %cond
-    : (!pto.vreg<128xf16>, !pto.vreg<128xf16>, !pto.mask) -> !pto.vreg<128xf16>
+    : (!pto.vreg<128xf16>, !pto.vreg<128xf16>, !pto.mask<b16>) -> !pto.vreg<128xf16>
 ```
 
 ### 完整的 load / compute / store 链

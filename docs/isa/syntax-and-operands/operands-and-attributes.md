@@ -11,7 +11,7 @@ PTO defines seven operand kinds. Each kind maps to a specific SSA type and has d
 | **Tile** | `!pto.tile<...>` / `!pto.tile_buf<...>` | `Tile<TileType, DType, Rows, Cols, ...>` | Tile operand with shape, layout, valid-region metadata |
 | **GlobalTensor** | `!pto.partition_tensor_view<...>` / `!pto.memref<...>` | `GlobalTensor<DType, Shape, Stride, Layout>` | GM-facing view; the source or destination of data movement |
 | **Scalar** | `i8`–`i64`, `u8`–`u64`, `f16`, `bf16`, `f32` | Built-in C++ types | Immediate values or runtime-computed scalars |
-| **Predicate** | `!pto.mask` | (IR-level) | Per-lane mask controlling which lanes participate in vector instructions |
+| **Predicate** | `!pto.mask<G>` | (IR-level) | Per-lane mask controlling which lanes participate in vector instructions |
 | **Event** | `!pto.event` | `RecordEvent` (return type) | Synchronization token; carries ordering information between operations |
 | **UB Pointer** | `!pto.ptr<T, ub>` | (IR-level) | Pointer into Unified Buffer; used by vector load/store and DMA copy ops |
 | **GM Pointer** | `!pto.ptr<T, gm>` | `__gm__ T*` | Pointer into Global Memory; used by scalar load/store and DMA copy ops |
@@ -59,7 +59,7 @@ Scalar operands are immediate values encoded directly in the instruction or comp
 
 ### Predicate Operands
 
-Predicate operands (`!pto.mask`) control which lanes participate in vector operations. They are produced by predicate-generation operations (`pset_b8`, `pge_b32`, `plt_b16`, etc.) and consumed by vector operations.
+Predicate operands (`!pto.mask<G>`) control which lanes participate in vector operations. They are produced by predicate-generation operations (`pset_b8`, `pge_b32`, `plt_b16`, etc.) and consumed by vector operations.
 
 A predicate with all bits set means "all lanes active". A predicate with some bits cleared means "only those lanes participate".
 

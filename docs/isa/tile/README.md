@@ -6,7 +6,7 @@ The `pto.t*` tile instruction set of PTO ISA is organized by instruction set, wi
 
 | Instruction Set | Description | Operations |
 |--------|-------------|------------|
-| [Sync and Config](./sync-and-config.md) | Resource binding, event setup, mode control | 9 |
+| [Sync and Config](./sync-and-config.md) | Resource binding, event setup, mode control | 10 |
 | [Elementwise Tile-Tile](./elementwise-tile-tile.md) | Lane-wise binary and unary operations | 29 |
 | [Tile-Scalar and Immediate](./tile-scalar-and-immediate.md) | Tile combined with scalar operand | 21 |
 | [Reduce and Expand](./reduce-and-expand.md) | Row/column reductions and expansions | 28 |

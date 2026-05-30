@@ -45,7 +45,7 @@ Vector Registers (!pto.vreg<NxT>) ──► Vector Compute (pto.v*) ──► Ve
 | | Reduction Instructions | Cross-lane reductions (channelled) | `vcadd`, `vcmax`, `vcmin`, `vcgadd`, `vcgmax` |
 | | Compare and Select | Comparison and conditional lane selection | `vcmp`, `vcmps`, `vsel`, `vselr`, `vselrv2` |
 | | Data Rearrangement | Lane permutation, interleaving, packing | `vintlv`, `vdintlv`, `vslide`, `vshift`, `vpack`, `vzunpack` |
-| | SFU and DSA Instructions | Special function units and DSA-style operations | `vprelu`, `vexpdiff`, `vaxpy`, `vtranspose`, `vsort32` |
+| | SFU and DSA Instructions | Special function units and DSA-style operations | `vprelu`, `vexpdif`, `vaxpy`, `vtranspose`, `vsort32` |
 
 ## Inputs
 
@@ -53,7 +53,7 @@ Vector instructions consume combinations of:
 
 - Vector registers (`!pto.vreg<NxT>`)
 - Scalar registers or immediate operands
-- Predicate masks (`!pto.mask`) — selects which lanes participate
+- Predicate masks (`!pto.mask<G>`) — selects which lanes participate
 - Memory addresses (`!pto.ptr<T, ub>`) — for load/store ops
 - Rounding-mode or distribution-mode attributes
 
@@ -99,7 +99,7 @@ Every vector instruction set must state:
 
 ## Mask Behavior
 
-Vector operations can be gated by a predicate mask. A predicate mask (`!pto.mask`) with width equal to the vector length `N` selects which lanes participate:
+Vector operations can be gated by a predicate mask. A predicate mask (`!pto.mask<G>`) with width equal to the vector length `N` selects which lanes participate:
 
 - Lanes where the mask bit is **1**: the operation executes normally.
 - Lanes where the mask bit is **0**: the operation produces a **defined result** but the specific value depends on the operation:
@@ -170,13 +170,13 @@ vlds %vreg, %ub_ptr[%offset] {dist = "NORM"} : !pto.ptr<f32, ub>
 
 ```mlir
 %vdst = pto.vadd %vsrc0, %vsrc1, %mask
-    : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask) -> !pto.vreg<64xf32>
+    : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32>) -> !pto.vreg<64xf32>
 ```
 
 ### DPS Form (AS Level 2)
 
 ```mlir
-pto.vadd ins(%vsrc0, %vsrc1, %mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask)
+pto.vadd ins(%vsrc0, %vsrc1, %mask : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32>)
           outs(%vdst : !pto.vreg<64xf32>)
 ```
 

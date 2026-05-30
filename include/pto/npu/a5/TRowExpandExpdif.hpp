@@ -25,7 +25,7 @@ struct RowExpandExpdifOp {
                                                   MaskReg &preg)
     {
         if constexpr (std::is_same_v<T, float>) {
-            vexpdif(reg_dst, reg_src0, reg_src1, preg, PART_ODD);
+            pto_vexpdif(reg_dst, reg_src0, reg_src1, preg, PART_ODD);
         } else {
             vsub(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);
             vexp(reg_dst, reg_dst, preg, MODE_ZEROING);
@@ -39,7 +39,7 @@ struct RowExpandExpdifOp2 {
                                                   MaskReg &preg)
     {
         if constexpr (std::is_same_v<T, float>) {
-            vexpdif(reg_dst, reg_src1, reg_src0, preg, PART_ODD);
+            pto_vexpdif(reg_dst, reg_src1, reg_src0, preg, PART_ODD);
         } else {
             vsub(reg_dst, reg_src1, reg_src0, preg, MODE_ZEROING);
             vexp(reg_dst, reg_dst, preg, MODE_ZEROING);
@@ -49,7 +49,7 @@ struct RowExpandExpdifOp2 {
 
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
           unsigned blockSizeElem>
-__tf__ AICORE OP_NAME(TROWEXPANDEXPDIF)
+__tf__ PTO_INTERNAL OP_NAME(TROWEXPANDEXPDIF)
     OP_TYPE(broadcast) void TRowExpandExpdif(typename TileDataDst::TileDType __out__ dst,
                                              typename TileDataSrc0::TileDType __in__ src0,
                                              typename TileDataSrc1::TileDType __in__ src1, unsigned validRow,
@@ -110,6 +110,14 @@ PTO_INTERNAL void TROWEXPANDEXPDIF_IMPL(TileDataDst &dst, TileDataSrc0 &src0, Ti
         TRowExpandExpdif<TileDataDst, TileDataSrc1, TileDataSrc0, elementsPerRepeat, blockSizeElem>(
             dst.data(), src1.data(), src0.data(), validRow, validCol, src0eqdst);
     }
+}
+// 4-arg overload for cross-architecture portability with A2/A3.
+// A5 hardware does not require a scratch broadcast tile; the tmp tile is accepted and ignored.
+template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataTmp>
+PTO_INTERNAL void TROWEXPANDEXPDIF_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1,
+                                        [[maybe_unused]] TileDataTmp &tmp)
+{
+    TROWEXPANDEXPDIF_IMPL(dst, src0, src1);
 }
 } // namespace pto
 #endif

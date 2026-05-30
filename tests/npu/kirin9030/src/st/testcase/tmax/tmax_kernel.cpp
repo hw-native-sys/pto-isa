@@ -27,10 +27,9 @@ __global__ AICORE void runTMax(__gm__ T *out, __gm__ T *src0, __gm__ T *src1)
     TASSIGN<TileData::Numel * sizeof(T)>(src1Tile);
     TASSIGN<2 * TileData::Numel * sizeof(T)>(dstTile);
 
-    int offset = (block_idx / 4) * (64 * 16) + (block_idx % 4) * 16;
-    GlobalData src0Global(src0 + offset);
-    GlobalData src1Global(src1 + offset);
-    GlobalData dstGlobal(out + offset);
+    GlobalData src0Global(src0);
+    GlobalData src1Global(src1);
+    GlobalData dstGlobal(out);
 
     TLOAD(src0Tile, src0Global);
     TLOAD(src1Tile, src1Global);

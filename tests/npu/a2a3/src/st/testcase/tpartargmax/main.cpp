@@ -274,29 +274,33 @@ TEST_F(TPARTARGMAXTest, case_float_uint32_tile_diff)
 }
 TEST_F(TPARTARGMAXTest, case_float_uint32_tile_diff_32k)
 {
-    this->Launch<float, uint32_t, 67, 128, 67, 120, 67, 112, 67, 104, 67, 144, 67, 136, 67, 97, 67, 97>();
+    this->Launch<float, uint32_t, 57, 128, 57, 120, 57, 112, 57, 104, 57, 144, 57, 136, 57, 97, 57, 97>();
 }
 TEST_F(TPARTARGMAXTest, case_float_uint32_tile_diff_32k_row_diff_0)
 {
-    this->Launch<float, uint32_t, 67, 128, 67, 120, 61, 112, 61, 104, 67, 144, 67, 136, 61, 97, 67, 97>();
+    this->Launch<float, uint32_t, 57, 128, 57, 120, 51, 112, 51, 104, 57, 144, 57, 136, 51, 97, 57, 97>();
 }
 TEST_F(TPARTARGMAXTest, case_float_uint32_tile_diff_32k_row_diff_1)
 {
-    this->Launch<float, uint32_t, 67, 128, 67, 120, 67, 112, 67, 104, 61, 144, 61, 136, 67, 97, 61, 97>();
+    this->Launch<float, uint32_t, 57, 128, 57, 120, 57, 112, 57, 104, 51, 144, 51, 136, 57, 97, 51, 97>();
 }
 TEST_F(TPARTARGMAXTest, case_float_uint32_tile_diff_32k_col_diff_0)
 {
-    this->Launch<float, uint32_t, 67, 128, 67, 120, 67, 112, 67, 104, 67, 144, 67, 136, 67, 97, 67, 101>();
+    this->Launch<float, uint32_t, 57, 128, 57, 120, 57, 112, 57, 104, 57, 144, 57, 136, 57, 97, 57, 101>();
 }
 TEST_F(TPARTARGMAXTest, case_float_uint32_tile_diff_32k_col_diff_1)
 {
-    this->Launch<float, uint32_t, 67, 128, 67, 120, 67, 112, 67, 104, 67, 144, 67, 136, 67, 101, 67, 97>();
+    this->Launch<float, uint32_t, 57, 128, 57, 120, 57, 112, 57, 104, 57, 144, 57, 136, 57, 101, 57, 97>();
 }
 TEST_F(TPARTARGMAXTest, case_float_uint32_tile_diff_32k_small_0)
 {
-    this->Launch<float, uint32_t, 67, 128, 67, 120, 67, 112, 67, 104, 67, 144, 67, 136, 61, 97, 67, 101>();
+    this->Launch<float, uint32_t, 57, 128, 57, 120, 57, 112, 57, 104, 57, 144, 57, 136, 51, 97, 57, 101>();
 }
 TEST_F(TPARTARGMAXTest, case_float_uint32_tile_diff_32k_small_1)
 {
-    this->Launch<float, uint32_t, 67, 128, 67, 120, 67, 112, 67, 104, 67, 144, 67, 136, 67, 101, 61, 97>();
+    this->Launch<float, uint32_t, 57, 128, 57, 120, 57, 112, 57, 104, 57, 144, 57, 136, 57, 101, 51, 97>();
+}
+TEST_F(TPARTARGMAXTest, case_float_uint32_same_tile)
+{
+    this->Launch<float, uint32_t, 4, 8, 4, 8, 4, 8, 4, 8, 4, 8, 4, 8, 4, 8, 4, 8>();
 }

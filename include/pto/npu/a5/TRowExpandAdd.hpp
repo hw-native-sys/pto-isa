@@ -30,7 +30,7 @@ struct RowExpandAddOp {
 
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
           unsigned blockSizeElem>
-__tf__ AICORE OP_NAME(TROWEXPANDADD)
+__tf__ PTO_INTERNAL OP_NAME(TROWEXPANDADD)
     OP_TYPE(broadcast) void TRowExpandAdd(typename TileDataDst::TileDType __out__ dst,
                                           typename TileDataSrc0::TileDType __in__ src0,
                                           typename TileDataSrc1::TileDType __in__ src1, unsigned validRow,
@@ -88,6 +88,17 @@ PTO_INTERNAL void TROWEXPANDADD_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileD
         TRowExpandAdd<TileDataDst, TileDataSrc1, TileDataSrc0, elementsPerRepeat, blockSizeElem>(
             dst.data(), src1.data(), src0.data(), validRow, validCol);
     }
+}
+
+// 4-arg overload for cross-architecture portability with A2/A3.
+// A5 hardware does not require a scratch broadcast tile (the underlying instruction
+// supports the row-broadcast operand mode natively); the tmp tile is accepted and ignored.
+// Provided to keep a single source-compatible TROWEXPANDADD signature across A2/A3 and A5.
+template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataTmp>
+PTO_INTERNAL void TROWEXPANDADD_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1,
+                                     [[maybe_unused]] TileDataTmp &tmp)
+{
+    TROWEXPANDADD_IMPL(dst, src0, src1);
 }
 } // namespace pto
 #endif

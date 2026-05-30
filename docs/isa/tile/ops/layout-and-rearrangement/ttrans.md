@@ -72,6 +72,7 @@ No architectural side effects beyond producing the destination tile. Does not im
         - Transpose of ConvTile for `TileType::Vec` is supported。 Element size must be `1`、`2` or `4` bytes. Supported element types are `uint32_t`、`int32_t`、`float`、`uint16_t`、`int16_t`、`half`、`bfloat16_t`、`uint8_t`、`int8_t`.
         - Format transformation from `NCHW` to `NC1HWC0` is supported, while `C1 == (C + C0 - 1)/C0`，HW matches alignment constraint，which means `H*W*sizeof(T)==0`. C0 means `c0_size`, which `C0 * sizeof(T) == 32`。C0 can also be 4.
         - Format transformation from `NC1HWC0` to `FRACTAL_Z` is supported， while `N1 == (N + N0 - 1)/N0`。N0 should be 16.
+        - Format transformation from `NCDHW` to `FRACTAL_Z_3D` is supported, with destination shape `[D * C1 * H * W, N1, N0, C0]`, where `C1 == (C + C0 - 1) / C0` and `N1 == (N + N0 - 1) / N0`. `N0` is `16`. `C0` depends on element width: `64` for 4-bit data, `32` for 8-bit data, `16` for 16-bit data, and `8` for 32-bit data. The temporary tile must be large enough to stage `(D + 1) * N * C1 * C0 * H * W` intermediate elements plus an `H * W * alignedC0` scratch area, where `alignedC0` rounds `dstC0` up to `16` for 16/32-bit data and to `32` for 8-bit data.
 
 ## Exceptions
 

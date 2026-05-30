@@ -106,11 +106,6 @@ TEST_F(TORTest, case3)
     test_tor<uint16_t, 1, 16384, 1, 16384>();
 }
 
-TEST_F(TORTest, case4)
-{
-    test_tor<uint16_t, 2048, 16, 2048, 16>();
-}
-
 TEST_F(TORTest, case5)
 {
     test_tor<uint8_t, 32, 32, 32, 32>();

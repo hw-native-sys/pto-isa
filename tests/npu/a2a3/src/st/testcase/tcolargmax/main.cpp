@@ -18,6 +18,9 @@ using namespace PtoTestCommon;
 template <uint32_t caseId>
 void launchTCOLCMAXTestCase(void *out, void *src, aclrtStream stream);
 
+template <uint32_t caseId>
+void launchTCOLIDXVALMAXCase(void *outVal, void *outIdx, void *src, aclrtStream stream);
+
 std::string GetGoldenDir()
 {
     const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
@@ -34,6 +37,11 @@ public:
     void *srcHost;
     void *dstDevice;
     void *srcDevice;
+
+    void *dstHostVal;
+    void *dstHostIdx;
+    void *dstDeviceVal;
+    void *dstDeviceIdx;
 
 protected:
     void SetUp() override
@@ -64,6 +72,27 @@ protected:
         return ResultCmp(golden, result, eps, 0, 1000, false, true);
     }
 
+    template <typename TVal, typename TIdx>
+    bool CompareGoldenValIdx(size_t dstByteSize, bool printAllEn = false)
+    {
+        std::vector<TIdx> goldenIdx(dstByteSize);
+        std::vector<TIdx> resultIdx(dstByteSize);
+        std::vector<TVal> goldenVal(dstByteSize);
+        std::vector<TVal> resultVal(dstByteSize);
+
+        float eps = 0.001f;
+        ReadFile(GetGoldenDir() + "/golden.bin", dstByteSize, goldenVal.data(), dstByteSize);
+        ReadFile(GetGoldenDir() + "/output_val.bin", dstByteSize, resultVal.data(), dstByteSize);
+        ReadFile(GetGoldenDir() + "/idx.bin", dstByteSize, goldenIdx.data(), dstByteSize);
+        ReadFile(GetGoldenDir() + "/output_idx.bin", dstByteSize, resultIdx.data(), dstByteSize);
+        if (printAllEn) {
+            return ResultCmp(goldenVal, resultVal, eps, 0, 1000, true) &&
+                   ResultCmp(goldenIdx, resultIdx, eps, 0, 1000, true);
+        }
+        return ResultCmp(goldenVal, resultVal, eps, 0, 1000, false, true) &&
+               ResultCmp(goldenIdx, resultIdx, eps, 0, 1000, false, true);
+    }
+
     template <uint32_t caseId, typename T, int srcRow, int srcValidRow, int dstRow, int col, int validCol>
     bool TCOLCMAXTestFramework()
     {
@@ -90,6 +119,43 @@ protected:
         aclrtFreeHost(srcHost);
 
         return CompareGolden(dstByteSize);
+    }
+
+    template <uint32_t caseId, typename TVal, typename TIdx, int srcRow, int srcValidRow, int dstRow, int col,
+              int validCol>
+    bool TCOLCMAXTestFramework()
+    {
+        // int dstCol = (validCol + 7) / 8 * 8;
+        size_t dstIdxByteSize = dstRow * col * sizeof(TIdx);
+        size_t dstValByteSize = dstRow * col * sizeof(TVal);
+        size_t srcByteSize = srcRow * col * sizeof(TVal);
+        aclrtMallocHost(&dstHostIdx, dstIdxByteSize);
+        aclrtMallocHost(&dstHostVal, dstValByteSize);
+        aclrtMallocHost(&srcHost, srcByteSize);
+        aclrtMalloc(&dstDeviceIdx, dstIdxByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+        aclrtMalloc(&dstDeviceVal, dstValByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+        aclrtMalloc(&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+
+        ReadFile(GetGoldenDir() + "/input.bin", srcByteSize, srcHost, srcByteSize);
+        aclrtMemcpy(srcDevice, srcByteSize, srcHost, srcByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
+
+        launchTCOLIDXVALMAXCase<caseId>(dstDeviceVal, dstDeviceIdx, srcDevice, stream);
+        aclrtSynchronizeStream(stream);
+
+        aclrtMemcpy(dstHostIdx, dstIdxByteSize, dstDeviceIdx, dstIdxByteSize, ACL_MEMCPY_DEVICE_TO_HOST);
+        aclrtMemcpy(dstHostVal, dstValByteSize, dstDeviceVal, dstValByteSize, ACL_MEMCPY_DEVICE_TO_HOST);
+
+        WriteFile(GetGoldenDir() + "/output_val.bin", dstHostVal, dstValByteSize);
+        WriteFile(GetGoldenDir() + "/output_idx.bin", dstHostIdx, dstIdxByteSize);
+
+        aclrtFree(dstDeviceIdx);
+        aclrtFree(dstDeviceVal);
+        aclrtFree(srcDevice);
+        aclrtFreeHost(dstHostVal);
+        aclrtFreeHost(dstHostIdx);
+        aclrtFreeHost(srcHost);
+
+        return CompareGoldenValIdx<TVal, TIdx>(dstValByteSize);
     }
 };
 
@@ -186,5 +252,101 @@ TEST_F(TCOLCMAXTest, case92)
 TEST_F(TCOLCMAXTest, case93)
 {
     bool ret = TCOLCMAXTestFramework<93, uint16_t, 4, 4, 1, 48, 34>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TCOLCMAXTest, case001)
+{
+    bool ret = TCOLCMAXTestFramework<1, float, uint32_t, 1, 1, 1, 256, 255>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TCOLCMAXTest, case002)
+{
+    bool ret = TCOLCMAXTestFramework<2, float, uint32_t, 16, 16, 1, 128, 127>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TCOLCMAXTest, case003)
+{
+    bool ret = TCOLCMAXTestFramework<3, float, uint32_t, 16, 15, 1, 256, 255>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TCOLCMAXTest, case011)
+{
+    bool ret = TCOLCMAXTestFramework<11, aclFloat16, uint16_t, 1, 1, 1, 256, 255>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TCOLCMAXTest, case012)
+{
+    bool ret = TCOLCMAXTestFramework<12, aclFloat16, uint16_t, 16, 16, 1, 128, 127>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TCOLCMAXTest, case013)
+{
+    bool ret = TCOLCMAXTestFramework<13, aclFloat16, uint16_t, 16, 15, 1, 256, 255>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TCOLCMAXTest, case051)
+{
+    bool ret = TCOLCMAXTestFramework<51, uint16_t, uint16_t, 1, 1, 1, 256, 255>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TCOLCMAXTest, case052)
+{
+    bool ret = TCOLCMAXTestFramework<52, uint16_t, uint16_t, 16, 16, 1, 128, 127>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TCOLCMAXTest, case053)
+{
+    bool ret = TCOLCMAXTestFramework<53, uint16_t, uint16_t, 16, 15, 1, 256, 255>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TCOLCMAXTest, case071)
+{
+    bool ret = TCOLCMAXTestFramework<71, uint32_t, uint32_t, 1, 1, 1, 256, 255>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TCOLCMAXTest, case072)
+{
+    bool ret = TCOLCMAXTestFramework<72, uint32_t, uint32_t, 16, 16, 1, 128, 127>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TCOLCMAXTest, case073)
+{
+    bool ret = TCOLCMAXTestFramework<73, uint32_t, uint32_t, 16, 15, 1, 256, 255>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TCOLCMAXTest, case081)
+{
+    bool ret = TCOLCMAXTestFramework<81, aclFloat16, uint16_t, 16, 16, 1, 32, 32>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TCOLCMAXTest, case082)
+{
+    bool ret = TCOLCMAXTestFramework<82, uint16_t, uint16_t, 16, 16, 1, 32, 32>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TCOLCMAXTest, case083)
+{
+    bool ret = TCOLCMAXTestFramework<83, uint32_t, uint32_t, 16, 16, 1, 32, 31>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TCOLCMAXTest, case084)
+{
+    bool ret = TCOLCMAXTestFramework<84, float, uint32_t, 16, 16, 1, 32, 31>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TCOLCMAXTest, case091)
+{
+    bool ret = TCOLCMAXTestFramework<91, uint16_t, uint16_t, 16, 16, 1, 128, 120>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TCOLCMAXTest, case092)
+{
+    bool ret = TCOLCMAXTestFramework<92, aclFloat16, uint16_t, 16, 16, 1, 96, 88>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TCOLCMAXTest, case093)
+{
+    bool ret = TCOLCMAXTestFramework<93, uint16_t, uint16_t, 4, 4, 1, 48, 34>();
     EXPECT_TRUE(ret);
 }

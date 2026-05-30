@@ -1,32 +1,37 @@
-﻿# pto.tbroadcast
+# pto.tbroadcast
 
-`pto.tbroadcast` is part of the [Collective Communication](communication-runtime.md) instruction set.
+## Introduction
 
-## Summary
+Broadcast data from current NPU to all ranks in the parallel group. The calling NPU is the root and its data is copied to all other NPUs.
 
-Broadcast data from one NPU (the root) to all NPUs in a parallel group. Each rank receives an identical copy of the root's data.
+Only the root needs to execute `TBROADCAST`. Non-root ranks only need to ensure their destination buffers are allocated and writable for the duration of the operation. Calling `TBROADCAST` on non-root ranks is undefined behavior.
 
-## Mechanism
+**Large Tile Support**: When the GlobalTensor exceeds the UB (Unified Buffer) tile capacity in rows and/or columns, the transfer is automatically chunked via 2D sliding.
 
-The broadcasting NPU (root) distributes its local data to every other NPU in the parallel group. The operation uses the parallel group to identify the set of participating ranks.
+## Math Interpretation
 
-After the operation, for all ranks `k` in the parallel group:
+After the operation:
 
-$$ \mathrm{dst}^{(k)}_{i,j} = \mathrm{src}^{(\text{root})}_{i,j} $$
+$$ \mathrm{dst}^{(k)}_{i,j} = \mathrm{src}^{(\text{root})}_{i,j} \quad \forall k \in [0, N) $$
 
-where `root` is identified by `parallelGroup.GetRootIdx()`.
-
-The data path uses UB as a staging area: GM → local UB (root) → interconnect → remote UB (all ranks) → GM. A staging tile (or ping/pong tile pair for double buffering) provides the local buffer for this transfer.
-
-**Large tile support**: When the GlobalTensor exceeds the UB tile capacity, the transfer is automatically chunked via 2D sliding.
+where $N$ is the number of ranks and `root` is the calling NPU.
 
 ## Assembly Syntax
+
+PTO-AS form: see [Assembly Spelling And Operands](../syntax-and-operands/assembly-model.md).
+
+Synchronous form:
 
 ```text
 pto.tbroadcast %group, %src : (!pto.group<...>, !pto.memref<...>)
 ```
+Lowering introduces UB staging tile(s) for the GM→UB→GM data path; the C++ intrinsic requires explicit `stagingTileData` (or `pingTile` / `pongTile`) operand(s).
 
-Lowering introduces UB staging tile(s) for the GM → UB → interconnect → GM data path. The C++ intrinsic requires explicit `stagingTileData` (or `pingTile` / `pongTile`) operand(s).
+## Template Parameter
+
+- `engine`:
+    - `CollEngine::AIV` (default)
+    - `CollEngine::CCU` (Ascend950, NPU_ARCH 3510 only)
 
 ## C++ Intrinsic
 
@@ -34,60 +39,37 @@ Declared in `include/pto/comm/pto_comm_inst.hpp`:
 
 ```cpp
 // Basic broadcast (single staging tile)
-template <typename ParallelGroupType, typename GlobalSrcData, typename TileData, typename... WaitEvents>
-PTO_INST RecordEvent BROADCAST(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData,
-                              TileData &stagingTileData, WaitEvents&... events);
+template <CollEngine engine = CollEngine::AIV,
+          typename ParallelGroupType, typename GlobalSrcData, typename TileData, typename... Args>
+PTO_INST RecordEvent TBROADCAST(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData,
+                                TileData &stagingTileData, Args&... args);
 
 // Ping-pong broadcast (double buffering with two staging tiles)
-template <typename ParallelGroupType, typename GlobalSrcData, typename TileData, typename... WaitEvents>
-PTO_INST RecordEvent BROADCAST(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData,
-                              TileData &pingTile, TileData &pongTile, WaitEvents&... events);
+template <CollEngine engine = CollEngine::AIV,
+          typename ParallelGroupType, typename GlobalSrcData, typename TileData, typename... Args>
+PTO_INST RecordEvent TBROADCAST(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData,
+                                TileData &pingTile, TileData &pongTile, Args&... args);
 ```
 
-## Inputs
-
-| Operand | Description |
-|---------|-------------|
-| `parallelGroup` | `ParallelGroup` identifying participating ranks and their destination buffers |
-| `srcGlobalData` | Source GlobalTensor on the root NPU |
-| `stagingTileData` | UB staging tile for the transfer |
-| `pingTile`, `pongTile` | Pair of UB staging tiles for ping-pong double buffering |
-
-## Expected Outputs
-
-| Result | Type | Description |
-|--------|------|-------------|
-| `RecordEvent` | `RecordEvent` | Token signaling completion |
-
-After the operation, each non-root rank has the root's data written to the buffer described by `parallelGroup.tensors[k]`.
-
-## Side Effects
-
-Participates in collective communication over the interconnect. Only the root rank needs to execute the operation; non-root ranks must ensure their destination buffers are allocated and writable.
+When `engine == CollEngine::CCU`, the first variadic argument must be a `CcuTriggerContext` containing the CKE slot VA and gate mask. The AIV kernel triggers the CKE gate; the actual broadcast data path runs on the CCU engine.
 
 ## Constraints
 
-!!! warning "Constraints"
-    - **Type constraints**:
-      - `ParallelGroup::value_type::RawDType` must equal `GlobalSrcData::RawDType`.
-      - `TileData::DType` must equal `GlobalSrcData::RawDType`.
-    - **Memory constraints**:
-      - `srcGlobalData` must point to local memory (current NPU).
-      - Staging tiles must be pre-allocated in UB.
-    - **ParallelGroup constraints**:
-      - `parallelGroup.tensors[k]` must refer to rank `k`'s destination buffer.
-      - `parallelGroup.GetRootIdx()` identifies the broadcast root.
-      - All destination tensors are assumed to have the same shape and strides.
-    - **Chunked mode constraints** (when data exceeds a single UB tile):
-      - If `TileData` has static `ValidRow`, `GetShape(DIM_3)` must be divisible by `ValidRow`. Use a tile with `DYNAMIC` ValidRow for partial row support.
-      - If `TileData` has static `ValidCol`, `GetShape(DIM_4)` must be divisible by `ValidCol`. Use a tile with `DYNAMIC` ValidCol for partial column support.
+- **Type constraints**:
+    - `ParallelGroup::value_type::RawDType` must equal `GlobalSrcData::RawDType`.
+    - `TileData::DType` must equal `GlobalSrcData::RawDType`.
+- **Memory constraints**:
+    - `srcGlobalData` must point to local memory (current NPU).
+    - `stagingTileData` (or `pingTile` / `pongTile`) must be pre-allocated in UB.
+- **ParallelGroup constraints**:
+    - `parallelGroup.tensors[k]` must refer to rank `k`'s destination buffer (remote GM as seen by the root).
+    - `parallelGroup.GetRootIdx()` identifies the calling NPU as the broadcast root.
+    - All destination tensors are assumed to have the same shape and strides.
+- **Chunked mode constraints** (when data exceeds a single UB tile):
+    - If `TileData` has static `ValidRow`, `GetShape(DIM_3)` must be divisible by `ValidRow`. Use a Tile with `DYNAMIC` ValidRow for partial row support.
+    - If `TileData` has static `ValidCol`, `GetShape(DIM_4)` must be divisible by `ValidCol`. Use a Tile with `DYNAMIC` ValidCol for partial column support.
 
-## Exceptions
-
-!!! danger "Exceptions"
-    - Non-root ranks calling `pto.tbroadcast` produces undefined behavior.
-    - Using incompatible tensor types or ranks is rejected by the verifier.
-    - Accessing a rank's destination buffer outside its declared shape is undefined.
+> **CCU path**: Unlike the AIV path where only root calls `TBROADCAST`, the CCU path requires all ranks to register and launch the CCU kernel via host-side `HcclCcuKernelRegister` / `HcclCcuKernelLaunch`. See `tests/npu/a5/comm/st/testcase/tbroadcast_ccu/` for a complete example.
 
 ## Examples
 
@@ -95,48 +77,58 @@ Participates in collective communication over the interconnect. Only the root ra
 
 ```cpp
 #include <pto/comm/pto_comm_inst.hpp>
+
 using namespace pto;
 
 template <typename T, int ROWS, int COLS, int TILE_ROWS, int TILE_COLS, int NRANKS>
 void broadcast(__gm__ T* group_addrs[NRANKS], __gm__ T* my_data, int my_rank) {
-  using TileT = Tile<TileType::Vec, T, TILE_ROWS, TILE_COLS, BLayout::RowMajor, -1, -1>;
-  using GTensor = GlobalTensor<T, Shape<1,1,1,ROWS,COLS>,
-                               BaseShape2D<T, ROWS, COLS, Layout::ND>, Layout::ND>;
+    // Tile dimensions can differ from tensor dimensions.
+    // The 2D sliding chunked path automatically tiles both row and column.
+    using TileT = Tile<TileType::Vec, T, TILE_ROWS, TILE_COLS, BLayout::RowMajor, -1, -1>;
+    using GTensor = GlobalTensor<T, Shape<1,1,1,ROWS,COLS>,
+                                 BaseShape2D<T, ROWS, COLS, Layout::ND>, Layout::ND>;
 
-  GTensor tensors[NRANKS];
-  for (int i = 0; i < NRANKS; ++i)
-    tensors[i] = GTensor(group_addrs[i]);
+    GTensor tensors[NRANKS];
+    for (int i = 0; i < NRANKS; ++i) {
+        tensors[i] = GTensor(group_addrs[i]);
+    }
 
-  comm::ParallelGroup<GTensor> group(tensors, NRANKS, my_rank);
-  GTensor srcG(my_data);
-  TileT stagingTile(TILE_ROWS, TILE_COLS);
+    comm::ParallelGroup<GTensor> group(tensors, NRANKS, my_rank);
+    GTensor srcG(my_data);
+    TileT stagingTile(TILE_ROWS, TILE_COLS);
 
-  comm::BROADCAST(group, srcG, stagingTile);
+    // Current NPU broadcasts its data to all others
+    comm::TBROADCAST(group, srcG, stagingTile);
 }
 ```
 
 ### Ping-Pong Broadcast (Double Buffering)
 
+Uses two UB tiles to overlap TLOAD of the next chunk with TSTORE of the current chunk.
+
 ```cpp
+#include <pto/comm/pto_comm_inst.hpp>
+
+using namespace pto;
+
 template <typename T, int ROWS, int COLS, int TILE_ROWS, int TILE_COLS, int NRANKS>
 void broadcast_pingpong(__gm__ T* group_addrs[NRANKS], __gm__ T* my_data, int my_rank) {
-  using TileT = Tile<TileType::Vec, T, TILE_ROWS, TILE_COLS, BLayout::RowMajor, -1, -1>;
-  using GPerRank = GlobalTensor<T, Shape<1,1,1,ROWS,COLS>,
-                                BaseShape2D<T, ROWS, COLS, Layout::ND>, Layout::ND>;
 
-  GPerRank tensors[NRANKS];
-  for (int i = 0; i < NRANKS; ++i)
-    tensors[i] = GPerRank(group_addrs[i]);
+    using TileT = Tile<TileType::Vec, T, TILE_ROWS, TILE_COLS, BLayout::RowMajor, -1, -1>;
+    using GPerRank = GlobalTensor<T, Shape<1,1,1,ROWS,COLS>,
+                                  BaseShape2D<T, ROWS, COLS, Layout::ND>, Layout::ND>;
 
-  comm::ParallelGroup<GPerRank> group(tensors, NRANKS, my_rank);
-  GPerRank srcG(my_data);
-  TileT pingTile(TILE_ROWS, TILE_COLS);
-  TileT pongTile(TILE_ROWS, TILE_COLS);
+    GPerRank tensors[NRANKS];
+    for (int i = 0; i < NRANKS; ++i) {
+        tensors[i] = GPerRank(group_addrs[i]);
+    }
 
-  comm::BROADCAST(group, srcG, pingTile, pongTile);
+    comm::ParallelGroup<GPerRank> group(tensors, NRANKS, my_rank);
+    GPerRank srcG(my_data);
+    TileT pingTile(TILE_ROWS, TILE_COLS);
+    TileT pongTile(TILE_ROWS, TILE_COLS);
+
+    // Ping-pong: overlaps TLOAD and TSTORE for better throughput
+    comm::TBROADCAST(group, srcG, pingTile, pongTile);
 }
 ```
-
-## See Also
-
-- Instruction set overview: [Collective Communication](communication-runtime.md)

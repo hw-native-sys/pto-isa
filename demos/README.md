@@ -77,12 +77,14 @@ python add_compile_and_run.py
 - Ascend AI Processor A2/A3/A5(910B/910C/950)
 - CANN Toolkit 8.5.0+
 - PyTorch with `torch_npu`
-- Python 3.8+, CMake 3.16+
+- Python >= 3.9.x, CMake 3.16+
 
 **For CPU Demos**:
 - C++ compiler with C++23 support
 - CMake 3.16+
-- Python 3.8+ (optional)
+- Python >= 3.9.x (optional)
+
+> **Note:** Python has announced that 3.7.x/3.8.x are EOL. CANN will soon stop supporting these versions. Please upgrade to Python >= 3.9.x.
 
 ## Documentation
 

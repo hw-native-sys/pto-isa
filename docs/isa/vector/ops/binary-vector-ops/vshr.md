@@ -29,13 +29,13 @@ vshr %dst, %lhs, %rhs, %mask : !pto.vreg<NxT>
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vshr %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask) -> !pto.vreg<NxT>
+%result = pto.vshr %lhs, %rhs, %mask : (!pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>) -> !pto.vreg<NxT>
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.vshr ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask)
+pto.vshr ins(%lhs, %rhs, %mask : !pto.vreg<NxT>, !pto.vreg<NxT>, !pto.mask<G>)
           outs(%result : !pto.vreg<NxT>)
 ```
 
@@ -47,7 +47,7 @@ Supported element types: all integer types (`i8`–`i64`, `u8`–`u64`).
 |---------|------|-------------|
 | `%lhs` | `!pto.vreg<NxT>` | Value to be shifted (left operand) |
 | `%rhs` | `!pto.vreg<NxT>` | Per-lane unsigned shift count |
-| `%mask` | `!pto.mask` | Predicate mask; lanes where mask bit is 1 are active |
+| `%mask` | `!pto.mask<G>` | Predicate mask; lanes where mask bit is 1 are active |
 
 Both source registers MUST have the same integer element type and the same vector width `N`. The mask width MUST match `N`.
 
@@ -120,10 +120,10 @@ for (int i = 0; i < N; i++)
 ```mlir
 // Right shift by scalar count (broadcast to all lanes)
 %count = pto.vbroadcast %c2 : i32 -> !pto.vreg<64xi32>
-%shifted = pto.vshr %data, %count, %active : (!pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask) -> !pto.vreg<64xi32>
+%shifted = pto.vshr %data, %count, %active : (!pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask<b32>) -> !pto.vreg<64xi32>
 
 // Per-lane variable shift
-%shifted2 = pto.vshr %data, %counts, %active : (!pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask) -> !pto.vreg<64xi32>
+%shifted2 = pto.vshr %data, %counts, %active : (!pto.vreg<64xi32>, !pto.vreg<64xi32>, !pto.mask<b32>) -> !pto.vreg<64xi32>
 ```
 
 ## Related Ops / Instruction Set Links

@@ -8,6 +8,7 @@ Memory operations transfer data between global memory (GM) and tile buffers. The
 |-----------|-------------|-----------|----------------|
 | [pto.tload](./ops/memory-and-data-movement/tload.md) | Load from GM into tile | GM → local tile buffer | `TLOAD(dst, gtensor)` |
 | [pto.tprefetch](./ops/memory-and-data-movement/tprefetch.md) | Prefetch from GM into tile (non-blocking) | GM → local tile buffer | `TPREFETCH(dst, gtensor)` |
+| [pto.tprefetch_async](./ops/memory-and-data-movement/tprefetch-async.md) | Asynchronously prefetch GM into L2 via SDMA CMO | GM → L2 cache | `TPREFETCH_ASYNC(gtensor, ctx)` |
 | [pto.tstore](./ops/memory-and-data-movement/tstore.md) | Store from tile to GM | local tile buffer → GM | `TSTORE(gtensor, src)` |
 | [pto.tstore_fp](./ops/memory-and-data-movement/tstore.md) | Store through the fix-pipe path | Tile → local tile buffer → GM | `TSTORE_FP(gtensor, src, fp)` |
 | [pto.mgather](./ops/memory-and-data-movement/mgather.md) | Gather scattered elements from GM | GM → local tile buffer | `MGATHER(dst, gtensor, indices)` |
@@ -29,6 +30,8 @@ Transfer size: `dst.GetValidRow() × dst.GetValidCol()` elements.
 ### Prefetch (TPREFETCH)
 
 `TPREFETCH` initiates a non-blocking DMA transfer from GM to the tile buffer. It does not stall the pipeline. A subsequent operation that reads the tile buffer must wait for the transfer to complete via `TSYNC` or `set_flag`/`wait_flag`.
+
+`TPREFETCH_ASYNC` uses SDMA CMO to warm the L2 cache for a flat contiguous GlobalTensor region. It returns a `comm::AsyncEvent`; consumers that require the prefetched data must wait on that event before issuing the dependent load.
 
 ### Gather/Scatter (MGATHER, MSCATTER)
 
@@ -115,6 +118,9 @@ PTO_INST RecordEvent TSTORE_FP(GlobalData& dst, TileData& src, FpTileData& fp,
 // Prefetch
 template <typename TileData, typename GlobalData>
 PTO_INST RecordEvent TPREFETCH(TileData& dst, GlobalData& src);
+
+template <typename GlobalData, typename... WaitEvents>
+PTO_INST comm::AsyncEvent TPREFETCH_ASYNC(GlobalData& src, PrefetchAsyncContext& ctx, WaitEvents&... events);
 
 // Gather/Scatter
 template <typename TileData, typename GlobalData, typename IndexData>

@@ -67,6 +67,9 @@ bool TLReluTestFramework()
     file.read(reinterpret_cast<char *>(&scalar), 4);
     file.close();
 
+    aclrtMemset(dstHost, dstByteSize, 0, dstByteSize);
+
+    aclrtMemcpy(dstDevice, dstByteSize, dstHost, dstByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(srcDevice, srcByteSize, srcHost, srcByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
     launchTLRELUTestCase<caseId>(dstDevice, srcDevice, scalar, stream);
     aclrtSynchronizeStream(stream);

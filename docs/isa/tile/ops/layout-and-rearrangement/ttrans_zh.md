@@ -1,4 +1,4 @@
-﻿# TTRANS
+# TTRANS
 
 ## 指令示意图
 
@@ -74,6 +74,7 @@ PTO_INST RecordEvent TTRANS(TileDataDst &dst, TileDataSrc &src, TileDataTmp &tmp
         - 支持在`TileType::Vec`上的ConvTile的格式转换。其元素大小必须是 `1`、`2` 或 `4` 字节。元素类型限制为`uint32_t`、`int32_t`、`float`、`uint16_t`、`int16_t`、`half`、`bfloat16_t`、`uint8_t`、`int8_t`。
         - 支持ConvTile从`NCHW`到`NC1HWC0`的变换，其中`C1 == (C + C0 - 1)/C0`，HW满足对齐要求，即`H*W*sizeof(T)==0`. C0对应`c0_size`, 即`C0 * sizeof(T) == 32`。C0也可以为4。
         - 支持ConvTile从`NC1HWC0`到`FRACTAL_Z`的变换, 其中`N1 == (N + N0 - 1)/N0`。N0为16。
+        - 支持ConvTile从`NCDHW`到`FRACTAL_Z_3D`的变换，目标形状为`[D * C1 * H * W, N1, N0, C0]`，其中`C1 == (C + C0 - 1) / C0`且`N1 == (N + N0 - 1) / N0`。`N0`为`16`。`C0`取决于元素宽度：4-bit数据为`64`，8-bit数据为`32`，16-bit数据为`16`，32-bit数据为`8`。临时Tile必须足够容纳`(D + 1) * N * C1 * C0 * H * W`个中间元素，以及`H * W * alignedC0`个scratch元素；`alignedC0`会将`dstC0`按16/32-bit数据上取整到`16`，按8-bit数据上取整到`32`。
 
 ## 示例
 

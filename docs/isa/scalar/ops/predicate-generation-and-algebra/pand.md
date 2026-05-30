@@ -19,19 +19,19 @@ The third operand (`%mask`) in the syntax is an optional masking predicate for t
 ### PTO Assembly Form
 
 ```mlir
-%dst = pto.pand %src0, %src1, %mask : !pto.mask, !pto.mask, !pto.mask -> !pto.mask
+%dst = pto.pand %src0, %src1, %mask : !pto.mask<G>, !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-%dst = pto.pand %src0, %src1, %mask : !pto.mask, !pto.mask, !pto.mask -> !pto.mask
+%dst = pto.pand %src0, %src1, %mask : !pto.mask<G>, !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
 ```
 
 ### AS Level 2 (DPS)
 
 ```mlir
-pto.pand ins(%src0, %src1, %mask : !pto.mask, !pto.mask, !pto.mask) outs(%dst : !pto.mask)
+pto.pand ins(%src0, %src1, %mask : !pto.mask<G>, !pto.mask<G>, !pto.mask<G>) outs(%dst : !pto.mask<G>)
 ```
 
 ## C++ Intrinsic
@@ -48,15 +48,15 @@ pand(dst, src0, src1, mask);
 
 | Operand | Type | Description |
 |---------|------|-------------|
-| `%src0` | `!pto.mask` | First source predicate |
-| `%src1` | `!pto.mask` | Second source predicate |
-| `%mask` | `!pto.mask` | Optional masking predicate (scalar and control instructions context) |
+| `%src0` | `!pto.mask<G>` | First source predicate |
+| `%src1` | `!pto.mask<G>` | Second source predicate |
+| `%mask` | `!pto.mask<G>` | Optional masking predicate (scalar and control instructions context) |
 
 ## Expected Outputs
 
 | Result | Type | Description |
 |--------|------|-------------|
-| `%dst` | `!pto.mask` | Bitwise AND of src0 and src1 |
+| `%dst` | `!pto.mask<G>` | Bitwise AND of src0 and src1 |
 
 ## Side Effects
 
@@ -99,16 +99,16 @@ void combine_masks(RegBuf<predicate_t>& dst,
 
 ```mlir
 // %cmp_mask: lanes where a[i] < b[i]
-%cmp = pto.vcmp %va, %vb, %seed, "lt" : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.mask
+%cmp = pto.vcmp %va, %vb, %seed, "lt" : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.mask<b32>
 
 // %tail_mask: lanes in the remainder region
-%tail = pto.pge_b32 %rem : i32 -> !pto.mask
+%tail = pto.pge_b32 %rem : i32 -> !pto.mask<G>
 
 // Intersection: only process remainder lanes where comparison is true
-%active = pto.pand %cmp, %tail, %cmp : !pto.mask, !pto.mask, !pto.mask -> !pto.mask
+%active = pto.pand %cmp, %tail, %cmp : !pto.mask<G>, !pto.mask<G>, !pto.mask<G> -> !pto.mask<G>
 
 // Use in predicated operation
-%result = pto.vsel %v_true, %v_false, %active : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+%result = pto.vsel %v_true, %v_false, %active : !pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 ```
 
 ## Related Ops / Instruction Set Links

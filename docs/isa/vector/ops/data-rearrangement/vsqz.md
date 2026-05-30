@@ -21,7 +21,7 @@ vsqz %dst, %src, %mask
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vsqz %src, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vsqz %src, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 ## Inputs
@@ -29,7 +29,7 @@ vsqz %dst, %src, %mask
 | Operand | Type | Description |
 | --- | --- | --- |
 | %src | `!pto.vreg<NxT>` | Source vector |
-| %mask | `!pto.mask` | Predicate mask selecting which lanes are kept |
+| %mask | `!pto.mask<G>` | Predicate mask selecting which lanes are kept |
 
 ## Expected Outputs
 

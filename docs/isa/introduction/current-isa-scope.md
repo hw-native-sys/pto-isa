@@ -26,6 +26,10 @@ That yields **289 named instructions** in the current reference set.
 
 ## Tile Instruction Inventory
 
+### View and Tile Buffer
+
+`make_tensor_view`, `get_tensor_view_dim`, `get_tensor_view_stride`, `tensor_view_addr`, `partition_view`, `alloc_tile`, `subset`, `set_validshape`, `tile_buf_addr`
+
 ### Sync And Config
 
 `tsync`, `tassign`, `talias`, `sethf32mode`, `settf32mode`, `setfmatrix`, `set_img2col_rpt`, `set_img2col_padding`, `subview`, `get_scale_addr`
@@ -62,7 +66,7 @@ That yields **289 named instructions** in the current reference set.
 
 ### Vector Load-Store
 
-`vgather2`, `vgather2_bc`, `vgatherb`, `vldas`, `vlds`, `vldus`, `vldx2`, `vscatter`, `vsld`, `vsldb`, `vsst`, `vsstb`, `vsta`, `vstar`, `vstas`, `vsts`, `vstu`, `vstur`, `vstus`, `vstx2`
+`vgather2`, `vgather2_bc`, `vgatherb`, `vldas`, `vlds`, `vldus`, `vldsx2`, `vscatter`, `vsld`, `vsldb`, `vsst`, `vsstb`, `vsta`, `vstar`, `vstas`, `vsts`, `vstu`, `vstur`, `vstus`, `vstsx2`
 
 ### Predicate And Materialization
 
@@ -98,7 +102,7 @@ That yields **289 named instructions** in the current reference set.
 
 ### SFU And DSA Operations
 
-`vaddrelu`, `vaddreluconv`, `vaxpy`, `vexpdiff`, `vmrgsort`, `vmula`, `vmulconv`, `vmull`, `vprelu`, `vsort32`, `vsubrelu`, `vtranspose`
+`vaddrelu`, `vaddreluconv`, `vaxpy`, `vexpdif`, `vmrgsort`, `vmula`, `vmulconv`, `vmull`, `vprelu`, `vsort32`, `vsubrelu`, `vtranspose`
 
 ## Scalar And Control Instruction Inventory
 

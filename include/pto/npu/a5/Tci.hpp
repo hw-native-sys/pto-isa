@@ -32,7 +32,7 @@ __tf__ AICORE void Tci(typename TileData::TileDType __out__ dst, T start, unsign
     using Tdst = typename TileData::DType;
     __ubuf__ Tdst *dstPtr = (__ubuf__ Tdst *)__cce_get_tile_ptr(dst);
     // scalar
-    if (descending) {
+    if constexpr (descending) {
         for (int32_t j = 0; j < validCol; j++) {
             *(dstPtr + j) = start - j;
         }
@@ -61,7 +61,7 @@ __tf__ AICORE void Tci_b32(typename TileData::TileDType __out__ dst, typename Ti
     uint16_t loops = (validCol + batch_size - 1) / batch_size;
     int32_t t = S;
     MaskReg preg;
-    if (descending == 0) {
+    if constexpr (descending == 0) {
         __VEC_SCOPE__
         {
             for (uint16_t i = 0; i < loops; ++i) {
@@ -73,7 +73,7 @@ __tf__ AICORE void Tci_b32(typename TileData::TileDType __out__ dst, typename Ti
                 t = t + 64;
             }
         }
-    } else if (descending == 1) {
+    } else if constexpr (descending == 1) {
         __VEC_SCOPE__
         {
             for (uint16_t i = 0; i < loops; ++i) {
@@ -100,7 +100,7 @@ __tf__ AICORE void Tci_b16(typename TileData::TileDType __out__ dst, typename Ti
     uint16_t loop = (validCol + batch_size - 1) / batch_size;
     int32_t s = S;
     MaskReg preg;
-    if (descending == 0) {
+    if constexpr (descending == 0) {
         __VEC_SCOPE__
         {
             for (uint16_t i = 0; i < loop; ++i) {
@@ -113,7 +113,7 @@ __tf__ AICORE void Tci_b16(typename TileData::TileDType __out__ dst, typename Ti
             }
         }
 
-    } else if (descending == 1) {
+    } else if constexpr (descending == 1) {
         __VEC_SCOPE__
         {
             for (uint16_t i = 0; i < loop; ++i) {

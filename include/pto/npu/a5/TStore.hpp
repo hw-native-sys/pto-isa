@@ -93,8 +93,8 @@ PTO_INTERNAL void SetAtomicAdd()
 {
     static_assert((std::is_same_v<T, __gm__ half>) || (std::is_same_v<T, __gm__ float>) ||
                       (std::is_same_v<T, __gm__ int16_t>) || (std::is_same_v<T, __gm__ int32_t>) ||
-                      (std::is_same_v<T, __gm__ int8_t>),
-                  "Dst and src must be half / float / int16_t / int32_t / int8_t.");
+                      (std::is_same_v<T, __gm__ int8_t>) || (std::is_same_v<T, __gm__ bfloat16_t>),
+                  "Dst and src must be half / float / int16_t / int32_t / int8_t / bfloat16_t.");
     atomic_type_t atomicType = atomic_type_t::ATOMIC_NONE;
     if constexpr (std::is_same_v<T, __gm__ float>) {
         set_atomic_f32();
@@ -106,6 +106,8 @@ PTO_INTERNAL void SetAtomicAdd()
         set_atomic_s32();
     } else if constexpr (std::is_same_v<T, __gm__ int8_t>) {
         set_atomic_s8();
+    } else if constexpr (std::is_same_v<T, __gm__ bfloat16_t>) {
+        set_atomic_bf16();
     }
     set_atomic_add();
 }

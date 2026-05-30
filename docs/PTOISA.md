@@ -19,6 +19,7 @@ This page is the source-synchronized ISA index generated from `docs/isa/manifest
 | Category | Instruction | Description |
 |---|---|---|
 | Synchronization | [`TSYNC`](isa/tile/ops/sync-and-config/tsync.md) | Synchronize PTO execution (wait on events or insert a per-op pipeline barrier). |
+| Synchronization | [`SYNCALL`](isa/tile/ops/sync-and-config/syncall.md) | Cross-core synchronization barrier for A2/A3 and A5 backends. |
 | Manual / Resource Binding | [`TASSIGN`](isa/tile/ops/sync-and-config/tassign.md) | Bind a Tile object to an implementation-defined on-chip address (manual placement). |
 | Manual / Resource Binding | [`pto.setfmatrix`](isa/tile/ops/sync-and-config/setfmatrix.md) | Set FMATRIX register(s) for IMG2COL-like ops. |
 | Manual / Resource Binding | [`pto.set_img2col_rpt`](isa/tile/ops/sync-and-config/set-img2col-rpt.md) | Set IMG2COL repeat metadata from an IMG2COL configuration tile. |
@@ -79,8 +80,8 @@ This page is the source-synchronized ISA index generated from `docs/isa/manifest
 | Axis Reduce / Expand | [`TROWMIN`](isa/tile/ops/reduce-and-expand/trowmin.md) | Reduce each row by taking the minimum across columns. |
 | Axis Reduce / Expand | [`TROWARGMAX`](isa/tile/ops/reduce-and-expand/trowargmax.md) | Get the column index of the maximum element for each row. |
 | Axis Reduce / Expand | [`TROWARGMIN`](isa/tile/ops/reduce-and-expand/trowargmin.md) | Get the column index of the minimum element for each row. |
-| Axis Reduce / Expand | [`TCOLARGMAX`](isa/tile/ops/reduce-and-expand/tcolargmax.md) | Get the row index of the maximum element for each column. |
-| Axis Reduce / Expand | [`TCOLARGMIN`](isa/tile/ops/reduce-and-expand/tcolargmin.md) | Get the row index of the minimum element for each column. |
+| Axis Reduce / Expand | [`TCOLARGMAX`](isa/tile/ops/reduce-and-expand/tcolargmax.md) | Get the row index, or both value and row index, of the maximum element for each column. |
+| Axis Reduce / Expand | [`TCOLARGMIN`](isa/tile/ops/reduce-and-expand/tcolargmin.md) | Get the row index, or both value and row index, of the minimum element for each column. |
 | Axis Reduce / Expand | [`TROWEXPAND`](isa/tile/ops/reduce-and-expand/trowexpand.md) | Broadcast the first element of each source row across the destination row. |
 | Axis Reduce / Expand | [`TROWEXPANDDIV`](isa/tile/ops/reduce-and-expand/trowexpanddiv.md) | Row-wise broadcast divide: divide each row of `src0` by a per-row scalar vector `src1`. |
 | Axis Reduce / Expand | [`TROWEXPANDMUL`](isa/tile/ops/reduce-and-expand/trowexpandmul.md) | Row-wise broadcast multiply: multiply each row of `src0` by a per-row scalar vector `src1`. |
@@ -100,6 +101,7 @@ This page is the source-synchronized ISA index generated from `docs/isa/manifest
 | Axis Reduce / Expand | [`TCOLEXPANDEXPDIF`](isa/tile/ops/reduce-and-expand/tcolexpandexpdif.md) | Column-wise exp-diff: compute exp(src0 - src1) with per-column scalars. |
 | Memory (GM <-> Tile) | [`TLOAD`](isa/tile/ops/memory-and-data-movement/tload.md) | Load data from a GlobalTensor (GM) into a Tile. |
 | Memory (GM <-> Tile) | [`TPREFETCH`](isa/tile/ops/memory-and-data-movement/tprefetch.md) | Prefetch data from global memory into a tile-local cache/buffer (hint). |
+| Memory (GM <-> Tile) | [`TPREFETCH_ASYNC`](isa/tile/ops/memory-and-data-movement/tprefetch-async.md) | Asynchronously prefetch a GlobalTensor region from GM into L2 cache via SDMA CMO. |
 | Memory (GM <-> Tile) | [`TSTORE`](isa/tile/ops/memory-and-data-movement/tstore.md) | Store data from a Tile into a GlobalTensor (GM), optionally using atomic write or quantization parameters. |
 | Memory (GM <-> Tile) | [`TSTORE_FP`](isa/tile/ops/memory-and-data-movement/tstore.md) | Store an accumulator tile into global memory using a scaling (`fp`) tile for vector quantization parameters. |
 | Memory (GM <-> Tile) | [`MGATHER`](isa/tile/ops/memory-and-data-movement/mgather.md) | Gather-load elements from global memory into a tile using per-element indices. |
@@ -124,6 +126,7 @@ This page is the source-synchronized ISA index generated from `docs/isa/manifest
 | Data Movement / Layout | [`TMOV_FP`](isa/tile/ops/layout-and-rearrangement/tmov.md) | Move/convert from an accumulator tile into a destination tile, using a scaling (`fp`) tile for vector quantization parameters. |
 | Data Movement / Layout | [`TRESHAPE`](isa/tile/ops/layout-and-rearrangement/treshape.md) | Reinterpret a tile as another tile type/shape while preserving the underlying bytes. |
 | Data Movement / Layout | [`TTRANS`](isa/tile/ops/layout-and-rearrangement/ttrans.md) | Transpose with an implementation-defined temporary tile. |
+| Data Movement / Layout | [`TCONCAT`](isa/tile/ops/layout-and-rearrangement/tconcat.md) | Concatenate two tiles horizontally along the column dimension. |
 | Data Movement / Layout | [`TSUBVIEW`](isa/tile/ops/sync-and-config/subview.md) | Reinterpret a tile as a subtile of another tile. |
 | Data Movement / Layout | [`TGET_SCALE_ADDR`](isa/tile/ops/sync-and-config/get-scale-addr.md) | Bind the on-chip address of output tile to a scaled factor of that of input tile. |
 | Complex | [`TPRINT`](isa/tile/ops/irregular-and-complex/tprint.md) | Debug/print elements from a tile (implementation-defined). |

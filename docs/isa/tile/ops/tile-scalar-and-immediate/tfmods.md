@@ -41,9 +41,16 @@ pto.tfmods ins(%src, %scalar : !pto.tile_buf<...>, f32) outs(%dst : !pto.tile_bu
 Declared in `include/pto/common/pto_instr.hpp`:
 
 ```cpp
-template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
-PTO_INST RecordEvent TFMODS(TileDataDst &dst, TileDataSrc &src, typename TileDataSrc::DType scalar, WaitEvents &... events);
+template <auto PrecisionType = FmodSAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc,
+          typename... WaitEvents>
+PTO_INST RecordEvent TFMODS(TileDataDst &dst, TileDataSrc &src, typename TileDataSrc::DType scalar,
+                            WaitEvents &... events);
 ```
+
+`PrecisionType` selects the scalar remainder algorithm:
+
+- `FmodSAlgorithm::DEFAULT`: normal algorithm, faster with lower precision.
+- `FmodSAlgorithm::HIGH_PRECISION`: high-precision algorithm, slower and supported only for `float`.
 
 ## Inputs
 
@@ -68,6 +75,9 @@ No architectural side effects beyond producing the destination tile. Does not im
 
     - **Valid region**:
         - The op uses `dst.GetValidRow()` / `dst.GetValidCol()` as the iteration domain.
+
+    - **High-precision algorithm**:
+        - Only available on A5; A2A3 ignores the `PrecisionType` option.
 
 ## Exceptions
 

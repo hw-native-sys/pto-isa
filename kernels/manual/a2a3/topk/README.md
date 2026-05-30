@@ -11,13 +11,15 @@ This example demonstrates how to implement a Topk operator using PTO, including 
 ## Directory Layout
 
 ```
-kernels/topk/
+kernels/manual/a2a3/topk/
 ├── scripts/
 │   └── gen_data.py              # Generates input and golden output
 ├── CMakeLists.txt               # Build configuration
-├── topk_kernel.cpp              # Kernel implementation
 ├── main.cpp                     # Host-side entry point
-└── run.sh                       # Convenience script
+├── README.md                    # English documentation
+├── README_zh.md                 # Chinese documentation
+├── run.sh                       # Convenience script
+└── topk_kernel.cpp              # Kernel implementation
 ```
 
 ## Operator Description
@@ -47,7 +49,7 @@ Per-core shape:
 
 ### Type definitions
 
-The implementation defines topk representations. Load input data and index in GM to UB, use TSort32 to sort each 32 data, use TMrgsort for each tile. Extract data and index, then store back to gm seperately.
+The implementation defines topk representations. Load input data and index in GM to UB, use TSort32 to sort each 32 data, use TMrgsort for each tile. Extract data and index, then store back to gm separately.
 
 ```cpp
     // data
@@ -69,7 +71,7 @@ The implementation defines topk representations. Load input data and index in GM
 
 ### Pipeline scheduling
 
-This example overlaps data movement and compute using double buffering in UB to improve utilization. In each iteration, two sets of operation are performed，TLOAD->TSORT32->TMRGSORT(include MRGSORT and MOV operation)->TSTORE. The pipeline dependece in each set is `MTE2->V->MTE1->V->MTE3`. TLOAD in the second sets can be performed before TSTORE in the first set is finished, so as others. Extra dependence `V->MTE2`is added to ensure that TLOAD in next iteration is performed after VEC operation is done in corresonding set.
+This example overlaps data movement and compute using double buffering in UB to improve utilization. In each iteration, two sets of operation are performed, TLOAD->TSORT32->TMRGSORT(include MRGSORT and MOV operation)->TSTORE. The pipeline dependence in each set is `MTE2->V->MTE1->V->MTE3`. TLOAD in the second set can be performed before TSTORE in the first set is finished, so as others. Extra dependence `V->MTE2` is added to ensure that TLOAD in next iteration is performed after VEC operation is done in corresponding set.
 
 ## Measured Performance (Reference)
 

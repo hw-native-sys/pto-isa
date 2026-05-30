@@ -98,7 +98,12 @@ PTO_INTERNAL void ProcReduceIdxStage2(__ubuf__ typename TileDataOutVal::DType *d
     }
     set_mask_norm();
     set_vector_mask(-1, -1);
+#ifndef __PTO_AUTO__
     PtoSetWaitFlag<PIPE_V, PIPE_S>();
+#else
+    set_flag(PIPE_V, PIPE_S, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
+#endif
     for (int i = 0; i < validRow; i++) {
         __ubuf__ U *idxArrStage1 = (reinterpret_cast<__ubuf__ U *>(tmp + i * TileDataTmp::Cols + tempIdxOffsetStage1));
         __ubuf__ U *idxArrStage2 = (reinterpret_cast<__ubuf__ U *>(tmp + i * TileDataTmp::Cols + tempIdxOffsetStage2));
@@ -110,7 +115,12 @@ PTO_INTERNAL void ProcReduceIdxStage2(__ubuf__ typename TileDataOutVal::DType *d
                 *(reinterpret_cast<__ubuf__ T *>(tmp + i * TileDataTmp::Cols + tempIdxOffsetFinal));
         }
     }
+#ifndef __PTO_AUTO__
     PtoSetWaitFlag<PIPE_S, PIPE_V>();
+#else
+    set_flag(PIPE_S, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_S, PIPE_V, EVENT_ID0);
+#endif
 }
 
 template <bool outputVal, typename InstrOp, typename TileDataOutVal, typename TileDataOut, typename TileDataIn,
@@ -144,7 +154,12 @@ PTO_INTERNAL void ProcReduceIdxStage1(__ubuf__ typename TileDataOutVal::DType *d
     }
     set_mask_norm();
     set_vector_mask(-1, -1);
+#ifndef __PTO_AUTO__
     PtoSetWaitFlag<PIPE_V, PIPE_S>();
+#else
+    set_flag(PIPE_V, PIPE_S, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
+#endif
     for (int i = 0; i < validRow; i++) {
         idxArr = reinterpret_cast<__ubuf__ U *>(tmp + i * TileDataTmp::Cols);
         idxStage1 = *(reinterpret_cast<__ubuf__ U *>(tmp + i * TileDataTmp::Cols + tempOffset + 1));
@@ -155,7 +170,12 @@ PTO_INTERNAL void ProcReduceIdxStage1(__ubuf__ typename TileDataOutVal::DType *d
                 *(reinterpret_cast<__ubuf__ T *>(tmp + i * TileDataTmp::Cols + tempOffset));
         }
     }
+#ifndef __PTO_AUTO__
     PtoSetWaitFlag<PIPE_S, PIPE_V>();
+#else
+    set_flag(PIPE_S, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_S, PIPE_V, EVENT_ID0);
+#endif
 }
 
 template <typename InstrOp, typename TileDataOut, typename TileDataIn>
@@ -228,7 +248,12 @@ PTO_INTERNAL void ExtractValIdxFromTmp(__ubuf__ typename TileDataOutVal::DType *
     set_mask_norm();
     set_vector_mask(-1, -1);
     if constexpr (TileDataOutVal::Cols != 1 || TileDataOutIdx::Cols != 1) {
+#ifndef __PTO_AUTO__
         PtoSetWaitFlag<PIPE_V, PIPE_S>();
+#else
+        set_flag(PIPE_V, PIPE_S, EVENT_ID0);
+        wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
+#endif
         if constexpr (TileDataOutIdx::Cols != 1) {
             for (int i = 0; i < validRow; i++) {
                 *(reinterpret_cast<__ubuf__ U *>(dstIdx) + i * TileDataOutIdx::Cols) =
@@ -241,7 +266,12 @@ PTO_INTERNAL void ExtractValIdxFromTmp(__ubuf__ typename TileDataOutVal::DType *
                     *(reinterpret_cast<__ubuf__ U *>(tmp) + i * 2);
             }
         }
+#ifndef __PTO_AUTO__
         PtoSetWaitFlag<PIPE_S, PIPE_V>();
+#else
+        set_flag(PIPE_S, PIPE_V, EVENT_ID0);
+        wait_flag(PIPE_S, PIPE_V, EVENT_ID0);
+#endif
     }
 }
 

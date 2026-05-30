@@ -21,7 +21,7 @@ vaddreluconv %dst, %lhs, %rhs, %mask : !pto.vreg<NxT0>
 ### AS Level 1 (SSA)
 
 ```mlir
-%result = pto.vaddreluconv %lhs, %rhs, %mask : (!pto.vreg<NxT0>, !pto.vreg<NxT0>, !pto.mask) -> !pto.vreg<MxT1>
+%result = pto.vaddreluconv %lhs, %rhs, %mask : (!pto.vreg<NxT0>, !pto.vreg<NxT0>, !pto.mask<G>) -> !pto.vreg<MxT1>
 ```
 
 ## Inputs
@@ -30,7 +30,7 @@ vaddreluconv %dst, %lhs, %rhs, %mask : !pto.vreg<NxT0>
 ||---------|------|-------------|
 || `%lhs` | `!pto.vreg<NxT0>` | Left-hand source vector |
 || `%rhs` | `!pto.vreg<NxT0>` | Right-hand source vector |
-|| `%mask` | `!pto.mask` | Predicate mask; lanes where mask bit is 1 are active |
+|| `%mask` | `!pto.mask<G>` | Predicate mask; lanes where mask bit is 1 are active |
 
 Both source vectors MUST have the same element type `T0` and the same vector width `N`. The mask width MUST match `N`.
 
@@ -103,10 +103,10 @@ for (int i = 0; i < 128; i++)
 
 ```mlir
 // Widening: f16 → f32
-%result = pto.vaddreluconv %lhs, %rhs, %mask : (!pto.vreg<64xf16>, !pto.vreg<64xf16>, !pto.mask) -> !pto.vreg<64xf32>
+%result = pto.vaddreluconv %lhs, %rhs, %mask : (!pto.vreg<64xf16>, !pto.vreg<64xf16>, !pto.mask<G>) -> !pto.vreg<64xf32>
 
 // Narrowing: f32 → f16 with saturation
-%result = pto.vaddreluconv %lhs, %rhs, %mask : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask) -> !pto.vreg<64xf16>
+%result = pto.vaddreluconv %lhs, %rhs, %mask : (!pto.vreg<64xf32>, !pto.vreg<64xf32>, !pto.mask<G>) -> !pto.vreg<64xf16>
 ```
 
 ### Common use cases

@@ -62,6 +62,7 @@ This table tracks per-instruction backend availability:
 | [`TCOLMIN`](../docs/isa/TCOLMIN.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TCOLPROD`](../docs/isa/TCOLPROD.md) | TODO | TODO | Yes | Yes | Yes | TODO |
 | [`TCOLSUM`](../docs/isa/TCOLSUM.md) | Yes | Yes | Yes | Yes | Yes | TODO |
+| [`TConcat`](../docs/isa/TCONCAT.md) | TODO | TODO | TODO | TODO | Yes | TODO |
 | [`TCVT`](../docs/isa/TCVT.md) | Yes | Yes | Yes | Yes | Yes | TODO |
 | [`TDIV`](../docs/isa/TDIV.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TDIVS`](../docs/isa/TDIVS.md) | Yes | Yes | Yes | Yes | Yes | Yes |
@@ -114,6 +115,7 @@ This table tracks per-instruction backend availability:
 | [`TPARTMIN`](../docs/isa/TPARTMIN.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TPARTMUL`](../docs/isa/TPARTMUL.md) | No | TODO | Yes | Yes | Yes | Yes |
 | [`TPREFETCH`](../docs/isa/TPREFETCH.md) | Yes | TODO | Yes | Yes | Yes | Yes |
+| [`TPREFETCH_ASYNC`](../docs/isa/TPREFETCH_ASYNC.md) | Yes | TODO | Yes | Yes | Yes | TODO |
 | [`TPRELU`](../docs/isa/TPRELU.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TPRINT`](../docs/isa/TPRINT.md) | TODO | TODO | Yes | Yes | Yes | TODO |
 | [`TPOW`](../docs/isa/TPOW.md) | Yes | TODO | Yes | Yes | Yes | TODO |

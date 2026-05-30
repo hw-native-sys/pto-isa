@@ -17,22 +17,12 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/npu/a5/utils.hpp>
 #include <pto/npu/a5/TBinOp.hpp>
 #include <pto/common/debug.h>
-
-#ifndef STRAIGHT_INTRINSICS_IMPL
 #include "custom/Div754.hpp"
-#endif
 
 namespace pto {
 
 template <DivAlgorithm PrecisionType, typename T>
 struct DivOp {
-#ifdef STRAIGHT_INTRINSICS_IMPL
-    PTO_INTERNAL static void BinInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, RegTensor<T> &reg_src1,
-                                      MaskReg &preg)
-    {
-        vdiv(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);
-    }
-#else
     PTO_INTERNAL static void BinInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, RegTensor<T> &reg_src1,
                                       MaskReg &preg)
     {
@@ -44,7 +34,6 @@ struct DivOp {
             vdiv(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);
         }
     }
-#endif
 };
 
 template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc0,
@@ -70,8 +59,7 @@ PTO_INTERNAL void TDivCheck(const TileDataDst &dst, const TileDataSrc0 &src0, co
 {
     using T = typename TileDataDst::DType;
     static_assert(std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float> ||
-                      std::is_same_v<T, int16_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, half> ||
-                      std::is_same_v<T, bfloat16_t> || std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t>,
+                      std::is_same_v<T, int16_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, half>,
                   "Fix: TDIV has invalid data type.");
     static_assert(TileDataDst::isRowMajor && TileDataSrc0::isRowMajor && TileDataSrc1::isRowMajor,
                   "Fix: TDIV only support row major layout.");

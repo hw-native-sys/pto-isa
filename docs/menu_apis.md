@@ -127,6 +127,7 @@
     - [TMOV_FP](isa/tile/ops/layout-and-rearrangement/tmov_zh.md)
     - [TRESHAPE](isa/tile/ops/layout-and-rearrangement/treshape_zh.md)
     - [TTRANS](isa/tile/ops/layout-and-rearrangement/ttrans_zh.md)
+    - [TCONCAT](isa/tile/ops/layout-and-rearrangement/tconcat_zh.md)
 
 - 复杂指令
     - [TPRINT](isa/tile/ops/irregular-and-complex/tprint_zh.md)

@@ -21,7 +21,7 @@ vcmin %dst, %src, %mask : !pto.vreg<NxT>
 ### AS Level 1（SSA）
 
 ```mlir
-%result = pto.vcmin %input, %mask : !pto.vreg<NxT>, !pto.mask -> !pto.vreg<NxT>
+%result = pto.vcmin %input, %mask : !pto.vreg<NxT>, !pto.mask<G> -> !pto.vreg<NxT>
 ```
 
 ## 输入
@@ -29,7 +29,7 @@ vcmin %dst, %src, %mask : !pto.vreg<NxT>
 | 操作数 | 类型 | 说明 |
 |--------|------|------|
 | `%input` | `!pto.vreg<NxT>` | 待归约的源向量 |
-| `%mask` | `!pto.mask` | 谓词掩码；inactive lane 不参与归约 |
+| `%mask` | `!pto.mask<G>` | 谓词掩码；inactive lane 不参与归约 |
 
 ## 预期输出
 
@@ -72,7 +72,7 @@ result_index = idx;
 ```
 
 ```mlir
-%result = pto.vcmin %input, %mask : !pto.vreg<64xf32>, !pto.mask -> !pto.vreg<64xf32>
+%result = pto.vcmin %input, %mask : !pto.vreg<64xf32>, !pto.mask<b32> -> !pto.vreg<64xf32>
 ```
 
 ## 性能

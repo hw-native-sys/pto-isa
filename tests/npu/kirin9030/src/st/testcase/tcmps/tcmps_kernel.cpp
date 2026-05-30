@@ -25,8 +25,8 @@ __global__ AICORE void runTCmps(__gm__ uint8_t *out, __gm__ T *src0, __gm__ T *s
     using TileData_dst = Tile<TileType::Vec, uint8_t, kTRows_, kTCols_, BLayout::RowMajor, kGRows_, kGCols_>;
     TileData_src0 src0Tile;
     TileData_dst dstTile;
-    TASSIGN<0x0 + 0x400 * block_idx>(src0Tile);
-    TASSIGN<0x20000 + 0x400 * block_idx>(dstTile);
+    TASSIGN<0x0>(src0Tile);
+    TASSIGN<TileData_src0::Numel * sizeof(T)>(dstTile);
 
     GlobalData_src0 src0Global(src0);
     GlobalData_dst dstGlobal(out);

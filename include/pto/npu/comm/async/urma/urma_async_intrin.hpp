@@ -192,14 +192,16 @@ AICORE inline uint32_t UrmaPostSend(__gm__ uint8_t *contextGm, __gm__ uint8_t *r
 // ============================================================================
 // Handle encoding/decoding for AsyncEvent
 // ============================================================================
+constexpr uint32_t kHandleRankIdShift = 32;
+
 AICORE inline uint64_t EncodeHandle(uint32_t destRankId, uint32_t curHead)
 {
-    return (static_cast<uint64_t>(destRankId) << 32) | static_cast<uint64_t>(curHead);
+    return (static_cast<uint64_t>(destRankId) << kHandleRankIdShift) | static_cast<uint64_t>(curHead);
 }
 
 AICORE inline void DecodeHandle(uint64_t handle, uint32_t &destRankId, uint32_t &curHead)
 {
-    destRankId = static_cast<uint32_t>(handle >> 32);
+    destRankId = static_cast<uint32_t>(handle >> kHandleRankIdShift);
     curHead = static_cast<uint32_t>(handle & 0xFFFFFFFF);
 }
 

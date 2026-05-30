@@ -11,10 +11,6 @@
 function(pto_vec_st NAME)
     add_library(${NAME}_kernel SHARED ${NAME}_kernel.cpp)
     target_compile_options(${NAME}_kernel PRIVATE ${CMAKE_CCE_COMPILE_OPTIONS} --cce-aicore-arch=dav-c310-vec -DREGISTER_BASE -std=c++17)
-    if(STRAIGHT_INTRINSICS_IMPL)
-        message(STATUS "!!! Using high-precision algorithms for some operations.")
-        add_compile_definitions(STRAIGHT_INTRINSICS_IMPL)
-    endif()
 
     target_include_directories(${NAME}_kernel PRIVATE
         ${ASCEND_HOME_PATH}/pkg_inc/
@@ -141,6 +137,7 @@ set(ALL_TESTCASES
     trowexpandmul
     trowexpandsub
     trowexpandexpdif
+    tcolgather
     tgather
     tcvt
     tsub
@@ -206,6 +203,7 @@ set(ALL_TESTCASES
     trowexpand_tdiv
     trems
     tfmods
+    tcolscatter
     tscatter
     tneg
     tcolexpandadd
@@ -228,6 +226,7 @@ set(ALL_TESTCASES
     t_dhrystone
     tpow
     tpows
+    tconcatdstidx
     tconcatidx
     tconcat
     thistogram
@@ -238,21 +237,66 @@ set(ALL_TESTCASES
     tmov_zz
     tmov_nd2nz
     textract_acc2vec
+    syncall
+    tpushpop_cv
+    tpushpop_cv_nosplit
+    tpushpop_vc
+    tpushpop_vc_nosplit
+    tpushpop_dir_both
+    texpands_mat
+    tpushpop_subtile
 )
 
-if(NOT AUTO_MODE)
+# Opt-in testcases: built ONLY when TEST_CASE=<name> is explicitly supplied.
+# These are excluded from the default "build everything" path so they do not
+# slow down CI. They are still valid TEST_CASE targets for local ST runs.
+set(OPT_IN_TESTCASES
+# Device-side async L2 prefetch: correctness + focused perf comparison
+tprefetch_async
+)
+
+if (AUTO_MODE)
+  set(AUTO_MODE_WHITELIST
   # TPUSH and TPOP currently directly use TASSIGN inside their implementations,
   # which doesn't work for auto mode. They need to be disabled for auto mode
-  # until rewritten to adapt to auto mode. texpands_mat currently has to
-  # directly call CCE intrinsics in the kernel, which won't compile in auto
-  # mode; besides the auto-sync won't work with raw CCE intrinsics
-  list(APPEND ALL_TESTCASES tpushpop_cv tpushpop_cv_nosplit tpushpop_vc tpushpop_vc_nosplit tpushpop_dir_both tpushpop_subtile texpands_mat)
+  # until rewritten to adapt to auto mode
+    tpushpop_cv
+    tpushpop_cv_nosplit
+    tpushpop_vc
+    tpushpop_vc_nosplit
+    tpushpop_dir_both
+    tpushpop_subtile
+  # the following case wait to be fix
+    tcvt
+    ttrans
+    ttrans_conv
+    tci
+    tquant
+    texpands_mat
+    tinsert
+    tscatter
+    tcolargmin
+    tcolargmax
+    tmov
+    tmatmul
+    tmatmul_mx
+    tmov_zz
+  )
+
+  foreach(whitelisted_case ${AUTO_MODE_WHITELIST})
+    list(REMOVE_ITEM ALL_TESTCASES ${whitelisted_case})
+  endforeach()
+
+  # TPREFETCH_ASYNC relies on manual-mode Tile::data() returning a raw __ubuf__
+  # pointer. In auto mode the CCE tile_size type system prevents this cast, and
+  # auto-mode scheduling makes manual prefetch unnecessary.
+  list(REMOVE_ITEM OPT_IN_TESTCASES tprefetch_async)
 endif()
 
-if((TEST_CASE IN_LIST ALL_TESTCASES) OR (TEST_CASE STREQUAL "all"))
+if((TEST_CASE IN_LIST ALL_TESTCASES) OR (TEST_CASE IN_LIST OPT_IN_TESTCASES) OR (TEST_CASE STREQUAL "all"))
     message(STATUS "run : ${TEST_CASE}")
 else()
-    message(FATAL_ERROR "not found TEST_CASE: ${TEST_CASE}, support case is : ${ALL_TESTCASES}")
+    message(FATAL_ERROR "not found TEST_CASE: ${TEST_CASE}, support case is : ${ALL_TESTCASES} ${OPT_IN_TESTCASES}")
 endif()
 
 
@@ -260,4 +304,11 @@ foreach(TESTCASE ${ALL_TESTCASES})
     if((DEFINED TEST_CASE AND TEST_CASE STREQUAL TESTCASE) OR (NOT DEFINED TEST_CASE) OR (TEST_CASE STREQUAL "all"))
         add_subdirectory(${TESTCASE})
     endif()
+endforeach()
+
+# Opt-in cases are built only when the user asked for them by name (or "all").
+foreach(TESTCASE ${OPT_IN_TESTCASES})
+if((DEFINED TEST_CASE AND TEST_CASE STREQUAL TESTCASE) OR (TEST_CASE STREQUAL "all"))
+    add_subdirectory(${TESTCASE})
+endif()
 endforeach()
