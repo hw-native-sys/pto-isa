@@ -156,16 +156,18 @@ AICORE PTO_INLINE uint64_t MScatterNZGmOffset(uint32_t logicalRow, uint32_t logi
 
 AICORE PTO_INLINE float MScatterBf16BitsToFloat(uint16_t bits)
 {
+    constexpr uint8_t shiftOffset = 16;
     union {
         uint32_t u;
         float f;
     } conv;
-    conv.u = static_cast<uint32_t>(bits) << 16;
+    conv.u = static_cast<uint32_t>(bits) << shiftOffset;
     return conv.f;
 }
 
 AICORE PTO_INLINE uint16_t MScatterFloatToBf16Bits(float value)
 {
+    constexpr uint8_t shiftOffset = 16;
     union {
         float f;
         uint32_t u;
@@ -173,7 +175,7 @@ AICORE PTO_INLINE uint16_t MScatterFloatToBf16Bits(float value)
     conv.f = value;
     uint32_t lsb = (conv.u >> 16) & 1u;
     uint32_t bias = 0x7FFFu + lsb;
-    return static_cast<uint16_t>((conv.u + bias) >> 16);
+    return static_cast<uint16_t>((conv.u + bias) >> shiftOffset);
 }
 
 AICORE PTO_INLINE uint16_t MScatterBf16ToBits(bfloat16_t value)
