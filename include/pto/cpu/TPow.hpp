@@ -21,11 +21,15 @@ namespace pto {
 template <typename T>
 inline T integer_pow(T base, int64_t exponent)
 {
-    if (exponent == 0)
+    static_assert(std::is_integral_v<T>, "integer_pow requires an integral type.");
+    if (exponent == 0 || base == 1)
         return 1;
-    if (exponent < 0)
+    if (exponent < 0) {
+        if (base == -1) {
+            return exponent % 2 == 0 ? 1 : -1;
+        }
         return 0;
-
+    }
     T result = 1;
     T base_val = base;
     uint64_t exp = static_cast<uint64_t>(exponent);
@@ -44,9 +48,6 @@ inline T compute_pow(T base_val, T exp_val)
 {
     if constexpr (std::is_integral_v<T>) {
         int64_t exponent = static_cast<int64_t>(exp_val);
-        if (exponent < 0) {
-            return 0;
-        }
         return integer_pow(base_val, exponent);
     } else {
         double result = std::pow(static_cast<double>(base_val), static_cast<double>(exp_val));
