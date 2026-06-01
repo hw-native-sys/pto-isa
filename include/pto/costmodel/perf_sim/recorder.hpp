@@ -297,7 +297,8 @@ enum class TPipeDir : uint8_t
 inline uint8_t CvKeyDirection(uint64_t key)
 {
     constexpr uint8_t DIR_TYPE_MASK = 0xffu;
-    return static_cast<uint8_t>((key >> 8) & DIR_TYPE_MASK);
+    constexpr int DIR_TYPE_SHIFT = 8;
+    return static_cast<uint8_t>((key >> DIR_TYPE_SHIFT) & DIR_TYPE_MASK);
 }
 
 inline uint64_t NextCvFifoTypeId()

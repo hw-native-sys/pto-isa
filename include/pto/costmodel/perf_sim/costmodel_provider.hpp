@@ -84,9 +84,10 @@ inline bool TryMapOpcode(const std::string &opcode, ::pto::mocker::lightweight::
 
 inline ::pto::mocker::lightweight::DType MapDType(const std::string &dtype)
 {
-#define X(str, enum_val) \
-    if (dtype == str)    \
-        return ::pto::mocker::lightweight::DType::enum_val;
+#define X(str, enum_val)                                    \
+    if (dtype == str) {                                     \
+        return ::pto::mocker::lightweight::DType::enum_val; \
+    }
     PTO_PERF_SIM_DTYPE_LIST
 #undef X
     return ::pto::mocker::lightweight::DType::Half;
@@ -125,7 +126,6 @@ inline uint64_t FallbackCycles(const std::string &opcode, int rows, int cols)
 {
     uint64_t elems = static_cast<uint64_t>(rows) * cols;
     PipeStage stage = StaticPipeStageLookup(opcode);
-
     if (stage == PipeStage::Scalar)
         return 1;
     if (stage == PipeStage::Matrix)
