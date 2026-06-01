@@ -390,30 +390,21 @@ PTO_INTERNAL void TTransRepeatXOperation(__ubuf__ T *dstPtr, __ubuf__ T *srcPtr,
 
 ///////////////////
 
-template <typename T, unsigned blockSizeElem, bool reverse = false>
+template <typename T, unsigned blockSizeElem>
 PTO_INTERNAL void ConvNCHW2NC1HWC0Unalign(__ubuf__ T *dst, __ubuf__ T *src, unsigned srcN, unsigned srcC, unsigned srcH,
-                                          unsigned srcW, unsigned validC0)
+                                          unsigned srcW, unsigned dstC0)
 {
-    unsigned srcStride, dstStride, validCol, validRow, validC1;
-    if constexpr (reverse) {
-        srcStride = validC0;
-        dstStride = srcH * srcW;
-        validCol = validC0;
-        validRow = srcH * srcW;
-        validC1 = srcC;
-    } else {
-        srcStride = srcH * srcW;
-        dstStride = validC0;
-        validCol = srcH * srcW;
-        validRow = validC0;
-        validC1 = (srcC + validC0 - 1) / validC0;
-    }
-    unsigned cStride = validC0 * srcH * srcW;
-    unsigned nStride = validC1 * cStride;
+    unsigned srcStride = srcH * srcW;
+    unsigned dstStride = dstC0;
+    unsigned validCol = srcH * srcW;
+    unsigned validRow = dstC0;
+    unsigned dstC1 = (srcC + dstC0 - 1) / dstC0;
+    unsigned nStride = dstC1 * dstC0 * srcH * srcW;
+    unsigned cStride = dstC0 * srcH * srcW;
     constexpr unsigned yTileSizeElem = (sizeof(T) == 1) ? Y_ELEM_B8 : Y_ELEM_OTHER;
     // N C1 C0 HW -> N C1 HW C0
     for (int n = 0; n < srcN; n++) {
-        for (int c = 0; c < validC1; c++) {
+        for (int c = 0; c < dstC1; c++) {
             __ubuf__ T *srcPtr = src + n * nStride + c * cStride;
             __ubuf__ T *dstPtr = dst + n * nStride + c * cStride;
             // tmpStride should computed in static way
@@ -424,12 +415,11 @@ PTO_INTERNAL void ConvNCHW2NC1HWC0Unalign(__ubuf__ T *dst, __ubuf__ T *src, unsi
     }
 }
 
-template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp, unsigned blockSizeElem,
-          bool reverse = false>
+template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp, unsigned blockSizeElem>
 __tf__ PTO_INTERNAL void TTransConvNCHW2NC1HWC0(typename TileDataDst::TileDType __out__ dst,
                                                 typename TileDataSrc::TileDType __in__ src,
                                                 typename TileDataTmp::TileDType __in__ tmp, unsigned srcN,
-                                                unsigned srcC, unsigned srcH, unsigned srcW, unsigned validC0)
+                                                unsigned srcC, unsigned srcH, unsigned srcW, unsigned dstC0)
 {
     using Tdst = typename TileDataDst::DType;
     using Tsrc = typename TileDataSrc::DType;
@@ -438,31 +428,20 @@ __tf__ PTO_INTERNAL void TTransConvNCHW2NC1HWC0(typename TileDataDst::TileDType 
     __ubuf__ Tdst *dstPtrOrig = (__ubuf__ Tdst *)__cce_get_tile_ptr(dst);
     __ubuf__ Tsrc *srcPtrOrig = (__ubuf__ Tsrc *)__cce_get_tile_ptr(src);
     __ubuf__ Ttmp *tmpPtr = (__ubuf__ Ttmp *)__cce_get_tile_ptr(tmp);
-
-    unsigned srcStride, dstStride, validCol, validRow, validC1;
-    if constexpr (reverse) {
-        validCol = validC0;
-        validRow = srcH * srcW;
-        srcStride = validC0;
-        dstStride = srcH * srcW;
-        validC1 = srcC;
-    } else {
-        validCol = srcH * srcW;
-        validRow = validC0;
-        srcStride = srcH * srcW;
-        dstStride = validC0;
-        validC1 = (srcC + validC0 - 1) / validC0;
-    }
+    unsigned srcStride = srcH * srcW;
+    unsigned dstStride = dstC0;
     if (((dstStride % blockSizeElem) != 0) || ((srcStride % blockSizeElem) != 0) || srcStride / blockSizeElem > 255) {
-        ConvNCHW2NC1HWC0Unalign<Tsrc, blockSizeElem, reverse>(dstPtrOrig, srcPtrOrig, srcN, srcC, srcH, srcW, validC0);
+        ConvNCHW2NC1HWC0Unalign<Tsrc, blockSizeElem>(dstPtrOrig, srcPtrOrig, srcN, srcC, srcH, srcW, dstC0);
         return;
     }
-
-    unsigned cStride = validC0 * srcH * srcW;
-    unsigned nStride = validC1 * cStride;
+    unsigned validCol = srcH * srcW;
+    unsigned validRow = dstC0;
+    unsigned dstC1 = (srcC + dstC0 - 1) / dstC0;
+    unsigned nStride = dstC1 * dstC0 * srcH * srcW;
+    unsigned cStride = dstC0 * srcH * srcW;
     // N C1 C0 HW -> N C1 HW C0
     for (int n = 0; n < srcN; n++) {
-        for (int c = 0; c < validC1; c++) {
+        for (int c = 0; c < dstC1; c++) {
             __ubuf__ Tsrc *srcPtr = srcPtrOrig + n * nStride + c * cStride;
             __ubuf__ Tdst *dstPtr = dstPtrOrig + n * nStride + c * cStride;
             TTransRepeatXOperation<Tsrc, blockSizeElem>(dstPtr, srcPtr, tmpPtr, validRow, validCol, dstStride,
@@ -524,29 +503,38 @@ __tf__ PTO_INTERNAL void TTransConvNC1HWC02C1HWNC0(typename TileDataDst::TileDTy
     }
 }
 
-template <typename T, unsigned blockSizeElem, bool reverse = false>
+template <typename T, unsigned blockSizeElem>
 PTO_INTERNAL void ConvGNCHW2GNC1HWC0Unalign(__ubuf__ T *dst, __ubuf__ T *src, unsigned srcG, unsigned srcN,
-                                            unsigned srcC, unsigned srcH, unsigned srcW, unsigned validC0)
+                                            unsigned srcC, unsigned srcH, unsigned srcW, unsigned dstC0)
 {
-    unsigned validC1 = reverse ? srcC : ((srcC + validC0 - 1) / validC0);
-    unsigned cStride = validC0 * srcH * srcW;
-    unsigned nStride = validC1 * cStride;
-    unsigned gStride = srcN * nStride;
+    unsigned srcStride = srcH * srcW;
+    unsigned dstStride = dstC0;
+    unsigned validCol = srcH * srcW;
+    unsigned validRow = dstC0;
+    unsigned dstC1 = (srcC + dstC0 - 1) / dstC0;
+    unsigned gStride = srcN * dstC1 * dstC0 * srcH * srcW;
+    unsigned nStride = dstC1 * dstC0 * srcH * srcW;
+    unsigned cStride = dstC0 * srcH * srcW;
     constexpr unsigned yTileSizeElem = (sizeof(T) == 1) ? Y_ELEM_B8 : Y_ELEM_OTHER;
     for (unsigned g = 0; g < srcG; g++) {
-        __ubuf__ T *srcPtr = src + g * gStride;
-        __ubuf__ T *dstPtr = dst + g * gStride;
-        ConvNCHW2NC1HWC0Unalign<T, blockSizeElem, reverse>(dstPtr, srcPtr, srcN, srcC, srcH, srcW, validC0);
+        for (unsigned n = 0; n < srcN; n++) {
+            for (unsigned c = 0; c < dstC1; c++) {
+                __ubuf__ T *srcPtr = src + g * gStride + n * nStride + c * cStride;
+                __ubuf__ T *dstPtr = dst + g * gStride + n * nStride + c * cStride;
+                unsigned tmpStride = (validRow + yTileSizeElem - 1) / yTileSizeElem * yTileSizeElem;
+                TransTailTiles<T, blockSizeElem, yTileSizeElem>(dstPtr, srcPtr, tmpStride, validRow, validCol,
+                                                                dstStride, srcStride);
+            }
+        }
     }
 }
 
-template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp, unsigned blockSizeElem,
-          bool reverse = false>
+template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp, unsigned blockSizeElem>
 __tf__ PTO_INTERNAL void TTransConvGNCHW2GNC1HWC0(typename TileDataDst::TileDType __out__ dst,
                                                   typename TileDataSrc::TileDType __in__ src,
                                                   typename TileDataTmp::TileDType __in__ tmp, unsigned srcG,
                                                   unsigned srcN, unsigned srcC, unsigned srcH, unsigned srcW,
-                                                  unsigned validC0)
+                                                  unsigned dstC0)
 {
     using Tdst = typename TileDataDst::DType;
     using Tsrc = typename TileDataSrc::DType;
@@ -555,30 +543,21 @@ __tf__ PTO_INTERNAL void TTransConvGNCHW2GNC1HWC0(typename TileDataDst::TileDTyp
     __ubuf__ Tdst *dstPtrOrig = (__ubuf__ Tdst *)__cce_get_tile_ptr(dst);
     __ubuf__ Tsrc *srcPtrOrig = (__ubuf__ Tsrc *)__cce_get_tile_ptr(src);
     __ubuf__ Ttmp *tmpPtr = (__ubuf__ Ttmp *)__cce_get_tile_ptr(tmp);
-
-    unsigned srcStride, dstStride, validCol, validRow, validC1;
-    if constexpr (reverse) {
-        validCol = validC0;
-        validRow = srcH * srcW;
-        validC1 = srcC;
-    } else {
-        validCol = srcH * srcW;
-        validRow = validC0;
-        validC1 = (srcC + validC0 - 1) / validC0;
-    }
-    srcStride = validCol;
-    dstStride = validRow;
+    unsigned srcStride = srcH * srcW;
+    unsigned dstStride = dstC0;
     if (((dstStride % blockSizeElem) != 0) || ((srcStride % blockSizeElem) != 0) || srcStride / blockSizeElem > 255) {
-        ConvGNCHW2GNC1HWC0Unalign<Tsrc, blockSizeElem, reverse>(dstPtrOrig, srcPtrOrig, srcG, srcN, srcC, srcH, srcW,
-                                                                validC0);
+        ConvGNCHW2GNC1HWC0Unalign<Tsrc, blockSizeElem>(dstPtrOrig, srcPtrOrig, srcG, srcN, srcC, srcH, srcW, dstC0);
         return;
     }
-    unsigned cStride = validC0 * srcH * srcW;
-    unsigned nStride = validC1 * cStride;
-    unsigned gStride = srcN * nStride;
+    unsigned validCol = srcH * srcW;
+    unsigned validRow = dstC0;
+    unsigned dstC1 = (srcC + dstC0 - 1) / dstC0;
+    unsigned gStride = srcN * dstC1 * dstC0 * srcH * srcW;
+    unsigned nStride = dstC1 * dstC0 * srcH * srcW;
+    unsigned cStride = dstC0 * srcH * srcW;
     for (unsigned g = 0; g < srcG; g++) {
         for (unsigned n = 0; n < srcN; n++) {
-            for (unsigned c = 0; c < validC1; c++) {
+            for (unsigned c = 0; c < dstC1; c++) {
                 __ubuf__ Tsrc *srcPtr = srcPtrOrig + g * gStride + n * nStride + c * cStride;
                 __ubuf__ Tdst *dstPtr = dstPtrOrig + g * gStride + n * nStride + c * cStride;
                 TTransRepeatXOperation<Tsrc, blockSizeElem>(dstPtr, srcPtr, tmpPtr, validRow, validCol, dstStride,
@@ -666,68 +645,51 @@ __tf__ PTO_INTERNAL void TTransConvGNC1HWC02GC1HWNC0(typename TileDataDst::TileD
 }
 
 template <typename T>
-PTO_INTERNAL void ConvNCDHW2DNCHWUnalign(__ubuf__ T *dst, __ubuf__ T *src, unsigned srcN, unsigned srcC, unsigned srcD,
-                                         unsigned srcH, unsigned srcW, unsigned dstC0)
+PTO_INTERNAL void ConvNCDHWPlane2NCHWUnalign(__ubuf__ T *dst, __ubuf__ T *src, unsigned srcN, unsigned srcC,
+                                             unsigned srcD, unsigned srcH, unsigned srcW, unsigned dstC0, unsigned d)
 {
     unsigned dstC1 = (srcC + dstC0 - 1) / dstC0;
     unsigned paddedC = dstC1 * dstC0;
     unsigned hw = srcH * srcW;
     unsigned ncStride = srcD * hw;
-    unsigned dPlane = srcN * paddedC * hw;
-#ifndef __PTO_AUTO__
-    PtoSetWaitFlag<PIPE_V, PIPE_S>();
-#else
-    set_flag(PIPE_V, PIPE_S, EVENT_ID0);
-    wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
-#endif
-    for (unsigned d = 0; d < srcD; d++) {
-        for (unsigned n = 0; n < srcN; n++) {
-            for (unsigned c = 0; c < paddedC; c++) {
-                __ubuf__ T *dstPtr = dst + d * dPlane + n * paddedC * hw + c * hw;
-                if (c < srcC) {
-                    __ubuf__ T *srcPtr = src + n * srcC * ncStride + c * ncStride + d * hw;
-                    for (unsigned i = 0; i < hw; ++i) {
-                        dstPtr[i] = srcPtr[i];
-                    }
-                } else {
-                    for (unsigned i = 0; i < hw; ++i) {
-                        dstPtr[i] = static_cast<T>(0);
-                    }
+    for (unsigned n = 0; n < srcN; n++) {
+        for (unsigned c = 0; c < paddedC; c++) {
+            __ubuf__ T *dstPtr = dst + n * paddedC * hw + c * hw;
+            if (c < srcC) {
+                __ubuf__ T *srcPtr = src + n * srcC * ncStride + c * ncStride + d * hw;
+                for (unsigned i = 0; i < hw; ++i) {
+                    dstPtr[i] = srcPtr[i];
+                }
+            } else {
+                for (unsigned i = 0; i < hw; ++i) {
+                    dstPtr[i] = static_cast<T>(0);
                 }
             }
         }
     }
-#ifndef __PTO_AUTO__
-    PtoSetWaitFlag<PIPE_S, PIPE_V>();
-#else
-    set_flag(PIPE_S, PIPE_V, EVENT_ID0);
-    wait_flag(PIPE_S, PIPE_V, EVENT_ID0);
-#endif
 }
 
 template <typename T>
-PTO_INTERNAL void ConvNCDHW2DNCHW(__ubuf__ T *dst, __ubuf__ T *src, unsigned srcN, unsigned srcC, unsigned srcD,
-                                  unsigned srcH, unsigned srcW, unsigned dstC0)
+PTO_INTERNAL void ConvNCDHWPlane2NCHW(__ubuf__ T *dst, __ubuf__ T *src, unsigned srcN, unsigned srcC, unsigned srcD,
+                                      unsigned srcH, unsigned srcW, unsigned dstC0, unsigned d)
 {
     unsigned hw = srcH * srcW;
     if ((hw * sizeof(T)) % BLOCK_BYTE_SIZE != 0) {
-        ConvNCDHW2DNCHWUnalign<T>(dst, src, srcN, srcC, srcD, srcH, srcW, dstC0);
+        ConvNCDHWPlane2NCHWUnalign<T>(dst, src, srcN, srcC, srcD, srcH, srcW, dstC0, d);
         return;
     }
     unsigned dstC1 = (srcC + dstC0 - 1) / dstC0;
     unsigned paddedC = dstC1 * dstC0;
     unsigned padC = paddedC - srcC;
     unsigned ncStride = srcD * hw;
-    unsigned dPlane = srcN * paddedC * hw;
     uint32_t lenBurst = (hw * sizeof(T)) / BLOCK_BYTE_SIZE;
     uint16_t srcGap = 0;
-    uint16_t dstGap = (uint16_t)((dPlane - hw) * sizeof(T) / BLOCK_BYTE_SIZE);
+    uint16_t dstGap = 0;
     for (unsigned n = 0; n < srcN; n++) {
-        for (unsigned c = 0; c < srcC; c++) {
-            __ubuf__ T *srcPtr = src + n * srcC * ncStride + c * ncStride;
-            __ubuf__ T *dstPtr = dst + n * paddedC * hw + c * hw;
-            pto_copy_ubuf_to_ubuf(dstPtr, srcPtr, (uint16_t)srcD, (uint16_t)lenBurst, srcGap, dstGap);
-        }
+        __ubuf__ T *srcPtr = src + n * srcC * ncStride + d * hw;
+        __ubuf__ T *dstPtr = dst + n * paddedC * hw;
+        pto_copy_ubuf_to_ubuf(dstPtr, srcPtr, (uint16_t)srcC, (uint16_t)lenBurst,
+                              (uint16_t)((ncStride - hw) * sizeof(T) / BLOCK_BYTE_SIZE), dstGap);
     }
     if (padC > 0) {
 #ifndef __PTO_AUTO__
@@ -736,13 +698,11 @@ PTO_INTERNAL void ConvNCDHW2DNCHW(__ubuf__ T *dst, __ubuf__ T *src, unsigned src
         set_flag(PIPE_MTE3, PIPE_S, EVENT_ID0);
         wait_flag(PIPE_MTE3, PIPE_S, EVENT_ID0);
 #endif
-        for (unsigned d = 0; d < srcD; d++) {
-            for (unsigned n = 0; n < srcN; n++) {
-                for (unsigned c = srcC; c < paddedC; c++) {
-                    __ubuf__ T *dstPtr = dst + d * dPlane + n * paddedC * hw + c * hw;
-                    for (unsigned i = 0; i < hw; ++i) {
-                        dstPtr[i] = static_cast<T>(0);
-                    }
+        for (unsigned n = 0; n < srcN; n++) {
+            for (unsigned c = srcC; c < paddedC; c++) {
+                __ubuf__ T *dstPtr = dst + n * paddedC * hw + c * hw;
+                for (unsigned i = 0; i < hw; ++i) {
+                    dstPtr[i] = static_cast<T>(0);
                 }
             }
         }
@@ -781,39 +741,30 @@ __tf__ PTO_INTERNAL void TTransConvNCDHW2FractalZ3D(typename TileDataDst::TileDT
     bool useScalarNCHW = ((dstC0 % blockSizeElem) != 0) || ((hw % blockSizeElem) != 0) || hw / blockSizeElem > 255;
     bool useScalarC1HW = ((dstC0 * sizeof(Tsrc)) % BLOCK_BYTE_SIZE) != 0;
 
-    ConvNCDHW2DNCHW<Tsrc>(tmpPtrOrig, srcPtrOrig, srcN, srcC, srcD, srcH, srcW, dstC0);
+    __ubuf__ Tsrc *planePtr = tmpPtrOrig;
+    __ubuf__ Ttmp *secondPtr = tmpPtrOrig + ncplaneSize;
+    for (unsigned d = 0; d < srcD; d++) {
+        ConvNCDHWPlane2NCHW<Tsrc>(planePtr, srcPtrOrig, srcN, srcC, srcD, srcH, srcW, dstC0, d);
 #ifndef __PTO_AUTO__
-    PtoSetWaitFlag<PIPE_MTE3, PIPE_V>();
-    PtoSetWaitFlag<PIPE_MTE3, PIPE_S>();
-    PtoSetWaitFlag<PIPE_S, PIPE_V>();
+        PtoSetWaitFlag<PIPE_MTE3, PIPE_V>();
+        PtoSetWaitFlag<PIPE_MTE3, PIPE_S>();
+        PtoSetWaitFlag<PIPE_S, PIPE_V>();
 #else
-    set_flag(PIPE_MTE3, PIPE_V, EVENT_ID0);
-    wait_flag(PIPE_MTE3, PIPE_V, EVENT_ID0);
-    set_flag(PIPE_MTE3, PIPE_S, EVENT_ID0);
-    wait_flag(PIPE_MTE3, PIPE_S, EVENT_ID0);
-    set_flag(PIPE_S, PIPE_V, EVENT_ID0);
-    wait_flag(PIPE_S, PIPE_V, EVENT_ID0);
+        set_flag(PIPE_MTE3, PIPE_V, EVENT_ID0);
+        wait_flag(PIPE_MTE3, PIPE_V, EVENT_ID0);
+        set_flag(PIPE_MTE3, PIPE_S, EVENT_ID0);
+        wait_flag(PIPE_MTE3, PIPE_S, EVENT_ID0);
+        set_flag(PIPE_S, PIPE_V, EVENT_ID0);
+        wait_flag(PIPE_S, PIPE_V, EVENT_ID0);
 #endif
 
-    __ubuf__ Ttmp *stagePtr = tmpPtrOrig + srcD * ncplaneSize;
-    __ubuf__ Ttmp *subTmpPtr = stagePtr + ncplaneSize;
-    for (unsigned d = 0; d < srcD; d++) {
-        __ubuf__ Tsrc *planePtr = tmpPtrOrig + d * ncplaneSize;
         __ubuf__ Tsrc *nc1hwc0Ptr;
         unsigned srcStride = hw;
         unsigned dstStride = dstC0;
         if (useScalarNCHW) {
-            ConvNCHW2NC1HWC0Unalign<Tsrc, blockSizeElem>(stagePtr, planePtr, srcN, srcC, srcH, srcW, dstC0);
-            nc1hwc0Ptr = stagePtr;
+            ConvNCHW2NC1HWC0Unalign<Tsrc, blockSizeElem>(secondPtr, planePtr, srcN, srcC, srcH, srcW, dstC0);
+            nc1hwc0Ptr = secondPtr;
         } else {
-            if (d > 0) {
-#ifndef __PTO_AUTO__
-                PtoSetWaitFlag<PIPE_MTE3, PIPE_V>();
-#else
-                set_flag(PIPE_MTE3, PIPE_V, EVENT_ID0);
-                wait_flag(PIPE_MTE3, PIPE_V, EVENT_ID0);
-#endif
-            }
             unsigned validCol = hw;
             unsigned validRow = dstC0;
             unsigned nStride = dstC1 * dstC0 * hw;
@@ -822,7 +773,7 @@ __tf__ PTO_INTERNAL void TTransConvNCDHW2FractalZ3D(typename TileDataDst::TileDT
                 for (unsigned c = 0; c < dstC1; c++) {
                     __ubuf__ Tsrc *innerSrc = planePtr + n * nStride + c * cStride;
                     __ubuf__ Tsrc *innerDst = planePtr + n * nStride + c * cStride;
-                    TTransRepeatXOperation<Tsrc, blockSizeElem>(innerDst, innerSrc, subTmpPtr, validRow, validCol,
+                    TTransRepeatXOperation<Tsrc, blockSizeElem>(innerDst, innerSrc, secondPtr, validRow, validCol,
                                                                 dstStride, srcStride);
                 }
             }
@@ -1066,7 +1017,7 @@ PTO_INTERNAL void TTransImplConvTile(TileDataDst &dst, TileDataSrc &src, TileDat
         unsigned dstC0 = dst.GetShape(GlobalTensorDim::TOTAL_DIM);
         TTransConvGNCHW2GNC1HWC0<TileDataDst, TileDataSrc, TileDataTmp, blockSizeElem>(
             dst.data(), src.data(), tmp.data(), srcG, srcN, srcC, srcH, srcW, dstC0);
-    } else if constexpr (TileDataSrc::layout == Layout::GNC1HWC0 && TileDataDst::layout == Layout::FRACTAL_Z) {
+    } else if (TileDataSrc::layout == Layout::GNC1HWC0 && TileDataDst::layout == Layout::FRACTAL_Z) {
         CheckGroupConvTile<TileDataDst, TileDataSrc, TileDataTmp>(dst, src, tmp);
         unsigned dstN1 = dst.GetShape(GlobalTensorDim::DIM_1);
         unsigned dstN0 = dst.GetShape(GlobalTensorDim::DIM_2);
@@ -1078,7 +1029,7 @@ PTO_INTERNAL void TTransImplConvTile(TileDataDst &dst, TileDataSrc &src, TileDat
         unsigned srcC0 = src.GetShape(GlobalTensorDim::TOTAL_DIM);
         TTransConvGNC1HWC02GC1HWNC0<TileDataDst, TileDataSrc, TileDataTmp, blockSizeElem>(
             dst.data(), src.data(), tmp.data(), dstN0 * dstN1, srcG, srcN, srcC1 * srcH * srcW, srcC0);
-    } else if constexpr (TileDataSrc::layout == Layout::NCHW && TileDataDst::layout == Layout::NC1HWC0) {
+    } else if (TileDataSrc::layout == Layout::NCHW && TileDataDst::layout == Layout::NC1HWC0) {
         CheckConvTile<TileDataDst, TileDataSrc, TileDataTmp>(dst, src, tmp);
         unsigned srcN = src.GetShape(GlobalTensorDim::DIM_0);
         unsigned srcC = src.GetShape(GlobalTensorDim::DIM_1);
