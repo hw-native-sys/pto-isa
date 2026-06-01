@@ -55,6 +55,20 @@ AICORE bool GRID_TRY_TPOP_IMPL(Pipe &pipe, TileCons &tile, uint32_t maxSpins = g
     __gm__ uint8_t *localSlot = pipe.slotBase[dirIdx] + slotOff;
     neighbor_sram_addr localSramSlot = a2a3_grid_payload::LocalSramAddr(localSlot);
 
+    // Step 2.5: NoC read-locality guard.  A TPOP may only drain *this* core's
+    // own SRAM segment -- the fabric has no remote-read path (TPUSH writes
+    // across hops, TPOP reads local only).  The slot is local by construction,
+    // but the A2/A3 mock backs SRAM with a GM-mapped window that can be read at
+    // any address, so we validate `localSramSlot` against this core's
+    // GmSramArena segment and trap a cross-segment read as kFaultPopNonLocal
+    // instead of silently servicing it.  Native lowering is a no-op (true).
+    const int selfRank = RankFromCoord(pipe.coord, pipe.shape);
+    NeighborSramOperand popSramOperand{pipe.runtimeCtx};
+    if (!sram_pop_is_local(localSramSlot, Pipe::SlotBytes, selfRank, popSramOperand)) {
+        grid_mock::MockSetFault(pipe.freeFlags[dirIdx] + grid_mock::kFaultFlagWordOffset, grid_mock::kFaultPopNonLocal);
+        return false;
+    }
+
     // Step 3: payload transfer from local slot to consumer tile buffer.
     //   LPU WSE: tmov tile_buf, [r_slot]
     // Adapter bridges Tile storage to copy_neighbor_sram_to_sram(...).

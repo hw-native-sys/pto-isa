@@ -27,9 +27,10 @@ An AllGather variant is also provided in `run_allgather.sh` / `distributed_ffn_g
 | `distributed_ffn_grid_reducesum_compute_kernel.cpp` | ReduceSum mixed Cube/Vec kernel. Cube computes GEMMs; Vec computes activation/cast and GridPipe `EAST` reduce. |
 | `main_allgather.cpp` | AllGather host driver. |
 | `distributed_ffn_grid_allgather_compute_kernel.cpp` | AllGather mixed Cube/Vec kernel. Vec gathers hidden shards; Cube writes output-H shards. |
+| `tpipe_tmov_inl.hpp` | Directional `TMOV` overloads that lower Cube↔Vec C2V/V2C transfers to the existing `TPUSH`/`TPOP`, so the kernel body never spells out the handshake. |
 | `gridpipe_payload_inl.hpp` | Local GridPipe payload hooks and fake-window remote pointer adapter. |
 | `../../../../include/pto/common/grid_counter_intrinsic.hpp` | CCE-intrinsic-style neighbor counter API used by GridPipe ready/free waits and notifications. |
-| `../../../../include/pto/common/grid_sram_intrinsic.hpp` | CCE-intrinsic-style neighbor SRAM address and payload transfer API used by GridPipe payload movement. |
+| `../../../../include/pto/common/grid_sram_intrinsic.hpp` | CCE-intrinsic-style neighbor SRAM address and payload transfer API used by GridPipe payload movement. Also declares the `GmSramArena` address-segment SRAM model and the `sram_pop_is_local` TPOP read-locality guard. |
 | `scripts/gen_data.py` | Generates per-cell fp16 X/weight shards and an fp32 golden reference. |
 | `build/` | Ignored generated build directory. |
 | `out/` | Ignored generated data directory. |
@@ -53,23 +54,25 @@ winSize = FFN_GRID_WINDOW_BYTES
 
 7. The host loads X and weights into row-major per-cell buffers.
 8. The host obtains the FFTS base address with `rtGetC2cCtrlAddr()` and launches `DistributedFfnGridMixedKernel` once with `gridRows * gridCols` blocks.
-9. Inside each block, Cube and Vec branches exchange intermediate tiles through A2/A3 `TPipe` FIFOs:
+9. Inside each block, Cube and Vec branches exchange intermediate tiles through A2/A3 `TPipe` FIFOs. The kernel issues these C2V/V2C transfers as a directional `TMOV` (`TMOV(pipe, tile)` to produce, `TMOV(tile, pipe)` to consume); the underlying `TPUSH`/`TPOP` stays implicit (see `tpipe_tmov_inl.hpp`):
 
 ```text
 Cube:
-  X[row] @ W_gate[col] -> gatePartial[row,col] --TPipe C2V-->
-  X[row] @ W_up[col]   -> upPartial[row,col]   --TPipe C2V-->
+  X[row] @ W_gate[col] -> gatePartial[row,col] --TMOV C2V-->
+  X[row] @ W_up[col]   -> upPartial[row,col]   --TMOV C2V-->
 
 Vec:
   hidden[row,col] = fp16(PReLU(gatePartial) * upPartial)
-  hidden[row,col] --TPipe V2C-->
+  hidden[row,col] --TMOV V2C-->
 
 Cube:
-  hidden[row,col] @ W_down[col] -> downPartial[row,col] --TPipe C2V-->
+  hidden[row,col] @ W_down[col] -> downPartial[row,col] --TMOV C2V-->
 
 Vec:
   downPartial --GridPipe EAST reduce across cols--> yOutput[row] on final col
 ```
+
+The cross-cell `EAST`/`WEST` reduce and gather keep their explicit GridPipe `TPUSH`/`TPOP`; only the in-block Cube↔Vec C2V/V2C traffic is folded into `TMOV`.
 
 10. The host synchronizes the stream, checks GridPipe fault flags, copies `yOutput` back, and compares it with `golden.bin`.
 
@@ -78,6 +81,15 @@ Vec:
 ### Mixed Cube/Vec launch
 
 The device kernel is compiled for `dav-c220`. Cube and Vec code paths are guarded by `__DAV_CUBE__` and `__DAV_VEC__`, so both sides live in one kernel source and synchronize through regular A2/A3 `TPipe` ready/free handshakes.
+
+### Implicit C2V/V2C `TMOV`
+
+`tpipe_tmov_inl.hpp` adds two `TMOV` overloads so the kernel body expresses Cube↔Vec transfers as a single tile-move op instead of explicit `TPUSH`/`TPOP`:
+
+- `TMOV(pipe, tile)` — producer side; forwards to `TPUSH` (write `tile` into the C2V/V2C FIFO).
+- `TMOV(tile, pipe)` — consumer side; forwards to `TPOP` (read the next slot into `tile`).
+
+Which physical core writes vs reads, and whether the pipe is C2V or V2C, stays encoded in the `TPipe` type and its `__DAV_CUBE__`/`__DAV_VEC__` guards, so the call site is direction-agnostic. The overloads take exactly two `(pipe, tile)`/`(tile, pipe)` arguments (no wait-event pack), which makes them strictly more specialized than the generic tile-to-tile `TMOV(dst, src, ...)`; overload resolution therefore selects them for any `TPipe`/tile pair and leaves every other `TMOV` use unchanged. This keeps the Cube↔Vec handshake implicit at the call site, the way a real WSE fabric move hides the producer/consumer split, while reusing the existing `TPUSH`/`TPOP` sync and record machinery verbatim.
 
 ### Single-device logical grid
 
@@ -97,6 +109,25 @@ The host allocates `gridRows * gridCols` local SRAM windows, backed by GM in the
 
 The mock uses GM flag polling and cache maintenance to emulate the intended LPU WSE `SPR` / `WFE` behavior on A2/A3.
 
+### NoC write-only address-segment SRAM model (`GmSramArena`)
+
+To stay close to real silicon, the mock models future-hardware per-core SRAM as an explicit **GM address-segment arena**. The single contiguous `gridRows*gridCols * FFN_GRID_WINDOW_BYTES` window buffer is cut into equal per-core segments, so segment `c` (== `windowsIn[c]`) *is* core `c`'s private SRAM:
+
+```text
+segment c = [base + c*winSize, base + (c+1)*winSize)   // base == windowsIn[0]
+```
+
+`GmSramArena` (in `include/pto/common/grid_sram_intrinsic.hpp`) carries `{base, segBytes, numSegs}` plus the `SegmentOf` / `InSegment` classifiers; the demo builds it on-device from the fake `HcclDeviceContext` window table (`SramArenaFromCtx`). It is the single source of truth for "which core owns this address".
+
+This makes the NoC contract explicit and **enforced**: the fabric can only *write* across cores, never *read*.
+
+- `TPUSH<dir>` writes a payload into the **neighbor's** segment — a cross-segment write, exactly what the fabric does.
+- `TPOP<dir>` may only drain **this core's own** segment. `GRID_TRY_TPOP_IMPL` calls the `sram_pop_is_local` guard before the payload read; on a cross-segment read it raises `kFaultPopNonLocal` (`0x205`, "pop non-local segment") and aborts the pop. The host's `CheckGridPipeFaults` surfaces it.
+
+On native hardware `sram_pop_is_local` is a no-op (`true`): a TPOP read address is local by construction because the fabric has no remote-read path. The guard exists only because the A2/A3 mock backs SRAM with a GM window that *can* physically read any address, so without it a demo could silently rely on a remote read the silicon cannot perform. A compile-time `static_assert(GmSramArenaSelfCheck())` is built into every A2/A3 kernel, so a regression in the segment math fails the build rather than mis-routing a pop.
+
+> The `pto::comm` variants (`TREDUCE` / `TGATHER`) intentionally do **not** follow this rule: they are a root-pulls-from-every-rank collective (HCCL/RDMA-style remote reads), a different memory model from the WSE NoC. Only the GridPipe `TPUSH`/`TPOP` path is constrained to write-only.
+
 ### Neighbor counter intrinsic API
 
 GridPipe ready/free synchronization goes through two CCE-intrinsic-style APIs in `include/pto/common/grid_counter_intrinsic.hpp`. The canonical call form keeps hardware semantic operands first and the mock backend operand last:
@@ -109,6 +140,7 @@ GridPipe payload address resolution goes through `include/pto/common/grid_sram_i
 - `get_neighbor_sram_addr(dst, src, dir, peerRank, operand)` resolves a local slot offset to the same offset in a neighbor SRAM slot address register.
 - `copy_sram_to_neighbor_sram(dst, src, bytes, config)` writes local SRAM payloads to a neighbor SRAM slot.
 - `copy_neighbor_sram_to_sram(dst, src, bytes, config)` is the read-side interface counterpart. Native lowering is intentionally only an interface placeholder for now; the A2/A3 mock uses it for TPOP-side validation against the GM-backed slot.
+- `sram_pop_is_local(slot, bytes, callerRank, operand)` is the TPOP read-locality guard (see the address-segment model above): native lowering returns `true`, while the A2/A3 mock checks `slot` against `callerRank`'s `GmSramArena` segment so a cross-segment read is rejected instead of silently serviced.
 
 The current A2/A3 mock implements the SRAM write/read path with MTE copies through the GM-backed fake window. Once native hardware provides the corresponding write builtin, GridPipe call sites do not need to change.
 

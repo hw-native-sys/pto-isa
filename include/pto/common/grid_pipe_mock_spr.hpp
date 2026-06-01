@@ -195,6 +195,11 @@ inline constexpr uint32_t kFaultPopNorth = 0x201;
 inline constexpr uint32_t kFaultPopEast = 0x202;
 inline constexpr uint32_t kFaultPopWest = 0x203;
 inline constexpr uint32_t kFaultPopSouth = 0x204;
+// TPOP tried to drain a slot outside this core's own SRAM segment.  The NoC
+// fabric has no remote-read path, so this can only happen via a mis-wired mock;
+// the GmSramArena guard in GRID_TRY_TPOP_IMPL traps it here (design: NoC is
+// write-only, TPOP is local-only).
+inline constexpr uint32_t kFaultPopNonLocal = 0x205;
 inline constexpr uint32_t kFaultWaitReadyTimeout = 0x301;
 inline constexpr uint32_t kFaultWaitFreeTimeout = 0x302;
 
