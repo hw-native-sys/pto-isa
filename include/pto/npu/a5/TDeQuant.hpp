@@ -38,18 +38,6 @@ PTO_INTERNAL void LoadSrc(RegTensor<dstType> &reg_dst, __ubuf__ srcType *&srcPtr
     constexpr unsigned dstElementsPerRepeat = REPEAT_BYTE / sizeof(dstType);
     RegTensor<srcType> reg_src;
     if constexpr (sizeof(srcType) == 1) {
-#ifdef PTO_NPU_ARCH_KIRINX90
-        RegTensor<int32_t> reg_int0, reg_int1;
-        if constexpr (postUpdate) {
-            vlds(reg_src, srcPtr, dstElementsPerRepeat, US_B8, POST_UPDATE);
-        } else {
-            vlds(reg_src, srcPtr, rowNum * srcStride + repeatNum * dstElementsPerRepeat, US_B8);
-        }
-        vcvt(reg_int0, reg_src, pregSrc, PART_P0);
-        vcvt(reg_int1, reg_src, pregSrc, PART_P2);
-        vintlv(reg_int0, reg_int1, reg_int0, reg_int1);
-        vcvt(reg_dst, reg_int0, preg, ROUND_Z);
-#else
         RegTensor<int32_t> reg_int;
         if constexpr (postUpdate) {
             vlds(reg_src, srcPtr, dstElementsPerRepeat, UNPK4_B8, POST_UPDATE);
@@ -58,14 +46,13 @@ PTO_INTERNAL void LoadSrc(RegTensor<dstType> &reg_dst, __ubuf__ srcType *&srcPtr
         }
         vcvt(reg_int, reg_src, pregSrc, PART_P0);
         vcvt(reg_dst, reg_int, preg, ROUND_Z);
-#endif
     } else {
         if constexpr (postUpdate) {
             vlds(reg_src, srcPtr, dstElementsPerRepeat, UNPK_B16, POST_UPDATE);
         } else {
             vlds(reg_src, srcPtr, rowNum * srcStride + repeatNum * dstElementsPerRepeat, UNPK_B16);
         }
-        vcvt(reg_dst, reg_src, preg, PART_EVEN);
+        vcvt(reg_dst, reg_src, pregSrc, PART_EVEN);
     }
 }
 
@@ -89,15 +76,13 @@ PTO_INTERNAL void TDeQuantImpl(__ubuf__ dstType __out__ *dstPtr, __ubuf__ srcTyp
     __VEC_SCOPE__
     {
         RegTensor<dstType> reg_dst, reg_scale, reg_offset;
-        MaskReg preg;
+        MaskReg preg = CreatePredicate<dstType>(validCols);
         uint32_t lenSrc = srcElementsPerRepeat;
         MaskReg pregSrc = CreatePredicate<srcType>(lenSrc);
 
         for (uint16_t i = 0; i < (uint16_t)validRows; i++) {
-            uint32_t sReg = (uint32_t)validCols;
             LoadScaleOffset<dstType, paraStride, postUpdate>(reg_scale, reg_offset, scalePtr, offsetPtr, i);
             for (uint16_t j = 0; j < repeatTimes; j++) {
-                preg = CreatePredicate<dstType>(sReg);
                 LoadSrc<dstType, srcType, srcStride, postUpdate>(reg_dst, srcPtr, i, j, preg, pregSrc);
                 vsub(reg_dst, reg_dst, reg_offset, preg, MODE_ZEROING);
                 vmul(reg_dst, reg_dst, reg_scale, preg, MODE_ZEROING);
