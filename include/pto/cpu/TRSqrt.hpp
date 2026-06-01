@@ -46,7 +46,7 @@ template <auto PrecisionType = RsqrtAlgorithm::DEFAULT, typename TileDataDst, ty
           typename TmpTileData>
 PTO_INTERNAL void TRSQRT_IMPL(TileDataDst &dst, TileDataSrc &src, TmpTileData &tmp)
 {
-    TRSQRT_IMPL<PrecisionType>(dst, src);
+    TRSQRT_IMPL(dst, src);
 }
 } // namespace pto
 
