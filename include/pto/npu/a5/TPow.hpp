@@ -573,6 +573,12 @@ __tf__ PTO_INTERNAL void TPowImpl(typename DstTile::TileDType __out__ dstData,
     __ubuf__ T *base = (__ubuf__ T *)__cce_get_tile_ptr(baseData);
     __ubuf__ T *exp = (__ubuf__ T *)__cce_get_tile_ptr(expData);
 
+    if (((validCol == DstTile::Cols) && (validCol == BaseTile::Cols) && (validCol == ExpTile::Cols)) ||
+        ((DstTile::Rows == 1) && (BaseTile::Rows == 1) && (ExpTile::Rows == 1))) {
+        validCol = validRow * validCol;
+        validRow = 1;
+    }
+
     if constexpr (IsFloatNum<T>) {
         if constexpr (algo == PowAlgorithm::DEFAULT) {
             PowF::TPowFloat<T, DstTile::RowStride, BaseTile::RowStride, ExpTile::RowStride>(dst, base, exp, validRow,
@@ -643,10 +649,16 @@ __tf__ PTO_INTERNAL void TPowSImpl(typename DstTile::TileDType __out__ dstData,
     __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
     __ubuf__ T *base = (__ubuf__ T *)__cce_get_tile_ptr(baseData);
 
+    if (((validCol == DstTile::Cols) && (validCol == BaseTile::Cols)) ||
+        ((DstTile::Rows == 1) && (BaseTile::Rows == 1))) {
+        validCol = validRow * validCol;
+        validRow = 1;
+    }
+
     if constexpr (IsFloatNum<T>) {
         if constexpr (algo == PowAlgorithm::DEFAULT) {
             PowF::TPowFloat<T, DstTile::RowStride, BaseTile::RowStride>(dst, base, exp, validRow, validCol);
-        } else if (algo == PowAlgorithm::HIGH_PRECISION) {
+        } else if constexpr (algo == PowAlgorithm::HIGH_PRECISION) {
             PowF::TPowFloatHighPrecisionImpl<T, DstTile::RowStride, BaseTile::RowStride>(dst, base, exp, validRow,
                                                                                          validCol);
         }
