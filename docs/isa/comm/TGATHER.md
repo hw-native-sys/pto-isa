@@ -1,6 +1,8 @@
 # pto.tgather
 
-## Introduction
+`pto.tgather` is part of the [Communication](./README.md) instruction set.
+
+## Summary
 
 Gather operation: the calling NPU (root) collects data from all ranks in the parallel group and concatenates the results along **DIM_3** (row dimension) into a local output buffer.
 
@@ -9,7 +11,7 @@ Only the root needs to execute `TGATHER`. Non-root ranks only need to ensure the
 
 **Large Tile Support**: When the GlobalTensor exceeds the UB tile capacity in rows and/or columns, the transfer is automatically chunked via 2D sliding — the same mechanism used by other PTO-COMM instructions.
 
-## Math Interpretation
+## Mechanism
 
 Each rank $r$ has source data of shape $(D_0, D_1, D_2, H, W)$. The gather concatenates all $N$ ranks along DIM_3:
 
@@ -17,7 +19,7 @@ $$\mathrm{dst}_{d_0, d_1, d_2,\; r \cdot H + i,\; j} = \mathrm{src}^{(r)}_{d_0, 
 
 The destination tensor has shape $(D_0, D_1, D_2, N \times H, W)$.
 
-## Assembly Syntax
+## Syntax
 
 PTO-AS form: see [Assembly Spelling And Operands](../syntax-and-operands/assembly-model.md).
 
@@ -52,6 +54,30 @@ PTO_INST RecordEvent TGATHER(ParallelGroupType &parallelGroup, GlobalDstData &ds
                              TileData &pingTile, TileData &pongTile, Args&... args);
 ```
 
+## Inputs
+
+| Operand | Description |
+|---------|-------------|
+| `parallelGroup` | A `ParallelGroup<GPerRank>` enumerating each rank's source buffer; root identified via `GetRootIdx()`. |
+| `dstGlobalData` | Destination GlobalTensor on the root NPU; receives the concatenated result. |
+| `stagingTileData` | UB staging tile used as the GM→UB→GM relay buffer (single-buffer form). |
+| `pingTile`, `pongTile` | Two UB staging tiles for double-buffered (ping-pong) form, enabling MTE2/MTE3 overlap. |
+| `events...` | Optional `RecordEvent` tokens to wait on before issuing. |
+
+## Expected Outputs
+
+| Result | Type | Description |
+|--------|------|-------------|
+| `RecordEvent` | token | Signals completion of the gather across all participating ranks. |
+| `dstGlobalData` | GlobalTensor | First `N × H` rows along DIM_3 hold the concatenated rank data; rows beyond `N × H` (if `dstGlobalData.GetShape(DIM_3) > N × H`) are left unchanged. |
+
+## Side Effects
+
+- Issues remote MTE2 reads from each rank's source buffer and MTE3 writes into the local destination.
+- Cross-core synchronisation flags are toggled as part of the rank-fan-in protocol.
+- Non-root ranks must keep their source buffers live until the root signals completion; otherwise behavior is undefined.
+- No implicit fence on unrelated tile traffic.
+
 When `engine == CollEngine::CCU`, the first variadic argument must be a `CcuTriggerContext` containing the CKE slot VA and gate mask. The AIV kernel triggers the CKE gate; the actual gather data path runs on the CCU engine.
 
 ## Constraints
@@ -72,6 +98,15 @@ When `engine == CollEngine::CCU`, the first variadic argument must be a `CcuTrig
     - If `TileData` has static `ValidCol`, `GetShape(DIM_4)` must be divisible by `ValidCol`. Use a Tile with `DYNAMIC` ValidCol for partial column support.
 
 > **CCU path**: Unlike the AIV path where only root calls `TGATHER`, the CCU path requires all ranks to register and launch the CCU kernel via host-side `HcclCcuKernelRegister` / `HcclCcuKernelLaunch`. See `tests/npu/a5/comm/st/testcase/tgather_ccu/` for a complete example.
+
+## Exceptions
+
+!!! danger "Exceptions"
+    - Calling `pto.tgather` on a non-root NPU is undefined behavior.
+    - Mismatched per-rank tensor shapes / strides yield undefined behavior; no runtime check is guaranteed.
+    - Using a `dstGlobalData` shape with `GetShape(DIM_3) < N × H` is rejected by the verifier on static shapes; on dynamic shapes the call writes only what fits and silently truncates.
+    - Type-mismatch between `ParallelGroup::value_type::RawDType` and `TileData::DType` / `GlobalDstData::RawDType` is rejected at compile time via `static_assert`.
+    - Programs must not rely on behavior outside the documented legal domain of this operation.
 
 ## Examples
 
@@ -138,3 +173,10 @@ void gather_pingpong(__gm__ T* group_addrs[NRANKS], __gm__ T* result, int my_ran
     comm::TGATHER(group, dstG, pingTile, pongTile);
 }
 ```
+
+## See Also
+
+- Instruction set overview: [Communication](./README.md)
+- Inverse op: [pto.tscatter](./TSCATTER.md)
+- Related collective ops: [pto.treduce](./TREDUCE.md), [pto.tbroadcast](./TBROADCAST.md)
+- One-sided variants: [pto.tput](./TPUT.md), [pto.tget](./TGET.md)

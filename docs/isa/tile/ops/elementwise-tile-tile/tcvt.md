@@ -109,12 +109,14 @@ No architectural side effects beyond producing the destination tile. Does not im
     - When a conversion path requires explicit scratch storage, callers MUST use one of the `tmp`-tile overloads.
     - Disabling saturation may change overflow behavior for some backend/type paths, especially low-precision integer conversions.
 
-## Cases That Are Not Allowed
+## Exceptions
 
-!!! danger "Cases That Are Not Allowed"
+!!! danger "Exceptions"
+    - Illegal operand tuples, unsupported types, invalid layout combinations, or unsupported target-profile modes are rejected by the verifier or by the selected backend instruction set.
     - **MUST NOT** use a type pair not supported by the target profile.
     - **MUST NOT** use a rounding mode not supported for the given type pair.
     - **MUST NOT** assume that disabling saturation still clamps overflow to the destination range.
+    - Programs must not rely on behavior outside the documented legal domain of this operation.
 
 ## Target-Profile Restrictions
 
@@ -156,7 +158,7 @@ TCVT(dst, src, tmp, RoundMode::CAST_TRUNC, SaturationMode::OFF);
 pto.tcvt ins(%src {rmode = #pto.round_mode<CAST_RINT>}: !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
+## See Also
 
 - Instruction set overview: [Elementwise Tile Tile](../../elementwise-tile-tile.md)
 - Previous op in instruction set: [pto.tsubc](./tsubc.md)

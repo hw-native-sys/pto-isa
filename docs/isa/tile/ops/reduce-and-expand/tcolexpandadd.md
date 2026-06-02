@@ -155,7 +155,7 @@ void example_manual() {
 pto.tcolexpandadd ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
+## See Also
 
 - Instruction set overview: [Reduce And Expand](../../reduce-and-expand.md)
 - Previous op in instruction set: [pto.tcolexpandmul](./tcolexpandmul.md)

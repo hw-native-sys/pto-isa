@@ -162,8 +162,8 @@ void example2() {
 pto.tfillpad ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
+## See Also
 
 - Instruction set overview: [Layout And Rearrangement](../../layout-and-rearrangement.md)
-- Previous op in instruction set: [pto.tinsert_fp](./tinsert.md)
+- Previous op in instruction set: [pto.tinsert](./tinsert.md)
 - Next op in instruction set: [pto.tfillpad_inplace](./tfillpad-inplace.md)

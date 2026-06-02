@@ -155,8 +155,8 @@ void example_manual() {
 pto.tci ins(%scalar {descending = false} : dtype) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
+## See Also
 
 - Instruction set overview: [Irregular And Complex](../../irregular-and-complex.md)
-- Previous op in instruction set: [pto.tgather](./tgather.md)
+- Previous op in instruction set: [pto.tscatter](./tscatter.md)
 - Next op in instruction set: [pto.ttri](./ttri.md)

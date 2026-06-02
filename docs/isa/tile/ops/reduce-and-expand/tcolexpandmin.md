@@ -155,8 +155,8 @@ void example_manual() {
 pto.tcolexpandmin ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
+## See Also
 
 - Instruction set overview: [Reduce And Expand](../../reduce-and-expand.md)
 - Previous op in instruction set: [pto.tcolexpandmax](./tcolexpandmax.md)
-- Next op in instruction set: [pto.tcolexpandsub](./tcolexpandsub.md)
+- Next op in instruction set: [pto.tcolexpandexpdif](./tcolexpandexpdif.md)

@@ -1,6 +1,8 @@
 # pto.tscatter
 
-## Introduction
+`pto.tscatter` is part of the [Communication](./README.md) instruction set.
+
+## Summary
 
 Scatter operation: the calling NPU (root) distributes data to all ranks in the parallel group by splitting the local source tensor along **DIM_3** (row dimension). This is the inverse of `TGATHER`.
 
@@ -9,13 +11,13 @@ Only the root needs to execute `TSCATTER`. Non-root ranks only need to ensure th
 
 **Large Tile Support**: When the per-rank data exceeds the UB tile capacity in rows and/or columns, the transfer is automatically chunked via 2D sliding.
 
-## Math Interpretation
+## Mechanism
 
 The local source tensor has shape $(D_0, D_1, D_2, N \times H, W)$, where $N$ is the number of ranks and each rank receives $H$ rows. After the operation:
 
 $$\mathrm{dst}^{(r)}_{d_0, d_1, d_2,\; i,\; j} = \mathrm{src}^{\mathrm{local}}_{d_0, d_1, d_2,\; r \cdot H + i,\; j} \quad \forall\, r \in [0, N),\; i \in [0, H),\; j \in [0, W)$$
 
-## Assembly Syntax
+## Syntax
 
 PTO-AS form: see [Assembly Spelling And Operands](../syntax-and-operands/assembly-model.md).
 
@@ -50,6 +52,30 @@ PTO_INST RecordEvent TSCATTER(ParallelGroupType &parallelGroup, GlobalSrcData &s
                               TileData &pingTile, TileData &pongTile, Args&... args);
 ```
 
+## Inputs
+
+| Operand | Description |
+|---------|-------------|
+| `parallelGroup` | A `ParallelGroup<GPerRank>` enumerating each rank's destination buffer; root identified via `GetRootIdx()`. |
+| `srcGlobalData` | Source GlobalTensor on the root NPU; concatenation of per-rank slices along DIM_3. |
+| `stagingTileData` | UB staging tile used as the GM→UB→GM relay buffer (single-buffer form). |
+| `pingTile`, `pongTile` | Two UB staging tiles for double-buffered (ping-pong) form, enabling MTE2/MTE3 overlap. |
+| `events...` | Optional `RecordEvent` tokens to wait on before issuing. |
+
+## Expected Outputs
+
+| Result | Type | Description |
+|--------|------|-------------|
+| `RecordEvent` | token | Signals completion of the scatter to all participating ranks. |
+| `parallelGroup.tensors[r]` | GlobalTensor (remote) | Each rank `r`'s destination receives `src[r*H : (r+1)*H, :]` of the source. |
+
+## Side Effects
+
+- Issues local MTE2 reads from `srcGlobalData` and remote MTE3 writes to each rank's destination buffer.
+- Cross-core synchronisation flags are toggled as part of the rank-fan-out protocol.
+- Non-root ranks must keep their destination buffers writable until the root signals completion; otherwise behavior is undefined.
+- No implicit fence on unrelated tile traffic.
+
 When `engine == CollEngine::CCU`, the first variadic argument must be a `CcuTriggerContext` containing the CKE slot VA and gate mask. The AIV kernel triggers the CKE gate; the actual scatter data path runs on the CCU engine.
 
 ## Constraints
@@ -70,6 +96,15 @@ When `engine == CollEngine::CCU`, the first variadic argument must be a `CcuTrig
     - If `TileData` has static `ValidCol`, `GetShape(DIM_4)` must be divisible by `ValidCol`. Use a Tile with `DYNAMIC` ValidCol for partial column support.
 
 > **CCU path**: Unlike the AIV path where only root calls `TSCATTER`, the CCU path requires all ranks to register and launch the CCU kernel via host-side `HcclCcuKernelRegister` / `HcclCcuKernelLaunch`. See `tests/npu/a5/comm/st/testcase/tscatter_ccu/` for a complete example.
+
+## Exceptions
+
+!!! danger "Exceptions"
+    - Calling `pto.tscatter` on a non-root NPU is undefined behavior.
+    - Mismatched per-rank tensor shapes / strides yield undefined behavior; no runtime check is guaranteed.
+    - Using a `srcGlobalData` shape with `GetShape(DIM_3) < N × H` is rejected by the verifier on static shapes; on dynamic shapes the call reads only what fits and remaining ranks receive partial data.
+    - Type-mismatch between `ParallelGroup::value_type::RawDType` and `TileData::DType` / `GlobalSrcData::RawDType` is rejected at compile time via `static_assert`.
+    - Programs must not rely on behavior outside the documented legal domain of this operation.
 
 ## Examples
 
@@ -136,3 +171,10 @@ void scatter_pingpong(__gm__ T* local_data, __gm__ T* group_addrs[NRANKS], int m
     comm::TSCATTER(group, srcG, pingTile, pongTile);
 }
 ```
+
+## See Also
+
+- Instruction set overview: [Communication](./README.md)
+- Inverse op: [pto.tgather](./TGATHER.md)
+- Related collective ops: [pto.treduce](./TREDUCE.md), [pto.tbroadcast](./TBROADCAST.md)
+- One-sided variants: [pto.tput](./TPUT.md), [pto.tget](./TGET.md)

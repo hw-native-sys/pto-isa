@@ -110,8 +110,8 @@ See related examples in `docs/isa/` and `docs/coding/tutorials/`.
 pto.tfillpad_expand ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
+## See Also
 
 - Instruction set overview: [Layout And Rearrangement](../../layout-and-rearrangement.md)
 - Previous op in instruction set: [pto.tfillpad_inplace](./tfillpad-inplace.md)
-- Next op in instruction set: [pto.tmov](./tmov.md)
+- Next op in instruction set: [pto.timg2col](./timg2col.md)

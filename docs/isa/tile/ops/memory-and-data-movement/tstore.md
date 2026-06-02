@@ -27,6 +27,26 @@ The auxiliary `fp` tile is the **sideband configuration tile** consumed by the b
 
 $$ \mathrm{dst}_{r_0 + i,\; c_0 + j} = \mathrm{Quantize}\!\left(\mathrm{src}_{i,j};\ \mathrm{fp}\right) $$
 
+## C++ Intrinsic
+
+Declared in `include/pto/common/pto_instr.hpp`. Two storage-path variants are exposed; their full signatures are listed in the [Variants](#variants) section below.
+
+```cpp
+// Standard store
+template <typename TileData, typename GlobalData,
+          AtomicType atomicType = AtomicType::AtomicNone,
+          typename... WaitEvents>
+PTO_INST RecordEvent TSTORE(GlobalData &dst, TileData &src, WaitEvents &... events);
+
+// Fix-pipe quantized store (Acc only)
+template <typename TileData, typename GlobalData, typename FpTileData,
+          AtomicType atomicType = AtomicType::AtomicNone,
+          ReluPreMode reluPreMode = ReluPreMode::NoRelu,
+          typename... WaitEvents>
+PTO_INST RecordEvent TSTORE_FP(GlobalData &dst, TileData &src, FpTileData &fp,
+                               WaitEvents &... events);
+```
+
 ## Variants
 
 ### Variant 1: Standard Store
@@ -177,7 +197,7 @@ After the store completes, the data is written to `dst`. With atomic modes, valu
     - Programs must not rely on behavior outside the documented legal domain.
     - Calling `TSTORE_FP` on a non-accumulator tile is rejected by the backend.
 
-## Common Patterns
+## Examples
 
 ### Pattern 1: Basic Vector Tile Store
 

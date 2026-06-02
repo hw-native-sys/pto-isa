@@ -6,6 +6,16 @@
 
 `TPUSH` moves a tile from a producer pipeline (Cube or Vector) into a ring FIFO for consumption by a paired pipeline. It is the producer half of the TPipe/TMPipe producer-consumer protocol.
 
+## Mechanism
+
+For every `TPUSH` call:
+
+1. The producer **allocates** by waiting on the consumer's slot-free flag.
+2. It then **pushes** the tile data into the FIFO — either via a `TSTORE` to a GM slot buffer, a direct `TMOV`/`TINSERT` into the consumer's local UB/MAT buffer, or a 32-bit control-signal write for `V2C_CTRL`.
+3. Finally it **records** the data-ready signal so the consumer's `TPOP` can proceed.
+
+The op runs on FIXP / MTE3 / system pipes depending on the direction; see [Three-Phase Protocol](#three-phase-protocol) for the per-backend signal table.
+
 ## What TPUSH Is Not
 
 `TPUSH` is **not** a scalar stack push or a generic FIFO enqueue. It is a structured tile-movement protocol for Cube-Vector tile passing. It is not available on the CPU simulator.
@@ -183,6 +193,31 @@ void producer_vec(VecTile& vTile) {
 }
 ```
 
+## Inputs
+
+| Operand | Description |
+|---------|-------------|
+| `pipe` | The `TPipe` / `TMPipe` instance shared with the consumer. Carries `FlagID`, `DirType`, slot pointers, and consumer-local buffer addresses. |
+| `tile` | The source tile (Acc or Vec) whose contents are pushed into the FIFO. For `*_UB` / `*_MAT` paths, the consumer-local buffer is the destination; for GM paths the slot is in global memory. |
+| `TileSplitAxis` (template) | Optional split mode (`TILE_NO_SPLIT`, `TILE_UP_DOWN`, `TILE_LEFT_RIGHT`) used to compute the per-subblock GM offset. Must match the consumer. |
+
+## Expected Outputs
+
+| Result | Type | Description |
+|--------|------|-------------|
+| `RecordEvent` | token | Signals completion of the allocate + push + record sequence. |
+| `pipe` | state | A FIFO slot is filled with the pushed tile data, the slot index advances (`tileIndex % SlotNum`), and the data-ready flag for the consumer is raised. |
+| `pipe.cons.fifo.ctrlSignal` | scalar (V2C_CTRL only) | Receives the 32-bit control word taken from the producer tile's first element. |
+
+## Side Effects
+
+- Issues a cross-core / intra-block flag wait in the allocate phase (blocks until the consumer frees a slot).
+- Writes a data-ready flag for the consumer; this can unblock a consumer waiting in `TPOP`.
+- For GM paths: issues an MTE3 store.
+- For FIXP paths (`C2V` accumulator drain on A5): issues a fix-pipe drain into the destination buffer.
+- For local-buffer paths (`C2V_UB`, `V2C_MAT`): writes directly into the consumer's UB/MAT buffer via `TMOV` / `TINSERT`.
+- Does **not** implicitly fence unrelated tile traffic. Callers must use explicit events for cross-pipe ordering.
+
 ## Constraints
 
 !!! warning "Constraints"
@@ -201,7 +236,18 @@ void producer_vec(VecTile& vTile) {
     - **A2/A3**: Supports `DIR_C2V`, `DIR_V2C`, `DIR_BOTH`, `DIR_V2C_CTRL`. FIFO paths: GM and local UB/MAT. Does not support `DIR_*_GM` variants.
     - **A5**: Supports all direction types including `DIR_C2V_GM`, `DIR_V2C_GM`, `DIR_BOTH_GM`. FIFO paths: GM, VEC_FIFO, MAT_FIFO, CTRL_FIFO. Intra-block synchronization uses `set_intra_block`/`wait_intra_block` instead of cross-core `ffts_*`.
 
-## Common Patterns
+## Exceptions
+
+!!! danger "Exceptions"
+    - Calling `TPUSH` without an eventual matching `TPOP` causes the producer to stall in the allocate phase once all `SlotNum` slots are full.
+    - Calling `TPUSH` on the CPU simulator is rejected: the op requires NPU inter-core synchronization infrastructure.
+    - `DirType` incompatible with `TileProd::Loc` / `TileDataCons::Loc` is rejected at compile time via `static_assert`.
+    - `FlagID` reuse with another concurrently-active synchronization op is undefined behavior.
+    - Setting `isAllocate = false` when the slot has not actually been freed overwrites in-flight data the consumer has not yet read.
+    - Setting `isRecord = false` for too many iterations leaves the consumer waiting indefinitely (deadlock).
+    - Programs must not rely on behavior outside the documented legal domain of this operation.
+
+## Examples
 
 ### Pattern 1: Acc → Vec Tile Passing (GEMM Post-Processing)
 

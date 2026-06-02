@@ -146,6 +146,19 @@ PTO_INST RecordEvent TEXTRACT_FP(DstTileData &dst, SrcTileData &src, FpTileData 
 - `reluMode` (optional) — `ReluPreMode::{NoRelu, NormalRelu}`.
 - `preQuantScalar` (scalar-quant variant only) — scalar quantization factor.
 
+## Expected Outputs
+
+| Result | Type | Description |
+|---|---|---|
+| `RecordEvent` | token | Signals completion of the extraction. |
+| `dst` | tile | Holds the `(DstRows, DstCols)` sub-window of `src` starting at `(indexRow, indexCol)`. For fix-pipe variants, values are quantized through the fix-pipe path. |
+
+## Side Effects
+
+- **Standard variants**: No architectural side effects beyond producing the destination tile.
+- **Fix-pipe variant (`TEXTRACT_FP`)**: Programs the FPC sideband state with the offset `indexCol` before the data is routed through the fix-pipe quantization pipeline.
+- Does not implicitly fence unrelated tile traffic.
+
 ## Constraints
 
 !!! warning "Constraints"
@@ -154,7 +167,15 @@ PTO_INST RecordEvent TEXTRACT_FP(DstTileData &dst, SrcTileData &src, FpTileData 
     - **Fp tile location**: `FpTileData::Loc` must be `TileType::Scaling` (A2/A3 and A5 both enforce this via `static_assert`)
     - **Fix-pipe path**: The backend offsets the FPC address by `indexCol` (counted in units of the fp tile's element width) before configuring the fix-pipe
 
-## Common Patterns
+## Exceptions
+
+!!! danger "Exceptions"
+    - Illegal operand tuples, unsupported tile-type pairs, invalid layout combinations, or unsupported target-profile modes are rejected by the verifier or by the selected backend instruction set.
+    - Out-of-range `(indexRow, indexCol)` (window exceeds `src` bounds) is rejected at compile time when shapes are static, otherwise undefined at runtime.
+    - `TEXTRACT_FP` with `FpTileData::Loc != TileType::Scaling` is rejected by `static_assert`.
+    - Programs must not rely on behavior outside the documented legal domain of this operation.
+
+## Examples
 
 ### Pattern 1: Extract Left Block from Matrix (GEMM Setup)
 

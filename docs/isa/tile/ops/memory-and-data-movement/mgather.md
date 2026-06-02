@@ -127,8 +127,8 @@ See related examples in `docs/isa/` and `docs/coding/tutorials/`.
 pto.mgather ins(%mem, %idx : !pto.partition_tensor_view<MxNxdtype>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
+## See Also
 
 - Instruction set overview: [Memory And Data Movement](../../memory-and-data-movement.md)
-- Previous op in instruction set: [pto.tstore_fp](./tstore.md)
+- Previous op in instruction set: [pto.tstore](./tstore.md)
 - Next op in instruction set: [pto.mscatter](./mscatter.md)

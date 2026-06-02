@@ -123,6 +123,8 @@ See related examples in `docs/isa/` and `docs/coding/tutorials/`.
 pto.tquant ins(%src, %qp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
+## See Also
 
-- Instruction set overview: [Irregular And Complex](../../../tile/irregular-and-complex.md)
+- Instruction set overview: [Irregular And Complex](../../irregular-and-complex.md)
+- Previous op in instruction set: [pto.tpartmin](./tpartmin.md)
+- Next op in instruction set: [pto.tdequant](./tdequant.md)

@@ -151,8 +151,8 @@ void example_manual() {
 pto.trowexpanddiv ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
+## See Also
 
 - Instruction set overview: [Reduce And Expand](../../reduce-and-expand.md)
-- Previous op in instruction set: [pto.trowexpand](./trowexpand.md)
-- Next op in instruction set: [pto.trowexpandmul](./trowexpandmul.md)
+- Previous op in instruction set: [pto.trowexpandmul](./trowexpandmul.md)
+- Next op in instruction set: [pto.trowexpandmax](./trowexpandmax.md)
