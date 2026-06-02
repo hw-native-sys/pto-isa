@@ -52,7 +52,8 @@ void test_tci(T S)
 
     aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
-    LaunchTci<T, kGRows_, kGCols_, kTRows_, kTCols_, reverse, mode>(dstDevice, S, stream);
+    for (uint16_t i = 0; i < 5; ++i)
+        LaunchTci<T, kGRows_, kGCols_, kTRows_, kTCols_, reverse, mode>(dstDevice, S, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, fileSize, dstDevice, fileSize, ACL_MEMCPY_DEVICE_TO_HOST);
