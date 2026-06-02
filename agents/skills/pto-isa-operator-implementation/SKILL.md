@@ -38,16 +38,6 @@ license: CANN Open Software License Agreement Version 2.0
 - **指令功能解释**: 详细解释每个ISA指令在算子实现中的作用
 - **代码生成**: 输出完整的kernel代码实现
 
-### 近期 PR 复盘驱动的质量门
-
-开发或生成融合算子时，先把以下检查写入实现和测试，而不是在评审后补救：
-
-- **同步与跨核 FIFO**：PR #61、#77、#85、#93、#95、#100 反复暴露 `TPUSH`/`TPOP`/`TFREE`、hook 注入、`subblock_dim`、split lane 和 fine-grained sync 的组合风险。涉及这些路径时，至少覆盖 C2V/V2C、split/no-split、`subblock_dim=1/2`、hook/no-hook，以及目标后端（CPU-SIM、A2/A3、A5）。
-- **地址、stride、layout**：PR #86 和 #95 的评审指出过 ColMajor DN stride、golden 数据布局、`entryOffset` 作用位置、split-N subblock 偏移问题。写 TLOAD/TSTORE 或 partial tile 搬运前，先明确 base offset、row offset、column offset、entry offset、split-lane offset 的公式，并用能区分 RowMajor/ColMajor/flattened rows/multi-column 的 golden case 验证。
-- **模板契约**：PR #92 要求用命名常量和 `static_assert` 保护 constexpr tile-type dispatch。新增模板或重载时，必须明确 tile 类型、layout、dtype、backend-only 资源的约束，不要把 magic number 留在调度逻辑中。
-- **测试闭环**：PR #85 暴露过 CMake 注册了不存在 testcase 目录的问题。新增 ST case 时检查：目录存在、局部 `CMakeLists.txt` 存在、父级 CMake 已注册、gtest 名称和 `gen_data.py` 输出一致、golden 数据能暴露目标 bug。
-- **性能声明**：PR #100 的 chunked `TPUSH` benchmark 说明同步次数会直接影响性能。任何“更快”的融合路径都要给出 backend、shape、命令和 before/after 数字；热循环要分别审查 contiguous、strided、split、fallback 路径。
-
 ## 工作流程
 
 当用户指定算子功能后，遵循以下工作流程：
