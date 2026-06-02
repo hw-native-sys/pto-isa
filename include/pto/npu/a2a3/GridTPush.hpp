@@ -8,7 +8,14 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-// A2/A3 backend for GridPipe TPUSH<Direction>.
+// A2/A3 backend for GridPipe TPUSH<Direction, Dist>.
+//
+// Dist is the hop count of a routed unicast push (Dist == 1 is the original
+// nearest-neighbor behavior).  Scheme A: a K-hop unicast keeps the receiver's
+// per-direction slot/flag state at fan-in 1, so distance only changes the
+// resolved target rank and the doorbell reach -- the window layout, slot rings,
+// flag counts and the TPOP read-locality guard are all unchanged.  See
+// RankForPushK/CanPushK in grid_pipe.hpp and the design analysis 2026-06-02.
 //
 // Producer-side expansion uses:
 //   - wfe_neighbor_counter / mtspr_neighbor_counter for free/ready counters
@@ -56,17 +63,18 @@ namespace pto {
 // undefined primary template so attempts to instantiate it fail at link time
 // with a clear symbol name; the static_assert in pto_instr.hpp catches this
 // earlier at compile time.
-template <pto::GridDirection Dir, typename Pipe, typename TileProd>
+template <pto::GridDirection Dir, int Dist, typename Pipe, typename TileProd>
 AICORE bool GRID_TRY_TPUSH_IMPL(Pipe &pipe, TileProd &tile, uint32_t maxSpins = grid_mock::kDefaultWfeMaxSpins)
 {
     static_assert(Dir != GridDirection::SOURCE, "GridPipe TPUSH<SOURCE> is illegal (design doc 4.3)");
+    static_assert(Dist >= 1, "GridPipe TPUSH distance must be >= 1 (routed K-hop unicast)");
 
     constexpr int dirIdx = GridDirectionIndex(Dir);
 
-    // Boundary check. In production builds the compiler folds CanPush() against
-    // constexpr coord; here we keep the runtime check so dynamic coordinates
-    // still trap.
-    if (!CanPush(Dir, pipe.coord, pipe.shape)) {
+    // Boundary check. In production builds the compiler folds CanPushK() against
+    // constexpr coord/Dist; here we keep the runtime check so dynamic
+    // coordinates still trap.  Dist == 1 is the original nearest-neighbor path.
+    if (!CanPushK(Dir, pipe.coord, pipe.shape, Dist)) {
         grid_mock::MockBoundaryFault(pipe.readyFlags[dirIdx], grid_mock::PushFaultCode(Dir));
         return false;
     }
@@ -97,9 +105,11 @@ AICORE bool GRID_TRY_TPUSH_IMPL(Pipe &pipe, TileProd &tile, uint32_t maxSpins = 
     __gm__ uint8_t *localSlot = pipe.slotBase[dirIdx] + slotOff;
     neighbor_sram_addr localSramSlot = a2a3_grid_payload::LocalSramAddr(localSlot);
 
-    // Step 3: payload transfer to *neighbor's* SRAM slot region.
-    //   LPU WSE: tmov [r_slot], tile_buf   (slot is neighbor-mapped)
-    const int peerRank = NeighborRankForPush(Dir, pipe.coord, pipe.shape);
+    // Step 3: payload transfer to the *target's* SRAM slot region.  For Dist > 1
+    //   this is the rank Dist hops away along Dir (a routed write); the data is
+    //   delivered directly and does not land in intermediate cores' SRAM.
+    //   LPU WSE: tmov [r_slot], tile_buf   (slot is target-mapped)
+    const int peerRank = RankForPushK(Dir, pipe.coord, pipe.shape, Dist);
     neighbor_sram_addr remoteSramSlot{};
     NeighborSramOperand sramOperand{pipe.runtimeCtx};
     get_neighbor_sram_addr(remoteSramSlot, localSramSlot, dirIdx, peerRank, sramOperand);
@@ -123,8 +133,15 @@ AICORE bool GRID_TRY_TPUSH_IMPL(Pipe &pipe, TileProd &tile, uint32_t maxSpins = 
 #endif
     dsb(DSB_DDR);
 
-    // Step 4: trigger neighbor's ready flag.
+    // Step 4: trigger the target's ready flag.
     //   LPU WSE: mtspr SPR_RDY_<DIR>, r_idx + 1   (cross-core SPR write)
+    //
+    // Doorbell reach (Dist > 1): the A2/A3 mock routes the flag write to any
+    // rank via RemoteCounterPtr(peerRank), so K-hop works here as-is.  Native
+    // lowering must provide a routed remote-notify (or write-with-notify that
+    // piggybacks the doorbell on the data flit so it cannot overtake the
+    // payload); the direction-only SPR doorbell is adjacency-scoped.  Fan-in is
+    // 1 by Scheme A's precondition, so this stays a single-writer counter.
 #if defined(PTO_GRID_COUNTER_NATIVE_INTRINSIC)
     NeighborCounterOperand readyCounter{};
 #else
@@ -132,7 +149,7 @@ AICORE bool GRID_TRY_TPUSH_IMPL(Pipe &pipe, TileProd &tile, uint32_t maxSpins = 
         a2a3_grid_payload::RemoteCounterPtr(pipe.runtimeCtx, pipe.readyFlags[dirIdx], peerRank);
     NeighborCounterOperand readyCounter{neighborReady};
 #endif
-    mtspr_neighbor_counter(NeighborCounterKind::Ready, dirIdx, idx + 1, readyCounter);
+    mtspr_neighbor_counter(NeighborCounterKind::Ready, dirIdx, Dist, idx + 1, readyCounter);
 
     // Step 5: bump local producer index.
     //   LPU WSE: mtspr SPR_PROD_IDX_<DIR>, r_idx + 1
@@ -140,10 +157,10 @@ AICORE bool GRID_TRY_TPUSH_IMPL(Pipe &pipe, TileProd &tile, uint32_t maxSpins = 
     return true;
 }
 
-template <pto::GridDirection Dir, typename Pipe, typename TileProd>
+template <pto::GridDirection Dir, int Dist, typename Pipe, typename TileProd>
 AICORE void GRID_TPUSH_IMPL(Pipe &pipe, TileProd &tile)
 {
-    (void)GRID_TRY_TPUSH_IMPL<Dir, Pipe, TileProd>(pipe, tile, 0);
+    (void)GRID_TRY_TPUSH_IMPL<Dir, Dist, Pipe, TileProd>(pipe, tile, 0);
 }
 
 } // namespace pto

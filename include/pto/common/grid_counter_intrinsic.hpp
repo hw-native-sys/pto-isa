@@ -47,22 +47,35 @@ struct NeighborCounterOperand {
     __gm__ uint32_t *addr = nullptr;
 };
 
-// Set a neighbor-visible monotonic counter.
+// Set a neighbor-visible monotonic counter `dist` hops away along `dir`.
 //
-// Hardware contract:
-//   mtspr_neighbor_counter(Ready, EAST, value) ~= mtspr SPR_RDY_EAST, value
-//   mtspr_neighbor_counter(Free,  EAST, value) ~= mtspr SPR_FREE_EAST, value
+// `dist` is the routed-unicast hop count; dist == 1 is the original adjacent
+// doorbell (fully backward compatible).  For dist > 1 the counter write is
+// routed `dist` hops in the kind-implied direction -- ready flows downstream
+// along `dir`, free flows upstream against `dir` -- so a producer can ring a
+// consumer K hops away (and vice versa for the free credit).
+//
+// Hardware contract (dist == 1):
+//   mtspr_neighbor_counter(Ready, EAST, 1, value) ~= mtspr SPR_RDY_EAST, value
+//   mtspr_neighbor_counter(Free,  EAST, 1, value) ~= mtspr SPR_FREE_EAST, value
+// Native lowering for dist > 1 must provide a routed remote-notify that lands on
+// the target core's same-named SPR; the direction-only SPR doorbell alone is
+// adjacency-scoped.
 //
 // Memory ordering: release.  Earlier payload writes must become visible before
 // the peer can observe this counter update.
-AICORE inline void mtspr_neighbor_counter(NeighborCounterKind kind, uint32_t dir, uint32_t value,
+AICORE inline void mtspr_neighbor_counter(NeighborCounterKind kind, uint32_t dir, uint32_t dist, uint32_t value,
                                           NeighborCounterOperand operand = {})
 {
 #if defined(PTO_GRID_COUNTER_NATIVE_INTRINSIC)
     (void)operand;
-    __builtin_pto_mtspr_neighbor_counter(static_cast<uint32_t>(kind), dir, value);
+    __builtin_pto_mtspr_neighbor_counter(static_cast<uint32_t>(kind), dir, dist, value);
 #else
+    // Mock target is fully encoded in operand.addr (the caller resolves the
+    // K-hop rank via RemoteCounterPtr), so the mock store needs neither dir nor
+    // dist -- they exist only to drive the native routed-notify above.
     (void)dir;
+    (void)dist;
     if (kind == NeighborCounterKind::Ready) {
         grid_mock::MockMtsprReady(operand.addr, value);
     } else {

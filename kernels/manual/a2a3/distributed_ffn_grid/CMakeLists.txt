@@ -54,7 +54,25 @@ if(NOT DEFINED FFN_TILE)
     set(FFN_TILE 64)
 endif()
 
+# K-hop unicast smoke kernel config (independent of the FFN grid/tile sizes).
+if(NOT DEFINED KHOP_ROWS)
+    set(KHOP_ROWS 1)
+endif()
+if(NOT DEFINED KHOP_COLS)
+    set(KHOP_COLS 4)
+endif()
+if(NOT DEFINED KHOP_DIST)
+    set(KHOP_DIST 2)
+endif()
+if(NOT DEFINED KHOP_T)
+    set(KHOP_T 16)
+endif()
+if(NOT DEFINED KHOP_W)
+    set(KHOP_W 64)
+endif()
+
 message(STATUS "Grid: ${GRID_ROWS}x${GRID_COLS}  Tile: ${TOKEN_TILE}x${MODEL_TILE}  FfnTile: ${FFN_TILE}")
+message(STATUS "KHop smoke: ${KHOP_ROWS}x${KHOP_COLS}  DIST=${KHOP_DIST}  Tile: ${KHOP_T}x${KHOP_W}")
 
 add_compile_options(
     -D_FORTIFY_SOURCE=2
@@ -207,6 +225,64 @@ target_link_directories(distributed_ffn_grid_allgather PUBLIC
 
 target_link_libraries(distributed_ffn_grid_allgather PRIVATE
     distributed_ffn_grid_allgather_mixed_kernel
+    $<BUILD_INTERFACE:$<$<STREQUAL:${RUN_MODE},sim>:runtime_camodel>>
+    $<BUILD_INTERFACE:$<$<STREQUAL:${RUN_MODE},npu>:runtime>>
+    stdc++ ascendcl hcomm m tiling_api platform c_sec dl nnopbase pthread
+)
+
+# =============================================================================
+# 4. GridPipe routed K-hop unicast smoke test (Scheme A).  Vec-only data
+#    movement: TPUSH<EAST, KHOP_DIST> / TPOP<EAST, KHOP_DIST> across a 1xCOLS
+#    row, exercising the K-hop data path and the routed ready/free doorbell.
+# =============================================================================
+add_library(khop_smoke_kernel SHARED khop_smoke_kernel.cpp)
+target_compile_options(khop_smoke_kernel PRIVATE
+    ${CMAKE_CCE_COMPILE_OPTIONS}
+    --cce-aicore-arch=dav-c220
+    -DMEMORY_BASE -std=c++17
+    -DCONFIG_KHOP_ROWS=${KHOP_ROWS} -DCONFIG_KHOP_COLS=${KHOP_COLS}
+    -DCONFIG_KHOP_DIST=${KHOP_DIST} -DCONFIG_KHOP_T=${KHOP_T} -DCONFIG_KHOP_W=${KHOP_W}
+)
+target_include_directories(khop_smoke_kernel PRIVATE
+    ${PROJECT_SOURCE_DIR}/../../../../include/
+    ${PROJECT_SOURCE_DIR}/../../../../tests/npu/a2a3/comm/st/testcase/
+    $ENV{ASCEND_HOME_PATH}/aarch64-linux/asc
+    $ENV{ASCEND_HOME_PATH}/aarch64-linux/asc/include
+    $ENV{ASCEND_HOME_PATH}/aarch64-linux/ascendc/include/basic_api
+    $ENV{ASCEND_HOME_PATH}/aarch64-linux/include/ascendc/basic_api
+    $ENV{ASCEND_HOME_PATH}/aarch64-linux/asc/impl/basic_api
+    $ENV{ASCEND_HOME_PATH}/aarch64-linux/ascendc/include/basic_api/impl
+    $ENV{ASCEND_HOME_PATH}/aarch64-linux/asc/include/interface
+    $ENV{ASCEND_HOME_PATH}/aarch64-linux/asc/include/utils
+)
+target_link_directories(khop_smoke_kernel PRIVATE ${ASCEND_HOME_PATH}/lib64)
+target_link_libraries(khop_smoke_kernel PRIVATE hcomm runtime nnopbase)
+target_link_options(khop_smoke_kernel PRIVATE --cce-fatobj-link)
+
+add_executable(khop_smoke main_khop_smoke.cpp)
+target_compile_options(khop_smoke PRIVATE ${CMAKE_CPP_COMPILE_OPTIONS})
+target_include_directories(khop_smoke PRIVATE
+    ${PROJECT_SOURCE_DIR}/../../../../include/
+    ${PROJECT_SOURCE_DIR}/../../../../tests/common
+    ${PROJECT_SOURCE_DIR}/../../../../tests/npu/a2a3/comm/st/testcase/
+    ${ASCEND_HOME_PATH}/pkg_inc/runtime
+    ${ASCEND_HOME_PATH}/pkg_inc/toolchain
+    ${ASCEND_HOME_PATH}/pkg_inc/profiling
+    ${ASCEND_HOME_PATH}/aarch64-linux/pkg_inc/runtime
+    ${ASCEND_HOME_PATH}/aarch64-linux/pkg_inc
+    ${ASCEND_HOME_PATH}/aarch64-linux/pkg_inc/profiling
+)
+target_compile_definitions(khop_smoke PRIVATE
+    CONFIG_KHOP_ROWS=${KHOP_ROWS} CONFIG_KHOP_COLS=${KHOP_COLS}
+    CONFIG_KHOP_DIST=${KHOP_DIST} CONFIG_KHOP_T=${KHOP_T} CONFIG_KHOP_W=${KHOP_W}
+)
+target_link_directories(khop_smoke PUBLIC
+    ${ASCEND_HOME_PATH}/lib64
+    ${ASCEND_HOME_PATH}/simulator/${SOC_VERSION}/lib
+    ${ASCEND_HOME_PATH}/tools/simulator/${SOC_VERSION}/lib
+)
+target_link_libraries(khop_smoke PRIVATE
+    khop_smoke_kernel
     $<BUILD_INTERFACE:$<$<STREQUAL:${RUN_MODE},sim>:runtime_camodel>>
     $<BUILD_INTERFACE:$<$<STREQUAL:${RUN_MODE},npu>:runtime>>
     stdc++ ascendcl hcomm m tiling_api platform c_sec dl nnopbase pthread
