@@ -133,3 +133,7 @@ TEST_F(TPOWSTest, case11)
 {
     test_tpows<aclFloat16, 16, 512, 16, 400, true>();
 }
+TEST_F(TPOWSTest, case12)
+{
+    test_tpows<float, 1, 256, 1, 231>();
+}
