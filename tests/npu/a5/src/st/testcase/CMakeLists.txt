@@ -253,6 +253,12 @@ set(ALL_TESTCASES
 set(OPT_IN_TESTCASES
 # Device-side async L2 prefetch: correctness + focused perf comparison
 tprefetch_async
+# Standalone repro for the runtime-dispatch limitation described in
+# mgather/MGATHER.md §"Runtime Dispatch Requirement" — expected to hang on
+# current toolchain. Acts as a regression detector once SIMT-aware lowering
+# is added to HiIPUISD::LongCALL (or an equivalent builtin is exposed).
+# See testcase/mscatter_indirect_call_repro/README.md.
+mscatter_indirect_call_repro
 )
 
 if (AUTO_MODE)
