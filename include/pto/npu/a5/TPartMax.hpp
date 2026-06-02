@@ -11,25 +11,30 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef TPARTMAX_HPP
 #define TPARTMAX_HPP
 
-#include "TPartBinOps.hpp"
+#include <pto/common/constants.hpp>
+#include <pto/common/utils.hpp>
 
 namespace pto {
 
 template <typename T>
 struct TPartMaxOp {
-    static constexpr typename Padding<T>::Type PadVal = Padding<T>::Min;
-    PTO_INTERNAL static void BinInstr(RegTensor<T> &dst, RegTensor<T> &src0, RegTensor<T> &src1, MaskReg preg)
+    PTO_INTERNAL static void PartInstr(RegTensor<T> &dst, RegTensor<T> &src0, RegTensor<T> &src1, MaskReg preg)
     {
-        vmax(dst, src0, src1, preg, MODE_MERGING);
+        vmax(dst, src0, src1, preg, MODE_ZEROING);
     }
 };
 
 template <typename DstTileData, typename Src0TileData, typename Src1TileData>
-PTO_INTERNAL void TPARTMAX_IMPL(DstTileData &dst, Src0TileData &src0, Src1TileData &src1,
-                                VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
+PTO_INTERNAL void TPARTMAX_IMPL(DstTileData &dst, Src0TileData &src0, Src1TileData &src1)
 {
-    TPartMasterImpl<TPartMaxOp<typename DstTileData::DType>, DstTileData, Src0TileData, Src1TileData>(dst, src0, src1,
-                                                                                                      version);
+    using T = typename DstTileData::DType;
+    static_assert(std::is_same_v<T, typename Src0TileData::DType> && std::is_same_v<T, typename Src1TileData::DType>,
+                  "Fix: TPARTMAX Input and output types should match");
+    static_assert(std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t> || std::is_same_v<T, uint16_t> ||
+                      std::is_same_v<T, int16_t> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> ||
+                      std::is_same_v<T, half> || std::is_same_v<T, float> || std::is_same_v<T, bfloat16_t>,
+                  "Fix: TPARTMAX Invalid data type.");
+    TPARTOP_IMPL<TPartMaxOp<T>, DstTileData, Src0TileData, Src1TileData>(dst, src0, src1);
 }
 } // namespace pto
 #endif

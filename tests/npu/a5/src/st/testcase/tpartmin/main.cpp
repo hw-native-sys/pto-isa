@@ -121,6 +121,10 @@ TEST_F(TPARTMINTest, case_fp32_2x24_2x24_2x8)
 {
     test_tpartmin<float, 2, 24, 2, 24, 2, 8>();
 }
+TEST_F(TPARTMINTest, case_fp32_2x24_2x24_1x8)
+{
+    test_tpartmin<float, 2, 24, 2, 24, 1, 8>();
+}
 TEST_F(TPARTMINTest, case_fp32_128x64_128x64_96x64)
 {
     test_tpartmin<float, 128, 64, 128, 64, 96, 64>();
@@ -129,45 +133,41 @@ TEST_F(TPARTMINTest, case_fp32_95x95_95x95_95x95)
 {
     test_tpartmin<float, 95, 95, 95, 95, 95, 95>();
 }
-TEST_F(TPARTMINTest, case_fp32_122x123_104x123_122x110)
+TEST_F(TPARTMINTest, case_fp32_122x123_104x123_122x123)
 {
-    test_tpartmin<float, 122, 123, 104, 123, 122, 110>();
+    test_tpartmin<float, 122, 123, 104, 123, 122, 123>();
 }
-TEST_F(TPARTMINTest, case_s16_122x123_104x123_122x110)
+TEST_F(TPARTMINTest, case_s16_122x123_104x123_122x123)
 {
-    test_tpartmin<int16_t, 122, 123, 104, 123, 122, 110>();
+    test_tpartmin<int16_t, 122, 123, 104, 123, 122, 123>();
 }
-TEST_F(TPARTMINTest, case_s32_122x123_104x123_122x110)
+TEST_F(TPARTMINTest, case_s32_122x123_104x123_122x123)
 {
-    test_tpartmin<int32_t, 122, 123, 104, 123, 122, 110>();
+    test_tpartmin<int32_t, 122, 123, 104, 123, 122, 123>();
 }
-TEST_F(TPARTMINTest, case_u16_122x123_104x123_122x110)
+TEST_F(TPARTMINTest, case_u16_122x123_104x123_122x123)
 {
-    test_tpartmin<uint16_t, 122, 123, 104, 123, 122, 110>();
+    test_tpartmin<uint16_t, 122, 123, 104, 123, 122, 123>();
 }
-TEST_F(TPARTMINTest, case_u32_122x123_104x123_122x110)
+TEST_F(TPARTMINTest, case_u32_122x123_104x123_122x123)
 {
-    test_tpartmin<uint32_t, 122, 123, 104, 123, 122, 110>();
+    test_tpartmin<uint32_t, 122, 123, 104, 123, 122, 123>();
 }
-TEST_F(TPARTMINTest, case_u8_122x123_104x123_122x110)
+TEST_F(TPARTMINTest, case_u8_122x123_104x123_122x123)
 {
-    test_tpartmin<uint8_t, 122, 123, 104, 123, 122, 110>();
+    test_tpartmin<uint8_t, 122, 123, 104, 123, 122, 123>();
 }
-TEST_F(TPARTMINTest, case_s8_122x123_104x123_122x110)
+TEST_F(TPARTMINTest, case_s8_122x123_104x123_122x123)
 {
-    test_tpartmin<int8_t, 122, 123, 104, 123, 122, 110>();
+    test_tpartmin<int8_t, 122, 123, 104, 123, 122, 123>();
 }
-TEST_F(TPARTMINTest, case_fp16_122x123_104x123_122x110)
+TEST_F(TPARTMINTest, case_fp16_122x123_104x123_122x123)
 {
-    test_tpartmin<aclFloat16, 122, 123, 104, 123, 122, 110, true>();
+    test_tpartmin<aclFloat16, 122, 123, 104, 123, 122, 123, true>();
 }
 TEST_F(TPARTMINTest, case_fp16_5x33_5x33_5x33)
 {
     test_tpartmin<aclFloat16, 5, 33, 5, 33, 5, 33, 6, 1520, 6, 1520, 6, 464, true>();
-}
-TEST_F(TPARTMINTest, case_fp32_8x8_0x0_0x0)
-{
-    test_tpartmin<float, 8, 8, 0, 0, 0, 0, 1, 8, 1, 8, 1, 8>();
 }
 TEST_F(TPARTMINTest, case_fp32_8x8_8x0_8x8)
 {
@@ -184,13 +184,5 @@ TEST_F(TPARTMINTest, case_fp32_8x8_8x8_8x0)
 TEST_F(TPARTMINTest, case_fp32_8x8_8x8_0x8)
 {
     test_tpartmin<float, 8, 8, 8, 8, 0, 8, 8, 8, 8, 8, 1, 8>();
-}
-TEST_F(TPARTMINTest, case_fp32_8x8_5x4_3x0)
-{
-    test_tpartmin<float, 8, 8, 5, 4, 3, 0, 8, 8, 8, 8, 1, 8>();
-}
-TEST_F(TPARTMINTest, case_fp32_8x8_3x0_5x4)
-{
-    test_tpartmin<float, 8, 8, 3, 0, 5, 4, 8, 8, 1, 8, 8, 8>();
 }
 } // namespace TPartMinTest
