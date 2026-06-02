@@ -105,3 +105,7 @@ TEST_F(TNEGTest, case_int16_64x16_64x16)
 {
     test_tneg<int16_t, 64, 16, 64, 16>();
 }
+TEST_F(TNEGTest, case_int16_1x16_1x16)
+{
+    test_tneg<int16_t, 1, 16, 1, 16>();
+}

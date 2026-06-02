@@ -151,3 +151,9 @@ TEST_F(TADDSTest, case10)
     bool ret = TAddSTestFramework<10, uint8_t, 256, 64, 256, 256, 32, 32>();
     EXPECT_TRUE(ret);
 }
+
+TEST_F(TADDSTest, case11)
+{
+    bool ret = TAddSTestFramework<10, uint8_t, 1, 64, 1, 1, 32, 32>();
+    EXPECT_TRUE(ret);
+}

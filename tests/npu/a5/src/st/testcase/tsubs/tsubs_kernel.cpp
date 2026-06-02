@@ -79,6 +79,10 @@ extern "C" __global__ AICORE void launchTSUBSCase10(__gm__ uint8_t *out, __gm__ 
 {
     runTSubS<uint8_t, 256, 64, 256, 256, 32, 32>(out, src, scalar);
 }
+extern "C" __global__ AICORE void launchTSUBSCase11(__gm__ uint8_t *out, __gm__ uint8_t *src, uint8_t scalar)
+{
+    runTSubS<uint8_t, 1, 64, 1, 1, 32, 32>(out, src, scalar);
+}
 
 template <uint32_t caseId>
 void launchTSUBSTestCase(void *out, void *src, float scalar, aclrtStream stream)
@@ -124,6 +128,10 @@ void launchTSUBSTestCase(void *out, void *src, float scalar, aclrtStream stream)
             launchTSUBSCase10<<<1, nullptr, stream>>>((uint8_t *)out, (uint8_t *)src, scalar);
             break;
         }
+        case 11: {
+            launchTSUBSCase11<<<1, nullptr, stream>>>((uint8_t *)out, (uint8_t *)src, scalar);
+            break;
+        }
         default: {
         }
     }
@@ -139,3 +147,4 @@ template void launchTSUBSTestCase<7>(void *out, void *src, float scalar, aclrtSt
 template void launchTSUBSTestCase<8>(void *out, void *src, float scalar, aclrtStream stream);
 template void launchTSUBSTestCase<9>(void *out, void *src, float scalar, aclrtStream stream);
 template void launchTSUBSTestCase<10>(void *out, void *src, float scalar, aclrtStream stream);
+template void launchTSUBSTestCase<11>(void *out, void *src, float scalar, aclrtStream stream);

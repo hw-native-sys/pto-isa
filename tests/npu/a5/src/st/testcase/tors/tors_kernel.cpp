@@ -52,3 +52,4 @@ template void LaunchTORS<uint32_t, 8, 8, 8, 8>(uint32_t *out, uint32_t *src0, ui
 template void LaunchTORS<int8_t, 32, 32, 32, 32>(int8_t *out, int8_t *src0, int8_t src1, void *stream);
 template void LaunchTORS<int16_t, 16, 16, 16, 16>(int16_t *out, int16_t *src0, int16_t src1, void *stream);
 template void LaunchTORS<int32_t, 8, 8, 8, 8>(int32_t *out, int32_t *src0, int32_t src1, void *stream);
+template void LaunchTORS<int32_t, 1, 8, 1, 8>(int32_t *out, int32_t *src0, int32_t src1, void *stream);

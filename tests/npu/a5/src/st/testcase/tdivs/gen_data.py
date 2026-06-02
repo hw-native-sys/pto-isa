@@ -58,6 +58,7 @@ if __name__ == "__main__":
         TDivsParams("TDIVSTest.case4", np.int16, 15, 192, 15, 64 * 3),
         TDivsParams("TDIVSTest.case5", np.float32, 7, 512, 7, 64 * 7),
         TDivsParams("TDIVSTest.case6", np.float32, 256, 32, 256, 16),
+        TDivsParams("TDIVSTest.case7", np.float32, 1, 32, 1, 16),
         TDivsParams("TDIVSTest.caseHP1", np.float32, 2, 16, 2, 16),
         TDivsParams("TDIVSTest.caseHP2", np.float16, 2, 32, 2, 32)
     ]

@@ -74,6 +74,7 @@ if __name__ == "__main__":
         tunaryParams(np.int32, 32, 32, 32, 32, 32, 32),
         tunaryParams(np.float16, 32, 64, 32, 64, 32, 64),
         tunaryParams(np.int16, 64, 16, 64, 16, 64, 16),
+        tunaryParams(np.int16, 1, 16, 1, 16, 1, 16),
     ]
 
     for i, param in enumerate(case_params_list):

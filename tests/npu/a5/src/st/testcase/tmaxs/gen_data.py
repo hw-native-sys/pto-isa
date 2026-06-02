@@ -87,6 +87,7 @@ if __name__ == "__main__":
         TestParams(np.float32, 16, 200, 20, 512, 16, 200, PAD_VALUE_MAX),
         TestParams(np.float32, 1, 3600, 2, 4096, 1, 3600, PAD_VALUE_MAX),
         TestParams(np.float16, 16, 256, 20, 224, 16, 200, PAD_VALUE_MAX),
+        TestParams(np.float16, 1, 256, 1, 224, 1, 200, PAD_VALUE_MAX),
 
         TestParams(np.int32, 32, 32, 32, 32, 32, 32),
         TestParams(np.uint32, 32, 32, 32, 32, 32, 32),

@@ -19,8 +19,7 @@ using namespace pto;
 
 #ifdef __CCE_AICORE__
 template <typename T, int dstRow, int dstCol, int srcRow, int srcCol, int kVRows_, int kVCols_, int kPadValue_>
-struct GenericDataSelector {
-};
+struct GenericDataSelector {};
 
 template <typename T, int dstRow, int dstCol, int srcRow, int srcCol, int kVRows_, int kVCols_>
 struct GenericDataSelector<T, dstRow, dstCol, srcRow, srcCol, kVRows_, kVCols_, PAD_VALUE_NULL> {
@@ -97,6 +96,8 @@ template void LaunchTMins<float, 1, 3600, 2, 4096, 1, 3600, PAD_VALUE_MAX>(float
                                                                            void *stream);
 template void LaunchTMins<aclFloat16, 16, 256, 20, 224, 16, 200, PAD_VALUE_MAX>(aclFloat16 *out, aclFloat16 *src0,
                                                                                 aclFloat16 *scalar, void *stream);
+template void LaunchTMins<aclFloat16, 1, 256, 1, 224, 1, 200, PAD_VALUE_MAX>(aclFloat16 *out, aclFloat16 *src0,
+                                                                             aclFloat16 *scalar, void *stream);
 
 template void LaunchTMins<int32_t, 32, 32, 32, 32, 32, 32, PAD_VALUE_NULL>(int32_t *out, int32_t *src0, int32_t *scalar,
                                                                            void *stream);

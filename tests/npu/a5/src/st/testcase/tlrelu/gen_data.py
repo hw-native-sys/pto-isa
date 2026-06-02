@@ -54,7 +54,8 @@ if __name__ == "__main__":
         TLReluParams("TLRELUTest.case1", np.float32, 32, 128, 32, 64),
         TLReluParams("TLRELUTest.case2", np.float16, 63, 128, 63, 64),
         TLReluParams("TLRELUTest.case3", np.float32, 7, 512, 7, 64 * 7),
-        TLReluParams("TLRELUTest.case4", np.float32, 256, 32, 256, 16)
+        TLReluParams("TLRELUTest.case4", np.float32, 256, 32, 256, 16),
+        TLReluParams("TLRELUTest.case5", np.float32, 1, 32, 1, 16)
     ]
 
     for _, case in enumerate(case_params_list):

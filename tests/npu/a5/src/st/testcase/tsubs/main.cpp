@@ -151,3 +151,9 @@ TEST_F(TSUBSTest, case10)
     bool ret = TSubSTestFramework<10, uint8_t, 256, 64, 256, 256, 32, 32>();
     EXPECT_TRUE(ret);
 }
+
+TEST_F(TSUBSTest, case11)
+{
+    bool ret = TSubSTestFramework<11, uint8_t, 1, 64, 1, 1, 32, 32>();
+    EXPECT_TRUE(ret);
+}

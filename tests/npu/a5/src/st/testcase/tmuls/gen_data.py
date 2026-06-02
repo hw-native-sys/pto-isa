@@ -53,7 +53,8 @@ if __name__ == "__main__":
         TAddsParams("TMULSTest.case3", np.int32, 31, 256, 31, 128),
         TAddsParams("TMULSTest.case4", np.int16, 15, 192, 15, 64 * 3),
         TAddsParams("TMULSTest.case5", np.float32, 7, 512, 7, 64 * 7),
-        TAddsParams("TMULSTest.case6", np.float32, 256, 32, 256, 16)
+        TAddsParams("TMULSTest.case6", np.float32, 256, 32, 256, 16),
+        TAddsParams("TMULSTest.case7", np.float32, 1, 32, 1, 16),
     ]
 
     for _, case in enumerate(case_params_list):

@@ -133,3 +133,8 @@ TEST_F(TANDSTest, case9)
 {
     test_tands<int32_t, 8, 8, 8, 8>();
 }
+
+TEST_F(TANDSTest, case10)
+{
+    test_tands<int32_t, 1, 8, 1, 8>();
+}

@@ -63,6 +63,10 @@ extern "C" __global__ AICORE void launchTMULSCase6(__gm__ float *out, __gm__ flo
 {
     runTMuls<float, 256, 32, 256, 256, 16, 16>(out, src, scalar);
 }
+extern "C" __global__ AICORE void launchTMULSCase7(__gm__ float *out, __gm__ float *src, float scalar)
+{
+    runTMuls<float, 1, 32, 1, 1, 16, 16>(out, src, scalar);
+}
 
 template <uint32_t caseId>
 void launchTMULSTestCase(void *out, void *src, float scalar, aclrtStream stream)
@@ -92,6 +96,10 @@ void launchTMULSTestCase(void *out, void *src, float scalar, aclrtStream stream)
             launchTMULSCase6<<<1, nullptr, stream>>>((float *)out, (float *)src, scalar);
             break;
         }
+        case 7: {
+            launchTMULSCase7<<<1, nullptr, stream>>>((float *)out, (float *)src, scalar);
+            break;
+        }
         default: {
         }
     }
@@ -103,3 +111,4 @@ template void launchTMULSTestCase<3>(void *out, void *src, float scalar, aclrtSt
 template void launchTMULSTestCase<4>(void *out, void *src, float scalar, aclrtStream stream);
 template void launchTMULSTestCase<5>(void *out, void *src, float scalar, aclrtStream stream);
 template void launchTMULSTestCase<6>(void *out, void *src, float scalar, aclrtStream stream);
+template void launchTMULSTestCase<7>(void *out, void *src, float scalar, aclrtStream stream);

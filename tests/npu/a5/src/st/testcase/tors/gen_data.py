@@ -74,6 +74,7 @@ if __name__ == "__main__":
         TORSParams("TORSTest.case7", np.int8, 32, 32, 32, 32),
         TORSParams("TORSTest.case8", np.int16, 16, 16, 16, 16),
         TORSParams("TORSTest.case9", np.int32, 8, 8, 8, 8),
+        TORSParams("TORSTest.case10", np.int32, 1, 8, 1, 8),
     ]
 
     for param in case_params_list:

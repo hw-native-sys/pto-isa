@@ -140,3 +140,7 @@ TEST_F(TMINSTest, case_half_16x256_20x224_16x200)
 {
     test_tmins<aclFloat16, 16, 256, 20, 224, 16, 200, PAD_VALUE_MAX>();
 }
+TEST_F(TMINSTest, case_half_1x256_1x224_1x200)
+{
+    test_tmins<aclFloat16, 1, 256, 1, 224, 1, 200, PAD_VALUE_MAX>();
+}

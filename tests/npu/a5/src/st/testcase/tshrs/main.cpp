@@ -111,3 +111,7 @@ TEST_F(TSHRSTest, case_uint16_32x112_32x128_32x111)
 {
     test_tshrs<uint16_t, 32, 112, 32, 128, 32, 111>();
 }
+TEST_F(TSHRSTest, case_uint16_1x112_1x128_1x111)
+{
+    test_tshrs<uint16_t, 1, 112, 1, 128, 1, 111>();
+}

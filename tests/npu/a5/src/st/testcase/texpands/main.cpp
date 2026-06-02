@@ -127,3 +127,7 @@ TEST_F(TEXPANDSTest, case_int16_16x200_20x512_16x200_PAD_VALUE_MAX)
 {
     test_texpands<int16_t, 16, 200, 20, 512, 16, 200, PAD_VALUE_MAX>();
 }
+TEST_F(TEXPANDSTest, case_int16_1x200_1x512_1x200_PAD_VALUE_MAX)
+{
+    test_texpands<int16_t, 1, 200, 1, 512, 1, 200, PAD_VALUE_MAX>();
+}

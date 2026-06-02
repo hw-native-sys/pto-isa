@@ -108,6 +108,7 @@ if __name__ == "__main__":
         TestParams(bfloat16, 1, 3600, 2, 4096, 1, 3600, PAD_VALUE_MAX),
         TestParams(np.float16, 1, 3600, 2, 4096, 1, 3600, PAD_VALUE_MAX),
         TestParams(np.int16, 16, 200, 20, 512, 16, 200, PAD_VALUE_MAX),
+        TestParams(np.int16, 1, 200, 1, 512, 1, 200, PAD_VALUE_MAX),
     ]
 
     for i, param in enumerate(case_params_list):

@@ -56,3 +56,4 @@ template void LaunchTNeg<float, 64, 64, 64, 64>(float *out, float *src, void *st
 template void LaunchTNeg<int32_t, 32, 32, 32, 32>(int32_t *out, int32_t *src, void *stream);
 template void LaunchTNeg<aclFloat16, 32, 64, 32, 64>(aclFloat16 *out, aclFloat16 *src, void *stream);
 template void LaunchTNeg<int16_t, 64, 16, 64, 16>(int16_t *out, int16_t *src, void *stream);
+template void LaunchTNeg<int16_t, 1, 16, 1, 16>(int16_t *out, int16_t *src, void *stream);

@@ -64,6 +64,7 @@ if __name__ == "__main__":
         taddsParams("TADDSTest.case8", np.uint16, 256, 32, 256, 16),
         taddsParams("TADDSTest.case9", np.int8, 256, 64, 256, 32),
         taddsParams("TADDSTest.case10", np.uint8, 256, 64, 256, 32),
+        taddsParams("TADDSTest.case11", np.uint8, 1, 64, 1, 32),
     ]
 
     for _, case in enumerate(case_params_list):

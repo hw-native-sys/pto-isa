@@ -133,3 +133,8 @@ TEST_F(TORSTest, case9)
 {
     test_tors<int32_t, 8, 8, 8, 8>();
 }
+
+TEST_F(TORSTest, case10)
+{
+    test_tors<int32_t, 1, 8, 1, 8>();
+}

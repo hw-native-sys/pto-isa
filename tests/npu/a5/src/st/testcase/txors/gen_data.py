@@ -74,6 +74,7 @@ if __name__ == "__main__":
         TXORSParams("TXORSTest.case7", np.int8, 32, 32, 32, 32),
         TXORSParams("TXORSTest.case8", np.int16, 16, 16, 16, 16),
         TXORSParams("TXORSTest.case9", np.int32, 8, 8, 8, 8),
+        TXORSParams("TXORSTest.case10", np.int32, 1, 8, 1, 8),
     ]
 
     for param in case_params_list:

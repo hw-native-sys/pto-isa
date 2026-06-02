@@ -55,6 +55,10 @@ extern "C" __global__ AICORE void launchTLRELUCase4(__gm__ float *out, __gm__ fl
 {
     runTLRelu<float, 256, 32, 256, 256, 16, 16>(out, src, scalar);
 }
+extern "C" __global__ AICORE void launchTLRELUCase5(__gm__ float *out, __gm__ float *src, float scalar)
+{
+    runTLRelu<float, 1, 32, 1, 1, 16, 16>(out, src, scalar);
+}
 
 template <uint32_t caseId>
 void launchTLRELUTestCase(void *out, void *src, float scalar, aclrtStream stream)
@@ -76,6 +80,10 @@ void launchTLRELUTestCase(void *out, void *src, float scalar, aclrtStream stream
             launchTLRELUCase4<<<1, nullptr, stream>>>((float *)out, (float *)src, scalar);
             break;
         }
+        case 5: {
+            launchTLRELUCase5<<<1, nullptr, stream>>>((float *)out, (float *)src, scalar);
+            break;
+        }
         default: {
         }
     }
@@ -85,3 +93,4 @@ template void launchTLRELUTestCase<1>(void *out, void *src, float scalar, aclrtS
 template void launchTLRELUTestCase<2>(void *out, void *src, float scalar, aclrtStream stream);
 template void launchTLRELUTestCase<3>(void *out, void *src, float scalar, aclrtStream stream);
 template void launchTLRELUTestCase<4>(void *out, void *src, float scalar, aclrtStream stream);
+template void launchTLRELUTestCase<5>(void *out, void *src, float scalar, aclrtStream stream);

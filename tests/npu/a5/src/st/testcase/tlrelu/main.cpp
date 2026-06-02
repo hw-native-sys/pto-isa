@@ -115,3 +115,9 @@ TEST_F(TLRELUTest, case4)
     bool ret = TLReluTestFramework<4, float, 256, 32, 256, 256, 16, 16>();
     EXPECT_TRUE(ret);
 }
+
+TEST_F(TLRELUTest, case5)
+{
+    bool ret = TLReluTestFramework<5, float, 1, 32, 1, 1, 16, 16>();
+    EXPECT_TRUE(ret);
+}

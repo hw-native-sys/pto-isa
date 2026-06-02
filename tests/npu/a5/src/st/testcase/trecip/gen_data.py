@@ -75,6 +75,7 @@ if __name__ == "__main__":
         tunaryParams(np.float16, 64, 64, 64, 64, 64, 64, False),
         tunaryParams(np.float32, 64, 64, 66, 72, 64, 64, False),
         tunaryParams(np.float32, 58, 70, 66, 72, 58, 70, False),
+        tunaryParams(np.float32, 1, 70, 1, 72, 1, 70, False),
         tunaryParams(np.float32, 2, 16, 2, 16, 2, 16, False, True),
         tunaryParams(np.float16, 2, 32, 2, 32, 2, 32, False, True),
     ]

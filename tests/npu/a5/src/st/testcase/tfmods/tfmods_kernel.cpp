@@ -75,5 +75,6 @@ template void LaunchTFModS<int16_t, 15, 192, 15, 192, 15, 192>(int16_t *out, int
                                                                void *stream);
 template void LaunchTFModS<float, 7, 512, 7, 512, 7, 448>(float *out, float *src, float scalar, void *stream);
 template void LaunchTFModS<float, 256, 32, 256, 32, 256, 31>(float *out, float *src, float scalar, void *stream);
+template void LaunchTFModS<float, 1, 32, 1, 32, 1, 31>(float *out, float *src, float scalar, void *stream);
 template void LaunchTFModS<float, 64, 64, 64, 64, 64, 64, true>(float *out, float *src, float scalar, void *stream);
 template void LaunchTFModS<float, 64, 64, 64, 64, 64, 61, true>(float *out, float *src, float scalar, void *stream);

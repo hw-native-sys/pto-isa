@@ -115,6 +115,10 @@ TEST_F(TRECIPTest, case_float_58x70_66x72_58x70)
 {
     test_trecip<float, 58, 70, 66, 72, false>();
 }
+TEST_F(TRECIPTest, case_float_1x70_1x72_1x70)
+{
+    test_trecip<float, 1, 70, 1, 72, false>();
+}
 TEST_F(TRECIPTest, case_float_hp_2x16_2x16_2x16)
 {
     test_trecip<float, 2, 16, 2, 16, false, true>();

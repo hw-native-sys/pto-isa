@@ -67,5 +67,6 @@ template void LaunchTRecip<aclFloat16, 64, 64, 64, 64, true>(aclFloat16 *out, ac
 template void LaunchTRecip<aclFloat16, 64, 64, 64, 64>(aclFloat16 *out, aclFloat16 *src, void *stream);
 template void LaunchTRecip<float, 64, 64, 66, 72>(float *out, float *src, void *stream);
 template void LaunchTRecip<float, 58, 70, 66, 72>(float *out, float *src, void *stream);
+template void LaunchTRecip<float, 1, 70, 1, 72>(float *out, float *src, void *stream);
 template void LaunchTRecip<float, 2, 16, 2, 16, false, true>(float *out, float *src, void *stream);
 template void LaunchTRecip<aclFloat16, 2, 32, 2, 32, false, true>(aclFloat16 *out, aclFloat16 *src, void *stream);

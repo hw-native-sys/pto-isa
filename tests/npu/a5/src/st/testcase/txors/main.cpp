@@ -133,3 +133,8 @@ TEST_F(TXORSTest, case9)
 {
     test_txors<int32_t, 8, 8, 8, 8>();
 }
+
+TEST_F(TXORSTest, case10)
+{
+    test_txors<int32_t, 1, 8, 1, 8>();
+}
