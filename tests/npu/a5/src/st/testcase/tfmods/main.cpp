@@ -131,6 +131,11 @@ TEST_F(TFMODSTest, case6)
     TFModSTestFramework<float, 256, 32, 256, 32, 256, 31>();
 }
 
+TEST_F(TFMODSTest, case7)
+{
+    TFModSTestFramework<float, 1, 32, 1, 32, 1, 31>();
+}
+
 TEST_F(TFMODSTest, caseHP1)
 {
     TFModSTestFramework<float, 64, 64, 64, 64, 64, 64, false, true>();
