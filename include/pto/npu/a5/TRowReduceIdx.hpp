@@ -157,12 +157,12 @@ PTO_INTERNAL void TRowReduceIdxImpl(__ubuf__ typename TileDataOutVal::DType *dst
     constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(TSrc);
     int32_t repeatTimes = CeilDivision(cols, elementsPerRepeat);
     if (version == VFIMPL_2D_NO_POST_UPDATE) {
-        int32_t srcAdjust = static_cast<int32_t>(TileDataIn::RowStride) - repeatTimes * elementsPerRepeat;
         TRowReduceIdxProc<ReduceIdxOp, TileDataOutVal, TileDataOutIdx, TileDataIn, outputVal, false>(
-            dstValPtr, dstIdxPtr, srcPtr, rows, cols, repeatTimes, srcAdjust);
-    } else {
-        TRowReduceIdxProc<ReduceIdxOp, TileDataOutVal, TileDataOutIdx, TileDataIn, outputVal, true>(
             dstValPtr, dstIdxPtr, srcPtr, rows, cols, repeatTimes, 0);
+    } else {
+        int32_t srcAdjust = static_cast<int32_t>(TileDataIn::RowStride) - repeatTimes * elementsPerRepeat;
+        TRowReduceIdxProc<ReduceIdxOp, TileDataOutVal, TileDataOutIdx, TileDataIn, outputVal, true>(
+            dstValPtr, dstIdxPtr, srcPtr, rows, cols, repeatTimes, srcAdjust);
     }
 }
 
