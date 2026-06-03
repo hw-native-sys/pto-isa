@@ -14,9 +14,66 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "TPartBinOps.hpp"
 
 namespace pto {
+template <typename T, typename U, unsigned dstValStride, unsigned dstIdxStride>
+PTO_INTERNAL void TPartArgProcRow(__ubuf__ T *dstValPtr, __ubuf__ U *dstIdxPtr, __ubuf__ T *srcValPtr,
+                                  __ubuf__ U *srcIdxPtr, unsigned srcValStride, unsigned srcIdxStride, unsigned row,
+                                  uint32_t &dstSReg, uint32_t repeatStart, uint32_t repeatEnd)
+{
+    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr auto distValue =
+        std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
+    constexpr auto distIndex =
+        std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<U, DistVST::DIST_NORM>())>();
+    MaskReg dstMask;
+    RegTensor<T> dstValReg;
+    RegTensor<U> dstIdxReg;
+    for (uint16_t i = (uint16_t)repeatStart; i < (uint16_t)repeatEnd; i++) {
+        dstMask = CreatePredicate<T>(dstSReg);
+        vlds(dstValReg, srcValPtr, row * srcValStride + i * elementsPerRepeat, NORM);
+        vlds(dstIdxReg, srcIdxPtr, row * srcIdxStride + i * elementsPerRepeat, NORM);
+        vsts(dstValReg, dstValPtr, row * dstValStride + i * elementsPerRepeat, distValue, dstMask);
+        vsts(dstIdxReg, dstIdxPtr, row * dstIdxStride + i * elementsPerRepeat, distIndex, dstMask);
+    }
+}
+
+template <typename Op, typename T, typename U, unsigned dstValStride, unsigned dstIdxStride, unsigned src0ValStride,
+          unsigned src0IdxStride, unsigned src1ValStride, unsigned src1IdxStride>
+PTO_INTERNAL void TPartArgProcRow(__ubuf__ T *dstValPtr, __ubuf__ U *dstIdxPtr, __ubuf__ T *src0ValPtr,
+                                  __ubuf__ U *src0IdxPtr, __ubuf__ T *src1ValPtr, __ubuf__ U *src1IdxPtr,
+                                  __ubuf__ T *srcBigValPtr, __ubuf__ U *srcBigIdxPtr, unsigned srcBigValStride,
+                                  unsigned srcBigIdxStride, unsigned row, uint32_t &dstSReg, uint32_t &srcSReg,
+                                  uint32_t repeatEnd)
+{
+    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr auto distValue =
+        std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
+    constexpr auto distIndex =
+        std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<U, DistVST::DIST_NORM>())>();
+    MaskReg dstMask, srcMask, selMask;
+    RegTensor<T> dstValReg, srcBigValReg, src0ValReg, src1ValReg;
+    RegTensor<U> dstIdxReg, srcBigIdxReg, src0IdxReg, src1IdxReg;
+    for (uint16_t j = 0; j < (uint16_t)repeatEnd; j++) {
+        dstMask = CreatePredicate<T>(dstSReg);
+        srcMask = CreatePredicate<T>(srcSReg);
+        vlds(src0ValReg, src0ValPtr, row * src0ValStride + j * elementsPerRepeat, NORM);
+        vlds(src0IdxReg, src0IdxPtr, row * src0IdxStride + j * elementsPerRepeat, NORM);
+        vlds(src1ValReg, src1ValPtr, row * src1ValStride + j * elementsPerRepeat, NORM);
+        vlds(src1IdxReg, src1IdxPtr, row * src1IdxStride + j * elementsPerRepeat, NORM);
+        Op::BinInstr(selMask, src1ValReg, src0ValReg, srcMask);
+        vsel(src0ValReg, src1ValReg, src0ValReg, selMask);
+        vsel(src0IdxReg, src1IdxReg, src0IdxReg, selMask);
+        vlds(dstValReg, srcBigValPtr, row * srcBigValStride + j * elementsPerRepeat, NORM);
+        vlds(dstIdxReg, srcBigIdxPtr, row * srcBigIdxStride + j * elementsPerRepeat, NORM);
+        vmov(dstValReg, src0ValReg, srcMask, MODE_MERGING);
+        vmov(dstIdxReg, src0IdxReg, srcMask, MODE_MERGING);
+        vsts(dstValReg, dstValPtr, row * dstValStride + j * elementsPerRepeat, distValue, dstMask);
+        vsts(dstIdxReg, dstIdxPtr, row * dstIdxStride + j * elementsPerRepeat, distIndex, dstMask);
+    }
+}
+
 template <typename Op, typename DstValTileData, typename Src0ValTileData, typename Src1ValTileData,
           typename DstIdxTileData, typename Src0IdxTileData, typename Src1IdxTileData>
-__tf__ PTO_INTERNAL void TPartArgImpl(
+__tf__ PTO_INTERNAL void TPartArgProc(
     typename DstValTileData::TileDType __out__ dstVal, typename Src0ValTileData::TileDType __in__ src0Val,
     typename Src1ValTileData::TileDType __in__ src1Val, typename DstIdxTileData::TileDType __out__ dstIdx,
     typename Src0IdxTileData::TileDType __in__ src0Idx, typename Src1IdxTileData::TileDType __in__ src1Idx,
@@ -32,40 +89,40 @@ __tf__ PTO_INTERNAL void TPartArgImpl(
     __ubuf__ U *src0IdxPtr = (__ubuf__ U *)__cce_get_tile_ptr(src0Idx);
     __ubuf__ U *src1IdxPtr = (__ubuf__ U *)__cce_get_tile_ptr(src1Idx);
     __ubuf__ U *dstIdxPtr = (__ubuf__ U *)__cce_get_tile_ptr(dstIdx);
+    bool src1Bigger = (src0ValidRow < src1ValidRow || src0ValidCol < src1ValidCol);
+    __ubuf__ T *srcBigValPtr = src1Bigger ? src1ValPtr : src0ValPtr;
+    unsigned srcBigValStride = src1Bigger ? Src1ValTileData::RowStride : Src0ValTileData::RowStride;
+    __ubuf__ U *srcBigIdxPtr = src1Bigger ? src1IdxPtr : src0IdxPtr;
+    unsigned srcBigIdxStride = src1Bigger ? Src1IdxTileData::RowStride : Src0IdxTileData::RowStride;
+    unsigned srcSmallValidRow = min(src0ValidRow, src1ValidRow);
+    unsigned srcSmallValidCol = min(src0ValidCol, src1ValidCol);
+    uint32_t repeatSrcSmall = CeilDivision(srcSmallValidCol, elementsPerRepeat);
+    uint32_t repeatDst = CeilDivision(dstValidCol, elementsPerRepeat);
     __VEC_SCOPE__
     {
-        MaskReg dstMask, src0Mask, src1Mask, selMask;
-        RegTensor<T> dstValReg, src0ValReg, src1ValReg, padValReg;
-        RegTensor<U> dstIdxReg, src0IdxReg, src1IdxReg, padIdxReg;
+        MaskReg dstMask, srcMask, selMask;
+        RegTensor<T> dstValReg, srcBigValReg, src0ValReg, src1ValReg;
+        RegTensor<U> dstIdxReg, srcBigIdxReg, src0IdxReg, src1IdxReg;
         constexpr auto distValue =
             std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
         constexpr auto distIndex =
             std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<U, DistVST::DIST_NORM>())>();
-        uint32_t repeatTimes = CeilDivision(dstValidCol, elementsPerRepeat);
-        vbr((RegTensor<typename Padding<T>::Type> &)padValReg, Op::PadVal);
-        vbr((RegTensor<typename Padding<U>::Type> &)padIdxReg, Op::PadIdx);
-        for (uint16_t i = 0; i < (uint16_t)dstValidRow; i++) {
+        for (uint16_t i = 0; i < (uint16_t)srcSmallValidRow; i++) {
             uint32_t dstSReg = dstValidCol;
-            uint32_t src0SReg = i < src0ValidRow ? src0ValidCol : 0;
-            uint32_t src1SReg = i < src1ValidRow ? src1ValidCol : 0;
-            for (uint16_t j = 0; j < (uint16_t)repeatTimes; j++) {
-                dstMask = CreatePredicate<T>(dstSReg);
-                src0Mask = CreatePredicate<T>(src0SReg);
-                src1Mask = CreatePredicate<T>(src1SReg);
-                vlds(src0ValReg, src0ValPtr, i * Src0ValTileData::RowStride + j * elementsPerRepeat, NORM);
-                vlds(src0IdxReg, src0IdxPtr, i * Src0IdxTileData::RowStride + j * elementsPerRepeat, NORM);
-                vlds(src1ValReg, src1ValPtr, i * Src1ValTileData::RowStride + j * elementsPerRepeat, NORM);
-                vlds(src1IdxReg, src1IdxPtr, i * Src1IdxTileData::RowStride + j * elementsPerRepeat, NORM);
-                vmov(dstValReg, padValReg, dstMask, MODE_MERGING);
-                vmov(dstIdxReg, padIdxReg, dstMask, MODE_MERGING);
-                vmov(dstValReg, src0ValReg, src0Mask, MODE_MERGING);
-                vmov(dstIdxReg, src0IdxReg, src0Mask, MODE_MERGING);
-                Op::BinInstr(selMask, src1ValReg, dstValReg, src1Mask);
-                vsel(dstValReg, src1ValReg, dstValReg, selMask);
-                vsel(dstIdxReg, src1IdxReg, dstIdxReg, selMask);
-                vsts(dstValReg, dstValPtr, i * DstValTileData::RowStride + j * elementsPerRepeat, distValue, dstMask);
-                vsts(dstIdxReg, dstIdxPtr, i * DstIdxTileData::RowStride + j * elementsPerRepeat, distIndex, dstMask);
-            }
+            uint32_t srcSReg = srcSmallValidCol;
+            TPartArgProcRow<Op, T, U, DstValTileData::RowStride, DstIdxTileData::RowStride, Src0ValTileData::RowStride,
+                            Src0IdxTileData::RowStride, Src1ValTileData::RowStride, Src1IdxTileData::RowStride>(
+                dstValPtr, dstIdxPtr, src0ValPtr, src0IdxPtr, src1ValPtr, src1IdxPtr, srcBigValPtr, srcBigIdxPtr,
+                srcBigValStride, srcBigIdxStride, i, dstSReg, srcSReg, repeatSrcSmall);
+            TPartArgProcRow<T, U, DstValTileData::RowStride, DstIdxTileData::RowStride>(
+                dstValPtr, dstIdxPtr, srcBigValPtr, srcBigIdxPtr, srcBigValStride, srcBigIdxStride, i, dstSReg,
+                repeatSrcSmall, repeatDst);
+        }
+        for (uint16_t i = (uint16_t)srcSmallValidRow; i < (uint16_t)dstValidRow; i++) {
+            uint32_t dstSReg = dstValidCol;
+            TPartArgProcRow<T, U, DstValTileData::RowStride, DstIdxTileData::RowStride>(
+                dstValPtr, dstIdxPtr, srcBigValPtr, srcBigIdxPtr, srcBigValStride, srcBigIdxStride, i, dstSReg, 0,
+                repeatDst);
         }
     } // end __VEC_SCOPE__
 }
@@ -103,6 +160,24 @@ PTO_INTERNAL void TPartArgCheck(DstValTileData &dstVal, Src0ValTileData &src0Val
     PTO_ASSERT((dstValidRow == src0ValidRow && dstValidCol == src0ValidCol) ||
                    (dstValidRow == src1ValidRow && dstValidCol == src1ValidCol),
                "Fix: TPARTARG output tile dstVal valid shape mismatch with input tile src0Val or src1Val valid shape");
+}
+
+template <typename Op, typename DstValTileData, typename Src0ValTileData, typename Src1ValTileData,
+          typename DstIdxTileData, typename Src0IdxTileData, typename Src1IdxTileData>
+PTO_INTERNAL void TPartArgImpl(
+    typename DstValTileData::TileDType __out__ dstVal, typename Src0ValTileData::TileDType __in__ src0Val,
+    typename Src1ValTileData::TileDType __in__ src1Val, typename DstIdxTileData::TileDType __out__ dstIdx,
+    typename Src0IdxTileData::TileDType __in__ src0Idx, typename Src1IdxTileData::TileDType __in__ src1Idx,
+    uint32_t dstValidRow, uint32_t dstValidCol, uint32_t src0ValidRow, uint32_t src0ValidCol, uint32_t src1ValidRow,
+    uint32_t src1ValidCol, VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
+{
+    if (((dstValidRow == src0ValidRow && dstValidCol == src0ValidCol) ||
+         (dstValidRow == src1ValidRow && dstValidCol == src1ValidCol)) &&
+        (max(src0ValidRow, src1ValidRow) == dstValidRow && max(src0ValidCol, src1ValidCol) == dstValidCol)) {
+        TPartArgProc<Op, DstValTileData, Src0ValTileData, Src1ValTileData, DstIdxTileData, Src0IdxTileData,
+                     Src1IdxTileData>(dstVal, src0Val, src1Val, dstIdx, src0Idx, src1Idx, dstValidRow, dstValidCol,
+                                      src0ValidRow, src0ValidCol, src1ValidRow, src1ValidCol);
+    }
 }
 } // namespace pto
 
