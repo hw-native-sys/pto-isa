@@ -163,6 +163,116 @@ AICORE void GRID_TPUSH_IMPL(Pipe &pipe, TileProd &tile)
     (void)GRID_TRY_TPUSH_IMPL<Dir, Dist, Pipe, TileProd>(pipe, tile, 0);
 }
 
+// ---------------------------------------------------------------------------
+// Single-source row/column broadcast (the TPUSH<GridSpan> overload).  ONE source delivers `tile` to
+// every other cell on its row (GridSpan::ROW = EAST arm + WEST arm) or column
+// (GridSpan::COL = NORTH + SOUTH).  Fan-in stays 1: within a phase only this
+// source writes any given receiver's per-direction channel, so no slot/flag
+// (Scheme B) expansion is needed -- a receiver east of the source drains it with
+// the ordinary TPOP<EAST, dist>, a receiver west with TPOP<WEST, dist>.
+//
+// This is a *true multicast*, NOT `for k: TPUSH<Dir, k>`.  The per-target
+// payload writes are issued back-to-back with NO intervening publish fence, so
+// the MTE3 bursts overlap in the data-mover queue, and the whole broadcast pays
+// exactly ONE pipe_barrier+dsb publish fence before ANY ready doorbell fires (a
+// per-hop TPUSH loop would pay one fence + one doorbell-round-trip per target).
+// Native LPU WSE lowering collapses each arm's write loop into a single fabric
+// multicast (write-with-notify replicated by the mesh routers); this batched
+// write + single fence + batched doorbell is the A2/A3 mock of that one op.
+//
+// Backpressure: single-shot (one broadcast per slot/phase).  A streaming
+// broadcast that reuses a slot would need the source to join N per-receiver free
+// credits; on one channel those N writers clobber a single monotonic free
+// counter, so multi-shot broadcast needs the lane-indexed free flags (Scheme B)
+// and is intentionally out of scope here.  prodIndex still advances so a later
+// unicast on the same direction stays consistent.
+// ---------------------------------------------------------------------------
+
+// Phase 1: write `tile` into every reachable target along `Dir` WITHOUT any
+// publish fence (the fence is hoisted to the caller so all arms' bursts overlap
+// and commit together).  Returns the number of targets written.
+template <pto::GridDirection Dir, typename Pipe, typename TileProd>
+AICORE int GridBcastArmWrite(Pipe &pipe, TileProd &tile)
+{
+    constexpr int dirIdx = GridDirectionIndex(Dir);
+    const uint32_t idx = pipe.prodIndex[dirIdx];
+    const uint32_t slotOff = (idx % static_cast<uint32_t>(Pipe::SlotCount)) * static_cast<uint32_t>(Pipe::SlotBytes);
+    __gm__ uint8_t *localSlot = pipe.slotBase[dirIdx] + slotOff;
+    neighbor_sram_addr localSramSlot = a2a3_grid_payload::LocalSramAddr(localSlot);
+    NeighborSramOperand sramOperand{pipe.runtimeCtx};
+
+    int nWritten = 0;
+    // Routed write to the cell k hops away along Dir, for every k up to the
+    // grid boundary.  Each target receives the payload directly at the same
+    // slot offset in its own window (the data does not relay through interior
+    // cores), so each receiver later drains it with TPOP<Dir, k>.
+    for (int k = 1; CanPushK(Dir, pipe.coord, pipe.shape, k); ++k) {
+        const int peerRank = RankForPushK(Dir, pipe.coord, pipe.shape, k);
+        neighbor_sram_addr remoteSramSlot{};
+        get_neighbor_sram_addr(remoteSramSlot, localSramSlot, dirIdx, peerRank, sramOperand);
+        a2a3_grid_payload::CopyTileToNeighborSramSlot<TileProd>(remoteSramSlot, tile, Pipe::SlotBytes);
+        ++nWritten;
+    }
+    return nWritten;
+}
+
+// Phase 2: ring the ready doorbell of every reachable target along `Dir`, called
+// ONLY after the single shared publish fence.  Bumps the local producer index
+// for this direction by one (one broadcast == one slot consumed on this arm).
+template <pto::GridDirection Dir, typename Pipe>
+AICORE void GridBcastArmRing(Pipe &pipe, int nWritten)
+{
+    if (nWritten == 0) {
+        return;
+    }
+    constexpr int dirIdx = GridDirectionIndex(Dir);
+    const uint32_t value = pipe.prodIndex[dirIdx] + 1;
+    for (int k = 1; CanPushK(Dir, pipe.coord, pipe.shape, k); ++k) {
+        const int peerRank = RankForPushK(Dir, pipe.coord, pipe.shape, k);
+#if defined(PTO_GRID_COUNTER_NATIVE_INTRINSIC)
+        NeighborCounterOperand readyCounter{};
+#else
+        __gm__ uint32_t *neighborReady =
+            a2a3_grid_payload::RemoteCounterPtr(pipe.runtimeCtx, pipe.readyFlags[dirIdx], peerRank);
+        NeighborCounterOperand readyCounter{neighborReady};
+#endif
+        mtspr_neighbor_counter(NeighborCounterKind::Ready, dirIdx, static_cast<uint32_t>(k), value, readyCounter);
+    }
+    pipe.prodIndex[dirIdx] = value;
+}
+
+template <pto::GridSpan Span, typename Pipe, typename TileProd>
+AICORE bool GRID_TRY_TPUSH_BCAST_IMPL(Pipe &pipe, TileProd &tile)
+{
+    constexpr GridDirection dirA = SpanArmA(Span);
+    constexpr GridDirection dirB = SpanArmB(Span);
+
+    // Phase 1: batched, fence-free payload writes to both arms (bursts overlap).
+    const int nA = GridBcastArmWrite<dirA, Pipe, TileProd>(pipe, tile);
+    const int nB = GridBcastArmWrite<dirB, Pipe, TileProd>(pipe, tile);
+    if (nA + nB == 0) {
+        return true; // isolated cell: nothing on either arm.
+    }
+
+    // Single publish fence (D-5) for the ENTIRE multicast, hoisted out of the
+    // per-target loops so every burst above commits before any doorbell below.
+#ifndef __PTO_AUTO__
+    pipe_barrier(PIPE_ALL);
+#endif
+    dsb(DSB_DDR);
+
+    // Phase 2: batched ready doorbells to both arms.
+    GridBcastArmRing<dirA, Pipe>(pipe, nA);
+    GridBcastArmRing<dirB, Pipe>(pipe, nB);
+    return true;
+}
+
+template <pto::GridSpan Span, typename Pipe, typename TileProd>
+AICORE void GRID_TPUSH_BCAST_IMPL(Pipe &pipe, TileProd &tile)
+{
+    (void)GRID_TRY_TPUSH_BCAST_IMPL<Span, Pipe, TileProd>(pipe, tile);
+}
+
 } // namespace pto
 
 #endif // PTO_A2A3_GRID_TPUSH_HPP

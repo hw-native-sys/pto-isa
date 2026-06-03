@@ -71,6 +71,34 @@ AICORE constexpr int GridDirectionIndex(GridDirection d)
 }
 
 // ---------------------------------------------------------------------------
+// Broadcast span (single-source row/column multicast).  A ROW broadcast fans a
+// payload to every other cell on the source's row; a COL broadcast fans along
+// the source's column.  Each span is two opposite 1-D arms -- ROW = EAST+WEST,
+// COL = NORTH+SOUTH (see SpanArmA / SpanArmB).  Because each arm is 1-D, the
+// (direction, distance) pair is a complete fan-in-1 lane key, so a single-source
+// broadcast needs no Scheme-B slot/flag expansion: a receiver east of the source
+// drains it with the ordinary TPOP<EAST, dist>, a receiver west with
+// TPOP<WEST, dist>.  Used by the GridPipe TPUSH<GridSpan> broadcast overload.
+// ---------------------------------------------------------------------------
+enum class GridSpan : uint8_t
+{
+    ROW = 0, // fan along the source's row:    EAST arm + WEST arm
+    COL = 1, // fan along the source's column: NORTH arm + SOUTH arm
+};
+
+// The two opposite GridDirections a span decomposes into.  constexpr so they
+// fold into the non-type template arguments of the per-arm broadcast helpers.
+AICORE constexpr GridDirection SpanArmA(GridSpan s)
+{
+    return s == GridSpan::ROW ? GridDirection::EAST : GridDirection::NORTH;
+}
+
+AICORE constexpr GridDirection SpanArmB(GridSpan s)
+{
+    return s == GridSpan::ROW ? GridDirection::WEST : GridDirection::SOUTH;
+}
+
+// ---------------------------------------------------------------------------
 // GridPipe<TileT, SlotBytes, SlotCount>
 //
 // One instance describes the FIFO state for a single logical channel that the

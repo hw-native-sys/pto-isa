@@ -71,8 +71,29 @@ if(NOT DEFINED KHOP_W)
     set(KHOP_W 64)
 endif()
 
+# Single-source broadcast smoke kernel config (independent of the FFN sizes).
+if(NOT DEFINED BCAST_ROWS)
+    set(BCAST_ROWS 1)
+endif()
+if(NOT DEFINED BCAST_COLS)
+    set(BCAST_COLS 5)
+endif()
+if(NOT DEFINED BCAST_SRC)
+    set(BCAST_SRC 2)
+endif()
+if(NOT DEFINED BCAST_SPAN_COL)
+    set(BCAST_SPAN_COL 0)
+endif()
+if(NOT DEFINED BCAST_T)
+    set(BCAST_T 16)
+endif()
+if(NOT DEFINED BCAST_W)
+    set(BCAST_W 64)
+endif()
+
 message(STATUS "Grid: ${GRID_ROWS}x${GRID_COLS}  Tile: ${TOKEN_TILE}x${MODEL_TILE}  FfnTile: ${FFN_TILE}")
 message(STATUS "KHop smoke: ${KHOP_ROWS}x${KHOP_COLS}  DIST=${KHOP_DIST}  Tile: ${KHOP_T}x${KHOP_W}")
+message(STATUS "Bcast smoke: ${BCAST_ROWS}x${BCAST_COLS}  SRC=${BCAST_SRC}  SPAN_COL=${BCAST_SPAN_COL}  Tile: ${BCAST_T}x${BCAST_W}")
 
 add_compile_options(
     -D_FORTIFY_SOURCE=2
@@ -283,6 +304,67 @@ target_link_directories(khop_smoke PUBLIC
 )
 target_link_libraries(khop_smoke PRIVATE
     khop_smoke_kernel
+    $<BUILD_INTERFACE:$<$<STREQUAL:${RUN_MODE},sim>:runtime_camodel>>
+    $<BUILD_INTERFACE:$<$<STREQUAL:${RUN_MODE},npu>:runtime>>
+    stdc++ ascendcl hcomm m tiling_api platform c_sec dl nnopbase pthread
+)
+
+# =============================================================================
+# 5. GridPipe single-source broadcast smoke test (Tier 1).  Vec-only data
+#    movement: one source TBCAST<ROW|COL>-es a stamped fp32 tile to its whole
+#    span in a single multicast (batched writes + one publish fence + batched
+#    doorbells, NOT a per-hop TPUSH loop); every other cell TPOP<dir,dist>s it.
+# =============================================================================
+add_library(bcast_smoke_kernel SHARED bcast_smoke_kernel.cpp)
+target_compile_options(bcast_smoke_kernel PRIVATE
+    ${CMAKE_CCE_COMPILE_OPTIONS}
+    --cce-aicore-arch=dav-c220
+    -DMEMORY_BASE -std=c++17
+    -DCONFIG_BCAST_ROWS=${BCAST_ROWS} -DCONFIG_BCAST_COLS=${BCAST_COLS}
+    -DCONFIG_BCAST_SRC=${BCAST_SRC} -DCONFIG_BCAST_SPAN_COL=${BCAST_SPAN_COL}
+    -DCONFIG_BCAST_T=${BCAST_T} -DCONFIG_BCAST_W=${BCAST_W}
+)
+target_include_directories(bcast_smoke_kernel PRIVATE
+    ${PROJECT_SOURCE_DIR}/../../../../include/
+    ${PROJECT_SOURCE_DIR}/../../../../tests/npu/a2a3/comm/st/testcase/
+    $ENV{ASCEND_HOME_PATH}/aarch64-linux/asc
+    $ENV{ASCEND_HOME_PATH}/aarch64-linux/asc/include
+    $ENV{ASCEND_HOME_PATH}/aarch64-linux/ascendc/include/basic_api
+    $ENV{ASCEND_HOME_PATH}/aarch64-linux/include/ascendc/basic_api
+    $ENV{ASCEND_HOME_PATH}/aarch64-linux/asc/impl/basic_api
+    $ENV{ASCEND_HOME_PATH}/aarch64-linux/ascendc/include/basic_api/impl
+    $ENV{ASCEND_HOME_PATH}/aarch64-linux/asc/include/interface
+    $ENV{ASCEND_HOME_PATH}/aarch64-linux/asc/include/utils
+)
+target_link_directories(bcast_smoke_kernel PRIVATE ${ASCEND_HOME_PATH}/lib64)
+target_link_libraries(bcast_smoke_kernel PRIVATE hcomm runtime nnopbase)
+target_link_options(bcast_smoke_kernel PRIVATE --cce-fatobj-link)
+
+add_executable(bcast_smoke main_bcast_smoke.cpp)
+target_compile_options(bcast_smoke PRIVATE ${CMAKE_CPP_COMPILE_OPTIONS})
+target_include_directories(bcast_smoke PRIVATE
+    ${PROJECT_SOURCE_DIR}/../../../../include/
+    ${PROJECT_SOURCE_DIR}/../../../../tests/common
+    ${PROJECT_SOURCE_DIR}/../../../../tests/npu/a2a3/comm/st/testcase/
+    ${ASCEND_HOME_PATH}/pkg_inc/runtime
+    ${ASCEND_HOME_PATH}/pkg_inc/toolchain
+    ${ASCEND_HOME_PATH}/pkg_inc/profiling
+    ${ASCEND_HOME_PATH}/aarch64-linux/pkg_inc/runtime
+    ${ASCEND_HOME_PATH}/aarch64-linux/pkg_inc
+    ${ASCEND_HOME_PATH}/aarch64-linux/pkg_inc/profiling
+)
+target_compile_definitions(bcast_smoke PRIVATE
+    CONFIG_BCAST_ROWS=${BCAST_ROWS} CONFIG_BCAST_COLS=${BCAST_COLS}
+    CONFIG_BCAST_SRC=${BCAST_SRC} CONFIG_BCAST_SPAN_COL=${BCAST_SPAN_COL}
+    CONFIG_BCAST_T=${BCAST_T} CONFIG_BCAST_W=${BCAST_W}
+)
+target_link_directories(bcast_smoke PUBLIC
+    ${ASCEND_HOME_PATH}/lib64
+    ${ASCEND_HOME_PATH}/simulator/${SOC_VERSION}/lib
+    ${ASCEND_HOME_PATH}/tools/simulator/${SOC_VERSION}/lib
+)
+target_link_libraries(bcast_smoke PRIVATE
+    bcast_smoke_kernel
     $<BUILD_INTERFACE:$<$<STREQUAL:${RUN_MODE},sim>:runtime_camodel>>
     $<BUILD_INTERFACE:$<$<STREQUAL:${RUN_MODE},npu>:runtime>>
     stdc++ ascendcl hcomm m tiling_api platform c_sec dl nnopbase pthread
