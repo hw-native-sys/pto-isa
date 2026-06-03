@@ -9,8 +9,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include "test_common.h"
-#include <gtest/gtest.h>
-#include <functional>
 #include "acl/acl.h"
 #include <gtest/gtest.h>
 
@@ -32,7 +30,7 @@ static std::string GetGoldenDir()
 }
 
 template <typename T, typename TIdx, typename Launcher>
-void run_mgather_test(size_t tableCount, size_t idxCount, size_t outCount, Launcher launcher)
+void RunMGatherTest(size_t tableCount, size_t idxCount, size_t outCount, Launcher launcher)
 {
     size_t tableByteSize = tableCount * sizeof(T);
     size_t idxByteSize = idxCount * sizeof(TIdx);
@@ -93,6 +91,32 @@ void run_mgather_test(size_t tableCount, size_t idxCount, size_t outCount, Launc
 
 #define DECLARE_LAUNCH(NAME, THOST, TIDX) void Launch_##NAME(THOST *out, THOST *table, TIDX *indices, void *stream);
 
+#define ROW_TEST(NAME, THOST, TIDX, R, C, TR)                                                 \
+    TEST_F(MGATHERTest, case_##NAME)                                                          \
+    {                                                                                         \
+        RunMGatherTest<THOST, TIDX>((size_t)TR * C, (size_t)R, (size_t)R * C, Launch_##NAME); \
+    }
+
+#define ELEM_TEST(NAME, THOST, TIDX, N, TS)                                           \
+    TEST_F(MGATHERTest, case_##NAME)                                                  \
+    {                                                                                 \
+        RunMGatherTest<THOST, TIDX>((size_t)TS, (size_t)N, (size_t)N, Launch_##NAME); \
+    }
+
+#define ELEM2D_TEST(NAME, THOST, TIDX, R, C, TS)                                              \
+    TEST_F(MGATHERTest, case_##NAME)                                                          \
+    {                                                                                         \
+        RunMGatherTest<THOST, TIDX>((size_t)TS, (size_t)R * C, (size_t)R * C, Launch_##NAME); \
+    }
+
+#define ELEM2D_DYN_TEST(NAME, THOST, TIDX, RVR, RVC, RTR, RTC)                                               \
+    TEST_F(MGATHERTest, case_##NAME)                                                                         \
+    {                                                                                                        \
+        RunMGatherTest<THOST, TIDX>((size_t)RTR * RTC, (size_t)RVR * RVC, (size_t)RVR * RVC, Launch_##NAME); \
+    }
+
+// --- Launcher declarations ------------------------------------------------------------------------------
+
 DECLARE_LAUNCH(row_float_8x32_64rows, float, int32_t)
 DECLARE_LAUNCH(row_half_16x64_64rows, aclFloat16, int32_t)
 DECLARE_LAUNCH(row_int32_8x16_32rows, int32_t, int32_t)
@@ -126,23 +150,14 @@ DECLARE_LAUNCH(elem2d_int32_scalar_1x1_in_1x8_8size, int32_t, int32_t)
 DECLARE_LAUNCH(row_int32_unaligned_3x8_8rows, int32_t, int32_t)
 DECLARE_LAUNCH(row_int32_unaligned_9x16_16rows, int32_t, int32_t)
 
-#define ROW_TEST(NAME, THOST, TIDX, R, C, TR)                                                   \
-    TEST_F(MGATHERTest, case_##NAME)                                                            \
-    {                                                                                           \
-        run_mgather_test<THOST, TIDX>((size_t)TR * C, (size_t)R, (size_t)R * C, Launch_##NAME); \
-    }
+DECLARE_LAUNCH(elem2d_dyn_user_float_1x9_in_1x16_3x10, float, int32_t)
+DECLARE_LAUNCH(elem2d_dyn_int32_4x8_in_4x8_64size, int32_t, int32_t)
+DECLARE_LAUNCH(elem2d_dyn_float_3x3_in_3x8_64size, float, int32_t)
+DECLARE_LAUNCH(elem2d_dyn_half_8x16_in_8x16_4x32, aclFloat16, int32_t)
+DECLARE_LAUNCH(row_dyn_int32_3x16_8rows, int32_t, int32_t)
+DECLARE_LAUNCH(row_dyn_half_4x32_16rows, aclFloat16, int32_t)
 
-#define ELEM_TEST(NAME, THOST, TIDX, N, TS)                                             \
-    TEST_F(MGATHERTest, case_##NAME)                                                    \
-    {                                                                                   \
-        run_mgather_test<THOST, TIDX>((size_t)TS, (size_t)N, (size_t)N, Launch_##NAME); \
-    }
-
-#define ELEM2D_TEST(NAME, THOST, TIDX, R, C, TS)                                                \
-    TEST_F(MGATHERTest, case_##NAME)                                                            \
-    {                                                                                           \
-        run_mgather_test<THOST, TIDX>((size_t)TS, (size_t)R * C, (size_t)R * C, Launch_##NAME); \
-    }
+// --- Row coalesce: 1-D index `[1, R]` --------------------------------------------------------------------
 
 ROW_TEST(row_float_8x32_64rows, float, int32_t, 8, 32, 64)
 ROW_TEST(row_half_16x64_64rows, aclFloat16, int32_t, 16, 64, 64)
@@ -153,9 +168,13 @@ ROW_TEST(row_float_clamp_8x32_8rows, float, int32_t, 8, 32, 8)
 ROW_TEST(row_int32_wrap_8x16_8rows, int32_t, int32_t, 8, 16, 8)
 ROW_TEST(row_half_zero_8x32_8rows, aclFloat16, int32_t, 8, 32, 8)
 
+// --- Row coalesce: 1-D index `[R, 1]` (ColMajor + DN) ----------------------------------------------------
+
 ROW_TEST(row_colidx_float_8x32_64rows, float, int32_t, 8, 32, 64)
 ROW_TEST(row_colidx_int32_clamp_8x16_8rows, int32_t, int32_t, 8, 16, 8)
 ROW_TEST(row_colidx_half_16x64_64rows, aclFloat16, int32_t, 16, 64, 64)
+
+// --- Element coalesce: 1-D destination `[1, N]` ----------------------------------------------------------
 
 ELEM_TEST(elem_float_64_128size, float, int32_t, 64, 128)
 ELEM_TEST(elem_half_64_128size, aclFloat16, int32_t, 64, 128)
@@ -165,6 +184,8 @@ ELEM_TEST(elem_int16_32_64size, int16_t, int32_t, 32, 64)
 ELEM_TEST(elem_float_clamp_32_16size, float, int32_t, 32, 16)
 ELEM_TEST(elem_int32_wrap_32_16size, int32_t, int32_t, 32, 16)
 ELEM_TEST(elem_half_zero_32_16size, aclFloat16, int32_t, 32, 16)
+
+// --- Element coalesce: 2-D destination `[R, C]` ----------------------------------------------------------
 
 ELEM2D_TEST(elem2d_float_8x32_256size, float, int32_t, 8, 32, 256)
 ELEM2D_TEST(elem2d_int32_8x16_256size, int32_t, int32_t, 8, 16, 256)
@@ -176,3 +197,12 @@ ELEM2D_TEST(elem2d_int32_unaligned_9x9_in_9x16_256size, int32_t, int32_t, 9, 9, 
 ELEM2D_TEST(elem2d_int32_scalar_1x1_in_1x8_8size, int32_t, int32_t, 1, 1, 8)
 ROW_TEST(row_int32_unaligned_3x8_8rows, int32_t, int32_t, 3, 8, 8)
 ROW_TEST(row_int32_unaligned_9x16_16rows, int32_t, int32_t, 9, 16, 16)
+
+// --- Dynamic runtime shapes ------------------------------------------------------------------------------
+
+ELEM2D_DYN_TEST(elem2d_dyn_user_float_1x9_in_1x16_3x10, float, int32_t, 1, 9, 3, 10)
+ELEM2D_DYN_TEST(elem2d_dyn_int32_4x8_in_4x8_64size, int32_t, int32_t, 4, 8, 1, 64)
+ELEM2D_DYN_TEST(elem2d_dyn_float_3x3_in_3x8_64size, float, int32_t, 3, 3, 1, 64)
+ELEM2D_DYN_TEST(elem2d_dyn_half_8x16_in_8x16_4x32, aclFloat16, int32_t, 8, 16, 4, 32)
+ROW_TEST(row_dyn_int32_3x16_8rows, int32_t, int32_t, 3, 16, 8)
+ROW_TEST(row_dyn_half_4x32_16rows, aclFloat16, int32_t, 4, 32, 16)

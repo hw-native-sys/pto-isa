@@ -1,51 +1,56 @@
 # MSCATTER
 
-
 ## Tile Operation Diagram
 
 ![MSCATTER tile operation](../../../../../../../docs/figures/isa/MSCATTER.svg)
 
 ## Introduction
 
-Scatter data from a UB source tile into a GM `GlobalTensor` through a UB index tile. The A5 implementation is a SIMT kernel dispatched via `cce::async_invoke` with `dim3{32, 32}` (32 lanes × 32 warps = 1024 threads). The operating mode is selected explicitly by the `Coalesce` template parameter:
+`MSCATTER` writes data from a UB source tile into a GM `GlobalTensor` using a UB index tile. On Ascend A5 it is implemented as a SIMT kernel dispatched through `cce::async_invoke` with up to `dim3{32, 32}` = 1024 threads.
 
-- **`Coalesce::Row`** (default) — scatter full rows from `src[R, C]` into `table[idx[r], :]`. Index tile is 1-D (`[R, 1]` or `[1, R]`). `R = 1` (single-row scatter) is allowed.
-- **`Coalesce::Elem`** — element-wise scatter from `src[R, C]` into a linearized `table` using `idx[R, C]`. The source tile may be 2-D (`[R, C]`) or degenerate 1-D (`[1, N]` / `[N, 1]`); the index tile must have the same shape as the source.
+The operating mode is selected by the `Coalesce` template parameter:
 
-Atomic, out-of-bounds, and write-conflict policies are selected by template parameters.
+- **`Coalesce::Row`** (default): scatter whole rows — `table[idx[r], :] = src[r, :]`. The index tile is 1-D (`[R, 1]` or `[1, R]`). `R = 1` is allowed.
+- **`Coalesce::Elem`**: scatter single elements — `table[idx[r, c]] = src[r, c]`. The index tile has the same shape as `src`. 1-D sources (`[1, N]` or `[N, 1]`) are also supported.
+
+Three orthogonal template policies control write behavior:
+
+- `ScatterAtomicOp` — `None` (plain store), `Add`, `Max`, `Min`.
+- `ScatterOOB` — `Undefined`, `Skip`, `Clamp`, `Wrap`.
+- `ScatterConflict` — `Last` (deterministic largest-index wins, only consulted when `Atomic == None`) or `Default` (warp-scheduler dependent).
 
 ## Math Interpretation
 
-### Row Coalesce (`Coalesce::Row`)
+### Row Coalesce
 
-Source `src[R, C]` with `R > 1`, index `idx[R, 1]` or `idx[1, R]`:
+Source `src[R, C]`, index `idx[R, 1]` or `idx[1, R]`:
 
-$$ \mathrm{table}_{\mathrm{idx}_{r},\; j} = \mathrm{src}_{r, j} \quad\text{for } 0 \le r < R,\; 0 \le j < C $$
+$$ \mathrm{table}_{\mathrm{idx}_{r},\; j} = \mathrm{src}_{r, j},\quad 0 \le r < R,\; 0 \le j < C $$
 
-### Element Coalesce (`Coalesce::Elem`)
+### Element Coalesce
 
-Source `src[R, C]`, index `idx[R, C]` (same shape as src; `R = 1` and `C = 1` degenerate forms are accepted):
+Source `src[R, C]`, index `idx[R, C]` (same shape as `src`), flat table of length `TableSize = Shape[0]·Shape[1]·Shape[2]·Shape[3]·Shape[4]`:
 
-$$ \mathrm{table}[\mathrm{idx}_{r, c}] = \mathrm{src}_{r, c} \quad\text{for } 0 \le r < R,\; 0 \le c < C $$
+$$ \mathrm{table}[\mathrm{idx}_{r, c}] = \mathrm{src}_{r, c},\quad 0 \le r < R,\; 0 \le c < C $$
 
-The kernel iterates over the `R * C` elements as a flat row-major sequence; the table is treated as a linear region of `Shape[0]*Shape[1]*Shape[2]*TableRows*TableCols` elements.
+### Atomic Accumulation
 
-### Atomic Accumulation Mode
+When `ScatterAtomicOp::Add` / `Max` / `Min` is selected, the write combines with the current table value:
 
-When `ScatterAtomicOp::Add` / `Max` / `Min` is specified, the write combines with the current table value:
-
-$$ \mathrm{table}[\cdot] \mathrel{\oplus}= \mathrm{src}_{\cdot} \quad \oplus \in \{+,\; \max,\; \min\} $$
+$$ \mathrm{table}[\cdot] \mathrel{\oplus}= \mathrm{src}_{\cdot},\quad \oplus \in \{+,\; \max,\; \min\} $$
 
 ### Conflict Resolution
 
 With `Atomic::None`:
 
-- **`Conflict::Last`** (default) — the **largest** source index targeting a given destination slot is the one whose value is stored, matching the sequential CPU loop `for i in 0..N: table[idx[i]] = src[i]`. Implemented as a **slot-centric reverse scan**: the SIMT launch is sized by the destination table (`min(ceil(TableSize / 32), 32)` warps); each lane owns a distinct destination slot, walks the index tile from `N-1` down to `0`, exits on the first match, and issues a single coalesced GM store for that slot. Race-free by construction — no two lanes target the same slot — so no UB workspace, GM atomics, or post-pass cleanup are required.
-- **`Conflict::Default`** — surviving writer is **warp-scheduler dependent** (no extra computation). For collision-free index sets the result is identical to `Last`.
+- **`Conflict::Last`** — the source position with the **largest flat index** that targets a given destination slot is the one whose value is stored. Matches the sequential semantics of `for i in 0..N: table[idx[i]] = src[i]`. Implemented as a slot-centric reverse scan, race-free by construction.
+- **`Conflict::Default`** — the surviving writer is warp-scheduler dependent. For collision-free index sets the result is identical to `Last`.
+
+Atomic modes ignore `Conflict` because the GM atomic R-M-W serializes colliding writes by itself.
 
 ## Assembly Syntax
 
-PTO-AS form: see [docs/assembly/PTO-AS.md](/docs/assembly/PTO-AS.md).
+See [docs/assembly/PTO-AS.md](/docs/assembly/PTO-AS.md).
 
 Row coalesce:
 
@@ -59,11 +64,7 @@ Element coalesce:
 mscatter.elem %table, %src, %idx : (!pto.memref<...>, !pto.tile<RxCxT>, !pto.tile<RxCxi32>)
 ```
 
-Atomic scatter (row-coalesce example):
-
-```text
-mscatter.row.atomic_add %table, %src, %idx : (!pto.memref<...>, !pto.tile<RxCxT>, !pto.tile<Rx1xi32>)
-```
+Atomic variants append the operation suffix, e.g. `mscatter.row.atomic_add`.
 
 ## C++ Intrinsic
 
@@ -80,69 +81,55 @@ PTO_INST RecordEvent MSCATTER(GlobalTable& table, TileSrc& src, TileIdx& idx,
                               WaitEvents&... events);
 ```
 
-The kernel iterates over `TileSrc::ValidRow * TileSrc::ValidCol` logical positions; physical UB strides come from the same `Tile` types via `tile_offset_2d` (i.e. `TileSrc::Cols`, `TileIdx::Cols`).
+The kernel iterates over `TileSrc::ValidRow × TileSrc::ValidCol` logical positions. Physical UB strides come from the same `Tile` types via `tile_offset_2d` (i.e. `TileSrc::Cols`, `TileIdx::Cols`).
 
-For `Coalesce::Elem` with `TileSrc::ValidRow == 1 && TileSrc::ValidCol == 1` the implementation **bypasses the SIMT launch entirely** and runs a real **scalar fallback** (`MScatterScalarImpl`) on the AIV vector core — `set_flag(PIPE_V, PIPE_S)` / `wait_flag(PIPE_V, PIPE_S)` handshake, single indexed UB read, plain GM store, then `set_flag(PIPE_S, PIPE_V)` / `wait_flag(PIPE_S, PIPE_V)` to release the vector pipe. Mirrors the `TInsertVecToVecNDScalarImpl` pattern in `TInsert.hpp`.
+For `Coalesce::Elem` with `TileSrc::ValidRow == 1 && TileSrc::ValidCol == 1` the implementation bypasses the SIMT launch and runs a scalar fallback (`MScatterScalarImpl`) on the AIV vector core.
 
 **Parameters:**
-- `table`   : Destination GM `GlobalTensor`. The `GlobalTensor::DType` must be `__gm__ T` matching the source element type.
-- `src`     : UB source tile (`TileType::Vec`); shape `[R, C]`. Both row-major and column-major storage are accepted in either mode.
-- `idx`     : UB index tile (`TileType::Vec`). For `Coalesce::Row`: 1-D `[R, 1]` or `[1, R]`. For `Coalesce::Elem`: same shape as `src` (BLayout can be **independent** of `src` layout).
-- `Mode`    : `Coalesce` — `Row` (default) or `Elem` — **first** template parameter so the operating mode is always explicit at the call site.
-- `Atomic`  : `ScatterAtomicOp` — conflict-resolution operator.
-- `Oob`     : `ScatterOOB` — out-of-bounds index handling.
-- `Conflict`: `ScatterConflict` — collision policy for non-atomic writes.
+- `table` — destination GM `GlobalTensor`. `GlobalTensor::DType` must be `__gm__ T` matching the source element type.
+- `src` — UB source tile (`TileType::Vec`), shape `[R, C]`. Row-major and column-major storage are both accepted.
+- `idx` — UB index tile (`TileType::Vec`). For `Row`: `[1, R]` or `[R, 1]`. For `Elem`: same shape as `src` (the index tile's `BLayout` may differ from the source's).
+- `Mode` — `Coalesce` value (`Row` or `Elem`); first template parameter so the mode is always explicit at the call site.
+- `Atomic`, `Oob`, `Conflict` — policies as described above.
 
-## Coalesce Mode
+## Enum Definitions
 
 ```cpp
 enum class Coalesce : uint8_t {
-    Row  = 0,  // dst[idx[r], :] = src[r, :]   (1-D idx of length R)
-    Elem = 1   // dst[idx[i, j]] = src[i, j]   (idx shape == src shape)
+    Row  = 0,  // table[idx[r], :] = src[r, :]   (1-D index of length R)
+    Elem = 1   // table[idx[i, j]] = src[i, j]   (idx shape == src shape)
 };
-```
 
-## Atomic Types
-
-```cpp
 enum class ScatterAtomicOp : uint8_t {
-    None = 0,  // Plain store (conflict-resolved by ScatterConflict)
+    None = 0,  // Plain store (collision-resolved by ScatterConflict)
     Add  = 1,  // Atomic addition
     Max  = 2,  // Atomic maximum
     Min  = 3   // Atomic minimum
 };
-```
 
-### Atomic Type Constraints (A5 SIMT)
-
-- `None`: available for **all** supported data types.
-- `Add` : `int32_t`, `uint32_t`, `float`, `half`, `bfloat16_t`.
-- `Max` : `int32_t`, `uint32_t`, `float`.
-- `Min` : `int32_t`, `uint32_t`, `float`.
-
-## Out-of-Bounds Handling
-
-```cpp
 enum class ScatterOOB : uint8_t {
     Undefined = 0,  // No bounds check; caller guarantees valid indices
     Skip      = 1,  // Drop the write
     Clamp     = 2,  // Clamp index to capacity - 1
     Wrap      = 3   // Index modulo capacity
 };
-```
 
-`capacity` is `TableRows` in `Coalesce::Row`, and `TableRows * TableCols * Shape[0] * Shape[1] * Shape[2]` in `Coalesce::Elem`.
-
-## Conflict Resolution
-
-```cpp
 enum class ScatterConflict : uint8_t {
-    Last    = 0,  // Deterministic: largest source index wins (slot-centric reverse scan, no UB writes)
-    Default = 1   // Warp-scheduler dependent (no extra computation, race semantics)
+    Last    = 0,  // Deterministic: largest source index wins
+    Default = 1   // Warp-scheduler dependent (use only when collisions are impossible or order-insensitive)
 };
 ```
 
-`ScatterConflict` is consulted only when `Atomic == None`. Atomic operations bypass the gate entirely since they already serialize colliding writes.
+`capacity` for OOB handling is `TableRows` in Row mode and the full flat table length in Elem mode.
+
+### Atomic Type Support (A5)
+
+| Atomic | Supported `T` |
+|--------|---------------|
+| `None` | all supported dtypes |
+| `Add`  | `int32_t`, `uint32_t`, `float`, `half`, `bfloat16_t` |
+| `Max`  | `int32_t`, `uint32_t`, `float` |
+| `Min`  | `int32_t`, `uint32_t`, `float` |
 
 ## Constraints
 
@@ -156,55 +143,68 @@ enum class ScatterConflict : uint8_t {
 
 ### Tile Constraints
 
-- `TileSrc::Loc == TileType::Vec` (UB).
-- `TileIdx::Loc == TileType::Vec` (UB).
+- Both tiles must live in UB (`TileSrc::Loc == TileType::Vec`, `TileIdx::Loc == TileType::Vec`).
 - Source and table must share the same element type `T` (`GlobalTable::DType == __gm__ T`).
-- For `Coalesce::Row`: `TileSrc::ValidRow >= 1` and `TileSrc::ValidCol >= 1`; the index tile's **valid shape** is `[1, R]` (`TileIdx::ValidRow == 1 && TileIdx::ValidCol == TileSrc::ValidRow`) or `[R, 1]` (`TileIdx::ValidRow == TileSrc::ValidRow && TileIdx::ValidCol == 1`). Source tile may be row-major or column-major. Table inner dim (`Shape[4]`) must equal `TileSrc::ValidCol` (i.e. the row width that gets scattered to GM is the **valid** width, not the padded one).
-- For `Coalesce::Elem`: `TileIdx::ValidRow / ValidCol == TileSrc::ValidRow / ValidCol`. **No layout-pairing constraint** — `TileSrc` and `TileIdx` may independently be `RowMajor` or `ColMajor`; the kernel walks both via per-tile `tile_offset_2d`. Table size is the product of all five `Shape` dimensions.
-- The `[R, 1]` index variant uses `BLayout::ColMajor` paired with a `Layout::DN` `GlobalTensor` for the upstream `TLOAD`; the `[1, R]` variant uses `BLayout::RowMajor` with the default `Layout::ND` `GlobalTensor`. Either way, the **upstream `Tile` itself must satisfy the 32-byte-burst alignment of its physical (padded) dim** — not the logical valid dim — so odd `R` index tiles are expressed as a padded shape with a smaller `ValidCol`/`ValidRow` (see [Minimum Tile Shape](#minimum-tile-shape) below).
+- For `Coalesce::Row`: the index tile's **valid shape** is `[1, R]` or `[R, 1]` matching `TileSrc::ValidRow`. The table's inner dim (`Shape[4]`) must equal `TileSrc::ValidCol`.
+- For `Coalesce::Elem`: `TileIdx` must have the same valid shape as `TileSrc`. The `BLayout` of `TileIdx` is independent of the source layout — the kernel walks both via per-tile `tile_offset_2d`.
+
+### Dynamic Runtime Shapes
+
+`MSCATTER` accepts both compile-time and runtime-dynamic shapes. Any dimension declared as `-1` is resolved at runtime:
+
+- `Tile<…, -1, -1>` stores the runtime valid extents in the tile object; `MSCATTER_IMPL` reads them via `src.GetValidRow()` / `src.GetValidCol()`.
+- `Shape<…, -1, -1>` / `Stride<…, -1, -1>` are constructed with the runtime sizes; `MSCATTER_IMPL` reads them via `table.GetShape(…)` and folds them into `tableRows` or `tableSize`.
+
+Static-asserts in `MScatterCheck` are gated on `if constexpr (DIM > 0)` so they fire only for compile-time dimensions. The padded `Tile::Rows` / `Tile::Cols` remain compile-time — they govern the UB DMA-burst alignment.
+
+Example (mirrors `case_elem2d_dyn_user_float_1x9_in_1x16_3x10`):
+
+```cpp
+constexpr auto kPadCols = 16;
+using SrcTileT    = Tile<TileType::Vec, float,   1, kPadCols, BLayout::RowMajor, -1, -1>;
+using IdxTileT    = Tile<TileType::Vec, int32_t, 1, kPadCols, BLayout::RowMajor, -1, -1>;
+using TableShape  = Shape<1, 1, 1, -1, -1>;
+using TableStride = Stride<1, 1, 1, -1, -1>;
+
+int64_t validCols = 9, tableR = 3, tableC = 10;
+TableShape  tableShape(tableR, tableC);
+TableStride tableStride(tableC, (int64_t)1);
+GlobalTensor<float, TableShape, TableStride> tableGM(dstGm, tableShape, tableStride);
+
+SrcTileT srcTile(1, validCols);
+IdxTileT idxTile(1, validCols);
+TASSIGN(srcTile, srcUbOffsetBytes);
+TASSIGN(idxTile, idxUbOffsetBytes);
+
+MSCATTER<Coalesce::Elem, ScatterAtomicOp::None, ScatterOOB::Skip>(tableGM, srcTile, idxTile);
+```
 
 ### Layout Support
 
-The SIMT kernel itself is **layout-agnostic** for every UB tile it touches: every UB read/write goes through `tile_offset_2d<TileX>(r, c)`, which dispatches the index arithmetic from the tile type's `BLayout`. The caller is responsible for getting the data into UB with whatever `TLOAD` / `TMOV` / `TINSERT` configuration matches their upstream layout (ND, DN, NZ, RowMajor, ColMajor, etc.).
+The SIMT kernel is layout-agnostic for UB tiles: every UB read goes through `tile_offset_2d<TileX>(r, c)`, which dispatches index arithmetic from the tile type's `BLayout`. The caller is responsible for staging the data into UB with the right `TLOAD` / `TMOV` / `TINSERT` configuration.
 
 | Tile / Tensor | Supported layouts | Notes |
 |---------------|-------------------|-------|
-| `TileSrc` (UB) | Any `BLayout` (`RowMajor` or `ColMajor`); `SLayout::NoneBox` | Kernel reads via `tile_offset_2d<TileSrc>`. |
-| `TileIdx` (UB) – Row mode | `[1, R]` `BLayout::RowMajor` **or** `[R, 1]` `BLayout::ColMajor` | Both produce a linear `R`-element layout in UB; the kernel reads `indices[row]` directly. |
-| `TileIdx` (UB) – Elem mode | Any `BLayout` — independent of `TileSrc::BLayout` | Kernel reads via `tile_offset_2d<TileIdx>`. Same logical `(r, c)` is consumed for both `src` and `indices`. |
-| `GlobalTable` (GM) | `Layout::ND` (linear contiguous addressing); a non-ND-stride `GlobalTensor` is the caller's responsibility | The kernel writes `table[idx * RowWidth + col]` (Row mode) or `table[idx]` (Elem mode). For NZ-stored GM the caller should stage results back via `TMOV` ND→NZ post-`MSCATTER` — no static assert is produced for the layout. |
+| `TileSrc` (UB) | `BLayout::RowMajor` or `ColMajor`, `SLayout::NoneBox` | Kernel reads via `tile_offset_2d<TileSrc>`. |
+| `TileIdx` (UB) — Row mode | `[1, R]` `RowMajor` **or** `[R, 1]` `ColMajor` | Both produce a linear R-element layout in UB. |
+| `TileIdx` (UB) — Elem mode | any `BLayout`, independent of `TileSrc` | Kernel reads via `tile_offset_2d<TileIdx>`. |
+| `GlobalTable` (GM) | `Layout::ND` (linear contiguous) | Non-ND layouts must be pre-staged by the caller. |
 
-### Aligned vs Unaligned Tile Shapes
+### Unaligned / Odd-Dimension Tiles
 
-The kernel does **not** care whether the tile's logical shape is "aligned" — it walks all `Rows * Cols` positions of the tile via `tile_offset_2d`. The 32-byte alignment of `Cols * sizeof(T)` (for `BLayout::RowMajor`) is enforced by the upstream `Tile` declaration only. Callers handle "unaligned valid region" by:
+The SIMT kernel handles **any** `(ValidRow, ValidCol)` with `1 <= Valid <= Padded`. To express odd valid extents (e.g. `3×3`), pad the tile up to the nearest 32-byte aligned shape (e.g. `3×8` for int32) and let the kernel iterate over the valid sub-region only. The padding is purely an upstream `TLOAD` / `TSTORE` burst-alignment requirement.
 
-1. Padding the tile up to the nearest 32-byte alignment (e.g. valid `[3, 3]` int32 → tile `[3, 8]`), and
-2. Either zero-initializing the padding (`TASSIGN`-then-clear) or only inspecting the valid region post-scatter.
+Minimum padded inner dim per dtype (row-major):
 
-The kernel's job is to populate / consume every position of the declared tile shape correctly; partial-tile semantics live in the caller's pre/post-move ops, exactly as in `TLOAD` / `TSTORE` / `TINSERT` / `TMOV` ST suites.
-
-### Minimum Tile Shape
-
-`MScatterCheck` accepts any `(ValidRow, ValidCol)` with `ValidRow, ValidCol >= 1` (including the degenerate `(1, 1)` for both Row and Elem modes — the SIMT kernel and the scalar fallback handle them transparently).
-
-The actual lower bound on the **padded** `Tile<…, Rows, Cols, BLayout, ValidRow, ValidCol>` shape is **not** an MSCATTER concern — it is enforced upstream by the `Tile` system because every `TLOAD` / `TSTORE` that brings data in/out of UB issues 32-byte GM↔UB **DMA bursts**. The contiguous-in-memory dim of the tile must therefore be a whole number of bursts:
-
-- `BLayout::RowMajor` ⇒ `Cols * sizeof(T) % 32 == 0` (one row = N×32 B).
-- `BLayout::ColMajor` ⇒ `Rows * sizeof(T) % 32 == 0` (one column = N×32 B).
-
-`ValidRow` / `ValidCol` are not constrained by this rule — they only set the kernel's iteration bounds. So a logical `(1, 1)` int32 tile is expressed as `Tile<int32, 1, 8, RowMajor, 1, 1>` (one padded burst, one valid element), `(3, 3)` int32 as `Tile<int32, 3, 8, RowMajor, 3, 3>` (three padded 32 B rows, valid 3×3 sub-region), etc. Smallest padded `Cols` per dtype for a row-major tile:
-
-| `T` | Min `Cols` (`BLayout::RowMajor`) | Min `Rows` (`BLayout::ColMajor`) |
-|-----|---------------------------------|-----------------------------------|
+| `T` | Min `Cols` (`RowMajor`) | Min `Rows` (`ColMajor`) |
+|-----|-------------------------|-------------------------|
 | `int8` / `uint8` / `float8_e4m3` / `float8_e5m2` / `hifloat8` | 32 | 32 |
 | `int16` / `uint16` / `half` / `bfloat16` | 16 | 16 |
 | `int32` / `uint32` / `float` | 8 | 8 |
 
-The padded dimension is purely a **TLOAD/TSTORE alignment artifact** — the SIMT kernel itself walks `ValidRow * ValidCol` positions and uses `tile_offset_2d<TileX>(r, c)` (which evaluates to `r * Tile::Cols + c` for RowMajor, etc.) to compute the right physical UB offset inside the padded tile.
-
 ### Mode Resolution
 
-Mode is **explicit**, not auto-detected. The static-asserts in `MScatterCheck` validate that the supplied tile shapes match the chosen `Coalesce` value:
+Mode is **explicit**, never auto-detected. Static asserts in `MScatterCheck` validate the tile shapes against the chosen `Coalesce` value:
 
 ```text
 Coalesce::Row  : (Idx.Rows == 1 && Idx.Cols == Src.Rows) || (Idx.Rows == Src.Rows && Idx.Cols == 1)
@@ -223,18 +223,17 @@ using namespace pto;
 template <typename T, int R, int C, int TableRows>
 AICORE void example_weight_update(__gm__ T* tablePtr)
 {
-    using SrcTile    = Tile<TileType::Vec, T,        R,         C, BLayout::RowMajor, R, C>;
-    using IdxTile    = Tile<TileType::Vec, int32_t,  1,         R, BLayout::RowMajor, 1, R>;
-
+    using SrcTile     = Tile<TileType::Vec, T,       R, C, BLayout::RowMajor, R, C>;
+    using IdxTile     = Tile<TileType::Vec, int32_t, 1, R, BLayout::RowMajor, 1, R>;
     using TableShape  = Shape<1, 1, 1, TableRows, C>;
     using TableStride = Stride<1, 1, 1, C, 1>;
     using TableTensor = GlobalTensor<T, TableShape, TableStride>;
 
     TableTensor tableGM(tablePtr);
-    SrcTile    src;    TASSIGN(src,    0x0000);
-    IdxTile    idx;    TASSIGN(idx,    0x1000);
+    SrcTile src; TASSIGN(src, 0x0000);
+    IdxTile idx; TASSIGN(idx, 0x1000);
 
-    MSCATTER<ScatterAtomicOp::None, ScatterOOB::Skip, ScatterConflict::Last, Coalesce::Row>(
+    MSCATTER<Coalesce::Row, ScatterAtomicOp::None, ScatterOOB::Skip, ScatterConflict::Last>(
         tableGM, src, idx);
 }
 ```
@@ -242,26 +241,21 @@ AICORE void example_weight_update(__gm__ T* tablePtr)
 ### Atomic Gradient Accumulation (Row Coalesce)
 
 ```cpp
-#include <pto/npu/a5/MScatter.hpp>
-
-using namespace pto;
-
 AICORE void example_gradient_accumulation(__gm__ float* gradTable)
 {
     constexpr int NumTokens = 16, D = 64, Vocab = 65536;
 
-    using SrcTile    = Tile<TileType::Vec, float,   NumTokens,         D, BLayout::RowMajor, NumTokens, D>;
-    using IdxTile    = Tile<TileType::Vec, int32_t,         1, NumTokens, BLayout::RowMajor,         1, NumTokens>;
-
+    using SrcTile     = Tile<TileType::Vec, float,   NumTokens, D, BLayout::RowMajor, NumTokens, D>;
+    using IdxTile     = Tile<TileType::Vec, int32_t, 1, NumTokens, BLayout::RowMajor, 1, NumTokens>;
     using TableShape  = Shape<1, 1, 1, Vocab, D>;
     using TableStride = Stride<1, 1, 1, D, 1>;
     using TableTensor = GlobalTensor<float, TableShape, TableStride>;
 
     TableTensor tableGM(gradTable);
-    SrcTile    grads;  TASSIGN(grads,  0x0000);
-    IdxTile    idx;    TASSIGN(idx,    0x4000);
+    SrcTile grads; TASSIGN(grads, 0x0000);
+    IdxTile idx;   TASSIGN(idx,   0x4000);
 
-    MSCATTER<ScatterAtomicOp::Add, ScatterOOB::Skip, ScatterConflict::Default, Coalesce::Row>(
+    MSCATTER<Coalesce::Row, ScatterAtomicOp::Add, ScatterOOB::Skip, ScatterConflict::Default>(
         tableGM, grads, idx);
 }
 ```
@@ -269,54 +263,21 @@ AICORE void example_gradient_accumulation(__gm__ float* gradTable)
 ### Element Coalesce — 2-D Sparse Update
 
 ```cpp
-#include <pto/npu/a5/MScatter.hpp>
-
-using namespace pto;
-
 AICORE void example_sparse_update(__gm__ float* data)
 {
     constexpr int R = 8, C = 32, TableRows = 64, TableCols = 64;
-    constexpr int TableSize = TableRows * TableCols;
 
-    using SrcTile    = Tile<TileType::Vec, float,   R,         C, BLayout::RowMajor, R, C>;
-    using IdxTile    = Tile<TileType::Vec, int32_t, R,         C, BLayout::RowMajor, R, C>;
-
+    using SrcTile     = Tile<TileType::Vec, float,   R, C, BLayout::RowMajor, R, C>;
+    using IdxTile     = Tile<TileType::Vec, int32_t, R, C, BLayout::RowMajor, R, C>;
     using TableShape  = Shape<1, 1, 1, TableRows, TableCols>;
     using TableStride = Stride<1, 1, 1, TableCols, 1>;
     using TableTensor = GlobalTensor<float, TableShape, TableStride>;
 
     TableTensor dataGM(data);
-    SrcTile    src;    TASSIGN(src,    0x0000);
-    IdxTile    idx;    TASSIGN(idx,    0x0800);
+    SrcTile src; TASSIGN(src, 0x0000);
+    IdxTile idx; TASSIGN(idx, 0x0800);
 
-    MSCATTER<ScatterAtomicOp::None, ScatterOOB::Wrap, ScatterConflict::Last, Coalesce::Elem>(
-        dataGM, src, idx);
-}
-```
-
-### Element Coalesce — 1-D Source
-
-```cpp
-#include <pto/npu/a5/MScatter.hpp>
-
-using namespace pto;
-
-AICORE void example_elem_1d(__gm__ float* data)
-{
-    constexpr int N = 64, TableSize = 128;
-
-    using SrcTile    = Tile<TileType::Vec, float,   1,         N, BLayout::RowMajor, 1, N>;
-    using IdxTile    = Tile<TileType::Vec, int32_t, 1,         N, BLayout::RowMajor, 1, N>;
-
-    using TableShape  = Shape<1, 1, 1, 1, TableSize>;
-    using TableStride = Stride<1, 1, 1, TableSize, 1>;
-    using TableTensor = GlobalTensor<float, TableShape, TableStride>;
-
-    TableTensor dataGM(data);
-    SrcTile    src;    TASSIGN(src,    0x0000);
-    IdxTile    idx;    TASSIGN(idx,    0x0200);
-
-    MSCATTER<ScatterAtomicOp::None, ScatterOOB::Undefined, ScatterConflict::Last, Coalesce::Elem>(
+    MSCATTER<Coalesce::Elem, ScatterAtomicOp::None, ScatterOOB::Wrap, ScatterConflict::Last>(
         dataGM, src, idx);
 }
 ```
@@ -324,80 +285,104 @@ AICORE void example_elem_1d(__gm__ float* data)
 ### Deterministic Last-Write-Wins Over Colliding Indices
 
 ```cpp
-#include <pto/npu/a5/MScatter.hpp>
-
-using namespace pto;
-
 AICORE void example_last_deterministic(__gm__ half* tablePtr)
 {
     constexpr int R = 8, C = 64, TableRows = 65536;
 
-    using SrcTile    = Tile<TileType::Vec, half,    R,         C, BLayout::RowMajor, R, C>;
-    using IdxTile    = Tile<TileType::Vec, int32_t, R,         1, BLayout::ColMajor, R, 1>;
-
+    using SrcTile     = Tile<TileType::Vec, half,    R, C, BLayout::RowMajor, R, C>;
+    using IdxTile     = Tile<TileType::Vec, int32_t, R, 1, BLayout::ColMajor, R, 1>;
     using TableShape  = Shape<1, 1, 1, TableRows, C>;
     using TableStride = Stride<1, 1, 1, C, 1>;
     using TableTensor = GlobalTensor<half, TableShape, TableStride>;
 
     TableTensor tableGM(tablePtr);
-    SrcTile    src;    TASSIGN(src,    0x0000);
-    IdxTile    idx;    TASSIGN(idx,    0x1000);
+    SrcTile src; TASSIGN(src, 0x0000);
+    IdxTile idx; TASSIGN(idx, 0x1000);
 
-    MSCATTER<ScatterAtomicOp::None, ScatterOOB::Clamp, ScatterConflict::Last, Coalesce::Row>(
+    MSCATTER<Coalesce::Row, ScatterAtomicOp::None, ScatterOOB::Clamp, ScatterConflict::Last>(
         tableGM, src, idx);
 }
 ```
 
 ## Performance Considerations
 
-1. **Shape-adaptive launch.** `MScatterRowImpl` / `MScatterElemImpl` size the SIMT grid as `dim3{WARP_SIZE, kLaunchWarps}` from the resolved `validRows` / `validCols` / `tableSize` (compile-time constants for static tiles, runtime values for dynamic tiles). Small tiles do not pay the cost of launching 1024 idle threads.
-   - **Row, non-`Last`.** `kRowWarps = min(validRows, 32)` own rows; `kWarpsPerRow = min(32 / kRowWarps, ceil(validCols / 32))` cooperate on each row's column chunks. `kLaunchWarps = kRowWarps * kWarpsPerRow`. Lane writes form 128-byte coalesced stores; `kColStride = kWarpsPerRow * 32`.
-   - **Elem, non-`Last`.** `kLaunchWarps = min(ceil(validRows*validCols / 32), 32)`. Threads with `tid >= totalElems` skip the loop body (no garbage access). For `totalElems > 1024` the strided loop walks `launchThreads` at a time.
-   - **`Conflict::Last` (Row and Elem).** Launch is sized by the **destination** instead of the source: `kLaunchWarps = min(ceil(TableSize / 32), 32)`. Each lane owns one slot per outer iteration, so partitioning by `tableSize` keeps the slot-centric kernels balanced even when `N >> TableSize`.
+1. **Shape-adaptive launch.** The SIMT grid is sized as `dim3{32, kLaunchWarps}` from the resolved `validRows` / `validCols` / `tableSize`. Small tiles do not pay the cost of 1024 idle threads.
+   - **Row, non-`Last`.** `kRowWarps = min(validRows, 32)` warps own rows; `kWarpsPerRow = min(32 / kRowWarps, ceil(validCols / 32))` cooperate on each row's column chunks.
+   - **Elem, non-`Last`.** `kLaunchWarps = min(ceil(validRows*validCols / 32), 32)`.
+   - **`Conflict::Last`.** Launch is sized by the destination instead of the source: `kLaunchWarps = min(ceil(tableSize / 32), 32)`. Each lane owns one slot and runs a reverse scan over the index tile.
 
-2. **Linear thread mapping (non-`Last`).** Each thread handles one element / row via stride-`kLaunchThreads` iteration over the flat work set. Lanes 0..31 of each warp read/write 32 consecutive UB / GM addresses per iteration (UB reads are bank-conflict-free; GM writes are scatter-stride-driven by the `idx` values).
+2. **Conflict policy cost.**
+   - `Last`: per-lane in-register reverse scan with early termination. No GM read-back, no atomic, no UB scratch. Worst-case `O(N)` per warp; uniformly random workloads average `O(tableSize / 32)`.
+   - `Default`: zero extra work — the surviving lane is whatever the warp scheduler picked.
+   - Atomic modes: serialized by the GM atomic R-M-W itself; no `cur` preload, no conflict gate.
 
-3. **No thread divergence for mode / policy control.** All mode / atomic / OOB / conflict decisions are `if constexpr`. In Row coalesce the `doWrite` predicate depends only on `row` (warp-uniform) and is hoisted outside the inner 32-lane column loop, so the whole warp takes the branch together. The slot-centric `Last` kernels have a per-lane `found` predicate that compiles to a predicated store (no control-flow divergence).
+3. **No thread divergence for mode / policy.** All policy decisions are `if constexpr`. In Row coalesce the `doWrite` predicate is warp-uniform (row-indexed) and hoisted out of the inner column loop. The slot-centric `Last` kernels compile their `found` predicate to a predicated store.
 
-4. **Conflict policy cost.**
-   - `Last`: each lane owns a distinct destination slot and runs an in-register reverse scan over the index tile, terminating on the first matching source position. The race is removed by construction — no two lanes write the same slot — so the kernel never reads back the GM table, never issues an atomic, and never allocates UB scratch. Worst-case work per warp is `O(N)` (uncoalesced index space), but a uniformly random workload averages `O(TableSize / 32)` lockstep iterations per warp.
-   - `Default`: zero extra work — the surviving lane is whatever the warp scheduler picked. Use only when collisions are impossible (unique indices) or the result is order-insensitive.
-   - **Atomic modes (`Add` / `Max` / `Min`) skip the conflict gate entirely** and serialize via the GM atomic instruction itself; no `cur` preload is performed (the atomic R-M-W binds the destination region naturally).
+4. **Unrolled inner loops.** Inner column loop carries `#pragma unroll(4)`; outer scatter and reverse-scan loops use `#pragma unroll(1)` to keep code size bounded for large N.
 
-5. **Unrolled inner loops.** Inner column loop in Row coalesce carries `#pragma unroll(4)` so the compiler unrolls for small compile-time trip counts (e.g. `RowWidth=32, kColStride=32` ⇒ 1 iter, fully unrolled). The outer scatter loop and the slot-centric reverse-scan loop are `#pragma unroll(1)` to keep code size bounded for large `N`.
+5. **Row vs. Elem bandwidth.** Row coalesce achieves the best GM write bandwidth (32 consecutive lanes per coalesced store). Elem coalesce is a per-lane scalar GM store, non-coalesced in general.
 
-6. **Out-of-bounds mode.** `ScatterOOB::Undefined` is fastest but requires valid indices. Use `Skip`/`Clamp`/`Wrap` when indices may exceed bounds.
+6. **Register pressure.** Kernels carry `LAUNCH_BOUND(1024)` (32 regs/thread) and use ≤ 16 live registers in the hot path. No spills are produced.
 
-7. **Row vs. Elem.** Row coalesce achieves the best GM write bandwidth (32 consecutive lanes per coalesced store). Elem coalesce performs one scalar GM store per active lane — non-coalesced at GM in general.
+## UB Memory Budget
 
-8. **Register pressure / MRF.** The kernels carry `LAUNCH_BOUND(1024)` (32 regs/thread budget) and use ≤ 16 live registers per thread in the hot path. No spills are produced; the compile flag `-mllvm -cce-aicore-record-overflow=true` reports no overflow events for any of the instantiations.
+`MSCATTER` is a SIMT launch on the AIV vector core. All user tiles must fit inside the AIV's 256 KB Unified Buffer alongside two fixed runtime reservations: an 8 KB reserved region (AscendC / TBE bookkeeping) and the Data Cache (32 KB minimum, sized at launch time).
 
-## SIMT Usage Restrictions
+The UB layout is:
 
-`MSCATTER` is a SIMT launch on the AIV vector core. Every byte the runtime, the compiler, and the user store in UB must coexist inside the single 256 KB Unified Buffer that the AIV exposes. The on-board ceiling is fixed by two top-of-UB reservations the toolchain installs before any user tile is allocated:
+```text
++---------------------------+
+| Static memory             |  Compile-time tile allocations (see note below)
++---------------------------+
+| Dynamic memory            |  Sized at launch via dynUBufSize
++---------------------------+
+| Reserved (8 KB)           |  Fixed compiler / AscendC reservation
++---------------------------+
+| Data Cache (>= 32 KB)     |  Min 32 KB; grows when dynUBufSize is small
++---------------------------+
+```
 
-| Region                  | Size on a5 (V310) | Source                                                                                              |
-|-------------------------|-------------------|-----------------------------------------------------------------------------------------------------|
-| Physical UB             | 256 KB            | Hardware                                                                                            |
-| Hardware D-cache        | 32 KB             | Top of UB, scalar/SIMT D-cache working set                                                          |
-| Compiler stack (scalar + VF + SIMT) | 8 KB              | All scalar, vector-fragment, and per-thread SIMT spill traffic for the `MSCATTER` call chain        |
+The configurable maximum is therefore:
 
-The remaining `256 − 32 − 8 = 216 KB` is what user tiles can address. In practice the **safe per-call budget for `src + idx` in UB is `≤ 128 KB`** — at that point both tiles are already at the 64 KB-each comfort line and any further growth starts to push the SIMT spill region into the user-tile band, which the compiler does not flag and which surfaces on-board as a silent all-zero output (the CPU simulator does not model the spill, so it still passes).
+```text
+max dynUBufSize = 256 KB - 8 KB (reserved) - 32 KB (min DCache) - static_memory
+                = 216 KB - static_memory
+```
 
-When sizing a workload, account for both the **source** tile (`R * C * sizeof(T)`, padded up to the 32-byte burst alignment) and the **index** tile (`R * C * sizeof(TIdx)`, same padding rule). For `Conflict::Last` the destination side adds no extra UB pressure — the slot-centric scan operates directly out of the same `src` / `idx` UB tiles and stores straight to GM.
+For `MSCATTER` kernels in this ST suite the source/index tiles are placed manually with `TASSIGN`, so the compiler sees `static_memory ≈ 0` and the full **216 KB** is available as `dynUBufSize`.
 
-### Tiled-Iteration Pattern for Large Inputs
+### Default Per-Call Budget (No `dynUBufSize`)
 
-Once a single `src + idx` footprint exceeds the safe budget, the caller must process the input in **chunks** that each fit comfortably under the ceiling. Each chunk does its own `TLOAD → MSCATTER` round-trip into the same destination GM tensor; semantics are preserved because:
+When the kernel is launched without an explicit `dynUBufSize` (i.e. `<<<numBlocks, nullptr, stream>>>`), the runtime keeps the default DCache size and reserves only the small default dynamic region. In practice, on Ascend A5 the safe `src + idx` working set is **≤ 128 KB**; beyond that, on-board execution may silently corrupt or zero out the result.
 
-- **`Conflict::Last`**: each chunk writes its in-chunk last-writer to GM; later chunks overwrite earlier ones for any shared slot, so the surviving value is the global largest source index targeting that slot.
-- **`Conflict::Default`** / atomic modes: writes from later chunks naturally compose with writes from earlier chunks (overwrite, add, max, min) into the same GM table.
+### Extending Per-Call UB Beyond 128 KB (`dynUBufSize`)
 
-The `case_elem2d_float_2048x8_*` ST cases use this pattern: a `2048 × 8` `float` source plus matching `int32_t` index would total `128 KB` in a single shot, so the wrapper splits it into **16 chunks of `128 × 8`** (`4 KB src + 4 KB idx = 8 KB UB per iteration`) and re-issues `MSCATTER` per chunk. The same shape with no chunking failed silently on-board while passing the CPU simulator — a textbook example of the over-budget mode described above.
+Callers that need a single-shot `src + idx` footprint **larger than 128 KB** must declare the dynamic-UB request explicitly via the second argument of the kernel launch:
+
+```cpp
+kernel_name<<<numBlocks, dynUBufSize, stream>>>(args...);
+```
+
+`dynUBufSize` is the byte size of the dynamic-UB region the kernel will use. The bisheng/CCE compiler routes such launches through `__cce_rtKernelLaunchWithFlagV2`, setting `rtTaskCfgInfo_t::localMemorySize = dynUBufSize`. The runtime then shrinks the DCache toward its 32 KB minimum and hands the remaining space back to the kernel.
+
+A few key points:
+
+- **The simulator does not enforce this.** Passing `nullptr` (or `0`) still runs to completion in sim regardless of the actual UB footprint. Always set `dynUBufSize` explicitly when the workload exceeds 128 KB so the binary stays correct on real hardware.
+- **Exceeding the ceiling is silent.** The compiler does not error and the simulator does not flag it. On-board, the first overflow byte corrupts the reserved region or DCache and the kernel returns undefined output.
+- **Size to actual usage.** For an Elem-coalesce case with `R × C × sizeof(T)` source and `R × C × sizeof(int32_t)` index, the working set is `R * C * (sizeof(T) + 4)`. In the extended-UB ST cases below (`float` source + `int32_t` index, `C = 8`) the per-element footprint is `8 + 4 = 12 B`; we round up and pass `R * 8 * 8 = R * 64` as `dynUBufSize` to keep the math simple.
+
+### Tiled-Iteration Pattern (2048×8 Cases - Example to use 128KB in chunked fashion for larger shapes)
+
+The `case_elem2d_float_2048x8_*` ST cases predate the `dynUBufSize` path and use a **chunked** approach instead: a `2048 × 8` `float` source is split into 16 chunks of `128 × 8` (8 KB src + 8 KB idx per iteration), and `MSCATTER` is reissued per chunk into the same destination GM tensor. Semantics are preserved:
+
+- `Conflict::Last` — each chunk writes its in-chunk last-writer to GM; later chunks overwrite earlier ones for any shared slot, so the surviving value is the global largest-index writer.
+- `Conflict::Default` / atomic modes — writes from later chunks compose with earlier ones (overwrite, add, max, min) on the same GM table.
+
+New large-shape cases (`2304×8` and above) use the `dynUBufSize` single-shot path described above instead of chunking.
 
 ### Cache-Coherence Flush
 
-Every `runMSCATTER_*` wrapper finishes with a `FlushScatterOutput()` helper:
+Every `runMSCATTER_*` wrapper finishes with:
 
 ```cpp
 AICORE PTO_INLINE void FlushScatterOutput()
@@ -407,128 +392,130 @@ AICORE PTO_INLINE void FlushScatterOutput()
 }
 ```
 
-`dcci(0, ENTIRE_DATA_CACHE)` invalidates the AIV scalar D-cache so any GM writes still buffered in the cache are forced down to HBM, and `dsb(DSB_DDR)` waits until the writes are observable at the DDR boundary. On a5/V310 the compiler default `--cce-no-dcache-flush=0` already emits a similar flush before kernel exit, but `MSCATTER` issues its GM writes from inside an `async_invoke` SIMT VF call, so adding the explicit flush guarantees the writes are committed regardless of where the compiler decides to insert the implicit one.
+`dcci(0, ENTIRE_DATA_CACHE)` invalidates the AIV scalar D-cache so any buffered GM writes are pushed to HBM; `dsb(DSB_DDR)` blocks until the writes are observable at the DDR boundary. This guarantees committed output regardless of where the compiler inserts its own implicit flush.
 
 ## Runtime Dispatch Requirement
 
-`MSCATTER` (like every SIMT kernel in PTO and CANN) uses `cce::async_invoke<simt_mscatter_*_kernel>(cce::dim3{WARP_SIZE, kLaunchWarps}, …)` internally to fan a per-warp/per-lane workload out across up to `32 × 32 = 1024` threads. `cce::async_invoke` consumes hardware/runtime state — TID registers (`__cce_simt_get_TID_X/Y`), warp/lane configuration, vector-pipe scheduling — that the **launch path** has to install **before** the kernel function is entered. The standard CANN launch (`rtKernelLaunchWithHandleV2`, used by the `<<<1, nullptr, stream>>>` syntax in every ST in this suite) installs that state correctly.
+`MSCATTER` uses `cce::async_invoke<simt_mscatter_*_kernel>(cce::dim3{32, kLaunchWarps}, …)` internally to fan a per-warp/per-lane workload out across up to 1024 threads. `async_invoke` consumes runtime state (TID registers, warp / lane configuration, vector-pipe scheduling) that the **launch path** must install before the kernel function is entered. The standard CANN launch (`rtKernelLaunchWithHandleV2`, used by the `<<<numBlocks, dynUBufSize, stream>>>` syntax) installs this state correctly.
 
-`pto-isa#96` describes a runtime variant (`tensormap_and_ringbuffer/aicore/aicore_executor.cpp`) that dispatches kernels as a **direct C function-pointer call**:
-
-```cpp
-UnifiedKernelFunc kernel = (UnifiedKernelFunc)payload->function_bin_addr;
-kernel(reinterpret_cast<__gm__ int64_t *>(payload->args));
-```
-
-This is fine for SPMD ops (TLOAD, TSTORE, TADD …) but skips the SIMT-context init step, so the first `cce::async_invoke` inside `MSCATTER` has no warp scheduler to dispatch into and hangs.
-
-A compile-time-only "use the full launch pipeline" override has to live in the **dispatcher**, not the kernel — by the time the kernel function is entered, the dispatch decision has already been made. Specifically:
-
-- `__simt_vf__`, `LAUNCH_BOUND(1024)`, `__simt_callee__`, `__cce_simt_get_TID_X/Y`, `cce::async_invoke`, `cce::dim3` are **all toolchain (bisheng/CCE) intrinsics**; PTO does not define them. Whatever metadata the compiler attaches to the resulting `.o` is what the dispatcher needs to inspect.
-- There is no in-tree `cce::is_simt_active()` guard or `cce::simt_init()` device-side bootstrap intrinsic — a regular AIV function cannot self-promote itself into SIMT context.
-
-`MSCATTER` already carries every signal a smart dispatcher could use to pick the right path: the `cce::async_invoke<…>(dim3{…}, …)` call site itself, the `__simt_vf__ LAUNCH_BOUND(1024)` attributes on `simt_mscatter_*_kernel`, and the templated SIMT entry that the toolchain tags in the `.o`.
-
-In dependency order (cheapest first): Note - We will try to resolve this issue as soon as possible
-
-1. **Mark SIMT kernels in `PTO2DispatchPayload` with a flag, branch the dispatch path** in `aicore_executor.cpp` — direct fn-pointer for SPMD payloads, `rtKernelLaunch` for SIMT payloads. Smallest runtime change; isolates the hot path for SPMD ops.
-2. **Detect SIMT kernels at compile time** (toolchain-emitted attribute / ELF note from `__simt_vf__` / `LAUNCH_BOUND(1024)`) and unconditionally route them through `rtKernelLaunch`. Works automatically for every SIMT kernel (existing and future), but requires the dispatcher to read the toolchain's metadata.
-3. **Initialize the SIMT context** (TID/warp/pipe regs) inside `aicore_executor.cpp` immediately before the function-pointer call. Most invasive — duplicates work the standard CANN launch path already does — but works without per-payload flagging.
+A runtime variant that dispatches kernels as a direct C function-pointer call is fine for SPMD ops (TLOAD, TSTORE, TADD, …) but skips the SIMT context init, so the first `async_invoke` inside `MSCATTER` has no warp scheduler to dispatch into and hangs. Use the standard launch syntax for any SIMT kernel.
 
 ## Related Instructions
 
-- [`TSTORE`](/docs/isa/TSTORE.md): Contiguous block transfer from Tile to GM
-- [`TSCATTER`](/docs/isa/TSCATTER.md): Index-based scatter within tiles (UB-to-UB)
-- [`MGATHER`](../mgather/MGATHER.md): Indexed gather from GM to Tile (inverse operation)
+- [`TSTORE`](/docs/isa/TSTORE.md): contiguous block transfer Tile → GM.
+- [`TSCATTER`](/docs/isa/TSCATTER.md): index-based scatter within tiles (UB-to-UB).
+- [`MGATHER`](../mgather/MGATHER.md): indexed gather GM → Tile (inverse operation).
 
 ## Test Cases
 
 ### Row Coalesce — `[1, R]` index form
 
-| Case | Data Type | Src Size | TableRows | Atomic | OOB Mode | Conflict | Idx Pattern |
-|------|-----------|----------|-----------|--------|----------|----------|-------------|
-| case_row_float_random_8x32_64rows       | float | 8×32  | 64 | None | Undefined | Last  | random |
-| case_row_float_same_8x32_16rows         | float | 8×32  | 16 | None | Undefined | Last  | same   |
-| case_row_half_random_16x64_64rows       | half  | 16×64 | 64 | None | Undefined | Last  | random |
-| case_row_int32_random_8x16_32rows       | int32 | 8×16  | 32 | None | Undefined | Last  | random |
-| case_row_uint8_random_8x32_32rows       | uint8 | 8×32  | 32 | None | Undefined | Last  | random |
-| case_row_int16_random_8x16_32rows       | int16 | 8×16  | 32 | None | Undefined | Last  | random |
-| case_row_float_atomicadd_8x32_8rows     | float | 8×32  | 8  | Add  | Undefined | Default | random |
-| case_row_float_skip_8x32_8rows          | float | 8×32  | 8  | None | Skip      | Last  | oob    |
-| case_row_int32_clamp_8x16_8rows         | int32 | 8×16  | 8  | None | Clamp     | Last  | oob    |
-| case_row_half_wrap_8x32_8rows           | half  | 8×32  | 8  | None | Wrap      | Last  | oob    |
+| Case | Data Type | Src Size | TableRows | Atomic | OOB | Conflict | Idx Pattern |
+|------|-----------|----------|-----------|--------|-----|----------|-------------|
+| case_row_float_random_8x32_64rows   | float | 8×32  | 64 | None | Undefined | Last    | random |
+| case_row_float_same_8x32_16rows     | float | 8×32  | 16 | None | Undefined | Last    | same   |
+| case_row_half_random_16x64_64rows   | half  | 16×64 | 64 | None | Undefined | Last    | random |
+| case_row_int32_random_8x16_32rows   | int32 | 8×16  | 32 | None | Undefined | Last    | random |
+| case_row_uint8_random_8x32_32rows   | uint8 | 8×32  | 32 | None | Undefined | Last    | random |
+| case_row_int16_random_8x16_32rows   | int16 | 8×16  | 32 | None | Undefined | Last    | random |
+| case_row_float_atomicadd_8x32_8rows | float | 8×32  | 8  | Add  | Undefined | Default | random |
+| case_row_float_skip_8x32_8rows      | float | 8×32  | 8  | None | Skip      | Last    | oob    |
+| case_row_int32_clamp_8x16_8rows     | int32 | 8×16  | 8  | None | Clamp     | Last    | oob    |
+| case_row_half_wrap_8x32_8rows       | half  | 8×32  | 8  | None | Wrap      | Last    | oob    |
 
 ### Row Coalesce — `[R, 1]` index form (ColMajor + DN)
 
-| Case | Data Type | Src Size | TableRows | Atomic | OOB Mode | Conflict |
-|------|-----------|----------|-----------|--------|----------|----------|
-| case_row_colidx_float_random_8x32_64rows  | float | 8×32  | 64 | None | Undefined | Last |
-| case_row_colidx_int32_clamp_8x16_8rows    | int32 | 8×16  | 8  | None | Clamp     | Last |
-| case_row_colidx_half_random_16x64_64rows  | half  | 16×64 | 64 | None | Undefined | Last |
+| Case | Data Type | Src Size | TableRows | Atomic | OOB | Conflict |
+|------|-----------|----------|-----------|--------|-----|----------|
+| case_row_colidx_float_random_8x32_64rows | float | 8×32  | 64 | None | Undefined | Last |
+| case_row_colidx_int32_clamp_8x16_8rows   | int32 | 8×16  | 8  | None | Clamp     | Last |
+| case_row_colidx_half_random_16x64_64rows | half  | 16×64 | 64 | None | Undefined | Last |
 
 ### Element Coalesce — 1-D source `[1, N]`
 
-| Case | Data Type | N / TableSize | Atomic | OOB Mode | Conflict | Idx Pattern |
-|------|-----------|---------------|--------|----------|----------|-------------|
-| case_elem_float_random_64_128size          | float | 64  / 128  | None | Undefined | Last  | random |
-| case_elem_float_same_64_8size              | float | 64  / 8    | None | Undefined | Last  | same   |
-| case_elem_float_seq_32_32size              | float | 32  / 32   | None | Undefined | Last  | seq    |
-| case_elem_half_random_64_128size           | half  | 64  / 128  | None | Undefined | Last  | random |
-| case_elem_int32_random_32_64size           | int32 | 32  / 64   | None | Undefined | Last  | random |
-| case_elem_uint8_random_64_128size          | uint8 | 64  / 128  | None | Undefined | Last  | random |
-| case_elem_int16_random_32_64size           | int16 | 32  / 64   | None | Undefined | Last  | random |
-| case_elem_float_atomicadd_32_32size        | float | 32  / 32   | Add  | Undefined | Default | random |
-| case_elem_int32_atomicadd_skip_32_16size   | int32 | 32  / 16   | Add  | Skip      | Default | oob    |
-| case_elem_float_skip_32_16size             | float | 32  / 16   | None | Skip      | Last    | oob    |
-| case_elem_int32_clamp_32_16size            | int32 | 32  / 16   | None | Clamp     | Last    | oob    |
-| case_elem_half_wrap_32_16size              | half  | 32  / 16   | None | Wrap      | Last    | oob    |
-| case_elem_float_default_seq_32_32size      | float | 32  / 32   | None | Undefined | Default | seq    |
-| case_elem_float_small_16_32size            | float | 16  / 32   | None | Undefined | Last    | random |
-| case_elem_int32_atomicmax_random_32_32size | int32 | 32  / 32   | Max  | Undefined | Default | random |
-| case_elem_float_atomicmin_random_32_32size | float | 32  / 32   | Min  | Undefined | Default | random |
-| case_elem_float_last_same_32_8size         | float | 32  / 8    | None | Undefined | Last  | same   |
-| case_elem_int32_last_seq_32_32size         | int32 | 32  / 32   | None | Undefined | Last  | seq    |
-| case_elem_float_clamp_no_dup_32_16size     | float | 32  / 16   | None | Clamp     | Last  | random |
-| case_elem_uint8_wrap_64_16size             | uint8 | 64  / 16   | None | Wrap      | Last  | random |
-| case_elem_int16_clamp_32_16size            | int16 | 32  / 16   | None | Clamp     | Last  | oob    |
+| Case | Data Type | N / TableSize | Atomic | OOB | Conflict | Idx Pattern |
+|------|-----------|---------------|--------|-----|----------|-------------|
+| case_elem_float_random_64_128size          | float | 64 / 128 | None | Undefined | Last    | random |
+| case_elem_float_same_64_8size              | float | 64 / 8   | None | Undefined | Last    | same   |
+| case_elem_float_seq_32_32size              | float | 32 / 32  | None | Undefined | Last    | seq    |
+| case_elem_half_random_64_128size           | half  | 64 / 128 | None | Undefined | Last    | random |
+| case_elem_int32_random_32_64size           | int32 | 32 / 64  | None | Undefined | Last    | random |
+| case_elem_uint8_random_64_128size          | uint8 | 64 / 128 | None | Undefined | Last    | random |
+| case_elem_int16_random_32_64size           | int16 | 32 / 64  | None | Undefined | Last    | random |
+| case_elem_float_atomicadd_32_32size        | float | 32 / 32  | Add  | Undefined | Default | random |
+| case_elem_int32_atomicadd_skip_32_16size   | int32 | 32 / 16  | Add  | Skip      | Default | oob    |
+| case_elem_float_skip_32_16size             | float | 32 / 16  | None | Skip      | Last    | oob    |
+| case_elem_int32_clamp_32_16size            | int32 | 32 / 16  | None | Clamp     | Last    | oob    |
+| case_elem_half_wrap_32_16size              | half  | 32 / 16  | None | Wrap      | Last    | oob    |
+| case_elem_float_default_seq_32_32size      | float | 32 / 32  | None | Undefined | Default | seq    |
+| case_elem_float_small_16_32size            | float | 16 / 32  | None | Undefined | Last    | random |
+| case_elem_int32_atomicmax_random_32_32size | int32 | 32 / 32  | Max  | Undefined | Default | random |
+| case_elem_float_atomicmin_random_32_32size | float | 32 / 32  | Min  | Undefined | Default | random |
+| case_elem_float_last_same_32_8size         | float | 32 / 8   | None | Undefined | Last    | same   |
+| case_elem_int32_last_seq_32_32size         | int32 | 32 / 32  | None | Undefined | Last    | seq    |
+| case_elem_float_clamp_no_dup_32_16size     | float | 32 / 16  | None | Clamp     | Last    | random |
+| case_elem_uint8_wrap_64_16size             | uint8 | 64 / 16  | None | Wrap      | Last    | random |
+| case_elem_int16_clamp_32_16size            | int16 | 32 / 16  | None | Clamp     | Last    | oob    |
 
 ### Element Coalesce — 2-D source `[R, C]`
 
-| Case | Data Type | Src Size | TableSize | Atomic | OOB Mode | Conflict | Idx Pattern |
-|------|-----------|----------|-----------|--------|----------|----------|-------------|
-| case_elem2d_float_8x32_random_256size       | float | 8×32     | 256   | None | Undefined | Last    | random |
-| case_elem2d_int32_8x16_random_256size       | int32 | 8×16     | 256   | None | Undefined | Last    | random |
-| case_elem2d_half_4x32_random_256size        | half  | 4×32     | 256   | None | Undefined | Last    | random |
+| Case | Data Type | Src Size | TableSize | Atomic | OOB | Conflict | Idx Pattern |
+|------|-----------|----------|-----------|--------|-----|----------|-------------|
+| case_elem2d_float_8x32_random_256size | float | 8×32 | 256 | None | Undefined | Last | random |
+| case_elem2d_int32_8x16_random_256size | int32 | 8×16 | 256 | None | Undefined | Last | random |
+| case_elem2d_half_4x32_random_256size  | half  | 4×32 | 256 | None | Undefined | Last | random |
 
-### Element Coalesce — Tiled Iteration
+### Element Coalesce — Tiled Iteration (Legacy, No `dynUBufSize`)
 
-These cases would exceed the safe `src + idx` UB budget if loaded in one shot, so the wrapper drives `MSCATTER` per-chunk and lets later chunks overwrite earlier ones to compose the final result (see [Tiled-Iteration Pattern for Large Inputs](#tiled-iteration-pattern-for-large-inputs)).
+These cases pre-date the `dynUBufSize` path and chunk the input to keep each iteration under 128 KB. See [Tiled-Iteration Pattern](#tiled-iteration-pattern-legacy-2048x8-cases) above.
 
-| Case | Data Type | Total Src | Chunk | UB per Chunk | TableSize | Atomic | OOB Mode | Conflict | Idx Pattern |
-|------|-----------|-----------|-------|--------------|-----------|--------|----------|----------|-------------|
-| case_elem2d_float_2048x8_last_256size       | float | 2048×8 | 128×8 (16 iters) | 4 KB src + 4 KB idx | 256   | None | Undefined | Last    | random |
-| case_elem2d_float_2048x8_default_16384size  | float | 2048×8 | 128×8 (16 iters) | 4 KB src + 4 KB idx | 16384 | None | Undefined | Default | seq    |
+| Case | Data Type | Total Src | Chunk | UB per Chunk | TableSize | Atomic | OOB | Conflict | Idx Pattern |
+|------|-----------|-----------|-------|--------------|-----------|--------|-----|----------|-------------|
+| case_elem2d_float_2048x8_last_256size      | float | 2048×8 | 128×8 (16 iters) | 4 KB src + 4 KB idx | 256   | None | Undefined | Last    | random |
+| case_elem2d_float_2048x8_default_16384size | float | 2048×8 | 128×8 (16 iters) | 4 KB src + 4 KB idx | 16384 | None | Undefined | Default | seq    |
+
+### Element Coalesce — Extended UB (`dynUBufSize`) Single-Shot
+
+These cases push the per-call `src + idx` footprint **beyond 128 KB** in a single launch by passing an explicit `dynUBufSize` (the second argument of `<<<numBlocks, dynUBufSize, stream>>>`). The runtime shrinks the DCache toward its 32 KB minimum and frees up to **216 KB** for the source/index tiles. See [Extending Per-Call UB Beyond 128 KB](#extending-per-call-ub-beyond-128-kb-dynubufsize). `dynUBufSize` is set to `R * 8 * 8` bytes per case (an upper bound on `R * C * (sizeof(float) + sizeof(int32_t))` with `C = 8`).
+
+| Case | Data Type | Src Size | Total UB (src + idx) | dynUBufSize (bytes) | TableSize | Atomic | OOB | Conflict | Idx Pattern |
+|------|-----------|----------|----------------------|---------------------|-----------|--------|-----|----------|-------------|
+| case_elem2d_float_2304x8_last_256size      | float | 2304×8 | 72 KB + 72 KB = 144 KB | 147456 | 256   | None | Undefined | Last    | random |
+| case_elem2d_float_2304x8_default_18432size | float | 2304×8 | 72 KB + 72 KB = 144 KB | 147456 | 18432 | None | Undefined | Default | seq    |
+| case_elem2d_float_2560x8_last_256size      | float | 2560×8 | 80 KB + 80 KB = 160 KB | 163840 | 256   | None | Undefined | Last    | random |
+| case_elem2d_float_2560x8_default_20480size | float | 2560×8 | 80 KB + 80 KB = 160 KB | 163840 | 20480 | None | Undefined | Default | seq    |
+| case_elem2d_float_2816x8_last_256size      | float | 2816×8 | 88 KB + 88 KB = 176 KB | 180224 | 256   | None | Undefined | Last    | random |
+| case_elem2d_float_2816x8_default_22528size | float | 2816×8 | 88 KB + 88 KB = 176 KB | 180224 | 22528 | None | Undefined | Default | seq    |
+| case_elem2d_float_3072x8_last_256size      | float | 3072×8 | 96 KB + 96 KB = 192 KB | 196608 | 256   | None | Undefined | Last    | random |
+| case_elem2d_float_3072x8_default_24576size | float | 3072×8 | 96 KB + 96 KB = 192 KB | 196608 | 24576 | None | Undefined | Default | seq    |
+| case_elem2d_float_3200x8_last_256size      | float | 3200×8 | 100 KB + 100 KB = 200 KB | 204800 | 256   | None | Undefined | Last    | random |
+| case_elem2d_float_3200x8_default_25600size | float | 3200×8 | 100 KB + 100 KB = 200 KB | 204800 | 25600 | None | Undefined | Default | seq    |
+| case_elem2d_float_3456x8_last_256size      | float | 3456×8 | 108 KB + 108 KB = 216 KB | 221184 | 256   | None | Undefined | Last    | random |
+| case_elem2d_float_3456x8_default_27648size | float | 3456×8 | 108 KB + 108 KB = 216 KB | 221184 | 27648 | None | Undefined | Default | seq    |
 
 ### Unaligned / Odd-Dimension Tiles
 
-The SIMT kernel handles **any** `(ValidRow, ValidCol)` with `1 <= Valid <= Padded`. There is no SIMD-style batch / predicate path — the kernel walks `ValidRow * ValidCol` positions one element per thread, and `tile_offset_2d<TileX>` resolves the physical UB offset inside the padded tile. So "unaligned" reduces to one mechanism: declare the `Tile` with the **padded** shape that satisfies the `Tile` system's burst-alignment rule (see [Minimum Tile Shape](#minimum-tile-shape)) and the **valid** shape carrying the logical `(R, C)`.
+The SIMT kernel handles any `(ValidRow, ValidCol)` with `1 <= Valid <= Padded`. Express odd valid extents as a padded tile and let the kernel walk the valid sub-region only.
 
-Three categories are covered by ST:
+| Case | Mode | Data Type | Valid Src | Padded Src | Idx (Valid → Padded) | Table | Atomic | OOB | Conflict |
+|------|------|-----------|-----------|------------|----------------------|-------|--------|-----|----------|
+| case_elem2d_int32_unaligned_3x8_64size              | Elem          | int32 | 3×8  | 3×8  | 3×8  → 3×8   | 64 elems    | None | Undefined | Last |
+| case_elem2d_uint8_unaligned_3x32_256size            | Elem          | uint8 | 3×32 | 3×32 | 3×32 → 3×32  | 256 elems   | None | Undefined | Last |
+| case_elem2d_int32_unaligned_3x3_in_3x8_64size       | Elem          | int32 | 3×3  | 3×8  | 3×3  → 3×8   | 64 elems    | None | Undefined | Last |
+| case_elem2d_int32_unaligned_9x9_in_9x16_256size     | Elem          | int32 | 9×9  | 9×16 | 9×9  → 9×16  | 256 elems   | None | Undefined | Last |
+| case_elem2d_int32_scalar_1x1_in_1x8_8size           | Elem (scalar) | int32 | 1×1  | 1×8  | 1×1  → 1×8   | 8 elems     | None | Undefined | Last |
+| case_row_int32_unaligned_3x8_8rows                  | Row           | int32 | 3×8  | 3×8  | 1×3  → 1×8   | 8 rows × 8  | None | Undefined | Last |
+| case_row_int32_unaligned_9x16_16rows                | Row           | int32 | 9×16 | 9×16 | 1×9  → 1×16  | 16 rows × 16| None | Undefined | Last |
 
-| Category | Pattern | What it exercises |
-|----------|---------|-------------------|
-| Odd row count, valid == padded | `Tile<T, R, C, RowMajor, R, C>` with odd `R` (3, 9, …) and `C` already 32-B aligned | Shape-adaptive launch — `kRowWarps = R`, `kWarpsPerRow = 32 / R`, etc. |
-| True valid-in-padded | `Tile<T, PadR, PadC, RowMajor, ValidR, ValidC>` with `ValidR/ValidC < PadR/PadC` | Per-thread iteration over `ValidR × ValidC` only, padding bytes are never touched by the SIMT body. |
-| Scalar `(1, 1)` | `Tile<T, 1, MinAlignedC, RowMajor, 1, 1>` | Compile-time fast-path to `MScatterScalarImpl` — no `cce::async_invoke`. |
+### Dynamic Runtime Shapes
 
-For `Coalesce::Row` with odd `R`, the index tile must also be expressed as valid-in-padded: e.g. `Tile<int32, 1, 8, RowMajor, 1, 3>` for 3 row-indices, since the upstream `Tile` system needs the padded inner dim aligned. `MSCATTER` itself only checks the **valid** equality `TileIdx::ValidCol == TileSrc::ValidRow` (or the `[R, 1]` analog).
+`Tile<…, -1, -1>` paired with `GlobalTensor<…, Shape<…, -1, -1>, Stride<…, -1, -1>>`. The SIMT kernel sizes itself from `Tile::GetValidRow/Col()` and `GlobalTensor::GetShape()` at dispatch time; padded `Tile::Rows / Cols` remain compile-time so the UB layout stays statically known.
 
-| Case | Mode | Data Type | Valid Src | Padded Src | Idx (Valid → Padded) | Table | Atomic | OOB Mode | Conflict |
-|------|------|-----------|-----------|------------|----------------------|-------|--------|----------|----------|
-| case_elem2d_int32_unaligned_3x8_64size              | Elem | int32 | 3×8 | 3×8 | 3×8 → 3×8 | 64 elems | None | Undefined | Last |
-| case_elem2d_uint8_unaligned_3x32_256size            | Elem | uint8 | 3×32 | 3×32 | 3×32 → 3×32 | 256 elems | None | Undefined | Last |
-| case_elem2d_int32_unaligned_3x3_in_3x8_64size       | Elem | int32 | 3×3 | 3×8 | 3×3 → 3×8 | 64 elems | None | Undefined | Last |
-| case_elem2d_int32_unaligned_9x9_in_9x16_256size     | Elem | int32 | 9×9 | 9×16 | 9×9 → 9×16 | 256 elems | None | Undefined | Last |
-| case_elem2d_int32_scalar_1x1_in_1x8_8size           | Elem (scalar) | int32 | 1×1 | 1×8 | 1×1 → 1×8 | 8 elems | None | Undefined | Last |
-| case_row_int32_unaligned_3x8_8rows                  | Row | int32 | 3×8 | 3×8 | 1×3 → 1×8 | 8 rows × 8 | None | Undefined | Last |
-| case_row_int32_unaligned_9x16_16rows                | Row | int32 | 9×16 | 9×16 | 1×9 → 1×16 | 16 rows × 16 | None | Undefined | Last |
+| Case | Mode | Data Type | Runtime Valid Src | Padded Src | Runtime Table | OOB |
+|------|------|-----------|-------------------|------------|----------------|-----|
+| case_elem2d_dyn_user_float_1x9_in_1x16_3x10 | Elem | float | 1×9  | 1×16 | 3×10              | Skip      |
+| case_elem2d_dyn_int32_4x8_in_4x8_64size     | Elem | int32 | 4×8  | 4×8  | 8×8 (linear 64)   | Undefined |
+| case_elem2d_dyn_float_3x3_in_3x8_64size     | Elem | float | 3×3  | 3×8  | 8×8 (linear 64)   | Undefined |
+| case_elem2d_dyn_half_8x16_in_8x16_4x32      | Elem | half  | 8×16 | 8×16 | 4×32 (linear 128) | Undefined |
+| case_row_dyn_int32_3x16_8rows               | Row  | int32 | 3×16 | 3×16 | 8 rows × 16       | Undefined |
+| case_row_dyn_half_4x32_16rows               | Row  | half  | 4×32 | 4×32 | 16 rows × 32      | Undefined |
