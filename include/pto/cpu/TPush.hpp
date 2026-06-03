@@ -202,6 +202,76 @@ PTO_INTERNAL bool IsInactiveNoSplitVecConsumerLane()
     return get_subblockid() != 0;
 }
 
+template <typename Pipe, typename TileCons, TileSplitAxis Split>
+PTO_INTERNAL constexpr bool ShouldNoSplitC2VConsumerLaneParticipate()
+{
+    return Split == TileSplitAxis::TILE_NO_SPLIT && Pipe::is_c2v && Pipe::is_no_split && IsC2VConsumerTile<TileCons>();
+}
+
+template <typename Pipe, TileSplitAxis Split>
+PTO_INTERNAL constexpr bool ShouldNoSplitC2VConsumerLaneFree()
+{
+    return Split == TileSplitAxis::TILE_NO_SPLIT && Pipe::is_c2v && Pipe::is_no_split;
+}
+
+template <typename Pipe, typename TileProd, TileSplitAxis Split>
+PTO_INTERNAL constexpr uint32_t GetRequiredConsumerCount()
+{
+    if constexpr (Pipe::is_c2v && Pipe::is_no_split && IsC2VProducerTile<TileProd>() &&
+                  Split == TileSplitAxis::TILE_NO_SPLIT) {
+        return 2u;
+    } else if constexpr (Pipe::is_c2v && IsC2VProducerTile<TileProd>()) {
+        return GetSplitCount<Split>();
+    } else {
+        return 1u;
+    }
+}
+
+template <std::size_t SlotNum, typename RejectSlotFn>
+PTO_INTERNAL bool FindNextTransferSlot(const std::array<TransferDir, SlotNum> &transferDirs, int start,
+                                       TransferDir expectedDir, int &slotIndex, RejectSlotFn rejectSlot)
+{
+    for (std::size_t offset = 0; offset < SlotNum; ++offset) {
+        const int candidate = static_cast<int>((static_cast<std::size_t>(start) + offset) % SlotNum);
+        if (transferDirs[static_cast<std::size_t>(candidate)] == expectedDir && !rejectSlot(candidate)) {
+            slotIndex = candidate;
+            return true;
+        }
+    }
+    return false;
+}
+
+template <std::size_t SlotNum>
+PTO_INTERNAL bool FindNextTransferSlot(const std::array<TransferDir, SlotNum> &transferDirs, int start,
+                                       TransferDir expectedDir, int &slotIndex)
+{
+    return FindNextTransferSlot(transferDirs, start, expectedDir, slotIndex, [](int) { return false; });
+}
+
+template <std::size_t SlotNum>
+PTO_INTERNAL void PushPendingSlot(std::array<int, SlotNum> &slots, int &count, int slotIndex)
+{
+    if (count < 0 || static_cast<std::size_t>(count) >= SlotNum) {
+        return;
+    }
+    slots[static_cast<std::size_t>(count)] = slotIndex;
+    ++count;
+}
+
+template <std::size_t SlotNum>
+PTO_INTERNAL bool PopPendingSlot(std::array<int, SlotNum> &slots, int &count, int &slotIndex)
+{
+    if (count <= 0 || static_cast<std::size_t>(count) > SlotNum) {
+        return false;
+    }
+    slotIndex = slots[0];
+    for (int i = 1; i < count; ++i) {
+        slots[static_cast<std::size_t>(i - 1)] = slots[static_cast<std::size_t>(i)];
+    }
+    --count;
+    return true;
+}
+
 template <typename TileData>
 PTO_INTERNAL void FillTile(TileData &tile, typename TileData::DType value)
 {
@@ -252,6 +322,16 @@ PTO_INTERNAL void InsertTileWindowToLinear(T *dst, uint32_t dstCols, SrcTileData
     for (int r = 0; r < src.GetValidRow(); ++r) {
         for (int c = 0; c < src.GetValidCol(); ++c) {
             dst[(r + rowOffset) * dstCols + (c + colOffset)] = src.data()[GetTileElementOffset<SrcTileData>(r, c)];
+        }
+    }
+}
+
+template <typename T, typename SrcTileData>
+PTO_INTERNAL void StoreValidTileToLinear(T *dst, uint32_t dstCols, SrcTileData &src)
+{
+    for (int r = 0; r < src.GetValidRow(); ++r) {
+        for (int c = 0; c < src.GetValidCol(); ++c) {
+            dst[r * dstCols + c] = src.data()[GetTileElementOffset<SrcTileData>(r, c)];
         }
     }
 }
@@ -331,6 +411,7 @@ struct TPipe {
     static constexpr bool is_c2v = ((DIR_TYPE & Direction::DIR_C2V) == Direction::DIR_C2V);
     static constexpr bool is_v2c = ((DIR_TYPE & Direction::DIR_V2C) == Direction::DIR_V2C);
     static constexpr bool is_v2c_ctrl = ((DIR_TYPE & Direction::DIR_V2C_CTRL) == Direction::DIR_V2C_CTRL);
+    static constexpr bool is_no_split = IsNoSplit;
     static constexpr uint8_t VEC_CORE_ID_OFFSET = 16;
     using RingFiFo = RingFIFO<SlotSize, SlotNum, LocalSlotNum>;
     static constexpr uint32_t LOCAL_SPLIT_COPIES = is_c2v ? 2u : 1u;
@@ -341,7 +422,12 @@ struct TPipe {
         std::condition_variable cv;
         int next_producer_slot = 0;
         int next_consumer_slot = 0;
+        std::array<int, 2> next_consumer_slots_by_lane{};
         int occupied = 0;
+        int popped_not_freed = 0;
+        std::array<int, 2> popped_not_freed_by_lane{};
+        std::array<std::array<int, SlotNum>, 2> popped_slots_by_lane{};
+        std::array<int, SlotNum> popped_slots{};
         std::array<std::array<uint8_t, LOCAL_SLOT_STORAGE_SIZE>, SlotNum> local_slot_storage{};
         std::array<cpu_pipe::TransferDir, SlotNum> transfer_dirs{};
         std::array<uint32_t, SlotNum> remaining_consumers{};
@@ -409,7 +495,14 @@ struct TPipe {
         std::lock_guard<std::mutex> lock(shared_state.mutex);
         shared_state.next_producer_slot = 0;
         shared_state.next_consumer_slot = 0;
+        shared_state.next_consumer_slots_by_lane.fill(0);
         shared_state.occupied = 0;
+        shared_state.popped_not_freed = 0;
+        shared_state.popped_not_freed_by_lane.fill(0);
+        for (auto &lanePoppedSlots : shared_state.popped_slots_by_lane) {
+            lanePoppedSlots.fill(0);
+        }
+        shared_state.popped_slots.fill(0);
         for (auto &slot : shared_state.local_slot_storage) {
             slot.fill(0);
         }
@@ -507,12 +600,8 @@ struct TPipe {
                 std::lock_guard<std::mutex> lock(shared_state.mutex);
                 const auto slotIdx = static_cast<std::size_t>(tileIndex % RingFiFo::SLOT_NUM);
                 shared_state.transfer_dirs[slotIdx] = cpu_pipe::GetProducerTransferDir<TPipe, TileProd>();
-                if constexpr (TPipe::is_c2v && cpu_pipe::IsC2VProducerTile<TileProd>() &&
-                              Split != TileSplitAxis::TILE_NO_SPLIT) {
-                    shared_state.remaining_consumers[slotIdx] = cpu_pipe::GetSplitCount<Split>();
-                } else {
-                    shared_state.remaining_consumers[slotIdx] = 1;
-                }
+                shared_state.remaining_consumers[slotIdx] =
+                    cpu_pipe::GetRequiredConsumerCount<TPipe, TileProd, Split>();
                 if constexpr (TPipe::is_v2c && cpu_pipe::IsV2CProducerTile<TileProd>() &&
                               Split != TileSplitAxis::TILE_NO_SPLIT) {
                     const uint32_t laneMask = cpu_pipe::GetSplitLaneMask<Split>(static_cast<uint32_t>(subTileIndex));
@@ -603,6 +692,48 @@ struct TPipe {
                 subTileIndex = static_cast<int>(laneId);
                 return;
             }
+            if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT) {
+                if constexpr (cpu_pipe::ShouldNoSplitC2VConsumerLaneParticipate<TPipe, TileCons, Split>()) {
+                    const uint32_t laneId = cpu_pipe::GetSplitLaneId<TileSplitAxis::TILE_UP_DOWN>();
+                    const uint32_t laneMask = cpu_pipe::GetSplitLaneMask<TileSplitAxis::TILE_UP_DOWN>(laneId);
+                    auto &laneNext = shared_state.next_consumer_slots_by_lane[laneId];
+                    auto &lanePopped = shared_state.popped_not_freed_by_lane[laneId];
+                    int foundSlot = 0;
+                    shared_state.cv.wait(lock, [&shared_state, &laneNext, laneMask, expectedDir, &foundSlot]() {
+                        return cpu_pipe::FindNextTransferSlot(
+                            shared_state.transfer_dirs, laneNext, expectedDir, foundSlot,
+                            [&shared_state, laneMask](int candidate) {
+                                return (shared_state.consumers_claimed[static_cast<std::size_t>(candidate)] &
+                                        laneMask) != 0;
+                            });
+                    });
+                    tileIndex = foundSlot;
+                    shared_state.consumers_claimed[static_cast<std::size_t>(tileIndex % RingFiFo::SLOT_NUM)] |=
+                        laneMask;
+                    subTileIndex = static_cast<int>(laneId);
+                    laneNext = (tileIndex + 1) % RingFiFo::SLOT_NUM;
+                    cpu_pipe::PushPendingSlot(shared_state.popped_slots_by_lane[laneId], lanePopped, tileIndex);
+                    return;
+                }
+                int foundSlot = 0;
+                shared_state.cv.wait(lock, [&shared_state, expectedDir, &foundSlot]() {
+                    return cpu_pipe::FindNextTransferSlot(
+                        shared_state.transfer_dirs, shared_state.next_consumer_slot, expectedDir, foundSlot,
+                        [&shared_state](int candidate) {
+                            for (int i = 0; i < shared_state.popped_not_freed; ++i) {
+                                if (shared_state.popped_slots[static_cast<std::size_t>(i)] == candidate) {
+                                    return true;
+                                }
+                            }
+                            return false;
+                        });
+                });
+                tileIndex = foundSlot;
+                subTileIndex = static_cast<int>(get_subblockid());
+                shared_state.next_consumer_slot = (tileIndex + 1) % RingFiFo::SLOT_NUM;
+                cpu_pipe::PushPendingSlot(shared_state.popped_slots, shared_state.popped_not_freed, tileIndex);
+                return;
+            }
             shared_state.cv.wait(lock, [&shared_state, expectedDir]() {
                 return shared_state.occupied > 0 &&
                        shared_state.transfer_dirs[static_cast<std::size_t>(shared_state.next_consumer_slot)] ==
@@ -619,7 +750,26 @@ struct TPipe {
             auto &shared_state = TPipe::GetSharedState();
             {
                 std::lock_guard<std::mutex> lock(shared_state.mutex);
-                const auto slotIndex = static_cast<std::size_t>(tileIndex % RingFiFo::SLOT_NUM);
+                int freeTileIndex = tileIndex;
+                if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT) {
+                    if constexpr (cpu_pipe::ShouldNoSplitC2VConsumerLaneFree<TPipe, Split>()) {
+                        const uint32_t laneId = cpu_pipe::GetSplitLaneId<TileSplitAxis::TILE_UP_DOWN>();
+                        auto &lanePopped = shared_state.popped_not_freed_by_lane[laneId];
+                        if (!cpu_pipe::PopPendingSlot(shared_state.popped_slots_by_lane[laneId], lanePopped,
+                                                      freeTileIndex)) {
+                            if (!cpu_pipe::PopPendingSlot(shared_state.popped_slots, shared_state.popped_not_freed,
+                                                          freeTileIndex)) {
+                                return;
+                            }
+                        }
+                    } else {
+                        if (!cpu_pipe::PopPendingSlot(shared_state.popped_slots, shared_state.popped_not_freed,
+                                                      freeTileIndex)) {
+                            return;
+                        }
+                    }
+                }
+                const auto slotIndex = static_cast<std::size_t>(freeTileIndex % RingFiFo::SLOT_NUM);
                 auto &remaining = shared_state.remaining_consumers[slotIndex];
                 if (remaining > 1) {
                     --remaining;
@@ -627,7 +777,9 @@ struct TPipe {
                     remaining = 0;
                     shared_state.consumers_claimed[slotIndex] = 0;
                     shared_state.transfer_dirs[slotIndex] = cpu_pipe::TransferDir::None;
-                    shared_state.next_consumer_slot = (tileIndex + 1) % RingFiFo::SLOT_NUM;
+                    if constexpr (Split != TileSplitAxis::TILE_NO_SPLIT) {
+                        shared_state.next_consumer_slot = (tileIndex + 1) % RingFiFo::SLOT_NUM;
+                    }
                     --shared_state.occupied;
                 }
             }
@@ -817,7 +969,11 @@ PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
         using T = typename TileProd::DType;
         constexpr int rows = TileProd::Rows;
         constexpr int cols = TileProd::Cols;
-        if constexpr (Pipe::is_v2c && TileProd::Loc == TileType::Vec) {
+        if constexpr (Pipe::is_c2v && cpu_pipe::IsC2VProducerTile<TileProd>()) {
+            auto *addr =
+                reinterpret_cast<__gm__ T *>(reinterpret_cast<std::uintptr_t>(pipe.fifo.GM_SLOT_BUFFER) + entryBase);
+            cpu_pipe::StoreValidTileToLinear(addr, static_cast<uint32_t>(cols), tile);
+        } else if constexpr (Pipe::is_v2c && TileProd::Loc == TileType::Vec) {
             constexpr int gmStrideR = (Split == TileSplitAxis::TILE_LEFT_RIGHT) ? (cols * 2) : cols;
             std::size_t subOffset = 0;
             if constexpr (Split == TileSplitAxis::TILE_UP_DOWN) {

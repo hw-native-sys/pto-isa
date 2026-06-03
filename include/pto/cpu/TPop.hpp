@@ -18,7 +18,8 @@ namespace pto {
 template <typename Pipe, typename TileCons, TileSplitAxis Split, std::enable_if_t<!is_global_data_v<TileCons>, int> = 0>
 PTO_INTERNAL void TPOP_IMPL(Pipe &pipe, TileCons &tile)
 {
-    if (cpu_pipe::IsInactiveNoSplitVecLane<TileCons, Split>()) {
+    constexpr bool participateNoSplitC2V = cpu_pipe::ShouldNoSplitC2VConsumerLaneParticipate<Pipe, TileCons, Split>();
+    if (!participateNoSplitC2V && cpu_pipe::IsInactiveNoSplitVecLane<TileCons, Split>()) {
         cpu_pipe::EnsureTileStorage(tile);
         cpu_pipe::FillTile(tile, typename TileCons::DType{});
         return;
@@ -30,6 +31,11 @@ PTO_INTERNAL void TPOP_IMPL(Pipe &pipe, TileCons &tile)
 
     // 2. Address calculation + TASSIGN + data transfer
     pipe.cons.template pop<TileCons, Split>(pipe.fifo, tile);
+    if constexpr (participateNoSplitC2V) {
+        if (get_subblockid() != 0) {
+            cpu_pipe::FillTile(tile, typename TileCons::DType{});
+        }
+    }
 }
 
 template <
@@ -58,7 +64,8 @@ PTO_INTERNAL void TPOP_GLOBAL_IMPL(Pipe &pipe, GlobalData &gmTensor)
 template <typename Pipe, TileSplitAxis Split>
 PTO_INTERNAL void TFREE_IMPL(Pipe &pipe)
 {
-    if (cpu_pipe::IsInactiveNoSplitVecConsumerLane<Pipe, Split>()) {
+    if (!cpu_pipe::ShouldNoSplitC2VConsumerLaneFree<Pipe, Split>() &&
+        cpu_pipe::IsInactiveNoSplitVecConsumerLane<Pipe, Split>()) {
         return;
     }
     if (pipe.cons.getFreeStatus()) {
@@ -76,7 +83,8 @@ template <typename Pipe, typename GlobalData, TileSplitAxis Split,
           std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
 PTO_INTERNAL void TFREE_GLOBAL_IMPL(Pipe &pipe, GlobalData &)
 {
-    if (cpu_pipe::IsInactiveNoSplitVecConsumerLane<Pipe, Split>()) {
+    if (!cpu_pipe::ShouldNoSplitC2VConsumerLaneFree<Pipe, Split>() &&
+        cpu_pipe::IsInactiveNoSplitVecConsumerLane<Pipe, Split>()) {
         return;
     }
     if (pipe.cons.getFreeStatus()) {
