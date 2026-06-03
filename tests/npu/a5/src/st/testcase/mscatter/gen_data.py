@@ -306,6 +306,54 @@ add(
     "MSCATTERTest.case_elem2d_float_2048x8_default_16384size",
     lambda n: case_elem2d(n, np.float32, 2048, 8, 16384, conflict="default", idx_kind="seq"),
 )
+add(
+    "MSCATTERTest.case_elem2d_float_2304x8_last_256size",
+    lambda n: case_elem2d(n, np.float32, 2304, 8, 256, conflict="last", idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_elem2d_float_2304x8_default_18432size",
+    lambda n: case_elem2d(n, np.float32, 2304, 8, 18432, conflict="default", idx_kind="seq"),
+)
+add(
+    "MSCATTERTest.case_elem2d_float_2560x8_last_256size",
+    lambda n: case_elem2d(n, np.float32, 2560, 8, 256, conflict="last", idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_elem2d_float_2560x8_default_20480size",
+    lambda n: case_elem2d(n, np.float32, 2560, 8, 20480, conflict="default", idx_kind="seq"),
+)
+add(
+    "MSCATTERTest.case_elem2d_float_2816x8_last_256size",
+    lambda n: case_elem2d(n, np.float32, 2816, 8, 256, conflict="last", idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_elem2d_float_2816x8_default_22528size",
+    lambda n: case_elem2d(n, np.float32, 2816, 8, 22528, conflict="default", idx_kind="seq"),
+)
+add(
+    "MSCATTERTest.case_elem2d_float_3072x8_last_256size",
+    lambda n: case_elem2d(n, np.float32, 3072, 8, 256, conflict="last", idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_elem2d_float_3072x8_default_24576size",
+    lambda n: case_elem2d(n, np.float32, 3072, 8, 24576, conflict="default", idx_kind="seq"),
+)
+add(
+    "MSCATTERTest.case_elem2d_float_3200x8_last_256size",
+    lambda n: case_elem2d(n, np.float32, 3200, 8, 256, conflict="last", idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_elem2d_float_3200x8_default_25600size",
+    lambda n: case_elem2d(n, np.float32, 3200, 8, 25600, conflict="default", idx_kind="seq"),
+)
+add(
+    "MSCATTERTest.case_elem2d_float_3456x8_last_256size",
+    lambda n: case_elem2d(n, np.float32, 3456, 8, 256, conflict="last", idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_elem2d_float_3456x8_default_27648size",
+    lambda n: case_elem2d(n, np.float32, 3456, 8, 27648, conflict="default", idx_kind="seq"),
+)
 
 
 def case_elem2d_dyn(

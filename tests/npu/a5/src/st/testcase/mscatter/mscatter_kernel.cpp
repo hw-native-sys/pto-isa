@@ -12,9 +12,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/common/constants.hpp>
 #include <pto/npu/a5/MScatter.hpp>
 #include "acl/acl.h"
-#include "mscatter_common.h"
 
-using namespace std;
 using namespace pto;
 
 __global__ AICORE __attribute__((aiv)) void mscatter_warmup_kernel()
@@ -534,6 +532,19 @@ inline AICORE void runElem2DChunked(__gm__ T __out__ *out, __gm__ T __in__ *src,
         runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T *>(out), reinterpret_cast<T *>(src), indices);  \
     }
 
+#define DEFINE_ELEM2D_DYN_UB(NAME, THOST, T, TIDX, R, C, TS, DYN_UB_BYTES, ATOMIC, OOB, CONFLICT)                    \
+    extern "C" __global__ AICORE void runMSCATTER_##NAME(__gm__ T *out, __gm__ T *src, __gm__ TIDX *indices)         \
+    {                                                                                                                \
+        runElem2D<pto::ScatterAtomicOp::ATOMIC, pto::ScatterOOB::OOB, pto::ScatterConflict::CONFLICT, T, TIDX, R, C, \
+                  TS>(out, src, indices);                                                                            \
+    }                                                                                                                \
+    void Launch_##NAME(THOST *out, THOST *src, TIDX *indices, void *stream)                                          \
+    {                                                                                                                \
+        mscatter_warmup_kernel<<<64, nullptr, stream>>>();                                                           \
+        runMSCATTER_##NAME<<<1, (uint32_t)DYN_UB_BYTES, stream>>>(reinterpret_cast<T *>(out),                        \
+                                                                  reinterpret_cast<T *>(src), indices);              \
+    }
+
 DEFINE_ROW(row_float_random_8x32_64rows, float, float, int32_t, 8, 32, 64, None, Undefined, Last)
 DEFINE_ROW(row_float_same_8x32_16rows, float, float, int32_t, 8, 32, 16, None, Undefined, Last)
 DEFINE_ROW(row_half_random_16x64_64rows, aclFloat16, half, int32_t, 16, 64, 64, None, Undefined, Last)
@@ -587,6 +598,31 @@ DEFINE_ROW_PAD(row_int32_unaligned_9x16_16rows, int32_t, int32_t, int32_t, 9, 16
 DEFINE_ELEM2D_CHUNKED(elem2d_float_2048x8_last_256size, float, float, int32_t, 2048, 8, 128, 256, None, Undefined, Last)
 DEFINE_ELEM2D_CHUNKED(elem2d_float_2048x8_default_16384size, float, float, int32_t, 2048, 8, 128, 16384, None,
                       Undefined, Default)
+
+DEFINE_ELEM2D_DYN_UB(elem2d_float_2304x8_last_256size, float, float, int32_t, 2304, 8, 256, (2304 * 8 * 8), None,
+                     Undefined, Last)
+DEFINE_ELEM2D_DYN_UB(elem2d_float_2304x8_default_18432size, float, float, int32_t, 2304, 8, 18432, (2304 * 8 * 8), None,
+                     Undefined, Default)
+DEFINE_ELEM2D_DYN_UB(elem2d_float_2560x8_last_256size, float, float, int32_t, 2560, 8, 256, (2560 * 8 * 8), None,
+                     Undefined, Last)
+DEFINE_ELEM2D_DYN_UB(elem2d_float_2560x8_default_20480size, float, float, int32_t, 2560, 8, 20480, (2560 * 8 * 8), None,
+                     Undefined, Default)
+DEFINE_ELEM2D_DYN_UB(elem2d_float_2816x8_last_256size, float, float, int32_t, 2816, 8, 256, (2816 * 8 * 8), None,
+                     Undefined, Last)
+DEFINE_ELEM2D_DYN_UB(elem2d_float_2816x8_default_22528size, float, float, int32_t, 2816, 8, 22528, (2816 * 8 * 8), None,
+                     Undefined, Default)
+DEFINE_ELEM2D_DYN_UB(elem2d_float_3072x8_last_256size, float, float, int32_t, 3072, 8, 256, (3072 * 8 * 8), None,
+                     Undefined, Last)
+DEFINE_ELEM2D_DYN_UB(elem2d_float_3072x8_default_24576size, float, float, int32_t, 3072, 8, 24576, (3072 * 8 * 8), None,
+                     Undefined, Default)
+DEFINE_ELEM2D_DYN_UB(elem2d_float_3200x8_last_256size, float, float, int32_t, 3200, 8, 256, (3200 * 8 * 8), None,
+                     Undefined, Last)
+DEFINE_ELEM2D_DYN_UB(elem2d_float_3200x8_default_25600size, float, float, int32_t, 3200, 8, 25600, (3200 * 8 * 8), None,
+                     Undefined, Default)
+DEFINE_ELEM2D_DYN_UB(elem2d_float_3456x8_last_256size, float, float, int32_t, 3456, 8, 256, (3456 * 8 * 8), None,
+                     Undefined, Last)
+DEFINE_ELEM2D_DYN_UB(elem2d_float_3456x8_default_27648size, float, float, int32_t, 3456, 8, 27648, (3456 * 8 * 8), None,
+                     Undefined, Default)
 
 DEFINE_ELEM2D_DYN(elem2d_dyn_user_float_1x9_in_1x16_3x10, float, float, int32_t, 1, 16, 1, 9, 3, 10, None, Skip, Last)
 DEFINE_ELEM2D_DYN(elem2d_dyn_int32_4x8_in_4x8_64size, int32_t, int32_t, int32_t, 4, 8, 4, 8, 8, 8, None, Undefined,
