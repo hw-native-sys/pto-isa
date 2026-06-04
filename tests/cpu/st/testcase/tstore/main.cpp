@@ -119,20 +119,20 @@ TEST_F(TStoreTest, DN_int8_t_2_1_2_32_32_3_4_3_64_35)
     test_tstore<1, int8_t, 2, 1, 2, 32, 32, 3, 4, 3, 64, 35>();
 }
 
-// TEST_F(TStoreTest, NZ_float_1_1_1_16_8_1_1_2_16_8)
-// {
-//     test_tstore<2, float, 1, 1, 1, 16, 8, 1, 1, 2, 16, 8>();
-// }
+TEST_F(TStoreTest, NZ_float_1_1_1_16_8_1_1_2_16_8)
+{
+    test_tstore<2, float, 1, 1, 1, 16, 8, 1, 1, 2, 16, 8>();
+}
 
-// TEST_F(TStoreTest, NZ_int16_t_2_2_2_16_16_5_3_3_16_16)
-// {
-//     test_tstore<2, int16_t, 2, 2, 2, 16, 16, 5, 3, 3, 16, 16>();
-// }
+TEST_F(TStoreTest, NZ_int16_t_2_2_2_16_16_5_3_3_16_16)
+{
+    test_tstore<2, int16_t, 2, 2, 2, 16, 16, 5, 3, 3, 16, 16>();
+}
 
-// TEST_F(TStoreTest, NZ_int8_t_1_2_1_16_32_2_4_2_16_32)
-// {
-//     test_tstore<2, int8_t, 1, 2, 1, 16, 32, 2, 4, 2, 16, 32>();
-// }
+TEST_F(TStoreTest, NZ_int8_t_1_2_1_16_32_2_4_2_16_32)
+{
+    test_tstore<2, int8_t, 1, 2, 1, 16, 32, 2, 4, 2, 16, 32>();
+}
 
 TEST_F(TStoreTest, ND_int64_1_1_1_2_128_1_1_1_2_128)
 {

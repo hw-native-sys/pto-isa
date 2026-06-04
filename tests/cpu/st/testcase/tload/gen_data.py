@@ -27,6 +27,9 @@ if __name__ == "__main__":
         "TLOADTest.case_float_GT_32_64_128_VT_64_128_BLK32_DYN", 
         "TLOADTest.case_float_GT_32_64_128_VT_64_128_BLK32_STC", 
         "TLOADTest.case_float_GT_2_2_2_256_60_VT_256_64_BLK8_PADMAX", 
+        "TLOADTest.case_NZ_float_1_1_1_16_8_1_1_2_16_8",
+        "TLOADTest.case_NZ_int16_t_2_2_2_16_16_5_3_3_16_16",
+        "TLOADTest.case_NZ_int8_t_1_2_1_16_32_2_4_2_16_32",
     ]
     
     for i, case_name in enumerate(case_name_list):

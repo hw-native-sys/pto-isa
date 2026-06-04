@@ -95,6 +95,42 @@ AICORE __inline__ auto getGlobalTensor(__gm__ T *addr, int gShape0, int gShape1,
     }
 }
 
+template <typename T, int shape0, int shape1, int shape2, int shape3, int shape4, int tRows, int tCols, BLayout major,
+          int dyn>
+AICORE __inline__ auto getGlobalTensorNZ(__gm__ T *addr, int gShape0, int gShape1, int gShape2, int gShape3,
+                                         int gShape4)
+{
+    constexpr int blockSize = 32 / sizeof(T);
+    constexpr int innerCols = blockSize;
+    constexpr int innerRows = 16;
+
+    if constexpr (dyn) {
+        int stride0 = gShape1 * gShape2 * innerRows * innerCols;
+        int stride1 = gShape2 * innerRows * innerCols;
+        int stride2 = innerRows * innerCols;
+
+        using DynShapeDim5 = Shape<-1, -1, -1, -1, -1>;
+        DynShapeDim5 dynShape(gShape0, gShape1, gShape2, innerRows, innerCols);
+        using DynStrideDim5 = pto::Stride<-1, -1, -1, -1, -1>;
+        using GlobalData = GlobalTensor<T, DynShapeDim5, DynStrideDim5, Layout::NZ>;
+
+        GlobalData srcGlobal(addr, dynShape, DynStrideDim5(stride0, stride1, stride2, innerCols, 1));
+        return srcGlobal;
+    } else // static
+    {
+        constexpr int stride0 = shape1 * shape2 * innerRows * innerCols;
+        constexpr int stride1 = shape2 * innerRows * innerCols;
+        constexpr int stride2 = innerRows * innerCols;
+
+        using StaticShapeDim5 = Shape<shape0, shape1, shape2, innerRows, innerCols>;
+        using StaticStrideDim5 = pto::Stride<stride0, stride1, stride2, innerCols, 1>;
+        using GlobalData = GlobalTensor<T, StaticShapeDim5, StaticStrideDim5, Layout::NZ>;
+
+        GlobalData srcGlobal(addr);
+        return srcGlobal;
+    }
+}
+
 #define type_32_aligned(T) (32 / sizeof(T))
 #define align_to_32B(x, T) ((((x) + type_32_aligned(T) - 1) / type_32_aligned(T)) * (type_32_aligned(T)))
 
@@ -134,6 +170,31 @@ AICORE void runTLOADDN(__gm__ T *out, __gm__ T *src, int gShape0, int gShape1, i
     auto srcGlobal =
         getGlobalTensor<T, shape0, shape1, shape2, shape3, kGTCols, shape3, kGTCols, BLayout::RowMajor, dyn_>(
             src, gShape0, gShape1, gShape2, shape3, kGTCols);
+
+    TASSIGN(vecTile, 0);
+
+    TLOAD(vecTile, srcGlobal);
+    for (size_t i = 0; i < TileData::Rows * TileData::Cols; i++) {
+        out[i] = vecTile.data()[i];
+    }
+}
+
+template <typename T, int shape0, int shape1, int shape2, int shape3, int shape4, int kTRows_, int kTCols_, int dyn_,
+          PadValue PadVal_ = PadValue::Null>
+AICORE void runTLOADNZ(__gm__ T *out, __gm__ T *src, int gShape0, int gShape1, int gShape2, int gRows, int gCols,
+                       __gm__ uint64_t *gLog)
+{
+    constexpr int Rows = shape2 * shape3;
+    constexpr int Cols = shape0 * shape1 * shape4;
+    constexpr int blockSize = 32 / sizeof(T);
+    constexpr int alignedCols = (Cols + blockSize - 1) / blockSize * blockSize;
+
+    using TileData =
+        Tile<TileType::Vec, T, Rows, alignedCols, BLayout::ColMajor, -1, -1, SLayout::RowMajor, 512, PadVal_>;
+    TileData vecTile(Rows, Cols);
+    auto srcGlobal =
+        getGlobalTensorNZ<T, shape0, shape1, shape2, shape3, shape4, Rows, alignedCols, BLayout::RowMajor, dyn_>(
+            src, gShape0, gShape1, gShape2, shape3, shape4);
 
     TASSIGN(vecTile, 0);
 
@@ -213,6 +274,27 @@ extern "C" __global__ AICORE void launchTLOAD_10(__gm__ uint8_t *out, __gm__ uin
                                                                     gShape1, gShape2, gRows, gCols, gLog);
 }
 
+extern "C" __global__ AICORE void launchTLOAD_11(__gm__ uint8_t *out, __gm__ uint8_t *src, int gShape0, int gShape1,
+                                                 int gShape2, int gRows, int gCols, __gm__ uint64_t *gLog)
+{
+    runTLOADNZ<float, 1, 1, 1, 16, 8, 16, 8, 1, PadValue::Null>((__gm__ float *)out, (__gm__ float *)src, gShape0,
+                                                                gShape1, gShape2, gRows, gCols, gLog);
+}
+
+extern "C" __global__ AICORE void launchTLOAD_12(__gm__ uint8_t *out, __gm__ uint8_t *src, int gShape0, int gShape1,
+                                                 int gShape2, int gRows, int gCols, __gm__ uint64_t *gLog)
+{
+    runTLOADNZ<int16_t, 2, 2, 2, 16, 16, 16, 16, 1, PadValue::Null>((__gm__ int16_t *)out, (__gm__ int16_t *)src,
+                                                                    gShape0, gShape1, gShape2, gRows, gCols, gLog);
+}
+
+extern "C" __global__ AICORE void launchTLOAD_13(__gm__ uint8_t *out, __gm__ uint8_t *src, int gShape0, int gShape1,
+                                                 int gShape2, int gRows, int gCols, __gm__ uint64_t *gLog)
+{
+    runTLOADNZ<uint8_t, 1, 2, 1, 16, 32, 16, 32, 1, PadValue::Null>((__gm__ uint8_t *)out, (__gm__ uint8_t *)src,
+                                                                    gShape0, gShape1, gShape2, gRows, gCols, gLog);
+}
+
 template <int32_t testKey>
 void launchTLOAD(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream)
 {
@@ -236,6 +318,12 @@ void launchTLOAD(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream)
         launchTLOAD_9(out, src, 1, 1, 32, 64, 128, gLog);
     } else if constexpr (testKey == 10) {
         launchTLOAD_10(out, src, 2, 2, 2, 255, 64, gLog);
+    } else if constexpr (testKey == 11) {
+        launchTLOAD_11(out, src, 1, 1, 1, 16, 8, gLog);
+    } else if constexpr (testKey == 12) {
+        launchTLOAD_12(out, src, 2, 2, 2, 16, 16, gLog);
+    } else if constexpr (testKey == 13) {
+        launchTLOAD_13(out, src, 1, 2, 1, 16, 32, gLog);
     }
 }
 
@@ -279,7 +367,7 @@ int get_input_golden_case(uint8_t *input, uint8_t *golden)
                             }
                         }
                     } // j
-                }     // i
+                } // i
 
     std::copy((uint8_t *)in_arr, ((uint8_t *)(in_arr)) + in_byteSize, input);
     std::copy((uint8_t *)gold_arr, ((uint8_t *)(gold_arr)) + out_byteSize, golden);
@@ -326,7 +414,7 @@ int get_input_golden_case_DN(uint8_t *input, uint8_t *golden)
                             }
                         }
                     } // j
-                }     // i
+                } // i
 
     std::copy((uint8_t *)in_arr, ((uint8_t *)(in_arr)) + in_byteSize, input);
     std::copy((uint8_t *)gold_arr, ((uint8_t *)(gold_arr)) + out_byteSize, golden);
@@ -356,8 +444,13 @@ int get_input_golden(uint8_t *input, uint8_t *golden)
         return get_input_golden_case_DN<float, 1, 1, 32, 64, 128, 64, 128, PadValue::Null>(input, golden);
     } else if constexpr (testKey == 10) {
         return get_input_golden_case_DN<float, 2, 2, 2, 255, 64, 256, 64, PadValue::Null>(input, golden);
+    } else if constexpr (testKey == 11) {
+        return get_input_golden_case<float, 1, 1, 1, 16, 8, 16, 8, PadValue::Null>(input, golden);
+    } else if constexpr (testKey == 12) {
+        return get_input_golden_case<int16_t, 2, 2, 2, 16, 16, 16, 16, PadValue::Null>(input, golden);
+    } else if constexpr (testKey == 13) {
+        return get_input_golden_case<uint8_t, 1, 2, 1, 16, 32, 16, 32, PadValue::Null>(input, golden);
     }
-
     return 0;
 }
 
@@ -371,6 +464,9 @@ template void launchTLOAD<7>(uint8_t *out, uint8_t *src, uint64_t *gLog, void *s
 template void launchTLOAD<8>(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream); // 实例化 Key=0 的版本
 template void launchTLOAD<9>(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream);
 template void launchTLOAD<10>(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream);
+template void launchTLOAD<11>(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream);
+template void launchTLOAD<12>(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream);
+template void launchTLOAD<13>(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream);
 
 template int get_input_golden<1>(uint8_t *input, uint8_t *golden);
 template int get_input_golden<2>(uint8_t *input, uint8_t *golden);
@@ -382,3 +478,6 @@ template int get_input_golden<7>(uint8_t *input, uint8_t *golden);
 template int get_input_golden<8>(uint8_t *input, uint8_t *golden);
 template int get_input_golden<9>(uint8_t *input, uint8_t *golden);
 template int get_input_golden<10>(uint8_t *input, uint8_t *golden);
+template int get_input_golden<11>(uint8_t *input, uint8_t *golden);
+template int get_input_golden<12>(uint8_t *input, uint8_t *golden);
+template int get_input_golden<13>(uint8_t *input, uint8_t *golden);

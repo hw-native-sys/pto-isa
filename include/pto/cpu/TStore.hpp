@@ -15,6 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <cassert>
 #include "pto/cpu/parallel.hpp"
 #include "common.hpp"
+#include "nz_utils.hpp"
 
 namespace pto {
 
@@ -123,17 +124,7 @@ __tf__ PTO_INLINE void StoreSubfractalMatrix(typename GlobalData::DType __out__ 
                 size_t tile_idx = GetTileElementOffsetSubfractals<TileData>(subTileR, innerR, subTileC, innerC);
 
                 size_t gd_idx = r * static_cast<std::size_t>(gStride3) + c * static_cast<std::size_t>(gStride4);
-                if constexpr (quantMode != QuantModeCPU_t::NoQuant) {
-                    size_t scalarIndex = TileData::isRowMajor ? c : r;
-                    uint64_t scalar = scalars[scalarIndex];
-                    dst[gd_idx] = quantize_element<D, S, quantMode, applyRelu>(src[tile_idx], scalar);
-                } else {
-                    S val = src[tile_idx];
-                    if constexpr (applyRelu) {
-                        val = ReLU(val);
-                    }
-                    dst[gd_idx] = static_cast<D>(val);
-                }
+                StoreElement<D, S, TileData, quantMode, applyRelu>(dst, gd_idx, src[tile_idx], r, c, scalars);
             }
         });
 }
@@ -144,8 +135,20 @@ __tf__ PTO_INLINE void TStore(typename GlobalData::DType __out__ *dst, typename 
                               int gShape4, int gStride0, int gStride1, int gStride2, int gStride3, int gStride4,
                               int validRow, int validCol)
 {
-    assert(gShape0 * gShape1 * gShape2 * gShape3 * gShape4 >= validRow * validCol);
-    if (TileData::SFractal == SLayout::NoneBox) {
+    if constexpr (GlobalData::layout == pto::Layout::NZ) {
+        assert(validRow == gShape2 * gShape3 && validCol == gShape0 * gShape1 * gShape4);
+    } else {
+        assert(gShape0 * gShape1 * gShape2 * gShape3 * gShape4 >= validRow * validCol);
+    }
+    if constexpr (GlobalData::layout == pto::Layout::NZ) {
+        using D = typename GlobalData::DType;
+        using S = typename TileData::DType;
+        ForEachNZElement<TileData>(validRow, validCol, gShape1, gShape3, gShape4, gStride0, gStride1, gStride2,
+                                   gStride3, gStride4, [&](size_t r, size_t c, size_t tile_idx, size_t gd_idx) {
+                                       StoreElement<D, S, TileData, quantMode, applyRelu>(dst, gd_idx, src[tile_idx], r,
+                                                                                          c, scalars);
+                                   });
+    } else if (TileData::SFractal == SLayout::NoneBox) {
         StorePlain<GlobalData, TileData, quantMode, applyRelu>(dst, src, scalars, gShape0, gShape1, gShape2, gShape3,
                                                                gShape4, gStride0, gStride1, gStride2, gStride3,
                                                                gStride4, validRow, validCol);
@@ -159,8 +162,9 @@ __tf__ PTO_INLINE void TStore(typename GlobalData::DType __out__ *dst, typename 
 template <typename TileData, typename GlobalData, QuantModeCPU_t quantMode, bool applyRelu>
 PTO_INTERNAL void TSTORE_IMPL(GlobalData &dst, TileData &src, const std::vector<uint64_t> &scalars = {})
 {
-    static_assert(GlobalData::layout == pto::Layout::ND || GlobalData::layout == pto::Layout::DN,
-                  "Only ND and DN GLobal Tensors are currently supported");
+    static_assert(GlobalData::layout == pto::Layout::ND || GlobalData::layout == pto::Layout::DN ||
+                      GlobalData::layout == pto::Layout::NZ,
+                  "Only ND, DN and NZ GLobal Tensors are currently supported");
     TStore<GlobalData, TileData, quantMode, applyRelu>(
         dst.data(), src.data(), scalars, dst.GetShape(pto::GlobalTensorDim::DIM_0),
         dst.GetShape(pto::GlobalTensorDim::DIM_1), dst.GetShape(pto::GlobalTensorDim::DIM_2),
