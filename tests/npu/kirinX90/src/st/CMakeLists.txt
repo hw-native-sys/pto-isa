@@ -71,7 +71,7 @@ add_link_options(
 )
 if (SOC_VERSION STREQUAL "KirinX90")
     set(CCE_AICORE_ARCH dav-l300)
-    add_compile_definitions(PTO_TEST_KIRINX90 __NPU_ARCH__=3003)
+    add_compile_definitions(PTO_TEST_KIRINX90)
 endif()
 
 if(RUN_MODE STREQUAL "npu")

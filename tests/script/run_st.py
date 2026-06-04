@@ -313,13 +313,11 @@ def main():
             target_dir = target_dir + "/npu/a2a3/comm/st"
         elif args.soc_version == "a3":
             target_dir = target_dir + "/npu/a2a3/src/st"
-        elif args.soc_version == "a6":
-            target_dir = target_dir + "/npu/a6/src/st"
-        elif args.soc_version == "kirin9030":  # kirin9030 与 kirinX90 共享代码
+        elif args.soc_version == "kirin9030": # kirin9030 与 kirinX90 共享代码
             target_dir = target_dir + "/npu/kirin9030/src/st"
         elif args.soc_version == "kirinX90":
             target_dir = target_dir + "/npu/kirinX90/src/st"
-        else:  # a5
+        else : # a5
             target_dir = target_dir + "/npu/a5/src/st"
 
         print(f"target_dir: {target_dir}")

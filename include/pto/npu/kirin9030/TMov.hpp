@@ -142,8 +142,8 @@ __tf__ PTO_INTERNAL void TMovCcToCb(typename DstTile::TileDType __out__ dst, typ
 
 template <typename DstTile, typename SrcTile, AccToVecMode mode, QuantMode_t quantPre, ReluPreMode reluMode,
           STPhase Phase = STPhase::Unspecified>
-__tf__ AICORE void TMovCcToUb(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src,
-                              uint16_t validRow, uint16_t validCol)
+__tf__ PTO_INTERNAL void TMovCcToUb(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src,
+                                    uint16_t validRow, uint16_t validCol)
 {
     using dstType = typename DstTile::DType;
     using srcType = typename SrcTile::DType;

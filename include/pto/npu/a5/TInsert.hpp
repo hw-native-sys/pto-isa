@@ -344,12 +344,12 @@ __tf__ PTO_INTERNAL void TInsertVecToVecNDImpl(typename DstTileData::TileDType _
 
     if (validCol == srcRowStride && validCol == dstRowStride && totalBytes >= BLOCK_BYTE_SIZE) {
         uint16_t burstLen = static_cast<uint16_t>(totalBytes / BLOCK_BYTE_SIZE);
-        copy_ubuf_to_ubuf((__ubuf__ void *)dstStart, (__ubuf__ void *)srcAddr, 0, 1, burstLen, 0, 0);
+        pto_copy_ubuf_to_ubuf((__ubuf__ void *)dstStart, (__ubuf__ void *)srcAddr, 1, burstLen, 0, 0);
     } else {
         uint16_t srcGap = static_cast<uint16_t>((srcRowStride - validCol) * sizeof(T) / BLOCK_BYTE_SIZE);
         uint16_t dstGap = static_cast<uint16_t>((dstRowStride - validCol) * sizeof(T) / BLOCK_BYTE_SIZE);
-        copy_ubuf_to_ubuf((__ubuf__ void *)dstStart, (__ubuf__ void *)srcAddr, 0, validRow, rowBurstLen, srcGap,
-                          dstGap);
+        pto_copy_ubuf_to_ubuf((__ubuf__ void *)dstStart, (__ubuf__ void *)srcAddr, validRow, rowBurstLen, srcGap,
+                              dstGap);
     }
 }
 
