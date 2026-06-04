@@ -52,7 +52,7 @@ PTO_INTERNAL void LoadSrc(RegTensor<dstType> &reg_dst, __ubuf__ srcType *&srcPtr
         } else {
             vlds(reg_src, srcPtr, rowNum * srcStride + repeatNum * dstElementsPerRepeat, UNPK_B16);
         }
-        vcvt(reg_dst, reg_src, pregSrc, PART_EVEN);
+        vcvt(reg_dst, reg_src, preg, PART_EVEN);
     }
 }
 
@@ -76,13 +76,15 @@ PTO_INTERNAL void TDeQuantImpl(__ubuf__ dstType __out__ *dstPtr, __ubuf__ srcTyp
     __VEC_SCOPE__
     {
         RegTensor<dstType> reg_dst, reg_scale, reg_offset;
-        MaskReg preg = CreatePredicate<dstType>(validCols);
+        MaskReg preg;
         uint32_t lenSrc = srcElementsPerRepeat;
         MaskReg pregSrc = CreatePredicate<srcType>(lenSrc);
 
         for (uint16_t i = 0; i < (uint16_t)validRows; i++) {
+            uint32_t sReg = (uint32_t)validCols;
             LoadScaleOffset<dstType, paraStride, postUpdate>(reg_scale, reg_offset, scalePtr, offsetPtr, i);
             for (uint16_t j = 0; j < repeatTimes; j++) {
+                preg = CreatePredicate<dstType>(sReg);
                 LoadSrc<dstType, srcType, srcStride, postUpdate>(reg_dst, srcPtr, i, j, preg, pregSrc);
                 vsub(reg_dst, reg_dst, reg_offset, preg, MODE_ZEROING);
                 vmul(reg_dst, reg_dst, reg_scale, preg, MODE_ZEROING);

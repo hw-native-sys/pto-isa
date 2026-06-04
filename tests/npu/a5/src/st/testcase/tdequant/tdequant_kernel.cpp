@@ -18,6 +18,7 @@ template <typename dstType, typename srcType, int kTRows_, int kTCols_, int vRow
 __global__ AICORE void runTDeuant(__gm__ dstType __out__ *out, __gm__ srcType __in__ *src, __gm__ dstType __in__ *scale,
                                   __gm__ dstType __in__ *offset)
 {
+    constexpr unsigned paraRow = (kTRows_ * sizeof(dstType) + 31) / 32 * 32 / sizeof(dstType);
     using DynShapeDim5 = Shape<1, 1, 1, -1, -1>;
     using DynStridDim5 = pto::Stride<1, 1, -1, -1, 1>;
     using dstGlobalData = GlobalTensor<dstType, DynShapeDim5, DynStridDim5>;
@@ -25,7 +26,7 @@ __global__ AICORE void runTDeuant(__gm__ dstType __out__ *out, __gm__ srcType __
     using paraGlobalData = GlobalTensor<dstType, DynShapeDim5, DynStridDim5, Layout::DN>;
     using srcTileData = Tile<TileType::Vec, srcType, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>;
     using dstTileData = Tile<TileType::Vec, dstType, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>;
-    using paraTileData = Tile<TileType::Vec, dstType, kTRows_, 1, BLayout::ColMajor>;
+    using paraTileData = Tile<TileType::Vec, dstType, paraRow, 1, BLayout::ColMajor, vRows, 1>;
 
     srcGlobalData srcGlobal(src, DynShapeDim5(vRows, vCols), DynStridDim5(kTRows_, kTCols_));
     dstGlobalData dstGlobal(out, DynShapeDim5(vRows, vCols), DynStridDim5(kTRows_, kTCols_));
@@ -38,7 +39,7 @@ __global__ AICORE void runTDeuant(__gm__ dstType __out__ *out, __gm__ srcType __
     TASSIGN(srcTile, 0x0);
     TASSIGN(dstTile, kTRows_ * kTCols_ * sizeof(srcType));
     TASSIGN(scaleTile, kTRows_ * kTCols_ * (sizeof(srcType) + sizeof(dstType)));
-    TASSIGN(offsetTile, kTRows_ * kTCols_ * (sizeof(srcType) + sizeof(dstType)) + kTRows_ * sizeof(dstType));
+    TASSIGN(offsetTile, paraRow * kTCols_ * (sizeof(srcType) + sizeof(dstType)) + paraRow * sizeof(dstType));
 
     TLOAD(srcTile, srcGlobal);
     TLOAD(scaleTile, scaleGlobal);
@@ -74,3 +75,5 @@ template void launchTDequant<float, int8_t, 128, 128, 64, 64>(float *out, int8_t
                                                               void *stream);
 template void launchTDequant<float, int8_t, 128, 128, 63, 63>(float *out, int8_t *src, float *scale, float *offset,
                                                               void *stream);
+template void launchTDequant<float, int16_t, 51, 112, 51, 112>(float *out, int16_t *src, float *scale, float *offset,
+                                                               void *stream);

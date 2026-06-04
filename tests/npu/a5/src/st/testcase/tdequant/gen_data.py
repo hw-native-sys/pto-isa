@@ -64,7 +64,8 @@ if __name__ == "__main__":
         TDequantParams("TDEQUANTTest.case3", np.int16, np.float32, False, 128, 128, 63, 63),
         TDequantParams("TDEQUANTTest.case4", np.int8, np.float32, True, 64, 64, 64, 64),
         TDequantParams("TDEQUANTTest.case5", np.int8, np.float32, False, 128, 128, 64, 64),
-        TDequantParams("TDEQUANTTest.case6", np.int8, np.float32, False, 128, 128, 63, 63)
+        TDequantParams("TDEQUANTTest.case6", np.int8, np.float32, False, 128, 128, 63, 63),
+        TDequantParams("TDEQUANTTest.case7", np.int16, np.float32, True, 51, 112, 51, 112),
     ]
 
     for _, case in enumerate(case_params_list):
