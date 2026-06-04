@@ -191,3 +191,18 @@ TEST_F(TLOADTest, case_float_GT_1_1_8_8_1_VT_64_1_BLK1_DN_FLAT_ROWS)
 {
     tload_test<11, float, 1>();
 }
+
+TEST_F(TLOADTest, case_NZ_float_1_1_1_16_8_1_1_2_16_8)
+{
+    tload_test<12, float, 1>();
+}
+
+TEST_F(TLOADTest, case_NZ_int16_t_2_2_2_16_16_5_3_3_16_16)
+{
+    tload_test<13, int16_t, 1>();
+}
+
+TEST_F(TLOADTest, case_NZ_int8_t_1_2_1_16_32_2_4_2_16_32)
+{
+    tload_test<14, uint8_t, 1>();
+}

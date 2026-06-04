@@ -160,6 +160,30 @@ DstType quantize_element(SrcType src_val, uint64_t scalar)
     return static_cast<DstType>(result_f);
 }
 
+template <typename D, typename S, QuantModeCPU_t quantMode, bool applyRelu>
+PTO_INLINE D ConvertStoreValue(S value, uint64_t scalar)
+{
+    if constexpr (quantMode != QuantModeCPU_t::NoQuant) {
+        return quantize_element<D, S, quantMode, applyRelu>(value, scalar);
+    } else {
+        if constexpr (applyRelu) {
+            value = ReLU(value);
+        }
+        return static_cast<D>(value);
+    }
+}
+
+template <typename D, typename S, typename TileData, QuantModeCPU_t quantMode, bool applyRelu>
+PTO_INLINE void StoreElement(D *dst, size_t dstIdx, S value, size_t r, size_t c, const std::vector<uint64_t> &scalars)
+{
+    size_t scalarIndex = TileData::isRowMajor ? c : r;
+    uint64_t scalar = 0;
+    if constexpr (quantMode != QuantModeCPU_t::NoQuant) {
+        scalar = scalars[scalarIndex];
+    }
+    dst[dstIdx] = ConvertStoreValue<D, S, quantMode, applyRelu>(value, scalar);
+}
+
 } // namespace pto
 
 #endif

@@ -14,6 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <unistd.h>
 #include <cassert>
 #include "pto/cpu/parallel.hpp"
+#include "nz_utils.hpp"
 
 namespace pto {
 template <typename TileData>
@@ -185,21 +186,30 @@ __tf__ AICORE void TLoad(typename TileData::TileDType __out__ dst, typename Glob
                          int gShape1, int gShape2, int gShape3, int gShape4, int gStride0, int gStride1, int gStride2,
                          int gStride3, int gStride4, int validRow, int validCol)
 {
-    const bool isFlattenRowsColMajor =
-        !TileData::isRowMajor &&
-        static_cast<int64_t>(gShape0) * gShape1 * gShape2 * static_cast<int64_t>(gShape3) == validRow &&
-        gShape4 == validCol;
-    assert((static_cast<int64_t>(gShape0) * gShape1 * gShape2 * gShape3 == validRow && gShape4 == validCol &&
-            TileData::isRowMajor) ||
-           (static_cast<int64_t>(gShape0) * gShape1 * gShape2 * gShape4 == validCol && gShape3 == validRow &&
-            !TileData::isRowMajor) ||
-           isFlattenRowsColMajor);
+    if constexpr (GlobalData::layout == pto::Layout::NZ) {
+        assert(validRow == gShape2 * gShape3 && validCol == gShape1 * gShape4);
+    } else {
+        const bool isFlattenRowsColMajor =
+            !TileData::isRowMajor &&
+            static_cast<int64_t>(gShape0) * gShape1 * gShape2 * static_cast<int64_t>(gShape3) == validRow &&
+            gShape4 == validCol;
+        assert((static_cast<int64_t>(gShape0) * gShape1 * gShape2 * gShape3 == validRow && gShape4 == validCol &&
+                TileData::isRowMajor) ||
+               (static_cast<int64_t>(gShape0) * gShape1 * gShape2 * gShape4 == validCol && gShape3 == validRow &&
+                !TileData::isRowMajor) ||
+               isFlattenRowsColMajor);
+    }
 
     // Filling padding
     std::fill(dst, dst + (TileData::Cols * TileData::Rows), getPadValue<TileData>());
 
     // Filling data
-    if (TileData::SFractal == SLayout::NoneBox) {
+    if constexpr (GlobalData::layout == pto::Layout::NZ) {
+        ForEachNZElement<TileData>(validRow, validCol, gShape1, gShape3, gShape4, gStride0, gStride1, gStride2,
+                                   gStride3, gStride4, [&](size_t r, size_t c, size_t tile_idx, size_t gd_idx) {
+                                       dst[tile_idx] = getProperDataPart(src, gd_idx);
+                                   });
+    } else if (TileData::SFractal == SLayout::NoneBox) {
         LoadPlain<GlobalData, TileData>(dst, src, gShape0, gShape1, gShape2, gShape3, gShape4, gStride0, gStride1,
                                         gStride2, gStride3, gStride4, validRow, validCol);
     } else {
@@ -213,8 +223,9 @@ PTO_INTERNAL void TLOAD_TILE_IMPL(TileData &dst, GlobalData &src)
 {
     static_assert(sizeof(typename TileData::DType) == sizeof(typename GlobalData::DType),
                   "Source dtype must be same with dst dtype");
-    static_assert(GlobalData::layout == pto::Layout::ND || GlobalData::layout == pto::Layout::DN,
-                  "Only ND and DN GLobal Tensors are currently supported");
+    static_assert(GlobalData::layout == pto::Layout::ND || GlobalData::layout == pto::Layout::DN ||
+                      GlobalData::layout == pto::Layout::NZ,
+                  "Only ND, DN and NZ GLobal Tensors are currently supported");
     TLoad<TileData, GlobalData>(dst.data(), src.data(), src.GetShape(pto::GlobalTensorDim::DIM_0),
                                 src.GetShape(pto::GlobalTensorDim::DIM_1), src.GetShape(pto::GlobalTensorDim::DIM_2),
                                 src.GetShape(pto::GlobalTensorDim::DIM_3), src.GetShape(pto::GlobalTensorDim::DIM_4),
