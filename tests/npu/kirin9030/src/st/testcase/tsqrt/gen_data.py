@@ -12,6 +12,7 @@
 
 import os
 import numpy as np
+
 np.random.seed(19)
 
 
@@ -30,6 +31,7 @@ def gen_golden_data(param):
     # Save the input and golden data to binary files
     input_arr.tofile("input.bin")
     golden.tofile("golden.bin")
+
 
 class tunaryParams:
     def __init__(self, name, dtype, dst_row, dst_col, src_row, src_col, valid_row, valid_col, in_place=False):
@@ -62,6 +64,13 @@ if __name__ == "__main__":
         tunaryParams("TSQRTTest.case6", np.float32, 64, 64, 128, 128, 32, 32),
         tunaryParams("TSQRTTest.case7", np.float16, 128, 256, 64, 64, 64, 64),
         tunaryParams("TSQRTTest.case8", np.float16, 64, 64, 128, 256, 32, 32),
+        tunaryParams("TSQRTTest.case9", np.float32, 32, 32, 32, 32, 32, 16),
+        tunaryParams("TSQRTTest.case10", np.float16, 32, 32, 32, 32, 32, 16),
+        tunaryParams("TSQRTTest.case11", np.float32, 64, 64, 64, 64, 32, 64),
+        tunaryParams("TSQRTTest.case12", np.float16, 64, 64, 64, 64, 32, 64),
+        tunaryParams("TSQRTTest.case13", np.float32, 128, 128, 128, 128, 64, 64),
+        tunaryParams("TSQRTTest.case14", np.float16, 128, 128, 128, 128, 64, 64),
+        tunaryParams("TSQRTTest.case15", np.float32, 16, 256, 16, 256, 16, 128),
     ]
 
     for _, param in enumerate(case_params_list):

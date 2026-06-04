@@ -155,3 +155,51 @@ TEST_F(TMULTest, case_int32_16x32_16x64_16x32_16x31)
 {
     test_tmul<int32_t, 16, 32, 16, 64, 16, 32, 16, 31>();
 }
+TEST_F(TMULTest, case_uint32_64x64_64x64_64x64_64x64)
+{
+    test_tmul<uint32_t, 64, 64, 64, 64, 64, 64, 64, 64>();
+}
+TEST_F(TMULTest, case_uint32_16x32_16x64_16x32_16x32)
+{
+    test_tmul<uint32_t, 16, 32, 16, 64, 16, 32, 16, 32>();
+}
+TEST_F(TMULTest, case_uint32_16x32_16x64_16x32_16x31)
+{
+    test_tmul<uint32_t, 16, 32, 16, 64, 16, 32, 16, 31>();
+}
+TEST_F(TMULTest, case_uint16_64x64_64x64_64x64_64x64)
+{
+    test_tmul<uint16_t, 64, 64, 64, 64, 64, 64, 64, 64>();
+}
+TEST_F(TMULTest, case_uint16_32x128_32x128_32x256_32x128)
+{
+    test_tmul<uint16_t, 32, 128, 32, 128, 32, 256, 32, 128>();
+}
+TEST_F(TMULTest, case_uint16_32x128_32x128_32x256_32x127)
+{
+    test_tmul<uint16_t, 32, 128, 32, 128, 32, 256, 32, 127>();
+}
+TEST_F(TMULTest, case_float_16x16_16x48_16x16_16x15)
+{
+    test_tmul<float, 16, 16, 16, 48, 16, 16, 16, 15>();
+}
+TEST_F(TMULTest, case_int32_16x16_16x48_16x16_16x15)
+{
+    test_tmul<int32_t, 16, 16, 16, 48, 16, 16, 16, 15>();
+}
+TEST_F(TMULTest, case_uint32_16x16_16x48_16x16_16x15)
+{
+    test_tmul<uint32_t, 16, 16, 16, 48, 16, 16, 16, 15>();
+}
+TEST_F(TMULTest, case_half_16x32_16x96_16x32_16x31)
+{
+    test_tmul<aclFloat16, 16, 32, 16, 96, 16, 32, 16, 31, true>();
+}
+TEST_F(TMULTest, case_int16_16x32_16x96_16x32_16x31)
+{
+    test_tmul<int16_t, 16, 32, 16, 96, 16, 32, 16, 31>();
+}
+TEST_F(TMULTest, case_uint16_16x32_16x96_16x32_16x31)
+{
+    test_tmul<uint16_t, 16, 32, 16, 96, 16, 32, 16, 31>();
+}

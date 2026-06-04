@@ -52,3 +52,12 @@ template void LaunchTNeg<float, 64, 64, 64, 64>(float *out, float *src, void *st
 template void LaunchTNeg<int32_t, 32, 32, 32, 32>(int32_t *out, int32_t *src, void *stream);
 template void LaunchTNeg<aclFloat16, 32, 64, 32, 64>(aclFloat16 *out, aclFloat16 *src, void *stream);
 template void LaunchTNeg<int16_t, 64, 16, 64, 16>(int16_t *out, int16_t *src, void *stream);
+template void LaunchTNeg<uint32_t, 32, 32, 32, 32>(uint32_t *out, uint32_t *src, void *stream);
+template void LaunchTNeg<float, 128, 128, 128, 128>(float *out, float *src, void *stream);
+template void LaunchTNeg<aclFloat16, 128, 128, 128, 128>(aclFloat16 *out, aclFloat16 *src, void *stream);
+template void LaunchTNeg<int32_t, 64, 64, 64, 64>(int32_t *out, int32_t *src, void *stream);
+template void LaunchTNeg<float, 16, 256, 16, 256>(float *out, float *src, void *stream);
+template void LaunchTNeg<aclFloat16, 16, 256, 16, 256>(aclFloat16 *out, aclFloat16 *src, void *stream);
+template void LaunchTNeg<int16_t, 128, 32, 128, 32>(int16_t *out, int16_t *src, void *stream);
+template void LaunchTNeg<uint32_t, 64, 64, 64, 64>(uint32_t *out, uint32_t *src, void *stream);
+template void LaunchTNeg<int32_t, 128, 128, 128, 128>(int32_t *out, int32_t *src, void *stream);

@@ -128,3 +128,43 @@ template void LaunchTSub<int16_t, 32, 128, 32, 128, 32, 256, 32, 127, false>(int
                                                                              void *stream);
 template void LaunchTSub<int32_t, 16, 32, 16, 64, 16, 32, 16, 31, false>(int32_t *out, int32_t *src0, int32_t *src1,
                                                                          void *stream);
+template void LaunchTSub<uint32_t, 64, 64, 64, 64, 64, 64, 64, 64, true>(uint32_t *out, uint32_t *src0, uint32_t *src1,
+                                                                         void *stream);
+template void LaunchTSub<uint32_t, 16, 32, 16, 64, 16, 32, 16, 32, false>(uint32_t *out, uint32_t *src0, uint32_t *src1,
+                                                                          void *stream);
+template void LaunchTSub<uint32_t, 16, 32, 16, 64, 16, 32, 16, 31, false>(uint32_t *out, uint32_t *src0, uint32_t *src1,
+                                                                          void *stream);
+template void LaunchTSub<uint16_t, 64, 64, 64, 64, 64, 64, 64, 64, true>(uint16_t *out, uint16_t *src0, uint16_t *src1,
+                                                                         void *stream);
+template void LaunchTSub<uint16_t, 32, 128, 32, 128, 32, 256, 32, 128, false>(uint16_t *out, uint16_t *src0,
+                                                                              uint16_t *src1, void *stream);
+template void LaunchTSub<uint16_t, 32, 128, 32, 128, 32, 256, 32, 127, false>(uint16_t *out, uint16_t *src0,
+                                                                              uint16_t *src1, void *stream);
+template void LaunchTSub<int8_t, 64, 64, 64, 64, 64, 64, 64, 64, true>(int8_t *out, int8_t *src0, int8_t *src1,
+                                                                       void *stream);
+template void LaunchTSub<int8_t, 32, 256, 32, 256, 32, 512, 32, 256, false>(int8_t *out, int8_t *src0, int8_t *src1,
+                                                                            void *stream);
+template void LaunchTSub<int8_t, 32, 256, 32, 256, 32, 512, 32, 255, false>(int8_t *out, int8_t *src0, int8_t *src1,
+                                                                            void *stream);
+template void LaunchTSub<uint8_t, 64, 64, 64, 64, 64, 64, 64, 64, true>(uint8_t *out, uint8_t *src0, uint8_t *src1,
+                                                                        void *stream);
+template void LaunchTSub<uint8_t, 32, 256, 32, 256, 32, 512, 32, 256, false>(uint8_t *out, uint8_t *src0, uint8_t *src1,
+                                                                             void *stream);
+template void LaunchTSub<uint8_t, 32, 256, 32, 256, 32, 512, 32, 255, false>(uint8_t *out, uint8_t *src0, uint8_t *src1,
+                                                                             void *stream);
+template void LaunchTSub<float, 16, 16, 16, 48, 16, 16, 16, 15, false>(float *out, float *src0, float *src1,
+                                                                       void *stream);
+template void LaunchTSub<int32_t, 16, 16, 16, 48, 16, 16, 16, 15, false>(int32_t *out, int32_t *src0, int32_t *src1,
+                                                                         void *stream);
+template void LaunchTSub<uint32_t, 16, 16, 16, 48, 16, 16, 16, 15, false>(uint32_t *out, uint32_t *src0, uint32_t *src1,
+                                                                          void *stream);
+template void LaunchTSubHalf<16, 32, 16, 96, 16, 32, 16, 31, false>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
+                                                                    void *stream);
+template void LaunchTSub<int16_t, 16, 32, 16, 96, 16, 32, 16, 31, false>(int16_t *out, int16_t *src0, int16_t *src1,
+                                                                         void *stream);
+template void LaunchTSub<uint16_t, 16, 32, 16, 96, 16, 32, 16, 31, false>(uint16_t *out, uint16_t *src0, uint16_t *src1,
+                                                                          void *stream);
+template void LaunchTSub<int8_t, 32, 128, 32, 160, 32, 128, 32, 127, false>(int8_t *out, int8_t *src0, int8_t *src1,
+                                                                            void *stream);
+template void LaunchTSub<uint8_t, 32, 128, 32, 160, 32, 128, 32, 127, false>(uint8_t *out, uint8_t *src0, uint8_t *src1,
+                                                                             void *stream);

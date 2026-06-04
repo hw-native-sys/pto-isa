@@ -57,3 +57,11 @@ template void LaunchTSqrt<float, 128, 128, 64, 64, 64, 64, false>(float *out, fl
 template void LaunchTSqrt<float, 64, 64, 128, 128, 32, 32, false>(float *out, float *src, void *stream);
 template void LaunchTSqrt<aclFloat16, 128, 256, 64, 64, 64, 64, false>(aclFloat16 *out, aclFloat16 *src, void *stream);
 template void LaunchTSqrt<aclFloat16, 64, 64, 128, 256, 32, 32, false>(aclFloat16 *out, aclFloat16 *src, void *stream);
+template void LaunchTSqrt<float, 32, 32, 32, 32, 32, 16, false>(float *out, float *src, void *stream);
+template void LaunchTSqrt<aclFloat16, 32, 32, 32, 32, 32, 16, false>(aclFloat16 *out, aclFloat16 *src, void *stream);
+template void LaunchTSqrt<float, 64, 64, 64, 64, 32, 64, false>(float *out, float *src, void *stream);
+template void LaunchTSqrt<aclFloat16, 64, 64, 64, 64, 32, 64, false>(aclFloat16 *out, aclFloat16 *src, void *stream);
+template void LaunchTSqrt<float, 128, 128, 128, 128, 64, 64, false>(float *out, float *src, void *stream);
+template void LaunchTSqrt<aclFloat16, 128, 128, 128, 128, 64, 64, false>(aclFloat16 *out, aclFloat16 *src,
+                                                                         void *stream);
+template void LaunchTSqrt<float, 16, 256, 16, 256, 16, 128, false>(float *out, float *src, void *stream);

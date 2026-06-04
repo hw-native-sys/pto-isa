@@ -16,7 +16,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 template <typename DstTile, typename SrcTile>
-__tf__ AICORE void TMovToBt(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src)
+__tf__ PTO_INTERNAL void TMovToBt(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src)
 {
     using DstType = typename DstTile::DType;
     using SrcType = typename SrcTile::DType;
@@ -45,7 +45,7 @@ __tf__ AICORE void TMovToBt(typename DstTile::TileDType __out__ dst, typename Sr
 }
 
 template <typename DstTile, typename SrcTile>
-__tf__ AICORE void TMovToFb(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src)
+__tf__ PTO_INTERNAL void TMovToFb(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src)
 {
     using SrcType = typename SrcTile::DType;
     using DstType = typename DstTile::DType;
@@ -97,8 +97,8 @@ PTO_INTERNAL constexpr uint32_t GetTmovAccDstStride()
 }
 
 template <typename DstTile, typename SrcTile, QuantMode_t QuantPre, ReluPreMode reluMode>
-__tf__ AICORE void TMovCcToCb(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src,
-                              uint16_t validRow, uint16_t validCol)
+__tf__ PTO_INTERNAL void TMovCcToCb(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src,
+                                    uint16_t validRow, uint16_t validCol)
 {
     using dstType = typename DstTile::DType;
     using srcType = typename SrcTile::DType;
@@ -142,8 +142,8 @@ __tf__ AICORE void TMovCcToCb(typename DstTile::TileDType __out__ dst, typename 
 
 template <typename DstTile, typename SrcTile, AccToVecMode mode, QuantMode_t quantPre, ReluPreMode reluMode,
           STPhase Phase = STPhase::Unspecified>
-__tf__ AICORE void TMovCcToUb(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src,
-                              uint16_t validRow, uint16_t validCol)
+__tf__ PTO_INTERNAL void TMovCcToUb(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src,
+                                    uint16_t validRow, uint16_t validCol)
 {
     using dstType = typename DstTile::DType;
     using srcType = typename SrcTile::DType;

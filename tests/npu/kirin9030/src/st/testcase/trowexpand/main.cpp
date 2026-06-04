@@ -111,4 +111,44 @@ TEST_F(TROWEXPANDTest, case5_float_16_8_16_127)
 {
     test_trowexpand<float, 16, 8, 127, 128>();
 }
+TEST_F(TROWEXPANDTest, case6_uint8_16_32_16_256)
+{
+    test_trowexpand<uint8_t, 16, 32, 256, 256>();
+}
+TEST_F(TROWEXPANDTest, case7_uint8_16_32_16_255)
+{
+    test_trowexpand<uint8_t, 16, 32, 255, 256>();
+}
+TEST_F(TROWEXPANDTest, case8_int16_16_16_16_512)
+{
+    test_trowexpand<int16_t, 16, 16, 512, 512>();
+}
+TEST_F(TROWEXPANDTest, case9_int16_16_16_16_511)
+{
+    test_trowexpand<int16_t, 16, 16, 511, 512>();
+}
+TEST_F(TROWEXPANDTest, case10_uint16_16_16_16_512)
+{
+    test_trowexpand<uint16_t, 16, 16, 512, 512>();
+}
+TEST_F(TROWEXPANDTest, case11_uint16_16_16_16_511)
+{
+    test_trowexpand<uint16_t, 16, 16, 511, 512>();
+}
+TEST_F(TROWEXPANDTest, case12_int32_16_8_16_128)
+{
+    test_trowexpand<int32_t, 16, 8, 128, 128>();
+}
+TEST_F(TROWEXPANDTest, case13_int32_16_8_16_127)
+{
+    test_trowexpand<int32_t, 16, 8, 127, 128>();
+}
+TEST_F(TROWEXPANDTest, case14_uint32_16_8_16_128)
+{
+    test_trowexpand<uint32_t, 16, 8, 128, 128>();
+}
+TEST_F(TROWEXPANDTest, case15_uint32_16_8_16_127)
+{
+    test_trowexpand<uint32_t, 16, 8, 127, 128>();
+}
 } // namespace TRowExpandTest

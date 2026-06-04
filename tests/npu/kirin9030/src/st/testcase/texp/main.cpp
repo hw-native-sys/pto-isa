@@ -123,3 +123,39 @@ TEST_F(TEXPTest, case8)
 {
     test_texp<aclFloat16, 64, 64, 128, 256, 32, 32>();
 }
+TEST_F(TEXPTest, case9)
+{
+    test_texp<float, 16, 256, 16, 256, 16, 256>();
+}
+TEST_F(TEXPTest, case10)
+{
+    test_texp<float, 16, 256, 16, 256, 16, 128>();
+}
+TEST_F(TEXPTest, case11)
+{
+    test_texp<aclFloat16, 256, 16, 256, 16, 256, 16>();
+}
+TEST_F(TEXPTest, case12)
+{
+    test_texp<aclFloat16, 256, 16, 256, 16, 128, 16>();
+}
+TEST_F(TEXPTest, case13)
+{
+    test_texp<float, 128, 128, 128, 128, 64, 64>();
+}
+TEST_F(TEXPTest, case14)
+{
+    test_texp<aclFloat16, 128, 128, 128, 128, 64, 64>();
+}
+TEST_F(TEXPTest, case15)
+{
+    test_texp<float, 32, 64, 128, 128, 32, 64>();
+}
+TEST_F(TEXPTest, case16)
+{
+    test_texp<float, 32, 32, 32, 32, 32, 16>();
+}
+TEST_F(TEXPTest, case17)
+{
+    test_texp<aclFloat16, 32, 32, 32, 32, 32, 16>();
+}

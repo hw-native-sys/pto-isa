@@ -14,6 +14,7 @@ import os
 import struct
 import ctypes
 import numpy as np
+
 np.random.seed(23)
 
 
@@ -31,10 +32,10 @@ def gen_golden_data(param):
         for j in range(cols):
             output_arr[i, j] = input_arr[i, j] * divider[0, 0]
 
-    input_arr.tofile('input.bin')
-    with open("divider.bin", 'wb') as f:
-        f.write(struct.pack('f', np.float32(divider[0, 0])))
-    output_arr.tofile('golden.bin')
+    input_arr.tofile("input.bin")
+    with open("divider.bin", "wb") as f:
+        f.write(struct.pack("f", np.float32(divider[0, 0])))
+    output_arr.tofile("golden.bin")
 
 
 class TAddsParams:
@@ -46,6 +47,7 @@ class TAddsParams:
         self.row = row
         self.col = col
 
+
 if __name__ == "__main__":
     case_params_list = [
         TAddsParams("TMULSTest.case1", np.float32, 32, 128, 32, 64),
@@ -53,7 +55,15 @@ if __name__ == "__main__":
         TAddsParams("TMULSTest.case3", np.int32, 31, 256, 31, 128),
         TAddsParams("TMULSTest.case4", np.int16, 15, 192, 15, 64 * 3),
         TAddsParams("TMULSTest.case5", np.float32, 7, 512, 7, 64 * 7),
-        TAddsParams("TMULSTest.case6", np.float32, 256, 32, 256, 16)
+        TAddsParams("TMULSTest.case6", np.float32, 256, 32, 256, 16),
+        TAddsParams("TMULSTest.case7", np.uint32, 31, 256, 31, 128),
+        TAddsParams("TMULSTest.case8", np.uint16, 15, 192, 15, 64 * 3),
+        TAddsParams("TMULSTest.case9", np.float32, 128, 128, 128, 128),
+        TAddsParams("TMULSTest.case10", np.float16, 128, 256, 128, 128),
+        TAddsParams("TMULSTest.case11", np.int32, 63, 128, 63, 64),
+        TAddsParams("TMULSTest.case12", np.int16, 128, 256, 128, 128),
+        TAddsParams("TMULSTest.case14", np.uint16, 128, 256, 128, 128),
+        TAddsParams("TMULSTest.case15", np.float16, 64, 128, 64, 64),
     ]
 
     for _, case in enumerate(case_params_list):

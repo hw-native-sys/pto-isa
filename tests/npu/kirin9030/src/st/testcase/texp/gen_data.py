@@ -12,6 +12,7 @@
 
 import os
 import numpy as np
+
 np.random.seed(19)
 
 
@@ -30,6 +31,7 @@ def gen_golden_data(param):
     # Save the input and golden data to binary files
     input_arr.tofile("input.bin")
     golden.tofile("golden.bin")
+
 
 class tunaryParams:
     def __init__(self, name, dtype, dst_row, dst_col, src_row, src_col, valid_row, valid_col, in_place=False):
@@ -62,6 +64,15 @@ if __name__ == "__main__":
         tunaryParams("TEXPTest.case6", np.float32, 64, 64, 128, 128, 32, 32),
         tunaryParams("TEXPTest.case7", np.float16, 128, 256, 64, 64, 64, 64),
         tunaryParams("TEXPTest.case8", np.float16, 64, 64, 128, 256, 32, 32),
+        tunaryParams("TEXPTest.case9", np.float32, 16, 256, 16, 256, 16, 256),
+        tunaryParams("TEXPTest.case10", np.float32, 16, 256, 16, 256, 16, 128),
+        tunaryParams("TEXPTest.case11", np.float16, 256, 16, 256, 16, 256, 16),
+        tunaryParams("TEXPTest.case12", np.float16, 256, 16, 256, 16, 128, 16),
+        tunaryParams("TEXPTest.case13", np.float32, 128, 128, 128, 128, 64, 64),
+        tunaryParams("TEXPTest.case14", np.float16, 128, 128, 128, 128, 64, 64),
+        tunaryParams("TEXPTest.case15", np.float32, 32, 64, 128, 128, 32, 64),
+        tunaryParams("TEXPTest.case16", np.float32, 32, 32, 32, 32, 32, 16),
+        tunaryParams("TEXPTest.case17", np.float16, 32, 32, 32, 32, 32, 16),
     ]
 
     for _, param in enumerate(case_params_list):

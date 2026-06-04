@@ -12,6 +12,7 @@
 
 import os
 import numpy as np
+
 np.random.seed(42)
 
 
@@ -30,8 +31,8 @@ def gen_golden_data(param):
 
     # 先计算, 再强转类型, 保证结果精度不裂化
     output_arr = output_arr.astype(data_type)
-    input_arr.tofile('input.bin')
-    output_arr.tofile('golden.bin')
+    input_arr.tofile("input.bin")
+    output_arr.tofile("golden.bin")
 
 
 class TRowSumParams:
@@ -42,6 +43,7 @@ class TRowSumParams:
         self.valid_row = valid_row
         self.col = col
         self.valid_col = valid_col
+
 
 if __name__ == "__main__":
     case_params_list = [
@@ -54,7 +56,12 @@ if __name__ == "__main__":
         TRowSumParams("TROWSUMTest.case7", np.float32, 64, 64, 128, 128),
         TRowSumParams("TROWSUMTest.case8", np.float32, 32, 32, 256, 256),
         TRowSumParams("TROWSUMTest.case9", np.float32, 16, 16, 512, 512),
-        TRowSumParams("TROWSUMTest.case10", np.float32, 8, 8, 1024, 1024)
+        TRowSumParams("TROWSUMTest.case10", np.float32, 8, 8, 1024, 1024),
+        TRowSumParams("TROWSUMTest.case11", np.int32, 63, 63, 64, 64),
+        TRowSumParams("TROWSUMTest.case12", np.int16, 15, 15, 192, 192),
+        TRowSumParams("TROWSUMTest.case13", np.float16, 64, 64, 128, 128),
+        TRowSumParams("TROWSUMTest.case14", np.int32, 32, 32, 256, 256),
+        TRowSumParams("TROWSUMTest.case15", np.int16, 16, 16, 512, 512),
     ]
 
     for _, case in enumerate(case_params_list):

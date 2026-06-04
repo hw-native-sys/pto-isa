@@ -129,3 +129,27 @@ TEST_F(TPARTADDTest, case_int32_64x64_8x64_64x64)
 {
     test_tpartadd<int32_t, 64, 64, 8, 64, 64, 64>();
 }
+TEST_F(TPARTADDTest, case_uint32_64x64_8x64_64x64)
+{
+    test_tpartadd<uint32_t, 64, 64, 8, 64, 64, 64>();
+}
+TEST_F(TPARTADDTest, case_uint16_8x48_8x48_8x16)
+{
+    test_tpartadd<uint16_t, 8, 48, 8, 48, 8, 16>();
+}
+TEST_F(TPARTADDTest, case_int8_64x64_8x64_64x64)
+{
+    test_tpartadd<int8_t, 64, 64, 8, 64, 64, 64>();
+}
+TEST_F(TPARTADDTest, case_uint8_64x64_8x64_64x64)
+{
+    test_tpartadd<uint8_t, 64, 64, 8, 64, 64, 64>();
+}
+TEST_F(TPARTADDTest, case_int32_8x768_8x512_8x768)
+{
+    test_tpartadd<int32_t, 8, 768, 8, 512, 8, 768>();
+}
+TEST_F(TPARTADDTest, case_half_64x64_8x64_64x64)
+{
+    test_tpartadd<aclFloat16, 64, 64, 8, 64, 64, 64>();
+}

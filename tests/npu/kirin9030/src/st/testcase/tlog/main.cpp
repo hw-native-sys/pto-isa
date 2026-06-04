@@ -106,3 +106,47 @@ TEST_F(TLOGTest, case_half_64x64_64x64_64x64_inPlace_False)
 {
     test_tlog<aclFloat16, 64, 64, 64, 64, false>();
 }
+TEST_F(TLOGTest, case_float_128x128_128x128_128x128_inPlace_False)
+{
+    test_tlog<float, 128, 128, 128, 128, false>();
+}
+TEST_F(TLOGTest, case_float_16x256_16x256_16x256_inPlace_False)
+{
+    test_tlog<float, 16, 256, 16, 256, false>();
+}
+TEST_F(TLOGTest, case_half_16x256_16x256_16x256_inPlace_False)
+{
+    test_tlog<aclFloat16, 16, 256, 16, 256, false>();
+}
+TEST_F(TLOGTest, case_float_128x128_128x128_128x128_inPlace_True)
+{
+    test_tlog<float, 128, 128, 128, 128, true>();
+}
+TEST_F(TLOGTest, case_half_16x256_16x256_16x256_inPlace_True)
+{
+    test_tlog<aclFloat16, 16, 256, 16, 256, true>();
+}
+TEST_F(TLOGTest, case_float_256x16_256x16_256x16_inPlace_False)
+{
+    test_tlog<float, 256, 16, 256, 16, false>();
+}
+TEST_F(TLOGTest, case_half_256x16_256x16_256x16_inPlace_False)
+{
+    test_tlog<aclFloat16, 256, 16, 256, 16, false>();
+}
+TEST_F(TLOGTest, case_float_32x256_32x256_32x256_inPlace_False)
+{
+    test_tlog<float, 32, 256, 32, 256, false>();
+}
+TEST_F(TLOGTest, case_half_32x256_32x256_32x256_inPlace_False)
+{
+    test_tlog<aclFloat16, 32, 256, 32, 256, false>();
+}
+TEST_F(TLOGTest, case_float_256x16_256x16_256x16_inPlace_True)
+{
+    test_tlog<float, 256, 16, 256, 16, true>();
+}
+TEST_F(TLOGTest, case_half_256x16_256x16_256x16_inPlace_True)
+{
+    test_tlog<aclFloat16, 256, 16, 256, 16, true>();
+}

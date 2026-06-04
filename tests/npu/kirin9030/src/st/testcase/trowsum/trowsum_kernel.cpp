@@ -120,6 +120,26 @@ extern "C" __global__ AICORE void launchTROWSUMCase10(__gm__ float *out, __gm__ 
 {
     runTRowSumDNDst<float, 8, 8, 1024, 1024, 1>(out, src);
 }
+extern "C" __global__ AICORE void launchTROWSUMCase11(__gm__ int32_t *out, __gm__ int32_t *src)
+{
+    runTRowSum<int32_t, 63, 63, 64, 64, 1>(out, src);
+}
+extern "C" __global__ AICORE void launchTROWSUMCase12(__gm__ int16_t *out, __gm__ int16_t *src)
+{
+    runTRowSum<int16_t, 15, 15, 192, 192, 1>(out, src);
+}
+extern "C" __global__ AICORE void launchTROWSUMCase13(__gm__ half *out, __gm__ half *src)
+{
+    runTRowSumDNDst<half, 64, 64, 128, 128, 1>(out, src);
+}
+extern "C" __global__ AICORE void launchTROWSUMCase14(__gm__ int32_t *out, __gm__ int32_t *src)
+{
+    runTRowSumDNDst<int32_t, 32, 32, 256, 256, 1>(out, src);
+}
+extern "C" __global__ AICORE void launchTROWSUMCase15(__gm__ int16_t *out, __gm__ int16_t *src)
+{
+    runTRowSumDNDst<int16_t, 16, 16, 512, 512, 1>(out, src);
+}
 
 template <uint32_t caseId>
 void launchTROWSUMTestCase(void *out, void *src, aclrtStream stream)
@@ -165,6 +185,26 @@ void launchTROWSUMTestCase(void *out, void *src, aclrtStream stream)
             launchTROWSUMCase10<<<1, nullptr, stream>>>((float *)out, (float *)src);
             break;
         }
+        case 11: {
+            launchTROWSUMCase11<<<1, nullptr, stream>>>((int32_t *)out, (int32_t *)src);
+            break;
+        }
+        case 12: {
+            launchTROWSUMCase12<<<1, nullptr, stream>>>((int16_t *)out, (int16_t *)src);
+            break;
+        }
+        case 13: {
+            launchTROWSUMCase13<<<1, nullptr, stream>>>((half *)out, (half *)src);
+            break;
+        }
+        case 14: {
+            launchTROWSUMCase14<<<1, nullptr, stream>>>((int32_t *)out, (int32_t *)src);
+            break;
+        }
+        case 15: {
+            launchTROWSUMCase15<<<1, nullptr, stream>>>((int16_t *)out, (int16_t *)src);
+            break;
+        }
         default: {
         }
     }
@@ -180,3 +220,8 @@ template void launchTROWSUMTestCase<7>(void *out, void *src, aclrtStream stream)
 template void launchTROWSUMTestCase<8>(void *out, void *src, aclrtStream stream);
 template void launchTROWSUMTestCase<9>(void *out, void *src, aclrtStream stream);
 template void launchTROWSUMTestCase<10>(void *out, void *src, aclrtStream stream);
+template void launchTROWSUMTestCase<11>(void *out, void *src, aclrtStream stream);
+template void launchTROWSUMTestCase<12>(void *out, void *src, aclrtStream stream);
+template void launchTROWSUMTestCase<13>(void *out, void *src, aclrtStream stream);
+template void launchTROWSUMTestCase<14>(void *out, void *src, aclrtStream stream);
+template void launchTROWSUMTestCase<15>(void *out, void *src, aclrtStream stream);

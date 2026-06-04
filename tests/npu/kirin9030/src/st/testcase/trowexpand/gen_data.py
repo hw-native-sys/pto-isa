@@ -14,6 +14,7 @@ import os
 import struct
 import ctypes
 import numpy as np
+
 np.random.seed(2025)
 
 
@@ -41,13 +42,17 @@ class TRowExpandParam:
 
 def generate_case_name(idx, param):
     dtype_str = {
-        np.float32: 'float',
-        np.float16: 'half',
-        np.int8: 'int8',
-        np.int16: 'int16',
-        np.int32: 'int32'
+        np.float32: "float",
+        np.float16: "half",
+        np.int8: "int8",
+        np.int16: "int16",
+        np.int32: "int32",
+        np.uint8: "uint8",
+        np.uint16: "uint16",
+        np.uint32: "uint32",
     }[param.datatype]
     return f"TROWEXPANDTest.case{idx}_{dtype_str}_{param.row}_{param.src_col}_{param.row}_{param.dst_valid_col}"
+
 
 if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -62,6 +67,16 @@ if __name__ == "__main__":
         TRowExpandParam(np.float16, 16, 16, 512, 511),
         TRowExpandParam(np.int8, 16, 32, 256, 255),
         TRowExpandParam(np.float32, 16, 8, 128, 127),
+        TRowExpandParam(np.uint8, 16, 32, 256, 256),
+        TRowExpandParam(np.uint8, 16, 32, 256, 255),
+        TRowExpandParam(np.int16, 16, 16, 512, 512),
+        TRowExpandParam(np.int16, 16, 16, 512, 511),
+        TRowExpandParam(np.uint16, 16, 16, 512, 512),
+        TRowExpandParam(np.uint16, 16, 16, 512, 511),
+        TRowExpandParam(np.int32, 16, 8, 128, 128),
+        TRowExpandParam(np.int32, 16, 8, 128, 127),
+        TRowExpandParam(np.uint32, 16, 8, 128, 128),
+        TRowExpandParam(np.uint32, 16, 8, 128, 127),
     ]
 
     for i, param in enumerate(case_params_list):

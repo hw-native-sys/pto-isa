@@ -68,3 +68,12 @@ template void LaunchTPartAdd<aclFloat16, 8, 768, 8, 512, 8, 768>(aclFloat16 *out
                                                                  void *stream);
 template void LaunchTPartAdd<int16_t, 8, 48, 8, 48, 8, 16>(int16_t *out, int16_t *src0, int16_t *src1, void *stream);
 template void LaunchTPartAdd<int32_t, 64, 64, 8, 64, 64, 64>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
+template void LaunchTPartAdd<uint32_t, 64, 64, 8, 64, 64, 64>(uint32_t *out, uint32_t *src0, uint32_t *src1,
+                                                              void *stream);
+template void LaunchTPartAdd<uint16_t, 8, 48, 8, 48, 8, 16>(uint16_t *out, uint16_t *src0, uint16_t *src1,
+                                                            void *stream);
+template void LaunchTPartAdd<int8_t, 64, 64, 8, 64, 64, 64>(int8_t *out, int8_t *src0, int8_t *src1, void *stream);
+template void LaunchTPartAdd<uint8_t, 64, 64, 8, 64, 64, 64>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
+template void LaunchTPartAdd<int32_t, 8, 768, 8, 512, 8, 768>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
+template void LaunchTPartAdd<aclFloat16, 64, 64, 8, 64, 64, 64>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
+                                                                void *stream);

@@ -26,6 +26,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/kirinX90/TLoad.hpp"
 #include "pto/npu/kirinX90/TStore.hpp"
 #include "pto/npu/kirinX90/TExtract.hpp"
+#include "pto/npu/kirinX90/TInsert.hpp"
 #include "pto/npu/kirinX90/TMov.hpp"
 #ifdef __DAV_VEC__
 #include "pto/npu/kirinX90/TCvt.hpp"
@@ -110,6 +111,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TFMod.hpp"
 #include "pto/npu/a5/TFModS.hpp"
 #include "pto/npu/a5/TColProd.hpp"
+#include "pto/npu/a5/TRowExpandExpdif.hpp"
+#include "pto/npu/a5/TColExpandExpdif.hpp"
 #undef bfloat16_t
 #undef hifloat8_t
 #undef float8_e4m3_t

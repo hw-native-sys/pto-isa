@@ -39,7 +39,7 @@ template <typename T, int Rows, int Cols, int ValidRows, int ValidCols>
 void test_tsel()
 {
     size_t fileSize = Rows * Cols * sizeof(T);
-    size_t maskFileSize = Rows * Cols * sizeof(uint8_t);
+    size_t maskFileSize = Rows * ((Cols + 31) / 32 * 32) * sizeof(uint8_t);
 
     aclInit(nullptr);
     aclrtSetDevice(0);
@@ -139,4 +139,68 @@ TEST_F(TSELTest, case9)
 TEST_F(TSELTest, case10)
 {
     test_tsel<float, 2, 512, 2, 512>();
+}
+TEST_F(TSELTest, case11)
+{
+    test_tsel<int32_t, 2, 128, 2, 128>();
+}
+TEST_F(TSELTest, case12)
+{
+    test_tsel<int32_t, 2, 32, 2, 32>();
+}
+TEST_F(TSELTest, case13)
+{
+    test_tsel<int32_t, 2, 160, 2, 160>();
+}
+TEST_F(TSELTest, case14)
+{
+    test_tsel<uint32_t, 2, 128, 2, 128>();
+}
+TEST_F(TSELTest, case15)
+{
+    test_tsel<uint32_t, 2, 32, 2, 32>();
+}
+TEST_F(TSELTest, case16)
+{
+    test_tsel<uint32_t, 2, 160, 2, 160>();
+}
+TEST_F(TSELTest, case17)
+{
+    test_tsel<int16_t, 2, 128, 2, 128>();
+}
+TEST_F(TSELTest, case18)
+{
+    test_tsel<int16_t, 2, 32, 2, 32>();
+}
+TEST_F(TSELTest, case19)
+{
+    test_tsel<int16_t, 2, 160, 2, 160>();
+}
+TEST_F(TSELTest, case20)
+{
+    test_tsel<uint8_t, 2, 128, 2, 128>();
+}
+TEST_F(TSELTest, case21)
+{
+    test_tsel<uint8_t, 2, 32, 2, 32>();
+}
+TEST_F(TSELTest, case22)
+{
+    test_tsel<uint8_t, 2, 160, 2, 160>();
+}
+TEST_F(TSELTest, case23)
+{
+    test_tsel<float, 10, 64, 10, 54>();
+}
+TEST_F(TSELTest, case24)
+{
+    test_tsel<float, 2, 2048, 2, 2048>();
+}
+TEST_F(TSELTest, case25)
+{
+    test_tsel<float, 2, 8, 2, 8>();
+}
+TEST_F(TSELTest, case26)
+{
+    test_tsel<aclFloat16, 2, 16, 2, 8>();
 }

@@ -17,8 +17,8 @@ constexpr const int SHIFT_M_STEP_B8 = 1;   // 2^1 = 2
 constexpr const int M_STEP_MIN_VAL_B8 = 2; // m_step per loop for fp8
 
 template <typename DstTile, typename SrcTile, bool Transpose>
-__tf__ AICORE void TExtractToA(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src,
-                               uint16_t indexRow, uint16_t indexCol)
+__tf__ PTO_INTERNAL void TExtractToA(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src,
+                                     uint16_t indexRow, uint16_t indexCol)
 {
     constexpr int32_t srcRow = SrcTile::Rows;
     constexpr int32_t srcCol = SrcTile::Cols;
@@ -57,8 +57,9 @@ __tf__ AICORE void TExtractToA(typename DstTile::TileDType __out__ dst, typename
 }
 
 template <typename DstTile, typename SrcTile>
-__tf__ AICORE void TExtractToAVector(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src,
-                                     uint16_t indexRow, uint16_t indexCol, uint16_t dstValidCol)
+__tf__ PTO_INTERNAL void TExtractToAVector(typename DstTile::TileDType __out__ dst,
+                                           typename SrcTile::TileDType __in__ src, uint16_t indexRow, uint16_t indexCol,
+                                           uint16_t dstValidCol)
 {
     using DataType = typename SrcTile::DType;
     constexpr int typeSize = sizeof(DataType);
@@ -77,8 +78,9 @@ __tf__ AICORE void TExtractToAVector(typename DstTile::TileDType __out__ dst, ty
 }
 
 template <typename DstTile, typename SrcTile>
-__tf__ AICORE void TExtractToACompact(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src,
-                                      uint16_t indexRow, uint16_t indexCol, uint16_t madM, uint16_t madK)
+__tf__ PTO_INTERNAL void TExtractToACompact(typename DstTile::TileDType __out__ dst,
+                                            typename SrcTile::TileDType __in__ src, uint16_t indexRow,
+                                            uint16_t indexCol, uint16_t madM, uint16_t madK)
 {
     using DataType = typename SrcTile::DType;
     constexpr int typeSize = sizeof(DataType);
@@ -98,9 +100,9 @@ __tf__ AICORE void TExtractToACompact(typename DstTile::TileDType __out__ dst, t
 }
 
 template <typename DstTile, typename SrcTile>
-__tf__ AICORE void TExtractToATransCompact(typename DstTile::TileDType __out__ dst,
-                                           typename SrcTile::TileDType __in__ src, uint16_t indexRow, uint16_t indexCol,
-                                           uint16_t madM, uint16_t madK)
+__tf__ PTO_INTERNAL void TExtractToATransCompact(typename DstTile::TileDType __out__ dst,
+                                                 typename SrcTile::TileDType __in__ src, uint16_t indexRow,
+                                                 uint16_t indexCol, uint16_t madM, uint16_t madK)
 {
     using DataType = typename SrcTile::DType;
     constexpr int typeSize = sizeof(DataType);
@@ -133,8 +135,8 @@ __tf__ AICORE void TExtractToATransCompact(typename DstTile::TileDType __out__ d
 }
 
 template <typename DstTile, typename SrcTile, bool Transpose>
-__tf__ AICORE void TExtractToB(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src,
-                               uint16_t indexRow, uint16_t indexCol)
+__tf__ PTO_INTERNAL void TExtractToB(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src,
+                                     uint16_t indexRow, uint16_t indexCol)
 {
     using DataType = typename SrcTile::DType;
     constexpr int typeSize = sizeof(DataType);
@@ -172,8 +174,9 @@ __tf__ AICORE void TExtractToB(typename DstTile::TileDType __out__ dst, typename
 }
 
 template <typename DstTile, typename SrcTile>
-__tf__ AICORE void TExtractToBCompact(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src,
-                                      uint16_t indexRow, uint16_t indexCol, uint16_t madK, uint16_t madN)
+__tf__ PTO_INTERNAL void TExtractToBCompact(typename DstTile::TileDType __out__ dst,
+                                            typename SrcTile::TileDType __in__ src, uint16_t indexRow,
+                                            uint16_t indexCol, uint16_t madK, uint16_t madN)
 {
     using DataType = typename SrcTile::DType;
     constexpr int typeSize = sizeof(DataType);
@@ -194,9 +197,9 @@ __tf__ AICORE void TExtractToBCompact(typename DstTile::TileDType __out__ dst, t
 }
 
 template <typename DstTile, typename SrcTile>
-__tf__ AICORE void TExtractToBTransCompact(typename DstTile::TileDType __out__ dst,
-                                           typename SrcTile::TileDType __in__ src, uint16_t indexRow, uint16_t indexCol,
-                                           uint16_t madK, uint16_t madN)
+__tf__ PTO_INTERNAL void TExtractToBTransCompact(typename DstTile::TileDType __out__ dst,
+                                                 typename SrcTile::TileDType __in__ src, uint16_t indexRow,
+                                                 uint16_t indexCol, uint16_t madK, uint16_t madN)
 {
     using DataType = typename SrcTile::DType;
     constexpr int typeSize = sizeof(DataType);
@@ -258,8 +261,9 @@ __tf__ PTO_INTERNAL void TExtractVecToMat(typename DstTile::TileDType __out__ ds
 }
 
 template <typename DstTile, typename SrcTile, QuantMode_t QuantPre, ReluPreMode reluMode>
-__tf__ AICORE void TExtractAccToMat(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src,
-                                    uint16_t validRow, uint16_t validCol, uint16_t indexRow, uint16_t indexCol)
+__tf__ PTO_INTERNAL void TExtractAccToMat(typename DstTile::TileDType __out__ dst,
+                                          typename SrcTile::TileDType __in__ src, uint16_t validRow, uint16_t validCol,
+                                          uint16_t indexRow, uint16_t indexCol)
 {
     using dstType = typename DstTile::DType;
     using srcType = typename SrcTile::DType;
@@ -280,9 +284,9 @@ __tf__ AICORE void TExtractAccToMat(typename DstTile::TileDType __out__ dst, typ
 }
 
 template <typename DstTile, typename SrcTile, AccToVecMode mode, QuantMode_t quantPre, ReluPreMode reluMode>
-__tf__ AICORE void TExtractAccToVec(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src,
-                                    uint16_t validRow, uint16_t validCol, uint16_t srcValidRow, uint16_t indexRow,
-                                    uint16_t indexCol)
+__tf__ PTO_INTERNAL void TExtractAccToVec(typename DstTile::TileDType __out__ dst,
+                                          typename SrcTile::TileDType __in__ src, uint16_t validRow, uint16_t validCol,
+                                          uint16_t srcValidRow, uint16_t indexRow, uint16_t indexCol)
 {
     using dstType = typename DstTile::DType;
     using srcType = typename SrcTile::DType;
@@ -417,9 +421,9 @@ PTO_INTERNAL void TEXTRACT_TILE_IMPL(DstTile &dst, SrcTile &src, uint16_t indexR
 }
 
 template <typename DstTile, typename SrcTile>
-__tf__ AICORE void TExtractToBConv(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src,
-                                   uint16_t srcCol, uint16_t dstValidRow, uint16_t dstValidCol, uint16_t indexRow,
-                                   uint16_t indexCol)
+__tf__ PTO_INTERNAL void TExtractToBConv(typename DstTile::TileDType __out__ dst,
+                                         typename SrcTile::TileDType __in__ src, uint16_t srcCol, uint16_t dstValidRow,
+                                         uint16_t dstValidCol, uint16_t indexRow, uint16_t indexCol)
 {
     using DataType = typename SrcTile::DType;
     constexpr int c0Size = BLOCK_BYTE_SIZE / sizeof(DataType);
@@ -476,9 +480,9 @@ PTO_INTERNAL void TEXTRACT_CONVTILE_IMPL(DstTile &dst, SrcTile &src, uint16_t in
 }
 
 template <typename T, typename DstTile, typename SrcTile>
-__tf__ AICORE void TExtractVecToVecNDImpl(typename DstTile::TileDType __out__ dst,
-                                          typename SrcTile::TileDType __in__ src, uint16_t validRow, uint16_t validCol,
-                                          uint32_t indexRow, uint32_t indexCol)
+__tf__ PTO_INTERNAL void TExtractVecToVecNDImpl(typename DstTile::TileDType __out__ dst,
+                                                typename SrcTile::TileDType __in__ src, uint16_t validRow,
+                                                uint16_t validCol, uint32_t indexRow, uint32_t indexCol)
 {
     __ubuf__ T *dstAddr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
     __ubuf__ T *srcAddr = (__ubuf__ T *)__cce_get_tile_ptr(src);
@@ -509,9 +513,9 @@ using TExtractRegT =
     std::conditional_t<sizeof(T) == 1 && !std::is_same_v<T, int8_t> && !std::is_same_v<T, uint8_t>, int8_t, T>;
 
 template <typename T, typename DstTile, typename SrcTile>
-__tf__ AICORE void TExtractVecToVecNDAlignedImpl(typename DstTile::TileDType __out__ dst,
-                                                 typename SrcTile::TileDType __in__ src, uint16_t validRow,
-                                                 uint16_t validCol, uint32_t indexRow, uint32_t indexCol)
+__tf__ PTO_INTERNAL void TExtractVecToVecNDAlignedImpl(typename DstTile::TileDType __out__ dst,
+                                                       typename SrcTile::TileDType __in__ src, uint16_t validRow,
+                                                       uint16_t validCol, uint32_t indexRow, uint32_t indexCol)
 {
     using RegT = TExtractRegT<T>;
     __ubuf__ RegT *dstAddr = (__ubuf__ RegT *)__cce_get_tile_ptr(dst);
@@ -542,9 +546,9 @@ __tf__ AICORE void TExtractVecToVecNDAlignedImpl(typename DstTile::TileDType __o
 }
 
 template <typename T, typename DstTile, typename SrcTile>
-__tf__ AICORE void TExtractVecToVecNDVectorImpl(typename DstTile::TileDType __out__ dst,
-                                                typename SrcTile::TileDType __in__ src, uint16_t validRow,
-                                                uint16_t validCol, uint32_t indexRow, uint32_t indexCol)
+__tf__ PTO_INTERNAL void TExtractVecToVecNDVectorImpl(typename DstTile::TileDType __out__ dst,
+                                                      typename SrcTile::TileDType __in__ src, uint16_t validRow,
+                                                      uint16_t validCol, uint32_t indexRow, uint32_t indexCol)
 {
     using RegT = TExtractRegT<T>;
     __ubuf__ RegT *dstAddr = (__ubuf__ RegT *)__cce_get_tile_ptr(dst);
@@ -577,9 +581,9 @@ __tf__ AICORE void TExtractVecToVecNDVectorImpl(typename DstTile::TileDType __ou
 }
 
 template <typename T, typename DstTile, typename SrcTile>
-__tf__ AICORE void TExtractVecToVecNDScalarImpl(typename DstTile::TileDType __out__ dst,
-                                                typename SrcTile::TileDType __in__ src, uint32_t indexRow,
-                                                uint32_t indexCol)
+__tf__ PTO_INTERNAL void TExtractVecToVecNDScalarImpl(typename DstTile::TileDType __out__ dst,
+                                                      typename SrcTile::TileDType __in__ src, uint32_t indexRow,
+                                                      uint32_t indexCol)
 {
     __ubuf__ T *dstAddr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
     __ubuf__ T *srcAddr = (__ubuf__ T *)__cce_get_tile_ptr(src);
@@ -626,9 +630,9 @@ PTO_INTERNAL void TExtractVecToVecNDDispatch(DstTile &dst, SrcTile &src, uint32_
 }
 
 template <typename T, typename DstTile, typename SrcTile>
-__tf__ AICORE void TExtractVecToVecNZScalarImpl(typename DstTile::TileDType __out__ dst,
-                                                typename SrcTile::TileDType __in__ src, uint32_t indexRow,
-                                                uint32_t indexCol)
+__tf__ PTO_INTERNAL void TExtractVecToVecNZScalarImpl(typename DstTile::TileDType __out__ dst,
+                                                      typename SrcTile::TileDType __in__ src, uint32_t indexRow,
+                                                      uint32_t indexCol)
 {
     __ubuf__ T *dstAddr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
     __ubuf__ T *srcAddr = (__ubuf__ T *)__cce_get_tile_ptr(src);
@@ -643,9 +647,10 @@ __tf__ AICORE void TExtractVecToVecNZScalarImpl(typename DstTile::TileDType __ou
 }
 
 template <typename T, typename DstTile, typename SrcTile>
-__tf__ AICORE void TExtractVecToVecNZImpl(typename DstTile::TileDType __out__ dst,
-                                          typename SrcTile::TileDType __in__ src, uint16_t validRow, uint16_t validCol,
-                                          uint16_t srcRow, uint16_t indexRow, uint16_t indexCol)
+__tf__ PTO_INTERNAL void TExtractVecToVecNZImpl(typename DstTile::TileDType __out__ dst,
+                                                typename SrcTile::TileDType __in__ src, uint16_t validRow,
+                                                uint16_t validCol, uint16_t srcRow, uint16_t indexRow,
+                                                uint16_t indexCol)
 {
     __ubuf__ T *dstAddr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
     __ubuf__ T *srcAddr = (__ubuf__ T *)__cce_get_tile_ptr(src);

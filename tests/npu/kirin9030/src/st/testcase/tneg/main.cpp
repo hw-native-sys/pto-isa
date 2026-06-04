@@ -58,7 +58,9 @@ void test_tneg()
     aclrtMalloc((void **)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input1.bin", fileSize, srcHost, fileSize);
+    aclrtMemset(dstHost, fileSize, 0, fileSize);
 
+    aclrtMemcpy(dstDevice, fileSize, dstHost, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(srcDevice, fileSize, srcHost, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     LaunchTNeg<T, kGRows_, kGCols_, kTRows_, kTCols_>(dstDevice, srcDevice, stream);
 
@@ -107,4 +109,40 @@ TEST_F(TNEGTest, case_half_32x64_32x64)
 TEST_F(TNEGTest, case_int16_64x16_64x16)
 {
     test_tneg<int16_t, 64, 16, 64, 16>();
+}
+TEST_F(TNEGTest, case_uint32_32x32_32x32)
+{
+    test_tneg<uint32_t, 32, 32, 32, 32>();
+}
+TEST_F(TNEGTest, case_float_128x128_128x128)
+{
+    test_tneg<float, 128, 128, 128, 128>();
+}
+TEST_F(TNEGTest, case_half_128x128_128x128)
+{
+    test_tneg<aclFloat16, 128, 128, 128, 128>();
+}
+TEST_F(TNEGTest, case_int32_64x64_64x64)
+{
+    test_tneg<int32_t, 64, 64, 64, 64>();
+}
+TEST_F(TNEGTest, case_float_16x256_16x256)
+{
+    test_tneg<float, 16, 256, 16, 256>();
+}
+TEST_F(TNEGTest, case_half_16x256_16x256)
+{
+    test_tneg<aclFloat16, 16, 256, 16, 256>();
+}
+TEST_F(TNEGTest, case_int16_128x32_128x32)
+{
+    test_tneg<int16_t, 128, 32, 128, 32>();
+}
+TEST_F(TNEGTest, case_uint32_64x64_64x64)
+{
+    test_tneg<uint32_t, 64, 64, 64, 64>();
+}
+TEST_F(TNEGTest, case_int32_128x128_128x128)
+{
+    test_tneg<int32_t, 128, 128, 128, 128>();
 }

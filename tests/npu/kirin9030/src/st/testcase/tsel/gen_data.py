@@ -12,50 +12,41 @@
 
 import os
 import numpy as np
+
 np.random.seed(19)
 
 
 def gen_golden_data_tsel(param):
     dtype = param.dtype
 
-    row, col = [param.valid_rows, param.valid_cols]
+    row, col = [param.rows, param.cols]
+    valid_rows, valid_cols = [param.valid_rows, param.valid_cols]
     mask_col = (col + 7) // 8
+    mask_ = np.zeros(row * ((col + 31) // 32 * 32), dtype=np.uint8).reshape(row, -1)
+    if np.issubdtype(dtype, np.integer):
+        input0 = np.array(np.random.randint(1, 100, row * col), dtype=dtype)
+        input1 = np.array(np.random.randint(1, 100, row * col), dtype=dtype)
+    else:
+        input0 = np.random.rand(row * col).astype(dtype)
+        input1 = np.random.rand(row * col).astype(dtype)
 
-    output = np.zeros(row * col).astype(dtype)
+    mask = np.random.randint(0, 255, size=row * mask_col, dtype=np.uint8)
 
-    input0 = np.random.rand(row * col).astype(dtype)
-    input1 = np.random.rand(row * col).astype(dtype)
-    mask_size = row * mask_col
-    mask = np.random.randint(0, 255, size=mask_size, dtype=np.uint8)
-    golden = np.zeros(row * col).astype(dtype)
+    mask_bits = np.unpackbits(mask).reshape(-1, 8)[:, ::-1].ravel()
+    mask_bits = mask_bits.reshape(row, mask_col * 8)[:, :col]
 
-    i = 0
-    j = 0
-    while 1:
-        if i >= row:
-            break
-        if j >= mask_col:
-            j = 0
-            i += 1
-            continue
-        byte = mask[i * mask_col + j]
-        for k in range(8):
-            if j * 8 + k >= col:
-                break
-            bit = (byte >> k) & 1
-            idx = i * col + j * 8 + k
-            if bit == 1:
-                golden[idx] = input0[idx]
-            else:
-                golden[idx] = input1[idx]
-        j += 1
-    
-    input0.tofile("input0.bin")
-    input1.tofile("input1.bin")
-    mask.tofile("mask.bin")
-    golden.tofile("golden.bin")
+    input0 = input0.reshape(row, col)
+    input1 = input1.reshape(row, col)
+    golden = np.where(mask_bits, input0, input1)
+    golden_ = np.zeros(row * col).reshape(row, col).astype(dtype)
+    golden_[:valid_rows, :valid_cols] = golden[:valid_rows, :valid_cols]
 
-    return output, input0, input1, golden
+    mask_[:, :mask_col] = mask.reshape(row, mask_col)
+
+    input0.ravel().tofile("input0.bin")
+    input1.ravel().tofile("input1.bin")
+    mask_.tofile("mask.bin")
+    golden_.ravel().tofile("golden.bin")
 
 
 class TSelParams:
@@ -66,6 +57,7 @@ class TSelParams:
         self.cols = cols
         self.valid_rows = valid_rows
         self.valid_cols = valid_cols
+
 
 if __name__ == "__main__":
     case_params_list = [
@@ -79,6 +71,22 @@ if __name__ == "__main__":
         TSelParams("TSELTest.case8", np.int8, 2, 32, 2, 32),
         TSelParams("TSELTest.case9", np.int8, 2, 160, 2, 160),
         TSelParams("TSELTest.case10", np.float32, 2, 512, 2, 512),
+        TSelParams("TSELTest.case11", np.int32, 2, 128, 2, 128),
+        TSelParams("TSELTest.case12", np.int32, 2, 32, 2, 32),
+        TSelParams("TSELTest.case13", np.int32, 2, 160, 2, 160),
+        TSelParams("TSELTest.case14", np.uint32, 2, 128, 2, 128),
+        TSelParams("TSELTest.case15", np.uint32, 2, 32, 2, 32),
+        TSelParams("TSELTest.case16", np.uint32, 2, 160, 2, 160),
+        TSelParams("TSELTest.case17", np.int16, 2, 128, 2, 128),
+        TSelParams("TSELTest.case18", np.int16, 2, 32, 2, 32),
+        TSelParams("TSELTest.case19", np.int16, 2, 160, 2, 160),
+        TSelParams("TSELTest.case20", np.uint8, 2, 128, 2, 128),
+        TSelParams("TSELTest.case21", np.uint8, 2, 32, 2, 32),
+        TSelParams("TSELTest.case22", np.uint8, 2, 160, 2, 160),
+        TSelParams("TSELTest.case23", np.float32, 10, 64, 10, 54),
+        TSelParams("TSELTest.case24", np.float32, 2, 2048, 2, 2048),
+        TSelParams("TSELTest.case25", np.float32, 2, 8, 2, 8),
+        TSelParams("TSELTest.case26", np.float16, 2, 16, 2, 8),
     ]
 
     for param in case_params_list:

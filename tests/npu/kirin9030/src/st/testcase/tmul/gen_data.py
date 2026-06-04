@@ -12,6 +12,7 @@
 
 import os
 import numpy as np
+
 np.random.seed(19)
 
 
@@ -52,15 +53,18 @@ class TMulParams:
 
 def generate_case_name(param):
     dtype_str = {
-        np.float32: 'float',
-        np.float16: 'half',
-        np.int8: 'int8',
-        np.int32: 'int32',
-        np.int16: 'int16'
+        np.float32: "float",
+        np.float16: "half",
+        np.int8: "int8",
+        np.int32: "int32",
+        np.int16: "int16",
+        np.uint32: "uint32",
+        np.uint16: "uint16",
     }[param.dtype]
     return f"TMULTest.case_{dtype_str}_{param.dst_tile_row}x{param.dst_tile_col}_\
 {param.src0_tile_row}x{param.src0_tile_col}_{param.src1_tile_row}x{param.src1_tile_col}_\
 {param.valid_row}x{param.valid_col}"
+
 
 if __name__ == "__main__":
     # Get the absolute path of the script
@@ -84,6 +88,18 @@ if __name__ == "__main__":
         TMulParams(np.float32, 16, 32, 16, 64, 16, 32, 16, 31),
         TMulParams(np.int16, 32, 128, 32, 128, 32, 256, 32, 127),
         TMulParams(np.int32, 16, 32, 16, 64, 16, 32, 16, 31),
+        TMulParams(np.uint32, 64, 64, 64, 64, 64, 64, 64, 64),
+        TMulParams(np.uint32, 16, 32, 16, 64, 16, 32, 16, 32),
+        TMulParams(np.uint32, 16, 32, 16, 64, 16, 32, 16, 31),
+        TMulParams(np.uint16, 64, 64, 64, 64, 64, 64, 64, 64),
+        TMulParams(np.uint16, 32, 128, 32, 128, 32, 256, 32, 128),
+        TMulParams(np.uint16, 32, 128, 32, 128, 32, 256, 32, 127),
+        TMulParams(np.float32, 16, 16, 16, 48, 16, 16, 16, 15),
+        TMulParams(np.int32, 16, 16, 16, 48, 16, 16, 16, 15),
+        TMulParams(np.uint32, 16, 16, 16, 48, 16, 16, 16, 15),
+        TMulParams(np.float16, 16, 32, 16, 96, 16, 32, 16, 31),
+        TMulParams(np.int16, 16, 32, 16, 96, 16, 32, 16, 31),
+        TMulParams(np.uint16, 16, 32, 16, 96, 16, 32, 16, 31),
     ]
 
     for param in case_params_list:

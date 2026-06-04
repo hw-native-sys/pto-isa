@@ -12,6 +12,7 @@
 
 import os
 import numpy as np
+
 np.random.seed(19)
 
 
@@ -52,15 +53,19 @@ class TMaxParams:
 
 def generate_case_name(param):
     dtype_str = {
-        np.float32: 'float',
-        np.float16: 'half',
-        np.int8: 'int8',
-        np.int32: 'int32',
-        np.int16: 'int16'
+        np.float32: "float",
+        np.float16: "half",
+        np.int8: "int8",
+        np.int32: "int32",
+        np.int16: "int16",
+        np.uint32: "uint32",
+        np.uint16: "uint16",
+        np.uint8: "uint8",
     }[param.dtype]
     return f"TMAXTest.case_{dtype_str}_{param.dst_tile_row}x{param.dst_tile_col}_\
 {param.src0_tile_row}x{param.src0_tile_col}_{param.src1_tile_row}x{param.src1_tile_col}_\
 {param.valid_row}x{param.valid_col}"
+
 
 if __name__ == "__main__":
     # Get the absolute path of the script
@@ -84,6 +89,26 @@ if __name__ == "__main__":
         TMaxParams(np.float32, 16, 32, 16, 64, 16, 32, 16, 31),
         TMaxParams(np.int16, 32, 128, 32, 128, 32, 256, 32, 127),
         TMaxParams(np.int32, 16, 32, 16, 64, 16, 32, 16, 31),
+        TMaxParams(np.uint32, 64, 64, 64, 64, 64, 64, 64, 64),
+        TMaxParams(np.uint32, 16, 32, 16, 64, 16, 32, 16, 32),
+        TMaxParams(np.uint32, 16, 32, 16, 64, 16, 32, 16, 31),
+        TMaxParams(np.uint16, 64, 64, 64, 64, 64, 64, 64, 64),
+        TMaxParams(np.uint16, 32, 128, 32, 128, 32, 256, 32, 128),
+        TMaxParams(np.uint16, 32, 128, 32, 128, 32, 256, 32, 127),
+        TMaxParams(np.int8, 64, 64, 64, 64, 64, 64, 64, 64),
+        TMaxParams(np.int8, 32, 256, 32, 256, 32, 512, 32, 256),
+        TMaxParams(np.int8, 32, 256, 32, 256, 32, 512, 32, 255),
+        TMaxParams(np.uint8, 64, 64, 64, 64, 64, 64, 64, 64),
+        TMaxParams(np.uint8, 32, 256, 32, 256, 32, 512, 32, 256),
+        TMaxParams(np.uint8, 32, 256, 32, 256, 32, 512, 32, 255),
+        TMaxParams(np.float32, 16, 16, 16, 48, 16, 16, 16, 15),
+        TMaxParams(np.int32, 16, 16, 16, 48, 16, 16, 16, 15),
+        TMaxParams(np.uint32, 16, 16, 16, 48, 16, 16, 16, 15),
+        TMaxParams(np.float16, 16, 32, 16, 96, 16, 32, 16, 31),
+        TMaxParams(np.int16, 16, 32, 16, 96, 16, 32, 16, 31),
+        TMaxParams(np.uint16, 16, 32, 16, 96, 16, 32, 16, 31),
+        TMaxParams(np.int8, 32, 128, 32, 160, 32, 128, 32, 127),
+        TMaxParams(np.uint8, 32, 128, 32, 160, 32, 128, 32, 127),
     ]
 
     for param in case_params_list:

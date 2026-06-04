@@ -12,6 +12,7 @@
 
 import os
 import numpy as np
+
 np.random.seed(19)
 
 
@@ -82,13 +83,18 @@ class TPartaddParams:
 
 def generate_case_name(param):
     dtype_str = {
-        np.float32: 'float',
-        np.float16: 'half',
-        np.int16: 'int16',
-        np.int32: 'int32',
+        np.float32: "float",
+        np.float16: "half",
+        np.int16: "int16",
+        np.int32: "int32",
+        np.uint32: "uint32",
+        np.uint16: "uint16",
+        np.int8: "int8",
+        np.uint8: "uint8",
     }[param.dtype]
     return f"TPARTADDTest.case_{dtype_str}_{param.dst_vr}x{param.dst_vc}\
 _{param.src0_vr}x{param.src0_vc}_{param.src1_vr}x{param.src1_vc}"
+
 
 if __name__ == "__main__":
     # Get the absolute path of the script
@@ -109,6 +115,12 @@ if __name__ == "__main__":
         TPartaddParams(np.float16, 8, 768, 8, 512, 8, 768),
         TPartaddParams(np.int16, 8, 48, 8, 48, 8, 16),
         TPartaddParams(np.int32, 64, 64, 8, 64, 64, 64),
+        TPartaddParams(np.uint32, 64, 64, 8, 64, 64, 64),
+        TPartaddParams(np.uint16, 8, 48, 8, 48, 8, 16),
+        TPartaddParams(np.int8, 64, 64, 8, 64, 64, 64),
+        TPartaddParams(np.uint8, 64, 64, 8, 64, 64, 64),
+        TPartaddParams(np.int32, 8, 768, 8, 512, 8, 768),
+        TPartaddParams(np.float16, 64, 64, 8, 64, 64, 64),
     ]
 
     for param in case_params_list:

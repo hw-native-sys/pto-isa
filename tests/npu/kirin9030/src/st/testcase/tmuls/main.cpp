@@ -129,3 +129,43 @@ TEST_F(TMULSTest, case6)
     bool ret = TMulSTestFramework<6, float, 256, 32, 256, 256, 16, 16>();
     EXPECT_TRUE(ret);
 }
+TEST_F(TMULSTest, case7)
+{
+    bool ret = TMulSTestFramework<7, uint32_t, 31, 256, 31, 31, 128, 128>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TMULSTest, case8)
+{
+    bool ret = TMulSTestFramework<8, uint16_t, 15, 192, 15, 15, 192, 192>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TMULSTest, case9)
+{
+    bool ret = TMulSTestFramework<9, float, 128, 128, 128, 128, 128, 128>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TMULSTest, case10)
+{
+    bool ret = TMulSTestFramework<10, aclFloat16, 128, 256, 128, 128, 128, 128>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TMULSTest, case11)
+{
+    bool ret = TMulSTestFramework<11, int32_t, 63, 128, 63, 63, 64, 64>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TMULSTest, case12)
+{
+    bool ret = TMulSTestFramework<12, int16_t, 128, 256, 128, 128, 128, 128>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TMULSTest, case14)
+{
+    bool ret = TMulSTestFramework<14, uint16_t, 128, 256, 128, 128, 128, 128>();
+    EXPECT_TRUE(ret);
+}
+TEST_F(TMULSTest, case15)
+{
+    bool ret = TMulSTestFramework<15, aclFloat16, 64, 128, 64, 64, 64, 64>();
+    EXPECT_TRUE(ret);
+}

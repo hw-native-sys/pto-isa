@@ -57,3 +57,14 @@ template void LaunchTLog<float, 64, 64, 64, 64, true>(float *out, float *src, vo
 template void LaunchTLog<float, 64, 64, 64, 64, false>(float *out, float *src, void *stream);
 template void LaunchTLog<aclFloat16, 64, 64, 64, 64, true>(aclFloat16 *out, aclFloat16 *src, void *stream);
 template void LaunchTLog<aclFloat16, 64, 64, 64, 64, false>(aclFloat16 *out, aclFloat16 *src, void *stream);
+template void LaunchTLog<float, 128, 128, 128, 128, false>(float *out, float *src, void *stream);
+template void LaunchTLog<float, 16, 256, 16, 256, false>(float *out, float *src, void *stream);
+template void LaunchTLog<aclFloat16, 16, 256, 16, 256, false>(aclFloat16 *out, aclFloat16 *src, void *stream);
+template void LaunchTLog<float, 128, 128, 128, 128, true>(float *out, float *src, void *stream);
+template void LaunchTLog<aclFloat16, 16, 256, 16, 256, true>(aclFloat16 *out, aclFloat16 *src, void *stream);
+template void LaunchTLog<float, 256, 16, 256, 16, false>(float *out, float *src, void *stream);
+template void LaunchTLog<aclFloat16, 256, 16, 256, 16, false>(aclFloat16 *out, aclFloat16 *src, void *stream);
+template void LaunchTLog<float, 32, 256, 32, 256, false>(float *out, float *src, void *stream);
+template void LaunchTLog<aclFloat16, 32, 256, 32, 256, false>(aclFloat16 *out, aclFloat16 *src, void *stream);
+template void LaunchTLog<float, 256, 16, 256, 16, true>(float *out, float *src, void *stream);
+template void LaunchTLog<aclFloat16, 256, 16, 256, 16, true>(aclFloat16 *out, aclFloat16 *src, void *stream);
