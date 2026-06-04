@@ -599,9 +599,6 @@ struct TPipe {
             {
                 std::lock_guard<std::mutex> lock(shared_state.mutex);
                 const auto slotIdx = static_cast<std::size_t>(tileIndex % RingFiFo::SLOT_NUM);
-                shared_state.transfer_dirs[slotIdx] = cpu_pipe::GetProducerTransferDir<TPipe, TileProd>();
-                shared_state.remaining_consumers[slotIdx] =
-                    cpu_pipe::GetRequiredConsumerCount<TPipe, TileProd, Split>();
                 if constexpr (TPipe::is_v2c && cpu_pipe::IsV2CProducerTile<TileProd>() &&
                               Split != TileSplitAxis::TILE_NO_SPLIT) {
                     const uint32_t laneMask = cpu_pipe::GetSplitLaneMask<Split>(static_cast<uint32_t>(subTileIndex));
@@ -612,6 +609,12 @@ struct TPipe {
                     shared_state.producers_allocated[slotIdx] = 0;
                     shared_state.producers_done[slotIdx] = 0;
                 }
+                // Mark the slot consumable only once fully committed: for a split V2C producer
+                // that is after both AIV lanes have written, so the consumer never reads a
+                // half-written slot.
+                shared_state.transfer_dirs[slotIdx] = cpu_pipe::GetProducerTransferDir<TPipe, TileProd>();
+                shared_state.remaining_consumers[slotIdx] =
+                    cpu_pipe::GetRequiredConsumerCount<TPipe, TileProd, Split>();
                 shared_state.next_producer_slot = (tileIndex + 1) % RingFiFo::SLOT_NUM;
                 ++shared_state.occupied;
             }
@@ -692,7 +695,10 @@ struct TPipe {
                 subTileIndex = static_cast<int>(laneId);
                 return;
             }
-            if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT) {
+            // A pure V2C consumer (the cube) pops one full combined tile regardless of how the
+            // producers split it, so it uses the same pending-slot tracking as no-split mode to
+            // keep overlapping pops on distinct slots when the ring is reused.
+            if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT || (TPipe::is_v2c && !TPipe::is_c2v)) {
                 if constexpr (cpu_pipe::ShouldNoSplitC2VConsumerLaneParticipate<TPipe, TileCons, Split>()) {
                     const uint32_t laneId = cpu_pipe::GetSplitLaneId<TileSplitAxis::TILE_UP_DOWN>();
                     const uint32_t laneMask = cpu_pipe::GetSplitLaneMask<TileSplitAxis::TILE_UP_DOWN>(laneId);
@@ -751,7 +757,8 @@ struct TPipe {
             {
                 std::lock_guard<std::mutex> lock(shared_state.mutex);
                 int freeTileIndex = tileIndex;
-                if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT) {
+                // A pure V2C consumer uses pending-slot tracking in split mode too.
+                if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT || (TPipe::is_v2c && !TPipe::is_c2v)) {
                     if constexpr (cpu_pipe::ShouldNoSplitC2VConsumerLaneFree<TPipe, Split>()) {
                         const uint32_t laneId = cpu_pipe::GetSplitLaneId<TileSplitAxis::TILE_UP_DOWN>();
                         auto &lanePopped = shared_state.popped_not_freed_by_lane[laneId];
@@ -777,8 +784,9 @@ struct TPipe {
                     remaining = 0;
                     shared_state.consumers_claimed[slotIndex] = 0;
                     shared_state.transfer_dirs[slotIndex] = cpu_pipe::TransferDir::None;
-                    if constexpr (Split != TileSplitAxis::TILE_NO_SPLIT) {
-                        shared_state.next_consumer_slot = (tileIndex + 1) % RingFiFo::SLOT_NUM;
+                    // Only c2v split advances the consumer cursor here (V2C does it in wait()).
+                    if constexpr (Split != TileSplitAxis::TILE_NO_SPLIT && !(TPipe::is_v2c && !TPipe::is_c2v)) {
+                        shared_state.next_consumer_slot = (freeTileIndex + 1) % RingFiFo::SLOT_NUM;
                     }
                     --shared_state.occupied;
                 }

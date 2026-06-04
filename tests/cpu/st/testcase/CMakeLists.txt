@@ -161,6 +161,7 @@ txors
 tpushpop_cv_nosplit
 tpushpop_cv
 tpushpop_vc_nosplit
+tpushpop_vc
 )
 
 foreach(TESTCASE ${ALL_TESTCASES})
