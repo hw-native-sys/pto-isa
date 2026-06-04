@@ -32,7 +32,7 @@ template <typename Pipe, typename GlobalData, TileSplitAxis Split,
 PTO_INST RecordEvent TPUSH(Pipe &pipe, GlobalData &gmTensor, WaitEvents &... events);
 ```
 
-`Pipe` is typically an A2A3 `TPipe` declared in `include/pto/npu/a2a3/TPush.hpp`:
+`Pipe` is typically an `TPipe` declared in `TPush.hpp`:
 
 ```cpp
 template <uint8_t FlagID, uint8_t DirType, uint32_t SlotSize, uint32_t SlotNum,
@@ -42,8 +42,8 @@ struct TPipe;
 
 ## Constraints
 
-- **A2A3 TileData producer**:
-    - `TileProd::Loc` must be `TileType::Acc` or `TileType::Vec`.
+- **TileData producer**:
+    - `TileProd::Loc` must be `TileType::Acc`, `TileType::Vec`, or `TileType::Ctrl`.
     - `Direction::DIR_C2V`: Cube produces an accumulator tile for vector consumption.
     - `Direction::DIR_V2C`: Vector produces a vector tile for cube consumption.
     - `Direction::DIR_BOTH`: both C2V and V2C producers are supported by the same pipe type.
@@ -62,6 +62,11 @@ struct TPipe;
     - `gmTensor` must be a FIFO slot view returned by `TALLOC`.
     - Data must be written into `gmTensor` before calling `TPUSH(Pipe&, GlobalData&)`.
     - `TPUSH(Pipe&, GlobalData&)` ignores the tensor contents and only commits the FIFO slot to the consumer.
+- **Tile Type Support**:
+    - **TPUSH/TPOP Supported Tile Types**:
+        - `TileType::Acc` (Accumulator Tile): Used by Cube core for C2V direction communication.
+        - `TileType::Vec` (Vector Tile): Used by Vector core for V2C direction communication.
+        - `TileType::Ctrl` (Control Tile): Used by Vector core for V2C_CTRL direction control signal transmission.
 
 ## Examples
 

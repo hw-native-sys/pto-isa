@@ -69,7 +69,36 @@ PTO_INST RecordEvent TTRANS(TileDataDst &dst, TileDataSrc &src, TileDataTmp &tmp
         - 1 字节：`uint8_t`、`int8_t`
         - 实现在静态 Tile 形状（`TileDataSrc::Rows/Cols`）上运算，不参考 `GetValidRow/GetValidCol`。
     - **临时 Tile**:
-        - C++ API 需要 `tmp`，但某些实现可能不使用它。
+        - C++ API 需要 `tmp`。当选中的执行路径不需要临时存储时，部分实现可能不会使用它。
+        - 基础参数：
+            - `RowStride`：8-bit 元素类型为 `32`，16/32-bit 元素类型为 `16`。
+            - `ElemPerBlock`：`32 / sizeof(T)`，即每个 32 字节块包含的元素数量。
+            - 8-bit 类型包括 `uint8_t` 和 `int8_t`；16-bit 类型包括 `uint16_t`、`int16_t`、`half` 和 `bfloat16_t`；32-bit 类型包括 `uint32_t`、`int32_t` 和 `float`。
+        - 当 stride 满足对齐要求（`dstStride % RowStride == 0`、`srcStride % ElemPerBlock == 0` 且 `srcStride / ElemPerBlock <= 255`）时，实现使用 `tmp` 走高效转置路径；否则使用 scalar copy，不需要 `tmp`。
+        - 二维 Tile 转置 `[H, W] -> [W, H]`：
+
+            ```text
+            tmpSize = W * ceil(H / RowStride) * RowStride * sizeof(T)
+            ```
+
+            其中 `W` 是 `validCol`，`H` 是 `validRow`，`tmpStride` 必须按 `RowStride` 对齐。只有 stride 满足对齐条件时才需要 `tmp`。
+        - `NCHW <-> NC1HWC0`：
+            - 正向 `[N, C, H, W] -> [N, C1, H, W, C0]`：
+
+                ```text
+                tmpSize = H * W * ceil(C0 / RowStride) * RowStride * sizeof(T)
+                ```
+
+                其中 `C1 = (C + C0 - 1) / C0`，转置域为 `C0` 行、`H * W` 列。
+            - 反向 `[N, C1, H, W, C0] -> [N, C, H, W]`：
+
+                ```text
+                tmpSize = C0 * ceil((H * W) / RowStride) * RowStride * sizeof(T)
+                ```
+
+                转置域为 `H * W` 行、`C0` 列。
+        - `GNCHW <-> GNC1HWC0` 使用与 `NCHW <-> NC1HWC0` 相同的公式，`G` 作为外层 group 维度。
+        - `NC1HWC0 -> FRACTAL_Z` 和 `GNC1HWC0 -> FRACTAL_Z` 不需要临时空间，会直接执行内存重排。
     - **ConvTile**:
         - 支持在`TileType::Vec`上的ConvTile的格式转换。其元素大小必须是 `1`、`2` 或 `4` 字节。元素类型限制为`uint32_t`、`int32_t`、`float`、`uint16_t`、`int16_t`、`half`、`bfloat16_t`、`uint8_t`、`int8_t`。
         - 支持ConvTile从`NCHW`到`NC1HWC0`的变换，其中`C1 == (C + C0 - 1)/C0`，HW满足对齐要求，即`H*W*sizeof(T)==0`. C0对应`c0_size`, 即`C0 * sizeof(T) == 32`。C0也可以为4。

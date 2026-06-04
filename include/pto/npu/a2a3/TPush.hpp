@@ -237,8 +237,9 @@ struct TPipe {
         template <typename TileProd, TileSplitAxis Split>
         PTO_INTERNAL void push(RingFiFo &fifo, TileProd &tile)
         {
-            static_assert(TileProd::Loc == TileType::Acc || TileProd::Loc == TileType::Vec,
-                          "Fix: TPUSH has unsupported tile type!");
+            static_assert(
+                TileProd::Loc == TileType::Acc || TileProd::Loc == TileType::Vec || TileProd::Loc == TileType::Ctrl,
+                "Fix: TPUSH has unsupported tile type!");
             if constexpr (is_c2v) {
 #ifdef __DAV_CUBE__
                 pushAcc2GMFiFo<TileProd>(fifo, tile);
@@ -428,8 +429,9 @@ struct TPipe {
         template <typename TileCons, TileSplitAxis Split>
         PTO_INTERNAL void pop(RingFiFo &fifo, TileCons &tile)
         {
-            static_assert(TileCons::Loc == TileType::Vec || TileCons::Loc == TileType::Mat,
-                          "Fix: TPOP has unsupported tile type!");
+            static_assert(
+                TileCons::Loc == TileType::Vec || TileCons::Loc == TileType::Mat || TileCons::Loc == TileType::Ctrl,
+                "Fix: TPOP has unsupported tile type!");
             if constexpr (TileCons::Loc == TileType::Vec) {
                 popVecTileFromGMFiFo<TileCons, Split>(fifo, tile);
             } else if constexpr (TileCons::Loc == TileType::Mat) {

@@ -66,7 +66,36 @@ No architectural side effects beyond producing the destination tile. Does not im
 
 !!! warning "Constraints"
     - **Temporary tile**:
-        - The C++ API requires `tmp`, but some implementations may not use it.
+        - The C++ API requires `tmp`. Some implementations may not use it when the selected path can execute without temporary storage.
+        - Basic parameters:
+            - `RowStride` is `32` for 8-bit element types and `16` for 16/32-bit element types.
+            - `ElemPerBlock` is `32 / sizeof(T)`, the number of elements in one 32-byte block.
+            - 8-bit types are `uint8_t` and `int8_t`; 16-bit types are `uint16_t`, `int16_t`, `half`, and `bfloat16_t`; 32-bit types are `uint32_t`, `int32_t`, and `float`.
+        - When stride alignment requirements are met (`dstStride % RowStride == 0`, `srcStride % ElemPerBlock == 0`, and `srcStride / ElemPerBlock <= 255`), the implementation uses `tmp` for the efficient transpose path. Otherwise it uses scalar copy and does not need `tmp`.
+        - 2D tile transpose `[H, W] -> [W, H]`:
+
+            ```text
+            tmpSize = W * ceil(H / RowStride) * RowStride * sizeof(T)
+            ```
+
+            where `W` is `validCol`, `H` is `validRow`, and `tmpStride` must be aligned to `RowStride`. `tmp` is needed only when the stride alignment requirements are met.
+        - `NCHW <-> NC1HWC0`:
+            - Forward `[N, C, H, W] -> [N, C1, H, W, C0]`:
+
+                ```text
+                tmpSize = H * W * ceil(C0 / RowStride) * RowStride * sizeof(T)
+                ```
+
+                where `C1 = (C + C0 - 1) / C0` and the transpose domain is `C0` rows by `H * W` columns.
+            - Reverse `[N, C1, H, W, C0] -> [N, C, H, W]`:
+
+                ```text
+                tmpSize = C0 * ceil((H * W) / RowStride) * RowStride * sizeof(T)
+                ```
+
+                where the transpose domain is `H * W` rows by `C0` columns.
+        - `GNCHW <-> GNC1HWC0` uses the same formulas as `NCHW <-> NC1HWC0`, with `G` carried as an outer group dimension.
+        - `NC1HWC0 -> FRACTAL_Z` and `GNC1HWC0 -> FRACTAL_Z` do not require temporary space; they directly execute memory reorganization.
 
     - **ConvTile**:
         - Transpose of ConvTile for `TileType::Vec` is supported。 Element size must be `1`、`2` or `4` bytes. Supported element types are `uint32_t`、`int32_t`、`float`、`uint16_t`、`int16_t`、`half`、`bfloat16_t`、`uint8_t`、`int8_t`.

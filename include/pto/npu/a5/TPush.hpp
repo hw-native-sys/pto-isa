@@ -578,8 +578,9 @@ struct TPipe {
         template <typename TileCons, TileSplitAxis Split>
         PTO_INTERNAL bool pop(RingFiFo &fifo, TileCons &tile)
         {
-            static_assert(TileCons::Loc == TileType::Vec || TileCons::Loc == TileType::Mat,
-                          "Fix: TPOP has unsupported tile type!");
+            static_assert(
+                TileCons::Loc == TileType::Vec || TileCons::Loc == TileType::Mat || TileCons::Loc == TileType::Ctrl,
+                "Fix: TPOP has unsupported tile type!");
             if constexpr (TileCons::Loc == TileType::Vec) {
                 if constexpr (is_c2v_ub || is_both) {
                     popTileFromVecFiFo<TileCons, Split>(fifo, tile);
