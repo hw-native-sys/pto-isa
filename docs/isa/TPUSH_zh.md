@@ -32,7 +32,7 @@ template <typename Pipe, typename GlobalData, TileSplitAxis Split,
 PTO_INST RecordEvent TPUSH(Pipe &pipe, GlobalData &gmTensor, WaitEvents &... events);
 ```
 
-`Pipe` 通常是 `include/pto/npu/a2a3/TPush.hpp` 中声明的 A2A3 `TPipe`：
+`Pipe` 通常是 `TPush.hpp` 中声明的  `TPipe`：
 
 ```cpp
 template <uint8_t FlagID, uint8_t DirType, uint32_t SlotSize, uint32_t SlotNum,
@@ -42,7 +42,7 @@ struct TPipe;
 
 ## 约束
 
-- **A2A3 TileData 生产者**：
+- **TileData 生产者**：
     - `TileProd::Loc` 必须是 `TileType::Acc` 或 `TileType::Vec`。
     - `Direction::DIR_C2V`：Cube 生产 accumulator tile，供 vector 消费。
     - `Direction::DIR_V2C`：Vector 生产 vector tile，供 cube 消费。
@@ -62,6 +62,11 @@ struct TPipe;
     - `gmTensor` 必须是由 `TALLOC` 返回的 FIFO 槽位视图。
     - 调用 `TPUSH(Pipe&, GlobalData&)` 之前，数据必须已经写入 `gmTensor`。
     - `TPUSH(Pipe&, GlobalData&)` 忽略 tensor 内容，只将 FIFO 槽位提交给消费者。
+- **Tile 类型支持**：
+    - **TPUSH/TPOP 支持的 Tile 类型**：
+        - `TileType::Acc`（累加器 Tile）：Cube 核心使用，用于 C2V 方向通信。
+        - `TileType::Vec`（向量 Tile）：Vector 核心使用，用于 V2C 方向通信。
+        - `TileType::Ctrl`（控制 Tile）：Vector 核心使用，用于 V2C_CTRL 方向的控制信号通信。
 
 ## 示例
 
