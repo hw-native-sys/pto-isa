@@ -184,9 +184,13 @@ public:
     template <typename TileDef>
     TileDef::DType *GetPointer(std::size_t byteOffset)
     {
-        static_assert(is_tile_data_v<TileDef>);
-
-        const std::size_t accessElems = TileAccessElems<TileDef>();
+        static_assert(is_tile_data_v<TileDef> || is_conv_tile_v<TileDef>);
+        std::size_t accessElems = 0;
+        if constexpr (is_tile_data_v<TileDef>) {
+            accessElems = TileAccessElems<TileDef>();
+        } else {
+            accessElems = TileDef::bufferSize / sizeof(typename TileDef::DType);
+        }
         if constexpr (TileDef::Loc == TileType::Mat) {
             return GetPointer<typename TileDef::DType, MemoryRegion::L1>(byteOffset, accessElems);
         } else if constexpr (TileDef::Loc == TileType::Left) {
@@ -208,7 +212,7 @@ public:
     template <typename TileDef>
     typename TileDef::DType *ResolveAssignedAddress(std::uintptr_t addr)
     {
-        static_assert(is_tile_data_v<TileDef>);
+        static_assert(is_tile_data_v<TileDef> || is_conv_tile_v<TileDef>);
         EnsureInitialized();
 
         if (auto *direct = TryResolveExistingPointer<typename TileDef::DType>(addr)) {
