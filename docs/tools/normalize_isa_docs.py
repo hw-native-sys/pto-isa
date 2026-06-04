@@ -319,7 +319,6 @@ For `TGEMV_MX`, scale tiles participate in implementation-defined mixed-precisio
 
 ## Assembly Syntax
 
-PTO-AS form: see `docs/assembly/PTO-AS.md`.
 
 Schematic form:
 
@@ -374,7 +373,6 @@ $$
 
 ## Assembly Syntax
 
-PTO-AS form: see `docs/assembly/PTO-AS.md`.
 
 Synchronous form:
 
@@ -444,7 +442,6 @@ No direct tensor arithmetic is produced by this instruction. It updates target m
 
 ## Assembly Syntax
 
-PTO-AS form: see `docs/assembly/PTO-AS.md`.
 
 Schematic form:
 
@@ -494,7 +491,6 @@ No direct tensor arithmetic is produced by this instruction. It updates target m
 
 ## Assembly Syntax
 
-PTO-AS form: see `docs/assembly/PTO-AS.md`.
 
 Schematic form:
 
@@ -541,7 +537,6 @@ Semantics are instruction-specific. Unless stated otherwise, behavior is defined
 
 ## Assembly Syntax
 
-PTO-AS form: see `docs/assembly/PTO-AS.md`.
 
 ## C++ Intrinsic
 
@@ -590,7 +585,7 @@ def ensure_required_sections(instr: str, text: str) -> str:
         ),
         (
             "Assembly Syntax",
-            "## Assembly Syntax\n\nPTO-AS form: see `docs/assembly/PTO-AS.md`.\n",
+            "## Assembly Syntax\n\nProvide the instruction textual form when one is defined.\n",
         ),
         (
             "C++ Intrinsic",
@@ -743,7 +738,7 @@ def build_zh_page(instr: str, summary_zh: str, en_text: str) -> str:
     if asm_en:
         lines.append(_translate_md_to_zh(asm_en))
     else:
-        lines.append("PTO-AS 形式：参见 `docs/assembly/PTO-AS.md`。")
+        lines.append("按需给出该指令的文本形式。")
     lines.append("")
     lines.append("## C++ 内建接口")
     lines.append("")

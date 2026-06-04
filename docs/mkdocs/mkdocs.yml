@@ -95,13 +95,12 @@ nav:
       - State and Types: manual/03-state-and-types.md
       - Tiles and GlobalTensor: manual/04-tiles-and-globaltensor.md
       - Synchronization: manual/05-synchronization.md
-      - PTO Assembly (PTO-AS): manual/06-assembly.md
-      - Instruction Set (overview): manual/07-instructions.md
-      - Programming Guide: manual/08-programming.md
-      - Virtual ISA and IR: manual/09-virtual-isa-and-ir.md
-      - Bytecode and Toolchain: manual/10-bytecode-and-toolchain.md
-      - Memory Ordering and Consistency: manual/11-memory-ordering-and-consistency.md
-      - Backend Profiles and Conformance: manual/12-backend-profiles-and-conformance.md
+      - Instruction Set (overview): manual/06-instructions.md
+      - Programming Guide: manual/07-programming.md
+      - Virtual ISA and IR: manual/08-virtual-isa-and-ir.md
+      - Bytecode and Toolchain: manual/09-bytecode-and-toolchain.md
+      - Memory Ordering and Consistency: manual/10-memory-ordering-and-consistency.md
+      - Backend Profiles and Conformance: manual/11-backend-profiles-and-conformance.md
       - Glossary: manual/appendix-a-glossary.md
       - Instruction Contract Template: manual/appendix-b-instruction-contract-template.md
       - Diagnostics Taxonomy: manual/appendix-c-diagnostics-taxonomy.md
@@ -127,21 +126,6 @@ nav:
   - ISA Reference:
       - Overview: docs/isa/README.md
       - ISA Conventions: docs/isa/conventions.md
-      - PTO AS Reference:
-          - Overview: docs/assembly/README.md
-          - PTO-AS Specification: docs/assembly/PTO-AS.md
-          - Conventions: docs/assembly/conventions.md
-          - Non-ISA Operations: docs/assembly/nonisa-ops.md
-          - Elementwise Operations: docs/assembly/elementwise-ops.md
-          - Tile-Scalar Operations: docs/assembly/tile-scalar-ops.md
-          - Axis Operations: docs/assembly/axis-ops.md
-          - Memory Operations: docs/assembly/memory-ops.md
-          - Matrix Operations: docs/assembly/matrix-ops.md
-          - Data Movement Operations: docs/assembly/data-movement-ops.md
-          - Complex Operations: docs/assembly/complex-ops.md
-          - Manual Binding Operations: docs/assembly/manual-binding-ops.md
-          - Scalar Arithmetic Operations: docs/assembly/scalar-arith-ops.md
-          - Control Flow Operations: docs/assembly/control-flow-ops.md
       - PTO ISA Table: docs/PTOISA.md
       - Synchronization:
           - TSYNC: docs/isa/TSYNC.md

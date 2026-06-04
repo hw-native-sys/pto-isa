@@ -2,23 +2,7 @@
 
 - [PTO ISA 概述](PTOISA_zh.md)
 - [通用约定](isa/conventions_zh.md)
-- [产品支持情况](../include/README_zh.md)
-- **PTO AS 参考**
-    - [概述](assembly/README_zh.md)
-    - [PTO-AS 规范](assembly/PTO-AS_zh.md)
-    - [约定](assembly/conventions_zh.md)
-    - [非ISA操作](assembly/nonisa-ops_zh.md)
-    - [逐元素操作](assembly/elementwise-ops_zh.md)
-    - [Tile-标量操作](assembly/tile-scalar-ops_zh.md)
-    - [轴操作](assembly/axis-ops_zh.md)
-    - [内存操作](assembly/memory-ops_zh.md)
-    - [矩阵操作](assembly/matrix-ops_zh.md)
-    - [数据搬运操作](assembly/data-movement-ops_zh.md)
-    - [复杂操作](assembly/complex-ops_zh.md)
-    - [手动绑定操作](assembly/manual-binding-ops_zh.md)
-    - [标量算术操作](assembly/scalar-arith-ops_zh.md)
-    - [控制流操作](assembly/control-flow-ops_zh.md)
-- **PTO ISA 指令表**
+- [产品支持情况](../include/README_zh.md)- **PTO ISA 指令表**
     - [PTO ISA 指令表](PTOISA_zh.md)
 - **同步操作**
     - [TSYNC](isa/TSYNC_zh.md)

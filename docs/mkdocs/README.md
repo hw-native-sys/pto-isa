@@ -6,8 +6,7 @@ This directory is used to build the online documentation and local static docume
 
 The generated documentation covers:
 
-- PTO ISA instruction reference
-- PTO assembly syntax and specification (PTO-AS)
+- PTO ISA instruction reference
 - Programming model and developer documentation
 - Getting started and usage guides
 - Kernel examples and directory guides

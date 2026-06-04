@@ -27,56 +27,89 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MKDOCS_YML = REPO_ROOT / "docs" / "mkdocs" / "mkdocs.yml"
 
-REQUIRED_PAGES = [
-    "docs/isa/README.md",
-    "docs/isa/introduction/document-structure.md",
-    "docs/isa/programming-model/tiles-and-valid-regions.md",
-    "docs/isa/machine-model/execution-agents.md",
-    "docs/isa/syntax-and-operands/assembly-model.md",
-    "docs/isa/state-and-types/type-system.md",
-    "docs/isa/memory-model/consistency-baseline.md",
-    "docs/isa/instruction-families/README.md",
-    "docs/isa/tile/README.md",
-    "docs/isa/vector/README.md",
-    "docs/isa/scalar/README.md",
-    "docs/isa/comm/README.md",
-    "docs/isa/system/README.md",
-    "docs/isa/reference/README.md",
+EXPECTED_MANUAL_EN = [
+    "index.md",
+    "01-overview.md",
+    "02-machine-model.md",
+    "03-state-and-types.md",
+    "04-tiles-and-globaltensor.md",
+    "05-synchronization.md",
+    "06-instructions.md",
+    "07-programming.md",
+    "08-virtual-isa-and-ir.md",
+    "09-bytecode-and-toolchain.md",
+    "10-memory-ordering-and-consistency.md",
+    "11-backend-profiles-and-conformance.md",
+    "appendix-a-glossary.md",
+    "appendix-b-instruction-contract-template.md",
+    "appendix-c-diagnostics-taxonomy.md",
+    "appendix-d-instruction-family-matrix.md",
 ]
 
-EXPECTED_NAV_SECTIONS = [
-    "1. Introduction",
-    "2. Programming Model",
-    "3. Machine Model",
-    "4. Syntax And Operands",
-    "5. State And Types",
-    "6. Memory Model",
-    "7. Instruction Set Overview",
-    "8. Tile Instruction Reference",
-    "9. Vector Instruction Reference",
-    "10. Scalar And Control Reference",
-    "11. Communication ISA Reference",
-    "12. System Scheduling ISA Reference",
-    "13. Reference Notes",
+EXPECTED_MANUAL_ZH = [
+    "index_zh.md",
+    "01-overview_zh.md",
+    "02-machine-model_zh.md",
+    "03-state-and-types_zh.md",
+    "04-tiles-and-globaltensor_zh.md",
+    "05-synchronization_zh.md",
+    "06-instructions_zh.md",
+    "07-programming_zh.md",
+    "08-virtual-isa-and-ir_zh.md",
+    "09-bytecode-and-toolchain_zh.md",
+    "10-memory-ordering-and-consistency_zh.md",
+    "11-backend-profiles-and-conformance_zh.md",
+    "appendix-a-glossary_zh.md",
+    "appendix-b-instruction-contract-template_zh.md",
+    "appendix-c-diagnostics-taxonomy_zh.md",
+    "appendix-d-instruction-family-matrix_zh.md",
 ]
 
-ALLOWED_MKDOCS_SRC_EXACT = {
-    "docs/mkdocs/src/index.md",
-    "docs/mkdocs/src/index_zh.md",
+EXPECTED_HEADINGS: Dict[str, List[str]] = {
+    "index.md": ["# PTO Virtual Instruction Set Architecture Manual", "## 0.1 Scope", "## 0.4 Conformance language"],
+    "index_zh.md": ["# PTO 虚拟指令集架构手册", "## 0.1 范围", "## 0.4 规范性术语"],
+    "10-memory-ordering-and-consistency.md": ["# 10. Memory Ordering and Consistency", "## 10.1 Scope", "## 10.4 Ordering guarantees"],
+    "10-memory-ordering-and-consistency_zh.md": ["# 10. 内存顺序与一致性", "## 10.1 范围", "## 10.4 顺序保证"],
+    "11-backend-profiles-and-conformance.md": ["# 11. Backend Profiles and Conformance", "## 11.1 Scope", "## 11.5 Conformance levels"],
+    "11-backend-profiles-and-conformance_zh.md": ["# 11. 后端画像与一致性", "## 11.1 范围", "## 11.5 一致性等级"],
 }
 
-ALLOWED_MKDOCS_SRC_PREFIXES = ("docs/mkdocs/src/assets/",)
-
-REMOVED_PTOAS_PAGES = [
-    "docs/assembly/PTO-AS.md",
-    "docs/assembly/PTO-AS_zh.md",
-    "docs/assembly/PTO-AS.bnf",
+EXPECTED_NAV_EN = [
+    "manual/index.md",
+    "manual/01-overview.md",
+    "manual/02-machine-model.md",
+    "manual/03-state-and-types.md",
+    "manual/04-tiles-and-globaltensor.md",
+    "manual/05-synchronization.md",
+    "manual/06-instructions.md",
+    "manual/07-programming.md",
+    "manual/08-virtual-isa-and-ir.md",
+    "manual/09-bytecode-and-toolchain.md",
+    "manual/10-memory-ordering-and-consistency.md",
+    "manual/11-backend-profiles-and-conformance.md",
+    "manual/appendix-a-glossary.md",
+    "manual/appendix-b-instruction-contract-template.md",
+    "manual/appendix-c-diagnostics-taxonomy.md",
+    "manual/appendix-d-instruction-family-matrix.md",
 ]
 
-LINK_SCAN_ROOTS = [
-    "docs",
-    "tests/npu/a5/src/st/testcase/mgather",
-    "tests/npu/a5/src/st/testcase/mscatter",
+EXPECTED_NAV_ZH = [
+    "manual/index_zh.md",
+    "manual/01-overview_zh.md",
+    "manual/02-machine-model_zh.md",
+    "manual/03-state-and-types_zh.md",
+    "manual/04-tiles-and-globaltensor_zh.md",
+    "manual/05-synchronization_zh.md",
+    "manual/06-instructions_zh.md",
+    "manual/07-programming_zh.md",
+    "manual/08-virtual-isa-and-ir_zh.md",
+    "manual/09-bytecode-and-toolchain_zh.md",
+    "manual/10-memory-ordering-and-consistency_zh.md",
+    "manual/11-backend-profiles-and-conformance_zh.md",
+    "manual/appendix-a-glossary_zh.md",
+    "manual/appendix-b-instruction-contract-template_zh.md",
+    "manual/appendix-c-diagnostics-taxonomy_zh.md",
+    "manual/appendix-d-instruction-family-matrix_zh.md",
 ]
 
 
