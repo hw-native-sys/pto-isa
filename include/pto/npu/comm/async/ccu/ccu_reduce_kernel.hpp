@@ -38,6 +38,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "hcomm/ccu/ccu_task_arg_v1.h"
 
 #include "pto/npu/comm/async/ccu/ccu_gate_registry.hpp"
+#include "pto/npu/comm/async/ccu/ccu_mesh_common.hpp"
 
 namespace pto {
 namespace comm {
@@ -92,16 +93,33 @@ struct CcuReduceKernelArg : public hcomm::CcuKernelArg {
     }
 };
 
+static constexpr uint32_t kMaxReduceRanks = 16;
+
 struct CcuReduceTaskArg : public hcomm::CcuTaskArg {
     uint64_t inputAddr{0};
     uint64_t outputAddr{0};
     uint64_t length{0};
     uint64_t token{0};
 
+    uint32_t peerCount{0};
+    uint64_t peerInput[kMaxReduceRanks]{};
+    uint64_t peerOutput[kMaxReduceRanks]{};
+    uint64_t peerToken[kMaxReduceRanks]{};
+
     CcuReduceTaskArg() = default;
     CcuReduceTaskArg(uint64_t in, uint64_t out, uint64_t len, uint64_t tok)
         : inputAddr(in), outputAddr(out), length(len), token(tok)
     {}
+
+    void SetPeerAddrs(uint32_t rankSize, const uint64_t *inputs, const uint64_t *outputs, const uint64_t *tokens)
+    {
+        peerCount = rankSize;
+        for (uint32_t i = 0; i < rankSize && i < kMaxReduceRanks; ++i) {
+            peerInput[i] = inputs[i];
+            peerOutput[i] = outputs[i];
+            peerToken[i] = tokens[i];
+        }
+    }
 };
 
 // ============================================================================
@@ -110,9 +128,7 @@ struct CcuReduceTaskArg : public hcomm::CcuTaskArg {
 
 namespace detail {
 
-constexpr uint32_t INPUT_XN_ID = 0;
-constexpr uint32_t OUTPUT_XN_ID = 1;
-constexpr uint32_t TOKEN_XN_ID = 2;
+constexpr uint32_t PRE_SYNC_ID = 0;
 constexpr uint32_t POST_SYNC_ID = 3;
 constexpr uint32_t CKE_IDX_0 = 0;
 
@@ -122,9 +138,9 @@ inline void ReduceTrace(const char *tag, uint32_t rank, const char *msg)
     std::fflush(stderr);
 }
 
-class CcuReduceMesh1D : public hcomm::CcuKernel {
+class CcuReduceMesh1D : public CcuMeshKernelBase {
 public:
-    inline explicit CcuReduceMesh1D(const hcomm::CcuKernelArg &arg) : CcuKernel(arg)
+    inline explicit CcuReduceMesh1D(const hcomm::CcuKernelArg &arg) : CcuMeshKernelBase(arg)
     {
         const auto *kArg = dynamic_cast<const CcuReduceKernelArg *>(&arg);
         if (kArg != nullptr) {
@@ -202,15 +218,15 @@ public:
 
         std::fprintf(stderr,
                      "[CCU_REDUCE/gene] rank=%u published (die=%u, cke=%u, mask=0x%x) "
-                     "input=0x%llx output=0x%llx len=%llu token=0x%llx gateOnly=%d\n",
+                     "input=0x%llx output=0x%llx len=%llu token=0x%llx peerCount=%u gateOnly=%d\n",
                      rankId_, dieId, ckeId, gateMask_, static_cast<unsigned long long>(tArg->inputAddr),
                      static_cast<unsigned long long>(tArg->outputAddr), static_cast<unsigned long long>(tArg->length),
-                     static_cast<unsigned long long>(tArg->token), static_cast<int>(gateOnly_));
+                     static_cast<unsigned long long>(tArg->token), tArg->peerCount, static_cast<int>(gateOnly_));
 
         if (gateOnly_) {
             return {};
         }
-        return {tArg->inputAddr, tArg->outputAddr, tArg->token, tArg->length};
+        return PackPeerArgs(rankSize_, tArg->peerInput, tArg->peerOutput, tArg->peerToken, tArg->length);
     }
 
 private:
@@ -252,22 +268,10 @@ private:
 
     inline HcclResult InitResourceWithChannels()
     {
-        uint16_t channelIdx = 0;
         for (uint32_t peerId = 0; peerId < rankSize_; peerId++) {
-            if (peerId == rankId_) {
-                input_.push_back(CreateVariable());
-                output_.push_back(CreateVariable());
-                token_.push_back(CreateVariable());
-            } else {
-                hcomm::CcuRep::Variable inputVar, outputVar, tokenVar;
-                (void)CreateVariable(ownChannels_[channelIdx], INPUT_XN_ID, &inputVar);
-                input_.push_back(inputVar);
-                (void)CreateVariable(ownChannels_[channelIdx], OUTPUT_XN_ID, &outputVar);
-                output_.push_back(outputVar);
-                (void)CreateVariable(ownChannels_[channelIdx], TOKEN_XN_ID, &tokenVar);
-                token_.push_back(tokenVar);
-                channelIdx++;
-            }
+            input_.push_back(CreateVariable());
+            output_.push_back(CreateVariable());
+            token_.push_back(CreateVariable());
         }
 
         lengthVar_ = CreateVariable();
@@ -292,34 +296,21 @@ private:
 
     inline void LoadArgs()
     {
-        Load(input_[rankId_]);
-        Load(output_[rankId_]);
-        Load(token_[rankId_]);
-        Load(lengthVar_);
+        LoadPeerArgs(input_, output_, token_, lengthVar_);
     }
 
+    // Readiness barrier (payload-free; addresses come from the host AllGather):
+    // a rank reaches here only after its CKE gate, i.e. after its AIV produced
+    // and flushed its input, so the root sees valid peer inputs before ReadNb.
     inline void PreSync()
     {
-        for (auto ch : ownChannels_) {
-            (void)NotifyRecord(ch, CKE_IDX_0, INPUT_XN_ID, input_[rankId_], 1u << INPUT_XN_ID);
-            (void)NotifyRecord(ch, CKE_IDX_0, OUTPUT_XN_ID, output_[rankId_], 1u << OUTPUT_XN_ID);
-            (void)NotifyRecord(ch, CKE_IDX_0, TOKEN_XN_ID, token_[rankId_], 1u << TOKEN_XN_ID);
-        }
-        uint32_t allBit = (1u << INPUT_XN_ID) | (1u << OUTPUT_XN_ID) | (1u << TOKEN_XN_ID);
-        for (auto ch : ownChannels_) {
-            (void)NotifyWait(ch, CKE_IDX_0, allBit);
-        }
-        ReduceTrace("sync", rankId_, "PreSync done");
+        NotifyBarrier(ownChannels_, CKE_IDX_0, PRE_SYNC_ID);
+        ReduceTrace("sync", rankId_, "PreSync (ready) done");
     }
 
     inline void PostSync()
     {
-        for (auto &ch : ownChannels_) {
-            (void)NotifyRecord(ch, CKE_IDX_0, 1u << POST_SYNC_ID);
-        }
-        for (auto &ch : ownChannels_) {
-            (void)NotifyWait(ch, CKE_IDX_0, 1u << POST_SYNC_ID);
-        }
+        NotifyBarrier(ownChannels_, CKE_IDX_0, POST_SYNC_ID);
         ReduceTrace("sync", rankId_, "PostSync done");
     }
 

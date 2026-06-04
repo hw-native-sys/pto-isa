@@ -97,11 +97,15 @@ endfunction()
 # two gtest copies MUST NOT share the same imported target.  We expose a
 # dedicated `ccu_gtest` here that is independent of `GTest::gtest`.
 #
-# Build an old-ABI gtest once and point CCU_GTEST_ROOT at the install prefix:
+# Build an old-ABI gtest once and point CCU_GTEST_ROOT at the install prefix.
+# NOTE: -fPIC is REQUIRED.  The project sets CMAKE_POSITION_INDEPENDENT_CODE ON,
+# so the test executables are PIE; linking a non-PIC gtest.a against a PIE binary
+# fails on aarch64 with "R_AARCH64_ABS64 cannot be used against local symbol".
 #     git clone -b release-1.12.1 https://github.com/google/googletest.git
 #     cmake -S googletest -B /tmp/gtb \
 #           -DCMAKE_INSTALL_PREFIX=$HOME/opt/gtest-oldabi \
-#           -DCMAKE_CXX_FLAGS="-D_GLIBCXX_USE_CXX11_ABI=0" \
+#           -DCMAKE_CXX_FLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 -fPIC" \
+#           -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
 #           -DBUILD_GMOCK=OFF
 #     cmake --build /tmp/gtb --target install
 #     export CCU_GTEST_ROOT=$HOME/opt/gtest-oldabi
