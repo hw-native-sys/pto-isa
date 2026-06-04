@@ -189,15 +189,8 @@ __tf__ AICORE void TLoad(typename TileData::TileDType __out__ dst, typename Glob
     if constexpr (GlobalData::layout == pto::Layout::NZ) {
         assert(validRow == gShape2 * gShape3 && validCol == gShape1 * gShape4);
     } else {
-        const bool isFlattenRowsColMajor =
-            !TileData::isRowMajor &&
-            static_cast<int64_t>(gShape0) * gShape1 * gShape2 * static_cast<int64_t>(gShape3) == validRow &&
-            gShape4 == validCol;
-        assert((static_cast<int64_t>(gShape0) * gShape1 * gShape2 * gShape3 == validRow && gShape4 == validCol &&
-                TileData::isRowMajor) ||
-               (static_cast<int64_t>(gShape0) * gShape1 * gShape2 * gShape4 == validCol && gShape3 == validRow &&
-                !TileData::isRowMajor) ||
-               isFlattenRowsColMajor);
+        assert((gShape0 * gShape1 * gShape2 * gShape3 == validRow && gShape4 == validCol && TileData::isRowMajor) ||
+               (gShape0 * gShape1 * gShape2 * gShape4 == validCol && gShape3 == validRow && !TileData::isRowMajor));
     }
 
     // Filling padding
