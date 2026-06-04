@@ -188,23 +188,23 @@ public:
     TileDef::DType *GetPointer(std::size_t byteOffset)
     {
         static_assert(is_tile_data_v<TileDef> || is_conv_tile_v<TileDef>);
-        std::size_t accessElems = 0;
+        int numElem;
         if constexpr (is_tile_data_v<TileDef>) {
-            accessElems = TileAccessElems<TileDef>();
+            numElem = TileDef::Numel;
         } else {
-            accessElems = TileDef::bufferSize / sizeof(typename TileDef::DType);
+            numElem = TileDef::bufferSize / sizeof(typename TileDef::DType);
         }
         if constexpr (TileDef::Loc == TileType::Mat) {
-            return GetPointer<typename TileDef::DType, MemoryRegion::L1>(byteOffset, accessElems);
+            return GetPointer<typename TileDef::DType, MemoryRegion::L1>(byteOffset, numElem);
         } else if constexpr (TileDef::Loc == TileType::Left) {
-            return GetPointer<typename TileDef::DType, MemoryRegion::L0A>(byteOffset, accessElems);
+            return GetPointer<typename TileDef::DType, MemoryRegion::L0A>(byteOffset, numElem);
         } else if constexpr (TileDef::Loc == TileType::Right) {
-            return GetPointer<typename TileDef::DType, MemoryRegion::L0B>(byteOffset, accessElems);
+            return GetPointer<typename TileDef::DType, MemoryRegion::L0B>(byteOffset, numElem);
         } else if constexpr (TileDef::Loc == TileType::Acc) {
-            return GetPointer<typename TileDef::DType, MemoryRegion::L0C>(byteOffset, accessElems);
+            return GetPointer<typename TileDef::DType, MemoryRegion::L0C>(byteOffset, numElem);
         } else {
             return GetPointer<typename TileDef::DType, MemoryRegion::UB>(byteOffset,
-                                                                         accessElems); // For Vec and unknown types
+                                                                         numElem); // For Vec and unknown types
         }
     }
 
@@ -215,7 +215,7 @@ public:
     template <typename TileDef>
     typename TileDef::DType *ResolveAssignedAddress(std::uintptr_t addr)
     {
-        static_assert(is_tile_data_v<TileDef>);
+        static_assert(is_tile_data_v<TileDef> || is_conv_tile_v<TileDef>);
         EnsureInitialized();
 
         if (auto *direct = TryResolveExistingPointer<typename TileDef::DType>(addr)) {
