@@ -14,6 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/common/constants.hpp>
 #include <pto/common/utils.hpp>
 #include <pto/npu/a5/TBinSOp.hpp>
+#include <pto/npu/kirin9030/TRem.hpp>
 
 namespace pto {
 
@@ -24,38 +25,7 @@ struct RemSOp {
     {
         RegTensor<T> src1;
         vdup(src1, scalar, preg, MODE_ZEROING);
-        if constexpr (std::is_same_v<T, float>) {
-            vdiv(dst, src0, src1, preg, MODE_ZEROING);
-            vtrc(dst, dst, ROUND_F, preg);
-            vmuls(dst, dst, scalar, preg, MODE_ZEROING);
-            vsub(dst, src0, dst, preg, MODE_ZEROING);
-        } else if constexpr (std::is_same_v<T, half>) {
-            RegTensor<float> src0_even, src1_even, even, src0_odd, src1_odd, odd;
-            RegTensor<T> dst_even, dst_odd;
-            vcvt(src0_even, src0, preg, PART_EVEN);
-            vcvt(src1_even, src1, preg, PART_EVEN);
-            vcvt(src0_odd, src0, preg, PART_ODD);
-            vcvt(src1_odd, src1, preg, PART_ODD);
-
-            vdiv(even, src0_even, src1_even, preg, MODE_ZEROING);
-            vdiv(odd, src0_odd, src1_odd, preg, MODE_ZEROING);
-
-            vtrc(even, even, ROUND_F, preg);
-            vtrc(odd, odd, ROUND_F, preg);
-
-            vmuls(even, even, (float)scalar, preg, MODE_ZEROING);
-            vmuls(odd, odd, (float)scalar, preg, MODE_ZEROING);
-
-            vsub(even, src0_even, even, preg, MODE_ZEROING);
-            vsub(odd, src0_odd, odd, preg, MODE_ZEROING);
-
-            vcvt(dst_even, even, preg, ROUND_Z, RS_ENABLE, PART_EVEN);
-            vcvt(dst_odd, odd, preg, ROUND_Z, RS_ENABLE, PART_ODD);
-
-            vor(dst, dst_even, dst_odd, preg);
-        } else {
-            // using cce intrinsic implement
-        }
+        RemOp<T>::BinInstr(dst, src0, src1, preg);
     }
 };
 

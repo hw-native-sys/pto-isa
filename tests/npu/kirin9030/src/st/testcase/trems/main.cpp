@@ -9,21 +9,16 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include "test_common.h"
+#include "acl/acl.h"
 #include <gtest/gtest.h>
-#include <acl/acl.h>
 
 using namespace std;
 using namespace PtoTestCommon;
 
-template <uint32_t caseId>
-void launchTREMSTestCase(void *out, void *src, float scalar, aclrtStream stream);
-
 class TREMSTest : public testing::Test {
-public:
 protected:
     void SetUp() override
     {}
-
     void TearDown() override
     {}
 };
@@ -37,93 +32,102 @@ std::string GetGoldenDir()
     return fullPath;
 }
 
-template <uint32_t caseId, typename T, int dstTileRow, int dstTileCol, int row, int vaildRow, int col, int srcVaildCol>
-bool TRemSTestFramework()
+template <typename T, int kTRows_, int kTCols_, int vRows, int vCols, bool isHalf>
+void LaunchTRems(T *out, T *src0, T *src1, void *stream);
+
+template <typename T, int kTRows_, int kTCols_, int vRows, int vCols, bool isHalf>
+void test_trems()
 {
+    size_t fileSize = kTRows_ * kTCols_ * sizeof(T);
+    size_t scalarSize = sizeof(T);
+
     aclInit(nullptr);
     aclrtSetDevice(0);
-
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    size_t dstByteSize = dstTileRow * dstTileCol * sizeof(T);
-    size_t srcByteSize = row * col * sizeof(T);
-    T *dstHost;
-    T *srcHost;
-    T *dstDevice;
-    T *srcDevice;
-    float scalar;
+    T *dstHost, *src0Host, *src1Host;
+    T *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), dstByteSize);
-    aclrtMallocHost((void **)(&srcHost), srcByteSize);
+    aclrtMallocHost((void **)(&dstHost), fileSize);
+    aclrtMallocHost((void **)(&src0Host), fileSize);
+    aclrtMallocHost((void **)(&src1Host), scalarSize);
 
-    aclrtMalloc((void **)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void **)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void **)&src1Device, scalarSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
-    ReadFile(GetGoldenDir() + "/input.bin", srcByteSize, srcHost, srcByteSize);
-    std::string scalar_file = GetGoldenDir() + "/divider.bin";
-    std::ifstream file(scalar_file, std::ios::binary);
+    ReadFile(GetGoldenDir() + "/input1.bin", fileSize, src0Host, fileSize);
+    ReadFile(GetGoldenDir() + "/input2.bin", scalarSize, src1Host, scalarSize);
+    aclrtMemset(dstHost, fileSize, 0, fileSize);
 
-    file.read(reinterpret_cast<char *>(&scalar), 4);
-    file.close();
+    aclrtMemcpy(dstDevice, fileSize, dstHost, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(src0Device, fileSize, src0Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(src1Device, scalarSize, src1Host, scalarSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    LaunchTRems<T, kTRows_, kTCols_, vRows, vCols, isHalf>(dstDevice, src0Device, src1Device, stream);
 
-    aclrtMemcpy(srcDevice, srcByteSize, srcHost, srcByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    launchTREMSTestCase<caseId>(dstDevice, srcDevice, scalar, stream);
     aclrtSynchronizeStream(stream);
-    aclrtMemcpy(dstHost, dstByteSize, dstDevice, dstByteSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    aclrtMemcpy(dstHost, fileSize, dstDevice, fileSize, ACL_MEMCPY_DEVICE_TO_HOST);
 
-    WriteFile(GetGoldenDir() + "/output.bin", dstHost, dstByteSize);
+    WriteFile(GetGoldenDir() + "/output.bin", dstHost, fileSize);
 
     aclrtFree(dstDevice);
-    aclrtFree(srcDevice);
+    aclrtFree(src0Device);
+    aclrtFree(src1Device);
 
     aclrtFreeHost(dstHost);
-    aclrtFreeHost(srcHost);
-
+    aclrtFreeHost(src0Host);
+    aclrtFreeHost(src1Host);
     aclrtDestroyStream(stream);
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<T> golden(dstByteSize);
-    std::vector<T> devFinal(dstByteSize);
-    ReadFile(GetGoldenDir() + "/golden.bin", dstByteSize, golden.data(), dstByteSize);
-    ReadFile(GetGoldenDir() + "/output.bin", dstByteSize, devFinal.data(), dstByteSize);
+    std::vector<T> golden(fileSize);
+    std::vector<T> devFinal(fileSize);
+    ReadFile(GetGoldenDir() + "/golden.bin", fileSize, golden.data(), fileSize);
+    ReadFile(GetGoldenDir() + "/output.bin", fileSize, devFinal.data(), fileSize);
 
-    return ResultCmp<T>(golden, devFinal, 0.001f);
+    bool ret = ResultCmp<T>(golden, devFinal, 0.001f);
+
+    EXPECT_TRUE(ret);
 }
 
 TEST_F(TREMSTest, case1)
 {
-    bool ret = TRemSTestFramework<1, float, 32, 128, 32, 32, 64, 64>();
-    EXPECT_TRUE(ret);
+    test_trems<uint16_t, 64, 64, 64, 64, false>();
 }
 
 TEST_F(TREMSTest, case2)
 {
-    bool ret = TRemSTestFramework<2, aclFloat16, 63, 128, 63, 63, 64, 64>();
-    EXPECT_TRUE(ret);
+    test_trems<uint16_t, 64, 64, 63, 63, false>();
 }
 
 TEST_F(TREMSTest, case3)
 {
-    bool ret = TRemSTestFramework<3, int32_t, 31, 256, 31, 31, 128, 128>();
-    EXPECT_TRUE(ret);
-}
-
-TEST_F(TREMSTest, case4)
-{
-    bool ret = TRemSTestFramework<4, int16_t, 15, 192, 15, 15, 192, 192>();
-    EXPECT_TRUE(ret);
+    test_trems<uint16_t, 1, 16384, 1, 16384, false>();
 }
 
 TEST_F(TREMSTest, case5)
 {
-    bool ret = TRemSTestFramework<5, float, 7, 512, 7, 7, 448, 448>();
-    EXPECT_TRUE(ret);
+    test_trems<float, 32, 32, 32, 32, false>();
 }
 
 TEST_F(TREMSTest, case6)
 {
-    bool ret = TRemSTestFramework<6, float, 256, 32, 256, 256, 16, 16>();
-    EXPECT_TRUE(ret);
+    test_trems<uint32_t, 8, 8, 8, 8, false>();
+}
+
+TEST_F(TREMSTest, case7)
+{
+    test_trems<aclFloat16, 32, 32, 31, 31, true>();
+}
+
+TEST_F(TREMSTest, case8)
+{
+    test_trems<int16_t, 16, 16, 16, 16, false>();
+}
+
+TEST_F(TREMSTest, case9)
+{
+    test_trems<int32_t, 8, 8, 8, 8, false>();
 }

@@ -11,56 +11,78 @@
 # --------------------------------------------------------------------------------
 
 import os
-import struct
-import ctypes
 import numpy as np
-np.random.seed(23)
+np.random.seed(19)
 
 
-def gen_golden_data(param):
-    data_type = param.data_type
-    rows = param.row
-    cols = param.col
-    dst_tile_row = param.dst_tile_row
-    dst_tile_col = param.dst_tile_col
+def gen_golden_data_trems(case_name, param):
+    dtype = param.dtype
 
-    input_arr = np.random.uniform(low=-8, high=8, size=(rows, cols)).astype(data_type)
-    divider = np.random.uniform(low=-8, high=8, size=1).astype(data_type)
-    output_arr = np.zeros((dst_tile_row, dst_tile_col), dtype=data_type)
-    if data_type == np.float16 or data_type == np.float32:
-        output_arr[:rows, :cols] = np.fmod(input_arr[:rows, :cols], divider[0])
+    row, col = [param.tile_row, param.tile_col]
+    h_valid, w_valid = [param.valid_row, param.valid_col]
+
+    if np.issubdtype(dtype, np.integer):
+        value_min = np.iinfo(dtype).min
+        value_max = np.iinfo(dtype).max
     else:
-        output_arr[:rows, :cols] = input_arr[:rows, :cols] % divider[0]
+        value_min = -1e4
+        value_max = 1e4
 
-    input_arr.tofile('input.bin')
-    with open("divider.bin", 'wb') as f:
-        f.write(struct.pack('f', divider[0]))
-    output_arr.tofile('golden.bin')
+    # Generate random input arrays
+    input1 = np.random.uniform(value_min, value_max, size=(row, col)).astype(dtype)
+    input2 = np.random.uniform(value_min // 10, value_max // 10, size=(1)).astype(dtype)
+    golden = np.remainder(input1, input2[0])
+
+    if input2[0] == 0:
+        if np.issubdtype(dtype, np.signedinteger):
+            golden[:, :] = -1
+        if np.issubdtype(dtype, np.unsignedinteger):
+            golden[:, :] = value_max
+
+    golden[h_valid:, :] = 0
+    golden[:, w_valid:] = 0
+
+    # Save the input and golden data to binary files
+    input1.tofile("input1.bin")
+    input2.tofile("input2.bin")
+    golden.tofile("golden.bin")
 
 
-class TremsParams:
-    def __init__(self, name, data_type, dst_tile_row, dst_tile_col, row, col):
+class TRemsParams:
+    def __init__(self, name, dtype, tile_row, tile_col, valid_row, valid_col):
         self.name = name
-        self.data_type = data_type
-        self.dst_tile_row = dst_tile_row
-        self.dst_tile_col = dst_tile_col
-        self.row = row
-        self.col = col
+        self.dtype = dtype
+        self.tile_row = tile_row
+        self.tile_col = tile_col
+        self.valid_row = valid_row
+        self.valid_col = valid_col
 
 if __name__ == "__main__":
+    # Get the absolute path of the script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    testcases_dir = os.path.join(script_dir, "testcases")
+
+    # Ensure the testcases directory exists
+    if not os.path.exists(testcases_dir):
+        os.makedirs(testcases_dir)
+
     case_params_list = [
-        TremsParams("TREMSTest.case1", np.float32, 32, 128, 32, 64),
-        TremsParams("TREMSTest.case2", np.float16, 63, 128, 63, 64),
-        TremsParams("TREMSTest.case3", np.int32, 31, 256, 31, 128),
-        TremsParams("TREMSTest.case4", np.int16, 15, 192, 15, 64 * 3),
-        TremsParams("TREMSTest.case5", np.float32, 7, 512, 7, 64 * 7),
-        TremsParams("TREMSTest.case6", np.float32, 256, 32, 256, 16)
+        TRemsParams("TREMSTest.case1", np.uint16, 64, 64, 64, 64),
+        TRemsParams("TREMSTest.case2", np.uint16, 64, 64, 63, 63),
+        TRemsParams("TREMSTest.case3", np.uint16, 1, 16384, 1, 16384),
+        TRemsParams("TREMSTest.case4", np.uint16, 2048, 16, 2048, 16),
+        TRemsParams("TREMSTest.case5", np.float32, 32, 32, 32, 32),
+        TRemsParams("TREMSTest.case6", np.uint32, 8, 8, 8, 8),
+        TRemsParams("TREMSTest.case7", np.float16, 32, 32, 31, 31),
+        TRemsParams("TREMSTest.case8", np.int16, 16, 16, 16, 16),
+        TRemsParams("TREMSTest.case9", np.int32, 8, 8, 8, 8),
     ]
 
-    for _, case in enumerate(case_params_list):
-        if not os.path.exists(case.name):
-            os.makedirs(case.name)
+    for param in case_params_list:
+        case_name = param.name
+        if not os.path.exists(case_name):
+            os.makedirs(case_name)
         original_dir = os.getcwd()
-        os.chdir(case.name)
-        gen_golden_data(case)
+        os.chdir(case_name)
+        gen_golden_data_trems(case_name, param)
         os.chdir(original_dir)
