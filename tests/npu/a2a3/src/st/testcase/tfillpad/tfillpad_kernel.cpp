@@ -153,7 +153,7 @@ AICORE void runTFILLPAD(__gm__ T *out, __gm__ T *src, int gShape0, int gShape1, 
     int srcOffset = (block_idx) * (shape3 / block_num) * shape4;
     auto srcGlobal =
         getGlobalTensor<T, shape0, shape1, shape2, shape3, shape4, kGTRows, shape4, BLayout::RowMajor, dyn_>(
-            src + srcOffset, gShape0, gShape1, gShape2, kGTRows, shape4);
+            src + srcOffset, gShape0, gShape1, gShape2, shape3, shape4);
     int dstOffset = (block_idx) * (shape3 / block_num) * kTCols_;
     auto dstGlobal =
         getGlobalTensor<T, shape0, shape1, shape2, shape3, kTCols_, kGTRows, kTCols_, BLayout::RowMajor, 0>(
