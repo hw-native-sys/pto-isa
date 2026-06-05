@@ -18,27 +18,35 @@ np.random.seed(19)
 def gen_golden_data_trem(case_name, param):
     dtype = param.dtype
 
+    row, col = [param.tile_row, param.tile_col]
     h_valid, w_valid = [param.valid_row, param.valid_col]
 
-    # Generate random input arrays
-    input1 = np.random.randint(1, 16383, size=h_valid * w_valid).astype(dtype)
-    input2 = np.random.randint(1, 16383, size=h_valid * w_valid).astype(dtype)
-
-    # Perform the andbtraction
-    if dtype == np.float16 or dtype == np.float32:
-        golden = np.fmod(input1, input2)
+    if np.issubdtype(dtype, np.integer):
+        value_max = np.iinfo(dtype).max
+        value_min = np.iinfo(dtype).min
     else:
-        golden = input1 % input2
+        value_max = 1e4
+        value_min = -1e4
 
-    # Apply valid region constraints
-    output = np.zeros(h_valid * w_valid).astype(dtype)
+    # Generate random input arrays
+    input1 = np.random.uniform(value_min, value_max, size=(row, col)).astype(dtype)
+    input2 = np.random.uniform(value_min // 10, value_max // 10, size=(row, col)).astype(dtype)
+    golden = np.remainder(input1, input2)
+
+    if np.issubdtype(dtype, np.integer):
+        zero_mask = (input2 == 0)
+        if np.issubdtype(dtype, np.signedinteger):
+            golden[zero_mask] = -1
+        else:
+            golden[zero_mask] = value_max
+
+    golden[h_valid:, :] = 0
+    golden[:, w_valid:] = 0
 
     # Save the input and golden data to binary files
     input1.tofile("input1.bin")
     input2.tofile("input2.bin")
     golden.tofile("golden.bin")
-
-    return output, input1, input2, golden
 
 
 class TRemParams:

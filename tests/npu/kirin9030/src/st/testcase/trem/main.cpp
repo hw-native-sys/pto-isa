@@ -58,7 +58,9 @@ void test_trem()
 
     ReadFile(GetGoldenDir() + "/input1.bin", fileSize, src0Host, fileSize);
     ReadFile(GetGoldenDir() + "/input2.bin", fileSize, src1Host, fileSize);
+    aclrtMemset(dstHost, fileSize, 0, fileSize);
 
+    aclrtMemcpy(dstDevice, fileSize, dstHost, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src0Device, fileSize, src0Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, fileSize, src1Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     LaunchTRem<T, kTRows_, kTCols_, vRows, vCols, isHalf>(dstDevice, src0Device, src1Device, stream);

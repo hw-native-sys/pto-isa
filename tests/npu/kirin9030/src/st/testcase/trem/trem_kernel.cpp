@@ -17,13 +17,13 @@ template <typename T, int kTRows_, int kTCols_, int vRows, int vCols>
 __global__ AICORE void runTRem(__gm__ T *out, __gm__ T *src0, __gm__ T *src1)
 {
     using DynShapeDim5 = Shape<1, 1, 1, vRows, vCols>;
-    using DynStridDim5 = pto::Stride<1, 1, 1, vCols, 1>;
+    using DynStridDim5 = pto::Stride<kTRows_ * kTCols_, kTRows_ * kTCols_, kTRows_ * kTCols_, kTCols_, 1>;
     using GlobalData = GlobalTensor<T, DynShapeDim5, DynStridDim5>;
-    using TileData = Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>;
-    TileData src0Tile(vRows, vCols);
-    TileData src1Tile(vRows, vCols);
-    TileData dstTile(vRows, vCols);
-    TileData tmpTile(1, vCols);
+    using TileData = Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, vRows, vCols>;
+    TileData src0Tile;
+    TileData src1Tile;
+    TileData dstTile;
+    TileData tmpTile;
     TASSIGN<0x0>(src0Tile);
     TASSIGN<TileData::Numel * sizeof(T)>(src1Tile);
     TASSIGN<2 * TileData::Numel * sizeof(T)>(dstTile);
@@ -33,14 +33,12 @@ __global__ AICORE void runTRem(__gm__ T *out, __gm__ T *src0, __gm__ T *src1)
     GlobalData src1Global(src1);
     GlobalData dstGlobal(out);
 
-    Event<Op::TLOAD, Op::TREM> event0;
-    Event<Op::TREM, Op::TSTORE_VEC> event1;
-
     TLOAD(src0Tile, src0Global);
-    event0 = TLOAD(src1Tile, src1Global);
-    event1 = TREM(dstTile, src0Tile, src1Tile, tmpTile, event0);
-    TSTORE(dstGlobal, dstTile, event1);
-    out = dstGlobal.data();
+    TLOAD(src1Tile, src1Global);
+    PtoSetWaitFlag<PIPE_MTE2, PIPE_V>();
+    TREM(dstTile, src0Tile, src1Tile, tmpTile);
+    PtoSetWaitFlag<PIPE_V, PIPE_MTE3>();
+    TSTORE(dstGlobal, dstTile);
 }
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols, bool isHalf>
