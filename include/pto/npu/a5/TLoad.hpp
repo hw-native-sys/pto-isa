@@ -40,8 +40,7 @@ PTO_INTERNAL void TLoadVecND2ND(__ubuf__ typename TileData::DType *dstAddr, type
     int64_t dstStride2 = gShape3 * TileData::Cols;
     int64_t dstStride1 = gShape2 * dstStride2;
     int64_t dstStride0 = gShape1 * dstStride1;
-    if constexpr (std::is_same<typename TileData::DType, float4_e1m2x2_t>::value ||
-                  std::is_same<typename TileData::DType, float4_e2m1x2_t>::value) {
+    if constexpr (caps::IsFP4<typename TileData::DType>()) {
         dstStride0 = dstStride0 >> 1; // fp4 dstAddr offset need divide 2 as use b8 to move
         gStride0 = gStride0 >> 1;     // fp4 srcAddr offset need divide 2 as use b8 to move
     }
@@ -97,8 +96,7 @@ PTO_INTERNAL void TLoadVecDN2DN(__ubuf__ typename TileData::DType *dstAddr, type
         set_loop1_stride_outtoub(loop1_dst_stride << 40 | loop1_src_stride);
         set_loop_size_outtoub(loop2 << 21 | loop1);
     }
-    if constexpr (std::is_same<typename TileData::DType, float4_e1m2x2_t>::value ||
-                  std::is_same<typename TileData::DType, float4_e2m1x2_t>::value) {
+    if constexpr (caps::IsFP4<typename TileData::DType>()) {
         dstStride0 = dstStride0 >> 1; // fp4 dstAddr offset need divide 2 as use b8 to move
         gStride0 = gStride0 >> 1;     // fp4 srcAddr offset need divide 2 as use b8 to move
     }
@@ -129,8 +127,7 @@ PTO_INTERNAL void TLoadVecNZ2NZ(__ubuf__ typename TileData::DType *dstAddr, type
 
     int64_t tileStride = gShape1 * TileData::Rows * gShape4;
     set_loop_size_outtoub(1ULL << 21 | 1ULL);
-    if constexpr (std::is_same<typename TileData::DType, float4_e1m2x2_t>::value ||
-                  std::is_same<typename TileData::DType, float4_e2m1x2_t>::value) {
+    if constexpr (caps::IsFP4<typename TileData::DType>()) {
         tileStride = tileStride >> 1; // fp4 dstAddr offset need divide 2 as use b8 to move
         gStride0 = gStride0 >> 1;     // fp4 srcAddr offset need divide 2 as use b8 to move
     }
@@ -197,8 +194,7 @@ PTO_INTERNAL void TLoadCubeCheck()
         static_assert(
             GlobalData::staticShape[0] == 1 && GlobalData::staticShape[1] == 1 && GlobalData::staticShape[2] == 1,
             "Fix: GlobalTensor input shape now only support 2 dim");
-        if constexpr (std::is_same<typename TileData::DType, float4_e1m2x2_t>::value ||
-                      std::is_same<typename TileData::DType, float4_e2m1x2_t>::value) {
+        if constexpr (caps::IsFP4<typename TileData::DType>()) {
             static_assert(GlobalData::layout != pto::Layout::DN &&
                               !(TileData::isRowMajor && (TileData::SFractal == SLayout::ColMajor)),
                           "Fix: DN2NZ not support if input dtype is fp4");
@@ -208,8 +204,7 @@ PTO_INTERNAL void TLoadCubeCheck()
     // NZ2NZ
     if constexpr ((GlobalData::layout == pto::Layout::NZ) &&
                   (!TileData::isRowMajor && (TileData::SFractal == SLayout::RowMajor))) {
-        if constexpr (std::is_same<typename TileData::DType, float4_e1m2x2_t>::value ||
-                      std::is_same<typename TileData::DType, float4_e2m1x2_t>::value) {
+        if constexpr (caps::IsFP4<typename TileData::DType>()) {
             static_assert(BLOCK_BYTE_SIZE * 2 == GlobalData::staticShape[4] && BLOCK_LEN == GlobalData::staticShape[3],
                           "Fix: Src GlobalTensor staticShape[3][4] must be satisfied with NZ format require!");
         } else {
@@ -225,8 +220,7 @@ PTO_INTERNAL void TLoadCubeInstr(__cbuf__ typename TileData::DType *dst, typenam
                                  uint64_t loop1SrcStride, uint16_t nValue, uint32_t dValue, uint64_t loop4SrcStride)
 {
     if constexpr (Layout == Layout::ND) {
-        if constexpr (std::is_same<typename TileData::DType, float4_e1m2x2_t>::value ||
-                      std::is_same<typename TileData::DType, float4_e2m1x2_t>::value) {
+        if constexpr (caps::IsFP4<typename TileData::DType>()) {
             copy_gm_to_cbuf_multi_nd2nz(reinterpret_cast<__cbuf__ uint8_t *>(dst),
                                         reinterpret_cast<__gm__ uint8_t *>(src), 0 /*sid*/, loop1SrcStride, 0, nValue,
                                         dValue, loop4SrcStride, false);
@@ -244,8 +238,7 @@ PTO_INTERNAL void TLoadCubeInstr(__cbuf__ typename TileData::DType *dst, typenam
                                         dValue, loop4SrcStride, false);
         }
     } else {
-        if constexpr (std::is_same<typename TileData::DType, float4_e1m2x2_t>::value ||
-                      std::is_same<typename TileData::DType, float4_e2m1x2_t>::value) {
+        if constexpr (caps::IsFP4<typename TileData::DType>()) {
             copy_gm_to_cbuf_multi_dn2nz(reinterpret_cast<__cbuf__ uint8_t *>(dst),
                                         reinterpret_cast<__gm__ uint8_t *>(src), 0 /*sid*/, loop1SrcStride, 0, nValue,
                                         dValue, loop4SrcStride, false);
@@ -269,8 +262,7 @@ PTO_INTERNAL void TLoadCubeInstr(__cbuf__ typename TileData::DType *dst, typenam
                                  uint32_t nBurst, uint32_t lenBurst, uint64_t srcStride, uint32_t dstStride,
                                  uint32_t padCount)
 {
-    if constexpr (std::is_same<typename TileData::DType, float4_e1m2x2_t>::value ||
-                  std::is_same<typename TileData::DType, float4_e2m1x2_t>::value) {
+    if constexpr (caps::IsFP4<typename TileData::DType>()) {
         copy_gm_to_cbuf_align_v2(reinterpret_cast<__cbuf__ uint8_t *>(dst), reinterpret_cast<__gm__ uint8_t *>(src),
                                  0 /*sid*/, nBurst, lenBurst, 0 /*left padding count*/,
                                  padCount /*right padding count*/, true /*data select bit*/, 0 /*l2 cache ctl*/,
@@ -305,8 +297,7 @@ PTO_INTERNAL void TLoadCubeND2NZ(__cbuf__ typename TileData::DType *dst, typenam
 {
     uint16_t nValue = gShape3;
     uint32_t dValue = validCol;
-    if constexpr (std::is_same<typename TileData::DType, float4_e1m2x2_t>::value ||
-                  std::is_same<typename TileData::DType, float4_e2m1x2_t>::value) {
+    if constexpr (caps::IsFP4<typename TileData::DType>()) {
         dValue = (dValue + 1) >> 1; // move fp4 as b8, ceil division to include last nibble for odd counts
     }
 
@@ -339,8 +330,7 @@ PTO_INTERNAL void TLoadCubeNZ2NZ(__cbuf__ typename TileData::DType *dst, typenam
     uint32_t dstStride = TileData::Rows * BLOCK_BYTE_SIZE;
 
     int64_t tileStride = gShape1 * TileData::Rows * gShape4;
-    if constexpr (std::is_same<typename TileData::DType, float4_e1m2x2_t>::value ||
-                  std::is_same<typename TileData::DType, float4_e2m1x2_t>::value) {
+    if constexpr (caps::IsFP4<typename TileData::DType>()) {
         gStride0 = gStride0 >> 1;     // fp4 srcAddr offset need divide 2 as use b8 to move
         tileStride = tileStride >> 1; // fp4 dstAddr offset need divide 2 as use b8 to move
     }
@@ -367,8 +357,7 @@ PTO_INTERNAL void TLoadCubeND2ND(__cbuf__ typename TileData::DType *dst, typenam
     constexpr uint32_t blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename TileData::DType);
     uint32_t gapElement = (TileData::Cols - validCol);
     uint32_t padCount = gapElement % blockSizeElem;
-    if constexpr (std::is_same<typename TileData::DType, float4_e1m2x2_t>::value ||
-                  std::is_same<typename TileData::DType, float4_e2m1x2_t>::value) {
+    if constexpr (caps::IsFP4<typename TileData::DType>()) {
         padCount = padCount >> 1;
     }
     if constexpr (!(TileData::PadVal == PadValue::Null || TileData::PadVal == PadValue::Zero)) {
@@ -391,8 +380,7 @@ PTO_INTERNAL void TLoadCubeND2ND(__cbuf__ typename TileData::DType *dst, typenam
         set_loop1_stride_outtol1(loop1DstStride << 40 | loop1SrcStride);
         set_loop_size_outtol1(loop2 << 21 | loop1);
     }
-    if constexpr (std::is_same<typename TileData::DType, float4_e1m2x2_t>::value ||
-                  std::is_same<typename TileData::DType, float4_e2m1x2_t>::value) {
+    if constexpr (caps::IsFP4<typename TileData::DType>()) {
         dstStride0 = dstStride0 >> 1; // fp4 dstAddr offset need divide 2 as use b8 to move
         gStride0 = gStride0 >> 1;     // fp4 srcAddr offset need divide 2 as use b8 to move
     }
@@ -426,8 +414,7 @@ PTO_INTERNAL void TLoadCubeDN2DN(__cbuf__ typename TileData::DType *dst, typenam
     constexpr uint32_t blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename TileData::DType);
     uint32_t gapElement = (TileData::Rows - validRow);
     uint32_t padCount = gapElement % blockSizeElem;
-    if constexpr (std::is_same<typename TileData::DType, float4_e1m2x2_t>::value ||
-                  std::is_same<typename TileData::DType, float4_e2m1x2_t>::value) {
+    if constexpr (caps::IsFP4<typename TileData::DType>()) {
         padCount = padCount >> 1;
     }
     if constexpr (!(TileData::PadVal == PadValue::Null || TileData::PadVal == PadValue::Zero)) {
@@ -436,8 +423,7 @@ PTO_INTERNAL void TLoadCubeDN2DN(__cbuf__ typename TileData::DType *dst, typenam
     int64_t dstStride2 = gShape4 * TileData::Rows;
     int64_t dstStride1 = gShape2 * dstStride2;
     int64_t dstStride0 = gShape1 * dstStride1;
-    if constexpr (std::is_same<typename TileData::DType, float4_e1m2x2_t>::value ||
-                  std::is_same<typename TileData::DType, float4_e2m1x2_t>::value) {
+    if constexpr (caps::IsFP4<typename TileData::DType>()) {
         dstStride0 = dstStride0 >> 1; // fp4 dstAddr offset need divide 2 as use b8 to move
         gStride0 = gStride0 >> 1;     // fp4 srcAddr offset need divide 2 as use b8 to move
     }
@@ -475,8 +461,7 @@ PTO_INTERNAL void TLoadCubeDN2ZN(__cbuf__ typename TileData::DType *dst, typenam
 {
     uint16_t nValue = gShape4;
     uint32_t dValue = validRow;
-    if constexpr (std::is_same<typename TileData::DType, float4_e1m2x2_t>::value ||
-                  std::is_same<typename TileData::DType, float4_e2m1x2_t>::value) {
+    if constexpr (caps::IsFP4<typename TileData::DType>()) {
         dValue = (dValue + 1) >> 1; // move fp4 as b8, ceil division to include last nibble for odd counts
     }
 
@@ -558,8 +543,7 @@ PTO_INTERNAL void TLoadMxCubeCheck()
         "Fix: now only support MX_A_ZZ2ZZ/MX_A_ND2ZZ/MX_A_DN2ZZ or MX_B_NN2NN/MX_B_ND2NN/MX_B_DN2NN in current "
         "platform");
 
-    static_assert(std::is_same<typename TileData::DType, float8_e8m0_t>::value &&
-                      std::is_same<typename GlobalData::DType, __gm__ float8_e8m0_t>::value,
+    static_assert(caps::IsFP8E8M0<typename TileData::DType>() && caps::IsFP8E8M0<typename GlobalData::RawDType>(),
                   "Fix: DType only support float8_e8m0_t in MX_A_ZZ or MX_B_NN");
     static_assert(TileData::SFractalSize == 32, "Fix: TileData SFractalSize must be 32 of Zz or Nn format in L1");
 
@@ -816,8 +800,7 @@ PTO_INTERNAL void StaticCheck()
     static_assert((sizeof(typename TileData::DType) == 1) || (sizeof(typename TileData::DType) == 2) ||
                       (sizeof(typename TileData::DType) == 4) || (sizeof(typename TileData::DType) == 8),
                   "Fix: Data type must be b8/b16/b32/b64");
-    if constexpr (std::is_same<typename TileData::DType, int64_t>::value ||
-                  std::is_same<typename TileData::DType, uint64_t>::value) {
+    if constexpr (caps::IsInt64<typename TileData::DType>()) {
         static_assert(TileData::PadVal == PadValue::Null || TileData::PadVal == PadValue::Zero,
                       "Fix: TileData::PadVal only support Null or Zero in B64 mode");
     }
@@ -848,8 +831,7 @@ PTO_INTERNAL void StaticCheck()
         }
         if constexpr ((GlobalData::layout == pto::Layout::NZ) &&
                       (!TileData::isRowMajor && (TileData::SFractal == SLayout::RowMajor))) {
-            if constexpr (std::is_same<typename TileData::DType, float4_e1m2x2_t>::value ||
-                          std::is_same<typename TileData::DType, float4_e2m1x2_t>::value) {
+            if constexpr (caps::IsFP4<typename TileData::DType>()) {
                 static_assert(
                     BLOCK_BYTE_SIZE * 2 == GlobalData::staticShape[4] && BLOCK_LEN == GlobalData::staticShape[3],
                     "Fix: Src GlobalTensor staticShape[3][4] must be satisfied with NZ format require!");
@@ -1206,13 +1188,10 @@ template <typename TileData, typename GlobalData>
 PTO_INTERNAL void CheckConvTileData(TileData &dst, GlobalData &src)
 {
     static_assert(
-        std::is_same_v<typename TileData::DType, int8_t> || std::is_same_v<typename TileData::DType, uint8_t> ||
-            std::is_same_v<typename TileData::DType, float8_e4m3_t> ||
-            std::is_same_v<typename TileData::DType, float8_e5m2_t> ||
-            std::is_same_v<typename TileData::DType, int16_t> || std::is_same_v<typename TileData::DType, uint16_t> ||
-            std::is_same_v<typename TileData::DType, int32_t> || std::is_same_v<typename TileData::DType, uint32_t> ||
-            std::is_same_v<typename TileData::DType, half> || std::is_same_v<typename TileData::DType, bfloat16_t> ||
-            std::is_same_v<typename TileData::DType, float>,
+        caps::IsInt8<typename TileData::DType>() || caps::IsInt16<typename TileData::DType>() ||
+            caps::IsInt32<typename TileData::DType>() || caps::IsFP8E4M3<typename TileData::DType>() ||
+            caps::IsFP8E5M2<typename TileData::DType>() || caps::IsFP16<typename TileData::DType>() ||
+            caps::IsBF16<typename TileData::DType>() || caps::IsFP32<typename TileData::DType>(),
         "Fix: Data type must be "
         "int8_t/uint8_t/float8_e4m3_t/float8_e5m2_t/int16_t/uint16_t/int32_t/uint32_t/half/bfloat16_t/float!");
     static_assert(TileData::Loc == pto::TileType::Mat, "Fix: Dst TileType must be Mat!");

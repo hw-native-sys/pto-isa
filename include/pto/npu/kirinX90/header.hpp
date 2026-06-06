@@ -74,7 +74,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TAxpy.hpp"
 #include "pto/npu/a5/TPrelu.hpp"
 #include "pto/npu/a5/TLRelu.hpp"
-#include "pto/npu/a5/TSubS.hpp"
+#include "pto/npu/kirin9030/TSubS.hpp"
 #include "pto/npu/a5/TMaxs.hpp"
 #include "pto/npu/a5/TMins.hpp"
 #include "pto/npu/a5/TCmp.hpp"

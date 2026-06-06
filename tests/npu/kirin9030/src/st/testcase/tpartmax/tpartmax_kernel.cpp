@@ -13,7 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "acl/acl.h"
 
 using namespace pto;
-#define PTO_CEIL(x, y) ((((x) + (y)-1) / (y)) * (y))
+#define PTO_CEIL(x, y) ((((x) + (y) - 1) / (y)) * (y))
 
 namespace TPartMaxTest {
 
@@ -47,13 +47,12 @@ __global__ AICORE void runTPartMax(__gm__ T *out, __gm__ T *src0, __gm__ T *src1
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 
-    TPARTMAX<TileDataDst, TileDataSrc0, TileDataSrc1>(dstTile, src0Tile, src1Tile);
+    TPARTMAX(dstTile, src0Tile, src1Tile);
 
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
 
     TSTORE(dstGlobal, dstTile);
-    out = dstGlobal.data();
 }
 
 template <typename T, int dstVR, int dstVC, int src0VR, int src0VC, int src1VR, int src1VC, bool isHalf = false>
@@ -90,26 +89,36 @@ template void TPartMaxTest::LaunchTPartMax<float, 64, 64, 64, 64, 64, 64>(float 
                                                                           void *stream);
 template void TPartMaxTest::LaunchTPartMax<float, 2, 24, 2, 24, 2, 8>(float *out, float *src0, float *src1,
                                                                       void *stream);
+template void TPartMaxTest::LaunchTPartMax<float, 2, 24, 2, 24, 1, 8>(float *out, float *src0, float *src1,
+                                                                      void *stream);
 template void TPartMaxTest::LaunchTPartMax<float, 128, 64, 128, 64, 96, 64>(float *out, float *src0, float *src1,
                                                                             void *stream);
 template void TPartMaxTest::LaunchTPartMax<float, 95, 95, 95, 95, 95, 95>(float *out, float *src0, float *src1,
                                                                           void *stream);
-template void TPartMaxTest::LaunchTPartMax<float, 61, 123, 52, 123, 61, 110>(float *out, float *src0, float *src1,
+template void TPartMaxTest::LaunchTPartMax<float, 61, 123, 52, 123, 61, 123>(float *out, float *src0, float *src1,
                                                                              void *stream);
-template void TPartMaxTest::LaunchTPartMax<aclFloat16, 61, 123, 52, 123, 61, 110, true>(aclFloat16 *out,
+template void TPartMaxTest::LaunchTPartMax<aclFloat16, 61, 123, 52, 123, 61, 123, true>(aclFloat16 *out,
                                                                                         aclFloat16 *src0,
                                                                                         aclFloat16 *src1, void *stream);
-template void TPartMaxTest::LaunchTPartMax<int16_t, 61, 123, 52, 123, 61, 110>(int16_t *out, int16_t *src0,
+template void TPartMaxTest::LaunchTPartMax<int16_t, 61, 123, 52, 123, 61, 123>(int16_t *out, int16_t *src0,
                                                                                int16_t *src1, void *stream);
-template void TPartMaxTest::LaunchTPartMax<int32_t, 61, 123, 52, 123, 61, 110>(int32_t *out, int32_t *src0,
+template void TPartMaxTest::LaunchTPartMax<int32_t, 61, 123, 52, 123, 61, 123>(int32_t *out, int32_t *src0,
                                                                                int32_t *src1, void *stream);
-template void TPartMaxTest::LaunchTPartMax<uint16_t, 61, 123, 52, 123, 61, 110>(uint16_t *out, uint16_t *src0,
+template void TPartMaxTest::LaunchTPartMax<uint16_t, 61, 123, 52, 123, 61, 123>(uint16_t *out, uint16_t *src0,
                                                                                 uint16_t *src1, void *stream);
-template void TPartMaxTest::LaunchTPartMax<uint32_t, 61, 123, 52, 123, 61, 110>(uint32_t *out, uint32_t *src0,
+template void TPartMaxTest::LaunchTPartMax<uint32_t, 61, 123, 52, 123, 61, 123>(uint32_t *out, uint32_t *src0,
                                                                                 uint32_t *src1, void *stream);
-template void TPartMaxTest::LaunchTPartMax<int8_t, 61, 123, 52, 123, 61, 110>(int8_t *out, int8_t *src0, int8_t *src1,
+template void TPartMaxTest::LaunchTPartMax<int8_t, 61, 123, 52, 123, 61, 123>(int8_t *out, int8_t *src0, int8_t *src1,
                                                                               void *stream);
-template void TPartMaxTest::LaunchTPartMax<uint8_t, 61, 123, 52, 123, 61, 110>(uint8_t *out, uint8_t *src0,
+template void TPartMaxTest::LaunchTPartMax<uint8_t, 61, 123, 52, 123, 61, 123>(uint8_t *out, uint8_t *src0,
                                                                                uint8_t *src1, void *stream);
 template void TPartMaxTest::LaunchTPartMax<aclFloat16, 5, 33, 5, 33, 5, 33, 6, 1520, 6, 1520, 6, 464, true>(
     aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1, void *stream);
+template void TPartMaxTest::LaunchTPartMax<float, 8, 8, 8, 0, 8, 8, 8, 8, 1, 8, 8, 8>(float *out, float *src0,
+                                                                                      float *src1, void *stream);
+template void TPartMaxTest::LaunchTPartMax<float, 8, 8, 0, 8, 8, 8, 8, 8, 1, 8, 8, 8>(float *out, float *src0,
+                                                                                      float *src1, void *stream);
+template void TPartMaxTest::LaunchTPartMax<float, 8, 8, 8, 8, 8, 0, 8, 8, 8, 8, 1, 8>(float *out, float *src0,
+                                                                                      float *src1, void *stream);
+template void TPartMaxTest::LaunchTPartMax<float, 8, 8, 8, 8, 0, 8, 8, 8, 8, 8, 1, 8>(float *out, float *src0,
+                                                                                      float *src1, void *stream);

@@ -11,6 +11,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef COMMON_HPP_KIRINX90
 #define COMMON_HPP_KIRINX90
 #include "pto/npu/kirin9030/common.hpp"
+#include <pto/common/arch_capability.hpp>
 
 namespace pto {
 template <typename DstTileData, typename SrcTileData, typename DstType, typename SrcType, bool isCastQuant>

@@ -12,6 +12,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define COMMON_HPP
 
 #include <pto/common/type.hpp>
+#include <pto/common/arch_capability.hpp>
 
 namespace pto {
 template <typename SrcType, typename DstType>
