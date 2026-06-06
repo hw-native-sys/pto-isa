@@ -168,75 +168,27 @@ PTO_INTERNAL constexpr bool IsInt4()
 }
 
 template <typename T>
-PTO_INTERNAL constexpr bool IsSInt8()
-{
-    return std::is_same_v<std::remove_cv_t<T>, int8_t>;
-}
-
-template <typename T>
-PTO_INTERNAL constexpr bool IsUInt8()
-{
-    return std::is_same_v<std::remove_cv_t<T>, uint8_t>;
-}
-
-template <typename T>
 PTO_INTERNAL constexpr bool IsInt8()
 {
-    return IsSInt8<T>() || IsUInt8<T>();
-}
-
-template <typename T>
-PTO_INTERNAL constexpr bool IsSInt16()
-{
-    return std::is_same_v<std::remove_cv_t<T>, int16_t>;
-}
-
-template <typename T>
-PTO_INTERNAL constexpr bool IsUInt16()
-{
-    return std::is_same_v<std::remove_cv_t<T>, uint16_t>;
+    return std::is_same_v<std::remove_cv_t<T>, int8_t> || std::is_same_v<std::remove_cv_t<T>, uint8_t>;
 }
 
 template <typename T>
 PTO_INTERNAL constexpr bool IsInt16()
 {
-    return IsSInt16<T>() || IsUInt16<T>();
-}
-
-template <typename T>
-PTO_INTERNAL constexpr bool IsSInt32()
-{
-    return std::is_same_v<std::remove_cv_t<T>, int32_t>;
-}
-
-template <typename T>
-PTO_INTERNAL constexpr bool IsUInt32()
-{
-    return std::is_same_v<std::remove_cv_t<T>, uint32_t>;
+    return std::is_same_v<std::remove_cv_t<T>, int16_t> || std::is_same_v<std::remove_cv_t<T>, uint16_t>;
 }
 
 template <typename T>
 PTO_INTERNAL constexpr bool IsInt32()
 {
-    return IsSInt32<T>() || IsUInt32<T>();
-}
-
-template <typename T>
-PTO_INTERNAL constexpr bool IsSInt64()
-{
-    return std::is_same_v<std::remove_cv_t<T>, int64_t>;
-}
-
-template <typename T>
-PTO_INTERNAL constexpr bool IsUInt64()
-{
-    return std::is_same_v<std::remove_cv_t<T>, uint64_t>;
+    return std::is_same_v<std::remove_cv_t<T>, int32_t> || std::is_same_v<std::remove_cv_t<T>, uint32_t>;
 }
 
 template <typename T>
 PTO_INTERNAL constexpr bool IsInt64()
 {
-    return IsSInt64<T>() || IsUInt64<T>();
+    return std::is_same_v<std::remove_cv_t<T>, int64_t> || std::is_same_v<std::remove_cv_t<T>, uint64_t>;
 }
 
 template <typename T, typename Arch = CurrArch>
@@ -308,21 +260,9 @@ PTO_INTERNAL constexpr bool IsFloatingPoint()
 }
 
 template <typename T>
-PTO_INTERNAL constexpr bool IsSInteger()
-{
-    return IsSInt8<T>() || IsSInt16<T>() || IsSInt32<T>() || IsSInt64<T>();
-}
-
-template <typename T>
-PTO_INTERNAL constexpr bool IsUInteger()
-{
-    return IsUInt8<T>() || IsUInt16<T>() || IsUInt32<T>() || IsUInt64<T>();
-}
-
-template <typename T>
 PTO_INTERNAL constexpr bool IsInteger()
 {
-    return IsSInteger<T>() || IsUInteger<T>();
+    return IsInt8<T>() || IsInt16<T>() || IsInt32<T>() || IsInt64<T>() || IsInt4<T>();
 }
 
 template <typename T>

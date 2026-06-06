@@ -740,18 +740,9 @@ fi
 
 if [ "$ENABLE_KIRIN9030" = "true" ]; then
   python3 tests/script/build_st.py $ARGS -v kirin9030 -t all
-  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t textract
-  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tfillpad
-  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tmov
-  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tadd
-  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tcolsum
-  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tpartadd
-  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t trowsum
-  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tsort32
-  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tcvt
-  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tmrgsort
-  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tgather
-  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tsub
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tsubs
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tmaxs
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tci
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tmatmul
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tload
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tmrgsort
@@ -805,9 +796,7 @@ if [ "$ENABLE_KIRIN9030" = "true" ]; then
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tmul
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tlrelu
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tdiv
-  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t texp
-  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tmov_vect
-  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tmuls
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tcmps
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tsel
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tsels
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t trsqrt

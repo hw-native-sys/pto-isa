@@ -167,7 +167,6 @@ TEST_F(TPARTMAXTest, case_fp16_5x33_5x33_5x33)
 {
     test_tpartmax<aclFloat16, 5, 33, 5, 33, 5, 33, 6, 1520, 6, 1520, 6, 464, true>();
 }
-
 TEST_F(TPARTMAXTest, case_fp32_8x8_8x0_8x8)
 {
     test_tpartmax<float, 8, 8, 8, 0, 8, 8, 8, 8, 1, 8, 8, 8>();
