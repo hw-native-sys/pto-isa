@@ -529,8 +529,9 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/run_st.py $ARGS -v a5 -t mgather -g MGATHERTest.case_half_16x128_8x64
     python3 tests/script/run_st.py $ARGS -v a5 -t mscatter -g MSCATTERTest.case_uint8_16x64_2048
     python3 tests/script/run_st.py $ARGS -v a5 -t mscatter -g MSCATTERTest.case_int32_clamp_8x16_256
-    python3 tests/script/run_st.py $ARGS -v a5 -t mscatter -g MSCATTERTest.case_elem2d_float_3072x8_default_24576size
-    python3 tests/script/run_st.py $ARGS -v a5 -t mscatter -g MSCATTERTest.case_elem2d_float_3072x8_last_256size
+    # Synced from cann/pto-isa PR920: trim these two A5 simple mscatter cases.
+    # python3 tests/script/run_st.py $ARGS -v a5 -t mscatter -g MSCATTERTest.case_elem2d_float_3072x8_default_24576size
+    # python3 tests/script/run_st.py $ARGS -v a5 -t mscatter -g MSCATTERTest.case_elem2d_float_3072x8_last_256size
     python3 tests/script/run_st.py $ARGS -v a5 -t tquant -g TQUANTTEST.case_int8_sym_fp32_128x128_nd
     python3 tests/script/run_st.py $ARGS -v a5 -t tquant -g TQUANTTEST.case_int8_asym_fp32_128x128_nd
     python3 tests/script/run_st.py $ARGS -v a5 -t tquant -g TQUANTTEST.case_int8_sym_fp32_128x128_nd
