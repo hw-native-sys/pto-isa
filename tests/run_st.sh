@@ -586,6 +586,8 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tstore -g TStoreTest.case1
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tstore_acc2gm -g TStoreAcc2gmTest.case7
     python3 tests/script/run_st.py $ARGS -w -v a5 -t ttrans -g TTRANSTest.case_float_8x8_2x8_2x8
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t ttrans -g TTRANSTest.case_hif8_32x32_32x32_32x32
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t ttrans -g TTRANSTest.case_hif8_64x64_64x64_22x63
     python3 tests/script/run_st.py $ARGS -w -v a5 -t ttrans_conv -g TTRANSConvTest.uint8_11_2_7_7_32
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tcmp -g TCMPTest.case_half_32x32_32x32_32x32
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tadd_tdiv -g TADD_TDIVTest.case_float_64x64_64x64
