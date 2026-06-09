@@ -73,11 +73,23 @@ __global__ AICORE void runTGather(__gm__ Tsrc0 __out__ *out, __gm__ Tsrc0 __in__
 }
 
 template <typename src0T, typename src1T, typename dstT, uint32_t SRCROW, uint32_t SRCCOL, uint32_t DSTROW,
-          uint32_t DSTCOL>
+          uint32_t DSTCOL, bool isF8E4M3 = false, bool isF8E5M2 = false>
 void launchTGATHER_demo(src0T *src0, src1T *src1, dstT *out, void *stream)
 {
     cout << "launch TGATHER index start!" << endl;
-    runTGather<src0T, src1T, SRCROW, SRCCOL, DSTROW, DSTCOL, SRCROW, SRCCOL><<<1, nullptr, stream>>>(out, src0, src1);
+    if constexpr (isF8E4M3) {
+        runTGather<float8_e4m3_t, src1T, SRCROW, SRCCOL, DSTROW, DSTCOL, SRCROW, SRCCOL>
+            <<<1, nullptr, stream>>>((float8_e4m3_t *)(out), (float8_e4m3_t *)(src0), src1);
+    } else if constexpr (isF8E5M2) {
+        runTGather<float8_e5m2_t, src1T, SRCROW, SRCCOL, DSTROW, DSTCOL, SRCROW, SRCCOL>
+            <<<1, nullptr, stream>>>((float8_e5m2_t *)(out), (float8_e5m2_t *)(src0), src1);
+    } else if constexpr (std::is_same_v<src0T, int8_t> || std::is_same_v<src0T, uint8_t>) {
+        runTGather<float8_e4m3_t, src1T, SRCROW, SRCCOL, DSTROW, DSTCOL, SRCROW, SRCCOL>
+            <<<1, nullptr, stream>>>((float8_e4m3_t *)(out), (float8_e4m3_t *)(src0), src1);
+    } else {
+        runTGather<src0T, src1T, SRCROW, SRCCOL, DSTROW, DSTCOL, SRCROW, SRCCOL>
+            <<<1, nullptr, stream>>>(out, src0, src1);
+    }
     cout << "launch TGATHER index end!" << endl;
 }
 
@@ -89,6 +101,14 @@ template void launchTGATHER_demo<int16_t, int16_t, int16_t, 16, 1024, 16, 128>(i
                                                                                int16_t *out, void *stream);
 template void launchTGATHER_demo<int16_t, int16_t, int16_t, 32, 256, 32, 64>(int16_t *src0, int16_t *src1, int16_t *out,
                                                                              void *stream);
+template void launchTGATHER_demo<int8_t, int16_t, int8_t, 16, 128, 16, 64, true, false>(int8_t *src0, int16_t *src1,
+                                                                                        int8_t *out, void *stream);
+template void launchTGATHER_demo<int8_t, int16_t, int8_t, 16, 128, 16, 64, false, true>(int8_t *src0, int16_t *src1,
+                                                                                        int8_t *out, void *stream);
+template void launchTGATHER_demo<int8_t, uint16_t, int8_t, 16, 128, 16, 64>(int8_t *src0, uint16_t *src1, int8_t *out,
+                                                                            void *stream);
+template void launchTGATHER_demo<uint8_t, uint16_t, uint8_t, 16, 128, 16, 64>(uint8_t *src0, uint16_t *src1,
+                                                                              uint8_t *out, void *stream);
 
 template <typename srcT, typename dstT, int kGRows_, int kGCols_, int kTRows_, int kTCols_, MaskPattern maskPattern>
 __global__ AICORE void runTGATHER(__gm__ dstT __out__ *out, __gm__ srcT __in__ *src)
@@ -320,3 +340,7 @@ template void LaunchTGATHER_CMP<aclFloat16, uint16_t, uint32_t, 2, 256, 2, 256, 
     aclFloat16 *src, uint16_t *src1, uint32_t *out, uint32_t offset, void *stream);
 template void LaunchTGATHER_CMP<aclFloat16, uint16_t, uint32_t, 8, 128, 8, 128, 32, CmpMode::EQ>(
     aclFloat16 *src, uint16_t *src1, uint32_t *out, uint32_t offset, void *stream);
+template void LaunchTGATHER_CMP<int8_t, uint16_t, uint32_t, 16, 128, 16, 128, 32, CmpMode::GT>(
+    int8_t *src, uint16_t *src1, uint32_t *out, uint32_t offset, void *stream);
+template void LaunchTGATHER_CMP<int8_t, uint16_t, uint32_t, 16, 128, 16, 128, 32, CmpMode::EQ>(
+    int8_t *src, uint16_t *src1, uint32_t *out, uint32_t offset, void *stream);

@@ -167,6 +167,8 @@ def gen_golden_data(param: TGatherParamsBase):
             src_data1 = np.tile(src_data1, src_row).astype(np.uint32)
         elif src_type == np.half or src_type == np.int16 or src_type == np.uint16:
             src_data1 = np.tile(src_data1, src_row).astype(np.uint16)
+        elif src_type == np.int8 or src_type == np.uint8:
+            src_data1 = np.tile(src_data1, src_row).astype(np.uint16)
         else:
             assert False, "not implemented"
 
@@ -206,6 +208,10 @@ if __name__ == "__main__":
         TGatherParamsNorm("TGATHERTest.case2_int32_32x512_16x256", np.int32, np.int32, 32, 512, 16, 256),
         TGatherParamsNorm("TGATHERTest.case3_half_16x1024_16x128", np.half, np.int16, 16, 1024, 16, 128),
         TGatherParamsNorm("TGATHERTest.case4_int16_32x256_32x64", np.int16, np.int16, 32, 256, 32, 64),
+        TGatherParamsNorm("TGATHERTest.case5_f8e4m3_i16_16x128_16x64", np.int8, np.int16, 16, 128, 16, 64),
+        TGatherParamsNorm("TGATHERTest.case6_f8e5m2_i16_16x128_16x64", np.int8, np.int16, 16, 128, 16, 64),
+        TGatherParamsNorm("TGATHERTest.case7_i8_u16_16x128_16x64", np.int8, np.uint16, 16, 128, 16, 64),
+        TGatherParamsNorm("TGATHERTest.case8_u8_u16_16x128_16x64", np.uint8, np.uint16, 16, 128, 16, 64),
         ParamMasked("TGATHERTest.case1_float_P0101", np.float32, np.float32, FLOAT_P0101_ROW, FLOAT_P0101_COL, P0101),
         ParamMasked("TGATHERTest.case1_float_P1010", np.float32, np.float32, FLOAT_P1010_ROW, FLOAT_P1010_COL, P1010),
         ParamMasked("TGATHERTest.case1_float_P0001", np.float32, np.float32, FLOAT_P0001_ROW, FLOAT_P0001_COL, P0001),
@@ -242,6 +248,8 @@ if __name__ == "__main__":
         TGatherParamsCmp("TGATHERTest.case5_s16_topk", np.int16, np.uint32, 4, 64, 20, 0, 32, 1),
         TGatherParamsCmp("TGATHERTest.case6_half_topk", np.half, np.uint32, 2, 256, 90, 0, 32, 0),
         TGatherParamsCmp("TGATHERTest.case7_half_topk", np.half, np.uint32, 8, 128, 40, 0, 32, 1),
+        TGatherParamsCmp("TGATHERTest.case8_i8_topk", np.int8, np.uint32, 16, 128, 90, 0, 32, 0),
+        TGatherParamsCmp("TGATHERTest.case9_i8_topk", np.int8, np.uint32, 16, 128, 50, 0, 32, 1),
     ]
 
     for _, case in enumerate(case_params_list):

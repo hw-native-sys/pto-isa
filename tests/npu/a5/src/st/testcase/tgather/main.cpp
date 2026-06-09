@@ -16,7 +16,7 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <typename src0T, typename src1T, typename dstT, uint32_t SRCROW, uint32_t SRCCOL, uint32_t DSTROW,
-          uint32_t DSTCOL>
+          uint32_t DSTCOL, bool isF8E4M3 = false, bool isF8E5M2 = false>
 void launchTGATHER_demo(src0T *src0, src1T *src1, dstT *out, void *stream);
 
 constexpr int HALF_SIZE = 2;
@@ -48,7 +48,7 @@ std::string GetGoldenDir()
 }
 
 template <typename src0T, typename src1T, typename dstT, uint32_t SRCROW, uint32_t SRCCOL, uint32_t DSTROW,
-          uint32_t DSTCOL>
+          uint32_t DSTCOL, bool isF8E4M3 = false, bool isF8E5M2 = false>
 void test_gather_index()
 {
     size_t src0FileSize = SRCROW * SRCCOL * sizeof(src0T);
@@ -80,7 +80,8 @@ void test_gather_index()
 
     aclrtMemcpy(src0Device, src0FileSize, src0Host, src0FileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, src1FileSize, src1Host, src1FileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    launchTGATHER_demo<src0T, src1T, dstT, SRCROW, SRCCOL, DSTROW, DSTCOL>(src0Device, src1Device, dstDevice, stream);
+    launchTGATHER_demo<src0T, src1T, dstT, SRCROW, SRCCOL, DSTROW, DSTCOL, isF8E4M3, isF8E5M2>(src0Device, src1Device,
+                                                                                               dstDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, dstFileSize, dstDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -127,6 +128,26 @@ TEST_F(TGATHERTest, case3_half_16x1024_16x128)
 TEST_F(TGATHERTest, case4_int16_32x256_32x64)
 {
     test_gather_index<int16_t, int16_t, int16_t, 32, 256, 32, 64>();
+}
+
+TEST_F(TGATHERTest, case5_f8e4m3_i16_16x128_16x64)
+{
+    test_gather_index<int8_t, int16_t, int8_t, 16, 128, 16, 64, true, false>();
+}
+
+TEST_F(TGATHERTest, case6_f8e5m2_i16_16x128_16x64)
+{
+    test_gather_index<int8_t, int16_t, int8_t, 16, 128, 16, 64, false, true>();
+}
+
+TEST_F(TGATHERTest, case7_i8_u16_16x128_16x64)
+{
+    test_gather_index<int8_t, uint16_t, int8_t, 16, 128, 16, 64>();
+}
+
+TEST_F(TGATHERTest, case8_u8_u16_16x128_16x64)
+{
+    test_gather_index<uint8_t, uint16_t, uint8_t, 16, 128, 16, 64>();
 }
 
 template <typename T, pto::MaskPattern PATTERN, uint32_t ROW, uint32_t COL, typename dstT = T>
@@ -418,4 +439,14 @@ TEST_F(TGATHERTest, case6_half_topk)
 TEST_F(TGATHERTest, case7_half_topk)
 {
     test_gather_cmp<aclFloat16, uint16_t, uint32_t, 8, 128, 32, pto::CmpMode::EQ>();
+}
+
+TEST_F(TGATHERTest, case8_i8_topk)
+{
+    test_gather_cmp<int8_t, uint16_t, uint32_t, 16, 128, 32, pto::CmpMode::GT>();
+}
+
+TEST_F(TGATHERTest, case9_i8_topk)
+{
+    test_gather_cmp<int8_t, uint16_t, uint32_t, 16, 128, 32, pto::CmpMode::EQ>();
 }
