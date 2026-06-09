@@ -245,12 +245,25 @@ public:
     int64_t stride[GlobalTensorDim::TOTAL_DIM] = {1};
 };
 
+template <typename T>
+struct remove_gm {
+    using type = T;
+};
+#if defined(__CCE_AICORE__)
+template <typename T>
+struct remove_gm<__gm__ T> {
+    using type = T;
+};
+#endif
+template <typename T>
+using remove_gm_t = typename remove_gm<std::remove_cv_t<T>>::type;
+
 template <typename Element_, typename Shape_, typename Stride_, Layout Layout_ = Layout::ND>
 struct GlobalTensor {
     using Shape = Shape_;
     using Stride = Stride_;
-    using RawDType = Element_;
-    using DType = __gm__ Element_;
+    using RawDType = remove_gm_t<Element_>;
+    using DType = __gm__ RawDType;
     static constexpr Layout layout = Layout_;
 
     static const Shape defaultShape;
@@ -1732,16 +1745,14 @@ using TileAccCompact = Tile<TileType::Acc, Element_, Rows_, Cols_, BLayout::ColM
                             SLayout::RowMajor, TileConfig::fractalCSize, PadValue::Null, CompactMode::Normal>;
 
 template <typename T>
-struct is_global : std::false_type {
-};
+struct is_global : std::false_type {};
 template <typename T>
 struct is_tile : std::false_type {
     static constexpr SLayout layout_enum = SLayout::NoneBox;
 };
 
 template <typename Element_, typename Shape_, typename Stride_, Layout Layout_>
-struct is_global<GlobalTensor<Element_, Shape_, Stride_, Layout_>> : std::true_type {
-};
+struct is_global<GlobalTensor<Element_, Shape_, Stride_, Layout_>> : std::true_type {};
 
 template <TileType Loc_, typename Element_, const int Rows_, const int Cols_, const BLayout BFractal_,
           const int RowValid_, const int ColValid_, const SLayout SFractal_, const int SFractalSize_,
@@ -1756,11 +1767,9 @@ template <typename T>
 constexpr bool is_boxed_tile = is_tile<T>::value && (is_tile<T>::layout_enum != SLayout::NoneBox);
 
 template <typename T>
-struct is_conv_tile : std::false_type {
-};
+struct is_conv_tile : std::false_type {};
 template <TileType Loc_, typename Element_, const int BufferSize_, Layout Layout_, typename Shape_>
-struct is_conv_tile<ConvTile<Loc_, Element_, BufferSize_, Layout_, Shape_>> : std::true_type {
-};
+struct is_conv_tile<ConvTile<Loc_, Element_, BufferSize_, Layout_, Shape_>> : std::true_type {};
 
 template <typename tile_shape>
 struct is_Nz_layout {
