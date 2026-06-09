@@ -20,7 +20,7 @@ namespace pto {
 
 template <typename T>
 struct GetSignedType {
-    using type = typename std::conditional<sizeof(T) == 2, int16_t, int32_t>::type;
+    using type = typename std::conditional<sizeof(T) == sizeof(int16_t), int16_t, int32_t>::type;
 };
 
 template <typename TileData, typename T>

@@ -245,12 +245,25 @@ public:
     int64_t stride[GlobalTensorDim::TOTAL_DIM] = {1};
 };
 
+template <typename T>
+struct remove_gm {
+    using type = T;
+};
+#if defined(__CCE_AICORE__)
+template <typename T>
+struct remove_gm<__gm__ T> {
+    using type = T;
+};
+#endif
+template <typename T>
+using remove_gm_t = typename remove_gm<std::remove_cv_t<T>>::type;
+
 template <typename Element_, typename Shape_, typename Stride_, Layout Layout_ = Layout::ND>
 struct GlobalTensor {
     using Shape = Shape_;
     using Stride = Stride_;
-    using RawDType = Element_;
-    using DType = __gm__ Element_;
+    using RawDType = remove_gm_t<Element_>;
+    using DType = __gm__ RawDType;
     static constexpr Layout layout = Layout_;
 
     static const Shape defaultShape;

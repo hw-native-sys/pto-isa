@@ -9,7 +9,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include <pto/pto-inst.hpp>
-#include <pto/common/pto_tile.hpp>
 #include <pto/common/constants.hpp>
 #include <limits>
 #include <algorithm>
@@ -338,7 +337,7 @@ int get_input_golden_case(uint8_t *input, uint8_t *golden)
                             }
                         }
                     } // j
-                }     // i
+                } // i
 
     std::copy((uint8_t *)in_arr, ((uint8_t *)(in_arr)) + in_byteSize, input);
     std::copy((uint8_t *)gold_arr, ((uint8_t *)(gold_arr)) + out_byteSize, golden);

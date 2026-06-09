@@ -32,30 +32,9 @@ PTO_INTERNAL void TLoadNd2nzInstr(__cbuf__ typename TileData::DType *dst, typena
                                   uint16_t srcDValue, uint16_t dstNzC0Stride, uint16_t dstNzNStride,
                                   uint16_t dstNzMatrixStride)
 {
-    // Parameter list:
-    // dst, src, sid, ndNum, nValue, dValue, srcNdMatrixStride, srcDValue,
-    // dstNzC0Stride, dstNzNStride, dstNzMatrixStride
-    if constexpr (sizeof(typename TileData::DType) == 1) {
-        copy_gm_to_cbuf_multi_nd2nz_b8(dst, src, 0, ndNum, nValue, dValue, srcNdMatrixStride, srcDValue, dstNzC0Stride,
-                                       dstNzNStride, dstNzMatrixStride);
-    } else if constexpr (sizeof(typename TileData::DType) == 2) {
-        copy_gm_to_cbuf_multi_nd2nz_b16(dst, src, 0, ndNum, nValue, dValue, srcNdMatrixStride, srcDValue, dstNzC0Stride,
-                                        dstNzNStride, dstNzMatrixStride);
-    } else if constexpr (sizeof(typename TileData::DType) == 4) {
-        auto dstCast = reinterpret_cast<__cbuf__ uint16_t *>(dst);
-        auto srcCast = reinterpret_cast<__gm__ uint16_t *>(src);
-        uint16_t dValueb32 = dValue * 2;
-        uint16_t srcDValueb32 = srcDValue * 2;
-        copy_gm_to_cbuf_multi_nd2nz_b16(dstCast, srcCast, 0, ndNum, nValue, dValueb32, srcNdMatrixStride, srcDValueb32,
-                                        dstNzC0Stride, dstNzNStride, dstNzMatrixStride);
-    } else if constexpr (sizeof(typename TileData::DType) == 8) {
-        auto dstCast = reinterpret_cast<__cbuf__ uint16_t *>(dst);
-        auto srcCast = reinterpret_cast<__gm__ uint16_t *>(src);
-        uint16_t dValueb64 = dValue * 4;
-        uint16_t srcDValueb64 = srcDValue * 4;
-        copy_gm_to_cbuf_multi_nd2nz_b16(dstCast, srcCast, 0, ndNum, nValue, dValueb64, srcNdMatrixStride, srcDValueb64,
-                                        dstNzC0Stride, dstNzNStride, dstNzMatrixStride);
-    }
+    pto_copy_gm_to_cbuf_multi_nd2nz(dst, src, 0, ndNum, nValue, dValue, srcNdMatrixStride, srcDValue, dstNzC0Stride,
+                                    dstNzNStride, dstNzMatrixStride);
+}
 }
 
 template <typename TileData, typename GlobalData>
@@ -85,7 +64,7 @@ PTO_INTERNAL void TLoadGm2ubNd2nd(__ubuf__ typename TileData::DType *dstAddr, ty
     uint32_t ubPad = 0;
     if constexpr (TileData::PadVal != PadValue::Null) {
         ubPad = ubGapElement % blockSizeElem;
-        set_mov_pad_val(GetPadValue<TileData>());
+        pto_set_tload_pad_val<TileType::Vec>(GetPadValue<TileData>());
     }
     __ubuf__ typename TileData::DType *dstAddrP = dstAddr;
     typename GlobalData::DType *srcAddrP = srcAddr;
@@ -127,7 +106,7 @@ PTO_INTERNAL void TLoadGm2ubDn2dn(__ubuf__ typename TileData::DType *dstAddr, ty
     uint32_t ubPad = 0;
     if constexpr (TileData::PadVal != PadValue::Null) {
         ubPad = ubGapElement % blockSizeElem;
-        set_mov_pad_val(GetPadValue<TileData>());
+        pto_set_tload_pad_val<TileType::Vec>(GetPadValue<TileData>());
     }
     typename GlobalData::DType *srcAddrP = srcAddr;
     __ubuf__ typename TileData::DType *dstAddrP = dstAddr;
