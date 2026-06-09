@@ -32,7 +32,15 @@ PTO_INTERNAL void TLoadInstrGm2ub(__ubuf__ typename TileData::DType *dst, typena
     }
 }
 
-#include <pto/common/utils.hpp>
+template <typename TileData, typename GlobalData>
+PTO_INTERNAL void TLoadNd2nzInstr(__cbuf__ typename TileData::DType *dst, typename GlobalData::DType *src,
+                                  uint16_t ndNum, uint16_t nValue, uint16_t dValue, uint16_t srcNdMatrixStride,
+                                  uint16_t srcDValue, uint16_t dstNzC0Stride, uint16_t dstNzNStride,
+                                  uint16_t dstNzMatrixStride)
+{
+    pto_copy_gm_to_cbuf_multi_nd2nz(dst, src, 0, ndNum, nValue, dValue, srcNdMatrixStride, srcDValue, dstNzC0Stride,
+                                    dstNzNStride, dstNzMatrixStride);
+}
 
 template <typename TileData, typename GlobalData>
 PTO_INTERNAL void TLoadInstrGm2L1(__cbuf__ typename TileData::DType *dst, typename GlobalData::DType *src,
@@ -47,7 +55,126 @@ __tf__ PTO_INTERNAL void TLoadNDC1HWC0(typename TileData::TileDType __out__ dst,
                                        int gStride2, int gStride3, int gStride4, int dstN, int dstD, int dstC1,
                                        int dstH, int dstW)
 {
-    __cbuf__ typename TileData::DType *dstAddr = (__cbuf__ typename TileData::DType *)__cce_get_tile_ptr(dst);
+    static_assert(TileData::Rows < 4096, "Fix: TLOAD Rows>=4095 not supported in A2/A3");
+    PTO_ASSERT(validCol == gShape4, "The validCol of TileData must be equal to the 5th dim(Shape4) of ND shape!");
+    PTO_ASSERT(validRow == gShape0 * gShape1 * gShape2 * gShape3,
+               "The validRow of TileData must be equal to (Shape0 * Shape1 * Shape2 * Shape3) of ND shape!");
+    PTO_ASSERT(gShape3 < 4096, "The gshape3 (which equals nBurst) must be less than 4096 for A2/A3");
+    constexpr uint32_t blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename TileData::DType);
+    uint16_t nBurst = gShape3;
+    uint32_t lenBurst = validCol * sizeof(typename TileData::DType);
+    uint64_t gmGapValue = (gStride3 - gShape4) * sizeof(typename TileData::DType);
+    uint32_t gmGap = (uint32_t)gmGapValue;
+    uint32_t ubGapElement = (TileData::Cols - validCol);
+    uint32_t ubGap = (ubGapElement * sizeof(typename TileData::DType)) >> SHIFT_BLOCK_BYTE;
+    uint32_t ubPad = 0;
+    if constexpr (TileData::PadVal != PadValue::Null) {
+        ubPad = ubGapElement % blockSizeElem;
+        pto_set_tload_pad_val<TileType::Vec>(GetPadValue<TileData>());
+    }
+    __ubuf__ typename TileData::DType *dstAddrP = dstAddr;
+    typename GlobalData::DType *srcAddrP = srcAddr;
+    int64_t dstStride2 = gShape3 * TileData::Cols;
+    int64_t dstStride1 = gShape2 * dstStride2;
+    int64_t dstStride0 = gShape1 * dstStride1;
+
+    for (uint32_t i = 0; i < gShape0; i++) {
+        int64_t srcAddr0 = i * gStride0;
+        int64_t dstAddr0 = i * dstStride0;
+        for (uint32_t j = 0; j < gShape1; j++) {
+            int64_t srcAddr1 = j * gStride1;
+            int64_t dstAddr1 = j * dstStride1;
+            for (uint32_t k = 0; k < gShape2; k++) {
+                srcAddrP = srcAddr + srcAddr0 + srcAddr1 + k * gStride2;
+                dstAddrP = dstAddr + dstAddr0 + dstAddr1 + k * dstStride2;
+                TLoadInstrGm2ub<TileData, GlobalData>(dstAddrP, srcAddrP, nBurst, lenBurst, gmGap, ubGap, ubPad);
+            }
+        }
+    }
+}
+
+template <typename TileData, typename GlobalData>
+PTO_INTERNAL void TLoadGm2ubDn2dn(__ubuf__ typename TileData::DType *dstAddr, typename GlobalData::DType *srcAddr,
+                                  int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gStride0,
+                                  int gStride1, int gStride2, int gStride3, int gStride4, int validRow, int validCol)
+{
+    PTO_ASSERT(validRow == gShape3, "The validCol of TileData must be equal to the 4th dim(Shape3) of DN shape!");
+    PTO_ASSERT(validCol == gShape0 * gShape1 * gShape2 * gShape4,
+               "The validRow of TileData must be equal to (Shape0 * Shape1 * Shape2 * Shape4) of DN shape!");
+    PTO_ASSERT(gShape4 < 4096, "The gshape4 (which equals nBurst) must be less than 4096 for A2/A3");
+    constexpr uint32_t blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename TileData::DType);
+    uint16_t nBurst = gShape4;
+    uint32_t lenBurst = validRow * sizeof(typename TileData::DType);
+    uint64_t gmGapValue = (gStride4 - gShape3) * sizeof(typename TileData::DType);
+    uint32_t gmGap = (uint32_t)gmGapValue;
+    uint32_t ubGapElement = (TileData::Rows - gShape3);
+    uint32_t ubGap = (ubGapElement * sizeof(typename TileData::DType)) >> SHIFT_BLOCK_BYTE;
+    uint32_t ubPad = 0;
+    if constexpr (TileData::PadVal != PadValue::Null) {
+        ubPad = ubGapElement % blockSizeElem;
+        pto_set_tload_pad_val<TileType::Vec>(GetPadValue<TileData>());
+    }
+    typename GlobalData::DType *srcAddrP = srcAddr;
+    __ubuf__ typename TileData::DType *dstAddrP = dstAddr;
+
+    int64_t dstStride2 = gShape4 * TileData::Rows;
+    int64_t dstStride1 = gShape2 * dstStride2;
+    int64_t dstStride0 = gShape1 * dstStride1;
+    for (uint32_t i = 0; i < gShape0; i++) {
+        int64_t dstAddr0 = i * dstStride0;
+        int64_t srcAddr0 = i * gStride0;
+        for (uint32_t j = 0; j < gShape1; j++) {
+            int64_t dstAddr1 = j * dstStride1;
+            int64_t srcAddr1 = j * gStride1;
+            for (uint32_t k = 0; k < gShape2; k++) {
+                dstAddrP = dstAddr + dstAddr0 + dstAddr1 + k * dstStride2;
+                srcAddrP = srcAddr + srcAddr0 + srcAddr1 + k * gStride2;
+                TLoadInstrGm2ub<TileData, GlobalData>(dstAddrP, srcAddrP, nBurst, lenBurst, gmGap, ubGap, ubPad);
+            }
+        }
+    }
+}
+
+template <typename TileData, typename GlobalData>
+PTO_INTERNAL void CheckNzFormat(int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int validRow,
+                                int validCol)
+{
+    static_assert(
+        GlobalData::staticShape[3] == FRACTAL_NZ_ROW &&
+            GlobalData::staticShape[4] == C0_SIZE_BYTE / sizeof(typename TileData::DType),
+        "Fix: When TileData is NZ format, the last 2 dim must be static and satisfy [16, 32 / sizeof(DataType)]");
+    PTO_ASSERT(validRow == gShape2 * gShape3, "The validRow of TileData must be equal to Shape2 * Shape3 of NZ shape!");
+    PTO_ASSERT(validCol == gShape0 * gShape1 * gShape4,
+               "The validCol of TileData must be equal to Shape0 * Shape1 * Shape4 of NZ shape!");
+    PTO_ASSERT(gShape1 < 4096, "The gshape1 (which equals nBurst) must be less than 4096 for A2/A3");
+}
+
+template <typename TileData, typename GlobalData>
+PTO_INTERNAL void TLoadGm2ubNz2nz(__ubuf__ typename TileData::DType *dstAddr, typename GlobalData::DType *srcAddr,
+                                  int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gStride0,
+                                  int gStride1, int gStride2, int gStride3, int gStride4, int validRow, int validCol)
+{
+    CheckNzFormat<TileData, GlobalData>(gShape0, gShape1, gShape2, gShape3, gShape4, validRow, validCol);
+    uint16_t nBurst = gShape1;
+    uint32_t lenBurst = validRow * C0_SIZE_BYTE;
+    uint32_t gmGap = (gStride1 - gShape2 * gShape3 * gShape4) * sizeof(typename TileData::DType);
+    uint32_t ubGap = TileData::Rows - validRow;
+    typename GlobalData::DType *srcAddrP = srcAddr;
+    __ubuf__ typename TileData::DType *dstAddrP = dstAddr;
+    int64_t tileStride = TileData::Rows * gShape1 * gShape4;
+    for (uint32_t i = 0; i < gShape0; i++) {
+        srcAddrP = srcAddr + i * gStride0;
+        dstAddrP = dstAddr + i * tileStride;
+        TLoadInstrGm2ub<TileData, GlobalData>(dstAddrP, srcAddrP, nBurst, lenBurst, gmGap, ubGap, 0);
+    }
+}
+
+template <typename TileData, typename GlobalData>
+__tf__ PTO_INTERNAL void TLoadGm2ub(typename TileData::TileDType __out__ dst, typename GlobalData::DType __in__ *src,
+                                    int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gStride0,
+                                    int gStride1, int gStride2, int gStride3, int gStride4, int validRow, int validCol)
+{
+    __ubuf__ typename TileData::DType *dstAddr = (__ubuf__ typename TileData::DType *)__cce_get_tile_ptr(dst);
     typename GlobalData::DType *srcAddr = src;
 
     constexpr uint32_t c0ElemCount = C0_SIZE_BYTE / sizeof(typename TileData::DType);

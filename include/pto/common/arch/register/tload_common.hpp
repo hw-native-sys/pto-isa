@@ -14,8 +14,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 struct LoadOpBase {
-    template <typename T, typename U>
-    PTO_INTERNAL static void TLoadInstr(__ubuf__ T *dst, __gm__ U *src, uint32_t nBurst, uint32_t lenBurst,
+    template <typename T>
+    PTO_INTERNAL static void TLoadInstr(__ubuf__ T *dst, __gm__ T *src, uint32_t nBurst, uint32_t lenBurst,
                                         uint64_t gmStride, uint32_t ubStride, bool enableUBPad)
     {
         using LoadT = LoadTypeBySize_t<T>;

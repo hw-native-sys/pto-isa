@@ -228,7 +228,8 @@ PTO_INTERNAL void ExtractValIdxFromTmp(__ubuf__ typename TileDataOutVal::DType *
     set_mask_norm();
     set_vector_mask(-1, -1);
     if constexpr (TileDataOutVal::Cols != 1 || TileDataOutIdx::Cols != 1) {
-        PtoSetWaitFlag<PIPE_V, PIPE_S>();
+        set_flag(PIPE_V, PIPE_S, EVENT_ID0);
+        wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
         if constexpr (TileDataOutIdx::Cols != 1) {
             for (int i = 0; i < validRow; i++) {
                 *(reinterpret_cast<__ubuf__ U *>(dstIdx) + i * TileDataOutIdx::Cols) =
@@ -241,7 +242,8 @@ PTO_INTERNAL void ExtractValIdxFromTmp(__ubuf__ typename TileDataOutVal::DType *
                     *(reinterpret_cast<__ubuf__ U *>(tmp) + i * 2);
             }
         }
-        PtoSetWaitFlag<PIPE_S, PIPE_V>();
+        set_flag(PIPE_S, PIPE_V, EVENT_ID0);
+        wait_flag(PIPE_S, PIPE_V, EVENT_ID0);
     }
 }
 
