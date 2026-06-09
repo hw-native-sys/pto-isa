@@ -26,15 +26,17 @@ __global__ AICORE void runTQuantInt8Sym(__gm__ int8_t __out__ *out_s8, __gm__ fl
 {
     constexpr int paddedCols_b32 = PTO_CEIL(validCols, BLOCK_BYTE_SIZE / sizeof(float));
     constexpr int paddedCols_b8 = PTO_CEIL(validCols, BLOCK_BYTE_SIZE / sizeof(int8_t));
+    constexpr int paddedRows_cm = PTO_CEIL(validRows, BLOCK_BYTE_SIZE / sizeof(float));
     using SrcGlobal = GlobalTensor<float, Shape<1, 1, 1, validRows, validCols>, pto::Stride<1, 1, 1, validCols, 1>>;
     using DstGlobal = GlobalTensor<int8_t, Shape<1, 1, 1, validRows, validCols>, pto::Stride<1, 1, 1, validCols, 1>>;
     using ParaGlobal = GlobalTensor<float, Shape<1, 1, 1, validRows, 1>, pto::Stride<1, 1, 1, 1, 1>, pto::Layout::DN>;
 
     using SrcTile = Tile<TileType::Vec, float, validRows, paddedCols_b32, BLayout::RowMajor, -1, -1>;
     using DstTile = Tile<TileType::Vec, int8_t, validRows, paddedCols_b8, BLayout::RowMajor, -1, -1>;
-    using ParaTile = Tile<TileType::Vec, float, validRows, 1, BLayout::ColMajor, -1, -1>;
+    using ParaTile = Tile<TileType::Vec, float, paddedRows_cm, 1, BLayout::ColMajor, -1, -1>;
     // Scratch for the per-row scale broadcast: one 32B block per row (<= 8KB for up to 256 rows).
-    using TmpTile = Tile<TileType::Vec, float, validRows, BLOCK_BYTE_SIZE / sizeof(float), BLayout::ColMajor, -1, -1>;
+    using TmpTile =
+        Tile<TileType::Vec, float, paddedRows_cm, BLOCK_BYTE_SIZE / sizeof(float), BLayout::ColMajor, -1, -1>;
 
     SrcTile srcTile(validRows, validCols);
     DstTile dstS8Tile(validRows, validCols);
@@ -46,9 +48,9 @@ __global__ AICORE void runTQuantInt8Sym(__gm__ int8_t __out__ *out_s8, __gm__ fl
     ParaGlobal scaleGlobal(scale);
 
     TASSIGN(srcTile, 0x0);
-    TASSIGN(dstS8Tile, 0x0);
-    TASSIGN(scaleTile, 0x20100);
-    TASSIGN(tmpTile, 0x28000);
+    TASSIGN(dstS8Tile, 0x20000);
+    TASSIGN(scaleTile, 0x28000);
+    TASSIGN(tmpTile, 0x28800);
 
     TLOAD(srcTile, srcGlobal);
     TLOAD(scaleTile, scaleGlobal);
@@ -76,15 +78,17 @@ __global__ AICORE void runTQuantInt8Asym(__gm__ uint8_t __out__ *out_u8, __gm__ 
     // pad each row to multiple of 32 elements
     constexpr int paddedCols_b32 = PTO_CEIL(validCols, BLOCK_BYTE_SIZE / sizeof(float));
     constexpr int paddedCols_b8 = PTO_CEIL(validCols, BLOCK_BYTE_SIZE / sizeof(uint8_t));
+    constexpr int paddedRows_cm = PTO_CEIL(validRows, BLOCK_BYTE_SIZE / sizeof(float));
     using SrcGlobal = GlobalTensor<float, Shape<1, 1, 1, validRows, validCols>, pto::Stride<1, 1, 1, validCols, 1>>;
     using DstGlobal = GlobalTensor<uint8_t, Shape<1, 1, 1, validRows, validCols>, pto::Stride<1, 1, 1, validCols, 1>>;
     using ParaGlobal = GlobalTensor<float, Shape<1, 1, 1, validRows, 1>, pto::Stride<1, 1, 1, 1, 1>, pto::Layout::DN>;
 
     using SrcTile = Tile<TileType::Vec, float, validRows, paddedCols_b32, BLayout::RowMajor, -1, -1>;
     using DstTile = Tile<TileType::Vec, uint8_t, validRows, paddedCols_b8, BLayout::RowMajor, -1, -1>;
-    using ParaTile = Tile<TileType::Vec, float, validRows, 1, BLayout::ColMajor, -1, -1>;
+    using ParaTile = Tile<TileType::Vec, float, paddedRows_cm, 1, BLayout::ColMajor, -1, -1>;
     // Scratch for the per-row scale/offset broadcast: one 32B block per row (<= 8KB for up to 256 rows).
-    using TmpTile = Tile<TileType::Vec, float, validRows, BLOCK_BYTE_SIZE / sizeof(float), BLayout::ColMajor, -1, -1>;
+    using TmpTile =
+        Tile<TileType::Vec, float, paddedRows_cm, BLOCK_BYTE_SIZE / sizeof(float), BLayout::ColMajor, -1, -1>;
 
     SrcTile srcTile(validRows, validCols);
     DstTile dstU8Tile(validRows, validCols);
@@ -98,10 +102,10 @@ __global__ AICORE void runTQuantInt8Asym(__gm__ uint8_t __out__ *out_u8, __gm__ 
     ParaGlobal offsetGlobal(offset);
 
     TASSIGN(srcTile, 0x0);
-    TASSIGN(dstU8Tile, 0x0);
-    TASSIGN(scaleTile, 0x20100);
-    TASSIGN(offsetTile, 0x26000);
-    TASSIGN(tmpTile, 0x28000);
+    TASSIGN(dstU8Tile, 0x20000);
+    TASSIGN(scaleTile, 0x28000);
+    TASSIGN(offsetTile, 0x28800);
+    TASSIGN(tmpTile, 0x29000);
 
     TLOAD(srcTile, srcGlobal);
     TLOAD(scaleTile, scaleGlobal);
@@ -129,13 +133,14 @@ __global__ AICORE void runTQuantInt8SymNoTmp(__gm__ int8_t __out__ *out_s8, __gm
 {
     constexpr int paddedCols_b32 = PTO_CEIL(validCols, BLOCK_BYTE_SIZE / sizeof(float));
     constexpr int paddedCols_b8 = PTO_CEIL(validCols, BLOCK_BYTE_SIZE / sizeof(int8_t));
+    constexpr int paddedRows_cm = PTO_CEIL(validRows, BLOCK_BYTE_SIZE / sizeof(float));
     using SrcGlobal = GlobalTensor<float, Shape<1, 1, 1, validRows, validCols>, pto::Stride<1, 1, 1, validCols, 1>>;
     using DstGlobal = GlobalTensor<int8_t, Shape<1, 1, 1, validRows, validCols>, pto::Stride<1, 1, 1, validCols, 1>>;
     using ParaGlobal = GlobalTensor<float, Shape<1, 1, 1, validRows, 1>, pto::Stride<1, 1, 1, 1, 1>, pto::Layout::DN>;
 
     using SrcTile = Tile<TileType::Vec, float, validRows, paddedCols_b32, BLayout::RowMajor, -1, -1>;
     using DstTile = Tile<TileType::Vec, int8_t, validRows, paddedCols_b8, BLayout::RowMajor, -1, -1>;
-    using ParaTile = Tile<TileType::Vec, float, validRows, 1, BLayout::ColMajor, -1, -1>;
+    using ParaTile = Tile<TileType::Vec, float, paddedRows_cm, 1, BLayout::ColMajor, -1, -1>;
 
     SrcTile srcTile(validRows, validCols);
     DstTile dstS8Tile(validRows, validCols);
@@ -146,8 +151,8 @@ __global__ AICORE void runTQuantInt8SymNoTmp(__gm__ int8_t __out__ *out_s8, __gm
     ParaGlobal scaleGlobal(scale);
 
     TASSIGN(srcTile, 0x0);
-    TASSIGN(dstS8Tile, 0x0);
-    TASSIGN(scaleTile, 0x20100);
+    TASSIGN(dstS8Tile, 0x20000);
+    TASSIGN(scaleTile, 0x28000);
 
     TLOAD(srcTile, srcGlobal);
     TLOAD(scaleTile, scaleGlobal);
@@ -174,13 +179,14 @@ __global__ AICORE void runTQuantInt8AsymNoTmp(__gm__ uint8_t __out__ *out_u8, __
 {
     constexpr int paddedCols_b32 = PTO_CEIL(validCols, BLOCK_BYTE_SIZE / sizeof(float));
     constexpr int paddedCols_b8 = PTO_CEIL(validCols, BLOCK_BYTE_SIZE / sizeof(uint8_t));
+    constexpr int paddedRows_cm = PTO_CEIL(validRows, BLOCK_BYTE_SIZE / sizeof(float));
     using SrcGlobal = GlobalTensor<float, Shape<1, 1, 1, validRows, validCols>, pto::Stride<1, 1, 1, validCols, 1>>;
     using DstGlobal = GlobalTensor<uint8_t, Shape<1, 1, 1, validRows, validCols>, pto::Stride<1, 1, 1, validCols, 1>>;
     using ParaGlobal = GlobalTensor<float, Shape<1, 1, 1, validRows, 1>, pto::Stride<1, 1, 1, 1, 1>, pto::Layout::DN>;
 
     using SrcTile = Tile<TileType::Vec, float, validRows, paddedCols_b32, BLayout::RowMajor, -1, -1>;
     using DstTile = Tile<TileType::Vec, uint8_t, validRows, paddedCols_b8, BLayout::RowMajor, -1, -1>;
-    using ParaTile = Tile<TileType::Vec, float, validRows, 1, BLayout::ColMajor, -1, -1>;
+    using ParaTile = Tile<TileType::Vec, float, paddedRows_cm, 1, BLayout::ColMajor, -1, -1>;
 
     SrcTile srcTile(validRows, validCols);
     DstTile dstU8Tile(validRows, validCols);
@@ -193,9 +199,9 @@ __global__ AICORE void runTQuantInt8AsymNoTmp(__gm__ uint8_t __out__ *out_u8, __
     ParaGlobal offsetGlobal(offset);
 
     TASSIGN(srcTile, 0x0);
-    TASSIGN(dstU8Tile, 0x0);
-    TASSIGN(scaleTile, 0x20100);
-    TASSIGN(offsetTile, 0x26000);
+    TASSIGN(dstU8Tile, 0x20000);
+    TASSIGN(scaleTile, 0x28000);
+    TASSIGN(offsetTile, 0x28800);
 
     TLOAD(srcTile, srcGlobal);
     TLOAD(scaleTile, scaleGlobal);
@@ -258,6 +264,13 @@ template void TQuantTest::LaunchTQuantInt8<256, 128, 0, pto::QuantType::INT8_ASY
                                                                                    float *scale, void *stream,
                                                                                    float *offset);
 template void TQuantTest::LaunchTQuantInt8<32, 72, 0, pto::QuantType::INT8_ASYM>(uint8_t *dst, float *src, float *scale,
+                                                                                 void *stream, float *offset);
+
+// INT8 SYM with tmp, dims (2,129) — tail-col exercise
+template void TQuantTest::LaunchTQuantInt8<2, 129, 0, pto::QuantType::INT8_SYM>(int8_t *dst, float *src, float *scale,
+                                                                                void *stream, float *offset);
+// INT8 ASYM with tmp, dims (2,129) — tail-col exercise
+template void TQuantTest::LaunchTQuantInt8<2, 129, 0, pto::QuantType::INT8_ASYM>(uint8_t *dst, float *src, float *scale,
                                                                                  void *stream, float *offset);
 
 // INT8 SYM NoTmp cases

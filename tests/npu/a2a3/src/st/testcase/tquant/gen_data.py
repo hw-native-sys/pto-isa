@@ -105,6 +105,8 @@ if __name__ == "__main__":
         TQuantParams("u8", 128, 128, mode="nd"),
         TQuantParams("u8", 256, 128, mode="nd"),
         TQuantParams("u8", 32, 72, mode="nd"),
+        TQuantParams("s8", 2, 129, mode="nd"),
+        TQuantParams("u8", 2, 129, mode="nd"),
         TQuantParams("s8", 64, 128, mode="nd", suffix="notmp"),
         TQuantParams("s8", 128, 128, mode="nd", suffix="notmp"),
         TQuantParams("u8", 64, 128, mode="nd", suffix="notmp"),

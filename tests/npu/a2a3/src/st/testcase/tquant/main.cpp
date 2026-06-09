@@ -194,6 +194,18 @@ TEST_F(TQUANTTEST, case_int8_asym_fp32_32x72_nd)
     test_tquant_int8_asym<32, 72, 0>();
 }
 
+// INT8 SYM with tmp, dims (2,129) — tail-col exercise
+TEST_F(TQUANTTEST, case_int8_sym_fp32_2x129_nd)
+{
+    test_tquant_int8_sym<2, 129, 0>();
+}
+
+// INT8 ASYM with tmp, dims (2,129) — tail-col exercise
+TEST_F(TQUANTTEST, case_int8_asym_fp32_2x129_nd)
+{
+    test_tquant_int8_asym<2, 129, 0>();
+}
+
 // INT8 SYM NoTmp cases
 TEST_F(TQUANTTEST, case_int8_sym_fp32_64x128_notmp_nd)
 {
