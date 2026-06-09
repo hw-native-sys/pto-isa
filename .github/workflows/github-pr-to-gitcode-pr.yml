@@ -1,0 +1,120 @@
+name: Mirror GitHub PR to GitCode PR
+
+on:
+  workflow_run:
+    workflows: ["CI", "A5 Smoke"]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: github-pr-to-gitcode-pr-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
+
+jobs:
+  mirror:
+    if: ${{ github.event.workflow_run.event == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check required GitHub workflows
+        id: gate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const requiredWorkflows = ["CI", "A5 Smoke"];
+            const run = context.payload.workflow_run;
+            const prs = run.pull_requests || [];
+
+            if (prs.length === 0) {
+              core.info("No pull request is associated with this workflow_run; skipping mirror.");
+              core.setOutput("ready", "false");
+              return;
+            }
+
+            const prNumber = prs[0].number;
+            const headSha = run.head_sha;
+            const runs = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              event: "pull_request",
+              head_sha: headSha,
+              per_page: 100,
+            });
+
+            const missing = [];
+            const notSuccessful = [];
+            for (const workflowName of requiredWorkflows) {
+              const workflowRuns = runs
+                .filter((candidate) => candidate.name === workflowName)
+                .filter((candidate) => (candidate.pull_requests || []).some((pr) => pr.number === prNumber))
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+              const latest = workflowRuns[0];
+              if (!latest) {
+                missing.push(workflowName);
+                continue;
+              }
+
+              core.info(`${workflowName}: status=${latest.status}, conclusion=${latest.conclusion}, url=${latest.html_url}`);
+              if (latest.status !== "completed" || latest.conclusion !== "success") {
+                notSuccessful.push(`${workflowName} (${latest.status}/${latest.conclusion || "none"})`);
+              }
+            }
+
+            if (missing.length > 0 || notSuccessful.length > 0) {
+              if (missing.length > 0) {
+                core.info(`Waiting for workflow(s): ${missing.join(", ")}`);
+              }
+              if (notSuccessful.length > 0) {
+                core.info(`Workflow(s) not successful yet: ${notSuccessful.join(", ")}`);
+              }
+              core.setOutput("ready", "false");
+              return;
+            }
+
+            core.info(`All required workflows passed for PR #${prNumber} at ${headSha}.`);
+            core.setOutput("ready", "true");
+            core.setOutput("pr_number", String(prNumber));
+
+      - name: Checkout trusted base repository
+        if: ${{ steps.gate.outputs.ready == 'true' }}
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Write pull request event payload
+        if: ${{ steps.gate.outputs.ready == 'true' }}
+        id: pr-event
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            const pull_number = Number("${{ steps.gate.outputs.pr_number }}");
+            const { data: pull_request } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number,
+            });
+            const eventPath = path.join(process.env.RUNNER_TEMP, "github-pr-event.json");
+            fs.writeFileSync(eventPath, JSON.stringify({ pull_request }, null, 2));
+            core.setOutput("path", eventPath);
+
+      - name: Mirror PR branch and create GitCode PR
+        if: ${{ steps.gate.outputs.ready == 'true' }}
+        run: |
+          bash scripts/github_pr_to_gitcode_pr.sh
+        env:
+          GITHUB_EVENT_PATH: ${{ steps.pr-event.outputs.path }}
+          GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
+          GITCODE_PUSH_URL: ${{ secrets.GITCODE_PUSH_URL }}
+          GITCODE_OWNER: cann
+          GITCODE_REPO: pto-isa
+          GITCODE_BASE_BRANCH: master
+          GITCODE_HEAD_OWNER: zhhywang
