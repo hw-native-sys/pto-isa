@@ -256,7 +256,7 @@ target_link_libraries(distributed_ffn_grid_allgather PRIVATE
 #    movement: TPUSH<EAST, KHOP_DIST> / TPOP<EAST, KHOP_DIST> across a 1xCOLS
 #    row, exercising the K-hop data path and the routed ready/free doorbell.
 # =============================================================================
-add_library(khop_smoke_kernel SHARED khop_smoke_kernel.cpp)
+add_library(khop_smoke_kernel SHARED smoke/khop_smoke_kernel.cpp)
 target_compile_options(khop_smoke_kernel PRIVATE
     ${CMAKE_CCE_COMPILE_OPTIONS}
     --cce-aicore-arch=dav-c220
@@ -265,6 +265,7 @@ target_compile_options(khop_smoke_kernel PRIVATE
     -DCONFIG_KHOP_DIST=${KHOP_DIST} -DCONFIG_KHOP_T=${KHOP_T} -DCONFIG_KHOP_W=${KHOP_W}
 )
 target_include_directories(khop_smoke_kernel PRIVATE
+    ${PROJECT_SOURCE_DIR}
     ${PROJECT_SOURCE_DIR}/../../../../include/
     ${PROJECT_SOURCE_DIR}/../../../../tests/npu/a2a3/comm/st/testcase/
     $ENV{ASCEND_HOME_PATH}/aarch64-linux/asc
@@ -280,7 +281,7 @@ target_link_directories(khop_smoke_kernel PRIVATE ${ASCEND_HOME_PATH}/lib64)
 target_link_libraries(khop_smoke_kernel PRIVATE hcomm runtime nnopbase)
 target_link_options(khop_smoke_kernel PRIVATE --cce-fatobj-link)
 
-add_executable(khop_smoke main_khop_smoke.cpp)
+add_executable(khop_smoke smoke/main_khop_smoke.cpp)
 target_compile_options(khop_smoke PRIVATE ${CMAKE_CPP_COMPILE_OPTIONS})
 target_include_directories(khop_smoke PRIVATE
     ${PROJECT_SOURCE_DIR}/../../../../include/
@@ -315,7 +316,7 @@ target_link_libraries(khop_smoke PRIVATE
 #    span in a single multicast (batched writes + one publish fence + batched
 #    doorbells, NOT a per-hop TPUSH loop); every other cell TPOP<dir,dist>s it.
 # =============================================================================
-add_library(bcast_smoke_kernel SHARED bcast_smoke_kernel.cpp)
+add_library(bcast_smoke_kernel SHARED smoke/bcast_smoke_kernel.cpp)
 target_compile_options(bcast_smoke_kernel PRIVATE
     ${CMAKE_CCE_COMPILE_OPTIONS}
     --cce-aicore-arch=dav-c220
@@ -325,6 +326,7 @@ target_compile_options(bcast_smoke_kernel PRIVATE
     -DCONFIG_BCAST_T=${BCAST_T} -DCONFIG_BCAST_W=${BCAST_W}
 )
 target_include_directories(bcast_smoke_kernel PRIVATE
+    ${PROJECT_SOURCE_DIR}
     ${PROJECT_SOURCE_DIR}/../../../../include/
     ${PROJECT_SOURCE_DIR}/../../../../tests/npu/a2a3/comm/st/testcase/
     $ENV{ASCEND_HOME_PATH}/aarch64-linux/asc
@@ -340,7 +342,7 @@ target_link_directories(bcast_smoke_kernel PRIVATE ${ASCEND_HOME_PATH}/lib64)
 target_link_libraries(bcast_smoke_kernel PRIVATE hcomm runtime nnopbase)
 target_link_options(bcast_smoke_kernel PRIVATE --cce-fatobj-link)
 
-add_executable(bcast_smoke main_bcast_smoke.cpp)
+add_executable(bcast_smoke smoke/main_bcast_smoke.cpp)
 target_compile_options(bcast_smoke PRIVATE ${CMAKE_CPP_COMPILE_OPTIONS})
 target_include_directories(bcast_smoke PRIVATE
     ${PROJECT_SOURCE_DIR}/../../../../include/

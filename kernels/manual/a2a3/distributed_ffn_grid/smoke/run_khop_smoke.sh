@@ -64,8 +64,10 @@ echo "  RUN_MODE: ${RUN_MODE}  SOC_VERSION: ${SOC_VERSION}  DEVICE_ID: ${DEVICE_
 echo "  Grid: ${KHOP_ROWS}x${KHOP_COLS}  DIST: ${KHOP_DIST}  Tile: ${KHOP_T}x${KHOP_W}"
 echo "==========================================="
 
+# CMakeLists.txt lives in the parent demo directory; build from there.
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
-cd "${SCRIPT_DIR}"
+PROJECT_DIR=$(cd "${SCRIPT_DIR}/.." && pwd)
+cd "${PROJECT_DIR}"
 
 rm -rf build
 mkdir build

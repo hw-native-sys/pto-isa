@@ -13,6 +13,8 @@
 
 仓内同时提供一个 AllGather 版本：`run_allgather.sh` / `distributed_ffn_grid_allgather`。它在 hidden 阶段先沿列做 fp16 AllGather，再让 down 阶段按输出 `H` 维切片，去掉 post-down ReduceSum。
 
+除最近邻 FFN demo 外，GridPipe 还支持路由 K-hop unicast（`TPUSH<dir, dist>` / `TPOP<dir, dist>`）和单源行/列广播（`TPUSH<GridSpan>`）。这两个能力各有一个独立的 Vec-only 冒烟测试，位于 `smoke/` 子目录（见下文「GridPipe 冒烟测试」）。
+
 ## 文件作用
 
 | 文件 | 作用 |
@@ -29,6 +31,7 @@
 | `distributed_ffn_grid_allgather_compute_kernel.cpp` | AllGather mixed Cube/Vec kernel。Vec 负责 hidden shard 收集，Cube 写出 output-H shard。 |
 | `tpipe_tmov_inl.hpp` | 把 Cube↔Vec 的 C2V/V2C 搬运封装成方向化 `TMOV` 重载，内部转发到现有 `TPUSH`/`TPOP`，使 kernel 正文不再出现该 handshake。 |
 | `gridpipe_payload_inl.hpp` | 本地 GridPipe payload/remote pointer adaptor。 |
+| `smoke/` | GridPipe 特性冒烟测试。`khop_smoke_{config,kernel,launch}` + `main_khop_smoke.cpp` + `run_khop_smoke.sh` 覆盖路由 K-hop unicast；`bcast_smoke_*` + `run_bcast_smoke.sh` 覆盖单源行/列广播。两者都通过父目录 `CMakeLists.txt` 构建。 |
 | `../../../../include/pto/common/grid_counter_intrinsic.hpp` | CCE intrinsic 风格的 neighbor counter API，GridPipe ready/free wait 与 notify 会经过这里。 |
 | `../../../../include/pto/common/grid_sram_intrinsic.hpp` | CCE intrinsic 风格的 neighbor SRAM 地址解析和 payload 搬运 API，GridPipe payload movement 会经过这里。同时声明 `GmSramArena` 地址段 SRAM 模型与 `sram_pop_is_local` 这条 TPOP 读本地性守卫。 |
 | `scripts/gen_data.py` | 生成每个 cell 的 fp16 X/weight shard，以及 fp32 golden reference。 |
@@ -152,7 +155,22 @@ GridPipe payload 的远端 SRAM 地址解析统一经过 `include/pto/common/gri
 
 reduce slot 携带 fp32 `[T, H]`，所以 `FFN_SLOT_BYTES = T * H * 4`。`downPartial`、`yOutput` 和 `golden.bin` 都保持 fp32，host 可直接做容差比较。
 
-### 8. AllGather 版本
+### 8. 路由 K-hop unicast
+
+`TPUSH<dir, dist>` / `TPOP<dir, dist>` 把最近邻 pipe 扩展为沿 `dir` 方向 `dist` 跳的路由 unicast（Scheme A）。payload 写入解析到 `dist` 跳邻居段内的 slot，ready/free doorbell 通过 `mtspr_neighbor_counter` / `wfe_neighbor_counter` 携带同样的 `dist` 操作数，因此下游 `dist` 跳的接收方直接 pop，中间不需要任何中继。`dist == 1` 即原有最近邻行为。fan-in 保持为 1（每个方向/距离只有一个上游），无需 slot/flag 扩容。
+
+### 9. 单源行/列广播
+
+`TPUSH<GridSpan>`（首个模板参数为 `ROW` 或 `COL`，类型本身即选中多播重载）让单个源 cell 把 tile 一次性广播给所在行或列的所有其它 cell：逐目标写入批量发出且目标之间无 fence，整个广播只付一次 publish fence，随后所有 ready doorbell 批量触发。它不是按跳展开的 `TPUSH` 循环。接收方用普通 `TPOP<dir, dist>` 朝源方向取数（行广播为 `EAST`/`WEST`，列广播为 `NORTH`/`SOUTH`）。
+
+### 10. GridPipe 冒烟测试
+
+上述两个能力在 `smoke/` 下各有一个 Vec-only 纯搬运冒烟测试（无 Cube、无 matmul、无数据文件，进程内校验，复用 FFN demo 的 GM-backed mock）：
+
+- `khop_smoke`：`1 x cols` 行网格；每个 cell 向东 `DIST` 跳 push 一块带标记的 fp32 `[T, W]` tile，接收方 pop 后写出；host 校验 `out[c] == in[c-DIST]`。
+- `bcast_smoke`：源 cell（`--src`）向整行（`--span-col 1` 时为整列）广播带标记 tile；其余 cell 各按自己的方向/距离 pop 并写出；host 校验 `out[cell] == in[source]`。默认 1x5 行、源在 col 2，一次运行同时覆盖东西两臂。
+
+### 11. AllGather 版本
 
 `run_allgather.sh` 使用 `scripts/gen_data.py --split-mode allgather` 生成数据。此时 `W_down` 按 `[F, Hc]` 切列，`GridPipe` 搬运的是 fp16 `hidden [T, Fi]`，最终输出是每列一个 `Y[:, Hc]` shard，host 仍与完整 `golden.bin` 做拼接后的比对。AllGather 要求 `--model-tile` 能被 `--grid-cols` 整除，保证 `Hc = H / gridCols` 是整数 tile 宽度。
 
@@ -172,6 +190,17 @@ bash run_reducesum.sh -r npu -v Ascend910B1 --device-id 0 --grid-rows 3 --grid-c
 bash run_allgather.sh -r npu -v Ascend910B1 --device-id 0 --grid-rows 3 --grid-cols 3 --model-tile 96
 ```
 
+### GridPipe 冒烟测试
+
+```bash
+# 路由 K-hop unicast：1x4 行，整体右移 2 跳
+bash smoke/run_khop_smoke.sh -r npu -v Ascend910B1 --device-id 0 --grid-cols 4 --dist 2
+# 单源广播：1x5 行，源在 col 2（--span-col 1 + Rx1 网格可切到列广播）
+bash smoke/run_bcast_smoke.sh -r npu -v Ascend910B1 --device-id 0 --grid-cols 5 --src 2
+```
+
+两者均支持 `--build-only`，且不需要生成数据。
+
 ### 常用参数
 
 ```text
@@ -187,6 +216,8 @@ bash run_allgather.sh -r npu -v Ascend910B1 --device-id 0 --grid-rows 3 --grid-c
 --build-only        只编译，不生成数据和运行
 ```
 
+冒烟脚本复用 `-r/-v/-d`、`--grid-rows/--grid-cols`、`--token-tile/--model-tile`（tile `[T, W]`）和 `--build-only`；`run_khop_smoke.sh` 额外提供 `--dist`（跳数，默认 2），`run_bcast_smoke.sh` 额外提供 `--src`（源下标，默认 2）和 `--span-col`（1 为列广播，默认 0）。
+
 ## 期望输出
 
 ReduceSum 成功时最终打印：
@@ -199,4 +230,11 @@ AllGather 成功时最终打印：
 
 ```text
 [SUCCESS] Single-device multi-block FFN GridPipe AllGather PASS.
+```
+
+冒烟测试成功时分别打印：
+
+```text
+[SUCCESS] GridPipe K-hop unicast smoke PASS.
+[SUCCESS] GridPipe single-source broadcast smoke PASS.
 ```
