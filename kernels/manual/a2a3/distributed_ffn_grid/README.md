@@ -13,6 +13,8 @@ The `EAST` reduce uses the A2/A3 GridPipe mock backend: local SRAM windows backe
 
 An AllGather variant is also provided in `run_allgather.sh` / `distributed_ffn_grid_allgather`. It gathers hidden shards across columns before down projection, so the post-down ReduceSum is removed and each column writes its own output-H shard.
 
+Beyond the nearest-neighbor FFN demos, GridPipe also supports routed K-hop unicast (`TPUSH<dir, dist>` / `TPOP<dir, dist>`) and single-source row/column broadcast (`TPUSH<GridSpan>`). Each capability has a standalone Vec-only smoke test under `smoke/` (see [Smoke tests](#gridpipe-smoke-tests)).
+
 ## Files
 
 | File | Purpose |
@@ -29,6 +31,7 @@ An AllGather variant is also provided in `run_allgather.sh` / `distributed_ffn_g
 | `distributed_ffn_grid_allgather_compute_kernel.cpp` | AllGather mixed Cube/Vec kernel. Vec gathers hidden shards; Cube writes output-H shards. |
 | `tpipe_tmov_inl.hpp` | Directional `TMOV` overloads that lower Cube↔Vec C2V/V2C transfers to the existing `TPUSH`/`TPOP`, so the kernel body never spells out the handshake. |
 | `gridpipe_payload_inl.hpp` | Local GridPipe payload hooks and fake-window remote pointer adapter. |
+| `smoke/` | Standalone GridPipe feature smoke tests. `khop_smoke_{config,kernel,launch}` + `main_khop_smoke.cpp` + `run_khop_smoke.sh` cover routed K-hop unicast; `bcast_smoke_*` + `run_bcast_smoke.sh` cover single-source row/column broadcast. Both build through the parent `CMakeLists.txt`. |
 | `../../../../include/pto/common/grid_counter_intrinsic.hpp` | CCE-intrinsic-style neighbor counter API used by GridPipe ready/free waits and notifications. |
 | `../../../../include/pto/common/grid_sram_intrinsic.hpp` | CCE-intrinsic-style neighbor SRAM address and payload transfer API used by GridPipe payload movement. Also declares the `GmSramArena` address-segment SRAM model and the `sram_pop_is_local` TPOP read-locality guard. |
 | `scripts/gen_data.py` | Generates per-cell fp16 X/weight shards and an fp32 golden reference. |
@@ -152,6 +155,21 @@ On current A2/A3 boards, `NeighborCounterOperand::addr` points to a GM-backed co
 
 The reduce slot carries fp32 `[T, H]`, so `FFN_SLOT_BYTES = T * H * 4`. This keeps `downPartial`, `yOutput`, and `golden.bin` in fp32 for direct tolerance-based comparison.
 
+### Routed K-hop unicast
+
+`TPUSH<dir, dist>` / `TPOP<dir, dist>` extend the nearest-neighbor pipe to a routed unicast `dist` hops along `dir` (Scheme A). The payload write resolves the slot in the `dist`-hop neighbor's segment, and the ready/free doorbells carry the same `dist` operand through `mtspr_neighbor_counter` / `wfe_neighbor_counter`, so the receiver `dist` hops downstream pops the tile with no relays in between. `dist == 1` reproduces the original nearest-neighbor behavior. Fan-in stays 1 (one upstream per direction/distance), so no slot/flag expansion is needed.
+
+### Single-source row/column broadcast
+
+`TPUSH<GridSpan>` (`ROW` or `COL` as the first template argument selects the multicast overload) lets one source cell broadcast its tile to every other cell in its row or column as one op: the per-target writes are batched with no inter-target fence, the whole broadcast pays a single publish fence, then all ready doorbells fire. It is not lowered to a per-hop `TPUSH` loop. Receivers drain with the ordinary `TPOP<dir, dist>` toward the source (`EAST`/`WEST` for a row span, `NORTH`/`SOUTH` for a column span).
+
+### GridPipe smoke tests
+
+The two capabilities above each have a Vec-only data-movement smoke test under `smoke/` (no Cube, no matmul, no data files; in-process verification on the same GM-backed mock as the FFN demos):
+
+- `khop_smoke` — a `1 x cols` row; each cell pushes a stamped fp32 `[T, W]` tile `DIST` hops east, the receiver pops and stores it; the host checks `out[c] == in[c-DIST]`.
+- `bcast_smoke` — one source cell (`--src`) broadcasts its stamped tile to its whole row (or column with `--span-col 1`); every other cell pops at its own direction/distance and stores it; the host checks `out[cell] == in[source]`. The default 1x5 row with the source at col 2 exercises both arms in one run.
+
 ### AllGather variant
 
 `run_allgather.sh` uses `scripts/gen_data.py --split-mode allgather` to generate data. In this mode, `W_down` is split as `[F, Hc]`, GridPipe carries fp16 `hidden [T, Fi]`, and each column writes one `Y[:, Hc]` output shard. The host still compares the stitched full output with `golden.bin`. AllGather requires `--model-tile` to be divisible by `--grid-cols` so `Hc = H / gridCols` is an integer tile width.
@@ -172,6 +190,17 @@ bash run_reducesum.sh -r npu -v Ascend910B1 --device-id 0 --grid-rows 3 --grid-c
 bash run_allgather.sh -r npu -v Ascend910B1 --device-id 0 --grid-rows 3 --grid-cols 3 --model-tile 96
 ```
 
+### GridPipe smoke tests
+
+```bash
+# Routed K-hop unicast: 1x4 row, shift-by-2
+bash smoke/run_khop_smoke.sh -r npu -v Ascend910B1 --device-id 0 --grid-cols 4 --dist 2
+# Single-source broadcast: 1x5 row, source at col 2 (use --span-col 1 + Rx1 grid for a column broadcast)
+bash smoke/run_bcast_smoke.sh -r npu -v Ascend910B1 --device-id 0 --grid-cols 5 --src 2
+```
+
+Both accept `--build-only` and need no data generation.
+
 ### Common arguments
 
 ```text
@@ -187,6 +216,8 @@ bash run_allgather.sh -r npu -v Ascend910B1 --device-id 0 --grid-rows 3 --grid-c
 --build-only        build only; skip data generation and execution
 ```
 
+The smoke scripts reuse `-r/-v/-d`, `--grid-rows/--grid-cols`, `--token-tile/--model-tile` (tile `[T, W]`), and `--build-only`; `run_khop_smoke.sh` adds `--dist` (hop count, default 2) and `run_bcast_smoke.sh` adds `--src` (source index, default 2) and `--span-col` (1 = column broadcast, default 0).
+
 ## Expected Result
 
 On success, the ReduceSum executable prints:
@@ -199,4 +230,11 @@ On success, the AllGather executable prints:
 
 ```text
 [SUCCESS] Single-device multi-block FFN GridPipe AllGather PASS.
+```
+
+The smoke tests print:
+
+```text
+[SUCCESS] GridPipe K-hop unicast smoke PASS.
+[SUCCESS] GridPipe single-source broadcast smoke PASS.
 ```
