@@ -14,7 +14,7 @@ flowchart TB
     H3 --> H4[屏障完成]
   end
   subgraph soft [软件模式 Soft / GM]
-    S1[写本地 GM slot 计数] --> S2[轮询全部 slot 达阈值]
+    S1[写本地 GM slot 计数] --> S2[轮询全部 slot 达到当前代数]
     S2 --> S3[屏障完成]
   end
 ```
@@ -37,7 +37,7 @@ flowchart TB
 - 硬件模式：由 FFTS 旗标与设备侧 `wait_flag_dev` 等原语保证跨核可见顺序。
 - 软件模式：由 GM 中各参与者独占 slot 的单调计数与 `dcci`/`dsb` 等一致性原语，在轮询中判定「全员已到达当前代数」。
 
-该语义**不**对 barrier 之后的 GM 或其它 buffer 内容作额外保证；若需与数据可见性组合，仍须由调用方显式同步或遵循既有数据面约定。
+该语义**不**对 barrier 之后的 GM 或其它 buffer 内容作额外保证；跨核数据可见性需调用方自行维护，详见「跨核 GM 通信注意事项」。
 
 ## C++ 内建接口
 
@@ -77,28 +77,107 @@ PTO_INST void SYNCALL(GlobalData &gmWorkspace, UbTileData &ubWorkspace, L1TileDa
 - `gmWorkspace`: `GlobalTensor<int32_t, pto::Shape<>, pto::Stride<>>`（在 Ascend C 与 `using namespace pto` 并存时，建议写全 `pto::`，避免与编译器内置头中的 `Stride` 枚举同名冲突）。软件模式使用的 GM workspace，调用前需要初始化为 0。每个参与 core 占用 8 个 `int32_t`（按 cache line 隔离同步计数）。
 - `ubWorkspace`: `Tile<TileType::Vec, int32_t, 1, SYNCALL_SOFT_SLOT_INT32>`。AIV-only 和 MIX 软件模式使用的 UB scratch，容量至少为 `usedCores * 8 * sizeof(int32_t)`。
 - `l1Workspace`: `Tile<TileType::Mat, int32_t, 1, SYNCALL_SOFT_SLOT_INT32>`。AIC-only 和 MIX 软件模式使用的 L1（cbuf）scratch，用于 `create_cbuf_matrix` 填充同步值后经 DMA 搬移到 GM。
-- `usedCores`: 参与软件 barrier 的 core 数。为 0 时自动推算——AIV-only 使用 `get_block_num()`，AIC-only 使用 `get_block_num()`，MIX 使用 `SYNCALL_GET_MIX_PARTICIPANT_COUNT()`（即 `AIC blocks × (1 + AIV ratio)`）。
+- `usedCores`: 参与软件 barrier 的 core 数。为 0 时自动推算——AIV-only / AIC-only 使用 `get_block_num()`，MIX 使用 `SYNCALL_GET_MIX_PARTICIPANT_COUNT()`（即 `AIC blocks × (1 + AIV ratio)`）。
 
 ## Kernel Meta 宏
 
-MIX 模式 kernel 需要在 ELF 中嵌入 `.ascend.meta` 信息，供 runtime 正确调度 AIC/AIV 子 kernel。宏定义于 `include/pto/common/kernel_meta.hpp`：
+下列场景需在 ELF 中**手写** `.ascend.meta`，供 runtime 正确调度：**Hard AIV-only**、**Soft AIC-only**、以及 **register-ELF 的 MIX**（如 1:1 hard）。`dav-c220` 自动拆分场景由 Bisheng 生成 meta，见本节末尾。宏定义于 `include/pto/common/kernel_meta.hpp`：
+
+> `kernelName` 须与 `__global__` 入口符号**完全一致**（写入 section `.ascend.meta.<kernelName>`）。
 
 ```cpp
-// AIV 侧 kernel（标记为 MIX_AIV_MAIN，ratio 固定 0:1）
+// AIV 侧 kernel（ktype=MIX_AIV_MAIN，AIC:AIV ratio 固定 0:1）
 PTO_SYNCALL_AIV_KERNEL_META(kernelName);
 
-// AIC 侧 kernel（标记为 MIX_AIC_MAIN，指定 AIC:AIV 比例）
+// AIC-only kernel（ktype=AIC_ONLY，ratio 固定 1:0）
+PTO_SYNCALL_AIC_KERNEL_META(kernelName);
+
+// AIC 侧 MIX kernel（ktype=MIX_AIC_MAIN，指定 AIC:AIV 比例）
 PTO_SYNCALL_MIX_AIC_KERNEL_META(kernelName, aicRatio, aivRatio);
 ```
 
-使用示例（1:2 混合模式）：
+**使用示例**
+
+Hard AIV-only（单 kernel，chevron 启动）：
 
 ```cpp
-PTO_SYNCALL_MIX_AIC_KERNEL_META(MyKernel_mix_aic, 1, 2);  // AIC kernel ELF
-PTO_SYNCALL_AIV_KERNEL_META(MyKernel_mix_aiv);             // AIV kernel ELF
+PTO_SYNCALL_AIV_KERNEL_META(MyKernel_mix_aiv);
+extern "C" __global__ AICORE void MyKernel_mix_aiv(...) { SYNCALL(); }
 ```
 
-> 历史别名 `PTO_SYNCALL_AIV_KERNEL_META` / `PTO_SYNCALL_MIX_AIC_KERNEL_META` 仍可使用，等价于上述宏。
+Soft AIC-only（单 kernel，chevron 启动）：
+
+```cpp
+PTO_SYNCALL_AIC_KERNEL_META(MyKernel);
+extern "C" __global__ AICORE void MyKernel(...) { SYNCALL<SyncAllMode::Soft, SyncCoreType::AICOnly>(...); }
+```
+
+register-ELF 通用配对（AIC 侧指定比例 + AIV 侧）。注意：当前 `syncall` ST 的 MIX 1:2 已改用 `dav-c220` 自动拆分、无需手写 meta；下例仅演示 register-ELF 路径的宏配对写法：
+
+```cpp
+PTO_SYNCALL_MIX_AIC_KERNEL_META(MyKernel_mix_aic, 1, 2);
+PTO_SYNCALL_AIV_KERNEL_META(MyKernel_mix_aiv);
+```
+
+register-ELF MIX 1:1 hard（**AIC 与 AIV 两侧均用** `PTO_SYNCALL_MIX_AIC_KERNEL_META(..., 1, 1)`，AIV 侧**不要**用 `PTO_SYNCALL_AIV_KERNEL_META`）：
+
+```cpp
+PTO_SYNCALL_MIX_AIC_KERNEL_META(MyKernel_mix_aic, 1, 1);
+PTO_SYNCALL_MIX_AIC_KERNEL_META(MyKernel_mix_aiv, 1, 1);
+```
+
+**无需手写 meta 的常见场景**（完整对照见下文「编译与调度指南」场景速查表）：
+
+- AIV-only Soft（`dav-c220-vec`）
+- MIX 1:2 Hard / Soft、Hard AIC-only（A2/A3，`dav-c220` 自动拆分）
+- MIX 1:1 Soft（双流 chevron）
+
+> **dav-c220 自动拆分**：使用 `--cce-aicore-arch=dav-c220` 编译时，Bisheng 会自动生成 AIC/AIV 子 kernel 及对应 `.ascend.meta`，物理比例为 **1:2**（每个 AIC block 配 2 个 AIV subblock）。此时**无需**手写 `PTO_SYNCALL_MIX_AIC_KERNEL_META`，也**不能**通过 meta 把比例改成 1:1（见下文「MIX 1:1」）。
+
+## 编译与调度指南（A2/A3）
+
+本节以 ST 用例 [`tests/npu/a2a3/src/st/testcase/syncall/`](../../tests/npu/a2a3/src/st/testcase/syncall/) 为准，说明不同 `SyncCoreType` / 模式 / AIC:AIV 比例下应采用的**编译 arch**、**Meta** 与 **Host 启动**方式。Host 侧通过 [`syncall_core_config.hpp`](../../tests/npu/a2a3/src/st/testcase/syncall/syncall_core_config.hpp) 在运行时决定 launch grid（910B1：24 AIC + 48 AIV；910B4：20 AIC + 40 AIV），同一套 kernel 二进制可跨芯片复用。
+
+### 场景速查表
+
+| 场景 | 同步模式 | 参与者数 | 编译 `--cce-aicore-arch` | Kernel Meta | Host 启动 | 参考源文件 |
+|------|---------|----------|--------------------------|-------------|-----------|-----------|
+| AIV-only | Hard | `aiv` | `dav-c220-vec` | `PTO_SYNCALL_AIV_KERNEL_META` | chevron `<<<aiv>>>` | `syncall_kernel.cpp` |
+| AIV-only | Soft | `aiv` | `dav-c220-vec` | 无 | chevron `<<<aiv>>>` | `syncall_soft_kernel.cpp` |
+| AIC-only | Hard | `aic` | **`dav-c220`**（MIX 自动拆分，AIV 空 stub） | 由 Bisheng 自动生成 | chevron `<<<aic>>>` | `syncall_aic_hard_kernel.cpp` |
+| AIC-only | Soft | `aic` | `dav-c220-cube` | `PTO_SYNCALL_AIC_KERNEL_META` | chevron `<<<aic>>>` | `syncall_aic_kernel.cpp` |
+| MIX 1:2 | Hard / Soft | `aic×3` | **`dav-c220`** | 由 Bisheng 自动生成 | chevron `<<<aic>>>`（hard/soft 同一 `.so`） | `syncall_mix_1_2_kernel.cpp` |
+| MIX 1:1 | Soft | `aic×2` | cube + vec 各编一份 `.o` | 无 | **双流** chevron：AIC `<<<aic>>>` + AIV `<<<aic>>>` | `syncall_mix_1_1_soft_kernel.cpp` |
+| MIX 1:1 | Hard | `aic×2` | cube + vec 各编一份 `.o` | **`PTO_SYNCALL_MIX_AIC_KERNEL_META(..., 1, 1)`** | **register ELF** + `rtKernelLaunchWithHandleV2` | `syncall_mix_1_1_kernel.cpp` |
+
+Hard 与 Soft kernel **不可共用同一 `.so`**（AIV-only / AIC-only 等场景下 soft 会污染 hard 的 FFTS 配置导致 hang）；MIX 1:2 的 hard 与 soft 因均走 dav-c220 自动拆分，可放在同一源文件的同一 `.so` 中。
+
+### 各路径说明
+
+#### 1. Chevron 单 arch 编译（AIV-only / AIC-only soft）
+
+- 编译：单个源文件 + 对应 arch（`dav-c220-vec` 或 `dav-c220-cube`），产出独立 `.so`。
+- 启动：`kernel<<<blockDim, nullptr, stream>>>(..., totalBlocks)`，`blockDim` 与 `totalBlocks` 由 Host 在运行时传入（ST 中来自 `syncall_cfg::GetCoreConfig()`）。
+- Hard AIV-only 须在 kernel 上声明 `PTO_SYNCALL_AIV_KERNEL_META`。
+
+#### 2. Chevron MIX 自动拆分（MIX 1:2、Hard AIC-only）
+
+- 编译：`--cce-aicore-arch=dav-c220`；CMake 使用 `pto_syncall_chevron_kernel(<target> <source>)`。
+- 启动：单次 chevron `<<<aic>>>`；runtime 按物理 1:2 拉起全部 MIX 参与者。
+- Kernel 参数：`aicBlocks` 与 `totalParticipants` 作为标量从 Host 传入（AIC/AIV 两侧读同一参数），以支持 910B1/910B4 等不同 cube 数。
+- **Hard AIC-only 特例**：纯 `dav-c220-cube` 无法建立 AIC-only 硬同步所需的 FFTS 上下文。须用 `dav-c220` MIX 编译：AIC 执行 `SYNCALL<AICOnly>()`，AIV 为空 stub；`totalBlocks` 由 Host 传入。
+
+#### 3. 双 arch 双 stream（MIX 1:1 Soft）
+
+- 原因：ccec/bisheng 路径下 `GetTaskRation()` 恒为 **2**，`dav-c220` 自动拆分物理固定 **1:2**，无法得到真 1:1。
+- 编译：同一源文件分别以 `dav-c220-cube`（`-DSYNCALL_MIX_BUILD_AIC`）和 `dav-c220-vec`（`-DSYNCALL_MIX_BUILD_AIV`）各编一份 `.o`，链接为一个 `.so`；CMake 使用 `pto_syncall_mix11_soft_kernel`。
+- 启动：AIC 与 AIV 分别在两个 `aclrtStream` 上 chevron `<<<aic>>>`；`aicBlocks` / `totalParticipants` 由 Host 运行时传入。
+
+#### 4. Register ELF（MIX 1:1 Hard）
+
+- 原因：Hard MIX 同步需要单一 MIX FFTS 上下文；chevron 自动拆分在 ccec 下做不到真 1:1。
+- 编译：cube / vec 各编带 `PTO_SYNCALL_MIX_AIC_KERNEL_META(name, 1, 1)` 的 `.o`，再以 `-DSYNCALL_MIX_REGISTER_BUILD` 生成 register 专用 `.o`，经 `make_mix_register_elf.py` 合成 registration ELF；CMake 使用 `pto_syncall_mix_kernel`。
+- 启动：`rtRegisterAllKernel` + `rtKernelLaunchWithHandleV2(handle, tilingKey, aicBlocks, ...)`；device 侧用 `get_block_num()` 推导参与者数（register 路径仅传 `ffts/out/flags` 三个参数）。
 
 ## 模式支持矩阵
 
@@ -120,38 +199,36 @@ PTO_SYNCALL_AIV_KERNEL_META(MyKernel_mix_aiv);             // AIV kernel ELF
 
 ## 约束
 
-- 当前实现覆盖 A2/A3 和 A5 后端。
-- 软件模式支持 AIV-only、AIC-only 和 AIC+AIV 混合 kernel。
-  - AIC-only 模式（仅 A2/A3）：AIC 核通过 `copy_cbuf_to_gm`（L1→GM DMA）直接写入和读取 GM slot 完成同步。
-  - A2/A3 混合模式：AIC 核通过 `copy_cbuf_to_gm`（L1→GM DMA）直接写入 GM slot，AIV 核通过 UB workspace 写入。
-  - A5 混合模式：A5 AIC（`dav-c310-cube`）不支持 `copy_cbuf_to_gm` 等直接写 GM 的 DMA 指令，改为通过 `intra_block` 信号委托同 block 的 AIV subblock 0 代为执行 UB→GM 写入。
-- A5 AIC-only 硬件模式已支持：AIC 通过 `ffts_cross_core_sync` + `wait_flag_dev` 实现跨核同步，不需要 `set_ffts_base_addr`。
-- A5 AIC-only 软件模式不支持：A5 AIC（`dav-c310-cube`）缺少 `copy_cbuf_to_gm` 等独立写 GM 的 DMA 路径，无法实现 GM 轮询同步。
-- A5 硬件 MIX 模式不可用：运行时接口 `rtGetC2cCtrlAddr` 在 A5（`CHIP_DAVID`）平台返回 `RT_ERROR_FEATURE_NOT_SUPPORT`（207000），无法获取 FFTS 基地址。
-- 软件模式要求所有参与 core 以相同顺序进入同一组 barrier；每个参与 core 在 `gmWorkspace` 中占用 8 个 `int32_t`，用于按 cache line 隔离同步计数。
-- 软件模式只提供 barrier 到达语义。若 barrier 前后还需要观察其他 GM 数据，调用方仍需保证对应数据的 cache 可见性。
-- 软件模式轮询循环内置退避策略（超过阈值后插入 `pipe_barrier`）和超时保护（默认 1,000,000 次迭代上限），超时后 kernel 侧 break 退出，CPU 模拟器构建下触发断言。
-- 硬件 AIV-only `SYNCALL()` 需要 kernel ELF 中带 `.ascend.meta.<kernel>_mix_aiv` metadata，使 runtime 按 `KERNEL_TYPE_MIX_AIV_1_0` 调度。
-- AIC-only kernel 需要在函数体开头调用 `__builtin_cce_kernel_type_set(1)`（对应 `KERNEL_TYPE_AIC_ONLY`），使运行时正确调度到 AIC 核。
-- `SYNCALL` 不返回 `RecordEvent`，也不作为 `Event<SrcOp, DstOp>` 的依赖操作使用。
-- 在 auto 模式下与现有同步指令保持一致，不直接发射硬件同步。
+- 软件模式各平台 GM 写入路径：
+  - A2/A3（AIC-only 与 MIX 的 AIC 侧）：AIC 通过 `copy_cbuf_to_gm`（L1→GM DMA）写 GM slot；MIX 的 AIV 侧通过 UB workspace 写入。
+  - A5 MIX：A5 AIC（`dav-c310-cube`）不支持 `copy_cbuf_to_gm`，改为通过 `intra_block` 信号委托同 block 的 AIV subblock 0 代写 UB→GM。
+- A5 平台限制原因（对应「模式支持矩阵」）：
+  - AIC-only 软件不可用：A5 AIC 缺少 `copy_cbuf_to_gm` 等独立写 GM 的 DMA 路径，无法实现 GM 轮询。
+  - 硬件 MIX 不可用：`rtGetC2cCtrlAddr` 在 A5（`CHIP_DAVID`）返回 `RT_ERROR_FEATURE_NOT_SUPPORT`（207000），取不到 FFTS 基地址。
+  - AIC-only 硬件：通过 `ffts_cross_core_sync` + `wait_flag_dev` 实现，不需要 `set_ffts_base_addr`。
+- 软件模式要求所有参与 core 以相同顺序进入同一组 barrier（基于单调代数计数，进入次数/顺序不一致会导致错配或死锁）。
+- `SYNCALL` 不参与 PTO 的 Event 自动依赖编排：既不接受 `WaitEvents`，也不返回可被后续指令等待的 `RecordEvent`。因此它不会自动等待前序数据指令（如 `TSTORE`）完成，`SYNCALL` 前后与数据指令之间的顺序与可见性需调用方自行保证（见「跨核 GM 通信注意事项」）。
+- 在 auto 构建路径（`__PTO_AUTO__`）下，`SYNCALL` 为 no-op，不发射跨核硬件同步（与 `TSYNC` 等一致）；真实同步只在 manual kernel 中发生。
+
+## 跨核 GM 通信注意事项
+
+`SYNCALL` 只提供 barrier **到达**语义（hard / soft 皆然），**不**保证 barrier 前后业务数据的跨核 cache 可见性。当算子在 barrier 前各核写 GM、barrier 后各核读他核 GM（如跨核 histogram / 前缀和）时，调用方需自行满足以下两点，否则会读到脏数据或发生丢写。
+
+### 1. cache 一致性：必须显式 `dcci` / `dsb`
+
+- **写方**：`copy_ubuf_to_gm` / `copy_cbuf_to_gm` 之后接 `dcci(addr, SINGLE_CACHE_LINE)` + `dsb(DSB_DDR)`，把数据刷出到 DDR。
+- **读方**：读前 `dcci(addr, SINGLE_CACHE_LINE)`（invalidate）+ `dsb`，确保读到 DDR 最新值而非本核旧 cache。
+- 仅有 `set_flag` / `wait_flag`（核内流水同步）**不足以**保证跨核可见性。
+- 该要求与 barrier 模式无关：**硬件 FFTS barrier 同样不刷 cache**，只保证「全员到达」的控制面顺序。
+- `SYNCALL` 内部对自己的同步槽位已做完整 `dcci` + `dsb(DDR)` 处理，但**不会**替调用方刷业务数据。
+
+### 2. 每核 slot 按 cache line 独占：避免 false sharing 丢写
+
+- `dcci` / DMA 以 **32B cache line** 为粒度操作；若相邻核 slot 共享同一条 cache line，跨核刷新会互相覆盖 / 丢写。
+- 每核 slot 应按 32B 对齐并**独占一条 cache line**（`int32` 场景即 stride = 8，而非 4）。
+- `SYNCALL` 自身的同步槽位即按此设计：`SYNCALL_SOFT_SLOT_INT32 = 8`（见 `include/pto/common/type.hpp`），调用方的业务 workspace 也应遵循同样的隔离原则。
 
 ## 示例
-
-### 自动（Auto）
-
-在 **auto** 构建路径下，`SYNCALL` 与既有同步策略一致，**不直接发射**跨核硬件同步；用于占位或与 host/编译器协同的图级语义。典型算子开发仍以显式 **manual** kernel 中的 `SYNCALL` 为准。
-
-```cpp
-#include <pto/pto-inst.hpp>
-
-using namespace pto;
-
-// auto 模式下 SYNCALL 为 no-op（与 TSYNC 等在 auto 下的处理一致）
-void example_auto_noop() {
-  SYNCALL();  // 不触发 FFTS
-}
-```
 
 ### 手动（Manual）— 硬件模式
 
@@ -165,12 +242,12 @@ void example_hard_aiv() {
   SYNCALL();
 }
 
-// AIC-only：仅编译到 AIC（__DAV_CUBE__）单元时可用；A5 上已验证硬模式路径
+// AIC-only：A2/A3 hard 通过 dav-c220 MIX 编译（AIV 空 stub）落地；A5 上已验证纯 cube 硬模式路径
 void example_hard_aic() {
   SYNCALL<SyncCoreType::AICOnly>();
 }
 
-// MIX：AIC 与 AIV 配对 ELF，见上文「Kernel Meta 宏」一节
+// MIX：编译与启动方式见上文「Kernel Meta 宏」与「编译与调度指南」
 void example_hard_mix() {
   SYNCALL<SyncCoreType::Mix>();
 }
@@ -185,10 +262,14 @@ void example_hard_mix() {
 
 using namespace pto;
 
+// AIV 软件 barrier 需把全部参与核的 slot 读入 UB，
+// UB 容量须 >= usedCores * SYNCALL_SOFT_SLOT_INT32（每核独占一条 cache line）；
+// 这里以目标芯片最大 AIV 核数 kMaxAivCores 作为编译期上界声明。
+constexpr int32_t kMaxAivCores = 48;  // 例：910B1 为 48
 void example_soft_aiv(__gm__ int32_t *gmPtr) {
   GlobalTensor<int32_t, pto::Shape<>, pto::Stride<>> gmWs(gmPtr);
-  Tile<TileType::Vec, int32_t, 1, SYNCALL_SOFT_SLOT_INT32> ub;
-  SYNCALL<SyncAllMode::Soft, SyncCoreType::AIVOnly>(gmWs, ub, 0);
+  Tile<TileType::Vec, int32_t, 1, kMaxAivCores * SYNCALL_SOFT_SLOT_INT32> ub;
+  SYNCALL<SyncAllMode::Soft, SyncCoreType::AIVOnly>(gmWs, ub, 0);  // usedCores=0 自动取 get_block_num()
 }
 ```
 

@@ -8,6 +8,9 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
+// Hard MIX 1:1 SYNCALL kernel (register-ELF launch only).
+// True 1:1 cannot use dav-c220 auto-split on ccec; see syncall_mix_1_1_soft_kernel.cpp for soft.
+
 #include "syncall_mix_common.hpp"
 
 #if defined(SYNCALL_MIX_BUILD_AIC) && !defined(SYNCALL_MIX_REGISTER_BUILD)
@@ -22,21 +25,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 constexpr uint64_t kMix11HardTilingKey = 1101;
 
-// Hard mix participants are derived on-device: aicBlocks == cube launch grid == get_block_num(),
-// total == aicBlocks * (1 + AIV ratio). The ratio is architecture-independent, only the cube
-// count differs between 910B1 (24) and 910B4 (20).
-
-#if defined(SYNCALL_MIX_BUILD_AIC) && !defined(SYNCALL_MIX_REGISTER_BUILD)
-extern "C" __global__ AICORE void RunSoftSyncAllMix11_1102_mix_aiv(__gm__ uint64_t __in__ *fftsAddr,
-                                                                   __gm__ int32_t __out__ *out,
-                                                                   __gm__ int32_t __out__ *flags,
-                                                                   __gm__ int32_t __out__ *syncWorkspace,
-                                                                   int32_t aicBlocks, int32_t totalParticipants);
-#endif
-
 #if defined(SYNCALL_MIX_BUILD_AIC)
 PTO_SYNCALL_MIX_AIC_KERNEL_META(RunSyncAllMix11_1101_mix_aic, 1, 1);
-PTO_SYNCALL_MIX_AIC_KERNEL_META(RunSoftSyncAllMix11_1102_mix_aic, 1, 1);
 
 extern "C" __global__ AICORE void RunSyncAllMix11_1101_mix_aic(__gm__ uint64_t __in__ *fftsAddr,
                                                                __gm__ int32_t __out__ *out,
@@ -45,21 +35,10 @@ extern "C" __global__ AICORE void RunSyncAllMix11_1101_mix_aic(__gm__ uint64_t _
     const int32_t aicBlocks = static_cast<int32_t>(get_block_num());
     RunMixSyncAllBody<false>(aicBlocks, aicBlocks * (1 + __MIX_CORE_AIV_RATIO__), fftsAddr, out, flags, nullptr);
 }
-
-extern "C" __global__ AICORE void RunSoftSyncAllMix11_1102_mix_aic(__gm__ uint64_t __in__ *fftsAddr,
-                                                                   __gm__ int32_t __out__ *out,
-                                                                   __gm__ int32_t __out__ *flags,
-                                                                   __gm__ int32_t __out__ *syncWorkspace,
-                                                                   int32_t aicBlocks, int32_t totalParticipants)
-{
-    RunMixSyncAllBody<true>(aicBlocks, totalParticipants, fftsAddr, out, flags, syncWorkspace);
-}
-
 #endif
 
 #if defined(SYNCALL_MIX_BUILD_AIV)
 PTO_SYNCALL_MIX_AIC_KERNEL_META(RunSyncAllMix11_1101_mix_aiv, 1, 1);
-PTO_SYNCALL_MIX_AIC_KERNEL_META(RunSoftSyncAllMix11_1102_mix_aiv, 1, 1);
 
 extern "C" __global__ AICORE void RunSyncAllMix11_1101_mix_aiv(__gm__ uint64_t __in__ *fftsAddr,
                                                                __gm__ int32_t __out__ *out,
@@ -68,16 +47,6 @@ extern "C" __global__ AICORE void RunSyncAllMix11_1101_mix_aiv(__gm__ uint64_t _
     const int32_t aicBlocks = static_cast<int32_t>(get_block_num());
     RunMixSyncAllBody<false>(aicBlocks, aicBlocks * (1 + __MIX_CORE_AIV_RATIO__), fftsAddr, out, flags, nullptr);
 }
-
-extern "C" __global__ AICORE void RunSoftSyncAllMix11_1102_mix_aiv(__gm__ uint64_t __in__ *fftsAddr,
-                                                                   __gm__ int32_t __out__ *out,
-                                                                   __gm__ int32_t __out__ *flags,
-                                                                   __gm__ int32_t __out__ *syncWorkspace,
-                                                                   int32_t aicBlocks, int32_t totalParticipants)
-{
-    RunMixSyncAllBody<true>(aicBlocks, totalParticipants, fftsAddr, out, flags, syncWorkspace);
-}
-
 #endif
 
 #if defined(SYNCALL_MIX_BUILD_AIC) && !defined(SYNCALL_MIX_REGISTER_BUILD)
@@ -90,7 +59,7 @@ const char *GetCurrentSharedObjectPath(const void *anchor)
 #else
     Dl_info info{};
     if (dladdr(anchor, &info) == 0 || info.dli_fname == nullptr) {
-        std::fprintf(stderr, "dladdr failed for SYNCALL mix 1:1 kernel\n");
+        std::fprintf(stderr, "dladdr failed for SYNCALL mix 1:1 hard kernel\n");
         std::abort();
     }
     return info.dli_fname;
@@ -101,20 +70,20 @@ std::vector<char> ReadCurrentSharedObject(const char *path)
 {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
-        std::fprintf(stderr, "failed to open SYNCALL mix 1:1 kernel binary: %s\n", path);
+        std::fprintf(stderr, "failed to open SYNCALL mix 1:1 hard kernel binary: %s\n", path);
         std::abort();
     }
 
     const std::streamsize size = file.tellg();
     if (size <= 0) {
-        std::fprintf(stderr, "invalid SYNCALL mix 1:1 kernel binary size: %s\n", path);
+        std::fprintf(stderr, "invalid SYNCALL mix 1:1 hard kernel binary size: %s\n", path);
         std::abort();
     }
 
     std::vector<char> data(static_cast<size_t>(size));
     file.seekg(0, std::ios::beg);
     if (!file.read(data.data(), size)) {
-        std::fprintf(stderr, "failed to read SYNCALL mix 1:1 kernel binary: %s\n", path);
+        std::fprintf(stderr, "failed to read SYNCALL mix 1:1 hard kernel binary: %s\n", path);
         std::abort();
     }
     return data;
@@ -131,7 +100,7 @@ void LaunchHardMixKernel(const void *anchor, uint64_t tilingKey, uint8_t *ffts, 
     if (ret != RT_ERROR_NONE || handle == nullptr) {
         ret = rtBinaryLoadWithoutTilingKey(kernelBinary.data(), kernelBinary.size(), &handle);
         if (ret != RT_ERROR_NONE || handle == nullptr) {
-            std::fprintf(stderr, "register SYNCALL mix 1:1 kernel failed, path=%s, size=%zu, ret=%d\n", path,
+            std::fprintf(stderr, "register SYNCALL mix 1:1 hard kernel failed, path=%s, size=%zu, ret=%d\n", path,
                          kernelBinary.size(), ret);
             std::abort();
         }
@@ -145,7 +114,7 @@ void LaunchHardMixKernel(const void *anchor, uint64_t tilingKey, uint8_t *ffts, 
     ret = rtKernelLaunchWithHandleV2(handle, tilingKey, static_cast<uint32_t>(blockDim), &argsInfo, nullptr, stream,
                                      &cfgInfo);
     if (ret != RT_ERROR_NONE) {
-        std::fprintf(stderr, "rtKernelLaunchWithHandleV2 failed for SYNCALL mix 1:1, ret=%d\n", ret);
+        std::fprintf(stderr, "rtKernelLaunchWithHandleV2 failed for SYNCALL mix 1:1 hard, ret=%d\n", ret);
         std::abort();
     }
 }
@@ -155,18 +124,5 @@ void LaunchSyncAllMix11(uint8_t *ffts, int32_t *out, int32_t *flags, int32_t aic
 {
     LaunchHardMixKernel(reinterpret_cast<const void *>(&LaunchSyncAllMix11), kMix11HardTilingKey, ffts, out, flags,
                         aicBlocks, stream);
-}
-
-void LaunchSoftSyncAllMix11(uint8_t *ffts, int32_t *out, int32_t *flags, int32_t *syncWorkspace, int32_t aicBlocks,
-                            int32_t totalParticipants, void *stream)
-{
-    aclrtStream aivStream;
-    (void)aclrtCreateStream(&aivStream);
-    RunSoftSyncAllMix11_1102_mix_aic<<<aicBlocks, nullptr, stream>>>(reinterpret_cast<uint64_t *>(ffts), out, flags,
-                                                                     syncWorkspace, aicBlocks, totalParticipants);
-    RunSoftSyncAllMix11_1102_mix_aiv<<<aicBlocks * __MIX_CORE_AIV_RATIO__, nullptr, aivStream>>>(
-        reinterpret_cast<uint64_t *>(ffts), out, flags, syncWorkspace, aicBlocks, totalParticipants);
-    (void)aclrtSynchronizeStream(aivStream);
-    (void)aclrtDestroyStream(aivStream);
 }
 #endif
