@@ -36,6 +36,34 @@ PTO_INTERNAL void SetFmatrix(uint16_t fmapH, uint16_t fmapW, const uint8_t *padL
         }
     }
 }
+
+PTO_INTERNAL void SetRepeat(uint16_t repeatStride, uint8_t repeatTime, uint8_t repeatMode)
+{
+    constexpr uint32_t repeatTimeShiftBit = 16;
+    constexpr uint32_t repeatModeShiftBit = 24;
+    uint64_t rptConfig = 0;
+    rptConfig |= uint64_t(repeatStride);
+    rptConfig |= uint64_t(repeatTime) << repeatTimeShiftBit;
+    rptConfig |= uint64_t(repeatMode) << repeatModeShiftBit;
+    set_l3d_rpt(rptConfig);
+}
+
+template <typename T>
+PTO_INTERNAL void SetPadding(T padValue)
+{
+    constexpr uint16_t padValueShiftBit = 8;
+    uint32_t paddingValue = 0;
+    if constexpr (sizeof(T) == 1) {
+        uint8_t u8Value = *reinterpret_cast<const uint8_t *>(&padValue);
+        paddingValue = (static_cast<uint16_t>(u8Value) << padValueShiftBit) | u8Value;
+    } else if constexpr (sizeof(T) == 2) {
+        paddingValue = *reinterpret_cast<const uint16_t *>(&padValue);
+    } else if constexpr (sizeof(T) == 4) {
+        paddingValue = *reinterpret_cast<const uint32_t *>(&padValue);
+    }
+    set_padding(paddingValue);
+}
+
 template <typename TileData, typename ConvTileData, SetFmatrixMode FmatrixMode>
 __tf__ PTO_INTERNAL void TImg2col(typename TileData::TileDType __out__ dst, typename ConvTileData::TileDType __in__ src,
                                   uint16_t stepM, uint16_t stepK, uint16_t posM, uint16_t posK, uint8_t strideW,
@@ -76,6 +104,8 @@ PTO_INTERNAL void TIMG2COL_IMPL(TileData &dst, ConvTileData &src, uint16_t posM,
                   "TImg2col: Invalid data type.");
     if constexpr (FmatrixMode == SetFmatrixMode::FMATRIX_A_AUTO || FmatrixMode == SetFmatrixMode::FMATRIX_B_AUTO) {
         SetFmatrix<FmatrixMode>(src.GetFmapH(), src.GetFmapW(), src.GetPadListArray());
+        SetRepeat(src.GetRepeatStride(), src.GetRepeatTime(), src.GetRepeatMode());
+        SetPadding(src.GetPadValue());
     }
     constexpr int32_t c0Size = BLOCK_BYTE_SIZE / sizeof(typename TileData::DType);
     uint16_t stepM = dst.GetValidRow();

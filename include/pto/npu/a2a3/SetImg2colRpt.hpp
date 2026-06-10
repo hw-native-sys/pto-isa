@@ -12,13 +12,15 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define SET_IMG2COL_RPT_HPP
 
 namespace pto {
-template <typename ConvTileData>
+template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL>
 PTO_INTERNAL void SET_IMG2COL_RPT_IMPL(ConvTileData &src)
 {
-    uint64_t rptConfig = static_cast<uint64_t>(src.GetRepeatStride()) |
-                         (static_cast<uint64_t>(src.GetRepeatTime()) << 16) |
-                         (static_cast<uint64_t>(src.GetRepeatMode()) << 24);
-    set_l3d_rpt(rptConfig);
+    if constexpr (FmatrixMode == SetFmatrixMode::FMATRIX_A_MANUAL || FmatrixMode == SetFmatrixMode::FMATRIX_B_MANUAL) {
+        uint64_t rptConfig = static_cast<uint64_t>(src.GetRepeatStride()) |
+                             (static_cast<uint64_t>(src.GetRepeatTime()) << 16) |
+                             (static_cast<uint64_t>(src.GetRepeatMode()) << 24);
+        set_l3d_rpt(rptConfig);
+    }
 }
 } // namespace pto
 #endif // SET_IMG2COL_RPT_HPP
