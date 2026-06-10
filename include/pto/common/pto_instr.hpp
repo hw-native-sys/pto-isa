@@ -1056,19 +1056,19 @@ PTO_INST RecordEvent SETFMATRIX(ConvTileData &src, WaitEvents &...events)
 }
 
 #ifdef PTO_NPU_ARCH_A2A3
-template <typename ConvTileData, typename... WaitEvents>
+template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL, typename... WaitEvents>
 PTO_INST RecordEvent SET_IMG2COL_RPT(ConvTileData &src, WaitEvents &...events)
 {
     TSYNC(events...);
-    SET_IMG2COL_RPT_IMPL<ConvTileData>(src);
+    SET_IMG2COL_RPT_IMPL<ConvTileData, FmatrixMode>(src);
     return {};
 }
 
-template <typename ConvTileData, typename... WaitEvents>
+template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL, typename... WaitEvents>
 PTO_INST RecordEvent SET_IMG2COL_PADDING(ConvTileData &src, WaitEvents &...events)
 {
     TSYNC(events...);
-    SET_IMG2COL_PADDING_IMPL<ConvTileData>(src);
+    SET_IMG2COL_PADDING_IMPL<ConvTileData, FmatrixMode>(src);
     return {};
 }
 #endif
