@@ -1214,9 +1214,8 @@ constexpr bool kIsNarrowingCvt =
 // Calculates optimal repeat configuration and delegates to TCvt kernel.
 //
 // This is the main implementation with explicit satMode parameter.
-template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, RoundMode mode, SaturationMode satMode,
-                            bool needSetCtrl = true)
+template <bool NeedSetCtrl = true, typename TileDataD, typename TileDataS>
+PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, RoundMode mode, SaturationMode satMode)
 {
     unsigned dstRepeatStride, srcRepeatStride, elementsPerRepeat;
     ComputeTCvtRepeatConfig<TileDataD, TileDataS>(elementsPerRepeat, dstRepeatStride, srcRepeatStride);
@@ -1226,35 +1225,22 @@ PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, RoundMode mode, Satu
     constexpr unsigned SS = TileDataS::RowStride;
     constexpr unsigned DS = TileDataD::RowStride;
     unsigned validRow = dst.GetValidRow();
-    if (needSetCtrl) {
-        if constexpr (kIsNarrowingCvt<TileDataD, TileDataS>) {
-            TCvt<TileDataD, TileDataS, SS, DS, true>(dst.data(), src.data(), mode, satMode, numRepeatPerLine,
-                                                     numRemainPerLine, validRow, elementsPerRepeat, dstRepeatStride,
-                                                     srcRepeatStride);
-        } else {
-            TCvt<TileDataD, TileDataS, SS, DS, true>(dst.data(), src.data(), mode, SaturationMode::ON, numRepeatPerLine,
-                                                     numRemainPerLine, validRow, elementsPerRepeat, dstRepeatStride,
-                                                     srcRepeatStride);
-        }
+    if constexpr (kIsNarrowingCvt<TileDataD, TileDataS>) {
+        TCvt<TileDataD, TileDataS, SS, DS, NeedSetCtrl>(dst.data(), src.data(), mode, satMode, numRepeatPerLine,
+                                                        numRemainPerLine, validRow, elementsPerRepeat, dstRepeatStride,
+                                                        srcRepeatStride);
     } else {
-        if constexpr (kIsNarrowingCvt<TileDataD, TileDataS>) {
-            TCvt<TileDataD, TileDataS, SS, DS, false>(dst.data(), src.data(), mode, satMode, numRepeatPerLine,
-                                                      numRemainPerLine, validRow, elementsPerRepeat, dstRepeatStride,
-                                                      srcRepeatStride);
-        } else {
-            TCvt<TileDataD, TileDataS, SS, DS, false>(dst.data(), src.data(), mode, SaturationMode::ON,
-                                                      numRepeatPerLine, numRemainPerLine, validRow, elementsPerRepeat,
-                                                      dstRepeatStride, srcRepeatStride);
-        }
+        TCvt<TileDataD, TileDataS, SS, DS, NeedSetCtrl>(dst.data(), src.data(), mode, SaturationMode::ON,
+                                                        numRepeatPerLine, numRemainPerLine, validRow, elementsPerRepeat,
+                                                        dstRepeatStride, srcRepeatStride);
     }
 }
 
 // TCVT_IMPL overload with explicit TmpTileData and explicit satMode.
 // Mirrors TSORT32_IMPL's with-tmp overload: uses user-supplied scratch tile
 // instead of TMP_UB_OFFSET for conversions that need temporary storage.
-template <typename TileDataD, typename TileDataS, typename TmpTileData>
-PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, TmpTileData &tmp, RoundMode mode, SaturationMode satMode,
-                            bool needSetCtrl = true)
+template <bool NeedSetCtrl = true, typename TileDataD, typename TileDataS, typename TmpTileData>
+PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, TmpTileData &tmp, RoundMode mode, SaturationMode satMode)
 {
     unsigned dstRepeatStride, srcRepeatStride, elementsPerRepeat;
     ComputeTCvtRepeatConfig<TileDataD, TileDataS>(elementsPerRepeat, dstRepeatStride, srcRepeatStride);
@@ -1264,25 +1250,19 @@ PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, TmpTileData &tmp, Ro
     constexpr unsigned SS = TileDataS::RowStride;
     constexpr unsigned DS = TileDataD::RowStride;
     unsigned validRow = dst.GetValidRow();
-    if (needSetCtrl) {
-        TCvt<TileDataD, TileDataS, TmpTileData, SS, DS, true>(dst.data(), src.data(), tmp.data(), mode, satMode,
-                                                              numRepeatPerLine, numRemainPerLine, validRow,
-                                                              elementsPerRepeat, dstRepeatStride, srcRepeatStride);
-    } else {
-        TCvt<TileDataD, TileDataS, TmpTileData, SS, DS, false>(dst.data(), src.data(), tmp.data(), mode, satMode,
-                                                               numRepeatPerLine, numRemainPerLine, validRow,
-                                                               elementsPerRepeat, dstRepeatStride, srcRepeatStride);
-    }
+    TCvt<TileDataD, TileDataS, TmpTileData, SS, DS, NeedSetCtrl>(dst.data(), src.data(), tmp.data(), mode, satMode,
+                                                                 numRepeatPerLine, numRemainPerLine, validRow,
+                                                                 elementsPerRepeat, dstRepeatStride, srcRepeatStride);
 }
 
 // TCVT_IMPL overload with explicit TmpTileData and type-specific default satMode.
-template <typename TileDataD, typename TileDataS, typename TmpTileData>
-PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, TmpTileData &tmp, RoundMode mode, bool needSetCtrl = true)
+template <bool NeedSetCtrl = true, typename TileDataD, typename TileDataS, typename TmpTileData>
+PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, TmpTileData &tmp, RoundMode mode)
 {
     if constexpr (kIsNarrowingCvt<TileDataD, TileDataS>) {
-        TCVT_IMPL(dst, src, tmp, mode, SaturationMode::OFF, needSetCtrl);
+        TCVT_IMPL<NeedSetCtrl>(dst, src, tmp, mode, SaturationMode::OFF);
     } else {
-        TCVT_IMPL(dst, src, tmp, mode, SaturationMode::ON, needSetCtrl);
+        TCVT_IMPL<NeedSetCtrl>(dst, src, tmp, mode, SaturationMode::ON);
     }
 }
 
@@ -1293,13 +1273,13 @@ PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, TmpTileData &tmp, Ro
 // - FP16→UINT8, FP16→INT8: defaults to OFF (PyTorch-compatible truncation)
 // - INT64→INT32, INT32→INT16: defaults to OFF (truncation behavior)
 // - All others: defaults to ON (native TCVT saturation)
-template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, RoundMode mode, bool needSetCtrl = true)
+template <bool NeedSetCtrl = true, typename TileDataD, typename TileDataS>
+PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, RoundMode mode)
 {
     if constexpr (kIsNarrowingCvt<TileDataD, TileDataS>) {
-        TCVT_IMPL(dst, src, mode, SaturationMode::OFF, needSetCtrl);
+        TCVT_IMPL<NeedSetCtrl>(dst, src, mode, SaturationMode::OFF);
     } else {
-        TCVT_IMPL(dst, src, mode, SaturationMode::ON, needSetCtrl);
+        TCVT_IMPL<NeedSetCtrl>(dst, src, mode, SaturationMode::ON);
     }
 }
 } // namespace pto

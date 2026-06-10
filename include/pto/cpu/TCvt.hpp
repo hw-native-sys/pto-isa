@@ -127,15 +127,14 @@ PTO_INTERNAL void TCvt_Impl(typename TileDataD::TileDType dst, typename TileData
     }
 }
 
-template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, RoundMode mode, bool needSetCtrl = true)
+template <bool NeedSetCtrl = true, typename TileDataD, typename TileDataS>
+PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, RoundMode mode)
 {
-    TCVT_IMPL(dst, src, mode, SaturationMode::OFF, needSetCtrl);
+    TCVT_IMPL<NeedSetCtrl>(dst, src, mode, SaturationMode::OFF);
 }
 
-template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, RoundMode mode, SaturationMode satMode,
-                            bool needSetCtrl = true)
+template <bool NeedSetCtrl = true, typename TileDataD, typename TileDataS>
+PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, RoundMode mode, SaturationMode satMode)
 {
     (void)needSetCtrl;
     uint16_t rows = src.GetValidRow();

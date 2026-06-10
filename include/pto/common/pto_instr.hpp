@@ -1327,78 +1327,36 @@ PTO_INST RecordEvent TPARTARGMIN(TileDataDst &dst, TileDataSrc0 &src0, TileDataS
     return {};
 }
 
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
-PTO_INST RecordEvent TFUSEDMULADD(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, WaitEvents &...events)
-{
-    TSYNC(events...);
-    MAP_INSTR_IMPL(TFUSEDMULADD, dst, src0, src1);
-    return {};
-}
-
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
-PTO_INST RecordEvent TMULADDDST(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, WaitEvents &...events)
-{
-    TSYNC(events...);
-    MAP_INSTR_IMPL(TMULADDDST, dst, src0, src1);
-    return {};
-}
-
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
-PTO_INST RecordEvent TSUBRELU(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, WaitEvents &...events)
-{
-    TSYNC(events...);
-    MAP_INSTR_IMPL(TSUBRELU, dst, src0, src1);
-    return {};
-}
-
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
-PTO_INST RecordEvent TFUSEDMULADDRELU(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, WaitEvents &...events)
-{
-    TSYNC(events...);
-    MAP_INSTR_IMPL(TFUSEDMULADDRELU, dst, src0, src1);
-    return {};
-}
-
-template <typename TileDataD, typename TileDataS, typename TmpTileData>
-PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, TmpTileData &tmp, RoundMode mode, SaturationMode satMode,
-                            bool needSetCtrl);
-template <typename TileDataD, typename TileDataS, typename TmpTileData>
-PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, TmpTileData &tmp, RoundMode mode, bool needSetCtrl);
-template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, RoundMode mode, SaturationMode satMode, bool needSetCtrl);
-template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, RoundMode mode, bool needSetCtrl);
-
 template <bool NeedSetCtrl = true, typename TileDataD, typename TileDataS, typename TmpTileData, typename... WaitEvents>
 PTO_INST RecordEvent TCVT(TileDataD &dst, TileDataS &src, TmpTileData &tmp, RoundMode mode, SaturationMode satMode,
                           WaitEvents &...events)
 {
     TSYNC(events...);
-    TCVT_IMPL(dst, src, tmp, mode, satMode, NeedSetCtrl);
+    TCVT_IMPL<NeedSetCtrl>(dst, src, tmp, mode, satMode);
     return {};
 }
 
-template <typename TileDataD, typename TileDataS, typename TmpTileData, typename... WaitEvents>
+template <bool NeedSetCtrl = true, typename TileDataD, typename TileDataS, typename TmpTileData, typename... WaitEvents>
 PTO_INST RecordEvent TCVT(TileDataD &dst, TileDataS &src, TmpTileData &tmp, RoundMode mode, WaitEvents &...events)
 {
     TSYNC(events...);
-    TCVT_IMPL(dst, src, tmp, mode, NeedSetCtrl);
+    TCVT_IMPL<NeedSetCtrl>(dst, src, tmp, mode);
     return {};
 }
 
-template <typename TileDataD, typename TileDataS, typename... WaitEvents>
+template <bool NeedSetCtrl = true, typename TileDataD, typename TileDataS, typename... WaitEvents>
 PTO_INST RecordEvent TCVT(TileDataD &dst, TileDataS &src, RoundMode mode, SaturationMode satMode, WaitEvents &...events)
 {
     TSYNC(events...);
-    TCVT_IMPL(dst, src, mode, satMode, NeedSetCtrl);
+    TCVT_IMPL<NeedSetCtrl>(dst, src, mode, satMode);
     return {};
 }
 
-template <typename TileDataD, typename TileDataS, typename... WaitEvents>
+template <bool NeedSetCtrl = true, typename TileDataD, typename TileDataS, typename... WaitEvents>
 PTO_INST RecordEvent TCVT(TileDataD &dst, TileDataS &src, RoundMode mode, WaitEvents &...events)
 {
     TSYNC(events...);
-    TCVT_IMPL(dst, src, mode, NeedSetCtrl);
+    TCVT_IMPL<NeedSetCtrl>(dst, src, mode);
     return {};
 }
 

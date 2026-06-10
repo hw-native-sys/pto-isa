@@ -40,7 +40,6 @@ PTO_INTERNAL void TLoadInstrGm2L1(__cbuf__ typename TileDataDst::DType *dst, typ
     pto_copy_gm_to_cbuf_multi_nd2nz(dst, src, 0, ndNum, nValue, dValue, srcNdMatrixStride, srcDValue, dstNzC0Stride,
                                     dstNzNStride, dstNzMatrixStride);
 }
-}
 
 template <typename TileData, typename GlobalData>
 PTO_INTERNAL void TLoadInstrGm2L1(__cbuf__ typename TileData::DType *dst, typename GlobalData::DType *src,
