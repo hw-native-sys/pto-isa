@@ -45,7 +45,7 @@ PTO 相关文档主要覆盖以下几类内容：
 
 - [快速开始指南](getting-started_zh.md)：环境准备、CPU / NPU 运行说明
 - [测试说明](../tests/README_zh.md)：测试入口、测试脚本与常用命令
-- [文档构建说明](mkdocs/README_zh.md)：MkDocs 文档本地构建说明
+- [文档构建说明](website_zh.md)：MkDocs 文档本地构建说明
 
 ### 4. 其他相关文档
 

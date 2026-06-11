@@ -39,7 +39,7 @@ Backend-specific details MUST be documented as implementation-defined constraint
 
 Authoritative PTO sources:
 
-- per-op semantics: [PTO ISA Reference](/docs/isa/README.md)
+- per-op semantics: [PTO ISA Reference](../../../../docs/isa/README.md)
 - public API signatures: `include/pto/common/pto_instr.hpp`
 
 This chaptered manual composes those sources into a complete Virtual ISA contract.
@@ -57,7 +57,7 @@ PTO instruction families are organized as:
 - irregular and complex operations
 
 [Family-level contracts](06-instructions.md) are defined in `manual/06-instructions.md`.
-[Per-op semantics](/docs/isa/README.md) remain in `docs/isa/*.md`.
+[Per-op semantics](../../../../docs/isa/README.md) remain in `docs/isa/*.md`.
 
 ## 1.6 Compatibility principles
 

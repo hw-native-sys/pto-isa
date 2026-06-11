@@ -20,8 +20,6 @@ The result sign is corrected to match the sign of the divider (`src1`).
 
 ## Assembly Syntax
 
-PTO-AS form: see [PTO-AS Specification](../assembly/PTO-AS.md).
-
 Synchronous form:
 
 ```text

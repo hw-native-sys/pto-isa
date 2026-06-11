@@ -39,7 +39,7 @@ PTO 虚拟 ISA 的设计目标是：
 
 PTO 权威来源：
 
-- 单条指令语义：[PTO ISA 参考](/docs/isa/README_zh.md)
+- 单条指令语义：[PTO ISA 参考](../../../../docs/isa/README_zh.md)
 - 公共 API 签名：`include/pto/common/pto_instr.hpp`
 
 本章节用于将这些来源组合为完整的虚拟 ISA 契约。
@@ -57,7 +57,7 @@ PTO 指令族按以下层次组织：
 - 不规则与复杂操作
 
 [指令族契约](06-instructions_zh.md)在 `manual/06-instructions_zh.md` 定义。
-[逐条语义](/docs/isa/README_zh.md)仍以 `docs/isa/*_zh.md` 为准。
+[逐条语义](../../../../docs/isa/README_zh.md)仍以 `docs/isa/*_zh.md` 为准。
 
 ## 1.6 兼容性原则
 

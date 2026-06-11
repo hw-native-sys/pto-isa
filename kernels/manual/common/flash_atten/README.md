@@ -56,7 +56,7 @@ test success
 
 ## Cost Model
 
-The script [scripts/fa_cost_model.py](scripts/fa_cost_model.py) estimates cycles for this manual Flash Attention
+The script `scripts/fa_cost_model.py` estimates cycles for this manual Flash Attention
 kernel and searches tiling candidates. It is not intended to be a universal FA model. It is a local model for the
 A2/A3 `dav-c220` implementation in this directory.
 

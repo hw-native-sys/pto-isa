@@ -17,8 +17,6 @@ $$ \mathrm{dst}_{i,j} = \frac{1}{\mathrm{src}_{i,j}} $$
 
 ## Assembly Syntax
 
-PTO-AS form: see [PTO-AS Specification](../assembly/PTO-AS.md).
-
 Synchronous form:
 
 ```text

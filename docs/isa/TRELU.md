@@ -17,8 +17,6 @@ $$ \mathrm{dst}_{i,j} = \max(\mathrm{src}_{i,j}, 0) $$
 
 ## Assembly Syntax
 
-PTO-AS form: see [PTO-AS Specification](../assembly/PTO-AS.md).
-
 Synchronous form:
 
 ```text

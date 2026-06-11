@@ -193,7 +193,7 @@ Windows 特定选项（如需要）：
 根目录 `README_zh.md` 仅保留最短上手路径与常用命令；如果您需要更完整的运行、测试与脚本说明，可进一步参考：
 
 - [测试说明](../tests/README_zh.md)
-- [文档构建说明](mkdocs/README_zh.md)
+- [文档构建说明](website_zh.md)
 
 ### 先决条件
 

@@ -20,8 +20,6 @@ Not applicable.
 
 ## Assembly Syntax
 
-PTO-AS form: see [PTO-AS Specification](../assembly/PTO-AS.md).
-
 Event operand form:
 
 ```text

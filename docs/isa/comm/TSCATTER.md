@@ -17,8 +17,6 @@ $$\mathrm{dst}^{(r)}_{d_0, d_1, d_2,\; i,\; j} = \mathrm{src}^{\mathrm{local}}_{
 
 ## Assembly Syntax
 
-PTO-AS form: see [Assembly Spelling And Operands](../syntax-and-operands/assembly-model.md).
-
 Synchronous form:
 
 ```text

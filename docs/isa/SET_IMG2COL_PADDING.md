@@ -14,8 +14,6 @@ No direct tensor arithmetic is produced by this instruction. It updates IMG2COL 
 
 ## Assembly Syntax
 
-PTO-AS form: see [PTO-AS Specification](../assembly/PTO-AS.md).
-
 Schematic form:
 
 ```text

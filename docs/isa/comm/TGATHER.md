@@ -19,8 +19,6 @@ The destination tensor has shape $(D_0, D_1, D_2, N \times H, W)$.
 
 ## Assembly Syntax
 
-PTO-AS form: see [Assembly Spelling And Operands](../syntax-and-operands/assembly-model.md).
-
 Synchronous form:
 
 ```text

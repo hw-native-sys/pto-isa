@@ -19,8 +19,6 @@ Exact bounds behavior is implementation-defined.
 
 ## Assembly Syntax
 
-PTO-AS form: see [PTO-AS Specification](../assembly/PTO-AS.md).
-
 Synchronous form:
 
 ```text

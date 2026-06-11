@@ -23,8 +23,6 @@ For `TGEMV_MX`, scale tiles participate in implementation-defined mixed-precisio
 
 ## Assembly Syntax
 
-PTO-AS form: see [PTO-AS Specification](../assembly/PTO-AS.md).
-
 Schematic form:
 
 ```text

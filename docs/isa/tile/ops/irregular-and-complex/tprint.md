@@ -19,8 +19,6 @@ The `TPRINT` instruction outputs the logical view of data stored in a Tile or Gl
 
 ## Assembly Syntax
 
-PTO-AS form: see [PTO-AS Specification](../assembly/PTO-AS.md).
-
 ```text
 tprint %src : !pto.tile<...> | !pto.global<...>
 ```

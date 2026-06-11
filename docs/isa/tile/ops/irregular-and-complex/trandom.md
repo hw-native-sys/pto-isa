@@ -20,8 +20,6 @@ The algorithm uses:
 
 ## Assembly Syntax
 
-PTO-AS form: see [Assembly Spelling And Operands](../../../syntax-and-operands/assembly-model.md).
-
 Synchronous form:
 
 ```text

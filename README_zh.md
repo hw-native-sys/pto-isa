@@ -120,7 +120,7 @@ python3 -m build --wheel
 
 - [开发文档索引](docs/coding/README_zh.md)：查看扩展 PTO Tile Lib 的开发文档
 - [性能优化](docs/coding/opt_zh.md)：查看性能分析与调优建议
-- [文档构建说明](docs/mkdocs/README_zh.md)：查看 MkDocs 文档的本地构建方式
+- [文档构建说明](docs/website_zh.md)：查看 MkDocs 文档的本地构建方式
 
 ## 📊 示例与性能参考
 

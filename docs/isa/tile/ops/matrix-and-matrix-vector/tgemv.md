@@ -38,8 +38,6 @@ Accumulator behavior and datatype promotion are concrete per target. On A2/A3: a
 
 ## Syntax
 
-Textual spelling is defined by the PTO ISA syntax-and-operands pages.
-
 Synchronous form:
 
 ```text

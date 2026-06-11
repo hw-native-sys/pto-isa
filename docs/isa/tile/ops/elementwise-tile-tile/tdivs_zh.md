@@ -1,8 +1,8 @@
-# TDIVS
+﻿# TDIVS
 
 ## 指令示意图
 
-![TDIVS tile operation](../../../../figures/isa/TDIVS.svg)
+![TDIVS tile operation](../figures/isa/TDIVS.svg)
 
 ## 简介
 
@@ -21,8 +21,6 @@
   $$ \mathrm{dst}_{i,j} = \frac{\mathrm{scalar}}{\mathrm{src}_{i,j}} $$
 
 ## 汇编语法
-
-PTO-AS 形式：参见 [汇编写法与操作数](../../../syntax-and-operands/assembly-model_zh.md)。
 
 Tile/标量形式：
 
@@ -73,30 +71,29 @@ PTO_INST RecordEvent TDIVS(TileDataDst &dst, typename TileDataDst::DType scalar,
 
 ## 约束
 
-!!! warning "约束"
-    - **实现检查 (A2A3)**（两个重载）:
-        - `TileData::DType` 必须是以下之一：`int32_t`、`int`、`int16_t`、`half`、`float16_t`、`float`、`float32_t`。
-        - Tile 位置必须是向量（`TileData::Loc == TileType::Vec`）。
-        - 静态有效边界：`TileData::ValidRow <= TileData::Rows` 且 `TileData::ValidCol <= TileData::Cols`。
-        - 运行时：`src0.GetValidRow() == dst.GetValidRow()` 且 `src0.GetValidCol() == dst.GetValidCol()`。
-        - Tile 布局必须是行主序（`TileData::isRowMajor`）。
-    - **实现检查 (A5)**（两个重载）:
-        - `TileData::DType` 必须是以下之一：`uint8_t`、`int8_t`、`uint16_t`、`int16_t`、`uint32_t`、`int32_t`、`half`、`float`。
-        - Tile 位置必须是向量（`TileData::Loc == TileType::Vec`）。
-        - 静态有效边界：`TileData::ValidRow <= TileData::Rows` 且 `TileData::ValidCol <= TileData::Cols`。
-        - 运行时：`src0.GetValidRow() == dst.GetValidRow()` 且 `src0.GetValidCol() == dst.GetValidCol()`。
-        - Tile 布局必须是行主序（`TileData::isRowMajor`）。
-    - **有效区域**:
-        - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
-    - **除零**:
-        - 行为由目标定义；在 A5 上，Tile/标量形式映射到乘以倒数，并对 `scalar == 0` 使用 `1/0 -> +inf`。dst.GetValidRow()`且`src0.GetValidCol() == dst.GetValidCol()`.
-        - Tile 布局必须是行主序（`TileData::isRowMajor`）。
-    - **有效区域**:
-        - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域.
-    - **除零**:
-        - 行为由目标定义；在 A5 上，tile/标量形式映射到乘以倒数，并对 `scalar == 0` 使用 `1/0 -> +inf`。
-    - **高精度算法**
-        - 仅在A5上有效，`PrecisionType`选项A3上将被忽略。
+- **实现检查 (A2A3)**（两个重载）:
+    - `TileData::DType` 必须是以下之一：`int32_t`、`int`、`int16_t`、`half`、`float16_t`、`float`、`float32_t`。
+    - Tile 位置必须是向量（`TileData::Loc == TileType::Vec`）。
+    - 静态有效边界：`TileData::ValidRow <= TileData::Rows` 且 `TileData::ValidCol <= TileData::Cols`。
+    - 运行时：`src0.GetValidRow() == dst.GetValidRow()` 且 `src0.GetValidCol() == dst.GetValidCol()`。
+    - Tile 布局必须是行主序（`TileData::isRowMajor`）。
+- **实现检查 (A5)**（两个重载）:
+    - `TileData::DType` 必须是以下之一：`uint8_t`、`int8_t`、`uint16_t`、`int16_t`、`uint32_t`、`int32_t`、`half`、`float`。
+    - Tile 位置必须是向量（`TileData::Loc == TileType::Vec`）。
+    - 静态有效边界：`TileData::ValidRow <= TileData::Rows` 且 `TileData::ValidCol <= TileData::Cols`。
+    - 运行时：`src0.GetValidRow() == dst.GetValidRow()` 且 `src0.GetValidCol() == dst.GetValidCol()`。
+    - Tile 布局必须是行主序（`TileData::isRowMajor`）。
+- **有效区域**:
+    - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
+- **除零**:
+    - 行为由目标定义；在 A5 上，Tile/标量形式映射到乘以倒数，并对 `scalar == 0` 使用 `1/0 -> +inf`。dst.GetValidRow()`且`src0.GetValidCol() == dst.GetValidCol()`.
+    - Tile 布局必须是行主序（`TileData::isRowMajor`）。
+- **有效区域**:
+    - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域.
+- **除零**:
+    - 行为由目标定义；在 A5 上，tile/标量形式映射到乘以倒数，并对 `scalar == 0` 使用 `1/0 -> +inf`。
+- **高精度算法**
+    - 仅在A5上有效，`PrecisionType`选项A3上将被忽略。
 
 ## 示例
 
@@ -158,3 +155,4 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.tdivs ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
+

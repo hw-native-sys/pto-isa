@@ -15,8 +15,6 @@ Not applicable.
 
 ## Assembly Syntax
 
-PTO-AS form: see [PTO-AS Specification](../assembly/PTO-AS.md).
-
 `TASSIGN` is typically introduced by bufferization/lowering when mapping SSA tiles to physical storage.
 
 Synchronous form:

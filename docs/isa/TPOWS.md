@@ -19,8 +19,6 @@ For floating-point types, the computation follows: `dst = exp(ln(|base|) * exp)`
 
 ## Assembly Syntax
 
-PTO-AS form: see [PTO-AS Specification](../assembly/PTO-AS.md).
-
 Synchronous form:
 
 ```text

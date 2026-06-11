@@ -16,8 +16,6 @@ Data flow: `srcGlobalData (local GM)` → `stagingTileData (UB)` → `dstGlobalD
 
 ## Assembly Syntax
 
-PTO-AS form: see [Assembly Spelling And Operands](../syntax-and-operands/assembly-model.md).
-
 Synchronous form:
 
 ```text

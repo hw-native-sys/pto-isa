@@ -25,8 +25,6 @@ $$ \mathrm{dstIdx}_{0,j} = \underset{0 \le i < R}{\operatorname{argmin}} \; \mat
 
 ## Assembly Syntax
 
-PTO-AS form: see `docs/grammar/PTO-AS.md`.
-
 ### Pure Index Mode
 
 Synchronous form:

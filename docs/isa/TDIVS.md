@@ -23,8 +23,6 @@ For each element `(i, j)` in the valid region:
 
 ## Assembly Syntax
 
-PTO-AS form: see [PTO-AS Specification](../assembly/PTO-AS.md).
-
 Tile/scalar form:
 
 ```text

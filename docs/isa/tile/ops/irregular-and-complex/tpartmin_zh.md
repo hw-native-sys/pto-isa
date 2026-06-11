@@ -23,8 +23,6 @@ $$
 
 ## 汇编语法
 
-PTO-AS 形式：参见 [汇编写法与操作数](../../../syntax-and-operands/assembly-model_zh.md)。
-
 同步形式：
 
 ```text

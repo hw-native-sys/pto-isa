@@ -194,7 +194,7 @@ This section is for users who need to run on Ascend NPU hardware or simulator. I
 The root `README.md` keeps only the shortest onboarding path and the most common commands. For more complete run, test, and scripting details, see:
 
 - [Test Guide](../tests/README.md)
-- [Documentation Build Guide](mkdocs/README.md)
+- [Documentation Build Guide](website.md)
 
 ### Prerequisites
 

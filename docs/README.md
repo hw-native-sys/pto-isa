@@ -45,7 +45,7 @@ If you are new to PTO Tile Lib, we recommend reading in the following order:
 
 - [Getting Started](getting-started.md): environment setup and CPU / NPU execution guide
 - [Test Guide](../tests/README.md): test entry points, scripts, and common commands
-- [Documentation Build Guide](mkdocs/README.md): how to build the docs locally with MkDocs
+- [Documentation Build Guide](website.md): how to build the docs locally with MkDocs
 
 ### 4. Other Related Documents
 
