@@ -82,7 +82,7 @@ No architectural side effects beyond producing the destination tile. Does not im
 ??? info "Target-Profile Restrictions"
     - **Implementation checks**:
         - `TileDataDst::DType == TileDataSrc0::DType == TileDataSrc1::DType` (compile-time).
-        - `TileDataDst::DType`, `TileDataSrc0::DType`, `TileDataSrc1::DType` must be one of: `half`, `float`.
+        - `TileDataDst::DType`, `TileDataSrc0::DType`, `TileDataSrc1::DType` must be one of: `half`, `float`, `int16`, `int32`, `uint16`, `uint32`.
         - Tile shape/layout constraint (compile-time): `TileDataDst::isRowMajor`.
         - Mode 1: `src1` is expected to provide **one scalar per row** (i.e., its valid shape must cover `R` values).
         - Mode 2: `src1` is expected to provide **32 bytes data per row**.

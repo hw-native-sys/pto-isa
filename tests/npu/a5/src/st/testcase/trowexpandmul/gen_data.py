@@ -70,7 +70,14 @@ class TrowexpandParams:
 
 
 def generate_case_name(param):
-    dtype_str = {np.float32: "fp32", np.float16: "fp16", np.int32: "int32", np.int16: "int16"}[param.dtype]
+    dtype_str = {
+        np.float32: "fp32",
+        np.float16: "fp16",
+        np.int32: "int32",
+        np.int16: "int16",
+        np.uint8: "uint8",
+        np.uint32: "uint32",
+    }[param.dtype]
     return f"TRowExpandMulTest.case_{dtype_str}_{param.dst_row}_{param.dst_col}"
 
 
@@ -91,6 +98,7 @@ if __name__ == "__main__":
         TrowexpandParams(np.float32, 20, 64, 20, 8, 20, 64, False, True),
         TrowexpandParams(np.int32, 16, 32, 16, 32, 16, 1, True, False),
         TrowexpandParams(np.int16, 16, 64, 16, 64, 16, 1, True, False),
+        TrowexpandParams(np.uint32, 16, 32, 16, 32, 16, 1, True, False),
     ]
 
     for _, param in enumerate(case_params_list):

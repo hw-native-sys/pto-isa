@@ -250,6 +250,7 @@ if __name__ == "__main__":
         TGatherParamsCmp("TGATHERTest.case7_half_topk", np.half, np.uint32, 8, 128, 40, 0, 32, 1),
         TGatherParamsCmp("TGATHERTest.case8_i8_topk", np.int8, np.uint32, 16, 128, 90, 0, 32, 0),
         TGatherParamsCmp("TGATHERTest.case9_i8_topk", np.int8, np.uint32, 16, 128, 50, 0, 32, 1),
+        TGatherParamsCmp("TGATHERTest.case10_u8_topk", np.uint8, np.uint32, 16, 128, 90, 0, 32, 0),
     ]
 
     for _, case in enumerate(case_params_list):
