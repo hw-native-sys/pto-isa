@@ -137,6 +137,8 @@ This directory contains the per-instruction reference for the PTO Tile Lib ISA.
 - [TSUBVIEW](TSUBVIEW.md) - Reinterpret a tile as a subtile of another tile.
 - [TGET_SCALE_ADDR](TGET_SCALE_ADDR.md) - Bind the on-chip address of output tile to a scaled factor of that of input tile.
 - [TCONCAT](TCONCAT.md) - Concatenate two tiles horizontally along the column dimension.
+- [TInterleave](TINTERLEAVE.md) - Interleave two source tiles into an alternating even/odd element stream, split into two destination halves.
+- [TDeInterleave](TDEINTERLEAVE.md) - De-interleave source tiles back into even-position and odd-position element streams (inverse of TInterleave).
 
 ## Complex
 - [TPRINT](TPRINT.md) - Debug/print elements from a tile (implementation-defined).

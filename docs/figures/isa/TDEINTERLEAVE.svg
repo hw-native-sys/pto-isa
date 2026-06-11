@@ -1,0 +1,263 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="820" viewBox="0 0 1200 820" role="img" aria-label="TDEINTERLEAVE tile operation diagram">
+<defs>
+  <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#7C3AED"/></marker>
+  <marker id="arrowBlue" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#2563eb"/></marker>
+  <marker id="arrowOrange" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#ea580c"/></marker>
+  <marker id="axisArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#64748b"/></marker>
+</defs>
+<style>
+svg { font-family: Arial, Helvetica, sans-serif; }
+.title { font-size: 28px; font-weight: 700; fill: #0f172a; }
+.subtitle { font-size: 13px; fill: #334155; }
+.meta { font-size: 11px; fill: #64748b; }
+.frame { fill: white; }
+.panel { fill: #F3E8FF; stroke: #e2e8f0; stroke-width: 1.5; rx: 14; }
+.tileLabel { font-size: 13px; font-weight: 700; fill: #0f172a; }
+.tileBorder { fill: none; stroke: #475569; stroke-width: 1.5; }
+.cell { fill: #ffffff; stroke: #94a3b8; stroke-width: 1; }
+.cellSrc0 { fill: #dbeafe; stroke: #94a3b8; stroke-width: 1; }
+.cellSrc1 { fill: #fed7aa; stroke: #94a3b8; stroke-width: 1; }
+.cellMasked { fill: #e2e8f0; stroke: #94a3b8; stroke-width: 1; }
+.cellHL0 { stroke-width: 2; stroke: #2563eb; }
+.cellHL1 { stroke-width: 2; stroke: #ea580c; }
+.cellEven { stroke: #2563eb; stroke-width: 2; }
+.cellOdd { stroke: #ea580c; stroke-width: 2; }
+.cellText { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 10px; fill: #0f172a; }
+.arrow { stroke-width: 1.5; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.arrowBlue { stroke-width: 1.5; fill: none; stroke-linejoin: round; stroke-linecap: round; stroke: #2563eb; }
+.arrowOrange { stroke-width: 1.5; fill: none; stroke-linejoin: round; stroke-linecap: round; stroke: #ea580c; }
+.axisLine { stroke: #64748b; stroke-width: 1.5; fill: none; }
+.axisText { font-size: 9px; fill: #64748b; font-weight: 700; }
+.opBox { fill: #ffffff; stroke: #7C3AED; stroke-width: 2; rx: 10; }
+.opText { font-size: 10px; font-weight: 800; fill: #0f172a; }
+.procBox { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.5; rx: 12; }
+.procTitle { font-size: 13px; font-weight: 700; fill: #0f172a; }
+.procText { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; fill: #0f172a; }
+.validBox { fill: none; stroke-width: 2; stroke-dasharray: 6 4; }
+.streamLabel { font-size: 12px; fill: #334155; font-weight: 600; }
+.posLabel { font-size: 9px; fill: #64748b; font-weight: 600; }
+.evenOddLabel { font-size: 10px; font-weight: 600; }
+.streamBorder { fill: none; stroke: #94a3b8; stroke-width: 1; rx: 4; }
+.formLabel { font-size: 12px; fill: #7C3AED; font-weight: 600; }
+</style>
+<rect x="0" y="0" width="1200" height="820" class="frame" />
+<rect x="24" y="24" width="1152" height="772" class="panel" />
+<text x="40" y="46" class="title">TDEINTERLEAVE</text>
+<text x="40" y="72" class="subtitle">De-interleave source tiles into two destination tiles (even/odd extraction).</text>
+<text x="40" y="92" class="meta">Two-source form: src0 (first half), src1 (second half) &#x2192; dst0 (even), dst1 (odd)</text>
+<text x="1160" y="92" class="meta" text-anchor="end">Legend: blue=even/original src0; orange=odd/original src1; dashed=valid region; shaded=masked</text>
+<line x1="36" y1="104" x2="1164" y2="104" stroke="#e2e8f0" stroke-width="1.5" />
+<text x="600" y="130" class="formLabel" text-anchor="middle">dst0[i,k] = combined[2k] (even positions)  |  dst1[i,k] = combined[2k+1] (odd positions)</text>
+<text x="600" y="150" class="formLabel" text-anchor="middle">combined[j] = src0[i,j] if j &#x2264; Cv-1, else src1[i,j-Cv]</text>
+
+<text x="225" y="168" class="tileLabel" text-anchor="middle">src0 (1st half)</text>
+<rect x="170" y="180" width="110" height="110" class="tileBorder" />
+<rect x="170" y="180" width="22" height="22" class="cellSrc0" />
+<rect x="192" y="180" width="22" height="22" class="cellSrc1" />
+<rect x="214" y="180" width="22" height="22" class="cellSrc0" />
+<rect x="236" y="180" width="22" height="22" class="cellSrc1" />
+<rect x="258" y="180" width="22" height="22" class="cell cellMasked" />
+<rect x="170" y="200" width="22" height="22" class="cellSrc0 cellHL0" />
+<rect x="192" y="200" width="22" height="22" class="cellSrc1 cellHL1" />
+<rect x="214" y="200" width="22" height="22" class="cellSrc0 cellHL0" />
+<rect x="236" y="200" width="22" height="22" class="cellSrc1 cellHL1" />
+<rect x="258" y="200" width="22" height="22" class="cell cellMasked" />
+<text x="181" y="215" class="cellText" text-anchor="middle">a&#x2080;</text>
+<text x="203" y="215" class="cellText" text-anchor="middle">b&#x2080;</text>
+<text x="225" y="215" class="cellText" text-anchor="middle">a&#x2081;</text>
+<text x="247" y="215" class="cellText" text-anchor="middle">b&#x2081;</text>
+<rect x="170" y="222" width="22" height="22" class="cellSrc0" />
+<rect x="192" y="222" width="22" height="22" class="cellSrc1" />
+<rect x="214" y="222" width="22" height="22" class="cellSrc0" />
+<rect x="236" y="222" width="22" height="22" class="cellSrc1" />
+<rect x="258" y="222" width="22" height="22" class="cell cellMasked" />
+<rect x="170" y="244" width="22" height="22" class="cellSrc0" />
+<rect x="192" y="244" width="22" height="22" class="cellSrc1" />
+<rect x="214" y="244" width="22" height="22" class="cellSrc0" />
+<rect x="236" y="244" width="22" height="22" class="cellSrc1" />
+<rect x="258" y="244" width="22" height="22" class="cell cellMasked" />
+<rect x="170" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="192" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="214" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="236" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="258" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="170" y="180" width="88" height="88" class="validBox" stroke="#7C3AED" />
+<text x="174" y="264" class="axisText">Rv</text>
+<text x="254" y="192" class="axisText" text-anchor="end">Cv</text>
+<path d="M 180 190 L 246 190" class="axisLine" marker-end="url(#axisArrow)" />
+<path d="M 180 190 L 180 256" class="axisLine" marker-end="url(#axisArrow)" />
+<text x="248" y="194" class="axisText">c</text>
+<text x="178" y="258" class="axisText" text-anchor="end">r</text>
+
+<text x="855" y="168" class="tileLabel" text-anchor="middle">src1 (2nd half)</text>
+<rect x="800" y="180" width="110" height="110" class="tileBorder" />
+<rect x="800" y="180" width="22" height="22" class="cellSrc0" />
+<rect x="822" y="180" width="22" height="22" class="cellSrc1" />
+<rect x="844" y="180" width="22" height="22" class="cellSrc0" />
+<rect x="866" y="180" width="22" height="22" class="cellSrc1" />
+<rect x="888" y="180" width="22" height="22" class="cell cellMasked" />
+<rect x="800" y="200" width="22" height="22" class="cellSrc0 cellHL0" />
+<rect x="822" y="200" width="22" height="22" class="cellSrc1 cellHL1" />
+<rect x="844" y="200" width="22" height="22" class="cellSrc0 cellHL0" />
+<rect x="866" y="200" width="22" height="22" class="cellSrc1 cellHL1" />
+<rect x="888" y="200" width="22" height="22" class="cell cellMasked" />
+<text x="811" y="215" class="cellText" text-anchor="middle">a&#x2082;</text>
+<text x="833" y="215" class="cellText" text-anchor="middle">b&#x2082;</text>
+<text x="855" y="215" class="cellText" text-anchor="middle">a&#x2083;</text>
+<text x="877" y="215" class="cellText" text-anchor="middle">b&#x2083;</text>
+<rect x="800" y="222" width="22" height="22" class="cellSrc0" />
+<rect x="822" y="222" width="22" height="22" class="cellSrc1" />
+<rect x="844" y="222" width="22" height="22" class="cellSrc0" />
+<rect x="866" y="222" width="22" height="22" class="cellSrc1" />
+<rect x="888" y="222" width="22" height="22" class="cell cellMasked" />
+<rect x="800" y="244" width="22" height="22" class="cellSrc0" />
+<rect x="822" y="244" width="22" height="22" class="cellSrc1" />
+<rect x="844" y="244" width="22" height="22" class="cellSrc0" />
+<rect x="866" y="244" width="22" height="22" class="cellSrc1" />
+<rect x="888" y="244" width="22" height="22" class="cell cellMasked" />
+<rect x="800" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="822" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="844" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="866" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="888" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="800" y="180" width="88" height="88" class="validBox" stroke="#7C3AED" />
+<text x="804" y="264" class="axisText">Rv</text>
+<text x="884" y="192" class="axisText" text-anchor="end">Cv</text>
+<path d="M 810 190 L 876 190" class="axisLine" marker-end="url(#axisArrow)" />
+<path d="M 810 190 L 810 256" class="axisLine" marker-end="url(#axisArrow)" />
+<text x="878" y="194" class="axisText">c</text>
+<text x="808" y="258" class="axisText" text-anchor="end">r</text>
+
+<rect x="530" y="305" width="140" height="36" class="opBox" />
+<text x="575" y="320" class="opText" text-anchor="middle">TDE</text>
+<text x="625" y="320" class="opText" text-anchor="middle">INTER</text>
+<text x="600" y="334" class="opText" text-anchor="middle">LEAVE</text>
+<path d="M 225 290 L 225 323 L 530 323" class="arrow" stroke="#7C3AED" marker-end="url(#arrow)" />
+<path d="M 855 290 L 855 323 L 670 323" class="arrow" stroke="#7C3AED" marker-end="url(#arrow)" />
+<path d="M 600 341 L 600 365" class="arrow" stroke="#7C3AED" marker-end="url(#arrow)" />
+
+<text x="600" y="360" class="streamLabel" text-anchor="middle">Combined interleaved stream (per row)</text>
+<rect x="512" y="370" width="176" height="22" class="streamBorder" />
+<rect x="512" y="370" width="22" height="22" class="cellSrc0 cellEven" />
+<rect x="534" y="370" width="22" height="22" class="cellSrc1 cellOdd" />
+<rect x="556" y="370" width="22" height="22" class="cellSrc0 cellEven" />
+<rect x="578" y="370" width="22" height="22" class="cellSrc1 cellOdd" />
+<rect x="600" y="370" width="22" height="22" class="cellSrc0 cellEven" />
+<rect x="622" y="370" width="22" height="22" class="cellSrc1 cellOdd" />
+<rect x="644" y="370" width="22" height="22" class="cellSrc0 cellEven" />
+<rect x="666" y="370" width="22" height="22" class="cellSrc1 cellOdd" />
+<text x="523" y="366" class="posLabel" text-anchor="middle">0</text>
+<text x="545" y="366" class="posLabel" text-anchor="middle">1</text>
+<text x="567" y="366" class="posLabel" text-anchor="middle">2</text>
+<text x="589" y="366" class="posLabel" text-anchor="middle">3</text>
+<text x="611" y="366" class="posLabel" text-anchor="middle">4</text>
+<text x="633" y="366" class="posLabel" text-anchor="middle">5</text>
+<text x="655" y="366" class="posLabel" text-anchor="middle">6</text>
+<text x="677" y="366" class="posLabel" text-anchor="middle">7</text>
+<text x="523" y="385" class="cellText" text-anchor="middle">a&#x2080;</text>
+<text x="545" y="385" class="cellText" text-anchor="middle">b&#x2080;</text>
+<text x="567" y="385" class="cellText" text-anchor="middle">a&#x2081;</text>
+<text x="589" y="385" class="cellText" text-anchor="middle">b&#x2081;</text>
+<text x="611" y="385" class="cellText" text-anchor="middle">a&#x2082;</text>
+<text x="633" y="385" class="cellText" text-anchor="middle">b&#x2082;</text>
+<text x="655" y="385" class="cellText" text-anchor="middle">a&#x2083;</text>
+<text x="677" y="385" class="cellText" text-anchor="middle">b&#x2083;</text>
+<text x="545" y="405" class="evenOddLabel" text-anchor="middle" fill="#2563eb">even &#x2192; dst0</text>
+<text x="655" y="405" class="evenOddLabel" text-anchor="middle" fill="#ea580c">odd &#x2192; dst1</text>
+
+<path d="M 544 398 L 544 432 L 225 432 L 225 460" class="arrowBlue" marker-end="url(#arrowBlue)" />
+<path d="M 656 398 L 656 432 L 855 432 L 855 460" class="arrowOrange" marker-end="url(#arrowOrange)" />
+
+<text x="225" y="458" class="tileLabel" text-anchor="middle">dst0 (even)</text>
+<rect x="170" y="470" width="110" height="110" class="tileBorder" />
+<rect x="170" y="470" width="22" height="22" class="cellSrc0" />
+<rect x="192" y="470" width="22" height="22" class="cellSrc0" />
+<rect x="214" y="470" width="22" height="22" class="cellSrc0" />
+<rect x="236" y="470" width="22" height="22" class="cellSrc0" />
+<rect x="258" y="470" width="22" height="22" class="cell cellMasked" />
+<rect x="170" y="492" width="22" height="22" class="cellSrc0 cellHL0" />
+<rect x="192" y="492" width="22" height="22" class="cellSrc0 cellHL0" />
+<rect x="214" y="492" width="22" height="22" class="cellSrc0 cellHL0" />
+<rect x="236" y="492" width="22" height="22" class="cellSrc0 cellHL0" />
+<rect x="258" y="492" width="22" height="22" class="cell cellMasked" />
+<text x="181" y="507" class="cellText" text-anchor="middle">a&#x2080;</text>
+<text x="203" y="507" class="cellText" text-anchor="middle">a&#x2081;</text>
+<text x="225" y="507" class="cellText" text-anchor="middle">a&#x2082;</text>
+<text x="247" y="507" class="cellText" text-anchor="middle">a&#x2083;</text>
+<rect x="170" y="514" width="22" height="22" class="cellSrc0" />
+<rect x="192" y="514" width="22" height="22" class="cellSrc0" />
+<rect x="214" y="514" width="22" height="22" class="cellSrc0" />
+<rect x="236" y="514" width="22" height="22" class="cellSrc0" />
+<rect x="258" y="514" width="22" height="22" class="cell cellMasked" />
+<rect x="170" y="536" width="22" height="22" class="cellSrc0" />
+<rect x="192" y="536" width="22" height="22" class="cellSrc0" />
+<rect x="214" y="536" width="22" height="22" class="cellSrc0" />
+<rect x="236" y="536" width="22" height="22" class="cellSrc0" />
+<rect x="258" y="536" width="22" height="22" class="cell cellMasked" />
+<rect x="170" y="558" width="22" height="22" class="cell cellMasked" />
+<rect x="192" y="558" width="22" height="22" class="cell cellMasked" />
+<rect x="214" y="558" width="22" height="22" class="cell cellMasked" />
+<rect x="236" y="558" width="22" height="22" class="cell cellMasked" />
+<rect x="258" y="558" width="22" height="22" class="cell cellMasked" />
+<rect x="170" y="470" width="88" height="88" class="validBox" stroke="#2563eb" />
+<text x="174" y="554" class="axisText" fill="#2563eb">Rv</text>
+<text x="254" y="482" class="axisText" text-anchor="end" fill="#2563eb">Cv</text>
+<path d="M 180 480 L 246 480" class="axisLine" marker-end="url(#axisArrow)" />
+<path d="M 180 480 L 180 546" class="axisLine" marker-end="url(#axisArrow)" />
+<text x="248" y="484" class="axisText">c</text>
+<text x="178" y="548" class="axisText" text-anchor="end">r</text>
+
+<text x="855" y="458" class="tileLabel" text-anchor="middle">dst1 (odd)</text>
+<rect x="800" y="470" width="110" height="110" class="tileBorder" />
+<rect x="800" y="470" width="22" height="22" class="cellSrc1" />
+<rect x="822" y="470" width="22" height="22" class="cellSrc1" />
+<rect x="844" y="470" width="22" height="22" class="cellSrc1" />
+<rect x="866" y="470" width="22" height="22" class="cellSrc1" />
+<rect x="888" y="470" width="22" height="22" class="cell cellMasked" />
+<rect x="800" y="492" width="22" height="22" class="cellSrc1 cellHL1" />
+<rect x="822" y="492" width="22" height="22" class="cellSrc1 cellHL1" />
+<rect x="844" y="492" width="22" height="22" class="cellSrc1 cellHL1" />
+<rect x="866" y="492" width="22" height="22" class="cellSrc1 cellHL1" />
+<rect x="888" y="492" width="22" height="22" class="cell cellMasked" />
+<text x="811" y="507" class="cellText" text-anchor="middle">b&#x2080;</text>
+<text x="833" y="507" class="cellText" text-anchor="middle">b&#x2081;</text>
+<text x="855" y="507" class="cellText" text-anchor="middle">b&#x2082;</text>
+<text x="877" y="507" class="cellText" text-anchor="middle">b&#x2083;</text>
+<rect x="800" y="514" width="22" height="22" class="cellSrc1" />
+<rect x="822" y="514" width="22" height="22" class="cellSrc1" />
+<rect x="844" y="514" width="22" height="22" class="cellSrc1" />
+<rect x="866" y="514" width="22" height="22" class="cellSrc1" />
+<rect x="888" y="514" width="22" height="22" class="cell cellMasked" />
+<rect x="800" y="536" width="22" height="22" class="cellSrc1" />
+<rect x="822" y="536" width="22" height="22" class="cellSrc1" />
+<rect x="844" y="536" width="22" height="22" class="cellSrc1" />
+<rect x="866" y="536" width="22" height="22" class="cellSrc1" />
+<rect x="888" y="536" width="22" height="22" class="cell cellMasked" />
+<rect x="800" y="558" width="22" height="22" class="cell cellMasked" />
+<rect x="822" y="558" width="22" height="22" class="cell cellMasked" />
+<rect x="844" y="558" width="22" height="22" class="cell cellMasked" />
+<rect x="866" y="558" width="22" height="22" class="cell cellMasked" />
+<rect x="888" y="558" width="22" height="22" class="cell cellMasked" />
+<rect x="800" y="470" width="88" height="88" class="validBox" stroke="#ea580c" />
+<text x="804" y="554" class="axisText" fill="#ea580c">Rv</text>
+<text x="884" y="482" class="axisText" text-anchor="end" fill="#ea580c">Cv</text>
+<path d="M 810 480 L 876 480" class="axisLine" marker-end="url(#axisArrow)" />
+<path d="M 810 480 L 810 546" class="axisLine" marker-end="url(#axisArrow)" />
+<text x="878" y="484" class="axisText">c</text>
+<text x="808" y="548" class="axisText" text-anchor="end">r</text>
+
+<rect x="40" y="590" width="1120" height="220" class="procBox" />
+<text x="56" y="614" class="procTitle">Procedure (conceptual) &#x2014; Two-source form</text>
+<text x="56" y="640" class="procText" xml:space="preserve">
+  <tspan x="56" dy="0">for r in 0..Rv-1:</tspan>
+  <tspan x="56" dy="16">  for j in 0..2*Cv-1:           # reconstruct combined stream</tspan>
+  <tspan x="56" dy="16">    combined[j] = src0[r,j] if j &lt; Cv else src1[r,j-Cv]</tspan>
+  <tspan x="56" dy="16">  for k in 0..Cv-1:             # extract even/odd</tspan>
+  <tspan x="56" dy="16">    dst0[r,k] = combined[2k]       # even positions</tspan>
+  <tspan x="56" dy="16">    dst1[r,k] = combined[2k+1]     # odd positions</tspan>
+</text>
+<text x="600" y="712" class="procTitle">Single-source form</text>
+<text x="600" y="732" class="procText">dst0[r,k] = src[r, 2*k] ;  dst1[r,k] = src[r, 2*k+1]</text>
+<text x="600" y="752" class="meta">(src.ValidCol must be even; dst0/dst1.ValidCol = src.ValidCol / 2)</text>
+<text x="56" y="790" class="meta">Constraints: validCols must be even; all tiles same DType; row-major layout. TDeInterleave is the inverse of TInterleave.</text>
+</svg>

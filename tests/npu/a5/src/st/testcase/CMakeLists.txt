@@ -245,6 +245,8 @@ set(ALL_TESTCASES
     tpushpop_dir_both
     texpands_mat
     tpushpop_subtile
+    tinterleave
+    tdeinterleave
 )
 
 # Opt-in testcases: built ONLY when TEST_CASE=<name> is explicitly supplied.
