@@ -50,7 +50,7 @@ PTO_INST RecordEvent TCOLEXPANDMIN(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 
 ## Constraints
 
-- `TileDataDst::DType`, `TileDataSrc1::DType` must be one of: `half`, `float`.
+- `TileDataDst::DType`, `TileDataSrc1::DType` must be one of: `half`, `float`, `int16`, `int32`, `uint16`, `uint32`.
 - Tile shape/layout constraint (compile-time): `TileDataDst::isRowMajor`.
 - `src1` is expected to provide **one scalar per column** (i.e., its valid shape must cover `C` values).
 - Exact layout/fractal constraints are target-specific; see backend headers under `include/pto/npu/*/TColExpand*.hpp`.

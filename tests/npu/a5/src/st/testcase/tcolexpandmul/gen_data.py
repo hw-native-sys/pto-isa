@@ -55,7 +55,13 @@ class TcolexpandParams:
 
 
 def generate_case_name(param):
-    dtype_str = {np.float32: "fp32", np.float16: "fp16", np.int32: "int32", np.int16: "int16"}[param.dtype]
+    dtype_str = {
+        np.float32: "fp32",
+        np.float16: "fp16",
+        np.int32: "int32",
+        np.int16: "int16",
+        np.uint32: "uint32",
+    }[param.dtype]
     return f"TColExpandMulTest.case_{dtype_str}_{param.dst_row}_{param.dst_col}_{param.src1_row}_{param.src1_col}"
 
 
@@ -73,6 +79,7 @@ if __name__ == "__main__":
         TcolexpandParams(np.float16, 10, 64, 10, 64, 1, 64),
         TcolexpandParams(np.int32, 16, 32, 16, 32, 1, 32),
         TcolexpandParams(np.int16, 16, 64, 16, 64, 1, 64),
+        TcolexpandParams(np.uint32, 16, 32, 16, 32, 1, 32),
     ]
 
     for _, param in enumerate(case_params_list):

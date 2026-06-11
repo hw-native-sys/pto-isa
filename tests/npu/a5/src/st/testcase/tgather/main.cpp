@@ -450,3 +450,8 @@ TEST_F(TGATHERTest, case9_i8_topk)
 {
     test_gather_cmp<int8_t, uint16_t, uint32_t, 16, 128, 32, pto::CmpMode::EQ>();
 }
+
+TEST_F(TGATHERTest, case10_u8_topk)
+{
+    test_gather_cmp<uint8_t, uint16_t, uint32_t, 16, 128, 32, pto::CmpMode::GT>();
+}

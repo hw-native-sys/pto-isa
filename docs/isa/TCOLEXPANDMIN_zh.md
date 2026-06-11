@@ -49,7 +49,7 @@ PTO_INST RecordEvent TCOLEXPANDMIN(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 
 ## 约束
 
-- `TileDataDst::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`。
+- `TileDataDst::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`、`int16`、`int32`、`uint16`、`uint32`。
 - Tile 形状/布局约束（编译时）：`TileDataDst::isRowMajor`。
 - `src1` 预期提供**每列一个标量**（即，其有效形状必须覆盖 `C` 个值）。
 - 确切的布局/分形约束是目标特定的；参见 `include/pto/npu/*/TColExpand*.hpp` 下的后端头文件。

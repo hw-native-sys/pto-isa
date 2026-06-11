@@ -115,4 +115,8 @@ TEST_F(TColExpandMulTest, case_int16_16_64_1_64)
 {
     test_tcolexpandmul<int16_t, 16, 64, 1, 64>();
 }
+TEST_F(TColExpandMulTest, case_uint32_16_32_1_32)
+{
+    test_tcolexpandmul<uint32_t, 16, 32, 1, 32>();
+}
 } // namespace TColExpandMulTest

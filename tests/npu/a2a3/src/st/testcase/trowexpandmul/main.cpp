@@ -211,3 +211,23 @@ TEST_F(TROWEXPANDMULTest, case22)
 {
     test_trowexpandmul<int16_t, 16, 16, 16, 16, true, true>();
 }
+
+TEST_F(TROWEXPANDMULTest, case23)
+{
+    test_trowexpandmul<uint32_t, 16, 16, 16, 16, true, false>();
+}
+
+TEST_F(TROWEXPANDMULTest, case24)
+{
+    test_trowexpandmul<uint32_t, 16, 16, 16, 16, true, true>();
+}
+
+TEST_F(TROWEXPANDMULTest, case25)
+{
+    test_trowexpandmul<uint32_t, 16, 16, 16, 16, false, false>();
+}
+
+TEST_F(TROWEXPANDMULTest, case26)
+{
+    test_trowexpandmul<uint32_t, 16, 16, 16, 16, false, true>();
+}

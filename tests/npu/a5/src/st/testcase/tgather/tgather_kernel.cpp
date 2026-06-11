@@ -344,3 +344,5 @@ template void LaunchTGATHER_CMP<int8_t, uint16_t, uint32_t, 16, 128, 16, 128, 32
     int8_t *src, uint16_t *src1, uint32_t *out, uint32_t offset, void *stream);
 template void LaunchTGATHER_CMP<int8_t, uint16_t, uint32_t, 16, 128, 16, 128, 32, CmpMode::EQ>(
     int8_t *src, uint16_t *src1, uint32_t *out, uint32_t offset, void *stream);
+template void LaunchTGATHER_CMP<uint8_t, uint16_t, uint32_t, 16, 128, 16, 128, 32, CmpMode::GT>(
+    uint8_t *src, uint16_t *src1, uint32_t *out, uint32_t offset, void *stream);
