@@ -55,7 +55,7 @@ __tf__ PTO_INTERNAL void TLoadNDC1HWC0(typename TileData::TileDType __out__ dst,
                                        int gStride2, int gStride3, int gStride4, int dstN, int dstD, int dstC1,
                                        int dstH, int dstW)
 {
-    static_assert(TileData::Rows < 4096, "Fix: TLOAD Rows>=4095 not supported in A2/A3");
+    static_assert(TileData::Rows < 4096, "Fix: TLOAD Rows>=4096 not supported in A2/A3");
     PTO_ASSERT(validCol == gShape4, "The validCol of TileData must be equal to the 5th dim(Shape4) of ND shape!");
     PTO_ASSERT(validRow == gShape0 * gShape1 * gShape2 * gShape3,
                "The validRow of TileData must be equal to (Shape0 * Shape1 * Shape2 * Shape3) of ND shape!");
