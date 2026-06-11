@@ -106,6 +106,7 @@ Additional constraints (A5):
     - `Mat` loads: supports all combinations including ND→NZ and DN→ZN.
     - For ND→NZ or DN→ZN: `GlobalData::staticShape[0..2] == 1` and `TileData::SFractalSize == 512`.
     - `int64_t/uint64_t`: only ND→ND or DN→DN.
+    - `TileData::Rows` range: `1 <= Rows <= 4095`.
 
     **A5**:
     - `sizeof(TileData::DType)` must be 1, 2, 4, or 8 bytes, and must match `sizeof(GlobalData::DType)`.

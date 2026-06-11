@@ -72,6 +72,7 @@ PTO_INST RecordEvent TLOAD(TileData &dst, GlobalData &src, WaitEvents &... event
 - `Mat` 路径额外支持 `ND→NZ`、`DN→ZN`
 - 对 `ND→NZ` / `DN→ZN`，要求 `GlobalData::staticShape[0..2] == 1` 且 `TileData::SFractalSize == 512`
 - 对 `int64_t/uint64_t`，仅支持 `ND→ND` 或 `DN→DN`
+- `TileData::Rows` 取值范围：`1 <= Rows <= 4095`
 
 ### A5
 
