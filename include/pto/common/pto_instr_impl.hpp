@@ -230,6 +230,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TFillPad.hpp"
 #include "pto/npu/a5/TTrans.hpp"
 #include "pto/npu/a5/TLRelu.hpp"
+#include "pto/npu/a5/TAddReluConv.hpp"
 #include "pto/npu/a5/Tci.hpp"
 #include "pto/npu/a5/TSels.hpp"
 #include "pto/npu/a5/TSel.hpp"
