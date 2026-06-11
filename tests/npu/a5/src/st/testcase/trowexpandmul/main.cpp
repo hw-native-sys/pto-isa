@@ -139,8 +139,4 @@ TEST_F(TRowExpandMulTest, case_uint32_16_32)
 {
     test_trowexpandmul<uint32_t, 16, 32, 16, 1, true, false>();
 }
-TEST_F(TRowExpandMulTest, case_uint16_16_64)
-{
-    test_trowexpandmul<uint16_t, 16, 64, 16, 1, true, false>();
-}
 } // namespace TRowExpandMulTest

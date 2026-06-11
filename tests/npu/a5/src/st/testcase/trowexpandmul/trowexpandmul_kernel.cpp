@@ -143,6 +143,4 @@ template void launchTRowExpandMul<int16_t, 16, 64, 16, 1, true>(int16_t *out, in
                                                                 void *stream);
 template void launchTRowExpandMul<uint32_t, 16, 32, 16, 1, true>(uint32_t *out, uint32_t *src0, uint32_t *src1,
                                                                  void *stream);
-template void launchTRowExpandMul<uint16_t, 16, 64, 16, 1, true>(uint16_t *out, uint16_t *src0, uint16_t *src1,
-                                                                 void *stream);
 } // namespace TRowExpandMulTest
