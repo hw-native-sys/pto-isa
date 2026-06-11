@@ -2230,6 +2230,31 @@ PTO_INST RecordEvent TQUANT(TileDataOut &dst, TileDataSrc &src, TileDataExp *exp
     return {};
 }
 
+template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
+PTO_INST RecordEvent TInterleave(TileDataDst &dst1, TileDataDst &dst0, TileDataSrc &src1, TileDataSrc &src0,
+                                 WaitEvents &...events)
+{
+    TSYNC(events...);
+    MAP_INSTR_IMPL(TINTERLEAVE, dst1, dst0, src1, src0);
+    return {};
+}
+
+template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
+PTO_INST RecordEvent TDeInterleave(TileDataDst &dst1, TileDataDst &dst0, TileDataSrc &src1, TileDataSrc &src0,
+                                   WaitEvents &...events)
+{
+    TSYNC(events...);
+    MAP_INSTR_IMPL(TDEINTERLEAVE, dst1, dst0, src1, src0);
+    return {};
+}
+
+template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
+PTO_INST RecordEvent TDeInterleave(TileDataDst &dst1, TileDataDst &dst0, TileDataSrc &src, WaitEvents &...events)
+{
+    TSYNC(events...);
+    TDEINTERLEAVE_IMPL(dst1, dst0, src);
+    return {};
+}
 #endif
 
 template <auto quant_type, typename TileDataOut, typename TileDataSrc, typename TileDataPara, typename... WaitEvents>
