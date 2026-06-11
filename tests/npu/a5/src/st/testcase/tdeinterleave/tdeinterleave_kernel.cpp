@@ -47,7 +47,7 @@ __global__ AICORE void runTDeInterleave(__gm__ T __out__ *out0, __gm__ T __out__
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 #endif
-    TDEINTERLEAVE<TileDataDst, TileDataSrc>(dst1Tile, dst0Tile, src1Tile, src0Tile);
+    TDeInterleave<TileDataDst, TileDataSrc>(dst1Tile, dst0Tile, src1Tile, src0Tile);
 #ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
@@ -99,7 +99,7 @@ __global__ AICORE void runTDeInterleaveSingleSrc(__gm__ T __out__ *out0, __gm__ 
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 #endif
-    TDEINTERLEAVE<TileDataDst, TileDataSrc>(dst1Tile, dst0Tile, srcTile);
+    TDeInterleave<TileDataDst, TileDataSrc>(dst1Tile, dst0Tile, srcTile);
 #ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);

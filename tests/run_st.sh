@@ -636,6 +636,39 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert -g TInsertTest.case_nz_dblinput_fp4e2m1_1
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert -g TInsertTest.case_nz_twoinput_fp4e2m1_1
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert -g TInsertTest.case_nz_dblinput_fp8e4_2
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nd_aligned_6
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nd_unaligned_validcol_2
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nd_unaligned_indexcol_2
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nd_unaligned_validcol_3
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nd_aligned_hif8
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nd_aligned_fp4_e2m1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nd_scalar_2
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nz_2
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nz_6
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nz_indexcol_nonzero
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nz_multi_fractal_dst
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nz_hif8
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nz_scalar_1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nz_scalar_fp4_e2m1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec -g TExtractVecTest.case_nz_scalar_fp4_e1m2
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tinterleave -g TINTERLEAVETest.case_float_64x64_64x64
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tinterleave -g TINTERLEAVETest.case_int32_64x64_64x64
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tinterleave -g TINTERLEAVETest.case_int16_64x64_64x64
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tinterleave -g TINTERLEAVETest.case_half_16x256_16x256
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tinterleave -g TINTERLEAVETest.case_float_16x32_16x32
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tinterleave -g TINTERLEAVETest.case_int32_16x32_16x32
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tinterleave -g TINTERLEAVETest.case_int8_32x256_32x256
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tinterleave -g TINTERLEAVETest.case_uint8_32x256_32x256
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tdeinterleave -g TDEINTERLEAVETest.case_float_64x64_64x64
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tdeinterleave -g TDEINTERLEAVETest.case_int32_64x64_64x64
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tdeinterleave -g TDEINTERLEAVETest.case_int16_64x64_64x64
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tdeinterleave -g TDEINTERLEAVETest.case_half_16x256_16x256
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tdeinterleave -g TDEINTERLEAVETest.case_int32_16x32_16x32
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tdeinterleave -g TDEINTERLEAVETest.case_int8_32x256_32x256
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tdeinterleave -g TDEINTERLEAVETest.case_float_single_src_16x128_16x128
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tdeinterleave -g TDEINTERLEAVETest.case_int32_single_src_16x128_16x128
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tdeinterleave -g TDEINTERLEAVETest.case_half_single_src_16x256_16x256
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tdeinterleave -g TDEINTERLEAVETest.case_int8_single_src_8x512_8x512
 
 
   elif [ "$ENABLE_ALL" = "true" ]; then            # 所有用例
@@ -737,6 +770,10 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a5 -t thistogram
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tinsert_acc2vec
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tmov_zz
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tinterleave
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tdeinterleave
   fi
 fi
 
