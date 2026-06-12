@@ -229,17 +229,18 @@ bool ResultCmp(const std::vector<T> &outDataValExp, const T *outDataValAct, floa
         auto actVal = static_cast<float>(outDataValAct[eIdx]);
         auto diff = std::abs(expVal - actVal);
         auto relRatio = std::abs(diff / expVal);
-        maxDiff = std::max(diff, maxDiff);
-        maxDiffRatio = std::max(relRatio, maxDiffRatio);
+        if (!std::isnan(diff)) {
+            maxDiff = std::max(diff, maxDiff);
+        }
+        if (!std::isnan(relRatio)) {
+            maxDiffRatio = std::max(relRatio, maxDiffRatio);
+        }
         zeroCount += std::abs(actVal - 0.0f) <= 1e-6 and std::abs(expVal - 0.0f) > 1e-6 ? 1 : 0;
         testNum = testNum - (testNum > 0 ? 1 : 0);
 
-        auto eErr = ((diff > eps && relRatio > eps) || (zeroCount > zeroCountThreshold));
+        auto eErr = ((diff > eps && relRatio > eps) || (zeroCount > zeroCountThreshold) ||
+                     (std::isnan(expVal) != std::isnan(actVal)));
         errCount += eErr ? 1 : 0;
-
-        if (std::isnan(expVal) || std::isnan(actVal)) {
-            std::cout << "idx: " << eIdx << ", exp->" << expVal << ", act->" << actVal << std::endl;
-        }
 
         if ((printAll) || (eErr && printErr) || (testNum > 0)) {
             std::cout << (eErr ? BOLD_RED : "") << "idx: 0x" << eIdx << ", exp->" << expVal << ", act->" << actVal
@@ -270,12 +271,9 @@ bool ResultCmp(const std::vector<T> &outDataValExp, const T *outDataValAct, floa
         auto relRatio = std::abs(diff / expVal);
         zeroCount += std::abs(actVal - 0.0f) <= 1e-6 and std::abs(expVal - 0.0f) > 1e-6 ? 1 : 0;
 
-        auto eErr = ((diff > eps && relRatio > eps) || (zeroCount > zeroCountThreshold));
+        auto eErr = ((diff > eps && relRatio > eps) || (zeroCount > zeroCountThreshold) ||
+                     (std::isnan(expVal) != std::isnan(actVal)));
         errCount += eErr ? 1 : 0;
-
-        if (std::isnan(expVal) || std::isnan(actVal)) {
-            std::cout << "idx: " << eIdx << ", exp->" << expVal << ", act->" << actVal << std::endl;
-        }
 
         if (eErr) {
             std::cout << BOLD_RED << "idx: 0x" << eIdx << ", exp->" << expVal << ", act->" << actVal << ", diff->"
