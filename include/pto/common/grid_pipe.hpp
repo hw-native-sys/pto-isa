@@ -71,6 +71,34 @@ AICORE constexpr int GridDirectionIndex(GridDirection d)
 }
 
 // ---------------------------------------------------------------------------
+// Broadcast span (single-source row/column multicast).  A ROW broadcast fans a
+// payload to every other cell on the source's row; a COL broadcast fans along
+// the source's column.  Each span is two opposite 1-D arms -- ROW = EAST+WEST,
+// COL = NORTH+SOUTH (see SpanArmA / SpanArmB).  Because each arm is 1-D, the
+// (direction, distance) pair is a complete fan-in-1 lane key, so a single-source
+// broadcast needs no Scheme-B slot/flag expansion: a receiver east of the source
+// drains it with the ordinary TPOP<EAST, dist>, a receiver west with
+// TPOP<WEST, dist>.  Used by the GridPipe TPUSH<GridSpan> broadcast overload.
+// ---------------------------------------------------------------------------
+enum class GridSpan : uint8_t
+{
+    ROW = 0, // fan along the source's row:    EAST arm + WEST arm
+    COL = 1, // fan along the source's column: NORTH arm + SOUTH arm
+};
+
+// The two opposite GridDirections a span decomposes into.  constexpr so they
+// fold into the non-type template arguments of the per-arm broadcast helpers.
+AICORE constexpr GridDirection SpanArmA(GridSpan s)
+{
+    return s == GridSpan::ROW ? GridDirection::EAST : GridDirection::NORTH;
+}
+
+AICORE constexpr GridDirection SpanArmB(GridSpan s)
+{
+    return s == GridSpan::ROW ? GridDirection::WEST : GridDirection::SOUTH;
+}
+
+// ---------------------------------------------------------------------------
 // GridPipe<TileT, SlotBytes, SlotCount>
 //
 // One instance describes the FIFO state for a single logical channel that the
@@ -226,6 +254,147 @@ AICORE constexpr int NeighborRankForPop(GridDirection dir, GridCoord c, GridShap
     GridCoord n = NeighborForPop(dir, c);
     return n.row * s.gridCols + n.col;
 }
+
+// ---------------------------------------------------------------------------
+// Multi-hop (routed K-hop unicast) generalisation of the neighbor resolvers.
+//
+// Scheme A: a K-hop *unicast* push keeps the receiver's per-direction slot/flag
+// state at fan-in 1, so distance enters only the *target rank* (and the
+// doorbell reach), never the buffer count.  A K-hop push is therefore the
+// 1-hop expansion with "+1/-1" replaced by "+K/-K"; nothing in the GridPipe
+// window layout changes.  The GridKHopSelfCheck() static_assert below pins
+// k == 1 to the existing CanPush/NeighborRankForPush/CanPop/NeighborRankForPop
+// behaviour so the default-distance (= 1) path stays byte-identical.
+//
+// Precondition (caller's responsibility): within one direction and phase, at
+// most one (source, distance) pair targets a given receiver, i.e. fan-in <= 1.
+// Concurrent multi-source receive (gather/multicast) is out of scope here and
+// needs the fan-in-indexed channel layout (Scheme B).
+// ---------------------------------------------------------------------------
+AICORE constexpr bool CanPushK(GridDirection dir, GridCoord c, GridShape s, int k)
+{
+    switch (dir) {
+        case GridDirection::NORTH:
+            return c.row - k >= 0;
+        case GridDirection::EAST:
+            return c.col + k < s.gridCols;
+        case GridDirection::WEST:
+            return c.col - k >= 0;
+        case GridDirection::SOUTH:
+            return c.row + k < s.gridRows;
+        case GridDirection::SOURCE:
+            return false; // Never legal to push to SOURCE.
+    }
+    return false;
+}
+
+AICORE constexpr GridCoord NeighborForPushK(GridDirection dir, GridCoord c, int k)
+{
+    switch (dir) {
+        case GridDirection::NORTH:
+            return {c.row - k, c.col};
+        case GridDirection::EAST:
+            return {c.row, c.col + k};
+        case GridDirection::WEST:
+            return {c.row, c.col - k};
+        case GridDirection::SOUTH:
+            return {c.row + k, c.col};
+        case GridDirection::SOURCE:
+            return c; // Unused; TPUSH<SOURCE> is blocked by static_assert.
+    }
+    return c;
+}
+
+AICORE constexpr int RankForPushK(GridDirection dir, GridCoord c, GridShape s, int k)
+{
+    if (!CanPushK(dir, c, s, k)) {
+        return kInvalidRank;
+    }
+    GridCoord n = NeighborForPushK(dir, c, k);
+    return n.row * s.gridCols + n.col;
+}
+
+// Consumer side: the producer that fed a `dir` channel sits k hops in the
+// *opposite* direction (an EAST channel is fed from the WEST, etc).  Used by
+// TPOP to route the free-credit doorbell back to the K-hop producer.
+AICORE constexpr bool CanPopK(GridDirection dir, GridCoord c, GridShape s, int k)
+{
+    switch (dir) {
+        case GridDirection::NORTH:
+            return c.row + k < s.gridRows; // upstream to the south
+        case GridDirection::EAST:
+            return c.col - k >= 0;         // upstream to the west
+        case GridDirection::WEST:
+            return c.col + k < s.gridCols; // upstream to the east
+        case GridDirection::SOUTH:
+            return c.row - k >= 0;         // upstream to the north
+        case GridDirection::SOURCE:
+            return true;                   // SOURCE pop is bound to the runtime queue, distance-free.
+    }
+    return false;
+}
+
+AICORE constexpr GridCoord NeighborForPopK(GridDirection dir, GridCoord c, int k)
+{
+    switch (dir) {
+        case GridDirection::NORTH:
+            return {c.row + k, c.col};
+        case GridDirection::EAST:
+            return {c.row, c.col - k};
+        case GridDirection::WEST:
+            return {c.row, c.col + k};
+        case GridDirection::SOUTH:
+            return {c.row - k, c.col};
+        case GridDirection::SOURCE:
+            return c; // Bound by runtime to source queue.
+    }
+    return c;
+}
+
+AICORE constexpr int RankForPopK(GridDirection dir, GridCoord c, GridShape s, int k)
+{
+    if (!CanPopK(dir, c, s, k)) {
+        return kInvalidRank;
+    }
+    GridCoord n = NeighborForPopK(dir, c, k);
+    return n.row * s.gridCols + n.col;
+}
+
+// Compile-time pin: the K-hop resolvers must collapse to the 1-hop neighbor
+// resolvers at k == 1, so existing TPUSH<DIR>/TPOP<DIR> behaviour (Dist == 1)
+// is preserved bit-for-bit.  A representative 2-hop case is also checked.
+AICORE constexpr bool GridKHopSelfCheck()
+{
+    GridShape s{4, 4};
+    GridCoord c{2, 2};
+    bool ok = true;
+    // k == 1 reproduces the 1-hop resolvers for every real direction.
+    ok = ok && (CanPushK(GridDirection::NORTH, c, s, 1) == CanPush(GridDirection::NORTH, c, s));
+    ok = ok && (CanPushK(GridDirection::EAST, c, s, 1) == CanPush(GridDirection::EAST, c, s));
+    ok = ok && (CanPushK(GridDirection::WEST, c, s, 1) == CanPush(GridDirection::WEST, c, s));
+    ok = ok && (CanPushK(GridDirection::SOUTH, c, s, 1) == CanPush(GridDirection::SOUTH, c, s));
+    ok = ok && (RankForPushK(GridDirection::NORTH, c, s, 1) == NeighborRankForPush(GridDirection::NORTH, c, s));
+    ok = ok && (RankForPushK(GridDirection::EAST, c, s, 1) == NeighborRankForPush(GridDirection::EAST, c, s));
+    ok = ok && (RankForPushK(GridDirection::WEST, c, s, 1) == NeighborRankForPush(GridDirection::WEST, c, s));
+    ok = ok && (RankForPushK(GridDirection::SOUTH, c, s, 1) == NeighborRankForPush(GridDirection::SOUTH, c, s));
+    ok = ok && (CanPopK(GridDirection::NORTH, c, s, 1) == CanPop(GridDirection::NORTH, c, s));
+    ok = ok && (CanPopK(GridDirection::EAST, c, s, 1) == CanPop(GridDirection::EAST, c, s));
+    ok = ok && (CanPopK(GridDirection::WEST, c, s, 1) == CanPop(GridDirection::WEST, c, s));
+    ok = ok && (CanPopK(GridDirection::SOUTH, c, s, 1) == CanPop(GridDirection::SOUTH, c, s));
+    ok = ok && (RankForPopK(GridDirection::NORTH, c, s, 1) == NeighborRankForPop(GridDirection::NORTH, c, s));
+    ok = ok && (RankForPopK(GridDirection::EAST, c, s, 1) == NeighborRankForPop(GridDirection::EAST, c, s));
+    ok = ok && (RankForPopK(GridDirection::WEST, c, s, 1) == NeighborRankForPop(GridDirection::WEST, c, s));
+    ok = ok && (RankForPopK(GridDirection::SOUTH, c, s, 1) == NeighborRankForPop(GridDirection::SOUTH, c, s));
+    // Representative 2-hop case on a 1x4 row: col0 --EAST,2--> col2, popped at col2.
+    GridShape row{1, 4};
+    ok = ok && CanPushK(GridDirection::EAST, GridCoord{0, 0}, row, 2);
+    ok = ok && (RankForPushK(GridDirection::EAST, GridCoord{0, 0}, row, 2) == 2);
+    ok = ok && !CanPushK(GridDirection::EAST, GridCoord{0, 2}, row, 2); // 2+2 == 4 out of range
+    ok = ok && CanPopK(GridDirection::EAST, GridCoord{0, 2}, row, 2);
+    ok = ok && (RankForPopK(GridDirection::EAST, GridCoord{0, 2}, row, 2) == 0);
+    return ok;
+}
+static_assert(GridKHopSelfCheck(), "GridPipe K-hop resolver self-test failed");
 
 } // namespace pto
 

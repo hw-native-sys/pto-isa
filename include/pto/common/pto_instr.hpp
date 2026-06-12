@@ -2262,16 +2262,18 @@ PTO_INST RecordEvent TGET_SCALE_ADDR(TileDataOut &dst, TileDataIn &src, WaitEven
 // at lowering time.
 // ---------------------------------------------------------------------------
 
-template <pto::GridDirection Direction, typename Pipe, typename TileProd,
+template <pto::GridDirection Direction, int Dist = 1, typename Pipe, typename TileProd,
           std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0, typename... WaitEvents>
 PTO_INST RecordEvent TPUSH(Pipe &pipe, TileProd &tile, WaitEvents &...events)
 {
     static_assert(Direction != pto::GridDirection::SOURCE,
                   "GridPipe TPUSH<SOURCE> is illegal (design doc section 4.3): "
                   "SOURCE is only valid for TPOP.");
+    // Dist is the routed-unicast hop count; Dist == 1 (default) is the original
+    // nearest-neighbor push.  TPUSH<EAST, 2>(pipe, tile) pushes 2 hops east.
 #if defined(PTO_NPU_ARCH_A2A3)
     TSYNC(events...);
-    GRID_TPUSH_IMPL<Direction, Pipe, TileProd>(pipe, tile);
+    GRID_TPUSH_IMPL<Direction, Dist, Pipe, TileProd>(pipe, tile);
 #else
     static_assert(sizeof(Pipe) == 0,
                   "GridPipe TPUSH not supported on this target profile "
@@ -2280,16 +2282,47 @@ PTO_INST RecordEvent TPUSH(Pipe &pipe, TileProd &tile, WaitEvents &...events)
     return {};
 }
 
-template <pto::GridDirection Direction, typename Pipe, typename TileCons,
+template <pto::GridDirection Direction, int Dist = 1, typename Pipe, typename TileCons,
           std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0, typename... WaitEvents>
 PTO_INST RecordEvent TPOP(Pipe &pipe, TileCons &tile, WaitEvents &...events)
 {
+    // Dist must match the producer's TPUSH distance for this logical edge so the
+    // free-credit doorbell routes back to the K-hop producer; Dist == 1 default.
 #if defined(PTO_NPU_ARCH_A2A3)
     TSYNC(events...);
-    GRID_TPOP_IMPL<Direction, Pipe, TileCons>(pipe, tile);
+    GRID_TPOP_IMPL<Direction, Dist, Pipe, TileCons>(pipe, tile);
 #else
     static_assert(sizeof(Pipe) == 0,
                   "GridPipe TPOP not supported on this target profile "
+                  "(design doc section 5.4 forbids silent GM fallback).");
+#endif
+    return {};
+}
+
+// ---------------------------------------------------------------------------
+// GridPipe TPUSH broadcast overload: single-source row/column multicast.  This
+// is the SAME verb as the unicast TPUSH above, distinguished purely by the type
+// of the first explicit template argument -- a GridSpan (ROW/COL) selects this
+// overload, a GridDirection selects the unicast one.  The two scoped enums never
+// interconvert, so overload resolution is unambiguous and folds at compile time.
+//
+// One source fans `tile` to every other cell on its row (GridSpan::ROW) or
+// column (GridSpan::COL) in a single op -- a true multicast with ONE publish
+// fence, not a per-hop TPUSH<Dir, k> loop (see GRID_TRY_TPUSH_BCAST_IMPL).
+// Fan-in stays 1, so receivers drain it with the ordinary TPOP<EAST/WEST, dist>
+// (ROW) or TPOP<NORTH/SOUTH, dist> (COL).  There is no Dist parameter: a span
+// always fans to the grid boundary on both of its arms.
+// ---------------------------------------------------------------------------
+template <pto::GridSpan Span, typename Pipe, typename TileProd, std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0,
+          typename... WaitEvents>
+PTO_INST RecordEvent TPUSH(Pipe &pipe, TileProd &tile, WaitEvents &...events)
+{
+#if defined(PTO_NPU_ARCH_A2A3)
+    TSYNC(events...);
+    GRID_TPUSH_BCAST_IMPL<Span, Pipe, TileProd>(pipe, tile);
+#else
+    static_assert(sizeof(Pipe) == 0,
+                  "GridPipe TPUSH<GridSpan> broadcast not supported on this target profile "
                   "(design doc section 5.4 forbids silent GM fallback).");
 #endif
     return {};

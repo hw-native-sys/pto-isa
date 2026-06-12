@@ -41,11 +41,88 @@ struct NeighborSramOperand {
     __gm__ void *runtimeCtx = nullptr;
 };
 
+// ---------------------------------------------------------------------------
+// GmSramArena: explicit GM address-segment model of future-hardware per-core
+// SRAM.
+//
+// Real silicon gives every core a private on-chip SRAM that the NoC fabric can
+// only *write* into from a neighbor (TPUSH = cross-hop write), never *read* out
+// of remotely (TPOP only drains the local core's own SRAM).  Until that
+// hardware exists we model the SRAM as a contiguous GM arena cut into equal,
+// per-core address segments.  Core `c` owns segment `c`:
+//
+//   [base + c*segBytes, base + (c+1)*segBytes)
+//
+// The NoC contract this encodes:
+//   * a core may WRITE across segments  (TPUSH pushes into a neighbor segment),
+//   * a core may only READ its own segment (TPOP pops from local SRAM).
+//
+// The arena is the single source of truth for "which core owns this address",
+// so the mock TPOP path can reject a cross-segment read instead of silently
+// servicing it through the GM-backed fake window (which physically *can* read
+// any address, unlike the fabric it stands in for).
+struct GmSramArena {
+    uint64_t base = 0;     // segment 0 base == contiguous arena base
+    uint64_t segBytes = 0; // bytes per per-core segment (== HCCL winSize in the demo)
+    uint32_t numSegs = 0;  // number of cores / segments
+
+    AICORE constexpr uint64_t SegmentBase(int seg) const
+    {
+        return base + static_cast<uint64_t>(seg) * segBytes;
+    }
+
+    // Index of the segment that owns `addr`, or -1 if `addr` is outside the arena.
+    AICORE constexpr int SegmentOf(uint64_t addr) const
+    {
+        if (numSegs == 0 || segBytes == 0 || addr < base) {
+            return -1;
+        }
+        uint64_t idx = (addr - base) / segBytes;
+        return idx < numSegs ? static_cast<int>(idx) : -1;
+    }
+
+    // True iff [addr, addr+bytes) lies entirely within segment `seg`.  This is
+    // exactly the "may core `seg` read this slot?" test used by the TPOP guard.
+    AICORE constexpr bool InSegment(int seg, uint64_t addr, uint64_t bytes) const
+    {
+        if (seg < 0 || static_cast<uint32_t>(seg) >= numSegs) {
+            return false;
+        }
+        uint64_t lo = SegmentBase(seg);
+        uint64_t hi = lo + segBytes;
+        return addr >= lo && (addr + bytes) <= hi && (addr + bytes) >= addr; // last term traps wrap-around
+    }
+};
+
+// Compile-time self-test of the segment classifier.  It is built into every
+// A2/A3 kernel that pulls in this header (GridTPush.hpp -> pto_instr_impl.hpp),
+// so a regression in the segment math fails the build rather than silently
+// mis-routing a TPOP.  It also doubles as executable documentation of the rule.
+AICORE constexpr bool GmSramArenaSelfCheck()
+{
+    GmSramArena arena{0x1000, 0x100, 4};          // 4 cores, 0x100-byte segments, based at 0x1000
+    bool ok = true;
+    ok = ok && (arena.SegmentOf(0x1000) == 0);    // first byte of core 0
+    ok = ok && (arena.SegmentOf(0x11FF) == 1);    // last byte of core 1
+    ok = ok && (arena.SegmentOf(0x1200) == 2);    // first byte of core 2
+    ok = ok && (arena.SegmentOf(0x0FFF) == -1);   // below the arena
+    ok = ok && (arena.SegmentOf(0x1400) == -1);   // past the arena ([0x1000,0x1400))
+    ok = ok && arena.InSegment(1, 0x1100, 0x40);  // wholly inside core 1 -> local
+    ok = ok && !arena.InSegment(1, 0x11F0, 0x40); // spills past core 1 -> not local
+    ok = ok && !arena.InSegment(1, 0x1200, 0x10); // core 1 reading core 2 -> not local
+    return ok;
+}
+static_assert(GmSramArenaSelfCheck(), "GmSramArena segment classifier self-test failed");
+
 namespace grid_sram_mock {
 
 AICORE uint64_t MockGetNeighborSramAddr(__gm__ void *runtimeCtx, uint64_t localSramAddr, int32_t peerRank);
 AICORE void MockCopySramToNeighborSram(neighbor_sram_addr dst, neighbor_sram_addr src, uint32_t bytes, uint64_t config);
 AICORE void MockCopyNeighborSramToSram(neighbor_sram_addr dst, neighbor_sram_addr src, uint32_t bytes, uint64_t config);
+// Read-locality predicate for the TPOP guard.  Returns true iff
+// [slotAddr, slotAddr+bytes) lies inside callerRank's own GmSramArena segment.
+// The demo owns the definition because it knows the runtime window layout.
+AICORE bool MockSramPopIsLocal(__gm__ void *runtimeCtx, uint64_t slotAddr, uint32_t bytes, int32_t callerRank);
 
 } // namespace grid_sram_mock
 
@@ -92,6 +169,30 @@ AICORE inline void copy_neighbor_sram_to_sram(neighbor_sram_addr dst, neighbor_s
 #else
     // Keep TPOP visible as intrinsic-style SRAM transfer in the A2/A3 mock.
     grid_sram_mock::MockCopyNeighborSramToSram(dst, src, bytes, config);
+#endif
+}
+
+// TPOP read-locality guard.  Returns true iff `slot` is the calling core's own
+// SRAM segment, i.e. the read is legal under the NoC "TPOP only pops local
+// SRAM" rule.
+//
+// Native hardware physically cannot read a neighbor's SRAM (the fabric has no
+// remote-read path), so the read address is always local by construction and
+// the native lowering is a no-op that returns true.  The A2/A3 mock backs SRAM
+// with a GM-mapped fake window that *can* be read at any address, so we must
+// check explicitly: the mock validates `slot` against callerRank's GmSramArena
+// segment and reports a cross-segment read instead of silently servicing it.
+AICORE inline bool sram_pop_is_local(neighbor_sram_addr slot, uint32_t bytes, int32_t callerRank,
+                                     NeighborSramOperand operand = {})
+{
+#if defined(PTO_GRID_SRAM_NATIVE_INTRINSIC)
+    (void)slot;
+    (void)bytes;
+    (void)callerRank;
+    (void)operand;
+    return true;
+#else
+    return grid_sram_mock::MockSramPopIsLocal(operand.runtimeCtx, slot.value, bytes, callerRank);
 #endif
 }
 
