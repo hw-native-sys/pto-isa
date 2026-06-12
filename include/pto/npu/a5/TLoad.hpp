@@ -210,7 +210,8 @@ PTO_INTERNAL void TLoadMxCubeADN2ZZ(__cbuf__ typename TileData::DType *dst, type
     uint64_t mte2NzPara = static_cast<uint64_t>(0) << 48 | static_cast<uint64_t>(loop3DstStride) << 32;
     mte2NzPara |= static_cast<uint64_t>(1) << 16 | static_cast<uint64_t>(1);
     set_mte2_nz_para(mte2NzPara); // only set once
-    Op::TLoadCubeInstr(dst, src, loop1SrcStride, nValue, dValue, 0);
+    Op::TLoadCubeInstr(reinterpret_cast<__cbuf__ uint16_t *>(dst), reinterpret_cast<__gm__ uint16_t *>(src),
+                       loop1SrcStride, nValue, dValue, 0);
 }
 
 template <typename Op, typename TileData, typename GlobalData>
@@ -230,7 +231,8 @@ PTO_INTERNAL void TLoadMxCubeBND2NN(__cbuf__ typename TileData::DType *dst, type
     mte2NzPara |= static_cast<uint64_t>(1) << 16 | static_cast<uint64_t>(1);
     set_mte2_nz_para(mte2NzPara); // only set once
 
-    Op::TLoadCubeInstr(dst, src, loop1SrcStride, nValue, dValue, 0);
+    Op::TLoadCubeInstr(reinterpret_cast<__cbuf__ uint16_t *>(dst), reinterpret_cast<__gm__ uint16_t *>(src),
+                       loop1SrcStride, nValue, dValue, 0);
 }
 
 template <typename Op, typename TileData, typename GlobalData>

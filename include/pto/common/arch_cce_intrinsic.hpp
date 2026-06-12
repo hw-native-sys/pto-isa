@@ -210,6 +210,20 @@ PTO_INTERNAL void pto_copy_gm_to_cbuf_align_v2(__cbuf__ T *dst, __gm__ T *src, u
 }
 #endif
 
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRIN9030)
+template <typename T>
+PTO_INTERNAL void pto_copy_ubuf_to_gm_align_v2(__gm__ T *dst, __ubuf__ T *src, uint8_t sid, uint32_t nBurst,
+                                               uint32_t lenBurst, uint8_t l2CacheCtl, uint64_t burstDstStride,
+                                               uint32_t burstSrcStride)
+{
+#if defined(PTO_NPU_ARCH_A5)
+    copy_ubuf_to_gm_align_v2(dst, src, sid, nBurst, lenBurst, l2CacheCtl, burstDstStride, burstSrcStride);
+#elif defined(PTO_NPU_ARCH_KIRIN9030)
+    copy_ubuf_to_gm_align_v2(dst, src, sid, nBurst, lenBurst, burstDstStride, burstSrcStride);
+#endif
+}
+#endif
+
 } // namespace pto
 
 #endif // __CPU_SIM

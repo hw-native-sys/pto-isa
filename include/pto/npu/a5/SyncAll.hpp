@@ -143,8 +143,8 @@ PTO_INTERNAL void SYNCALL_SOFT_AIV_PROXY_WRITE(__gm__ int32_t *dst, __ubuf__ int
 {
     wait_intra_block(PIPE_S, SYNC_PROXY_WRITE_REQ);
     pipe_barrier(PIPE_ALL);
-    copy_ubuf_to_gm_align_v2(static_cast<__gm__ void *>(dst), static_cast<__ubuf__ void *>(ubWorkspace), 0, 1, 1, 0, 0,
-                             0);
+    pto_copy_ubuf_to_gm_align_v2(static_cast<__gm__ void *>(dst), static_cast<__ubuf__ void *>(ubWorkspace), 0, 1, 1, 0,
+                                 0, 0);
     pipe_barrier(PIPE_ALL);
     SYNCALL_SOFT_DCCI(static_cast<__gm__ void *>(dst));
     dsb(DSB_DDR);
@@ -166,8 +166,8 @@ PTO_INTERNAL int32_t SYNCALL_SOFT_AIV_WRITE_SLOT(__gm__ int32_t *localSyncGM, __
 
     set_flag(PIPE_S, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_S, PIPE_MTE3, EVENT_ID0);
-    copy_ubuf_to_gm_align_v2(static_cast<__gm__ void *>(localSyncGM), static_cast<__ubuf__ void *>(ubWorkspace), 0, 1,
-                             1, 0, 0, 0);
+    pto_copy_ubuf_to_gm_align_v2(static_cast<__gm__ void *>(localSyncGM), static_cast<__ubuf__ void *>(ubWorkspace), 0,
+                                 1, 1, 0, 0, 0);
     set_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
     wait_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
     SYNCALL_SOFT_DCCI(static_cast<__gm__ void *>(localSyncGM));
