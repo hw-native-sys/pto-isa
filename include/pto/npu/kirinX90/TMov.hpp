@@ -14,6 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/kirinX90/TExtract.hpp"
 
 namespace pto {
+
 template <typename DstTileData, typename SrcTileData>
 __tf__ AICORE void TMovToBt(typename DstTileData::TileDType __out__ dst, typename SrcTileData::TileDType __in__ src)
 {
@@ -73,26 +74,22 @@ __tf__ PTO_INTERNAL void TMovToVecImpl(typename DstTileData::TileDType __out__ d
     __ubuf__ U *dstPtr = (__ubuf__ U *)__cce_get_tile_ptr(dst);
 
     static_assert(sizeof(T) == sizeof(U), "TMOV: src and dst data type is different!");
-    if constexpr (DstTileData::Cols == SrcTileData::Cols || DstTileData::Rows == 1) {
-        unsigned blockLen = (DstTileData::Cols * validRow * sizeof(T) + BLOCK_BYTE_SIZE - 1) / BLOCK_BYTE_SIZE;
-        if constexpr (DstTileData::Cols == DstTileData::ValidCol) {
-            pto_copy_ubuf_to_ubuf(dstPtr, srcPtr, 1, blockLen, 0, 0);
-        } else {
-            if (DstTileData::Cols == validCol) {
-                pto_copy_ubuf_to_ubuf(dstPtr, srcPtr, 1, blockLen, 0, 0);
-            } else {
-                blockLen = (validCol * sizeof(T) + BLOCK_BYTE_SIZE - 1) / BLOCK_BYTE_SIZE;
-                for (int i = 0; i < validRow; i++) {
-                    pto_copy_ubuf_to_ubuf(dstPtr + i * dstStride, srcPtr + i * srcStride, 1, blockLen, 0, 0);
-                }
+    constexpr unsigned nRepeatElem = CCE_VL / sizeof(T);
+    __VEC_SCOPE__
+    {
+        RegTensor<T> vreg0;
+        MaskReg pReg;
+        uint32_t sreg;
+        uint16_t repeatTimes = CeilDivision(validCol, nRepeatElem);
+        constexpr auto distValue =
+            std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
+        for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
+            sreg = (uint32_t)validCol;
+            for (uint16_t j = 0; j < (uint16_t)repeatTimes; ++j) {
+                pReg = CreatePredicate<T>(sreg);
+                vlds(vreg0, srcPtr, i * SrcTileData::RowStride + j * nRepeatElem, NORM);
+                vsts(vreg0, dstPtr, i * DstTileData::RowStride + j * nRepeatElem, distValue, pReg);
             }
-        }
-    } else {
-        unsigned blockLen = CeilDivision(validCol * sizeof(T), BLOCK_BYTE_SIZE);
-        unsigned srcGap = SrcTileData::Cols * sizeof(T) / BLOCK_BYTE_SIZE - blockLen;
-        unsigned dstGap = DstTileData::Cols * sizeof(T) / BLOCK_BYTE_SIZE - blockLen;
-        for (int i = 0; i < validRow; i++) {
-            pto_copy_ubuf_to_ubuf(dstPtr + i * dstStride, srcPtr + i * srcStride, 1, blockLen, srcGap, dstGap);
         }
     }
 }
@@ -156,7 +153,7 @@ __tf__ PTO_INTERNAL void TMovToVecNd2Nz(typename DstTile::TileDType __out__ dst,
             vsstb(vreg, dstPtr, cfgVsstbLast, preg, POST_UPDATE);
             srcPtr -= srcOffset;
         }
-    } // end of VF
+    }
 }
 
 template <typename T, typename DstTile, typename SrcTile>
@@ -203,80 +200,14 @@ __tf__ PTO_INTERNAL void TMovToVecNd2Zz(typename DstTile::TileDType __out__ dst,
                 }
             }
         }
-    } // end of VF
-}
-
-template <typename DstTileData, typename SrcTileData, QuantMode_t QuantPre, ReluPreMode reluMode>
-__tf__ AICORE void TMovCcToCb(typename DstTileData::TileDType __out__ dst, typename SrcTileData::TileDType __in__ src,
-                              uint16_t validRow, uint16_t validCol)
-{
-    using SrcType = typename SrcTileData::DType;
-    using DstType = typename DstTileData::DType;
-    constexpr int32_t c0Size = BLOCK_BYTE_SIZE / sizeof(DstType);
-    __cc__ SrcType *srcAddr = (__cc__ SrcType *)__cce_get_tile_ptr(src);
-    __cbuf__ DstType *dstAddr = (__cbuf__ DstType *)__cce_get_tile_ptr(dst);
-
-    constexpr uint32_t dstStride_dst_D = DstTileData::Rows;
-    constexpr uint16_t srcStride = SrcTileData::Rows;
-    validCol = CeilDivision(validCol, c0Size) * c0Size;
-    copy_matrix_cc_to_cbuf(dstAddr, srcAddr, 0, validCol, SrcTileData::Rows, dstStride_dst_D, srcStride, 0, QuantPre,
-                           reluMode, false, false);
-}
-
-template <typename DstTileData, typename SrcTileData>
-PTO_INTERNAL void TMovToLeft(DstTileData &dst, SrcTileData &src)
-{
-    if constexpr (SrcTileData::Rows == 1 && SrcTileData::isRowMajor) {
-        TExtractToAVector<DstTileData, SrcTileData>(dst.data(), src.data(), 0, 0, dst.GetValidCol());
-    } else if constexpr (DstTileData::SFractal == SrcTileData::SFractal) {
-        if constexpr (DstTileData::Compact == CompactMode::Normal) {
-            TExtractToACompact<DstTileData, SrcTileData, false>(dst.data(), src.data(), 0, 0, dst.GetValidRow(),
-                                                                dst.GetValidCol(), dst.GetKAligned());
-        } else {
-            TExtractToA<DstTileData, SrcTileData, false>(dst.data(), src.data(), 0, 0);
-        }
-    } else {
-        if constexpr (DstTileData::Compact == CompactMode::Normal || sizeof(typename SrcTileData::DType) == 1) {
-            TExtractToACompact<DstTileData, SrcTileData, true>(dst.data(), src.data(), 0, 0, dst.GetValidRow(),
-                                                               dst.GetValidCol(), dst.GetKAligned());
-        } else {
-            TExtractToA<DstTileData, SrcTileData, true>(dst.data(), src.data(), 0, 0);
-        }
     }
 }
 
-template <typename DstTileData, typename SrcTileData>
-PTO_INTERNAL void TMovToRight(DstTileData &dst, SrcTileData &src)
-{
-    if constexpr (DstTileData::SFractal == SrcTileData::SFractal) {
-        if constexpr (DstTileData::Compact == CompactMode::Normal) {
-            TExtractToBCompact<DstTileData, SrcTileData, false>(dst.data(), src.data(), 0, 0, dst.GetValidRow(),
-                                                                dst.GetValidCol());
-        } else {
-            TExtractToB<DstTileData, SrcTileData, false>(dst.data(), src.data(), 0, 0);
-        }
-    } else {
-        if constexpr (DstTileData::Compact == CompactMode::Normal || sizeof(typename SrcTileData::DType) == 1) {
-            TExtractToBCompact<DstTileData, SrcTileData, true>(dst.data(), src.data(), 0, 0, dst.GetValidRow(),
-                                                               dst.GetValidCol());
-        } else {
-            TExtractToB<DstTileData, SrcTileData, true>(dst.data(), src.data(), 0, 0);
-        }
-    }
-}
-template <typename DstTileData, typename SrcTileData>
-PTO_INTERNAL void TMOV_CONVTILE_IMPL(DstTileData &dst, SrcTileData &src)
-{
-    if constexpr (SrcTileData::layout == pto::Layout::FRACTAL_Z) { // C1HWNC0, dst dim4 is c0Size
-        TExtractToBConv<DstTileData, SrcTileData>(dst.data(), src.data(), src.GetShape(3), dst.GetValidRow(),
-                                                  dst.GetValidCol(), 0, 0);
-    }
-}
+#include "pto/common/arch/memory/tmov_common.hpp"
+
 template <typename DstTileData, typename SrcTileData>
 PTO_INTERNAL void TMOV_TILE_IMPL(DstTileData &dst, SrcTileData &src)
 {
-    static_assert((SrcTileData::Rows == DstTileData::Rows) && ((SrcTileData::Cols == DstTileData::Cols)),
-                  "TMov: The shape of src needs to be the same as that of dst.");
     static_assert((SrcTileData::Loc == TileType::Mat &&
                    (DstTileData::Loc == TileType::Left || DstTileData::Loc == TileType::Right ||
                     DstTileData::Loc == TileType::Bias || DstTileData::Loc == TileType::Scaling)) ||
@@ -284,48 +215,55 @@ PTO_INTERNAL void TMOV_TILE_IMPL(DstTileData &dst, SrcTileData &src)
                       (DstTileData::Loc == TileType::Mat && SrcTileData::Loc == TileType::Vec) ||
                       (DstTileData::Loc == TileType::Mat && SrcTileData::Loc == TileType::Acc),
                   "TMov: Invalid TileType.");
-    if constexpr (SrcTileData::Loc == TileType::Mat && DstTileData::Loc == TileType::Left) {
-        TMovToLeft<DstTileData, SrcTileData>(dst, src);
-    } else if constexpr (SrcTileData::Loc == TileType::Mat && DstTileData::Loc == TileType::Right) {
-        TMovToRight<DstTileData, SrcTileData>(dst, src);
-    } else if constexpr (SrcTileData::Loc == TileType::Mat && DstTileData::Loc == TileType::Bias) {
-        TMovToBt<DstTileData, SrcTileData>(dst.data(), src.data());
-    } else if constexpr (SrcTileData::Loc == TileType::Mat && DstTileData::Loc == TileType::Scaling) {
-        TMovToFb<DstTileData, SrcTileData>(dst.data(), src.data());
-    } else if constexpr (SrcTileData::Loc == TileType::Vec && DstTileData::Loc == TileType::Vec) {
-        if constexpr ((SrcTileData::isRowMajor && (SrcTileData::SFractal == SLayout::NoneBox)) &&
-                      (!DstTileData::isRowMajor && (DstTileData::SFractal == SLayout::RowMajor))) {
-            TMovToVecNd2Nz<typename DstTileData::DType, DstTileData, SrcTileData>(
-                dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(), src.GetValidRow());
-        } else if constexpr ((SrcTileData::isRowMajor && SrcTileData::SFractal == SLayout::NoneBox) &&
-                             (DstTileData::isRowMajor && DstTileData::SFractal == SLayout::RowMajor)) {
-            TMovToVecNd2Zz<typename DstTileData::DType, DstTileData, SrcTileData>(
-                dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(), src.GetValidRow());
-        } else {
-            TMovToVec<DstTileData, SrcTileData>(dst, src);
+    if constexpr (SrcTileData::Loc == TileType::Mat) {
+        static_assert((SrcTileData::Rows == DstTileData::Rows) && ((SrcTileData::Cols == DstTileData::Cols)),
+                      "TMov: The shape of src needs to be the same as that of dst.");
+        if constexpr (DstTileData::Loc == TileType::Bias) {
+            TMovToBt<DstTileData, SrcTileData>(dst.data(), src.data());
+        } else if constexpr (DstTileData::Loc == TileType::Scaling) {
+            TMovToFb<DstTileData, SrcTileData>(dst.data(), src.data());
+        } else if constexpr (DstTileData::Loc == TileType::Left) {
+            TMovToLeft<DstTileData, SrcTileData>(dst, src);
+        } else if constexpr (DstTileData::Loc == TileType::Right) {
+            TMovToRight<DstTileData, SrcTileData>(dst, src);
         }
-    } else if constexpr (SrcTileData::Loc == TileType::Vec && DstTileData::Loc == TileType::Mat) {
-        if constexpr ((SrcTileData::isRowMajor && SrcTileData::SFractal == SLayout::NoneBox) &&
-                      (DstTileData::isRowMajor && DstTileData::SFractal == SLayout::NoneBox)) {
-            TExtractVecToMat<DstTileData, SrcTileData>(dst.data(), src.data(), 0, 0, src.GetValidRow(),
-                                                       src.GetValidCol(), dst.GetValidRow(), dst.GetValidCol());
-        } else if constexpr ((SrcTileData::isRowMajor && SrcTileData::SFractal == SLayout::RowMajor) &&
-                             (DstTileData::isRowMajor && DstTileData::SFractal == SLayout::RowMajor)) {
-            TExtractVecToMat<DstTileData, SrcTileData>(dst.data(), src.data(), 0, 0, src.GetValidRow(),
-                                                       src.GetValidCol(), dst.GetValidRow(), dst.GetValidCol());
-        } else {
-            static_assert(sizeof(typename DstTileData::DType) == 0,
-                          "TMov Vec->Mat: Only support ND->ND or ZZ->ZZ on kirinX90.");
-        }
-    } else if constexpr (SrcTileData::Loc == TileType::Acc && DstTileData::Loc == TileType::Mat) {
+    } else if constexpr (SrcTileData::Loc == TileType::Acc) {
         CheckTMovAccToMat<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, true>();
         uint16_t m = src.GetValidRow();
         uint16_t n = src.GetValidCol();
         constexpr QuantMode_t quantPre =
             GetCastPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
         TMovCcToCb<DstTileData, SrcTileData, quantPre, ReluPreMode::NoRelu>(dst.data(), src.data(), m, n);
+    } else if constexpr (SrcTileData::Loc == TileType::Vec) {
+        if constexpr (DstTileData::Loc == TileType::Vec) {
+            if constexpr ((SrcTileData::isRowMajor && (SrcTileData::SFractal == SLayout::NoneBox)) &&
+                          (!DstTileData::isRowMajor && (DstTileData::SFractal == SLayout::RowMajor))) {
+                TMovToVecNd2Nz<typename DstTileData::DType, DstTileData, SrcTileData>(
+                    dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(), src.GetValidRow());
+            } else if constexpr ((SrcTileData::isRowMajor && SrcTileData::SFractal == SLayout::NoneBox) &&
+                                 (DstTileData::isRowMajor && DstTileData::SFractal == SLayout::RowMajor)) {
+                TMovToVecNd2Zz<typename DstTileData::DType, DstTileData, SrcTileData>(
+                    dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(), src.GetValidRow());
+            } else {
+                TMovToVec<DstTileData, SrcTileData>(dst, src);
+            }
+        } else if constexpr (DstTileData::Loc == TileType::Mat) {
+            if constexpr ((SrcTileData::isRowMajor && SrcTileData::SFractal == SLayout::NoneBox) &&
+                          (DstTileData::isRowMajor && DstTileData::SFractal == SLayout::NoneBox)) {
+                TExtractVecToMat<DstTileData, SrcTileData>(dst.data(), src.data(), 0, 0, src.GetValidRow(),
+                                                           src.GetValidCol(), dst.GetValidRow(), dst.GetValidCol());
+            } else if constexpr ((SrcTileData::isRowMajor && SrcTileData::SFractal == SLayout::RowMajor) &&
+                                 (DstTileData::isRowMajor && DstTileData::SFractal == SLayout::RowMajor)) {
+                TExtractVecToMat<DstTileData, SrcTileData>(dst.data(), src.data(), 0, 0, src.GetValidRow(),
+                                                           src.GetValidCol(), dst.GetValidRow(), dst.GetValidCol());
+            } else {
+                static_assert(sizeof(typename DstTileData::DType) == 0,
+                              "TMov Vec->Mat: Only support ND->ND or ZZ->ZZ on kirinX90.");
+            }
+        }
     }
 }
+
 template <typename DstTileData, typename SrcTileData>
 PTO_INTERNAL void TMOV_IMPL(DstTileData &dst, SrcTileData &src)
 {
@@ -359,15 +297,6 @@ PTO_INTERNAL void TMOV_IMPL(DstTileData &dst, SrcTileData &src, uint64_t preQuan
 }
 
 // vector quant
-template <typename FpTileData>
-__tf__ PTO_INTERNAL void SetFPC(typename FpTileData::TileDType __in__ fp)
-{
-    __fbuf__ typename FpTileData::DType *dstAddrFp = (__fbuf__ typename FpTileData::DType *)__cce_get_tile_ptr(fp);
-    uint64_t deqTensorAddr = ((uint64_t)dstAddrFp >> static_cast<uint64_t>(7))
-                             << 8; // fpc[15:8] means Quant_PRE_ADDR, uint of 128(2^7)bytes
-    set_fpc(deqTensorAddr);
-}
-
 template <typename DstTileData, typename SrcTileData, typename FpTileData, ReluPreMode reluMode = ReluPreMode::NoRelu>
 PTO_INTERNAL void TMOV_IMPL(DstTileData &dst, SrcTileData &src, FpTileData &fp)
 {

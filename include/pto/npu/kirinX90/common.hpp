@@ -11,7 +11,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef COMMON_HPP_KIRINX90
 #define COMMON_HPP_KIRINX90
 #include "pto/npu/kirin9030/common.hpp"
-#include <pto/common/arch_capability.hpp>
 
 namespace pto {
 template <typename DstTileData, typename SrcTileData, typename DstType, typename SrcType, bool isCastQuant>
@@ -25,8 +24,6 @@ PTO_INTERNAL void CheckTMovAccToMat()
                   "Dst Tile Cols * sizeof(DstType) must be multiples of 32 and not 0.");
     static_assert((!SrcTileData::isRowMajor && SrcTileData::SFractal == SLayout::RowMajor),
                   "Src fractal format should be (BFractal: ColMajor, SFractal: RowMajor).");
-    static_assert((!DstTileData::isRowMajor && DstTileData::SFractal == SLayout::RowMajor),
-                  "Dst fractal format should be (BFractal: ColMajor, SFractal: RowMajor).");
     static_assert(std::is_same_v<SrcType, half> || std::is_same_v<SrcType, int32_t>,
                   "Src data type only support half or int32_t.");
     if constexpr (isCastQuant) {

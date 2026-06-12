@@ -62,10 +62,6 @@ void test_taxpy()
 
     file.read(reinterpret_cast<char *>(&scalar), 4);
     file.close();
-
-    aclrtMemset(dstHost, fileSize, 0, fileSize);
-
-    aclrtMemcpy(dstDevice, fileSize, dstHost, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src0Device, fileSize, src0Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(dstDevice, fileSize, dstHost, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     LaunchTAxpy<T, kTRows_, kTCols_, vRows, vCols>(dstDevice, src0Device, scalar, stream);
