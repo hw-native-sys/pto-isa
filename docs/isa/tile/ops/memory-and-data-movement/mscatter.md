@@ -19,7 +19,7 @@ Write behaviour is controlled by orthogonal template policies:
 
 Per-target dispatch summary:
 
-- **CPU Simulator** — pure C++ reference. The implementation walks `validRow * validCol` with a plain sequential `for` loop in row-major order and writes `table[idx[i, j]] = src[i, j]` (Elem semantics). When multiple sources map to the same destination, the last writer in row-major iteration order wins. No atomic mode is exposed at the intrinsic surface.
+- **CPU Simulator** — pure C++ reference. Templates on the same `Coalesce` / `ScatterAtomicOp` / `ScatterOOB` / `ScatterConflict` parameters as A5, with the same defaults (`Row`, `None`, `Undefined`, `Last`), so a non-templated `MSCATTER(dst, src, idx)` means `Coalesce::Row` on sim exactly as on hardware. Row mode walks rows sequentially and copies `src[r, :]` to `table[idx[r], :]`; Elem mode walks `validRow * validCol` in row-major order and writes `table[idx[i, j]] = src[i, j]`. Atomic modes run the equivalent sequential read-modify-write; the last writer in iteration order wins for `ScatterAtomicOp::None`.
 - **A2/A3 VEC-CORE** — single-threaded scalar / MTE3 walk driven from the scalar pipe. Row mode issues one wide `copy_ubuf_to_gm_align_b*` DMA per row through `tablePtr + safeIdx * tableRowStride` (where `tableRowStride = table.GetStride(DIM_3)` and `tableRows = ∏ Shape[0..3]`); Elem mode performs a scalar UB→GM store per element (DMA bursts cannot satisfy per-element UB-source 32-byte alignment). Supports ND-GM with ND-UB **and** NZ-GM with NZ-UB tile pairs. Always "last write wins" for `ScatterAtomicOp::None`.
 - **A5 SIMT** — SIMT launch through `cce::async_invoke` with up to `dim3{32, 32}` (1024 threads). Row mode uses warp-parallel lane writes that the SIMT hardware coalesces into 128 B GM bursts when consecutive; Elem mode maps one lane to one element with per-lane scalar GM stores. The Row kernel computes `dstRow = table + safeIdx * validCols`, so the GM table is treated as **packed ND with row stride = `validCols`** — `MScatterCheck` enforces `GlobalTable::staticShape[4] == TileSrc::ValidCol` at compile time, and `tableRows = Shape[3]`. `Conflict::Last` is implemented as a slot-centric reverse scan (`last_owner_find_*`) so the result is deterministic and race-free. NZ block-stride layouts are not implemented on A5. The `(1, 1)` Elem case bypasses the SIMT launch and runs `MScatterScalarImpl` on the AIV vector core.
 
@@ -120,11 +120,15 @@ Declared in `include/pto/common/pto_instr.hpp` (the shared dispatcher) and the p
 ### CPU Reference Form
 
 ```cpp
-template <typename GlobalData, typename TileSrc, typename TileInd, typename... WaitEvents>
+template <Coalesce         Mode     = Coalesce::Row,
+          ScatterAtomicOp  Atomic   = ScatterAtomicOp::None,
+          ScatterOOB       Oob      = ScatterOOB::Undefined,
+          ScatterConflict  Conflict = ScatterConflict::Last,
+          typename GlobalData, typename TileSrc, typename TileInd, typename... WaitEvents>
 PTO_INST RecordEvent MSCATTER(GlobalData &dst, TileSrc &src, TileInd &indexes, WaitEvents &... events);
 ```
 
-The CPU form has no `Coalesce`, `ScatterAtomicOp`, `ScatterOOB`, or `ScatterConflict` template parameter. The implementation always walks `validRow × validCol` and writes `dst.data()[indexes.data()[idxOff]] = src.data()[srcOff]` — Elem semantics regardless of the index tile shape. Atomic is always plain replace; the last writer in row-major iteration order wins. Bounds are not enforced.
+The CPU form mirrors the A5 signature and defaults, so a non-templated `MSCATTER(dst, src, idx)` resolves to `Coalesce::Row` on both sim and hardware and one kernel source validates against one golden. Row mode copies `src[r, :]` to `table[idx[r], :]` with `tableRows = Shape[3]` and row stride `Shape[4]`; Elem mode walks `validRow × validCol` and writes `dst.data()[idx[i, j]] = src[i, j]`. `ScatterAtomicOp` and `ScatterOOB` are modeled with the equivalent sequential read-modify-write and index-resolution rules; conflicts always resolve as last-writer-wins in row-major iteration order (matches `Conflict::Last`). With `ScatterOOB::Undefined`, bounds are not enforced.
 
 ### A2/A3 Form
 
@@ -202,7 +206,7 @@ enum class ScatterConflict : uint8_t {  // A5 only
 | `Max`  | ABI contract: `int32_t` or `float` (simulator runs plain replace) | unsupported (rejected at compile time by `MScatterCheck`) | `int32_t`, `uint32_t`, `float` (SIMT `atomicMax`) |
 | `Min`  | ABI contract: `int32_t` or `float` (simulator runs plain replace) | unsupported (rejected at compile time by `MScatterCheck`) | `int32_t`, `uint32_t`, `float` (SIMT `atomicMin`) |
 
-A2/A3 `Max` / `Min` would need a hardware atomic-max/min unit on the MTE3 path that the SoC does not provide; `MScatterCheck` static-asserts reject them. The CPU simulator's `MSCATTER` does not template on `ScatterAtomicOp` — the contract column above is what callers must honor at the source level so the same kernel still compiles and behaves correctly when the same source is built against A2/A3 or A5.
+A2/A3 `Max` / `Min` would need a hardware atomic-max/min unit on the MTE3 path that the SoC does not provide; `MScatterCheck` static-asserts reject them. The CPU simulator templates on `ScatterAtomicOp` and models `Add` / `Max` / `Min` with sequential read-modify-write for any arithmetic dtype — the contract column above is what callers must honor at the source level so the same kernel still compiles and behaves correctly when built against A2/A3 or A5.
 
 ## Constraints
 
@@ -239,9 +243,9 @@ The constraints below are split into target-specific sections so each backend li
 
 **Index interpretation:**
 
-- Index interpretation is target-defined. The CPU simulator treats indices as **linear element indices into `dst.data()`** and writes `dst.data()[idx] = src.data()[srcOff]` for every `(r, c)` in the source valid region — equivalent to `Coalesce::Elem` semantics, regardless of the index tile shape.
-- The CPU simulator does not enforce bounds checks on `indexes`. Out-of-range indices write to whatever GM address `dst.data() + idx` resolves to and are target-defined.
-- The simulator does **not** model `ScatterAtomicOp`, `ScatterOOB`, or `ScatterConflict` template parameters; the implementation always does plain replace, with "last writer in row-major iteration order wins" as the conflict policy.
+- Index interpretation follows the `Coalesce` mode, with the same `Coalesce::Row` default as hardware. `Row` treats `idx[r]` as a logical row index into a `[TableRows, Shape[4]]` table; `Elem` treats `idx[i, j]` as a **linear element index into `dst.data()`**.
+- With `ScatterOOB::Undefined` (the default) the simulator does not enforce bounds checks on `indexes`; out-of-range indices write to whatever GM address resolves and are target-defined. `Skip` / `Clamp` / `Wrap` are modeled the same way as hardware (indices are cast to `uint32_t` first, so negative indices resolve as large values).
+- `ScatterConflict` is accepted but conflicts always resolve as last-writer-wins in row-major iteration order (matches `Conflict::Last`).
 
 **Header-level enforcement.** The CPU header (`include/pto/cpu/MGatherScatter.hpp`) static-asserts only the minimum closure rules: `std::is_integral_v<TileInd::DType>` for the index dtype and `sizeof(TileSrc::DType) == sizeof(GlobalData::DType)` for byte-wise compatibility. The dtype / shape / atomic / layout constraints above are the **PTO ABI contract** — callers are expected to honor them so the same kernel source compiles and runs unmodified against the A2/A3 and A5 backends.
 
@@ -365,7 +369,7 @@ A5:
   Coalesce::Elem : (Idx.ValidRow == Src.ValidRow) && (Idx.ValidCol == Src.ValidCol)
 ```
 
-On the CPU reference path, no mode parameter exists; the implementation always walks element-wise.
+The CPU reference path enforces the same A5 Row rule (`[1, R]` or `[R, 1]` index valid shape) when valid shapes are statically known; Elem walks element-wise over the source valid region.
 
 ## Layout Support
 
@@ -375,7 +379,7 @@ UB addressing is computed from each tile's `Rows` / `Cols` plus (on A2/A3 NZ) an
 |---------------|-----|-------|----|
 | `TileSrc` (UB) — ND | `BLayout::RowMajor + SLayout::NoneBox` only | `BLayout::RowMajor + SLayout::NoneBox` | `BLayout::RowMajor` or `ColMajor`, `SLayout::NoneBox` (Elem mode walks both via `tile_offset_2d`) |
 | `TileSrc` (UB) — NZ | not supported | `BLayout::ColMajor + SLayout::RowMajor + SFractalSize == 512` (paired with NZ GM table) | **not supported** |
-| `TileIdx` (UB) — Row | row-major (Cols must equal 1 to match CPU's elementwise indexing) | `[1, R]` `BLayout::RowMajor + SLayout::NoneBox` (always ND, regardless of table layout) | `[1, R]` `RowMajor` **or** `[R, 1]` `ColMajor` (independent of GM table layout) |
+| `TileIdx` (UB) — Row | `[1, R]` or `[R, 1]` row-major (same valid-shape rule as A5) | `[1, R]` `BLayout::RowMajor + SLayout::NoneBox` (always ND, regardless of table layout) | `[1, R]` `RowMajor` **or** `[R, 1]` `ColMajor` (independent of GM table layout) |
 | `TileIdx` (UB) — Elem | `BLayout::RowMajor + SLayout::NoneBox` | `[R, C]` `BLayout::RowMajor + SLayout::NoneBox` | any `BLayout`, independent of `TileSrc` (kernel reads through `tile_offset_2d<TileIdx>`) |
 | `GlobalTable` (GM) — ND | `Layout::ND` only | `Layout::ND` (linear contiguous addressing); 5-D `Shape<…, R, C>`; kernel uses `tableRowStride = GetStride(DIM_3)`, so stride-padded ND tables are supported | `Layout::ND` only; Row mode hard-wires `tableRowStride = validCols` and requires `Shape[4] == validCols` |
 | `GlobalTable` (GM) — NZ | not supported | `Layout::NZ`; 5-D `Shape<B, BCols, BRows, 16, C0>` with `staticShape[3] == 16` and `staticShape[4] == 32 / sizeof(T)` (`B` may be > 1; the kernel loops `for i in 0..gShape0`) | **not supported** |

@@ -36,6 +36,26 @@ def gen_case(case_dir: str, tile_rows: int, tile_cols: int, dst_len: int):
     os.chdir("..")
 
 
+def gen_row_case(case_dir: str, tile_rows: int, tile_cols: int, table_rows: int):
+    os.makedirs(case_dir, exist_ok=True)
+    os.chdir(case_dir)
+
+    dst_init = np.random.uniform(low=-2, high=2, size=[table_rows, tile_cols]).astype(np.float32)
+    src = np.random.uniform(low=-4, high=4, size=[tile_rows, tile_cols]).astype(np.float32)
+    idx = np.random.randint(0, table_rows, size=[tile_rows, 1]).astype(np.uint32)
+
+    golden = dst_init.copy()
+    for i in range(tile_rows):
+        golden[idx[i, 0], :] = src[i, :]
+
+    dst_init.tofile("input1.bin")
+    src.tofile("input2.bin")
+    idx.tofile("input3.bin")
+    golden.tofile("golden.bin")
+    os.chdir("..")
+
+
 if __name__ == "__main__":
     gen_case("MSCATTERTest.case_float_dst512_src16x16", 16, 16, 512)
-
+    gen_row_case("MSCATTERTest.case_float_row_default_table32x16_src16x16", 16, 16, 32)
+    gen_row_case("MSCATTERTest.case_float_row_explicit_table32x16_src16x16", 16, 16, 32)

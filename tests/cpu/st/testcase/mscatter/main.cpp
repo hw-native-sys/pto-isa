@@ -34,12 +34,15 @@ std::string GetGoldenDir()
 template <int kTileRows, int kTileCols, int kDstLen>
 void LaunchMScatter(float *out, float *srcTile, uint32_t *idx, void *stream);
 
-template <int kTileRows, int kTileCols, int kDstLen>
-void test_mscatter()
+template <int kTileRows, int kTileCols, int kTableRows, bool kExplicitRow>
+void LaunchMScatterRow(float *out, float *srcTile, uint32_t *idx, void *stream);
+
+template <int kTileRows, int kTileCols, int kDstLen, int kIdxCount>
+void test_mscatter_common(void (*launch)(float *, float *, uint32_t *, void *))
 {
     const size_t dstBytes = kDstLen * sizeof(float);
     const size_t srcBytes = kTileRows * kTileCols * sizeof(float);
-    const size_t idxBytes = kTileRows * kTileCols * sizeof(uint32_t);
+    const size_t idxBytes = kIdxCount * sizeof(uint32_t);
 
     aclInit(nullptr);
     aclrtSetDevice(0);
@@ -70,7 +73,7 @@ void test_mscatter()
     aclrtMemcpy(srcDevice, srcBytes, srcHost, srcBytes, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(idxDevice, idxBytes, idxHost, idxBytes, ACL_MEMCPY_HOST_TO_DEVICE);
 
-    LaunchMScatter<kTileRows, kTileCols, kDstLen>(dstDevice, srcDevice, idxDevice, stream);
+    launch(dstDevice, srcDevice, idxDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, dstBytes, dstDevice, dstBytes, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -97,5 +100,15 @@ void test_mscatter()
 
 TEST_F(MSCATTERTest, case_float_dst512_src16x16)
 {
-    test_mscatter<16, 16, 512>();
+    test_mscatter_common<16, 16, 512, 16 * 16>(LaunchMScatter<16, 16, 512>);
+}
+
+TEST_F(MSCATTERTest, case_float_row_default_table32x16_src16x16)
+{
+    test_mscatter_common<16, 16, 32 * 16, 16>(LaunchMScatterRow<16, 16, 32, false>);
+}
+
+TEST_F(MSCATTERTest, case_float_row_explicit_table32x16_src16x16)
+{
+    test_mscatter_common<16, 16, 32 * 16, 16>(LaunchMScatterRow<16, 16, 32, true>);
 }

@@ -15,7 +15,7 @@ Out-of-bounds handling is selected through the `GatherOOB` template parameter. `
 
 Per-target dispatch summary:
 
-- **CPU Simulator** — pure C++ reference. The implementation walks `validRow * validCol` and reads `table[idx[i, j]]` (Elem semantics); the CPU sim does not have a separate Row coalesce path. Row iteration uses `pto::cpu::parallel_for_rows`, which by default runs sequentially in row-major order because `PTO_CPU_MAX_THREADS` defaults to `1u`. No destination collision is possible for gather, so the iteration order is observationally irrelevant.
+- **CPU Simulator** — pure C++ reference. Templates on the same `Coalesce` / `GatherOOB` parameters as A5, with the same `Coalesce::Row` default, so a non-templated `MGATHER(dst, src, idx)` means `Coalesce::Row` on sim exactly as on hardware. Row mode reads `table[idx[r], :]` into `dst[r, :]` (table row stride `Shape[4]`, `tableRows = Shape[3]`); Elem mode walks `validRow * validCol` and reads `table[idx[i, j]]`. `GatherOOB` is modeled (`Clamp` / `Wrap` remap the index, `Zero` writes a zero element on out-of-range; `Undefined` reads unchecked). Row iteration uses `pto::cpu::parallel_for_rows`, which by default runs sequentially because `PTO_CPU_MAX_THREADS` defaults to `1u`.
 - **A2/A3 VEC-CORE** — single-threaded scalar / MTE2 walk driven from the scalar pipe. Row mode issues one wide `copy_gm_to_ubuf_align_b*` DMA per row through `tablePtr + safeIdx * tableRowStride` (where `tableRowStride = table.GetStride(DIM_3)` and `tableRows = ∏ Shape[0..3]`); Elem mode performs a scalar GM→UB copy per element (DMA bursts cannot satisfy per-element UB-destination 32-byte alignment). Supports ND-GM with ND-UB **and** NZ-GM with NZ-UB tile pairs.
 - **A5 SIMT** — SIMT launch through `cce::async_invoke` with up to `dim3{32, 32}` (1024 threads). Row mode uses warp-parallel lane reads that the SIMT hardware coalesces into 128 B GM bursts when consecutive; Elem mode maps one lane to one element with per-lane scalar GM loads. The Row kernel computes `srcRow = table + safeIdx * validCols`, so the GM table is treated as **packed ND with row stride = `validCols`** — `MGatherCheck` enforces `GlobalTable::staticShape[4] == TileDst::ValidCol` at compile time, and `tableRows = Shape[3]`. NZ block-stride layouts are not implemented on A5. The `(1, 1)` Elem case bypasses the SIMT launch and runs `MGatherScalarImpl` on the AIV vector core.
 
@@ -52,7 +52,7 @@ enum class GatherOOB : uint8_t {
 - `Clamp`: `idx = min(idx, capacity - 1)` before access.
 - `Wrap`: `idx = idx % capacity` before access.
 - `Zero`: out-of-bounds destinations receive `static_cast<T>(0)`. In Row mode the OOB row is filled with `T(0)` (A2/A3 ND fills inline on the scalar pipe; A2/A3 NZ pre-zeros the whole tile once before the DMA loop; A5 SIMT does the substitution inline per lane). In Elem mode the OOB lane writes `T(0)` inline through the same store. All dtypes are supported under every `GatherOOB` value.
-- CPU simulator: bounds are **not** enforced regardless of the `Oob` parameter — out-of-range indices read whatever `table.data()[idx]` returns and are target-defined.
+- CPU simulator: models `GatherOOB` the same way as A5 — `Clamp`/`Wrap` remap the (uint32-cast) index, `Zero` writes `T(0)` for out-of-range, and only `Undefined` (the default) reads `table.data()[idx]` unchecked (target-defined).
 
 ## Assembly Syntax
 
@@ -98,11 +98,13 @@ Declared in `include/pto/common/pto_instr.hpp` (the shared dispatcher) and the p
 ### CPU Reference Form
 
 ```cpp
-template <typename TileDst, typename GlobalData, typename TileInd, typename... WaitEvents>
+template <Coalesce  Mode = Coalesce::Row,
+          GatherOOB Oob  = GatherOOB::Undefined,
+          typename TileDst, typename GlobalData, typename TileInd, typename... WaitEvents>
 PTO_INST RecordEvent MGATHER(TileDst &dst, GlobalData &src, TileInd &indexes, WaitEvents &... events);
 ```
 
-The CPU form has no `Coalesce` or `GatherOOB` template parameter. The implementation always walks `validRow × validCol` and reads `src.data()[indexes.data()[idxOff]]` — this matches `Coalesce::Elem` semantics regardless of the index tile shape. Bounds are not enforced. The signature exists so the same source builds without modification against the CPU simulator headers.
+The CPU form mirrors the A5 signature and defaults, so a non-templated `MGATHER(dst, src, idx)` resolves to `Coalesce::Row` on both sim and hardware and one kernel source validates against one golden. Row mode reads `src[idx[r], :]` into `dst[r, :]` with `tableRows = Shape[3]` and row stride `Shape[4]`; Elem mode walks `validRow × validCol` and reads `dst[i, j] = src[idx[i, j]]`. `GatherOOB` is modeled the same way as hardware: `Clamp`/`Wrap` remap the (uint32-cast) index, `Zero` writes a zero element for out-of-range, and `Undefined` reads unchecked.
 
 ### A2/A3 Form
 
@@ -183,9 +185,8 @@ The constraints below are split into target-specific sections so each backend li
 
 **Index interpretation:**
 
-- Index interpretation is target-defined. The CPU simulator treats indices as **linear element indices into `src.data()`** and writes `dst.data()[dstOff] = src.data()[idx]` for every `(r, c)` in the destination valid region — equivalent to `Coalesce::Elem` semantics, regardless of the index tile shape.
-- The CPU simulator does not enforce bounds checks on `indexes`. Out-of-range indices read whatever `src.data() + idx` returns and are target-defined.
-- The simulator does **not** model the `Coalesce` or `GatherOOB` template parameters at the CPU intrinsic surface; out-of-bounds handling is the caller's responsibility on CPU.
+- Index interpretation follows the `Coalesce` mode, with the same `Coalesce::Row` default as hardware. `Row` treats `idx[r]` as a logical row index into a `[TableRows, Shape[4]]` table; `Elem` treats `idx[i, j]` as a **linear element index into `src.data()`**.
+- The CPU simulator models `GatherOOB`: `Clamp`/`Wrap` remap the index, `Zero` writes `T(0)` for out-of-range, and `Undefined` (the default) reads `src.data()[idx]` unchecked (target-defined). Indices are cast to `uint32_t` first, so negative indices resolve as large values.
 
 **Header-level enforcement.** The CPU header (`include/pto/cpu/MGatherScatter.hpp`) static-asserts only the minimum closure rules: `std::is_integral_v<TileInd::DType>` for the index dtype and `sizeof(TileDst::DType) == sizeof(GlobalData::DType)` for byte-wise compatibility. The dtype / shape / layout constraints above are the **PTO ABI contract** — callers are expected to honor them so the same kernel source compiles and runs unmodified against the A2/A3 and A5 backends.
 
@@ -296,7 +297,7 @@ A5:
   Coalesce::Elem : (Idx.ValidRow == Dst.ValidRow) && (Idx.ValidCol == Dst.ValidCol)
 ```
 
-On the CPU reference path, no mode parameter exists; the implementation always walks element-wise.
+The CPU reference path enforces the same A5 Row rule (`[1, R]` or `[R, 1]` index valid shape) when valid shapes are statically known; Elem walks element-wise over the destination valid region.
 
 ## Layout Support
 
@@ -306,7 +307,7 @@ UB addressing is computed from each tile's `Rows` / `Cols` plus (on A2/A3 NZ) an
 |---------------|-----|-------|----|
 | `TileDst` (UB) — ND | `BLayout::RowMajor + SLayout::NoneBox` only | `BLayout::RowMajor + SLayout::NoneBox` | `BLayout::RowMajor` or `ColMajor`, `SLayout::NoneBox` (Elem mode walks both via `tile_offset_2d`) |
 | `TileDst` (UB) — NZ | not supported | `BLayout::ColMajor + SLayout::RowMajor + SFractalSize == 512` (paired with NZ GM table) | **not supported** |
-| `TileIdx` (UB) — Row | row-major (Cols must equal 1 to match CPU's elementwise indexing) | `[1, R]` `BLayout::RowMajor + SLayout::NoneBox` (always ND, regardless of table layout) | `[1, R]` `RowMajor` **or** `[R, 1]` `ColMajor` (independent of GM table layout) |
+| `TileIdx` (UB) — Row | `[1, R]` or `[R, 1]` row-major (same valid-shape rule as A5) | `[1, R]` `BLayout::RowMajor + SLayout::NoneBox` (always ND, regardless of table layout) | `[1, R]` `RowMajor` **or** `[R, 1]` `ColMajor` (independent of GM table layout) |
 | `TileIdx` (UB) — Elem | `BLayout::RowMajor + SLayout::NoneBox` | `[R, C]` `BLayout::RowMajor + SLayout::NoneBox` | any `BLayout`, independent of `TileDst` (kernel reads through `tile_offset_2d<TileIdx>`) |
 | `GlobalTable` (GM) — ND | `Layout::ND` only | `Layout::ND` (linear contiguous addressing); 5-D `Shape<…, R, C>`; kernel uses `tableRowStride = GetStride(DIM_3)`, so stride-padded ND tables are supported | `Layout::ND` only; Row mode hard-wires `tableRowStride = validCols` and requires `Shape[4] == validCols` |
 | `GlobalTable` (GM) — NZ | not supported | `Layout::NZ`; 5-D `Shape<B, BCols, BRows, 16, C0>` with `staticShape[3] == 16` and `staticShape[4] == 32 / sizeof(T)` (`B` may be > 1; the kernel loops `for i in 0..gShape0`) | **not supported** |

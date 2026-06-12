@@ -34,11 +34,14 @@ std::string GetGoldenDir()
 template <int kTileRows, int kTileCols, int kSrcLen>
 void LaunchMGather(float *out, float *src, uint32_t *idx, void *stream);
 
-template <int kTileRows, int kTileCols, int kSrcLen>
-void test_mgather()
+template <int kTileRows, int kTileCols, int kTableRows, bool kExplicitRow>
+void LaunchMGatherRow(float *out, float *src, uint32_t *idx, void *stream);
+
+template <int kTileRows, int kTileCols, int kSrcElems, int kIdxCount>
+void test_mgather_common(void (*launch)(float *, float *, uint32_t *, void *))
 {
-    const size_t srcBytes = kSrcLen * sizeof(float);
-    const size_t idxBytes = kTileRows * kTileCols * sizeof(uint32_t);
+    const size_t srcBytes = kSrcElems * sizeof(float);
+    const size_t idxBytes = kIdxCount * sizeof(uint32_t);
     const size_t outBytes = kTileRows * kTileCols * sizeof(float);
 
     aclInit(nullptr);
@@ -67,7 +70,7 @@ void test_mgather()
     aclrtMemcpy(srcDevice, srcBytes, srcHost, srcBytes, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(idxDevice, idxBytes, idxHost, idxBytes, ACL_MEMCPY_HOST_TO_DEVICE);
 
-    LaunchMGather<kTileRows, kTileCols, kSrcLen>(outDevice, srcDevice, idxDevice, stream);
+    launch(outDevice, srcDevice, idxDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(outHost, outBytes, outDevice, outBytes, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -94,5 +97,15 @@ void test_mgather()
 
 TEST_F(MGATHERTest, case_float_16x16_src512)
 {
-    test_mgather<16, 16, 512>();
+    test_mgather_common<16, 16, 512, 16 * 16>(LaunchMGather<16, 16, 512>);
+}
+
+TEST_F(MGATHERTest, case_float_row_default_table32x16_dst16x16)
+{
+    test_mgather_common<16, 16, 32 * 16, 16>(LaunchMGatherRow<16, 16, 32, false>);
+}
+
+TEST_F(MGATHERTest, case_float_row_explicit_table32x16_dst16x16)
+{
+    test_mgather_common<16, 16, 32 * 16, 16>(LaunchMGatherRow<16, 16, 32, true>);
 }

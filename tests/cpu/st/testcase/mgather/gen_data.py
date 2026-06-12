@@ -30,6 +30,21 @@ def gen_case(case_dir: str, tile_rows: int, tile_cols: int, src_len: int):
     os.chdir("..")
 
 
+def gen_row_case(case_dir: str, tile_rows: int, tile_cols: int, table_rows: int):
+    os.makedirs(case_dir, exist_ok=True)
+    os.chdir(case_dir)
+
+    src = np.random.uniform(low=-8, high=8, size=[table_rows, tile_cols]).astype(np.float32)
+    idx = np.random.randint(0, table_rows, size=[tile_rows]).astype(np.uint32)
+    out = src[idx].astype(np.float32)  # dst[r, :] = src[idx[r], :]
+
+    src.tofile("input1.bin")
+    idx.tofile("input2.bin")
+    out.tofile("golden.bin")
+    os.chdir("..")
+
+
 if __name__ == "__main__":
     gen_case("MGATHERTest.case_float_16x16_src512", 16, 16, 512)
-
+    gen_row_case("MGATHERTest.case_float_row_default_table32x16_dst16x16", 16, 16, 32)
+    gen_row_case("MGATHERTest.case_float_row_explicit_table32x16_dst16x16", 16, 16, 32)
