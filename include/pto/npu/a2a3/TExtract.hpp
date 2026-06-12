@@ -15,36 +15,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-template <typename DstTileData, typename SrcTileData, typename DstType, typename SrcType>
-PTO_INTERNAL void CheckTExtract()
-{
-    static_assert((SrcTileData::Loc == TileType::Acc) || std::is_same<DstType, SrcType>::value,
-                  "TExtract: Destination and Source tile data types must be the same.");
-    static_assert(std::is_same<DstType, int8_t>::value || std::is_same<DstType, half>::value ||
-                      std::is_same<DstType, bfloat16_t>::value || std::is_same<DstType, float>::value,
-                  "TExtract: Invalid data type.");
-}
-
-template <typename DstTileData, typename SrcTileData, QuantMode_t QuantPre, ReluPreMode reluMode>
-__tf__ AICORE void TExtractAccToMat(typename DstTileData::TileDType __out__ dst,
-                                    typename SrcTileData::TileDType __in__ src, uint16_t validRow, uint16_t validCol,
-                                    uint16_t indexRow, uint16_t indexCol)
-{
-    using SrcType = typename SrcTileData::DType;
-    using DstType = typename DstTileData::DType;
-    constexpr int32_t c0Size = BLOCK_BYTE_SIZE / sizeof(DstType);
-    uint32_t srcOffset = SrcTileData::Rows * ACC_C0_SIZE * (indexCol / ACC_C0_SIZE) +
-                         (indexRow * ACC_C0_SIZE + (indexCol % ACC_C0_SIZE));
-    __cc__ SrcType *srcAddr = (__cc__ SrcType *)__cce_get_tile_ptr(src) + srcOffset;
-    __cbuf__ DstType *dstAddr = (__cbuf__ DstType *)__cce_get_tile_ptr(dst);
-
-    constexpr uint32_t dstStrideD = DstTileData::Rows;
-    constexpr uint16_t srcStride = SrcTileData::Rows;
-    uint16_t nSize = CeilDivision(validCol, c0Size) * c0Size;
-    pto_copy_matrix_cc_to_cbuf(dstAddr, srcAddr, 0, nSize, validRow, dstStrideD, srcStride, 0, QuantPre,
-                               static_cast<uint8_t>(reluMode), false, false);
-}
-
 template <typename DstTileData, typename SrcTileData>
 PTO_INTERNAL void TEXTRACT_TILE_IMPL(DstTileData &dst, SrcTileData &src, uint16_t indexRow = 0, uint16_t indexCol = 0)
 {

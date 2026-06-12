@@ -130,54 +130,24 @@ PTO_INTERNAL void TStoreUb2gmNz2nz(typename GlobalData::DType *dstAddr, __ubuf__
     }
 }
 
-// nz2nz acc2gm
-template <typename GlobalData, typename TileData, QuantMode_t quantizationMode = QuantMode_t::NoQuant,
-          ReluPreMode reluPreMode = ReluPreMode::NoRelu, STPhase Phase = STPhase::Unspecified>
-PTO_INTERNAL void TStoreAccNz2nz(typename GlobalData::DType *dstAddr, __cc__ typename TileData::DType *srcAddr,
-                                 int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gStride0,
-                                 int gStride1, int gStride2, int gStride3, int gStride4, int validRow, int validCol)
+template <typename GlobalData, typename TileData, AtomicType currentAtomicType = AtomicType::AtomicNone>
+__tf__ PTO_INTERNAL void TStore(typename GlobalData::DType __out__ *dst, typename TileData::TileDType __in__ src,
+                                int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gStride0,
+                                int gStride1, int gStride2, int gStride3, int gStride4, int validRow, int validCol)
 {
-    PTO_ASSERT(
-        validRow >= 1 && validRow <= 65535 && validCol % 16 == 0,
-        "When GlobalData is NZ format, the range of validRow is [1, 65535] and validCol must be an integer multiple of "
-        "16.");
-    PTO_ASSERT(validRow == gShape2 * gShape3, "The validRow of TileData must be equal to Shape2 * Shape3 of NZ shape!");
-    PTO_ASSERT(validCol == gShape0 * gShape1 * gShape4,
-               "The validCol of TileData must be equal to Shape0 * Shape1 * Shape4 of NZ shape!");
+    __ubuf__ typename TileData::DType *srcAddr = (__ubuf__ typename TileData::DType *)__cce_get_tile_ptr(src);
+    typename GlobalData::DType *dstAddr = dst;
 
-    static_assert(GlobalData::staticShape[3] == FRACTAL_NZ_ROW,
-                  "When GlobalData is NZ format, the second-to-last dimension shall be 16.");
-    static_assert((std::is_same_v<typename GlobalData::DType, __gm__ int32_t> && GlobalData::staticShape[4] == 16) ||
-                      (GlobalData::staticShape[4] == BLOCK_BYTE_SIZE / sizeof(typename GlobalData::DType)),
-                  "When GlobalData is in NZ format: if DstType is int32_t, the "
-                  "last dimension must be exactly 16. In addition, the last dimension must be static and satisfy 32 / "
-                  "sizeof(DstType).");
-
-    uint16_t mSize = validRow;
-    uint16_t nSize = validCol;
-
-    uint32_t dstStride = gShape2 * gShape3 * gShape4;
-    uint16_t srcStride = TileData::Rows;
-    if constexpr (CompactMode::Normal == TileData::Compact) {
-        srcStride = (FRACTAL_NZ_ROW + validRow - 1) / FRACTAL_NZ_ROW * FRACTAL_NZ_ROW;
+    if constexpr (TileData::isRowMajor & (TileData::SFractal == SLayout::NoneBox)) {
+        TStoreUb2gmNd2nd<GlobalData, TileData>(dstAddr, srcAddr, gShape0, gShape1, gShape2, gShape3, gShape4, gStride0,
+                                               gStride1, gStride2, gStride3, gStride4, validRow, validCol);
+    } else if constexpr (!TileData::isRowMajor & (TileData::SFractal == SLayout::NoneBox)) {
+        TStoreUb2gmDn2dn<GlobalData, TileData>(dstAddr, srcAddr, gShape0, gShape1, gShape2, gShape3, gShape4, gStride0,
+                                               gStride1, gStride2, gStride3, gStride4, validRow, validCol);
+    } else if constexpr (!TileData::isRowMajor & (TileData::SFractal == SLayout::RowMajor)) {
+        TStoreUb2gmNz2nz<GlobalData, TileData>(dstAddr, srcAddr, gShape0, gShape1, gShape2, gShape3, gShape4, gStride0,
+                                               gStride1, gStride2, gStride3, gStride4, validRow, validCol);
     }
-
-    constexpr uint8_t unitFlagCtrl = static_cast<uint8_t>(Phase);
-    constexpr uint8_t channelSplitEn = 0;
-
-    uint64_t xmReg =
-
-        (static_cast<uint64_t>(nSize & 0xfff) << 4) |          // Xm[15:4] nSize
-        (static_cast<uint64_t>(mSize & 0xffff) << 16) |        // Xm[31:16] mSize
-        (static_cast<uint64_t>(dstStride & 0xffffffff) << 32); // Xm[63:32] destination stride between the start addr
-
-    uint64_t xtReg = srcStride | // Xt[15:0] the source stride between the start addr
-                     (static_cast<uint64_t>(unitFlagCtrl & 0x3) << 32) |      // Xt[33:32] unit flag control bit
-                     (static_cast<uint64_t>(quantizationMode & 0x1f) << 34) | // Xt[38:34] pre-stage quantization mode
-                     ((static_cast<uint64_t>(reluPreMode) & 0x7) << 39) |     //  Xt[41:39] relu pre mode
-                     (static_cast<uint64_t>(channelSplitEn & 0x1) << 42);     // Xt[42] channel split control bit
-
-    copy_matrix_cc_to_gm(dstAddr, srcAddr, xmReg, xtReg);
 }
 
 #include "pto/common/arch/memory/tstore_common.hpp"
@@ -202,18 +172,41 @@ __tf__ AICORE void TStoreAcc(typename GlobalDataTile::DType __out__ *dst, typena
     } else if constexpr (GlobalDataTile::layout == Layout::NC1HWC0) {
         TStoreAccNz2NC1HWC0<GlobalDataTile, TileData, quantizationMode, reluPreMode, Phase>(
             dstAddr, srcAddr, gShape0, gShape1, gShape2, gShape3, gShape4, gStride1, gStride3, validRow, validCol);
-    } else if constexpr (GlobalDataTile::layout == Layout::NDC1HWC0) {
-        TStoreAccNz2NDC1HWC0<GlobalDataTile, TileData, quantizationMode, reluPreMode, Phase>(
-            dstAddr, srcAddr, gShape0, gShape1, gShape2, gShape3, gShape4, gStride2, gStride4, validRow, validCol);
+    }
+}
+
+template <typename GlobalData, typename TileData, typename FpTileData,
+          QuantMode_t quantizationMode = QuantMode_t::NoQuant, ReluPreMode reluPreMode = ReluPreMode::NoRelu>
+__tf__ AICORE void TStoreAccFp(typename GlobalData::DType __out__ *dst, typename TileData::TileDType __in__ src,
+                               typename FpTileData::TileDType __in__ fp, int gShape0, int gShape1, int gShape2,
+                               int gShape3, int gShape4, int gStride0, int gStride1, int gStride2, int gStride3,
+                               int gStride4, int validRow, int validCol)
+{
+    __fbuf__ typename FpTileData::DType *fpDstAddr = (__fbuf__ typename FpTileData::DType *)__cce_get_tile_ptr(fp);
+    uint64_t deqTensorAddr = ((uint64_t)fpDstAddr >> static_cast<uint64_t>(7)) << 8;
+    set_fpc(deqTensorAddr);
+    pipe_barrier(PIPE_FIX);
+    if constexpr (GlobalData::layout == Layout::ND) {
+        TStoreAccNz2nd<GlobalData, TileData, quantizationMode, reluPreMode>(
+            dst, __cce_get_tile_ptr(src), gShape0, gShape1, gShape2, gShape3, gShape4, gStride0, gStride1, gStride2,
+            gStride3, gStride4, validRow, validCol);
+    } else if constexpr (GlobalData::layout == Layout::NZ) {
+        TStoreAccNz2nz<GlobalData, TileData, quantizationMode, reluPreMode>(
+            dst, __cce_get_tile_ptr(src), gShape0, gShape1, gShape2, gShape3, gShape4, gStride0, gStride1, gStride2,
+            gStride3, gStride4, validRow, validCol);
+    } else if constexpr (GlobalData::layout == Layout::NC1HWC0) {
+        TStoreAccNz2NC1HWC0<GlobalData, TileData, quantizationMode, reluPreMode>(
+            dst, __cce_get_tile_ptr(src), gShape0, gShape1, gShape2, gShape3, gShape4, gStride1, gStride3, validRow,
+            validCol);
     }
 }
 
 template <typename TileData, typename GlobalData, bool isQuant>
 PTO_INTERNAL void CheckAcc2gm(GlobalData &dst, TileData &src)
 {
-    static_assert((GlobalData::layout == Layout::ND || GlobalData::layout == Layout::NZ ||
-                   GlobalData::layout == Layout::NC1HWC0 || GlobalData::layout == Layout::NDC1HWC0),
-                  "The output data layout must be ND, NZ, NC1HWC0 or NDC1HWC0.");
+    static_assert(
+        (GlobalData::layout == Layout::ND || GlobalData::layout == Layout::NZ || GlobalData::layout == Layout::NC1HWC0),
+        "The output data layout must be ND, NZ or NC1HWC0.");
     static_assert(std::is_same_v<typename TileData::DType, int32_t> || std::is_same_v<typename TileData::DType, half>,
                   "The input data type must be restricted to int32_t/half!");
     if constexpr (!isQuant) {
@@ -235,8 +228,7 @@ PTO_INTERNAL void CheckAcc2gm(GlobalData &dst, TileData &src)
     }
     static_assert(TileData::Cols >= 1 && TileData::Cols <= 4095, "The range of Cols is [1, 4095].");
     static_assert((GlobalData::layout == Layout::ND && TileData::Rows >= 1 && TileData::Rows <= 8192) ||
-                      ((GlobalData::layout == Layout::NZ || GlobalData::layout == Layout::NC1HWC0 ||
-                        GlobalData::layout == Layout::NDC1HWC0) &&
+                      ((GlobalData::layout == Layout::NZ || GlobalData::layout == Layout::NC1HWC0) &&
                        TileData::Rows >= 1 && TileData::Rows <= 65535 && TileData::Cols % 16 == 0),
                   "When GlobalData is ND format, the range of Rows is [1, 8192]."
                   "When GlobalData is NZ, NC1HWC0 or NDC1HWC0 format, the range of Rows is [1, 65535] and Cols "

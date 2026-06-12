@@ -15,23 +15,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-template <typename DstTileData, typename SrcTileData, QuantMode_t QuantPre, ReluPreMode reluMode>
-__tf__ AICORE void TMovCcToCb(typename DstTileData::TileDType __out__ dst, typename SrcTileData::TileDType __in__ src,
-                              uint16_t validRow, uint16_t validCol)
-{
-    using SrcType = typename SrcTileData::DType;
-    using DstType = typename DstTileData::DType;
-    constexpr int32_t c0Size = BLOCK_BYTE_SIZE / sizeof(DstType);
-    __cc__ SrcType *srcAddr = (__cc__ SrcType *)__cce_get_tile_ptr(src);
-    __cbuf__ DstType *dstAddr = (__cbuf__ DstType *)__cce_get_tile_ptr(dst);
-
-    constexpr uint32_t dstStride_dst_D = DstTileData::Rows;
-    constexpr uint16_t srcStride = SrcTileData::Rows;
-    validCol = CeilDivision(validCol, c0Size) * c0Size;
-    pto_copy_matrix_cc_to_cbuf(dstAddr, srcAddr, 0, validCol, SrcTileData::Rows, dstStride_dst_D, srcStride, 0,
-                               QuantPre, static_cast<uint8_t>(reluMode), false, false);
-}
-
 template <typename DstTileData, typename SrcTileData>
 __tf__ AICORE void TMovToBt(typename DstTileData::TileDType __out__ dst, typename SrcTileData::TileDType __in__ src)
 {

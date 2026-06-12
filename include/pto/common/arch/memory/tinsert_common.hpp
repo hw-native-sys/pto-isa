@@ -12,6 +12,25 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define TINSERT_COMMON_MEMORY
 #include <pto/common/utils.hpp>
 
+template <typename DstTileData, typename SrcTileData, QuantMode_t QuantPre, ReluPreMode reluMode>
+__tf__ PTO_INTERNAL void TInsertAccToMat(typename DstTileData::TileDType __out__ dst,
+                                         typename SrcTileData::TileDType __in__ src, uint16_t validRow,
+                                         uint16_t validCol, uint16_t indexRow, uint16_t indexCol)
+{
+    using SrcType = typename SrcTileData::DType;
+    using DstType = typename DstTileData::DType;
+    constexpr int32_t c0Size = BLOCK_BYTE_SIZE / sizeof(DstType);
+    uint32_t dstOffset = DstTileData::Rows * c0Size * (indexCol / c0Size) + (indexRow * c0Size + (indexCol % c0Size));
+    __cc__ SrcType *srcAddr = (__cc__ SrcType *)__cce_get_tile_ptr(src);
+    __cbuf__ DstType *dstAddr = (__cbuf__ DstType *)__cce_get_tile_ptr(dst) + dstOffset;
+
+    constexpr uint32_t dstStrideD = DstTileData::Rows;
+    constexpr uint16_t srcStride = SrcTileData::Rows;
+    uint16_t nSize = CeilDivision(validCol, c0Size) * c0Size;
+    copy_matrix_cc_to_cbuf(dstAddr, srcAddr, 0, nSize, SrcTileData::Rows, dstStrideD, srcStride, 0, QuantPre, reluMode,
+                           false, false);
+}
+
 template <typename T, typename DstTileData, typename SrcTileData>
 __tf__ AICORE void TInsertVecToVecNDScalar(typename DstTileData::TileDType __out__ dst,
                                            typename SrcTileData::TileDType __in__ src, uint32_t indexRow,
@@ -173,7 +192,7 @@ PTO_INTERNAL void TInsertVecToVecNZDispatch(DstTileData &dst, SrcTileData &src, 
 {
     using T = typename DstTileData::DType;
     constexpr uint32_t kC0Size = BLOCK_BYTE_SIZE / sizeof(T);
-
+    CheckTInsertVecToVecNZ<DstTileData, SrcTileData>();
     uint32_t idxRow = static_cast<uint32_t>(indexRow);
     uint32_t idxCol = static_cast<uint32_t>(indexCol);
     if constexpr (SrcTileData::ValidRow == 1 && SrcTileData::ValidCol == 1) {
@@ -181,7 +200,6 @@ PTO_INTERNAL void TInsertVecToVecNZDispatch(DstTileData &dst, SrcTileData &src, 
         PTO_ASSERT(idxCol < DstTileData::Cols, "TINSERT NZ Vec->Vec : indexCol exceeds dstCols!");
         TInsertVecToVecNZScalar<T, DstTileData, SrcTileData>(dst.data(), src.data(), idxRow, idxCol);
     } else {
-        CheckTInsertVecToVecNZ<DstTileData, SrcTileData>();
         PTO_ASSERT(idxRow % FRACTAL_NZ_ROW == 0, "TINSERT NZ Vec->Vec : indexRow must be 16-aligned (A3 limitation).");
         PTO_ASSERT(idxCol % kC0Size == 0, "TINSERT NZ Vec->Vec : indexCol must be c0Size-aligned (A3 limitation).");
         uint16_t validRow = static_cast<uint16_t>(src.GetValidRow());
