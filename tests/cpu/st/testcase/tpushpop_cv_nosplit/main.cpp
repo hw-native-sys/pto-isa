@@ -721,6 +721,54 @@ void runBothDirectionC2VProducerWaitsForOutOfOrderSlot()
     std::lock_guard<std::mutex> lock(sharedState.mutex);
     EXPECT_EQ(sharedState.occupied, 0);
 }
+
+// A dual-lane-capable C2V NO_SPLIT pipe (LocalSlotNum=2, IsNoSplit=true) consumed by a single
+// vector subblock (subblock_dim == 1) must run as a single consumer: each free releases its slot
+// immediately, instead of waiting for a second lane that the runtime never dispatched.
+template <typename T, int rows, int cols>
+void runCubeToVectorNoSplitSingleSubblockOnDualLanePipe()
+{
+    constexpr int kFifoDepth = 2;
+    using CubeTile = Tile<TileType::Mat, T, rows, cols>;
+    using VecTile = Tile<TileType::Vec, T, rows, cols>;
+    using Pipe = TPipe<kPipeFlagId + 9, Direction::DIR_C2V, sizeof(T) * VecTile::Numel, kFifoDepth, 2, true>;
+
+    NPU_MEMORY_CLEAR();
+    Pipe::reset_for_cpu_sim();
+    Pipe pipe((__gm__ void *)nullptr, kVecConsumerBase, 0x0);
+    std::vector<std::vector<T>> actual(kFifoDepth);
+
+    {
+        cpu_sim::ScopedExecutionContext producerCtx(0, 0, 1);
+        for (int iter = 0; iter < kFifoDepth; ++iter) {
+            CubeTile cubeTile;
+            TASSIGN(cubeTile, 0x0);
+            fillCubeTile<T, rows, cols>(cubeTile, iter);
+            TPUSH<Pipe, CubeTile, TileSplitAxis::TILE_NO_SPLIT>(pipe, cubeTile);
+        }
+    }
+
+    {
+        cpu_sim::ScopedExecutionContext vecCtx(0, 0, 1);
+        for (int iter = 0; iter < kFifoDepth; ++iter) {
+            VecTile vecTile;
+            TASSIGN(vecTile, 0x4000);
+            TPOP<Pipe, VecTile, TileSplitAxis::TILE_NO_SPLIT>(pipe, vecTile);
+            actual[iter].assign(vecTile.data(), vecTile.data() + vecTile.Numel);
+            TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(pipe);
+
+            // The single consumer's free releases its slot right away (no second lane pending).
+            auto &sharedState = Pipe::GetSharedState();
+            std::lock_guard<std::mutex> lock(sharedState.mutex);
+            EXPECT_EQ(sharedState.occupied, kFifoDepth - 1 - iter);
+        }
+    }
+
+    for (int iter = 0; iter < kFifoDepth; ++iter) {
+        const auto expected = makeExpected<T, rows, cols>(iter);
+        EXPECT_TRUE(ResultCmp(expected, actual[iter], 0));
+    }
+}
 } // namespace
 
 class TPushPopCVNoSplitTest : public testing::Test {
@@ -786,4 +834,9 @@ TEST_F(TPushPopCVNoSplitTest, both_direction_no_split_c2v_then_v2c_float_16x32)
 TEST_F(TPushPopCVNoSplitTest, both_direction_c2v_producer_waits_for_out_of_order_slot_float_16x32)
 {
     runBothDirectionC2VProducerWaitsForOutOfOrderSlot<float, 16, 32>();
+}
+
+TEST_F(TPushPopCVNoSplitTest, cube_to_vector_no_split_single_subblock_on_dual_lane_pipe_float_16x32)
+{
+    runCubeToVectorNoSplitSingleSubblockOnDualLanePipe<float, 16, 32>();
 }

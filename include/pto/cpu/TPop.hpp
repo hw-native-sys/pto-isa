@@ -19,7 +19,11 @@ template <typename Pipe, typename TileCons, TileSplitAxis Split, std::enable_if_
 PTO_INTERNAL void TPOP_IMPL(Pipe &pipe, TileCons &tile)
 {
     constexpr bool participateNoSplitC2V = cpu_pipe::ShouldNoSplitC2VConsumerLaneParticipate<Pipe, TileCons, Split>();
-    if (!participateNoSplitC2V && cpu_pipe::IsInactiveNoSplitVecLane<TileCons, Split>()) {
+    // The second vector lane pops only when the dual-lane C2V protocol is active (>=2 vector
+    // subblocks). With a single subblock it takes the inactive-lane path (zero-filled tile, no
+    // pop), so the pipe runs as a single consumer.
+    if ((!participateNoSplitC2V || !cpu_pipe::IsDualLaneC2VActive()) &&
+        cpu_pipe::IsInactiveNoSplitVecLane<TileCons, Split>()) {
         cpu_pipe::EnsureTileStorage(tile);
         cpu_pipe::FillTile(tile, typename TileCons::DType{});
         return;
@@ -64,7 +68,7 @@ PTO_INTERNAL void TPOP_GLOBAL_IMPL(Pipe &pipe, GlobalData &gmTensor)
 template <typename Pipe, TileSplitAxis Split>
 PTO_INTERNAL void TFREE_IMPL(Pipe &pipe)
 {
-    if (!cpu_pipe::ShouldNoSplitC2VConsumerLaneFree<Pipe, Split>() &&
+    if ((!cpu_pipe::ShouldNoSplitC2VConsumerLaneFree<Pipe, Split>() || !cpu_pipe::IsDualLaneC2VActive()) &&
         cpu_pipe::IsInactiveNoSplitVecConsumerLane<Pipe, Split>()) {
         return;
     }
@@ -83,7 +87,7 @@ template <typename Pipe, typename GlobalData, TileSplitAxis Split,
           std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
 PTO_INTERNAL void TFREE_GLOBAL_IMPL(Pipe &pipe, GlobalData &)
 {
-    if (!cpu_pipe::ShouldNoSplitC2VConsumerLaneFree<Pipe, Split>() &&
+    if ((!cpu_pipe::ShouldNoSplitC2VConsumerLaneFree<Pipe, Split>() || !cpu_pipe::IsDualLaneC2VActive()) &&
         cpu_pipe::IsInactiveNoSplitVecConsumerLane<Pipe, Split>()) {
         return;
     }

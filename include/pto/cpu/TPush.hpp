@@ -202,6 +202,9 @@ PTO_INTERNAL bool IsInactiveNoSplitVecConsumerLane()
     return get_subblockid() != 0;
 }
 
+// Compile-time predicate for the C2V NO_SPLIT broadcast consumer/free path. Whether the second
+// vector lane actually participates is decided at runtime by IsDualLaneC2VActive() below; this
+// predicate only selects the code path that honours that decision.
 template <typename Pipe, typename TileCons, TileSplitAxis Split>
 PTO_INTERNAL constexpr bool ShouldNoSplitC2VConsumerLaneParticipate()
 {
@@ -214,12 +217,24 @@ PTO_INTERNAL constexpr bool ShouldNoSplitC2VConsumerLaneFree()
     return Split == TileSplitAxis::TILE_NO_SPLIT && Pipe::is_c2v && Pipe::is_no_split;
 }
 
+// Runtime gate for the dual-lane (two-vector-subblock) C2V NO_SPLIT protocol. It is active only
+// when the runtime reports two vector subblocks; otherwise the pipe runs as a single consumer
+// (the second lane is treated as inactive). The consumer count is taken from get_subblockdim()
+// rather than assumed, so producer and consumer agree on however many lanes are actually present.
+PTO_INTERNAL bool IsDualLaneC2VActive()
+{
+    return get_subblockdim() >= 2u;
+}
+
 template <typename Pipe, typename TileProd, TileSplitAxis Split>
 PTO_INTERNAL constexpr uint32_t GetRequiredConsumerCount()
 {
     if constexpr (Pipe::is_c2v && Pipe::is_no_split && IsC2VProducerTile<TileProd>() &&
                   Split == TileSplitAxis::TILE_NO_SPLIT) {
-        return 2u;
+        // Commit the slot for a single consumer by default; the producer does not observe how many
+        // vector subblocks consume it. When the dual-lane protocol is active, the first consumer
+        // lane raises remaining_consumers to the actual subblock count in wait() before any free.
+        return 1u;
     } else if constexpr (Pipe::is_c2v && IsC2VProducerTile<TileProd>()) {
         return GetSplitCount<Split>();
     } else {
@@ -725,26 +740,34 @@ struct TPipe {
             if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT || (TPipe::is_v2c && !TPipe::is_c2v) ||
                           (kBothDir && expectedDir == cpu_pipe::TransferDir::V2C)) {
                 if constexpr (cpu_pipe::ShouldNoSplitC2VConsumerLaneParticipate<TPipe, TileCons, Split>()) {
-                    const uint32_t laneId = cpu_pipe::GetSplitLaneId<TileSplitAxis::TILE_UP_DOWN>();
-                    const uint32_t laneMask = cpu_pipe::GetSplitLaneMask<TileSplitAxis::TILE_UP_DOWN>(laneId);
-                    auto &laneNext = shared_state.next_consumer_slots_by_lane[laneId];
-                    auto &lanePopped = shared_state.popped_not_freed_by_lane[laneId];
-                    int foundSlot = 0;
-                    shared_state.cv.wait(lock, [&shared_state, &laneNext, laneMask, expectedDir, &foundSlot]() {
-                        return cpu_pipe::FindNextTransferSlot(
-                            shared_state.transfer_dirs, laneNext, expectedDir, foundSlot,
-                            [&shared_state, laneMask](int candidate) {
-                                return (shared_state.consumers_claimed[static_cast<std::size_t>(candidate)] &
-                                        laneMask) != 0;
-                            });
-                    });
-                    tileIndex = foundSlot;
-                    shared_state.consumers_claimed[static_cast<std::size_t>(tileIndex % RingFiFo::SLOT_NUM)] |=
-                        laneMask;
-                    subTileIndex = static_cast<int>(laneId);
-                    laneNext = (tileIndex + 1) % RingFiFo::SLOT_NUM;
-                    cpu_pipe::PushPendingSlot(shared_state.popped_slots_by_lane[laneId], lanePopped, tileIndex);
-                    return;
+                    if (cpu_pipe::IsDualLaneC2VActive()) {
+                        const uint32_t laneId = cpu_pipe::GetSplitLaneId<TileSplitAxis::TILE_UP_DOWN>();
+                        const uint32_t laneMask = cpu_pipe::GetSplitLaneMask<TileSplitAxis::TILE_UP_DOWN>(laneId);
+                        auto &laneNext = shared_state.next_consumer_slots_by_lane[laneId];
+                        auto &lanePopped = shared_state.popped_not_freed_by_lane[laneId];
+                        int foundSlot = 0;
+                        shared_state.cv.wait(lock, [&shared_state, &laneNext, laneMask, expectedDir, &foundSlot]() {
+                            return cpu_pipe::FindNextTransferSlot(
+                                shared_state.transfer_dirs, laneNext, expectedDir, foundSlot,
+                                [&shared_state, laneMask](int candidate) {
+                                    return (shared_state.consumers_claimed[static_cast<std::size_t>(candidate)] &
+                                            laneMask) != 0;
+                                });
+                        });
+                        tileIndex = foundSlot;
+                        const auto dualLaneSlot = static_cast<std::size_t>(tileIndex % RingFiFo::SLOT_NUM);
+                        // The first lane to claim this slot's occupancy sets the consumer count to the
+                        // actual number of vector subblocks, replacing the producer's default of 1.
+                        if (shared_state.consumers_claimed[dualLaneSlot] == 0u) {
+                            shared_state.remaining_consumers[dualLaneSlot] = get_subblockdim();
+                        }
+                        shared_state.consumers_claimed[dualLaneSlot] |= laneMask;
+                        subTileIndex = static_cast<int>(laneId);
+                        laneNext = (tileIndex + 1) % RingFiFo::SLOT_NUM;
+                        cpu_pipe::PushPendingSlot(shared_state.popped_slots_by_lane[laneId], lanePopped, tileIndex);
+                        return;
+                    }
+                    // get_subblockdim()<2: single consumer — fall through to the shared-cursor path below.
                 }
                 int foundSlot = 0;
                 shared_state.cv.wait(lock, [&shared_state, expectedDir, &foundSlot]() {
@@ -787,10 +810,19 @@ struct TPipe {
                 // A pure V2C consumer uses pending-slot tracking in split mode too.
                 if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT || (TPipe::is_v2c && !TPipe::is_c2v)) {
                     if constexpr (cpu_pipe::ShouldNoSplitC2VConsumerLaneFree<TPipe, Split>()) {
-                        const uint32_t laneId = cpu_pipe::GetSplitLaneId<TileSplitAxis::TILE_UP_DOWN>();
-                        auto &lanePopped = shared_state.popped_not_freed_by_lane[laneId];
-                        if (!cpu_pipe::PopPendingSlot(shared_state.popped_slots_by_lane[laneId], lanePopped,
-                                                      freeTileIndex)) {
+                        if (cpu_pipe::IsDualLaneC2VActive()) {
+                            const uint32_t laneId = cpu_pipe::GetSplitLaneId<TileSplitAxis::TILE_UP_DOWN>();
+                            auto &lanePopped = shared_state.popped_not_freed_by_lane[laneId];
+                            if (!cpu_pipe::PopPendingSlot(shared_state.popped_slots_by_lane[laneId], lanePopped,
+                                                          freeTileIndex)) {
+                                if (!cpu_pipe::PopPendingSlot(shared_state.popped_slots, shared_state.popped_not_freed,
+                                                              freeTileIndex)) {
+                                    return;
+                                }
+                            }
+                        } else {
+                            // Single consumer (get_subblockdim()<2): the lone vector lane tracked
+                            // its pop on the shared pending list in wait(), so release from there.
                             if (!cpu_pipe::PopPendingSlot(shared_state.popped_slots, shared_state.popped_not_freed,
                                                           freeTileIndex)) {
                                 return;
@@ -967,10 +999,17 @@ PTO_INTERNAL void TPush_c2v(Pipe &pipe, TileProd &tile, size_t entryBase, size_t
 {
     using T = typename TileProd::DType;
 
-    constexpr int consRows =
-        (Split == TileSplitAxis::TILE_UP_DOWN) ? (TileProd::Rows / 2) : static_cast<int>(TileProd::Rows);
-    constexpr int consCols =
-        (Split == TileSplitAxis::TILE_LEFT_RIGHT) ? (TileProd::Cols / 2) : static_cast<int>(TileProd::Cols);
+    // A slot holds SlotSize bytes, which is derived from the tile's valid footprint
+    // (ValidRow x ValidCol) — the region the consumer actually pops. An Acc tile is allocated at
+    // the L0C fractal granularity (Rows x Cols), which may be larger than its valid region, so the
+    // copy is sized by the valid footprint to match the slot. The footprint is taken from the
+    // runtime valid shape (GetValidRow/GetValidCol) when it is not a positive compile-time value.
+    const uint32_t prodRows = (TileProd::ValidRow > 0) ? static_cast<uint32_t>(TileProd::ValidRow) :
+                                                         static_cast<uint32_t>(tile.GetValidRow());
+    const uint32_t prodCols = (TileProd::ValidCol > 0) ? static_cast<uint32_t>(TileProd::ValidCol) :
+                                                         static_cast<uint32_t>(tile.GetValidCol());
+    const uint32_t consRows = (Split == TileSplitAxis::TILE_UP_DOWN) ? (prodRows / 2) : prodRows;
+    const uint32_t consCols = (Split == TileSplitAxis::TILE_LEFT_RIGHT) ? (prodCols / 2) : prodCols;
 
     if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT) {
         (void)entryBase;
