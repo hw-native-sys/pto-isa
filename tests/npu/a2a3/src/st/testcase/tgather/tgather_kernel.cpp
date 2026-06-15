@@ -272,6 +272,7 @@ __global__ AICORE void runTGATHER_CMP(__gm__ srcT *src, __gm__ src1T *src1, __gm
 
     TLOAD(srcTile, srcGlobal);
     TLOAD(src1Tile, src1Global);
+    TLOAD(dstTile, dstGlobal);
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     TGATHER<DstTileData, TileData, TileData1, ConcatTileData, TmpTileData, cmpMode>(dstTile, srcTile, src1Tile,

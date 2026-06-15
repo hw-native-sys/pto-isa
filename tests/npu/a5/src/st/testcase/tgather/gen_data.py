@@ -140,8 +140,6 @@ def gen_golden_data(param: TGatherParamsBase):
         cmpmode = param.cmpmode
         src_data = np.random.randint(0, 100, [src_row, src_col]).astype(src_type)
         golden = np.zeros((dst_row, dst_col)).astype(dst_type)
-        # 0x7F800001转float比较时为nan，保证尾块对比通过
-        golden[:dst_row][:dst_col] = 0x7F800001
         if cmpmode == 0:
             for i in range(src_row):
                 k = 0

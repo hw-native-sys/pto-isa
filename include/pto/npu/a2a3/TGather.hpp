@@ -252,7 +252,7 @@ AICORE void TGather_cmp_ReduceGatherAndCounts(__ubuf__ typename TileDataD::DType
 
 template <typename TileDataD, typename TileDataS, typename TileDataS1, typename TileDataC, typename TileDataTmp,
           CmpMode cmpMode>
-__tf__ AICORE void TGather_cmp(typename TileDataD::TileDType __out__ dst, typename TileDataS::TileDType __out__ src0,
+__tf__ AICORE void TGather_cmp(typename TileDataD::TileDType __out__ dst, typename TileDataS::TileDType __in__ src0,
                                typename TileDataC::TileDType __in__ cdst, typename TileDataTmp::TileDType __in__ tmp,
                                typename TileDataS1::TileDType __in__ k_value, uint32_t offset, unsigned srcValidCol,
                                unsigned srcValidRow)

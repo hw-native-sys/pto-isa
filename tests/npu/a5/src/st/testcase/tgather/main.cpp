@@ -9,6 +9,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include "test_common.h"
+#include "acl/acl.h"
 #include <gtest/gtest.h>
 #include "tgather_common.h"
 
@@ -378,6 +379,7 @@ void test_gather_cmp()
 
     aclrtMemcpy(srcDevice, size, srcHost, size, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, scalarSize, src1Host, scalarSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemset(dstDevice, dstsize, 0, dstsize);
     LaunchTGATHER_CMP<srcT, src1T, dstT, ROW, COL, ROW, COL, K, cmpMode>(srcDevice, src1Device, dstDevice, offset,
                                                                          stream);
 

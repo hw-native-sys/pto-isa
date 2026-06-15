@@ -294,6 +294,7 @@ __global__ AICORE void runTGATHER_CMP(__gm__ srcT *src, __gm__ src1T *src1, __gm
 
     TLOAD(srcTile, srcGlobal);
     TLOAD(src1Tile, src1Global);
+    TLOAD(dstTile, dstGlobal);
 #ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
