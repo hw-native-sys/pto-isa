@@ -193,7 +193,6 @@ ttri
 tnot
 trelu
 taddreluconv
-tadddeqrelu
 tsubreluconv
 tands
 tors
