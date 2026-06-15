@@ -137,6 +137,7 @@ PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, uint64_t preQuantS
     - `mode` 用于选择 `SingleModeVec0`、`SingleModeVec1`、`DualModeSplitM` 或 `DualModeSplitN`
     - 双目标模式要求 `QuantMode_t::NoQuant`
     - 双目标模式不支持 `nz2dn` 路径
+    - 对于 32 位目标类型（`float`/`int32_t`），使用 `DualModeSplitN` 时，切分前的 `ValidCol` 必须是 `32` 的整数倍
     - 目标 stride 必须非零，且 `dstStride * sizeof(dstType)` 必须是 `32` 字节的整数倍
 - 对于 `TileType::Acc -> TileType::Mat`：
     - 目标 stride 必须非零，且 `dstStride * sizeof(dstType)` 必须是 `32` 字节的整数倍
