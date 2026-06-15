@@ -172,6 +172,7 @@ PTO_INST RecordEvent TINSERT(DstTileData &dst, SrcTileData &src,
     - **Fp tile location**: `FpTileData::Loc` must be `TileType::Scaling` (enforced on both A2/A3 and A5)
     - **Fix-pipe destination**: On A2/A3, destination must be `TileType::Mat` with fractal size 512 and column-width byte count divisible by 32
     - **A5 fix-pipe**: Destination must be `TileType::Mat` with `BLayout::ColMajor + SLayout::RowMajor`; source must be `float` or `int32_t` `Acc`
+    - **A5 Acc→Vec dual mode**: For 32-bit destination types (`float`/`int32_t`), when using `DualModeSplitN` the `ValidCol` before the split must be a multiple of `32`
     - **Cpu simulator**: `TINSERT_FP` accepts the interface but ignores the `fp` parameter, falling back to standard `TINSERT`
 
 ## Common Patterns

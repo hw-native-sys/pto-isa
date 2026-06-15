@@ -106,6 +106,7 @@ In addition to A2/A3 pairs:
 - `mode` selects `SingleModeVec0`, `SingleModeVec1`, `DualModeSplitM`, `DualModeSplitN`
 - Dual-mode requires `QuantMode_t::NoQuant`
 - Dual-mode does not support the `nz2dn` path
+- For 32-bit destination types (`float`/`int32_t`), when using `DualModeSplitN` the `ValidCol` before the split must be a multiple of `32`
 - `dstStride * sizeof(dstType)` must be a multiple of 32 bytes
 
 ## Syntax

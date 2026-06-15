@@ -157,6 +157,7 @@ PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, uint64_t preQuantS
     - `DualModeSplitM` / `DualModeSplitN` 仅适用于 `Acc -> Vec`，并且：
       - 不能与量化同时使用
       - 不支持 `nz2dn` 输出路径
+      - 对于 32 位目标类型（`float`/`int32_t`），使用 `DualModeSplitN` 时，切分前的 `ValidCol` 必须是 `32` 的整数倍
     - A5 还提供一个带 `tmp` 的特化重载，用于 `uint8_t` 数据的 ND->ZZ 打包路径；它不是通用三操作数 `TMOV`，而是一个窄 backend 特化。
 
 ## 示例

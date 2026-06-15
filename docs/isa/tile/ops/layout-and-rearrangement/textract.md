@@ -153,6 +153,7 @@ PTO_INST RecordEvent TEXTRACT_FP(DstTileData &dst, SrcTileData &src, FpTileData 
     - **Type match**: `DstTileData::DType` must equal `SrcTileData::DType`
     - **Fp tile location**: `FpTileData::Loc` must be `TileType::Scaling` (A2/A3 and A5 both enforce this via `static_assert`)
     - **Fix-pipe path**: The backend offsets the FPC address by `indexCol` (counted in units of the fp tile's element width) before configuring the fix-pipe
+    - **A5 Acc→Vec dual mode**: For 32-bit destination types (`float`/`int32_t`), when using `DualModeSplitN` the `ValidCol` before the split must be a multiple of `32`
 
 ## Common Patterns
 
