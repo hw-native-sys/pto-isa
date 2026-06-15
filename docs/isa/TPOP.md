@@ -4,7 +4,7 @@
 
 Pop a consumer tile from a `TPipe` FIFO for Cube-Vector communication.
 
-This page describes both the TileData overload and the `GlobalData` slot-view overload. In the TileData flow, `TPOP` performs both the data-ready wait and the free-space notification; a separate `TFREE` is not required for the same tile. In the `GlobalData` flow, `TPOP` returns a FIFO slot view and the caller must release it with `TFREE(Pipe&, GlobalData&)`.
+This page describes both the TileData overload and the `GlobalData` overload for popping data from a `TPipe` FIFO.
 
 ## Operation Semantics
 
@@ -12,6 +12,8 @@ For the TileData overload, `TPOP` performs three steps:
 
 1. Wait for producer data-ready synchronization.
 2. Load the current FIFO slot into the consumer tile.
+   - For Cube-to-Vector data pop, AIV pops a `VecTile` from the `TPipe` FIFO.
+   - For Vector-to-Cube data pop, AIC pops a `MatTile` from the `TPipe` FIFO.
 3. Notify free space when `Pipe::shouldNotifyFree(tileIndex)` is true.
 
 The consumer tile index is incremented after the FIFO slot address is computed. The free-space notification uses the popped tile index.
@@ -51,7 +53,7 @@ struct TPipe;
     - For C2V vector consumers, `TPipe` assigns the tile to `C2V_CONSUMER_BUF` with local FIFO rotation.
     - For V2C matrix consumers, `TPipe` assigns the tile to `V2C_CONSUMER_BUF` with local FIFO rotation.
 - **Split behavior**:
-    - `TileSplitAxis::TILE_NO_SPLIT`: no sub-vector offset is applied.
+    - `TileSplitAxis::TILE_NO_SPLIT`: No sub-vector offset is applied. On A2A3, this mode requires AIV0/AIV1 to participate in inter-core synchronization.
     - `TileSplitAxis::TILE_UP_DOWN`: vector subblocks consume row halves.
     - `TileSplitAxis::TILE_LEFT_RIGHT`: vector subblocks consume column halves.
 - **Synchronization**:

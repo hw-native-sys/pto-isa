@@ -4,7 +4,7 @@
 
 从 `TPipe` FIFO 中弹出消费者 tile，用于 Cube-Vector 通信。
 
-本文同时描述 TileData 重载和 `GlobalData` 槽位视图重载。在 TileData 流程中，`TPOP` 同时执行数据就绪等待和空闲空间通知；同一个 tile 不需要再单独调用 `TFREE`。在 `GlobalData` 流程中，`TPOP` 返回 FIFO 槽位视图，调用者必须使用 `TFREE(Pipe&, GlobalData&)` 释放该槽位。
+本指令支持两类数据的弹出，分别为Tile类型的数据和GlobalTensor类型的数据。所以分别设计了基于`Tile` 重载和 `GlobalTensor` 重载。
 
 ## 操作语义
 
@@ -12,6 +12,8 @@
 
 1. 等待生产者的数据就绪同步。
 2. 将当前 FIFO 槽位加载到消费者 tile 中。
+  - 如果是Cube->Vector的数据弹出，AIV会将TPipe的FIFO中取出vecTile
+  - 如果是Vector->Cube的数据弹出，AIC会将TPipe的FIFO中取出matTile
 3. 当 `Pipe::shouldNotifyFree(tileIndex)` 为 true 时，通知空闲空间。
 
 消费者 tile 索引会在 FIFO 槽位地址计算完成后递增。空闲空间通知使用已经弹出的 tile 索引。
@@ -50,10 +52,10 @@ struct TPipe;
 - **本地消费者缓冲区**：
     - 对于 C2V vector 消费者，`TPipe` 会将 tile 分配到 `C2V_CONSUMER_BUF`，并使用本地 FIFO 轮转。
     - 对于 V2C matrix 消费者，`TPipe` 会将 tile 分配到 `V2C_CONSUMER_BUF`，并使用本地 FIFO 轮转。
-- **分裂行为**：
-    - `TileSplitAxis::TILE_NO_SPLIT`：不应用子向量偏移。
-    - `TileSplitAxis::TILE_UP_DOWN`：向量子块消费上下两个行半区。
-    - `TileSplitAxis::TILE_LEFT_RIGHT`：向量子块消费左右两个列半区。
+- **切分行为**：
+    - `TileSplitAxis::TILE_NO_SPLIT`：不进行切分， A2A3上需要AIV0/AIV1陪跑核间同步操作。
+    - `TileSplitAxis::TILE_UP_DOWN`：消费上下两个行半区。
+    - `TileSplitAxis::TILE_LEFT_RIGHT`：消费左右两个列半区。
 - **同步**：
     - 每次 `TPOP` 都会执行数据就绪等待。
     - 空闲空间通知是稀疏的，并由 `Pipe::SyncPeriod` 控制。
