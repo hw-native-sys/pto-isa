@@ -137,6 +137,7 @@ PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, uint64_t preQuantS
     - `mode` selects `SingleModeVec0`, `SingleModeVec1`, `DualModeSplitM`, or `DualModeSplitN`
     - dual-destination modes require `QuantMode_t::NoQuant`
     - dual-destination modes do not support the `nz2dn` path
+    - for 32-bit destination types (`float`/`int32_t`), when using `DualModeSplitN` the `ValidCol` (before the split) must be a multiple of `32`
     - destination stride must be non-zero and `dstStride * sizeof(dstType)` must be a multiple of `32` bytes
 - For `TileType::Acc -> TileType::Mat`:
     - destination stride must be non-zero and `dstStride * sizeof(dstType)` must be a multiple of `32` bytes
