@@ -186,6 +186,8 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tpartargmin -g TPARTARGMINTest.case_float_uint32_tile_diff_32k_small_0
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tpows -g TPOWSTest.case11
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tsel -g TSELTest.case1
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tfillpad -g TFILLPADTest.case_float_GT_128_127_VT_128_128_BLK1_PADMAX_PADMAX
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tfillpad -g TFILLPADTest.case_u16_GT_259_7_VT_260_32_BLK1_PADMIN_PADMAX_EXPAND -d
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tmins
     python3 tests/script/run_st.py $ARGS -w -v a3 -t trsqrt -g TRSQRTTest.case_float_64x64_64x64_64x64_inPlace_False
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tsqrt -g TSQRTTest.case_float_64x64_64x64_64x64_inPlace_False
@@ -535,6 +537,7 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a5 -t textract -g TEXTRACTTest.case1
     python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_acc2vec -g TMOVTest.case_nz2nd_sc_quant_1
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tfillpad -g TFILLPADTest.case_float_GT_128_127_VT_128_128_BLK1_PADMAX_PADMAX
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tfillpad -g TFILLPADTest.case_u16_GT_259_7_VT_260_32_BLK1_PADMIN_PADMAX_EXPAND -d
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tgather -g TGATHERTest.case1_float_32x1024_16x64
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tgatherb -g TGATHERBTest.case_float_2x128_2x16_2x128
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tload -g TLOADTest.case_float_GT_2_2_2_256_60_VT_256_64_BLK8_PADMAX
