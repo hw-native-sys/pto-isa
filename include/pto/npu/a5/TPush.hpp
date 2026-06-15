@@ -15,6 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/common/fifo.hpp>
 #include <pto/npu/a5/TStore.hpp>
 #include <pto/npu/a5/TLoad.hpp>
+#include <pto/common/debug.h>
 
 namespace pto {
 
@@ -231,8 +232,20 @@ struct TPipe {
             if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT) {
                 TMOV_IMPL<TileCons, TileProd, AccToVecMode::SingleModeVec0>(vecTile, tile);
             } else if constexpr (Split == TileSplitAxis::TILE_UP_DOWN) {
+                static_assert((ProdM % 2 == 0) && (sizeof(T) == 4),
+                              "Fix: For C2V(L0C-> UB), only support up-down split with ProdM being multiple of 2 due "
+                              "to hardware requirement.");
+                PTO_ASSERT((tile.GetValidRow() % 2 == 0) && (sizeof(T) == 4),
+                           "Fix: For C2V(L0C-> UB), only support up-down split with ProdM being multiple of 2 due to "
+                           "hardware requirement.");
                 TMOV_IMPL<TileCons, TileProd, AccToVecMode::DualModeSplitM>(vecTile, tile);
             } else if constexpr (Split == TileSplitAxis::TILE_LEFT_RIGHT) {
+                static_assert((ProdN % 32 == 0) && (sizeof(T) == 4),
+                              "Fix: For C2V(L0C-> UB), only support left-right split with ProdN being multiple of 32 "
+                              "due to hardware requirement.");
+                PTO_ASSERT((tile.GetValidCol() % 32 == 0) && (sizeof(T) == 4),
+                           "Fix: For C2V(L0C-> UB), only support left-right split with ProdN being multiple of 32 due "
+                           "to hardware requirement.");
                 TMOV_IMPL<TileCons, TileProd, AccToVecMode::DualModeSplitN>(vecTile, tile);
             }
         }
@@ -256,6 +269,9 @@ struct TPipe {
                 int rowIndex = ProdM * static_cast<size_t>(get_subblockid());
                 TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(rowIndex), static_cast<uint16_t>(0));
             } else if constexpr (Split == TileSplitAxis::TILE_LEFT_RIGHT) {
+                PTO_ASSERT(tile.GetValidCol() * sizeof(T) % 32 == 0,
+                           "Fix: For V2C(UB->L1), tile's valid column must be multiple of 32 bytes due to hardware "
+                           "requirement.");
                 uint32_t colIndex = ProdN * static_cast<size_t>(get_subblockid());
                 TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(0), static_cast<uint16_t>(colIndex));
             }

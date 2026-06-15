@@ -2,21 +2,23 @@
 
 ## 简介
 
-将生产者 tile 推入 `TPipe` FIFO，用于 Cube-Vector 通信。
+将生产者 tile 推入FIFO中，用于 Cube-Vector之间的数据传输和核间同步。
 
-本文同时描述 TileData 重载和 `GlobalData` 提交重载。对于将 FIFO 条目暴露为 `GlobalTensor` 的 GM 槽位工作流，使用 `TALLOC` 分配槽位视图，通过普通内存指令写入槽位，然后使用 `TPUSH(Pipe&, GlobalData&)` 提交该槽位。
+本指令支持两类数据的推送，分别为Tile类型的数据和GlobalTensor类型的数据。所以分别设计了基于`Tile` 重载和 `GlobalTensor` 重载。
 
 ## 操作语义
 
-对于 TileData 重载，`TPUSH` 执行三个步骤：
+对于 Tile类型接口，`TPUSH` 执行三个步骤：
 
 1. 当 `Pipe::shouldWaitFree(pipe.prod.tileIndex)` 为 true 时，等待 FIFO 空间。
-2. 将生产者 tile 存入当前 FIFO 槽位。
+2. 将生产者 tile 存入当前 FIFO 槽位。该步骤中：
+   - 如果是Cube->Vector的数据推送，会将AccTile推送到TPipe的FIFO中
+   - 如果是Vector->Cube的数据推送，会将VecTile推送到TPipe的FIFO中
 3. 为消费者记录数据就绪同步。
 
 生产者 tile 索引会在 FIFO 槽位地址计算完成后递增。
 
-对于 `GlobalData` 重载，`TPUSH` 只为已经由 `TALLOC` 分配的槽位记录数据就绪同步。它本身不会存储 tile 数据。
+对于 `GlobalData` 类型接口，`TPUSH` 只为已经由 `TALLOC` 分配的槽位记录数据就绪同步。它本身不会存储 tile 数据。
 
 ## C++ Intrinsic
 
@@ -32,7 +34,7 @@ template <typename Pipe, typename GlobalData, TileSplitAxis Split,
 PTO_INST RecordEvent TPUSH(Pipe &pipe, GlobalData &gmTensor, WaitEvents &... events);
 ```
 
-`Pipe` 通常是 `TPush.hpp` 中声明的  `TPipe`：
+`Pipe` 通常是 `TPush.hpp` 中声明的  `TPipe`类型：
 
 ```cpp
 template <uint8_t FlagID, uint8_t DirType, uint32_t SlotSize, uint32_t SlotNum,
@@ -50,15 +52,18 @@ struct TPipe;
 - **FIFO 槽位**：
     - `SlotSize` 必须足够容纳一个逻辑 FIFO 条目。
     - `SlotNum >= 1`。
-    - `Pipe::SyncPeriod` 由 `SlotNum` 派生：`(SlotNum <= 2) ? SlotNum : SlotNum / 2`。
-- **分裂行为**：
-    - `TileSplitAxis::TILE_NO_SPLIT`：不应用子向量偏移。
-    - `TileSplitAxis::TILE_UP_DOWN`：向量子块映射到上下两个行半区。
+- **A2A3切分行为**：
+    - `TileSplitAxis::TILE_NO_SPLIT`：不做切分。在A2A3上要使能此切分模式，需要AIV0,AIV1陪跑同步操作。
+    - `TileSplitAxis::TILE_UP_DOWN`：向量子块映射到上下两个行半区。 
     - `TileSplitAxis::TILE_LEFT_RIGHT`：向量子块映射到左右两个列半区。
+- **A5切分行为**：
+    - `TileSplitAxis::TILE_NO_SPLIT`：不做切分。
+    - `TileSplitAxis::TILE_UP_DOWN`：将数据按照上下切分。当Cube->Vector方向且L0C->UB通路时，该切分模式仅支持数据类型为b32，且srcTile的validRows必须2的整数倍；当Vector->Cube方向且UB->L1通路时，该切分模式下validCols必须是32bytes的整数倍。
+    - `TileSplitAxis::TILE_LEFT_RIGHT`：将数据按照左右切分成两个列半区。当Cube->Vector方向且L0C->UB通路时，该切分模式仅支持数据类型为b32，且srcTile的validCols必须为32的整数倍。当Vector->Cube方向且UB->L1通路时，该切分模式下validCols必须是32bytes的整数倍。
 - **同步**：
     - 空闲空间等待是稀疏的，并由 `Pipe::SyncPeriod` 控制。
     - 每次 `TPUSH` 都会发出数据就绪记录。
-- **GlobalData 提交**：
+- **GlobalData 类型生产者**：
     - `gmTensor` 必须是由 `TALLOC` 返回的 FIFO 槽位视图。
     - 调用 `TPUSH(Pipe&, GlobalData&)` 之前，数据必须已经写入 `gmTensor`。
     - `TPUSH(Pipe&, GlobalData&)` 忽略 tensor 内容，只将 FIFO 槽位提交给消费者。
@@ -123,7 +128,7 @@ AICORE void example_v2c(__gm__ void *fifoMem)
 }
 ```
 
-### GlobalData 槽位提交
+### GlobalData 推送示例
 
 ```cpp
 #include <pto/pto-inst.hpp>

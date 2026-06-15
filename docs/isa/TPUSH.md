@@ -4,14 +4,16 @@
 
 Push a producer tile into a `TPipe` FIFO for Cube-Vector communication.
 
-This page describes both the TileData overload and the `GlobalData` commit overload. For GM-slot workflows that expose the FIFO entry as a `GlobalTensor`, use `TALLOC` to allocate a slot view, write the slot with normal memory instructions, then use `TPUSH(Pipe&, GlobalData&)` to commit the slot.
+This page describes both the TileData overload and the `GlobalTensor` overload for pushing data into a `TPipe` FIFO.
 
 ## Operation Semantics
 
 For the TileData overload, `TPUSH` performs three steps:
 
 1. Wait for FIFO space when `Pipe::shouldWaitFree(pipe.prod.tileIndex)` is true.
-2. Store the producer tile into the current FIFO slot.
+2. Store the producer tile into the current FIFO slot. In this step:
+   - For Cube-to-Vector data push, the `AccTile` is pushed into the `TPipe` FIFO.
+   - For Vector-to-Cube data push, the `VecTile` is pushed into the `TPipe` FIFO.
 3. Record data-ready synchronization for the consumer.
 
 The producer tile index is incremented after the FIFO slot address is computed.
@@ -50,15 +52,18 @@ struct TPipe;
 - **FIFO slot**:
     - `SlotSize` must be large enough for one logical FIFO entry.
     - `SlotNum >= 1`.
-    - `Pipe::SyncPeriod` is derived from `SlotNum`: `(SlotNum <= 2) ? SlotNum : SlotNum / 2`.
-- **Split behavior**:
-    - `TileSplitAxis::TILE_NO_SPLIT`: no sub-vector offset is applied.
-    - `TileSplitAxis::TILE_UP_DOWN`: vector subblocks map to row halves.
-    - `TileSplitAxis::TILE_LEFT_RIGHT`: vector subblocks map to column halves.
+- **A2A3 split behavior**:
+    - `TileSplitAxis::TILE_NO_SPLIT`: No sub-vector offset is applied. On A2A3, this mode requires AIV0 and AIV1 to participate in synchronization.
+    - `TileSplitAxis::TILE_UP_DOWN`: Vector subblocks map to row halves.
+    - `TileSplitAxis::TILE_LEFT_RIGHT`: Vector subblocks map to column halves.
+- **A5 split behavior**:
+    - `TileSplitAxis::TILE_NO_SPLIT`: No sub-vector offset is applied.
+    - `TileSplitAxis::TILE_UP_DOWN`: Data is split into row halves. For C2V direction (L0C→UB path), this mode only supports b32 data type, and `validRows` must be a power of 2; for V2C direction (UB→L1 path), `validCols` must be a multiple of 32 bytes.
+    - `TileSplitAxis::TILE_LEFT_RIGHT`: Data is split into two column halves. For C2V direction (L0C→UB path), this mode only supports b32 data type, and `validCols` must be a multiple of 32; for V2C direction (UB→L1 path), `validCols` must be a multiple of 32 bytes.
 - **Synchronization**:
     - Free-space waits are sparse and controlled by `Pipe::SyncPeriod`.
     - Data-ready record is emitted for each `TPUSH`.
-- **GlobalData commit**:
+- **GlobalData producer**:
     - `gmTensor` must be a FIFO slot view returned by `TALLOC`.
     - Data must be written into `gmTensor` before calling `TPUSH(Pipe&, GlobalData&)`.
     - `TPUSH(Pipe&, GlobalData&)` ignores the tensor contents and only commits the FIFO slot to the consumer.
