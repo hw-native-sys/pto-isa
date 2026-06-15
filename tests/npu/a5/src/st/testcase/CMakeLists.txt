@@ -252,6 +252,7 @@ set(ALL_TESTCASES
     tpushpop_subtile
     tinterleave
     tdeinterleave
+    tpairreducesum
 )
 
 # Opt-in testcases: built ONLY when TEST_CASE=<name> is explicitly supplied.

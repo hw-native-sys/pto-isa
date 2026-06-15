@@ -135,6 +135,7 @@
 - [TCONCAT](TCONCAT_zh.md) - 将两个 Tile 沿列维度水平拼接。
 - [TInterleave](TINTERLEAVE_zh.md) - 将两个源 Tile 交织为交替的偶/奇元素流，拆分为两个目标半部分。
 - [TDeInterleave](TDEINTERLEAVE_zh.md) - 将源 Tile 反交织为偶数位置和奇数位置的元素流（TInterleave 的逆操作）。
+- [TPAIRREDUCESUM](TPairReduceSum_zh.md) - 对归约求和：将每两个相邻元素相加，结果写入目标 Tile 的下半部分。
 
 ## 复杂指令
 - [TPRINT](TPRINT_zh.md) - 调试/打印 Tile 中的元素（实现定义）。

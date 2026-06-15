@@ -33,7 +33,6 @@ __global__ AICORE void runTPairReduceSum(__gm__ T __out__ *out, __gm__ T __in__ 
     TASSIGN(dstTile, 0x10000);
 
     TLOAD(srcTile, src0Global);
-    TLOAD(dstTile, dstGlobal);
 #ifndef __PTO_AUTO__
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
