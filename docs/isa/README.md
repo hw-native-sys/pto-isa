@@ -49,6 +49,10 @@ This directory contains the per-instruction reference for the PTO Tile Lib ISA.
 - [TREM](TREM.md) - Elementwise remainder of two tiles.
 - [TFMOD](TFMOD.md) - Elementwise fmod of two tiles.
 - [TPOW](TPOW.md) - Elementwise power of two tiles.
+- [TMULADDDST](TMULADDDST.md) - Elementwise ternary op: `src0 * src1 + dst`.
+- [TSUBRELU](TSUBRELU.md) - Elementwise subtract then ReLU of two tiles.
+- [TFUSEDMULADD](TFUSEDMULADD.md) - Elementwise ternary op: `src0 * dst + src1`.
+- [TFUSEDMULADDRELU](TFUSEDMULADDRELU.md) - Elementwise ternary op: `ReLU(src0 * dst + src1)`.
 
 ## Tile-Scalar / Tile-Immediate
 - [TEXPANDS](TEXPANDS.md) - Broadcast a scalar into a destination tile.

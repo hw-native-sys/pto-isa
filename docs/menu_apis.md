@@ -46,6 +46,10 @@
     - [TREM](isa/TREM_zh.md)
     - [TFMOD](isa/TFMOD_zh.md)
     - [TPOW](isa/TPOW_zh.md)
+    - [TSUBRELU](isa/TSUBRELU_zh.md)
+    - [TFUSEDMULADD](isa/TFUSEDMULADD_zh.md)
+    - [TFUSEDMULADDRELU](isa/TFUSEDMULADDRELU_zh.md)
+    - [TMULADDDST](isa/TMULADDDST.md)
 - **Tile-标量/Tile-立即数**
     - [TEXPANDS](isa/TEXPANDS_zh.md)
     - [TCMPS](isa/TCMPS_zh.md)

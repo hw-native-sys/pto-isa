@@ -49,6 +49,10 @@
 - [TREM](TREM_zh.md) - 两个 Tile 的逐元素余数，余数符号与除数相同。
 - [TFMOD](TFMOD_zh.md) - 两个 Tile 的逐元素余数，余数符号与被除数相同。
 - [TPOW](TPOW_zh.md) - 两个 Tile 的逐元素幂运算。
+- [TMULADDDST](TMULADDDST.md) - 三元逐元素运算：`src0 * src1 + dst`。
+- [TSUBRELU](TSUBRELU.md) - src0和src1逐元素相减后ReLU。
+- [TFUSEDMULADD](TFUSEDMULADD.md) - 三元逐元素运算：`src0 * dst + src1`。
+- [TFUSEDMULADDRELU](TFUSEDMULADDRELU.md) - 三元逐元素运算：`ReLU(src0 * dst + src1)`。
 
 ## Tile-标量 / Tile-立即数
 - [TEXPANDS](TEXPANDS_zh.md) - 将标量广播到目标 Tile 中。
