@@ -178,6 +178,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a2a3/GridTPush.hpp"
 #include "pto/npu/a2a3/GridTPop.hpp"
 #include "pto/npu/a2a3/TPairReduceSum.hpp"
+#include "pto/npu/a2a3/TFusedMulAdd.hpp"
+#include "pto/npu/a2a3/TMulAddDst.hpp"
+#include "pto/npu/a2a3/TSubRelu.hpp"
+#include "pto/npu/a2a3/TFusedMulAddRelu.hpp"
 #endif
 #endif
 
@@ -299,6 +303,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TInterleave.hpp"
 #include "pto/npu/a5/TDeInterleave.hpp"
 #include "pto/npu/a5/TPairReduceSum.hpp"
+#include "pto/npu/a5/TFusedMulAdd.hpp"
+#include "pto/npu/a5/TMulAddDst.hpp"
+#include "pto/npu/a5/TSubRelu.hpp"
+#include "pto/npu/a5/TFusedMulAddRelu.hpp"
 #endif
 
 #ifdef PTO_NPU_ARCH_KIRIN9030

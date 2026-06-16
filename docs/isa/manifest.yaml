@@ -449,6 +449,58 @@
       "notes": []
     },
     {
+      "instruction": "TMULADDDST",
+      "category": "Elementwise (Tile-Tile)",
+      "summary_en": "Elementwise ternary op: `src0 * src1 + dst`.",
+      "summary_zh": "三元逐元素运算：`src0 * src1 + dst`。",
+      "diagram_template": "elementwise",
+      "operands": [
+        "dst",
+        "src0",
+        "src1"
+      ],
+      "notes": []
+    },
+    {
+      "instruction": "TFUSEDMULADD",
+      "category": "Elementwise (Tile-Tile)",
+      "summary_en": "Elementwise ternary op: `src0 * dst + src1`.",
+      "summary_zh": "三元逐元素运算：`src0 * dst + src1`。",
+      "diagram_template": "elementwise",
+      "operands": [
+        "dst",
+        "src0",
+        "src1"
+      ],
+      "notes": []
+    },
+    {
+      "instruction": "TSUBRELU",
+      "category": "Elementwise (Tile-Tile)",
+      "summary_en": "Elementwise subtract then ReLU of two tiles.",
+      "summary_zh": "src0和src1逐元素相减后ReLU。",
+      "diagram_template": "elementwise",
+      "operands": [
+        "dst",
+        "src0",
+        "src1"
+      ],
+      "notes": []
+    },
+    {
+      "instruction": "TFUSEDMULADDRELU",
+      "category": "Elementwise (Tile-Tile)",
+      "summary_en": "Elementwise ternary op: `ReLU(src0 * dst + src1)`.",
+      "summary_zh": "三元逐元素运算：`ReLU(src0 * dst + src1)`。",
+      "diagram_template": "elementwise",
+      "operands": [
+        "dst",
+        "src0",
+        "src1"
+      ],
+      "notes": []
+    },
+    {
       "instruction": "TEXPANDS",
       "category": "Tile-Scalar / Tile-Immediate",
       "summary_en": "Broadcast a scalar into a destination tile.",
