@@ -56,7 +56,7 @@ PTO_INTERNAL void TTernOps_1D_PostUpdate(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr
         unsigned sreg = validRows * validCols;
         for (uint16_t i = 0; i < (uint16_t)repeatTimes; ++i) {
             preg = CreatePredicate<T>(sreg);
-            vlds(vreg2_PU, dstPtr, 0, NORM, POST_UPDATE);
+            vlds(vreg2_PU, dstPtr, ElementsPerRepeat, NORM, POST_UPDATE);
             vlds(vreg0_PU, src0Ptr, ElementsPerRepeat, NORM, POST_UPDATE);
             vlds(vreg1_PU, src1Ptr, ElementsPerRepeat, NORM, POST_UPDATE);
             Op::TernInstr(vreg2_PU, vreg0_PU, vreg1_PU, preg);
@@ -109,7 +109,7 @@ PTO_INTERNAL void TTernOps_2D_PostUpdate_FullRepeats(__ubuf__ T *dstPtr, __ubuf_
             std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
         for (uint16_t i = 0; i < (uint16_t)(validRows); ++i) {
             for (uint16_t j = 0; j < (uint16_t)fullRepeats; ++j) {
-                vlds(vreg2_PU, dstPtr, 0, NORM, POST_UPDATE);
+                vlds(vreg2_PU, dstPtr, ElementsPerRepeat, NORM, POST_UPDATE);
                 vlds(vreg0_PU, src0Ptr, ElementsPerRepeat, NORM, POST_UPDATE);
                 vlds(vreg1_PU, src1Ptr, ElementsPerRepeat, NORM, POST_UPDATE);
                 Op::TernInstr(vreg2_PU, vreg0_PU, vreg1_PU, preg);
@@ -143,13 +143,13 @@ PTO_INTERNAL void TTernOps_2D_PostUpdate_FullRepeatsTail(__ubuf__ T *dstPtr, __u
             for (uint16_t j = 0; j < (uint16_t)fullRepeats; ++j) {
                 vlds(vreg0_PU, src0Ptr, ElementsPerRepeat, NORM, POST_UPDATE);
                 vlds(vreg1_PU, src1Ptr, ElementsPerRepeat, NORM, POST_UPDATE);
-                vlds(vreg2_PU, dstPtr, 0, NORM, POST_UPDATE);
+                vlds(vreg2_PU, dstPtr, ElementsPerRepeat, NORM, POST_UPDATE);
                 Op::TernInstr(vreg2_PU, vreg0_PU, vreg1_PU, pregFull);
                 vsts(vreg2_PU, dstPtr, ElementsPerRepeat, distValue, pregFull, POST_UPDATE);
             }
             vlds(vreg0_PU, src0Ptr, ElementsPerRepeat, NORM, POST_UPDATE);
             vlds(vreg1_PU, src1Ptr, ElementsPerRepeat, NORM, POST_UPDATE);
-            vlds(vreg2_PU, dstPtr, 0, NORM, POST_UPDATE);
+            vlds(vreg2_PU, dstPtr, ElementsPerRepeat, NORM, POST_UPDATE);
             Op::TernInstr(vreg2_PU, vreg0_PU, vreg1_PU, pregTail);
             vsts(vreg2_PU, dstPtr, ElementsPerRepeat, distValue, pregTail, POST_UPDATE);
             src0Ptr += src0RowAdjust;

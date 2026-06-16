@@ -252,6 +252,10 @@ set(ALL_TESTCASES
     tinterleave
     tdeinterleave
     tpairreducesum
+    tfusedmuladd
+    tmuladddst
+    tsubrelu
+    tfusedmuladdrelu
 )
 
 # Opt-in testcases: built ONLY when TEST_CASE=<name> is explicitly supplied.

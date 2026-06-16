@@ -87,8 +87,8 @@ void test_TMULADDDST()
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<T> golden(dstTileH * dstTileW);
-    std::vector<T> devFinal(dstTileH * dstTileW);
+    std::vector<T> golden(fileSizeDst);
+    std::vector<T> devFinal(fileSizeDst);
     ReadFile(GetGoldenDir() + "/golden.bin", fileSizeDst, golden.data(), fileSizeDst);
     ReadFile(GetGoldenDir() + "/output.bin", fileSizeDst, devFinal.data(), fileSizeDst);
 
