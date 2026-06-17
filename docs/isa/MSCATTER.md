@@ -19,7 +19,7 @@ Write behaviour is controlled by orthogonal template policies:
 
 Per-target dispatch summary:
 
-- **CPU Simulator** — pure C++ reference. The implementation walks `validRow * validCol` with a plain sequential `for` loop in row-major order and writes `table[idx[i, j]] = src[i, j]` (Elem semantics). When multiple sources map to the same destination, the last writer in row-major iteration order wins. No atomic mode is exposed at the intrinsic surface.
+- **CPU Simulator** — pure C++ reference. The implementation walks `validRow * validCol` with a plain sequential `for` loop in row-major order and writes `table[idx[i, j]] = src[i, j]` (Elem semantics). When multiple sources map to the same destination, the last writer in row-major iteration order wins. 
 - **A2/A3 VEC-CORE** — single-threaded scalar / MTE3 walk driven from the scalar pipe. Row mode issues one wide `copy_ubuf_to_gm_align_b*` DMA per row through `tablePtr + safeIdx * tableRowStride` (where `tableRowStride = table.GetStride(DIM_3)` and `tableRows = ∏ Shape[0..3]`); Elem mode performs a scalar UB→GM store per element (DMA bursts cannot satisfy per-element UB-source 32-byte alignment). Supports ND-GM with ND-UB **and** NZ-GM with NZ-UB tile pairs. Always "last write wins" for `ScatterAtomicOp::None`.
 - **A5 SIMT** — SIMT launch through `cce::async_invoke` with up to `dim3{32, 32}` (1024 threads). Row mode uses warp-parallel lane writes that the SIMT hardware coalesces into 128 B GM bursts when consecutive; Elem mode maps one lane to one element with per-lane scalar GM stores. The Row kernel computes `dstRow = table + safeIdx * validCols`, so the GM table is treated as **packed ND with row stride = `validCols`** — `MScatterCheck` enforces `GlobalTable::staticShape[4] == TileSrc::ValidCol` at compile time, and `tableRows = Shape[3]`. `Conflict::Last` is implemented as a slot-centric reverse scan (`last_owner_find_*`) so the result is deterministic and race-free. NZ block-stride layouts are not implemented on A5. The `(1, 1)` Elem case bypasses the SIMT launch and runs `MScatterScalarImpl` on the AIV vector core.
 
@@ -113,7 +113,7 @@ pto.mscatter ins(%src, %idx : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%mem 
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp` (the shared dispatcher) and the per-target implementation headers (`include/pto/cpu/MGatherScatter.hpp`, `include/pto/npu/a2a3/MScatter.hpp`, `include/pto/npu/a5/MScatter.hpp`).
+Declared in `include/pto/common/pto_instr.hpp` (the shared dispatcher) and the per-target implementation headers (`include/pto/cpu/MScatter.hpp`, `include/pto/npu/a2a3/MScatter.hpp`, `include/pto/npu/a5/MScatter.hpp`).
 
 ### CPU Reference Form
 
@@ -121,8 +121,6 @@ Declared in `include/pto/common/pto_instr.hpp` (the shared dispatcher) and the p
 template <typename GlobalData, typename TileSrc, typename TileInd, typename... WaitEvents>
 PTO_INST RecordEvent MSCATTER(GlobalData &dst, TileSrc &src, TileInd &indexes, WaitEvents &... events);
 ```
-
-The CPU form has no `Coalesce`, `ScatterAtomicOp`, `ScatterOOB`, or `ScatterConflict` template parameter. The implementation always walks `validRow × validCol` and writes `dst.data()[indexes.data()[idxOff]] = src.data()[srcOff]` — Elem semantics regardless of the index tile shape. Atomic is always plain replace; the last writer in row-major iteration order wins. Bounds are not enforced.
 
 ### A2/A3 Form
 
@@ -200,7 +198,7 @@ enum class ScatterConflict : uint8_t {  // A5 only
 | `Max`  | ABI contract: `int32_t` or `float` (simulator runs plain replace) | unsupported (rejected at compile time by `MScatterCheck`) | `int32_t`, `uint32_t`, `float` (SIMT `atomicMax`) |
 | `Min`  | ABI contract: `int32_t` or `float` (simulator runs plain replace) | unsupported (rejected at compile time by `MScatterCheck`) | `int32_t`, `uint32_t`, `float` (SIMT `atomicMin`) |
 
-A2/A3 `Max` / `Min` would need a hardware atomic-max/min unit on the MTE3 path that the SoC does not provide; `MScatterCheck` static-asserts reject them. The CPU simulator's `MSCATTER` does not template on `ScatterAtomicOp` — the contract column above is what callers must honor at the source level so the same kernel still compiles and behaves correctly when the same source is built against A2/A3 or A5.
+A2/A3 `Max` / `Min` would need a hardware atomic-max/min unit on the MTE3 path that the SoC does not provide; `MScatterCheck` static-asserts reject them.
 
 ## Constraints
 
@@ -238,10 +236,9 @@ The constraints below are split into target-specific sections so each backend li
 **Index interpretation:**
 
 - Index interpretation is target-defined. The CPU simulator treats indices as **linear element indices into `dst.data()`** and writes `dst.data()[idx] = src.data()[srcOff]` for every `(r, c)` in the source valid region — equivalent to `Coalesce::Elem` semantics, regardless of the index tile shape.
-- The CPU simulator does not enforce bounds checks on `indexes`. Out-of-range indices write to whatever GM address `dst.data() + idx` resolves to and are target-defined.
-- The simulator does **not** model `ScatterAtomicOp`, `ScatterOOB`, or `ScatterConflict` template parameters; the implementation always does plain replace, with "last writer in row-major iteration order wins" as the conflict policy.
+- The simulator does **not** model `ScatterConflict` template parameters; the implementation always uses "last writer in row-major iteration order wins" as the conflict policy.
 
-**Header-level enforcement.** The CPU header (`include/pto/cpu/MGatherScatter.hpp`) static-asserts only the minimum closure rules: `std::is_integral_v<TileInd::DType>` for the index dtype and `sizeof(TileSrc::DType) == sizeof(GlobalData::DType)` for byte-wise compatibility. The dtype / shape / atomic / layout constraints above are the **PTO ABI contract** — callers are expected to honor them so the same kernel source compiles and runs unmodified against the A2/A3 and A5 backends.
+**Header-level enforcement.** The CPU header (`include/pto/cpu/MScatter.hpp`) static-asserts only the minimum closure rules: `std::is_integral_v<TileInd::DType>` for the index dtype and `sizeof(TileSrc::DType) == sizeof(GlobalData::DType)` for byte-wise compatibility. The dtype / shape / atomic / layout constraints above are the **PTO ABI contract** — callers are expected to honor them so the same kernel source compiles and runs unmodified against the A2/A3 and A5 backends.
 
 ### Tile Constraints (A2/A3)
 
@@ -362,8 +359,6 @@ A5:
                    (Idx.ValidRow == Src.ValidRow && Idx.ValidCol == 1)
   Coalesce::Elem : (Idx.ValidRow == Src.ValidRow) && (Idx.ValidCol == Src.ValidCol)
 ```
-
-On the CPU reference path, no mode parameter exists; the implementation always walks element-wise.
 
 ## Layout Support
 

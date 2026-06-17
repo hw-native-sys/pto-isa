@@ -17,23 +17,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-enum class GatherOOB : uint8_t
-{
-    Undefined = 0,
-    Clamp = 1,
-    Wrap = 2,
-    Zero = 3
-};
-
-#ifndef PTO_COALESCE_ENUM_DEFINED
-#define PTO_COALESCE_ENUM_DEFINED
-enum class Coalesce : uint8_t
-{
-    Row = 0,
-    Elem = 1
-};
-#endif
-
 template <typename T>
 struct IsValidMGatherDType {
     static constexpr bool value = std::is_same_v<T, int8_t> || std::is_same_v<T, uint8_t> ||

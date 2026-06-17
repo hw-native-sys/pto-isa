@@ -52,7 +52,6 @@ enum class GatherOOB : uint8_t {
 - `Clamp`: `idx = min(idx, capacity - 1)` before access.
 - `Wrap`: `idx = idx % capacity` before access.
 - `Zero`: out-of-bounds destinations receive `static_cast<T>(0)`. In Row mode the OOB row is filled with `T(0)` (A2/A3 ND fills inline on the scalar pipe; A2/A3 NZ pre-zeros the whole tile once before the DMA loop; A5 SIMT does the substitution inline per lane). In Elem mode the OOB lane writes `T(0)` inline through the same store. All dtypes are supported under every `GatherOOB` value.
-- CPU simulator: bounds are **not** enforced regardless of the `Oob` parameter — out-of-range indices read whatever `table.data()[idx]` returns and are target-defined.
 
 ## Assembly Syntax
 
@@ -91,7 +90,7 @@ pto.mgather ins(%mem, %idx : !pto.partition_tensor_view<MxNxdtype>, !pto.tile_bu
 
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp` (the shared dispatcher) and the per-target implementation headers (`include/pto/cpu/MGatherScatter.hpp`, `include/pto/npu/a2a3/MGather.hpp`, `include/pto/npu/a5/MGather.hpp`).
+Declared in `include/pto/common/pto_instr.hpp` (the shared dispatcher) and the per-target implementation headers (`include/pto/cpu/MGather.hpp`, `include/pto/npu/a2a3/MGather.hpp`, `include/pto/npu/a5/MGather.hpp`).
 
 ### CPU Reference Form
 
@@ -99,8 +98,6 @@ Declared in `include/pto/common/pto_instr.hpp` (the shared dispatcher) and the p
 template <typename TileDst, typename GlobalData, typename TileInd, typename... WaitEvents>
 PTO_INST RecordEvent MGATHER(TileDst &dst, GlobalData &src, TileInd &indexes, WaitEvents &... events);
 ```
-
-The CPU form has no `Coalesce` or `GatherOOB` template parameter. The implementation always walks `validRow × validCol` and reads `src.data()[indexes.data()[idxOff]]` — this matches `Coalesce::Elem` semantics regardless of the index tile shape. Bounds are not enforced. The signature exists so the same source builds without modification against the CPU simulator headers.
 
 ### A2/A3 Form
 
@@ -182,10 +179,8 @@ The constraints below are split into target-specific sections so each backend li
 **Index interpretation:**
 
 - Index interpretation is target-defined. The CPU simulator treats indices as **linear element indices into `src.data()`** and writes `dst.data()[dstOff] = src.data()[idx]` for every `(r, c)` in the destination valid region — equivalent to `Coalesce::Elem` semantics, regardless of the index tile shape.
-- The CPU simulator does not enforce bounds checks on `indexes`. Out-of-range indices read whatever `src.data() + idx` returns and are target-defined.
-- The simulator does **not** model the `Coalesce` or `GatherOOB` template parameters at the CPU intrinsic surface; out-of-bounds handling is the caller's responsibility on CPU.
 
-**Header-level enforcement.** The CPU header (`include/pto/cpu/MGatherScatter.hpp`) static-asserts only the minimum closure rules: `std::is_integral_v<TileInd::DType>` for the index dtype and `sizeof(TileDst::DType) == sizeof(GlobalData::DType)` for byte-wise compatibility. The dtype / shape / layout constraints above are the **PTO ABI contract** — callers are expected to honor them so the same kernel source compiles and runs unmodified against the A2/A3 and A5 backends.
+**Header-level enforcement.** The CPU header (`include/pto/cpu/MGather.hpp`) static-asserts only the minimum closure rules: `std::is_integral_v<TileInd::DType>` for the index dtype and `sizeof(TileDst::DType) == sizeof(GlobalData::DType)` for byte-wise compatibility. The dtype / shape / layout constraints above are the **PTO ABI contract** — callers are expected to honor them so the same kernel source compiles and runs unmodified against the A2/A3 and A5 backends.
 
 ### Tile Constraints (A2/A3)
 

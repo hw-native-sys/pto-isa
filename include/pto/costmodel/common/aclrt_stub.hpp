@@ -47,17 +47,6 @@ inline int aclrtSetStreamAttribute(aclrtStream, int, const void *)
 {
     return 0;
 }
-inline int aclrtMemset(void *dst, size_t dstSize, int value, size_t count)
-{
-    if (count == 0) {
-        return 0;
-    }
-    if (dst == nullptr || count > dstSize) {
-        return 1;
-    }
-    std::fill_n(reinterpret_cast<unsigned char *>(dst), count, static_cast<unsigned char>(value));
-    return 0;
-}
 inline int aclrtCmoAsync(void *, size_t, int, aclrtStream)
 {
     return 0;
