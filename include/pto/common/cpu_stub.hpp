@@ -549,6 +549,21 @@ inline int aclrtMemcpy(void *dst, size_t sz_dst, const void *src, size_t sz_src,
     return 0;
 }
 
+inline int aclrtMemset(void *dst, size_t dstSize, int value, size_t count)
+{
+    constexpr int ACL_SUCCESS = 0;
+    constexpr int ACL_ERROR_GE_PARAM_INVALID = 145000;
+
+    if (count == 0) {
+        return ACL_SUCCESS;
+    }
+    if (dst == nullptr || count > dstSize) {
+        return ACL_ERROR_GE_PARAM_INVALID;
+    }
+    std::fill_n(reinterpret_cast<unsigned char *>(dst), count, static_cast<unsigned char>(value));
+    return ACL_SUCCESS;
+}
+
 inline int aclrtSynchronizeStream(aclrtStream)
 {
     return 0;

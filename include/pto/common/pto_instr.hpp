@@ -1969,12 +1969,11 @@ PTO_INST RecordEvent MGATHER(TileDst &dst, GlobalData &src, TileInd &indexes, Wa
     return {};
 }
 
-#if defined(PTO_NPU_ARCH_A5) || defined(__CPU_SIM)
 template <Coalesce CMode, typename TileDst, typename GlobalData, typename TileInd, typename... WaitEvents>
 PTO_INST RecordEvent MGATHER(TileDst &dst, GlobalData &src, TileInd &indexes, WaitEvents &...events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(MGATHER, PTO_TEMPLATE_ARGS(CMode), dst, src, indexes);
+    MGATHER_IMPL<CMode>(dst, src, indexes);
     return {};
 }
 
@@ -1983,10 +1982,9 @@ template <Coalesce CMode, GatherOOB Mode, typename TileDst, typename GlobalData,
 PTO_INST RecordEvent MGATHER(TileDst &dst, GlobalData &src, TileInd &indexes, WaitEvents &...events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(MGATHER, PTO_TEMPLATE_ARGS(CMode, Mode), dst, src, indexes);
+    MGATHER_IMPL<CMode, Mode>(dst, src, indexes);
     return {};
 }
-#endif
 
 template <typename GlobalData, typename TileSrc, typename TileInd, typename... WaitEvents>
 PTO_INST RecordEvent MSCATTER(GlobalData &dst, TileSrc &src, TileInd &indexes, WaitEvents &...events)
@@ -2001,7 +1999,7 @@ template <Coalesce Mode, typename GlobalData, typename TileSrc, typename TileInd
 PTO_INST RecordEvent MSCATTER(GlobalData &dst, TileSrc &src, TileInd &indexes, WaitEvents &...events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(MSCATTER, PTO_TEMPLATE_ARGS(Mode), dst, src, indexes);
+    MSCATTER_IMPL<Mode>(dst, src, indexes);
     return {};
 }
 
@@ -2010,7 +2008,7 @@ template <Coalesce Mode, ScatterAtomicOp Atomic, typename GlobalData, typename T
 PTO_INST RecordEvent MSCATTER(GlobalData &dst, TileSrc &src, TileInd &indexes, WaitEvents &...events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(MSCATTER, PTO_TEMPLATE_ARGS(Mode, Atomic), dst, src, indexes);
+    MSCATTER_IMPL<Mode, Atomic>(dst, src, indexes);
     return {};
 }
 
@@ -2019,7 +2017,7 @@ template <Coalesce Mode, ScatterAtomicOp Atomic, ScatterOOB Oob, typename Global
 PTO_INST RecordEvent MSCATTER(GlobalData &dst, TileSrc &src, TileInd &indexes, WaitEvents &...events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(MSCATTER, PTO_TEMPLATE_ARGS(Mode, Atomic, Oob), dst, src, indexes);
+    MSCATTER_IMPL<Mode, Atomic, Oob>(dst, src, indexes);
     return {};
 }
 
@@ -2028,7 +2026,35 @@ template <Coalesce Mode, ScatterAtomicOp Atomic, ScatterOOB Oob, ScatterConflict
 PTO_INST RecordEvent MSCATTER(GlobalData &dst, TileSrc &src, TileInd &indexes, WaitEvents &...events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(MSCATTER, PTO_TEMPLATE_ARGS(Mode, Atomic, Oob, Conflict), dst, src, indexes);
+    MSCATTER_IMPL<Mode, Atomic, Oob, Conflict>(dst, src, indexes);
+    return {};
+}
+#endif
+
+#ifdef PTO_NPU_ARCH_A2A3
+template <Coalesce Mode, typename GlobalData, typename TileSrc, typename TileInd, typename... WaitEvents>
+PTO_INST RecordEvent MSCATTER(GlobalData &dst, TileSrc &src, TileInd &indexes, WaitEvents &...events)
+{
+    TSYNC(events...);
+    MSCATTER_IMPL<Mode>(dst, src, indexes);
+    return {};
+}
+
+template <Coalesce Mode, ScatterAtomicOp Atomic, typename GlobalData, typename TileSrc, typename TileInd,
+          typename... WaitEvents>
+PTO_INST RecordEvent MSCATTER(GlobalData &dst, TileSrc &src, TileInd &indexes, WaitEvents &...events)
+{
+    TSYNC(events...);
+    MSCATTER_IMPL<Mode, Atomic>(dst, src, indexes);
+    return {};
+}
+
+template <Coalesce Mode, ScatterAtomicOp Atomic, ScatterOOB Oob, typename GlobalData, typename TileSrc,
+          typename TileInd, typename... WaitEvents>
+PTO_INST RecordEvent MSCATTER(GlobalData &dst, TileSrc &src, TileInd &indexes, WaitEvents &...events)
+{
+    TSYNC(events...);
+    MSCATTER_IMPL<Mode, Atomic, Oob>(dst, src, indexes);
     return {};
 }
 #endif

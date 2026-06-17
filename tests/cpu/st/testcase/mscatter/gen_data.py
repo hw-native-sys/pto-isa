@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # coding=utf-8
 # --------------------------------------------------------------------------------
-# Copyright (c) 2025 Huawei Technologies Co., Ltd.
+# Copyright (c) 2026 Huawei Technologies Co., Ltd.
 # This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 # CANN Open Software License Agreement Version 2.0 (the "License").
 # Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -13,49 +13,389 @@
 import os
 import numpy as np
 
-np.random.seed(19)
+np.random.seed(42)
 
 
-def gen_case(case_dir: str, tile_rows: int, tile_cols: int, dst_len: int):
-    os.makedirs(case_dir, exist_ok=True)
-    os.chdir(case_dir)
+def make_src(dtype, count, start=1):
+    if np.issubdtype(dtype, np.integer):
+        info = np.iinfo(dtype)
+        mod = min(info.max - info.min + 1, 251)
+    else:
+        mod = 251
+    arr = (np.arange(start, start + count) % mod) + 1
+    return arr.astype(dtype)
 
-    dst_init = np.random.uniform(low=-2, high=2, size=[dst_len]).astype(np.float32)
-    src = np.random.uniform(low=-4, high=4, size=[tile_rows, tile_cols]).astype(np.float32)
-    idx = np.random.randint(0, dst_len, size=[tile_rows, tile_cols]).astype(np.uint32)
 
-    golden = dst_init.copy()
-    for i in range(tile_rows):
-        for j in range(tile_cols):
-            golden[idx[i, j]] = src[i, j]
+def resolve(raw, table_size, oob):
+    if oob == "skip":
+        return (raw, raw >= table_size)
+    if oob == "clamp":
+        return (min(raw, table_size - 1) if raw >= 0 else 0, False)
+    if oob == "wrap":
+        return (raw % table_size, False)
+    return (raw, False)
 
-    dst_init.tofile("input1.bin")
-    src.tofile("input2.bin")
-    idx.tofile("input3.bin")
+
+def apply_atomic_row(table, safe, src_row, atomic):
+    if atomic == "add":
+        table[safe, :] = src_row.dtype.type(table[safe, :] + src_row)
+    elif atomic == "max":
+        table[safe, :] = np.maximum(table[safe, :], src_row)
+    elif atomic == "min":
+        table[safe, :] = np.minimum(table[safe, :], src_row)
+    else:
+        table[safe, :] = src_row
+
+
+def golden_row(src, idx, table_rows, table_cols, atomic, oob, conflict):
+    n_rows = src.shape[0]
+    table = np.zeros((table_rows, table_cols), dtype=src.dtype)
+    for i in range(n_rows):
+        raw = int(idx[i, 0]) if idx.ndim == 2 and idx.shape[1] == 1 else int(idx.reshape(-1)[i])
+        safe, skip = resolve(raw, table_rows, oob)
+        if skip:
+            continue
+        if atomic == "none" and conflict == "last":
+            overridden = False
+            for j in range(i + 1, n_rows):
+                raw2 = int(idx[j, 0]) if idx.ndim == 2 and idx.shape[1] == 1 else int(idx.reshape(-1)[j])
+                safe2, skip2 = resolve(raw2, table_rows, oob)
+                if not skip2 and safe2 == safe:
+                    overridden = True
+                    break
+            if overridden:
+                continue
+        apply_atomic_row(table, safe, src[i, :], atomic)
+    return table
+
+
+def make_idx_random(rng, shape, low, high):
+    return rng.integers(low=low, high=high, size=shape, dtype=np.int32)
+
+
+def make_idx_same(shape, value):
+    return np.full(shape, value, dtype=np.int32)
+
+
+def make_idx_seq(shape, start=0, step=1):
+    n = int(np.prod(shape))
+    return (np.arange(n) * step + start).astype(np.int32).reshape(shape)
+
+
+def make_idx_with_oob(rng, shape, table_size, oob_count):
+    n = int(np.prod(shape))
+    arr = rng.integers(low=0, high=table_size, size=n, dtype=np.int32)
+    pos = rng.choice(n, size=oob_count, replace=False)
+    arr[pos] = rng.integers(low=table_size, high=table_size * 2, size=oob_count, dtype=np.int32)
+    return arr.reshape(shape)
+
+
+def case_row(name, dtype, r, c, tr, atomic="none", oob="undefined", conflict="last", idx_kind="random"):
+    rng = np.random.default_rng(hash(name) & 0xFFFFFFFF)
+    src = make_src(dtype, r * c).reshape(r, c)
+    if idx_kind == "random":
+        idx = make_idx_random(rng, (r, 1), 0, tr)
+    elif idx_kind == "same":
+        idx = make_idx_same((r, 1), tr // 2)
+    elif idx_kind == "seq":
+        idx = make_idx_seq((r, 1))
+    elif idx_kind == "oob":
+        idx = make_idx_with_oob(rng, (r, 1), tr, max(1, r // 2))
+    elif idx_kind == "no_dup":
+        perm = rng.permutation(tr)[:r]
+        idx = perm.astype(np.int32).reshape(r, 1)
+    else:
+        raise ValueError(idx_kind)
+    golden = golden_row(src, idx, tr, c, atomic, oob, conflict)
+    return src, idx, golden
+
+
+def write_case(name, src, idx, golden):
+    if not os.path.exists(name):
+        os.makedirs(name)
+    cwd = os.getcwd()
+    os.chdir(name)
+    src.tofile("src.bin")
+    idx.tofile("indices.bin")
     golden.tofile("golden.bin")
-    os.chdir("..")
+    os.chdir(cwd)
+    print(f"Generated {name}")
 
 
-def gen_row_case(case_dir: str, tile_rows: int, tile_cols: int, table_rows: int):
-    os.makedirs(case_dir, exist_ok=True)
-    os.chdir(case_dir)
+CASES = []
 
-    dst_init = np.random.uniform(low=-2, high=2, size=[table_rows, tile_cols]).astype(np.float32)
-    src = np.random.uniform(low=-4, high=4, size=[tile_rows, tile_cols]).astype(np.float32)
-    idx = np.random.randint(0, table_rows, size=[tile_rows, 1]).astype(np.uint32)
 
-    golden = dst_init.copy()
-    for i in range(tile_rows):
-        golden[idx[i, 0], :] = src[i, :]
+def add(name, gen):
+    CASES.append((name, gen))
 
-    dst_init.tofile("input1.bin")
-    src.tofile("input2.bin")
-    idx.tofile("input3.bin")
-    golden.tofile("golden.bin")
-    os.chdir("..")
+
+add("MSCATTERTest.case_row_float_random_8x32_64rows", lambda n: case_row(n, np.float32, 8, 32, 64))
+add("MSCATTERTest.case_row_float_same_8x32_16rows", lambda n: case_row(n, np.float32, 8, 32, 16, idx_kind="same"))
+add("MSCATTERTest.case_row_half_random_16x64_64rows", lambda n: case_row(n, np.float16, 16, 64, 64))
+add("MSCATTERTest.case_row_int32_random_8x16_32rows", lambda n: case_row(n, np.int32, 8, 16, 32))
+add("MSCATTERTest.case_row_uint8_random_8x32_32rows", lambda n: case_row(n, np.uint8, 8, 32, 32))
+add("MSCATTERTest.case_row_int16_random_8x16_32rows", lambda n: case_row(n, np.int16, 8, 16, 32))
+add(
+    "MSCATTERTest.case_row_float_atomicadd_8x32_8rows",
+    lambda n: case_row(n, np.float32, 8, 32, 8, atomic="add", conflict="default", idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_row_float_skip_8x32_8rows",
+    lambda n: case_row(n, np.float32, 8, 32, 8, oob="skip", idx_kind="oob"),
+)
+add(
+    "MSCATTERTest.case_row_int32_clamp_8x16_8rows",
+    lambda n: case_row(n, np.int32, 8, 16, 8, oob="clamp", idx_kind="oob"),
+)
+add(
+    "MSCATTERTest.case_row_half_wrap_8x32_8rows",
+    lambda n: case_row(n, np.float16, 8, 32, 8, oob="wrap", idx_kind="oob"),
+)
+
+add("MSCATTERTest.case_row_colidx_float_random_8x32_64rows", lambda n: case_row(n, np.float32, 8, 32, 64))
+add(
+    "MSCATTERTest.case_row_colidx_int32_clamp_8x16_8rows",
+    lambda n: case_row(n, np.int32, 8, 16, 8, oob="clamp", idx_kind="oob"),
+)
+add("MSCATTERTest.case_row_colidx_half_random_16x64_64rows", lambda n: case_row(n, np.float16, 16, 64, 64))
+
+
+def golden_elem(src, idx, table_size, atomic, oob, conflict):
+    n = src.shape[0] * src.shape[1]
+    src_flat = src.reshape(n)
+    idx_flat = idx.reshape(n)
+    table = np.zeros(table_size, dtype=src.dtype)
+    for i in range(n):
+        raw = int(idx_flat[i])
+        safe, skip = resolve(raw, table_size, oob)
+        if skip:
+            continue
+        if atomic == "none" and conflict == "last":
+            overridden = False
+            for j in range(i + 1, n):
+                raw2 = int(idx_flat[j])
+                safe2, skip2 = resolve(raw2, table_size, oob)
+                if not skip2 and safe2 == safe:
+                    overridden = True
+                    break
+            if overridden:
+                continue
+        if atomic == "add":
+            table[safe] = src.dtype.type(table[safe] + src_flat[i])
+        elif atomic == "max":
+            table[safe] = max(table[safe], src_flat[i])
+        elif atomic == "min":
+            table[safe] = min(table[safe], src_flat[i])
+        else:
+            table[safe] = src_flat[i]
+    return table
+
+
+def case_elem(name, dtype, n, ts, atomic="none", oob="undefined", conflict="last", idx_kind="random"):
+    rng = np.random.default_rng(hash(name) & 0xFFFFFFFF)
+    src = make_src(dtype, n).reshape(1, n)
+    if idx_kind == "random":
+        idx = make_idx_random(rng, (1, n), 0, ts)
+    elif idx_kind == "same":
+        idx = make_idx_same((1, n), ts // 2)
+    elif idx_kind == "seq":
+        idx = make_idx_seq((1, n))
+    elif idx_kind == "oob":
+        idx = make_idx_with_oob(rng, (1, n), ts, max(1, n // 2))
+    else:
+        raise ValueError(idx_kind)
+    golden = golden_elem(src, idx, ts, atomic, oob, conflict)
+    return src, idx, golden
+
+
+def case_elem2d(name, dtype, r, c, ts, atomic="none", oob="undefined", conflict="last", idx_kind="random"):
+    rng = np.random.default_rng(hash(name) & 0xFFFFFFFF)
+    n = r * c
+    src = make_src(dtype, n).reshape(r, c)
+    if idx_kind == "random":
+        idx = make_idx_random(rng, (r, c), 0, ts)
+    elif idx_kind == "same":
+        idx = make_idx_same((r, c), ts // 2)
+    elif idx_kind == "seq":
+        idx = make_idx_seq((r, c))
+    elif idx_kind == "oob":
+        idx = make_idx_with_oob(rng, (r, c), ts, max(1, n // 2))
+    else:
+        raise ValueError(idx_kind)
+    golden = golden_elem(src, idx, ts, atomic, oob, conflict)
+    return src, idx, golden
+
+
+add("MSCATTERTest.case_elem_float_random_64_128size", lambda n: case_elem(n, np.float32, 64, 128))
+add("MSCATTERTest.case_elem_float_same_64_8size", lambda n: case_elem(n, np.float32, 64, 8, idx_kind="same"))
+add("MSCATTERTest.case_elem_float_seq_32_32size", lambda n: case_elem(n, np.float32, 32, 32, idx_kind="seq"))
+add("MSCATTERTest.case_elem_half_random_64_128size", lambda n: case_elem(n, np.float16, 64, 128))
+add("MSCATTERTest.case_elem_int32_random_32_64size", lambda n: case_elem(n, np.int32, 32, 64))
+add("MSCATTERTest.case_elem_uint8_random_64_128size", lambda n: case_elem(n, np.uint8, 64, 128))
+add("MSCATTERTest.case_elem_int16_random_32_64size", lambda n: case_elem(n, np.int16, 32, 64))
+add(
+    "MSCATTERTest.case_elem_float_atomicadd_32_32size",
+    lambda n: case_elem(n, np.float32, 32, 32, atomic="add", conflict="default", idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_elem_int32_atomicadd_skip_32_16size",
+    lambda n: case_elem(n, np.int32, 32, 16, atomic="add", oob="skip", conflict="default", idx_kind="oob"),
+)
+add(
+    "MSCATTERTest.case_elem_float_skip_32_16size",
+    lambda n: case_elem(n, np.float32, 32, 16, oob="skip", idx_kind="oob"),
+)
+add(
+    "MSCATTERTest.case_elem_int32_clamp_32_16size",
+    lambda n: case_elem(n, np.int32, 32, 16, oob="clamp", idx_kind="oob"),
+)
+add(
+    "MSCATTERTest.case_elem_half_wrap_32_16size", lambda n: case_elem(n, np.float16, 32, 16, oob="wrap", idx_kind="oob")
+)
+add(
+    "MSCATTERTest.case_elem_float_default_seq_32_32size",
+    lambda n: case_elem(n, np.float32, 32, 32, conflict="default", idx_kind="seq"),
+)
+add("MSCATTERTest.case_elem_float_small_16_32size", lambda n: case_elem(n, np.float32, 16, 32))
+add(
+    "MSCATTERTest.case_elem_int32_atomicmax_random_32_32size",
+    lambda n: case_elem(n, np.int32, 32, 32, atomic="max", conflict="default", idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_elem_float_atomicmin_random_32_32size",
+    lambda n: case_elem(n, np.float32, 32, 32, atomic="min", conflict="default", idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_elem_float_last_same_32_8size",
+    lambda n: case_elem(n, np.float32, 32, 8, conflict="last", idx_kind="same"),
+)
+add(
+    "MSCATTERTest.case_elem_int32_last_seq_32_32size",
+    lambda n: case_elem(n, np.int32, 32, 32, conflict="last", idx_kind="seq"),
+)
+add(
+    "MSCATTERTest.case_elem_float_clamp_no_dup_32_16size",
+    lambda n: case_elem(n, np.float32, 32, 16, oob="clamp", conflict="last", idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_elem_uint8_wrap_64_16size",
+    lambda n: case_elem(n, np.uint8, 64, 16, oob="wrap", idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_elem_int16_clamp_32_16size",
+    lambda n: case_elem(n, np.int16, 32, 16, oob="clamp", idx_kind="oob"),
+)
+
+add("MSCATTERTest.case_elem2d_float_8x32_random_256size", lambda n: case_elem2d(n, np.float32, 8, 32, 256))
+add("MSCATTERTest.case_elem2d_int32_8x16_random_256size", lambda n: case_elem2d(n, np.int32, 8, 16, 256))
+add("MSCATTERTest.case_elem2d_half_4x32_random_256size", lambda n: case_elem2d(n, np.float16, 4, 32, 256))
+
+add("MSCATTERTest.case_elem2d_int32_unaligned_3x8_64size", lambda n: case_elem2d(n, np.int32, 3, 8, 64))
+add("MSCATTERTest.case_elem2d_uint8_unaligned_3x32_256size", lambda n: case_elem2d(n, np.uint8, 3, 32, 256))
+add("MSCATTERTest.case_elem2d_int32_unaligned_3x3_in_3x8_64size", lambda n: case_elem2d(n, np.int32, 3, 3, 64))
+add("MSCATTERTest.case_elem2d_int32_unaligned_9x9_in_9x16_256size", lambda n: case_elem2d(n, np.int32, 9, 9, 256))
+add("MSCATTERTest.case_elem2d_int32_scalar_1x1_in_1x8_8size", lambda n: case_elem2d(n, np.int32, 1, 1, 8))
+add("MSCATTERTest.case_row_int32_unaligned_3x8_8rows", lambda n: case_row(n, np.int32, 3, 8, 8))
+add("MSCATTERTest.case_row_int32_unaligned_9x16_16rows", lambda n: case_row(n, np.int32, 9, 16, 16))
+
+add(
+    "MSCATTERTest.case_elem2d_float_2048x8_last_256size",
+    lambda n: case_elem2d(n, np.float32, 2048, 8, 256, conflict="last", idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_elem2d_float_2048x8_default_16384size",
+    lambda n: case_elem2d(n, np.float32, 2048, 8, 16384, conflict="default", idx_kind="seq"),
+)
+add(
+    "MSCATTERTest.case_elem2d_float_2304x8_last_256size",
+    lambda n: case_elem2d(n, np.float32, 2304, 8, 256, conflict="last", idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_elem2d_float_2304x8_default_18432size",
+    lambda n: case_elem2d(n, np.float32, 2304, 8, 18432, conflict="default", idx_kind="seq"),
+)
+add(
+    "MSCATTERTest.case_elem2d_float_2560x8_last_256size",
+    lambda n: case_elem2d(n, np.float32, 2560, 8, 256, conflict="last", idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_elem2d_float_2560x8_default_20480size",
+    lambda n: case_elem2d(n, np.float32, 2560, 8, 20480, conflict="default", idx_kind="seq"),
+)
+add(
+    "MSCATTERTest.case_elem2d_float_2816x8_last_256size",
+    lambda n: case_elem2d(n, np.float32, 2816, 8, 256, conflict="last", idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_elem2d_float_2816x8_default_22528size",
+    lambda n: case_elem2d(n, np.float32, 2816, 8, 22528, conflict="default", idx_kind="seq"),
+)
+add(
+    "MSCATTERTest.case_elem2d_float_3072x8_last_256size",
+    lambda n: case_elem2d(n, np.float32, 3072, 8, 256, conflict="last", idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_elem2d_float_3072x8_default_24576size",
+    lambda n: case_elem2d(n, np.float32, 3072, 8, 24576, conflict="default", idx_kind="seq"),
+)
+add(
+    "MSCATTERTest.case_elem2d_float_3200x8_last_256size",
+    lambda n: case_elem2d(n, np.float32, 3200, 8, 256, conflict="last", idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_elem2d_float_3200x8_default_25600size",
+    lambda n: case_elem2d(n, np.float32, 3200, 8, 25600, conflict="default", idx_kind="seq"),
+)
+add(
+    "MSCATTERTest.case_elem2d_float_3456x8_last_256size",
+    lambda n: case_elem2d(n, np.float32, 3456, 8, 256, conflict="last", idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_elem2d_float_3456x8_default_27648size",
+    lambda n: case_elem2d(n, np.float32, 3456, 8, 27648, conflict="default", idx_kind="seq"),
+)
+
+
+def case_elem2d_dyn(
+    name, dtype, valid_r, valid_c, table_total, atomic="none", oob="undefined", conflict="last", idx_kind="random"
+):
+    rng = np.random.default_rng(hash(name) & 0xFFFFFFFF)
+    n = valid_r * valid_c
+    src = make_src(dtype, n).reshape(valid_r, valid_c)
+    if idx_kind == "random":
+        idx = make_idx_random(rng, (valid_r, valid_c), 0, table_total)
+    elif idx_kind == "oob":
+        idx = make_idx_with_oob(rng, (valid_r, valid_c), table_total, max(1, n // 2))
+    elif idx_kind == "seq":
+        idx = make_idx_seq((valid_r, valid_c))
+    else:
+        raise ValueError(idx_kind)
+    golden = golden_elem(src, idx, table_total, atomic, oob, conflict)
+    return src, idx, golden
+
+
+add(
+    "MSCATTERTest.case_elem2d_dyn_user_float_1x9_in_1x16_3x10",
+    lambda n: case_elem2d_dyn(n, np.float32, 1, 9, 3 * 10, oob="skip", idx_kind="oob"),
+)
+add(
+    "MSCATTERTest.case_elem2d_dyn_int32_4x8_in_4x8_64size",
+    lambda n: case_elem2d_dyn(n, np.int32, 4, 8, 64, idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_elem2d_dyn_float_3x3_in_3x8_64size",
+    lambda n: case_elem2d_dyn(n, np.float32, 3, 3, 64, idx_kind="random"),
+)
+add(
+    "MSCATTERTest.case_elem2d_dyn_half_8x16_in_8x16_4x32",
+    lambda n: case_elem2d_dyn(n, np.float16, 8, 16, 4 * 32, idx_kind="random"),
+)
+add("MSCATTERTest.case_row_dyn_int32_3x16_8rows", lambda n: case_row(n, np.int32, 3, 16, 8))
+add("MSCATTERTest.case_row_dyn_half_4x32_16rows", lambda n: case_row(n, np.float16, 4, 32, 16))
 
 
 if __name__ == "__main__":
-    gen_case("MSCATTERTest.case_float_dst512_src16x16", 16, 16, 512)
-    gen_row_case("MSCATTERTest.case_float_row_default_table32x16_src16x16", 16, 16, 32)
-    gen_row_case("MSCATTERTest.case_float_row_explicit_table32x16_src16x16", 16, 16, 32)
+    for name, gen in CASES:
+        src, idx, golden = gen(name)
+        write_case(name, src, idx, golden)
+    print("All MSCATTER test data generated successfully")
