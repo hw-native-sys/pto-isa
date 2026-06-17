@@ -49,7 +49,7 @@ PTO_INTERNAL void MGATHER_IMPL(TileDst &dst, GlobalData &src, TileInd &indexes)
         if constexpr (CMode == Coalesce::Elem) {
             for (std::size_t j = 0; j < validCol; ++j) {
                 const size_t dstOff = GetTileElementOffset<TileDst>(i, j);
-                const size_t idx = static_cast<size_t>(indexes.data()[GetDataElementOffset(indexes, i, j)]);
+                const size_t idx = static_cast<size_t>(indexes.data()[GetTileElementOffset<TileInd>(i, j)]);
 
                 if constexpr (Mode == GatherOOB::Clamp) {
                     dst.data()[dstOff] = base[std::clamp(idx, static_cast<size_t>(0), capacity - 1)];
@@ -63,10 +63,8 @@ PTO_INTERNAL void MGATHER_IMPL(TileDst &dst, GlobalData &src, TileInd &indexes)
             }
 
         } else {
-            if constexpr (HasSFractal<TileInd>::value) {
-                static_assert(TileInd::SFractal == SLayout::NoneBox,
-                              "Indicies array should be ND or DN in case of Coalesce::Elem");
-            }
+            static_assert(TileInd::SFractal == SLayout::NoneBox,
+                          "Indicies array should be ND or DN in case of Coalesce::Elem");
             // indexes shape is [1,dstRows] in case of RowMajor or [dstRows,1] in case of colMajor
             size_t rowIdx = indexes.data()[i];
             bool shouldCopy = true;
@@ -107,18 +105,6 @@ PTO_INTERNAL void MGATHER_IMPL(TileDst &dst, GlobalData &src, TileInd &indexes)
     MGATHER_IMPL<Coalesce::Elem, GatherOOB::Undefined>(dst, src, indexes);
 }
 
-template <Coalesce CMode, typename TileDst, typename GlobalData, typename GlobalIdx, typename GlobalScratch>
-PTO_INST void MGATHER_IMPL(TileDst &dst, GlobalData &src, GlobalIdx &indexes, GlobalScratch &scratch)
-{
-    MGATHER_IMPL<CMode, GatherOOB::Undefined>(dst, src, indexes);
-}
-
-template <Coalesce CMode, GatherOOB Mode, typename TileDst, typename GlobalData, typename GlobalIdx,
-          typename GlobalScratch>
-PTO_INST void MGATHER_IMPL(TileDst &dst, GlobalData &src, GlobalIdx &indexes, GlobalScratch &scratch)
-{
-    MGATHER_IMPL<CMode, Mode>(dst, src, indexes);
-}
 } // namespace pto
 
 #endif

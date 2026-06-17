@@ -127,6 +127,35 @@ static inline int aclrtMallocHost(void **p, size_t sz)
     return 0;
 }
 
+#define aclrtMalloc(a, b, c) aclrtMallocHost(a, b)
+
+#define aclrtMemcpy(dst, sz_dst, src, sz_src, type)                              \
+    {                                                                            \
+        for (size_t i = 0; i < sz_src && i < sz_dst; i++)                        \
+            reinterpret_cast<char *>(dst)[i] = reinterpret_cast<char *>(src)[i]; \
+    }
+
+inline int aclrtMemset(void *dst, size_t dstSize, int value, size_t count)
+{
+    constexpr int ACL_SUCCESS = 0;
+    constexpr int ACL_ERROR_GE_PARAM_INVALID = 145000;
+
+    if (count == 0) {
+        return ACL_SUCCESS;
+    }
+    if (dst == nullptr || count > dstSize) {
+        return ACL_ERROR_GE_PARAM_INVALID;
+    }
+    std::fill_n(reinterpret_cast<unsigned char *>(dst), count, static_cast<unsigned char>(value));
+    return ACL_SUCCESS;
+}
+
+#define aclrtSynchronizeStream(x) (0)
+#define aclrtFree(x) free(x)
+#define aclrtFreeHost(x) free(x)
+#define aclrtDestroyStream(x)
+#define aclrtResetDevice(x)
+#define aclFinalize(x)
 #define set_flag(a, b, c)
 #define wait_flag(a, b, c)
 #define __cce_get_tile_ptr(x) x
