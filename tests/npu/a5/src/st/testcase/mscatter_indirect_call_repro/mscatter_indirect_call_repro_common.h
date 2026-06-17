@@ -1,0 +1,38 @@
+/**
+Copyright (c) 2026 Huawei Technologies Co., Ltd.
+This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+CANN Open Software License Agreement Version 2.0 (the "License").
+Please refer to the License for details. You may not use this file except in compliance with the License.
+THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+See LICENSE in the root of the software repository for the full text of the License.
+*/
+
+#ifndef MSCATTER_INDIRECT_CALL_REPRO_COMMON_H
+#define MSCATTER_INDIRECT_CALL_REPRO_COMMON_H
+
+#include <cstdint>
+
+enum class ScatterAtomicOp : uint8_t
+{
+    None = 0,
+    Add = 1,
+    Max = 2,
+    Min = 3
+};
+
+enum class ScatterOOB : uint8_t
+{
+    Undefined = 0,
+    Skip = 1,
+    Clamp = 2,
+    Wrap = 3
+};
+
+enum class ScatterConflict : uint8_t
+{
+    Last = 0,
+    Default = 1
+};
+
+#endif // MSCATTER_INDIRECT_CALL_REPRO_COMMON_H
