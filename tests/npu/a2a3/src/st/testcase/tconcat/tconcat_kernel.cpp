@@ -84,3 +84,5 @@ template void LaunchTConcat<float, 16, 64, 16, 32, 16, 32, 16, 31, 32>(float *ou
                                                                        void *stream);
 template void LaunchTConcat<int16_t, 32, 256, 32, 128, 32, 128, 32, 127, 128>(int16_t *out, int16_t *src0,
                                                                               int16_t *src1, void *stream);
+template void LaunchTConcat<int16_t, 32, 192, 32, 128, 32, 128, 32, 128, 64>(int16_t *out, int16_t *src0, int16_t *src1,
+                                                                             void *stream);
