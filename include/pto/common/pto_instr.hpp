@@ -1273,12 +1273,22 @@ PTO_INST RecordEvent TFUSEDMULADDRELU(TileDataDst &dst, TileDataSrc0 &src0, Tile
     return {};
 }
 
+template <typename TileDataD, typename TileDataS, typename TmpTileData>
+PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, TmpTileData &tmp, RoundMode mode, SaturationMode satMode,
+                            bool needSetCtrl);
+template <typename TileDataD, typename TileDataS, typename TmpTileData>
+PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, TmpTileData &tmp, RoundMode mode, bool needSetCtrl);
+template <typename TileDataD, typename TileDataS>
+PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, RoundMode mode, SaturationMode satMode, bool needSetCtrl);
+template <typename TileDataD, typename TileDataS>
+PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, RoundMode mode, bool needSetCtrl);
+
 template <bool NeedSetCtrl = true, typename TileDataD, typename TileDataS, typename TmpTileData, typename... WaitEvents>
 PTO_INST RecordEvent TCVT(TileDataD &dst, TileDataS &src, TmpTileData &tmp, RoundMode mode, SaturationMode satMode,
                           WaitEvents &...events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TCVT, PTO_TEMPLATE_ARGS(NeedSetCtrl), dst, src, tmp, mode, satMode);
+    TCVT_IMPL(dst, src, tmp, mode, satMode, NeedSetCtrl);
     return {};
 }
 
@@ -1286,7 +1296,7 @@ template <bool NeedSetCtrl = true, typename TileDataD, typename TileDataS, typen
 PTO_INST RecordEvent TCVT(TileDataD &dst, TileDataS &src, TmpTileData &tmp, RoundMode mode, WaitEvents &...events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TCVT, PTO_TEMPLATE_ARGS(NeedSetCtrl), dst, src, tmp, mode);
+    TCVT_IMPL(dst, src, tmp, mode, NeedSetCtrl);
     return {};
 }
 
@@ -1294,7 +1304,7 @@ template <bool NeedSetCtrl = true, typename TileDataD, typename TileDataS, typen
 PTO_INST RecordEvent TCVT(TileDataD &dst, TileDataS &src, RoundMode mode, SaturationMode satMode, WaitEvents &...events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TCVT, PTO_TEMPLATE_ARGS(NeedSetCtrl), dst, src, mode, satMode);
+    TCVT_IMPL(dst, src, mode, satMode, NeedSetCtrl);
     return {};
 }
 
@@ -1302,7 +1312,7 @@ template <bool NeedSetCtrl = true, typename TileDataD, typename TileDataS, typen
 PTO_INST RecordEvent TCVT(TileDataD &dst, TileDataS &src, RoundMode mode, WaitEvents &...events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TCVT, PTO_TEMPLATE_ARGS(NeedSetCtrl), dst, src, mode);
+    TCVT_IMPL(dst, src, mode, NeedSetCtrl);
     return {};
 }
 
