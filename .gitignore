@@ -1,5 +1,6 @@
 .git
 .idea
+.venv
 .vscode
 .cursor
 .trae

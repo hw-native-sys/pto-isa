@@ -132,34 +132,23 @@ template <typename ParallelGroupType, typename GlobalSrcData, typename TileData>
 PTO_INTERNAL void TSCATTER_IMPL(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData, TileData &pingTile,
                                 TileData &pongTile)
 {
-    using GlobalDstData = typename ParallelGroupTraits<ParallelGroupType>::GlobalDataType;
-    using T = typename GlobalSrcData::RawDType;
-
-    static_assert(std::is_same_v<T, typename GlobalDstData::RawDType>, "TSCATTER: GlobalData type mismatch!");
-    static_assert(std::is_same_v<T, typename TileData::DType>,
-                  "TSCATTER: TileData element type must match GlobalData element type");
-    static_assert(GlobalSrcData::layout == GlobalDstData::layout, "TSCATTER: src/dst layout mismatch");
-
-    const int nranks = parallelGroup.GetSize();
-    const int rootIdx = parallelGroup.GetRootIdx();
-
-    PTO_ASSERT(nranks > 0, "ParallelGroup size must be greater than 0!");
-    PTO_ASSERT(rootIdx >= 0 && rootIdx < nranks, "rootIdx must be in range [0, nranks)!");
-
     pto::comm::TSCATTER_IMPL(parallelGroup, srcGlobalData, pingTile);
 }
 
-// CCU engine is only available on A5 NPU hardware.  Deferred-fail stub
-// mirroring the a2a3 pattern: the template name must exist in `pto::comm`
-// so that `::pto::comm::TSCATTER_CCU_IMPL<engine>(...)` in pto_comm_inst.hpp
-// parses on CPU simulator builds; the static_assert depends on `engine` and
-// fires only if the overload is actually instantiated.
-template <CollEngine engine = CollEngine::CCU, typename... Args>
-PTO_INTERNAL void TSCATTER_CCU_IMPL(Args &&...)
+template <CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalSrcData, typename TileData,
+          typename... WaitEvents>
+PTO_INTERNAL void TSCATTER_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData,
+                                    TileData &stagingTileData, const CcuTriggerContext &ctx, WaitEvents &...events)
 {
-    static_assert(engine != CollEngine::CCU,
-                  "TSCATTER<CollEngine::CCU> is not supported on the CPU simulator; "
-                  "CCU engine requires A5 NPU hardware.");
+    pto::comm::TSCATTER_IMPL(parallelGroup, srcGlobalData, stagingTileData);
+}
+
+template <CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalSrcData, typename TileData,
+          typename... WaitEvents>
+PTO_INTERNAL void TSCATTER_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData, TileData &pingTile,
+                                    TileData &pongTile, const CcuTriggerContext &ctx, WaitEvents &...events)
+{
+    pto::comm::TSCATTER_IMPL(parallelGroup, srcGlobalData, pingTile);
 }
 
 } // namespace comm

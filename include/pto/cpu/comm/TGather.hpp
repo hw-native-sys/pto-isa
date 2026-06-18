@@ -132,31 +132,23 @@ template <typename ParallelGroupType, typename GlobalDstData, typename TileData>
 PTO_INTERNAL void TGATHER_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData, TileData &pingTile,
                                TileData &pongTile)
 {
-    using GlobalSrcData = typename ParallelGroupTraits<ParallelGroupType>::GlobalDataType;
-    using T = typename GlobalSrcData::RawDType;
-
-    static_assert(std::is_same_v<T, typename GlobalDstData::RawDType>, "TGATHER: GlobalData type mismatch!");
-    static_assert(std::is_same_v<T, typename TileData::DType>,
-                  "TGATHER: TileData element type must match GlobalData element type");
-    static_assert(GlobalSrcData::layout == GlobalDstData::layout, "TGATHER: src/dst layout mismatch");
-
-    const int nranks = parallelGroup.GetSize();
-    const int rootIdx = parallelGroup.GetRootIdx();
-
     TGATHER_IMPL(parallelGroup, dstGlobalData, pingTile);
 }
 
-// CCU engine is only available on A5 NPU hardware.  Deferred-fail stub
-// mirroring the a2a3 pattern: the template name must exist in `pto::comm`
-// so that `::pto::comm::TGATHER_CCU_IMPL<engine>(...)` in pto_comm_inst.hpp
-// parses on CPU simulator builds; the static_assert depends on `engine` and
-// fires only if the overload is actually instantiated.
-template <CollEngine engine = CollEngine::CCU, typename... Args>
-PTO_INTERNAL void TGATHER_CCU_IMPL(Args &&...)
+template <CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalDstData, typename TileData,
+          typename... WaitEvents>
+PTO_INTERNAL void TGATHER_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
+                                   TileData &stagingTileData, const CcuTriggerContext &ctx, WaitEvents &...events)
 {
-    static_assert(engine != CollEngine::CCU,
-                  "TGATHER<CollEngine::CCU> is not supported on the CPU simulator; "
-                  "CCU engine requires A5 NPU hardware.");
+    TGATHER_IMPL(parallelGroup, dstGlobalData, stagingTileData);
+}
+
+template <CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalDstData, typename TileData,
+          typename... WaitEvents>
+PTO_INTERNAL void TGATHER_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData, TileData &pingTile,
+                                   TileData &pongTile, const CcuTriggerContext &ctx, WaitEvents &...events)
+{
+    TGATHER_IMPL(parallelGroup, dstGlobalData, pingTile);
 }
 
 } // namespace comm

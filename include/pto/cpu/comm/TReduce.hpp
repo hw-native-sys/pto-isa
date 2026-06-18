@@ -463,17 +463,22 @@ PTO_INTERNAL void TREDUCE_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &
     }
 }
 
-// CCU engine is only available on A5 NPU hardware.  This stub mirrors the
-// a2a3 deferred-fail pattern: the template name must exist in `pto::comm`
-// so that `::pto::comm::TREDUCE_CCU_IMPL<engine>(...)` in pto_comm_inst.hpp
-// parses on CPU simulator builds; the static_assert depends on `engine` and
-// fires only if the overload is actually instantiated.
-template <CollEngine engine = CollEngine::CCU, typename... Args>
-PTO_INTERNAL void TREDUCE_CCU_IMPL(Args &&...)
+template <CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalDstData, typename TileData,
+          typename... WaitEvents>
+PTO_INTERNAL void TREDUCE_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
+                                   TileData &accTileData, TileData &recvTileData, ReduceOp op,
+                                   const CcuTriggerContext &ctx, WaitEvents &...events)
 {
-    static_assert(engine != CollEngine::CCU,
-                  "TREDUCE<CollEngine::CCU> is not supported on the CPU simulator; "
-                  "CCU engine requires A5 NPU hardware.");
+    TREDUCE_IMPL(parallelGroup, dstGlobalData, accTileData, recvTileData, op);
+}
+
+template <CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalDstData, typename TileData,
+          typename... WaitEvents>
+PTO_INTERNAL void TREDUCE_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
+                                   TileData &accTileData, TileData &pingTileData, TileData &pongTileData, ReduceOp op,
+                                   const CcuTriggerContext &ctx, WaitEvents &...events)
+{
+    TREDUCE_IMPL(parallelGroup, dstGlobalData, accTileData, pingTileData, pongTileData, op);
 }
 
 } // namespace comm
