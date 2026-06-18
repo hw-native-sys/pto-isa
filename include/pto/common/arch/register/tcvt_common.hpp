@@ -2921,23 +2921,23 @@ PTO_INTERNAL void tcvtDispatchByRound(TileDataD &dst, TileDataS &src, RoundMode 
     using DstType = typename TileDataD::DType;
     switch (mode) {
         case RoundMode::CAST_RINT:
-            tcvtDispatch<RoundRType>(dst, src, satMode);
+            tcvtDispatch<decltype(ROUND_R)>(dst, src, satMode);
             return;
         case RoundMode::CAST_ROUND:
-            tcvtDispatch<RoundAType>(dst, src, satMode);
+            tcvtDispatch<decltype(ROUND_A)>(dst, src, satMode);
             return;
         case RoundMode::CAST_FLOOR:
-            tcvtDispatch<RoundFType>(dst, src, satMode);
+            tcvtDispatch<decltype(ROUND_F)>(dst, src, satMode);
             return;
         case RoundMode::CAST_CEIL:
-            tcvtDispatch<RoundCType>(dst, src, satMode);
+            tcvtDispatch<decltype(ROUND_C)>(dst, src, satMode);
             return;
         case RoundMode::CAST_TRUNC:
-            tcvtDispatch<RoundZType>(dst, src, satMode);
+            tcvtDispatch<decltype(ROUND_Z)>(dst, src, satMode);
             return;
         case RoundMode::CAST_ODD:
             if constexpr (caps::IsFP16<DstType>() && caps::IsFP32<SrcType>()) {
-                tcvtDispatch<RoundOType>(dst, src, satMode);
+                tcvtDispatch<decltype(ROUND_O)>(dst, src, satMode);
                 return;
             }
             break; // fall through to default
@@ -2945,12 +2945,12 @@ PTO_INTERNAL void tcvtDispatchByRound(TileDataD &dst, TileDataS &src, RoundMode 
             break;
     }
     // PyTorch-compatible default rounding (also matches a2a3 per-(src,dst) defaults):
-    //   float -> integer : truncate toward zero (RoundZType)
-    //   everything else  : round-to-nearest-even (RoundRType)
+    //   float -> integer : truncate toward zero (decltype(ROUND_Z))
+    //   everything else  : round-to-nearest-even (decltype(ROUND_R))
     if constexpr (caps::IsFloatingPoint<SrcType>() && caps::IsInteger<DstType>()) {
-        tcvtDispatch<RoundZType>(dst, src, satMode);
+        tcvtDispatch<decltype(ROUND_Z)>(dst, src, satMode);
     } else {
-        tcvtDispatch<RoundRType>(dst, src, satMode);
+        tcvtDispatch<decltype(ROUND_R)>(dst, src, satMode);
     }
 }
 /**
