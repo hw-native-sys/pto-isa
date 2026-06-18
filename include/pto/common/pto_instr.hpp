@@ -2101,6 +2101,31 @@ PTO_INST RecordEvent MGATHER(TileDst &dst, GlobalData &src, TileInd &indexes, Wa
     return {};
 }
 
+template <Coalesce CMode, typename TileDst, typename GlobalData, typename GlobalIdx, typename GlobalScratch>
+PTO_INST RecordEvent MGATHER(TileDst &dst, GlobalData &src, GlobalIdx &indexes, GlobalScratch &scratch)
+{
+    MGATHER_IMPL<CMode>(dst, src, indexes, scratch);
+    return {};
+}
+
+template <Coalesce CMode, GatherOOB Mode, typename TileDst, typename GlobalData, typename GlobalIdx,
+          typename GlobalScratch>
+PTO_INST RecordEvent MGATHER(TileDst &dst, GlobalData &src, GlobalIdx &indexes, GlobalScratch &scratch)
+{
+    MGATHER_IMPL<CMode, Mode>(dst, src, indexes, scratch);
+    return {};
+}
+
+#ifdef PTO_NPU_ARCH_A5
+template <Coalesce CMode, GatherOOB Mode, GatherExec Exec, typename TileDst, typename GlobalData, typename GlobalIdx,
+          typename GlobalScratch>
+PTO_INST RecordEvent MGATHER(TileDst &dst, GlobalData &src, GlobalIdx &indexes, GlobalScratch &scratch)
+{
+    MGATHER_IMPL<CMode, Mode, Exec>(dst, src, indexes, scratch);
+    return {};
+}
+#endif
+
 template <typename GlobalData, typename TileSrc, typename TileInd, typename... WaitEvents>
 PTO_INST RecordEvent MSCATTER(GlobalData &dst, TileSrc &src, TileInd &indexes, WaitEvents &...events)
 {
