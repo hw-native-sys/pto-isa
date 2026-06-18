@@ -224,6 +224,7 @@ set(ALL_TESTCASES
     tdequant
     trandom
     mgather
+    mgather_gm2l1
     mscatter
     t_dhrystone
     tpow

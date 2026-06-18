@@ -217,6 +217,7 @@ tconcat
 textract_vec
 tinsert_vec
 mgather
+mgather_gm2l1
 mscatter
 tpushpop_cv
 tpushpop_vc

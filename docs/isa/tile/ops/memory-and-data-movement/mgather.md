@@ -13,6 +13,8 @@
 
 Out-of-bounds handling is selected through the `GatherOOB` template parameter. `MGATHER` has no atomic or conflict policy: every destination slot has exactly one defined source index, so collisions cannot occur.
 
+The destination may also be an **L1 / cube `TileType::Mat` tile in NZ layout** (with the index supplied as a GM tensor). This GM → L1 path — for both `Coalesce::Row` and `Coalesce::Elem`, on A2/A3 and A5 — is documented in the [GM → L1 Gather](#gm--l1-gather-tiletypemat-destination) section below; the GM → UB behaviour described here is unchanged.
+
 Per-target dispatch summary:
 
 - **CPU Simulator** — pure C++ reference. Templates on the same `Coalesce` / `GatherOOB` parameters as A5, with the same `Coalesce::Row` default, so a non-templated `MGATHER(dst, src, idx)` means `Coalesce::Row` on sim exactly as on hardware. Row mode reads `table[idx[r], :]` into `dst[r, :]` (table row stride `Shape[4]`, `tableRows = Shape[3]`); Elem mode walks `validRow * validCol` and reads `table[idx[i, j]]`. `GatherOOB` is modeled (`Clamp` / `Wrap` remap the index, `Zero` writes a zero element on out-of-range; `Undefined` reads unchecked). Row iteration uses `pto::cpu::parallel_for_rows`, which by default runs sequentially because `PTO_CPU_MAX_THREADS` defaults to `1u`.
@@ -654,6 +656,219 @@ AICORE void example_scalar(__gm__ float* tablePtr, __gm__ int32_t* idxPtr)
 %dst = mgather %mem, %idx : !pto.memref<...>, !pto.tile<...> -> !pto.tile<...>
 # AS Level 2 (DPS)
 pto.mgather ins(%mem, %idx : !pto.partition_tensor_view<MxNxdtype>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+```
+
+## GM → L1 Gather (`TileType::Mat` destination)
+
+In addition to the GM → UB gather described above, `MGATHER` supports gathering an
+indexed selection directly into an **L1 / cube `TileType::Mat` tile in NZ fractal layout**.
+This is the form a matmul consumes (the `A`/`NZ` operand produced by `TLOAD(MatTile_NZ,
+GlobalTensor_ND)`), so a gathered table can be fed straight into `TEXTRACT` / `TMOV` →
+`TMATMUL` without a UB round-trip. Both `Coalesce::Row` and `Coalesce::Elem` are supported,
+on **A2/A3 and A5**, for all element dtypes and all four `GatherOOB` policies.
+
+The GM → L1 path is selected automatically when `TileDst::Loc == TileType::Mat`; the GM → UB
+behaviour is unchanged for `TileType::Vec` destinations.
+
+### Index source — GM
+
+For GM → L1 the scalar that reads the index and issues the L1 DMA runs on the **cube core**
+(`__DAV_CUBE__`). On A5 the AIC and AIV are separate cores and the AIC cannot read AIV's UB,
+so a UB index tile is not portable. The GM → L1 variant therefore takes the **index as a GM
+`GlobalTensor`** (`int32_t` / `uint32_t`), read by the same core that issues the L1 transfer.
+This works identically on A2/A3 and A5.
+
+### API
+
+Row mode reuses the 3-argument form; the dispatcher routes to the GM → L1 path because the
+destination is a `Mat` tile:
+
+```cpp
+template <Coalesce CMode = Coalesce::Row, GatherOOB Oob = GatherOOB::Undefined,
+          typename MatTileDst, typename GlobalTable, typename GlobalIdx>
+PTO_INST RecordEvent MGATHER(MatTileDst& dst, GlobalTable& table, GlobalIdx& idx);
+```
+
+Elem mode needs a contiguous **GM scratch** workspace to stage the discrete elements into NZ
+layout before the bulk GM → L1 copy, so it takes a fourth operand:
+
+```cpp
+template <Coalesce CMode = Coalesce::Elem, GatherOOB Oob = GatherOOB::Undefined,
+          typename MatTileDst, typename GlobalTable, typename GlobalIdx, typename GlobalScratch>
+PTO_INST RecordEvent MGATHER(MatTileDst& dst, GlobalTable& table, GlobalIdx& idx,
+                             GlobalScratch& scratch);
+```
+
+`scratch` is a GM `GlobalTensor<T, …>` of at least `TileDst::Rows * TileDst::Cols` elements.
+
+### Algorithm
+
+- **Row mode.** For each logical row `r`, the scalar reads `idx[r]` from GM, remaps it per the
+  `GatherOOB` policy, and issues **one `copy_gm_to_cbuf_multi_nd2nz` per row** straight from
+  the ND table row `table[safeIdx, :]` into the NZ slot `dstBase + r * kC0` of the L1 tile. The
+  ND → NZ conversion happens in-flight, exactly like the per-row slice of
+  `TLoadGm2L1Nd2nz` (A2/A3) / `TLoadCubeND2NZ` (A5). No GM scratch is needed.
+- **Elem mode.** The scalar gathers each `table[idx[r, c]]` into the GM `scratch` buffer at the
+  NZ offset `(c / kC0) * (Rows * kC0) + r * kC0 + (c % kC0)` (the buffer is pre-zeroed so OOB /
+  `Zero` lanes stay zero). After the scalar fill, the buffer is flushed to DDR (`dcci` per
+  cache line + `dsb(DSB_DDR)`) so the MTE2 engine observes the scalar writes, then a single
+  contiguous `copy_gm_to_cbuf` (`pto_copy_gm_to_cbuf_align_v2` on A5) moves the whole NZ buffer
+  GM → L1.
+
+`kC0 = C0_SIZE_BYTE / sizeof(T) = 32 / sizeof(T)`. `OOB::Zero` in Row mode pre-zeros the whole
+L1 tile once via `pto_create_cbuf_matrix` and skips the DMA for OOB rows.
+
+### Constraints (`MGatherCheckGm2L1`, A2/A3 and A5)
+
+- **Dtypes.** A2/A3: `int8/uint8/int16/uint16/int32/uint32/half/bfloat16/float`. A5 additionally
+  allows `hifloat8/float8_e4m3/float8_e5m2`. Row mode further requires `sizeof(T) <= 4` (the
+  nd2nz engine handles b8/b16/b32). Elem mode supports every listed dtype (byte-wise staging).
+- **Index.** `idx` must be a GM `GlobalTensor` of `int32_t` or `uint32_t`.
+- **Table.** `GlobalTable::DType == __gm__ T` and `GlobalTable::layout == Layout::ND`.
+- **Scratch (Elem only).** `GlobalScratch::DType == __gm__ T`.
+- **Destination.** `TileDst::Loc == TileType::Mat`, NZ form
+  (`!isRowMajor && SFractal == SLayout::RowMajor && SFractalSize == TileConfig::fractalABSize`
+  = 512 B), `TileDst::Cols % (C0_SIZE_BYTE / sizeof(T)) == 0`, and
+  `TileDst::Rows % FRACTAL_NZ_ROW (16) == 0`.
+- Shape-coupled checks are gated on `if constexpr (DIM > 0)` / `ValidRow|ValidCol > 0`, so both
+  static and runtime-dynamic shapes are accepted (`Rows` / `Cols` are always compile-time and
+  govern NZ addressing). `tableRows = ∏ Shape[0..3]`, `tableRowStride = GetStride(DIM_3)` for
+  Row; `tableSize = ∏ Shape[0..4]` for Elem.
+
+### Per-arch realisation
+
+- **A2/A3 (vec-core, unified AI core).** The scalar address computation, the `nd2nz` /
+  `copy_gm_to_cbuf`, and the optional `pto_create_cbuf_matrix` pre-zero all run on the same core.
+  Internal handshakes use specific producer→consumer pairs only — never `pipe_barrier(PIPE_ALL)`.
+  In Row mode the `OOB::Zero` pre-zero (`pto_create_cbuf_matrix`) and the `nd2nz` gather are both
+  MTE2 instructions on a single in-order DMA queue, so the WAW on L1 is ordered with no extra
+  flag; Elem mode uses `dcci`/`dsb` + `S→MTE2` before the bulk `copy_gm_to_cbuf`. The 11-argument
+  `pto_copy_gm_to_cbuf_multi_nd2nz` form is used for Row.
+- **A5 (separate AIC + AIV).** The gather (nd2nz / `copy_gm_to_cbuf_align_v2`) runs on the AIC
+  cube core; `set_mte2_nz_para` configures the NZ destination strides once before the Row loop.
+  The L1 tile is a cube-only resource, so reading it back to GM (e.g. for verification or a
+  vector consumer) goes AIC → UB (`copy_cbuf_to_ubuf`) → AIV → GM with an intra-block
+  handshake, exactly like `tload_mix`. `copy_cbuf_to_gm` / `copy_ubuf_to_gm` are not available
+  on the AIC cube target. Elem mode additionally offers an opt-in **SIMT executor**
+  (`GatherExec::Simt`) that runs the gather on the AIV vector core — see
+  [A5 only — SIMT executor](#a5-only--simt-executor-for-elem-gm--l1-gatherexecsimt) below.
+
+### Example — Row gather into an L1 NZ tile
+
+```cpp
+template <typename T, int R, int C, int TableRows>
+AICORE void example_gm2l1_row(__gm__ T* tablePtr, __gm__ int32_t* idxPtr)
+{
+    using TableShape  = Shape<1, 1, 1, TableRows, C>;
+    using TableStride = Stride<1, 1, 1, C, 1>;
+    using IdxShape    = Shape<1, 1, 1, 1, R>;
+    using IdxStride   = Stride<1, 1, 1, R, 1>;
+    GlobalTensor<T, TableShape, TableStride, Layout::ND> tableGM(tablePtr);
+    GlobalTensor<int32_t, IdxShape, IdxStride, Layout::ND> idxGM(idxPtr);
+
+    using DstTile = Tile<TileType::Mat, T, R, C, BLayout::ColMajor, R, C, SLayout::RowMajor, 512>;
+    DstTile dst; TASSIGN(dst, 0x0);
+
+    MGATHER<Coalesce::Row, GatherOOB::Clamp>(dst, tableGM, idxGM);   // GM (ND) -> L1 (NZ)
+}
+```
+
+### Example — Elem gather into an L1 NZ tile (with GM scratch)
+
+```cpp
+template <typename T, int R, int C, int TableSize>
+AICORE void example_gm2l1_elem(__gm__ T* tablePtr, __gm__ int32_t* idxPtr, __gm__ T* scratchPtr)
+{
+    using TableShape   = Shape<1, 1, 1, 1, TableSize>;
+    using TableStride  = Stride<1, 1, 1, TableSize, 1>;
+    using IdxShape     = Shape<1, 1, 1, R, C>;
+    using IdxStride    = Stride<1, 1, 1, C, 1>;
+    using ScratchShape = Shape<1, 1, 1, 1, R * C>;
+    using ScratchStride= Stride<1, 1, 1, R * C, 1>;
+    GlobalTensor<T, TableShape, TableStride, Layout::ND> tableGM(tablePtr);
+    GlobalTensor<int32_t, IdxShape, IdxStride, Layout::ND> idxGM(idxPtr);
+    GlobalTensor<T, ScratchShape, ScratchStride, Layout::ND> scratchGM(scratchPtr);
+
+    using DstTile = Tile<TileType::Mat, T, R, C, BLayout::ColMajor, R, C, SLayout::RowMajor, 512>;
+    DstTile dst; TASSIGN(dst, 0x0);
+
+    MGATHER<Coalesce::Elem, GatherOOB::Zero>(dst, tableGM, idxGM, scratchGM);  // GM -> GM scratch (NZ) -> L1
+}
+```
+
+### A5 only — SIMT executor for Elem GM → L1 (`GatherExec::Simt`)
+
+On A5 the Elem GM → L1 path has two executors, selected by a third template parameter
+`GatherExec` (defined alongside `Coalesce`); the existing scalar path is unchanged and remains
+the default for the 4-operand form:
+
+```cpp
+enum class GatherExec : uint8_t { Scalar = 0, Simt = 1 };
+```
+
+- **`GatherExec::Scalar`** (the default for the 4-operand form) — the cube core walks the indices
+  with scalar loads. Best for small / sparse tiles.
+- **`GatherExec::Simt`** — the **AIV vector core** collects the discrete elements with a SIMT
+  kernel (`simt_mgather_l1_elem_kernel`), which parallelizes the gather across warps. This is the
+  A5-only "GM → GM" stage; A2/A3 has no SIMT engine and therefore no `Simt` executor.
+
+The two executors share the **same 4-operand signature**; only the third template parameter
+selects the SIMT path. There is **no UB operand**: the SIMT engine moves data
+GM → D-cache → registers → GM, so the D-cache is implicit hardware plumbing that neither the
+caller nor the kernel manages. At the API level the SIMT executor is a pure GM → GM gather:
+
+```cpp
+template <Coalesce CMode, GatherOOB Oob, GatherExec Exec, typename MatTileDst,
+          typename GlobalTable, typename GlobalIdx, typename GlobalScratch>
+PTO_INST RecordEvent MGATHER(MatTileDst& dst, GlobalTable& table, GlobalIdx& idx,
+                             GlobalScratch& scratch);
+```
+
+**Algorithm.** One AIV subcore (`get_subblockid() == 0`) launches the SIMT grid over the full
+padded `Rows × Cols` NZ tile. Each thread maps its linear NZ offset back to `(r, c)`
+(`blockCol = off / (Rows * kC0)`, `r = (off % (Rows * kC0)) / kC0`,
+`c = blockCol * kC0 + (off % kC0)`), gathers `table[remap(idx[r, c])]` for in-bounds lanes and
+writes `0` for padding / `Zero`-policy lanes — so padding and OOB are handled in one pass with no
+separate pre-zero. Each thread stores its result **directly to GM `scratch`** at its linear NZ
+offset; because consecutive lanes hold consecutive offsets, the stores coalesce into contiguous
+GM bursts through the D-cache. After the grid retires, the AIV flushes the scratch range
+(`dcci` per cache line + `dsb(DSB_DDR)`) so the cube core's DMA observes the writes, then hands
+off to the AIC with a single vec → cube intra-block flag (producer `set_intra_block(PIPE_S, id)`,
+consumer `wait_intra_block(PIPE_MTE2, id)`, hardware auto-maps the subcore offset). The AIC then
+issues the contiguous `copy_gm_to_cbuf` scratch → L1. No `pipe_barrier(PIPE_ALL)` is needed in this case.
+
+**Coalescing / mapping.** The grid is sized `dim3{32, kLaunchWarps}` with
+`kLaunchWarps = min(ceil(Rows * Cols / 32), 32)`, so small tiles do not pay for idle warps. The
+linear-NZ-offset mapping makes the **scratch stores fully coalesced** (lane `i` writes offset
+`base + i`) and the **index reads contiguous within each `kC0` block**; the only unavoidable
+random traffic is `table[remap(idx)]`, which is the intrinsic cost of a gather and is serviced
+through the D-cache (warm lines are reused across lanes that hit the same row).
+
+**Constraints.** Identical to the scalar Elem path (index / table / scratch / destination); the
+SIMT executor adds no new operand-level constraints. All Elem dtypes and all `GatherOOB` policies
+are supported.
+
+```cpp
+template <typename T, int R, int C, int TableSize>
+AICORE void example_gm2l1_elem_simt(__gm__ T* tablePtr, __gm__ int32_t* idxPtr, __gm__ T* scratchPtr)
+{
+    using TableShape   = Shape<1, 1, 1, 1, TableSize>;
+    using TableStride  = Stride<1, 1, 1, TableSize, 1>;
+    using IdxShape     = Shape<1, 1, 1, R, C>;
+    using IdxStride    = Stride<1, 1, 1, C, 1>;
+    using ScratchShape = Shape<1, 1, 1, 1, R * C>;
+    using ScratchStride= Stride<1, 1, 1, R * C, 1>;
+    GlobalTensor<T, TableShape, TableStride, Layout::ND> tableGM(tablePtr);
+    GlobalTensor<int32_t, IdxShape, IdxStride, Layout::ND> idxGM(idxPtr);
+    GlobalTensor<T, ScratchShape, ScratchStride, Layout::ND> scratchGM(scratchPtr);
+
+    using DstTile = Tile<TileType::Mat, T, R, C, BLayout::ColMajor, R, C, SLayout::RowMajor, 512>;
+    DstTile dst; TASSIGN(dst, 0x0);
+
+    // AIV SIMT gather (GM -> D-cache -> regs -> GM scratch, NZ) -> AIC copy_gm_to_cbuf -> L1.
+    // No UB operand: the D-cache is implicit; the API deals only GM -> GM gather.
+    MGATHER<Coalesce::Elem, GatherOOB::Zero, GatherExec::Simt>(dst, tableGM, idxGM, scratchGM);
+}
 ```
 
 ## Related Instructions
