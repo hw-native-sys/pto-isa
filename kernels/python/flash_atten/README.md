@@ -2,19 +2,13 @@
 
 ## Overview
 
-This example demonstrates a high-performance Flash Attention implementation written with the PTO Python DSL (`ptodsl`). It is a Python-DSL port and parity experiment for the manual kernel in `kernels/manual/common/flash_atten`, and it follows the same four-stage software pipeline:
+This example demonstrates a high-performance Flash Attention implementation written with the PTO Python DSL (`ptodsl`). Its goal is to provide a performance-optimal Python-DSL Flash Attention kernel. The kernel is built around a four-stage software pipeline:
 
 ```text
 compute_qk (Cube) -> compute_p (Vector) -> compute_pv (Cube) -> compute_gu (Vector)
 ```
 
-The implementation also references the Huawei CSL PTO DSL AOT Flash Attention 140 TFLOPS example:
-
-```text
-https://github.com/huawei-csl/pto-dsl/tree/main/examples/aot/flash_attention/140tflops
-```
-
-The case is useful for validating that the Python DSL can express a production-style Flash Attention pipeline, including Cube/Vector cooperation, runtime S1 looping, software FIFO staging through global memory, correctness checks, and performance comparison against `torch_npu.npu_fused_infer_attention_score`.
+It shows that the Python DSL can express a fully performance-tuned, production-style Flash Attention pipeline, including Cube/Vector cooperation, runtime S1 looping, software FIFO staging through global memory, correctness checks, and a performance comparison against `torch_npu.npu_fused_infer_attention_score`.
 
 ## Supported Platform
 
@@ -71,6 +65,34 @@ The full runtime/build dependency set is:
 - `ptoas` compatible with the MLIR emitted by the installed `ptodsl`
 - this repository's PTO C++ headers, supplied through `PTO_LIB_PATH`
 
+### Verified environment versions (for reproducible runs)
+
+The performance and correctness results were last reproduced with the exact
+versions below. Pin these for an accurate reproduction; mixing other versions
+usually requires a matching `ptoas` / header pair (see the note that follows the
+table).
+
+| Dependency | Version (pin) | Notes |
+| --- | --- | --- |
+| PTO-ISA repo (this repo; headers via `PTO_LIB_PATH`) | commit `b9122ec586b5a7b4b686ca7498874a1c94b3573c` (2026-06-12) | plus the Flash-Attention working-tree changes under `kernels/python/flash_atten/` and the GlobalData header fix in `include/pto/common/pto_instr.hpp` (see below) |
+| `pto-dsl` Python package (`ptodsl`) | `0.1.2`, commit `6755794cfc145c8ffe4fae92483aa20148e57327` (2026-05-18), branch `main` | the only `ptodsl` runtime/build dependency |
+| `ptoas` | `0.45` | must match the `ptodsl`-emitted MLIR and these C++ headers |
+| CANN toolkit (`Ascend-cann-toolkit`) | `9.0.0` (inner `V100R001C10SPC001B250`) | provides `bisheng` |
+| `bisheng` | clang `15.0.5` (bundled with CANN 9.0.0) | |
+| `torch` | `2.9.0` | |
+| `torch_npu` | `2.9.0` | |
+| Python | `3.10.19` | |
+| Ascend driver | `26.0.rc1` (ascendhal `7.35.23`) | |
+| Target NPU | Ascend A3-class (`--pto-arch=a3`, `--npu-arch=dav-2201`) | |
+
+**`ptoas` / header pairing.** `ptoas` codegen and these C++ headers must be
+compatible. With `ptoas 0.45`, the public GlobalData FIFO ops on the NPU path
+(`TALLOC` / `TPUSH` / `TPOP` / `TFREE`) must pass explicit template arguments
+`<Pipe, GlobalData, Split>` to their `*_IMPL` calls in
+`include/pto/common/pto_instr.hpp`; without this 4-line fix (which mirrors the
+existing `__CPU_SIM` branch) `bisheng` fails with `no member named 'cons'`. The
+fix is required to build this example with `ptoas >= 0.45`.
+
 ## Directory Layout
 
 ```text
@@ -99,16 +121,18 @@ build_artifacts/fa_summary_*.tsv
 
 ## Kernel Scope
 
-Current shape and feature constraints are intentionally aligned with the manual parity target:
+Current shape and feature constraints. The kernel is deliberately specialized for a single shape family so the implementation can be tuned for peak performance:
 
 - `HEAD = 128`
 - `S0 = 128` per Q block
-- `TILE_S1 = 256` by default; `FA_S1_TILE=512` is available for experiments
+- `S1_TILE = 256` by default; `FA_S1_TILE=512` is available for experiments
 - `CUBE_S1 = 128`
-- `QK_PRELOAD = 3` in the DSL-tuned runtime path (`FA_QK_PRELOAD=4` is available for experiments; `MANUAL_QK_PRELOAD = 4` is kept only as the parity target metadata)
+- `QK_PRELOAD = 3` is the performance-tuned default for the DSL runtime path (`FA_QK_PRELOAD=4` is available for experiments)
+- `EXP_RING = QK_PRELOAD` is a hard invariant (`FA_EXP_RING` must equal `FA_QK_PRELOAD`): softmax and `compute_gu` reuse matching rescale slots, so they must share the same ring depth
+- `KV_SPLIT = 1` by default (`FA_KV_SPLIT` may be `1`, `2`, or `4`). When `> 1`, each Q block's KV (S1) is split across `KV_SPLIT` work-units so that `NUM_Q_BLOCKS * KV_SPLIT` units fill the cube-core waves, and a second grid launch (`call_reduce`) flash-combines the per-unit partials into the final normalized `O`. The default suite auto-selects this per shape and per device (see [Build and Run](#build-and-run))
 - non-causal attention only
 - total Q rows are configured by `FA_Q_ROWS` and must be a multiple of `128`
-- total KV rows are supplied at runtime by `run.py`; each S1 length must be at least `S1_TILE * QK_PRELOAD` and divisible by the selected `S1_TILE`
+- total KV rows are supplied at runtime by `run.py`; each S1 length must be divisible by the selected `S1_TILE` and (at `KV_SPLIT = 1`) yield at least `QK_PRELOAD` tiles. When `KV_SPLIT > 1`, the tile count must additionally be divisible by `KV_SPLIT`, and each chunk must still hold at least `QK_PRELOAD` tiles (i.e. `S1 / S1_TILE / KV_SPLIT >= QK_PRELOAD`)
 
 The generated shared library is specialized for the current `FA_Q_ROWS`, while S1 is handled at runtime.
 
@@ -146,18 +170,27 @@ python3 run.py --case case1
 python3 run.py
 ```
 
-The default suite runs `case1` to `case8` and recompiles the kernel for each `FA_Q_ROWS` value. It uses `TILE_S1=256` for `case1` to `case4`, and `TILE_S1=512` for `case5` to `case8` (`S1 >= 16384`).
+The default suite runs `case1` to `case8` and recompiles the kernel for each `FA_Q_ROWS` value. Two knobs are selected per case:
 
-| Case | Q rows (S0 total) | KV rows (S1) |
-| --- | ---: | ---: |
-| `case1` | 1024 | 1024 |
-| `case2` | 2048 | 2048 |
-| `case3` | 4096 | 4096 |
-| `case4` | 8192 | 8192 |
-| `case5` | 16384 | 16384 |
-| `case6` | 32768 | 32768 |
-| `case7` | 65536 | 65536 |
-| `case8` | 131072 | 131072 |
+- `S1_TILE`: `256` for `S1 < 32768` (`case1`–`case5`) and `512` for `S1 >= 32768` (`case6`–`case8`).
+- `KV_SPLIT`: auto-selected per shape **and per device** from the cube-core wave utilization. On the reference 24-cube-core A3 target this enables `KV_SPLIT=2` only for `case5` and keeps `KV_SPLIT=1` everywhere else; a device with a different cube-core count may select differently. Override with `FA_KV_SPLIT`.
+
+| Case | Q rows (S0 total) | KV rows (S1) | `S1_TILE` | `KV_SPLIT`\* |
+| --- | ---: | ---: | ---: | ---: |
+| `case1` | 1024 | 1024 | 256 | 1 |
+| `case2` | 2048 | 2048 | 256 | 1 |
+| `case3` | 4096 | 4096 | 256 | 1 |
+| `case4` | 8192 | 8192 | 256 | 1 |
+| `case5` | 16384 | 16384 | 256 | 2 |
+| `case6` | 32768 | 32768 | 512 | 1 |
+| `case7` | 65536 | 65536 | 512 | 1 |
+| `case8` | 131072 | 131072 | 512 | 1 |
+
+\*The `KV_SPLIT` column is for the reference 24-cube-core A3 target; it is chosen automatically from the cube-core count, so other devices may differ.
+
+### Split-KV (`KV_SPLIT`) wave-quantization fix
+
+When a Q block does not produce enough cube work-units to fill all cube-core waves (low wave utilization), `KV_SPLIT > 1` splits each Q block's KV range into `KV_SPLIT` work-units, raising `TOTAL_UNITS = NUM_Q_BLOCKS * KV_SPLIT`. Each unit computes an unnormalized partial (`O_acc`, running max, running sum); a second grid launch (`call_reduce`, gated by `-DFA_KV_SPLIT` in `compile.sh` and the `#if FA_KV_SPLIT > 1` block in `caller.cpp`) flash-combines the partials per Q block into the final normalized `O`. `KV_SPLIT=1` is the exact baseline (no split, no second launch). The split only pays off when it materially raises utilization and each chunk still satisfies the `QK_PRELOAD` prologue floor, which is why the suite gate enables it only for `case5` on the reference target.
 
 ## Custom Cases
 
@@ -177,6 +210,18 @@ Control benchmark iterations:
 
 ```bash
 FA_Q_ROWS=1024 FA_BENCH_LENGTHS=1024 FA_BENCH_WARMUP=20 FA_BENCH_ITERS=200 python3 run.py
+```
+
+Override the split-KV factor (custom single runs default to `KV_SPLIT=1`; only the default suite auto-selects it):
+
+```bash
+FA_Q_ROWS=16384 FA_BENCH_LENGTHS=16384 FA_S1_TILE=256 FA_KV_SPLIT=2 python3 run.py
+```
+
+Select the benchmark timing mode through the environment (default `event`; `sync` is the conservative host-timed mode, equivalent to `--timing sync`):
+
+```bash
+FA_Q_ROWS=1024 FA_BENCH_LENGTHS=1024 FA_BENCH_TIMING=sync python3 run.py
 ```
 
 Reuse an existing `build_artifacts/fa.so` when it was already compiled for the same `FA_Q_ROWS`:
@@ -235,13 +280,44 @@ python3 run.py --timing sync
 - a host FP32 PyTorch reference when `Q_ROWS * S1` is small enough
 - `torch_npu.npu_fused_infer_attention_score` for all benchmark sizes
 
-Throughput is reported as TFLOP/s using matmul, scale, and softmax operation counts, following the 140 TFLOPS reference script convention.
+Throughput is reported as TFLOP/s computed from matmul, scale, and softmax operation counts (the same operation-count convention as the upstream reference `run.py`). **TFLOP/s is a measured value that depends on the input shape and data, not a fixed target** — absolute numbers vary between shapes and runs, so use the per-shape latency and the speedup against `torch_npu.npu_fused_infer_attention_score` for comparison.
 
 A summary TSV is generated automatically for the default suite. You can choose the output path with `FA_SUMMARY_TSV`:
 
 ```bash
 FA_SUMMARY_TSV=/tmp/fa_summary.tsv python3 run.py --case case1
 ```
+
+## Expected Performance
+
+> The numbers below are the **target** band for the pinned reference environment
+> in the [version table](#verified-environment-versions-for-reproducible-runs)
+> above (Ascend A3-class, 24 cube cores; `ptoas 0.45`; `torch_npu 2.9.0`). As
+> noted in [Output and Correctness](#output-and-correctness), absolute latency and
+> TFLOP/s vary with shape, data, and device — treat these as the reference band to
+> reproduce, not a hard SLA.
+
+With the `TPipe::SyncPeriod` setting in `include/pto/npu/a2a3/TPush.hpp` optimized
+(see [issue #172](https://github.com/hw-native-sys/pto-isa/issues/172) for
+details), the default suite is expected to reach the band below on the reference
+target. Small cases use `event` timing (device time); large cases use `sync`
+timing to avoid the occasional `event` glitch on very large `ctypes` launches (see
+[Removing Redundant PIPE_V Barriers](#removing-redundant-pipe_v-barriers)).
+
+| Case | S0 = S1 | DSL latency (µs) | `torch_npu` (µs) | Speedup | Timing |
+| --- | ---: | ---: | ---: | :---: | :---: |
+| `case1` | 1024 | 21 | 54 | 2.55× | event |
+| `case2` | 2048 | 38 | 73 | 1.91× | event |
+| `case3` | 4096 | 105 | 139 | 1.32× | event |
+| `case4` | 8192 | 239 | 291 | 1.22× | event |
+| `case5` | 16384 | 1001 | 985 | 0.98× | sync |
+| `case6` | 32768 | 3185 | 3184 | 1.00× | sync |
+| `case7` | 65536 | 12106 | 12158 | 1.00× | sync |
+| `case8` | 131072 | 48062 | 48135 | 1.00× | sync |
+
+The expected shape is a large lead at small sizes (where `torch_npu` carries a
+fixed host-dispatch cost), narrowing as the size grows, and reaching parity
+(~185 TFLOP/s) at the largest sizes.
 
 ## Notes
 

@@ -89,7 +89,7 @@ Two non-obvious rules:
 
 | Knob | Default | Other values | Hard invariant |
 | --- | --- | --- | --- |
-| `S1_TILE` (`FA_S1_TILE`) | 256 | 512 (recommended for `S1 >= 16384` by current measurements) | Must be a multiple of `CUBE_S1` (`= 128`); the current library implements only `{256, 512}`. Extending this set requires adapting the implementation and validating the new shape, not just changing the heuristic. The 16384 threshold is an empirical recommendation, not a hard rule. |
+| `S1_TILE` (`FA_S1_TILE`) | 256 | 512 (recommended for `S1 >= 32768` by current measurements) | Must be a multiple of `CUBE_S1` (`= 128`); the current library implements only `{256, 512}`. Extending this set requires adapting the implementation and validating the new shape, not just changing the heuristic. The 32768 threshold is an empirical recommendation, not a hard rule. |
 | `QK_PRELOAD` (`FA_QK_PRELOAD`) | 3 (DSL) | 4 (manual parity) | Allow-list `{3, 4}`. |
 | `EXP_RING` (`FA_EXP_RING`) | `= QK_PRELOAD` | -- | Must equal `QK_PRELOAD`; host raises `ValueError` otherwise. |
 | `QK_PRELOAD * S1_TILE` floor on `S1` | -- | -- | `S1 >= QK_PRELOAD * S1_TILE` and `S1 % S1_TILE == 0`. |
@@ -141,7 +141,7 @@ The PTO-DSL Flash Attention kernel ships eight shape-specialized presets (`case1
   - all shapes -- compare against `torch_npu.npu_fused_infer_attention_score` (the run-time picks tolerance based on `Q_ROWS * S1`).
 - Latency / throughput: `run.py` reports per-case `fa_us`, `fused_us`, `speedup`, and TFLOP/s (matmul + scale + softmax op count, 140 TFLOPS convention).
 
-Regression watermark on Ascend 910B2 with the current default knobs (`QK_PRELOAD = 3`, baseline `S1_TILE = 256`, recommended/default-suite `S1_TILE = 512` for `S1 >= 16384`, default `gu` PIPE_V patch):
+Regression watermark on Ascend 910B2 with the current default knobs (`QK_PRELOAD = 3`, baseline `S1_TILE = 256`, recommended/default-suite `S1_TILE = 512` for `S1 >= 32768`, default `gu` PIPE_V patch). These are the pre-cutover numbers: the `case5`/16384 row was measured at `S1_TILE = 512`, before the default-suite cutover moved to 32768:
 
 | Case | S0 = S1 | fa us | torch_npu us | speedup |
 | ---- | ------: | ----: | -----------: | ------: |
@@ -158,7 +158,7 @@ Reading the band:
 
 - `case1..case4` are launch / overhead favored -- the DSL kernel beats the fused op by 3.1x -> 1.3x as the shape grows.
 - `case5..case8` are compute-bound large prefill -- the kernel sits within +-2% of `torch_npu`. Anything materially below 0.95x at these shapes is a regression in the pipeline (re-check `QK_PRELOAD`, `EXP_RING`, and the `gu` PIPE_V patch).
-- `case4` (8192) is the last default-suite case below the empirical 16384 recommendation boundary: it still uses `S1_TILE = 256`, so it sees the largest scheduling overhead per S1 tile.
+- `case5` (16384) is the last default-suite case below the empirical 32768 recommendation boundary: it still uses `S1_TILE = 256`, so it sees the largest scheduling overhead per S1 tile.
 
 ## 8. Anti-Patterns
 

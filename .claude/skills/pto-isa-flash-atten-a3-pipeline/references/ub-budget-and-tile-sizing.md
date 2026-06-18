@@ -1,6 +1,6 @@
-# UB Budget and Tile Sizing (S1_TILE, row_slice shrink, empirical S1 >= 16384 recommendation)
+# UB Budget and Tile Sizing (S1_TILE, row_slice shrink, empirical S1 >= 32768 recommendation)
 
-The Flash Attention four-stage pipeline lives or dies on the vec UB budget. This file is the standalone reference for **how the working tile is sized, why the row_slice shrink is needed, and why the default suite recommends `S1_TILE=512` for `S1 >= 16384`**. The companion pipeline reference covers the timing knobs (`QK_PRELOAD`, `EXP_RING`); this file is purely about memory.
+The Flash Attention four-stage pipeline lives or dies on the vec UB budget. This file is the standalone reference for **how the working tile is sized, why the row_slice shrink is needed, and why the default suite recommends `S1_TILE=512` for `S1 >= 32768`**. The companion pipeline reference covers the timing knobs (`QK_PRELOAD`, `EXP_RING`); this file is purely about memory.
 
 ## 1. Why UB Sizing Is the Real Constraint
 
@@ -38,20 +38,20 @@ The size is **constant in 32 KiB by construction** -- the row_slice count grows 
 
 GU and PV do **not** row-split (they operate on the full subblock `VecGuRows = S0 / VEC_CORES = 64`). Only the QK -> softmax -> P chain walks per row_slice. The vec side therefore reads a P slot as `TILE_FACTOR` row_slices of `[Vec_S0, S1_TILE]`, but feeds it into PV consumption as one full `[VecGuRows, HEAD]` view.
 
-## 3. The S1 >= 16384 Tile Recommendation
+## 3. The S1 >= 32768 Tile Recommendation
 
 `run.py` picks `S1_TILE` per shape, not per kernel build. The default suite currently uses:
 
 ```python
 def _default_case_s1_tile(seq_len):
-    return 512 if seq_len >= 16384 else 256
+    return 512 if seq_len >= 32768 else 256
 ```
 
 This is a **scheduling-overhead heuristic**, not an architectural limit and not a proof of global optimality:
 
 - `S1_TILE = 256` is the baseline empirical value and is the default builder value.
-- For the current large-S1 default shapes (`case5..case8`, `S1 >= 16384`), `S1_TILE = 512` has measured better because it halves `num_tiles_s1` and reduces per-tile FIFO + sync overhead. The working tile stays 32 KiB because `TILE_FACTOR` doubles to 4 and `Vec_S0` halves to 16.
-- For other shape mixes, `S1 >= 16384 -> 512` is a recommended starting point, not a mandatory rule. If a sweep shows 256 or another supported tile size is faster while satisfying the UB and FIFO constraints, document the shape-specific result.
+- For the current large-S1 default shapes (`case6..case8`, `S1 >= 32768`), `S1_TILE = 512` has measured better because it halves `num_tiles_s1` and reduces per-tile FIFO + sync overhead. The working tile stays 32 KiB because `TILE_FACTOR` doubles to 4 and `Vec_S0` halves to 16.
+- For other shape mixes, `S1 >= 32768 -> 512` is a recommended starting point, not a mandatory rule. If a sweep shows 256 or another supported tile size is faster while satisfying the UB and FIFO constraints, document the shape-specific result.
 
 This is the **flash-attn analogue of the GEMM 32 MiB safety-ratio cliff** only in the sense that it is an empirical threshold where one knob may jump because the cost model crosses a boundary. Treat it as a heuristic default, not a hard rule.
 
@@ -64,7 +64,7 @@ Two costs scale with `S1_TILE`:
 - **GM FIFO slot size.** `SLOT_SIZE_QK = S0 * S1_TILE * 4` and `SLOT_SIZE_P = S0 * S1_TILE * 2`. With `SLOT_NUM = 8` on A3 the GM bytes per AIC block grow linearly. This is GM, not UB, so it is generally fine -- but it costs DMA bandwidth proportionally.
 - **`exp_max` ring footprint.** The ring is `EXP_RING * TILE_FACTOR` rescale-factor tiles, and `TILE_FACTOR = S1_TILE / CUBE_S1`. Going to `S1_TILE = 512` doubles `TILE_FACTOR` (2 -> 4), which doubles the per-ring-slot rescale storage on the vec side. The row_slice shrink rebalances the per-iteration working tile, but the ring itself grows.
 
-The cumulative effect is why the default recommendation only switches to 512 at `S1 >= 16384`. At smaller S1 the per-tile FIFO overhead has not yet dominated in the current benchmark suite, so paying the extra ring footprint has not measured better.
+The cumulative effect is why the default recommendation only switches to 512 at `S1 >= 32768`. At smaller S1 the per-tile FIFO overhead has not yet dominated in the current benchmark suite, so paying the extra ring footprint has not measured better.
 
 ## 5. Constraints the Porter Must Enforce
 
@@ -83,8 +83,8 @@ The host validates the first three today via `ValueError` in `fa_builder.py`; th
 If the kernel builds but ptoas reports local-memory allocation failure or the vec stalls profile out, the working tile is too big:
 
 - Symptom: `local memory allocation failed` from ptoas on a build that previously worked. Cause: someone raised `EXP_RING` without re-checking UB, or added a new vec working tile. Fix: revert the ring change, or split the new tile by row_slice.
-- Symptom: `case5..case8` speedup drops from ~1.0x to ~0.7x with no other change. Possible cause: `S1_TILE` stayed at 256 (e.g. `FA_S1_TILE` env var pinned for a manual sweep) even though 512 is the current recommended default for those shapes. Fix: rerun with the default 512 recommendation and compare before changing the heuristic.
-- Symptom: `case1..case4` speedup drops while `case5..case8` stays put. Possible cause: `S1_TILE` switched to 512 too aggressively below the empirical 16384 boundary. Fix: restore the default 256 baseline for small S1 unless a shape-specific sweep proves otherwise.
+- Symptom: `case6..case8` speedup drops from ~1.0x to ~0.7x with no other change. Possible cause: `S1_TILE` stayed at 256 (e.g. `FA_S1_TILE` env var pinned for a manual sweep) even though 512 is the current recommended default for those shapes. Fix: rerun with the default 512 recommendation and compare before changing the heuristic.
+- Symptom: `case1..case5` speedup drops while `case6..case8` stays put. Possible cause: `S1_TILE` switched to 512 too aggressively below the empirical 32768 boundary. Fix: restore the default 256 baseline for small S1 unless a shape-specific sweep proves otherwise.
 
 ## 7. Anti-Patterns
 

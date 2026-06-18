@@ -192,7 +192,34 @@ def _default_summary_tsv():
 
 
 def _default_case_s1_tile(seq_len):
-    return 512 if seq_len >= 16384 else 256
+    return 512 if seq_len >= 32768 else 256
+
+
+def _default_case_kv_split(q_rows, seq_len, s1_tile):
+    """T1-A wave-quantization fix: pick KV_SPLIT for the default suite.
+
+    Splitting a Q block's KV across KV_SPLIT work-units only pays off when it
+    materially raises cube-wave utilization (so the recovered idle cores beat
+    the cross-core reduction's extra GM round-trip + second launch). Apply it
+    only when (a) util jumps enough, (b) the problem is large enough to amortize
+    the reduction, and (c) each chunk still satisfies the QK_PRELOAD floor.
+
+    Measured (bench_ab paired, IQR ~0.1%): case5 (128 Q blocks, 88.9% util)
+    gains ~+4.2%; case6..case8 (>=97% util) see no util headroom so stay at
+    KV_SPLIT=1.
+    """
+    builder = _load_builder()
+    cores = get_num_cube_cores()
+    n_blocks = q_rows // builder.S0
+    num_tiles = seq_len // s1_tile
+
+    def util(units):
+        waves = -(-units // cores)  # ceil
+        return units / (cores * waves)
+
+    if num_tiles >= 32 and (num_tiles // 2) >= builder.QK_PRELOAD and util(2 * n_blocks) - util(n_blocks) > 0.05:
+        return 2
+    return 1
 
 
 def _summary_fields():
@@ -233,7 +260,23 @@ def _num_tiles(seq_len):
     if seq_len % builder.S1_TILE != 0:
         raise ValueError("seq_len {} is not a multiple of S1_TILE={}".format(seq_len, builder.S1_TILE))
     num_tiles = seq_len // builder.S1_TILE
-    if num_tiles < builder.QK_PRELOAD:
+    kv_split = getattr(builder, "KV_SPLIT", 1)
+    if kv_split > 1:
+        # T1-A split-KV: each of KV_SPLIT chunks gets an equal slice of the
+        # tiles and must itself satisfy the QK_PRELOAD prologue floor.
+        if num_tiles % kv_split != 0:
+            raise ValueError(
+                "seq_len {} maps to {} tiles which is not divisible by KV_SPLIT={}".format(
+                    seq_len, num_tiles, kv_split
+                )
+            )
+        per_chunk = num_tiles // kv_split
+        if per_chunk < builder.QK_PRELOAD:
+            raise ValueError(
+                "seq_len {} maps to {} tiles -> {} tiles/chunk at KV_SPLIT={}; QK_PRELOAD={} requires "
+                "tiles/chunk >= QK_PRELOAD".format(seq_len, num_tiles, per_chunk, kv_split, builder.QK_PRELOAD)
+            )
+    elif num_tiles < builder.QK_PRELOAD:
         raise ValueError(
             "seq_len {} maps to {} tiles; the current QK_PRELOAD={} runtime loop requires "
             "num_tiles >= QK_PRELOAD".format(seq_len, num_tiles, builder.QK_PRELOAD)
@@ -282,12 +325,17 @@ def _to_void_p(t):
 def _block_dim():
     _load_runtime_deps()
     builder = _load_builder()
-    return min(builder.NUM_Q_BLOCKS, get_num_cube_cores())
+    # T1-A split-KV launches TOTAL_UNITS (= NUM_Q_BLOCKS * KV_SPLIT) work-units;
+    # the kernel self-distributes them over the grid. KV_SPLIT=1 -> NUM_Q_BLOCKS.
+    total_units = getattr(builder, "TOTAL_UNITS", builder.NUM_Q_BLOCKS)
+    return min(total_units, get_num_cube_cores())
 
 
 def _slot_elems(block_dim):
     builder = _load_builder()
-    return builder.GM_ELEMS_PER_BLOCK * block_dim
+    # FIFO region + (split-KV only) the partial-output scratch the reduce launch
+    # reads. PARTIAL_ELEMS is 0 in the baseline so the footprint is unchanged.
+    return builder.GM_ELEMS_PER_BLOCK * block_dim + getattr(builder, "PARTIAL_ELEMS", 0)
 
 
 def attn_flops_matmul_softmax_scale(
@@ -508,14 +556,25 @@ def _run_default_suite(args):
             "--no-build is only valid for a single selected case because build_artifacts/fa.so is rebuilt per FA_Q_ROWS"
         )
 
+    # Device init so the per-case KV_SPLIT gate can read the cube-core count.
+    _load_runtime_deps()
+    torch.npu.set_device(get_test_device())
+
     summary_tsv = SUMMARY_TSV or _default_summary_tsv()
     print("[fa] running built-in default benchmark suite")
     print("[fa] selected cases: {}".format(", ".join(case_id for case_id, _, _ in cases)))
     print("[fa] summary TSV: {}".format(summary_tsv))
 
+    kv_override = os.environ.get("FA_KV_SPLIT")
+
     for case_id, s0, s1 in cases:
         s1_tile = _default_case_s1_tile(s1)
-        print("\n{:=^110}".format(" {} S0={} S1={} TILE_S1={} ".format(case_id, s0, s1, s1_tile)))
+        kv_split = int(kv_override) if kv_override else _default_case_kv_split(s0, s1, s1_tile)
+        print(
+            "\n{:=^110}".format(
+                " {} S0={} S1={} TILE_S1={} KV_SPLIT={} ".format(case_id, s0, s1, s1_tile, kv_split)
+            )
+        )
         env = os.environ.copy()
         env.update(
             {
@@ -523,6 +582,7 @@ def _run_default_suite(args):
                 "FA_Q_ROWS": str(s0),
                 "FA_BENCH_LENGTHS": str(s1),
                 "FA_S1_TILE": str(s1_tile),
+                "FA_KV_SPLIT": str(kv_split),
                 "FA_SUMMARY_TSV": summary_tsv,
             }
         )

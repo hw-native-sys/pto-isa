@@ -7,7 +7,7 @@ description: >-
   (cube-side per-tile emit_qk_pv interleaving, vec-side "drain GU then produce
   P"), the QK_PRELOAD / EXP_RING / S1_TILE knobs and their invariants, the UB
   192 KiB budget with the row_slice working-tile shrink, the empirical
-  S1 >= 16384 -> S1_TILE = 512 recommendation, and the op-pattern PIPE_V barrier removal recipe. Use
+  S1 >= 32768 -> S1_TILE = 512 recommendation, and the op-pattern PIPE_V barrier removal recipe. Use
   when tuning the in-tree DSL Flash Attention, porting the four-stage pipeline
   to a new persistent-block kernel that mixes cube + vec stages through a GM
   FIFO, choosing QK_PRELOAD / S1_TILE for a new shape mix, or deciding when a
@@ -24,7 +24,7 @@ A single, focused recipe: how to schedule a Flash Attention prefill kernel on As
 ## Quick Start
 
 - Read [references/fa-4stage-pipeline-recipe.md](references/fa-4stage-pipeline-recipe.md) -- the full pipeline (stages, prologue / steady / epilogue, ring invariants, anti-patterns).
-- Read [references/ub-budget-and-tile-sizing.md](references/ub-budget-and-tile-sizing.md) -- 192 KiB UB budget, row_slice 64 KiB -> 32 KiB shrink, and the empirical `S1 >= 16384 -> S1_TILE = 512` recommendation.
+- Read [references/ub-budget-and-tile-sizing.md](references/ub-budget-and-tile-sizing.md) -- 192 KiB UB budget, row_slice 64 KiB -> 32 KiB shrink, and the empirical `S1 >= 32768 -> S1_TILE = 512` recommendation.
 - Read [references/pipe-v-barrier-patterns.md](references/pipe-v-barrier-patterns.md) -- which generated-C++ `pipe_barrier(PIPE_V)` patterns are safe to drop and why.
 - Reproduce the canonical numbers on Ascend 910B2:
   ```bash
@@ -32,13 +32,13 @@ A single, focused recipe: how to schedule a Flash Attention prefill kernel on As
   python3 run.py                       # full case1..case8 sweep
   python3 run.py --case case1          # one shape
   ```
-  `run.py` rebuilds `build_artifacts/fa.so` per `FA_Q_ROWS`, and its default suite picks `FA_S1_TILE=512` automatically for `S1 >= 16384` (`case5..case8`) as an empirically good default.
+  `run.py` rebuilds `build_artifacts/fa.so` per `FA_Q_ROWS`, and its default suite picks `FA_S1_TILE=512` automatically for `S1 >= 32768` (`case6..case8`) as an empirically good default.
 
 ## Core Workflow
 
 1. **Diagnose** -- confirm the kernel is pipeline-bound (cube or vec idle while the other is busy, or `pipe_barrier(PIPE_V)` stalls dominating the vec side). For the generic profiling loop see [docs/coding/performance-best-practices.md](../../../docs/coding/performance-best-practices.md).
 2. **Apply the recipe** -- four-stage cross-core pipeline with prologue + steady + epilogue, GM-staged FIFO between stages, exp_max ring sized to `QK_PRELOAD`. See [references/fa-4stage-pipeline-recipe.md](references/fa-4stage-pipeline-recipe.md).
-3. **Size the tiles** -- start from the empirical defaults (`S1_TILE=256`, and recommended `512` for `S1 >= 16384`), confirm the row_slice shrink keeps the per-iteration working tile at 32 KiB, validate the UB budget on the host. See [references/ub-budget-and-tile-sizing.md](references/ub-budget-and-tile-sizing.md).
+3. **Size the tiles** -- start from the empirical defaults (`S1_TILE=256`, and recommended `512` for `S1 >= 32768`), confirm the row_slice shrink keeps the per-iteration working tile at 32 KiB, validate the UB budget on the host. See [references/ub-budget-and-tile-sizing.md](references/ub-budget-and-tile-sizing.md).
 4. **Patch barriers** -- run with the default `gu` pattern; only add `softmax-exp-sum` or `softmax-sum-add` after the patch tool confirms there is no direct tile dependency. See [references/pipe-v-barrier-patterns.md](references/pipe-v-barrier-patterns.md).
 5. **Verify** -- correctness vs a host FP32 reference at small shapes; latency and TFLOP/s vs `torch_npu.npu_fused_infer_attention_score` for all benchmark sizes.
 
@@ -56,7 +56,7 @@ This skill is **deliberately narrow** -- it covers only the A3 non-causal prefil
 
 - Treat `EXP_RING == QK_PRELOAD` as a hard invariant. Changing one without the other lets softmax(t + QK_PRELOAD) clobber the rescale factor GU(t) is still using. The host raises a ValueError today; do not relax it.
 - Validate `S1 >= S1_TILE * QK_PRELOAD` and `S1 % S1_TILE == 0` on the host before launching -- surface a clear error rather than letting the FIFO underrun mid-kernel.
-- Keep `S1_TILE` selected per-shape rather than hard-coded: `S1_TILE=256` is the baseline empirical value, and `S1 >= 16384` is recommended to use 512 because it has measured better on the current default shapes. This is not a hard rule or a proof of optimality; treat it as the default heuristic to beat. See the UB budget reference for why a higher S1_TILE is not free.
+- Keep `S1_TILE` selected per-shape rather than hard-coded: `S1_TILE=256` is the baseline empirical value, and `S1 >= 32768` is recommended to use 512 because it has measured better on the current default shapes. This is not a hard rule or a proof of optimality; treat it as the default heuristic to beat. See the UB budget reference for why a higher S1_TILE is not free.
 - The default `gu` PIPE_V removal pattern is stable and on by default. Adding `softmax-exp-sum` or `softmax-sum-add` requires the patch tool's direct-tile-dependency check to pass -- do not enable them blind.
 - Prefer the op-pattern barrier removal over the legacy line-number list (`FA_REMOVE_VEC_BARRIERS`). The line-number path is kept only as an experimental fallback and breaks on every ptoas emit churn.
 - This kernel is A3 only (`--pto-arch=a3 --npu-arch=dav-2201` in `compile.sh`). HEAD / S0 / CUBE_S1 are baked. Do not invent a CANN platform_config wiring for it -- the shape envelope is fixed.

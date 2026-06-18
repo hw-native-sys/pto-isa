@@ -102,6 +102,7 @@ fi
     -cce-enable-mix \
     --npu-arch=dav-2201 -DMEMORY_BASE \
     -std=gnu++17 \
+    -DFA_KV_SPLIT="${FA_KV_SPLIT:-1}" \
     -DKERNEL_CPP="\"${COMPILE_CPP}\"" \
     "${SCRIPT_DIR}/caller.cpp" \
     -o "${LIB_PATH}"

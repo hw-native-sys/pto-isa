@@ -118,6 +118,27 @@ EXP_RING = int(os.environ.get("FA_EXP_RING", os.environ.get("FA_DSL_EXP_RING", s
 if EXP_RING != QK_PRELOAD:
     raise ValueError("FA_EXP_RING must currently equal FA_QK_PRELOAD ({}), got {}".format(QK_PRELOAD, EXP_RING))
 
+# T1-A wave-quantization fix: split each Q block's KV (S1) across KV_SPLIT
+# work-units, so total_units = NUM_Q_BLOCKS * KV_SPLIT fills the cube-core waves
+# more evenly (e.g. 128 Q blocks over 24 cores = 88.9% util -> 256 units = 97%).
+# Each unit streams softmax over its KV chunk and writes an UNNORMALIZED partial
+# (O_acc, running_max m, running_sum l) to a GM scratch region; a second kernel
+# launch (reduce_kernel) flash-combines the KV_SPLIT partials per Q block into
+# the final normalized O. KV_SPLIT=1 is the exact baseline (no split / no reduce
+# launch); the split path is gated everywhere by `KV_SPLIT > 1`.
+KV_SPLIT = int(os.environ.get("FA_KV_SPLIT", "1"))
+if KV_SPLIT not in (1, 2, 4):
+    raise ValueError("FA_KV_SPLIT must be 1, 2 or 4, got {}".format(KV_SPLIT))
+TOTAL_UNITS = NUM_Q_BLOCKS * KV_SPLIT
+# Partial GM region (fp32 elems), laid out immediately after the per-block FIFO
+# region (base = get_block_num() * GM_ELEMS_PER_BLOCK at runtime). Compile-time
+# sizes because TOTAL_UNITS / S0 / HEAD are all known at build time.
+O_PARTS_ELEMS = TOTAL_UNITS * S0 * HEAD  # [TOTAL_UNITS, S0, HEAD] fp32 (unnormalized O_acc)
+M_PARTS_ELEMS = TOTAL_UNITS * S0  # [TOTAL_UNITS, S0] fp32 (running_max)
+L_PARTS_ELEMS = TOTAL_UNITS * S0  # [TOTAL_UNITS, S0] fp32 (running_sum)
+# Extra GM scratch run.py must allocate after the FIFO region (0 for baseline).
+PARTIAL_ELEMS = (O_PARTS_ELEMS + M_PARTS_ELEMS + L_PARTS_ELEMS) if KV_SPLIT > 1 else 0
+
 # Per-pipe slot sizes (bytes).
 SLOT_SIZE_QK = S0 * S1_TILE * 4  # fp32 QK accumulator
 SLOT_SIZE_PV = S0 * HEAD * 4  # fp32 PV accumulator
@@ -152,6 +173,13 @@ def meta_data():
     kt_sub_ty = pto.SubTensorType(shape=[HEAD, CUBE_S1], dtype=fp16)
     v_sub_ty = pto.SubTensorType(shape=[CUBE_S1, HEAD], dtype=fp16)
     o_sub_slice_ty = pto.SubTensorType(shape=[Vec_S0, HEAD], dtype=fp32)
+
+    # ---- T1-A split-KV partial-output GM views. ----
+    # O_parts is a flat [TOTAL_UNITS*S0, HEAD] fp32 region; m/l_parts are flat
+    # [TOTAL_UNITS*S0, 1] fp32. Per-(unit,row_slice) sub-slices are [Vec_S0, *].
+    o_parts_tensor_ty = pto.TensorType(rank=2, dtype=fp32)
+    red_parts_tensor_ty = pto.TensorType(rank=2, dtype=fp32)
+    red_part_sub_ty = pto.SubTensorType(shape=[Vec_S0, 1], dtype=fp32)
 
     # ---- Address-based slot descriptors (PR #606). ----
     # The QK pipe slot tensor_view describes the GM region one slot covers;
@@ -230,6 +258,7 @@ def meta_data():
 ptr_fp16 = ptr_fp32 = i64 = None
 qkv_tensor_ty = o_tensor_ty = None
 q_sub_ty = kt_sub_ty = v_sub_ty = o_sub_slice_ty = None
+o_parts_tensor_ty = red_parts_tensor_ty = red_part_sub_ty = None
 qk_slot_ty = qk_slot_part_ty = qk_vec_slot_ty = qk_vec_slot_part_ty = None
 pv_slot_ty = pv_slot_part_ty = pv_vec_slot_ty = pv_vec_slot_part_ty = None
 p_slot_ty = p_slot_part_ty = p_cube_slot_ty = p_cube_slot_part_ty = None
@@ -249,17 +278,22 @@ def module():
     # The C++ kernel uses one Q-row block per AIC core (block_idx -> Q rows);
     # in DSL we let the launcher choose blockDim and split inside.
     # -------------------------------------------------------------------------
-    def compute_qb_range(c1):
-        cNUM_Q_BLOCKS = const(NUM_Q_BLOCKS)
+    def compute_range(total, c1):
+        # Even fat/thin share of `total` work-units across this core grid.
+        cTOTAL = const(total)
         num_blocks = s.index_cast(pto.get_block_num())
         bid = s.index_cast(pto.get_block_idx())
-        floor_div = cNUM_Q_BLOCKS // num_blocks
-        extra = cNUM_Q_BLOCKS % num_blocks
+        floor_div = cTOTAL // num_blocks
+        extra = cTOTAL % num_blocks
         fat_start = bid * (floor_div + c1)
         thin_start = extra * (floor_div + c1) + (bid - extra) * floor_div
-        qb_start = s.select(bid < extra, fat_start, thin_start)
+        start = s.select(bid < extra, fat_start, thin_start)
         per_core = s.select(bid < extra, floor_div + c1, floor_div)
-        return bid, qb_start, qb_start + per_core
+        return bid, start, start + per_core
+
+    def compute_qb_range(c1):
+        # Compute phase distributes TOTAL_UNITS (= NUM_Q_BLOCKS * KV_SPLIT).
+        return compute_range(TOTAL_UNITS, c1)
 
     # =========================================================================
     # Cube kernel
@@ -410,28 +444,52 @@ def module():
                     pto.tpush(qk_entry, qk_pipe, SPLIT_UP_DOWN)
 
         # ---- Q-block loop ----
-        for qb in pto.range(qb_start, qb_end, c1):
-            q_view = slice_view(q_sub_ty, source=tv_q, offsets=[qb * cS0, c0], sizes=[cS0, cHEAD])
-            pto.load(q_view, q_mat)
-            tile.mov(q_mat, q_left)
+        if KV_SPLIT == 1:
+            for qb in pto.range(qb_start, qb_end, c1):
+                q_view = slice_view(q_sub_ty, source=tv_q, offsets=[qb * cS0, c0], sizes=[cS0, cHEAD])
+                pto.load(q_view, q_mat)
+                tile.mov(q_mat, q_left)
 
-            # ---- prologue: emit QK[0..QK_PRELOAD-1] -------------------------
-            # V loading is now inline in emit_pv (per-sub-tile), so no preload.
-            for kp in range(QK_PRELOAD):
-                emit_qk(const(kp), kp % 2)
+                # ---- prologue: emit QK[0..QK_PRELOAD-1] ---------------------
+                # V loading is now inline in emit_pv (per-sub-tile), so no preload.
+                for kp in range(QK_PRELOAD):
+                    emit_qk(const(kp), kp % 2)
 
-            # ---- steady state ------------------------------------------------
-            # Match the 140tflops schedule: consume current P/PV and emit the
-            # next QK slot at CUBE_S1 sub-tile granularity.
-            for tile_id in pto.range(c0, steady_tiles, c1):
-                next_tile = tile_id + cPRELOAD
-                emit_qk_pv_interleaved(next_tile, tile_id, 0)
+                # ---- steady state -------------------------------------------
+                # Match the 140tflops schedule: consume current P/PV and emit the
+                # next QK slot at CUBE_S1 sub-tile granularity.
+                for tile_id in pto.range(c0, steady_tiles, c1):
+                    next_tile = tile_id + cPRELOAD
+                    emit_qk_pv_interleaved(next_tile, tile_id, 0)
 
-            # ---- epilogue: drain the last QK_PRELOAD PVs -------------------
-            for k in range(QK_PRELOAD):
-                b = 0
-                t_idx = steady_tiles + const(k)
-                emit_pv(t_idx, b)
+                # ---- epilogue: drain the last QK_PRELOAD PVs ----------------
+                for k in range(QK_PRELOAD):
+                    emit_pv(steady_tiles + const(k), 0)
+        else:
+            # ---- T1-A split-KV: one work-unit = (q block, kv chunk) ----
+            # Tile indices passed to emit_* are ABSOLUTE into K/V, so offset
+            # every local tile by kv_base = chunk * tiles_per_chunk. The FIFO
+            # slot ring and accumulators are per-core, unchanged.
+            cKV_SPLIT = const(KV_SPLIT)
+            tiles_per_chunk = num_tiles_s1 // cKV_SPLIT
+            steady_chunk = tiles_per_chunk - cPRELOAD
+            for u in pto.range(qb_start, qb_end, c1):
+                qb = u // cKV_SPLIT
+                chunk = u % cKV_SPLIT
+                kv_base = chunk * tiles_per_chunk
+                q_view = slice_view(q_sub_ty, source=tv_q, offsets=[qb * cS0, c0], sizes=[cS0, cHEAD])
+                pto.load(q_view, q_mat)
+                tile.mov(q_mat, q_left)
+
+                for kp in range(QK_PRELOAD):
+                    emit_qk(kv_base + const(kp), kp % 2)
+
+                for tile_id in pto.range(c0, steady_chunk, c1):
+                    local = kv_base + tile_id
+                    emit_qk_pv_interleaved(local + cPRELOAD, local, 0)
+
+                for k in range(QK_PRELOAD):
+                    emit_pv(kv_base + steady_chunk + const(k), 0)
 
     # =========================================================================
     # Vector kernel
@@ -509,6 +567,25 @@ def module():
         row_off_sb = sb_idx * cS0_HALF
 
         tv_o = as_tensor(o_tensor_ty, ptr=gm_o, shape=[s0, cHEAD], strides=[cHEAD, c1])
+
+        if KV_SPLIT > 1:
+            # Partial-output GM region begins right after the per-block FIFO
+            # region: base = num_blocks * GM_ELEMS_PER_BLOCK (same blockDim is
+            # used by the reduce launch, so the base matches).
+            num_blocks = s.index_cast(pto.get_block_num())
+            gm_partial = pto.add_ptr(gm_slot_buffer, num_blocks * const(GM_ELEMS_PER_BLOCK))
+            gm_o_parts = gm_partial
+            gm_m_parts = pto.add_ptr(gm_partial, const(O_PARTS_ELEMS))
+            gm_l_parts = pto.add_ptr(gm_partial, const(O_PARTS_ELEMS + M_PARTS_ELEMS))
+            tv_o_parts = as_tensor(
+                o_parts_tensor_ty, ptr=gm_o_parts, shape=[const(TOTAL_UNITS * S0), cHEAD], strides=[cHEAD, c1]
+            )
+            tv_m_parts = as_tensor(
+                red_parts_tensor_ty, ptr=gm_m_parts, shape=[const(TOTAL_UNITS * S0), c1], strides=[c1, c1]
+            )
+            tv_l_parts = as_tensor(
+                red_parts_tensor_ty, ptr=gm_l_parts, shape=[const(TOTAL_UNITS * S0), c1], strides=[c1, c1]
+            )
 
         qk_entry = pto.declare_global(qk_vec_slot_ty)
         p_entry = pto.declare_global(p_slot_ty)
@@ -629,37 +706,150 @@ def module():
             with branch.else_context():
                 emit_gu_update_dispatch(tile_id)
 
-        for qb in pto.range(qb_start, qb_end, c1):
+        def vec_unit_body(steady_count):
+            # Streaming softmax over this unit's KV tiles; identical structure
+            # to the baseline per-qb body, parameterized by the tile count.
             # ---- vec prologue: softmax(0..QK_PRELOAD-1) --------------------
             for kp in range(QK_PRELOAD):
                 emit_softmax(exp_max_ring[kp], is_init=(kp == 0))
 
             # ---- vec steady state. Match the 140tflops order: drain the
             # current PV/GU tile before producing the future P tile.
-            with pto.if_context(steady_tiles > c0):
+            with pto.if_context(steady_count > c0):
                 emit_gu(exp_max_ring[0], is_init=True)
                 emit_softmax(exp_max_ring[QK_PRELOAD % EXP_RING], is_init=False)
 
-                for tile_id in pto.range(c1, steady_tiles, c1):
+                for tile_id in pto.range(c1, steady_count, c1):
                     next_tile = tile_id + cPRELOAD
                     emit_gu_update_dispatch(tile_id)
                     emit_softmax_dispatch(next_tile)
 
             # ---- vec epilogue: drain last QK_PRELOAD gus -------------------
             for k in range(QK_PRELOAD):
-                tile_id = steady_tiles + const(k)
-                emit_gu_any(tile_id)
+                emit_gu_any(steady_count + const(k))
 
-            # Final divide + GM store, one row_slice at a time.
-            for row_slice in range(TILE_FACTOR):
-                tile.row_expand_div(o_tile[row_slice], running_sum[row_slice], o_tile[row_slice])
-                o_view = slice_view(
-                    o_sub_slice_ty,
-                    source=tv_o,
-                    offsets=[qb * cS0 + row_off_sb + const(row_slice * Vec_S0), c0],
-                    sizes=[cVec_S0, cHEAD],
-                )
-                pto.store(o_tile[row_slice], o_view)
+        if KV_SPLIT == 1:
+            for qb in pto.range(qb_start, qb_end, c1):
+                vec_unit_body(steady_tiles)
+                # Final divide + GM store, one row_slice at a time.
+                for row_slice in range(TILE_FACTOR):
+                    tile.row_expand_div(o_tile[row_slice], running_sum[row_slice], o_tile[row_slice])
+                    o_view = slice_view(
+                        o_sub_slice_ty,
+                        source=tv_o,
+                        offsets=[qb * cS0 + row_off_sb + const(row_slice * Vec_S0), c0],
+                        sizes=[cVec_S0, cHEAD],
+                    )
+                    pto.store(o_tile[row_slice], o_view)
+        else:
+            # ---- T1-A split-KV: stream this unit's KV chunk, then write the
+            # UNNORMALIZED partial (O_acc, running_max m, running_sum l) keyed by
+            # unit u. reduce_kernel flash-combines the KV_SPLIT partials per qb.
+            cKV_SPLIT = const(KV_SPLIT)
+            tiles_per_chunk = num_tiles_s1 // cKV_SPLIT
+            steady_chunk = tiles_per_chunk - cPRELOAD
+            for u in pto.range(qb_start, qb_end, c1):
+                vec_unit_body(steady_chunk)
+                u_row_base = u * cS0
+                for row_slice in range(TILE_FACTOR):
+                    row = u_row_base + row_off_sb + const(row_slice * Vec_S0)
+                    o_part = slice_view(o_sub_slice_ty, source=tv_o_parts, offsets=[row, c0], sizes=[cVec_S0, cHEAD])
+                    pto.store(o_tile[row_slice], o_part)
+                    m_part = slice_view(red_part_sub_ty, source=tv_m_parts, offsets=[row, c0], sizes=[cVec_S0, c1])
+                    pto.store(running_max[row_slice], m_part)
+                    l_part = slice_view(red_part_sub_ty, source=tv_l_parts, offsets=[row, c0], sizes=[cVec_S0, c1])
+                    pto.store(running_sum[row_slice], l_part)
+
+    # =========================================================================
+    # Reduce kernel (T1-A): flash-combine the KV_SPLIT partials per Q block.
+    # Launched as a second grid after the compute phase, so it sees all partials
+    # written by all cores. Distributes NUM_Q_BLOCKS over the same core grid.
+    # =========================================================================
+    if KV_SPLIT > 1:
+
+        @pto.func(kernel="vector")
+        def reduce_kernel(
+            gm_slot_buffer: "ptr_fp32", gm_o: "ptr_fp32", s0_i64: "i64", s1_i64: "i64"
+        ) -> None:
+            c0 = const(0)
+            c1 = const(1)
+            cS0 = const(S0)
+            cS0_HALF = const(S0_HALF)
+            cVec_S0 = const(Vec_S0)
+            cHEAD = const(HEAD)
+            cKV_SPLIT = const(KV_SPLIT)
+            s0 = s.index_cast(s0_i64)
+            scale = const(1.0 / math.sqrt(HEAD), s.float32)
+
+            num_blocks = s.index_cast(pto.get_block_num())
+            gm_partial = pto.add_ptr(gm_slot_buffer, num_blocks * const(GM_ELEMS_PER_BLOCK))
+            gm_o_parts = gm_partial
+            gm_m_parts = pto.add_ptr(gm_partial, const(O_PARTS_ELEMS))
+            gm_l_parts = pto.add_ptr(gm_partial, const(O_PARTS_ELEMS + M_PARTS_ELEMS))
+            tv_o_parts = as_tensor(
+                o_parts_tensor_ty, ptr=gm_o_parts, shape=[const(TOTAL_UNITS * S0), cHEAD], strides=[cHEAD, c1]
+            )
+            tv_m_parts = as_tensor(
+                red_parts_tensor_ty, ptr=gm_m_parts, shape=[const(TOTAL_UNITS * S0), c1], strides=[c1, c1]
+            )
+            tv_l_parts = as_tensor(
+                red_parts_tensor_ty, ptr=gm_l_parts, shape=[const(TOTAL_UNITS * S0), c1], strides=[c1, c1]
+            )
+            tv_o = as_tensor(o_tensor_ty, ptr=gm_o, shape=[s0, cHEAD], strides=[cHEAD, c1])
+
+            o_acc = pto.alloc_tile(o_vec_ty)
+            o_i = pto.alloc_tile(o_vec_ty)
+            gmax = pto.alloc_tile(red_ty)
+            mtmp = pto.alloc_tile(red_ty)
+            gsum = pto.alloc_tile(red_ty)
+            ltmp = pto.alloc_tile(red_ty)
+            corr = pto.alloc_tile(red_ty)
+
+            sb_idx = s.index_cast(pto.get_subblock_idx())
+            row_off_sb = sb_idx * cS0_HALF
+            bid, qb_start, qb_end = compute_range(NUM_Q_BLOCKS, c1)
+
+            for qb in pto.range(qb_start, qb_end, c1):
+                u0 = qb * cKV_SPLIT
+                for row_slice in range(TILE_FACTOR):
+                    row = row_off_sb + const(row_slice * Vec_S0)
+                    # pass 1: global_max = max_i m_i
+                    m0 = slice_view(red_part_sub_ty, source=tv_m_parts, offsets=[u0 * cS0 + row, c0], sizes=[cVec_S0, c1])
+                    pto.load(m0, gmax)
+                    for i in range(1, KV_SPLIT):
+                        mi = slice_view(
+                            red_part_sub_ty, source=tv_m_parts, offsets=[(u0 + const(i)) * cS0 + row, c0], sizes=[cVec_S0, c1]
+                        )
+                        pto.load(mi, mtmp)
+                        tile.max(tile.reshape(red_row_ty, mtmp), tile.reshape(red_row_ty, gmax), tile.reshape(red_row_ty, gmax))
+                    # pass 2: global_l = sum_i l_i*corr_i, global_O = sum_i O_i*corr_i
+                    for i in range(KV_SPLIT):
+                        ui = u0 + const(i)
+                        mi = slice_view(red_part_sub_ty, source=tv_m_parts, offsets=[ui * cS0 + row, c0], sizes=[cVec_S0, c1])
+                        li = slice_view(red_part_sub_ty, source=tv_l_parts, offsets=[ui * cS0 + row, c0], sizes=[cVec_S0, c1])
+                        oi = slice_view(o_sub_slice_ty, source=tv_o_parts, offsets=[ui * cS0 + row, c0], sizes=[cVec_S0, cHEAD])
+                        pto.load(mi, mtmp)
+                        pto.load(li, ltmp)
+                        pto.load(oi, o_i)
+                        mtmp_r = tile.reshape(red_row_ty, mtmp)
+                        gmax_r = tile.reshape(red_row_ty, gmax)
+                        corr_r = tile.reshape(red_row_ty, corr)
+                        ltmp_r = tile.reshape(red_row_ty, ltmp)
+                        gsum_r = tile.reshape(red_row_ty, gsum)
+                        tile.sub(mtmp_r, gmax_r, corr_r)  # corr = m_i - global_max  (<= 0)
+                        tile.muls(corr_r, scale, corr_r)
+                        tile.exp(corr_r, corr_r)
+                        tile.mul(ltmp_r, corr_r, ltmp_r)  # l_i *= corr
+                        tile.row_expand_mul(o_i, corr, o_i)  # O_i *= corr (broadcast over HEAD)
+                        if i == 0:
+                            tile.mov(ltmp_r, gsum_r)
+                            tile.mov(o_i, o_acc)
+                        else:
+                            tile.add(gsum_r, ltmp_r, gsum_r)
+                            tile.add(o_acc, o_i, o_acc)
+                    tile.row_expand_div(o_acc, gsum, o_acc)
+                    o_view = slice_view(o_sub_slice_ty, source=tv_o, offsets=[qb * cS0 + row, c0], sizes=[cVec_S0, cHEAD])
+                    pto.store(o_acc, o_view)
 
     # =========================================================================
     # Entry point invoked by the host caller via <<<>>>
@@ -679,6 +869,20 @@ def module():
         pto.set_ffts(ffts_addr)
         pto.call(cube_kernel, gm_slot_buffer, gm_slot_buffer_fp16, gm_q, gm_k, gm_v, s0_i64, s1_i64)
         pto.call(vector_kernel, gm_slot_buffer, gm_slot_buffer_fp16, gm_o, s0_i64, s1_i64)
+
+    if KV_SPLIT > 1:
+
+        @pto.func
+        def call_reduce(
+            ffts_addr: pto.ffts_type,
+            gm_slot_buffer: "ptr_fp32",
+            gm_slot_buffer_fp16: "ptr_fp16",
+            gm_o: "ptr_fp32",
+            s0_i64: "i64",
+            s1_i64: "i64",
+        ) -> None:
+            pto.set_ffts(ffts_addr)
+            pto.call(reduce_kernel, gm_slot_buffer, gm_o, s0_i64, s1_i64)
 
 
 if __name__ == "__main__":

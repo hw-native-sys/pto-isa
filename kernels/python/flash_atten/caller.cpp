@@ -31,4 +31,12 @@ extern "C" void call_kernel(uint32_t blockDim, void *stream, uint8_t *gmSlotBuff
     call_both<<<blockDim, nullptr, stream>>>((__gm__ uint64_t *)fftsAddr, (__gm__ float *)gmSlotBuffer,
                                              (__gm__ half *)gmSlotBuffer, (__gm__ half *)q, (__gm__ half *)k,
                                              (__gm__ half *)v, (__gm__ float *)o, s0, s1);
+
+#if defined(FA_KV_SPLIT) && (FA_KV_SPLIT > 1)
+    // T1-A: second grid launch flash-combines the KV_SPLIT partials per Q block
+    // into the final O. Same stream => ordered after call_both (grid sync); same
+    // blockDim => the partial-region base (num_blocks * GM_ELEMS_PER_BLOCK) matches.
+    call_reduce<<<blockDim, nullptr, stream>>>((__gm__ uint64_t *)fftsAddr, (__gm__ float *)gmSlotBuffer,
+                                               (__gm__ half *)gmSlotBuffer, (__gm__ float *)o, s0, s1);
+#endif
 }
