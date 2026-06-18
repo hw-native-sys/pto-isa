@@ -61,3 +61,36 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define FLOAT_P1000_COL 288
 #define FLOAT_P1111_ROW 7
 #define FLOAT_P1111_COL 320
+
+#define COL_HALF_P0101_ROW 8
+#define COL_HALF_P0101_COL 128
+#define COL_HALF_P1010_ROW 14
+#define COL_HALF_P1010_COL 64
+
+#define COL_HALF_P0001_ROW 12
+#define COL_HALF_P0001_COL 256
+#define COL_HALF_P0010_ROW 16
+#define COL_HALF_P0010_COL 128
+#define COL_HALF_P0100_ROW 20
+#define COL_HALF_P0100_COL 64
+#define COL_HALF_P1000_ROW 24
+#define COL_HALF_P1000_COL 96
+
+#define COL_HALF_P1111_ROW 7
+#define COL_HALF_P1111_COL 320
+
+#define COL_FP0101 101
+#define COL_FP1010 102
+#define COL_FP0001 103
+#define COL_FP0010 104
+#define COL_FP0100 105
+#define COL_FP1000 106
+#define COL_FP1111 107
+
+#define COL_HP0101 111
+#define COL_HP1010 112
+#define COL_HP0001 113
+#define COL_HP0010 114
+#define COL_HP0100 115
+#define COL_HP1000 116
+#define COL_HP1111 117

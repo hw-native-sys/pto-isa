@@ -55,6 +55,23 @@ FLOAT_P1000_COL = 288
 FLOAT_P1111_ROW = 7
 FLOAT_P1111_COL = 320
 
+COL_HALF_P0101_ROW = 8
+COL_HALF_P0101_COL = 128
+COL_HALF_P1010_ROW = 14
+COL_HALF_P1010_COL = 64
+
+COL_HALF_P0001_ROW = 12
+COL_HALF_P0001_COL = 256
+COL_HALF_P0010_ROW = 16
+COL_HALF_P0010_COL = 128
+COL_HALF_P0100_ROW = 20
+COL_HALF_P0100_COL = 64
+COL_HALF_P1000_ROW = 24
+COL_HALF_P1000_COL = 96
+
+COL_HALF_P1111_ROW = 7
+COL_HALF_P1111_COL = 320
+
 
 class TGatherParamsBase:
     def __init__(self, name):
@@ -69,6 +86,17 @@ class TGatherParamsMasked(TGatherParamsBase):
         self.row = row
         self.col = col
         self.pattern = pattern
+
+
+class TGatherParamsColMasked(TGatherParamsBase):
+    def __init__(self, name, dst_type, src_type, row, col, pattern):
+        super().__init__(name)
+        self.dst_type = dst_type
+        self.src_type = src_type
+        self.row = row
+        self.col = col
+        self.pattern = pattern
+        self.gather_col = True
 
 
 class TGatherParams1D(TGatherParamsBase):
@@ -89,7 +117,35 @@ def gather1d(src, indices):
 
 
 def gen_golden_data(param: TGatherParamsBase):
-    if isinstance(param, TGatherParamsMasked):
+    if isinstance(param, TGatherParamsColMasked):
+        src_type = param.src_type
+        dst_type = param.dst_type
+        row = param.row
+        col = param.col
+        pattern = param.pattern
+        x1_gm = np.random.randint(1, 100, [row, col]).astype(src_type)
+        x1_gm.tofile("./x1_gm.bin")
+        if pattern == P0101:
+            res = x1_gm[0::2, :]
+        elif pattern == P1010:
+            res = x1_gm[1::2, :]
+        elif pattern == P0001:
+            res = x1_gm[0::4, :]
+        elif pattern == P0010:
+            res = x1_gm[1::4, :]
+        elif pattern == P0100:
+            res = x1_gm[2::4, :]
+        elif pattern == P1000:
+            res = x1_gm[3::4, :]
+        elif pattern == P1111:
+            res = x1_gm[:, :]
+        
+        golden = res.flatten()
+        
+        x1_gm.tofile("./x1_gm.bin")
+        golden.tofile("./golden.bin")
+        os.chdir(original_dir)
+    elif isinstance(param, TGatherParamsMasked):
         src_type = param.src_type
         dst_type = param.dst_type
         row = param.row
@@ -165,6 +221,36 @@ if __name__ == "__main__":
         TGatherParamsMasked("TGATHERTest.case1_I32_P1111",
                             np.int32, np.int32, FLOAT_P1111_ROW, FLOAT_P1111_COL, P1111),
 
+        TGatherParamsColMasked("TGATHERTestCol.case_float_P0101",
+                               np.float32, np.float32, COL_HALF_P0101_ROW, COL_HALF_P0101_COL, P0101),
+        TGatherParamsColMasked("TGATHERTestCol.case_float_P1010",
+                               np.float32, np.float32, COL_HALF_P1010_ROW, COL_HALF_P1010_COL, P1010),
+        TGatherParamsColMasked("TGATHERTestCol.case_float_P0001",
+                               np.float32, np.float32, COL_HALF_P0001_ROW, COL_HALF_P0001_COL, P0001),
+        TGatherParamsColMasked("TGATHERTestCol.case_float_P0010",
+                               np.float32, np.float32, COL_HALF_P0010_ROW, COL_HALF_P0010_COL, P0010),
+        TGatherParamsColMasked("TGATHERTestCol.case_float_P0100",
+                               np.float32, np.float32, COL_HALF_P0100_ROW, COL_HALF_P0100_COL, P0100),
+        TGatherParamsColMasked("TGATHERTestCol.case_float_P1000",
+                               np.float32, np.float32, COL_HALF_P1000_ROW, COL_HALF_P1000_COL, P1000),
+        TGatherParamsColMasked("TGATHERTestCol.case_float_P1111",
+                               np.float32, np.float32, COL_HALF_P1111_ROW, COL_HALF_P1111_COL, P1111),
+        
+        TGatherParamsColMasked("TGATHERTestCol.case_half_P0101",
+                               np.half, np.half, COL_HALF_P0101_ROW, COL_HALF_P0101_COL, P0101),
+        TGatherParamsColMasked("TGATHERTestCol.case_half_P1010",
+                               np.half, np.half, COL_HALF_P1010_ROW, COL_HALF_P1010_COL, P1010),
+        TGatherParamsColMasked("TGATHERTestCol.case_half_P0001",
+                               np.half, np.half, COL_HALF_P0001_ROW, COL_HALF_P0001_COL, P0001),
+        TGatherParamsColMasked("TGATHERTestCol.case_half_P0010",
+                               np.half, np.half, COL_HALF_P0010_ROW, COL_HALF_P0010_COL, P0010),
+        TGatherParamsColMasked("TGATHERTestCol.case_half_P0100",
+                               np.half, np.half, COL_HALF_P0100_ROW, COL_HALF_P0100_COL, P0100),
+        TGatherParamsColMasked("TGATHERTestCol.case_half_P1000",
+                               np.half, np.half, COL_HALF_P1000_ROW, COL_HALF_P1000_COL, P1000),
+        TGatherParamsColMasked("TGATHERTestCol.case_half_P1111",
+                               np.half, np.half, COL_HALF_P1111_ROW, COL_HALF_P1111_COL, P1111),
+                               
         # Test cases for Tgather1D
         TGatherParams1D("TGATHERTest.case_1D_float_32x1024_16x64", np.float32, 32, 1024, 16, 64),
         TGatherParams1D("TGATHERTest.case_1D_int32_32x512_16x256", np.int32, 32, 512, 16, 256),

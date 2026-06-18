@@ -70,6 +70,28 @@ PTO_INTERNAL void TScatter(typename DstTileData::TileDType dst, typename SrcTile
     }
 }
 
+template <MaskPattern maskPattern, typename DstTileData, typename SrcTileData>
+PTO_INTERNAL void TScatterCol(typename DstTileData::TileDType dst, typename SrcTileData::TileDType src,
+                              unsigned validRow, unsigned validCol)
+{
+    unsigned srcRow = 0;
+    for (unsigned r = 0; r < validRow; r++) {
+        if (MaskSelect(maskPattern, r)) {
+            for (unsigned c = 0; c < validCol; c++) {
+                const size_t sidx = GetTileElementOffset<SrcTileData>(srcRow, c);
+                const size_t didx = GetTileElementOffset<DstTileData>(r, c);
+                dst[didx] = static_cast<typename DstTileData::DType>(src[sidx]);
+            }
+            srcRow++;
+        } else {
+            for (unsigned c = 0; c < validCol; c++) {
+                const size_t didx = GetTileElementOffset<DstTileData>(r, c);
+                dst[didx] = static_cast<typename DstTileData::DType>(0);
+            }
+        }
+    }
+}
+
 template <MaskPattern maskPattern, auto ScatterType = ScatterAxis::SCATTER_ROW, typename DstTileData,
           typename SrcTileData>
 PTO_INTERNAL void TSCATTER_IMPL(DstTileData &dst, SrcTileData &src)
@@ -85,8 +107,19 @@ PTO_INTERNAL void TSCATTER_IMPL(DstTileData &dst, SrcTileData &src)
     static_assert((DstTileData::isRowMajor && SrcTileData::isRowMajor), "TSCATTER: expect row major");
     static_assert((sizeof(typename DstTileData::DType) == sizeof(T)),
                   "TSCATTER: expect same type size for dst and src");
-    assert(src.GetValidCol() == SrcTileData::Cols);
-    TScatter<maskPattern, DstTileData, SrcTileData>(dst.data(), src.data(), src.GetValidRow(), dst.GetValidCol());
+
+    if constexpr (ScatterType == ScatterAxis::SCATTER_ROW) {
+        const unsigned expectedSrcCols = CountSelected(maskPattern, dst.GetValidCol());
+        assert(src.GetValidCol() == expectedSrcCols);
+        assert(src.GetValidRow() == dst.GetValidRow());
+        TScatter<maskPattern, DstTileData, SrcTileData>(dst.data(), src.data(), src.GetValidRow(), dst.GetValidCol());
+    } else {
+        const unsigned expectedSrcRows = CountSelected(maskPattern, dst.GetValidRow());
+        assert(src.GetValidRow() == expectedSrcRows);
+        assert(src.GetValidCol() == dst.GetValidCol());
+        TScatterCol<maskPattern, DstTileData, SrcTileData>(dst.data(), src.data(), dst.GetValidRow(),
+                                                           dst.GetValidCol());
+    }
 }
 
 } // namespace pto

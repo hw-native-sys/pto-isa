@@ -44,6 +44,17 @@ PTO_INLINE bool MaskSelect(MaskPattern pat, unsigned idx)
     }
 }
 
+PTO_INLINE unsigned CountSelected(MaskPattern pattern, unsigned n)
+{
+    unsigned cnt = 0;
+    for (unsigned i = 0; i < n; ++i) {
+        if (MaskSelect(pattern, i)) {
+            ++cnt;
+        }
+    }
+    return cnt;
+}
+
 template <typename IndexT>
 PTO_INLINE bool IndexInBounds(IndexT raw, std::size_t n)
 {
@@ -115,6 +126,24 @@ PTO_INTERNAL void TGather(typename DstTileData::TileDType dst, typename SrcTileD
     }
 }
 
+template <typename DstTileData, typename SrcTileData, MaskPattern maskPattern>
+PTO_INTERNAL void TGatherCol(typename DstTileData::TileDType dst, typename SrcTileData::TileDType src,
+                             unsigned validRow, unsigned validCol)
+{
+    unsigned dstRow = 0;
+    for (unsigned r = 0; r < validRow; ++r) {
+        if (!MaskSelect(maskPattern, r)) {
+            continue;
+        }
+        for (unsigned c = 0; c < validCol; ++c) {
+            const size_t sidx = GetTileElementOffset<SrcTileData>(r, c);
+            const size_t didx = GetTileElementOffset<DstTileData>(dstRow, c);
+            dst[didx] = static_cast<typename DstTileData::DType>(src[sidx]);
+        }
+        ++dstRow;
+    }
+}
+
 template <typename DstTileData, typename SrcTileData, MaskPattern maskPattern, auto gatherType = GatherAxis::GATHER_ROW>
 PTO_INTERNAL void TGATHER_IMPL(DstTileData &dst, SrcTileData &src)
 {
@@ -124,8 +153,15 @@ PTO_INTERNAL void TGATHER_IMPL(DstTileData &dst, SrcTileData &src)
                   "TGATHER: expect vec TileType");
     static_assert((DstTileData::isRowMajor && SrcTileData::isRowMajor), "TGATHER: expect row major");
     static_assert((sizeof(typename DstTileData::DType) == sizeof(T)), "TGATHER: expect same type size for dst and src");
-    assert(dst.GetValidCol() == DstTileData::Cols);
-    TGather<DstTileData, SrcTileData, maskPattern>(dst.data(), src.data(), src.GetValidRow(), src.GetValidCol());
+    if constexpr (gatherType == GatherAxis::GATHER_ROW) {
+        assert(dst.GetValidCol() == DstTileData::Cols);
+        TGather<DstTileData, SrcTileData, maskPattern>(dst.data(), src.data(), src.GetValidRow(), src.GetValidCol());
+    } else {
+        const unsigned expectedRows = CountSelected(maskPattern, src.GetValidRow());
+        assert(dst.GetValidRow() == expectedRows);
+        assert(dst.GetValidCol() == src.GetValidCol());
+        TGatherCol<DstTileData, SrcTileData, maskPattern>(dst.data(), src.data(), src.GetValidRow(), src.GetValidCol());
+    }
 }
 
 } // namespace pto

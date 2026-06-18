@@ -11,6 +11,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/pto-inst.hpp>
 #include <pto/common/constants.hpp>
 #include <iostream>
+#include <unordered_map>
 #include "tgather_common.h"
 
 using namespace pto;
@@ -35,6 +36,32 @@ AICORE void runTGATHER(__gm__ T __out__ *out, __gm__ T __in__ *src)
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     TGATHER<DstTileData, TileData, maskPattern>(dstTile, srcTile);
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID1);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID1);
+    TSTORE(dstGlobal, dstTile);
+    out = dstGlobal.data();
+}
+
+template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, MaskPattern maskPattern>
+AICORE void runTGATHER_COL(__gm__ T __out__ *out, __gm__ T __in__ *src)
+{
+    using DynShapeDim5 = Shape<1, 1, 1, kGRows_, kGCols_>;
+    using DynStridDim5 = Stride<1, 1, 1, kGCols_, 1>;
+    using GlobalData = GlobalTensor<T, DynShapeDim5, DynStridDim5>;
+    using TileData = Tile<TileType::Vec, T, (kGRows_ + 5), (kGCols_ + 32), BLayout::RowMajor, -1, -1>;
+    using DstTileData = Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>;
+    TileData srcTile(kGRows_, kGCols_);
+    DstTileData dstTile(kTRows_, kTCols_);
+    TASSIGN(srcTile, 0x0);
+    TASSIGN(dstTile, 0x0 + (kGRows_ + 5) * (kGCols_ + 32) * sizeof(T));
+
+    GlobalData srcGlobal(src);
+    GlobalData dstGlobal(out);
+
+    TLOAD(srcTile, srcGlobal);
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    TGATHER<DstTileData, TileData, maskPattern, GatherAxis::GATHER_COL>(dstTile, srcTile);
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID1);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID1);
     TSTORE(dstGlobal, dstTile);
@@ -155,47 +182,128 @@ extern "C" __global__ AICORE void launchTGATHER_7(__gm__ uint8_t *out, __gm__ ui
         reinterpret_cast<__gm__ float *>(out), reinterpret_cast<__gm__ float *>(src));
 }
 
+extern "C" __global__ AICORE void launchTGATHER_COL_101(__gm__ uint8_t *out, __gm__ uint8_t *src)
+{
+    runTGATHER_COL<float, COL_HALF_P0101_ROW, COL_HALF_P0101_COL, COL_HALF_P0101_ROW / 2, COL_HALF_P0101_COL,
+                   MaskPattern::P0101>(reinterpret_cast<__gm__ float *>(out), reinterpret_cast<__gm__ float *>(src));
+}
+
+extern "C" __global__ AICORE void launchTGATHER_COL_102(__gm__ uint8_t *out, __gm__ uint8_t *src)
+{
+    runTGATHER_COL<float, COL_HALF_P1010_ROW, COL_HALF_P1010_COL, COL_HALF_P1010_ROW / 2, COL_HALF_P1010_COL,
+                   MaskPattern::P1010>(reinterpret_cast<__gm__ float *>(out), reinterpret_cast<__gm__ float *>(src));
+}
+
+extern "C" __global__ AICORE void launchTGATHER_COL_103(__gm__ uint8_t *out, __gm__ uint8_t *src)
+{
+    runTGATHER_COL<float, COL_HALF_P0001_ROW, COL_HALF_P0001_COL, COL_HALF_P0001_ROW / 4, COL_HALF_P0001_COL,
+                   MaskPattern::P0001>(reinterpret_cast<__gm__ float *>(out), reinterpret_cast<__gm__ float *>(src));
+}
+
+extern "C" __global__ AICORE void launchTGATHER_COL_104(__gm__ uint8_t *out, __gm__ uint8_t *src)
+{
+    runTGATHER_COL<float, COL_HALF_P0010_ROW, COL_HALF_P0010_COL, COL_HALF_P0010_ROW / 4, COL_HALF_P0010_COL,
+                   MaskPattern::P0010>(reinterpret_cast<__gm__ float *>(out), reinterpret_cast<__gm__ float *>(src));
+}
+
+extern "C" __global__ AICORE void launchTGATHER_COL_105(__gm__ uint8_t *out, __gm__ uint8_t *src)
+{
+    runTGATHER_COL<float, COL_HALF_P0100_ROW, COL_HALF_P0100_COL, COL_HALF_P0100_ROW / 4, COL_HALF_P0100_COL,
+                   MaskPattern::P0100>(reinterpret_cast<__gm__ float *>(out), reinterpret_cast<__gm__ float *>(src));
+}
+
+extern "C" __global__ AICORE void launchTGATHER_COL_106(__gm__ uint8_t *out, __gm__ uint8_t *src)
+{
+    runTGATHER_COL<float, COL_HALF_P1000_ROW, COL_HALF_P1000_COL, COL_HALF_P1000_ROW / 4, COL_HALF_P1000_COL,
+                   MaskPattern::P1000>(reinterpret_cast<__gm__ float *>(out), reinterpret_cast<__gm__ float *>(src));
+}
+
+extern "C" __global__ AICORE void launchTGATHER_COL_107(__gm__ uint8_t *out, __gm__ uint8_t *src)
+{
+    runTGATHER_COL<float, COL_HALF_P1111_ROW, COL_HALF_P1111_COL, COL_HALF_P1111_ROW, COL_HALF_P1111_COL,
+                   MaskPattern::P1111>(reinterpret_cast<__gm__ float *>(out), reinterpret_cast<__gm__ float *>(src));
+}
+
+extern "C" __global__ AICORE void launchTGATHER_COL_111(__gm__ uint8_t *out, __gm__ uint8_t *src)
+{
+    runTGATHER_COL<half, COL_HALF_P0101_ROW, COL_HALF_P0101_COL, COL_HALF_P0101_ROW / 2, COL_HALF_P0101_COL,
+                   MaskPattern::P0101>(reinterpret_cast<__gm__ half *>(out), reinterpret_cast<__gm__ half *>(src));
+}
+
+extern "C" __global__ AICORE void launchTGATHER_COL_112(__gm__ uint8_t *out, __gm__ uint8_t *src)
+{
+    runTGATHER_COL<half, COL_HALF_P1010_ROW, COL_HALF_P1010_COL, COL_HALF_P1010_ROW / 2, COL_HALF_P1010_COL,
+                   MaskPattern::P1010>(reinterpret_cast<__gm__ half *>(out), reinterpret_cast<__gm__ half *>(src));
+}
+
+extern "C" __global__ AICORE void launchTGATHER_COL_113(__gm__ uint8_t *out, __gm__ uint8_t *src)
+{
+    runTGATHER_COL<half, COL_HALF_P0001_ROW, COL_HALF_P0001_COL, COL_HALF_P0001_ROW / 4, COL_HALF_P0001_COL,
+                   MaskPattern::P0001>(reinterpret_cast<__gm__ half *>(out), reinterpret_cast<__gm__ half *>(src));
+}
+
+extern "C" __global__ AICORE void launchTGATHER_COL_114(__gm__ uint8_t *out, __gm__ uint8_t *src)
+{
+    runTGATHER_COL<half, COL_HALF_P0010_ROW, COL_HALF_P0010_COL, COL_HALF_P0010_ROW / 4, COL_HALF_P0010_COL,
+                   MaskPattern::P0010>(reinterpret_cast<__gm__ half *>(out), reinterpret_cast<__gm__ half *>(src));
+}
+
+extern "C" __global__ AICORE void launchTGATHER_COL_115(__gm__ uint8_t *out, __gm__ uint8_t *src)
+{
+    runTGATHER_COL<half, COL_HALF_P0100_ROW, COL_HALF_P0100_COL, COL_HALF_P0100_ROW / 4, COL_HALF_P0100_COL,
+                   MaskPattern::P0100>(reinterpret_cast<__gm__ half *>(out), reinterpret_cast<__gm__ half *>(src));
+}
+
+extern "C" __global__ AICORE void launchTGATHER_COL_116(__gm__ uint8_t *out, __gm__ uint8_t *src)
+{
+    runTGATHER_COL<half, COL_HALF_P1000_ROW, COL_HALF_P1000_COL, COL_HALF_P1000_ROW / 4, COL_HALF_P1000_COL,
+                   MaskPattern::P1000>(reinterpret_cast<__gm__ half *>(out), reinterpret_cast<__gm__ half *>(src));
+}
+
+extern "C" __global__ AICORE void launchTGATHER_COL_117(__gm__ uint8_t *out, __gm__ uint8_t *src)
+{
+    runTGATHER_COL<half, COL_HALF_P1111_ROW, COL_HALF_P1111_COL, COL_HALF_P1111_ROW, COL_HALF_P1111_COL,
+                   MaskPattern::P1111>(reinterpret_cast<__gm__ half *>(out), reinterpret_cast<__gm__ half *>(src));
+}
+
+using LaunchFunc = void (*)(__gm__ uint8_t *, __gm__ uint8_t *);
+
+static LaunchFunc GetLaunchFunction(int32_t tilingKey)
+{
+    static const std::unordered_map<int32_t, LaunchFunc> launchMap = {
+        {FP0101, launchTGATHER_1},           {FP1010, launchTGATHER_2},           {FP0001, launchTGATHER_3},
+        {FP0010, launchTGATHER_4},           {FP0100, launchTGATHER_5},           {FP1000, launchTGATHER_6},
+        {FP1111, launchTGATHER_7},
+
+        {HP0101, launchTGATHER_11},          {HP1010, launchTGATHER_12},          {HP0001, launchTGATHER_13},
+        {HP0100, launchTGATHER_15},          {HP1000, launchTGATHER_16},
+
+        {U16P0101, launchTGATHER_21},        {U16P1010, launchTGATHER_22},        {I16P0001, launchTGATHER_23},
+        {I16P0010, launchTGATHER_24},        {U32P0100, launchTGATHER_25},        {I32P1000, launchTGATHER_26},
+        {I32P1111, launchTGATHER_27},
+
+        {COL_FP0101, launchTGATHER_COL_101}, {COL_FP1010, launchTGATHER_COL_102}, {COL_FP0001, launchTGATHER_COL_103},
+        {COL_FP0010, launchTGATHER_COL_104}, {COL_FP0100, launchTGATHER_COL_105}, {COL_FP1000, launchTGATHER_COL_106},
+        {COL_FP1111, launchTGATHER_COL_107},
+
+        {COL_HP0101, launchTGATHER_COL_111}, {COL_HP1010, launchTGATHER_COL_112}, {COL_HP0001, launchTGATHER_COL_113},
+        {COL_HP0010, launchTGATHER_COL_114}, {COL_HP0100, launchTGATHER_COL_115}, {COL_HP1000, launchTGATHER_COL_116},
+        {COL_HP1111, launchTGATHER_COL_117},
+    };
+
+    auto it = launchMap.find(tilingKey);
+    if (it != launchMap.end()) {
+        return it->second;
+    }
+    return nullptr;
+}
+
 template <int32_t tilingKey>
 void launchTGATHER_demo(uint8_t *out, uint8_t *src, void *stream)
 {
-    if constexpr (tilingKey == FP0101) {
-        launchTGATHER_1(out, src);
-    } else if constexpr (tilingKey == FP1010) {
-        launchTGATHER_2(out, src);
-    } else if constexpr (tilingKey == FP0001) {
-        launchTGATHER_3(out, src);
-    } else if constexpr (tilingKey == FP0010) {
-        launchTGATHER_4(out, src);
-    } else if constexpr (tilingKey == FP0100) {
-        launchTGATHER_5(out, src);
-    } else if constexpr (tilingKey == FP1000) {
-        launchTGATHER_6(out, src);
-    } else if constexpr (tilingKey == FP1111) {
-        launchTGATHER_7(out, src);
-    } else if constexpr (tilingKey == HP0101) {
-        launchTGATHER_11(out, src);
-    } else if constexpr (tilingKey == HP1010) {
-        launchTGATHER_12(out, src);
-    } else if constexpr (tilingKey == HP0001) {
-        launchTGATHER_13(out, src);
-    } else if constexpr (tilingKey == HP0100) {
-        launchTGATHER_15(out, src);
-    } else if constexpr (tilingKey == HP1000) {
-        launchTGATHER_16(out, src);
-    } else if constexpr (tilingKey == U16P0101) {
-        launchTGATHER_21(out, src);
-    } else if constexpr (tilingKey == U16P1010) {
-        launchTGATHER_22(out, src);
-    } else if constexpr (tilingKey == I16P0001) {
-        launchTGATHER_23(out, src);
-    } else if constexpr (tilingKey == I16P0010) {
-        launchTGATHER_24(out, src);
-    } else if constexpr (tilingKey == U32P0100) {
-        launchTGATHER_25(out, src);
-    } else if constexpr (tilingKey == I32P1000) {
-        launchTGATHER_26(out, src);
-    } else if constexpr (tilingKey == I32P1111) {
-        launchTGATHER_27(out, src);
+    LaunchFunc func = GetLaunchFunction(tilingKey);
+    if (func) {
+        func(out, src);
     }
 }
 
@@ -220,6 +328,21 @@ template void launchTGATHER_demo<I16P0010>(uint8_t *out, uint8_t *src, void *str
 template void launchTGATHER_demo<U32P0100>(uint8_t *out, uint8_t *src, void *stream);
 template void launchTGATHER_demo<I32P1000>(uint8_t *out, uint8_t *src, void *stream);
 template void launchTGATHER_demo<I32P1111>(uint8_t *out, uint8_t *src, void *stream);
+
+template void launchTGATHER_demo<COL_FP0101>(uint8_t *out, uint8_t *src, void *stream);
+template void launchTGATHER_demo<COL_FP1010>(uint8_t *out, uint8_t *src, void *stream);
+template void launchTGATHER_demo<COL_FP0001>(uint8_t *out, uint8_t *src, void *stream);
+template void launchTGATHER_demo<COL_FP0010>(uint8_t *out, uint8_t *src, void *stream);
+template void launchTGATHER_demo<COL_FP0100>(uint8_t *out, uint8_t *src, void *stream);
+template void launchTGATHER_demo<COL_FP1000>(uint8_t *out, uint8_t *src, void *stream);
+template void launchTGATHER_demo<COL_FP1111>(uint8_t *out, uint8_t *src, void *stream);
+template void launchTGATHER_demo<COL_HP0101>(uint8_t *out, uint8_t *src, void *stream);
+template void launchTGATHER_demo<COL_HP1010>(uint8_t *out, uint8_t *src, void *stream);
+template void launchTGATHER_demo<COL_HP0001>(uint8_t *out, uint8_t *src, void *stream);
+template void launchTGATHER_demo<COL_HP0010>(uint8_t *out, uint8_t *src, void *stream);
+template void launchTGATHER_demo<COL_HP0100>(uint8_t *out, uint8_t *src, void *stream);
+template void launchTGATHER_demo<COL_HP1000>(uint8_t *out, uint8_t *src, void *stream);
+template void launchTGATHER_demo<COL_HP1111>(uint8_t *out, uint8_t *src, void *stream);
 
 template <typename Tsrc0, typename Tsrc1, int kGRows0_, int kGCols0_, int kGRows1_, int kGCols1_, int kTRows_,
           int kTCols_>
