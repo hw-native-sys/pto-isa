@@ -3,17 +3,46 @@
 
 ## Tile Operation Diagram
 
-![TROWEXPANDMUL tile operation](../figures/isa/TROWEXPANDMUL.svg)
+### Mode 1 — Scalar per row (ColMajor src1)
+
+![TROWEXPANDMUL Mode 1 tile operation](../figures/isa/TROWEXPANDMUL.svg)
+
+### Mode 2 — 32-byte block per row (RowMajor src1)
+
+![TROWEXPANDMUL Mode 2 tile operation](../figures/isa/TROWEXPANDMUL_mode2.svg)
 
 ## Introduction
 
-Row-wise broadcast multiply: multiply each row of `src0` by a per-row scalar vector `src1`.
+Row-wise broadcast multiply: multiply each row of `src0` by a per-row broadcast operand `src1`.
+
+The instruction supports two modes determined by the layout of the expanded operand (`src1` when `src0` matches `dst` shape, or `src0` when `src1` matches `dst` shape):
+
+- **Mode 1**: The expanded operand is **ColMajor** with a single column (one scalar per row). Each scalar is broadcast across the entire row.
+- **Mode 2**: The expanded operand is **RowMajor** with `32 / sizeof(T)` columns per row (a 32-byte block per row).
 
 ## Math Interpretation
 
-For each element `(i, j)` in the valid region:
+Let `R = dst.GetValidRow()` and `C = dst.GetValidCol()`.
 
-$$ \mathrm{dst}_{i,j} = \mathrm{src0}_{i,j} \cdot \mathrm{src1}_{0,i} $$
+### Mode 1
+
+Let `s_i` be the per-row scalar taken from the expanded operand (one value per row, ColMajor layout).
+
+For `0 <= i < R` and `0 <= j < C`:
+
+$$
+\mathrm{dst}_{i,j} = \mathrm{src0}_{i,j} \cdot s_i
+$$
+
+### Mode 2
+
+Let `b_i` be the 32-byte block for row `i` taken from the expanded operand (RowMajor, `32 / sizeof(T)` values per row). The block naturally repeats every `elementsPerRepeat` elements within a row.
+
+For `0 <= i < R` and `0 <= j < C`:
+
+$$
+\mathrm{dst}_{i,j} = \mathrm{src0}_{i,j} \cdot b_i[\,j \bmod (32 / \mathit{sizeof}(T))\,]
+$$
 
 ## Assembly Syntax
 
@@ -49,12 +78,31 @@ PTO_INST RecordEvent TROWEXPANDMUL(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 
 ## Constraints
 
-- **Implementation checks**:
-    - `TileDataDst::DType == TileDataSrc0::DType == TileDataSrc1::DType` (compile-time).
-    - `TileDataDst::DType`, `TileDataSrc0::DType`, `TileDataSrc1::DType` must be one of: `half`, `float`, `int16`, `int32`, `uint16`, `uint32`.
-    - Tile shape/layout constraint (compile-time): `TileDataDst::isRowMajor`.
-    - Mode 1: `src1` is expected to provide **one scalar per row** (i.e., its valid shape must cover `R` values).
-    - Mode 2: `src1` is expected to provide **32 bytes data per row**.
+- `TileDataDst::DType == TileDataSrc0::DType == TileDataSrc1::DType`
+- `TileDataDst::DType`, `TileDataSrc0::DType`, `TileDataSrc1::DType` must be one of: `half`, `float`, `int16`, `int32`, `uint16`, `uint32`.
+- `TileDataDst` must be **RowMajor** (`TileDataDst::isRowMajor == true`).
+- Exactly one of `src0` or `src1` must have the same valid shape as `dst` (i.e., `validRow == dst.validRow` and `validCol == dst.validCol`). That operand is the full-sized operand. The other operand is the **expanded operand** (row-broadcast source).
+- The full-sized operand must be **RowMajor** (`isRowMajor == true`).
+
+### Mode 1 — Expanded operand is ColMajor (scalar per row)
+
+When the expanded operand is **ColMajor** (`isRowMajor == false`):
+
+- Its valid column count must be **1** (one scalar per row): `srcX.GetValidCol() == 1`.
+- Its valid row count must equal `dst.GetValidRow()`: `srcX.GetValidRow() == dst.GetValidRow()`.
+
+### Mode 2 — Expanded operand is RowMajor (32-byte block per row)
+
+When the expanded operand is **RowMajor** (`isRowMajor == true`):
+
+- Its valid column count must be **32 / sizeof(T)** (a 32-byte block per row): `srcX.GetValidCol() == 32 / sizeof(T)`.
+  - For `half` / `int16` / `uint16`: `validCol == 16`.
+  - For `float` / `int32` / `uint32`: `validCol == 8`.
+- Its valid row count must equal `dst.GetValidRow()`: `srcX.GetValidRow() == dst.GetValidRow()`.
+
+### Additional target-specific constraints
+
+Exact layout, fractal, and alignment constraints may vary by backend target. See backend headers under `include/pto/npu/*/TRowExpand*.hpp`.
 
 ## Examples
 

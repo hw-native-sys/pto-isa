@@ -2,17 +2,42 @@
 
 ## 指令示意图
 
-![TROWEXPANDSUB tile operation](../figures/isa/TROWEXPANDSUB.svg)
+### 模式 1 — 每行标量（ColMajor src1）
+
+![TROWEXPANDSUB 模式 1 tile operation](../figures/isa/TROWEXPANDSUB.svg)
+
+### 模式 2 — 每行 32 字节块（RowMajor src1）
+
+![TROWEXPANDSUB 模式 2 tile operation](../figures/isa/TROWEXPANDSUB_mode2.svg)
 
 ## 简介
 
-行广播减法：从 `src0` 的每一行中减去一个每行标量向量 `src1`。
+行广播减法：从 `src0` 的每一行中减去扩展操作数的每行标量。
+
+指令支持两种模式，由扩展操作数的布局决定（当 `src0` 与 `dst` 形状匹配时为 `src1`，当 `src1` 与 `dst` 形状匹配时为 `src0`）：
+
+- **模式 1**：扩展操作数为 **ColMajor** 布局，单列（每行一个标量）。每个标量广播到整行。
+- **模式 2**：扩展操作数为 **RowMajor** 布局，每行 `32 / sizeof(T)` 列（每行一个 32 字节块）。每个 32 字节块在向量重复步长内自然重复，提供行级广播。
 
 ## 数学语义
 
-对每个元素 `(i, j)` 在有效区域内：
+设 `R = dst.GetValidRow()` 和 `C = dst.GetValidCol()`。
 
-$$ \mathrm{dst}_{i,j} = \mathrm{src0}_{i,j} - \mathrm{src1}_{0,i} $$
+### 模式 1
+
+设 `s_i` 为从扩展操作数中获取的每行标量（每行一个值，ColMajor 布局）。
+
+对于 `0 <= i < R` 和 `0 <= j < C`：
+
+$$ \mathrm{dst}_{i,j} = \mathrm{src0}_{i,j} - s_i $$
+
+### 模式 2
+
+设 `b_i` 为第 `i` 行从扩展操作数中获取的 32 字节块（RowMajor 布局，每行 `32 / sizeof(T)` 个值）。该块在每个向量重复步长内自然重复。
+
+对于 `0 <= i < R` 和 `0 <= j < C`：
+
+$$ \mathrm{dst}_{i,j} = \mathrm{src0}_{i,j} - b_i[\,j \bmod (32 / \mathit{sizeof}(T))\,] $$
 
 ## 汇编语法
 
@@ -49,12 +74,31 @@ PTO_INST RecordEvent TROWEXPANDSUB(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 
 ## 约束
 
-- **实现检查**:
-    - `TileDataDst::DType == TileDataSrc0::DType == TileDataSrc1::DType`（编译时）。
-    - `TileDataDst::DType`、`TileDataSrc0::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`、`int16`、`int32`、`uint16`、`uint32`。
-    - Tile 形状/布局约束（编译时）：`TileDataDst::isRowMajor`。
-    - 模式 1：`src1` 预期提供**每行一个标量**（即，其有效形状必须覆盖 `R` 个值）。
-    - 模式 2：`src1` 预期提供**每行 32 字节数据**。
+- `TileDataDst::DType == TileDataSrc0::DType == TileDataSrc1::DType`
+- `TileDataDst::DType`、`TileDataSrc0::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`、`int16`、`int32`、`uint16`、`uint32`。
+- `TileDataDst` 必须为 **RowMajor**（`TileDataDst::isRowMajor == true`）。
+- `src0` 或 `src1` 中必须恰好一个与 `dst` 的有效形状相同（即 `validRow == dst.validRow` 且 `validCol == dst.validCol`），该操作数为全尺寸操作数。另一个操作数为**扩展操作数**（行广播源）。
+- 全尺寸操作数必须为 **RowMajor**（`isRowMajor == true`）。
+
+### 模式 1 — 扩展操作数为 ColMajor（每行标量）
+
+当扩展操作数为 **ColMajor**（`isRowMajor == false`）时：
+
+- 其有效列数必须为 **1**（每行一个标量）：`srcX.GetValidCol() == 1`。
+- 其有效行数必须等于 `dst.GetValidRow()`：`srcX.GetValidRow() == dst.GetValidRow()`。
+
+### 模式 2 — 扩展操作数为 RowMajor（每行 32 字节块）
+
+当扩展操作数为 **RowMajor**（`isRowMajor == true`）时：
+
+- 其有效列数必须为 **32 / sizeof(T)**（每行一个 32 字节块）：`srcX.GetValidCol() == 32 / sizeof(T)`。
+  - 对于 `half` / `int16` / `uint16`：`validCol == 16`。
+  - 对于 `float` / `int32` / `uint32`：`validCol == 8`。
+- 其有效行数必须等于 `dst.GetValidRow()`：`srcX.GetValidRow() == dst.GetValidRow()`。
+
+### 其他目标特定约束
+
+具体的布局、分形和对齐约束可能因后端目标而异。参见 `include/pto/npu/*/TRowExpand*.hpp` 下的后端头文件。
 
 ## 示例
 
