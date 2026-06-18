@@ -3003,26 +3003,44 @@ PTO_INTERNAL void TCVTImpl(TileDataD &dst, TileDataS &src, RoundMode mode)
     tcvtDispatchByRound(dst, src, mode, SatMode);
 }
 
-template <bool NeedSetCtrl = true, typename TileDataD, typename TileDataS>
-PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, RoundMode mode, SaturationMode satMode)
+template <typename TileDataD, typename TileDataS>
+PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, RoundMode mode, SaturationMode satMode,
+                            bool needSetCtrl = true)
 {
-    if (satMode == SaturationMode::ON) {
-        TCVTImpl<NeedSetCtrl, SaturationMode::ON>(dst, src, mode);
+    if (needSetCtrl) {
+        if (satMode == SaturationMode::ON) {
+            TCVTImpl<true, SaturationMode::ON>(dst, src, mode);
+        } else {
+            TCVTImpl<true, SaturationMode::OFF>(dst, src, mode);
+        }
     } else {
-        TCVTImpl<NeedSetCtrl, SaturationMode::OFF>(dst, src, mode);
+        if (satMode == SaturationMode::ON) {
+            TCVTImpl<false, SaturationMode::ON>(dst, src, mode);
+        } else {
+            TCVTImpl<false, SaturationMode::OFF>(dst, src, mode);
+        }
     }
 }
 
 // ============================================================================
 // TCVT_IMPL Overloads with tmp buffer (unused in A5, for API compatibility)
 // ============================================================================
-template <bool NeedSetCtrl = true, typename TileDataD, typename TileDataS, typename TmpTileData>
-PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, TmpTileData &tmp, RoundMode mode, SaturationMode satMode)
+template <typename TileDataD, typename TileDataS, typename TmpTileData>
+PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, TmpTileData &tmp, RoundMode mode, SaturationMode satMode,
+                            bool needSetCtrl = true)
 {
-    if (satMode == SaturationMode::ON) {
-        TCVTImpl<NeedSetCtrl, SaturationMode::ON>(dst, src, mode);
+    if (needSetCtrl) {
+        if (satMode == SaturationMode::OFF) {
+            TCVTImpl<true, SaturationMode::OFF>(dst, src, mode);
+        } else {
+            TCVTImpl<true, SaturationMode::ON>(dst, src, mode);
+        }
     } else {
-        TCVTImpl<NeedSetCtrl, SaturationMode::OFF>(dst, src, mode);
+        if (satMode == SaturationMode::OFF) {
+            TCVTImpl<false, SaturationMode::OFF>(dst, src, mode);
+        } else {
+            TCVTImpl<false, SaturationMode::ON>(dst, src, mode);
+        }
     }
 }
 
@@ -3034,40 +3052,39 @@ PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, TmpTileData &tmp, Ro
 // - FP32/FP16→INT16: defaults to OFF (truncation behavior)
 // - INT64→INT32, INT32→INT16: defaults to OFF (truncation behavior)
 // - All others: defaults to ON (native TCVT saturation)
-template <bool NeedSetCtrl = true, typename TileDataD, typename TileDataS>
-PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, RoundMode mode)
+template <typename TileDataD, typename TileDataS>
+PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, RoundMode mode, bool needSetCtrl = true)
 {
-    // Conversions that default to OFF for PyTorch compatibility or truncation behavior
-    if constexpr (
-        // FP16→UINT8 (float→int: CTRL[60] controls saturation)
-        (std::is_same<typename TileDataD::DType, uint8_t>::value &&
-         std::is_same<typename TileDataS::DType, half>::value) ||
-        // FP16→INT8 (float→int: CTRL[60] controls saturation)
-        (std::is_same<typename TileDataD::DType, int8_t>::value &&
-         std::is_same<typename TileDataS::DType, half>::value) ||
-        // FP32→INT16 (float→int: CTRL[60] controls saturation)
-        (std::is_same<typename TileDataD::DType, int16_t>::value &&
-         std::is_same<typename TileDataS::DType, float>::value) ||
-        // FP16→INT16 (float→int: CTRL[60] controls saturation)
-        (std::is_same<typename TileDataD::DType, int16_t>::value &&
-         std::is_same<typename TileDataS::DType, half>::value) ||
-        // INT64→INT32 (int→int: CTRL[60] controls saturation)
-        (std::is_same<typename TileDataD::DType, int32_t>::value &&
-         std::is_same<typename TileDataS::DType, int64_t>::value) ||
-        // INT32→INT16 (int→int: CTRL[60] controls saturation)
-        (std::is_same<typename TileDataD::DType, int16_t>::value &&
-         std::is_same<typename TileDataS::DType, int32_t>::value)) {
-        TCVTImpl<NeedSetCtrl, SaturationMode::OFF>(dst, src, mode);
+    if constexpr ((std::is_same<typename TileDataD::DType, uint8_t>::value &&
+                   std::is_same<typename TileDataS::DType, half>::value) ||
+                  (std::is_same<typename TileDataD::DType, int8_t>::value &&
+                   std::is_same<typename TileDataS::DType, half>::value) ||
+                  (std::is_same<typename TileDataD::DType, int16_t>::value &&
+                   std::is_same<typename TileDataS::DType, float>::value) ||
+                  (std::is_same<typename TileDataD::DType, int16_t>::value &&
+                   std::is_same<typename TileDataS::DType, half>::value) ||
+                  (std::is_same<typename TileDataD::DType, int32_t>::value &&
+                   std::is_same<typename TileDataS::DType, int64_t>::value) ||
+                  (std::is_same<typename TileDataD::DType, int16_t>::value &&
+                   std::is_same<typename TileDataS::DType, int32_t>::value)) {
+        if (needSetCtrl) {
+            TCVTImpl<true, SaturationMode::OFF>(dst, src, mode);
+        } else {
+            TCVTImpl<false, SaturationMode::OFF>(dst, src, mode);
+        }
     } else {
-        // All other conversions: default to ON (native TCVT saturation)
-        TCVTImpl<NeedSetCtrl, SaturationMode::ON>(dst, src, mode);
+        if (needSetCtrl) {
+            TCVTImpl<true, SaturationMode::ON>(dst, src, mode);
+        } else {
+            TCVTImpl<false, SaturationMode::ON>(dst, src, mode);
+        }
     }
 }
 
-template <bool NeedSetCtrl = true, typename TileDataD, typename TileDataS, typename TmpTileData>
-PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, TmpTileData &tmp, RoundMode mode)
+template <typename TileDataD, typename TileDataS, typename TmpTileData>
+PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, TmpTileData &tmp, RoundMode mode, bool needSetCtrl = true)
 {
-    TCVT_IMPL<NeedSetCtrl>(dst, src, mode);
+    TCVT_IMPL(dst, src, mode, needSetCtrl);
 }
 } // namespace pto
 
