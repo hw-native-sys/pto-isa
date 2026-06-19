@@ -155,6 +155,8 @@ set(ALL_TESTCASES
     tshr
     tshrs
     tadd
+    taddreluconv
+    tadddeqrelu
     tpartadd
     tpartmul
     tfillpad
