@@ -16,6 +16,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/common/fixpipe.hpp>
 #include <pto/npu/a5/TStore.hpp>
 #include <pto/npu/a5/TLoad.hpp>
+#include <pto/npu/a5/TMov.hpp>
 #include <pto/common/debug.h>
 
 namespace pto {
@@ -324,12 +325,12 @@ struct TPipe {
         }
 
         template <typename TileProd, TileSplitAxis Split>
-        PTO_INTERNAL void pushVec2FiFoByDir(RingFiFo &fifo, TileProd &tile, int32_t subBlockId)
+        PTO_INTERNAL void pushVec2FiFoByDir(RingFiFo &fifo, TileProd &tile)
         {
             if constexpr (is_v2c_mat || is_both) {
-                pushVec2MatFiFo<TileProd, Split>(fifo, tile, subBlockId);
+                pushVec2MatFiFo<TileProd, Split>(fifo, tile);
             } else if constexpr (is_v2c_gm) {
-                pushVec2GMFiFo<TileProd, Split>(fifo, tile, subBlockId);
+                pushVec2GMFiFo<TileProd, Split>(fifo, tile);
             } else if constexpr (is_v2c_ctrl) {
                 pushVec2CtrlFiFo<TileProd>(fifo, tile);
             }
@@ -337,7 +338,7 @@ struct TPipe {
 
         // NoQuant with Split and NZ2ND, need to support NZ2NZ
         template <typename TileProd, TileSplitAxis Split>
-        PTO_INTERNAL void push(RingFiFo &fifo, TileProd &tile, int32_t subBlockId)
+        PTO_INTERNAL void push(RingFiFo &fifo, TileProd &tile)
         {
             if constexpr (TileProd::Loc == TileType::Acc) {
                 if constexpr (is_c2v_ub || is_both) {
@@ -346,7 +347,7 @@ struct TPipe {
                     pushAcc2GMFiFo<TileProd>(fifo, tile);
                 }
             } else if constexpr (TileProd::Loc == TileType::Vec) {
-                pushVec2FiFoByDir<TileProd, Split>(fifo, tile, subBlockId);
+                pushVec2FiFoByDir<TileProd, Split>(fifo, tile);
             }
         }
 
@@ -725,7 +726,6 @@ struct TPipe {
  * 2. [Store]   Write data to GM
  * 3. [Commit]  Signal Consumer (Cross-Core)
  */
-
 template <typename Pipe, typename TileProd, TileSplitAxis Split, std::enable_if_t<is_tile_data_v<TileProd>, int> = 0>
 PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
 {
@@ -746,7 +746,7 @@ PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
     }
 }
 
-// interfaces when push data from GM FIFO
+// TPUSH interface when push data from GM FIFO
 template <typename Pipe, typename GlobalData, TileSplitAxis Split,
           std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
 PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, GlobalData &gmTensor)
@@ -755,6 +755,24 @@ PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, GlobalData &gmTensor)
     static_assert(Pipe::is_c2v_gm || Pipe::is_v2c_gm || Pipe::is_both_gm,
                   "Fix: TPUSH with GlobalTensor is only supported by GM FIFO directions on A5.");
     pipe.prod.template record<Split>();
+}
+
+// TPUSH interface with quant(Noquant, cast, scalar, vector, scalar)
+template <typename Pipe, typename TileProd, typename TConfig>
+PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
+{
+    bool isAllocate = pipe.prod.getAllocateStatus() && Pipe::shouldWaitFree(pipe.prod.tileIndex);
+    if (isAllocate) {
+        pipe.prod.template allocate<TileSplitAxis::TILE_NO_SPLIT>();
+    }
+
+    pipe.prod.template push<TileProd, TConfig>(pipe.fifo, tile);
+    pipe.prod.tileIndex++;
+
+    bool isRecord = pipe.prod.getRecordStatus();
+    if (isRecord) {
+        pipe.prod.template record<TileSplitAxis::TILE_NO_SPLIT>();
+    }
 }
 
 //------------------------multiple pipe------------------------

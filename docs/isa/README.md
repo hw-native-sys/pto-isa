@@ -17,6 +17,8 @@ This directory is the canonical PTO ISA tree. It combines the architecture manua
 - [SETFMATRIX](SETFMATRIX.md) - Set FMATRIX register(s) for IMG2COL-like ops.
 - [SET_IMG2COL_RPT](SET_IMG2COL_RPT.md) - Set IMG2COL repeat metadata from an IMG2COL configuration tile.
 - [SET_IMG2COL_PADDING](SET_IMG2COL_PADDING.md) - Set IMG2COL padding metadata from an IMG2COL configuration tile.
+- [SET_QUANT_SCALAR](SET_QUANT_SCALAR.md) - Set the scalar quantization parameter for subsequent TPUSh operations.
+- [SET_QUANT_VECTOR](SET_QUANT_VECTOR.md) - Set the vector quantization parameter from a Scaling tile for subsequent TPUSH operations.
 
 ## Elementwise (Tile-Tile)
 - [TADD](TADD.md) - Elementwise add of two tiles.

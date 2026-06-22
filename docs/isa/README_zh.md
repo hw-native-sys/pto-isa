@@ -17,6 +17,8 @@
 - [SETFMATRIX](SETFMATRIX_zh.md) - 为类 IMG2COL 操作设置 FMATRIX 寄存器。
 - [SET_IMG2COL_RPT](SET_IMG2COL_RPT_zh.md) - 从 IMG2COL 配置 Tile 设置 IMG2COL 重复次数元数据。
 - [SET_IMG2COL_PADDING](SET_IMG2COL_PADDING_zh.md) - 从 IMG2COL 配置 Tile 设置 IMG2COL 填充元数据。
+- [SET_QUANT_SCALAR](SET_QUANT_SCALAR_zh.md) - 设置标量量化参数，用于后续 TPUSH 操作。
+- [SET_QUANT_VECTOR](SET_QUANT_VECTOR_zh.md) - 从 Scaling Tile 设置向量量化参数，用于后续 TPUSH 操作。
 
 ## 逐元素（Tile-Tile）
 - [TADD](TADD_zh.md) - 两个 Tile 的逐元素加法。
