@@ -160,3 +160,7 @@ TEST_F(TTRANSTest, case18_int8_64_64_22_63)
 {
     test_ttrans<uint8_t, 64, 64, 22, 63>();
 }
+TEST_F(TTRANSTest, case19_float_8_8_8_8)
+{
+    test_ttrans<float, 8, 8, 8, 8>();
+}

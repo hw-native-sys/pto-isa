@@ -243,6 +243,7 @@ set(ALL_TESTCASES
     syncall
     tpushpop_cv
     tpushpop_cv_nosplit
+    tpushpop_fixpipe
     tpushpop_vc
     tpushpop_vc_nosplit
     tpushpop_dir_both
@@ -268,6 +269,7 @@ if (AUTO_MODE)
   # until rewritten to adapt to auto mode
     tpushpop_cv
     tpushpop_cv_nosplit
+    tpushpop_fixpipe
     tpushpop_vc
     tpushpop_vc_nosplit
     tpushpop_dir_both

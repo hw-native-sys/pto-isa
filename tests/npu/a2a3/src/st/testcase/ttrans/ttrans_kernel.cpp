@@ -97,3 +97,4 @@ template void LaunchTTRANS<float, 64, 64, 36, 64>(float *out, float *src, void *
 template void LaunchTTRANS<float, 2, 16, 2, 16>(float *out, float *src, void *stream);
 template void LaunchTTRANS<uint8_t, 32, 32, 32, 32>(uint8_t *out, uint8_t *src, void *stream);
 template void LaunchTTRANS<uint8_t, 64, 64, 22, 63>(uint8_t *out, uint8_t *src, void *stream);
+template void LaunchTTRANS<float, 8, 8, 8, 8>(float *out, float *src, void *stream);

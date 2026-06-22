@@ -4,7 +4,7 @@
 
 Push a producer tile into a `TPipe` FIFO for Cube-Vector communication.
 
-This page describes both the TileData overload and the `GlobalTensor` overload for pushing data into a `TPipe` FIFO.
+This page describes all `TPUSH` overloads for pushing data into a `TPipe` FIFO: the TileData overload with explicit `TileSplitAxis`, the simplified TileData overload (reversed parameters, no Split), the GlobalTensor overload, and the TConfig-based overload.
 
 ## Operation Semantics
 
@@ -20,6 +20,8 @@ The producer tile index is incremented after the FIFO slot address is computed.
 
 For the `GlobalData` overload, `TPUSH` only records data-ready synchronization for a slot that was already allocated by `TALLOC`. It does not store tile data by itself.
 
+For the `TConfig` overload `TPUSH(Pipe&, TileProd&, TConfig)`, the `TConfig` template parameters is used to configure fixpipe parameters from L0C->GM/UB.
+
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:
@@ -32,6 +34,9 @@ PTO_INST RecordEvent TPUSH(Pipe &pipe, TileProd &tile, WaitEvents &... events);
 template <typename Pipe, typename GlobalData, TileSplitAxis Split,
           std::enable_if_t<is_global_data_v<GlobalData>, int> = 0, typename... WaitEvents>
 PTO_INST RecordEvent TPUSH(Pipe &pipe, GlobalData &gmTensor, WaitEvents &... events);
+
+template <typename Pipe, typename TileProd, typename TConfig, typename... WaitEvents>
+PTO_INST RecordEvent TPUSH(Pipe &pipe, TileProd &tile, WaitEvents &... events);
 ```
 
 `Pipe` is typically an `TPipe` declared in `TPush.hpp`:
@@ -60,6 +65,12 @@ struct TPipe;
     - `TileSplitAxis::TILE_NO_SPLIT`: No sub-vector offset is applied.
     - `TileSplitAxis::TILE_UP_DOWN`: Data is split into row halves. For C2V direction (L0C→UB path), this mode only supports b32 data type, and `validRows` must be a power of 2; for V2C direction (UB→L1 path), `validCols` must be a multiple of 32 bytes.
     - `TileSplitAxis::TILE_LEFT_RIGHT`: Data is split into two column halves. For C2V direction (L0C→UB path), this mode only supports b32 data type, and `validCols` must be a multiple of 32; for V2C direction (UB→L1 path), `validCols` must be a multiple of 32 bytes.
+- **Simplified TileData overload**:
+    - `TPUSH(TileData&, Pipe&)` uses `TileSplitAxis::TILE_NO_SPLIT` semantics internally.
+    - `TileData::Loc` must be `TileType::Acc` or `TileType::Vec`.
+- **TConfig overload**:
+    - `TConfig` is a configuration type that determines push behavior (implementation-defined).
+    - `TileProd::Loc` must be `TileType::Acc`, `TileType::Vec`, or `TileType::Ctrl`.
 - **Synchronization**:
     - Free-space waits are sparse and controlled by `Pipe::SyncPeriod`.
     - Data-ready record is emitted for each `TPUSH`.
@@ -72,6 +83,75 @@ struct TPipe;
         - `TileType::Acc` (Accumulator Tile): Used by Cube core for C2V direction communication.
         - `TileType::Vec` (Vector Tile): Used by Vector core for V2C direction communication.
         - `TileType::Ctrl` (Control Tile): Used by Vector core for V2C_CTRL direction control signal transmission.
+
+## Defining TConfig
+
+The `TConfig` template parameter for the `TPUSH(Pipe&, TileProd&, TConfig)` overload is a configuration struct that controls fixpipe behavior during push. PTO provides the `FixpipeParams` struct for this purpose.
+
+Declared in `include/pto/common/fixpipe.hpp`:
+
+```cpp
+template <LayoutMode_t layoutMode = LayoutMode_t::NZ2ND,
+          QuantMode_t quantMode = QuantMode_t::NoQuant,
+          ReluPreMode reluMode = ReluPreMode::NoRelu,
+          STPhase phase = STPhase::Unspecified,
+          uint8_t subBlockId = 0,
+          AtomicType atomicT = AtomicType::AtomicNone,
+          ClipReluMode_t clipReluMode = ClipReluMode_t::NOCLIP_RELU,
+          bool isChannelSplit = false>
+struct FixpipeParams {
+    static constexpr LayoutMode_t LayoutMode = layoutMode;
+    static constexpr QuantMode_t QuantPre = quantMode;
+    static constexpr ReluPreMode ReluMode = reluMode;
+    static constexpr STPhase Phase = phase;
+    static constexpr uint8_t SubBlockId = subBlockId;
+    static constexpr AtomicType AtomicT = atomicT;
+    static constexpr ClipReluMode_t ClipReluMode = clipReluMode;
+    static constexpr bool IsChannelSplit = isChannelSplit;
+};
+```
+
+### TConfig Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `LayoutMode` | `LayoutMode_t` | Output data layout: `NZ2NZ` (NZ→NZ), `NZ2ND` (NZ→row-major), `NZ2DN` (NZ→column-major). Default: `NZ2ND`. |
+| `QuantPre` | `QuantMode_t` | Quantization/dequantization mode (defined in CANN). Controls the data type conversion during fixpipe push. Default: `NoQuant`. |
+| `ReluMode` | `ReluPreMode` | ReLU activation mode: `NoRelu` or `NormalRelu`. Default: `NoRelu`. |
+| `Phase` | `STPhase` | Store phase for unit-flag aware paths: `Unspecified`, `Partial`, or `Final`. Default: `Unspecified`. |
+| `SubBlockId` | `uint8_t` | Sub-block identifier for accumulator-to-vector move mode mapping (A5 only). Default: `0`. |
+| `AtomicT` | `AtomicType` | Atomic operation type for GM store: `AtomicNone` or `AtomicAdd`. Default: `AtomicNone`. |
+| `ClipReluMode` | `ClipReluMode_t` | Clip ReLU mode: `NOCLIP_RELU` or `CLIP_RELU`. Default: `NOCLIP_RELU`. |
+| `IsChannelSplit` | `bool` | Whether channel split is enabled. Default: `false`. |
+
+### TConfig Usage Example
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+template <typename T>
+AICORE void example_tconfig_push(__gm__ void *fifoMem)
+{
+    constexpr uint32_t M = 128;
+    constexpr uint32_t N = 128;
+    constexpr uint32_t FlagID = 0;
+    constexpr uint32_t FifoDepth = 2;
+
+    using Pipe = TPipe<FlagID, Direction::DIR_C2V, M * N * sizeof(T), FifoDepth>;
+    using AccTile = TileAcc<float, M, N, M, N>;
+
+    // Define TConfig: NZ→row-major layout, dequantize to half, with ReLU
+    using MyConfig = FixpipeParams<LayoutMode_t::NZ2ND, QuantMode_t::DEQF16, ReluPreMode::NormalRelu>;
+
+    Pipe pipe(fifoMem, 0x0, 0x0);
+    AccTile acc;
+    TASSIGN(acc, 0x0);
+
+    TPUSH<Pipe, AccTile, MyConfig>(pipe, acc);
+}
+```
 
 ## Examples
 

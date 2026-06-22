@@ -129,6 +129,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a2a3/SetFmatrix.hpp"
 #include "pto/npu/a2a3/SetImg2colRpt.hpp"
 #include "pto/npu/a2a3/SetImg2colPadding.hpp"
+#include "pto/npu/a2a3/SetQuantScalar.hpp"
+#include "pto/npu/a2a3/SetQuantVector.hpp"
 #include "pto/npu/a2a3/TSubView.hpp"
 #ifdef _DEBUG
 #include "pto/npu/a2a3/TPrint.hpp"
@@ -268,6 +270,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/SetFmatrix.hpp"
 #include "pto/npu/a5/SetImg2colRpt.hpp"
 #include "pto/npu/a5/SetImg2colPadding.hpp"
+#include "pto/npu/a5/SetQuantScalar.hpp"
+#include "pto/npu/a5/SetQuantVector.hpp"
 
 #include "pto/npu/a5/THistogram.hpp"
 #ifdef _DEBUG
