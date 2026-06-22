@@ -12,6 +12,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define TPUSH_HPP
 
 #include <pto/common/fifo.hpp>
+#include <pto/common/fixpipe.hpp>
 #include <pto/npu/a2a3/TStore.hpp>
 #include <pto/npu/a2a3/TLoad.hpp>
 
@@ -254,6 +255,60 @@ struct TPipe {
                 pushVec2CtrlFiFo<TileProd>(fifo, tile);
             }
         }
+
+        //----------------------fixpipe features support----------------------
+        template <typename TileProd, typename TConfig>
+        using FixpipeConsType = FixpipeConsDType_t<TConfig::QuantPre, typename TileProd::DType>;
+
+        template <LayoutMode_t LayoutMode>
+        static constexpr Layout FixpipeGlobalLayout =
+            LayoutMode == LayoutMode_t::NZ2ND ? Layout::ND :
+                                                (LayoutMode == LayoutMode_t::NZ2DN ? Layout::DN : Layout::NZ);
+
+        template <typename TileProd, typename TConfig>
+        using FixpipeGlobalData =
+            GlobalTensor<FixpipeConsType<TileProd, TConfig>, pto::Shape<1, 1, 1, TileProd::Rows, TileProd::Cols>,
+                         pto::Stride<1, 1, 1, TileProd::Cols, 1>, FixpipeGlobalLayout<TConfig::LayoutMode>>;
+
+        template <typename TileProd, typename TConfig>
+        PTO_INTERNAL void pushAcc2GMFiFo(RingFiFo &fifo, TileProd &tile)
+        {
+            using T = FixpipeConsType<TileProd, TConfig>;
+            using GlobalData = FixpipeGlobalData<TileProd, TConfig>;
+            size_t entryBase = (tileIndex % RingFiFo::SLOT_NUM) * RingFiFo::SLOT_SIZE;
+            GlobalData globalTensor((__gm__ T *)((uint64_t)fifo.GM_SLOT_BUFFER + entryBase + entryOffset));
+
+            if constexpr (TConfig::AtomicT == AtomicType::AtomicAdd) {
+                SetAtomicAdd<typename GlobalData::DType>();
+            }
+            TStoreAcc<GlobalData, TileProd, TConfig::QuantPre, TConfig::ReluMode, TConfig::Phase>(
+                globalTensor.data(), tile.data(), globalTensor.GetShape(GlobalTensorDim::DIM_0),
+                globalTensor.GetShape(GlobalTensorDim::DIM_1), globalTensor.GetShape(GlobalTensorDim::DIM_2),
+                globalTensor.GetShape(GlobalTensorDim::DIM_3), globalTensor.GetShape(GlobalTensorDim::DIM_4),
+                globalTensor.GetStride(GlobalTensorDim::DIM_0), globalTensor.GetStride(GlobalTensorDim::DIM_1),
+                globalTensor.GetStride(GlobalTensorDim::DIM_2), globalTensor.GetStride(GlobalTensorDim::DIM_3),
+                globalTensor.GetStride(GlobalTensorDim::DIM_4), tile.GetValidRow(), tile.GetValidCol());
+            if constexpr (TConfig::AtomicT == AtomicType::AtomicAdd) {
+                SetAtomicNone();
+            }
+        }
+
+        // cast quant, scalar quant, vector quant
+        template <typename TileProd, typename TConfig>
+        PTO_INTERNAL void push(RingFiFo &fifo, TileProd &tile)
+        {
+            static_assert(TileProd::Loc == TileType::Acc,
+                          "Fix: the push interface with cast quant mode only suppport Acc tile type!");
+            if constexpr (is_c2v) {
+#ifdef __DAV_CUBE__
+                pushAcc2GMFiFo<TileProd, TConfig>(fifo, tile);
+#endif
+            } else if constexpr (is_both) {
+#ifdef __DAV_CUBE__
+                pushAcc2GMFiFo<TileProd, TConfig>(fifo, tile);
+#endif
+            }
+        } // end of push
     }; // end of Producer
 
     struct Consumer {
@@ -498,6 +553,24 @@ PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, GlobalData &gmTensor)
 {
     (void)gmTensor;
     pipe.prod.record();
+}
+
+// TPUSH interface when NoQuant, cast, scalar, vector
+template <typename Pipe, typename TileProd, typename TConfig>
+PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
+{
+    bool isAllocate = pipe.prod.getAllocateStatus() && Pipe::shouldWaitFree(pipe.prod.tileIndex);
+    if (isAllocate) {
+        pipe.prod.allocate();
+    }
+
+    pipe.prod.template push<TileProd, TConfig>(pipe.fifo, tile);
+    pipe.prod.tileIndex++;
+
+    bool isRecord = pipe.prod.getRecordStatus();
+    if (isRecord) {
+        pipe.prod.record();
+    }
 }
 
 //---------------------multiple pipe----------------------

@@ -4,7 +4,7 @@
 
 将生产者 tile 推入FIFO中，用于 Cube-Vector之间的数据传输和核间同步。
 
-本指令支持两类数据的推送，分别为Tile类型的数据和GlobalTensor类型的数据。所以分别设计了基于`Tile` 重载和 `GlobalTensor` 重载。
+本指令支持多类数据的推送，包括基于 `TileSplitAxis` 的 Tile 重载、简化版 Tile 重载（参数顺序相反、无需 Split）、GlobalTensor 重载以及基于 TConfig 的重载。
 
 ## 操作语义
 
@@ -20,6 +20,8 @@
 
 对于 `GlobalData` 类型接口，`TPUSH` 只为已经由 `TALLOC` 分配的槽位记录数据就绪同步。它本身不会存储 tile 数据。
 
+对于 `TConfig` 重载 `TPUSH(Pipe&, TileProd&, TConfig)`，`TConfig` 模板参数用于配置L0C->GM/UB的 fixpipe 参数。
+
 ## C++ Intrinsic
 
 声明位置：`include/pto/common/pto_instr.hpp`：
@@ -32,6 +34,9 @@ PTO_INST RecordEvent TPUSH(Pipe &pipe, TileProd &tile, WaitEvents &... events);
 template <typename Pipe, typename GlobalData, TileSplitAxis Split,
           std::enable_if_t<is_global_data_v<GlobalData>, int> = 0, typename... WaitEvents>
 PTO_INST RecordEvent TPUSH(Pipe &pipe, GlobalData &gmTensor, WaitEvents &... events);
+
+template <typename Pipe, typename TileProd, typename TConfig, typename... WaitEvents>
+PTO_INST RecordEvent TPUSH(Pipe &pipe, TileProd &tile, WaitEvents &... events);
 ```
 
 `Pipe` 通常是 `TPush.hpp` 中声明的  `TPipe`类型：
@@ -60,6 +65,12 @@ struct TPipe;
     - `TileSplitAxis::TILE_NO_SPLIT`：不做切分。
     - `TileSplitAxis::TILE_UP_DOWN`：将数据按照上下切分。当Cube->Vector方向且L0C->UB通路时，该切分模式仅支持数据类型为b32，且srcTile的validRows必须2的整数倍；当Vector->Cube方向且UB->L1通路时，该切分模式下validCols必须是32bytes的整数倍。
     - `TileSplitAxis::TILE_LEFT_RIGHT`：将数据按照左右切分成两个列半区。当Cube->Vector方向且L0C->UB通路时，该切分模式仅支持数据类型为b32，且srcTile的validCols必须为32的整数倍。当Vector->Cube方向且UB->L1通路时，该切分模式下validCols必须是32bytes的整数倍。
+- **简化版 TileData 接口**：
+    - `TPUSH(TileData&, Pipe&)` 内部使用 `TileSplitAxis::TILE_NO_SPLIT` 语义。
+    - `TileData::Loc` 必须为 `TileType::Acc` 或 `TileType::Vec`。
+- **TConfig 接口**：
+    - `TConfig` 是决定推送行为的配置类型（实现定义）。
+    - `TileProd::Loc` 必须为 `TileType::Acc`、`TileType::Vec` 或 `TileType::Ctrl`。
 - **同步**：
     - 空闲空间等待是稀疏的，并由 `Pipe::SyncPeriod` 控制。
     - 每次 `TPUSH` 都会发出数据就绪记录。
@@ -72,6 +83,75 @@ struct TPipe;
         - `TileType::Acc`（累加器 Tile）：Cube 核心使用，用于 C2V 方向通信。
         - `TileType::Vec`（向量 Tile）：Vector 核心使用，用于 V2C 方向通信。
         - `TileType::Ctrl`（控制 Tile）：Vector 核心使用，用于 V2C_CTRL 方向的控制信号通信。
+
+## 定义 TConfig
+
+`TPUSH(Pipe&, TileProd&, TConfig)` 重载中的 `TConfig` 模板参数是一个配置结构体，用于控制推送过程中的 fixpipe 行为。PTO 提供了 `FixpipeParams` 结构体来实现此功能。
+
+声明于 `include/pto/common/fixpipe.hpp`：
+
+```cpp
+template <LayoutMode_t layoutMode = LayoutMode_t::NZ2ND,
+          QuantMode_t quantMode = QuantMode_t::NoQuant,
+          ReluPreMode reluMode = ReluPreMode::NoRelu,
+          STPhase phase = STPhase::Unspecified,
+          uint8_t subBlockId = 0,
+          AtomicType atomicT = AtomicType::AtomicNone,
+          ClipReluMode_t clipReluMode = ClipReluMode_t::NOCLIP_RELU,
+          bool isChannelSplit = false>
+struct FixpipeParams {
+    static constexpr LayoutMode_t LayoutMode = layoutMode;
+    static constexpr QuantMode_t QuantPre = quantMode;
+    static constexpr ReluPreMode ReluMode = reluMode;
+    static constexpr STPhase Phase = phase;
+    static constexpr uint8_t SubBlockId = subBlockId;
+    static constexpr AtomicType AtomicT = atomicT;
+    static constexpr ClipReluMode_t ClipReluMode = clipReluMode;
+    static constexpr bool IsChannelSplit = isChannelSplit;
+};
+```
+
+### TConfig 字段说明
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `LayoutMode` | `LayoutMode_t` | 输出数据布局：`NZ2NZ`（NZ→NZ）、`NZ2ND`（NZ→行主序）、`NZ2DN`（NZ→列主序）。默认值：`NZ2ND`。 |
+| `QuantPre` | `QuantMode_t` | 量化/反量化模式（由 CANN 定义）。控制 fixpipe 推送过程中的数据类型转换。默认值：`NoQuant`。 |
+| `ReluMode` | `ReluPreMode` | ReLU 激活模式：`NoRelu` 或 `NormalRelu`。默认值：`NoRelu`。 |
+| `Phase` | `STPhase` | 存储阶段（用于 unit-flag 路径）：`Unspecified`、`Partial` 或 `Final`。默认值：`Unspecified`。 |
+| `SubBlockId` | `uint8_t` | 子块标识符，用于累加器到向量搬运模式映射（仅 A5）。默认值：`0`。 |
+| `AtomicT` | `AtomicType` | GM 写入的原子操作类型：`AtomicNone` 或 `AtomicAdd`。默认值：`AtomicNone`。 |
+| `ClipReluMode` | `ClipReluMode_t` | Clip ReLU 模式：`NOCLIP_RELU` 或 `CLIP_RELU`。默认值：`NOCLIP_RELU`。 |
+| `IsChannelSplit` | `bool` | 是否启用通道切分。默认值：`false`。 |
+
+### TConfig 使用示例
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+template <typename T>
+AICORE void example_tconfig_push(__gm__ void *fifoMem)
+{
+    constexpr uint32_t M = 128;
+    constexpr uint32_t N = 128;
+    constexpr uint32_t FlagID = 0;
+    constexpr uint32_t FifoDepth = 2;
+
+    using Pipe = TPipe<FlagID, Direction::DIR_C2V, M * N * sizeof(T), FifoDepth>;
+    using AccTile = TileAcc<float, M, N, M, N>;
+
+    // 定义 TConfig：NZ→行主序布局，反量化到 half，启用 ReLU
+    using MyConfig = FixpipeParams<LayoutMode_t::NZ2ND, QuantMode_t::DEQF16, ReluPreMode::NormalRelu>;
+
+    Pipe pipe(fifoMem, 0x0, 0x0);
+    AccTile acc;
+    TASSIGN(acc, 0x0);
+
+    TPUSH<Pipe, AccTile, MyConfig>(pipe, acc);
+}
+```
 
 ## 示例
 

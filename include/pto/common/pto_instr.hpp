@@ -969,6 +969,22 @@ PTO_INST RecordEvent SETFMATRIX(ConvTileData &src, WaitEvents &...events)
     return {};
 }
 
+template <typename OutType, typename... WaitEvents>
+PTO_INST RecordEvent SET_QUANT_SCALAR(float preQuantScalar, WaitEvents &...events)
+{
+    TSYNC(events...);
+    SET_QUANT_SCALAR_IMPL<OutType>(preQuantScalar);
+    return {};
+}
+
+template <typename FpTileData, typename... WaitEvents>
+PTO_INST RecordEvent SET_QUANT_VECTOR(FpTileData &fpTile, WaitEvents &...events)
+{
+    TSYNC(events...);
+    SET_QUANT_VECTOR_IMPL<FpTileData>(fpTile);
+    return {};
+}
+
 #ifdef PTO_NPU_ARCH_A2A3
 template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL, typename... WaitEvents>
 PTO_INST RecordEvent SET_IMG2COL_RPT(ConvTileData &src, WaitEvents &...events)
@@ -2278,6 +2294,14 @@ PTO_INST RecordEvent TPUSH(Pipe &pipe, GlobalData &gmTensor, WaitEvents &...even
 #else
     TPUSH_IMPL(pipe, gmTensor);
 #endif
+    return {};
+}
+
+template <typename Pipe, typename TileProd, typename TConfig, typename... WaitEvents>
+PTO_INST RecordEvent TPUSH(Pipe &pipe, TileProd &tile, WaitEvents &...events)
+{
+    TSYNC(events...);
+    TPUSH_IMPL<Pipe, TileProd, TConfig>(pipe, tile);
     return {};
 }
 

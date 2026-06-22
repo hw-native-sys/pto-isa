@@ -79,6 +79,7 @@ if __name__ == "__main__":
         TTRANSParams(np.float32, 2, 16, 2, 16),
         TTRANSParams(np.int8, 32, 32, 32, 32),
         TTRANSParams(np.int8, 64, 64, 22, 63),
+        TTRANSParams(np.float32, 8, 8, 8, 8),
     ]
 
     for i, param in enumerate(case_params_list):
