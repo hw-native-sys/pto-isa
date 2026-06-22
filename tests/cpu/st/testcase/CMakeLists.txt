@@ -149,6 +149,7 @@ tsort32
 tsqrt
 tstore
 tstore_quant
+tstore_conv
 tsub
 tsubview
 tsubc
