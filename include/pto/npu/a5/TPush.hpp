@@ -33,7 +33,7 @@ struct TPipe {
     static constexpr bool is_c2v_gm = (DIR_TYPE == Direction::DIR_C2V_GM);     // 5
     static constexpr bool is_v2c_gm = (DIR_TYPE == Direction::DIR_V2C_GM);     // 6
     static constexpr bool is_both_gm = (DIR_TYPE == Direction::DIR_BOTH_GM);   // 7
-    static constexpr uint32_t SyncPeriod = SlotNum;
+    static constexpr uint32_t SyncPeriod = (SlotNum <= 2) ? SlotNum : SlotNum / 2;
     static constexpr uint8_t FlagIDPlusOne = FlagID + 1;
     static constexpr uint8_t FlagIDPlusTwo = FlagID + 2;
     static constexpr uint8_t FlagIDPlusThree = FlagID + 3;
@@ -710,10 +710,16 @@ struct TPipe {
     {
         const uint32_t numPopFree = prod.tileIndex / SyncPeriod;
         uint32_t numPushWait = 0;
-        if (prod.tileIndex >= SyncPeriod) {
-            numPushWait = prod.tileIndex / SyncPeriod;
-            if ((prod.tileIndex % SyncPeriod) == 0) {
-                --numPushWait;
+        if constexpr (SlotNum == 1) {
+            numPushWait = (prod.tileIndex > 0) ? prod.tileIndex - 1 : 0;
+        } else {
+            if (prod.tileIndex > SlotNum) {
+                constexpr uint32_t firstAligned =
+                    (SlotNum % SyncPeriod == 0) ? SlotNum : ((SlotNum / SyncPeriod) + 1) * SyncPeriod;
+                const uint32_t lastAligned = ((prod.tileIndex - 1) / SyncPeriod) * SyncPeriod;
+                if (lastAligned >= firstAligned) {
+                    numPushWait = (lastAligned - firstAligned) / SyncPeriod + 1;
+                }
             }
         }
         const uint32_t drainCount = (numPopFree > numPushWait) ? (numPopFree - numPushWait) : 0;

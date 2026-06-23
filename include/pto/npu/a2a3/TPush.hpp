@@ -38,7 +38,7 @@ struct TPipe {
     static_assert(is_c2v || is_v2c || is_both || is_v2c_ctrl,
                   "Fix: TPipe only supports C2V or V2C or Both or V2C_CTRL communication on A2A3.");
     // get rid of codechecker warnings
-    static constexpr uint32_t SyncPeriod = SlotNum;
+    static constexpr uint32_t SyncPeriod = (SlotNum <= 2) ? SlotNum : SlotNum / 2;
     static constexpr uint8_t FlagIDPlusOne = FlagID + 1;
     static constexpr uint8_t FlagIDPlusTwo = FlagID + 2;
     static constexpr uint8_t FlagIDPlusThree = FlagID + 3;
@@ -504,16 +504,22 @@ struct TPipe {
     // Initial TPUSH calls skip allocate() via shouldWaitFree (tileIndex < SlotNum, or 0 for depth 1).
     PTO_INTERNAL ~TPipe()
     {
-        uint32_t numPushWait = 0;
         const uint32_t numPopFree = prod.tileIndex / SyncPeriod;
-        if (prod.tileIndex >= SyncPeriod) {
-            numPushWait = prod.tileIndex / SyncPeriod;
-            if ((prod.tileIndex % SyncPeriod) == 0) {
-                --numPushWait;
+        uint32_t numPushWait = 0;
+        if constexpr (SlotNum == 1) {
+            numPushWait = (prod.tileIndex > 0) ? prod.tileIndex - 1 : 0;
+        } else {
+            if (prod.tileIndex > SlotNum) {
+                constexpr uint32_t firstAligned =
+                    (SlotNum % SyncPeriod == 0) ? SlotNum : ((SlotNum / SyncPeriod) + 1) * SyncPeriod;
+                const uint32_t lastAligned = ((prod.tileIndex - 1) / SyncPeriod) * SyncPeriod;
+                if (lastAligned >= firstAligned) {
+                    numPushWait = (lastAligned - firstAligned) / SyncPeriod + 1;
+                }
             }
         }
-        const uint32_t drainCounts = (numPopFree > numPushWait) ? (numPopFree - numPushWait) : 0;
-        for (uint32_t i = 0; i < drainCounts; ++i) {
+        const uint32_t drainCount = (numPopFree > numPushWait) ? (numPopFree - numPushWait) : 0;
+        for (uint32_t i = 0; i < drainCount; ++i) {
             prod.allocate();
         }
     }

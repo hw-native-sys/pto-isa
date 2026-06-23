@@ -12,8 +12,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define PTO_FIFO_HPP
 #include <type_traits>
 
-using namespace std;
-
 namespace pto {
 
 enum TileSplitAxis : uint8_t

@@ -2,9 +2,9 @@
 
 ## Introduction
 
-Release FIFO space for a `TPipe` entry.
+Release FIFO slot space.
 
-For the TileData `TPOP` flow, `TPOP` already performs the free-space notification step internally. Therefore the TileData-oriented `TFREE(Pipe &pipe)` interface is currently a no-op and exists only for API symmetry with the `GlobalData` flow.
+For the TileData `TPOP` flow, on the A2A3 platform `TPOP` already performs the free-space notification step internally. Therefore the TileData-oriented `TFREE(Pipe &pipe)` interface is currently a no-op and exists only for API symmetry with the `GlobalData` flow. On the A5 platform, TFREE releases the FIFO slot space used by TPOP.
 
 For the `GlobalData` flow, `TFREE(Pipe&, GlobalData&)` releases a FIFO slot view returned by `TPOP(Pipe&, GlobalData&)`.
 
@@ -46,12 +46,13 @@ PTO_INTERNAL void TFREE_IMPL(Pipe &pipe)
 ## Constraints
 
 - **TileData flow**:
-    - Do not use `TFREE(Pipe&)` to release a tile popped by `TPOP(Pipe&, TileData&)`; the release is already handled inside TileData `TPOP`.
-    - Calling `TFREE(Pipe&)` after TileData `TPOP` has no effect on A2A3.
+    - Use `TFREE(Pipe&, GlobalData&)` when the data in the popped FIFO slot is no longer needed.
+    - Use TPUSH/TPOP/TFREE together for inter-core synchronization and data transfer; the size ratio between the pushed tile shape and the popped tile shape must be 1:1 or 1:2.
 - **GlobalData flow**:
-    - Use `TFREE(Pipe&, GlobalData&)` after the data in the popped FIFO slot is no longer needed.
+    - Use `TFREE(Pipe&, GlobalData&)` when the data in the popped FIFO slot is no longer needed.
     - `gmTensor` is only used to select the overload; the implementation does not read or write tensor contents.
     - Free-space notifications are sparse and controlled by `Pipe::SyncPeriod`.
+    - If the size ratio is not 1:1 or 1:2 (i.e., subtile data transfer exists), use TALLOC/TPUSH/TPOP/TFREE together for inter-core synchronization and data transfer.
 
 ## Examples
 
@@ -77,22 +78,8 @@ AICORE void example_tiledata(__gm__ void *fifoMem)
     VecTile tile;
 
     TPOP<Pipe, VecTile, TileSplitAxis::TILE_UP_DOWN>(pipe, tile);
-
-    // No TFREE is required here. TileData TPOP already handles free-space notification.
-}
-```
-
-### No-op API Symmetry
-
-```cpp
-#include <pto/pto-inst.hpp>
-
-using namespace pto;
-
-template <typename Pipe>
-AICORE void example_noop(Pipe &pipe)
-{
-    TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(pipe);
+    ...  // final use of VecTile
+    TFREE<Pipe, VecTile, TileSplitAxis::TILE_UP_DOWN>(pipe, slot);
 }
 ```
 
