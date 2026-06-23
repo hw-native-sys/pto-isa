@@ -8,17 +8,18 @@
 
 ## 操作语义
 
-对于 TileData 重载，`TPOP` 执行三个步骤：
+对于 TileData 流程：
 
-1. 等待生产者的数据就绪同步。
-2. 将当前 FIFO 槽位加载到消费者 tile 中。
-  - 如果是Cube->Vector的数据弹出，AIV会将TPipe的FIFO中取出vecTile
-  - 如果是Vector->Cube的数据弹出，AIC会将TPipe的FIFO中取出matTile
-3. 当 `Pipe::shouldNotifyFree(tileIndex)` 为 true 时，通知空闲空间。
+1. `TPUSH(Pipe&, TileData&, Split)` 将生产者 tile 存入当前 FIFO 槽位，并为消费者记录数据就绪同步。生产者 tile 索引在槽位地址计算完成后递增。
+2. `TPOP(Pipe&, TileData&, Split)` 等待生产者的数据就绪同步，将当前 FIFO 槽位加载到消费者 tile 中。消费者 tile 索引在槽位地址计算完成后递增。
+3. `TFREE(Pipe&, Split)` 释放 FIFO 中的槽位空间。A2A3 平台上此接口为空操作（`TPOP` 已在内部执行空闲空间通知），A5 平台上会释放 `TPOP` 使用的 FIFO 槽位空间。
 
-消费者 tile 索引会在 FIFO 槽位地址计算完成后递增。空闲空间通知使用已经弹出的 tile 索引。
+对于 GlobalData 流程:
 
-对于 `GlobalData` 重载，`TPOP` 会等待数据就绪，将 `gmTensor` 赋值为当前 FIFO 槽位地址，并递增消费者 tile 索引。它不会把数据加载到本地 tile，也不会释放槽位。
+1. `TALLOC(Pipe&, GlobalData&)` 从 `TPipe` 中分配一个生产者 FIFO 槽位，并将其暴露为 `GlobalTensor` 视图。生产者可通过 `TSTORE` 等指令向该槽位写入数据。
+2. `TPUSH(Pipe&, GlobalData&)` 为已经由 `TALLOC` 分配的槽位记录数据就绪同步，将 FIFO 槽位提交给消费者。它本身不会存储 tile 数据。
+3. `TPOP(Pipe&, GlobalData&)` 等待数据就绪，将 `gmTensor` 赋值为当前 FIFO 槽位地址，并递增消费者 tile 索引。它不会将数据加载到本地 tile，也不会释放槽位。消费者可通过 `TLOAD` 等指令从槽位中读取数据。
+4. `TFREE(Pipe&, GlobalData&)` 释放由 `TPOP(Pipe&, GlobalData&)` 返回的 FIFO 槽位视图，通知生产者该槽位空间已空闲。
 
 ## C++ Intrinsic
 

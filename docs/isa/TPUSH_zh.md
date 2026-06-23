@@ -7,18 +7,18 @@
 本指令支持多类数据的推送，包括基于 `TileSplitAxis` 的 Tile 重载、简化版 Tile 重载（参数顺序相反、无需 Split）、GlobalTensor 重载以及基于 TConfig 的重载。
 
 ## 操作语义
+对于 TileData 流程：
 
-对于 Tile类型接口，`TPUSH` 执行三个步骤：
+1. `TPUSH(Pipe&, TileData&, Split)` 将生产者 tile 存入当前 FIFO 槽位，并为消费者记录数据就绪同步。生产者 tile 索引在槽位地址计算完成后递增。
+2. `TPOP(Pipe&, TileData&, Split)` 等待生产者的数据就绪同步，将当前 FIFO 槽位加载到消费者 tile 中。消费者 tile 索引在槽位地址计算完成后递增。
+3. `TFREE(Pipe&, Split)` 释放 FIFO 中的槽位空间。A2A3 平台上此接口为空操作（`TPOP` 已在内部执行空闲空间通知），A5 平台上会释放 `TPOP` 使用的 FIFO 槽位空间。
 
-1. 当 `Pipe::shouldWaitFree(pipe.prod.tileIndex)` 为 true 时，等待 FIFO 空间。
-2. 将生产者 tile 存入当前 FIFO 槽位。该步骤中：
-   - 如果是Cube->Vector的数据推送，会将AccTile推送到TPipe的FIFO中
-   - 如果是Vector->Cube的数据推送，会将VecTile推送到TPipe的FIFO中
-3. 为消费者记录数据就绪同步。
+对于 GlobalData 流程:
 
-生产者 tile 索引会在 FIFO 槽位地址计算完成后递增。
-
-对于 `GlobalData` 类型接口，`TPUSH` 只为已经由 `TALLOC` 分配的槽位记录数据就绪同步。它本身不会存储 tile 数据。
+1. `TALLOC(Pipe&, GlobalData&)` 从 `TPipe` 中分配一个生产者 FIFO 槽位，并将其暴露为 `GlobalTensor` 视图。生产者可通过 `TSTORE` 等指令向该槽位写入数据。
+2. `TPUSH(Pipe&, GlobalData&)` 为已经由 `TALLOC` 分配的槽位记录数据就绪同步，将 FIFO 槽位提交给消费者。它本身不会存储 tile 数据。
+3. `TPOP(Pipe&, GlobalData&)` 等待数据就绪，将 `gmTensor` 赋值为当前 FIFO 槽位地址，并递增消费者 tile 索引。它不会将数据加载到本地 tile，也不会释放槽位。消费者可通过 `TLOAD` 等指令从槽位中读取数据。
+4. `TFREE(Pipe&, GlobalData&)` 释放由 `TPOP(Pipe&, GlobalData&)` 返回的 FIFO 槽位视图，通知生产者该槽位空间已空闲。
 
 对于 `TConfig` 重载 `TPUSH(Pipe&, TileProd&, TConfig)`，`TConfig` 模板参数用于配置L0C->GM/UB的 fixpipe 参数。
 
