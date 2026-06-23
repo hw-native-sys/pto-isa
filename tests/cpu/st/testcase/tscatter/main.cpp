@@ -35,14 +35,14 @@ std::string GetGoldenDir()
     return "../" + suiteName + "." + caseName;
 }
 
-template <int kTRows_, int kTCols_>
+template <int kTRows_, int kTCols_, int idxRows_, int idxCols_>
 void LaunchTScatter(float *out, float *src, uint16_t *idx, void *stream);
 
-template <int kTRows_, int kTCols_>
+template <int kTRows_, int kTCols_, int idxRows_, int idxCols_>
 void test_tscatter()
 {
     const size_t tileBytes = kTRows_ * kTCols_ * sizeof(float);
-    const size_t idxBytes = kTRows_ * kTCols_ * sizeof(uint16_t);
+    const size_t idxBytes = idxRows_ * idxCols_ * sizeof(uint16_t);
 
     aclInit(nullptr);
     aclrtSetDevice(0);
@@ -69,7 +69,7 @@ void test_tscatter()
 
     aclrtMemcpy(srcDevice, tileBytes, srcHost, tileBytes, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(idxDevice, idxBytes, idxHost, idxBytes, ACL_MEMCPY_HOST_TO_DEVICE);
-    LaunchTScatter<kTRows_, kTCols_>(dstDevice, srcDevice, idxDevice, stream);
+    LaunchTScatter<kTRows_, kTCols_, idxRows_, idxCols_>(dstDevice, srcDevice, idxDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, tileBytes, dstDevice, tileBytes, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -96,9 +96,9 @@ void test_tscatter()
     EXPECT_TRUE(ResultCmp<float>(golden, devFinal, 0.001f));
 }
 
-TEST_F(TSCATTERTest, case_float_16x16_16x16_16x16)
+TEST_F(TSCATTERTest, case_float_uint16_2x32_1x32)
 {
-    test_tscatter<16, 16>();
+    test_tscatter<2, 32, 1, 32>();
 }
 
 // --- Mask-pattern TSCATTER tests ---
