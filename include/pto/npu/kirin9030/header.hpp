@@ -126,6 +126,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // TAlloc to be evaluated
 // TFree to be evaluated
 #include "pto/npu/a5/TColReduceIdx.hpp"
+#include "pto/npu/a5/SetQuantScalar.hpp"
+#include "pto/npu/a5/SetQuantVector.hpp"
 
 #undef bfloat16_t
 #undef float8_e4m3_t

@@ -66,47 +66,6 @@ inline void pipe_barrier(pipe_t pipe)
     (void)pipe;
 }
 
-// CCEC provides cache maintenance intrinsics and barrier constants for real
-// AICore builds. Host CPU sim kernels still see generated dcci/dsb calls, so
-// model them as full fences to preserve cross-thread ordering.
-#ifndef dcci
-template <typename... Args>
-inline void dcci(Args &&...)
-{
-    std::atomic_thread_fence(std::memory_order_seq_cst);
-}
-#endif
-#ifndef mem_dsb_t
-typedef int mem_dsb_t;
-#endif
-#ifndef dsb
-#define dsb(kind)                                            \
-    do {                                                     \
-        (void)(kind);                                        \
-        std::atomic_thread_fence(std::memory_order_seq_cst); \
-    } while (0)
-#endif
-#ifndef ENTIRE_DATA_CACHE
-#define ENTIRE_DATA_CACHE 0
-#endif
-#ifndef SINGLE_CACHE_LINE
-#define SINGLE_CACHE_LINE 0
-#endif
-#ifndef CACHELINE_OUT
-#define CACHELINE_OUT 0
-#endif
-#ifndef DSB_DDR
-#define DSB_DDR 0
-#endif
-#ifndef DSB_ALL
-#define DSB_ALL 0
-#endif
-#ifndef DSB_UB
-#define DSB_UB 0
-#endif
-
-constexpr pipe_t opPipeList[] = {};
-
 #define aclFloat16ToFloat(x) (float)(x)
 #define aclInit(x)
 #define aclrtSetDevice(x)
