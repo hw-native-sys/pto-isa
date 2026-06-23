@@ -39,19 +39,10 @@ __global__ AICORE void runTAdd(__gm__ T __out__ *out, __gm__ T __in__ *src0, __g
     TASSIGN(src1Tile, 0x10000);
     TASSIGN(dstTile, 0x20000);
 
-    TLOAD(src0Tile, src0Global);
-    TLOAD(src1Tile, src1Global);
-#ifndef __PTO_AUTO__
-    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-#endif
-    TADD<TileDataDst, TileDataSrc0, TileDataSrc1>(dstTile, src0Tile, src1Tile);
-#ifndef __PTO_AUTO__
-    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-#endif
-    TSTORE(dstGlobal, dstTile);
-    out = dstGlobal.data();
+    Event<Op::TLOAD, Op::TADD> evt0 = TLOAD(src0Tile, src0Global);
+    Event<Op::TLOAD, Op::TADD> evt1 = TLOAD(src1Tile, src1Global);
+    Event<Op::TADD, Op::TSTORE_VEC> evt2 = TADD(dstTile, src0Tile, src1Tile, evt0, evt1);
+    TSTORE(dstGlobal, dstTile, evt2);
 }
 
 template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,

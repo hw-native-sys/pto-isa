@@ -1745,7 +1745,7 @@ PTO_INST RecordEvent TEXP(TileDataDst &dst, TileDataSrc &src, WaitEvents &...eve
 
 template <auto PrecisionType = PowAlgorithm::DEFAULT, typename DstTile, typename BaseTile, typename ExpTile,
           typename TmpTile, typename... WaitEvents>
-PTO_INTERNAL RecordEvent TPOW(DstTile &dst, BaseTile &base, ExpTile &exp, TmpTile &tmp, WaitEvents &...events)
+PTO_INST RecordEvent TPOW(DstTile &dst, BaseTile &base, ExpTile &exp, TmpTile &tmp, WaitEvents &...events)
 {
     TSYNC(events...);
     TPOW_IMPL<PrecisionType>(dst, base, exp, tmp);
@@ -1754,8 +1754,8 @@ PTO_INTERNAL RecordEvent TPOW(DstTile &dst, BaseTile &base, ExpTile &exp, TmpTil
 
 template <auto PrecisionType = PowAlgorithm::DEFAULT, typename DstTile, typename BaseTile, typename TmpTile,
           typename... WaitEvents>
-PTO_INTERNAL RecordEvent TPOWS(DstTile &dst, BaseTile &base, typename DstTile::DType exp, TmpTile &tmp,
-                               WaitEvents &...events)
+PTO_INST RecordEvent TPOWS(DstTile &dst, BaseTile &base, typename DstTile::DType exp, TmpTile &tmp,
+                           WaitEvents &...events)
 {
     TSYNC(events...);
     TPOWS_IMPL<PrecisionType>(dst, base, exp, tmp);
@@ -2201,6 +2201,7 @@ PTO_INST RecordEvent TFMOD(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &s
     return {};
 }
 
+#ifndef PTO_COMM_NOT_SUPPORTED
 template <typename Pipe, typename TileProd, TileSplitAxis Split, std::enable_if_t<is_tile_data_v<TileProd>, int> = 0,
           typename... WaitEvents>
 PTO_INST RecordEvent TPUSH(Pipe &pipe, TileProd &tile, WaitEvents &...events)
@@ -2294,6 +2295,8 @@ PTO_INST RecordEvent TFREE(Pipe &pipe, WaitEvents &...events)
     TFREE_IMPL<Pipe>(pipe);
     return {};
 }
+#endif
+
 #if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRIN9030) || defined(__CPU_SIM)
 template <HistByte byte, typename TileDataDst, typename TileDataSrc, typename TileDataIdx, typename... WaitEvents>
 PTO_INST RecordEvent THISTOGRAM(TileDataDst &dst, TileDataSrc &src, TileDataIdx &idx, WaitEvents &...events)

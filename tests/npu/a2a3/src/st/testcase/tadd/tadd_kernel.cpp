@@ -39,7 +39,6 @@ __global__ AICORE void runTAdd(__gm__ T __out__ *out, __gm__ T __in__ *src0, __g
     event0 = TLOAD(src1Tile, src1Global);
     event1 = TADD(dstTile, src0Tile, src1Tile, event0);
     TSTORE(dstGlobal, dstTile, event1);
-    out = dstGlobal.data();
 }
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols>

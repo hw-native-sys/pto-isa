@@ -15,12 +15,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 template <Op OpCode>
-PTO_INTERNAL static constexpr pipe_t GetPipeByOp()
+PTO_INTERNAL static constexpr pipe_t GetPipeByOpForA5()
 {
-    if constexpr ((OpCode >= static_cast<Op>(0)) && (OpCode <= Op::OP_COUNT)) {
-        return opPipeList[static_cast<int>(OpCode)];
-    }
-    return PIPE_ALL;
+    return OpPipeEntry<OpCode>::pipe;
 }
 
 // single pipeline wait, only support MTE3 or ALL pipeline
@@ -28,7 +25,7 @@ template <Op OpCode>
 PTO_INTERNAL void TSYNC_IMPL()
 {
 #ifndef __PTO_AUTO__
-    constexpr pipe_t pipe = GetPipeByOp<OpCode>();
+    constexpr pipe_t pipe = GetPipeByOpForA5<OpCode>();
     PTO_STATIC_ASSERT((pipe == PIPE_MTE2) || (pipe == PIPE_MTE3) || (pipe == PIPE_ALL),
                       "Single Op TSYNC only supports MTE2 / MTE3 / ALL pipeline.");
     pipe_barrier((pipe_t)pipe);
@@ -36,58 +33,49 @@ PTO_INTERNAL void TSYNC_IMPL()
 }
 
 template <Op SrcOp, Op DstOp, bool AutoToken = true, event_t EventID = EVENT_ID0>
-struct Event {
-#ifndef __PTO_AUTO__
-    static constexpr Op dstOp = DstOp;
-    static constexpr Op srcOp = SrcOp;
-    static constexpr pipe_t dstPipe = GetPipeByOp<dstOp>();
-    static constexpr pipe_t srcPipe = GetPipeByOp<srcOp>();
-    static constexpr bool isSamePipe = (srcPipe == dstPipe);
-    static constexpr bool isValidBarrierPipe =
-        ((srcPipe == PIPE_MTE2) || (dstPipe == PIPE_MTE3) || (dstPipe == PIPE_ALL));
-    PTO_STATIC_ASSERT(SrcOp != DstOp, "SrcOp is not allowed to be equal to DstOp.");
-    PTO_STATIC_ASSERT(dstPipe != srcPipe, "SrcPipe is not allowed to be equal to dstPipe.");
+struct Event : EventBase<Event<SrcOp, DstOp, AutoToken, EventID>, SrcOp, DstOp, AutoToken, EventID> {
+    using Base = EventBase<Event, SrcOp, DstOp, AutoToken, EventID>;
+    using Base::operator=;
 
-    PTO_INTERNAL static constexpr bool IsCrossCoreEvent()
+    template <Op op>
+    PTO_INTERNAL static constexpr pipe_t GetPipeByOp()
     {
-        return (srcOp == Op::TMOV_A2V) || (srcOp == Op::TMOV_V2M) || (srcOp == Op::TEXTRACT_V2M);
+        return GetPipeByOpForA5<op>();
     }
+#ifndef __PTO_AUTO__
+    static constexpr bool isValidBarrierPipe = ((Base::srcPipe == PIPE_MTE2) || (Base::dstPipe == PIPE_MTE3));
 
-    static constexpr bool IsCrossCore = IsCrossCoreEvent();
-    PTO_STATIC_ASSERT(IsCrossCore || (srcPipe != PIPE_ALL), "SrcOp are invalid.");
-    PTO_STATIC_ASSERT(IsCrossCore || (dstPipe != PIPE_ALL), "DstOp are invalid.");
+    static constexpr bool IsCrossCore =
+        (Base::srcOp == Op::TMOV_A2V) || (Base::srcOp == Op::TMOV_V2M) || (Base::srcOp == Op::TEXTRACT_V2M);
+
     PTO_STATIC_ASSERT((!IsCrossCore) || (!AutoToken), "Cross-core events must manually specify EventID.");
-
-#ifdef PTO_FLAG_TEST
-    CceEventIdType token = {};
-#else
-    const event_t token = AutoToken ? EventIdCounter<srcPipe, dstPipe>::GetNextId() : EventID;
-#endif
+    PTO_STATIC_ASSERT(IsCrossCore || (Base::srcPipe != PIPE_ALL), "SrcOp are invalid.");
+    PTO_STATIC_ASSERT(IsCrossCore || (Base::dstPipe != PIPE_ALL), "DstOp are invalid.");
 #endif
 
-    PTO_INTERNAL Event &InitAddr(uint64_t fftsAddr)
+    PTO_INTERNAL Event &InitAddrImpl(uint64_t fftsAddr)
     {
         return *this;
     }
 
     template <uint8_t CrossCoreId = 0xff>
-    PTO_INTERNAL Event &Wait()
+    PTO_INTERNAL Event &WaitImpl()
     {
 #ifndef __PTO_AUTO__
         if constexpr (IsCrossCore) {
             PTO_STATIC_ASSERT(CrossCoreId != 0xff,
                               "The cross-core id must be assigned by user when the event is a cross-core event.");
-            wait_intra_block(srcPipe, CrossCoreId);
+            wait_intra_block(Base::srcPipe, CrossCoreId);
         } else {
-            if constexpr (isSamePipe) {
+            if constexpr (Base::isSamePipe) {
                 if constexpr (isValidBarrierPipe) {
-                    pipe_barrier((pipe_t)srcPipe);
+                    pipe_barrier((pipe_t)Base::srcPipe);
                 }
             } else {
 #ifdef PTO_FLAG_TEST
-                __pto_wait_flag((pipe_t)srcPipe, (pipe_t)dstPipe, token);
+                __pto_wait_flag((pipe_t)Base::srcPipe, (pipe_t)Base::dstPipe, Base::token);
 #else
-                wait_flag((pipe_t)srcPipe, (pipe_t)dstPipe, token);
+                wait_flag((pipe_t)Base::srcPipe, (pipe_t)Base::dstPipe, Base::token);
 #endif
             }
         }
@@ -96,60 +84,29 @@ struct Event {
     }
 
     template <uint8_t CrossCoreId = 0xff>
-    PTO_INTERNAL Event &Init()
+    PTO_INTERNAL Event &InitImpl()
     {
 #ifndef __PTO_AUTO__
         if constexpr (IsCrossCore) {
             PTO_STATIC_ASSERT(CrossCoreId != 0xff,
                               "The cross-core id must be assigned by user when the event is a cross-core event.");
-            set_intra_block(srcPipe, CrossCoreId);
-            set_intra_block(srcPipe, CrossCoreId + 16);
-        } else if constexpr (!isSamePipe) {
-#ifdef PTO_FLAG_TEST
-            token = __pto_set_flag((pipe_t)srcPipe, (pipe_t)dstPipe);
+            set_intra_block(Base::srcPipe, CrossCoreId);
+            set_intra_block(Base::srcPipe, CrossCoreId + 16);
+        } else if constexpr (!Base::isSamePipe) {
+#ifndef PTO_FLAG_TEST
+            set_flag((pipe_t)Base::srcPipe, (pipe_t)Base::dstPipe, Base::token);
 #else
-            set_flag((pipe_t)srcPipe, (pipe_t)dstPipe, token);
+            Base::token = __pto_set_flag((pipe_t)Base::srcPipe, (pipe_t)Base::dstPipe);
 #endif
         }
 #endif
         return *this;
     }
 
+    PTO_INTERNAL Event(RecordEvent re) : Base(re)
+    {}
     PTO_INTERNAL Event() = default;
-    PTO_INTERNAL Event(RecordEvent)
-    {
-#ifndef __PTO_AUTO__
-        PTO_STATIC_ASSERT(!IsCrossCore,
-                          "Fix: The cross-core event must be manually initialized and specify the cross-core ID.");
-#endif
-        Init();
-    }
-
-    PTO_INTERNAL Event &operator=(RecordEvent)
-    {
-#ifndef __PTO_AUTO__
-        PTO_STATIC_ASSERT(!IsCrossCore,
-                          "Fix: The cross-core event must be manually initialized and specify the cross-core ID.");
-#endif
-        return Init();
-    }
-
-    template <uint8_t CrossCoreId = 0xff>
-    PTO_INTERNAL Event &Record()
-    {
-        return Init<CrossCoreId>();
-    }
 };
 
-template <typename T>
-struct is_event : std::false_type {
-};
-
-template <Op SrcOp, Op DstOp, bool AutoToken, event_t EventID>
-struct is_event<Event<SrcOp, DstOp, AutoToken, EventID>> : std::true_type {
-};
-
-template <typename... Ts>
-inline constexpr bool all_events_v = (is_event<Ts>::value && ...);
 } // namespace pto
 #endif

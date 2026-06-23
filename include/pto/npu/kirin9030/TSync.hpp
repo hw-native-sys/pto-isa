@@ -15,115 +15,78 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 template <Op OpCode>
-PTO_INTERNAL static constexpr pipe_t GetPipeByOp()
+PTO_INTERNAL static constexpr pipe_t GetPipeByOpForKirin9030()
 {
-    if constexpr ((OpCode >= static_cast<Op>(0)) && (OpCode <= Op::OP_COUNT)) {
-        return opPipeList[static_cast<int>(OpCode)];
-    }
-    return PIPE_ALL;
+    return OpPipeEntry<OpCode>::pipe;
 }
 
-// single pipeline wait, only support MTE3 or ALL pipeline
+// single pipeline wait
 template <Op OpCode>
 PTO_INTERNAL void TSYNC_IMPL()
 {
 #ifndef __PTO_AUTO__
-    constexpr pipe_t pipe = GetPipeByOp<OpCode>();
+    constexpr pipe_t pipe = GetPipeByOpForKirin9030<OpCode>();
     PTO_STATIC_ASSERT((pipe == PIPE_M) || (pipe == PIPE_MTE1) || (pipe == PIPE_MTE2) || (pipe == PIPE_MTE3) ||
                           (pipe == PIPE_ALL) || (pipe == PIPE_FIX),
-                      "Single Op TSYNC only supports MTE2 / MTE3 / ALL pipeline.");
+                      "Single Op TSYNC only supports M / MTE1 / MTE2 / MTE3 / ALL / FIX pipeline.");
     pipe_barrier((pipe_t)pipe);
 #endif
 }
 
 template <Op SrcOp, Op DstOp, bool AutoToken = true, event_t EventID = EVENT_ID0>
-struct Event {
+struct Event : EventBase<Event<SrcOp, DstOp, AutoToken, EventID>, SrcOp, DstOp, AutoToken, EventID> {
+    using Base = EventBase<Event, SrcOp, DstOp, AutoToken, EventID>;
+    using Base::operator=;
+
+    template <Op op>
+    PTO_INTERNAL static constexpr pipe_t GetPipeByOp()
+    {
+        return GetPipeByOpForKirin9030<op>();
+    }
 #ifndef __PTO_AUTO__
-    static constexpr Op dstOp = DstOp;
-    static constexpr Op srcOp = SrcOp;
-    static constexpr pipe_t dstPipe = GetPipeByOp<dstOp>();
-    static constexpr pipe_t srcPipe = GetPipeByOp<srcOp>();
-    static constexpr bool isSamePipe = (srcPipe == dstPipe);
     static constexpr bool isValidBarrierPipe =
-        ((dstPipe == PIPE_M) || (dstPipe == PIPE_MTE1) || (dstPipe == PIPE_MTE2) || (dstPipe == PIPE_MTE3) ||
-         (dstPipe == PIPE_ALL) || (dstPipe == PIPE_FIX));
+        ((Base::dstPipe == PIPE_M) || (Base::dstPipe == PIPE_MTE1) || (Base::dstPipe == PIPE_MTE2) ||
+         (Base::dstPipe == PIPE_MTE3) || (Base::dstPipe == PIPE_FIX));
 
-    PTO_STATIC_ASSERT(SrcOp != DstOp, "SrcOp is not allowed to be equal to DstOp.");
-
-#ifdef PTO_FLAG_TEST
-    CceEventIdType token = {};
-#else
-    const event_t token = AutoToken ? EventIdCounter<srcPipe, dstPipe>::GetNextId() : EventID;
-#endif
+    PTO_STATIC_ASSERT(Base::srcPipe != PIPE_ALL, "SrcOp are invalid.");
+    PTO_STATIC_ASSERT(Base::dstPipe != PIPE_ALL, "DstOp are invalid.");
 #endif
 
-    PTO_INTERNAL Event &InitAddr(uint64_t fftsAddr)
+    PTO_INTERNAL Event &InitAddrImpl(uint64_t fftsAddr)
     {
         return *this;
     }
 
     template <uint8_t CrossCoreId = 0xff>
-    PTO_INTERNAL Event &Wait()
+    PTO_INTERNAL Event &WaitImpl()
     {
 #ifndef __PTO_AUTO__
-        if constexpr (isSamePipe) {
+        if constexpr (Base::isSamePipe) {
             if constexpr (isValidBarrierPipe) {
-                pipe_barrier((pipe_t)srcPipe);
+                pipe_barrier((pipe_t)Base::srcPipe);
             }
         } else {
-#ifdef PTO_FLAG_TEST
-            __pto_wait_flag((pipe_t)srcPipe, (pipe_t)dstPipe, token);
-#else
-            wait_flag((pipe_t)srcPipe, (pipe_t)dstPipe, token);
-#endif
-        }
-#endif
-        return *this;
-    }
-
-    template <uint8_t CrossCoreId = 0xff>
-    PTO_INTERNAL Event &Init()
-    {
-#ifndef __PTO_AUTO__
-        if constexpr (!isSamePipe) {
-#ifdef PTO_FLAG_TEST
-            token = __pto_set_flag((pipe_t)srcPipe, (pipe_t)dstPipe);
-#else
-            set_flag((pipe_t)srcPipe, (pipe_t)dstPipe, token);
-#endif
+            wait_flag((pipe_t)Base::srcPipe, (pipe_t)Base::dstPipe, Base::token);
         }
 #endif
         return *this;
     }
 
     PTO_INTERNAL Event() = default;
-    PTO_INTERNAL Event(RecordEvent)
-    {
-        Init();
-    }
-
-    PTO_INTERNAL Event &operator=(RecordEvent)
-    {
-        return Init();
-    }
+    PTO_INTERNAL Event(RecordEvent re) : Base(re)
+    {}
 
     template <uint8_t CrossCoreId = 0xff>
-    PTO_INTERNAL Event &Record()
+    PTO_INTERNAL Event &InitImpl()
     {
-        return Init();
+#ifndef __PTO_AUTO__
+        if constexpr (!Base::isSamePipe) {
+            set_flag((pipe_t)Base::srcPipe, (pipe_t)Base::dstPipe, Base::token);
+        }
+#endif
+        return *this;
     }
 };
-
-template <typename T>
-struct is_event : std::false_type {
-};
-
-template <Op SrcOp, Op DstOp, bool AutoToken, event_t EventID>
-struct is_event<Event<SrcOp, DstOp, AutoToken, EventID>> : std::true_type {
-};
-
-template <typename... Ts>
-inline constexpr bool all_events_v = (is_event<Ts>::value && ...);
 
 } // namespace pto
 #endif

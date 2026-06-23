@@ -52,8 +52,6 @@ inline void pipe_barrier(pipe_t pipe)
     (void)pipe;
 }
 
-constexpr pipe_t opPipeList[] = {};
-
 #define aclFloat16ToFloat(x) (float)(x)
 #define aclInit(x)
 #define aclrtSetDevice(x)
