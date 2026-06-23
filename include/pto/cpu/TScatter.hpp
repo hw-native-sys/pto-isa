@@ -38,11 +38,8 @@ PTO_INTERNAL void TSCATTER_IMPL(TileDataDst &dst, TileDataSrc &src, TileInd &ind
         for (unsigned j = 0; j < validCol; ++j) {
             const size_t srcOff = GetTileElementOffset<TileDataSrc>(i, j);
             const size_t idxOff = GetTileElementOffset<TileInd>(i, j);
-            const auto rawIndex = indexes.data()[idxOff];
-            if (!IndexInBounds(rawIndex, dstNumel)) {
-                continue;
-            }
-            dst.data()[static_cast<std::size_t>(rawIndex)] = src.data()[srcOff];
+            const auto dstRow = static_cast<unsigned>(indexes.data()[idxOff]);
+            dst.data()[dstRow] = src.data()[srcOff];
         }
     }
 }

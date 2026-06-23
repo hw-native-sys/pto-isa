@@ -113,6 +113,22 @@ class TScatterParamsColMasked:
         self.pattern = pattern
 
 
+def gen_case(param: TScatterParams):
+    os.makedirs(param.name, exist_ok=True)
+    os.chdir(param.name)
+
+    src_data = np.random.uniform(0, 100, (param.row, param.col)).astype(param.data_type)
+    indices = np.random.randint(0, 2, (param.idx_row, param.idx_col)).astype(param.idx_type)
+    indices = recalculate_indices(indices, param.col)
+    golden = scatter(src_data, indices)
+    
+    src_data.tofile("input1.bin")
+    indices.tofile("input2.bin")
+    golden.tofile("golden.bin")
+
+    os.chdir("..")
+
+
 def gen_masked_scatter_golden(param: TScatterParamsMasked):
     original_dir = os.getcwd()
     os.makedirs(param.testname, exist_ok=True)
@@ -200,6 +216,7 @@ def gen_masked_scatter_col_golden(param: TScatterParamsColMasked):
     src.tofile("./x1_gm.bin")
     dst.tofile("./golden.bin")
     os.chdir(original_dir)
+
 
 if __name__ == "__main__":
     gen_case(TScatterParams(np.float32, np.uint16, 2, 32, 1, 32))
