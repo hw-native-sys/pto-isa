@@ -47,8 +47,7 @@ __global__ AICORE void RunTFLASHATTN(__gm__ float *out, __gm__ float *q, __gm__ 
 
     using ScoresPlain =
         Tile<TileType::Vec, float, kSeqLen, kSeqLen, BLayout::RowMajor, kSeqLen, kSeqLen, SLayout::NoneBox>;
-    using RowReducePlain =
-        Tile<TileType::Vec, float, kSeqLen, kSeqLen, BLayout::ColMajor, kSeqLen, kSeqLen, SLayout::NoneBox>;
+    using RowReducePlain = Tile<TileType::Vec, float, kSeqLen, 1, BLayout::ColMajor, kSeqLen, 1, SLayout::NoneBox>;
 
     using LeftQ = TileLeft<float, kSeqLen, kHeadDim, kSeqLen, kHeadDim>;
     using RightKT = TileRight<float, kHeadDim, kSeqLen, kHeadDim, kSeqLen>;

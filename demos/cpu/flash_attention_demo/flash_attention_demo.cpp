@@ -186,7 +186,7 @@ void flash_attention_pto(const std::vector<float> &q, const std::vector<float> &
     using VPlain = Tile<TileType::Vec, float, kS, kD, BLayout::RowMajor, kS, kD, SLayout::NoneBox>;
 
     using ScoresPlain = Tile<TileType::Vec, float, kS, kS, BLayout::RowMajor, kS, kS, SLayout::NoneBox>;
-    using RowReducePlain = Tile<TileType::Vec, float, kS, kS, BLayout::ColMajor, kS, kS, SLayout::NoneBox>;
+    using RowReducePlain = Tile<TileType::Vec, float, kS, 1, BLayout::ColMajor, kS, 1, SLayout::NoneBox>;
 
     using LeftQ = TileLeft<float, kS, kD, kS, kD>;
     using RightKT = TileRight<float, kD, kS, kD, kS>;

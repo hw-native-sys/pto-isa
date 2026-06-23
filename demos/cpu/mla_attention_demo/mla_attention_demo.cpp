@@ -249,7 +249,7 @@ void mla_pto(const std::vector<float> &q, const std::vector<float> &k, const std
     using RSTPlain = Tile<TileType::Vec, float, kR, kS, BLayout::RowMajor, kR, kS, SLayout::NoneBox>;
 
     using ScoresPlain = Tile<TileType::Vec, float, kS, kS, BLayout::RowMajor, kS, kS, SLayout::NoneBox>;
-    using RowReducePlain = Tile<TileType::Vec, float, kS, kS, BLayout::ColMajor, kS, kS, SLayout::NoneBox>;
+    using RowReducePlain = Tile<TileType::Vec, float, kS, 1, BLayout::ColMajor, kS, 1, SLayout::NoneBox>;
 
     using LeftSD = TileLeft<float, kS, kD, kS, kD>;
     using RightDR = TileRight<float, kD, kR, kD, kR>;
