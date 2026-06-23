@@ -90,3 +90,16 @@ if __name__ == "__main__":
         os.chdir(case_name)
         gen_golden_trans_data(case_name, param)
         os.chdir(original_dir)
+
+    # In-place regression case (dst tile aliases src tile): same [8,8] FP32 data
+    # as case19; the golden is still the plain transpose x.T.
+    inplace_cases = [
+        ("TTRANSTest.case_inplace_float_8_8_8_8", TTRANSParams(np.float32, 8, 8, 8, 8)),
+    ]
+    for case_name, param in inplace_cases:
+        if not os.path.exists(case_name):
+            os.makedirs(case_name)
+        original_dir = os.getcwd()
+        os.chdir(case_name)
+        gen_golden_trans_data(case_name, param)
+        os.chdir(original_dir)

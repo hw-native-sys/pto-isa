@@ -18,6 +18,9 @@ using namespace PtoTestCommon;
 template <typename T, int tRows, int tCols, int vRows, int vCols>
 void LaunchTTRANS(T *out, T *src, void *stream);
 
+template <typename T, int tRows, int tCols, int vRows, int vCols>
+void LaunchTTRANSInplace(T *out, T *src, void *stream);
+
 class TTRANSTest : public testing::Test {
 protected:
     void SetUp() override
@@ -35,7 +38,7 @@ std::string GetGoldenDir()
     return fullPath;
 }
 
-template <typename T, int tRows, int tCols, int vRows, int vCols>
+template <typename T, int tRows, int tCols, int vRows, int vCols, bool inplace = false>
 void test_ttrans()
 {
     uint32_t M = tRows;
@@ -60,7 +63,11 @@ void test_ttrans()
     ReadFile(GetGoldenDir() + "/input.bin", srcFileSize, srcHost, srcFileSize);
 
     aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    LaunchTTRANS<T, tRows, tCols, vRows, vCols>(dstDevice, srcDevice, stream);
+    if constexpr (inplace) {
+        LaunchTTRANSInplace<T, tRows, tCols, vRows, vCols>(dstDevice, srcDevice, stream);
+    } else {
+        LaunchTTRANS<T, tRows, tCols, vRows, vCols>(dstDevice, srcDevice, stream);
+    }
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, dstFileSize, dstDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -163,4 +170,11 @@ TEST_F(TTRANSTest, case18_int8_64_64_22_63)
 TEST_F(TTRANSTest, case19_float_8_8_8_8)
 {
     test_ttrans<float, 8, 8, 8, 8>();
+}
+// In-place regression: dst tile aliases the src tile's UB buffer. The [8,8] FP32
+// transpose takes the scalar ttrans path (dst cols 8, not a multiple of 16); the
+// direct-write fallback corrupted dst == src, the tmp-staging fix makes it correct.
+TEST_F(TTRANSTest, case_inplace_float_8_8_8_8)
+{
+    test_ttrans<float, 8, 8, 8, 8, true>();
 }

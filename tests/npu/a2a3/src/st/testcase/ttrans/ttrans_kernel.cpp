@@ -15,7 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-template <typename T, int tRows, int tCols>
+template <typename T, int tRows, int tCols, bool inplace = false>
 __global__ AICORE void runTTRANS(__gm__ T __out__ *out, __gm__ T __in__ *src, int vRows, int vCols)
 {
     using DynShapeSrc = pto::Shape<-1, -1, -1, -1, -1>;
@@ -50,7 +50,9 @@ __global__ AICORE void runTTRANS(__gm__ T __out__ *out, __gm__ T __in__ *src, in
     constexpr unsigned alignedTmpTileSize = (tmpTileH * tmpTileW * sizeof(T));
     static_assert((alignedSrcTileSize + alignedDstTileSize + alignedTmpTileSize) <= 192 * 1024, "UB overflow");
     TASSIGN(srcTile, 0x0);
-    TASSIGN(dstTile, alignedSrcTileSize);
+    // inplace=true aliases the dst tile onto the src tile's UB buffer to exercise
+    // the in-place (dst == src) transpose hazard on the scalar ttrans path.
+    TASSIGN(dstTile, inplace ? 0x0 : alignedSrcTileSize);
     TASSIGN(tmpTile, alignedSrcTileSize + alignedDstTileSize);
 
     GlobalDataSrc srcGlobal(src, pto::Shape(1, 1, 1, vRows, vCols), pto::Stride(1, 1, 1, tCols, 1));
@@ -79,6 +81,18 @@ void LaunchTTRANS(T *out, T *src, void *stream)
     }
 }
 
+// In-place variant: dst tile aliases the src tile's UB buffer (regression for the
+// scalar ttrans path, which must stage through tmp so dst == src stays correct).
+template <typename T, int tRows, int tCols, int vRows, int vCols>
+void LaunchTTRANSInplace(T *out, T *src, void *stream)
+{
+    if constexpr (std::is_same_v<T, aclFloat16>) {
+        runTTRANS<half, tRows, tCols, true><<<1, nullptr, stream>>>((half *)(out), (half *)(src), vRows, vCols);
+    } else {
+        runTTRANS<T, tRows, tCols, true><<<1, nullptr, stream>>>(out, src, vRows, vCols);
+    }
+}
+
 template void LaunchTTRANS<float, 16, 8, 16, 8>(float *out, float *src, void *stream);
 template void LaunchTTRANS<aclFloat16, 16, 16, 16, 16>(aclFloat16 *out, aclFloat16 *src, void *stream);
 template void LaunchTTRANS<float, 32, 16, 31, 15>(float *out, float *src, void *stream);
@@ -98,3 +112,4 @@ template void LaunchTTRANS<float, 2, 16, 2, 16>(float *out, float *src, void *st
 template void LaunchTTRANS<uint8_t, 32, 32, 32, 32>(uint8_t *out, uint8_t *src, void *stream);
 template void LaunchTTRANS<uint8_t, 64, 64, 22, 63>(uint8_t *out, uint8_t *src, void *stream);
 template void LaunchTTRANS<float, 8, 8, 8, 8>(float *out, float *src, void *stream);
+template void LaunchTTRANSInplace<float, 8, 8, 8, 8>(float *out, float *src, void *stream);

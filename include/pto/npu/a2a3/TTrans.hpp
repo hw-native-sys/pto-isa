@@ -220,6 +220,43 @@ PTO_INTERNAL void TransTailTiles(__ubuf__ T *dstPtr, __ubuf__ T *srcPtr, unsigne
     return;
 }
 
+// In-place-safe scalar transpose: stage the result into tmp (tight stride =
+// validRow) before writing any element of dst, so dst may safely alias src.
+// The plain TransTailTiles writes dst directly from src and corrupts when
+// dst == src; this variant fully reads src into tmp first. tmp holds
+// validCol * validRow elements, which fits the op's tmp tile (sized to the
+// input element count). Used for the unaligned (scalar) TTransOperation path.
+template <typename T, unsigned blockSizeElem, unsigned yTileSizeElem>
+PTO_INTERNAL void TransTailTilesStaged(__ubuf__ T *dstPtr, __ubuf__ T *srcPtr, __ubuf__ T *tmpPtr, unsigned validRow,
+                                       unsigned validCol, unsigned dstStride, unsigned srcStride)
+{
+#ifndef __PTO_AUTO__
+    PtoSetWaitFlag<PIPE_V, PIPE_S>();
+#else
+    set_flag(PIPE_V, PIPE_S, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
+#endif
+    // transpose src -> tmp (src fully read out before any dst write)
+    for (int i = 0; i < validRow; i++) {
+        for (int j = 0; j < validCol; j++) {
+            tmpPtr[j * validRow + i] = srcPtr[i * srcStride + j];
+        }
+    }
+    // copy tmp -> dst (safe even if dstPtr == srcPtr: src already consumed)
+    for (int j = 0; j < validCol; j++) {
+        for (int i = 0; i < validRow; i++) {
+            dstPtr[j * dstStride + i] = tmpPtr[j * validRow + i];
+        }
+    }
+#ifndef __PTO_AUTO__
+    PtoSetWaitFlag<PIPE_S, PIPE_V>();
+#else
+    set_flag(PIPE_S, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_S, PIPE_V, EVENT_ID0);
+#endif
+    return;
+}
+
 template <typename T, unsigned blockSizeElem>
 PTO_INTERNAL void TTransOperation(__ubuf__ T *dstPtr, __ubuf__ T *srcPtr, __ubuf__ T *tmpPtr, unsigned validRow,
                                   unsigned validCol, unsigned dstStride, unsigned srcStride)
@@ -229,8 +266,10 @@ PTO_INTERNAL void TTransOperation(__ubuf__ T *dstPtr, __ubuf__ T *srcPtr, __ubuf
     unsigned tmpStride = (validRow + yTileSizeElem - 1) / yTileSizeElem * yTileSizeElem;
     if (((dstStride % yTileSizeElem) != 0) || ((srcStride % blockSizeElem) != 0) ||
         ((tmpStride % yTileSizeElem) != 0)) {
-        TransTailTiles<T, blockSizeElem, yTileSizeElem>(dstPtr, srcPtr, tmpStride, validRow, validCol, dstStride,
-                                                        srcStride);
+        // Scalar fallback: stage through tmp so an in-place (dst == src) transpose
+        // stays correct (the plain direct-write TransTailTiles corrupts on alias).
+        TransTailTilesStaged<T, blockSizeElem, yTileSizeElem>(dstPtr, srcPtr, tmpPtr, validRow, validCol, dstStride,
+                                                              srcStride);
         return;
     }
     // go by subtile column, a.k.a. iter in row direction
