@@ -16,7 +16,6 @@ namespace pto {
 template <typename OutT>
 PTO_INTERNAL void SET_QUANT_SCALAR_IMPL(float preQuantScalar)
 {
-    static_assert(std::is_same_v<decltype(preQuantScalar), float>, "Fix: preQuantScalar must be a float");
     uint64_t quantValue = static_cast<uint64_t>(*reinterpret_cast<int32_t *>(&preQuantScalar));
     if constexpr (sizeof(OutT) == 1) {
         constexpr bool sign = (std::is_same_v<OutT, int8_t>) ? true : false;

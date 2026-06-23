@@ -22,28 +22,11 @@ typedef enum
     CLIP_RELU = 1
 } ClipReluMode_t;
 
-enum class DeqScale : uint8_t
-{
-    DEQ_NONE = 0,
-    DEQ,
-    VDEQ,
-    DEQ8,
-    VDEQ8,
-    DEQ16,
-    VDEQ16,
-};
-
 enum class LayoutMode_t : uint8_t
 {
     NZ2NZ = 0,
     NZ2ND = 1,
     NZ2DN = 2,
-};
-
-enum class DequantType
-{
-    SCALAR = 0,
-    TENSOR = 1,
 };
 
 /*
@@ -66,7 +49,6 @@ enum class DequantType
 //     VDEQS16,          // int32_t量化成int16_t, tensor量化
 //     QF162S16_PRE,     // half量化成int16_t, scalar量化
 //     VQF162S16_PRE,    // half量化成int16_t, tensor量化
-// using TConfig = FixpipeParams<LayoutMode_t::NZ2ND, QuantMode_t::NoQuant, ReluPreMode::NormalRelu>;
 */
 template <LayoutMode_t layoutMode = LayoutMode_t::NZ2ND, QuantMode_t quantMode = QuantMode_t::NoQuant,
           ReluPreMode reluMode = ReluPreMode::NoRelu, STPhase phase = STPhase::Unspecified, uint8_t subBlockId = 0,
