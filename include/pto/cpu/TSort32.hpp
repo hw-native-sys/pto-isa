@@ -75,11 +75,10 @@ PTO_INTERNAL void TSort32(typename TileDataDst::TileDType dst, typename TileData
                 if constexpr (sizeof(T) == sizeof(half)) {
                     dst[dstOffset + t] = segment[num].score;
                     dst[dstOffset + t + 1] = 0;
-                    dst[dstOffset + t + halfStride] = segment[num].index;
-                    dst[dstOffset + t + halfStride + 1] = segment[num].index >> halfOffset;
+                    memcpy(&dst[dstOffset + t + halfStride], &segment[num].index, sizeof(uint32_t));
                 } else {
                     dst[dstOffset + t] = segment[num].score;
-                    dst[dstOffset + t + 1] = segment[num].index;
+                    memcpy(&dst[dstOffset + t + 1], &segment[num].index, sizeof(uint32_t));
                 }
                 num++;
                 t += totalByte / sizeof(T);
