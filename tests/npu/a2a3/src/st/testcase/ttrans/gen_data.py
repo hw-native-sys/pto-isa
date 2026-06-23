@@ -34,12 +34,12 @@ def gen_golden_trans_data(case_name, param):
 
 class TTRANSParams:
     def __init__(self, dtype, tile_row, tile_col, valid_row, valid_col):
-        self.dtype = dtype 
+        self.dtype = dtype
         self.tile_row = tile_row
         self.tile_col = tile_col
         self.valid_row = valid_row
         self.valid_col = valid_col
-    
+
 def generate_case_name(idx, param):
     dtype_str = {
         np.float32: 'float',

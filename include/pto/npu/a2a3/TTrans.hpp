@@ -237,14 +237,14 @@ PTO_INTERNAL void TransTailTilesStaged(__ubuf__ T *dstPtr, __ubuf__ T *srcPtr, _
     wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
 #endif
     // transpose src -> tmp (src fully read out before any dst write)
-    for (int i = 0; i < validRow; i++) {
-        for (int j = 0; j < validCol; j++) {
+    for (uint32_t i = 0; i < validRow; i++) {
+        for (uint32_t j = 0; j < validCol; j++) {
             tmpPtr[j * validRow + i] = srcPtr[i * srcStride + j];
         }
     }
     // copy tmp -> dst (safe even if dstPtr == srcPtr: src already consumed)
-    for (int j = 0; j < validCol; j++) {
-        for (int i = 0; i < validRow; i++) {
+    for (uint32_t j = 0; j < validCol; j++) {
+        for (uint32_t i = 0; i < validRow; i++) {
             dstPtr[j * dstStride + i] = tmpPtr[j * validRow + i];
         }
     }
@@ -266,10 +266,17 @@ PTO_INTERNAL void TTransOperation(__ubuf__ T *dstPtr, __ubuf__ T *srcPtr, __ubuf
     unsigned tmpStride = (validRow + yTileSizeElem - 1) / yTileSizeElem * yTileSizeElem;
     if (((dstStride % yTileSizeElem) != 0) || ((srcStride % blockSizeElem) != 0) ||
         ((tmpStride % yTileSizeElem) != 0)) {
-        // Scalar fallback: stage through tmp so an in-place (dst == src) transpose
-        // stays correct (the plain direct-write TransTailTiles corrupts on alias).
-        TransTailTilesStaged<T, blockSizeElem, yTileSizeElem>(dstPtr, srcPtr, tmpPtr, validRow, validCol, dstStride,
-                                                              srcStride);
+        // Scalar fallback. The direct TransTailTiles writes dst straight from src
+        // (no staging) and is unsafe only when dst aliases src. Stage through tmp
+        // for the in-place case so it stays correct; keep the direct, copy-free
+        // path for the common out-of-place case.
+        if (dstPtr == srcPtr) {
+            TransTailTilesStaged<T, blockSizeElem, yTileSizeElem>(dstPtr, srcPtr, tmpPtr, validRow, validCol, dstStride,
+                                                                  srcStride);
+        } else {
+            TransTailTiles<T, blockSizeElem, yTileSizeElem>(dstPtr, srcPtr, tmpStride, validRow, validCol, dstStride,
+                                                            srcStride);
+        }
         return;
     }
     // go by subtile column, a.k.a. iter in row direction
