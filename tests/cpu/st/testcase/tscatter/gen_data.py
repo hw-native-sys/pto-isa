@@ -15,6 +15,16 @@ import numpy as np
 
 np.random.seed(19)
 
+TYPE_MAP = {
+    np.float32: "float",
+    np.float16: "half",
+    np.int8: "int8",
+    np.int32: "int32",
+    np.int16: "int16",
+    np.uint16: "uint16",
+    np.uint32: "uint32",
+}
+
 P0101 = 1
 P1010 = 2
 P0001 = 3
@@ -52,23 +62,35 @@ HALF_P1000_ROW = 6
 HALF_P1000_COL = 256
 
 
-def gen_case(case_dir: str, rows: int, cols: int):
-    os.makedirs(case_dir, exist_ok=True)
-    os.chdir(case_dir)
+def recalculate_indices(indices, cols):
+    for row in range(indices.shape[0]):
+        for col in range(indices.shape[1]):
+            indices[row, col] = indices[row, col] * cols + col
+    return indices
 
-    src = np.random.uniform(low=-4, high=4, size=[rows, cols]).astype(np.float32)
-    idx = np.random.randint(0, rows, size=[rows, cols]).astype(np.uint32)
-    idx = idx * cols + np.arange(cols, dtype=np.uint32)
 
-    dst = np.zeros([rows, cols], dtype=np.float32)
-    for i in range(rows):
-        for j in range(cols):
-            dst.flat[idx[i, j]] = src[i, j]
+def scatter(src, indices):
+    dst = np.zeros_like(src, dtype=src.dtype).flatten()
+    for row in range(indices.shape[0]):
+        for col in range(indices.shape[1]):
+            idx = indices[row, col]
+            dst[idx] = src[row, col]
+    return dst
 
-    src.tofile("input1.bin")
-    idx.tofile("input2.bin")
-    dst.tofile("golden.bin")
-    os.chdir("..")
+
+
+
+class TScatterParams:
+    def __init__(self, data_type, idx_type, row, col, idx_row, idx_col):
+        self.data_type = data_type
+        self.idx_type = idx_type
+        self.row = row
+        self.col = col
+        self.idx_row = idx_row
+        self.idx_col = idx_col
+        src_type_str = TYPE_MAP.get(data_type, "unknown")
+        idx_type_str = TYPE_MAP.get(idx_type, "unknown")
+        self.name = f"TSCATTERTest.case_{src_type_str}_{idx_type_str}_{row}x{col}_{idx_row}x{idx_col}"
 
 
 class TScatterParamsMasked:
@@ -89,6 +111,22 @@ class TScatterParamsColMasked:
         self.dst_row = dst_row
         self.dst_col = dst_col
         self.pattern = pattern
+
+
+def gen_case(param: TScatterParams):
+    os.makedirs(param.name, exist_ok=True)
+    os.chdir(param.name)
+
+    src_data = np.random.uniform(0, 100, (param.row, param.col)).astype(param.data_type)
+    indices = np.random.randint(0, 2, (param.idx_row, param.idx_col)).astype(param.idx_type)
+    indices = recalculate_indices(indices, param.col)
+    golden = scatter(src_data, indices)
+
+    src_data.tofile("input1.bin")
+    indices.tofile("input2.bin")
+    golden.tofile("golden.bin")
+
+    os.chdir("..")
 
 
 def gen_masked_scatter_golden(param: TScatterParamsMasked):
@@ -179,8 +217,9 @@ def gen_masked_scatter_col_golden(param: TScatterParamsColMasked):
     dst.tofile("./golden.bin")
     os.chdir(original_dir)
 
+
 if __name__ == "__main__":
-    gen_case("TSCATTERTest.case_float_16x16_16x16_16x16", 16, 16)
+    gen_case(TScatterParams(np.float32, np.uint16, 2, 32, 1, 32))
 
     masked_cases = [
         # float

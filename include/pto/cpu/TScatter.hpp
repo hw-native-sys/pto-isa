@@ -25,8 +25,8 @@ PTO_INTERNAL void TSCATTER_IMPL(TileDataDst &dst, TileDataSrc &src, TileInd &ind
     using IndexT = typename TileInd::DType;
     static_assert(std::is_integral_v<IndexT>, "TSCATTER: indexes must be an integral type");
 
-    const unsigned validRow = src.GetValidRow();
-    const unsigned validCol = src.GetValidCol();
+    const unsigned validRow = indexes.GetValidRow();
+    const unsigned validCol = indexes.GetValidCol();
     if (validRow == 0 || validCol == 0) {
         return;
     }
