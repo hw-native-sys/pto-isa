@@ -96,32 +96,32 @@ PTO_INTERNAL void CheckMadValid()
 }
 
 template <typename A, typename B>
-constexpr bool isSupportedFp4Combo = (std::is_same_v<A, float4_e1m2x2_t> && std::is_same_v<B, float4_e1m2x2_t>) ||
-                                     (std::is_same_v<A, float4_e1m2x2_t> && std::is_same_v<B, float4_e2m1x2_t>) ||
-                                     (std::is_same_v<A, float4_e2m1x2_t> && std::is_same_v<B, float4_e2m1x2_t>) ||
-                                     (std::is_same_v<A, float4_e2m1x2_t> && std::is_same_v<B, float4_e1m2x2_t>);
-
-template <typename A, typename B>
 constexpr bool isSupportedFp8Combo = (std::is_same_v<A, float8_e4m3_t> && std::is_same_v<B, float8_e4m3_t>) ||
                                      (std::is_same_v<A, float8_e4m3_t> && std::is_same_v<B, float8_e5m2_t>) ||
                                      (std::is_same_v<A, float8_e5m2_t> && std::is_same_v<B, float8_e4m3_t>) ||
                                      (std::is_same_v<A, float8_e5m2_t> && std::is_same_v<B, float8_e5m2_t>);
 
+template <typename A, typename B>
+constexpr bool isSupportedFp4Combo = (std::is_same_v<A, float4_e1m2x2_t> && std::is_same_v<B, float4_e1m2x2_t>) ||
+                                     (std::is_same_v<A, float4_e1m2x2_t> && std::is_same_v<B, float4_e2m1x2_t>) ||
+                                     (std::is_same_v<A, float4_e2m1x2_t> && std::is_same_v<B, float4_e2m1x2_t>) ||
+                                     (std::is_same_v<A, float4_e2m1x2_t> && std::is_same_v<B, float4_e1m2x2_t>);
+
 template <typename TileRes, typename TileLeft, typename TileLeftScale, typename TileRight, typename TileRightScale>
 PTO_INTERNAL void CheckMadMxValid()
 {
-    constexpr const int BASEK = 64;
     using AType = typename TileLeft::DType;
     using BType = typename TileRight::DType;
     using CType = typename TileRes::DType;
-    constexpr bool isFp4 = isSupportedFp4Combo<AType, BType>;
     constexpr bool isFp8 = isSupportedFp8Combo<AType, BType>;
+    constexpr bool isFp4 = isSupportedFp4Combo<AType, BType>;
+    constexpr const int BASEK = 64;
 
     static_assert((isFp4 || isFp8) && std::is_same_v<CType, float>, "TMatmulMX:No supported data type combination.");
-    static_assert((TileLeft::Cols % BASEK == 0), "TMatmulMX: aMatrixCol must be a multiple of 64.");
     if constexpr (isFp4) {
         static_assert((TileLeft::Cols % 2 == 0), "TMatmulMX:For FP4 data types, aMatrixCol must be an even number.");
     }
+    static_assert((TileLeft::Cols % BASEK == 0), "TMatmulMX: aMatrixCol must be a multiple of 64.");
     static_assert(
         ((TileLeft::Loc == TileType::Left) && (!TileLeft::isRowMajor) && (TileLeft::SFractal == SLayout::RowMajor)) &&
             ((TileRight::Loc == TileType::Right) && (TileRight::isRowMajor) &&
