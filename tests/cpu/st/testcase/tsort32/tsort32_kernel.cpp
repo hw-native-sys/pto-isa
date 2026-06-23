@@ -61,11 +61,11 @@ void launchTSort32(T0 *out, T0 *src, T1 *idx, aclrtStream stream)
     }
 }
 
-template void launchTSort32<int16_t, uint32_t, 16, 16, 16, 16, 16, 16>(int16_t *out, int16_t *src, uint32_t *idx,
-                                                                       aclrtStream stream);
+template void launchTSort32<aclFloat16, uint32_t, 16, 16, 16, 16, 16, 16>(aclFloat16 *out, aclFloat16 *src,
+                                                                          uint32_t *idx, aclrtStream stream);
 template void launchTSort32<float, uint32_t, 8, 32, 8, 32, 8, 32>(float *out, float *src, uint32_t *idx,
                                                                   aclrtStream stream);
-template void launchTSort32<int32_t, uint32_t, 7, 32, 7, 32, 7, 32>(int32_t *out, int32_t *src, uint32_t *idx,
-                                                                    aclrtStream stream);
+template void launchTSort32<float, uint32_t, 7, 32, 7, 32, 7, 32>(float *out, float *src, uint32_t *idx,
+                                                                  aclrtStream stream);
 template void launchTSort32<aclFloat16, uint32_t, 32, 16, 32, 16, 32, 16>(aclFloat16 *out, aclFloat16 *src,
                                                                           uint32_t *idx, aclrtStream stream);
