@@ -68,7 +68,7 @@ struct ROWSUM {
      * @brief 归约操作：对向量元素求和
      * @note vcadd将向量内所有元素相加，输出单个标量值
      */
-    static PTO_INTERNAL void Reduce(RegTensor<TOUT> &dst, RegTensor<TIN> &src, MaskReg &pred)
+    static PTO_INTERNAL void Reduce(RegTensor<TOUT> &dst, RegTensor<TIN> &src, MaskReg &pred, MaskReg &pregdst)
     {
         vcadd(dst, src, pred, MODE_ZEROING);
     }
@@ -90,9 +90,27 @@ struct ROWMAX {
         vmax(dst, src0, src1, pred, MODE_ZEROING);
     }
 
-    static PTO_INTERNAL void Reduce(RegTensor<TOUT> &dst, RegTensor<TIN> &src, MaskReg &pred)
+    static PTO_INTERNAL void Reduce(RegTensor<TOUT> &dst, RegTensor<TIN> &src, MaskReg &pred, MaskReg &pregdst)
     {
-        vcmax(dst, src, pred, MODE_ZEROING);
+        if constexpr (std::is_same<TIN, uint8_t>::value) {
+            RegTensor<uint16_t> srcOdd, srcEven, dstOdd, dstEven, dstTmp;
+            vcvt(srcEven, src, pred, PART_EVEN);
+            vcvt(srcOdd, src, pred, PART_ODD);
+            vcmax(dstEven, srcEven, pred, MODE_ZEROING);
+            vcmax(dstOdd, srcOdd, pred, MODE_ZEROING);
+            vmax(dstTmp, dstEven, dstOdd, pregdst);
+            vcvt(dst, dstTmp, pregdst, RS_DISABLE, PART_EVEN);
+        } else if constexpr (std::is_same<TIN, int8_t>::value) {
+            RegTensor<half> srcOdd, srcEven, dstOdd, dstEven, dstTmp;
+            vcvt(srcEven, src, pred, PART_EVEN);
+            vcvt(srcOdd, src, pred, PART_ODD);
+            vcmax(dstEven, srcEven, pred, MODE_ZEROING);
+            vcmax(dstOdd, srcOdd, pred, MODE_ZEROING);
+            vmax(dstTmp, dstEven, dstOdd, pregdst);
+            vcvt(dst, dstTmp, pregdst, ROUND_R, RS_DISABLE, PART_EVEN);
+        } else {
+            vcmax(dst, src, pred, MODE_ZEROING);
+        }
     }
 };
 
@@ -112,9 +130,27 @@ struct ROWMIN {
         vmin(dst, src0, src1, pred, MODE_ZEROING);
     }
 
-    static PTO_INTERNAL void Reduce(RegTensor<TOUT> &dst, RegTensor<TIN> &src, MaskReg &pred)
+    static PTO_INTERNAL void Reduce(RegTensor<TOUT> &dst, RegTensor<TIN> &src, MaskReg &pred, MaskReg &pregdst)
     {
-        vcmin(dst, src, pred, MODE_ZEROING);
+        if constexpr (std::is_same<TIN, uint8_t>::value) {
+            RegTensor<uint16_t> srcOdd, srcEven, dstOdd, dstEven, dstTmp;
+            vcvt(srcEven, src, pred, PART_EVEN);
+            vcvt(srcOdd, src, pred, PART_ODD);
+            vcmin(dstEven, srcEven, pred, MODE_ZEROING);
+            vcmin(dstOdd, srcOdd, pred, MODE_ZEROING);
+            vmin(dstTmp, dstEven, dstOdd, pregdst);
+            vcvt(dst, dstTmp, pregdst, RS_DISABLE, PART_EVEN);
+        } else if constexpr (std::is_same<TIN, int8_t>::value) {
+            RegTensor<half> srcOdd, srcEven, dstOdd, dstEven, dstTmp;
+            vcvt(srcEven, src, pred, PART_EVEN);
+            vcvt(srcOdd, src, pred, PART_ODD);
+            vcmin(dstEven, srcEven, pred, MODE_ZEROING);
+            vcmin(dstOdd, srcOdd, pred, MODE_ZEROING);
+            vmin(dstTmp, dstEven, dstOdd, pregdst);
+            vcvt(dst, dstTmp, pregdst, ROUND_R, RS_DISABLE, PART_EVEN);
+        } else {
+            vcmin(dst, src, pred, MODE_ZEROING);
+        }
     }
 };
 
@@ -133,10 +169,6 @@ PTO_INTERNAL void TRowReduceCheck(uint32_t srcValidRows, uint32_t srcValidCols, 
 {
     using T = typename TileDataIn::DType;
     using TDst = typename TileDataOut::DType;
-    static_assert(
-        std::is_same_v<T, half> || std::is_same_v<T, float> || std::is_same_v<T, int32_t> || std::is_same_v<T, int16_t>,
-        "Row reduction only supports 'half', 'float', 'int32', or 'int16' data types. "
-        "Fix: Define TileDataIn with DType = half, float, int32, or int16.");
     static_assert(idx || std::is_same_v<T, typename TileDataOut::DType>,
                   "Input and output tile data types must match. "
                   "Fix: Ensure TileDataOut uses the same DType as TileDataIn.");
@@ -229,7 +261,7 @@ PTO_INTERNAL void TRowReduceProc(__ubuf__ typename TileDataOut::DType *dstPtr,
                     vlds(vreg0, srcPtr, i * TileDataIn::RowStride + j * elementsPerRepeat, NORM);
                 }
                 // 归约：向量→标量
-                ReduceOp::Reduce(vreg1, vreg0, preg);
+                ReduceOp::Reduce(vreg1, vreg0, preg, pregdst);
                 // 累加到结果
                 ReduceOp::Accumulate(vregdst, vregdst, vreg1, pregdst);
             }
@@ -325,6 +357,11 @@ __tf__ PTO_INTERNAL OP_NAME(TROWMAX)
                                  uint32_t dstValidRow, uint32_t srcValidRows, uint32_t srcValidCols,
                                  unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
+    using T = typename TileDataIn::DType;
+    static_assert(std::is_same_v<T, half> || std::is_same_v<T, float> || std::is_same_v<T, int32_t> ||
+                      std::is_same_v<T, int16_t> || std::is_same_v<T, int8_t> || std::is_same_v<T, uint8_t>,
+                  "Row reduction only supports 'half', 'float', 'int32', 'int16', 'int8' or 'uint8' data types. "
+                  "Fix: Define TileDataIn with DType = half, float, int32, int16, int8 or uint8.");
     TRowReduceCheck<TileDataOut, TileDataIn>(srcValidRows, srcValidCols, dstValidRow);
 
     using TIN = typename TileDataIn::DType;
@@ -348,6 +385,11 @@ __tf__ PTO_INTERNAL OP_NAME(TROWSUM)
                                  uint32_t dstValidRow, uint32_t srcValidRows, uint32_t srcValidCols,
                                  unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
+    using T = typename TileDataIn::DType;
+    static_assert(
+        std::is_same_v<T, half> || std::is_same_v<T, float> || std::is_same_v<T, int32_t> || std::is_same_v<T, int16_t>,
+        "Row reduction only supports 'half', 'float', 'int32', or 'int16' data types. "
+        "Fix: Define TileDataIn with DType = half, float, int32, or int16.");
     TRowReduceCheck<TileDataOut, TileDataIn>(srcValidRows, srcValidCols, dstValidRow);
 
     using TIN = typename TileDataIn::DType;
@@ -371,6 +413,11 @@ __tf__ PTO_INTERNAL OP_NAME(TROWMIN)
                                  uint32_t dstValidRow, uint32_t srcValidRows, uint32_t srcValidCols,
                                  unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
+    using T = typename TileDataIn::DType;
+    static_assert(std::is_same_v<T, half> || std::is_same_v<T, float> || std::is_same_v<T, int32_t> ||
+                      std::is_same_v<T, int16_t> || std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t>,
+                  "Row reduction only supports 'half', 'float', 'int32', 'int16', 'uint8' or 'int8' data types. "
+                  "Fix: Define TileDataIn with DType = half, float, int32, int16, uint8 or int8.");
     TRowReduceCheck<TileDataOut, TileDataIn>(srcValidRows, srcValidCols, dstValidRow);
 
     using TIN = typename TileDataIn::DType;
