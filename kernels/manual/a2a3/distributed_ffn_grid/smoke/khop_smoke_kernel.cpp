@@ -26,7 +26,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <cstdint>
 #include <pto/pto-inst.hpp>
 
-#include <pto/common/grid_pipe.hpp>
+#include <pto/npu/a2a3/grid_intrinsic.hpp>
 #include <pto/npu/a2a3/grid_pipe_runtime.hpp>
 
 #include "common.hpp"

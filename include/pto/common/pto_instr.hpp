@@ -14,7 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/common/debug.h"
 #include "pto/common/event.hpp"
 #include "pto/common/fifo.hpp"
-#include "pto/common/grid_pipe.hpp"
+#include "pto/npu/a2a3/grid_intrinsic.hpp"
 #include "pto/common/tassign_check.hpp"
 #include "pto/common/pto_instr_impl.hpp"
 #ifdef __CPU_SIM

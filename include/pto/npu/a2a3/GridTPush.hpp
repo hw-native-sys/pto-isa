@@ -15,7 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // per-direction slot/flag state at fan-in 1, so distance only changes the
 // resolved target rank and the doorbell reach -- the window layout, slot rings,
 // flag counts and the TPOP read-locality guard are all unchanged.  See
-// RankForPushK/CanPushK in grid_pipe.hpp and the design analysis 2026-06-02.
+// RankForPushK/CanPushK in grid_intrinsic.hpp and the design analysis 2026-06-02.
 //
 // Producer-side expansion uses:
 //   - wfe_neighbor_counter / mtspr_neighbor_counter for free/ready counters
@@ -31,10 +31,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <cstdint>
 
-#include <pto/common/grid_counter_intrinsic.hpp>
-#include <pto/common/grid_pipe.hpp>
-#include <pto/common/grid_pipe_mock_spr.hpp>
-#include <pto/common/grid_sram_intrinsic.hpp>
+#include <pto/npu/a2a3/grid_intrinsic.hpp>
 #include <pto/npu/a2a3/grid_pipe_runtime.hpp>
 
 // Forward declaration: provided by demo's gridpipe_runtime adaptor.

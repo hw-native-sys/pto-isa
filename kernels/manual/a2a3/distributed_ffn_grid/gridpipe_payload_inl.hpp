@@ -30,7 +30,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 //        copy_neighbor_sram_to_sram(...).
 //
 // The skeleton implementation converts Tile descriptors to UB pointers, then
-// lets grid_sram_intrinsic.hpp choose native builtin vs A2/A3 mock lowering.
+// lets grid_intrinsic.hpp choose native builtin vs A2/A3 mock lowering.
 // Keeping this adapter outside GridTPush/GridTPop preserves the generic payload
 // protocol while this demo owns the concrete PTO Tile representation.
 
@@ -39,7 +39,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <cstdint>
 
-#include <pto/common/grid_sram_intrinsic.hpp>
+#include <pto/npu/a2a3/grid_intrinsic.hpp>
 
 #include "common.hpp" // HcclRemotePtr, HcclDeviceContext
 

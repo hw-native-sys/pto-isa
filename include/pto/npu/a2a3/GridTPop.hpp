@@ -15,10 +15,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <cstdint>
 
-#include <pto/common/grid_counter_intrinsic.hpp>
-#include <pto/common/grid_pipe.hpp>
-#include <pto/common/grid_pipe_mock_spr.hpp>
 #include <pto/npu/a2a3/GridTPush.hpp> // for a2a3_grid_payload hooks
+#include <pto/npu/a2a3/grid_intrinsic.hpp>
 #include <pto/npu/a2a3/grid_pipe_runtime.hpp>
 
 namespace pto {

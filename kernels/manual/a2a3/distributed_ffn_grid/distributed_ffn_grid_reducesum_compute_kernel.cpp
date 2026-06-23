@@ -23,7 +23,7 @@ full text of the License.
 #include <pto/pto-inst.hpp>
 
 #include <pto/common/fifo.hpp>
-#include <pto/common/grid_pipe.hpp>
+#include <pto/npu/a2a3/grid_intrinsic.hpp>
 #include <pto/npu/a2a3/grid_pipe_runtime.hpp>
 
 #include "common.hpp"
