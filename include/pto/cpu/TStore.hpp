@@ -19,7 +19,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-template <typename GlobalData, typename TileData, QuantModeCPU_t quantMode, bool applyRelu,
+template <typename GlobalData, typename TileData, QuantModeCPU_t quantMode, bool applyRelu, bool atomicAdd = false,
           std::enable_if_t<TileData::isRowMajor, int> = 0>
 __tf__ PTO_INLINE void StorePlainMatrix(typename GlobalData::DType __out__ *dst,
                                         typename TileData::TileDType __in__ src, const std::vector<uint64_t> &scalars,
@@ -29,28 +29,34 @@ __tf__ PTO_INLINE void StorePlainMatrix(typename GlobalData::DType __out__ *dst,
     size_t offsetSrcBase = idx3 * gShape3 * TileData::Cols;
     using D = typename GlobalData::DType;
     using S = typename TileData::DType;
-    cpu::parallel_for_1d(
-        0, static_cast<std::size_t>(gShape3), static_cast<std::size_t>(gShape3) * gShape4, [&](std::size_t r) {
-            const std::size_t srcBase = offsetSrcBase + r * TileData::Cols;
-            const std::size_t dstBase = r * static_cast<std::size_t>(gStride3);
-            PTO_CPU_VECTORIZE_LOOP
-            for (std::size_t c = 0; c < static_cast<std::size_t>(gShape4); c++) {
-                int dstIdx = dstBase + c * static_cast<std::size_t>(gStride4);
-                if constexpr (quantMode != QuantModeCPU_t::NoQuant) {
-                    uint64_t scalar = scalars[c];
-                    dst[dstIdx] = quantize_element<D, S, quantMode, applyRelu>(src[srcBase + c], scalar);
-                } else {
-                    S val = src[srcBase + c];
-                    if constexpr (applyRelu) {
-                        val = ReLU(val);
-                    }
-                    dst[dstIdx] = static_cast<D>(val);
-                }
-            }
-        });
+    cpu::parallel_for_1d(0, static_cast<std::size_t>(gShape3), static_cast<std::size_t>(gShape3) * gShape4,
+                         [&](std::size_t r) {
+                             const std::size_t srcBase = offsetSrcBase + r * TileData::Cols;
+                             const std::size_t dstBase = r * static_cast<std::size_t>(gStride3);
+                             PTO_CPU_VECTORIZE_LOOP
+                             for (std::size_t c = 0; c < static_cast<std::size_t>(gShape4); c++) {
+                                 int dstIdx = dstBase + c * static_cast<std::size_t>(gStride4);
+                                 D out;
+                                 if constexpr (quantMode != QuantModeCPU_t::NoQuant) {
+                                     uint64_t scalar = scalars[c];
+                                     out = quantize_element<D, S, quantMode, applyRelu>(src[srcBase + c], scalar);
+                                 } else {
+                                     S val = src[srcBase + c];
+                                     if constexpr (applyRelu) {
+                                         val = ReLU(val);
+                                     }
+                                     out = static_cast<D>(val);
+                                 }
+                                 if constexpr (atomicAdd) {
+                                     dst[dstIdx] += out;
+                                 } else {
+                                     dst[dstIdx] = out;
+                                 }
+                             }
+                         });
 }
 
-template <typename GlobalData, typename TileData, QuantModeCPU_t quantMode, bool applyRelu,
+template <typename GlobalData, typename TileData, QuantModeCPU_t quantMode, bool applyRelu, bool atomicAdd = false,
           std::enable_if_t<!TileData::isRowMajor, int> = 0>
 __tf__ PTO_INLINE void StorePlainMatrix(typename GlobalData::DType __out__ *dst,
                                         typename TileData::TileDType __in__ src, const std::vector<uint64_t> &scalars,
@@ -60,28 +66,34 @@ __tf__ PTO_INLINE void StorePlainMatrix(typename GlobalData::DType __out__ *dst,
     size_t offsetSrcBase = idx3 * gShape4 * TileData::Rows;
     using D = typename GlobalData::DType;
     using S = typename TileData::DType;
-    cpu::parallel_for_1d(
-        0, static_cast<std::size_t>(gShape4), static_cast<std::size_t>(gShape3) * gShape4, [&](std::size_t c) {
-            const std::size_t srcBase = offsetSrcBase + c * TileData::Rows;
-            const std::size_t dstStride4 = static_cast<std::size_t>(gStride4);
-            PTO_CPU_VECTORIZE_LOOP
-            for (std::size_t r = 0; r < static_cast<std::size_t>(gShape3); r++) {
-                int dstIdx = r * static_cast<std::size_t>(gStride3) + c * dstStride4;
-                if constexpr (quantMode != QuantModeCPU_t::NoQuant) {
-                    uint64_t scalar = scalars[r];
-                    dst[dstIdx] = quantize_element<D, S, quantMode, applyRelu>(src[srcBase + r], scalar);
-                } else {
-                    S val = src[srcBase + r];
-                    if constexpr (applyRelu) {
-                        val = ReLU(val);
-                    }
-                    dst[dstIdx] = static_cast<D>(val);
-                }
-            }
-        });
+    cpu::parallel_for_1d(0, static_cast<std::size_t>(gShape4), static_cast<std::size_t>(gShape3) * gShape4,
+                         [&](std::size_t c) {
+                             const std::size_t srcBase = offsetSrcBase + c * TileData::Rows;
+                             const std::size_t dstStride4 = static_cast<std::size_t>(gStride4);
+                             PTO_CPU_VECTORIZE_LOOP
+                             for (std::size_t r = 0; r < static_cast<std::size_t>(gShape3); r++) {
+                                 int dstIdx = r * static_cast<std::size_t>(gStride3) + c * dstStride4;
+                                 D out;
+                                 if constexpr (quantMode != QuantModeCPU_t::NoQuant) {
+                                     uint64_t scalar = scalars[r];
+                                     out = quantize_element<D, S, quantMode, applyRelu>(src[srcBase + r], scalar);
+                                 } else {
+                                     S val = src[srcBase + r];
+                                     if constexpr (applyRelu) {
+                                         val = ReLU(val);
+                                     }
+                                     out = static_cast<D>(val);
+                                 }
+                                 if constexpr (atomicAdd) {
+                                     dst[dstIdx] += out;
+                                 } else {
+                                     dst[dstIdx] = out;
+                                 }
+                             }
+                         });
 }
 
-template <typename GlobalData, typename TileData, QuantModeCPU_t quantMode, bool applyRelu>
+template <typename GlobalData, typename TileData, QuantModeCPU_t quantMode, bool applyRelu, bool atomicAdd = false>
 __tf__ PTO_INLINE void StorePlain(typename GlobalData::DType __out__ *dst, typename TileData::TileDType __in__ src,
                                   const std::vector<uint64_t> &scalars, int gShape0, int gShape1, int gShape2,
                                   int gShape3, int gShape4, int gStride0, int gStride1, int gStride2, int gStride3,
@@ -97,15 +109,15 @@ __tf__ PTO_INLINE void StorePlain(typename GlobalData::DType __out__ *dst, typen
             int64_t dstAddr1 = j * gStride1;
             for (uint32_t k = 0; k < gShape2; k++) {
                 size_t offsetDstBase = dstAddr0 + dstAddr1 + k * gStride2;
-                StorePlainMatrix<GlobalData, TileData, quantMode, applyRelu>(dst + offsetDstBase, src, scalars, gShape3,
-                                                                             gShape4, gStride3, gStride4, validRow,
-                                                                             validCol, srcAddr0 + srcAddr1 + k);
+                StorePlainMatrix<GlobalData, TileData, quantMode, applyRelu, atomicAdd>(
+                    dst + offsetDstBase, src, scalars, gShape3, gShape4, gStride3, gStride4, validRow, validCol,
+                    srcAddr0 + srcAddr1 + k);
             }
         }
     }
 }
 
-template <typename GlobalData, typename TileData, QuantModeCPU_t quantMode, bool applyRelu>
+template <typename GlobalData, typename TileData, QuantModeCPU_t quantMode, bool applyRelu, bool atomicAdd = false>
 __tf__ PTO_INLINE void StoreSubfractalMatrix(typename GlobalData::DType __out__ *dst,
                                              typename TileData::TileDType __in__ src,
                                              const std::vector<uint64_t> &scalars, int gShape3, int gShape4,
@@ -124,12 +136,13 @@ __tf__ PTO_INLINE void StoreSubfractalMatrix(typename GlobalData::DType __out__ 
                 size_t tile_idx = GetTileElementOffsetSubfractals<TileData>(subTileR, innerR, subTileC, innerC);
 
                 size_t gd_idx = r * static_cast<std::size_t>(gStride3) + c * static_cast<std::size_t>(gStride4);
-                StoreElement<D, S, TileData, quantMode, applyRelu>(dst, gd_idx, src[tile_idx], r, c, scalars);
+                StoreElement<D, S, TileData, quantMode, applyRelu, atomicAdd>(dst, gd_idx, src[tile_idx], r, c,
+                                                                              scalars);
             }
         });
 }
 
-template <typename GlobalData, typename TileData, QuantModeCPU_t quantMode, bool applyRelu>
+template <typename GlobalData, typename TileData, QuantModeCPU_t quantMode, bool applyRelu, bool atomicAdd = false>
 __tf__ PTO_INLINE void TStore(typename GlobalData::DType __out__ *dst, typename TileData::TileDType __in__ src,
                               const std::vector<uint64_t> &scalars, int gShape0, int gShape1, int gShape2, int gShape3,
                               int gShape4, int gStride0, int gStride1, int gStride2, int gStride3, int gStride4,
@@ -145,27 +158,27 @@ __tf__ PTO_INLINE void TStore(typename GlobalData::DType __out__ *dst, typename 
         using S = typename TileData::DType;
         ForEachNZElement<TileData>(validRow, validCol, gShape1, gShape3, gShape4, gStride0, gStride1, gStride2,
                                    gStride3, gStride4, [&](size_t r, size_t c, size_t tile_idx, size_t gd_idx) {
-                                       StoreElement<D, S, TileData, quantMode, applyRelu>(dst, gd_idx, src[tile_idx], r,
-                                                                                          c, scalars);
+                                       StoreElement<D, S, TileData, quantMode, applyRelu, atomicAdd>(
+                                           dst, gd_idx, src[tile_idx], r, c, scalars);
                                    });
     } else if (TileData::SFractal == SLayout::NoneBox) {
-        StorePlain<GlobalData, TileData, quantMode, applyRelu>(dst, src, scalars, gShape0, gShape1, gShape2, gShape3,
-                                                               gShape4, gStride0, gStride1, gStride2, gStride3,
-                                                               gStride4, validRow, validCol);
+        StorePlain<GlobalData, TileData, quantMode, applyRelu, atomicAdd>(
+            dst, src, scalars, gShape0, gShape1, gShape2, gShape3, gShape4, gStride0, gStride1, gStride2, gStride3,
+            gStride4, validRow, validCol);
     } else {
         assert(gShape0 == 1 && gShape1 == 1 && gShape2 == 1 && "Nz,Zn -> ND,DN convertion does support only 2D GMs");
-        StoreSubfractalMatrix<GlobalData, TileData, quantMode, applyRelu>(dst, src, scalars, gShape3, gShape4, gStride3,
-                                                                          gStride4, validRow, validCol);
+        StoreSubfractalMatrix<GlobalData, TileData, quantMode, applyRelu, atomicAdd>(
+            dst, src, scalars, gShape3, gShape4, gStride3, gStride4, validRow, validCol);
     }
 }
 
-template <typename TileData, typename GlobalData, QuantModeCPU_t quantMode, bool applyRelu>
+template <typename TileData, typename GlobalData, QuantModeCPU_t quantMode, bool applyRelu, bool atomicAdd = false>
 PTO_INTERNAL void TSTORE_IMPL(GlobalData &dst, TileData &src, const std::vector<uint64_t> &scalars = {})
 {
     static_assert(GlobalData::layout == pto::Layout::ND || GlobalData::layout == pto::Layout::DN ||
                       GlobalData::layout == pto::Layout::NZ,
                   "Only ND, DN and NZ GLobal Tensors are currently supported");
-    TStore<GlobalData, TileData, quantMode, applyRelu>(
+    TStore<GlobalData, TileData, quantMode, applyRelu, atomicAdd>(
         dst.data(), src.data(), scalars, dst.GetShape(pto::GlobalTensorDim::DIM_0),
         dst.GetShape(pto::GlobalTensorDim::DIM_1), dst.GetShape(pto::GlobalTensorDim::DIM_2),
         dst.GetShape(pto::GlobalTensorDim::DIM_3), dst.GetShape(pto::GlobalTensorDim::DIM_4),
@@ -177,21 +190,24 @@ PTO_INTERNAL void TSTORE_IMPL(GlobalData &dst, TileData &src, const std::vector<
 template <typename TileData, typename GlobalData, AtomicType atomicType>
 PTO_INTERNAL void TSTORE_IMPL(GlobalData &dst, TileData &src)
 {
-    TSTORE_IMPL<TileData, GlobalData, QuantModeCPU_t::NoQuant, false>(dst, src);
+    constexpr bool atomicAdd = (atomicType == AtomicType::AtomicAdd);
+    TSTORE_IMPL<TileData, GlobalData, QuantModeCPU_t::NoQuant, false, atomicAdd>(dst, src);
 }
 
 template <typename TileData, typename GlobalData, AtomicType atomicType, STPhase Phase>
 __aicore__ void TSTORE_IMPL(GlobalData &dst, TileData &src)
 {
     (void)Phase;
-    TSTORE_IMPL<TileData, GlobalData, QuantModeCPU_t::NoQuant, false>(dst, src);
+    constexpr bool atomicAdd = (atomicType == AtomicType::AtomicAdd);
+    TSTORE_IMPL<TileData, GlobalData, QuantModeCPU_t::NoQuant, false, atomicAdd>(dst, src);
 }
 
 template <typename TileData, typename GlobalData, AtomicType atomicType, ReluPreMode reluPreMode>
 __aicore__ void TSTORE_IMPL(GlobalData &dst, TileData &src)
 {
     constexpr bool useRelu = reluPreMode == ReluPreMode::NormalRelu;
-    TSTORE_IMPL<TileData, GlobalData, QuantModeCPU_t::NoQuant, useRelu>(dst, src);
+    constexpr bool atomicAdd = (atomicType == AtomicType::AtomicAdd);
+    TSTORE_IMPL<TileData, GlobalData, QuantModeCPU_t::NoQuant, useRelu, atomicAdd>(dst, src);
 }
 
 template <typename TileData, typename GlobalData, AtomicType atomicType, ReluPreMode reluPreMode, STPhase Phase>
@@ -199,7 +215,8 @@ __aicore__ void TSTORE_IMPL(GlobalData &dst, TileData &src)
 {
     (void)Phase;
     constexpr bool useRelu = reluPreMode == ReluPreMode::NormalRelu;
-    TSTORE_IMPL<TileData, GlobalData, QuantModeCPU_t::NoQuant, useRelu>(dst, src);
+    constexpr bool atomicAdd = (atomicType == AtomicType::AtomicAdd);
+    TSTORE_IMPL<TileData, GlobalData, QuantModeCPU_t::NoQuant, useRelu, atomicAdd>(dst, src);
 }
 
 template <typename TileData, typename GlobalData, AtomicType atomicType, ReluPreMode reluPreMode>
@@ -207,6 +224,7 @@ __aicore__ void TSTORE_IMPL(GlobalData &dst, TileData &src, uint64_t preQuantSca
 {
     constexpr QuantModeCPU_t quantPre = GetScalarPreQuantMode<typename TileData::DType, typename GlobalData::DType>();
     constexpr bool useRelu = reluPreMode == ReluPreMode::NormalRelu;
+    constexpr bool atomicAdd = (atomicType == AtomicType::AtomicAdd);
     size_t vector_size = 0;
     if constexpr (TileData::isRowMajor) {
         vector_size = src.GetValidCol();
@@ -214,7 +232,7 @@ __aicore__ void TSTORE_IMPL(GlobalData &dst, TileData &src, uint64_t preQuantSca
         vector_size = src.GetValidRow();
     }
     std::vector<uint64_t> scalars(vector_size, preQuantScalar);
-    TSTORE_IMPL<TileData, GlobalData, quantPre, useRelu>(dst, src, scalars);
+    TSTORE_IMPL<TileData, GlobalData, quantPre, useRelu, atomicAdd>(dst, src, scalars);
 }
 
 template <typename TileData, typename GlobalData, AtomicType atomicType, ReluPreMode reluPreMode, STPhase Phase>
@@ -229,13 +247,14 @@ __aicore__ void TSTORE_IMPL(GlobalData &dst, TileData &src, FpTileData &fp)
 {
     constexpr QuantModeCPU_t quantPre = GetScalarPreQuantMode<typename TileData::DType, typename GlobalData::DType>();
     constexpr bool useRelu = reluPreMode == ReluPreMode::NormalRelu;
+    constexpr bool atomicAdd = (atomicType == AtomicType::AtomicAdd);
 
     std::vector<uint64_t> scalars(fp.GetValidCol(), 0);
     for (size_t i = 0; i < fp.GetValidCol(); i++) {
         const size_t quantTileIdx = GetTileElementOffset<FpTileData>(0, i);
         scalars[i] = fp.data()[quantTileIdx];
     }
-    TSTORE_IMPL<TileData, GlobalData, quantPre, useRelu>(dst, src, scalars);
+    TSTORE_IMPL<TileData, GlobalData, quantPre, useRelu, atomicAdd>(dst, src, scalars);
 }
 } // namespace pto
 #endif

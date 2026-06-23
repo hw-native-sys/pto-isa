@@ -173,7 +173,7 @@ PTO_INLINE D ConvertStoreValue(S value, uint64_t scalar)
     }
 }
 
-template <typename D, typename S, typename TileData, QuantModeCPU_t quantMode, bool applyRelu>
+template <typename D, typename S, typename TileData, QuantModeCPU_t quantMode, bool applyRelu, bool atomicAdd = false>
 PTO_INLINE void StoreElement(D *dst, size_t dstIdx, S value, size_t r, size_t c, const std::vector<uint64_t> &scalars)
 {
     size_t scalarIndex = TileData::isRowMajor ? c : r;
@@ -181,7 +181,12 @@ PTO_INLINE void StoreElement(D *dst, size_t dstIdx, S value, size_t r, size_t c,
     if constexpr (quantMode != QuantModeCPU_t::NoQuant) {
         scalar = scalars[scalarIndex];
     }
-    dst[dstIdx] = ConvertStoreValue<D, S, quantMode, applyRelu>(value, scalar);
+    D converted = ConvertStoreValue<D, S, quantMode, applyRelu>(value, scalar);
+    if constexpr (atomicAdd) {
+        dst[dstIdx] += converted;
+    } else {
+        dst[dstIdx] = converted;
+    }
 }
 
 } // namespace pto
