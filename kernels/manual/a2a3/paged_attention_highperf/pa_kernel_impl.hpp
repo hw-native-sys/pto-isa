@@ -677,22 +677,25 @@ AICORE inline void RunPtoPagedAttentionCubePipelineSplitKV(__gm__ uint8_t *qGm, 
             }
         }
 
-        for (int32_t tile = 0; tile < stageTileCount; ++tile) {
-            const bool activeTile = validProcess && tile < tileCount;
-            const uint8_t slot = static_cast<uint8_t>(tile & 1);
-            for (int32_t headGroup = 0; headGroup < maxHeadGroups; ++headGroup) {
-                const int32_t groupHeadBase = headGroup * kHeadGroup;
-                const bool activeGroup = activeTile && groupHeadBase < curHeadNum;
+        for (int32_t headGroup = 0; headGroup < maxHeadGroups; ++headGroup) {
+            const int32_t groupHeadBase = headGroup * kHeadGroup;
+            const bool validGroup = validProcess && groupHeadBase < curHeadNum;
+            if (validGroup) {
+                const int32_t firstHead = startHead + groupHeadBase;
+                const int64_t qBase = (static_cast<int64_t>(batchIndex) * ctx.numHeads + firstHead) * ctx.headDim;
+                QGlobal qGlobal(reinterpret_cast<__gm__ half *>(qGm) + qBase);
+                TLOAD(qMatTile, qGlobal);
+                pipe_barrier(PIPE_ALL);
+                TEXTRACT(qLeftTile, qMatTile, 0, 0);
+                pipe_barrier(PIPE_ALL);
+            }
+            for (int32_t tile = 0; tile < stageTileCount; ++tile) {
+                const bool activeTile = validProcess && tile < tileCount;
+                const uint8_t slot = static_cast<uint8_t>(tile & 1);
+                const bool activeGroup = validGroup && activeTile;
                 if (activeGroup) {
                     const int32_t blockId = LoadBlockTable(blockTablesGm,
                         static_cast<int64_t>(batchIndex) * maxBlocksPerQuery + startTile + tile);
-                    const int32_t firstHead = startHead + groupHeadBase;
-                    const int64_t qBase = (static_cast<int64_t>(batchIndex) * ctx.numHeads + firstHead) * ctx.headDim;
-                    QGlobal qGlobal(reinterpret_cast<__gm__ half *>(qGm) + qBase);
-                    TLOAD(qMatTile, qGlobal);
-                    pipe_barrier(PIPE_ALL);
-                    TEXTRACT(qLeftTile, qMatTile, 0, 0);
-                    pipe_barrier(PIPE_ALL);
                     for (int32_t headInGroupBase = 0; headInGroupBase < kHeadGroup; headInGroupBase += headsPerKv) {
                         const int32_t baseHeadLocal = groupHeadBase + headInGroupBase;
                         if (baseHeadLocal >= curHeadNum) {
@@ -884,14 +887,16 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
             }
         }
 
-        for (int32_t tile = 0; tile < stageTileCount; ++tile) {
-            const bool activeTile = validProcess && tile < tileCount;
-            const int32_t validTokens = activeTile ? (((tile + 1) * kTileTokens <= curKvSeqLen) ? kTileTokens :
-                (curKvSeqLen - tile * kTileTokens)) : 0;
-            const uint8_t slot = static_cast<uint8_t>(tile & 1);
-            for (int32_t headGroup = 0; headGroup < maxHeadGroups; ++headGroup) {
-                const int32_t groupHeadBase = headGroup * kHeadGroup;
-                const bool activeGroup = activeTile && groupHeadBase < curHeadNum;
+        for (int32_t headGroup = 0; headGroup < maxHeadGroups; ++headGroup) {
+            const int32_t groupHeadBase = headGroup * kHeadGroup;
+            const bool validGroup = validProcess && groupHeadBase < curHeadNum;
+            for (int32_t tile = 0; tile < stageTileCount; ++tile) {
+                const bool activeTile = validProcess && tile < tileCount;
+                const int32_t validTokens = activeTile ? (((tile + 1) * kTileTokens <= curKvSeqLen) ? kTileTokens :
+                    (curKvSeqLen - tile * kTileTokens)) : 0;
+                (void)validTokens;
+                const uint8_t slot = static_cast<uint8_t>(tile & 1);
+                const bool activeGroup = validGroup && activeTile;
                 PtoPaStageSync();
                 if (activeSubBlock && activeGroup) {
                     for (int32_t headInGroup = 0; headInGroup < kHeadGroup; ++headInGroup) {
