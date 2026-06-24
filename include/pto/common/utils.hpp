@@ -120,6 +120,30 @@ struct B82B16Trait {
         }
     }
 };
+
+template <typename T>
+struct B322B16Trait {
+    static constexpr bool isB32 = (std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t>);
+    using TransType = std::conditional_t<isB32, int16_t, int32_t>;
+    PTO_INTERNAL static uint64_t TransSize(uint64_t size)
+    {
+        if constexpr (isB32) {
+            return size * sizeof(T) / sizeof(TransType);
+        } else {
+            return size;
+        }
+    }
+
+    template <uint64_t stride>
+    PTO_INTERNAL static constexpr uint64_t TransStride()
+    {
+        if constexpr (isB32) {
+            return stride * sizeof(T) / sizeof(TransType);
+        } else {
+            return stride;
+        }
+    }
+};
 } // namespace pto
 
 #endif

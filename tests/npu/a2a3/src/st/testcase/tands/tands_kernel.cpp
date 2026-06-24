@@ -61,3 +61,12 @@ template void LaunchTAndS<uint16_t, 32, 128, 32, 128, 32, 128>(uint16_t *out, ui
                                                                void *stream);
 template void LaunchTAndS<uint16_t, 32, 112, 32, 128, 32, 111>(uint16_t *out, uint16_t *src, uint16_t scalar,
                                                                void *stream);
+template void LaunchTAndS<int32_t, 64, 64, 64, 64, 64, 64>(int32_t *out, int32_t *src, int32_t scalar, void *stream);
+template void LaunchTAndS<int32_t, 32, 128, 32, 128, 32, 128>(int32_t *out, int32_t *src, int32_t scalar, void *stream);
+template void LaunchTAndS<int32_t, 32, 112, 32, 128, 32, 111>(int32_t *out, int32_t *src, int32_t scalar, void *stream);
+template void LaunchTAndS<uint32_t, 64, 64, 64, 64, 64, 64>(uint32_t *out, uint32_t *src, uint32_t scalar,
+                                                            void *stream);
+template void LaunchTAndS<uint32_t, 32, 128, 32, 128, 32, 128>(uint32_t *out, uint32_t *src, uint32_t scalar,
+                                                               void *stream);
+template void LaunchTAndS<uint32_t, 32, 112, 32, 128, 32, 111>(uint32_t *out, uint32_t *src, uint32_t scalar,
+                                                               void *stream);

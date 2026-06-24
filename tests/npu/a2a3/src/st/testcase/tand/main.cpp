@@ -135,3 +135,23 @@ TEST_F(TANDTest, case8)
 {
     test_tand<int8_t, 64, 64, 63, 63, false>();
 }
+
+TEST_F(TANDTest, case9)
+{
+    test_tand<uint32_t, 64, 64, 64, 64, false>();
+}
+
+TEST_F(TANDTest, case10)
+{
+    test_tand<uint32_t, 64, 64, 61, 61, false>();
+}
+
+TEST_F(TANDTest, case11)
+{
+    test_tand<uint32_t, 1, 16384, 1, 16384, false>();
+}
+
+TEST_F(TANDTest, case12)
+{
+    test_tand<uint32_t, 1024, 16, 1024, 16, false>();
+}

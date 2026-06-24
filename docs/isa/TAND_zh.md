@@ -46,7 +46,7 @@ PTO_INST RecordEvent TAND(TileData &dst, TileData &src0, TileData &src1, WaitEve
 ## 约束
 
 - **实现检查 (A2A3)**:
-    - 支持的元素类型为 1 字节或 2 字节整数类型。
+    - 支持的元素类型为 1 字节、2 字节或 4 字节整数类型。
     - `dst`、`src0` 和 `src1` 必须使用相同的元素类型。
     - `dst`、`src0` 和 `src1` 必须是行主序。
     - 运行时：`src0.GetValidRow()/GetValidCol()` 和 `src1.GetValidRow()/GetValidCol()` 必须与 `dst` 一致。

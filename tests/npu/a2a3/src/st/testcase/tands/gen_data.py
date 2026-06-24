@@ -38,7 +38,7 @@ def gen_golden_data(case_name, param):
     golden.tofile("golden.bin")
 
 
-class TAndSParams:
+class TestParams:
     def __init__(self, dtype, dst_tile_row, dst_tile_col, src0_tile_row, src0_tile_col, valid_row, valid_col):
         self.dtype = dtype
         self.dst_tile_row = dst_tile_row
@@ -73,12 +73,18 @@ if __name__ == "__main__":
         os.makedirs(testcases_dir)
 
     case_params_list = [
-        TAndSParams(np.int16, 64, 64, 64, 64, 64, 64),
-        TAndSParams(np.int16, 32, 128, 32, 128, 32, 128),
-        TAndSParams(np.int16, 32, 112, 32, 128, 32, 111),
-        TAndSParams(np.uint16, 64, 64, 64, 64, 64, 64),
-        TAndSParams(np.uint16, 32, 128, 32, 128, 32, 128),
-        TAndSParams(np.uint16, 32, 112, 32, 128, 32, 111),
+        TestParams(np.int16, 64, 64, 64, 64, 64, 64),
+        TestParams(np.int16, 32, 128, 32, 128, 32, 128),
+        TestParams(np.int16, 32, 112, 32, 128, 32, 111),
+        TestParams(np.uint16, 64, 64, 64, 64, 64, 64),
+        TestParams(np.uint16, 32, 128, 32, 128, 32, 128),
+        TestParams(np.uint16, 32, 112, 32, 128, 32, 111),
+        TestParams(np.int32, 64, 64, 64, 64, 64, 64),
+        TestParams(np.int32, 32, 128, 32, 128, 32, 128),
+        TestParams(np.int32, 32, 112, 32, 128, 32, 111),
+        TestParams(np.uint32, 64, 64, 64, 64, 64, 64),
+        TestParams(np.uint32, 32, 128, 32, 128, 32, 128),
+        TestParams(np.uint32, 32, 112, 32, 128, 32, 111),
     ]
 
     for param in case_params_list:

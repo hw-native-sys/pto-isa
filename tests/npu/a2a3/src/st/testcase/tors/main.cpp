@@ -111,3 +111,27 @@ TEST_F(TORSTest, case_uint16_32x112_32x128_32x111)
 {
     test_tors<uint16_t, 32, 112, 32, 128, 32, 111>();
 }
+TEST_F(TORSTest, case_int32_64x64_64x64_64x64)
+{
+    test_tors<int32_t, 64, 64, 64, 64, 64, 64>();
+}
+TEST_F(TORSTest, case_int32_32x128_32x128_32x128)
+{
+    test_tors<int32_t, 32, 128, 32, 128, 32, 128>();
+}
+TEST_F(TORSTest, case_int32_32x112_32x128_32x111)
+{
+    test_tors<int32_t, 32, 112, 32, 128, 32, 111>();
+}
+TEST_F(TORSTest, case_uint32_64x64_64x64_64x64)
+{
+    test_tors<uint32_t, 64, 64, 64, 64, 64, 64>();
+}
+TEST_F(TORSTest, case_uint32_32x128_32x128_32x128)
+{
+    test_tors<uint32_t, 32, 128, 32, 128, 32, 128>();
+}
+TEST_F(TORSTest, case_uint32_32x112_32x128_32x111)
+{
+    test_tors<uint32_t, 32, 112, 32, 128, 32, 111>();
+}

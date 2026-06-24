@@ -17,25 +17,13 @@ np.random.seed(19)
 
 def gen_golden_data_tand(case_name, param):
     dtype = param.dtype
-
     h_valid, w_valid = [param.valid_row, param.valid_col]
-
-    # Generate random input arrays
     input1 = np.random.randint(1, 16383, size=h_valid * w_valid).astype(dtype)
     input2 = np.random.randint(1, 16383, size=h_valid * w_valid).astype(dtype)
-
-    # Perform the andbtraction
     golden = input1 & input2
-
-    # Apply valid region constraints
-    output = np.zeros(h_valid * w_valid).astype(dtype)
-
-    # Save the input and golden data to binary files
     input1.tofile("input1.bin")
     input2.tofile("input2.bin")
     golden.tofile("golden.bin")
-
-    return output, input1, input2, golden
 
 
 class TAndParams:
@@ -65,6 +53,10 @@ if __name__ == "__main__":
         TAndParams("TANDTest.case6", np.uint16, 64, 64, 64, 64), # half
         TAndParams("TANDTest.case7", np.uint8, 64, 64, 63, 63),
         TAndParams("TANDTest.case8", np.int8, 64, 64, 63, 63),
+        TAndParams("TANDTest.case9", np.uint32, 64, 64, 64, 64),
+        TAndParams("TANDTest.case10", np.uint32, 64, 64, 61, 61),
+        TAndParams("TANDTest.case11", np.uint32, 1, 16384, 1, 16384),
+        TAndParams("TANDTest.case12", np.uint32, 1024, 16, 1024, 16),
     ]
 
     for param in case_params_list:

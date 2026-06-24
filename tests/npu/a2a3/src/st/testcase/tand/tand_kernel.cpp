@@ -62,3 +62,7 @@ template void LaunchTAnd<int16_t, 64, 64, 64, 64>(int16_t *out, int16_t *src0, i
 template void LaunchTAnd2<uint16_t, 64, 64, 64, 64>(uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream);
 template void LaunchTAnd<uint8_t, 64, 64, 63, 63>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
 template void LaunchTAnd<int8_t, 64, 64, 63, 63>(int8_t *out, int8_t *src0, int8_t *src1, void *stream);
+template void LaunchTAnd<uint32_t, 64, 64, 64, 64>(uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream);
+template void LaunchTAnd<uint32_t, 64, 64, 61, 61>(uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream);
+template void LaunchTAnd<uint32_t, 1, 16384, 1, 16384>(uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream);
+template void LaunchTAnd<uint32_t, 1024, 16, 1024, 16>(uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream);

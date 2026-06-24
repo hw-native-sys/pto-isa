@@ -34,7 +34,8 @@ template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
 __tf__ PTO_INTERNAL void TOr(typename TileDataDst::TileDType __out__ dst, typename TileDataSrc0::TileDType __in__ src0,
                              typename TileDataSrc1::TileDType __in__ src1, unsigned validRows, unsigned validCols)
 {
-    using TRANS = B82B16Trait<typename TileDataDst::DType>;
+    using TOrig = typename TileDataDst::DType;
+    using TRANS = std::conditional_t<sizeof(TOrig) == sizeof(uint32_t), B322B16Trait<TOrig>, B82B16Trait<TOrig>>;
     using T = typename TRANS::TransType;
     int transValidCol = TRANS::TransSize(validCols);
     constexpr int elementsPerRepeat = REPEAT_BYTE / sizeof(T);
@@ -46,7 +47,7 @@ __tf__ PTO_INTERNAL void TOr(typename TileDataDst::TileDType __out__ dst, typena
     __ubuf__ T *src0Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src0);
     __ubuf__ T *src1Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src1);
 
-    if constexpr (dstRowStride == src0RowStride && dstRowStride == src1RowStride) {
+    if constexpr (dstRowStride == src0RowStride && dstRowStride == src1RowStride && sizeof(TOrig) == sizeof(T)) {
         BinaryInstr<OrOp<T>, T, TileDataDst, elementsPerRepeat, blockSizeElem, dstRowStride>(dstPtr, src0Ptr, src1Ptr,
                                                                                              validRows, transValidCol);
     } else {
@@ -62,9 +63,6 @@ PTO_INTERNAL void TOrCheck(const TileDataDst &dst, const TileDataSrc0 &src0, con
     static_assert(
         std::is_same<T, typename TileDataSrc0::DType>::value && std::is_same<T, typename TileDataSrc1::DType>::value,
         "Fix: TOR the data type of dst must be consistent with of src0 and src1.");
-    static_assert(std::is_same<T, uint16_t>::value || std::is_same<T, int16_t>::value ||
-                      std::is_same<T, uint8_t>::value || std::is_same<T, int8_t>::value,
-                  "Fix: TOR has invalid data type.");
     static_assert(TileDataDst::isRowMajor && TileDataSrc0::isRowMajor && TileDataSrc1::isRowMajor,
                   "Fix: TOR only support row major layout.");
     unsigned validRows = dst.GetValidRow();

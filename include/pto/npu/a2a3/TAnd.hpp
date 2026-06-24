@@ -44,7 +44,8 @@ template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
 __tf__ PTO_INTERNAL void TAnd(typename TileDataDst::TileDType __out__ dst, typename TileDataSrc0::TileDType __in__ src0,
                               typename TileDataSrc1::TileDType __in__ src1, unsigned validRows, unsigned validCols)
 {
-    using TRANS = B82B16Trait<typename TileDataDst::DType>;
+    using TOrig = typename TileDataDst::DType;
+    using TRANS = std::conditional_t<sizeof(TOrig) == sizeof(uint32_t), B322B16Trait<TOrig>, B82B16Trait<TOrig>>;
     using T = typename TRANS::TransType;
     int transValidCol = TRANS::TransSize(validCols);
     constexpr int blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
@@ -55,8 +56,7 @@ __tf__ PTO_INTERNAL void TAnd(typename TileDataDst::TileDType __out__ dst, typen
     constexpr unsigned dstRowStride = TRANS::template TransStride<TileDataDst::RowStride>();
     constexpr unsigned src0RowStride = TRANS::template TransStride<TileDataSrc0::RowStride>();
     constexpr unsigned src1RowStride = TRANS::template TransStride<TileDataSrc1::RowStride>();
-
-    if constexpr (dstRowStride == src0RowStride && dstRowStride == src1RowStride) {
+    if constexpr (dstRowStride == src0RowStride && dstRowStride == src1RowStride && sizeof(TOrig) == sizeof(T)) {
         BinaryInstr<AndOp<T>, T, TileDataDst, elementsPerRepeat, blockSizeElem, dstRowStride>(dstPtr, src0Ptr, src1Ptr,
                                                                                               validRows, transValidCol);
     } else {
@@ -72,7 +72,6 @@ PTO_INTERNAL void TAndCheck(const TileDataDst &dst, const TileDataSrc0 &src0, co
     static_assert(
         std::is_same<T, typename TileDataSrc0::DType>::value && std::is_same<T, typename TileDataSrc1::DType>::value,
         "Fix: TAND the data type of dst must be consistent with of src0 and src1.");
-    static_assert((sizeof(T) == 2) || (sizeof(T) == 1), "Fix: TAND has invalid data type.");
     static_assert(TileDataDst::isRowMajor && TileDataSrc0::isRowMajor && TileDataSrc1::isRowMajor,
                   "Fix: TAND only support row major layout.");
     unsigned validRows = dst.GetValidRow();

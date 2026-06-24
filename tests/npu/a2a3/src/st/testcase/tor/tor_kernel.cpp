@@ -55,3 +55,7 @@ template void LaunchTOr<uint16_t, 2048, 16, 2048, 16>(uint16_t *out, uint16_t *s
 template void LaunchTOr<int16_t, 64, 64, 64, 64>(int16_t *out, int16_t *src0, int16_t *src1, void *stream);
 template void LaunchTOr<uint8_t, 64, 64, 63, 63>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
 template void LaunchTOr<int8_t, 64, 64, 63, 63>(int8_t *out, int8_t *src0, int8_t *src1, void *stream);
+template void LaunchTOr<uint32_t, 64, 64, 64, 64>(uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream);
+template void LaunchTOr<uint32_t, 64, 64, 61, 61>(uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream);
+template void LaunchTOr<uint32_t, 1, 16384, 1, 16384>(uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream);
+template void LaunchTOr<uint32_t, 1024, 16, 1024, 16>(uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream);
