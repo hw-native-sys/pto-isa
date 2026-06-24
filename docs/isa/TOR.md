@@ -46,7 +46,7 @@ PTO_INST RecordEvent TOR(TileData &dst, TileData &src0, TileData &src1, WaitEven
 ## Constraints
 
 - **Implementation checks (A2A3)**:
-    - Supported element types are 1-byte or 2-byte integral types.
+    - Supported element types are `uint8_t`, `int8_t`, `uint16_t`, `int16_t`, `uint32_t`, and `int32_t`.
     - `dst`, `src0`, and `src1` must use the same element type.
     - `dst`, `src0`, and `src1` must be row-major.
     - Runtime: `src0.GetValidRow()/GetValidCol()` and `src1.GetValidRow()/GetValidCol()` must match `dst`.

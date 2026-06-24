@@ -46,7 +46,7 @@ PTO_INST RecordEvent TAND(TileData &dst, TileData &src0, TileData &src1, WaitEve
 ## Constraints
 
 - **Implementation checks (A2A3)**:
-    - Supported element types are 1-byte or 2-byte integral types.
+    - Supported element types are 1-byte, 2-byte, or 4-byte integral types.
     - `dst`, `src0`, and `src1` must use the same element type.
     - `dst`, `src0`, and `src1` must be row-major.
     - Runtime: `src0.GetValidRow()/GetValidCol()` and `src1.GetValidRow()/GetValidCol()` must match `dst`.
