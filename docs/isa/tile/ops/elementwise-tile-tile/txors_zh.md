@@ -49,7 +49,7 @@ PTO_INST RecordEvent TXORS(TileDataDst &dst, TileDataSrc &src0, typename TileDat
 
 !!! warning "约束"
     - **实现检查 (A2A3)**:
-        - 支持的元素类型为 `uint8_t`、`int8_t`、`uint16_t` 和 `int16_t`。
+        - 支持的元素类型为 `uint8_t`、`int8_t`、`uint16_t`、`int16_t`、`uint32_t` 和 `int32_t`。
         - `dst`、`src` 和 `tmp` 必须使用相同的元素类型。
         - 在手动模式下，源、目标和临时存储的内存区域不得重叠。
     - **实现检查 (A5)**:

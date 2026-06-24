@@ -25,9 +25,6 @@ PTO_INTERNAL void TXorCheck(const TileDataDst &dst, const TileDataSrc0 &src0, co
                       std::is_same<T, typename TileDataSrc1::DType>::value &&
                       std::is_same<T, typename TileDataTmp::DType>::value,
                   "Fix: TXOR the data type of dst must be consistent with of src0 and src1.");
-    static_assert(std::is_same<T, uint16_t>::value || std::is_same<T, int16_t>::value ||
-                      std::is_same<T, uint8_t>::value || std::is_same<T, int8_t>::value,
-                  "Fix: TXOR has invalid data type.");
     static_assert(
         TileDataDst::isRowMajor && TileDataSrc0::isRowMajor && TileDataSrc1::isRowMajor && TileDataTmp::isRowMajor,
         "Fix: TXOR only support row major layout.");

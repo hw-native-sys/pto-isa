@@ -88,3 +88,7 @@ template void LaunchTXor<int8_t, 32, 128, 32, 128, 32, 256, 32, 127>(int8_t *out
                                                                      void *stream);
 template void LaunchTXor<uint8_t, 32, 128, 32, 128, 32, 256, 32, 127>(uint8_t *out, uint8_t *src0, uint8_t *src1,
                                                                       void *stream);
+template void LaunchTXor<int32_t, 32, 128, 32, 128, 32, 256, 32, 127>(int32_t *out, int32_t *src0, int32_t *src1,
+                                                                      void *stream);
+template void LaunchTXor<uint32_t, 32, 128, 32, 128, 32, 256, 32, 127>(uint32_t *out, uint32_t *src0, uint32_t *src1,
+                                                                       void *stream);

@@ -82,6 +82,8 @@ if __name__ == "__main__":
         TXorParams(np.uint16, 32, 128, 32, 128, 32, 256, 32, 127),
         TXorParams(np.int8, 32, 128, 32, 128, 32, 256, 32, 127),
         TXorParams(np.uint8, 32, 128, 32, 128, 32, 256, 32, 127),
+        TXorParams(np.int32, 32, 128, 32, 128, 32, 256, 32, 127),
+        TXorParams(np.uint32, 32, 128, 32, 128, 32, 256, 32, 127),
     ]
 
     for param in case_list:

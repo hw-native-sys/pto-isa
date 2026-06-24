@@ -23,7 +23,8 @@ def gen_golden_data(case_name, param):
     h_valid, w_valid = [param.valid_row, param.valid_col]
 
     # Generate random input arrays
-    input1 = np.random.randint(-30_000, 30_000, size=[height, width]).astype(dtype)
+    dtype_info = np.iinfo(dtype)
+    input1 = np.random.randint(dtype_info.min, dtype_info.max, size=[height, width]).astype(dtype)
 
     golden = ~input1
     # Save the golden data to binary files
@@ -55,7 +56,9 @@ def generate_case_name(param):
         np.int16: 'int16',
         np.uint16: 'uint16',
         np.int8: 'int8',
-        np.uint8: 'uint8'
+        np.uint8: 'uint8',
+        np.int32: 'int32',
+        np.uint32: 'uint32'
     }[param.dtype]
     return (
         f"TNOTTest.case_{dtype_str}_"
@@ -77,7 +80,9 @@ if __name__ == "__main__":
         TestParams(np.int16, 64, 64, 64, 64, 64, 64),
         TestParams(np.uint16, 60, 60, 64, 64, 60, 60),
         TestParams(np.int8, 64, 64, 64, 64, 64, 64),
-        TestParams(np.uint8, 60, 60, 64, 64, 60, 60)
+        TestParams(np.uint8, 60, 60, 64, 64, 60, 60),
+        TestParams(np.int32, 64, 64, 64, 64, 64, 64),
+        TestParams(np.uint32, 60, 60, 64, 64, 60, 60)
     ]
 
     for i, param in enumerate(case_params_list):

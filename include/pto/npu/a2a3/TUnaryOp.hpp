@@ -180,11 +180,13 @@ PTO_INTERNAL void Unary2LProcess(__ubuf__ T *dst, __ubuf__ T *src, unsigned vali
     }
 }
 
-template <typename Op, typename DstTile, typename SrcTile>
+template <typename Op, typename DstTile, typename SrcTile, bool b322b16>
 __tf__ PTO_INTERNAL void TUnaryOp(typename DstTile::TileDType __out__ dstData,
                                   typename SrcTile::TileDType __in__ srcData, unsigned validRow, unsigned validCol)
 {
-    using TRANS = B82B16Trait<typename DstTile::DType>;
+    using TOrig = typename DstTile::DType;
+    using TRANS = std::conditional_t<(std::is_same_v<TOrig, int32_t> || std::is_same_v<TOrig, uint32_t>) && b322b16,
+                                     B322B16Trait<TOrig>, B82B16Trait<TOrig>>;
     using T = typename TRANS::TransType;
     __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
     __ubuf__ T *src = (__ubuf__ T *)__cce_get_tile_ptr(srcData);
@@ -250,7 +252,7 @@ PTO_INTERNAL void TunaryCheck()
                   "TUNARY: Invalid data type");
 }
 
-template <typename Op, typename DstTile, typename SrcTile, bool floatOnly = true>
+template <typename Op, typename DstTile, typename SrcTile, bool floatOnly = true, bool b322b16 = false>
 PTO_INTERNAL void TUNARY_IMPL(DstTile &dst, SrcTile &src)
 {
     TunaryCheck<DstTile, SrcTile, floatOnly>();
@@ -258,7 +260,7 @@ PTO_INTERNAL void TUNARY_IMPL(DstTile &dst, SrcTile &src)
     unsigned dstValidCol = dst.GetValidCol();
     PTO_ASSERT(dstValidRow == src.GetValidRow(), "TUNARY: Number of rows of src and dst must be the same.");
     PTO_ASSERT(dstValidCol == src.GetValidCol(), "TUNARY: Number of columns of src and dst must be the same.");
-    TUnaryOp<Op, DstTile, SrcTile>(dst.data(), src.data(), dstValidRow, dstValidCol);
+    TUnaryOp<Op, DstTile, SrcTile, b322b16>(dst.data(), src.data(), dstValidRow, dstValidCol);
 }
 
 /* RSQRT */
@@ -369,8 +371,9 @@ struct NotOp {
 template <typename DstTile, typename SrcTile>
 PTO_INTERNAL void TNOT_IMPL(DstTile &dst, SrcTile &src)
 {
-    using TransType = typename B82B16Trait<typename DstTile::DType>::TransType;
-    TUNARY_IMPL<NotOp<TransType>, DstTile, SrcTile, false>(dst, src);
+    using TOrig = typename DstTile::DType;
+    using TRANS = std::conditional_t<sizeof(TOrig) == sizeof(uint32_t), B322B16Trait<TOrig>, B82B16Trait<TOrig>>;
+    TUNARY_IMPL<NotOp<typename TRANS::TransType>, DstTile, SrcTile, false, true>(dst, src);
 }
 
 /* RELU */
