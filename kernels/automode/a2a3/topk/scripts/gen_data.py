@@ -34,13 +34,13 @@ def gen_golden_data(param):
     valid_col = g_shape4
     rows = g_whole_shape0 * g_whole_shape1 * g_whole_shape2 * g_whole_shape3
     cols = g_whole_shape4
-
+    
     new_data = np.zeros((rows, cols)).astype(src_type)
     for i in range(valid_row):
         data = np.random.uniform(i, i + valid_col, size=valid_col).astype(src_type)
         new_data[i, :valid_col] = data
 
-    x1_gm = np.zeros((rows, cols * 2))
+    x1_gm = np.zeros((rows, cols * 2)) 
     for i in range(valid_row):
         counter = 0
         for j in range(valid_col):

@@ -137,7 +137,7 @@ Sim vs NPU comparison (Seq = 2K):
     $$O = P\,V \in \mathbb{R}^{S0\times H}$$
 
     For Flash Attention the computation of QK and P is split into tile of (S0,S1) and keep updating a running partial sum O as follows:
-
+        
 
     **Step 1: Local Row Max**
     For each row \(i\), compute the maximum value within the current tile:
@@ -145,7 +145,7 @@ Sim vs NPU comparison (Seq = 2K):
     $$
     m_i = \max_j X_{ij}
     $$
-
+    
     **Description:** `local_max` — the maximum of the current tile row.
 
     **Step 2: Updated Global Max**
@@ -160,7 +160,7 @@ Sim vs NPU comparison (Seq = 2K):
     Rescale the previous sums to account for the new global max:
 
     $$
-    \text{exp\_max}_i = \exp\!\Big(s \cdot (M_{\text{prev},i} - M_i)\Big)
+    	ext{exp\_max}_i = \exp\!\Big(s \cdot (M_{\text{prev},i} - M_i)\Big)
     $$
     **Description:** `l1_exp_max` — exponential factor that rescales old sums when the max increases.
 
@@ -200,8 +200,8 @@ Sim vs NPU comparison (Seq = 2K):
 
     **Notes**
     - scale $s = \frac{1}{\sqrt{\mathbb{HEAD\_SIZE}}}$
-    - The recurrence ensures numerical stability by rescaling prior sums whenever the global max increases.
-    - The kernel stores $e_{ij}$ (`x_exp`) for the PV matmul, while $\text{exp\_max}_i$ and ${S_i}$ are kept for GU accumulation.
+    - The recurrence ensures numerical stability by rescaling prior sums whenever the global max increases.  
+    - The kernel stores $e_{ij}$ (`x_exp`) for the PV matmul, while $\text{exp\_max}_i$ and ${S_i}$ are kept for GU accumulation. 
 
     <!-- Embedded SVG diagram -->
     <div>
@@ -211,8 +211,8 @@ Sim vs NPU comparison (Seq = 2K):
   - **Tensor shape progression:**
 
     - Inputs:
-      - Q: `S0 × HEAD_SIZE` (fp16)
-      - K: `S1 x HEAD_SIZE` (fp16)
+      - Q: `S0 × HEAD_SIZE` (fp16) 
+      - K: `S1 x HEAD_SIZE` (fp16) 
       - V: `S1 × HEAD_SIZE` (fp16)
 
     - Per-tile intermediate (tile t):
@@ -230,8 +230,8 @@ Sim vs NPU comparison (Seq = 2K):
     - Implementation notes:
       - Q tile load is optimized for leftTile stationary: when `tile_idx==0` Q is loaded once per cube invocation; subsequent tiles only load K tiles, reduce reloading from global memory.
       - Writes partial qk results either into a per-tile into a compact ping-pong global buffer.
-      - make use of general matmul_macro_pto function to carry out computation from matTile to accTile, which determine the CubeK tiling for defining left and right tile, and keep a running state for left and right tile doing ping/pong.
-    - Optimizations:
+      - make use of general matmul_macro_pto function to carry out computation from matTile to accTile, which determine the CubeK tiling for defining left and right tile, and keep a running state for left and right tile doing ping/pong. 
+    - Optimizations: 
      - Use assign_running_acc_tile to allow output accTile doing double buffer between different compute_qk and compute_pv calls
      - `qkPreloadNum` (default 4) also sets `qkp_tile_fifo_size = 1 + qkPreloadNum` to double-buffer qk tiles between the cube producer and vector softmax consumer.
 
@@ -278,7 +278,7 @@ Sim vs NPU comparison (Seq = 2K):
       - Keep `runningOTile` accumulator assigned.
       - Use TROWEXPANDMUL and TROWEXPANDDIV inplace computation (dst==src) to mininize buffer allocation
 
-  ### 3. Pipeline orchestration & cube/vector parallelism
+  ### 3. Pipeline orchestration & cube/vector parallelism 
 
   - **FA pipeline stages inter-CV FIFOs and intra-stage ping/pong**
 
@@ -316,24 +316,24 @@ Sim vs NPU comparison (Seq = 2K):
     </div>
 
     With pre-execution of qk, p (and later pv) would resolve the data depenency and keep the vector compute resoruce fully busy, below showing the intra-core (tload,tcompute,tstore) and inter-CV-stage pipeline
-
+    
     QK pre-execution = 2 (Theory)
-
+    
     <div>
     <img src="fa_pipeline_preload2_generated.svg" alt="Pre-execution of QK twice" />
-    </div>
+    </div>    
 
     QK pre-execution = 4 (Theory)
     <div>
     <img src="fa_pipeline_preload4_generated.svg" alt="Pre-execution of QK=4" />
-    </div>
+    </div>    
 
     Actual kernel exection using simulation result for H128 Seqlen=1024, behaviour is similar to the theory one as we excepted.
 
     Kernel Execution - QK pre-execution = 4 (Sim)
     <div>
     <img src="fa_sim_run_pipeline_h128_s0_128_s1_1024.svg" alt="Pre-execution of QK=4" />
-    </div>
+    </div>    
 
     From the pipeline diagram, we could see the actual bound right now is on TSTORE on the cube side, and the cube utilization is bound ~30%, Next vesion we would see how we could further optiminize this case.
 

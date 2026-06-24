@@ -255,12 +255,31 @@ if (AUTO_MODE)
     tpushpop_dir_both
     tpushpop_subtile
   # the following case wait to be fix 
+    mgather
+    tfillpad
+    tgather
+    timg2col
+    tload_gm2mat
+    tmov_vect
+    tpartadd
+    tpartmul
+    tpow
+    trowprod
+    tscatter
+    ttrans_3d
+    ttri
     tcvt
+    tcmp
+    tcmps
+    tcolscatter
+    textract
     ttrans
     ttrans_conv
     tci
     tquant
     texpands_mat
+    mscatter
+    mgather_gm2l1
   )
 
   foreach(whitelisted_case ${AUTO_MODE_WHITELIST})
