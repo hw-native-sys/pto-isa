@@ -48,13 +48,13 @@ PTO_INST RecordEvent TNOT(TileDataDst &dst, TileDataSrc &src, WaitEvents &... ev
 ## Constraints
 
 - **Implementation checks (A2A3)**:
-    - `TileData::DType` must be one of: `int16_t`, `uint16_t`.
+    - `TileData::DType` must be one of: `int16_t`, `uint16_t`, `uint32_t`, `int32_t`.
     - Tile layout must be row-major (`TileData::isRowMajor`).
     - Tile location must be vector (`TileData::Loc == TileType::Vec`).
     - Static valid bounds: `TileData::ValidRow <= TileData::Rows` and `TileData::ValidCol <= TileData::Cols`.
     - Runtime: `src` and `dst` tiles should have the same `validRow/validCol`.
 - **Implementation checks (A5)**:
-    - `TileData::DType` must be one of: `uint32_t`, `int32_t`, `uint16_t`, `int16_t`, `uint8_t`,  `int8_t`.
+    - `TileData::DType` must be one of: `uint32_t`, `int32_t`, `uint16_t`, `int16_t`, `uint8_t`, `int8_t`.
     - Tile layout must be row-major (`TileData::isRowMajor`).
     - Tile location must be vector (`TileData::Loc == TileType::Vec`).
     - Static valid bounds: `TileData::ValidRow <= TileData::Rows` and `TileData::ValidCol <= TileData::Cols`.

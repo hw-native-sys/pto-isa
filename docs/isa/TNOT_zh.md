@@ -46,7 +46,7 @@ PTO_INST RecordEvent TNOT(TileDataDst &dst, TileDataSrc &src, WaitEvents &... ev
 ## 约束
 
 - **实现检查 (A2A3)**:
-    - `TileData::DType` 必须是以下之一： `int16_t`, `uint16_t`.
+    - `TileData::DType` 必须是以下之一： `int16_t`, `uint16_t`, `uint32_t`, `int32_t`.
     - Tile 布局必须是行主序（`TileData::isRowMajor`）。
     - Tile 位置必须是向量（`TileData::Loc == TileType::Vec`）。
     - 静态有效边界： `TileData::ValidRow <= TileData::Rows`且`TileData::ValidCol <= TileData::Cols`.

@@ -18,8 +18,9 @@ np.random.seed(19)
 def gen_golden_data_tor(case_name, param):
     dtype = param.dtype
     h_valid, w_valid = [param.valid_row, param.valid_col]
-    input1 = np.random.randint(1, 16383, size=h_valid * w_valid).astype(dtype)
-    input2 = np.random.randint(1, 16383, size=h_valid * w_valid).astype(dtype)
+    dtype_info = np.iinfo(dtype)
+    input1 = np.random.randint(dtype_info.min, dtype_info.max, size=h_valid * w_valid).astype(dtype)
+    input2 = np.random.randint(dtype_info.min, dtype_info.max, size=h_valid * w_valid).astype(dtype)
     golden = input1 | input2
     input1.tofile("input1.bin")
     input2.tofile("input2.bin")
