@@ -20,20 +20,76 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 template <typename DstTileData, typename SrcTileData>
+inline void CheckValidConvShape(DstTileData &dst, SrcTileData &src)
+{
+    constexpr Layout src_layout = SrcTileData::layout;
+    constexpr Layout dst_layout = DstTileData::layout;
+    constexpr int64_t C0 = 32 / sizeof(typename DstTileData::DType);
+
+    if constexpr (src_layout == Layout::NCHW && dst_layout == Layout::NC1HWC0) {
+        // NCHW (N, C, H, W) -> NC1HWC0 (N, C1, H, W, C0)
+        // C1 = ceil(C / C0)
+        PTO_ASSERT(dst.GetShape(0) == src.GetShape(0) &&                     // N
+                       dst.GetShape(1) == (src.GetShape(1) + C0 - 1) / C0 && // C1
+                       dst.GetShape(2) == src.GetShape(2) &&                 // H
+                       dst.GetShape(3) == src.GetShape(3) &&                 // W
+                       dst.GetShape(4) == C0,                                // C0
+                   "Shape mismatch: NCHW to NC1HWC0");
+    } else if constexpr (src_layout == Layout::NC1HWC0 && dst_layout == Layout::NCHW) {
+        // NCHW (N, C, H, W) -> NC1HWC0 (N, C1, H, W, C0)
+        // C1 = ceil(C / C0)
+        PTO_ASSERT(dst.GetShape(0) == src.GetShape(0) &&          // N
+                       dst.GetShape(1) == src.GetShape(1) * C0 && // C1
+                       dst.GetShape(2) == src.GetShape(2) &&      // H
+                       dst.GetShape(3) == src.GetShape(3) &&      // W
+                       src.GetShape(4) == C0,
+                   "Shape mismatch: NC1HWC0 to NCHW"); // C0
+    } else if constexpr (src_layout == Layout::NC1HWC0 && dst_layout == Layout::FRACTAL_Z) {
+        // NC1HWC0 (N, C1, H, W, C0) -> C1HWN1N0C0 (C1, H, W, N1, N0, C0)
+        // N = N1 * N0
+        PTO_ASSERT(dst.GetShape(0) == src.GetShape(1) * src.GetShape(2) * src.GetShape(3) && // C1*H*W
+                       dst.GetShape(1) * dst.GetShape(2) >= src.GetShape(0) &&               // N1*N0 = N
+                       dst.GetShape(3) == src.GetShape(4),                                   // C0
+                   "Shape mismatch: NC1HWC0 to FRACTAL_Z");
+    } else if constexpr (src_layout == Layout::GNCHW && dst_layout == Layout::GNC1HWC0) {
+        // GNCHW (G, N, C, H, W) -> GNC1HWC0 (G, N, C1, H, W, C0)
+        PTO_ASSERT(dst.GetShape(0) == src.GetShape(0) &&                     // G
+                       dst.GetShape(1) == src.GetShape(1) &&                 // N
+                       dst.GetShape(3) == src.GetShape(3) &&                 // H
+                       dst.GetShape(4) == src.GetShape(4) &&                 // W
+                       dst.GetShape(2) == (src.GetShape(2) + C0 - 1) / C0 && // C1
+                       dst.GetShape(5) == C0,
+                   "Shape mismatch: GNCHW to GNC1HWC0"); // C0
+    } else if constexpr (src_layout == Layout::GNC1HWC0 && dst_layout == Layout::FRACTAL_Z) {
+        // GNC1HWC0 (G, N, C1, H, W, C0) -> C1HWGN1N0C0 (C1, H, W, G, N1, N0, C0)
+        // Note: Assuming Dst shape maps dimensions G*C1 as outer
+        PTO_ASSERT(
+            dst.GetShape(0) == src.GetShape(0) * src.GetShape(2) * src.GetShape(3) * src.GetShape(4) && // C1, H, W, G
+                dst.GetShape(1) * dst.GetShape(2) >= src.GetShape(1) &&                                 // N1*N0
+                dst.GetShape(3) == src.GetShape(5),                                                     // C0
+            "Shape mismatch: GNC1HWC0 to FRACTAL_Z");
+    }
+}
+
+template <typename DstTileData, typename SrcTileData, bool reverse = false>
 inline void TTRANS_GNCHW2NC1HWC0_Impl(DstTileData &dst, SrcTileData &src, int64_t G, int64_t N, int64_t C, int64_t H,
                                       int64_t W)
 {
     using SrcDType = typename SrcTileData::DType;
     using DstDType = typename DstTileData::DType;
 
-    const auto *src_ptr = reinterpret_cast<const SrcDType *>(src.data());
+    auto *src_ptr = reinterpret_cast<SrcDType *>(src.data());
     auto *dst_ptr = reinterpret_cast<DstDType *>(dst.data());
 
     constexpr int64_t C0 = 32 / sizeof(SrcDType);
     int64_t C1 = (C + C0 - 1) / C0;
     size_t Size = G * N * C1 * H * W * C0;
 
-    std::fill(dst.data(), dst.data() + Size, 0);
+    if constexpr (reverse) {
+        std::fill(src.data(), src.data() + Size, 0);
+    } else {
+        std::fill(dst.data(), dst.data() + Size, 0);
+    }
 
     const size_t HW = H * W;
     const size_t CHW = C * HW;
@@ -62,7 +118,11 @@ inline void TTRANS_GNCHW2NC1HWC0_Impl(DstTileData &dst, SrcTileData &src, int64_
                     size_t base_dst = gOffset_dst + nOffset_dst + cOffset_dst + hOffset_dst;
 
                     for (int64_t w = 0; w < W; ++w) {
-                        dst_ptr[base_dst + w * C0] = src_ptr[base_src + w];
+                        if constexpr (reverse) {
+                            src_ptr[base_src + w] = dst_ptr[base_dst + w * C0];
+                        } else {
+                            dst_ptr[base_dst + w * C0] = src_ptr[base_src + w];
+                        }
                     }
                 }
             }
@@ -80,6 +140,18 @@ inline void TTRANS_NCHW2NC1HWC0(DstTileData &dst, SrcTileData &src)
     int64_t W = src.GetShape(3);
 
     TTRANS_GNCHW2NC1HWC0_Impl(dst, src, G, N, C, H, W);
+}
+
+template <typename DstTileData, typename SrcTileData>
+inline void TTRANS_NC1HWC02NCHW(DstTileData &dst, SrcTileData &src)
+{
+    int64_t G = 1; // 4D layout has 1 implicit group
+    int64_t N = dst.GetShape(0);
+    int64_t C = dst.GetShape(1);
+    int64_t H = dst.GetShape(2);
+    int64_t W = dst.GetShape(3);
+
+    TTRANS_GNCHW2NC1HWC0_Impl<SrcTileData, DstTileData, true>(src, dst, G, N, C, H, W);
 }
 
 template <typename DstTileData, typename SrcTileData>
@@ -202,6 +274,26 @@ void TTrans_Impl(typename DstTileData::TileDType dst, typename SrcTileData::Tile
     }
 }
 
+template <typename DstTileData, typename SrcTileData>
+PTO_INTERNAL void TTRANS_CONV_IMPL(DstTileData &dst, SrcTileData &src)
+{
+    CheckValidConvShape<DstTileData, SrcTileData>(dst, src);
+    constexpr Layout src_layout = SrcTileData::layout;
+    constexpr Layout dst_layout = DstTileData::layout;
+
+    if constexpr (src_layout == Layout::NCHW && dst_layout == Layout::NC1HWC0) {
+        TTRANS_NCHW2NC1HWC0(dst, src);
+    } else if constexpr (src_layout == Layout::NC1HWC0 && dst_layout == Layout::NCHW) {
+        TTRANS_NC1HWC02NCHW(dst, src);
+    } else if constexpr (src_layout == Layout::NC1HWC0 && dst_layout == Layout::FRACTAL_Z) {
+        TTRANS_NC1HWC02C1HWN1N0C0(dst, src);
+    } else if constexpr (src_layout == Layout::GNCHW && dst_layout == Layout::GNC1HWC0) {
+        TTRANS_GNCHW2NC1HWC0(dst, src);
+    } else if constexpr (src_layout == Layout::GNC1HWC0 && dst_layout == Layout::FRACTAL_Z) {
+        TTRANS_GNC1HWC02C1HWN1N0C0(dst, src);
+    }
+}
+
 template <typename DstTileData, typename SrcTileData, typename TmpTileData>
 PTO_INTERNAL void TTRANS_IMPL(DstTileData &dst, SrcTileData &src, TmpTileData &tmp)
 {
@@ -210,18 +302,7 @@ PTO_INTERNAL void TTRANS_IMPL(DstTileData &dst, SrcTileData &src, TmpTileData &t
                   "Data type sizes between source and destination tiles must match.");
 
     if constexpr (is_conv_tile_v<SrcTileData> && is_conv_tile_v<DstTileData>) {
-        constexpr Layout src_layout = SrcTileData::layout;
-        constexpr Layout dst_layout = DstTileData::layout;
-
-        if constexpr (src_layout == Layout::NCHW && dst_layout == Layout::NC1HWC0) {
-            TTRANS_NCHW2NC1HWC0(dst, src);
-        } else if constexpr (src_layout == Layout::NC1HWC0 && dst_layout == Layout::FRACTAL_Z) {
-            TTRANS_NC1HWC02C1HWN1N0C0(dst, src);
-        } else if constexpr (src_layout == Layout::GNCHW && dst_layout == Layout::GNC1HWC0) {
-            TTRANS_GNCHW2NC1HWC0(dst, src);
-        } else if constexpr (src_layout == Layout::GNC1HWC0 && dst_layout == Layout::FRACTAL_Z) {
-            TTRANS_GNC1HWC02C1HWN1N0C0(dst, src);
-        }
+        TTRANS_CONV_IMPL(dst, src);
     } else if constexpr (is_tile_data_v<SrcTileData> && is_tile_data_v<DstTileData>) {
         static_assert(SrcTileData::ValidRow == DstTileData::ValidCol && SrcTileData::ValidCol == DstTileData::ValidRow,
                       "Hardware matrix tiles transpose dimension sizes must mirror match.");

@@ -14,9 +14,10 @@ import numpy as np
 
 class DataFormat(Enum):
     NCHW2NC1HWC0 = 1
-    NC1HWC02C1HWN1N0C0 = 2
-    GNCHW2GNC1HWC0 = 3
-    GNC1HWC02C1HWN1N0C0 = 4
+    NC1HWC02NCHW = 2
+    NC1HWC02C1HWN1N0C0 = 3
+    GNCHW2GNC1HWC0 = 4
+    GNC1HWC02C1HWN1N0C0 = 5
 
 
 def golden_NCHW2NC1HWC0(g_info):
@@ -51,6 +52,34 @@ def golden_NCHW2NC1HWC0(g_info):
     output_arr.tofile("./golden.bin")
     print(f"Golden - {output_arr.shape}")
 
+    return input_arr, output_arr
+
+
+def golden_NC1HWC02NCHW(g_info):
+    assert g_info.src_shape_0 == g_info.dst_shape_0
+    assert g_info.src_shape_2 == g_info.dst_shape_2
+    assert g_info.src_shape_3 == g_info.dst_shape_3
+
+    n = g_info.src_shape_0
+    c1 = g_info.src_shape_1
+    h = g_info.src_shape_2
+    w = g_info.src_shape_3
+    c0 = g_info.src_shape_4
+
+    dtype_size = np.dtype(g_info.data_type).itemsize
+    assert c0 == 32 // dtype_size
+
+    c = g_info.dst_shape_1
+    assert c == c1 * c0
+    
+    input_arr = np.random.randint(1, 5, size=(n, c1, h, w, c0)).astype(g_info.data_type)
+    input_arr.tofile("./input.bin")
+     
+    output_arr = input_arr.transpose(0, 1, 4, 2, 3).reshape(n, c, h, w)
+    
+    output_arr.tofile("./golden.bin")
+    print(f"Golden - {output_arr.shape}")
+    
     return input_arr, output_arr
 
 
@@ -169,19 +198,24 @@ def gen_golden_data(g_info):
         golden_NCHW2NC1HWC0(g_info)
 
     # -------------------------------------------------------------
-    # MODE 2: NC1HWC0 -> C1HWN1N0C0
+    # MODE 2: NC1HWC0 -> NCHW
+    # -------------------------------------------------------------
+    elif mode == DataFormat.NC1HWC02NCHW.value:
+        golden_NC1HWC02NCHW(g_info)
+    # -------------------------------------------------------------
+    # MODE 3: NC1HWC0 -> C1HWN1N0C0
     # -------------------------------------------------------------
     elif mode == DataFormat.NC1HWC02C1HWN1N0C0.value:
         golden_NC1HWC02C1HWN1N0C0(g_info)
 
     # -------------------------------------------------------------
-    # MODE 3: GNCHW -> GNC1HWC0
+    # MODE 4: GNCHW -> GNC1HWC0
     # -------------------------------------------------------------
     elif mode == DataFormat.GNCHW2GNC1HWC0.value:
         golden_GNCHW2NC1HWC0(g_info)
 
     # -------------------------------------------------------------
-    # MODE 4: GNC1HWC0 -> GC1HWN1N0C0
+    # MODE 5: GNC1HWC0 -> GC1HWN1N0C0
     # -------------------------------------------------------------
     elif mode == DataFormat.GNC1HWC02C1HWN1N0C0.value:
         golden_GNC1HWC02C1HWN1N0C0(g_info)
@@ -232,6 +266,9 @@ test_cases_registry = [
     TTRANSParams("NCHW2NC1HWC0_3", np.uint16, DataFormat.NCHW2NC1HWC0.value, 1, 11, 13, 16, 1, 1, 1, 13, 16, 16),
     TTRANSParams("NCHW2NC1HWC0_4", np.int32, DataFormat.NCHW2NC1HWC0.value, 4, 32, 3, 7, 1, 4, 4, 3, 7, 8),
     TTRANSParams("NCHW2NC1HWC0_5", np.int8, DataFormat.NCHW2NC1HWC0.value, 4, 32, 3, 7, 1, 4, 1, 3, 7, 32),
+
+    TTRANSParams("NC1HWC02NCHW_1", np.float32, DataFormat.NC1HWC02NCHW.value, 5, 3, 3, 4, 8, 5, 24, 3, 4, 1),
+    TTRANSParams("NC1HWC02NCHW_2", np.int32, DataFormat.NC1HWC02NCHW.value, 5, 2, 4, 5, 8, 5, 16, 4, 5, 1),
 
     TTRANSParams("NC1HWC02C1HWN1N0C0_1", np.float32, DataFormat.NC1HWC02C1HWN1N0C0.value, 25, 4, 3, 8, 8, 4, 3, 8, 2, 16, 8),
     TTRANSParams("NC1HWC02C1HWN1N0C0_2", np.int32, DataFormat.NC1HWC02C1HWN1N0C0.value, 15, 2, 3, 16, 8, 2, 3, 16, 2, 8, 8),

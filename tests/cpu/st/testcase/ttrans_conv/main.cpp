@@ -114,81 +114,93 @@ TEST_F(TTRANSConvTest, NCHW2NC1HWC0_5)
 
 /*------------------------------------------------*/
 
+TEST_F(TTRANSConvTest, NC1HWC02NCHW_1)
+{
+    test_ttrans<float, 1, 5, 3, 3, 4, 8, 5, 24, 3, 4, 1>();
+}
+
+TEST_F(TTRANSConvTest, NC1HWC02NCHW_2)
+{
+    test_ttrans<int32_t, 1, 5, 2, 4, 5, 8, 5, 16, 4, 5, 1>();
+}
+
+/*------------------------------------------------*/
+
 TEST_F(TTRANSConvTest, NC1HWC02C1HWN1N0C0_1)
 {
-    test_ttrans<float, 1, 25, 4, 3, 8, 8, 4, 3, 8, 2, 16, 8>();
+    test_ttrans<float, 2, 25, 4, 3, 8, 8, 4, 3, 8, 2, 16, 8>();
 }
 
 TEST_F(TTRANSConvTest, NC1HWC02C1HWN1N0C0_2)
 {
-    test_ttrans<int32_t, 1, 15, 2, 3, 16, 8, 2, 3, 16, 2, 8, 8>();
+    test_ttrans<int32_t, 2, 15, 2, 3, 16, 8, 2, 3, 16, 2, 8, 8>();
 }
 
 TEST_F(TTRANSConvTest, NC1HWC02C1HWN1N0C0_3)
 {
-    test_ttrans<uint16_t, 1, 11, 3, 2, 16, 16, 3, 2, 16, 2, 8, 16>();
+    test_ttrans<uint16_t, 2, 11, 3, 2, 16, 16, 3, 2, 16, 2, 8, 16>();
 }
 
 TEST_F(TTRANSConvTest, NC1HWC02C1HWN1N0C0_4)
 {
-    test_ttrans<int32_t, 1, 4, 32, 3, 7, 8, 32, 3, 7, 1, 4, 8>();
+    test_ttrans<int32_t, 2, 4, 32, 3, 7, 8, 32, 3, 7, 1, 4, 8>();
 }
 
 TEST_F(TTRANSConvTest, NC1HWC02C1HWN1N0C0_5)
 {
-    test_ttrans<int8_t, 1, 4, 2, 3, 7, 32, 2, 3, 7, 1, 8, 32>();
+    test_ttrans<int8_t, 2, 4, 2, 3, 7, 32, 2, 3, 7, 1, 8, 32>();
 }
 
 /*------------------------------------------------*/
 
 TEST_F(TTRANSConvTest, GNCHW2GNC1HWC0_1)
 {
-    test_ttrans<float, 2, 5, 4, 3, 8, 1, 5, 1, 3, 8, 8, 1, 4>();
+    test_ttrans<float, 3, 5, 4, 3, 8, 1, 5, 1, 3, 8, 8, 1, 4>();
 }
 
 TEST_F(TTRANSConvTest, GNCHW2GNC1HWC0_2)
 {
-    test_ttrans<int32_t, 2, 5, 14, 13, 8, 1, 5, 2, 13, 8, 8, 1, 2>();
+    test_ttrans<int32_t, 3, 5, 14, 13, 8, 1, 5, 2, 13, 8, 8, 1, 2>();
 }
 
 TEST_F(TTRANSConvTest, GNCHW2GNC1HWC0_3)
 {
-    test_ttrans<uint16_t, 2, 1, 11, 13, 16, 1, 1, 1, 13, 16, 16, 1, 3>();
+    test_ttrans<uint16_t, 3, 1, 11, 13, 16, 1, 1, 1, 13, 16, 16, 1, 3>();
 }
 
 TEST_F(TTRANSConvTest, GNCHW2GNC1HWC0_4)
 {
-    test_ttrans<int32_t, 2, 4, 32, 3, 7, 1, 4, 4, 3, 7, 8, 1, 1>();
+    test_ttrans<int32_t, 3, 4, 32, 3, 7, 1, 4, 4, 3, 7, 8, 1, 1>();
 }
 
 TEST_F(TTRANSConvTest, GNCHW2GNC1HWC0_5)
 {
-    test_ttrans<int8_t, 2, 4, 32, 3, 7, 1, 4, 1, 3, 7, 32, 1, 3>();
+    test_ttrans<int8_t, 3, 4, 32, 3, 7, 1, 4, 1, 3, 7, 32, 1, 3>();
 }
 
 /*------------------------------------------*/
 
 TEST_F(TTRANSConvTest, GNC1HWC02C1HWN1N0C0_1)
 {
-    test_ttrans<float, 3, 25, 4, 3, 4, 8, 4, 3, 4, 2, 16, 8, 2>();
+    test_ttrans<float, 4, 25, 4, 3, 4, 8, 4, 3, 4, 2, 16, 8, 2>();
 }
 
 TEST_F(TTRANSConvTest, GNC1HWC02C1HWN1N0C0_2)
 {
-    test_ttrans<int32_t, 3, 15, 2, 3, 4, 8, 2, 3, 4, 2, 8, 8, 3>();
+    test_ttrans<int32_t, 4, 15, 2, 3, 4, 8, 2, 3, 4, 2, 8, 8, 3>();
 }
 
 TEST_F(TTRANSConvTest, GNC1HWC02C1HWN1N0C0_3)
 {
-    test_ttrans<uint16_t, 3, 11, 3, 2, 16, 16, 3, 2, 16, 2, 8, 16, 2>();
+    test_ttrans<uint16_t, 4, 11, 3, 2, 16, 16, 3, 2, 16, 2, 8, 16, 2>();
 }
 
 TEST_F(TTRANSConvTest, GNC1HWC02C1HWN1N0C0_4)
 {
-    test_ttrans<int32_t, 3, 4, 8, 3, 7, 8, 8, 3, 7, 1, 4, 8, 3>();
+    test_ttrans<int32_t, 4, 4, 8, 3, 7, 8, 8, 3, 7, 1, 4, 8, 3>();
 }
 
 TEST_F(TTRANSConvTest, GNC1HWC02C1HWN1N0C0_5)
 {
-    test_ttrans<int8_t, 3, 4, 2, 3, 7, 32, 2, 3, 7, 1, 8, 32, 1>();
+    test_ttrans<int8_t, 4, 4, 2, 3, 7, 32, 2, 3, 7, 1, 8, 32, 1>();
 }
