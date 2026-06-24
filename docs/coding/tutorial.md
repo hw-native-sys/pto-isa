@@ -282,7 +282,7 @@ PTO-Auto has two parts:
 
 ### Finding the correct “enable PTO passes” flag (CANN toolchain)
 
-The exact flag name is toolchain-version dependent. On some releases it is a driver flag (e.g. `--cce-enable-pto-passes`); on others it is exposed as an LLVM option (passed via `-mllvm`).
+The exact flag name is toolchain-version dependent. On some releases it is a driver flag (e.g. `---cce-pto-enable --cce-pto-auto-enable`); on others it is exposed as an LLVM option (passed via `-mllvm`).
 
 Use your installed Bisheng to discover the supported spelling:
 
@@ -318,7 +318,7 @@ bisheng -c -xcce -O2 --cce-aicore-only \
 
 If your toolchain uses a driver-style flag, `<ENABLE_PTO_PASSES_FLAG>` might look like:
 
-- `--cce-enable-pto-passes`
+- `--cce-pto-enable --cce-pto-auto-enable`
 
 If your toolchain exposes it as an LLVM option, it might look like:
 

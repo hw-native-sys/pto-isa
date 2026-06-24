@@ -30,7 +30,8 @@ def compile_cpp(kernel_cpp: str, verbose: bool = False, timeout: int = 120) -> s
         "-xcce",
         "--cce-aicore-arch=dav-c220-vec",
         "-O2", # auto mode only works on -O2
-        "--cce-enable-pto-passes", # enable auto mode
+        "--cce-pto-enable",
+        "--cce-pto-auto-enable", # enable auto mode
         "-std=c++17",
         f"-I{PTO_LIB_PATH}/include",
     ]

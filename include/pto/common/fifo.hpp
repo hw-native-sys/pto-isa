@@ -93,6 +93,10 @@ struct DataFIFO<DataType, FifoType, Depth, Period, LocalDepth,
     PTO_INTERNAL DataFIFO(__gm__ DataType *ptr, uint32_t localBase) : fifoBase(ptr), localFiFoBase(localBase)
     {}
 
+    template <int M = LocalDepth, typename std::enable_if<M == 0, int>::type = 0>
+    PTO_INTERNAL DataFIFO(__gm__ DataType *ptr) : fifoBase(ptr)
+    {}
+
     __gm__ DataType *getBasePtr()
     {
         return fifoBase;

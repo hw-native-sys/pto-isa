@@ -25,13 +25,13 @@ ascendc_library(no_workspace_kernel STATIC
     csrc/kernel/add_custom.cpp
 )
 
-ascendc_compile_options(no_workspace_kernel PRIVATE --cce-enable-pto-passes -O2)
+ascendc_compile_options(no_workspace_kernel PRIVATE --cce-pto-enable --cce-pto-auto-enable -O2)
 ```
 
 不像manual模式，你不需要手动调用`TASSIGN`和同步指令，编译器会替你自动完成。
 
 注意:
-1. 你需要使用 `--cce-enable-pto-passes` 编译选项来使能编译器的auto模式
+1. 你需要使用 `--cce-pto-enable --cce-pto-auto-enable` 编译选项来使能编译器的auto模式
 2. 编译kernel时必须使用-O2
 3. 目前，这个用例没有使用双缓冲，而且非常不建议在目前的auto模式下使用双缓冲，因为并没有完全支持。
 

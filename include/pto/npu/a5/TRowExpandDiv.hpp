@@ -91,14 +91,14 @@ PTO_INTERNAL void TROWEXPANDDIV_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileD
     unsigned src0ValidCol = src0.GetValidCol();
     unsigned src1ValidRow = src1.GetValidRow();
     unsigned src1ValidCol = src1.GetValidCol();
+
+    constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename TileDataDst::DType);
+    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(typename TileDataDst::DType);
+#ifndef __PTO_AUTO__
     bool src0eqdst = (validRow == src0ValidRow) && (validCol == src0ValidCol);
     bool src1eqdst = (validRow == src1ValidRow) && (validCol == src1ValidCol);
     PTO_ASSERT((src0eqdst && TileDataSrc0::isRowMajor) || (src1eqdst && TileDataSrc1::isRowMajor),
                "TROWEXPANDDIV: the validShape of src0 or src1 should be equal to dst");
-
-    constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename TileDataDst::DType);
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(typename TileDataDst::DType);
-
     if (src0eqdst) {
         unsigned src1ValidCol = src1.GetValidCol();
         PTO_ASSERT(((TileDataSrc1::isRowMajor && src1ValidCol == 32 / sizeof(T)) ||
@@ -116,6 +116,29 @@ PTO_INTERNAL void TROWEXPANDDIV_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileD
         TRowExpandDiv<PrecisionType, TileDataDst, TileDataSrc1, TileDataSrc0, elementsPerRepeat, blockSizeElem>(
             dst.data(), src1.data(), src0.data(), src0eqdst, validRow, validCol);
     }
+#else
+    constexpr bool src0eqdst = std::is_same_v<TileDataDst, TileDataSrc0>;
+    constexpr bool src1eqdst = std::is_same_v<TileDataDst, TileDataSrc1>;
+    PTO_ASSERT((src0eqdst && TileDataSrc0::isRowMajor) || (src1eqdst && TileDataSrc1::isRowMajor),
+               "TROWEXPANDDIV: auto mode only supports same-type tiles");
+    if constexpr (src0eqdst) {
+        unsigned src1ValidCol = src1.GetValidCol();
+        PTO_ASSERT(((TileDataSrc1::isRowMajor && src1ValidCol == 32 / sizeof(T)) ||
+                    (!TileDataSrc1::isRowMajor && src1ValidCol == 1)) &&
+                       src1.GetValidRow() == validRow,
+                   "TROWEXPANDDIV: invalid src1 shape.");
+        TRowExpandDiv<PrecisionType, TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem>(
+            dst.data(), src0.data(), src1.data(), src0eqdst, validRow, validCol);
+    } else {
+        unsigned src0ValidCol = src0.GetValidCol();
+        PTO_ASSERT(((TileDataSrc0::isRowMajor && src0ValidCol == 32 / sizeof(T)) ||
+                    (!TileDataSrc0::isRowMajor && src0ValidCol == 1)) &&
+                       src0.GetValidRow() == validRow,
+                   "TROWEXPANDDIV: invalid src0 shape.");
+        TRowExpandDiv<PrecisionType, TileDataDst, TileDataSrc1, TileDataSrc0, elementsPerRepeat, blockSizeElem>(
+            dst.data(), src1.data(), src0.data(), src0eqdst, validRow, validCol);
+    }
+#endif
 }
 // 4-arg overload for cross-architecture portability with A2/A3.
 // A5 hardware does not require a scratch broadcast tile; the tmp tile is accepted and ignored.

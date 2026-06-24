@@ -25,13 +25,13 @@ ascendc_library(no_workspace_kernel STATIC
     csrc/kernel/add_custom.cpp
 )
 
-ascendc_compile_options(no_workspace_kernel PRIVATE --cce-enable-pto-passes -O2)
+ascendc_compile_options(no_workspace_kernel PRIVATE --cce-pto-enable --cce-pto-auto-enable -O2)
 ```
 
 Unlike manual mode, you don't need to manually call `TASSIGN` and synchronization instructions in your kernel; the compiler will take care of them for you.
 
 NOTE:
-1. add `--cce-enable-pto-passes` to enable auto mode of compiler
+1. add `--cce-pto-enable --cce-pto-auto-enable` to enable auto mode of compiler
 2. kernels must be compiled using -O2
 3. currently, this auto mode example doesn't use double buffering, and it's strongly recommended NOT to use buffer/multi-buffering in auto mode, because it's not fully supported yet.
 

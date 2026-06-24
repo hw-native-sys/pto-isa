@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Tiled Flash-Attention 2.0 Flow (running_global_sum, centered compute_gu input, S1 loop annotation) -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1400" viewBox="0 0 1400 1400">
+  <style>
+    .tile { fill:#eef; stroke:#333; stroke-width:2px; rx:6; }
+    .box { fill:#f8f9fa; stroke:#333; stroke-width:2px; rx:6; }
+    .title { font: bold 18px sans-serif; fill:#111; }
+    .label { font: 14px monospace; fill:#111; }
+    .small { font: 12px monospace; fill:#333; }
+    .arrow { stroke:#333; stroke-width:2; fill:none; marker-end:url(#arrowhead); }
+    .dbl { stroke:#333; stroke-width:2; fill:none; marker-start:url(#arrowhead); marker-end:url(#arrowhead); }
+    .annot { font: 13px monospace; fill:#111; }
+    .brace { stroke:#666; stroke-width:2; fill:none; stroke-dasharray:6 4; }
+  </style>
+
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#333"/>
+    </marker>
+  </defs>
+
+  <!-- Header -->
+  <text x="20" y="28" class="title">Tiled Flash-Attention 2.0 Flow</text>
+  <text x="20" y="52" class="small">compute_qk → QK_tile → compute_p → P_tile + running_global_sum → compute_pv → PV_tile → compute_gu ↔ O_partial → O</text>
+  <text x="20" y="72" class="small">Notation: S0 rows, HEAD=head dim, S1 cols; tiles: CubeS0 (S0 axis), CubeS1 (S1 axis)</text>
+
+  <!-- Full tensors -->
+  <rect x="40" y="100" width="320" height="80" class="tile"/>
+  <text x="60" y="130" class="label">Q (Seqlen × HEAD)</text>
+  <text x="60" y="152" class="small">fp16</text>
+
+  <rect x="430" y="100" width="320" height="80" class="tile"/>
+  <text x="450" y="130" class="label">K (Seqlen × HEAD)</text>
+  <text x="450" y="152" class="small">fp16</text>
+
+  <rect x="820" y="100" width="320" height="80" class="tile"/>
+  <text x="840" y="130" class="label">V (Seqlen × HEAD)</text>
+  <text x="840" y="152" class="small">fp16</text>
+
+  <!-- Tiles (taller) -->
+  <rect x="80" y="220" width="180" height="72" class="tile"/>
+  <text x="92" y="256" class="label">Q_tile</text>
+  <text x="92" y="276" class="small">(CubeS0×HEAD) fp16</text>
+
+  <rect x="320" y="220" width="180" height="72" class="tile"/>
+  <text x="332" y="256" class="label">K_tile</text>
+  <text x="332" y="276" class="small">(CubeS1×HEAD) fp16</text>
+
+  <rect x="560" y="220" width="180" height="72" class="tile"/>
+  <text x="572" y="256" class="label">V_tile</text>
+  <text x="572" y="276" class="small">(CubeS1×HEAD) fp16</text>
+
+  <!-- split arrows: full tensors -> tiles -->
+  <path d="M200 180 L170 220" class="arrow" />
+  <path d="M560 180 L380 220" class="arrow" />
+  <path d="M980 180 L620 220" class="arrow" />
+
+  <!-- Left-side S1 loop annotation (brace + text) -->
+  <path d="M120 300 C80 300, 80 320, 80 360 L80 980 C80 1020, 80 1040, 120 1040" class="brace"/>
+  <text x="20" y="420" class="annot">Loop S1 / CubeS1</text>
+  <text x="20" y="440" class="annot">(iterate K_tile/V_tile)</text>
+
+  <!-- compute_qk -->
+  <rect x="180" y="320" width="320" height="88" class="box"/>
+  <text x="200" y="352" class="label">compute_qk()</text>
+  <text x="200" y="374" class="small">Q_tile × K_tileᵀ</text>
+
+  <!-- arrows into compute_qk -->
+  <path d="M170 300 L210 320" class="arrow" />
+  <path d="M440 300 L460 320" class="arrow" />
+
+  <!-- QK_tile (taller) -->
+  <rect x="180" y="420" width="240" height="72" class="tile"/>
+  <text x="192" y="456" class="label">QK_tile</text>
+  <text x="192" y="476" class="small">(CubeS0×CubeS1) fp32</text>
+
+  <!-- down arrow: compute_qk -> QK_tile -> compute_p -->
+  <path d="M300 400 L300 420" class="arrow" />
+  <path d="M300 492 L300 520" class="arrow" />
+
+  <!-- compute_p -->
+  <rect x="180" y="520" width="320" height="80" class="box"/>
+  <text x="200" y="552" class="label">compute_p()</text>
+  <text x="200" y="572" class="small">SoftMax</text>
+
+  <!-- P_tile (taller) -->
+  <rect x="180" y="608" width="240" height="72" class="tile"/>
+  <text x="192" y="644" class="label">P_tile</text>
+  <text x="192" y="664" class="small">(CubeS0×CubeS1) fp32</text>
+
+  <!-- running_global_sum (renamed, right) -->
+  <rect x="540" y="520" width="200" height="72" class="tile"/>
+  <text x="552" y="556" class="label">running_global_sum</text>
+  <text x="552" y="576" class="small">(CubeS0) fp32</text>
+
+  <!-- arrows: compute_p -> P_tile (down) and -> running_global_sum (side) -->
+  <path d="M300 600 L300 608" class="arrow" />
+  <path d="M420 548 L540 548" class="arrow" />
+
+  <!-- down arrow: P_tile -> compute_pv -->
+  <path d="M300 680 L300 720" class="arrow" />
+
+  <!-- compute_pv -->
+  <rect x="180" y="720" width="320" height="88" class="box"/>
+  <text x="200" y="752" class="label">compute_pv()</text>
+  <text x="200" y="774" class="small">P_tile × V_tile</text>
+
+  <!-- arrow: V_tile -> compute_pv (side input) -->
+  <path d="M640 252 L520 760" class="arrow" />
+
+  <!-- PV_tile (taller) -->
+  <rect x="180" y="820" width="240" height="72" class="tile"/>
+  <text x="192" y="856" class="label">PV_tile</text>
+  <text x="192" y="876" class="small">(CubeS0×HEAD) fp32</text>
+
+  <!-- down arrow: PV_tile -> compute_gu -->
+  <path d="M300 804 L300 820" class="arrow" />
+  <path d="M300 892 L300 920" class="arrow" />
+
+  <!-- compute_gu (center input from running_global_sum) -->
+  <rect x="180" y="920" width="360" height="88" class="box"/>
+  <text x="200" y="952" class="label">compute_gu()</text>
+  <text x="200" y="974" class="small">Global update</text>
+
+  <!-- running_global_sum -> compute_gu (entering near middle of compute_gu) -->
+  <path d="M740 556 L560 980" class="arrow" />
+
+  <!-- O_partial (taller running tile) -->
+  <rect x="560" y="920" width="240" height="72" class="tile"/>
+  <text x="572" y="956" class="label">O_partial</text>
+  <text x="572" y="976" class="small">(CubeS0×HEAD) fp32</text>
+
+  <!-- single bidirectional arrow between compute_gu and O_partial (centered) -->
+  <path d="M540 996 L560 996" class="dbl" />
+
+  <!-- final O (compact) -->
+  <path d="M300 1012 L300 1060" class="arrow" />
+  <rect x="180" y="1060" width="320" height="72" class="tile"/>
+  <text x="200" y="1090" class="label">O (S0 × HEAD)</text>
+  <text x="200" y="1110" class="small">fp16/fp32</text>
+
+  <!-- iteration note -->
+  <rect x="40" y="1200" width="1300" height="100" class="box"/>
+  <text x="60" y="1228" class="label">Iteration semantics</text>
+  <text x="60" y="1248" class="small">• For each Q_tile: loop over K_tile/V_tile (S1 / CubeS1) performing compute_qk → compute_p → compute_pv → compute_gu (update running O_partial and running_global_sum).</text>
+  <text x="60" y="1268" class="small">• After finishing all K_tiles for a Q_tile, compute_gu emits final O rows (CubeS0 × HEAD) into O.</text>
+</svg>

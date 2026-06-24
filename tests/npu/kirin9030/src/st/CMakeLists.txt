@@ -95,6 +95,7 @@ if(RUN_MODE STREQUAL "npu")
         "SHELL:-mllvm -cce-aicore-function-stack-size=0x4000"
         "SHELL:-mllvm -cce-aicore-addr-transform"
     )
+    set(CMAKE_CCE_COMPILE_OPTIONS "${CMAKE_CCE_COMPILE_OPTIONS} --cce-pto-enable")
 
     include_directories(
         ${PROJECT_SOURCE_DIR}/../../../../../include 

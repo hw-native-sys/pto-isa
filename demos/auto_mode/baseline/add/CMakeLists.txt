@@ -62,9 +62,9 @@ ascendc_include_directories(no_workspace_kernel PRIVATE
   ${PTO_LIB_PATH}/include/pto/common
 )
 
-# "--cce-enable-pto-passes" enables auto mode of compiler
+# "--cce-pto-enable --cce-pto-auto-enable" enables auto mode of compiler
 # auto mode only works with -O2
-ascendc_compile_options(no_workspace_kernel PRIVATE --cce-enable-pto-passes -O2)
+ascendc_compile_options(no_workspace_kernel PRIVATE --cce-pto-enable --cce-pto-auto-enable -O2)
 
 add_library(${_OPPLUGIN_PYBIND_NAME} SHARED ${_OPPLUGIN_PYBIND_OPS_SRCS})
 

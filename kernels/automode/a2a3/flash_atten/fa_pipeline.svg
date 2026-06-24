@@ -1,0 +1,209 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     version="1.1"
+     width="1700"
+     height="500"
+     viewBox="0 0 1700 500"
+     font-family="Arial"
+     font-size="11">
+
+  <!-- Arrow marker -->
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+      <path d="M0,0 L0,8 L8,4 z" fill="#000"/>
+    </marker>
+  </defs>
+
+  <!-- ===== Legend ===== -->
+  <rect x="40" y="360" width="360" height="120" fill="#f8f9fa" stroke="#ccc"/>
+  <text x="55" y="380" font-weight="bold">Legend</text>
+
+  <rect x="55" y="395" width="14" height="14" fill="#e0f7e9" stroke="#000"/>
+  <text x="75" y="406">Cube-core stage</text>
+
+  <rect x="55" y="415" width="14" height="14" fill="#e0e7ff" stroke="#000"/>
+  <text x="75" y="426">Vector-core stage</text>
+
+  <rect x="55" y="435" width="14" height="14" fill="#fff3cd" stroke="#000"/>
+  <text x="75" y="446">N-FIFO (inter-CV buffers)</text>
+
+  <rect x="55" y="455" width="14" height="14" fill="#cce5ff" stroke="#000"/>
+  <text x="75" y="466">Ping/Pong (intra-core pipeline buffers)</text>
+
+  <rect x="220" y="435" width="14" height="14" fill="#d9f7c8" stroke="#000"/>
+  <text x="240" y="446">Internal buffer (l1_exp_max)</text>
+
+  <!-- ===== Global Input ===== -->
+  <rect x="40" y="190" width="130" height="100" fill="#cce5ff" stroke="#000"/>
+  <text x="105" y="210" text-anchor="middle" font-weight="bold">Global Input</text>
+  <text x="105" y="230" text-anchor="middle">Q: S0×H</text>
+  <text x="105" y="246" text-anchor="middle">K: S1×H</text>
+  <text x="105" y="262" text-anchor="middle">V: S1×H</text>
+
+  <!-- Arrow: Input -> compute_qk -->
+  <line x1="170" y1="240" x2="230" y2="240" stroke="#000" marker-end="url(#arrow)"/>
+
+  <!-- ===== Stage 1: compute_qk ===== -->
+  <rect x="230" y="180" width="180" height="120" fill="#e0f7e9" stroke="#000"/>
+  <text x="320" y="200" text-anchor="middle" font-weight="bold">compute_qk</text>
+  <text x="320" y="216" text-anchor="middle">Cube core</text>
+  <text x="320" y="232" text-anchor="middle">Q · Kᵀ → qk_tile</text>
+
+  <!-- Stage 1 ping/pong -->
+  <rect x="230" y="150" width="40" height="18" fill="#cce5ff" stroke="#000"/>
+  <text x="250" y="163" text-anchor="middle">A Ping</text>
+
+  <rect x="270" y="150" width="40" height="18" fill="#cce5ff" stroke="#000"/>
+  <text x="290" y="163" text-anchor="middle">A Pong</text>
+
+  <rect x="310" y="150" width="40" height="18" fill="#cce5ff" stroke="#000"/>
+  <text x="330" y="163" text-anchor="middle">B Ping</text>
+
+  <rect x="350" y="150" width="40" height="18" fill="#cce5ff" stroke="#000"/>
+  <text x="370" y="163" text-anchor="middle">B Pong</text>
+
+  <!-- Stage 1 output ping/pong -->
+  <rect x="230" y="305" width="55" height="18" fill="#cce5ff" stroke="#000"/>
+  <text x="258" y="318" text-anchor="middle">Ping Out</text>
+
+  <rect x="285" y="305" width="55" height="18" fill="#cce5ff" stroke="#000"/>
+  <text x="313" y="318" text-anchor="middle">Pong Out</text>
+
+  <!-- Arrow: compute_qk -> FIFO 1 -->
+  <line x1="410" y1="240" x2="470" y2="240" stroke="#000" marker-end="url(#arrow)"/>
+
+  <!-- ===== FIFO 1 ===== -->
+  <g transform="translate(470,190)">
+    <rect x="0" y="0" width="55" height="100" fill="#fff3cd" stroke="#000"/>
+    <rect x="8" y="10" width="40" height="15" fill="#fff" stroke="#000"/>
+    <rect x="8" y="30" width="40" height="15" fill="#fff" stroke="#000"/>
+    <rect x="8" y="50" width="40" height="15" fill="#fff" stroke="#000"/>
+    <rect x="8" y="70" width="40" height="15" fill="#fff" stroke="#000"/>
+    <text x="28" y="95" text-anchor="middle" font-size="9">qk_tile</text>
+  </g>
+
+  <!-- Arrow: FIFO1 -> compute_p -->
+  <line x1="525" y1="240" x2="585" y2="240" stroke="#000" marker-end="url(#arrow)"/>
+
+  <!-- ===== Stage 2: compute_p ===== -->
+  <rect x="585" y="180" width="180" height="120" fill="#e0e7ff" stroke="#000"/>
+  <text x="675" y="200" text-anchor="middle" font-weight="bold">compute_p</text>
+  <text x="675" y="216" text-anchor="middle">Vector core</text>
+  <text x="675" y="232" text-anchor="middle">Softmax</text>
+
+  <!-- Stage 2 ping/pong -->
+  <rect x="585" y="150" width="55" height="18" fill="#cce5ff" stroke="#000"/>
+  <text x="612" y="163" text-anchor="middle">Ping In</text>
+
+  <rect x="640" y="150" width="55" height="18" fill="#cce5ff" stroke="#000"/>
+  <text x="667" y="163" text-anchor="middle">Pong In</text>
+
+  <rect x="585" y="305" width="55" height="18" fill="#cce5ff" stroke="#000"/>
+  <text x="612" y="318" text-anchor="middle">Ping Out</text>
+
+  <rect x="640" y="305" width="55" height="18" fill="#cce5ff" stroke="#000"/>
+  <text x="667" y="318" text-anchor="middle">Pong Out</text>
+
+  <!-- Arrow: compute_p -> FIFO 2 -->
+  <line x1="765" y1="240" x2="825" y2="240" stroke="#000" marker-end="url(#arrow)"/>
+
+  <!-- ===== FIFO 2 ===== -->
+  <g transform="translate(825,190)">
+    <rect x="0" y="0" width="55" height="100" fill="#fff3cd" stroke="#000"/>
+    <rect x="8" y="10" width="40" height="15" fill="#fff" stroke="#000"/>
+    <rect x="8" y="30" width="40" height="15" fill="#fff" stroke="#000"/>
+    <rect x="8" y="50" width="40" height="15" fill="#fff" stroke="#000"/>
+    <rect x="8" y="70" width="40" height="15" fill="#fff" stroke="#000"/>
+    <text x="28" y="95" text-anchor="middle" font-size="9">p_tile</text>
+  </g>
+
+  <!-- ===== l1_exp_max internal buffer ===== -->
+  <line x1="675" y1="305" x2="675" y2="330" stroke="#000" marker-end="url(#arrow)"/>
+
+  <g transform="translate(645,330)">
+    <rect x="0" y="0" width="60" height="100" fill="#d9f7c8" stroke="#000"/>
+    <rect x="10" y="10" width="40" height="15" fill="#fff" stroke="#000"/>
+    <rect x="10" y="30" width="40" height="15" fill="#fff" stroke="#000"/>
+    <rect x="10" y="50" width="40" height="15" fill="#fff" stroke="#000"/>
+    <rect x="10" y="70" width="40" height="15" fill="#fff" stroke="#000"/>
+    <text x="30" y="95" text-anchor="middle" font-size="9">l1_exp_max</text>
+    <text x="30" y="110" text-anchor="middle" font-size="9">(internal buffer)</text>
+  </g>
+
+  <!-- Arrow: l1_exp_max -> compute_gu -->
+  <line x1="705" y1="380" x2="1420" y2="380" stroke="#000"/>
+  <line x1="1420" y1="380" x2="1420" y2="300" stroke="#000" marker-end="url(#arrow)"/>
+
+  <!-- Arrow: FIFO2 -> compute_pv -->
+  <line x1="880" y1="240" x2="940" y2="240" stroke="#000" marker-end="url(#arrow)"/>
+
+  <!-- ===== Stage 3: compute_pv ===== -->
+  <rect x="940" y="180" width="180" height="120" fill="#e0f7e9" stroke="#000"/>
+  <text x="1030" y="200" text-anchor="middle" font-weight="bold">compute_pv</text>
+  <text x="1030" y="216" text-anchor="middle">Cube core</text>
+  <text x="1030" y="232" text-anchor="middle">p_tile × V_tile</text>
+
+  <!-- Stage 3 ping/pong -->
+  <rect x="940" y="150" width="40" height="18" fill="#cce5ff" stroke="#000"/>
+  <text x="960" y="163" text-anchor="middle">A Ping</text>
+
+  <rect x="980" y="150" width="40" height="18" fill="#cce5ff" stroke="#000"/>
+  <text x="1000" y="163" text-anchor="middle">A Pong</text>
+
+  <rect x="1020" y="150" width="40" height="18" fill="#cce5ff" stroke="#000"/>
+  <text x="1040" y="163" text-anchor="middle">B Ping</text>
+
+  <rect x="1060" y="150" width="40" height="18" fill="#cce5ff" stroke="#000"/>
+  <text x="1080" y="163" text-anchor="middle">B Pong</text>
+
+  <!-- Stage 3 output ping/pong -->
+  <rect x="940" y="305" width="55" height="18" fill="#cce5ff" stroke="#000"/>
+  <text x="968" y="318" text-anchor="middle">Ping Out</text>
+
+  <rect x="995" y="305" width="55" height="18" fill="#cce5ff" stroke="#000"/>
+  <text x="1023" y="318" text-anchor="middle">Pong Out</text>
+
+  <!-- Arrow: compute_pv -> FIFO 3 -->
+  <line x1="1120" y1="240" x2="1180" y2="240" stroke="#000" marker-end="url(#arrow)"/>
+
+  <!-- ===== FIFO 3 ===== -->
+  <g transform="translate(1180,190)">
+    <rect x="0" y="0" width="55" height="100" fill="#fff3cd" stroke="#000"/>
+    <rect x="8" y="10" width="40" height="15" fill="#fff" stroke="#000"/>
+    <rect x="8" y="30" width="40" height="15" fill="#fff" stroke="#000"/>
+    <rect x="8" y="50" width="40" height="15" fill="#fff" stroke="#000"/>
+    <rect x="8" y="70" width="40" height="15" fill="#fff" stroke="#000"/>
+    <text x="28" y="95" text-anchor="middle" font-size="9">pv_tile_fifo</text>
+  </g>
+
+  <!-- Arrow: FIFO3 -> compute_gu -->
+  <line x1="1235" y1="240" x2="1295" y2="240" stroke="#000" marker-end="url(#arrow)"/>
+
+  <!-- ===== Stage 4: compute_gu ===== -->
+  <rect x="1295" y="180" width="180" height="120" fill="#e0e7ff" stroke="#000"/>
+  <text x="1385" y="200" text-anchor="middle" font-weight="bold">compute_gu</text>
+  <text x="1385" y="216" text-anchor="middle">Vector core</text>
+  <text x="1385" y="232" text-anchor="middle">Accumulate + Normalize</text>
+
+  <!-- Stage 4 ping/pong -->
+  <rect x="1295" y="150" width="55" height="18" fill="#cce5ff" stroke="#000"/>
+  <text x="1323" y="163" text-anchor="middle">Ping In</text>
+
+  <rect x="1350" y="150" width="55" height="18" fill="#cce5ff" stroke="#000"/>
+  <text x="1378" y="163" text-anchor="middle">Pong In</text>
+
+  <rect x="1295" y="305" width="55" height="18" fill="#cce5ff" stroke="#000"/>
+  <text x="1323" y="318" text-anchor="middle">Ping Out</text>
+
+  <rect x="1350" y="305" width="55" height="18" fill="#cce5ff" stroke="#000"/>
+  <text x="1378" y="318" text-anchor="middle">Pong Out</text>
+
+  <!-- Arrow: compute_gu -> Output -->
+  <line x1="1475" y1="240" x2="1535" y2="240" stroke="#000" marker-end="url(#arrow)"/>
+
+  <!-- ===== Global Output ===== -->
+  <rect x="1535" y="200" width="130" height="80" fill="#cce5ff" stroke="#000"/>
+  <text x="1600" y="222" text-anchor="middle" font-weight="bold">Output O</text>
+  <text x="1600" y="238" text-anchor="middle">S0×H</text>
+
+</svg>
