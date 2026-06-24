@@ -1,172 +1,147 @@
-#ifdef __CCE_KT_TEST__
-#define __aicore__
-#else
-#define __aicore__ [aicore]
-#endif
+/**
+Copyright (c) 2026 Huawei Technologies Co., Ltd.
+This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+CANN Open Software License Agreement Version 2.0 (the "License").
+Please refer to the License for details. You may not use this file except in compliance with the License.
+THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+See LICENSE in the root of the software repository for the full text of the License.
+*/
 
-#ifndef PTO_PA_CONTEXT_PARAMS
-#define PTO_PA_CONTEXT_PARAMS
-#endif
-#ifndef PTO_PA_CONTEXT_ARGS
-#define PTO_PA_CONTEXT_ARGS
-#endif
+#ifndef PTO_PAGED_ATTENTION_HIGHPERF_ENTRY_HPP
+#define PTO_PAGED_ATTENTION_HIGHPERF_ENTRY_HPP
 
 #include "pa_kernel_impl.hpp"
 
-static __aicore__ __attribute__((always_inline)) void paged_attention_mask_body(
+static AICORE __attribute__((always_inline)) void paged_attention_mask_body(
     __gm__ uint8_t *__restrict__ sync,
-    uint32_t pto_block_idx,
-    uint32_t pto_block_num,
-    uint32_t pto_sub_block_id,
-    __gm__ uint8_t *__restrict__ q_gm,
-    __gm__ uint8_t *__restrict__ k_gm,
-    __gm__ uint8_t *__restrict__ v_gm,
-    __gm__ uint8_t *__restrict__ block_tables_gm,
-    __gm__ uint8_t *__restrict__ mask_gm,
-    __gm__ uint8_t *__restrict__ deq_scale1_gm,
-    __gm__ uint8_t *__restrict__ offset1_gm,
-    __gm__ uint8_t *__restrict__ deq_scale2_gm,
-    __gm__ uint8_t *__restrict__ offset2_gm,
+    uint32_t ptoBlockIdx,
+    uint32_t ptoBlockNum,
+    uint32_t ptoSubBlockId,
+    __gm__ uint8_t *__restrict__ qGm,
+    __gm__ uint8_t *__restrict__ kGm,
+    __gm__ uint8_t *__restrict__ vGm,
+    __gm__ uint8_t *__restrict__ blockTablesGm,
+    __gm__ uint8_t *__restrict__ maskGm,
+    __gm__ uint8_t *__restrict__ deqScale1Gm,
+    __gm__ uint8_t *__restrict__ offset1Gm,
+    __gm__ uint8_t *__restrict__ deqScale2Gm,
+    __gm__ uint8_t *__restrict__ offset2Gm,
     __gm__ uint8_t *__restrict__ razorOffset,
-    __gm__ uint8_t *__restrict__ scale_gm,
-    __gm__ uint8_t *__restrict__ logN_gm,
-    __gm__ uint8_t *__restrict__ eye_gm,
-    __gm__ uint8_t *__restrict__ o_gm,
-    __gm__ uint8_t *__restrict__ s_gm,
-    __gm__ uint8_t *__restrict__ p_gm,
-    __gm__ uint8_t *__restrict__ o_tmp_gm,
-    __gm__ uint8_t *__restrict__ go_gm,
-    __gm__ uint8_t *__restrict__ o_core_tmp_gm,
-    __gm__ uint8_t *__restrict__ l_gm,
-    __gm__ uint8_t *__restrict__ gm_k16,
-    __gm__ uint8_t *__restrict__ gm_v16,
-    __gm__ uint8_t *__restrict__ tiling_para_gm)
+    __gm__ uint8_t *__restrict__ scaleGm,
+    __gm__ uint8_t *__restrict__ logNGm,
+    __gm__ uint8_t *__restrict__ eyeGm,
+    __gm__ uint8_t *__restrict__ oGm,
+    __gm__ uint8_t *__restrict__ sGm,
+    __gm__ uint8_t *__restrict__ pGm,
+    __gm__ uint8_t *__restrict__ oTmpGm,
+    __gm__ uint8_t *__restrict__ goGm,
+    __gm__ uint8_t *__restrict__ oCoreTmpGm,
+    __gm__ uint8_t *__restrict__ lGm,
+    __gm__ uint8_t *__restrict__ gmK16,
+    __gm__ uint8_t *__restrict__ gmV16,
+    __gm__ uint8_t *__restrict__ tilingParaGm)
 {
+    (void)maskGm;
+    (void)deqScale1Gm;
+    (void)offset1Gm;
+    (void)deqScale2Gm;
+    (void)offset2Gm;
+    (void)razorOffset;
+    (void)scaleGm;
+    (void)logNGm;
+    (void)eyeGm;
+    (void)sGm;
+    (void)pGm;
+    (void)oTmpGm;
+    (void)goGm;
+    (void)gmK16;
+    (void)gmV16;
+
     if (sync != nullptr) {
-        set_ffts_base_addr((unsigned long)sync);
+        set_ffts_base_addr(reinterpret_cast<unsigned long>(sync));
     }
     set_atomic_none();
     set_mask_norm();
-#ifdef __DAV_C220_VEC__
-    set_vector_mask((uint64_t)-1, (uint64_t)-1);
-#elif __DAV_C220_CUBE__
-    set_padding(0);
-    set_nd_para(1ULL);
-#endif
-    const uint32_t tiling_key_val = (uint32_t)(*((__gm__ int32_t *)tiling_para_gm + AtbOps::TILING_KEY_ID));
-    uint32_t prefill_batch_size = (uint32_t)(*((__gm__ int32_t *)tiling_para_gm + TILING_PREFILL_BS));
-    uint32_t decoder_batch_size = (uint32_t)(*((__gm__ int32_t *)tiling_para_gm + TILING_DECODER_BS));
-    if (tiling_key_val == 0) { // fp16 BN
+
 #ifdef __DAV_C220_CUBE__
-        UnpadAttentionDecoderAic<false, TilingKeyType::TILING_HALF_DATA, half, half, half> pa_aic_fp16(prefill_batch_size, decoder_batch_size);
-        pa_aic_fp16.SetArgs(sync, q_gm, k_gm, v_gm, block_tables_gm, o_gm, s_gm, p_gm, o_tmp_gm, gm_k16, gm_v16, tiling_para_gm, razorOffset, pto_block_idx, pto_block_num);
-        pa_aic_fp16.Run();
-#elif __DAV_C220_VEC__
-        UnpadAttentionDecoderAiv<TilingKeyType::TILING_HALF_DATA, half, half> pa_aiv(prefill_batch_size, decoder_batch_size);
-        pa_aiv.SetArgs(sync, k_gm, v_gm, deq_scale1_gm, offset1_gm, deq_scale2_gm, offset2_gm, block_tables_gm,
-            mask_gm, o_gm, s_gm, p_gm, o_tmp_gm, go_gm, o_core_tmp_gm, l_gm, gm_k16, gm_v16, tiling_para_gm, razorOffset, logN_gm, pto_block_idx, pto_block_num, pto_sub_block_id);
-        pa_aiv.Run();
-#endif
-    } else if (tiling_key_val == 1) { // bf16 BN
-#ifdef __DAV_C220_CUBE__
-        UnpadAttentionDecoderAic<false, TilingKeyType::TILING_BF16_DATA, __bf16, __bf16, __bf16> pa_aic_bf16(prefill_batch_size, decoder_batch_size);
-        pa_aic_bf16.SetArgs(sync, q_gm, k_gm, v_gm, block_tables_gm, o_gm, s_gm, p_gm, o_tmp_gm, gm_k16, gm_v16, tiling_para_gm, razorOffset, pto_block_idx, pto_block_num);
-        pa_aic_bf16.Run();
-#elif __DAV_C220_VEC__
-        UnpadAttentionDecoderAiv<TilingKeyType::TILING_BF16_DATA, __bf16, __bf16> pa_aiv(prefill_batch_size, decoder_batch_size);
-        pa_aiv.SetArgs(sync, k_gm, v_gm, deq_scale1_gm, offset1_gm, deq_scale2_gm, offset2_gm, block_tables_gm,
-            mask_gm, o_gm, s_gm, p_gm, o_tmp_gm, go_gm, o_core_tmp_gm, l_gm, gm_k16, gm_v16, tiling_para_gm, razorOffset, logN_gm, pto_block_idx, pto_block_num, pto_sub_block_id);
-        pa_aiv.Run();
-#endif
-    } else if (tiling_key_val == 16) { // fp16 BNS split-kv
-#ifdef __DAV_C220_CUBE__
-        UnpadAttentionDecoderAic<true, TilingKeyType::TILING_HALF_DATA, half, half, half> pa_aic_fp16(prefill_batch_size, decoder_batch_size);
-        pa_aic_fp16.SetArgs(sync, q_gm, k_gm, v_gm, block_tables_gm, o_gm, s_gm, p_gm, o_tmp_gm, gm_k16, gm_v16, tiling_para_gm, razorOffset, pto_block_idx, pto_block_num);
-        pa_aic_fp16.Run();
-#elif __DAV_C220_VEC__
-        UnpadAttentionDecoderAiv<TilingKeyType::TILING_HALF_DATA, half, half, true> pa_aiv(prefill_batch_size, decoder_batch_size);
-        pa_aiv.SetArgs(sync, k_gm, v_gm, deq_scale1_gm, offset1_gm, deq_scale2_gm, offset2_gm, block_tables_gm,
-            mask_gm, o_gm, s_gm, p_gm, o_tmp_gm, go_gm, o_core_tmp_gm, l_gm, gm_k16, gm_v16, tiling_para_gm, razorOffset, logN_gm, pto_block_idx, pto_block_num, pto_sub_block_id);
-        pa_aiv.Run();
-#endif
-    } else if (tiling_key_val == 17) { // bf16 BNS split-kv
-#ifdef __DAV_C220_CUBE__
-        UnpadAttentionDecoderAic<true, TilingKeyType::TILING_BF16_DATA, __bf16, __bf16, __bf16> pa_aic_bf16(prefill_batch_size, decoder_batch_size);
-        pa_aic_bf16.SetArgs(sync, q_gm, k_gm, v_gm, block_tables_gm, o_gm, s_gm, p_gm, o_tmp_gm, gm_k16, gm_v16, tiling_para_gm, razorOffset, pto_block_idx, pto_block_num);
-        pa_aic_bf16.Run();
-#elif __DAV_C220_VEC__
-        UnpadAttentionDecoderAiv<TilingKeyType::TILING_BF16_DATA, __bf16, __bf16, true> pa_aiv(prefill_batch_size, decoder_batch_size);
-        pa_aiv.SetArgs(sync, k_gm, v_gm, deq_scale1_gm, offset1_gm, deq_scale2_gm, offset2_gm, block_tables_gm,
-            mask_gm, o_gm, s_gm, p_gm, o_tmp_gm, go_gm, o_core_tmp_gm, l_gm, gm_k16, gm_v16, tiling_para_gm, razorOffset, logN_gm, pto_block_idx, pto_block_num, pto_sub_block_id);
-        pa_aiv.Run();
-#endif
+    const int64_t workerIdx = static_cast<int64_t>(ptoBlockIdx);
+    const int64_t workerNum = static_cast<int64_t>(ptoBlockNum);
+    const PaTilingContext ctx = LoadPaTilingContext(tilingParaGm);
+    if (SupportsPtoPagedAttentionHighPerf(tilingParaGm)) {
+        RunPtoPagedAttentionCubePipeline(qGm, kGm, vGm, blockTablesGm, sGm, pGm, oTmpGm, tilingParaGm, workerIdx, workerNum);
+    } else if (SupportsPtoPagedAttentionRawSplitKV(tilingParaGm)) {
+        RunPtoPagedAttentionCubePipelineSplitKV(qGm, kGm, vGm, blockTablesGm, sGm, pGm, oTmpGm, tilingParaGm,
+            workerIdx, workerNum);
+    } else if (ctx.kvSplitCoreNum > 1) {
+        pipe_barrier(PIPE_ALL);
+    } else {
+        pipe_barrier(PIPE_ALL);
     }
+#elif defined(__DAV_C220_VEC__)
+    if (SupportsPtoPagedAttentionHighPerf(tilingParaGm)) {
+        const int64_t workerIdx = static_cast<int64_t>(ptoBlockIdx);
+        const int64_t workerNum = static_cast<int64_t>(ptoBlockNum);
+        RunPtoPagedAttentionVecPipeline(oGm, sGm, pGm, oTmpGm, tilingParaGm, workerIdx, workerNum, ptoSubBlockId);
+    } else {
+        const int64_t workerIdx = static_cast<int64_t>(ptoBlockIdx) * 2 + static_cast<int64_t>(ptoSubBlockId);
+        const int64_t workerNum = static_cast<int64_t>(ptoBlockNum) * 2;
+        const PaTilingContext ctx = LoadPaTilingContext(tilingParaGm);
+        if (SupportsPtoPagedAttentionRawSplitKV(tilingParaGm)) {
+            RunPtoPagedAttentionVecPipelineSplitKV(oGm, sGm, pGm, oTmpGm, oCoreTmpGm, lGm, tilingParaGm,
+                static_cast<int64_t>(ptoBlockIdx), static_cast<int64_t>(ptoBlockNum), ptoSubBlockId);
+        } else if (ctx.kvSplitCoreNum > 1) {
+            RunPtoPagedAttentionDecodeSplitKV(qGm, kGm, vGm, blockTablesGm, oGm, oCoreTmpGm, lGm, tilingParaGm,
+                static_cast<int64_t>(ptoBlockIdx), static_cast<int64_t>(ptoBlockNum), ptoSubBlockId);
+        } else {
+            RunPtoPagedAttentionDecode(qGm, kGm, vGm, blockTablesGm, oGm, tilingParaGm, workerIdx, workerNum);
+        }
+    }
+#else
     pipe_barrier(PIPE_ALL);
+#endif
 }
 
 #ifndef PTO_PA_NO_GLOBAL_ENTRY
-extern "C" __global__ __aicore__ void paged_attention_mask(
+extern "C" __global__ AICORE void paged_attention_mask(
     __gm__ uint8_t *__restrict__ sync,
-    __gm__ uint8_t *__restrict__ q_gm,
-    __gm__ uint8_t *__restrict__ k_gm,
-    __gm__ uint8_t *__restrict__ v_gm,
-    __gm__ uint8_t *__restrict__ block_tables_gm,
-    __gm__ uint8_t *__restrict__ mask_gm,
-    __gm__ uint8_t *__restrict__ deq_scale1_gm,
-    __gm__ uint8_t *__restrict__ offset1_gm,
-    __gm__ uint8_t *__restrict__ deq_scale2_gm,
-    __gm__ uint8_t *__restrict__ offset2_gm,
+    __gm__ uint8_t *__restrict__ qGm,
+    __gm__ uint8_t *__restrict__ kGm,
+    __gm__ uint8_t *__restrict__ vGm,
+    __gm__ uint8_t *__restrict__ blockTablesGm,
+    __gm__ uint8_t *__restrict__ maskGm,
+    __gm__ uint8_t *__restrict__ deqScale1Gm,
+    __gm__ uint8_t *__restrict__ offset1Gm,
+    __gm__ uint8_t *__restrict__ deqScale2Gm,
+    __gm__ uint8_t *__restrict__ offset2Gm,
     __gm__ uint8_t *__restrict__ razorOffset,
-    __gm__ uint8_t *__restrict__ scale_gm,
-    __gm__ uint8_t *__restrict__ logN_gm,
-    __gm__ uint8_t *__restrict__ eye_gm,
-    __gm__ uint8_t *__restrict__ o_gm,
-    __gm__ uint8_t *__restrict__ s_gm,
-    __gm__ uint8_t *__restrict__ p_gm,
-    __gm__ uint8_t *__restrict__ o_tmp_gm,
-    __gm__ uint8_t *__restrict__ go_gm,
-    __gm__ uint8_t *__restrict__ o_core_tmp_gm,
-    __gm__ uint8_t *__restrict__ l_gm,
-    __gm__ uint8_t *__restrict__ gm_k16,
-    __gm__ uint8_t *__restrict__ gm_v16,
-    __gm__ uint8_t *__restrict__ tiling_para_gm)
+    __gm__ uint8_t *__restrict__ scaleGm,
+    __gm__ uint8_t *__restrict__ logNGm,
+    __gm__ uint8_t *__restrict__ eyeGm,
+    __gm__ uint8_t *__restrict__ oGm,
+    __gm__ uint8_t *__restrict__ sGm,
+    __gm__ uint8_t *__restrict__ pGm,
+    __gm__ uint8_t *__restrict__ oTmpGm,
+    __gm__ uint8_t *__restrict__ goGm,
+    __gm__ uint8_t *__restrict__ oCoreTmpGm,
+    __gm__ uint8_t *__restrict__ lGm,
+    __gm__ uint8_t *__restrict__ gmK16,
+    __gm__ uint8_t *__restrict__ gmV16,
+    __gm__ uint8_t *__restrict__ tilingParaGm)
 {
-    const uint32_t pto_block_idx = static_cast<uint32_t>(get_block_idx());
-    const uint32_t pto_block_num = static_cast<uint32_t>(get_block_num());
+    const uint32_t ptoBlockIdx = static_cast<uint32_t>(get_block_idx());
+    const uint32_t ptoBlockNum = static_cast<uint32_t>(get_block_num());
 #ifdef __DAV_C220_VEC__
-    const uint32_t pto_sub_block_id = static_cast<uint32_t>(get_subblockid());
+    const uint32_t ptoSubBlockId = static_cast<uint32_t>(get_subblockid());
 #else
-    const uint32_t pto_sub_block_id = 0;
+    const uint32_t ptoSubBlockId = 0;
 #endif
 
     paged_attention_mask_body(
-        sync,
-        pto_block_idx,
-        pto_block_num,
-        pto_sub_block_id,
-        q_gm,
-        k_gm,
-        v_gm,
-        block_tables_gm,
-        mask_gm,
-        deq_scale1_gm,
-        offset1_gm,
-        deq_scale2_gm,
-        offset2_gm,
-        razorOffset,
-        scale_gm,
-        logN_gm,
-        eye_gm,
-        o_gm,
-        s_gm,
-        p_gm,
-        o_tmp_gm,
-        go_gm,
-        o_core_tmp_gm,
-        l_gm,
-        gm_k16,
-        gm_v16,
-        tiling_para_gm
-    );
+        sync, ptoBlockIdx, ptoBlockNum, ptoSubBlockId, qGm, kGm, vGm, blockTablesGm, maskGm, deqScale1Gm, offset1Gm,
+        deqScale2Gm, offset2Gm, razorOffset, scaleGm, logNGm, eyeGm, oGm, sGm, pGm, oTmpGm, goGm, oCoreTmpGm,
+        lGm, gmK16, gmV16, tilingParaGm);
 }
+#endif
+
 #endif

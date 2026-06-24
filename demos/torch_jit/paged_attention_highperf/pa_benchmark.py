@@ -7,7 +7,7 @@ import gc
 import torch
 
 from jit_util_pa import jit_compile_paged_attention
-from pa_compile_and_run import PaShape, golden_uniform, make_inputs, make_launch_config
+from pa_compile_and_run import PaShape, golden_attention, make_inputs, make_launch_config
 
 NUM_ITERATIONS = 50
 WARMUP = 10
@@ -79,7 +79,7 @@ def run_shape(pa, shape, device, iters, warmup, check):
     if check:
         out = pa(q, k, v, block_table, ws, tiling, block_dim=shape.block_dim)
         torch.npu.synchronize()
-        torch.testing.assert_close(out.float(), golden_uniform(v, block_table, shape), rtol=5e-3, atol=2e-2)
+        torch.testing.assert_close(out.float(), golden_attention(q, k, v, block_table, shape), rtol=5e-3, atol=2e-2)
     ms = time_npu(lambda: pa(q, k, v, block_table, ws, tiling, block_dim=shape.block_dim), iters, warmup)
     flops = paged_attention_flops(shape)
     bytes_total = tensor_bytes(shape)
