@@ -11,7 +11,7 @@ from pa_compile_and_run import PaShape, golden_attention, make_inputs, make_laun
 
 NUM_ITERATIONS = 50
 WARMUP = 10
-BATCHES = [1, 2, 4, 8]
+BATCHES = [1, 2, 4, 8, 32, 64]
 SEQ_LENS = [128, 512, 4096, 8192, 16384, 32768, 65536, 131072]
 DEFAULT_SHAPES = [PaShape(batch=batch, seq_len=seq_len) for batch in BATCHES for seq_len in SEQ_LENS]
 

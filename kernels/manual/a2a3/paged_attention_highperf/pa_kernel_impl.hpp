@@ -707,11 +707,21 @@ AICORE inline void RunPtoPagedAttentionCubePipelineSplitKV(__gm__ uint8_t *qGm, 
                             ctx.headDim;
                         KGlobal kGlobal(reinterpret_cast<__gm__ half *>(kGm) + kvBase);
                         TLOAD(kMatTile, kGlobal);
-                        pipe_barrier(PIPE_ALL);
+                        auto matmulEvent = EVENT_ID1;
+                        set_flag(PIPE_FIX, PIPE_M, matmulEvent);
+                        wait_flag(PIPE_FIX, PIPE_M, matmulEvent);
+                        set_flag(PIPE_MTE2, PIPE_MTE1, matmulEvent);
+                        wait_flag(PIPE_MTE2, PIPE_MTE1, matmulEvent);
+                        set_flag(PIPE_M, PIPE_MTE1, matmulEvent);
+                        wait_flag(PIPE_M, PIPE_MTE1, matmulEvent);
                         TEXTRACT(rightTile, kMatTile, 0, 0);
-                        pipe_barrier(PIPE_ALL);
+                        set_flag(PIPE_MTE1, PIPE_M, matmulEvent);
+                        wait_flag(PIPE_MTE1, PIPE_M, matmulEvent);
                         TMATMUL(accTile, qLeftTile, rightTile);
-                        pipe_barrier(PIPE_ALL);
+                        set_flag(PIPE_MTE1, PIPE_MTE2, matmulEvent);
+                        wait_flag(PIPE_MTE1, PIPE_MTE2, matmulEvent);
+                        set_flag(PIPE_M, PIPE_FIX, matmulEvent);
+                        wait_flag(PIPE_M, PIPE_FIX, matmulEvent);
                         ScoreGlobal scoreGlobal(reinterpret_cast<__gm__ float *>(scoreBase +
                             static_cast<int64_t>(slot) * scoreGroupBytes +
                             static_cast<int64_t>(headInGroupBase) * scoreHeadBytes));
@@ -741,11 +751,21 @@ AICORE inline void RunPtoPagedAttentionCubePipelineSplitKV(__gm__ uint8_t *qGm, 
                             ctx.headDim;
                         VGlobal vGlobal(reinterpret_cast<__gm__ half *>(vGm) + kvBase);
                         TLOAD(vMatTile, vGlobal);
-                        pipe_barrier(PIPE_ALL);
+                        auto matmulEvent = EVENT_ID1;
+                        set_flag(PIPE_FIX, PIPE_M, matmulEvent);
+                        wait_flag(PIPE_FIX, PIPE_M, matmulEvent);
+                        set_flag(PIPE_MTE2, PIPE_MTE1, matmulEvent);
+                        wait_flag(PIPE_MTE2, PIPE_MTE1, matmulEvent);
+                        set_flag(PIPE_M, PIPE_MTE1, matmulEvent);
+                        wait_flag(PIPE_M, PIPE_MTE1, matmulEvent);
                         TEXTRACT(rightTile, vMatTile, 0, 0);
-                        pipe_barrier(PIPE_ALL);
+                        set_flag(PIPE_MTE1, PIPE_M, matmulEvent);
+                        wait_flag(PIPE_MTE1, PIPE_M, matmulEvent);
                         TMATMUL(accTile, pLeftTile, rightTile);
-                        pipe_barrier(PIPE_ALL);
+                        set_flag(PIPE_MTE1, PIPE_MTE2, matmulEvent);
+                        wait_flag(PIPE_MTE1, PIPE_MTE2, matmulEvent);
+                        set_flag(PIPE_M, PIPE_FIX, matmulEvent);
+                        wait_flag(PIPE_M, PIPE_FIX, matmulEvent);
                         OutGlobal outGlobal(reinterpret_cast<__gm__ float *>(outBase +
                             static_cast<int64_t>(slot) * outGroupBytes +
                             static_cast<int64_t>(headInGroupBase) * outHeadBytes));
@@ -817,6 +837,8 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
     TASSIGN(rowSumTile, 0x3040);
     TASSIGN(scalarMathTile, 0x3080);
 
+    constexpr uint32_t kAccumUbBase = 0x4000;
+    constexpr uint32_t kAccumHeadBytes = kHeadDim * sizeof(float);
     constexpr int64_t scoreHeadBytes = 16 * kTileTokens * sizeof(float);
     constexpr int64_t probHeadBytes = 256 * sizeof(half);
     constexpr int64_t outHeadBytes = 16 * kHeadDim * sizeof(float);
@@ -877,13 +899,9 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
                 maxScore[headLocal] = -3.4028234663852886e38f;
                 sumExp[headLocal] = 0.0f;
                 oldScaleByHead[headLocal] = 0.0f;
-                const int32_t head = startHead + headLocal;
-                const uint64_t outOffset = oFdBase * ctx.kvSplitCoreNum +
-                    static_cast<uint64_t>(head) * ctx.headDim * ctx.kvSplitCoreNum +
-                    static_cast<uint64_t>(curSplit) * ctx.headDim;
-                for (int32_t dim = 0; dim < kHeadDim; ++dim) {
-                    partialOut[outOffset + dim] = 0.0f;
-                }
+                TASSIGN(weightedTile, kAccumUbBase + static_cast<uint32_t>(headLocal) * kAccumHeadBytes);
+                TEXPANDS(weightedTile, 0.0f);
+                pipe_barrier(PIPE_V);
             }
         }
 
@@ -960,20 +978,11 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
                         TLOAD(pvTile, outGlobal);
                         set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
                         wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-                        const int32_t head = startHead + headLocal;
-                        const uint64_t outOffset = oFdBase * ctx.kvSplitCoreNum +
-                            static_cast<uint64_t>(head) * ctx.headDim * ctx.kvSplitCoreNum +
-                            static_cast<uint64_t>(curSplit) * ctx.headDim;
-                        OutGlobal weightedGlobal(reinterpret_cast<__gm__ float *>(partialOut + outOffset));
-                        TLOAD(weightedTile, weightedGlobal);
-                        set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-                        wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-                        pipe_barrier(PIPE_V);
+                        TASSIGN(weightedTile, kAccumUbBase + static_cast<uint32_t>(headLocal) * kAccumHeadBytes);
                         TMULS(weightedTile, weightedTile, oldScaleByHead[headLocal]);
                         pipe_barrier(PIPE_V);
                         TAXPY(weightedTile, pvTile, 1.0f);
                         pipe_barrier(PIPE_V);
-                        TSTORE(weightedGlobal, weightedTile);
                     }
                 }
                 PtoPaStageSync();
@@ -989,12 +998,10 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
                     static_cast<uint64_t>(curSplit) * ctx.headDim;
                 const uint64_t lOffset = lBase + static_cast<uint64_t>(head) * ctx.kvSplitCoreNum + curSplit;
                 partialL[lOffset] = maxScore[headLocal] + PtoLogScalar(scalarMathTile, sumExp[headLocal]);
-                OutGlobal weightedGlobal(reinterpret_cast<__gm__ float *>(partialOut + outOffset));
-                TLOAD(weightedTile, weightedGlobal);
-                set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-                wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+                TASSIGN(weightedTile, kAccumUbBase + static_cast<uint32_t>(headLocal) * kAccumHeadBytes);
                 TMULS(weightedTile, weightedTile, invSum);
                 pipe_barrier(PIPE_V);
+                OutGlobal weightedGlobal(reinterpret_cast<__gm__ float *>(partialOut + outOffset));
                 TSTORE(weightedGlobal, weightedTile);
             }
         }
