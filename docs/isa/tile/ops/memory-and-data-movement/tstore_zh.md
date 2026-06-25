@@ -87,7 +87,17 @@ PTO_INST RecordEvent TSTORE_FP(GlobalData &dst, TileData &src, FpTileData &fp, W
 - 对 `TileType::Acc`：
   - 目标布局必须为 ND 或 NZ
   - 源 dtype 必须为 `int32_t` 或 `float`
-  - 不量化时，目标 dtype 必须为 `__gm__ int32_t/float/half/bfloat16_t`
+  - 不量化时，目标 dtype 必须为 `int32_t/float/half/bfloat16_t`
+  - ACC 到 GM 的数据类型支持取决于调用形式：
+
+    | 调用形式 | 源数据类型 | 支持的目标数据类型 |
+    | --- | --- | --- |
+    | `TSTORE(dst, acc)` | `float` | `float`、`half`、`bfloat16_t` |
+    | `TSTORE(dst, acc)` | `int32_t` | `int32_t` |
+    | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE_FP(dst, acc, fp)` | `float` | `int8_t`、`uint8_t` |
+    | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE_FP(dst, acc, fp)` | `int32_t` | `int8_t`、`uint8_t`、`half` |
+
+    其它未列出的跨类型组合不属于支持范围。
   - shape 受 `Cols <= 4095`、`Rows` 上限等约束
 
 ### A5
@@ -97,6 +107,16 @@ PTO_INST RecordEvent TSTORE_FP(GlobalData &dst, TileData &src, FpTileData &fp, W
 - `Vec` 路径要求 `sizeof(TileData::DType) == sizeof(GlobalData::DType)`
 - 布局需匹配 ND / DN / NZ，且额外存在行宽 / 列高字节对齐约束
 - `Acc` 路径与 A2A3 类似，但 `AtomicAdd` 还会进一步限制目标 dtype
+- ACC 到 GM 的数据类型支持取决于调用形式：
+
+  | 调用形式 | 源数据类型 | 支持的目标数据类型 |
+  | --- | --- | --- |
+  | `TSTORE(dst, acc)` | `float` | `float`、`half`、`bfloat16_t` |
+  | `TSTORE(dst, acc)` | `int32_t` | `int32_t` |
+  | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE_FP(dst, acc, fp)` | `float` | `int8_t`、`uint8_t`、`half`、`bfloat16_t`、`hifloat8_t`、`float8_e4m3_t`、`float` |
+  | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE_FP(dst, acc, fp)` | `int32_t` | `int8_t`、`uint8_t`、`half`、`bfloat16_t` |
+
+  其它未列出的跨类型组合不属于支持范围。
 
 ## 异常与非法情形
 

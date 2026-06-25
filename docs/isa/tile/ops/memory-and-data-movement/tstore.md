@@ -134,9 +134,20 @@ After the store completes, the data is written to `dst`. With atomic modes, valu
         | Source Tile Type | Requirements |
         |-----------------|-------------|
         | `Vec` / `Mat` | `sizeof(TileData::DType)` must match `sizeof(GlobalData::DType)`. Supported dtypes: `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `int64_t`, `uint64_t`, `half`, `bfloat16_t`, `float`. |
-        | `Acc` (non-quantized) | Destination dtype must be `__gm__ int32_t / float / half / bfloat16_t`. |
+        | `Acc` (non-quantized) | Destination dtype must be `int32_t / float / half / bfloat16_t`. |
         | `Acc` (atomic) | AtomicAdd on `int32_t` or `float`. |
         | `int64_t/uint64_t` | Only ND→ND or DN→DN layout. |
+
+        **Accumulator-to-GM dtype support (A2/A3):**
+
+        | Calling convention | Source dtype | Supported destination dtype |
+        | --- | --- | --- |
+        | `TSTORE(dst, acc)` | `float` | `float`, `half`, `bfloat16_t` |
+        | `TSTORE(dst, acc)` | `int32_t` | `int32_t` |
+        | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE_FP(dst, acc, fp)` | `float` | `int8_t`, `uint8_t` |
+        | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE_FP(dst, acc, fp)` | `int32_t` | `int8_t`, `uint8_t`, `half` |
+
+        Other cross-type combinations are unsupported.
 
         **Accumulator shape constraints (A2/A3):**
         - `1 <= TileData::Cols <= 4095`
@@ -161,6 +172,17 @@ After the store completes, the data is written to `dst`. With atomic modes, valu
         | `Vec` | `sizeof(TileData::DType)` must match `sizeof(GlobalData::DType)`. Additional dtypes on A5: `float8_e4m3_t`, `float8_e5m2_t`, `hifloat8_t`, `float4_e1m2x2_t`, `float4_e2m1x2_t`. |
         | `Acc` | Destination layout must be ND or NZ. Source dtype must be `int32_t` or `float`. Additional alignment: ND row-major width in bytes must be a multiple of 32. |
         | `Acc` (atomic) | `AtomicAdd`, `AtomicMax`, `AtomicMin` on `int32_t`. |
+
+        **Accumulator-to-GM dtype support (A5):**
+
+        | Calling convention | Source dtype | Supported destination dtype |
+        | --- | --- | --- |
+        | `TSTORE(dst, acc)` | `float` | `float`, `half`, `bfloat16_t` |
+        | `TSTORE(dst, acc)` | `int32_t` | `int32_t` |
+        | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE_FP(dst, acc, fp)` | `float` | `int8_t`, `uint8_t`, `half`, `bfloat16_t`, `hifloat8_t`, `float8_e4m3_t`, `float` |
+        | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE_FP(dst, acc, fp)` | `int32_t` | `int8_t`, `uint8_t`, `half`, `bfloat16_t` |
+
+        Other cross-type combinations are unsupported.
 
         **Fix-pipe store (TSTORE_FP on A5):**
 

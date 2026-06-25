@@ -266,14 +266,16 @@ PTO_INTERNAL void CheckAcc2gm(GlobalData &dst, TileData &src)
                       "The output data type must be restricted to int32_t/float/half/bfloat16_t!");
     } else if constexpr (isQuant) {
         if constexpr (std::is_same_v<typename TileData::DType, float>) {
-            static_assert(std::is_same<typename GlobalData::DType, __gm__ int8_t>::value ||
-                              std::is_same<typename GlobalData::DType, __gm__ uint8_t>::value,
-                          "The output data type must be restricted to int8_t/uint8_t.");
-        } else if constexpr (std::is_same_v<typename TileData::DType, __gm__ int32_t>) {
-            static_assert(std::is_same<typename GlobalData::DType, __gm__ int8_t>::value ||
-                              std::is_same<typename GlobalData::DType, __gm__ uint8_t>::value ||
-                              std::is_same<typename GlobalData::DType, __gm__ half>::value,
-                          "The output data type must be restricted to half/int8_t/uint8_t.");
+            static_assert(
+                std::is_same<typename GlobalData::DType, __gm__ int8_t>::value ||
+                    std::is_same<typename GlobalData::DType, __gm__ uint8_t>::value,
+                "The output data type must be restricted to int8_t/uint8_t when the source data type is float.");
+        } else if constexpr (std::is_same_v<typename TileData::DType, int32_t>) {
+            static_assert(
+                std::is_same<typename GlobalData::DType, __gm__ int8_t>::value ||
+                    std::is_same<typename GlobalData::DType, __gm__ uint8_t>::value ||
+                    std::is_same<typename GlobalData::DType, __gm__ half>::value,
+                "The output data type must be restricted to half/int8_t/uint8_t when the source data type is int32_t.");
         }
     }
     static_assert(TileData::Cols >= 1 && TileData::Cols <= 4095, "The range of Cols is [1, 4095].");
