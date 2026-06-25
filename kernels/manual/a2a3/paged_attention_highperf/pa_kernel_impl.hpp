@@ -138,7 +138,7 @@ AICORE inline float PtoExpScalar(ScalarTile &tile, float value)
     tile.data()[0] = value;
     TEXP(tile, tile);
     pipe_barrier(PIPE_V);
-    return tile.GetValue(0);
+    return tile.data()[0];
 }
 
 template <typename ScalarTile>
@@ -150,7 +150,7 @@ AICORE inline float PtoLogScalar(ScalarTile &tile, float value)
     tile.data()[0] = value;
     TLOG(tile, tile);
     pipe_barrier(PIPE_V);
-    return tile.GetValue(0);
+    return tile.data()[0];
 }
 
 AICORE inline float LoadPagedKByBlock(
@@ -321,6 +321,66 @@ AICORE inline void PtoPaStageSync()
 {
     SYNCALL<SyncCoreType::Mix>();
 }
+
+#ifdef __DAV_C220_CUBE__
+template <typename DstTileData, typename SrcTileData>
+__tf__ AICORE void PtoPaLoadCbufToCaRaw(typename DstTileData::TileDType __out__ dst,
+    typename SrcTileData::TileDType __in__ src, uint32_t srcElementOffset, uint16_t repeatTimes,
+    uint16_t srcStride)
+{
+    using DataType = typename SrcTileData::DType;
+    __ca__ DataType *dstAddr = reinterpret_cast<__ca__ DataType *>(__cce_get_tile_ptr(dst));
+    __cbuf__ DataType *srcAddr = reinterpret_cast<__cbuf__ DataType *>(__cce_get_tile_ptr(src)) + srcElementOffset;
+    load_cbuf_to_ca(dstAddr, srcAddr, 0, repeatTimes, srcStride, 0, 0, false, false, addr_cal_mode_t(0));
+}
+
+template <typename DstTileData, typename SrcTileData>
+AICORE inline void PtoPaLoadCbufToCaRaw(DstTileData &dst, SrcTileData &src, uint32_t srcElementOffset,
+    uint16_t repeatTimes, uint16_t srcStride)
+{
+    PtoPaLoadCbufToCaRaw<DstTileData, SrcTileData>(dst.data(), src.data(), srcElementOffset, repeatTimes, srcStride);
+}
+
+template <typename DstTileData, typename SrcTileData>
+__tf__ AICORE void PtoPaLoadCbufToCbRaw(typename DstTileData::TileDType __out__ dst,
+    typename SrcTileData::TileDType __in__ src, uint32_t srcElementOffset, uint16_t repeatTimes,
+    uint16_t srcStride)
+{
+    using DataType = typename SrcTileData::DType;
+    __cb__ DataType *dstAddr = reinterpret_cast<__cb__ DataType *>(__cce_get_tile_ptr(dst));
+    __cbuf__ DataType *srcAddr = reinterpret_cast<__cbuf__ DataType *>(__cce_get_tile_ptr(src)) + srcElementOffset;
+    load_cbuf_to_cb(dstAddr, srcAddr, 0, repeatTimes, srcStride, 0, 0, false, addr_cal_mode_t(0));
+}
+
+template <typename DstTileData, typename SrcTileData>
+AICORE inline void PtoPaLoadCbufToCbRaw(DstTileData &dst, SrcTileData &src, uint32_t srcElementOffset,
+    uint16_t repeatTimes, uint16_t srcStride)
+{
+    PtoPaLoadCbufToCbRaw<DstTileData, SrcTileData>(dst.data(), src.data(), srcElementOffset, repeatTimes, srcStride);
+}
+
+template <typename DstTileData, typename SrcTileData>
+__tf__ AICORE void PtoPaLoadCbufToCbTranspose128Raw(typename DstTileData::TileDType __out__ dst,
+    typename SrcTileData::TileDType __in__ src)
+{
+    using DataType = typename SrcTileData::DType;
+    __cb__ DataType *dstAddr = reinterpret_cast<__cb__ DataType *>(__cce_get_tile_ptr(dst));
+    __cbuf__ DataType *srcAddr = reinterpret_cast<__cbuf__ DataType *>(__cce_get_tile_ptr(src));
+    constexpr uint32_t kBlock = 16;
+    constexpr uint32_t kRows = 128;
+    constexpr uint32_t kCols = 128;
+    for (uint32_t idx = 0; idx < kCols / kBlock; ++idx) {
+        load_cbuf_to_cb_transpose(dstAddr + idx * kRows * kBlock, srcAddr + idx * kBlock * kBlock, 0,
+            kRows / kBlock, kCols / kBlock, 0, addr_cal_mode_t(0), 0);
+    }
+}
+
+template <typename DstTileData, typename SrcTileData>
+AICORE inline void PtoPaLoadCbufToCbTranspose128Raw(DstTileData &dst, SrcTileData &src)
+{
+    PtoPaLoadCbufToCbTranspose128Raw<DstTileData, SrcTileData>(dst.data(), src.data());
+}
+#endif
 
 #ifdef __DAV_C220_CUBE__
 AICORE inline void RunPtoPagedAttentionCubePipeline(__gm__ uint8_t *qGm, __gm__ uint8_t *kGm,
@@ -568,6 +628,7 @@ AICORE inline void RunPtoPagedAttentionCubePipelineSplitKV(__gm__ uint8_t *qGm, 
     constexpr int32_t kHeadDim = PA_TILE_TOKENS;
     constexpr int32_t kTileTokens = PA_TILE_TOKENS;
     constexpr int32_t kM = 16;
+    constexpr int32_t kMValid = 4;
     constexpr int32_t kN = kTileTokens;
     constexpr int32_t kK = 256;
     constexpr int32_t kHeadGroup = 16;
@@ -599,10 +660,10 @@ AICORE inline void RunPtoPagedAttentionCubePipelineSplitKV(__gm__ uint8_t *qGm, 
     using KMatTile = Tile<TileType::Mat, half, kK, kN, BLayout::RowMajor, kHeadDim, kTileTokens, SLayout::ColMajor, 512>;
     using PMatTile = Tile<TileType::Mat, half, kM, kTileTokens, BLayout::ColMajor, kM, kTileTokens, SLayout::RowMajor>;
     using VMatTile = Tile<TileType::Mat, half, kK, kN, BLayout::ColMajor, kTileTokens, kHeadDim, SLayout::RowMajor, 512>;
-    using LeftQTile = TileLeft<half, kM, kHeadDim, kM, kHeadDim>;
-    using LeftPTile = TileLeft<half, kM, kTileTokens, kM, kTileTokens>;
+    using LeftQTile = TileLeft<half, kM, kHeadDim, kMValid, kHeadDim>;
+    using LeftPTile = TileLeft<half, kM, kTileTokens, kMValid, kTileTokens>;
     using RightTile = TileRight<half, kK, kN, kHeadDim, kTileTokens>;
-    using AccTile = TileAcc<float, kM, kN, kM, kTileTokens>;
+    using AccTile = TileAcc<float, kM, kN, kMValid, kTileTokens>;
 
     QMatTile qMatTile;
     KMatTile kMatTile;
@@ -621,16 +682,16 @@ AICORE inline void RunPtoPagedAttentionCubePipelineSplitKV(__gm__ uint8_t *qGm, 
     TASSIGN(rightTile, 0x00000);
     TASSIGN(accTile, 0x00000);
 
-    using ScoreGlobal = GlobalTensor<float, Shape<1, 1, 1, kM, kN>,
-        Stride<kM * kN, kM * kN, kM * kN, kN, 1>>;
+    using ScoreGlobal = GlobalTensor<float, Shape<1, 1, 1, kMValid, kN>,
+        Stride<kMValid * kN, kMValid * kN, kMValid * kN, kN, 1>>;
     using ProbGlobal = GlobalTensor<half, Shape<1, 1, 1, kM, kTileTokens>,
         Stride<kM * kTileTokens, kM * kTileTokens, kM * kTileTokens, kTileTokens, 1>, Layout::ND>;
-    using OutGlobal = GlobalTensor<float, Shape<1, 1, 1, kM, kN>,
-        Stride<kM * kN, kM * kN, kM * kN, kN, 1>>;
+    using OutGlobal = GlobalTensor<float, Shape<1, 1, 1, kMValid, kN>,
+        Stride<kMValid * kN, kMValid * kN, kMValid * kN, kN, 1>>;
 
-    constexpr int64_t scoreHeadBytes = kM * kTileTokens * sizeof(float);
+    constexpr int64_t scoreHeadBytes = kMValid * kTileTokens * sizeof(float);
     constexpr int64_t probHeadBytes = 256 * sizeof(half);
-    constexpr int64_t outHeadBytes = kM * kHeadDim * sizeof(float);
+    constexpr int64_t outHeadBytes = kMValid * kHeadDim * sizeof(float);
     constexpr int64_t scoreGroupBytes = kHeadGroup * scoreHeadBytes;
     constexpr int64_t probGroupBytes = kHeadGroup * probHeadBytes;
     constexpr int64_t outGroupBytes = kHeadGroup * outHeadBytes;
@@ -686,8 +747,6 @@ AICORE inline void RunPtoPagedAttentionCubePipelineSplitKV(__gm__ uint8_t *qGm, 
                 QGlobal qGlobal(reinterpret_cast<__gm__ half *>(qGm) + qBase);
                 TLOAD(qMatTile, qGlobal);
                 pipe_barrier(PIPE_ALL);
-                TEXTRACT(qLeftTile, qMatTile, 0, 0);
-                pipe_barrier(PIPE_ALL);
             }
             for (int32_t tile = 0; tile < stageTileCount; ++tile) {
                 const bool activeTile = validProcess && tile < tileCount;
@@ -705,6 +764,8 @@ AICORE inline void RunPtoPagedAttentionCubePipelineSplitKV(__gm__ uint8_t *qGm, 
                         const int32_t kvHead = baseHead / headsPerKv;
                         const int64_t kvBase = (static_cast<int64_t>(blockId) * ctx.blockSize * ctx.kvHeads + kvHead) *
                             ctx.headDim;
+                        PtoPaLoadCbufToCaRaw(qLeftTile, qMatTile, static_cast<uint32_t>(headInGroupBase * 16),
+                            static_cast<uint16_t>(kHeadDim / 16), 1);
                         KGlobal kGlobal(reinterpret_cast<__gm__ half *>(kGm) + kvBase);
                         TLOAD(kMatTile, kGlobal);
                         auto matmulEvent = EVENT_ID1;
@@ -714,7 +775,8 @@ AICORE inline void RunPtoPagedAttentionCubePipelineSplitKV(__gm__ uint8_t *qGm, 
                         wait_flag(PIPE_MTE2, PIPE_MTE1, matmulEvent);
                         set_flag(PIPE_M, PIPE_MTE1, matmulEvent);
                         wait_flag(PIPE_M, PIPE_MTE1, matmulEvent);
-                        TEXTRACT(rightTile, kMatTile, 0, 0);
+                        PtoPaLoadCbufToCbRaw(rightTile, kMatTile, 0,
+                            static_cast<uint16_t>((kHeadDim * kTileTokens) / 256), 1);
                         set_flag(PIPE_MTE1, PIPE_M, matmulEvent);
                         wait_flag(PIPE_MTE1, PIPE_M, matmulEvent);
                         TMATMUL(accTile, qLeftTile, rightTile);
@@ -738,8 +800,6 @@ AICORE inline void RunPtoPagedAttentionCubePipelineSplitKV(__gm__ uint8_t *qGm, 
                         static_cast<int64_t>(slot) * probGroupBytes));
                     TLOAD(pMatTile, probGlobal);
                     pipe_barrier(PIPE_ALL);
-                    TEXTRACT(pLeftTile, pMatTile, 0, 0);
-                    pipe_barrier(PIPE_ALL);
                     for (int32_t headInGroupBase = 0; headInGroupBase < kHeadGroup; headInGroupBase += headsPerKv) {
                         const int32_t baseHeadLocal = groupHeadBase + headInGroupBase;
                         if (baseHeadLocal >= curHeadNum) {
@@ -749,6 +809,8 @@ AICORE inline void RunPtoPagedAttentionCubePipelineSplitKV(__gm__ uint8_t *qGm, 
                         const int32_t kvHead = baseHead / headsPerKv;
                         const int64_t kvBase = (static_cast<int64_t>(blockId) * ctx.blockSize * ctx.kvHeads + kvHead) *
                             ctx.headDim;
+                        PtoPaLoadCbufToCaRaw(pLeftTile, pMatTile, static_cast<uint32_t>(headInGroupBase * 16),
+                            static_cast<uint16_t>(kTileTokens / 16), 1);
                         VGlobal vGlobal(reinterpret_cast<__gm__ half *>(vGm) + kvBase);
                         TLOAD(vMatTile, vGlobal);
                         auto matmulEvent = EVENT_ID1;
@@ -758,7 +820,7 @@ AICORE inline void RunPtoPagedAttentionCubePipelineSplitKV(__gm__ uint8_t *qGm, 
                         wait_flag(PIPE_MTE2, PIPE_MTE1, matmulEvent);
                         set_flag(PIPE_M, PIPE_MTE1, matmulEvent);
                         wait_flag(PIPE_M, PIPE_MTE1, matmulEvent);
-                        TEXTRACT(rightTile, vMatTile, 0, 0);
+                        PtoPaLoadCbufToCbTranspose128Raw(rightTile, vMatTile);
                         set_flag(PIPE_MTE1, PIPE_M, matmulEvent);
                         wait_flag(PIPE_MTE1, PIPE_M, matmulEvent);
                         TMATMUL(accTile, pLeftTile, rightTile);
@@ -799,7 +861,8 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
         return;
     }
 
-    const bool activeSubBlock = subBlockId == 0;
+    const bool activeSubBlock = subBlockId < 2;
+    const bool combineSubBlock = subBlockId == 0;
     const int32_t formerHeadSplit = ctx.formerHeadSplit > 0 ? ctx.formerHeadSplit : 1;
     const int32_t maxHeadGroups = (formerHeadSplit + kHeadGroup - 1) / kHeadGroup;
     const int32_t headsPerKv = ctx.numHeads / ctx.kvHeads;
@@ -812,36 +875,81 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
     using VecHalf128 = Tile<TileType::Vec, half, 1, kHeadDim, BLayout::RowMajor, 1, kHeadDim>;
     using VecHalf256 = Tile<TileType::Vec, half, 1, 256, BLayout::RowMajor, 1, kHeadDim>;
     using VecFloat8 = Tile<TileType::Vec, float, 1, 8, BLayout::RowMajor, 1, 8>;
+    using VecFloat4x128 = Tile<TileType::Vec, float, 4, kHeadDim, BLayout::RowMajor, 4, kHeadDim>;
+    using VecHalf4x128 = Tile<TileType::Vec, half, 4, kHeadDim, BLayout::RowMajor, 4, kHeadDim>;
+    using VecFloat4x1 = Tile<TileType::Vec, float, 8, 1, BLayout::ColMajor, 4, 1>;
+    using VecFloat1x8 = Tile<TileType::Vec, float, 1, 8, BLayout::RowMajor, 1, 8>;
     using ScoreGlobal = GlobalTensor<float, Shape<1, 1, 1, 1, kHeadDim>,
         Stride<kHeadDim, kHeadDim, kHeadDim, kHeadDim, 1>>;
+    using ScoreRowsGlobal = GlobalTensor<float, Shape<1, 1, 1, 4, kHeadDim>,
+        Stride<1, 1, 1, kHeadDim, 1>>;
     using ProbGlobal = GlobalTensor<half, Shape<1, 1, 1, 1, 256>, Stride<256, 256, 256, 256, 1>>;
+    using ProbRowsGlobal = GlobalTensor<half, Shape<1, 1, 1, 4, kHeadDim>, Stride<1, 1, 1, 256, 1>>;
     using OutGlobal = GlobalTensor<float, Shape<1, 1, 1, 1, kHeadDim>,
         Stride<kHeadDim, kHeadDim, kHeadDim, kHeadDim, 1>>;
+    using OutputGlobal = GlobalTensor<half, Shape<1, 1, 1, 1, kHeadDim>,
+        Stride<kHeadDim, kHeadDim, kHeadDim, kHeadDim, 1>>;
+    using OutRowsGlobal = GlobalTensor<float, Shape<1, 1, 1, 4, kHeadDim>,
+        Stride<1, 1, 1, kHeadDim, 1>>;
 
     VecFloat128 weightedTile;
     VecFloat128 scoreTile;
     VecFloat128 scoreWorkTile;
     VecFloat128 pvTile;
     VecHalf128 probHalfTile;
+    VecHalf128 outHalfTile;
     VecHalf256 probTile;
     VecFloat8 rowMaxTile;
     VecFloat8 rowSumTile;
     VecFloat8 scalarMathTile;
+    VecFloat4x128 scoreRowsTile;
+    VecFloat4x128 scoreRowsWorkTile;
+    VecFloat4x128 pvRowsTile;
+    VecHalf4x128 probRowsHalfTile;
+    VecFloat4x1 rowMaxRowsTile;
+    VecFloat4x1 maxStateRowsTile;
+    VecFloat4x1 newMaxRowsTile;
+    VecFloat4x1 oldScaleRowsTile;
+    VecFloat4x1 rowSumRowsTile;
+    VecFloat4x1 sumStateRowsTile;
+    VecFloat1x8 rowMaxRowsView;
+    VecFloat1x8 maxStateRowsView;
+    VecFloat1x8 newMaxRowsView;
+    VecFloat1x8 oldScaleRowsView;
+    VecFloat1x8 rowSumRowsView;
+    VecFloat1x8 sumStateRowsView;
     TASSIGN(weightedTile, 0x0000);
     TASSIGN(scoreTile, 0x0800);
     TASSIGN(scoreWorkTile, 0x1000);
     TASSIGN(pvTile, 0x1800);
     TASSIGN(probHalfTile, 0x2000);
+    TASSIGN(outHalfTile, 0x2000);
     TASSIGN(probTile, 0x2800);
     TASSIGN(rowMaxTile, 0x3000);
     TASSIGN(rowSumTile, 0x3040);
     TASSIGN(scalarMathTile, 0x3080);
+    TASSIGN(scoreRowsTile, 0x0800);
+    TASSIGN(scoreRowsWorkTile, 0x1000);
+    TASSIGN(pvRowsTile, 0x1800);
+    TASSIGN(probRowsHalfTile, 0x2000);
+    TASSIGN(rowMaxRowsTile, 0x3000);
+    TASSIGN(maxStateRowsTile, 0x3020);
+    TASSIGN(newMaxRowsTile, 0x3040);
+    TASSIGN(oldScaleRowsTile, 0x3060);
+    TASSIGN(rowSumRowsTile, 0x3080);
+    TASSIGN(sumStateRowsTile, 0x30a0);
+    TRESHAPE(rowMaxRowsView, rowMaxRowsTile);
+    TRESHAPE(maxStateRowsView, maxStateRowsTile);
+    TRESHAPE(newMaxRowsView, newMaxRowsTile);
+    TRESHAPE(oldScaleRowsView, oldScaleRowsTile);
+    TRESHAPE(rowSumRowsView, rowSumRowsTile);
+    TRESHAPE(sumStateRowsView, sumStateRowsTile);
 
     constexpr uint32_t kAccumUbBase = 0x4000;
     constexpr uint32_t kAccumHeadBytes = kHeadDim * sizeof(float);
-    constexpr int64_t scoreHeadBytes = 16 * kTileTokens * sizeof(float);
+    constexpr int64_t scoreHeadBytes = 4 * kTileTokens * sizeof(float);
     constexpr int64_t probHeadBytes = 256 * sizeof(half);
-    constexpr int64_t outHeadBytes = 16 * kHeadDim * sizeof(float);
+    constexpr int64_t outHeadBytes = 4 * kHeadDim * sizeof(float);
     constexpr int64_t scoreGroupBytes = kHeadGroup * scoreHeadBytes;
     constexpr int64_t probGroupBytes = kHeadGroup * probHeadBytes;
     constexpr int64_t outGroupBytes = kHeadGroup * outHeadBytes;
@@ -891,11 +999,13 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
             }
         }
 
+        const int32_t subHeadBegin = subBlockId == 0 ? 0 : curHeadNum / 2;
+        const int32_t subHeadEnd = subBlockId == 0 ? curHeadNum / 2 : curHeadNum;
         float maxScore[kMaxHeadsPerProcess];
         float sumExp[kMaxHeadsPerProcess];
         float oldScaleByHead[kMaxHeadsPerProcess];
         if (activeSubBlock && validProcess) {
-            for (int32_t headLocal = 0; headLocal < curHeadNum; ++headLocal) {
+            for (int32_t headLocal = subHeadBegin; headLocal < subHeadEnd; ++headLocal) {
                 maxScore[headLocal] = -3.4028234663852886e38f;
                 sumExp[headLocal] = 0.0f;
                 oldScaleByHead[headLocal] = 0.0f;
@@ -917,71 +1027,87 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
                 const bool activeGroup = validGroup && activeTile;
                 PtoPaStageSync();
                 if (activeSubBlock && activeGroup) {
-                    for (int32_t headInGroup = 0; headInGroup < kHeadGroup; ++headInGroup) {
-                        const int32_t headLocal = groupHeadBase + headInGroup;
+                    for (int32_t headInGroupBase = 0; headInGroupBase < kHeadGroup; headInGroupBase += headsPerKv) {
+                        const int32_t headLocal = groupHeadBase + headInGroupBase;
                         if (headLocal >= curHeadNum) {
                             break;
                         }
-                        const int32_t kvGroupHead = (headInGroup / headsPerKv) * headsPerKv;
-                        ScoreGlobal scoreGlobal(reinterpret_cast<__gm__ float *>(scoreBase +
+                        if (headsPerKv != 4 || headLocal < subHeadBegin || headLocal + 4 > subHeadEnd) {
+                            continue;
+                        }
+                        ScoreRowsGlobal scoreGlobal(reinterpret_cast<__gm__ float *>(scoreBase +
                             static_cast<int64_t>(slot) * scoreGroupBytes +
-                            static_cast<int64_t>(kvGroupHead) * scoreHeadBytes +
-                            static_cast<int64_t>(headInGroup) * kTileTokens * sizeof(float)));
-                        TLOAD(scoreTile, scoreGlobal);
+                            static_cast<int64_t>(headInGroupBase) * scoreHeadBytes));
+                        TLOAD(scoreRowsTile, scoreGlobal);
                         set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
                         wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-                        TMULS(scoreTile, scoreTile, ctx.scale);
+                        TMULS(scoreRowsTile, scoreRowsTile, ctx.scale);
                         pipe_barrier(PIPE_V);
-                        TROWMAX(rowMaxTile, scoreTile, scoreWorkTile);
-                        pipe_barrier(PIPE_V);
-                        const float tileMax = rowMaxTile.GetValue(0);
-                        const float newMax = tileMax > maxScore[headLocal] ? tileMax : maxScore[headLocal];
-                        const float oldScale = (tile == 0) ? 0.0f : PtoExpScalar(scalarMathTile,
-                            maxScore[headLocal] - newMax);
-                        rowMaxTile.data()[0] = newMax;
-                        TROWEXPANDSUB(scoreWorkTile, scoreTile, rowMaxTile);
-                        pipe_barrier(PIPE_V);
-                        TEXP(scoreWorkTile, scoreWorkTile);
-                        pipe_barrier(PIPE_V);
-                        TROWSUM(rowSumTile, scoreWorkTile, scoreTile);
-                        pipe_barrier(PIPE_V);
-                        const float tileSum = rowSumTile.GetValue(0);
-                        TEXPANDS(probTile, static_cast<half>(0.0));
-                        TCVT(probHalfTile, scoreWorkTile, RoundMode::CAST_ROUND);
-                        pipe_barrier(PIPE_V);
-                        for (int32_t pos = 0; pos < kTileTokens; ++pos) {
-                            probTile.data()[pos] = probHalfTile.data()[pos];
+                        for (int32_t row = 0; row < 4; ++row) {
+                            maxStateRowsTile.data()[row] = maxScore[headLocal + row];
+                            sumStateRowsTile.data()[row] = sumExp[headLocal + row];
                         }
-                        sumExp[headLocal] = sumExp[headLocal] * oldScale + tileSum;
-                        oldScaleByHead[headLocal] = oldScale;
-                        maxScore[headLocal] = newMax;
-                        ProbGlobal probGlobal(reinterpret_cast<__gm__ half *>(probBase +
+                        TROWMAX(rowMaxRowsTile, scoreRowsTile, scoreRowsWorkTile);
+                        pipe_barrier(PIPE_V);
+                        TMAX(newMaxRowsView, rowMaxRowsView, maxStateRowsView);
+                        pipe_barrier(PIPE_V);
+                        TSUB(oldScaleRowsView, maxStateRowsView, newMaxRowsView);
+                        pipe_barrier(PIPE_V);
+                        TEXP(oldScaleRowsView, oldScaleRowsView);
+                        pipe_barrier(PIPE_V);
+                        if (tile == 0) {
+                            TEXPANDS(oldScaleRowsView, 0.0f);
+                            pipe_barrier(PIPE_V);
+                        }
+                        TROWEXPANDSUB(scoreRowsWorkTile, scoreRowsTile, newMaxRowsTile);
+                        pipe_barrier(PIPE_V);
+                        TEXP(scoreRowsWorkTile, scoreRowsWorkTile);
+                        pipe_barrier(PIPE_V);
+                        TROWSUM(rowSumRowsTile, scoreRowsWorkTile, scoreRowsTile);
+                        pipe_barrier(PIPE_V);
+                        TCVT(probRowsHalfTile, scoreRowsWorkTile, RoundMode::CAST_ROUND);
+                        pipe_barrier(PIPE_V);
+                        TMUL(sumStateRowsView, sumStateRowsView, oldScaleRowsView);
+                        pipe_barrier(PIPE_V);
+                        TADD(sumStateRowsView, sumStateRowsView, rowSumRowsView);
+                        pipe_barrier(PIPE_V);
+                        for (int32_t row = 0; row < 4; ++row) {
+                            maxScore[headLocal + row] = newMaxRowsTile.data()[row];
+                            sumExp[headLocal + row] = sumStateRowsTile.data()[row];
+                            oldScaleByHead[headLocal + row] = oldScaleRowsTile.data()[row];
+                        }
+                        ProbRowsGlobal probGlobal(reinterpret_cast<__gm__ half *>(probBase +
                             static_cast<int64_t>(slot) * probGroupBytes +
-                            static_cast<int64_t>(headInGroup) * probHeadBytes));
-                        TSTORE(probGlobal, probTile);
+                            static_cast<int64_t>(headInGroupBase) * probHeadBytes));
+                        TSTORE(probGlobal, probRowsHalfTile);
                     }
                     DdrFenceBeforePtoAivReduce();
                 }
                 PtoPaStageSync();
                 PtoPaStageSync();
                 if (activeSubBlock && activeGroup) {
-                    for (int32_t headInGroup = 0; headInGroup < kHeadGroup; ++headInGroup) {
-                        const int32_t headLocal = groupHeadBase + headInGroup;
+                    for (int32_t headInGroupBase = 0; headInGroupBase < kHeadGroup; headInGroupBase += headsPerKv) {
+                        const int32_t headLocal = groupHeadBase + headInGroupBase;
                         if (headLocal >= curHeadNum) {
                             break;
                         }
-                        const int32_t kvGroupHead = (headInGroup / headsPerKv) * headsPerKv;
-                        OutGlobal outGlobal(reinterpret_cast<__gm__ float *>(outTmpBase +
+                        if (headsPerKv != 4 || headLocal < subHeadBegin || headLocal + 4 > subHeadEnd) {
+                            continue;
+                        }
+                        for (int32_t row = 0; row < 4; ++row) {
+                            oldScaleRowsTile.data()[row] = oldScaleByHead[headLocal + row];
+                        }
+                        OutRowsGlobal outGlobal(reinterpret_cast<__gm__ float *>(outTmpBase +
                             static_cast<int64_t>(slot) * outGroupBytes +
-                            static_cast<int64_t>(kvGroupHead) * outHeadBytes +
-                            static_cast<int64_t>(headInGroup) * kHeadDim * sizeof(float)));
-                        TLOAD(pvTile, outGlobal);
+                            static_cast<int64_t>(headInGroupBase) * outHeadBytes));
+                        TLOAD(pvRowsTile, outGlobal);
                         set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
                         wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-                        TASSIGN(weightedTile, kAccumUbBase + static_cast<uint32_t>(headLocal) * kAccumHeadBytes);
-                        TMULS(weightedTile, weightedTile, oldScaleByHead[headLocal]);
+                        VecFloat4x128 weightedRowsTile;
+                        TASSIGN(weightedRowsTile, kAccumUbBase + static_cast<uint32_t>(headLocal) * kAccumHeadBytes);
+                        TROWEXPANDMUL(weightedRowsTile, weightedRowsTile, oldScaleRowsTile);
                         pipe_barrier(PIPE_V);
-                        TAXPY(weightedTile, pvTile, 1.0f);
+                        TADD(weightedRowsTile, weightedRowsTile, pvRowsTile);
                         pipe_barrier(PIPE_V);
                     }
                 }
@@ -990,7 +1116,7 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
         }
 
         if (activeSubBlock && validProcess) {
-            for (int32_t headLocal = 0; headLocal < curHeadNum; ++headLocal) {
+            for (int32_t headLocal = subHeadBegin; headLocal < subHeadEnd; ++headLocal) {
                 const int32_t head = startHead + headLocal;
                 const float invSum = sumExp[headLocal] > 0.0f ? 1.0f / sumExp[headLocal] : 0.0f;
                 const uint64_t outOffset = oFdBase * ctx.kvSplitCoreNum +
@@ -1010,7 +1136,7 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
     DdrFenceBeforePtoAivReduce();
     ffts_cross_core_sync(PIPE_MTE3, PtoPaGetFftsMsg(0x0, PTO_PA_REDUCE_READY_DECODER));
     wait_flag_dev(PTO_PA_REDUCE_READY_DECODER);
-    if (!activeSubBlock) {
+    if (!combineSubBlock) {
         pipe_barrier(PIPE_ALL);
         return;
     }
@@ -1045,7 +1171,7 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
             scalarMathTile.data()[0] = lValue - lMax;
             TEXP(scalarMathTile, scalarMathTile);
             pipe_barrier(PIPE_V);
-            const float scale = scalarMathTile.GetValue(0);
+            const float scale = scalarMathTile.data()[0];
             splitScale[split] = scale;
             denom += scale;
         }
@@ -1053,16 +1179,25 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
         for (int32_t split = 0; split < kvLoop; ++split) {
             splitScale[split] *= invDenom;
         }
+        TASSIGN(weightedTile, 0x0000);
+        TEXPANDS(weightedTile, 0.0f);
+        pipe_barrier(PIPE_V);
+        for (int32_t split = 0; split < kvLoop; ++split) {
+            const uint64_t outOffset = oFdBase * ctx.kvSplitCoreNum +
+                static_cast<uint64_t>(head) * ctx.headDim * ctx.kvSplitCoreNum +
+                static_cast<uint64_t>(split) * ctx.headDim;
+            OutGlobal splitGlobal(partialOut + outOffset);
+            TLOAD(pvTile, splitGlobal);
+            set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+            wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+            TMULS(pvTile, pvTile, splitScale[split]);
+            pipe_barrier(PIPE_V);
+            TADD(weightedTile, weightedTile, pvTile);
+            pipe_barrier(PIPE_V);
+        }
         const int64_t outBase = (static_cast<int64_t>(batchIndex) * ctx.numHeads + head) * ctx.headDim;
-        for (int32_t dim = 0; dim < kHeadDim; ++dim) {
-            float value = 0.0f;
-            for (int32_t split = 0; split < kvLoop; ++split) {
-                const uint64_t outOffset = oFdBase * ctx.kvSplitCoreNum +
-                    static_cast<uint64_t>(head) * ctx.headDim * ctx.kvSplitCoreNum +
-                    static_cast<uint64_t>(split) * ctx.headDim;
-                value += partialOut[outOffset + dim] * splitScale[split];
-            }
-            StoreOutputFp16(oGm, outBase + dim, value);
+        for (int32_t dim = 0; dim < ctx.headDim; ++dim) {
+            StoreOutputFp16(oGm, outBase + dim, weightedTile.data()[dim]);
         }
     }
     pipe_barrier(PIPE_ALL);
@@ -1196,19 +1331,19 @@ AICORE inline void RunPtoPagedAttentionDecodeSplitKV(
                 pipe_barrier(PIPE_V);
                 TROWSUM(scoreTile, qkProductTile, reduceTmpTile);
                 pipe_barrier(PIPE_V);
-                const float score = scoreTile.GetValue(0) * ctx.scale;
+                const float score = scoreTile.data()[0] * ctx.scale;
                 const float newMax = score > maxScore ? score : maxScore;
                 float oldScale = 0.0f;
                 if (relPos != 0) {
                     scalarMathTile.data()[0] = maxScore - newMax;
                     TEXP(scalarMathTile, scalarMathTile);
                     pipe_barrier(PIPE_V);
-                    oldScale = scalarMathTile.GetValue(0);
+                    oldScale = scalarMathTile.data()[0];
                 }
                 scalarMathTile.data()[0] = score - newMax;
                 TEXP(scalarMathTile, scalarMathTile);
                 pipe_barrier(PIPE_V);
-                const float probUnnorm = scalarMathTile.GetValue(0);
+                const float probUnnorm = scalarMathTile.data()[0];
                 sumExp = sumExp * oldScale + probUnnorm;
 
                 GlobalHalf128 vGlobal(reinterpret_cast<__gm__ half *>(vGm) + kvOffset);
@@ -1233,7 +1368,7 @@ AICORE inline void RunPtoPagedAttentionDecodeSplitKV(
                 scalarMathTile.data()[0] = sumExp;
                 TLOG(scalarMathTile, scalarMathTile);
                 pipe_barrier(PIPE_V);
-                logSumExp = scalarMathTile.GetValue(0);
+                logSumExp = scalarMathTile.data()[0];
             }
             partialL[lOffset] = maxScore + logSumExp;
             for (int32_t dim = 0; dim < kHeadDim; ++dim) {
@@ -1278,7 +1413,7 @@ AICORE inline void RunPtoPagedAttentionDecodeSplitKV(
             scalarMathTile.data()[0] = lValue - lMax;
             TEXP(scalarMathTile, scalarMathTile);
             pipe_barrier(PIPE_V);
-            const float scale = scalarMathTile.GetValue(0);
+            const float scale = scalarMathTile.data()[0];
             splitScale[split] = scale;
             denom += scale;
         }
@@ -1412,7 +1547,7 @@ AICORE inline void RunPtoPagedAttentionDecode(
                 pipe_barrier(PIPE_ALL);
                 TROWSUM(scoreTile, qkProductTile, reduceTmpTile);
                 pipe_barrier(PIPE_ALL);
-                const float rawScore = scoreTile.GetValue(0);
+                const float rawScore = scoreTile.data()[0];
                 const float score = rawScore * ctx.scale;
 
                 const float newMax = score > maxScore ? score : maxScore;
