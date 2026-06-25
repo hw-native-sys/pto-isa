@@ -60,7 +60,6 @@ set(CMAKE_CCE_COMPILE_OPTIONS
     "SHELL:-mllvm -cce-aicore-addr-transform"
     "SHELL:-mllvm -cce-aicore-dcci-insert-for-scalar=false"
 )
-set(CMAKE_CCE_COMPILE_OPTIONS "${CMAKE_CCE_COMPILE_OPTIONS} --cce-pto-enable")
 
 set(CMAKE_CPP_COMPILE_OPTIONS
     -xc++
