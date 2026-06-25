@@ -468,8 +468,8 @@ def workspace_sizes(
     """Return byte sizes for each workspace tensor (from PagedAttentionTiling scratch sizes)."""
     basic_half = block_dim * WORKSPACE_BLOCK_SIZE_DB * 2
     basic_float = block_dim * WORKSPACE_BLOCK_SIZE_DB * 4
-    o_core = int(block_dim * SPLITKV_RATIO) * num_heads * block_dim * head_dim * 4
-    l_size = int(block_dim * SPLITKV_RATIO) * num_heads * block_dim * 4
+    o_core = batch * num_heads * block_dim * head_dim * 4
+    l_size = batch * num_heads * block_dim * 4
     k16 = 2 * block_dim * 256 * num_heads * head_dim * 2
     v16 = 2 * block_dim * 256 * num_heads * head_dim_v * 2
     return {

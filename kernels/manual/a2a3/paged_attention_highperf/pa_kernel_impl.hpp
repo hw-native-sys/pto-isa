@@ -229,9 +229,9 @@ constexpr uint8_t PTO_PA_RAW_P_FREE = 6;
 constexpr uint8_t PTO_PA_RAW_PV_READY = 8;
 constexpr uint8_t PTO_PA_RAW_PV_FREE = 10;
 
-AICORE inline uint8_t PtoPaSubBlockFlag(uint8_t baseFlag, uint32_t subBlockId)
+AICORE inline uint8_t PtoPaSlotFlag(uint8_t baseFlag, uint8_t slot)
 {
-    return static_cast<uint8_t>(baseFlag + static_cast<uint8_t>(subBlockId) * 4);
+    return static_cast<uint8_t>(baseFlag + slot);
 }
 
 AICORE inline uint16_t PtoPaGetFftsMsg(uint16_t mode, uint16_t eventId, uint16_t baseConst = 0x1)
@@ -791,8 +791,11 @@ AICORE inline void RunPtoPagedAttentionCubePipelineSplitKV(__gm__ uint8_t *qGm, 
                     }
                     DdrFenceBeforePtoAivReduce();
                 }
-                PtoPaStageSync();
-                PtoPaStageSync();
+                PtoPaSignalFromCube(PtoPaSlotFlag(PTO_PA_RAW_QK_READY, slot));
+                wait_flag_dev(PtoPaSlotFlag(PTO_PA_RAW_P_READY, slot));
+                if (tile >= 2) {
+                    wait_flag_dev(PtoPaSlotFlag(PTO_PA_RAW_PV_FREE, slot));
+                }
                 if (activeGroup) {
                     const int32_t blockId = LoadBlockTable(blockTablesGm,
                         static_cast<int64_t>(batchIndex) * maxBlocksPerQuery + startTile + tile);
@@ -835,8 +838,7 @@ AICORE inline void RunPtoPagedAttentionCubePipelineSplitKV(__gm__ uint8_t *qGm, 
                     }
                     DdrFenceBeforePtoAivReduce();
                 }
-                PtoPaStageSync();
-                PtoPaStageSync();
+                PtoPaSignalFromCube(PtoPaSlotFlag(PTO_PA_RAW_PV_READY, slot));
             }
         }
     }
@@ -876,7 +878,6 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
     using VecHalf256 = Tile<TileType::Vec, half, 1, 256, BLayout::RowMajor, 1, kHeadDim>;
     using VecFloat8 = Tile<TileType::Vec, float, 1, 8, BLayout::RowMajor, 1, 8>;
     using VecFloat4x128 = Tile<TileType::Vec, float, 4, kHeadDim, BLayout::RowMajor, 4, kHeadDim>;
-    using VecHalf4x128 = Tile<TileType::Vec, half, 4, kHeadDim, BLayout::RowMajor, 4, kHeadDim>;
     using VecFloat4x1 = Tile<TileType::Vec, float, 8, 1, BLayout::ColMajor, 4, 1>;
     using VecFloat1x8 = Tile<TileType::Vec, float, 1, 8, BLayout::RowMajor, 1, 8>;
     using ScoreGlobal = GlobalTensor<float, Shape<1, 1, 1, 1, kHeadDim>,
@@ -884,7 +885,8 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
     using ScoreRowsGlobal = GlobalTensor<float, Shape<1, 1, 1, 4, kHeadDim>,
         Stride<1, 1, 1, kHeadDim, 1>>;
     using ProbGlobal = GlobalTensor<half, Shape<1, 1, 1, 1, 256>, Stride<256, 256, 256, 256, 1>>;
-    using ProbRowsGlobal = GlobalTensor<half, Shape<1, 1, 1, 4, kHeadDim>, Stride<1, 1, 1, 256, 1>>;
+    using ProbRowGlobal = GlobalTensor<half, Shape<1, 1, 1, 1, kHeadDim>,
+        Stride<kHeadDim, kHeadDim, kHeadDim, kHeadDim, 1>>;
     using OutGlobal = GlobalTensor<float, Shape<1, 1, 1, 1, kHeadDim>,
         Stride<kHeadDim, kHeadDim, kHeadDim, kHeadDim, 1>>;
     using OutputGlobal = GlobalTensor<half, Shape<1, 1, 1, 1, kHeadDim>,
@@ -905,7 +907,6 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
     VecFloat4x128 scoreRowsTile;
     VecFloat4x128 scoreRowsWorkTile;
     VecFloat4x128 pvRowsTile;
-    VecHalf4x128 probRowsHalfTile;
     VecFloat4x1 rowMaxRowsTile;
     VecFloat4x1 maxStateRowsTile;
     VecFloat4x1 newMaxRowsTile;
@@ -931,7 +932,6 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
     TASSIGN(scoreRowsTile, 0x0800);
     TASSIGN(scoreRowsWorkTile, 0x1000);
     TASSIGN(pvRowsTile, 0x1800);
-    TASSIGN(probRowsHalfTile, 0x2000);
     TASSIGN(rowMaxRowsTile, 0x3000);
     TASSIGN(maxStateRowsTile, 0x3020);
     TASSIGN(newMaxRowsTile, 0x3040);
@@ -1025,7 +1025,7 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
                 (void)validTokens;
                 const uint8_t slot = static_cast<uint8_t>(tile & 1);
                 const bool activeGroup = validGroup && activeTile;
-                PtoPaStageSync();
+                wait_flag_dev(PtoPaSlotFlag(PTO_PA_RAW_QK_READY, slot));
                 if (activeSubBlock && activeGroup) {
                     for (int32_t headInGroupBase = 0; headInGroupBase < kHeadGroup; headInGroupBase += headsPerKv) {
                         const int32_t headLocal = groupHeadBase + headInGroupBase;
@@ -1065,26 +1065,30 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
                         pipe_barrier(PIPE_V);
                         TROWSUM(rowSumRowsTile, scoreRowsWorkTile, scoreRowsTile);
                         pipe_barrier(PIPE_V);
-                        TCVT(probRowsHalfTile, scoreRowsWorkTile, RoundMode::CAST_ROUND);
-                        pipe_barrier(PIPE_V);
                         TMUL(sumStateRowsView, sumStateRowsView, oldScaleRowsView);
                         pipe_barrier(PIPE_V);
                         TADD(sumStateRowsView, sumStateRowsView, rowSumRowsView);
                         pipe_barrier(PIPE_V);
+                        __gm__ half *probScratch = reinterpret_cast<__gm__ half *>(probBase +
+                            static_cast<int64_t>(slot) * probGroupBytes);
+                        __ubuf__ half *probHalf = reinterpret_cast<__ubuf__ half *>(probHalfTile.data());
                         for (int32_t row = 0; row < 4; ++row) {
                             maxScore[headLocal + row] = newMaxRowsTile.data()[row];
                             sumExp[headLocal + row] = sumStateRowsTile.data()[row];
                             oldScaleByHead[headLocal + row] = oldScaleRowsTile.data()[row];
+                            __ubuf__ float *probFloat = reinterpret_cast<__ubuf__ float *>(
+                                scoreRowsWorkTile.data() + row * kTileTokens);
+                            vconv_f322f16a(probHalf, probFloat, 2, 1, 1, 4, 8);
+                            pipe_barrier(PIPE_V);
+                            ProbRowGlobal probRowGlobal(probScratch +
+                                static_cast<int64_t>(headInGroupBase + row) * kTileTokens);
+                            TSTORE(probRowGlobal, probHalfTile);
                         }
-                        ProbRowsGlobal probGlobal(reinterpret_cast<__gm__ half *>(probBase +
-                            static_cast<int64_t>(slot) * probGroupBytes +
-                            static_cast<int64_t>(headInGroupBase) * probHeadBytes));
-                        TSTORE(probGlobal, probRowsHalfTile);
                     }
                     DdrFenceBeforePtoAivReduce();
                 }
-                PtoPaStageSync();
-                PtoPaStageSync();
+                PtoPaSignalFromVec(PtoPaSlotFlag(PTO_PA_RAW_P_READY, slot));
+                wait_flag_dev(PtoPaSlotFlag(PTO_PA_RAW_PV_READY, slot));
                 if (activeSubBlock && activeGroup) {
                     for (int32_t headInGroupBase = 0; headInGroupBase < kHeadGroup; headInGroupBase += headsPerKv) {
                         const int32_t headLocal = groupHeadBase + headInGroupBase;
@@ -1111,7 +1115,7 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
                         pipe_barrier(PIPE_V);
                     }
                 }
-                PtoPaStageSync();
+                PtoPaSignalFreeFromVec(PtoPaSlotFlag(PTO_PA_RAW_PV_FREE, slot));
             }
         }
 
@@ -1196,9 +1200,20 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
             pipe_barrier(PIPE_V);
         }
         const int64_t outBase = (static_cast<int64_t>(batchIndex) * ctx.numHeads + head) * ctx.headDim;
-        for (int32_t dim = 0; dim < ctx.headDim; ++dim) {
-            StoreOutputFp16(oGm, outBase + dim, weightedTile.data()[dim]);
-        }
+        __ubuf__ half *outHalf = reinterpret_cast<__ubuf__ half *>(outHalfTile.data());
+        __ubuf__ float *outFloat = reinterpret_cast<__ubuf__ float *>(weightedTile.data());
+        vconv_f322f16a(outHalf, outFloat, 2, 1, 1, 4, 8);
+        pipe_barrier(PIPE_V);
+        copy_ubuf_to_gm_align_b16(
+            reinterpret_cast<__gm__ half *>(oGm) + outBase,
+            outHalf,
+            0,
+            1,
+            static_cast<uint32_t>(ctx.headDim * sizeof(half)),
+            0,
+            0,
+            0,
+            0);
     }
     pipe_barrier(PIPE_ALL);
 }
