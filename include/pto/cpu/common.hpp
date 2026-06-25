@@ -12,8 +12,25 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define COMMON_HPP
 
 #include <pto/common/type.hpp>
+#include <type_traits>
 
 namespace pto {
+
+template <typename T>
+PTO_INLINE void AtomicAccumulate(T *addr, T val)
+{
+    if constexpr (std::is_integral_v<T>) {
+        __atomic_fetch_add(addr, val, __ATOMIC_RELAXED);
+    } else {
+        T expected;
+        __atomic_load(addr, &expected, __ATOMIC_RELAXED);
+        T desired;
+        do {
+            desired = static_cast<T>(expected + val);
+        } while (
+            !__atomic_compare_exchange(addr, &expected, &desired, /*weak=*/true, __ATOMIC_RELAXED, __ATOMIC_RELAXED));
+    }
+}
 
 enum QuantModeCPU_t
 {
@@ -183,7 +200,7 @@ PTO_INLINE void StoreElement(D *dst, size_t dstIdx, S value, size_t r, size_t c,
     }
     D converted = ConvertStoreValue<D, S, quantMode, applyRelu>(value, scalar);
     if constexpr (atomicAdd) {
-        dst[dstIdx] += converted;
+        AtomicAccumulate(&dst[dstIdx], converted);
     } else {
         dst[dstIdx] = converted;
     }

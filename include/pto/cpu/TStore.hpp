@@ -104,7 +104,7 @@ __tf__ PTO_INLINE void StorePlainMatrix(typename GlobalData::DType __out__ *dst,
                                      out = static_cast<D>(val);
                                  }
                                  if constexpr (atomicAdd) {
-                                     dst[dstIdx] += out;
+                                     AtomicAccumulate(&dst[dstIdx], out);
                                  } else {
                                      dst[dstIdx] = out;
                                  }
@@ -141,7 +141,7 @@ __tf__ PTO_INLINE void StorePlainMatrix(typename GlobalData::DType __out__ *dst,
                                      out = static_cast<D>(val);
                                  }
                                  if constexpr (atomicAdd) {
-                                     dst[dstIdx] += out;
+                                     AtomicAccumulate(&dst[dstIdx], out);
                                  } else {
                                      dst[dstIdx] = out;
                                  }

@@ -20,23 +20,22 @@ template <typename TileAcc, typename TileLeft, typename TileRight>
 void TMatmulNzZn(typename TileAcc::TileDType dst, typename TileAcc::TileDType acc, typename TileLeft::TileDType src0,
                  typename TileRight::TileDType src1, uint16_t M, uint16_t N, uint16_t K)
 {
+    using DType = typename TileAcc::DType;
+    using AccT = std::conditional_t<std::is_floating_point_v<DType>, double, DType>;
     cpu::parallel_for_1d(0, M, static_cast<std::size_t>(M) * N * K, [&](std::size_t i) {
         for (uint16_t j = 0; j < N; j++) {
-            typename TileAcc::DType mul_acc = 0;
+            AccT mul_acc = 0;
 
             // PTO_CPU_VECTORIZE_LOOP
             for (uint16_t k = 0; k < K; k++) {
                 size_t src0Idx = GetTileElementOffset<TileLeft>(i, k);
                 size_t src1Idx = GetTileElementOffset<TileRight>(k, j);
 
-                auto a = (double)static_cast<typename TileAcc::DType>(src0[src0Idx]);
-                auto b = (double)static_cast<typename TileAcc::DType>(src1[src1Idx]);
-                mul_acc += static_cast<typename TileAcc::DType>(src0[src0Idx]) *
-                           static_cast<typename TileAcc::DType>(src1[src1Idx]);
+                mul_acc += static_cast<AccT>(static_cast<DType>(src0[src0Idx]) * static_cast<DType>(src1[src1Idx]));
             }
 
             size_t dstIdx = GetTileElementOffset<TileAcc>(i, j);
-            dst[dstIdx] = acc ? acc[dstIdx] + mul_acc : mul_acc;
+            dst[dstIdx] = acc ? static_cast<DType>(acc[dstIdx] + mul_acc) : static_cast<DType>(mul_acc);
         }
     });
 }
@@ -46,9 +45,11 @@ void TMatmulMX(typename TileAcc::TileDType dst, typename TileAcc::TileDType acc,
                typename TileRight::TileDType src1, typename TileLeftScale::TileDType scale0,
                typename TileRightScale::TileDType scale1, uint16_t M, uint16_t N, uint16_t K)
 {
+    using DType = typename TileAcc::DType;
+    using AccT = std::conditional_t<std::is_floating_point_v<DType>, double, DType>;
     cpu::parallel_for_1d(0, M, static_cast<std::size_t>(M) * N * K, [&](std::size_t i) {
         for (uint16_t j = 0; j < N; j++) {
-            typename TileAcc::DType mul_acc = 0;
+            AccT mul_acc = 0;
 
             PTO_CPU_VECTORIZE_LOOP
             for (uint16_t k = 0; k < K; k++) {
@@ -57,11 +58,11 @@ void TMatmulMX(typename TileAcc::TileDType dst, typename TileAcc::TileDType acc,
                 size_t src0Idx = GetTileElementOffset<TileLeft>(i, k);
                 size_t src1Idx = GetTileElementOffset<TileRight>(k, j);
                 double scaleFactor = scale0[scale0Idx] * scale1[scale1Idx];
-                mul_acc += src0[src0Idx] * src1[src1Idx] * scaleFactor;
+                mul_acc += static_cast<AccT>(src0[src0Idx] * src1[src1Idx] * scaleFactor);
             }
 
             size_t dstIdx = GetTileElementOffset<TileAcc>(i, j);
-            dst[dstIdx] = acc ? acc[dstIdx] + mul_acc : mul_acc;
+            dst[dstIdx] = acc ? static_cast<DType>(acc[dstIdx] + mul_acc) : static_cast<DType>(mul_acc);
         }
     });
 }
