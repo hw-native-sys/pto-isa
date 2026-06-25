@@ -317,6 +317,21 @@ AICORE inline void DdrFenceBeforePtoAivReduce()
 #endif
 }
 
+AICORE inline void PtoPaSetFloatVectorMask(uint32_t len)
+{
+    set_mask_norm();
+    constexpr uint32_t kFloatVectorSize = 64;
+    if (len >= kFloatVectorSize) {
+        set_vector_mask(static_cast<uint64_t>(-1), static_cast<uint64_t>(-1));
+        return;
+    }
+    uint64_t mask = 0;
+    for (uint32_t i = 0; i < len; ++i) {
+        mask |= 1ULL << i;
+    }
+    set_vector_mask(0, mask);
+}
+
 AICORE inline void PtoPaStageSync()
 {
     SYNCALL<SyncCoreType::Mix>();
@@ -1163,26 +1178,30 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
         const int32_t kvLoop = (kvSeqLenAlign + ctx.kvSplitPerCore - 1) / ctx.kvSplitPerCore;
         const uint64_t lBase = LoadTilingOffset64(tilingParaGm, paraBase, 11, 12);
         const uint64_t oFdBase = LoadTilingOffset64(tilingParaGm, paraBase, 15, 16);
+        __ubuf__ float *splitScale = reinterpret_cast<__ubuf__ float *>((uintptr_t)0x3200);
+        __ubuf__ float *splitReduce = reinterpret_cast<__ubuf__ float *>((uintptr_t)0x3400);
         float lMax = -3.4028234663852886e38f;
         for (int32_t split = 0; split < kvLoop; ++split) {
             const float lValue = partialL[lBase + static_cast<uint64_t>(head) * ctx.kvSplitCoreNum + split];
+            splitScale[split] = lValue;
             lMax = lValue > lMax ? lValue : lMax;
         }
-        float denom = 0.0f;
-        float splitScale[64];
-        for (int32_t split = 0; split < kvLoop; ++split) {
-            const float lValue = partialL[lBase + static_cast<uint64_t>(head) * ctx.kvSplitCoreNum + split];
-            scalarMathTile.data()[0] = lValue - lMax;
-            TEXP(scalarMathTile, scalarMathTile);
-            pipe_barrier(PIPE_V);
-            const float scale = scalarMathTile.data()[0];
-            splitScale[split] = scale;
-            denom += scale;
-        }
-        const float invDenom = denom > 0.0f ? 1.0f / denom : 0.0f;
-        for (int32_t split = 0; split < kvLoop; ++split) {
-            splitScale[split] *= invDenom;
-        }
+        set_flag(PIPE_S, PIPE_V, EVENT_ID2);
+        wait_flag(PIPE_S, PIPE_V, EVENT_ID2);
+        PtoPaSetFloatVectorMask(static_cast<uint32_t>(kvLoop));
+        vadds(splitScale, splitScale, -lMax, 1, 1, 1, 8, 8);
+        pipe_barrier(PIPE_V);
+        vexp(splitScale, splitScale, 1, 1, 1, 8, 8);
+        pipe_barrier(PIPE_V);
+        vcadd(splitReduce, splitScale, 1, 1, 1, 8, 0);
+        pipe_barrier(PIPE_V);
+        set_vector_mask(static_cast<uint64_t>(-1), static_cast<uint64_t>(-1));
+        const float denom = splitReduce[0];
+        float invDenom = denom > 0.0f ? 1.0f / denom : 0.0f;
+        PtoPaSetFloatVectorMask(static_cast<uint32_t>(kvLoop));
+        vmuls(splitScale, splitScale, static_cast<float>(invDenom), 1, 1, 1, 8, 8);
+        pipe_barrier(PIPE_V);
+        set_vector_mask(static_cast<uint64_t>(-1), static_cast<uint64_t>(-1));
         TASSIGN(weightedTile, 0x0000);
         TEXPANDS(weightedTile, 0.0f);
         pipe_barrier(PIPE_V);
@@ -1200,20 +1219,9 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
             pipe_barrier(PIPE_V);
         }
         const int64_t outBase = (static_cast<int64_t>(batchIndex) * ctx.numHeads + head) * ctx.headDim;
-        __ubuf__ half *outHalf = reinterpret_cast<__ubuf__ half *>(outHalfTile.data());
-        __ubuf__ float *outFloat = reinterpret_cast<__ubuf__ float *>(weightedTile.data());
-        vconv_f322f16a(outHalf, outFloat, 2, 1, 1, 4, 8);
-        pipe_barrier(PIPE_V);
-        copy_ubuf_to_gm_align_b16(
-            reinterpret_cast<__gm__ half *>(oGm) + outBase,
-            outHalf,
-            0,
-            1,
-            static_cast<uint32_t>(ctx.headDim * sizeof(half)),
-            0,
-            0,
-            0,
-            0);
+        for (int32_t dim = 0; dim < ctx.headDim; ++dim) {
+            StoreOutputFp16(oGm, outBase + dim, weightedTile.data()[dim]);
+        }
     }
     pipe_barrier(PIPE_ALL);
 }
