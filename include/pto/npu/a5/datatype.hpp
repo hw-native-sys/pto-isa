@@ -14,7 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 template <typename T>
 struct TypeGet;
-#if defined(__DAV_VEC__)
+#if defined(__DAV_VEC__) || (defined(__CCE_AICORE__) && !defined(__CPU_SIM) && !defined(__COSTMODEL))
 template <>
 struct TypeGet<bfloat16_t> {
     using T = vector_bf16;
@@ -126,7 +126,7 @@ template <>
 struct TypeGet<vector_s8> {
     using T = vector_s8;
 };
-#if defined(__DAV_VEC__)
+#if defined(__DAV_VEC__) || (defined(__CCE_AICORE__) && !defined(__CPU_SIM) && !defined(__COSTMODEL))
 template <>
 struct TypeGet<vector_bf16> {
     using T = vector_bf16;

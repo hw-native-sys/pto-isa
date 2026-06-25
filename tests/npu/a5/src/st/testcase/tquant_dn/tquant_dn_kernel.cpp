@@ -19,6 +19,32 @@ using namespace pto;
 
 namespace TQuantDNTest {
 
+// Copy packed FP4 rows from the TQUANT output UB region (2D [rows, srcStride]) into
+// the TSTORE tile UB region (2D [rows, dstStride]), honouring validPackedCols. Mirrors
+// the proven CompactFp4PackedRows helper used by the non-DN MXFP4 kernel.
+PTO_INTERNAL void CompactFp4PackedRows(__ubuf__ uint8_t *dstPtr, __ubuf__ uint8_t *srcPtr, uint32_t rows,
+                                       uint32_t validPackedCols, uint32_t srcStride, uint32_t dstStride)
+{
+    constexpr uint32_t elementsPerRepeat = REPEAT_BYTE / sizeof(uint8_t);
+    RegTensor<uint8_t> vreg;
+    UnalignReg ureg;
+    uint16_t repeatTimes = CeilDivision(validPackedCols, elementsPerRepeat);
+    for (uint16_t row = 0; row < (uint16_t)rows; ++row) {
+        uint32_t remaining = validPackedCols;
+        __ubuf__ uint8_t *srcRow = srcPtr + row * srcStride;
+        __ubuf__ uint8_t *dstRow = dstPtr + row * dstStride;
+        for (uint16_t repeat = 0; repeat < repeatTimes; ++repeat) {
+            uint32_t cols = remaining > elementsPerRepeat ? elementsPerRepeat : remaining;
+            MaskReg preg = CreatePredicate<uint8_t>(cols);
+            uint32_t offset = repeat * elementsPerRepeat;
+            vldas(ureg, srcRow + offset);
+            vldus(vreg, ureg, srcRow + offset);
+            vsts(vreg, dstRow, offset, NORM_B8, preg);
+            remaining -= cols;
+        }
+    }
+}
+
 // Stage 1: after TQUANT (FP8 ND + E8M0 DN)
 // Stage 2: after TQUANT + FP8 ND->NZ
 // Stage 3: full pipeline including E8 DN->ZZ
@@ -151,7 +177,9 @@ __global__ AICORE void runTQuantDN(__gm__ T __in__ *src_gm, __gm__ int8_t __out_
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 
-    TQUANT<QuantType::MXFP8, QuantScaleAlg::OCP>(fp8Tile, srcTile, &e8Tile, &maxPerGpTile, &scalingTile, &e8DnTile);
+    // Generic DN API: grp_axis=0 (groups on axis 0), single MxQuantAlg tag. The
+    // exponent is written into e8Tile; the caller reshapes it into e8DnTile via TMOV.
+    TQuant<0, MxQuantAlg::OcpMxFp8E4M3>(fp8Tile, srcTile, &e8Tile, &maxPerGpTile, &scalingTile);
 
     // TQuant writes the exponent tile (e8Tile) in row-major [hatM, paddedCols].
     // Copy it to e8DnTile so the UB tile shape matches the GM shape exactly.
@@ -199,6 +227,114 @@ void LaunchTQuantDN_fp32(uint32_t *src, int8_t *fp8_nd, uint8_t *e8_dn, int8_t *
         <<<1, nullptr, stream>>>((float *)src, fp8_nd, e8_dn, fp8_nz, e8_zz, (float *)max_dn);
 }
 
+// MXFP4 (E2M1) DN kernel: quantizes src[M,N_pad] to packed FP4 plus per-group
+// e8m0/max tiles. Stage 3 writes FP4 into UB at byte offset (r * StaticCols + off)/2,
+// so the FP4 region is a 2D [M, packedCols] layout (packedCols = N_pad/2). A flat
+// float4_e2m1x2_t tile is the TQUANT output; CompactFp4PackedRows bridges it to a
+// uint8_t tile used by TSTORE (proven non-DN MXFP4 store pattern).
+template <typename T, int M, int N, int N_pad>
+__global__ AICORE void runTQuantDN_MXFP4(__gm__ T __in__ *src_gm, __gm__ uint8_t __out__ *fp4_nd_gm,
+                                         __gm__ uint8_t __out__ *e8_dn_gm, __gm__ T __out__ *max_dn_gm)
+{
+    constexpr uint32_t grpSize = 32;
+    constexpr uint32_t hatM = M / grpSize;
+    constexpr uint32_t paddedCols = N_pad;
+    constexpr uint32_t packedCols = paddedCols / 2;
+    constexpr uint32_t fp4FlatAligned = PTO_CEIL(M * packedCols, 32);
+
+    using SrcTile =
+        Tile<TileType::Vec, T, M, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512, PadValue::Zero>;
+    using MaxTile =
+        Tile<TileType::Vec, T, hatM, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512, PadValue::Zero>;
+    using ScalingTile =
+        Tile<TileType::Vec, T, hatM, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512, PadValue::Zero>;
+    using E8Tile = Tile<TileType::Vec, uint8_t, hatM, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
+                        PadValue::Zero>;
+    // TQUANT output tile: flat float4_e2m1x2_t (element = 0.5 byte -> bytes = M*packedCols).
+    using DstFP4Tile = Tile<TileType::Vec, float4_e2m1x2_t, 1, fp4FlatAligned, BLayout::RowMajor, -1, -1,
+                            SLayout::NoneBox, 512, PadValue::Zero>;
+    // TSTORE tile: uint8_t [M, packedCols], same UB region bridged by CompactFp4PackedRows.
+    // Valid extents are DYNAMIC so the tile can be runtime-sized to (M, packedCols).
+    using DstBytesTile =
+        Tile<TileType::Vec, uint8_t, M, packedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512, PadValue::Zero>;
+
+    constexpr uint32_t srcBytes = M * paddedCols * sizeof(T);
+    constexpr uint32_t maxBytes = hatM * paddedCols * sizeof(T);
+    constexpr uint32_t scalingBytes = hatM * paddedCols * sizeof(T);
+    constexpr uint32_t e8Bytes = hatM * paddedCols;
+    constexpr uint32_t fp4Bytes = M * packedCols;
+
+    constexpr uint32_t srcAddr = 0x0;
+    constexpr uint32_t maxAddr = PTO_CEIL(srcAddr + srcBytes, 0x20);
+    constexpr uint32_t scalingAddr = PTO_CEIL(maxAddr + maxBytes, 0x20);
+    constexpr uint32_t e8Addr = PTO_CEIL(scalingAddr + scalingBytes, 0x20);
+    constexpr uint32_t fp4Addr = PTO_CEIL(e8Addr + e8Bytes, 0x20);
+    constexpr uint32_t fp4StoreAddr = PTO_CEIL(fp4Addr + fp4Bytes, 0x20);
+    constexpr uint32_t layoutEnd = PTO_CEIL(fp4StoreAddr + fp4Bytes, 0x100);
+    static_assert(layoutEnd <= 0x40000, "MXFP4 DN UB layout exceeds 256 KB.");
+
+    SrcTile srcTile(M, paddedCols);
+    MaxTile maxTile(hatM, paddedCols);
+    ScalingTile scalingTile(hatM, paddedCols);
+    E8Tile e8Tile(hatM, paddedCols);
+    DstFP4Tile fp4Tile;
+    DstBytesTile fp4BytesTile(M, packedCols);
+
+    TASSIGN(srcTile, srcAddr);
+    TASSIGN(maxTile, maxAddr);
+    TASSIGN(scalingTile, scalingAddr);
+    TASSIGN(e8Tile, e8Addr);
+    TASSIGN(fp4Tile, fp4Addr);
+    TASSIGN(fp4BytesTile, fp4StoreAddr);
+
+    using SrcGlobal = GlobalTensor<T, Shape<1, 1, 1, M, N_pad>, pto::Stride<1, 1, 1, N_pad, 1>>;
+    using Fp4Global = GlobalTensor<uint8_t, Shape<1, 1, 1, M, packedCols>, pto::Stride<1, 1, 1, packedCols, 1>>;
+    using MaxGlobal = GlobalTensor<T, Shape<1, 1, 1, hatM, paddedCols>, pto::Stride<1, 1, 1, paddedCols, 1>>;
+    using E8Global = GlobalTensor<uint8_t, Shape<1, 1, 1, hatM, paddedCols>, pto::Stride<1, 1, 1, paddedCols, 1>>;
+
+    SrcGlobal srcGlobal(src_gm);
+    Fp4Global fp4Global(fp4_nd_gm);
+    MaxGlobal maxGlobal(max_dn_gm);
+    E8Global e8Global(e8_dn_gm);
+
+    TLOAD(srcTile, srcGlobal);
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+
+    // Generic DN API: grp_axis=0, single MxQuantAlg tag. TQuant writes the exponent
+    // into e8Tile; the kernel TSTOREs e8Tile directly (shape already matches GM).
+    TQuant<0, MxQuantAlg::OcpMxFp4E2M1>(fp4Tile, srcTile, &e8Tile, &maxTile, &scalingTile);
+
+    __VEC_SCOPE__
+    {
+        // Stage 3 wrote FP4 densely at [r, packedCols] (srcStride == dstStride == packedCols),
+        // so the compact copy is a plain row-wise move into the TSTORE tile's UB region.
+        mem_bar(VST_VLD);
+        CompactFp4PackedRows((__ubuf__ uint8_t *)fp4BytesTile.data(), (__ubuf__ uint8_t *)fp4Tile.data(), M, packedCols,
+                             packedCols, packedCols);
+        mem_bar(VST_VST);
+    }
+
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    TSTORE(fp4Global, fp4BytesTile);
+    TSTORE(maxGlobal, maxTile);
+    TSTORE(e8Global, e8Tile);
+}
+
+template <int M, int N, int N_pad>
+void LaunchTQuantDN_MXFP4_bf16(uint16_t *src, uint8_t *fp4_nd, uint8_t *e8_dn, uint16_t *max_dn, void *stream)
+{
+    runTQuantDN_MXFP4<bfloat16_t, M, N, N_pad>
+        <<<1, nullptr, stream>>>((bfloat16_t *)src, fp4_nd, e8_dn, (bfloat16_t *)max_dn);
+}
+
+template <int M, int N, int N_pad>
+void LaunchTQuantDN_MXFP4_fp16(uint16_t *src, uint8_t *fp4_nd, uint8_t *e8_dn, uint16_t *max_dn, void *stream)
+{
+    runTQuantDN_MXFP4<half, M, N, N_pad><<<1, nullptr, stream>>>((half *)src, fp4_nd, e8_dn, (half *)max_dn);
+}
+
 #define INSTANTIATE_TQUANT_DN_STAGE(S, M, N, NP) \
     template void LaunchTQuantDN<S, M, N, NP>(uint16_t *, int8_t *, uint8_t *, int8_t *, uint8_t *, uint16_t *, void *)
 
@@ -217,6 +353,19 @@ INSTANTIATE_TQUANT_DN_STAGE(1, 256, 128, 128);
 INSTANTIATE_TQUANT_DN_STAGE_FP32(1, 64, 128, 128);
 INSTANTIATE_TQUANT_DN_STAGE_FP32(1, 128, 128, 128);
 INSTANTIATE_TQUANT_DN_STAGE_FP32(1, 64, 256, 256);
+
+#define INSTANTIATE_TQUANT_DN_MXFP4_BF16(M, N, NP) \
+    template void LaunchTQuantDN_MXFP4_bf16<M, N, NP>(uint16_t *, uint8_t *, uint8_t *, uint16_t *, void *)
+
+#define INSTANTIATE_TQUANT_DN_MXFP4_FP16(M, N, NP) \
+    template void LaunchTQuantDN_MXFP4_fp16<M, N, NP>(uint16_t *, uint8_t *, uint8_t *, uint16_t *, void *)
+
+INSTANTIATE_TQUANT_DN_MXFP4_BF16(64, 128, 128);
+INSTANTIATE_TQUANT_DN_MXFP4_BF16(128, 128, 128);
+INSTANTIATE_TQUANT_DN_MXFP4_BF16(64, 256, 256);
+INSTANTIATE_TQUANT_DN_MXFP4_FP16(64, 128, 128);
+INSTANTIATE_TQUANT_DN_MXFP4_FP16(128, 128, 128);
+INSTANTIATE_TQUANT_DN_MXFP4_FP16(64, 256, 256);
 
 #undef INSTANTIATE_TQUANT_DN_STAGE
 

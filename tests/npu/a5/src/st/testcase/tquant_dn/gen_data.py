@@ -14,6 +14,7 @@ import math
 import os
 
 import numpy as np
+from ml_dtypes import bfloat16, float4_e2m1fn
 
 
 def fp32_to_bf16_bits(x):
@@ -132,6 +133,138 @@ def quant_bf16_to_mxfp8_dn(src_bf16_fp32, m, n_pad):
     return fp8_nd, e8_dn, fp8_nz, e8_zz
 
 
+# ---------------------------------------------------------------------------
+# MXFP4 (E2M1) DN stage. Group max is taken across 32 rows per column (DN
+# layout: groups live on axis 0), producing [hat_m, n] max/e8/scaling tiles.
+#
+# The two source paths each mirror the *exact* hardware data flow so the
+# golden is an independent verification (via ml_dtypes), not a port of CCE:
+#   * bf16 source : bf16 * bf16 (bf16 rounding) -> NaN->+Inf -> bf16->fp4
+#   * fp16 source : fp16->f32, f32*scale(f32), f32->bf16(round) -> bf16->fp4
+#
+# OCP MXFP4 shared exponent is clamped at max_exp = 0x0100 (E2M1 max code),
+# derived from the bf16 exponent of the per-group abs-max (see OcpMxFp4E2M1Spec).
+# ---------------------------------------------------------------------------
+def bf16_maxes_to_e2m1_dn(group_max_bf16_fp32):
+    """OCP MXFP4 e8m0 + bf16 scaling from per-group abs max (fp32, exact bf16 exp)."""
+    bits = np.asarray(group_max_bf16_fp32, dtype=np.float32).view(np.uint32)
+    u16 = (bits >> 16).astype(np.uint16)  # bf16 rounding view
+    exp_bf16 = u16 & np.uint16(0x7F80)
+    mant_bf16 = u16 & np.uint16(0x007F)
+
+    nan_mask = (exp_bf16 == 0x7F80) & (mant_bf16 != 0)
+    # Clamp exponent to E2M1 maximum (0x0100 -> shared_exp baseline).
+    exp_clamped = np.maximum(exp_bf16, np.uint16(0x0100))
+    shared_exp_bits = exp_clamped.astype(np.uint16) - np.uint16(0x0100)
+    e8m0 = ((shared_exp_bits >> 7) & np.uint16(0xFF)).astype(np.uint8)
+    scale_bits = np.uint16(0x7F00) - shared_exp_bits
+    scale_bits = np.where(nan_mask, np.uint16(0x7FC0), scale_bits)  # NaN scaling
+    e8m0 = np.where(nan_mask, np.uint8(0xFF), e8m0)
+
+    scaling_fp32 = (scale_bits.astype(np.uint32) << 16).view(np.float32)
+    return e8m0, scaling_fp32, scale_bits
+
+
+def _bf16_mul_round(x_bf16_fp32, scale_bf16_fp32):
+    """Hardware vmul bf16: round-to-nearest product computed in bf16 precision."""
+    prod = (x_bf16_fp32.astype(bfloat16) * scale_bf16_fp32.astype(bfloat16)).astype(np.float32)
+    return prod
+
+
+def _fp32_to_bf16_round(x_fp32):
+    """Hardware vcvt f32->bf16 (ROUND_R, ties-to-even) via ml_dtypes."""
+    return x_fp32.astype(bfloat16)
+
+
+def fp4_pack(codes_uint8, m, n_pad):
+    """Pack E2M1 codes 2-per-byte: low nibble = even element, high nibble = odd."""
+    codes = codes_uint8.reshape(m, n_pad).astype(np.uint8)
+    low = codes[:, 0::2]
+    high = codes[:, 1::2]
+    packed = (low & np.uint8(0xF)) | ((high & np.uint8(0xF)) << np.uint8(4))
+    return packed.reshape(-1)
+
+
+def quant_bf16_to_mxfp4_dn(src_bf16_fp32, m, n_pad):
+    """bf16 source -> MXFP4 DN. Multiply in bf16, convert bf16->fp4."""
+    group_max = get_group_max_dn(src_bf16_fp32, group_size=32)  # [hat_m, n], fp32 (bf16-exact)
+    e8m0, scaling_fp32, _ = bf16_maxes_to_e2m1_dn(group_max)
+
+    hat_m = m // 32
+    scaled = np.empty((m, n_pad), dtype=np.float32)
+    for rb in range(hat_m):
+        scaled[rb * 32 : (rb + 1) * 32, :] = _bf16_mul_round(
+            src_bf16_fp32[rb * 32 : (rb + 1) * 32, :], scaling_fp32[rb : rb + 1, :]
+        )
+
+    # Saturate NaN -> +Inf before FP4 conversion (matches SaturateBf16NaNToPosInf).
+    with np.errstate(invalid="ignore"):
+        scaled = np.where(np.isnan(scaled), np.float32(np.inf), scaled)
+    # bf16 -> fp4 (round-to-nearest, ties-to-even) via ml_dtypes float4_e2m1fn.
+    fp4_codes = scaled.astype(bfloat16).astype(float4_e2m1fn).view(np.uint8).astype(np.uint8)
+
+    e8_dn = pack_e8_dn(e8m0, hat_m, n_pad, n_pad)
+    fp4_nd = fp4_pack(fp4_codes, m, n_pad)
+    return fp4_nd, e8_dn, group_max
+
+
+def fp16_maxes_to_e2m1_dn(group_max_fp16):
+    """OCP MXFP4 e8m0 + bf16 scaling derived from the fp16 group-max BITS.
+
+    The DN path (AbsReduceMax_DN) reduces fp16 abs directly (vabs on half), so the
+    max is fp16-typed. ComputeB16OcpExponentAndScaling then reads it with the bf16
+    exponent mask (0x7F80 >> 7) on the raw bits -- it does not reinterpret them as
+    fp16. We mirror that bit-level extraction here.
+    """
+    bits = group_max_fp16.view(np.uint16).astype(np.uint16)
+    exp_bf16 = bits & np.uint16(0x7F80)
+    mant_bf16 = bits & np.uint16(0x007F)
+    nan_mask = (exp_bf16 == 0x7F80) & (mant_bf16 != 0)
+    exp_clamped = np.maximum(exp_bf16, np.uint16(0x0100))
+    shared_exp_bits = exp_clamped.astype(np.uint16) - np.uint16(0x0100)
+    e8m0 = ((shared_exp_bits >> 7) & np.uint16(0xFF)).astype(np.uint8)
+    scale_bits = np.uint16(0x7F00) - shared_exp_bits
+    scale_bits = np.where(nan_mask, np.uint16(0x7FC0), scale_bits)
+    e8m0 = np.where(nan_mask, np.uint8(0xFF), e8m0)
+    scaling_fp32 = (scale_bits.astype(np.uint32) << 16).view(np.float32)
+    return e8m0, scaling_fp32
+
+
+def quant_fp16_to_mxfp4_dn(src_fp16, m, n_pad):
+    """fp16 source -> MXFP4 DN. Multiply in fp32, fp32->bf16(round)->bf16->fp4.
+
+    The DN reducer (AbsReduceMax_DN) takes the fp16 abs max directly (NOT a
+    bf16-truncated max like the non-DN path), and stores it as fp16 bits. The
+    exponent/scaling stage then reads those bits with the bf16 exponent mask.
+    """
+    src_fp32 = src_fp16.astype(np.float32)
+    # DN group max: fp16 abs reduced directly, kept in fp16 precision.
+    group_max_fp16 = np.zeros((m // 32, n_pad), dtype=np.float16)
+    for rb in range(m // 32):
+        group_max_fp16[rb] = np.max(np.abs(src_fp16[rb * 32 : (rb + 1) * 32, :]), axis=0)
+    e8m0, scaling_fp32 = fp16_maxes_to_e2m1_dn(group_max_fp16)
+
+    hat_m = m // 32
+    scaled_bf16 = np.empty((m, n_pad), dtype=bfloat16)
+    for rb in range(hat_m):
+        # fp16 -> f32 (lossless), f32 * scale(f32), f32 -> bf16 (round-to-nearest).
+        # Values beyond bf16 max saturate to +Inf (hardware RS_ENABLE), which the
+        # NaN->+Inf step below then routes to the largest FP4 code.
+        block = src_fp32[rb * 32 : (rb + 1) * 32, :]
+        prod_fp32 = block * scaling_fp32[rb : rb + 1, :].astype(np.float32)
+        with np.errstate(over="ignore"):
+            scaled_bf16[rb * 32 : (rb + 1) * 32, :] = _fp32_to_bf16_round(prod_fp32)
+
+    scaled_fp32 = scaled_bf16.astype(np.float32)
+    with np.errstate(invalid="ignore"):
+        scaled_fp32 = np.where(np.isnan(scaled_fp32), np.float32(np.inf), scaled_fp32)
+    fp4_codes = scaled_bf16.astype(float4_e2m1fn).view(np.uint8).astype(np.uint8)
+
+    e8_dn = pack_e8_dn(e8m0, hat_m, n_pad, n_pad)
+    fp4_nd = fp4_pack(fp4_codes, m, n_pad)
+    return fp4_nd, e8_dn, group_max_fp16
+
+
 CASE_PARAMS = [
     ("TQUANTDNTest.case_bf16_64x64", 64, 64),
     ("TQUANTDNTest.case_bf16_128x64", 128, 64),
@@ -147,6 +280,19 @@ FP32_CASE_PARAMS = [
     ("TQUANTDNTest.case_fp32_64x128", 64, 128),
     ("TQUANTDNTest.case_fp32_128x128", 128, 128),
     ("TQUANTDNTest.case_fp32_64x256", 64, 256),
+]
+
+# MXFP4 (E2M1) DN: 3 shapes each for bf16 and fp16 sources.
+MXFP4_BF16_CASE_PARAMS = [
+    ("TQUANTDNTest.case_mxfp4_bf16_64x128", 64, 128),
+    ("TQUANTDNTest.case_mxfp4_bf16_128x128", 128, 128),
+    ("TQUANTDNTest.case_mxfp4_bf16_64x256", 64, 256),
+]
+
+MXFP4_FP16_CASE_PARAMS = [
+    ("TQUANTDNTest.case_mxfp4_fp16_64x128", 64, 128),
+    ("TQUANTDNTest.case_mxfp4_fp16_128x128", 128, 128),
+    ("TQUANTDNTest.case_mxfp4_fp16_64x256", 64, 256),
 ]
 
 GOLDEN_DIR = os.environ.get("PTO_GOLDEN_DIR", ".")
@@ -205,6 +351,65 @@ def gen_golden_data_fp32(case_name, m, n):
     _write_golden(out_dir, input_bytes, fp8_nd, e8_dn, golden_group_max_f32.reshape(-1).tobytes())
 
 
+def _write_golden_mxfp4(out_dir, input_bytes, fp4_nd, e8_dn, group_max_bytes):
+    os.makedirs(out_dir, exist_ok=True)
+    with open(os.path.join(out_dir, "input.bin"), "wb") as f:
+        f.write(input_bytes)
+    with open(os.path.join(out_dir, "golden_fp4_nd.bin"), "wb") as f:
+        f.write(fp4_nd.tobytes())
+    with open(os.path.join(out_dir, "golden_e8_dn.bin"), "wb") as f:
+        f.write(e8_dn.tobytes())
+    with open(os.path.join(out_dir, "golden_group_max.bin"), "wb") as f:
+        f.write(group_max_bytes)
+
+
+def gen_golden_data_mxfp4_bf16(case_name, m, n):
+    n_pad = n
+    src = _gen_src(m, n_pad)
+    bf16_bits = fp32_to_bf16_bits(src).reshape(m, n_pad)
+    src_bf16_fp32 = bf16_bits_to_fp32(bf16_bits.flatten()).reshape(m, n_pad)
+
+    fp4_nd, e8_dn, group_max = quant_bf16_to_mxfp4_dn(src_bf16_fp32, m, n_pad)
+    golden_group_max_bf16 = fp32_to_bf16_bits(group_max)
+
+    out_dir = os.path.join(GOLDEN_DIR, case_name)
+    _write_golden_mxfp4(
+        out_dir, bf16_bits.reshape(-1).tobytes(), fp4_nd, e8_dn, golden_group_max_bf16.reshape(-1).tobytes()
+    )
+
+
+def _gen_src_fp16_safe(m, n_pad):
+    """fp16-safe variant of _gen_src: per-group max in [0.25, 16] (no *10000), so
+    all values stay well within fp16 normal range. Uses the same RNG stream as
+    _gen_src so bf16 tests (which use _gen_src) keep their existing goldens."""
+    hat_m = m // 32
+    log_min = np.log2(0.25)
+    log_max = np.log2(16.0)
+    log_group_max = np.random.uniform(log_min, log_max, size=(hat_m, n_pad))
+    group_max_target = (2.0**log_group_max).astype(np.float32)
+    base = np.random.uniform(0.1, 1.0, size=(m, n_pad)).astype(np.float32)
+    group_max_repeated = np.repeat(group_max_target, 32, axis=0)[:m, :]
+    return base * group_max_repeated
+
+
+def gen_golden_data_mxfp4_fp16(case_name, m, n):
+    n_pad = n
+    # fp16 source: keep magnitudes in fp16 normal range (no overflow to inf), since
+    # the DN fp16 path reduces fp16 abs directly and inf edge cases diverge.
+    src = _gen_src_fp16_safe(m, n_pad).astype(np.float16)
+    src_fp16_bits = src.view(np.uint16)
+
+    fp4_nd, e8_dn, group_max = quant_fp16_to_mxfp4_dn(src, m, n_pad)
+    # DN reduces fp16 abs directly and stores the max as fp16 bits (kernel MaxTile
+    # is half when T=half), so the golden group_max is fp16 bits too.
+    golden_group_max_fp16 = group_max.view(np.uint16)
+
+    out_dir = os.path.join(GOLDEN_DIR, case_name)
+    _write_golden_mxfp4(
+        out_dir, src_fp16_bits.reshape(-1).tobytes(), fp4_nd, e8_dn, golden_group_max_fp16.reshape(-1).tobytes()
+    )
+
+
 if __name__ == "__main__":
     np.random.seed(42)
     for case_name, m, n in CASE_PARAMS:
@@ -213,4 +418,10 @@ if __name__ == "__main__":
     for case_name, m, n in FP32_CASE_PARAMS:
         print(f"Generating {case_name}...")
         gen_golden_data_fp32(case_name, m, n)
+    for case_name, m, n in MXFP4_BF16_CASE_PARAMS:
+        print(f"Generating {case_name}...")
+        gen_golden_data_mxfp4_bf16(case_name, m, n)
+    for case_name, m, n in MXFP4_FP16_CASE_PARAMS:
+        print(f"Generating {case_name}...")
+        gen_golden_data_mxfp4_fp16(case_name, m, n)
     print("Done.")

@@ -215,6 +215,17 @@ enum class QuantScaleAlg
     NV = 1,
 };
 
+// Unified MX-quant algorithm tag: encodes MX destination format
+// (FP8_E4M3 / FP4_E2M1) and the shared-exponent scale algorithm (OCP / NV) in a
+// single enum
+enum class MxQuantAlg
+{
+    OcpMxFp8E4M3 = 0, // QuantType::MXFP8      + QuantScaleAlg::OCP
+    NvMxFp8E4M3 = 1,  // QuantType::MXFP8      + QuantScaleAlg::NV
+    OcpMxFp4E2M1 = 2, // QuantType::MXFP4_E2M1 + QuantScaleAlg::OCP
+    NvMxFp4E2M1 = 3,  // QuantType::MXFP4_E2M1 + QuantScaleAlg::NV
+};
+
 enum class VecStoreMode
 {
     ND = 0,
