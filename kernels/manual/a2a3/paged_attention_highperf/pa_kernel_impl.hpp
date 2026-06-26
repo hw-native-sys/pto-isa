@@ -136,8 +136,12 @@ template <typename ScalarTile>
 AICORE inline float PtoExpScalar(ScalarTile &tile, float value)
 {
     tile.data()[0] = value;
+    set_flag(PIPE_S, PIPE_V, EVENT_ID2);
+    wait_flag(PIPE_S, PIPE_V, EVENT_ID2);
     TEXP(tile, tile);
     pipe_barrier(PIPE_V);
+    set_flag(PIPE_V, PIPE_S, EVENT_ID3);
+    wait_flag(PIPE_V, PIPE_S, EVENT_ID3);
     return tile.data()[0];
 }
 
@@ -148,8 +152,12 @@ AICORE inline float PtoLogScalar(ScalarTile &tile, float value)
         return -3.4028234663852886e38f;
     }
     tile.data()[0] = value;
+    set_flag(PIPE_S, PIPE_V, EVENT_ID2);
+    wait_flag(PIPE_S, PIPE_V, EVENT_ID2);
     TLOG(tile, tile);
     pipe_barrier(PIPE_V);
+    set_flag(PIPE_V, PIPE_S, EVENT_ID3);
+    wait_flag(PIPE_V, PIPE_S, EVENT_ID3);
     return tile.data()[0];
 }
 
@@ -263,6 +271,29 @@ AICORE inline void PtoPaSignalFreeFromCube(uint8_t flagId)
     ffts_cross_core_sync(PIPE_FIX, PtoPaGetFftsMsg(0x2, flagId));
 }
 
+// Real (un-sorted) batch index lives at +8 inside the per-batch para block; +13 (kParaBatchIndex)
+// holds the sorted/remap slot. The CCE reference always double-indirects: read the sorted slot at
+// +13, re-derive the para base, then read the real batch at +8. See pa_kernel.cce:523-525.
+constexpr int32_t kParaRealBatchIndex = 8;
+
+AICORE inline int32_t ResolveSortedParaBase(__gm__ uint8_t *tiling, const PaTilingContext &ctx, int32_t batchSlot)
+{
+    const int32_t paraBase = ctx.headSize + batchSlot * ctx.paraSize;
+    const int32_t sortedBatch = LoadTilingI32(tiling, paraBase + kParaBatchIndex);
+    return ctx.headSize + sortedBatch * ctx.paraSize;
+}
+
+// One-time sticky SPR setup mirroring the CCE reference SetArgs (pa_kernel.cce:441-444).
+AICORE inline void PtoPaInitCoreState()
+{
+#if defined(__DAV_C220_CUBE__)
+    set_padding(0);
+    set_nd_para(1ULL);
+#endif
+    set_atomic_none();
+    set_mask_norm();
+}
+
 AICORE inline bool SupportsPtoPagedAttentionHighPerf(__gm__ uint8_t *tilingParaGm)
 {
     const PaTilingContext ctx = LoadPaTilingContext(tilingParaGm);
@@ -337,23 +368,40 @@ AICORE inline void PtoPaStageSync()
     SYNCALL<SyncCoreType::Mix>();
 }
 
-#ifdef __DAV_C220_CUBE__
+#ifdef __DAV_C220_VEC__
 template <typename DstTileData, typename SrcTileData>
-__tf__ AICORE void PtoPaLoadCbufToCaRaw(typename DstTileData::TileDType __out__ dst,
-    typename SrcTileData::TileDType __in__ src, uint32_t srcElementOffset, uint16_t repeatTimes,
-    uint16_t srcStride)
+__tf__ AICORE void PtoPaConvF32ToF16Raw(typename DstTileData::TileDType __out__ dst,
+    typename SrcTileData::TileDType __in__ src, uint8_t repeat)
 {
-    using DataType = typename SrcTileData::DType;
-    __ca__ DataType *dstAddr = reinterpret_cast<__ca__ DataType *>(__cce_get_tile_ptr(dst));
-    __cbuf__ DataType *srcAddr = reinterpret_cast<__cbuf__ DataType *>(__cce_get_tile_ptr(src)) + srcElementOffset;
-    load_cbuf_to_ca(dstAddr, srcAddr, 0, repeatTimes, srcStride, 0, 0, false, false, addr_cal_mode_t(0));
+    __ubuf__ half *dstAddr = reinterpret_cast<__ubuf__ half *>(__cce_get_tile_ptr(dst));
+    __ubuf__ float *srcAddr = reinterpret_cast<__ubuf__ float *>(__cce_get_tile_ptr(src));
+    vconv_f322f16(dstAddr, srcAddr, repeat, 1, 1, 4, 8);
 }
 
 template <typename DstTileData, typename SrcTileData>
-AICORE inline void PtoPaLoadCbufToCaRaw(DstTileData &dst, SrcTileData &src, uint32_t srcElementOffset,
-    uint16_t repeatTimes, uint16_t srcStride)
+AICORE inline void PtoPaConvF32ToF16(DstTileData &dst, SrcTileData &src, uint8_t repeat)
 {
-    PtoPaLoadCbufToCaRaw<DstTileData, SrcTileData>(dst.data(), src.data(), srcElementOffset, repeatTimes, srcStride);
+    PtoPaConvF32ToF16Raw<DstTileData, SrcTileData>(dst.data(), src.data(), repeat);
+}
+#endif
+
+#ifdef __DAV_C220_CUBE__
+template <typename DstTileData, typename SrcTileData>
+__tf__ AICORE void PtoPaLoadNzHeadGroupToCaRaw(typename DstTileData::TileDType __out__ dst,
+    typename SrcTileData::TileDType __in__ src, uint32_t headGroupBase, uint16_t repeatTimes)
+{
+    using DataType = typename SrcTileData::DType;
+    static constexpr uint32_t kC0 = 16;
+    __ca__ DataType *dstAddr = reinterpret_cast<__ca__ DataType *>(__cce_get_tile_ptr(dst));
+    __cbuf__ DataType *srcAddr = reinterpret_cast<__cbuf__ DataType *>(__cce_get_tile_ptr(src)) + headGroupBase * kC0;
+    load_cbuf_to_ca(dstAddr, srcAddr, 0, repeatTimes, 1, 0, 0, false, false, addr_cal_mode_t(0));
+}
+
+template <typename DstTileData, typename SrcTileData>
+AICORE inline void PtoPaLoadNzHeadGroupToCa(DstTileData &dst, SrcTileData &src, uint32_t headGroupBase,
+    uint16_t repeatTimes)
+{
+    PtoPaLoadNzHeadGroupToCaRaw<DstTileData, SrcTileData>(dst.data(), src.data(), headGroupBase, repeatTimes);
 }
 
 template <typename DstTileData, typename SrcTileData>
@@ -408,6 +456,7 @@ AICORE inline void RunPtoPagedAttentionCubePipeline(__gm__ uint8_t *qGm, __gm__ 
     constexpr int32_t kN = kTileTokens;
     constexpr int32_t kK = 256;
 
+    PtoPaInitCoreState();
     const PaTilingContext ctx = LoadPaTilingContext(tilingParaGm);
     if (!SupportsPtoPagedAttentionHighPerf(tilingParaGm) || workerIdx < 0 || workerNum <= 0) {
         pipe_barrier(PIPE_ALL);
@@ -471,9 +520,9 @@ AICORE inline void RunPtoPagedAttentionCubePipeline(__gm__ uint8_t *qGm, __gm__ 
     for (int64_t row = workerIdx; row < totalRows; row += workerNum) {
         const int32_t head = static_cast<int32_t>(row % ctx.numHeads);
         const int32_t batchSlot = static_cast<int32_t>(row / ctx.numHeads);
-        const int32_t paraBase = ctx.headSize + batchSlot * ctx.paraSize;
+        const int32_t paraBase = ResolveSortedParaBase(tilingParaGm, ctx, batchSlot);
         const int32_t kvSeqLen = LoadTilingI32(tilingParaGm, paraBase + kParaKvSeqLen);
-        const int32_t batchIndex = LoadTilingI32(tilingParaGm, paraBase + kParaBatchIndex);
+        const int32_t batchIndex = LoadTilingI32(tilingParaGm, paraBase + kParaRealBatchIndex);
         const int32_t kvHead = head / headsPerKv;
         const int32_t tileCount = (kvSeqLen + kTileTokens - 1) / kTileTokens;
         const int64_t qBase = (static_cast<int64_t>(batchIndex) * ctx.numHeads + head) * ctx.headDim;
@@ -528,6 +577,7 @@ AICORE inline void RunPtoPagedAttentionVecPipeline(__gm__ uint8_t *oGm, __gm__ u
         return;
     }
 
+    PtoPaInitCoreState();
     const PaTilingContext ctx = LoadPaTilingContext(tilingParaGm);
     const int32_t effectiveBatch = ctx.decoderBatch > 0 ? ctx.decoderBatch : ctx.batch;
     const int64_t totalRows = static_cast<int64_t>(effectiveBatch) * ctx.numHeads;
@@ -565,9 +615,9 @@ AICORE inline void RunPtoPagedAttentionVecPipeline(__gm__ uint8_t *oGm, __gm__ u
     for (int64_t row = workerIdx; row < totalRows; row += workerNum) {
         const int32_t head = static_cast<int32_t>(row % ctx.numHeads);
         const int32_t batchSlot = static_cast<int32_t>(row / ctx.numHeads);
-        const int32_t paraBase = ctx.headSize + batchSlot * ctx.paraSize;
+        const int32_t paraBase = ResolveSortedParaBase(tilingParaGm, ctx, batchSlot);
         const int32_t kvSeqLen = LoadTilingI32(tilingParaGm, paraBase + kParaKvSeqLen);
-        const int32_t batchIndex = LoadTilingI32(tilingParaGm, paraBase + kParaBatchIndex);
+        const int32_t batchIndex = LoadTilingI32(tilingParaGm, paraBase + kParaRealBatchIndex);
         const int32_t tileCount = (kvSeqLen + kTileTokens - 1) / kTileTokens;
         const bool doWork = subBlockId == 0;
         float maxScore = -3.4028234663852886e38f;
@@ -648,6 +698,7 @@ AICORE inline void RunPtoPagedAttentionCubePipelineSplitKV(__gm__ uint8_t *qGm, 
     constexpr int32_t kK = 256;
     constexpr int32_t kHeadGroup = 16;
 
+    PtoPaInitCoreState();
     const PaTilingContext ctx = LoadPaTilingContext(tilingParaGm);
     if (workerIdx < 0 || workerNum <= 0 || ctx.headDim != kHeadDim || ctx.headDimV != kHeadDim ||
         ctx.blockSize != kTileTokens || ctx.kvSplitCoreNum <= 1 || ctx.numHeads <= 0 || ctx.kvHeads <= 0 ||
@@ -710,9 +761,12 @@ AICORE inline void RunPtoPagedAttentionCubePipelineSplitKV(__gm__ uint8_t *qGm, 
     constexpr int64_t scoreGroupBytes = kHeadGroup * scoreHeadBytes;
     constexpr int64_t probGroupBytes = kHeadGroup * probHeadBytes;
     constexpr int64_t outGroupBytes = kHeadGroup * outHeadBytes;
-    __gm__ uint8_t *scoreBase = sGm + workerIdx * scoreGroupBytes * 2;
-    __gm__ uint8_t *probBase = pGm + workerIdx * probGroupBytes * 2;
-    __gm__ uint8_t *outBase = oTmpGm + workerIdx * outGroupBytes * 2;
+    const int64_t scoreSlotBytes = static_cast<int64_t>(maxHeadGroups) * scoreGroupBytes;
+    const int64_t probSlotBytes = static_cast<int64_t>(maxHeadGroups) * probGroupBytes;
+    const int64_t outSlotBytes = static_cast<int64_t>(maxHeadGroups) * outGroupBytes;
+    __gm__ uint8_t *scoreBase = sGm + workerIdx * scoreSlotBytes * 2;
+    __gm__ uint8_t *probBase = pGm + workerIdx * probSlotBytes * 2;
+    __gm__ uint8_t *outBase = oTmpGm + workerIdx * outSlotBytes * 2;
 
     const int64_t processRounds = (processNum + workerNum - 1) / workerNum;
     const int32_t stageTileCount = (ctx.kvSplitPerCore + kTileTokens - 1) / kTileTokens;
@@ -753,21 +807,30 @@ AICORE inline void RunPtoPagedAttentionCubePipelineSplitKV(__gm__ uint8_t *qGm, 
             }
         }
 
-        for (int32_t headGroup = 0; headGroup < maxHeadGroups; ++headGroup) {
-            const int32_t groupHeadBase = headGroup * kHeadGroup;
-            const bool validGroup = validProcess && groupHeadBase < curHeadNum;
-            if (validGroup) {
-                const int32_t firstHead = startHead + groupHeadBase;
-                const int64_t qBase = (static_cast<int64_t>(batchIndex) * ctx.numHeads + firstHead) * ctx.headDim;
-                QGlobal qGlobal(reinterpret_cast<__gm__ half *>(qGm) + qBase);
-                TLOAD(qMatTile, qGlobal);
-                pipe_barrier(PIPE_ALL);
-            }
-            for (int32_t tile = 0; tile < stageTileCount; ++tile) {
-                const bool activeTile = validProcess && tile < tileCount;
-                const uint8_t slot = static_cast<uint8_t>(tile & 1);
-                const bool activeGroup = validGroup && activeTile;
-                if (activeGroup) {
+        for (int32_t tilePairBase = 0; tilePairBase < stageTileCount; tilePairBase += 2) {
+            const bool hasStage2 = (tilePairBase + 1) < stageTileCount;
+            const bool activeTile0 = validProcess && tilePairBase < tileCount;
+            const bool activeTile1 = validProcess && hasStage2 && (tilePairBase + 1) < tileCount;
+
+            for (uint32_t stage = 0; stage < 2; ++stage) {
+                if (stage == 1 && !hasStage2) {
+                    break;
+                }
+                const int32_t tile = tilePairBase + static_cast<int32_t>(stage);
+                const uint8_t slot = static_cast<uint8_t>(stage);
+                const bool activeTileStage = (stage == 0) ? activeTile0 : activeTile1;
+                for (int32_t headGroup = 0; headGroup < maxHeadGroups; ++headGroup) {
+                    const int32_t groupHeadBase = headGroup * kHeadGroup;
+                    const bool validGroup = validProcess && groupHeadBase < curHeadNum;
+                    const bool activeGroup = validGroup && activeTileStage;
+                    if (!activeGroup) {
+                        continue;
+                    }
+                    const int32_t firstHead = startHead + groupHeadBase;
+                    const int64_t qBase = (static_cast<int64_t>(batchIndex) * ctx.numHeads + firstHead) * ctx.headDim;
+                    QGlobal qGlobal(reinterpret_cast<__gm__ half *>(qGm) + qBase);
+                    TLOAD(qMatTile, qGlobal);
+                    pipe_barrier(PIPE_ALL);
                     const int32_t blockId = LoadBlockTable(blockTablesGm,
                         static_cast<int64_t>(batchIndex) * maxBlocksPerQuery + startTile + tile);
                     for (int32_t headInGroupBase = 0; headInGroupBase < kHeadGroup; headInGroupBase += headsPerKv) {
@@ -777,10 +840,10 @@ AICORE inline void RunPtoPagedAttentionCubePipelineSplitKV(__gm__ uint8_t *qGm, 
                         }
                         const int32_t baseHead = startHead + baseHeadLocal;
                         const int32_t kvHead = baseHead / headsPerKv;
-                        const int64_t kvBase = (static_cast<int64_t>(blockId) * ctx.blockSize * ctx.kvHeads + kvHead) *
-                            ctx.headDim;
-                        PtoPaLoadCbufToCaRaw(qLeftTile, qMatTile, static_cast<uint32_t>(headInGroupBase * 16),
-                            static_cast<uint16_t>(kHeadDim / 16), 1);
+                        const int64_t kvBase =
+                            (static_cast<int64_t>(blockId) * ctx.blockSize * ctx.kvHeads + kvHead) * ctx.headDim;
+                        PtoPaLoadNzHeadGroupToCa(qLeftTile, qMatTile, static_cast<uint32_t>(headInGroupBase),
+                            static_cast<uint16_t>(kHeadDim / 16));
                         KGlobal kGlobal(reinterpret_cast<__gm__ half *>(kGm) + kvBase);
                         TLOAD(kMatTile, kGlobal);
                         auto matmulEvent = EVENT_ID1;
@@ -800,22 +863,36 @@ AICORE inline void RunPtoPagedAttentionCubePipelineSplitKV(__gm__ uint8_t *qGm, 
                         set_flag(PIPE_M, PIPE_FIX, matmulEvent);
                         wait_flag(PIPE_M, PIPE_FIX, matmulEvent);
                         ScoreGlobal scoreGlobal(reinterpret_cast<__gm__ float *>(scoreBase +
-                            static_cast<int64_t>(slot) * scoreGroupBytes +
+                            static_cast<int64_t>(slot) * scoreSlotBytes +
+                            static_cast<int64_t>(headGroup) * scoreGroupBytes +
                             static_cast<int64_t>(headInGroupBase) * scoreHeadBytes));
                         TSTORE(scoreGlobal, accTile);
                     }
-                    DdrFenceBeforePtoAivReduce();
                 }
+                DdrFenceBeforePtoAivReduce();
                 PtoPaSignalFromCube(PtoPaSlotFlag(PTO_PA_RAW_QK_READY, slot));
-                wait_flag_dev(PtoPaSlotFlag(PTO_PA_RAW_P_READY, slot));
-                if (tile >= 2) {
-                    wait_flag_dev(PtoPaSlotFlag(PTO_PA_RAW_PV_FREE, slot));
+            }
+
+            for (uint32_t stage = 0; stage < 2; ++stage) {
+                if (stage == 1 && !hasStage2) {
+                    break;
                 }
-                if (activeGroup) {
+                const int32_t tile = tilePairBase + static_cast<int32_t>(stage);
+                const uint8_t slot = static_cast<uint8_t>(stage);
+                const bool activeTileStage = (stage == 0) ? activeTile0 : activeTile1;
+                wait_flag_dev(PtoPaSlotFlag(PTO_PA_RAW_P_READY, slot));
+                for (int32_t headGroup = 0; headGroup < maxHeadGroups; ++headGroup) {
+                    const int32_t groupHeadBase = headGroup * kHeadGroup;
+                    const bool validGroup = validProcess && groupHeadBase < curHeadNum;
+                    const bool activeGroup = validGroup && activeTileStage;
+                    if (!activeGroup) {
+                        continue;
+                    }
                     const int32_t blockId = LoadBlockTable(blockTablesGm,
                         static_cast<int64_t>(batchIndex) * maxBlocksPerQuery + startTile + tile);
                     ProbGlobal probGlobal(reinterpret_cast<__gm__ half *>(probBase +
-                        static_cast<int64_t>(slot) * probGroupBytes));
+                        static_cast<int64_t>(slot) * probSlotBytes +
+                        static_cast<int64_t>(headGroup) * probGroupBytes));
                     TLOAD(pMatTile, probGlobal);
                     pipe_barrier(PIPE_ALL);
                     for (int32_t headInGroupBase = 0; headInGroupBase < kHeadGroup; headInGroupBase += headsPerKv) {
@@ -825,10 +902,10 @@ AICORE inline void RunPtoPagedAttentionCubePipelineSplitKV(__gm__ uint8_t *qGm, 
                         }
                         const int32_t baseHead = startHead + baseHeadLocal;
                         const int32_t kvHead = baseHead / headsPerKv;
-                        const int64_t kvBase = (static_cast<int64_t>(blockId) * ctx.blockSize * ctx.kvHeads + kvHead) *
-                            ctx.headDim;
-                        PtoPaLoadCbufToCaRaw(pLeftTile, pMatTile, static_cast<uint32_t>(headInGroupBase * 16),
-                            static_cast<uint16_t>(kTileTokens / 16), 1);
+                        const int64_t kvBase =
+                            (static_cast<int64_t>(blockId) * ctx.blockSize * ctx.kvHeads + kvHead) * ctx.headDim;
+                        PtoPaLoadNzHeadGroupToCa(pLeftTile, pMatTile, static_cast<uint32_t>(headInGroupBase),
+                            static_cast<uint16_t>(kTileTokens / 16));
                         VGlobal vGlobal(reinterpret_cast<__gm__ half *>(vGm) + kvBase);
                         TLOAD(vMatTile, vGlobal);
                         auto matmulEvent = EVENT_ID1;
@@ -847,15 +924,21 @@ AICORE inline void RunPtoPagedAttentionCubePipelineSplitKV(__gm__ uint8_t *qGm, 
                         set_flag(PIPE_M, PIPE_FIX, matmulEvent);
                         wait_flag(PIPE_M, PIPE_FIX, matmulEvent);
                         OutGlobal outGlobal(reinterpret_cast<__gm__ float *>(outBase +
-                            static_cast<int64_t>(slot) * outGroupBytes +
+                            static_cast<int64_t>(slot) * outSlotBytes +
+                            static_cast<int64_t>(headGroup) * outGroupBytes +
                             static_cast<int64_t>(headInGroupBase) * outHeadBytes));
                         TSTORE(outGlobal, accTile);
                     }
-                    DdrFenceBeforePtoAivReduce();
                 }
+                DdrFenceBeforePtoAivReduce();
                 PtoPaSignalFromCube(PtoPaSlotFlag(PTO_PA_RAW_PV_READY, slot));
             }
+            wait_flag_dev(PtoPaSlotFlag(PTO_PA_RAW_PV_FREE, 0));
+            if (hasStage2) {
+                wait_flag_dev(PtoPaSlotFlag(PTO_PA_RAW_PV_FREE, 1));
+            }
         }
+
     }
     pipe_barrier(PIPE_ALL);
 }
@@ -870,6 +953,7 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
     constexpr int32_t kTileTokens = PA_TILE_TOKENS;
     constexpr int32_t kHeadGroup = 16;
     constexpr int32_t kMaxHeadsPerProcess = 32;
+    PtoPaInitCoreState();
     const PaTilingContext ctx = LoadPaTilingContext(tilingParaGm);
     if (workerIdx < 0 || workerNum <= 0 || ctx.headDim != kHeadDim || ctx.headDimV != kHeadDim ||
         ctx.blockSize != kTileTokens || ctx.kvSplitCoreNum <= 1 || ctx.numHeads <= 0 || ctx.kvHeads <= 0 ||
@@ -921,6 +1005,7 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
     VecFloat8 scalarMathTile;
     VecFloat4x128 scoreRowsTile;
     VecFloat4x128 scoreRowsWorkTile;
+    VecFloat128 probRowView;   // 1x128 view aliasing one row of scoreRowsWorkTile for TCVT
     VecFloat4x128 pvRowsTile;
     VecFloat4x1 rowMaxRowsTile;
     VecFloat4x1 maxStateRowsTile;
@@ -945,7 +1030,8 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
     TASSIGN(rowSumTile, 0x3040);
     TASSIGN(scalarMathTile, 0x3080);
     TASSIGN(scoreRowsTile, 0x0800);
-    TASSIGN(scoreRowsWorkTile, 0x1000);
+    constexpr uint32_t kScoreRowsWorkUb = 0x1000;
+    TASSIGN(scoreRowsWorkTile, kScoreRowsWorkUb);
     TASSIGN(pvRowsTile, 0x1800);
     TASSIGN(rowMaxRowsTile, 0x3000);
     TASSIGN(maxStateRowsTile, 0x3020);
@@ -968,9 +1054,12 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
     constexpr int64_t scoreGroupBytes = kHeadGroup * scoreHeadBytes;
     constexpr int64_t probGroupBytes = kHeadGroup * probHeadBytes;
     constexpr int64_t outGroupBytes = kHeadGroup * outHeadBytes;
-    __gm__ uint8_t *scoreBase = sGm + workerIdx * scoreGroupBytes * 2;
-    __gm__ uint8_t *probBase = pGm + workerIdx * probGroupBytes * 2;
-    __gm__ uint8_t *outTmpBase = oTmpGm + workerIdx * outGroupBytes * 2;
+    const int64_t scoreSlotBytes = static_cast<int64_t>(maxHeadGroups) * scoreGroupBytes;
+    const int64_t probSlotBytes = static_cast<int64_t>(maxHeadGroups) * probGroupBytes;
+    const int64_t outSlotBytes = static_cast<int64_t>(maxHeadGroups) * outGroupBytes;
+    __gm__ uint8_t *scoreBase = sGm + workerIdx * scoreSlotBytes * 2;
+    __gm__ uint8_t *probBase = pGm + workerIdx * probSlotBytes * 2;
+    __gm__ uint8_t *outTmpBase = oTmpGm + workerIdx * outSlotBytes * 2;
 
     const int64_t processRounds = (processNum + workerNum - 1) / workerNum;
     const int32_t stageTileCount = (ctx.kvSplitPerCore + kTileTokens - 1) / kTileTokens;
@@ -1030,18 +1119,26 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
             }
         }
 
-        for (int32_t headGroup = 0; headGroup < maxHeadGroups; ++headGroup) {
-            const int32_t groupHeadBase = headGroup * kHeadGroup;
-            const bool validGroup = validProcess && groupHeadBase < curHeadNum;
-            for (int32_t tile = 0; tile < stageTileCount; ++tile) {
-                const bool activeTile = validProcess && tile < tileCount;
-                const int32_t validTokens = activeTile ? (((tile + 1) * kTileTokens <= curKvSeqLen) ? kTileTokens :
-                    (curKvSeqLen - tile * kTileTokens)) : 0;
-                (void)validTokens;
-                const uint8_t slot = static_cast<uint8_t>(tile & 1);
-                const bool activeGroup = validGroup && activeTile;
+        for (int32_t tilePairBase = 0; tilePairBase < stageTileCount; tilePairBase += 2) {
+            const bool hasStage2 = (tilePairBase + 1) < stageTileCount;
+            const bool activeTile0 = validProcess && tilePairBase < tileCount;
+            const bool activeTile1 = validProcess && hasStage2 && (tilePairBase + 1) < tileCount;
+
+            for (uint32_t stage = 0; stage < 2; ++stage) {
+                if (stage == 1 && !hasStage2) {
+                    break;
+                }
+                const int32_t tile = tilePairBase + static_cast<int32_t>(stage);
+                const uint8_t slot = static_cast<uint8_t>(stage);
+                const bool activeTileStage = (stage == 0) ? activeTile0 : activeTile1;
                 wait_flag_dev(PtoPaSlotFlag(PTO_PA_RAW_QK_READY, slot));
-                if (activeSubBlock && activeGroup) {
+                for (int32_t headGroup = 0; headGroup < maxHeadGroups; ++headGroup) {
+                    const int32_t groupHeadBase = headGroup * kHeadGroup;
+                    const bool validGroup = validProcess && groupHeadBase < curHeadNum;
+                    const bool activeGroup = validGroup && activeTileStage;
+                    if (!(activeSubBlock && activeGroup)) {
+                        continue;
+                    }
                     for (int32_t headInGroupBase = 0; headInGroupBase < kHeadGroup; headInGroupBase += headsPerKv) {
                         const int32_t headLocal = groupHeadBase + headInGroupBase;
                         if (headLocal >= curHeadNum) {
@@ -1051,7 +1148,8 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
                             continue;
                         }
                         ScoreRowsGlobal scoreGlobal(reinterpret_cast<__gm__ float *>(scoreBase +
-                            static_cast<int64_t>(slot) * scoreGroupBytes +
+                            static_cast<int64_t>(slot) * scoreSlotBytes +
+                            static_cast<int64_t>(headGroup) * scoreGroupBytes +
                             static_cast<int64_t>(headInGroupBase) * scoreHeadBytes));
                         TLOAD(scoreRowsTile, scoreGlobal);
                         set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
@@ -1062,6 +1160,8 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
                             maxStateRowsTile.data()[row] = maxScore[headLocal + row];
                             sumStateRowsTile.data()[row] = sumExp[headLocal + row];
                         }
+                        set_flag(PIPE_S, PIPE_V, EVENT_ID2);
+                        wait_flag(PIPE_S, PIPE_V, EVENT_ID2);
                         TROWMAX(rowMaxRowsTile, scoreRowsTile, scoreRowsWorkTile);
                         pipe_barrier(PIPE_V);
                         TMAX(newMaxRowsView, rowMaxRowsView, maxStateRowsView);
@@ -1084,27 +1184,43 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
                         pipe_barrier(PIPE_V);
                         TADD(sumStateRowsView, sumStateRowsView, rowSumRowsView);
                         pipe_barrier(PIPE_V);
+                        set_flag(PIPE_V, PIPE_S, EVENT_ID3);
+                        wait_flag(PIPE_V, PIPE_S, EVENT_ID3);
                         __gm__ half *probScratch = reinterpret_cast<__gm__ half *>(probBase +
-                            static_cast<int64_t>(slot) * probGroupBytes);
-                        __ubuf__ half *probHalf = reinterpret_cast<__ubuf__ half *>(probHalfTile.data());
+                            static_cast<int64_t>(slot) * probSlotBytes +
+                            static_cast<int64_t>(headGroup) * probGroupBytes);
                         for (int32_t row = 0; row < 4; ++row) {
                             maxScore[headLocal + row] = newMaxRowsTile.data()[row];
                             sumExp[headLocal + row] = sumStateRowsTile.data()[row];
                             oldScaleByHead[headLocal + row] = oldScaleRowsTile.data()[row];
-                            __ubuf__ float *probFloat = reinterpret_cast<__ubuf__ float *>(
-                                scoreRowsWorkTile.data() + row * kTileTokens);
-                            vconv_f322f16a(probHalf, probFloat, 2, 1, 1, 4, 8);
+                            TASSIGN(probRowView, kScoreRowsWorkUb +
+                                static_cast<uint32_t>(row) * kTileTokens * sizeof(float));
+                            PtoPaConvF32ToF16(probHalfTile, probRowView, 2);
                             pipe_barrier(PIPE_V);
                             ProbRowGlobal probRowGlobal(probScratch +
                                 static_cast<int64_t>(headInGroupBase + row) * kTileTokens);
                             TSTORE(probRowGlobal, probHalfTile);
                         }
                     }
-                    DdrFenceBeforePtoAivReduce();
                 }
+                DdrFenceBeforePtoAivReduce();
                 PtoPaSignalFromVec(PtoPaSlotFlag(PTO_PA_RAW_P_READY, slot));
+            }
+
+            for (uint32_t stage = 0; stage < 2; ++stage) {
+                if (stage == 1 && !hasStage2) {
+                    break;
+                }
+                const uint8_t slot = static_cast<uint8_t>(stage);
+                const bool activeTileStage = (stage == 0) ? activeTile0 : activeTile1;
                 wait_flag_dev(PtoPaSlotFlag(PTO_PA_RAW_PV_READY, slot));
-                if (activeSubBlock && activeGroup) {
+                for (int32_t headGroup = 0; headGroup < maxHeadGroups; ++headGroup) {
+                    const int32_t groupHeadBase = headGroup * kHeadGroup;
+                    const bool validGroup = validProcess && groupHeadBase < curHeadNum;
+                    const bool activeGroup = validGroup && activeTileStage;
+                    if (!(activeSubBlock && activeGroup)) {
+                        continue;
+                    }
                     for (int32_t headInGroupBase = 0; headInGroupBase < kHeadGroup; headInGroupBase += headsPerKv) {
                         const int32_t headLocal = groupHeadBase + headInGroupBase;
                         if (headLocal >= curHeadNum) {
@@ -1116,8 +1232,11 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
                         for (int32_t row = 0; row < 4; ++row) {
                             oldScaleRowsTile.data()[row] = oldScaleByHead[headLocal + row];
                         }
+                        set_flag(PIPE_S, PIPE_V, EVENT_ID2);
+                        wait_flag(PIPE_S, PIPE_V, EVENT_ID2);
                         OutRowsGlobal outGlobal(reinterpret_cast<__gm__ float *>(outTmpBase +
-                            static_cast<int64_t>(slot) * outGroupBytes +
+                            static_cast<int64_t>(slot) * outSlotBytes +
+                            static_cast<int64_t>(headGroup) * outGroupBytes +
                             static_cast<int64_t>(headInGroupBase) * outHeadBytes));
                         TLOAD(pvRowsTile, outGlobal);
                         set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
@@ -1133,6 +1252,7 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
                 PtoPaSignalFreeFromVec(PtoPaSlotFlag(PTO_PA_RAW_PV_FREE, slot));
             }
         }
+
 
         if (activeSubBlock && validProcess) {
             for (int32_t headLocal = subHeadBegin; headLocal < subHeadEnd; ++headLocal) {
@@ -1152,7 +1272,7 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
         }
     }
 
-    DdrFenceBeforePtoAivReduce();
+    DdrBarrierBeforePtoFfts();
     ffts_cross_core_sync(PIPE_MTE3, PtoPaGetFftsMsg(0x0, PTO_PA_REDUCE_READY_DECODER));
     wait_flag_dev(PTO_PA_REDUCE_READY_DECODER);
     if (!combineSubBlock) {
@@ -1180,15 +1300,20 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
         const uint64_t oFdBase = LoadTilingOffset64(tilingParaGm, paraBase, 15, 16);
         __ubuf__ float *splitScale = reinterpret_cast<__ubuf__ float *>((uintptr_t)0x3200);
         __ubuf__ float *splitReduce = reinterpret_cast<__ubuf__ float *>((uintptr_t)0x3400);
-        float lMax = -3.4028234663852886e38f;
-        for (int32_t split = 0; split < kvLoop; ++split) {
-            const float lValue = partialL[lBase + static_cast<uint64_t>(head) * ctx.kvSplitCoreNum + split];
-            splitScale[split] = lValue;
-            lMax = lValue > lMax ? lValue : lMax;
-        }
+        const uint64_t lOffset = lBase + static_cast<uint64_t>(head) * ctx.kvSplitCoreNum;
+        const uint32_t lRemain = static_cast<uint32_t>(kvLoop % 8);
+        copy_gm_to_ubuf_align_b32(splitScale, partialL + lOffset, 0, 1, static_cast<uint32_t>(kvLoop * 4), 0,
+            lRemain == 0 ? 0 : 8 - lRemain, 0, 0);
+        set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+        wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+        PtoPaSetFloatVectorMask(static_cast<uint32_t>(kvLoop));
+        vcmax(splitReduce, splitScale, 1, 1, 1, 8, static_cast<Order_t>(ONLY_VALUE));
+        pipe_barrier(PIPE_V);
+        set_flag(PIPE_V, PIPE_S, EVENT_ID3);
+        wait_flag(PIPE_V, PIPE_S, EVENT_ID3);
+        const float lMax = splitReduce[0];
         set_flag(PIPE_S, PIPE_V, EVENT_ID2);
         wait_flag(PIPE_S, PIPE_V, EVENT_ID2);
-        PtoPaSetFloatVectorMask(static_cast<uint32_t>(kvLoop));
         vadds(splitScale, splitScale, -lMax, 1, 1, 1, 8, 8);
         pipe_barrier(PIPE_V);
         vexp(splitScale, splitScale, 1, 1, 1, 8, 8);
@@ -1196,7 +1321,11 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
         vcadd(splitReduce, splitScale, 1, 1, 1, 8, 0);
         pipe_barrier(PIPE_V);
         set_vector_mask(static_cast<uint64_t>(-1), static_cast<uint64_t>(-1));
+        set_flag(PIPE_V, PIPE_S, EVENT_ID3);
+        wait_flag(PIPE_V, PIPE_S, EVENT_ID3);
         const float denom = splitReduce[0];
+        set_flag(PIPE_S, PIPE_V, EVENT_ID2);
+        wait_flag(PIPE_S, PIPE_V, EVENT_ID2);
         float invDenom = denom > 0.0f ? 1.0f / denom : 0.0f;
         PtoPaSetFloatVectorMask(static_cast<uint32_t>(kvLoop));
         vmuls(splitScale, splitScale, static_cast<float>(invDenom), 1, 1, 1, 8, 8);
@@ -1205,23 +1334,32 @@ AICORE inline void RunPtoPagedAttentionVecPipelineSplitKV(__gm__ uint8_t *oGm, _
         TASSIGN(weightedTile, 0x0000);
         TEXPANDS(weightedTile, 0.0f);
         pipe_barrier(PIPE_V);
+        constexpr uint32_t kCombineOutUb = 0x4000;
+        __ubuf__ float *splitOut = reinterpret_cast<__ubuf__ float *>((uintptr_t)kCombineOutUb);
+        const uint64_t firstOutOffset = oFdBase * ctx.kvSplitCoreNum +
+            static_cast<uint64_t>(head) * ctx.headDim * ctx.kvSplitCoreNum;
+        copy_gm_to_ubuf_align_b32(splitOut, partialOut + firstOutOffset, 0, 1,
+            static_cast<uint32_t>(kvLoop * ctx.headDim * 4), 0, 0, 0, 0);
+        set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+        wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
         for (int32_t split = 0; split < kvLoop; ++split) {
-            const uint64_t outOffset = oFdBase * ctx.kvSplitCoreNum +
-                static_cast<uint64_t>(head) * ctx.headDim * ctx.kvSplitCoreNum +
-                static_cast<uint64_t>(split) * ctx.headDim;
-            OutGlobal splitGlobal(partialOut + outOffset);
-            TLOAD(pvTile, splitGlobal);
-            set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-            wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-            TMULS(pvTile, pvTile, splitScale[split]);
+            TASSIGN(pvTile, kCombineOutUb + static_cast<uint32_t>(split) * kHeadDim * sizeof(float));
+            set_flag(PIPE_V, PIPE_S, EVENT_ID3);
+            wait_flag(PIPE_V, PIPE_S, EVENT_ID3);
+            const float splitWeight = splitScale[split];
+            set_flag(PIPE_S, PIPE_V, EVENT_ID2);
+            wait_flag(PIPE_S, PIPE_V, EVENT_ID2);
+            TMULS(pvTile, pvTile, splitWeight);
             pipe_barrier(PIPE_V);
             TADD(weightedTile, weightedTile, pvTile);
             pipe_barrier(PIPE_V);
         }
         const int64_t outBase = (static_cast<int64_t>(batchIndex) * ctx.numHeads + head) * ctx.headDim;
-        for (int32_t dim = 0; dim < ctx.headDim; ++dim) {
-            StoreOutputFp16(oGm, outBase + dim, weightedTile.data()[dim]);
-        }
+        OutputGlobal outGlobal(reinterpret_cast<__gm__ half *>(oGm) + outBase);
+        TCVT(outHalfTile, weightedTile, RoundMode::CAST_RINT);
+        pipe_barrier(PIPE_V);
+        TSTORE(outGlobal, outHalfTile);
+        pipe_barrier(PIPE_ALL);
     }
     pipe_barrier(PIPE_ALL);
 }
@@ -1242,6 +1380,7 @@ AICORE inline void RunPtoPagedAttentionDecodeSplitKV(
     uint32_t subBlockId)
 {
     constexpr int32_t kHeadDim = 128;
+    PtoPaInitCoreState();
     const PaTilingContext ctx = LoadPaTilingContext(tilingParaGm);
     if (workerIdx < 0 || workerNum <= 0 || ctx.headDim != kHeadDim || ctx.headDimV != kHeadDim ||
         ctx.blockSize != PA_TILE_TOKENS || ctx.kvSplitCoreNum <= 1 || ctx.numHeads <= 0 || ctx.kvHeads <= 0 ||
@@ -1471,6 +1610,7 @@ AICORE inline void RunPtoPagedAttentionDecode(
     int64_t workerNum)
 {
     constexpr int32_t kMaxHeadDim = 128;
+    PtoPaInitCoreState();
     const PaTilingContext ctx = LoadPaTilingContext(tilingParaGm);
     const int32_t effectiveBatch = ctx.decoderBatch > 0 ? ctx.decoderBatch : ctx.batch;
     const int32_t maxBlocksPerQuery = ctx.maxBlocksPerQuery > 0 ? ctx.maxBlocksPerQuery :
@@ -1537,9 +1677,9 @@ AICORE inline void RunPtoPagedAttentionDecode(
         for (int64_t row = workerIdx; row < totalRows; row += workerNum) {
             const int32_t head = static_cast<int32_t>(row % ctx.numHeads);
             const int32_t batchSlot = static_cast<int32_t>(row / ctx.numHeads);
-            const int32_t paraBase = ctx.headSize + batchSlot * ctx.paraSize;
+            const int32_t paraBase = ResolveSortedParaBase(tilingParaGm, ctx, batchSlot);
             const int32_t kvSeqLen = LoadTilingI32(tilingParaGm, paraBase + kParaKvSeqLen);
-            const int32_t batchIndex = LoadTilingI32(tilingParaGm, paraBase + kParaBatchIndex);
+            const int32_t batchIndex = LoadTilingI32(tilingParaGm, paraBase + kParaRealBatchIndex);
             const int32_t kvHead = head / headsPerKv;
             const int64_t qBase = (static_cast<int64_t>(batchIndex) * ctx.numHeads + head) * ctx.headDim;
             GlobalHalf128 qGlobal(reinterpret_cast<__gm__ half *>(qGm) + qBase);
@@ -1608,9 +1748,9 @@ AICORE inline void RunPtoPagedAttentionDecode(
     for (int64_t row = workerIdx; row < totalRows; row += workerNum) {
         const int32_t head = static_cast<int32_t>(row % ctx.numHeads);
         const int32_t batchSlot = static_cast<int32_t>(row / ctx.numHeads);
-        const int32_t paraBase = ctx.headSize + batchSlot * ctx.paraSize;
+        const int32_t paraBase = ResolveSortedParaBase(tilingParaGm, ctx, batchSlot);
         const int32_t kvSeqLen = LoadTilingI32(tilingParaGm, paraBase + kParaKvSeqLen);
-        const int32_t batchIndex = LoadTilingI32(tilingParaGm, paraBase + kParaBatchIndex);
+        const int32_t batchIndex = LoadTilingI32(tilingParaGm, paraBase + kParaRealBatchIndex);
         const int32_t kvHead = head / headsPerKv;
 
         float qValues[kMaxHeadDim];
