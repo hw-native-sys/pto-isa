@@ -377,6 +377,86 @@ __tf__ PTO_INTERNAL void TMovNdTo2Zz(typename DstTileData::TileDType __out__ dst
     }
 }
 
+// DN->ZZ gather. Source is the RowMajor M̂xN exponent tile from TQuant DN (groups on
+// axis 0). Target ZZ box is [16,2]: 16 along N (columns), 2 along M̂ (row-group pairs):
+//   E_ZZ[cb,p,q,δ] = E_DN[2p+δ][16cb+q]
+// The two source rows for a (cb,p) box — E_DN[2p][16cb+·] and E_DN[2p+1][16cb+·] — are
+// each 16 contiguous bytes; vintlv zips them into the q0δ0,q0δ1,... order the ZZ box
+// needs. So each box is two contiguous 16-B loads + vintlv + one 32-B store: no index
+// gather, no BLK/E2B (cheaper than ND->ZZ, whose 16 intra-box elements are strided).
+// Iterating over col blocks (cb) along a row advances the source pointer by 16 (cols
+// are contiguous); advancing to the next row-group pair advances it by N. tmp is unused
+// (kept in the signature to match the ND->ZZ TMOV interface).
+template <typename DstTileData, typename SrcTileData>
+PTO_INTERNAL void GenerateB8IndicesDN2ZZToUB(__ubuf__ uint8_t *dst, __ubuf__ uint8_t *src, __ubuf__ uint8_t *tmp,
+                                             unsigned hatM, unsigned colsN)
+{
+    (void)tmp;
+    const uint16_t N = (uint16_t)colsN;
+    const uint16_t colBlockCount = N / 16;
+    const uint16_t numPairs = (uint16_t)hatM / 2;
+    // A ZZ box is [16,2] = 32 B = 16 B16 pairs. Store at B16 granularity with a full
+    // predicate (PAT_ALL) and POST_UPDATE advancing by boxB16 (32 B) per box -- this is
+    // the idiom GenerateB8IndicesZZToUB uses (store-dist-modes.md §NORM_BX: count is the
+    // POST_UPDATE stride, predicate is the write mask; a by-value __ubuf__* local still
+    // advances because the intrinsic takes it by reference internally).
+    uint32_t boxB16 = 16;
+    __ubuf__ uint16_t *dstB16 = (__ubuf__ uint16_t *)dst;
+    // PAT_VL16 masks the lower 16 B16 lanes = exactly one 32-B ZZ box, so each store
+    // writes only its own box (no neighbour overwrite) and POST_UPDATE advances dstB16
+    // by boxB16 (32 B) per iteration. (PAT_ALL would write a full 256-B VL per box,
+    // stomping the next boxes' regions.)
+    MaskReg preg_box = pset_b16(PAT_VL16);
+
+    __ubuf__ uint8_t *rowBase = src; // E_DN[0][0]
+    for (uint16_t cb = 0; cb < colBlockCount; ++cb) {
+        const uint16_t off = cb * 16;
+        for (uint16_t p = 0; p < numPairs; ++p) {
+            // Load the two DN source rows (16 B8 each) via unaligned loads (rows are
+            // 16-B aligned, not always 32-B). These reads were verified correct in sim.
+            RegTensor<uint8_t> vRow0, vRow1;
+            vector_u8 vZ0, vZ1;
+            vector_align ureg0, ureg1;
+            __ubuf__ uint8_t *row0 = rowBase + (uint32_t)p * 2 * N + off;
+            __ubuf__ uint8_t *row1 = row0 + N;
+            vldas(ureg0, row0);
+            vldus(vRow0, ureg0, row0);
+            vldas(ureg1, row1);
+            vldus(vRow1, ureg1, row1);
+            vintlv(vZ0, vZ1, (vector_u8 &)vRow0, (vector_u8 &)vRow1);
+            // Store the first 16 B16 (32 B) of the zipped stream as B16 with a FULL
+            // predicate + POST_UPDATE advancing dstB16 by boxB16 (32 B) per box. This
+            // is the GenerateB8IndicesZZToUB idiom (store-dist-modes.md §NORM_BX).
+            vsts((vector_u16 &)vZ0, dstB16, boxB16, NORM_B16, preg_box, POST_UPDATE);
+        }
+    }
+}
+
+// DN->ZZ: axis-0-grouped (DN) E8M0 exponent tile -> cube ZZ scale fractal. Source is
+// the RowMajor M̂xN exponent tile from TQuant<0,...>; equivalent to transposing it to
+// NxM̂ then applying the stock ND->ZZ, but done in a single gather. M̂ must be even
+// (M mod 64 == 0); see tquant-mxfp8-dn.md §5.5.
+template <typename DstTileData, typename SrcTileData, typename TmpTileData>
+__tf__ PTO_INTERNAL void TMovDnTo2Zz(typename DstTileData::TileDType __out__ dst,
+                                     typename SrcTileData::TileDType __in__ src,
+                                     typename TmpTileData::TileDType __in__ tmp, uint32_t hatM, uint32_t colsN)
+{
+    CommonCheckZZ<DstTileData, SrcTileData, TmpTileData>();
+    static_assert(SrcTileData::isRowMajor && (SrcTileData::SFractal == SLayout::NoneBox),
+                  "TMov DN->ZZ: Source tile must be RowMajor with NoneBox layout.");
+    static_assert(DstTileData::isRowMajor && (DstTileData::SFractal == SLayout::RowMajor),
+                  "TMov DN->ZZ: Destination Mat tile must use ColMajor + RowMajor fractal layout.");
+
+    __ubuf__ uint8_t *srcPtr = (__ubuf__ uint8_t *)__cce_get_tile_ptr(src);
+    __ubuf__ uint8_t *dstPtr = (__ubuf__ uint8_t *)__cce_get_tile_ptr(dst);
+    __ubuf__ uint8_t *tmpPtr = (__ubuf__ uint8_t *)__cce_get_tile_ptr(tmp);
+
+    __VEC_SCOPE__
+    {
+        GenerateB8IndicesDN2ZZToUB<DstTileData, SrcTileData>(dstPtr, srcPtr, tmpPtr, hatM, colsN);
+    }
+}
+
 template <typename WorkT, typename SrcTileData>
 PTO_INTERNAL void TMovNd2NzLoop(__ubuf__ WorkT *srcPtr, __ubuf__ WorkT *dstPtr, uint16_t repeatTimes,
                                 uint16_t innerLoopNum, uint32_t validCol, uint32_t cfgVsstb, uint32_t cfgVsstbLast,
@@ -409,8 +489,11 @@ __tf__ PTO_INTERNAL void TMovToVecNd2Nz(typename DstTileData::TileDType __out__ 
     static_assert((std::is_same<T, half>::value) || (std::is_same<T, bfloat16_t>::value) ||
                       (std::is_same<T, float>::value) || (std::is_same<T, int32_t>::value) ||
                       (std::is_same<T, float8_e4m3_t>::value) || (std::is_same<T, float8_e5m2_t>::value) ||
-                      (std::is_same<T, hifloat8_t>::value) || (std::is_same<T, int8_t>::value),
-                  "Dst and src must be float/int32_t/half/bfloat16_t/int8_t/float8_e4m3_t/float8_e5m2_t/hifloat8_t.");
+                      (std::is_same<T, hifloat8_t>::value) || (std::is_same<T, int8_t>::value) ||
+                      (std::is_same<T, uint8_t>::value) || (std::is_same<T, float4_e2m1x2_t>::value) ||
+                      (std::is_same<T, float4_e1m2x2_t>::value),
+                  "Dst and src must be float/int32_t/half/bfloat16_t/int8_t/uint8_t/float8_e4m3_t/float8_e5m2_t/"
+                  "hifloat8_t/float4_e2m1x2_t/float4_e1m2x2_t.");
     __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
     __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src);
     constexpr int32_t srcRow = SrcTileData::Rows;
@@ -610,13 +693,22 @@ PTO_INTERNAL void TMOV_IMPL(DstTileData &dst, SrcTileData &src)
     }
 }
 
-template <typename DstTileData, typename SrcTileData, typename TmpTileData,
+// grp_axis-aware X->ZZ dispatch for the 3-arg TMOV(dst, src, tmp) form.
+// grp_axis = 1 (default, ND): source is M x (N/32) exponents -> stock ND->ZZ.
+// grp_axis = 0 (DN): source is (M/32) x N exponents (axis-0 grouping) -> DN->ZZ.
+// Only the ZZ path is parameterised; all other TMOV overloads are unaffected.
+template <int grp_axis = 1, typename DstTileData, typename SrcTileData, typename TmpTileData,
           std::enable_if_t<(TmpTileData::Loc != TileType::Scaling), int> = 0>
 PTO_INTERNAL void TMOV_IMPL(DstTileData &dst, SrcTileData &src, TmpTileData &tmp)
 {
     CommonCheckZZ<DstTileData, SrcTileData, TmpTileData>();
-    TMovNdTo2Zz<DstTileData, SrcTileData, TmpTileData>(dst.data(), src.data(), tmp.data(), dst.GetValidRow(),
-                                                       dst.GetValidCol());
+    if constexpr (grp_axis == 0) {
+        TMovDnTo2Zz<DstTileData, SrcTileData, TmpTileData>(dst.data(), src.data(), tmp.data(), src.GetValidRow(),
+                                                           src.GetValidCol());
+    } else {
+        TMovNdTo2Zz<DstTileData, SrcTileData, TmpTileData>(dst.data(), src.data(), tmp.data(), dst.GetValidRow(),
+                                                           dst.GetValidCol());
+    }
 }
 
 template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode, STPhase Phase = STPhase::Unspecified>
