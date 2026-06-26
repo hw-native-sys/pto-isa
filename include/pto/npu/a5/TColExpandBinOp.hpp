@@ -16,7 +16,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 template <typename Op, typename TileData, typename TileDataSrc, unsigned elementsPerRepeat, unsigned blockSizeElem,
-          unsigned rowStride>
+          unsigned DstRowStride, unsigned Src0RowStride>
 PTO_INTERNAL void TColExpandBinOps_1D_NoPostUpdate(__ubuf__ typename TileData::DType *dstPtr,
                                                    __ubuf__ typename TileData::DType *src0Ptr,
                                                    __ubuf__ typename TileDataSrc::DType *src1Ptr, unsigned kValidRows,
@@ -37,19 +37,20 @@ PTO_INTERNAL void TColExpandBinOps_1D_NoPostUpdate(__ubuf__ typename TileData::D
         uint32_t sreg = (uint32_t)(kValidCols);
         for (uint16_t i = 0; i < (uint16_t)repeatTimes; ++i) {
             uint16_t repeatIdx = i % repeatTimesPerRow;
-            uint32_t offset = i / repeatTimesPerRow * kValidCols + repeatIdx * elementsPerRepeat;
+            uint32_t src0Offset = i / repeatTimesPerRow * Src0RowStride + repeatIdx * elementsPerRepeat;
+            uint32_t dstOffset = i / repeatTimesPerRow * DstRowStride + repeatIdx * elementsPerRepeat;
             sreg = (uint32_t)(kValidCols);
             vlds(vreg1, src1Ptr, repeatIdx * elementsPerRepeat, NORM);
             preg = CreatePredicate<T>(sreg);
-            vlds(vreg0, src0Ptr, offset, NORM);
+            vlds(vreg0, src0Ptr, src0Offset, NORM);
             Op::ColExpandBinaryInstr(vreg2, vreg0, vreg1, preg);
-            vsts(vreg2, dstPtr, offset, distValue, preg);
+            vsts(vreg2, dstPtr, dstOffset, distValue, preg);
         }
     }
 }
 
 template <typename Op, typename TileData, typename TileDataSrc, unsigned elementsPerRepeat, unsigned blockSizeElem,
-          unsigned rowStride>
+          unsigned DstRowStride, unsigned Src0RowStride>
 PTO_INTERNAL void TColExpandBinOps_1D_PostUpdate(__ubuf__ typename TileData::DType *dstPtr,
                                                  __ubuf__ typename TileData::DType *src0Ptr,
                                                  __ubuf__ typename TileDataSrc::DType *src1Ptr, unsigned kValidRows,
@@ -83,7 +84,7 @@ PTO_INTERNAL void TColExpandBinOps_1D_PostUpdate(__ubuf__ typename TileData::DTy
 }
 
 template <typename Op, typename TileData, typename TileDataSrc, unsigned elementsPerRepeat, unsigned blockSizeElem,
-          unsigned rowStride>
+          unsigned DstRowStride, unsigned Src0RowStride>
 PTO_INTERNAL void TColExpandBinOps_2D_NoPostUpdate(__ubuf__ typename TileData::DType *dstPtr,
                                                    __ubuf__ typename TileData::DType *src0Ptr,
                                                    __ubuf__ typename TileDataSrc::DType *src1Ptr, unsigned kValidRows,
@@ -114,7 +115,7 @@ PTO_INTERNAL void TColExpandBinOps_2D_NoPostUpdate(__ubuf__ typename TileData::D
 }
 
 template <typename Op, typename TileData, typename TileDataSrc, unsigned elementsPerRepeat, unsigned blockSizeElem,
-          unsigned rowStride>
+          unsigned DstRowStride, unsigned Src0RowStride>
 PTO_INTERNAL void TColExpandBinOps_2D_PostUpdate(__ubuf__ typename TileData::DType *dstPtr,
                                                  __ubuf__ typename TileData::DType *src0Ptr,
                                                  __ubuf__ typename TileDataSrc::DType *src1Ptr, unsigned kValidRows,
