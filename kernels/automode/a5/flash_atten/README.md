@@ -109,8 +109,3 @@ Compared to the A2/A3 platform, the A5 version of the Flash Attention kernel has
 - Tuned pipeline depth parameters to match A5 hardware characteristics
 
 Specific tuning parameters and performance data will be continuously updated in future versions.
-
-
-
-
-

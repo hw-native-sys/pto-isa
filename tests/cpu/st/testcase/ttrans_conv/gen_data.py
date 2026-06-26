@@ -72,15 +72,15 @@ def golden_NC1HWC02NCHW(g_info):
 
     c = g_info.dst_shape_1
     assert c == c1 * c0
-    
+
     input_arr = np.random.randint(1, 5, size=(n, c1, h, w, c0)).astype(g_info.data_type)
     input_arr.tofile("./input.bin")
-     
+
     output_arr = input_arr.transpose(0, 1, 4, 2, 3).reshape(n, c, h, w)
-    
+
     output_arr.tofile("./golden.bin")
     print(f"Golden - {output_arr.shape}")
-    
+
     return input_arr, output_arr
 
 
@@ -203,22 +203,22 @@ def golden_NCDHW2C1DHWN1N0C0(g_info):
     assert c0 == 32 // dtype_size
     assert n1 == (n + n0 - 1) // n0
     assert c1 == (c + c0 - 1) // c0
-        
+
     input_arr = np.random.randint(1, 5, size=(n, c, d, h, w)).astype(g_info.data_type)
     input_arr.tofile("./input.bin")
-    
+
     padded_n = n1 * n0
     padding_n = padded_n - n
     padded_c = c1 * c0
     padding_c = padded_c - c
     if padding_n > 0 or padding_c > 0:
         input_arr = np.pad(input_arr, ((0, padding_n), (0, padding_c), (0, 0), (0, 0), (0, 0)), mode='constant')
-        
+
     output_arr = input_arr.reshape(n1, n0, c1, c0, d, h, w).transpose(4, 2, 5, 6, 0, 1, 3)
-    
+
     output_arr.tofile("./golden.bin")
     print(f"Golden - {output_arr.shape}")
-    
+
     return input_arr, output_arr
 
 
