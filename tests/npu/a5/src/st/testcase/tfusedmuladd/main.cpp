@@ -15,7 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace PtoTestCommon;
 
-class TMULADDDSTTest : public testing::Test {
+class TFUSEDMULADDTest : public testing::Test {
 protected:
     void SetUp() override
     {}
@@ -34,11 +34,11 @@ std::string GetGoldenDir()
 
 template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
           int vCols, bool isHalf = true>
-void LaunchTMULADDDST(T *out, T *src0, T *src1, void *stream);
+void LaunchTFUSEDMULADD(T *out, T *src0, T *src1, void *stream);
 
 template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
           int vCols, bool isHalf = false>
-void test_TMULADDDST()
+void test_TFUSEDMULADD()
 {
     size_t fileSizeDst = dstTileH * dstTileW * sizeof(T);
     size_t fileSizeSrc0 = src0TileH * src0TileW * sizeof(T);
@@ -68,7 +68,7 @@ void test_TMULADDDST()
     aclrtMemcpy(src0Device, fileSizeSrc0, src0Host, fileSizeSrc0, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, fileSizeSrc1, src1Host, fileSizeSrc1, ACL_MEMCPY_HOST_TO_DEVICE);
 
-    LaunchTMULADDDST<T, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols>(
+    LaunchTFUSEDMULADD<T, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols>(
         dstDevice, src0Device, src1Device, stream);
 
     aclrtSynchronizeStream(stream);
@@ -87,8 +87,8 @@ void test_TMULADDDST()
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<T> golden(dstTileH * dstTileW);
-    std::vector<T> devFinal(dstTileH * dstTileW);
+    std::vector<T> golden(fileSizeDst);
+    std::vector<T> devFinal(fileSizeDst);
     ReadFile(GetGoldenDir() + "/golden.bin", fileSizeDst, golden.data(), fileSizeDst);
     ReadFile(GetGoldenDir() + "/output.bin", fileSizeDst, devFinal.data(), fileSizeDst);
 
@@ -97,19 +97,43 @@ void test_TMULADDDST()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TMULADDDSTTest, case_float_64x64_64x64_64x64_64x64)
+TEST_F(TFUSEDMULADDTest, case_float_1x8_1x8_1x8_1x8)
 {
-    test_TMULADDDST<float, 64, 64, 64, 64, 64, 64, 64, 64>();
+    test_TFUSEDMULADD<float, 1, 8, 1, 8, 1, 8, 1, 8>();
 }
-TEST_F(TMULADDDSTTest, case_float_32x128_32x192_32x256_32x127)
+TEST_F(TFUSEDMULADDTest, case_float_64x64_64x64_64x64_64x64)
 {
-    test_TMULADDDST<float, 32, 128, 32, 192, 32, 256, 32, 127>();
+    test_TFUSEDMULADD<float, 64, 64, 64, 64, 64, 64, 64, 64>();
 }
-TEST_F(TMULADDDSTTest, case_half_64x64_64x64_64x64_64x64)
+TEST_F(TFUSEDMULADDTest, case_float_32x128_32x192_32x256_32x127)
 {
-    test_TMULADDDST<aclFloat16, 64, 64, 64, 64, 64, 64, 64, 64>();
+    test_TFUSEDMULADD<float, 32, 128, 32, 192, 32, 256, 32, 127>();
 }
-TEST_F(TMULADDDSTTest, case_half_32x128_32x192_32x256_32x127)
+TEST_F(TFUSEDMULADDTest, case_float_1x21824_1x21824_1x21824_1x21824)
 {
-    test_TMULADDDST<aclFloat16, 32, 128, 32, 192, 32, 256, 32, 127>();
+    test_TFUSEDMULADD<float, 1, 21824, 1, 21824, 1, 21824, 1, 21824>();
+}
+TEST_F(TFUSEDMULADDTest, case_float_2728x8_2728x8_2728x8_2728x8)
+{
+    test_TFUSEDMULADD<float, 2728, 8, 2728, 8, 2728, 8, 2728, 8>();
+}
+TEST_F(TFUSEDMULADDTest, case_half_1x16_1x16_1x16_1x16)
+{
+    test_TFUSEDMULADD<aclFloat16, 1, 16, 1, 16, 1, 16, 1, 16>();
+}
+TEST_F(TFUSEDMULADDTest, case_half_64x64_64x64_64x64_64x64)
+{
+    test_TFUSEDMULADD<aclFloat16, 64, 64, 64, 64, 64, 64, 64, 64>();
+}
+TEST_F(TFUSEDMULADDTest, case_half_32x128_32x192_32x256_32x127)
+{
+    test_TFUSEDMULADD<aclFloat16, 32, 128, 32, 192, 32, 256, 32, 127>();
+}
+TEST_F(TFUSEDMULADDTest, case_half_2728x16_2728x16_2728x16_2728x16)
+{
+    test_TFUSEDMULADD<aclFloat16, 2728, 16, 2728, 16, 2728, 16, 2728, 16>();
+}
+TEST_F(TFUSEDMULADDTest, case_half_1x43648_1x43648_1x43648_1x43648)
+{
+    test_TFUSEDMULADD<aclFloat16, 1, 43648, 1, 43648, 1, 43648, 1, 43648>();
 }

@@ -74,9 +74,9 @@ template void LaunchTFUSEDMULADD<float, 64, 64, 64, 64, 64, 64, 64, 64>(float *o
                                                                         void *stream);
 template void LaunchTFUSEDMULADD<float, 32, 128, 32, 192, 32, 256, 32, 127>(float *out, float *src0, float *src1,
                                                                             void *stream);
-template void LaunchTFUSEDMULADD<float, 1, 16384, 1, 16384, 1, 16384, 1, 16384>(float *out, float *src0, float *src1,
+template void LaunchTFUSEDMULADD<float, 1, 21824, 1, 21824, 1, 21824, 1, 21824>(float *out, float *src0, float *src1,
                                                                                 void *stream);
-template void LaunchTFUSEDMULADD<float, 2048, 8, 2048, 8, 2048, 8, 2048, 8>(float *out, float *src0, float *src1,
+template void LaunchTFUSEDMULADD<float, 2728, 8, 2728, 8, 2728, 8, 2728, 8>(float *out, float *src0, float *src1,
                                                                             void *stream);
 template void LaunchTFUSEDMULADD<aclFloat16, 1, 16, 1, 16, 1, 16, 1, 16>(aclFloat16 *out, aclFloat16 *src0,
                                                                          aclFloat16 *src1, void *stream);
@@ -84,7 +84,7 @@ template void LaunchTFUSEDMULADD<aclFloat16, 64, 64, 64, 64, 64, 64, 64, 64>(acl
                                                                              aclFloat16 *src1, void *stream);
 template void LaunchTFUSEDMULADD<aclFloat16, 32, 128, 32, 192, 32, 256, 32, 127>(aclFloat16 *out, aclFloat16 *src0,
                                                                                  aclFloat16 *src1, void *stream);
-template void LaunchTFUSEDMULADD<aclFloat16, 2048, 16, 2048, 16, 2048, 16, 2048, 16>(aclFloat16 *out, aclFloat16 *src0,
+template void LaunchTFUSEDMULADD<aclFloat16, 2728, 16, 2728, 16, 2728, 16, 2728, 16>(aclFloat16 *out, aclFloat16 *src0,
                                                                                      aclFloat16 *src1, void *stream);
-template void LaunchTFUSEDMULADD<aclFloat16, 1, 32768, 1, 32768, 1, 32768, 1, 32768>(aclFloat16 *out, aclFloat16 *src0,
+template void LaunchTFUSEDMULADD<aclFloat16, 1, 43648, 1, 43648, 1, 43648, 1, 43648>(aclFloat16 *out, aclFloat16 *src0,
                                                                                      aclFloat16 *src1, void *stream);
