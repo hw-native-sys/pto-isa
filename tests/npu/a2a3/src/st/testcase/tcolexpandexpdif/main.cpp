@@ -41,54 +41,52 @@ void test_tcolexpandexpdif()
 {
     size_t inputFileSize = src1Row * src1Col * sizeof(T);
     size_t outputFileSize = dstRow * dstCol * sizeof(T);
-
+    size_t outputElementCount = dstRow * dstCol;
     aclInit(nullptr);
     aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
-
     T *dstHost, *src0Host, *src1Host;
     T *dstDevice, *src0Device, *src1Device;
-
     aclrtMallocHost((void **)(&dstHost), outputFileSize);
     aclrtMallocHost((void **)(&src0Host), outputFileSize);
     aclrtMallocHost((void **)(&src1Host), inputFileSize);
-
     aclrtMalloc((void **)&dstDevice, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMalloc((void **)&src0Device, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMalloc((void **)&src1Device, inputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-
     ReadFile(GetGoldenDir() + "/input0.bin", outputFileSize, src0Host, outputFileSize);
     ReadFile(GetGoldenDir() + "/input1.bin", inputFileSize, src1Host, inputFileSize);
-
     aclrtMemcpy(src0Device, outputFileSize, src0Host, outputFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, inputFileSize, src1Host, inputFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     launchTColExpandExpdif<T, dstRow, dstCol, src1Row, src1Col>(dstDevice, src0Device, src1Device, stream);
-
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, outputFileSize, dstDevice, outputFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
-
     WriteFile(GetGoldenDir() + "/output.bin", dstHost, outputFileSize);
-
     aclrtFree(dstDevice);
     aclrtFree(src0Device);
     aclrtFree(src1Device);
-
     aclrtFreeHost(dstHost);
     aclrtFreeHost(src0Host);
     aclrtFreeHost(src1Host);
-
     aclrtDestroyStream(stream);
     aclrtResetDevice(0);
     aclFinalize();
-
-    std::vector<float> golden(outputFileSize);
-    std::vector<float> devFinal(outputFileSize);
-    ReadFile(GetGoldenDir() + "/golden.bin", outputFileSize, golden.data(), outputFileSize);
-    ReadFile(GetGoldenDir() + "/output.bin", outputFileSize, devFinal.data(), outputFileSize);
-    bool ret = ResultCmp(golden, devFinal, 0.001f);
-
-    EXPECT_TRUE(ret);
+    std::vector<float> golden(outputElementCount);
+    std::vector<float> devFinal(outputElementCount);
+    if constexpr (std::is_same_v<T, aclFloat16>) {
+        std::vector<uint16_t> goldenRaw(outputElementCount);
+        std::vector<uint16_t> devRaw(outputElementCount);
+        ReadFile(GetGoldenDir() + "/golden.bin", outputFileSize, goldenRaw.data(), outputFileSize);
+        ReadFile(GetGoldenDir() + "/output.bin", outputFileSize, devRaw.data(), outputFileSize);
+        for (size_t i = 0; i < outputElementCount; i++) {
+            golden[i] = aclFloat16ToFloat(*(aclFloat16 *)&goldenRaw[i]);
+            devFinal[i] = aclFloat16ToFloat(*(aclFloat16 *)&devRaw[i]);
+        }
+    } else {
+        ReadFile(GetGoldenDir() + "/golden.bin", outputFileSize, golden.data(), outputFileSize);
+        ReadFile(GetGoldenDir() + "/output.bin", outputFileSize, devFinal.data(), outputFileSize);
+    }
+    EXPECT_TRUE(ResultCmp(golden, devFinal, 0.001f));
 }
 
 TEST_F(TColExpandExpdifTest, case_fp32_32_16_1_16)

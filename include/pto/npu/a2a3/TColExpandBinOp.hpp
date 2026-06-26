@@ -15,48 +15,53 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/common/utils.hpp>
 
 namespace pto {
-template <typename Op, typename T, unsigned BlockSizeElem, unsigned RowStride>
+template <typename Op, typename T, unsigned BlockSizeElem, unsigned DstRowStride, unsigned Src0RowStride>
 PTO_INTERNAL void TColExpandBinaryCountMode(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ubuf__ T *src1Ptr,
                                             unsigned validRow, unsigned validCol)
 {
     set_mask_count();
     SetVectorCount(validCol);
     for (unsigned i = 0; i < validRow; i++) {
-        unsigned offset = i * RowStride;
-        Op::ColExpandBinInstr(dstPtr + offset, src0Ptr + offset, src1Ptr, 0);
+        unsigned dstOffset = i * DstRowStride;
+        unsigned src0Offset = i * Src0RowStride;
+        Op::ColExpandBinInstr(dstPtr + dstOffset, src0Ptr + src0Offset, src1Ptr, 0);
     }
     set_mask_norm();
     SetFullVecMaskByDType<T>();
 }
 
-template <typename Op, typename T, unsigned ElementsPerRepeat, unsigned BlockSizeElem, unsigned RowStride>
+template <typename Op, typename T, unsigned ElementsPerRepeat, unsigned BlockSizeElem, unsigned DstRowStride,
+          unsigned Src0RowStride>
 PTO_INTERNAL void TColExpandBinaryNormMode(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ubuf__ T *src1Ptr,
                                            unsigned validRow, unsigned validCol)
 {
-    constexpr uint8_t repeatStride = (uint8_t)(RowStride / BlockSizeElem);
-    if constexpr (RowStride < ElementsPerRepeat) {
+    constexpr uint8_t dstRepeatStride = (uint8_t)(DstRowStride / BlockSizeElem);
+    constexpr uint8_t src0RepeatStride = (uint8_t)(Src0RowStride / BlockSizeElem);
+    if constexpr (DstRowStride < ElementsPerRepeat && Src0RowStride < ElementsPerRepeat) {
         SetContMaskByDType<T>(validCol);
-        Op::ColExpandBinInstr(dstPtr, src0Ptr, src1Ptr, validRow, repeatStride, repeatStride, repeatStride);
+        Op::ColExpandBinInstr(dstPtr, src0Ptr, src1Ptr, validRow, dstRepeatStride, src0RepeatStride, src0RepeatStride);
         SetFullVecMaskByDType<T>();
     } else {
         unsigned numLoop = validCol / ElementsPerRepeat;
         unsigned numRemainAfterLoop = validCol % ElementsPerRepeat;
         for (unsigned i = 0; i < numLoop; i++) {
-            Op::ColExpandBinInstr(dstPtr, src0Ptr, src1Ptr, validRow, repeatStride, repeatStride, repeatStride);
+            Op::ColExpandBinInstr(dstPtr, src0Ptr, src1Ptr, validRow, dstRepeatStride, src0RepeatStride,
+                                  src0RepeatStride);
             dstPtr += ElementsPerRepeat;
             src0Ptr += ElementsPerRepeat;
             src1Ptr += ElementsPerRepeat;
         }
         if (numRemainAfterLoop) {
             SetContMaskByDType<T>(numRemainAfterLoop);
-            Op::ColExpandBinInstr(dstPtr, src0Ptr, src1Ptr, validRow, repeatStride, repeatStride, repeatStride);
+            Op::ColExpandBinInstr(dstPtr, src0Ptr, src1Ptr, validRow, dstRepeatStride, src0RepeatStride,
+                                  src0RepeatStride);
             SetFullVecMaskByDType<T>();
         }
     }
 }
 
 template <typename Op, typename TileData, typename TileDataSrc0, typename TileDataSrc1, unsigned ElementsPerRepeat,
-          unsigned BlockSizeElem, unsigned RowStride>
+          unsigned BlockSizeElem, unsigned DstRowStride, unsigned Src0RowStride>
 __tf__ PTO_INTERNAL void ColExpandBinaryInstr(typename TileData::TileDType __out__ dst,
                                               typename TileDataSrc0::TileDType __in__ src0,
                                               typename TileDataSrc1::TileDType __in__ src1, unsigned validRow,
@@ -68,10 +73,11 @@ __tf__ PTO_INTERNAL void ColExpandBinaryInstr(typename TileData::TileDType __out
     __ubuf__ T *src1Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src1);
 
     if constexpr ((TileData::Cols == TileData::ValidCol) || (TileData::Rows == 1)) {
-        TColExpandBinaryNormMode<Op, T, ElementsPerRepeat, BlockSizeElem, RowStride>(dstPtr, src0Ptr, src1Ptr, validRow,
-                                                                                     validCol);
+        TColExpandBinaryNormMode<Op, T, ElementsPerRepeat, BlockSizeElem, DstRowStride, Src0RowStride>(
+            dstPtr, src0Ptr, src1Ptr, validRow, validCol);
     } else {
-        TColExpandBinaryCountMode<Op, T, BlockSizeElem, RowStride>(dstPtr, src0Ptr, src1Ptr, validRow, validCol);
+        TColExpandBinaryCountMode<Op, T, BlockSizeElem, DstRowStride, Src0RowStride>(dstPtr, src0Ptr, src1Ptr, validRow,
+                                                                                     validCol);
     }
 }
 
@@ -90,7 +96,7 @@ PTO_INTERNAL void TCOLEXPANDOP_IMPL(TileData &dst, TileDataSrc0 &src0, TileDataS
     static_assert(TileData::isRowMajor, "Fix: TCOLEXPANDOP not supported Layout type");
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename TileData::DType);
     constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(typename TileData::DType);
-    constexpr unsigned rowStride = TileData::RowStride;
+    constexpr unsigned dstRowStride = TileData::RowStride;
     unsigned src0ValidRow = src0.GetValidRow();
     unsigned src0ValidCol = src0.GetValidCol();
     unsigned src1ValidRow = src1.GetValidRow();
@@ -101,11 +107,13 @@ PTO_INTERNAL void TCOLEXPANDOP_IMPL(TileData &dst, TileDataSrc0 &src0, TileDataS
     bool src0eqdst = (validRow == src0ValidRow) && (validCol == src0ValidCol);
 
     if (src0eqdst) {
-        ColExpandBinaryInstr<Op, TileData, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem, rowStride>(
-            dst.data(), src0.data(), src1.data(), validRow, validCol);
+        constexpr unsigned src0RowStride = TileDataSrc0::RowStride;
+        ColExpandBinaryInstr<Op, TileData, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem, dstRowStride,
+                             src0RowStride>(dst.data(), src0.data(), src1.data(), validRow, validCol);
     } else {
-        ColExpandBinaryInstr<Op2, TileData, TileDataSrc1, TileDataSrc0, elementsPerRepeat, blockSizeElem, rowStride>(
-            dst.data(), src1.data(), src0.data(), validRow, validCol);
+        constexpr unsigned src0RowStride = TileDataSrc1::RowStride;
+        ColExpandBinaryInstr<Op2, TileData, TileDataSrc1, TileDataSrc0, elementsPerRepeat, blockSizeElem, dstRowStride,
+                             src0RowStride>(dst.data(), src1.data(), src0.data(), validRow, validCol);
     }
 }
 } // namespace pto
