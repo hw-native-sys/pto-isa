@@ -704,7 +704,7 @@ struct TPipe {
             return isFree;
         }
 
-        PTO_INTERNAL void setentryOffset(int offset)
+        PTO_INTERNAL void setEntryOffset(int offset)
         {
             entryOffset = offset;
         }
