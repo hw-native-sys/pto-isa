@@ -388,8 +388,13 @@ private:
 inline std::vector<uint64_t> PackPeerArgs(uint32_t rankSize, const uint64_t *peerInput, const uint64_t *peerOutput,
                                           const uint64_t *peerToken, uint64_t length)
 {
+    // Per-rank address arrays packed into the args vector: input, output, token.
+    constexpr uint32_t kPeerAddrArrayCount = 3;
+    // Single trailing scalar entry holding the payload length.
+    constexpr uint32_t kLengthEntryCount = 1;
+
     std::vector<uint64_t> args;
-    args.reserve(3 * rankSize + 1);
+    args.reserve(kPeerAddrArrayCount * rankSize + kLengthEntryCount);
     for (uint32_t i = 0; i < rankSize; ++i) {
         args.push_back(peerInput[i]);
     }
