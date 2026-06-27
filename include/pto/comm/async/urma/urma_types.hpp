@@ -23,11 +23,21 @@ namespace urma {
 constexpr uint32_t kUrmaPollCqThreshold = 10;
 constexpr uint32_t kUrmaMaxPollTimes = 1000000;
 constexpr uint32_t kNumCqePerPollCq = 100;
-constexpr uint32_t kMaxSgeNumShift = 2;
 constexpr uint64_t kCacheLineSize = 64;
+constexpr size_t kUrmaEidBytes = 16;
+
+// UB 协议单 WQE 最大传输量，对齐设备 max_read/write_size（现网 A5 典型值）
+constexpr uint64_t kUrmaMaxWqeTransferBytes = 256ULL * 1024ULL * 1024ULL;
+
+constexpr uint32_t kUrmaSqeSizeBytes = 48;
+constexpr uint32_t kUrmaSgeSizeBytes = 16;
+constexpr uint32_t kUrmaSqeRmtEidLOffset = 16;
+constexpr uint32_t kUrmaSqeRmtEidHOffset = 24;
+constexpr uint32_t kUrmaSqeRmtAddrLOffset = 40;
+constexpr uint32_t kUrmaSqeRmtAddrHOffset = 44;
 
 // ============================================================================
-// UrmaOpcode — operation codes (binary-compatible with HCCP V2 ABI)
+// UrmaOpcode — URMA operation codes (binary-compatible with hcomm UB ABI)
 // ============================================================================
 enum class UrmaOpcode : uint32_t
 {
@@ -115,7 +125,7 @@ struct UrmaCqCtx {
 };
 
 // ============================================================================
-// UrmaSqeCtx — 48-byte WQE (must be binary-compatible with HCCP V2 ABI)
+// UrmaSqeCtx — 48-byte SQE (ABI-compatible with hcomm UB JFS WQE layout)
 // ============================================================================
 struct UrmaSqeCtx {
     /* byte 0 - 4 */
@@ -162,7 +172,7 @@ struct UrmaSgeCtx {
 };
 
 // ============================================================================
-// UrmaJfcCqeCtx — CQE (must be binary-compatible with HCCP V2 ABI)
+// UrmaJfcCqeCtx — 64-byte CQE (ABI-compatible with hcomm UB JFC CQE layout)
 // ============================================================================
 struct UrmaJfcCqeCtx {
     /* DW0 */

@@ -17,3 +17,5 @@
 | | [TWAIT](./TWAIT_zh.md) | `pto.twait` | 等待通知 |
 
 请参阅[通信与运行时](communication-runtime_zh.md)了解该指令集的契约。
+
+URMA 后端的异步 DMA 仅在 Ascend950 / NPU_ARCH 3510 上可用，并要求 CANN Toolkit >= 9.1.0。

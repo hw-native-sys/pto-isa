@@ -40,13 +40,13 @@ TEST(TGetAsyncUrma, Vec_Uint8Small)
 TEST(TGetAsyncUrma, Vec_Float_MR_8MB)
 {
     SKIP_IF_RANKS_LT(2);
-    // 512K floats → commBytesNeeded ≈ 6MB (3 buffers), allocSize = 8MB (>2MB)
+    // 512K floats → commBytesNeeded ≈ 6MB (3 buffers), exact alloc (no 2MB round-up)
     ASSERT_TRUE((RunGetAsyncUrmaRootGet<float, 524288>(2, 2, 0, 0)));
 }
 TEST(TGetAsyncUrma, Vec_Int32_MR_Over512MB)
 {
     SKIP_IF_RANKS_LT(2);
-    // 64M int32 → commBytesNeeded ≈ 768MB (3 buffers), allocSize ≈ 770MB (>512MB)
+    // 64M int32 → commBytesNeeded ≈ 768MB (3 buffers), exact alloc
     ASSERT_TRUE((RunGetAsyncUrmaRootGet<int32_t, 67108864>(2, 2, 0, 0)));
 }
 

@@ -17,3 +17,5 @@ Inter-NPU collective communication, point-to-point exchange, and runtime synchro
 | | [TWAIT](./TWAIT.md) | `pto.twait` | Wait for a notification |
 
 See [Communication and Runtime](communication-runtime.md) for the instruction set contract.
+
+URMA-backed async DMA is available only on Ascend950 / NPU_ARCH 3510 and requires CANN Toolkit >= 9.1.0.

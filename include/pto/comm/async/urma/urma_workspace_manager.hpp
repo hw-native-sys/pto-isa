@@ -19,26 +19,35 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <iostream>
 #include <vector>
 
-#include "pto/comm/async/urma/urma_workspace_helpers.hpp"
+#include "securec.h"
+
+#include "acl/acl.h"
+#include "hccl/hccl.h"
+#include "hccl/hccl_types.h"
+#include "hccl/hccl_res.h"
+#include "hccl/hccl_rank_graph.h"
+
+#include "pto/comm/async/urma/urma_types.hpp"
+#include "pto/comm/async/urma/urma_hccl_defs.hpp"
+#include "pto/comm/async/urma/urma_channel_helper.hpp"
 
 namespace pto {
 namespace comm {
 namespace urma {
 
 // ============================================================================
-// UrmaWorkspaceManager: Host-side URMA workspace initialization.
+// UrmaWorkspaceManager: HCCL-based URMA workspace initialization.
 //
-// 10-step initialization:
-//   1. TsdProcessOpen
-//   2. RaInit
-//   3. RaCtxInit (+ RaGetDevEidInfo + RaCtxTokenIdAlloc)
-//   4. RaCtxLmemRegister (register symmetric memory as MR)
-//   5. JFCCreate (Channel + CQ with device-side polling)
-//   6. JettyCreate (QP with SQ/RQ)
-//   7. JettyImport (allgather QpKey, RaCtxQpImport per remote rank)
-//   8. JettyBind (skip in RM mode)
-//   9. FillUrmaInfo (construct device layout + aclrtMemcpy)
-//  10. RmemImport (allgather MR, RaCtxRmemImport per remote rank)
+// Uses HCCL public APIs for connection establishment (HcclCommMemReg,
+// HcclRankGraphGetLinks, HcclChannelAcquire), then reads ChannelEntity from
+// device/host and fills UrmaInfo for AIV-side urma_async_intrin.hpp.
+// Flow:
+//   1. HcclCommMemReg (register symmetric memory)
+//   2. HcclRankGraphGetLinks (find UBC_TP/CTP links per peer)
+//   3. HcclChannelAcquire(COMM_ENGINE_AIV) — returns device ChannelEntity* handles
+//      (requires CANN with ConvertAivChannelHandlesToDevicePtrs in HcclChannelAcquire)
+//   4. Read back ChannelEntity + sub-structures from device
+//   5. Convert to UrmaInfo format and copy to device
 // ============================================================================
 class UrmaWorkspaceManager {
 public:
@@ -51,52 +60,26 @@ public:
     UrmaWorkspaceManager(const UrmaWorkspaceManager &) = delete;
     UrmaWorkspaceManager &operator=(const UrmaWorkspaceManager &) = delete;
 
-    bool Init(uint32_t deviceId, uint32_t rankId, uint32_t rankCount, void *symmetricAddr, uint64_t symmetricSize,
-              const UrmaBootstrapHandle &bootstrap)
+    bool Init(HcclComm comm, uint32_t rankId, uint32_t rankCount, void *symmetricAddr, uint64_t symmetricSize)
     {
-        deviceId_ = deviceId;
+        comm_ = comm;
         rankId_ = rankId;
         rankCount_ = rankCount;
         symmetricAddr_ = symmetricAddr;
         symmetricSize_ = symmetricSize;
-        bootstrap_ = bootstrap;
 
-        wqInfoList_.resize(rankCount_);
-        cqInfoList_.resize(rankCount_);
-        ubMemInfoList_.resize(rankCount_);
-        hccpEidList_.resize(rankCount_);
-        tpnList_.resize(rankCount_, 0);
-        qpKeyList_.resize(rankCount_);
-        allQpImportInfoT_.resize(rankCount_);
-        remoteQpHandles_.resize(rankCount_, nullptr);
-        rmemHandles_.resize(rankCount_, nullptr);
-
-        auto &loader = HccpV2Loader::Instance();
-        if (!loader.Load()) {
-            std::cerr << "[URMA] Failed to load HCCP V2 libraries" << std::endl;
+        if (!RegisterMemory()) {
+            Finalize();
             return false;
         }
-
-        if (!OpenTsd())
+        if (!BuildChannels()) {
+            Finalize();
             return false;
-        if (!RaInit())
+        }
+        if (!ExtractAndFillUrmaInfo()) {
+            Finalize();
             return false;
-        if (!RaCtxInit())
-            return false;
-        if (!RegisterMR())
-            return false;
-        if (!JFCCreate())
-            return false;
-        if (!JettyCreate())
-            return false;
-        if (!JettyImport())
-            return false;
-        if (!JettyBind())
-            return false;
-        if (!FillUrmaInfo())
-            return false;
-        if (!RmemImport())
-            return false;
+        }
 
         initialized_ = true;
         return true;
@@ -104,8 +87,9 @@ public:
 
     void Finalize()
     {
-        FreeDeviceAddrs();
-        DestroyHccpHandles();
+        FreeDeviceAddr(urmaInfoDevice_);
+        FreeDeviceAddr(eidDevice_);
+        channelHandles_.clear();
         initialized_ = false;
     }
 
@@ -115,305 +99,233 @@ public:
     }
 
 private:
-    void FreeDeviceAddrs()
+    bool RegisterMemory()
     {
-        FreeDeviceAddr(urmaInfoDevice_);
-        FreeDeviceAddr(hccpEidDevice_);
-        FreeDeviceAddr(cqPiAddr_);
-        FreeDeviceAddr(cqCiAddr_);
-        FreeDeviceAddr(sqPiAddr_);
-        FreeDeviceAddr(sqCiAddr_);
-    }
+        CommMem mem{};
+        mem.type = COMM_MEM_TYPE_DEVICE;
+        mem.addr = symmetricAddr_;
+        mem.size = symmetricSize_;
 
-    void DestroyHccpHandles()
-    {
-        UnbindQp();
-        UnimportRemoteResources();
-        DestroyLocalHandles();
-    }
-
-    void UnbindQp()
-    {
-        auto &api = HccpV2Loader::Instance();
-        if (transportMode_ != hccp::CONN_RM && qpHandle_ && api.raCtxQpUnbind) {
-            api.raCtxQpUnbind(qpHandle_);
+        HcclResult ret = HcclCommMemReg(comm_, kUrmaSymMemTag, &mem, &memHandle_);
+        if (ret != HCCL_SUCCESS) {
+            std::cerr << "[URMA] HcclCommMemReg failed: " << static_cast<int>(ret) << std::endl;
+            return false;
         }
+        return true;
     }
 
-    void UnimportRemoteResources()
+    bool BuildChannels()
     {
-        auto &api = HccpV2Loader::Instance();
-        for (uint32_t i = 0; i < rankCount_; ++i) {
-            if (i == rankId_)
+        std::vector<HcclChannelDesc> descs;
+        descs.reserve(rankCount_ - 1);
+
+        for (uint32_t peer = 0; peer < rankCount_; ++peer) {
+            if (peer == rankId_) {
                 continue;
-            if (remoteQpHandles_[i] && api.raCtxQpUnimport) {
-                api.raCtxQpUnimport(ctxHandle_, remoteQpHandles_[i]);
-                remoteQpHandles_[i] = nullptr;
             }
-            if (rmemHandles_[i] && api.raCtxRmemUnimport) {
-                api.raCtxRmemUnimport(ctxHandle_, rmemHandles_[i]);
-                rmemHandles_[i] = nullptr;
-            }
-        }
-    }
 
-    void DestroyLocalHandles()
-    {
-        auto &api = HccpV2Loader::Instance();
-        if (api.raCtxQpDestroy && qpHandle_) {
-            api.raCtxQpDestroy(qpHandle_);
-            qpHandle_ = nullptr;
-        }
-        if (api.raCtxCqDestroy && cqHandle_ && ctxHandle_) {
-            api.raCtxCqDestroy(ctxHandle_, cqHandle_);
-            cqHandle_ = nullptr;
-        }
-        if (api.raCtxChanDestroy && chanHandle_ && ctxHandle_) {
-            api.raCtxChanDestroy(ctxHandle_, chanHandle_);
-            chanHandle_ = nullptr;
-        }
-        if (api.raCtxLmemUnregister && lmemHandle_ && ctxHandle_) {
-            api.raCtxLmemUnregister(ctxHandle_, lmemHandle_);
-            lmemHandle_ = nullptr;
-        }
-        if (api.raCtxTokenIdFree && tokenIdHandle_ && ctxHandle_) {
-            api.raCtxTokenIdFree(ctxHandle_, tokenIdHandle_);
-            tokenIdHandle_ = nullptr;
-        }
-        if (api.raCtxDeinit && ctxHandle_) {
-            api.raCtxDeinit(ctxHandle_);
-            ctxHandle_ = nullptr;
-        }
-    }
-
-    bool OpenTsd()
-    {
-        return OpenTsdIfNeeded(deviceId_, tsdOpened_);
-    }
-
-    bool RaInit()
-    {
-        return RaInitIfNeeded(deviceId_, raInitialized_);
-    }
-
-    // Step 3: Create RA context (+ get EID + allocate token)
-    bool RaCtxInit()
-    {
-        auto &api = HccpV2Loader::Instance();
-
-        hccp::CtxInitAttr attr{};
-        attr.phyId = deviceId_;
-        if (!QueryFirstEid(deviceId_, attr.ub.eid, attr.ub.eidIndex))
-            return false;
-
-        hccp::CtxInitCfg cfg{};
-        cfg.mode = hccp::NETWORK_OFFLINE;
-        int ret = api.raCtxInit(&cfg, &attr, &ctxHandle_);
-        if (ret != 0) {
-            std::cerr << "[URMA] RaCtxInit failed: " << ret << std::endl;
-            return false;
-        }
-
-        localHccpEid_ = attr.ub.eid;
-        SwapEidByteOrder(localHccpEid_);
-
-        hccp::HccpTokenId tokenId{0};
-        ret = api.raCtxTokenIdAlloc(ctxHandle_, &tokenId, &tokenIdHandle_);
-        if (ret != 0) {
-            std::cerr << "[URMA] RaCtxTokenIdAlloc failed: " << ret << std::endl;
-            return false;
-        }
-        return true;
-    }
-
-    // Step 4: Register symmetric memory as MR
-    bool RegisterMR()
-    {
-        auto &api = HccpV2Loader::Instance();
-        hccp::MrRegInfoT mrInfo{};
-        mrInfo.in.mem.addr = reinterpret_cast<uint64_t>(symmetricAddr_);
-        mrInfo.in.mem.size = symmetricSize_;
-        mrInfo.in.ub.tokenValue = hccp::kTokenValue;
-        mrInfo.in.ub.tokenIdHandle = tokenIdHandle_;
-        mrInfo.in.ub.flags.bs.access = hccp::MEM_SEG_ACCESS_DEFAULT;
-        mrInfo.in.ub.flags.bs.cacheable = 0;
-        mrInfo.in.ub.flags.bs.tokenIdValid = 1;
-        mrInfo.in.ub.flags.bs.nonPin = 0;
-        mrInfo.in.ub.flags.bs.userIova = 0;
-        mrInfo.in.ub.flags.bs.tokenPolicy = hccp::TOKEN_POLICY_PLAIN_TEXT;
-
-        int ret = api.raCtxLmemRegister(ctxHandle_, &mrInfo, &lmemHandle_);
-        if (ret != 0) {
-            std::cerr << "[URMA] RaCtxLmemRegister failed: " << ret << std::endl;
-            return false;
-        }
-
-        PopulateMrResult(localMR_, mrInfo, lmemHandle_, tokenIdHandle_);
-        PopulateLocalMemInfo(localMemInfo_, mrInfo.out.ub.tokenId, symmetricSize_, symmetricAddr_);
-        return true;
-    }
-
-    // Step 5: Create JFC (Channel + CQ)
-    bool JFCCreate()
-    {
-        auto &api = HccpV2Loader::Instance();
-
-        hccp::ChanInfoT chanInfo{};
-        chanInfo.in.dataPlaneFlag.bs.poolCqCstm = 1;
-        int ret = api.raCtxChanCreate(ctxHandle_, &chanInfo, &chanHandle_);
-        if (ret != 0) {
-            std::cerr << "[URMA] RaCtxChanCreate failed: " << ret << std::endl;
-            return false;
-        }
-
-        cqInfo_.in.chanHandle = chanHandle_;
-        cqInfo_.in.depth = hccp::kCqDepthDefault;
-        cqInfo_.in.ub.userCtx = 0;
-        cqInfo_.in.ub.mode = hccp::JFC_MODE_USER_CTL_NORMAL;
-        cqInfo_.in.ub.ceqn = 0;
-        cqInfo_.in.ub.flag.bs.lockFree = 0;
-        cqInfo_.in.ub.flag.bs.jfcInline = 0;
-
-        ret = api.raCtxCqCreate(ctxHandle_, &cqInfo_, &cqHandle_);
-        if (ret != 0) {
-            std::cerr << "[URMA] RaCtxCqCreate failed: " << ret << std::endl;
-            return false;
-        }
-
-        UrmaCqCtx localCq{};
-        localCq.cqn = 0;
-        localCq.bufAddr = cqInfo_.out.bufAddr;
-        localCq.cqeShiftSize = Log2U32(cqInfo_.out.cqeSize);
-        localCq.depth = cqInfo_.in.depth;
-
-        if (!AllocDeviceCounter(cqPiAddr_, "cqPiAddr") || !AllocDeviceCounter(cqCiAddr_, "cqCiAddr"))
-            return false;
-        localCq.headAddr = reinterpret_cast<uintptr_t>(cqPiAddr_);
-        localCq.tailAddr = reinterpret_cast<uintptr_t>(cqCiAddr_);
-        localCq.dbMode = UrmaDbMode::SW_DB;
-        localCq.dbAddr = cqInfo_.out.swdbAddr;
-
-        bootstrap_.allgather(&localCq, cqInfoList_.data(), sizeof(UrmaCqCtx), bootstrap_.ctx);
-        return true;
-    }
-
-    // Step 6: Create Jetty QP
-    bool JettyCreate()
-    {
-        auto &api = HccpV2Loader::Instance();
-
-        hccp::QpCreateAttr qpAttr{};
-        InitDefaultQpAttr(qpAttr, cqHandle_, tokenIdHandle_, transportMode_);
-
-        int ret = api.raCtxQpCreate(ctxHandle_, &qpAttr, &qpCreateInfo_, &qpHandle_);
-        if (ret != 0) {
-            std::cerr << "[URMA] RaCtxQpCreate failed: " << ret << std::endl;
-            return false;
-        }
-
-        UrmaWQCtx localWq{};
-        localWq.wqn = 0;
-        localWq.bufAddr = qpCreateInfo_.ub.sqBuffVa;
-        localWq.wqeShiftSize = Log2U32(static_cast<uint32_t>(qpCreateInfo_.ub.wqebbSize));
-        localWq.depth = qpAttr.sqDepth;
-
-        if (!AllocDeviceCounter(sqPiAddr_, "sqPiAddr") || !AllocDeviceCounter(sqCiAddr_, "sqCiAddr"))
-            return false;
-        localWq.headAddr = reinterpret_cast<uintptr_t>(sqPiAddr_);
-        localWq.tailAddr = reinterpret_cast<uintptr_t>(sqCiAddr_);
-        localWq.dbMode = UrmaDbMode::SW_DB;
-        localWq.dbAddr = qpCreateInfo_.ub.dbAddr;
-        localWq.sl = 0;
-
-        bootstrap_.allgather(&localWq, wqInfoList_.data(), sizeof(UrmaWQCtx), bootstrap_.ctx);
-        return true;
-    }
-
-    // Step 7: Exchange QP info and import remote Jetty QPs
-    bool JettyImport()
-    {
-        auto &api = HccpV2Loader::Instance();
-
-        hccp::QpImportInfoT localQpImport{};
-        localQpImport.in.ub.mode = hccp::JETTY_IMPORT_MODE_NORMAL;
-        localQpImport.in.ub.tokenValue = hccp::kTokenValue;
-        localQpImport.in.ub.policy = hccp::JETTY_GRP_POLICY_RR;
-        localQpImport.in.ub.type = hccp::TARGET_TYPE_JETTY;
-        localQpImport.in.ub.flag.bs.tokenPolicy = hccp::TOKEN_POLICY_PLAIN_TEXT;
-        localQpImport.in.ub.tpType = 1;
-
-        bootstrap_.allgather(&localQpImport, allQpImportInfoT_.data(), sizeof(hccp::QpImportInfoT), bootstrap_.ctx);
-        bootstrap_.allgather(&qpCreateInfo_.key, qpKeyList_.data(), sizeof(hccp::QpKeyT), bootstrap_.ctx);
-
-        for (uint32_t i = 0; i < rankCount_; ++i) {
-            if (i == rankId_)
-                continue;
-            allQpImportInfoT_[i].in.key = qpKeyList_[i];
-            int ret = api.raCtxQpImport(ctxHandle_, &allQpImportInfoT_[i], &remoteQpHandles_[i]);
-            if (ret != 0) {
-                std::cerr << "[URMA] RaCtxQpImport for rank " << i << " failed: " << ret << std::endl;
+            uint32_t netLayer = 0;
+            uint32_t linkNum = 0;
+            CommLink *linkList = nullptr;
+            HcclResult rc = HcclRankGraphGetLinks(comm_, netLayer, rankId_, peer, &linkList, &linkNum);
+            if (rc != HCCL_SUCCESS) {
+                std::cerr << "[URMA] HcclRankGraphGetLinks peer=" << peer << " ret=" << static_cast<int>(rc)
+                          << std::endl;
                 return false;
             }
-            tpnList_[i] = allQpImportInfoT_[i].out.ub.tpn;
-        }
-        return true;
-    }
 
-    // Step 8: Bind (skip in RM mode)
-    bool JettyBind()
-    {
-        if (transportMode_ == hccp::CONN_RM)
-            return true;
-        auto &api = HccpV2Loader::Instance();
-        for (uint32_t i = 0; i < rankCount_; ++i) {
-            if (i == rankId_)
-                continue;
-            int ret = api.raCtxQpBind(qpHandle_, remoteQpHandles_[i]);
-            if (ret != 0) {
-                std::cerr << "[URMA] RaCtxQpBind for rank " << i << " failed: " << ret << std::endl;
+            bool found = false;
+            for (uint32_t i = 0; i < linkNum; ++i) {
+                CommProtocol proto = linkList[i].linkAttr.linkProtocol;
+                if (proto != kCommProtocolUbcCtp && proto != kCommProtocolUbcTp) {
+                    continue;
+                }
+
+                HcclChannelDesc desc;
+                HcclChannelDescInit(&desc, 1);
+                desc.remoteRank = peer;
+                desc.notifyNum = 0;
+                desc.channelProtocol = proto;
+                desc.localEndpoint = linkList[i].srcEndpointDesc;
+                desc.remoteEndpoint = linkList[i].dstEndpointDesc;
+                desc.memHandles = &memHandle_;
+                desc.memHandleNum = 1;
+                descs.push_back(desc);
+                found = true;
+                break;
+            }
+            if (!found) {
+                std::cerr << "[URMA] rank=" << rankId_ << " no UBC_TP/CTP link to peer=" << peer << std::endl;
                 return false;
             }
         }
-        return true;
-    }
 
-    // Step 10: Exchange MR info and import remote memory
-    bool RmemImport()
-    {
-        auto &api = HccpV2Loader::Instance();
-        std::vector<hccp::RegMemResultInfo> mrList(rankCount_);
-        bootstrap_.allgather(&localMR_, mrList.data(), sizeof(hccp::RegMemResultInfo), bootstrap_.ctx);
-
-        for (uint32_t i = 0; i < rankCount_; ++i) {
-            if (i == rankId_) {
-                rmemHandles_[i] = lmemHandle_;
-                continue;
-            }
-            hccp::MrImportInfoT mrImport{};
-            mrImport.in.key = mrList[i].key;
-            mrImport.in.ub.tokenValue = mrList[i].tokenValue;
-            mrImport.in.ub.flags.bs.cacheable = mrList[i].cacheable;
-            mrImport.in.ub.flags.bs.access = mrList[i].access;
-
-            int ret = api.raCtxRmemImport(ctxHandle_, &mrImport, &rmemHandles_[i]);
-            if (ret != 0) {
-                std::cerr << "[URMA] RaCtxRmemImport for rank " << i << " failed: " << ret << std::endl;
-                return false;
-            }
+        channelHandles_.resize(descs.size());
+        HcclResult rc = HcclChannelAcquire(comm_, COMM_ENGINE_AIV, descs.data(), static_cast<uint32_t>(descs.size()),
+                                           channelHandles_.data());
+        if (rc != HCCL_SUCCESS) {
+            std::cerr << "[URMA] HcclChannelAcquire failed: " << static_cast<int>(rc) << std::endl;
+            return false;
         }
         return true;
     }
 
-    // Step 9: Construct UrmaInfo on host, copy to device
-    bool FillUrmaInfo()
+    bool ExtractAndFillUrmaInfo()
     {
-        bootstrap_.allgather(&localMemInfo_, ubMemInfoList_.data(), sizeof(UrmaMemInfo), bootstrap_.ctx);
-        bootstrap_.allgather(&localHccpEid_, hccpEidList_.data(), sizeof(hccp::HccpEid), bootstrap_.ctx);
-        bootstrap_.barrier(bootstrap_.ctx);
+        std::vector<UrmaWQCtx> wqList(rankCount_);
+        std::vector<UrmaCqCtx> cqList(rankCount_);
+        std::vector<UrmaMemInfo> memList(rankCount_);
+        std::vector<uint8_t> eidTable(rankCount_ * kUrmaEidBytes, 0);
+        uint32_t localTokenId = 0;
 
-        if (!AllocAndCopyEidTable(hccpEidDevice_, hccpEidList_, rankCount_))
+        if (!ExtractPerPeerInfo(wqList, cqList, memList, eidTable, localTokenId)) {
             return false;
+        }
+        if (!AllocAndCopyEidTable(eidTable, memList)) {
+            return false;
+        }
+        if (!BuildAndCopyUrmaInfoTable(wqList, cqList, memList, localTokenId)) {
+            return false;
+        }
 
+        std::cerr << "[URMA] UrmaInfo OK rank=" << rankId_ << " localTokenId=0x" << std::hex << localTokenId << std::dec
+                  << std::endl;
+        return true;
+    }
+
+    bool ExtractPerPeerInfo(std::vector<UrmaWQCtx> &wqList, std::vector<UrmaCqCtx> &cqList,
+                            std::vector<UrmaMemInfo> &memList, std::vector<uint8_t> &eidTable, uint32_t &localTokenId)
+    {
+        uint32_t channelIdx = 0;
+        for (uint32_t peer = 0; peer < rankCount_; ++peer) {
+            if (peer == rankId_) {
+                wqList[peer] = UrmaWQCtx{};
+                cqList[peer] = UrmaCqCtx{};
+                memList[peer] = UrmaMemInfo{};
+                memList[peer].addr = reinterpret_cast<uint64_t>(symmetricAddr_);
+                memList[peer].len = static_cast<uint32_t>(symmetricSize_);
+                continue;
+            }
+            if (!ExtractSinglePeer(peer, channelIdx, wqList, cqList, memList, eidTable, localTokenId)) {
+                return false;
+            }
+            ++channelIdx;
+        }
+        return true;
+    }
+
+    bool ExtractSinglePeer(uint32_t peer, uint32_t channelIdx, std::vector<UrmaWQCtx> &wqList,
+                           std::vector<UrmaCqCtx> &cqList, std::vector<UrmaMemInfo> &memList,
+                           std::vector<uint8_t> &eidTable, uint32_t &localTokenId)
+    {
+        ChannelHandle handle = channelHandles_[channelIdx];
+        if (handle != 0 && static_cast<uint64_t>(handle) < kDeviceVaThreshold) {
+            std::cerr << "[URMA] ChannelHandle looks like host pointer (0x" << std::hex << handle << std::dec
+                      << ") for peer=" << peer
+                      << ". Upgrade CANN: HcclChannelAcquire must return device ChannelEntity pointers for AIV URMA."
+                      << std::endl;
+            return false;
+        }
+
+        ChannelEntity hostEntity{};
+        SqContext sq{};
+        CqContext cq{};
+        RegedBufferEntity remoteBuf{};
+        RegedBufferEntity localBuf{};
+
+        if (handle == 0 ||
+            !UrmaChannelHelper::TryReadChannelEntity(handle, peer, hostEntity, sq, cq, remoteBuf, localBuf)) {
+            std::cerr << "[URMA] Cannot read ChannelEntity for peer=" << peer << " handle=0x" << std::hex
+                      << static_cast<uint64_t>(handle) << std::dec << std::endl;
+            return false;
+        }
+
+        RegedBufferEntity symRemoteBuf{};
+        uint64_t symRmaAddr = 0;
+        uint32_t symRmaSize = 0;
+        if (!UrmaChannelHelper::SelectSymmetricRemoteBuffer(comm_, kUrmaSymMemTag, symmetricSize_, handle, peer,
+                                                            hostEntity, symRemoteBuf, symRmaAddr, symRmaSize)) {
+            return false;
+        }
+        RegedBufferEntity symLocalBuf{};
+        if (UrmaChannelHelper::SelectSymmetricLocalBuffer(symmetricSize_, hostEntity, peer, symLocalBuf) &&
+            symLocalBuf.type == REGED_BUFFER_RMA) {
+            localTokenId = symLocalBuf.bufferInfo.rma.protectionInfo.memInfo.ub.tokenId;
+        }
+
+        FillWqCtx(wqList[peer], sq);
+        FillCqCtx(cqList[peer], cq);
+        FillMemInfo(memList[peer], sq, symRemoteBuf, symRmaAddr, symRmaSize);
+
+        (void)memcpy_s(&eidTable[peer * kUrmaEidBytes], kUrmaEidBytes, sq.contextInfo.ubJfs.remoteEID, kUrmaEidBytes);
+
+        std::cerr << "[URMA] peer=" << peer << " tpId=" << memList[peer].tpn << " rmtAddr=0x" << std::hex
+                  << memList[peer].addr << " sqVa=0x" << wqList[peer].bufAddr << " dbAddr=0x" << wqList[peer].dbAddr
+                  << std::dec << std::endl;
+        return true;
+    }
+
+    static void FillWqCtx(UrmaWQCtx &wq, const SqContext &sq)
+    {
+        wq.wqn = sq.contextInfo.ubJfs.jfsID;
+        wq.bufAddr = sq.contextInfo.ubJfs.sqVa;
+        wq.wqeShiftSize = Log2U32(sq.contextInfo.ubJfs.wqeSize);
+        wq.depth = sq.contextInfo.ubJfs.sqDepth;
+        wq.headAddr = sq.contextInfo.ubJfs.headAddr;
+        wq.tailAddr = sq.contextInfo.ubJfs.tailAddr;
+        wq.dbMode = UrmaDbMode::SW_DB;
+        wq.dbAddr = sq.contextInfo.ubJfs.dbVa;
+        wq.sl = 0;
+    }
+
+    static void FillCqCtx(UrmaCqCtx &cqCtx, const CqContext &cq)
+    {
+        cqCtx.cqn = cq.contextInfo.ubJfc.jfcID;
+        cqCtx.bufAddr = cq.contextInfo.ubJfc.scqVa;
+        cqCtx.cqeShiftSize = Log2U32(cq.contextInfo.ubJfc.cqeSize);
+        cqCtx.depth = cq.contextInfo.ubJfc.cqDepth;
+        cqCtx.headAddr = cq.contextInfo.ubJfc.headAddr;
+        cqCtx.tailAddr = cq.contextInfo.ubJfc.tailAddr;
+        cqCtx.dbMode = UrmaDbMode::SW_DB;
+        cqCtx.dbAddr = cq.contextInfo.ubJfc.dbVa;
+    }
+
+    static void FillMemInfo(UrmaMemInfo &mem, const SqContext &sq, const RegedBufferEntity &symRemoteBuf,
+                            uint64_t symRmaAddr, uint32_t symRmaSize)
+    {
+        mem.tokenValueValid = true;
+        mem.rmtJettyType = 1;
+        mem.targetHint = 0;
+        mem.tpn = sq.contextInfo.ubJfs.tpID;
+        mem.tid = symRemoteBuf.bufferInfo.rma.protectionInfo.memInfo.ub.tokenId;
+        mem.rmtTokenValue = symRemoteBuf.bufferInfo.rma.protectionInfo.memInfo.ub.tokenValue;
+        mem.len = symRmaSize;
+        mem.addr = symRmaAddr;
+    }
+
+    bool AllocAndCopyEidTable(const std::vector<uint8_t> &eidTable, std::vector<UrmaMemInfo> &memList)
+    {
+        size_t eidDevSize = rankCount_ * kUrmaEidBytes;
+        aclError err = aclrtMalloc(&eidDevice_, eidDevSize, ACL_MEM_MALLOC_HUGE_FIRST);
+        if (err != ACL_SUCCESS) {
+            std::cerr << "[URMA] aclrtMalloc(eidTable) failed: " << err << std::endl;
+            return false;
+        }
+        err = aclrtMemcpy(eidDevice_, eidDevSize, eidTable.data(), eidDevSize, ACL_MEMCPY_HOST_TO_DEVICE);
+        if (err != ACL_SUCCESS) {
+            std::cerr << "[URMA] aclrtMemcpy(eidTable) failed: " << err << std::endl;
+            return false;
+        }
+        for (uint32_t peer = 0; peer < rankCount_; ++peer) {
+            memList[peer].eidAddr =
+                reinterpret_cast<uint64_t>(static_cast<uint8_t *>(eidDevice_) + peer * kUrmaEidBytes);
+        }
+        return true;
+    }
+
+    bool BuildAndCopyUrmaInfoTable(const std::vector<UrmaWQCtx> &wqList, const std::vector<UrmaCqCtx> &cqList,
+                                   const std::vector<UrmaMemInfo> &memList, uint32_t localTokenId)
+    {
         constexpr uint32_t qpNum = 1;
         size_t totalSize =
             sizeof(UrmaInfo) + rankCount_ * (2U * sizeof(UrmaWQCtx) * qpNum + 2U * sizeof(UrmaCqCtx) * qpNum +
@@ -421,73 +333,93 @@ private:
 
         aclError err = aclrtMalloc(&urmaInfoDevice_, totalSize, ACL_MEM_MALLOC_HUGE_FIRST);
         if (err != ACL_SUCCESS) {
-            std::cerr << "[URMA] aclrtMalloc for urmaInfo failed: " << err << std::endl;
+            std::cerr << "[URMA] aclrtMalloc(urmaInfo) failed: " << err << std::endl;
             return false;
         }
 
         std::vector<uint8_t> hostBuf(totalSize, 0);
-        auto *copyInfo = reinterpret_cast<UrmaInfo *>(hostBuf.data());
-        copyInfo->qpNum = qpNum;
-        copyInfo->localTokenId = localMR_.tokenId;
-        copyInfo->rankCount = rankCount_;
-
-        ComputeInfoLayout(copyInfo, hostBuf.data(), rankCount_);
-        FillPerRankData(copyInfo, wqInfoList_, cqInfoList_, ubMemInfoList_, tpnList_, hccpEidDevice_, rankId_,
-                        rankCount_);
-
-        ComputeInfoLayout(copyInfo, reinterpret_cast<uint8_t *>(urmaInfoDevice_), rankCount_);
+        FillUrmaInfoLayout(hostBuf, wqList, cqList, memList, localTokenId);
 
         err = aclrtMemcpy(urmaInfoDevice_, totalSize, hostBuf.data(), totalSize, ACL_MEMCPY_HOST_TO_DEVICE);
         if (err != ACL_SUCCESS) {
-            std::cerr << "[URMA] aclrtMemcpy for urmaInfo failed: " << err << std::endl;
-            aclrtFree(urmaInfoDevice_);
-            urmaInfoDevice_ = nullptr;
+            std::cerr << "[URMA] aclrtMemcpy(urmaInfo) failed: " << err << std::endl;
             return false;
         }
         return true;
     }
 
-    uint32_t deviceId_{0};
+    void FillUrmaInfoLayout(std::vector<uint8_t> &hostBuf, const std::vector<UrmaWQCtx> &wqList,
+                            const std::vector<UrmaCqCtx> &cqList, const std::vector<UrmaMemInfo> &memList,
+                            uint32_t localTokenId)
+    {
+        constexpr uint32_t qpNum = 1;
+        auto *info = reinterpret_cast<UrmaInfo *>(hostBuf.data());
+        info->qpNum = qpNum;
+        info->localTokenId = localTokenId;
+        info->rankCount = rankCount_;
+
+        uint8_t *devAddr = static_cast<uint8_t *>(urmaInfoDevice_) + sizeof(UrmaInfo);
+        info->sqPtr = reinterpret_cast<uint64_t>(devAddr);
+        devAddr += sizeof(UrmaWQCtx) * rankCount_ * qpNum;
+        info->rqPtr = reinterpret_cast<uint64_t>(devAddr);
+        devAddr += sizeof(UrmaWQCtx) * rankCount_ * qpNum;
+        info->scqPtr = reinterpret_cast<uint64_t>(devAddr);
+        devAddr += sizeof(UrmaCqCtx) * rankCount_ * qpNum;
+        info->rcqPtr = reinterpret_cast<uint64_t>(devAddr);
+        devAddr += sizeof(UrmaCqCtx) * rankCount_ * qpNum;
+        info->memPtr = reinterpret_cast<uint64_t>(devAddr);
+
+        uint8_t *hostAddr = hostBuf.data() + sizeof(UrmaInfo);
+        auto *sqArr = reinterpret_cast<UrmaWQCtx *>(hostAddr);
+        hostAddr += sizeof(UrmaWQCtx) * rankCount_ * qpNum;
+        auto *rqArr = reinterpret_cast<UrmaWQCtx *>(hostAddr);
+        hostAddr += sizeof(UrmaWQCtx) * rankCount_ * qpNum;
+        auto *scqArr = reinterpret_cast<UrmaCqCtx *>(hostAddr);
+        hostAddr += sizeof(UrmaCqCtx) * rankCount_ * qpNum;
+        auto *rcqArr = reinterpret_cast<UrmaCqCtx *>(hostAddr);
+        hostAddr += sizeof(UrmaCqCtx) * rankCount_ * qpNum;
+        auto *memArr = reinterpret_cast<UrmaMemInfo *>(hostAddr);
+
+        for (uint32_t rank = 0; rank < rankCount_; ++rank) {
+            sqArr[rank] = wqList[rank];
+            rqArr[rank] = wqList[rank];
+            scqArr[rank] = cqList[rank];
+            rcqArr[rank] = cqList[rank];
+            memArr[rank] = memList[rank];
+        }
+    }
+
+    static uint32_t Log2U32(uint32_t n)
+    {
+        return (n <= 1) ? 0 : __builtin_ctz(n);
+    }
+
+    static void FreeDeviceAddr(void *&addr)
+    {
+        if (addr) {
+            aclrtFree(addr);
+            addr = nullptr;
+        }
+    }
+
+    static constexpr const char *kUrmaSymMemTag = "pto_urma_sym";
+    static constexpr uint64_t kDeviceVaThreshold = 0x100000000000ULL;
+    static constexpr CommProtocol kCommProtocolUbcCtp = static_cast<CommProtocol>(4);
+    static constexpr CommProtocol kCommProtocolUbcTp = static_cast<CommProtocol>(5);
+
+    HcclComm comm_{nullptr};
     uint32_t rankId_{0};
     uint32_t rankCount_{0};
     void *symmetricAddr_{nullptr};
     uint64_t symmetricSize_{0};
-    UrmaBootstrapHandle bootstrap_{};
-    hccp::TransportModeT transportMode_{hccp::CONN_RM};
+    HcclMemHandle memHandle_{nullptr};
 
-    void *ctxHandle_{nullptr};
-    void *chanHandle_{nullptr};
-    void *tokenIdHandle_{nullptr};
-    void *lmemHandle_{nullptr};
-    void *cqHandle_{nullptr};
-    void *qpHandle_{nullptr};
-    std::vector<void *> remoteQpHandles_;
-    std::vector<void *> rmemHandles_;
-
-    hccp::HccpEid localHccpEid_{};
-    hccp::RegMemResultInfo localMR_{};
-    hccp::CqInfoT cqInfo_{};
-    hccp::QpCreateInfo qpCreateInfo_{};
-    UrmaMemInfo localMemInfo_{};
+    std::vector<ChannelHandle> channelHandles_;
 
     void *urmaInfoDevice_{nullptr};
-    void *hccpEidDevice_{nullptr};
-    void *cqPiAddr_{nullptr};
-    void *cqCiAddr_{nullptr};
-    void *sqPiAddr_{nullptr};
-    void *sqCiAddr_{nullptr};
-
-    std::vector<UrmaWQCtx> wqInfoList_;
-    std::vector<UrmaCqCtx> cqInfoList_;
-    std::vector<UrmaMemInfo> ubMemInfoList_;
-    std::vector<hccp::HccpEid> hccpEidList_;
-    std::vector<uint32_t> tpnList_;
-    std::vector<hccp::QpKeyT> qpKeyList_;
-    std::vector<hccp::QpImportInfoT> allQpImportInfoT_;
+    void *eidDevice_{nullptr};
 
     bool initialized_{false};
-    static inline bool tsdOpened_{false};
-    static inline bool raInitialized_{false};
 };
 
 } // namespace urma

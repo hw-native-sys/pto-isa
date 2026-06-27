@@ -108,7 +108,7 @@ AICORE inline uint32_t UrmaPollCq(__gm__ uint8_t *contextGm, uint32_t destRankId
 // ============================================================================
 AICORE inline void UrmaPostSendUpdateInfo(uint32_t curHead, __gm__ UrmaWQCtx *qpCtxEntry)
 {
-    __gm__ uint32_t *doorBellAddr = (__gm__ uint32_t *)qpCtxEntry->dbAddr;
+    __gm__ uint32_t *doorBellAddr = reinterpret_cast<__gm__ uint32_t *>(qpCtxEntry->dbAddr);
     st_dev(curHead, doorBellAddr, 0);
     st_dev(curHead, (__gm__ uint32_t *)qpCtxEntry->headAddr, 0);
 }
@@ -121,12 +121,12 @@ AICORE inline void FillSqeCtx(__gm__ UrmaSqeCtx *sqeCtx, __gm__ UrmaMemInfo *rem
 {
     sqeCtx->sqeBbIdx = static_cast<uint16_t>(curHead % depth);
     sqeCtx->opcode = static_cast<uint32_t>(opcode);
-    sqeCtx->flag = 0b00100010;
+    sqeCtx->flag = 0x20;
     sqeCtx->rsv0 = 0;
     sqeCtx->nf = 0;
-    sqeCtx->tokenEn = remoteMemInfo->tokenValueValid;
+    sqeCtx->tokenEn = remoteMemInfo->tokenValueValid ? 1U : 0U;
     sqeCtx->rmtJettyType = remoteMemInfo->rmtJettyType;
-    sqeCtx->owner = (curHead & (depth << kMaxSgeNumShift)) == 0 ? 1 : 0;
+    sqeCtx->owner = (curHead & depth) == 0U ? 1U : 0U;
     sqeCtx->targetHint = remoteMemInfo->targetHint;
     sqeCtx->rsv1 = 0;
     sqeCtx->inlineMsgLen = 0;
@@ -140,13 +140,15 @@ AICORE inline void FillSqeCtx(__gm__ UrmaSqeCtx *sqeCtx, __gm__ UrmaMemInfo *rem
     sqeCtx->reduceOpcode = 0;
     sqeCtx->rsv3 = 0;
 
-    uint64_t remoteAddrValue = reinterpret_cast<uint64_t>(remoteAddr);
-    sqeCtx->rmtAddrLOrTokenId = static_cast<uint32_t>(remoteAddrValue & 0xFFFFFFFF);
-    sqeCtx->rmtAddrHOrTokenValue = static_cast<uint32_t>((remoteAddrValue >> 32) & 0xFFFFFFFF);
-
-    __gm__ uint64_t *rmtEid = (__gm__ uint64_t *)(remoteMemInfo->eidAddr);
-    sqeCtx->rmtEidL = rmtEid[0];
-    sqeCtx->rmtEidH = rmtEid[1];
+    const uint64_t remoteAddrValue = reinterpret_cast<uint64_t>(remoteAddr);
+    __gm__ uint8_t *sqeBytes = reinterpret_cast<__gm__ uint8_t *>(sqeCtx);
+    __gm__ uint64_t *rmtEid = reinterpret_cast<__gm__ uint64_t *>(remoteMemInfo->eidAddr);
+    *reinterpret_cast<__gm__ uint64_t *>(sqeBytes + kUrmaSqeRmtEidLOffset) = rmtEid[0];
+    *reinterpret_cast<__gm__ uint64_t *>(sqeBytes + kUrmaSqeRmtEidHOffset) = rmtEid[1];
+    *reinterpret_cast<__gm__ uint32_t *>(sqeBytes + kUrmaSqeRmtAddrLOffset) =
+        static_cast<uint32_t>(remoteAddrValue & 0xFFFFFFFFU);
+    *reinterpret_cast<__gm__ uint32_t *>(sqeBytes + kUrmaSqeRmtAddrHOffset) =
+        static_cast<uint32_t>((remoteAddrValue >> 32) & 0xFFFFFFFFU);
 }
 
 // ============================================================================
@@ -156,6 +158,8 @@ AICORE inline void FillSqeCtx(__gm__ UrmaSqeCtx *sqeCtx, __gm__ UrmaMemInfo *rem
 AICORE inline uint32_t UrmaPostSend(__gm__ uint8_t *contextGm, __gm__ uint8_t *remoteAddr, __gm__ uint8_t *localAddr,
                                     uint32_t destRankId, uint32_t qpIdx, UrmaOpcode opcode, uint64_t messageLen)
 {
+    PTO_ASSERT(messageLen > 0 && messageLen <= kUrmaMaxWqeTransferBytes,
+               "UrmaPostSend: messageLen must be in (0, 256MB]; larger transfers require caller-side splitting");
     __gm__ UrmaInfo *urmaInfo = (__gm__ UrmaInfo *)contextGm;
     PTO_ASSERT(destRankId < urmaInfo->rankCount, "UrmaPostSend: destRankId out of range");
     uint32_t qpNum = urmaInfo->qpNum;
@@ -177,12 +181,14 @@ AICORE inline uint32_t UrmaPostSend(__gm__ uint8_t *contextGm, __gm__ uint8_t *r
     __gm__ uint8_t *wqeAddr = (__gm__ uint8_t *)(qpCtxEntry->bufAddr + wqeSize * (curHead % depth));
     FillSqeCtx((__gm__ UrmaSqeCtx *)wqeAddr, remoteMemInfo, remoteAddr, opcode, curHead, depth);
 
-    __gm__ UrmaSgeCtx *sgeCtx = (__gm__ UrmaSgeCtx *)(wqeAddr + sizeof(UrmaSqeCtx));
+    __gm__ UrmaSgeCtx *sgeCtx = (__gm__ UrmaSgeCtx *)(wqeAddr + kUrmaSqeSizeBytes);
     sgeCtx->len = static_cast<uint32_t>(messageLen);
     sgeCtx->tokenId = urmaInfo->localTokenId;
     sgeCtx->va = reinterpret_cast<uint64_t>(localAddr);
 
-    DcciCachelines(wqeAddr, sizeof(UrmaSqeCtx) + sizeof(UrmaSgeCtx));
+    pipe_barrier(PIPE_ALL);
+    DcciCachelines(wqeAddr, kUrmaSqeSizeBytes + kUrmaSgeSizeBytes);
+    pipe_barrier(PIPE_ALL);
     curHead++;
     UrmaPostSendUpdateInfo(curHead, qpCtxEntry);
 

@@ -66,10 +66,14 @@ extern "C" rtError_t rtStreamDestroy(rtStream_t stream);
 extern "C" HcclResult HcclAllocComResourceByTiling(HcclComm comm, void *stream, void *mc2Tiling, void **commContext);
 extern "C" HcclResult HcomGetCommHandleByGroup(const char *group, HcclComm *commHandle);
 
+#ifndef HCCL_RANK_GRAPH_H
 using CommTopo = uint32_t;
+static constexpr uint32_t COMM_TOPO_MESH = 0b1u;
+#else
+static constexpr CommTopo COMM_TOPO_MESH = COMM_TOPO_1DMESH;
+#endif
 extern "C" HcclResult HcomGetL0TopoTypeEx(const char *group, CommTopo *topoType, uint32_t isSetDevice);
 static constexpr uint32_t COMM_IS_NOT_SET_DEVICE = 0;
-static constexpr uint32_t COMM_TOPO_MESH = 0b1u;
 
 // V2 tiling structures matching PyPTO's hccl_context.h definitions.
 // On A5, PyPTO uses Mc2CommConfigV2 (init.version=100) which routes through
@@ -187,7 +191,7 @@ struct TestContext {
             return false;
         }
 
-        CommTopo topoRet = 0;
+        CommTopo topoRet = static_cast<CommTopo>(0);
         hret = HcomGetL0TopoTypeEx(group, &topoRet, COMM_IS_NOT_SET_DEVICE);
         COMM_LOG("[INIT] Rank " << rankId << ": HcomGetL0TopoTypeEx -> " << (int)hret << " topo=" << topoRet
                                 << (topoRet == COMM_TOPO_MESH ? " (MESH)" : " (RING/other)"));
@@ -374,27 +378,9 @@ inline bool ForkAndRunWithHcclRootInfo(int nRanks, int firstRankId, int firstDev
 using SdmaWorkspaceManager = pto::comm::sdma::SdmaWorkspaceManager;
 
 using UrmaWorkspaceManager = pto::comm::urma::UrmaWorkspaceManager;
-using UrmaBootstrapHandle = pto::comm::urma::UrmaBootstrapHandle;
-
-static int MpiAllgatherWrapper(const void *sendbuf, void *recvbuf, int size, void *ctx)
-{
-    (void)ctx;
-    return CommMpiAllgather(sendbuf, size, recvbuf, size);
-}
-
-static int MpiBarrierWrapper(void *ctx)
-{
-    (void)ctx;
-    CommMpiBarrier();
-    return 0;
-}
 
 // ============================================================================
-// UrmaTestContext: shared URMA host setup for TGET_ASYNC / TPUT_ASYNC ST.
-//
-// Allocates huge-page symmetric GM, runs UrmaWorkspaceManager::Init (HCCP MR + Jetty + bootstrap allgather).
-// Peer symmetric bases for device code come from UrmaMemInfo in the workspace (UrmaPeerMrBaseAddr),
-// not a separate MPI pointer table — same data as RegMemResultInfo.address.
+// UrmaTestContext: HCCL-based URMA host setup for TGET_ASYNC / TPUT_ASYNC ST.
 // ============================================================================
 struct UrmaTestContext {
     int deviceId{-1};
@@ -402,19 +388,22 @@ struct UrmaTestContext {
     int nRanks{0};
     int rootRank{0};
     rtStream_t stream{nullptr};
+    HcclComm comm{nullptr};
     void *devBuf{nullptr};
     size_t allocSize{0};
     UrmaWorkspaceManager urmaMgr;
 
-    // Allocate huge-page device memory (2MB aligned, required by URMA MR registration).
-    bool AllocHugePageBuffer(size_t commBytesNeeded)
+    // Symmetric MR buffer: exact commBytesNeeded (no 2MB round-up).
+    // HCCL registers with nonPin=1 and 4KB BufAlign internally, so 2MB huge page is not required.
+    // Use HUGE_FIRST for production-like behavior; NORMAL_ONLY was also validated to work.
+    bool AllocCommBuffer(size_t commBytesNeeded)
     {
-        constexpr size_t kHugePageSize = 2UL * 1024 * 1024;
-        allocSize = (commBytesNeeded + kHugePageSize - 1) & ~(kHugePageSize - 1);
-        if (allocSize < kHugePageSize) {
-            allocSize = kHugePageSize;
+        if (commBytesNeeded == 0) {
+            std::cerr << "[ERROR] commBytesNeeded must be > 0" << std::endl;
+            return false;
         }
-        aclError aErr = aclrtMalloc(&devBuf, allocSize, ACL_MEM_MALLOC_HUGE_ONLY);
+        allocSize = commBytesNeeded;
+        aclError aErr = aclrtMalloc(&devBuf, allocSize, ACL_MEM_MALLOC_HUGE_FIRST);
         if (aErr != ACL_SUCCESS || devBuf == nullptr) {
             std::cerr << "[ERROR] aclrtMalloc(" << allocSize << ") failed: " << aErr << std::endl;
             return false;
@@ -445,15 +434,34 @@ struct UrmaTestContext {
             return false;
         }
 
-        if (!AllocHugePageBuffer(commBytesNeeded))
+        if (!AllocCommBuffer(commBytesNeeded))
             return false;
 
-        UrmaBootstrapHandle bootstrap{MpiAllgatherWrapper, MpiBarrierWrapper, nullptr};
-        if (!urmaMgr.Init(static_cast<uint32_t>(deviceId), static_cast<uint32_t>(rank_id),
-                          static_cast<uint32_t>(n_ranks), devBuf, allocSize, bootstrap)) {
+        HcclRootInfo rootInfo{};
+        if (rank_id == 0) {
+            rtSetDevice(deviceId);
+            if (HcclGetRootInfo(&rootInfo) != HCCL_SUCCESS) {
+                std::cerr << "[ERROR] HcclGetRootInfo failed" << std::endl;
+                return false;
+            }
+        }
+        CommMpiBcast(&rootInfo, HCCL_ROOT_INFO_BYTES, COMM_MPI_CHAR, 0);
+        CommMpiBarrier();
+
+        HcclResult hret =
+            HcclCommInitRootInfo(static_cast<uint32_t>(n_ranks), &rootInfo, static_cast<uint32_t>(rank_id), &comm);
+        if (hret != HCCL_SUCCESS) {
+            std::cerr << "[ERROR] HcclCommInitRootInfo failed: " << static_cast<int>(hret) << std::endl;
+            return false;
+        }
+        CommMpiBarrier();
+
+        if (!urmaMgr.Init(comm, static_cast<uint32_t>(rank_id), static_cast<uint32_t>(n_ranks), devBuf, allocSize)) {
             std::cerr << "[ERROR] UrmaWorkspaceManager Init failed!" << std::endl;
             aclrtFree(devBuf);
             devBuf = nullptr;
+            HcclCommDestroy(comm);
+            comm = nullptr;
             return false;
         }
         return true;
@@ -461,10 +469,15 @@ struct UrmaTestContext {
 
     void Cleanup()
     {
+        CommMpiBarrier();
         urmaMgr.Finalize();
         if (devBuf) {
             aclrtFree(devBuf);
             devBuf = nullptr;
+        }
+        if (comm) {
+            HcclCommDestroy(comm);
+            comm = nullptr;
         }
         if (stream) {
             rtStreamDestroy(stream);
