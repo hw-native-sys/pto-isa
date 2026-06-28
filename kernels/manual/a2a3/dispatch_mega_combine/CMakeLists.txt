@@ -112,7 +112,7 @@ include_directories(
     ${ASCEND_HOME_PATH}/pkg_inc/profiling
     ${ASCEND_DRIVER_PATH}/kernel/inc
     ${ASCEND_HOME_PATH}/include/experiment/runtime
-    ${ASCEND_HOME_PATH}/include/experiment/msprof    
+    ${ASCEND_HOME_PATH}/include/experiment/msprof
 )
 
 function(pto_example_mixed NAME)
