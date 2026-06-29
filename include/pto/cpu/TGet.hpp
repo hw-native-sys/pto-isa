@@ -68,10 +68,10 @@ PTO_INTERNAL void TPUT_IMPL(GlobalDstData &dst, GlobalSrcData &src, TileData &sr
     Copy_Data(src, dst);
 }
 
-template <typename GlobalDstData, typename GlobalSrcData, typename TileData, AtomicType atomicType>
+template <typename GlobalDstData, typename GlobalSrcData, typename TileData>
 PTO_INTERNAL void TPUT_IMPL(GlobalDstData &dst, GlobalSrcData &src, TileData &ping, TileData &pong)
 {
-    Copy_Data<GlobalDstData, GlobalSrcData, atomicType>(src, dst);
+    Copy_Data(src, dst);
 }
 
 template <typename GlobalDstData, typename GlobalSrcData>
