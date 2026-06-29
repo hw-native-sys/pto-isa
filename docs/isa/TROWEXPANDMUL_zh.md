@@ -75,7 +75,7 @@ PTO_INST RecordEvent TROWEXPANDMUL(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 ## 约束
 
 - `TileDataDst::DType == TileDataSrc0::DType == TileDataSrc1::DType`
-- `TileDataDst::DType`、`TileDataSrc0::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`、`int16`、`int32`、`uint16`、`uint32`。
+- `TileDataDst::DType`、`TileDataSrc0::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`、`int16`、`int32`适用于A2, A3和A5，`uint16`、`uint32`适用于A5。
 - `TileDataDst` 必须为 **RowMajor**（`TileDataDst::isRowMajor == true`）。
 - `src0` 或 `src1` 中必须恰好一个与 `dst` 的有效形状相同（即 `validRow == dst.validRow` 且 `validCol == dst.validCol`），该操作数为全尺寸操作数。另一个操作数为**扩展操作数**（行广播源）。
 - 全尺寸操作数必须为 **RowMajor**（`isRowMajor == true`）。
