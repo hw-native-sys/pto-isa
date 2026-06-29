@@ -27,7 +27,7 @@ The CPU simulator is the easiest way to get started. It works on macOS, Linux, a
   - Linux: GCC 13+ or Clang 15+ (bfloat16 support enabled for GCC >= 14)
   - macOS: Xcode/AppleClang (or Homebrew LLVM)
   - Windows: Visual Studio 2022 Build Tools (MSVC)
-- Python package: `numpy >= 1.22.0`
+- Python package: `numpy >= 1.22.0`, `ml_dtypes`, `en_dtypes` (dtypes packages are required for some specific tests only)
 
 `tests/run_cpu.py` can install `numpy` automatically (unless you pass `--no-install`).
 
@@ -104,7 +104,7 @@ Create and activate a virtual environment:
   python3 -m venv .venv-mkdocs
   source .venv-mkdocs/bin/activate
   python -m pip install -U pip
-  python -m pip install numpy
+  python -m pip install numpy ml_dtypes en_dtypes
   ```
 
 **Windows (PowerShell):**
@@ -113,8 +113,9 @@ Create and activate a virtual environment:
   py -3 -m venv .venv-mkdocs
   .\.venv-mkdocs\Scripts\Activate.ps1
   python -m pip install -U pip
-  python -m pip install numpy
+  python -m pip install numpy ml_dtypes en_dtypes
   ```
+Note: ml_dtypes and en_dtypes packages are required for specific tests only. Installing these packages on Windows might require building them from source code.
 
 ### Run CPU Simulator
 
