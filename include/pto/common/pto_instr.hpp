@@ -2291,7 +2291,7 @@ PTO_INST RecordEvent TALLOC(Pipe &pipe, GlobalData &gmTensor, WaitEvents &...eve
 #ifdef __CPU_SIM
     TALLOC_GLOBAL_IMPL<Pipe, GlobalData, Split>(pipe, gmTensor);
 #else
-    TALLOC_IMPL(pipe, gmTensor);
+    TALLOC_IMPL<Pipe, GlobalData, Split>(pipe, gmTensor);
 #endif
     return {};
 }
@@ -2305,7 +2305,7 @@ PTO_INST RecordEvent TPUSH(Pipe &pipe, GlobalData &gmTensor, WaitEvents &...even
 #ifdef __CPU_SIM
     TPUSH_GLOBAL_IMPL<Pipe, GlobalData, Split>(pipe, gmTensor);
 #else
-    TPUSH_IMPL(pipe, gmTensor);
+    TPUSH_IMPL<Pipe, GlobalData, Split>(pipe, gmTensor);
 #endif
     return {};
 }
@@ -2327,7 +2327,7 @@ PTO_INST RecordEvent TPOP(Pipe &pipe, GlobalData &gmTensor, WaitEvents &...event
 #ifdef __CPU_SIM
     TPOP_GLOBAL_IMPL<Pipe, GlobalData, Split>(pipe, gmTensor);
 #else
-    TPOP_IMPL(pipe, gmTensor);
+    TPOP_IMPL<Pipe, GlobalData, Split>(pipe, gmTensor);
 #endif
     return {};
 }
@@ -2341,7 +2341,7 @@ PTO_INST RecordEvent TFREE(Pipe &pipe, GlobalData &gmTensor, WaitEvents &...even
 #ifdef __CPU_SIM
     TFREE_GLOBAL_IMPL<Pipe, GlobalData, Split>(pipe, gmTensor);
 #else
-    TFREE_IMPL(pipe, gmTensor);
+    TFREE_IMPL<Pipe, GlobalData, Split>(pipe, gmTensor);
 #endif
     return {};
 }
