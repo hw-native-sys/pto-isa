@@ -56,7 +56,7 @@ PTO_INST RecordEvent TCMP(TileDataDst &dst, TileDataSrc &src0, TileDataSrc &src1
     - 注意：`src1` 的形状/有效性在此实现中不通过显式运行时断言进行验证。
     - 对于 `TileDataSrc::DType == int32_t`，实现使用 `EQ` 比较路径，无论 `cmpMode` 如何。
 - **实现检查 (A5)**:
-    - 输入类型必须是以下之一：`uint32_t`、`int32_t`、`uint16_t`、`int16_t`、`uint8_t`、`int8_t`、`float`、`half`。
+    - 输入类型必须是以下之一：`uint32_t`、`int32_t`、`uint16_t`、`int16_t`、`uint8_t`、`int8_t`、`float`、`half`、`bfloat16_t`。
     - 输出类型必须是 `uint32_t`。
     - 已实现（参见 `include/pto/npu/a5/TCmp.hpp`）。
     - A5 实现使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域，并将打包的谓词掩码写入 `dst`（目标定义的打包方式）。
