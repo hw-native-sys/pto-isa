@@ -226,7 +226,7 @@ PTO_INTERNAL void TcmpsCheck()
     using T = typename TileDataSrc::DType;
     static_assert(std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float> ||
                       std::is_same_v<T, int16_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, half> ||
-                      std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t>,
+                      std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t> || std::is_same_v<T, bfloat16_t>,
                   "TCMPS: Invalid data type.");
     static_assert(TileDataDst::isRowMajor, "TCMPS: not supported Layout type");
     static_assert(TileDataDst::Loc == TileType::Vec, "TileType of dst tile must be TileType::Vec.");

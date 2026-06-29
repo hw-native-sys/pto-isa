@@ -36,10 +36,12 @@ std::string GetGoldenDir()
     return fullPath;
 }
 
-template <typename T, int Row, int Col, int ValidRow, int ValidCol, CmpMode cmpMode, bool isSrc1Tile>
+template <typename T, int Row, int Col, int ValidRow, int ValidCol, CmpMode cmpMode, bool isSrc1Tile,
+          bool isBf16 = false>
 void LaunchTCmps(uint8_t *out, T *src0, T *src1, void *stream);
 
-template <typename T, int Row, int Col, int ValidRow, int ValidCol, CmpMode cmpMode, bool isSrc1Tile = false>
+template <typename T, int Row, int Col, int ValidRow, int ValidCol, CmpMode cmpMode, bool isSrc1Tile = false,
+          bool isBf16 = false>
 void test_tcmps()
 {
     size_t src0FileSize = Row * Col * sizeof(T);
@@ -69,7 +71,8 @@ void test_tcmps()
     aclrtMemcpy(src0Device, src0FileSize, src0Host, src0FileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, src1FileSize, src1Host, src1FileSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
-    LaunchTCmps<T, Row, Col, ValidRow, ValidCol, cmpMode, isSrc1Tile>(dstDevice, src0Device, src1Device, stream);
+    LaunchTCmps<T, Row, Col, ValidRow, ValidCol, cmpMode, isSrc1Tile, isBf16>(dstDevice, src0Device, src1Device,
+                                                                              stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, dstFileSize, dstDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -140,4 +143,12 @@ TEST_F(TCMPSTest, case_int16_32x32_16x32)
 TEST_F(TCMPSTest, case_int16_77x80_32x32)
 {
     test_tcmps<int16_t, 77, 80, 32, 32, CmpMode::LE>();
+}
+TEST_F(TCMPSTest, case_bfloat16_32x32_16x32)
+{
+    test_tcmps<int16_t, 32, 32, 16, 32, CmpMode::EQ, true, true>();
+}
+TEST_F(TCMPSTest, case_bfloat16_77x80_32x32)
+{
+    test_tcmps<int16_t, 77, 80, 32, 32, CmpMode::LE, false, true>();
 }

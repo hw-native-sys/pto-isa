@@ -90,7 +90,7 @@ PTO_INST RecordEvent TCMPS(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& s
 
 ### A5
 
-- `TileData::DType` 必须属于：`int32_t`、`uint32_t`、`float`、`int16_t`、`uint16_t`、`half`、`uint8_t`、`int8_t`
+- `TileData::DType` 必须属于：`int32_t`、`uint32_t`、`float`、`int16_t`、`uint16_t`、`half`、`uint8_t`、`int8_t`、`bfloat16_t`
 - tile 布局必须是行主序
 
 ## 性能

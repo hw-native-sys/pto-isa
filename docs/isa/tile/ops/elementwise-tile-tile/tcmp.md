@@ -98,7 +98,7 @@ No architectural side effects beyond producing the predicate tile. Does not impl
 ??? info "Target-Profile Restrictions"
     | Check | A2/A3 | A5 |
     |-------|:-----:|:--:|
-    | Supported input types | `int32_t`, `half`, `float` | `uint32_t`, `int32_t`, `uint16_t`, `int16_t`, `uint8_t`, `int8_t`, `float`, `half` |
+    | Supported input types | `int32_t`, `half`, `float` | `uint32_t`, `int32_t`, `uint16_t`, `int16_t`, `uint8_t`, `int8_t`, `float`, `half`, `bfloat16_t` |
     | Output predicate dtype | `uint8_t` | `uint32_t` |
     | Tile location | `TileType::Vec` | `TileType::Vec` |
     | Layout | Row-major | Row-major |

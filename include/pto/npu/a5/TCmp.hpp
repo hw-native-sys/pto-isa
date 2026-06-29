@@ -138,7 +138,7 @@ PTO_INTERNAL void TcmpCheck()
     using T = typename SrcTile0::DType;
     static_assert(std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float> ||
                       std::is_same_v<T, int16_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, half> ||
-                      std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t>,
+                      std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t> || std::is_same_v<T, bfloat16_t>,
                   "TCMP: Invalid data type.");
     static_assert(std::is_same_v<T, typename SrcTile1::DType>, "TCMP: src0 and src1 must have same type");
     static_assert(DstTile::isRowMajor && SrcTile0::isRowMajor && SrcTile1::isRowMajor,

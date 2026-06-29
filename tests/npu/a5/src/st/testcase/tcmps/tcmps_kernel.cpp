@@ -68,35 +68,46 @@ __global__ AICORE void runTCmps(__gm__ uint8_t *out, __gm__ T *src0, __gm__ T *s
     TSTORE(dstGlobal, dstTile);
 }
 
-template <typename T, int Rows, int Cols, int ValidRows, int ValidCols, CmpMode cmpMode, bool isSrc1Tile>
+template <typename T, int Rows, int Cols, int ValidRows, int ValidCols, CmpMode cmpMode, bool isSrc1Tile,
+          bool isBf16 = false>
 void LaunchTCmps(uint8_t *out, T *src0, T *src1, void *stream)
 {
     if constexpr (std::is_same_v<T, uint16_t>) {
-        runTCmps<half, Rows, Cols, ValidRows, ValidCols, cmpMode, isSrc1Tile>
-            <<<1, nullptr, stream>>>((out), (half *)(src0), (half *)(src1));
+        if constexpr (isBf16) {
+            runTCmps<bfloat16_t, Rows, Cols, ValidRows, ValidCols, cmpMode, isSrc1Tile>
+                <<<1, nullptr, stream>>>((out), (bfloat16_t *)(src0), (bfloat16_t *)(src1));
+        } else {
+            runTCmps<half, Rows, Cols, ValidRows, ValidCols, cmpMode, isSrc1Tile>
+                <<<1, nullptr, stream>>>((out), (half *)(src0), (half *)(src1));
+        }
     } else {
         runTCmps<T, Rows, Cols, ValidRows, ValidCols, cmpMode, isSrc1Tile><<<1, nullptr, stream>>>(out, src0, src1);
     }
 }
 
-template void LaunchTCmps<uint16_t, 32, 32, 32, 32, CmpMode::EQ, false>(uint8_t *out, uint16_t *src0, uint16_t *src1,
-                                                                        void *stream);
-template void LaunchTCmps<float, 8, 64, 8, 64, CmpMode::GT, true>(uint8_t *out, float *src0, float *src1, void *stream);
-template void LaunchTCmps<int32_t, 4, 64, 4, 64, CmpMode::NE, false>(uint8_t *out, int32_t *src0, int32_t *src1,
-                                                                     void *stream);
-template void LaunchTCmps<int32_t, 128, 128, 64, 64, CmpMode::LT, true>(uint8_t *out, int32_t *src0, int32_t *src1,
-                                                                        void *stream);
-template void LaunchTCmps<int32_t, 64, 64, 32, 32, CmpMode::EQ, false>(uint8_t *out, int32_t *src0, int32_t *src1,
-                                                                       void *stream);
-template void LaunchTCmps<int32_t, 16, 32, 16, 32, CmpMode::EQ, true>(uint8_t *out, int32_t *src0, int32_t *src1,
-                                                                      void *stream);
-template void LaunchTCmps<float, 128, 128, 64, 64, CmpMode::LE, false>(uint8_t *out, float *src0, float *src1,
-                                                                       void *stream);
-template void LaunchTCmps<int32_t, 77, 80, 32, 32, CmpMode::EQ, true>(uint8_t *out, int32_t *src0, int32_t *src1,
-                                                                      void *stream);
-template void LaunchTCmps<int32_t, 32, 32, 32, 32, CmpMode::EQ, false>(uint8_t *out, int32_t *src0, int32_t *src1,
-                                                                       void *stream);
-template void LaunchTCmps<int16_t, 32, 32, 16, 32, CmpMode::EQ, true>(uint8_t *out, int16_t *src0, int16_t *src1,
-                                                                      void *stream);
-template void LaunchTCmps<int16_t, 77, 80, 32, 32, CmpMode::LE, false>(uint8_t *out, int16_t *src0, int16_t *src1,
-                                                                       void *stream);
+template void LaunchTCmps<uint16_t, 32, 32, 32, 32, CmpMode::EQ, false, false>(uint8_t *out, uint16_t *src0,
+                                                                               uint16_t *src1, void *stream);
+template void LaunchTCmps<float, 8, 64, 8, 64, CmpMode::GT, true, false>(uint8_t *out, float *src0, float *src1,
+                                                                         void *stream);
+template void LaunchTCmps<int32_t, 4, 64, 4, 64, CmpMode::NE, false, false>(uint8_t *out, int32_t *src0, int32_t *src1,
+                                                                            void *stream);
+template void LaunchTCmps<int32_t, 128, 128, 64, 64, CmpMode::LT, true, false>(uint8_t *out, int32_t *src0,
+                                                                               int32_t *src1, void *stream);
+template void LaunchTCmps<int32_t, 64, 64, 32, 32, CmpMode::EQ, false, false>(uint8_t *out, int32_t *src0,
+                                                                              int32_t *src1, void *stream);
+template void LaunchTCmps<int32_t, 16, 32, 16, 32, CmpMode::EQ, true, false>(uint8_t *out, int32_t *src0, int32_t *src1,
+                                                                             void *stream);
+template void LaunchTCmps<float, 128, 128, 64, 64, CmpMode::LE, false, false>(uint8_t *out, float *src0, float *src1,
+                                                                              void *stream);
+template void LaunchTCmps<int32_t, 77, 80, 32, 32, CmpMode::EQ, true, false>(uint8_t *out, int32_t *src0, int32_t *src1,
+                                                                             void *stream);
+template void LaunchTCmps<int32_t, 32, 32, 32, 32, CmpMode::EQ, false, false>(uint8_t *out, int32_t *src0,
+                                                                              int32_t *src1, void *stream);
+template void LaunchTCmps<int16_t, 32, 32, 16, 32, CmpMode::EQ, true, false>(uint8_t *out, int16_t *src0, int16_t *src1,
+                                                                             void *stream);
+template void LaunchTCmps<int16_t, 77, 80, 32, 32, CmpMode::LE, false, false>(uint8_t *out, int16_t *src0,
+                                                                              int16_t *src1, void *stream);
+template void LaunchTCmps<int16_t, 32, 32, 16, 32, CmpMode::EQ, true, true>(uint8_t *out, int16_t *src0, int16_t *src1,
+                                                                            void *stream);
+template void LaunchTCmps<int16_t, 77, 80, 32, 32, CmpMode::LE, false, true>(uint8_t *out, int16_t *src0, int16_t *src1,
+                                                                             void *stream);

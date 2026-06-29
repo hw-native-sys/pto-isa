@@ -90,7 +90,7 @@ PTO_INST RecordEvent TCMP(TileDataDst &dst, TileDataSrc &src0, TileDataSrc &src1
 
 | 检查项 | A2A3 | A5 |
 | --- | :---: | :---: |
-| 支持输入类型 | `int32_t`、`half`、`float` | `uint32_t`、`int32_t`、`uint16_t`、`int16_t`、`uint8_t`、`int8_t`、`float`、`half` |
+| 支持输入类型 | `int32_t`、`half`、`float` | `uint32_t`、`int32_t`、`uint16_t`、`int16_t`、`uint8_t`、`int8_t`、`float`、`half`、`bfloat16_t` |
 | 输出谓词 dtype | `uint8_t` | `uint32_t` |
 | tile 位置 | `TileType::Vec` | `TileType::Vec` |
 | 布局 | RowMajor | RowMajor |

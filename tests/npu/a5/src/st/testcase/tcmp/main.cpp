@@ -36,10 +36,10 @@ std::string GetGoldenDir()
     return fullPath;
 }
 
-template <typename T, int Row, int Col, int ValidRow, int ValidCol, CmpMode cmpMode>
+template <typename T, int Row, int Col, int ValidRow, int ValidCol, CmpMode cmpMode, bool isBf16 = false>
 void LaunchTCmp(uint8_t *out, T *src0, T *src1, void *stream);
 
-template <typename T, int Row, int Col, int ValidRow, int ValidCol, CmpMode cmpMode>
+template <typename T, int Row, int Col, int ValidRow, int ValidCol, CmpMode cmpMode, bool isBf16 = false>
 void test_tcmp()
 {
     size_t fileSize = Row * Col * sizeof(T);
@@ -68,7 +68,7 @@ void test_tcmp()
     aclrtMemcpy(src0Device, fileSize, src0Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, fileSize, src1Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
-    LaunchTCmp<T, Row, Col, ValidRow, ValidCol, cmpMode>(dstDevice, src0Device, src1Device, stream);
+    LaunchTCmp<T, Row, Col, ValidRow, ValidCol, cmpMode, isBf16>(dstDevice, src0Device, src1Device, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, dstFileSize, dstDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -132,11 +132,19 @@ TEST_F(TCMPTest, case_int32_32x32_32x32)
 {
     test_tcmp<int32_t, 32, 32, 32, 32, CmpMode::EQ>();
 }
-TEST_F(TCMPTest, case_int16_32x32_16x322)
+TEST_F(TCMPTest, case_int16_32x32_16x32)
 {
     test_tcmp<int16_t, 32, 32, 16, 32, CmpMode::EQ>();
 }
 TEST_F(TCMPTest, case_int16_77x80_32x32)
 {
     test_tcmp<int16_t, 77, 80, 32, 32, CmpMode::LE>();
+}
+TEST_F(TCMPTest, case_bfloat16_32x32_16x32)
+{
+    test_tcmp<aclFloat16, 32, 32, 16, 32, CmpMode::EQ, true>();
+}
+TEST_F(TCMPTest, case_bfloat16_77x80_32x32)
+{
+    test_tcmp<aclFloat16, 77, 80, 32, 32, CmpMode::LE, true>();
 }

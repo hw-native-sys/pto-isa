@@ -117,7 +117,7 @@ No architectural side effects beyond producing the destination tile. Does not im
 
     - **Implementation checks (A5)**:
         - `TileData::DType` must be one of: `int32_t`, `uint32_t`, `float`, `int16_t`, `uint16_t`, `half`,
-          `uint8_t`, `int8_t`.
+          `uint8_t`, `int8_t`, `bfloat16_t`.
         - Tile layout must be row-major (`TileData::isRowMajor`).
 
 ## Examples
