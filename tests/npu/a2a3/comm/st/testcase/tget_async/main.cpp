@@ -63,6 +63,30 @@ TEST(TGetAsync, Vec_Float_MultiCoreIndep)
     ASSERT_TRUE((RunGetAsyncMultiCore<float, 256>(2, 2, 0, 0, 2, 1)));
 }
 
+// ============================================================================
+// Concurrent Per-Rank Gather Tests (every rank: nranks cores, distinct channels)
+// Reproduces the DispatchGather SDMA pattern in isolation.
+// ============================================================================
+// iters=1: single TGET+Wait per core session (baseline concurrency).
+TEST(TGetAsync, ConcurrentRank_Float_8Ranks)
+{
+    ASSERT_TRUE((RunGetAsyncConcurrentRank<float, 8192>(8, 8, 0, 0, 1, 0)));
+}
+TEST(TGetAsync, ConcurrentRank_Int32_8Ranks)
+{
+    ASSERT_TRUE((RunGetAsyncConcurrentRank<int32_t, 8192>(8, 8, 0, 0, 1, 0)));
+}
+// iters=16 reusing one session per core (mirrors DispatchGather's per-group loop).
+TEST(TGetAsync, ConcurrentRank_FloatIter16Reuse_8Ranks)
+{
+    ASSERT_TRUE((RunGetAsyncConcurrentRank<float, 8192>(8, 8, 0, 0, 16, 0)));
+}
+// iters=16 rebuilding a fresh session each round: isolates session-reuse as the cause.
+TEST(TGetAsync, ConcurrentRank_FloatIter16Fresh_8Ranks)
+{
+    ASSERT_TRUE((RunGetAsyncConcurrentRank<float, 8192>(8, 8, 0, 0, 16, 1)));
+}
+
 int main(int argc, char **argv)
 {
     CommMpiInit(&argc, &argv);
