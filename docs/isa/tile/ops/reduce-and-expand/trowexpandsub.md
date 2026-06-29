@@ -89,7 +89,7 @@ No architectural side effects beyond producing the destination tile. Does not im
 !!! warning "Constraints"
     - `TileDataDst::DType == TileDataSrc0::DType == TileDataSrc1::DType`.
 
-    - `TileDataDst::DType`, `TileDataSrc0::DType`, and `TileDataSrc1::DType` must be one of: `half`, `float`, `int16`, `int32`, `uint16`, or `uint32`.
+    - `TileDataDst::DType`, `TileDataSrc0::DType`, and `TileDataSrc1::DType` must be one of: `half`, `float`, `int16`, `int32` for A2, A3, and A5; `uint16`, `uint32` for A5.
 
     - `TileDataDst` must be RowMajor.
 
@@ -114,7 +114,7 @@ No architectural side effects beyond producing the destination tile. Does not im
 ??? info "Target-Profile Restrictions"
     - **Implementation checks**:
         - `TileDataDst::DType == TileDataSrc0::DType == TileDataSrc1::DType` (compile-time).
-        - `TileDataDst::DType`, `TileDataSrc0::DType`, `TileDataSrc1::DType` must be one of: `half`, `float`, `int16`, `int32`, `uint16`, `uint32`.
+        - `TileDataDst::DType`, `TileDataSrc0::DType`, `TileDataSrc1::DType` must be one of: `half`, `float`, `int16`, `int32` for A2, A3, and A5; `uint16`, `uint32` for A5.
         - Tile shape/layout constraint (compile-time): `TileDataDst::isRowMajor`.
         - Mode 1: `src1` is expected to provide **one scalar per row** (i.e., its valid shape must cover `R` values).
         - Mode 2: `src1` is expected to provide **32 bytes data per row**.

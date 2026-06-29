@@ -20,9 +20,15 @@ template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32
           bool highPrecision>
 void launchTRowExpandDiv(T *out, T *src0, T *src1, void *stream);
 
+template <uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst, bool highPrecision>
+void launchTRowExpandDivHalf(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1, void *stream);
+
 template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst,
           bool highPrecision>
 void launchTRowExpandDiv2(T *out, T *src0, T *src1, void *stream);
+
+template <uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst, bool highPrecision>
+void launchTRowExpandDiv2Half(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1, void *stream);
 
 class TRowExpandDivTest : public testing::Test {
 protected:
@@ -42,7 +48,29 @@ std::string GetGoldenDir()
 }
 
 template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst,
-          bool isRowMajor, bool highPrecision = false>
+          bool isRowMajor, bool highPrecision, bool isHalf>
+void launchKernel(T *dst, T *src0, T *src1, aclrtStream stream)
+{
+    if constexpr (isHalf) {
+        if (isRowMajor) {
+            launchTRowExpandDiv2Half<dstRow, dstCol, src1Row, src1Col, src0eqdst, highPrecision>(dst, src0, src1,
+                                                                                                 stream);
+        } else {
+            launchTRowExpandDivHalf<dstRow, dstCol, src1Row, src1Col, src0eqdst, highPrecision>(dst, src0, src1,
+                                                                                                stream);
+        }
+    } else {
+        if (isRowMajor) {
+            launchTRowExpandDiv2<T, dstRow, dstCol, src1Row, src1Col, src0eqdst, highPrecision>(dst, src0, src1,
+                                                                                                stream);
+        } else {
+            launchTRowExpandDiv<T, dstRow, dstCol, src1Row, src1Col, src0eqdst, highPrecision>(dst, src0, src1, stream);
+        }
+    }
+}
+
+template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst,
+          bool isRowMajor, bool highPrecision = false, bool isHalf = false>
 void test_trowexpanddiv()
 {
     size_t inputFileSize = src1Row * src1Col * sizeof(T);
@@ -69,13 +97,8 @@ void test_trowexpanddiv()
 
     aclrtMemcpy(src0Device, outputFileSize, src0Host, outputFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, inputFileSize, src1Host, inputFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    if (isRowMajor) {
-        launchTRowExpandDiv2<T, dstRow, dstCol, src1Row, src1Col, src0eqdst, highPrecision>(dstDevice, src0Device,
-                                                                                            src1Device, stream);
-    } else {
-        launchTRowExpandDiv<T, dstRow, dstCol, src1Row, src1Col, src0eqdst, highPrecision>(dstDevice, src0Device,
-                                                                                           src1Device, stream);
-    }
+    launchKernel<T, dstRow, dstCol, src1Row, src1Col, src0eqdst, isRowMajor, highPrecision, isHalf>(
+        dstDevice, src0Device, src1Device, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, outputFileSize, dstDevice, outputFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -114,11 +137,11 @@ TEST_F(TRowExpandDivTest, case_fp32_16_256)
 }
 TEST_F(TRowExpandDivTest, case_fp16_16_32)
 {
-    test_trowexpanddiv<aclFloat16, 16, 32, 16, 1, true, false>();
+    test_trowexpanddiv<aclFloat16, 16, 32, 16, 1, true, false, false, true>();
 }
 TEST_F(TRowExpandDivTest, case_fp16_32_512)
 {
-    test_trowexpanddiv<aclFloat16, 32, 512, 32, 1, true, false>();
+    test_trowexpanddiv<aclFloat16, 32, 512, 32, 1, true, false, false, true>();
 }
 TEST_F(TRowExpandDivTest, case_fp32_24_64)
 {
@@ -126,7 +149,7 @@ TEST_F(TRowExpandDivTest, case_fp32_24_64)
 }
 TEST_F(TRowExpandDivTest, case_fp16_32_32)
 {
-    test_trowexpanddiv<aclFloat16, 32, 32, 32, 16, true, true>();
+    test_trowexpanddiv<aclFloat16, 32, 32, 32, 16, true, true, false, true>();
 }
 TEST_F(TRowExpandDivTest, case_fp32_16_128)
 {
@@ -134,7 +157,7 @@ TEST_F(TRowExpandDivTest, case_fp32_16_128)
 }
 TEST_F(TRowExpandDivTest, case_fp16_32_64)
 {
-    test_trowexpanddiv<aclFloat16, 32, 64, 32, 1, false, false>();
+    test_trowexpanddiv<aclFloat16, 32, 64, 32, 1, false, false, false, true>();
 }
 TEST_F(TRowExpandDivTest, case_fp32_20_64)
 {
@@ -142,7 +165,7 @@ TEST_F(TRowExpandDivTest, case_fp32_20_64)
 }
 TEST_F(TRowExpandDivTest, case_fp16_16_64)
 {
-    test_trowexpanddiv<aclFloat16, 16, 64, 16, 16, false, true>();
+    test_trowexpanddiv<aclFloat16, 16, 64, 16, 16, false, true, false, true>();
 }
 TEST_F(TRowExpandDivTest, case_fp32_40_32)
 {
@@ -150,7 +173,7 @@ TEST_F(TRowExpandDivTest, case_fp32_40_32)
 }
 TEST_F(TRowExpandDivTest, case_fp16_16_128)
 {
-    test_trowexpanddiv<aclFloat16, 16, 128, 16, 1, true, false, true>();
+    test_trowexpanddiv<aclFloat16, 16, 128, 16, 1, true, false, true, true>();
 }
 TEST_F(TRowExpandDivTest, case_fp32_8_32)
 {
@@ -158,7 +181,7 @@ TEST_F(TRowExpandDivTest, case_fp32_8_32)
 }
 TEST_F(TRowExpandDivTest, case_fp16_8_128)
 {
-    test_trowexpanddiv<aclFloat16, 8, 128, 8, 16, true, true, true>();
+    test_trowexpanddiv<aclFloat16, 8, 128, 8, 16, true, true, true, true>();
 }
 TEST_F(TRowExpandDivTest, case_int32_16_32)
 {
@@ -167,5 +190,13 @@ TEST_F(TRowExpandDivTest, case_int32_16_32)
 TEST_F(TRowExpandDivTest, case_int16_16_64)
 {
     test_trowexpanddiv<int16_t, 16, 64, 16, 1, true, false>();
+}
+TEST_F(TRowExpandDivTest, case_uint32_16_32)
+{
+    test_trowexpanddiv<uint32_t, 16, 32, 16, 1, true, false>();
+}
+TEST_F(TRowExpandDivTest, case_uint16_16_64)
+{
+    test_trowexpanddiv<uint16_t, 16, 64, 16, 1, true, false>();
 }
 } // namespace TRowExpandDivTest

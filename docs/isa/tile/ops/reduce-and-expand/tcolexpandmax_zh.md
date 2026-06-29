@@ -56,7 +56,7 @@ PTO_INST RecordEvent TCOLEXPANDMAX(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 ## 约束
 
 !!! warning "约束"
-    - `TileDataDst::DType`、`TileDataSrc1::DType` 当前实现只支持 `half`、`float`
+    - `TileDataDst::DType`、`TileDataSrc1::DType` 必须是以下类型之一：`half`、`float`、`int16`、`int32`（A2、A3 和 A5），`uint16`、`uint32`（A5）
     - `dst` 必须是 row-major
     - `src1` 应覆盖每一列的广播标量
     - 具体布局 / 分形约束由 backend 决定

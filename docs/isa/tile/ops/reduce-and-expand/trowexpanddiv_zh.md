@@ -85,7 +85,7 @@ PTO_INST RecordEvent TROWEXPANDDIV(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 !!! warning "约束"
     - `TileDataDst::DType == TileDataSrc0::DType == TileDataSrc1::DType`。
 
-    - `TileDataDst::DType`、`TileDataSrc0::DType` 和 `TileDataSrc1::DType` 必须是以下类型之一：`half`、`float`、`int16`、`int32`、`uint16` 或 `uint32`。
+    - `TileDataDst::DType`、`TileDataSrc0::DType` 和 `TileDataSrc1::DType` 必须是以下类型之一：`half`、`float`、`int16`、`int32`（A2、A3 和 A5），`uint16`、`uint32`（A5）。
 
     - `TileDataDst` 必须是 RowMajor。
 

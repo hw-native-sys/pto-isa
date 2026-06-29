@@ -89,7 +89,7 @@ No architectural side effects beyond producing the destination tile. Does not im
 !!! warning "Constraints"
     - `TileDataDst::DType == TileDataSrc0::DType == TileDataSrc1::DType`.
 
-    - `TileDataDst::DType`, `TileDataSrc0::DType`, and `TileDataSrc1::DType` must be one of: `half`, `float`, `int16`, `int32`, `uint16`, or `uint32`.
+    - `TileDataDst::DType`, `TileDataSrc0::DType`, and `TileDataSrc1::DType` must be one of: `half`, `float`, `int16`, `int32` for A2, A3, and A5; `uint16`, `uint32` for A5.
 
     - `TileDataDst` must be RowMajor.
 

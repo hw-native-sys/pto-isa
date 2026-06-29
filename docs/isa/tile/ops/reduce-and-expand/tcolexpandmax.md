@@ -66,7 +66,7 @@ No architectural side effects beyond producing the destination tile. Does not im
 ## Constraints
 
 !!! warning "Constraints"
-    - `TileDataDst::DType`, `TileDataSrc1::DType` must be one of: `half`, `float`.
+    - `TileDataDst::DType`, `TileDataSrc1::DType` must be one of: `half`, `float`, `int16`, `int32` for A2, A3, and A5; `uint16`, `uint32` for A5.
 
     - Tile shape/layout constraint (compile-time): `TileDataDst::isRowMajor`.
 
