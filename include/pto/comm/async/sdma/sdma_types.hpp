@@ -28,6 +28,8 @@ constexpr uint64_t kCreditTimeDefault = 240ULL;
 #endif
 constexpr uint32_t kSqDepth = 2048U;
 constexpr uint32_t kSdmaMaxChannel = 48U;
+constexpr uint32_t kSdmaMinTransferBytes = 64U;
+constexpr uint32_t kSdmaSendWorkspaceBytes = kSdmaMaxChannel * kSdmaMinTransferBytes;
 
 constexpr uint64_t RT_STARS_SQE_TYPE_SDMA = kRtStarsSqeTypeSdma;
 constexpr uint64_t K_CREDIT_TIME_DEFAULT = kCreditTimeDefault;
@@ -50,8 +52,8 @@ using sdma_config_t = SdmaConfig;
 // Workspace Layout Structure
 // ============================================================================
 struct WorkspaceLayout {
-    __gm__ uint8_t *send_workspace; // Local send flag workspace
-    __gm__ uint8_t *recv_workspace; // Local receive flag workspace
+    __gm__ uint8_t *send_workspace; // Per channel-group flag SQE staging (64B x queue_num)
+    __gm__ uint8_t *recv_workspace; // Per channel-group completion records
 };
 using workspace_layout_t = WorkspaceLayout;
 

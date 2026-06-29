@@ -63,6 +63,30 @@ TEST(TPutAsync, Vec_Float_MultiCoreIndep)
     ASSERT_TRUE((RunPutAsyncMultiCore<float, 256>(2, 2, 0, 0, 2, 1)));
 }
 
+// ============================================================================
+// Concurrent Per-Rank Scatter Tests (every rank: nranks cores, distinct channels)
+// Mirrors the tget_async ConcurrentRank pattern with TPUT_ASYNC.
+// ============================================================================
+// iters=1: single TPUT+Wait per core session (baseline concurrency).
+TEST(TPutAsync, ConcurrentRank_Float_8Ranks)
+{
+    ASSERT_TRUE((RunPutAsyncConcurrentRank<float, 8192>(8, 8, 0, 0, 1, 0)));
+}
+TEST(TPutAsync, ConcurrentRank_Int32_8Ranks)
+{
+    ASSERT_TRUE((RunPutAsyncConcurrentRank<int32_t, 8192>(8, 8, 0, 0, 1, 0)));
+}
+// iters=16 reusing one session per core.
+TEST(TPutAsync, ConcurrentRank_FloatIter16Reuse_8Ranks)
+{
+    ASSERT_TRUE((RunPutAsyncConcurrentRank<float, 8192>(8, 8, 0, 0, 16, 0)));
+}
+// iters=16 rebuilding a fresh session each round.
+TEST(TPutAsync, ConcurrentRank_FloatIter16Fresh_8Ranks)
+{
+    ASSERT_TRUE((RunPutAsyncConcurrentRank<float, 8192>(8, 8, 0, 0, 16, 1)));
+}
+
 int main(int argc, char **argv)
 {
     CommMpiInit(&argc, &argv);

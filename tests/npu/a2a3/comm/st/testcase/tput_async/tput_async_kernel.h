@@ -26,3 +26,10 @@ bool RunPutAsyncWithConfig(int n_ranks, int n_devices, int first_rank_id, int fi
 template <typename T, size_t count>
 bool RunPutAsyncMultiCore(int n_ranks, int n_devices, int first_rank_id, int first_device_id, int blockDim,
                           int multiCoreMode);
+
+// Concurrent per-rank scatter: every rank runs nranks cores, core c pushes local
+// sendBuf to remote rank c's recvBuf via its own AsyncSession on sync channel c.
+// iters = TPUT+Wait cycles per core (mirrors DispatchGather's per-core distinct-channel + per-group Wait).
+template <typename T, size_t count>
+bool RunPutAsyncConcurrentRank(int n_ranks, int n_devices, int first_rank_id, int first_device_id, int iters,
+                               int freshSession);

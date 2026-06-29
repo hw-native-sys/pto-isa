@@ -469,3 +469,173 @@ bool RunPutAsyncMultiCore(int n_ranks, int n_devices, int first_rank_id, int fir
 
 template bool RunPutAsyncMultiCore<float, 2048>(int, int, int, int, int, int);
 template bool RunPutAsyncMultiCore<float, 256>(int, int, int, int, int, int);
+
+// ============================================================================
+// Concurrent Per-Rank Scatter Kernel
+//
+// Mirrors the ConcurrentRank pattern from tget_async but with TPUT_ASYNC:
+// on EVERY rank, `nranks` cores run concurrently. Core c pushes local sendBuf
+// to remote rank c's recvBuf (at the source-rank-indexed slot) via TPUT_ASYNC
+// using its OWN AsyncSession bound to a distinct sync channel (syncId = c).
+//
+// Buffer layout per rank (same as tget_async ConcurrentRank):
+//   sendBuf: count elements (source data, rank-specific)
+//   recvBuf: nranks * count elements (slot s holds data received from rank s)
+//
+// `iters` controls how many TPUT_ASYNC + Wait cycles each core performs on the
+// same session (iters > 1 mirrors the operator's per-expert-group Wait loop).
+// ============================================================================
+template <typename T, size_t count>
+__global__ AICORE void TPutAsyncConcurrentRankKernelImpl(__gm__ T *commBuf, int nranks,
+                                                         __gm__ CommDeviceContext *hcclCtx,
+                                                         __gm__ uint8_t *sdmaWorkspace, int iters, int freshSession)
+{
+    using ShapeDyn = pto::Shape<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
+    using StrideDyn = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
+    using Global = pto::GlobalTensor<T, ShapeDyn, StrideDyn, pto::Layout::ND>;
+    using ScratchTile = pto::Tile<pto::TileType::Vec, uint8_t, 1, pto::comm::sdma::UB_ALIGN_SIZE>;
+
+    const int coreIdx = static_cast<int>(get_block_idx());
+    const int chunk = (iters > 0) ? static_cast<int>(count) / iters : 0;
+    if (coreIdx >= nranks || chunk <= 0) {
+        pipe_barrier(PIPE_ALL);
+        return;
+    }
+
+    ShapeDyn shape(1, 1, 1, 1, chunk);
+    StrideDyn stride(chunk, chunk, chunk, chunk, 1);
+
+    __gm__ T *sendBuf = commBuf;
+    __gm__ T *recvBuf = commBuf + count;
+
+    const int dst_rank = coreIdx;
+    int my_rank = static_cast<int>(hcclCtx->rankId);
+    __gm__ T *remoteRecvBase = CommRemotePtr(hcclCtx, recvBuf, dst_rank) + static_cast<size_t>(my_rank) * count;
+
+    pipe_barrier(PIPE_ALL);
+
+    ScratchTile scratchTile;
+    TASSIGN(scratchTile, 0x0);
+    pto::comm::AsyncSession session;
+    if (!freshSession &&
+        !pto::comm::BuildAsyncSession(scratchTile, sdmaWorkspace, session, static_cast<uint32_t>(coreIdx))) {
+        pipe_barrier(PIPE_ALL);
+        return;
+    }
+
+    for (int it = 0; it < iters; ++it) {
+        if (freshSession) {
+            if (!pto::comm::BuildAsyncSession(scratchTile, sdmaWorkspace, session, static_cast<uint32_t>(coreIdx))) {
+                pipe_barrier(PIPE_ALL);
+                return;
+            }
+        }
+        const int off = it * chunk;
+        Global localSendG(sendBuf + off, shape, stride);
+        Global remoteRecvG(remoteRecvBase + off, shape, stride);
+        pto::comm::AsyncEvent ev = pto::comm::TPUT_ASYNC(remoteRecvG, localSendG, session);
+        (void)ev.Wait(session);
+    }
+
+    pipe_barrier(PIPE_ALL);
+}
+
+template <typename T, size_t count>
+bool RunPutAsyncConcurrentRankKernel(int rank_id, int n_ranks, int n_devices, int first_device_id,
+                                     const HcclRootInfo *rootInfo, int iters, int freshSession)
+{
+    TestContext ctx;
+    if (!ctx.Init(rank_id, n_ranks, n_devices, first_device_id, rootInfo))
+        return false;
+
+    const size_t recv_elems = static_cast<size_t>(n_ranks) * count;
+
+    uint8_t *input_host = nullptr;
+    uint8_t *output_host = nullptr;
+    if (aclrtMallocHost(reinterpret_cast<void **>(&input_host), count * sizeof(T)) != 0 ||
+        aclrtMallocHost(reinterpret_cast<void **>(&output_host), recv_elems * sizeof(T)) != 0) {
+        std::cerr << "[ERROR] aclrtMallocHost failed!" << std::endl;
+        return false;
+    }
+
+    for (size_t i = 0; i < count; ++i) {
+        reinterpret_cast<T *>(input_host)[i] = static_cast<T>(i + rank_id * 10000);
+    }
+    for (size_t i = 0; i < recv_elems; ++i) {
+        reinterpret_cast<T *>(output_host)[i] = static_cast<T>(-1);
+    }
+
+    uint64_t localWinBase = ctx.hostCtx.windowsIn[rank_id];
+    size_t winOffset = 0;
+    size_t commBytesNeeded = 64 * sizeof(int32_t) + (static_cast<size_t>(n_ranks) + 1) * count * sizeof(T);
+    void *commBufPtr = WindowAlloc(localWinBase, winOffset, commBytesNeeded);
+
+    uint8_t *commBytes = reinterpret_cast<uint8_t *>(commBufPtr);
+    T *dataBase = reinterpret_cast<T *>(commBytes + 64 * sizeof(int32_t));
+    T *sendBuf = dataBase;
+    T *recvBuf = dataBase + count;
+
+    aclrtMemcpy(sendBuf, count * sizeof(T), input_host, count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(recvBuf, recv_elems * sizeof(T), output_host, recv_elems * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
+
+    SdmaWorkspaceManager sdmaMgr;
+    if (!sdmaMgr.Init()) {
+        std::cerr << "[ERROR] SdmaWorkspaceManager Init failed!" << std::endl;
+        return false;
+    }
+
+    HcclHostBarrier(ctx.comm, ctx.stream);
+
+    TPutAsyncConcurrentRankKernelImpl<T, count><<<n_ranks, nullptr, ctx.stream>>>(
+        dataBase, n_ranks, ctx.deviceCtx, (uint8_t *)sdmaMgr.GetWorkspaceAddr(), iters, freshSession);
+    ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
+
+    HcclHostBarrier(ctx.comm, ctx.stream);
+
+    aclrtMemcpy(output_host, recv_elems * sizeof(T), recvBuf, recv_elems * sizeof(T), ACL_MEMCPY_DEVICE_TO_HOST);
+
+    bool is_ok = true;
+    size_t mismatches = 0;
+    for (int src_rank = 0; src_rank < n_ranks; ++src_rank) {
+        const size_t base = static_cast<size_t>(src_rank) * count;
+        for (size_t i = 0; i < count; ++i) {
+            T value = reinterpret_cast<T *>(output_host)[base + i];
+            T expected = static_cast<T>(i + src_rank * 10000);
+            if (value != expected) {
+                if (mismatches < 8) {
+                    std::cout << "[FAIL] rank " << rank_id << " src_rank " << src_rank << " idx " << i << " expected "
+                              << (float)expected << " got " << (float)value << std::endl;
+                }
+                ++mismatches;
+                is_ok = false;
+            }
+        }
+    }
+    if (is_ok) {
+        std::cout << "[PASS] rank " << rank_id << " received PUT from " << n_ranks << " ranks x " << count
+                  << " elems (iters=" << iters << " fresh=" << freshSession << ")" << std::endl;
+    } else {
+        std::cout << "[FAIL] rank " << rank_id << " total mismatches=" << mismatches << "/" << recv_elems
+                  << " (iters=" << iters << " fresh=" << freshSession << ")" << std::endl;
+    }
+
+    ctx.aclStatus |= aclrtFreeHost(input_host);
+    ctx.aclStatus |= aclrtFreeHost(output_host);
+    sdmaMgr.Finalize();
+
+    return ctx.Finalize() && is_ok;
+}
+
+template <typename T, size_t count>
+bool RunPutAsyncConcurrentRank(int n_ranks, int n_devices, int first_rank_id, int first_device_id, int iters,
+                               int freshSession)
+{
+    return ForkAndRunWithHcclRootInfo(
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo *rootInfo) {
+            return RunPutAsyncConcurrentRankKernel<T, count>(rankId, n_ranks, n_devices, first_device_id, rootInfo,
+                                                             iters, freshSession);
+        });
+}
+
+template bool RunPutAsyncConcurrentRank<float, 8192>(int, int, int, int, int, int);
+template bool RunPutAsyncConcurrentRank<int32_t, 8192>(int, int, int, int, int, int);

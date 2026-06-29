@@ -172,18 +172,19 @@ PTO_INTERNAL bool BuildTransferConfig(const SdmaBaseConfig &baseConfig, uint64_t
 }
 
 PTO_INTERNAL void PrepareWorkspace(__gm__ uint8_t *workspace, const SdmaConfig &config, WorkspaceLayout &layout,
-                                   uint32_t channelGroupIdx, UbTmpBuf &tmpBuf, uint32_t syncId)
+                                   uint32_t channelGroupIdx)
 {
-    uint64_t perCoreWorkspaceSize = config.queue_num * kSdmaFlagLength;
+    const uint64_t perCoreRecvSize = static_cast<uint64_t>(config.queue_num) * kSdmaFlagLength;
+    const uint64_t perGroupSendSize = static_cast<uint64_t>(config.queue_num) * kSdmaMinTransferBytes;
 
-    // Layout (multi-flag model):
-    // [send_workspace: 64B global flag value]
-    // [recv_workspace per block: queue_num * 64B]
-    //   - event slots (sdma_event_record_t[])
-    __gm__ uint8_t *myWorkspace = workspace + kSdmaFlagLength + (channelGroupIdx * perCoreWorkspaceSize);
+    // Event workspace layout:
+    // [send staging: kSdmaSendWorkspaceBytes — one 64B slot per queue per channel group]
+    // [recv records: channelGroupIdx * (queue_num * kSdmaFlagLength)]
+    __gm__ uint8_t *recvBase = workspace + kSdmaSendWorkspaceBytes;
+    __gm__ uint8_t *myRecv = recvBase + static_cast<uint64_t>(channelGroupIdx) * perCoreRecvSize;
 
-    layout.send_workspace = workspace;
-    layout.recv_workspace = myWorkspace;
+    layout.send_workspace = workspace + static_cast<uint64_t>(channelGroupIdx) * perGroupSendSize;
+    layout.recv_workspace = myRecv;
 }
 
 PTO_INTERNAL void InitSqTailArray(__gm__ BatchWriteChannelInfo *batchWriteChannelInfo, uint32_t queueNum,
@@ -191,6 +192,13 @@ PTO_INTERNAL void InitSqTailArray(__gm__ BatchWriteChannelInfo *batchWriteChanne
 {
     for (uint32_t queueId = 0U; queueId < queueNum; ++queueId) {
         __gm__ BatchWriteChannelInfo *channelInfo = batchWriteChannelInfo + queueId;
+        // Invalidate the cache line holding sq_head/sq_tail before reading, so the Wait path
+        // observes the sq_tail just persisted by the post path (matches shmem's dcci before
+        // reading channel_info+4). Without this the flag SQE can be built on a stale tail and
+        // land on an already-consumed slot, so it is never processed and Wait spins to timeout.
+        __asm__ __volatile__("");
+        dcci((__gm__ void *)channelInfo, SINGLE_CACHE_LINE);
+        __asm__ __volatile__("");
         sqTail[queueId] = GetValue<uint32_t>(((__gm__ uint8_t *)channelInfo) + 4, tmpBuf);
     }
 }
@@ -325,7 +333,7 @@ PTO_INTERNAL bool PrepareEventCheck(const SdmaSession &session, UbTmpBuf &tmpBuf
         contextGm + sizeof(BatchWriteFlagInfo) + kSdmaMaxChannel * sizeof(BatchWriteChannelInfo);
 
     WorkspaceLayout workspaceLayout;
-    PrepareWorkspace(workspace, config, workspaceLayout, channelGroupIdx, tmpBuf, syncId);
+    PrepareWorkspace(workspace, config, workspaceLayout, channelGroupIdx);
 
     uint32_t sqTail[64] = {0};
     InitSqTailArray(batchWriteChannelInfo, config.queue_num, sqTail, 64, tmpBuf);
@@ -341,19 +349,14 @@ PTO_INTERNAL bool PrepareEventCheck(const SdmaSession &session, UbTmpBuf &tmpBuf
 
 PTO_INTERNAL void HandleCompletedEventRecord(__gm__ SdmaEventRecord *record, UbTmpBuf &tmpBuf, uint32_t syncId)
 {
-    const uint32_t completedTail = GetValue<uint32_t>((__gm__ uint8_t *)&record->sq_tail, tmpBuf);
-    const uint64_t channelInfoAddr = GetValue<uint64_t>((__gm__ uint8_t *)&record->channel_info, tmpBuf);
-
-    // MTE3 minimum transfer is 8 bytes: writing uint32_t zeroes the adjacent 4 bytes.
-    // Use uint64_t to write both flag(=0) and sq_tail(=0) atomically.
+    // Clear the completion record only. Do NOT write back channelInfo->sq_head:
+    // taskId is computed as (sq_tail - sq_head), and the STARS engine expects it to be a
+    // monotonically increasing slot index per channel (sq_head stays at its host-init 0,
+    // matching the shmem SDMA model). Advancing sq_head here reset taskId to 0 every round,
+    // which intermittently stalled the flag SQE and caused Wait timeouts / missing data.
+    // The persisted sq_tail is owned by UpdateSqTailState, so no channelInfo write is needed here.
+    // MTE3 minimum transfer is 8 bytes: writing uint64_t clears both flag and sq_tail atomically.
     SetValue<uint64_t>((__gm__ uint8_t *)record, tmpBuf, syncId, 0ULL);
-
-    if (channelInfoAddr != 0) {
-        __gm__ uint8_t *channelInfo = reinterpret_cast<__gm__ uint8_t *>(channelInfoAddr);
-        // Pack sq_head (low 32) and sq_tail (high 32) into one 8-byte write.
-        uint64_t packed = (static_cast<uint64_t>(completedTail) << 32) | static_cast<uint64_t>(completedTail);
-        SetValue<uint64_t>(channelInfo, tmpBuf, syncId, packed);
-    }
 }
 
 PTO_INTERNAL bool SdmaTestEvent(uint64_t eventHandle, const SdmaSession &session)
@@ -460,9 +463,8 @@ PTO_INTERNAL uint64_t SdmaPostSendAsyncWithCtx(__gm__ uint8_t *recvBuffer, __gm_
     SubmitDataTransferSqes(batchWriteChannelInfo, sendBuffer, recvBuffer, static_cast<uint32_t>(opcode), config,
                            sqTail);
 
-    // Doorbell deferred to PrepareEventCheck (Wait) — data SQE and flag SQE
-    // will be flushed and signalled together in a single dcci + doorbell.
     UpdateSqTailState(batchWriteChannelInfo, config, sqTail, tmpBuf, syncId);
+    FlushCacheAndRingDoorbell(batchWriteChannelInfo, config, sqTail, tmpBuf, syncId);
 
     pipe_barrier(PIPE_ALL);
     return reinterpret_cast<uint64_t>(contextGm);

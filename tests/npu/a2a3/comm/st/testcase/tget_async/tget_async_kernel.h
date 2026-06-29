@@ -26,3 +26,10 @@ bool RunGetAsyncWithConfig(int n_ranks, int n_devices, int first_rank_id, int fi
 template <typename T, size_t count>
 bool RunGetAsyncMultiCore(int n_ranks, int n_devices, int first_rank_id, int first_device_id, int blockDim,
                           int multiCoreMode);
+
+// Concurrent per-rank gather: every rank runs nranks cores, core c pulls source
+// rank c via its own AsyncSession on sync channel c. iters = TGET+Wait cycles
+// per core (mirrors DispatchGather's per-core distinct-channel + per-group Wait).
+template <typename T, size_t count>
+bool RunGetAsyncConcurrentRank(int n_ranks, int n_devices, int first_rank_id, int first_device_id, int iters,
+                               int freshSession);
