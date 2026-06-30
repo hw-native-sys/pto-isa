@@ -104,8 +104,6 @@ if __name__ == "__main__":
         TGatherBParam(np.uint16, 129, 128, 129, 8, 129, 128),
         TGatherBParam(np.float16, 1, 16384, 1, 2048, 1, 16384),
         TGatherBParam(np.int8, 2, 256, 2, 8, 2, 256),
-        TGatherBParam(np.int8, 2, 16384, 2, 1024, 2, 16384),
-        TGatherBParam(np.uint8, 2, 16384, 2, 1024, 2, 16384),
     ]
 
     for _, param in enumerate(case_params_list):

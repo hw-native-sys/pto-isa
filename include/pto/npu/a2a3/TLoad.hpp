@@ -12,7 +12,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define TLOAD_HPP
 
 namespace pto {
-
 template <typename TileData, typename GlobalData>
 PTO_INTERNAL void TLoadInstrGm2ub(__ubuf__ typename TileData::DType *dst, typename GlobalData::DType *src,
                                   uint16_t nBurst, uint32_t lenBurst, uint32_t gmGap, uint32_t ubGap, uint32_t ubPad)
@@ -27,7 +26,6 @@ PTO_INTERNAL void TLoadInstrGm2ub(__ubuf__ typename TileData::DType *dst, typena
         copy_gm_to_ubuf_align_b32(dst, src, 0, nBurst, lenBurst, 0, ubPad * 2, gmGap, ubGap);
     }
 }
-
 #include "pto/common/arch/memory/tload_common.hpp"
 
 template <typename TileData, typename GlobalData>

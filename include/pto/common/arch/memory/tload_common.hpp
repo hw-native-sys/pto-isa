@@ -30,6 +30,60 @@ PTO_INTERNAL void TLoadInstrGm2L1(__cbuf__ typename TileData::DType *dst, typena
 }
 
 template <typename TileData, typename GlobalData>
+__tf__ PTO_INTERNAL void TLoadNDC1HWC0(typename TileData::TileDType __out__ dst, typename GlobalData::DType __in__ *src,
+                                       int srcN, int srcD, int srcC1, int srcH, int srcW, int gStride0, int gStride1,
+                                       int gStride2, int gStride3, int gStride4, int dstN, int dstD, int dstC1,
+                                       int dstH, int dstW)
+{
+    __cbuf__ typename TileData::DType *dstAddr = (__cbuf__ typename TileData::DType *)__cce_get_tile_ptr(dst);
+    typename GlobalData::DType *srcAddr = src;
+
+    constexpr uint32_t c0ElemCount = C0_SIZE_BYTE / sizeof(typename TileData::DType);
+    typename GlobalData::DType *srcAddrP = srcAddr;
+    __cbuf__ typename TileData::DType *dstAddrP = dstAddr;
+    constexpr uint32_t maxSupportBurst = 4095;
+    // gmGap unit is 32B
+    uint32_t gmGap = ((gStride2 - dstH * dstW * c0ElemCount) * sizeof(typename TileData::DType)) >> SHIFT_BLOCK_BYTE;
+
+    if ((gStride3 == dstW * c0ElemCount || dstH == 1) && // process for W direction all load or H=1
+        gmGap <= UINT16_MAX && dstC1 <= maxSupportBurst && dstH * dstW <= UINT16_MAX) {
+        uint16_t nBurst = dstC1;
+        uint16_t srcGap = gmGap;
+        uint16_t lenBurst = dstH * dstW;
+        for (uint32_t i = 0; i < dstN; i++) {
+            int64_t srcAddr1 = i * gStride0;
+            int64_t dstAddr1 = i * dstD * dstH * dstW * dstC1 * c0ElemCount;
+            for (uint32_t j = 0; j < dstD; j++) {
+                srcAddrP = srcAddr + srcAddr1 + j * gStride1;
+                dstAddrP = dstAddr + dstAddr1 + j * dstH * dstW * dstC1 * c0ElemCount;
+                TLoadInstrGm2L1<TileData, GlobalData>(dstAddrP, srcAddrP, nBurst, lenBurst, srcGap, 0);
+            }
+        }
+    } else {
+        PTO_ASSERT(dstH <= maxSupportBurst, "Fix: max support dstH is 4095!");
+        PTO_ASSERT(dstW <= UINT16_MAX, "Fix: max support dstW is UINT16_MAX!");
+
+        uint16_t nBurst = dstH;
+        uint16_t lenBurst = dstW;
+        uint16_t srcGap = ((gStride3 - srcW * c0ElemCount) * sizeof(typename TileData::DType)) >> SHIFT_BLOCK_BYTE;
+        uint16_t l1Gap = 0;
+        for (uint32_t i = 0; i < dstN; i++) {
+            int64_t srcAddr1 = i * gStride0;
+            int64_t dstAddr1 = i * dstD * dstH * dstW * dstC1 * c0ElemCount;
+            for (uint32_t j = 0; j < dstD; j++) {
+                int64_t srcAddr2 = j * gStride1;
+                int64_t dstAddr2 = j * dstH * dstW * dstC1 * c0ElemCount;
+                for (uint32_t k = 0; k < dstC1; k++) {
+                    srcAddrP = srcAddr + srcAddr1 + srcAddr2 + k * gStride2;
+                    dstAddrP = dstAddr + dstAddr1 + dstAddr2 + k * dstH * dstW * c0ElemCount;
+                    TLoadInstrGm2L1<TileData, GlobalData>(dstAddrP, srcAddrP, nBurst, lenBurst, srcGap, l1Gap);
+                }
+            }
+        }
+    }
+}
+
+template <typename TileData, typename GlobalData>
 PTO_INTERNAL void TLoadGm2ubNd2nd(__ubuf__ typename TileData::DType *dstAddr, typename GlobalData::DType *srcAddr,
                                   int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gStride0,
                                   int gStride1, int gStride2, int gStride3, int gStride4, int validRow, int validCol)
@@ -136,7 +190,7 @@ PTO_INTERNAL void TLoadGm2ubNz2nz(__ubuf__ typename TileData::DType *dstAddr, ty
     CheckNzFormat<TileData, GlobalData>(gShape0, gShape1, gShape2, gShape3, gShape4, validRow, validCol);
     uint16_t nBurst = gShape1;
     uint32_t lenBurst = validRow * C0_SIZE_BYTE;
-    uint32_t gmGap = (gStride1 - gShape2 * gShape3 * gShape4) * sizeof(typename TileData::DType);
+    uint32_t gmGap = (gStride1 - validRow * gShape4) * sizeof(typename TileData::DType);
     uint32_t ubGap = TileData::Rows - validRow;
     typename GlobalData::DType *srcAddrP = srcAddr;
     __ubuf__ typename TileData::DType *dstAddrP = dstAddr;

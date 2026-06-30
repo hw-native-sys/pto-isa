@@ -22,7 +22,7 @@ PTO_INTERNAL void CheckTMovAccValid()
     static_assert(((DstTileData::Cols * sizeof(DstType) % C0_SIZE_BYTE == 0) && ((DstTileData::Cols) > 0)),
                   "Dst Tile Cols * sizeof(DstType) must be multiples of 32 and not 0.");
     static_assert((!SrcTileData::isRowMajor && SrcTileData::SFractal == SLayout::RowMajor),
-                  "Src fractal format should be (BFractal: ColMajor, SFractal: RowMajor).");
+                  "Src fractal format should be nz.");
     static_assert(std::is_same_v<SrcType, half> || std::is_same_v<SrcType, int32_t>,
                   "Src data type only support half or int32_t.");
     if constexpr (isCastQuant) {

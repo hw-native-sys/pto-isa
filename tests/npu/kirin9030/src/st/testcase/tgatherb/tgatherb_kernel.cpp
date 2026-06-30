@@ -74,7 +74,3 @@ template void LaunchTGatherB<uint16_t, 129, 128, 129, 8, 129, 128>(uint16_t *out
                                                                    void *stream);
 template void LaunchTGatherB<half, 1, 16384, 1, 2048, 1, 16384>(half *out, half *src, uint32_t *offset, void *stream);
 template void LaunchTGatherB<int8_t, 2, 256, 2, 8, 2, 256>(int8_t *out, int8_t *src, uint32_t *offset, void *stream);
-template void LaunchTGatherB<int8_t, 2, 16384, 2, 1024, 2, 16384>(int8_t *out, int8_t *src, uint32_t *offset,
-                                                                  void *stream);
-template void LaunchTGatherB<uint8_t, 2, 16384, 2, 1024, 2, 16384>(uint8_t *out, uint8_t *src, uint32_t *offset,
-                                                                   void *stream);

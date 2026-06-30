@@ -103,6 +103,25 @@ __tf__ AICORE void TInsertVecToVecNZUnaligned(typename DstTileData::TileDType __
     }
 }
 
+template <typename DstTileData, typename SrcTileData, QuantMode_t QuantPre, ReluPreMode reluMode>
+__tf__ PTO_INTERNAL void TInsertAccToMat(typename DstTileData::TileDType __out__ dst,
+                                         typename SrcTileData::TileDType __in__ src, uint16_t validRow,
+                                         uint16_t validCol, uint16_t indexRow, uint16_t indexCol)
+{
+    using SrcType = typename SrcTileData::DType;
+    using DstType = typename DstTileData::DType;
+    constexpr int32_t c0Size = BLOCK_BYTE_SIZE / sizeof(DstType);
+    uint32_t dstOffset = DstTileData::Rows * c0Size * (indexCol / c0Size) + (indexRow * c0Size + (indexCol % c0Size));
+    __cc__ SrcType *srcAddr = (__cc__ SrcType *)__cce_get_tile_ptr(src);
+    __cbuf__ DstType *dstAddr = (__cbuf__ DstType *)__cce_get_tile_ptr(dst) + dstOffset;
+
+    constexpr uint32_t dstStrideD = DstTileData::Rows;
+    constexpr uint16_t srcStride = SrcTileData::Rows;
+    uint16_t nSize = CeilDivision(validCol, c0Size) * c0Size;
+    copy_matrix_cc_to_cbuf(dstAddr, srcAddr, 0, nSize, SrcTileData::Rows, dstStrideD, srcStride, 0, QuantPre, reluMode,
+                           false, false);
+}
+
 #include "pto/common/arch/memory/tinsert_common.hpp"
 
 template <typename DstTileData, typename SrcTileData>

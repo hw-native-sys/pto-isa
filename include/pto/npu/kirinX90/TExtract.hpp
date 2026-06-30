@@ -15,28 +15,79 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-template <typename DstTileData, typename SrcTileData>
-PTO_INTERNAL void TEXTRACT_TILE_IMPL(DstTileData &dst, SrcTileData &src, uint16_t indexRow = 0, uint16_t indexCol = 0)
+template <typename DstTileData, typename SrcTileData, typename DstType, typename SrcType>
+PTO_INTERNAL void CheckTExtract()
 {
-    CheckTExtract<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType>();
-    PTO_ASSERT(indexRow + DstTileData::Rows <= SrcTileData::Rows,
-               "The sum of indexRow and dstRow should be less than srcRow!");
-    PTO_ASSERT(indexCol + DstTileData::Cols <= SrcTileData::Cols,
-               "The sum of indexCol and dstCol should be less than srcCol!");
-    if constexpr (DstTileData::Loc == TileType::Left) {
-        TExtractToLeft<DstTileData, SrcTileData>(dst, src, indexRow, indexCol);
-    } else if constexpr (DstTileData::Loc == TileType::Right) {
-        TExtractToRight<DstTileData, SrcTileData>(dst, src, indexRow, indexCol);
-    } else if constexpr (SrcTileData::Loc == TileType::Vec && DstTileData::Loc == TileType::Mat) {
-        TExtractVecToMat<DstTileData, SrcTileData>(dst.data(), src.data(), indexRow, indexCol, src.GetValidRow(),
-                                                   src.GetValidCol(), dst.GetValidRow(), dst.GetValidCol());
-    } else if constexpr (SrcTileData::Loc == TileType::Acc && DstTileData::Loc == TileType::Mat) {
-        CheckTMovAccToMat<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, true>();
-        constexpr QuantMode_t quantPre =
-            GetCastPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
-        TExtractAccToMat<DstTileData, SrcTileData, quantPre, ReluPreMode::NoRelu>(
-            dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(), indexRow, indexCol);
+    static_assert((SrcTileData::Loc == TileType::Acc) || std::is_same<DstType, SrcType>::value,
+                  "TExtract: Destination and Source tile data types must be the same.");
+    static_assert(std::is_same<DstType, int8_t>::value || std::is_same<DstType, uint8_t>::value ||
+                      std::is_same<DstType, half>::value || std::is_same<DstType, int16_t>::value ||
+                      std::is_same<DstType, uint16_t>::value || std::is_same<DstType, int32_t>::value ||
+                      std::is_same<DstType, float>::value,
+                  "TExtract: Unsupported data type! Supported types: (u)int8_t, (u)int16_t, int32, half, float");
+}
+template <typename DstTileData, typename SrcTileData, QuantMode_t QuantPre, ReluPreMode reluMode>
+__tf__ AICORE void TExtractAccToMat(typename DstTileData::TileDType __out__ dst,
+                                    typename SrcTileData::TileDType __in__ src, uint16_t validRow, uint16_t validCol,
+                                    uint16_t indexRow, uint16_t indexCol)
+{
+    using dstType = typename DstTileData::DType;
+    using srcType = typename SrcTileData::DType;
+
+    using Cfg = TMovConfig<DstTileData>;
+
+    constexpr uint32_t dstStride = Cfg::accDstStride;
+    static_assert(((dstStride * sizeof(dstType) % C0_SIZE_BYTE == 0) && (dstStride > 0)),
+                  "Dst Tile Cols * sizeof(dstType) must be multiples of 32 and not 0 when nz2nd/nz2nz");
+
+    if constexpr (Cfg::isNz2Nz) {
+        validRow = SrcTileData::Rows;
+        validCol = CeilAlignment(validCol, Cfg::baseC0Size);
     }
+
+    uint32_t srcOffset = SrcTileData::Rows * ACC_C0_SIZE * (indexCol / ACC_C0_SIZE) +
+                         (indexRow * ACC_C0_SIZE + (indexCol % ACC_C0_SIZE));
+    if constexpr (Cfg::isNz2Nd) {
+        SetLoop3Para();
+    }
+    auto srcStride = CeilAlignment(validRow, BLOCK_LEN);
+    __cbuf__ dstType *dstAddr = (__cbuf__ dstType *)__cce_get_tile_ptr(dst);
+    __cc__ srcType *srcData = (__cc__ srcType *)__cce_get_tile_ptr(src) + srcOffset;
+
+    copy_matrix_cc_to_cbuf(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, 0, 0, QuantPre, reluMode,
+                           false, Cfg::isNz2Nd, false);
+}
+
+template <typename DstTileData, typename SrcTileData, QuantMode_t QuantPre, ReluPreMode reluMode>
+__tf__ AICORE void TExtractAccToVec(typename DstTileData::TileDType __out__ dst,
+                                    typename SrcTileData::TileDType __in__ src, uint16_t validRow, uint16_t validCol,
+                                    uint16_t indexRow, uint16_t indexCol)
+{
+    using dstType = typename DstTileData::DType;
+    using srcType = typename SrcTileData::DType;
+
+    using Cfg = TMovConfig<DstTileData>;
+
+    constexpr uint32_t dstStride = Cfg::accDstStride;
+    static_assert(((dstStride * sizeof(dstType) % C0_SIZE_BYTE == 0) && (dstStride > 0)),
+                  "Dst Tile Cols * sizeof(dstT) must be multiples of 32 and not 0 when nz2nd/nz2nz.");
+
+    if constexpr (Cfg::isNz2Nz) {
+        validRow = SrcTileData::Rows;
+        validCol = CeilAlignment(validCol, Cfg::baseC0Size);
+    }
+
+    uint32_t srcOffset = SrcTileData::Rows * ACC_C0_SIZE * (indexCol / ACC_C0_SIZE) +
+                         (indexRow * ACC_C0_SIZE + (indexCol % ACC_C0_SIZE));
+    if constexpr (Cfg::isNz2Nd) {
+        SetLoop3Para();
+    }
+    auto srcStride = CeilAlignment(validRow, BLOCK_LEN);
+    __ubuf__ dstType *dstAddr = (__ubuf__ dstType *)__cce_get_tile_ptr(dst);
+    __cc__ srcType *srcData = (__cc__ srcType *)__cce_get_tile_ptr(src) + srcOffset;
+
+    copy_matrix_cc_to_ub(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, 0, 0, QuantPre, reluMode, false,
+                         Cfg::isNz2Nd, false);
 }
 
 template <typename DstTile, typename SrcTile>
@@ -55,13 +106,59 @@ __tf__ PTO_INTERNAL void TExtractVecToMat(typename DstTile::TileDType __out__ ds
 
     static_assert((SrcTile::isRowMajor && SrcTile::SFractal == SLayout::NoneBox && DstTile::isRowMajor &&
                    DstTile::SFractal == SLayout::NoneBox) ||
-                      (SrcTile::isRowMajor && SrcTile::SFractal == SLayout::RowMajor && DstTile::isRowMajor &&
+                      (!SrcTile::isRowMajor && SrcTile::SFractal == SLayout::RowMajor && !DstTile::isRowMajor &&
                        DstTile::SFractal == SLayout::RowMajor),
-                  "TExtract Vec->Mat: Only support ND->ND or ZZ->ZZ on kirinX90.");
+                  "TExtract Vec->Mat: Only support ND->ND or NZ->NZ on kirinX90.");
 
-    // TODO: 实现 Vec->Mat 搬运
-    // ND->ND: 使用 copy_ubuf_to_cbuf 单次搬运
-    // ZZ->ZZ: 使用 copy_ubuf_to_cbuf 多块搬运
+    using T = typename SrcTile::DType;
+    constexpr int32_t c0Size = BLOCK_BYTE_SIZE / sizeof(T);
+    uint32_t offset = SrcTile::Rows * c0Size * (indexCol / c0Size) + (indexRow * c0Size + (indexCol % c0Size));
+    if constexpr (SrcTile::isRowMajor && (SrcTile::SFractal == SLayout::NoneBox)) {
+        offset = indexRow * srcValidCol + indexCol;
+    }
+
+    __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src) + offset;
+    __cbuf__ T *dstPtr = (__cbuf__ T *)__cce_get_tile_ptr(dst);
+    if constexpr (SrcTile::isRowMajor && (SrcTile::SFractal == SLayout::NoneBox)) {
+        uint16_t blockLen = dstValidRow * dstValidCol * sizeof(T) / BLOCK_BYTE_SIZE;
+        // dst, src, sid, nBurst, lenBurst, srcStride, dstStride
+        copy_ubuf_to_cbuf(dstPtr, srcPtr, 0, 1, blockLen, 0, 0);
+    } else if constexpr (!SrcTile::isRowMajor && (SrcTile::SFractal == SLayout::RowMajor)) {
+        uint16_t blockCout = CeilDivision(dstValidCol, c0Size);
+        uint32_t alignRow = (dstValidRow + FRACTAL_NZ_ROW - 1) / FRACTAL_NZ_ROW * FRACTAL_NZ_ROW;
+        uint16_t blockLen = alignRow * c0Size * sizeof(T) / BLOCK_BYTE_SIZE;
+        constexpr uint16_t srcStride = SrcTile::Rows - DstTile::Rows;
+        copy_ubuf_to_cbuf(dstPtr, srcPtr, 0, blockCout, blockLen, srcStride, 0);
+    }
+}
+
+template <typename DstTileData, typename SrcTileData>
+PTO_INTERNAL void TEXTRACT_TILE_IMPL(DstTileData &dst, SrcTileData &src, uint16_t indexRow = 0, uint16_t indexCol = 0)
+{
+    CheckTExtract<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType>();
+    PTO_ASSERT(indexRow + DstTileData::Rows <= SrcTileData::Rows,
+               "The sum of indexRow and dstRow should be less than srcRow!");
+    PTO_ASSERT(indexCol + DstTileData::Cols <= SrcTileData::Cols,
+               "The sum of indexCol and dstCol should be less than srcCol!");
+    if constexpr (DstTileData::Loc == TileType::Left) {
+        TExtractToLeft<DstTileData, SrcTileData>(dst, src, indexRow, indexCol);
+    } else if constexpr (DstTileData::Loc == TileType::Right) {
+        TExtractToRight<DstTileData, SrcTileData>(dst, src, indexRow, indexCol);
+    } else if constexpr (SrcTileData::Loc == TileType::Vec && DstTileData::Loc == TileType::Mat) {
+        TExtractVecToMat<DstTileData, SrcTileData>(dst.data(), src.data(), indexRow, indexCol, src.GetValidRow(),
+                                                   src.GetValidCol(), dst.GetValidRow(), dst.GetValidCol());
+    } else if constexpr (SrcTileData::Loc == TileType::Acc) {
+        CheckTMovAccValid<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, false>();
+        constexpr QuantMode_t quantPre =
+            GetCastPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
+        if constexpr (DstTileData::Loc == TileType::Mat) {
+            TExtractAccToMat<DstTileData, SrcTileData, quantPre, ReluPreMode::NoRelu>(
+                dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(), indexRow, indexCol);
+        } else {
+            TExtractAccToVec<DstTileData, SrcTileData, quantPre, ReluPreMode::NoRelu>(
+                dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(), indexRow, indexCol);
+        }
+    }
 }
 
 template <typename T, typename DstTileData, typename SrcTileData>
@@ -202,7 +299,8 @@ PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, uint16_t ind
 {
     if constexpr (DstTileData::Loc == TileType::Vec && SrcTileData::Loc == TileType::Vec) {
         CheckTExtractVecToVecCommon<DstTileData, SrcTileData>();
-        if constexpr (DstTileData::isRowMajor && SrcTileData::isRowMajor) {
+        if constexpr (DstTileData::isRowMajor && SrcTileData::isRowMajor || DstTileData::SFractal == SLayout::NoneBox ||
+                      SrcTileData::SFractal == SLayout::NoneBox) {
             TExtractVecToVecNDDispatch<DstTileData, SrcTileData>(dst, src, indexRow, indexCol);
         } else if constexpr (!DstTileData::isRowMajor && !SrcTileData::isRowMajor &&
                              DstTileData::SFractal == SLayout::RowMajor && SrcTileData::SFractal == SLayout::RowMajor) {
@@ -228,10 +326,15 @@ PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, uint16_t ind
                "The sum of indexRow and dstRow should be less than srcRow!");
     PTO_ASSERT(indexCol + DstTileData::Cols <= SrcTileData::Cols,
                "The sum of indexCol and dstCol should be less than srcCol!");
-    CheckTMovAccToMat<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, true>();
+    CheckTMovAccValid<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, false>();
     constexpr QuantMode_t quantPre = GetCastPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
-    TExtractAccToMat<DstTileData, SrcTileData, quantPre, reluMode>(dst.data(), src.data(), dst.GetValidRow(),
-                                                                   dst.GetValidCol(), indexRow, indexCol);
+    if constexpr (DstTileData::Loc == TileType::Mat) {
+        TExtractAccToMat<DstTileData, SrcTileData, quantPre, reluMode>(dst.data(), src.data(), dst.GetValidRow(),
+                                                                       dst.GetValidCol(), indexRow, indexCol);
+    } else {
+        TExtractAccToVec<DstTileData, SrcTileData, quantPre, reluMode>(dst.data(), src.data(), dst.GetValidRow(),
+                                                                       dst.GetValidCol(), indexRow, indexCol);
+    }
 }
 
 // scalar quant
@@ -243,11 +346,16 @@ PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, uint64_t pre
                "The sum of indexRow and dstRow should be less than srcRow!");
     PTO_ASSERT(indexCol + DstTileData::Cols <= SrcTileData::Cols,
                "The sum of indexCol and dstCol should be less than srcCol!");
-    CheckTMovAccToMat<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, false>();
+    CheckTMovAccValid<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, false>();
     constexpr QuantMode_t quantPre = GetScalarPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
     set_quant_pre(preQuantScalar);
-    TExtractAccToMat<DstTileData, SrcTileData, quantPre, reluMode>(dst.data(), src.data(), dst.GetValidRow(),
-                                                                   dst.GetValidCol(), indexRow, indexCol);
+    if constexpr (DstTileData::Loc == TileType::Mat) {
+        TExtractAccToMat<DstTileData, SrcTileData, quantPre, reluMode>(dst.data(), src.data(), dst.GetValidRow(),
+                                                                       dst.GetValidCol(), indexRow, indexCol);
+    } else {
+        TExtractAccToVec<DstTileData, SrcTileData, quantPre, reluMode>(dst.data(), src.data(), dst.GetValidRow(),
+                                                                       dst.GetValidCol(), indexRow, indexCol);
+    }
 }
 
 // vector quant
@@ -259,12 +367,44 @@ PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, FpTileData &
                "The sum of indexRow and dstRow should be less than srcRow!");
     PTO_ASSERT(indexCol + DstTileData::Cols <= SrcTileData::Cols,
                "The sum of indexCol and dstCol should be less than srcCol!");
-    CheckTMovAccToMat<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, false>();
+    CheckTMovAccValid<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, false>();
     static_assert(FpTileData::Loc == TileType::Scaling, "Fp only support Scaling.");
     constexpr QuantMode_t quantPre = GetVectorPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
     SetFPC<FpTileData>(fp.data(), indexCol);
-    TExtractAccToMat<DstTileData, SrcTileData, quantPre, reluMode>(dst.data(), src.data(), dst.GetValidRow(),
-                                                                   dst.GetValidCol(), indexRow, indexCol);
+    if constexpr (DstTileData::Loc == TileType::Mat) {
+        TExtractAccToMat<DstTileData, SrcTileData, quantPre, reluMode>(dst.data(), src.data(), dst.GetValidRow(),
+                                                                       dst.GetValidCol(), indexRow, indexCol);
+    } else {
+        TExtractAccToVec<DstTileData, SrcTileData, quantPre, reluMode>(dst.data(), src.data(), dst.GetValidRow(),
+                                                                       dst.GetValidCol(), indexRow, indexCol);
+    }
+}
+
+// relu with AccToVecMode
+template <typename DstTileData, typename SrcTileData, AccToVecMode mode, ReluPreMode reluMode>
+PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, uint16_t indexRow = 0, uint16_t indexCol = 0)
+{
+    static_assert(mode == AccToVecMode::SingleModeVec0, "Only SingleModeVec0 is supported.");
+    TEXTRACT_IMPL<DstTileData, SrcTileData, reluMode>(dst, src, indexRow, indexCol);
+}
+
+// scalar quant with AccToVecMode
+template <typename DstTileData, typename SrcTileData, AccToVecMode mode, ReluPreMode reluMode = ReluPreMode::NoRelu>
+PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, uint64_t preQuantScalar, uint16_t indexRow = 0,
+                                uint16_t indexCol = 0)
+{
+    static_assert(mode == AccToVecMode::SingleModeVec0, "Only SingleModeVec0 is supported.");
+    TEXTRACT_IMPL<DstTileData, SrcTileData, reluMode>(dst, src, preQuantScalar, indexRow, indexCol);
+}
+
+// vector quant with AccToVecMode
+template <typename DstTileData, typename SrcTileData, typename FpTileData, AccToVecMode mode,
+          ReluPreMode reluMode = ReluPreMode::NoRelu>
+PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, FpTileData &fp, uint16_t indexRow = 0,
+                                uint16_t indexCol = 0)
+{
+    static_assert(mode == AccToVecMode::SingleModeVec0, "Only SingleModeVec0 is supported.");
+    TEXTRACT_IMPL<DstTileData, SrcTileData, FpTileData, reluMode>(dst, src, fp, indexRow, indexCol);
 }
 } // namespace pto
 #endif // TEXTRACT_HPP

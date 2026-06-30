@@ -199,7 +199,7 @@ AICORE inline void RunTSTORE(__gm__ OutType *out, SrcTileData &srcTile)
 {
     if constexpr (layoutType == Layout::ND) {
         using GlobalDataOut =
-            GlobalTensor<OutType, pto::Shape<1, 1, 1, validM, validN>,
+            GlobalTensor<OutType, pto::Shape<1, 1, 1, 60, 104>,
                          pto::Stride<1 * validM * validN, 1 * validM * validN, validM * validN, validN, 1>>;
         GlobalDataOut dstGlobal(out);
         TSTORE(dstGlobal, srcTile);

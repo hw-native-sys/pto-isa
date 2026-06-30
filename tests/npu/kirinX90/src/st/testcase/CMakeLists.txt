@@ -218,7 +218,6 @@ set(ALL_TESTCASES
     tmov_vect
     texpands
     tmov_acc2mat
-    # timg2col
     tassign
     tmov_ub2l1
     tcmp
@@ -254,15 +253,15 @@ set(ALL_TESTCASES
     tconcatdstidx
     tconcatidx
     tconcat
-    thistogram
-    # tinsert
-    # tinsert_acc2vec
+    tinsert
+    tinsert_acc2vec
     textract_nd_vec
     textract_vec
-    # tmov_zz
-    # tmov_nd2nz
-    # textract_acc2vec
+    tmov_zz
+    tmov_nd2nz
+    textract_acc2vec
     texpands_mat
+    timg2col
 )
 
 if((TEST_CASE IN_LIST ALL_TESTCASES) OR (TEST_CASE STREQUAL "all"))

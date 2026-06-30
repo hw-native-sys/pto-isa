@@ -144,7 +144,7 @@ PTO_INTERNAL void CheckTMovAccValid()
                       (!DstTileData::isRowMajor && DstTileData::SFractal == SLayout::RowMajor),
                   "Only support nz2nz, nz2nd or nz2dn.");
 }
-
+#endif
 template <typename DstTile, typename SrcTile, AccToVecMode mode, QuantMode_t quantPre>
 PTO_INTERNAL constexpr uint8_t GetDualDstCtl()
 {
