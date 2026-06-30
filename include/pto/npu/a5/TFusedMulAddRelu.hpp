@@ -24,7 +24,12 @@ struct FusedMulAddReluOp {
     PTO_INTERNAL static void TernInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, RegTensor<T> &reg_src1,
                                        MaskReg &preg)
     {
-        vmadd(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);
+        if constexpr (std::is_same_v<T, half>) {
+            vmul(reg_dst, reg_dst, reg_src0, preg, MODE_ZEROING);
+            vadd(reg_dst, reg_dst, reg_src1, preg, MODE_ZEROING);
+        } else {
+            vmadd(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);
+        }
         vrelu(reg_dst, reg_dst, preg, MODE_ZEROING);
     }
 };

@@ -24,7 +24,12 @@ struct MulAddDstOp {
     PTO_INTERNAL static void TernInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, RegTensor<T> &reg_src1,
                                        MaskReg &preg)
     {
-        vmula(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);
+        if constexpr (std::is_same_v<T, half>) {
+            vmul(reg_src0, reg_src0, reg_src1, preg, MODE_ZEROING);
+            vadd(reg_dst, reg_dst, reg_src0, preg, MODE_ZEROING);
+        } else {
+            vmula(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);
+        }
     }
 };
 
