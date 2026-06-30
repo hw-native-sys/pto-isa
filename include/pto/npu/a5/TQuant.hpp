@@ -624,12 +624,18 @@ PTO_INTERNAL void StoreScalingUnrolled(__ubuf__ float *scalingPtr, vector_s32 &v
 {
     vector_s32 vb32_scaling_0, vb32_scaling_1;
     vintlv(vb32_scaling_0, vb32_scaling_1, vb32_scaling, vb32_scaling);
-    MaskReg preg_sc0 = CreatePredicate<float>(scaling_elem_count);
-    MaskReg preg_sc1 = CreatePredicate<float>(scaling_elem_count);
+    uint32_t baseOff0 = 2 * iter * elementsPerRepeat;
+    uint32_t baseOff1 = baseOff0 + elementsPerRepeat;
+    uint32_t rem0 = scaling_elem_count > baseOff0 ? scaling_elem_count - baseOff0 : 0;
+    uint32_t rem1 = scaling_elem_count > baseOff1 ? scaling_elem_count - baseOff1 : 0;
+    MaskReg preg_sc0 = CreatePredicate<float>(rem0);
     vsts((vector_s32 &)vb32_scaling_0, ((__ubuf__ int32_t *)scalingPtr), 2 * iter * elementsPerRepeat, NORM_B32,
          preg_sc0);
-    vsts((vector_s32 &)vb32_scaling_1, ((__ubuf__ int32_t *)scalingPtr + 64), 2 * iter * elementsPerRepeat, NORM_B32,
-         preg_sc1);
+    if (rem1 > 0) {
+        MaskReg preg_sc1 = CreatePredicate<float>(rem1);
+        vsts((vector_s32 &)vb32_scaling_1, ((__ubuf__ int32_t *)scalingPtr + 64), 2 * iter * elementsPerRepeat,
+             NORM_B32, preg_sc1);
+    }
 }
 
 // Unrolled variant: interleaves scaling stores for higher throughput.
