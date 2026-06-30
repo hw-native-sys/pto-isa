@@ -985,7 +985,7 @@ PTO_INST RecordEvent SET_QUANT_VECTOR(FpTileData &fpTile, WaitEvents &...events)
     return {};
 }
 
-#ifdef PTO_NPU_ARCH_A2A3
+#if defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_KIRINX90)
 template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL, typename... WaitEvents>
 PTO_INST RecordEvent SET_IMG2COL_RPT(ConvTileData &src, WaitEvents &...events)
 {
@@ -1091,7 +1091,7 @@ PTO_INST RecordEvent TINSERT(DstTileData &dst, SrcTileData &src, FpTileData &fp,
     return {};
 }
 
-#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRIN9030)
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90)
 template <TInsertMode mode, typename DstTileData, typename SrcTileData, typename... WaitEvents>
 PTO_INST RecordEvent TINSERT(DstTileData &dst, SrcTileData &src, uint16_t indexRow = 0, uint16_t indexCol = 0,
                              WaitEvents &...events)

@@ -211,7 +211,6 @@ struct TmovConfig {
 
     static constexpr bool isNz2Nz = (!DstTile::isRowMajor && DstTile::SFractal == SLayout::RowMajor);
     static constexpr bool isNz2Nd = (DstTile::isRowMajor && DstTile::SFractal == SLayout::NoneBox);
-    // static constexpr bool isNz2Dn = (!DstTile::isRowMajor && DstTile::SFractal == SLayout::NoneBox);
     static constexpr bool isFloat = std::is_same_v<DType, float>;
 
     static constexpr bool channelSplitEnable = isNz2Nz && isFloat && (DstTile::SFractalSize == 512);
@@ -227,16 +226,6 @@ struct TmovConfig {
     static constexpr int32_t nzAlign =
         (isFloat && channelSplitEnable) ? baseC0Size : (isFloat ? FRACTAL_NZ_ROW : baseC0Size);
 };
-
-PTO_INTERNAL void SetLoop3Para()
-{
-    constexpr uint16_t ndNum = 1;
-    constexpr uint16_t dstNdStride = 0;
-    constexpr uint16_t srcNdStride = 0;
-    constexpr uint64_t loop3Para = static_cast<uint64_t>(dstNdStride) << 32 | static_cast<uint64_t>(srcNdStride) << 16 |
-                                   static_cast<uint64_t>(ndNum);
-    set_loop3_para(loop3Para);
-}
 
 template <typename DstTile, typename SrcTile, QuantMode_t QuantPre, ReluPreMode reluMode>
 __tf__ PTO_INTERNAL void TMovCcToCb(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src,
@@ -271,6 +260,40 @@ __tf__ PTO_INTERNAL void TMovCcToCb(typename DstTile::TileDType __out__ dst, typ
                            Cfg::channelSplitEnable, Cfg::isNz2Nd, false);
 }
 
+template <typename DstTile, typename SrcTile, QuantMode_t QuantPre, ReluPreMode reluMode,
+          STPhase Phase = STPhase::Unspecified>
+__tf__ PTO_INTERNAL void TMovCcToUb(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src,
+                                    uint16_t validRow, uint16_t validCol)
+{
+    using dstType = typename DstTile::DType;
+    using srcType = typename SrcTile::DType;
+    using Cfg = TmovConfig<DstTile>; // 引入配置
+    constexpr uint8_t unitFlagCtrl = static_cast<uint8_t>(Phase);
+    constexpr uint32_t dstStride = Cfg::accDstStride;
+    static_assert(((dstStride * sizeof(dstType) % C0_SIZE_BYTE == 0) && (dstStride > 0)),
+                  "Dst Tile Cols * sizeof(dstT) must be multiples of 32 and not 0 when nz2nd. \
+            Dst Tile Cols * sizeof(dstType) must be multiples of 32 and not 0 when nz2nz.");
+
+    if constexpr (Cfg::isNz2Nz) {
+        validRow = SrcTile::Rows;
+        if constexpr (Cfg::isFloat) {
+            validCol = CeilAlignment(validCol, Cfg::nzAlign);
+        } else {
+            validCol = CeilAlignment(validCol, Cfg::baseC0Size);
+        }
+    }
+
+    if constexpr (Cfg::isNz2Nd) {
+        SetLoop3Para();
+    }
+    auto srcStride = CeilAlignment(validRow, BLOCK_LEN);
+    __ubuf__ dstType *dstAddr = (__cbuf__ dstType *)__cce_get_tile_ptr(dst);
+    __cc__ srcType *srcData = (__cc__ srcType *)__cce_get_tile_ptr(src);
+
+    copy_matrix_cc_to_ubuf(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, 0, unitFlagCtrl, QuantPre,
+                           reluMode, Cfg::channelSplitEnable, Cfg::isNz2Nd, false);
+}
+
 template <typename DstTileData, typename SrcTileData>
 PTO_INTERNAL void TMOV_TILE_IMPL(DstTileData &dst, SrcTileData &src)
 {
@@ -279,7 +302,8 @@ PTO_INTERNAL void TMOV_TILE_IMPL(DstTileData &dst, SrcTileData &src)
                     DstTileData::Loc == TileType::Bias || DstTileData::Loc == TileType::Scaling)) ||
                       (DstTileData::Loc == TileType::Vec && SrcTileData::Loc == TileType::Vec) ||
                       (DstTileData::Loc == TileType::Mat && SrcTileData::Loc == TileType::Vec) ||
-                      (DstTileData::Loc == TileType::Mat && SrcTileData::Loc == TileType::Acc),
+                      (SrcTileData::Loc == TileType::Acc &&
+                       (DstTileData::Loc == TileType::Mat || DstTileData::Loc == TileType::Vec)),
                   "TMov: Invalid TileType.");
     if constexpr (SrcTileData::Loc == TileType::Mat) {
         static_assert((SrcTileData::Rows == DstTileData::Rows) && ((SrcTileData::Cols == DstTileData::Cols)),
@@ -294,12 +318,16 @@ PTO_INTERNAL void TMOV_TILE_IMPL(DstTileData &dst, SrcTileData &src)
             TMovToRight<DstTileData, SrcTileData>(dst, src);
         }
     } else if constexpr (SrcTileData::Loc == TileType::Acc) {
-        CheckTMovAccToMat<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, true>();
+        CheckTMovAccValid<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, true>();
         uint16_t m = src.GetValidRow();
         uint16_t n = src.GetValidCol();
         constexpr QuantMode_t quantPre =
             GetCastPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
-        TMovCcToCb<DstTileData, SrcTileData, quantPre, ReluPreMode::NoRelu>(dst.data(), src.data(), m, n);
+        if constexpr (DstTileData::Loc == TileType::Vec) {
+            TMovCcToUb<DstTileData, SrcTileData, quantPre, ReluPreMode::NoRelu>(dst.data(), src.data(), m, n);
+        } else if constexpr (DstTileData::Loc == TileType::Mat) {
+            TMovCcToCb<DstTileData, SrcTileData, quantPre, ReluPreMode::NoRelu>(dst.data(), src.data(), m, n);
+        }
     } else if constexpr (SrcTileData::Loc == TileType::Vec) {
         if constexpr (DstTileData::Loc == TileType::Vec) {
             if constexpr ((SrcTileData::isRowMajor && (SrcTileData::SFractal == SLayout::NoneBox)) &&
@@ -318,8 +346,8 @@ PTO_INTERNAL void TMOV_TILE_IMPL(DstTileData &dst, SrcTileData &src)
                           (DstTileData::isRowMajor && DstTileData::SFractal == SLayout::NoneBox)) {
                 TExtractVecToMat<DstTileData, SrcTileData>(dst.data(), src.data(), 0, 0, src.GetValidRow(),
                                                            src.GetValidCol(), dst.GetValidRow(), dst.GetValidCol());
-            } else if constexpr ((SrcTileData::isRowMajor && SrcTileData::SFractal == SLayout::RowMajor) &&
-                                 (DstTileData::isRowMajor && DstTileData::SFractal == SLayout::RowMajor)) {
+            } else if constexpr ((!SrcTileData::isRowMajor && SrcTileData::SFractal == SLayout::RowMajor) &&
+                                 (!DstTileData::isRowMajor && DstTileData::SFractal == SLayout::RowMajor)) {
                 TExtractVecToMat<DstTileData, SrcTileData>(dst.data(), src.data(), 0, 0, src.GetValidRow(),
                                                            src.GetValidCol(), dst.GetValidRow(), dst.GetValidCol());
             } else {
@@ -340,39 +368,54 @@ PTO_INTERNAL void TMOV_IMPL(DstTileData &dst, SrcTileData &src)
     }
 }
 // relu
-template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode>
+template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode, STPhase Phase = STPhase::Unspecified>
 PTO_INTERNAL void TMOV_IMPL(DstTileData &dst, SrcTileData &src)
 {
-    CheckTMovAccToMat<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, true>();
+    CheckTMovAccValid<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, true>();
     uint16_t m = src.GetValidRow();
     uint16_t n = src.GetValidCol();
     constexpr QuantMode_t quantPre = GetCastPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
-    TMovCcToCb<DstTileData, SrcTileData, quantPre, reluMode>(dst.data(), src.data(), m, n);
+    if constexpr (DstTileData::Loc == TileType::Vec) {
+        TMovCcToUb<DstTileData, SrcTileData, quantPre, reluMode, Phase>(dst.data(), src.data(), m, n);
+    } else if constexpr (DstTileData::Loc == TileType::Mat) {
+        TMovCcToCb<DstTileData, SrcTileData, quantPre, reluMode>(dst.data(), src.data(), m, n);
+    }
 }
 
 // scalar quant
-template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode = ReluPreMode::NoRelu>
+template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode = ReluPreMode::NoRelu,
+          STPhase Phase = STPhase::Unspecified>
 PTO_INTERNAL void TMOV_IMPL(DstTileData &dst, SrcTileData &src, uint64_t preQuantScalar)
 {
-    CheckTMovAccToMat<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, false>();
+    CheckTMovAccValid<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, false>();
     uint16_t m = src.GetValidRow();
     uint16_t n = src.GetValidCol();
     constexpr QuantMode_t quantPre = GetScalarPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
     set_quant_pre(preQuantScalar);
-    TMovCcToCb<DstTileData, SrcTileData, quantPre, reluMode>(dst.data(), src.data(), m, n);
+    if constexpr (DstTileData::Loc == TileType::Vec) {
+        TMovCcToUb<DstTileData, SrcTileData, quantPre, reluMode, Phase>(dst.data(), src.data(), m, n);
+    } else if constexpr (DstTileData::Loc == TileType::Mat) {
+        TMovCcToCb<DstTileData, SrcTileData, quantPre, reluMode>(dst.data(), src.data(), m, n);
+    }
 }
 
 // vector quant
-template <typename DstTileData, typename SrcTileData, typename FpTileData, ReluPreMode reluMode = ReluPreMode::NoRelu>
+template <typename DstTileData, typename SrcTileData, typename FpTileData, ReluPreMode reluMode = ReluPreMode::NoRelu,
+          STPhase Phase = STPhase::Unspecified>
 PTO_INTERNAL void TMOV_IMPL(DstTileData &dst, SrcTileData &src, FpTileData &fp)
 {
-    CheckTMovAccToMat<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, false>();
+    CheckTMovAccValid<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, false>();
     static_assert(FpTileData::Loc == TileType::Scaling, "Fp only support Scaling.");
     constexpr QuantMode_t quantPre = GetVectorPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
     uint16_t m = src.GetValidRow();
     uint16_t n = src.GetValidCol();
     SetFPC<FpTileData>(fp.data());
-    TMovCcToCb<DstTileData, SrcTileData, quantPre, reluMode>(dst.data(), src.data(), m, n);
+    if constexpr (DstTileData::Loc == TileType::Vec) {
+        TMovCcToUb<DstTileData, SrcTileData, quantPre, reluMode, Phase>(dst.data(), src.data(), m, n);
+    } else if constexpr (DstTileData::Loc == TileType::Mat) {
+        TMovCcToCb<DstTileData, SrcTileData, quantPre, reluMode>(dst.data(), src.data(), m, n);
+    }
 }
+
 } // namespace pto
 #endif // TMOV_HPP

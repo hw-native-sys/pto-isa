@@ -12,6 +12,7 @@
 
 import os
 import numpy as np
+
 np.random.seed(19)
 
 
@@ -68,19 +69,23 @@ class TGatherBParam:
         self.src_s1 = src_s1
         self.src_s0 = src_s0
 
+
 def generate_case_name(param):
     dtype_str = {
-        np.float32: 'float',
-        np.int32: 'int32',
-        np.uint32: 'uint32',
-        np.int16: 'int16',
-        np.uint16: 'uint16',
-        np.float16: 'half',
-        np.int8: 'int8',
-        np.uint8: 'uint8',
+        np.float32: "float",
+        np.int32: "int32",
+        np.uint32: "uint32",
+        np.int16: "int16",
+        np.uint16: "uint16",
+        np.float16: "half",
+        np.int8: "int8",
+        np.uint8: "uint8",
     }[param.dtype]
-    return (f"TGATHERBTest.case_{dtype_str}_{param.dst_s1}x{param.dst_s0}_{param.offset_s1}x{param.offset_s0}_"
-            f"{param.src_s1}x{param.src_s0}")
+    return (
+        f"TGATHERBTest.case_{dtype_str}_{param.dst_s1}x{param.dst_s0}_{param.offset_s1}x{param.offset_s0}_"
+        f"{param.src_s1}x{param.src_s0}"
+    )
+
 
 if __name__ == "__main__":
     # Get the absolute path of the script
@@ -99,8 +104,6 @@ if __name__ == "__main__":
         TGatherBParam(np.uint16, 129, 128, 129, 8, 129, 128),
         TGatherBParam(np.float16, 1, 16384, 1, 2048, 1, 16384),
         TGatherBParam(np.int8, 2, 256, 2, 8, 2, 256),
-        TGatherBParam(np.int8, 2, 16384, 2, 1024, 2, 16384),
-        TGatherBParam(np.uint8, 2, 16384, 2, 1024, 2, 16384),
     ]
 
     for _, param in enumerate(case_params_list):

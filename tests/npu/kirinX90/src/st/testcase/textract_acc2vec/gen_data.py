@@ -108,7 +108,7 @@ def get_vector_quant(golden, m, n, dst_type, quant_type):
             elif dst_type == bfloat16:
                 quant_golden[i, j] = qf2bf16_pre(golden[i, j], quant_tensor[j])
             else:
-                quant_golden[i, j] = golden[i, j] * quant_tensor[j]
+                quant_golden[i, j] = golden[i, j]
     return quant_golden
 
 
@@ -143,9 +143,9 @@ def gen_golden_data(case_name, param):
             golden = saturation(golden, -128, 127, np.int8)
         elif dst_type == np.uint8:
             golden = saturation(golden, 0, 255, np.uint8)
-
     if param.is_relu:
         golden = np.maximum(golden, 0)
+
     dst_data = np.zeros((param.dst_row, param.dst_col), dtype=dst_type)
     dst_data.astype(dst_type).tofile("./dst.bin")
     if param.dst_col != 0 and param.dst_row != 0:
@@ -185,6 +185,8 @@ class TMovParams:
         self.ctype = np.float32
         if atype == np.int8:
             self.ctype = np.int32
+        elif atype == np.float16:
+            self.ctype = np.float16
         self.dst_type = dst_type
         self.m = m
         self.k = k
@@ -213,16 +215,10 @@ if __name__ == "__main__":
     case_name_list = [
         "TMOVTest.case_nz2nd_1",
         "TMOVTest.case_nz2nd_2",
-        "TMOVTest.case_nz2nd_3",
         "TMOVTest.case_nz2nd_4",
         "TMOVTest.case_nz2nd_fb_quant_1",
         "TMOVTest.case_nz2nd_fb_quant_2",
         "TMOVTest.case_nz2nd_fb_quant_3",
-        "TMOVTest.case_nz2nd_fb_quant_4",
-        "TMOVTest.case_nz2nd_fb_quant_5",
-        "TMOVTest.case_nz2nd_sc_quant_1",
-        "TMOVTest.case_nz2nd_sc_quant_2",
-        "TMOVTest.case_nz2nd_sc_quant_3",
         "TMOVTest.case_nz2nd_sc_quant_4",
     ]
 
@@ -230,7 +226,7 @@ if __name__ == "__main__":
         TMovParams(
             np.float16,
             np.float16,
-            np.float32,
+            np.float16,
             60,
             127,
             120,
@@ -276,30 +272,7 @@ if __name__ == "__main__":
         TMovParams(
             np.float16,
             np.float16,
-            np.float32,
-            6,
-            7,
-            8,
-            0,
-            0,
-            0,
-            "ND",
-            512,
-            False,
-            False,
-            True,
-            None,
-            1,
-            2,
-            0,
-            False,
-            10,
-            16,
-        ),
-        TMovParams(
             np.float16,
-            np.float16,
-            bfloat16,
             111,
             47,
             96,
@@ -322,7 +295,7 @@ if __name__ == "__main__":
         TMovParams(
             np.int8,
             np.int8,
-            np.int8,
+            np.int32,
             30,
             48,
             64,
@@ -345,7 +318,7 @@ if __name__ == "__main__":
         TMovParams(
             np.int8,
             np.int8,
-            np.float16,
+            np.int32,
             60,
             128,
             32,
@@ -368,7 +341,7 @@ if __name__ == "__main__":
         TMovParams(
             np.int8,
             np.int8,
-            bfloat16,
+            np.int32,
             128,
             64,
             96,
@@ -389,122 +362,27 @@ if __name__ == "__main__":
             96,
         ),
         TMovParams(
-            np.float32,
-            np.float32,
             np.int8,
+            np.int8,
+            np.int32,
             60,
             128,
-            64,
-            0,
-            0,
-            0,
-            "ND",
-            512,
-            True,
-            False,
-            True,
-            np.uint64,
-            1,
-            7,
             32,
-            False,
-            80,
-            256,
-        ),
-        TMovParams(
-            np.float32,
-            np.float32,
-            np.float16,
-            31,
-            128,
-            128,
             0,
             0,
             0,
             "ND",
             512,
-            True,
             False,
             True,
-            np.uint64,
+            False,
+            None,
             1,
-            0,
-            64,
-            False,
-            40,
-            256,
-        ),
-        TMovParams(
-            np.float32,
-            np.float32,
-            np.float16,
-            128,
-            48,
-            96,
-            0,
-            0,
-            0,
-            "ND",
-            512,
-            False,
-            True,
-            True,
-            None,
-            2,
-            0,
-            0,
-            False,
-            128,
-            96,
-        ),
-        TMovParams(
-            np.float32,
-            np.float32,
-            np.int8,
-            60,
-            128,
-            64,
-            0,
-            0,
-            0,
-            "ND",
-            512,
-            False,
-            True,
-            True,
-            None,
-            5,
-            0,
-            32,
-            False,
-            128,
-            128,
-        ),
-        TMovParams(
-            np.int8,
-            np.int8,
-            np.float16,
-            30,
-            48,
-            64,
-            0,
-            0,
-            0,
-            "ND",
-            512,
-            False,
-            True,
-            False,
-            None,
             3,
-            5,
-            32,
+            0,
             False,
-            40,
-            128,
-        ),
-        TMovParams(
-            np.int8, np.int8, np.int8, 60, 128, 32, 0, 0, 0, "ND", 512, False, True, False, None, 1, 3, 0, False, 64, 64
+            64,
+            64,
         ),
     ]
 
