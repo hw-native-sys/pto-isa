@@ -115,7 +115,7 @@ __tf__ AICORE void TExtractToAVector(typename DstTileData::TileDType __out__ dst
     int32_t kAlign = (dstValidCol + fractalSize - 1) & ~(fractalSize - 1);
     uint16_t baseIdx = indexCol * sizeof(DataType) >> SHIFT_FRACTAL_BYTE;
     uint8_t repeatTimes = kAlign / fractalSize;
-    load_cbuf_to_ca(dstAddr, srcAddr, baseIdx, repeatTimes, 1, 0, 0, false, false, addr_cal_mode_t(0));
+    pto_load_cbuf_to_ca(dstAddr, srcAddr, baseIdx, repeatTimes, 1, 0);
 }
 
 template <typename DstType, typename SrcType, int32_t srcRow, int32_t srcCol, int32_t dstRow, int32_t dstCol>
@@ -434,36 +434,6 @@ PTO_INTERNAL void TEXTRACT_CONVTILE_IMPL(DstTileData &dst, SrcTileData &src, uin
         TExtractToBConv<DstTileData, SrcTileData>(dst.data(), src.data(), src.GetShape(3), dst.GetValidRow(),
                                                   dst.GetValidCol(), indexRow, indexCol);
     }
-}
-
-template <typename DstTileData, typename SrcTileData, QuantMode_t QuantPre, ReluPreMode reluMode>
-__tf__ AICORE void TExtractAccToMat(typename DstTileData::TileDType __out__ dst,
-                                    typename SrcTileData::TileDType __in__ src, uint16_t validRow, uint16_t validCol,
-                                    uint16_t indexRow, uint16_t indexCol)
-{
-    using SrcType = typename SrcTileData::DType;
-    using DstType = typename DstTileData::DType;
-    constexpr int32_t c0Size = BLOCK_BYTE_SIZE / sizeof(DstType);
-    uint32_t srcOffset = SrcTileData::Rows * ACC_C0_SIZE * (indexCol / ACC_C0_SIZE) +
-                         (indexRow * ACC_C0_SIZE + (indexCol % ACC_C0_SIZE));
-    __cc__ SrcType *srcAddr = (__cc__ SrcType *)__cce_get_tile_ptr(src) + srcOffset;
-    __cbuf__ DstType *dstAddr = (__cbuf__ DstType *)__cce_get_tile_ptr(dst);
-
-    constexpr uint32_t dstStrideD = DstTileData::Rows;
-    constexpr uint16_t srcStride = SrcTileData::Rows;
-    uint16_t nSize = CeilDivision(validCol, c0Size) * c0Size;
-    copy_matrix_cc_to_cbuf(dstAddr, srcAddr, 0, nSize, validRow, dstStrideD, srcStride, 0, QuantPre, reluMode, false,
-                           false);
-}
-
-template <typename DstTileData, typename SrcTileData, typename DstType, typename SrcType>
-PTO_INTERNAL void CheckTExtract()
-{
-    static_assert((SrcTileData::Loc == TileType::Acc) || std::is_same<DstType, SrcType>::value,
-                  "TExtract: Destination and Source tile data types must be the same.");
-    static_assert(std::is_same<DstType, int8_t>::value || std::is_same<DstType, half>::value ||
-                      std::is_same<DstType, bfloat16_t>::value || std::is_same<DstType, float>::value,
-                  "TExtract: Invalid data type.");
 }
 
 template <typename DstTileData, typename SrcTileData>

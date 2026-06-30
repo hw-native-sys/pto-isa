@@ -21,9 +21,12 @@ using namespace pto;
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols>
 __global__ AICORE void CONCAT(run, CASENAME)(__gm__ T *out, __gm__ T *src0, __gm__ T *src1)
 {
-    using DynShapeDim5 = Shape<1, 1, 1, vRows, vCols>;
-    using DynStridDim5 = pto::Stride<1, 1, 1, kTCols_, 1>;
-    using GlobalData = GlobalTensor<T, DynShapeDim5, DynStridDim5>;
+    using DynShapeSrc = Shape<1, 1, 1, vRows, vCols>;
+    using DynStrideSrc = pto::Stride<1, 1, 1, kTCols_, 1>;
+    using GlobalDataSrc = GlobalTensor<T, DynShapeSrc, DynStrideSrc>;
+    using DynShapeDst = Shape<1, 1, 1, vRows, 1>;
+    using DynStrideDst = pto::Stride<1, 1, 1, kTCols_, 1>;
+    using GlobalDataDst = GlobalTensor<T, DynShapeDst, DynStrideDst>;
     using TileData = Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>;
     TileData src0Tile(vRows, vCols);
     TileData src1Tile;
@@ -34,9 +37,9 @@ __global__ AICORE void CONCAT(run, CASENAME)(__gm__ T *out, __gm__ T *src0, __gm
     TASSIGN<kTRows_ * kTCols_ * sizeof(T) * 2>(tmpTile);
     TASSIGN<kTRows_ * kTCols_ * sizeof(T) * 3>(dstTile);
 
-    GlobalData src0Global(src0);
-    GlobalData src1Global(src1);
-    GlobalData dstGlobal(out);
+    GlobalDataSrc src0Global(src0);
+    GlobalDataSrc src1Global(src1);
+    GlobalDataDst dstGlobal(out);
 
     TLOAD(src0Tile, src0Global);
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);

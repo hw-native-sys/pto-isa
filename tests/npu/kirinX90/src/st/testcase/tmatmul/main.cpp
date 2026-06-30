@@ -143,6 +143,9 @@ void tmatmul_bias_test(uint32_t M, uint32_t K, uint32_t N)
     size_t bFileSize = K * N * sizeof(S);
     size_t cFileSize = M * N * sizeof(T);
     size_t biasFileSize = 1 * N * sizeof(B);
+    if constexpr (std::is_same_v<T, aclFloat16>) {
+        biasFileSize = 2 * N * sizeof(B);
+    }
 
     aclInit(nullptr);
     aclrtSetDevice(0);

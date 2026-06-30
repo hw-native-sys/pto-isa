@@ -46,6 +46,20 @@ PTO_INTERNAL void pto_load_cbuf_to_cb(__cb__ T *dst, __cbuf__ T *src, uint16_t m
 }
 #endif
 
+#if defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_KIRINX90)
+using __cce_scalar::addr_cal_mode_t;
+template <typename T>
+PTO_INTERNAL void pto_load_cbuf_to_ca(__ca__ T *dst, __cbuf__ T *src, uint16_t baseIdx, uint8_t repeat,
+                                      uint16_t srcStride, uint16_t dstStride)
+{
+#if defined(PTO_NPU_ARCH_A2A3)
+    load_cbuf_to_ca(dst, src, baseIdx, repeat, srcStride, dstStride, 0, false, addr_cal_mode_t(0));
+#elif defined(PTO_NPU_ARCH_KIRINX90)
+    load_cbuf_to_ca(dst, src, baseIdx, repeat, srcStride, dstStride, false, addr_cal_mode_t(0));
+#endif
+}
+#endif
+
 #if defined(PTO_NPU_ARCH_A2A3)
 template <typename T>
 PTO_INTERNAL void pto_vgatherb(__ubuf__ T *dst, __ubuf__ uint32_t *src, uint32_t offsetAddr, uint16_t dstRepeatStride,

@@ -113,7 +113,7 @@ PTO_INTERNAL constexpr QuantMode_t GetVectorPreQuantMode()
 
     return QuantMode_t::NoQuant;
 }
-
+#if defined(PTO_NPU_ARCH_KIRIN9030)
 template <typename DstTileData, typename SrcTileData, typename DstType, typename SrcType, bool isQuant = false>
 PTO_INTERNAL void CheckTMovAccValid()
 {
@@ -144,7 +144,7 @@ PTO_INTERNAL void CheckTMovAccValid()
                       (!DstTileData::isRowMajor && DstTileData::SFractal == SLayout::RowMajor),
                   "Only support nz2nz, nz2nd or nz2dn.");
 }
-
+#endif
 template <typename DstTile, typename SrcTile, AccToVecMode mode, QuantMode_t quantPre>
 PTO_INTERNAL constexpr uint8_t GetDualDstCtl()
 {

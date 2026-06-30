@@ -36,7 +36,7 @@ AICORE constexpr inline T CeilDiv(T num_1, T num_2)
 }
 
 template <typename T>
-using CType = typename std::conditional<std::is_same<T, int8_t>::value, int32_t, float>::type;
+using CType = typename std::conditional<std::is_same<T, int8_t>::value, int32_t, half>::type;
 
 template <int subBlockId, int DualDstCtl>
 AICORE inline constexpr uint8_t getMode()
@@ -193,27 +193,28 @@ AICORE inline void UBCopyOut(GlobalData &dst, TileData &src, int rows, int cols,
                                              burstDstStride, burstSrcStride, tileStride);
 }
 
-template <typename OutType, typename SrcTileData, int validM, int validN, Layout layoutType = Layout::ND,
-          int sfractalSize = 512>
+template <typename OutType, typename SrcTileData, int shapeM, int shapeN, int strideM, int strideN,
+          Layout layoutType = Layout::ND, int sfractalSize = 512>
 AICORE inline void RunTSTORE(__gm__ OutType *out, SrcTileData &srcTile)
 {
     if constexpr (layoutType == Layout::ND) {
         using GlobalDataOut =
-            GlobalTensor<OutType, pto::Shape<1, 1, 1, 60, 104>,
-                         pto::Stride<1 * validM * validN, 1 * validM * validN, validM * validN, validN, 1>>;
+            GlobalTensor<OutType, pto::Shape<1, 1, 1, shapeM, shapeN>,
+                         pto::Stride<1 * strideM * strideN, 1 * strideM * strideN, strideM * strideN, strideN, 1>>;
         GlobalDataOut dstGlobal(out);
         TSTORE(dstGlobal, srcTile);
     } else if constexpr (layoutType == Layout::DN) {
         using GlobalDataOut =
-            GlobalTensor<OutType, pto::Shape<1, 1, 1, validM, validN>,
-                         pto::Stride<1 * validM * validN, 1 * validM * validN, validM * validN, 1, validM>, layoutType>;
+            GlobalTensor<OutType, pto::Shape<1, 1, 1, shapeM, shapeN>,
+                         pto::Stride<1 * strideM * strideN, 1 * strideM * strideN, strideM * strideN, 1, strideM>,
+                         layoutType>;
         GlobalDataOut dstGlobal(out);
         TSTORE(dstGlobal, srcTile);
     } else if constexpr (layoutType == Layout::NZ) {
         constexpr uint16_t sGRows_ = 16;
         constexpr uint16_t sGCols_ = CeilDiv<uint16_t>(sfractalSize, sGRows_ * sizeof(OutType));
-        constexpr uint16_t kGRows_ = CeilDiv<uint16_t>(validM, sGRows_);
-        constexpr uint16_t kGCols_ = CeilDiv<uint16_t>(validN, sGCols_);
+        constexpr uint16_t kGRows_ = CeilDiv<uint16_t>(shapeM, sGRows_);
+        constexpr uint16_t kGCols_ = CeilDiv<uint16_t>(shapeN, sGCols_);
         using DynShapeDim5 = Shape<1, kGCols_, kGRows_, sGRows_, sGCols_>;
         using DynStridDim5 = pto::Stride<kGCols_ * kGRows_ * sGCols_ * sGRows_, kGRows_ * sGCols_ * sGRows_,
                                          sGCols_ * sGRows_, sGCols_, 1>;
@@ -223,7 +224,7 @@ AICORE inline void RunTSTORE(__gm__ OutType *out, SrcTileData &srcTile)
         if (sfractalSize == 512) {
             TSTORE(dstGlobal, srcTile);
         } else {
-            UBCopyOut<OutType, GlobalDataOut, SrcTileData>(dstGlobal, srcTile, validM, validN, 0);
+            UBCopyOut<OutType, GlobalDataOut, SrcTileData>(dstGlobal, srcTile, shapeM, shapeN, 0);
         }
     }
 }
@@ -325,9 +326,15 @@ __global__ AICORE void RunTMOV(__gm__ OutType *out, __gm__ AType *src0, __gm__ B
     wait_flag(PIPE_FIX, PIPE_MTE3, EVENT_ID0);
 #endif
 
-    int64_t idx = get_block_idx() * get_subblockdim() + get_subblockid();
-    if (idx == subBlockId) {
-        RunTSTORE<OutType, DstTileData, staticRow, staticCol, layoutType, sfractalSize>(out, dstTileData);
+    if constexpr (subBlockId == 0) {
+        RunTSTORE<OutType, DstTileData, copyOutM, copyOutN, staticRow, staticCol, layoutType, sfractalSize>(
+            out, dstTileData);
+    } else {
+        int64_t idx = get_block_idx() * get_subblockdim() + get_subblockid();
+        if (idx == subBlockId) {
+            RunTSTORE<OutType, DstTileData, copyOutM, copyOutN, staticRow, staticCol, layoutType, sfractalSize>(
+                out, dstTileData);
+        }
     }
 }
 
@@ -417,9 +424,15 @@ __global__ AICORE void RunTMOVFBQuant(__gm__ OutType *out, __gm__ AType *src0, _
     wait_flag(PIPE_FIX, PIPE_MTE3, EVENT_ID0);
 #endif
 
-    int64_t idx = get_block_idx() * get_subblockdim() + get_subblockid();
-    if (idx == subBlockId) {
-        RunTSTORE<OutType, DstTileData, staticRow, staticCol, layoutType, sfractalSize>(out, dstTileData);
+    if constexpr (subBlockId == 0) {
+        RunTSTORE<OutType, DstTileData, copyOutM, copyOutN, staticRow, staticCol, layoutType, sfractalSize>(
+            out, dstTileData);
+    } else {
+        int64_t idx = get_block_idx() * get_subblockdim() + get_subblockid();
+        if (idx == subBlockId) {
+            RunTSTORE<OutType, DstTileData, copyOutM, copyOutN, staticRow, staticCol, layoutType, sfractalSize>(
+                out, dstTileData);
+        }
     }
 }
 
@@ -488,9 +501,15 @@ __global__ AICORE void RunTMOVSCQuant(__gm__ OutType *out, __gm__ AType *src0, _
     wait_flag(PIPE_FIX, PIPE_MTE3, EVENT_ID0);
 #endif
 
-    int64_t idx = get_block_idx() * get_subblockdim() + get_subblockid();
-    if (idx == subBlockId) {
-        RunTSTORE<OutType, DstTileData, staticRow, staticCol, layoutType, sfractalSize>(out, dstTileData);
+    if constexpr (subBlockId == 0) {
+        RunTSTORE<OutType, DstTileData, copyOutM, copyOutN, staticRow, staticCol, layoutType, sfractalSize>(
+            out, dstTileData);
+    } else {
+        int64_t idx = get_block_idx() * get_subblockdim() + get_subblockid();
+        if (idx == subBlockId) {
+            RunTSTORE<OutType, DstTileData, copyOutM, copyOutN, staticRow, staticCol, layoutType, sfractalSize>(
+                out, dstTileData);
+        }
     }
 }
 
@@ -508,10 +527,6 @@ void LaunchTMOVAcc2VecNZ2ND(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t 
         RunTMOV<half, half, half, 110, 100, 80, 112, 80, 0, false, true, Layout::ND, 512, 5, 0, false, 120, 96>
             <<<1, nullptr, stream>>>(reinterpret_cast<half *>(out), reinterpret_cast<half *>(src0),
                                      reinterpret_cast<half *>(src1), reinterpret_cast<half *>(src2));
-    } else if constexpr (tilingKey == 3) {
-        RunTMOV<half, half, half, 6, 7, 8, 32, 32, 1, false, true, Layout::ND, 512, 2, 0, false, 10, 16>
-            <<<1, nullptr, stream>>>(reinterpret_cast<half *>(out), reinterpret_cast<half *>(src0),
-                                     reinterpret_cast<half *>(src1), reinterpret_cast<half *>(src2));
     } else if constexpr (tilingKey == 4) {
         RunTMOV<half, half, half, 111, 47, 96, 112, 96, 0, false, true, Layout::ND, 512, 3, 32, false, 150, 160>
             <<<1, nullptr, stream>>>(reinterpret_cast<half *>(out), reinterpret_cast<half *>(src0),
@@ -521,7 +536,6 @@ void LaunchTMOVAcc2VecNZ2ND(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t 
 
 template void LaunchTMOVAcc2VecNZ2ND<1>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
 template void LaunchTMOVAcc2VecNZ2ND<2>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
-template void LaunchTMOVAcc2VecNZ2ND<3>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
 template void LaunchTMOVAcc2VecNZ2ND<4>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
 
 template <int32_t tilingKey>
@@ -564,20 +578,7 @@ void LaunchTMOVAcc2VecSCQuantNZ2ND(uint8_t *out, uint8_t *src0, uint8_t *src1, u
     // subBlockId = 0, isNZUnalign = false, isRelu = false, layoutType = Layout::ND,
     // sfractalSize = 512,
     // indexRow = 0, indexCol = 0, isInsert = false, dstRow = 0, dstCol = 0
-    if constexpr (tilingKey == 1) {
-        RunTMOVSCQuant<half, half, half, 128, 48, 96, 128, 96, 0, false, true, Layout::ND, 512, 0, 0, false, 128, 96>
-            <<<1, nullptr, stream>>>(reinterpret_cast<half *>(out), reinterpret_cast<half *>(src0),
-                                     reinterpret_cast<half *>(src1), reinterpret_cast<half *>(src2), 2);
-    } else if constexpr (tilingKey == 2) {
-        RunTMOVSCQuant<half, half, half, 60, 128, 64, 64, 64, 0, false, true, Layout::ND, 512, 0, 32, false, 128, 128>
-            <<<1, nullptr, stream>>>(reinterpret_cast<half *>(out), reinterpret_cast<half *>(src0),
-                                     reinterpret_cast<half *>(src1), reinterpret_cast<half *>(src2), 5);
-    } else if constexpr (tilingKey == 3) {
-        RunTMOVSCQuant<int32_t, int8_t, int8_t, 30, 48, 64, 32, 64, 0, false, false, Layout::ND, 512, 5, 32, false, 40,
-                       128><<<1, nullptr, stream>>>(reinterpret_cast<int32_t *>(out), reinterpret_cast<int8_t *>(src0),
-                                                    reinterpret_cast<int8_t *>(src1), reinterpret_cast<int32_t *>(src2),
-                                                    3);
-    } else if constexpr (tilingKey == 4) {
+    if constexpr (tilingKey == 4) {
         RunTMOVSCQuant<int32_t, int8_t, int8_t, 60, 128, 32, 64, 32, 0, false, false, Layout::ND, 512, 3, 0, false, 64,
                        64><<<1, nullptr, stream>>>(reinterpret_cast<int32_t *>(out), reinterpret_cast<int8_t *>(src0),
                                                    reinterpret_cast<int8_t *>(src1), reinterpret_cast<int32_t *>(src2),
@@ -585,7 +586,4 @@ void LaunchTMOVAcc2VecSCQuantNZ2ND(uint8_t *out, uint8_t *src0, uint8_t *src1, u
     }
 }
 
-template void LaunchTMOVAcc2VecSCQuantNZ2ND<1>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
-template void LaunchTMOVAcc2VecSCQuantNZ2ND<2>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
-template void LaunchTMOVAcc2VecSCQuantNZ2ND<3>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
 template void LaunchTMOVAcc2VecSCQuantNZ2ND<4>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);

@@ -15,7 +15,6 @@ import numpy as np
 
 np.random.seed(20260127)
 
-
 def gen_golden_data(case_name, param):
     a_type = param.atype
     b_type = param.btype
@@ -26,7 +25,7 @@ def gen_golden_data(case_name, param):
 
     x1_gm = np.random.randint(-10, 10, [m, k]).astype(a_type)
     x2_gm = np.random.randint(-10, 10, [k, n]).astype(b_type)
-    bias_gm = np.random.randint(-1000, 1000, [n]).astype(bias_type)
+    bias_raw = np.random.randint(-1000, 1000, [n]).astype(bias_type)
 
     if is_atrans:
         x1_gm = x1_gm.transpose()
@@ -37,11 +36,17 @@ def gen_golden_data(case_name, param):
     x2_gm.tofile("./x2_gm.bin")
 
     if is_bias:
-        golden = np.matmul(x1_gm.astype(dst_type), x2_gm.astype(dst_type)).astype(dst_type) + bias_gm.astype(dst_type)
+        golden = np.matmul(x1_gm.astype(dst_type), x2_gm.astype(dst_type)).astype(dst_type) + bias_raw.astype(dst_type)
+        if bias_type == np.float16:
+            bias_gm = np.zeros(2 * n, dtype=np.float16)
+            bias_gm[0::2] = bias_raw
+        else:
+            bias_gm = bias_raw
+        bias_gm.tofile("./bias_gm.bin")
     else:
         golden = np.matmul(x1_gm.astype(dst_type), x2_gm.astype(dst_type)).astype(dst_type)
+        bias_raw.tofile("./bias_gm.bin")
 
-    bias_gm.tofile("./bias_gm.bin")
     golden.tofile("./golden.bin")
 
 
