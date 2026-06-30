@@ -30,7 +30,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 //        copy_neighbor_sram_to_sram(...).
 //
 // The skeleton implementation converts Tile descriptors to UB pointers, then
-// lets grid_sram_intrinsic.hpp choose native builtin vs A2/A3 mock lowering.
+// lets grid_intrinsic.hpp choose native builtin vs A2/A3 mock lowering.
 // Keeping this adapter outside GridTPush/GridTPop preserves the generic payload
 // protocol while this demo owns the concrete PTO Tile representation.
 
@@ -39,7 +39,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <cstdint>
 
-#include <pto/common/grid_sram_intrinsic.hpp>
+#include <pto/npu/a2a3/grid_intrinsic.hpp>
 
 #include "common.hpp" // HcclRemotePtr, HcclDeviceContext
 
@@ -61,6 +61,21 @@ AICORE inline uint64_t ResolvePeerWindowAddress(__gm__ void *runtimeCtx, uint64_
 AICORE inline neighbor_sram_addr LocalSramAddr(__gm__ uint8_t *localSlot)
 {
     return neighbor_sram_addr{reinterpret_cast<uint64_t>(localSlot)};
+}
+
+// View the demo's per-cell GM windows as the GmSramArena address-segment model
+// of per-core SRAM.  The host lays the windows out contiguously
+// (windowsIn[i] == windowsIn[0] + i*winSize), so segment c == window c == the
+// private SRAM of core c.  This is the single source of truth the TPOP guard
+// uses to decide whether a read stays inside the caller's own segment.
+AICORE inline GmSramArena SramArenaFromCtx(__gm__ void *runtimeCtx)
+{
+    auto *ctx = reinterpret_cast<__gm__ HcclDeviceContext *>(runtimeCtx);
+    GmSramArena arena;
+    arena.base = ctx->windowsIn[0];
+    arena.segBytes = ctx->winSize;
+    arena.numSegs = ctx->rankNum;
+    return arena;
 }
 
 AICORE inline __gm__ uint32_t *RemoteCounterPtr(__gm__ void *runtimeCtx, __gm__ uint32_t *localCounter, int peerRank)
@@ -126,6 +141,14 @@ AICORE inline void MockCopyNeighborSramToSram(neighbor_sram_addr dst, neighbor_s
         copy_gm_to_ubuf_align_b8(dstBytes + offset, srcBytes + offset, 0, 1, chunk, 0, 0, 0, 0);
         offset += chunk;
     }
+}
+
+AICORE inline bool MockSramPopIsLocal(__gm__ void *runtimeCtx, uint64_t slotAddr, uint32_t bytes, int32_t callerRank)
+{
+    // Enforce the NoC "TPOP only pops local SRAM" rule: the read is legal only
+    // when the whole slot lies inside the caller core's own arena segment.
+    GmSramArena arena = a2a3_grid_payload::SramArenaFromCtx(runtimeCtx);
+    return arena.InSegment(callerRank, slotAddr, static_cast<uint64_t>(bytes));
 }
 
 } // namespace grid_sram_mock

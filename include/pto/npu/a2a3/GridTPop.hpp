@@ -15,22 +15,23 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <cstdint>
 
-#include <pto/common/grid_counter_intrinsic.hpp>
-#include <pto/common/grid_pipe.hpp>
-#include <pto/common/grid_pipe_mock_spr.hpp>
 #include <pto/npu/a2a3/GridTPush.hpp> // for a2a3_grid_payload hooks
+#include <pto/npu/a2a3/grid_intrinsic.hpp>
 #include <pto/npu/a2a3/grid_pipe_runtime.hpp>
 
 namespace pto {
 
-template <pto::GridDirection Dir, typename Pipe, typename TileCons>
+template <pto::GridDirection Dir, int Dist, typename Pipe, typename TileCons>
 AICORE bool GRID_TRY_TPOP_IMPL(Pipe &pipe, TileCons &tile, uint32_t maxSpins = grid_mock::kDefaultWfeMaxSpins)
 {
+    static_assert(Dist >= 1, "GridPipe TPOP distance must be >= 1 (routed K-hop unicast)");
+
     constexpr int dirIdx = GridDirectionIndex(Dir);
 
-    // SOURCE TPOP is always legal (CanPop returns true); other directions
-    // require the appropriate neighbor to exist.
-    if (!CanPop(Dir, pipe.coord, pipe.shape)) {
+    // SOURCE TPOP is always legal (CanPopK returns true regardless of Dist);
+    // other directions require the K-hop upstream to exist.  Dist == 1 is the
+    // original nearest-neighbor path.
+    if (!CanPopK(Dir, pipe.coord, pipe.shape, Dist)) {
         grid_mock::MockBoundaryFault(pipe.freeFlags[dirIdx], grid_mock::PopFaultCode(Dir));
         return false;
     }
@@ -55,6 +56,20 @@ AICORE bool GRID_TRY_TPOP_IMPL(Pipe &pipe, TileCons &tile, uint32_t maxSpins = g
     __gm__ uint8_t *localSlot = pipe.slotBase[dirIdx] + slotOff;
     neighbor_sram_addr localSramSlot = a2a3_grid_payload::LocalSramAddr(localSlot);
 
+    // Step 2.5: NoC read-locality guard.  A TPOP may only drain *this* core's
+    // own SRAM segment -- the fabric has no remote-read path (TPUSH writes
+    // across hops, TPOP reads local only).  The slot is local by construction,
+    // but the A2/A3 mock backs SRAM with a GM-mapped window that can be read at
+    // any address, so we validate `localSramSlot` against this core's
+    // GmSramArena segment and trap a cross-segment read as kFaultPopNonLocal
+    // instead of silently servicing it.  Native lowering is a no-op (true).
+    const int selfRank = RankFromCoord(pipe.coord, pipe.shape);
+    NeighborSramOperand popSramOperand{pipe.runtimeCtx};
+    if (!sram_pop_is_local(localSramSlot, Pipe::SlotBytes, selfRank, popSramOperand)) {
+        grid_mock::MockSetFault(pipe.freeFlags[dirIdx] + grid_mock::kFaultFlagWordOffset, grid_mock::kFaultPopNonLocal);
+        return false;
+    }
+
     // Step 3: payload transfer from local slot to consumer tile buffer.
     //   LPU WSE: tmov tile_buf, [r_slot]
     // Adapter bridges Tile storage to copy_neighbor_sram_to_sram(...).
@@ -69,12 +84,12 @@ AICORE bool GRID_TRY_TPOP_IMPL(Pipe &pipe, TileCons &tile, uint32_t maxSpins = g
 #if defined(PTO_GRID_COUNTER_NATIVE_INTRINSIC)
         NeighborCounterOperand freeCounter{};
 #else
-        const int peerRank = NeighborRankForPop(Dir, pipe.coord, pipe.shape);
+        const int peerRank = RankForPopK(Dir, pipe.coord, pipe.shape, Dist);
         __gm__ uint32_t *peerFree =
             a2a3_grid_payload::RemoteCounterPtr(pipe.runtimeCtx, pipe.freeFlags[dirIdx], peerRank);
         NeighborCounterOperand freeCounter{peerFree};
 #endif
-        mtspr_neighbor_counter(NeighborCounterKind::Free, dirIdx, idx + 1, freeCounter);
+        mtspr_neighbor_counter(NeighborCounterKind::Free, dirIdx, Dist, idx + 1, freeCounter);
     }
 
     // Step 5: bump local consumer index.
@@ -82,10 +97,10 @@ AICORE bool GRID_TRY_TPOP_IMPL(Pipe &pipe, TileCons &tile, uint32_t maxSpins = g
     return true;
 }
 
-template <pto::GridDirection Dir, typename Pipe, typename TileCons>
+template <pto::GridDirection Dir, int Dist, typename Pipe, typename TileCons>
 AICORE void GRID_TPOP_IMPL(Pipe &pipe, TileCons &tile)
 {
-    (void)GRID_TRY_TPOP_IMPL<Dir, Pipe, TileCons>(pipe, tile, 0);
+    (void)GRID_TRY_TPOP_IMPL<Dir, Dist, Pipe, TileCons>(pipe, tile, 0);
 }
 
 } // namespace pto

@@ -8,7 +8,14 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-// A2/A3 backend for GridPipe TPUSH<Direction>.
+// A2/A3 backend for GridPipe TPUSH<Direction, Dist>.
+//
+// Dist is the hop count of a routed unicast push (Dist == 1 is the original
+// nearest-neighbor behavior).  Scheme A: a K-hop unicast keeps the receiver's
+// per-direction slot/flag state at fan-in 1, so distance only changes the
+// resolved target rank and the doorbell reach -- the window layout, slot rings,
+// flag counts and the TPOP read-locality guard are all unchanged.  See
+// RankForPushK/CanPushK in grid_intrinsic.hpp and the design analysis 2026-06-02.
 //
 // Producer-side expansion uses:
 //   - wfe_neighbor_counter / mtspr_neighbor_counter for free/ready counters
@@ -24,10 +31,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <cstdint>
 
-#include <pto/common/grid_counter_intrinsic.hpp>
-#include <pto/common/grid_pipe.hpp>
-#include <pto/common/grid_pipe_mock_spr.hpp>
-#include <pto/common/grid_sram_intrinsic.hpp>
+#include <pto/npu/a2a3/grid_intrinsic.hpp>
 #include <pto/npu/a2a3/grid_pipe_runtime.hpp>
 
 // Forward declaration: provided by demo's gridpipe_runtime adaptor.
@@ -56,17 +60,18 @@ namespace pto {
 // undefined primary template so attempts to instantiate it fail at link time
 // with a clear symbol name; the static_assert in pto_instr.hpp catches this
 // earlier at compile time.
-template <pto::GridDirection Dir, typename Pipe, typename TileProd>
+template <pto::GridDirection Dir, int Dist, typename Pipe, typename TileProd>
 AICORE bool GRID_TRY_TPUSH_IMPL(Pipe &pipe, TileProd &tile, uint32_t maxSpins = grid_mock::kDefaultWfeMaxSpins)
 {
     static_assert(Dir != GridDirection::SOURCE, "GridPipe TPUSH<SOURCE> is illegal (design doc 4.3)");
+    static_assert(Dist >= 1, "GridPipe TPUSH distance must be >= 1 (routed K-hop unicast)");
 
     constexpr int dirIdx = GridDirectionIndex(Dir);
 
-    // Boundary check. In production builds the compiler folds CanPush() against
-    // constexpr coord; here we keep the runtime check so dynamic coordinates
-    // still trap.
-    if (!CanPush(Dir, pipe.coord, pipe.shape)) {
+    // Boundary check. In production builds the compiler folds CanPushK() against
+    // constexpr coord/Dist; here we keep the runtime check so dynamic
+    // coordinates still trap.  Dist == 1 is the original nearest-neighbor path.
+    if (!CanPushK(Dir, pipe.coord, pipe.shape, Dist)) {
         grid_mock::MockBoundaryFault(pipe.readyFlags[dirIdx], grid_mock::PushFaultCode(Dir));
         return false;
     }
@@ -97,9 +102,11 @@ AICORE bool GRID_TRY_TPUSH_IMPL(Pipe &pipe, TileProd &tile, uint32_t maxSpins = 
     __gm__ uint8_t *localSlot = pipe.slotBase[dirIdx] + slotOff;
     neighbor_sram_addr localSramSlot = a2a3_grid_payload::LocalSramAddr(localSlot);
 
-    // Step 3: payload transfer to *neighbor's* SRAM slot region.
-    //   LPU WSE: tmov [r_slot], tile_buf   (slot is neighbor-mapped)
-    const int peerRank = NeighborRankForPush(Dir, pipe.coord, pipe.shape);
+    // Step 3: payload transfer to the *target's* SRAM slot region.  For Dist > 1
+    //   this is the rank Dist hops away along Dir (a routed write); the data is
+    //   delivered directly and does not land in intermediate cores' SRAM.
+    //   LPU WSE: tmov [r_slot], tile_buf   (slot is target-mapped)
+    const int peerRank = RankForPushK(Dir, pipe.coord, pipe.shape, Dist);
     neighbor_sram_addr remoteSramSlot{};
     NeighborSramOperand sramOperand{pipe.runtimeCtx};
     get_neighbor_sram_addr(remoteSramSlot, localSramSlot, dirIdx, peerRank, sramOperand);
@@ -123,8 +130,15 @@ AICORE bool GRID_TRY_TPUSH_IMPL(Pipe &pipe, TileProd &tile, uint32_t maxSpins = 
 #endif
     dsb(DSB_DDR);
 
-    // Step 4: trigger neighbor's ready flag.
+    // Step 4: trigger the target's ready flag.
     //   LPU WSE: mtspr SPR_RDY_<DIR>, r_idx + 1   (cross-core SPR write)
+    //
+    // Doorbell reach (Dist > 1): the A2/A3 mock routes the flag write to any
+    // rank via RemoteCounterPtr(peerRank), so K-hop works here as-is.  Native
+    // lowering must provide a routed remote-notify (or write-with-notify that
+    // piggybacks the doorbell on the data flit so it cannot overtake the
+    // payload); the direction-only SPR doorbell is adjacency-scoped.  Fan-in is
+    // 1 by Scheme A's precondition, so this stays a single-writer counter.
 #if defined(PTO_GRID_COUNTER_NATIVE_INTRINSIC)
     NeighborCounterOperand readyCounter{};
 #else
@@ -132,7 +146,7 @@ AICORE bool GRID_TRY_TPUSH_IMPL(Pipe &pipe, TileProd &tile, uint32_t maxSpins = 
         a2a3_grid_payload::RemoteCounterPtr(pipe.runtimeCtx, pipe.readyFlags[dirIdx], peerRank);
     NeighborCounterOperand readyCounter{neighborReady};
 #endif
-    mtspr_neighbor_counter(NeighborCounterKind::Ready, dirIdx, idx + 1, readyCounter);
+    mtspr_neighbor_counter(NeighborCounterKind::Ready, dirIdx, Dist, idx + 1, readyCounter);
 
     // Step 5: bump local producer index.
     //   LPU WSE: mtspr SPR_PROD_IDX_<DIR>, r_idx + 1
@@ -140,10 +154,120 @@ AICORE bool GRID_TRY_TPUSH_IMPL(Pipe &pipe, TileProd &tile, uint32_t maxSpins = 
     return true;
 }
 
-template <pto::GridDirection Dir, typename Pipe, typename TileProd>
+template <pto::GridDirection Dir, int Dist, typename Pipe, typename TileProd>
 AICORE void GRID_TPUSH_IMPL(Pipe &pipe, TileProd &tile)
 {
-    (void)GRID_TRY_TPUSH_IMPL<Dir, Pipe, TileProd>(pipe, tile, 0);
+    (void)GRID_TRY_TPUSH_IMPL<Dir, Dist, Pipe, TileProd>(pipe, tile, 0);
+}
+
+// ---------------------------------------------------------------------------
+// Single-source row/column broadcast (the TPUSH<GridSpan> overload).  ONE source delivers `tile` to
+// every other cell on its row (GridSpan::ROW = EAST arm + WEST arm) or column
+// (GridSpan::COL = NORTH + SOUTH).  Fan-in stays 1: within a phase only this
+// source writes any given receiver's per-direction channel, so no slot/flag
+// (Scheme B) expansion is needed -- a receiver east of the source drains it with
+// the ordinary TPOP<EAST, dist>, a receiver west with TPOP<WEST, dist>.
+//
+// This is a *true multicast*, NOT `for k: TPUSH<Dir, k>`.  The per-target
+// payload writes are issued back-to-back with NO intervening publish fence, so
+// the MTE3 bursts overlap in the data-mover queue, and the whole broadcast pays
+// exactly ONE pipe_barrier+dsb publish fence before ANY ready doorbell fires (a
+// per-hop TPUSH loop would pay one fence + one doorbell-round-trip per target).
+// Native LPU WSE lowering collapses each arm's write loop into a single fabric
+// multicast (write-with-notify replicated by the mesh routers); this batched
+// write + single fence + batched doorbell is the A2/A3 mock of that one op.
+//
+// Backpressure: single-shot (one broadcast per slot/phase).  A streaming
+// broadcast that reuses a slot would need the source to join N per-receiver free
+// credits; on one channel those N writers clobber a single monotonic free
+// counter, so multi-shot broadcast needs the lane-indexed free flags (Scheme B)
+// and is intentionally out of scope here.  prodIndex still advances so a later
+// unicast on the same direction stays consistent.
+// ---------------------------------------------------------------------------
+
+// Phase 1: write `tile` into every reachable target along `Dir` WITHOUT any
+// publish fence (the fence is hoisted to the caller so all arms' bursts overlap
+// and commit together).  Returns the number of targets written.
+template <pto::GridDirection Dir, typename Pipe, typename TileProd>
+AICORE int GridBcastArmWrite(Pipe &pipe, TileProd &tile)
+{
+    constexpr int dirIdx = GridDirectionIndex(Dir);
+    const uint32_t idx = pipe.prodIndex[dirIdx];
+    const uint32_t slotOff = (idx % static_cast<uint32_t>(Pipe::SlotCount)) * static_cast<uint32_t>(Pipe::SlotBytes);
+    __gm__ uint8_t *localSlot = pipe.slotBase[dirIdx] + slotOff;
+    neighbor_sram_addr localSramSlot = a2a3_grid_payload::LocalSramAddr(localSlot);
+    NeighborSramOperand sramOperand{pipe.runtimeCtx};
+
+    int nWritten = 0;
+    // Routed write to the cell k hops away along Dir, for every k up to the
+    // grid boundary.  Each target receives the payload directly at the same
+    // slot offset in its own window (the data does not relay through interior
+    // cores), so each receiver later drains it with TPOP<Dir, k>.
+    for (int k = 1; CanPushK(Dir, pipe.coord, pipe.shape, k); ++k) {
+        const int peerRank = RankForPushK(Dir, pipe.coord, pipe.shape, k);
+        neighbor_sram_addr remoteSramSlot{};
+        get_neighbor_sram_addr(remoteSramSlot, localSramSlot, dirIdx, peerRank, sramOperand);
+        a2a3_grid_payload::CopyTileToNeighborSramSlot<TileProd>(remoteSramSlot, tile, Pipe::SlotBytes);
+        ++nWritten;
+    }
+    return nWritten;
+}
+
+// Phase 2: ring the ready doorbell of every reachable target along `Dir`, called
+// ONLY after the single shared publish fence.  Bumps the local producer index
+// for this direction by one (one broadcast == one slot consumed on this arm).
+template <pto::GridDirection Dir, typename Pipe>
+AICORE void GridBcastArmRing(Pipe &pipe, int nWritten)
+{
+    if (nWritten == 0) {
+        return;
+    }
+    constexpr int dirIdx = GridDirectionIndex(Dir);
+    const uint32_t value = pipe.prodIndex[dirIdx] + 1;
+    for (int k = 1; CanPushK(Dir, pipe.coord, pipe.shape, k); ++k) {
+        const int peerRank = RankForPushK(Dir, pipe.coord, pipe.shape, k);
+#if defined(PTO_GRID_COUNTER_NATIVE_INTRINSIC)
+        NeighborCounterOperand readyCounter{};
+#else
+        __gm__ uint32_t *neighborReady =
+            a2a3_grid_payload::RemoteCounterPtr(pipe.runtimeCtx, pipe.readyFlags[dirIdx], peerRank);
+        NeighborCounterOperand readyCounter{neighborReady};
+#endif
+        mtspr_neighbor_counter(NeighborCounterKind::Ready, dirIdx, static_cast<uint32_t>(k), value, readyCounter);
+    }
+    pipe.prodIndex[dirIdx] = value;
+}
+
+template <pto::GridSpan Span, typename Pipe, typename TileProd>
+AICORE bool GRID_TRY_TPUSH_BCAST_IMPL(Pipe &pipe, TileProd &tile)
+{
+    constexpr GridDirection dirA = SpanArmA(Span);
+    constexpr GridDirection dirB = SpanArmB(Span);
+
+    // Phase 1: batched, fence-free payload writes to both arms (bursts overlap).
+    const int nA = GridBcastArmWrite<dirA, Pipe, TileProd>(pipe, tile);
+    const int nB = GridBcastArmWrite<dirB, Pipe, TileProd>(pipe, tile);
+    if (nA + nB == 0) {
+        return true; // isolated cell: nothing on either arm.
+    }
+
+    // Single publish fence (D-5) for the ENTIRE multicast, hoisted out of the
+    // per-target loops so every burst above commits before any doorbell below.
+#ifndef __PTO_AUTO__
+    pipe_barrier(PIPE_ALL);
+#endif
+    dsb(DSB_DDR);
+
+    // Phase 2: batched ready doorbells to both arms.
+    GridBcastArmRing<dirA, Pipe>(pipe, nA);
+    GridBcastArmRing<dirB, Pipe>(pipe, nB);
+    return true;
+}
+
+template <pto::GridSpan Span, typename Pipe, typename TileProd>
+AICORE void GRID_TPUSH_BCAST_IMPL(Pipe &pipe, TileProd &tile)
+{
+    (void)GRID_TRY_TPUSH_BCAST_IMPL<Span, Pipe, TileProd>(pipe, tile);
 }
 
 } // namespace pto

@@ -143,6 +143,12 @@ static int GetDeviceId(int argc, char **argv)
     return 0;
 }
 
+static bool ShouldUseRtSetDevice()
+{
+    const char *value = std::getenv("FFN_GRID_USE_RT_SET_DEVICE");
+    return value != nullptr && value[0] != '\0' && value[0] != '0';
+}
+
 static bool InitAcl(int device_id)
 {
     constexpr int kAclRepeatInit = 100002;
@@ -154,13 +160,17 @@ static bool InitAcl(int device_id)
     }
     std::cout << "[INFO] aclInit done rc=" << static_cast<int>(aRet) << std::endl;
 
-    std::cout << "[INFO] rtSetDevice(" << device_id << ") begin" << std::endl;
-    rtError_t rtRet = rtSetDevice(device_id);
-    if (rtRet != RT_ERROR_NONE) {
-        std::cerr << "[ERROR] rtSetDevice(" << device_id << ") failed: " << static_cast<int>(rtRet) << std::endl;
-        return false;
+    if (ShouldUseRtSetDevice()) {
+        std::cout << "[INFO] rtSetDevice(" << device_id << ") begin" << std::endl;
+        rtError_t rtRet = rtSetDevice(device_id);
+        if (rtRet != RT_ERROR_NONE) {
+            std::cerr << "[ERROR] rtSetDevice(" << device_id << ") failed: " << static_cast<int>(rtRet) << std::endl;
+            return false;
+        }
+        std::cout << "[INFO] rtSetDevice(" << device_id << ") done" << std::endl;
+    } else {
+        std::cout << "[INFO] rtSetDevice skipped; set FFN_GRID_USE_RT_SET_DEVICE=1 to enable" << std::endl;
     }
-    std::cout << "[INFO] rtSetDevice(" << device_id << ") done" << std::endl;
 
     std::cout << "[INFO] aclrtSetDevice(" << device_id << ") begin" << std::endl;
     aRet = aclrtSetDevice(device_id);
@@ -372,6 +382,8 @@ static const char *GridPipeFaultName(uint32_t code)
             return "pop west boundary";
         case 0x204:
             return "pop south boundary";
+        case 0x205:
+            return "pop non-local segment";
         case 0x301:
             return "wait ready timeout";
         case 0x302:

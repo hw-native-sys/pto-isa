@@ -14,19 +14,22 @@ full text of the License.
 //
 // Each block owns one logical grid cell (row, col).  Cube computes the three
 // GEMMs, Vec computes the activation and row-local EAST reduce.  Cube/Vec
-// exchange intermediate tiles through regular A2/A3 TPipe FIFO handshakes.
+// exchange intermediate tiles through regular A2/A3 TPipe FIFO handshakes,
+// issued as directional TMOV (see tpipe_tmov_inl.hpp): TMOV(pipe, tile) pushes
+// and TMOV(tile, pipe) pops, so the C2V/V2C TPUSH/TPOP stays implicit.
 
 #include <cstddef>
 #include <cstdint>
 #include <pto/pto-inst.hpp>
 
 #include <pto/common/fifo.hpp>
-#include <pto/common/grid_pipe.hpp>
+#include <pto/npu/a2a3/grid_intrinsic.hpp>
 #include <pto/npu/a2a3/grid_pipe_runtime.hpp>
 
 #include "common.hpp"
 #include "ffn_config.hpp"
 #include "gridpipe_payload_inl.hpp"
+#include "tpipe_tmov_inl.hpp"
 
 #ifdef __CCE_AICORE__
 using namespace pto;
@@ -181,7 +184,7 @@ __global__ AICORE void DistributedFfnGridMixedKernel(__gm__ uint8_t *fftsAddr, _
         wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
 #endif
 
-        TPUSH<GatePipe, TC, TileSplitAxis::TILE_NO_SPLIT>(gatePipe, cT);
+        TMOV(gatePipe, cT); // C2V push -> gatePipe
 
 #ifndef __PTO_AUTO__
         pipe_barrier(PIPE_ALL);
@@ -204,14 +207,14 @@ __global__ AICORE void DistributedFfnGridMixedKernel(__gm__ uint8_t *fftsAddr, _
         wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
 #endif
 
-        TPUSH<UpPipe, TC, TileSplitAxis::TILE_NO_SPLIT>(upPipe, cT);
+        TMOV(upPipe, cT); // C2V push -> upPipe
 
 #ifndef __PTO_AUTO__
         pipe_barrier(PIPE_ALL);
 #endif
         dsb(DSB_DDR);
 
-        TPOP<HiddenPipe, TileA, TileSplitAxis::TILE_NO_SPLIT>(hiddenPipe, hiddenMat);
+        TMOV(hiddenMat, hiddenPipe); // V2C pop <- hiddenPipe
 #ifndef __PTO_AUTO__
         set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
         wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
@@ -235,7 +238,7 @@ __global__ AICORE void DistributedFfnGridMixedKernel(__gm__ uint8_t *fftsAddr, _
         wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
 #endif
 
-        TPUSH<DownPipe, TC, TileSplitAxis::TILE_NO_SPLIT>(downPipe, cT);
+        TMOV(downPipe, cT); // C2V push -> downPipe
 
 #ifndef __PTO_AUTO__
         pipe_barrier(PIPE_ALL);
@@ -257,8 +260,8 @@ __global__ AICORE void DistributedFfnGridMixedKernel(__gm__ uint8_t *fftsAddr, _
         TASSIGN(downF32, kUbDownF32);
         TASSIGN(addF32, kUbAddF32);
 
-        TPOP<GatePipe, GateF32Tile, TileSplitAxis::TILE_NO_SPLIT>(gatePipe, gateF32);
-        TPOP<UpPipe, UpF32Tile, TileSplitAxis::TILE_NO_SPLIT>(upPipe, upF32);
+        TMOV(gateF32, gatePipe); // C2V pop <- gatePipe
+        TMOV(upF32, upPipe);     // C2V pop <- upPipe
 
 #ifndef __PTO_AUTO__
         set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
@@ -284,9 +287,9 @@ __global__ AICORE void DistributedFfnGridMixedKernel(__gm__ uint8_t *fftsAddr, _
         wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
 #endif
 
-        TPUSH<HiddenPipe, HiddenF16Tile, TileSplitAxis::TILE_NO_SPLIT>(hiddenPipe, hiddenF16);
+        TMOV(hiddenPipe, hiddenF16); // V2C push -> hiddenPipe
 
-        TPOP<DownPipe, DownF32Tile, TileSplitAxis::TILE_NO_SPLIT>(downPipe, downF32);
+        TMOV(downF32, downPipe);     // C2V pop <- downPipe
 
 #ifndef __PTO_AUTO__
         set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);

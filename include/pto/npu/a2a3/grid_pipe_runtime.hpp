@@ -10,14 +10,14 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 // A2/A3 GridPipe runtime helpers: shmem window layout, init helpers, neighbor
 // rank resolution.  See design doc section 5 and the mock SPR lowering in
-// include/pto/common/grid_pipe_mock_spr.hpp.
+// include/pto/npu/a2a3/grid_intrinsic.hpp.
 
 #ifndef PTO_A2A3_GRID_PIPE_RUNTIME_HPP
 #define PTO_A2A3_GRID_PIPE_RUNTIME_HPP
 
 #include <cstdint>
 
-#include <pto/common/grid_pipe.hpp>
+#include <pto/npu/a2a3/grid_intrinsic.hpp>
 
 namespace pto {
 namespace a2a3_grid {
