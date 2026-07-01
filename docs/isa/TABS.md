@@ -46,7 +46,7 @@ PTO_INST RecordEvent TABS(TileDataDst &dst, TileDataSrc &src, WaitEvents &... ev
 ## Constraints
 
 - **Implementation checks (CPU sim)**:
-    - `TileData::DType` must be one of: `int32_t`, `int`, `int16_t`, `half`, `float`.
+    - `TileData::DType` must be one of: `int32_t`, `int`, `int16_t`, `int8_t`, `half`, `bfloat16_t`, `float`.
     - The implementation iterates over `dst.GetValidRow()` / `dst.GetValidCol()`.
 - **Implementation checks (Costmodel)**:
     - `TileData::DType` must be one of: `int32_t`, `int16_t`, `int8_t`, `uint8_t`, `half`, `float`.
