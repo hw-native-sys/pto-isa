@@ -29,6 +29,10 @@ PTO_INTERNAL constexpr QuantMode_t GetScalarPreQuantModeGm()
         } else if constexpr (caps::IsFP16<DstType>()) {
             quantPre = QuantMode_t::DEQF16;
         }
+    } else if constexpr (caps::IsFP16<SrcType>()) {
+        if constexpr (caps::IsInt8<DstType>()) {
+            quantPre = QuantMode_t::QF162B8_PRE;
+        }
     }
     return quantPre;
 }
@@ -42,6 +46,10 @@ PTO_INTERNAL constexpr QuantMode_t GetVectorPreQuantModeGm()
             quantPre = QuantMode_t::VREQ8;
         } else if constexpr (caps::IsFP16<DstType>()) {
             quantPre = QuantMode_t::VDEQF16;
+        }
+    } else if constexpr (caps::IsFP16<SrcType>()) {
+        if constexpr (caps::IsInt8<DstType>()) {
+            quantPre = QuantMode_t::VQF162B8_PRE;
         }
     }
     return quantPre;
@@ -67,16 +75,17 @@ PTO_INTERNAL void CheckStaticAcc()
                           caps::IsFP16<typename GlobalData::RawDType>(),
                       "The output data type must be restricted to int32_t/float/half!");
     } else if constexpr (isQuant) {
-        if constexpr (caps::IsFP32<typename TileData::DType>()) {
+        if constexpr (caps::IsFP16<typename TileData::DType>()) {
             static_assert(
-                caps::IsSInt8<typename GlobalData::RawDType>() || caps::IsUInt8<typename GlobalData::RawDType>() ||
-                    caps::IsFP16<typename GlobalData::RawDType>() || caps::IsFP32<typename GlobalData::RawDType>(),
-                "The output data type must be restricted to int8_t/uint8_t/half/float.");
+                caps::IsFP16<typename GlobalData::RawDType>() || caps::IsSInt16<typename GlobalData::RawDType>() ||
+                    caps::IsSInt8<typename GlobalData::RawDType>() || caps::IsUInt8<typename GlobalData::RawDType>(),
+                "The output data type must be restricted to half/int16_t/int8_t/uint8_t.");
         } else if constexpr (caps::IsSInt32<typename TileData::DType>()) {
-            static_assert(caps::IsSInt8<typename GlobalData::RawDType>() ||
-                              caps::IsUInt8<typename GlobalData::RawDType>() ||
-                              caps::IsFP16<typename GlobalData::RawDType>(),
-                          "The output data type must be restricted to half/int8_t/uint8_t.");
+            static_assert(
+                caps::IsFP16<typename GlobalData::RawDType>() || caps::IsSInt16<typename GlobalData::RawDType>() ||
+                    caps::IsSInt8<typename GlobalData::RawDType>() || caps::IsUInt8<typename GlobalData::RawDType>() ||
+                    caps::IsSInt32<typename GlobalData::RawDType>(),
+                "The output data type must be restricted to half/int16_t/int8_t/uint8_t/int32_t.");
         }
     }
 }

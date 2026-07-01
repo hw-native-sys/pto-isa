@@ -92,7 +92,7 @@ TEST_F(TEXPANDSTest, case3)
     texpands_test<6, uint16_t>(1, 16, 7, 7, 16);
 }
 
-TEST_F(TEXPANDSTest, TEXPANDSTest_case4_Test)
+TEST_F(TEXPANDSTest, case4)
 {
     texpands_test<7, int16_t>(2, 5, 2, 3, 8);
 }
