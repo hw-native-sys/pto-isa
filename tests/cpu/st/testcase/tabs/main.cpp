@@ -98,6 +98,10 @@ TEST_F(TABSTest, case_int16_64x64_64x64_64x64)
 {
     test_tabs<int16_t, 64, 64, 64, 64>();
 }
+TEST_F(TABSTest, case_int8_64x64_64x64_64x64)
+{
+    test_tabs<int8_t, 64, 64, 64, 64>();
+}
 TEST_F(TABSTest, case_half_16x256_16x256_16x256)
 {
     test_tabs<aclFloat16, 16, 256, 16, 256>();

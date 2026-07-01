@@ -80,6 +80,7 @@ if __name__ == "__main__":
         TAbsParams(np.float32, 64, 64, 64, 64, 64, 64),
         TAbsParams(np.int32, 64, 64, 64, 64, 64, 64),
         TAbsParams(np.int16, 64, 64, 64, 64, 64, 64),
+        TAbsParams(np.int8, 64, 64, 64, 64, 64, 64),
         TAbsParams(np.float16, 16, 256, 16, 256, 16, 256)
     ]
     if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":

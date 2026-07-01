@@ -33,6 +33,7 @@ PTO_INTERNAL void TABS_IMPL(tile_shape &dst, tile_shape &src)
     static_assert(std::is_same<typename tile_shape::DType, int32_t>::value ||
                       std::is_same<typename tile_shape::DType, int>::value ||
                       std::is_same<typename tile_shape::DType, int16_t>::value ||
+                      std::is_same<typename tile_shape::DType, int8_t>::value ||
                       std::is_same<typename tile_shape::DType, half>::value ||
                       std::is_same<typename tile_shape::DType, bfloat16_t>::value ||
                       std::is_same<typename tile_shape::DType, float>::value,
