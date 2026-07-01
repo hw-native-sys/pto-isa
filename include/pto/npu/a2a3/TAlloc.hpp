@@ -19,7 +19,7 @@ namespace pto {
 
 // get sub-block offset for global data
 template <typename GlobalData, TileSplitAxis Split>
-PTO_INTERNAL uint64_t getSubAIVOffset()
+PTO_INTERNAL uint64_t getSubAIVOffset(int lane)
 {
     if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT) {
         return 0;
@@ -28,9 +28,9 @@ PTO_INTERNAL uint64_t getSubAIVOffset()
     constexpr int prodM = GlobalData::staticShape[pto::GlobalTensorDim::DIM_3];
     constexpr int prodN = GlobalData::staticShape[pto::GlobalTensorDim::DIM_4];
     if constexpr (Split == TileSplitAxis::TILE_UP_DOWN) {
-        return get_subblockid() * prodM * prodN * sizeof(typename GlobalData::RawDType);
+        return static_cast<uint32_t>(lane) * prodM * prodN * sizeof(typename GlobalData::RawDType);
     } else { // TILE_LEFT_RIGHT
-        return get_subblockid() * prodN * sizeof(typename GlobalData::RawDType);
+        return static_cast<uint32_t>(lane) * prodN * sizeof(typename GlobalData::RawDType);
     }
 }
 
@@ -53,13 +53,13 @@ PTO_INTERNAL void TALLOC_IMPL(Pipe &pipe, GlobalData &gmTensor)
     if constexpr (Pipe::is_c2v) {
         entryBase += slotOffset;
     } else if constexpr (Pipe::is_v2c) {
-        entryBase += slotOffset + getSubAIVOffset<GlobalData, Split>();
+        entryBase += slotOffset + getSubAIVOffset<GlobalData, Split>(pipe.prod.laneId());
     } else if constexpr (Pipe::is_both) {
 #ifdef __DAV_CUBE__
         entryBase += slotOffset;
 #endif
 #ifdef __DAV_VEC__
-        entryBase += slotOffset + getSubAIVOffset<GlobalData, Split>();
+        entryBase += slotOffset + getSubAIVOffset<GlobalData, Split>(pipe.prod.laneId());
 #endif
     }
 

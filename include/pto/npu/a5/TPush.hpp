@@ -81,8 +81,19 @@ struct TPipe {
         bool isRecord = true;
         bool isAllocate = true;
         int entryOffset = 0;
+        int subBlockId = -1;
 
         PTO_INTERNAL Producer() = default;
+
+        PTO_INTERNAL void setSubBlockId(int lane)
+        {
+            subBlockId = lane;
+        }
+
+        PTO_INTERNAL uint32_t laneId() const
+        {
+            return (subBlockId >= 0) ? static_cast<uint32_t>(subBlockId) : get_subblockid();
+        }
 
         PTO_INTERNAL void setTileId(int tIndex, int subIndex)
         {
@@ -268,13 +279,13 @@ struct TPipe {
                 // single vector core
                 TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(0), static_cast<uint16_t>(0));
             } else if constexpr (Split == TileSplitAxis::TILE_UP_DOWN) {
-                int rowIndex = ProdM * static_cast<size_t>(get_subblockid());
+                int rowIndex = ProdM * static_cast<size_t>(laneId());
                 TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(rowIndex), static_cast<uint16_t>(0));
             } else if constexpr (Split == TileSplitAxis::TILE_LEFT_RIGHT) {
                 PTO_ASSERT(tile.GetValidCol() * sizeof(T) % 32 == 0,
                            "Fix: For V2C(UB->L1), tile's valid column must be multiple of 32 bytes due to hardware "
                            "requirement.");
-                uint32_t colIndex = ProdN * static_cast<size_t>(get_subblockid());
+                uint32_t colIndex = ProdN * static_cast<size_t>(laneId());
                 TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(0), static_cast<uint16_t>(colIndex));
             }
         }
@@ -309,9 +320,9 @@ struct TPipe {
             if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT) {
                 subAIVOffset = 0;
             } else if constexpr (Split == TileSplitAxis::TILE_UP_DOWN) {
-                subAIVOffset = get_subblockid() * gmValidR * gmValidC * sizeof(T);
+                subAIVOffset = laneId() * gmValidR * gmValidC * sizeof(T);
             } else { // TILE_LEFT_RIGHT
-                subAIVOffset = get_subblockid() * gmValidC * sizeof(T);
+                subAIVOffset = laneId() * gmValidC * sizeof(T);
             }
             using GlobalShape = pto::Shape<1, 1, 1, -1, -1>;
             using GlobalStride = pto::Stride<1, 1, 1, -1, 1>;
@@ -442,8 +453,19 @@ struct TPipe {
         bool isWait = true;
         bool isFree = true;
         int entryOffset = 0;
+        int subBlockId = -1;
 
         PTO_INTERNAL Consumer() = default;
+
+        PTO_INTERNAL void setSubBlockId(int lane)
+        {
+            subBlockId = lane;
+        }
+
+        PTO_INTERNAL uint32_t laneId() const
+        {
+            return (subBlockId >= 0) ? static_cast<uint32_t>(subBlockId) : get_subblockid();
+        }
 
         PTO_INTERNAL void setTileId(int tid, int sub_tid)
         {
@@ -625,10 +647,10 @@ struct TPipe {
             size_t subAIVOffset = 0;
             if constexpr (Split == TileSplitAxis::TILE_UP_DOWN) {
                 // TILE_UP_DOWN  : Vec1 starts at the second row-block → offset = VEC_M * ProdN * sizeof(T)
-                subAIVOffset = get_subblockid() * ConsM * ConsN * sizeof(T);
+                subAIVOffset = laneId() * ConsM * ConsN * sizeof(T);
             } else if constexpr (Split == TileSplitAxis::TILE_LEFT_RIGHT) { // TILE_LEFT_RIGHT
                 // TILE_LEFT_RIGHT: Vec1 starts at column ConsN within row 0 → offset = ConsN * sizeof(T)
-                subAIVOffset = get_subblockid() * ConsN * sizeof(T);
+                subAIVOffset = laneId() * ConsN * sizeof(T);
             } else if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT) {
                 subAIVOffset = 0; // TILE_NO_SPLIT : single reader, no offset needed
             }
@@ -701,9 +723,19 @@ struct TPipe {
     Producer prod;
     Consumer cons;
 
-    PTO_INTERNAL explicit TPipe(__gm__ void *GM_SLOT_BUFFER, uint32_t C2V_CONSUMER_BUF, uint32_t V2C_CONSUMER_BUF)
+    PTO_INTERNAL explicit TPipe(__gm__ void *GM_SLOT_BUFFER, uint32_t C2V_CONSUMER_BUF, uint32_t V2C_CONSUMER_BUF,
+                                int subBlockId = -1)
         : fifo(GM_SLOT_BUFFER, C2V_CONSUMER_BUF, V2C_CONSUMER_BUF), prod(), cons()
-    {}
+    {
+        prod.setSubBlockId(subBlockId);
+        cons.setSubBlockId(subBlockId);
+    }
+
+    PTO_INTERNAL void setSubBlockId(int subBlockId)
+    {
+        prod.setSubBlockId(subBlockId);
+        cons.setSubBlockId(subBlockId);
+    }
 
     // Destructor for TPipe
     PTO_INTERNAL ~TPipe()
@@ -828,8 +860,19 @@ struct TMPipe {
         bool isAllocate = true;
         bool isRecord = true;
         int entryOffset = 0;
+        int subBlockId = -1;
 
         PTO_INTERNAL Producer() = default;
+
+        PTO_INTERNAL void setSubBlockId(int lane)
+        {
+            subBlockId = lane;
+        }
+
+        PTO_INTERNAL uint32_t laneId() const
+        {
+            return (subBlockId >= 0) ? static_cast<uint32_t>(subBlockId) : get_subblockid();
+        }
 
         PTO_INTERNAL void setTileId(int t_id, int sub_t_id)
         {
@@ -1017,14 +1060,14 @@ struct TMPipe {
             if constexpr (isSplitM) {
                 // split M between vectors
                 constexpr uint32_t VecM = ConsM / VEC_CORES;
-                int row_offset = VecM * static_cast<size_t>(get_subblockid());
+                int row_offset = VecM * static_cast<size_t>(laneId());
                 uint64_t entryBase = (tile_id % DataFiFo::fifoDepth) * ConsM * ConsN * sizeof(T);
                 TileDataCons matTile;
                 TASSIGN_IMPL(matTile, fifo.fifoBase + entryBase + entryOffset);
                 TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(row_offset), static_cast<uint16_t>(0));
             } else if constexpr (isSplitN) {
                 // split N between vectors
-                int col_index = ProdN * static_cast<size_t>(get_subblockid());
+                int col_index = ProdN * static_cast<size_t>(laneId());
                 uint64_t entryBase = (tile_id % DataFiFo::fifoDepth) * ConsM * ConsN * sizeof(T);
                 TileDataCons matTile;
                 TASSIGN_IMPL(matTile, fifo.fifoBase + entryBase + entryOffset);
@@ -1097,8 +1140,19 @@ struct TMPipe {
         bool isWait = true;
         bool isFree = true;
         int entryOffset = 0;
+        int subBlockId = -1;
 
         PTO_INTERNAL Consumer() = default;
+
+        PTO_INTERNAL void setSubBlockId(int lane)
+        {
+            subBlockId = lane;
+        }
+
+        PTO_INTERNAL uint32_t laneId() const
+        {
+            return (subBlockId >= 0) ? static_cast<uint32_t>(subBlockId) : get_subblockid();
+        }
 
         PTO_INTERNAL void setTileId(int tid, int sub_tid)
         {
@@ -1315,9 +1369,12 @@ struct TMPipe {
 
     // Constructors for GM_FIFO base address initialization
     template <FIFOType T = FiFoType, typename std::enable_if_t<T == FIFOType::GM_FIFO, int> = 0>
-    PTO_INTERNAL explicit TMPipe(__gm__ typename TileDataCons::DType *gmFiFoBase, uint32_t localFiFoBase)
+    PTO_INTERNAL explicit TMPipe(__gm__ typename TileDataCons::DType *gmFiFoBase, uint32_t localFiFoBase,
+                                 int subBlockId = -1)
         : fifo(gmFiFoBase, localFiFoBase), prod(), cons()
     {
+        prod.setSubBlockId(subBlockId);
+        cons.setSubBlockId(subBlockId);
         cons.free();
     }
 
@@ -1325,6 +1382,12 @@ struct TMPipe {
     PTO_INTERNAL explicit TMPipe(uint32_t fifoBase) : fifo(fifoBase), prod(), cons()
     {
         cons.free();
+    }
+
+    PTO_INTERNAL void setSubBlockId(int subBlockId)
+    {
+        prod.setSubBlockId(subBlockId);
+        cons.setSubBlockId(subBlockId);
     }
 
     // Destructor for TPipe

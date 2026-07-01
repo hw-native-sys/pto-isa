@@ -84,8 +84,19 @@ struct TPipe {
         bool isAllocate = true;
         bool isRecord = true;
         int entryOffset = 0;
+        int subBlockId = -1;
 
         PTO_INTERNAL Producer() = default;
+
+        PTO_INTERNAL void setSubBlockId(int lane)
+        {
+            subBlockId = lane;
+        }
+
+        PTO_INTERNAL uint32_t laneId() const
+        {
+            return (subBlockId >= 0) ? static_cast<uint32_t>(subBlockId) : get_subblockid();
+        }
 
         PTO_INTERNAL void setAllocateStatus(bool allocate)
         {
@@ -205,10 +216,10 @@ struct TPipe {
                 subAIVOffset = 0;
             } else if constexpr (Split == TileSplitAxis::TILE_UP_DOWN) {
                 // TILE_UP_DOWN  : Vec1 starts at the second row-block → offset = ProdM * ProdN * sizeof(T)
-                subAIVOffset = get_subblockid() * gmValidR * gmValidC * sizeof(T);
+                subAIVOffset = laneId() * gmValidR * gmValidC * sizeof(T);
             } else { // TILE_LEFT_RIGHT
                 // TILE_LEFT_RIGHT: Vec1 starts at column ProdN within row 0 → offset = ProdN * sizeof(T)
-                subAIVOffset = get_subblockid() * gmValidC * sizeof(T);
+                subAIVOffset = laneId() * gmValidC * sizeof(T);
             }
             using GlobalShape = pto::Shape<1, 1, 1, -1, -1>;
             using GlobalStride = pto::Stride<1, 1, 1, -1, 1>;
@@ -309,7 +320,7 @@ struct TPipe {
 #endif
             }
         } // end of push
-    }; // end of Producer
+    };    // end of Producer
 
     struct Consumer {
         int tileIndex = 0;
@@ -317,8 +328,19 @@ struct TPipe {
         bool isWait = true;
         bool isFree = true;
         int entryOffset = 0;
+        int subBlockId = -1;
 
         PTO_INTERNAL Consumer() = default;
+
+        PTO_INTERNAL void setSubBlockId(int lane)
+        {
+            subBlockId = lane;
+        }
+
+        PTO_INTERNAL uint32_t laneId() const
+        {
+            return (subBlockId >= 0) ? static_cast<uint32_t>(subBlockId) : get_subblockid();
+        }
 
         PTO_INTERNAL void setTileId(int tid, int sub_tid)
         {
@@ -432,10 +454,10 @@ struct TPipe {
                 subAIVOffset = 0; // TILE_NO_SPLIT : single reader, no offset needed
             } else if constexpr (Split == TileSplitAxis::TILE_UP_DOWN) {
                 // TILE_UP_DOWN  : Vec1 starts at the second row-block → offset = VEC_M * ProdN * sizeof(T)
-                subAIVOffset = get_subblockid() * ConsM * ConsN * sizeof(T);
+                subAIVOffset = laneId() * ConsM * ConsN * sizeof(T);
             } else { // TILE_LEFT_RIGHT
                 // TILE_LEFT_RIGHT: Vec1 starts at column ConsN within row 0 → offset = ConsN * sizeof(T)
-                subAIVOffset = get_subblockid() * ConsN * sizeof(T);
+                subAIVOffset = laneId() * ConsN * sizeof(T);
             }
             __gm__ T *addr = (__gm__ T *)((uint64_t)fifo.GM_SLOT_BUFFER + entryBase + subAIVOffset + entryOffset);
             using GlobalData =
@@ -496,9 +518,19 @@ struct TPipe {
     Producer prod;
     Consumer cons;
 
-    PTO_INTERNAL explicit TPipe(__gm__ void *GM_SLOT_BUFFER, uint32_t C2V_CONSUMER_BUF, uint32_t V2C_CONSUMER_BUF)
+    PTO_INTERNAL explicit TPipe(__gm__ void *GM_SLOT_BUFFER, uint32_t C2V_CONSUMER_BUF, uint32_t V2C_CONSUMER_BUF,
+                                int subBlockId = -1)
         : fifo(GM_SLOT_BUFFER, C2V_CONSUMER_BUF, V2C_CONSUMER_BUF), prod(), cons()
-    {}
+    {
+        prod.setSubBlockId(subBlockId);
+        cons.setSubBlockId(subBlockId);
+    }
+
+    PTO_INTERNAL void setSubBlockId(int subBlockId)
+    {
+        prod.setSubBlockId(subBlockId);
+        cons.setSubBlockId(subBlockId);
+    }
 
     // Destructor for TPipe: drain leftover free credits on FlagID+1.
     // Initial TPUSH calls skip allocate() via shouldWaitFree (tileIndex < SlotNum, or 0 for depth 1).

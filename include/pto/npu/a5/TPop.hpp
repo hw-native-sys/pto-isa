@@ -46,7 +46,7 @@ PTO_INTERNAL std::enable_if_t<is_tile_data_v<TileCons>, void> TPOP_IMPL(Pipe &pi
 
 // get sub-block offset for global data
 template <typename GlobalData, TileSplitAxis Split>
-PTO_INTERNAL uint64_t getPopSubAIVOffset()
+PTO_INTERNAL uint64_t getPopSubAIVOffset(int lane)
 {
     if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT) {
         return 0;
@@ -55,9 +55,9 @@ PTO_INTERNAL uint64_t getPopSubAIVOffset()
     constexpr int consM = GlobalData::staticShape[pto::GlobalTensorDim::DIM_3];
     constexpr int consN = GlobalData::staticShape[pto::GlobalTensorDim::DIM_4];
     if constexpr (Split == TileSplitAxis::TILE_UP_DOWN) {
-        return get_subblockid() * consM * consN * sizeof(typename GlobalData::RawDType);
+        return static_cast<uint32_t>(lane) * consM * consN * sizeof(typename GlobalData::RawDType);
     } else { // TILE_LEFT_RIGHT
-        return get_subblockid() * consN * sizeof(typename GlobalData::RawDType);
+        return static_cast<uint32_t>(lane) * consN * sizeof(typename GlobalData::RawDType);
     }
 }
 
@@ -76,12 +76,12 @@ PTO_INTERNAL void TPOP_IMPL(Pipe &pipe, GlobalData &gmTensor)
     uint64_t entryBase = (uint64_t)pipe.fifo.GM_SLOT_BUFFER;
     const uint64_t slotOffset = (pipe.cons.tileIndex % Pipe::RingFiFo::SLOT_NUM) * Pipe::RingFiFo::SLOT_SIZE;
     if constexpr (Pipe::is_c2v_gm) {
-        entryBase += slotOffset + getPopSubAIVOffset<GlobalData, Split>();
+        entryBase += slotOffset + getPopSubAIVOffset<GlobalData, Split>(pipe.cons.laneId());
     } else if constexpr (Pipe::is_v2c_gm) {
         entryBase += slotOffset;
     } else if constexpr (Pipe::is_both_gm) {
 #ifdef __DAV_VEC__
-        entryBase += slotOffset + getPopSubAIVOffset<GlobalData, Split>();
+        entryBase += slotOffset + getPopSubAIVOffset<GlobalData, Split>(pipe.cons.laneId());
 #endif
 #ifdef __DAV_CUBE__
         entryBase += slotOffset;
