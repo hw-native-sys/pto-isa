@@ -25,54 +25,60 @@ inline void CheckValidConvShape(DstTileData &dst, SrcTileData &src)
     constexpr Layout src_layout = SrcTileData::layout;
     constexpr Layout dst_layout = DstTileData::layout;
     constexpr int64_t C0 = 32 / sizeof(typename DstTileData::DType);
+    constexpr int DIM_0 = pto::GlobalTensorDim::DIM_0;
+    constexpr int DIM_1 = pto::GlobalTensorDim::DIM_1;
+    constexpr int DIM_2 = pto::GlobalTensorDim::DIM_2;
+    constexpr int DIM_3 = pto::GlobalTensorDim::DIM_3;
+    constexpr int DIM_4 = pto::GlobalTensorDim::DIM_4;
+    constexpr int DIM_5 = 5;
 
     if constexpr (src_layout == Layout::NCHW && dst_layout == Layout::NC1HWC0) {
         // NCHW (N, C, H, W) -> NC1HWC0 (N, C1, H, W, C0)
         // C1 = ceil(C / C0)
-        assert(dst.GetShape(0) == src.GetShape(0) &&                 // N
-               dst.GetShape(1) == (src.GetShape(1) + C0 - 1) / C0 && // C1
-               dst.GetShape(2) == src.GetShape(2) &&                 // H
-               dst.GetShape(3) == src.GetShape(3) &&                 // W
-               dst.GetShape(4) == C0 &&                              // C0
+        assert(dst.GetShape(DIM_0) == src.GetShape(DIM_0) &&                 // N
+               dst.GetShape(DIM_1) == (src.GetShape(DIM_1) + C0 - 1) / C0 && // C1
+               dst.GetShape(DIM_2) == src.GetShape(DIM_2) &&                 // H
+               dst.GetShape(DIM_3) == src.GetShape(DIM_3) &&                 // W
+               dst.GetShape(DIM_4) == C0 &&                                  // C0
                "Shape mismatch: NCHW to NC1HWC0");
     } else if constexpr (src_layout == Layout::NC1HWC0 && dst_layout == Layout::NCHW) {
         // NCHW (N, C, H, W) -> NC1HWC0 (N, C1, H, W, C0)
         // C1 = ceil(C / C0)
-        assert(dst.GetShape(0) == src.GetShape(0) &&      // N
-               dst.GetShape(1) == src.GetShape(1) * C0 && // C1
-               dst.GetShape(2) == src.GetShape(2) &&      // H
-               dst.GetShape(3) == src.GetShape(3) &&      // W
-               src.GetShape(4) == C0 && "Shape mismatch: NC1HWC0 to NCHW");
+        assert(dst.GetShape(DIM_0) == src.GetShape(DIM_0) &&      // N
+               dst.GetShape(DIM_1) == src.GetShape(DIM_1) * C0 && // C1
+               dst.GetShape(DIM_2) == src.GetShape(DIM_2) &&      // H
+               dst.GetShape(DIM_3) == src.GetShape(DIM_3) &&      // W
+               src.GetShape(DIM_4) == C0 && "Shape mismatch: NC1HWC0 to NCHW");
     } else if constexpr (src_layout == Layout::NC1HWC0 && dst_layout == Layout::FRACTAL_Z) {
         // NC1HWC0 (N, C1, H, W, C0) -> C1HWN1N0C0 (C1, H, W, N1, N0, C0)
         // N = N1 * N0
-        assert(dst.GetShape(0) == src.GetShape(1) * src.GetShape(2) * src.GetShape(3) && // C1*H*W
-               dst.GetShape(1) * dst.GetShape(2) >= src.GetShape(0) &&                   // N1*N0 = N
-               dst.GetShape(3) == src.GetShape(4) &&                                     // C0
+        assert(dst.GetShape(DIM_0) == src.GetShape(DIM_1) * src.GetShape(DIM_2) * src.GetShape(DIM_3) && // C1*H*W
+               dst.GetShape(DIM_1) * dst.GetShape(DIM_2) >= src.GetShape(DIM_0) &&                       // N1*N0 = N
+               dst.GetShape(DIM_3) == src.GetShape(DIM_4) &&                                             // C0
                "Shape mismatch: NC1HWC0 to FRACTAL_Z");
     } else if constexpr (src_layout == Layout::GNCHW && dst_layout == Layout::GNC1HWC0) {
         // GNCHW (G, N, C, H, W) -> GNC1HWC0 (G, N, C1, H, W, C0)
-        assert(dst.GetShape(0) == src.GetShape(0) &&                          // G
-               dst.GetShape(1) == src.GetShape(1) &&                          // N
-               dst.GetShape(3) == src.GetShape(3) &&                          // H
-               dst.GetShape(4) == src.GetShape(4) &&                          // W
-               dst.GetShape(2) == (src.GetShape(2) + C0 - 1) / C0 &&          // C1
-               dst.GetShape(5) == C0 && "Shape mismatch: GNCHW to GNC1HWC0"); // C0
+        assert(dst.GetShape(DIM_0) == src.GetShape(DIM_0) &&                      // G
+               dst.GetShape(DIM_1) == src.GetShape(DIM_1) &&                      // N
+               dst.GetShape(DIM_3) == src.GetShape(DIM_3) &&                      // H
+               dst.GetShape(DIM_4) == src.GetShape(DIM_4) &&                      // W
+               dst.GetShape(DIM_2) == (src.GetShape(DIM_2) + C0 - 1) / C0 &&      // C1
+               dst.GetShape(DIM_5) == C0 && "Shape mismatch: GNCHW to GNC1HWC0"); // C0
     } else if constexpr (src_layout == Layout::GNC1HWC0 && dst_layout == Layout::FRACTAL_Z) {
         // GNC1HWC0 (G, N, C1, H, W, C0) -> C1HWGN1N0C0 (C1, H, W, G, N1, N0, C0)
         // Note: Assuming Dst shape maps dimensions G*C1*H*W as outer dimension
-        assert(dst.GetShape(0) ==
-                   src.GetShape(0) * src.GetShape(2) * src.GetShape(3) * src.GetShape(4) &&    // C1, H, W, G
-               dst.GetShape(1) == (src.GetShape(1) + dst.GetShape(2) - 1) / dst.GetShape(2) && // N1*N0
-               dst.GetShape(3) == src.GetShape(5) &&                                           // C0
+        assert(dst.GetShape(DIM_0) == src.GetShape(DIM_0) * src.GetShape(DIM_2) * src.GetShape(DIM_3) *
+                                          src.GetShape(DIM_4) && // C1, H, W, G
+               dst.GetShape(DIM_1) == (src.GetShape(DIM_1) + dst.GetShape(DIM_2) - 1) / dst.GetShape(DIM_2) && // N1*N0
+               dst.GetShape(DIM_3) == src.GetShape(DIM_5) &&                                                   // C0
                "Shape mismatch: GNC1HWC0 to FRACTAL_Z");
     } else if constexpr (src_layout == Layout::NCDHW && dst_layout == Layout::FRACTAL_Z_3D) {
         // NCDHW (N, C, D, H, W) -> FRACTAL_Z_3D (D, C1, H, W, N1, N0, C0)
         // Note: D, C1, H, W are merged into DIM 0 for dst.
-        size_t dstC1 = dst.GetShape(0) / (src.GetShape(2) * src.GetShape(3) * src.GetShape(4));
-        assert(dstC1 == (src.GetShape(1) + C0 - 1) / C0 &&
-               dst.GetShape(1) == (src.GetShape(0) + dst.GetShape(2) - 1) / dst.GetShape(2) && // N1*N0
-               dst.GetShape(3) == C0 &&                                                        // C0
+        size_t dstC1 = dst.GetShape(DIM_0) / (src.GetShape(DIM_2) * src.GetShape(DIM_3) * src.GetShape(DIM_4));
+        assert(dstC1 == (src.GetShape(DIM_1) + C0 - 1) / C0 &&
+               dst.GetShape(DIM_1) == (src.GetShape(DIM_0) + dst.GetShape(DIM_2) - 1) / dst.GetShape(DIM_2) && // N1*N0
+               dst.GetShape(DIM_3) == C0 &&                                                                    // C0
                "Shape mismatch: NCDHW to FRACTAL_Z_3D");
     }
 }

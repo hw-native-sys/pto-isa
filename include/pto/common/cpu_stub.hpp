@@ -560,7 +560,7 @@ inline int aclrtMemset(void *dst, size_t dstSize, int value, size_t count)
     if (dst == nullptr || count > dstSize) {
         return ACL_ERROR_GE_PARAM_INVALID;
     }
-    std::fill_n(reinterpret_cast<unsigned char *>(dst), count, static_cast<unsigned char>(value));
+    std::fill_n(reinterpret_cast<uint8_t *>(dst), count, static_cast<uint8_t>(value));
     return ACL_SUCCESS;
 }
 
