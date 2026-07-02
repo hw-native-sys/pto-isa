@@ -83,6 +83,21 @@ No architectural side effects beyond producing the destination tile. Does not im
 
     - Exact layout/fractal constraints are target-specific; see backend headers under `include/pto/npu/*/TRowExpand*.hpp`.
 
+
+### Temporary tile
+
+The C++ API provides an overload with an explicit `TileDataTmp &tmp`. This overload only supports **Mode 1** (ColMajor expanded operand, scalar per row). Internally, `TROWEXPANDEXPDIF` is implemented as `TROWEXPANDSUB` followed by `TEXP`, so the tmp tile is used for the SUB step broadcast buffer.
+
+- **A2A3**: The tmp tile is used as a broadcast buffer. The per-row scalar values from the ColMajor expanded operand are broadcast via the `vbrcb` instruction into the tmp buffer, creating a 32-byte block per row, which is then used as the expanded operand in the subtraction. The `vbrcb` instruction uses a repeat stride of 8 blocks (256 bytes) between repeat groups, processing 8 rows per repeat. Minimum tmp size calculation:
+    - Common parameters: `R = dst.GetValidRow()`, `T = TileDataDst::DType`.
+    - For `R < 256`:
+      $$ \text{tmpSize} = \left\lceil\frac{R}{8}\right\rceil \times 256 \text{ bytes} $$
+    - For `R >= 256`, the operation is looped with at most 30 repeats (240 rows) per loop iteration. The tmp buffer is reused across loops, so the per-loop requirement is:
+      $$ \text{tmpSize} = 30 \times 256 = 7680 \text{ bytes} $$
+    - A compact shape-independent upper bound for any Mode 1 invocation is **8 KB** (8192 bytes).
+    - The 3-arg overload without `tmp` supports both Mode 1 and Mode 2. For Mode 1, it uses an internal 8 KB buffer (`TMP_UB_OFFSET`). For Mode 2, no broadcast buffer is needed.
+- **A5**: The `tmp` tile is accepted and ignored (`[[maybe_unused]]`). A5 hardware supports row-broadcast natively via the `vlds` instruction's broadcast modes, so no scratch buffer is required.
+
 ## Exceptions
 
 !!! danger "Exceptions"

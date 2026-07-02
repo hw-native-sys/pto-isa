@@ -76,6 +76,21 @@ PTO_INST RecordEvent TROWEXPANDEXPDIF(TileDataDst &dst, TileDataSrc0 &src0, Tile
       2. 再对 `dst` 执行 `TEXP`
     - A5 则有更贴近 `vexpdif` 的实现路径
 
+
+### 临时 Tile
+
+C++ API 提供显式传入 `TileDataTmp &tmp` 的重载。该重载仅支持**模式 1**（ColMajor 扩展操作数，每行标量）。`TROWEXPANDEXPDIF` 内部实现为 `TROWEXPANDSUB` 后接 `TEXP`，因此 tmp Tile 用于 SUB 步骤的广播缓冲区。
+
+- **A2A3**：tmp Tile 作为广播缓冲区使用。ColMajor 扩展操作数的每行标量值通过 `vbrcb` 指令广播到 tmp 缓冲区，为每行创建一个 32 字节块，然后在减法中作为扩展操作数使用。`vbrcb` 指令的 repeat stride 为 8 个块（256 字节），每个 repeat 处理 8 行。最小 tmp 大小计算：
+    - 公共参数：`R = dst.GetValidRow()`，`T = TileDataDst::DType`。
+    - 当 `R < 256` 时：
+      $$ \text{tmpSize} = \left\lceil\frac{R}{8}\right\rceil \times 256 \text{ 字节} $$
+    - 当 `R >= 256` 时，操作采用循环方式，每次循环最多 30 个 repeat（240 行）。tmp 缓冲区在各循环间复用，每次循环需要：
+      $$ \text{tmpSize} = 30 \times 256 = 7680 \text{ 字节} $$
+    - 对于任何模式 1 调用，一个紧凑的形状无关上界为 **8 KB**（8192 字节）。
+    - 不带 `tmp` 的 3 参数重载支持模式 1 和模式 2。对于模式 1，使用内部 8 KB 缓冲区（`TMP_UB_OFFSET`）。对于模式 2，不需要广播缓冲区。
+- **A5**：`tmp` Tile 被接受但不使用（`[[maybe_unused]]`）。A5 硬件通过 `vlds` 指令的广播模式原生支持行广播，因此不需要临时缓冲区。
+
 ## 异常与非法情形
 
 !!! danger "异常与非法情形"
