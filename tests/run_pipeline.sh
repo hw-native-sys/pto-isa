@@ -80,9 +80,9 @@ python3 tests/script/build_st.py -r npu -v a5 -t tmov -g TMOVTest.case_fixpipe1
 python3 tests/script/build_st.py -r npu -v a5 -t tstore_acc2gm -g TStoreAcc2gmTest.case1
 python3 tests/script/build_st.py -r npu -v a5 -t tstore_acc2gm -g TStoreAcc2gmTest.case17
 python3 tests/script/build_st.py -r npu -v a5 -t texpands_mat -g TEXPANDSTest.case1
-python3 tests/script/build_st.py -r npu -v a5 -t tpushpop_cv -g TPushPopCvTest.case1_half_single_tile
-python3 tests/script/build_st.py -r npu -v a5 -t tpushpop_vc -g TPushPopVcTest.case1_int8_single_k_tile
-python3 tests/script/build_st.py -r npu -v a5 -t tpushpop_cv_nosplit -g TPushPopCvNoSplitTest.case1_half_single_tile
-python3 tests/script/build_st.py -r npu -v a5 -t tpushpop_vc_nosplit -g TPushPopVcNoSplitTest.case1_int8_single_k_tile
+python3 tests/script/build_st.py -r npu -v a5 -t tpushpop_cv -g TPushPopCVTest.case1_half_single_tile
+python3 tests/script/build_st.py -r npu -v a5 -t tpushpop_vc -g TPushPopVCTest.case1_int8_single_k_tile
+python3 tests/script/build_st.py -r npu -v a5 -t tpushpop_cv_nosplit -g TPushPopCVNoSplitTest.case1_half_single_tile
+python3 tests/script/build_st.py -r npu -v a5 -t tpushpop_vc_nosplit -g TPushPopVCNSTest.case1_int8_single_k_tile
 python3 tests/script/build_st.py -r npu -v a5 -t tpushpop_dir_both -g TPushPopDirBothTest.case1_float_dir_both
-python3 tests/script/build_st.py -r npu -v a5 -t pushpop_subtile -g TPushTpopSubtileTest.case1_half_128x512
+python3 tests/script/build_st.py -r npu -v a5 -t tpushpop_subtile -g TPushTpopSubtileTest.case1_half_128x512
