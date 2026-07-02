@@ -116,6 +116,16 @@ PTO_INST RecordEvent TGATHER(TileDataD &dst, TileDataS &src0, TileDataS1 &k_valu
     - 支持的数据类型限制为目标定义的集合（通过实现中的 `static_assert` 强制执行），且 `sizeof(dst element) == sizeof(src element)`，`dst.GetValidCol() == DstTileData::Cols`（连续的目标存储）。
 - **边界 / 有效性**:
     - 索引边界不通过显式运行时断言进行验证；超出范围的索引行为由目标定义。
+- **临时 Tile**:
+    - **基于索引的 Gather (A2A3)**：C++ API 需要显式传入 `tmp` Tile。`TileDataTmp::DType` 必须与 `TileDataS1::DType` 类型相同（`int32_t` 或 `uint32_t`）。`src1.GetValidRow() == TileDataTmp::Rows` 且 `src1.GetValidCol() == TileDataTmp::Cols`。tmp Tile 用于存放 b16 源类型的 `vmuls` 中间结果供 `vgather` 使用；对于 b32 源类型，结果直接写入 `dst`，但 API 仍需要 `tmp`。
+    - **基于索引的 Gather (A5)**：`tmp` Tile 被接受但不使用。A5 硬件无需临时缓冲区即可处理基于索引的 Gather。
+    - **基于比较的 Gather (A2A3)**：C++ API 需要显式传入 `tmp` Tile，该 Tile 作为三个内部区域的合并暂存缓冲区：
+        1. **cmpsTmp**（比较结果位图）：偏移量 0，以 `uint8_t` 存储，大小 = `TileDataTmp::Rows × TileDataTmp::Cols` 字节。
+        2. **indexTmp**（索引数组）：偏移量 = `TileDataTmp::Rows × TileDataTmp::Cols × sizeof(uint8_t)`，以 `TileDataD::DType` 存储，大小 = `TileDataS::Rows × TileDataS::Cols × sizeof(TileDataD::DType)` 字节。
+        3. **cvtTmp**（转换后的 k 值数组）：偏移量 = `TileDataTmp::Rows × TileDataTmp::Cols × sizeof(uint8_t)` + `TileDataS::Rows × TileDataS::Cols × sizeof(TileDataD::DType)`，以 `TileDataS::DType` 存储，大小 = `TileDataS::Rows × sizeof(TileDataS::DType)` 字节。
+        最小 tmp 大小（字节）必须满足：
+        $$ \text{tmpSize} \ge \text{Rows}_\text{tmp} \times \text{Cols}_\text{tmp} + \text{Rows}_\text{src} \times \text{Cols}_\text{src} \times \text{sizeof(DType}_\text{dst}\text{)} + \text{Rows}_\text{src} \times \text{sizeof(DType}_\text{src}\text{)} $$
+    - **基于比较的 Gather (A5)**：`tmp` Tile 被接受但不使用。A5 硬件无需临时缓冲区即可处理基于比较的 Gather。
 
 ## 示例
 

@@ -118,6 +118,16 @@ For each row `i` in `src0`, compare each element `src0[i, j]` against threshold 
     - Supported dtypes are restricted to a target-defined set (checked via `static_assert` in the implementation), and `sizeof(dst element) == sizeof(src element)`, `dst.GetValidCol() == DstTileData::Cols` (continuous dst storage).
 - **Bounds / validity**:
     - Index bounds are not validated by explicit runtime assertions; out-of-range indices are target-defined.
+- **Temporary tile**:
+    - **Index-based gather (A2A3)**: The C++ API requires an explicit `tmp` tile. `TileDataTmp::DType` must be the same type as `TileDataS1::DType` (`int32_t` or `uint32_t`). `src1.GetValidRow() == TileDataTmp::Rows` and `src1.GetValidCol() == TileDataTmp::Cols`. The tmp tile holds intermediate `vmuls` results used by `vgather` for b16 source types; for b32 source types, the result is written directly to `dst` but the API still requires `tmp`.
+    - **Index-based gather (A5)**: The `tmp` tile is accepted and ignored. A5 hardware handles index-based gather without a scratch buffer.
+    - **Comparison-based gather (A2A3)**: The C++ API requires an explicit `tmp` tile that serves as a combined scratch buffer for three internal regions:
+        1. **cmpsTmp** (comparison result bitmap): offset 0, stored as `uint8_t`, size = `TileDataTmp::Rows × TileDataTmp::Cols` bytes.
+        2. **indexTmp** (index array): offset = `TileDataTmp::Rows × TileDataTmp::Cols × sizeof(uint8_t)`, stored as `TileDataD::DType`, size = `TileDataS::Rows × TileDataS::Cols × sizeof(TileDataD::DType)` bytes.
+        3. **cvtTmp** (converted k-value array): offset = `TileDataTmp::Rows × TileDataTmp::Cols × sizeof(uint8_t)` + `TileDataS::Rows × TileDataS::Cols × sizeof(TileDataD::DType)`, stored as `TileDataS::DType`, size = `TileDataS::Rows × sizeof(TileDataS::DType)` bytes.
+        The minimum tmp size (in bytes) must satisfy:
+        $$ \text{tmpSize} \ge \text{Rows}_\text{tmp} \times \text{Cols}_\text{tmp} + \text{Rows}_\text{src} \times \text{Cols}_\text{src} \times \text{sizeof(DType}_\text{dst}\text{)} + \text{Rows}_\text{src} \times \text{sizeof(DType}_\text{src}\text{)} $$
+    - **Comparison-based gather (A5)**: The `tmp` tile is accepted and ignored. A5 hardware handles comparison-based gather without a scratch buffer.
 
 ## Examples
 
