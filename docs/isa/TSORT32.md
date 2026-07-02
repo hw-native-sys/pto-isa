@@ -6,44 +6,97 @@
 
 ## Introduction
 
-Sort each 32-element block of `src` together with the corresponding indices from `idx`, and write the sorted value-index pairs into `dst`.
+Sort each 32-element block of `src` together with the corresponding indices from `idx`, and write the sorted value-index pairs into `dst`. The underlying SFU instruction is **VBS32** (`vbitsort`), which sorts one or more independent 32-element lists in a single call.
+
+## Hardware: VBS32 (`vbitsort`)
+
+VBS32 runs on the **SFU** (not the vector pipeline). One invocation sorts `repeat` consecutive 32-element blocks, each consisting of 32 values + 32 indices packed as value-index pairs:
+
+```cpp
+void vbitsort(__ubuf__ T *dst,        // sorted value-index pairs out
+              __ubuf__ T *src0,        // 32 values per block × repeat
+              __ubuf__ uint32_t *src1, // 32 indices per block × repeat
+              uint8_t repeat);         // number of 32-element blocks (1..255)
+```
+
+- `repeat` (cap `REPEAT_MAX = 255`) is packed into `config[63:56]`.
+- Blocks are **contiguous, strided by 32 elements**: block `b` reads `src0[b*32 : b*32+32]` and `src1[b*32 : b*32+32]`, writes `dst[b*32*coef : ...]` where `coef` = 2 (float) or 4 (half) — the value-index pair expansion factor.
+- Sort order: **descending** by value; ties broken by smaller index first.
 
 ## Math Interpretation
 
-For each row, `TSORT32` processes `src` in independent 32-element blocks. Let block `b` cover columns `32b ... 32b+31`, and let `n_b = min(32, C - 32b)` be the valid element count of that block.
-
-For each valid element in the block, form a pair
+For each row `r`, `src` is processed in independent 32-element blocks. Let block `b` cover columns `32b … 32b+31`, and `n_b = min(32, C - 32b)` be its valid count.
 
 $$
-(v_k, i_k) = (\mathrm{src}_{r,32b+k}, \mathrm{idx}_{r,32b+k}), \quad 0 \le k < n_b
+(v_k, i_k) = (\mathrm{src}_{r,32b+k},\; \mathrm{idx}_{r,32b+k}), \quad 0 \le k < n_b
 $$
 
-Then sort the pairs by value and write the sorted value-index pairs to `dst`. The exact packing layout in `dst` is target-defined, but semantically the output of each block is the reordered sequence
+Sort the pairs by value (descending); output the reordered sequence:
 
 $$
-[(v_{\pi(0)}, i_{\pi(0)}), (v_{\pi(1)}, i_{\pi(1)}), \ldots, (v_{\pi(n_b-1)}, i_{\pi(n_b-1)})]
+[(v_{\pi(0)}, i_{\pi(0)}),\; (v_{\pi(1)}, i_{\pi(1)}),\; \ldots]
 $$
 
-where `π` is the permutation produced by the implementation for that 32-element block.
+where `π` is the sort permutation for that block.
 
 Notes:
-
-- `idx` is an input tile, not an output tile.
+- `idx` is an input tile (indices permuted with values), not an output.
 - `dst` stores sorted value-index pairs, not just sorted values.
-- The CPU simulation sorts in descending order by value, and for equal values keeps smaller indices first.
+
+## C++ Intrinsic
+
+Declared in `include/pto/common/pto_instr.hpp`:
+
+```cpp
+// 3-arg: src must be 32-aligned (validCol % 32 == 0)
+template <typename DstTileData, typename SrcTileData, typename IdxTileData>
+PTO_INST RecordEvent TSORT32(DstTileData &dst, SrcTileData &src, IdxTileData &idx);
+
+// 4-arg: supports non-32-aligned tails (validCol % 32 != 0) via tmp padding
+template <typename DstTileData, typename SrcTileData, typename IdxTileData, typename TmpTileData>
+PTO_INST RecordEvent TSORT32(DstTileData &dst, SrcTileData &src, IdxTileData &idx, TmpTileData &tmp);
+```
+
+## Tile Sizes & Data Types
+
+For `src` of shape $R \times C$ (valid region), block size 32:
+
+| Tile | dtype | Size (elements) | Notes |
+|------|-------|-----------------|-------|
+| `src` | `half` or `float` ($T$) | $R \times C$ | values to sort |
+| `idx` | `uint32_t` | $R \times C$ (or $1 \times C$ broadcast) | indices permuted with values |
+| `dst` | $T$ | $R \times (2C)$ float, $R \times (4C)$ half | sorted value-index pairs (expansion below) |
+| `tmp` (4-arg only) | $T$ | $\ge \mathrm{ceil}_{32}(C)$ per row | tail-padding scratch; ≤ $32 \times 255$ elements |
+
+**`dst` expansion factor** (`typeCoef`): each input element becomes a value-index pair.
+
+| dtype | `dst` cols per `src` col | pair layout | bytes/pair |
+|-------|--------------------------|-------------|------------|
+| `float` | ×2 | `[value_f32, index_u32]` | 8 |
+| `half` | ×4 | half-pair packing | 8 |
+
+## Constraints
+
+| Constraint | Reason |
+|------------|--------|
+| `dst`/`src` dtype = `half` or `float` (must match); `idx` = `uint32_t` | VBS32 type dispatch |
+| All tiles `TileType::Vec`, `BLayout::RowMajor` | SFU addressing |
+| `validCol % 32 == 0` (3-arg) | each block exactly 32 elements |
+| `validCol` arbitrary (4-arg) | tail block padded to 32 with $-\infty$ via `tmp` |
+| `repeat = validCol/32` (3-arg) or `ceil(validCol/32)` (4-arg) | VBS32 repeat count, ≤ 255 per call; larger `validCol` splits into multiple `vbitsort` calls |
+| `tmp` (4-arg) ≥ `ceil32(C)` elements/row | holds the padded copy of the tail block |
+| No `WaitEvents&...` / no internal `TSYNC` | synchronize explicitly if needed |
+
+### 4-arg tail handling
+
+When `validCol % 32 != 0`, the last partial block is copied to `tmp`, padded with $-\infty$ (`-(0.0/0.0)`) up to 32 elements via `vdup`, then sorted from `tmp` (padding values land at the bottom of the descending order). If `validCol > 32 × 255`, the row is chunked into `REPEAT_MAX`-sized groups, each sorted separately.
 
 ## Assembly Syntax
-
-Synchronous form:
-
-```text
-%dst = tsort32 %src, %idx : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
-```
 
 ### AS Level 1 (SSA)
 
 ```text
-%dst = pto.tsort32 %src, %idx : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
+%dst = pto.tsort32 %src, %idx : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
 ### AS Level 2 (DPS)
@@ -51,71 +104,26 @@ Synchronous form:
 ```text
 pto.tsort32 ins(%src, %idx : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-## C++ Intrinsic
-
-Declared in `include/pto/common/pto_instr.hpp`:
-
-```cpp
-template <typename DstTileData, typename SrcTileData, typename IdxTileData>
-PTO_INST RecordEvent TSORT32(DstTileData &dst, SrcTileData &src, IdxTileData &idx);
-
-template <typename DstTileData, typename SrcTileData, typename IdxTileData, typename TmpTileData>
-PTO_INST RecordEvent TSORT32(DstTileData &dst, SrcTileData &src, IdxTileData &idx, TmpTileData &tmp);
-```
-
-## Constraints
-
-- `TSORT32` does not take `WaitEvents&...` and does not call `TSYNC(...)` internally; synchronize explicitly if needed.
-- `idx` is a required input operand in both overloads; it provides the indices that are permuted together with `src`.
-- **Implementation checks (A2A3/A5)**:
-    - `DstTileData::DType` must be `half` or `float`.
-    - `SrcTileData::DType` must match `DstTileData::DType`.
-    - `IdxTileData::DType` must be `uint32_t`.
-    - `dst/src/idx` tile location must be `TileType::Vec`, and all must be row-major (`isRowMajor`).
-- **Valid region**:
-    - The implementation uses `dst.GetValidRow()` as the row count.
-    - The implementation uses `src.GetValidCol()` to determine how many elements participate in sorting in each row.
-    - Sorting is performed independently per 32-element block; the 4-argument overload additionally supports non-32-aligned tails with `tmp`.
 
 ## Examples
 
-### Auto
-
 ```cpp
 #include <pto/pto-inst.hpp>
-
 using namespace pto;
 
-void example_auto() {
-  using SrcT = Tile<TileType::Vec, float, 1, 32>;
-  using IdxT = Tile<TileType::Vec, uint32_t, 1, 32>;
-  using DstT = Tile<TileType::Vec, float, 1, 64>;
-  SrcT src;
-  IdxT idx;
-  DstT dst;
-  TSORT32(dst, src, idx);
-}
-```
+// 32-aligned: single block per row
+using SrcT = Tile<TileType::Vec, float, 1, 32>;
+using IdxT = Tile<TileType::Vec, uint32_t, 1, 32>;
+using DstT = Tile<TileType::Vec, float, 1, 64>;   // 2× src cols (float)
+SrcT src; IdxT idx; DstT dst;
+TSORT32(dst, src, idx);
 
-### Manual
-
-```cpp
-#include <pto/pto-inst.hpp>
-
-using namespace pto;
-
-void example_manual() {
-  using SrcT = Tile<TileType::Vec, float, 1, 32>;
-  using IdxT = Tile<TileType::Vec, uint32_t, 1, 32>;
-  using DstT = Tile<TileType::Vec, float, 1, 64>;
-  SrcT src;
-  IdxT idx;
-  DstT dst;
-  TASSIGN(src, 0x1000);
-  TASSIGN(idx, 0x2000);
-  TASSIGN(dst, 0x3000);
-  TSORT32(dst, src, idx);
-}
+// Non-32-aligned tail: 4-arg with tmp
+using SrcT2 = Tile<TileType::Vec, half, 1, 100>;
+using IdxT2 = Tile<TileType::Vec, uint32_t, 1, 100>;
+using DstT2 = Tile<TileType::Vec, half, 1, 400>;  // 4× src cols (half)
+using TmpT  = Tile<TileType::Vec, half, 1, 128>;  // ≥ ceil32(100)=128
+TSORT32(dst2, src2, idx2, tmp);
 ```
 
 ## ASM Form Examples
@@ -123,26 +131,22 @@ void example_manual() {
 ### Auto Mode
 
 ```text
-# Auto mode: compiler/runtime-managed placement and scheduling.
-%dst = pto.tsort32 %src, %idx : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
+%dst = pto.tsort32 %src, %idx : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
 ### Manual Mode
 
 ```text
-# Manual mode: resources must be bound explicitly before issuing the instruction.
-# Optional for tile operands:
 # pto.tassign %arg0, @tile(0x1000)
 # pto.tassign %arg1, @tile(0x2000)
 # pto.tassign %arg2, @tile(0x3000)
-%dst = pto.tsort32 %src, %idx : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
+%dst = pto.tsort32 %src, %idx : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
 ### PTO Assembly Form
 
 ```text
-%dst = tsort32 %src, %idx : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
+%dst = tsort32 %src, %idx : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 # AS Level 2 (DPS)
 pto.tsort32 ins(%src, %idx : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-
