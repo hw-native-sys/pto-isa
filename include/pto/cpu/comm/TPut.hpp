@@ -21,10 +21,10 @@ PTO_INTERNAL void TPUT_IMPL(GlobalDstData &dst, GlobalSrcData &src, TileData &sr
     Copy_Data<GlobalDstData, GlobalSrcData, atomicType>(dst, src);
 }
 
-template <typename GlobalDstData, typename GlobalSrcData, typename TileData>
+template <typename GlobalDstData, typename GlobalSrcData, typename TileData, AtomicType atomicType>
 PTO_INTERNAL void TPUT_IMPL(GlobalDstData &dst, GlobalSrcData &src, TileData &ping, TileData &pong)
 {
-    Copy_Data(dst, src);
+    Copy_Data<GlobalDstData, GlobalSrcData, atomicType>(dst, src);
 }
 
 template <DmaEngine engine = DmaEngine::SDMA, typename GlobalDstData, typename GlobalSrcData>
