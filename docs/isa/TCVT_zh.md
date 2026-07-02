@@ -46,6 +46,14 @@ PTO_INST RecordEvent TCVT(TileDataD &dst, TileDataS &src, RoundMode mode, Satura
 
 template <typename TileDataD, typename TileDataS, typename... WaitEvents>
 PTO_INST RecordEvent TCVT(TileDataD &dst, TileDataS &src, RoundMode mode, WaitEvents &... events);
+
+template <typename TileDataD, typename TileDataS, typename TmpTileData, typename... WaitEvents>
+PTO_INST RecordEvent TCVT(TileDataD &dst, TileDataS &src, TmpTileData &tmp, RoundMode mode,
+                          SaturationMode satMode, WaitEvents &... events);
+
+template <typename TileDataD, typename TileDataS, typename TmpTileData, typename... WaitEvents>
+PTO_INST RecordEvent TCVT(TileDataD &dst, TileDataS &src, TmpTileData &tmp, RoundMode mode,
+                          WaitEvents &... events);
 ```
 
 ## 约束
@@ -56,6 +64,47 @@ PTO_INST RecordEvent TCVT(TileDataD &dst, TileDataS &src, RoundMode mode, WaitEv
     - 一种形式接受显式的 `SaturationMode`，指定的饱和行为会直接传递给实现。
     - 另一种形式不显式给出 `SaturationMode`；此时实现会针对具体类型对选择目标定义的默认饱和行为。
     - 在 CPU 实现中，目前仅实现了不显式传入 `SaturationMode` 的形式。
+- **临时 Tile**:
+  - C++ API 提供显式传入 `tmp` Tile 的重载。在 A2A3 上，当 `SaturationMode::OFF` 用于 `float -> int16`、`half -> int16` 或 `half -> int8` 时，PyTorch 兼容的非饱和窄化路径会使用该临时 Tile。其他转换不需要 tmp 空间。
+  - 实现会将 `tmp` 转换为 `int32_t *` 使用；因此应按字节数来规划 tmp Tile 大小，而不是按 `TmpTileData::DType` 的类型理解。
+  - 下列公式给出按实现使用的 32 字节向量块粒度向上取整后的最小分配大小。若 `C = 0`，不会发起需要 tmp 的转换，所需 tmp 大小为 `0`。
+  - **公共参数**:
+    - `R = dst.GetValidRow()`。
+    - `C = dst.GetValidCol()`。
+    - `SS = TileDataS::RowStride`，单位为源元素个数。
+    - `REPEAT_MAX = 255`，`REPEAT_BYTE = 256`，`BLOCK_BYTE_SIZE = 32`。
+  - **`float -> int16`，非饱和 (`SaturationMode::OFF`)**:
+    - 临时结果是第一步 `float -> int32` 转换产生的 `int32_t` Tile。
+    - 由于 `float` 源行受 Tile 约束保证 32 字节对齐，`SS / 8` 是以 32 字节块为单位的源 repeat stride。
+    - 对齐的主区域中，一次调用处理一行，最多处理 `REPEAT_MAX` 个 repeat，每个 repeat 为 `64` 个元素：
+    $$ \text{tmpHeadBytes} = 4 \times 64 \times \min\left(\left\lfloor\frac{C}{64}\right\rfloor, 255\right) $$
+    - 尾部区域中，一次调用最多处理 `REPEAT_MAX` 行，并使用源行 stride。由于向量 repeat stride 以块为单位，空间范围按 32 字节块计算：
+    $$ \text{tmpTailBytes} =
+    \begin{cases}
+    32 \times \left((\min(R, 255) - 1) \times \frac{SS}{8} + \left\lceil\frac{C \bmod 64}{8}\right\rceil\right), & C \bmod 64 > 0 \\
+    0, & C \bmod 64 = 0
+    \end{cases} $$
+    - 该路径所需的最小 tmp 大小为：
+    $$ \text{tmpFloatToInt16Bytes} = \max(\text{tmpHeadBytes}, \text{tmpTailBytes}) $$
+    - 对主区域而言，一个紧凑的完整 repeat 上界是 `REPEAT_MAX * REPEAT_BYTE = 65280` 字节；但当 `SS` 较大时，尾部会按源行 stride 写入，所需空间可能更大。
+  - **`half -> int16`，非饱和 (`SaturationMode::OFF`)**:
+    - 实现按行处理，每行拆分为不超过 `64` 个元素的子块，并在每个子块之间复用同一段临时缓冲区。对于 `C > 0`，令：
+    $$ H = \min(C, 64) $$
+    - 该路径所需的最小 tmp 大小为：
+    $$ \text{tmpHalfToInt16Bytes} = 32 \times \left\lceil\frac{H}{8}\right\rceil $$
+    - 对任意非空 Tile，该路径的形状无关上界为 `256` 字节。
+  - **`half -> int8`，非饱和 (`SaturationMode::OFF`)**:
+    - 实现同样按不超过 `64` 个元素的子块处理，并复用同一段 256 字节临时区域。第一步最多将 `64` 个 `int32_t` 写入字节 `[0, 255]`；完成 `int32 -> int16` 窄化后，字节 `[0, 127]` 保存 `int16_t` 值，字节 `[128, 255]` 被复用为 scratch。
+    - `tempMaskBuf = tempAndBuf + 64` 会前进 `64 * sizeof(int16_t) = 128` 字节，因此它指向同一 256 字节临时区域的上半部分，不需要额外再分配 256 字节。
+    - 该路径所需的最小 tmp 大小为：
+    $$ \text{tmpHalfToInt8Bytes} = \max\left(32 \times \left\lceil\frac{H}{8}\right\rceil,\ 128 + 32 \times \left\lceil\frac{H}{16}\right\rceil\right) $$
+    - 对任意非空 Tile，该路径的形状无关上界为 `256` 字节。
+  - **覆盖所有 tmp-backed TCVT 转换的总体最小值**:
+    - 由于 `tmpHalfToInt8Bytes >= tmpHalfToInt16Bytes`，对于同一形状，能覆盖所有会使用 tmp 的 TCVT 转换路径的最小 tmp 大小为：
+    $$ \text{tmpSizeAllBytes} = \max(\text{tmpFloatToInt16Bytes},\ \text{tmpHalfToInt8Bytes}) $$
+    - 如果 Tile 非空，并且 half 路径使用形状无关的紧凑上界即可，也可写为：
+    $$ \text{tmpSizeAllBytes} = \max(\text{tmpFloatToInt16Bytes},\ 256) $$
+  - 对于不需要 PyTorch 兼容 tmp-backed 路径的转换，或者原生饱和行为已经满足需求时，可以继续使用不带 `tmp` 的重载。
 
 ## 支持的转换（A2A3 与 A5 并排对比）
 
