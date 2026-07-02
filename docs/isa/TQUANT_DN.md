@@ -117,6 +117,43 @@ mathematically identical to the transpose step of this recipe. It cannot general
 (requires `M̂≤4` to fit a B32 word, and `N≤64` for single-VL). `TMovDnTo2Zz` is the
 general replacement.
 
+### Implementation: vlds + vintlv + vsstb
+
+`TMovDnTo2Zz` produces the cb-outer ZZ layout without scalar computation, branching, or
+static predicates. The core insight: **`vintlv` of two source rows yields the cb-inner
+box order; VSSTB's block-stride scatters it into cb-outer order in one instruction.**
+
+**Per row-pair `p`, per col-VL `vl`** (loops are constexpr-bounded; the col-VL inner
+loop covers columns in 128-B = 8-box chunks):
+
+1. **`vlds(vRow0, row2p, vl·128, NORM)`** — aligned contiguous load of 256 B from
+   `E_DN[2p]` at column offset `vl·128`. Row starts are 32-B aligned (`N mod 32 = 0`),
+   so plain `vlds` suffices (no `vldas`/`vldus`). Bytes beyond the valid column span are
+   masked out at store time.
+2. **`vlds(vRow1, row2p+1, vl·128, NORM)`** — same for the paired row.
+3. **`vintlv(vZ0, vZ1, vRow0, vRow1)`** — byte-interleave. `vZ0`'s 8 blocks (32 B each)
+   become boxes `(cb = vl·8..vl·8+7, p)` in **cb-inner** order: block `b` holds the
+   interleaved `E_DN[2p][16(vl·8+b)+q]` / `E_DN[2p+1][...]` for `q ∈ [0,16)`.
+4. **`CreatePredicate<uint8_t>(remainingBytes)`** — auto-decrementing tail mask. The lvalue
+   `remainingBytes` starts at `colBlockCount·32` and `plt_b8(..., POST_UPDATE)` subtracts 256
+   per call, so the final (partial) col-VL is masked exactly; once it reaches ≤ 0 the
+   predicate is all-false and the VSSTB no-ops harmlessly.
+5. **`vsstb(vZ0, dst + (vl·8·numPairs + p)·32, (numPairs<<16)|0, preg, POST_UPDATE)`** —
+   block-strided scatter. Register block `b` → dst block `baseBlock + b·blockStride`. With
+   `blockStride = numPairs` and `baseBlock = vl·8·numPairs + p`, register block `b` (= cb)
+   lands at dst slot `cb·numPairs + p` — exactly the **cb-outer** linear order.
+
+**Why `blockStride = numPairs`:** the cb-outer destination linearizes boxes as
+`slot(cb,p) = cb·numPairs + p`. For a fixed `p`, consecutive `cb` values are `numPairs`
+slots apart, so a block-stride of `numPairs` scatters one row-pair's boxes to their correct
+interleaved positions. The next `p` re-anchors at `base + p·32` (one block offset) to fill
+the gaps. This is uniform for all `numPairs` (no size-dependent branching).
+
+**Loop structure:** `p` outer (`numPairs` iters), `vl` inner (`colVLCount = ⌈N/128⌉` iters).
+No data-dependent branches; all bounds and strides are constexpr from the tile template
+parameters. The 5-arg POST_UPDATE `vsstb` form is required — the 4-arg form interprets the
+offset argument as a *source-register* offset, not the stride config.
+
 ## TMOV Interface
 
 ### DN→ZZ (new)
