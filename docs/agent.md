@@ -79,8 +79,8 @@ Recommended suites (wrapper script):
 
 ```bash
 chmod +x ./tests/run_st.sh
-./tests/run_st.sh a3 sim simple
-./tests/run_st.sh a3 npu simple
+./tests/run_st.sh --a3 --sim --simple
+./tests/run_st.sh --a3 --npu --simple
 ```
 
 ## Environment: Ascend CANN / Toolkit

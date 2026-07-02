@@ -21,6 +21,35 @@ ENABLE_COMM=false
 ARGS=" "
 IS_AUTO_MODE=false
 
+usage() {
+  cat >&2 <<'EOF'
+Usage: ./tests/run_st.sh <platform> <mode> [run-mode] [options]
+
+Platform (choose at least one):
+  --a3          A2/A3 (Ascend910B/910C)
+  --a5          A5 (Ascend950)
+  --a3_a5       both A2/A3 and A5
+  --kirin9030   Kirin9030
+  --kirinX90    KirinX90
+
+Mode (required for --a3/--a5/--a3_a5, choose one):
+  --simple      run the curated single-case subset
+  --all         run the full ST suite
+
+Run mode (choose one; defaults to on-board npu if omitted):
+  --sim         run against the simulator
+  --npu         run on NPU hardware
+
+Options:
+  --comm        include communication ST
+  --auto_mode   run ST in auto mode
+
+Examples:
+  ./tests/run_st.sh --a5 --npu --simple
+  ulimit -n 65536 && ./tests/run_st.sh --a3 --sim --all
+EOF
+}
+
 checkopts() {
   while true; do
     case "$1" in
@@ -74,14 +103,35 @@ checkopts() {
         shift
         break
         ;;
-      *)
+      "")
         break
+        ;;
+      *)
+        echo "Error: unknown argument '$1'" >&2
+        usage
+        exit 1
         ;;
     esac
   done
 }
 
 checkopts "$@"
+
+# Validate the parsed options so that a mis-typed invocation fails loudly
+# instead of silently exiting 0 without running any test.
+if [ "$ENABLE_A3" = "false" ] && [ "$ENABLE_A5" = "false" ] && \
+   [ "$ENABLE_KIRIN9030" = "false" ] && [ "$ENABLE_KIRINX90" = "false" ]; then
+  echo "Error: no platform selected (expected one of --a3/--a5/--a3_a5/--kirin9030/--kirinX90)." >&2
+  usage
+  exit 1
+fi
+
+if { [ "$ENABLE_A3" = "true" ] || [ "$ENABLE_A5" = "true" ]; } && \
+   [ "$ENABLE_SIMPLE" = "false" ] && [ "$ENABLE_ALL" = "false" ]; then
+  echo "Error: --a3/--a5 requires a test mode: pass --simple or --all." >&2
+  usage
+  exit 1
+fi
 
 if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
   if [ "$ENABLE_SIMPLE" = "true" ]; then           # 单个用例

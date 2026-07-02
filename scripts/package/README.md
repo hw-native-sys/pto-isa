@@ -21,7 +21,7 @@ cd ${git_clone_path}
 ./build.sh --pkg
 ```
 
-After the build completes, the `.run` installer package is generated under `scripts/package/output/`.
+After the build completes, the `.run` installer package is generated under `build_out/`.
 
 ### Installation
 
@@ -35,13 +35,13 @@ Install via the `.run` self-extracting package. An install type is required (cho
 
 ```bash
 # Full installation to a custom path
-./scripts/package/output/pto_isa_*.run --full --install-path=/your/install/path
+./build_out/pto_isa_*.run --full --install-path=/your/install/path
 
 # Quiet install, skip interactive prompts (for CI/CD and non-interactive environments)
-./scripts/package/output/pto_isa_*.run --full --quiet --install-path=/your/install/path
+./build_out/pto_isa_*.run --full --quiet --install-path=/your/install/path
 
 # Runtime-only installation
-./scripts/package/output/pto_isa_*.run --run --install-path=/your/install/path
+./build_out/pto_isa_*.run --run --install-path=/your/install/path
 ```
 
 Common install options:
@@ -59,5 +59,5 @@ Common install options:
 For a full list of options:
 
 ```bash
-./scripts/package/output/pto_isa_*.run --help
+./build_out/pto_isa_*.run --help
 ```
