@@ -387,6 +387,10 @@ __tf__ PTO_INTERNAL void TMovNdTo2Zz(typename DstTileData::TileDType __out__ dst
 // Iterating over col blocks (cb) along a row advances the source pointer by 16 (cols
 // are contiguous); advancing to the next row-group pair advances it by N. tmp is unused
 // (kept in the signature to match the ND->ZZ TMOV interface).
+// DN->ZZ exponent gather. See docs/isa/TQUANT_DN.md §"Implementation: vlds + vintlv + vsstb".
+// Produces the cb-outer ZZ layout from the DN (axis-0-grouped) exponent tile via
+// vlds + vintlv (cb-inner boxes) + vsstb block-strided scatter (cb-outer). No scalar
+// computation, no data-dependent branching, no static predicates.
 template <typename DstTileData, typename SrcTileData>
 PTO_INTERNAL void GenerateB8IndicesDN2ZZToUB(__ubuf__ uint8_t *dst, __ubuf__ uint8_t *src, __ubuf__ uint8_t *tmp,
                                              unsigned hatM, unsigned colsN)
@@ -395,39 +399,21 @@ PTO_INTERNAL void GenerateB8IndicesDN2ZZToUB(__ubuf__ uint8_t *dst, __ubuf__ uin
     const uint16_t N = (uint16_t)colsN;
     const uint16_t colBlockCount = N / 16;
     const uint16_t numPairs = (uint16_t)hatM / 2;
-    // A ZZ box is [16,2] = 32 B = 16 B16 pairs. Store at B16 granularity with a full
-    // predicate (PAT_ALL) and POST_UPDATE advancing by boxB16 (32 B) per box -- this is
-    // the idiom GenerateB8IndicesZZToUB uses (store-dist-modes.md §NORM_BX: count is the
-    // POST_UPDATE stride, predicate is the write mask; a by-value __ubuf__* local still
-    // advances because the intrinsic takes it by reference internally).
-    uint32_t boxB16 = 16;
-    __ubuf__ uint16_t *dstB16 = (__ubuf__ uint16_t *)dst;
-    // PAT_VL16 masks the lower 16 B16 lanes = exactly one 32-B ZZ box, so each store
-    // writes only its own box (no neighbour overwrite) and POST_UPDATE advances dstB16
-    // by boxB16 (32 B) per iteration. (PAT_ALL would write a full 256-B VL per box,
-    // stomping the next boxes' regions.)
-    MaskReg preg_box = pset_b16(PAT_VL16);
-
-    __ubuf__ uint8_t *rowBase = src; // E_DN[0][0]
-    for (uint16_t cb = 0; cb < colBlockCount; ++cb) {
-        const uint16_t off = cb * 16;
-        for (uint16_t p = 0; p < numPairs; ++p) {
-            // Load the two DN source rows (16 B8 each) via unaligned loads (rows are
-            // 16-B aligned, not always 32-B). These reads were verified correct in sim.
-            RegTensor<uint8_t> vRow0, vRow1;
-            vector_u8 vZ0, vZ1;
-            vector_align ureg0, ureg1;
-            __ubuf__ uint8_t *row0 = rowBase + (uint32_t)p * 2 * N + off;
-            __ubuf__ uint8_t *row1 = row0 + N;
-            vldas(ureg0, row0);
-            vldus(vRow0, ureg0, row0);
-            vldas(ureg1, row1);
-            vldus(vRow1, ureg1, row1);
-            vintlv(vZ0, vZ1, (vector_u8 &)vRow0, (vector_u8 &)vRow1);
-            // Store the first 16 B16 (32 B) of the zipped stream as B16 with a FULL
-            // predicate + POST_UPDATE advancing dstB16 by boxB16 (32 B) per box. This
-            // is the GenerateB8IndicesZZToUB idiom (store-dist-modes.md §NORM_BX).
-            vsts((vector_u16 &)vZ0, dstB16, boxB16, NORM_B16, preg_box, POST_UPDATE);
+    const uint16_t colVLCount = (colBlockCount + 7) / 8;
+    const uint32_t cfgStride = ((uint32_t)numPairs << 16u) | 0u; // blockStride=numPairs, repeatStride=0
+    __ubuf__ uint8_t *rowBase = src;
+    for (uint16_t p = 0; p < numPairs; ++p) {
+        __ubuf__ uint8_t *row0Base = rowBase + (uint32_t)p * 2U * N;
+        __ubuf__ uint8_t *row1Base = row0Base + N;
+        uint32_t remainingBytes = (uint32_t)colBlockCount * 32U; // CreatePredicate auto-decrements
+        for (uint16_t vl = 0; vl < colVLCount; ++vl) {
+            vector_u8 vRow0, vRow1, vZ0, vZ1;
+            vlds(vRow0, row0Base, (uint32_t)vl * 128U, NORM);
+            vlds(vRow1, row1Base, (uint32_t)vl * 128U, NORM);
+            vintlv(vZ0, vZ1, vRow0, vRow1);
+            MaskReg pregBoxes = CreatePredicate<uint8_t>(remainingBytes);
+            __ubuf__ uint8_t *dstP = dst + ((uint32_t)vl * 8U * numPairs + p) * 32U;
+            vsstb(vZ0, dstP, cfgStride, pregBoxes, POST_UPDATE);
         }
     }
 }
