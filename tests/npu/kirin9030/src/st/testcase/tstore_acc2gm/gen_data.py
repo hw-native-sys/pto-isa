@@ -208,6 +208,7 @@ if __name__ == "__main__":
         "TStoreAcc2gmTest.case24",
         "TStoreAcc2gmTest.case26",
         "TStoreAcc2gmTest.case27",
+        "TStoreAcc2gmTest.case28",
         "TStoreAcc2gmTest.case29",
         "TStoreAcc2gmTest.case30",
         "TStoreAcc2gmTest.case32",
@@ -254,6 +255,7 @@ if __name__ == "__main__":
         TStoreAcc2gmParams(np.int8, np.float16, 1, 33, 65, 25, 2),
         TStoreAcc2gmParams(np.uint8, np.float16, 1, 19, 32, 23, 2),
         # Vector quant NZ
+        TStoreAcc2gmParams(np.float16, np.int8, 2, 64, 128, 64, 2),
         TStoreAcc2gmParams(np.int8, np.int8, 2, 32, 32, 31, 2),
         TStoreAcc2gmParams(np.uint8, np.int8, 2, 48, 32, 23, 2),
         TStoreAcc2gmParams(np.int8, np.float16, 2, 32, 64, 25, 2),

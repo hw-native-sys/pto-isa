@@ -628,10 +628,6 @@ void LaunchTStoreAcc2gmScalarNz2nd(uint8_t *out, uint8_t *src0, uint8_t *src1, v
         TStoreAcc2gmScalarNz2nd<0, half, uint8_t, half, 1, 1, 1, 16, 20, 1, 1, 1, 16, 20, 16, 20, 25>
             <<<1, nullptr, stream>>>(reinterpret_cast<uint8_t *>(out), reinterpret_cast<half *>(src0),
                                      reinterpret_cast<half *>(src1), scalarQuant);
-    } else if constexpr (tilingKey == 7) {
-        TStoreAcc2gmScalarNz2nd<0, half, half, half, 1, 1, 1, 49, 65, 1, 1, 1, 49, 65, 49, 65, 37>
-            <<<1, nullptr, stream>>>(reinterpret_cast<half *>(out), reinterpret_cast<half *>(src0),
-                                     reinterpret_cast<half *>(src1), scalarQuant);
     } else if constexpr (tilingKey == 21) {
         TStoreAcc2gmScalarNz2nd<0, half, int8_t, half, 1, 1, 1, 77, 34, 1, 1, 1, 77, 34, 77, 34, 81, 1>
             <<<1, nullptr, stream>>>(reinterpret_cast<int8_t *>(out), reinterpret_cast<half *>(src0),
@@ -658,10 +654,6 @@ void LaunchTStoreAcc2gmScalarNz2nz(uint8_t *out, uint8_t *src0, uint8_t *src1, v
         TStoreAcc2gmScalarNz2nz<0, half, int8_t, half, 2, 1, 1, 16, 32, 2, 1, 1, 16, 32, 16, 64, 15>
             <<<1, nullptr, stream>>>(reinterpret_cast<int8_t *>(out), reinterpret_cast<half *>(src0),
                                      reinterpret_cast<half *>(src1), scalarQuant);
-    } else if constexpr (tilingKey == 7) {
-        TStoreAcc2gmScalarNz2nz<0, half, half, half, 4, 4, 8, 16, 16, 4, 4, 8, 16, 16, 128, 128, 37>
-            <<<1, nullptr, stream>>>(reinterpret_cast<half *>(out), reinterpret_cast<half *>(src0),
-                                     reinterpret_cast<half *>(src1), scalarQuant);
     } else if constexpr (tilingKey == 21) {
         TStoreAcc2gmScalarNz2nz<0, int32_t, int8_t, int8_t, 1, 1, 6, 16, 32, 1, 1, 6, 16, 32, 96, 32, 159, 1>
             <<<1, nullptr, stream>>>(reinterpret_cast<int8_t *>(out), reinterpret_cast<int8_t *>(src0),
@@ -684,10 +676,6 @@ void LaunchTStoreAcc2gmVectorNz2nd(uint8_t *out, uint8_t *src0, uint8_t *src1, u
         TStoreAcc2gmVectorNz2nd<0, int32_t, uint8_t, int8_t, 1, 1, 1, 31, 32, 1, 1, 1, 31, 32, 31, 32, 29>
             <<<1, nullptr, stream>>>(reinterpret_cast<uint8_t *>(out), reinterpret_cast<int8_t *>(src0),
                                      reinterpret_cast<int8_t *>(src1), reinterpret_cast<uint64_t *>(quantTensor));
-    } else if constexpr (tilingKey == 5) {
-        TStoreAcc2gmVectorNz2nd<0, half, half, half, 1, 1, 1, 15, 15, 1, 1, 1, 15, 15, 15, 15, 31>
-            <<<1, nullptr, stream>>>(reinterpret_cast<half *>(out), reinterpret_cast<half *>(src0),
-                                     reinterpret_cast<half *>(src1), reinterpret_cast<uint64_t *>(quantTensor));
     } else if constexpr (tilingKey == 7) {
         TStoreAcc2gmVectorNz2nd<0, half, int8_t, half, 1, 1, 1, 33, 65, 1, 1, 1, 33, 65, 33, 65, 25>
             <<<1, nullptr, stream>>>(reinterpret_cast<int8_t *>(out), reinterpret_cast<half *>(src0),
@@ -707,7 +695,7 @@ template <int tilingKey>
 void LaunchTStoreAcc2gmVectorNz2nz(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *quantTensor, void *stream)
 {
     if constexpr (tilingKey == 1) {
-        TStoreAcc2gmVectorNz2nz<0, int32_t, half, int8_t, 4, 2, 16, 16, 16, 4, 2, 16, 16, 16, 256, 128, 63>
+        TStoreAcc2gmVectorNz2nz<0, int32_t, half, int8_t, 1, 8, 4, 16, 16, 1, 8, 4, 16, 16, 64, 128, 64>
             <<<1, nullptr, stream>>>(reinterpret_cast<half *>(out), reinterpret_cast<int8_t *>(src0),
                                      reinterpret_cast<int8_t *>(src1), reinterpret_cast<uint64_t *>(quantTensor));
     } else if constexpr (tilingKey == 2) {
@@ -718,10 +706,6 @@ void LaunchTStoreAcc2gmVectorNz2nz(uint8_t *out, uint8_t *src0, uint8_t *src1, u
         TStoreAcc2gmVectorNz2nz<0, int32_t, uint8_t, int8_t, 1, 1, 3, 16, 32, 1, 1, 3, 16, 32, 48, 32, 23>
             <<<1, nullptr, stream>>>(reinterpret_cast<uint8_t *>(out), reinterpret_cast<int8_t *>(src0),
                                      reinterpret_cast<int8_t *>(src1), reinterpret_cast<uint64_t *>(quantTensor));
-    } else if constexpr (tilingKey == 5) {
-        TStoreAcc2gmVectorNz2nz<0, half, half, half, 2, 3, 8, 16, 16, 2, 3, 8, 16, 16, 128, 96, 31>
-            <<<1, nullptr, stream>>>(reinterpret_cast<half *>(out), reinterpret_cast<half *>(src0),
-                                     reinterpret_cast<half *>(src1), reinterpret_cast<uint64_t *>(quantTensor));
     } else if constexpr (tilingKey == 7) {
         TStoreAcc2gmVectorNz2nz<0, half, int8_t, half, 2, 1, 2, 16, 32, 2, 1, 2, 16, 32, 32, 64, 25>
             <<<1, nullptr, stream>>>(reinterpret_cast<int8_t *>(out), reinterpret_cast<half *>(src0),
@@ -764,8 +748,6 @@ template void LaunchTStoreAcc2gmScalarNz2nd<5>(uint8_t *out, uint8_t *src0, uint
                                                float scalarQuant);
 template void LaunchTStoreAcc2gmScalarNz2nd<6>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream,
                                                float scalarQuant);
-template void LaunchTStoreAcc2gmScalarNz2nd<7>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream,
-                                               float scalarQuant);
 template void LaunchTStoreAcc2gmScalarNz2nd<21>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream,
                                                 float scalarQuant);
 
@@ -778,8 +760,6 @@ template void LaunchTStoreAcc2gmScalarNz2nz<3>(uint8_t *out, uint8_t *src0, uint
                                                float scalarQuant);
 template void LaunchTStoreAcc2gmScalarNz2nz<5>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream,
                                                float scalarQuant);
-template void LaunchTStoreAcc2gmScalarNz2nz<7>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream,
-                                               float scalarQuant);
 template void LaunchTStoreAcc2gmScalarNz2nz<21>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream,
                                                 float scalarQuant);
 
@@ -789,8 +769,6 @@ template void LaunchTStoreAcc2gmVectorNz2nd<1>(uint8_t *out, uint8_t *src0, uint
 template void LaunchTStoreAcc2gmVectorNz2nd<2>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *quantTensor,
                                                void *stream);
 template void LaunchTStoreAcc2gmVectorNz2nd<3>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *quantTensor,
-                                               void *stream);
-template void LaunchTStoreAcc2gmVectorNz2nd<5>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *quantTensor,
                                                void *stream);
 template void LaunchTStoreAcc2gmVectorNz2nd<7>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *quantTensor,
                                                void *stream);
@@ -805,8 +783,6 @@ template void LaunchTStoreAcc2gmVectorNz2nz<1>(uint8_t *out, uint8_t *src0, uint
 template void LaunchTStoreAcc2gmVectorNz2nz<2>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *quantTensor,
                                                void *stream);
 template void LaunchTStoreAcc2gmVectorNz2nz<3>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *quantTensor,
-                                               void *stream);
-template void LaunchTStoreAcc2gmVectorNz2nz<5>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *quantTensor,
                                                void *stream);
 template void LaunchTStoreAcc2gmVectorNz2nz<7>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *quantTensor,
                                                void *stream);

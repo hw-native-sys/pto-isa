@@ -537,6 +537,11 @@ TEST_F(TStoreAcc2gmTest, case27)
     test_tstore_acc2gm_vector_nz2nd<8, uint8_t, uint16_t, 19, 32, 23>();
 }
 
+TEST_F(TStoreAcc2gmTest, case28)
+{
+    test_tstore_acc2gm_vector_nz2nz<1, uint16_t, int8_t, 64, 128, 64>();
+}
+
 TEST_F(TStoreAcc2gmTest, case29)
 {
     test_tstore_acc2gm_vector_nz2nz<2, int8_t, int8_t, 32, 32, 31>();
