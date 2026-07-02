@@ -93,10 +93,10 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolexpand -g TCOLEXPANDTest.case1
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolsum -g TCOLSUMTest.case1
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolprod -g TCOLPRODTest.case1
-    python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolmax -g TCOLCMAXTest.case01
-    python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolargmax -g TCOLARGMAXTest.case1
-    python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolmin -g TCOLCMINTest.case01
-    python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolargmin -g TCOLARGMINTest.case1
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolmax -g TCOLMAXTest.case1
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolargmax -g TCOLCMAXTest.case01
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolmin -g TCOLMINTest.case1
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolargmin -g TCOLCMINTest.case01
     python3 tests/script/run_st.py $ARGS -w -v a3 -t trem -g TREMTest.case_float_16x64_16x128_16x128_16x64
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tfmod -g TFMODTest.case_float_16x64_16x128_16x128_16x64
     python3 tests/script/run_st.py $ARGS -w -v a3 -t trems -g TREMSTest.case1
@@ -164,12 +164,12 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tconcat -g TCONCATTest.case_half_16x128_16x64_16x64_16x63_16x64
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tconcat -g TCONCATTest.case_int16_32x256_32x128_32x128_32x127_32x128
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tconcat -g TCONCATTest.case_int32_64x128_64x64_64x64_64x64_64x64
-    python3 tests/script/run_st.py $ARGS -w -v a3 -t trowargmax -g TROWARGMAXTest.case_uint32_float_16x1_13x16_13x13
-    python3 tests/script/run_st.py $ARGS -w -v a3 -t trowargmax -g TROWARGMAXTest.case_uint32_float_8x1_3x4096_3x4095
-    python3 tests/script/run_st.py $ARGS -w -v a3 -t trowargmax -g TROWARGMAXTest.case_uint32_float_8x1_2x16384_2x16381
-    python3 tests/script/run_st.py $ARGS -w -v a3 -t trowargmin -g TROWARGMINTest.case_uint32_float_16x1_13x16_13x13
-    python3 tests/script/run_st.py $ARGS -w -v a3 -t trowargmin -g TROWARGMINTest.case_uint32_float_8x1_3x4096_3x4095
-    python3 tests/script/run_st.py $ARGS -w -v a3 -t trowargmin -g TROWARGMINTest.case_uint32_float_8x1_2x16384_2x16381
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t trowargmax -g TROWARGMAXTest.case_uint32_float_16x1_13x16_1x8_13x13
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t trowargmax -g TROWARGMAXTest.case_uint32_float_8x1_3x4096_3x192_3x4095
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t trowargmax -g TROWARGMAXTest.case_uint32_float_8x1_8x1_1x16384_1x768_1x16381
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t trowargmin -g TROWARGMINTest.case_uint32_float_16x1_13x16_1x8_13x13
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t trowargmin -g TROWARGMINTest.case_uint32_float_8x1_3x4096_3x192_3x4095
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t trowargmin -g TROWARGMINTest.case_uint32_float_8x1_8x1_1x16384_1x768_1x16381
     python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_vec -g TExtractVecTest.case_nd_aligned_1
     python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_vec -g TExtractVecTest.case_nd_aligned_4_bf16
     python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_vec -g TExtractVecTest.case_nd_partial_validrow
@@ -224,10 +224,10 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     if [ "$IS_AUTO_MODE" = "false" ]; then
       # this testcase has to directly call CCE intrinsics now, which won't compile for auto mode;
       # besides, auto-sync doesn't work with CCE intrisics
-      python3 tests/script/run_st.py $ARGS -w -v a3 -t tpushpop_cv -g TPushPopCvTest.case1_half_single_tile
-      python3 tests/script/run_st.py $ARGS -w -v a3 -t tpushpop_vc -g TPushPopVcTest.case1_int8_single_k_tile
-      python3 tests/script/run_st.py $ARGS -w -v a3 -t tpushpop_cv_nosplit -g TPushPopCvNoSplitTest.case1_half_single_tile
-      python3 tests/script/run_st.py $ARGS -w -v a3 -t tpushpop_vc_nosplit -g TPushPopVcNoSplitTest.case1_int8_single_k_tile
+      python3 tests/script/run_st.py $ARGS -w -v a3 -t tpushpop_cv -g TPushPopCVTest.case1_half_single_tile
+      python3 tests/script/run_st.py $ARGS -w -v a3 -t tpushpop_vc -g TPushPopVCTest.case1_int8_single_k_tile
+      python3 tests/script/run_st.py $ARGS -w -v a3 -t tpushpop_cv_nosplit -g TPushPopCVNoSplitTest.case1_half_single_tile
+      python3 tests/script/run_st.py $ARGS -w -v a3 -t tpushpop_vc_nosplit -g TPushPopVCNoSplitTest.case1_int8_single_k_tile
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tpushpop_dir_both -g TPushPopDirBothTest.case1_float_dir_both
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tpushpop_subtile -g TPushTpopSubtileTest.case1_half_128x512
       python3 tests/script/run_st.py $ARGS -w -v a3 -t mscatter -g MSCATTERTest.case_elem2d_nz_float_16x16_2blk
@@ -264,7 +264,7 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tpartmul -g TPARTMULTest.case_float_64x64_64x64_64x64
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tpow -g TPOWTest.case11
       python3 tests/script/run_st.py $ARGS -w -v a3 -t trowprod -g TROWPRODTest.case1
-      python3 tests/script/run_st.py $ARGS -w -v a3 -t tscatter -g TSCATTERTest.case1
+      python3 tests/script/run_st.py $ARGS -w -v a3 -t tscatter -g TSCATTERTest.case_mask_float_16x64_16x64_P1111
       python3 tests/script/run_st.py $ARGS -w -v a3 -t ttrans_3d -g TTRANS3DTest.case3_int32_17_3_3_2_2
       python3 tests/script/run_st.py $ARGS -w -v a3 -t ttrans_3d -g TTRANS3DTest.case1_float32_2_4_2_2_2
       python3 tests/script/run_st.py $ARGS -w -v a3 -t ttrans_3d -g TTRANS3DTest.case7_uint16_4_8_2_2_3
@@ -272,7 +272,7 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
       python3 tests/script/run_st.py $ARGS -w -v a3 -t ttri -g TTRITest.case_float_128x128_128x31_1__444
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tcvt -g TCVTTest.case_fp16_fp32_2x64
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tcmp -g TCMPTest.case_float_1x64_1x64_1x64
-      python3 tests/script/run_st.py $ARGS -w -v a3 -t tcmps -g TCMPSTest.case_float_8x64_8x64_8x64
+      python3 tests/script/run_st.py $ARGS -w -v a3 -t tcmps -g TCMPSTest.case_float_8x64_8x64
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolscatter -g TCOLSCATTERTest.case_mask_half_16x64_16x64_P1111
       python3 tests/script/run_st.py $ARGS -w -v a3 -t textract -g TEXTRACTTest.case1_half_0_1_16_16_32_param
       python3 tests/script/run_st.py $ARGS -w -v a3 -t ttrans -g TTRANSTest.case1_float_16_8_16_8
@@ -281,11 +281,11 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tquant -g TQUANTTEST.case_int8_sym_fp32_128x128_nd
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tquant -g TQUANTTEST.case_int8_asym_fp32_128x128_nd
       python3 tests/script/run_st.py $ARGS -w -v a3 -t texpands_mat -g TEXPANDSTest.case1
-      python3 tests/script/run_st.py $ARGS -w -v a3 -t mgather_gm2l1 -g MGATHERTest.case_row_float_16x16_64rows
-      python3 tests/script/run_st.py $ARGS -w -v a3 -t mgather_gm2l1 -g MGATHERTest.case_row_int32_16x8_32rows
-      python3 tests/script/run_st.py $ARGS -w -v a3 -t mgather_gm2l1 -g MGATHERTest.case_row_float_16x16_64rows
-      python3 tests/script/run_st.py $ARGS -w -v a3 -t mgather_gm2l1 -g MGATHERTest.case_row_uint16_16x32_48rows
-      python3 tests/script/run_st.py $ARGS -w -v a3 -t mgather_gm2l1 -g MGATHERTest.case_elem_bfloat16_16x16_256size
+      python3 tests/script/run_st.py $ARGS -w -v a3 -t mgather_gm2l1 -g MGATHERGM2L1Test.case_row_float_16x16_64rows
+      python3 tests/script/run_st.py $ARGS -w -v a3 -t mgather_gm2l1 -g MGATHERGM2L1Test.case_row_int32_16x8_32rows
+      python3 tests/script/run_st.py $ARGS -w -v a3 -t mgather_gm2l1 -g MGATHERGM2L1Test.case_row_float_16x16_64rows
+      python3 tests/script/run_st.py $ARGS -w -v a3 -t mgather_gm2l1 -g MGATHERGM2L1Test.case_row_uint16_16x32_48rows
+      python3 tests/script/run_st.py $ARGS -w -v a3 -t mgather_gm2l1 -g MGATHERGM2L1Test.case_elem_bfloat16_16x16_256size
     fi
 
   elif [ "$ENABLE_ALL" = "true" ]; then            # 所有用例
@@ -443,7 +443,7 @@ if [ "$ENABLE_A5" = "true" ]; then
     # python3 tests/script/run_st.py $ARGS -w -v a5 -t tshls -g TSHLSTest.case_int16_64x64_64x64_64x64
     # python3 tests/script/run_st.py $ARGS -w -v a5 -t tshrs -g TSHRSTest.case_int16_64x64_64x64_64x64
     python3 tests/script/run_st.py $ARGS -v a5 -t tci -g TCITest.case5
-    python3 tests/script/run_st.py $ARGS -v a5 -t tcmps -g TCMPSTest.case_float_8x64_8x64_8x64
+    python3 tests/script/run_st.py $ARGS -v a5 -t tcmps -g TCMPSTest.case_float_8x64_8x64
     python3 tests/script/run_st.py $ARGS -v a5 -t tcolexpandadd -g TColExpandAddTest.case_fp32_16_128_1_128
     # Temporarily skip the unstable A5 colexpandmax smoke case because the binary exits with SIGSEGV after execution.
     # python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolexpandmax -g TColExpandMaxTest.case_fp32_32_32_1_32
@@ -452,7 +452,7 @@ if [ "$ENABLE_A5" = "true" ]; then
     # Temporarily skip: this A6-only tcolmin invocation does not belong in the A5 smoke list.
     # python3 tests/script/run_st.py $ARGS -w -v a6 -t tcolmin -g TCOLCMAXTest.case01
     # python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolmin -g TCOLMINTest.case01
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolmin -g TCOLCMINTest.case01
+    # python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolmin -g TCOLMINTest.case1
     python3 tests/script/run_st.py $ARGS -v a5 -t tcolsum -g TCOLSUMTest.case01
     python3 tests/script/run_st.py $ARGS -v a5 -t tcolprod -g TCOLPRODTest.case01
     python3 tests/script/run_st.py $ARGS -v a5 -t tcvt -g TCVTTest.case_fp16_fp32_2x64
@@ -466,10 +466,10 @@ if [ "$ENABLE_A5" = "true" ]; then
       # this testcase has to directly call CCE intrinsics now, which won't compile for auto mode;
       # besides, auto-sync doesn't work with CCE intrisics
       python3 tests/script/run_st.py $ARGS -v a5 -t texpands_mat -g TEXPANDSTest.case1
-      python3 tests/script/run_st.py $ARGS -v a5 -t tpushpop_cv -g TPushPopCvTest.case1_half_single_tile
-      python3 tests/script/run_st.py $ARGS -v a5 -t tpushpop_vc -g TPushPopVcTest.case1_int8_single_k_tile
-      python3 tests/script/run_st.py $ARGS -v a5 -t tpushpop_cv_nosplit -g TPushPopCvNoSplitTest.case1_half_single_tile
-      python3 tests/script/run_st.py $ARGS -v a5 -t tpushpop_vc_nosplit -g TPushPopVcNoSplitTest.case1_int8_single_k_tile
+      python3 tests/script/run_st.py $ARGS -v a5 -t tpushpop_cv -g TPushPopCVTest.case1_half_single_tile
+      python3 tests/script/run_st.py $ARGS -v a5 -t tpushpop_vc -g TPushPopVCTest.case1_int8_single_k_tile
+      python3 tests/script/run_st.py $ARGS -v a5 -t tpushpop_cv_nosplit -g TPushPopCVNoSplitTest.case1_half_single_tile
+      python3 tests/script/run_st.py $ARGS -v a5 -t tpushpop_vc_nosplit -g TPushPopVCNSTest.case1_int8_single_k_tile
       python3 tests/script/run_st.py $ARGS -v a5 -t tpushpop_dir_both -g TPushPopDirBothTest.case1_float_dir_both
       # Temporarily skip: current merged A5 TPush/TPop/TAlloc/TFree APIs no longer compile this smoke testcase.
       # python3 tests/script/run_st.py $ARGS -v a5 -t tpushpop_subtile -g TPushTpopSubtileTest.case1_half_128x512
@@ -535,7 +535,7 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/run_st.py $ARGS -v a5 -t ttrans -g TTRANSTest.case_hif8_32x32_32x32_32x32
     python3 tests/script/run_st.py $ARGS -v a5 -t ttrans -g TTRANSTest.case_hif8_64x64_64x64_22x63
     python3 tests/script/run_st.py $ARGS -v a5 -t ttrans_conv -g TTRANSConvTest.uint8_11_2_7_7_32
-    python3 tests/script/run_st.py $ARGS -v a5 -t tcmp -g TCMPTest.case_half_32x32_32x32_32x32
+    python3 tests/script/run_st.py $ARGS -v a5 -t tcmp -g TCMPTest.case_half_32x32_32x32
     python3 tests/script/run_st.py $ARGS -v a5 -t tadd_tdiv -g TADD_TDIVTest.case_float_64x64_64x64
     python3 tests/script/run_st.py $ARGS -v a5 -t tmul_tadds -g TMUL_TADDSTest.case_float_64x64_64x64
     python3 tests/script/run_st.py $ARGS -v a5 -t tsub_texp -g TSUB_TEXPTest.case_float_64x64_64x64
@@ -545,16 +545,16 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/run_st.py $ARGS -v a5 -t trowsum_trowexpand -g TROWSUM_TROWEXPANDTest.case_float_64x64_64x64
     python3 tests/script/run_st.py $ARGS -v a5 -t trowexpand_tdiv -g TROWEXPAND_TDIVTest.case_float_64x64_64x64
     python3 tests/script/run_st.py $ARGS -v a5 -t tmov_ub2l1 -g TMovUb2l1Test.case1
-    python3 tests/script/run_st.py $ARGS -v a5 -t tscatter -g TSCATTERTest.case1
+    python3 tests/script/run_st.py $ARGS -v a5 -t tscatter -g TSCATTERTest.case_mask_float_16x64_16x64_P1111
     # python3 tests/script/run_st.py $ARGS -w -v a5 -t tneg -g TNEGTest.case_float_64x64_64x64
     python3 tests/script/run_st.py $ARGS -v a5 -t tcolexpand -g TCOLEXPANDTest.case_float_1_8_128_63
     python3 tests/script/run_st.py $ARGS -v a5 -t ttri -g TTRITest.case_float_128x128_upper_diag_n3
     # python3 tests/script/run_st.py $ARGS -w -v a5 -t tnot -g TNOTTest.case_int16_64x64_64x64_64x64
     # python3 tests/script/run_st.py $ARGS -w -v a5 -t trelu -g TRELUTest.case_int32_64x64_64x64_64x64
     python3 tests/script/run_st.py $ARGS -v a5 -t tmov_acc2mat -g TMOVTest.case_nz2nz_insert
-    python3 tests/script/run_st.py $ARGS -v a5 -t mgather -g MGATHERTest.case_half_16x128_8x64
-    python3 tests/script/run_st.py $ARGS -v a5 -t mscatter -g MSCATTERTest.case_uint8_16x64_2048
-    python3 tests/script/run_st.py $ARGS -v a5 -t mscatter -g MSCATTERTest.case_int32_clamp_8x16_256
+    python3 tests/script/run_st.py $ARGS -v a5 -t mgather -g MGATHERTest.case_row_half_16x64_64rows
+    python3 tests/script/run_st.py $ARGS -v a5 -t mscatter -g MSCATTERTest.case_row_uint8_random_8x32_32rows
+    python3 tests/script/run_st.py $ARGS -v a5 -t mscatter -g MSCATTERTest.case_row_int32_clamp_8x16_8rows
     python3 tests/script/run_st.py $ARGS -v a5 -t mscatter -g MSCATTERTest.case_elem2d_float_3072x8_default_24576size
     python3 tests/script/run_st.py $ARGS -v a5 -t mscatter -g MSCATTERTest.case_elem2d_float_3072x8_last_256size
     python3 tests/script/run_st.py $ARGS -v a5 -t tquant -g TQUANTTEST.case_int8_sym_fp32_128x128_nd

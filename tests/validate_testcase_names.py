@@ -416,17 +416,133 @@ def print_issues(issues: List[Dict]) -> None:
 
 
 # =============================================================================
+# Runtime GTest Filter Validation
+# =============================================================================
+#
+# The static checks above verify that a `-g Suite.Case` reference exists in the
+# corresponding main.cpp. They cannot, however, detect the case where gtest is
+# invoked with a filter that the binary accepts but which matches *zero* tests
+# (gtest still exits 0 and prints "[  PASSED  ] 0 tests"). Such runs are
+# silently skipped and reported as PASSED, giving a false sense of coverage.
+#
+# `check_gtest_ran_cases()` parses a captured gtest log and fails if any
+# `--gtest_filter` invocation ran 0 tests. Use it from CI after the ST run, e.g.:
+#
+#     python3 tests/validate_testcase_names.py --check-run build/gtest.log
+
+
+def parse_gtest_run_count(log_text: str) -> List[Tuple[str, int]]:
+    """
+    Parse a gtest log and return (filter, ran_count) for every invocation.
+
+    gtest prints, per binary run:
+        Note: Google Test filter = Suite.Case
+        ...
+        [==========] Running N tests from M test suites.
+    or, when the filter matches nothing:
+        Note: Google Test filter = Suite.Case
+        [==========] Running 0 tests from 0 test suites.
+
+    Args:
+        log_text: Captured stdout+stderr of one or more gtest invocations.
+
+    Returns:
+        List of (filter_string, number_of_tests_that_ran) tuples.
+    """
+    runs: List[Tuple[str, int]] = []
+    lines = log_text.splitlines()
+    current_filter: Optional[str] = None
+    for line in lines:
+        m = re.search(r"Google Test filter\s*=\s*(.+)", line)
+        if m:
+            current_filter = m.group(1).strip()
+            continue
+        m = re.search(r"\[==========\]\s*Running\s+(\d+)\s+tests?", line)
+        if m:
+            count = int(m.group(1))
+            # If we never saw a filter line, attribute to "<unknown>"
+            runs.append((current_filter or "<unknown>", count))
+            current_filter = None
+            continue
+    return runs
+
+
+def check_gtest_ran_cases(log_path: str) -> int:
+    """
+    Validate that every gtest filter in a log actually ran at least one test.
+
+    Args:
+        log_path: Path to a file capturing gtest output (stdout+stderr).
+
+    Returns:
+        0 if every filter ran >= 1 test, 1 otherwise (or if log is empty).
+    """
+    log_file = Path(log_path)
+    if not log_file.exists():
+        print(f"Error: gtest log not found: {log_path}")
+        return 1
+
+    log_text = log_file.read_text()
+    runs = parse_gtest_run_count(log_text)
+
+    if not runs:
+        print(f"Error: no gtest invocations (no 'Running N tests' lines) found in {log_path}")
+        return 1
+
+    silent_skips = [(flt, cnt) for flt, cnt in runs if cnt == 0]
+    print("=" * 80)
+    print(f"Checked {len(runs)} gtest invocation(s) in {log_path}")
+    print("=" * 80)
+    if silent_skips:
+        print(f"\nFAIL: {len(silent_skips)} filter(s) matched 0 tests (silently skipped):")
+        for flt, _ in silent_skips:
+            print(f"  - --gtest_filter={flt}")
+        print("\nThese runs were reported PASSED but executed no tests. Fix the filter or test name.")
+        return 1
+
+    total = sum(cnt for _, cnt in runs)
+    print(f"\nPASS: all {len(runs)} filter(s) ran tests ({total} tests total).")
+    return 0
+
+
+# =============================================================================
 # Main Entry Point
 # =============================================================================
+
+
+def _print_usage() -> None:
+    print("Usage:")
+    print("  python3 tests/validate_testcase_names.py            # static check of -g refs")
+    print("  python3 tests/validate_testcase_names.py --check-run <gtest.log>  # runtime check")
 
 
 def main() -> int:
     """
     Main entry point for the validation script.
 
+    Without arguments: statically validate that every `-g Suite.Case` reference
+    in run_st.sh / run_pipeline.sh exists in the corresponding main.cpp.
+    With `--check-run <log>`: parse a captured gtest log and fail if any
+    `--gtest_filter` ran 0 tests (catches silent skips that gtest reports as
+    PASSED).
+
     Returns:
-        0 if all test cases are valid, 1 otherwise
+        0 if all checks pass, 1 otherwise.
     """
+    args = sys.argv[1:]
+
+    # Runtime mode: --check-run <gtest.log>
+    if args and args[0] == "--check-run":
+        if len(args) != 2:
+            _print_usage()
+            return 1
+        return check_gtest_ran_cases(args[1])
+
+    if args:
+        _print_usage()
+        return 1
+
+    # Default: static check mode
     # Ensure we're in project root
     script_dir = Path(__file__).parent
     project_root = script_dir.parent
