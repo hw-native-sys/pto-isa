@@ -13,22 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "common.hpp"
 #include "utils.hpp"
 
-#ifndef COPY_CC_TO_CUBF
-#define COPY_CC_TO_CUBF(dst, src, nSize, srcRow, dstStride, srcStride, QuantPre, reluMode, channelSplitEnable) \
-    copy_matrix_cc_to_cbuf(dst, src, 0, nSize, srcRow, dstStride, srcStride, 0, 0, 0, QuantPre, reluMode,      \
-                           channelSplitEnable, false, 0, 0, false, false, 0, false, false, false, false, false, false)
-#endif
 namespace pto {
-
-#ifndef TINSERT_MODE_DEFINED
-#define TINSERT_MODE_DEFINED
-enum class TInsertMode : uint8_t
-{
-    SPLIT2 = 2,
-    SPLIT4 = 3,
-};
-#endif
-
 template <typename DstTileData, typename SrcTileData, QuantMode_t QuantPre, ReluPreMode reluMode>
 __tf__ PTO_INTERNAL void TInsertAccToMat(typename DstTileData::TileDType __out__ dst,
                                          typename SrcTileData::TileDType __in__ src, uint16_t validRow,
@@ -47,8 +32,9 @@ __tf__ PTO_INTERNAL void TInsertAccToMat(typename DstTileData::TileDType __out__
     __cbuf__ dstType *dstAddr = (__cbuf__ dstType *)__cce_get_tile_ptr(dst) + dstOffset;
     __cc__ typename SrcTileData::DType *srcData = (__cc__ typename SrcTileData::DType *)__cce_get_tile_ptr(src);
 
-    COPY_CC_TO_CUBF(dstAddr, srcData, nSize, SrcTileData::Rows, dstStride, SrcTileData::Rows, QuantPre, reluMode,
-                    channelSplitEnable);
+    pto_copy_matrix_cc_to_cbuf(dstAddr, srcData, 0, nSize, SrcTileData::Rows, dstStride, SrcTileData::Rows, 0, 0, 0,
+                               QuantPre, static_cast<uint8_t>(reluMode), channelSplitEnable, false, 0, 0, false, false,
+                               0, false, false, false, false, false, false);
 }
 
 template <typename DstTileData, typename SrcTileData, AccToVecMode mode, QuantMode_t QuantPre, ReluPreMode reluMode>
@@ -113,9 +99,9 @@ __tf__ PTO_INTERNAL void TInsertAccToVec(typename DstTileData::TileDType __out__
     __ubuf__ dstType *dstAddr = (__ubuf__ dstType *)__cce_get_tile_ptr(dst) + dstOffset;
     __cc__ typename SrcTileData::DType *srcData = (__cc__ typename SrcTileData::DType *)__cce_get_tile_ptr(src);
 
-    copy_matrix_cc_to_ub(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, dualDstCtl, subBlockId, 0, 0,
-                         QuantPre, reluMode, channelSplitEnable, enableNz2Nd, 0, 0, false, false, 0, false, false,
-                         false, false, false, enableNz2Dn);
+    pto_copy_matrix_cc_to_ub(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, dualDstCtl, subBlockId, 0,
+                             0, QuantPre, static_cast<uint8_t>(reluMode), channelSplitEnable, enableNz2Nd, 0, 0, false,
+                             false, 0, false, false, false, false, false, enableNz2Dn);
 }
 
 template <typename FpTileData>
@@ -661,7 +647,4 @@ PTO_INTERNAL void TINSERT_IMPL(DstTileData &dst, SrcTileData &src, uint16_t inde
 }
 
 } // namespace pto
-#ifdef COPY_CC_TO_CUBF
-#undef COPY_CC_TO_CUBF
-#endif
 #endif // TInsert_HPP

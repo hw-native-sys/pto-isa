@@ -28,8 +28,8 @@ __tf__ AICORE void TMovCcToCb(typename DstTileData::TileDType __out__ dst, typen
     constexpr uint32_t dstStride_dst_D = DstTileData::Rows;
     constexpr uint16_t srcStride = SrcTileData::Rows;
     validCol = CeilDivision(validCol, c0Size) * c0Size;
-    copy_matrix_cc_to_cbuf(dstAddr, srcAddr, 0, validCol, SrcTileData::Rows, dstStride_dst_D, srcStride, 0, QuantPre,
-                           reluMode, false, false);
+    pto_copy_matrix_cc_to_cbuf(dstAddr, srcAddr, 0, validCol, SrcTileData::Rows, dstStride_dst_D, srcStride, 0,
+                               QuantPre, static_cast<uint8_t>(reluMode), false, false);
 }
 
 template <typename DstTileData, typename SrcTileData>

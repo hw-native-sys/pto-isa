@@ -503,6 +503,15 @@ enum class GatherOOB : uint8_t
     Zero = 3
 };
 
+#ifndef TINSERT_MODE_DEFINED
+#define TINSERT_MODE_DEFINED
+enum class TInsertMode : uint8_t
+{
+    SPLIT2 = 2,
+    SPLIT4 = 3,
+};
+#endif
+
 enum class Coalesce : uint8_t
 {
     Row = 0,

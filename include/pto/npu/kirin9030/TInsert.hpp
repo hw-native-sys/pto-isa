@@ -11,9 +11,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef TINSERT_HPP_KIRIN9030
 #define TINSERT_HPP_KIRIN9030
 #include "common.hpp"
-#define COPY_CC_TO_CUBF(dst, src, nSize, srcRow, dstStride, srcStride, QuantPre, reluMode, channelSplitEnable) \
-    copy_matrix_cc_to_cbuf(dst, src, 0, nSize, srcRow, dstStride, srcStride, 0, 0, QuantPre, reluMode,         \
-                           channelSplitEnable, false, 0, 0, false, false, 0, false, false, false, false, false, false)
 #include "pto/npu/kirin9030/TMov.hpp"
 #include "pto/npu/a5/TInsert.hpp"
 #endif

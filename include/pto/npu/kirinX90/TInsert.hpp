@@ -14,15 +14,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-#ifndef TINSERT_MODE_DEFINED
-#define TINSERT_MODE_DEFINED
-enum class TInsertMode : uint8_t
-{
-    SPLIT2 = 2,
-    SPLIT4 = 3,
-};
-#endif
-
 template <typename T, typename DstTileData, typename SrcTileData>
 __tf__ AICORE void TInsertVecToVecNDUnaligned(typename DstTileData::TileDType __out__ dst,
                                               typename SrcTileData::TileDType __in__ src, uint16_t validRow,
@@ -161,8 +152,9 @@ __tf__ PTO_INTERNAL void TInsertAccToVec(typename DstTileData::TileDType __out__
     __ubuf__ dstType *dstAddr = (__ubuf__ dstType *)__cce_get_tile_ptr(dst) + dstOffset;
     __cc__ typename SrcTileData::DType *srcData = (__cc__ typename SrcTileData::DType *)__cce_get_tile_ptr(src);
 
-    copy_matrix_cc_to_ub(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, 0, 0, QuantPre, reluMode, false,
-                         enableNz2Nd, false);
+    pto_copy_matrix_cc_to_ub(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, 0, false, 0, 0, QuantPre,
+                             static_cast<uint8_t>(reluMode), false, enableNz2Nd, 0, 0, false, false, 0, false, false,
+                             false, false, false, false);
 }
 
 template <typename DstTileData, typename SrcTileData, QuantMode_t QuantPre, ReluPreMode reluMode>
@@ -186,8 +178,8 @@ __tf__ PTO_INTERNAL void TInsertAccToMat(typename DstTileData::TileDType __out__
     constexpr uint32_t dstStrideD = DstTileData::Rows * c0Size;
     constexpr uint16_t srcStride = SrcTileData::Rows;
     uint16_t nSize = CeilDivision(validCol, c0Size) * c0Size;
-    copy_matrix_cc_to_cbuf(dstAddr, srcAddr, 0, nSize, SrcTileData::Rows, dstStrideD, srcStride, 0, 0, QuantPre,
-                           reluMode, channelSplitEnable, false, false);
+    pto_copy_matrix_cc_to_cbuf(dstAddr, srcAddr, 0, nSize, SrcTileData::Rows, dstStrideD, srcStride, 0, QuantPre,
+                               static_cast<uint8_t>(reluMode), channelSplitEnable, false);
 }
 
 #include "pto/common/arch/memory/tinsert_common.hpp"
