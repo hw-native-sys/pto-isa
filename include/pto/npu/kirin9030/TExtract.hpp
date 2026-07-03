@@ -279,8 +279,9 @@ __tf__ PTO_INTERNAL void TExtractAccToMat(typename DstTile::TileDType __out__ ds
     __cbuf__ dstType *dstAddr = (__cbuf__ dstType *)__cce_get_tile_ptr(dst);
     __cc__ srcType *srcData = (__cc__ srcType *)__cce_get_tile_ptr(src) + srcOffset;
 
-    copy_matrix_cc_to_cbuf(dstAddr, srcData, 0, nSize, validRow, dstStride, SrcTile::Rows, 0, 0, QuantPre, reluMode,
-                           false, false, 0, 0, false, false, 0, false, false, false, false, false, false);
+    pto_copy_matrix_cc_to_cbuf(dstAddr, srcData, 0, nSize, validRow, dstStride, SrcTile::Rows, 0, 0, 0, QuantPre,
+                               static_cast<uint8_t>(reluMode), false, false, 0, 0, false, false, 0, false, false, false,
+                               false, false, false);
 }
 
 template <typename DstTile, typename SrcTile, AccToVecMode mode, QuantMode_t quantPre, ReluPreMode reluMode>
@@ -311,8 +312,9 @@ __tf__ PTO_INTERNAL void TExtractAccToVec(typename DstTile::TileDType __out__ ds
     }
     validCol = (validCol + c0Size - 1) / c0Size * c0Size;
     __cc__ srcType *srcData = (__cc__ srcType *)__cce_get_tile_ptr(src) + srcOffset;
-    copy_matrix_cc_to_ub(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, 0, 0, quantPre, reluMode, false,
-                         true, 0, 0, false, false, 0, false, false, false, false, false, false);
+    pto_copy_matrix_cc_to_ub(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, 0, false, 0, 0, quantPre,
+                             static_cast<uint8_t>(reluMode), false, true, 0, 0, false, false, 0, false, false, false,
+                             false, false, false);
 }
 
 template <typename T>

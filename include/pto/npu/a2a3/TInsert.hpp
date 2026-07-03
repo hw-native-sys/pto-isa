@@ -118,8 +118,8 @@ __tf__ PTO_INTERNAL void TInsertAccToMat(typename DstTileData::TileDType __out__
     constexpr uint32_t dstStrideD = DstTileData::Rows;
     constexpr uint16_t srcStride = SrcTileData::Rows;
     uint16_t nSize = CeilDivision(validCol, c0Size) * c0Size;
-    copy_matrix_cc_to_cbuf(dstAddr, srcAddr, 0, nSize, SrcTileData::Rows, dstStrideD, srcStride, 0, QuantPre, reluMode,
-                           false, false);
+    pto_copy_matrix_cc_to_cbuf(dstAddr, srcAddr, 0, nSize, SrcTileData::Rows, dstStrideD, srcStride, 0, QuantPre,
+                               static_cast<uint8_t>(reluMode), false, false);
 }
 
 #include "pto/common/arch/memory/tinsert_common.hpp"

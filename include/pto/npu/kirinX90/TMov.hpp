@@ -256,8 +256,8 @@ __tf__ PTO_INTERNAL void TMovCcToCb(typename DstTile::TileDType __out__ dst, typ
     __cbuf__ dstType *dstAddr = (__cbuf__ dstType *)__cce_get_tile_ptr(dst);
     __cc__ srcType *srcData = (__cc__ srcType *)__cce_get_tile_ptr(src);
 
-    copy_matrix_cc_to_cbuf(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, 0, 0, QuantPre, reluMode,
-                           Cfg::channelSplitEnable, Cfg::isNz2Nd, false);
+    pto_copy_matrix_cc_to_cbuf(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, 0, QuantPre,
+                               static_cast<uint8_t>(reluMode), Cfg::channelSplitEnable, Cfg::isNz2Nd);
 }
 
 template <typename DstTile, typename SrcTile, QuantMode_t QuantPre, ReluPreMode reluMode,
@@ -291,7 +291,7 @@ __tf__ PTO_INTERNAL void TMovCcToUb(typename DstTile::TileDType __out__ dst, typ
     __cc__ srcType *srcData = (__cc__ srcType *)__cce_get_tile_ptr(src);
 
     copy_matrix_cc_to_ubuf(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, 0, unitFlagCtrl, QuantPre,
-                           reluMode, Cfg::channelSplitEnable, Cfg::isNz2Nd, false);
+                           static_cast<uint8_t>(reluMode), Cfg::channelSplitEnable, Cfg::isNz2Nd, false);
 }
 
 template <typename DstTileData, typename SrcTileData>

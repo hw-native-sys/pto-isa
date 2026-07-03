@@ -54,8 +54,8 @@ __tf__ AICORE void TExtractAccToMat(typename DstTileData::TileDType __out__ dst,
     __cbuf__ dstType *dstAddr = (__cbuf__ dstType *)__cce_get_tile_ptr(dst);
     __cc__ srcType *srcData = (__cc__ srcType *)__cce_get_tile_ptr(src) + srcOffset;
 
-    copy_matrix_cc_to_cbuf(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, 0, 0, QuantPre, reluMode,
-                           false, Cfg::isNz2Nd, false);
+    pto_copy_matrix_cc_to_cbuf(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, 0, QuantPre,
+                               static_cast<uint8_t>(reluMode), false, Cfg::isNz2Nd);
 }
 
 template <typename DstTileData, typename SrcTileData, QuantMode_t QuantPre, ReluPreMode reluMode>
@@ -86,8 +86,9 @@ __tf__ AICORE void TExtractAccToVec(typename DstTileData::TileDType __out__ dst,
     __ubuf__ dstType *dstAddr = (__ubuf__ dstType *)__cce_get_tile_ptr(dst);
     __cc__ srcType *srcData = (__cc__ srcType *)__cce_get_tile_ptr(src) + srcOffset;
 
-    copy_matrix_cc_to_ub(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, 0, 0, QuantPre, reluMode, false,
-                         Cfg::isNz2Nd, false);
+    pto_copy_matrix_cc_to_ub(dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, 0, false, 0, 0, QuantPre,
+                             static_cast<uint8_t>(reluMode), false, Cfg::isNz2Nd, 0, 0, false, false, 0, false, false,
+                             false, false, false, false);
 }
 
 template <typename DstTile, typename SrcTile>
