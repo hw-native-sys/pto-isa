@@ -322,7 +322,7 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
       python3 tests/script/run_st.py $ARGS -w -v a3 -t ttri -g TTRITest.case_float_128x128_128x31_1__444
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tcvt -g TCVTTest.case_fp16_fp32_2x64
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tcmp -g TCMPTest.case_float_1x64_1x64_1x64
-      python3 tests/script/run_st.py $ARGS -w -v a3 -t tcmps -g TCMPSTest.case_float_8x64_8x64
+      python3 tests/script/run_st.py $ARGS -w -v a3 -t tcmps -g TCMPSTest.case_float_8x64_8x64_8x64
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolscatter -g TCOLSCATTERTest.case_mask_half_16x64_16x64_P1111
       python3 tests/script/run_st.py $ARGS -w -v a3 -t textract -g TEXTRACTTest.case1_half_0_1_16_16_32_param
       python3 tests/script/run_st.py $ARGS -w -v a3 -t ttrans -g TTRANSTest.case1_float_16_8_16_8
@@ -502,7 +502,7 @@ if [ "$ENABLE_A5" = "true" ]; then
     # Temporarily skip: this A6-only tcolmin invocation does not belong in the A5 smoke list.
     # python3 tests/script/run_st.py $ARGS -w -v a6 -t tcolmin -g TCOLCMAXTest.case01
     # python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolmin -g TCOLMINTest.case01
-    # python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolmin -g TCOLMINTest.case1
+    # python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolmin -g TCOLMINTest.case01
     python3 tests/script/run_st.py $ARGS -v a5 -t tcolsum -g TCOLSUMTest.case01
     python3 tests/script/run_st.py $ARGS -v a5 -t tcolprod -g TCOLPRODTest.case01
     python3 tests/script/run_st.py $ARGS -v a5 -t tcvt -g TCVTTest.case_fp16_fp32_2x64
