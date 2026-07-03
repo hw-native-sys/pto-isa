@@ -2689,10 +2689,58 @@ PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataExp *e
                           FlatTile1D<TileDataScaling>>(dst.data(), flatExp.data(), flatMax.data(), flatScaling.data(),
                                                        src.data(), src.GetValidRow(), src.GetValidCol());
     } else {
-        TQuant_MXFP4_E2M1_Impl<TileDataOut, TileDataSrc, FlatTile1D<TileDataExp>, FlatTile1D<TileDataMax>,
-                               FlatTile1D<TileDataScaling>>(dst.data(), flatExp.data(), flatMax.data(),
-                                                            flatScaling.data(), src.data(), src.GetValidRow(),
-                                                            src.GetValidCol());
+        constexpr int expN = TileDataExp::Rows * TileDataExp::Cols;
+        FlatTile1D<TileDataExp> flatExp(1, expN);
+        TRESHAPE_IMPL(flatExp, *exp);
+        if constexpr (quant_type == QuantType::MXFP8) {
+            TQuant_MXFP8_Impl<scale_alg, false, TileDataOut, TileDataSrc, FlatTile1D<TileDataExp>,
+                              FlatTile1D<TileDataMax>, FlatTile1D<TileDataScaling>>(
+                dst.data(), flatExp.data(), flatMax.data(), flatScaling.data(), src.data(), src.GetValidRow(),
+                src.GetValidCol());
+        } else {
+            TQuant_MXFP4_E2M1_Impl<scale_alg, false, TileDataOut, TileDataSrc, FlatTile1D<TileDataExp>,
+                                   FlatTile1D<TileDataMax>, FlatTile1D<TileDataScaling>>(
+                dst.data(), flatExp.data(), flatMax.data(), flatScaling.data(), src.data(), src.GetValidRow(),
+                src.GetValidCol());
+        }
+        TRESHAPE_IMPL(*exp, flatExp);
+    }
+}
+
+// Generic grp_axis + mx_alg dispatch (5-tile). grp_axis=0
+// (DN) calls the *_Impl_DN pipeline, grp_axis=1 (ND) calls
+// the scale-alg ND pipeline. The DN caller reshapes the
+// exponent via TMOV(e8DnTile, exp) after TQUANT. All
+// validation lives here (impl layer), not in the
+// pto_instr.hpp wrapper. The single MxQuantAlg tag is
+// decoded inline (no helper functions) to a (QuantType,
+// QuantScaleAlg) pair.
+template <int grp_axis, MxQuantAlg mx_alg, typename TileDataOut, typename TileDataSrc, typename TileDataExp,
+          typename TileDataMax, typename TileDataScaling>
+PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataExp *exp, TileDataMax *max,
+                              TileDataScaling *scaling)
+{
+    using T = typename TileDataSrc::DType;
+    using OutT = typename TileDataOut::DType;
+    constexpr bool isFp8 = (mx_alg == MxQuantAlg::OcpMxFp8E4M3 || mx_alg == MxQuantAlg::NvMxFp8E4M3);
+    constexpr bool isNv = (mx_alg == MxQuantAlg::NvMxFp8E4M3 || mx_alg == MxQuantAlg::NvMxFp4E2M1);
+    constexpr QuantType quant_type = isFp8 ? QuantType::MXFP8 : QuantType::MXFP4_E2M1;
+    constexpr QuantScaleAlg scale_alg = isNv ? QuantScaleAlg::NV : QuantScaleAlg::OCP;
+    CheckTQuantMxTypes<quant_type, T, OutT>();
+    if constexpr (grp_axis == 0) {
+        if constexpr (quant_type == QuantType::MXFP8) {
+            TQuant_MXFP8_Impl_DN<scale_alg, TileDataOut, TileDataSrc, TileDataExp, TileDataMax, TileDataScaling>(
+                dst.data(), exp->data(), max->data(), scaling->data(), src.data(), src.GetValidRow(),
+                src.GetValidCol());
+        } else {
+            TQuant_MXFP4_E2M1_Impl_DN<scale_alg, TileDataOut, TileDataSrc, TileDataExp, TileDataMax, TileDataScaling>(
+                dst.data(), exp->data(), max->data(), scaling->data(), src.data(), src.GetValidRow(),
+                src.GetValidCol());
+        }
+    } else {
+        static_assert(grp_axis == 1, "Fix: grp_axis must be 0 (DN) or 1 (ND).");
+        TQUANT_IMPL<quant_type, scale_alg, TileDataOut, TileDataSrc, TileDataExp, TileDataMax, TileDataScaling>(
+            dst, src, exp, max, scaling);
     }
     // Reshape exp back to user's original tile shape. Max and scaling are scratch buffers.
     TRESHAPE_IMPL(*exp, flatExp);

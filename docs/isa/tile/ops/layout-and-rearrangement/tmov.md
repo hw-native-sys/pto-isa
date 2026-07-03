@@ -28,6 +28,52 @@ $$ \mathrm{dst}_{i,j} = \mathrm{src}_{i,j} $$
 
 ### ND → NZ (data repack for the Cube Unit)
 
+The Cube Unit consumes operands in **NZ** (Normal-ZigZag) fractal format: the tile is
+tiled into `C0 × C0` fractals, each fractal stored with `BLayout = ColMajor` (the "N" —
+column-major outer blocks) and `SLayout = RowMajor` (the "Z" — row-major within each
+fractal). `TMOV(dstNZ, src)` repacks a RowMajor `Vec`/`Mat` tile (`NoneBox`) into this
+NZ layout. No `tmp` is required.
+
+| Operand (GM/L1 side) | `BLayout` | `SLayout` | Meaning |
+|----------------------|-----------|-----------|---------|
+| Left (A, NT)         | `ColMajor` | `RowMajor` | normal NZ |
+| Right (B, NT)        | `RowMajor` | `ColMajor` | transposed NZ |
+
+A `CompactMode::RowPlusOne` destination (`Rows = Vec_S0 + 1`) is the canonical idiom to
+avoid UB bank conflicts on the `vsstb` scatter.
+
+### X → ZZ (microscaling exponent repack)
+
+For MXFP8/MXFP4 matmuls the per-group E8M0 exponents must reach the Cube's scale operand
+in **ZZ** format: a `[16,2]` box (32 B = 16 columns × 2 row-groups), linearised so that
+the Cube reads one box per fractal column-pair. Two variants:
+
+**ND → ZZ** (`grp_axis = 1`, default): source exponents are ND-grouped (axis-1).
+
+$$D_{ZZ}[r_b, c, q, \delta] = D_{ND}[16r_b + \delta][2c + q]$$
+
+with $r_b \in [0, R/16)$, $c \in [0, C/2)$, $q \in [0,2)$, $\delta \in [0,16)$.
+
+**DN → ZZ** (`grp_axis = 0`): source exponents are DN-grouped (axis-0). Equivalently
+transpose then ND→ZZ:
+
+$$E_{ZZ}[c_b, p, q, \delta] = E_{DN}^{T}[16c_b + q][2p + \delta] = E_{DN}[2p + \delta][16c_b + q]$$
+
+with $c_b \in [0, N/16)$, $p \in [0, \hat M/2)$, $q \in [0,16)$, $\delta \in \{0,1\}$,
+$\hat M = M/32$.
+
+For fixed $(c_b, p)$ the 32 B of the ZZ box come from two contiguous 16-B source runs
+($E_{DN}[2p]$ and $E_{DN}[2p+1]$); DN→ZZ therefore uses contiguous loads + `vintlv`
+(cheaper than ND→ZZ's `vgather2`).
+
+### Role of the `tmp` tile
+
+Only the **X→ZZ** transforms take a `tmp` operand (the 3-arg overload). ND→ZZ uses it as
+the `vgather2` index buffer; DN→ZZ accepts it for interface parity but does not access it
+(the `vsstb` scatter needs no scratch). ND→NZ has no `tmp`.
+
+## Assembly Syntax
+
 The PTO AS design recommends splitting `TMOV` into a family of ops:
 
 ```text

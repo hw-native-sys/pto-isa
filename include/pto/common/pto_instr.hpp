@@ -2509,8 +2509,19 @@ PTO_INST RecordEvent TQUANT(TileDataOut &dst, TileDataSrc &src, TileDataExp *exp
                             TileDataScaling *scaling, TileDataExp *exp_zz, WaitEvents &...events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T_ROLES(TQUANT, PTO_TEMPLATE_ARGS(quant_type, store_mode), "OIOOOO", dst, src, exp, max, scaling,
-                           exp_zz);
+    TQUANT_IMPL<quant_type, store_mode>(dst, src, exp, max, scaling, exp_zz);
+    return {};
+}
+
+template <int grp_axis, auto mx_alg, typename TileDataOut = void, typename TileDataSrc = void,
+          typename TileDataExp = void, typename TileDataMax = void, typename TileDataScaling = void,
+          typename... WaitEvents>
+PTO_INST RecordEvent TQUANT(TileDataOut &dst, TileDataSrc &src, TileDataExp *exp, TileDataMax *max,
+                            TileDataScaling *scaling, WaitEvents &...events)
+{
+    TSYNC(events...);
+    TQUANT_IMPL<grp_axis, mx_alg, TileDataOut, TileDataSrc, TileDataExp, TileDataMax, TileDataScaling>(dst, src, exp,
+                                                                                                       max, scaling);
     return {};
 }
 

@@ -1,8 +1,8 @@
-﻿# TSORT32
+﻿# TSort32
 
 ## Tile Operation Diagram
 
-![TSORT32 tile operation](../figures/isa/TSORT32.svg)
+![TSort32 tile operation](../figures/isa/TSort32.svg)
 
 ## Introduction
 
@@ -50,11 +50,11 @@ Declared in `include/pto/common/pto_instr.hpp`:
 ```cpp
 // 3-arg: src must be 32-aligned (validCol % 32 == 0)
 template <typename DstTileData, typename SrcTileData, typename IdxTileData>
-PTO_INST RecordEvent TSORT32(DstTileData &dst, SrcTileData &src, IdxTileData &idx);
+PTO_INST RecordEvent TSort32(DstTileData &dst, SrcTileData &src, IdxTileData &idx);
 
 // 4-arg: supports non-32-aligned tails (validCol % 32 != 0) via tmp padding
 template <typename DstTileData, typename SrcTileData, typename IdxTileData, typename TmpTileData>
-PTO_INST RecordEvent TSORT32(DstTileData &dst, SrcTileData &src, IdxTileData &idx, TmpTileData &tmp);
+PTO_INST RecordEvent TSort32(DstTileData &dst, SrcTileData &src, IdxTileData &idx, TmpTileData &tmp);
 ```
 
 ## Tile Sizes & Data Types
@@ -141,14 +141,14 @@ using SrcT = Tile<TileType::Vec, float, 1, 32>;
 using IdxT = Tile<TileType::Vec, uint32_t, 1, 32>;
 using DstT = Tile<TileType::Vec, float, 1, 64>;   // 2× src cols (float)
 SrcT src; IdxT idx; DstT dst;
-TSORT32(dst, src, idx);
+TSort32(dst, src, idx);
 
 // Non-32-aligned tail: 4-arg with tmp
 using SrcT2 = Tile<TileType::Vec, half, 1, 100>;
 using IdxT2 = Tile<TileType::Vec, uint32_t, 1, 100>;
 using DstT2 = Tile<TileType::Vec, half, 1, 400>;  // 4× src cols (half)
 using TmpT  = Tile<TileType::Vec, half, 1, 128>;  // ≥ ceil32(100)=128
-TSORT32(dst2, src2, idx2, tmp);
+TSort32(dst2, src2, idx2, tmp);
 ```
 
 ## ASM Form Examples
