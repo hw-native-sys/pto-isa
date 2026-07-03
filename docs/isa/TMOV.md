@@ -23,6 +23,52 @@ For the pure copy case:
 
 $$ \mathrm{dst}_{i,j} = \mathrm{src}_{i,j} $$
 
+### ND → NZ (data repack for the Cube Unit)
+
+The Cube Unit consumes operands in **NZ** (Normal-ZigZag) fractal format: the tile is
+tiled into `C0 × C0` fractals, each fractal stored with `BLayout = ColMajor` (the "N" —
+column-major outer blocks) and `SLayout = RowMajor` (the "Z" — row-major within each
+fractal). `TMOV(dstNZ, src)` repacks a RowMajor `Vec`/`Mat` tile (`NoneBox`) into this
+NZ layout. No `tmp` is required.
+
+| Operand (GM/L1 side) | `BLayout` | `SLayout` | Meaning |
+|----------------------|-----------|-----------|---------|
+| Left (A, NT)         | `ColMajor` | `RowMajor` | normal NZ |
+| Right (B, NT)        | `RowMajor` | `ColMajor` | transposed NZ |
+
+A `CompactMode::RowPlusOne` destination (`Rows = Vec_S0 + 1`) is the canonical idiom to
+avoid UB bank conflicts on the `vsstb` scatter.
+
+### X → ZZ (microscaling exponent repack)
+
+For MXFP8/MXFP4 matmuls the per-group E8M0 exponents must reach the Cube's scale operand
+in **ZZ** format: a `[16,2]` box (32 B = 16 columns × 2 row-groups), linearised so that
+the Cube reads one box per fractal column-pair. Two variants:
+
+**ND → ZZ** (`grp_axis = 1`, default): source exponents are ND-grouped (axis-1).
+
+$$D_{ZZ}[r_b, c, q, \delta] = D_{ND}[16r_b + \delta][2c + q]$$
+
+with $r_b \in [0, R/16)$, $c \in [0, C/2)$, $q \in [0,2)$, $\delta \in [0,16)$.
+
+**DN → ZZ** (`grp_axis = 0`): source exponents are DN-grouped (axis-0). Equivalently
+transpose then ND→ZZ:
+
+$$E_{ZZ}[c_b, p, q, \delta] = E_{DN}^{T}[16c_b + q][2p + \delta] = E_{DN}[2p + \delta][16c_b + q]$$
+
+with $c_b \in [0, N/16)$, $p \in [0, \hat M/2)$, $q \in [0,16)$, $\delta \in \{0,1\}$,
+$\hat M = M/32$.
+
+For fixed $(c_b, p)$ the 32 B of the ZZ box come from two contiguous 16-B source runs
+($E_{DN}[2p]$ and $E_{DN}[2p+1]$); DN→ZZ therefore uses contiguous loads + `vintlv`
+(cheaper than ND→ZZ's `vgather2`).
+
+### Role of the `tmp` tile
+
+Only the **X→ZZ** transforms take a `tmp` operand (the 3-arg overload). ND→ZZ uses it as
+the `vgather2` index buffer; DN→ZZ accepts it for interface parity but does not access it
+(the `vsstb` scatter needs no scratch). ND→NZ has no `tmp`.
+
 ## Assembly Syntax
 
 The PTO AS design recommends splitting `TMOV` into a family of ops:
@@ -74,6 +120,29 @@ template <typename DstTileData, typename SrcTileData, AccToVecMode mode, ReluPre
           typename... WaitEvents>
 PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, uint64_t preQuantScalar, WaitEvents &... events);
 ```
+
+### ND → NZ / X → ZZ overloads
+
+```cpp
+// ND -> NZ (2-arg, no tmp)
+template <typename DstTileData, typename SrcTileData, typename... WaitEvents>
+PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, WaitEvents &...events);
+
+// X -> ZZ (3-arg, with tmp). grp_axis=1 (default) = ND->ZZ; grp_axis=0 = DN->ZZ.
+template <typename DstTileData, typename SrcTileData, typename TmpTileData, typename... WaitEvents,
+          std::enable_if_t<is_tile_data_v<TmpTileData>, int> = 0>
+PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, TmpTileData &tmp, WaitEvents &...events);
+
+template <int grp_axis, typename DstTileData, typename SrcTileData, typename TmpTileData, typename... WaitEvents,
+          std::enable_if_t<is_tile_data_v<TmpTileData>, int> = 0>
+PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, TmpTileData &tmp, WaitEvents &...events);
+```
+
+| Overload | `grp_axis` | Transform | `tmp` used? |
+|----------|-----------|-----------|-------------|
+| `TMOV(dst, src)` | — | ND → NZ | no |
+| `TMOV(dst, src, tmp)` | 1 (default) | ND → ZZ | yes (vgather2 index buffer) |
+| `TMOV<0>(dst, src, tmp)` | 0 | DN → ZZ | no (accepted for parity) |
 
 ## Constraints
 
@@ -145,6 +214,76 @@ PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, uint64_t preQuantS
 
 
 ## Examples
+
+### ND → NZ (data) — (128, 256) BF16
+
+```cpp
+// Source: 128 rows × 256 cols BF16 RowMajor Vec tile (ND).
+// Destination: NZ fractal Mat tile for the Cube Unit (Left operand).
+constexpr uint32_t R = 128, C = 256;
+using SrcT = Tile<TileType::Vec, bfloat16_t, R, C, BLayout::RowMajor, R, C, SLayout::NoneBox>;
+using DstT = Tile<TileType::Mat, bfloat16_t, R, C, BLayout::ColMajor, R, C, SLayout::RowMajor>;
+SrcT src; DstT dst;
+TMOV(dst, src);   // ND -> NZ, no tmp
+```
+
+**`tmp` for ND→NZ:** none — the 2-arg overload repacks in-place via `vsstb`.
+
+### ND → ZZ (exponents) — `tmp` size derivation
+
+Given a quantization input of shape $M \times N$ (group size $G = 32$), the ND-grouped
+E8M0 exponent tile has shape:
+
+| Quantity | Value |
+|----------|-------|
+| Exponent rows | $\mathrm{validRow} = M$ (one exponent row per input row) |
+| Exponent cols | $\mathrm{validCol} = N/G = N/32$ (one exponent per 32-element column group) |
+| Row blocks | $r_b = \lceil M/16 \rceil$ |
+| Box-pair count | $P = \mathrm{validCol}/2 = N/64$ |
+
+The `tmp` buffer holds the `vgather2` B16 index buffer used by `GenerateB8IndicesZZToUB`:
+
+$$\boxed{\mathrm{tmpBytes} = \bigl(16 + r_b \cdot P + 16\bigr) \times 2 = \left(32 + \left\lceil\tfrac{M}{16}\right\rceil \cdot \tfrac{N}{64}\right) \times 2}$$
+
+- 16 B16 lanes of headroom + $r_b \times P$ gather indices + 16 B16 lanes of tail.
+- `tmp` dtype = `uint8_t` (E8M0), shape `1 × ⌈tmpBytes⌉`.
+
+**Example:** $M = 128$, $N = 256$ → exponent tile $128 \times 8$, $r_b = 8$, $P = 4$:
+
+$$\mathrm{tmpBytes} = (32 + 8 \times 4) \times 2 = 128\ \mathrm{B}$$
+
+### DN → ZZ (exponents) — `tmp`
+
+DN-grouped exponents have shape $\hat M \times N$ where $\hat M = M/32$. `TMOV<0>` accepts
+a `tmp` operand for interface parity with ND→ZZ but **does not access it** (the `vsstb`
+scatter needs no scratch). Any non-zero-sized tile satisfies the signature.
+
+```cpp
+// DN-grouped e8 exponents (M̂×N) -> ZZ fractal scale tile.
+TMOV<0>(e8ZzTile, e8DnTile, tmpTile);   // grp_axis=0 = DN->ZZ; tmp unused
+```
+
+### Usage in MX quantization (reference)
+
+After `TQUANT` produces the quantized data + E8M0 exponents, two `TMOV`s repack them for
+the Cube Unit. See `TQUANT.md` / `TQUANT_DN.md` for the full pipeline.
+
+```cpp
+// MXFP8 DN pipeline: quantize a 128×256 BF16 tile, then repack for the Cube.
+constexpr uint32_t M = 128, N = 256, G = 32, Mhat = M / G;   // Mhat = 4
+// Tiles
+using SrcT   = Tile<TileType::Vec, bfloat16_t, M, N, BLayout::RowMajor>;
+using Fp8T   = Tile<TileType::Vec, int8_t, M, N, BLayout::RowMajor>;
+using E8DnT  = Tile<TileType::Vec, uint8_t, Mhat, N, BLayout::RowMajor>;        // 4×256
+using E8ZzT  = Tile<TileType::Mat, uint8_t, N, Mhat, BLayout::ColMajor, N, Mhat, SLayout::RowMajor>;
+using Fp8NzT = Tile<TileType::Mat, int8_t, M, N, BLayout::ColMajor, M, N, SLayout::RowMajor>;
+// 1. Quantize (DN grouping)
+TQUANT<0, MxQuantAlg::OcpMxFp8E4M3>(fp8Tile, srcTile, &e8DnTile, &maxTile, &scalingTile);
+// 2. Repack data ND->NZ (2-arg, no tmp)
+TMOV(fp8NzTile, fp8Tile);
+// 3. Repack exponents DN->ZZ (3-arg, tmp accepted but unused)
+TMOV<0>(e8ZzTile, e8DnTile, tmpTile);
+```
 
 ### Auto
 

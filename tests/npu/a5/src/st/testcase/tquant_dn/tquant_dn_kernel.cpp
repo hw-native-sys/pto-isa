@@ -19,7 +19,7 @@ using namespace pto;
 
 namespace TQuantDNTest {
 
-// Full DN vector pipeline: TQuant(DN) + TMOV(ND->NZ) + TMOV<0>(DN->ZZ).
+// Full DN vector pipeline: TQUANT(DN) + TMOV(ND->NZ) + TMOV<0>(DN->ZZ).
 // Stores FP8 ND, E8M0 DN, per-group max, FP8 NZ, and E8M0 ZZ to GM for comparison.
 template <typename T, int M, int N, int N_pad>
 __global__ AICORE void runTQuantDN(__gm__ T __in__ *src_gm, __gm__ int8_t __out__ *fp8_nd_gm,
@@ -108,7 +108,7 @@ __global__ AICORE void runTQuantDN(__gm__ T __in__ *src_gm, __gm__ int8_t __out_
     constexpr uint32_t fp8TileBytes = M * paddedCols;
 
     // Keep source and destination UB tiles orthogonal: place fp8Tile after all
-    // input/work tiles so TQuant reads src and writes dst to non-overlapping
+    // input/work tiles so TQUANT reads src and writes dst to non-overlapping
     // regions (on-board store ordering is not guaranteed).
     constexpr uint32_t srcTileAddr = 0x0;
     constexpr uint32_t maxTileAddr = PTO_CEIL(srcTileAddr + srcTileBytes, 0x20);
@@ -122,7 +122,7 @@ __global__ AICORE void runTQuantDN(__gm__ T __in__ *src_gm, __gm__ int8_t __out_
         (nColGroupsNZ > 1) ? (nColGroupsNZ - 1) * (paddedRows16 + 1) * C0_SIZE_B + paddedRows16 * C0_SIZE_B :
                              paddedRows16 * C0_SIZE_B;
     constexpr uint32_t fp8NZTileAddr = PTO_CEIL(fp8TileAddr + fp8TileBytes, 0x20);
-    // workTileEnd marks the end of the TQuant input-side tiles; fp8Tile now lives
+    // workTileEnd marks the end of the TQUANT input-side tiles; fp8Tile now lives
     // after it, so use fp8NZEnd to find where the ZZ/tmp scratch area can start.
     constexpr uint32_t workTileEnd = e8DnTileAddr + e8DnTileBytes;
     constexpr uint32_t fp8NZEnd = fp8NZTileAddr + fp8NZTileBytes;
@@ -151,7 +151,7 @@ __global__ AICORE void runTQuantDN(__gm__ T __in__ *src_gm, __gm__ int8_t __out_
     // Generic DN API: grp_axis=0 (groups on axis 0), single MxQuantAlg tag. The
     // exponent is written into e8Tile; copy it into e8DnTile so the UB tile shape
     // matches the GM shape exactly.
-    TQuant<0, MxQuantAlg::OcpMxFp8E4M3>(fp8Tile, srcTile, &e8Tile, &maxPerGpTile, &scalingTile);
+    TQUANT<0, MxQuantAlg::OcpMxFp8E4M3>(fp8Tile, srcTile, &e8Tile, &maxPerGpTile, &scalingTile);
     TMOV(e8DnTile, e8Tile);
 
     // Data ND->NZ (stock 2-arg TMOV) and exponent DN->ZZ (grp_axis=0 TMOV).
@@ -184,7 +184,7 @@ void LaunchTQuantDN_fp32(uint32_t *src, int8_t *fp8_nd, uint8_t *e8_dn, int8_t *
 }
 
 // MXFP4 (E2M1) DN kernel: quantizes src[M,N_pad] to packed FP4 plus per-group
-// e8m0/max tiles. TQuant writes FP4 as a flat float4_e2m1x2_t tile; a uint8_t
+// e8m0/max tiles. TQUANT writes FP4 as a flat float4_e2m1x2_t tile; a uint8_t
 // TSTORE tile is TASSIGNed to the same UB region so TSTORE reads it in-place
 // (no copy/intrinsics needed).
 template <typename T, int M, int N, int N_pad>
@@ -219,7 +219,7 @@ __global__ AICORE void runTQuantDN_MXFP4(__gm__ T __in__ *src_gm, __gm__ uint8_t
     constexpr uint32_t virtualRow = paddedRows16 + 1;
     using Fp4NZTile = Tile<TileType::Vec, uint8_t, virtualRow, packedCols, BLayout::ColMajor, M, packedCols,
                            SLayout::RowMajor, 512, PadValue::Null, CompactMode::RowPlusOne>;
-    // TSTORE tile: uint8_t [M, packedCols] view over the same UB region that TQuant
+    // TSTORE tile: uint8_t [M, packedCols] view over the same UB region that TQUANT
     // wrote the packed FP4 data into (TASSIGN to fp4Addr). No copy needed — TSTORE
     // reads the bytes in-place. Valid extents are DYNAMIC for runtime sizing.
     using DstBytesTile = Tile<TileType::Vec, uint8_t, M, packedCols, BLayout::RowMajor, M, packedCols, SLayout::NoneBox,
@@ -276,9 +276,9 @@ __global__ AICORE void runTQuantDN_MXFP4(__gm__ T __in__ *src_gm, __gm__ uint8_t
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 
-    // Generic DN API: grp_axis=0, single MxQuantAlg tag. TQuant writes the exponent
+    // Generic DN API: grp_axis=0, single MxQuantAlg tag. TQUANT writes the exponent
     // into e8Tile; the kernel TSTOREs e8Tile directly (shape already matches GM).
-    TQuant<0, MxQuantAlg::OcpMxFp4E2M1>(fp4Tile, srcTile, &e8Tile, &maxTile, &scalingTile);
+    TQUANT<0, MxQuantAlg::OcpMxFp4E2M1>(fp4Tile, srcTile, &e8Tile, &maxTile, &scalingTile);
 
     // Packed FP4 ND->NZ: source is RowMajor [M, packedCols] of float4_e2m1x2_t.
     TMOV(fp4NZTile, fp4Tile2D);

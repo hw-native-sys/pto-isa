@@ -145,7 +145,7 @@ AICORE void runTMovZZ(__gm__ uint8_t *outFp8Nz, __gm__ float *src, __gm__ uint8_
 
     // Phase 1: Quantize FP32 -> MXFP8 (FP8 e4m3 in ND + E8M0 exponents in ND)
     TQUANT<pto::QuantType::MXFP8>(fp8Tile, srcTile, &e8Tile, &maxPerGpTile, &scalingTile);
-    // For non-16-aligned rows, TQuant passes numGroups (not total_elements_count) to
+    // For non-16-aligned rows, TQUANT passes numGroups (not total_elements_count) to
     // ExtractB8ExponentAndScaling, so PK4_B32 zeros inactive E8M0 positions beyond the
     // valid groups.  No explicit zero-padding step is needed here.
 

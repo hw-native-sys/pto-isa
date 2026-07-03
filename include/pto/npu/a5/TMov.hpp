@@ -377,7 +377,7 @@ __tf__ PTO_INTERNAL void TMovNdTo2Zz(typename DstTileData::TileDType __out__ dst
     }
 }
 
-// DN->ZZ gather. Source is the RowMajor M̂xN exponent tile from TQuant DN (groups on
+// DN->ZZ gather. Source is the RowMajor M̂xN exponent tile from TQUANT DN (groups on
 // axis 0). Target ZZ box is [16,2]: 16 along N (columns), 2 along M̂ (row-group pairs):
 //   E_ZZ[cb,p,q,δ] = E_DN[2p+δ][16cb+q]
 // The two source rows for a (cb,p) box — E_DN[2p][16cb+·] and E_DN[2p+1][16cb+·] — are
@@ -419,7 +419,7 @@ PTO_INTERNAL void GenerateB8IndicesDN2ZZToUB(__ubuf__ uint8_t *dst, __ubuf__ uin
 }
 
 // DN->ZZ: axis-0-grouped (DN) E8M0 exponent tile -> cube ZZ scale fractal. Source is
-// the RowMajor M̂xN exponent tile from TQuant<0,...>; equivalent to transposing it to
+// the RowMajor M̂xN exponent tile from TQUANT<0,...>; equivalent to transposing it to
 // NxM̂ then applying the stock ND->ZZ, but done in a single gather. M̂ must be even
 // (M mod 64 == 0); see tquant-mxfp8-dn.md §5.5.
 template <typename DstTileData, typename SrcTileData, typename TmpTileData>

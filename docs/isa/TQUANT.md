@@ -45,7 +45,7 @@ Declared in `include/pto/common/pto_instr.hpp`.
 ```cpp
 template <int grp_axis, auto mx_alg, typename TileDataOut, typename TileDataSrc,
           typename TileDataExp, typename TileDataMax, typename TileDataScaling, typename... WaitEvents>
-PTO_INST RecordEvent TQuant(TileDataOut &dst, TileDataSrc &src, TileDataExp *exp, TileDataMax *max,
+PTO_INST RecordEvent TQUANT(TileDataOut &dst, TileDataSrc &src, TileDataExp *exp, TileDataMax *max,
                             TileDataScaling *scaling, WaitEvents &...events);
 ```
 
@@ -142,9 +142,9 @@ Same as MXFP8 except:
 
 ## Output Layout & Layout Conversion
 
-TQuant writes **ND** (row-major) output by default. The Cube Unit consumes two fractal layouts, produced by separate `TMOV` instructions:
+TQUANT writes **ND** (row-major) output by default. The Cube Unit consumes two fractal layouts, produced by separate `TMOV` instructions:
 
-| Output | Native (TQuant) | Cube layout | Conversion |
+| Output | Native (TQUANT) | Cube layout | Conversion |
 |--------|-----------------|-------------|------------|
 | FP8 / FP4 data | ND | NZ (ColMajor+RowMajor fractal) | `TMOV(dstNZ, dst)` (2-arg) |
 | E8M0 exponents (ND groups) | ND | ZZ (zigzag, `[16,2]` boxes) | `TMOV(e8Zz, e8, tmp)` (3-arg) |
@@ -209,19 +209,19 @@ pto.tquant ins(%src, %qp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !
 
 ```cpp
 // MXFP8, DN grouping (axis-0 groups), OCP scale
-TQuant<0, MxQuantAlg::OcpMxFp8E4M3>(fp8Tile, srcTile, &e8DnTile, &maxTile, &scalingTile);
+TQUANT<0, MxQuantAlg::OcpMxFp8E4M3>(fp8Tile, srcTile, &e8DnTile, &maxTile, &scalingTile);
 
 // MXFP8, ND grouping (legacy)
 TQUANT<QuantType::MXFP8>(fp8Tile, srcTile, &e8NdTile, &maxTile, &scalingTile);
 
 // MXFP4 E2M1, DN, NV scale
-TQuant<0, MxQuantAlg::NvMxFp4E2M1>(fp4Tile, srcTile, &e8DnTile, &maxTile, &scalingTile);
+TQUANT<0, MxQuantAlg::NvMxFp4E2M1>(fp4Tile, srcTile, &e8DnTile, &maxTile, &scalingTile);
 
 // INT8 symmetric
 TQUANT<QuantType::INT8_SYM>(int8Tile, srcTile, scale);
 
 // Full MXFP8 DN pipeline: quantize + layout convert for cube
-TQuant<0, MxQuantAlg::OcpMxFp8E4M3>(fp8Tile, srcTile, &e8DnTile, &maxTile, &scalingTile);
+TQUANT<0, MxQuantAlg::OcpMxFp8E4M3>(fp8Tile, srcTile, &e8DnTile, &maxTile, &scalingTile);
 TMOV(fp8NZTile, fp8Tile);                  // data  ND→NZ
 TMOV<0>(e8ZzTile, e8DnTile, tmpTile);      // exp   DN→ZZ
 ```

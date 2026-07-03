@@ -516,7 +516,7 @@ struct MxFp8Exp2DSpec {
     static constexpr int scalingOffset = PTO_CEIL(maxOffset + maxBytes, ubAlign);
     static constexpr int e8Offset = PTO_CEIL(scalingOffset + scalingBytes, ubAlign);
     static constexpr int fp8Offset = PTO_CEIL(e8Offset + e8Bytes, ubAlign);
-    static_assert(fp8Offset + fp8Bytes < TQUANT_A5_UB_SIZE_BYTES, "TQuant MXFP8 2D test UB layout exceeds UB size");
+    static_assert(fp8Offset + fp8Bytes < TQUANT_A5_UB_SIZE_BYTES, "TQUANT MXFP8 2D test UB layout exceeds UB size");
 
     using SrcGlobal = GlobalTensor<SrcT, Shape<1, 1, 1, validRows, validCols>, pto::Stride<1, 1, 1, validCols, 1>>;
     using DstE8Global =
