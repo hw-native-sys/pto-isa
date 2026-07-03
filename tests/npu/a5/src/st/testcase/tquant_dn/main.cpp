@@ -115,7 +115,7 @@ void test_tquant_dn_bf16()
 
     const std::string goldenDir = GetGoldenDir();
 
-    // Full DN pipeline: TQuant(DN) + TMOV(ND->NZ) + TMOV<0>(DN->ZZ).
+    // Full DN pipeline: TQUANT(DN) + TMOV(ND->NZ) + TMOV<0>(DN->ZZ).
     TQuantDNTest::LaunchTQuantDN<M, N, N_pad>(srcDevice, fp8NDDevice, e8DNDevice, fp8NZDevice, e8ZZDevice, maxDNDevice,
                                               stream);
     aclError syncRet = aclrtSynchronizeStream(stream);
@@ -263,7 +263,7 @@ void test_tquant_dn_fp32()
 
     const std::string goldenDir = GetGoldenDir();
 
-    // Full DN pipeline: TQuant(DN) + TMOV(ND->NZ) + TMOV<0>(DN->ZZ).
+    // Full DN pipeline: TQUANT(DN) + TMOV(ND->NZ) + TMOV<0>(DN->ZZ).
     TQuantDNTest::LaunchTQuantDN_fp32<M, N, N_pad>(srcDevice, fp8NDDevice, e8DNDevice, fp8NZDevice, e8ZZDevice,
                                                    maxDNDevice, stream);
     aclError syncRet = aclrtSynchronizeStream(stream);

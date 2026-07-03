@@ -2373,7 +2373,7 @@ PTO_INTERNAL void ZeroPadSourceTile(__ubuf__ T *srcPtr, unsigned validRows, unsi
     }
 }
 
-// TQuant: FP32/BF16/FP16 -> MXFP8 (e4m3) quantization.
+// TQUANT: FP32/BF16/FP16 -> MXFP8 (e4m3) quantization.
 // Exp2DStrided keeps a 2D exp tile's row stride while
 // max/scaling stay compact.
 template <QuantScaleAlg scale_alg, bool Exp2DStrided = false, typename TileDataOut = void, typename TileDataSrc = void,
@@ -2507,7 +2507,7 @@ __tf__ PTO_INTERNAL void TQuant_Int8Sym(typename TileDataOut::TileDType __out__ 
     }
 }
 
-// TQuant: fp32 -> u8 conversion, Int8Asym
+// TQUANT: fp32 -> u8 conversion, Int8Asym
 template <typename TileDataOut, typename TileDataSrc, typename TileDataPara>
 __tf__ PTO_INTERNAL void TQuant_Int8Asym(typename TileDataOut::TileDType __out__ dst,
                                          typename TileDataSrc::TileDType __in__ src,
@@ -2947,18 +2947,18 @@ PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataPara &
     TQUANT_IMPL<quant_type, TileDataOut, TileDataSrc, TileDataPara>(dst, src, scale, offset);
 }
 
-// TQuant Interface for FP32/BF16/FP16->MXFP8 (ND mode)
-// E8M0, max, and scaling tiles may be passed as 2D; TQuant
+// TQUANT Interface for FP32/BF16/FP16->MXFP8 (ND mode)
+// E8M0, max, and scaling tiles may be passed as 2D; TQUANT
 // reshapes them to 1D internally.
 
-// Single validation point for MX TQuant type constraints. Called from the two
+// Single validation point for MX TQUANT type constraints. Called from the two
 // public TQUANT_IMPL entry points; no other MX implementation function should
 // repeat these static_asserts.
 template <QuantType quant_type, typename T, typename OutT>
 PTO_INTERNAL constexpr void CheckTQuantMxTypes()
 {
     static_assert(quant_type == QuantType::MXFP8 || quant_type == QuantType::MXFP4_E2M1,
-                  "Fix: TQuant MX supports MXFP8/MXFP4_E2M1 only.");
+                  "Fix: TQUANT MX supports MXFP8/MXFP4_E2M1 only.");
     if constexpr (quant_type == QuantType::MXFP8) {
         static_assert(
             std::is_same<T, float32_t>::value || std::is_same<T, bfloat16_t>::value || std::is_same<T, half>::value,
@@ -3039,7 +3039,7 @@ PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataExp *e
 // Generic grp_axis + mx_alg dispatch (5-tile). grp_axis=0
 // (DN) calls the *_Impl_DN pipeline, grp_axis=1 (ND) calls
 // the scale-alg ND pipeline. The DN caller reshapes the
-// exponent via TMOV(e8DnTile, exp) after TQuant. All
+// exponent via TMOV(e8DnTile, exp) after TQUANT. All
 // validation lives here (impl layer), not in the
 // pto_instr.hpp wrapper. The single MxQuantAlg tag is
 // decoded inline (no helper functions) to a (QuantType,

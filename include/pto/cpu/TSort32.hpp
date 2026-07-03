@@ -93,17 +93,17 @@ PTO_INTERNAL void TSORT32_IMPL(TileDataDst &dst, TileDataSrc &src, TileDataIdx &
     using T = typename TileDataSrc::DType;
     static_assert(std::is_same_v<T, int32_t> || std::is_same_v<T, int16_t> || std::is_same_v<T, half> ||
                       std::is_same_v<T, bfloat16_t> || std::is_same_v<T, float>,
-                  "TSORT32: Invalid data type.");
+                  "TSort32: Invalid data type.");
     static_assert(std::is_same_v<typename TileDataDst::DType, T>,
                   "The Src data type must be consistent with the dst data type");
     static_assert(std::is_same_v<typename TileDataIdx::DType, uint32_t>, "The Idx data type must be uint32");
     static_assert(TileDataSrc::RowStride == TileDataIdx::RowStride,
                   "The Src stride must be consistent with the idx stride");
     static_assert(TileDataSrc::isRowMajor && TileDataIdx::isRowMajor && TileDataDst::isRowMajor,
-                  "TSORT32: only RowMajor tiles are supported in CPU sim");
+                  "TSort32: only RowMajor tiles are supported in CPU sim");
     static_assert(TileDataSrc::SFractal == SLayout::NoneBox && TileDataIdx::SFractal == SLayout::NoneBox &&
                       TileDataDst::SFractal == SLayout::NoneBox,
-                  "TSORT32: only NoneBox tiles are supported in CPU sim");
+                  "TSort32: only NoneBox tiles are supported in CPU sim");
 
     const int validRow = src.GetValidRow();
     const int validCol = src.GetValidCol();

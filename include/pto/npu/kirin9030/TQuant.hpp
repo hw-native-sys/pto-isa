@@ -54,7 +54,7 @@ __tf__ PTO_INTERNAL void TQuant_Int8Sym(typename TileDataOut::TileDType __out__ 
     }
 }
 
-// TQuant: fp32 -> u8 conversion, Int8Asym
+// TQUANT: fp32 -> u8 conversion, Int8Asym
 template <typename TileDataOut, typename TileDataSrc, typename TileDataPara>
 __tf__ PTO_INTERNAL void TQuant_Int8Asym(typename TileDataOut::TileDType __out__ dst,
                                          typename TileDataSrc::TileDType __in__ src,
@@ -96,7 +96,7 @@ __tf__ PTO_INTERNAL void TQuant_Int8Asym(typename TileDataOut::TileDType __out__
     }
 }
 
-// TQuant Interface for FP32/FP16/BF16->INT4/8/16
+// TQUANT Interface for FP32/FP16/BF16->INT4/8/16
 template <QuantType quant_type, typename TileDataOut, typename TileDataSrc, typename TileDataPara>
 PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataPara &scale, TileDataPara *offset = nullptr)
 {
