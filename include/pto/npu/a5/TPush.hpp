@@ -283,16 +283,18 @@ struct TPipe {
         PTO_INTERNAL void pushAcc2GMFiFo(RingFiFo &fifo, TileProd &tile)
         {
             using T = typename TileProd::DType;
-            constexpr int ProdM = TileProd::Rows;
-            constexpr int ProdN = TileProd::Cols;
-            size_t entryBase = (tileIndex % RingFiFo::SLOT_NUM) * RingFiFo::SLOT_SIZE; // ProdM * ProdN * sizeof(T);
-            using GlobalData = GlobalTensor<T, pto::Shape<1, 1, 1, ProdM, ProdN>, pto::Stride<1, 1, 1, ProdN, 1>>;
-            GlobalData globalTensor((__gm__ T *)((uint64_t)fifo.GM_SLOT_BUFFER + entryBase + entryOffset));
-            // store tile to GM FIFO, enable unit-flag one
+            int ValidC = tile.GetValidCol();
+            int ValidR = tile.GetValidRow();
+            using GlobalStride = pto::Stride<1, 1, 1, -1, 1>;
+            using GlobalShape = pto::Shape<1, 1, 1, -1, -1>;
+            using GlobalData = GlobalTensor<T, GlobalShape, GlobalStride>;
+            size_t entryBase = (tileIndex % RingFiFo::SLOT_NUM) * RingFiFo::SLOT_SIZE;
+            __gm__ T *addr = (__gm__ T *)((uint64_t)fifo.GM_SLOT_BUFFER + entryBase + entryOffset);
+            GlobalData gmData(addr, GlobalShape(ValidR, ValidC), GlobalStride(ValidC));
             if constexpr (EN_UNIT_FLAG) {
-                TSTORE_IMPL<TileProd, GlobalData, AtomicType::AtomicNone, STPhase::Final>(globalTensor, tile);
+                TSTORE_IMPL<TileProd, GlobalData, AtomicType::AtomicNone, STPhase::Final>(gmData, tile);
             } else { // disable unit flag
-                TSTORE_IMPL(globalTensor, tile);
+                TSTORE_IMPL(gmData, tile);
             }
         }
 
