@@ -141,6 +141,20 @@ extern "C" __global__ AICORE void launchTSORT32_6(__gm__ uint64_t *out, __gm__ u
                                                              reinterpret_cast<__gm__ float *>(src), idx);
 }
 
+// case7: Path A (whole-row copy), float, non-32-aligned cols, 2 rows.
+// COLS=VALID_C (GM shape uses valid cols -> no stride gap, matching case6's pattern).
+extern "C" __global__ AICORE void launchTSORT32_7(__gm__ uint64_t *out, __gm__ uint64_t *src, __gm__ uint32_t *idx)
+{
+    constexpr uint32_t ROWS = 2;
+    constexpr uint32_t COLS = 100;
+    constexpr uint32_t VALID_R = 2;
+    constexpr uint32_t VALID_C = 100;
+    constexpr uint32_t ALIGN_C = 128;
+
+    runTSORT32<float, ROWS, COLS, VALID_R, VALID_C, ALIGN_C>(reinterpret_cast<__gm__ float *>(out),
+                                                             reinterpret_cast<__gm__ float *>(src), idx);
+}
+
 template <int32_t testKey>
 void launchTSORT32(uint64_t *out, uint64_t *src, uint32_t *idx, void *stream)
 {
@@ -157,6 +171,8 @@ void launchTSORT32(uint64_t *out, uint64_t *src, uint32_t *idx, void *stream)
         launchTSORT32_5<<<1, nullptr, stream>>>(out, src, idx);
     } else if constexpr (testKey == 6) {
         launchTSORT32_6<<<1, nullptr, stream>>>(out, src, idx);
+    } else if constexpr (testKey == 7) {
+        launchTSORT32_7<<<1, nullptr, stream>>>(out, src, idx);
     }
     cout << "launchTSORT32 end!" << endl;
 }
@@ -167,3 +183,4 @@ template void launchTSORT32<3>(uint64_t *out, uint64_t *src, uint32_t *idx, void
 template void launchTSORT32<4>(uint64_t *out, uint64_t *src, uint32_t *idx, void *stream);
 template void launchTSORT32<5>(uint64_t *out, uint64_t *src, uint32_t *idx, void *stream);
 template void launchTSORT32<6>(uint64_t *out, uint64_t *src, uint32_t *idx, void *stream);
+template void launchTSORT32<7>(uint64_t *out, uint64_t *src, uint32_t *idx, void *stream);

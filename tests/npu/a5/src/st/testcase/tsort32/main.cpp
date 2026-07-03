@@ -121,3 +121,9 @@ TEST_F(TSort32Test, case6)
 {
     tsort32_test<6, float>(2, 2084, 3072);
 }
+
+// Path A (whole-row copy): float, non-32-aligned cols, 2 rows.
+TEST_F(TSort32Test, case7)
+{
+    tsort32_test<7, float>(2, 100, 128);
+}
