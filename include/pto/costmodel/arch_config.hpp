@@ -277,14 +277,23 @@ inline HillBandwidthModel MakeFlatHillModel()
 inline HillBandwidthModel MakeFittedHillModel()
 {
     HillBandwidthModel m = MakeFlatHillModel();
+    // Per-pipe fitted params: peak bandwidth (GiB/s) and half-saturation size (k_bytes).
+    constexpr double kGmToUbPeakGiBs = 247.16;
+    constexpr double kGmToUbKBytes = 30643.0;
+    constexpr double kGmToL1PeakGiBs = 28.61;
+    constexpr double kGmToL1KBytes = 1107.0;
+    constexpr double kUbToGmPeakGiBs = 28.19;
+    constexpr double kUbToGmKBytes = 1755.0;
+    constexpr double kL0cToGmPeakGiBs = 41.25;
+    constexpr double kL0cToGmKBytes = 29104.0;
     auto set = [&](PipeKey k, double peak, double kb) {
         m.peak_gibs[static_cast<std::size_t>(k)] = peak;
         m.k_bytes[static_cast<std::size_t>(k)] = kb;
     };
-    set(PipeKey::GM_TO_UB, 247.16, 30643.0);
-    set(PipeKey::GM_TO_L1, 28.61, 1107.0);
-    set(PipeKey::UB_TO_GM, 28.19, 1755.0);
-    set(PipeKey::L0C_TO_GM, 41.25, 29104.0);
+    set(PipeKey::GM_TO_UB, kGmToUbPeakGiBs, kGmToUbKBytes);
+    set(PipeKey::GM_TO_L1, kGmToL1PeakGiBs, kGmToL1KBytes);
+    set(PipeKey::UB_TO_GM, kUbToGmPeakGiBs, kUbToGmKBytes);
+    set(PipeKey::L0C_TO_GM, kL0cToGmPeakGiBs, kL0cToGmKBytes);
     return m;
 }
 
