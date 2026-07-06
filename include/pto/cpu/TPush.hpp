@@ -436,7 +436,9 @@ struct TPipe {
         std::mutex mutex;
         std::condition_variable cv;
         int next_producer_slot = 0;
-        int next_consumer_slot = 0;
+        // Separate cursors keep DIR_BOTH traffic from blocking across directions.
+        int next_c2v_consumer_slot = 0;
+        int next_v2c_consumer_slot = 0;
         std::array<int, 2> next_consumer_slots_by_lane{};
         int occupied = 0;
         int popped_not_freed = 0;
@@ -514,7 +516,8 @@ struct TPipe {
         auto &shared_state = GetSharedState();
         std::lock_guard<std::mutex> lock(shared_state.mutex);
         shared_state.next_producer_slot = 0;
-        shared_state.next_consumer_slot = 0;
+        shared_state.next_c2v_consumer_slot = 0;
+        shared_state.next_v2c_consumer_slot = 0;
         shared_state.next_consumer_slots_by_lane.fill(0);
         shared_state.occupied = 0;
         shared_state.popped_not_freed = 0;
@@ -722,14 +725,17 @@ struct TPipe {
                           Split != TileSplitAxis::TILE_NO_SPLIT) {
                 const uint32_t laneId = cpu_pipe::GetSplitLaneId<Split>();
                 const uint32_t laneMask = cpu_pipe::GetSplitLaneMask<Split>(laneId);
-                shared_state.cv.wait(lock, [&shared_state, laneMask, expectedDir]() {
+                int foundSlot = 0;
+                shared_state.cv.wait(lock, [&shared_state, laneMask, expectedDir, &foundSlot]() {
                     return shared_state.occupied > 0 &&
-                           shared_state.transfer_dirs[static_cast<std::size_t>(shared_state.next_consumer_slot)] ==
-                               expectedDir &&
-                           (shared_state.consumers_claimed[static_cast<std::size_t>(shared_state.next_consumer_slot)] &
-                            laneMask) == 0;
+                           cpu_pipe::FindNextTransferSlot(
+                               shared_state.transfer_dirs, shared_state.next_c2v_consumer_slot, expectedDir, foundSlot,
+                               [&shared_state, laneMask](int candidate) {
+                                   return (shared_state.consumers_claimed[static_cast<std::size_t>(candidate)] &
+                                           laneMask) != 0;
+                               });
                 });
-                tileIndex = shared_state.next_consumer_slot;
+                tileIndex = foundSlot;
                 shared_state.consumers_claimed[static_cast<std::size_t>(tileIndex % RingFiFo::SLOT_NUM)] |= laneMask;
                 subTileIndex = static_cast<int>(laneId);
                 return;
@@ -770,9 +776,12 @@ struct TPipe {
                     // get_subblockdim()<2: single consumer — fall through to the shared-cursor path below.
                 }
                 int foundSlot = 0;
-                shared_state.cv.wait(lock, [&shared_state, expectedDir, &foundSlot]() {
+                int &consumerCursor = (kBothDir && expectedDir == cpu_pipe::TransferDir::V2C) ?
+                                          shared_state.next_v2c_consumer_slot :
+                                          shared_state.next_c2v_consumer_slot;
+                shared_state.cv.wait(lock, [&shared_state, expectedDir, &foundSlot, &consumerCursor]() {
                     return cpu_pipe::FindNextTransferSlot(
-                        shared_state.transfer_dirs, shared_state.next_consumer_slot, expectedDir, foundSlot,
+                        shared_state.transfer_dirs, consumerCursor, expectedDir, foundSlot,
                         [&shared_state](int candidate) {
                             for (int i = 0; i < shared_state.popped_not_freed; ++i) {
                                 if (shared_state.popped_slots[static_cast<std::size_t>(i)] == candidate) {
@@ -784,17 +793,17 @@ struct TPipe {
                 });
                 tileIndex = foundSlot;
                 subTileIndex = static_cast<int>(get_subblockid());
-                shared_state.next_consumer_slot = (tileIndex + 1) % RingFiFo::SLOT_NUM;
+                consumerCursor = (tileIndex + 1) % RingFiFo::SLOT_NUM;
                 cpu_pipe::PushPendingSlot(shared_state.popped_slots, shared_state.popped_not_freed, tileIndex);
                 pendingSlotTracked = true;
                 return;
             }
             shared_state.cv.wait(lock, [&shared_state, expectedDir]() {
                 return shared_state.occupied > 0 &&
-                       shared_state.transfer_dirs[static_cast<std::size_t>(shared_state.next_consumer_slot)] ==
+                       shared_state.transfer_dirs[static_cast<std::size_t>(shared_state.next_c2v_consumer_slot)] ==
                            expectedDir;
             });
-            tileIndex = shared_state.next_consumer_slot;
+            tileIndex = shared_state.next_c2v_consumer_slot;
             subTileIndex = static_cast<int>(get_subblockid());
         }
 
@@ -858,7 +867,7 @@ struct TPipe {
                     // Only a split consumer that advances the shared cursor in free() does so here;
                     // a pending-tracked V2C consumer already advanced it in wait(), and a NO_SPLIT
                     // consumer advances its own per-lane/search cursor in wait() and must not touch
-                    // the shared next_consumer_slot here (it is shared with the other direction).
+                    // the C2V cursor here (it is shared with the other direction).
                     bool advanceConsumerCursor = false;
                     if constexpr (kBothDir) {
                         advanceConsumerCursor = (Split != TileSplitAxis::TILE_NO_SPLIT) && !pendingSlotTracked;
@@ -866,7 +875,7 @@ struct TPipe {
                         advanceConsumerCursor = true;
                     }
                     if (advanceConsumerCursor) {
-                        shared_state.next_consumer_slot = (freeTileIndex + 1) % RingFiFo::SLOT_NUM;
+                        shared_state.next_c2v_consumer_slot = (freeTileIndex + 1) % RingFiFo::SLOT_NUM;
                     }
                     --shared_state.occupied;
                 }
@@ -893,8 +902,7 @@ struct TPipe {
         PTO_INTERNAL void popTileFromVecFiFoSplit(RingFiFo &fifo, TileCons &tile)
         {
             using T = typename TileCons::DType;
-            constexpr uint32_t splitCount = cpu_pipe::GetSplitCount<Split>();
-            const uint32_t splitIndex = (get_subblockid() < splitCount) ? get_subblockid() : (splitCount - 1);
+            const uint32_t splitIndex = cpu_pipe::GetSplitLaneId<Split>();
             const std::size_t slotIndex = static_cast<std::size_t>(tileIndex % RingFiFo::SLOT_NUM);
             const auto &slotStorage = TPipe::GetSharedState().local_slot_storage[slotIndex];
             const auto *slotPtr =

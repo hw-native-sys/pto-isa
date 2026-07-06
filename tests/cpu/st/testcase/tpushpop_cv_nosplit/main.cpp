@@ -191,7 +191,7 @@ void runCubeToVectorNoSplitInactiveLaneSkipsProtocol()
         auto &sharedState = Pipe::GetSharedState();
         std::lock_guard<std::mutex> lock(sharedState.mutex);
         EXPECT_EQ(sharedState.occupied, 1);
-        EXPECT_EQ(sharedState.next_consumer_slot, 0);
+        EXPECT_EQ(sharedState.next_c2v_consumer_slot, 0);
     }
 
     VecTile vecTile;

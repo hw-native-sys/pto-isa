@@ -236,6 +236,120 @@ void runSplitWraparoundBothDir()
     std::lock_guard<std::mutex> lock(sharedState.mutex);
     EXPECT_EQ(sharedState.occupied, 0);
 }
+
+template <typename TileData>
+void fillFullTile(TileData &tile, int base)
+{
+    using T = typename TileData::DType;
+    for (int r = 0; r < tile.GetValidRow(); ++r) {
+        for (int c = 0; c < tile.GetValidCol(); ++c) {
+            tile.data()[GetTileElementOffset<TileData>(r, c)] = static_cast<T>(base + r * tile.GetValidCol() + c + 1);
+        }
+    }
+}
+
+template <typename TileData>
+std::vector<typename TileData::DType> readFullTile(TileData &tile)
+{
+    std::vector<typename TileData::DType> out;
+    out.reserve(static_cast<std::size_t>(tile.GetValidRow()) * tile.GetValidCol());
+    for (int r = 0; r < tile.GetValidRow(); ++r) {
+        for (int c = 0; c < tile.GetValidCol(); ++c) {
+            out.push_back(tile.data()[GetTileElementOffset<TileData>(r, c)]);
+        }
+    }
+    return out;
+}
+
+template <typename T, int rows, int cols>
+std::vector<T> makeLinearExpected(int base, int rowStart, int rowCount)
+{
+    std::vector<T> expected;
+    expected.reserve(static_cast<std::size_t>(rowCount) * cols);
+    for (int r = rowStart; r < rowStart + rowCount; ++r) {
+        for (int c = 0; c < cols; ++c) {
+            expected.push_back(static_cast<T>(base + r * cols + c + 1));
+        }
+    }
+    return expected;
+}
+
+void runDirBothGmFifoKeepsC2VOrderAcrossV2CPrefetch()
+{
+    constexpr int kRows = 16;
+    constexpr int kCols = 128;
+    constexpr int kLaneRows = kRows / 2;
+    constexpr int kSlotBytes = 8192;
+    constexpr int kFifoDepth = 4;
+    using Pipe = TPipe<30, Direction::DIR_BOTH, kSlotBytes, kFifoDepth, 4, false>;
+    using CubeProdTile = Tile<TileType::Acc, float, kRows, kCols, BLayout::ColMajor, -1, -1, SLayout::RowMajor, 1024>;
+    using VecTile = Tile<TileType::Vec, float, kLaneRows, kCols, BLayout::RowMajor, kLaneRows, kCols>;
+    using CubeConsTile = Tile<TileType::Mat, float, kRows, kCols, BLayout::ColMajor, -1, -1, SLayout::RowMajor, 512>;
+
+    NPU_MEMORY_CLEAR();
+    Pipe::reset_for_cpu_sim();
+    std::vector<uint8_t> gmStorage(static_cast<std::size_t>(Pipe::RingFiFo::SLOT_SIZE) * Pipe::RingFiFo::SLOT_NUM);
+    Pipe pipe(reinterpret_cast<__gm__ void *>(gmStorage.data()), 0x0, 0x0);
+
+    auto pushC2V = [&](int base) {
+        cpu_sim::ScopedExecutionContext cubeCtx(0, 0, 1);
+        CubeProdTile cubeTile(kRows, kCols);
+        TASSIGN(cubeTile, 0x0);
+        fillFullTile(cubeTile, base);
+        TPUSH<Pipe, CubeProdTile, TileSplitAxis::TILE_UP_DOWN>(pipe, cubeTile);
+    };
+
+    auto popC2V = [&](int base) {
+        for (int lane = 0; lane < 2; ++lane) {
+            cpu_sim::ScopedExecutionContext laneCtx(0, lane, 2);
+            VecTile vecTile;
+            TASSIGN(vecTile, 0x4000 + lane * 0x4000);
+            TPOP<Pipe, VecTile, TileSplitAxis::TILE_UP_DOWN>(pipe, vecTile);
+            const auto actual = readFullTile(vecTile);
+            const auto expected = makeLinearExpected<float, kRows, kCols>(base, lane * kLaneRows, kLaneRows);
+            EXPECT_TRUE(ResultCmp(expected, actual, 0));
+            TFREE<Pipe, TileSplitAxis::TILE_UP_DOWN>(pipe);
+        }
+    };
+
+    auto pushV2C = [&]() {
+        for (int lane = 0; lane < 2; ++lane) {
+            cpu_sim::ScopedExecutionContext laneCtx(0, lane, 2);
+            VecTile vecTile;
+            TASSIGN(vecTile, 0x4000 + lane * 0x4000);
+            fillFullTile(vecTile, 7000 + lane * 1000);
+            TPUSH<Pipe, VecTile, TileSplitAxis::TILE_UP_DOWN>(pipe, vecTile);
+        }
+    };
+
+    auto popV2C = [&]() {
+        cpu_sim::ScopedExecutionContext cubeCtx(0, 0, 1);
+        CubeConsTile cubeTile(kRows, kCols);
+        TASSIGN(cubeTile, 0x0);
+        TPOP<Pipe, CubeConsTile, TileSplitAxis::TILE_UP_DOWN>(pipe, cubeTile);
+        const auto actual = readFullTile(cubeTile);
+        std::vector<float> expected;
+        const auto upper = makeLinearExpected<float, kLaneRows, kCols>(7000, 0, kLaneRows);
+        const auto lower = makeLinearExpected<float, kLaneRows, kCols>(8000, 0, kLaneRows);
+        expected.insert(expected.end(), upper.begin(), upper.end());
+        expected.insert(expected.end(), lower.begin(), lower.end());
+        EXPECT_TRUE(ResultCmp(expected, actual, 0));
+        TFREE<Pipe, TileSplitAxis::TILE_UP_DOWN>(pipe);
+    };
+
+    pushC2V(1000);
+    pushC2V(2000);
+    popC2V(1000);
+    pushV2C();
+    popV2C();
+    pushC2V(3000);
+    popC2V(2000);
+    popC2V(3000);
+
+    auto &sharedState = Pipe::GetSharedState();
+    std::lock_guard<std::mutex> lock(sharedState.mutex);
+    EXPECT_EQ(sharedState.occupied, 0);
+}
 } // namespace
 
 class TPushPopVCSplitTest : public testing::Test {
@@ -281,4 +395,9 @@ TEST_F(TPushPopVCSplitTest, both_dir_up_down_overlapping_pops_read_distinct_slot
 TEST_F(TPushPopVCSplitTest, both_dir_left_right_overlapping_pops_read_distinct_slots_float_16x32)
 {
     runSplitWraparoundBothDir<float, 16, 32, TileSplitAxis::TILE_LEFT_RIGHT>();
+}
+
+TEST_F(TPushPopVCSplitTest, both_dir_up_down_gm_fifo_keeps_c2v_order_across_v2c_prefetch)
+{
+    runDirBothGmFifoKeepsC2VOrderAcrossV2CPrefetch();
 }
