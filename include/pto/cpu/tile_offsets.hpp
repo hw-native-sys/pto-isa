@@ -76,7 +76,7 @@ size_t inline GetTileElementOffset(size_t r, size_t c)
 template <typename GlobalData>
 size_t inline GetGlobalElementOffsetPlain(GlobalData &gdata, size_t r, size_t c)
 {
-    return r * gdata.GetStride(3) + c;
+    return r * gdata.GetStride(GlobalTensorDim::DIM_3) + c;
 }
 
 template <typename DataStorage>
