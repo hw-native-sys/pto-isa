@@ -1,22 +1,21 @@
-# pto.txor
+# TXOR
 
-`pto.txor` is part of the [Elementwise Tile Tile](../../elementwise-tile-tile.md) instruction set.
 
-## Summary
+## Tile Operation Diagram
+
+![TXOR tile operation](../../../../figures/isa/TXOR.svg)
+
+## Introduction
 
 Elementwise bitwise XOR of two tiles.
 
-## Mechanism
-
-Elementwise bitwise XOR of two tiles.
+## Math Interpretation
 
 For each element `(i, j)` in the valid region:
 
 $$ \mathrm{dst}_{i,j} = \mathrm{src0}_{i,j} \oplus \mathrm{src1}_{i,j} $$
 
-## Syntax
-
-Textual spelling is defined by the PTO ISA syntax-and-operands pages.
+## Assembly Syntax
 
 Synchronous form:
 
@@ -35,7 +34,6 @@ Synchronous form:
 ```text
 pto.txor ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:
@@ -46,66 +44,35 @@ template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, ty
 PTO_INST RecordEvent TXOR(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, TileDataTmp &tmp, WaitEvents &... events);
 ```
 
-## Inputs
-
-| Operand | Role | Description |
-|---------|------|-------------|
-| `%src0` | Left tile | First source tile; read at `(i, j)` for each `(i, j)` in `dst` valid region |
-| `%src1` | Right tile | Second source tile; read at `(i, j)` for each `(i, j)` in `dst` valid region |
-| `%tmp` | Temporary tile | Temporary working tile required by A2/A3 for computation |
-| `WaitEvents...` | Optional synchronisation | `RecordEvent` tokens to wait on before issuing the operation |
-
-## Expected Outputs
-
-| Result | Type | Description |
-|--------|------|-------------|
-| `%dst` | `!pto.tile<...>` | Destination tile; all `(i, j)` in its valid region contain `src0[i,j] ^ src1[i,j]` after the operation |
-
-## Side Effects
-
-No architectural side effects beyond producing the destination tile. Does not implicitly fence unrelated traffic.
-
 ## Constraints
 
-!!! warning "Constraints"
-    - The op iterates over `dst.GetValidRow()` / `dst.GetValidCol()`.
+- The op iterates over `dst.GetValidRow()` / `dst.GetValidCol()`.
+- **Implementation checks (A5)**:
+    - `dst`, `src0`, and `src1` element types must match.
+    - Supported element types are `uint8_t`, `int8_t`, `uint16_t`, `int16_t`, `uint32_t`, `int32_t`.
+    - `dst`, `src0`, and `src1` must be row-major.
+    - `src0.GetValidRow()/GetValidCol()` and `src1.GetValidRow()/GetValidCol()` must match `dst`.
+- **Implementation checks (A2A3)**:
+    - `dst`, `src0`, `src1`, and `tmp` element types must match.
+    - Supported element types are `uint8_t`, `int8_t`, `uint16_t`, `int16_t`, `uint32_t`, `int32_t`.
+    - `dst`, `src0`, `src1`, and `tmp` must be row-major.
+    - `src0`, `src1`, and `tmp` valid shapes must match `dst`.
+    - In manual mode, `dst`, `src0`, `src1`, and `tmp` must not overlap in memory.
 
-## Exceptions
+## Temporary Space
 
-!!! danger "Exceptions"
-    - Illegal operand tuples, unsupported types, invalid layout combinations, or unsupported target-profile modes are rejected by the verifier or by the selected backend instruction set.
-    - Programs must not rely on behavior outside the documented legal domain of this operation, even if one backend currently accepts it.
+### A2A3
 
-## Target-Profile Restrictions
+`tmp` **is used** as intermediate scratch storage. The A2A3 implementation computes XOR via decomposition: `XOR(a,b) = AND(NOT(AND(a,b)), OR(a,b))`, which requires `tmp` to hold the intermediate `OR(a,b)` result.
 
-??? info "Target-Profile Restrictions"
-    - **Implementation checks (A5)**:
-        - `dst`, `src0`, and `src1` element types must match.
-        - Supported element types are `uint8_t`, `int8_t`, `uint16_t`, `int16_t`, `uint32_t`, and `int32_t`.
-        - `dst`, `src0`, and `src1` must be row-major.
-        - `src0.GetValidRow()/GetValidCol()` and `src1.GetValidRow()/GetValidCol()` must match `dst`.
+- `tmp` must have the same element type as `dst`/`src0`/`src1`.
+- `tmp` must be row-major.
+- `tmp.GetValidRow() >= dst.GetValidRow()` and `tmp.GetValidCol() >= dst.GetValidCol()`.
+- In manual mode, `tmp` must not overlap in memory with `dst`, `src0`, or `src1`.
 
-    - **Implementation checks (A2A3)**:
-        - `dst`, `src0`, `src1`, and `tmp` element types must match.
-        - Supported element types are `uint8_t`, `int8_t`, `uint16_t`, and `int16_t`.
-        - `dst`, `src0`, `src1`, and `tmp` must be row-major.
-        - `src0`, `src1`, and `tmp` valid shapes must match `dst`.
-        - In manual mode, `dst`, `src0`, `src1`, and `tmp` must not overlap in memory.
+### A5
 
-## Performance
-
-### A2/A3 Throughput
-
-`TXOR` compiles to CCE vector instructions via the `TBinOp.hpp` performance model. The throughput is identical to `TADD` (binary arithmetic):
-
-| Metric | Value (FP) | Value (INT) |
-|--------|-------------|-------------|
-| Startup latency | 14 | 14 |
-| Completion latency | 19 | 17 |
-| Per-repeat throughput | 2 | 2 |
-| Pipeline interval | 18 | 18 |
-
----
+`tmp` is accepted by the interface but **not used** by the A5 implementation. The A5 backend uses the `vxor` vector instruction directly and does not require scratch tile storage. `tmp` is retained in the C++ intrinsic signature solely for API compatibility with A2A3.
 
 ## Examples
 
@@ -127,6 +94,8 @@ void example() {
 }
 ```
 
+## ASM Form Examples
+
 ### Auto Mode
 
 ```text
@@ -137,7 +106,7 @@ void example() {
 ### Manual Mode
 
 ```text
-# Manual mode: bind resources explicitly before issuing the instruction.
+# Manual mode: resources must be bound explicitly before issuing the instruction.
 # Optional for tile operands:
 # pto.tassign %arg0, @tile(0x1000)
 # pto.tassign %arg1, @tile(0x2000)
@@ -152,8 +121,3 @@ void example() {
 pto.txor ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
-
-- Instruction set overview: [Elementwise Tile Tile](../../elementwise-tile-tile.md)
-- Previous op in instruction set: [pto.tshr](./tshr.md)
-- Next op in instruction set: [pto.tlog](./tlog.md)

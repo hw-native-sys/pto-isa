@@ -1,127 +1,189 @@
-# pto.tcolargmin
+# TCOLARGMIN
 
-`pto.tcolargmin` 属于[归约与扩展](../../reduce-and-expand_zh.md)指令集。
+## 指令示意图
 
-## 概述
+![TCOLARGMIN tile operation](../../../../figures/isa/TCOLARGMIN.svg)
 
-返回每一列最小值所在的行索引。value+index 变体可同步返回每列最小值及其行索引。
+## 简介
 
-## 机制
+获取每列最小值对应行索引。同时提供值+索引模式，可同时返回每列的最小值及其行索引。
 
-设：
+## 数学语义
 
-- `R = src.GetValidRow()`
-- `C = src.GetValidCol()`
+### 纯索引模式
 
-则对 `0 <= j < C`：
+设 `R = src.GetValidRow()` 和 `C = src.GetValidCol()`。对 `0 <= j < C`：
 
-$$ \mathrm{dst}_{0,j} = \underset{0 \le i < R}{\operatorname{argmin}} \; \mathrm{src}_{i,j} $$
+$$ \mathrm{dstIdx}_{0,j} = \underset{0 \le i < R}{\operatorname{argmin}} \; \mathrm{src}_{i,j} $$
 
-输出 tile 只保留一行，因此 `dst[0,j]` 表示“第 `j` 列最小值落在哪一行”。若同一列有多个相同最小值，具体选哪一个索引由实现决定。
-
-value+index 模式同步输出最小值与索引：
+### 值 + 索引模式
 
 $$ \mathrm{dstVal}_{0,j} = \min_{0 \le i < R} \mathrm{src}_{i,j} $$
 
 $$ \mathrm{dstIdx}_{0,j} = \underset{0 \le i < R}{\operatorname{argmin}} \; \mathrm{src}_{i,j} $$
 
-## 语法
+## 汇编语法
+
+### 纯索引模式
 
 同步形式：
 
 ```text
-%dst = tcolargmin %src : !pto.tile<...> -> !pto.tile<...>
+%dstIdx = tcolargmin %src : !pto.tile<...> -> !pto.tile<...>
+```
+
+IR Level 1（SSA）：
+
+```text
+%dstIdx = pto.tcolargmin %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+```
+
+IR Level 2（DPS）：
+
+```text
+pto.tcolargmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dstIdx : !pto.tile_buf<...>)
+```
+
+### 值 + 索引模式
+
+同步形式：
+
+```text
 %dstVal, %dstIdx = tcolargmin %src : !pto.tile<...> -> !pto.tile<...>, !pto.tile<...>
 ```
 
-### AS Level 1（SSA）
+IR Level 1（SSA）：
 
 ```text
-%dst = pto.tcolargmin %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 %dstVal, %dstIdx = pto.tcolargmin %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> (!pto.tile<...>, !pto.tile<...>)
 ```
 
-### AS Level 2（DPS）
+IR Level 2（DPS）：
 
 ```text
-pto.tcolargmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 pto.tcolargmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dstVal, %dstIdx : !pto.tile_buf<...>, !pto.tile_buf<...>)
 ```
 
 ## C++ 内建接口
 
+声明于 `include/pto/common/pto_instr.hpp`:
+
+### 纯索引模式（3 参数）
+
 ```cpp
 template <typename TileDataOut, typename TileDataIn, typename TileDataTmp, typename... WaitEvents>
-PTO_INST RecordEvent TCOLARGMIN(TileDataOut& dst, TileDataIn& src, TileDataTmp& tmp, WaitEvents&... events);
+PTO_INST RecordEvent TCOLARGMIN(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp, WaitEvents &...events)
+```
 
+### 值 + 索引模式（4 参数）
+
+```cpp
 template <typename TileDataOutVal, typename TileDataOutIdx, typename TileDataIn, typename TileDataTmp,
           typename... WaitEvents>
 PTO_INST RecordEvent TCOLARGMIN(TileDataOutVal& dstVal, TileDataOutIdx& dstIdx, TileDataIn& src, TileDataTmp& tmp,
                                 WaitEvents&... events);
 ```
 
-## 输入
-
-- `src`：源 tile
-- `tmp`：A2A3 路径可能使用的临时 tile
-- `dst`：目标索引 tile
-- value+index 模式下，`dstVal` 为目标值 tile，`dstIdx` 为目标索引 tile
-
-## 预期输出
-
-- `dst[0,j]`：第 `j` 列最小值所在的行索引
-- value+index 模式下，`dstVal[0,j]` 为第 `j` 列最小值，`dstIdx[0,j]` 为其行索引
-
-## 副作用
-
-除产生目标 tile 外，没有额外架构副作用。
-
 ## 约束
 
-!!! warning "约束"
-    - `dst` 与 `src` 必须为 `TileType::Vec`
-    - 源元素类型支持：`half`、`float`、`uint16_t`、`uint32_t`
-    - 目标元素类型支持：`uint32_t`、`int32_t`
-    - 运行时要求：
-      - `src.GetValidRow() != 0`
-      - `src.GetValidCol() != 0`
-      - `dst.GetValidRow() == 1`
-      - `dst.GetValidCol() == src.GetValidCol()`
+### 通用约束或检查
 
-    ### A2A3
+- `dstIdx` 和 `src` 必须为 `TileType::Vec`。
+- `src` 可使用 ND 或 DN 的非分形布局（`SLayout::NoneBox`）。
+- `dstIdx` 必须使用标准 ND 布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
+- 支持的索引目标元素类型：`uint32_t`、`int32_t`。
+- 运行时检查：
+    - `src.GetValidRow() != 0`
+    - `src.GetValidCol() != 0`
+    - `dstIdx.GetValidRow() == 1`
+    - `src.GetValidCol() == dstIdx.GetValidCol()`
 
-    - `src` 必须是非分形布局
-    - `tmp` 的元素类型必须和 `src` 一致
-    - `tmp` 会被用于保存当前最小值及中间索引
+### 纯索引模式（3 参数）
 
-    ### A5
+#### A2A3 实现检查
 
-    - A5 路径接口仍保留 `tmp`，但当前实现里不实际使用它
+- 支持的源元素类型：`half`、`float`、`uint16_t`、`uint32_t`。
+- `tmp` 的元素类型必须与 `src` 一致。
+- `tmp` 用作索引跟踪和当前比较值的临时存储。
 
-    ### value+index 模式
+#### A5 实现检查
 
-    - `dstVal` 必须为标准 ND 布局的 `TileType::Vec`
-    - `dstVal` 元素类型必须与 `src` 相同
-    - value+index 重载不支持 8-bit 源元素类型
+- 支持的源元素宽度为 8 位、16 位或 32 位，覆盖 `int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`float`。
+- 接口接收 `tmp`，但实现实际并不使用它。
+
+### 值 + 索引模式（4 参数）
+
+除通用约束外：
+
+- `dstVal` 必须为 `TileType::Vec`，使用标准 ND 布局（行主、非分形）。
+- `dstVal` 元素类型必须与源元素类型 `TileDataIn::DType` 一致。
+- **不支持** 8 位源类型。
+- 运行时检查：
     - `dstVal.GetValidRow() == 1`
+    - `dstVal.GetValidCol() != 0`
+    - `src.GetValidCol() == dstVal.GetValidCol()`
+    - `dstVal.GetValidRow() == dstIdx.GetValidRow()`
     - `dstVal.GetValidCol() == dstIdx.GetValidCol()`
-    - `dstVal.GetValidCol() == src.GetValidCol()`
-    - 16-bit 源元素类型要求 `dstIdx` 使用 `uint16_t` 或 `int16_t`
-    - 32-bit 源元素类型要求 `dstIdx` 使用 `uint32_t` 或 `int32_t`
 
-## 异常与非法情形
+#### A2A3 实现检查
 
-!!! danger "异常与非法情形"
-    - 非法操作数组合、不支持的数据类型、不合法布局或不支持的 target-profile 模式，会被 verifier 或后端实现拒绝。
+- 支持的源元素类型：`half`、`float`、`uint16_t`、`uint32_t`。
+- 当源元素大小为 2 字节（`half`、`uint16_t`）时：`dstIdx` 元素类型必须为 `uint16_t` 或 `int16_t`。
+- 当源元素大小为 4 字节（`float`、`uint32_t`）时：`dstIdx` 元素类型必须为 `uint32_t` 或 `int32_t`。
+- `tmp` 的元素类型必须与 `src` 一致。
+- `tmp` 用作临时存储；对 half 输入类型，内部执行 s16->f16->s32 转换路径。
 
-## 性能
+#### A5 实现检查
 
-当前仓内没有把 `tcolargmin` 单列成公开 cost table。它应视为列索引归约路径，而不是普通数值归约。
+- 源元素大小必须为 16 位或 32 位（`sizeof(T) != 1`）。
+- 当源元素大小为 2 字节（`half`、`int16_t`、`uint16_t`）时：`dstIdx` 元素类型必须为 `uint16_t` 或 `int16_t`。
+- 当源元素大小为 4 字节（`float`、`int32_t`、`uint32_t`）时：`dstIdx` 元素类型必须为 `uint32_t` 或 `int32_t`。
+- 接口接收 `tmp`，但实现实际并不使用它。
+
+### A2A3 `tmp` 临时 Tile 相关说明
+
+- A2A3 实现中 `tmp` **始终被使用**，但使用程度取决于源元素类型和模式：
+
+  | 源类型 | 模式 | 区域 0（行索引） | 区域 1（比较值） | 区域 2（argmin 索引） |
+  |---|---|---|---|---|
+  | `half` | 纯索引 | `tmp` | `tmp` | `tmp` |
+  | `half` | 值+索引 | `tmp` | `tmp` | `dstIdx` |
+  | `float` | 纯索引 | `tmp` | `dstIdx` | `dstIdx` |
+  | `float` | 值+索引 | `tmp` | `dstIdx` | `dstIdx` |
+
+- `tmp` Tile 的数据类型必须与 `src` 的数据类型一致。
+- `tmp` Tile 在单行内被划分为最多三个区域：
+  - 区域 0（`[0, tmpGapEles)`）：当前行索引计数器（每行递增）。始终存储在 `tmp` 中。
+  - 区域 1（`[tmpGapEles, 2 * tmpGapEles)`）：当前最小值元素，用于比较。`half` 类型存储在 `tmp` 中；`float` 类型存储在 `dstIdx` 中。
+  - 区域 2（`[2 * tmpGapEles, 3 * tmpGapEles)`）：argmin 索引结果。仅在 `half` + 纯索引模式下存储在 `tmp` 中；其他情况存储在 `dstIdx` 中。
+- `tmpGapEles` 的确定方式：
+  - 当 `srcValidCol >= elemPerRpt` 时：`tmpGapEles = elemPerRpt`。
+  - 当 `srcValidCol < elemPerRpt` 时：`tmpGapEles = ceil(srcValidCol / elemPerBlock) * elemPerBlock`。
+- 对于 `half` + 纯索引模式（`tmp` 使用量最大的情况），当 `src` 较小时可直接将 `tmp` Tile 大小设为与 `src` 相同；也可按以下公式算出 `tmp` Tile 所需 stride：
+
+  ```text
+  repeats = ceil(validCol / elementPerRepeat)
+  stride = ceil(repeats * 2 / elementPerBlock) * elementPerBlock + ceil(repeats / elementPerBlock) * elementPerBlock
+  ```
+
+  对于其他类型/模式组合，`tmp` 中仅需要区域 0，因此 `tmp` 跨度为 `tmpGapEles` 即可。
+
+- 在纯索引模式下，若输入为 `half` 类型，`tmp` 区域 2 的数据将经过 s16->f16->s32 转换后才写入 `dstIdx`。
+
+### A5 `tmp` 临时 Tile 相关说明
+
+- A5 实现中 `tmp` 临时 Tile **在两种模式下均不使用**。A5 使用基于向量寄存器的计算方式（`__VEC_SCOPE__`），不需要临时 Tile 存储。
+- `tmp` 在 C++ 内建接口签名中保留，仅为了与 A2A3 的 API 兼容。
 
 ## 示例
 
+### 纯索引模式
+
+#### 自动（Auto）
+
 ```cpp
 #include <pto/pto-inst.hpp>
+
 using namespace pto;
 
 void example_auto() {
@@ -135,13 +197,37 @@ void example_auto() {
 }
 ```
 
-### value+index
+#### 手动（Manual）
 
 ```cpp
 #include <pto/pto-inst.hpp>
+
 using namespace pto;
 
-void example_auto_value_index() {
+void example_manual() {
+  using SrcT = Tile<TileType::Vec, float, 16, 256, BLayout::RowMajor, -1, -1>;
+  using DstT = Tile<TileType::Vec, uint32_t, 1, 256, BLayout::RowMajor, -1, -1>;
+  using TmpT = Tile<TileType::Vec, float, 1, 32, BLayout::RowMajor, -1, -1>;
+  SrcT src(16, 255);
+  DstT dst(1, 255);
+  TmpT tmp(1, 32);
+  TASSIGN(src, 0x0);
+  TASSIGN(dst, 0x1000);
+  TASSIGN(tmp, 0x2000);
+  TCOLARGMIN(dst, src, tmp);
+}
+```
+
+### 值 + 索引模式
+
+#### 自动（Auto）
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_auto_val_idx() {
   using SrcT = Tile<TileType::Vec, float, 16, 256, BLayout::RowMajor, -1, -1>;
   using DstValT = Tile<TileType::Vec, float, 1, 256, BLayout::RowMajor, -1, -1>;
   using DstIdxT = Tile<TileType::Vec, int32_t, 1, 256, BLayout::RowMajor, -1, -1>;
@@ -154,7 +240,76 @@ void example_auto_value_index() {
 }
 ```
 
-## 相关页面
+#### 手动（Manual）
 
-- 指令集总览：[归约与扩展](../../reduce-and-expand_zh.md)
-- [TCOLMIN](./tcolmin_zh.md)
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_manual_val_idx() {
+  using SrcT = Tile<TileType::Vec, float, 16, 256, BLayout::RowMajor, -1, -1>;
+  using DstValT = Tile<TileType::Vec, float, 1, 256, BLayout::RowMajor, -1, -1>;
+  using DstIdxT = Tile<TileType::Vec, int32_t, 1, 256, BLayout::RowMajor, -1, -1>;
+  using TmpT = Tile<TileType::Vec, float, 1, 32, BLayout::RowMajor, -1, -1>;
+  SrcT src(16, 255);
+  DstValT dstVal(1, 255);
+  DstIdxT dstIdx(1, 255);
+  TmpT tmp(1, 32);
+  TASSIGN(src, 0x0);
+  TASSIGN(dstVal, 0x1000);
+  TASSIGN(dstIdx, 0x2000);
+  TASSIGN(tmp, 0x3000);
+  TCOLARGMIN(dstVal, dstIdx, src, tmp);
+}
+```
+
+## 汇编示例（ASM）
+
+### 纯索引自动模式
+
+```text
+# 自动模式：由编译器/运行时负责资源放置与调度。
+%dstIdx = pto.tcolargmin %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+```
+
+### 纯索引手动模式
+
+```text
+# 手动模式：先显式绑定资源，再发射指令。
+# pto.tassign %arg0, @tile(0x1000)
+# pto.tassign %arg1, @tile(0x2000)
+%dstIdx = pto.tcolargmin %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+```
+
+### 值 + 索引自动模式
+
+```text
+# 自动模式：由编译器/运行时负责资源放置与调度。
+%dstVal, %dstIdx = pto.tcolargmin %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> (!pto.tile<...>, !pto.tile<...>)
+```
+
+### 值 + 索引手动模式
+
+```text
+# 手动模式：先显式绑定资源，再发射指令。
+# pto.tassign %arg0, @tile(0x1000)
+# pto.tassign %arg1, @tile(0x2000)
+# pto.tassign %arg2, @tile(0x3000)
+%dstVal, %dstIdx = pto.tcolargmin %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> (!pto.tile<...>, !pto.tile<...>)
+```
+
+### PTO 汇编形式
+
+```text
+# 纯索引
+%dstIdx = tcolargmin %src : !pto.tile<...> -> !pto.tile<...>
+# 值 + 索引
+%dstVal, %dstIdx = tcolargmin %src : !pto.tile<...> -> !pto.tile<...>, !pto.tile<...>
+
+# IR Level 2 (DPS) - 纯索引
+pto.tcolargmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dstIdx : !pto.tile_buf<...>)
+
+# IR Level 2 (DPS) - 值 + 索引
+pto.tcolargmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dstVal, %dstIdx : !pto.tile_buf<...>, !pto.tile_buf<...>)
+```

@@ -1,22 +1,21 @@
-# pto.tprelu
+# TPRELU
 
-`pto.tprelu` is part of the [Elementwise Tile Tile](../../elementwise-tile-tile.md) instruction set.
 
-## Summary
+## Tile Operation Diagram
+
+![TPRELU tile operation](../../../../figures/isa/TPRELU.svg)
+
+## Introduction
 
 Elementwise PReLU (parametric ReLU) with a per-element slope tile.
 
-## Mechanism
-
-Elementwise PReLU (parametric ReLU) with a per-element slope tile.
+## Math Interpretation
 
 For each element `(i, j)` in the valid region:
 
 $$ \mathrm{dst}_{i,j} = (\mathrm{src0}_{i,j} > 0) ? \mathrm{src0}_{i,j} : (\mathrm{src0}_{i,j} \cdot \mathrm{src1}_{i,j}) $$
 
-## Syntax
-
-Textual spelling is defined by the PTO ISA syntax-and-operands pages.
+## Assembly Syntax
 
 Synchronous form:
 
@@ -35,7 +34,6 @@ Synchronous form:
 ```text
 pto.tprelu ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:
@@ -46,59 +44,35 @@ template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, ty
 PTO_INST RecordEvent TPRELU(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, TileDataTmp &tmp, WaitEvents &... events);
 ```
 
-## Inputs
-
-| Operand | Role | Description |
-|---------|------|-------------|
-| `%src0` | Left tile | First source tile (value); read at `(i, j)` for each `(i, j)` in `dst` valid region |
-| `%src1` | Right tile | Second source tile (slope); read at `(i, j)` for each `(i, j)` in `dst` valid region |
-| `%tmp` | Temporary tile | Required temporary working tile for PReLU slope selection (A3) |
-| `WaitEvents...` | Optional synchronisation | `RecordEvent` tokens to wait on before issuing the operation |
-
-## Expected Outputs
-
-| Result | Type | Description |
-|--------|------|-------------|
-| `%dst` | `!pto.tile<...>` | Destination tile; all `(i, j)` in its valid region contain `(src0[i,j] > 0) ? src0[i,j] : (src0[i,j] * src1[i,j])` after the operation |
-
-## Side Effects
-
-No architectural side effects beyond producing the destination tile. Does not implicitly fence unrelated traffic.
-
 ## Constraints
 
-!!! warning "Constraints"
-    - The op iterates over `dst.GetValidRow()` / `dst.GetValidCol()`.
+- The op iterates over `dst.GetValidRow()` / `dst.GetValidCol()`.
+- **Implementation checks (A2A3)**:
+    - `dst`, `src0`, and `src1` element types must match. Supported types: `half`, `float`.
+    - `tmp` element type must be `uint8_t` (used as comparison mask buffer).
+    - All tiles must be row-major.
+    - `src0` and `src1` valid shapes must match `dst`.
+    - `tmp.GetValidRow() > dst.GetValidRow()` (tmp needs extra rows for mask storage).
+    - In manual mode, `src0`, `src1`, `dst`, and `tmp` must not overlap in memory.
+- **Implementation checks (A5)**:
+    - `dst`, `src0`, and `src1` element types must match. Supported types: `half`, `float`.
+    - All tiles must be row-major.
+    - `src0` and `src1` valid shapes must match `dst`.
 
-    - For A3, 2 source Tile, destination Tile, temporary space must in different memory range without overlapping.
+## Temporary Space
 
-    - For A3, `tmp.GetValidRow()` must be greater than or equal to `dst.GetValidCol() + 1`.
+### A2A3
 
-## Performance
+`tmp` **is used** as comparison mask storage. The A2A3 implementation decomposes PReLU as: `dst = src0 > 0 ? src0 : src0 * src1`, using `TCMPS` to write the comparison mask into `tmp`, then `TSEL` to select between `src0` and `dst` (= `src0 * src1`).
 
-### A2/A3 Throughput
+- `tmp` element type must be `uint8_t`.
+- `tmp.GetValidRow() > dst.GetValidRow()` (the extra row region after the valid rows is used for the `TSEL` mask via `TSUBVIEW`).
+- `tmp` must be row-major.
+- In manual mode, `tmp` must not overlap with `dst`, `src0`, or `src1`.
 
-`TPRELU` compiles to CCE vector instructions via the `TBinOp.hpp` performance model. The throughput is identical to `TADD` (binary arithmetic):
+### A5
 
-| Metric | Value (FP) | Value (INT) |
-|--------|-------------|-------------|
-| Startup latency | 14 | 14 |
-| Completion latency | 19 | 17 |
-| Per-repeat throughput | 2 | 2 |
-| Pipeline interval | 18 | 18 |
-
----
-
-## Exceptions
-
-!!! danger "Exceptions"
-    - Illegal operand tuples, unsupported types, invalid layout combinations, or unsupported target-profile modes are rejected by the verifier or by the selected backend instruction set.
-    - Programs must not rely on behavior outside the documented legal domain of this operation, even if one backend currently accepts it.
-
-## Target-Profile Restrictions
-
-??? info "Target-Profile Restrictions"
-    - Temporary space is required by A3 for calculation, while not used by A5.
+`tmp` is accepted by the interface but **not used** by the A5 implementation. The A5 backend uses the `vprelu` vector instruction directly and does not require scratch tile storage. `tmp` is retained in the C++ intrinsic signature solely for API compatibility with A2A3.
 
 ## Examples
 
@@ -114,6 +88,8 @@ void example() {
 }
 ```
 
+## ASM Form Examples
+
 ### Auto Mode
 
 ```text
@@ -124,7 +100,7 @@ void example() {
 ### Manual Mode
 
 ```text
-# Manual mode: bind resources explicitly before issuing the instruction.
+# Manual mode: resources must be bound explicitly before issuing the instruction.
 # Optional for tile operands:
 # pto.tassign %arg0, @tile(0x1000)
 # pto.tassign %arg1, @tile(0x2000)
@@ -139,8 +115,3 @@ void example() {
 pto.tprelu ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
-
-- Instruction set overview: [Elementwise Tile Tile](../../elementwise-tile-tile.md)
-- Previous op in instruction set: [pto.trecip](./trecip.md)
-- Next op in instruction set: [pto.taddc](./taddc.md)

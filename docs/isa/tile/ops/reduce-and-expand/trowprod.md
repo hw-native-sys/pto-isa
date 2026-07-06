@@ -1,29 +1,27 @@
-# pto.trowprod
+# TROWPROD
 
-`pto.trowprod` is part of the [Reduce And Expand Instruction Set](../../reduce-and-expand.md) instruction set.
 
-## Summary
+## Tile Operation Diagram
 
-Reduce each row by computing the product across columns.
+![TROWPROD tile operation](../../../../figures/isa/TROWPROD.svg)
 
-## Mechanism
+## Introduction
 
-Reduce each row by computing the product across columns.
+Reduce each row by multiplying across columns.
+
+## Math Interpretation
 
 Let `R = src.GetValidRow()` and `C = src.GetValidCol()`. For `0 <= i < R`:
 
 $$ \mathrm{dst}_{i,0} = \prod_{j=0}^{C-1} \mathrm{src}_{i,j} $$
 
-## Syntax
-
-Textual spelling is defined by the PTO ISA syntax-and-operands pages.
+## Assembly Syntax
 
 Synchronous form:
 
 ```text
 %dst = trowprod %src : !pto.tile<...> -> !pto.tile<...>
 ```
-
 Lowering may introduce internal scratch tiles; the C++ intrinsic requires an explicit `tmp` operand.
 
 ### AS Level 1 (SSA)
@@ -47,56 +45,41 @@ template <typename TileDataOut, typename TileDataIn, typename TileDataTmp, typen
 PTO_INST RecordEvent TROWPROD(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp, WaitEvents &... events);
 ```
 
-## Inputs
-
-- `src` is the source tile.
-- `tmp` is a temporary tile used for intermediate storage.
-- `dst` names the destination tile. The operation iterates over dst's valid region.
-
-## Expected Outputs
-
-`dst` holds the row-wise product: for each row `i`, `dst[i,0]` = product of all elements in row `i` of `src`.
-
-## Side Effects
-
-No architectural side effects beyond producing the destination tile. Does not implicitly fence unrelated traffic.
-
 ## Constraints
 
-!!! warning "Constraints"
-    ### General constraints / checks
+### General constraints / checks
 
-    - `dst` and `src` must both be `TileType::Vec`.
+- `dst` and `src` must both be `TileType::Vec`.
+- `src` must use standard ND layout: row-major and non-fractal (`BLayout::RowMajor`, `SLayout::NoneBox`).
+- `dst` must use one of the following non-fractal layouts:
+    - ND layout (`BLayout::RowMajor`, `SLayout::NoneBox`), or
+    - DN layout with exactly one column (`BLayout::ColMajor`, `SLayout::NoneBox`, `Cols == 1`).
+- `dst` and `src` must use the same element type.
+- Runtime valid-region checks:
+    - `src.GetValidRow() != 0`
+    - `src.GetValidCol() != 0`
+    - `src.GetValidRow() == dst.GetValidRow()`
+- The intrinsic signature requires an explicit `tmp` operand.
 
-    - `src` must use standard ND layout: row-major and non-fractal (`BLayout::RowMajor`, `SLayout::NoneBox`).
+### A5 implementation checks
 
-    - `dst` must use one of the following non-fractal layouts:
-      - ND layout (`BLayout::RowMajor`, `SLayout::NoneBox`), or
-      - DN layout with exactly one column (`BLayout::ColMajor`, `SLayout::NoneBox`, `Cols == 1`).
+- Supported element types: `half`, `float`, `int32_t`, `int16_t`.
+- In the currently inspected implementation path, the enforced constraints are on `src` and `dst`.
+- No extra shape/layout assertions on `tmp` are enforced in the current implementation path.
 
-    - `dst` and `src` must use the same element type.
+## Temporary Space
 
-    - Runtime valid-region checks:
-      - `src.GetValidRow() != 0`
-      - `src.GetValidCol() != 0`
-      - `src.GetValidRow() == dst.GetValidRow()`
+### A2A3
 
-    - Supported element types: `half`, `float`, `int32_t`, `int16_t`.
+`tmp` **is used** as a per-row accumulator buffer. For each row, the implementation initializes `tmp` with `1.0` and then multiplies blocks of `src` data into `tmp` using `vmul`. After all blocks are accumulated, the scalar-mode pipeline reads `tmp` elements and computes the final product.
 
-    - The implementation accepts both ND output and DN output with `Cols == 1`; it is not limited to DN output.
+- `tmp` must have the same element type as `src`/`dst`.
+- `tmp` size: at least 1 row and `BLOCK_BYTE_SIZE / sizeof(T)` columns (i.e., 1 block: 8 elements for `float`/`int32_t`, 16 elements for `half`/`int16_t`).
+- A safe default: set `tmp` to the same shape as `src`.
 
-    - The current implementation path passes `tmp` into the backend call, but this document does not add extra `tmp` shape/layout constraints beyond what is explicitly enforced by the checked implementation.
+### A5
 
-## Exceptions
-
-!!! danger "Exceptions"
-    - Illegal operand tuples, unsupported types, invalid layout combinations, or unsupported target-profile modes are rejected by the verifier or by the selected backend instruction set.
-    - Programs must not rely on behavior outside the documented legal domain of this operation, even if one backend currently accepts it.
-
-## Target-Profile Restrictions
-
-??? info "Target-Profile Restrictions"
-    - The intrinsic signature requires an explicit `tmp` operand.
+`tmp` is accepted by the interface but **not used** by the A5 implementation. The A5 backend uses vector register-based reduction (`vmul` + `vintlv` for tree reduction) and does not require scratch tile storage. `tmp` is retained in the C++ intrinsic signature solely for API compatibility with A2A3.
 
 ## Examples
 
@@ -139,6 +122,8 @@ void example_manual() {
 }
 ```
 
+## ASM Form Examples
+
 ### Auto Mode
 
 ```text
@@ -149,7 +134,7 @@ void example_manual() {
 ### Manual Mode
 
 ```text
-# Manual mode: bind resources explicitly before issuing the instruction.
+# Manual mode: resources must be bound explicitly before issuing the instruction.
 # Optional for tile operands:
 # pto.tassign %arg0, @tile(0x1000)
 # pto.tassign %arg1, @tile(0x2000)
@@ -163,8 +148,3 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.trowprod ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-
-## Related Ops / Instruction Set Links
-
-- Instruction set overview: [Reduce And Expand Instruction Set](../../reduce-and-expand.md)
-- Next op in instruction set: [pto.tcolprod](./tcolprod.md)

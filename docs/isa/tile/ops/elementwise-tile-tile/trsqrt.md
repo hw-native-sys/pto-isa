@@ -1,22 +1,21 @@
-# pto.trsqrt
+# TRSQRT
 
-`pto.trsqrt` is part of the [Elementwise Tile Tile](../../elementwise-tile-tile.md) instruction set.
 
-## Summary
+## Tile Operation Diagram
+
+![TRSQRT tile operation](../../../../figures/isa/TRSQRT.svg)
+
+## Introduction
 
 Elementwise reciprocal square root.
 
-## Mechanism
-
-Elementwise reciprocal square root.
+## Math Interpretation
 
 For each element `(i, j)` in the valid region:
 
 $$ \mathrm{dst}_{i,j} = \frac{1}{\sqrt{\mathrm{src}_{i,j}}} $$
 
-## Syntax
-
-Textual spelling is defined by the PTO ISA syntax-and-operands pages.
+## Assembly Syntax
 
 Synchronous form:
 
@@ -35,7 +34,6 @@ Synchronous form:
 ```text
 pto.trsqrt ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:
@@ -48,64 +46,28 @@ template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp, type
 PTO_INST RecordEvent TRSQRT(TileDataDst &dst, TileDataSrc &src, TileDataTmp &tmp, WaitEvents &... events);
 ```
 
-## Inputs
-
-| Operand | Role | Description |
-|---------|------|-------------|
-| `%src` | Source tile | Source tile; read at `(i, j)` for each `(i, j)` in `dst` valid region |
-| `%dst` | Destination tile | Destination tile receiving the result |
-| `WaitEvents...` | Optional synchronisation | `RecordEvent` tokens to wait on before issuing the operation |
-
-## Expected Outputs
-
-| Result | Type | Description |
-|--------|------|-------------|
-| `%dst` | `!pto.tile<...>` | Destination tile; all `(i, j)` in its valid region contain `1/sqrt(src[i,j])` after the operation |
-
-## Side Effects
-
-No architectural side effects beyond producing the destination tile. Does not implicitly fence unrelated traffic.
-
 ## Constraints
 
-!!! warning "Constraints"
-    - **Valid region**:
-        - The op uses `dst.GetValidRow()` / `dst.GetValidCol()` as the iteration domain.
+- **Implementation checks (NPU)**:
+    - `TileData::DType` must be one of: `float` or `half`;
+    - Tile location must be vector (`TileData::Loc == TileType::Vec`);
+    - Static valid bounds: `TileData::ValidRow <= TileData::Rows` and `TileData::ValidCol <= TileData::Cols`;
+    - Runtime: `src.GetValidRow() == dst.GetValidRow()` and `src.GetValidCol() == dst.GetValidCol()`;
+    - Tile layout must be row-major (`TileData::isRowMajor`).
+- **Valid region**:
+    - The op uses `dst.GetValidRow()` / `dst.GetValidCol()` as the iteration domain.
+- **Domain / NaN**:
+    - Behavior is target-defined (e.g., for `src == 0` or negative inputs).
 
-    - **Domain / NaN**:
-        - Behavior is target-defined (e.g., for `src == 0` or negative inputs).
+## Temporary Space
 
-## Exceptions
+### Without `tmp` (2-argument overload: `TRSQRT(dst, src)`)
 
-!!! danger "Exceptions"
-    - Illegal operand tuples, unsupported types, invalid layout combinations, or unsupported target-profile modes are rejected by the verifier or by the selected backend instruction set.
-    - Programs must not rely on behavior outside the documented legal domain of this operation, even if one backend currently accepts it.
+No `tmp` is required. The default-precision implementation uses `vsqrt` + `vdiv` directly.
 
-## Target-Profile Restrictions
+### With `tmp` (3-argument overload: `TRSQRT(dst, src, tmp)`)
 
-??? info "Target-Profile Restrictions"
-    - **Implementation checks (NPU)**:
-        - The `tmp` buffer must be at least 32 bytes. When tmp is provided, the high-precision version is executed.
-        - `TileData::DType` must be one of: `float` or `half`;
-        - Tile location must be vector (`TileData::Loc == TileType::Vec`);
-        - Static valid bounds: `TileData::ValidRow <= TileData::Rows` and `TileData::ValidCol <= TileData::Cols`;
-        - Runtime: `src.GetValidRow() == dst.GetValidRow()` and `src.GetValidCol() == dst.GetValidCol()`;
-        - Tile layout must be row-major (`TileData::isRowMajor`).
-
-## Performance
-
-### A2/A3 Throughput
-
-`TRSQRT` compiles to CCE vector instructions via the `TUnaryOp.hpp` performance model:
-
-| Metric | Value |
-|--------|-------|
-| Startup latency | 13 |
-| Completion latency | 26 (FP transcendental) |
-| Per-repeat throughput | 1 |
-| Pipeline interval | 18 |
-
----
+`tmp` is accepted by the interface but **not used** by the current A5 implementation. The 3-argument overload simply delegates to the 2-argument implementation (`TRSQRT_IMPL<PrecisionType>(dst, src)`). `tmp` is retained in the C++ intrinsic signature for API compatibility and potential future high-precision paths.
 
 ## Examples
 
@@ -139,6 +101,8 @@ void example_manual() {
 }
 ```
 
+## ASM Form Examples
+
 ### Auto Mode
 
 ```text
@@ -149,7 +113,7 @@ void example_manual() {
 ### Manual Mode
 
 ```text
-# Manual mode: bind resources explicitly before issuing the instruction.
+# Manual mode: resources must be bound explicitly before issuing the instruction.
 # Optional for tile operands:
 # pto.tassign %arg0, @tile(0x1000)
 # pto.tassign %arg1, @tile(0x2000)
@@ -164,8 +128,3 @@ void example_manual() {
 pto.trsqrt ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## Related Ops / Instruction Set Links
-
-- Instruction set overview: [Elementwise Tile Tile](../../elementwise-tile-tile.md)
-- Previous op in instruction set: [pto.tsel](./tsel.md)
-- Next op in instruction set: [pto.tsqrt](./tsqrt.md)

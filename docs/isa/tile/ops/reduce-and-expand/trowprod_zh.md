@@ -1,95 +1,92 @@
-# pto.trowprod
+# TROWPROD
 
-`pto.trowprod` 属于[归约与扩展](../../reduce-and-expand_zh.md)指令集。
+## 指令示意图
 
-## 概述
+![TROWPROD tile operation](../../../../figures/isa/TROWPROD.svg)
 
-对每一行按列求积。
+## 简介
 
-## 机制
+对每行元素进行乘积归约。
 
-设：
+## 数学定义
 
-- `R = src.GetValidRow()`
-- `C = src.GetValidCol()`
-
-则对 `0 <= i < R`：
+设 `R = src.GetValidRow()` 且 `C = src.GetValidCol()`。对于 `0 <= i < R`：
 
 $$ \mathrm{dst}_{i,0} = \prod_{j=0}^{C-1} \mathrm{src}_{i,j} $$
 
-它把 `(R, C)` 压成 `(R, 1)`，保留行、折叠列。lowering 过程中通常会引入临时 tile，因此 C++ intrinsic 要求显式传入 `tmp`。
-
-## 语法
+## 汇编语法
 
 同步形式：
 
 ```text
 %dst = trowprod %src : !pto.tile<...> -> !pto.tile<...>
 ```
+降级可能引入内部临时 tile；C++ 内建函数需要显式的 `tmp` 操作数。
 
-### AS Level 1（SSA）
+### AS Level 1 (SSA)
 
 ```text
 %dst = pto.trowprod %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
-### AS Level 2（DPS）
+### AS Level 2 (DPS)
 
 ```text
 pto.trowprod ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++ 内建函数
+
+声明于 `include/pto/common/pto_instr.hpp`：
 
 ```cpp
 template <typename TileDataOut, typename TileDataIn, typename TileDataTmp, typename... WaitEvents>
 PTO_INST RecordEvent TROWPROD(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp, WaitEvents &... events);
 ```
 
-## 输入
+## 约束条件
 
-- `src`：源 tile
-- `tmp`：临时 tile
-- `dst`：目标 tile
+### 通用约束或检查
 
-## 预期输出
+- `dst` 和 `src` 必须均为 `TileType::Vec`。
+- `src` 必须使用标准 ND 布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
+- `dst` 必须使用以下两种非分形布局之一：
+    - ND 布局（`BLayout::RowMajor`、`SLayout::NoneBox`），或
+    - 列数严格为 1 的 DN 布局（`BLayout::ColMajor`、`SLayout::NoneBox`、`Cols == 1`）。
+- `dst` 和 `src` 的元素类型必须一致。
+- 运行时有效区域检查：
+    - `src.GetValidRow() != 0`
+    - `src.GetValidCol() != 0`
+    - `src.GetValidRow() == dst.GetValidRow()`
+- 内建接口签名要求显式传入 `tmp` 操作数。
 
-- `dst[i,0]`：第 `i` 行所有列元素的乘积
+### A5 实现检查
 
-## 副作用
+- 支持的元素类型：`half`、`float`、`int32_t`、`int16_t`。
+- 当前检查到的实现路径中，实际受约束的是 `src` 和 `dst`。
+- 当前实现路径中，没有额外要求 `tmp` 必须满足特定 shape/layout 约束。
 
-除产生目标 tile 外，没有额外架构副作用。
+## 临时空间
 
-## 约束
+### A2A3
 
-!!! warning "约束"
-    - `dst` 与 `src` 必须都为 `TileType::Vec`
-    - `src` 必须使用标准 ND 布局：行主且非分形
-    - `dst` 可以是 ND，或 `Cols == 1` 的 DN 布局
-    - `dst` 与 `src` 元素类型必须一致
-    - 运行时要求：
-      - `src.GetValidRow() != 0`
-      - `src.GetValidCol() != 0`
-      - `src.GetValidRow() == dst.GetValidRow()`
+`tmp` **被使用**作为逐行累加器缓冲区。对于每一行，实现将 `tmp` 初始化为 `1.0`，然后使用 `vmul` 将 `src` 数据的各个块乘入 `tmp`。所有块累加完成后，标量模式流水线读取 `tmp` 元素并计算最终乘积。
 
-    ### A5
+- `tmp` 必须与 `src`/`dst` 具有相同的元素类型。
+- `tmp` 大小：至少 1 行和 `BLOCK_BYTE_SIZE / sizeof(T)` 列（即 1 个块：`float`/`int32_t` 为 8 个元素，`half`/`int16_t` 为 16 个元素）。
+- 安全的默认设置：将 `tmp` 设为与 `src` 相同的形状。
 
-    - 支持类型：`half`、`float`、`int32_t`、`int16_t`
-    - 当前 checked implementation 主要约束的是 `src` 与 `dst`；`tmp` 在接口中保留，但不额外引入文档外 shape / layout 限制
+### A5
 
-## 异常与非法情形
-
-!!! danger "异常与非法情形"
-    - 非法操作数组合、不支持的数据类型、不合法布局或不支持的 target-profile 模式，会被 verifier 或后端实现拒绝。
-
-## 性能
-
-当前仓内没有把 `trowprod` 单列成公开 cost table。它应视为行归约路径，而不是普通逐元素算术。
+`tmp` 被接口接受但 A5 实现**不使用**。A5 后端使用基于向量寄存器的归约（`vmul` + `vintlv` 进行树形归约），不需要暂存 Tile 存储。`tmp` 仅为了与 A2A3 的 API 兼容性而保留在 C++ 内建接口签名中。
 
 ## 示例
 
+### Auto 模式
+
 ```cpp
 #include <pto/pto-inst.hpp>
+
 using namespace pto;
 
 void example_auto() {
@@ -103,7 +100,50 @@ void example_auto() {
 }
 ```
 
-## 相关页面
+### Manual 模式
 
-- 指令集总览：[归约与扩展](../../reduce-and-expand_zh.md)
-- [TCOLPROD](./tcolprod_zh.md)
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_manual() {
+  using SrcT = Tile<TileType::Vec, float, 16, 16>;
+  using DstT = Tile<TileType::Vec, float, 16, 1, BLayout::ColMajor>;
+  using TmpT = Tile<TileType::Vec, float, 16, 16>;
+  SrcT src;
+  DstT dst;
+  TmpT tmp;
+  TASSIGN(src, 0x1000);
+  TASSIGN(dst, 0x2000);
+  TASSIGN(tmp, 0x3000);
+  TROWPROD(dst, src, tmp);
+}
+```
+
+## ASM 形式示例
+
+### Auto 模式
+
+```text
+# Auto 模式：编译器/运行时管理的放置和调度。
+%dst = pto.trowprod %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+```
+
+### Manual 模式
+
+```text
+# Manual 模式：在发出指令前显式绑定资源。
+# Tile 操作数可选：
+# pto.tassign %arg0, @tile(0x1000)
+# pto.tassign %arg1, @tile(0x2000)
+%dst = pto.trowprod %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+```
+
+### PTO 汇编形式
+
+```text
+%dst = trowprod %src : !pto.tile<...> -> !pto.tile<...>
+# AS Level 2 (DPS)
+pto.trowprod ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+```

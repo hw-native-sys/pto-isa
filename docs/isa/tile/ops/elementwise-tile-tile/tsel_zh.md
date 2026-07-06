@@ -1,28 +1,28 @@
-# pto.tsel
+# TSEL
 
-`pto.tsel` 属于[逐元素 Tile-Tile](../../elementwise-tile-tile_zh.md)指令集。
+## 指令示意图
 
-## 概述
+![TSEL tile operation](../../../../figures/isa/TSEL.svg)
 
-根据掩码 tile，在两个源 tile 之间逐元素选择。
+## 简介
 
-## 机制
+使用掩码 Tile 在两个 Tile 之间进行选择（逐元素选择）。
 
-对目标 tile 的 valid region 中每个 `(i, j)`：
+## 数学语义
+
+对每个元素 `(i, j)` 在有效区域内：
 
 $$
 \mathrm{dst}_{i,j} =
 \begin{cases}
-\mathrm{src0}_{i,j} & \text{当 } \mathrm{mask}_{i,j}\ \text{为真} \\
-\mathrm{src1}_{i,j} & \text{否则}
+\mathrm{src0}_{i,j} & \text{if } \mathrm{mask}_{i,j}\ \text{is true} \\
+\mathrm{src1}_{i,j} & \text{otherwise}
 \end{cases}
 $$
 
-掩码 tile 使用目标定义的 packed predicate 编码，`tmp` 用作谓词展开时的临时缓冲。
+## 汇编语法
 
-## 语法
-
-### PTO-AS
+同步形式：
 
 ```text
 %dst = tsel %mask, %src0, %src1 : !pto.tile<...>
@@ -42,77 +42,51 @@ pto.tsel ins(%mask, %src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.
 
 ## C++ 内建接口
 
+声明于 `include/pto/common/pto_instr.hpp`：
+
 ```cpp
 template <typename TileData, typename MaskTile, typename TmpTile, typename... WaitEvents>
-PTO_INST RecordEvent TSEL(TileData &dst, MaskTile &selMask, TileData &src0,
-                          TileData &src1, TmpTile &tmp, WaitEvents &... events);
+PTO_INST RecordEvent TSEL(TileData &dst, MaskTile &selMask, TileData &src0, TileData &src1, TmpTile &tmp, WaitEvents &... events);
 ```
-
-## 输入
-
-- `%mask`：掩码 tile
-- `%src0`：掩码为真时选择的 tile
-- `%src1`：掩码为假时选择的 tile
-- `%tmp`：谓词展开所需临时 tile
-- `%dst`：目标 tile
-
-## 预期输出
-
-- `%dst`：逐元素选择后的结果 tile
-
-## 副作用
-
-除产生目标 tile 外，没有额外架构副作用。
 
 ## 约束
 
-!!! warning "约束"
-    - `sizeof(TileData::DType)` 必须是 2 或 4 字节。
-    - `dst`、`src0`、`src1` 必须使用相同元素类型。
-    - `dst`、`src0`、`src1` 必须是行主序。
+- **实现检查 (A2A3)**:
+    - `sizeof(TileData::DType)` 必须是 `2` 或 `4` 字节。
+    - `TileData::DType` 必须是 `int16_t` 或 `uint16_t` 或 `int32_t` 或 `uint32_t` 或 `half` 或 `bfloat16_t` 或 `float`。
+    - `dst`、`src0` 和 `src1` 必须使用相同的元素类型。
+    - `dst`、`src0` 和 `src1` 必须是行主序。
     - 选择域由 `dst.GetValidRow()` / `dst.GetValidCol()` 决定。
-    - `tmp` 必须有足够容量承载谓词展开过程。
+- **实现检查 (A5)**:
+    - `sizeof(TileData::DType)` 必须是 `2` 或 `4` 字节。
+    - `TileData::DType` 必须是 `int16_t` 或 `uint16_t` 或 `int32_t` 或 `uint32_t` 或 `half` 或 `bfloat16_t` 或 `float`。
+    - `dst`、`src0` 和 `src1` 必须使用相同的元素类型。
+    - `dst`、`src0` 和 `src1` 必须是行主序。
+    - 选择域由 `dst.GetValidRow()` / `dst.GetValidCol()` 决定。
+- **掩码编码**:
+    - 掩码 tile 被解释为目标定义布局中的打包谓词位。
 
-## 不允许的情形
-
-!!! danger "不允许的情形"
-    - `dst`、`src0`、`src1` 使用不同 shape。
-    - 使用非行主序 tile。
-    - 假设掩码 tile 的具体位打包格式是跨目标固定的。
-
-## Target-Profile 限制
-
-### A2A3
-
-- `dtype` 必须是 2 或 4 字节
-- 支持类型：`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`bfloat16_t`、`float`
-
-### A5
-
-- `dtype` 必须是 2 或 4 字节
-- 支持类型：`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`bfloat16_t`、`float`
-
-## 性能
+## 临时空间
 
 ### A2A3
 
-英文页当前把 `TSEL` 归到与二元算术同一类模型：
+`tmp` **被使用**作为小型缓冲区，用于存放从掩码 Tile 复制到每行的比较掩码（`cmpmask`）。A2A3 实现使用 `set_cmpmask`，要求掩码数据位于特定的 UB 位置。
 
-| 指标 | FP | INT |
-| --- | --- | --- |
-| 启动时延 | 14 | 14 |
-| 完成时延 | 19 | 17 |
-| 每次 repeat 吞吐 | 2 | 2 |
-| 流水间隔 | 18 | 18 |
+- `tmp` 的元素类型必须是 `uint32_t`。
+- `tmp` 大小要求：每行至少 `cmpmaskLen` 个元素，其中 16 位数据类型（`half`、`bfloat16_t`）的 `cmpmaskLen = 4`，32 位数据类型（`float`、`int32_t`、`uint32_t`）的 `cmpmaskLen = 2`。以字节计，始终为 128 位（16 字节）。
+- 典型的 `tmp` Tile 声明：`Tile<TileType::Vec, uint32_t, 1, 16>` 可满足大多数使用场景。
 
 ### A5
 
-当前手册未单列 `tsel` 的独立周期表，应视为目标 profile 相关。
+`tmp` 被接口接受但 A5 实现**不使用**。A5 后端使用基于向量寄存器的掩码操作（`plds`、`vsel`），不需要暂存 Tile 存储。`tmp` 仅为了与 A2A3 的 API 兼容性而保留在 C++ 内建接口签名中。
 
 ## 示例
 
+### 自动（Auto）
+
 ```cpp
 #include <pto/pto-inst.hpp>
+
 using namespace pto;
 
 void example_auto() {
@@ -126,8 +100,53 @@ void example_auto() {
 }
 ```
 
-## 相关页面
+### 手动（Manual）
 
-- 指令集总览：[逐元素 Tile-Tile](../../elementwise-tile-tile_zh.md)
-- 上一条指令：[pto.tcvt](./tcvt_zh.md)
-- 下一条指令：[pto.trsqrt](./trsqrt_zh.md)
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_manual() {
+  using TileT = Tile<TileType::Vec, float, 16, 16>;
+  using MaskT = Tile<TileType::Vec, uint8_t, 16, 32, BLayout::RowMajor, -1, -1>;
+  using TmpT = Tile<TileType::Vec, uint32_t, 1, 16>;
+  TileT src0, src1, dst;
+  MaskT mask(16, 2);
+  TmpT tmp;
+  TASSIGN(src0, 0x1000);
+  TASSIGN(src1, 0x2000);
+  TASSIGN(dst,  0x3000);
+  TASSIGN(mask, 0x4000);
+  TASSIGN(tmp,  0x5000);
+  TSEL(dst, mask, src0, src1, tmp);
+}
+```
+
+## 汇编示例（ASM）
+
+### 自动模式
+
+```text
+# 自动模式：由编译器/运行时负责资源放置与调度。
+%dst = pto.tsel %mask, %src0, %src1 : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+```
+
+### 手动模式
+
+```text
+# 手动模式：先显式绑定资源，再发射指令。
+# 可选（当该指令包含 tile 操作数时）：
+# pto.tassign %arg0, @tile(0x1000)
+# pto.tassign %arg1, @tile(0x2000)
+%dst = pto.tsel %mask, %src0, %src1 : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+```
+
+### PTO 汇编形式
+
+```text
+%dst = tsel %mask, %src0, %src1 : !pto.tile<...>
+# AS Level 2 (DPS)
+pto.tsel ins(%mask, %src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+```
+

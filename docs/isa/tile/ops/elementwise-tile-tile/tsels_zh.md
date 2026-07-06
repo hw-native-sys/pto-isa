@@ -71,6 +71,19 @@ PTO_INST RecordEvent TSELS(TileDataDst &dst, TileDataMask &mask, TileDataSrc &sr
     - **掩码编码**:
         - 掩码 Tile 被解释为目标定义布局中的打包谓词位。
 
+## 临时空间
+
+### A2A3
+
+`tmp` **被使用**作为小型缓冲区，用于存储 `set_cmpmask` 操作所需的标量值并保存比较掩码。在选择循环之前，标量被写入 `tmp[0]`。
+
+- `tmp` 的元素类型必须与 `TileDataSrc::DType` 一致。
+- `tmp` 大小要求：至少 1 个元素（用于存放标量）。典型声明：`Tile<TileType::Vec, float, 1, 16>` 或类似。
+
+### A5
+
+`tmp` 被接口接受但 A5 实现**不使用**。A5 后端使用 `vdup` 将标量广播到向量寄存器，并使用 `vsel` 进行选择，不需要暂存 Tile 存储。`tmp` 仅为了与 A2A3 的 API 兼容性而保留在 C++ 内建接口签名中。
+
 ## 示例
 
 ### 自动（Auto）

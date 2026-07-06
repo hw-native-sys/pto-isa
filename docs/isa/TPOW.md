@@ -83,6 +83,19 @@ PTO_INTERNAL RecordEvent TPOW(DstTile &dst, BaseTile &base, ExpTile &exp, TmpTil
 - For `HIGH_PRECISION` algorithm: supported element types are `half`, `float`, `bfloat16_t` (floating-point only).
 - Integer types use a separate integer power computation path.
 
+## Temporary Space
+
+### A2A3
+
+- For **floating-point** types (`float`): `tmp` **is used** as intermediate scratch storage. The implementation computes `pow(base, exp) = exp(ln(|base|) * exp)` and uses `tmp` to store the `exp(ln(|base|) * exp)` result with absolute value for special-case handling (negative base with odd integer exponent).
+  - `tmp` must have the same element type as `dst`/`base`/`exp`.
+  - `tmp.GetValidRow() >= dst.GetValidRow()` and `tmp.GetValidCol() >= dst.GetValidCol()`.
+- For **integer** types: `tmp` is **not used**. The integer power path uses scalar computation without scratch tile storage.
+
+### A5
+
+`tmp` is accepted by the interface but **not used** by the A5 implementation. The A5 backend uses vector register-based computation and does not require scratch tile storage. `tmp` is retained in the C++ intrinsic signature solely for API compatibility with A2A3.
+
 ## Examples
 
 ### Auto
