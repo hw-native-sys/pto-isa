@@ -1352,6 +1352,7 @@ PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, TmpTileData &tmp, 
 // grp_axis-tagged X->ZZ overload (3-arg form). grp_axis=0 selects DN->ZZ on an
 // axis-0-grouped (M̂×N) exponent source; grp_axis=1 (default) keeps stock ND->ZZ.
 // Only the ZZ transform is parameterised; other TMOV overloads are unchanged.
+#if defined(PTO_NPU_ARCH_A5) || defined(__CPU_SIM)
 template <int grp_axis, typename DstTileData, typename SrcTileData, typename TmpTileData, typename... WaitEvents,
           std::enable_if_t<is_tile_data_v<TmpTileData>, int> = 0>
 PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, TmpTileData &tmp, WaitEvents &...events)
@@ -1360,6 +1361,7 @@ PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, TmpTileData &tmp, 
     TMOV_IMPL<grp_axis, DstTileData, SrcTileData, TmpTileData>(dst, src, tmp);
     return {};
 }
+#endif
 
 template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode, typename... WaitEvents>
 PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, WaitEvents &...events)
