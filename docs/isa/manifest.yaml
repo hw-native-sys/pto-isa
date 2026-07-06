@@ -1599,6 +1599,20 @@
         "src1"
       ],
       "notes": []
+    },
+    {
+      "instruction": "TAddDeqRelu",
+      "category": "Complex",
+      "summary_en": "Fused elementwise add, dequantization scale, and ReLU clamp: dst = half(max(0, (src0 + src1) * deqScale)).",
+      "summary_zh": "融合逐元素加法、反量化缩放和 ReLU 限幅：dst = half(max(0, (src0 + src1) * deqScale))。",
+      "diagram_template": "elementwise",
+      "operands": [
+        "dst",
+        "src0",
+        "src1",
+        "tmp"
+      ],
+      "notes": []
     }
   ]
 }
