@@ -96,6 +96,7 @@ tmins
 tmov
 tmrgsort
 tmul
+tmuladddst
 tmuls
 tneg
 tnot
