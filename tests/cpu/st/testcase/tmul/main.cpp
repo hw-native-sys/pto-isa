@@ -114,3 +114,16 @@ TEST_F(TMULTest, case_bf16_16x256_16x256_16x256)
     test_tmul<bfloat16_t, 16, 256, 16, 256>();
 }
 #endif
+
+TEST_F(TMULTest, case_uint8_64x64_64x64_64x64)
+{
+    test_tmul<uint8_t, 64, 64, 64, 64>();
+}
+TEST_F(TMULTest, case_uint16_64x64_64x64_64x64)
+{
+    test_tmul<uint16_t, 64, 64, 64, 64>();
+}
+TEST_F(TMULTest, case_uint32_64x64_64x64_64x64)
+{
+    test_tmul<uint32_t, 64, 64, 64, 64>();
+}

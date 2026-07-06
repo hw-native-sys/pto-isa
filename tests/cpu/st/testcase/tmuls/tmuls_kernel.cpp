@@ -67,6 +67,18 @@ extern "C" __global__ AICORE void launchTMULSCase6(__gm__ float *out, __gm__ flo
 {
     runTMulS<float, 256, 256, 16, 16>(out, src, scalar);
 }
+extern "C" __global__ AICORE void launchTMULSCase7(__gm__ uint8_t *out, __gm__ uint8_t *src, float scalar)
+{
+    runTMulS<uint8_t, 32, 32, 64, 64>(out, src, scalar);
+}
+extern "C" __global__ AICORE void launchTMULSCase8(__gm__ uint16_t *out, __gm__ uint16_t *src, float scalar)
+{
+    runTMulS<uint16_t, 32, 32, 64, 64>(out, src, scalar);
+}
+extern "C" __global__ AICORE void launchTMULSCase9(__gm__ uint32_t *out, __gm__ uint32_t *src, float scalar)
+{
+    runTMulS<uint32_t, 32, 32, 64, 64>(out, src, scalar);
+}
 
 template <uint32_t caseId>
 void launchTMULSTestCase(void *out, void *src, float scalar, aclrtStream stream)
@@ -96,6 +108,18 @@ void launchTMULSTestCase(void *out, void *src, float scalar, aclrtStream stream)
             launchTMULSCase6((float *)out, (float *)src, scalar);
             break;
         }
+        case 7: {
+            launchTMULSCase7((uint8_t *)out, (uint8_t *)src, scalar);
+            break;
+        }
+        case 8: {
+            launchTMULSCase8((uint16_t *)out, (uint16_t *)src, scalar);
+            break;
+        }
+        case 9: {
+            launchTMULSCase9((uint32_t *)out, (uint32_t *)src, scalar);
+            break;
+        }
         default: {
         }
     }
@@ -107,3 +131,6 @@ template void launchTMULSTestCase<3>(void *out, void *src, float scalar, aclrtSt
 template void launchTMULSTestCase<4>(void *out, void *src, float scalar, aclrtStream stream);
 template void launchTMULSTestCase<5>(void *out, void *src, float scalar, aclrtStream stream);
 template void launchTMULSTestCase<6>(void *out, void *src, float scalar, aclrtStream stream);
+template void launchTMULSTestCase<7>(void *out, void *src, float scalar, aclrtStream stream);
+template void launchTMULSTestCase<8>(void *out, void *src, float scalar, aclrtStream stream);
+template void launchTMULSTestCase<9>(void *out, void *src, float scalar, aclrtStream stream);

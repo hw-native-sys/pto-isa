@@ -70,6 +70,9 @@ if __name__ == "__main__":
         tmulParams(np.int32, 64, 64, 64, 64, 64, 64),
         tmulParams(np.int16, 64, 64, 64, 64, 64, 64),
         tmulParams(np.float16, 16, 256, 16, 256, 16, 256),
+        tmulParams(np.uint8, 64, 64, 64, 64, 64, 64),
+        tmulParams(np.uint16, 64, 64, 64, 64, 64, 64),
+        tmulParams(np.uint32, 64, 64, 64, 64, 64, 64),
     ]
     if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
         case_params_list.append(tmulParams(NumExt.bf16, 16, 256, 16, 256, 16, 256))
