@@ -152,6 +152,7 @@ tstore_conv
 tsub
 tsubview
 tsubc
+tsubrelu
 tsubs
 tsubsc
 ttest
