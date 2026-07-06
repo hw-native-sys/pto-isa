@@ -33,7 +33,28 @@ PTO_INTERNAL std::enable_if_t<is_tile_data_v<TileCons>, void> TPOP_IMPL(Pipe &pi
     }
 
     // 2. Address Calculation & Pop
-    bool reqFree = pipe.cons.template pop<TileCons, Split>(pipe.fifo, tile);
+    bool reqFree = pipe.cons.template pop<TileCons, Split>(pipe.fifo, tile, get_subblockid());
+
+    // 3. Cross-Core: Free Space
+    bool isFree =
+        reqFree && pipe.cons.getFreeStatus() && Pipe::shouldNotifyFree(static_cast<uint32_t>(pipe.cons.tileIndex));
+    pipe.cons.tileIndex++;
+    if (isFree) {
+        pipe.cons.template free<Split>();
+    }
+}
+
+template <typename Pipe, typename TileCons, TileSplitAxis Split>
+PTO_INTERNAL std::enable_if_t<is_tile_data_v<TileCons>, void> TPOP_IMPL(Pipe &pipe, TileCons &tile, int32_t subBlockId)
+{
+    // // 1. Cross-Core: Wait for Data
+    bool isWait = pipe.cons.getWaitStatus();
+    if (isWait) {
+        pipe.cons.template wait<Split>();
+    }
+
+    // 2. Address Calculation & Pop
+    bool reqFree = pipe.cons.template pop<TileCons, Split>(pipe.fifo, tile, subBlockId);
 
     // 3. Cross-Core: Free Space
     bool isFree =

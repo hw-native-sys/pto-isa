@@ -2237,6 +2237,14 @@ PTO_INST RecordEvent TPUSH(Pipe &pipe, TileProd &tile, WaitEvents &...events)
     return {};
 }
 
+template <typename Pipe, typename TileProd, TileSplitAxis Split, typename... WaitEvents>
+PTO_INST RecordEvent TPUSH(Pipe &pipe, TileProd &tile, int32_t subBlockId, WaitEvents &...events)
+{
+    TSYNC(events...);
+    TPUSH_IMPL<Pipe, TileProd, Split>(pipe, tile, subBlockId);
+    return {};
+}
+
 template <typename TileData, typename Pipe, typename... WaitEvents>
 PTO_INST RecordEvent TPUSH(TileData &tile, Pipe &pipe, WaitEvents &...events)
 {
@@ -2257,6 +2265,14 @@ PTO_INST RecordEvent TPOP(Pipe &pipe, TileCons &tile, WaitEvents &...events)
     TSYNC(events...);
     PTO_INSTR_SCOPE(TPOP, pipe, tile);
     TPOP_IMPL<Pipe, TileCons, Split>(pipe, tile);
+    return {};
+}
+
+template <typename Pipe, typename TileCons, TileSplitAxis Split, typename... WaitEvents>
+PTO_INST RecordEvent TPOP(Pipe &pipe, TileCons &tile, int32_t subBlockId, WaitEvents &...events)
+{
+    TSYNC(events...);
+    TPOP_IMPL<Pipe, TileCons, Split>(pipe, tile, subBlockId);
     return {};
 }
 

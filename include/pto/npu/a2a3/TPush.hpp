@@ -194,7 +194,7 @@ struct TPipe {
         }
 
         template <typename TileProd, TileSplitAxis Split>
-        PTO_INTERNAL void pushVec2GMFiFo(RingFiFo &fifo, TileProd &tile)
+        PTO_INTERNAL void pushVec2GMFiFo(RingFiFo &fifo, TileProd &tile, int32_t subBlockId)
         {
             using T = typename TileProd::DType;
             int gmValidR = tile.GetValidRow();
@@ -208,10 +208,10 @@ struct TPipe {
                 subAIVOffset = 0;
             } else if constexpr (Split == TileSplitAxis::TILE_UP_DOWN) {
                 // TILE_UP_DOWN  : Vec1 starts at the second row-block → offset = ProdM * ProdN * sizeof(T)
-                subAIVOffset = get_subblockid() * gmValidR * gmValidC * sizeof(T);
+                subAIVOffset = subBlockId * gmValidR * gmValidC * sizeof(T);
             } else { // TILE_LEFT_RIGHT
                 // TILE_LEFT_RIGHT: Vec1 starts at column ProdN within row 0 → offset = ProdN * sizeof(T)
-                subAIVOffset = get_subblockid() * gmValidC * sizeof(T);
+                subAIVOffset = subBlockId * gmValidC * sizeof(T);
             }
             using GlobalShape = pto::Shape<1, 1, 1, -1, -1>;
             using GlobalStride = pto::Stride<1, 1, 1, -1, 1>;
@@ -234,7 +234,7 @@ struct TPipe {
         }
 
         template <typename TileProd, TileSplitAxis Split>
-        PTO_INTERNAL void push(RingFiFo &fifo, TileProd &tile)
+        PTO_INTERNAL void push(RingFiFo &fifo, TileProd &tile, int32_t subBlockId)
         {
             static_assert(
                 TileProd::Loc == TileType::Acc || TileProd::Loc == TileType::Vec || TileProd::Loc == TileType::Ctrl,
@@ -245,14 +245,14 @@ struct TPipe {
 #endif
             } else if constexpr (is_v2c) {
 #ifdef __DAV_VEC__
-                pushVec2GMFiFo<TileProd, Split>(fifo, tile);
+                pushVec2GMFiFo<TileProd, Split>(fifo, tile, subBlockId);
 #endif
             } else if constexpr (is_both) {
 #ifdef __DAV_CUBE__
                 pushAcc2GMFiFo<TileProd>(fifo, tile);
 #endif
 #ifdef __DAV_VEC__
-                pushVec2GMFiFo<TileProd, Split>(fifo, tile);
+                pushVec2GMFiFo<TileProd, Split>(fifo, tile, subBlockId);
 #endif
             } else if constexpr (is_v2c_ctrl) {
                 pushVec2CtrlFiFo<TileProd>(fifo, tile);
@@ -415,7 +415,7 @@ struct TPipe {
         }
 
         template <typename TileCons, TileSplitAxis Split>
-        PTO_INTERNAL void popVecTileFromGMFiFo(RingFiFo &fifo, TileCons &tile)
+        PTO_INTERNAL void popVecTileFromGMFiFo(RingFiFo &fifo, TileCons &tile, int32_t subBlockId)
         {
             using T = typename TileCons::DType;
             constexpr int splitNum = 2;
@@ -435,10 +435,10 @@ struct TPipe {
                 subAIVOffset = 0; // TILE_NO_SPLIT : single reader, no offset needed
             } else if constexpr (Split == TileSplitAxis::TILE_UP_DOWN) {
                 // TILE_UP_DOWN  : Vec1 starts at the second row-block → offset = VEC_M * ProdN * sizeof(T)
-                subAIVOffset = get_subblockid() * ConsM * ConsN * sizeof(T);
+                subAIVOffset = subBlockId * ConsM * ConsN * sizeof(T);
             } else { // TILE_LEFT_RIGHT
                 // TILE_LEFT_RIGHT: Vec1 starts at column ConsN within row 0 → offset = ConsN * sizeof(T)
-                subAIVOffset = get_subblockid() * ConsN * sizeof(T);
+                subAIVOffset = subBlockId * ConsN * sizeof(T);
             }
             __gm__ T *addr = (__gm__ T *)((uint64_t)fifo.GM_SLOT_BUFFER + entryBase + subAIVOffset + entryOffset);
             using GlobalData =
@@ -480,13 +480,13 @@ struct TPipe {
         }
 
         template <typename TileCons, TileSplitAxis Split>
-        PTO_INTERNAL void pop(RingFiFo &fifo, TileCons &tile)
+        PTO_INTERNAL void pop(RingFiFo &fifo, TileCons &tile, int32_t subBlockId)
         {
             static_assert(
                 TileCons::Loc == TileType::Vec || TileCons::Loc == TileType::Mat || TileCons::Loc == TileType::Ctrl,
                 "Fix: TPOP has unsupported tile type!");
             if constexpr (TileCons::Loc == TileType::Vec) {
-                popVecTileFromGMFiFo<TileCons, Split>(fifo, tile);
+                popVecTileFromGMFiFo<TileCons, Split>(fifo, tile, subBlockId);
             } else if constexpr (TileCons::Loc == TileType::Mat) {
                 popMatTileFromGMFiFo<TileCons, Split>(fifo, tile);
             } else {
@@ -545,7 +545,27 @@ PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
     }
 
     // 2. Address Calculation
-    pipe.prod.template push<TileProd, Split>(pipe.fifo, tile);
+    pipe.prod.template push<TileProd, Split>(pipe.fifo, tile, get_subblockid());
+    pipe.prod.tileIndex++;
+
+    // 3. Cross-Core: Commit & Signal
+    bool isRecord = pipe.prod.getRecordStatus();
+    if (isRecord) {
+        pipe.prod.record();
+    }
+}
+
+template <typename Pipe, typename TileProd, TileSplitAxis Split>
+PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile, int32_t subBlockId)
+{
+    // 1. Cross-Core: Wait for space
+    bool isAllocate = pipe.prod.getAllocateStatus() && Pipe::shouldWaitFree(pipe.prod.tileIndex);
+    if (isAllocate) {
+        pipe.prod.allocate();
+    }
+
+    // 2. Address Calculation
+    pipe.prod.template push<TileProd, Split>(pipe.fifo, tile, subBlockId);
     pipe.prod.tileIndex++;
 
     // 3. Cross-Core: Commit & Signal
