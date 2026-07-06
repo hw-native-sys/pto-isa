@@ -87,19 +87,42 @@ PTO_INST RecordEvent TROWARGMAX(TileDataOutVal &dstVal, TileDataOutIdx &dstIdx, 
 
 ### About temporary tile `tmp`
 
-- Temporary tile is only used by A3, A5 accepts `tmp` tile but leave it unused.
-- When output index only, `tmp` tile is not used when `srcValidCol <= ElementPerRepeat`.
-- When output both value and index and `srcValidCol <= ElementPerRepeat`, `tmp` may use either of these non-fractal layouts:
+- Temporary tile is only used by A2A3, A5 accepts `tmp` tile but leaves it unused.
+- The A2A3 implementation selects one of three code paths based on `srcValidCol` relative to `elementPerRepeat` (abbreviated `elemPerRpt` below):
+
+#### Case 1: `srcValidCol <= elemPerRpt`
+
+- **Index-only mode**: `tmp` is **not used**. The hardware `vcmax` instruction writes directly to `dst`.
+- **Value + Index mode**: `tmp` is used as a small buffer (2 elements per row: one value + one index). `tmp` may use either of these non-fractal layouts:
     - DN layout with one column (`BLayout::ColMajor`, `Cols == 1`), rows is twice of `src`.
     - ND layout whose valid column count is 2, rows is the same as `src`.
-- When `srcValidCol > ElementPerRepeat`:
-    - Rows of `tmp` tile is equal to `src`.
-    - `tmp` tile's stride can be calculated out based on `src`'s `validCol` using the following formula:
+
+#### Case 2: `elemPerRpt < srcValidCol <= elemPerRpt²` (Stage 1 reduction)
+
+- `tmp` **is used** for a single-stage reduction.
+- Rows of `tmp` tile is equal to `src`.
+- `tmp` tile's stride per row can be calculated using:
 
 ```text
-repeats = ceil(validCol / elementPerRepeat)
-stride = (ceil(repeats * 2 / elementPerBlock) + ceil(repeats / elementPerBlock)) * elementPerBlock
+R1 = ceil(validCol / elemPerRpt)
+stride = (ceil(R1 * 2 / elemPerBlock) + ceil(R1 / elemPerBlock)) * elemPerBlock
 ```
+
+#### Case 3: `srcValidCol > elemPerRpt²` (Stage 2 reduction)
+
+- `tmp` **is used** for a two-stage reduction, requiring more space than Stage 1.
+- Rows of `tmp` tile is equal to `src`.
+- `tmp` tile's stride per row can be calculated using:
+
+```text
+R1 = ceil(validCol / elemPerRpt)
+R2 = ceil(R1 / elemPerRpt)
+stage1_size = ceil(R1 * 2 / elemPerBlock) * elemPerBlock
+stage2_end  = ceil(R1 / elemPerBlock) * elemPerBlock + ceil(R2 * 2 / elemPerBlock) * elemPerBlock
+stride = max(stage1_size, stage2_end) + 2
+```
+
+- The `+ 2` accounts for the final value + index result stored at the end of each row's tmp region.
 
 ## Examples
 

@@ -90,19 +90,42 @@ PTO_INST RecordEvent TROWARGMAX(TileDataOutVal &dstVal, TileDataOutIdx &dstIdx, 
 
 ### `tmp`临时Tile相关说明
 
-- 仅A3使用`tmp`临时Tile，A5接收`tmp`但实际并不使用。
-- 仅输出索引时，`tmp`临时Tile在`srcValidCol <= ElementPerRepeat`时不使用。
-- 同时输出值和索引且`srcValidCol <= ElementPerRepeat`时，`tmp`临时Tile可使用以下任一非分形布局：
-    - 单列 DN 布局（`BLayout::ColMajor`、`Cols == 1`），有效行数为`srcValidRow * 2`。
-    - 有效行数为`srcValidRow`且有效列数为 2 的 ND 布局。
-- `srcValidCol > ElementPerRepeat`时：
-    - `tmp` tile的行数和`src` tile的行数相同。
-    - 按以下公式根据`src` tile的`validCol`算出`tmp` tile所需stride：
+- 仅 A2A3 使用`tmp`临时 Tile，A5 接收`tmp`但实际并不使用。
+- A2A3 实现根据 `srcValidCol` 与 `elementPerRepeat`（以下缩写为 `elemPerRpt`）的关系选择三条代码路径之一：
+
+#### 情况 1：`srcValidCol <= elemPerRpt`
+
+- **仅输出索引模式**：`tmp` **不使用**。硬件 `vcmax` 指令直接写入 `dst`。
+- **值+索引模式**：`tmp` 用作小型缓冲区（每行 2 个元素：一个值 + 一个索引）。`tmp` 可使用以下任一非分形布局：
+    - 单列 DN 布局（`BLayout::ColMajor`、`Cols == 1`），有效行数为 `srcValidRow * 2`。
+    - 有效行数为 `srcValidRow` 且有效列数为 2 的 ND 布局。
+
+#### 情况 2：`elemPerRpt < srcValidCol <= elemPerRpt²`（单阶段归约）
+
+- `tmp` **被使用**于单阶段归约。
+- `tmp` tile 的行数与 `src` 相同。
+- `tmp` tile 每行所需 stride 按以下公式计算：
 
 ```text
-repeats = ceil(validCol / elementPerRepeat)
-stride = (ceil(repeats * 2 / elementPerBlock) + ceil(repeats / elementPerBlock)) * elementPerBlock
+R1 = ceil(validCol / elemPerRpt)
+stride = (ceil(R1 * 2 / elemPerBlock) + ceil(R1 / elemPerBlock)) * elemPerBlock
 ```
+
+#### 情况 3：`srcValidCol > elemPerRpt²`（两阶段归约）
+
+- `tmp` **被使用**于两阶段归约，所需空间大于单阶段。
+- `tmp` tile 的行数与 `src` 相同。
+- `tmp` tile 每行所需 stride 按以下公式计算：
+
+```text
+R1 = ceil(validCol / elemPerRpt)
+R2 = ceil(R1 / elemPerRpt)
+stage1_size = ceil(R1 * 2 / elemPerBlock) * elemPerBlock
+stage2_end  = ceil(R1 / elemPerBlock) * elemPerBlock + ceil(R2 * 2 / elemPerBlock) * elemPerBlock
+stride = max(stage1_size, stage2_end) + 2
+```
+
+- `+ 2` 用于存放每行 tmp 区域末尾的最终值+索引结果。
 
 
 ## 示例
