@@ -67,15 +67,19 @@ PTO_INST RecordEvent TROWPROD(TileDataOut &dst, TileDataIn &src, TileDataTmp &tm
 - In the currently inspected implementation path, the enforced constraints are on `src` and `dst`.
 - No extra shape/layout assertions on `tmp` are enforced in the current implementation path.
 
-## Implementation Notes
+## Temporary Space
 
-`TROWPROD` follows the currently implemented A5 backend path in this codebase. It performs row-wise multiplication reduction directly from `src` to `dst` after validating `src`/`dst` constraints.
+### A2A3
 
-The C++ intrinsic still takes a `tmp` operand for interface consistency:
+`tmp` **is used** as a per-row accumulator buffer. For each row, the implementation initializes `tmp` with `1.0` and then multiplies blocks of `src` data into `tmp` using `vmul`. After all blocks are accumulated, the scalar-mode pipeline reads `tmp` elements and computes the final product.
 
-1. `tmp` remains part of the intrinsic signature and AS lowering form.
-2. The currently inspected implementation-enforced constraints are on `src` and `dst`.
-3. If another backend introduces additional `tmp` requirements later, the documentation should be updated to match that backend implementation exactly.
+- `tmp` must have the same element type as `src`/`dst`.
+- `tmp` size: at least 1 row and `BLOCK_BYTE_SIZE / sizeof(T)` columns (i.e., 1 block: 8 elements for `float`/`int32_t`, 16 elements for `half`/`int16_t`).
+- A safe default: set `tmp` to the same shape as `src`.
+
+### A5
+
+`tmp` is accepted by the interface but **not used** by the A5 implementation. The A5 backend uses vector register-based reduction (`vmul` + `vintlv` for tree reduction) and does not require scratch tile storage. `tmp` is retained in the C++ intrinsic signature solely for API compatibility with A2A3.
 
 ## Examples
 

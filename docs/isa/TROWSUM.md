@@ -69,7 +69,21 @@ PTO_INST RecordEvent TROWSUM(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
     - `src.GetValidRow() != 0`
     - `src.GetValidCol() != 0`
     - `src.GetValidRow() == dst.GetValidRow()`
-- The current implementation path passes `tmp` into the backend call, but this document does not add extra `tmp` shape/layout constraints beyond what is explicitly enforced by the checked implementation.
+
+## Temporary Space
+
+### A2A3
+
+`tmp` **is used** as scratch storage for row-wise reduction.
+
+- For **integer** types (`int32_t`, `int16_t`): `tmp` is used as a per-row accumulator buffer (1 block). For each row, `tmp` is initialized to 0, then blocks of `src` are accumulated via `vadd`. The final sum is read from `tmp` in scalar mode.
+  - `tmp` size: at least 1 row and `BLOCK_BYTE_SIZE / sizeof(T)` columns (8 for `int32_t`, 16 for `int16_t`).
+- For **floating-point** types (`float`, `half`): `tmp` is used for binary-tree reduction via `vcadd`/`vcgadd`. The required size depends on the number of repeat blocks per row.
+  - A safe default: set `tmp` to the same shape as `src`.
+
+### A5
+
+`tmp` is accepted by the interface but **not used** by the A5 implementation. The A5 backend uses vector register-based reduction (`vcadd` instruction) and does not require scratch tile storage. `tmp` is retained in the C++ intrinsic signature solely for API compatibility with A2A3.
 
 
 ## Examples

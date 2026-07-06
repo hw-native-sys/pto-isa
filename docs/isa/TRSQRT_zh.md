@@ -49,16 +49,25 @@ PTO_INST RecordEvent TRSQRT(TileDataDst &dst, TileDataSrc &src, TileDataTmp &tmp
 ## 约束
 
 - **实现检查 (NPU)**:
-    - `tmp`的空间至少要大于等于32字节。传入`tmp`则执行高精度版本。
     - `TileData::DType` 必须是以下之一：`float` 或 `half`。
-    - Tile 位置必须是向量（`TileData::Loc == TileType::Vec`);
+    - Tile 位置必须是向量（`TileData::Loc == TileType::Vec`）。
     - 静态有效边界：`TileData::ValidRow <= TileData::Rows` 且 `TileData::ValidCol <= TileData::Cols`。
     - 运行时：`src.GetValidRow() == dst.GetValidRow()` 且 `src.GetValidCol() == dst.GetValidCol()`。
     - Tile 布局必须是行主序（`TileData::isRowMajor`）。
 - **有效区域**:
-    - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域.
+    - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
 - **域 / NaN**:
     - 行为由目标定义（例如，对于 `src == 0` 或负数输入）。
+
+## 临时空间
+
+### 无 `tmp`（2 参数重载：`TRSQRT(dst, src)`）
+
+不需要 `tmp`。默认精度实现直接使用 `vsqrt` + `vdiv`。
+
+### 带 `tmp`（3 参数重载：`TRSQRT(dst, src, tmp)`）
+
+`tmp` 被接口接受但当前 A5 实现**不使用**。3 参数重载简单地委托给 2 参数实现（`TRSQRT_IMPL<PrecisionType>(dst, src)`）。`tmp` 仅为了 API 兼容性和潜在的未来高精度路径而保留在 C++ 内建接口签名中。
 
 ## 示例
 

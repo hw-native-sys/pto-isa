@@ -68,8 +68,21 @@ PTO_INST RecordEvent TROWSUM(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
     - `src.GetValidRow() != 0`
     - `src.GetValidCol() != 0`
     - `src.GetValidRow() == dst.GetValidRow()`
-- 当前实现路径会将 `tmp` 传入后端调用，但本文档不额外补充 checked implementation 未显式约束的 `tmp` shape/layout 要求。
 
+## 临时空间
+
+### A2A3
+
+`tmp` **被使用**作为行归约的暂存存储。
+
+- 对于**整数**类型（`int32_t`、`int16_t`）：`tmp` 用作逐行累加器缓冲区（1 个块）。对于每一行，`tmp` 初始化为 0，然后通过 `vadd` 累加 `src` 的各个块。最终求和结果在标量模式下从 `tmp` 读取。
+  - `tmp` 大小：至少 1 行和 `BLOCK_BYTE_SIZE / sizeof(T)` 列（`int32_t` 为 8，`int16_t` 为 16）。
+- 对于**浮点**类型（`float`、`half`）：`tmp` 用于通过 `vcadd`/`vcgadd` 的二叉树归约。
+  - 安全的默认设置：将 `tmp` 设为与 `src` 相同的形状。
+
+### A5
+
+`tmp` 被接口接受但 A5 实现**不使用**。A5 后端使用基于向量寄存器的归约（`vcadd` 指令），不需要暂存 Tile 存储。`tmp` 仅为了与 A2A3 的 API 兼容性而保留在 C++ 内建接口签名中。
 
 ## 示例
 

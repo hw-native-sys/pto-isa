@@ -142,23 +142,33 @@ PTO_INST RecordEvent TCOLARGMIN(TileDataOutVal& dstVal, TileDataOutIdx& dstIdx, 
 
 ### A2A3 `tmp` 临时 Tile 相关说明
 
-- A2A3 实现中 `tmp` **始终被使用**，作为中间结果的临时存储空间（当前行索引、argmin 索引、当前最小值元素）。
+- A2A3 实现中 `tmp` **始终被使用**，但使用程度取决于源元素类型和模式：
+
+  | 源类型 | 模式 | 区域 0（行索引） | 区域 1（比较值） | 区域 2（argmin 索引） |
+  |---|---|---|---|---|
+  | `half` | 纯索引 | `tmp` | `tmp` | `tmp` |
+  | `half` | 值+索引 | `tmp` | `tmp` | `dstIdx` |
+  | `float` | 纯索引 | `tmp` | `dstIdx` | `dstIdx` |
+  | `float` | 值+索引 | `tmp` | `dstIdx` | `dstIdx` |
+
 - `tmp` Tile 的数据类型必须与 `src` 的数据类型一致。
-- `tmp` Tile 在单行内被划分为三个区域：
-  - 区域 0（`[0, tmpGapEles)`）：当前行索引计数器（每行递增）。
-  - 区域 1（`[tmpGapEles, 2 * tmpGapEles)`）：当前最小值元素，用于比较。
-  - 区域 2（`[2 * tmpGapEles, 3 * tmpGapEles)`）：argmin 索引结果（最终转换后写入 `dstIdx`）。
+- `tmp` Tile 在单行内被划分为最多三个区域：
+  - 区域 0（`[0, tmpGapEles)`）：当前行索引计数器（每行递增）。始终存储在 `tmp` 中。
+  - 区域 1（`[tmpGapEles, 2 * tmpGapEles)`）：当前最小值元素，用于比较。`half` 类型存储在 `tmp` 中；`float` 类型存储在 `dstIdx` 中。
+  - 区域 2（`[2 * tmpGapEles, 3 * tmpGapEles)`）：argmin 索引结果。仅在 `half` + 纯索引模式下存储在 `tmp` 中；其他情况存储在 `dstIdx` 中。
 - `tmpGapEles` 的确定方式：
   - 当 `srcValidCol >= elemPerRpt` 时：`tmpGapEles = elemPerRpt`。
   - 当 `srcValidCol < elemPerRpt` 时：`tmpGapEles = ceil(srcValidCol / elemPerBlock) * elemPerBlock`。
-- 当 `src` 较小时，可直接将 `tmp` Tile 大小设为与 `src` 相同；也可按以下公式根据 `src` 的 `validCol` 算出 `tmp` Tile 所需 stride：
+- 对于 `half` + 纯索引模式（`tmp` 使用量最大的情况），当 `src` 较小时可直接将 `tmp` Tile 大小设为与 `src` 相同；也可按以下公式算出 `tmp` Tile 所需 stride：
 
   ```text
   repeats = ceil(validCol / elementPerRepeat)
   stride = ceil(repeats * 2 / elementPerBlock) * elementPerBlock + ceil(repeats / elementPerBlock) * elementPerBlock
   ```
 
-- 在值+索引模式下，若输入为 half 类型，`tmp` 区域 2 的数据将经过 s16->f16->s32 转换后才写入 `dstIdx`。
+  对于其他类型/模式组合，`tmp` 中仅需要区域 0，因此 `tmp` 跨度为 `tmpGapEles` 即可。
+
+- 在纯索引模式下，若输入为 `half` 类型，`tmp` 区域 2 的数据将经过 s16->f16->s32 转换后才写入 `dstIdx`。
 
 ### A5 `tmp` 临时 Tile 相关说明
 

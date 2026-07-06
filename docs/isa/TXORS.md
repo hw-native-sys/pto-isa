@@ -56,6 +56,16 @@ PTO_INST RecordEvent TXORS(TileDataDst &dst, TileDataSrc &src0, typename TileDat
 - **Valid region**:
     - The op uses `dst.GetValidRow()` / `dst.GetValidCol()` as the iteration domain.
 
+## Temporary Space
+
+### A2A3
+
+`tmp` **is used** as intermediate scratch storage for the scalar XOR decomposition. `tmp` must have the same element type and valid shape as `dst`.
+
+### A5
+
+`tmp` is accepted by the interface but **not used** by the A5 implementation. The A5 backend uses the `vxor` vector instruction with a broadcast scalar register and does not require scratch tile storage. `tmp` is retained in the C++ intrinsic signature solely for API compatibility with A2A3.
+
 ## Examples
 
 ```cpp

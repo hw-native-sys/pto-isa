@@ -59,6 +59,21 @@ PTO_INST RecordEvent TXOR(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &sr
     - `src0`、`src1` 和 `tmp` 的有效形状必须与 `dst` 一致。
     - 在手动模式下，`dst`、`src0`、`src1` 和 `tmp` 的内存区域不得重叠。
 
+## 临时空间
+
+### A2A3
+
+`tmp` **被使用**作为中间暂存存储。A2A3 实现通过分解计算 XOR：`XOR(a,b) = AND(NOT(AND(a,b)), OR(a,b))`，需要 `tmp` 来保存中间结果 `OR(a,b)`。
+
+- `tmp` 必须与 `dst`/`src0`/`src1` 具有相同的元素类型。
+- `tmp` 必须是行主序。
+- `tmp.GetValidRow() >= dst.GetValidRow()` 且 `tmp.GetValidCol() >= dst.GetValidCol()`。
+- 在手动模式下，`tmp` 的内存区域不得与 `dst`、`src0` 或 `src1` 重叠。
+
+### A5
+
+`tmp` 被接口接受但 A5 实现**不使用**。A5 后端直接使用 `vxor` 向量指令，不需要暂存 Tile 存储。`tmp` 仅为了与 A2A3 的 API 兼容性而保留在 C++ 内建接口签名中。
+
 ## 示例
 
 ```cpp

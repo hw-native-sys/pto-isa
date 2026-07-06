@@ -66,6 +66,20 @@ PTO_INST RecordEvent TSEL(TileData &dst, MaskTile &selMask, TileData &src0, Tile
 - **掩码编码**:
     - 掩码 tile 被解释为目标定义布局中的打包谓词位。
 
+## 临时空间
+
+### A2A3
+
+`tmp` **被使用**作为小型缓冲区，用于存放从掩码 Tile 复制到每行的比较掩码（`cmpmask`）。A2A3 实现使用 `set_cmpmask`，要求掩码数据位于特定的 UB 位置。
+
+- `tmp` 的元素类型必须是 `uint32_t`。
+- `tmp` 大小要求：每行至少 `cmpmaskLen` 个元素，其中 16 位数据类型（`half`、`bfloat16_t`）的 `cmpmaskLen = 4`，32 位数据类型（`float`、`int32_t`、`uint32_t`）的 `cmpmaskLen = 2`。以字节计，始终为 128 位（16 字节）。
+- 典型的 `tmp` Tile 声明：`Tile<TileType::Vec, uint32_t, 1, 16>` 可满足大多数使用场景。
+
+### A5
+
+`tmp` 被接口接受但 A5 实现**不使用**。A5 后端使用基于向量寄存器的掩码操作（`plds`、`vsel`），不需要暂存 Tile 存储。`tmp` 仅为了与 A2A3 的 API 兼容性而保留在 C++ 内建接口签名中。
+
 ## 示例
 
 ### 自动（Auto）

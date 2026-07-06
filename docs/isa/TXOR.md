@@ -59,6 +59,21 @@ PTO_INST RecordEvent TXOR(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &sr
     - `src0`, `src1`, and `tmp` valid shapes must match `dst`.
     - In manual mode, `dst`, `src0`, `src1`, and `tmp` must not overlap in memory.
 
+## Temporary Space
+
+### A2A3
+
+`tmp` **is used** as intermediate scratch storage. The A2A3 implementation computes XOR via decomposition: `XOR(a,b) = AND(NOT(AND(a,b)), OR(a,b))`, which requires `tmp` to hold the intermediate `OR(a,b)` result.
+
+- `tmp` must have the same element type as `dst`/`src0`/`src1`.
+- `tmp` must be row-major.
+- `tmp.GetValidRow() >= dst.GetValidRow()` and `tmp.GetValidCol() >= dst.GetValidCol()`.
+- In manual mode, `tmp` must not overlap in memory with `dst`, `src0`, or `src1`.
+
+### A5
+
+`tmp` is accepted by the interface but **not used** by the A5 implementation. The A5 backend uses the `vxor` vector instruction directly and does not require scratch tile storage. `tmp` is retained in the C++ intrinsic signature solely for API compatibility with A2A3.
+
 ## Examples
 
 ```cpp

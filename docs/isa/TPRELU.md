@@ -47,9 +47,32 @@ PTO_INST RecordEvent TPRELU(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &
 ## Constraints
 
 - The op iterates over `dst.GetValidRow()` / `dst.GetValidCol()`.
-- Temporary space is required by A3 for calculation, while not used by A5.
-- For A3, 2 source Tile, destination Tile, temporary space must in different memory range without overlapping.
-- For A3, temporary space's `ValidRow` must greater or equal to `dst.GetValidCol() + 1`.
+- **Implementation checks (A2A3)**:
+    - `dst`, `src0`, and `src1` element types must match. Supported types: `half`, `float`.
+    - `tmp` element type must be `uint8_t` (used as comparison mask buffer).
+    - All tiles must be row-major.
+    - `src0` and `src1` valid shapes must match `dst`.
+    - `tmp.GetValidRow() > dst.GetValidRow()` (tmp needs extra rows for mask storage).
+    - In manual mode, `src0`, `src1`, `dst`, and `tmp` must not overlap in memory.
+- **Implementation checks (A5)**:
+    - `dst`, `src0`, and `src1` element types must match. Supported types: `half`, `float`.
+    - All tiles must be row-major.
+    - `src0` and `src1` valid shapes must match `dst`.
+
+## Temporary Space
+
+### A2A3
+
+`tmp` **is used** as comparison mask storage. The A2A3 implementation decomposes PReLU as: `dst = src0 > 0 ? src0 : src0 * src1`, using `TCMPS` to write the comparison mask into `tmp`, then `TSEL` to select between `src0` and `dst` (= `src0 * src1`).
+
+- `tmp` element type must be `uint8_t`.
+- `tmp.GetValidRow() > dst.GetValidRow()` (the extra row region after the valid rows is used for the `TSEL` mask via `TSUBVIEW`).
+- `tmp` must be row-major.
+- In manual mode, `tmp` must not overlap with `dst`, `src0`, or `src1`.
+
+### A5
+
+`tmp` is accepted by the interface but **not used** by the A5 implementation. The A5 backend uses the `vprelu` vector instruction directly and does not require scratch tile storage. `tmp` is retained in the C++ intrinsic signature solely for API compatibility with A2A3.
 
 ## Examples
 

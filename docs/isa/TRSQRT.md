@@ -49,7 +49,6 @@ PTO_INST RecordEvent TRSQRT(TileDataDst &dst, TileDataSrc &src, TileDataTmp &tmp
 ## Constraints
 
 - **Implementation checks (NPU)**:
-    - The `tmp` buffer must be at least 32 bytes. When tmp is provided, the high-precision version is executed.
     - `TileData::DType` must be one of: `float` or `half`;
     - Tile location must be vector (`TileData::Loc == TileType::Vec`);
     - Static valid bounds: `TileData::ValidRow <= TileData::Rows` and `TileData::ValidCol <= TileData::Cols`;
@@ -59,6 +58,16 @@ PTO_INST RecordEvent TRSQRT(TileDataDst &dst, TileDataSrc &src, TileDataTmp &tmp
     - The op uses `dst.GetValidRow()` / `dst.GetValidCol()` as the iteration domain.
 - **Domain / NaN**:
     - Behavior is target-defined (e.g., for `src == 0` or negative inputs).
+
+## Temporary Space
+
+### Without `tmp` (2-argument overload: `TRSQRT(dst, src)`)
+
+No `tmp` is required. The default-precision implementation uses `vsqrt` + `vdiv` directly.
+
+### With `tmp` (3-argument overload: `TRSQRT(dst, src, tmp)`)
+
+`tmp` is accepted by the interface but **not used** by the current A5 implementation. The 3-argument overload simply delegates to the 2-argument implementation (`TRSQRT_IMPL<PrecisionType>(dst, src)`). `tmp` is retained in the C++ intrinsic signature for API compatibility and potential future high-precision paths.
 
 ## Examples
 

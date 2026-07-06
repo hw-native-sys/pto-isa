@@ -67,6 +67,19 @@ PTO_INST RecordEvent TSELS(TileDataDst &dst, TileDataMask &mask, TileDataSrc &sr
 - **Mask encoding**:
     - The mask tile is interpreted as packed predicate bits in a target-defined layout.
 
+## Temporary Space
+
+### A2A3
+
+`tmp` **is used** as a small buffer to store the scalar value for the `set_cmpmask` operation and to hold the comparison mask. The scalar is written to `tmp[0]` before the select loop.
+
+- `tmp` element type must match `TileDataSrc::DType`.
+- `tmp` size requirement: at least 1 element (to hold the scalar). A typical declaration: `Tile<TileType::Vec, float, 1, 16>` or similar.
+
+### A5
+
+`tmp` is accepted by the interface but **not used** by the A5 implementation. The A5 backend uses `vdup` to broadcast the scalar into a vector register and `vsel` for selection, requiring no scratch tile storage. `tmp` is retained in the C++ intrinsic signature solely for API compatibility with A2A3.
+
 ## Examples
 
 ### Auto

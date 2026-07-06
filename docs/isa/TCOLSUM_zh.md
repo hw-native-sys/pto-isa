@@ -79,6 +79,31 @@ PTO_INST RecordEvent TCOLSUM(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
 - A5 共享列归约检查允许的元素类型为：`half`、`float`、`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`bfloat16_t`。
 - 已检查到的 A5 `TCOLSUM` 路径中，`tmp` 仍只用于二叉累加路径；`TCOLSUM_IMPL` 中没有额外显式加入 `tmp` 的编译期类型/布局断言。
 
+## 临时空间
+
+### 无 `tmp`（2 参数重载：`TCOLSUM(dst, src)`）
+
+不需要 `tmp`。A2A3 和 A5 均使用直接在 `dst` 上的顺序累加。
+
+### 带 `tmp` 和 `isBinary`（4 参数重载：`TCOLSUM(dst, src, tmp, isBinary)`）
+
+#### A2A3
+
+- 当 `isBinary = true` 时：`tmp` **被使用**于二叉树累加。`src` 中相邻行对被求和到 `tmp`，然后 `tmp` 被递归折半直到仅剩单行。
+  - `tmp` 必须与 `src`/`dst` 具有相同的元素类型。
+  - `tmp` 必须是 `TileType::Vec`，行主序，非分形。
+  - `tmp.GetValidCol() >= src.GetValidCol()`（以元素数计，考虑 `tmp` 跨度）。
+  - `tmp` 至少需要 `ceil(src.GetValidRow() / 2)` 行。
+- 当 `isBinary = false` 时：`tmp` 被接受但实现使用直接在 `dst` 上的顺序累加；`tmp` 未被主动使用。
+
+#### A5
+
+- 当 `isBinary = true` 时：`tmp` **被使用**于基于向量寄存器的二叉树累加（使用 UB 存储）。
+  - `tmp` 必须与 `src`/`dst` 具有相同的元素类型。
+  - `tmp.GetValidCol() >= src.GetValidCol()`（以元素数计，考虑 `tmp` 跨度）。
+  - `tmp` 至少需要 `ceil(src.GetValidRow() / 2)` 行。
+- 当 `isBinary = false` 时：`tmp` 未被主动使用；实现使用通过 `TColReduceInstr` 的顺序归约。
+
 ## 示例
 
 ### 自动（Auto）

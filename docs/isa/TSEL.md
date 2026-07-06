@@ -66,6 +66,20 @@ PTO_INST RecordEvent TSEL(TileData &dst, MaskTile &selMask, TileData &src0, Tile
 - **Mask encoding**:
     - The mask tile is interpreted as packed predicate bits in a target-defined layout.
 
+## Temporary Space
+
+### A2A3
+
+`tmp` **is used** as a small buffer to hold the comparison mask (`cmpmask`) copied from the mask tile for each row. The A2A3 implementation uses `set_cmpmask` which requires the mask data to be in a specific UB location.
+
+- `tmp` element type must be `uint32_t`.
+- `tmp` size requirement: at least `cmpmaskLen` elements per row, where `cmpmaskLen = 4` for 16-bit data types (`half`, `bfloat16_t`) and `cmpmaskLen = 2` for 32-bit data types (`float`, `int32_t`, `uint32_t`). In bytes, this is always 128 bits (16 bytes).
+- A typical `tmp` tile declaration: `Tile<TileType::Vec, uint32_t, 1, 16>` suffices for most use cases.
+
+### A5
+
+`tmp` is accepted by the interface but **not used** by the A5 implementation. The A5 backend uses vector register-based mask operations (`plds`, `vsel`) and does not require scratch tile storage. `tmp` is retained in the C++ intrinsic signature solely for API compatibility with A2A3.
+
 ## Examples
 
 ### Auto
