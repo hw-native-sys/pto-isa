@@ -26,20 +26,20 @@ def type2str(t):
         return "half"
     if t is np.float32:
         return "float"
-    return np.dtype(t).name + "_t"
+    return np.dtype(t).name + "_t" 
 
 
 class TextractParams:
     def __init__(
-            self,
+            self, 
             dtype,
             shape_0,
             shape_1,
             shape_2,
             shape_3,
             shape_4,
-            dst_row,
-            dst_col,
+            dst_row, 
+            dst_col, 
             idx_row,
             idx_col):
         self.dtype = dtype
@@ -48,8 +48,8 @@ class TextractParams:
         self.shape_2 = shape_2
         self.shape_3 = shape_3
         self.shape_4 = shape_4
-        self.dst_row = dst_row
-        self.dst_col = dst_col
+        self.dst_row = dst_row 
+        self.dst_col = dst_col  
         self.idx_row = idx_row
         self.idx_col = idx_col
 
@@ -107,3 +107,4 @@ if __name__ == "__main__":
         gen_data(param)
 
         os.chdir(original_dir)
+
