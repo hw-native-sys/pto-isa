@@ -75,6 +75,7 @@ textract_quant
 tfillpad
 tflashattn
 tfusemuladd
+tfusemuladdrelu
 tfmod
 tfmods
 tgather
