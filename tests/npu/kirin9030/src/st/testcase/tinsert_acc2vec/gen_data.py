@@ -156,7 +156,7 @@ def gen_golden_data(case_name, param):
 
     if param.is_relu:
         golden = np.maximum(golden, 0)
-    
+
     if param.index_rows == 0 and param.index_cols == 0:
         dst_data = np.zeros((m, n), dtype=dst_type)
     else:
@@ -164,7 +164,7 @@ def gen_golden_data(case_name, param):
     dst_data.astype(dst_type).tofile("./dst.bin")
     if param.index_rows != 0 or param.index_cols != 0:
         dstm = min(param.dst_row, param.index_rows + m)
-        dstn = min(param.dst_col, param.index_cols + n) 
+        dstn = min(param.dst_col, param.index_cols + n)
         srcm = min(m, param.dst_row - param.index_rows)
         srcn = min(n, param.dst_col - param.index_cols)
         dst_data[param.index_rows:dstm, param.index_cols:dstn] = golden[0:srcm, 0:srcn]
@@ -174,7 +174,7 @@ def gen_golden_data(case_name, param):
 
 
 class TMovParams:
-    def __init__(self, atype, btype, dst_type, m, k, n, base_m=0, base_k=0, base_n=0, 
+    def __init__(self, atype, btype, dst_type, m, k, n, base_m=0, base_k=0, base_n=0,
                  dst_format='ND', s_fractal_size=512, is_v_quant=False,
                  is_s_quant=False, is_relu=False, quant_type=None, scalar=1,
                  index_rows=0, index_cols=0, is_insert=False, dst_row=0, dst_col=0):
