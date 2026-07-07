@@ -224,6 +224,27 @@ PTO_INTERNAL void pto_copy_gm_to_cbuf_align_v2(__cbuf__ T *dst, __gm__ T *src, u
 }
 #endif
 
+#if defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_KIRINX90)
+template <typename T>
+PTO_INTERNAL void pto_copy_gm_to_cbuf(__cbuf__ T *dst, __gm__ T *src, uint8_t sid, uint16_t nBurst, uint16_t lenBurst,
+                                      uint16_t srcStride, uint16_t dstStride)
+{
+    copy_gm_to_cbuf(dst, src, sid, nBurst, lenBurst, srcStride, dstStride, (pad_t)0);
+}
+#endif
+
+#if defined(PTO_NPU_ARCH_KIRINX90)
+template <typename T>
+PTO_INTERNAL void pto_copy_gm_to_cbuf_align(__cbuf__ T *dst, __gm__ T *src, uint8_t sid, uint16_t nBurst,
+                                            uint16_t lenBurst, uint16_t srcStride, uint16_t dstStride)
+{
+    using U = std::conditional_t<sizeof(T) == sizeof(uint8_t), uint8_t,
+                                 std::conditional_t<sizeof(T) == sizeof(uint16_t), uint16_t, uint32_t>>;
+    copy_gm_to_cbuf_align(reinterpret_cast<__cbuf__ U *>(dst), reinterpret_cast<__gm__ U *>(src), sid, nBurst, lenBurst,
+                          (uint8_t)0, (uint8_t)(dstStride / sizeof(T)), srcStride, dstStride >> SHIFT_BLOCK_BYTE);
+}
+#endif
+
 #if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRIN9030)
 template <typename T>
 PTO_INTERNAL void pto_copy_ubuf_to_gm_align_v2(__gm__ T *dst, __ubuf__ T *src, uint8_t sid, uint32_t nBurst,

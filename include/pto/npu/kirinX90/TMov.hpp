@@ -22,8 +22,9 @@ __tf__ AICORE void TMovToBt(typename DstTileData::TileDType __out__ dst, typenam
     using DstType = typename DstTileData::DType;
     using SrcType = typename SrcTileData::DType;
     static_assert((std::is_same_v<SrcType, int32_t> && std::is_same_v<DstType, int32_t>) ||
-                      (std::is_same_v<SrcType, half> && std::is_same_v<DstType, half>),
-                  "Fix: TMOV: Bias data type only supports int32_t or half.");
+                      (std::is_same_v<SrcType, half> && std::is_same_v<DstType, half>) ||
+                      (std::is_same_v<SrcType, float> && std::is_same_v<DstType, float>),
+                  "Fix: TMOV: Bias data type only supports int32_t/half/float.");
 
     constexpr const int BIAS_TABLE_UNIT = 64;
     static_assert(SrcTileData::Rows == 1, "TMov: When TileType is Bias, row must be 1.");

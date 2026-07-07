@@ -138,7 +138,7 @@ set(ALL_TESTCASES
     tmaxs
     tci
     tmatmul
-    # tload_mix
+    tload_mix
     # tload_shape2d
     tload
     tmrgsort
@@ -205,7 +205,7 @@ set(ALL_TESTCASES
     tabs
     tlog
     trecip
-    # tstore_acc2gm
+    tstore_acc2gm
     tdivs
     tmuls
     tadds

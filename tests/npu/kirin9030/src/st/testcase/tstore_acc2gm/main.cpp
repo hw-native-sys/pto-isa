@@ -76,7 +76,7 @@ void test_tstore_acc2gm_nz2nd()
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
-
+    aclrtMemset(dstDevice, cFileSize, 0, cFileSize);
     aclrtMemcpy(src0Device, aFileSize, src0Host, aFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, bFileSize, src1Host, bFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     LaunchTStoreAcc2gmNz2nd<tilingKey>(dstDevice, src0Device, src1Device, stream);
@@ -133,7 +133,7 @@ void test_tstore_acc2gm_nz2nz()
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
-
+    aclrtMemset(dstDevice, cFileSize, 0, cFileSize);
     aclrtMemcpy(src0Device, aFileSize, src0Host, aFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, bFileSize, src1Host, bFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     LaunchTStoreAcc2gmNz2nz<tilingKey>(dstDevice, src0Device, src1Device, stream);
@@ -189,7 +189,7 @@ void test_tstore_acc2gm_scalar_nz2nd(float scalarQuant)
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
-
+    aclrtMemset(dstDevice, cFileSize, 0, cFileSize);
     aclrtMemcpy(src0Device, aFileSize, src0Host, aFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, bFileSize, src1Host, bFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     LaunchTStoreAcc2gmScalarNz2nd<tilingKey>(dstDevice, src0Device, src1Device, stream, scalarQuant);
@@ -245,7 +245,7 @@ void test_tstore_acc2gm_scalar_nz2nz(float scalarQuant)
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
-
+    aclrtMemset(dstDevice, cFileSize, 0, cFileSize);
     aclrtMemcpy(src0Device, aFileSize, src0Host, aFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, bFileSize, src1Host, bFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     LaunchTStoreAcc2gmScalarNz2nz<tilingKey>(dstDevice, src0Device, src1Device, stream, scalarQuant);
@@ -313,7 +313,7 @@ void test_tstore_acc2gm_vector_nz2nd()
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
     ReadFile(GetGoldenDir() + "/quant_vector_gm.bin", fbFileSize, quantTensorHost, fbFileSize);
-
+    aclrtMemset(dstDevice, cFileSize, 0, cFileSize);
     aclrtMemcpy(src0Device, aFileSize, src0Host, aFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, bFileSize, src1Host, bFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(quantTensorDevice, fbFileSize, quantTensorHost, fbFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
@@ -384,7 +384,7 @@ void test_tstore_acc2gm_vector_nz2nz()
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
     ReadFile(GetGoldenDir() + "/quant_vector_gm.bin", fbFileSize, quantTensorHost, fbFileSize);
-
+    aclrtMemset(dstDevice, cFileSize, 0, cFileSize);
     aclrtMemcpy(src0Device, aFileSize, src0Host, aFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, bFileSize, src1Host, bFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(quantTensorDevice, fbFileSize, quantTensorHost, fbFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
