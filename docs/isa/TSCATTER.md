@@ -35,8 +35,8 @@ $$ \mathrm{dst}_{i, P \cdot j + \mathrm{pos}_P} = \mathrm{src}_{i,j} $$
 $$ \mathrm{dst}_{i, P \cdot j + \mathrm{zeros}_P} = 0 $$
 
 Where:
-- `SrcTileData::ValidCol` = `DstTileData::ValidCol` × expansion_factor
-- `SrcTileData::ValidRow` = `DstTileData::ValidRow`
+- `DstTileData::ValidCol` = `SrcTileData::ValidCol` × expansion_factor
+- `DstTileData::ValidRow` = `SrcTileData::ValidRow`
 
 #### SCATTER_COL
 
@@ -47,8 +47,8 @@ $$ \mathrm{dst}_{P \cdot i + \mathrm{pos}_P, j} = \mathrm{src}_{i,j} $$
 $$ \mathrm{dst}_{P \cdot i + \mathrm{zeros}_P, j} = 0 $$
 
 Where:
-- `SrcTileData::ValidRow` = `DstTileData::ValidRow` × expansion_factor
-- `SrcTileData::ValidCol` = `DstTileData::ValidCol`
+- `DstTileData::ValidRow` = `SrcTileData::ValidRow` × expansion_factor
+- `DstTileData::ValidCol` = `SrcTileData::ValidCol`
 
 #### Expansion Factor
 

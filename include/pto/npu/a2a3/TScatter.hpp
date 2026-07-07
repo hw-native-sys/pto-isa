@@ -181,10 +181,11 @@ PTO_INTERNAL void TSCATTER_IMPL(DstTile &dst, SrcTile &src)
         if constexpr (ScatterType == ScatterAxis::SCATTER_COL) {
             PTO_ASSERT(dst.GetValidRow() == validRow * GetTimesByMask<mask>,
                        "TSCATTER: validRow of dst must be 2 or 4 times that of src.");
+            PTO_ASSERT(dst.GetValidCol() == validCol, "TSCATTER: validCol of src must match dst.");
         } else {
             PTO_ASSERT(validRow == dst.GetValidRow(), "TSCATTER: validRow of src must match dst.");
-            PTO_ASSERT(validCol == dst.GetValidCol() * GetTimesByMask<mask>,
-                       "TSCATTER: validRow of src must match dst.");
+            PTO_ASSERT(dst.GetValidCol() == validCol * GetTimesByMask<mask>,
+                       "TSCATTER: validCol of dst must be 2 or 4 times that of src.");
         }
         TScatterMaskImpl<mask, ScatterType, DstTile, SrcTile>(dst.data(), src.data(), validRow, validCol);
     }
