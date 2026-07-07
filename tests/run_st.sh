@@ -471,8 +471,8 @@ if [ "$ENABLE_A5" = "true" ]; then
     # python3 tests/script/run_st.py $ARGS -w -v a5 -t tpartargmin -g TPARTARGMINTest.case_fp32_64x64_64x64_64x64
     # Temporarily skip the unstable A5 concatidx smoke case until the kernel/result mismatch is fixed.
     # python3 tests/script/run_st.py $ARGS -w -v a5 -t tconcatidx -g TCONCATTest.case_int16_16x32_16x16_16x16_8x16_8x16
-    python3 tests/script/run_st.py $ARGS -w -v a5 -t tsubreluconv -g TSUBRELUCONVTest.case1
-    python3 tests/script/run_st.py $ARGS -w -v a5 -t taddreluconv -g TADDRELUCONVTest.case1
+    python3 tests/script/run_st.py $ARGS -v a5 -t tsubreluconv -g TSUBRELUCONVTest.case1
+    python3 tests/script/run_st.py $ARGS -v a5 -t taddreluconv -g TADDRELUCONVTest.case1
     python3 tests/script/run_st.py $ARGS -v a5 -t taxpy -g TAXPYTest.case1
     python3 tests/script/run_st.py $ARGS -v a5 -t tdequant -g TDEQUANTTest.case1
     python3 tests/script/run_st.py $ARGS -v a5 -t tconcat -g TCONCATTest.case_half_16x128_16x64_16x64_16x63_16x64
