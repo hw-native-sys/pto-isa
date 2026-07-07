@@ -11,7 +11,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // Host driver for the GridPipe single-source broadcast smoke kernel.
 //
 // Layout: a gridRows x gridCols logical grid on one device, backed by per-cell
-// GM windows + a fake HcclDeviceContext (same mock as the FFN GridPipe demos).
+// GM windows + a fake CommDeviceContext (same mock as the FFN GridPipe demos).
 // Cell c is stamped with input value (c + 1).  The single source on each span
 // (index BCAST_SRC along the active axis) broadcasts its stamped tile to every
 // other cell on its span; after the kernel, every non-source cell must hold its
@@ -121,7 +121,7 @@ struct Resources {
 
 static bool BuildFakeHcclCtx(Resources &r)
 {
-    HcclDeviceContext hostCtx{};
+    CommDeviceContext hostCtx{};
     hostCtx.rankId = 0;
     hostCtx.rankNum = static_cast<uint32_t>(r.cells);
     hostCtx.winSize = static_cast<uint64_t>(BCAST_WINDOW_BYTES);
@@ -130,11 +130,11 @@ static bool BuildFakeHcclCtx(Resources &r)
         hostCtx.windowsIn[i] = base + i * static_cast<size_t>(BCAST_WINDOW_BYTES);
         hostCtx.windowsOut[i] = hostCtx.windowsIn[i];
     }
-    if (aclrtMalloc(&r.hccl_ctx_dev, sizeof(HcclDeviceContext), ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) {
+    if (aclrtMalloc(&r.hccl_ctx_dev, sizeof(CommDeviceContext), ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) {
         std::cerr << "[ERROR] aclrtMalloc(hccl_ctx) failed" << std::endl;
         return false;
     }
-    if (aclrtMemcpy(r.hccl_ctx_dev, sizeof(HcclDeviceContext), &hostCtx, sizeof(HcclDeviceContext),
+    if (aclrtMemcpy(r.hccl_ctx_dev, sizeof(CommDeviceContext), &hostCtx, sizeof(CommDeviceContext),
                     ACL_MEMCPY_HOST_TO_DEVICE) != ACL_SUCCESS) {
         std::cerr << "[ERROR] aclrtMemcpy(hccl_ctx) failed" << std::endl;
         return false;

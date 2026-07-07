@@ -22,6 +22,7 @@ full text of the License.
 #include <cstdint>
 #include <pto/pto-inst.hpp>
 
+#include <pto/comm/comm_types.hpp> // pto::comm::ReduceOp for the GridPipe TREDUCE hop
 #include <pto/common/fifo.hpp>
 #include <pto/npu/a2a3/grid_intrinsic.hpp>
 #include <pto/npu/a2a3/grid_pipe_runtime.hpp>
@@ -304,35 +305,24 @@ __global__ AICORE void DistributedFfnGridMixedKernel(__gm__ uint8_t *fftsAddr, _
                                           /*pipeId=*/0);
 
         using pto::GridDirection;
+        using pto::comm::ReduceOp;
         int col = coord.col;
-        if (col > 0) {
-            TPOP<GridDirection::EAST>(reducePipe, addF32);
-#ifndef __PTO_AUTO__
-            set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-            wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-            pipe_barrier(PIPE_ALL);
-#endif
-            dsb(DSB_DDR);
-            TADD(downF32, downF32, addF32);
-#ifndef __PTO_AUTO__
-            pipe_barrier(PIPE_V);
-#endif
-        }
 
-        if (col + 1 < gridCols) {
-#ifndef __PTO_AUTO__
-            if (col > 0) {
-                set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-                wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-            } else {
-                set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
-                wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
-            }
-            pipe_barrier(PIPE_ALL);
-#endif
-            dsb(DSB_DDR);
-            TPUSH<GridDirection::EAST>(reducePipe, downF32);
-        } else {
+        // Row-local EAST ReduceSum as a single fused reduce hop.  TREDUCE folds
+        // this cell's downF32 into the EAST-flowing partial sum and forwards it:
+        // it replaces the old TPOP<EAST> + TADD + TPUSH<EAST> triple (V7 design
+        // section 5.2 "receive-add-forward").  Roles fall out of (EAST, coord,
+        // shape): col 0 only forwards, interior cells receive-add-forward, and the
+        // last column receives-adds and keeps the complete row sum in downF32.
+        // On A3 (adder core-local, no on-transit compute) this lowers to exactly
+        // that in-core pop/add/push; on a fabric with 随路/过路 compute it becomes
+        // one routed reduce-forward with addF32 unused.
+        TREDUCE<GridDirection::EAST, ReduceOp::Sum>(reducePipe, downF32, addF32);
+
+        if (col + 1 == gridCols) {
+            // Sink cell (no eastern neighbor): downF32 holds the complete row sum.
+            // TREDUCE left the accumulator on PIPE_V (the fold's TADD); cross to
+            // MTE3 before the store.
 #ifndef __PTO_AUTO__
             set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
             wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);

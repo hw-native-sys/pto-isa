@@ -2504,6 +2504,44 @@ PTO_INST RecordEvent TPOP(Pipe &pipe, TileCons &tile, WaitEvents &...events)
 }
 
 // ---------------------------------------------------------------------------
+// GridPipe TREDUCE overload: one fused "receive-combine-forward" reduce hop
+// along `Direction` (design doc section 5, worked ReduceSum example).  It is the
+// AllGather relay hop (TPOP<Dir>+TPUSH<Dir>) with a combine folded in between:
+// an interior/sink cell drains the transiting partial from its upstream, folds
+// its own `acc` in with `Op` (Sum/Max/Min), and forwards the running reduction
+// downstream; a source cell only forwards; a sink cell keeps the complete result
+// in `acc` for the caller to store.  Roles are derived from (Direction, Dist,
+// coord, shape) -- no explicit root flag.  `Op` is the SAME pto::comm::ReduceOp
+// the collective TREDUCE uses.  SFINAE on is_grid_pipe_v keeps it distinct from
+// the collective pto::comm::TREDUCE (whose first argument is a ParallelGroup).
+//
+// This is the ISA surface for hardware that can combine ON TRANSIT (随路/过路
+// compute): such a fabric lowers the whole hop to one routed reduce-forward and
+// `recv` is unused.  On A2/A3 there is no on-transit compute and the adder is
+// core-local, so it lowers to the local TPOP + combine + TPUSH sequence in
+// GRID_TREDUCE_IMPL; `recv` is the mandatory landing tile for the in-core add.
+// ---------------------------------------------------------------------------
+template <pto::GridDirection Direction, pto::comm::ReduceOp Op, int Dist = 1, typename Pipe, typename TileAcc,
+          typename TileRecv, std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0, typename... WaitEvents>
+PTO_INST RecordEvent TREDUCE(Pipe &pipe, TileAcc &acc, TileRecv &recv, WaitEvents &...events)
+{
+    static_assert(Direction != pto::GridDirection::SOURCE,
+                  "GridPipe TREDUCE<SOURCE> is illegal: SOURCE is only valid for TPOP.");
+    // Dist is the per-hop routed distance (Dist == 1 default is the row-adjacent
+    // systolic chain).  TREDUCE<EAST, Sum>(pipe, acc, recv) folds `acc` into the
+    // EAST-flowing reduction and forwards it one hop east.
+#if defined(PTO_NPU_ARCH_A2A3)
+    TSYNC(events...);
+    GRID_TREDUCE_IMPL<Direction, Op, Dist, Pipe, TileAcc, TileRecv>(pipe, acc, recv);
+#else
+    static_assert(sizeof(Pipe) == 0,
+                  "GridPipe TREDUCE not supported on this target profile "
+                  "(design doc section 5.4 forbids silent GM fallback).");
+#endif
+    return {};
+}
+
+// ---------------------------------------------------------------------------
 // GridPipe TPUSH broadcast overload: single-source row/column multicast.  This
 // is the SAME verb as the unicast TPUSH above, distinguished purely by the type
 // of the first explicit template argument -- a GridSpan (ROW/COL) selects this

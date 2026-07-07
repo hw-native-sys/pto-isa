@@ -32,67 +32,66 @@ AICORE bool GRID_TRY_TPOP_IMPL(Pipe &pipe, TileCons &tile, uint32_t maxSpins = g
     // other directions require the K-hop upstream to exist.  Dist == 1 is the
     // original nearest-neighbor path.
     if (!CanPopK(Dir, pipe.coord, pipe.shape, Dist)) {
-        grid_mock::MockBoundaryFault(pipe.freeFlags[dirIdx], grid_mock::PopFaultCode(Dir));
+        grid_mock::MockBoundaryFault(pipe.freeScb[dirIdx], grid_mock::PopFaultCode(Dir));
         return false;
     }
 
-    // Step 1: wait for ready signal from upstream.
-    //   LPU WSE: wfe SPR_RDY_<DIR>, r_idx + 1
-    const uint32_t expectedReady = pipe.consIndex[dirIdx] + 1;
-#if defined(PTO_GRID_COUNTER_NATIVE_INTRINSIC)
-    NeighborCounterOperand readyCounter{};
-#else
-    NeighborCounterOperand readyCounter{pipe.readyFlags[dirIdx]};
-#endif
-    if (!wfe_neighbor_counter(NeighborCounterKind::Ready, dirIdx, expectedReady, readyCounter, maxSpins)) {
-        grid_mock::MockSetFault(pipe.readyFlags[dirIdx] + grid_mock::kFaultFlagWordOffset,
-                                grid_mock::kFaultWaitReadyTimeout);
-        return false;
+    // Step 1 (V7 C1): wait for the upstream ready signal.  ready threshold =
+    //   cons_idx+1.  get_ipc_scb (MOV_SPR2X) fast-path peek, then wait_ipc_scb
+    //   (WAIT_SPR) only if not yet ready.  ready_scb_<dir> occupies IPC_SCB slot
+    //   dirIdx.
+    const uint32_t idx = pipe.consIndex[dirIdx];
+    const uint32_t expectedReady = idx + 1;
+    const uint32_t readySlot = static_cast<uint32_t>(dirIdx);
+    if (get_ipc_scb(pipe.readyScb[dirIdx], readySlot) < expectedReady) {
+        if (!wait_ipc_scb(pipe.readyScb[dirIdx], expectedReady, readySlot, maxSpins)) {
+            // Offset the fault-flag word only when the base scb pointer is real: nullptr + offset
+            // is UB and would slip a non-null (but invalid) pointer past MockSetFault's null guard.
+            __gm__ uint32_t *readyFault =
+                pipe.readyScb[dirIdx] ? pipe.readyScb[dirIdx] + grid_mock::kFaultFlagWordOffset : nullptr;
+            grid_mock::MockSetFault(readyFault, grid_mock::kFaultWaitReadyTimeout);
+            return false;
+        }
     }
 
     // Step 2: compute local SRAM slot address; producer wrote it here.
-    const uint32_t idx = pipe.consIndex[dirIdx];
     const uint32_t slotOff = (idx % Pipe::SlotCount) * Pipe::SlotBytes;
     __gm__ uint8_t *localSlot = pipe.slotBase[dirIdx] + slotOff;
-    neighbor_sram_addr localSramSlot = a2a3_grid_payload::LocalSramAddr(localSlot);
 
-    // Step 2.5: NoC read-locality guard.  A TPOP may only drain *this* core's
-    // own SRAM segment -- the fabric has no remote-read path (TPUSH writes
-    // across hops, TPOP reads local only).  The slot is local by construction,
-    // but the A2/A3 mock backs SRAM with a GM-mapped window that can be read at
-    // any address, so we validate `localSramSlot` against this core's
-    // GmSramArena segment and trap a cross-segment read as kFaultPopNonLocal
-    // instead of silently servicing it.  Native lowering is a no-op (true).
+    // Step 2.5: NoC read-locality guard.  A TPOP may only drain *this* core's own
+    // SRAM segment -- the fabric has no remote-read path (TPUSH writes across
+    // hops, TPOP reads local only).  Native lowering is a no-op (true); the A2/A3
+    // mock backs SRAM with a GM-mapped window that can be read at any address, so
+    // PopSlotIsLocal validates `localSlot` against this core's GmSramArena segment
+    // and traps a cross-segment read as kFaultPopNonLocal instead of servicing it.
     const int selfRank = RankFromCoord(pipe.coord, pipe.shape);
-    NeighborSramOperand popSramOperand{pipe.runtimeCtx};
-    if (!sram_pop_is_local(localSramSlot, Pipe::SlotBytes, selfRank, popSramOperand)) {
-        grid_mock::MockSetFault(pipe.freeFlags[dirIdx] + grid_mock::kFaultFlagWordOffset, grid_mock::kFaultPopNonLocal);
+    if (!a2a3_grid_payload::PopSlotIsLocal(pipe.runtimeCtx, localSlot, Pipe::SlotBytes, selfRank)) {
+        __gm__ uint32_t *freeFault =
+            pipe.freeScb[dirIdx] ? pipe.freeScb[dirIdx] + grid_mock::kFaultFlagWordOffset : nullptr;
+        grid_mock::MockSetFault(freeFault, grid_mock::kFaultPopNonLocal);
         return false;
     }
 
-    // Step 3: payload transfer from local slot to consumer tile buffer.
-    //   LPU WSE: tmov tile_buf, [r_slot]
-    // Adapter bridges Tile storage to copy_neighbor_sram_to_sram(...).
-    a2a3_grid_payload::CopyNeighborSramSlotToTile<TileCons>(tile, localSramSlot, Pipe::SlotBytes);
+    // Step 3 (V7 C3): drain the local slot into the consumer tile.  V7 has no
+    //   cross-core read of payload -- this is a purely local read (the existing
+    //   local TLOAD/TMOV), via the payload hook.
+    a2a3_grid_payload::CopyLocalSlotToTile<TileCons>(tile, localSlot, Pipe::SlotBytes);
 
-    // Step 4: notify upstream producer that slot is free.
-    //   LPU WSE: mtspr SPR_FREE_<DIR>, r_idx + 1
+    // Step 4 (V7 C4): notify the upstream producer that the slot is free --
+    //   sync_hscb (SYNC_HSCB) store of cons_idx (= idx+1) into the upstream
+    //   neighbor's free_scb_<dir> IPC_SCB (overwrite store of a monotone absolute
+    //   count).  free_scb_<dir> occupies IPC_SCB slot kGridDirectionCount+dirIdx.
     //
-    // SOURCE has no upstream rank (it's the launcher); host runtime handles
-    // free counters out-of-band.  Skip the cross-rank write for SOURCE.
+    // SOURCE has no upstream rank (it's the launcher); host runtime handles free
+    // credit out-of-band.  Skip the cross-rank store for SOURCE.
     if constexpr (Dir != GridDirection::SOURCE) {
-#if defined(PTO_GRID_COUNTER_NATIVE_INTRINSIC)
-        NeighborCounterOperand freeCounter{};
-#else
         const int peerRank = RankForPopK(Dir, pipe.coord, pipe.shape, Dist);
-        __gm__ uint32_t *peerFree =
-            a2a3_grid_payload::RemoteCounterPtr(pipe.runtimeCtx, pipe.freeFlags[dirIdx], peerRank);
-        NeighborCounterOperand freeCounter{peerFree};
-#endif
-        mtspr_neighbor_counter(NeighborCounterKind::Free, dirIdx, Dist, idx + 1, freeCounter);
+        __gm__ uint32_t *peerFree = a2a3_grid_payload::RemoteScbPtr(pipe.runtimeCtx, pipe.freeScb[dirIdx], peerRank);
+        sync_hscb(peerFree, idx + 1);
     }
 
-    // Step 5: bump local consumer index.
+    // Step 5 (V7 C4): bump the local consumer GPR (drives slot addr / ready
+    //   threshold / the absolute count published to the upstream peer).
     pipe.consIndex[dirIdx] = idx + 1;
     return true;
 }

@@ -9,7 +9,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 // A2/A3 GridPipe runtime helpers: shmem window layout, init helpers, neighbor
-// rank resolution.  See design doc section 5 and the mock SPR lowering in
+// rank resolution.  See the V6 IPC_SCB scoreboard design and its A2/A3 mock in
 // include/pto/npu/a2a3/grid_intrinsic.hpp.
 
 #ifndef PTO_A2A3_GRID_PIPE_RUNTIME_HPP
@@ -22,29 +22,31 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 namespace a2a3_grid {
 
-// shmem window layout (per rank), in bytes:
+// shmem window layout (per rank), in bytes.  The ready/free scoreboard words
+// stand in for the V6 ready_scb_<dir> / free_scb_<dir> IPC_SCB slots (each
+// carries a monotone absolute count written by the peer's HSCB store):
 //
 //   offset                                         contents
 //   ----------------------------------------------------------------------
-//   0                                              ready flags [kGridDirectionCount] u32
-//   4 * kGridDirectionCount                        free flags [kGridDirectionCount] u32
+//   0                                              ready scoreboards [kGridDirectionCount] u32
+//   4 * kGridDirectionCount                        free scoreboards [kGridDirectionCount] u32
 //   8 * kGridDirectionCount                        reserved (fault sentinels, alignment, telemetry)
 //   kSlotRegionOffset                              slot region for all directions
 //     + dir * SlotCount * SlotBytes                slot ring for that direction
 //
 // The slot region is sized to (kGridDirectionCount * SlotCount * SlotBytes).
 // Keep enough reserved words for GridTPush/GridTPop fault sentinels:
-//   readyFlags[dir] + kFaultFlagWordOffset
-//   freeFlags[dir]  + kFaultFlagWordOffset
+//   readyScb[dir] + kFaultFlagWordOffset
+//   freeScb[dir]  + kFaultFlagWordOffset
 inline constexpr uint32_t kFlagsBytes = 128;
 inline constexpr uint32_t kSlotRegionOffset = kFlagsBytes;
 
-inline constexpr uint32_t kReadyFlagOffset(GridDirection d)
+inline constexpr uint32_t kReadyScbOffset(GridDirection d)
 {
     return static_cast<uint32_t>(d) * sizeof(uint32_t);
 }
 
-inline constexpr uint32_t kFreeFlagOffset(GridDirection d)
+inline constexpr uint32_t kFreeScbOffset(GridDirection d)
 {
     return kGridDirectionCount * sizeof(uint32_t) + static_cast<uint32_t>(d) * sizeof(uint32_t);
 }
@@ -80,10 +82,10 @@ AICORE inline void InitGridPipeFromWindow(Pipe &pipe, GridShape shape, GridCoord
     pipe.runtimeCtx = runtimeCtx;
     pipe.pipeId = pipeId;
 
-    __gm__ uint32_t *flags = reinterpret_cast<__gm__ uint32_t *>(window);
+    __gm__ uint32_t *scbs = reinterpret_cast<__gm__ uint32_t *>(window);
     for (int i = 0; i < kGridDirectionCount; ++i) {
-        pipe.readyFlags[i] = flags + i;
-        pipe.freeFlags[i] = flags + kGridDirectionCount + i;
+        pipe.readyScb[i] = scbs + i;
+        pipe.freeScb[i] = scbs + kGridDirectionCount + i;
         pipe.slotBase[i] = window + kSlotRegionOffset + i * Pipe::SlotCount * Pipe::SlotBytes;
         pipe.prodIndex[i] = 0;
         pipe.consIndex[i] = 0;

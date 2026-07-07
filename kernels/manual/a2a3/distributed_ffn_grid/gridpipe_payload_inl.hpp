@@ -8,31 +8,28 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-// Per-demo payload + neighbor-SRAM adaptor for the GridPipe A2/A3 backend.
+// Per-demo payload + address-resolution adaptor for the GridPipe A2/A3 backend.
 //
-// GridTPush.hpp / GridTPop.hpp declare three forward functions in
-// `pto::a2a3_grid_payload` that intentionally have no header-level definition,
-// because they need a concrete tile type and the HCCL device context layout
-// that lives in this demo (not in the public header tree).  We provide those
-// definitions here once per kernel translation unit.
+// GridTPush.hpp / GridTPop.hpp forward-declare a handful of functions in
+// `pto::a2a3_grid_payload` that have no header-level definition, because they
+// need the concrete tile type and the HCCL device-context window layout that
+// live in this demo (not in the public header tree).  We define them here once
+// per kernel translation unit.  These are plain runtime helpers -- address
+// plumbing and tile<->UB adapters -- NOT an intrinsic layer: the actual cross-
+// core handshake runs through the V7 CCE facades in grid_cce_intrinsic.hpp
+// (copy_ubuf_to_neighbor_ubuf / sync_hscb / get_ipc_scb / wait_ipc_scb).
 //
-//   get_neighbor_sram_addr(...)
-//     -> resolves an address in our own SRAM window to the same byte offset in
-//        peerRank's window.  On A2/A3 this SRAM window is mocked by local GM
-//        windows and HcclRemotePtr.
-//
-//   CopyTileToNeighborSramSlot<TileT>(remoteSlot, tile, slotBytes)
-//     -> Tile-to-intrinsic adapter: extract the Tile UB pointer, then call
-//        copy_sram_to_neighbor_sram(...).
-//
-//   CopyNeighborSramSlotToTile<TileT>(tile, localSlot, slotBytes)
-//     -> Tile-to-intrinsic adapter: extract the Tile UB pointer, then call
-//        copy_neighbor_sram_to_sram(...).
-//
-// The skeleton implementation converts Tile descriptors to UB pointers, then
-// lets grid_intrinsic.hpp choose native builtin vs A2/A3 mock lowering.
-// Keeping this adapter outside GridTPush/GridTPop preserves the generic payload
-// protocol while this demo owns the concrete PTO Tile representation.
+//   ResolvePeerSlotAddr(...)      -> resolve an address in our own window to the
+//                                    same byte offset in peerRank's window (mock:
+//                                    contiguous GM windows + CommRemotePtr).
+//   RemoteScbPtr(...)             -> same, for a scoreboard word (sync_hscb dst).
+//   CopyTileToNeighborSramSlot<T> -> extract the tile UB pointer, then call the
+//                                    copy_ubuf_to_neighbor_ubuf facade (V7
+//                                    COPY_UBUF_TO_NBR).
+//   CopyLocalSlotToTile<T>        -> drain this core's local GM slot into the
+//                                    tile with the existing local copy (V7 TPOP
+//                                    local read; no cross-core read of payload).
+//   PopSlotIsLocal(...)           -> mock read-locality guard against GmSramArena.
 
 #ifndef DISTRIBUTED_FFN_GRID_PAYLOAD_INL_HPP
 #define DISTRIBUTED_FFN_GRID_PAYLOAD_INL_HPP
@@ -41,36 +38,33 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <pto/npu/a2a3/grid_intrinsic.hpp>
 
-#include "common.hpp" // HcclRemotePtr, HcclDeviceContext
+#include "common.hpp" // CommRemotePtr, CommDeviceContext
 
 namespace pto {
 namespace a2a3_grid_payload {
 
+// Resolve a GM address inside this rank's window to the same byte offset in
+// peerRank's window.  The host lays the per-cell windows out contiguously
+// (windowsIn[i] == windowsIn[0] + i*winSize), so each window stands in for the
+// private SRAM of core i; a cross-window offset is a cross-core write.
 AICORE inline uint64_t ResolvePeerWindowAddress(__gm__ void *runtimeCtx, uint64_t localAddr, int peerRank)
 {
-    auto *ctx = reinterpret_cast<__gm__ HcclDeviceContext *>(runtimeCtx);
+    auto *ctx = reinterpret_cast<__gm__ CommDeviceContext *>(runtimeCtx);
     for (uint32_t i = 0; i < ctx->rankNum && i < HCCL_MAX_RANK_NUM; ++i) {
         uint64_t base = ctx->windowsIn[i];
         if (localAddr >= base && localAddr < base + ctx->winSize) {
             return ctx->windowsIn[peerRank] + (localAddr - base);
         }
     }
-    return reinterpret_cast<uint64_t>(HcclRemotePtr(ctx, reinterpret_cast<__gm__ void *>(localAddr), peerRank));
+    return reinterpret_cast<uint64_t>(CommRemotePtr(ctx, reinterpret_cast<__gm__ void *>(localAddr), peerRank));
 }
 
-AICORE inline neighbor_sram_addr LocalSramAddr(__gm__ uint8_t *localSlot)
-{
-    return neighbor_sram_addr{reinterpret_cast<uint64_t>(localSlot)};
-}
-
-// View the demo's per-cell GM windows as the GmSramArena address-segment model
-// of per-core SRAM.  The host lays the windows out contiguously
-// (windowsIn[i] == windowsIn[0] + i*winSize), so segment c == window c == the
-// private SRAM of core c.  This is the single source of truth the TPOP guard
-// uses to decide whether a read stays inside the caller's own segment.
+// View the demo's per-cell GM windows as the GmSramArena address-segment model of
+// per-core SRAM.  The TPOP guard uses this as the single source of truth for
+// "which core owns this address".
 AICORE inline GmSramArena SramArenaFromCtx(__gm__ void *runtimeCtx)
 {
-    auto *ctx = reinterpret_cast<__gm__ HcclDeviceContext *>(runtimeCtx);
+    auto *ctx = reinterpret_cast<__gm__ CommDeviceContext *>(runtimeCtx);
     GmSramArena arena;
     arena.base = ctx->windowsIn[0];
     arena.segBytes = ctx->winSize;
@@ -78,80 +72,54 @@ AICORE inline GmSramArena SramArenaFromCtx(__gm__ void *runtimeCtx)
     return arena;
 }
 
-AICORE inline __gm__ uint32_t *RemoteCounterPtr(__gm__ void *runtimeCtx, __gm__ uint32_t *localCounter, int peerRank)
+AICORE inline __gm__ uint8_t *ResolvePeerSlotAddr(__gm__ void *runtimeCtx, __gm__ uint8_t *localSlot, int peerRank)
 {
-    uint64_t remoteAddr = ResolvePeerWindowAddress(runtimeCtx, reinterpret_cast<uint64_t>(localCounter), peerRank);
+    uint64_t peer = ResolvePeerWindowAddress(runtimeCtx, reinterpret_cast<uint64_t>(localSlot), peerRank);
+    return reinterpret_cast<__gm__ uint8_t *>(peer);
+}
+
+AICORE inline __gm__ uint32_t *RemoteScbPtr(__gm__ void *runtimeCtx, __gm__ uint32_t *localScb, int peerRank)
+{
+    uint64_t remoteAddr = ResolvePeerWindowAddress(runtimeCtx, reinterpret_cast<uint64_t>(localScb), peerRank);
     return reinterpret_cast<__gm__ uint32_t *>(remoteAddr);
 }
 
 template <typename TileT>
-__tf__ AICORE inline void CopyTileToNeighborSramSlot(neighbor_sram_addr remoteSlot, TileT &tile, int slotBytes)
+__tf__ AICORE inline void CopyTileToNeighborSramSlot(__gm__ uint8_t *dstNeighborSlot, TileT &tile, int slotBytes)
 {
-    neighbor_sram_addr src{reinterpret_cast<uint64_t>(__cce_get_tile_ptr(tile.data()))};
-    // Producer-side cross-core payload transfer in CCE-intrinsic form.
-    copy_sram_to_neighbor_sram(remoteSlot, src, static_cast<uint32_t>(slotBytes), 0);
+    // Producer-side cross-core payload write: extract the tile UB pointer, then
+    // call the copy_ubuf_to_neighbor_ubuf CCE facade (V7 COPY_UBUF_TO_NBR).
+    auto *srcUb = reinterpret_cast<__ubuf__ uint8_t *>(__cce_get_tile_ptr(tile.data()));
+    copy_ubuf_to_neighbor_ubuf(reinterpret_cast<__gm__ void *>(dstNeighborSlot),
+                               reinterpret_cast<__ubuf__ void *>(srcUb), static_cast<uint32_t>(slotBytes));
 }
 
 template <typename TileT>
-__tf__ AICORE inline void CopyNeighborSramSlotToTile(TileT &tile, neighbor_sram_addr localSlot, int slotBytes)
+__tf__ AICORE inline void CopyLocalSlotToTile(TileT &tile, __gm__ uint8_t *localSlot, int slotBytes)
 {
-    neighbor_sram_addr dst{reinterpret_cast<uint64_t>(__cce_get_tile_ptr(tile.data()))};
-    // Consumer-side counterpart of the same intrinsic-style payload transfer.
-    copy_neighbor_sram_to_sram(dst, localSlot, static_cast<uint32_t>(slotBytes), 0);
-}
-
-} // namespace a2a3_grid_payload
-
-namespace grid_sram_mock {
-
-AICORE inline uint64_t MockGetNeighborSramAddr(__gm__ void *runtimeCtx, uint64_t localSramAddr, int32_t peerRank)
-{
-    return a2a3_grid_payload::ResolvePeerWindowAddress(runtimeCtx, localSramAddr, peerRank);
-}
-
-AICORE inline void MockCopySramToNeighborSram(neighbor_sram_addr dst, neighbor_sram_addr src, uint32_t bytes,
-                                              uint64_t config)
-{
-    (void)config;
-    // A2/A3 mock lowering of copy_sram_to_neighbor_sram:
-    // SRAM(local core, currently tile UB) -> GM-backed peer slot window.
+    // Consumer-side local-slot drain (V7 TPOP local read; no cross-core read of
+    // payload): GM slot window -> local UB (tile), chunked with the existing
+    // local copy.
+    auto *dstUb = reinterpret_cast<__ubuf__ uint8_t *>(__cce_get_tile_ptr(tile.data()));
     constexpr uint32_t kChunkBytes = 256;
-    auto *dstBytes = reinterpret_cast<__gm__ uint8_t *>(dst.value);
-    auto *srcBytes = reinterpret_cast<__ubuf__ uint8_t *>(src.value);
+    uint32_t bytes = static_cast<uint32_t>(slotBytes);
     uint32_t offset = 0;
     while (offset < bytes) {
         uint32_t chunk = (bytes - offset > kChunkBytes) ? kChunkBytes : (bytes - offset);
-        copy_ubuf_to_gm_align_b8(dstBytes + offset, srcBytes + offset, 0, 1, chunk, 0, 0, 0, 0);
+        copy_gm_to_ubuf_align_b8(dstUb + offset, localSlot + offset, 0, 1, chunk, 0, 0, 0, 0);
         offset += chunk;
     }
 }
 
-AICORE inline void MockCopyNeighborSramToSram(neighbor_sram_addr dst, neighbor_sram_addr src, uint32_t bytes,
-                                              uint64_t config)
-{
-    (void)config;
-    // A2/A3 mock lowering of copy_neighbor_sram_to_sram:
-    // GM-backed local slot window -> SRAM(local core, currently tile UB).
-    constexpr uint32_t kChunkBytes = 256;
-    auto *dstBytes = reinterpret_cast<__ubuf__ uint8_t *>(dst.value);
-    auto *srcBytes = reinterpret_cast<__gm__ uint8_t *>(src.value);
-    uint32_t offset = 0;
-    while (offset < bytes) {
-        uint32_t chunk = (bytes - offset > kChunkBytes) ? kChunkBytes : (bytes - offset);
-        copy_gm_to_ubuf_align_b8(dstBytes + offset, srcBytes + offset, 0, 1, chunk, 0, 0, 0, 0);
-        offset += chunk;
-    }
-}
-
-AICORE inline bool MockSramPopIsLocal(__gm__ void *runtimeCtx, uint64_t slotAddr, uint32_t bytes, int32_t callerRank)
+AICORE inline bool PopSlotIsLocal(__gm__ void *runtimeCtx, __gm__ uint8_t *localSlot, uint32_t bytes, int callerRank)
 {
     // Enforce the NoC "TPOP only pops local SRAM" rule: the read is legal only
     // when the whole slot lies inside the caller core's own arena segment.
-    GmSramArena arena = a2a3_grid_payload::SramArenaFromCtx(runtimeCtx);
-    return arena.InSegment(callerRank, slotAddr, static_cast<uint64_t>(bytes));
+    GmSramArena arena = SramArenaFromCtx(runtimeCtx);
+    return arena.InSegment(callerRank, reinterpret_cast<uint64_t>(localSlot), static_cast<uint64_t>(bytes));
 }
 
-} // namespace grid_sram_mock
+} // namespace a2a3_grid_payload
 } // namespace pto
 
 #endif // DISTRIBUTED_FFN_GRID_PAYLOAD_INL_HPP

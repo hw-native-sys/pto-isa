@@ -13,7 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // gridRows*gridCols blocks form a logical grid on one NPU.  Each cell computes
 // one model-parallel FFN shard, then cells in the same row reduce their fp32
 // down partials through a same-device GridPipe EAST mock backed by local GM
-// windows and a fake HcclDeviceContext.
+// windows and a fake CommDeviceContext.
 
 #include <chrono>
 #include <climits>
@@ -192,7 +192,7 @@ static bool InitLocalGridPipeContext(DeviceResources &r)
     }
     aclrtMemset(r.reduce_pipe_windows_dev, r.reducePipeBytes, 0, r.reducePipeBytes);
 
-    HcclDeviceContext hostCtx{};
+    CommDeviceContext hostCtx{};
     hostCtx.rankId = 0;
     hostCtx.rankNum = static_cast<uint32_t>(r.cells);
     hostCtx.winSize = static_cast<uint64_t>(FFN_GRID_WINDOW_BYTES);
@@ -202,11 +202,11 @@ static bool InitLocalGridPipeContext(DeviceResources &r)
         hostCtx.windowsOut[i] = hostCtx.windowsIn[i];
     }
 
-    if (aclrtMalloc(&r.fake_hccl_ctx_dev, sizeof(HcclDeviceContext), ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) {
+    if (aclrtMalloc(&r.fake_hccl_ctx_dev, sizeof(CommDeviceContext), ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) {
         std::cerr << "[ERROR] aclrtMalloc(fake_hccl_ctx) failed" << std::endl;
         return false;
     }
-    if (aclrtMemcpy(r.fake_hccl_ctx_dev, sizeof(HcclDeviceContext), &hostCtx, sizeof(HcclDeviceContext),
+    if (aclrtMemcpy(r.fake_hccl_ctx_dev, sizeof(CommDeviceContext), &hostCtx, sizeof(CommDeviceContext),
                     ACL_MEMCPY_HOST_TO_DEVICE) != ACL_SUCCESS) {
         std::cerr << "[ERROR] aclrtMemcpy(fake_hccl_ctx) failed" << std::endl;
         return false;

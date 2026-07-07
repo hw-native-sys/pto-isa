@@ -32,8 +32,7 @@ Beyond the nearest-neighbor FFN demos, GridPipe also supports routed K-hop unica
 | `tpipe_tmov_inl.hpp` | Directional `TMOV` overloads that lower Cube↔Vec C2V/V2C transfers to the existing `TPUSH`/`TPOP`, so the kernel body never spells out the handshake. |
 | `gridpipe_payload_inl.hpp` | Local GridPipe payload hooks and fake-window remote pointer adapter. |
 | `smoke/` | Standalone GridPipe feature smoke tests. `khop_smoke_{config,kernel,launch}` + `main_khop_smoke.cpp` + `run_khop_smoke.sh` cover routed K-hop unicast; `bcast_smoke_*` + `run_bcast_smoke.sh` cover single-source row/column broadcast. Both build through the parent `CMakeLists.txt`. |
-| `../../../../include/pto/common/grid_counter_intrinsic.hpp` | CCE-intrinsic-style neighbor counter API used by GridPipe ready/free waits and notifications. |
-| `../../../../include/pto/common/grid_sram_intrinsic.hpp` | CCE-intrinsic-style neighbor SRAM address and payload transfer API used by GridPipe payload movement. Also declares the `GmSramArena` address-segment SRAM model and the `sram_pop_is_local` TPOP read-locality guard. |
+| `../../../../include/pto/npu/a2a3/grid_intrinsic.hpp` | Consolidated GridPipe A2/A3 intrinsic layer. Section 3 is the V6 IPC_SCB scoreboard API (`sync_neighbor_scb`/`wait_local_spr`/`mov_local_spr`) used by GridPipe ready/free waits and notifications; Section 4 is the neighbor SRAM address + payload transfer API (`copy_ubuf_to_neighbor_ubuf`/`copy_local_slot_to_ubuf`), plus the `GmSramArena` address-segment SRAM model and the `sram_pop_is_local` TPOP read-locality guard. |
 | `scripts/gen_data.py` | Generates per-cell fp16 X/weight shards and an fp32 golden reference. |
 | `build/` | Ignored generated build directory. |
 | `out/` | Ignored generated data directory. |
@@ -120,7 +119,7 @@ To stay close to real silicon, the mock models future-hardware per-core SRAM as 
 segment c = [base + c*winSize, base + (c+1)*winSize)   // base == windowsIn[0]
 ```
 
-`GmSramArena` (in `include/pto/common/grid_sram_intrinsic.hpp`) carries `{base, segBytes, numSegs}` plus the `SegmentOf` / `InSegment` classifiers; the demo builds it on-device from the fake `HcclDeviceContext` window table (`SramArenaFromCtx`). It is the single source of truth for "which core owns this address".
+`GmSramArena` (in `include/pto/npu/a2a3/grid_intrinsic.hpp`) carries `{base, segBytes, numSegs}` plus the `SegmentOf` / `InSegment` classifiers; the demo builds it on-device from the fake `HcclDeviceContext` window table (`SramArenaFromCtx`). It is the single source of truth for "which core owns this address".
 
 This makes the NoC contract explicit and **enforced**: the fabric can only *write* across cores, never *read*.
 
@@ -131,23 +130,24 @@ On native hardware `sram_pop_is_local` is a no-op (`true`): a TPOP read address 
 
 > The `pto::comm` variants (`TREDUCE` / `TGATHER`) intentionally do **not** follow this rule: they are a root-pulls-from-every-rank collective (HCCL/RDMA-style remote reads), a different memory model from the WSE NoC. Only the GridPipe `TPUSH`/`TPOP` path is constrained to write-only.
 
-### Neighbor counter intrinsic API
+### IPC_SCB scoreboard intrinsic API
 
-GridPipe ready/free synchronization goes through two CCE-intrinsic-style APIs in `include/pto/common/grid_counter_intrinsic.hpp`. The canonical call form keeps hardware semantic operands first and the mock backend operand last:
+GridPipe ready/free synchronization follows the V6 IPC_SCB scoreboard route, exposed as CCE-intrinsic-style APIs in `include/pto/npu/a2a3/grid_intrinsic.hpp` (Section 3). The canonical call form keeps hardware semantic operands first and the mock backend operand last:
 
-- `mtspr_neighbor_counter(kind, dir, value, operand)` publishes a monotonic `Ready` or `Free` counter to the neighbor-visible counter for `dir`.
-- `wfe_neighbor_counter(kind, dir, threshold, operand, maxSpins)` waits until the local mirror of that counter reaches `threshold`.
+- `sync_neighbor_scb(kind, dir, dist, abs_count, operand)` (V6 `SYNC_HSCB`/`ST_HSCB`) stores this core's new absolute count into the peer's `ready_scb`/`free_scb` IPC_SCB `dist` hops away.
+- `wait_local_spr(kind, dir, threshold, operand, maxSpins)` (V6 `WAIT_SPR`) blocks until the **local** `ready_scb`/`free_scb` IPC_SCB reaches `threshold`.
+- `mov_local_spr(kind, dir, operand)` (V6 `MOV_SPR2X`) non-blocking peek of the local scoreboard, used for the fast path before `wait_local_spr`.
 
-GridPipe payload address resolution goes through `include/pto/common/grid_sram_intrinsic.hpp`:
+GridPipe payload address resolution goes through the same header (Section 4):
 
 - `get_neighbor_sram_addr(dst, src, dir, peerRank, operand)` resolves a local slot offset to the same offset in a neighbor SRAM slot address register.
-- `copy_sram_to_neighbor_sram(dst, src, bytes, config)` writes local SRAM payloads to a neighbor SRAM slot.
-- `copy_neighbor_sram_to_sram(dst, src, bytes, config)` is the read-side interface counterpart. Native lowering is intentionally only an interface placeholder for now; the A2/A3 mock uses it for TPOP-side validation against the GM-backed slot.
+- `copy_ubuf_to_neighbor_ubuf(dst, src, bytes, config)` (V6 `COPY_UBUF_TO_NBR`) writes a local UB payload into the neighbor's UB/L1 slot.
+- `copy_local_slot_to_ubuf(dst, src, bytes, config)` drains this core's own slot into the tile. V6 has **no cross-core read** of payload: native lowering is the existing local TLOAD/TMOV (an interface placeholder here); the A2/A3 mock reads the GM-backed local slot.
 - `sram_pop_is_local(slot, bytes, callerRank, operand)` is the TPOP read-locality guard (see the address-segment model above): native lowering returns `true`, while the A2/A3 mock checks `slot` against `callerRank`'s `GmSramArena` segment so a cross-segment read is rejected instead of silently serviced.
 
-The current A2/A3 mock implements the SRAM write/read path with MTE copies through the GM-backed fake window. Once native hardware provides the corresponding write builtin, GridPipe call sites do not need to change.
+Native lowering targets the real CCE HSCB/IPC_SCB stack (`__sync_hscb`/`__st_hscb`, `get_ipc_scb_*`, and `try_wait(CROSS_CORE)` for the wait, since the header exposes no blocking `WAIT_SPR` on IPC_SCB yet); the current A2/A3 mock stands in for those IPC_SCB scoreboards with GM words + cache maintenance, and degrades `WAIT_SPR` to a spin-poll. Once native hardware provides neighbor-IPC_SCB addressing (V6 HW-DEP-1) and the `COPY_UBUF_TO_NBR` builtin (V6 HW-DEP-0), GridPipe call sites do not need to change.
 
-`TPUSH<EAST>` waits on `Free` with `wfe_neighbor_counter`, writes the payload slot, then publishes `Ready` with `mtspr_neighbor_counter`. `TPOP<EAST>` waits on `Ready`, reads the payload slot, then publishes `Free` back upstream.
+`TPUSH<EAST>` peeks/waits on the local `free_scb` with `mov_local_spr`/`wait_local_spr`, writes the payload slot, then publishes its `prod_idx` to the downstream `ready_scb` with `sync_neighbor_scb`. `TPOP<EAST>` waits on the local `ready_scb`, reads the payload slot, then publishes its `cons_idx` to the upstream `free_scb`.
 
 On current A2/A3 boards, `NeighborCounterOperand::addr` points to a GM-backed counter in the local/fake peer GridPipe window, and `NeighborSramOperand::runtimeCtx` points to the fake HCCL context. When real hardware supports neighbor SPR/WFE counters and neighbor SRAM address registers, this demo should be adapted by compiling GridPipe with `PTO_GRID_COUNTER_NATIVE_INTRINSIC` and `PTO_GRID_SRAM_NATIVE_INTRINSIC` and providing the compiler builtins. In that mode the mock operands are ignored, and the host/device setup should move from fake GM windows to hardware-provided per-neighbor counter/event registers and SRAM slot bases while keeping the GridPipe `TPUSH/TPOP` call sites unchanged.
 
@@ -157,7 +157,7 @@ The reduce slot carries fp32 `[T, H]`, so `FFN_SLOT_BYTES = T * H * 4`. This kee
 
 ### Routed K-hop unicast
 
-`TPUSH<dir, dist>` / `TPOP<dir, dist>` extend the nearest-neighbor pipe to a routed unicast `dist` hops along `dir` (Scheme A). The payload write resolves the slot in the `dist`-hop neighbor's segment, and the ready/free doorbells carry the same `dist` operand through `mtspr_neighbor_counter` / `wfe_neighbor_counter`, so the receiver `dist` hops downstream pops the tile with no relays in between. `dist == 1` reproduces the original nearest-neighbor behavior. Fan-in stays 1 (one upstream per direction/distance), so no slot/flag expansion is needed.
+`TPUSH<dir, dist>` / `TPOP<dir, dist>` extend the nearest-neighbor pipe to a routed unicast `dist` hops along `dir` (Scheme A). The payload write resolves the slot in the `dist`-hop neighbor's segment, and the ready/free scoreboard stores carry the same `dist` operand through `sync_neighbor_scb`, so the receiver `dist` hops downstream pops the tile with no relays in between. `dist == 1` reproduces the original nearest-neighbor behavior. Fan-in stays 1 (one upstream per direction/distance), so no slot/flag expansion is needed.
 
 ### Single-source row/column broadcast
 
