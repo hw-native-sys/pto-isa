@@ -157,6 +157,9 @@ inline uint64_t sbitset0(uint64_t value, int)
 #define SKIP_IF_RANKS_LT(n)
 static constexpr uint32_t HCCL_MAX_RANK_NUM = 64;
 
+static constexpr uint32_t QUANT_SCALAR_REG_OFFSET = 0;
+static constexpr uint32_t QUANT_VECTOR_REG_OFFSET = 1;
+
 struct HcclRootInfo {};
 
 struct CommDeviceContext {

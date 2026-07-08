@@ -75,7 +75,7 @@ PTO_INTERNAL void TStore6HD(typename GlobalData::DType __out__ *dst, typename Ti
     }
 }
 
-template <typename GlobalData, typename TileData, QuantModeCPU_t quantMode, bool applyRelu, bool atomicAdd = false,
+template <typename GlobalData, typename TileData, QuantMode_t quantMode, bool applyRelu, bool atomicAdd = false,
           std::enable_if_t<TileData::isRowMajor, int> = 0>
 __tf__ PTO_INLINE void StorePlainMatrix(typename GlobalData::DType __out__ *dst,
                                         typename TileData::TileDType __in__ src, const std::vector<uint64_t> &scalars,
@@ -93,7 +93,7 @@ __tf__ PTO_INLINE void StorePlainMatrix(typename GlobalData::DType __out__ *dst,
                              for (std::size_t c = 0; c < static_cast<std::size_t>(gShape4); c++) {
                                  int dstIdx = dstBase + c * static_cast<std::size_t>(gStride4);
                                  D out;
-                                 if constexpr (quantMode != QuantModeCPU_t::NoQuant) {
+                                 if constexpr (quantMode != QuantMode_t::NoQuant) {
                                      uint64_t scalar = scalars[c];
                                      out = quantize_element<D, S, quantMode, applyRelu>(src[srcBase + c], scalar);
                                  } else {
@@ -112,7 +112,7 @@ __tf__ PTO_INLINE void StorePlainMatrix(typename GlobalData::DType __out__ *dst,
                          });
 }
 
-template <typename GlobalData, typename TileData, QuantModeCPU_t quantMode, bool applyRelu, bool atomicAdd = false,
+template <typename GlobalData, typename TileData, QuantMode_t quantMode, bool applyRelu, bool atomicAdd = false,
           std::enable_if_t<!TileData::isRowMajor, int> = 0>
 __tf__ PTO_INLINE void StorePlainMatrix(typename GlobalData::DType __out__ *dst,
                                         typename TileData::TileDType __in__ src, const std::vector<uint64_t> &scalars,
@@ -130,7 +130,7 @@ __tf__ PTO_INLINE void StorePlainMatrix(typename GlobalData::DType __out__ *dst,
                              for (std::size_t r = 0; r < static_cast<std::size_t>(gShape3); r++) {
                                  int dstIdx = r * static_cast<std::size_t>(gStride3) + c * dstStride4;
                                  D out;
-                                 if constexpr (quantMode != QuantModeCPU_t::NoQuant) {
+                                 if constexpr (quantMode != QuantMode_t::NoQuant) {
                                      uint64_t scalar = scalars[r];
                                      out = quantize_element<D, S, quantMode, applyRelu>(src[srcBase + r], scalar);
                                  } else {
@@ -149,7 +149,7 @@ __tf__ PTO_INLINE void StorePlainMatrix(typename GlobalData::DType __out__ *dst,
                          });
 }
 
-template <typename GlobalData, typename TileData, QuantModeCPU_t quantMode, bool applyRelu, bool atomicAdd = false>
+template <typename GlobalData, typename TileData, QuantMode_t quantMode, bool applyRelu, bool atomicAdd = false>
 __tf__ PTO_INLINE void StorePlain(typename GlobalData::DType __out__ *dst, typename TileData::TileDType __in__ src,
                                   const std::vector<uint64_t> &scalars, int gShape0, int gShape1, int gShape2,
                                   int gShape3, int gShape4, int gStride0, int gStride1, int gStride2, int gStride3,
@@ -173,7 +173,7 @@ __tf__ PTO_INLINE void StorePlain(typename GlobalData::DType __out__ *dst, typen
     }
 }
 
-template <typename GlobalData, typename TileData, QuantModeCPU_t quantMode, bool applyRelu, bool atomicAdd = false>
+template <typename GlobalData, typename TileData, QuantMode_t quantMode, bool applyRelu, bool atomicAdd = false>
 __tf__ PTO_INLINE void StoreSubfractalMatrix(typename GlobalData::DType __out__ *dst,
                                              typename TileData::TileDType __in__ src,
                                              const std::vector<uint64_t> &scalars, int gShape3, int gShape4,
@@ -198,7 +198,7 @@ __tf__ PTO_INLINE void StoreSubfractalMatrix(typename GlobalData::DType __out__ 
         });
 }
 
-template <typename GlobalData, typename TileData, QuantModeCPU_t quantMode, bool applyRelu, bool atomicAdd = false>
+template <typename GlobalData, typename TileData, QuantMode_t quantMode, bool applyRelu, bool atomicAdd = false>
 __tf__ PTO_INLINE void TStore(typename GlobalData::DType __out__ *dst, typename TileData::TileDType __in__ src,
                               const std::vector<uint64_t> &scalars, int gShape0, int gShape1, int gShape2, int gShape3,
                               int gShape4, int gStride0, int gStride1, int gStride2, int gStride3, int gStride4,
@@ -228,7 +228,7 @@ __tf__ PTO_INLINE void TStore(typename GlobalData::DType __out__ *dst, typename 
     }
 }
 
-template <typename TileData, typename GlobalData, QuantModeCPU_t quantMode, bool applyRelu, bool atomicAdd = false>
+template <typename TileData, typename GlobalData, QuantMode_t quantMode, bool applyRelu, bool atomicAdd = false>
 PTO_INTERNAL void TSTORE_IMPL(GlobalData &dst, TileData &src, const std::vector<uint64_t> &scalars = {})
 {
     static_assert(GlobalData::layout == pto::Layout::ND || GlobalData::layout == pto::Layout::DN ||
@@ -255,7 +255,7 @@ PTO_INTERNAL void TSTORE_IMPL(GlobalData &dst, TileData &src)
 {
     (void)Phase;
     constexpr bool atomicAdd = (atomicType == AtomicType::AtomicAdd);
-    TSTORE_IMPL<TileData, GlobalData, QuantModeCPU_t::NoQuant, false, atomicAdd>(dst, src);
+    TSTORE_IMPL<TileData, GlobalData, QuantMode_t::NoQuant, false, atomicAdd>(dst, src);
 }
 
 template <typename TileData, typename GlobalData, AtomicType atomicType, ReluPreMode reluPreMode,
@@ -265,7 +265,7 @@ __aicore__ void TSTORE_IMPL(GlobalData &dst, TileData &src)
     (void)Phase;
     constexpr bool useRelu = reluPreMode == ReluPreMode::NormalRelu;
     constexpr bool atomicAdd = (atomicType == AtomicType::AtomicAdd);
-    TSTORE_IMPL<TileData, GlobalData, QuantModeCPU_t::NoQuant, useRelu, atomicAdd>(dst, src);
+    TSTORE_IMPL<TileData, GlobalData, QuantMode_t::NoQuant, useRelu, atomicAdd>(dst, src);
 }
 
 template <typename TileData, typename GlobalData, AtomicType atomicType, ReluPreMode reluPreMode,
@@ -273,7 +273,7 @@ template <typename TileData, typename GlobalData, AtomicType atomicType, ReluPre
 __aicore__ void TSTORE_IMPL(GlobalData &dst, TileData &src, uint64_t preQuantScalar)
 {
     (void)Phase;
-    constexpr QuantModeCPU_t quantPre = GetScalarPreQuantMode<typename TileData::DType, typename GlobalData::DType>();
+    constexpr QuantMode_t quantPre = GetScalarPreQuantMode<typename TileData::DType, typename GlobalData::DType>();
     constexpr bool useRelu = reluPreMode == ReluPreMode::NormalRelu;
     constexpr bool atomicAdd = (atomicType == AtomicType::AtomicAdd);
     size_t vector_size = 0;
@@ -291,7 +291,7 @@ template <typename TileData, typename GlobalData, typename FpTileData, AtomicTyp
 __aicore__ void TSTORE_IMPL(GlobalData &dst, TileData &src, FpTileData &fp)
 {
     (void)Phase;
-    constexpr QuantModeCPU_t quantPre = GetScalarPreQuantMode<typename TileData::DType, typename GlobalData::DType>();
+    constexpr QuantMode_t quantPre = GetScalarPreQuantMode<typename TileData::DType, typename GlobalData::DType>();
     constexpr bool useRelu = reluPreMode == ReluPreMode::NormalRelu;
     constexpr bool atomicAdd = (atomicType == AtomicType::AtomicAdd);
 

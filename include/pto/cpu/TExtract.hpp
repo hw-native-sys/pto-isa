@@ -11,8 +11,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef TEXTRACT_HPP
 #define TEXTRACT_HPP
 
-#include <cmath>
 #include <cassert>
+#include <cmath>
 #include <vector>
 
 #include "../common/utils.hpp"
@@ -20,7 +20,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-template <typename DstTileData, typename SrcTileData, QuantModeCPU_t quantMode, bool applyRelu>
+template <typename DstTileData, typename SrcTileData, QuantMode_t quantMode, bool applyRelu>
 PTO_INTERNAL void TExtract_Impl(DstTileData &dst, SrcTileData &src, uint32_t idxRow, uint32_t idxCol,
                                 const std::vector<uint64_t> &scalars = {})
 {
@@ -33,7 +33,7 @@ PTO_INTERNAL void TExtract_Impl(DstTileData &dst, SrcTileData &src, uint32_t idx
         for (size_t r = 0; r < dst.GetValidRow(); r++) {
             const size_t srcTileIdx = GetTileElementOffset<SrcTileData>(r + idxRow, c + idxCol);
             const size_t dstTileIdx = GetTileElementOffset<DstTileData>(r, c);
-            if constexpr (quantMode != QuantModeCPU_t::NoQuant) {
+            if constexpr (quantMode != QuantMode_t::NoQuant) {
                 const size_t scalarIndex = SrcTileData::isRowMajor ? c : r;
                 const uint64_t scalar = scalars[scalarIndex];
                 dst.data()[dstTileIdx] = quantize_element<D, S, quantMode, applyRelu>(src.data()[srcTileIdx], scalar);
@@ -135,7 +135,7 @@ PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, uint32_t idx
         TEXTRACT_CONVTILE_IMPL(dst, src, static_cast<uint16_t>(idxRow), static_cast<uint16_t>(idxCol));
     } else {
         constexpr bool useRelu = reluMode == ReluPreMode::NormalRelu;
-        TExtract_Impl<DstTileData, SrcTileData, QuantModeCPU_t::NoQuant, useRelu>(dst, src, idxRow, idxCol);
+        TExtract_Impl<DstTileData, SrcTileData, QuantMode_t::NoQuant, useRelu>(dst, src, idxRow, idxCol);
     }
 }
 
@@ -143,15 +143,14 @@ template <typename DstTileData, typename SrcTileData, AccToVecMode mode, ReluPre
 PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, uint32_t idxRow = 0, uint32_t idxCol = 0)
 {
     constexpr bool useRelu = reluMode == ReluPreMode::NormalRelu;
-    TExtract_Impl<DstTileData, SrcTileData, QuantModeCPU_t::NoQuant, useRelu>(dst, src, idxRow, idxCol);
+    TExtract_Impl<DstTileData, SrcTileData, QuantMode_t::NoQuant, useRelu>(dst, src, idxRow, idxCol);
 }
 
 template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode>
 PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, uint64_t preQuantScalar, uint32_t idxRow = 0,
                                 uint32_t idxCol = 0)
 {
-    constexpr QuantModeCPU_t quantPre =
-        GetScalarPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
+    constexpr QuantMode_t quantPre = GetScalarPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
     constexpr bool useRelu = reluMode == ReluPreMode::NormalRelu;
     std::vector<uint64_t> scalars(dst.GetValidCol(), preQuantScalar);
 
@@ -162,8 +161,7 @@ template <typename DstTileData, typename SrcTileData, AccToVecMode mode, ReluPre
 PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, uint64_t preQuantScalar, uint32_t idxRow = 0,
                                 uint32_t idxCol = 0)
 {
-    constexpr QuantModeCPU_t quantPre =
-        GetScalarPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
+    constexpr QuantMode_t quantPre = GetScalarPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
     constexpr bool useRelu = reluMode == ReluPreMode::NormalRelu;
     std::vector<uint64_t> scalars(dst.GetValidCol(), preQuantScalar);
 
@@ -174,8 +172,7 @@ template <typename DstTileData, typename SrcTileData, typename FpTileData, ReluP
 PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, FpTileData &fp, uint32_t idxRow = 0,
                                 uint32_t idxCol = 0)
 {
-    constexpr QuantModeCPU_t quantPre =
-        GetScalarPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
+    constexpr QuantMode_t quantPre = GetScalarPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
     constexpr bool useRelu = reluMode == ReluPreMode::NormalRelu;
 
     std::vector<uint64_t> scalars(dst.GetValidCol(), 0);
@@ -191,8 +188,7 @@ template <typename DstTileData, typename SrcTileData, typename FpTileData, AccTo
 PTO_INTERNAL void TEXTRACT_IMPL(DstTileData &dst, SrcTileData &src, FpTileData &fp, uint32_t idxRow = 0,
                                 uint32_t idxCol = 0)
 {
-    constexpr QuantModeCPU_t quantPre =
-        GetScalarPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
+    constexpr QuantMode_t quantPre = GetScalarPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
     constexpr bool useRelu = reluMode == ReluPreMode::NormalRelu;
 
     std::vector<uint64_t> scalars(dst.GetValidCol(), 0);
