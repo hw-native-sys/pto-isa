@@ -74,9 +74,9 @@ void run_vec_op(LaunchFn fn)
 {
     const size_t iMatSize = iRow * iCol;
     const size_t oMatSize = oRow * oCol;
-    size_t iMatFileSize = iMatSize * sizeof(T);
-    size_t oMatFileSize = oMatSize * sizeof(T);
-    size_t vecFileSize = iCol * sizeof(T);
+    size_t iMatSizeFile = iMatSize * sizeof(T);
+    size_t oMatSizeFile = oMatSize * sizeof(T);
+    size_t vecSizeFile = iRow * sizeof(T);
 
     aclInit(nullptr);
     aclrtSetDevice(0);
@@ -86,26 +86,26 @@ void run_vec_op(LaunchFn fn)
     T *dstHost, *src0Host, *src1Host;
     T *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), oMatFileSize);
-    aclrtMallocHost((void **)(&src0Host), iMatFileSize);
-    aclrtMallocHost((void **)(&src1Host), vecFileSize);
+    aclrtMallocHost((void **)(&dstHost), oMatSizeFile);
+    aclrtMallocHost((void **)(&src0Host), iMatSizeFile);
+    aclrtMallocHost((void **)(&src1Host), vecSizeFile);
 
-    aclrtMalloc((void **)&dstDevice, oMatFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, iMatFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, iMatFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void **)&dstDevice, oMatSizeFile, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void **)&src0Device, iMatSizeFile, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void **)&src1Device, iMatSizeFile, ACL_MEM_MALLOC_HUGE_FIRST);
 
     InitDstDevice<T, oRow, oCol>(dstDevice);
 
-    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input1.bin", iMatFileSize, src0Host, iMatFileSize));
-    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input2.bin", vecFileSize, src1Host, vecFileSize));
-    aclrtMemcpy(src0Device, iMatFileSize, src0Host, iMatFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    aclrtMemcpy(src1Device, vecFileSize, src1Host, vecFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input1.bin", iMatSizeFile, src0Host, iMatSizeFile));
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input2.bin", vecSizeFile, src1Host, vecSizeFile));
+    aclrtMemcpy(src0Device, iMatSizeFile, src0Host, iMatSizeFile, ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(src1Device, vecSizeFile, src1Host, vecSizeFile, ACL_MEMCPY_HOST_TO_DEVICE);
 
     fn(dstDevice, src0Device, src1Device, stream);
 
     aclrtSynchronizeStream(stream);
-    aclrtMemcpy(dstHost, oMatFileSize, dstDevice, oMatFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
-    WriteFile(GetGoldenDir() + "/output.bin", dstHost, oMatFileSize);
+    aclrtMemcpy(dstHost, oMatSizeFile, dstDevice, oMatSizeFile, ACL_MEMCPY_DEVICE_TO_HOST);
+    WriteFile(GetGoldenDir() + "/output.bin", dstHost, oMatSizeFile);
 
     aclrtFree(dstDevice);
     aclrtFree(src0Device);
@@ -120,8 +120,8 @@ void run_vec_op(LaunchFn fn)
 
     std::vector<T> golden(oMatSize);
     std::vector<T> devFinal(oMatSize);
-    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/golden.bin", oMatFileSize, golden.data(), oMatFileSize));
-    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/output.bin", oMatFileSize, devFinal.data(), oMatFileSize));
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/golden.bin", oMatSizeFile, golden.data(), oMatSizeFile));
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/output.bin", oMatSizeFile, devFinal.data(), oMatSizeFile));
 
     bool ret = ResultCmp<T>(golden, devFinal, 0.001f);
     EXPECT_TRUE(ret);
@@ -271,5 +271,173 @@ TEST_F(TROWEXPANDOPTest, case_expdif_float_16x16_32x32_64x64)
 {
     run_vec_op<float, 16, 16, 32, 32, 64, 64>([](float *out, float *src0, float *src1, void *stream) {
         LaunchTROWEXPANDEXPDIF<float, 16, 16, 32, 32, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TROWEXPANDOPTest, case_div_int16_16x256_16x256_16x256)
+{
+    run_vec_op<int16_t, 16, 256>([](int16_t *out, int16_t *src0, int16_t *src1, void *stream) {
+        LaunchTROWEXPANDDIV<int16_t, 16, 256>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TROWEXPANDOPTest, case_mul_int16_16x256_16x256_16x256)
+{
+    run_vec_op<int16_t, 16, 256>([](int16_t *out, int16_t *src0, int16_t *src1, void *stream) {
+        LaunchTROWEXPANDMUL<int16_t, 16, 256>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TROWEXPANDOPTest, case_sub_int16_16x256_16x256_16x256)
+{
+    run_vec_op<int16_t, 16, 256>([](int16_t *out, int16_t *src0, int16_t *src1, void *stream) {
+        LaunchTROWEXPANDSUB<int16_t, 16, 256>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TROWEXPANDOPTest, case_add_int16_16x256_16x256_16x256)
+{
+    run_vec_op<int16_t, 16, 256>([](int16_t *out, int16_t *src0, int16_t *src1, void *stream) {
+        LaunchTROWEXPANDADD<int16_t, 16, 256>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TROWEXPANDOPTest, case_max_int16_16x256_16x256_16x256)
+{
+    run_vec_op<int16_t, 16, 256>([](int16_t *out, int16_t *src0, int16_t *src1, void *stream) {
+        LaunchTROWEXPANDMAX<int16_t, 16, 256>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TROWEXPANDOPTest, case_min_int16_16x256_16x256_16x256)
+{
+    run_vec_op<int16_t, 16, 256>([](int16_t *out, int16_t *src0, int16_t *src1, void *stream) {
+        LaunchTROWEXPANDMIN<int16_t, 16, 256>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TROWEXPANDOPTest, case_div_int32_64x64_64x64_64x64)
+{
+    run_vec_op<int32_t, 64, 64>([](int32_t *out, int32_t *src0, int32_t *src1, void *stream) {
+        LaunchTROWEXPANDDIV<int32_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TROWEXPANDOPTest, case_mul_int32_64x64_64x64_64x64)
+{
+    run_vec_op<int32_t, 64, 64>([](int32_t *out, int32_t *src0, int32_t *src1, void *stream) {
+        LaunchTROWEXPANDMUL<int32_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TROWEXPANDOPTest, case_sub_int32_64x64_64x64_64x64)
+{
+    run_vec_op<int32_t, 64, 64>([](int32_t *out, int32_t *src0, int32_t *src1, void *stream) {
+        LaunchTROWEXPANDSUB<int32_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TROWEXPANDOPTest, case_add_int32_64x64_64x64_64x64)
+{
+    run_vec_op<int32_t, 64, 64>([](int32_t *out, int32_t *src0, int32_t *src1, void *stream) {
+        LaunchTROWEXPANDADD<int32_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TROWEXPANDOPTest, case_max_int32_64x64_64x64_64x64)
+{
+    run_vec_op<int32_t, 64, 64>([](int32_t *out, int32_t *src0, int32_t *src1, void *stream) {
+        LaunchTROWEXPANDMAX<int32_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TROWEXPANDOPTest, case_min_int32_64x64_64x64_64x64)
+{
+    run_vec_op<int32_t, 64, 64>([](int32_t *out, int32_t *src0, int32_t *src1, void *stream) {
+        LaunchTROWEXPANDMIN<int32_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TROWEXPANDOPTest, case_div_uint16_64x64_64x64_64x64)
+{
+    run_vec_op<uint16_t, 64, 64>([](uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream) {
+        LaunchTROWEXPANDDIV<uint16_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TROWEXPANDOPTest, case_mul_uint16_64x64_64x64_64x64)
+{
+    run_vec_op<uint16_t, 64, 64>([](uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream) {
+        LaunchTROWEXPANDMUL<uint16_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TROWEXPANDOPTest, case_sub_uint16_64x64_64x64_64x64)
+{
+    run_vec_op<uint16_t, 64, 64>([](uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream) {
+        LaunchTROWEXPANDSUB<uint16_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TROWEXPANDOPTest, case_add_uint16_64x64_64x64_64x64)
+{
+    run_vec_op<uint16_t, 64, 64>([](uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream) {
+        LaunchTROWEXPANDADD<uint16_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TROWEXPANDOPTest, case_max_uint16_64x64_64x64_64x64)
+{
+    run_vec_op<uint16_t, 64, 64>([](uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream) {
+        LaunchTROWEXPANDMAX<uint16_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TROWEXPANDOPTest, case_min_uint16_64x64_64x64_64x64)
+{
+    run_vec_op<uint16_t, 64, 64>([](uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream) {
+        LaunchTROWEXPANDMIN<uint16_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TROWEXPANDOPTest, case_div_uint32_64x64_64x64_64x64)
+{
+    run_vec_op<uint32_t, 64, 64>([](uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream) {
+        LaunchTROWEXPANDDIV<uint32_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TROWEXPANDOPTest, case_mul_uint32_64x64_64x64_64x64)
+{
+    run_vec_op<uint32_t, 64, 64>([](uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream) {
+        LaunchTROWEXPANDMUL<uint32_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TROWEXPANDOPTest, case_sub_uint32_64x64_64x64_64x64)
+{
+    run_vec_op<uint32_t, 64, 64>([](uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream) {
+        LaunchTROWEXPANDSUB<uint32_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TROWEXPANDOPTest, case_add_uint32_64x64_64x64_64x64)
+{
+    run_vec_op<uint32_t, 64, 64>([](uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream) {
+        LaunchTROWEXPANDADD<uint32_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TROWEXPANDOPTest, case_max_uint32_64x64_64x64_64x64)
+{
+    run_vec_op<uint32_t, 64, 64>([](uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream) {
+        LaunchTROWEXPANDMAX<uint32_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TROWEXPANDOPTest, case_min_uint32_64x64_64x64_64x64)
+{
+    run_vec_op<uint32_t, 64, 64>([](uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream) {
+        LaunchTROWEXPANDMIN<uint32_t, 64, 64>(out, src0, src1, stream);
     });
 }

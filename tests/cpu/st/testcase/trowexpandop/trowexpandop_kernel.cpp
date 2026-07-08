@@ -190,3 +190,31 @@ template void LaunchTROWEXPANDADD<float, 16, 16, 32, 32, 64, 64>(float *out, flo
 template void LaunchTROWEXPANDMAX<float, 16, 16, 32, 32, 64, 64>(float *out, float *src0, float *src1, void *stream);
 template void LaunchTROWEXPANDMIN<float, 16, 16, 32, 32, 64, 64>(float *out, float *src0, float *src1, void *stream);
 template void LaunchTROWEXPANDEXPDIF<float, 16, 16, 32, 32, 64, 64>(float *out, float *src0, float *src1, void *stream);
+
+template void LaunchTROWEXPANDDIV<int16_t, 16, 256>(int16_t *out, int16_t *src0, int16_t *src1, void *stream);
+template void LaunchTROWEXPANDMUL<int16_t, 16, 256>(int16_t *out, int16_t *src0, int16_t *src1, void *stream);
+template void LaunchTROWEXPANDSUB<int16_t, 16, 256>(int16_t *out, int16_t *src0, int16_t *src1, void *stream);
+template void LaunchTROWEXPANDADD<int16_t, 16, 256>(int16_t *out, int16_t *src0, int16_t *src1, void *stream);
+template void LaunchTROWEXPANDMAX<int16_t, 16, 256>(int16_t *out, int16_t *src0, int16_t *src1, void *stream);
+template void LaunchTROWEXPANDMIN<int16_t, 16, 256>(int16_t *out, int16_t *src0, int16_t *src1, void *stream);
+
+template void LaunchTROWEXPANDDIV<int32_t, 64, 64>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
+template void LaunchTROWEXPANDMUL<int32_t, 64, 64>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
+template void LaunchTROWEXPANDSUB<int32_t, 64, 64>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
+template void LaunchTROWEXPANDADD<int32_t, 64, 64>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
+template void LaunchTROWEXPANDMAX<int32_t, 64, 64>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
+template void LaunchTROWEXPANDMIN<int32_t, 64, 64>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
+
+template void LaunchTROWEXPANDDIV<uint16_t, 64, 64>(uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream);
+template void LaunchTROWEXPANDMUL<uint16_t, 64, 64>(uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream);
+template void LaunchTROWEXPANDSUB<uint16_t, 64, 64>(uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream);
+template void LaunchTROWEXPANDADD<uint16_t, 64, 64>(uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream);
+template void LaunchTROWEXPANDMAX<uint16_t, 64, 64>(uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream);
+template void LaunchTROWEXPANDMIN<uint16_t, 64, 64>(uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream);
+
+template void LaunchTROWEXPANDDIV<uint32_t, 64, 64>(uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream);
+template void LaunchTROWEXPANDMUL<uint32_t, 64, 64>(uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream);
+template void LaunchTROWEXPANDSUB<uint32_t, 64, 64>(uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream);
+template void LaunchTROWEXPANDADD<uint32_t, 64, 64>(uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream);
+template void LaunchTROWEXPANDMAX<uint32_t, 64, 64>(uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream);
+template void LaunchTROWEXPANDMIN<uint32_t, 64, 64>(uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream);

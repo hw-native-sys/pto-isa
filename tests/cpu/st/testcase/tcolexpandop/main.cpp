@@ -107,20 +107,20 @@ void run_vec_op(LaunchFn fn)
     aclrtMemcpy(dstHost, oMatFileSize, dstDevice, oMatFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
     WriteFile(GetGoldenDir() + "/output.bin", dstHost, oMatFileSize);
 
-    aclrtFree(dstDevice);
-    aclrtFree(src0Device);
-    aclrtFree(src1Device);
     aclrtFreeHost(dstHost);
     aclrtFreeHost(src0Host);
     aclrtFreeHost(src1Host);
+    aclrtFree(dstDevice);
+    aclrtFree(src0Device);
+    aclrtFree(src1Device);
 
     aclrtDestroyStream(stream);
     aclrtResetDevice(0);
     aclFinalize();
 
     std::vector<T> golden(oMatSize);
-    std::vector<T> devFinal(oMatSize);
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/golden.bin", oMatFileSize, golden.data(), oMatFileSize));
+    std::vector<T> devFinal(oMatSize);
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/output.bin", oMatFileSize, devFinal.data(), oMatFileSize));
 
     bool ret = ResultCmp<T>(golden, devFinal, 0.001f);
@@ -271,5 +271,173 @@ TEST_F(TCOLEXPANDOPTest, case_expdif_float_16x16_32x32_64x64)
 {
     run_vec_op<float, 16, 16, 32, 32, 64, 64>([](float *out, float *src0, float *src1, void *stream) {
         LaunchTCOLEXPANDEXPDIF<float, 16, 16, 32, 32, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TCOLEXPANDOPTest, case_div_int16_16x256_16x256_16x256)
+{
+    run_vec_op<int16_t, 16, 256>([](int16_t *out, int16_t *src0, int16_t *src1, void *stream) {
+        LaunchTCOLEXPANDDIV<int16_t, 16, 256>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TCOLEXPANDOPTest, case_mul_int16_16x256_16x256_16x256)
+{
+    run_vec_op<int16_t, 16, 256>([](int16_t *out, int16_t *src0, int16_t *src1, void *stream) {
+        LaunchTCOLEXPANDMUL<int16_t, 16, 256>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TCOLEXPANDOPTest, case_sub_int16_16x256_16x256_16x256)
+{
+    run_vec_op<int16_t, 16, 256>([](int16_t *out, int16_t *src0, int16_t *src1, void *stream) {
+        LaunchTCOLEXPANDSUB<int16_t, 16, 256>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TCOLEXPANDOPTest, case_add_int16_16x256_16x256_16x256)
+{
+    run_vec_op<int16_t, 16, 256>([](int16_t *out, int16_t *src0, int16_t *src1, void *stream) {
+        LaunchTCOLEXPANDADD<int16_t, 16, 256>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TCOLEXPANDOPTest, case_max_int16_16x256_16x256_16x256)
+{
+    run_vec_op<int16_t, 16, 256>([](int16_t *out, int16_t *src0, int16_t *src1, void *stream) {
+        LaunchTCOLEXPANDMAX<int16_t, 16, 256>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TCOLEXPANDOPTest, case_min_int16_16x256_16x256_16x256)
+{
+    run_vec_op<int16_t, 16, 256>([](int16_t *out, int16_t *src0, int16_t *src1, void *stream) {
+        LaunchTCOLEXPANDMIN<int16_t, 16, 256>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TCOLEXPANDOPTest, case_div_int32_64x64_64x64_64x64)
+{
+    run_vec_op<int32_t, 64, 64>([](int32_t *out, int32_t *src0, int32_t *src1, void *stream) {
+        LaunchTCOLEXPANDDIV<int32_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TCOLEXPANDOPTest, case_mul_int32_64x64_64x64_64x64)
+{
+    run_vec_op<int32_t, 64, 64>([](int32_t *out, int32_t *src0, int32_t *src1, void *stream) {
+        LaunchTCOLEXPANDMUL<int32_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TCOLEXPANDOPTest, case_sub_int32_64x64_64x64_64x64)
+{
+    run_vec_op<int32_t, 64, 64>([](int32_t *out, int32_t *src0, int32_t *src1, void *stream) {
+        LaunchTCOLEXPANDSUB<int32_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TCOLEXPANDOPTest, case_add_int32_64x64_64x64_64x64)
+{
+    run_vec_op<int32_t, 64, 64>([](int32_t *out, int32_t *src0, int32_t *src1, void *stream) {
+        LaunchTCOLEXPANDADD<int32_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TCOLEXPANDOPTest, case_max_int32_64x64_64x64_64x64)
+{
+    run_vec_op<int32_t, 64, 64>([](int32_t *out, int32_t *src0, int32_t *src1, void *stream) {
+        LaunchTCOLEXPANDMAX<int32_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TCOLEXPANDOPTest, case_min_int32_64x64_64x64_64x64)
+{
+    run_vec_op<int32_t, 64, 64>([](int32_t *out, int32_t *src0, int32_t *src1, void *stream) {
+        LaunchTCOLEXPANDMIN<int32_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TCOLEXPANDOPTest, case_div_uint16_64x64_64x64_64x64)
+{
+    run_vec_op<uint16_t, 64, 64>([](uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream) {
+        LaunchTCOLEXPANDDIV<uint16_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TCOLEXPANDOPTest, case_mul_uint16_64x64_64x64_64x64)
+{
+    run_vec_op<uint16_t, 64, 64>([](uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream) {
+        LaunchTCOLEXPANDMUL<uint16_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TCOLEXPANDOPTest, case_sub_uint16_64x64_64x64_64x64)
+{
+    run_vec_op<uint16_t, 64, 64>([](uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream) {
+        LaunchTCOLEXPANDSUB<uint16_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TCOLEXPANDOPTest, case_add_uint16_64x64_64x64_64x64)
+{
+    run_vec_op<uint16_t, 64, 64>([](uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream) {
+        LaunchTCOLEXPANDADD<uint16_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TCOLEXPANDOPTest, case_max_uint16_64x64_64x64_64x64)
+{
+    run_vec_op<uint16_t, 64, 64>([](uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream) {
+        LaunchTCOLEXPANDMAX<uint16_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TCOLEXPANDOPTest, case_min_uint16_64x64_64x64_64x64)
+{
+    run_vec_op<uint16_t, 64, 64>([](uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream) {
+        LaunchTCOLEXPANDMIN<uint16_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TCOLEXPANDOPTest, case_div_uint32_64x64_64x64_64x64)
+{
+    run_vec_op<uint32_t, 64, 64>([](uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream) {
+        LaunchTCOLEXPANDDIV<uint32_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TCOLEXPANDOPTest, case_mul_uint32_64x64_64x64_64x64)
+{
+    run_vec_op<uint32_t, 64, 64>([](uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream) {
+        LaunchTCOLEXPANDMUL<uint32_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TCOLEXPANDOPTest, case_sub_uint32_64x64_64x64_64x64)
+{
+    run_vec_op<uint32_t, 64, 64>([](uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream) {
+        LaunchTCOLEXPANDSUB<uint32_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TCOLEXPANDOPTest, case_add_uint32_64x64_64x64_64x64)
+{
+    run_vec_op<uint32_t, 64, 64>([](uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream) {
+        LaunchTCOLEXPANDADD<uint32_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TCOLEXPANDOPTest, case_max_uint32_64x64_64x64_64x64)
+{
+    run_vec_op<uint32_t, 64, 64>([](uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream) {
+        LaunchTCOLEXPANDMAX<uint32_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
+TEST_F(TCOLEXPANDOPTest, case_min_uint32_64x64_64x64_64x64)
+{
+    run_vec_op<uint32_t, 64, 64>([](uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream) {
+        LaunchTCOLEXPANDMIN<uint32_t, 64, 64>(out, src0, src1, stream);
     });
 }

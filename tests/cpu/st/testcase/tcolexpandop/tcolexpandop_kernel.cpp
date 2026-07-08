@@ -190,3 +190,31 @@ template void LaunchTCOLEXPANDADD<float, 16, 16, 32, 32, 64, 64>(float *out, flo
 template void LaunchTCOLEXPANDMAX<float, 16, 16, 32, 32, 64, 64>(float *out, float *src0, float *src1, void *stream);
 template void LaunchTCOLEXPANDMIN<float, 16, 16, 32, 32, 64, 64>(float *out, float *src0, float *src1, void *stream);
 template void LaunchTCOLEXPANDEXPDIF<float, 16, 16, 32, 32, 64, 64>(float *out, float *src0, float *src1, void *stream);
+
+template void LaunchTCOLEXPANDDIV<int16_t, 16, 256>(int16_t *out, int16_t *src0, int16_t *src1, void *stream);
+template void LaunchTCOLEXPANDMUL<int16_t, 16, 256>(int16_t *out, int16_t *src0, int16_t *src1, void *stream);
+template void LaunchTCOLEXPANDSUB<int16_t, 16, 256>(int16_t *out, int16_t *src0, int16_t *src1, void *stream);
+template void LaunchTCOLEXPANDADD<int16_t, 16, 256>(int16_t *out, int16_t *src0, int16_t *src1, void *stream);
+template void LaunchTCOLEXPANDMAX<int16_t, 16, 256>(int16_t *out, int16_t *src0, int16_t *src1, void *stream);
+template void LaunchTCOLEXPANDMIN<int16_t, 16, 256>(int16_t *out, int16_t *src0, int16_t *src1, void *stream);
+
+template void LaunchTCOLEXPANDDIV<int32_t, 64, 64>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
+template void LaunchTCOLEXPANDMUL<int32_t, 64, 64>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
+template void LaunchTCOLEXPANDSUB<int32_t, 64, 64>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
+template void LaunchTCOLEXPANDADD<int32_t, 64, 64>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
+template void LaunchTCOLEXPANDMAX<int32_t, 64, 64>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
+template void LaunchTCOLEXPANDMIN<int32_t, 64, 64>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
+
+template void LaunchTCOLEXPANDDIV<uint16_t, 64, 64>(uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream);
+template void LaunchTCOLEXPANDMUL<uint16_t, 64, 64>(uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream);
+template void LaunchTCOLEXPANDSUB<uint16_t, 64, 64>(uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream);
+template void LaunchTCOLEXPANDADD<uint16_t, 64, 64>(uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream);
+template void LaunchTCOLEXPANDMAX<uint16_t, 64, 64>(uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream);
+template void LaunchTCOLEXPANDMIN<uint16_t, 64, 64>(uint16_t *out, uint16_t *src0, uint16_t *src1, void *stream);
+
+template void LaunchTCOLEXPANDDIV<uint32_t, 64, 64>(uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream);
+template void LaunchTCOLEXPANDMUL<uint32_t, 64, 64>(uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream);
+template void LaunchTCOLEXPANDSUB<uint32_t, 64, 64>(uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream);
+template void LaunchTCOLEXPANDADD<uint32_t, 64, 64>(uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream);
+template void LaunchTCOLEXPANDMAX<uint32_t, 64, 64>(uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream);
+template void LaunchTCOLEXPANDMIN<uint32_t, 64, 64>(uint32_t *out, uint32_t *src0, uint32_t *src1, void *stream);

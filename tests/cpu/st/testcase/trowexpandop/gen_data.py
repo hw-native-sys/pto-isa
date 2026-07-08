@@ -20,15 +20,24 @@ def gen_golden_data_trowexpandop(param, element_op: str):
     dtype = param.dtype
     row, col = [param.tile_row, param.tile_col]
 
-    input1 = np.random.uniform(low=-2, high=2, size=[param.in_row, param.in_col]).astype(dtype)
-    input2 = np.random.uniform(low=1, high=2, size=[param.in_row, 1]).astype(dtype)
+    is_integer = np.issubdtype(dtype, np.integer)
+
+    if is_integer:
+        input1 = np.random.randint(1, 8, size=[param.in_row, param.in_col]).astype(dtype)
+        input2 = np.random.randint(1, 8, size=[param.in_row, 1]).astype(dtype)
+    else:
+        input1 = np.random.uniform(low=-2, high=2, size=[param.in_row, param.in_col]).astype(dtype)
+        input2 = np.random.uniform(low=1, high=2, size=[param.in_row, 1]).astype(dtype)
     golden = np.zeros((param.out_row, param.out_col)).astype(dtype)
 
     input1_valid = input1[:row, :col]
     input2_valid = input2[:row, :1]
 
     if element_op == "div":
-        golden[:row, :col] = input1_valid / input2_valid
+        if is_integer:
+            golden[:row, :col] = input1_valid // input2_valid
+        else:
+            golden[:row, :col] = input1_valid / input2_valid
     elif element_op == "mul":
         golden[:row, :col] = input1_valid * input2_valid
     elif element_op == "sub":
@@ -61,7 +70,11 @@ class TRowExpandOpParams:
 
 
 def generate_case_name(param, element_op: str):
-    dtype_str = {np.float32: "float", np.float16: "half"}[param.dtype]
+    dtype_str = {
+        np.float32: "float", np.float16: "half",
+        np.int16: "int16", np.int32: "int32",
+        np.uint16: "uint16", np.uint32: "uint32"
+    }[param.dtype]
 
     def substring(a, b) -> str:
         return f"_{a}x{b}"
@@ -79,9 +92,17 @@ if __name__ == "__main__":
         TRowExpandOpParams(np.float16, 16, 256),
         TRowExpandOpParams(np.float32, 16, 16, 32, 32, 64, 64),
     ]
+    case_int_params_list = [
+        TRowExpandOpParams(np.int16, 16, 256),
+        TRowExpandOpParams(np.int32, 64, 64),
+        TRowExpandOpParams(np.uint16, 64, 64),
+        TRowExpandOpParams(np.uint32, 64, 64),
+    ]
     operations_list = ["div", "mul", "sub", "add", "min", "max", "expdif"]
+    operations_list_int = ["div", "mul", "sub", "add", "min", "max"]
 
     combinations = [(param, element_op) for param in case_params_list for element_op in operations_list]
+    combinations.extend((param, element_op) for param in case_int_params_list for element_op in operations_list_int)
 
     for param, element_op in combinations:
         case_name = generate_case_name(param, element_op)
