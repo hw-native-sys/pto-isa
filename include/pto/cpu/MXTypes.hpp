@@ -201,4 +201,16 @@ inline T getProperDataPart(T *buf, size_t offset)
     }
 }
 
+template <typename T>
+inline void setProperDataPart(T *buf, size_t offset, T val)
+{
+    if constexpr (isTwinType<T>()) {
+        uint16_t shiftByte = (offset % 2) ? HALF_BYTE_SHIFT : 0;
+        uint8_t rawVal = (val.RawData() & HALF_BYTE_MASK) << shiftByte;
+        buf[offset / 2] = T::FromRaw((buf[offset / 2].RawData() & ~(HALF_BYTE_MASK << shiftByte)) | rawVal);
+    } else {
+        buf[offset] = val;
+    }
+}
+
 #endif

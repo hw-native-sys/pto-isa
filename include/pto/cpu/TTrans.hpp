@@ -19,12 +19,31 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
+template <typename T>
+struct is_one_of_mx_types : std::disjunction<std::is_same<T, float4_e2m1x2_t>, std::is_same<T, float4_e1m2x2_t>,
+                                             std::is_same<T, float8_e8m0_t>, std::is_same<T, float8_e4m3_t>,
+                                             std::is_same<T, float8_e5m2_t> > {};
+
+template <typename T>
+inline constexpr bool is_one_of_mx_types_v = is_one_of_mx_types<T>::value;
+
+template <typename T>
+inline constexpr int GetTypeSize()
+{
+    if constexpr (is_one_of_mx_types_v<T>)
+        return 1;
+    else
+        return static_cast<int>(sizeof(T));
+}
+
 template <typename DstTileData, typename SrcTileData>
 inline void CheckValidConvShape(DstTileData &dst, SrcTileData &src)
 {
+    using T = typename DstTileData::DType;
+    constexpr int64_t C0 = 32 / GetTypeSize<T>() * (isTwinType<T>() ? 2 : 1);
+
     constexpr Layout src_layout = SrcTileData::layout;
     constexpr Layout dst_layout = DstTileData::layout;
-    constexpr int64_t C0 = 32 / sizeof(typename DstTileData::DType);
     constexpr int DIM_0 = pto::GlobalTensorDim::DIM_0;
     constexpr int DIM_1 = pto::GlobalTensorDim::DIM_1;
     constexpr int DIM_2 = pto::GlobalTensorDim::DIM_2;
@@ -93,16 +112,8 @@ inline void TTRANS_GNCHW2NC1HWC0_Impl(DstTileData &dst, SrcTileData &src, int64_
     auto *src_ptr = reinterpret_cast<SrcDType *>(src.data());
     auto *dst_ptr = reinterpret_cast<DstDType *>(dst.data());
 
-    constexpr int64_t C0 = 32 / sizeof(SrcDType);
+    constexpr int64_t C0 = (32 / GetTypeSize<SrcDType>()) * (isTwinType<DstDType>() ? 2 : 1);
     int64_t C1 = (C + C0 - 1) / C0;
-    size_t Size = G * N * C1 * H * W * C0;
-
-    if constexpr (reverse) {
-        std::fill(src.data(), src.data() + Size, 0);
-    } else {
-        std::fill(dst.data(), dst.data() + Size, 0);
-    }
-
     const size_t HW = H * W;
     const size_t CHW = C * HW;
     const size_t C1HW_C0 = C1 * HW * C0;
@@ -185,19 +196,14 @@ inline void TTRANS_GNC1HWC02C1HWN1N0C0_Impl(DstTileData &dst, SrcTileData &src, 
     using SrcDType = typename SrcTileData::DType;
     using DstDType = typename DstTileData::DType;
 
-    const auto *src_ptr = reinterpret_cast<const SrcDType *>(src.data());
+    auto *src_ptr = reinterpret_cast<SrcDType *>(src.data());
     auto *dst_ptr = reinterpret_cast<DstDType *>(dst.data());
 
     int64_t N1 = dst.GetShape(1);
     int64_t N0 = dst.GetShape(2);
     int64_t C0 = dst.GetShape(3);
 
-    if (N0 <= 0) {
-        throw std::invalid_argument("N0 must be greater than 0!");
-    }
-
-    size_t Size = dst.GetShape(0) * N1 * N0 * C0;
-    std::fill(dst.data(), dst.data() + Size, 0);
+    assert(N0 > 0 && "N0 must be greater than 0!");
 
     const size_t HW = H * W;
     const size_t C1HW = C1 * HW;
@@ -284,10 +290,6 @@ inline void TTRANS_NCDHW2DC1HWN1N0C0(DstTileData &dst, SrcTileData &src)
     const int64_t N0 = dst.GetShape(2);
     const int64_t N1 = dst.GetShape(1);
     const int64_t C1 = (C + C0 - 1) / C0;
-
-    // Zero out destination
-    size_t Size = dst.GetShape(0) * N1 * N0 * C0;
-    std::fill(dst.data(), dst.data() + Size, 0);
 
     const size_t HW = H * W;
     const size_t DHW = D * HW;

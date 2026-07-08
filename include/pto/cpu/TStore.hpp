@@ -15,6 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <cassert>
 #include "pto/cpu/parallel.hpp"
 #include "common.hpp"
+#include "MXTypes.hpp"
 #include "nz_utils.hpp"
 
 namespace pto {
@@ -31,7 +32,7 @@ PTO_INTERNAL void TStoreInstrL12Gm(__cbuf__ typename TileData::DType *dst, typen
     for (uint16_t i = 0; i < nBurst; i++) {
         for (size_t j = 0; j < lenBurst * elemNum; j++) {
             // Write from buffer (src) to GM (dst)
-            dst[dstStride * i + j] = src[srcStride * i + j];
+            setProperDataPart(dst, dstStride * i + j, src[srcStride * i + j]);
         }
     }
 }
@@ -106,7 +107,7 @@ __tf__ PTO_INLINE void StorePlainMatrix(typename GlobalData::DType __out__ *dst,
                                  if constexpr (atomicAdd) {
                                      AtomicAccumulate(&dst[dstIdx], out);
                                  } else {
-                                     dst[dstIdx] = out;
+                                     setProperDataPart(dst, dstIdx, out);
                                  }
                              }
                          });
@@ -143,7 +144,7 @@ __tf__ PTO_INLINE void StorePlainMatrix(typename GlobalData::DType __out__ *dst,
                                  if constexpr (atomicAdd) {
                                      AtomicAccumulate(&dst[dstIdx], out);
                                  } else {
-                                     dst[dstIdx] = out;
+                                     setProperDataPart(dst, dstIdx, out);
                                  }
                              }
                          });
