@@ -39,6 +39,28 @@ PTO_INTERNAL void TPOP_IMPL(Pipe &pipe, TileCons &tile)
         if (get_subblockid() != 0) {
             cpu_pipe::FillTile(tile, typename TileCons::DType{});
         }
+        using GlobalData = GlobalTensor<T, Shape<1, 1, 1, rows, cols>, Stride<1, 1, 1, cols, 1>>;
+        auto *addr = reinterpret_cast<__gm__ T *>(reinterpret_cast<std::uintptr_t>(pipe.fifo.GM_SLOT_BUFFER) +
+                                                  entryBase + subOffset);
+        GlobalData globalData(addr);
+        TLOAD_IMPL(tile, globalData);
+    } else if constexpr (Pipe::is_c2v) {
+        using T = typename TileCons::DType;
+        constexpr uint32_t splitCount = cpu_pipe::GetSplitCount<Split>();
+        const uint32_t splitIndex = (get_subblockid() < splitCount) ? get_subblockid() : (splitCount - 1);
+        const auto &slotStorage = Pipe::GetSharedState().local_slot_storage[slotIndex];
+        const auto *slotPtr = reinterpret_cast<const T *>(slotStorage.data() + splitIndex * Pipe::RingFiFo::SLOT_SIZE +
+                                                          pipe.cons.entryOffset);
+        cpu_pipe::CopyLinearToTile(tile, slotPtr, static_cast<uint32_t>(tile.GetValidCol()));
+    } else if constexpr (Pipe::is_v2c) {
+        using T = typename TileCons::DType;
+        constexpr int rows = TileCons::Rows;
+        constexpr int cols = TileCons::Cols;
+        using SlotTile = Tile<TileType::Mat, T, rows, cols, BLayout::RowMajor, rows, cols>;
+
+        SlotTile slotTile;
+        TASSIGN(slotTile, static_cast<uint64_t>(pipe.fifo.V2C_CONSUMER_BUF + entryBase));
+        TMOV_IMPL(tile, slotTile);
     }
 }
 

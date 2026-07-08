@@ -249,34 +249,17 @@ PTO_INTERNAL void InsertTileWindow(DstTileData &dst, SrcTileData &src, uint32_t 
     }
 }
 
-template <typename T, typename SrcTileData>
-PTO_INTERNAL void InsertTileWindowToLinear(T *dst, uint32_t dstCols, SrcTileData &src, uint32_t rowOffset = 0,
-                                           uint32_t colOffset = 0)
+template <typename DstT, typename SrcTileData, QuantMode_t quantMode, ReluPreMode reluPreMode>
+PTO_INTERNAL void CopyTileWindowToLinear(DstT *dst, uint32_t dstRows, uint32_t dstCols, SrcTileData &src,
+                                         uint32_t srcRowOffset, uint32_t srcColOffset,
+                                         const std::vector<uint64_t> &scalars = {})
 {
-    for (int r = 0; r < src.GetValidRow(); ++r) {
-        for (int c = 0; c < src.GetValidCol(); ++c) {
-            dst[(r + rowOffset) * dstCols + (c + colOffset)] = src.data()[GetTileElementOffset<SrcTileData>(r, c)];
-        }
-    }
-}
-
-template <typename T, typename SrcTileData>
-PTO_INTERNAL void StoreValidTileToLinear(T *dst, uint32_t dstCols, SrcTileData &src)
-{
-    for (int r = 0; r < src.GetValidRow(); ++r) {
-        for (int c = 0; c < src.GetValidCol(); ++c) {
-            dst[r * dstCols + c] = src.data()[GetTileElementOffset<SrcTileData>(r, c)];
-        }
-    }
-}
-
-template <typename T, typename SrcTileData>
-PTO_INTERNAL void CopyTileWindowToLinear(T *dst, uint32_t dstCols, SrcTileData &src, uint32_t dstRows,
-                                         uint32_t srcRowOffset = 0, uint32_t srcColOffset = 0)
-{
+    using SrcT = typename SrcTileData::DType;
+    constexpr bool use_relu = reluPreMode == ReluPreMode::NormalRelu;
     for (uint32_t r = 0; r < dstRows; ++r) {
         for (uint32_t c = 0; c < dstCols; ++c) {
-            dst[r * dstCols + c] = src.data()[GetTileElementOffset<SrcTileData>(r + srcRowOffset, c + srcColOffset)];
+            SrcT val = src.data()[GetTileElementOffset<SrcTileData>(r + srcRowOffset, c + srcColOffset)];
+            dst[r * dstCols + c] = ConvertStoreValue<DstT, SrcT, quantMode, use_relu>(val, scalars[c]);
         }
     }
 }
@@ -1000,17 +983,10 @@ PTO_INTERNAL void TPush_c2v(Pipe &pipe, TileProd &tile, size_t entryBase, size_t
     constexpr QuantMode_t QuantPre = TConfig::QuantPre;
     constexpr ReluPreMode ReluMode = TConfig::ReluMode;
 
-    // A slot holds SlotSize bytes, which is derived from the tile's valid footprint
-    // (ValidRow x ValidCol) — the region the consumer actually pops. An Acc tile is allocated at
-    // the L0C fractal granularity (Rows x Cols), which may be larger than its valid region, so the
-    // copy is sized by the valid footprint to match the slot. The footprint is taken from the
-    // runtime valid shape (GetValidRow/GetValidCol) when it is not a positive compile-time value.
-    const uint32_t prodRows = (TileProd::ValidRow > 0) ? static_cast<uint32_t>(TileProd::ValidRow) :
-                                                         static_cast<uint32_t>(tile.GetValidRow());
-    const uint32_t prodCols = (TileProd::ValidCol > 0) ? static_cast<uint32_t>(TileProd::ValidCol) :
-                                                         static_cast<uint32_t>(tile.GetValidCol());
-    const uint32_t consRows = (Split == TileSplitAxis::TILE_UP_DOWN) ? (prodRows / 2) : prodRows;
-    const uint32_t consCols = (Split == TileSplitAxis::TILE_LEFT_RIGHT) ? (prodCols / 2) : prodCols;
+    constexpr int consRows =
+        (Split == TileSplitAxis::TILE_UP_DOWN) ? (TileProd::Rows / 2) : static_cast<int>(TileProd::Rows);
+    constexpr int consCols =
+        (Split == TileSplitAxis::TILE_LEFT_RIGHT) ? (TileProd::Cols / 2) : static_cast<int>(TileProd::Cols);
 
     std::vector<uint64_t> scalars(consCols, 0);
     if constexpr (QuantPre != QuantMode_t::NoQuant) {
@@ -1039,15 +1015,11 @@ PTO_INTERNAL void TPush_v2c(Pipe &pipe, TileProd &tile, size_t entryBase)
     constexpr int consCols =
         (Split == TileSplitAxis::TILE_LEFT_RIGHT) ? (TileProd::Cols * 2) : static_cast<int>(TileProd::Cols);
     using SlotTile = Tile<TileType::Mat, DstT, consRows, consCols, BLayout::RowMajor, consRows, consCols>;
-    (void)entryBase;
-    const std::size_t slotIndex = static_cast<std::size_t>(pipe.prod.getTileId() % Pipe::RingFiFo::SLOT_NUM);
-    auto &slotStorage = Pipe::GetSharedState().local_slot_storage[slotIndex];
-    auto *slotPtr = reinterpret_cast<DstT *>(slotStorage.data() + pipe.prod.entryOffset);
-    const uint32_t rowOff = cpu_pipe::GetSplitRowOffset<Split, SlotTile>();
-    const uint32_t colOff = cpu_pipe::GetSplitColOffset<Split, SlotTile>();
-    cpu_pipe::FillLinearRegion(slotPtr, static_cast<uint32_t>(consCols), static_cast<DstT>(0), rowOff,
-                               static_cast<uint32_t>(TileProd::Rows), colOff, static_cast<uint32_t>(TileProd::Cols));
-    cpu_pipe::InsertTileWindowToLinear(slotPtr, static_cast<uint32_t>(consCols), tile, rowOff, colOff);
+    SlotTile slotTile;
+    TASSIGN(slotTile, static_cast<uint64_t>(pipe.fifo.V2C_CONSUMER_BUF + entryBase));
+    cpu_pipe::FillTile(slotTile, static_cast<DstT>(0));
+    cpu_pipe::InsertTileWindow(slotTile, tile, cpu_pipe::GetSplitRowOffset<Split, SlotTile>(),
+                               cpu_pipe::GetSplitColOffset<Split, SlotTile>());
 }
 
 template <typename Pipe, typename TileProd, typename TConfig, TileSplitAxis Split>
@@ -1064,39 +1036,26 @@ PTO_INTERNAL void TPush_impl(Pipe &pipe, TileProd &tile)
         slotIndex * Pipe::RingFiFo::SLOT_SIZE + static_cast<std::size_t>(pipe.prod.entryOffset);
 
     if (pipe.fifo.GM_SLOT_BUFFER != nullptr) {
-        using T = typename TileProd::DType;
-        constexpr int rows = TileProd::Rows;
-        constexpr int cols = TileProd::Cols;
-        std::size_t subOffset = 0;
-        if constexpr (Split != TileSplitAxis::TILE_NO_SPLIT) {
-            subOffset = static_cast<std::size_t>(get_subblockid()) * rows * cols * sizeof(T);
-        }
-        using GlobalData = GlobalTensor<T, Shape<1, 1, 1, rows, cols>, Stride<1, 1, 1, cols, 1>>;
-        auto *addr = reinterpret_cast<__gm__ T *>(reinterpret_cast<std::uintptr_t>(pipe.fifo.GM_SLOT_BUFFER) +
-                                                  entryBase + subOffset);
-        GlobalData globalData(addr);
-        TSTORE(globalData, tile);
-    } else if constexpr (Pipe::is_c2v) {
-        TPush_c2v<Pipe, TileProd, Split>(pipe, tile, entryBase, slotIndex);
-    } else if constexpr (Pipe::is_v2c) {
-        TPush_v2c<Pipe, TileProd, Split>(pipe, tile, entryBase);
+        TPush_gm<Pipe, TileProd, TConfig, Split>(pipe, tile, entryBase);
+    } else if constexpr (Pipe::is_v2c && TileProd::Loc == TileType::Vec) {
+        TPush_v2c<Pipe, TileProd, TConfig, Split>(pipe, tile, entryBase);
+    } else if constexpr (Pipe::is_c2v && TileProd::Loc != TileType::Vec) {
+        TPush_c2v<Pipe, TileProd, TConfig, Split>(pipe, tile, entryBase, slotIndex);
     }
     if (pipe.prod.getRecordStatus()) {
         pipe.prod.template record<TileProd, Split>();
     }
 }
 
-template <typename Pipe, typename TileProd, TileSplitAxis Split, std::enable_if_t<!is_global_data_v<TileProd>, int> = 0>
+template <typename Pipe, typename TileProd, TileSplitAxis Split>
 PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
 {
     using FixpipeConfig = FixpipeParams<LayoutMode_t::NZ2ND, QuantMode_t::NoQuant>;
     TPush_impl<Pipe, TileProd, FixpipeConfig, Split>(pipe, tile);
 }
 
-template <
-    typename TileProd, typename Pipe,
-    std::enable_if_t<(is_tile_data_v<TileProd> || is_conv_tile_v<TileProd>)&&!is_global_data_v<TileProd>, int> = 0>
-PTO_INTERNAL void TPUSH_REVERSED_IMPL(TileProd &tile, Pipe &pipe)
+template <typename TileProd, typename Pipe>
+PTO_INTERNAL void TPUSH_IMPL(TileProd &tile, Pipe &pipe)
 {
     TPUSH_IMPL<Pipe, TileProd, TileSplitAxis::TILE_NO_SPLIT>(pipe, tile);
 }
@@ -1105,36 +1064,6 @@ template <typename Pipe, typename TileProd, typename TConfig>
 PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
 {
     TPush_impl<Pipe, TileProd, TConfig, TileSplitAxis::TILE_NO_SPLIT>(pipe, tile);
-}
-
-template <typename Pipe, typename GlobalData, TileSplitAxis Split,
-          std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
-PTO_INTERNAL void TALLOC_GLOBAL_IMPL(Pipe &pipe, GlobalData &gmTensor)
-{
-    if (pipe.prod.getAllocateStatus()) {
-        pipe.prod.template allocate<GlobalData, Split>();
-    }
-    const std::size_t slotIndex = static_cast<std::size_t>(pipe.prod.getTileId() % Pipe::RingFiFo::SLOT_NUM);
-    const std::size_t entryBase =
-        slotIndex * Pipe::RingFiFo::SLOT_SIZE + static_cast<std::size_t>(pipe.prod.entryOffset);
-    auto *addr = reinterpret_cast<typename GlobalData::DType *>(
-        reinterpret_cast<std::uintptr_t>(pipe.fifo.GM_SLOT_BUFFER) + entryBase);
-    TASSIGN_IMPL(gmTensor, addr);
-    pipe.prod.setAllocateStatus(false);
-}
-
-template <typename Pipe, typename GlobalData, TileSplitAxis Split,
-          std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
-PTO_INTERNAL void TPUSH_GLOBAL_IMPL(Pipe &pipe, GlobalData &gmTensor)
-{
-    (void)gmTensor;
-    if (pipe.prod.getAllocateStatus()) {
-        pipe.prod.template allocate<GlobalData, Split>();
-    }
-    if (pipe.prod.getRecordStatus()) {
-        pipe.prod.template record<GlobalData, Split>();
-    }
-    pipe.prod.setAllocateStatus(true);
 }
 
 } // namespace pto
