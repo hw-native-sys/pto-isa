@@ -326,6 +326,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TFusedMulAddRelu.hpp"
 #endif
 
+#ifdef PTO_NPU_ARCH_A6
+#include "pto/npu/a6/header.hpp"
+#endif
+
 #ifdef PTO_NPU_ARCH_KIRIN9030
 #include "pto/npu/kirin9030/header.hpp"
 #endif

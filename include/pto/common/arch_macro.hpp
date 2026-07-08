@@ -24,6 +24,12 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #elif __NPU_ARCH__ == 3003
 #define PTO_COMM_NOT_SUPPORTED
 #define PTO_NPU_ARCH_KIRINX90
+#elif __NPU_ARCH__ == 5101
+#define PTO_COMM_NOT_SUPPORTED
+#define PTO_NPU_ARCH_KIRIN5101
+#elif __NPU_ARCH__ == 9201
+#define PTO_COMM_NOT_SUPPORTED
+#define PTO_NPU_ARCH_A6
 #endif
 
 #if defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90)

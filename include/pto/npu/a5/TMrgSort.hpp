@@ -26,13 +26,6 @@ constexpr const int BLOCK_NUM = 4;
 constexpr const int ONE_ROW = 1;
 constexpr const int EMPTY_LIST_SIZE = 0;
 
-struct MrgSortExecutedNumList {
-    uint16_t mrgSortList0;
-    uint16_t mrgSortList1;
-    uint16_t mrgSortList2;
-    uint16_t mrgSortList3;
-};
-
 template <bool exhausted>
 PTO_INTERNAL uint64_t InitConfig()
 {

@@ -20,13 +20,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-struct MrgSortExecutedNumList {
-    uint16_t mrgSortList0;
-    uint16_t mrgSortList1;
-    uint16_t mrgSortList2;
-    uint16_t mrgSortList3;
-};
-
 constexpr size_t STRUCT_BYTES = 8;
 constexpr const int LIST_NUM_1 = 1;
 constexpr const int LIST_NUM_2 = 2;

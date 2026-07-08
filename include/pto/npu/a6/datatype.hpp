@@ -1,0 +1,148 @@
+/**
+Copyright (c) 2025 Huawei Technologies Co., Ltd.
+This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+CANN Open Software License Agreement Version 2.0 (the "License").
+Please refer to the License for details. You may not use this file except in compliance with the License.
+THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+See LICENSE in the root of the software repository for the full text of the License.
+*/
+
+#ifndef PTO__DATATYPE_IMPL_H
+#define PTO__DATATYPE_IMPL_H
+
+namespace pto {
+template <typename T>
+struct TypeGet;
+#if defined(__DAV_VEC__) || (defined(__CCE_AICORE__) && !defined(__CPU_SIM) && !defined(__COSTMODEL))
+template <>
+struct TypeGet<bfloat16_t> {
+    using T = vector_bf16;
+};
+template <>
+struct TypeGet<float8_e5m2_t> {
+    using T = vector_f8e5m2;
+};
+template <>
+struct TypeGet<float8_e4m3_t> {
+    using T = vector_f8e4m3;
+};
+template <>
+struct TypeGet<hifloat8_t> {
+    using T = vector_hif8;
+};
+template <>
+struct TypeGet<float8_e8m0_t> {
+    using T = vector_f8e8m0;
+};
+template <>
+struct TypeGet<float4_e1m2x2_t> {
+    using T = vector_f4e1m2x2;
+};
+template <>
+struct TypeGet<float4_e2m1x2_t> {
+    using T = vector_f4e2m1x2;
+};
+#endif
+template <>
+struct TypeGet<uint64_t> {
+    using T = vector_u64;
+};
+template <>
+struct TypeGet<int64_t> {
+    using T = vector_s64;
+};
+template <>
+struct TypeGet<uint32_t> {
+    using T = vector_u32;
+};
+template <>
+struct TypeGet<int32_t> {
+    using T = vector_s32;
+};
+template <>
+struct TypeGet<float> {
+    using T = vector_f32;
+};
+template <>
+struct TypeGet<uint16_t> {
+    using T = vector_u16;
+};
+template <>
+struct TypeGet<half> {
+    using T = vector_f16;
+};
+template <>
+struct TypeGet<int16_t> {
+    using T = vector_s16;
+};
+template <>
+struct TypeGet<uint8_t> {
+    using T = vector_u8;
+};
+template <>
+struct TypeGet<int8_t> {
+    using T = vector_s8;
+};
+
+// Specializations for vector types (identity mappings)
+template <>
+struct TypeGet<vector_u64> {
+    using T = vector_u64;
+};
+template <>
+struct TypeGet<vector_s64> {
+    using T = vector_s64;
+};
+template <>
+struct TypeGet<vector_u32> {
+    using T = vector_u32;
+};
+template <>
+struct TypeGet<vector_s32> {
+    using T = vector_s32;
+};
+template <>
+struct TypeGet<vector_f32> {
+    using T = vector_f32;
+};
+template <>
+struct TypeGet<vector_u16> {
+    using T = vector_u16;
+};
+template <>
+struct TypeGet<vector_f16> {
+    using T = vector_f16;
+};
+template <>
+struct TypeGet<vector_s16> {
+    using T = vector_s16;
+};
+template <>
+struct TypeGet<vector_u8> {
+    using T = vector_u8;
+};
+template <>
+struct TypeGet<vector_s8> {
+    using T = vector_s8;
+};
+#if defined(__DAV_VEC__) || (defined(__CCE_AICORE__) && !defined(__CPU_SIM) && !defined(__COSTMODEL))
+template <>
+struct TypeGet<vector_bf16> {
+    using T = vector_bf16;
+};
+template <>
+struct TypeGet<vector_hif8> {
+    using T = vector_hif8;
+};
+template <>
+struct TypeGet<vector_f8e8m0> {
+    using T = vector_f8e8m0;
+};
+template <>
+struct TypeGet<vector_f4e1m2x2> {
+    using T = vector_f4e1m2x2;
+};
+#endif
+} // namespace pto
+#endif
