@@ -46,6 +46,7 @@ class NPUMemoryModel {
 private:
     enum MemoryRegion
     {
+        REG, // Registers - simulates NPU registers
         UB,  // Unified Buffer - for Vec tiles
         L1,  // L1 Buffer - for Mat tiles
         L0A, // L0A Buffer - for Left tiles
@@ -63,6 +64,7 @@ private:
     // A2/A3:
     // https://www.hiascend.com/doc_center/source/zh/canncommercial/80RC3/devguide/appdevg/sdpdevg/atlasprogramming_12_0003.html
     static inline constexpr ArchMemorySizes kA2A3MemorySizes = {
+        16 * 8,     // REGISTERS 16 with 8 byte
         192 * 1024, // UB:  192 KB
         512 * 1024, // L1:  512 KB
         64 * 1024,  // L0A: 64 KB
@@ -71,6 +73,7 @@ private:
     };
 
     static inline constexpr ArchMemorySizes kA5MemorySizes = {
+        16 * 8,     // REGISTERS 16 with 8 byte
         256 * 1024, // UB:  256 KB
         512 * 1024, // L1:  512 KB
         64 * 1024,  // L0A: 64 KB (placeholder - verify actual A5 spec)
@@ -168,6 +171,11 @@ public:
     }
 
     // Get raw buffer bases (for debugging/direct access)
+    char *GetREGBase()
+    {
+        EnsureInitialized();
+        return buffers_[MemoryRegion::REG].data();
+    }
     char *GetUBBase()
     {
         EnsureInitialized();

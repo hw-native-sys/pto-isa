@@ -14,6 +14,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <pto/common/type.hpp>
 
+#ifdef __CPU_SIM
+#include <pto/cpu/common.hpp>
+#endif
+
 namespace pto {
 
 typedef enum

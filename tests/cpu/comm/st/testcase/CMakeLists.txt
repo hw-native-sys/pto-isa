@@ -21,7 +21,6 @@ function(pto_cpu_sim_comm_st NAME)
         ${PROJECT_SOURCE_DIR}/../../stubs
         ${PROJECT_SOURCE_DIR}/../../../common
     )
-    message(STATUS "Fooooooooooooldeeeeeeeeeeeer : ${PROJECT_SOURCE_DIR}")
     target_link_libraries(${NAME} PRIVATE
         ${PTO_CPU_SIM_GTEST_MAIN_TARGET}
         Threads::Threads

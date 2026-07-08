@@ -117,6 +117,7 @@ tprefetch
 tprelu
 tprint
 tpushpop
+tpushpop_fixpipe
 tput
 tput_async
 tquant
