@@ -113,7 +113,6 @@ tshrs %dst, %src, 16
 | --- | --- | --- |
 | *(none)* | 标准形式 | `tadd` |
 | `s` | 标量变体 | `tadds` |
-| `c` | carry / saturating 变体 | `taddc`, `tsubc` |
 | `sc` | 标量 + carry | `taddsc`, `tsubsc` |
 | `_fp` | 浮点专用变体 | `tstore_fp`, `tinsert_fp` |
 | `_acc` | 累加变体 | `tmatmul_acc` |

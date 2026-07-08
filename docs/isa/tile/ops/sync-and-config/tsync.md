@@ -140,5 +140,5 @@ void example() {
 ## See Also
 
 - Instruction set overview: [Sync And Config](../../sync-and-config.md)
-- Next op in instruction set: [pto.sethf32mode](./sethf32mode.md)
+- Next op in instruction set: [pto.syncall](./syncall.md)
 - [Ordering and Synchronization](../../../machine-model/ordering-and-synchronization.md) for the full event model

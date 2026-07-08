@@ -44,7 +44,6 @@ mscatter
 setgetval
 tabs
 tadd
-taddc
 tadds
 taddsc
 tassign
@@ -81,12 +80,11 @@ tgather
 tgatherb
 tget
 tget_async
-tget_scale_addr
-tgetscaleaddr
 thistogram
 timg2col
 tinsert
 tinsert_quant
+tisa_coverage
 tload
 tloadconv
 tlog
@@ -152,7 +150,6 @@ tstore_quant
 tstore_conv
 tsub
 tsubview
-tsubc
 tsubrelu
 tsubs
 tsubsc

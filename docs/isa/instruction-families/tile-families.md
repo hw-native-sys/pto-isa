@@ -23,16 +23,15 @@ Tile Buffer ──► Tile Compute ──► Tile Buffer ──► pto.tstore: T
 
 | | Class | Description | Examples |
 |-|-------|-------------|----------|
-| | Sync and Config | Resource binding, tile address assignment, alias views, pipeline synchronization | `pto.tassign`, `pto.tsync`, `pto.talias`, `pto.sethf32mode`, `pto.settf32mode`, `pto.setfmatrix`, `pto.set_img2col_rpt`, `pto.set_img2col_padding`, `pto.subview`, `pto.get_scale_addr` |
+| | Sync and Config | Resource binding, tile address assignment, alias views, pipeline synchronization | `pto.tassign`, `pto.tsync`, `pto.talias`, `pto.subview` |
 | | Elementwise Tile-Tile | Lane-wise binary and unary operations | `pto.tadd`, `pto.tmul`, `pto.tpow`, `pto.tcmp`, `pto.tcvt`, `pto.tsel`, `pto.trelu` |
 | | Tile-Scalar and Immediate | Tile combined with scalar or immediate operands | `pto.tadds`, `pto.taxpy`, `pto.tmuls`, `pto.tpows`, `pto.tlrelu`, `pto.tcmps` |
 | | Reduce and Expand | Row/column reductions and expansions | `pto.trowsum`, `pto.tcolmax`, `pto.trowexpand`, `pto.tcolexpand` |
 | | Memory and Data Movement | GM↔tile transfer, gather/scatter | `pto.tload`, `pto.tstore`, `pto.mgather`, `pto.mscatter` |
 | | Matrix and Matrix-Vector | GEMV, matmul, and variants | `pto.tgemv`, `pto.tgemv_mx`, `pto.tmatmul`, `pto.tmatmul_acc`, `pto.tmatmul_bias` |
-| | Layout and Rearrangement | Reshape, transpose, extract, insert, concatenate, pack | `pto.tmov`, `pto.ttrans`, `pto.tconcat`, `pto.tpack`, `pto.treshape`, `pto.textract`, `pto.tinsert`, `pto.timg2col` |
+| | Layout and Rearrangement | Reshape, transpose, extract, insert, concatenate, pack | `pto.tmov`, `pto.ttrans`, `pto.tconcat`, `pto.treshape`, `pto.textract`, `pto.tinsert`, `pto.timg2col` |
 | | Irregular and Complex | Sort, quantize, dequantize, generated state, index movement, partial reductions | `pto.tmrgsort`, `pto.tsort32`, `pto.tquant`, `pto.tdequant`, `pto.trandom`, `pto.thistogram`, `pto.tgather`, `pto.tpartadd` |
 
-> **Configuration tile-side modes** (`pto.sethf32mode`, `pto.settf32mode`, `pto.setfmatrix`, `pto.set_img2col_rpt`, `pto.set_img2col_padding`, `pto.subview`, `pto.get_scale_addr`) are Tile ISA instructions that program tile-mode registers. They are architecturally tile-state configuration, not scalar control-shell ops. They are documented in the [Sync and Config](../tile/sync-and-config.md) group.
 
 ## Inputs
 
@@ -101,17 +100,6 @@ See [Tiles And Valid Regions](../programming-model/tiles-and-valid-regions.md) f
     - Assuming implicit broadcasting, reshaping, or valid-region repair unless documented.
     - Using MX format tiles (`TileType::Left`/`Right`) on CPU or A2/A3 profiles.
     - Using FP8 element types on CPU or A2/A3 profiles.
-
-## Saturating Variants
-
-Operations with the `_c` suffix perform saturating arithmetic:
-
-| | Variant | Base Op | Overflow/Underflow Behavior |
-|-|---------|---------|---------------------------|
-| | `pto.taddc` | Addition | Saturating: result is clamped to the type's min/max representable value |
-| | `pto.tsubc` | Subtraction | Saturating: result is clamped to the type's min/max representable value |
-
-Programs MUST NOT assume that `taddc` and `tadd` produce identical results when overflow does not occur; they MAY differ even for in-range values due to implementation precision choices.
 
 ## Type Support by Profile
 

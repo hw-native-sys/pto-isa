@@ -226,5 +226,5 @@ TCVT(dst, src, tmp, RoundMode::CAST_TRUNC, SaturationMode::OFF);
 ## 相关页面
 
 - 指令集总览：[逐元素 Tile-Tile](../../elementwise-tile-tile_zh.md)
-- 上一条指令：[pto.tsubc](./tsubc_zh.md)
+- 上一条指令：[pto.tprelu](./tprelu_zh.md)
 - 下一条指令：[pto.tsel](./tsel_zh.md)

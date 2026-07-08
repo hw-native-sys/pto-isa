@@ -122,7 +122,7 @@ PTO_INTERNAL void Timg2colConvTileCheck(TileData &dst, ConvTileData &src)
         "Fix: Data type must be int8_t/uint8_t/int16_t/uint16_t/int32_t/uint32_t/half/bfloat16_t/float!");
 }
 
-template <typename TileData, typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL>
+template <typename TileData, typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_AUTO>
 PTO_INTERNAL void TIMG2COL_IMPL(TileData &dst, ConvTileData &src, uint16_t posM, uint16_t posK)
 {
     Timg2colConvTileCheck<TileData, ConvTileData>(dst, src);

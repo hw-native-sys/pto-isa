@@ -25,66 +25,6 @@
       "notes": []
     },
     {
-      "instruction": "SETHF32MODE",
-      "category": "Manual / Resource Binding",
-      "summary_en": "Configure HF32 transform mode (implementation-defined).",
-      "summary_zh": "设置 HF32 变换模式（实现定义）。",
-      "diagram_template": "config",
-      "operands": [
-        "config",
-        "state"
-      ],
-      "notes": []
-    },
-    {
-      "instruction": "SETTF32MODE",
-      "category": "Manual / Resource Binding",
-      "summary_en": "Configure TF32 transform mode (implementation-defined).",
-      "summary_zh": "设置 TF32 变换模式（实现定义）。",
-      "diagram_template": "config",
-      "operands": [
-        "config",
-        "state"
-      ],
-      "notes": []
-    },
-    {
-      "instruction": "SETFMATRIX",
-      "category": "Manual / Resource Binding",
-      "summary_en": "Set FMATRIX register(s) for IMG2COL-like ops.",
-      "summary_zh": "为类 IMG2COL 操作设置 FMATRIX 寄存器。",
-      "diagram_template": "config",
-      "operands": [
-        "config",
-        "state"
-      ],
-      "notes": []
-    },
-    {
-      "instruction": "SET_IMG2COL_RPT",
-      "category": "Manual / Resource Binding",
-      "summary_en": "Set IMG2COL repeat metadata from an IMG2COL configuration tile.",
-      "summary_zh": "从 IMG2COL 配置 Tile 设置 IMG2COL 重复次数元数据。",
-      "diagram_template": "config",
-      "operands": [
-        "config",
-        "state"
-      ],
-      "notes": []
-    },
-    {
-      "instruction": "SET_IMG2COL_PADDING",
-      "category": "Manual / Resource Binding",
-      "summary_en": "Set IMG2COL padding metadata from an IMG2COL configuration tile.",
-      "summary_zh": "从 IMG2COL 配置 Tile 设置 IMG2COL 填充元数据。",
-      "diagram_template": "config",
-      "operands": [
-        "config",
-        "state"
-      ],
-      "notes": []
-    },
-    {
       "instruction": "TADD",
       "category": "Elementwise (Tile-Tile)",
       "summary_en": "Elementwise add of two tiles.",
@@ -284,32 +224,6 @@
       "category": "Elementwise (Tile-Tile)",
       "summary_en": "Elementwise PReLU (parametric ReLU) with a per-element slope tile.",
       "summary_zh": "带逐元素斜率 Tile 的逐元素参数化 ReLU (PReLU)。",
-      "diagram_template": "elementwise",
-      "operands": [
-        "dst",
-        "src0",
-        "src1"
-      ],
-      "notes": []
-    },
-    {
-      "instruction": "TADDC",
-      "category": "Elementwise (Tile-Tile)",
-      "summary_en": "Elementwise ternary add: `src0 + src1 + src2`.",
-      "summary_zh": "三元逐元素加法：`src0 + src1 + src2`。",
-      "diagram_template": "elementwise",
-      "operands": [
-        "dst",
-        "src0",
-        "src1"
-      ],
-      "notes": []
-    },
-    {
-      "instruction": "TSUBC",
-      "category": "Elementwise (Tile-Tile)",
-      "summary_en": "Elementwise ternary op: `src0 - src1 + src2`.",
-      "summary_zh": "三元逐元素运算：`src0 - src1 + src2`。",
       "diagram_template": "elementwise",
       "operands": [
         "dst",
@@ -1403,18 +1317,6 @@
         "src",
         "rowOffset",
         "colOffset"
-      ],
-      "notes": []
-    },
-    {
-      "instruction": "TGET_SCALE_ADDR",
-      "category": "Manual / Resource Binding",
-      "summary_en": "Bind the on-chip address of output tile to a scaled factor of that of input tile.",
-      "summary_zh": "将输出tile的片上内存值绑定为扩展后的输入tile内存的值。",
-      "diagram_template": "reshape_move",
-      "operands": [
-        "dst",
-        "src"
       ],
       "notes": []
     },

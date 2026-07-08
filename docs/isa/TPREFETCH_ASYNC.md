@@ -1,5 +1,7 @@
 # TPREFETCH_ASYNC
 
+![TPREFETCH_ASYNC tile operation](../figures/isa/TPREFETCH_ASYNC.svg)
+
 ## Introduction
 
 Prefetch data from Global Memory (GM/HBM) into the NPU's L2 Cache via SDMA CMO (Cache Maintenance Operation, opcode=6). Unlike `TPREFETCH`, which moves data from GM into UB, `TPREFETCH_ASYNC` keeps data in L2 cache only, consuming no UB space for the data itself. This allows subsequent `TLOAD` operations to hit L2 cache instead of going to GM.
@@ -12,6 +14,22 @@ Prefetch data from Global Memory (GM/HBM) into the NPU's L2 Cache via SDMA CMO (
 GM / HBM  ──(SDMA CMO prefetch)──>  L2 Cache
                                        │
                                        └── subsequent TLOAD hits L2 (fast)
+```
+
+## Assembly Syntax
+
+PTO-AS form: see [Assembly model](syntax-and-operands/assembly-model.md).
+
+### IR Level 1 (SSA)
+
+```text
+%evt = pto.tprefetch_async %src, %ctx : (!pto.global_tensor<...>, !pto.prefetch_async_context) -> !pto.async_event
+```
+
+### IR Level 2 (DPS)
+
+```text
+%evt = pto.tprefetch_async ins(%src, %ctx : !pto.global_tensor<...>, !pto.prefetch_async_context)
 ```
 
 ## C++ Intrinsic

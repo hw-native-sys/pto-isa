@@ -12,13 +12,7 @@
 | [pto.tsync](./ops/sync-and-config/tsync_zh.md) | 等待事件或插入屏障 | 同步 |
 | [pto.syncall](./ops/sync-and-config/syncall_zh.md) | 跨核同步屏障 | 同步 |
 | [pto.talias](./ops/sync-and-config/talias.md) | 基于同一底层存储创建 tile alias 视图 | 视图 |
-| [pto.sethf32mode](./ops/sync-and-config/sethf32mode_zh.md) | 设置 tile 路径的 HF32 行为 | 模式配置 |
-| [pto.settf32mode](./ops/sync-and-config/settf32mode_zh.md) | 设置 tile 路径的 TF32 行为 | 模式配置 |
-| [pto.setfmatrix](./ops/sync-and-config/setfmatrix_zh.md) | 设置 FMATRIX engine 模式与地址 | 模式配置 |
-| [pto.set_img2col_rpt](./ops/sync-and-config/set-img2col-rpt_zh.md) | 设置 img2col 重复次数 | 模式配置 |
-| [pto.set_img2col_padding](./ops/sync-and-config/set-img2col-padding_zh.md) | 设置 img2col padding 形态 | 模式配置 |
 | [pto.subview](./ops/sync-and-config/subview.md) | 基于已有 tile 创建子视图 | 视图 |
-| [pto.get_scale_addr](./ops/sync-and-config/get-scale-addr.md) | 取得量化 / MX 路径使用的 scale 地址 | 辅助查询 |
 
 ## 机制
 
@@ -51,9 +45,7 @@
 
 `TALIAS` 创建的是 alias 视图，不复制 tile payload。它改变的是可见 tile 视图与合法访问关系；底层字节仍由源 tile 和 alias 共同引用。
 
-### TGET_SCALE_ADDR
 
-`TGET_SCALE_ADDR` 用于取得量化或 MX 路径使用的 scale 地址，便于后续配置或调度使用。它本身不改变 tile 载荷。
 
 ## 为什么这组指令要单列
 

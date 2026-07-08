@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-label="TPREFETCH_ASYNC tile operation diagram">
+<defs>
+  <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0,0 L0,12 L12,6 z" fill="#6A47C4"/></marker>
+  <marker id="axisArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L0,10 L10,5 z" fill="#64748b"/></marker>
+</defs>
+<style>
+svg { font-family: Arial, Helvetica, sans-serif; }
+.title { font-size: 30px; font-weight: 700; fill: #0f172a; }
+.subtitle { font-size: 14px; fill: #334155; }
+.meta { font-size: 12px; fill: #64748b; }
+.frame { fill: white; }
+.panel { fill: #F0EDFF; stroke: #e2e8f0; stroke-width: 1.5; rx: 14; }
+.tileLabel { font-size: 14px; font-weight: 700; fill: #0f172a; }
+.tileBorder { fill: none; stroke: #475569; stroke-width: 1.5; }
+.cell { fill: #ffffff; stroke: #94a3b8; stroke-width: 1; }
+.cellMasked { fill: #e2e8f0; }
+.cellHL { stroke-width: 2; }
+.cellText { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 10px; fill: #0f172a; }
+.arrow { stroke-width: 2.5; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.axisLine { stroke: #64748b; stroke-width: 1.5; fill: none; }
+.axisText { font-size: 10px; fill: #64748b; font-weight: 700; }
+.opCircle { fill: #ffffff; stroke-width: 2; }
+.opRect { fill: #ffffff; stroke-width: 2; }
+.opText { font-size: 10px; font-weight: 800; fill: #0f172a; }
+.procBox { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.5; rx: 12; }
+.procTitle { font-size: 14px; font-weight: 700; fill: #0f172a; }
+.procText { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; fill: #0f172a; }
+.smallLabel { font-size: 12px; fill: #334155; }
+.scalarBox { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.5; }
+.scalarValue { font-size: 16px; font-weight: 700; }
+.validBox { fill: none; stroke-width: 2; stroke-dasharray: 6 4; }
+</style>
+<rect x="0" y="0" width="1200" height="720" class="frame" />
+<rect x="24" y="24" width="1152" height="672" class="panel" />
+<text x="40" y="46" class="title">TPREFETCH_ASYNC</text>
+<text x="40" y="72" class="subtitle">Asynchronously prefetch a GlobalTensor region from GM into L2 cache via SDMA CMO.</text>
+<text x="40" y="92" class="meta">Template: memory</text>
+<text x="1160" y="92" class="meta" text-anchor="end">Legend: outline=example; dashed=valid rows/cols (Rv,Cv); shaded=masked; r down / c right; ortho arrows=dataflow</text>
+<line x1="36" y1="104" x2="1164" y2="104" stroke="#e2e8f0" stroke-width="1.5" />
+<text x="600" y="140" class="subtitle" text-anchor="middle" fill="#6A47C4">GM[...] -&gt; L2 cache (async)</text>
+<text x="430" y="212" class="tileLabel" text-anchor="middle">GlobalTensor / GM</text>
+<rect x="298" y="222" width="264" height="22" class="tileBorder" />
+<rect x="298" y="222" width="22" height="22" class="cell" />
+<rect x="320" y="222" width="22" height="22" class="cell" />
+<rect x="342" y="222" width="22" height="22" class="cell" />
+<rect x="364" y="222" width="22" height="22" class="cell" />
+<rect x="386" y="222" width="22" height="22" class="cell" />
+<rect x="408" y="222" width="22" height="22" class="cell" />
+<rect x="430" y="222" width="22" height="22" class="cell cellHL" stroke="#6A47C4" />
+<rect x="452" y="222" width="22" height="22" class="cell" />
+<rect x="474" y="222" width="22" height="22" class="cell" />
+<rect x="496" y="222" width="22" height="22" class="cell" />
+<rect x="518" y="222" width="22" height="22" class="cell" />
+<rect x="540" y="222" width="22" height="22" class="cell" />
+<rect x="742" y="186" width="160" height="54" rx="10" class="scalarBox" />
+<text x="754" y="206" class="smallLabel">context</text>
+<text x="754" y="228" class="scalarValue" fill="#6A47C4">ctx</text>
+<rect x="490" y="388" width="160" height="54" rx="10" class="scalarBox" />
+<text x="502" y="408" class="smallLabel">L2 cache</text>
+<text x="502" y="430" class="scalarValue" fill="#6A47C4">prefetched</text>
+<path d="M 441 256 L 441 322 L 600 322 L 600 388" class="arrow" stroke="#6A47C4" marker-end="url(#arrow)" />
+<path d="M 822 252 L 822 340 L 600 340 L 600 388" class="arrow" stroke="#6A47C4" marker-end="url(#arrow)" />
+<rect x="40" y="502" width="1120" height="194" class="procBox" />
+<text x="56" y="528" class="procTitle">Procedure (conceptual)</text>
+<text x="56" y="554" class="procText" xml:space="preserve">
+  <tspan x="56" dy="0">TPREFETCH_ASYNC(srcGlobal, ctx)</tspan>
+  <tspan x="56" dy="16">1) Build SDMA CMO prefetch metadata from srcGlobal.</tspan>
+  <tspan x="56" dy="16">2) Submit async prefetch into L2 cache.</tspan>
+  <tspan x="56" dy="16">3) Return AsyncEvent; consumers wait before dependent TLOAD.</tspan>
+</text>
+<text x="56" y="680" class="meta">Note: semantics apply to the valid region unless stated otherwise.</text>
+</svg>

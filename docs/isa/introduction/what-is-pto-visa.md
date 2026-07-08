@@ -199,7 +199,7 @@ PTO ISA
 │   ├── DMA Copy                     GM↔vector-tile-buffer transfer configuration
 │   ├── Predicate Load/Store         Mask-based scalar memory access
 │   ├── Predicate Generation         pset, pge, plt, pand, por, pxor, pnot, etc.
-│   ├── Control and Configuration    tile-prefixed mode/config ops such as sethf32mode, settf32mode, and setfmatrix
+│   ├── Control and Configuration    tile-prefixed mode/config ops
 │   └── Shared Arithmetic/SCF         Scalar arithmetic and structured control flow
 │
 ├── Communication Instructions (pto.*)       Collective and runtime operations
@@ -271,9 +271,6 @@ The human-readable assembly spelling — the preferred form for documentation an
 ```asm
 # Scalar operand suffix: immediate added to each tile element
 tadds %dst, %src, 0x3F800000  : !pto.tile<f32, 16, 16>
-
-# Saturating carry variant
-taddc %dst, %src0, %src1       : !pto.tile<f32, 16, 16>
 
 # Tile with explicit memory operand: load from GlobalTensor view
 tload %tile, %gtensor[%r, %c]  : (!pto.tile<f32,16,16>, !pto.memref<f32,1x16x16x16>) -> !pto.tile<f32,16,16>

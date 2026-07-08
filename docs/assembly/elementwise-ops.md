@@ -296,42 +296,6 @@ pto.tprelu ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst 
 
 ---
 
-### TADDC
-
-For detailed instruction documentation, see [isa/TADDC](../isa/tile/ops/elementwise-tile-tile/taddc.md)
-
-**AS Level 1 (SSA):**
-
-```text
-%dst = pto.taddc %src0, %src1, %src2 : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-```
-
-**AS Level 2 (DPS):**
-
-```text
-pto.taddc ins(%src0, %src1, %src2 : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
-```
-
----
-
-### TSUBC
-
-For detailed instruction documentation, see [isa/TSUBC](../isa/tile/ops/elementwise-tile-tile/tsubc.md)
-
-**AS Level 1 (SSA):**
-
-```text
-%dst = pto.tsubc %src0, %src1, %src2 : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-```
-
-**AS Level 2 (DPS):**
-
-```text
-pto.tsubc ins(%src0, %src1, %src2 : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
-```
-
----
-
 ### TCVT
 
 For detailed instruction documentation, see [isa/TCVT](../isa/tile/ops/elementwise-tile-tile/tcvt.md)

@@ -20,7 +20,7 @@ This overview groups all scalar/control operations by their architectural role:
 
 The `pto.*` instruction set is where PTO exposes stateful setup and synchronization explicitly. These forms are still part of the virtual ISA contract, but their visible outputs are control, mask, or configuration state rather than tile or vector payload results.
 
-The Tile ISA instruction set ([Sync and Config group](../tile/sync-and-config.md)) handles tile-mode configuration such as `pto.sethf32mode`, `pto.settf32mode`, `pto.setfmatrix`, `pto.set_img2col_rpt`, and `pto.set_img2col_padding`. These are Tile ISA instructions because they program tile-mode state; they are **not** in this scalar/control section.
+The Tile ISA instruction set ([Sync and Config group](../tile/sync-and-config.md)) handles tile-mode configuration. These are Tile ISA instructions because they program tile-mode state; they are **not** in this scalar/control section.
 
 This Control and Configuration section has no standalone operation list. Scalar/control operations are covered by the Pipeline Sync, DMA Copy, Predicate Load Store, Predicate Generation, and Micro-Instruction subfamilies.
 

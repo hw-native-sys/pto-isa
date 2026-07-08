@@ -242,5 +242,5 @@ pto.tcvt ins(%src {rmode = #pto.round_mode<CAST_RINT>}: !pto.tile_buf<...>) outs
 ## Related Ops / Instruction Set Links
 
 - Instruction set overview: [Elementwise Tile Tile](../../elementwise-tile-tile.md)
-- Previous op in instruction set: [pto.tsubc](./tsubc.md)
+- Previous op in instruction set: [pto.tprelu](./tprelu.md)
 - Next op in instruction set: [pto.tsel](./tsel.md)

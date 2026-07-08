@@ -109,7 +109,6 @@ Immediate operands are encoded directly in the instruction:
 ```
 tadds %dst, %src, 0x3F800000   -- 32-bit float immediate (1.0f)
 tshrs %dst, %src, 16            -- 16-bit shift amount
-taddc %dst, %src0, %src1       -- carry-variant, no immediate
 ```
 
 ## Instruction Suffixes
@@ -120,7 +119,6 @@ PTO uses suffixes to distinguish operation variants:
 |--------|---------|---------|
 | *(none)* | Standard binary op | `tadd` |
 | `s` | Scalar variant: second operand is an immediate scalar | `tadds %dst, %src, 0x3F800000` |
-| `c` | Carry variant: saturating arithmetic | `taddc`, `tsubc` |
 | `sc` | Scalar + carry variant | `taddsc`, `tsubsc` |
 | `_fp` | Floating-point special handling | `tstore_fp`, `tinsert_fp` |
 | `_acc` | Accumulating variant | `tmatmul_acc` |

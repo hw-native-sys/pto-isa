@@ -1,5 +1,7 @@
 # TPREFETCH_ASYNC
 
+![TPREFETCH_ASYNC tile operation](../figures/isa/TPREFETCH_ASYNC.svg)
+
 ## 简介
 
 `TPREFETCH_ASYNC` 通过 SDMA CMO（Cache Maintenance Operation, opcode=6）将 Global Memory (GM/HBM) 中的数据异步预取到 NPU L2 Cache。与将数据搬入 UB 的 `TPREFETCH` 不同，`TPREFETCH_ASYNC` 只将数据预热到 L2 Cache，不占用数据对应的 UB 空间，后续依赖的 `TLOAD` 可以从 L2 命中。
@@ -12,6 +14,22 @@
 GM / HBM  --(SDMA CMO prefetch)-->  L2 Cache
                                          |
                                          +-- 后续 TLOAD 命中 L2
+```
+
+## 汇编语法
+
+PTO-AS 形式：参见 [汇编写法与操作数](syntax-and-operands/assembly-model_zh.md)。
+
+### AS Level 1（SSA）
+
+```text
+%evt = pto.tprefetch_async %src, %ctx : (!pto.global_tensor<...>, !pto.prefetch_async_context) -> !pto.async_event
+```
+
+### AS Level 2（DPS）
+
+```text
+%evt = pto.tprefetch_async ins(%src, %ctx : !pto.global_tensor<...>, !pto.prefetch_async_context)
 ```
 
 ## C++ 内建接口

@@ -168,11 +168,6 @@ __global__ AICORE void RunTMATMULMX(__gm__ OutType *out, __gm__ AType *src0, __g
     TMOV(aScaleTile, aScaleMatTile);
     TMOV(bScaleTile, bScaleMatTile);
 
-#ifdef __PTO_AUTO__
-    TGET_SCALE_ADDR(aScaleTile, aTile);
-    TGET_SCALE_ADDR(bScaleTile, bTile);
-#endif
-
     if constexpr (isBias) {
         TMOV(biasTile, biasDataTile);
     }
@@ -322,11 +317,6 @@ __global__ AICORE void RunTMATMULMX_SPLIT_K(__gm__ OutType *out, __gm__ AType *s
         TMOV(aScaleTile, aScaleMatTile);
         TMOV(bScaleTile, bScaleMatTile);
 
-#ifdef __PTO_AUTO__
-        TGET_SCALE_ADDR(aScaleTile, aTile);
-        TGET_SCALE_ADDR(bScaleTile, bTile);
-#endif
-
         if constexpr (isBias) {
             TMOV(biasTile, biasDataTile);
         }
@@ -457,11 +447,6 @@ __global__ AICORE void RunTGEMVMX(__gm__ OutType *out, __gm__ AType *src0, __gm_
 
     TMOV(aScaleTile, aScaleMatTile);
     TMOV(bScaleTile, bScaleMatTile);
-
-#ifdef __PTO_AUTO__
-    TGET_SCALE_ADDR(aScaleTile, aTile);
-    TGET_SCALE_ADDR(bScaleTile, bTile);
-#endif
 
 #ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
@@ -600,11 +585,6 @@ __global__ AICORE void RunTGEMVMX_SPLIT_K(__gm__ OutType *out, __gm__ AType *src
         TEXTRACT(bTile, bMatTile, 0, 0);
         TMOV(aScaleTile, aScaleMatTile);
         TMOV(bScaleTile, bScaleMatTile);
-
-#ifdef __PTO_AUTO__
-        TGET_SCALE_ADDR(aScaleTile, aTile);
-        TGET_SCALE_ADDR(bScaleTile, bTile);
-#endif
 
         if (i == 0) {
             TMOV(biasTile, biasDataTile);

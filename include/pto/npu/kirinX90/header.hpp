@@ -29,9 +29,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/kirinX90/TInsert.hpp"
 #include "pto/npu/kirinX90/TMov.hpp"
 #include "pto/npu/a2a3/TImg2col.hpp"
-#include "pto/npu/a2a3/SetFmatrix.hpp"
-#include "pto/npu/a2a3/SetImg2colRpt.hpp"
-#include "pto/npu/a2a3/SetImg2colPadding.hpp"
 #ifdef __DAV_VEC__
 #include "pto/npu/kirinX90/TCvt.hpp"
 #endif

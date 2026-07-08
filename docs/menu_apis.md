@@ -11,9 +11,6 @@
 
 - 手动/资源绑定
     - [TASSIGN](isa/tile/ops/sync-and-config/tassign_zh.md)
-    - [pto.setfmatrix](isa/tile/ops/sync-and-config/setfmatrix.md)
-    - [pto.set_img2col_rpt](isa/tile/ops/sync-and-config/set-img2col-rpt.md)
-    - [pto.set_img2col_padding](isa/tile/ops/sync-and-config/set-img2col-padding.md)
 
 - 逐元素（Tile-Tile）
     - [TADD](isa/tile/ops/elementwise-tile-tile/tadd_zh.md)
@@ -32,8 +29,6 @@
     - [TLOG](isa/tile/ops/elementwise-tile-tile/tlog_zh.md)
     - [TRECIP](isa/tile/ops/elementwise-tile-tile/trecip_zh.md)
     - [TPRELU](isa/tile/ops/elementwise-tile-tile/tprelu_zh.md)
-    - [TADDC](isa/tile/ops/elementwise-tile-tile/taddc_zh.md)
-    - [TSUBC](isa/tile/ops/elementwise-tile-tile/tsubc_zh.md)
     - [TCVT](isa/tile/ops/elementwise-tile-tile/tcvt_zh.md)
     - [TSEL](isa/tile/ops/elementwise-tile-tile/tsel_zh.md)
     - [TRSQRT](isa/tile/ops/elementwise-tile-tile/trsqrt_zh.md)

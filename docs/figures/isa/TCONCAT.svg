@@ -33,7 +33,7 @@ svg { font-family: Arial, Helvetica, sans-serif; }
 <rect x="0" y="0" width="1200" height="720" class="frame" />
 <rect x="24" y="24" width="1152" height="672" class="panel" />
 <text x="40" y="46" class="title">TCONCAT</text>
-<text x="40" y="72" class="subtitle">Concatenate two source tiles along the column dimension into a destination tile.</text>
+<text x="40" y="72" class="subtitle">Concatenate two tiles horizontally along the column dimension.</text>
 <text x="40" y="92" class="meta">Template: reshape_move</text>
 <text x="1160" y="92" class="meta" text-anchor="end">Legend: outline=example; dashed=valid rows/cols (Rv,Cv); shaded=masked; r down / c right; ortho arrows=dataflow</text>
 <line x1="36" y1="104" x2="1164" y2="104" stroke="#e2e8f0" stroke-width="1.5" />

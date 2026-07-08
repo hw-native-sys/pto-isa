@@ -104,7 +104,7 @@ PTO_INTERNAL Img2ColParams<ConvTileData> ExtractImg2ColParams(const ConvTileData
     return params;
 }
 
-template <typename TileData, typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL>
+template <typename TileData, typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_AUTO>
 PTO_INTERNAL void TIMG2COL_IMPL(TileData &dst, ConvTileData &src, uint16_t posM, uint16_t posK)
 {
     (void)FmatrixMode;

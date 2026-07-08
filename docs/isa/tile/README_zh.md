@@ -14,7 +14,7 @@
 | [归约与扩展](./reduce-and-expand_zh.md) | 行 / 列归约和按轴扩展 | `TROWSUM`、`TROWEXPAND` |
 | [内存与数据搬运](./memory-and-data-movement_zh.md) | GM 与 tile 间传输，以及 tile 侧 gather / scatter | `TLOAD`、`TSTORE` |
 | [矩阵与矩阵-向量](./matrix-and-matrix-vector_zh.md) | cube 路径矩阵乘、GEMV 及其变体 | `TMATMUL`、`TGEMV` |
-| [布局与重排](./layout-and-rearrangement_zh.md) | reshape、transpose、concat、pack、extract、insert、img2col | `TTRANS`、`TCONCAT`、`TPACK` |
+| [布局与重排](./layout-and-rearrangement_zh.md) | reshape、transpose、concat、extract、insert、img2col | `TTRANS`、`TCONCAT` |
 | [不规则与复杂](./irregular-and-complex_zh.md) | 排序、量化、反量化、生成状态、索引型搬运、部分归约等 | `TSORT32`、`TQUANT`、`TDEQUANT`、`TRANDOM` |
 
 ## 常见 tile 角色

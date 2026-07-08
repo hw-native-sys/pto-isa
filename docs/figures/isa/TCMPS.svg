@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-label="TCMPS tile operation diagram">
 <defs>
-  <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#1D8E63"/></marker>
-  <marker id="axisArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#64748b"/></marker>
+  <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0,0 L0,12 L12,6 z" fill="#1D8E63"/></marker>
+  <marker id="axisArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L0,10 L10,5 z" fill="#64748b"/></marker>
 </defs>
 <style>
 svg { font-family: Arial, Helvetica, sans-serif; }
@@ -16,7 +16,7 @@ svg { font-family: Arial, Helvetica, sans-serif; }
 .cellMasked { fill: #e2e8f0; }
 .cellHL { stroke-width: 2; }
 .cellText { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 10px; fill: #0f172a; }
-.arrow { stroke-width: 1.5; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.arrow { stroke-width: 2.5; fill: none; stroke-linejoin: round; stroke-linecap: round; }
 .axisLine { stroke: #64748b; stroke-width: 1.5; fill: none; }
 .axisText { font-size: 10px; fill: #64748b; font-weight: 700; }
 .opCircle { fill: #ffffff; stroke-width: 2; }
@@ -29,215 +29,98 @@ svg { font-family: Arial, Helvetica, sans-serif; }
 .scalarBox { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.5; }
 .scalarValue { font-size: 16px; font-weight: 700; }
 .validBox { fill: none; stroke-width: 2; stroke-dasharray: 6 4; }
-.formTitle { font-size: 16px; font-weight: 700; fill: #1D8E63; }
-.divider { stroke: #cbd5e1; stroke-width: 1; stroke-dasharray: 8 4; }
 </style>
 <rect x="0" y="0" width="1200" height="720" class="frame" />
 <rect x="24" y="24" width="1152" height="672" class="panel" />
 <text x="40" y="46" class="title">TCMPS</text>
-<text x="40" y="72" class="subtitle">Compare a tile against a scalar or the first element of another tile and write per-element comparison results.</text>
+<text x="40" y="72" class="subtitle">Compare a tile against a scalar and write per-element comparison results.</text>
+<text x="40" y="92" class="meta">Template: scalar</text>
 <text x="1160" y="92" class="meta" text-anchor="end">Legend: outline=example; dashed=valid rows/cols (Rv,Cv); shaded=masked; r down / c right; ortho arrows=dataflow</text>
 <line x1="36" y1="104" x2="1164" y2="104" stroke="#e2e8f0" stroke-width="1.5" />
-<line x1="600" y1="110" x2="600" y2="490" class="divider" />
-
-<!-- ==================== LEFT: Scalar Form ==================== -->
-<text x="300" y="128" class="formTitle" text-anchor="middle">Scalar Form</text>
-<text x="300" y="148" class="subtitle" text-anchor="middle" fill="#1D8E63">dst_mask[r,c] = cmp(src[r,c], s)</text>
-
-<!-- src tile -->
-<text x="204" y="170" class="tileLabel" text-anchor="middle">src</text>
-<rect x="150" y="178" width="108" height="108" class="tileBorder" />
-<rect x="150" y="178" width="22" height="22" class="cell" />
-<rect x="172" y="178" width="22" height="22" class="cell" />
-<rect x="194" y="178" width="22" height="22" class="cell" />
-<rect x="216" y="178" width="22" height="22" class="cell" />
-<rect x="238" y="178" width="22" height="22" class="cell cellMasked" />
-<rect x="150" y="200" width="22" height="22" class="cell" />
-<rect x="172" y="200" width="22" height="22" class="cell" />
-<rect x="194" y="200" width="22" height="22" class="cell cellHL" stroke="#1D8E63" />
-<rect x="216" y="200" width="22" height="22" class="cell" />
-<rect x="238" y="200" width="22" height="22" class="cell cellMasked" />
-<rect x="150" y="222" width="22" height="22" class="cell" />
-<rect x="172" y="222" width="22" height="22" class="cell" />
-<rect x="194" y="222" width="22" height="22" class="cell" />
-<rect x="216" y="222" width="22" height="22" class="cell" />
-<rect x="238" y="222" width="22" height="22" class="cell cellMasked" />
-<rect x="150" y="244" width="22" height="22" class="cell" />
-<rect x="172" y="244" width="22" height="22" class="cell" />
-<rect x="194" y="244" width="22" height="22" class="cell" />
-<rect x="216" y="244" width="22" height="22" class="cell" />
-<rect x="238" y="244" width="22" height="22" class="cell cellMasked" />
-<rect x="150" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="172" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="194" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="216" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="238" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="150" y="178" width="88" height="88" class="validBox" stroke="#1D8E63" />
-<text x="154" y="262" class="axisText">Rv</text>
-<text x="234" y="190" class="axisText" text-anchor="end">Cv</text>
-<path d="M 160 188 L 194 188" class="axisLine" marker-end="url(#axisArrow)" />
-<path d="M 160 188 L 160 222" class="axisLine" marker-end="url(#axisArrow)" />
-<text x="198" y="192" class="axisText">c</text>
-<text x="158" y="226" class="axisText" text-anchor="end">r</text>
-
-<!-- scalar box -->
-<rect x="340" y="186" width="110" height="54" rx="10" class="scalarBox" />
-<text x="352" y="206" class="smallLabel">scalar</text>
-<text x="352" y="228" class="scalarValue" fill="#1D8E63">s</text>
-
-<!-- TCMPS op -->
-<circle cx="300" cy="310" r="22" class="opCircle" stroke="#1D8E63" />
-<rect x="283" y="293" width="34" height="34" rx="6" class="opRect" stroke="#1D8E63" />
-<text x="300" y="313" class="opText" font-size="10px" text-anchor="middle">TCMPS</text>
-
-<!-- dst(mask) tile -->
-<text x="300" y="355" class="tileLabel" text-anchor="middle">dst(mask)</text>
-<rect x="245" y="365" width="108" height="108" class="tileBorder" />
-<rect x="245" y="365" width="22" height="22" class="cell" />
-<rect x="267" y="365" width="22" height="22" class="cell" />
-<rect x="289" y="365" width="22" height="22" class="cell" />
-<rect x="311" y="365" width="22" height="22" class="cell" />
-<rect x="333" y="365" width="22" height="22" class="cell cellMasked" />
-<rect x="245" y="387" width="22" height="22" class="cell" />
-<rect x="267" y="387" width="22" height="22" class="cell" />
-<rect x="289" y="387" width="22" height="22" class="cell cellHL" stroke="#1D8E63" />
-<rect x="311" y="387" width="22" height="22" class="cell" />
-<rect x="333" y="387" width="22" height="22" class="cell cellMasked" />
-<rect x="245" y="409" width="22" height="22" class="cell" />
-<rect x="267" y="409" width="22" height="22" class="cell" />
-<rect x="289" y="409" width="22" height="22" class="cell" />
-<rect x="311" y="409" width="22" height="22" class="cell" />
-<rect x="333" y="409" width="22" height="22" class="cell cellMasked" />
-<rect x="245" y="431" width="22" height="22" class="cell" />
-<rect x="267" y="431" width="22" height="22" class="cell" />
-<rect x="289" y="431" width="22" height="22" class="cell" />
-<rect x="311" y="431" width="22" height="22" class="cell" />
-<rect x="333" y="431" width="22" height="22" class="cell cellMasked" />
-<rect x="245" y="453" width="22" height="22" class="cell cellMasked" />
-<rect x="267" y="453" width="22" height="22" class="cell cellMasked" />
-<rect x="289" y="453" width="22" height="22" class="cell cellMasked" />
-<rect x="311" y="453" width="22" height="22" class="cell cellMasked" />
-<rect x="333" y="453" width="22" height="22" class="cell cellMasked" />
-<rect x="245" y="365" width="88" height="88" class="validBox" stroke="#1D8E63" />
-<text x="249" y="449" class="axisText">Rv</text>
-<text x="329" y="377" class="axisText" text-anchor="end">Cv</text>
-<path d="M 255 375 L 289 375" class="axisLine" marker-end="url(#axisArrow)" />
-<path d="M 255 375 L 255 409" class="axisLine" marker-end="url(#axisArrow)" />
-<text x="293" y="379" class="axisText">c</text>
-<text x="253" y="413" class="axisText" text-anchor="end">r</text>
-
-<!-- Scalar form arrows -->
-<path d="M 204 286 L 204 310 L 279 310" class="arrow" stroke="#1D8E63" marker-end="url(#arrow)" />
-<path d="M 395 252 L 395 310 L 321 310" class="arrow" stroke="#1D8E63" marker-end="url(#arrow)" />
-<path d="M 300 332 L 300 366" class="arrow" stroke="#1D8E63" marker-end="url(#arrow)" />
-
-<!-- ==================== RIGHT: Tile Form ==================== -->
-<text x="900" y="128" class="formTitle" text-anchor="middle">Tile Form</text>
-<text x="900" y="148" class="subtitle" text-anchor="middle" fill="#1D8E63">dst_mask[r,c] = cmp(src0[r,c], src1[0,0])</text>
-
-<!-- src0 tile -->
-<text x="754" y="170" class="tileLabel" text-anchor="middle">src0</text>
-<rect x="700" y="178" width="108" height="108" class="tileBorder" />
-<rect x="700" y="178" width="22" height="22" class="cell" />
-<rect x="722" y="178" width="22" height="22" class="cell" />
-<rect x="744" y="178" width="22" height="22" class="cell" />
-<rect x="766" y="178" width="22" height="22" class="cell" />
-<rect x="788" y="178" width="22" height="22" class="cell cellMasked" />
-<rect x="700" y="200" width="22" height="22" class="cell" />
-<rect x="722" y="200" width="22" height="22" class="cell" />
-<rect x="744" y="200" width="22" height="22" class="cell cellHL" stroke="#1D8E63" />
-<rect x="766" y="200" width="22" height="22" class="cell" />
-<rect x="788" y="200" width="22" height="22" class="cell cellMasked" />
-<rect x="700" y="222" width="22" height="22" class="cell" />
-<rect x="722" y="222" width="22" height="22" class="cell" />
-<rect x="744" y="222" width="22" height="22" class="cell" />
-<rect x="766" y="222" width="22" height="22" class="cell" />
-<rect x="788" y="222" width="22" height="22" class="cell cellMasked" />
-<rect x="700" y="244" width="22" height="22" class="cell" />
-<rect x="722" y="244" width="22" height="22" class="cell" />
-<rect x="744" y="244" width="22" height="22" class="cell" />
-<rect x="766" y="244" width="22" height="22" class="cell" />
-<rect x="788" y="244" width="22" height="22" class="cell cellMasked" />
-<rect x="700" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="722" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="744" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="766" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="788" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="700" y="178" width="88" height="88" class="validBox" stroke="#1D8E63" />
-<text x="704" y="262" class="axisText">Rv</text>
-<text x="784" y="190" class="axisText" text-anchor="end">Cv</text>
-<path d="M 710 188 L 744 188" class="axisLine" marker-end="url(#axisArrow)" />
-<path d="M 710 188 L 710 222" class="axisLine" marker-end="url(#axisArrow)" />
-<text x="748" y="192" class="axisText">c</text>
-<text x="708" y="226" class="axisText" text-anchor="end">r</text>
-
-<!-- src1[0,0] scalar -->
-<rect x="900" y="186" width="110" height="54" rx="10" class="scalarBox" />
-<text x="912" y="206" class="smallLabel">src1[0,0]</text>
-<text x="912" y="228" class="scalarValue" fill="#E85D04">s</text>
-
-<!-- TCMPS op -->
-<circle cx="889" cy="310" r="22" class="opCircle" stroke="#1D8E63" />
-<rect x="872" y="293" width="34" height="34" rx="6" class="opRect" stroke="#1D8E63" />
-<text x="889" y="313" class="opText" font-size="10px" text-anchor="middle">TCMPS</text>
-
-<!-- dst(mask) tile -->
-<text x="900" y="355" class="tileLabel" text-anchor="middle">dst(mask)</text>
-<rect x="845" y="365" width="108" height="108" class="tileBorder" />
-<rect x="845" y="365" width="22" height="22" class="cell" />
-<rect x="867" y="365" width="22" height="22" class="cell" />
-<rect x="889" y="365" width="22" height="22" class="cell" />
-<rect x="911" y="365" width="22" height="22" class="cell" />
-<rect x="933" y="365" width="22" height="22" class="cell cellMasked" />
-<rect x="845" y="387" width="22" height="22" class="cell" />
-<rect x="867" y="387" width="22" height="22" class="cell" />
-<rect x="889" y="387" width="22" height="22" class="cell cellHL" stroke="#1D8E63" />
-<rect x="911" y="387" width="22" height="22" class="cell" />
-<rect x="933" y="387" width="22" height="22" class="cell cellMasked" />
-<rect x="845" y="409" width="22" height="22" class="cell" />
-<rect x="867" y="409" width="22" height="22" class="cell" />
-<rect x="889" y="409" width="22" height="22" class="cell" />
-<rect x="911" y="409" width="22" height="22" class="cell" />
-<rect x="933" y="409" width="22" height="22" class="cell cellMasked" />
-<rect x="845" y="431" width="22" height="22" class="cell" />
-<rect x="867" y="431" width="22" height="22" class="cell" />
-<rect x="889" y="431" width="22" height="22" class="cell" />
-<rect x="911" y="431" width="22" height="22" class="cell" />
-<rect x="933" y="431" width="22" height="22" class="cell cellMasked" />
-<rect x="845" y="453" width="22" height="22" class="cell cellMasked" />
-<rect x="867" y="453" width="22" height="22" class="cell cellMasked" />
-<rect x="889" y="453" width="22" height="22" class="cell cellMasked" />
-<rect x="911" y="453" width="22" height="22" class="cell cellMasked" />
-<rect x="933" y="453" width="22" height="22" class="cell cellMasked" />
-<rect x="845" y="365" width="88" height="88" class="validBox" stroke="#1D8E63" />
-<text x="849" y="449" class="axisText">Rv</text>
-<text x="929" y="377" class="axisText" text-anchor="end">Cv</text>
-<path d="M 855 375 L 889 375" class="axisLine" marker-end="url(#axisArrow)" />
-<path d="M 855 375 L 855 409" class="axisLine" marker-end="url(#axisArrow)" />
-<text x="893" y="379" class="axisText">c</text>
-<text x="853" y="413" class="axisText" text-anchor="end">r</text>
-
-<!-- Tile form arrows -->
-<path d="M 754 286 L 754 310 L 868 310" class="arrow" stroke="#1D8E63" marker-end="url(#arrow)" />
-<path d="M 955 240 L 955 310 L 910 310" class="arrow" stroke="#1D8E63" marker-end="url(#arrow)" />
-<path d="M 889 332 L 889 366" class="arrow" stroke="#1D8E63" marker-end="url(#arrow)" />
-
-<!-- ==================== Procedure ==================== -->
-<rect x="40" y="500" width="548" height="180" class="procBox" />
-<text x="56" y="526" class="procTitle">Procedure — Scalar Form</text>
-<text x="56" y="552" class="procText" xml:space="preserve">
+<text x="600" y="140" class="subtitle" text-anchor="middle" fill="#1D8E63">dst_mask[r,c] = cmp(src[r,c], s)</text>
+<text x="600" y="168" class="tileLabel" text-anchor="middle">src</text>
+<rect x="545" y="178" width="110" height="110" class="tileBorder" />
+<rect x="545" y="178" width="22" height="22" class="cell" />
+<rect x="567" y="178" width="22" height="22" class="cell" />
+<rect x="589" y="178" width="22" height="22" class="cell" />
+<rect x="611" y="178" width="22" height="22" class="cell" />
+<rect x="633" y="178" width="22" height="22" class="cell cellMasked" />
+<rect x="545" y="200" width="22" height="22" class="cell" />
+<rect x="567" y="200" width="22" height="22" class="cell" />
+<rect x="589" y="200" width="22" height="22" class="cell cellHL" stroke="#1D8E63" />
+<rect x="611" y="200" width="22" height="22" class="cell" />
+<rect x="633" y="200" width="22" height="22" class="cell cellMasked" />
+<rect x="545" y="222" width="22" height="22" class="cell" />
+<rect x="567" y="222" width="22" height="22" class="cell" />
+<rect x="589" y="222" width="22" height="22" class="cell" />
+<rect x="611" y="222" width="22" height="22" class="cell" />
+<rect x="633" y="222" width="22" height="22" class="cell cellMasked" />
+<rect x="545" y="244" width="22" height="22" class="cell" />
+<rect x="567" y="244" width="22" height="22" class="cell" />
+<rect x="589" y="244" width="22" height="22" class="cell" />
+<rect x="611" y="244" width="22" height="22" class="cell" />
+<rect x="633" y="244" width="22" height="22" class="cell cellMasked" />
+<rect x="545" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="567" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="589" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="611" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="633" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="545" y="178" width="88" height="88" class="validBox" stroke="#1D8E63" />
+<text x="549" y="262" class="axisText">Rv</text>
+<text x="629" y="190" class="axisText" text-anchor="end">Cv</text>
+<path d="M 555 188 L 589 188" class="axisLine" marker-end="url(#axisArrow)" />
+<path d="M 555 188 L 555 222" class="axisLine" marker-end="url(#axisArrow)" />
+<text x="593" y="192" class="axisText">c</text>
+<text x="553" y="226" class="axisText" text-anchor="end">r</text>
+<rect x="1000" y="186" width="160" height="54" rx="10" class="scalarBox" />
+<text x="1012" y="206" class="smallLabel">scalar</text>
+<text x="1012" y="228" class="scalarValue" fill="#1D8E63">s</text>
+<text x="600" y="350" class="tileLabel" text-anchor="middle">dst(mask)</text>
+<rect x="545" y="360" width="110" height="110" class="tileBorder" />
+<rect x="545" y="360" width="22" height="22" class="cell" />
+<rect x="567" y="360" width="22" height="22" class="cell" />
+<rect x="589" y="360" width="22" height="22" class="cell" />
+<rect x="611" y="360" width="22" height="22" class="cell" />
+<rect x="633" y="360" width="22" height="22" class="cell cellMasked" />
+<rect x="545" y="382" width="22" height="22" class="cell" />
+<rect x="567" y="382" width="22" height="22" class="cell" />
+<rect x="589" y="382" width="22" height="22" class="cell cellHL" stroke="#1D8E63" />
+<rect x="611" y="382" width="22" height="22" class="cell" />
+<rect x="633" y="382" width="22" height="22" class="cell cellMasked" />
+<rect x="545" y="404" width="22" height="22" class="cell" />
+<rect x="567" y="404" width="22" height="22" class="cell" />
+<rect x="589" y="404" width="22" height="22" class="cell" />
+<rect x="611" y="404" width="22" height="22" class="cell" />
+<rect x="633" y="404" width="22" height="22" class="cell cellMasked" />
+<rect x="545" y="426" width="22" height="22" class="cell" />
+<rect x="567" y="426" width="22" height="22" class="cell" />
+<rect x="589" y="426" width="22" height="22" class="cell" />
+<rect x="611" y="426" width="22" height="22" class="cell" />
+<rect x="633" y="426" width="22" height="22" class="cell cellMasked" />
+<rect x="545" y="448" width="22" height="22" class="cell cellMasked" />
+<rect x="567" y="448" width="22" height="22" class="cell cellMasked" />
+<rect x="589" y="448" width="22" height="22" class="cell cellMasked" />
+<rect x="611" y="448" width="22" height="22" class="cell cellMasked" />
+<rect x="633" y="448" width="22" height="22" class="cell cellMasked" />
+<rect x="545" y="360" width="88" height="88" class="validBox" stroke="#1D8E63" />
+<text x="549" y="444" class="axisText">Rv</text>
+<text x="629" y="372" class="axisText" text-anchor="end">Cv</text>
+<path d="M 555 370 L 589 370" class="axisLine" marker-end="url(#axisArrow)" />
+<path d="M 555 370 L 555 404" class="axisLine" marker-end="url(#axisArrow)" />
+<text x="593" y="374" class="axisText">c</text>
+<text x="553" y="408" class="axisText" text-anchor="end">r</text>
+<circle cx="600" cy="324" r="22" class="opCircle" stroke="#1D8E63" />
+<rect x="583" y="307" width="34" height="34" rx="6" class="opRect" stroke="#1D8E63" />
+<text x="600" y="327.0" class="opText" font-size="10px" text-anchor="middle">TCMPS</text>
+<path d="M 600 300 L 600 324 L 578 324 L 578 324" class="arrow" stroke="#1D8E63" marker-end="url(#arrow)" />
+<path d="M 1080 252 L 1080 324 L 622 324 L 622 324" class="arrow" stroke="#1D8E63" marker-end="url(#arrow)" />
+<path d="M 600 346 L 600 347 L 600 347 L 600 348" class="arrow" stroke="#1D8E63" marker-end="url(#arrow)" />
+<rect x="40" y="502" width="1120" height="194" class="procBox" />
+<text x="56" y="528" class="procTitle">Procedure (conceptual)</text>
+<text x="56" y="554" class="procText" xml:space="preserve">
   <tspan x="56" dy="0">for r in 0..Rv-1:</tspan>
   <tspan x="56" dy="16">  for c in 0..Cv-1:</tspan>
   <tspan x="56" dy="16">    dst_mask[r,c] = cmp(src[r,c], s)</tspan>
 </text>
-
-<rect x="612" y="500" width="548" height="180" class="procBox" />
-<text x="628" y="526" class="procTitle">Procedure — Tile Form</text>
-<text x="628" y="552" class="procText" xml:space="preserve">
-  <tspan x="628" dy="0">for r in 0..Rv-1:</tspan>
-  <tspan x="628" dy="16">  for c in 0..Cv-1:</tspan>
-  <tspan x="628" dy="16">    dst_mask[r,c] = cmp(src0[r,c], src1[0,0])</tspan>
-</text>
-
-<text x="56" y="696" class="meta">Note: semantics apply to the valid region unless stated otherwise.</text>
+<text x="56" y="680" class="meta">Note: semantics apply to the valid region unless stated otherwise.</text>
 </svg>

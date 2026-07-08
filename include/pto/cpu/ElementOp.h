@@ -55,8 +55,6 @@ enum class ElementOp
 
     // ternary operation
     OP_SEL,
-    OP_ADDC,
-    OP_SUBC,
 
     // Tile-Scalar Operation
     // Input scala
@@ -427,22 +425,6 @@ struct ElementOpCal<DType, ElementOp::OP_SEL> {
         } else {
             dst = src1;
         }
-    }
-};
-
-template <typename DType>
-struct ElementOpCal<DType, ElementOp::OP_ADDC> {
-    static void apply(DType &dst, DType &src0, DType &src1, DType &src2)
-    {
-        dst = src0 + src1 + src2;
-    }
-};
-
-template <typename DType>
-struct ElementOpCal<DType, ElementOp::OP_SUBC> {
-    static void apply(DType &dst, DType &src0, DType &src1, DType &src2)
-    {
-        dst = src0 - src1 + src2;
     }
 };
 

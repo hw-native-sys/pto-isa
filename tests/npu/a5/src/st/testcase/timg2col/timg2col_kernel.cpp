@@ -105,10 +105,7 @@ AICORE inline void runTIMG2COL(__gm__ T *out, __gm__ U *src0, __gm__ U *src1)
     aMatTile.SetChannelSize(fmapC1 * fmapC0);
     aMatTile.SetDstStride(CeilDivision<uint32_t>(M, 16));
 
-    SETFMATRIX<TileMatAData, SetFmatrixMode::FMATRIX_B_MANUAL>(aMatTile);
-    SET_IMG2COL_PADDING(aMatTile);
-    SET_IMG2COL_RPT<TileMatAData, SetFmatrixMode::FMATRIX_B_MANUAL>(aMatTile);
-    TIMG2COL<LeftTile, TileMatAData, SetFmatrixMode::FMATRIX_B_MANUAL>(aTile, aMatTile, 0, 0);
+    TIMG2COL<LeftTile, TileMatAData, SetFmatrixMode::FMATRIX_B_AUTO>(aTile, aMatTile, 0, 0);
     TMOV(bTile, bMatTile);
 
 #ifndef __PTO_AUTO__
@@ -204,7 +201,6 @@ AICORE inline void runTIMG2COLSplitK(__gm__ T *out, __gm__ U *src0, __gm__ U *sr
     aMatTile.SetStrideW(strideW);
     aMatTile.SetChannelSize(fmapC1 * fmapC0);
     aMatTile.SetDstStride(CeilDivision<uint32_t>(M, 16));
-    SET_IMG2COL_PADDING(aMatTile);
     constexpr int iter = K / baseK;
     for (int i = 0; i < iter; i++) {
         TIMG2COL<LeftTile, TileMatAData, SetFmatrixMode::FMATRIX_B_AUTO>(aTile, aMatTile, 0, i * baseK);
@@ -311,8 +307,6 @@ AICORE inline void runTIMG2COLFractalZ4D(__gm__ T *out, __gm__ U *src0, __gm__ U
     aMatTile.SetStrideW(strideW);
     aMatTile.SetChannelSize(fmapC1 * fmapC0);
     aMatTile.SetDstStride(CeilDivision<uint32_t>(M, 16));
-    SET_IMG2COL_RPT(aMatTile);
-    SETFMATRIX(aMatTile);
     constexpr int iter = K / baseK;
     for (int i = 0; i < iter; i++) {
         TIMG2COL(aTile, aMatTile, 0, i * baseK);

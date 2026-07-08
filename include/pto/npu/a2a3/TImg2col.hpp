@@ -87,7 +87,7 @@ __tf__ PTO_INTERNAL void TImg2col(typename TileData::TileDType __out__ dst, type
                          dilationW, dilationH, highFilterW, highFilterH, transpose, fmatrixCtrl, channelSize);
 }
 
-template <typename TileData, typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL>
+template <typename TileData, typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_AUTO>
 PTO_INTERNAL void TIMG2COL_IMPL(TileData &dst, ConvTileData &src, uint16_t posM, uint16_t posK)
 {
     static_assert((ConvTileData::Loc == TileType::Mat), "TImg2col: Source TileType only support Mat.");

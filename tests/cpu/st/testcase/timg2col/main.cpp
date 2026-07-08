@@ -75,7 +75,7 @@ std::vector<typename TileData::DType> BuildExpected(const ConvTileData &src, uin
 }
 } // namespace
 
-TEST(TImg2colCpuSimTest, ManualMetadataPathMatchesReferenceWithPadding)
+TEST(TImg2colCpuSimTest, AutoMetadataPathMatchesReferenceWithPadding)
 {
     using SrcTile = ConvTile<TileType::Mat, float, 1 * 1 * 3 * 4 * 8, Layout::NC1HWC0, ConvTileShape<1, 1, 3, 4, 8>>;
     using DstTile = TileLeft<float, 16, 16, 4, 16>;
@@ -111,10 +111,7 @@ TEST(TImg2colCpuSimTest, ManualMetadataPathMatchesReferenceWithPadding)
     src.SetRepeatMode(0);
     src.SetDstStride(1);
 
-    SETFMATRIX<SrcTile, SetFmatrixMode::FMATRIX_B_MANUAL>(src);
-    SET_IMG2COL_PADDING<SrcTile, SetFmatrixMode::FMATRIX_B_MANUAL>(src);
-    SET_IMG2COL_RPT<SrcTile, SetFmatrixMode::FMATRIX_B_MANUAL>(src);
-    TIMG2COL<DstTile, SrcTile, SetFmatrixMode::FMATRIX_B_MANUAL>(dst, src, 1, 8);
+    TIMG2COL<DstTile, SrcTile, SetFmatrixMode::FMATRIX_B_AUTO>(dst, src, 1, 8);
 
     const auto expected = BuildExpected<DstTile>(src, 1, 8);
     for (int i = 0; i < DstTile::Numel; ++i) {
@@ -156,9 +153,6 @@ TEST(TImg2colCpuSimTest, AutoMetadataPathMatchesReferenceForSplitKChunk)
     src.SetRepeatMode(0);
     src.SetDstStride(1);
 
-    SETFMATRIX<SrcTile, SetFmatrixMode::FMATRIX_B_AUTO>(src);
-    SET_IMG2COL_PADDING<SrcTile, SetFmatrixMode::FMATRIX_B_AUTO>(src);
-    SET_IMG2COL_RPT<SrcTile, SetFmatrixMode::FMATRIX_B_AUTO>(src);
     TIMG2COL<DstTile, SrcTile, SetFmatrixMode::FMATRIX_B_AUTO>(dst, src, 0, 32);
 
     const auto expected = BuildExpected<DstTile>(src, 0, 32);

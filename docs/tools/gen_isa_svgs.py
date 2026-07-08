@@ -515,8 +515,6 @@ def _elementwise_spec(instr: str) -> Tuple[List[str], str, List[str]]:
         "TFMOD": "fmod(src0, src1)",
     }
     ternary = {
-        "TADDC": "src0 + src1 + src2",
-        "TSUBC": "src0 - src1 + src2",
     }
 
     if instr in unary:
@@ -668,9 +666,9 @@ def _scalar_spec(instr: str) -> Tuple[List[str], str, List[str]]:
 def _reduce_expand_kind(instr: str) -> Tuple[str, str, str]:
     # Returns (mode, axis, op)
     # mode: reduce|expand|expand_op
-    if instr in {"TROWSUM", "TROWMAX", "TROWMIN"}:
+    if instr in {"TROWSUM", "TROWPROD", "TROWMAX", "TROWMIN"}:
         return ("reduce", "row", instr.replace("TROW", "").lower())
-    if instr in {"TCOLSUM", "TCOLMAX", "TCOLMIN"}:
+    if instr in {"TCOLSUM", "TCOLPROD", "TCOLMAX", "TCOLMIN"}:
         return ("reduce", "col", instr.replace("TCOL", "").lower())
     if instr in {"TROWEXPAND", "TCOLEXPAND"}:
         return ("expand", "row" if instr.startswith("TROW") else "col", "broadcast")
@@ -1006,6 +1004,39 @@ def _render_memory(instr: str, summary: str, accent: str, bg: str) -> str:
         dx, dy = _tile_port_top(x=x_tile, y=y_dst, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
         via_y = int((sy + dy) / 2)
         _draw_ortho_arrow(out, x1=sx, y1=sy, x2=dx, y2=dy, via_y=via_y, accent=accent)
+        _draw_procedure(out, lines=proc, accent=accent)
+        return _end_svg(out)
+
+    if instr == "TPREFETCH_ASYNC":
+        expr = "GM[...] -> L2 cache (async)"
+        proc = [
+            "TPREFETCH_ASYNC(srcGlobal, ctx)",
+            "1) Build SDMA CMO prefetch metadata from srcGlobal.",
+            "2) Submit async prefetch into L2 cache.",
+            "3) Return AsyncEvent; consumers wait before dependent TLOAD.",
+        ]
+        out.append(
+            f'<text x="{CANVAS_W // 2}" y="{EXPR_Y}" class="subtitle" text-anchor="middle" fill="{_esc(accent)}">{_esc(expr)}</text>'
+        )
+        mem_w = 12 * CELL
+        widths = [mem_w, 160]
+        xs = _layout_row_lefts(CANVAS_W // 2, widths, 180)
+        x_mem, x_ctx = xs[0], xs[1]
+        y_mem = y_src + (tile_h - CELL) // 2
+        scalar_y = y_src + 8
+        _draw_mem_row(out, x=x_mem, y=y_mem, label="GlobalTensor / GM", prefix="g", highlight_idx=6, accent=accent)
+        _draw_scalar_box(out, x=x_ctx, y=scalar_y, label="context", value="ctx", accent=accent)
+
+        x_l2 = (CANVAS_W - 220) // 2
+        y_l2 = y_dst + 28
+        _draw_scalar_box(out, x=x_l2, y=y_l2, label="L2 cache", value="prefetched", accent=accent)
+
+        sx, sy = _mem_anchor_bottom(x_mem, y_mem, 6)
+        dx, dy = (x_l2 + 110, y_l2)
+        via_y = int((sy + dy) / 2)
+        _draw_ortho_arrow(out, x1=sx, y1=sy, x2=dx, y2=dy, via_y=via_y, accent=accent)
+        cx, cy = _scalar_port_bottom(x=x_ctx, y=scalar_y)
+        _draw_ortho_arrow(out, x1=cx, y1=cy, x2=dx, y2=dy, via_y=via_y + 18, accent=accent)
         _draw_procedure(out, lines=proc, accent=accent)
         return _end_svg(out)
 
@@ -1762,29 +1793,16 @@ def _render_config(instr: str, summary: str, accent: str, bg: str) -> str:
         _draw_procedure(out, lines=proc, accent=accent)
         return _end_svg(out)
 
-    if instr == "SETFMATRIX":
-        expr = "set FMATRIX state (used by later ops)"
-        proc = [
-            "SETFMATRIX(value, ...waitEvents)",
-            "1) Update FMATRIX register/state.",
-            "2) Ordering: update takes effect before dependent ops.",
-            "3) Affects subsequent IMG2COL / layout-sensitive operations.",
-        ]
-        scalar_label = "FMATRIX"
-        scalar_value = "set"
-        state_lines = ["FMATRIX state updated", "consulted by later ops"]
-    else:
-        mode = "HF32" if instr == "SETHF32MODE" else "TF32" if instr == "SETTF32MODE" else "mode"
-        expr = f"set transform mode ({mode})"
-        proc = [
-            f"{instr}(enable/mode, ...waitEvents)",
-            "1) Update backend transform/rounding mode (implementation-defined).",
-            "2) Ordering: update takes effect before dependent ops.",
-            "3) Affects subsequent GEMV/MATMUL or conversion paths (if applicable).",
-        ]
-        scalar_label = "mode"
-        scalar_value = "enable/mode"
-        state_lines = ["backend mode state updated", "used by later ops"]
+    expr = "set transform mode (mode)"
+    proc = [
+        f"{instr}(enable/mode, ...waitEvents)",
+        "1) Update backend transform/rounding mode (implementation-defined).",
+        "2) Ordering: update takes effect before dependent ops.",
+        "3) Affects subsequent GEMV/MATMUL or conversion paths (if applicable).",
+    ]
+    scalar_label = "mode"
+    scalar_value = "enable/mode"
+    state_lines = ["backend mode state updated", "used by later ops"]
 
     out.append(
         f'<text x="{CANVAS_W // 2}" y="{EXPR_Y}" class="subtitle" text-anchor="middle" fill="{_esc(accent)}">{_esc(expr)}</text>'

@@ -296,42 +296,6 @@ pto.tprelu ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst 
 
 ---
 
-### TADDC
-
-该指令的详细介绍请见[isa/TADDC](../isa/tile/ops/elementwise-tile-tile/taddc_zh.md)
-
-**AS Level 1 (SSA)：**
-
-```text
-%dst = pto.taddc %src0, %src1, %src2 : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-```
-
-**AS Level 2 (DPS)：**
-
-```text
-pto.taddc ins(%src0, %src1, %src2 : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
-```
-
----
-
-### TSUBC
-
-该指令的详细介绍请见[isa/TSUBC](../isa/tile/ops/elementwise-tile-tile/tsubc_zh.md)
-
-**AS Level 1 (SSA)：**
-
-```text
-%dst = pto.tsubc %src0, %src1, %src2 : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-```
-
-**AS Level 2 (DPS)：**
-
-```text
-pto.tsubc ins(%src0, %src1, %src2 : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
-```
-
----
-
 ### TCVT
 
 该指令的详细介绍请见[isa/TCVT](../isa/tile/ops/elementwise-tile-tile/tcvt_zh.md)

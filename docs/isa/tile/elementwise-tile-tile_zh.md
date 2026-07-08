@@ -21,7 +21,6 @@
 | `pto.tlog` / `pto.trecip` / `pto.texp` / `pto.tsqrt` / `pto.trsqrt` | 一元数学运算 | Unary |
 | `pto.tpow` | 逐元素幂运算 | Binary |
 | `pto.tprelu` / `pto.trelu` / `pto.tneg` / `pto.tnot` | 激活或一元变体 | Unary/Binary |
-| `pto.taddc` / `pto.tsubc` | 三输入融合加减 | Ternary-like Binary |
 | `pto.tcvt` | 逐元素类型转换 | Unary |
 | `pto.tsel` | 条件选择 | Ternary |
 | `pto.trem` / `pto.tfmod` | 余数 / 浮点模 | Binary |
@@ -49,15 +48,6 @@ $$ \mathrm{dst}_{r,c} = (\mathrm{cmp}_{r,c} \neq 0) ? \mathrm{src0}_{r,c} : \mat
 
 这条规则非常重要。它意味着“源 tile 自己声明的有效区域较小”并不会自动把目标迭代域缩小，也不会自动补零或自动修复。
 
-## `_c` 变体
-
-当前这组指令里的 `_c` 变体并不是“饱和算术”的统一命名约定。以当前 canonical 叶子页和实现签名为准：
-
-- `TADDC` 表达的是三输入逐元素加法：`src0 + src1 + src2`
-- `TSUBC` 表达的是三输入逐元素运算：`src0 - src1 + src2`
-
-因此，不能把 `_c` 后缀一概理解成 saturating / carry 变体。具体语义必须看各自 per-op 页面。
-
 ## 目标 Profile 支持
 
 | 元素类型 | CPU | A2/A3 | A5 |
@@ -82,7 +72,6 @@ $$ \mathrm{dst}_{r,c} = (\mathrm{cmp}_{r,c} \neq 0) ? \mathrm{src0}_{r,c} : \mat
 !!! danger "不允许的情形"
     - 假设存在隐式广播、隐式 reshape 或 valid-region 自动修复。
     - 依赖源 tile 域外 lane 的确定值。
-    - 把 `_c` 后缀机械理解成“饱和变体”。
     - 使用超出元素位宽的 shift count。
 
 ## A2/A3 吞吐与时延

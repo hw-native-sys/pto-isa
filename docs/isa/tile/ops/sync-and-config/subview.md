@@ -102,5 +102,4 @@ void example() {
 ## See Also
 
 - Instruction set overview: [Sync And Config](../../sync-and-config.md)
-- Previous op: [pto.set_img2col_padding](./set-img2col-padding.md)
-- Next op: [pto.get_scale_addr](./get-scale-addr.md)
+- Previous op: [pto.talias](./talias.md)

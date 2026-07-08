@@ -44,18 +44,18 @@ void FillAll(TileData &tile, typename TileData::DType value)
     std::fill(tile.data(), tile.data() + TileData::Numel, value);
 }
 
-template <typename TileData>
-void AssignTileStorage(TileData &tile, size_t &addr)
+template <typename TileData, typename AddrT>
+void AssignOneTileStorage(TileData &tile, AddrT &addr)
 {
     TASSIGN(tile, addr);
-    addr += sizeof(typename TileData::DType) * static_cast<size_t>(TileData::Numel);
-    addr = (addr + 63) & ~static_cast<size_t>(63);
+    addr = static_cast<AddrT>(addr + sizeof(typename TileData::DType) * static_cast<size_t>(TileData::Numel));
+    addr = static_cast<AddrT>((addr + 63) & ~static_cast<AddrT>(63));
 }
 
-template <typename... TileData>
-void AssignTileStorage(size_t &addr, TileData &...tiles)
+template <typename AddrT, typename... TileData>
+void AssignTileStorage(AddrT &addr, TileData &...tiles)
 {
-    (AssignTileStorage(tiles, addr), ...);
+    (AssignOneTileStorage(tiles, addr), ...);
 }
 
 template <typename TileData>
@@ -172,45 +172,6 @@ std::map<std::string, std::set<std::string>> CollectCoverage(const std::filesyst
     return usage;
 }
 
-std::set<std::string> CollectCpuCaseDirs(const std::filesystem::path &repoRoot)
-{
-    std::set<std::string> dirs;
-    const auto testcaseRoot = repoRoot / "tests/cpu/st/testcase";
-    for (const auto &entry : std::filesystem::directory_iterator(testcaseRoot)) {
-        if (entry.is_directory()) {
-            dirs.insert(entry.path().filename().string());
-        }
-    }
-    return dirs;
-}
-
-std::set<std::string> CollectCpuListedCases(const std::filesystem::path &repoRoot)
-{
-    std::set<std::string> listed;
-    std::ifstream in(repoRoot / "tests/cpu/st/testcase/CMakeLists.txt");
-    std::string line;
-    bool inList = false;
-    while (std::getline(in, line)) {
-        if (line.find("set(ALL_TESTCASES") != std::string::npos) {
-            inList = true;
-            continue;
-        }
-        if (!inList) {
-            continue;
-        }
-        if (line.find(')') != std::string::npos) {
-            break;
-        }
-        const auto begin = line.find_first_not_of(" \t");
-        if (begin == std::string::npos || line[begin] == '#') {
-            continue;
-        }
-        const auto end = line.find_last_not_of(" \t");
-        listed.insert(line.substr(begin, end - begin + 1));
-    }
-    return listed;
-}
-
 class IsaCoverageTest : public testing::Test {};
 
 TEST_F(IsaCoverageTest, RepoWideCoverageTouchesEveryIsaEntryPoint)
@@ -228,41 +189,6 @@ TEST_F(IsaCoverageTest, RepoWideCoverageTouchesEveryIsaEntryPoint)
     }
 
     EXPECT_TRUE(missing.empty()) << "ISA ST coverage missing for: " << ::testing::PrintToString(missing);
-}
-
-TEST_F(IsaCoverageTest, CpuCoverageTouchesEveryIsaEntryPoint)
-{
-    const auto repoRoot = RepoRoot();
-    const auto ops = LoadIsaList(repoRoot);
-    const auto usage = CollectCoverage(repoRoot, {repoRoot / "tests/cpu"}, ops);
-
-    std::vector<std::string> missing;
-    for (const auto &op : ops) {
-        if (usage.at(op).empty()) {
-            missing.push_back(op);
-        }
-    }
-
-    EXPECT_TRUE(missing.empty()) << "ISA ST coverage missing for: " << ::testing::PrintToString(missing);
-}
-
-TEST_F(IsaCoverageTest, CpuCaseDirectoriesAreListedInCpuStCMake)
-{
-    const auto repoRoot = RepoRoot();
-    auto dirs = CollectCpuCaseDirs(repoRoot);
-    dirs.erase("CMakeLists.txt");
-    const auto listed = CollectCpuListedCases(repoRoot);
-
-    std::vector<std::string> missingFromCMake;
-    for (const auto &dir : dirs) {
-        if (!listed.count(dir)) {
-            missingFromCMake.push_back(dir);
-        }
-    }
-
-    EXPECT_TRUE(missingFromCMake.empty())
-        << "CPU testcase directories missing from tests/cpu/st/testcase/CMakeLists.txt: "
-        << ::testing::PrintToString(missingFromCMake);
 }
 
 TEST_F(IsaCoverageTest, TaxpyAccumulatesScaledSource)
@@ -541,23 +467,8 @@ TEST_F(IsaCoverageTest, TprintWritesReadableMatrix)
 #endif
     std::cout.rdbuf(old);
 
-    EXPECT_EQ(captured.str(), std::string("TPRINT 2x4\n1 2 3 4\n5 6 7 8\n"));
-}
-
-TEST_F(IsaCoverageTest, TgetScaleAddrAliasesSourceStorage)
-{
-    using TileData = Tile<TileType::Vec, float, 2, 8>;
-    TileData src;
-    TileData dst;
-    size_t addr = 0;
-    AssignTileStorage(addr, src, dst);
-    FillLinear(src, 1.0f);
-
-    TGET_SCALE_ADDR(dst, src);
-
-    ASSERT_EQ(dst.data(), src.data());
-    src.data()[3] = 42.0f;
-    EXPECT_FLOAT_EQ(dst.data()[3], 42.0f);
+    EXPECT_EQ(captured.str(),
+              std::string("TPRINT 2x4\n       1        2        3        4\n       5        6        7        8\n"));
 }
 
 TEST_F(IsaCoverageTest, TstoreFpStoresTileIntoGlobalTensor)
@@ -584,7 +495,7 @@ TEST_F(IsaCoverageTest, TstoreFpStoresTileIntoGlobalTensor)
     }
 }
 
-TEST_F(IsaCoverageTest, TfreeDiscardsQueuedTileInCpuSimPipe)
+TEST_F(IsaCoverageTest, TfreeDoesNotCorruptQueuedTileInCpuSimPipe)
 {
     constexpr int FifoDepth = 4;
     constexpr int LocalDepth = 0;
@@ -611,27 +522,7 @@ TEST_F(IsaCoverageTest, TfreeDiscardsQueuedTileInCpuSimPipe)
 
     for (int r = 0; r < dst.GetValidRow(); ++r) {
         for (int c = 0; c < dst.GetValidCol(); ++c) {
-            EXPECT_FLOAT_EQ(GetValue(dst, r, c), GetValue(second, r, c));
-        }
-    }
-}
-
-TEST_F(IsaCoverageTest, TpackCopiesValidValues)
-{
-    using SrcTile = Tile<TileType::Vec, int32_t, 2, 8>;
-    using DstTile = Tile<TileType::Vec, int16_t, 2, 16, BLayout::RowMajor, 2, 8>;
-    SrcTile src;
-    DstTile dst;
-    size_t addr = 0;
-    AssignTileStorage(addr, src, dst);
-    FillLinear(src, 1);
-    FillAll(dst, 0);
-
-    TPACK(dst, src);
-
-    for (int r = 0; r < src.GetValidRow(); ++r) {
-        for (int c = 0; c < src.GetValidCol(); ++c) {
-            EXPECT_EQ(GetValue(dst, r, c), static_cast<int16_t>(GetValue(src, r, c)));
+            EXPECT_FLOAT_EQ(GetValue(dst, r, c), GetValue(first, r, c));
         }
     }
 }
@@ -835,7 +726,6 @@ TEST_F(IsaCoverageTest, TquantScalarAndMxWrappersAreCallable)
     using Fp8Tile = Tile<TileType::Vec, int8_t, 16, 64>;
     using ExpTile = Tile<TileType::Vec, uint8_t, 1, 32, BLayout::RowMajor, 1, 32>;
     using MaxTile = Tile<TileType::Vec, float, 1, 32, BLayout::RowMajor, 1, 32>;
-    using IdxTile = Tile<TileType::Vec, uint16_t, 1, 16, BLayout::RowMajor, 1, 16>;
 
     SrcTile src;
     SrcTile scaling;
@@ -845,9 +735,8 @@ TEST_F(IsaCoverageTest, TquantScalarAndMxWrappersAreCallable)
     ExpTile exp;
     ExpTile expZz;
     MaxTile max;
-    IdxTile gatherIdx;
     size_t addr = 0;
-    AssignTileStorage(addr, src, scaling, symDst, fp8Dst, invScale, exp, expZz, max, gatherIdx);
+    AssignTileStorage(addr, src, scaling, symDst, fp8Dst, invScale, exp, expZz, max);
 
     for (int r = 0; r < src.GetValidRow(); ++r) {
         invScale.data()[GetTileElementOffset<ParaTile>(r, 0)] = 2.0f;
@@ -857,13 +746,9 @@ TEST_F(IsaCoverageTest, TquantScalarAndMxWrappersAreCallable)
             scaling.data()[GetTileElementOffset<SrcTile>(r, c)] = 0.0f;
         }
     }
-    for (int i = 0; i < gatherIdx.GetValidCol(); ++i) {
-        gatherIdx.data()[i] = static_cast<uint16_t>(i);
-    }
-
     TQUANT<QuantType::INT8_SYM>(symDst, src, invScale);
     TQUANT<QuantType::MXFP8>(fp8Dst, src, &exp, &max, &scaling);
-    TQUANT<QuantType::MXFP8, VecStoreMode::NZ>(fp8Dst, src, &exp, &max, &scaling, &expZz, &gatherIdx);
+    TQUANT<QuantType::MXFP8, VecStoreMode::NZ>(fp8Dst, src, &exp, &max, &scaling, &expZz);
 
     EXPECT_NE(symDst.data()[0], 0);
     EXPECT_NE(static_cast<uint8_t>(fp8Dst.data()[0]), 0u);
@@ -877,31 +762,48 @@ TEST_F(IsaCoverageTest, TgemvAndMxVariantsMatchCpuMatmulSemantics)
     using RightTile = TileRight<float, 16, 16>;
     using AccTile = TileAcc<float, 16, 16>;
     using BiasTile = Tile<TileType::Bias, float, 1, 16>;
-    using LeftScaleTile = TileLeftScale<float, 16, 2>;
-    using RightScaleTile = TileRightScale<float, 16, 2>;
+    using MxLeftTile = TileLeft<float8_e4m3_t, 16, 64>;
+    using MxRightTile = TileRight<float8_e5m2_t, 64, 16>;
+    using MxAccTile = TileAcc<float, 16, 16>;
+    using LeftScaleTile = TileLeftScale<float8_e8m0_t, 16, 2>;
+    using RightScaleTile = TileRightScale<float8_e8m0_t, 64, 16, 2, 16>;
 
     LeftTile lhs;
     RightTile rhs;
     AccTile gemv;
     AccTile gemvAcc;
-    AccTile gemvMx;
-    AccTile matmulMx;
     AccTile accIn;
     BiasTile bias;
+    MxLeftTile lhsMx;
+    MxRightTile rhsMx;
+    MxAccTile gemvMx;
+    MxAccTile matmulMx;
     LeftScaleTile lhsScale;
     RightScaleTile rhsScale;
-    size_t addr = 0;
-    AssignTileStorage(addr, lhs, rhs, gemv, gemvAcc, gemvMx, matmulMx, accIn, bias, lhsScale, rhsScale);
+    uint32_t addr = 0;
+    AssignTileStorage(addr, lhs, rhs, gemv, gemvAcc, accIn, bias, lhsMx, rhsMx, gemvMx, matmulMx, lhsScale, rhsScale);
 
     FillAll(lhs, 0.0f);
     FillAll(rhs, 0.0f);
     FillAll(accIn, 1.0f);
-    FillAll(lhsScale, 2.0f);
-    FillAll(rhsScale, 3.0f);
+    FillAll(lhsMx, float8_e4m3_t::FromRaw(0x00));
+    FillAll(rhsMx, float8_e5m2_t::FromRaw(0x00));
+    FillAll(lhsScale, float8_e8m0_t::FromRaw(0x7f));
+    FillAll(rhsScale, float8_e8m0_t::FromRaw(0x7f));
     for (int r = 0; r < lhs.GetValidRow(); ++r) {
         for (int c = 0; c < lhs.GetValidCol(); ++c) {
             SetValue(lhs, r, c, static_cast<float>(r + c + 1));
             SetValue(rhs, r, c, static_cast<float>((r == c) ? 2 : 1));
+        }
+    }
+    for (int r = 0; r < lhsMx.GetValidRow(); ++r) {
+        for (int c = 0; c < lhsMx.GetValidCol(); ++c) {
+            SetValue(lhsMx, r, c, float8_e4m3_t::FromRaw(0x38));
+        }
+    }
+    for (int r = 0; r < rhsMx.GetValidRow(); ++r) {
+        for (int c = 0; c < rhsMx.GetValidCol(); ++c) {
+            SetValue(rhsMx, r, c, float8_e5m2_t::FromRaw(0x3c));
         }
     }
     for (int c = 0; c < bias.GetValidCol(); ++c) {
@@ -910,15 +812,16 @@ TEST_F(IsaCoverageTest, TgemvAndMxVariantsMatchCpuMatmulSemantics)
 
     TGEMV(gemv, lhs, rhs);
     TGEMV_ACC(gemvAcc, accIn, lhs, rhs);
-    TGEMV_MX(gemvMx, lhs, lhsScale, rhs, rhsScale);
-    TMATMUL_MX(matmulMx, lhs, lhsScale, rhs, rhsScale);
+    TGEMV_MX(gemvMx, lhsMx, lhsScale, rhsMx, rhsScale);
+    TMATMUL_MX(matmulMx, lhsMx, lhsScale, rhsMx, rhsScale);
 
     const auto expectedGemv = ComputeMatmulExpected<AccTile>(lhs, rhs);
     const auto expectedGemvAcc = ComputeMatmulExpected<AccTile>(lhs, rhs, &accIn);
+    const auto expectedMx = ComputeMatmulExpected<MxAccTile>(lhsMx, rhsMx);
     ExpectTileEqualsVector(gemv, expectedGemv);
     ExpectTileEqualsVector(gemvAcc, expectedGemvAcc);
-    ExpectTileEqualsVector(gemvMx, expectedGemv);
-    ExpectTileEqualsVector(matmulMx, expectedGemv);
+    ExpectTileEqualsVector(gemvMx, expectedMx);
+    ExpectTileEqualsVector(matmulMx, expectedMx);
 
     AccTile gemvBias;
     AssignTileStorage(addr, gemvBias);

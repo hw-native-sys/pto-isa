@@ -37,7 +37,6 @@ This table tracks per-instruction backend availability:
 | [`MSCATTER`](../docs/isa/MSCATTER.md) | Yes | TODO | TODO | TODO | Yes | TODO |
 | [`TABS`](../docs/isa/TABS.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TADD`](../docs/isa/TADD.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TADDC`](../docs/isa/TADDC.md) | Yes | TODO | TODO | TODO | TODO | TODO |
 | [`TADDS`](../docs/isa/TADDS.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TADDSC`](../docs/isa/TADDSC.md) | Yes | TODO | TODO | TODO | TODO | TODO |
 | [`TAND`](../docs/isa/TAND.md) | Yes | TODO | Yes | Yes | Yes | Yes |
@@ -83,7 +82,6 @@ This table tracks per-instruction backend availability:
 | [`TGEMV_MX`](../docs/isa/TGEMV_MX.md) | TODO | TODO | TODO | TODO | Yes | TODO |
 | [`TGET`](../docs/isa/comm/TGET.md) | Yes | TODO | Yes | Yes | Yes | TODO |
 | [`TGET_ASYNC`](../docs/isa/comm/TGET_ASYNC.md) | Yes | TODO | Yes | Yes | Yes | TODO |
-| [`TGET_SCALE_ADDR`](../docs/isa/TGET_SCALE_ADDR.md) | TODO | TODO | TODO | TODO | Yes | TODO |
 | [`TIMG2COL`](../docs/isa/TIMG2COL.md) | TODO | TODO | Yes | Yes | Yes | TODO |
 | [`TINSERT`](../docs/isa/TINSERT.md) | TODO | TODO | TODO | TODO | Yes | TODO |
 | [`TINSERT_FP`](../docs/isa/TINSERT_FP.md) | TODO | TODO | Yes | Yes | Yes | Yes |
@@ -148,9 +146,6 @@ This table tracks per-instruction backend availability:
 | [`TSCATTER`](../docs/isa/TSCATTER.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TSEL`](../docs/isa/TSEL.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TSELS`](../docs/isa/TSELS.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`SETFMATRIX`](../docs/isa/SETFMATRIX.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`SET_IMG2COL_PADDING`](../docs/isa/SET_IMG2COL_PADDING.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`SET_IMG2COL_RPT`](../docs/isa/SET_IMG2COL_RPT.md) | TODO | TODO | Yes | Yes | Yes | TODO |
 | [`TSHL`](../docs/isa/TSHL.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TSHLS`](../docs/isa/TSHLS.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TSHR`](../docs/isa/TSHR.md) | Yes | TODO | Yes | Yes | Yes | Yes |
@@ -160,7 +155,6 @@ This table tracks per-instruction backend availability:
 | [`TSTORE`](../docs/isa/TSTORE.md) | Yes | Yes | Yes | Yes | Yes | TODO |
 | [`TSTORE_FP`](../docs/isa/TSTORE_FP.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TSUB`](../docs/isa/TSUB.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TSUBC`](../docs/isa/TSUBC.md) | Yes | TODO | TODO | TODO | TODO | TODO |
 | [`TSUBS`](../docs/isa/TSUBS.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TSUBSC`](../docs/isa/TSUBSC.md) | Yes | TODO | TODO | TODO | TODO | TODO |
 | [`TSUBVIEW`](../docs/isa/TSUBVIEW.md) | TODO | TODO | Yes | Yes | TODO | TODO |

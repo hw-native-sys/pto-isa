@@ -564,22 +564,6 @@ PTO_INST RecordEvent TPRELU(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &
     return {};
 }
 
-template <typename TileData, typename... WaitEvents>
-PTO_INST RecordEvent TADDC(TileData &dst, TileData &src0, TileData &src1, TileData &src2, WaitEvents &...events)
-{
-    TSYNC(events...);
-    MAP_INSTR_IMPL(TADDC, dst, src0, src1, src2);
-    return {};
-}
-
-template <typename TileData, typename... WaitEvents>
-PTO_INST RecordEvent TSUBC(TileData &dst, TileData &src0, TileData &src1, TileData &src2, WaitEvents &...events)
-{
-    TSYNC(events...);
-    MAP_INSTR_IMPL(TSUBC, dst, src0, src1, src2);
-    return {};
-}
-
 #if defined(PTO_NPU_ARCH_A5) || defined(__CPU_SIM)
 template <typename TileRes, typename TileLeft, typename TileLeftScale, typename TileRight, typename TileRightScale,
           typename... WaitEvents>
@@ -951,7 +935,7 @@ PTO_INST RecordEvent TEXTRACT(DstTileData &dst, SrcTileData &src, FpTileData &fp
     return {};
 }
 
-template <typename TileData, typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL,
+template <typename TileData, typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_AUTO,
           typename... WaitEvents>
 PTO_INST RecordEvent TIMG2COL(TileData &dst, ConvTileData &src, uint16_t posM = 0, uint16_t posK = 0,
                               WaitEvents &...events)
@@ -960,65 +944,6 @@ PTO_INST RecordEvent TIMG2COL(TileData &dst, ConvTileData &src, uint16_t posM = 
     MAP_INSTR_IMPL_T(TIMG2COL, PTO_TEMPLATE_ARGS(TileData, ConvTileData, FmatrixMode), dst, src, posM, posK);
     return {};
 }
-
-template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL, typename... WaitEvents>
-PTO_INST RecordEvent SETFMATRIX(ConvTileData &src, WaitEvents &...events)
-{
-    TSYNC(events...);
-    MAP_INSTR_IMPL_T(SETFMATRIX, PTO_TEMPLATE_ARGS(ConvTileData, FmatrixMode), src);
-    return {};
-}
-
-template <typename OutType, typename... WaitEvents>
-PTO_INST RecordEvent SET_QUANT_SCALAR(float preQuantScalar, WaitEvents &...events)
-{
-    TSYNC(events...);
-    SET_QUANT_SCALAR_IMPL<OutType>(preQuantScalar);
-    return {};
-}
-
-template <typename FpTileData, typename... WaitEvents>
-PTO_INST RecordEvent SET_QUANT_VECTOR(FpTileData &fpTile, WaitEvents &...events)
-{
-    TSYNC(events...);
-    SET_QUANT_VECTOR_IMPL<FpTileData>(fpTile);
-    return {};
-}
-
-#if defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_KIRINX90)
-template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL, typename... WaitEvents>
-PTO_INST RecordEvent SET_IMG2COL_RPT(ConvTileData &src, WaitEvents &...events)
-{
-    TSYNC(events...);
-    MAP_INSTR_IMPL_T(SET_IMG2COL_RPT, PTO_TEMPLATE_ARGS(ConvTileData, FmatrixMode), src);
-    return {};
-}
-
-template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL, typename... WaitEvents>
-PTO_INST RecordEvent SET_IMG2COL_PADDING(ConvTileData &src, WaitEvents &...events)
-{
-    TSYNC(events...);
-    MAP_INSTR_IMPL_T(SET_IMG2COL_PADDING, PTO_TEMPLATE_ARGS(ConvTileData, FmatrixMode), src);
-    return {};
-}
-#endif
-#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRIN9030) || defined(__CPU_SIM)
-template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL, typename... WaitEvents>
-PTO_INST RecordEvent SET_IMG2COL_RPT(ConvTileData &src, WaitEvents &...events)
-{
-    TSYNC(events...);
-    MAP_INSTR_IMPL_T(SET_IMG2COL_RPT, PTO_TEMPLATE_ARGS(ConvTileData, FmatrixMode), src);
-    return {};
-}
-
-template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL, typename... WaitEvents>
-PTO_INST RecordEvent SET_IMG2COL_PADDING(ConvTileData &src, WaitEvents &...events)
-{
-    TSYNC(events...);
-    MAP_INSTR_IMPL_T(SET_IMG2COL_PADDING, PTO_TEMPLATE_ARGS(ConvTileData, FmatrixMode), src);
-    return {};
-}
-#endif
 
 template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode, typename... WaitEvents>
 PTO_INST RecordEvent TINSERT(DstTileData &dst, SrcTileData &src, uint16_t indexRow, uint16_t indexCol,
@@ -2464,14 +2389,6 @@ PTO_INST RecordEvent TQUANT(TileDataOut &dst, TileDataSrc &src, TileDataPara &sc
 {
     TSYNC(events...);
     TQUANT_IMPL<quant_type, TileDataOut, TileDataSrc, TileDataPara, TileDataTmp>(dst, src, scale, tmp, offset);
-    return {};
-}
-
-template <typename TileDataOut, typename TileDataIn, typename... WaitEvents>
-PTO_INST RecordEvent TGET_SCALE_ADDR(TileDataOut &dst, TileDataIn &src, WaitEvents &...events)
-{
-    TSYNC(events...);
-    MAP_INSTR_IMPL(TGET_SCALE_ADDR, dst, src);
     return {};
 }
 

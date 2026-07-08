@@ -87,8 +87,6 @@ AICORE inline void runTIMG2COL(__gm__ T *out, __gm__ U *src0, __gm__ U *src1)
     aMatTile.SetStrideW(strideW);
     aMatTile.SetChannelSize(fmapC1 * fmapC0);
 
-    SETFMATRIX(aMatTile);
-    SET_IMG2COL_PADDING(aMatTile);
     TIMG2COL(aTile, aMatTile, 0, 0);
     TMOV(bTile, bMatTile);
 
@@ -202,11 +200,9 @@ AICORE inline void runTIMG2COLSplitK(__gm__ T *out, __gm__ U *src0, __gm__ U *sr
     aMatTile.SetStrideW(strideW);
     aMatTile.SetChannelSize(fmapC1 * fmapC0);
 
-    SETFMATRIX<TileMatAData, SetFmatrixMode::FMATRIX_B_MANUAL>(aMatTile);
-    SET_IMG2COL_PADDING(aMatTile);
     constexpr int iter = K / baseK;
     for (int i = 0; i < iter; i++) {
-        TIMG2COL<LeftTile, TileMatAData, SetFmatrixMode::FMATRIX_B_MANUAL>(aTile, aMatTile, 0, i * baseK);
+        TIMG2COL<LeftTile, TileMatAData, SetFmatrixMode::FMATRIX_B_AUTO>(aTile, aMatTile, 0, i * baseK);
         TEXTRACT(bTile, bMatTile, i * baseK, 0);
 #ifndef __PTO_AUTO__
         set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
@@ -319,7 +315,6 @@ AICORE inline void runTIMG2COLFractalZ4D(__gm__ T *out, __gm__ U *src0, __gm__ U
     aMatTile.SetStrideW(strideW);
     aMatTile.SetChannelSize(fmapC1 * fmapC0);
 
-    SETFMATRIX(aMatTile);
     constexpr int iter = K / baseK;
     for (int i = 0; i < iter; i++) {
         TIMG2COL<LeftTile, TileMatAData, SetFmatrixMode::FMATRIX_B_AUTO>(aTile, aMatTile, 0, i * baseK);

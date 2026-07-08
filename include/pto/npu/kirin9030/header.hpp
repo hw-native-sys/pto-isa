@@ -57,7 +57,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TMin.hpp"
 #include "pto/npu/a5/TMax.hpp"
 #include "pto/npu/a5/TSubView.hpp"
-#include "pto/npu/a5/TGetScaleAddr.hpp"
 #include "pto/npu/a5/TMrgSort.hpp"
 #include "pto/npu/a5/TCmps.hpp"
 #include "pto/npu/a5/TCmp.hpp"
@@ -98,9 +97,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TPow.hpp"
 #include "pto/npu/a5/TDeQuant.hpp"
 #include "pto/npu/a5/TImg2col.hpp"
-#include "pto/npu/a5/SetFmatrix.hpp"
-#include "pto/npu/a5/SetImg2colRpt.hpp"
-#include "pto/npu/a5/SetImg2colPadding.hpp"
 #include "pto/npu/a5/THistogram.hpp"
 // TRandom to be evaluated
 #include "pto/npu/a5/TRsqrt.hpp"
@@ -126,8 +122,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // TAlloc to be evaluated
 // TFree to be evaluated
 #include "pto/npu/a5/TColReduceIdx.hpp"
-#include "pto/npu/a5/SetQuantScalar.hpp"
-#include "pto/npu/a5/SetQuantVector.hpp"
 
 #undef bfloat16_t
 #undef float8_e4m3_t

@@ -54,7 +54,7 @@ pto.timg2col ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 声明于 `include/pto/common/pto_instr.hpp`：
 
 ```cpp
-template <typename TileData, typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL,
+template <typename TileData, typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_AUTO,
           typename... WaitEvents>
 PTO_INST RecordEvent TIMG2COL(TileData &dst, ConvTileData &src, uint16_t posM = 0, uint16_t posK = 0,
                               WaitEvents&... events);
@@ -82,7 +82,6 @@ PTO_INST RecordEvent TIMG2COL(TileData &dst, ConvTileData &src, uint16_t posM = 
       - `fmapH / fmapW`
       - `padList`
       来设置 FMATRIX。
-    - A2/A3 的 `TIMG2COL` auto 路径**不会**顺手设置 repeat 和 padding 寄存器；如果后续路径依赖这些状态，应显式使用对应的 `pto.set_img2col_rpt` 或 `pto.set_img2col_padding`。
 
     ### A5 实现
 
@@ -118,9 +117,3 @@ void example(LeftTile& dst, ConvTile& src) {
   TIMG2COL(dst, src, /*posM=*/0, /*posK=*/0);
 }
 ```
-
-## 相关页面
-
-- [pto.setfmatrix](../sync-and-config/setfmatrix.md)
-- [pto.set_img2col_rpt](../sync-and-config/set-img2col-rpt.md)
-- [pto.set_img2col_padding](../sync-and-config/set-img2col-padding.md)

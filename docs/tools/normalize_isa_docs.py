@@ -61,10 +61,6 @@ _EXPLICIT_FALLBACK_FORMS: Dict[str, Dict[str, str]] = {
         "level1": "%dst = pto.tquant %src, %qp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>",
         "level2": "pto.tquant ins(%src, %qp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)",
     },
-    "SETFMATRIX": {
-        "level1": "pto.setfmatrix %cfg : !pto.fmatrix_config -> ()",
-        "level2": "pto.setfmatrix ins(%cfg : !pto.fmatrix_config) outs()",
-    },
     "TTRI": {
         "level1": "%dst = pto.ttri %src0, %src1 : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>",
         "level2": "pto.ttri ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)",
@@ -425,106 +421,6 @@ void example_manual() {
   TASSIGN(src1, 0x2000);
   TASSIGN(dst,  0x3000);
   TPARTMUL(dst, src0, src1);
-}
-```
-"""
-
-    if instr == "SETHF32MODE":
-        return """# SETHF32MODE
-
-## Introduction
-
-Configure HF32 transform mode (implementation-defined).
-
-This instruction controls backend-specific HF32 transformation behavior used by supported compute paths.
-
-## Math Interpretation
-
-No direct tensor arithmetic is produced by this instruction. It updates target mode state used by subsequent instructions.
-
-## Assembly Syntax
-
-PTO-AS form: see `docs/isa/syntax-and-operands/assembly-model.md`.
-
-Schematic form:
-
-```text
-sethf32mode {enable = true, mode = ...}
-```
-
-## C++ Intrinsic
-
-Declared in `include/pto/common/pto_instr.hpp`:
-
-```cpp
-template <bool isEnable, RoundMode hf32TransMode = RoundMode::CAST_ROUND, typename... WaitEvents>
-PTO_INST RecordEvent SETHF32MODE(WaitEvents &... events);
-```
-
-## Constraints
-
-- Available only when the corresponding backend capability macro is enabled.
-- Exact mode values and hardware behavior are target-defined.
-- This instruction has control-state side effects and should be ordered appropriately relative to dependent compute instructions.
-
-## Examples
-
-```cpp
-#include <pto/pto-inst.hpp>
-using namespace pto;
-
-void example_enable_hf32() {
-  SETHF32MODE<true, RoundMode::CAST_ROUND>();
-}
-```
-"""
-
-    if instr == "SETTF32MODE":
-        return """# SETTF32MODE
-
-## Introduction
-
-Configure TF32 transform mode (implementation-defined).
-
-This instruction controls backend-specific TF32 transformation behavior used by supported compute paths.
-
-## Math Interpretation
-
-No direct tensor arithmetic is produced by this instruction. It updates target mode state used by subsequent instructions.
-
-## Assembly Syntax
-
-PTO-AS form: see `docs/isa/syntax-and-operands/assembly-model.md`.
-
-Schematic form:
-
-```text
-settf32mode {enable = true, mode = ...}
-```
-
-## C++ Intrinsic
-
-Declared in `include/pto/common/pto_instr.hpp`:
-
-```cpp
-template <bool isEnable, RoundMode tf32TransMode = RoundMode::CAST_ROUND, typename... WaitEvents>
-PTO_INST RecordEvent SETTF32MODE(WaitEvents &... events);
-```
-
-## Constraints
-
-- Available only when the corresponding backend capability macro is enabled.
-- Exact mode values and hardware behavior are target-defined.
-- This instruction has control-state side effects and should be ordered appropriately relative to dependent compute instructions.
-
-## Examples
-
-```cpp
-#include <pto/pto-inst.hpp>
-using namespace pto;
-
-void example_enable_tf32() {
-  SETTF32MODE<true, RoundMode::CAST_ROUND>();
 }
 ```
 """

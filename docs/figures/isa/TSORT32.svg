@@ -1,108 +1,152 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-label="TSORT32 tile operation diagram">
-  <defs>
-    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
-      <path d="M0,0 L0,10 L10,5 z" fill="#c2410c"/>
-    </marker>
-  </defs>
-  <style>
-    svg { font-family: Arial, Helvetica, sans-serif; }
-    .title { font-size: 30px; font-weight: 700; fill: #0f172a; }
-    .subtitle { font-size: 15px; fill: #334155; }
-    .meta { font-size: 12px; fill: #64748b; }
-    .panel { fill: #fff7ed; stroke: #fed7aa; stroke-width: 1.5; rx: 18; }
-    .box { fill: #ffffff; stroke: #475569; stroke-width: 1.6; rx: 12; }
-    .inputBox { fill: #ffffff; stroke: #475569; stroke-width: 1.6; rx: 12; }
-    .procBox { fill: #fffaf5; stroke: #fb923c; stroke-width: 2; rx: 16; }
-    .label { font-size: 16px; font-weight: 700; fill: #0f172a; }
-    .small { font-size: 13px; fill: #334155; }
-    .code { font-family: Consolas, 'Courier New', monospace; font-size: 13px; fill: #0f172a; }
-    .cell { fill: #ffffff; stroke: #94a3b8; stroke-width: 1; }
-    .cellSrc { fill: #f8fafc; }
-    .cellIdx { fill: #eff6ff; }
-    .cellDstV { fill: #fff7ed; }
-    .cellDstI { fill: #f5f3ff; }
-    .cellText { font-family: Consolas, 'Courier New', monospace; font-size: 11px; fill: #0f172a; }
-    .accent { fill: #c2410c; font-weight: 700; }
-    .arrow { stroke: #c2410c; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-    .note { font-size: 13px; fill: #475569; }
-    .divider { stroke: #fed7aa; stroke-width: 1.5; }
-  </style>
-
-  <rect x="24" y="24" width="1152" height="672" class="panel"/>
-  <text x="44" y="54" class="title">TSORT32</text>
-  <text x="44" y="80" class="subtitle">Sort each 32-element block of <tspan class="accent">src</tspan> together with input indices from <tspan class="accent">idx</tspan>, then write value-index pairs to <tspan class="accent">dst</tspan>.</text>
-  <text x="44" y="102" class="meta">Correct semantics: <tspan class="code">src</tspan> and <tspan class="code">idx</tspan> are both inputs; <tspan class="code">dst</tspan> is the only output.</text>
-  <line x1="40" y1="116" x2="1160" y2="116" class="divider"/>
-
-  <text x="220" y="158" class="label" text-anchor="middle">src (input values)</text>
-  <rect x="70" y="176" width="300" height="112" class="inputBox"/>
-  <text x="220" y="202" class="small" text-anchor="middle">one 32-element block</text>
-  <rect x="92" y="222" width="64" height="28" class="cell cellSrc"/>
-  <rect x="156" y="222" width="64" height="28" class="cell cellSrc"/>
-  <rect x="220" y="222" width="64" height="28" class="cell cellSrc"/>
-  <rect x="284" y="222" width="64" height="28" class="cell cellSrc"/>
-  <text x="124" y="240" text-anchor="middle" class="cellText">v0</text>
-  <text x="188" y="240" text-anchor="middle" class="cellText">v1</text>
-  <text x="252" y="240" text-anchor="middle" class="cellText">...</text>
-  <text x="316" y="240" text-anchor="middle" class="cellText">v31</text>
-  <text x="220" y="270" class="note" text-anchor="middle">sorted by value within each 32-element block</text>
-
-  <text x="220" y="352" class="label" text-anchor="middle">idx (input indices)</text>
-  <rect x="70" y="370" width="300" height="112" class="inputBox"/>
-  <text x="220" y="396" class="small" text-anchor="middle">indices aligned element-wise with src</text>
-  <rect x="92" y="416" width="64" height="28" class="cell cellIdx"/>
-  <rect x="156" y="416" width="64" height="28" class="cell cellIdx"/>
-  <rect x="220" y="416" width="64" height="28" class="cell cellIdx"/>
-  <rect x="284" y="416" width="64" height="28" class="cell cellIdx"/>
-  <text x="124" y="434" text-anchor="middle" class="cellText">i0</text>
-  <text x="188" y="434" text-anchor="middle" class="cellText">i1</text>
-  <text x="252" y="434" text-anchor="middle" class="cellText">...</text>
-  <text x="316" y="434" text-anchor="middle" class="cellText">i31</text>
-  <text x="220" y="464" class="note" text-anchor="middle">these indices are permuted together with the values</text>
-
-  <rect x="438" y="236" width="324" height="188" class="procBox"/>
-  <text x="600" y="268" class="label" text-anchor="middle">block-wise sort</text>
-  <text x="600" y="308" class="code" text-anchor="middle">pair: (value, index)</text>
-  <text x="600" y="338" class="code" text-anchor="middle">sort by value within each 32-element block</text>
-  <text x="600" y="376" class="small" text-anchor="middle">value and index follow the same permutation</text>
-
-  <path d="M370 232 C405 232, 410 250, 438 280" class="arrow" marker-end="url(#arrow)"/>
-  <path d="M370 426 C405 426, 410 408, 438 380" class="arrow" marker-end="url(#arrow)"/>
-
-  <text x="950" y="158" class="label" text-anchor="middle">dst (output)</text>
-  <rect x="790" y="176" width="320" height="306" class="box"/>
-  <text x="950" y="202" class="small" text-anchor="middle">sorted value-index pairs for the processed block</text>
-
-  <text x="870" y="238" class="small" text-anchor="middle">values</text>
-  <text x="1030" y="238" class="small" text-anchor="middle">indices</text>
-
-  <rect x="820" y="252" width="100" height="34" class="cell cellDstV"/>
-  <rect x="980" y="252" width="100" height="34" class="cell cellDstI"/>
-  <text x="870" y="274" text-anchor="middle" class="cellText">vπ(0)</text>
-  <text x="1030" y="274" text-anchor="middle" class="cellText">iπ(0)</text>
-
-  <rect x="820" y="294" width="100" height="34" class="cell cellDstV"/>
-  <rect x="980" y="294" width="100" height="34" class="cell cellDstI"/>
-  <text x="870" y="316" text-anchor="middle" class="cellText">vπ(1)</text>
-  <text x="1030" y="316" text-anchor="middle" class="cellText">iπ(1)</text>
-
-  <rect x="820" y="336" width="100" height="34" class="cell cellDstV"/>
-  <rect x="980" y="336" width="100" height="34" class="cell cellDstI"/>
-  <text x="870" y="358" text-anchor="middle" class="cellText">...</text>
-  <text x="1030" y="358" text-anchor="middle" class="cellText">...</text>
-
-  <rect x="820" y="378" width="100" height="34" class="cell cellDstV"/>
-  <rect x="980" y="378" width="100" height="34" class="cell cellDstI"/>
-  <text x="870" y="400" text-anchor="middle" class="cellText">vπ(n-1)</text>
-  <text x="1030" y="400" text-anchor="middle" class="cellText">iπ(n-1)</text>
-
-  <text x="950" y="444" class="note" text-anchor="middle">dst contains value-index pairs, not a separate idx output tile</text>
-
-  <path d="M762 330 C780 330, 782 330, 790 330" class="arrow" marker-end="url(#arrow)"/>
-
-  <rect x="56" y="534" width="1088" height="128" class="box"/>
-  <text x="76" y="564" class="label">Key points</text>
-  <text x="76" y="594" class="note">• Sorting is performed independently for each row and for each 32-element block.</text>
-  <text x="76" y="618" class="note">• <tspan class="code">idx</tspan> is an input operand and participates in the same permutation as <tspan class="code">src</tspan>.</text>
-  <text x="76" y="642" class="note">• The semantic result is a reordered sequence of value-index pairs; exact packing in <tspan class="code">dst</tspan> depends on the target.</text>
+<defs>
+  <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0,0 L0,12 L12,6 z" fill="#C53A79"/></marker>
+  <marker id="axisArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L0,10 L10,5 z" fill="#64748b"/></marker>
+</defs>
+<style>
+svg { font-family: Arial, Helvetica, sans-serif; }
+.title { font-size: 30px; font-weight: 700; fill: #0f172a; }
+.subtitle { font-size: 14px; fill: #334155; }
+.meta { font-size: 12px; fill: #64748b; }
+.frame { fill: white; }
+.panel { fill: #FDF0F6; stroke: #e2e8f0; stroke-width: 1.5; rx: 14; }
+.tileLabel { font-size: 14px; font-weight: 700; fill: #0f172a; }
+.tileBorder { fill: none; stroke: #475569; stroke-width: 1.5; }
+.cell { fill: #ffffff; stroke: #94a3b8; stroke-width: 1; }
+.cellMasked { fill: #e2e8f0; }
+.cellHL { stroke-width: 2; }
+.cellText { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 10px; fill: #0f172a; }
+.arrow { stroke-width: 2.5; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.axisLine { stroke: #64748b; stroke-width: 1.5; fill: none; }
+.axisText { font-size: 10px; fill: #64748b; font-weight: 700; }
+.opCircle { fill: #ffffff; stroke-width: 2; }
+.opRect { fill: #ffffff; stroke-width: 2; }
+.opText { font-size: 10px; font-weight: 800; fill: #0f172a; }
+.procBox { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.5; rx: 12; }
+.procTitle { font-size: 14px; font-weight: 700; fill: #0f172a; }
+.procText { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; fill: #0f172a; }
+.smallLabel { font-size: 12px; fill: #334155; }
+.scalarBox { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.5; }
+.scalarValue { font-size: 16px; font-weight: 700; }
+.validBox { fill: none; stroke-width: 2; stroke-dasharray: 6 4; }
+</style>
+<rect x="0" y="0" width="1200" height="720" class="frame" />
+<rect x="24" y="24" width="1152" height="672" class="panel" />
+<text x="40" y="46" class="title">TSORT32</text>
+<text x="40" y="72" class="subtitle">Sort a fixed-size 32-element block and produce an index mapping.</text>
+<text x="40" y="92" class="meta">Template: complex</text>
+<text x="1160" y="92" class="meta" text-anchor="end">Legend: outline=example; dashed=valid rows/cols (Rv,Cv); shaded=masked; r down / c right; ortho arrows=dataflow</text>
+<line x1="36" y1="104" x2="1164" y2="104" stroke="#e2e8f0" stroke-width="1.5" />
+<text x="600" y="140" class="subtitle" text-anchor="middle" fill="#C53A79">dst[i,k] = src[i, pi_i(k)] ; idx = pi</text>
+<text x="600" y="168" class="tileLabel" text-anchor="middle">src (block)</text>
+<rect x="545" y="178" width="110" height="110" class="tileBorder" />
+<rect x="545" y="178" width="22" height="22" class="cell" />
+<rect x="567" y="178" width="22" height="22" class="cell" />
+<rect x="589" y="178" width="22" height="22" class="cell" />
+<rect x="611" y="178" width="22" height="22" class="cell" />
+<rect x="633" y="178" width="22" height="22" class="cell cellMasked" />
+<rect x="545" y="200" width="22" height="22" class="cell" />
+<rect x="567" y="200" width="22" height="22" class="cell" />
+<rect x="589" y="200" width="22" height="22" class="cell cellHL" stroke="#C53A79" />
+<rect x="611" y="200" width="22" height="22" class="cell" />
+<rect x="633" y="200" width="22" height="22" class="cell cellMasked" />
+<rect x="545" y="222" width="22" height="22" class="cell" />
+<rect x="567" y="222" width="22" height="22" class="cell" />
+<rect x="589" y="222" width="22" height="22" class="cell" />
+<rect x="611" y="222" width="22" height="22" class="cell" />
+<rect x="633" y="222" width="22" height="22" class="cell cellMasked" />
+<rect x="545" y="244" width="22" height="22" class="cell" />
+<rect x="567" y="244" width="22" height="22" class="cell" />
+<rect x="589" y="244" width="22" height="22" class="cell" />
+<rect x="611" y="244" width="22" height="22" class="cell" />
+<rect x="633" y="244" width="22" height="22" class="cell cellMasked" />
+<rect x="545" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="567" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="589" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="611" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="633" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="545" y="178" width="88" height="88" class="validBox" stroke="#C53A79" />
+<text x="549" y="262" class="axisText">Rv</text>
+<text x="629" y="190" class="axisText" text-anchor="end">Cv</text>
+<path d="M 555 188 L 589 188" class="axisLine" marker-end="url(#axisArrow)" />
+<path d="M 555 188 L 555 222" class="axisLine" marker-end="url(#axisArrow)" />
+<text x="593" y="192" class="axisText">c</text>
+<text x="553" y="226" class="axisText" text-anchor="end">r</text>
+<text x="485" y="350" class="tileLabel" text-anchor="middle">dst (sorted)</text>
+<rect x="430" y="360" width="110" height="110" class="tileBorder" />
+<rect x="430" y="360" width="22" height="22" class="cell" />
+<rect x="452" y="360" width="22" height="22" class="cell" />
+<rect x="474" y="360" width="22" height="22" class="cell" />
+<rect x="496" y="360" width="22" height="22" class="cell" />
+<rect x="518" y="360" width="22" height="22" class="cell cellMasked" />
+<rect x="430" y="382" width="22" height="22" class="cell" />
+<rect x="452" y="382" width="22" height="22" class="cell" />
+<rect x="474" y="382" width="22" height="22" class="cell cellHL" stroke="#C53A79" />
+<rect x="496" y="382" width="22" height="22" class="cell" />
+<rect x="518" y="382" width="22" height="22" class="cell cellMasked" />
+<rect x="430" y="404" width="22" height="22" class="cell" />
+<rect x="452" y="404" width="22" height="22" class="cell" />
+<rect x="474" y="404" width="22" height="22" class="cell" />
+<rect x="496" y="404" width="22" height="22" class="cell" />
+<rect x="518" y="404" width="22" height="22" class="cell cellMasked" />
+<rect x="430" y="426" width="22" height="22" class="cell" />
+<rect x="452" y="426" width="22" height="22" class="cell" />
+<rect x="474" y="426" width="22" height="22" class="cell" />
+<rect x="496" y="426" width="22" height="22" class="cell" />
+<rect x="518" y="426" width="22" height="22" class="cell cellMasked" />
+<rect x="430" y="448" width="22" height="22" class="cell cellMasked" />
+<rect x="452" y="448" width="22" height="22" class="cell cellMasked" />
+<rect x="474" y="448" width="22" height="22" class="cell cellMasked" />
+<rect x="496" y="448" width="22" height="22" class="cell cellMasked" />
+<rect x="518" y="448" width="22" height="22" class="cell cellMasked" />
+<rect x="430" y="360" width="88" height="88" class="validBox" stroke="#C53A79" />
+<text x="434" y="444" class="axisText">Rv</text>
+<text x="514" y="372" class="axisText" text-anchor="end">Cv</text>
+<path d="M 440 370 L 474 370" class="axisLine" marker-end="url(#axisArrow)" />
+<path d="M 440 370 L 440 404" class="axisLine" marker-end="url(#axisArrow)" />
+<text x="478" y="374" class="axisText">c</text>
+<text x="438" y="408" class="axisText" text-anchor="end">r</text>
+<text x="715" y="350" class="tileLabel" text-anchor="middle">idx (perm)</text>
+<rect x="660" y="360" width="110" height="110" class="tileBorder" />
+<rect x="660" y="360" width="22" height="22" class="cell" />
+<rect x="682" y="360" width="22" height="22" class="cell" />
+<rect x="704" y="360" width="22" height="22" class="cell" />
+<rect x="726" y="360" width="22" height="22" class="cell" />
+<rect x="748" y="360" width="22" height="22" class="cell cellMasked" />
+<rect x="660" y="382" width="22" height="22" class="cell" />
+<rect x="682" y="382" width="22" height="22" class="cell" />
+<rect x="704" y="382" width="22" height="22" class="cell cellHL" stroke="#C53A79" />
+<rect x="726" y="382" width="22" height="22" class="cell" />
+<rect x="748" y="382" width="22" height="22" class="cell cellMasked" />
+<rect x="660" y="404" width="22" height="22" class="cell" />
+<rect x="682" y="404" width="22" height="22" class="cell" />
+<rect x="704" y="404" width="22" height="22" class="cell" />
+<rect x="726" y="404" width="22" height="22" class="cell" />
+<rect x="748" y="404" width="22" height="22" class="cell cellMasked" />
+<rect x="660" y="426" width="22" height="22" class="cell" />
+<rect x="682" y="426" width="22" height="22" class="cell" />
+<rect x="704" y="426" width="22" height="22" class="cell" />
+<rect x="726" y="426" width="22" height="22" class="cell" />
+<rect x="748" y="426" width="22" height="22" class="cell cellMasked" />
+<rect x="660" y="448" width="22" height="22" class="cell cellMasked" />
+<rect x="682" y="448" width="22" height="22" class="cell cellMasked" />
+<rect x="704" y="448" width="22" height="22" class="cell cellMasked" />
+<rect x="726" y="448" width="22" height="22" class="cell cellMasked" />
+<rect x="748" y="448" width="22" height="22" class="cell cellMasked" />
+<rect x="660" y="360" width="88" height="88" class="validBox" stroke="#C53A79" />
+<text x="664" y="444" class="axisText">Rv</text>
+<text x="744" y="372" class="axisText" text-anchor="end">Cv</text>
+<path d="M 670 370 L 704 370" class="axisLine" marker-end="url(#axisArrow)" />
+<path d="M 670 370 L 670 404" class="axisLine" marker-end="url(#axisArrow)" />
+<text x="708" y="374" class="axisText">c</text>
+<text x="668" y="408" class="axisText" text-anchor="end">r</text>
+<path d="M 600 300 L 600 314 L 485 314 L 485 348" class="arrow" stroke="#C53A79" marker-end="url(#arrow)" />
+<path d="M 600 300 L 600 334 L 715 334 L 715 348" class="arrow" stroke="#C53A79" marker-end="url(#arrow)" />
+<rect x="40" y="502" width="1120" height="194" class="procBox" />
+<text x="56" y="528" class="procTitle">Procedure (conceptual)</text>
+<text x="56" y="554" class="procText" xml:space="preserve">
+  <tspan x="56" dy="0">for each row i:</tspan>
+  <tspan x="56" dy="16">  (dst_row, idx_row) = sort_with_indices(src_row)</tspan>
+</text>
+<text x="56" y="680" class="meta">Note: semantics apply to the valid region unless stated otherwise.</text>
 </svg>

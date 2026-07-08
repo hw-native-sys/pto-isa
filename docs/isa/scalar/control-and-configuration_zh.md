@@ -25,7 +25,7 @@
 
 它们仍然是虚拟 ISA 契约的一部分，只是输出的不是 tile / vector payload。
 
-Tile 指令集的[同步与配置](../tile/sync-and-config_zh.md)页面记录 `pto.sethf32mode`、`pto.settf32mode`、`pto.setfmatrix`、`pto.set_img2col_rpt` 和 `pto.set_img2col_padding`。这些操作配置 tile-mode 状态，因此属于 Tile 指令集，不属于本标量/控制章节。
+Tile 指令集的[同步与配置](../tile/sync-and-config_zh.md)页面记录相关的 tile-mode 配置操作。这些操作配置 tile-mode 状态，因此属于 Tile 指令集，不属于本标量/控制章节。
 
 ## 相关页面
 

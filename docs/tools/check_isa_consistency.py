@@ -37,7 +37,7 @@ MANIFEST_PATH = REPO_ROOT / "docs" / "isa" / "manifest.yaml"
 ISA_DIR = REPO_ROOT / "docs" / "isa"
 SVG_DIR = REPO_ROOT / "docs" / "figures" / "isa"
 PTO_HEADER = REPO_ROOT / "include" / "pto" / "common" / "pto_instr.hpp"
-DOC_ONLY_MANIFEST_INSTRUCTIONS = {"SETHF32MODE", "SETTF32MODE"}
+DOC_ONLY_MANIFEST_INSTRUCTIONS = set()
 
 
 def load_manifest(path: Path) -> List[Dict[str, object]]:
@@ -50,7 +50,7 @@ def load_manifest(path: Path) -> List[Dict[str, object]]:
 
 def header_instructions(path: Path) -> List[str]:
     text = path.read_text(encoding="utf-8", errors="ignore")
-    names = re.findall(r"PTO_INST\s+(?:void|RecordEvent)\s+([A-Z][A-Z0-9_]+)\s*\(", text)
+    names = re.findall(r"PTO_INST\s+(?:void|RecordEvent|comm::AsyncEvent)\s+([A-Z][A-Z0-9_]+)\s*\(", text)
     out: List[str] = []
     seen: set[str] = set()
     for n in names:

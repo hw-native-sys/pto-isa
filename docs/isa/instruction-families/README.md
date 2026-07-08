@@ -87,10 +87,7 @@ Instruction set pages do not repeat per-op details; they set the contract for th
 ```
 Instruction Sets
 ├── Tile Instruction Set
-│   ├── Sync and Config            → pto.tsync, pto.tassign, pto.talias, pto.sethf32mode, pto.settf32mode,
-│   │                                pto.setfmatrix, pto.set_img2col_rpt,
-│   │                                pto.set_img2col_padding, pto.subview,
-│   │                                pto.get_scale_addr
+│   ├── Sync and Config            → pto.tsync, pto.tassign, pto.talias, pto.subview
 │   ├── Elementwise Tile-Tile      → pto.tadd, pto.tsub, pto.tneg, pto.tmul, pto.tdiv,
 │   │                                  pto.tmax, pto.tmin, pto.tcmp, pto.tcvt, pto.tsel,
 │   │                                  pto.tabs, pto.trelu, pto.tlog, pto.texp, pto.tsqrt, etc.
@@ -102,7 +99,7 @@ Instruction Sets
 │   │                                  pto.mgather, pto.mscatter
 │   ├── Matrix and Matrix-Vector   → pto.tgemv, pto.tgemv_mx, pto.tmatmul, pto.tmatmul_acc,
 │   │                                  pto.tmatmul_bias, pto.tmatmul_mx, etc.
-│   ├── Layout and Rearrangement   → pto.tmov, pto.ttrans, pto.tconcat, pto.tpack,
+│   ├── Layout and Rearrangement   → pto.tmov, pto.ttrans, pto.tconcat,
 │   │                                  pto.textract, pto.tinsert, pto.timg2col, etc.
 │   └── Irregular and Complex      → pto.tmrgsort, pto.tsort32, pto.tgather, pto.tquant,
 │                                      pto.tdequant, pto.trandom, pto.thistogram, etc.

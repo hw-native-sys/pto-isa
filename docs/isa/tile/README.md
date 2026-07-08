@@ -12,7 +12,7 @@ The `pto.t*` tile instruction set of PTO ISA is organized by instruction set, wi
 | [Reduce and Expand](./reduce-and-expand.md) | Row/column reductions and expansions | 28 |
 | [Memory and Data Movement](./memory-and-data-movement.md) | GM↔tile transfer, gather/scatter | 5 |
 | [Matrix and Matrix-Vector](./matrix-and-matrix-vector.md) | GEMV, matmul, and variants | 8 |
-| [Layout and Rearrangement](./layout-and-rearrangement.md) | Reshape, transpose, extract, insert, concatenate, pack | 11 |
+| [Layout and Rearrangement](./layout-and-rearrangement.md) | Reshape, transpose, extract, insert, concatenate | 10 |
 | [Irregular and Complex](./irregular-and-complex.md) | Sort, quantize, generated state, index movement, partial reductions | 16 |
 
 ## Quick Reference

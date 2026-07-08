@@ -212,7 +212,6 @@ __global__ AICORE void RunTPushPopFixpipeDEQF16(__gm__ OutT *out, __gm__ InT *sr
         set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
         wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
 
-        SET_QUANT_SCALAR<OutT>(2.0f);
         TPUSH<MatPipe, AccTile, FixpipeConfig>(pipe, accTile);
 
         set_flag(PIPE_FIX, PIPE_M, EVENT_ID1);
@@ -335,7 +334,6 @@ __global__ AICORE void RunTPushPopFixpipeVDEQF16(__gm__ OutT *out, __gm__ InT *s
         wait_flag(PIPE_MTE2, PIPE_FIX, EVENT_ID2);
 
         TMOV(fbTile, fbMatTile);
-        SET_QUANT_VECTOR(fbTile);
         TPUSH<MatPipe, AccTile, FixpipeConfig>(pipe, accTile);
 
         set_flag(PIPE_FIX, PIPE_M, EVENT_ID1);

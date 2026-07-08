@@ -32,11 +32,11 @@ That yields **289 named instructions** in the current reference set.
 
 ### Sync And Config
 
-`tsync`, `tassign`, `talias`, `sethf32mode`, `settf32mode`, `setfmatrix`, `set_img2col_rpt`, `set_img2col_padding`, `subview`, `get_scale_addr`
+`tsync`, `tassign`, `talias`, `subview`
 
 ### Elementwise Tile-Tile
 
-`tabs`, `tadd`, `taddc`, `tand`, `tcmp`, `tcvt`, `tdiv`, `texp`, `tpow`, `tfmod`, `tlog`, `tmax`, `tmin`, `tmul`, `tneg`, `tnot`, `tor`, `tprelu`, `trecip`, `trelu`, `trem`, `trsqrt`, `tsel`, `tshl`, `tshr`, `tsqrt`, `tsub`, `tsubc`, `txor`
+`tabs`, `tadd`, `tand`, `tcmp`, `tcvt`, `tdiv`, `texp`, `tpow`, `tfmod`, `tlog`, `tmax`, `tmin`, `tmul`, `tneg`, `tnot`, `tor`, `tprelu`, `trecip`, `trelu`, `trem`, `trsqrt`, `tsel`, `tshl`, `tshr`, `tsqrt`, `tsub`, `txor`
 
 ### Tile-Scalar And Immediate
 
@@ -56,7 +56,7 @@ That yields **289 named instructions** in the current reference set.
 
 ### Layout And Rearrangement
 
-`tconcat`, `textract`, `tfillpad`, `tfillpad_expand`, `tfillpad_inplace`, `timg2col`, `tinsert`, `tmov`, `tpack`, `treshape`, `ttrans`
+`tconcat`, `textract`, `tfillpad`, `tfillpad_expand`, `tfillpad_inplace`, `timg2col`, `tinsert`, `tmov`, `treshape`, `ttrans`
 
 ### Irregular And Complex
 

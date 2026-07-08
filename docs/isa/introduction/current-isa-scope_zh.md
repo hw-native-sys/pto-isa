@@ -32,11 +32,11 @@ PTO 定义五套具名指令集，并为每条指令提供明确参考页：
 
 ### 同步与配置
 
-`tsync`、`tassign`、`talias`、`sethf32mode`、`settf32mode`、`setfmatrix`、`set_img2col_rpt`、`set_img2col_padding`、`subview`、`get_scale_addr`
+`tsync`、`tassign`、`talias`、`subview`
 
 ### 逐元素 Tile-Tile
 
-`tabs`、`tadd`、`taddc`、`tand`、`tcmp`、`tcvt`、`tdiv`、`texp`、`tpow`、`tfmod`、`tlog`、`tmax`、`tmin`、`tmul`、`tneg`、`tnot`、`tor`、`tprelu`、`trecip`、`trelu`、`trem`、`trsqrt`、`tsel`、`tshl`、`tshr`、`tsqrt`、`tsub`、`tsubc`、`txor`
+`tabs`、`tadd`、`tand`、`tcmp`、`tcvt`、`tdiv`、`texp`、`tpow`、`tfmod`、`tlog`、`tmax`、`tmin`、`tmul`、`tneg`、`tnot`、`tor`、`tprelu`、`trecip`、`trelu`、`trem`、`trsqrt`、`tsel`、`tshl`、`tshr`、`tsqrt`、`tsub`、`txor`
 
 ### Tile-标量与立即数
 
@@ -56,7 +56,7 @@ PTO 定义五套具名指令集，并为每条指令提供明确参考页：
 
 ### 布局与重排
 
-`tconcat`、`textract`、`tfillpad`、`tfillpad_expand`、`tfillpad_inplace`、`timg2col`、`tinsert`、`tmov`、`tpack`、`treshape`、`ttrans`
+`tconcat`、`textract`、`tfillpad`、`tfillpad_expand`、`tfillpad_inplace`、`timg2col`、`tinsert`、`tmov`、`treshape`、`ttrans`
 
 ### 不规则与复杂操作
 

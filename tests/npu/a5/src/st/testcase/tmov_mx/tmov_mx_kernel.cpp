@@ -135,7 +135,7 @@ __global__ AICORE void RunTMOVMX(__gm__ OutType *out, __gm__ AType *src0, __gm__
     if constexpr ((kAlign - validK) * sizeof(AType) >= C0_SIZE_BYTE) {
         TFILLPAD(aMatTile, aMatTile); // TLOAD can only pad to 32B，mmad_mx needs to be aligned to 64 in k direction
     }
-    TFILLPAD(bMatTile, bMatTile); // B input is nk,  TLOAD does not pad zeros in k direction
+    TFILLPAD(bMatTile, bMatTile);     // B input is nk,  TLOAD does not pad zeros in k direction
 
     TLOAD<TileScaleAData, GlobalDataSrc2>(aScaleMatTile, src2Global);
     TLOAD<TileScaleBData, GlobalDataSrc3>(bScaleMatTile, src3Global);
@@ -152,11 +152,6 @@ __global__ AICORE void RunTMOVMX(__gm__ OutType *out, __gm__ AType *src0, __gm__
 
     TMOV(aScaleTile, aScaleMatTile);
     TMOV(bScaleTile, bScaleMatTile);
-
-#ifdef __PTO_AUTO__
-    TGET_SCALE_ADDR(aScaleTile, aTile);
-    TGET_SCALE_ADDR(bScaleTile, bTile);
-#endif
 
 #ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
@@ -281,11 +276,6 @@ __global__ AICORE void RunTEXTRACTMX(__gm__ OutType *out, __gm__ AType *src0, __
     TEXTRACT(aScaleTile, aScaleMatTile, indexM, indexK / 32);
     TEXTRACT(bScaleTile, bScaleMatTile, indexK / 32, indexN);
 
-#ifdef __PTO_AUTO__
-    TGET_SCALE_ADDR(aScaleTile, aTile);
-    TGET_SCALE_ADDR(bScaleTile, bTile);
-#endif
-
 #ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
@@ -399,11 +389,6 @@ __global__ AICORE void RunTEXTRACTMX_COMPACT(__gm__ OutType *out, __gm__ AType *
 
     TEXTRACT(aScaleTile, aScaleMatTile, indexM, indexK / 32);
     TEXTRACT(bScaleTile, bScaleMatTile, indexK / 32, indexN);
-
-#ifdef __PTO_AUTO__
-    TGET_SCALE_ADDR(aScaleTile, aTile);
-    TGET_SCALE_ADDR(bScaleTile, bTile);
-#endif
 
 #ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);

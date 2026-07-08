@@ -42,8 +42,7 @@ inline bool IsOneOf(const std::string &opcode, std::initializer_list<const char 
 
 inline PipeStage StaticPipeStageLookup(const std::string &opcode)
 {
-    if (IsOneOf(opcode, {"TSYNC", "TRESHAPE", "TASSIGN", "TPRINT", "TGET_SCALE_ADDR", "TSUBVIEW", "TALLOC", "TFREE",
-                         "TPUSH", "TPOP"})) {
+    if (IsOneOf(opcode, {"TSYNC", "TRESHAPE", "TASSIGN", "TPRINT", "TSUBVIEW", "TALLOC", "TFREE", "TPUSH", "TPOP"})) {
         return PipeStage::Scalar;
     }
     if (IsOneOf(opcode, {"TMATMUL", "TMATMUL_ACC", "TMATMUL_BIAS", "TGEMV", "TGEMV_ACC", "TGEMV_BIAS"})) {

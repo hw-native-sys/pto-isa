@@ -81,7 +81,7 @@ For floating-point types, PTO follows IEEE 754 semantics with the following hard
 The FTZ (flush-to-zero) behavior for denormals is **hardware-specific**:
 
 - **A2/A3**: Denormals are flushed to zero by default. Hardware does not generate subnormal results during arithmetic; operands that are denormal are treated as zero.
-- **A5**: Denormals are flushed to zero by default. The `sethf32mode`/`settf32mode` instructions can modify this behavior on A5-class targets.
+- **A5**: Denormals are flushed to zero by default.
 - **CPU simulator**: Denormals may be preserved or flushed depending on the host CPU's SSE/AVX floating-point configuration; behavior is not guaranteed to match the hardware targets.
 
 ## Type Conversion Rules

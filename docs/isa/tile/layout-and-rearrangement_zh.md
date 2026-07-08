@@ -13,7 +13,6 @@
 | [pto.treshape](./ops/layout-and-rearrangement/treshape_zh.md) | 改变 tile 的形状解释 | Transform |
 | [pto.ttrans](./ops/layout-and-rearrangement/ttrans_zh.md) | 转置 tile | Transform |
 | [pto.tconcat](./ops/layout-and-rearrangement/tconcat.md) | 沿指定维度拼接 tile 序列 | Transform |
-| [pto.tpack](./ops/layout-and-rearrangement/tpack.md) | 把 tile 元素打包为目标布局或紧凑表示 | Pack |
 | [pto.textract](./ops/layout-and-rearrangement/textract_zh.md) | 抽取子 tile | Extract |
 | [pto.textract_fp](./ops/layout-and-rearrangement/textract_zh.md) | 通过 fix pipe 做抽取 / 填充 | Extract |
 | [pto.tinsert](./ops/layout-and-rearrangement/tinsert_zh.md) | 插入子 tile | Insert |
@@ -36,7 +35,6 @@
 - `TRESHAPE` 在不改变元素总数的前提下改变 shape 解释；
 - `TTRANS` 把行列对调；
 - `TCONCAT` 按文档定义的维度连接 tile 元素序列；
-- `TPACK` 把 tile 元素重新打包到目标布局或紧凑表示；
 - `TIMG2COL` 把卷积窗口重排成列式布局，供后续卷积 lowering 或矩阵化计算使用。
 
 ### 抽取与插入

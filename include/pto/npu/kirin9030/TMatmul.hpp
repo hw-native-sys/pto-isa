@@ -17,7 +17,6 @@ namespace pto {
 
 inline namespace TMatmulInternel {
 constexpr const int MMAD_MAX_SUPPORT_LENGTH = 4095;
-constexpr const int TF32_MODE_BIT = 46;
 constexpr const int TF32_TRANS_MODE_BIT = 47;
 } // namespace TMatmulInternel
 
@@ -218,13 +217,6 @@ PTO_INTERNAL void TMATMUL_MX_IMPL(TileRes &cMatrix, TileLeft &aMatrix, TileLeftS
                                   TileRightScale &bScaleMatrix, TileBias &biasData)
 {
     static_assert(sizeof(TileRes::DType) == 0, "no support instruction.");
-}
-
-template <bool isEnable, RoundMode tf32TransMode = RoundMode::CAST_ROUND>
-PTO_INTERNAL void TSETTF32MODE_IMPL()
-{
-    static_assert(!isEnable, "Fix: Kirin9030 does not support setting the TF32 mode to enabled.");
-    set_ctrl(sbitset0(get_ctrl(), TF32_MODE_BIT));
 }
 } // namespace pto
 #endif
