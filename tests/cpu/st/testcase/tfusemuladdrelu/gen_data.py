@@ -67,7 +67,7 @@ def gen_golden_data(case_name, param):
                 # 3. Cast back to half at the very end
                 dst[i, j] = np.float16(res)
     # Perform the operation
-    
+
     check_golden_data(dst)
 
     # Save the input and golden data to binary files
