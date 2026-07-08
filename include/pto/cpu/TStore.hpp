@@ -31,7 +31,7 @@ PTO_INTERNAL void TStoreInstrL12Gm(__cbuf__ typename TileData::DType *dst, typen
     for (uint16_t i = 0; i < nBurst; i++) {
         for (size_t j = 0; j < lenBurst * elemNum; j++) {
             // Write from buffer (src) to GM (dst)
-            dst[dstStride * i + j] = src[srcStride * i + j];
+            setProperDataPart(dst, dstStride * i + j, src[srcStride * i + j]);
         }
     }
 }
@@ -85,25 +85,26 @@ __tf__ PTO_INLINE void StorePlainMatrix(typename GlobalData::DType __out__ *dst,
     size_t offsetSrcBase = idx3 * gShape3 * TileData::Cols;
     using D = typename GlobalData::DType;
     using S = typename TileData::DType;
-    cpu::parallel_for_1d(
-        0, static_cast<std::size_t>(gShape3), static_cast<std::size_t>(gShape3) * gShape4, [&](std::size_t r) {
-            const std::size_t srcBase = offsetSrcBase + r * TileData::Cols;
-            const std::size_t dstBase = r * static_cast<std::size_t>(gStride3);
-            PTO_CPU_VECTORIZE_LOOP
-            for (std::size_t c = 0; c < static_cast<std::size_t>(gShape4); c++) {
-                int dstIdx = dstBase + c * static_cast<std::size_t>(gStride4);
-                if constexpr (quantMode != QuantMode_t::NoQuant) {
-                    uint64_t scalar = scalars[c];
-                    dst[dstIdx] = quantize_element<D, S, quantMode, applyRelu>(src[srcBase + c], scalar);
-                } else {
-                    S val = src[srcBase + c];
-                    if constexpr (applyRelu) {
-                        val = ReLU(val);
-                    }
-                    dst[dstIdx] = static_cast<D>(val);
-                }
-            }
-        });
+    cpu::parallel_for_1d(0, static_cast<std::size_t>(gShape3), static_cast<std::size_t>(gShape3) * gShape4,
+                         [&](std::size_t r) {
+                             const std::size_t srcBase = offsetSrcBase + r * TileData::Cols;
+                             const std::size_t dstBase = r * static_cast<std::size_t>(gStride3);
+                             PTO_CPU_VECTORIZE_LOOP
+                             for (std::size_t c = 0; c < static_cast<std::size_t>(gShape4); c++) {
+                                 int dstIdx = dstBase + c * static_cast<std::size_t>(gStride4);
+                                 if constexpr (quantMode != QuantMode_t::NoQuant) {
+                                     uint64_t scalar = scalars[c];
+                                     D val = quantize_element<D, S, quantMode, applyRelu>(src[srcBase + c], scalar);
+                                     setProperDataPart(dst, dstIdx, val);
+                                 } else {
+                                     S val = src[srcBase + c];
+                                     if constexpr (applyRelu) {
+                                         val = ReLU(val);
+                                     }
+                                     setProperDataPart(dst, dstIdx, static_cast<D>(val));
+                                 }
+                             }
+                         });
 }
 
 template <typename GlobalData, typename TileData, QuantMode_t quantMode, bool applyRelu,
@@ -116,25 +117,26 @@ __tf__ PTO_INLINE void StorePlainMatrix(typename GlobalData::DType __out__ *dst,
     size_t offsetSrcBase = idx3 * gShape4 * TileData::Rows;
     using D = typename GlobalData::DType;
     using S = typename TileData::DType;
-    cpu::parallel_for_1d(
-        0, static_cast<std::size_t>(gShape4), static_cast<std::size_t>(gShape3) * gShape4, [&](std::size_t c) {
-            const std::size_t srcBase = offsetSrcBase + c * TileData::Rows;
-            const std::size_t dstStride4 = static_cast<std::size_t>(gStride4);
-            PTO_CPU_VECTORIZE_LOOP
-            for (std::size_t r = 0; r < static_cast<std::size_t>(gShape3); r++) {
-                int dstIdx = r * static_cast<std::size_t>(gStride3) + c * dstStride4;
-                if constexpr (quantMode != QuantMode_t::NoQuant) {
-                    uint64_t scalar = scalars[r];
-                    dst[dstIdx] = quantize_element<D, S, quantMode, applyRelu>(src[srcBase + r], scalar);
-                } else {
-                    S val = src[srcBase + r];
-                    if constexpr (applyRelu) {
-                        val = ReLU(val);
-                    }
-                    dst[dstIdx] = static_cast<D>(val);
-                }
-            }
-        });
+    cpu::parallel_for_1d(0, static_cast<std::size_t>(gShape4), static_cast<std::size_t>(gShape3) * gShape4,
+                         [&](std::size_t c) {
+                             const std::size_t srcBase = offsetSrcBase + c * TileData::Rows;
+                             const std::size_t dstStride4 = static_cast<std::size_t>(gStride4);
+                             PTO_CPU_VECTORIZE_LOOP
+                             for (std::size_t r = 0; r < static_cast<std::size_t>(gShape3); r++) {
+                                 int dstIdx = r * static_cast<std::size_t>(gStride3) + c * dstStride4;
+                                 if constexpr (quantMode != QuantMode_t::NoQuant) {
+                                     uint64_t scalar = scalars[r];
+                                     D val = quantize_element<D, S, quantMode, applyRelu>(src[srcBase + r], scalar);
+                                     setProperDataPart(dst, dstIdx, val);
+                                 } else {
+                                     S val = src[srcBase + r];
+                                     if constexpr (applyRelu) {
+                                         val = ReLU(val);
+                                     }
+                                     setProperDataPart(dst, dstIdx, static_cast<D>(val));
+                                 }
+                             }
+                         });
 }
 
 template <typename GlobalData, typename TileData, QuantMode_t quantMode, bool applyRelu>
