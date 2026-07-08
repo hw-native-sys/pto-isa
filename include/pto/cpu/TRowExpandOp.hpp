@@ -47,7 +47,7 @@ PTO_INTERNAL void TRowExpandOp(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, std
     });
 }
 
-template <typename TileDst, typename TileSrc0, typename TileSrc1, ElementOp TileOperation, bool include_integer = false>
+template <typename TileDst, typename TileSrc0, typename TileSrc1, ElementOp TileOperation, bool include_integer = true>
 PTO_INTERNAL void TRowExpandOp(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1)
 {
     using T = typename TileDst::DType;
@@ -84,37 +84,37 @@ PTO_INTERNAL void TRowExpandOp(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1)
 template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDst, typename TileSrc0, typename TileSrc1>
 PTO_INTERNAL void TROWEXPANDDIV_IMPL(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1)
 {
-    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_DIV, true>(dst, src0, src1);
+    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_DIV>(dst, src0, src1);
 }
 
 template <typename TileDst, typename TileSrc0, typename TileSrc1>
 PTO_INTERNAL void TROWEXPANDMUL_IMPL(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1)
 {
-    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_MUL, true>(dst, src0, src1);
+    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_MUL>(dst, src0, src1);
 }
 
 template <typename TileDst, typename TileSrc0, typename TileSrc1>
 PTO_INTERNAL void TROWEXPANDSUB_IMPL(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1)
 {
-    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_SUB, true>(dst, src0, src1);
+    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_SUB>(dst, src0, src1);
 }
 
 template <typename TileDst, typename TileSrc0, typename TileSrc1>
 PTO_INTERNAL void TROWEXPANDADD_IMPL(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1)
 {
-    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_ADD, true>(dst, src0, src1);
+    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_ADD>(dst, src0, src1);
 }
 
 template <typename TileDst, typename TileSrc0, typename TileSrc1>
 PTO_INTERNAL void TROWEXPANDMAX_IMPL(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1)
 {
-    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_MAX, true>(dst, src0, src1);
+    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_MAX>(dst, src0, src1);
 }
 
 template <typename TileDst, typename TileSrc0, typename TileSrc1>
 PTO_INTERNAL void TROWEXPANDMIN_IMPL(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1)
 {
-    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_MIN, true>(dst, src0, src1);
+    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_MIN>(dst, src0, src1);
 }
 
 template <typename TileDst, typename TileSrc0, typename TileSrc1>
@@ -127,37 +127,37 @@ template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDst, typename
           typename TileTmp>
 PTO_INTERNAL void TROWEXPANDDIV_IMPL(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileTmp &tmp)
 {
-    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_DIV, true>(dst, src0, src1);
+    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_DIV>(dst, src0, src1);
 }
 
 template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileTmp>
 PTO_INTERNAL void TROWEXPANDMUL_IMPL(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileTmp &tmp)
 {
-    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_MUL, true>(dst, src0, src1);
+    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_MUL>(dst, src0, src1);
 }
 
 template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileTmp>
 PTO_INTERNAL void TROWEXPANDSUB_IMPL(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileTmp &tmp)
 {
-    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_SUB, true>(dst, src0, src1);
+    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_SUB>(dst, src0, src1);
 }
 
 template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileTmp>
 PTO_INTERNAL void TROWEXPANDADD_IMPL(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileTmp &tmp)
 {
-    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_ADD, true>(dst, src0, src1);
+    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_ADD>(dst, src0, src1);
 }
 
 template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileTmp>
 PTO_INTERNAL void TROWEXPANDMAX_IMPL(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileTmp &tmp)
 {
-    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_MAX, true>(dst, src0, src1);
+    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_MAX>(dst, src0, src1);
 }
 
 template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileTmp>
 PTO_INTERNAL void TROWEXPANDMIN_IMPL(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileTmp &tmp)
 {
-    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_MIN, true>(dst, src0, src1);
+    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_MIN>(dst, src0, src1);
 }
 
 template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileTmp>
