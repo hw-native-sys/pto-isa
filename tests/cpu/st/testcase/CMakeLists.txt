@@ -161,6 +161,7 @@ tsubs
 tsubsc
 ttest
 ttrans
+ttrans_conv
 ttri
 ttrace
 twait
