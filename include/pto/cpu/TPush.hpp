@@ -384,7 +384,6 @@ void InitializeQuantScalars(std::vector<uint64_t> &scalars)
         for (size_t i = 0; i < scalars.size(); i++) {
             scalars[i] = ptr[i];
         }
-
     } else {
         uint64_t scalar = GET_QUANT_SCALAR_IMPL();
         if (scalar == 0u) {
