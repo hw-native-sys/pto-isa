@@ -154,9 +154,9 @@ PTO_INTERNAL void TGATHER_IMPL(DstTileData &dst, SrcTileData &src)
         assert(dst.GetValidCol() == DstTileData::Cols);
         TGather<DstTileData, SrcTileData, maskPattern>(dst.data(), src.data(), src.GetValidRow(), src.GetValidCol());
     } else {
-        const unsigned expectedRows = CountSelected(maskPattern, src.GetValidRow());
-        assert(dst.GetValidRow() == expectedRows);
-        assert(dst.GetValidCol() == src.GetValidCol());
+        const unsigned expectedDstRows = CountSelected(maskPattern, src.GetValidRow());
+        assert(dst.GetValidRow() == expectedDstRows);
+        assert(dst.GetValidRow() == DstTileData::Rows);
         TGatherCol<DstTileData, SrcTileData, maskPattern>(dst.data(), src.data(), src.GetValidRow(), src.GetValidCol());
     }
 }
