@@ -11,25 +11,6 @@ Prefetch data from global memory into a tile-local cache/buffer (implementation-
 
 Note: unlike most PTO instructions, `TPREFETCH` does **not** implicitly call `TSYNC(events...)` in the C++ wrapper.
 
-## Assembly Syntax
-
-Synchronous form:
-
-```text
-%dst = tprefetch %src : !pto.global<...> -> !pto.tile<...>
-```
-
-### AS Level 1 (SSA)
-
-```text
-%dst = pto.tprefetch %src : !pto.global<...> -> !pto.tile<...>
-```
-
-### AS Level 2 (DPS)
-
-```text
-pto.tprefetch ins(%src : !pto.global<...>) outs(%dst : !pto.tile_buf<...>)
-```
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:

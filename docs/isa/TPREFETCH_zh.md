@@ -12,26 +12,6 @@
 
 除非另有说明，语义在有效区域上定义，目标相关的行为标记为实现定义。
 
-## 汇编语法
-
-同步形式：
-
-```text
-%dst = tprefetch %src : !pto.global<...> -> !pto.tile<...>
-```
-
-### AS Level 1（SSA）
-
-```text
-%dst = pto.tprefetch %src : !pto.global<...> -> !pto.tile<...>
-```
-
-### AS Level 2（DPS）
-
-```text
-pto.tprefetch ins(%src : !pto.global<...>) outs(%dst : !pto.tile_buf<...>)
-```
-
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：

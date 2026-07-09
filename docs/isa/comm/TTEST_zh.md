@@ -2,9 +2,9 @@
 
 ## 简介
 
-非阻塞检测信号是否满足比较条件。满足则返回 `true`，否则返回 `false`。适用于基于轮询的同步（含超时）或与其他工作交错执行的场景。
+以非阻塞方式检测信号值是否满足给定的比较条件：满足返回 `true`，否则返回 `false`。适用于带超时的轮询同步，或需要与其他计算交错执行的场景。
 
-支持单个信号或多维信号 tensor（最高 5 维，形状由 GlobalTensor 决定）。对于 tensor，仅当**所有**信号均满足条件时才返回 `true`。
+支持单个信号或多维信号 tensor (最高 5 维，形状由 GlobalTensor 决定)。对于 tensor，仅当**所有**信号均满足条件时才返回 `true`。
 
 ## 数学语义
 
@@ -14,18 +14,11 @@
 
 $$\mathrm{result} = (\mathrm{signal} \;\mathtt{cmp}\; \mathrm{cmpValue})$$
 
-信号 tensor（所有元素均须满足）：
+信号 tensor (所有元素均须满足)：
 
 $$\mathrm{result} = \bigwedge_{d_0, d_1, d_2, d_3, d_4} (\mathrm{signal}_{d_0, d_1, d_2, d_3, d_4} \;\mathtt{cmp}\; \mathrm{cmpValue})$$
 
 其中 `cmp` ∈ {`EQ`, `NE`, `GT`, `GE`, `LT`, `LE`}
-
-## 汇编语法
-
-```text
-%result = ttest %signal, %cmp_value {cmp = #pto.cmp<EQ>} : (!pto.memref<i32>, i32) -> i1
-%result = ttest %signal_matrix, %cmp_value {cmp = #pto.cmp<GE>} : (!pto.memref<i32, MxN>, i32) -> i1
-```
 
 ## C++ 内建接口
 
@@ -39,7 +32,7 @@ PTO_INST bool TTEST(GlobalSignalData &signalData, int32_t cmpValue, WaitCmp cmp)
 ## 约束
 
 - **类型约束**：
-    - `GlobalSignalData::DType` 必须为 `int32_t`（32 位信号）。
+    - `GlobalSignalData::DType` 必须为 `int32_t` (32 位信号)。
 - **内存约束**：
     - `signalData` 必须指向本地地址（当前 NPU）。
 - **返回值**：
@@ -48,15 +41,16 @@ PTO_INST bool TTEST(GlobalSignalData &signalData, int32_t cmpValue, WaitCmp cmp)
 - **形状语义**：
     - 单个信号：形状为 `<1,1,1,1,1>`。
     - 信号 tensor：形状决定要检测的多维区域（最高 5 维）。
-- **比较运算符**（WaitCmp）：
-  | 值 | 条件 |
-  |-------|--------|
-  | `EQ` | `signal == cmpValue` |
-  | `NE` | `signal != cmpValue` |
-  | `GT` | `signal > cmpValue` |
-  | `GE` | `signal >= cmpValue` |
-  | `LT` | `signal < cmpValue` |
-  | `LE` | `signal <= cmpValue` |
+**比较运算符**（WaitCmp）：
+
+| 值 | 条件 |
+|-------|--------|
+| `EQ` | `signal == cmpValue` |
+| `NE` | `signal != cmpValue` |
+| `GT` | `signal > cmpValue` |
+| `GE` | `signal >= cmpValue` |
+| `LT` | `signal < cmpValue` |
+| `LE` | `signal <= cmpValue` |
 
 ## 示例
 

@@ -14,13 +14,6 @@ For `NotifyOp::AtomicAdd`:
 
 $$ \mathrm{signal}^{\mathrm{remote}} \mathrel{+}= \mathrm{value} \quad (\text{atomic}) $$
 
-## Assembly Syntax
-
-```text
-tnotify %signal_remote, %value {op = #pto.notify_op<Set>} : (!pto.memref<i32>, i32)
-tnotify %signal_remote, %value {op = #pto.notify_op<AtomicAdd>} : (!pto.memref<i32>, i32)
-```
-
 ## C++ Intrinsic
 
 Declared in `include/pto/comm/pto_comm_inst.hpp`:

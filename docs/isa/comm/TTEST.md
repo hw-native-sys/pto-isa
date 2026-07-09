@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Non-blocking test if signal(s) meet comparison condition. Returns `true` if condition is satisfied, `false` otherwise. Used for polling-based synchronization with timeout or interleaved work.
+Non-blocking check of whether signal values satisfy the given comparison condition: returns `true` if satisfied, `false` otherwise. Suitable for polling-based synchronization with timeout, or scenarios where synchronization is interleaved with other computation.
 
 Supports single signal or multi-dimensional signal tensor (up to 5-D, shape derived from GlobalTensor). For tensor, returns `true` only if ALL signals meet the condition.
 
@@ -20,13 +20,6 @@ $$ \mathrm{result} = \bigwedge_{d_0, d_1, d_2, d_3, d_4} (\mathrm{signal}_{d_0, 
 
 where `cmp` ∈ {`EQ`, `NE`, `GT`, `GE`, `LT`, `LE`}
 
-## Assembly Syntax
-
-```text
-%result = pto.ttest %signal, %cmp_value {cmp = #pto.cmp<EQ>} : (!pto.memref<i32>, i32) -> i1
-%result = pto.ttest %signal_matrix, %cmp_value {cmp = #pto.cmp<GE>} : (!pto.memref<i32, MxN>, i32) -> i1
-```
-
 ## C++ Intrinsic
 
 Declared in `include/pto/comm/pto_comm_inst.hpp`:
@@ -38,26 +31,26 @@ PTO_INST bool TEST(GlobalSignalData &signalData, int32_t cmpValue, WaitCmp cmp, 
 
 ## Constraints
 
-!!! warning "Constraints"
-    - **Type constraints**:
-        - `GlobalSignalData::DType` must be `int32_t` (32-bit signal).
-    - **Memory constraints**:
-        - `signalData` must point to local address (on current NPU).
-    - **Return value**:
-        - Returns `true` if condition is satisfied, `false` otherwise.
-        - For signal tensor, returns `true` only if ALL signals satisfy the condition.
-    - **Shape semantics**:
-        - For single signal: Shape is `<1,1,1,1,1>`.
-        - For signal tensor: Shape determines the multi-dimensional region (up to 5-D) to test.
-    - **Comparison operators** (WaitCmp):
-      | Value | Condition |
-      |-------|-----------|
-      | `EQ` | `signal == cmpValue` |
-      | `NE` | `signal != cmpValue` |
-      | `GT` | `signal > cmpValue` |
-      | `GE` | `signal >= cmpValue` |
-      | `LT` | `signal < cmpValue` |
-      | `LE` | `signal <= cmpValue` |
+- **Type constraints**:
+    - `GlobalSignalData::DType` must be `int32_t` (32-bit signal).
+- **Memory constraints**:
+    - `signalData` must point to local address (on current NPU).
+- **Return value**:
+    - Returns `true` if condition is satisfied, `false` otherwise.
+    - For signal tensor, returns `true` only if ALL signals satisfy the condition.
+- **Shape semantics**:
+    - For single signal: Shape is `<1,1,1,1,1>`.
+    - For signal tensor: Shape determines the multi-dimensional region (up to 5-D) to test.
+**Comparison operators** (WaitCmp):
+
+| Value | Condition |
+|-------|-----------|
+| `EQ` | `signal == cmpValue` |
+| `NE` | `signal != cmpValue` |
+| `GT` | `signal > cmpValue` |
+| `GE` | `signal >= cmpValue` |
+| `LT` | `signal < cmpValue` |
+| `LE` | `signal <= cmpValue` |
 
 ## Examples
 

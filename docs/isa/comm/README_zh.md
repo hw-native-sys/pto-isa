@@ -33,8 +33,8 @@
 
 | 值 | 说明 |
 |-------|-------------|
-| `NotifyOp::Set` | 直接赋值（`signal = value`）|
 | `NotifyOp::AtomicAdd` | 原子加（`signal += value`）|
+| `NotifyOp::Set` | 直接赋值（`signal = value`）|
 
 ### WaitCmp
 
@@ -81,7 +81,7 @@ comm::TTEST(signal, 1, comm::WaitCmp::GE);
 
 | 值 | 说明 |
 |-------|-------------|
-| `DmaEngine::SDMA` | SDMA 引擎（支持一维传输，Ascend950 上仅支持TGET|
+| `DmaEngine::SDMA` | SDMA 引擎（支持一维传输，Ascend950 / NPU_ARCH 3510 仅支持硬件 GET，PUT 则采用 MTE 的软实现以保证指令完整性）|
 | `DmaEngine::URMA` | URMA 引擎（支持一维传输，仅 Ascend950 / NPU_ARCH 3510；要求 CANN >= 9.1.0）|
 
 ### AsyncEvent
@@ -125,7 +125,9 @@ struct ParallelGroup {
     int rootIdx;  // 根 NPU 的 rank 索引
 
     // 工厂函数（推荐）：从已有 tensor 数组构建。
-    static ParallelGroup Create(GlobalData *tensorArray, int size, int rank_id);
+    // rootIdx：group 内 root rank 的索引（不是调用方自身的 rank）。
+    // group 内所有 rank 必须传入相同的 rootIdx。
+    static ParallelGroup Create(GlobalData *tensorArray, int size, int rootIdx);
 };
 ```
 

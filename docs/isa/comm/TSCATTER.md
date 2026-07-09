@@ -15,15 +15,6 @@ The local source tensor has shape $(D_0, D_1, D_2, N \times H, W)$, where $N$ is
 
 $$\mathrm{dst}^{(r)}_{d_0, d_1, d_2,\; i,\; j} = \mathrm{src}^{\mathrm{local}}_{d_0, d_1, d_2,\; r \cdot H + i,\; j} \quad \forall\, r \in [0, N),\; i \in [0, H),\; j \in [0, W)$$
 
-## Assembly Syntax
-
-Synchronous form:
-
-```text
-pto.tscatter %group, %src : (!pto.group<...>, !pto.memref<...>)
-```
-Lowering introduces UB staging tile(s) for the GM→UB→GM data path; the C++ intrinsic requires explicit `stagingTileData` (or `pingTile` / `pongTile`) operand(s).
-
 ## Template Parameter
 
 - `engine`:
@@ -102,7 +93,7 @@ void scatter(__gm__ T* local_data, __gm__ T* group_addrs[NRANKS], int my_rank) {
 }
 ```
 
-### Ping-Pong Scatter (Double Buffering)
+### Ping-pong Scatter (Double Buffering)
 
 Uses two UB tiles to overlap TLOAD of the next chunk (MTE2) with TSTORE of the current chunk (MTE3).
 
