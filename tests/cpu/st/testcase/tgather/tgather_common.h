@@ -32,6 +32,22 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define I32P1000 26
 #define I32P1111 27
 
+#define I8_0101 28
+#define I8_1010 29
+#define I8_0001 30
+#define I8_0010 31
+#define I8_0100 32
+#define I8_1000 33
+#define I8_1111 34
+
+#define U8_0101 35
+#define U8_1010 36
+#define U8_0001 37
+#define U8_0010 38
+#define U8_0100 39
+#define U8_1000 40
+#define U8_1111 41
+
 #define HALF_P0101_ROW 5
 #define HALF_P0101_COL 128
 #define HALF_P1010_ROW 7
@@ -94,3 +110,18 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define COL_HP0100 115
 #define COL_HP1000 116
 #define COL_HP1111 117
+
+#define B8_P0101_ROW 5
+#define B8_P0101_COL 128
+#define B8_P1010_ROW 7
+#define B8_P1010_COL 1024
+#define B8_P0001_ROW 3
+#define B8_P0001_COL 1056
+#define B8_P0010_ROW 4
+#define B8_P0010_COL 128
+#define B8_P0100_ROW 5
+#define B8_P0100_COL 256
+#define B8_P1000_ROW 6
+#define B8_P1000_COL 288
+#define B8_P1111_ROW 7
+#define B8_P1111_COL 320
