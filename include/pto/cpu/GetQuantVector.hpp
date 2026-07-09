@@ -16,9 +16,9 @@ namespace pto {
 PTO_INTERNAL uint64_t GET_QUANT_VECTOR_IMPL()
 {
     uint64_t quantConfig = 0;
-    char *reg_base = NPUMemoryModel::Instance().GetREGBase();
-    char *scalarReg = reg_base + QUANT_VECTOR_REG_OFFSET * sizeof(uint64_t);
-    char *quantDst = reinterpret_cast<char *>(&quantConfig);
+    uint8_t *reg_base = reinterpret_cast<uint8_t *>(NPUMemoryModel::Instance().GetREGBase());
+    uint8_t *scalarReg = reg_base + QUANT_VECTOR_REG_OFFSET * sizeof(uint64_t);
+    uint8_t *quantDst = reinterpret_cast<uint8_t *>(&quantConfig);
     std::copy(scalarReg, scalarReg + sizeof(quantConfig), quantDst);
     return quantConfig;
 }
