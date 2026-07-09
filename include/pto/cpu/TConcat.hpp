@@ -92,12 +92,13 @@ template <typename TileSrc0Idx, typename TileSrc1Idx>
 struct TConCatIdxCols {
     TileSrc0Idx &src0Idx;
     TileSrc1Idx &src1Idx;
+    unsigned elemSize;
 
     PTO_INTERNAL std::pair<unsigned, unsigned> GetColsNumber(unsigned r)
     {
-        unsigned cols0 = src0Idx.data()[GetTileElementOffset<TileSrc0Idx>(r, 0)];
-        unsigned cols1 = src1Idx.data()[GetTileElementOffset<TileSrc1Idx>(r, 0)];
-        return {cols0, cols1};
+        unsigned byte0 = src0Idx.data()[GetTileElementOffset<TileSrc0Idx>(r, 0)];
+        unsigned byte1 = src1Idx.data()[GetTileElementOffset<TileSrc1Idx>(r, 0)];
+        return {byte0 / elemSize, byte1 / elemSize};
     }
 };
 
@@ -106,13 +107,14 @@ struct TConCatDstIdxCols {
     TileDstIdx &dstIdx;
     TileSrc0Idx &src0Idx;
     TileSrc1Idx &src1Idx;
+    unsigned elemSize;
 
     PTO_INTERNAL std::pair<unsigned, unsigned> GetColsNumber(unsigned r)
     {
-        unsigned cols0 = src0Idx.data()[GetTileElementOffset<TileSrc0Idx>(r, 0)];
-        unsigned cols1 = src1Idx.data()[GetTileElementOffset<TileSrc1Idx>(r, 0)];
-        dstIdx.data()[GetTileElementOffset<TileDstIdx>(r, 0)] = cols0 + cols1;
-        return {cols0, cols1};
+        unsigned byte0 = src0Idx.data()[GetTileElementOffset<TileSrc0Idx>(r, 0)];
+        unsigned byte1 = src1Idx.data()[GetTileElementOffset<TileSrc1Idx>(r, 0)];
+        dstIdx.data()[GetTileElementOffset<TileDstIdx>(r, 0)] = byte0 + byte1;
+        return {byte0 / elemSize, byte1 / elemSize};
     }
 };
 
@@ -128,8 +130,9 @@ PTO_INTERNAL void TCONCAT_IMPL(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1)
 template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileSrc0Idx, typename TileSrc1Idx>
 PTO_INTERNAL void TCONCAT_IMPL(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileSrc0Idx &src0Idx, TileSrc1Idx &src1Idx)
 {
+    using T = typename TileSrc0Idx::DType;
     TConcatIdxTileCheck(dst, src0, src1, src0Idx, src1Idx);
-    TConcatProcessor(dst, src0, src1, TConCatIdxCols{src0Idx, src1Idx});
+    TConcatProcessor(dst, src0, src1, TConCatIdxCols{src0Idx, src1Idx, sizeof(T)});
 }
 
 template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileDstIdx, typename TileSrc0Idx,
@@ -137,8 +140,9 @@ template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileD
 PTO_INTERNAL void TCONCAT_IMPL(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileDstIdx &dstIdx, TileSrc0Idx &src0Idx,
                                TileSrc1Idx &src1Idx)
 {
+    using T = typename TileSrc0Idx::DType;
     TConcatIdxTileCheck(dst, src0, src1, dstIdx, src0Idx, src1Idx);
-    TConcatProcessor(dst, src0, src1, TConCatDstIdxCols{dstIdx, src0Idx, src1Idx});
+    TConcatProcessor(dst, src0, src1, TConCatDstIdxCols{dstIdx, src0Idx, src1Idx, sizeof(T)});
 }
 } // namespace pto
 
