@@ -21,7 +21,7 @@ flowchart TB
 
 ## Summary
 
-`SYNCALL` is a cross-core synchronization barrier supporting A2/A3 and A5 NPU backends. The template parameter `SyncCoreType` selects the core-type mode:
+`SYNCALL` is a cross-core synchronization barrier supporting A2/A3 and A5 NPU backends. The template parameter `SyncCoreType` selects which core types participate in the synchronization:
 
 - **AIV-only** (default): `SYNCALL()` synchronizes all AIV cores.
 - **AIC-only**: `SYNCALL<SyncCoreType::AICOnly>()` synchronizes all AIC cores (A2/A3 supports both hardware and software modes; A5 supports hardware mode only).
@@ -31,13 +31,13 @@ flowchart TB
 
 ## Mathematical Semantics
 
-Not applicable as an elementwise arithmetic operation. `SYNCALL` expresses a **barrier arrival** relation:
+Not applicable as an elementwise arithmetic operation. `SYNCALL` expresses a **barrier completion** relation:
 
 - At a given dynamic program point, every core in the participant set defined by the current `SyncCoreType` must execute past the `SYNCALL` call before any participant may proceed beyond that point.
 - Hardware mode: cross-core visibility is guaranteed by FFTS flags and device-side `wait_flag_dev` primitives.
 - Software mode: each participant owns a monotonically-increasing counter slot in GM; `dcci`/`dsb` coherency primitives and polling determine "all participants have reached the current generation."
 
-This semantic does **not** provide additional guarantees on GM or other buffer contents after the barrier; cross-core data visibility must be maintained by the caller — see "Cross-Core GM Communication Notes".
+This semantic does not provide additional guarantees on GM or other buffer contents after the barrier; cross-core data visibility must be maintained by the caller — see "Cross-Core GM Communication Notes".
 
 ## C++ Built-in Interface
 
@@ -75,13 +75,13 @@ PTO_INST void SYNCALL(GlobalData &gmWorkspace, UbTileData &ubWorkspace, L1TileDa
 ## Parameters
 
 - `gmWorkspace`: `GlobalTensor<int32_t, pto::Shape<>, pto::Stride<>>` (when `using namespace pto` coexists with Ascend C headers, qualify with `pto::` to avoid name collision with the compiler-intrinsic `Stride` enum). GM workspace for software mode; must be zero-initialized before the call. Each participating core occupies 8 `int32_t` values (cache-line-isolated sync counter).
-- `ubWorkspace`: `Tile<TileType::Vec, int32_t, 1, SYNCALL_SOFT_SLOT_INT32>`. UB scratch for AIV-only and MIX software mode; capacity must be at least `usedCores * 8 * sizeof(int32_t)`.
-- `l1Workspace`: `Tile<TileType::Mat, int32_t, 1, SYNCALL_SOFT_SLOT_INT32>`. L1 (cbuf) scratch for AIC-only and MIX software mode; used by `create_cbuf_matrix` to fill a sync value then DMA-transfer to GM.
+- `ubWorkspace`: `Tile<TileType::Vec, int32_t, 1, N * SYNCALL_SOFT_SLOT_INT32>` where `N >= usedCores`. UB scratch for AIV-only and MIX software mode; capacity must be at least `usedCores * SYNCALL_SOFT_SLOT_INT32 * sizeof(int32_t)` (one cache line per participating core).
+- `l1Workspace`: `Tile<TileType::Mat, int32_t, 1, N * SYNCALL_SOFT_SLOT_INT32>` where `N >= usedCores`. L1 (cbuf) scratch for AIC-only and MIX software mode; used by `create_cbuf_matrix` to fill a sync value then DMA-transfer to GM.
 - `usedCores`: Number of cores participating in the software barrier. When 0, automatically inferred — AIV-only / AIC-only use `get_block_num()`, MIX uses `SYNCALL_GET_MIX_PARTICIPANT_COUNT()` (i.e. `AIC blocks × (1 + AIV ratio)`).
 
 ## Kernel Meta Macros
 
-The following scenarios require **hand-written** `.ascend.meta` in the ELF for correct runtime scheduling: **hard AIV-only**, **soft AIC-only**, and **register-ELF MIX** (e.g. 1:1 hard). For `dav-c220` auto-split builds, Bisheng generates meta automatically — see the note at the end of this section. Macros are defined in `include/pto/common/kernel_meta.hpp`:
+The following scenarios require hand-written `.ascend.meta` in the ELF for correct runtime scheduling: **hard AIV-only**, **soft AIC-only**, and **register-ELF MIX** (e.g. 1:1 hard). For `dav-c220` auto-split builds, Bisheng generates meta automatically — see the note at the end of this section. Macros are defined in `include/pto/common/kernel_meta.hpp`:
 
 > `kernelName` must **exactly match** the `__global__` entry symbol (stored in section `.ascend.meta.<kernelName>`).
 
@@ -119,7 +119,7 @@ PTO_SYNCALL_MIX_AIC_KERNEL_META(MyKernel_mix_aic, 1, 2);
 PTO_SYNCALL_AIV_KERNEL_META(MyKernel_mix_aiv);
 ```
 
-register-ELF MIX 1:1 hard (**both** AIC and AIV sides use `PTO_SYNCALL_MIX_AIC_KERNEL_META(..., 1, 1)` — do **not** use `PTO_SYNCALL_AIV_KERNEL_META` on the AIV side):
+register-ELF MIX 1:1 hard (**both AIC and AIV sides use** `PTO_SYNCALL_MIX_AIC_KERNEL_META(..., 1, 1)`; do not use `PTO_SYNCALL_AIV_KERNEL_META` separately on the AIV side):
 
 ```cpp
 PTO_SYNCALL_MIX_AIC_KERNEL_META(MyKernel_mix_aic, 1, 1);
@@ -212,7 +212,7 @@ Hard and soft kernels **must not share the same `.so`** in AIV-only / AIC-only c
 
 ## Cross-Core GM Communication Notes
 
-`SYNCALL` only provides barrier **arrival** semantics (for both hard and soft), and does **not** guarantee cross-core cache visibility of business data around the barrier. When an operator writes GM per core before the barrier and reads other cores' GM after the barrier (e.g. cross-core histogram / prefix-sum), the caller must satisfy the two points below, otherwise stale reads or lost writes will occur.
+`SYNCALL` only provides barrier completion semantics (for both hard and soft), and does not guarantee cross-core cache visibility of business data around the barrier. When an operator writes GM per core before the barrier and reads other cores' GM after the barrier (e.g. cross-core histogram / prefix-sum), the caller must satisfy the two points below, otherwise stale reads or lost writes will occur.
 
 ### 1. Cache coherency: explicit `dcci` / `dsb` is required
 
