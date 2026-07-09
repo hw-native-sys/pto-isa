@@ -106,31 +106,6 @@ struct MrgSortExecutedNumList {
 | 3 列表 | `0b0111`      | src3（size=0） |
 | 4 列表 | `0b1111`      | 无 |
 
-## 汇编语法
-
-同步形式（概念性）：
-
-```text
-%dst, %executed = tmrgsort %src0, %src1 {exhausted = false}
-    : !pto.tile<...>, !pto.tile<...> -> (!pto.tile<...>, vector<4xi16>)
-```
-
-### AS Level 1（SSA）
-
-```text
-%dst = pto.tmrgsort %src, %blockLen : (!pto.tile<...>, dtype) -> !pto.tile<...>
-%dst, %executed = pto.tmrgsort %src0, %src1, %src2, %src3 {exhausted = false}
- : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> (!pto.tile<...>, vector<4xi16>)
-```
-
-### AS Level 2（DPS）
-
-```text
-pto.tmrgsort ins(%src, %blockLen : !pto.tile_buf<...>, dtype)  outs(%dst : !pto.tile_buf<...>)
-pto.tmrgsort ins(%src0, %src1, %src2, %src3 {exhausted = false} : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>)
-outs(%dst, %executed : !pto.tile_buf<...>, vector<4xi16>)
-```
-
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
@@ -323,31 +298,4 @@ void example_manual() {
   TASSIGN(dst, 0x2000);
   TMRGSORT(dst, src, /*blockLen=*/64);
 }
-```
-
-## 汇编示例（ASM）
-
-### 自动模式
-
-```text
-# 自动模式：由编译器/运行时负责资源放置与调度。
-%dst = pto.tmrgsort %src, %blockLen : (!pto.tile<...>, dtype) -> !pto.tile<...>
-```
-
-### 手动模式
-
-```text
-# 手动模式：先显式绑定资源，再发射指令。
-# 可选（当该指令包含 tile 操作数时）：
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
-%dst = pto.tmrgsort %src, %blockLen : (!pto.tile<...>, dtype) -> !pto.tile<...>
-```
-
-### PTO 汇编形式
-
-```text
-%dst = pto.tmrgsort %src, %blockLen : (!pto.tile<...>, dtype) -> !pto.tile<...>
-# AS Level 2 (DPS)
-pto.tmrgsort ins(%src, %blockLen : !pto.tile_buf<...>, dtype)  outs(%dst : !pto.tile_buf<...>)
 ```

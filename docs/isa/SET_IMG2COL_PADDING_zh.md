@@ -12,26 +12,6 @@
 
 该指令不直接产生张量算术结果。它会更新后续数据搬运类操作使用的 IMG2COL 填充控制状态。
 
-## 汇编语法
-
-示意形式：
-
-```text
-SET_IMG2COL_PADDING %cfg
-```
-
-### AS Level 1（SSA）
-
-```text
-pto.SET_IMG2COL_PADDING %cfg : !pto.fmatrix_config -> ()
-```
-
-### AS Level 2（DPS）
-
-```text
-pto.SET_IMG2COL_PADDING ins(%cfg : !pto.fmatrix_config) outs()
-```
-
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
@@ -64,31 +44,3 @@ void example_set_img2col_padding(Img2colTileConfig<uint64_t>& cfg) {
   SET_IMG2COL_PADDING(cfg);
 }
 ```
-
-## 汇编示例（ASM）
-
-### 自动模式
-
-```text
-# 自动模式：由编译器/运行时负责资源放置与调度。
-pto.SET_IMG2COL_PADDING %cfg : !pto.fmatrix_config -> ()
-```
-
-### 手动模式
-
-```text
-# 手动模式：先显式绑定资源，再发射指令。
-# 可选（当该指令包含 tile 操作数时）：
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
-pto.SET_IMG2COL_PADDING %cfg : !pto.fmatrix_config -> ()
-```
-
-### PTO 汇编形式
-
-```text
-SET_IMG2COL_PADDING %cfg
-# AS Level 2 (DPS)
-pto.SET_IMG2COL_PADDING ins(%cfg : !pto.fmatrix_config) outs()
-```
-

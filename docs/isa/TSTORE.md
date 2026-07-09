@@ -15,25 +15,6 @@ Notation depends on the `GlobalTensor` shape/stride and the `Tile` layout. Conce
 
 $$ \mathrm{dst}_{r_0 + i,\; c_0 + j} = \mathrm{src}_{i,j} $$
 
-## Assembly Syntax
-
-Synchronous form:
-
-```text
-tstore %t1, %sv_out[%c0, %c0]
-```
-
-### AS Level 1 (SSA)
-
-```text
-pto.tstore %src, %mem : (!pto.tile<...>, !pto.partition_tensor_view<MxNxdtype>) -> ()
-```
-
-### AS Level 2 (DPS)
-
-```text
-pto.tstore ins(%src : !pto.tile_buf<...>) outs(%mem : !pto.partition_tensor_view<MxNxdtype>)
-```
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp` and `include/pto/common/constants.hpp`:
@@ -63,7 +44,7 @@ PTO_INST RecordEvent TSTORE_FP(GlobalData& dst, TileData& src, FpTileData& fp, W
     - Layouts must match ND/DN/NZ (or a special case where `TileData::Rows == 1` or `TileData::Cols == 1`).
     - For `int64_t/uint64_t`, only ND->ND or DN->DN are supported.
     - For `TileType::Acc`:
-      - Destination layout must be ND or NZ.
+      - Destination layout must be ND, NZ, NC1HWC0, or NDC1HWC0.
       - Source dtype must be `int32_t` or `float`.
       - When not using quantization, destination dtype must be `int32_t/float/half/bfloat16_t`.
       - ACC-to-GM dtype support:
@@ -76,17 +57,17 @@ PTO_INST RecordEvent TSTORE_FP(GlobalData& dst, TileData& src, FpTileData& fp, W
         | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE_FP(dst, acc, fp)` | `int32_t` | `int8_t`, `uint8_t`, `half` |
 
         Other cross-type combinations are not supported.
-    - Static shape constraints: `1 <= TileData::Cols <= 4095`; if ND then `1 <= TileData::Rows <= 8192`; if NZ then `1 <= TileData::Rows <= 65535` and `TileData::Cols % 16 == 0`.
+    - Static shape constraints: `1 <= TileData::Cols <= 4095`; if ND then `1 <= TileData::Rows <= 8192`; if NZ, NC1HWC0, or NDC1HWC0 then `1 <= TileData::Rows <= 65535` and `TileData::Cols % 16 == 0`.
     - Runtime: `1 <= src.GetValidCol() <= 4095`.
 - **Implementation checks (A5)**:
     - Source tile location must be `TileType::Vec` or `TileType::Acc` (no `Mat` store on this target).
     - For `TileType::Vec`:
     - `sizeof(TileData::DType) == sizeof(GlobalData::DType)`.
-    - `TileData::DType` must be one of: `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `int64_t`, `uint64_t`, `half`, `bfloat16_t`, `float`, `float8_e4m3_t`, `float8_e5m2_t`, `hifloat8_t`, `float4_e1m2x2_t`, `float4_e2m1x2_t`.
+    - `TileData::DType` must be one of: `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `int64_t`, `uint64_t`, `half`, `bfloat16_t`, `float`, `float8_e4m3_t`, `float8_e5m2_t`, `hifloat8_t`, `float8_e8m0_t`, `float4_e1m2x2_t`, `float4_e2m1x2_t`.
     - Layouts must match ND/DN/NZ (or a special case where `TileData::Rows == 1` or `TileData::Cols == 1`).
     - Additional alignment constraints are enforced (e.g., for ND the row-major width in bytes must be a multiple of 32; for DN the column-major height in bytes must be a multiple of 32, with special-case exceptions).
     - For `TileType::Acc` / ACC source tiles:
-    - Destination layout must be ND or NZ; source dtype must be `int32_t` or `float`.
+    - Destination layout must be ND, NZ, NHWC, NCHW, or NCDHW; source dtype must be `int32_t` or `float`.
     - When not using quantization, destination dtype must be `int32_t/float/half/bfloat16_t`.
     - ACC-to-GM dtype support:
 
@@ -144,31 +125,3 @@ void example_manual(__gm__ T* out) {
   TSTORE<TileT, GTensor, AtomicType::AtomicAdd>(gout, t);
 }
 ```
-
-## ASM Form Examples
-
-### Auto Mode
-
-```text
-# Auto mode: compiler/runtime-managed placement and scheduling.
-pto.tstore %src, %mem : (!pto.tile<...>, !pto.partition_tensor_view<MxNxdtype>) -> ()
-```
-
-### Manual Mode
-
-```text
-# Manual mode: resources must be bound explicitly before issuing the instruction.
-# Optional for tile operands:
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
-pto.tstore %src, %mem : (!pto.tile<...>, !pto.partition_tensor_view<MxNxdtype>) -> ()
-```
-
-### PTO Assembly Form
-
-```text
-tstore %t1, %sv_out[%c0, %c0]
-# AS Level 2 (DPS)
-pto.tstore ins(%src : !pto.tile_buf<...>) outs(%mem : !pto.partition_tensor_view<MxNxdtype>)
-```
-

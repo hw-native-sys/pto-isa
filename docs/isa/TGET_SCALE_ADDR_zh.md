@@ -14,26 +14,18 @@
 
 Address(`dst`) = Address(`src`) >> `SHIFT_MX_ADDR`
 
-## 汇编语法
-
-### IR Level 1 (SSA)
-
-TODO
-
-### IR Level 2 (DPS)
-
-TODO
-
 ## C++ 内建接口
 
-Declared in `include/pto/common/pto_instr.hpp`:
+声明于 `include/pto/common/pto_instr.hpp`：
 
 ```cpp
-template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
-PTO_INST RecordEvent TGET_SCALE_ADDR(TileDataDst &dst, TileDataSrc &src, WaitEvents&... events);
+template <typename TileDataOut, typename TileDataIn, typename... WaitEvents>
+PTO_INST RecordEvent TGET_SCALE_ADDR(TileDataOut &dst, TileDataIn &src, WaitEvents &... events);
 ```
 
 ## 约束
+
+由 `TGET_SCALE_ADDR_IMPL` 强制执行（仅 A5 实现，无 A2A3 实现）：
 
 - **输入和输出都必须为Tile对象**
 - **目前只能用在auto模式下**（以后将支持manual模式下的实现）
@@ -43,10 +35,9 @@ PTO_INST RecordEvent TGET_SCALE_ADDR(TileDataDst &dst, TileDataSrc &src, WaitEve
 ```cpp
 #include <pto/pto-inst.hpp>
 
-> wa
 using namespace pto;
 
-template <typename T, int ARows, int ACols, BRows, BCols>
+template <typename T, int ARows, int ACols, int BRows, int BCols> 
 void example() {
     using LeftTile = TileLeft<T, ARows, ACols>;
     using RightTile = TileRight<T, BRows, BCols>;
@@ -63,17 +54,3 @@ void example() {
     TGET_SCALE_ADDR(bScaleTile, bTile);
 }
 ```
-
-## asm form examples
-
-### Auto Mode
-
-TODO
-
-### Manual Mode
-
-TODO
-
-### PTO Assembly Form
-
-TODO

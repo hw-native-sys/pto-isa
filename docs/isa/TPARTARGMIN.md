@@ -25,26 +25,6 @@ $$
 \end{aligned}
 $$
 
-## Assembly Syntax
-
-Synchronous form:
-
-```text
-%dstVal, %dstIdx = tpartargmin %src0Val, %src1Val, %src0Idx, %src1Idx : !pto.tile<...> -> (!pto.tile<...>, !pto.tile<...>)
-```
-
-### AS Level 1 (SSA)
-
-```text
-%dstVal, %dstIdx = pto.tpartargmin %src0Val, %src1Val, %src0Idx, %src1Idx : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> (!pto.tile<...>, !pto.tile<...>)
-```
-
-### AS Level 2 (DPS)
-
-```text
-pto.tpartargmin ins(%src0Val, %src1Val, %src0Idx, %src1Idx : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dstVal, %dstIdx : !pto.tile_buf<...>, !pto.tile_buf<...>)
-```
-
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:
@@ -64,8 +44,8 @@ PTO_INST RecordEvent TPARTARGMIN(TileDataDst &dstVal, TileDataSrc0 &src0Val, Til
 
 - `dstVal`, `src0Val`, and `src1Val` must use the same element type.
 - `dstIdx`, `src0Idx`, and `src1Idx` must use the same element type.
-- Value type and index type combination constraints:
-    - If the value type is `half`, the index type must be `int16_t` or `uint16_t`.
+- Value type and index type combination constraints (enforced by `static_assert` on A2A3):
+    - If the value type is `half`, the index type must be `int16_t`, `uint16_t`, `int32_t`, or `uint32_t`.
     - If the value type is `float`, the index type must be `int32_t` or `uint32_t`.
 - Valid regions must match between value tiles and index tiles for each pair:
     - `src0Val` and `src0Idx` must have identical valid regions.
@@ -121,31 +101,4 @@ void example_manual() {
   TASSIGN(dstIdx,  0x6000);
   TPARTARGMIN(dstVal, src0Val, src1Val, dstIdx, src0Idx, src1Idx);
 }
-```
-
-## ASM Form Examples
-
-### Auto Mode
-
-```text
-# Auto mode: compiler/runtime-managed placement and scheduling.
-%dstVal, %dstIdx = pto.tpartargmin %src0Val, %src1Val, %src0Idx, %src1Idx : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> (!pto.tile<...>, !pto.tile<...>)
-```
-
-### Manual Mode
-
-```text
-# Manual mode: bind resources explicitly before issuing the instruction.
-# Optional for tile operands:
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
-%dstVal, %dstIdx = pto.tpartargmin %src0Val, %src1Val, %src0Idx, %src1Idx : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> (!pto.tile<...>, !pto.tile<...>)
-```
-
-### PTO Assembly Form
-
-```text
-%dstVal, %dstIdx = tpartargmin %src0Val, %src1Val, %src0Idx, %src1Idx : !pto.tile<...> -> (!pto.tile<...>, !pto.tile<...>)
-# AS Level 2 (DPS)
-pto.tpartargmin ins(%src0Val, %src1Val, %src0Idx, %src1Idx : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dstVal, %dstIdx : !pto.tile_buf<...>, !pto.tile_buf<...>)
 ```

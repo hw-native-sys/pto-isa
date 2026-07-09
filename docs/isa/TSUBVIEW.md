@@ -18,16 +18,6 @@ For each element `(i, j)` in the valid region of `dst`:
 
 $$ \mathrm{dst}_{i,j} = \mathrm{src}_{\mathrm{rowIdx} + i,\mathrm{colIdx} + j} $$
 
-## Assembly Syntax
-
-
-### IR Level 1 (SSA)
-TODO
-
-### IR Level 2 (DPS)
-TODO
-
-
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:
@@ -42,9 +32,9 @@ PTO_INST RecordEvent TSUBVIEW(TileDataDst &dst, TileDataSrc &src, uint16_t rowId
 Enforced by `TSUBVIEW_IMPL`:
 
 - **Tile type must match**: `TileDataSrc::Loc == TileDataDst::Loc`.
-- **Both tiles must have the same static capacity**: `TileDataSrc::Rows == TileDataDst::Rows` and `TileDataSrc::Cols == TileDataDst::Cols`.
-- **Both tiles must have the same BLayout**: `TileDataSrc::BFractal == TileDataDst::BFractal`.
-- **The source tile's validRow (validCol) is at least as big as the destination tile's validRow (validCol)**
+- In Auto mode the following additional checks apply:
+    - **Both tiles must have the same BLayout**: `TileDataSrc::BFractal == TileDataDst::BFractal`.
+    - **The source tile's validRow (validCol) is at least as big as the destination tile's validRow (validCol)**
 
 ## Examples
 
@@ -70,18 +60,3 @@ void example() {
   TSUBVIEW(dst3, src, 2, 32);
 }
 ```
-
-## ASM Form Examples
-
-### Auto Mode
-
-TODO
-
-### Manual Mode
-
-TODO
-
-### PTO Assembly Form
-
-TODO
-

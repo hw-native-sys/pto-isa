@@ -26,19 +26,6 @@ PTO_INST RecordEvent SETFMATRIX(ConvTileData &src, WaitEvents&... events);
 
 Unless otherwise specified, semantics are defined over the valid region and target-dependent behavior is marked as implementation-defined.
 
-## Assembly Syntax
-
-### AS Level 1 (SSA)
-
-```text
-pto.SETFMATRIX %cfg : !pto.fmatrix_config -> ()
-```
-
-### AS Level 2 (DPS)
-
-```text
-pto.SETFMATRIX ins(%cfg : !pto.fmatrix_config) outs()
-```
 ## Constraints
 
 Type/layout/location/shape legality is backend-dependent; treat implementation-specific notes as normative for that backend.
@@ -46,31 +33,3 @@ Type/layout/location/shape legality is backend-dependent; treat implementation-s
 ## Examples
 
 See related examples in `docs/isa/` and `docs/coding/tutorials/`.
-
-## ASM Form Examples
-
-### Auto Mode
-
-```text
-# Auto mode: compiler/runtime-managed placement and scheduling.
-pto.SETFMATRIX %cfg : !pto.fmatrix_config -> ()
-```
-
-### Manual Mode
-
-```text
-# Manual mode: resources must be bound explicitly before issuing the instruction.
-# Optional for tile operands:
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
-pto.SETFMATRIX %cfg : !pto.fmatrix_config -> ()
-```
-
-### PTO Assembly Form
-
-```text
-pto.SETFMATRIX %cfg : !pto.fmatrix_config -> ()
-# AS Level 2 (DPS)
-pto.SETFMATRIX ins(%cfg : !pto.fmatrix_config) outs()
-```
-

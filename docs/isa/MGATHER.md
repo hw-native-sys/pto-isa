@@ -55,41 +55,6 @@ enum class GatherOOB : uint8_t {
 - `Wrap`: `idx = idx % capacity` before access.
 - `Zero`: out-of-bounds destinations receive `static_cast<T>(0)`. In Row mode the OOB row is filled with `T(0)` (A2/A3 ND fills inline on the scalar pipe; A2/A3 NZ pre-zeros the whole tile once before the DMA loop; A5 SIMT does the substitution inline per lane). In Elem mode the OOB lane writes `T(0)` inline through the same store. All dtypes are supported under every `GatherOOB` value.
 
-## Assembly Syntax
-
-Synchronous form:
-
-```text
-%dst = mgather %mem, %idx : !pto.memref<...>, !pto.tile<...> -> !pto.tile<...>
-```
-
-Row coalesce:
-
-```text
-mgather.row %dst, %table, %idx : (!pto.tile<RxCxT>, !pto.memref<...>, !pto.tile<1xRxi32>)
-```
-
-Element coalesce:
-
-```text
-mgather.elem %dst, %table, %idx : (!pto.tile<RxCxT>, !pto.memref<...>, !pto.tile<RxCxi32>)
-```
-
-OOB-aware variants append the mode suffix (`mgather.row.clamp`, `mgather.elem.zero`, etc.).
-
-### AS Level 1 (SSA)
-
-```text
-%dst = pto.mgather %mem, %idx : (!pto.partition_tensor_view<MxNxdtype>, pto.tile<...>)
--> !pto.tile<loc, dtype, rows, cols, blayout, slayout, fractal, pad>
-```
-
-### AS Level 2 (DPS)
-
-```text
-pto.mgather ins(%mem, %idx : !pto.partition_tensor_view<MxNxdtype>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
-```
-
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp` (the shared dispatcher) and the per-target implementation headers (`include/pto/cpu/MGather.hpp`, `include/pto/npu/a2a3/MGather.hpp`, `include/pto/npu/a5/MGather.hpp`).
@@ -621,33 +586,6 @@ AICORE void example_scalar(__gm__ float* tablePtr, __gm__ int32_t* idxPtr)
 
     MGATHER<Coalesce::Elem>(dst, tableGM, idx);
 }
-```
-
-## ASM Form Examples
-
-### Auto Mode
-
-```text
-# Auto mode: compiler/runtime-managed placement and scheduling.
-%dst = pto.mgather %mem, %idx : (!pto.partition_tensor_view<MxNxdtype>, pto.tile<...>)
-```
-
-### Manual Mode
-
-```text
-# Manual mode: resources must be bound explicitly before issuing the instruction.
-# Optional for tile operands:
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
-%dst = pto.mgather %mem, %idx : (!pto.partition_tensor_view<MxNxdtype>, pto.tile<...>)
-```
-
-### PTO Assembly Form
-
-```text
-%dst = mgather %mem, %idx : !pto.memref<...>, !pto.tile<...> -> !pto.tile<...>
-# AS Level 2 (DPS)
-pto.mgather ins(%mem, %idx : !pto.partition_tensor_view<MxNxdtype>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
 ## GM → L1 Gather (`TileType::Mat` destination)

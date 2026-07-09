@@ -28,33 +28,19 @@ $$ \mathrm{dst}_{i, j} = \begin{cases} \mathrm{src0}_{i, j} & \text{若 } 0 \le 
 
 其中 `validCols0 = src0.GetValidCol()` 和 `validCols1 = src1.GetValidCol()`。
 
-## 汇编语法
-
-### AS Level 1 (SSA)
-
-```text
-%dst = pto.tconcat %src0, %src1 : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-```
-
-### AS Level 2 (DPS)
-
-```text
-pto.tconcat ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
-```
-
 ## C++ 内建函数
 
-声明于 `include/pto/npu/a5/TConcat.hpp`：
+声明于 `include/pto/common/pto_instr.hpp`：
 
 ```cpp
-template <typename TileDst, typename TileSrc0, typename TileSrc1>
-PTO_INST void TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1);
+template <typename TileDst, typename TileSrc0, typename TileSrc1, typename... WaitEvents>
+PTO_INST RecordEvent TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, WaitEvents &... events);
 
-template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileSrc0Idx, typename TileSrc1Idx>
-PTO_INST void TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileSrc0Idx &src0Idx, TileSrc1Idx &src1Idx);
+template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileSrc0Idx, typename TileSrc1Idx, typename... WaitEvents>
+PTO_INST RecordEvent TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileSrc0Idx &src0Idx, TileSrc1Idx &src1Idx, WaitEvents &... events);
 
-template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileDstIdx, typename TileSrc0Idx, typename TileSrc1Idx>
-PTO_INST void TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileDstIdx &dstIdx, TileSrc0Idx &src0Idx, TileSrc1Idx &src1Idx);
+template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileDstIdx, typename TileSrc0Idx, typename TileSrc1Idx, typename... WaitEvents>
+PTO_INST RecordEvent TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileDstIdx &dstIdx, TileSrc0Idx &src0Idx, TileSrc1Idx &src1Idx, WaitEvents &... events);
 ```
 
 ## 约束
@@ -72,7 +58,8 @@ PTO_INST void TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileDstIdx &
 
 - 基本形式：
     - `dst.GetValidRow() == src0.GetValidRow() == src1.GetValidRow()`
-    - `dst.GetValidCol() == src0.GetValidCol() + src1.GetValidCol()`
+    - A2A3：`src0.GetValidCol() + src1.GetValidCol() <= TileDataDst::Cols`（总列数不得超过 dst 物理容量）
+    - A5：`dst.GetValidCol() == src0.GetValidCol() + src1.GetValidCol()`（总列数必须等于 dst 有效列数）
 - 索引形式：
     - 行数约束与基本形式相同
     - 列数由索引 Tile 动态确定
@@ -150,26 +137,6 @@ void example_indexed() {
 
     TCONCAT(dst, src0, src1, src0Idx, src1Idx);
 }
-```
-
-## ASM 形式示例
-
-### Auto 模式
-
-```text
-# Auto 模式：编译器/运行时管理放置和调度。
-%dst = pto.tconcat %src0, %src1 : (!pto.tile<16x32xf32>, !pto.tile<16x32xf32>) -> !pto.tile<16x64xf32>
-```
-
-### Manual 模式
-
-```text
-# Manual 模式：在发出指令之前必须显式绑定资源。
-# Tile 操作数的可选绑定：
-# pto.tassign %src0, @tile(0x1000)
-# pto.tassign %src1, @tile(0x2000)
-# pto.tassign %dst, @tile(0x3000)
-%dst = pto.tconcat %src0, %src1 : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
 ## 相关指令

@@ -18,33 +18,13 @@
 - 64 位密钥（2 × 32 位字）
 - 类似 ChaCha 的四分之一轮操作，使用向量指令
 
-## 汇编语法
-
-同步形式：
-
-```text
-trandom %dst, %key, %counter : !pto.tile<...>
-```
-
-### AS Level 1 (SSA)
-
-```text
-%dst = pto.trandom %key, %counter : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-```
-
-### AS Level 2 (DPS)
-
-```text
-pto.trandom ins(%key, %counter : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
-```
-
 ## C++ 内置函数
 
-声明于 `include/pto/npu/a5/TRandom.hpp`：
+声明于 `include/pto/common/pto_instr.hpp`：
 
 ```cpp
-template <uint16_t Rounds = 10, typename DstTile>
-PTO_INST void TRANDOM_IMPL(DstTile &dst, TRandomKey &key, TRandomCounter &counter);
+template <uint16_t Rounds = 10, typename DstTile, typename... WaitEvents>
+PTO_INST RecordEvent TRANDOM(DstTile &dst, TRandomKey &key, TRandomCounter &counter, WaitEvents &... events);
 ```
 
 ## 约束条件
@@ -71,7 +51,7 @@ void example_auto() {
   TileT dst;
   TRandomKey key = {0x01234, 0x56789};
   TRandomCounter counter = {0, 0, 0, 0};
-  TRANDOM_IMPL(dst, key, counter);
+  TRANDOM(dst, key, counter);
 }
 ```
 
@@ -88,32 +68,6 @@ void example_manual() {
   TRandomKey key = {0x01234, 0x56789};
   TRandomCounter counter = {0, 0, 0, 0};
   TASSIGN(dst, 0x0);
-  TRANDOM_IMPL<10>(dst, key, counter);
+  TRANDOM<10>(dst, key, counter);
 }
-```
-
-## 汇编形式示例
-
-### Auto 模式
-
-```text
-# Auto 模式：编译器/运行时管理的布局和调度。
-%dst = pto.trandom %key, %counter : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-```
-
-### Manual 模式
-
-```text
-# Manual 模式：在发出指令之前显式绑定资源。
-# Tile 操作数可选：
-# pto.tassign %arg0, @tile(0x3000)
-%dst = pto.trandom %key, %counter : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-```
-
-### PTO 汇编形式
-
-```text
-trandom %dst, %key, %counter : !pto.tile<...>
-# AS Level 2 (DPS)
-pto.trandom ins(%key, %counter : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```

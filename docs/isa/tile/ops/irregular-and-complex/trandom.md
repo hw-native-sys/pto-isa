@@ -18,33 +18,13 @@ The algorithm uses:
 - 64-bit key (2 × 32-bit words)
 - ChaCha-like quarter-round operations with vector instructions
 
-## Assembly Syntax
-
-Synchronous form:
-
-```text
-trandom %dst, %key, %counter : !pto.tile<...>
-```
-
-### AS Level 1 (SSA)
-
-```text
-%dst = pto.trandom %key, %counter : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-```
-
-### AS Level 2 (DPS)
-
-```text
-pto.trandom ins(%key, %counter : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
-```
-
 ## C++ Intrinsic
 
-Declared in `include/pto/npu/a5/TRandom.hpp`:
+Declared in `include/pto/common/pto_instr.hpp`:
 
 ```cpp
-template <uint16_t Rounds = 10, typename DstTile>
-PTO_INST void TRANDOM_IMPL(DstTile &dst, TRandomKey &key, TRandomCounter &counter);
+template <uint16_t Rounds = 10, typename DstTile, typename... WaitEvents>
+PTO_INST RecordEvent TRANDOM(DstTile &dst, TRandomKey &key, TRandomCounter &counter, WaitEvents &... events);
 ```
 
 ## Constraints
@@ -72,7 +52,7 @@ void example_auto() {
   TileT dst;
   TRandomKey key = {0x01234, 0x56789};
   TRandomCounter counter = {0, 0, 0, 0};
-  TRANDOM_IMPL(dst, key, counter);
+  TRANDOM(dst, key, counter);
 }
 ```
 
@@ -89,32 +69,6 @@ void example_manual() {
   TRandomKey key = {0x01234, 0x56789};
   TRandomCounter counter = {0, 0, 0, 0};
   TASSIGN(dst, 0x0);
-  TRANDOM_IMPL<10>(dst, key, counter);
+  TRANDOM<10>(dst, key, counter);
 }
-```
-
-## ASM Form Examples
-
-### Auto Mode
-
-```text
-# Auto mode: compiler/runtime-managed placement and scheduling.
-%dst = pto.trandom %key, %counter : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-```
-
-### Manual Mode
-
-```text
-# Manual mode: resources must be bound explicitly before issuing the instruction.
-# Optional for tile operands:
-# pto.tassign %arg0, @tile(0x3000)
-%dst = pto.trandom %key, %counter : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-```
-
-### PTO Assembly Form
-
-```text
-trandom %dst, %key, %counter : !pto.tile<...>
-# AS Level 2 (DPS)
-pto.trandom ins(%key, %counter : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```

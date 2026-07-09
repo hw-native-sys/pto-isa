@@ -13,27 +13,6 @@ Bind a Tile object to an implementation-defined on-chip address (manual placemen
 
 Not applicable.
 
-## Assembly Syntax
-
-`TASSIGN` is typically introduced by bufferization/lowering when mapping SSA tiles to physical storage.
-
-Synchronous form:
-
-```text
-tassign %tile, %addr : !pto.tile<...>, index
-```
-
-### AS Level 1 (SSA)
-
-```text
-pto.tassign %tile, %addr : !pto.tile<...>, dtype
-```
-
-### AS Level 2 (DPS)
-
-```text
-pto.tassign ins(%tile, %addr : !pto.tile_buf<...>, dtype)
-```
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`.
@@ -175,31 +154,4 @@ void example_pingpong() {
   TASSIGN<0x0000>(b0);   // L0B ping  (separate physical memory from L0A)
   TASSIGN<0x8000>(b1);   // L0B pong
 }
-```
-
-## ASM Form Examples
-
-### Auto Mode
-
-```text
-# Auto mode: compiler/runtime-managed placement and scheduling.
-pto.tassign %tile, %addr : !pto.tile<...>, dtype
-```
-
-### Manual Mode
-
-```text
-# Manual mode: resources must be bound explicitly before issuing the instruction.
-# Optional for tile operands:
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
-pto.tassign %tile, %addr : !pto.tile<...>, dtype
-```
-
-### PTO Assembly Form
-
-```text
-tassign %tile, %addr : !pto.tile<...>, index
-# AS Level 2 (DPS)
-pto.tassign ins(%tile, %addr : !pto.tile_buf<...>, dtype)
 ```

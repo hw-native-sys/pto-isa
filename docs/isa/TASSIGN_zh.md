@@ -12,28 +12,6 @@
 
 不适用。
 
-## 汇编语法
-
-`TASSIGN` 通常在将 SSA tile 映射到物理存储时由缓冲化/降级引入。
-
-同步形式：
-
-```text
-tassign %tile, %addr : !pto.tile<...>, index
-```
-
-### AS Level 1（SSA）
-
-```text
-pto.tassign %tile, %addr : !pto.tile<...>, dtype
-```
-
-### AS Level 2（DPS）
-
-```text
-pto.tassign ins(%tile, %addr : !pto.tile_buf<...>, dtype)
-```
-
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`。
@@ -169,31 +147,4 @@ void example_pingpong() {
   TASSIGN<0x0000>(b0);   // L0B ping（与 L0A 为不同物理内存）
   TASSIGN<0x8000>(b1);   // L0B pong
 }
-```
-
-## 汇编示例（ASM）
-
-### 自动模式
-
-```text
-# 自动模式：由编译器/运行时负责资源放置与调度。
-pto.tassign %tile, %addr : !pto.tile<...>, dtype
-```
-
-### 手动模式
-
-```text
-# 手动模式：先显式绑定资源，再发射指令。
-# 可选（当该指令包含 tile 操作数时）：
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
-pto.tassign %tile, %addr : !pto.tile<...>, dtype
-```
-
-### PTO 汇编形式
-
-```text
-tassign %tile, %addr : !pto.tile<...>, index
-# AS Level 2 (DPS)
-pto.tassign ins(%tile, %addr : !pto.tile_buf<...>, dtype)
 ```

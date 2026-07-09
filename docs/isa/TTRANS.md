@@ -17,26 +17,6 @@ $$ \mathrm{dst}_{i,j} = \mathrm{src}_{j,i} $$
 
 Exact shape/layout and the transpose domain depend on the target (see Constraints).
 
-## Assembly Syntax
-
-Synchronous form:
-
-```text
-%dst = ttrans %src : !pto.tile<...> -> !pto.tile<...>
-```
-Lowering may introduce internal scratch tiles; the C++ intrinsic requires an explicit `tmp` operand.
-
-### AS Level 1 (SSA)
-
-```text
-%dst = pto.ttrans %src : !pto.tile<...> -> !pto.tile<...>
-```
-
-### AS Level 2 (DPS)
-
-```text
-pto.ttrans ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
-```
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:
@@ -59,12 +39,13 @@ PTO_INST RecordEvent TTRANS(TileDataDst &dst, TileDataSrc &src, TileDataTmp &tmp
     - The transpose size is taken from `src.GetValidRow()` / `src.GetValidCol()`.
 - **Implementation checks (A5)**:
     - `sizeof(TileDataSrc::DType) == sizeof(TileDataDst::DType)`.
-    - 32-byte alignment constraints are enforced on the major dimension of both input and output (row-major checks `Cols * sizeof(T) % 32 == 0`, col-major checks `Rows * sizeof(T) % 32 == 0`).
+    - Source layout must be row-major (`TileDataSrc::isRowMajor`).
+    - 32-byte alignment constraints are enforced on the column dimension of both input and output (`TileDataSrc::Cols * sizeof(T) % 32 == 0` and `TileDataDst::Cols * sizeof(U) % 32 == 0`).
     - Supported element types are restricted per element width:
     - 4 bytes: `uint32_t`, `int32_t`, `float`
     - 2 bytes: `uint16_t`, `int16_t`, `half`, `bfloat16_t`
     - 1 byte: `uint8_t`, `int8_t`
-    - The implementation operates over the static tile shape (`TileDataSrc::Rows/Cols`) and does not consult `GetValidRow/GetValidCol`.
+    - The transpose size is taken from `src.GetValidRow()` / `src.GetValidCol()`.
 - **Temporary tile**:
     - The C++ API requires `tmp`. The tmp space size calculation formulas are as follows:
     - **Basic parameters**:
@@ -141,31 +122,3 @@ void example_manual() {
   TTRANS(dst, src, tmp);
 }
 ```
-
-## ASM Form Examples
-
-### Auto Mode
-
-```text
-# Auto mode: compiler/runtime-managed placement and scheduling.
-%dst = pto.ttrans %src : !pto.tile<...> -> !pto.tile<...>
-```
-
-### Manual Mode
-
-```text
-# Manual mode: resources must be bound explicitly before issuing the instruction.
-# Optional for tile operands:
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
-%dst = pto.ttrans %src : !pto.tile<...> -> !pto.tile<...>
-```
-
-### PTO Assembly Form
-
-```text
-%dst = ttrans %src : !pto.tile<...> -> !pto.tile<...>
-# AS Level 2 (DPS)
-pto.ttrans ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
-```
-

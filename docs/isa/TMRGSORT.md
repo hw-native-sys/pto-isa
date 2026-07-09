@@ -106,31 +106,6 @@ Only meaningful when `exhausted = true`. Data is read from hardware register `VM
 | 3 lists    | `0b0111`      | src3 (size=0) |
 | 4 lists    | `0b1111`      | none |
 
-## Assembly Syntax
-
-Synchronous form (conceptual):
-
-```text
-%dst, %executed = tmrgsort %src0, %src1 {exhausted = false}
-    : !pto.tile<...>, !pto.tile<...> -> (!pto.tile<...>, vector<4xi16>)
-```
-
-### AS Level 1 (SSA)
-
-```text
-%dst = pto.tmrgsort %src, %blockLen : (!pto.tile<...>, dtype) -> !pto.tile<...>
-%dst, %executed = pto.tmrgsort %src0, %src1, %src2, %src3 {exhausted = false}
- : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> (!pto.tile<...>, vector<4xi16>)
-```
-
-### AS Level 2 (DPS)
-
-```text
-pto.tmrgsort ins(%src, %blockLen : !pto.tile_buf<...>, dtype)  outs(%dst : !pto.tile_buf<...>)
-pto.tmrgsort ins(%src0, %src1, %src2, %src3 {exhausted = false} : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>)
-outs(%dst, %executed : !pto.tile_buf<...>, vector<4xi16>)
-```
-
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:
@@ -323,31 +298,4 @@ void example_manual() {
   TASSIGN(dst, 0x2000);
   TMRGSORT(dst, src, /*blockLen=*/64);
 }
-```
-
-## ASM Form Examples
-
-### Auto Mode
-
-```text
-# Auto mode: compiler/runtime-managed placement and scheduling.
-%dst = pto.tmrgsort %src, %blockLen : (!pto.tile<...>, dtype) -> !pto.tile<...>
-```
-
-### Manual Mode
-
-```text
-# Manual mode: resources must be bound explicitly before issuing the instruction.
-# Optional for tile operands:
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
-%dst = pto.tmrgsort %src, %blockLen : (!pto.tile<...>, dtype) -> !pto.tile<...>
-```
-
-### PTO Assembly Form
-
-```text
-%dst = pto.tmrgsort %src, %blockLen : (!pto.tile<...>, dtype) -> !pto.tile<...>
-# AS Level 2 (DPS)
-pto.tmrgsort ins(%src, %blockLen : !pto.tile_buf<...>, dtype)  outs(%dst : !pto.tile_buf<...>)
 ```
