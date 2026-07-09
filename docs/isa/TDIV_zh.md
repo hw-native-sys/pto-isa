@@ -64,11 +64,11 @@ PTO_INST RecordEvent TDIV(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &sr
     - 静态有效边界： `TileData::ValidRow <= TileData::Rows`且`TileData::ValidCol <= TileData::Cols`.
     - 运行时： `src0`, `src1`且`dst` tiles 应具有相同的 `validRow/validCol`.
 - **有效区域**:
-    - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域;.
+    - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
 - **除零**:
     - 行为由目标定义。
 - **高精度算法**
-    - 仅在A5上有效，`PrecisionType`选项A3上将被忽略。
+    - 仅在A5上有效，`PrecisionType`选项在A3上将被忽略。
 
 ## 示例
 

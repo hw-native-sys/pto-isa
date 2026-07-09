@@ -30,13 +30,13 @@ Declared in `include/pto/common/pto_instr.hpp`:
 
 ```cpp
 template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
-PTO_INST RecordEvent TGET_SCALE_ADDR(TileDataDst &dst, TileDataSrc &src, aitEvents&... events);
+PTO_INST RecordEvent TGET_SCALE_ADDR(TileDataDst &dst, TileDataSrc &src, WaitEvents&... events);
 ```
 
 ## 约束
 
 - **输入和输出都必须为Tile对象**
-- **目前只能用在auto模式下**（以后会将支持manual模式下的实现）
+- **目前只能用在auto模式下**（以后将支持manual模式下的实现）
 
 ## 示例
 
@@ -46,7 +46,7 @@ PTO_INST RecordEvent TGET_SCALE_ADDR(TileDataDst &dst, TileDataSrc &src, aitEven
 > wa
 using namespace pto;
 
-template <typename T, int ARows, int ACols, BRows, BCols> 
+template <typename T, int ARows, int ACols, BRows, BCols>
 void example() {
     using LeftTile = TileLeft<T, ARows, ACols>;
     using RightTile = TileRight<T, BRows, BCols>;

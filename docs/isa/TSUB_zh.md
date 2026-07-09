@@ -46,17 +46,17 @@ PTO_INST RecordEvent TSUB(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &sr
 ## 约束
 
 - **实现检查 (A2A3)**:
-    - `TileData::DType` 必须是以下之一： `int32_t`, `int16_t`, `half`, `float`.
+    - `TileData::DType` 必须是以下之一： `int32_t`, `int16_t`, `half`, `float`。
     - Tile 布局必须是行主序（`TileData::isRowMajor`）。
     - Tile 位置必须是向量（`TileData::Loc == TileType::Vec`）。
-    - 静态有效边界： `TileData::ValidRow <= TileData::Rows`且`TileData::ValidCol <= TileData::Cols`.
-    - 运行时： `src0`, `src1`且`dst` tiles 应具有相同的 `validRow/validCol`.
+    - 静态有效边界： `TileData::ValidRow <= TileData::Rows`且`TileData::ValidCol <= TileData::Cols`。
+    - 运行时： `src0`, `src1`且`dst` tiles 应具有相同的 `validRow/validCol`。
 - **实现检查 (A5)**:
-    - `TileData::DType` 必须是以下之一： `uint32_t`, `int32_t`, `uint16_t`, `int16_t`, `uint8_t`,  `int8_t`, `float`, `half`.
+    - `TileData::DType` 必须是以下之一： `uint32_t`, `int32_t`, `uint16_t`, `int16_t`, `uint8_t`, `int8_t`, `float`, `half`。（注：A5架构新增无符号整型支持，A2A3仅支持有符号及浮点类型）
     - Tile 布局必须是行主序（`TileData::isRowMajor`）。
     - Tile 位置必须是向量（`TileData::Loc == TileType::Vec`）。
-    - 静态有效边界： `TileData::ValidRow <= TileData::Rows`且`TileData::ValidCol <= TileData::Cols`.
-    - 运行时： `src0`, `src1`且`dst` tiles 应具有相同的 `validRow/validCol`.
+    - 静态有效边界： `TileData::ValidRow <= TileData::Rows`且`TileData::ValidCol <= TileData::Cols`。
+    - 运行时： `src0`, `src1`且`dst` tiles 应具有相同的 `validRow/validCol`。
 - **有效区域**:
     - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域; `src0/src1` 假定是兼容的 (此操作中不通过显式运行时检查进行验证).
 

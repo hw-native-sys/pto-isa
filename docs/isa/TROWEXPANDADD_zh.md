@@ -79,7 +79,7 @@ PTO_INST RecordEvent TROWEXPANDADD(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 ## 约束
 
 - `TileDataDst::DType == TileDataSrc0::DType == TileDataSrc1::DType`
-- `TileDataDst::DType`、`TileDataSrc0::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`、`int16`、`int32`适用于A2, A3和A5，`uint16`、`uint32`适用于A5。
+- `TileDataDst::DType`、`TileDataSrc0::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`、`int16`、`int32`（适用于 A2、A3 和 A5），`uint16`、`uint32`（仅适用于 A5）。
 - `TileDataDst` 必须为 **RowMajor**（`TileDataDst::isRowMajor == true`）。
 - `src0` 或 `src1` 中必须恰好一个与 `dst` 的有效形状相同（即 `validRow == dst.validRow` 且 `validCol == dst.validCol`），该操作数为全尺寸操作数。另一个操作数为**扩展操作数**（行广播源）。
 - 全尺寸操作数必须为 **RowMajor**（`isRowMajor == true`）。
@@ -95,7 +95,7 @@ PTO_INST RecordEvent TROWEXPANDADD(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 
 当扩展操作数为 **RowMajor**（`isRowMajor == true`）时：
 
-- 其有效列数必须为 **32 / sizeof(T)**（每行一个 32 字节块）：`srcX.GetValidCol() == 32 / sizeof(T)`。
+- 其有效列数必须为 **32 / sizeof(T)**（每行一个 32字节块）：`srcX.GetValidCol() == 32 / sizeof(T)`。
   - 对于 `half` / `int16` / `uint16`：`validCol == 16`。
   - 对于 `float` / `int32` / `uint32`：`validCol == 8`。
 - 其有效行数必须等于 `dst.GetValidRow()`：`srcX.GetValidRow() == dst.GetValidRow()`。

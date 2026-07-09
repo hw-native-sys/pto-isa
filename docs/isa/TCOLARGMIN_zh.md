@@ -91,7 +91,7 @@ PTO_INST RecordEvent TCOLARGMIN(TileDataOutVal& dstVal, TileDataOutIdx& dstIdx, 
 - `dstIdx` 和 `src` 必须为 `TileType::Vec`。
 - `src` 可使用 ND 或 DN 的非分形布局（`SLayout::NoneBox`）。
 - `dstIdx` 必须使用标准 ND 布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
-- 支持的索引目标元素类型：`uint32_t`、`int32_t`。
+- 支持的索引目标元素类型：`uint32_t`、`int32_t`、`uint16_t`、`int16_t`。
 - 运行时检查：
     - `src.GetValidRow() != 0`
     - `src.GetValidCol() != 0`

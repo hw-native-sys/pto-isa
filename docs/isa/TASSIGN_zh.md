@@ -70,7 +70,7 @@ PTO_INST void TASSIGN(T& obj);
 
 | TileType | 内存空间 | 容量 (A2A3) | 容量 (A5) | 容量 (Kirin9030) | 容量 (KirinX90) | 对齐 |
 |----------|----------|-------------|-----------|------------------|-----------------|------|
-| Vec | UB | 192 KB | 256 KB | 128 KB | 128 KB | 32 B |
+| Vec | UB | 192KB | 256KB | 128KB | 128KB | 32B |
 | Mat | L1 | 512 KB | 512 KB | 512 KB | 1024 KB | 32 B |
 | Left | L0A | 64 KB | 64 KB | 32 KB | 64 KB | 32 B |
 | Right | L0B | 64 KB | 64 KB | 32 KB | 64 KB | 32 B |

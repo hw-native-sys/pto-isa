@@ -22,7 +22,7 @@
 | 阶段 | 操作 | 输出 |
 |------|------|------|
 | **1. 组内最大值** | $m_g = \max_{i \in g} \|x_i\|$ | `max`（scratch，FP） |
-| **2. 指数 + 缩放** | $s_g = \mathrm{biasedExp}(m_g) - e_{\max}$；$\alpha_g = 2^{254 - s_g}$ | `exp`（E8M0，1 B/组）、`scaling`（scratch，FP） |
+| **2. 指数 + 缩放** | $s_g = \mathrm{biasedExp}(m_g) - e_{\max}$；$\alpha_g = 2^{254 - s_g}$ | `exp`（E8M0，1 字节(Byte)/组）、`scaling`（scratch，FP） |
 | **3. 缩放 + 类型转换** | $q_i = \mathrm{clip}_{[-V_{\max},V_{\max}]}(x_i \cdot \alpha_g) \to$ 目标格式 | `dst`（FP8 / 打包 FP4） |
 
 - $e_{\max}$ = 目标格式最大指数（e4m3 为 8，e2m1 为 1）。
@@ -137,7 +137,7 @@ PTO_INST RecordEvent TQUANT(TileDataOut &dst, TileDataSrc &src, TileDataPara &sc
 | $M \bmod 64 = 0$ | DN MX + ZZ 转换 | δ 配对（$\hat M / 2$ 为整数） |
 | $N \bmod 32 = 0$ | 所有 MX | 组大小 $G = 32$ |
 | $N \bmod 64 = 0$ | ND MX + ZZ 转换 | 指数组数为偶数 |
-| $R \cdot C \le 59461$ | MX（UB 256 KB） | 复用后的缓冲预算 |
+| $R \cdot C \le 59461$ | MX（UB 256KB） | 复用后的缓冲预算 |
 | BF16/FP16：`validCols % 32 != 0` → 零填充至 `StaticCols` | MX B16 路径 | 组对齐 |
 
 ## 输出布局与布局转换

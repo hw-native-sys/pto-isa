@@ -63,7 +63,7 @@ PTO_INST RecordEvent TRECIP(TileDataDst &dst, TileDataSrc &src, WaitEvents &... 
 - **域 / NaN**:
     - 除零行为由目标定义；CPU 模拟器在调试构建中会断言。
 - **高精度算法**
-    - 仅在A5上有效，`PrecisionType`选项A3上将被忽略。
+    - 仅在A5上有效，`PrecisionType`选项在A3上将被忽略。
 
 ## 示例
 

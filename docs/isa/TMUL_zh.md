@@ -40,7 +40,7 @@ pto.tmul ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : 
 
 ```cpp
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
-PTO_INST RecordEvent TMUL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, WaitEvents &... events);
+PTO_INST RecordEvent TMUL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, WaitEvents&&... events);
 ```
 
 ## 约束

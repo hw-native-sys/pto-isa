@@ -75,7 +75,7 @@ PTO_INST RecordEvent TCVT(TileDataD &dst, TileDataS &src, TmpTileData &tmp, Roun
     - `REPEAT_MAX = 255`，`REPEAT_BYTE = 256`，`BLOCK_BYTE_SIZE = 32`。
   - **`float -> int16`，非饱和 (`SaturationMode::OFF`)**:
     - 临时结果是第一步 `float -> int32` 转换产生的 `int32_t` Tile。
-    - 由于 `float` 源行受 Tile 约束保证 32 字节对齐，`SS / 8` 是以 32 字节块为单位的源 repeat stride。
+    - 由于 `float` 源行受 Tile 约束保证 32字节对齐，`SS / 8` 是以 32字节块为单位的源 repeat stride。
     - 对齐的主区域中，一次调用处理一行，最多处理 `REPEAT_MAX` 个 repeat，每个 repeat 为 `64` 个元素：
     $$ \text{tmpHeadBytes} = 4 \times 64 \times \min\left(\left\lfloor\frac{C}{64}\right\rfloor, 255\right) $$
     - 尾部区域中，一次调用最多处理 `REPEAT_MAX` 行，并使用源行 stride。由于向量 repeat stride 以块为单位，空间范围按 32 字节块计算：

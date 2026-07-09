@@ -38,7 +38,7 @@ PTO_INST RecordEvent TGET(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobal
 
 ### 乒乓双缓冲
 
-使用两个暂存 Tile，将相邻块的 TLOAD 与 TSTORE 重叠执行，隐藏 DMA 传输延迟。
+使用两个暂存 Tile，将相邻块的 TGET 与 TSTORE 重叠执行，隐藏 DMA 传输延迟。
 
 ```cpp
 template <typename GlobalDstData, typename GlobalSrcData, typename TileData, typename... WaitEvents>

@@ -30,7 +30,7 @@ $$ \mathrm{dst}_{i,j} = \left(\mathrm{src0}_{i,j}\ \mathrm{cmpMode}\ \mathrm{src
 同步形式：
 
 ```text
-%dst = tcmps %src, %scalar {cmpMode = #pto.cmp<EQ>} : !pto.tile<...> -> !pto.tile<...>
+%dst = tcmps %src, %scalar {cmpMode = #pto<cmp xx>} : !pto.tile<...> -> !pto.tile<...>
 ```
 
 ### AS Level 1（SSA）
@@ -55,7 +55,7 @@ pto.tcmps ins(%src, %scalar{cmpMode = #pto<cmp xx>}: !pto.tile_buf<...>, dtype) 
 template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents,
           std::enable_if_t<all_events_v<WaitEvents...>, int> = 0>
 PTO_INST RecordEvent TCMPS(TileDataDst& dst, TileDataSrc& src0,
-                           typename TileDataSrc::DType src1, CmpMode mode,
+                           typename TileDataSrc::DType scalar, CmpMode mode,
                            WaitEvents&... events);
 ```
 
@@ -164,7 +164,7 @@ void example_tile() {
 ### PTO 汇编形式
 
 ```text
-%dst = tcmps %src, %scalar {cmpMode = #pto.cmp<EQ>} : !pto.tile<...> -> !pto.tile<...>
+%dst = tcmps %src, %scalar {cmpMode = #pto<cmp xx>} : !pto.tile<...> -> !pto.tile<...>
 # AS Level 2 (DPS)
 pto.tcmps ins(%src, %scalar{cmpMode = #pto<cmp xx>}: !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```

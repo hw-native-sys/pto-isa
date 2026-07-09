@@ -49,9 +49,6 @@ PTO_INST RecordEvent TSUBSC(TileData& dst, TileData& src0, typename TileData::DT
 - **实现检查 (A2A3)**:
     - `TileData::DType` 必须是以下之一：`int32_t`、`int16_t`、`half`、`float`。
     - Tile 布局必须是行主序（`TileData::isRowMajor`）。
-- **实现检查 (A5)**:
-    - `TileData::DType` 必须是以下之一：`int32_t`、`int16_t`、`half`、`float`。
-    - Tile 布局必须是行主序（`TileData::isRowMajor`）。
 - **通用约束**:
     - Tile 位置必须是向量（`TileData::Loc == TileType::Vec`）。
     - 静态有效边界：`TileData::ValidRow <= TileData::Rows` 且 `TileData::ValidCol <= TileData::Cols`。
@@ -100,4 +97,7 @@ void example() {
 # AS Level 2 (DPS)
 pto.tsubsc ins(%src0, %scalar, %src1 : !pto.tile_buf<...>, dtype, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
+
+
+
 

@@ -218,7 +218,7 @@ make
 sudo make install
 ```
 
-> **注意：** Python 需要以下包：os、numpy、ctypes、struct、copy、math、enum、ml_dtypes、en_dtypes 等。
+> **注意：** Python 需要以下包：os、numpy、ctypes、struct、copy、math、enum、ml_dtypes 等。
 >
 > 如果您使用不同的标志安装了 GoogleTest（例如 `-D_GLIBCXX_USE_CXX11_ABI=0`），则必须在 `tests/npu/[a2a3|a5]/src/st/CMakeLists.txt` 中添加 `add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=0)` 进行相应更新。
 

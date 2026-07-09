@@ -364,7 +364,7 @@ Required: 600 KB, Available: 512 KB
 
 ```cpp
 // 方法1：减小 Tile 尺寸
-// ❌ 错误：16 × 512 × 4 bytes = 32 KB，多个 Tile 超出 L1
+// ❌ 错误：16 × 512 × 4 Byte = 32 KB，多个 Tile 超出 L1
 using TileT = Tile<TileType::Vec, float, 16, 512>;
 
 // ✅ 正确：减小到 256
@@ -410,9 +410,8 @@ for (int offset = 0; offset < total_size; offset += CHUNK_SIZE) {
 ### M003: 内存泄漏
 
 **错误信息**：
-
-```text
-Memory leak detected: 1024 KB not freed
+```
+Memory leak detected: 1 MB not freed
 ```
 
 **原因**：动态分配的内存未释放

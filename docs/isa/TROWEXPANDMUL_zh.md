@@ -17,7 +17,7 @@
 指令支持两种模式，由扩展操作数的布局决定（当 `src0` 与 `dst` 形状匹配时为 `src1`，当 `src1` 与 `dst` 形状匹配时为 `src0`）：
 
 - **模式 1**：扩展操作数为 **ColMajor** 布局，单列（每行一个标量）。每个标量广播到整行。
-- **模式 2**：扩展操作数为 **RowMajor** 布局，每行 `32 / sizeof(T)` 列（每行一个 32 字节块）。每个 32 字节块在向量重复步长内自然重复，提供行级广播。
+- **模式 2**：扩展操作数为 **RowMajor** 布局，每行 `32 / sizeof(T)` 列（每行一个32字节块）。每个 32 字节块在向量重复步长内自然重复，提供行级广播。
 
 ## 数学语义
 
@@ -75,7 +75,7 @@ PTO_INST RecordEvent TROWEXPANDMUL(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 ## 约束
 
 - `TileDataDst::DType == TileDataSrc0::DType == TileDataSrc1::DType`
-- `TileDataDst::DType`、`TileDataSrc0::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`、`int16`、`int32`适用于A2, A3和A5，`uint16`、`uint32`适用于A5。
+- `TileDataDst::DType`、`TileDataSrc0::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`、`int16`、`int32` 适用于 A2、A3 和 A5，`uint16`、`uint32` 适用于 A5。
 - `TileDataDst` 必须为 **RowMajor**（`TileDataDst::isRowMajor == true`）。
 - `src0` 或 `src1` 中必须恰好一个与 `dst` 的有效形状相同（即 `validRow == dst.validRow` 且 `validCol == dst.validCol`），该操作数为全尺寸操作数。另一个操作数为**扩展操作数**（行广播源）。
 - 全尺寸操作数必须为 **RowMajor**（`isRowMajor == true`）。
@@ -104,7 +104,7 @@ PTO_INST RecordEvent TROWEXPANDMUL(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 
 C++ API 提供了显式传入 `TileDataTmp &tmp` 的重载。该重载仅支持**模式 1**（ColMajor 扩展操作数，每行标量）。
 
-- **A2A3**：tmp Tile 作为广播缓冲区使用。ColMajor 扩展操作数的每行标量值通过 `vbrcb` 指令广播到 tmp 缓冲区，为每行创建一个 32 字节块，然后在二元运算中作为扩展操作数使用。`vbrcb` 指令的 repeat stride 为 8 个块（256 字节），每个 repeat 处理 8 行。最小 tmp 大小计算：
+- **A2A3**：tmp Tile 作为广播缓冲区使用。ColMajor 扩展操作数的每行标量值通过 `vbrcb` 指令广播到 tmp 缓冲区，为每行创建一个32字节块，然后在二元运算中作为扩展操作数使用。`vbrcb` 指令的 repeat stride 为 8 个块（256字节），每个 repeat 处理 8 行。最小 tmp 大小计算：
     - **公共参数**：
         - `R = dst.GetValidRow()`，`T = TileDataDst::DType`。
     - 当 `R < 256` 时：
@@ -112,8 +112,8 @@ C++ API 提供了显式传入 `TileDataTmp &tmp` 的重载。该重载仅支持*
     - 当 `R >= 256` 时：
         - 操作采用循环方式，每次循环最多 30 个 repeat（240 行）。tmp 缓冲区在各循环间复用，每次循环需要：
         $$ \text{tmpSize} = 30 \times 256 = 7680 \text{ 字节} $$
-    - 对于任何模式 1 调用，一个紧凑的形状无关上界为 **8 KB**（8192 字节）。
-    - 不带 `tmp` 的 3 参数重载支持模式 1 和模式 2。对于模式 1，使用内部 8 KB 缓冲区（`TMP_UB_OFFSET`）。对于模式 2，不需要广播缓冲区。
+    - 对于任何模式 1 调用，一个紧凑的形状无关上界为 **8KB**（8192字节）。
+    - 不带 `tmp` 的 3 参数重载支持模式 1 和模式 2。对于模式 1，使用内部8KB缓冲区（`TMP_UB_OFFSET`）。对于模式 2，不需要广播缓冲区。
 - **A5**：`tmp` Tile 被接受但不使用（`[[maybe_unused]]`）。A5 硬件通过 `vlds` 指令的广播模式原生支持行广播，因此不需要临时缓冲区。
 
 ## 示例

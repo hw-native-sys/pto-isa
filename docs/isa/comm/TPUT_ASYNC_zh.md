@@ -107,7 +107,7 @@ URMA 不需要 `scratchTile`——轮询通过 `ld_dev`/`st_dev` 硬件原语直
 
 - 必须是 `pto::Tile` 类型
 - 必须是 UB/Vec tile（`ScratchTile::Loc == TileType::Vec`）
-- 可用字节数至少为 `sizeof(uint64_t)`（8 字节）
+- 可用字节数至少为 `sizeof(uint64_t)`（8字节）
 
 推荐使用：`Tile<TileType::Vec, uint8_t, 1, comm::sdma::UB_ALIGN_SIZE>`（256B）。
 

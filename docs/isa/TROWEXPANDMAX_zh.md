@@ -79,7 +79,7 @@ PTO_INST RecordEvent TROWEXPANDMAX(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 ## 约束
 
 - `TileDataDst::DType == TileDataSrc0::DType == TileDataSrc1::DType`
-- `TileDataDst::DType`、`TileDataSrc0::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`、`int16`、`int32`适用于A2, A3和A5，`uint16`、`uint32`适用于A5。
+- `TileDataDst::DType`、`TileDataSrc0::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`、`int16`、`int32`（适用于A2、A3和A5），`uint16`、`uint32`（适用于A5）。
 - `TileDataDst` 必须为 **RowMajor**（`TileDataDst::isRowMajor == true`）。
 - `src0` 或 `src1` 中必须恰好一个与 `dst` 的有效形状相同（即 `validRow == dst.validRow` 且 `validCol == dst.validCol`），该操作数为全尺寸操作数。另一个操作数为**扩展操作数**（行广播源）。
 - 全尺寸操作数必须为 **RowMajor**（`isRowMajor == true`）。
@@ -116,7 +116,7 @@ C++ API 提供了显式传入 `TileDataTmp &tmp` 的重载。该重载仅支持*
     - 当 `R >= 256` 时：
         - 操作采用循环方式，每次循环最多 30 个 repeat（240 行）。tmp 缓冲区在各循环间复用，每次循环需要：
         $$ \text{tmpSize} = 30 \times 256 = 7680 \text{ 字节} $$
-    - 对于任何模式 1 调用，一个紧凑的形状无关上界为 **8 KB**（8192 字节）。
+    - 对于任何模式 1 调用，一个紧凑的形状无关上界为 **8KB**（8192 字节）。
     - 不带 `tmp` 的 3 参数重载支持模式 1 和模式 2。对于模式 1，使用内部 8 KB 缓冲区（`TMP_UB_OFFSET`）。对于模式 2，不需要广播缓冲区。
 - **A5**：`tmp` Tile 被接受但不使用（`[[maybe_unused]]`）。A5 硬件通过 `vlds` 指令的广播模式原生支持行广播，因此不需要临时缓冲区。
 

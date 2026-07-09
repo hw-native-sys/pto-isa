@@ -91,7 +91,7 @@ PTO_INST RecordEvent TROWEXPANDSUB(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 
 当扩展操作数为 **RowMajor**（`isRowMajor == true`）时：
 
-- 其有效列数必须为 **32 / sizeof(T)**（每行一个 32 字节块）：`srcX.GetValidCol() == 32 / sizeof(T)`。
+- 其有效列数必须为 **32 / sizeof(T)**（每行一个32字节块）：`srcX.GetValidCol() == 32 / sizeof(T)`。
   - 对于 `half` / `int16` / `uint16`：`validCol == 16`。
   - 对于 `float` / `int32` / `uint32`：`validCol == 8`。
 - 其有效行数必须等于 `dst.GetValidRow()`：`srcX.GetValidRow() == dst.GetValidRow()`。
@@ -104,7 +104,7 @@ PTO_INST RecordEvent TROWEXPANDSUB(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 
 C++ API 提供了显式传入 `TileDataTmp &tmp` 的重载。该重载仅支持**模式 1**（ColMajor 扩展操作数，每行标量）。
 
-- **A2A3**：tmp Tile 作为广播缓冲区使用。ColMajor 扩展操作数的每行标量值通过 `vbrcb` 指令广播到 tmp 缓冲区，为每行创建一个 32 字节块，然后在二元运算中作为扩展操作数使用。`vbrcb` 指令的 repeat stride 为 8 个块（256 字节），每个 repeat 处理 8 行。最小 tmp 大小计算：
+- **A2A3**：tmp Tile 作为广播缓冲区使用。ColMajor 扩展操作数的每行标量值通过 `vbrcb` 指令广播到 tmp 缓冲区，为每行创建一个32字节块，然后在二元运算中作为扩展操作数使用。`vbrcb` 指令的 repeat stride 为 8 个块（256字节），每个 repeat 处理 8 行。最小 tmp 大小计算：
     - **公共参数**：
         - `R = dst.GetValidRow()`，`T = TileDataDst::DType`。
     - 当 `R < 256` 时：
@@ -112,8 +112,8 @@ C++ API 提供了显式传入 `TileDataTmp &tmp` 的重载。该重载仅支持*
     - 当 `R >= 256` 时：
         - 操作采用循环方式，每次循环最多 30 个 repeat（240 行）。tmp 缓冲区在各循环间复用，每次循环需要：
         $$ \text{tmpSize} = 30 \times 256 = 7680 \text{ 字节} $$
-    - 对于任何模式 1 调用，一个紧凑的形状无关上界为 **8 KB**（8192 字节）。
-    - 不带 `tmp` 的 3 参数重载支持模式 1 和模式 2。对于模式 1，使用内部 8 KB 缓冲区（`TMP_UB_OFFSET`）。对于模式 2，不需要广播缓冲区。
+    - 对于任何模式 1 调用，一个紧凑的形状无关上界为 **8KB**（8192字节）。
+    - 不带 `tmp` 的 3 参数重载支持模式 1 和模式 2。对于模式 1，使用内部8KB缓冲区（`TMP_UB_OFFSET`）。对于模式 2，不需要广播缓冲区。
 - **A5**：`tmp` Tile 被接受但不使用（`[[maybe_unused]]`）。A5 硬件通过 `vlds` 指令的广播模式原生支持行广播，因此不需要临时缓冲区。
 
 ## 示例

@@ -46,10 +46,11 @@ PTO_INTERNAL void TFREE_IMPL(Pipe &pipe)
 ## 约束
 
 - **TileData 流程**：
-    - 不要使用 `TFREE(Pipe&)` 去释放由 `TPOP(Pipe&, TileData&)` 弹出的 tile；释放已经在 TileData `TPOP` 内部完成。
-    - 在 A2A3 上，TileData `TPOP` 之后调用 `TFREE(Pipe&)` 没有效果。
+    - 当弹出的 FIFO 槽位中的数据不再需要时，使用 `TFREE(Pipe&)`。
+    - 搭配使用TPUSH/TPOP/TFREE实现核间同步和数据传输，数据传输时推入的tileshape和弹出的tileshape的大小比例关系是1:1或者1:2。
+
 - **GlobalData 流程**：
-    - 当弹出的 FIFO 槽位中的数据不再需要时，使用 `TFREE(Pipe&, GlobalData&)`。
+    - 当弹出的 FIFO 槽位中的数据不再需要时，使用 `TFREE(Pipe&)`。
     - `gmTensor` 只用于选择重载；实现不会读取或写入 tensor 内容。
     - 空闲空间通知是稀疏的，并由 `Pipe::SyncPeriod` 控制。
 

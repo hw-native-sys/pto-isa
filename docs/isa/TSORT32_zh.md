@@ -89,7 +89,7 @@ PTO_INST RecordEvent TSort32(DstTileData &dst, SrcTileData &src, IdxTileData &id
 
 ### `tmp` 尺寸公式（4 参数）
 
-设 $C$ = `validCol`，$b$ = `sizeof(T)` 字节数，$G$ = 32（块大小）。实现根据整行（字节数）是否满足 `MAX_UB_TMP = 8160` 进行分支：
+设 $C$ = `validCol`，$B$ = `sizeof(T)` 字节数，$G$ = 32（块大小）。实现根据整行（字节数）是否满足 `MAX_UB_TMP = 8160` 进行分支：
 
 $$
 \mathrm{tmpSize} =
@@ -114,7 +114,7 @@ $$
 - **$C \cdot b \le 8160$**（小行）：**整行**复制到 `tmp`，然后通过 `vdup` 原地覆盖最后 32 个元素为 $-\infty$ 填充；从 `tmp` 排序整行。
 - **$C \cdot b > 8160$**（大行）：仅复制**尾块**到 `tmp` 并填充；完整块直接从 `src` 排序，仅尾块从 `tmp` 排序。
 
-填充值（$-\infty$ = `-(0.0/0.0)`）落在降序排序的底部。若 `validCol > 32 × 255`，行按 `REPEAT_MAX` 大小的组拆分，每组通过独立的 `vbitsort` 调用排序。
+填充值（$-\infty$ = `-1.0/0.0` 或 `std::numeric_limits<T>::lowest()`）落在降序排序的底部。若 `validCol > 32 × 255`，行按 `REPEAT_MAX` 大小的组拆分，每组通过独立的 `vbitsort` 调用排序。
 
 ## 汇编语法
 

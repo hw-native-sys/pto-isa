@@ -55,7 +55,7 @@ evt.Wait(ctx.session);
 - 源数据必须位于 Global Memory (GM/HBM)。
 - GlobalTensor 必须是平坦连续的一维布局。
 - SDMA workspace 需要在 kernel 启动前由 Host 侧初始化，并传入 kernel。
-- `PrefetchAsyncContext` 内部持有 256-byte UB scratch tile 和 `AsyncSession`，用于构造 SDMA 元数据并等待事件完成。
+- `PrefetchAsyncContext` 内部持有 256-Byte UB scratch tile 和 `AsyncSession`，用于构造 SDMA 元数据并等待事件完成。
 - SDMA CMO 按 cache line 粒度工作，非对齐范围由硬件处理。
 - CPU simulation 后端中该指令为空操作，返回空 `AsyncEvent`。
 

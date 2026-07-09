@@ -173,10 +173,10 @@ TLOAD(tile[0], ...);
 for (int i = 0; i < N; i++) {
   int curr = i % 2;
   int next = (i + 1) % 2;
-  
+
   // 处理当前 Tile
   process_tile(result[curr], tile[curr]);
-  
+
   // 条件允许时并行加载下一个 Tile
   if (i + 1 < N) {
     TLOAD(tile[next], ...);
@@ -285,7 +285,7 @@ int padded_N = (N + TILE_N - 1) / TILE_N * TILE_N;
 
 ✅ **选择合适的 Tile 大小**
 - 平衡片上容量和数据复用
-- A2/A3：单个 Tile 通常 2-32 KB
+- A2/A3：单个 Tile 通常 2-32KB
 - A5：单个 Tile 可以更大（4-64 KB）
 
 ✅ **多级 Tiling**
@@ -295,7 +295,7 @@ int padded_N = (N + TILE_N - 1) / TILE_N * TILE_N;
 ```
 
 ✅ **考虑硬件对齐要求**
-- 行主序：Cols × sizeof(T) 对齐到 32 字节
+- 行主序：Cols × sizeof(T) 对齐到 32字节
 - 列主序：Rows × sizeof(T) 对齐到 32 字节
 - NZ 布局：特殊的分形对齐要求
 
@@ -427,7 +427,7 @@ TSYNC();  // 只在最后同步一次
 
 **硬件特点**：
 - 24 核
-- L1 容量：~512 KB/核
+- L1 容量：~512KB/核
 - Cube 峰值：~50 TFLOPS/核（fp16）
 
 **推荐配置**：
@@ -451,7 +451,7 @@ constexpr int fractalCSize = 1024;  // 累加器
 
 **硬件特点**：
 - 更多核心
-- 更大的 L1 容量：~1 MB/核
+- 更大的 L1 容量：~1MB/核
 - 更高的 Cube 峰值
 
 **推荐配置**：
@@ -492,7 +492,7 @@ constexpr int baseN = 512;
 ### 6.1 GEMM 优化历程
 
 **初始版本**：
-- 性能：100 TFLOPS
+- 性能：100TFLOPS
 - TLOAD 占比：80%
 - TMATMUL 占比：15%
 

@@ -51,7 +51,7 @@ PTO_INST RecordEvent TMOV_FP(DstTileData &dst, SrcTileData &src, FpTileData &fp,
     - `FpTileData::Loc` 必须是 `TileType::Scaling`（`static_assert`）。
 - **实现检查 (A5)**:
     - 通过 `CheckTMovAccValid(...)` 和 `TMOV_IMPL(dst, src, fp)` 中的相关编译时检查进行验证。
-    - `FpTileData::Loc` 必须是 `TileType::Scaling`（`static_assert`）。
+    - 目标位置取决于目标（fp 路径支持 `Vec` 或 `Mat`）。
     - 目标位置取决于目标（fp 路径支持 `Vec` 或 `Mat`）。
 
 ## 示例

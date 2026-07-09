@@ -172,7 +172,7 @@ using namespace pto;
 void example_auto() {
   using A = TileLeft<half, 1, 16>;
   using B = TileRight<half, 16, 16>;
-  using Bias = Tile<TileType::Bias, half, 1, 16>;
+  using Bias = Tile<TileType::Bias, float, 1, 16>;
   using C = TileAcc<float, 1, 16>;
   A a;
   B b;
