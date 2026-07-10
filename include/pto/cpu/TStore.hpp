@@ -223,7 +223,7 @@ PTO_INTERNAL void TSTORE_IMPL(GlobalData &dst, TileData &src, const std::vector<
     static_assert(GlobalData::layout == pto::Layout::ND || GlobalData::layout == pto::Layout::DN ||
                       GlobalData::layout == pto::Layout::NZ || GlobalData::layout == pto::Layout::NDC1HWC0,
                   "Only ND, DN, NZ and NDC1HWC0 GLobal Tensors are currently supported");
-    if constexpr (GlobalData::layout == pto::Layout::NDC1HWC0) {
+    if constexpr (GlobalData::layout == pto::Layout::NDC1HWC0 && is_conv_tile_v<TileData>) {
         TStore6HD<TileData, GlobalData>(dst.data(), src.data(), dst.GetShape(0), dst.GetShape(1), dst.GetShape(2),
                                         dst.GetShape(3), dst.GetShape(4), dst.GetStride(0), dst.GetStride(1),
                                         dst.GetStride(2), dst.GetStride(3), dst.GetStride(4), src.GetShape(0),
