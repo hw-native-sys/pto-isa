@@ -165,9 +165,9 @@ PTO_INTERNAL void TPowF(__ubuf__ T *dst, __ubuf__ T *base, __ubuf__ T *exp, __ub
         tmp, base, exp, validRow, validCol);
     BinaryInstr<PowOp<T, false>, T, elementsPerRepeat, blockSizeElem, DstStride, BaseStride, ExpStride>(
         dst, base, exp, validRow, validCol);
-    PtoSetWaitFlag<PIPE_V, PIPE_S>(EVENT_ID7, EVENT_ID7);
+    PtoSetWaitFlag<PIPE_V, PIPE_S>();
     ProcessSpecialCaseForPowF<T, DstStride, BaseStride, ExpStride, TmpStride>(dst, base, exp, tmp, validRow, validCol);
-    PtoSetWaitFlag<PIPE_S, PIPE_V>(EVENT_ID7, EVENT_ID7);
+    PtoSetWaitFlag<PIPE_S, PIPE_V>();
 }
 
 template <typename T, bool NeedAbs>
@@ -201,10 +201,10 @@ PTO_INTERNAL void TPowF(__ubuf__ T *dst, __ubuf__ T *base, T exp, __ubuf__ T *tm
     TBinSInstr<PowSOp<T, false>, DstTile, BaseTile, elementsPerRepeat, blockSizeElem, DstTile::RowStride,
                BaseTile::RowStride>(dst, base, exp, validRow, validCol);
 
-    PtoSetWaitFlag<PIPE_V, PIPE_S>(EVENT_ID7, EVENT_ID7);
+    PtoSetWaitFlag<PIPE_V, PIPE_S>();
     ProcessSpecialCaseForPowF<T, DstTile::RowStride, BaseTile::RowStride, TmpTile::RowStride>(dst, base, exp, tmp,
                                                                                               validRow, validCol);
-    PtoSetWaitFlag<PIPE_S, PIPE_V>(EVENT_ID7, EVENT_ID7);
+    PtoSetWaitFlag<PIPE_S, PIPE_V>();
 }
 
 template <typename DstTile, typename BaseTile, typename ExpTile, typename TmpTile>
@@ -219,9 +219,9 @@ __tf__ PTO_INTERNAL void TPow(typename DstTile::TileDType __out__ dstData, typen
     __ubuf__ T *exp = (__ubuf__ T *)__cce_get_tile_ptr(expData);
 
     if constexpr (std::is_integral_v<T>) {
-        PtoSetWaitFlag<PIPE_V, PIPE_S>(EVENT_ID7, EVENT_ID7);
+        PtoSetWaitFlag<PIPE_V, PIPE_S>();
         TPowI<T, DstTile::RowStride, BaseTile::RowStride, ExpTile::RowStride>(dst, base, exp, validRow, validCol);
-        PtoSetWaitFlag<PIPE_S, PIPE_V>(EVENT_ID7, EVENT_ID7);
+        PtoSetWaitFlag<PIPE_S, PIPE_V>();
     } else {
         __ubuf__ T *tmp = (__ubuf__ T *)__cce_get_tile_ptr(tmpData);
         TPowF<T, DstTile::RowStride, BaseTile::RowStride, ExpTile::RowStride, TmpTile::RowStride>(dst, base, exp, tmp,
@@ -287,9 +287,9 @@ __tf__ PTO_INTERNAL void TPows(typename DstTile::TileDType __out__ dstData,
     __ubuf__ T *base = (__ubuf__ T *)__cce_get_tile_ptr(baseData);
 
     if constexpr (std::is_integral_v<T>) {
-        PtoSetWaitFlag<PIPE_V, PIPE_S>(EVENT_ID7, EVENT_ID7);
+        PtoSetWaitFlag<PIPE_V, PIPE_S>();
         TPowI<T, DstTile::RowStride, BaseTile::RowStride>(dst, base, exp, validRow, validCol);
-        PtoSetWaitFlag<PIPE_S, PIPE_V>(EVENT_ID7, EVENT_ID7);
+        PtoSetWaitFlag<PIPE_S, PIPE_V>();
     } else {
         __ubuf__ T *tmp = (__ubuf__ T *)__cce_get_tile_ptr(tmpData);
         TPowF<T, DstTile, BaseTile, TmpTile>(dst, base, exp, tmp, validRow, validCol);
