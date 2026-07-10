@@ -77,6 +77,40 @@ enum class ScatterOOB : uint8_t {
 
 There is no `Zero` option — an OOB index never identifies a real destination slot, so `Skip` is the natural "do nothing on OOB" policy.
 
+## Assembly Syntax
+
+Synchronous form:
+
+```text
+mscatter %src, %mem, %idx : !pto.memref<...>, !pto.tile<...>, !pto.tile<...>
+```
+
+Row coalesce:
+
+```text
+mscatter.row %table, %src, %idx : (!pto.memref<...>, !pto.tile<RxCxT>, !pto.tile<1xRxi32>)
+```
+
+Element coalesce:
+
+```text
+mscatter.elem %table, %src, %idx : (!pto.memref<...>, !pto.tile<RxCxT>, !pto.tile<RxCxi32>)
+```
+
+OOB and atomic variants append the mode suffix (`mscatter.row.clamp.atomic_add`, `mscatter.elem.skip`, etc.).
+
+### AS Level 1 (SSA)
+
+```text
+pto.mscatter %src, %idx, %mem : (!pto.tile<...>, !pto.tile<...>, !pto.partition_tensor_view<MxNxdtype>) -> ()
+```
+
+### AS Level 2 (DPS)
+
+```text
+pto.mscatter ins(%src, %idx : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%mem : !pto.partition_tensor_view<MxNxdtype>)
+```
+
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp` (the shared dispatcher) and the per-target implementation headers (`include/pto/cpu/MScatter.hpp`, `include/pto/npu/a2a3/MScatter.hpp`, `include/pto/npu/a5/MScatter.hpp`).
@@ -681,6 +715,33 @@ AICORE void example_scalar(__gm__ float* tablePtr, __gm__ float* srcPtr, __gm__ 
 
     MSCATTER<Coalesce::Elem>(tableGM, src, idx);
 }
+```
+
+## ASM Form Examples
+
+### Auto Mode
+
+```text
+# Auto mode: compiler/runtime-managed placement and scheduling.
+pto.mscatter %src, %idx, %mem : (!pto.tile<...>, !pto.tile<...>, !pto.partition_tensor_view<MxNxdtype>) -> ()
+```
+
+### Manual Mode
+
+```text
+# Manual mode: resources must be bound explicitly before issuing the instruction.
+# Optional for tile operands:
+# pto.tassign %arg0, @tile(0x1000)
+# pto.tassign %arg1, @tile(0x2000)
+pto.mscatter %src, %idx, %mem : (!pto.tile<...>, !pto.tile<...>, !pto.partition_tensor_view<MxNxdtype>) -> ()
+```
+
+### PTO Assembly Form
+
+```text
+mscatter %src, %mem, %idx : !pto.memref<...>, !pto.tile<...>, !pto.tile<...>
+# AS Level 2 (DPS)
+pto.mscatter ins(%src, %idx : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%mem : !pto.partition_tensor_view<MxNxdtype>)
 ```
 
 ## Related Instructions

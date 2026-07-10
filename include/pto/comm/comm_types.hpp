@@ -132,8 +132,8 @@ enum class ReduceOp : uint8_t
 
 enum class DmaEngine : uint8_t
 {
-    SDMA = 0, // Current async path supports flat contiguous logical 1D transfer only
-    URMA = 1, // Flat contiguous logical 1D transfer (HCCP V2 Jetty, NPU_ARCH 3510 only)
+    SDMA = 0, // Supports 2D transfer
+    URMA = 1, // Supports 1D transfer (HCCP V2 Jetty, NPU_ARCH 3510 only)
 };
 
 // ============================================================================

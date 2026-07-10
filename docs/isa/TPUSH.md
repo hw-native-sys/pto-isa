@@ -51,7 +51,7 @@ struct TPipe;
 ## Constraints
 
 - **TileData producer**:
-    - `TileProd::Loc` must be `TileType::Acc`, `TileType::Vec`, or `TileType::Ctrl`.
+    - `TileProd::Loc` must be `TileType::Acc` or `TileType::Vec`.
     - `Direction::DIR_C2V`: Cube produces an accumulator tile for vector consumption.
     - `Direction::DIR_V2C`: Vector produces a vector tile for cube consumption.
     - `Direction::DIR_BOTH`: both C2V and V2C producers are supported by the same pipe type.
@@ -64,7 +64,7 @@ struct TPipe;
     - `TileSplitAxis::TILE_LEFT_RIGHT`: Vector subblocks map to column halves.
 - **A5 split behavior**:
     - `TileSplitAxis::TILE_NO_SPLIT`: No sub-vector offset is applied.
-    - `TileSplitAxis::TILE_UP_DOWN`: Data is split into row halves. For C2V direction (L0C→UB path), this mode only supports b32 data type, and `validRows` must be even (a multiple of 2); for V2C direction (UB→L1 path), `validCols` must be a multiple of 32 bytes.
+    - `TileSplitAxis::TILE_UP_DOWN`: Data is split into row halves. For C2V direction (L0C→UB path), this mode only supports b32 data type, and `validRows` must be a power of 2; for V2C direction (UB→L1 path), `validCols` must be a multiple of 32 bytes.
     - `TileSplitAxis::TILE_LEFT_RIGHT`: Data is split into two column halves. For C2V direction (L0C→UB path), this mode only supports b32 data type, and `validCols` must be a multiple of 32; for V2C direction (UB→L1 path), `validCols` must be a multiple of 32 bytes.
 - **Simplified TileData overload**:
     - `TPUSH(TileData&, Pipe&)` uses `TileSplitAxis::TILE_NO_SPLIT` semantics internally.
@@ -238,3 +238,7 @@ AICORE void example_globaldata(__gm__ void *fifoMem)
     TPUSH<Pipe, SlotGlobal, TileSplitAxis::TILE_NO_SPLIT>(pipe, slot);
 }
 ```
+
+## ASM Form Examples
+
+The current public assembly reference does not define a stable PTO-AS spelling for `TPUSH`. Use the C++ intrinsic form for manual CV FIFO programming.

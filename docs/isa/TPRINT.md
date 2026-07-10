@@ -17,6 +17,23 @@ The `TPRINT` instruction outputs the logical view of data stored in a Tile or Gl
 > - Output may be **truncated** if it exceeds the internal print buffer. The print buffer can be modified by adding `-DCCEBlockMaxSize=16384` in compile options; default is 16KB.
 > - **Requires CCE compilation option `-D_DEBUG --cce-enable-print`** (see [Behavior](#behavior)).
 
+## Assembly Syntax
+
+```text
+tprint %src : !pto.tile<...> | !pto.global<...>
+```
+
+### AS Level 1 (SSA)
+
+```text
+pto.tprint %src : !pto.tile<...> | !pto.partition_tensor_view<MxNxdtype> -> ()
+```
+
+### AS Level 2 (DPS)
+
+```text
+pto.tprint ins(%src : !pto.tile_buf<...> | !pto.partition_tensor_view<MxNxdtype>)
+```
 ## C++ Intrinsic
 Declared in `include/pto/common/pto_instr.hpp`:
 ```cpp
@@ -120,3 +137,31 @@ PTO_INTERNAL void DebugGlobalTensor(__gm__ float *src) {
 ## Math Interpretation
 
 Unless otherwise specified, semantics are defined over the valid region and target-dependent behavior is marked as implementation-defined.
+
+## ASM Form Examples
+
+### Auto Mode
+
+```text
+# Auto mode: compiler/runtime-managed placement and scheduling.
+pto.tprint %src : !pto.tile<...> | !pto.partition_tensor_view<MxNxdtype> -> ()
+```
+
+### Manual Mode
+
+```text
+# Manual mode: resources must be bound explicitly before issuing the instruction.
+# Optional for tile operands:
+# pto.tassign %arg0, @tile(0x1000)
+# pto.tassign %arg1, @tile(0x2000)
+pto.tprint %src : !pto.tile<...> | !pto.partition_tensor_view<MxNxdtype> -> ()
+```
+
+### PTO Assembly Form
+
+```text
+pto.tprint %src : !pto.tile<...> | !pto.partition_tensor_view<MxNxdtype> -> ()
+# AS Level 2 (DPS)
+pto.tprint ins(%src : !pto.tile_buf<...> | !pto.partition_tensor_view<MxNxdtype>)
+```
+

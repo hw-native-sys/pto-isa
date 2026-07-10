@@ -1,4 +1,4 @@
-# TQUANT
+﻿# TQUANT
 
 ## 指令示意图
 
@@ -163,6 +163,46 @@ DN 数据的 FP8 mantissa 与 ND 共享相同的物理地址（`(r,c)` 元素完
 ## 数学语义
 
 除另有说明外，语义在有效区域内定义，目标相关行为标记为实现定义。
+
+## 汇编语法
+
+### AS Level 1（SSA）
+
+```text
+%dst = pto.tquant %src, %qp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+```
+
+### AS Level 2（DPS）
+
+```text
+pto.tquant ins(%src, %qp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+```
+
+## ASM 形式示例
+
+### Auto 模式
+
+```text
+# Auto 模式：由编译器/运行时管理资源放置与调度。
+%dst = pto.tquant %src, %qp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+```
+
+### Manual 模式
+
+```text
+# Manual 模式：须先显式绑定资源再发射指令。
+# pto.tassign %arg0, @tile(0x1000)
+# pto.tassign %arg1, @tile(0x2000)
+%dst = pto.tquant %src, %qp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+```
+
+### PTO 汇编形式
+
+```text
+%dst = pto.tquant %src, %qp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+# AS Level 2（DPS）
+pto.tquant ins(%src, %qp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+```
 
 ## 示例
 

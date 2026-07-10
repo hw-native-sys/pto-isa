@@ -55,6 +55,31 @@ $$E_{ZZ}[c_b, p, q, \delta] = E_{DN}^{T}[16c_b + q][2p + \delta] = E_{DN}[2p + \
 
 仅 **X→ZZ** 转换接受 `tmp` 操作数（3 参数重载）。ND→ZZ 用作 `vgather2` 索引缓冲；DN→ZZ 为接口一致接受但**不访问**（`vsstb` scatter 无需 scratch）。ND→NZ 无 `tmp`。
 
+## 汇编语法
+
+PTO AS 设计建议将 `TMOV` 拆分为一组操作：
+
+```text
+%left  = tmov.m2l %mat  : !pto.tile<...> -> !pto.tile<...>
+%right = tmov.m2r %mat  : !pto.tile<...> -> !pto.tile<...>
+%bias  = tmov.m2b %mat  : !pto.tile<...> -> !pto.tile<...>
+%scale = tmov.m2s %mat  : !pto.tile<...> -> !pto.tile<...>
+%vec   = tmov.a2v %acc  : !pto.tile<...> -> !pto.tile<...>
+%v1    = tmov.v2v %v0   : !pto.tile<...> -> !pto.tile<...>
+```
+
+### AS Level 1（SSA）
+
+```text
+%dst = pto.tmov.s2d %src  : !pto.tile<...> -> !pto.tile<...>
+```
+
+### AS Level 2（DPS）
+
+```text
+pto.tmov ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+```
+
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp` 和 `include/pto/common/constants.hpp`：
@@ -272,4 +297,30 @@ void example_manual() {
   TASSIGN(left, 0x2000);
   TMOV(left, mat);
 }
+```
+
+## ASM 形式示例
+
+### Auto 模式
+
+```text
+# Auto 模式：由编译器/运行时管理资源放置与调度。
+%dst = pto.tmov.s2d %src  : !pto.tile<...> -> !pto.tile<...>
+```
+
+### Manual 模式
+
+```text
+# Manual 模式：须先显式绑定资源再发射指令。
+# pto.tassign %arg0, @tile(0x1000)
+# pto.tassign %arg1, @tile(0x2000)
+%dst = pto.tmov.s2d %src  : !pto.tile<...> -> !pto.tile<...>
+```
+
+### PTO 汇编形式
+
+```text
+%dst = pto.tmov.s2d %src  : !pto.tile<...> -> !pto.tile<...>
+# AS Level 2（DPS）
+pto.tmov ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```

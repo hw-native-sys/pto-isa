@@ -8,8 +8,6 @@
 
 带额外缩放 Tile 的矩阵乘法 (GEMM)，用于支持目标上的混合精度/量化矩阵乘法。
 
-该指令目前仅 A5 实现（参见 `include/pto/npu/a5/TMatmul.hpp`）。
-
 ## 数学语义
 
 设：
@@ -23,6 +21,38 @@
 $$ \mathrm{C}_{i,j} = \sum_{k=0}^{K-1} \mathrm{A}_{i,k} \cdot \mathrm{B}_{k,j} $$
 
 `aScaleMatrix` / `bScaleMatrix` 的确切作用（以及任何反量化/量化语义）由目标定义。
+
+## 汇编语法
+
+同步形式（概念性）：
+
+```text
+%c = tmatmul.mx %a, %a_scale, %b, %b_scale : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+%c_out = tmatmul.mx.acc %c_in, %a, %a_scale, %b, %b_scale : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+%c = tmatmul.mx.bias %a, %a_scale, %b, %b_scale, %bias : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+```
+
+### AS Level 1（SSA）
+
+```text
+%c = pto.tmatmul.mx %a, %a_scale, %b, %b_scale : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>)
+-> !pto.tile<...>
+%c_out = pto.tmatmul.mx.acc %c_in, %a, %a_scale, %b, %b_scale : (!pto.tile<...>, !pto.tile<...>,
+!pto.tile<...>, !pto.tile<...>, !pto.tile<...>)  -> !pto.tile<...>
+%c = pto.tmatmul.mx.bias %a, %a_scale, %b, %b_scale, %bias : (!pto.tile<...>, !pto.tile<...>,
+!pto.tile<...>, !pto.tile<...>, !pto.tile<...>)  -> !pto.tile<...>
+```
+
+### AS Level 2（DPS）
+
+```text
+pto.tmatmul.mx ins(%a, %a_scale, %b, %b_scale : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>)
+outs(%c :  !pto.tile_buf<...>)
+pto.tmatmul.mx.acc ins(%c_in, %a, %a_scale, %b, %b_scale : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>,
+!pto.tile_buf<...>, !pto.tile_buf<...>) outs(%c_out : !pto.tile_buf<...>)
+pto.tmatmul.mx.bias ins(%a, %a_scale, %b, %b_scale, %bias : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>,
+!pto.tile_buf<...>, !pto.tile_buf<...>) outs(%c : !pto.tile_buf<...>)
+```
 
 ## C++ 内建接口
 
@@ -116,4 +146,31 @@ void example_manual() {
   TASSIGN(c, 0x4000);
   TMATMUL_MX(c, a, scaleA, b, scaleB, bias);
 }
+```
+
+## 汇编示例（ASM）
+
+### 自动模式
+
+```text
+# 自动模式：由编译器/运行时负责资源放置与调度。
+%c = pto.tmatmul.mx %a, %a_scale, %b, %b_scale : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>)
+```
+
+### 手动模式
+
+```text
+# 手动模式：先显式绑定资源，再发射指令。
+# 可选（当该指令包含 tile 操作数时）：
+# pto.tassign %arg0, @tile(0x1000)
+# pto.tassign %arg1, @tile(0x2000)
+%c = pto.tmatmul.mx %a, %a_scale, %b, %b_scale : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>)
+```
+
+### PTO 汇编形式
+
+```text
+%c = pto.tmatmul.mx %a, %a_scale, %b, %b_scale : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>)
+# AS Level 2 (DPS)
+pto.tmatmul.mx ins(%a, %a_scale, %b, %b_scale : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>)
 ```

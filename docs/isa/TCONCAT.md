@@ -28,19 +28,33 @@ $$ \mathrm{dst}_{i, j} = \begin{cases} \mathrm{src0}_{i, j} & \text{if } 0 \le j
 
 Where `validCols0 = src0.GetValidCol()` and `validCols1 = src1.GetValidCol()`.
 
+## Assembly Syntax
+
+### AS Level 1 (SSA)
+
+```text
+%dst = pto.tconcat %src0, %src1 : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+```
+
+### AS Level 2 (DPS)
+
+```text
+pto.tconcat ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+```
+
 ## C++ Intrinsic
 
-Declared in `include/pto/common/pto_instr.hpp`:
+Declared in `include/pto/npu/a5/TConcat.hpp`:
 
 ```cpp
-template <typename TileDst, typename TileSrc0, typename TileSrc1, typename... WaitEvents>
-PTO_INST RecordEvent TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, WaitEvents &... events);
+template <typename TileDst, typename TileSrc0, typename TileSrc1>
+PTO_INST void TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1);
 
-template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileSrc0Idx, typename TileSrc1Idx, typename... WaitEvents>
-PTO_INST RecordEvent TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileSrc0Idx &src0Idx, TileSrc1Idx &src1Idx, WaitEvents &... events);
+template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileSrc0Idx, typename TileSrc1Idx>
+PTO_INST void TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileSrc0Idx &src0Idx, TileSrc1Idx &src1Idx);
 
-template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileDstIdx, typename TileSrc0Idx, typename TileSrc1Idx, typename... WaitEvents>
-PTO_INST RecordEvent TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileDstIdx &dstIdx, TileSrc0Idx &src0Idx, TileSrc1Idx &src1Idx, WaitEvents &... events);
+template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileDstIdx, typename TileSrc0Idx, typename TileSrc1Idx>
+PTO_INST void TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileDstIdx &dstIdx, TileSrc0Idx &src0Idx, TileSrc1Idx &src1Idx);
 ```
 
 ## Constraints
@@ -58,8 +72,7 @@ PTO_INST RecordEvent TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileD
 
 - Basic form:
     - `dst.GetValidRow() == src0.GetValidRow() == src1.GetValidRow()`
-    - A2A3: `src0.GetValidCol() + src1.GetValidCol() <= TileDataDst::Cols` (total columns must not exceed dst physical capacity)
-    - A5: `dst.GetValidCol() == src0.GetValidCol() + src1.GetValidCol()` (total columns must equal dst valid columns)
+    - `dst.GetValidCol() == src0.GetValidCol() + src1.GetValidCol()`
 - Indexed form:
     - Same row count constraints as basic form
     - Column counts are determined dynamically from index tiles
@@ -137,6 +150,26 @@ void example_indexed() {
 
     TCONCAT(dst, src0, src1, src0Idx, src1Idx);
 }
+```
+
+## ASM Form Examples
+
+### Auto Mode
+
+```text
+# Auto mode: compiler/runtime-managed placement and scheduling.
+%dst = pto.tconcat %src0, %src1 : (!pto.tile<16x32xf32>, !pto.tile<16x32xf32>) -> !pto.tile<16x64xf32>
+```
+
+### Manual Mode
+
+```text
+# Manual mode: resources must be bound explicitly before issuing the instruction.
+# Optional for tile operands:
+# pto.tassign %src0, @tile(0x1000)
+# pto.tassign %src1, @tile(0x2000)
+# pto.tassign %dst, @tile(0x3000)
+%dst = pto.tconcat %src0, %src1 : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
 ## Related Instructions

@@ -16,6 +16,15 @@ $$ \mathrm{dst}^{(k)}_{i,j} = \mathrm{src}^{(\text{root})}_{i,j} \quad \forall k
 
 where $N$ is the number of ranks and `root` is the calling NPU.
 
+## Assembly Syntax
+
+Synchronous form:
+
+```text
+tbroadcast %group, %src : (!pto.group<...>, !pto.memref<...>)
+```
+Lowering introduces UB staging tile(s) for the GM→UB→GM data path; the C++ intrinsic requires explicit `stagingTileData` (or `pingTile` / `pongTile`) operand(s).
+
 ## Template Parameter
 
 - `engine`:
@@ -53,7 +62,7 @@ When `engine == CollEngine::CCU`, the first variadic argument must be a `CcuTrig
 - **ParallelGroup constraints**:
     - `parallelGroup.tensors[k]` must refer to rank `k`'s destination buffer (remote GM as seen by the root).
     - `parallelGroup.GetRootIdx()` identifies the calling NPU as the broadcast root.
-    - All destination tensors are assumed to have the same shape and strides; behavior is undefined if they differ.
+    - All destination tensors are assumed to have the same shape and strides.
 - **Chunked mode constraints** (when data exceeds a single UB tile):
     - If `TileData` has static `ValidRow`, `GetShape(DIM_3)` must be divisible by `ValidRow`. Use a Tile with `DYNAMIC` ValidRow for partial row support.
     - If `TileData` has static `ValidCol`, `GetShape(DIM_4)` must be divisible by `ValidCol`. Use a Tile with `DYNAMIC` ValidCol for partial column support.
@@ -91,7 +100,7 @@ void broadcast(__gm__ T* group_addrs[NRANKS], __gm__ T* my_data, int my_rank) {
 }
 ```
 
-### Ping-pong Broadcast (Double Buffering)
+### Ping-Pong Broadcast (Double Buffering)
 
 Uses two UB tiles to overlap TLOAD of the next chunk with TSTORE of the current chunk.
 

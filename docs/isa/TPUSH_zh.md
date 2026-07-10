@@ -50,7 +50,7 @@ struct TPipe;
 ## 约束
 
 - **TileData 类型生产者**：
-    - `TileProd::Loc` 必须是 `TileType::Acc`、`TileType::Vec` 或 `TileType::Ctrl`。
+    - `TileProd::Loc` 必须是 `TileType::Acc` 或 `TileType::Vec`。
     - `Direction::DIR_C2V`：Cube 生产 accumulator tile，供 vector 消费。
     - `Direction::DIR_V2C`：Vector 生产 vector tile，供 cube 消费。
     - `Direction::DIR_BOTH`：同一个 pipe 类型同时支持 C2V 和 V2C 生产者。
@@ -237,3 +237,7 @@ AICORE void example_globaldata(__gm__ void *fifoMem)
     TPUSH<Pipe, SlotGlobal, TileSplitAxis::TILE_NO_SPLIT>(pipe, slot);
 }
 ```
+
+## ASM 形式示例
+
+当前公开的汇编参考尚未为 `TPUSH` 定义稳定的 PTO-AS 写法。手写 CV FIFO 程序时请使用 C++ intrinsic 形式。

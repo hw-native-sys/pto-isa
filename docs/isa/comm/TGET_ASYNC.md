@@ -14,9 +14,9 @@ Data flow:
     - `DmaEngine::SDMA` (default)
     - `DmaEngine::URMA` (Ascend950, NPU_ARCH 3510 only)
 
-> **Important**
-> Both `DmaEngine::SDMA` and `DmaEngine::URMA` paths currently support **only flat contiguous logical 1D tensors**.
-> Non-1D or non-contiguous layouts are not supported by the current async implementation.
+> **Important (SDMA path)**  
+> `TGET_ASYNC` with `DmaEngine::SDMA` currently supports **only flat contiguous logical 1D tensors**.  
+> Non-1D or non-contiguous layouts are not supported by the current SDMA async implementation.
 
 ## C++ Intrinsic
 
@@ -62,6 +62,9 @@ PTO_INTERNAL bool BuildAsyncSession(ScratchTile &scratchTile,
 
 ### URMA Construction (NPU_ARCH 3510 only)
 
+> URMA (User-level RDMA Memory Access) is a hardware-accelerated RDMA transport available on Ascend950 (NPU_ARCH 3510).
+> URMA requires CANN Toolkit **>= 9.1.0**.
+
 ```cpp
 #ifdef PTO_URMA_SUPPORTED
 template <DmaEngine engine>
@@ -84,10 +87,11 @@ URMA does not require `scratchTile` — polling uses `ld_dev`/`st_dev` hardware 
 - `GlobalSrcData::RawDType == GlobalDstData::RawDType`
 - `GlobalSrcData::layout == GlobalDstData::layout`
 - Both SDMA and URMA paths require source tensor to be **flat contiguous logical 1D only**
-- SDMA generally requires CANN Toolkit **>= 9.0.0**, but on NPU_ARCH 3510 it requires CANN Toolkit **>= 9.1.0**
-- SDMA/URMA workspace must be a valid GM pointer allocated by host-side `SdmaWorkspaceManager` / `UrmaWorkspaceManager`
+- SDMA workspace must be a valid GM pointer allocated by host-side `SdmaWorkspaceManager`
+- URMA workspace must be a valid GM pointer allocated by host-side `UrmaWorkspaceManager`
 - URMA is only available on NPU_ARCH 3510 (Ascend950)
 - URMA requires CANN Toolkit **>= 9.1.0**
+- The symmetric data buffer passed to `UrmaWorkspaceManager::Init()` must be backed by huge-page memory (allocate with `ACL_MEM_MALLOC_HUGE_ONLY`). The underlying MR registration requires huge-page backing; `ACL_MEM_MALLOC_HUGE_FIRST` may silently fall back to 4KB pages for small allocations, causing registration to fail
 
 If the 1D contiguous requirement is not met, current implementation returns an invalid async event (`handle == 0`).
 
@@ -106,7 +110,7 @@ The real payload path remains remote GM -> DMA engine -> local GM; `scratchTile`
 
 - must be a `pto::Tile` type
 - must be UB/Vec tile (`ScratchTile::Loc == TileType::Vec`)
-- available bytes must be at least `sizeof(uint64_t)` (8B)
+- available bytes must be at least `sizeof(uint64_t)` (8 bytes)
 
 Recommended: `Tile<TileType::Vec, uint8_t, 1, comm::sdma::UB_ALIGN_SIZE>` (256B).
 
@@ -114,17 +118,14 @@ Recommended: `Tile<TileType::Vec, uint8_t, 1, comm::sdma::UB_ALIGN_SIZE>` (256B)
 
 The completion mechanism differs by engine, but user-facing quiet semantics are identical:
 
-- **SDMA**: `TGET_ASYNC` only submits data transfer SQEs and rings the DoorBell. The flag SQE is deferred to `Wait`, which polls the flag for completion.
-- **URMA (Ascend950 / NPU_ARCH 3510 only)**: `TGET_ASYNC` submits an RDMA READ WQE and rings the DoorBell immediately. `Wait` polls the Completion Queue (CQ) until all expected CQEs have been consumed.
+- **SDMA**: `TGET_ASYNC` only submits data transfer SQEs. The flag SQE is deferred to `Wait`, which polls the flag for completion.
+- **URMA**: `TGET_ASYNC` submits an RDMA READ WQE and rings the doorbell immediately. `Wait` polls the Completion Queue (CQ) until all expected CQEs have been consumed.
 
-Completion APIs:
-
-- `event.Wait(session)` — blocks until **all async operations issued since the last Wait** are complete (quiet/drain semantics).
-- `event.Test(session)` — non-blocking readiness probe. For an already-completed event (`handle == 0`), returns `true` immediately.
+- `event.Wait(session)` — blocks until **all async operations issued since the last Wait** are complete
 
 This means after multiple `TGET_ASYNC` calls, a single `Wait` on the last returned `AsyncEvent` drains all pending operations (similar to shmem's quiet semantics).
 
-After `Wait` succeeds, all reads into `dstGlobalData` are complete.
+After wait succeeds, all issued reads into `dstGlobalData` are complete.
 
 ## Example
 

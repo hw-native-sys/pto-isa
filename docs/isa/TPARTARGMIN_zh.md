@@ -24,6 +24,26 @@ $$
 \end{aligned}
 $$
 
+## 汇编语法
+
+同步形式：
+
+```text
+%dstVal, %dstIdx = tpartargmin %src0Val, %src1Val, %src0Idx, %src1Idx : !pto.tile<...> -> (!pto.tile<...>, !pto.tile<...>)
+```
+
+### AS Level 1（SSA）
+
+```text
+%dstVal, %dstIdx = pto.tpartargmin %src0Val, %src1Val, %src0Idx, %src1Idx : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> (!pto.tile<...>, !pto.tile<...>)
+```
+
+### AS Level 2（DPS）
+
+```text
+pto.tpartargmin ins(%src0Val, %src1Val, %src0Idx, %src1Idx : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dstVal, %dstIdx : !pto.tile_buf<...>, !pto.tile_buf<...>)
+```
+
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
@@ -43,8 +63,8 @@ PTO_INST RecordEvent TPARTARGMIN(TileDataDst &dstVal, TileDataSrc0 &src0Val, Til
 
 - `dstVal`、`src0Val` 和 `src1Val` 的元素类型必须一致。
 - `dstIdx`、`src0Idx` 和 `src1Idx` 的元素类型必须一致。
-- 值类型与索引类型的组合约束（A2A3 由 `static_assert` 强制执行）：
-    - 若值类型为 `half`，则索引类型必须为 `int16_t`、`uint16_t`、`int32_t` 或 `uint32_t`。
+- 值类型与索引类型的组合约束：
+    - 若值类型为 `half`，则索引类型必须为 `int16_t` 或 `uint16_t`。
     - 若值类型为 `float`，则索引类型必须为 `int32_t` 或 `uint32_t`。
 - 每对值 Tile 和索引 Tile 的有效区域必须一致：
     - `src0Val` 与 `src0Idx` 的有效区域必须一致。
@@ -100,4 +120,31 @@ void example_manual() {
   TASSIGN(dstIdx,  0x6000);
   TPARTARGMIN(dstVal, src0Val, src1Val, dstIdx, src0Idx, src1Idx);
 }
+```
+
+## 汇编示例（ASM）
+
+### 自动模式
+
+```text
+# 自动模式：由编译器/运行时负责资源放置与调度。
+%dstVal, %dstIdx = pto.tpartargmin %src0Val, %src1Val, %src0Idx, %src1Idx : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> (!pto.tile<...>, !pto.tile<...>)
+```
+
+### 手动模式
+
+```text
+# 手动模式：先显式绑定资源，再发射指令。
+# 可选（当该指令包含 tile 操作数时）：
+# pto.tassign %arg0, @tile(0x1000)
+# pto.tassign %arg1, @tile(0x2000)
+%dstVal, %dstIdx = pto.tpartargmin %src0Val, %src1Val, %src0Idx, %src1Idx : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> (!pto.tile<...>, !pto.tile<...>)
+```
+
+### PTO 汇编形式
+
+```text
+%dstVal, %dstIdx = tpartargmin %src0Val, %src1Val, %src0Idx, %src1Idx : !pto.tile<...> -> (!pto.tile<...>, !pto.tile<...>)
+# AS Level 2 (DPS)
+pto.tpartargmin ins(%src0Val, %src1Val, %src0Idx, %src1Idx : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dstVal, %dstIdx : !pto.tile_buf<...>, !pto.tile_buf<...>)
 ```
