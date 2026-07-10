@@ -33,7 +33,7 @@ template <typename Pipe, typename GlobalData, TileSplitAxis Split,
 PTO_INST RecordEvent TFREE(Pipe &pipe, GlobalData &gmTensor, WaitEvents &... events);
 ```
 
-`include/pto/npu/a2a3/TPop.hpp` 中对应的 A2A3 实现对该重载有意保持为空（A5 上实现位于 `include/pto/npu/a5/TPop.hpp`，执行实际的空闲空间通知）：
+`include/pto/npu/a2a3/TPop.hpp` 中对应的 A2A3 实现对该重载有意保持为空：
 
 ```cpp
 template <typename Pipe, TileSplitAxis Split>
@@ -79,7 +79,7 @@ AICORE void example_tiledata(__gm__ void *fifoMem)
 
     TPOP<Pipe, VecTile, TileSplitAxis::TILE_UP_DOWN>(pipe, tile);
     ...  // final use of VecTile
-    TFREE<Pipe, TileSplitAxis::TILE_UP_DOWN>(pipe);
+    TFREE<Pipe, VecTile, TileSplitAxis::TILE_UP_DOWN>(pipe, slot);
 }
 ```
 
@@ -104,8 +104,12 @@ AICORE void example_globaldata(__gm__ void *fifoMem)
     Pipe pipe(fifoMem, 0x0, 0x0);
     SlotGlobal slot;
 
-    TPOP<Pipe, SlotGlobal, TileSplitAxis::TILE_UP_DOWN>(pipe, slot); // TPOP 会重新赋值 slot
-    // 在此处从 slot 加载或消费数据。
+    TPOP<Pipe, SlotGlobal, TileSplitAxis::TILE_UP_DOWN>(pipe, slot);
+    // Load or otherwise consume data from slot here.
     TFREE<Pipe, SlotGlobal, TileSplitAxis::TILE_UP_DOWN>(pipe, slot);
 }
 ```
+
+## ASM 形式示例
+
+当前公开的汇编参考尚未为 `TFREE` 定义稳定的 PTO-AS 写法。手写 CV FIFO 程序时请使用 C++ intrinsic 形式。

@@ -32,7 +32,7 @@ template <typename Pipe, typename GlobalData, TileSplitAxis Split,
 PTO_INST RecordEvent TPOP(Pipe &pipe, GlobalData &gmTensor, WaitEvents &... events);
 ```
 
-`Pipe` 通常是 `include/pto/npu/a2a3/TPush.hpp` 或 `include/pto/npu/a5/TPush.hpp` 中声明的 `TPipe`：
+`Pipe` 通常是 `include/pto/npu/a2a3/TPush.hpp` 中声明的 A2A3 `TPipe`：
 
 ```cpp
 template <uint8_t FlagID, uint8_t DirType, uint32_t SlotSize, uint32_t SlotNum,
@@ -43,7 +43,7 @@ struct TPipe;
 ## 约束
 
 - **A2A3 TileData 消费者**：
-    - `TileCons::Loc` 必须是 `TileType::Vec`、`TileType::Mat` 或 `TileType::Ctrl`。
+    - `TileCons::Loc` 必须是 `TileType::Vec` 或 `TileType::Mat`。
     - `Direction::DIR_C2V`：vector 消费 cube 生产的数据。
     - `Direction::DIR_V2C`：cube 消费 vector 生产的数据。
     - `Direction::DIR_BOTH`：同一个 pipe 类型同时支持 C2V 和 V2C 消费者。
@@ -145,3 +145,7 @@ AICORE void example_globaldata(__gm__ void *fifoMem)
     TFREE<Pipe, SlotGlobal, TileSplitAxis::TILE_UP_DOWN>(pipe, slot);
 }
 ```
+
+## ASM 形式示例
+
+当前公开的汇编参考尚未为 `TPOP` 定义稳定的 PTO-AS 写法。手写 CV FIFO 程序时请使用 C++ intrinsic 形式。

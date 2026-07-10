@@ -90,7 +90,7 @@ DMA backend selection for `TPUT_ASYNC` and `TGET_ASYNC`:
 
 | Value | Description |
 |-------|-------------|
-| `DmaEngine::SDMA` | SDMA engine (supports 1D transfer; on Ascend950 / NPU_ARCH 3510 only hardware GET is supported, while PUT falls back to an MTE software implementation to preserve instruction completeness) |
+| `DmaEngine::SDMA` | SDMA engine (supports 1D transfer) |
 | `DmaEngine::URMA` | URMA engine (supports 1D transfer, Ascend950 / NPU_ARCH 3510 only; requires CANN >= 9.1.0) |
 
 ### AsyncEvent
@@ -134,8 +134,6 @@ struct ParallelGroup {
     int rootIdx;  // Root NPU's rank index
     
     // Factory function (recommended): build from an existing tensor array.
-    // rootIdx: index of the root rank within the group (NOT the caller's own rank).
-    // All ranks in the group must pass the same rootIdx value.
-    static ParallelGroup Create(GlobalData *tensorArray, int size, int rootIdx);
+    static ParallelGroup Create(GlobalData *tensorArray, int size, int rank_id);
 };
 ```

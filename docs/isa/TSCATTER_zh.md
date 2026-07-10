@@ -1,4 +1,4 @@
-# TSCATTER
+﻿# TSCATTER
 
 ## 指令示意图
 
@@ -55,6 +55,26 @@ $$ \mathrm{dst}_{P \cdot i + \mathrm{zeros}_P, j} = 0 $$
 - `P0001`、`P0010`、`P0100`、`P1000`：扩展倍数 = 4
 - `P1111`：扩展倍数 = 1（等同于 `TMOV`）
 
+## 汇编语法
+
+同步形式：
+
+```text
+%dst = tscatter %src, %idx : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
+```
+
+### AS Level 1（SSA）
+
+```text
+%dst = pto.tscatter %src, %idx : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+```
+
+### AS Level 2（DPS）
+
+```text
+pto.tscatter ins(%src, %idx : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+```
+
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
@@ -103,7 +123,7 @@ PTO_INST RecordEvent TSCATTER(DstTileData& dst, SrcTileData& src, WaitEvents&...
 
 - **实现检查 (A2A3)**:
     - `TileDataD::Loc`、`TileDataS::Loc`、`TileDataI::Loc` 必须是 `TileType::Vec`。
-    - `TileDataD::DType`、`TileDataS::DType` 必须是以下之一：`int32_t`、`int16_t`、`int8_t`、`half`、`float16_t`、`float32_t`、`uint32_t`、`uint16_t`、`uint8_t`、`bfloat16_t`。
+    - `TileDataD::DType`、`TileDataS::DType` 必须是以下之一：`int32_t`、`int16_t`、`int8_t`、`half`、`float32_t`、`uint32_t`、`uint16_t`、`uint8_t`、`bfloat16_t`。
     - `TileDataI::DType` 必须是以下之一：`int16_t`、`int32_t`、`uint16_t` 或 `uint32_t`。
     - 不对 `indexes` 值执行边界检查。
     - 静态有效边界：`TileDataD::ValidRow <= TileDataD::Rows`、`TileDataD::ValidCol <= TileDataD::Cols`、`TileDataS::ValidRow <= TileDataS::Rows`、`TileDataS::ValidCol <= TileDataS::Cols`、`TileDataI::ValidRow <= TileDataI::Rows`、`TileDataI::ValidCol <= TileDataI::Cols`。
@@ -113,7 +133,7 @@ PTO_INST RecordEvent TSCATTER(DstTileData& dst, SrcTileData& src, WaitEvents&...
     - 当 `TileDataD::DType` 大小为 1 字节时，`TileDataI::DType` 大小必须为 2 字节。
 - **实现检查 (A5)**:
     - `TileDataD::Loc`、`TileDataS::Loc`、`TileDataI::Loc` 必须是 `TileType::Vec`。
-    - `TileDataD::DType`、`TileDataS::DType` 必须是以下之一：`int32_t`、`int16_t`、`int8_t`、`half`、`float16_t`、`float32_t`、`uint32_t`、`uint16_t`、`uint8_t`、`bfloat16_t`。
+    - `TileDataD::DType`、`TileDataS::DType` 必须是以下之一：`int32_t`、`int16_t`、`int8_t`、`half`、`float32_t`、`uint32_t`、`uint16_t`、`uint8_t`、`bfloat16_t`。
     - `TileDataI::DType` 必须是以下之一：`int16_t`、`int32_t`、`uint16_t` 或 `uint32_t`。
     - 不对 `indexes` 值执行边界检查。
     - 静态有效边界：`TileDataD::ValidRow <= TileDataD::Rows`、`TileDataD::ValidCol <= TileDataD::Cols`、`TileDataS::ValidRow <= TileDataS::Rows`、`TileDataS::ValidCol <= TileDataS::Cols`、`TileDataI::ValidRow <= TileDataI::Rows`、`TileDataI::ValidCol <= TileDataI::Cols`。
@@ -122,18 +142,11 @@ PTO_INST RecordEvent TSCATTER(DstTileData& dst, SrcTileData& src, WaitEvents&...
     - 当 `TileDataD::DType` 大小为 2 字节时，`TileDataI::DType` 大小必须为 2 字节。
     - 当 `TileDataD::DType` 大小为 1 字节时，`TileDataI::DType` 大小必须为 2 字节。
 
-### 掩码散播
+### 掩码散播（仅 A5）
 
-- **实现检查 (A2A3)**:
-    - `DstTileData::Loc`、`SrcTileData::Loc` 必须是 `TileType::Vec`。
-    - `DstTileData::DType`、`SrcTileData::DType` 必须是以下之一：`int32_t`、`int16_t`、`int8_t`、`half`、`float16_t`、`float32_t`、`uint32_t`、`uint16_t`、`uint8_t`、`bfloat16_t`。
-    - `DstTileData::DType` 与 `SrcTileData::DType` 必须相同。
-    - `maskPattern` 必须在 `P0101` 到 `P1111` 范围内。
-    - 静态有效边界：`DstTileData::ValidCol <= DstTileData::Cols`、`SrcTileData::ValidCol <= SrcTileData::Cols`、`DstTileData::ValidRow <= DstTileData::Rows`、`SrcTileData::ValidRow <= SrcTileData::Rows`。
-    - `P1111` 模式等同 `TMOV`：要求 `validRow` 和 `validCol` 分别匹配，内部通过 `TMOV_IMPL` 实现。
 - **实现检查 (A5)**:
     - `DstTileData::Loc`、`SrcTileData::Loc` 必须是 `TileType::Vec`。
-    - `DstTileData::DType`、`SrcTileData::DType` 必须是以下之一：`int32_t`、`int16_t`、`int8_t`、`half`、`float16_t`、`float32_t`、`uint32_t`、`uint16_t`、`uint8_t`、`bfloat16_t`。
+    - `DstTileData::DType`、`SrcTileData::DType` 必须是以下之一：`int32_t`、`int16_t`、`int8_t`、`half`、`float32_t`、`uint32_t`、`uint16_t`、`uint8_t`、`bfloat16_t`。
     - `DstTileData::DType` 与 `SrcTileData::DType` 必须相同。
     - `maskPattern` 必须在 `P0101` 到 `P1111` 范围内。
     - 静态有效边界：`DstTileData::ValidRow <= DstTileData::Rows`、`DstTileData::ValidCol <= DstTileData::Cols`、`SrcTileData::ValidRow <= SrcTileData::Rows`、`SrcTileData::ValidCol <= SrcTileData::Cols`。
@@ -252,3 +265,31 @@ void example_mask_manual_scatter_col() {
   TSCATTER<MaskPattern::P1010, ScatterAxis::SCATTER_COL>(dst, src);
 }
 ```
+
+## 汇编示例（ASM）
+
+### 自动模式
+
+```text
+# 自动模式：由编译器/运行时负责资源放置与调度。
+%dst = pto.tscatter %src, %idx : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+```
+
+### 手动模式
+
+```text
+# 手动模式：先显式绑定资源，再发射指令。
+# 可选（当该指令包含 tile 操作数时）：
+# pto.tassign %arg0, @tile(0x1000)
+# pto.tassign %arg1, @tile(0x2000)
+%dst = pto.tscatter %src, %idx : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+```
+
+### PTO 汇编形式
+
+```text
+%dst = tscatter %src, %idx : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
+# AS Level 2 (DPS)
+pto.tscatter ins(%src, %idx : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+```
+

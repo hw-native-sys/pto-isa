@@ -17,6 +17,15 @@ $$\mathrm{dst}_{d_0, d_1, d_2,\; r \cdot H + i,\; j} = \mathrm{src}^{(r)}_{d_0, 
 
 The destination tensor has shape $(D_0, D_1, D_2, N \times H, W)$.
 
+## Assembly Syntax
+
+Synchronous form:
+
+```text
+tgather %group, %dst : (!pto.group<...>, !pto.memref<...>)
+```
+Lowering introduces UB staging tile(s) for the GM→UB→GM data path; the C++ intrinsic requires explicit `stagingTileData` (or `pingTile` / `pongTile`) operand(s).
+
 ## Template Parameter
 
 - `engine`:
@@ -95,7 +104,7 @@ void gather(__gm__ T* group_addrs[NRANKS], __gm__ T* result, int my_rank) {
 }
 ```
 
-### Ping-pong Gather (Double Buffering)
+### Ping-Pong Gather (Double Buffering)
 
 Uses two UB tiles to overlap TLOAD of the next chunk (MTE2) with TSTORE of the current chunk (MTE3).
 

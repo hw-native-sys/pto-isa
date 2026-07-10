@@ -1,4 +1,4 @@
-# TTRANS
+﻿# TTRANS
 
 ## 指令示意图
 
@@ -15,6 +15,27 @@
 $$ \mathrm{dst}_{i,j} = \mathrm{src}_{j,i} $$
 
 确切的形状/布局及转置域取决于目标硬件（参见约束）。
+
+## 汇编语法
+
+同步形式：
+
+```text
+%dst = ttrans %src : !pto.tile<...> -> !pto.tile<...>
+```
+降低时可能引入内部临时 Tile；C++ 内建接口需要显式传入 `tmp` 操作数。
+
+### AS Level 1（SSA）
+
+```text
+%dst = pto.ttrans %src : !pto.tile<...> -> !pto.tile<...>
+```
+
+### AS Level 2（DPS）
+
+```text
+pto.ttrans ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+```
 
 ## C++ 内建接口
 
@@ -43,7 +64,7 @@ PTO_INST RecordEvent TTRANS(TileDataDst &dst, TileDataSrc &src, TileDataTmp &tmp
     - 4 字节：`uint32_t`、`int32_t`、`float`
     - 2 字节：`uint16_t`、`int16_t`、`half`、`bfloat16_t`
     - 1 字节：`uint8_t`、`int8_t`
-    - 转置大小取自 `src.GetValidRow()` / `src.GetValidCol()`。
+    - 实现在静态 Tile 形状（`TileDataSrc::Rows/Cols`）上运算，不参考 `GetValidRow/GetValidCol`。
 - **临时 Tile**:
     - C++ API 需要 `tmp`，需要的tmp空间大小计算公式如下：
     - **基础参数**:
@@ -120,3 +141,31 @@ void example_manual() {
   TTRANS(dst, src, tmp);
 }
 ```
+
+## 汇编示例（ASM）
+
+### 自动模式
+
+```text
+# 自动模式：由编译器/运行时负责资源放置与调度。
+%dst = pto.ttrans %src : !pto.tile<...> -> !pto.tile<...>
+```
+
+### 手动模式
+
+```text
+# 手动模式：先显式绑定资源，再发射指令。
+# 可选（当该指令包含 tile 操作数时）：
+# pto.tassign %arg0, @tile(0x1000)
+# pto.tassign %arg1, @tile(0x2000)
+%dst = pto.ttrans %src : !pto.tile<...> -> !pto.tile<...>
+```
+
+### PTO 汇编形式
+
+```text
+%dst = ttrans %src : !pto.tile<...> -> !pto.tile<...>
+# AS Level 2 (DPS)
+pto.ttrans ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+```
+

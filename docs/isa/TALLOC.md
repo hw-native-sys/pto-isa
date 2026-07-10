@@ -26,7 +26,7 @@ template <typename Pipe, typename GlobalData, TileSplitAxis Split,
 PTO_INST RecordEvent TALLOC(Pipe &pipe, GlobalData &gmTensor, WaitEvents &... events);
 ```
 
-`Pipe` is typically a `TPipe` declared in `include/pto/npu/a2a3/TPush.hpp` or `include/pto/npu/a5/TPush.hpp`:
+`Pipe` is typically an A2A3 `TPipe` declared in `include/pto/npu/a2a3/TPush.hpp`:
 
 ```cpp
 template <uint8_t FlagID, uint8_t DirType, uint32_t SlotSize, uint32_t SlotNum,
@@ -40,10 +40,6 @@ struct TPipe;
     - `GlobalData` must satisfy `is_global_data_v<GlobalData>`.
     - `Direction::DIR_C2V`: the producer sees the whole FIFO slot.
     - `Direction::DIR_V2C`: split offsets may be applied for vector subblocks according to `Split`.
-- **A5 GlobalData producer**:
-    - `GlobalData` must satisfy `is_global_data_v<GlobalData>`.
-    - `Direction::DIR_C2V_GM`: the producer sees the whole FIFO slot.
-    - `Direction::DIR_V2C_GM`: split offsets may be applied for vector subblocks according to `Split`.
 - **FIFO slot**:
     - `SlotSize` must be large enough for one logical FIFO entry.
     - `SlotNum >= 1`.
@@ -118,3 +114,7 @@ AICORE void example_v2c_split(__gm__ void *fifoMem)
     TPUSH<Pipe, SlotGlobal, TileSplitAxis::TILE_UP_DOWN>(pipe, slot);
 }
 ```
+
+## ASM Form Examples
+
+The current public assembly reference does not define a stable PTO-AS spelling for `TALLOC`. Use the C++ intrinsic form for manual CV FIFO programming.
