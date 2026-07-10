@@ -7,7 +7,7 @@
 
 ## Introduction
 
-Set the FMATRIX register(s) used by IMG2COL-like operations from an `Img2colTileConfig` (target/implementation-defined).
+Set the FMATRIX register(s) for IMG2COL-like operations from an IMG2COL configuration tile (a `ConvTile`; target/implementation-defined).
 
 ## See also
 

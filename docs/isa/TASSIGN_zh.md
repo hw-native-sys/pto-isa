@@ -65,12 +65,12 @@ PTO_INST void TASSIGN(T& obj);
 ## 约束
 
 - **实现检查**:
-    - 如果 `obj` 是 Tile：
-    - 在手动模式下（未定义 `__PTO_AUTO__` 时），`addr` 必须是整数类型，并被重新解释为 tile 的存储地址。
-    - 在自动模式下（定义了 `__PTO_AUTO__` 时），`TASSIGN(tile, addr)` 是空操作。
+    - 如果 `obj` 是 Tile（含 ConvTile）：
+        - 在手动模式下（未定义 `__PTO_AUTO__` 时），`addr` 必须是整数类型，并被重新解释为 tile 的存储地址。
+        - 在自动模式下（定义了 `__PTO_AUTO__` 时），`TASSIGN(tile, addr)` 是空操作。
     - 如果 `obj` 是 `GlobalTensor`：
-    - `addr` 必须是指针类型。
-    - 指向的元素类型必须匹配 `GlobalTensor::DType`。
+        - `addr` 必须是指针类型。
+        - 指向的元素类型必须匹配 `GlobalTensor::DType`。
 
 ## 示例
 
@@ -117,7 +117,8 @@ void example_oob() {
   using BigTile = Tile<TileType::Vec, float, 256, 256>;
   BigTile t;
 
-  // static_assert 触发 [SA-0352]: tile_size (256KB) > UB 容量 (A2A3 为 192KB)
+  // 主要触发 [SA-0352]: tile_size (256KB) > UB 容量 (A2A3 为 192KB)
+  // （tile 已超过整块缓冲区，SA-0353 越界断言同时成立）
   TASSIGN<0x0>(t);
 }
 ```
@@ -127,8 +128,8 @@ void example_oob_addr() {
   using TileT = Tile<TileType::Vec, float, 128, 128>;  // 64KB
   TileT t;
 
-  // static_assert 触发 [SA-0353]: 0x20001 + 64KB > 192KB
-  TASSIGN<0x20001>(t);
+  // static_assert 触发 [SA-0353]: 0x20020 + 64KB > 192KB（地址已对齐，仅越界）
+  TASSIGN<0x20020>(t);
 }
 ```
 

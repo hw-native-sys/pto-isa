@@ -10,7 +10,7 @@
 Synchronize PTO execution:
 
 - `TSYNC(events...)` waits on a set of explicit event tokens.
-- `TSYNC<Op>()` inserts a pipeline barrier for a single vector op class.
+- `TSYNC<Op>()` inserts a pipe barrier for the pipeline of the specified `Op`.
 
 Many intrinsics in `include/pto/common/pto_instr.hpp` call `TSYNC(events...)` internally before issuing the instruction.
 

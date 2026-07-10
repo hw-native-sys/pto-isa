@@ -17,14 +17,11 @@
 声明于 `include/pto/common/pto_instr.hpp`：
 
 ```cpp
-template <typename ConvTileData, typename... WaitEvents>
-PTO_INST RecordEvent SET_IMG2COL_RPT(ConvTileData &src, WaitEvents &... events);
-
 template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL, typename... WaitEvents>
 PTO_INST RecordEvent SET_IMG2COL_RPT(ConvTileData &src, WaitEvents &... events);
 ```
 
-在 `MEMORY_BASE` 目标上，还提供不带 `SetFmatrixMode` 模板参数的重载。
+该重载按目标后端分别提供：`#if defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_KIRINX90)` 与 `#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRIN9030) || defined(__CPU_SIM)`。
 
 ## 约束
 
@@ -40,7 +37,13 @@ PTO_INST RecordEvent SET_IMG2COL_RPT(ConvTileData &src, WaitEvents &... events);
 
 using namespace pto;
 
-void example_set_img2col_rpt(Img2colTileConfig<uint64_t>& cfg) {
+void example_set_img2col_rpt() {
+  // IMG2COL 配置 Tile：使用 ConvTile（Mat，NC1HWC0 布局）
+  using CfgTile = ConvTile<TileType::Mat, half, 1 * 1 * 16 * 16 * 16, Layout::NC1HWC0,
+                           ConvTileShape<1, 1, 16, 16, 16>>;
+  CfgTile cfg;
+  TASSIGN(cfg, 0x0);
+  // 设置 fmapH/fmapW、padList、stride 等配置字段后，再设置重复次数元数据：
   SET_IMG2COL_RPT(cfg);
 }
 ```

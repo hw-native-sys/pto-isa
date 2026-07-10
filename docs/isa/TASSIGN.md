@@ -71,12 +71,12 @@ Capacities can be overridden at build time via `-D` flags (e.g.
 ## Constraints
 
 - **Implementation checks**:
-    - If `obj` is a Tile:
-    - In manual mode (when `__PTO_AUTO__` is not defined), `addr` must be an integral type and is reinterpreted as the tile's storage address.
-    - In auto mode (when `__PTO_AUTO__` is defined), `TASSIGN(tile, addr)` is a no-op.
+    - If `obj` is a Tile (including ConvTile):
+        - In manual mode (when `__PTO_AUTO__` is not defined), `addr` must be an integral type and is reinterpreted as the tile's storage address.
+        - In auto mode (when `__PTO_AUTO__` is defined), `TASSIGN(tile, addr)` is a no-op.
     - If `obj` is a `GlobalTensor`:
-    - `addr` must be a pointer type.
-    - The pointed-to element type must match `GlobalTensor::DType`.
+        - `addr` must be a pointer type.
+        - The pointed-to element type must match `GlobalTensor::DType`.
 
 ## Examples
 
@@ -123,7 +123,8 @@ void example_oob() {
   using BigTile = Tile<TileType::Vec, float, 256, 256>;
   BigTile t;
 
-  // static_assert fires: tile_size (256KB) > UB capacity (192KB on A2A3)
+  // Primarily fires [SA-0352]: tile_size (256KB) > UB capacity (192KB on A2A3)
+  // (the tile exceeds the whole buffer, so the SA-0353 out-of-bounds assert also holds)
   TASSIGN<0x0>(t);
 }
 ```
@@ -133,9 +134,8 @@ void example_oob_addr() {
   using TileT = Tile<TileType::Vec, float, 128, 128>;  // 64KB
   TileT t;
 
-  // static_assert fires: 0x20000 (128KB) + 64KB = 192KB,
-  //                       but 0x20001 + 64KB > 192KB
-  TASSIGN<0x20001>(t);
+  // static_assert fires [SA-0353]: 0x20020 + 64KB > 192KB (address is aligned, only out of bounds)
+  TASSIGN<0x20020>(t);
 }
 ```
 
