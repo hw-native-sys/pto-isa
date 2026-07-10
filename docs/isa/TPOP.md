@@ -34,7 +34,7 @@ template <typename Pipe, typename GlobalData, TileSplitAxis Split,
 PTO_INST RecordEvent TPOP(Pipe &pipe, GlobalData &gmTensor, WaitEvents &... events);
 ```
 
-`Pipe` is typically an A2A3 `TPipe` declared in `include/pto/npu/a2a3/TPush.hpp`:
+`Pipe` is typically a `TPipe` declared in `include/pto/npu/a2a3/TPush.hpp` or `include/pto/npu/a5/TPush.hpp`:
 
 ```cpp
 template <uint8_t FlagID, uint8_t DirType, uint32_t SlotSize, uint32_t SlotNum,
@@ -45,7 +45,7 @@ struct TPipe;
 ## Constraints
 
 - **A2A3 TileData consumer**:
-    - `TileCons::Loc` must be `TileType::Vec` or `TileType::Mat`.
+    - `TileCons::Loc` must be `TileType::Vec`, `TileType::Mat`, or `TileType::Ctrl`.
     - `Direction::DIR_C2V`: vector consumes data produced by cube.
     - `Direction::DIR_V2C`: cube consumes data produced by vector.
     - `Direction::DIR_BOTH`: both C2V and V2C consumers are supported by the same pipe type.
@@ -151,3 +151,4 @@ AICORE void example_globaldata(__gm__ void *fifoMem)
 ## ASM Form Examples
 
 The current public assembly reference does not define a stable PTO-AS spelling for `TPOP`. Use the C++ intrinsic form for manual CV FIFO programming.
+```

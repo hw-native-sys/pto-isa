@@ -50,11 +50,35 @@ PTO_INST RecordEvent TTRI(TileData &dst, int diagonal, WaitEvents &... events);
 ## 约束
 
 - `isUpperOrLower` 必须是 `0`（下三角）或 `1`（上三角）。
-- 目标 Tile 在某些目标上必须是行主序（参见 `include/pto/npu/*/TTri.hpp`）。
+- **实现检查 (A2A3)**:
+    - 目标 Tile 必须是行主序（`isRowMajor`），由 `static_assert` 强制执行。
+    - 支持的元素类型：`int32_t`、`int`、`int16_t`、`uint32_t`、`uint16_t`、`half`、`float16_t`、`float`、`float32_t`。
+- **实现检查 (A5)**:
+    - 支持的元素类型：`int32_t`、`int16_t`、`int8_t`、`uint32_t`、`uint16_t`、`uint8_t`、`half`、`float16_t`、`float32_t`、`bfloat16_t`。
+    - 下三角（`upperOrLower == 0`）和上三角（`upperOrLower == 1`）由 `if constexpr` 分支区分。
+- 有效区域通过 `dst.GetValidRow()` / `dst.GetValidCol()` 获取。
 
 ## 示例
 
-参见 `docs/isa/` 和 `docs/coding/tutorials/` 中的相关示例。
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_lower() {
+  using TileT = Tile<TileType::Vec, float, 16, 16>;
+  TileT dst;
+  TASSIGN(dst, 0x1000);
+  TTRI<0>(dst, /*diagonal=*/0);   // 下三角
+}
+
+void example_upper() {
+  using TileT = Tile<TileType::Vec, float, 16, 16>;
+  TileT dst;
+  TASSIGN(dst, 0x1000);
+  TTRI<1>(dst, /*diagonal=*/-1);  // 上三角
+}
+```
 
 ## 汇编示例（ASM）
 
@@ -62,7 +86,7 @@ PTO_INST RecordEvent TTRI(TileData &dst, int diagonal, WaitEvents &... events);
 
 ```text
 # 自动模式：由编译器/运行时负责资源放置与调度。
-%dst = pto.ttri %src0, %src1 : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+%dst = pto.ttri {isUpperOrLower = 0} : i32 -> !pto.tile<...>
 ```
 
 ### 手动模式

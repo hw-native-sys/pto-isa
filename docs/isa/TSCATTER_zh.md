@@ -123,7 +123,7 @@ PTO_INST RecordEvent TSCATTER(DstTileData& dst, SrcTileData& src, WaitEvents&...
 
 - **实现检查 (A2A3)**:
     - `TileDataD::Loc`、`TileDataS::Loc`、`TileDataI::Loc` 必须是 `TileType::Vec`。
-    - `TileDataD::DType`、`TileDataS::DType` 必须是以下之一：`int32_t`、`int16_t`、`int8_t`、`half`、`float32_t`、`uint32_t`、`uint16_t`、`uint8_t`、`bfloat16_t`。
+    - `TileDataD::DType`、`TileDataS::DType` 必须是以下之一：`int32_t`、`int16_t`、`int8_t`、`half`、`float16_t`、`float32_t`、`uint32_t`、`uint16_t`、`uint8_t`、`bfloat16_t`。
     - `TileDataI::DType` 必须是以下之一：`int16_t`、`int32_t`、`uint16_t` 或 `uint32_t`。
     - 不对 `indexes` 值执行边界检查。
     - 静态有效边界：`TileDataD::ValidRow <= TileDataD::Rows`、`TileDataD::ValidCol <= TileDataD::Cols`、`TileDataS::ValidRow <= TileDataS::Rows`、`TileDataS::ValidCol <= TileDataS::Cols`、`TileDataI::ValidRow <= TileDataI::Rows`、`TileDataI::ValidCol <= TileDataI::Cols`。
@@ -133,7 +133,7 @@ PTO_INST RecordEvent TSCATTER(DstTileData& dst, SrcTileData& src, WaitEvents&...
     - 当 `TileDataD::DType` 大小为 1 字节时，`TileDataI::DType` 大小必须为 2 字节。
 - **实现检查 (A5)**:
     - `TileDataD::Loc`、`TileDataS::Loc`、`TileDataI::Loc` 必须是 `TileType::Vec`。
-    - `TileDataD::DType`、`TileDataS::DType` 必须是以下之一：`int32_t`、`int16_t`、`int8_t`、`half`、`float32_t`、`uint32_t`、`uint16_t`、`uint8_t`、`bfloat16_t`。
+    - `TileDataD::DType`、`TileDataS::DType` 必须是以下之一：`int32_t`、`int16_t`、`int8_t`、`half`、`float16_t`、`float32_t`、`uint32_t`、`uint16_t`、`uint8_t`、`bfloat16_t`。
     - `TileDataI::DType` 必须是以下之一：`int16_t`、`int32_t`、`uint16_t` 或 `uint32_t`。
     - 不对 `indexes` 值执行边界检查。
     - 静态有效边界：`TileDataD::ValidRow <= TileDataD::Rows`、`TileDataD::ValidCol <= TileDataD::Cols`、`TileDataS::ValidRow <= TileDataS::Rows`、`TileDataS::ValidCol <= TileDataS::Cols`、`TileDataI::ValidRow <= TileDataI::Rows`、`TileDataI::ValidCol <= TileDataI::Cols`。
@@ -142,11 +142,18 @@ PTO_INST RecordEvent TSCATTER(DstTileData& dst, SrcTileData& src, WaitEvents&...
     - 当 `TileDataD::DType` 大小为 2 字节时，`TileDataI::DType` 大小必须为 2 字节。
     - 当 `TileDataD::DType` 大小为 1 字节时，`TileDataI::DType` 大小必须为 2 字节。
 
-### 掩码散播（仅 A5）
+### 掩码散播
 
+- **实现检查 (A2A3)**:
+    - `DstTileData::Loc`、`SrcTileData::Loc` 必须是 `TileType::Vec`。
+    - `DstTileData::DType`、`SrcTileData::DType` 必须是以下之一：`int32_t`、`int16_t`、`int8_t`、`half`、`float16_t`、`float32_t`、`uint32_t`、`uint16_t`、`uint8_t`、`bfloat16_t`。
+    - `DstTileData::DType` 与 `SrcTileData::DType` 必须相同。
+    - `maskPattern` 必须在 `P0101` 到 `P1111` 范围内。
+    - 静态有效边界：`DstTileData::ValidCol <= DstTileData::Cols`、`SrcTileData::ValidCol <= SrcTileData::Cols`、`DstTileData::ValidRow <= DstTileData::Rows`、`SrcTileData::ValidRow <= SrcTileData::Rows`。
+    - `P1111` 模式等同 `TMOV`：要求 `validRow` 和 `validCol` 分别匹配，内部通过 `TMOV_IMPL` 实现。
 - **实现检查 (A5)**:
     - `DstTileData::Loc`、`SrcTileData::Loc` 必须是 `TileType::Vec`。
-    - `DstTileData::DType`、`SrcTileData::DType` 必须是以下之一：`int32_t`、`int16_t`、`int8_t`、`half`、`float32_t`、`uint32_t`、`uint16_t`、`uint8_t`、`bfloat16_t`。
+    - `DstTileData::DType`、`SrcTileData::DType` 必须是以下之一：`int32_t`、`int16_t`、`int8_t`、`half`、`float16_t`、`float32_t`、`uint32_t`、`uint16_t`、`uint8_t`、`bfloat16_t`。
     - `DstTileData::DType` 与 `SrcTileData::DType` 必须相同。
     - `maskPattern` 必须在 `P0101` 到 `P1111` 范围内。
     - 静态有效边界：`DstTileData::ValidRow <= DstTileData::Rows`、`DstTileData::ValidCol <= DstTileData::Cols`、`SrcTileData::ValidRow <= SrcTileData::Rows`、`SrcTileData::ValidCol <= SrcTileData::Cols`。

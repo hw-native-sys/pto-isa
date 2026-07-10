@@ -88,7 +88,7 @@ pto.tgemv.bias ins(%a, %b, %bias : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.
 - **Implementation checks (A5)**:
     - Accumulator type must be `int32_t` or `float`.
     - If `int32_t`: `AType == int8_t` and `BType == int8_t`.
-    - If `float`: supports `half`, `bfloat16_t`, `float`, and selected fp8 pairs (target-defined).
+    - If `float`: supports `half`, `bfloat16_t`, `float`, selected fp8 pairs, and `hifloat8_t/hifloat8_t` (target-defined).
     - Fractal/layout constraints are enforced:
         - Left: `Loc == Left`, `!isRowMajor`, `SFractal == RowMajor`
         - Right: `Loc == Right`, `isRowMajor`, `SFractal == ColMajor`

@@ -94,25 +94,26 @@ PTO_INST RecordEvent TSort32(DstTileData &dst, SrcTileData &src, IdxTileData &id
 $$
 \mathrm{tmpSize} =
 \begin{cases}
-\mathrm{ceil}_{G}(C) & \text{若 } C \cdot b \le 8160 \quad \text{（整行复制到 tmp + 填充最后一块）} \\
-G = 32 & \text{若 } C \cdot b > 8160 \quad \text{（仅复制尾块 + 填充）}
+\mathrm{ceil}_{G}(C) & \text{A2A3：} C \le 8160 \text{（元素数）} \quad \text{或} \quad \text{A5：} C \cdot b \le 8160 \text{（字节）} \\
+G = 32 & \text{A2A3：} C > 8160 \text{（元素数）} \quad \text{或} \quad \text{A5：} C \cdot b > 8160 \text{（字节）}
 \end{cases}
 $$
 
 - `ceil_G(C)` = $C$ 向上取整到 32 的倍数。
-- `8160` 阈值单位为**字节**（与 `validCol * sizeof(T)` 比较）：float → $C \le 2040$，half → $C \le 4080$。该阈值为 `pto_copy_ubuf_to_ubuf`（MOV_UB_TO_UB）的 repeat 上限 = 255 块 × 32 B。
+- **A2A3**：阈值单位为**元素数**（`srcShapeBytesPerRow / sizeof(T) <= MAX_UB_TMP`），即 $C \le 8160$，与 dtype 无关（float → $C \le 8160$，half → $C \le 8160$）。
+- **A5**：阈值单位为**字节**（`srcShapeBytesPerRow <= MAX_UB_TMP`），即 $C \cdot b \le 8160$（float → $C \le 2040$，half → $C \le 4080$）。该阈值为 `pto_copy_ubuf_to_ubuf`（MOV_UB_TO_UB）的 repeat 上限 = 255 块 × 32 B。
 - 尾块 = $t = C \bmod G$ 个元素（末尾不完整块），扩展至 $G$ 并以 $-\infty$ 填充。
 - Path A（$C \cdot b \le 8160$，小行）：从行首**整行**复制到 tmp，然后原地填充最后 32 个元素。
 - Path B（$C \cdot b > 8160$，大行）：仅复制**尾块**到 tmp；完整块直接从 `src` 排序。
 - VBS32 硬件上限：每次调用 `repeat ≤ REPEAT_MAX = 255` 块（≤ 8160 元素）；超过 255 块的行拆分为多次 `vbitsort` 调用。
-- **UB 布局：** `tmp` 应放置在 `dst` 之后（32 B 对齐），大小为 `ceil(ALIGN_C·b, 32)` 字节——不应使用固定的 8 KB 偏移，因为 Path A 在接近阈值时对 float 需要最多 ~32 KB。
+- **UB 布局：** `tmp` 应放置在 `dst` 之后（32 B 对齐），大小为 `ceil(ALIGN_C·b, 32)` 字节——不应使用固定的 8 KB 偏移，因为 Path A（A2A3）在接近阈值时对 float 需要最多 ~32 KB（$C \le 8160$ 元素 = float 32 KB）。
 
 ### 4 参数尾部处理
 
 当 `validCol % 32 != 0` 时，末尾不完整块（$t = C \bmod 32$ 个元素）须填充为完整的 32 元素块后才能送入 `vbitsort`。两条路径：
 
-- **$C \cdot b \le 8160$**（小行）：**整行**复制到 `tmp`，然后通过 `vdup` 原地覆盖最后 32 个元素为 $-\infty$ 填充；从 `tmp` 排序整行。
-- **$C \cdot b > 8160$**（大行）：仅复制**尾块**到 `tmp` 并填充；完整块直接从 `src` 排序，仅尾块从 `tmp` 排序。
+- **A2A3：$C \le 8160$（元素数）** / **A5：$C \cdot b \le 8160$（字节）**（小行）：**整行**复制到 `tmp`，然后通过 `vdup` 原地覆盖最后 32 个元素为 $-\infty$ 填充；从 `tmp` 排序整行。
+- **A2A3：$C > 8160$（元素数）** / **A5：$C \cdot b > 8160$（字节）**（大行）：仅复制**尾块**到 `tmp` 并填充；完整块直接从 `src` 排序，仅尾块从 `tmp` 排序。
 
 填充值（$-\infty$ = `-1.0/0.0` 或 `std::numeric_limits<T>::lowest()`）落在降序排序的底部。若 `validCol > 32 × 255`，行按 `REPEAT_MAX` 大小的组拆分，每组通过独立的 `vbitsort` 调用排序。
 

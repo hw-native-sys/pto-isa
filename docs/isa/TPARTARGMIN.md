@@ -64,8 +64,8 @@ PTO_INST RecordEvent TPARTARGMIN(TileDataDst &dstVal, TileDataSrc0 &src0Val, Til
 
 - `dstVal`, `src0Val`, and `src1Val` must use the same element type.
 - `dstIdx`, `src0Idx`, and `src1Idx` must use the same element type.
-- Value type and index type combination constraints:
-    - If the value type is `half`, the index type must be `int16_t` or `uint16_t`.
+- Value type and index type combination constraints (enforced by `static_assert` on A2A3):
+    - If the value type is `half`, the index type must be `int16_t`, `uint16_t`, `int32_t`, or `uint32_t`.
     - If the value type is `float`, the index type must be `int32_t` or `uint32_t`.
 - Valid regions must match between value tiles and index tiles for each pair:
     - `src0Val` and `src0Idx` must have identical valid regions.

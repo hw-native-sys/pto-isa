@@ -68,3 +68,30 @@ evt.Wait(ctx.session);
 | UB 占用 | 需要目标 Tile | 数据不占用 UB，仅内部使用 scratch |
 | 同步方式 | 同步 | 异步 (`AsyncEvent`) |
 | 典型用途 | 小数据预取到 UB | 大数据或跨阶段数据预热到 L2 |
+
+## 示例
+
+### 基本用法
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+__global__ AICORE void my_kernel(__gm__ half *src, __gm__ half *dst,
+                                 __gm__ uint8_t *workspace)
+{
+    using GShape = Shape<1, 1, 1, 1, 16384>;
+    using GStride = Stride<1, 1, 1, 1, 1>;
+    GlobalTensor<half, GShape, GStride> srcGlobal(src);
+
+    PrefetchAsyncContext ctx(workspace);
+    auto evt = TPREFETCH_ASYNC(srcGlobal, ctx);
+    evt.Wait(ctx.session);
+
+    using TileData = Tile<TileType::Vec, half, 128, 128, BLayout::RowMajor>;
+    TileData tile;
+    TASSIGN(tile, 0x100);
+    TLOAD(tile, srcGlobal);
+}
+```

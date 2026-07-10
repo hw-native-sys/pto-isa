@@ -59,12 +59,13 @@ PTO_INST RecordEvent TTRANS(TileDataDst &dst, TileDataSrc &src, TileDataTmp &tmp
     - The transpose size is taken from `src.GetValidRow()` / `src.GetValidCol()`.
 - **Implementation checks (A5)**:
     - `sizeof(TileDataSrc::DType) == sizeof(TileDataDst::DType)`.
-    - 32-byte alignment constraints are enforced on the major dimension of both input and output (row-major checks `Cols * sizeof(T) % 32 == 0`, col-major checks `Rows * sizeof(T) % 32 == 0`).
+    - Source layout must be row-major (`TileDataSrc::isRowMajor`).
+    - 32-byte alignment constraints are enforced on the column dimension of both input and output (`TileDataSrc::Cols * sizeof(T) % 32 == 0` and `TileDataDst::Cols * sizeof(U) % 32 == 0`).
     - Supported element types are restricted per element width:
     - 4 bytes: `uint32_t`, `int32_t`, `float`
     - 2 bytes: `uint16_t`, `int16_t`, `half`, `bfloat16_t`
     - 1 byte: `uint8_t`, `int8_t`
-    - The implementation operates over the static tile shape (`TileDataSrc::Rows/Cols`) and does not consult `GetValidRow/GetValidCol`.
+    - The transpose size is taken from `src.GetValidRow()` / `src.GetValidCol()`.
 - **Temporary tile**:
     - The C++ API requires `tmp`. The tmp space size calculation formulas are as follows:
     - **Basic parameters**:

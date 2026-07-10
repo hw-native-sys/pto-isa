@@ -33,7 +33,7 @@ template <typename Pipe, typename GlobalData, TileSplitAxis Split,
 PTO_INST RecordEvent TFREE(Pipe &pipe, GlobalData &gmTensor, WaitEvents &... events);
 ```
 
-The corresponding A2A3 implementation in `include/pto/npu/a2a3/TPop.hpp` is intentionally empty for this overload:
+The corresponding A2A3 implementation in `include/pto/npu/a2a3/TPop.hpp` is intentionally empty for this overload (on A5, the implementation in `include/pto/npu/a5/TPop.hpp` performs the actual free-space notification):
 
 ```cpp
 template <typename Pipe, TileSplitAxis Split>
@@ -78,7 +78,7 @@ AICORE void example_tiledata(__gm__ void *fifoMem)
 
     TPOP<Pipe, VecTile, TileSplitAxis::TILE_UP_DOWN>(pipe, tile);
     ...  // final use of VecTile
-    TFREE<Pipe, VecTile, TileSplitAxis::TILE_UP_DOWN>(pipe, slot);
+    TFREE<Pipe, TileSplitAxis::TILE_UP_DOWN>(pipe);
 }
 ```
 
@@ -103,7 +103,7 @@ AICORE void example_globaldata(__gm__ void *fifoMem)
     Pipe pipe(fifoMem, 0x0, 0x0);
     SlotGlobal slot;
 
-    TPOP<Pipe, SlotGlobal, TileSplitAxis::TILE_UP_DOWN>(pipe, slot);
+    TPOP<Pipe, SlotGlobal, TileSplitAxis::TILE_UP_DOWN>(pipe, slot); // slot is reassigned by TPOP
     // Load or otherwise consume data from slot here.
     TFREE<Pipe, SlotGlobal, TileSplitAxis::TILE_UP_DOWN>(pipe, slot);
 }
@@ -112,3 +112,4 @@ AICORE void example_globaldata(__gm__ void *fifoMem)
 ## ASM Form Examples
 
 The current public assembly reference does not define a stable PTO-AS spelling for `TFREE`. Use the C++ intrinsic form for manual CV FIFO programming.
+```

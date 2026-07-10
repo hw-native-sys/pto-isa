@@ -66,7 +66,7 @@ PTO_INST RecordEvent TPARTMIN(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1
 
     ### A2A3 实现检查
 
-- 支持的元素类型：`int32_t`、`int16_t`、`half`、`float`。
+- 支持的元素类型：`int32_t`、`int`、`int16_t`、`half`、`float16_t`、`float`、`float32_t`。
 - `dst`、`src0` 和 `src1` 必须全部为行主序（`isRowMajor`）。
 
     ### A5 实现检查

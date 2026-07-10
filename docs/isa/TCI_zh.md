@@ -59,7 +59,7 @@ PTO_INST RecordEvent TCI(TileData &dst, T start, TileDataTmp &tmp, WaitEvents &.
 - **实现检查 (A2A3/A5)**:
     - `TileData::DType` 必须与标量模板参数 `T` 的类型完全相同。
     - `dst`/`scalar` 元素类型必须相同，且必须是以下之一：`int32_t`、`uint32_t`、`int16_t`、`uint16_t`。
-    - `TileData::Cols != 1`（此为实现强制执行的条件）。
+    - `TileData::Rows == 1`（此为实现强制执行的条件，序列沿列方向生成）。
 - **有效区域**:
     - 实现使用 `dst.GetValidCol()` 作为序列长度，不参考 `dst.GetValidRow()`。
 - **临时 Tile**:

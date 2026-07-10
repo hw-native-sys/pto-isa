@@ -63,7 +63,7 @@ PTO_INST RecordEvent TSTORE_FP(GlobalData& dst, TileData& src, FpTileData& fp, W
         - 布局必须匹配 ND/DN/NZ（或特殊情况：`TileData::Rows == 1` 或 `TileData::Cols == 1`）。
         - 对于 `int64_t/uint64_t`，仅支持 ND->ND 或 DN->DN。
     - 对于源 tile 位置为`TileType::Acc`（包括带量化参数的调用形式和原子写入变体）：
-        - 目标布局必须是 ND 或 NZ。
+        - 目标布局必须是 ND、NZ、NC1HWC0 或 NDC1HWC0。
         - 源数据类型必须是 `int32_t` 或 `float`。
         - 不使用量化时，目标数据类型必须是 `int32_t/float/half/bfloat16_t`。
         - ACC 到 GM 的数据类型支持取决于调用形式：
@@ -76,17 +76,17 @@ PTO_INST RecordEvent TSTORE_FP(GlobalData& dst, TileData& src, FpTileData& fp, W
           | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE_FP(dst, acc, fp)` | `int32_t` | `int8_t`、`uint8_t`、`half` |
 
           其它未列出的跨类型组合不属于支持范围。
-        - 静态形状约束：`1 <= TileData::Cols <= 4095`；如果是 ND 则 `1 <= TileData::Rows <= 8192`；如果是 NZ 则 `1 <= TileData::Rows <= 65535` 且 `TileData::Cols % 16 == 0`。
+        - 静态形状约束：`1 <= TileData::Cols <= 4095`；如果是 ND 则 `1 <= TileData::Rows <= 8192`；如果是 NZ、NC1HWC0 或 NDC1HWC0 则 `1 <= TileData::Rows <= 65535` 且 `TileData::Cols % 16 == 0`。
         - 运行时：`1 <= src.GetValidCol() <= 4095`。
 - **实现检查 (A5)**:
     - 源 tile 位置必须是 `TileType::Vec` 或 `TileType::Acc`（此目标不支持 `Mat` 存储）。
     - 对于源 tile 位置为 `TileType::Vec`：
         - `sizeof(TileData::DType) == sizeof(GlobalData::DType)`。
-        - `TileData::DType` 必须是以下之一：`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`int64_t`、`uint64_t`、`half`、`bfloat16_t`、`float`、`float8_e4m3_t`、`float8_e5m2_t`、`hifloat8_t`、`float4_e1m2x2_t`、`float4_e2m1x2_t`。
+        - `TileData::DType` 必须是以下之一：`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`int64_t`、`uint64_t`、`half`、`bfloat16_t`、`float`、`float8_e4m3_t`、`float8_e5m2_t`、`hifloat8_t`、`float8_e8m0_t`、`float4_e1m2x2_t`、`float4_e2m1x2_t`。
         - 布局必须匹配 ND/DN/NZ（或特殊情况：`TileData::Rows == 1` 或 `TileData::Cols == 1`）。
         - 强制执行额外的对齐约束（例如，对于 ND，行主序宽度（以字节为单位）必须是 32 的倍数；对于 DN，列主序高度（以字节为单位）必须是 32 的倍数，但有特殊情况例外）。
     - 对于源 tile 位置为`TileType::Acc`（包括带量化参数的调用形式和原子写入变体）：
-        - 目标布局必须是 ND 或 NZ；源数据类型必须是 `int32_t` 或 `float`。
+        - 目标布局必须是 ND、NZ、NHWC、NCHW 或 NCDHW；源数据类型必须是 `int32_t` 或 `float`。
         - 不使用量化时，目标数据类型必须是 `int32_t/float/half/bfloat16_t`。
         - ACC 到 GM 的数据类型支持取决于调用形式：
 

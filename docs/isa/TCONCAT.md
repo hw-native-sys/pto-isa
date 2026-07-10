@@ -44,17 +44,17 @@ pto.tconcat ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst
 
 ## C++ Intrinsic
 
-Declared in `include/pto/npu/a5/TConcat.hpp`:
+Declared in `include/pto/common/pto_instr.hpp`:
 
 ```cpp
-template <typename TileDst, typename TileSrc0, typename TileSrc1>
-PTO_INST void TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1);
+template <typename TileDst, typename TileSrc0, typename TileSrc1, typename... WaitEvents>
+PTO_INST RecordEvent TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, WaitEvents &... events);
 
-template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileSrc0Idx, typename TileSrc1Idx>
-PTO_INST void TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileSrc0Idx &src0Idx, TileSrc1Idx &src1Idx);
+template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileSrc0Idx, typename TileSrc1Idx, typename... WaitEvents>
+PTO_INST RecordEvent TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileSrc0Idx &src0Idx, TileSrc1Idx &src1Idx, WaitEvents &... events);
 
-template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileDstIdx, typename TileSrc0Idx, typename TileSrc1Idx>
-PTO_INST void TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileDstIdx &dstIdx, TileSrc0Idx &src0Idx, TileSrc1Idx &src1Idx);
+template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileDstIdx, typename TileSrc0Idx, typename TileSrc1Idx, typename... WaitEvents>
+PTO_INST RecordEvent TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileDstIdx &dstIdx, TileSrc0Idx &src0Idx, TileSrc1Idx &src1Idx, WaitEvents &... events);
 ```
 
 ## Constraints
@@ -72,7 +72,8 @@ PTO_INST void TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileDstIdx &
 
 - Basic form:
     - `dst.GetValidRow() == src0.GetValidRow() == src1.GetValidRow()`
-    - `dst.GetValidCol() == src0.GetValidCol() + src1.GetValidCol()`
+    - A2A3: `src0.GetValidCol() + src1.GetValidCol() <= TileDataDst::Cols` (total columns must not exceed dst physical capacity)
+    - A5: `dst.GetValidCol() == src0.GetValidCol() + src1.GetValidCol()` (total columns must equal dst valid columns)
 - Indexed form:
     - Same row count constraints as basic form
     - Column counts are determined dynamically from index tiles

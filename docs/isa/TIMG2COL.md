@@ -14,8 +14,9 @@ Transform an input feature-map tile (e.g. NC1HWC0 layout) into an im2col-style m
 Declared in `include/pto/common/pto_instr.hpp`:
 
 ```cpp
+template <typename TileData, typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL, typename... WaitEvents>
 PTO_INST RecordEvent TIMG2COL(TileData &dst, ConvTileData &src, uint16_t posM = 0, uint16_t posK = 0,
-                              WaitEvents&... events);
+                              WaitEvents &... events);
 ```
 
 ## Constraints

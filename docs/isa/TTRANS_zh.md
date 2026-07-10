@@ -64,7 +64,7 @@ PTO_INST RecordEvent TTRANS(TileDataDst &dst, TileDataSrc &src, TileDataTmp &tmp
     - 4 字节：`uint32_t`、`int32_t`、`float`
     - 2 字节：`uint16_t`、`int16_t`、`half`、`bfloat16_t`
     - 1 字节：`uint8_t`、`int8_t`
-    - 实现在静态 Tile 形状（`TileDataSrc::Rows/Cols`）上运算，不参考 `GetValidRow/GetValidCol`。
+    - 转置大小取自 `src.GetValidRow()` / `src.GetValidCol()`。
 - **临时 Tile**:
     - C++ API 需要 `tmp`，需要的tmp空间大小计算公式如下：
     - **基础参数**:

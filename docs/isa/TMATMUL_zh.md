@@ -68,7 +68,7 @@ PTO_INST RecordEvent TMATMUL(TileRes &cMatrix, TileLeft &aMatrix, TileRight &bMa
 - **实现检查 (A5)**:
     - 累加器类型必须是 `int32_t` 或 `float`。
     - 如果是 `int32_t`：`AType == int8_t` 且 `BType == int8_t`。
-    - 如果是 `float`：支持 `half/bfloat16_t/float` 和选定的 fp8 对（目标定义）。
+    - 如果是 `float`：支持 `half/bfloat16_t/float`、选定的 fp8 对以及 `hifloat8_t/hifloat8_t`（目标定义）。
     - 静态形状约束：`TileLeft::Rows == TileRes::Rows`、`TileLeft::Cols == TileRight::Rows`、`TileRight::Cols == TileRes::Cols`。
     - 强制执行分形/布局约束：
     - Left：`Loc == Left`、`!isRowMajor`、`SFractal == RowMajor`

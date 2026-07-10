@@ -89,30 +89,31 @@ For `src` of shape $R \times C$ (valid region), block size 32:
 
 ### `tmp` size equation (4-arg)
 
-Let $C$ = `validCol`, $b$ = `sizeof(T)` bytes, $G$ = 32 (block size). The implementation branches on whether the whole row (in bytes) fits `MAX_UB_TMP = 8160`:
+Let $C$ = `validCol`, $b$ = `sizeof(T)` bytes, $G$ = 32 (block size). The implementation branches on whether the whole row fits `MAX_UB_TMP = 8160`; the threshold unit differs between targets:
 
 $$
 \mathrm{tmpSize} =
 \begin{cases}
-\mathrm{ceil}_{G}(C) & \text{if } C \cdot b \le 8160 \quad \text{(whole row copied to tmp + last block padded)} \\
-G = 32 & \text{if } C \cdot b > 8160 \quad \text{(only the tail block copied + padded)}
+\mathrm{ceil}_{G}(C) & \text{A2A3: } C \le 8160 \text{ (elements)} \quad \text{or} \quad \text{A5: } C \cdot b \le 8160 \text{ (bytes)} \\
+G = 32 & \text{A2A3: } C > 8160 \text{ (elements)} \quad \text{or} \quad \text{A5: } C \cdot b > 8160 \text{ (bytes)}
 \end{cases}
 $$
 
 - `ceil_G(C)` = $C$ rounded up to the next multiple of 32.
-- The `8160` threshold is in **bytes**: it is the `pto_copy_ubuf_to_ubuf` (MOV_UB_TO_UB) repeat cap = 255 blocks × 32 B. Path A copies the whole row in one such call, so the row must be ≤ 8160 B (float → $C \le 2040$, half → $C \le 4080$). This is independent of the VBS32 `repeat` cap (which is in elements, ≤ 8160).
+- **A2A3**: the threshold is in **elements** (`srcShapeBytesPerRow / sizeof(T) <= MAX_UB_TMP`), so $C \le 8160$ regardless of dtype (float → $C \le 8160$, half → $C \le 8160$).
+- **A5**: the threshold is in **bytes** (`srcShapeBytesPerRow <= MAX_UB_TMP`), so $C \cdot b \le 8160$ (float → $C \le 2040$, half → $C \le 4080$). This is the `pto_copy_ubuf_to_ubuf` (MOV_UB_TO_UB) repeat cap = 255 blocks × 32 B.
 - Tail block = $t = C \bmod G$ elements (the trailing partial block), extended to $G$ with $-\infty$.
 - Path A ($C \cdot b \le 8160$) copies the **entire row** from its start into tmp, then pads the last 32 elements in place.
 - Path B ($C \cdot b > 8160$) copies **only the tail block** into tmp; full blocks are sorted directly from `src`.
 - VBS32 hard cap: `repeat ≤ REPEAT_MAX = 255` blocks per call (≤ 8160 elements); rows longer than 255 blocks are split across multiple `vbitsort` calls.
-- **UB placement:** `tmp` should be placed right after `dst` (32-B aligned), sized `ceil(ALIGN_C·b, 32)` bytes — not at a fixed 8 KB offset, since Path A needs up to ~32 KB for float near the threshold.
+- **UB placement:** `tmp` should be placed right after `dst` (32-B aligned), sized `ceil(ALIGN_C·b, 32)` bytes — not at a fixed 8 KB offset, since Path A (A2A3) needs up to ~32 KB for float near the threshold ($C \le 8160$ elements = 32 KB for float).
 
 ### 4-arg tail handling
 
 When `validCol % 32 != 0`, the trailing partial block ($t = C \bmod 32$ elements) must be padded to a full 32-element block before `vbitsort`. Two paths:
 
-- **$C \cdot b \le 8160$** (small row): the **entire row** is copied to `tmp`, then the last 32 elements are overwritten in place with $-\infty$ padding via `vdup`; the row is sorted from `tmp`.
-- **$C \cdot b > 8160$** (large row): only the **tail block** is copied to `tmp` and padded; full blocks are sorted directly from `src`, only the tail is sorted from `tmp`.
+- **A2A3: $C \le 8160$ (elements)** / **A5: $C \cdot b \le 8160$ (bytes)** (small row): the **entire row** is copied to `tmp`, then the last 32 elements are overwritten in place with $-\infty$ padding via `vdup`; the row is sorted from `tmp`.
+- **A2A3: $C > 8160$ (elements)** / **A5: $C \cdot b > 8160$ (bytes)** (large row): only the **tail block** is copied to `tmp` and padded; full blocks are sorted directly from `src`, only the tail is sorted from `tmp`.
 
 Padding values ($-\infty$ = `-(0.0/0.0)`) land at the bottom of the descending order. If `validCol > 32 × 255`, the row is chunked into `REPEAT_MAX`-sized groups, each sorted via a separate `vbitsort` call.
 

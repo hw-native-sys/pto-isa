@@ -48,6 +48,11 @@ PTO_INST RecordEvent TRESHAPE(TileDataOut &dst, TileDataIn &src, WaitEvents &...
 - **不允许 boxed/non-boxed 转换**：
     - 不能在 `SLayout::NoneBox` 与 boxed 布局之间进行 reshape。
 
+## 备注
+
+- **CPU 模拟**：实现为按字节拷贝到 `dst`。
+- **A2/A3**：实现为别名（`TASSIGN_IMPL(dst, src.data())`），因此 `dst` 和 `src` 引用同一底层存储。
+
 ## 示例
 
 ```cpp

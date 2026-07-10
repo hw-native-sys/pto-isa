@@ -63,8 +63,8 @@ PTO_INST RecordEvent TPARTARGMAX(TileDataDst &dstVal, TileDataSrc0 &src0Val, Til
 
 - `dstVal`、`src0Val` 和 `src1Val` 的元素类型必须一致。
 - `dstIdx`、`src0Idx` 和 `src1Idx` 的元素类型必须一致。
-- 值类型与索引类型的组合约束：
-    - 若值类型为 `half`，则索引类型必须为 `int16_t` 或 `uint16_t`。
+- 值类型与索引类型的组合约束（A2A3 由 `static_assert` 强制执行）：
+    - 若值类型为 `half`，则索引类型必须为 `int16_t`、`uint16_t`、`int32_t` 或 `uint32_t`。
     - 若值类型为 `float`，则索引类型必须为 `int32_t` 或 `uint32_t`。
 - 每对值 Tile 和索引 Tile 的有效区域必须一致：
     - `src0Val` 与 `src0Idx` 的有效区域必须一致。

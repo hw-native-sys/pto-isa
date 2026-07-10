@@ -44,17 +44,17 @@ pto.tconcat ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst
 
 ## C++ 内建函数
 
-声明于 `include/pto/npu/a5/TConcat.hpp`：
+声明于 `include/pto/common/pto_instr.hpp`：
 
 ```cpp
-template <typename TileDst, typename TileSrc0, typename TileSrc1>
-PTO_INST void TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1);
+template <typename TileDst, typename TileSrc0, typename TileSrc1, typename... WaitEvents>
+PTO_INST RecordEvent TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, WaitEvents &... events);
 
-template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileSrc0Idx, typename TileSrc1Idx>
-PTO_INST void TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileSrc0Idx &src0Idx, TileSrc1Idx &src1Idx);
+template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileSrc0Idx, typename TileSrc1Idx, typename... WaitEvents>
+PTO_INST RecordEvent TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileSrc0Idx &src0Idx, TileSrc1Idx &src1Idx, WaitEvents &... events);
 
-template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileDstIdx, typename TileSrc0Idx, typename TileSrc1Idx>
-PTO_INST void TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileDstIdx &dstIdx, TileSrc0Idx &src0Idx, TileSrc1Idx &src1Idx);
+template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileDstIdx, typename TileSrc0Idx, typename TileSrc1Idx, typename... WaitEvents>
+PTO_INST RecordEvent TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileDstIdx &dstIdx, TileSrc0Idx &src0Idx, TileSrc1Idx &src1Idx, WaitEvents &... events);
 ```
 
 ## 约束
@@ -72,7 +72,8 @@ PTO_INST void TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileDstIdx &
 
 - 基本形式：
     - `dst.GetValidRow() == src0.GetValidRow() == src1.GetValidRow()`
-    - `dst.GetValidCol() == src0.GetValidCol() + src1.GetValidCol()`
+    - A2A3：`src0.GetValidCol() + src1.GetValidCol() <= TileDataDst::Cols`（总列数不得超过 dst 物理容量）
+    - A5：`dst.GetValidCol() == src0.GetValidCol() + src1.GetValidCol()`（总列数必须等于 dst 有效列数）
 - 索引形式：
     - 行数约束与基本形式相同
     - 列数由索引 Tile 动态确定

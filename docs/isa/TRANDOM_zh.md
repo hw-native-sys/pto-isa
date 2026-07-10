@@ -40,11 +40,11 @@ pto.trandom ins(%key, %counter : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%d
 
 ## C++ 内置函数
 
-声明于 `include/pto/npu/a5/TRandom.hpp`：
+声明于 `include/pto/common/pto_instr.hpp`：
 
 ```cpp
-template <uint16_t Rounds = 10, typename DstTile>
-PTO_INST void TRANDOM_IMPL(DstTile &dst, TRandomKey &key, TRandomCounter &counter);
+template <uint16_t Rounds = 10, typename DstTile, typename... WaitEvents>
+PTO_INST RecordEvent TRANDOM(DstTile &dst, TRandomKey &key, TRandomCounter &counter, WaitEvents &... events);
 ```
 
 ## 约束条件
@@ -71,7 +71,7 @@ void example_auto() {
   TileT dst;
   TRandomKey key = {0x01234, 0x56789};
   TRandomCounter counter = {0, 0, 0, 0};
-  TRANDOM_IMPL(dst, key, counter);
+  TRANDOM(dst, key, counter);
 }
 ```
 
@@ -88,7 +88,7 @@ void example_manual() {
   TRandomKey key = {0x01234, 0x56789};
   TRandomCounter counter = {0, 0, 0, 0};
   TASSIGN(dst, 0x0);
-  TRANDOM_IMPL<10>(dst, key, counter);
+  TRANDOM<10>(dst, key, counter);
 }
 ```
 

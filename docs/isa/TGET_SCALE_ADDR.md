@@ -29,13 +29,13 @@ TODO
 Declared in `include/pto/common/pto_instr.hpp`:
 
 ```cpp
-template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
-PTO_INST RecordEvent TGET_SCALE_ADDR(TileDataDst &dst, TileDataSrc &src, aitEvents&... events);
+template <typename TileDataOut, typename TileDataIn, typename... WaitEvents>
+PTO_INST RecordEvent TGET_SCALE_ADDR(TileDataOut &dst, TileDataIn &src, WaitEvents &... events);
 ```
 
 ## Constraints
 
-Enforced by `TGET_SCALE_ADDR_IMPL`:
+Enforced by `TGET_SCALE_ADDR_IMPL` (A5 only; no A2A3 implementation):
 
 - **Both `src` and `dst` must be Tile instances**
 - **Currently only work in auto mode** (will support manual mode in the future)
@@ -45,10 +45,9 @@ Enforced by `TGET_SCALE_ADDR_IMPL`:
 ```cpp
 #include <pto/pto-inst.hpp>
 
-> wa
 using namespace pto;
 
-template <typename T, int ARows, int ACols, BRows, BCols> 
+template <typename T, int ARows, int ACols, int BRows, int BCols> 
 void example() {
     using LeftTile = TileLeft<T, ARows, ACols>;
     using RightTile = TileRight<T, BRows, BCols>;

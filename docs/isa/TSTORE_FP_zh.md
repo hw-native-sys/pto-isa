@@ -48,13 +48,13 @@ PTO_INST RecordEvent TSTORE_FP(GlobalData &dst, TileData &src, FpTileData &fp, W
 
 - **实现检查 (A2A3)**:
     - fp 存储路径通过 `TSTORE_IMPL(dst, src, fp)` 实现，并使用与量化累加器存储相同的累加器到 GM 合法性检查：
-    - 目标布局必须是 ND 或 NZ。
+    - 目标布局必须是 ND、NZ、NC1HWC0 或 NDC1HWC0。
     - 源数据类型必须是 `int32_t` 或 `float`。
-    - 静态形状约束：`1 <= TileData::Cols <= 4095`；若为 ND 则 `1 <= TileData::Rows <= 8192`；若为 NZ 则 `1 <= TileData::Rows <= 65535` 且 `TileData::Cols % 16 == 0`。
+    - 静态形状约束：`1 <= TileData::Cols <= 4095`；若为 ND 则 `1 <= TileData::Rows <= 8192`；若为 NZ、NC1HWC0 或 NDC1HWC0 则 `1 <= TileData::Rows <= 65535` 且 `TileData::Cols % 16 == 0`。
     - 运行时：`1 <= src.GetValidCol() <= 4095`。
     - 对 `FpTileData` 不执行显式 `static_assert`（实现使用 `fp` 设置 FPC 状态）。
 - **实现检查 (A5)**:
-    - 通过 `TSTORE_IMPL(dst, src, fp)` 实现，并由 `CheckStaticAcc<..., true>()` 验证累加器路径（仅支持 ND/NZ，源数据类型为 `int32_t`/`float`，行/列范围有限制）。
+    - 通过 `TSTORE_IMPL(dst, src, fp)` 实现，并由 `CheckStaticAcc<..., true>()` 验证累加器路径（支持 ND/NZ/NHWC/NCHW/NCDHW，源数据类型为 `int32_t`/`float`，行/列范围有限制）。
     - 对 `FpTileData` 不执行显式 `static_assert`（实现使用 `fp` 设置 FPC 状态）。
 
 ## 示例

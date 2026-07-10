@@ -37,7 +37,13 @@ PTO_INST RecordEvent TTRI(TileData &dst, int diagonal, WaitEvents &... events);
 ## Constraints
 
 - `isUpperOrLower` must be `0` (lower) or `1` (upper).
-- Destination tile must be row-major on some targets (see `include/pto/npu/*/TTri.hpp`).
+- **Implementation checks (A2A3)**:
+    - Destination tile must be row-major (`isRowMajor`), enforced by `static_assert`.
+    - Supported element types: `int32_t`, `int`, `int16_t`, `uint32_t`, `uint16_t`, `half`, `float16_t`, `float`, `float32_t`.
+- **Implementation checks (A5)**:
+    - Supported element types: `int32_t`, `int16_t`, `int8_t`, `uint32_t`, `uint16_t`, `uint8_t`, `half`, `float16_t`, `float32_t`, `bfloat16_t`.
+    - Lower (`upperOrLower == 0`) and upper (`upperOrLower == 1`) are distinguished by `if constexpr` branches.
+- Valid region is obtained via `dst.GetValidRow()` / `dst.GetValidCol()`.
 
 ## Assembly Syntax
 
@@ -52,9 +58,28 @@ PTO_INST RecordEvent TTRI(TileData &dst, int diagonal, WaitEvents &... events);
 ```text
 pto.ttri ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
+
 ## Examples
 
-See related examples in `docs/isa/` and `docs/coding/tutorials/`.
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_lower() {
+  using TileT = Tile<TileType::Vec, float, 16, 16>;
+  TileT dst;
+  TASSIGN(dst, 0x1000);
+  TTRI<0>(dst, /*diagonal=*/0);   // lower triangular
+}
+
+void example_upper() {
+  using TileT = Tile<TileType::Vec, float, 16, 16>;
+  TileT dst;
+  TASSIGN(dst, 0x1000);
+  TTRI<1>(dst, /*diagonal=*/-1);  // upper triangular
+}
+```
 
 ## ASM Form Examples
 

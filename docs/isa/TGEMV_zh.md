@@ -108,7 +108,7 @@ PTO_INST RecordEvent TGEMV_BIAS(TileRes &cMatrix, TileLeft &aMatrix, TileRight &
 - **实现检查 (A5)**:
     - 累加器类型必须是 `int32_t` 或 `float`。
     - 如果为 `int32_t`：`AType == int8_t` 且 `BType == int8_t`。
-    - 如果为 `float`：支持 `half`、`bfloat16_t`、`float` 以及选定的 fp8 组合（目标定义）。
+    - 如果为 `float`：支持 `half`、`bfloat16_t`、`float`、选定的 fp8 组合以及 `hifloat8_t/hifloat8_t`（目标定义）。
     - 会强制执行以下分形/布局约束：
         - Left：`Loc == Left`、`!isRowMajor`、`SFractal == RowMajor`
         - Right：`Loc == Right`、`isRowMajor`、`SFractal == ColMajor`
