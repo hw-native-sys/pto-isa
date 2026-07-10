@@ -414,7 +414,7 @@ nav:
               - pto.set_cross_core: docs/isa/scalar/ops/pipeline-sync/set-cross-core.md
               - pto.wait_flag_dev: docs/isa/scalar/ops/pipeline-sync/wait-flag-dev.md
               - pto.set_intra_block: docs/isa/scalar/ops/pipeline-sync/set-intra-block.md
-              - pto.wait_intra_core: docs/isa/scalar/ops/pipeline-sync/wait-intra-core.md
+              - pto.wait_intra_block: docs/isa/scalar/ops/pipeline-sync/wait-intra-block.md
           - DMA Copy:
               - Instruction Set Overview: docs/isa/scalar/dma-copy.md
               - pto.set_loop_size_outtoub: docs/isa/scalar/ops/dma-copy/set-loop-size-outtoub.md

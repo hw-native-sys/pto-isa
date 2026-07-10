@@ -108,7 +108,7 @@ That yields **289 named instructions** in the current reference set.
 
 ### Pipeline Sync
 
-`get_buf`, `mem_bar`, `pipe_barrier`, `rls_buf`, `set_cross_core`, `set_flag`, `set_intra_block`, `wait_flag`, `wait_flag_dev`, `wait_intra_core`
+`get_buf`, `mem_bar`, `pipe_barrier`, `rls_buf`, `set_cross_core`, `set_flag`, `set_intra_block`, `wait_flag`, `wait_flag_dev`, `wait_intra_block`
 
 ### DMA Copy
 

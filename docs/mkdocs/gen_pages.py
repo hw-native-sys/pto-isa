@@ -569,7 +569,7 @@ SCALAR_REFERENCE_PAGES = [
     "docs/isa/scalar/ops/pipeline-sync/set-cross-core.md",
     "docs/isa/scalar/ops/pipeline-sync/wait-flag-dev.md",
     "docs/isa/scalar/ops/pipeline-sync/set-intra-block.md",
-    "docs/isa/scalar/ops/pipeline-sync/wait-intra-core.md",
+    "docs/isa/scalar/ops/pipeline-sync/wait-intra-block.md",
     "docs/isa/scalar/dma-copy.md",
     "docs/isa/scalar/ops/dma-copy/set-loop-size-outtoub.md",
     "docs/isa/scalar/ops/dma-copy/set-loop2-stride-outtoub.md",

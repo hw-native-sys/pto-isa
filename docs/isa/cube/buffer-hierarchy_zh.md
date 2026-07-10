@@ -58,7 +58,7 @@ GM (ND) --- pto.mte_gm_l1 / pto.mte_gm_l1_frac        |          |
 Cube 程序由 AIC 的 Scalar Unit（SU）发射到 MTE2 / MTE1 / CUBE / FIXP 各自的发射队列。与 Vector 块的同步通过 System Controller（SC）的信号量、以及专用 1:2 fixpipe 广播路径来实现。详见：
 
 - [流水线同步](../scalar/ops/pipeline-sync/)：用于在 AIC 内对 MTE2 → MTE1 → CUBE → FIXP 排序的 `pto.set_flag` / `pto.wait_flag` 原语。
-- [Cluster 编程模型](../machine-model/execution-agents_zh.md)：AIC 与 AIV 之间使用的跨块原语（`pto.set_intra_block` / `pto.wait_intra_core`）。
+- [Cluster 编程模型](../machine-model/execution-agents_zh.md)：AIC 与 AIV 之间使用的跨块原语（`pto.set_intra_block` / `pto.wait_intra_block`）。
 
 ## 相关章节
 

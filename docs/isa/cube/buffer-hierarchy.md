@@ -58,7 +58,7 @@ GM (ND) --- pto.mte_gm_l1 / pto.mte_gm_l1_frac        |             |
 The cube programs are issued from the AIC's Scalar Unit (SU) into the MTE2 / MTE1 / CUBE / FIXP issue queues. Synchronization with the Vector blocks happens through the System Controller (SC) semaphores and the dedicated 1:2 fixpipe broadcast path. See:
 
 - [Pipeline Synchronization](../scalar/ops/pipeline-sync/) for the intra-block (`pto.set_flag` / `pto.wait_flag`) primitives that order MTE2 → MTE1 → CUBE → FIXP within the AIC.
-- [Cluster Programming Model](../machine-model/execution-agents.md) for inter-block (`pto.set_intra_block` / `pto.wait_intra_core`) primitives used between AIC and AIV.
+- [Cluster Programming Model](../machine-model/execution-agents.md) for inter-block (`pto.set_intra_block` / `pto.wait_intra_block`) primitives used between AIC and AIV.
 
 ## Related Sections
 

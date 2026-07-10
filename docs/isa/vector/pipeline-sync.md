@@ -379,7 +379,7 @@ Core Cluster (1:2 ratio)
 | Aspect | A2A3 (Ascend 910) | A5 (A5) |
 |--------|-------------------|-----------------|
 | **Signal op** | `set_cross_core` (mode2) | `set_intra_block` |
-| **Wait op** | `wait_flag_dev` | `wait_intra_core` |
+| **Wait op** | `wait_flag_dev` | `wait_intra_block` |
 | **Wait behavior** | SU-level blocking (entire core stalls) | Per-pipeline (only named pipe stalls) |
 | **Semaphore pool** | 16 IDs per cluster, 4-bit counter | 16 IDs, but 32-ID address space (see below) |
 | **C→V** | **Broadcast**: one `set` reaches both AIV0+AIV1 | **1:1**: separate `set` per subblock required |
@@ -414,11 +414,11 @@ V→C Reduce (one wait for both):
 - **syntax:** `pto.wait_flag_dev %core_id, %event_id : i64, i64`
 - **semantics:** Wait for event from another core. **SU-level blocking** — entire core stalls.
 
-### A5: `set_intra_block` / `wait_intra_core`
+### A5: `set_intra_block` / `wait_intra_block`
 
 ```c
 set_intra_block(trigger_pipe, semaphore_id);
-wait_intra_core(wait_pipe, semaphore_id);   // only named pipe stalls
+wait_intra_block(wait_pipe, semaphore_id);   // only named pipe stalls
 ```
 
 **A5 semaphore address space:** The hardware has **16 physical semaphore IDs** but exposes a **32-ID address space** to support 1:1 signaling to each subblock:
@@ -428,7 +428,7 @@ wait_intra_core(wait_pipe, semaphore_id);   // only named pipe stalls
 | 0–15 | AIV0 (subblock 0) |
 | 16–31 (+15 offset) | AIV1 (subblock 1) |
 
-This means C→V requires **separate `set_intra_block` calls** per subblock (no broadcast), and V→C requires **separate `wait_intra_core` calls** per subblock (no hardware reduce).
+This means C→V requires **separate `set_intra_block` calls** per subblock (no broadcast), and V→C requires **separate `wait_intra_block` calls** per subblock (no hardware reduce).
 
 ```
 C→V on A5 (1:1, no broadcast — need two sets):
@@ -436,8 +436,8 @@ C→V on A5 (1:1, no broadcast — need two sets):
     AIC ──set_intra_block(pipe, sema_id+15)──> AIV1
 
 V→C on A5 (1:1, no reduce — need two waits):
-    AIV0 ──set_intra_block──> AIC wait_intra_core(pipe, sema_id)
-    AIV1 ──set_intra_block──> AIC wait_intra_core(pipe, sema_id+15)  // extra wait
+    AIV0 ──set_intra_block──> AIC wait_intra_block(pipe, sema_id)
+    AIV1 ──set_intra_block──> AIC wait_intra_block(pipe, sema_id+15)  // extra wait
 ```
 
 ### `pto.set_intra_block`
@@ -445,9 +445,9 @@ V→C on A5 (1:1, no reduce — need two waits):
 - **syntax:** `pto.set_intra_block %block_id, %event_id : i64, i64`
 - **semantics:** Signal event within a block (A5). Specifies **trigger pipe**. 1:1 per subblock.
 
-### `pto.wait_intra_core`
+### `pto.wait_intra_block`
 
-- **syntax:** `pto.wait_intra_core %block_id, %event_id : i64, i64`
+- **syntax:** `pto.wait_intra_block %block_id, %event_id : i64, i64`
 - **semantics:** Wait for event within block (A5). Specifies **which pipeline should wait** — only that pipe stalls, SU and other pipes continue.
 
 ### Wait Granularity Comparison
@@ -458,7 +458,7 @@ A2A3 wait_flag_dev (SU-level stall):
          ├── PIPE_V    ───╳ ALL STALLED
          └── PIPE_MTE3 ───╳ ALL STALLED
 
-A5 wait_intra_core "PIPE_MTE2" (per-pipe stall):
+A5 wait_intra_block "PIPE_MTE2" (per-pipe stall):
     SU ──┬── PIPE_MTE2 ───╳ STALLED (waiting for Cube)
          ├── PIPE_V    ─── ✓ RUNNING
          └── PIPE_MTE3 ─── ✓ RUNNING
