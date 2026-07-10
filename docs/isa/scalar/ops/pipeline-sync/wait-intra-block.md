@@ -1,6 +1,6 @@
-# pto.wait_intra_core
+# pto.wait_intra_block
 
-`pto.wait_intra_core` is part of the [Pipeline Sync](../../pipeline-sync.md) instruction set.
+`pto.wait_intra_block` is part of the [Pipeline Sync](../../pipeline-sync.md) instruction set.
 
 ## Summary
 
@@ -8,33 +8,33 @@ Block a specific pipeline within a cluster (A5) until a subblock signals an even
 
 ## Mechanism
 
-`pto.wait_intra_core` blocks a specific pipeline on the calling core until the named event is signaled by a remote subblock.
+`pto.wait_intra_block` blocks a specific pipeline on the calling core until the named event is signaled by a remote subblock.
 
 **Per-pipeline blocking (A5):**
 
-- Unlike A2A3's `wait_flag_dev` which stalls the **entire SU** (all pipelines), `wait_intra_core` only stalls the **named pipeline**.
+- Unlike A2A3's `wait_flag_dev` which stalls the **entire SU** (all pipelines), `wait_intra_block` only stalls the **named pipeline**.
 - Other pipelines on the same core continue executing while one pipeline is blocked.
 - The semaphore pool uses 16 physical IDs with a 32-ID address space: IDs 0–15 target AIV0; IDs 16–31 target AIV1.
 
-**Key advantage over A2A3**: A5's `wait_intra_core` enables finer-grained parallelism where multiple pipelines can be in different synchronization states simultaneously.
+**Key advantage over A2A3**: A5's `wait_intra_block` enables finer-grained parallelism where multiple pipelines can be in different synchronization states simultaneously.
 
 ## Syntax
 
 ### PTO Assembly Form
 
 ```mlir
-pto.wait_intra_core %pipe, %sem_id : i64, i64
+pto.wait_intra_block %pipe, %sem_id : i64, i64
 ```
 
 ### AS Level 1 (SSA)
 
 ```mlir
-pto.wait_intra_core %pipe, %sem_id : i64, i64
+pto.wait_intra_block %pipe, %sem_id : i64, i64
 ```
 
 ## C++ Intrinsic
 
-The installed 3510 public CCE headers spell this operation as `wait_intra_block(...)`. The PTO page keeps the `wait_intra_core` ISA name, but the call surface below is the public Bisheng entry point that is actually shipped.
+The installed 3510 public CCE headers spell this operation as `wait_intra_block(...)`, matching the PTO ISA name. The call surface below is the public Bisheng entry point that is actually shipped.
 
 ```cpp
 pipe_t pipe = PIPE_V;
@@ -61,7 +61,7 @@ None. This form is defined by its side effect (blocking) on the named pipeline.
 ## Constraints
 
 !!! warning "Constraints"
-    - **A5 only**: `wait_intra_core` is only available on the A5 profile.
+    - **A5 only**: `wait_intra_block` is only available on the A5 profile.
     - **Per-pipeline blocking**: Only the named pipeline is blocked. All other pipelines continue. This differs fundamentally from A2A3's SU-level blocking.
     - **Semaphore ID mapping**: IDs 0–15 target AIV0; IDs 16–31 target AIV1.
     - **Event must be set**: Waiting on an event that was never set is **illegal**.
@@ -79,7 +79,7 @@ None. This form is defined by its side effect (blocking) on the named pipeline.
 ??? info "Target-Profile Restrictions"
     | Aspect | CPU Sim | A2/A3 | A5 |
     |--------|:-------:|:------:|:--:|
-    | `wait_intra_core` | Not available | Use `wait_flag_dev` | Supported |
+    | `wait_intra_block` | Not available | Use `wait_flag_dev` | Supported |
     | Blocking scope | Not applicable | Entire SU blocked | Only named pipe blocked |
     | Other pipes during wait | Not applicable | All stalled | Continue executing |
     | Semaphore pool | Not applicable | 16 IDs | 16 IDs, 32-ID address space |
@@ -95,8 +95,8 @@ using namespace pto;
 // A2A3 (wait_flag_dev): entire core stalls
 // WAIT_FLAG_DEV(/* event_id */ 0);  // ALL pipelines blocked
 
-// A5 (wait_intra_core): only PIPE_V stalls
-WAIT_INTRA_CORE(PIPE_V, /* sem_id */ 0);  // Only Vector pipe stalls
+// A5 (wait_intra_block): only PIPE_V stalls
+WAIT_INTRA_BLOCK(PIPE_V, /* sem_id */ 0);  // Only Vector pipe stalls
 // PIPE_MTE2 and PIPE_MTE3 continue executing
 ```
 
@@ -108,11 +108,11 @@ pto.set_intra_block "PIPE_MTE2", %c0_i64 : i64, i64   // → AIV0
 pto.set_intra_block "PIPE_MTE2", %c16_i64 : i64, i64  // → AIV1
 
 // === AIV0: Vector pipe waits (only Vector stalls; MTE2/MTE3 continue) ===
-pto.wait_intra_core "PIPE_V", %c0_i64 : i64, i64
+pto.wait_intra_block "PIPE_V", %c0_i64 : i64, i64
 // [AIV0 Vector processes data while AIV0 MTE2/MTE3 continue]
 
 // === AIV1: Vector pipe waits ===
-pto.wait_intra_core "PIPE_V", %c16_i64 : i64, i64
+pto.wait_intra_block "PIPE_V", %c16_i64 : i64, i64
 
 // === AIV0 signals back to AIC ===
 pto.set_intra_block "PIPE_V", %c1_i64 : i64, i64
@@ -121,8 +121,8 @@ pto.set_intra_block "PIPE_V", %c1_i64 : i64, i64
 pto.set_intra_block "PIPE_V", %c1_i64 : i64, i64
 
 // === AIC: waits for both AIV subblocks (separate waits) ===
-pto.wait_intra_core "PIPE_MTE2", %c1_i64 : i64, i64    // wait for AIV0
-pto.wait_intra_core "PIPE_MTE2", %c17_i64 : i64, i64   // wait for AIV1
+pto.wait_intra_block "PIPE_MTE2", %c1_i64 : i64, i64    // wait for AIV0
+pto.wait_intra_block "PIPE_MTE2", %c17_i64 : i64, i64   // wait for AIV1
 ```
 
 ## Related Ops / Instruction Set Links

@@ -54,7 +54,7 @@ None. This form is defined by its side effect on intra-block synchronization sta
 ## Side Effects
 
 - Signals the named semaphore to the target subblock.
-- The target subblock's `wait_intra_core` unblocks when the count reaches zero.
+- The target subblock's `wait_intra_block` unblocks when the count reaches zero.
 
 ## Constraints
 
@@ -116,15 +116,15 @@ pto.set_intra_block "PIPE_V", %c0_i64 : i64, i64
 pto.set_intra_block "PIPE_V", %c0_i64 : i64, i64
 
 // AIC: wait for AIV0 on sem 0
-pto.wait_intra_core "PIPE_MTE2", %c0_i64 : i64, i64
+pto.wait_intra_block "PIPE_MTE2", %c0_i64 : i64, i64
 
 // AIC: wait for AIV1 on sem 16
-pto.wait_intra_core "PIPE_MTE2", %c16_i64 : i64, i64
+pto.wait_intra_block "PIPE_MTE2", %c16_i64 : i64, i64
 ```
 
 ## Related Ops / Instruction Set Links
 
 - Instruction set overview: [Pipeline Sync](../../pipeline-sync.md)
 - Previous op in instruction set: [pto.wait_flag_dev](./wait-flag-dev.md)
-- Next op in instruction set: [pto.wait_intra_core](./wait-intra-core.md)
+- Next op in instruction set: [pto.wait_intra_block](./wait-intra-block.md)
 - Control-shell overview: [Control and configuration](../../control-and-configuration.md)

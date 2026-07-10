@@ -13,13 +13,13 @@ Buffer-token protocol  (get_buf / rls_buf)  — requires event-based under the h
         ↑
 Memory barrier  (mem_bar)  — may be used inside vector-visible scope
         ↑
-Inter-core coordination  (set_cross_core / wait_flag_dev / set_intra_block / wait_intra_core)
+Inter-core coordination  (set_cross_core / wait_flag_dev / set_intra_block / wait_intra_block)
 ```
 
 - **Event-based** (`set_flag` / `wait_flag`): The foundational mode. Sets or waits on a named event signal between producer and consumer pipes. Used as the primitive for all higher-level modes.
 - **Buffer-token** (`get_buf` / `rls_buf`): A protocol built on top of event-based synchronization for double-buffered execution. `get_buf` acquires a buffer token and implicitly sets an event; `rls_buf` releases the token and implicitly sets a dependent event.
 - **Memory barrier** (`mem_bar`): Enforces visibility of memory operations within a vector-visible execution scope. Does not establish cross-stage ordering on its own.
-- **Inter-core** (`set_cross_core` / `wait_flag_dev` / `set_intra_block` / `wait_intra_core`): Coordinate between execution units or cores. These are profile-restricted and **MAY NOT** be available on all targets.
+- **Inter-core** (`set_cross_core` / `wait_flag_dev` / `set_intra_block` / `wait_intra_block`): Coordinate between execution units or cores. These are profile-restricted and **MAY NOT** be available on all targets.
 
 Programs **MUST NOT** assume that a higher-level mode (e.g., buffer-token) replaces the need for event-based ordering; the protocol requires event-based synchronization underneath.
 
@@ -41,7 +41,7 @@ Programs **MUST NOT** assume that a higher-level mode (e.g., buffer-token) repla
 - [pto.set_cross_core](./ops/pipeline-sync/set-cross-core.md)
 - [pto.wait_flag_dev](./ops/pipeline-sync/wait-flag-dev.md)
 - [pto.set_intra_block](./ops/pipeline-sync/set-intra-block.md)
-- [pto.wait_intra_core](./ops/pipeline-sync/wait-intra-core.md)
+- [pto.wait_intra_block](./ops/pipeline-sync/wait-intra-block.md)
 
 ## Related Material
 

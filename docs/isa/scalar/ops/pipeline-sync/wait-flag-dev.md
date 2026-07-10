@@ -65,8 +65,8 @@ None. This form is defined by its side effect (blocking) on the calling core.
 
 !!! warning "Constraints"
     - **A2A3 only**: `wait_flag_dev` is only available on the A2A3 profile.
-    - **SU-level blocking**: Unlike `wait_flag` (intra-core) which only stalls the named destination pipeline, `wait_flag_dev` stalls **all** pipelines on the core. This is more restrictive than A5's `wait_intra_core`.
-    - **Semaphore pool**: The pool has 16 physical semaphore IDs per cluster with a 4-bit counter (0–15). The wait unblocks when the counter reaches zero. On A2/A3: if `wait_flag_dev` is called when the counter is already zero, the call returns immediately without error. On A5: this operation is not available; use `wait_intra_core` instead.
+    - **SU-level blocking**: Unlike `wait_flag` (intra-core) which only stalls the named destination pipeline, `wait_flag_dev` stalls **all** pipelines on the core. This is more restrictive than A5's `wait_intra_block`.
+    - **Semaphore pool**: The pool has 16 physical semaphore IDs per cluster with a 4-bit counter (0–15). The wait unblocks when the counter reaches zero. On A2/A3: if `wait_flag_dev` is called when the counter is already zero, the call returns immediately without error. On A5: this operation is not available; use `wait_intra_block` instead.
     - **Event must be set**: Waiting on an event that was never set by a matching remote `set_cross_core` is **illegal**.
 
 ## Exceptions
@@ -81,7 +81,7 @@ None. This form is defined by its side effect (blocking) on the calling core.
 ??? info "Target-Profile Restrictions"
     | Aspect | CPU Sim | A2/A3 | A5 |
     |--------|:-------:|:------:|:--:|
-    | `wait_flag_dev` | Not available | Supported | Use `wait_intra_core` |
+    | `wait_flag_dev` | Not available | Supported | Use `wait_intra_block` |
     | SU-level blocking | Not applicable | All pipelines blocked | Only named pipe blocked |
     | Semaphore pool size | Not applicable | 16 IDs, 4-bit counter | 16 IDs, 32-ID address space |
     | Reduce semantics | Not applicable | One wait unblocks on N signals | One wait per signal |

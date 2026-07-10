@@ -11,7 +11,7 @@ buffer-token 协议 (get_buf / rls_buf)
     ↑
 内存屏障 (mem_bar)
     ↑
-跨核协调 (set_cross_core / wait_flag_dev / set_intra_block / wait_intra_core)
+跨核协调 (set_cross_core / wait_flag_dev / set_intra_block / wait_intra_block)
 ```
 
 - **事件同步**：基础形式
@@ -30,7 +30,7 @@ buffer-token 协议 (get_buf / rls_buf)
 - `pto.set_cross_core`
 - `pto.wait_flag_dev`
 - `pto.set_intra_block`
-- `pto.wait_intra_core`
+- `pto.wait_intra_block`
 
 ## 相关页面
 

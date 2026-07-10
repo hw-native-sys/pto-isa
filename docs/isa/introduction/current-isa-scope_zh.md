@@ -108,7 +108,7 @@ PTO 定义五套具名指令集，并为每条指令提供明确参考页：
 
 ### 流水线同步
 
-`get_buf`、`mem_bar`、`pipe_barrier`、`rls_buf`、`set_cross_core`、`set_flag`、`set_intra_block`、`wait_flag`、`wait_flag_dev`、`wait_intra_core`
+`get_buf`、`mem_bar`、`pipe_barrier`、`rls_buf`、`set_cross_core`、`set_flag`、`set_intra_block`、`wait_flag`、`wait_flag_dev`、`wait_intra_block`
 
 ### DMA 拷贝
 
