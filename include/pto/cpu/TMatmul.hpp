@@ -151,7 +151,7 @@ PTO_INTERNAL void CheckBiasValid()
                   "Non-conforming bias fractal");
 }
 
-template <typename TileAcc, typename TileLeft, typename TileRight>
+template <AccPhase Phase = AccPhase::Unspecified, typename TileAcc, typename TileLeft, typename TileRight>
 PTO_INTERNAL void TMATMUL_IMPL(TileAcc &cMatrix, TileLeft &aMatrix, TileRight &bMatrix)
 {
     CheckMadValid<TileAcc, TileLeft, TileRight>();
