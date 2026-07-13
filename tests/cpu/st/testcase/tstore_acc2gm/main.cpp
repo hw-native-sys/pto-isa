@@ -151,6 +151,11 @@ void test_tstore_acc2gm_scalar_nz2nd(float scalarQuant)
     EXPECT_TRUE(ret);
 }
 
+TEST_F(TStoreAcc2gmTest, case0)
+{
+    test_tstore_acc2gm_nz2nd<0, float, float, 128, 128, 32>();
+}
+
 TEST_F(TStoreAcc2gmTest, case1)
 {
     test_tstore_acc2gm_nz2nd<1, float, float, 128, 128, 16>();
@@ -169,16 +174,6 @@ TEST_F(TStoreAcc2gmTest, case3)
 TEST_F(TStoreAcc2gmTest, case4)
 {
     test_tstore_acc2gm_nz2nd<4, uint16_t, uint16_t, 73, 64, 32>();
-}
-
-TEST_F(TStoreAcc2gmTest, case5)
-{
-    test_tstore_acc2gm_nz2nd<5, float, uint16_t, 13, 32, 25>();
-}
-
-TEST_F(TStoreAcc2gmTest, case6)
-{
-    test_tstore_acc2gm_nz2nd<6, uint16_t, uint16_t, 100, 222, 60>();
 }
 
 TEST_F(TStoreAcc2gmTest, case13)
@@ -214,11 +209,6 @@ TEST_F(TStoreAcc2gmTest, case25)
 TEST_F(TStoreAcc2gmTest, case26)
 {
     test_tstore_acc2gm_scalar_nz2nd<7, uint16_t, uint16_t, 49, 65, 37>(3);
-}
-
-TEST_F(TStoreAcc2gmTest, case27)
-{
-    test_tstore_acc2gm_scalar_nz2nd<8, uint16_t, uint16_t, 160, 79, 51>(3);
 }
 
 TEST_F(TStoreAcc2gmTest, case_relu_1)

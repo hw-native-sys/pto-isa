@@ -14,24 +14,31 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/cpu/tile_offsets.hpp"
 #include "pto/cpu/parallel.hpp"
 #include "pto/cpu/MXTypes.hpp"
+#include <cmath>
 
 namespace pto {
 template <typename TileAcc, typename TileLeft, typename TileRight>
 void TMatmulNzZn(typename TileAcc::TileDType dst, typename TileAcc::TileDType acc, typename TileLeft::TileDType src0,
                  typename TileRight::TileDType src1, uint16_t M, uint16_t N, uint16_t K)
 {
-    using DType = typename TileAcc::DType;
-    using AccT = std::conditional_t<std::is_floating_point_v<DType>, double, DType>;
+    using DstT = typename TileAcc::DType;
     cpu::parallel_for_1d(0, M, static_cast<std::size_t>(M) * N * K, [&](std::size_t i) {
         for (uint16_t j = 0; j < N; j++) {
-            AccT mul_acc = 0;
+            DstT mul_acc = 0;
 
             // PTO_CPU_VECTORIZE_LOOP
             for (uint16_t k = 0; k < K; k++) {
                 size_t src0Idx = GetTileElementOffset<TileLeft>(i, k);
                 size_t src1Idx = GetTileElementOffset<TileRight>(k, j);
 
-                mul_acc += static_cast<AccT>(static_cast<DType>(src0[src0Idx]) * static_cast<DType>(src1[src1Idx]));
+                auto a = static_cast<DstT>(src0[src0Idx]);
+                auto b = static_cast<DstT>(src1[src1Idx]);
+
+                if constexpr (std::is_same<float, DstT>::value) {
+                    mul_acc = std::fma(a, b, mul_acc);
+                } else {
+                    mul_acc += a * b;
+                }
             }
 
             size_t dstIdx = GetTileElementOffset<TileAcc>(i, j);
@@ -152,7 +159,7 @@ PTO_INTERNAL void CheckBiasValid()
                   "Non-conforming bias fractal");
 }
 
-template <AccPhase Phase = AccPhase::Unspecified, typename TileAcc, typename TileLeft, typename TileRight>
+template <typename TileAcc, typename TileLeft, typename TileRight>
 PTO_INTERNAL void TMATMUL_IMPL(TileAcc &cMatrix, TileLeft &aMatrix, TileRight &bMatrix)
 {
     (void)Phase;

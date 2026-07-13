@@ -149,6 +149,7 @@ tshrs
 tsort32
 tsqrt
 tstore
+tstore_acc2gm
 tstore_quant
 tstore_conv
 tsub
