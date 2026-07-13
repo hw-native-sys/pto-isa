@@ -207,6 +207,7 @@ class TStoreAcc2gmParams:
 
 if __name__ == "__main__":
     case_name_list = [
+        "TStoreAcc2gmTest.case0",
         "TStoreAcc2gmTest.case1",
         "TStoreAcc2gmTest.case2",
         "TStoreAcc2gmTest.case3",
@@ -226,6 +227,7 @@ if __name__ == "__main__":
     ]
 
     case_params_list = [
+        TStoreAcc2gmParams(np.float32, np.float32, 1, 128, 128, 32),
         TStoreAcc2gmParams(np.float32, np.float32, 1, 128, 128, 16),
         TStoreAcc2gmParams(np.float32, np.float32, 1, 31, 32, 15),
         TStoreAcc2gmParams(np.float32, np.float16, 1, 65, 128, 96),

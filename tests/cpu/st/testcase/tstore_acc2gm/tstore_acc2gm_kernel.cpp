@@ -205,7 +205,10 @@ __global__ AICORE void TStoreAcc2gmScalarNz2nd(__gm__ dstDataType *out, __gm__ s
 template <int tilingKey>
 void LaunchTStoreAcc2gmNz2nd(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream)
 {
-    if constexpr (tilingKey == 1) {
+    if constexpr (tilingKey == 0) {
+        TStoreAcc2gmNz2nd<1, float, float, float, 1, 1, 1, 128, 128, 1, 1, 1, 128, 128, 128, 128, 32>(
+            reinterpret_cast<float *>(out), reinterpret_cast<float *>(src0), reinterpret_cast<float *>(src1));
+    } else if constexpr (tilingKey == 1) {
         TStoreAcc2gmNz2nd<1, float, float, float, 1, 1, 1, 128, 128, 1, 1, 1, 128, 128, 128, 128, 16>(
             reinterpret_cast<float *>(out), reinterpret_cast<float *>(src0), reinterpret_cast<float *>(src1));
     } else if constexpr (tilingKey == 2) {
@@ -270,6 +273,7 @@ void LaunchTStoreAcc2gmScalarNz2nd(uint8_t *out, uint8_t *src0, uint8_t *src1, v
     }
 }
 
+template void LaunchTStoreAcc2gmNz2nd<0>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
 template void LaunchTStoreAcc2gmNz2nd<1>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
 template void LaunchTStoreAcc2gmNz2nd<2>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
 template void LaunchTStoreAcc2gmNz2nd<3>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
