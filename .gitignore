@@ -4,8 +4,6 @@
 .cursor
 .trae
 .DS_Store
-.opencode
-.claude
 build
 build_tests
 dist/
@@ -44,3 +42,5 @@ docs/mkdocs/src/scripts/
 docs/mkdocs/src/tests/
 kernels/**/**/**/build/
 PROF*/
+.claude/
+.opencode/

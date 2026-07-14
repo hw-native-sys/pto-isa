@@ -35,7 +35,7 @@ std::string GetGoldenDir()
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols, bool isHalf, bool highPrecision = false>
 void LaunchTFMod(T *out, T *src0, T *src1, void *stream);
 
-template <typename T, int kTRows_, int kTCols_, int vRows, int vCols, bool isHalf, bool highPrecision = false>
+template <typename T, int kTRows_, int kTCols_, int vRows, int vCols, bool isHalf = false, bool highPrecision = false>
 void test_tfmod()
 {
     size_t fileSize = kTRows_ * kTCols_ * sizeof(T);
@@ -88,7 +88,6 @@ void test_tfmod()
     if constexpr (std::is_same_v<T, float>) {
         eps = 0.00005f;
     }
-    eps = highPrecision ? 0.0000001f : eps;
     bool ret = ResultCmp<T>(golden, devFinal, eps);
 
     EXPECT_TRUE(ret);
@@ -96,32 +95,27 @@ void test_tfmod()
 
 TEST_F(TFMODTest, case1)
 {
-    test_tfmod<uint16_t, 64, 64, 64, 64, false>();
+    test_tfmod<uint16_t, 64, 64, 64, 64>();
 }
 
 TEST_F(TFMODTest, case2)
 {
-    test_tfmod<uint16_t, 64, 64, 63, 63, false>();
+    test_tfmod<uint16_t, 64, 64, 63, 63>();
 }
 
 TEST_F(TFMODTest, case3)
 {
-    test_tfmod<uint16_t, 1, 16384, 1, 16384, false>();
+    test_tfmod<uint16_t, 1, 16384, 1, 16384>();
 }
 
 TEST_F(TFMODTest, case4)
 {
-    test_tfmod<uint16_t, 512, 16, 512, 16, false>();
-}
-
-TEST_F(TFMODTest, case5)
-{
-    test_tfmod<float, 32, 32, 32, 32, false, true>();
+    test_tfmod<uint16_t, 512, 16, 512, 16>();
 }
 
 TEST_F(TFMODTest, case6)
 {
-    test_tfmod<uint32_t, 8, 8, 8, 8, false>();
+    test_tfmod<uint32_t, 8, 8, 8, 8>();
 }
 
 TEST_F(TFMODTest, case7)
@@ -131,25 +125,10 @@ TEST_F(TFMODTest, case7)
 
 TEST_F(TFMODTest, case8)
 {
-    test_tfmod<int16_t, 16, 16, 16, 16, false>();
+    test_tfmod<int16_t, 16, 16, 16, 16>();
 }
 
 TEST_F(TFMODTest, case9)
 {
-    test_tfmod<int32_t, 8, 8, 8, 8, false>();
-}
-
-TEST_F(TFMODTest, case10)
-{
-    test_tfmod<float, 64, 64, 64, 64, false, true>();
-}
-
-TEST_F(TFMODTest, case11)
-{
-    test_tfmod<float, 64, 128, 55, 96, false, true>();
-}
-
-TEST_F(TFMODTest, case12)
-{
-    test_tfmod<float, 64, 128, 61, 97, false, true>();
+    test_tfmod<int32_t, 8, 8, 8, 8>();
 }

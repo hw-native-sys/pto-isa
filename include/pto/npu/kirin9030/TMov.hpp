@@ -394,7 +394,7 @@ PTO_INTERNAL void TMOV_IMPL(DstTile &dst, SrcTile &src)
     }
 }
 
-template <typename DstTile, typename SrcTile, ReluPreMode reluMode>
+template <typename DstTile, typename SrcTile, ReluPreMode reluMode, STPhase Phase = STPhase::Unspecified>
 PTO_INTERNAL void TMOV_IMPL(DstTile &dst, SrcTile &src)
 {
     CheckTMovAccValid<DstTile, SrcTile, typename DstTile::DType, typename SrcTile::DType>();
@@ -402,13 +402,15 @@ PTO_INTERNAL void TMOV_IMPL(DstTile &dst, SrcTile &src)
     uint16_t n = src.GetValidCol();
     constexpr QuantMode_t quantPre = GetCastPreQuantMode<typename SrcTile::DType, typename DstTile::DType>();
     if constexpr (DstTile::Loc == TileType::Vec) {
-        TMovCcToUb<DstTile, SrcTile, AccToVecMode::SingleModeVec0, quantPre, reluMode>(dst.data(), src.data(), m, n);
+        TMovCcToUb<DstTile, SrcTile, AccToVecMode::SingleModeVec0, quantPre, reluMode, Phase>(dst.data(), src.data(), m,
+                                                                                              n);
     } else if constexpr (DstTile::Loc == TileType::Mat) {
         TMovCcToCb<DstTile, SrcTile, quantPre, reluMode>(dst.data(), src.data(), m, n);
     }
 }
 
-template <typename DstTile, typename SrcTile, AccToVecMode mode, ReluPreMode reluMode = ReluPreMode::NoRelu>
+template <typename DstTile, typename SrcTile, AccToVecMode mode, ReluPreMode reluMode = ReluPreMode::NoRelu,
+          STPhase Phase = STPhase::Unspecified>
 PTO_INTERNAL void TMOV_IMPL(DstTile &dst, SrcTile &src)
 {
     CheckTMovAccValid<DstTile, SrcTile, typename DstTile::DType, typename SrcTile::DType>();
@@ -416,10 +418,11 @@ PTO_INTERNAL void TMOV_IMPL(DstTile &dst, SrcTile &src)
     uint16_t m = src.GetValidRow();
     uint16_t n = src.GetValidCol();
     constexpr QuantMode_t quantPre = GetCastPreQuantMode<typename SrcTile::DType, typename DstTile::DType>();
-    TMovCcToUb<DstTile, SrcTile, mode, quantPre, reluMode>(dst.data(), src.data(), m, n);
+    TMovCcToUb<DstTile, SrcTile, mode, quantPre, reluMode, Phase>(dst.data(), src.data(), m, n);
 }
 
-template <typename DstTile, typename SrcTile, ReluPreMode reluMode = ReluPreMode::NoRelu>
+template <typename DstTile, typename SrcTile, ReluPreMode reluMode = ReluPreMode::NoRelu,
+          STPhase Phase = STPhase::Unspecified>
 PTO_INTERNAL void TMOV_IMPL(DstTile &dst, SrcTile &src, uint64_t preQuantScalar)
 {
     CheckTMovAccValid<DstTile, SrcTile, typename DstTile::DType, typename SrcTile::DType, true>();
@@ -428,13 +431,15 @@ PTO_INTERNAL void TMOV_IMPL(DstTile &dst, SrcTile &src, uint64_t preQuantScalar)
     constexpr QuantMode_t quantPre = GetScalarPreQuantMode<typename SrcTile::DType, typename DstTile::DType>();
     set_quant_pre(preQuantScalar);
     if constexpr (DstTile::Loc == TileType::Vec) {
-        TMovCcToUb<DstTile, SrcTile, AccToVecMode::SingleModeVec0, quantPre, reluMode>(dst.data(), src.data(), m, n);
+        TMovCcToUb<DstTile, SrcTile, AccToVecMode::SingleModeVec0, quantPre, reluMode, Phase>(dst.data(), src.data(), m,
+                                                                                              n);
     } else if constexpr (DstTile::Loc == TileType::Mat) {
         TMovCcToCb<DstTile, SrcTile, quantPre, reluMode>(dst.data(), src.data(), m, n);
     }
 }
 
-template <typename DstTile, typename SrcTile, AccToVecMode mode, ReluPreMode reluMode = ReluPreMode::NoRelu>
+template <typename DstTile, typename SrcTile, AccToVecMode mode, ReluPreMode reluMode = ReluPreMode::NoRelu,
+          STPhase Phase = STPhase::Unspecified>
 PTO_INTERNAL void TMOV_IMPL(DstTile &dst, SrcTile &src, uint64_t preQuantScalar)
 {
     CheckTMovAccValid<DstTile, SrcTile, typename DstTile::DType, typename SrcTile::DType, true>();
@@ -445,7 +450,7 @@ PTO_INTERNAL void TMOV_IMPL(DstTile &dst, SrcTile &src, uint64_t preQuantScalar)
     uint16_t n = src.GetValidCol();
     constexpr QuantMode_t quantPre = GetScalarPreQuantMode<typename SrcTile::DType, typename DstTile::DType>();
     set_quant_pre(preQuantScalar);
-    TMovCcToUb<DstTile, SrcTile, mode, quantPre, reluMode>(dst.data(), src.data(), m, n);
+    TMovCcToUb<DstTile, SrcTile, mode, quantPre, reluMode, Phase>(dst.data(), src.data(), m, n);
 }
 
 template <typename FpTile>
@@ -456,7 +461,8 @@ __tf__ PTO_INTERNAL void SetFPC(typename FpTile::TileDType __in__ fp)
     set_fpc(deqTensorAddr);
 }
 
-template <typename DstTile, typename SrcTile, typename FpTile, ReluPreMode reluMode = ReluPreMode::NoRelu>
+template <typename DstTile, typename SrcTile, typename FpTile, ReluPreMode reluMode = ReluPreMode::NoRelu,
+          STPhase Phase = STPhase::Unspecified>
 PTO_INTERNAL void TMOV_IMPL(DstTile &dst, SrcTile &src, FpTile &fp)
 {
     CheckTMovAccValid<DstTile, SrcTile, typename DstTile::DType, typename SrcTile::DType, true>();
@@ -466,14 +472,15 @@ PTO_INTERNAL void TMOV_IMPL(DstTile &dst, SrcTile &src, FpTile &fp)
     constexpr QuantMode_t quantPre = GetVectorPreQuantMode<typename SrcTile::DType, typename DstTile::DType>();
     SetFPC<FpTile>(fp.data());
     if constexpr (DstTile::Loc == TileType::Vec) {
-        TMovCcToUb<DstTile, SrcTile, AccToVecMode::SingleModeVec0, quantPre, reluMode>(dst.data(), src.data(), m, n);
+        TMovCcToUb<DstTile, SrcTile, AccToVecMode::SingleModeVec0, quantPre, reluMode, Phase>(dst.data(), src.data(), m,
+                                                                                              n);
     } else if constexpr (DstTile::Loc == TileType::Mat) {
         TMovCcToCb<DstTile, SrcTile, quantPre, reluMode>(dst.data(), src.data(), m, n);
     }
 }
 
 template <typename DstTile, typename SrcTile, typename FpTile, AccToVecMode mode,
-          ReluPreMode reluMode = ReluPreMode::NoRelu>
+          ReluPreMode reluMode = ReluPreMode::NoRelu, STPhase Phase = STPhase::Unspecified>
 PTO_INTERNAL void TMOV_IMPL(DstTile &dst, SrcTile &src, FpTile &fp)
 {
     CheckTMovAccValid<DstTile, SrcTile, typename DstTile::DType, typename SrcTile::DType, true>();
@@ -485,7 +492,7 @@ PTO_INTERNAL void TMOV_IMPL(DstTile &dst, SrcTile &src, FpTile &fp)
     uint16_t m = src.GetValidRow();
     uint16_t n = src.GetValidCol();
     SetFPC<FpTile>(fp.data());
-    TMovCcToUb<DstTile, SrcTile, mode, quantPre, reluMode>(dst.data(), src.data(), m, n);
+    TMovCcToUb<DstTile, SrcTile, mode, quantPre, reluMode, Phase>(dst.data(), src.data(), m, n);
 }
 } // namespace pto
 #endif

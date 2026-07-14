@@ -24,9 +24,14 @@ template <FmodSAlgorithm PrecisionType, typename T>
 struct FModSOp {
     PTO_INTERNAL static void BinSInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, T scalar, MaskReg &preg)
     {
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
+        constexpr bool isHighPrecision = (PrecisionType == FmodSAlgorithm::HIGH_PRECISION && std::is_same_v<T, float>);
+#else
+        constexpr bool isHighPrecision = false;
+#endif
         RegTensor<T> reg_src1;
         vdup(reg_src1, scalar, preg, MODE_ZEROING);
-        if constexpr (PrecisionType == FmodSAlgorithm::HIGH_PRECISION && std::is_same<T, float>::value) {
+        if constexpr (isHighPrecision) {
             TFmodRemHP<true>(reg_dst, reg_src0, reg_src1, preg);
         } else if constexpr (std::is_same<T, float>::value) {
             vdiv(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);

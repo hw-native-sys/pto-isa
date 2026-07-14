@@ -576,6 +576,7 @@ __tf__ PTO_INTERNAL void TPowImpl(typename DstTile::TileDType __out__ dstData,
     __ubuf__ T *exp = (__ubuf__ T *)__cce_get_tile_ptr(expData);
 
     if constexpr (IsFloatNum<T>) {
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
         if constexpr (algo == PowAlgorithm::DEFAULT) {
             PowF::TPowFloat<T, DstTile::RowStride, BaseTile::RowStride, ExpTile::RowStride>(dst, base, exp, validRow,
                                                                                             validCol);
@@ -583,6 +584,10 @@ __tf__ PTO_INTERNAL void TPowImpl(typename DstTile::TileDType __out__ dstData,
             PowF::TPowFloatHighPrecisionImpl<T, DstTile::RowStride, BaseTile::RowStride, ExpTile::RowStride>(
                 dst, base, exp, validRow, validCol);
         }
+#else
+        PowF::TPowFloat<T, DstTile::RowStride, BaseTile::RowStride, ExpTile::RowStride>(dst, base, exp, validRow,
+                                                                                        validCol);
+#endif
     } else if constexpr (IsIntegerNum<T>) {
         PowI::PowIComputeImpl<T, DstTile::RowStride, BaseTile::RowStride, ExpTile::RowStride>(dst, base, exp, validRow,
                                                                                               validCol);
@@ -646,12 +651,16 @@ __tf__ PTO_INTERNAL void TPowSImpl(typename DstTile::TileDType __out__ dstData,
     __ubuf__ T *base = (__ubuf__ T *)__cce_get_tile_ptr(baseData);
 
     if constexpr (IsFloatNum<T>) {
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
         if constexpr (algo == PowAlgorithm::DEFAULT) {
             PowF::TPowFloat<T, DstTile::RowStride, BaseTile::RowStride>(dst, base, exp, validRow, validCol);
         } else if (algo == PowAlgorithm::HIGH_PRECISION) {
             PowF::TPowFloatHighPrecisionImpl<T, DstTile::RowStride, BaseTile::RowStride>(dst, base, exp, validRow,
                                                                                          validCol);
         }
+#else
+        PowF::TPowFloat<T, DstTile::RowStride, BaseTile::RowStride>(dst, base, exp, validRow, validCol);
+#endif
     } else if constexpr (IsIntegerNum<T>) {
         PowI::PowIComputeImpl<T, DstTile::RowStride, BaseTile::RowStride>(dst, base, exp, validRow, validCol);
     }

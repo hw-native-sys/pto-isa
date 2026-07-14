@@ -64,10 +64,7 @@ if __name__ == "__main__":
         TPOWSParams("TPOWSTest.case5", np.int8, 64, 64, 63, 63),
         TPOWSParams("TPOWSTest.case6", np.uint32, 64, 64, 63, 63),
         TPOWSParams("TPOWSTest.case7", np.uint8, 64, 64, 63, 63),
-        TPOWSParams("TPOWSTest.case8", np.float32, 64, 64, 63, 63),
-        TPOWSParams("TPOWSTest.case9", np.float16, 64, 64, 63, 63),
         TPOWSParams("TPOWSTest.case10", np.float32, 16, 256, 15, 231),
-        TPOWSParams("TPOWSTest.case11", np.float16, 16, 512, 16, 400),
     ]
 
     for param in case_params_list:

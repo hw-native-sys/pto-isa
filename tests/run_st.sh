@@ -809,6 +809,9 @@ fi
 
 if [ "$ENABLE_KIRIN9030" = "true" ]; then
   python3 tests/script/build_st.py $ARGS -v kirin9030 -t all
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t taxpy
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tfmod
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tfmods
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tsubs
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tmaxs
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tci
@@ -905,6 +908,7 @@ if [ "$ENABLE_KIRIN9030" = "true" ]; then
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tquant
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tdequant
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tpow
+  python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tpows
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tconcatdstidx
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tconcatidx
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t tconcat

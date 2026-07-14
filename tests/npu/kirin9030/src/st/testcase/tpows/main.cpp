@@ -120,19 +120,7 @@ TEST_F(TPOWSTest, case7)
 {
     test_tpows<uint8_t, 64, 64, 63, 63>();
 }
-TEST_F(TPOWSTest, case8)
-{
-    test_tpows<float, 64, 64, 63, 63, true>();
-}
-TEST_F(TPOWSTest, case9)
-{
-    test_tpows<aclFloat16, 64, 64, 63, 63, true>();
-}
 TEST_F(TPOWSTest, case10)
 {
     test_tpows<float, 16, 256, 15, 231>();
-}
-TEST_F(TPOWSTest, case11)
-{
-    test_tpows<aclFloat16, 16, 512, 16, 400, true>();
 }

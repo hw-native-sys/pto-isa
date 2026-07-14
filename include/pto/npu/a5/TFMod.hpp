@@ -26,7 +26,12 @@ struct FModOp {
     PTO_INTERNAL static void BinInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, RegTensor<T> &reg_src1,
                                       MaskReg &preg)
     {
-        if constexpr (PrecisionType == FmodAlgorithm::HIGH_PRECISION && std::is_same<T, float>::value) {
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
+        constexpr bool isHighPrecision = (PrecisionType == FmodAlgorithm::HIGH_PRECISION && std::is_same_v<T, float>);
+#else
+        constexpr bool isHighPrecision = false;
+#endif
+        if constexpr (isHighPrecision) {
             TFmodRemHP<true>(reg_dst, reg_src0, reg_src1, preg);
         } else if constexpr (std::is_same<T, float>::value) {
             vdiv(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);

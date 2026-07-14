@@ -36,10 +36,9 @@ __global__ AICORE void runTPow(__gm__ T *out, __gm__ T *base, __gm__ T *exp)
     TASSIGN<2 * TileData::Numel * sizeof(T)>(dstTile);
     TASSIGN<3 * TileData::Numel * sizeof(T)>(tmpTile);
 
-    constexpr PowAlgorithm algo = isHighPrecision ? PowAlgorithm::HIGH_PRECISION : PowAlgorithm::DEFAULT;
     Event<Op::TLOAD, Op::TPOW> evt0 = TLOAD(baseTile, baseGlobal);
     Event<Op::TLOAD, Op::TPOW> evt1 = TLOAD(expTile, expGlobal);
-    Event<Op::TPOW, Op::TSTORE_VEC> evt2 = TPOW<algo>(dstTile, baseTile, expTile, tmpTile, evt0, evt1);
+    Event<Op::TPOW, Op::TSTORE_VEC> evt2 = TPOW(dstTile, baseTile, expTile, tmpTile, evt0, evt1);
     TSTORE(dstGlobal, dstTile, evt2);
 }
 
@@ -61,8 +60,5 @@ template void LaunchTPow<int16_t, 64, 64, 63, 63, false>(int16_t *out, int16_t *
 template void LaunchTPow<int8_t, 64, 64, 63, 63, false>(int8_t *out, int8_t *base, int8_t *exp, void *stream);
 template void LaunchTPow<uint32_t, 64, 64, 63, 63, false>(uint32_t *out, uint32_t *base, uint32_t *exp, void *stream);
 template void LaunchTPow<uint8_t, 64, 64, 63, 63, false>(uint8_t *out, uint8_t *base, uint8_t *exp, void *stream);
-template void LaunchTPow<float, 64, 64, 63, 63, true>(float *out, float *base, float *exp, void *stream);
-template void LaunchTPow<uint16_t, 64, 64, 63, 63, true>(uint16_t *out, uint16_t *base, uint16_t *exp, void *stream);
 template void LaunchTPow<float, 16, 256, 15, 231, false>(float *out, float *base, float *exp, void *stream);
-template void LaunchTPow<uint16_t, 16, 512, 16, 400, true>(uint16_t *out, uint16_t *base, uint16_t *exp, void *stream);
 template void LaunchTPow<float, 1, 64, 1, 64, false>(float *out, float *base, float *exp, void *stream);

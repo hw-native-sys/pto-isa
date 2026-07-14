@@ -30,7 +30,6 @@ __global__ AICORE void runTFModS(__gm__ T *out, __gm__ T *src, T scalar)
     dstTileData dstTile(validRow, validCol);
     TASSIGN<0x0>(srcTile);
     TASSIGN<srcTileRow * srcTileCol * sizeof(T)>(dstTile);
-    constexpr auto precisionType = highPrecision ? FmodSAlgorithm::HIGH_PRECISION : FmodSAlgorithm::DEFAULT;
 // causes issues in automode as the tile returned from the TLOAD tfcall appears unused and this tload may not finish
 // before the second tload
 #ifndef __PTO_AUTO__
@@ -41,13 +40,12 @@ __global__ AICORE void runTFModS(__gm__ T *out, __gm__ T *src, T scalar)
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 #endif
-    TFMODS<precisionType>(dstTile, srcTile, scalar);
+    TFMODS(dstTile, srcTile, scalar);
 #ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
 #endif
     TSTORE(dstGlobal, dstTile);
-    out = dstGlobal.data();
 }
 
 template <typename T, int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
@@ -75,5 +73,3 @@ template void LaunchTFModS<int16_t, 15, 192, 15, 192, 15, 192>(int16_t *out, int
                                                                void *stream);
 template void LaunchTFModS<float, 7, 512, 7, 512, 7, 448>(float *out, float *src, float scalar, void *stream);
 template void LaunchTFModS<float, 256, 32, 256, 32, 256, 31>(float *out, float *src, float scalar, void *stream);
-template void LaunchTFModS<float, 64, 64, 64, 64, 64, 64, true>(float *out, float *src, float scalar, void *stream);
-template void LaunchTFModS<float, 64, 64, 64, 64, 64, 61, true>(float *out, float *src, float scalar, void *stream);

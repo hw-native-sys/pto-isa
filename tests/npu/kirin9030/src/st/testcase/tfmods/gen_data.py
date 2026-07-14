@@ -64,8 +64,6 @@ if __name__ == "__main__":
         TestParams("TFMODSTest.case4", np.int16, 15, 192, 15, 192, 15, 192),
         TestParams("TFMODSTest.case5", np.float32, 7, 512, 7, 512, 7, 448),
         TestParams("TFMODSTest.case6", np.float32, 256, 32, 256, 32, 256, 31),
-        TestParams("TFMODSTest.caseHP1", np.float32, 64, 64, 64, 64, 64, 64),
-        TestParams("TFMODSTest.caseHP2", np.float32, 64, 64, 64, 64, 64, 61),
     ]
 
     for case in case_params_list:

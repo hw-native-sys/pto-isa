@@ -97,12 +97,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TPartArgMin.hpp"
 #include "pto/npu/a5/TPow.hpp"
 #include "pto/npu/a5/TDeQuant.hpp"
-#include "pto/npu/a5/TImg2col.hpp"
 #include "pto/npu/a5/SetFmatrix.hpp"
-#include "pto/npu/a5/SetImg2colRpt.hpp"
-#include "pto/npu/a5/SetImg2colPadding.hpp"
 #include "pto/npu/a5/THistogram.hpp"
-// TRandom to be evaluated
 #include "pto/npu/a5/TRsqrt.hpp"
 #include "pto/npu/a5/TUnaryOp.hpp"
 #include "pto/npu/a5/TGatherB.hpp"
@@ -110,8 +106,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TDiv.hpp"
 #include "pto/npu/a5/TMul.hpp"
 #include "pto/npu/a5/TScatter.hpp"
-// MGather to be evaluated
-// MScatter to be evaluated
 #include "pto/npu/a5/TColExpandDiv.hpp"
 #include "pto/npu/a5/TColExpandMul.hpp"
 #include "pto/npu/a5/TColExpandSub.hpp"
@@ -120,11 +114,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TColExpandMax.hpp"
 #include "pto/npu/a5/TColExpandMin.hpp"
 #include "pto/npu/a5/TTri.hpp"
-// TPrefetch to be evaluated
-// TPush to be evaluated
-// TPop to be evaluated
-// TAlloc to be evaluated
-// TFree to be evaluated
 #include "pto/npu/a5/TColReduceIdx.hpp"
 #include "pto/npu/a5/SetQuantScalar.hpp"
 #include "pto/npu/a5/SetQuantVector.hpp"

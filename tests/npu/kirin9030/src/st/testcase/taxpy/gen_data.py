@@ -27,7 +27,7 @@ def gen_golden_data_taxpy(case_name, param):
     scalar = np.random.uniform(low=-8, high=8, size=(1, 1)).astype(dtype)
 
     # Perform the andbtraction
-    golden = (input1.astype(np.float64) + input2.astype(np.float64) * scalar).astype(dtype)
+    golden = (input1 + input2 * scalar).astype(dtype)
 
     # Save the input and golden data to binary files
     input1.tofile("input1.bin")

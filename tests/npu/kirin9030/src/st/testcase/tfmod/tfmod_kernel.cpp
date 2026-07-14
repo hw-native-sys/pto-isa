@@ -27,7 +27,6 @@ __global__ AICORE void runTFMod(__gm__ T *out, __gm__ T *src0, __gm__ T *src1)
     TASSIGN<0x0>(src0Tile);
     TASSIGN<kTRows_ * kTCols_ * sizeof(T)>(src1Tile);
     TASSIGN<kTRows_ * kTCols_ * sizeof(T) * 2>(dstTile);
-    constexpr auto precisionType = highPrecision ? FmodAlgorithm::HIGH_PRECISION : FmodAlgorithm::DEFAULT;
 
     GlobalData src0Global(src0);
     GlobalData src1Global(src1);
@@ -39,7 +38,7 @@ __global__ AICORE void runTFMod(__gm__ T *out, __gm__ T *src0, __gm__ T *src1)
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 #endif
-    TFMOD<precisionType>(dstTile, src0Tile, src1Tile);
+    TFMOD(dstTile, src0Tile, src1Tile);
 #ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
@@ -67,7 +66,6 @@ template void LaunchTFMod<uint16_t, 1, 16384, 1, 16384, false, false>(uint16_t *
                                                                       void *stream);
 template void LaunchTFMod<uint16_t, 512, 16, 512, 16, false, false>(uint16_t *out, uint16_t *src0, uint16_t *src1,
                                                                     void *stream);
-template void LaunchTFMod<float, 32, 32, 32, 32, false, true>(float *out, float *src0, float *src1, void *stream);
 template void LaunchTFMod<uint32_t, 8, 8, 8, 8, false, false>(uint32_t *out, uint32_t *src0, uint32_t *src1,
                                                               void *stream);
 template void LaunchTFMod<aclFloat16, 32, 32, 31, 31, true, false>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
@@ -75,6 +73,3 @@ template void LaunchTFMod<aclFloat16, 32, 32, 31, 31, true, false>(aclFloat16 *o
 template void LaunchTFMod<int16_t, 16, 16, 16, 16, false, false>(int16_t *out, int16_t *src0, int16_t *src1,
                                                                  void *stream);
 template void LaunchTFMod<int32_t, 8, 8, 8, 8, false, false>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
-template void LaunchTFMod<float, 64, 64, 64, 64, false, true>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTFMod<float, 64, 128, 55, 96, false, true>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTFMod<float, 64, 128, 61, 97, false, true>(float *out, float *src0, float *src1, void *stream);

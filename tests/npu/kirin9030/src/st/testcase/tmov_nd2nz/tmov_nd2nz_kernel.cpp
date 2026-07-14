@@ -8,14 +8,12 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 #include <pto/pto-inst.hpp>
-#include <pto/common/pto_tile.hpp>
-#include <pto/common/constants.hpp>
 #include "acl/acl.h"
 
 using namespace pto;
 
 template <int kSrcRows, int kDstRows, int kCols>
-__global__ AICORE void runTMOV_nd2nz(__gm__ half __out__ *out, __gm__ half __in__ *src)
+__global__ AICORE void runTMOV_nd2nz(__gm__ half *out, __gm__ half *src)
 {
     using T = half;
     constexpr int c0 = CUBE_BLOCK_SIZE / (FRACTAL_NZ_ROW * sizeof(T));
@@ -35,8 +33,8 @@ __global__ AICORE void runTMOV_nd2nz(__gm__ half __out__ *out, __gm__ half __in_
 
     SrcTile srcTile(kSrcRows, kCols);
     DstTile dstTile(kSrcRows, kCols);
-    TASSIGN(srcTile, 0x0);
-    TASSIGN(dstTile, 0x10000);
+    TASSIGN<0x0>(srcTile);
+    TASSIGN<sizeof(T) * kSrcRows * kCols>(dstTile);
 
     SrcGlobal srcGlobal(src);
     DstGlobal dstGlobal(out);
