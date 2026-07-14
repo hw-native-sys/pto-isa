@@ -9,16 +9,16 @@ This appendix is generated from `docs/isa/manifest.yaml` and provides a source-s
 | Category | Instruction Count |
 |---|---:|
 | Synchronization | 1 |
-| Manual / Resource Binding | 4 |
+| Manual / Resource Binding | 2 |
 | Elementwise (Tile-Tile) | 29 |
 | Tile-Scalar / Tile-Immediate | 20 |
-| Axis Reduce / Expand | 24 |
+| Axis Reduce / Expand | 28 |
 | Memory (GM <-> Tile) | 7 |
 | Matrix Multiply | 8 |
-| Data Movement / Layout | 13 |
-| Complex | 15 |
+| Data Movement / Layout | 15 |
+| Complex | 17 |
 | Communication | 11 |
-| Total | 130 |
+| Total | 138 |
 
 ## D.3 Header synchronization status
 
@@ -156,6 +156,8 @@ This appendix is generated from `docs/isa/manifest.yaml` and provides a source-s
 | Complex | [TGATHERB](../../../../docs/isa/TGATHERB.md) | `complex` | `dst, src0, src1` | `docs/isa/TGATHERB.md` |
 | Complex | [TSCATTER](../../../../docs/isa/TSCATTER.md) | `complex` | `dst, src0, src1` | `docs/isa/TSCATTER.md` |
 | Complex | [TQUANT](../../../../docs/isa/TQUANT.md) | `complex` | `dst, src0, src1` | `docs/isa/TQUANT.md` |
+| Complex | [TDEQUANT](../../../../docs/isa/TDEQUANT.md) | `elementwise` | `dst, src, scale, offset` | `docs/isa/TDEQUANT.md` |
+| Complex | [THISTOGRAM](../../../../docs/isa/THISTOGRAM.md) | `complex` | `dst, src, idx` | `docs/isa/THISTOGRAM.md` |
 | Communication | [TPUT](../../../../docs/isa/comm/TPUT.md) | `comm` | `dst, src, staging` | `docs/isa/comm/TPUT.md` |
 | Communication | [TGET](../../../../docs/isa/comm/TGET.md) | `comm` | `dst, src, staging` | `docs/isa/comm/TGET.md` |
 | Communication | [TPUT_ASYNC](../../../../docs/isa/comm/TPUT_ASYNC.md) | `comm` | `dst, src, session` | `docs/isa/comm/TPUT_ASYNC.md` |

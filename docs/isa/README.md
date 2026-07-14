@@ -62,6 +62,7 @@ This directory is the canonical PTO ISA tree. It combines the architecture manua
 - [TMINS](TMINS.md) - Elementwise minimum of a tile and a scalar.
 - [TADDS](TADDS.md) - Elementwise add a scalar to a tile.
 - [TSUBS](TSUBS.md) - Elementwise subtract a scalar from a tile.
+- [TAXPY](TAXPY.md) - In-place scaled accumulation (AXPY): dst = scalar * src0 + dst.
 - [TDIVS](TDIVS.md) - Elementwise division with a scalar (tile/scalar or scalar/tile).
 - [TMULS](TMULS.md) - Elementwise multiply a tile by a scalar.
 - [TFMODS](TFMODS.md) - Elementwise remainder with a scalar: `fmod(src, scalar)`.
@@ -160,6 +161,8 @@ This directory is the canonical PTO ISA tree. It combines the architecture manua
 - [TGATHERB](TGATHERB.md) - Gather elements using byte offsets.
 - [TSCATTER](TSCATTER.md) - Scatter rows of a source tile into a destination tile using per-element row indices.
 - [TQUANT](TQUANT.md) - Quantize a tile (e.g. FP32 to FP8) producing exponent/scaling/max outputs.
+- [TDEQUANT](TDEQUANT.md) - Affine dequantization of a quantized tile (S8/S16 -> FP32): dst = (src - offset) * scale.
+- [THISTOGRAM](THISTOGRAM.md) - Per-byte histogram (256 bins) over a selected byte of each source element, with optional cascaded upper-byte filtering; the radix-sort bucket-count primitive.
 
 ## Cross-core Communication
 - [TALLOC](TALLOC.md) - Allocate a TPipe FIFO slot as a GlobalTensor view.

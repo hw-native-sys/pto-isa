@@ -62,6 +62,7 @@
 - [TMINS](TMINS_zh.md) - Tile 与标量的逐元素最小值。
 - [TADDS](TADDS_zh.md) - Tile 与标量的逐元素加法。
 - [TSUBS](TSUBS_zh.md) - 从 Tile 中逐元素减去一个标量。
+- [TAXPY](TAXPY_zh.md) - 原位缩放累加（AXPY）：dst = scalar * src0 + dst。
 - [TDIVS](TDIVS_zh.md) - 与标量的逐元素除法（Tile/标量 或 标量/Tile）。
 - [TMULS](TMULS_zh.md) - Tile 与标量的逐元素乘法。
 - [TFMODS](TFMODS_zh.md) - 与标量的逐元素余数：`fmod(src, scalar)`。
@@ -160,6 +161,8 @@
 - [TGATHERB](TGATHERB_zh.md) - 使用字节偏移量收集元素。
 - [TSCATTER](TSCATTER_zh.md) - 使用逐元素行索引将源 Tile 的行散播到目标 Tile 中。
 - [TQUANT](TQUANT_zh.md) - 量化 Tile（例如 FP32 到 FP8），生成指数/缩放/最大值输出。
+- [TDEQUANT](TDEQUANT_zh.md) - 对量化 Tile 做仿射反量化（S8/S16 -> FP32）：dst = (src - offset) * scale。
+- [THISTOGRAM](THISTOGRAM_zh.md) - 对源元素的某个字节统计直方图（256 桶），可按高位字节级联过滤；基数排序的桶计数原语。
 
 ## 核间通信
 - [TALLOC](TALLOC_zh.md) - 将 TPipe FIFO 槽位分配为一个 GlobalTensor 视图。

@@ -170,6 +170,7 @@ nav:
           - TMINS: docs/isa/TMINS.md
           - TADDS: docs/isa/TADDS.md
           - TSUBS: docs/isa/TSUBS.md
+          - TAXPY: docs/isa/TAXPY.md
           - TDIVS: docs/isa/TDIVS.md
           - TMULS: docs/isa/TMULS.md
           - TFMODS: docs/isa/TFMODS.md
@@ -252,6 +253,8 @@ nav:
           - TSORT32: docs/isa/TSORT32.md
           - TMRGSORT: docs/isa/TMRGSORT.md
           - TQUANT: docs/isa/TQUANT.md
+          - TDEQUANT: docs/isa/TDEQUANT.md
+          - THISTOGRAM: docs/isa/THISTOGRAM.md
           - TPRINT: docs/isa/TPRINT.md
       - Communication:
           - Overview: docs/isa/comm/README.md

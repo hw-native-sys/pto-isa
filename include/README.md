@@ -43,7 +43,7 @@ This table tracks per-instruction backend availability:
 | [`TAND`](../docs/isa/TAND.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TANDS`](../docs/isa/TANDS.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TASSIGN`](../docs/isa/TASSIGN.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TAXPY`]() | TODO | TODO | Yes | Yes | Yes | TODO |
+| [`TAXPY`](../docs/isa/TAXPY.md) | TODO | TODO | Yes | Yes | Yes | TODO |
 | [`TBROADCAST`](../docs/isa/comm/TBROADCAST.md) | Yes | TODO | Yes | Yes | Yes | TODO |
 | [`TCI`](../docs/isa/TCI.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TCMP`](../docs/isa/TCMP.md) | Yes | Yes | Yes | Yes | Yes | Yes |
@@ -64,6 +64,7 @@ This table tracks per-instruction backend availability:
 | [`TCOLSUM`](../docs/isa/TCOLSUM.md) | Yes | Yes | Yes | Yes | Yes | TODO |
 | [`TConcat`](../docs/isa/TCONCAT.md) | TODO | TODO | TODO | TODO | Yes | TODO |
 | [`TCVT`](../docs/isa/TCVT.md) | Yes | Yes | Yes | Yes | Yes | TODO |
+| [`TDEQUANT`](../docs/isa/TDEQUANT.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TDIV`](../docs/isa/TDIV.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TDIVS`](../docs/isa/TDIVS.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TEXP`](../docs/isa/TEXP.md) | Yes | Yes | Yes | Yes | Yes | Yes |
@@ -84,6 +85,7 @@ This table tracks per-instruction backend availability:
 | [`TGET`](../docs/isa/comm/TGET.md) | Yes | TODO | Yes | Yes | Yes | TODO |
 | [`TGET_ASYNC`](../docs/isa/comm/TGET_ASYNC.md) | Yes | TODO | Yes | Yes | Yes | TODO |
 | [`TGET_SCALE_ADDR`](../docs/isa/TGET_SCALE_ADDR.md) | TODO | TODO | TODO | TODO | Yes | TODO |
+| [`THISTOGRAM`](../docs/isa/THISTOGRAM.md) | Yes | TODO | No | No | Yes | Yes |
 | [`TIMG2COL`](../docs/isa/TIMG2COL.md) | TODO | TODO | Yes | Yes | Yes | TODO |
 | [`TINSERT`](../docs/isa/TINSERT.md) | TODO | TODO | TODO | TODO | Yes | TODO |
 | [`TINSERT_FP`](../docs/isa/TINSERT_FP.md) | TODO | TODO | Yes | Yes | Yes | Yes |
