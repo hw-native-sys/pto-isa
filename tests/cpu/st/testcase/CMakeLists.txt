@@ -66,6 +66,7 @@ tcolsum
 tconcat
 tcvt
 tdequant
+tdeinterleave
 tdiv
 tdivs
 texp
@@ -88,6 +89,7 @@ thistogram
 timg2col
 tinsert
 tinsert_quant
+tinterleave
 tload
 tloadconv
 tlog
