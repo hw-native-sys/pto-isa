@@ -13,6 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <gtest/gtest.h>
 #include "tgather_common.h"
 #include <pto/pto-inst.hpp>
+#include <cstring>
 
 using namespace std;
 using namespace PtoTestCommon;
@@ -120,6 +121,64 @@ void test_gather_col()
     execute_gather_test<T, PATTERN, ROW, COL, OUT_ROW, GATHER_COL_DIR>(GetGoldenDir());
 }
 
+// P1010 gather of bit-cast indices into int32; compare exactly, not by tolerance.
+template <uint32_t ROW, uint32_t COL, uint8_t PATTERN>
+void test_gather_xtype()
+{
+    constexpr uint32_t N_IDX = ROW * (COL / 2);
+    std::vector<float> srcHost(ROW * COL, 0.0f);
+    std::vector<int32_t> expected(N_IDX);
+    for (uint32_t i = 0; i < N_IDX; ++i) {
+        int32_t idx = static_cast<int32_t>((i % 255) + 1);
+        expected[i] = idx;
+        float idxAsFloat;
+        std::memcpy(&idxAsFloat, &idx, sizeof(float));
+        srcHost[2 * i] = 1.0f;
+        srcHost[2 * i + 1] = idxAsFloat;
+    }
+
+    aclInit(nullptr);
+    aclrtSetDevice(0);
+    aclrtStream stream;
+    aclrtCreateStream(&stream);
+
+    size_t srcBytes = ROW * COL * sizeof(float);
+    size_t dstBytes = N_IDX * sizeof(int32_t);
+    uint8_t *srcDevice = nullptr;
+    uint8_t *dstDevice = nullptr;
+    int32_t *dstHost = nullptr;
+
+    aclrtMallocHost((void **)(&dstHost), dstBytes);
+    aclrtMalloc((void **)&srcDevice, srcBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void **)&dstDevice, srcBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+
+    aclrtMemcpy(srcDevice, srcBytes, srcHost.data(), srcBytes, ACL_MEMCPY_HOST_TO_DEVICE);
+    launchTGATHER_demo<PATTERN>(dstDevice, srcDevice, stream);
+    aclrtSynchronizeStream(stream);
+    aclrtMemcpy(dstHost, dstBytes, dstDevice, dstBytes, ACL_MEMCPY_DEVICE_TO_HOST);
+
+    size_t mismatches = 0;
+    size_t nonzero = 0;
+    for (uint32_t i = 0; i < N_IDX; ++i) {
+        if (dstHost[i] != 0) {
+            ++nonzero;
+        }
+        if (dstHost[i] != expected[i]) {
+            ++mismatches;
+        }
+    }
+
+    EXPECT_EQ(mismatches, static_cast<size_t>(0));
+    EXPECT_GT(nonzero, static_cast<size_t>(0));
+
+    aclrtFree(dstDevice);
+    aclrtFree(srcDevice);
+    aclrtFreeHost(dstHost);
+    aclrtDestroyStream(stream);
+    aclrtResetDevice(0);
+    aclFinalize();
+}
+
 TEST_F(TGATHERTest, case1_float_P0101)
 {
     test_gather<float, FP0101, FLOAT_P0101_ROW, FLOAT_P0101_COL>();
@@ -213,6 +272,11 @@ TEST_F(TGATHERTest, case1_I32_P1000)
 TEST_F(TGATHERTest, case1_I32_P1111)
 {
     test_gather<int32_t, I32P1111, FLOAT_P1111_ROW, FLOAT_P1111_COL>();
+}
+
+TEST_F(TGATHERTest, case_xtype_float_to_int32_P1010)
+{
+    test_gather_xtype<FLOAT_P1010_ROW, FLOAT_P1010_COL, FP1010_I32>();
 }
 
 TEST_F(TGATHERTest, case_col_float_P0101)

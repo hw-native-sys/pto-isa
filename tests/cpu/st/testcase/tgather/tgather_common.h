@@ -47,6 +47,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define U8_0100 39
 #define U8_1000 40
 #define U8_1111 41
+#define FP1010_I32 42
 
 #define HALF_P0101_ROW 5
 #define HALF_P0101_COL 128

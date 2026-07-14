@@ -68,6 +68,40 @@ AICORE void runTGATHER_COL(__gm__ T __out__ *out, __gm__ T __in__ *src)
     out = dstGlobal.data();
 }
 
+template <typename SrcT, typename DstT, int kGRows_, int kGCols_, int kTRows_, int kTCols_, MaskPattern maskPattern>
+AICORE void runTGATHER_XTYPE(__gm__ DstT __out__ *out, __gm__ SrcT __in__ *src)
+{
+    using DynShapeDim5 = Shape<1, 1, 1, kGRows_, kGCols_>;
+    using DynStridDim5 = Stride<1, 1, 1, kGCols_, 1>;
+    using GlobalSrc = GlobalTensor<SrcT, DynShapeDim5, DynStridDim5>;
+    using GlobalDst = GlobalTensor<DstT, DynShapeDim5, DynStridDim5>;
+    using SrcTile = Tile<TileType::Vec, SrcT, (kTRows_ + 5), (kTCols_ + 32), BLayout::RowMajor, -1, -1>;
+    using DstTile = Tile<TileType::Vec, DstT, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>;
+    SrcTile srcTile(kTRows_, kTCols_);
+    DstTile dstTile(kTRows_, kTCols_);
+    TASSIGN(srcTile, 0x0);
+    TASSIGN(dstTile, (kTRows_ + 5) * (kTCols_ + 32) * sizeof(SrcT));
+
+    GlobalSrc srcGlobal(src);
+    GlobalDst dstGlobal(out);
+
+    TLOAD(srcTile, srcGlobal);
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    TGATHER<DstTile, SrcTile, maskPattern>(dstTile, srcTile);
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID1);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID1);
+    TSTORE(dstGlobal, dstTile);
+    out = dstGlobal.data();
+}
+
+extern "C" __global__ AICORE void launchTGATHER_XTYPE(__gm__ uint8_t *out, __gm__ uint8_t *src)
+{
+    runTGATHER_XTYPE<float, int32_t, FLOAT_P1010_ROW, FLOAT_P1010_COL, FLOAT_P1010_ROW, FLOAT_P1010_COL,
+                     MaskPattern::P1010>(reinterpret_cast<__gm__ int32_t *>(out),
+                                         reinterpret_cast<__gm__ float *>(src));
+}
+
 extern "C" __global__ AICORE void launchTGATHER_U8_1(__gm__ uint8_t *out, __gm__ uint8_t *src)
 {
     runTGATHER<uint8_t, B8_P0101_ROW, B8_P0101_COL, B8_P0101_ROW, B8_P0101_COL, MaskPattern::P0101>(
@@ -364,7 +398,7 @@ static LaunchFunc GetLaunchFunction(int32_t tilingKey)
 
         {U16P0101, launchTGATHER_21},        {U16P1010, launchTGATHER_22},        {I16P0001, launchTGATHER_23},
         {I16P0010, launchTGATHER_24},        {U32P0100, launchTGATHER_25},        {I32P1000, launchTGATHER_26},
-        {I32P1111, launchTGATHER_27},
+        {I32P1111, launchTGATHER_27},        {FP1010_I32, launchTGATHER_XTYPE},
 
         {U8_0101, launchTGATHER_U8_1},       {U8_1010, launchTGATHER_U8_2},       {U8_0001, launchTGATHER_U8_3},
         {U8_0010, launchTGATHER_U8_4},       {U8_0100, launchTGATHER_U8_5},       {U8_1000, launchTGATHER_U8_6},
@@ -406,6 +440,7 @@ template void launchTGATHER_demo<FP0010>(uint8_t *out, uint8_t *src, void *strea
 template void launchTGATHER_demo<FP0100>(uint8_t *out, uint8_t *src, void *stream);
 template void launchTGATHER_demo<FP1000>(uint8_t *out, uint8_t *src, void *stream);
 template void launchTGATHER_demo<FP1111>(uint8_t *out, uint8_t *src, void *stream);
+template void launchTGATHER_demo<FP1010_I32>(uint8_t *out, uint8_t *src, void *stream);
 
 template void launchTGATHER_demo<HP0101>(uint8_t *out, uint8_t *src, void *stream);
 template void launchTGATHER_demo<HP1010>(uint8_t *out, uint8_t *src, void *stream);

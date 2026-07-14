@@ -13,12 +13,26 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <type_traits>
 #include <pto/common/pto_tile.hpp>
 #include <pto/common/type.hpp>
 #include "pto/cpu/tile_offsets.hpp"
 
 namespace pto {
+
+// Same-width reinterpret (bit-copy); otherwise numeric cast.
+template <typename DstT, typename SrcT>
+PTO_INLINE DstT BitCastOrCast(SrcT v)
+{
+    if constexpr (sizeof(DstT) == sizeof(SrcT)) {
+        DstT out;
+        std::memcpy(&out, &v, sizeof(DstT));
+        return out;
+    } else {
+        return static_cast<DstT>(v);
+    }
+}
 
 PTO_INLINE bool MaskSelect(MaskPattern pat, unsigned idx)
 {
@@ -118,7 +132,7 @@ PTO_INTERNAL void TGather(typename DstTileData::TileDType dst, typename SrcTileD
             if (!MaskSelect(maskPattern, c))
                 continue;
             const size_t sidx = GetTileElementOffset<SrcTileData>(r, c);
-            dst[didx] = static_cast<typename DstTileData::DType>(src[sidx]);
+            dst[didx] = BitCastOrCast<typename DstTileData::DType>(src[sidx]);
             didx++;
         }
     }
@@ -136,7 +150,7 @@ PTO_INTERNAL void TGatherCol(typename DstTileData::TileDType dst, typename SrcTi
         for (unsigned c = 0; c < validCol; ++c) {
             const size_t sidx = GetTileElementOffset<SrcTileData>(r, c);
             const size_t didx = GetTileElementOffset<DstTileData>(dstRow, c);
-            dst[didx] = static_cast<typename DstTileData::DType>(src[sidx]);
+            dst[didx] = BitCastOrCast<typename DstTileData::DType>(src[sidx]);
         }
         ++dstRow;
     }
