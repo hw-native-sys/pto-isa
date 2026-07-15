@@ -12,6 +12,7 @@
 # AllGather GEMM Demo — Build and Run (HCCL backend)
 
 # Ascend CANN environment: honor ASCEND_CANN_PATH or auto-detect
+set -euo pipefail
 : "${ASCEND_CANN_PATH:=$(ls -1d /usr/local/Ascend/cann-*/set_env.sh 2>/dev/null | sort -V | tail -1)}"
 if [ -z "${ASCEND_CANN_PATH}" ]; then
     echo "[ERROR] Cannot find CANN set_env.sh. Set ASCEND_CANN_PATH to <cann-install>/set_env.sh"
@@ -132,7 +133,6 @@ mkdir build
 cd build
 
 export LD_LIBRARY_PATH=${ASCEND_HOME_PATH}/tools/simulator/${SOC_VERSION}/lib:${LD_LIBRARY_PATH:-}
-set -euo pipefail
 
 BLOCK_OPTS=""
 if [ -n "${COMPUTE_BLOCKS:-}" ]; then
