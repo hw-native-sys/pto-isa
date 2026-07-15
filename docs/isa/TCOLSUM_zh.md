@@ -23,7 +23,7 @@ $$ \mathrm{dst}_{0,j} = \sum_{i=0}^{R-1} \mathrm{src}_{i,j} $$
 ```text
 %dst = tcolsum %src {isBinary = false} : !pto.tile<...> -> !pto.tile<...>
 ```
-降低时可能引入内部临时 Tile；C++ 内建接口需要显式传入 `tmp` 操作数。
+降阶时可能引入内部临时 Tile；C++ 内建接口需要显式传入 `tmp` 操作数。
 
 ### AS Level 1（SSA）
 
@@ -42,6 +42,7 @@ pto.tcolsum ins(%src, %tmp {isBinary = false} : !pto.tile_buf<...>, !pto.tile_bu
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
 ```cpp
 template <typename TileDataOut, typename TileDataIn, typename... WaitEvents>
@@ -60,8 +61,8 @@ PTO_INST RecordEvent TCOLSUM(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
 - `dst` 和 `src` 的元素类型必须一致。
 - 运行时检查：
     - `src.GetValidCol() == dst.GetValidCol()`
-    - `src.GetValidRow() != 0`
-    - `src.GetValidCol() != 0`
+    - `src.GetValidRow() != 0`（为零时实现静默返回，不执行计算）
+    - `src.GetValidCol() != 0`（为零时实现静默返回，不执行计算）
     - `src.GetValidCol()` 必须不大于按 `src` 元素计的 `tmp` 行跨度
 - `isBinary` 选择已检查到的后端路径：
     - `true`：使用 `tmp` 做二叉树累加

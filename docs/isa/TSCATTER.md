@@ -162,7 +162,7 @@ Defined in `include/pto/common/type.hpp`:
         - `SrcTileData::ValidCol` must equal `DstTileData::ValidCol * expansion_factor`, where expansion_factor depends on mask pattern (1 for P1111, 2 for P1010/P0101, 4 for P0001/P0010/P0100/P1000).
     - Runtime assertions for `SCATTER_COL`:
         - `SrcTileData::ValidCol` must equal `DstTileData::ValidCol`.
-        - `SrcTileData::ValidRow` must equal `DstTileData::ValidRow * expansion_factor`, where expansion_factor depends on mask pattern (1 for P1111, 2 for P1010/P0101, 4 for P0001/P0010/P0100/P1000).
+        - `SrcTileData::ValidRow` must equal `DstTileData::ValidRow / expansion_factor`, where expansion_factor depends on mask pattern (1 for P1111, 2 for P1010/P0101, 4 for P0001/P0010/P0100/P1000).
 
 ## Important Notes
 

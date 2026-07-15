@@ -86,6 +86,7 @@ pto.tdeinterleave ins(%src : !pto.tile_buf<...>) outs(%dst0, %dst1 : !pto.tile_b
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
 ```cpp
 // 双源形式
@@ -109,10 +110,10 @@ PTO_INST RecordEvent TDeInterleave(TileDataDst &dst1, TileDataDst &dst0, TileDat
     - 所有 Tile 必须具有相同的 `DType`。
     - 双源形式：`src0`、`src1`、`dst0`、`dst1` 必须具有相同的有效形状, 且他们的validCols必须为偶数。
     - 单源形式：`src`、`dst0`、`dst1` 必须具有相同的有效形状；`src`的validCols必须为偶数
-    - `dst0`/`dst1` 的 `validCols` 必须为 `src` 的 `validCols` 的一半。
+    - 单源形式：`dst0`/`dst1` 的 `validCols` 必须为 `src` 的 `validCols` 的一半。
 - **有效区域**:
     - 双源形式：该操作使用 `dst0.GetValidRow()` / `dst0.GetValidCol()` 作为迭代域。`dst0/dst1` 每行持有 `validCols` 个元素。
-    - 单源形式：`dst0/dst1` 每行持有 `validCols / 2` 个有效元素。每行中超出 `halfValidCols` 的元素是**未指定的**。
+    - 单源形式：`dst0/dst1` 每行持有 `src.GetValidCol() / 2` 个有效元素。每行中超出 `halfValidCols` 的元素是**未指定的**。
 
 ## 示例
 

@@ -40,6 +40,7 @@ pto.trowargmax ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%ds
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`:
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
 仅输出索引：
 
@@ -64,7 +65,7 @@ PTO_INST RecordEvent TROWARGMAX(TileDataOutVal &dstVal, TileDataOutIdx &dstIdx, 
 - 支持的源元素类型：`half`、`float`。
 - `src` 必须使用标准 ND 布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
 - 仅输出索引时：
-    -`dst` 和 `src` 必须为 `TileType::Vec`。
+    - `dst` 和 `src` 必须为 `TileType::Vec`。
     - 支持的目标元素类型：`uint32_t`、`int32_t`。
     - 运行时检查遵循共享的行归约检查路径：
         - `src.GetValidRow() != 0`
@@ -164,15 +165,15 @@ void example_manual() {
   using DstValT = Tile<TileType::Vec, float, 16, 1, BLayout::ColMajor>;
   using TmpT = Tile<TileType::Vec, float, 16, 16>;
   SrcT src;
-  DstT dst;
-  DstValT dst;
+  DstT dstIdx;
+  DstValT dstVal;
   TmpT tmp;
   TASSIGN(src, 0x1000);
-  TASSIGN(dst, 0x2000);
+  TASSIGN(dstIdx, 0x2000);
   TASSIGN(dstVal, 0x3000);
   TASSIGN(tmp, 0x4000);
-  TROWARGMAX(dst, src, tmp);
-  TROWARGMAX(dstVal, dst, src, tmp);
+  TROWARGMAX(dstIdx, src, tmp);
+  TROWARGMAX(dstVal, dstIdx, src, tmp);
 }
 ```
 

@@ -47,6 +47,7 @@ pto.tinsert ins(%src, %idxrow, %idxcol : !pto.tile_buf<...>, dtype, dtype) outs(
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
 ```cpp
 template <typename DstTileData, typename SrcTileData, typename... WaitEvents>
@@ -175,7 +176,7 @@ PTO_INST RecordEvent TINSERT(DstTileData &dst, SrcTileData &src,
 - **Vec → Mat**（`TileType::Vec → TileType::Mat`，UB → L1）：
     - `DstTileData::DType` 必须等于 `SrcTileData::DType`。
     - 支持的元素类型：`half`、`bfloat16_t`、`float`、`int32_t`、`int8_t`、`hifloat8_t`、`float8_e4m3_t`、`float8_e5m2_t`、`float8_e8m0_t`、`float4_e2m1x2_t`、`float4_e1m2x2_t`。
-    - ND 路径：源必须为 `isRowMajor`；使用 `copy_ubuf_to_cbuf`。每行数据字节数必须与 `BLOCK_BYTE_SIZE`（32 字节）对齐。
+    - ND 路径：源必须为 `isRowMajor`；使用 `copy_ubuf_to_cbuf`。每行数据字节数必须与 `BLOCK_BYTE_SIZE`（32字节）对齐。
     - NZ 路径：源必须为 `(!isRowMajor, SFractal: RowMajor)`；使用 `ComputeNZBlockParams` 进行分形块 `copy_ubuf_to_cbuf`。
 
 - **NZ Split**（`TInsertMode::SPLIT2` / `TInsertMode::SPLIT4`，仅 A5/kirin9030/kirinX90）：

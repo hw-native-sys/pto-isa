@@ -42,6 +42,7 @@ $$
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`，在 A5 / Kirin9030 / CPU 仿真下可用（`PTO_NPU_ARCH_A5 || PTO_NPU_ARCH_KIRIN9030 || __CPU_SIM`）。`HistByte` 枚举定义于 `include/pto/common/type.hpp`。
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
 ```cpp
 enum class HistByte : uint8_t {
@@ -74,7 +75,7 @@ PTO_INST RecordEvent THISTOGRAM(TileDataDst &dst, TileDataSrc &src, TileDataIdx 
 | `idx`（`uint16` 源） | `uint8_t` | $R \times 1$ | ColMajor（DN） | 每行 1 个匹配字节（高位） |
 | `idx`（`uint32` 源） | `uint8_t` | $(3-k) \times C$ | RowMajor | 每行广播 1 个过滤字节；$k=3$ 时为 0 行（不使用） |
 
-> `idx` 的物理行数须按 32 字节块对齐（`PTO_CEIL(rows · sizeof(uint8_t), 32)`）；`uint16` 模式要求 `idx` 为 DN 布局（`BLayout::ColMajor` + `SLayout::NoneBox`）且恰好 1 列。
+> `idx` 的物理行数须按 32字节块对齐（`PTO_CEIL(rows · sizeof(uint8_t), 32)`）；`uint16` 模式要求 `idx` 为 DN 布局（`BLayout::ColMajor` + `SLayout::NoneBox`）且恰好 1 列。
 
 ## 支持的输入 dtype
 
@@ -102,7 +103,7 @@ THISTOGRAM 在向量流水线（`PIPE_V`）上执行：
 | `idx` 为 `uint8_t` | 所有目标 | 过滤字节字宽 |
 | `uint16` 源：`idx` 为 DN（ColMajor + NoneBox）且 1 列 | A5 / Kirin9030 / CPU | 单字节/行广播匹配 |
 | `uint32` 源：`idx` 行主序，行数 $=3-k$，列数 $=$ 源列数 | A5 / Kirin9030 / CPU | 级联过滤所需索引行 |
-| `uint16` 源仅允许 `BYTE_0` / `BYTE_1` | 所有目标 | `uint16` 仅 2 字节 |
+| `uint16` 源仅允许 `BYTE_0` / `BYTE_1` | 所有目标 | `uint16` 仅 2字节 |
 | `dst` 每行 256 桶 | 所有目标 | 字节取值空间 0–255 |
 
 ## 示例

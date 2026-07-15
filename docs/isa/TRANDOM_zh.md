@@ -41,6 +41,7 @@ pto.trandom ins(%key, %counter : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%d
 ## C++ 内置函数
 
 声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
 ```cpp
 template <uint16_t Rounds = 10, typename DstTile, typename... WaitEvents>

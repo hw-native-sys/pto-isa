@@ -98,6 +98,6 @@ TileT pongTile(64, 64);
 TASSIGN(pingTile, 0);
 TASSIGN(pongTile, tileUBBytes);  // 不重叠的 UB 区域
 
-// 将 TLOAD[i+1] 与 TSTORE[i] 重叠执行以提升流水线利用率
+// 将相邻块的 TGET 操作重叠执行以提升流水线利用率
 comm::TGET(dstG, srcG, pingTile, pongTile);
 ```

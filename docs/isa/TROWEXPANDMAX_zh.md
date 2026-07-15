@@ -6,18 +6,18 @@
 
 ![TROWEXPANDMAX 模式 1 tile operation](../figures/isa/TROWEXPANDMAX.svg)
 
-### 模式 2 — 每行 32 字节块（RowMajor src1）
+### 模式 2 — 每行 32字节块（RowMajor src1）
 
 ![TROWEXPANDMAX 模式 2 tile operation](../figures/isa/TROWEXPANDMAX_mode2.svg)
 
 ## 简介
 
-行广播最大值：将 `src0` 的每一行与扩展操作数的每行标量取最大值。
+行广播最大值：将全尺寸操作数（`src0` 或 `src1`）的每一行与扩展操作数的每行标量取最大值。
 
 指令支持两种模式，由扩展操作数的布局决定（当 `src0` 与 `dst` 形状匹配时为 `src1`，当 `src1` 与 `dst` 形状匹配时为 `src0`）：
 
 - **模式 1**：扩展操作数为 **ColMajor** 布局，单列（每行一个标量）。每个标量广播到整行。
-- **模式 2**：扩展操作数为 **RowMajor** 布局，每行 `32 / sizeof(T)` 列（每行一个 32 字节块）。每个 32 字节块在向量重复步长内自然重复，提供行级广播。
+- **模式 2**：扩展操作数为 **RowMajor** 布局，每行 `32 / sizeof(T)` 列（每行一个 32字节块）。每个 32字节块在向量重复步长内自然重复，提供行级广播。
 
 ## 数学语义
 
@@ -35,7 +35,7 @@ $$
 
 ### 模式 2
 
-设 `b_i` 为第 `i` 行从扩展操作数中获取的 32 字节块（RowMajor 布局，每行 `32 / sizeof(T)` 个值）。该块在每个向量重复步长内自然重复。
+设 `b_i` 为第 `i` 行从扩展操作数中获取的 32字节块（RowMajor 布局，每行 `32 / sizeof(T)` 个值）。该块在每个向量重复步长内自然重复。
 
 对于 `0 <= i < R` 和 `0 <= j < C`：
 
@@ -66,6 +66,7 @@ pto.trowexpandmax ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
 ```cpp
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
@@ -91,11 +92,11 @@ PTO_INST RecordEvent TROWEXPANDMAX(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 - 其有效列数必须为 **1**（每行一个标量）：`srcX.GetValidCol() == 1`。
 - 其有效行数必须等于 `dst.GetValidRow()`：`srcX.GetValidRow() == dst.GetValidRow()`。
 
-### 模式 2 — 扩展操作数为 RowMajor（每行 32 字节块）
+### 模式 2 — 扩展操作数为 RowMajor（每行 32字节块）
 
 当扩展操作数为 **RowMajor**（`isRowMajor == true`）时：
 
-- 其有效列数必须为 **32 / sizeof(T)**（每行一个 32 字节块）：`srcX.GetValidCol() == 32 / sizeof(T)`。
+- 其有效列数必须为 **32 / sizeof(T)**（每行一个 32字节块）：`srcX.GetValidCol() == 32 / sizeof(T)`。
   - 对于 `half` / `int16` / `uint16`：`validCol == 16`。
   - 对于 `float` / `int32` / `uint32`：`validCol == 8`。
 - 其有效行数必须等于 `dst.GetValidRow()`：`srcX.GetValidRow() == dst.GetValidRow()`。
@@ -108,7 +109,7 @@ PTO_INST RecordEvent TROWEXPANDMAX(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 
 C++ API 提供了显式传入 `TileDataTmp &tmp` 的重载。该重载仅支持**模式 1**（ColMajor 扩展操作数，每行标量）。
 
-- **A2A3**：tmp Tile 作为广播缓冲区使用。ColMajor 扩展操作数的每行标量值通过 `vbrcb` 指令广播到 tmp 缓冲区，为每行创建一个 32 字节块，然后在二元运算中作为扩展操作数使用。`vbrcb` 指令的 repeat stride 为 8 个块（256 字节），每个 repeat 处理 8 行。最小 tmp 大小计算：
+- **A2A3**：tmp Tile 作为广播缓冲区使用。ColMajor 扩展操作数的每行标量值通过 `vbrcb` 指令广播到 tmp 缓冲区，为每行创建一个 32字节块，然后在二元运算中作为扩展操作数使用。`vbrcb` 指令的 repeat stride 为 8 个块（256字节），每个 repeat 处理 8 行。最小 tmp 大小计算：
     - **公共参数**：
         - `R = dst.GetValidRow()`，`T = TileDataDst::DType`。
     - 当 `R < 256` 时：
@@ -116,8 +117,8 @@ C++ API 提供了显式传入 `TileDataTmp &tmp` 的重载。该重载仅支持*
     - 当 `R >= 256` 时：
         - 操作采用循环方式，每次循环最多 30 个 repeat（240 行）。tmp 缓冲区在各循环间复用，每次循环需要：
         $$ \text{tmpSize} = 30 \times 256 = 7680 \text{ 字节} $$
-    - 对于任何模式 1 调用，一个紧凑的形状无关上界为 **8KB**（8192 字节）。
-    - 不带 `tmp` 的 3 参数重载支持模式 1 和模式 2。对于模式 1，使用内部 8 KB 缓冲区（`TMP_UB_OFFSET`）。对于模式 2，不需要广播缓冲区。
+    - 对于任何模式 1 调用，一个紧凑的形状无关上界为 **8KB**（8192字节）。
+    - 不带 `tmp` 的 3 参数重载支持模式 1 和模式 2。对于模式 1，使用内部 8KB 缓冲区（`TMP_UB_OFFSET`）。对于模式 2，不需要广播缓冲区。
 - **A5**：`tmp` Tile 被接受但不使用（`[[maybe_unused]]`）。A5 硬件通过 `vlds` 指令的广播模式原生支持行广播，因此不需要临时缓冲区。
 
 ## 示例

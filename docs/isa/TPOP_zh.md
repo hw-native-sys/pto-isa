@@ -86,7 +86,7 @@ AICORE void example_c2v(__gm__ void *fifoMem)
     using Pipe = TPipe<FlagID, Direction::DIR_C2V, M * N * sizeof(T), FifoDepth>;
     using VecTile = Tile<TileType::Vec, T, M / 2, N, BLayout::RowMajor, M / 2, N>;
 
-    Pipe pipe(fifoMem, LocalBase, 0x0); （需统一V2C示例中的参数顺序，建议核对TPipe构造函数实际定义）
+    Pipe pipe(fifoMem, LocalBase, 0x0); // 需统一V2C示例中的参数顺序，建议核对TPipe构造函数实际定义
     VecTile tile;
 
     TPOP<Pipe, VecTile, TileSplitAxis::TILE_UP_DOWN>(pipe, tile);
@@ -152,4 +152,3 @@ AICORE void example_globaldata(__gm__ void *fifoMem)
 ## ASM 形式示例
 
 当前公开的汇编参考尚未为 `TPOP` 定义稳定的 PTO-AS 写法。手写 CV FIFO 程序时请使用 C++ intrinsic 形式。
-```

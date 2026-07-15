@@ -20,19 +20,19 @@
 
 对于 `0 <= j < N`（有效矩阵乘法域中的输出元素）：
 
-$$ \mathrm{C}_{0,j} = \sum_{k=0}^{K-1} \mathrm{A}_{0,k} \cdot \mathrm{B}_{k,j} $$
+$$ \mathrm{C}_{0,j} = \sum_{k=0}^{K-1} \mathrm{A}_{0,k} \cdot \mathrm{Byte}_{k,j} $$
 
 ### 2. TGEMV_ACC（带累加的基于 Tile 的 GEMV）
 
 对于 `0 <= j < N`（累加到现有 tile）：
 
-$$ \mathrm{C}_{0,j} \gets \mathrm{C}_{0,j} + \sum_{k=0}^{K-1} \mathrm{A}_{0,k} \cdot \mathrm{B}_{k,j} $$
+$$ \mathrm{C}_{0,j} \gets \mathrm{C}_{0,j} + \sum_{k=0}^{K-1} \mathrm{A}_{0,k} \cdot \mathrm{Byte}_{k,j} $$
 
 ### 3. TGEMV_BIAS（带偏置的基于 Tile 的 GEMV）
 
 对于 `0 <= j < N`（将偏置项添加到矩阵乘积）：
 
-$$ \mathrm{C}_{0,j} = \mathrm{Bias}_{0,j} + \sum_{k=0}^{K-1} \mathrm{A}_{0,k} \cdot \mathrm{B}_{k,j} $$
+$$ \mathrm{C}_{0,j} = \mathrm{Bias}_{0,j} + \sum_{k=0}^{K-1} \mathrm{A}_{0,k} \cdot \mathrm{Byte}_{k,j} $$
 
 **注意：** 精确的累加器行为和数据类型提升由目标/实现定义。
 
@@ -67,6 +67,7 @@ pto.tgemv.bias ins(%a, %b, %bias : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
 ```cpp
 template <typename TileRes, typename TileLeft, typename TileRight, typename... WaitEvents>
@@ -237,7 +238,7 @@ using namespace pto;
 void example_manual() {
   using A = TileLeft<half, 1, 16>;
   using B = TileRight<half, 16, 16>;
-  using Bias = Tile<TileType::Bias, half, 1, 16>;
+  using Bias = Tile<TileType::Bias, float, 1, 16>;
   using C = TileAcc<float, 1, 16>;
   A a;
   B b;

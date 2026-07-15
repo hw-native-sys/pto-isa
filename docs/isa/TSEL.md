@@ -73,7 +73,7 @@ PTO_INST RecordEvent TSEL(TileData &dst, MaskTile &selMask, TileData &src0, Tile
 `tmp` **is used** as a small buffer to hold the comparison mask (`cmpmask`) copied from the mask tile for each row. The A2A3 implementation uses `set_cmpmask` which requires the mask data to be in a specific UB location.
 
 - `tmp` element type must be `uint32_t`.
-- `tmp` size requirement: at least `cmpmaskLen` elements per row, where `cmpmaskLen = 4` for 16-bit data types (`half`, `bfloat16_t`) and `cmpmaskLen = 2` for 32-bit data types (`float`, `int32_t`, `uint32_t`). In bytes, this is always 128 bits (16 bytes).
+- `tmp` size requirement: at least `cmpmaskLen` `uint32_t` elements per row, where `cmpmaskLen = 4` for 16-bit data types (`half`, `bfloat16_t`) — 16 bytes (128 bits), and `cmpmaskLen = 2` for 32-bit data types (`float`, `int32_t`, `uint32_t`) — 8 bytes (64 bits).
 - A typical `tmp` tile declaration: `Tile<TileType::Vec, uint32_t, 1, 16>` suffices for most use cases.
 
 ### A5

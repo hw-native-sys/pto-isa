@@ -50,13 +50,13 @@ PTO_INST RecordEvent TTRI(TileData &dst, int diagonal, WaitEvents &... events);
 ### AS Level 1 (SSA)
 
 ```text
-%dst = pto.ttri %src0, %src1 : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+%dst = pto.ttri %diag : i32 -> !pto.tile<...>
 ```
 
 ### AS Level 2 (DPS)
 
 ```text
-pto.ttri ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+pto.ttri ins(%diag : i32) outs(%dst : !pto.tile_buf<...>)
 ```
 
 ## Examples
@@ -87,23 +87,21 @@ void example_upper() {
 
 ```text
 # Auto mode: compiler/runtime-managed placement and scheduling.
-%dst = pto.ttri %src0, %src1 : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+%dst = pto.ttri {isUpperOrLower = 0} : i32 -> !pto.tile<...>
 ```
 
 ### Manual Mode
 
 ```text
 # Manual mode: resources must be bound explicitly before issuing the instruction.
-# Optional for tile operands:
 # pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
-%dst = pto.ttri %src0, %src1 : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+%dst = pto.ttri %diag : i32 -> !pto.tile<...>
 ```
 
 ### PTO Assembly Form
 
 ```text
-%dst = pto.ttri %src0, %src1 : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+%dst = pto.ttri %diag : i32 -> !pto.tile<...>
 # AS Level 2 (DPS)
-pto.ttri ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+pto.ttri ins(%diag : i32) outs(%dst : !pto.tile_buf<...>)
 ```
