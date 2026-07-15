@@ -97,7 +97,7 @@ TEST_F(TStoreTest, case3) { test_tstore<2, int16_t, 2, 2, 2, 16, 16, 5, 3, 3, 16
 
 TEST_F(TStoreTest, case4) { test_tstore<0, float, 2, 1, 1, 39, 47, 3, 2, 1, 43, 61>(); }
 
-TEST_F(TStoreTest, case5) { test_tstore<0, int16_t, 1, 2, 1, 23, 121, 3, 2, 2, 35, 125>(); }
+TEST_F(TStoreTest, case5) { test_tstore<0, int16_t, 1, 2, 1, 23, 121, 3, 2, 2, 35, 128>(); }
 
 TEST_F(TStoreTest, case6) { test_tstore<0, int8_t, 2, 2, 3, 23, 47, 3, 3, 4, 32, 50>(); }
 
@@ -112,3 +112,43 @@ TEST_F(TStoreTest, case10) { test_tstore<0, int64_t, 1, 1, 2, 16, 16, 2, 2, 2, 1
 TEST_F(TStoreTest, case11) { test_tstore<1, uint64_t, 1, 1, 2, 16, 64, 2, 2, 2, 16, 64>(); }
 
 TEST_F(TStoreTest, case12) { test_tstore<0, int64_t, 1, 1, 2, 39, 47, 2, 2, 2, 43, 50>(); }
+
+TEST_F(TStoreTest, case13) { test_tstore<0, int32_t, 1, 1, 1, 8, 16, 1, 1, 1, 16, 16>(); }
+
+TEST_F(TStoreTest, case14) { test_tstore<0, int16_t, 1, 2, 3, 16, 32, 2, 3, 4, 32, 32>(); }
+
+TEST_F(TStoreTest, case15) { test_tstore<0, int8_t, 2, 3, 1, 16, 32, 3, 4, 2, 32, 32>(); }
+
+TEST_F(TStoreTest, case16) { test_tstore<0, uint32_t, 2, 1, 2, 8, 16, 3, 2, 3, 16, 16>(); }
+
+TEST_F(TStoreTest, case17) { test_tstore<0, int32_t, 3, 4, 1, 16, 8, 4, 5, 2, 32, 16>(); }
+
+TEST_F(TStoreTest, case18) { test_tstore<0, uint16_t, 2, 1, 1, 16, 32, 3, 2, 2, 32, 32>(); }
+
+TEST_F(TStoreTest, case19) { test_tstore<0, int16_t, 1, 1, 1, 32, 16, 2, 2, 2, 32, 32>(); }
+
+TEST_F(TStoreTest, case20) { test_tstore<0, uint16_t, 1, 1, 1, 111, 88, 1, 1, 1, 112, 96>(); }
+
+TEST_F(TStoreTest, case21) { test_tstore<0, uint16_t, 1, 1, 1, 97, 65, 1, 1, 1, 112, 80>(); }
+
+TEST_F(TStoreTest, case22) { test_tstore<0, uint16_t, 1, 1, 1, 112, 88, 1, 1, 1, 112, 96>(); }
+
+TEST_F(TStoreTest, case23) { test_tstore<0, uint16_t, 1, 1, 1, 112, 65, 1, 1, 1, 112, 80>(); }
+
+TEST_F(TStoreTest, case24) { test_tstore<0, uint16_t, 1, 1, 1, 97, 97, 1, 1, 1, 112, 112>(); }
+
+TEST_F(TStoreTest, case25) { test_tstore<0, uint16_t, 1, 1, 1, 64, 65, 1, 1, 1, 64, 80>(); }
+
+TEST_F(TStoreTest, case26) { test_tstore<0, uint16_t, 1, 1, 1, 48, 65, 1, 1, 1, 48, 80>(); }
+
+TEST_F(TStoreTest, case27) { test_tstore<0, uint16_t, 1, 1, 1, 80, 49, 1, 1, 1, 80, 64>(); }
+
+TEST_F(TStoreTest, case28) { test_tstore<0, uint16_t, 1, 1, 1, 64, 81, 1, 1, 1, 64, 96>(); }
+
+TEST_F(TStoreTest, case29) { test_tstore<0, uint16_t, 1, 1, 1, 48, 97, 1, 1, 1, 48, 112>(); }
+
+TEST_F(TStoreTest, case30) { test_tstore<0, uint16_t, 1, 1, 1, 80, 83, 1, 1, 1, 80, 96>(); }
+
+TEST_F(TStoreTest, case31) { test_tstore<0, uint16_t, 1, 1, 1, 112, 73, 1, 1, 1, 112, 80>(); }
+
+TEST_F(TStoreTest, case32) { test_tstore<0, uint16_t, 1, 1, 1, 80, 79, 1, 1, 1, 80, 80>(); }

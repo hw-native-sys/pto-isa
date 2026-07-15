@@ -422,7 +422,6 @@ PTO_INTERNAL void TINSERT_IMPL(
 template <typename DstTileData, typename SrcTileData, AccToVecMode mode, ReluPreMode reluMode>
 PTO_INTERNAL void TINSERT_IMPL(DstTileData& dst, SrcTileData& src, uint16_t indexRow = 0, uint16_t indexCol = 0)
 {
-    static_assert(mode == AccToVecMode::SingleModeVec0, "Only SingleModeVec0 is supported.");
     TINSERT_IMPL<DstTileData, SrcTileData, reluMode>(dst, src, indexRow, indexCol);
 }
 
@@ -431,7 +430,6 @@ template <typename DstTileData, typename SrcTileData, AccToVecMode mode, ReluPre
 PTO_INTERNAL void TINSERT_IMPL(
     DstTileData& dst, SrcTileData& src, uint64_t preQuantScalar, uint16_t indexRow = 0, uint16_t indexCol = 0)
 {
-    static_assert(mode == AccToVecMode::SingleModeVec0, "Only SingleModeVec0 is supported.");
     TINSERT_IMPL<DstTileData, SrcTileData, reluMode>(dst, src, preQuantScalar, indexRow, indexCol);
 }
 
@@ -442,7 +440,6 @@ template <
 PTO_INTERNAL void TINSERT_IMPL(
     DstTileData& dst, SrcTileData& src, FpTileData& fp, uint16_t indexRow = 0, uint16_t indexCol = 0)
 {
-    static_assert(mode == AccToVecMode::SingleModeVec0, "Only SingleModeVec0 is supported.");
     TINSERT_IMPL<DstTileData, SrcTileData, FpTileData, reluMode>(dst, src, fp, indexRow, indexCol);
 }
 

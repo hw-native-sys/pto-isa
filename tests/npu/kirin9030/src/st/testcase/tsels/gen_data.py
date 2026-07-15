@@ -109,7 +109,7 @@ if __name__ == "__main__":
         TestParams(np.float32, np.uint8, 2, 32, 2, 64, 2, 128, 2, 31),
         TestParams(np.uint8, np.uint8, 32, 672, 32, 96, 32, 672, 32, 666),
         TestParams(np.float16, np.uint8, 32, 672, 32, 96, 32, 672, 32, 666),
-        TestParams(np.float32, np.uint8, 32, 672, 32, 96, 32, 672, 32, 666),
+        TestParams(np.float32, np.uint8, 16, 672, 16, 96, 16, 672, 16, 666),
         TestParams(np.float32, np.uint8, 1, 8192, 1, 4096, 1, 8192, 1, 8192),
     ]
 

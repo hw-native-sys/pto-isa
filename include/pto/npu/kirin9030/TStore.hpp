@@ -130,6 +130,78 @@ PTO_INTERNAL void CheckStaticVec()
     }
 }
 
+template <typename GlobalData, typename TileData>
+PTO_INTERNAL void TStoreVecND(
+    typename GlobalData::DType* dstAddr, __ubuf__ typename TileData::DType* srcAddr, int gShape0, int gShape1,
+    int gShape2, int gShape3, int gShape4, int gStride0, int gStride1, int gStride2, int gStride3, int gStride4,
+    int validRow, int validCol)
+{
+    PTO_ASSERT(validCol == gShape4, "The validCol of TileData must be equal to the 5th dim(Shape4) of ND shape!");
+    PTO_ASSERT(
+        validRow == gShape0 * gShape1 * gShape2 * gShape3,
+        "The validRow of TileData must be equal to (Shape0 * Shape1 * Shape2 * Shape3) of ND shape!");
+    typename GlobalData::DType* dstGlobalAddr = dstAddr;
+    __ubuf__ typename TileData::DType* srcTileAddr = srcAddr;
+
+    uint64_t srcStride0 = gShape1 * gShape2 * gShape3 * TileData::Cols;
+    if constexpr (caps::IsFP4<typename TileData::DType>()) {
+        srcStride0 = srcStride0 >> 1; // fp4 srcAddr offset need divide 2 as use b8 to move
+        gStride0 = gStride0 >> 1;     // fp4 dstAddr offset need divide 2 as use b8 to move
+    }
+    uint32_t nBurst = gShape3;
+
+    uint32_t lenBurst = GetByteSize<typename TileData::DType>(validCol);
+    uint64_t burstDstStride = GetByteSize<typename TileData::DType>(gStride3);
+    uint32_t burstSrcStride = GetByteSize<typename TileData::DType>(TileData::Cols);
+    for (uint32_t k = 0; k < gShape0; k++) {
+        for (uint32_t i = 0; i < gShape1; i++) {
+            for (uint32_t j = 0; j < gShape2; j++) {
+                dstGlobalAddr = dstAddr + k * gStride0 + i * gStride1 + j * gStride2;
+                srcTileAddr =
+                    srcAddr + k * srcStride0 + i * gShape2 * gShape3 * TileData::Cols + j * gShape3 * TileData::Cols;
+                TStoreInstr<TileData, GlobalData>(
+                    dstGlobalAddr, srcTileAddr, nBurst, lenBurst, burstDstStride, burstSrcStride);
+            }
+        }
+    }
+}
+
+template <typename GlobalData, typename TileData>
+PTO_INTERNAL void TStoreVecDN(
+    typename GlobalData::DType* dstAddr, __ubuf__ typename TileData::DType* srcAddr, int gShape0, int gShape1,
+    int gShape2, int gShape3, int gShape4, int gStride0, int gStride1, int gStride2, int gStride3, int gStride4,
+    int validRow, int validCol)
+{
+    PTO_ASSERT(validRow == gShape3, "The validRow of TileData must be equal to the 4th dim(Shape3) of DN shape!");
+    PTO_ASSERT(
+        validCol == gShape0 * gShape1 * gShape2 * gShape4,
+        "The validCol of TileData must be equal to (Shape0 * Shape1 * Shape2 * Shape4) of DN shape!");
+    typename GlobalData::DType* dstGlobalAddr = dstAddr;
+    __ubuf__ typename TileData::DType* srcTileAddr = srcAddr;
+
+    uint64_t srcStride0 = gShape1 * gShape2 * gShape4 * TileData::Rows;
+    uint32_t nBurst = gShape4;
+    uint32_t lenBurst = GetByteSize<typename TileData::DType>(validRow);
+    uint64_t burstDstStride = GetByteSize<typename TileData::DType>(gStride4);
+    uint32_t burstSrcStride = GetByteSize<typename TileData::DType>(TileData::Rows);
+    if constexpr (caps::IsFP4<typename TileData::DType>()) {
+        srcStride0 = srcStride0 >> 1; // fp4 srcAddr offset need divide 2 as use b8 to move
+        gStride0 = gStride0 >> 1;     // fp4 dstAddr offset need divide 2 as use b8 to move
+    }
+
+    for (uint32_t k = 0; k < gShape0; k++) {
+        for (uint32_t i = 0; i < gShape1; i++) {
+            for (uint32_t j = 0; j < gShape2; j++) {
+                dstGlobalAddr = dstAddr + k * gStride0 + i * gStride1 + j * gStride2;
+                srcTileAddr =
+                    srcAddr + k * srcStride0 + i * gShape2 * TileData::Rows * gShape4 + j * TileData::Rows * gShape4;
+                TStoreInstr<TileData, GlobalData>(
+                    dstGlobalAddr, srcTileAddr, nBurst, lenBurst, burstDstStride, burstSrcStride);
+            }
+        }
+    }
+}
+
 template <
     typename TileData, typename GlobalData, AtomicType atomicType = AtomicType::AtomicNone,
     STPhase Phase = STPhase::Unspecified>

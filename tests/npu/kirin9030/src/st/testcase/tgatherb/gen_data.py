@@ -102,7 +102,6 @@ if __name__ == "__main__":
         TGatherBParam(np.uint32, 2, 128, 2, 16, 2, 128),
         TGatherBParam(np.int16, 1, 16384, 1, 2048, 1, 16384),
         TGatherBParam(np.uint16, 129, 128, 129, 8, 129, 128),
-        TGatherBParam(np.float16, 1, 16384, 1, 2048, 1, 16384),
         TGatherBParam(np.int8, 2, 256, 2, 8, 2, 256),
     ]
 

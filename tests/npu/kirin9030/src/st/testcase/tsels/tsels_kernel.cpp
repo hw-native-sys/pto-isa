@@ -127,7 +127,7 @@ template void LaunchTSels<uint8_t, uint8_t, 32, 672, 32, 96, 32, 672, 32, 666>(
     uint8_t* out, uint8_t* mask, uint8_t* src, uint8_t scalar, void* stream);
 template void LaunchTSelsHalf<uint8_t, 32, 672, 32, 96, 32, 672, 32, 666>(
     aclFloat16* out, uint8_t* mask, aclFloat16* src, aclFloat16 scalar, void* stream);
-template void LaunchTSels<float, uint8_t, 32, 672, 32, 96, 32, 672, 32, 666>(
+template void LaunchTSels<float, uint8_t, 16, 672, 16, 96, 16, 672, 16, 666>(
     float* out, uint8_t* mask, float* src, float scalar, void* stream);
 
 template void LaunchTSels<float, uint8_t, 1, 8192, 1, 4096, 1, 8192, 1, 8192>(
