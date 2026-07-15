@@ -15,9 +15,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace pto;
 
-template <typename T, int kGRowsD_, int kGColsD_, int kGRowsS0_, int kGColsS0_, int kGRowsS1_, int kGColsS1_,
-          int kTRowsD_, int kTColsD_, int kTRowsS0_, int kTColsS0_, int kTRowsS1_, int kTColsS1_>
-__global__ AICORE void runTPartMax(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in__ *src1)
+template <
+    typename T, int kGRowsD_, int kGColsD_, int kGRowsS0_, int kGColsS0_, int kGRowsS1_, int kGColsS1_, int kTRowsD_,
+    int kTColsD_, int kTRowsS0_, int kTColsS0_, int kTRowsS1_, int kTColsS1_>
+__global__ AICORE void runTPartMax(__gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in__* src1)
 {
     using DynShapeDim4 = pto::Shape<-1, -1, -1, -1, -1>;
     using DynStridDim4 = pto::Stride<-1, -1, -1, -1, -1>;
@@ -34,12 +35,15 @@ __global__ AICORE void runTPartMax(__gm__ T __out__ *out, __gm__ T __in__ *src0,
     TASSIGN(dstTile, (blockDataElems * block_idx) * sizeof(T));
     TASSIGN(src0Tile, (blockDataElems * block_idx + src0Offset) * sizeof(T));
     TASSIGN(src1Tile, (blockDataElems * block_idx + src1Offset) * sizeof(T));
-    GlobalData dstGlobal(out + kTRowsD_ * kTColsD_ * block_idx, Shape(1, 1, 1, kGRowsD_, kGColsD_),
-                         pto::Stride(1, 1, kGRowsD_, kGColsD_, 1));
-    GlobalData src0Global(src0 + kTRowsS0_ * kTColsS0_ * block_idx, Shape(1, 1, 1, kGRowsS0_, kGColsS0_),
-                          pto::Stride(1, 1, kGRowsS0_, kGColsS0_, 1));
-    GlobalData src1Global(src1 + kTRowsS1_ * kTColsS1_ * block_idx, Shape(1, 1, 1, kGRowsS1_, kGColsS1_),
-                          pto::Stride(1, 1, kGRowsS1_, kGColsS1_, 1));
+    GlobalData dstGlobal(
+        out + kTRowsD_ * kTColsD_ * block_idx, Shape(1, 1, 1, kGRowsD_, kGColsD_),
+        pto::Stride(1, 1, kGRowsD_, kGColsD_, 1));
+    GlobalData src0Global(
+        src0 + kTRowsS0_ * kTColsS0_ * block_idx, Shape(1, 1, 1, kGRowsS0_, kGColsS0_),
+        pto::Stride(1, 1, kGRowsS0_, kGColsS0_, 1));
+    GlobalData src1Global(
+        src1 + kTRowsS1_ * kTColsS1_ * block_idx, Shape(1, 1, 1, kGRowsS1_, kGColsS1_),
+        pto::Stride(1, 1, kGRowsS1_, kGColsS1_, 1));
 
     TLOAD(src0Tile, src0Global);
     TLOAD(src1Tile, src1Global);
@@ -56,30 +60,31 @@ __global__ AICORE void runTPartMax(__gm__ T __out__ *out, __gm__ T __in__ *src0,
     out = dstGlobal.data();
 }
 
-template <typename T, int kGRowsD_, int kGColsD_, int kGRowsS0_, int kGColsS0_, int kGRowsS1_, int kGColsS1_,
-          int kTRowsD_, int kTColsD_, int kTRowsS0_, int kTColsS0_, int kTRowsS1_, int kTColsS1_>
-void LaunchTPartMax(T *out, T *src0, T *src1, aclrtStream stream)
+template <
+    typename T, int kGRowsD_, int kGColsD_, int kGRowsS0_, int kGColsS0_, int kGRowsS1_, int kGColsS1_, int kTRowsD_,
+    int kTColsD_, int kTRowsS0_, int kTColsS0_, int kTRowsS1_, int kTColsS1_>
+void LaunchTPartMax(T* out, T* src0, T* src1, aclrtStream stream)
 {
-    runTPartMax<T, kGRowsD_, kGColsD_, kGRowsS0_, kGColsS0_, kGRowsS1_, kGColsS1_, kTRowsD_, kTColsD_, kTRowsS0_,
-                kTColsS0_, kTRowsS1_, kTColsS1_><<<1, nullptr, stream>>>(out, src0, src1);
+    runTPartMax<
+        T, kGRowsD_, kGColsD_, kGRowsS0_, kGColsS0_, kGRowsS1_, kGColsS1_, kTRowsD_, kTColsD_, kTRowsS0_, kTColsS0_,
+        kTRowsS1_, kTColsS1_><<<1, nullptr, stream>>>(out, src0, src1);
 }
 
-template void LaunchTPartMax<float, 16, 32, 16, 16, 16, 32, 16, 32, 16, 16, 16, 32>(float *out, float *src0,
-                                                                                    float *src1, aclrtStream stream);
-template void LaunchTPartMax<float, 22, 32, 22, 32, 16, 32, 22, 32, 22, 32, 16, 32>(float *out, float *src0,
-                                                                                    float *src1, aclrtStream stream);
-template void LaunchTPartMax<float, 22, 40, 22, 40, 22, 32, 22, 40, 22, 40, 22, 32>(float *out, float *src0,
-                                                                                    float *src1, aclrtStream stream);
-template void LaunchTPartMax<float, 22, 40, 22, 40, 8, 40, 22, 40, 22, 40, 8, 40>(float *out, float *src0, float *src1,
-                                                                                  aclrtStream stream);
-template void LaunchTPartMax<float, 64, 128, 64, 128, 64, 128, 64, 128, 64, 128, 64, 128>(float *out, float *src0,
-                                                                                          float *src1,
-                                                                                          aclrtStream stream);
-template void LaunchTPartMax<float, 16, 32, 16, 0, 16, 32, 16, 32, 16, 8, 16, 32>(float *out, float *src0, float *src1,
-                                                                                  aclrtStream stream);
-template void LaunchTPartMax<float, 16, 32, 0, 32, 16, 32, 16, 32, 8, 32, 16, 32>(float *out, float *src0, float *src1,
-                                                                                  aclrtStream stream);
-template void LaunchTPartMax<float, 16, 32, 16, 32, 16, 0, 16, 32, 16, 32, 16, 8>(float *out, float *src0, float *src1,
-                                                                                  aclrtStream stream);
-template void LaunchTPartMax<float, 16, 32, 16, 32, 0, 32, 16, 32, 16, 32, 8, 32>(float *out, float *src0, float *src1,
-                                                                                  aclrtStream stream);
+template void LaunchTPartMax<float, 16, 32, 16, 16, 16, 32, 16, 32, 16, 16, 16, 32>(
+    float* out, float* src0, float* src1, aclrtStream stream);
+template void LaunchTPartMax<float, 22, 32, 22, 32, 16, 32, 22, 32, 22, 32, 16, 32>(
+    float* out, float* src0, float* src1, aclrtStream stream);
+template void LaunchTPartMax<float, 22, 40, 22, 40, 22, 32, 22, 40, 22, 40, 22, 32>(
+    float* out, float* src0, float* src1, aclrtStream stream);
+template void LaunchTPartMax<float, 22, 40, 22, 40, 8, 40, 22, 40, 22, 40, 8, 40>(
+    float* out, float* src0, float* src1, aclrtStream stream);
+template void LaunchTPartMax<float, 64, 128, 64, 128, 64, 128, 64, 128, 64, 128, 64, 128>(
+    float* out, float* src0, float* src1, aclrtStream stream);
+template void LaunchTPartMax<float, 16, 32, 16, 0, 16, 32, 16, 32, 16, 8, 16, 32>(
+    float* out, float* src0, float* src1, aclrtStream stream);
+template void LaunchTPartMax<float, 16, 32, 0, 32, 16, 32, 16, 32, 8, 32, 16, 32>(
+    float* out, float* src0, float* src1, aclrtStream stream);
+template void LaunchTPartMax<float, 16, 32, 16, 32, 16, 0, 16, 32, 16, 32, 16, 8>(
+    float* out, float* src0, float* src1, aclrtStream stream);
+template void LaunchTPartMax<float, 16, 32, 16, 32, 0, 32, 16, 32, 16, 32, 8, 32>(
+    float* out, float* src0, float* src1, aclrtStream stream);

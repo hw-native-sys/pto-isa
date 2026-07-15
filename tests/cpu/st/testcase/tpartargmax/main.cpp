@@ -17,8 +17,9 @@ using namespace PtoTestCommon;
 using namespace pto;
 
 template <int kRows, int kCols, int kValidRows1, int kValidCols1>
-void LaunchTPARTARGMAX(float *outVal, float *src0Val, float *src1Val, uint32_t *outIdx, uint32_t *src0Idx,
-                       uint32_t *src1Idx, void *stream);
+void LaunchTPARTARGMAX(
+    float* outVal, float* src0Val, float* src1Val, uint32_t* outIdx, uint32_t* src0Idx, uint32_t* src1Idx,
+    void* stream);
 
 class TPARTARGMAX_Test : public testing::Test {};
 
@@ -35,7 +36,7 @@ constexpr int kValidCols1 = 32;
 
 static std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     return "../" + std::string(testInfo->test_suite_name()) + "." + testInfo->name();
 }
 
@@ -58,14 +59,14 @@ TEST_F(TPARTARGMAX_Test, case_float_64x64_src1_32x32)
     AllocateAndLoadData(src1ValHost, src1ValDevice, valSize, goldenDir + "/input1_val.bin");
     AllocateAndLoadData(src0IdxHost, src0IdxDevice, idxSize, goldenDir + "/input0_idx.bin");
     AllocateAndLoadData(src1IdxHost, src1IdxDevice, idxSize, goldenDir + "/input1_idx.bin");
-    aclrtMallocHost((void **)(&dstValHost), valSize);
-    aclrtMalloc((void **)&dstValDevice, valSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMallocHost((void **)(&dstIdxHost), idxSize);
-    aclrtMalloc((void **)&dstIdxDevice, idxSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstValHost), valSize);
+    aclrtMalloc((void**)&dstValDevice, valSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstIdxHost), idxSize);
+    aclrtMalloc((void**)&dstIdxDevice, idxSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
-    RunPartArgKernelAndGetResults(LaunchTPARTARGMAX<kRows, kCols, kValidRows1, kValidCols1>, stream, dstValDevice,
-                                  src0ValDevice, src1ValDevice, dstIdxDevice, src0IdxDevice, src1IdxDevice, dstValHost,
-                                  dstIdxHost, valSize, idxSize);
+    RunPartArgKernelAndGetResults(
+        LaunchTPARTARGMAX<kRows, kCols, kValidRows1, kValidCols1>, stream, dstValDevice, src0ValDevice, src1ValDevice,
+        dstIdxDevice, src0IdxDevice, src1IdxDevice, dstValHost, dstIdxHost, valSize, idxSize);
 
     WriteFile(goldenDir + "/output_val.bin", dstValHost, valSize);
     WriteFile(goldenDir + "/output_idx.bin", dstIdxHost, idxSize);

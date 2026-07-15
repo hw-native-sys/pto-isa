@@ -18,26 +18,25 @@ template <typename T>
 struct TColMaxOp {
     using PadType = typename Padding<T>::Type;
     static constexpr auto InitVal = Padding<T>::Min;
-    PTO_INTERNAL static void ReduceInstr(RegTensor<T> &dst, RegTensor<T> &src0, RegTensor<T> &src1, MaskReg &pReg)
+    PTO_INTERNAL static void ReduceInstr(RegTensor<T>& dst, RegTensor<T>& src0, RegTensor<T>& src1, MaskReg& pReg)
     {
         vmax(dst, src0, src1, pReg, MODE_ZEROING);
     }
 };
 
 template <typename T, typename TileDataOut, typename TileDataIn>
-__tf__ PTO_INTERNAL OP_NAME(TCOLMAX)
-    OP_TYPE(reduce) void TColMax(typename TileDataOut::TileDType __out__ dstData,
-                                 typename TileDataIn::TileDType __in__ srcData, unsigned validRow, unsigned validCol,
-                                 unsigned version = VFImplKind::VFIMPL_DEFAULT)
+__tf__ PTO_INTERNAL OP_NAME(TCOLMAX) OP_TYPE(reduce) void TColMax(
+    typename TileDataOut::TileDType __out__ dstData, typename TileDataIn::TileDType __in__ srcData, unsigned validRow,
+    unsigned validCol, unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
-    __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
-    __ubuf__ T *src = (__ubuf__ T *)__cce_get_tile_ptr(srcData);
+    __ubuf__ T* dst = (__ubuf__ T*)__cce_get_tile_ptr(dstData);
+    __ubuf__ T* src = (__ubuf__ T*)__cce_get_tile_ptr(srcData);
 
     TColReduceInstr<TColMaxOp<T>, T, TileDataIn>(dst, src, validRow, validCol, version);
 }
 
 template <typename TileDataOut, typename TileDataIn>
-PTO_INTERNAL void TCOLMAX_IMPL(TileDataOut &dst, TileDataIn &src)
+PTO_INTERNAL void TCOLMAX_IMPL(TileDataOut& dst, TileDataIn& src)
 {
     unsigned validCol = src.GetValidCol();
     unsigned validRow = src.GetValidRow();

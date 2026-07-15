@@ -14,9 +14,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-template <typename T, uint64_t dstS1, uint64_t dstS0, uint64_t offsetS1, uint64_t offsetS0, uint64_t srcS1,
-          uint64_t srcS0>
-__global__ AICORE void runTGATHERB(__gm__ T __out__ *out, __gm__ T __in__ *src, __gm__ uint32_t __in__ *offset)
+template <
+    typename T, uint64_t dstS1, uint64_t dstS0, uint64_t offsetS1, uint64_t offsetS0, uint64_t srcS1, uint64_t srcS0>
+__global__ AICORE void runTGATHERB(__gm__ T __out__* out, __gm__ T __in__* src, __gm__ uint32_t __in__* offset)
 {
     using GlobalDataDst = GlobalTensor<T, pto::Shape<1, 1, 1, dstS1, dstS0>, pto::Stride<1, 1, 1, dstS0, 1>>;
 
@@ -61,25 +61,25 @@ __global__ AICORE void runTGATHERB(__gm__ T __out__ *out, __gm__ T __in__ *src, 
     out = dstGlobal.data();
 }
 
-template <typename T, uint64_t dstS1, uint64_t dstS0, uint64_t offsetS1, uint64_t offsetS0, uint64_t srcS1,
-          uint64_t srcS0>
-void LaunchTGatherB(T *out, T *src, uint32_t *offset, void *stream)
+template <
+    typename T, uint64_t dstS1, uint64_t dstS0, uint64_t offsetS1, uint64_t offsetS0, uint64_t srcS1, uint64_t srcS0>
+void LaunchTGatherB(T* out, T* src, uint32_t* offset, void* stream)
 {
     runTGATHERB<T, dstS1, dstS0, offsetS1, offsetS0, srcS1, srcS0><<<1, nullptr, stream>>>(out, src, offset);
 }
 
-template void LaunchTGatherB<float, 2, 128, 2, 16, 2, 128>(float *out, float *src, uint32_t *offset, void *stream);
-template void LaunchTGatherB<int32_t, 2, 128, 2, 16, 2, 128>(int32_t *out, int32_t *src, uint32_t *offset,
-                                                             void *stream);
-template void LaunchTGatherB<uint32_t, 2, 128, 2, 16, 2, 128>(uint32_t *out, uint32_t *src, uint32_t *offset,
-                                                              void *stream);
-template void LaunchTGatherB<int16_t, 1, 32768, 1, 2048, 1, 32768>(int16_t *out, int16_t *src, uint32_t *offset,
-                                                                   void *stream);
-template void LaunchTGatherB<uint16_t, 257, 128, 257, 8, 257, 128>(uint16_t *out, uint16_t *src, uint32_t *offset,
-                                                                   void *stream);
-template void LaunchTGatherB<half, 1, 32768, 1, 2048, 1, 32768>(half *out, half *src, uint32_t *offset, void *stream);
-template void LaunchTGatherB<int8_t, 2, 256, 2, 8, 2, 256>(int8_t *out, int8_t *src, uint32_t *offset, void *stream);
-template void LaunchTGatherB<int8_t, 2, 32768, 2, 1024, 2, 32768>(int8_t *out, int8_t *src, uint32_t *offset,
-                                                                  void *stream);
-template void LaunchTGatherB<uint8_t, 2, 32768, 2, 1024, 2, 32768>(uint8_t *out, uint8_t *src, uint32_t *offset,
-                                                                   void *stream);
+template void LaunchTGatherB<float, 2, 128, 2, 16, 2, 128>(float* out, float* src, uint32_t* offset, void* stream);
+template void LaunchTGatherB<int32_t, 2, 128, 2, 16, 2, 128>(
+    int32_t* out, int32_t* src, uint32_t* offset, void* stream);
+template void LaunchTGatherB<uint32_t, 2, 128, 2, 16, 2, 128>(
+    uint32_t* out, uint32_t* src, uint32_t* offset, void* stream);
+template void LaunchTGatherB<int16_t, 1, 32768, 1, 2048, 1, 32768>(
+    int16_t* out, int16_t* src, uint32_t* offset, void* stream);
+template void LaunchTGatherB<uint16_t, 257, 128, 257, 8, 257, 128>(
+    uint16_t* out, uint16_t* src, uint32_t* offset, void* stream);
+template void LaunchTGatherB<half, 1, 32768, 1, 2048, 1, 32768>(half* out, half* src, uint32_t* offset, void* stream);
+template void LaunchTGatherB<int8_t, 2, 256, 2, 8, 2, 256>(int8_t* out, int8_t* src, uint32_t* offset, void* stream);
+template void LaunchTGatherB<int8_t, 2, 32768, 2, 1024, 2, 32768>(
+    int8_t* out, int8_t* src, uint32_t* offset, void* stream);
+template void LaunchTGatherB<uint8_t, 2, 32768, 2, 1024, 2, 32768>(
+    uint8_t* out, uint8_t* src, uint32_t* offset, void* stream);

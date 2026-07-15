@@ -20,7 +20,7 @@ namespace pto {
 template <typename T>
 struct RemSOp {
     static constexpr bool isDynFunc = false;
-    PTO_INTERNAL static void BinSInstr(RegTensor<T> &dst, RegTensor<T> &src0, T scalar, MaskReg &preg)
+    PTO_INTERNAL static void BinSInstr(RegTensor<T>& dst, RegTensor<T>& src0, T scalar, MaskReg& preg)
     {
         RegTensor<T> src1;
         vdup(src1, scalar, preg, MODE_ZEROING);
@@ -60,14 +60,13 @@ struct RemSOp {
 };
 
 template <typename DstTile, typename SrcTile>
-__tf__ PTO_INTERNAL OP_NAME(TREMS)
-    OP_TYPE(element_wise) void TRemS(typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src,
-                                     typename SrcTile::DType scalar, unsigned kValidRows, unsigned kValidCols,
-                                     VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
+__tf__ PTO_INTERNAL OP_NAME(TREMS) OP_TYPE(element_wise) void TRemS(
+    typename DstTile::TileDType __out__ dst, typename SrcTile::TileDType __in__ src, typename SrcTile::DType scalar,
+    unsigned kValidRows, unsigned kValidCols, VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
 {
     using T = typename DstTile::DType;
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* srcPtr = (__ubuf__ T*)__cce_get_tile_ptr(src);
 
     constexpr unsigned blockSizeElem = CCE_VL / sizeof(T);
     constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
@@ -84,22 +83,25 @@ PTO_INTERNAL void TRemSCheck(unsigned srcValidRow, unsigned srcValidCol, unsigne
     using T = typename DstTile::DType;
     static_assert(std::is_same_v<T, typename SrcTile::DType>, "The data type must be same of src and dst");
     static_assert((sizeof(T) == 2) || (sizeof(T) == 4), "TREMS: Invalid data type");
-    static_assert((DstTile::Loc == TileType::Vec) && (SrcTile::Loc == TileType::Vec),
-                  "TileType of dst and src tiles must be TileType::Vec.");
-    static_assert((DstTile::ValidCol <= DstTile::Cols) && (DstTile::ValidRow <= DstTile::Rows) &&
-                      (SrcTile::ValidCol <= SrcTile::Cols) && (SrcTile::ValidRow <= SrcTile::Rows),
-                  "Number of valid columns and rows must not be greater than number of tile columns and rows.");
+    static_assert(
+        (DstTile::Loc == TileType::Vec) && (SrcTile::Loc == TileType::Vec),
+        "TileType of dst and src tiles must be TileType::Vec.");
+    static_assert(
+        (DstTile::ValidCol <= DstTile::Cols) && (DstTile::ValidRow <= DstTile::Rows) &&
+            (SrcTile::ValidCol <= SrcTile::Cols) && (SrcTile::ValidRow <= SrcTile::Rows),
+        "Number of valid columns and rows must not be greater than number of tile columns and rows.");
 }
 
 template <auto PrecisionType = RemSAlgorithm::DEFAULT, typename DstTile, typename SrcTile, typename TileDataTmp>
-PTO_INTERNAL void TREMS_IMPL(DstTile &dst, SrcTile &src, typename SrcTile::DType scalar, TileDataTmp &tmp)
+PTO_INTERNAL void TREMS_IMPL(DstTile& dst, SrcTile& src, typename SrcTile::DType scalar, TileDataTmp& tmp)
 {
     using T = typename DstTile::DType;
     unsigned validRow = dst.GetValidRow();
     unsigned validCol = dst.GetValidCol();
 
-    PTO_ASSERT((src.GetValidCol() == validCol) && (src.GetValidRow() == validRow),
-               "Number of validColumns and validRows of src and dst must be the same.");
+    PTO_ASSERT(
+        (src.GetValidCol() == validCol) && (src.GetValidRow() == validRow),
+        "Number of validColumns and validRows of src and dst must be the same.");
 
     TRemSCheck<DstTile, SrcTile>(src.GetValidRow(), src.GetValidCol(), validRow, validCol);
     TRemS<DstTile, SrcTile>(dst.data(), src.data(), scalar, validRow, validCol);

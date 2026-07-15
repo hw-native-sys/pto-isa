@@ -50,7 +50,7 @@ TEST(TGetAsyncUrma, Vec_Int32_MR_Over512MB)
     ASSERT_TRUE((RunGetAsyncUrmaRootGet<int32_t, 67108864>(2, 2, 0, 0)));
 }
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     CommMpiInit(&argc, &argv);
     ::testing::InitGoogleTest(&argc, argv);

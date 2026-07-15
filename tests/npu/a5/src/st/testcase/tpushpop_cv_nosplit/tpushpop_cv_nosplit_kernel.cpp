@@ -43,8 +43,8 @@ AICORE constexpr inline T CeilAlign(T num_1, T num_2)
  * out (accTile + bias) with TADD.  AIV1 is idle throughout the FIFO loop.
  */
 template <typename InT, typename OutT, int TOTAL_M, int CASE_TILE_M, int K, int N>
-__global__ AICORE void runTPushPopMatmulAddNoSplit(__gm__ OutT *out, __gm__ InT *srcA, __gm__ InT *srcB,
-                                                   __gm__ OutT *bias)
+__global__ AICORE void runTPushPopMatmulAddNoSplit(
+    __gm__ OutT* out, __gm__ InT* srcA, __gm__ InT* srcB, __gm__ OutT* bias)
 {
     constexpr uint32_t TILE_K = K;
     constexpr uint32_t TILE_N = N;
@@ -68,21 +68,25 @@ __global__ AICORE void runTPushPopMatmulAddNoSplit(__gm__ OutT *out, __gm__ InT 
     // free, so DefaultSplit must be TILE_NO_SPLIT to avoid a two-core deadlock
     // in the TPipe destructor.
     using MatPipe = TPipe<FLAG_ID, Direction::DIR_C2V, sizeof(OutT) * CASE_TILE_M * TILE_N, FIFO_DEPTH>;
-    MatPipe mPipe((__gm__ void *)(uint64_t)0x0, (uint32_t)0x0, (uint32_t)0x0);
+    MatPipe mPipe((__gm__ void*)(uint64_t)0x0, (uint32_t)0x0, (uint32_t)0x0);
 
     constexpr uint32_t blockAlign = C0_SIZE_BYTE / sizeof(InT);
     constexpr uint32_t ALIGNED_M = CeilAlign<uint32_t>(CASE_TILE_M, 16);
     constexpr uint32_t ALIGNED_K = CeilAlign<uint32_t>(TILE_K, blockAlign);
     constexpr uint32_t ALIGNED_N = CeilAlign<uint32_t>(TILE_N, blockAlign);
 
-    using GlobalA = GlobalTensor<InT, pto::Shape<1, 1, 1, CASE_TILE_M, TILE_K>,
-                                 pto::Stride<TOTAL_M * TILE_K, TOTAL_M * TILE_K, CASE_TILE_M * TILE_K, TILE_K, 1>>;
-    using GlobalB = GlobalTensor<InT, pto::Shape<1, 1, 1, TILE_K, TILE_N>,
-                                 pto::Stride<TILE_K * TILE_N, TILE_K * TILE_N, TILE_K * TILE_N, TILE_N, 1>>;
-    using GlobalBias = GlobalTensor<OutT, pto::Shape<1, 1, 1, CASE_TILE_M, TILE_N>,
-                                    pto::Stride<TOTAL_M * TILE_N, TOTAL_M * TILE_N, CASE_TILE_M * TILE_N, TILE_N, 1>>;
-    using GlobalOut = GlobalTensor<OutT, pto::Shape<1, 1, 1, CASE_TILE_M, TILE_N>,
-                                   pto::Stride<TOTAL_M * TILE_N, TOTAL_M * TILE_N, CASE_TILE_M * TILE_N, TILE_N, 1>>;
+    using GlobalA = GlobalTensor<
+        InT, pto::Shape<1, 1, 1, CASE_TILE_M, TILE_K>,
+        pto::Stride<TOTAL_M * TILE_K, TOTAL_M * TILE_K, CASE_TILE_M * TILE_K, TILE_K, 1>>;
+    using GlobalB = GlobalTensor<
+        InT, pto::Shape<1, 1, 1, TILE_K, TILE_N>,
+        pto::Stride<TILE_K * TILE_N, TILE_K * TILE_N, TILE_K * TILE_N, TILE_N, 1>>;
+    using GlobalBias = GlobalTensor<
+        OutT, pto::Shape<1, 1, 1, CASE_TILE_M, TILE_N>,
+        pto::Stride<TOTAL_M * TILE_N, TOTAL_M * TILE_N, CASE_TILE_M * TILE_N, TILE_N, 1>>;
+    using GlobalOut = GlobalTensor<
+        OutT, pto::Shape<1, 1, 1, CASE_TILE_M, TILE_N>,
+        pto::Stride<TOTAL_M * TILE_N, TOTAL_M * TILE_N, CASE_TILE_M * TILE_N, TILE_N, 1>>;
 
     using TileMatA =
         Tile<TileType::Mat, InT, ALIGNED_M, ALIGNED_K, BLayout::ColMajor, CASE_TILE_M, TILE_K, SLayout::RowMajor, 512>;
@@ -206,26 +210,26 @@ __global__ AICORE void runTPushPopMatmulAddNoSplit(__gm__ OutT *out, __gm__ InT 
 }
 
 template <int32_t tilingKey>
-void LaunchTPushPopMatmulAddNoSplit(uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *bias, void *stream)
+void LaunchTPushPopMatmulAddNoSplit(uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* bias, void* stream)
 {
     if constexpr (tilingKey == 1) {
-        runTPushPopMatmulAddNoSplit<half, float, 16, 16, 32, 32>
-            <<<1, nullptr, stream>>>(reinterpret_cast<float *>(out), reinterpret_cast<half *>(srcA),
-                                     reinterpret_cast<half *>(srcB), reinterpret_cast<float *>(bias));
+        runTPushPopMatmulAddNoSplit<half, float, 16, 16, 32, 32><<<1, nullptr, stream>>>(
+            reinterpret_cast<float*>(out), reinterpret_cast<half*>(srcA), reinterpret_cast<half*>(srcB),
+            reinterpret_cast<float*>(bias));
     } else if constexpr (tilingKey == 2) {
-        runTPushPopMatmulAddNoSplit<half, float, 32, 16, 32, 32>
-            <<<1, nullptr, stream>>>(reinterpret_cast<float *>(out), reinterpret_cast<half *>(srcA),
-                                     reinterpret_cast<half *>(srcB), reinterpret_cast<float *>(bias));
+        runTPushPopMatmulAddNoSplit<half, float, 32, 16, 32, 32><<<1, nullptr, stream>>>(
+            reinterpret_cast<float*>(out), reinterpret_cast<half*>(srcA), reinterpret_cast<half*>(srcB),
+            reinterpret_cast<float*>(bias));
     } else if constexpr (tilingKey == 3) {
-        runTPushPopMatmulAddNoSplit<float, float, 16, 16, 32, 32>
-            <<<1, nullptr, stream>>>(reinterpret_cast<float *>(out), reinterpret_cast<float *>(srcA),
-                                     reinterpret_cast<float *>(srcB), reinterpret_cast<float *>(bias));
+        runTPushPopMatmulAddNoSplit<float, float, 16, 16, 32, 32><<<1, nullptr, stream>>>(
+            reinterpret_cast<float*>(out), reinterpret_cast<float*>(srcA), reinterpret_cast<float*>(srcB),
+            reinterpret_cast<float*>(bias));
     }
 }
 
-template void LaunchTPushPopMatmulAddNoSplit<1>(uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *bias,
-                                                void *stream);
-template void LaunchTPushPopMatmulAddNoSplit<2>(uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *bias,
-                                                void *stream);
-template void LaunchTPushPopMatmulAddNoSplit<3>(uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *bias,
-                                                void *stream);
+template void LaunchTPushPopMatmulAddNoSplit<1>(
+    uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* bias, void* stream);
+template void LaunchTPushPopMatmulAddNoSplit<2>(
+    uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* bias, void* stream);
+template void LaunchTPushPopMatmulAddNoSplit<3>(
+    uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* bias, void* stream);

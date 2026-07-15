@@ -46,12 +46,12 @@ using sdma_base_config_t = SdmaBaseConfig;
 // Context types for SDMA async operations
 // ============================================================================
 struct TmpBuffer {
-    __ubuf__ uint8_t *addr;
+    __ubuf__ uint8_t* addr;
     uint32_t size;
 };
 
 struct SdmaExecContext {
-    __gm__ uint8_t *contextGm;
+    __gm__ uint8_t* contextGm;
     TmpBuffer tmpBuf;
     uint32_t syncId;
     uint32_t channelGroupIdx;
@@ -83,13 +83,13 @@ constexpr uint64_t kDefaultSdmaBlockBytes = 1024 * 1024;
 namespace urma {
 
 struct UrmaExecContext {
-    __gm__ uint8_t *contextGm{nullptr};
+    __gm__ uint8_t* contextGm{nullptr};
     uint32_t destRankId{0};
     uint32_t qpIdx{0};
 };
 
 struct UrmaEventContext {
-    __gm__ uint8_t *contextGm{nullptr};
+    __gm__ uint8_t* contextGm{nullptr};
 };
 
 struct UrmaSession {

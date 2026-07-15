@@ -21,8 +21,8 @@ namespace TQuantTest {
 
 // FP32 --> INT8 SYM
 template <int validRows, int validCols, int mode>
-__global__ AICORE void runTQuantInt8Sym(__gm__ int8_t __out__ *out_s8, __gm__ float __in__ *src,
-                                        __gm__ float __in__ *scale)
+__global__ AICORE void runTQuantInt8Sym(
+    __gm__ int8_t __out__* out_s8, __gm__ float __in__* src, __gm__ float __in__* scale)
 {
     constexpr int paddedCols_b32 = PTO_CEIL(validCols, BLOCK_BYTE_SIZE / sizeof(float));
     constexpr int paddedCols_b8 = PTO_CEIL(validCols, BLOCK_BYTE_SIZE / sizeof(int8_t));
@@ -70,8 +70,8 @@ __global__ AICORE void runTQuantInt8Sym(__gm__ int8_t __out__ *out_s8, __gm__ fl
 
 // FP32 --> INT8 ASYM
 template <int validRows, int validCols, int mode>
-__global__ AICORE void runTQuantInt8Asym(__gm__ uint8_t __out__ *out_u8, __gm__ float __in__ *src,
-                                         __gm__ float __in__ *scale, __gm__ float __in__ *offset)
+__global__ AICORE void runTQuantInt8Asym(
+    __gm__ uint8_t __out__* out_u8, __gm__ float __in__* src, __gm__ float __in__* scale, __gm__ float __in__* offset)
 {
     // pad each row to multiple of 32 elements
     constexpr int paddedCols_b32 = PTO_CEIL(validCols, BLOCK_BYTE_SIZE / sizeof(float));
@@ -217,8 +217,9 @@ __global__ AICORE void runTQuantInt8AsymNoTmp(__gm__ uint8_t __out__ *out_u8, __
 }
 
 template <int validRows, int validCols, int mode, pto::QuantType quantType>
-void LaunchTQuantInt8(std::conditional_t<quantType == pto::QuantType::INT8_SYM, int8_t, uint8_t> *dst, float *src,
-                      float *scale, void *stream, float *offset = nullptr)
+void LaunchTQuantInt8(
+    std::conditional_t<quantType == pto::QuantType::INT8_SYM, int8_t, uint8_t>* dst, float* src, float* scale,
+    void* stream, float* offset = nullptr)
 {
     if constexpr (quantType == pto::QuantType::INT8_SYM) {
         runTQuantInt8Sym<validRows, validCols, mode><<<1, nullptr, stream>>>(dst, src, scale);
@@ -240,43 +241,33 @@ void LaunchTQuantInt8NoTmp(std::conditional_t<quantType == pto::QuantType::INT8_
 
 } // namespace TQuantTest
 
-template void TQuantTest::LaunchTQuantInt8<64, 128, 0, pto::QuantType::INT8_SYM>(int8_t *dst, float *src, float *scale,
-                                                                                 void *stream, float *offset);
-template void TQuantTest::LaunchTQuantInt8<128, 128, 0, pto::QuantType::INT8_SYM>(int8_t *dst, float *src, float *scale,
-                                                                                  void *stream, float *offset);
-template void TQuantTest::LaunchTQuantInt8<2, 129, 0, pto::QuantType::INT8_SYM>(int8_t *dst, float *src, float *scale,
-                                                                                void *stream, float *offset);
-template void TQuantTest::LaunchTQuantInt8<2, 122, 0, pto::QuantType::INT8_SYM>(int8_t *dst, float *src, float *scale,
-                                                                                void *stream, float *offset);
-template void TQuantTest::LaunchTQuantInt8<16, 127, 0, pto::QuantType::INT8_SYM>(int8_t *dst, float *src, float *scale,
-                                                                                 void *stream, float *offset);
-template void TQuantTest::LaunchTQuantInt8<8, 130, 0, pto::QuantType::INT8_SYM>(int8_t *dst, float *src, float *scale,
-                                                                                void *stream, float *offset);
-template void TQuantTest::LaunchTQuantInt8<64, 65, 0, pto::QuantType::INT8_SYM>(int8_t *dst, float *src, float *scale,
-                                                                                void *stream, float *offset);
-template void TQuantTest::LaunchTQuantInt8<64, 128, 0, pto::QuantType::INT8_ASYM>(uint8_t *dst, float *src,
-                                                                                  float *scale, void *stream,
-                                                                                  float *offset);
-template void TQuantTest::LaunchTQuantInt8<128, 128, 0, pto::QuantType::INT8_ASYM>(uint8_t *dst, float *src,
-                                                                                   float *scale, void *stream,
-                                                                                   float *offset);
-template void TQuantTest::LaunchTQuantInt8<32, 72, 0, pto::QuantType::INT8_ASYM>(uint8_t *dst, float *src, float *scale,
-                                                                                 void *stream, float *offset);
-
-// INT8 SYM NoTmp cases
-template void TQuantTest::LaunchTQuantInt8NoTmp<64, 128, 0, pto::QuantType::INT8_SYM>(int8_t *dst, float *src,
-                                                                                      float *scale, void *stream,
-                                                                                      float *offset);
-template void TQuantTest::LaunchTQuantInt8NoTmp<128, 128, 0, pto::QuantType::INT8_SYM>(int8_t *dst, float *src,
-                                                                                       float *scale, void *stream,
-                                                                                       float *offset);
-// INT8 ASYM NoTmp cases
-template void TQuantTest::LaunchTQuantInt8NoTmp<64, 128, 0, pto::QuantType::INT8_ASYM>(uint8_t *dst, float *src,
-                                                                                       float *scale, void *stream,
-                                                                                       float *offset);
-template void TQuantTest::LaunchTQuantInt8NoTmp<128, 128, 0, pto::QuantType::INT8_ASYM>(uint8_t *dst, float *src,
-                                                                                        float *scale, void *stream,
-                                                                                        float *offset);
-template void TQuantTest::LaunchTQuantInt8NoTmp<32, 72, 0, pto::QuantType::INT8_ASYM>(uint8_t *dst, float *src,
-                                                                                      float *scale, void *stream,
-                                                                                      float *offset);
+template void TQuantTest::LaunchTQuantInt8<64, 128, 0, pto::QuantType::INT8_SYM>(
+    int8_t* dst, float* src, float* scale, void* stream, float* offset);
+template void TQuantTest::LaunchTQuantInt8<128, 128, 0, pto::QuantType::INT8_SYM>(
+    int8_t* dst, float* src, float* scale, void* stream, float* offset);
+template void TQuantTest::LaunchTQuantInt8<2, 129, 0, pto::QuantType::INT8_SYM>(
+    int8_t* dst, float* src, float* scale, void* stream, float* offset);
+template void TQuantTest::LaunchTQuantInt8<2, 122, 0, pto::QuantType::INT8_SYM>(
+    int8_t* dst, float* src, float* scale, void* stream, float* offset);
+template void TQuantTest::LaunchTQuantInt8<16, 127, 0, pto::QuantType::INT8_SYM>(
+    int8_t* dst, float* src, float* scale, void* stream, float* offset);
+template void TQuantTest::LaunchTQuantInt8<8, 130, 0, pto::QuantType::INT8_SYM>(
+    int8_t* dst, float* src, float* scale, void* stream, float* offset);
+template void TQuantTest::LaunchTQuantInt8<64, 65, 0, pto::QuantType::INT8_SYM>(
+    int8_t* dst, float* src, float* scale, void* stream, float* offset);
+template void TQuantTest::LaunchTQuantInt8<64, 128, 0, pto::QuantType::INT8_ASYM>(
+    uint8_t* dst, float* src, float* scale, void* stream, float* offset);
+template void TQuantTest::LaunchTQuantInt8<128, 128, 0, pto::QuantType::INT8_ASYM>(
+    uint8_t* dst, float* src, float* scale, void* stream, float* offset);
+template void TQuantTest::LaunchTQuantInt8<32, 72, 0, pto::QuantType::INT8_ASYM>(
+    uint8_t* dst, float* src, float* scale, void* stream, float* offset);
+template void TQuantTest::LaunchTQuantInt8<2, 129, 0, pto::QuantType::INT8_ASYM>(
+    uint8_t* dst, float* src, float* scale, void* stream, float* offset);
+template void TQuantTest::LaunchTQuantInt8<2, 122, 0, pto::QuantType::INT8_ASYM>(
+    uint8_t* dst, float* src, float* scale, void* stream, float* offset);
+template void TQuantTest::LaunchTQuantInt8<16, 127, 0, pto::QuantType::INT8_ASYM>(
+    uint8_t* dst, float* src, float* scale, void* stream, float* offset);
+template void TQuantTest::LaunchTQuantInt8<8, 130, 0, pto::QuantType::INT8_ASYM>(
+    uint8_t* dst, float* src, float* scale, void* stream, float* offset);
+template void TQuantTest::LaunchTQuantInt8<64, 65, 0, pto::QuantType::INT8_ASYM>(
+    uint8_t* dst, float* src, float* scale, void* stream, float* offset);

@@ -14,9 +14,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, bool isInPlace = false,
-          bool highPrecision = false>
-__global__ AICORE void runTRecip(__gm__ T __out__ *out, __gm__ T __in__ *src)
+template <
+    typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, bool isInPlace = false, bool highPrecision = false>
+__global__ AICORE void runTRecip(__gm__ T __out__* out, __gm__ T __in__* src)
 {
     using DynShapeDim5 = Shape<1, 1, 1, kGRows_, kGCols_>;
     using DynStridDim5 = pto::Stride<1, 1, 1, kGCols_, 1>;
@@ -49,24 +49,24 @@ __global__ AICORE void runTRecip(__gm__ T __out__ *out, __gm__ T __in__ *src)
     out = dstGlobal.data();
 }
 
-template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, bool isInPlace = false,
-          bool highPrecision = false>
-void LaunchTRecip(T *out, T *src, void *stream)
+template <
+    typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, bool isInPlace = false, bool highPrecision = false>
+void LaunchTRecip(T* out, T* src, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
         runTRecip<half, kGRows_, kGCols_, kTRows_, kTCols_, isInPlace, highPrecision>
-            <<<1, nullptr, stream>>>((half *)(out), (half *)(src));
+            <<<1, nullptr, stream>>>((half*)(out), (half*)(src));
     } else {
         runTRecip<T, kGRows_, kGCols_, kTRows_, kTCols_, isInPlace, highPrecision><<<1, nullptr, stream>>>(out, src);
     }
 }
 
-template void LaunchTRecip<float, 64, 64, 64, 64, true>(float *out, float *src, void *stream);
-template void LaunchTRecip<float, 64, 64, 64, 64>(float *out, float *src, void *stream);
-template void LaunchTRecip<aclFloat16, 64, 64, 64, 64, true>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTRecip<aclFloat16, 64, 64, 64, 64>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTRecip<float, 64, 64, 66, 72>(float *out, float *src, void *stream);
-template void LaunchTRecip<float, 58, 70, 66, 72>(float *out, float *src, void *stream);
-template void LaunchTRecip<float, 1, 70, 1, 72>(float *out, float *src, void *stream);
-template void LaunchTRecip<float, 2, 16, 2, 16, false, true>(float *out, float *src, void *stream);
-template void LaunchTRecip<aclFloat16, 2, 32, 2, 32, false, true>(aclFloat16 *out, aclFloat16 *src, void *stream);
+template void LaunchTRecip<float, 64, 64, 64, 64, true>(float* out, float* src, void* stream);
+template void LaunchTRecip<float, 64, 64, 64, 64>(float* out, float* src, void* stream);
+template void LaunchTRecip<aclFloat16, 64, 64, 64, 64, true>(aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTRecip<aclFloat16, 64, 64, 64, 64>(aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTRecip<float, 64, 64, 66, 72>(float* out, float* src, void* stream);
+template void LaunchTRecip<float, 58, 70, 66, 72>(float* out, float* src, void* stream);
+template void LaunchTRecip<float, 1, 70, 1, 72>(float* out, float* src, void* stream);
+template void LaunchTRecip<float, 2, 16, 2, 16, false, true>(float* out, float* src, void* stream);
+template void LaunchTRecip<aclFloat16, 2, 32, 2, 32, false, true>(aclFloat16* out, aclFloat16* src, void* stream);

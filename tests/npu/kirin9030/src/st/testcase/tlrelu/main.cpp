@@ -16,21 +16,19 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <uint32_t caseId>
-void launchTLRELUTestCase(void *out, void *src, float scalar, aclrtStream stream);
+void launchTLRELUTestCase(void* out, void* src, float scalar, aclrtStream stream);
 
 class TLRELUTest : public testing::Test {
 public:
 protected:
-    void SetUp() override
-    {}
+    void SetUp() override {}
 
-    void TearDown() override
-    {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -48,23 +46,23 @@ bool TLReluTestFramework()
 
     size_t dstByteSize = dstTileRow * dstTileCol * sizeof(T);
     size_t srcByteSize = row * col * sizeof(T);
-    T *dstHost;
-    T *srcHost;
-    T *dstDevice;
-    T *srcDevice;
+    T* dstHost;
+    T* srcHost;
+    T* dstDevice;
+    T* srcDevice;
     float scalar;
 
-    aclrtMallocHost((void **)(&dstHost), dstByteSize);
-    aclrtMallocHost((void **)(&srcHost), srcByteSize);
+    aclrtMallocHost((void**)(&dstHost), dstByteSize);
+    aclrtMallocHost((void**)(&srcHost), srcByteSize);
 
-    aclrtMalloc((void **)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", srcByteSize, srcHost, srcByteSize);
     std::string scalar_file = GetGoldenDir() + "/divider.bin";
     std::ifstream file(scalar_file, std::ios::binary);
 
-    file.read(reinterpret_cast<char *>(&scalar), 4);
+    file.read(reinterpret_cast<char*>(&scalar), 4);
     file.close();
 
     aclrtMemset(dstHost, dstByteSize, 0, dstByteSize);

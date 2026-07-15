@@ -20,16 +20,16 @@ constexpr int kBitsPerByte = 8;
 
 // ---- uint16 helper: histogram one byte of a 2-byte element ----
 template <HistByte byte, typename TileDst, typename TileSrc, typename TileIdx>
-PTO_INTERNAL std::enable_if_t<std::is_same_v<typename TileSrc::DType, uint16_t>> THISTOGRAM_IMPL(TileDst &dst,
-                                                                                                 TileSrc &src,
-                                                                                                 TileIdx &idx)
+PTO_INTERNAL std::enable_if_t<std::is_same_v<typename TileSrc::DType, uint16_t>> THISTOGRAM_IMPL(
+    TileDst& dst, TileSrc& src, TileIdx& idx)
 {
     using DstT = typename TileDst::DType;
     using IdxT = typename TileIdx::DType;
     static_assert(std::is_same_v<DstT, uint32_t>, "Fix: THISTOGRAM destination must be uint32_t.");
     static_assert(std::is_same_v<IdxT, uint8_t>, "Fix: THISTOGRAM index must be uint8_t.");
-    static_assert(byte == HistByte::BYTE_0 || byte == HistByte::BYTE_1,
-                  "Fix: THISTOGRAM with uint16 source only supports BYTE_0 (LSB) and BYTE_1 (MSB).");
+    static_assert(
+        byte == HistByte::BYTE_0 || byte == HistByte::BYTE_1,
+        "Fix: THISTOGRAM with uint16 source only supports BYTE_0 (LSB) and BYTE_1 (MSB).");
 
     PTO_CPU_ASSERT(dst.GetValidCol() >= 256, "Fix: THISTOGRAM destination must have at least 256 bins.");
 
@@ -69,9 +69,8 @@ inline uint8_t extractByte(uint32_t val, HistByte b)
 //   BYTE_1 → filter by byte3 == idx[0,0] AND byte2 == idx[1,0]
 //   BYTE_0 → filter by byte3/byte2/byte1 == idx rows 0/1/2
 template <HistByte byte, typename TileDst, typename TileSrc, typename TileIdx>
-PTO_INTERNAL std::enable_if_t<std::is_same_v<typename TileSrc::DType, uint32_t>> THISTOGRAM_IMPL(TileDst &dst,
-                                                                                                 TileSrc &src,
-                                                                                                 TileIdx &idx)
+PTO_INTERNAL std::enable_if_t<std::is_same_v<typename TileSrc::DType, uint32_t>> THISTOGRAM_IMPL(
+    TileDst& dst, TileSrc& src, TileIdx& idx)
 {
     using DstT = typename TileDst::DType;
     using IdxT = typename TileIdx::DType;

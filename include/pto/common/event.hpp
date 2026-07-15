@@ -18,8 +18,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-enum class Op : uint16_t
-{
+enum class Op : uint16_t {
     TLOAD,      /* GM to Vec/Mat/ */
     TSTORE_VEC, /* Vec to GM */
     SCALAR,
@@ -316,8 +315,8 @@ public:
     {
         event_t id = NextId();
 #if defined(__CPU_SIM) || defined(__COSTMODEL)
-        PTO_CPU_ASSERT(!(OccupiedMask() & (1u << static_cast<uint8_t>(id))),
-                       "Event ID still occupied - likely missing Wait()");
+        PTO_CPU_ASSERT(
+            !(OccupiedMask() & (1u << static_cast<uint8_t>(id))), "Event ID still occupied - likely missing Wait()");
         OccupiedMask() |= (1u << static_cast<uint8_t>(id));
 #endif
         NextId() = (event_t)(((uint8_t)NextId() + 1) % EVENT_ID_MAX);
@@ -330,25 +329,19 @@ public:
         OccupiedMask() = 0;
 #endif
     }
-    PTO_INTERNAL static event_t PeekNextId()
-    {
-        return NextId();
-    }
+    PTO_INTERNAL static event_t PeekNextId() { return NextId(); }
 #if defined(__CPU_SIM) || defined(__COSTMODEL)
-    PTO_INTERNAL static void MarkFree(event_t id)
-    {
-        OccupiedMask() &= ~(1u << static_cast<uint8_t>(id));
-    }
+    PTO_INTERNAL static void MarkFree(event_t id) { OccupiedMask() &= ~(1u << static_cast<uint8_t>(id)); }
 #endif
 
 private:
-    static event_t &NextId()
+    static event_t& NextId()
     {
         static event_t id = EVENT_ID0;
         return id;
     }
 #if defined(__CPU_SIM) || defined(__COSTMODEL)
-    static uint8_t &OccupiedMask()
+    static uint8_t& OccupiedMask()
     {
         static uint8_t mask = 0;
         return mask;
@@ -357,7 +350,7 @@ private:
 };
 
 template <typename... WaitEvents>
-PTO_INTERNAL void WaitAllEvents(WaitEvents &...events)
+PTO_INTERNAL void WaitAllEvents(WaitEvents&... events)
 {
     (events.Wait(), ...);
 }
@@ -406,13 +399,10 @@ struct EventBase : EventBaseTag {
 #endif
 #endif
 
-    PTO_INTERNAL Derived &InitAddr(uint64_t fftsAddr)
-    {
-        return self().InitAddrImpl(fftsAddr);
-    }
+    PTO_INTERNAL Derived& InitAddr(uint64_t fftsAddr) { return self().InitAddrImpl(fftsAddr); }
 
     template <uint8_t CrossCoreId = 0xff>
-    PTO_INTERNAL Derived &Wait()
+    PTO_INTERNAL Derived& Wait()
     {
 #ifndef __PTO_AUTO__
         return self().template WaitImpl<CrossCoreId>();
@@ -422,7 +412,7 @@ struct EventBase : EventBaseTag {
     }
 
     template <uint8_t CrossCoreId = 0xff>
-    PTO_INTERNAL Derived &Init()
+    PTO_INTERNAL Derived& Init()
     {
 #ifndef __PTO_AUTO__
         return self().template InitImpl<CrossCoreId>();
@@ -432,27 +422,18 @@ struct EventBase : EventBaseTag {
     }
 
     template <uint8_t CrossCoreId = 0xff>
-    PTO_INTERNAL Derived &Record()
+    PTO_INTERNAL Derived& Record()
     {
         return Init<CrossCoreId>();
     }
 
     PTO_INTERNAL EventBase() = default;
-    PTO_INTERNAL EventBase(RecordEvent)
-    {
-        Init();
-    }
+    PTO_INTERNAL EventBase(RecordEvent) { Init(); }
 
-    PTO_INTERNAL Derived &operator=(RecordEvent)
-    {
-        return Init();
-    }
+    PTO_INTERNAL Derived& operator=(RecordEvent) { return Init(); }
 
 private:
-    PTO_INTERNAL Derived &self()
-    {
-        return *static_cast<Derived *>(this);
-    }
+    PTO_INTERNAL Derived& self() { return *static_cast<Derived*>(this); }
 };
 
 } // namespace pto

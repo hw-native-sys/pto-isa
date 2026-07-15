@@ -16,7 +16,7 @@ using namespace pto;
 namespace TRowExpandTest {
 
 template <typename T, uint32_t dstRows, uint32_t dstCols>
-__global__ AICORE void runROWEXPAND(__gm__ T __out__ *out, __gm__ T __in__ *src)
+__global__ AICORE void runROWEXPAND(__gm__ T __out__* out, __gm__ T __in__* src)
 {
     using SrcDynShapeDim5 = Shape<1, 1, 1, dstRows, 1>;
     using SrcDynStridDim5 = pto::Stride<1, 1, dstRows, 1, 1>;
@@ -57,16 +57,16 @@ __global__ AICORE void runROWEXPAND(__gm__ T __out__ *out, __gm__ T __in__ *src)
 
 // dstCols = BLOCKSIZE / sizeof(T)
 template <typename T, uint32_t dstRows, uint32_t dstCols>
-void launchTROWEXPAND(T *out, T *src, void *stream)
+void launchTROWEXPAND(T* out, T* src, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
-        runROWEXPAND<half, dstRows, dstCols><<<1, nullptr, stream>>>((half *)out, (half *)src);
+        runROWEXPAND<half, dstRows, dstCols><<<1, nullptr, stream>>>((half*)out, (half*)src);
     } else {
         runROWEXPAND<T, dstRows, dstCols><<<1, nullptr, stream>>>(out, src);
     }
 }
 
-template void launchTROWEXPAND<aclFloat16, 4800, 16>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void launchTROWEXPAND<float, 7280, 8>(float *out, float *src, void *stream);
-template void launchTROWEXPAND<float, 16, 8>(float *out, float *src, void *stream);
+template void launchTROWEXPAND<aclFloat16, 4800, 16>(aclFloat16* out, aclFloat16* src, void* stream);
+template void launchTROWEXPAND<float, 7280, 8>(float* out, float* src, void* stream);
+template void launchTROWEXPAND<float, 16, 8>(float* out, float* src, void* stream);
 } // namespace TRowExpandTest

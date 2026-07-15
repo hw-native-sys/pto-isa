@@ -16,21 +16,19 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <uint32_t caseId>
-void launchTAXPYTestCase(void *out, void *src, float scalar, aclrtStream stream);
+void launchTAXPYTestCase(void* out, void* src, float scalar, aclrtStream stream);
 
 class TAXPYTest : public testing::Test {
 public:
 protected:
-    void SetUp() override
-    {}
+    void SetUp() override {}
 
-    void TearDown() override
-    {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -38,7 +36,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int oRow, int oCol>
-inline void InitDstDevice(T *dstDevice)
+inline void InitDstDevice(T* dstDevice)
 {
     constexpr int size = oRow * oCol;
     for (int k = 0; k < size; k++) {
@@ -46,8 +44,9 @@ inline void InitDstDevice(T *dstDevice)
     }
 }
 
-template <uint32_t caseId, typename T, int validRow, int validCol, int iRow = validRow, int iCol = validCol,
-          int oRow = validRow, int oCol = validCol>
+template <
+    uint32_t caseId, typename T, int validRow, int validCol, int iRow = validRow, int iCol = validCol,
+    int oRow = validRow, int oCol = validCol>
 bool TAxpyTestFramework()
 {
     aclInit(nullptr);
@@ -58,24 +57,24 @@ bool TAxpyTestFramework()
 
     size_t dstByteSize = oRow * oCol * sizeof(T);
     size_t srcByteSize = iRow * iCol * sizeof(T);
-    T *dstHost;
-    T *srcHost;
-    T *dstDevice;
-    T *srcDevice;
+    T* dstHost;
+    T* srcHost;
+    T* dstDevice;
+    T* srcDevice;
     float scalar;
 
-    aclrtMallocHost((void **)(&dstHost), dstByteSize);
-    aclrtMallocHost((void **)(&srcHost), srcByteSize);
+    aclrtMallocHost((void**)(&dstHost), dstByteSize);
+    aclrtMallocHost((void**)(&srcHost), srcByteSize);
 
-    aclrtMalloc((void **)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input_dst.bin", dstByteSize, dstHost, dstByteSize);
     ReadFile(GetGoldenDir() + "/input_src.bin", srcByteSize, srcHost, srcByteSize);
     std::string scalar_file = GetGoldenDir() + "/scalar.bin";
     std::ifstream file(scalar_file, std::ios::binary);
 
-    file.read(reinterpret_cast<char *>(&scalar), 4);
+    file.read(reinterpret_cast<char*>(&scalar), 4);
     file.close();
     aclrtMemcpy(dstDevice, dstByteSize, dstHost, dstByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(srcDevice, srcByteSize, srcHost, srcByteSize, ACL_MEMCPY_HOST_TO_DEVICE);

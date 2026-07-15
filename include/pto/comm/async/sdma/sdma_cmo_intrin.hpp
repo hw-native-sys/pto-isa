@@ -32,10 +32,10 @@ constexpr uint32_t kCmoPrefetchOpcode = 6U;
 // compute kernels and tripping a Bisheng optimizer ICE in
 // AnalysisManager::getResultImpl.
 template <typename = void>
-PTO_INTERNAL void AddOneCmoSqe(__gm__ BatchWriteChannelInfo *channelInfo, __gm__ uint8_t *src, uint32_t length,
-                               uint32_t sqTail, uint32_t taskId)
+PTO_INTERNAL void AddOneCmoSqe(
+    __gm__ BatchWriteChannelInfo* channelInfo, __gm__ uint8_t* src, uint32_t length, uint32_t sqTail, uint32_t taskId)
 {
-    __gm__ BatchWriteItem *sqe = (__gm__ BatchWriteItem *)(channelInfo->sq_base);
+    __gm__ BatchWriteItem* sqe = (__gm__ BatchWriteItem*)(channelInfo->sq_base);
     sqe += (sqTail % channelInfo->sq_depth);
 
 #ifdef PTO_NPU_ARCH_A5
@@ -87,19 +87,20 @@ PTO_INTERNAL void AddOneCmoSqe(__gm__ BatchWriteChannelInfo *channelInfo, __gm__
 }
 
 template <typename = void>
-PTO_INTERNAL void SubmitCmoPrefetchSqes(__gm__ BatchWriteChannelInfo *batchWriteChannelInfo, __gm__ uint8_t *src,
-                                        const SdmaConfig &config, uint32_t *sqTail, uint32_t sqTailLen)
+PTO_INTERNAL void SubmitCmoPrefetchSqes(
+    __gm__ BatchWriteChannelInfo* batchWriteChannelInfo, __gm__ uint8_t* src, const SdmaConfig& config,
+    uint32_t* sqTail, uint32_t sqTailLen)
 {
     for (uint32_t idx = 0U; idx < config.iter_num; ++idx) {
         uint32_t queueIdx = idx % config.queue_num;
-        __gm__ BatchWriteChannelInfo *channelInfo = batchWriteChannelInfo + queueIdx;
+        __gm__ BatchWriteChannelInfo* channelInfo = batchWriteChannelInfo + queueIdx;
 
         uint32_t transferBytes = config.block_bytes;
         if (idx == config.iter_num - 1) {
             transferBytes = config.per_core_bytes - idx * config.block_bytes;
         }
 
-        __gm__ uint8_t *srcAddr = src + config.comm_block_offset + idx * config.block_bytes;
+        __gm__ uint8_t* srcAddr = src + config.comm_block_offset + idx * config.block_bytes;
 
         AddOneCmoSqe(channelInfo, srcAddr, transferBytes, sqTail[queueIdx], sqTail[queueIdx] - channelInfo->sq_head);
 
@@ -109,9 +110,9 @@ PTO_INTERNAL void SubmitCmoPrefetchSqes(__gm__ BatchWriteChannelInfo *batchWrite
 }
 
 template <typename = void>
-PTO_INTERNAL uint64_t SdmaCmoPrefetch(__gm__ uint8_t *src, uint64_t messageLen, const SdmaExecContext &execCtx)
+PTO_INTERNAL uint64_t SdmaCmoPrefetch(__gm__ uint8_t* src, uint64_t messageLen, const SdmaExecContext& execCtx)
 {
-    __gm__ uint8_t *contextGm = execCtx.contextGm;
+    __gm__ uint8_t* contextGm = execCtx.contextGm;
     if (contextGm == nullptr || !IsValidTmpBuffer(execCtx.tmpBuf)) {
         return 0;
     }
@@ -136,9 +137,9 @@ PTO_INTERNAL uint64_t SdmaCmoPrefetch(__gm__ uint8_t *src, uint64_t messageLen, 
         return 0;
     }
 
-    __gm__ BatchWriteChannelInfo *batchWriteChannelBase =
-        (__gm__ BatchWriteChannelInfo *)(contextGm + sizeof(BatchWriteFlagInfo));
-    __gm__ BatchWriteChannelInfo *batchWriteChannelInfo = batchWriteChannelBase + channelGroupIndex * config.queue_num;
+    __gm__ BatchWriteChannelInfo* batchWriteChannelBase =
+        (__gm__ BatchWriteChannelInfo*)(contextGm + sizeof(BatchWriteFlagInfo));
+    __gm__ BatchWriteChannelInfo* batchWriteChannelInfo = batchWriteChannelBase + channelGroupIndex * config.queue_num;
 
     uint32_t sqTail[64] = {0};
     InitSqTailArray(batchWriteChannelInfo, config.queue_num, sqTail, 64, tmpBuf);
@@ -158,12 +159,12 @@ PTO_INTERNAL uint64_t SdmaCmoPrefetch(__gm__ uint8_t *src, uint64_t messageLen, 
 // Public CMO prefetch intrinsic
 // ============================================================================
 template <typename T>
-PTO_INTERNAL uint64_t __sdma_cmo_prefetch(__gm__ T *src, uint64_t prefetch_size, const SdmaExecContext &execCtx)
+PTO_INTERNAL uint64_t __sdma_cmo_prefetch(__gm__ T* src, uint64_t prefetch_size, const SdmaExecContext& execCtx)
 {
     if (prefetch_size == 0) {
         return 0;
     }
-    return detail::SdmaCmoPrefetch((__gm__ uint8_t *)src, prefetch_size, execCtx);
+    return detail::SdmaCmoPrefetch((__gm__ uint8_t*)src, prefetch_size, execCtx);
 }
 
 } // namespace sdma

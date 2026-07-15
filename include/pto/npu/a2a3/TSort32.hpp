@@ -21,9 +21,9 @@ constexpr const uint32_t HALF_DST_STRIDE_COEF = 4;
 constexpr const uint32_t MAX_UB_TMP = 32 * 255;
 
 template <typename T, typename IdxT, unsigned dstStride, unsigned srcStride>
-PTO_INTERNAL void LargeTmpBufferImpl(__ubuf__ T *dstPtr, __ubuf__ T *srcPtr, __ubuf__ IdxT *idxPtr, __ubuf__ T *tmpPtr,
-                                     unsigned validRow, unsigned repeatNumPerRow, unsigned idxStride,
-                                     unsigned srcTailPerRow, unsigned srcTailRepeatNum)
+PTO_INTERNAL void LargeTmpBufferImpl(
+    __ubuf__ T* dstPtr, __ubuf__ T* srcPtr, __ubuf__ IdxT* idxPtr, __ubuf__ T* tmpPtr, unsigned validRow,
+    unsigned repeatNumPerRow, unsigned idxStride, unsigned srcTailPerRow, unsigned srcTailRepeatNum)
 {
     T minVal = -(0.0 / 0.0);
     auto loopNum = ((repeatNumPerRow + 1 + REPEAT_MAX) - 1) / REPEAT_MAX;
@@ -31,15 +31,17 @@ PTO_INTERNAL void LargeTmpBufferImpl(__ubuf__ T *dstPtr, __ubuf__ T *srcPtr, __u
     for (int32_t i = 0; i < validRow; i++) {
         for (int32_t j = 0; j < loopNum; j++) {
             if (j < loopNum - 1) {
-                vbitsort(dstPtr + i * dstStride + j * REPEAT_MAX * BLOCK_SIZE * typeCoef,
-                         srcPtr + i * srcStride + j * REPEAT_MAX * BLOCK_SIZE,
-                         idxPtr + i * idxStride + j * REPEAT_MAX * BLOCK_SIZE, REPEAT_MAX);
+                vbitsort(
+                    dstPtr + i * dstStride + j * REPEAT_MAX * BLOCK_SIZE * typeCoef,
+                    srcPtr + i * srcStride + j * REPEAT_MAX * BLOCK_SIZE,
+                    idxPtr + i * idxStride + j * REPEAT_MAX * BLOCK_SIZE, REPEAT_MAX);
                 pipe_barrier(PIPE_V);
             } else {
                 // sort for last block
-                vbitsort(dstPtr + i * dstStride + j * REPEAT_MAX * BLOCK_SIZE * typeCoef,
-                         srcPtr + i * srcStride + j * REPEAT_MAX * BLOCK_SIZE,
-                         idxPtr + i * idxStride + j * REPEAT_MAX * BLOCK_SIZE, srcTailRepeatNum - 1);
+                vbitsort(
+                    dstPtr + i * dstStride + j * REPEAT_MAX * BLOCK_SIZE * typeCoef,
+                    srcPtr + i * srcStride + j * REPEAT_MAX * BLOCK_SIZE,
+                    idxPtr + i * idxStride + j * REPEAT_MAX * BLOCK_SIZE, srcTailRepeatNum - 1);
                 pipe_barrier(PIPE_V);
 
                 // copy row src cbuf to tmp cbuf
@@ -57,8 +59,9 @@ PTO_INTERNAL void LargeTmpBufferImpl(__ubuf__ T *dstPtr, __ubuf__ T *srcPtr, __u
                 pipe_barrier(PIPE_V);
 
                 // sort for tmp and out to dst
-                vbitsort(dstPtr + i * dstStride + (j * REPEAT_MAX + (srcTailRepeatNum - 1)) * BLOCK_SIZE * typeCoef,
-                         tmpPtr, idxPtr + i * idxStride + (j * REPEAT_MAX + (srcTailRepeatNum - 1)) * BLOCK_SIZE, 1);
+                vbitsort(
+                    dstPtr + i * dstStride + (j * REPEAT_MAX + (srcTailRepeatNum - 1)) * BLOCK_SIZE * typeCoef, tmpPtr,
+                    idxPtr + i * idxStride + (j * REPEAT_MAX + (srcTailRepeatNum - 1)) * BLOCK_SIZE, 1);
                 pipe_barrier(PIPE_V);
                 set_vector_mask(-1, -1);
             }
@@ -67,15 +70,15 @@ PTO_INTERNAL void LargeTmpBufferImpl(__ubuf__ T *dstPtr, __ubuf__ T *srcPtr, __u
 }
 
 template <typename DstTileData, typename SrcTileData, typename IdxTileData, unsigned dstStride, unsigned srcStride>
-__tf__ AICORE void TSort32Impl(typename DstTileData::TileDType __out__ dst, typename SrcTileData::TileDType __in__ src,
-                               typename IdxTileData::TileDType __in__ idx, unsigned validRow, unsigned repeatNumPerRow,
-                               unsigned idxStride)
+__tf__ AICORE void TSort32Impl(
+    typename DstTileData::TileDType __out__ dst, typename SrcTileData::TileDType __in__ src,
+    typename IdxTileData::TileDType __in__ idx, unsigned validRow, unsigned repeatNumPerRow, unsigned idxStride)
 {
     using T = typename DstTileData::DType;
     using IdxT = typename IdxTileData::DType;
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src);
-    __ubuf__ IdxT *idxPtr = (__ubuf__ IdxT *)__cce_get_tile_ptr(idx);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* srcPtr = (__ubuf__ T*)__cce_get_tile_ptr(src);
+    __ubuf__ IdxT* idxPtr = (__ubuf__ IdxT*)__cce_get_tile_ptr(idx);
 
     if (repeatNumPerRow <= REPEAT_MAX) {
         for (int32_t i = 0; i < validRow; i++) {
@@ -89,28 +92,31 @@ __tf__ AICORE void TSort32Impl(typename DstTileData::TileDType __out__ dst, type
         for (int32_t i = 0; i < validRow; i++) {
             for (int32_t j = 0; j < loopNum; j++) {
                 uint32_t repeatNum = (j == loopNum - 1) ? tailRepeatNum : REPEAT_MAX;
-                vbitsort(dstPtr + i * dstStride + j * REPEAT_MAX * BLOCK_SIZE * typeCoef,
-                         srcPtr + i * srcStride + j * REPEAT_MAX * BLOCK_SIZE,
-                         idxPtr + i * idxStride + j * REPEAT_MAX * BLOCK_SIZE, repeatNum);
+                vbitsort(
+                    dstPtr + i * dstStride + j * REPEAT_MAX * BLOCK_SIZE * typeCoef,
+                    srcPtr + i * srcStride + j * REPEAT_MAX * BLOCK_SIZE,
+                    idxPtr + i * idxStride + j * REPEAT_MAX * BLOCK_SIZE, repeatNum);
                 pipe_barrier(PIPE_V);
             }
         }
     }
 }
 
-template <typename DstTileData, typename SrcTileData, typename IdxTileData, typename TmpTileData, unsigned dstStride,
-          unsigned srcStride>
-__tf__ AICORE void TSort32Impl(typename DstTileData::TileDType __out__ dst, typename SrcTileData::TileDType __in__ src,
-                               typename IdxTileData::TileDType __in__ idx, typename TmpTileData::TileDType __in__ tmp,
-                               unsigned validRow, unsigned repeatNumPerRow, unsigned idxStride,
-                               unsigned srcShapeBytesPerRow, unsigned srcTailPerRow, unsigned srcTailRepeatNum)
+template <
+    typename DstTileData, typename SrcTileData, typename IdxTileData, typename TmpTileData, unsigned dstStride,
+    unsigned srcStride>
+__tf__ AICORE void TSort32Impl(
+    typename DstTileData::TileDType __out__ dst, typename SrcTileData::TileDType __in__ src,
+    typename IdxTileData::TileDType __in__ idx, typename TmpTileData::TileDType __in__ tmp, unsigned validRow,
+    unsigned repeatNumPerRow, unsigned idxStride, unsigned srcShapeBytesPerRow, unsigned srcTailPerRow,
+    unsigned srcTailRepeatNum)
 {
     using T = typename DstTileData::DType;
     using IdxT = typename IdxTileData::DType;
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src);
-    __ubuf__ IdxT *idxPtr = (__ubuf__ IdxT *)__cce_get_tile_ptr(idx);
-    __ubuf__ T *tmpPtr = (__ubuf__ T *)__cce_get_tile_ptr(tmp);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* srcPtr = (__ubuf__ T*)__cce_get_tile_ptr(src);
+    __ubuf__ IdxT* idxPtr = (__ubuf__ IdxT*)__cce_get_tile_ptr(idx);
+    __ubuf__ T* tmpPtr = (__ubuf__ T*)__cce_get_tile_ptr(tmp);
 
     T minVal = -(0.0 / 0.0);
     if (srcShapeBytesPerRow / sizeof(T) <= MAX_UB_TMP) {
@@ -133,29 +139,31 @@ __tf__ AICORE void TSort32Impl(typename DstTileData::TileDType __out__ dst, type
             set_vector_mask(-1, -1);
         }
     } else {
-        LargeTmpBufferImpl<T, IdxT, dstStride, srcStride>(dstPtr, srcPtr, idxPtr, tmpPtr, validRow, repeatNumPerRow,
-                                                          idxStride, srcTailPerRow, srcTailRepeatNum);
+        LargeTmpBufferImpl<T, IdxT, dstStride, srcStride>(
+            dstPtr, srcPtr, idxPtr, tmpPtr, validRow, repeatNumPerRow, idxStride, srcTailPerRow, srcTailRepeatNum);
     }
 }
 
 template <typename DstTileData, typename SrcTileData, typename IdxTileData>
 PTO_INTERNAL void CheckStatic()
 {
-    static_assert((std::is_same<typename DstTileData::DType, half>::value) ||
-                      (std::is_same<typename DstTileData::DType, float>::value),
-                  "Dst and src must be half or float.");
+    static_assert(
+        (std::is_same<typename DstTileData::DType, half>::value) ||
+            (std::is_same<typename DstTileData::DType, float>::value),
+        "Dst and src must be half or float.");
     static_assert((std::is_same<typename IdxTileData::DType, uint32_t>::value), "Idx must be uint32_t.");
-    static_assert((std::is_same<typename DstTileData::DType, typename SrcTileData::DType>::value),
-                  "Dst and src must be same.");
-    static_assert((DstTileData::Loc == TileType::Vec) && (SrcTileData::Loc == TileType::Vec) &&
-                      (IdxTileData::Loc == TileType::Vec),
-                  "TileType must be Vec.");
+    static_assert(
+        (std::is_same<typename DstTileData::DType, typename SrcTileData::DType>::value), "Dst and src must be same.");
+    static_assert(
+        (DstTileData::Loc == TileType::Vec) && (SrcTileData::Loc == TileType::Vec) &&
+            (IdxTileData::Loc == TileType::Vec),
+        "TileType must be Vec.");
     static_assert((DstTileData::isRowMajor && SrcTileData::isRowMajor && IdxTileData::isRowMajor), "Expect row major");
 }
 
 // 32 Align Interface, No tmpTile
 template <typename DstTileData, typename SrcTileData, typename IdxTileData>
-PTO_INTERNAL void TSORT32_IMPL(DstTileData &dst, SrcTileData &src, IdxTileData &idx)
+PTO_INTERNAL void TSORT32_IMPL(DstTileData& dst, SrcTileData& src, IdxTileData& idx)
 {
     CheckStatic<DstTileData, SrcTileData, IdxTileData>();
     unsigned validRow = dst.GetValidRow();
@@ -164,13 +172,13 @@ PTO_INTERNAL void TSORT32_IMPL(DstTileData &dst, SrcTileData &src, IdxTileData &
     constexpr unsigned srcStride = SrcTileData::RowStride;
     unsigned idxStride = idx.GetValidRow() == 1 ? 0 : IdxTileData::RowStride;
 
-    TSort32Impl<DstTileData, SrcTileData, IdxTileData, dstStride, srcStride>(dst.data(), src.data(), idx.data(),
-                                                                             validRow, repeatNumPerRow, idxStride);
+    TSort32Impl<DstTileData, SrcTileData, IdxTileData, dstStride, srcStride>(
+        dst.data(), src.data(), idx.data(), validRow, repeatNumPerRow, idxStride);
 }
 
 // 32 Non-Align Interface, Have tmpTile
 template <typename DstTileData, typename SrcTileData, typename IdxTileData, typename TmpTileData>
-PTO_INTERNAL void TSORT32_IMPL(DstTileData &dst, SrcTileData &src, IdxTileData &idx, TmpTileData &tmp)
+PTO_INTERNAL void TSORT32_IMPL(DstTileData& dst, SrcTileData& src, IdxTileData& idx, TmpTileData& tmp)
 {
     CheckStatic<DstTileData, SrcTileData, IdxTileData>();
     unsigned validRow = dst.GetValidRow();
@@ -194,8 +202,8 @@ PTO_INTERNAL void TSORT32_IMPL(DstTileData &dst, SrcTileData &src, IdxTileData &
             dst.data(), src.data(), idx.data(), tmp.data(), validRow, repeatNumPerRow, idxStride, srcShapeBytesPerRow,
             srcTailPerRow, srcTailRepeatNum);
     } else {
-        TSort32Impl<DstTileData, SrcTileData, IdxTileData, dstStride, srcStride>(dst.data(), src.data(), idx.data(),
-                                                                                 validRow, repeatNumPerRow, idxStride);
+        TSort32Impl<DstTileData, SrcTileData, IdxTileData, dstStride, srcStride>(
+            dst.data(), src.data(), idx.data(), validRow, repeatNumPerRow, idxStride);
     }
 }
 } // namespace pto

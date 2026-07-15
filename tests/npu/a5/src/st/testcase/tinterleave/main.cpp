@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class TINTERLEAVETest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -33,10 +31,10 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int tileH, int tileW, int vRows, int vCols>
-void LaunchTInterleave(T *out0, T *out1, T *src0, T *src1, void *stream);
+void LaunchTInterleave(T* out0, T* out1, T* src0, T* src1, void* stream);
 
 template <int tileH, int tileW, int vRows, int vCols>
-void LaunchTInterleaveHalf(aclFloat16 *out0, aclFloat16 *out1, aclFloat16 *src0, aclFloat16 *src1, void *stream);
+void LaunchTInterleaveHalf(aclFloat16* out0, aclFloat16* out1, aclFloat16* src0, aclFloat16* src1, void* stream);
 
 template <typename T, int tileH, int tileW, int vRows, int vCols, bool isHalf = false>
 void test_tinterleave()
@@ -51,15 +49,15 @@ void test_tinterleave()
     T *dst0Host, *dst1Host, *src0Host, *src1Host;
     T *dst0Device, *dst1Device, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dst0Host), fileSizeTile);
-    aclrtMallocHost((void **)(&dst1Host), fileSizeTile);
-    aclrtMallocHost((void **)(&src0Host), fileSizeTile);
-    aclrtMallocHost((void **)(&src1Host), fileSizeTile);
+    aclrtMallocHost((void**)(&dst0Host), fileSizeTile);
+    aclrtMallocHost((void**)(&dst1Host), fileSizeTile);
+    aclrtMallocHost((void**)(&src0Host), fileSizeTile);
+    aclrtMallocHost((void**)(&src1Host), fileSizeTile);
 
-    aclrtMalloc((void **)&dst0Device, fileSizeTile, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&dst1Device, fileSizeTile, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, fileSizeTile, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, fileSizeTile, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dst0Device, fileSizeTile, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dst1Device, fileSizeTile, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, fileSizeTile, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, fileSizeTile, ACL_MEM_MALLOC_HUGE_FIRST);
 
     memset(dst0Host, 0, fileSizeTile);
     memset(dst1Host, 0, fileSizeTile);
@@ -113,68 +111,20 @@ void test_tinterleave()
     EXPECT_TRUE(ret1);
 }
 
-TEST_F(TINTERLEAVETest, case_float_64x64_64x64)
-{
-    test_tinterleave<float, 64, 64, 64, 64>();
-}
-TEST_F(TINTERLEAVETest, case_int32_64x64_64x64)
-{
-    test_tinterleave<int32_t, 64, 64, 64, 64>();
-}
-TEST_F(TINTERLEAVETest, case_int16_64x64_64x64)
-{
-    test_tinterleave<int16_t, 64, 64, 64, 64>();
-}
-TEST_F(TINTERLEAVETest, case_half_16x256_16x256)
-{
-    test_tinterleave<aclFloat16, 16, 256, 16, 256, true>();
-}
-TEST_F(TINTERLEAVETest, case_float_16x32_16x32)
-{
-    test_tinterleave<float, 16, 32, 16, 32>();
-}
-TEST_F(TINTERLEAVETest, case_int32_16x32_16x32)
-{
-    test_tinterleave<int32_t, 16, 32, 16, 32>();
-}
-TEST_F(TINTERLEAVETest, case_int8_32x256_32x256)
-{
-    test_tinterleave<int8_t, 32, 256, 32, 256>();
-}
-TEST_F(TINTERLEAVETest, case_uint8_32x256_32x256)
-{
-    test_tinterleave<uint8_t, 32, 256, 32, 256>();
-}
+TEST_F(TINTERLEAVETest, case_float_64x64_64x64) { test_tinterleave<float, 64, 64, 64, 64>(); }
+TEST_F(TINTERLEAVETest, case_int32_64x64_64x64) { test_tinterleave<int32_t, 64, 64, 64, 64>(); }
+TEST_F(TINTERLEAVETest, case_int16_64x64_64x64) { test_tinterleave<int16_t, 64, 64, 64, 64>(); }
+TEST_F(TINTERLEAVETest, case_half_16x256_16x256) { test_tinterleave<aclFloat16, 16, 256, 16, 256, true>(); }
+TEST_F(TINTERLEAVETest, case_float_16x32_16x32) { test_tinterleave<float, 16, 32, 16, 32>(); }
+TEST_F(TINTERLEAVETest, case_int32_16x32_16x32) { test_tinterleave<int32_t, 16, 32, 16, 32>(); }
+TEST_F(TINTERLEAVETest, case_int8_32x256_32x256) { test_tinterleave<int8_t, 32, 256, 32, 256>(); }
+TEST_F(TINTERLEAVETest, case_uint8_32x256_32x256) { test_tinterleave<uint8_t, 32, 256, 32, 256>(); }
 // odd valid column cases
-TEST_F(TINTERLEAVETest, case_float_64x64_64x63)
-{
-    test_tinterleave<float, 64, 64, 64, 63>();
-}
-TEST_F(TINTERLEAVETest, case_int32_64x64_64x63)
-{
-    test_tinterleave<int32_t, 64, 64, 64, 63>();
-}
-TEST_F(TINTERLEAVETest, case_int16_64x64_64x63)
-{
-    test_tinterleave<int16_t, 64, 64, 64, 63>();
-}
-TEST_F(TINTERLEAVETest, case_half_16x256_16x255)
-{
-    test_tinterleave<aclFloat16, 16, 256, 16, 255, true>();
-}
-TEST_F(TINTERLEAVETest, case_float_16x32_16x31)
-{
-    test_tinterleave<float, 16, 32, 16, 31>();
-}
-TEST_F(TINTERLEAVETest, case_int32_16x32_16x31)
-{
-    test_tinterleave<int32_t, 16, 32, 16, 31>();
-}
-TEST_F(TINTERLEAVETest, case_int8_32x256_32x255)
-{
-    test_tinterleave<int8_t, 32, 256, 32, 255>();
-}
-TEST_F(TINTERLEAVETest, case_uint8_32x256_32x255)
-{
-    test_tinterleave<uint8_t, 32, 256, 32, 255>();
-}
+TEST_F(TINTERLEAVETest, case_float_64x64_64x63) { test_tinterleave<float, 64, 64, 64, 63>(); }
+TEST_F(TINTERLEAVETest, case_int32_64x64_64x63) { test_tinterleave<int32_t, 64, 64, 64, 63>(); }
+TEST_F(TINTERLEAVETest, case_int16_64x64_64x63) { test_tinterleave<int16_t, 64, 64, 64, 63>(); }
+TEST_F(TINTERLEAVETest, case_half_16x256_16x255) { test_tinterleave<aclFloat16, 16, 256, 16, 255, true>(); }
+TEST_F(TINTERLEAVETest, case_float_16x32_16x31) { test_tinterleave<float, 16, 32, 16, 31>(); }
+TEST_F(TINTERLEAVETest, case_int32_16x32_16x31) { test_tinterleave<int32_t, 16, 32, 16, 31>(); }
+TEST_F(TINTERLEAVETest, case_int8_32x256_32x255) { test_tinterleave<int8_t, 32, 256, 32, 255>(); }
+TEST_F(TINTERLEAVETest, case_uint8_32x256_32x255) { test_tinterleave<uint8_t, 32, 256, 32, 255>(); }

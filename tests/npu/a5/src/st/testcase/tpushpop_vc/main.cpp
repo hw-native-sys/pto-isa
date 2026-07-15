@@ -16,20 +16,18 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
-void LaunchTPushPopVCMatmul(uint8_t *out, uint8_t *srcA, uint8_t *quantB, uint8_t *scale, uint8_t *offset,
-                            void *stream);
+void LaunchTPushPopVCMatmul(
+    uint8_t* out, uint8_t* srcA, uint8_t* quantB, uint8_t* scale, uint8_t* offset, void* stream);
 
 class TPushPopVCTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -53,17 +51,17 @@ void TPushPopVCMatmulTestFunc(uint32_t M, uint32_t K, uint32_t N)
     uint8_t *dstHost, *srcAHost, *quantBHost, *scaleHost, *offsetHost;
     uint8_t *dstDevice, *srcADevice, *quantBDevice, *scaleDevice, *offsetDevice;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&srcAHost), aFileSize);
-    aclrtMallocHost((void **)(&quantBHost), quantBFileSize);
-    aclrtMallocHost((void **)(&scaleHost), scaleFileSize);
-    aclrtMallocHost((void **)(&offsetHost), offsetFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&srcAHost), aFileSize);
+    aclrtMallocHost((void**)(&quantBHost), quantBFileSize);
+    aclrtMallocHost((void**)(&scaleHost), scaleFileSize);
+    aclrtMallocHost((void**)(&offsetHost), offsetFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcADevice, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&quantBDevice, quantBFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&scaleDevice, scaleFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&offsetDevice, offsetFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcADevice, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&quantBDevice, quantBFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&scaleDevice, scaleFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&offsetDevice, offsetFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, srcAHost, aFileSize);
     ReadFile(GetGoldenDir() + "/quant_b_gm.bin", quantBFileSize, quantBHost, quantBFileSize);
@@ -108,35 +106,17 @@ void TPushPopVCMatmulTestFunc(uint32_t M, uint32_t K, uint32_t N)
 }
 
 // TILE_UP_DOWN: vector cores split quantB along K rows, each handles TILE_K/2 rows
-TEST_F(TPushPopVCTest, case1_int8_single_k_tile)
-{
-    TPushPopVCMatmulTestFunc<int8_t, float, float, 1>(16, 64, 32);
-}
+TEST_F(TPushPopVCTest, case1_int8_single_k_tile) { TPushPopVCMatmulTestFunc<int8_t, float, float, 1>(16, 64, 32); }
 
-TEST_F(TPushPopVCTest, case2_int8_two_k_tiles)
-{
-    TPushPopVCMatmulTestFunc<int8_t, float, float, 2>(16, 128, 32);
-}
+TEST_F(TPushPopVCTest, case2_int8_two_k_tiles) { TPushPopVCMatmulTestFunc<int8_t, float, float, 2>(16, 128, 32); }
 
-TEST_F(TPushPopVCTest, case3_int8_four_k_tiles)
-{
-    TPushPopVCMatmulTestFunc<int8_t, float, float, 3>(16, 256, 32);
-}
+TEST_F(TPushPopVCTest, case3_int8_four_k_tiles) { TPushPopVCMatmulTestFunc<int8_t, float, float, 3>(16, 256, 32); }
 
-TEST_F(TPushPopVCTest, case4_int16_single_k_tile)
-{
-    TPushPopVCMatmulTestFunc<int16_t, float, float, 4>(16, 64, 32);
-}
+TEST_F(TPushPopVCTest, case4_int16_single_k_tile) { TPushPopVCMatmulTestFunc<int16_t, float, float, 4>(16, 64, 32); }
 
-TEST_F(TPushPopVCTest, case5_int16_two_k_tiles)
-{
-    TPushPopVCMatmulTestFunc<int16_t, float, float, 5>(16, 128, 32);
-}
+TEST_F(TPushPopVCTest, case5_int16_two_k_tiles) { TPushPopVCMatmulTestFunc<int16_t, float, float, 5>(16, 128, 32); }
 
-TEST_F(TPushPopVCTest, case6_int16_four_k_tiles)
-{
-    TPushPopVCMatmulTestFunc<int16_t, float, float, 6>(16, 256, 32);
-}
+TEST_F(TPushPopVCTest, case6_int16_four_k_tiles) { TPushPopVCMatmulTestFunc<int16_t, float, float, 6>(16, 256, 32); }
 
 // TILE_LEFT_RIGHT: vector cores split quantB along N columns, each handles TILE_N/2 cols
 // N=64 for int8 TILE_LEFT_RIGHT: PROD_N=32, satisfies 32-byte tile alignment (32*sizeof(int8_t)=32)
@@ -171,7 +151,7 @@ TEST_F(TPushPopVCTest, case12_int16_four_k_tiles_left_right)
 }
 
 template <int32_t tilingKey>
-void LaunchTPushPopVCSubBlockId(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
+void LaunchTPushPopVCSubBlockId(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, void* stream);
 
 // TPUSH with explicit subBlockId: Vec TADD + push to cube L1, Cube matmul + store
 TEST_F(TPushPopVCTest, case13_float_subblock_id_up_down)
@@ -193,15 +173,15 @@ TEST_F(TPushPopVCTest, case13_float_subblock_id_up_down)
     uint8_t *outHost, *src0Host, *src1Host, *src2Host;
     uint8_t *outDevice, *src0Device, *src1Device, *src2Device;
 
-    aclrtMallocHost((void **)(&outHost), outFileSize);
-    aclrtMallocHost((void **)(&src0Host), src0FileSize);
-    aclrtMallocHost((void **)(&src1Host), src1FileSize);
-    aclrtMallocHost((void **)(&src2Host), src2FileSize);
+    aclrtMallocHost((void**)(&outHost), outFileSize);
+    aclrtMallocHost((void**)(&src0Host), src0FileSize);
+    aclrtMallocHost((void**)(&src1Host), src1FileSize);
+    aclrtMallocHost((void**)(&src2Host), src2FileSize);
 
-    aclrtMalloc((void **)&outDevice, outFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, src0FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, src1FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src2Device, src2FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&outDevice, outFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, src0FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, src1FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src2Device, src2FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/src0_gm.bin", src0FileSize, src0Host, src0FileSize);
     ReadFile(GetGoldenDir() + "/src1_gm.bin", src1FileSize, src1Host, src1FileSize);

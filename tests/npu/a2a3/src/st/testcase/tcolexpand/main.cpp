@@ -15,31 +15,31 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace PtoTestCommon;
 
-template <typename T, int src_row, int src_col, int src_validCol, int dst_row, int dst_col, int dst_validRow,
-          int dst_validCol>
-void launchTCOLEXPAND(T *out, T *src, void *stream);
+template <
+    typename T, int src_row, int src_col, int src_validCol, int dst_row, int dst_col, int dst_validRow,
+    int dst_validCol>
+void launchTCOLEXPAND(T* out, T* src, void* stream);
 
 class TCOLEXPANDTest : public testing::Test {
 public:
 protected:
-    void SetUp() override
-    {}
+    void SetUp() override {}
 
-    void TearDown() override
-    {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, int src_row, int src_col, int src_validCol, int dst_row, int dst_col, int dst_validRow,
-          int dst_validCol>
+template <
+    typename T, int src_row, int src_col, int src_validCol, int dst_row, int dst_col, int dst_validRow,
+    int dst_validCol>
 bool TCOLEXPANDTestFramework()
 {
     size_t dstByteSize = dst_row * dst_col * sizeof(T);
@@ -54,11 +54,11 @@ bool TCOLEXPANDTestFramework()
     T *dstHost, *srcHost;
     T *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstByteSize);
-    aclrtMallocHost((void **)(&srcHost), srcByteSize);
+    aclrtMallocHost((void**)(&dstHost), dstByteSize);
+    aclrtMallocHost((void**)(&srcHost), srcByteSize);
 
-    aclrtMalloc((void **)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", srcByteSize, srcHost, srcByteSize);
 

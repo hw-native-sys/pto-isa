@@ -31,21 +31,21 @@ constexpr FloatUnion scaleList2[FMOD_ITERATION_NUM_MAX] = {
     FloatUnion(0x3f800000), FloatUnion(0x3f800000), FloatUnion(0x4b800000), FloatUnion(0x57800000),
     FloatUnion(0x63800000), FloatUnion(0x6f800000), FloatUnion(0x7b800000)};
 
-PTO_INTERNAL void GetSignBit(RegTensor<float> &dstReg, RegTensor<float> &srcReg, MaskReg &mask)
+PTO_INTERNAL void GetSignBit(RegTensor<float>& dstReg, RegTensor<float>& srcReg, MaskReg& mask)
 {
     constexpr int16_t signRightNum = BLOCK_BYTE_SIZE - 1;
     RegTensor<uint32_t> oneReg, tmpReg;
     uint32_t len32 = static_cast<uint16_t>(VECTOR_REG_WIDTH / sizeof(float));
     MaskReg preg_b32 = CreatePredicate<float>(len32);
     vdup(oneReg, 1, mask, MODE_ZEROING);
-    vshrs(tmpReg, (RegTensor<uint32_t> &)srcReg, signRightNum, mask, MODE_ZEROING);
+    vshrs(tmpReg, (RegTensor<uint32_t>&)srcReg, signRightNum, mask, MODE_ZEROING);
     vand(tmpReg, tmpReg, oneReg, mask, MODE_ZEROING);
-    vcvt(dstReg, (RegTensor<int32_t> &)tmpReg, preg_b32, ROUND_R);
+    vcvt(dstReg, (RegTensor<int32_t>&)tmpReg, preg_b32, ROUND_R);
 }
 
 template <typename RoundMode, int32_t iterationNum>
-PTO_INTERNAL void SolveScale(RegTensor<float> &dstReg, RegTensor<float> &srcReg, const float scale1, const float scale2,
-                             MaskReg &mask)
+PTO_INTERNAL void SolveScale(
+    RegTensor<float>& dstReg, RegTensor<float>& srcReg, const float scale1, const float scale2, MaskReg& mask)
 {
     constexpr float maxValue = 3.4028235e38;
     constexpr float subNormal = 1.1754944e-38;
@@ -88,18 +88,19 @@ PTO_INTERNAL void SolveScale(RegTensor<float> &dstReg, RegTensor<float> &srcReg,
 
 // recurse from itermax to 1
 template <typename RoundMode, int32_t iterationNum>
-PTO_INTERNAL void SolveScaleIter(RegTensor<float> &dstReg, RegTensor<float> &srcReg, MaskReg &mask)
+PTO_INTERNAL void SolveScaleIter(RegTensor<float>& dstReg, RegTensor<float>& srcReg, MaskReg& mask)
 {
-    SolveScale<RoundMode, iterationNum>(dstReg, srcReg, scaleList1[iterationNum - 1].f, scaleList2[iterationNum - 1].f,
-                                        mask);
+    SolveScale<RoundMode, iterationNum>(
+        dstReg, srcReg, scaleList1[iterationNum - 1].f, scaleList2[iterationNum - 1].f, mask);
 
     if constexpr (iterationNum > 1) {
         SolveScaleIter<RoundMode, iterationNum - 1>(dstReg, srcReg, mask);
     }
 }
 
-PTO_INTERNAL void SolveExceptionScenarios(RegTensor<float> &dstReg, RegTensor<float> &src0Reg,
-                                          RegTensor<float> &src1Reg, RegTensor<float> &nanReg, MaskReg &mask)
+PTO_INTERNAL void SolveExceptionScenarios(
+    RegTensor<float>& dstReg, RegTensor<float>& src0Reg, RegTensor<float>& src1Reg, RegTensor<float>& nanReg,
+    MaskReg& mask)
 {
     MaskReg src0Is0CmpReg, src0IsNeg0CmpReg, src0InfCmpReg, src0NegInfCmpReg;
     MaskReg src1Not0CmpReg, src1NotNeg0CmpReg, src1NotNanCmpReg, src1InfCmpReg, src1NegInfCmpReg;
@@ -132,8 +133,8 @@ PTO_INTERNAL void SolveExceptionScenarios(RegTensor<float> &dstReg, RegTensor<fl
 }
 
 template <bool isFmod>
-PTO_INTERNAL void TFmodRemHP(RegTensor<float> &dstReg, RegTensor<float> &src0Reg, RegTensor<float> &src1Reg,
-                             MaskReg &mask)
+PTO_INTERNAL void TFmodRemHP(
+    RegTensor<float>& dstReg, RegTensor<float>& src0Reg, RegTensor<float>& src1Reg, MaskReg& mask)
 {
     using RoundMode = std::conditional_t<isFmod, decltype(ROUND_Z), decltype(ROUND_F)>;
     constexpr FloatUnion nan(0x7fc00000);

@@ -17,27 +17,27 @@ using namespace PtoTestCommon;
 
 class TLOGTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol,
-          bool isInPlace = false, bool highPrecision = false>
-void LaunchTLog(T *out, T *src, void *stream);
+template <
+    typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol, bool isInPlace = false,
+    bool highPrecision = false>
+void LaunchTLog(T* out, T* src, void* stream);
 
-template <typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol,
-          bool isInPlace = false, bool highPrecision = false>
+template <
+    typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol, bool isInPlace = false,
+    bool highPrecision = false>
 void test_tlog()
 {
     size_t dstSize = dstRow * dstCol * sizeof(T);
@@ -51,17 +51,17 @@ void test_tlog()
     T *dstHost, *srcHost;
     T *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstSize);
-    aclrtMallocHost((void **)(&srcHost), srcSize);
+    aclrtMallocHost((void**)(&dstHost), dstSize);
+    aclrtMallocHost((void**)(&srcHost), srcSize);
 
-    aclrtMalloc((void **)&dstDevice, dstSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", srcSize, srcHost, srcSize);
 
     aclrtMemcpy(srcDevice, srcSize, srcHost, srcSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    LaunchTLog<T, dstRow, dstCol, srcRow, srcCol, validRow, validCol, isInPlace, highPrecision>(dstDevice, srcDevice,
-                                                                                                stream);
+    LaunchTLog<T, dstRow, dstCol, srcRow, srcCol, validRow, validCol, isInPlace, highPrecision>(
+        dstDevice, srcDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, dstSize, dstDevice, dstSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -95,27 +95,9 @@ void test_tlog()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TLOGTest, case_float_64x64_64x64_64x64_inPlace)
-{
-    test_tlog<float, 64, 64, 64, 64, 64, 64, true>();
-}
-TEST_F(TLOGTest, case_float_64x64_64x64_64x64)
-{
-    test_tlog<float, 64, 64, 64, 64, 64, 64>();
-}
-TEST_F(TLOGTest, case_half_64x64_64x64_64x64_inPlace)
-{
-    test_tlog<aclFloat16, 64, 64, 64, 64, 64, 64, true>();
-}
-TEST_F(TLOGTest, case_half_64x64_64x64_64x64)
-{
-    test_tlog<aclFloat16, 64, 64, 64, 64, 64, 64>();
-}
-TEST_F(TLOGTest, case_float_hp_64x64_64x64_64x64)
-{
-    test_tlog<float, 64, 64, 64, 64, 64, 64, false, true>();
-}
-TEST_F(TLOGTest, case_half_hp_64x64_64x64_64x64)
-{
-    test_tlog<aclFloat16, 64, 64, 64, 64, 64, 64, false, true>();
-}
+TEST_F(TLOGTest, case_float_64x64_64x64_64x64_inPlace) { test_tlog<float, 64, 64, 64, 64, 64, 64, true>(); }
+TEST_F(TLOGTest, case_float_64x64_64x64_64x64) { test_tlog<float, 64, 64, 64, 64, 64, 64>(); }
+TEST_F(TLOGTest, case_half_64x64_64x64_64x64_inPlace) { test_tlog<aclFloat16, 64, 64, 64, 64, 64, 64, true>(); }
+TEST_F(TLOGTest, case_half_64x64_64x64_64x64) { test_tlog<aclFloat16, 64, 64, 64, 64, 64, 64>(); }
+TEST_F(TLOGTest, case_float_hp_64x64_64x64_64x64) { test_tlog<float, 64, 64, 64, 64, 64, 64, false, true>(); }
+TEST_F(TLOGTest, case_half_hp_64x64_64x64_64x64) { test_tlog<aclFloat16, 64, 64, 64, 64, 64, 64, false, true>(); }

@@ -23,23 +23,23 @@ struct GenericDataSelector {};
 #ifdef __CCE_AICORE__
 template <typename T, int dstRow, int dstCol, int srcRow, int srcCol, int kVRows_, int kVCols_>
 struct GenericDataSelector<T, dstRow, dstCol, srcRow, srcCol, kVRows_, kVCols_, PAD_VALUE_NULL> {
-    using srcTileType = Tile<TileType::Vec, T, srcRow, srcCol, BLayout::RowMajor, kVRows_, kVCols_, SLayout::NoneBox,
-                             512, PadValue::Null>;
-    using dstTileType = Tile<TileType::Vec, T, dstRow, dstCol, BLayout::RowMajor, kVRows_, kVCols_, SLayout::NoneBox,
-                             512, PadValue::Null>;
+    using srcTileType = Tile<
+        TileType::Vec, T, srcRow, srcCol, BLayout::RowMajor, kVRows_, kVCols_, SLayout::NoneBox, 512, PadValue::Null>;
+    using dstTileType = Tile<
+        TileType::Vec, T, dstRow, dstCol, BLayout::RowMajor, kVRows_, kVCols_, SLayout::NoneBox, 512, PadValue::Null>;
 };
 
 template <typename T, int dstRow, int dstCol, int srcRow, int srcCol, int kVRows_, int kVCols_>
 struct GenericDataSelector<T, dstRow, dstCol, srcRow, srcCol, kVRows_, kVCols_, PAD_VALUE_MAX> {
-    using srcTileType = Tile<TileType::Vec, T, srcRow, srcCol, BLayout::RowMajor, kVRows_, kVCols_, SLayout::NoneBox,
-                             512, PadValue::Max>;
-    using dstTileType = Tile<TileType::Vec, T, dstRow, dstCol, BLayout::RowMajor, kVRows_, kVCols_, SLayout::NoneBox,
-                             512, PadValue::Max>;
+    using srcTileType = Tile<
+        TileType::Vec, T, srcRow, srcCol, BLayout::RowMajor, kVRows_, kVCols_, SLayout::NoneBox, 512, PadValue::Max>;
+    using dstTileType = Tile<
+        TileType::Vec, T, dstRow, dstCol, BLayout::RowMajor, kVRows_, kVCols_, SLayout::NoneBox, 512, PadValue::Max>;
 };
 #endif
 
 template <typename T, int dstRow, int dstCol, int srcRow, int srcCol, int kVRows_, int kVCols_, int kPadValue_>
-__global__ AICORE void runTMAXS(__gm__ T *out, __gm__ T *src0, __gm__ T *scalar)
+__global__ AICORE void runTMAXS(__gm__ T* out, __gm__ T* src0, __gm__ T* scalar)
 {
     using GDS = GenericDataSelector<T, dstRow, dstCol, srcRow, srcCol, kVRows_, kVCols_, kPadValue_>;
 
@@ -72,41 +72,41 @@ __global__ AICORE void runTMAXS(__gm__ T *out, __gm__ T *src0, __gm__ T *scalar)
 }
 
 template <typename T, int dstRow, int dstCol, int srcRow, int srcCol, int kVRows_, int kVCols_, int kPadValue_>
-void LaunchTMaxs(T *out, T *src0, T *scalar, void *stream)
+void LaunchTMaxs(T* out, T* src0, T* scalar, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16> && kPadValue_ == PAD_VALUE_MAX) {
         runTMAXS<half, dstRow, dstCol, srcRow, srcCol, kVRows_, kVCols_, kPadValue_>
-            <<<1, nullptr, stream>>>((half *)(out), (half *)(src0), (half *)(scalar));
+            <<<1, nullptr, stream>>>((half*)(out), (half*)(src0), (half*)(scalar));
     } else {
         runTMAXS<T, dstRow, dstCol, srcRow, srcCol, kVRows_, kVCols_, kPadValue_>
             <<<1, nullptr, stream>>>(out, src0, scalar);
     }
 }
 
-template void LaunchTMaxs<float, 64, 64, 32, 32, 32, 32, PAD_VALUE_NULL>(float *out, float *src0, float *scalar,
-                                                                         void *stream);
-template void LaunchTMaxs<float, 128, 128, 64, 64, 64, 64, PAD_VALUE_NULL>(float *out, float *src0, float *scalar,
-                                                                           void *stream);
+template void LaunchTMaxs<float, 64, 64, 32, 32, 32, 32, PAD_VALUE_NULL>(
+    float* out, float* src0, float* scalar, void* stream);
+template void LaunchTMaxs<float, 128, 128, 64, 64, 64, 64, PAD_VALUE_NULL>(
+    float* out, float* src0, float* scalar, void* stream);
 
-template void LaunchTMaxs<float, 60, 128, 64, 64, 60, 60, PAD_VALUE_MAX>(float *out, float *src0, float *scalar,
-                                                                         void *stream);
-template void LaunchTMaxs<float, 16, 200, 20, 512, 16, 200, PAD_VALUE_MAX>(float *out, float *src0, float *scalar,
-                                                                           void *stream);
-template void LaunchTMaxs<float, 1, 3600, 2, 4096, 1, 3600, PAD_VALUE_MAX>(float *out, float *src0, float *scalar,
-                                                                           void *stream);
-template void LaunchTMaxs<aclFloat16, 16, 256, 20, 224, 16, 200, PAD_VALUE_MAX>(aclFloat16 *out, aclFloat16 *src0,
-                                                                                aclFloat16 *scalar, void *stream);
+template void LaunchTMaxs<float, 60, 128, 64, 64, 60, 60, PAD_VALUE_MAX>(
+    float* out, float* src0, float* scalar, void* stream);
+template void LaunchTMaxs<float, 16, 200, 20, 512, 16, 200, PAD_VALUE_MAX>(
+    float* out, float* src0, float* scalar, void* stream);
+template void LaunchTMaxs<float, 1, 3600, 2, 4096, 1, 3600, PAD_VALUE_MAX>(
+    float* out, float* src0, float* scalar, void* stream);
+template void LaunchTMaxs<aclFloat16, 16, 256, 20, 224, 16, 200, PAD_VALUE_MAX>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* scalar, void* stream);
 
-template void LaunchTMaxs<int32_t, 32, 32, 32, 32, 32, 32, PAD_VALUE_NULL>(int32_t *out, int32_t *src0, int32_t *scalar,
-                                                                           void *stream);
-template void LaunchTMaxs<uint32_t, 32, 32, 32, 32, 32, 32, PAD_VALUE_NULL>(uint32_t *out, uint32_t *src0,
-                                                                            uint32_t *scalar, void *stream);
-template void LaunchTMaxs<int16_t, 32, 128, 32, 128, 32, 128, PAD_VALUE_NULL>(int16_t *out, int16_t *src0,
-                                                                              int16_t *scalar, void *stream);
-template void LaunchTMaxs<uint16_t, 32, 128, 32, 128, 32, 128, PAD_VALUE_NULL>(uint16_t *out, uint16_t *src0,
-                                                                               uint16_t *scalar, void *stream);
+template void LaunchTMaxs<int32_t, 32, 32, 32, 32, 32, 32, PAD_VALUE_NULL>(
+    int32_t* out, int32_t* src0, int32_t* scalar, void* stream);
+template void LaunchTMaxs<uint32_t, 32, 32, 32, 32, 32, 32, PAD_VALUE_NULL>(
+    uint32_t* out, uint32_t* src0, uint32_t* scalar, void* stream);
+template void LaunchTMaxs<int16_t, 32, 128, 32, 128, 32, 128, PAD_VALUE_NULL>(
+    int16_t* out, int16_t* src0, int16_t* scalar, void* stream);
+template void LaunchTMaxs<uint16_t, 32, 128, 32, 128, 32, 128, PAD_VALUE_NULL>(
+    uint16_t* out, uint16_t* src0, uint16_t* scalar, void* stream);
 
-template void LaunchTMaxs<int8_t, 32, 128, 32, 128, 32, 128, PAD_VALUE_NULL>(int8_t *out, int8_t *src0, int8_t *scalar,
-                                                                             void *stream);
-template void LaunchTMaxs<uint8_t, 32, 128, 32, 128, 32, 128, PAD_VALUE_NULL>(uint8_t *out, uint8_t *src0,
-                                                                              uint8_t *scalar, void *stream);
+template void LaunchTMaxs<int8_t, 32, 128, 32, 128, 32, 128, PAD_VALUE_NULL>(
+    int8_t* out, int8_t* src0, int8_t* scalar, void* stream);
+template void LaunchTMaxs<uint8_t, 32, 128, 32, 128, 32, 128, PAD_VALUE_NULL>(
+    uint8_t* out, uint8_t* src0, uint8_t* scalar, void* stream);

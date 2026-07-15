@@ -19,8 +19,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 namespace comm {
 template <typename GlobalData>
-void Copy(typename GlobalData::DType *dst, typename GlobalData::DType *src, int64_t shape[], int64_t stride[],
-          size_t size)
+void Copy(
+    typename GlobalData::DType* dst, typename GlobalData::DType* src, int64_t shape[], int64_t stride[], size_t size)
 {
     auto copyInner = [&](size_t i, size_t j, size_t k) {
         for (size_t l = 0; l < shape[3]; l++) {
@@ -40,44 +40,51 @@ void Copy(typename GlobalData::DType *dst, typename GlobalData::DType *src, int6
 }
 
 template <typename ParallelGroupType, typename GlobalData>
-PTO_INTERNAL void TBroadcast_Impl(ParallelGroupType &parallelGroup, GlobalData &src)
+PTO_INTERNAL void TBroadcast_Impl(ParallelGroupType& parallelGroup, GlobalData& src)
 {
     constexpr size_t numDims = 5;
     int64_t shape[numDims] = {src.GetShape(0), src.GetShape(1), src.GetShape(2), src.GetShape(3), src.GetShape(4)};
-    int64_t stride[numDims] = {src.GetStride(0), src.GetStride(1), src.GetStride(2), src.GetStride(3),
-                               src.GetStride(4)};
+    int64_t stride[numDims] = {
+        src.GetStride(0), src.GetStride(1), src.GetStride(2), src.GetStride(3), src.GetStride(4)};
     int groupSize = parallelGroup.GetSize();
     for (unsigned n = 0; n < groupSize; ++n) {
-        GlobalData &member = parallelGroup[n];
+        GlobalData& member = parallelGroup[n];
         Copy<GlobalData>(member.data(), src.data(), shape, stride, numDims);
     }
 }
 
 template <typename ParallelGroupType, typename GlobalSrcData, typename TileData>
-PTO_INTERNAL void TBROADCAST_IMPL(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData,
-                                  TileData &stagingTileData)
+PTO_INTERNAL void TBROADCAST_IMPL(
+    ParallelGroupType& parallelGroup, GlobalSrcData& srcGlobalData, TileData& stagingTileData)
 {
     TBroadcast_Impl<ParallelGroupType, GlobalSrcData>(parallelGroup, srcGlobalData);
 }
 
 template <typename ParallelGroupType, typename GlobalSrcData, typename TileData>
-PTO_INTERNAL void TBROADCAST_IMPL(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData, TileData &pingTile,
-                                  TileData &pongTile)
+PTO_INTERNAL void TBROADCAST_IMPL(
+    ParallelGroupType& parallelGroup, GlobalSrcData& srcGlobalData, TileData& pingTile, TileData& pongTile)
 {
     TBroadcast_Impl<ParallelGroupType, GlobalSrcData>(parallelGroup, srcGlobalData);
 }
 
-// CCU engine is only available on A5 NPU hardware.  Deferred-fail stub
-// mirroring the a2a3 pattern: the template name must exist in `pto::comm`
-// so that `::pto::comm::TBROADCAST_CCU_IMPL<engine>(...)` in pto_comm_inst.hpp
-// parses on CPU simulator builds; the static_assert depends on `engine` and
-// fires only if the overload is actually instantiated.
-template <CollEngine engine = CollEngine::CCU, typename... Args>
-PTO_INTERNAL void TBROADCAST_CCU_IMPL(Args &&...)
+template <
+    CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalSrcData, typename TileData,
+    typename... WaitEvents>
+PTO_INTERNAL void TBROADCAST_CCU_IMPL(
+    ParallelGroupType& parallelGroup, GlobalSrcData& srcGlobalData, TileData& stagingTileData,
+    const CcuTriggerContext& ctx, WaitEvents&... events)
 {
-    static_assert(engine != CollEngine::CCU,
-                  "TBROADCAST<CollEngine::CCU> is not supported on the CPU simulator; "
-                  "CCU engine requires A5 NPU hardware.");
+    TBroadcast_Impl<ParallelGroupType, GlobalSrcData>(parallelGroup, srcGlobalData);
+}
+
+template <
+    CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalSrcData, typename TileData,
+    typename... WaitEvents>
+PTO_INTERNAL void TBROADCAST_CCU_IMPL(
+    ParallelGroupType& parallelGroup, GlobalSrcData& srcGlobalData, TileData& pingTile, TileData& pongTile,
+    const CcuTriggerContext& ctx, WaitEvents&... events)
+{
+    TBroadcast_Impl<ParallelGroupType, GlobalSrcData>(parallelGroup, srcGlobalData);
 }
 
 } // namespace comm

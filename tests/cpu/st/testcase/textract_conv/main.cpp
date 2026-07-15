@@ -16,9 +16,9 @@ using namespace pto;
 using namespace PtoTestCommon;
 using namespace pto;
 
-template <typename T, size_t c1hw, size_t n1, size_t n0, size_t c0, size_t dst_row, size_t dst_col, size_t idxR,
-          size_t idxC>
-AICORE inline void runTEXTRACT_4D(__gm__ T *out, __gm__ T *src)
+template <
+    typename T, size_t c1hw, size_t n1, size_t n0, size_t c0, size_t dst_row, size_t dst_col, size_t idxR, size_t idxC>
+AICORE inline void runTEXTRACT_4D(__gm__ T* out, __gm__ T* src)
 {
     static_assert(c0 == 32 / sizeof(T));
 
@@ -64,23 +64,21 @@ AICORE inline void runTEXTRACT_4D(__gm__ T *out, __gm__ T *src)
 
 class TEXTRACTTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, size_t c1hw, size_t n1, size_t n0, size_t c0, size_t dst_row, size_t dst_col, size_t idxR,
-          size_t idxC>
+template <
+    typename T, size_t c1hw, size_t n1, size_t n0, size_t c0, size_t dst_row, size_t dst_col, size_t idxR, size_t idxC>
 void textract_test_4d()
 {
     size_t srcFileSize = c1hw * n1 * n0 * c0 * sizeof(T);
@@ -94,17 +92,17 @@ void textract_test_4d()
     uint8_t *dstHost, *srcHost;
     uint8_t *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
 
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     size_t inputSize = 0;
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input.bin", inputSize, srcHost, srcFileSize));
 
     aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    runTEXTRACT_4D<T, c1hw, n1, n0, c0, dst_row, dst_col, idxR, idxC>((T *)dstDevice, (T *)srcDevice);
+    runTEXTRACT_4D<T, c1hw, n1, n0, c0, dst_row, dst_col, idxR, idxC>((T*)dstDevice, (T*)srcDevice);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, dstFileSize, dstDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -131,22 +129,10 @@ void textract_test_4d()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TEXTRACTTest, case_0)
-{
-    textract_test_4d<aclFloat16, 4, 3, 16, 16, 3 * 16, 2 * 16, 16, 16>();
-}
+TEST_F(TEXTRACTTest, case_0) { textract_test_4d<aclFloat16, 4, 3, 16, 16, 3 * 16, 2 * 16, 16, 16>(); }
 
-TEST_F(TEXTRACTTest, case_1)
-{
-    textract_test_4d<uint16_t, 4, 3, 16, 16, 3 * 16, 2 * 16, 16, 16>();
-}
+TEST_F(TEXTRACTTest, case_1) { textract_test_4d<uint16_t, 4, 3, 16, 16, 3 * 16, 2 * 16, 16, 16>(); }
 
-TEST_F(TEXTRACTTest, case_2)
-{
-    textract_test_4d<float, 4, 3, 16, 8, 3 * 8, 2 * 16, 8, 16>();
-}
+TEST_F(TEXTRACTTest, case_2) { textract_test_4d<float, 4, 3, 16, 8, 3 * 8, 2 * 16, 8, 16>(); }
 
-TEST_F(TEXTRACTTest, case_3)
-{
-    textract_test_4d<int32_t, 4, 3, 16, 8, 3 * 8, 2 * 16, 8, 16>();
-}
+TEST_F(TEXTRACTTest, case_3) { textract_test_4d<int32_t, 4, 3, 16, 8, 3 * 8, 2 * 16, 8, 16>(); }

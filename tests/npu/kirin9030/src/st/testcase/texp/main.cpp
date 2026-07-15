@@ -18,27 +18,25 @@ using namespace PtoTestCommon;
 
 class TEXPTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol,
-          bool isInPlace = false>
-void LaunchTExp(T *out, T *src, void *stream);
+template <
+    typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol, bool isInPlace = false>
+void LaunchTExp(T* out, T* src, void* stream);
 
-template <typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol,
-          bool isInPlace = false>
+template <
+    typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol, bool isInPlace = false>
 void test_texp()
 {
     size_t srcFileSize = srcRow * srcCol * sizeof(T);
@@ -52,10 +50,10 @@ void test_texp()
     T *dstHost, *srcHost;
     T *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", srcFileSize, srcHost, srcFileSize);
     aclrtMemset(dstHost, dstFileSize, 0, dstFileSize);
@@ -91,71 +89,20 @@ void test_texp()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TEXPTest, case1)
-{
-    test_texp<float, 64, 64, 64, 64, 64, 64, true>();
-}
-TEST_F(TEXPTest, case2)
-{
-    test_texp<float, 64, 64, 64, 64, 64, 64, false>();
-}
-TEST_F(TEXPTest, case3)
-{
-    test_texp<aclFloat16, 64, 64, 64, 64, 64, 64, true>();
-}
-TEST_F(TEXPTest, case4)
-{
-    test_texp<aclFloat16, 64, 64, 64, 64, 64, 64, false>();
-}
-TEST_F(TEXPTest, case5)
-{
-    test_texp<float, 128, 128, 64, 64, 64, 64>();
-}
-TEST_F(TEXPTest, case6)
-{
-    test_texp<float, 64, 64, 128, 128, 32, 32>();
-}
-TEST_F(TEXPTest, case7)
-{
-    test_texp<aclFloat16, 128, 256, 64, 64, 64, 64>();
-}
-TEST_F(TEXPTest, case8)
-{
-    test_texp<aclFloat16, 64, 64, 128, 256, 32, 32>();
-}
-TEST_F(TEXPTest, case9)
-{
-    test_texp<float, 16, 256, 16, 256, 16, 256>();
-}
-TEST_F(TEXPTest, case10)
-{
-    test_texp<float, 16, 256, 16, 256, 16, 128>();
-}
-TEST_F(TEXPTest, case11)
-{
-    test_texp<aclFloat16, 256, 16, 256, 16, 256, 16>();
-}
-TEST_F(TEXPTest, case12)
-{
-    test_texp<aclFloat16, 256, 16, 256, 16, 128, 16>();
-}
-TEST_F(TEXPTest, case13)
-{
-    test_texp<float, 128, 128, 128, 128, 64, 64>();
-}
-TEST_F(TEXPTest, case14)
-{
-    test_texp<aclFloat16, 128, 128, 128, 128, 64, 64>();
-}
-TEST_F(TEXPTest, case15)
-{
-    test_texp<float, 32, 64, 128, 128, 32, 64>();
-}
-TEST_F(TEXPTest, case16)
-{
-    test_texp<float, 32, 32, 32, 32, 32, 16>();
-}
-TEST_F(TEXPTest, case17)
-{
-    test_texp<aclFloat16, 32, 32, 32, 32, 32, 16>();
-}
+TEST_F(TEXPTest, case1) { test_texp<float, 64, 64, 64, 64, 64, 64, true>(); }
+TEST_F(TEXPTest, case2) { test_texp<float, 64, 64, 64, 64, 64, 64, false>(); }
+TEST_F(TEXPTest, case3) { test_texp<aclFloat16, 64, 64, 64, 64, 64, 64, true>(); }
+TEST_F(TEXPTest, case4) { test_texp<aclFloat16, 64, 64, 64, 64, 64, 64, false>(); }
+TEST_F(TEXPTest, case5) { test_texp<float, 128, 128, 64, 64, 64, 64>(); }
+TEST_F(TEXPTest, case6) { test_texp<float, 64, 64, 128, 128, 32, 32>(); }
+TEST_F(TEXPTest, case7) { test_texp<aclFloat16, 128, 256, 64, 64, 64, 64>(); }
+TEST_F(TEXPTest, case8) { test_texp<aclFloat16, 64, 64, 128, 256, 32, 32>(); }
+TEST_F(TEXPTest, case9) { test_texp<float, 16, 256, 16, 256, 16, 256>(); }
+TEST_F(TEXPTest, case10) { test_texp<float, 16, 256, 16, 256, 16, 128>(); }
+TEST_F(TEXPTest, case11) { test_texp<aclFloat16, 256, 16, 256, 16, 256, 16>(); }
+TEST_F(TEXPTest, case12) { test_texp<aclFloat16, 256, 16, 256, 16, 128, 16>(); }
+TEST_F(TEXPTest, case13) { test_texp<float, 128, 128, 128, 128, 64, 64>(); }
+TEST_F(TEXPTest, case14) { test_texp<aclFloat16, 128, 128, 128, 128, 64, 64>(); }
+TEST_F(TEXPTest, case15) { test_texp<float, 32, 64, 128, 128, 32, 64>(); }
+TEST_F(TEXPTest, case16) { test_texp<float, 32, 32, 32, 32, 32, 16>(); }
+TEST_F(TEXPTest, case17) { test_texp<aclFloat16, 32, 32, 32, 32, 32, 16>(); }

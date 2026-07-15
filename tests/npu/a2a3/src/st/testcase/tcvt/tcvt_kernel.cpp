@@ -16,9 +16,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace pto;
 
-template <typename T, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
-          int kValidCols_ = kTCols_>
-__global__ AICORE void runTCVT(__gm__ T *out, __gm__ S *src)
+template <
+    typename T, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
+    int kValidCols_ = kTCols_>
+__global__ AICORE void runTCVT(__gm__ T* out, __gm__ S* src)
 {
     using DynShapeDim4 = pto::Shape<1, 1, 1, kGRows_, kGCols_>;
     using DynStridDim4 = pto::Stride<1, 1, 1, kGCols_, 1>;
@@ -93,32 +94,33 @@ __global__ AICORE void runTCVT(__gm__ T *out, __gm__ S *src)
     out = dstGlobal.data();
 }
 
-template <typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
-          int kValidCols_ = kTCols_>
-void launchTCVT(D *dst, S *src, void *stream)
+template <
+    typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
+    int kValidCols_ = kTCols_>
+void launchTCVT(D* dst, S* src, void* stream)
 {
     // Map aclFloat16 to half for kernel execution
     using DstType = std::conditional_t<std::is_same_v<D, aclFloat16>, half, D>;
     using SrcType = std::conditional_t<std::is_same_v<S, aclFloat16>, half, S>;
 
     runTCVT<DstType, SrcType, kGRows_, kGCols_, kTRows_, kTCols_, kValidRows_, kValidCols_>
-        <<<1, nullptr, stream>>>(reinterpret_cast<DstType *>(dst), reinterpret_cast<SrcType *>(src));
+        <<<1, nullptr, stream>>>(reinterpret_cast<DstType*>(dst), reinterpret_cast<SrcType*>(src));
 }
 
 // Macro to generate template instantiations for all shapes for a given type pair
 #define INSTANTIATE_TCVT(dst_type, src_type)                                                                           \
-    template void launchTCVT<dst_type, src_type, 1, 32, 1, 32>(dst_type * dst, src_type * src, void *stream);          \
-    template void launchTCVT<dst_type, src_type, 2, 64, 2, 64>(dst_type * dst, src_type * src, void *stream);          \
-    template void launchTCVT<dst_type, src_type, 4, 32, 4, 32>(dst_type * dst, src_type * src, void *stream);          \
-    template void launchTCVT<dst_type, src_type, 8, 64, 8, 64>(dst_type * dst, src_type * src, void *stream);          \
-    template void launchTCVT<dst_type, src_type, 1, 256, 1, 256>(dst_type * dst, src_type * src, void *stream);        \
-    template void launchTCVT<dst_type, src_type, 8, 128, 8, 128>(dst_type * dst, src_type * src, void *stream);        \
-    template void launchTCVT<dst_type, src_type, 4, 128, 4, 128, 4, 65>(dst_type * dst, src_type * src, void *stream); \
-    template void launchTCVT<dst_type, src_type, 4, 256, 4, 256, 4, 200>(dst_type * dst, src_type * src,               \
-                                                                         void *stream);                                \
-    template void launchTCVT<dst_type, src_type, 1, 256, 1, 256, 1, 129>(dst_type * dst, src_type * src,               \
-                                                                         void *stream);                                \
-    template void launchTCVT<dst_type, src_type, 2, 32, 2, 32, 2, 16>(dst_type * dst, src_type * src, void *stream);
+    template void launchTCVT<dst_type, src_type, 1, 32, 1, 32>(dst_type * dst, src_type * src, void* stream);          \
+    template void launchTCVT<dst_type, src_type, 2, 64, 2, 64>(dst_type * dst, src_type * src, void* stream);          \
+    template void launchTCVT<dst_type, src_type, 4, 32, 4, 32>(dst_type * dst, src_type * src, void* stream);          \
+    template void launchTCVT<dst_type, src_type, 8, 64, 8, 64>(dst_type * dst, src_type * src, void* stream);          \
+    template void launchTCVT<dst_type, src_type, 1, 256, 1, 256>(dst_type * dst, src_type * src, void* stream);        \
+    template void launchTCVT<dst_type, src_type, 8, 128, 8, 128>(dst_type * dst, src_type * src, void* stream);        \
+    template void launchTCVT<dst_type, src_type, 4, 128, 4, 128, 4, 65>(dst_type * dst, src_type * src, void* stream); \
+    template void launchTCVT<dst_type, src_type, 4, 256, 4, 256, 4, 200>(                                              \
+        dst_type * dst, src_type * src, void* stream);                                                                 \
+    template void launchTCVT<dst_type, src_type, 1, 256, 1, 256, 1, 129>(                                              \
+        dst_type * dst, src_type * src, void* stream);                                                                 \
+    template void launchTCVT<dst_type, src_type, 2, 32, 2, 32, 2, 16>(dst_type * dst, src_type * src, void* stream);
 
 // FP32 Source → fp16, int16, int32, int64
 INSTANTIATE_TCVT(aclFloat16, float)
@@ -164,7 +166,7 @@ INSTANTIATE_TCVT(int32_t, int64_t)
 
 // FP16 → S4: Load fp16 src, TCVT to int4b_t, store packed bytes
 template <int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-__global__ AICORE void runTCVT_fp16_to_s4(__gm__ uint8_t *out, __gm__ half *src)
+__global__ AICORE void runTCVT_fp16_to_s4(__gm__ uint8_t* out, __gm__ half* src)
 {
     constexpr int kPackedCols = kGCols_ / 2; // packed byte count per row
 
@@ -211,13 +213,13 @@ __global__ AICORE void runTCVT_fp16_to_s4(__gm__ uint8_t *out, __gm__ half *src)
 }
 
 template <int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void launchTCVT_fp16_to_s4(uint8_t *dst, aclFloat16 *src, void *stream)
+void launchTCVT_fp16_to_s4(uint8_t* dst, aclFloat16* src, void* stream)
 {
-    runTCVT_fp16_to_s4<kGRows_, kGCols_, kTRows_, kTCols_><<<1, nullptr, stream>>>(dst, reinterpret_cast<half *>(src));
+    runTCVT_fp16_to_s4<kGRows_, kGCols_, kTRows_, kTCols_><<<1, nullptr, stream>>>(dst, reinterpret_cast<half*>(src));
 }
 
 #define INSTANTIATE_TCVT_FP16_TO_S4(gR, gC, tR, tC) \
-    template void launchTCVT_fp16_to_s4<gR, gC, tR, tC>(uint8_t * dst, aclFloat16 * src, void *stream);
+    template void launchTCVT_fp16_to_s4<gR, gC, tR, tC>(uint8_t * dst, aclFloat16 * src, void* stream);
 
 INSTANTIATE_TCVT_FP16_TO_S4(1, 64, 1, 64)
 INSTANTIATE_TCVT_FP16_TO_S4(1, 128, 1, 128)
@@ -228,7 +230,7 @@ INSTANTIATE_TCVT_FP16_TO_S4(8, 128, 8, 128)
 
 // S4 → FP16: Load packed bytes, TCVT from int4b_t to fp16, store fp16
 template <int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-__global__ AICORE void runTCVT_s4_to_fp16(__gm__ half *out, __gm__ uint8_t *src)
+__global__ AICORE void runTCVT_s4_to_fp16(__gm__ half* out, __gm__ uint8_t* src)
 {
     constexpr int kPackedCols = kGCols_ / 2; // packed byte count per row
 
@@ -275,13 +277,13 @@ __global__ AICORE void runTCVT_s4_to_fp16(__gm__ half *out, __gm__ uint8_t *src)
 }
 
 template <int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void launchTCVT_s4_to_fp16(aclFloat16 *dst, uint8_t *src, void *stream)
+void launchTCVT_s4_to_fp16(aclFloat16* dst, uint8_t* src, void* stream)
 {
-    runTCVT_s4_to_fp16<kGRows_, kGCols_, kTRows_, kTCols_><<<1, nullptr, stream>>>(reinterpret_cast<half *>(dst), src);
+    runTCVT_s4_to_fp16<kGRows_, kGCols_, kTRows_, kTCols_><<<1, nullptr, stream>>>(reinterpret_cast<half*>(dst), src);
 }
 
 #define INSTANTIATE_TCVT_S4_TO_FP16(gR, gC, tR, tC) \
-    template void launchTCVT_s4_to_fp16<gR, gC, tR, tC>(aclFloat16 * dst, uint8_t * src, void *stream);
+    template void launchTCVT_s4_to_fp16<gR, gC, tR, tC>(aclFloat16 * dst, uint8_t * src, void* stream);
 
 INSTANTIATE_TCVT_S4_TO_FP16(1, 64, 1, 64)
 INSTANTIATE_TCVT_S4_TO_FP16(1, 128, 1, 128)
@@ -296,8 +298,8 @@ INSTANTIATE_TCVT_S4_TO_FP16(8, 128, 8, 128)
 // Test kernel to demonstrate saturation mode behavior
 // Tests saturation ON, OFF, and DEFAULT modes
 template <typename T, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-__global__ AICORE void runTCVTSaturationTest(__gm__ T *outSaturated, __gm__ T *outTruncated, __gm__ T *outDefault,
-                                             __gm__ S *src)
+__global__ AICORE void runTCVTSaturationTest(
+    __gm__ T* outSaturated, __gm__ T* outTruncated, __gm__ T* outDefault, __gm__ S* src)
 {
     using DynShapeDim4 = pto::Shape<1, 1, 1, kGRows_, kGCols_>;
     using DynStridDim4 = pto::Stride<1, 1, 1, kGCols_, 1>;
@@ -365,14 +367,14 @@ __global__ AICORE void runTCVTSaturationTest(__gm__ T *outSaturated, __gm__ T *o
 
 // Launcher for saturation mode tests (including default mode)
 template <typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void launchTCVTSaturationTest(D *dstSaturated, D *dstTruncated, D *dstDefault, S *src, void *stream)
+void launchTCVTSaturationTest(D* dstSaturated, D* dstTruncated, D* dstDefault, S* src, void* stream)
 {
     if constexpr (std::is_same_v<D, aclFloat16>) {
         runTCVTSaturationTest<half, S, kGRows_, kGCols_, kTRows_, kTCols_>
-            <<<1, nullptr, stream>>>((half *)dstSaturated, (half *)dstTruncated, (half *)dstDefault, src);
+            <<<1, nullptr, stream>>>((half*)dstSaturated, (half*)dstTruncated, (half*)dstDefault, src);
     } else if constexpr (std::is_same_v<S, aclFloat16>) {
         runTCVTSaturationTest<D, half, kGRows_, kGCols_, kTRows_, kTCols_>
-            <<<1, nullptr, stream>>>(dstSaturated, dstTruncated, dstDefault, (half *)src);
+            <<<1, nullptr, stream>>>(dstSaturated, dstTruncated, dstDefault, (half*)src);
     } else {
         runTCVTSaturationTest<D, S, kGRows_, kGCols_, kTRows_, kTCols_>
             <<<1, nullptr, stream>>>(dstSaturated, dstTruncated, dstDefault, src);
@@ -381,30 +383,28 @@ void launchTCVTSaturationTest(D *dstSaturated, D *dstTruncated, D *dstDefault, S
 
 // Minimal saturation test instantiations (1x32 shape for fast testing)
 // Note: fp32→int8 is NOT supported on A2A3 hardware
-template void launchTCVTSaturationTest<int8_t, aclFloat16, 1, 32, 1, 32>(int8_t *dstSat, int8_t *dstTrunc,
-                                                                         int8_t *dstDefault, aclFloat16 *src,
-                                                                         void *stream);
-template void launchTCVTSaturationTest<int16_t, float, 1, 32, 1, 32>(int16_t *dstSat, int16_t *dstTrunc,
-                                                                     int16_t *dstDefault, float *src, void *stream);
-template void launchTCVTSaturationTest<int16_t, aclFloat16, 1, 32, 1, 32>(int16_t *dstSat, int16_t *dstTrunc,
-                                                                          int16_t *dstDefault, aclFloat16 *src,
-                                                                          void *stream);
-template void launchTCVTSaturationTest<uint8_t, aclFloat16, 1, 32, 1, 32>(uint8_t *dstSat, uint8_t *dstTrunc,
-                                                                          uint8_t *dstDefault, aclFloat16 *src,
-                                                                          void *stream);
-template void launchTCVTSaturationTest<int32_t, int64_t, 1, 32, 1, 32>(int32_t *dstSat, int32_t *dstTrunc,
-                                                                       int32_t *dstDefault, int64_t *src, void *stream);
-template void launchTCVTSaturationTest<int16_t, int32_t, 1, 32, 1, 32>(int16_t *dstSat, int16_t *dstTrunc,
-                                                                       int16_t *dstDefault, int32_t *src, void *stream);
+template void launchTCVTSaturationTest<int8_t, aclFloat16, 1, 32, 1, 32>(
+    int8_t* dstSat, int8_t* dstTrunc, int8_t* dstDefault, aclFloat16* src, void* stream);
+template void launchTCVTSaturationTest<int16_t, float, 1, 32, 1, 32>(
+    int16_t* dstSat, int16_t* dstTrunc, int16_t* dstDefault, float* src, void* stream);
+template void launchTCVTSaturationTest<int16_t, aclFloat16, 1, 32, 1, 32>(
+    int16_t* dstSat, int16_t* dstTrunc, int16_t* dstDefault, aclFloat16* src, void* stream);
+template void launchTCVTSaturationTest<uint8_t, aclFloat16, 1, 32, 1, 32>(
+    uint8_t* dstSat, uint8_t* dstTrunc, uint8_t* dstDefault, aclFloat16* src, void* stream);
+template void launchTCVTSaturationTest<int32_t, int64_t, 1, 32, 1, 32>(
+    int32_t* dstSat, int32_t* dstTrunc, int32_t* dstDefault, int64_t* src, void* stream);
+template void launchTCVTSaturationTest<int16_t, int32_t, 1, 32, 1, 32>(
+    int16_t* dstSat, int16_t* dstTrunc, int16_t* dstDefault, int32_t* src, void* stream);
 
 // ============================================================================
 // NonSatTorch Test Kernels (with explicit tmp tile)
 // ============================================================================
 // Test kernel that uses an explicit tmp tile to exercise the NonSatTorch path.
 // When EDGE_CASE_ALIGN_ENABLE is 1 and satMode is OFF, this requires a tmp tile.
-template <typename T, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
-          int kValidCols_ = kTCols_>
-__global__ AICORE void runTCVTNonSatTorch(__gm__ T *outTruncated, __gm__ S *src)
+template <
+    typename T, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
+    int kValidCols_ = kTCols_>
+__global__ AICORE void runTCVTNonSatTorch(__gm__ T* outTruncated, __gm__ S* src)
 {
     using DynShapeDim4 = pto::Shape<1, 1, 1, kGRows_, kGCols_>;
     using DynStridDim4 = pto::Stride<1, 1, 1, kGCols_, 1>;
@@ -481,16 +481,17 @@ __global__ AICORE void runTCVTNonSatTorch(__gm__ T *outTruncated, __gm__ S *src)
     }
 }
 
-template <typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
-          int kValidCols_ = kTCols_>
-void launchTCVTNonSatTorch(D *dst, S *src, void *stream)
+template <
+    typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
+    int kValidCols_ = kTCols_>
+void launchTCVTNonSatTorch(D* dst, S* src, void* stream)
 {
     if constexpr (std::is_same_v<D, aclFloat16>) {
         runTCVTNonSatTorch<half, S, kGRows_, kGCols_, kTRows_, kTCols_, kValidRows_, kValidCols_>
-            <<<1, nullptr, stream>>>((half *)dst, src);
+            <<<1, nullptr, stream>>>((half*)dst, src);
     } else if constexpr (std::is_same_v<S, aclFloat16>) {
         runTCVTNonSatTorch<D, half, kGRows_, kGCols_, kTRows_, kTCols_, kValidRows_, kValidCols_>
-            <<<1, nullptr, stream>>>(dst, (half *)src);
+            <<<1, nullptr, stream>>>(dst, (half*)src);
     } else {
         runTCVTNonSatTorch<D, S, kGRows_, kGCols_, kTRows_, kTCols_, kValidRows_, kValidCols_>
             <<<1, nullptr, stream>>>(dst, src);
@@ -498,16 +499,16 @@ void launchTCVTNonSatTorch(D *dst, S *src, void *stream)
 }
 
 // NonSatTorch test instantiations
-template void launchTCVTNonSatTorch<int8_t, aclFloat16, 1, 32, 1, 32>(int8_t *dst, aclFloat16 *src, void *stream);
-template void launchTCVTNonSatTorch<int8_t, aclFloat16, 2, 64, 2, 64>(int8_t *dst, aclFloat16 *src, void *stream);
-template void launchTCVTNonSatTorch<int8_t, aclFloat16, 8, 128, 8, 128>(int8_t *dst, aclFloat16 *src, void *stream);
-template void launchTCVTNonSatTorch<int16_t, aclFloat16, 1, 32, 1, 32>(int16_t *dst, aclFloat16 *src, void *stream);
-template void launchTCVTNonSatTorch<int16_t, float, 1, 32, 1, 32>(int16_t *dst, float *src, void *stream);
+template void launchTCVTNonSatTorch<int8_t, aclFloat16, 1, 32, 1, 32>(int8_t* dst, aclFloat16* src, void* stream);
+template void launchTCVTNonSatTorch<int8_t, aclFloat16, 2, 64, 2, 64>(int8_t* dst, aclFloat16* src, void* stream);
+template void launchTCVTNonSatTorch<int8_t, aclFloat16, 8, 128, 8, 128>(int8_t* dst, aclFloat16* src, void* stream);
+template void launchTCVTNonSatTorch<int16_t, aclFloat16, 1, 32, 1, 32>(int16_t* dst, aclFloat16* src, void* stream);
+template void launchTCVTNonSatTorch<int16_t, float, 1, 32, 1, 32>(int16_t* dst, float* src, void* stream);
 // NonSatTorch partial tile instantiations
-template void launchTCVTNonSatTorch<int8_t, aclFloat16, 4, 128, 4, 128, 4, 65>(int8_t *dst, aclFloat16 *src,
-                                                                               void *stream);
-template void launchTCVTNonSatTorch<int8_t, aclFloat16, 2, 32, 2, 32, 2, 16>(int8_t *dst, aclFloat16 *src,
-                                                                             void *stream);
-template void launchTCVTNonSatTorch<int16_t, aclFloat16, 4, 128, 4, 128, 4, 65>(int16_t *dst, aclFloat16 *src,
-                                                                                void *stream);
-template void launchTCVTNonSatTorch<int16_t, float, 4, 128, 4, 128, 4, 65>(int16_t *dst, float *src, void *stream);
+template void launchTCVTNonSatTorch<int8_t, aclFloat16, 4, 128, 4, 128, 4, 65>(
+    int8_t* dst, aclFloat16* src, void* stream);
+template void launchTCVTNonSatTorch<int8_t, aclFloat16, 2, 32, 2, 32, 2, 16>(
+    int8_t* dst, aclFloat16* src, void* stream);
+template void launchTCVTNonSatTorch<int16_t, aclFloat16, 4, 128, 4, 128, 4, 65>(
+    int16_t* dst, aclFloat16* src, void* stream);
+template void launchTCVTNonSatTorch<int16_t, float, 4, 128, 4, 128, 4, 65>(int16_t* dst, float* src, void* stream);

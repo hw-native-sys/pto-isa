@@ -15,17 +15,17 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-PTO_INTERNAL void SYNCALL_SOFT_DCCI(__gm__ void *ptr)
+PTO_INTERNAL void SYNCALL_SOFT_DCCI(__gm__ void* ptr)
 {
     __asm__ __volatile__("");
     dcci(ptr, SINGLE_CACHE_LINE);
     __asm__ __volatile__("");
 }
 
-PTO_INTERNAL void SYNCALL_SOFT_DCCI_RANGE(__gm__ int32_t *ptr, int32_t lines)
+PTO_INTERNAL void SYNCALL_SOFT_DCCI_RANGE(__gm__ int32_t* ptr, int32_t lines)
 {
     for (int32_t i = 0; i < lines; ++i) {
-        SYNCALL_SOFT_DCCI(static_cast<__gm__ void *>(ptr + i * SYNCALL_SOFT_SLOT_INT32));
+        SYNCALL_SOFT_DCCI(static_cast<__gm__ void*>(ptr + i * SYNCALL_SOFT_SLOT_INT32));
     }
     dsb(DSB_DDR);
 }
@@ -95,29 +95,29 @@ PTO_INTERNAL void SYNCALL_IMPL()
 #endif
 }
 
-PTO_INTERNAL int32_t SYNCALL_SOFT_GM_LOAD(__gm__ int32_t *src)
+PTO_INTERNAL int32_t SYNCALL_SOFT_GM_LOAD(__gm__ int32_t* src)
 {
-    SYNCALL_SOFT_DCCI(static_cast<__gm__ void *>(src));
+    SYNCALL_SOFT_DCCI(static_cast<__gm__ void*>(src));
     dsb(DSB_DDR);
     return src[0];
 }
 
-PTO_INTERNAL void SYNCALL_SOFT_AIC_STORE_SLOT(__gm__ int32_t *dst, __cbuf__ int32_t *l1Workspace, int32_t value)
+PTO_INTERNAL void SYNCALL_SOFT_AIC_STORE_SLOT(__gm__ int32_t* dst, __cbuf__ int32_t* l1Workspace, int32_t value)
 {
     constexpr int64_t repeatConfig = (static_cast<int64_t>(1) << 16) | 1;
     create_cbuf_matrix(l1Workspace, repeatConfig, static_cast<uint32_t>(value));
     pipe_barrier(PIPE_ALL);
-    copy_cbuf_to_gm(static_cast<__gm__ void *>(dst), static_cast<__cbuf__ void *>(l1Workspace), 0, 1, 1, 0, 0);
+    copy_cbuf_to_gm(static_cast<__gm__ void*>(dst), static_cast<__cbuf__ void*>(l1Workspace), 0, 1, 1, 0, 0);
     pipe_barrier(PIPE_ALL);
-    SYNCALL_SOFT_DCCI(static_cast<__gm__ void *>(dst));
+    SYNCALL_SOFT_DCCI(static_cast<__gm__ void*>(dst));
     dsb(DSB_DDR);
 }
 
-PTO_INTERNAL int32_t SYNCALL_SOFT_AIV_WRITE_SLOT(__gm__ int32_t *localSyncGM, __ubuf__ int32_t *ubWorkspace)
+PTO_INTERNAL int32_t SYNCALL_SOFT_AIV_WRITE_SLOT(__gm__ int32_t* localSyncGM, __ubuf__ int32_t* ubWorkspace)
 {
-    SYNCALL_SOFT_DCCI(static_cast<__gm__ void *>(localSyncGM));
+    SYNCALL_SOFT_DCCI(static_cast<__gm__ void*>(localSyncGM));
     dsb(DSB_DDR);
-    copy_gm_to_ubuf(static_cast<__ubuf__ void *>(ubWorkspace), static_cast<__gm__ void *>(localSyncGM), 0, 1, 1, 0, 0);
+    copy_gm_to_ubuf(static_cast<__ubuf__ void*>(ubWorkspace), static_cast<__gm__ void*>(localSyncGM), 0, 1, 1, 0, 0);
     set_flag(PIPE_MTE2, PIPE_S, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_S, EVENT_ID0);
 
@@ -126,18 +126,18 @@ PTO_INTERNAL int32_t SYNCALL_SOFT_AIV_WRITE_SLOT(__gm__ int32_t *localSyncGM, __
 
     set_flag(PIPE_S, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_S, PIPE_MTE3, EVENT_ID0);
-    copy_ubuf_to_gm(static_cast<__gm__ void *>(localSyncGM), static_cast<__ubuf__ void *>(ubWorkspace), 0, 1, 1, 0, 0);
+    copy_ubuf_to_gm(static_cast<__gm__ void*>(localSyncGM), static_cast<__ubuf__ void*>(ubWorkspace), 0, 1, 1, 0, 0);
     set_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
     wait_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
-    SYNCALL_SOFT_DCCI(static_cast<__gm__ void *>(localSyncGM));
+    SYNCALL_SOFT_DCCI(static_cast<__gm__ void*>(localSyncGM));
     dsb(DSB_DDR);
     return curValue;
 }
 
-PTO_INTERNAL void SYNCALL_SOFT_AIV_BARRIER(__gm__ int32_t *gmWorkspace, __ubuf__ int32_t *ubWorkspace,
-                                           int32_t totalBlocks, int32_t blockIdx)
+PTO_INTERNAL void SYNCALL_SOFT_AIV_BARRIER(
+    __gm__ int32_t* gmWorkspace, __ubuf__ int32_t* ubWorkspace, int32_t totalBlocks, int32_t blockIdx)
 {
-    __gm__ int32_t *localSyncGM = gmWorkspace + blockIdx * SYNCALL_SOFT_SLOT_INT32;
+    __gm__ int32_t* localSyncGM = gmWorkspace + blockIdx * SYNCALL_SOFT_SLOT_INT32;
     const int32_t curValue = SYNCALL_SOFT_AIV_WRITE_SLOT(localSyncGM, ubWorkspace);
 
     int32_t pollCount = 0;
@@ -146,8 +146,8 @@ PTO_INTERNAL void SYNCALL_SOFT_AIV_BARRIER(__gm__ int32_t *gmWorkspace, __ubuf__
             pipe_barrier(PIPE_ALL);
         }
         SYNCALL_SOFT_DCCI_RANGE(gmWorkspace, totalBlocks);
-        copy_gm_to_ubuf(static_cast<__ubuf__ void *>(ubWorkspace), static_cast<__gm__ void *>(gmWorkspace), 0, 1,
-                        totalBlocks, 0, 0);
+        copy_gm_to_ubuf(
+            static_cast<__ubuf__ void*>(ubWorkspace), static_cast<__gm__ void*>(gmWorkspace), 0, 1, totalBlocks, 0, 0);
         set_flag(PIPE_MTE2, PIPE_S, EVENT_ID0);
         wait_flag(PIPE_MTE2, PIPE_S, EVENT_ID0);
 
@@ -170,8 +170,8 @@ PTO_INTERNAL void SYNCALL_SOFT_AIV_BARRIER(__gm__ int32_t *gmWorkspace, __ubuf__
 }
 
 template <SyncCoreType CoreType = SyncCoreType::Mix>
-PTO_INTERNAL void SYNCALL_SOFT_MIX_IMPL(__gm__ int32_t *gmWorkspace, __ubuf__ int32_t *ubWorkspace,
-                                        __cbuf__ int32_t *l1Workspace, int32_t usedCores = 0)
+PTO_INTERNAL void SYNCALL_SOFT_MIX_IMPL(
+    __gm__ int32_t* gmWorkspace, __ubuf__ int32_t* ubWorkspace, __cbuf__ int32_t* l1Workspace, int32_t usedCores = 0)
 {
 #ifndef __PTO_AUTO__
     PTO_STATIC_ASSERT(CoreType == SyncCoreType::Mix, "Software SYNCALL mix overload is for AIC/AIV kernels.");
@@ -180,8 +180,8 @@ PTO_INTERNAL void SYNCALL_SOFT_MIX_IMPL(__gm__ int32_t *gmWorkspace, __ubuf__ in
 #if defined(__DAV_CUBE__)
     (void)ubWorkspace;
     const int32_t totalBlocks = (usedCores != 0) ? usedCores : SYNCALL_GET_MIX_PARTICIPANT_COUNT();
-    const int32_t blockIdx = SYNCALL_GET_MIX_PARTICIPANT_IDX();
-    __gm__ int32_t *localSyncGM = gmWorkspace + blockIdx * SYNCALL_SOFT_SLOT_INT32;
+    const int32_t blockIdx = SYNCALL_GET_MIX_PARTICIPANT_IDX(totalBlocks);
+    __gm__ int32_t* localSyncGM = gmWorkspace + blockIdx * SYNCALL_SOFT_SLOT_INT32;
 
     const int32_t curValue = SYNCALL_SOFT_GM_LOAD(localSyncGM) + 1;
     SYNCALL_SOFT_AIC_STORE_SLOT(localSyncGM, l1Workspace, curValue);
@@ -193,7 +193,7 @@ PTO_INTERNAL void SYNCALL_SOFT_MIX_IMPL(__gm__ int32_t *gmWorkspace, __ubuf__ in
         }
         int32_t readyCount = 0;
         for (int32_t i = 0; i < totalBlocks; ++i) {
-            __gm__ int32_t *syncGM = gmWorkspace + i * SYNCALL_SOFT_SLOT_INT32;
+            __gm__ int32_t* syncGM = gmWorkspace + i * SYNCALL_SOFT_SLOT_INT32;
             if (SYNCALL_SOFT_GM_LOAD(syncGM) >= curValue) {
                 ++readyCount;
             }
@@ -218,8 +218,8 @@ PTO_INTERNAL void SYNCALL_SOFT_MIX_IMPL(__gm__ int32_t *gmWorkspace, __ubuf__ in
 #endif
 }
 
-PTO_INTERNAL void SYNCALL_SOFT_AIC_IMPL(__gm__ int32_t *gmWorkspace, __cbuf__ int32_t *l1Workspace,
-                                        int32_t usedCores = 0)
+PTO_INTERNAL void SYNCALL_SOFT_AIC_IMPL(
+    __gm__ int32_t* gmWorkspace, __cbuf__ int32_t* l1Workspace, int32_t usedCores = 0)
 {
 #ifndef __PTO_AUTO__
     pipe_barrier(PIPE_ALL);
@@ -227,7 +227,7 @@ PTO_INTERNAL void SYNCALL_SOFT_AIC_IMPL(__gm__ int32_t *gmWorkspace, __cbuf__ in
 #if defined(__DAV_CUBE__)
     const int32_t totalBlocks = (usedCores != 0) ? usedCores : static_cast<int32_t>(get_block_num());
     const int32_t blockIdx = static_cast<int32_t>(get_block_idx());
-    __gm__ int32_t *localSyncGM = gmWorkspace + blockIdx * SYNCALL_SOFT_SLOT_INT32;
+    __gm__ int32_t* localSyncGM = gmWorkspace + blockIdx * SYNCALL_SOFT_SLOT_INT32;
 
     const int32_t curVal = SYNCALL_SOFT_GM_LOAD(localSyncGM) + 1;
     SYNCALL_SOFT_AIC_STORE_SLOT(localSyncGM, l1Workspace, curVal);
@@ -239,7 +239,7 @@ PTO_INTERNAL void SYNCALL_SOFT_AIC_IMPL(__gm__ int32_t *gmWorkspace, __cbuf__ in
         }
         int32_t readyCount = 0;
         for (int32_t i = 0; i < totalBlocks; ++i) {
-            __gm__ int32_t *syncGM = gmWorkspace + i * SYNCALL_SOFT_SLOT_INT32;
+            __gm__ int32_t* syncGM = gmWorkspace + i * SYNCALL_SOFT_SLOT_INT32;
             if (SYNCALL_SOFT_GM_LOAD(syncGM) >= curVal) {
                 ++readyCount;
             }
@@ -260,11 +260,11 @@ PTO_INTERNAL void SYNCALL_SOFT_AIC_IMPL(__gm__ int32_t *gmWorkspace, __cbuf__ in
 }
 
 template <SyncCoreType CoreType = SyncCoreType::AIVOnly>
-PTO_INTERNAL void SYNCALL_SOFT_IMPL(__gm__ int32_t *gmWorkspace, __ubuf__ int32_t *ubWorkspace, int32_t usedCores = 0)
+PTO_INTERNAL void SYNCALL_SOFT_IMPL(__gm__ int32_t* gmWorkspace, __ubuf__ int32_t* ubWorkspace, int32_t usedCores = 0)
 {
 #ifndef __PTO_AUTO__
-    PTO_STATIC_ASSERT(CoreType == SyncCoreType::AIVOnly,
-                      "Software SYNCALL GM+UB overload only supports AIV-only kernels on A2/A3.");
+    PTO_STATIC_ASSERT(
+        CoreType == SyncCoreType::AIVOnly, "Software SYNCALL GM+UB overload only supports AIV-only kernels on A2/A3.");
     pipe_barrier(PIPE_ALL);
 
 #if defined(__DAV_VEC__)

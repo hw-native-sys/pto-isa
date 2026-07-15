@@ -36,9 +36,47 @@ __global__ __aicore__ void treduce_ccu_trigger_kernel(uint64_t ckeVA, uint32_t m
     pto::comm::TREDUCE<pto::comm::CollEngine::CCU>(group, dstGm, accTile, recvTile, pto::comm::ReduceOp::Sum, ctx);
 }
 
-extern "C" __attribute__((visibility("default"))) int treduce_ccu_trigger_launch(void *stream, uint64_t ckeVA,
-                                                                                 uint32_t mask)
+extern "C" __attribute__((visibility("default"))) int treduce_ccu_trigger_launch(
+    void* stream, uint64_t ckeVA, uint32_t mask)
 {
     treduce_ccu_trigger_kernel<<<1, nullptr, stream>>>(ckeVA, mask);
+    return 0;
+}
+
+// AivStored path: AIV fills accTile, TSTOREs to input HBM, then doorbells CKE.
+__global__ __aicore__ void treduce_ccu_fused_kernel(
+    __gm__ float* inputVa, __gm__ float* outputVa, uint32_t selfIdx, int nranks, float fillValue, uint64_t ckeVA,
+    uint32_t mask)
+{
+    if (get_block_idx() != 0)
+        return;
+
+    GmType inputGm(inputVa);
+    GmType dstGm(outputVa);
+
+    GmType rankTensors[kCcuMaxRanks];
+    int actualNranks = (nranks > kCcuMaxRanks) ? kCcuMaxRanks : nranks;
+    rankTensors[static_cast<int>(selfIdx)] = inputGm;
+    pto::comm::ParallelGroup<GmType> group(rankTensors, actualNranks, /*rootIdx=*/0);
+
+    TileT accTile(1, kCcuCount);
+    TileT recvTile(1, kCcuCount);
+    TASSIGN(accTile, 0x0);
+    TASSIGN(recvTile, 0x10000);
+
+    TEXPANDS(accTile, fillValue);
+
+    pto::comm::CcuTriggerContext ctx{ckeVA, mask, selfIdx, pto::comm::CcuInputSource::AivStored};
+
+    pto::comm::TREDUCE<pto::comm::CollEngine::CCU>(group, dstGm, accTile, recvTile, pto::comm::ReduceOp::Sum, ctx);
+}
+
+extern "C" __attribute__((visibility("default"))) int treduce_ccu_fused_launch(
+    void* stream, uint64_t inputVa, uint64_t outputVa, uint32_t selfIdx, int nranks, float fillValue, uint64_t ckeVA,
+    uint32_t mask)
+{
+    treduce_ccu_fused_kernel<<<1, nullptr, stream>>>(
+        reinterpret_cast<__gm__ float*>(inputVa), reinterpret_cast<__gm__ float*>(outputVa), selfIdx, nranks, fillValue,
+        ckeVA, mask);
     return 0;
 }

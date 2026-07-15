@@ -16,25 +16,27 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <typename TDst, typename TSrc, int dstTileH, int dstTileW, int srcTileH, int srcTileW, int vRows, int vCols>
-void LaunchTRowArgMax(TDst *out, TSrc *src, void *stream);
+void LaunchTRowArgMax(TDst* out, TSrc* src, void* stream);
 template <typename TDst, int dstTileH, int dstTileW, int srcTileH, int srcTileW, int vRows, int vCols>
-void LaunchTRowArgMaxHalf(TDst *out, aclFloat16 *src, void *stream);
-template <typename TIdx, typename TVal, int dstValTileH, int dstValTileW, int dstIdxTileH, int dstIdxTileW,
-          int srcTileH, int srcTileW, int vRows, int vCols>
-void LaunchTRowArgMax(TVal *outVal, TIdx *outIdx, TVal *src, void *stream);
-template <typename TIdx, int dstValTileH, int dstValTileW, int dstIdxTileH, int dstIdxTileW, int srcTileH, int srcTileW,
-          int vRows, int vCols>
-void LaunchTRowArgMaxHalf(aclFloat16 *outVal, TIdx *outIdx, aclFloat16 *src, void *stream);
+void LaunchTRowArgMaxHalf(TDst* out, aclFloat16* src, void* stream);
+template <
+    typename TIdx, typename TVal, int dstValTileH, int dstValTileW, int dstIdxTileH, int dstIdxTileW, int srcTileH,
+    int srcTileW, int vRows, int vCols>
+void LaunchTRowArgMax(TVal* outVal, TIdx* outIdx, TVal* src, void* stream);
+template <
+    typename TIdx, int dstValTileH, int dstValTileW, int dstIdxTileH, int dstIdxTileW, int srcTileH, int srcTileW,
+    int vRows, int vCols>
+void LaunchTRowArgMaxHalf(aclFloat16* outVal, TIdx* outIdx, aclFloat16* src, void* stream);
 
 class TROWARGMAXTest : public testing::Test {
 private:
     aclrtStream stream;
-    void *dstHost;
-    void *dstValHost;
-    void *srcHost;
-    void *dstDevice;
-    void *dstValDevice;
-    void *srcDevice;
+    void* dstHost;
+    void* dstValHost;
+    void* srcHost;
+    void* dstDevice;
+    void* dstValDevice;
+    void* srcDevice;
     size_t dstFileSize;
     size_t dstValFileSize;
     size_t srcFileSize;
@@ -42,7 +44,7 @@ private:
 protected:
     std::string GetGoldenDir()
     {
-        const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+        const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
         const std::string caseName = testInfo->name();
         std::string suiteName = testInfo->test_suite_name();
         std::string fullPath = "../" + suiteName + "." + caseName;
@@ -78,8 +80,9 @@ protected:
         aclrtMemcpy(this->srcDevice, this->srcFileSize, this->srcHost, this->srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     }
 
-    template <typename TIdx, typename TVal, int dstValTileH, int dstValTileW, int dstTileH, int dstTileW, int srcTileH,
-              int srcTileW>
+    template <
+        typename TIdx, typename TVal, int dstValTileH, int dstValTileW, int dstTileH, int dstTileW, int srcTileH,
+        int srcTileW>
     inline void BeforeLaunch()
     {
         this->BeforeLaunch<TIdx, TVal, dstTileH, dstTileW, srcTileH, srcTileW>();
@@ -87,8 +90,9 @@ protected:
         aclrtMallocHost(&this->dstValHost, this->dstValFileSize);
         memset(this->dstValHost, 0, this->dstValFileSize);
         aclrtMalloc(&this->dstValDevice, this->dstValFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-        aclrtMemcpy(this->dstValDevice, this->dstValFileSize, this->dstValHost, this->dstValFileSize,
-                    ACL_MEMCPY_HOST_TO_DEVICE);
+        aclrtMemcpy(
+            this->dstValDevice, this->dstValFileSize, this->dstValHost, this->dstValFileSize,
+            ACL_MEMCPY_HOST_TO_DEVICE);
     }
 
     template <typename TIdx, typename TVal>
@@ -101,8 +105,9 @@ protected:
         std::vector<TVal> devValFinal(this->dstValFileSize);
         aclrtMemcpy(devFinal.data(), this->dstFileSize, this->dstDevice, this->dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
         if (this->dstValFileSize) {
-            aclrtMemcpy(devValFinal.data(), this->dstValFileSize, this->dstValDevice, this->dstValFileSize,
-                        ACL_MEMCPY_DEVICE_TO_HOST);
+            aclrtMemcpy(
+                devValFinal.data(), this->dstValFileSize, this->dstValDevice, this->dstValFileSize,
+                ACL_MEMCPY_DEVICE_TO_HOST);
         }
 
         aclrtFree(this->dstDevice);
@@ -131,44 +136,43 @@ protected:
         return res;
     }
 
-    template <typename TDst, typename TSrc, int dstTileH, int dstTileW, int srcTileH, int srcTileW, int vRows,
-              int vCols, bool isHalf = false>
+    template <
+        typename TDst, typename TSrc, int dstTileH, int dstTileW, int srcTileH, int srcTileW, int vRows, int vCols,
+        bool isHalf = false>
     void Launch()
     {
         this->BeforeLaunch<TDst, TSrc, dstTileH, dstTileW, srcTileH, srcTileW>();
         if constexpr (isHalf) {
             LaunchTRowArgMaxHalf<TDst, dstTileH, dstTileW, srcTileH, srcTileW, vRows, vCols>(
-                (TDst *)this->dstDevice, (TSrc *)this->srcDevice, this->stream);
+                (TDst*)this->dstDevice, (TSrc*)this->srcDevice, this->stream);
         } else {
             LaunchTRowArgMax<TDst, TSrc, dstTileH, dstTileW, srcTileH, srcTileW, vRows, vCols>(
-                (TDst *)this->dstDevice, (TSrc *)this->srcDevice, this->stream);
+                (TDst*)this->dstDevice, (TSrc*)this->srcDevice, this->stream);
         }
         bool res = this->AfterLaunch<TDst, TSrc>();
         EXPECT_TRUE(res);
     }
 
-    template <typename TIdx, typename TVal, int dstValTileH, int dstValTileW, int dstTileH, int dstTileW, int srcTileH,
-              int srcTileW, int vRows, int vCols, bool isHalf = false>
+    template <
+        typename TIdx, typename TVal, int dstValTileH, int dstValTileW, int dstTileH, int dstTileW, int srcTileH,
+        int srcTileW, int vRows, int vCols, bool isHalf = false>
     void Launch()
     {
         this->BeforeLaunch<TIdx, TVal, dstValTileH, dstValTileW, dstTileH, dstTileW, srcTileH, srcTileW>();
         if constexpr (isHalf) {
             LaunchTRowArgMaxHalf<TIdx, dstValTileH, dstValTileW, dstTileH, dstTileW, srcTileH, srcTileW, vRows, vCols>(
-                (TVal *)this->dstValDevice, (TIdx *)this->dstDevice, (TVal *)this->srcDevice, this->stream);
+                (TVal*)this->dstValDevice, (TIdx*)this->dstDevice, (TVal*)this->srcDevice, this->stream);
         } else {
-            LaunchTRowArgMax<TIdx, TVal, dstValTileH, dstValTileW, dstTileH, dstTileW, srcTileH, srcTileW, vRows,
-                             vCols>((TVal *)this->dstValDevice, (TIdx *)this->dstDevice, (TVal *)this->srcDevice,
-                                    this->stream);
+            LaunchTRowArgMax<
+                TIdx, TVal, dstValTileH, dstValTileW, dstTileH, dstTileW, srcTileH, srcTileW, vRows, vCols>(
+                (TVal*)this->dstValDevice, (TIdx*)this->dstDevice, (TVal*)this->srcDevice, this->stream);
         }
         bool res = this->AfterLaunch<TIdx, TVal>();
         EXPECT_TRUE(res);
     }
 };
 
-TEST_F(TROWARGMAXTest, case_uint32_float_8x1_8x8_8x8)
-{
-    this->Launch<uint32_t, float, 8, 1, 8, 8, 8, 8>();
-}
+TEST_F(TROWARGMAXTest, case_uint32_float_8x1_8x8_8x8) { this->Launch<uint32_t, float, 8, 1, 8, 8, 8, 8>(); }
 TEST_F(TROWARGMAXTest, case_uint32_float_184x1_184x128_184x128)
 {
     this->Launch<uint32_t, float, 184, 1, 184, 128, 184, 128>();
@@ -177,34 +181,22 @@ TEST_F(TROWARGMAXTest, case_uint32_float_1024x1_1024x8_1024x8)
 {
     this->Launch<uint32_t, float, 1024, 1, 1024, 8, 1024, 8>();
 }
-TEST_F(TROWARGMAXTest, case_uint32_float_16x1_13x16_13x13)
-{
-    this->Launch<uint32_t, float, 16, 1, 13, 16, 13, 13>();
-}
+TEST_F(TROWARGMAXTest, case_uint32_float_16x1_13x16_13x13) { this->Launch<uint32_t, float, 16, 1, 13, 16, 13, 13>(); }
 TEST_F(TROWARGMAXTest, case_uint32_float_1024x1_1023x24_1023x17)
 {
     this->Launch<uint32_t, float, 1024, 1, 1023, 24, 1023, 17>();
 }
-TEST_F(TROWARGMAXTest, case_uint32_float_8x1_8x64_8x64)
-{
-    this->Launch<uint32_t, float, 8, 1, 8, 64, 8, 64>();
-}
+TEST_F(TROWARGMAXTest, case_uint32_float_8x1_8x64_8x64) { this->Launch<uint32_t, float, 8, 1, 8, 64, 8, 64>(); }
 TEST_F(TROWARGMAXTest, case_uint32_float_264x1_260x64_260x64)
 {
     this->Launch<uint32_t, float, 264, 1, 260, 64, 260, 64>();
 }
-TEST_F(TROWARGMAXTest, case_uint32_float_8x1_1x128_1x128)
-{
-    this->Launch<uint32_t, float, 8, 1, 1, 128, 1, 128>();
-}
+TEST_F(TROWARGMAXTest, case_uint32_float_8x1_1x128_1x128) { this->Launch<uint32_t, float, 8, 1, 1, 128, 1, 128>(); }
 TEST_F(TROWARGMAXTest, case_uint32_float_64x1_32x128_32x128)
 {
     this->Launch<uint32_t, float, 64, 1, 32, 128, 32, 128>();
 }
-TEST_F(TROWARGMAXTest, case_uint32_float_8x1_3x4096_3x4095)
-{
-    this->Launch<uint32_t, float, 8, 1, 3, 4096, 3, 4095>();
-}
+TEST_F(TROWARGMAXTest, case_uint32_float_8x1_3x4096_3x4095) { this->Launch<uint32_t, float, 8, 1, 3, 4096, 3, 4095>(); }
 TEST_F(TROWARGMAXTest, case_uint32_float_8x1_2x16384_2x16381)
 {
     this->Launch<uint32_t, float, 8, 1, 2, 16384, 2, 16381>();
@@ -233,18 +225,12 @@ TEST_F(TROWARGMAXTest, case_uint32_half_16x1_1x32768_1x32761)
 {
     this->Launch<uint32_t, aclFloat16, 16, 1, 1, 32768, 1, 32761, true>();
 }
-TEST_F(TROWARGMAXTest, case_int32_float_16x1_13x16_13x13)
-{
-    this->Launch<int32_t, float, 16, 1, 13, 16, 13, 13>();
-}
+TEST_F(TROWARGMAXTest, case_int32_float_16x1_13x16_13x13) { this->Launch<int32_t, float, 16, 1, 13, 16, 13, 13>(); }
 TEST_F(TROWARGMAXTest, case_int32_half_16x1_13x16_13x13)
 {
     this->Launch<int32_t, aclFloat16, 16, 1, 13, 16, 13, 13, true>();
 }
-TEST_F(TROWARGMAXTest, case_uint32_float_3x8_3x3480_3x3473)
-{
-    this->Launch<uint32_t, float, 3, 8, 3, 3480, 3, 3473>();
-}
+TEST_F(TROWARGMAXTest, case_uint32_float_3x8_3x3480_3x3473) { this->Launch<uint32_t, float, 3, 8, 3, 3480, 3, 3473>(); }
 TEST_F(TROWARGMAXTest, case_uint32_float_260x8_260x64_260x64)
 {
     this->Launch<uint32_t, float, 260, 8, 260, 64, 260, 64>();
@@ -265,22 +251,10 @@ TEST_F(TROWARGMAXTest, case_uint32_half_1023x16_1023x32_1023x17)
 {
     this->Launch<uint32_t, aclFloat16, 1023, 16, 1023, 32, 1023, 17, true>();
 }
-TEST_F(TROWARGMAXTest, case_uint32_float_8x1_8x1_8x8_8x8)
-{
-    this->Launch<uint32_t, float, 8, 1, 8, 1, 8, 8, 8, 8>();
-}
-TEST_F(TROWARGMAXTest, case_uint32_float_8x8_8x1_8x8_8x8)
-{
-    this->Launch<uint32_t, float, 8, 8, 8, 1, 8, 8, 8, 8>();
-}
-TEST_F(TROWARGMAXTest, case_uint32_float_8x1_8x8_8x8_8x8)
-{
-    this->Launch<uint32_t, float, 8, 1, 8, 8, 8, 8, 8, 8>();
-}
-TEST_F(TROWARGMAXTest, case_uint32_float_8x8_8x8_8x8_8x8)
-{
-    this->Launch<uint32_t, float, 8, 8, 8, 8, 8, 8, 8, 8>();
-}
+TEST_F(TROWARGMAXTest, case_uint32_float_8x1_8x1_8x8_8x8) { this->Launch<uint32_t, float, 8, 1, 8, 1, 8, 8, 8, 8>(); }
+TEST_F(TROWARGMAXTest, case_uint32_float_8x8_8x1_8x8_8x8) { this->Launch<uint32_t, float, 8, 8, 8, 1, 8, 8, 8, 8>(); }
+TEST_F(TROWARGMAXTest, case_uint32_float_8x1_8x8_8x8_8x8) { this->Launch<uint32_t, float, 8, 1, 8, 8, 8, 8, 8, 8>(); }
+TEST_F(TROWARGMAXTest, case_uint32_float_8x8_8x8_8x8_8x8) { this->Launch<uint32_t, float, 8, 8, 8, 8, 8, 8, 8, 8>(); }
 TEST_F(TROWARGMAXTest, case_uint32_float_1024x1_1024x1_1024x8_1024x7)
 {
     this->Launch<uint32_t, float, 1024, 1, 1024, 1, 1024, 8, 1024, 7>();

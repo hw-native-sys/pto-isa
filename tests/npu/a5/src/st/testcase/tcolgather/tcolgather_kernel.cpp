@@ -16,7 +16,7 @@ using namespace std;
 using namespace pto;
 
 template <typename T, int DstRow, int DstCol, int SrcRow, int SrcCol, pto::MaskPattern maskPattern>
-__global__ AICORE void runTGatherMask(__gm__ T *out, __gm__ T *src)
+__global__ AICORE void runTGatherMask(__gm__ T* out, __gm__ T* src)
 {
     using SrcShapeDim5 = Shape<1, 1, 1, SrcRow, SrcCol>;
     using SrcStridDim5 = pto::Stride<SrcRow * SrcCol, SrcRow * SrcCol, SrcRow * SrcCol, SrcCol, 1>;
@@ -45,56 +45,56 @@ __global__ AICORE void runTGatherMask(__gm__ T *out, __gm__ T *src)
 }
 
 template <typename T, int DstRow, int DstCol, int SrcRow, int SrcCol, pto::MaskPattern mask>
-void launchTGatherMaskTestCase(void *out, void *src, void *stream)
+void launchTGatherMaskTestCase(void* out, void* src, void* stream)
 {
     if constexpr (std::is_same_v<T, uint16_t>) {
-        runTGatherMask<half, DstRow, DstCol, SrcRow, SrcCol, mask><<<1, nullptr, stream>>>((half *)out, (half *)src);
+        runTGatherMask<half, DstRow, DstCol, SrcRow, SrcCol, mask><<<1, nullptr, stream>>>((half*)out, (half*)src);
     } else {
-        runTGatherMask<T, DstRow, DstCol, SrcRow, SrcCol, mask><<<1, nullptr, stream>>>((T *)out, (T *)src);
+        runTGatherMask<T, DstRow, DstCol, SrcRow, SrcCol, mask><<<1, nullptr, stream>>>((T*)out, (T*)src);
     }
 }
 
-template void launchTGatherMaskTestCase<uint16_t, 16, 64, 16, 64, pto::MaskPattern::P1111>(void *out, void *src,
-                                                                                           void *stream);
-template void launchTGatherMaskTestCase<float, 16, 64, 16, 64, pto::MaskPattern::P1111>(void *out, void *src,
-                                                                                        void *stream);
-template void launchTGatherMaskTestCase<int32_t, 16, 64, 16, 64, pto::MaskPattern::P1111>(void *out, void *src,
-                                                                                          void *stream);
+template void launchTGatherMaskTestCase<uint16_t, 16, 64, 16, 64, pto::MaskPattern::P1111>(
+    void* out, void* src, void* stream);
+template void launchTGatherMaskTestCase<float, 16, 64, 16, 64, pto::MaskPattern::P1111>(
+    void* out, void* src, void* stream);
+template void launchTGatherMaskTestCase<int32_t, 16, 64, 16, 64, pto::MaskPattern::P1111>(
+    void* out, void* src, void* stream);
 
-template void launchTGatherMaskTestCase<uint16_t, 16, 128, 32, 64, pto::MaskPattern::P1010>(void *out, void *src,
-                                                                                            void *stream);
-template void launchTGatherMaskTestCase<uint16_t, 16, 128, 32, 64, pto::MaskPattern::P0101>(void *out, void *src,
-                                                                                            void *stream);
-template void launchTGatherMaskTestCase<float, 16, 128, 32, 64, pto::MaskPattern::P1010>(void *out, void *src,
-                                                                                         void *stream);
-template void launchTGatherMaskTestCase<float, 16, 128, 32, 64, pto::MaskPattern::P0101>(void *out, void *src,
-                                                                                         void *stream);
-template void launchTGatherMaskTestCase<int32_t, 16, 128, 32, 64, pto::MaskPattern::P1010>(void *out, void *src,
-                                                                                           void *stream);
-template void launchTGatherMaskTestCase<int32_t, 16, 128, 32, 64, pto::MaskPattern::P0101>(void *out, void *src,
-                                                                                           void *stream);
+template void launchTGatherMaskTestCase<uint16_t, 16, 128, 32, 64, pto::MaskPattern::P1010>(
+    void* out, void* src, void* stream);
+template void launchTGatherMaskTestCase<uint16_t, 16, 128, 32, 64, pto::MaskPattern::P0101>(
+    void* out, void* src, void* stream);
+template void launchTGatherMaskTestCase<float, 16, 128, 32, 64, pto::MaskPattern::P1010>(
+    void* out, void* src, void* stream);
+template void launchTGatherMaskTestCase<float, 16, 128, 32, 64, pto::MaskPattern::P0101>(
+    void* out, void* src, void* stream);
+template void launchTGatherMaskTestCase<int32_t, 16, 128, 32, 64, pto::MaskPattern::P1010>(
+    void* out, void* src, void* stream);
+template void launchTGatherMaskTestCase<int32_t, 16, 128, 32, 64, pto::MaskPattern::P0101>(
+    void* out, void* src, void* stream);
 
-template void launchTGatherMaskTestCase<uint16_t, 4, 256, 16, 64, pto::MaskPattern::P1000>(void *out, void *src,
-                                                                                           void *stream);
-template void launchTGatherMaskTestCase<uint16_t, 4, 256, 16, 64, pto::MaskPattern::P0100>(void *out, void *src,
-                                                                                           void *stream);
-template void launchTGatherMaskTestCase<uint16_t, 4, 256, 16, 64, pto::MaskPattern::P0010>(void *out, void *src,
-                                                                                           void *stream);
-template void launchTGatherMaskTestCase<uint16_t, 4, 256, 16, 64, pto::MaskPattern::P0001>(void *out, void *src,
-                                                                                           void *stream);
-template void launchTGatherMaskTestCase<float, 4, 256, 16, 64, pto::MaskPattern::P1000>(void *out, void *src,
-                                                                                        void *stream);
-template void launchTGatherMaskTestCase<float, 4, 256, 16, 64, pto::MaskPattern::P0100>(void *out, void *src,
-                                                                                        void *stream);
-template void launchTGatherMaskTestCase<float, 4, 256, 16, 64, pto::MaskPattern::P0010>(void *out, void *src,
-                                                                                        void *stream);
-template void launchTGatherMaskTestCase<float, 4, 256, 16, 64, pto::MaskPattern::P0001>(void *out, void *src,
-                                                                                        void *stream);
-template void launchTGatherMaskTestCase<int32_t, 4, 256, 16, 64, pto::MaskPattern::P1000>(void *out, void *src,
-                                                                                          void *stream);
-template void launchTGatherMaskTestCase<int32_t, 4, 256, 16, 64, pto::MaskPattern::P0100>(void *out, void *src,
-                                                                                          void *stream);
-template void launchTGatherMaskTestCase<int32_t, 4, 256, 16, 64, pto::MaskPattern::P0010>(void *out, void *src,
-                                                                                          void *stream);
-template void launchTGatherMaskTestCase<int32_t, 4, 256, 16, 64, pto::MaskPattern::P0001>(void *out, void *src,
-                                                                                          void *stream);
+template void launchTGatherMaskTestCase<uint16_t, 4, 256, 16, 64, pto::MaskPattern::P1000>(
+    void* out, void* src, void* stream);
+template void launchTGatherMaskTestCase<uint16_t, 4, 256, 16, 64, pto::MaskPattern::P0100>(
+    void* out, void* src, void* stream);
+template void launchTGatherMaskTestCase<uint16_t, 4, 256, 16, 64, pto::MaskPattern::P0010>(
+    void* out, void* src, void* stream);
+template void launchTGatherMaskTestCase<uint16_t, 4, 256, 16, 64, pto::MaskPattern::P0001>(
+    void* out, void* src, void* stream);
+template void launchTGatherMaskTestCase<float, 4, 256, 16, 64, pto::MaskPattern::P1000>(
+    void* out, void* src, void* stream);
+template void launchTGatherMaskTestCase<float, 4, 256, 16, 64, pto::MaskPattern::P0100>(
+    void* out, void* src, void* stream);
+template void launchTGatherMaskTestCase<float, 4, 256, 16, 64, pto::MaskPattern::P0010>(
+    void* out, void* src, void* stream);
+template void launchTGatherMaskTestCase<float, 4, 256, 16, 64, pto::MaskPattern::P0001>(
+    void* out, void* src, void* stream);
+template void launchTGatherMaskTestCase<int32_t, 4, 256, 16, 64, pto::MaskPattern::P1000>(
+    void* out, void* src, void* stream);
+template void launchTGatherMaskTestCase<int32_t, 4, 256, 16, 64, pto::MaskPattern::P0100>(
+    void* out, void* src, void* stream);
+template void launchTGatherMaskTestCase<int32_t, 4, 256, 16, 64, pto::MaskPattern::P0010>(
+    void* out, void* src, void* stream);
+template void launchTGatherMaskTestCase<int32_t, 4, 256, 16, 64, pto::MaskPattern::P0001>(
+    void* out, void* src, void* stream);

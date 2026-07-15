@@ -16,32 +16,30 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <uint32_t caseId>
-void launchTScatterTestCase(void *out, void *src, void *indexes, aclrtStream stream);
+void launchTScatterTestCase(void* out, void* src, void* indexes, aclrtStream stream);
 
 template <typename T, int DstRow, int DstCol, int SrcRow, int SrcCol, pto::MaskPattern mask>
-void launchTScatterMaskTestCase(void *out, void *src, void *stream);
+void launchTScatterMaskTestCase(void* out, void* src, void* stream);
 
 class TSCATTERTest : public testing::Test {
 public:
 protected:
-    void SetUp() override
-    {}
+    void SetUp() override {}
 
-    void TearDown() override
-    {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <uint32_t caseId, typename T, typename TI, uint32_t Src0Row, uint32_t Src0Col, uint32_t Src1Row,
-          uint32_t Src1Col>
+template <
+    uint32_t caseId, typename T, typename TI, uint32_t Src0Row, uint32_t Src0Col, uint32_t Src1Row, uint32_t Src1Col>
 bool TScatterTestFramework()
 {
     aclInit(nullptr);
@@ -52,20 +50,20 @@ bool TScatterTestFramework()
 
     size_t dataSize = Src0Row * Src0Col * sizeof(T);
     size_t idxSize = Src1Row * Src1Col * sizeof(TI);
-    T *dstHost;
-    T *srcHost;
-    TI *indHost;
-    T *dstDevice;
-    T *srcDevice;
-    TI *indDevice;
+    T* dstHost;
+    T* srcHost;
+    TI* indHost;
+    T* dstDevice;
+    T* srcDevice;
+    TI* indDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dataSize);
-    aclrtMallocHost((void **)(&srcHost), dataSize);
-    aclrtMallocHost((void **)(&indHost), idxSize);
+    aclrtMallocHost((void**)(&dstHost), dataSize);
+    aclrtMallocHost((void**)(&srcHost), dataSize);
+    aclrtMallocHost((void**)(&indHost), idxSize);
 
-    aclrtMalloc((void **)&dstDevice, dataSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, dataSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&indDevice, idxSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dataSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, dataSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&indDevice, idxSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", dataSize, srcHost, dataSize);
     ReadFile(GetGoldenDir() + "/indexes.bin", idxSize, indHost, idxSize);
@@ -152,10 +150,10 @@ void test_scatter_mask()
     T *dstHost, *srcHost;
     T *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstSize);
-    aclrtMallocHost((void **)(&srcHost), srcSize);
-    aclrtMalloc((void **)&dstDevice, dstSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), dstSize);
+    aclrtMallocHost((void**)(&srcHost), srcSize);
+    aclrtMalloc((void**)&dstDevice, dstSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", srcSize, srcHost, srcSize);
     aclrtMemcpy(srcDevice, srcSize, srcHost, srcSize, ACL_MEMCPY_HOST_TO_DEVICE);

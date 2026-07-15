@@ -15,7 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <int row, int validRow, int col, int validCol>
-PTO_INTERNAL void runTADDDEQRELU(__gm__ half *out, __gm__ int32_t *src0, __gm__ int32_t *src1, float deqScale)
+PTO_INTERNAL void runTADDDEQRELU(__gm__ half* out, __gm__ int32_t* src0, __gm__ int32_t* src1, float deqScale)
 {
     using DynDim2Shape = Shape<1, 1, 1, -1, -1>;
     using DynDim2Stride = pto::Stride<1, 1, -1, -1, 1>;
@@ -56,69 +56,68 @@ PTO_INTERNAL void runTADDDEQRELU(__gm__ half *out, __gm__ int32_t *src0, __gm__ 
     out = dstGlobal.data();
 }
 
-extern "C" __global__ AICORE void launchTADDDEQRELUCase1(__gm__ aclFloat16 *out, __gm__ int32_t *src0,
-                                                         __gm__ int32_t *src1, float deqScale)
+extern "C" __global__ AICORE void launchTADDDEQRELUCase1(
+    __gm__ aclFloat16* out, __gm__ int32_t* src0, __gm__ int32_t* src1, float deqScale)
 {
-    runTADDDEQRELU<32, 32, 64, 64>((__gm__ half *)out, src0, src1, deqScale);
+    runTADDDEQRELU<32, 32, 64, 64>((__gm__ half*)out, src0, src1, deqScale);
 }
-extern "C" __global__ AICORE void launchTADDDEQRELUCase2(__gm__ aclFloat16 *out, __gm__ int32_t *src0,
-                                                         __gm__ int32_t *src1, float deqScale)
+extern "C" __global__ AICORE void launchTADDDEQRELUCase2(
+    __gm__ aclFloat16* out, __gm__ int32_t* src0, __gm__ int32_t* src1, float deqScale)
 {
-    runTADDDEQRELU<64, 64, 64, 64>((__gm__ half *)out, src0, src1, deqScale);
+    runTADDDEQRELU<64, 64, 64, 64>((__gm__ half*)out, src0, src1, deqScale);
 }
-extern "C" __global__ AICORE void launchTADDDEQRELUCase3(__gm__ aclFloat16 *out, __gm__ int32_t *src0,
-                                                         __gm__ int32_t *src1, float deqScale)
+extern "C" __global__ AICORE void launchTADDDEQRELUCase3(
+    __gm__ aclFloat16* out, __gm__ int32_t* src0, __gm__ int32_t* src1, float deqScale)
 {
-    runTADDDEQRELU<1, 1, 2048, 2048>((__gm__ half *)out, src0, src1, deqScale);
+    runTADDDEQRELU<1, 1, 2048, 2048>((__gm__ half*)out, src0, src1, deqScale);
 }
-extern "C" __global__ AICORE void launchTADDDEQRELUCase4(__gm__ aclFloat16 *out, __gm__ int32_t *src0,
-                                                         __gm__ int32_t *src1, float deqScale)
+extern "C" __global__ AICORE void launchTADDDEQRELUCase4(
+    __gm__ aclFloat16* out, __gm__ int32_t* src0, __gm__ int32_t* src1, float deqScale)
 {
-    runTADDDEQRELU<64, 64, 128, 128>((__gm__ half *)out, src0, src1, deqScale);
+    runTADDDEQRELU<64, 64, 128, 128>((__gm__ half*)out, src0, src1, deqScale);
 }
-extern "C" __global__ AICORE void launchTADDDEQRELUCase5(__gm__ aclFloat16 *out, __gm__ int32_t *src0,
-                                                         __gm__ int32_t *src1, float deqScale)
+extern "C" __global__ AICORE void launchTADDDEQRELUCase5(
+    __gm__ aclFloat16* out, __gm__ int32_t* src0, __gm__ int32_t* src1, float deqScale)
 {
-    runTADDDEQRELU<32, 31, 128, 128>((__gm__ half *)out, src0, src1, deqScale);
+    runTADDDEQRELU<32, 31, 128, 128>((__gm__ half*)out, src0, src1, deqScale);
 }
-extern "C" __global__ AICORE void launchTADDDEQRELUCase6(__gm__ aclFloat16 *out, __gm__ int32_t *src0,
-                                                         __gm__ int32_t *src1, float deqScale)
+extern "C" __global__ AICORE void launchTADDDEQRELUCase6(
+    __gm__ aclFloat16* out, __gm__ int32_t* src0, __gm__ int32_t* src1, float deqScale)
 {
-    runTADDDEQRELU<32, 32, 128, 127>((__gm__ half *)out, src0, src1, deqScale);
+    runTADDDEQRELU<32, 32, 128, 127>((__gm__ half*)out, src0, src1, deqScale);
 }
-extern "C" __global__ AICORE void launchTADDDEQRELUCase7(__gm__ aclFloat16 *out, __gm__ int32_t *src0,
-                                                         __gm__ int32_t *src1, float deqScale)
+extern "C" __global__ AICORE void launchTADDDEQRELUCase7(
+    __gm__ aclFloat16* out, __gm__ int32_t* src0, __gm__ int32_t* src1, float deqScale)
 {
-    runTADDDEQRELU<16, 16, 64, 64>((__gm__ half *)out, src0, src1, deqScale);
+    runTADDDEQRELU<16, 16, 64, 64>((__gm__ half*)out, src0, src1, deqScale);
 }
-extern "C" __global__ AICORE void launchTADDDEQRELUCase8(__gm__ aclFloat16 *out, __gm__ int32_t *src0,
-                                                         __gm__ int32_t *src1, float deqScale)
+extern "C" __global__ AICORE void launchTADDDEQRELUCase8(
+    __gm__ aclFloat16* out, __gm__ int32_t* src0, __gm__ int32_t* src1, float deqScale)
 {
-    runTADDDEQRELU<32, 32, 64, 64>((__gm__ half *)out, src0, src1, deqScale);
+    runTADDDEQRELU<32, 32, 64, 64>((__gm__ half*)out, src0, src1, deqScale);
 }
-extern "C" __global__ AICORE void launchTADDDEQRELUCase9(__gm__ aclFloat16 *out, __gm__ int32_t *src0,
-                                                         __gm__ int32_t *src1, float deqScale)
+extern "C" __global__ AICORE void launchTADDDEQRELUCase9(
+    __gm__ aclFloat16* out, __gm__ int32_t* src0, __gm__ int32_t* src1, float deqScale)
 {
-    runTADDDEQRELU<16, 16, 128, 128>((__gm__ half *)out, src0, src1, deqScale);
+    runTADDDEQRELU<16, 16, 128, 128>((__gm__ half*)out, src0, src1, deqScale);
 }
-extern "C" __global__ AICORE void launchTADDDEQRELUCase10(__gm__ aclFloat16 *out, __gm__ int32_t *src0,
-                                                          __gm__ int32_t *src1, float deqScale)
+extern "C" __global__ AICORE void launchTADDDEQRELUCase10(
+    __gm__ aclFloat16* out, __gm__ int32_t* src0, __gm__ int32_t* src1, float deqScale)
 {
-    runTADDDEQRELU<16, 16, 128, 128>((__gm__ half *)out, src0, src1, deqScale);
+    runTADDDEQRELU<16, 16, 128, 128>((__gm__ half*)out, src0, src1, deqScale);
 }
 
 static const float deqScaleArr[] = {
     0.5f, 0.0625f, 0.25f, 0.0625f, 0.5f, 0.5f, 0.5f, 0.00001f, 0.001f, 100.0f,
 };
 
-#define DISPATCH_CASE(N)                                                                                      \
-    case N:                                                                                                   \
-        launchTADDDEQRELUCase##N<<<1, nullptr, stream>>>((aclFloat16 *)out, (int32_t *)src0, (int32_t *)src1, \
-                                                         deqScale);                                           \
+#define DISPATCH_CASE(N)                                                                                              \
+    case N:                                                                                                           \
+        launchTADDDEQRELUCase##N<<<1, nullptr, stream>>>((aclFloat16*)out, (int32_t*)src0, (int32_t*)src1, deqScale); \
         break;
 
 template <uint32_t caseId>
-void dispatchTADDDEQRELUTestCase(void *out, void *src0, void *src1, aclrtStream stream)
+void dispatchTADDDEQRELUTestCase(void* out, void* src0, void* src1, aclrtStream stream)
 {
     float deqScale = deqScaleArr[caseId - 1];
     switch (caseId) {
@@ -137,13 +136,13 @@ void dispatchTADDDEQRELUTestCase(void *out, void *src0, void *src1, aclrtStream 
     }
 }
 
-template void dispatchTADDDEQRELUTestCase<1>(void *, void *, void *, aclrtStream);
-template void dispatchTADDDEQRELUTestCase<2>(void *, void *, void *, aclrtStream);
-template void dispatchTADDDEQRELUTestCase<3>(void *, void *, void *, aclrtStream);
-template void dispatchTADDDEQRELUTestCase<4>(void *, void *, void *, aclrtStream);
-template void dispatchTADDDEQRELUTestCase<5>(void *, void *, void *, aclrtStream);
-template void dispatchTADDDEQRELUTestCase<6>(void *, void *, void *, aclrtStream);
-template void dispatchTADDDEQRELUTestCase<7>(void *, void *, void *, aclrtStream);
-template void dispatchTADDDEQRELUTestCase<8>(void *, void *, void *, aclrtStream);
-template void dispatchTADDDEQRELUTestCase<9>(void *, void *, void *, aclrtStream);
-template void dispatchTADDDEQRELUTestCase<10>(void *, void *, void *, aclrtStream);
+template void dispatchTADDDEQRELUTestCase<1>(void*, void*, void*, aclrtStream);
+template void dispatchTADDDEQRELUTestCase<2>(void*, void*, void*, aclrtStream);
+template void dispatchTADDDEQRELUTestCase<3>(void*, void*, void*, aclrtStream);
+template void dispatchTADDDEQRELUTestCase<4>(void*, void*, void*, aclrtStream);
+template void dispatchTADDDEQRELUTestCase<5>(void*, void*, void*, aclrtStream);
+template void dispatchTADDDEQRELUTestCase<6>(void*, void*, void*, aclrtStream);
+template void dispatchTADDDEQRELUTestCase<7>(void*, void*, void*, aclrtStream);
+template void dispatchTADDDEQRELUTestCase<8>(void*, void*, void*, aclrtStream);
+template void dispatchTADDDEQRELUTestCase<9>(void*, void*, void*, aclrtStream);
+template void dispatchTADDDEQRELUTestCase<10>(void*, void*, void*, aclrtStream);

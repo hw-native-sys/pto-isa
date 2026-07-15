@@ -33,7 +33,7 @@ struct IsMGatherNDTile {
 };
 
 template <GatherOOB Oob>
-AICORE PTO_INLINE uint32_t mgather_remap(uint32_t idx, uint32_t cap, uint32_t &doRead)
+AICORE PTO_INLINE uint32_t mgather_remap(uint32_t idx, uint32_t cap, uint32_t& doRead)
 {
     if constexpr (Oob == GatherOOB::Clamp) {
         doRead = 1u;
@@ -57,7 +57,7 @@ struct IsMGatherNZTile {
 };
 
 template <typename T>
-AICORE PTO_INLINE void MGatherRowDma(__ubuf__ T *dst, __gm__ T *src, uint32_t lenBytes)
+AICORE PTO_INLINE void MGatherRowDma(__ubuf__ T* dst, __gm__ T* src, uint32_t lenBytes)
 {
     if constexpr (sizeof(T) == 1) {
         copy_gm_to_ubuf_align_b8(dst, src, 0, 1, lenBytes, 0, 0, 0, 0);
@@ -69,8 +69,8 @@ AICORE PTO_INLINE void MGatherRowDma(__ubuf__ T *dst, __gm__ T *src, uint32_t le
 }
 
 template <typename T>
-AICORE PTO_INLINE void MGatherRowMultiDma(__ubuf__ T *dst, __gm__ T *src, uint16_t nBurst, uint32_t lenBytes,
-                                          uint32_t gmGapBytes, uint32_t ubGapBlocks)
+AICORE PTO_INLINE void MGatherRowMultiDma(
+    __ubuf__ T* dst, __gm__ T* src, uint16_t nBurst, uint32_t lenBytes, uint32_t gmGapBytes, uint32_t ubGapBlocks)
 {
     if constexpr (sizeof(T) == 1) {
         copy_gm_to_ubuf_align_b8(dst, src, 0, nBurst, lenBytes, 0, 0, gmGapBytes, ubGapBlocks);
@@ -82,8 +82,9 @@ AICORE PTO_INLINE void MGatherRowMultiDma(__ubuf__ T *dst, __gm__ T *src, uint16
 }
 
 template <typename T>
-AICORE PTO_INLINE uint64_t MGatherNZGmOffset(uint32_t logicalRow, uint32_t logicalCol, int gShape0, int gShape1,
-                                             int gStride0, int gStride1, int gStride2, int gStride3, int gStride4)
+AICORE PTO_INLINE uint64_t MGatherNZGmOffset(
+    uint32_t logicalRow, uint32_t logicalCol, int gShape0, int gShape1, int gStride0, int gStride1, int gStride2,
+    int gStride3, int gStride4)
 {
     constexpr uint32_t kC0 = C0_SIZE_BYTE / sizeof(T);
     const uint32_t blockColCombined = logicalCol / kC0;
@@ -99,12 +100,12 @@ AICORE PTO_INLINE uint64_t MGatherNZGmOffset(uint32_t logicalRow, uint32_t logic
 }
 
 template <GatherOOB Oob, typename T, typename TIdx, typename DstTile, typename IdxTile>
-__tf__ AICORE void MGatherRowImpl(typename DstTile::TileDType __out__ dst, __gm__ T *tablePtr,
-                                  typename IdxTile::TileDType __in__ indices, uint32_t validRow, uint32_t validCol,
-                                  uint32_t tableRows, uint32_t tableRowStride)
+__tf__ AICORE void MGatherRowImpl(
+    typename DstTile::TileDType __out__ dst, __gm__ T* tablePtr, typename IdxTile::TileDType __in__ indices,
+    uint32_t validRow, uint32_t validCol, uint32_t tableRows, uint32_t tableRowStride)
 {
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ TIdx *idxPtr = (__ubuf__ TIdx *)__cce_get_tile_ptr(indices);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ TIdx* idxPtr = (__ubuf__ TIdx*)__cce_get_tile_ptr(indices);
 
     PtoSetWaitFlag<PIPE_V, PIPE_S>();
     PtoSetWaitFlag<PIPE_MTE3, PIPE_S>();
@@ -117,9 +118,9 @@ __tf__ AICORE void MGatherRowImpl(typename DstTile::TileDType __out__ dst, __gm_
             uint32_t rawIdx = static_cast<uint32_t>(idxPtr[r]);
             uint32_t doRead;
             uint32_t safeIdx = mgather_remap<Oob>(rawIdx, tableRows, doRead);
-            __ubuf__ T *dstRow = dstPtr + r * kRowStride;
+            __ubuf__ T* dstRow = dstPtr + r * kRowStride;
             if (doRead) {
-                __gm__ T *srcRow = tablePtr + static_cast<uint64_t>(safeIdx) * tableRowStride;
+                __gm__ T* srcRow = tablePtr + static_cast<uint64_t>(safeIdx) * tableRowStride;
                 MGatherRowDma<T>(dstRow, srcRow, lenBytes);
             } else {
                 for (uint32_t c = 0; c < validCol; c++) {
@@ -133,8 +134,8 @@ __tf__ AICORE void MGatherRowImpl(typename DstTile::TileDType __out__ dst, __gm_
             uint32_t doRead;
             uint32_t safeIdx = mgather_remap<Oob>(rawIdx, tableRows, doRead);
             if (doRead) {
-                __gm__ T *srcRow = tablePtr + static_cast<uint64_t>(safeIdx) * tableRowStride;
-                __ubuf__ T *dstRow = dstPtr + r * kRowStride;
+                __gm__ T* srcRow = tablePtr + static_cast<uint64_t>(safeIdx) * tableRowStride;
+                __ubuf__ T* dstRow = dstPtr + r * kRowStride;
                 MGatherRowDma<T>(dstRow, srcRow, lenBytes);
             }
         }
@@ -148,16 +149,16 @@ __tf__ AICORE void MGatherRowImpl(typename DstTile::TileDType __out__ dst, __gm_
 }
 
 template <GatherOOB Oob, typename T, typename TIdx, typename DstTile, typename IdxTile>
-__tf__ AICORE void MGatherRowNzImpl(typename DstTile::TileDType __out__ dst, __gm__ T *tablePtr,
-                                    typename IdxTile::TileDType __in__ indices, uint32_t validRow, int gShape0,
-                                    int gShape1, int gShape2, int gStride0, int gStride1, int gStride2, int gStride3)
+__tf__ AICORE void MGatherRowNzImpl(
+    typename DstTile::TileDType __out__ dst, __gm__ T* tablePtr, typename IdxTile::TileDType __in__ indices,
+    uint32_t validRow, int gShape0, int gShape1, int gShape2, int gStride0, int gStride1, int gStride2, int gStride3)
 {
     constexpr uint32_t kC0 = C0_SIZE_BYTE / sizeof(T);
     constexpr uint32_t kFRow = FRACTAL_NZ_ROW;
     constexpr uint32_t kFractalRowBytes = kC0 * sizeof(T);
 
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ TIdx *idxPtr = (__ubuf__ TIdx *)__cce_get_tile_ptr(indices);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ TIdx* idxPtr = (__ubuf__ TIdx*)__cce_get_tile_ptr(indices);
 
     PtoSetWaitFlag<PIPE_V, PIPE_S>();
     PtoSetWaitFlag<PIPE_MTE3, PIPE_S>();
@@ -185,10 +186,10 @@ __tf__ AICORE void MGatherRowNzImpl(typename DstTile::TileDType __out__ dst, __g
             const uint32_t dstRowInBlock = r - dstBlockRow * kFRow;
 
             for (uint32_t i = 0; i < (uint32_t)gShape0; i++) {
-                __gm__ T *srcAddr = tablePtr + (int64_t)i * (int64_t)gStride0 +
+                __gm__ T* srcAddr = tablePtr + (int64_t)i * (int64_t)gStride0 +
                                     (int64_t)srcBlockRow * (int64_t)gStride2 +
                                     (int64_t)srcRowInBlock * (int64_t)gStride3;
-                __ubuf__ T *dstAddr = dstPtr + (int64_t)i * tileOuterStrideElem +
+                __ubuf__ T* dstAddr = dstPtr + (int64_t)i * tileOuterStrideElem +
                                       (int64_t)dstBlockRow * (int64_t)kFRow * (int64_t)kC0 +
                                       (int64_t)dstRowInBlock * (int64_t)kC0;
                 MGatherRowMultiDma<T>(dstAddr, srcAddr, (uint16_t)gShape1, kFractalRowBytes, gmGapBytes, ubGapBlocks);
@@ -204,12 +205,12 @@ __tf__ AICORE void MGatherRowNzImpl(typename DstTile::TileDType __out__ dst, __g
 }
 
 template <GatherOOB Oob, typename T, typename TIdx, typename DstTile, typename IdxTile>
-__tf__ AICORE void MGatherElemImpl(typename DstTile::TileDType __out__ dst, __gm__ T *tablePtr,
-                                   typename IdxTile::TileDType __in__ indices, uint32_t validRow, uint32_t validCol,
-                                   uint32_t tableSize)
+__tf__ AICORE void MGatherElemImpl(
+    typename DstTile::TileDType __out__ dst, __gm__ T* tablePtr, typename IdxTile::TileDType __in__ indices,
+    uint32_t validRow, uint32_t validCol, uint32_t tableSize)
 {
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ TIdx *idxPtr = (__ubuf__ TIdx *)__cce_get_tile_ptr(indices);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ TIdx* idxPtr = (__ubuf__ TIdx*)__cce_get_tile_ptr(indices);
 
     PtoSetWaitFlag<PIPE_V, PIPE_S>();
     PtoSetWaitFlag<PIPE_MTE3, PIPE_S>();
@@ -241,14 +242,14 @@ __tf__ AICORE void MGatherElemImpl(typename DstTile::TileDType __out__ dst, __gm
 }
 
 template <GatherOOB Oob, typename T, typename TIdx, typename DstTile, typename IdxTile>
-__tf__ AICORE void MGatherElemNzImpl(typename DstTile::TileDType __out__ dst, __gm__ T *tablePtr,
-                                     typename IdxTile::TileDType __in__ indices, uint32_t validRow, uint32_t validCol,
-                                     uint32_t tableSize, int gShape0, int gShape1, int gStride0, int gStride1,
-                                     int gStride2, int gStride3, int gStride4, uint32_t nLogicalCols)
+__tf__ AICORE void MGatherElemNzImpl(
+    typename DstTile::TileDType __out__ dst, __gm__ T* tablePtr, typename IdxTile::TileDType __in__ indices,
+    uint32_t validRow, uint32_t validCol, uint32_t tableSize, int gShape0, int gShape1, int gStride0, int gStride1,
+    int gStride2, int gStride3, int gStride4, uint32_t nLogicalCols)
 {
     constexpr uint32_t kC0 = C0_SIZE_BYTE / sizeof(T);
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ TIdx *idxPtr = (__ubuf__ TIdx *)__cce_get_tile_ptr(indices);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ TIdx* idxPtr = (__ubuf__ TIdx*)__cce_get_tile_ptr(indices);
 
     PtoSetWaitFlag<PIPE_V, PIPE_S>();
     PtoSetWaitFlag<PIPE_MTE3, PIPE_S>();
@@ -262,10 +263,10 @@ __tf__ AICORE void MGatherElemNzImpl(typename DstTile::TileDType __out__ dst, __
         const uint32_t cBase = bcol * kC0;
         const uint32_t cLimit = (cBase + kC0 < validCol) ? (cBase + kC0) : validCol;
         const uint32_t kInBlock = cLimit - cBase;
-        __ubuf__ T *dstBlockBase = dstPtr + (uint64_t)bcol * (uint64_t)kDstColBlockStride;
+        __ubuf__ T* dstBlockBase = dstPtr + (uint64_t)bcol * (uint64_t)kDstColBlockStride;
         for (uint32_t r = 0; r < validRow; r++) {
             const uint32_t idxRowOff = r * kIdxRowStride;
-            __ubuf__ T *dstRowBase = dstBlockBase + (uint64_t)r * (uint64_t)kC0;
+            __ubuf__ T* dstRowBase = dstBlockBase + (uint64_t)r * (uint64_t)kC0;
             for (uint32_t cInner = 0; cInner < kInBlock; cInner++) {
                 const uint32_t c = cBase + cInner;
                 const uint32_t idxOff = idxRowOff + c;
@@ -275,8 +276,8 @@ __tf__ AICORE void MGatherElemNzImpl(typename DstTile::TileDType __out__ dst, __
                 if (doRead) {
                     const uint32_t logicalRow = safeIdx / nLogicalCols;
                     const uint32_t logicalCol = safeIdx - logicalRow * nLogicalCols;
-                    const uint64_t srcOff = MGatherNZGmOffset<T>(logicalRow, logicalCol, gShape0, gShape1, gStride0,
-                                                                 gStride1, gStride2, gStride3, gStride4);
+                    const uint64_t srcOff = MGatherNZGmOffset<T>(
+                        logicalRow, logicalCol, gShape0, gShape1, gStride0, gStride1, gStride2, gStride3, gStride4);
                     dstRowBase[cInner] = tablePtr[srcOff];
                 } else if constexpr (Oob == GatherOOB::Zero) {
                     dstRowBase[cInner] = static_cast<T>(0);
@@ -291,20 +292,20 @@ __tf__ AICORE void MGatherElemNzImpl(typename DstTile::TileDType __out__ dst, __
 }
 
 template <GatherOOB Oob, typename T, typename TIdx, typename DstTile>
-__tf__ AICORE void MGatherGm2L1RowImpl(typename DstTile::TileDType __out__ dst, __gm__ T *tablePtr, __gm__ TIdx *idxPtr,
-                                       uint32_t validRow, uint32_t validCol, uint32_t tableRows,
-                                       uint32_t tableRowStride)
+__tf__ AICORE void MGatherGm2L1RowImpl(
+    typename DstTile::TileDType __out__ dst, __gm__ T* tablePtr, __gm__ TIdx* idxPtr, uint32_t validRow,
+    uint32_t validCol, uint32_t tableRows, uint32_t tableRowStride)
 {
 #if defined(__DAV_CUBE__)
     constexpr uint32_t kC0 = C0_SIZE_BYTE / sizeof(T);
-    __cbuf__ T *dstPtr = (__cbuf__ T *)__cce_get_tile_ptr(dst);
+    __cbuf__ T* dstPtr = (__cbuf__ T*)__cce_get_tile_ptr(dst);
     constexpr uint32_t kTileRows = DstTile::Rows;
     constexpr uint32_t kTileCols = DstTile::Cols;
 
     if constexpr (Oob == GatherOOB::Zero) {
         constexpr uint32_t kColBlocks = kTileCols / kC0;
         int64_t repeatConfig = (static_cast<int64_t>(kTileRows) << 16) | static_cast<int64_t>(kColBlocks);
-        pto_create_cbuf_matrix((__cbuf__ uint16_t *)dstPtr, repeatConfig, 0);
+        pto_create_cbuf_matrix((__cbuf__ uint16_t*)dstPtr, repeatConfig, 0);
     }
 
     for (uint32_t r = 0; r < validRow; r++) {
@@ -312,11 +313,11 @@ __tf__ AICORE void MGatherGm2L1RowImpl(typename DstTile::TileDType __out__ dst, 
         uint32_t rawIdx = static_cast<uint32_t>(idxPtr[r]);
         uint32_t safeIdx = mgather_remap<Oob>(rawIdx, tableRows, doRead);
         if (doRead) {
-            __gm__ T *srcRow = tablePtr + static_cast<uint64_t>(safeIdx) * tableRowStride;
-            __cbuf__ T *dstRow = dstPtr + static_cast<uint64_t>(r) * kC0;
-            pto_copy_gm_to_cbuf_multi_nd2nz<T>(dstRow, srcRow, 0, 1, 1, static_cast<uint16_t>(validCol), 0,
-                                               static_cast<uint16_t>(tableRowStride), static_cast<uint16_t>(kTileRows),
-                                               1, 1);
+            __gm__ T* srcRow = tablePtr + static_cast<uint64_t>(safeIdx) * tableRowStride;
+            __cbuf__ T* dstRow = dstPtr + static_cast<uint64_t>(r) * kC0;
+            pto_copy_gm_to_cbuf_multi_nd2nz<T>(
+                dstRow, srcRow, 0, 1, 1, static_cast<uint16_t>(validCol), 0, static_cast<uint16_t>(tableRowStride),
+                static_cast<uint16_t>(kTileRows), 1, 1);
         }
     }
     PtoSetWaitFlag<PIPE_S, PIPE_MTE2>();
@@ -324,16 +325,16 @@ __tf__ AICORE void MGatherGm2L1RowImpl(typename DstTile::TileDType __out__ dst, 
 }
 
 template <GatherOOB Oob, typename T, typename TIdx, typename DstTile>
-__tf__ AICORE void MGatherGm2L1ElemImpl(typename DstTile::TileDType __out__ dst, __gm__ T *tablePtr,
-                                        __gm__ TIdx *idxPtr, __gm__ T *scratchPtr, uint32_t validRow, uint32_t validCol,
-                                        uint32_t tableSize, uint32_t idxRowStride)
+__tf__ AICORE void MGatherGm2L1ElemImpl(
+    typename DstTile::TileDType __out__ dst, __gm__ T* tablePtr, __gm__ TIdx* idxPtr, __gm__ T* scratchPtr,
+    uint32_t validRow, uint32_t validCol, uint32_t tableSize, uint32_t idxRowStride)
 {
 #if defined(__DAV_CUBE__)
     constexpr uint32_t kC0 = C0_SIZE_BYTE / sizeof(T);
     constexpr uint32_t kTileCols = DstTile::Cols;
     constexpr uint32_t kTileRows = DstTile::Rows;
     constexpr uint32_t kTileNumel = kTileRows * kTileCols;
-    __cbuf__ T *dstPtr = (__cbuf__ T *)__cce_get_tile_ptr(dst);
+    __cbuf__ T* dstPtr = (__cbuf__ T*)__cce_get_tile_ptr(dst);
 
     for (uint32_t i = 0; i < kTileNumel; i++) {
         scratchPtr[i] = static_cast<T>(0);
@@ -357,9 +358,9 @@ __tf__ AICORE void MGatherGm2L1ElemImpl(typename DstTile::TileDType __out__ dst,
     const uint32_t totalBytes = kTileNumel * sizeof(T);
     constexpr uint32_t kCacheLineBytes = 64;
     const uint32_t numLines = (totalBytes + kCacheLineBytes - 1) / kCacheLineBytes;
-    __gm__ uint8_t *flushPtr = reinterpret_cast<__gm__ uint8_t *>(scratchPtr);
+    __gm__ uint8_t* flushPtr = reinterpret_cast<__gm__ uint8_t*>(scratchPtr);
     for (uint32_t i = 0; i < numLines; i++) {
-        dcci(static_cast<__gm__ void *>(flushPtr + i * kCacheLineBytes), SINGLE_CACHE_LINE);
+        dcci(static_cast<__gm__ void*>(flushPtr + i * kCacheLineBytes), SINGLE_CACHE_LINE);
     }
     dsb(DSB_DDR);
     PtoSetWaitFlag<PIPE_S, PIPE_MTE2>();
@@ -373,22 +374,28 @@ PTO_INTERNAL void MGatherCheckGm2L1()
 {
     using T = typename DstTile::DType;
 
-    static_assert(IsValidMGatherDType<T>::value,
-                  "MGATHER A2/A3 GM->L1 data type must be int8/uint8/int16/uint16/int32/uint32/half/bfloat16/float.");
-    static_assert(std::is_same_v<typename GlobalTable::DType, __gm__ T>,
-                  "MGATHER A2/A3 GM->L1 table must be a GM GlobalTensor with element type matching the destination.");
-    static_assert(std::is_same_v<typename IdxSrc::DType, __gm__ int32_t> ||
-                      std::is_same_v<typename IdxSrc::DType, __gm__ uint32_t>,
-                  "MGATHER A2/A3 GM->L1 indices must be a GM int32_t/uint32_t GlobalTensor.");
+    static_assert(
+        IsValidMGatherDType<T>::value,
+        "MGATHER A2/A3 GM->L1 data type must be int8/uint8/int16/uint16/int32/uint32/half/bfloat16/float.");
+    static_assert(
+        std::is_same_v<typename GlobalTable::DType, __gm__ T>,
+        "MGATHER A2/A3 GM->L1 table must be a GM GlobalTensor with element type matching the destination.");
+    static_assert(
+        std::is_same_v<typename IdxSrc::DType, __gm__ int32_t> ||
+            std::is_same_v<typename IdxSrc::DType, __gm__ uint32_t>,
+        "MGATHER A2/A3 GM->L1 indices must be a GM int32_t/uint32_t GlobalTensor.");
     static_assert(DstTile::Loc == TileType::Mat, "MGATHER A2/A3 GM->L1 destination must be a Mat tile (L1).");
-    static_assert(IsMGatherNZTile<DstTile>::value,
-                  "MGATHER A2/A3 GM->L1 destination must be NZ (BLayout::ColMajor + SLayout::RowMajor + "
-                  "SFractalSize=512).");
+    static_assert(
+        IsMGatherNZTile<DstTile>::value,
+        "MGATHER A2/A3 GM->L1 destination must be NZ (BLayout::ColMajor + SLayout::RowMajor + "
+        "SFractalSize=512).");
     static_assert(GlobalTable::layout == Layout::ND, "MGATHER A2/A3 GM->L1 table must use Layout::ND.");
-    static_assert(DstTile::Cols % (C0_SIZE_BYTE / sizeof(T)) == 0,
-                  "MGATHER A2/A3 GM->L1 destination tile Cols must be a multiple of C0 (= 32 / sizeof(T)).");
-    static_assert(DstTile::Rows % FRACTAL_NZ_ROW == 0,
-                  "MGATHER A2/A3 GM->L1 destination tile Rows must be a multiple of FRACTAL_NZ_ROW (16).");
+    static_assert(
+        DstTile::Cols % (C0_SIZE_BYTE / sizeof(T)) == 0,
+        "MGATHER A2/A3 GM->L1 destination tile Cols must be a multiple of C0 (= 32 / sizeof(T)).");
+    static_assert(
+        DstTile::Rows % FRACTAL_NZ_ROW == 0,
+        "MGATHER A2/A3 GM->L1 destination tile Rows must be a multiple of FRACTAL_NZ_ROW (16).");
     if constexpr (Mode == Coalesce::Row) {
         static_assert(sizeof(T) <= 4, "MGATHER A2/A3 GM->L1 Coalesce::Row supports b8/b16/b32 element types.");
     }
@@ -400,12 +407,15 @@ PTO_INTERNAL void MGatherCheck()
     using T = typename DstTile::DType;
     using TIdx = typename IdxTile::DType;
 
-    static_assert(IsValidMGatherDType<T>::value,
-                  "MGATHER A2/A3 data type must be int8/uint8/int16/uint16/int32/uint32/half/bfloat16/float.");
-    static_assert(std::is_same_v<TIdx, int32_t> || std::is_same_v<TIdx, uint32_t>,
-                  "MGATHER A2/A3 index type must be int32_t or uint32_t.");
-    static_assert(std::is_same_v<typename GlobalTable::DType, __gm__ T>,
-                  "MGATHER A2/A3 source table must be a GM GlobalTensor with element type matching the destination.");
+    static_assert(
+        IsValidMGatherDType<T>::value,
+        "MGATHER A2/A3 data type must be int8/uint8/int16/uint16/int32/uint32/half/bfloat16/float.");
+    static_assert(
+        std::is_same_v<TIdx, int32_t> || std::is_same_v<TIdx, uint32_t>,
+        "MGATHER A2/A3 index type must be int32_t or uint32_t.");
+    static_assert(
+        std::is_same_v<typename GlobalTable::DType, __gm__ T>,
+        "MGATHER A2/A3 source table must be a GM GlobalTensor with element type matching the destination.");
     static_assert(DstTile::Loc == TileType::Vec, "MGATHER A2/A3 destination must be a Vec tile (UB).");
     static_assert(IdxTile::Loc == TileType::Vec, "MGATHER A2/A3 indices must be a Vec tile (UB).");
 
@@ -418,23 +428,29 @@ PTO_INTERNAL void MGatherCheck()
     constexpr bool kIsDstNZ = IsMGatherNZTile<DstTile>::value;
 
     static_assert(kIsTableND || kIsTableNZ, "MGATHER A2/A3 table must use Layout::ND or Layout::NZ.");
-    static_assert((kIsTableND && kIsDstND) || (kIsTableNZ && kIsDstNZ),
-                  "MGATHER A2/A3 layout pairing must be either:\n"
-                  "  (a) GM Layout::ND + UB tile (BLayout::RowMajor + SLayout::NoneBox), or\n"
-                  "  (b) GM Layout::NZ + UB tile (BLayout::ColMajor + SLayout::RowMajor + SFractalSize=512).");
+    static_assert(
+        (kIsTableND && kIsDstND) || (kIsTableNZ && kIsDstNZ),
+        "MGATHER A2/A3 layout pairing must be either:\n"
+        "  (a) GM Layout::ND + UB tile (BLayout::RowMajor + SLayout::NoneBox), or\n"
+        "  (b) GM Layout::NZ + UB tile (BLayout::ColMajor + SLayout::RowMajor + SFractalSize=512).");
 
-    static_assert(DstTile::Cols * sizeof(T) % BLOCK_BYTE_SIZE == 0,
-                  "MGATHER A2/A3 destination tile padded Cols*sizeof(T) must be 32-byte aligned.");
+    static_assert(
+        DstTile::Cols * sizeof(T) % BLOCK_BYTE_SIZE == 0,
+        "MGATHER A2/A3 destination tile padded Cols*sizeof(T) must be 32-byte aligned.");
 
     if constexpr (kIsTableNZ) {
-        static_assert(GlobalTable::staticShape[3] == FRACTAL_NZ_ROW,
-                      "MGATHER A2/A3 NZ table requires staticShape[3] == FRACTAL_NZ_ROW (16).");
-        static_assert(GlobalTable::staticShape[4] == C0_SIZE_BYTE / sizeof(T),
-                      "MGATHER A2/A3 NZ table requires staticShape[4] == 32 / sizeof(T).");
-        static_assert(DstTile::Cols % (C0_SIZE_BYTE / sizeof(T)) == 0,
-                      "MGATHER A2/A3 NZ destination tile Cols must be a multiple of C0 (= 32 / sizeof(T)).");
-        static_assert(DstTile::Rows % FRACTAL_NZ_ROW == 0,
-                      "MGATHER A2/A3 NZ destination tile Rows must be a multiple of FRACTAL_NZ_ROW (16).");
+        static_assert(
+            GlobalTable::staticShape[3] == FRACTAL_NZ_ROW,
+            "MGATHER A2/A3 NZ table requires staticShape[3] == FRACTAL_NZ_ROW (16).");
+        static_assert(
+            GlobalTable::staticShape[4] == C0_SIZE_BYTE / sizeof(T),
+            "MGATHER A2/A3 NZ table requires staticShape[4] == 32 / sizeof(T).");
+        static_assert(
+            DstTile::Cols % (C0_SIZE_BYTE / sizeof(T)) == 0,
+            "MGATHER A2/A3 NZ destination tile Cols must be a multiple of C0 (= 32 / sizeof(T)).");
+        static_assert(
+            DstTile::Rows % FRACTAL_NZ_ROW == 0,
+            "MGATHER A2/A3 NZ destination tile Rows must be a multiple of FRACTAL_NZ_ROW (16).");
     }
 
     constexpr int kDstValidR = DstTile::ValidRow;
@@ -444,47 +460,51 @@ PTO_INTERNAL void MGatherCheck()
 
     if constexpr (Mode == Coalesce::Row) {
         if constexpr (kDstValidR > 0 && kIdxValidR > 0 && kIdxValidC > 0) {
-            static_assert(kIdxValidR == 1 && kIdxValidC == kDstValidR,
-                          "MGATHER A2/A3 Coalesce::Row requires index tile valid shape [1, R].");
+            static_assert(
+                kIdxValidR == 1 && kIdxValidC == kDstValidR,
+                "MGATHER A2/A3 Coalesce::Row requires index tile valid shape [1, R].");
         }
     } else {
         if constexpr (kDstValidR > 0 && kIdxValidR > 0) {
-            static_assert(kIdxValidR == kDstValidR,
-                          "MGATHER A2/A3 Coalesce::Elem requires index tile ValidRow == destination ValidRow.");
+            static_assert(
+                kIdxValidR == kDstValidR,
+                "MGATHER A2/A3 Coalesce::Elem requires index tile ValidRow == destination ValidRow.");
         }
         if constexpr (kDstValidC > 0 && kIdxValidC > 0) {
-            static_assert(kIdxValidC == kDstValidC,
-                          "MGATHER A2/A3 Coalesce::Elem requires index tile ValidCol == destination ValidCol.");
+            static_assert(
+                kIdxValidC == kDstValidC,
+                "MGATHER A2/A3 Coalesce::Elem requires index tile ValidCol == destination ValidCol.");
         }
     }
 }
 
-template <Coalesce Mode = Coalesce::Row, GatherOOB Oob = GatherOOB::Undefined, typename DstTile, typename GlobalTable,
-          typename IdxTile>
-PTO_INTERNAL void MGATHER_IMPL(DstTile &dst, GlobalTable &table, IdxTile &indices)
+template <
+    Coalesce Mode = Coalesce::Row, GatherOOB Oob = GatherOOB::Undefined, typename DstTile, typename GlobalTable,
+    typename IdxTile>
+PTO_INTERNAL void MGATHER_IMPL(DstTile& dst, GlobalTable& table, IdxTile& indices)
 {
     using T = typename DstTile::DType;
 
     if constexpr (DstTile::Loc == TileType::Mat) {
         MGatherCheckGm2L1<Coalesce::Row, Oob, DstTile, GlobalTable, IdxTile>();
         using TIdx = std::conditional_t<std::is_same_v<typename IdxTile::DType, __gm__ uint32_t>, uint32_t, int32_t>;
-        __gm__ T *tablePtr = reinterpret_cast<__gm__ T *>(table.data());
-        __gm__ TIdx *idxPtr = reinterpret_cast<__gm__ TIdx *>(indices.data());
+        __gm__ T* tablePtr = reinterpret_cast<__gm__ T*>(table.data());
+        __gm__ TIdx* idxPtr = reinterpret_cast<__gm__ TIdx*>(indices.data());
         const uint32_t validRow = dst.GetValidRow();
         const uint32_t validCol = dst.GetValidCol();
-        const uint32_t tableRows =
-            static_cast<uint32_t>(table.GetShape(GlobalTensorDim::DIM_0) * table.GetShape(GlobalTensorDim::DIM_1) *
-                                  table.GetShape(GlobalTensorDim::DIM_2) * table.GetShape(GlobalTensorDim::DIM_3));
+        const uint32_t tableRows = static_cast<uint32_t>(
+            table.GetShape(GlobalTensorDim::DIM_0) * table.GetShape(GlobalTensorDim::DIM_1) *
+            table.GetShape(GlobalTensorDim::DIM_2) * table.GetShape(GlobalTensorDim::DIM_3));
         const uint32_t tableRowStride = static_cast<uint32_t>(table.GetStride(GlobalTensorDim::DIM_3));
-        MGatherGm2L1RowImpl<Oob, T, TIdx, DstTile>(dst.data(), tablePtr, idxPtr, validRow, validCol, tableRows,
-                                                   tableRowStride);
+        MGatherGm2L1RowImpl<Oob, T, TIdx, DstTile>(
+            dst.data(), tablePtr, idxPtr, validRow, validCol, tableRows, tableRowStride);
         return;
     } else {
         using TIdx = typename IdxTile::DType;
 
         MGatherCheck<Mode, Oob, DstTile, GlobalTable, IdxTile>();
 
-        __gm__ T *tablePtr = reinterpret_cast<__gm__ T *>(table.data());
+        __gm__ T* tablePtr = reinterpret_cast<__gm__ T*>(table.data());
 
         const uint32_t validRow = dst.GetValidRow();
         const uint32_t validCol = dst.GetValidCol();
@@ -502,16 +522,16 @@ PTO_INTERNAL void MGATHER_IMPL(DstTile &dst, GlobalTable &table, IdxTile &indice
             const int gStride4 = static_cast<int>(table.GetStride(GlobalTensorDim::DIM_4));
 
             if constexpr (Mode == Coalesce::Row) {
-                MGatherRowNzImpl<Oob, T, TIdx, DstTile, IdxTile>(dst.data(), tablePtr, indices.data(), validRow,
-                                                                 gShape0, gShape1, gShape2, gStride0, gStride1,
-                                                                 gStride2, gStride3);
+                MGatherRowNzImpl<Oob, T, TIdx, DstTile, IdxTile>(
+                    dst.data(), tablePtr, indices.data(), validRow, gShape0, gShape1, gShape2, gStride0, gStride1,
+                    gStride2, gStride3);
             } else {
                 constexpr uint32_t kC0 = C0_SIZE_BYTE / sizeof(T);
                 const uint32_t nLogicalCols = static_cast<uint32_t>(gShape0 * gShape1) * kC0;
                 const uint32_t tableSize = static_cast<uint32_t>(gShape2 * FRACTAL_NZ_ROW) * nLogicalCols;
-                MGatherElemNzImpl<Oob, T, TIdx, DstTile, IdxTile>(dst.data(), tablePtr, indices.data(), validRow,
-                                                                  validCol, tableSize, gShape0, gShape1, gStride0,
-                                                                  gStride1, gStride2, gStride3, gStride4, nLogicalCols);
+                MGatherElemNzImpl<Oob, T, TIdx, DstTile, IdxTile>(
+                    dst.data(), tablePtr, indices.data(), validRow, validCol, tableSize, gShape0, gShape1, gStride0,
+                    gStride1, gStride2, gStride3, gStride4, nLogicalCols);
             }
         } else {
             if constexpr (Mode == Coalesce::Row) {
@@ -519,45 +539,47 @@ PTO_INTERNAL void MGATHER_IMPL(DstTile &dst, GlobalTable &table, IdxTile &indice
                     table.GetShape(GlobalTensorDim::DIM_0) * table.GetShape(GlobalTensorDim::DIM_1) *
                     table.GetShape(GlobalTensorDim::DIM_2) * table.GetShape(GlobalTensorDim::DIM_3));
                 const uint32_t tableRowStride = static_cast<uint32_t>(table.GetStride(GlobalTensorDim::DIM_3));
-                MGatherRowImpl<Oob, T, TIdx, DstTile, IdxTile>(dst.data(), tablePtr, indices.data(), validRow, validCol,
-                                                               tableRows, tableRowStride);
+                MGatherRowImpl<Oob, T, TIdx, DstTile, IdxTile>(
+                    dst.data(), tablePtr, indices.data(), validRow, validCol, tableRows, tableRowStride);
             } else {
                 const uint32_t tableSize = static_cast<uint32_t>(
                     table.GetShape(GlobalTensorDim::DIM_0) * table.GetShape(GlobalTensorDim::DIM_1) *
                     table.GetShape(GlobalTensorDim::DIM_2) * table.GetShape(GlobalTensorDim::DIM_3) *
                     table.GetShape(GlobalTensorDim::DIM_4));
-                MGatherElemImpl<Oob, T, TIdx, DstTile, IdxTile>(dst.data(), tablePtr, indices.data(), validRow,
-                                                                validCol, tableSize);
+                MGatherElemImpl<Oob, T, TIdx, DstTile, IdxTile>(
+                    dst.data(), tablePtr, indices.data(), validRow, validCol, tableSize);
             }
         }
     }
 }
 
-template <Coalesce Mode = Coalesce::Elem, GatherOOB Oob = GatherOOB::Undefined, typename DstTile, typename GlobalTable,
-          typename IdxSrc, typename GlobalScratch>
-PTO_INTERNAL void MGATHER_IMPL(DstTile &dst, GlobalTable &table, IdxSrc &indices, GlobalScratch &scratch)
+template <
+    Coalesce Mode = Coalesce::Elem, GatherOOB Oob = GatherOOB::Undefined, typename DstTile, typename GlobalTable,
+    typename IdxSrc, typename GlobalScratch>
+PTO_INTERNAL void MGATHER_IMPL(DstTile& dst, GlobalTable& table, IdxSrc& indices, GlobalScratch& scratch)
 {
     using T = typename DstTile::DType;
 
     MGatherCheckGm2L1<Coalesce::Elem, Oob, DstTile, GlobalTable, IdxSrc>();
-    static_assert(std::is_same_v<typename GlobalScratch::DType, __gm__ T>,
-                  "MGATHER A2/A3 GM->L1 scratch must be a GM GlobalTensor with element type matching the destination.");
+    static_assert(
+        std::is_same_v<typename GlobalScratch::DType, __gm__ T>,
+        "MGATHER A2/A3 GM->L1 scratch must be a GM GlobalTensor with element type matching the destination.");
 
     using TIdx = std::conditional_t<std::is_same_v<typename IdxSrc::DType, __gm__ uint32_t>, uint32_t, int32_t>;
-    __gm__ T *tablePtr = reinterpret_cast<__gm__ T *>(table.data());
-    __gm__ TIdx *idxPtr = reinterpret_cast<__gm__ TIdx *>(indices.data());
-    __gm__ T *scratchPtr = reinterpret_cast<__gm__ T *>(scratch.data());
+    __gm__ T* tablePtr = reinterpret_cast<__gm__ T*>(table.data());
+    __gm__ TIdx* idxPtr = reinterpret_cast<__gm__ TIdx*>(indices.data());
+    __gm__ T* scratchPtr = reinterpret_cast<__gm__ T*>(scratch.data());
 
     const uint32_t validRow = dst.GetValidRow();
     const uint32_t validCol = dst.GetValidCol();
-    const uint32_t tableSize =
-        static_cast<uint32_t>(table.GetShape(GlobalTensorDim::DIM_0) * table.GetShape(GlobalTensorDim::DIM_1) *
-                              table.GetShape(GlobalTensorDim::DIM_2) * table.GetShape(GlobalTensorDim::DIM_3) *
-                              table.GetShape(GlobalTensorDim::DIM_4));
+    const uint32_t tableSize = static_cast<uint32_t>(
+        table.GetShape(GlobalTensorDim::DIM_0) * table.GetShape(GlobalTensorDim::DIM_1) *
+        table.GetShape(GlobalTensorDim::DIM_2) * table.GetShape(GlobalTensorDim::DIM_3) *
+        table.GetShape(GlobalTensorDim::DIM_4));
     const uint32_t idxRowStride = static_cast<uint32_t>(indices.GetStride(GlobalTensorDim::DIM_3));
 
-    MGatherGm2L1ElemImpl<Oob, T, TIdx, DstTile>(dst.data(), tablePtr, idxPtr, scratchPtr, validRow, validCol, tableSize,
-                                                idxRowStride);
+    MGatherGm2L1ElemImpl<Oob, T, TIdx, DstTile>(
+        dst.data(), tablePtr, idxPtr, scratchPtr, validRow, validCol, tableSize, idxRowStride);
 }
 
 } // namespace pto

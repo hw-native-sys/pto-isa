@@ -15,19 +15,17 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <int kSrcRows, int kDstRows, int kCols>
-void launchTMOV_nd2nz(aclFloat16 *out, aclFloat16 *src, void *stream);
+void launchTMOV_nd2nz(aclFloat16* out, aclFloat16* src, void* stream);
 
 class TMovNd2NzTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -48,10 +46,10 @@ void test_tmov_nd2nz()
     aclFloat16 *dstHost, *dstDevice;
     aclFloat16 *srcHost, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), outputSize);
-    aclrtMallocHost((void **)(&srcHost), inputSize);
-    aclrtMalloc((void **)(&dstDevice), outputSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)(&srcDevice), inputSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), outputSize);
+    aclrtMallocHost((void**)(&srcHost), inputSize);
+    aclrtMalloc((void**)(&dstDevice), outputSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)(&srcDevice), inputSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input_arr.bin", inputSize, srcHost, inputSize);
 
@@ -81,17 +79,8 @@ void test_tmov_nd2nz()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TMovNd2NzTest, case_half_1x128_1to16)
-{
-    test_tmov_nd2nz<1, 16, 128>();
-}
+TEST_F(TMovNd2NzTest, case_half_1x128_1to16) { test_tmov_nd2nz<1, 16, 128>(); }
 
-TEST_F(TMovNd2NzTest, case_half_1x256_1to16)
-{
-    test_tmov_nd2nz<1, 16, 256>();
-}
+TEST_F(TMovNd2NzTest, case_half_1x256_1to16) { test_tmov_nd2nz<1, 16, 256>(); }
 
-TEST_F(TMovNd2NzTest, case_half_16x256_16to16)
-{
-    test_tmov_nd2nz<16, 16, 256>();
-}
+TEST_F(TMovNd2NzTest, case_half_16x256_16to16) { test_tmov_nd2nz<16, 16, 256>(); }

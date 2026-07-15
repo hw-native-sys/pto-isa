@@ -22,21 +22,19 @@ inline constexpr int GATHER_ROW_DIR = 0;
 inline constexpr int GATHER_COL_DIR = 1;
 
 template <int32_t tilingKey>
-void launchTGATHER_demo(uint8_t *out, uint8_t *src, void *stream);
+void launchTGATHER_demo(uint8_t* out, uint8_t* src, void* stream);
 
 constexpr int HALF_SIZE = 2;
 constexpr int QUARTER_SIZE = 4;
 class TGATHERTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -45,7 +43,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, uint8_t PATTERN, uint32_t ROW, uint32_t COL, uint32_t OUT_DIM, int DIRECTION>
-void execute_gather_test(const std::string &goldenDir)
+void execute_gather_test(const std::string& goldenDir)
 {
     constexpr size_t srcRows = ROW;
     constexpr size_t srcCols = COL;
@@ -62,10 +60,10 @@ void execute_gather_test(const std::string &goldenDir)
     uint8_t *dstHost, *src0Host;
     uint8_t *dstDevice, *src0Device;
 
-    aclrtMallocHost((void **)(&dstHost), dstSize);
-    aclrtMallocHost((void **)(&src0Host), srcSize);
-    aclrtMalloc((void **)&dstDevice, srcSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, srcSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), dstSize);
+    aclrtMallocHost((void**)(&src0Host), srcSize);
+    aclrtMalloc((void**)&dstDevice, srcSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, srcSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     size_t srcSizeVar = srcSize;
     CHECK_RESULT_GTEST(ReadFile(goldenDir + "/x1_gm.bin", srcSizeVar, src0Host, srcSize));
@@ -100,12 +98,13 @@ template <typename T, uint8_t PATTERN, uint32_t ROW, uint32_t COL>
 void test_gather()
 {
     constexpr uint32_t dstCols = []() constexpr {
-        if constexpr (PATTERN == HP1111 || PATTERN == FP1111 || PATTERN == I32P1111 || PATTERN == U8_1111 ||
-                      PATTERN == I8_1111) {
+        if constexpr (
+            PATTERN == HP1111 || PATTERN == FP1111 || PATTERN == I32P1111 || PATTERN == U8_1111 || PATTERN == I8_1111) {
             return COL;
-        } else if constexpr (PATTERN == HP0101 || PATTERN == HP1010 || PATTERN == FP0101 || PATTERN == FP1010 ||
-                             PATTERN == U16P0101 || PATTERN == U16P1010 || PATTERN == I8_0101 || PATTERN == I8_1010 ||
-                             PATTERN == U8_0101 || PATTERN == U8_1010) {
+        } else if constexpr (
+            PATTERN == HP0101 || PATTERN == HP1010 || PATTERN == FP0101 || PATTERN == FP1010 || PATTERN == U16P0101 ||
+            PATTERN == U16P1010 || PATTERN == I8_0101 || PATTERN == I8_1010 || PATTERN == U8_0101 ||
+            PATTERN == U8_1010) {
             return COL / 2;
         } else {
             return COL / 4;
@@ -144,13 +143,13 @@ void test_gather_xtype()
 
     size_t srcBytes = ROW * COL * sizeof(float);
     size_t dstBytes = N_IDX * sizeof(int32_t);
-    uint8_t *srcDevice = nullptr;
-    uint8_t *dstDevice = nullptr;
-    int32_t *dstHost = nullptr;
+    uint8_t* srcDevice = nullptr;
+    uint8_t* dstDevice = nullptr;
+    int32_t* dstHost = nullptr;
 
-    aclrtMallocHost((void **)(&dstHost), dstBytes);
-    aclrtMalloc((void **)&srcDevice, srcBytes, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&dstDevice, srcBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), dstBytes);
+    aclrtMalloc((void**)&srcDevice, srcBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, srcBytes, ACL_MEM_MALLOC_HUGE_FIRST);
 
     aclrtMemcpy(srcDevice, srcBytes, srcHost.data(), srcBytes, ACL_MEMCPY_HOST_TO_DEVICE);
     launchTGATHER_demo<PATTERN>(dstDevice, srcDevice, stream);
@@ -179,100 +178,43 @@ void test_gather_xtype()
     aclFinalize();
 }
 
-TEST_F(TGATHERTest, case1_float_P0101)
-{
-    test_gather<float, FP0101, FLOAT_P0101_ROW, FLOAT_P0101_COL>();
-}
+TEST_F(TGATHERTest, case1_float_P0101) { test_gather<float, FP0101, FLOAT_P0101_ROW, FLOAT_P0101_COL>(); }
 
-TEST_F(TGATHERTest, case1_float_P1010)
-{
-    test_gather<float, FP1010, FLOAT_P1010_ROW, FLOAT_P1010_COL>();
-}
+TEST_F(TGATHERTest, case1_float_P1010) { test_gather<float, FP1010, FLOAT_P1010_ROW, FLOAT_P1010_COL>(); }
 
-TEST_F(TGATHERTest, case1_float_P0001)
-{
-    test_gather<float, FP0001, FLOAT_P0001_ROW, FLOAT_P0001_COL>();
-}
+TEST_F(TGATHERTest, case1_float_P0001) { test_gather<float, FP0001, FLOAT_P0001_ROW, FLOAT_P0001_COL>(); }
 
-TEST_F(TGATHERTest, case1_float_P0010)
-{
-    test_gather<float, FP0010, FLOAT_P0010_ROW, FLOAT_P0010_COL>();
-}
+TEST_F(TGATHERTest, case1_float_P0010) { test_gather<float, FP0010, FLOAT_P0010_ROW, FLOAT_P0010_COL>(); }
 
-TEST_F(TGATHERTest, case1_float_P0100)
-{
-    test_gather<float, FP0100, FLOAT_P0100_ROW, FLOAT_P0100_COL>();
-}
+TEST_F(TGATHERTest, case1_float_P0100) { test_gather<float, FP0100, FLOAT_P0100_ROW, FLOAT_P0100_COL>(); }
 
-TEST_F(TGATHERTest, case1_float_P1000)
-{
-    test_gather<float, FP1000, FLOAT_P1000_ROW, FLOAT_P1000_COL>();
-}
+TEST_F(TGATHERTest, case1_float_P1000) { test_gather<float, FP1000, FLOAT_P1000_ROW, FLOAT_P1000_COL>(); }
 
-TEST_F(TGATHERTest, case1_float_P1111)
-{
-    test_gather<float, FP1111, FLOAT_P1111_ROW, FLOAT_P1111_COL>();
-}
+TEST_F(TGATHERTest, case1_float_P1111) { test_gather<float, FP1111, FLOAT_P1111_ROW, FLOAT_P1111_COL>(); }
 
-TEST_F(TGATHERTest, case1_half_P0101)
-{
-    test_gather<uint16_t, HP0101, HALF_P0101_ROW, HALF_P0101_COL>();
-}
+TEST_F(TGATHERTest, case1_half_P0101) { test_gather<uint16_t, HP0101, HALF_P0101_ROW, HALF_P0101_COL>(); }
 
-TEST_F(TGATHERTest, case1_half_P1010)
-{
-    test_gather<uint16_t, HP1010, HALF_P1010_ROW, HALF_P1010_COL>();
-}
+TEST_F(TGATHERTest, case1_half_P1010) { test_gather<uint16_t, HP1010, HALF_P1010_ROW, HALF_P1010_COL>(); }
 
-TEST_F(TGATHERTest, case1_half_P0001)
-{
-    test_gather<uint16_t, HP0001, HALF_P0001_ROW, HALF_P0001_COL>();
-}
+TEST_F(TGATHERTest, case1_half_P0001) { test_gather<uint16_t, HP0001, HALF_P0001_ROW, HALF_P0001_COL>(); }
 
-TEST_F(TGATHERTest, case1_half_P0100)
-{
-    test_gather<uint16_t, HP0100, HALF_P0100_ROW, HALF_P0100_COL>();
-}
+TEST_F(TGATHERTest, case1_half_P0100) { test_gather<uint16_t, HP0100, HALF_P0100_ROW, HALF_P0100_COL>(); }
 
-TEST_F(TGATHERTest, case1_half_P1000)
-{
-    test_gather<uint16_t, HP1000, HALF_P1000_ROW, HALF_P1000_COL>();
-}
+TEST_F(TGATHERTest, case1_half_P1000) { test_gather<uint16_t, HP1000, HALF_P1000_ROW, HALF_P1000_COL>(); }
 
-TEST_F(TGATHERTest, case1_U16_P0101)
-{
-    test_gather<uint16_t, U16P0101, HALF_P0101_ROW, HALF_P0101_COL>();
-}
+TEST_F(TGATHERTest, case1_U16_P0101) { test_gather<uint16_t, U16P0101, HALF_P0101_ROW, HALF_P0101_COL>(); }
 
-TEST_F(TGATHERTest, case1_U16_P1010)
-{
-    test_gather<uint16_t, U16P1010, HALF_P1010_ROW, HALF_P1010_COL>();
-}
+TEST_F(TGATHERTest, case1_U16_P1010) { test_gather<uint16_t, U16P1010, HALF_P1010_ROW, HALF_P1010_COL>(); }
 
-TEST_F(TGATHERTest, case1_I16_P0001)
-{
-    test_gather<uint16_t, I16P0001, HALF_P0001_ROW, HALF_P0001_COL>();
-}
+TEST_F(TGATHERTest, case1_I16_P0001) { test_gather<uint16_t, I16P0001, HALF_P0001_ROW, HALF_P0001_COL>(); }
 
-TEST_F(TGATHERTest, case1_I16_P0010)
-{
-    test_gather<uint16_t, I16P0010, HALF_P0010_ROW, HALF_P0010_COL>();
-}
+TEST_F(TGATHERTest, case1_I16_P0010) { test_gather<uint16_t, I16P0010, HALF_P0010_ROW, HALF_P0010_COL>(); }
 
-TEST_F(TGATHERTest, case1_U32_P0100)
-{
-    test_gather<uint32_t, U32P0100, FLOAT_P0100_ROW, FLOAT_P0100_COL>();
-}
+TEST_F(TGATHERTest, case1_U32_P0100) { test_gather<uint32_t, U32P0100, FLOAT_P0100_ROW, FLOAT_P0100_COL>(); }
 
-TEST_F(TGATHERTest, case1_I32_P1000)
-{
-    test_gather<int32_t, I32P1000, FLOAT_P1000_ROW, FLOAT_P1000_COL>();
-}
+TEST_F(TGATHERTest, case1_I32_P1000) { test_gather<int32_t, I32P1000, FLOAT_P1000_ROW, FLOAT_P1000_COL>(); }
 
-TEST_F(TGATHERTest, case1_I32_P1111)
-{
-    test_gather<int32_t, I32P1111, FLOAT_P1111_ROW, FLOAT_P1111_COL>();
-}
+TEST_F(TGATHERTest, case1_I32_P1111) { test_gather<int32_t, I32P1111, FLOAT_P1111_ROW, FLOAT_P1111_COL>(); }
 
 TEST_F(TGATHERTest, case_xtype_float_to_int32_P1010)
 {
@@ -349,83 +291,41 @@ TEST_F(TGATHERTest, case_col_half_P1111)
     test_gather_col<uint16_t, COL_HP1111, COL_HALF_P1111_ROW, COL_HALF_P1111_COL, COL_HALF_P1111_ROW>();
 }
 
-TEST_F(TGATHERTest, case1_u8_P0101)
-{
-    test_gather<uint8_t, U8_0101, B8_P0101_ROW, B8_P0101_COL>();
-}
+TEST_F(TGATHERTest, case1_u8_P0101) { test_gather<uint8_t, U8_0101, B8_P0101_ROW, B8_P0101_COL>(); }
 
-TEST_F(TGATHERTest, case1_u8_P1010)
-{
-    test_gather<uint8_t, U8_1010, B8_P1010_ROW, B8_P1010_COL>();
-}
+TEST_F(TGATHERTest, case1_u8_P1010) { test_gather<uint8_t, U8_1010, B8_P1010_ROW, B8_P1010_COL>(); }
 
-TEST_F(TGATHERTest, case1_u8_P0001)
-{
-    test_gather<uint8_t, U8_0001, B8_P0001_ROW, B8_P0001_COL>();
-}
+TEST_F(TGATHERTest, case1_u8_P0001) { test_gather<uint8_t, U8_0001, B8_P0001_ROW, B8_P0001_COL>(); }
 
-TEST_F(TGATHERTest, case1_u8_P0010)
-{
-    test_gather<uint8_t, U8_0010, B8_P0010_ROW, B8_P0010_COL>();
-}
+TEST_F(TGATHERTest, case1_u8_P0010) { test_gather<uint8_t, U8_0010, B8_P0010_ROW, B8_P0010_COL>(); }
 
-TEST_F(TGATHERTest, case1_u8_P0100)
-{
-    test_gather<uint8_t, U8_0100, B8_P0100_ROW, B8_P0100_COL>();
-}
+TEST_F(TGATHERTest, case1_u8_P0100) { test_gather<uint8_t, U8_0100, B8_P0100_ROW, B8_P0100_COL>(); }
 
-TEST_F(TGATHERTest, case1_u8_P1000)
-{
-    test_gather<uint8_t, U8_1000, B8_P1000_ROW, B8_P1000_COL>();
-}
+TEST_F(TGATHERTest, case1_u8_P1000) { test_gather<uint8_t, U8_1000, B8_P1000_ROW, B8_P1000_COL>(); }
 
-TEST_F(TGATHERTest, case1_u8_P1111)
-{
-    test_gather<uint8_t, U8_1111, B8_P1111_ROW, B8_P1111_COL>();
-}
+TEST_F(TGATHERTest, case1_u8_P1111) { test_gather<uint8_t, U8_1111, B8_P1111_ROW, B8_P1111_COL>(); }
 
-TEST_F(TGATHERTest, case1_i8_P0101)
-{
-    test_gather<int8_t, I8_0101, B8_P0101_ROW, B8_P0101_COL>();
-}
+TEST_F(TGATHERTest, case1_i8_P0101) { test_gather<int8_t, I8_0101, B8_P0101_ROW, B8_P0101_COL>(); }
 
-TEST_F(TGATHERTest, case1_i8_P1010)
-{
-    test_gather<int8_t, I8_1010, B8_P1010_ROW, B8_P1010_COL>();
-}
+TEST_F(TGATHERTest, case1_i8_P1010) { test_gather<int8_t, I8_1010, B8_P1010_ROW, B8_P1010_COL>(); }
 
-TEST_F(TGATHERTest, case1_i8_P0001)
-{
-    test_gather<int8_t, I8_0001, B8_P0001_ROW, B8_P0001_COL>();
-}
+TEST_F(TGATHERTest, case1_i8_P0001) { test_gather<int8_t, I8_0001, B8_P0001_ROW, B8_P0001_COL>(); }
 
-TEST_F(TGATHERTest, case1_i8_P0010)
-{
-    test_gather<int8_t, I8_0010, B8_P0010_ROW, B8_P0010_COL>();
-}
+TEST_F(TGATHERTest, case1_i8_P0010) { test_gather<int8_t, I8_0010, B8_P0010_ROW, B8_P0010_COL>(); }
 
-TEST_F(TGATHERTest, case1_i8_P0100)
-{
-    test_gather<int8_t, I8_0100, B8_P0100_ROW, B8_P0100_COL>();
-}
+TEST_F(TGATHERTest, case1_i8_P0100) { test_gather<int8_t, I8_0100, B8_P0100_ROW, B8_P0100_COL>(); }
 
-TEST_F(TGATHERTest, case1_i8_P1000)
-{
-    test_gather<int8_t, I8_1000, B8_P1000_ROW, B8_P1000_COL>();
-}
+TEST_F(TGATHERTest, case1_i8_P1000) { test_gather<int8_t, I8_1000, B8_P1000_ROW, B8_P1000_COL>(); }
 
-TEST_F(TGATHERTest, case1_i8_P1111)
-{
-    test_gather<int8_t, I8_1111, B8_P1111_ROW, B8_P1111_COL>();
-}
+TEST_F(TGATHERTest, case1_i8_P1111) { test_gather<int8_t, I8_1111, B8_P1111_ROW, B8_P1111_COL>(); }
 
 // Gather 1D tests
-void launchTGATHER1D_demo_float(float *out, float *src0, int32_t *src1, aclrtStream stream);
-void launchTGATHER1D_demo_int32(int32_t *out, int32_t *src0, int32_t *src1, aclrtStream stream);
-void launchTGATHER1D_demo_half(aclFloat16 *out, aclFloat16 *src0, int32_t *src1, aclrtStream stream);
-void launchTGATHER1D_demo_int16(int16_t *out, int16_t *src0, int32_t *src1, aclrtStream stream);
-void launchTGATHER1D_demo_int8(int8_t *out, int8_t *src0, int32_t *src1, aclrtStream stream);
-void launchTGATHER1D_demo_uint8(uint8_t *out, uint8_t *src0, int32_t *src1, aclrtStream stream);
+void launchTGATHER1D_demo_float(float* out, float* src0, int32_t* src1, aclrtStream stream);
+void launchTGATHER1D_demo_int32(int32_t* out, int32_t* src0, int32_t* src1, aclrtStream stream);
+void launchTGATHER1D_demo_half(aclFloat16* out, aclFloat16* src0, int32_t* src1, aclrtStream stream);
+void launchTGATHER1D_demo_int16(int16_t* out, int16_t* src0, int32_t* src1, aclrtStream stream);
+void launchTGATHER1D_demo_int8(int8_t* out, int8_t* src0, int32_t* src1, aclrtStream stream);
+void launchTGATHER1D_demo_uint8(uint8_t* out, uint8_t* src0, int32_t* src1, aclrtStream stream);
 
 template <typename Src0DstT, typename Src1T, typename LaunchFunc>
 void runTGATHERTest(size_t rowsSrc0, size_t colsSrc0, size_t rowsDst, size_t colsDst, LaunchFunc launchFunc)
@@ -440,17 +340,17 @@ void runTGATHERTest(size_t rowsSrc0, size_t colsSrc0, size_t rowsDst, size_t col
     aclrtCreateStream(&stream);
 
     Src0DstT *dstHost, *src0Host;
-    Src1T *src1Host;
+    Src1T* src1Host;
     Src0DstT *dstDevice, *src0Device;
-    Src1T *src1Device;
+    Src1T* src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&src0Host), src0FileSize);
-    aclrtMallocHost((void **)(&src1Host), src1FileSize);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMallocHost((void**)(&src0Host), src0FileSize);
+    aclrtMallocHost((void**)(&src1Host), src1FileSize);
 
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, src0FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, src1FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, src0FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, src1FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/src0.bin", src0FileSize, src0Host, src0FileSize));
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/src1.bin", src1FileSize, src1Host, src1FileSize));

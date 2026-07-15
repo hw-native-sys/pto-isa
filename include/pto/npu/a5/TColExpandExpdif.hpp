@@ -21,8 +21,8 @@ namespace pto {
 
 template <typename T>
 struct ColExpandExpdifOp {
-    PTO_INTERNAL static void ColExpandBinaryInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, RegTensor<T> &reg_src1,
-                                                  MaskReg &preg)
+    PTO_INTERNAL static void ColExpandBinaryInstr(
+        RegTensor<T>& reg_dst, RegTensor<T>& reg_src0, RegTensor<T>& reg_src1, MaskReg& preg)
     {
         if constexpr (std::is_same_v<T, half>) {
             vsub(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);
@@ -35,8 +35,8 @@ struct ColExpandExpdifOp {
 
 template <typename T>
 struct ColExpandExpdifOp2 {
-    PTO_INTERNAL static void ColExpandBinaryInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, RegTensor<T> &reg_src1,
-                                                  MaskReg &preg)
+    PTO_INTERNAL static void ColExpandBinaryInstr(
+        RegTensor<T>& reg_dst, RegTensor<T>& reg_src0, RegTensor<T>& reg_src1, MaskReg& preg)
     {
         if constexpr (std::is_same_v<T, half>) {
             vsub(reg_dst, reg_src1, reg_src0, preg, MODE_ZEROING);
@@ -48,11 +48,11 @@ struct ColExpandExpdifOp2 {
 };
 
 template <typename TileData, typename TileDataSrc0, typename TileDataSrc1>
-PTO_INTERNAL void TCOLEXPANDEXPDIF_IMPL(TileData &dst, TileDataSrc0 &src0, TileDataSrc1 &src1)
+PTO_INTERNAL void TCOLEXPANDEXPDIF_IMPL(TileData& dst, TileDataSrc0& src0, TileDataSrc1& src1)
 {
     using T = typename TileData::DType;
-    TCOLEXPANDOP_IMPL<ColExpandExpdifOp<T>, ColExpandExpdifOp2<T>, TileData, TileDataSrc0, TileDataSrc1>(dst, src0,
-                                                                                                         src1);
+    TCOLEXPANDOP_IMPL<ColExpandExpdifOp<T>, ColExpandExpdifOp2<T>, TileData, TileDataSrc0, TileDataSrc1>(
+        dst, src0, src1);
 }
 } // namespace pto
 #endif

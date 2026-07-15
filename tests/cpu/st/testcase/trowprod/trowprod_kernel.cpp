@@ -14,7 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-AICORE inline void runTROWPROD(__gm__ T __out__ *out, __gm__ T __in__ *src)
+AICORE inline void runTROWPROD(__gm__ T __out__* out, __gm__ T __in__* src)
 {
     using DynShapeDim5 = Shape<1, 1, 1, kGRows_, kGCols_>;
     using DynStridDim5 = Stride<kGCols_, kGCols_, kGCols_, kGCols_, 1>;
@@ -43,14 +43,14 @@ AICORE inline void runTROWPROD(__gm__ T __out__ *out, __gm__ T __in__ *src)
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTROWPROD(T *out, T *src, void *stream)
+void LaunchTROWPROD(T* out, T* src, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
-        runTROWPROD<half, kGRows_, kGCols_, kTRows_, kTCols_>((half *)(out), (half *)src);
+        runTROWPROD<half, kGRows_, kGCols_, kTRows_, kTCols_>((half*)(out), (half*)src);
     } else {
         runTROWPROD<T, kGRows_, kGCols_, kTRows_, kTCols_>(out, src);
     }
 }
 
-template void LaunchTROWPROD<float, 64, 64, 64, 64>(float *out, float *src, void *stream);
-template void LaunchTROWPROD<aclFloat16, 16, 256, 16, 256>(aclFloat16 *out, aclFloat16 *src, void *stream);
+template void LaunchTROWPROD<float, 64, 64, 64, 64>(float* out, float* src, void* stream);
+template void LaunchTROWPROD<aclFloat16, 16, 256, 16, 256>(aclFloat16* out, aclFloat16* src, void* stream);

@@ -26,13 +26,11 @@ struct TilesSize {
 };
 
 struct TConcatCaller {
-    inline void LoadIdxTiles(size_t size_assign)
-    {}
-    inline void StoreIdxTiles()
-    {}
+    inline void LoadIdxTiles(size_t size_assign) {}
+    inline void StoreIdxTiles() {}
 
     template <typename TileDst, typename TileSrc0, typename TileSrc1>
-    inline void CallTconcat(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1)
+    inline void CallTconcat(TileDst& dst, TileSrc0& src0, TileSrc1& src1)
     {
         TCONCAT_IMPL(dst, src0, src1);
     }
@@ -47,13 +45,15 @@ struct TConcatIdxCaller {
     using TileSrc0Idx = Tile<TileType::Vec, TIdx, sizes.src0H, sizes.src0W, BLayout::RowMajor, -1, -1>;
     using TileSrc1Idx = Tile<TileType::Vec, TIdx, sizes.src1H, sizes.src1W, BLayout::RowMajor, -1, -1>;
 
-    inline TConcatIdxCaller(__gm__ TIdx __in__ *src0Idx, __gm__ TIdx __in__ *src1Idx)
-        : src0IdxGlobal(src0Idx, pto::Shape(1, 1, 1, sizes.vRows, 1),
-                        pto::Stride(sizes.src0H * sizes.src0W, sizes.src0H * sizes.src0W, sizes.src0H * sizes.src0W,
-                                    sizes.src0W, 1)),
-          src1IdxGlobal(src1Idx, pto::Shape(1, 1, 1, sizes.vRows, 1),
-                        pto::Stride(sizes.src1H * sizes.src1W, sizes.src1H * sizes.src1W, sizes.src1H * sizes.src1W,
-                                    sizes.src1W, 1)),
+    inline TConcatIdxCaller(__gm__ TIdx __in__* src0Idx, __gm__ TIdx __in__* src1Idx)
+        : src0IdxGlobal(
+              src0Idx, pto::Shape(1, 1, 1, sizes.vRows, 1),
+              pto::Stride(
+                  sizes.src0H * sizes.src0W, sizes.src0H * sizes.src0W, sizes.src0H * sizes.src0W, sizes.src0W, 1)),
+          src1IdxGlobal(
+              src1Idx, pto::Shape(1, 1, 1, sizes.vRows, 1),
+              pto::Stride(
+                  sizes.src1H * sizes.src1W, sizes.src1H * sizes.src1W, sizes.src1H * sizes.src1W, sizes.src1W, 1)),
           src0IdxTile(sizes.vRows, 1),
           src1IdxTile(sizes.vRows, 1)
     {}
@@ -67,11 +67,10 @@ struct TConcatIdxCaller {
         TLOAD(src1IdxTile, src1IdxGlobal);
     }
 
-    inline void StoreIdxTiles()
-    {}
+    inline void StoreIdxTiles() {}
 
     template <typename TileDst, typename TileSrc0, typename TileSrc1>
-    inline void CallTconcat(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1)
+    inline void CallTconcat(TileDst& dst, TileSrc0& src0, TileSrc1& src1)
     {
         TCONCAT_IMPL(dst, src0, src1, src0IdxTile, src1IdxTile);
     }
@@ -91,7 +90,7 @@ struct TConcatDstIdxCaller : public TConcatIdxCaller<TIdx, sizes> {
 
     using TileDstIdx = Tile<TileType::Vec, TIdx, sizes.dstH, sizes.dstW, BLayout::RowMajor, -1, -1>;
 
-    inline TConcatDstIdxCaller(__gm__ TIdx __out__ *outIdx, __gm__ TIdx __in__ *src0Idx, __gm__ TIdx __in__ *src1Idx)
+    inline TConcatDstIdxCaller(__gm__ TIdx __out__* outIdx, __gm__ TIdx __in__* src0Idx, __gm__ TIdx __in__* src1Idx)
         : TConcatIdxCaller<TIdx, sizes>(src0Idx, src1Idx),
           outIdx(outIdx),
           dstIdxGlobal(
@@ -117,21 +116,22 @@ struct TConcatDstIdxCaller : public TConcatIdxCaller<TIdx, sizes> {
     }
 
     template <typename TileDst, typename TileSrc0, typename TileSrc1>
-    inline void CallTconcat(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1)
+    inline void CallTconcat(TileDst& dst, TileSrc0& src0, TileSrc1& src1)
     {
-        TCONCAT_IMPL(dst, src0, src1, dstIdxTile, TConcatIdxCaller<TIdx, sizes>::src0IdxTile,
-                     TConcatIdxCaller<TIdx, sizes>::src1IdxTile);
+        TCONCAT_IMPL(
+            dst, src0, src1, dstIdxTile, TConcatIdxCaller<TIdx, sizes>::src0IdxTile,
+            TConcatIdxCaller<TIdx, sizes>::src1IdxTile);
     }
 
 protected:
-    __gm__ TIdx __out__ *outIdx;
+    __gm__ TIdx __out__* outIdx;
     GlobalData dstIdxGlobal;
     TileDstIdx dstIdxTile;
 };
 
 template <typename T, TilesSize sizes, typename TConcatCaller>
-__global__ AICORE void runTConcat(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in__ *src1,
-                                  TConcatCaller &&caller)
+__global__ AICORE void runTConcat(
+    __gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in__* src1, TConcatCaller&& caller)
 {
     using DynShape = pto::Shape<-1, -1, -1, -1, -1>;
     using DynStride = pto::Stride<-1, -1, -1, -1, -1>;
@@ -179,32 +179,32 @@ __global__ AICORE void runTConcat(__gm__ T __out__ *out, __gm__ T __in__ *src0, 
 }
 
 template <typename T, TilesSize sizes>
-void LaunchTConcat(T *out, T *src0, T *src1, void *stream)
+void LaunchTConcat(T* out, T* src0, T* src1, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
-        runTConcat<half, sizes>((half *)(out), (half *)(src0), (half *)(src1), TConcatCaller());
+        runTConcat<half, sizes>((half*)(out), (half*)(src0), (half*)(src1), TConcatCaller());
     } else {
         runTConcat<T, sizes>(out, src0, src1, TConcatCaller());
     }
 }
 
 template <typename T, typename TIdx, TilesSize sizes, TilesSize idxSizes = sizes>
-void LaunchTConcat(T *out, T *src0, T *src1, TIdx *src0Idx, TIdx *src1Idx, void *stream)
+void LaunchTConcat(T* out, T* src0, T* src1, TIdx* src0Idx, TIdx* src1Idx, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
-        runTConcat<half, sizes>((half *)(out), (half *)(src0), (half *)(src1),
-                                TConcatIdxCaller<TIdx, idxSizes>(src0Idx, src1Idx));
+        runTConcat<half, sizes>(
+            (half*)(out), (half*)(src0), (half*)(src1), TConcatIdxCaller<TIdx, idxSizes>(src0Idx, src1Idx));
     } else {
         runTConcat<T, sizes>(out, src0, src1, TConcatIdxCaller<TIdx, idxSizes>(src0Idx, src1Idx));
     }
 }
 
 template <typename T, typename TIdx, TilesSize sizes, TilesSize idxSizes = sizes>
-void LaunchTConcat(T *out, T *src0, T *src1, TIdx *outIdx, TIdx *src0Idx, TIdx *src1Idx, void *stream)
+void LaunchTConcat(T* out, T* src0, T* src1, TIdx* outIdx, TIdx* src0Idx, TIdx* src1Idx, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
-        runTConcat<half, sizes>((half *)(out), (half *)(src0), (half *)(src1),
-                                TConcatDstIdxCaller<TIdx, idxSizes>(outIdx, src0Idx, src1Idx));
+        runTConcat<half, sizes>(
+            (half*)(out), (half*)(src0), (half*)(src1), TConcatDstIdxCaller<TIdx, idxSizes>(outIdx, src0Idx, src1Idx));
     } else {
         runTConcat<T, sizes>(out, src0, src1, TConcatDstIdxCaller<TIdx, idxSizes>(outIdx, src0Idx, src1Idx));
     }
@@ -218,50 +218,49 @@ constexpr TilesSize SIZES_16x63_64{16, 128, 16, 64, 16, 64, 16, 63, 64};
 constexpr TilesSize SIZES_16x31_32{16, 64, 16, 32, 16, 32, 16, 31, 32};
 constexpr TilesSize SIZES_32x127_128{32, 256, 32, 128, 32, 128, 32, 127, 128};
 
-template void LaunchTConcat<float, SIZES_64x64>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTConcat<int32_t, SIZES_64x64>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
-template void LaunchTConcat<aclFloat16, SIZES_16x128>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                      void *stream);
-template void LaunchTConcat<float, SIZES_16x32>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTConcat<int16_t, SIZES_32x128>(int16_t *out, int16_t *src0, int16_t *src1, void *stream);
-template void LaunchTConcat<aclFloat16, SIZES_16x63_64>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                        void *stream);
-template void LaunchTConcat<float, SIZES_16x31_32>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTConcat<int16_t, SIZES_32x127_128>(int16_t *out, int16_t *src0, int16_t *src1, void *stream);
+template void LaunchTConcat<float, SIZES_64x64>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTConcat<int32_t, SIZES_64x64>(int32_t* out, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTConcat<aclFloat16, SIZES_16x128>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void LaunchTConcat<float, SIZES_16x32>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTConcat<int16_t, SIZES_32x128>(int16_t* out, int16_t* src0, int16_t* src1, void* stream);
+template void LaunchTConcat<aclFloat16, SIZES_16x63_64>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void LaunchTConcat<float, SIZES_16x31_32>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTConcat<int16_t, SIZES_32x127_128>(int16_t* out, int16_t* src0, int16_t* src1, void* stream);
 
-template void LaunchTConcat<float, int32_t, SIZES_64x64>(float *out, float *src0, float *src1, int32_t *src0Idx,
-                                                         int32_t *src1Idx, void *stream);
-template void LaunchTConcat<int32_t, int32_t, SIZES_64x64>(int32_t *out, int32_t *src0, int32_t *src1, int32_t *src0Idx,
-                                                           int32_t *src1Idx, void *stream);
-template void LaunchTConcat<aclFloat16, int32_t, SIZES_16x128>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                               int32_t *src0Idx, int32_t *src1Idx, void *stream);
-template void LaunchTConcat<float, int32_t, SIZES_16x32>(float *out, float *src0, float *src1, int32_t *src0Idx,
-                                                         int32_t *src1Idx, void *stream);
-template void LaunchTConcat<int16_t, int32_t, SIZES_32x128>(int16_t *out, int16_t *src0, int16_t *src1,
-                                                            int32_t *src0Idx, int32_t *src1Idx, void *stream);
-template void LaunchTConcat<aclFloat16, int32_t, SIZES_16x63_64>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                                 int32_t *src0Idx, int32_t *src1Idx, void *stream);
-template void LaunchTConcat<float, int32_t, SIZES_16x31_32>(float *out, float *src0, float *src1, int32_t *src0Idx,
-                                                            int32_t *src1Idx, void *stream);
-template void LaunchTConcat<int16_t, int32_t, SIZES_32x127_128>(int16_t *out, int16_t *src0, int16_t *src1,
-                                                                int32_t *src0Idx, int32_t *src1Idx, void *stream);
+template void LaunchTConcat<float, int32_t, SIZES_64x64>(
+    float* out, float* src0, float* src1, int32_t* src0Idx, int32_t* src1Idx, void* stream);
+template void LaunchTConcat<int32_t, int32_t, SIZES_64x64>(
+    int32_t* out, int32_t* src0, int32_t* src1, int32_t* src0Idx, int32_t* src1Idx, void* stream);
+template void LaunchTConcat<aclFloat16, int32_t, SIZES_16x128>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, int32_t* src0Idx, int32_t* src1Idx, void* stream);
+template void LaunchTConcat<float, int32_t, SIZES_16x32>(
+    float* out, float* src0, float* src1, int32_t* src0Idx, int32_t* src1Idx, void* stream);
+template void LaunchTConcat<int16_t, int32_t, SIZES_32x128>(
+    int16_t* out, int16_t* src0, int16_t* src1, int32_t* src0Idx, int32_t* src1Idx, void* stream);
+template void LaunchTConcat<aclFloat16, int32_t, SIZES_16x63_64>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, int32_t* src0Idx, int32_t* src1Idx, void* stream);
+template void LaunchTConcat<float, int32_t, SIZES_16x31_32>(
+    float* out, float* src0, float* src1, int32_t* src0Idx, int32_t* src1Idx, void* stream);
+template void LaunchTConcat<int16_t, int32_t, SIZES_32x127_128>(
+    int16_t* out, int16_t* src0, int16_t* src1, int32_t* src0Idx, int32_t* src1Idx, void* stream);
 
-template void LaunchTConcat<float, int32_t, SIZES_64x64>(float *out, float *src0, float *src1, int32_t *outIdx,
-                                                         int32_t *src0Idx, int32_t *src1Idx, void *stream);
-template void LaunchTConcat<int32_t, int32_t, SIZES_64x64>(int32_t *out, int32_t *src0, int32_t *src1, int32_t *outIdx,
-                                                           int32_t *src0Idx, int32_t *src1Idx, void *stream);
-template void LaunchTConcat<aclFloat16, int32_t, SIZES_16x128>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                               int32_t *outIdx, int32_t *src0Idx, int32_t *src1Idx,
-                                                               void *stream);
-template void LaunchTConcat<float, int32_t, SIZES_16x32>(float *out, float *src0, float *src1, int32_t *outIdx,
-                                                         int32_t *src0Idx, int32_t *src1Idx, void *stream);
-template void LaunchTConcat<int16_t, int32_t, SIZES_32x128>(int16_t *out, int16_t *src0, int16_t *src1, int32_t *outIdx,
-                                                            int32_t *src0Idx, int32_t *src1Idx, void *stream);
-template void LaunchTConcat<aclFloat16, int32_t, SIZES_16x63_64>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                                 int32_t *outIdx, int32_t *src0Idx, int32_t *src1Idx,
-                                                                 void *stream);
-template void LaunchTConcat<float, int32_t, SIZES_16x31_32>(float *out, float *src0, float *src1, int32_t *outIdx,
-                                                            int32_t *src0Idx, int32_t *src1Idx, void *stream);
-template void LaunchTConcat<int16_t, int32_t, SIZES_32x127_128>(int16_t *out, int16_t *src0, int16_t *src1,
-                                                                int32_t *outIdx, int32_t *src0Idx, int32_t *src1Idx,
-                                                                void *stream);
+template void LaunchTConcat<float, int32_t, SIZES_64x64>(
+    float* out, float* src0, float* src1, int32_t* outIdx, int32_t* src0Idx, int32_t* src1Idx, void* stream);
+template void LaunchTConcat<int32_t, int32_t, SIZES_64x64>(
+    int32_t* out, int32_t* src0, int32_t* src1, int32_t* outIdx, int32_t* src0Idx, int32_t* src1Idx, void* stream);
+template void LaunchTConcat<aclFloat16, int32_t, SIZES_16x128>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, int32_t* outIdx, int32_t* src0Idx, int32_t* src1Idx,
+    void* stream);
+template void LaunchTConcat<float, int32_t, SIZES_16x32>(
+    float* out, float* src0, float* src1, int32_t* outIdx, int32_t* src0Idx, int32_t* src1Idx, void* stream);
+template void LaunchTConcat<int16_t, int32_t, SIZES_32x128>(
+    int16_t* out, int16_t* src0, int16_t* src1, int32_t* outIdx, int32_t* src0Idx, int32_t* src1Idx, void* stream);
+template void LaunchTConcat<aclFloat16, int32_t, SIZES_16x63_64>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, int32_t* outIdx, int32_t* src0Idx, int32_t* src1Idx,
+    void* stream);
+template void LaunchTConcat<float, int32_t, SIZES_16x31_32>(
+    float* out, float* src0, float* src1, int32_t* outIdx, int32_t* src0Idx, int32_t* src1Idx, void* stream);
+template void LaunchTConcat<int16_t, int32_t, SIZES_32x127_128>(
+    int16_t* out, int16_t* src0, int16_t* src1, int32_t* outIdx, int32_t* src0Idx, int32_t* src1Idx, void* stream);

@@ -24,10 +24,10 @@ namespace comm {
 using NotifyOp = ::pto::comm::NotifyOp;
 
 template <typename GlobalSignalData>
-void TNotify_Impl(typename GlobalSignalData::DType *dstSignalData, int32_t value, NotifyOp op)
+void TNotify_Impl(typename GlobalSignalData::DType* dstSignalData, int32_t value, NotifyOp op)
 {
     using DType = typename GlobalSignalData::DType;
-    auto *atomicPtr = reinterpret_cast<std::atomic<DType> *>(dstSignalData);
+    auto* atomicPtr = reinterpret_cast<std::atomic<DType>*>(dstSignalData);
     switch (op) {
         case NotifyOp::AtomicAdd:
             atomicPtr->fetch_add(static_cast<DType>(value), std::memory_order_seq_cst);
@@ -41,7 +41,7 @@ void TNotify_Impl(typename GlobalSignalData::DType *dstSignalData, int32_t value
 }
 
 template <typename GlobalSignalData>
-PTO_INTERNAL void TNOTIFY_IMPL(GlobalSignalData &dstSignalData, int32_t value, NotifyOp op)
+PTO_INTERNAL void TNOTIFY_IMPL(GlobalSignalData& dstSignalData, int32_t value, NotifyOp op)
 {
     TNotify_Impl<GlobalSignalData>(dstSignalData.data(), value, op);
 }

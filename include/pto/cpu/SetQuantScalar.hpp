@@ -21,9 +21,9 @@ PTO_INTERNAL void SET_QUANT_SCALAR_IMPL(float preQuantScalar)
         constexpr bool sign = (std::is_same_v<OutType, int8_t>) ? true : false;
         quantConfig = (quantConfig & ~(static_cast<uint64_t>(1) << 46)) | (static_cast<uint64_t>(sign) << 46);
     }
-    uint8_t *quantSrc = reinterpret_cast<uint8_t *>(&quantConfig);
-    uint8_t *reg_base = reinterpret_cast<uint8_t *>(NPUMemoryModel::Instance().GetREGBase());
-    uint8_t *scalarReg = reg_base + QUANT_SCALAR_REG_OFFSET * sizeof(uint64_t);
+    uint8_t* quantSrc = reinterpret_cast<uint8_t*>(&quantConfig);
+    uint8_t* reg_base = reinterpret_cast<uint8_t*>(NPUMemoryModel::Instance().GetREGBase());
+    uint8_t* scalarReg = reg_base + QUANT_SCALAR_REG_OFFSET * sizeof(uint64_t);
     std::copy(quantSrc, quantSrc + sizeof(quantConfig), scalarReg);
 }
 

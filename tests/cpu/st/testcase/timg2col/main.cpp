@@ -27,7 +27,7 @@ size_t Nc1hwc0Offset(int64_t n, int64_t c1, int64_t h, int64_t w, int64_t c0)
 }
 
 template <typename TileData, typename ConvTileData>
-std::vector<typename TileData::DType> BuildExpected(const ConvTileData &src, uint16_t posM, uint16_t posK)
+std::vector<typename TileData::DType> BuildExpected(const ConvTileData& src, uint16_t posM, uint16_t posK)
 {
     const int64_t fmapN = ConvTileData::staticShape[0];
     const int64_t fmapC1 = ConvTileData::staticShape[1];

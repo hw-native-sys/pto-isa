@@ -17,19 +17,17 @@ using namespace PtoTestCommon;
 
 namespace TColExpandExpdifTest {
 template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col>
-void launchTColExpandExpdif(T *out, T *src0, T *src1, void *stream);
+void launchTColExpandExpdif(T* out, T* src0, T* src1, void* stream);
 
 class TColExpandExpdifTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -48,12 +46,12 @@ void test_tcolexpandexpdif()
     aclrtCreateStream(&stream);
     T *dstHost, *src0Host, *src1Host;
     T *dstDevice, *src0Device, *src1Device;
-    aclrtMallocHost((void **)(&dstHost), outputFileSize);
-    aclrtMallocHost((void **)(&src0Host), outputFileSize);
-    aclrtMallocHost((void **)(&src1Host), inputFileSize);
-    aclrtMalloc((void **)&dstDevice, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, inputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), outputFileSize);
+    aclrtMallocHost((void**)(&src0Host), outputFileSize);
+    aclrtMallocHost((void**)(&src1Host), inputFileSize);
+    aclrtMalloc((void**)&dstDevice, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, inputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
     ReadFile(GetGoldenDir() + "/input0.bin", outputFileSize, src0Host, outputFileSize);
     ReadFile(GetGoldenDir() + "/input1.bin", inputFileSize, src1Host, inputFileSize);
     aclrtMemcpy(src0Device, outputFileSize, src0Host, outputFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
@@ -79,8 +77,8 @@ void test_tcolexpandexpdif()
         ReadFile(GetGoldenDir() + "/golden.bin", outputFileSize, goldenRaw.data(), outputFileSize);
         ReadFile(GetGoldenDir() + "/output.bin", outputFileSize, devRaw.data(), outputFileSize);
         for (size_t i = 0; i < outputElementCount; i++) {
-            golden[i] = aclFloat16ToFloat(*(aclFloat16 *)&goldenRaw[i]);
-            devFinal[i] = aclFloat16ToFloat(*(aclFloat16 *)&devRaw[i]);
+            golden[i] = aclFloat16ToFloat(*(aclFloat16*)&goldenRaw[i]);
+            devFinal[i] = aclFloat16ToFloat(*(aclFloat16*)&devRaw[i]);
         }
     } else {
         ReadFile(GetGoldenDir() + "/golden.bin", outputFileSize, golden.data(), outputFileSize);
@@ -89,20 +87,8 @@ void test_tcolexpandexpdif()
     EXPECT_TRUE(ResultCmp(golden, devFinal, 0.001f));
 }
 
-TEST_F(TColExpandExpdifTest, case_fp32_32_16_1_16)
-{
-    test_tcolexpandexpdif<float, 32, 16, 1, 16>();
-}
-TEST_F(TColExpandExpdifTest, case_fp32_16_32_1_32)
-{
-    test_tcolexpandexpdif<float, 16, 32, 1, 32>();
-}
-TEST_F(TColExpandExpdifTest, case_fp16_32_32_1_32)
-{
-    test_tcolexpandexpdif<aclFloat16, 32, 32, 1, 32>();
-}
-TEST_F(TColExpandExpdifTest, case_fp16_16_128_1_128)
-{
-    test_tcolexpandexpdif<aclFloat16, 16, 128, 1, 128>();
-}
+TEST_F(TColExpandExpdifTest, case_fp32_32_16_1_16) { test_tcolexpandexpdif<float, 32, 16, 1, 16>(); }
+TEST_F(TColExpandExpdifTest, case_fp32_16_32_1_32) { test_tcolexpandexpdif<float, 16, 32, 1, 32>(); }
+TEST_F(TColExpandExpdifTest, case_fp16_32_32_1_32) { test_tcolexpandexpdif<aclFloat16, 32, 32, 1, 32>(); }
+TEST_F(TColExpandExpdifTest, case_fp16_16_128_1_128) { test_tcolexpandexpdif<aclFloat16, 16, 128, 1, 128>(); }
 } // namespace TColExpandExpdifTest

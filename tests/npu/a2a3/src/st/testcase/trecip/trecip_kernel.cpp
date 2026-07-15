@@ -15,7 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, bool isInPlace = false>
-__global__ AICORE void runTRecip(__gm__ T __out__ *out, __gm__ T __in__ *src)
+__global__ AICORE void runTRecip(__gm__ T __out__* out, __gm__ T __in__* src)
 {
     using DynShapeDim5 = Shape<1, 1, 1, kGRows_, kGCols_>;
     using DynStridDim5 = pto::Stride<1, 1, 1, kGCols_, 1>;
@@ -48,14 +48,14 @@ __global__ AICORE void runTRecip(__gm__ T __out__ *out, __gm__ T __in__ *src)
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, bool isInPlace = false>
-void LaunchTRecip(T *out, T *src, void *stream)
+void LaunchTRecip(T* out, T* src, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>)
         runTRecip<half, kGRows_, kGCols_, kTRows_, kTCols_, isInPlace>
-            <<<1, nullptr, stream>>>((half *)(out), (half *)(src));
+            <<<1, nullptr, stream>>>((half*)(out), (half*)(src));
     else
         runTRecip<T, kGRows_, kGCols_, kTRows_, kTCols_, isInPlace><<<1, nullptr, stream>>>(out, src);
 }
 
-template void LaunchTRecip<float, 64, 64, 64, 64, false>(float *out, float *src, void *stream);
-template void LaunchTRecip<aclFloat16, 64, 64, 64, 64, false>(aclFloat16 *out, aclFloat16 *src, void *stream);
+template void LaunchTRecip<float, 64, 64, 64, 64, false>(float* out, float* src, void* stream);
+template void LaunchTRecip<aclFloat16, 64, 64, 64, 64, false>(aclFloat16* out, aclFloat16* src, void* stream);

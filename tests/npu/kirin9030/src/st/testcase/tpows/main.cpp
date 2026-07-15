@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class TPOWSTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -33,7 +31,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int TRow, int TCol, int validRow, int validCol, bool isHighPrecision>
-void LaunchTPows(T *out, T *base, T *exp, void *stream);
+void LaunchTPows(T* out, T* base, T* exp, void* stream);
 
 template <typename T, int Row, int Col, int validRow, int validCol, bool isHighPrecision = false>
 void test_tpows()
@@ -49,12 +47,12 @@ void test_tpows()
     T *dstHost, *baseHost, *expHost;
     T *dstDevice, *baseDevice, *expDevice;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&baseHost), fileSize);
-    aclrtMallocHost((void **)(&expHost), expSize);
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&baseDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&expDevice, expSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&baseHost), fileSize);
+    aclrtMallocHost((void**)(&expHost), expSize);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&baseDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&expDevice, expSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/base.bin", fileSize, baseHost, fileSize);
     ReadFile(GetGoldenDir() + "/exp.bin", expSize, expHost, expSize);
@@ -92,35 +90,14 @@ void test_tpows()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TPOWSTest, case1)
-{
-    test_tpows<float, 64, 64, 63, 63>();
-}
+TEST_F(TPOWSTest, case1) { test_tpows<float, 64, 64, 63, 63>(); }
 TEST_F(TPOWSTest, case2)
 {
     test_tpows<aclFloat16, 64, 64, 63, 63>(); // typedef uint16_t aclFloat16
 }
-TEST_F(TPOWSTest, case3)
-{
-    test_tpows<int32_t, 64, 64, 63, 63>();
-}
-TEST_F(TPOWSTest, case4)
-{
-    test_tpows<int16_t, 64, 64, 63, 63>();
-}
-TEST_F(TPOWSTest, case5)
-{
-    test_tpows<int8_t, 64, 64, 63, 63>();
-}
-TEST_F(TPOWSTest, case6)
-{
-    test_tpows<uint32_t, 64, 64, 63, 63>();
-}
-TEST_F(TPOWSTest, case7)
-{
-    test_tpows<uint8_t, 64, 64, 63, 63>();
-}
-TEST_F(TPOWSTest, case10)
-{
-    test_tpows<float, 16, 256, 15, 231>();
-}
+TEST_F(TPOWSTest, case3) { test_tpows<int32_t, 64, 64, 63, 63>(); }
+TEST_F(TPOWSTest, case4) { test_tpows<int16_t, 64, 64, 63, 63>(); }
+TEST_F(TPOWSTest, case5) { test_tpows<int8_t, 64, 64, 63, 63>(); }
+TEST_F(TPOWSTest, case6) { test_tpows<uint32_t, 64, 64, 63, 63>(); }
+TEST_F(TPOWSTest, case7) { test_tpows<uint8_t, 64, 64, 63, 63>(); }
+TEST_F(TPOWSTest, case10) { test_tpows<float, 16, 256, 15, 231>(); }

@@ -10,42 +10,16 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include "syncall_mix_common.hpp"
 
-#if defined(SYNCALL_MIX_BUILD_AIC) && !defined(SYNCALL_MIX_REGISTER_BUILD)
-#include "runtime/rt.h"
-
-#include <cstdlib>
-#include <cstdio>
-#include <dlfcn.h>
-#include <fstream>
-#include <vector>
-#endif
-
-constexpr int32_t kMix12HardParticipants = 72;
-constexpr int32_t kMix12SoftParticipants = 72;
-constexpr uint64_t kMix12HardTilingKey = 1201;
-
-#if defined(SYNCALL_MIX_BUILD_AIC) && !defined(SYNCALL_MIX_REGISTER_BUILD)
-extern "C" __global__ AICORE void RunSoftSyncAllMix12_1202_mix_aiv(__gm__ uint64_t __in__ *fftsAddr,
-                                                                   __gm__ int32_t __out__ *out,
-                                                                   __gm__ int32_t __out__ *flags,
-                                                                   __gm__ int32_t __out__ *syncWorkspace);
-#endif
-
-#if defined(SYNCALL_MIX_BUILD_AIC)
-PTO_SYNCALL_MIX_AIC_KERNEL_META(RunSyncAllMix12_1201_mix_aic, 1, 2);
-PTO_SYNCALL_MIX_AIC_KERNEL_META(RunSoftSyncAllMix12_1202_mix_aic, 1, 2);
-
-extern "C" __global__ AICORE void RunSyncAllMix12_1201_mix_aic(__gm__ uint64_t __in__ *fftsAddr,
-                                                               __gm__ int32_t __out__ *out,
-                                                               __gm__ int32_t __out__ *flags)
+extern "C" __global__ AICORE void RunSyncAllMix12_1201(
+    __gm__ uint64_t __in__* fftsAddr, __gm__ int32_t __out__* out, __gm__ int32_t __out__* flags, int32_t aicBlocks,
+    int32_t totalParticipants)
 {
     RunMixSyncAllBody<kMix12HardParticipants, false>(fftsAddr, out, flags, nullptr);
 }
 
-extern "C" __global__ AICORE void RunSoftSyncAllMix12_1202_mix_aic(__gm__ uint64_t __in__ *fftsAddr,
-                                                                   __gm__ int32_t __out__ *out,
-                                                                   __gm__ int32_t __out__ *flags,
-                                                                   __gm__ int32_t __out__ *syncWorkspace)
+extern "C" __global__ AICORE void RunSoftSyncAllMix12_1202(
+    __gm__ uint64_t __in__* fftsAddr, __gm__ int32_t __out__* out, __gm__ int32_t __out__* flags,
+    __gm__ int32_t __out__* syncWorkspace, int32_t aicBlocks, int32_t totalParticipants)
 {
     RunMixSyncAllBody<kMix12SoftParticipants, true>(fftsAddr, out, flags, syncWorkspace);
 }
@@ -62,53 +36,19 @@ extern "C" __global__ AICORE void RunSyncAllMix12_1201_mix_aiv(__gm__ uint64_t _
     RunMixSyncAllBody<kMix12HardParticipants, false>(fftsAddr, out, flags, nullptr);
 }
 
-extern "C" __global__ AICORE void RunSoftSyncAllMix12_1202_mix_aiv(__gm__ uint64_t __in__ *fftsAddr,
-                                                                   __gm__ int32_t __out__ *out,
-                                                                   __gm__ int32_t __out__ *flags,
-                                                                   __gm__ int32_t __out__ *syncWorkspace)
+void LaunchSyncAllMix12(uint8_t* ffts, int32_t* out, int32_t* flags, int32_t aicBlocks, void* stream)
 {
-    RunMixSyncAllBody<kMix12SoftParticipants, true>(fftsAddr, out, flags, syncWorkspace);
-}
-#endif
-
-#if defined(SYNCALL_MIX_BUILD_AIC) && !defined(SYNCALL_MIX_REGISTER_BUILD)
-namespace {
-const char *GetCurrentSharedObjectPath(const void *anchor)
-{
-#if defined(SYNCALL_MIX_REGISTER_OBJECT_PATH)
-    (void)anchor;
-    return SYNCALL_MIX_REGISTER_OBJECT_PATH;
-#else
-    Dl_info info{};
-    if (dladdr(anchor, &info) == 0 || info.dli_fname == nullptr) {
-        std::fprintf(stderr, "dladdr failed for SYNCALL mix 1:2 kernel\n");
-        std::abort();
-    }
-    return info.dli_fname;
-#endif
+    const int32_t totalParticipants = aicBlocks * 3; // 1 cube + 2 vectors per cube (1:2)
+    RunSyncAllMix12_1201<<<aicBlocks, nullptr, stream>>>(
+        reinterpret_cast<uint64_t*>(ffts), out, flags, aicBlocks, totalParticipants);
 }
 
-std::vector<char> ReadCurrentSharedObject(const char *path)
+void LaunchSoftSyncAllMix12(
+    uint8_t* ffts, int32_t* out, int32_t* flags, int32_t* syncWorkspace, int32_t aicBlocks, int32_t totalParticipants,
+    void* stream)
 {
-    std::ifstream file(path, std::ios::binary | std::ios::ate);
-    if (!file.is_open()) {
-        std::fprintf(stderr, "failed to open SYNCALL mix 1:2 kernel binary: %s\n", path);
-        std::abort();
-    }
-
-    const std::streamsize size = file.tellg();
-    if (size <= 0) {
-        std::fprintf(stderr, "invalid SYNCALL mix 1:2 kernel binary size: %s\n", path);
-        std::abort();
-    }
-
-    std::vector<char> data(static_cast<size_t>(size));
-    file.seekg(0, std::ios::beg);
-    if (!file.read(data.data(), size)) {
-        std::fprintf(stderr, "failed to read SYNCALL mix 1:2 kernel binary: %s\n", path);
-        std::abort();
-    }
-    return data;
+    RunSoftSyncAllMix12_1202<<<aicBlocks, nullptr, stream>>>(
+        reinterpret_cast<uint64_t*>(ffts), out, flags, syncWorkspace, aicBlocks, totalParticipants);
 }
 
 void LaunchHardMixKernel(const void *anchor, uint64_t tilingKey, uint8_t *ffts, int32_t *out, int32_t *flags,

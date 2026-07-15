@@ -29,16 +29,17 @@ namespace pto {
 // -----------------------------------------------------------------------------
 
 template <typename reducedTileData, typename svTileData>
-AICORE inline void pto_macro_fa_gu(svTileData __out__ prev_sv_tile, svTileData __in__ est_sv_tile,
-                                   reducedTileData __in__ exp_max)
+AICORE inline void pto_macro_fa_gu(
+    svTileData __out__ prev_sv_tile, svTileData __in__ est_sv_tile, reducedTileData __in__ exp_max)
 {
     pto::TROWEXPANDMUL(prev_sv_tile, prev_sv_tile, exp_max);
     pto::TADD(prev_sv_tile, prev_sv_tile, est_sv_tile);
 }
 
 template <typename reducedTileData, typename svTileData>
-AICORE inline void pto_macro_fa_gu_last(svTileData __out__ prev_sv_tile, svTileData __in__ est_sv_tile,
-                                        reducedTileData __in__ exp_max, reducedTileData __in__ new_global_sum)
+AICORE inline void pto_macro_fa_gu_last(
+    svTileData __out__ prev_sv_tile, svTileData __in__ est_sv_tile, reducedTileData __in__ exp_max,
+    reducedTileData __in__ new_global_sum)
 {
     pto::TROWEXPANDMUL(prev_sv_tile, prev_sv_tile, exp_max);
     pto::TADD(prev_sv_tile, prev_sv_tile, est_sv_tile);
@@ -47,8 +48,8 @@ AICORE inline void pto_macro_fa_gu_last(svTileData __out__ prev_sv_tile, svTileD
 }
 
 template <typename reducedTileData, typename svTileData>
-AICORE inline void pto_macro_fa_gu_single_and_last_tile(svTileData __out__ sv_tile,
-                                                        reducedTileData __in__ new_global_sum)
+AICORE inline void pto_macro_fa_gu_single_and_last_tile(
+    svTileData __out__ sv_tile, reducedTileData __in__ new_global_sum)
 {
     pto::TROWEXPANDDIV(sv_tile, sv_tile, new_global_sum);
 }

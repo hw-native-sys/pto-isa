@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class MSCATTERTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 static std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     return std::string("../") + testInfo->test_suite_name() + "." + testInfo->name();
 }
 
@@ -43,17 +41,17 @@ void RunMScatterTest(size_t srcCount, size_t idxCount, size_t outCount, Launcher
     aclrtCreateStream(&stream);
 
     T *srcHost, *outHost;
-    TIdx *idxHost;
+    TIdx* idxHost;
     T *srcDevice, *outDevice;
-    TIdx *idxDevice;
+    TIdx* idxDevice;
 
-    aclrtMallocHost((void **)(&srcHost), srcByteSize);
-    aclrtMallocHost((void **)(&idxHost), idxByteSize);
-    aclrtMallocHost((void **)(&outHost), outByteSize);
+    aclrtMallocHost((void**)(&srcHost), srcByteSize);
+    aclrtMallocHost((void**)(&idxHost), idxByteSize);
+    aclrtMallocHost((void**)(&outHost), outByteSize);
 
-    aclrtMalloc((void **)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&idxDevice, idxByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&outDevice, outByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&idxDevice, idxByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&outDevice, outByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/src.bin", srcByteSize, srcHost, srcByteSize);
     ReadFile(GetGoldenDir() + "/indices.bin", idxByteSize, idxHost, idxByteSize);
@@ -90,7 +88,7 @@ void RunMScatterTest(size_t srcCount, size_t idxCount, size_t outCount, Launcher
     EXPECT_TRUE(ret);
 }
 
-#define DECLARE_LAUNCH(NAME, THOST, TIDX) void Launch_##NAME(THOST *out, THOST *src, TIDX *indices, void *stream);
+#define DECLARE_LAUNCH(NAME, THOST, TIDX) void Launch_##NAME(THOST* out, THOST* src, TIDX* indices, void* stream);
 
 #define ROW_TEST(NAME, THOST, TIDX, R, C, TR)                                                  \
     TEST_F(MSCATTERTest, case_##NAME)                                                          \
@@ -98,11 +96,8 @@ void RunMScatterTest(size_t srcCount, size_t idxCount, size_t outCount, Launcher
         RunMScatterTest<THOST, TIDX>((size_t)R * C, (size_t)R, (size_t)TR * C, Launch_##NAME); \
     }
 
-#define ELEM_TEST(NAME, THOST, TIDX, N, TS)                                            \
-    TEST_F(MSCATTERTest, case_##NAME)                                                  \
-    {                                                                                  \
-        RunMScatterTest<THOST, TIDX>((size_t)N, (size_t)N, (size_t)TS, Launch_##NAME); \
-    }
+#define ELEM_TEST(NAME, THOST, TIDX, N, TS) \
+    TEST_F(MSCATTERTest, case_##NAME) { RunMScatterTest<THOST, TIDX>((size_t)N, (size_t)N, (size_t)TS, Launch_##NAME); }
 
 #define ELEM2D_TEST(NAME, THOST, TIDX, R, C, TS)                                               \
     TEST_F(MSCATTERTest, case_##NAME)                                                          \

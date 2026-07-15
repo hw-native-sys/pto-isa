@@ -35,8 +35,8 @@ __global__ __aicore__ void tbroadcast_ccu_trigger_kernel(uint64_t ckeVA, uint32_
     pto::comm::TBROADCAST<pto::comm::CollEngine::CCU>(group, srcGm, stagingTile, ctx);
 }
 
-extern "C" __attribute__((visibility("default"))) int tbroadcast_ccu_trigger_launch(void *stream, uint64_t ckeVA,
-                                                                                    uint32_t mask)
+extern "C" __attribute__((visibility("default"))) int tbroadcast_ccu_trigger_launch(
+    void* stream, uint64_t ckeVA, uint32_t mask)
 {
     tbroadcast_ccu_trigger_kernel<<<1, nullptr, stream>>>(ckeVA, mask);
     return 0;

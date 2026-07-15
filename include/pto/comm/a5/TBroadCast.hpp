@@ -31,20 +31,23 @@ namespace comm {
 // callers write `TBROADCAST_CCU_IMPL<engine>(...)`, which turns the qualified
 // template-id into a dependent name so the discarded `if constexpr (engine ==
 // CCU)` branch in pto_comm_inst.hpp performs no lookup on non-A5 builds.
-template <CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalSrcData, typename TileData,
-          typename... WaitEvents>
-PTO_INTERNAL void TBROADCAST_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData,
-                                      TileData &stagingTileData, const CcuTriggerContext &ctx, WaitEvents &...events)
+template <
+    CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalSrcData, typename TileData,
+    typename... WaitEvents>
+PTO_INTERNAL void TBROADCAST_CCU_IMPL(
+    ParallelGroupType& parallelGroup, GlobalSrcData& srcGlobalData, TileData& stagingTileData,
+    const CcuTriggerContext& ctx, WaitEvents&... events)
 {
     WaitAllEvents(events...);
     pto::comm::ccu::CkeTriggerFromTile(ctx.ckeSlotVA, ctx.mask, stagingTileData);
 }
 
-template <CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalSrcData, typename TileData,
-          typename... WaitEvents>
-PTO_INTERNAL void TBROADCAST_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData,
-                                      TileData &pingTile, TileData &pongTile, const CcuTriggerContext &ctx,
-                                      WaitEvents &...events)
+template <
+    CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalSrcData, typename TileData,
+    typename... WaitEvents>
+PTO_INTERNAL void TBROADCAST_CCU_IMPL(
+    ParallelGroupType& parallelGroup, GlobalSrcData& srcGlobalData, TileData& pingTile, TileData& pongTile,
+    const CcuTriggerContext& ctx, WaitEvents&... events)
 {
     WaitAllEvents(events...);
     pto::comm::ccu::CkeTriggerFromTile(ctx.ckeSlotVA, ctx.mask, pingTile);

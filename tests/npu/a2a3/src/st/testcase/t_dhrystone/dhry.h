@@ -22,19 +22,12 @@ This is a freely distributable industry-standard benchmark.
 #define structassign(d, s) d = s
 #endif
 
-enum Enumeration
-{
-    Ident_1,
-    Ident_2,
-    Ident_3,
-    Ident_4,
-    Ident_5
-};
+enum Enumeration { Ident_1, Ident_2, Ident_3, Ident_4, Ident_5 };
 
 typedef char Str_30[31];
 
 typedef struct record {
-    struct record *ptr_comp;
+    struct record* ptr_comp;
     Enumeration discr;
     union {
         struct {
@@ -45,17 +38,17 @@ typedef struct record {
     } variant;
 } Rec_Type, *Rec_Pointer;
 
-AICORE void custom_strcpy(char *des, char *source);
-AICORE int strcmp(char *sl, char *s2);
+AICORE void custom_strcpy(char* des, char* source);
+AICORE int strcmp(char* sl, char* s2);
 
 AICORE void proc_1(Rec_Pointer ptr_val_par);
-AICORE void proc_2(int *int_par_ref);
-AICORE void proc_3(Rec_Pointer *ptr_ref_par);
+AICORE void proc_2(int* int_par_ref);
+AICORE void proc_3(Rec_Pointer* ptr_ref_par);
 AICORE void proc_4(void);
 AICORE void proc_5(void);
-AICORE void proc_6(Enumeration enum_val_par, Enumeration *enum_ref_par);
-AICORE void proc_7(int int_1_par_val, int int_2_par_val, int *int_par_ref);
-AICORE void proc_8(int *arr_1_par_ref, int *arr_2_par_ref, int int_1_par_val, int int_2_par_val);
+AICORE void proc_6(Enumeration enum_val_par, Enumeration* enum_ref_par);
+AICORE void proc_7(int int_1_par_val, int int_2_par_val, int* int_par_ref);
+AICORE void proc_8(int* arr_1_par_ref, int* arr_2_par_ref, int int_1_par_val, int int_2_par_val);
 
 AICORE Enumeration func_1(char ch_1_par_val, char ch_2_par_val);
 AICORE bool func_2(Str_30 str_1_par_ref, Str_30 str_2_par_ref);

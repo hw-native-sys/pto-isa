@@ -29,21 +29,23 @@ namespace comm {
 // ============================================================================
 
 // TPUT with atomic operation support (compile-time specified)
-template <AtomicType atomicType = AtomicType::AtomicNone, typename GlobalDstData, typename GlobalSrcData,
-          typename TileData, typename... WaitEvents>
-PTO_INST RecordEvent TPUT(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData, TileData &stagingTileData,
-                          WaitEvents &...events)
+template <
+    AtomicType atomicType = AtomicType::AtomicNone, typename GlobalDstData, typename GlobalSrcData, typename TileData,
+    typename... WaitEvents>
+PTO_INST RecordEvent
+TPUT(GlobalDstData& dstGlobalData, GlobalSrcData& srcGlobalData, TileData& stagingTileData, WaitEvents&... events)
 {
     WaitAllEvents(events...);
-    ::pto::comm::TPUT_IMPL<GlobalDstData, GlobalSrcData, TileData, atomicType>(dstGlobalData, srcGlobalData,
-                                                                               stagingTileData);
+    ::pto::comm::TPUT_IMPL<GlobalDstData, GlobalSrcData, TileData, atomicType>(
+        dstGlobalData, srcGlobalData, stagingTileData);
     return {};
 }
 
 // TPUT with runtime-specified atomic operation
 template <typename GlobalDstData, typename GlobalSrcData, typename TileData, typename... WaitEvents>
-PTO_INST RecordEvent TPUT(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData, TileData &stagingTileData,
-                          AtomicType atomicType, WaitEvents &...events)
+PTO_INST RecordEvent TPUT(
+    GlobalDstData& dstGlobalData, GlobalSrcData& srcGlobalData, TileData& stagingTileData, AtomicType atomicType,
+    WaitEvents&... events)
 {
     WaitAllEvents(events...);
     if (atomicType == AtomicType::AtomicAdd) {
@@ -58,14 +60,16 @@ PTO_INST RecordEvent TPUT(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobal
 
 // TPUT with ping-pong double buffering (compile-time atomic type)
 // Uses two staging tiles to overlap TLOAD and TSTORE for adjacent chunks
-template <AtomicType atomicType = AtomicType::AtomicNone, typename GlobalDstData, typename GlobalSrcData,
-          typename TileData, typename... WaitEvents>
-PTO_INST RecordEvent TPUT(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData, TileData &pingTile,
-                          TileData &pongTile, WaitEvents &...events)
+template <
+    AtomicType atomicType = AtomicType::AtomicNone, typename GlobalDstData, typename GlobalSrcData, typename TileData,
+    typename... WaitEvents>
+PTO_INST RecordEvent TPUT(
+    GlobalDstData& dstGlobalData, GlobalSrcData& srcGlobalData, TileData& pingTile, TileData& pongTile,
+    WaitEvents&... events)
 {
     WaitAllEvents(events...);
-    ::pto::comm::TPUT_IMPL<GlobalDstData, GlobalSrcData, TileData, atomicType>(dstGlobalData, srcGlobalData, pingTile,
-                                                                               pongTile);
+    ::pto::comm::TPUT_IMPL<GlobalDstData, GlobalSrcData, TileData, atomicType>(
+        dstGlobalData, srcGlobalData, pingTile, pongTile);
     return {};
 }
 
@@ -75,8 +79,8 @@ PTO_INST RecordEvent TPUT(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobal
 // ============================================================================
 
 template <typename GlobalDstData, typename GlobalSrcData, typename TileData, typename... WaitEvents>
-PTO_INST RecordEvent TGET(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData, TileData &stagingTileData,
-                          WaitEvents &...events)
+PTO_INST RecordEvent
+TGET(GlobalDstData& dstGlobalData, GlobalSrcData& srcGlobalData, TileData& stagingTileData, WaitEvents&... events)
 {
     WaitAllEvents(events...);
     ::pto::comm::TGET_IMPL(dstGlobalData, srcGlobalData, stagingTileData);
@@ -86,8 +90,9 @@ PTO_INST RecordEvent TGET(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobal
 // TGET with ping-pong double buffering
 // Uses two staging tiles to overlap TLOAD and TSTORE for adjacent chunks
 template <typename GlobalDstData, typename GlobalSrcData, typename TileData, typename... WaitEvents>
-PTO_INST RecordEvent TGET(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData, TileData &pingTile,
-                          TileData &pongTile, WaitEvents &...events)
+PTO_INST RecordEvent TGET(
+    GlobalDstData& dstGlobalData, GlobalSrcData& srcGlobalData, TileData& pingTile, TileData& pongTile,
+    WaitEvents&... events)
 {
     WaitAllEvents(events...);
     ::pto::comm::TGET_IMPL(dstGlobalData, srcGlobalData, pingTile, pongTile);
@@ -100,7 +105,7 @@ PTO_INST RecordEvent TGET(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobal
 // ============================================================================
 
 template <typename GlobalSignalData, typename... WaitEvents>
-PTO_INST void TNOTIFY(GlobalSignalData &dstSignalData, int32_t value, NotifyOp op, WaitEvents &...events)
+PTO_INST void TNOTIFY(GlobalSignalData& dstSignalData, int32_t value, NotifyOp op, WaitEvents&... events)
 {
     WaitAllEvents(events...);
     ::pto::comm::TNOTIFY_IMPL(dstSignalData, value, op);
@@ -115,7 +120,7 @@ PTO_INST void TNOTIFY(GlobalSignalData &dstSignalData, int32_t value, NotifyOp o
 // ============================================================================
 
 template <typename GlobalSignalData, typename... WaitEvents>
-PTO_INST void TWAIT(GlobalSignalData &signalData, int32_t cmpValue, WaitCmp cmp, WaitEvents &...events)
+PTO_INST void TWAIT(GlobalSignalData& signalData, int32_t cmpValue, WaitCmp cmp, WaitEvents&... events)
 {
     WaitAllEvents(events...);
     ::pto::comm::TWAIT_IMPL(signalData, cmpValue, cmp);
@@ -129,7 +134,7 @@ PTO_INST void TWAIT(GlobalSignalData &signalData, int32_t cmpValue, WaitCmp cmp,
 // ============================================================================
 
 template <typename GlobalSignalData, typename... WaitEvents>
-PTO_INST bool TTEST(GlobalSignalData &signalData, int32_t cmpValue, WaitCmp cmp, WaitEvents &...events)
+PTO_INST bool TTEST(GlobalSignalData& signalData, int32_t cmpValue, WaitCmp cmp, WaitEvents&... events)
 {
     WaitAllEvents(events...);
     return ::pto::comm::TTEST_IMPL(signalData, cmpValue, cmp);
@@ -144,10 +149,11 @@ PTO_INST bool TTEST(GlobalSignalData &signalData, int32_t cmpValue, WaitCmp cmp,
 //   CollEngine::CCU           — AIV triggers CKE gate; first variadic arg must be CcuTriggerContext
 // ============================================================================
 
-template <CollEngine engine = CollEngine::AIV, typename ParallelGroupType, typename GlobalDstData, typename TileData,
-          typename... Args>
-PTO_INST RecordEvent TGATHER(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData, TileData &stagingTileData,
-                             Args &...args)
+template <
+    CollEngine engine = CollEngine::AIV, typename ParallelGroupType, typename GlobalDstData, typename TileData,
+    typename... Args>
+PTO_INST RecordEvent
+TGATHER(ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& stagingTileData, Args&... args)
 {
     if constexpr (engine == CollEngine::AIV) {
         WaitAllEvents(args...);
@@ -165,10 +171,12 @@ PTO_INST RecordEvent TGATHER(ParallelGroupType &parallelGroup, GlobalDstData &ds
 // Only the root needs to execute.
 // ============================================================================
 
-template <CollEngine engine = CollEngine::AIV, typename ParallelGroupType, typename GlobalDstData, typename TileData,
-          typename... Args>
-PTO_INST RecordEvent TGATHER(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData, TileData &pingTile,
-                             TileData &pongTile, Args &...args)
+template <
+    CollEngine engine = CollEngine::AIV, typename ParallelGroupType, typename GlobalDstData, typename TileData,
+    typename... Args>
+PTO_INST RecordEvent TGATHER(
+    ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& pingTile, TileData& pongTile,
+    Args&... args)
 {
     if constexpr (engine == CollEngine::AIV) {
         WaitAllEvents(args...);
@@ -189,10 +197,11 @@ PTO_INST RecordEvent TGATHER(ParallelGroupType &parallelGroup, GlobalDstData &ds
 //   CollEngine::CCU           — AIV triggers CKE gate; first variadic arg must be CcuTriggerContext
 // ============================================================================
 
-template <CollEngine engine = CollEngine::AIV, typename ParallelGroupType, typename GlobalSrcData, typename TileData,
-          typename... Args>
-PTO_INST RecordEvent TSCATTER(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData, TileData &stagingTileData,
-                              Args &...args)
+template <
+    CollEngine engine = CollEngine::AIV, typename ParallelGroupType, typename GlobalSrcData, typename TileData,
+    typename... Args>
+PTO_INST RecordEvent
+TSCATTER(ParallelGroupType& parallelGroup, GlobalSrcData& srcGlobalData, TileData& stagingTileData, Args&... args)
 {
     if constexpr (engine == CollEngine::AIV) {
         WaitAllEvents(args...);
@@ -210,10 +219,12 @@ PTO_INST RecordEvent TSCATTER(ParallelGroupType &parallelGroup, GlobalSrcData &s
 // Only the root needs to execute.
 // ============================================================================
 
-template <CollEngine engine = CollEngine::AIV, typename ParallelGroupType, typename GlobalSrcData, typename TileData,
-          typename... Args>
-PTO_INST RecordEvent TSCATTER(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData, TileData &pingTile,
-                              TileData &pongTile, Args &...args)
+template <
+    CollEngine engine = CollEngine::AIV, typename ParallelGroupType, typename GlobalSrcData, typename TileData,
+    typename... Args>
+PTO_INST RecordEvent TSCATTER(
+    ParallelGroupType& parallelGroup, GlobalSrcData& srcGlobalData, TileData& pingTile, TileData& pongTile,
+    Args&... args)
 {
     if constexpr (engine == CollEngine::AIV) {
         WaitAllEvents(args...);
@@ -235,10 +246,11 @@ PTO_INST RecordEvent TSCATTER(ParallelGroupType &parallelGroup, GlobalSrcData &s
 //   CollEngine::CCU           — AIV triggers CKE gate; first variadic arg must be CcuTriggerContext
 // ============================================================================
 
-template <CollEngine engine = CollEngine::AIV, typename ParallelGroupType, typename GlobalSrcData, typename TileData,
-          typename... Args>
-PTO_INST RecordEvent TBROADCAST(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData,
-                                TileData &stagingTileData, Args &...args)
+template <
+    CollEngine engine = CollEngine::AIV, typename ParallelGroupType, typename GlobalSrcData, typename TileData,
+    typename... Args>
+PTO_INST RecordEvent
+TBROADCAST(ParallelGroupType& parallelGroup, GlobalSrcData& srcGlobalData, TileData& stagingTileData, Args&... args)
 {
     if constexpr (engine == CollEngine::AIV) {
         WaitAllEvents(args...);
@@ -256,10 +268,12 @@ PTO_INST RecordEvent TBROADCAST(ParallelGroupType &parallelGroup, GlobalSrcData 
 // Only the root needs to execute.
 // ============================================================================
 
-template <CollEngine engine = CollEngine::AIV, typename ParallelGroupType, typename GlobalSrcData, typename TileData,
-          typename... Args>
-PTO_INST RecordEvent TBROADCAST(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData, TileData &pingTile,
-                                TileData &pongTile, Args &...args)
+template <
+    CollEngine engine = CollEngine::AIV, typename ParallelGroupType, typename GlobalSrcData, typename TileData,
+    typename... Args>
+PTO_INST RecordEvent TBROADCAST(
+    ParallelGroupType& parallelGroup, GlobalSrcData& srcGlobalData, TileData& pingTile, TileData& pongTile,
+    Args&... args)
 {
     if constexpr (engine == CollEngine::AIV) {
         WaitAllEvents(args...);
@@ -280,10 +294,12 @@ PTO_INST RecordEvent TBROADCAST(ParallelGroupType &parallelGroup, GlobalSrcData 
 //   CollEngine::CCU           — AIV triggers CKE gate; first variadic arg must be CcuTriggerContext
 // ============================================================================
 
-template <CollEngine engine = CollEngine::AIV, typename ParallelGroupType, typename GlobalDstData, typename TileData,
-          typename... Args>
-PTO_INST RecordEvent TREDUCE(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData, TileData &accTileData,
-                             TileData &recvTileData, ReduceOp op, Args &...args)
+template <
+    CollEngine engine = CollEngine::AIV, typename ParallelGroupType, typename GlobalDstData, typename TileData,
+    typename... Args>
+PTO_INST RecordEvent TREDUCE(
+    ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& accTileData, TileData& recvTileData,
+    ReduceOp op, Args&... args)
 {
     if constexpr (engine == CollEngine::AIV) {
         WaitAllEvents(args...);
@@ -300,18 +316,20 @@ PTO_INST RecordEvent TREDUCE(ParallelGroupType &parallelGroup, GlobalDstData &ds
 // Only the root needs to execute. Non-root ranks ensure source buffers are ready.
 // ============================================================================
 
-template <CollEngine engine = CollEngine::AIV, typename ParallelGroupType, typename GlobalDstData, typename TileData,
-          typename... Args>
-PTO_INST RecordEvent TREDUCE(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData, TileData &accTileData,
-                             TileData &pingTileData, TileData &pongTileData, ReduceOp op, Args &...args)
+template <
+    CollEngine engine = CollEngine::AIV, typename ParallelGroupType, typename GlobalDstData, typename TileData,
+    typename... Args>
+PTO_INST RecordEvent TREDUCE(
+    ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& accTileData, TileData& pingTileData,
+    TileData& pongTileData, ReduceOp op, Args&... args)
 {
     if constexpr (engine == CollEngine::AIV) {
         WaitAllEvents(args...);
         ::pto::comm::TREDUCE_IMPL(parallelGroup, dstGlobalData, accTileData, pingTileData, pongTileData, op);
     } else if constexpr (engine == CollEngine::CCU) {
         static_assert(sizeof...(Args) >= 1, "TREDUCE<CCU> requires CcuTriggerContext as first argument");
-        ::pto::comm::TREDUCE_CCU_IMPL<engine>(parallelGroup, dstGlobalData, accTileData, pingTileData, pongTileData, op,
-                                              args...);
+        ::pto::comm::TREDUCE_CCU_IMPL<engine>(
+            parallelGroup, dstGlobalData, accTileData, pingTileData, pongTileData, op, args...);
     }
     return {};
 }
@@ -322,8 +340,8 @@ PTO_INST RecordEvent TREDUCE(ParallelGroupType &parallelGroup, GlobalDstData &ds
 // ============================================================================
 
 template <DmaEngine engine = DmaEngine::SDMA, typename GlobalDstData, typename GlobalSrcData, typename... WaitEvents>
-PTO_INST AsyncEvent TPUT_ASYNC(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData, const AsyncSession &session,
-                               WaitEvents &...events)
+PTO_INST AsyncEvent TPUT_ASYNC(
+    GlobalDstData& dstGlobalData, GlobalSrcData& srcGlobalData, const AsyncSession& session, WaitEvents&... events)
 {
     WaitAllEvents(events...);
     return ::pto::comm::TPUT_ASYNC_IMPL<engine>(dstGlobalData, srcGlobalData, session);
@@ -335,8 +353,8 @@ PTO_INST AsyncEvent TPUT_ASYNC(GlobalDstData &dstGlobalData, GlobalSrcData &srcG
 // ============================================================================
 
 template <DmaEngine engine = DmaEngine::SDMA, typename GlobalDstData, typename GlobalSrcData, typename... WaitEvents>
-PTO_INST AsyncEvent TGET_ASYNC(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData, const AsyncSession &session,
-                               WaitEvents &...events)
+PTO_INST AsyncEvent TGET_ASYNC(
+    GlobalDstData& dstGlobalData, GlobalSrcData& srcGlobalData, const AsyncSession& session, WaitEvents&... events)
 {
     WaitAllEvents(events...);
     return ::pto::comm::TGET_ASYNC_IMPL<engine>(dstGlobalData, srcGlobalData, session);

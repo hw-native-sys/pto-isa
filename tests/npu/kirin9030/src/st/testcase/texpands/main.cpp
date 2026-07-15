@@ -19,15 +19,13 @@ using namespace PtoTestCommon;
 
 class TEXPANDSTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -35,7 +33,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kVRows_, int kVCols_, int padValueType>
-void LaunchTExpandS(void *out, float scalar, void *stream);
+void LaunchTExpandS(void* out, float scalar, void* stream);
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kVRows_, int kVCols_, int padValueType>
 void test_texpands()
@@ -47,16 +45,16 @@ void test_texpands()
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    T *dstHost;
-    T *dstDevice;
+    T* dstHost;
+    T* dstDevice;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     float scalar;
     std::string scalar_file = GetGoldenDir() + "/scalar.bin";
     std::ifstream file(scalar_file, std::ios::binary);
-    file.read(reinterpret_cast<char *>(&scalar), 4);
+    file.read(reinterpret_cast<char*>(&scalar), 4);
     file.close();
 
     LaunchTExpandS<T, kGRows_, kGCols_, kTRows_, kTCols_, kVRows_, kVCols_, padValueType>(dstDevice, scalar, stream);

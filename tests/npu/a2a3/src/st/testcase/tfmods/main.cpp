@@ -16,20 +16,18 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <uint32_t caseId>
-void launchTFMODSTestCase(void *out, void *src, float scalar, aclrtStream stream);
+void launchTFMODSTestCase(void* out, void* src, float scalar, aclrtStream stream);
 
 class TFMODSTest : public testing::Test {
 public:
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -47,23 +45,23 @@ void TFMODSTestFramework()
 
     size_t dstByteSize = dstTileRow * dstTileCol * sizeof(T);
     size_t srcByteSize = row * col * sizeof(T);
-    T *dstHost;
-    T *srcHost;
-    T *dstDevice;
-    T *srcDevice;
+    T* dstHost;
+    T* srcHost;
+    T* dstDevice;
+    T* srcDevice;
     float scalar;
 
-    aclrtMallocHost((void **)(&dstHost), dstByteSize);
-    aclrtMallocHost((void **)(&srcHost), srcByteSize);
+    aclrtMallocHost((void**)(&dstHost), dstByteSize);
+    aclrtMallocHost((void**)(&srcHost), srcByteSize);
 
-    aclrtMalloc((void **)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", srcByteSize, srcHost, srcByteSize);
     std::string scalar_file = GetGoldenDir() + "/scalar.bin";
     std::ifstream file(scalar_file, std::ios::binary);
 
-    file.read(reinterpret_cast<char *>(&scalar), 4);
+    file.read(reinterpret_cast<char*>(&scalar), 4);
     file.close();
     aclrtMemcpy(srcDevice, srcByteSize, srcHost, srcByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
     launchTFMODSTestCase<caseId>(dstDevice, srcDevice, scalar, stream);
@@ -91,37 +89,16 @@ void TFMODSTestFramework()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TFMODSTest, case1)
-{
-    TFMODSTestFramework<1, float, 32, 64, 32, 32, 64, 64>();
-}
+TEST_F(TFMODSTest, case1) { TFMODSTestFramework<1, float, 32, 64, 32, 32, 64, 64>(); }
 
-TEST_F(TFMODSTest, case5)
-{
-    TFMODSTestFramework<5, float, 7, 448, 7, 7, 448, 448>();
-}
+TEST_F(TFMODSTest, case5) { TFMODSTestFramework<5, float, 7, 448, 7, 7, 448, 448>(); }
 
-TEST_F(TFMODSTest, case6)
-{
-    TFMODSTestFramework<6, float, 256, 16, 256, 256, 16, 16>();
-}
+TEST_F(TFMODSTest, case6) { TFMODSTestFramework<6, float, 256, 16, 256, 256, 16, 16>(); }
 
-TEST_F(TFMODSTest, case7)
-{
-    TFMODSTestFramework<7, float, 32, 128, 32, 32, 64, 64>();
-}
+TEST_F(TFMODSTest, case7) { TFMODSTestFramework<7, float, 32, 128, 32, 32, 64, 64>(); }
 
-TEST_F(TFMODSTest, case11)
-{
-    TFMODSTestFramework<11, float, 7, 512, 7, 7, 448, 448>();
-}
+TEST_F(TFMODSTest, case11) { TFMODSTestFramework<11, float, 7, 512, 7, 7, 448, 448>(); }
 
-TEST_F(TFMODSTest, case12)
-{
-    TFMODSTestFramework<12, float, 256, 32, 256, 256, 16, 16>();
-}
+TEST_F(TFMODSTest, case12) { TFMODSTestFramework<12, float, 256, 32, 256, 256, 16, 16>(); }
 
-TEST_F(TFMODSTest, case16)
-{
-    TFMODSTestFramework<16, float, 1, 8192, 1, 1, 8192, 8192>();
-}
+TEST_F(TFMODSTest, case16) { TFMODSTestFramework<16, float, 1, 8192, 1, 1, 8192, 8192>(); }

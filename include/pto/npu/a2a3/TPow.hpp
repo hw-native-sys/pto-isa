@@ -76,7 +76,7 @@ PTO_INTERNAL int TPowICore(int base, int exp)
 }
 
 template <typename T, uint32_t DstStride, uint32_t BaseStride, uint32_t ExpStride>
-PTO_INTERNAL void TPowI(__ubuf__ T *dst, __ubuf__ T *base, __ubuf__ T *exp, unsigned validRow, unsigned validCol)
+PTO_INTERNAL void TPowI(__ubuf__ T* dst, __ubuf__ T* base, __ubuf__ T* exp, unsigned validRow, unsigned validCol)
 {
     for (uint32_t i = 0; i < validRow; ++i) {
         for (uint32_t j = 0; j < validCol; ++j) {
@@ -86,7 +86,7 @@ PTO_INTERNAL void TPowI(__ubuf__ T *dst, __ubuf__ T *base, __ubuf__ T *exp, unsi
 }
 
 template <typename T, uint32_t DstStride, uint32_t BaseStride>
-PTO_INTERNAL void TPowI(__ubuf__ T *dst, __ubuf__ T *base, T exp, unsigned validRow, unsigned validCol)
+PTO_INTERNAL void TPowI(__ubuf__ T* dst, __ubuf__ T* base, T exp, unsigned validRow, unsigned validCol)
 {
     for (uint32_t i = 0; i < validRow; ++i) {
         for (uint32_t j = 0; j < validCol; ++j) {
@@ -95,7 +95,7 @@ PTO_INTERNAL void TPowI(__ubuf__ T *dst, __ubuf__ T *base, T exp, unsigned valid
     }
 }
 
-PTO_INTERNAL void SwitchPowFResult(__ubuf__ float *dst, float base, float exp, float tmp)
+PTO_INTERNAL void SwitchPowFResult(__ubuf__ float* dst, float base, float exp, float tmp)
 {
     if (exp == 0.0f) {
         *dst = 1.0f;
@@ -113,20 +113,21 @@ PTO_INTERNAL void SwitchPowFResult(__ubuf__ float *dst, float base, float exp, f
 }
 
 template <typename T, uint32_t DstStride, uint32_t BaseStride, uint32_t ExpStride, uint32_t TmpStride>
-PTO_INTERNAL void ProcessSpecialCaseForPowF(__ubuf__ T *dst, __ubuf__ T *base, __ubuf__ T *exp, __ubuf__ T *tmp,
-                                            unsigned validRow, unsigned validCol)
+PTO_INTERNAL void ProcessSpecialCaseForPowF(
+    __ubuf__ T* dst, __ubuf__ T* base, __ubuf__ T* exp, __ubuf__ T* tmp, unsigned validRow, unsigned validCol)
 {
     for (uint16_t i = 0; i < validRow; ++i) {
         for (uint16_t j = 0; j < validCol; ++j) {
-            SwitchPowFResult(dst + i * DstStride + j, *(base + i * BaseStride + j), *(exp + i * ExpStride + j),
-                             *(tmp + i * TmpStride + j));
+            SwitchPowFResult(
+                dst + i * DstStride + j, *(base + i * BaseStride + j), *(exp + i * ExpStride + j),
+                *(tmp + i * TmpStride + j));
         }
     }
 }
 
 template <typename T, uint32_t DstStride, uint32_t BaseStride, uint32_t TmpStride>
-PTO_INTERNAL void ProcessSpecialCaseForPowF(__ubuf__ T *dst, __ubuf__ T *base, T exp, __ubuf__ T *tmp,
-                                            unsigned validRow, unsigned validCol)
+PTO_INTERNAL void ProcessSpecialCaseForPowF(
+    __ubuf__ T* dst, __ubuf__ T* base, T exp, __ubuf__ T* tmp, unsigned validRow, unsigned validCol)
 {
     for (uint16_t i = 0; i < validRow; ++i) {
         for (uint16_t j = 0; j < validCol; ++j) {
@@ -137,8 +138,9 @@ PTO_INTERNAL void ProcessSpecialCaseForPowF(__ubuf__ T *dst, __ubuf__ T *base, T
 
 template <typename T, bool NeedAbs>
 struct PowOp {
-    PTO_INTERNAL static void BinInstr(__ubuf__ T *dst, __ubuf__ T *base, __ubuf__ T *exp, uint8_t repeats,
-                                      uint8_t dstStride = 8, uint8_t baseStride = 8, uint8_t expStride = 8)
+    PTO_INTERNAL static void BinInstr(
+        __ubuf__ T* dst, __ubuf__ T* base, __ubuf__ T* exp, uint8_t repeats, uint8_t dstStride = 8,
+        uint8_t baseStride = 8, uint8_t expStride = 8)
     {
         if constexpr (NeedAbs) {
             vabs(dst, base, repeats, 1, 1, dstStride, baseStride);
@@ -156,8 +158,8 @@ struct PowOp {
 };
 
 template <typename T, uint32_t DstStride, uint32_t BaseStride, uint32_t ExpStride, uint32_t TmpStride>
-PTO_INTERNAL void TPowF(__ubuf__ T *dst, __ubuf__ T *base, __ubuf__ T *exp, __ubuf__ T *tmp, unsigned validRow,
-                        unsigned validCol)
+PTO_INTERNAL void TPowF(
+    __ubuf__ T* dst, __ubuf__ T* base, __ubuf__ T* exp, __ubuf__ T* tmp, unsigned validRow, unsigned validCol)
 {
     constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
@@ -172,8 +174,8 @@ PTO_INTERNAL void TPowF(__ubuf__ T *dst, __ubuf__ T *base, __ubuf__ T *exp, __ub
 
 template <typename T, bool NeedAbs>
 struct PowSOp {
-    PTO_INTERNAL static void BinSInstr(__ubuf__ T *dst, __ubuf__ T *base, T exp, uint8_t repeats, uint8_t dstStride = 8,
-                                       uint8_t baseStride = 8)
+    PTO_INTERNAL static void BinSInstr(
+        __ubuf__ T* dst, __ubuf__ T* base, T exp, uint8_t repeats, uint8_t dstStride = 8, uint8_t baseStride = 8)
     {
         if constexpr (NeedAbs) {
             vabs(dst, base, repeats, 1, 1, dstStride, baseStride);
@@ -191,124 +193,141 @@ struct PowSOp {
 };
 
 template <typename T, typename DstTile, typename BaseTile, typename TmpTile>
-PTO_INTERNAL void TPowF(__ubuf__ T *dst, __ubuf__ T *base, T exp, __ubuf__ T *tmp, unsigned validRow, unsigned validCol)
+PTO_INTERNAL void TPowF(__ubuf__ T* dst, __ubuf__ T* base, T exp, __ubuf__ T* tmp, unsigned validRow, unsigned validCol)
 {
     constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
-    TBinSInstr<PowSOp<T, true>, TmpTile, BaseTile, elementsPerRepeat, blockSizeElem, TmpTile::RowStride,
-               BaseTile::RowStride>(tmp, base, exp, validRow, validCol);
+    TBinSInstr<
+        PowSOp<T, true>, TmpTile, BaseTile, elementsPerRepeat, blockSizeElem, TmpTile::RowStride, BaseTile::RowStride>(
+        tmp, base, exp, validRow, validCol);
 
-    TBinSInstr<PowSOp<T, false>, DstTile, BaseTile, elementsPerRepeat, blockSizeElem, DstTile::RowStride,
-               BaseTile::RowStride>(dst, base, exp, validRow, validCol);
+    TBinSInstr<
+        PowSOp<T, false>, DstTile, BaseTile, elementsPerRepeat, blockSizeElem, DstTile::RowStride, BaseTile::RowStride>(
+        dst, base, exp, validRow, validCol);
 
     PtoSetWaitFlag<PIPE_V, PIPE_S>();
-    ProcessSpecialCaseForPowF<T, DstTile::RowStride, BaseTile::RowStride, TmpTile::RowStride>(dst, base, exp, tmp,
-                                                                                              validRow, validCol);
+    ProcessSpecialCaseForPowF<T, DstTile::RowStride, BaseTile::RowStride, TmpTile::RowStride>(
+        dst, base, exp, tmp, validRow, validCol);
     PtoSetWaitFlag<PIPE_S, PIPE_V>();
 }
 
 template <typename DstTile, typename BaseTile, typename ExpTile, typename TmpTile>
-__tf__ PTO_INTERNAL void TPow(typename DstTile::TileDType __out__ dstData, typename BaseTile::TileDType __in__ baseData,
-                              typename ExpTile::TileDType __in__ expData, typename TmpTile::TileDType __in__ tmpData,
-                              unsigned validRow, unsigned validCol)
+__tf__ PTO_INTERNAL void TPow(
+    typename DstTile::TileDType __out__ dstData, typename BaseTile::TileDType __in__ baseData,
+    typename ExpTile::TileDType __in__ expData, typename TmpTile::TileDType __in__ tmpData, unsigned validRow,
+    unsigned validCol)
 {
     using T = typename DstTile::DType;
 
-    __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
-    __ubuf__ T *base = (__ubuf__ T *)__cce_get_tile_ptr(baseData);
-    __ubuf__ T *exp = (__ubuf__ T *)__cce_get_tile_ptr(expData);
+    __ubuf__ T* dst = (__ubuf__ T*)__cce_get_tile_ptr(dstData);
+    __ubuf__ T* base = (__ubuf__ T*)__cce_get_tile_ptr(baseData);
+    __ubuf__ T* exp = (__ubuf__ T*)__cce_get_tile_ptr(expData);
 
     if constexpr (std::is_integral_v<T>) {
         PtoSetWaitFlag<PIPE_V, PIPE_S>();
         TPowI<T, DstTile::RowStride, BaseTile::RowStride, ExpTile::RowStride>(dst, base, exp, validRow, validCol);
         PtoSetWaitFlag<PIPE_S, PIPE_V>();
     } else {
-        __ubuf__ T *tmp = (__ubuf__ T *)__cce_get_tile_ptr(tmpData);
-        TPowF<T, DstTile::RowStride, BaseTile::RowStride, ExpTile::RowStride, TmpTile::RowStride>(dst, base, exp, tmp,
-                                                                                                  validRow, validCol);
+        __ubuf__ T* tmp = (__ubuf__ T*)__cce_get_tile_ptr(tmpData);
+        TPowF<T, DstTile::RowStride, BaseTile::RowStride, ExpTile::RowStride, TmpTile::RowStride>(
+            dst, base, exp, tmp, validRow, validCol);
     }
 }
 
 template <typename DstTile, typename BaseTile, typename ExpTile>
 PTO_INTERNAL void PowCheckType()
 {
-    static_assert(DstTile::Loc == TileType::Vec && BaseTile::Loc == TileType::Vec && ExpTile::Loc == TileType::Vec,
-                  "TPOW: TileType of dst, base and exp tiles must be TileType::Vec.");
-    static_assert(DstTile::ValidCol <= DstTile::Cols,
-                  "TPOW: Number of dst's valid columns must not be greater than number of tile columns.");
-    static_assert(DstTile::ValidRow <= DstTile::Rows,
-                  "TPOW: Number of dst's valid rows must not be greater than number of tile rows.");
-    static_assert(BaseTile::ValidCol <= BaseTile::Cols,
-                  "TPOW: Number of base's valid columns must not be greater than number of tile columns.");
-    static_assert(BaseTile::ValidRow <= BaseTile::Rows,
-                  "TPOW: Number of base's valid rows must not be greater than number of tile rows.");
-    static_assert(ExpTile::ValidCol <= ExpTile::Cols,
-                  "TPOW: Number of exp's valid columns must not be greater than number of tile columns.");
-    static_assert(ExpTile::ValidRow <= ExpTile::Rows,
-                  "TPOW: Number of exp's valid rows must not be greater than number of tile rows.");
-    static_assert(DstTile::isRowMajor && BaseTile::isRowMajor && ExpTile::isRowMajor,
-                  "TPOW: Not supported Layout type");
+    static_assert(
+        DstTile::Loc == TileType::Vec && BaseTile::Loc == TileType::Vec && ExpTile::Loc == TileType::Vec,
+        "TPOW: TileType of dst, base and exp tiles must be TileType::Vec.");
+    static_assert(
+        DstTile::ValidCol <= DstTile::Cols,
+        "TPOW: Number of dst's valid columns must not be greater than number of tile columns.");
+    static_assert(
+        DstTile::ValidRow <= DstTile::Rows,
+        "TPOW: Number of dst's valid rows must not be greater than number of tile rows.");
+    static_assert(
+        BaseTile::ValidCol <= BaseTile::Cols,
+        "TPOW: Number of base's valid columns must not be greater than number of tile columns.");
+    static_assert(
+        BaseTile::ValidRow <= BaseTile::Rows,
+        "TPOW: Number of base's valid rows must not be greater than number of tile rows.");
+    static_assert(
+        ExpTile::ValidCol <= ExpTile::Cols,
+        "TPOW: Number of exp's valid columns must not be greater than number of tile columns.");
+    static_assert(
+        ExpTile::ValidRow <= ExpTile::Rows,
+        "TPOW: Number of exp's valid rows must not be greater than number of tile rows.");
+    static_assert(
+        DstTile::isRowMajor && BaseTile::isRowMajor && ExpTile::isRowMajor, "TPOW: Not supported Layout type");
 
     using T = typename DstTile::DType;
-    static_assert(isSupportType<T, int32_t, int16_t, int8_t, uint32_t, uint16_t, uint8_t, float>,
-                  "Fix: TPOW has invalid data type.");
+    static_assert(
+        isSupportType<T, int32_t, int16_t, int8_t, uint32_t, uint16_t, uint8_t, float>,
+        "Fix: TPOW has invalid data type.");
 
-    static_assert(std::is_same_v<T, typename BaseTile::DType> && std::is_same_v<T, typename ExpTile::DType>,
-                  "TPOW: The data type of dst, base and exp must be consistent");
+    static_assert(
+        std::is_same_v<T, typename BaseTile::DType> && std::is_same_v<T, typename ExpTile::DType>,
+        "TPOW: The data type of dst, base and exp must be consistent");
 }
 
 template <PowAlgorithm algo, typename DstTile, typename BaseTile, typename ExpTile, typename TmpTile>
-PTO_INTERNAL void TPOW_IMPL(DstTile &dst, BaseTile &base, ExpTile &exp, TmpTile &tmp)
+PTO_INTERNAL void TPOW_IMPL(DstTile& dst, BaseTile& base, ExpTile& exp, TmpTile& tmp)
 {
     using T = typename DstTile::DType;
     PowCheckType<DstTile, BaseTile, ExpTile>();
 
     unsigned validRows = dst.GetValidRow();
     unsigned validCols = dst.GetValidCol();
-    PTO_ASSERT(validRows == base.GetValidRow() && validCols == base.GetValidCol(),
-               "Fix: TPOW input tile base valid shape mismatch with output tile dst shape.");
-    PTO_ASSERT(validRows == exp.GetValidRow() && validCols == exp.GetValidCol(),
-               "Fix: TPOW input tile exp valid shape mismatch with output tile dst shape.");
-    PTO_ASSERT(std::is_integral_v<T> || (validRows == tmp.GetValidRow() && validCols == tmp.GetValidCol()),
-               "Fix: TPOW input tile tmp valid shape mismatch with output tile dst shape when the data type is "
-               "floating point.");
+    PTO_ASSERT(
+        validRows == base.GetValidRow() && validCols == base.GetValidCol(),
+        "Fix: TPOW input tile base valid shape mismatch with output tile dst shape.");
+    PTO_ASSERT(
+        validRows == exp.GetValidRow() && validCols == exp.GetValidCol(),
+        "Fix: TPOW input tile exp valid shape mismatch with output tile dst shape.");
+    PTO_ASSERT(
+        std::is_integral_v<T> || (validRows == tmp.GetValidRow() && validCols == tmp.GetValidCol()),
+        "Fix: TPOW input tile tmp valid shape mismatch with output tile dst shape when the data type is "
+        "floating point.");
 
     TPow<DstTile, BaseTile, ExpTile, TmpTile>(dst.data(), base.data(), exp.data(), tmp.data(), validRows, validCols);
 }
 
 template <typename DstTile, typename BaseTile, typename TmpTile>
-__tf__ PTO_INTERNAL void TPows(typename DstTile::TileDType __out__ dstData,
-                               typename BaseTile::TileDType __in__ baseData, typename DstTile::DType exp,
-                               typename TmpTile::TileDType __in__ tmpData, unsigned validRow, unsigned validCol)
+__tf__ PTO_INTERNAL void TPows(
+    typename DstTile::TileDType __out__ dstData, typename BaseTile::TileDType __in__ baseData,
+    typename DstTile::DType exp, typename TmpTile::TileDType __in__ tmpData, unsigned validRow, unsigned validCol)
 {
     using T = typename DstTile::DType;
 
-    __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
-    __ubuf__ T *base = (__ubuf__ T *)__cce_get_tile_ptr(baseData);
+    __ubuf__ T* dst = (__ubuf__ T*)__cce_get_tile_ptr(dstData);
+    __ubuf__ T* base = (__ubuf__ T*)__cce_get_tile_ptr(baseData);
 
     if constexpr (std::is_integral_v<T>) {
         PtoSetWaitFlag<PIPE_V, PIPE_S>();
         TPowI<T, DstTile::RowStride, BaseTile::RowStride>(dst, base, exp, validRow, validCol);
         PtoSetWaitFlag<PIPE_S, PIPE_V>();
     } else {
-        __ubuf__ T *tmp = (__ubuf__ T *)__cce_get_tile_ptr(tmpData);
+        __ubuf__ T* tmp = (__ubuf__ T*)__cce_get_tile_ptr(tmpData);
         TPowF<T, DstTile, BaseTile, TmpTile>(dst, base, exp, tmp, validRow, validCol);
     }
 }
 
 template <PowAlgorithm algo, typename DstTile, typename BaseTile, typename TmpTile>
-PTO_INTERNAL void TPOWS_IMPL(DstTile &dst, BaseTile &base, typename DstTile::DType exp, TmpTile &tmp)
+PTO_INTERNAL void TPOWS_IMPL(DstTile& dst, BaseTile& base, typename DstTile::DType exp, TmpTile& tmp)
 {
     using T = typename DstTile::DType;
     PowCheckType<DstTile, BaseTile, DstTile>();
 
     unsigned validRows = dst.GetValidRow();
     unsigned validCols = dst.GetValidCol();
-    PTO_ASSERT(validRows == base.GetValidRow() && validCols == base.GetValidCol(),
-               "Fix: TPOW input tile base valid shape mismatch with output tile dst shape.");
-    PTO_ASSERT(std::is_integral_v<T> || (validRows == tmp.GetValidRow() && validCols == tmp.GetValidCol()),
-               "Fix: TPOW input tile tmp valid shape mismatch with output tile dst shape when the data type is "
-               "floating point.");
+    PTO_ASSERT(
+        validRows == base.GetValidRow() && validCols == base.GetValidCol(),
+        "Fix: TPOW input tile base valid shape mismatch with output tile dst shape.");
+    PTO_ASSERT(
+        std::is_integral_v<T> || (validRows == tmp.GetValidRow() && validCols == tmp.GetValidCol()),
+        "Fix: TPOW input tile tmp valid shape mismatch with output tile dst shape when the data type is "
+        "floating point.");
 
     TPows<DstTile, BaseTile, TmpTile>(dst.data(), base.data(), exp, tmp.data(), validRows, validCols);
 }

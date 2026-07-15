@@ -18,8 +18,9 @@ namespace pto {
 struct Kirin9030LoadOp : LoadOpBase {
     using LoadOpBase::TLoadCubeInstr;
     template <Layout Layout = Layout::ND, typename T>
-    PTO_INTERNAL static void TLoadCubeInstr(__cbuf__ T *dst, __gm__ T *src, uint64_t loop1SrcStride, uint16_t nValue,
-                                            uint32_t dValue, uint64_t loop4SrcStride)
+    PTO_INTERNAL static void TLoadCubeInstr(
+        __cbuf__ T* dst, __gm__ T* src, uint64_t loop1SrcStride, uint16_t nValue, uint32_t dValue,
+        uint64_t loop4SrcStride)
     {
         if constexpr (Layout == Layout::ND) {
             pto_copy_gm_to_cbuf_multi_nd2nz(dst, src, 0 /*sid*/, loop1SrcStride, 0, nValue, dValue, loop4SrcStride);
@@ -30,7 +31,7 @@ struct Kirin9030LoadOp : LoadOpBase {
 };
 
 template <typename TileData, typename GlobalData>
-PTO_INTERNAL void TLOAD_TILE_IMPL(TileData &dst, GlobalData &src)
+PTO_INTERNAL void TLOAD_TILE_IMPL(TileData& dst, GlobalData& src)
 {
     StaticCheck<TileData, GlobalData>();
     if constexpr (TileData::Loc == pto::TileType::Vec) {
@@ -55,15 +56,17 @@ PTO_INTERNAL void TLOAD_TILE_IMPL(TileData &dst, GlobalData &src)
 }
 
 template <typename TileData, typename GlobalData>
-PTO_INTERNAL void CheckConvTileData(TileData &dst, GlobalData &src)
+PTO_INTERNAL void CheckConvTileData(TileData& dst, GlobalData& src)
 {
-    static_assert(caps::IsInt8<typename TileData::DType>() || caps::IsInt16<typename TileData::DType>() ||
-                      caps::IsInt32<typename TileData::DType>() || caps::IsFP16<typename TileData::DType>() ||
-                      caps::IsFP32<typename TileData::DType>(),
-                  "Fix: Data type must be int8_t/uint8_t/int16_t/uint16_t/int32_t/uint32_t/half/float!");
+    static_assert(
+        caps::IsInt8<typename TileData::DType>() || caps::IsInt16<typename TileData::DType>() ||
+            caps::IsInt32<typename TileData::DType>() || caps::IsFP16<typename TileData::DType>() ||
+            caps::IsFP32<typename TileData::DType>(),
+        "Fix: Data type must be int8_t/uint8_t/int16_t/uint16_t/int32_t/uint32_t/half/float!");
     static_assert(TileData::Loc == pto::TileType::Mat, "Fix: Dst TileType must be Mat!");
-    static_assert(sizeof(typename TileData::DType) == sizeof(typename GlobalData::DType),
-                  "Fix: Source dtype must be same with dst dtype!");
+    static_assert(
+        sizeof(typename TileData::DType) == sizeof(typename GlobalData::DType),
+        "Fix: Source dtype must be same with dst dtype!");
 
     constexpr bool isSameLayout =
         (GlobalData::layout == pto::Layout::NC1HWC0 && TileData::layout == pto::Layout::NC1HWC0) ||
@@ -72,7 +75,7 @@ PTO_INTERNAL void CheckConvTileData(TileData &dst, GlobalData &src)
 }
 
 template <typename DstTile, typename SrcGlobal>
-PTO_INTERNAL void TLOAD_CONVTILE_IMPL(DstTile &dst, SrcGlobal &src)
+PTO_INTERNAL void TLOAD_CONVTILE_IMPL(DstTile& dst, SrcGlobal& src)
 {
     CheckConvTileData<DstTile, SrcGlobal>(dst, src);
     if constexpr (SrcGlobal::layout == pto::Layout::NC1HWC0) { // layout is [N,C1,H,W,C0]
@@ -96,7 +99,7 @@ PTO_INTERNAL void TLOAD_CONVTILE_IMPL(DstTile &dst, SrcGlobal &src)
 }
 
 template <typename DstTile, typename SrcGlobal>
-PTO_INTERNAL void TLOAD_IMPL(DstTile &dst, SrcGlobal &src)
+PTO_INTERNAL void TLOAD_IMPL(DstTile& dst, SrcGlobal& src)
 {
     if constexpr (is_conv_tile_v<DstTile>) {
         TLOAD_CONVTILE_IMPL(dst, src);

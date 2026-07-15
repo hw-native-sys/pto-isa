@@ -24,8 +24,8 @@ using namespace pto::comm;
 // Tests the TREDUCE collective - root gathers and reduces data from all ranks
 // ============================================================================
 template <typename T, size_t total_rows, size_t cols, size_t tile_rows>
-__global__ AICORE void TReduceKernelImpl(__gm__ T *src0, __gm__ T *src1, __gm__ T *output, int nranks,
-                                         pto::comm::ReduceOp op)
+__global__ AICORE void TReduceKernelImpl(
+    __gm__ T* src0, __gm__ T* src1, __gm__ T* output, int nranks, pto::comm::ReduceOp op)
 {
     constexpr size_t total_count = total_rows * cols;
 
@@ -64,10 +64,10 @@ __global__ AICORE void TReduceKernelImpl(__gm__ T *src0, __gm__ T *src1, __gm__ 
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTReduce(T *src0, T *src1, T *dst, pto::comm::ReduceOp op, void *stream)
+void LaunchTReduce(T* src0, T* src1, T* dst, pto::comm::ReduceOp op, void* stream)
 {
     TReduceKernelImpl<T, kGRows_, kGCols_, kTRows_>(src0, src1, dst, 2, op);
 }
 
-template void LaunchTReduce<int32_t, 64, 64, 64, 64>(int32_t *src0, int32_t *src1, int32_t *dst, pto::comm::ReduceOp op,
-                                                     void *stream);
+template void LaunchTReduce<int32_t, 64, 64, 64, 64>(
+    int32_t* src0, int32_t* src1, int32_t* dst, pto::comm::ReduceOp op, void* stream);

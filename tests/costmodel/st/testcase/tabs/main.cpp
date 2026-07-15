@@ -34,12 +34,6 @@ void runTAbs()
 
 } // namespace
 
-TEST(TAbs, float_64x64)
-{
-    runTAbs<float, 64, 64, 68.0f, 0.632352f>();
-}
+TEST(TAbs, float_64x64) { runTAbs<float, 64, 64, 68.0f, 0.632352f>(); }
 
-TEST(TAbs, half_16x256)
-{
-    runTAbs<half, 16, 256, 36.0f, 0.305555f>();
-}
+TEST(TAbs, half_16x256) { runTAbs<half, 16, 256, 36.0f, 0.305555f>(); }

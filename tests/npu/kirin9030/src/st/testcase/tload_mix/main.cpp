@@ -25,29 +25,29 @@ constexpr int FZ2FZ = 7;
 constexpr int FZ4D2FZ4D = 8;
 } // namespace TloadMixTestFormat
 
-template <typename T, int format, int N1, int N2, int N3, int N4, int N5, int WN1, int WN2, int WN3, int WN4, int WN5,
-          int BASEM, int BASEK>
-void launchTLOADMIX(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
+template <
+    typename T, int format, int N1, int N2, int N3, int N4, int N5, int WN1, int WN2, int WN3, int WN4, int WN5,
+    int BASEM, int BASEK>
+void launchTLOADMIX(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 
 class TLOADMIXTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, int format, int N1, int N2, int N3, int N4, int N5, int WN1, int WN2, int WN3, int WN4, int WN5,
-          int BASEM, int BASEK>
+template <
+    typename T, int format, int N1, int N2, int N3, int N4, int N5, int WN1, int WN2, int WN3, int WN4, int WN5,
+    int BASEM, int BASEK>
 void TLOADMIXFUNC()
 {
     constexpr uint32_t c0SizeByte = 32;
@@ -55,8 +55,9 @@ void TLOADMIXFUNC()
     size_t aFileSize = WN1 * WN2 * WN3 * WN4 * WN5 * sizeof(T);
     size_t bFileSize = N4 * N5 * sizeof(T);
     size_t cFileSize = BASEM * BASEK * sizeof(T);
-    if constexpr (format == TloadMixTestFormat::NC1HWC02NC1HWC0 || format == TloadMixTestFormat::FZ4D2FZ4D ||
-                  format == TloadMixTestFormat::FZ2FZ) {
+    if constexpr (
+        format == TloadMixTestFormat::NC1HWC02NC1HWC0 || format == TloadMixTestFormat::FZ4D2FZ4D ||
+        format == TloadMixTestFormat::FZ2FZ) {
         cFileSize = N1 * N2 * N3 * N4 * N5 * sizeof(T);
     }
 
@@ -68,21 +69,21 @@ void TLOADMIXFUNC()
     uint8_t *dstHost, *src0Host, *src1Host;
     uint8_t *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&src0Host), aFileSize);
-    aclrtMallocHost((void **)(&src1Host), bFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&src0Host), aFileSize);
+    aclrtMallocHost((void**)(&src1Host), bFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
 
     aclrtMemcpy(src0Device, aFileSize, src0Host, aFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, bFileSize, src1Host, bFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    launchTLOADMIX<T, format, N1, N2, N3, N4, N5, WN1, WN2, WN3, WN4, WN5, BASEM, BASEK>(dstDevice, src0Device,
-                                                                                         src1Device, stream);
+    launchTLOADMIX<T, format, N1, N2, N3, N4, N5, WN1, WN2, WN3, WN4, WN5, BASEM, BASEK>(
+        dstDevice, src0Device, src1Device, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, cFileSize, dstDevice, cFileSize, ACL_MEMCPY_DEVICE_TO_HOST);

@@ -46,7 +46,7 @@ AICORE constexpr inline T CeilAlign(T num_1, T num_2)
 //   Cube→Vec (C2V): TPUSH tileE[TOTAL_M,N] → Vec FIFO in UB, vectors pop their portion
 //   Vec: tileG = tileE_part - tileF, TSTORE tileG
 template <typename T, int TOTAL_M, int K, int N, TileSplitAxis SplitAxis = TileSplitAxis::TILE_UP_DOWN>
-__global__ AICORE void runTPushPopDirBoth(__gm__ T *out, __gm__ T *srcA, __gm__ T *srcB, __gm__ T *srcD, __gm__ T *srcF)
+__global__ AICORE void runTPushPopDirBoth(__gm__ T* out, __gm__ T* srcA, __gm__ T* srcB, __gm__ T* srcD, __gm__ T* srcF)
 {
     constexpr uint32_t VEC_M = (SplitAxis == TileSplitAxis::TILE_UP_DOWN) ? (TOTAL_M / VEC_CORES) : TOTAL_M;
     constexpr uint32_t VEC_K = (SplitAxis == TileSplitAxis::TILE_LEFT_RIGHT) ? (K / VEC_CORES) : K;
@@ -61,7 +61,7 @@ __global__ AICORE void runTPushPopDirBoth(__gm__ T *out, __gm__ T *srcA, __gm__ 
     constexpr uint32_t v2cL1Base = 0x20000;
     constexpr uint32_t c2vUBBase = 0x0;
 
-    BothPipe pipe((__gm__ void *)(uint64_t)0x0, c2vUBBase, v2cL1Base);
+    BothPipe pipe((__gm__ void*)(uint64_t)0x0, c2vUBBase, v2cL1Base);
 
     constexpr uint32_t blockAlign = C0_SIZE_BYTE / sizeof(T);
     constexpr uint32_t ALIGNED_M = CeilAlign<uint32_t>(TOTAL_M, 16);
@@ -231,20 +231,20 @@ __global__ AICORE void runTPushPopDirBoth(__gm__ T *out, __gm__ T *srcA, __gm__ 
 }
 
 template <int32_t tilingKey>
-void LaunchTPushPopDirBoth(uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *srcD, uint8_t *srcF, void *stream)
+void LaunchTPushPopDirBoth(uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* srcD, uint8_t* srcF, void* stream)
 {
     if constexpr (tilingKey == 1) {
         runTPushPopDirBoth<float, 128, 64, 128, TileSplitAxis::TILE_UP_DOWN><<<1, nullptr, stream>>>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float *>(srcA), reinterpret_cast<float *>(srcB),
-            reinterpret_cast<float *>(srcD), reinterpret_cast<float *>(srcF));
+            reinterpret_cast<float*>(out), reinterpret_cast<float*>(srcA), reinterpret_cast<float*>(srcB),
+            reinterpret_cast<float*>(srcD), reinterpret_cast<float*>(srcF));
     } else if constexpr (tilingKey == 2) {
         runTPushPopDirBoth<float, 128, 64, 128, TileSplitAxis::TILE_LEFT_RIGHT><<<1, nullptr, stream>>>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float *>(srcA), reinterpret_cast<float *>(srcB),
-            reinterpret_cast<float *>(srcD), reinterpret_cast<float *>(srcF));
+            reinterpret_cast<float*>(out), reinterpret_cast<float*>(srcA), reinterpret_cast<float*>(srcB),
+            reinterpret_cast<float*>(srcD), reinterpret_cast<float*>(srcF));
     }
 }
 
-template void LaunchTPushPopDirBoth<1>(uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *srcD, uint8_t *srcF,
-                                       void *stream);
-template void LaunchTPushPopDirBoth<2>(uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *srcD, uint8_t *srcF,
-                                       void *stream);
+template void LaunchTPushPopDirBoth<1>(
+    uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* srcD, uint8_t* srcF, void* stream);
+template void LaunchTPushPopDirBoth<2>(
+    uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* srcD, uint8_t* srcF, void* stream);

@@ -47,7 +47,7 @@ PTO_INTERNAL void CheckCSValid()
 }
 
 template <typename TileDst, typename TileSrc>
-PTO_INTERNAL void TCOLSUM_IMPL(TileDst &dstTile, TileSrc &srcTile)
+PTO_INTERNAL void TCOLSUM_IMPL(TileDst& dstTile, TileSrc& srcTile)
 {
     CheckCSValid<TileDst, TileSrc>();
 
@@ -58,7 +58,7 @@ PTO_INTERNAL void TCOLSUM_IMPL(TileDst &dstTile, TileSrc &srcTile)
 }
 
 template <typename TileDst, typename TileSrc, typename TileDataTmp>
-PTO_INTERNAL void TCOLSUM_IMPL(TileDst &dstTile, TileSrc &srcTile, TileDataTmp &tmp, bool isBinary)
+PTO_INTERNAL void TCOLSUM_IMPL(TileDst& dstTile, TileSrc& srcTile, TileDataTmp& tmp, bool isBinary)
 {
     TCOLSUM_IMPL(dstTile, srcTile);
 }

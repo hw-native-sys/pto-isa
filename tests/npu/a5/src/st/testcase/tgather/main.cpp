@@ -16,40 +16,41 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace PtoTestCommon;
 
-template <typename src0T, typename src1T, typename dstT, uint32_t SRCROW, uint32_t SRCCOL, uint32_t DSTROW,
-          uint32_t DSTCOL, bool isF8E4M3 = false, bool isF8E5M2 = false>
-void launchTGATHER_demo(src0T *src0, src1T *src1, dstT *out, void *stream);
+template <
+    typename src0T, typename src1T, typename dstT, uint32_t SRCROW, uint32_t SRCCOL, uint32_t DSTROW, uint32_t DSTCOL,
+    bool isF8E4M3 = false, bool isF8E5M2 = false>
+void launchTGATHER_demo(src0T* src0, src1T* src1, dstT* out, void* stream);
 
 constexpr int HALF_SIZE = 2;
 constexpr int QUARTER_SIZE = 4;
 
-template <typename srcT, typename dstT, int kGRows_, int kGCols_, int kTRows_, int kTCols_,
-          pto::MaskPattern maskPattern>
-void LaunchTGATHER(dstT *out, srcT *src, void *stream);
+template <
+    typename srcT, typename dstT, int kGRows_, int kGCols_, int kTRows_, int kTCols_, pto::MaskPattern maskPattern>
+void LaunchTGATHER(dstT* out, srcT* src, void* stream);
 
-template <typename srcT, typename src1T, typename dstT, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int K,
-          pto::CmpMode cmpMode>
-void LaunchTGATHER_CMP(srcT *src, src1T *src1, dstT *out, uint32_t offset, void *stream);
+template <
+    typename srcT, typename src1T, typename dstT, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int K,
+    pto::CmpMode cmpMode>
+void LaunchTGATHER_CMP(srcT* src, src1T* src1, dstT* out, uint32_t offset, void* stream);
 
 class TGATHERTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename src0T, typename src1T, typename dstT, uint32_t SRCROW, uint32_t SRCCOL, uint32_t DSTROW,
-          uint32_t DSTCOL, bool isF8E4M3 = false, bool isF8E5M2 = false>
+template <
+    typename src0T, typename src1T, typename dstT, uint32_t SRCROW, uint32_t SRCCOL, uint32_t DSTROW, uint32_t DSTCOL,
+    bool isF8E4M3 = false, bool isF8E5M2 = false>
 void test_gather_index()
 {
     size_t src0FileSize = SRCROW * SRCCOL * sizeof(src0T);
@@ -61,28 +62,28 @@ void test_gather_index()
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    src0T *src0Host;
-    src1T *src1Host;
-    dstT *dstHost;
-    src0T *src0Device;
-    src1T *src1Device;
-    dstT *dstDevice;
+    src0T* src0Host;
+    src1T* src1Host;
+    dstT* dstHost;
+    src0T* src0Device;
+    src1T* src1Device;
+    dstT* dstDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&src0Host), src0FileSize);
-    aclrtMallocHost((void **)(&src1Host), src1FileSize);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMallocHost((void**)(&src0Host), src0FileSize);
+    aclrtMallocHost((void**)(&src1Host), src1FileSize);
 
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, src0FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, src1FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, src0FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, src1FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/src0.bin", src0FileSize, src0Host, src0FileSize);
     ReadFile(GetGoldenDir() + "/src1.bin", src1FileSize, src1Host, src1FileSize);
 
     aclrtMemcpy(src0Device, src0FileSize, src0Host, src0FileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, src1FileSize, src1Host, src1FileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    launchTGATHER_demo<src0T, src1T, dstT, SRCROW, SRCCOL, DSTROW, DSTCOL, isF8E4M3, isF8E5M2>(src0Device, src1Device,
-                                                                                               dstDevice, stream);
+    launchTGATHER_demo<src0T, src1T, dstT, SRCROW, SRCCOL, DSTROW, DSTCOL, isF8E4M3, isF8E5M2>(
+        src0Device, src1Device, dstDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, dstFileSize, dstDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -111,25 +112,13 @@ void test_gather_index()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TGATHERTest, case1_float_32x1024_16x64)
-{
-    test_gather_index<float, int32_t, float, 32, 1024, 16, 64>();
-}
+TEST_F(TGATHERTest, case1_float_32x1024_16x64) { test_gather_index<float, int32_t, float, 32, 1024, 16, 64>(); }
 
-TEST_F(TGATHERTest, case2_int32_32x512_16x256)
-{
-    test_gather_index<int32_t, int32_t, int32_t, 32, 512, 16, 256>();
-}
+TEST_F(TGATHERTest, case2_int32_32x512_16x256) { test_gather_index<int32_t, int32_t, int32_t, 32, 512, 16, 256>(); }
 
-TEST_F(TGATHERTest, case3_half_16x1024_16x128)
-{
-    test_gather_index<int16_t, int16_t, int16_t, 16, 1024, 16, 128>();
-}
+TEST_F(TGATHERTest, case3_half_16x1024_16x128) { test_gather_index<int16_t, int16_t, int16_t, 16, 1024, 16, 128>(); }
 
-TEST_F(TGATHERTest, case4_int16_32x256_32x64)
-{
-    test_gather_index<int16_t, int16_t, int16_t, 32, 256, 32, 64>();
-}
+TEST_F(TGATHERTest, case4_int16_32x256_32x64) { test_gather_index<int16_t, int16_t, int16_t, 32, 256, 32, 64>(); }
 
 TEST_F(TGATHERTest, case5_f8e4m3_i16_16x128_16x64)
 {
@@ -141,15 +130,9 @@ TEST_F(TGATHERTest, case6_f8e5m2_i16_16x128_16x64)
     test_gather_index<int8_t, int16_t, int8_t, 16, 128, 16, 64, false, true>();
 }
 
-TEST_F(TGATHERTest, case7_i8_u16_16x128_16x64)
-{
-    test_gather_index<int8_t, uint16_t, int8_t, 16, 128, 16, 64>();
-}
+TEST_F(TGATHERTest, case7_i8_u16_16x128_16x64) { test_gather_index<int8_t, uint16_t, int8_t, 16, 128, 16, 64>(); }
 
-TEST_F(TGATHERTest, case8_u8_u16_16x128_16x64)
-{
-    test_gather_index<uint8_t, uint16_t, uint8_t, 16, 128, 16, 64>();
-}
+TEST_F(TGATHERTest, case8_u8_u16_16x128_16x64) { test_gather_index<uint8_t, uint16_t, uint8_t, 16, 128, 16, 64>(); }
 
 template <typename T, pto::MaskPattern PATTERN, uint32_t ROW, uint32_t COL, typename dstT = T>
 void test_gather()
@@ -171,10 +154,10 @@ void test_gather()
     T *src0Host, *src0Device;
     dstT *dstHost, *dstDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstsize);
-    aclrtMallocHost((void **)(&src0Host), size);
-    aclrtMalloc((void **)&dstDevice, size, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, size, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), dstsize);
+    aclrtMallocHost((void**)(&src0Host), size);
+    aclrtMalloc((void**)&dstDevice, size, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, size, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", size, src0Host, size);
 
@@ -314,40 +297,19 @@ TEST_F(TGATHERTest, case1_I32_P1111)
     test_gather<int32_t, pto::MaskPattern::P1111, FLOAT_P1111_ROW, FLOAT_P1111_COL>();
 }
 
-TEST_F(TGATHERTest, case1_b8_P0101)
-{
-    test_gather<int8_t, pto::MaskPattern::P0101, HALF_P0101_ROW, HALF_P0101_COL>();
-}
+TEST_F(TGATHERTest, case1_b8_P0101) { test_gather<int8_t, pto::MaskPattern::P0101, HALF_P0101_ROW, HALF_P0101_COL>(); }
 
-TEST_F(TGATHERTest, case1_b8_P1010)
-{
-    test_gather<uint8_t, pto::MaskPattern::P1010, HALF_P1010_ROW, HALF_P1010_COL>();
-}
+TEST_F(TGATHERTest, case1_b8_P1010) { test_gather<uint8_t, pto::MaskPattern::P1010, HALF_P1010_ROW, HALF_P1010_COL>(); }
 
-TEST_F(TGATHERTest, case1_b8_P0001)
-{
-    test_gather<int8_t, pto::MaskPattern::P0001, HALF_P0001_ROW, HALF_P0001_COL>();
-}
+TEST_F(TGATHERTest, case1_b8_P0001) { test_gather<int8_t, pto::MaskPattern::P0001, HALF_P0001_ROW, HALF_P0001_COL>(); }
 
-TEST_F(TGATHERTest, case1_b8_P0010)
-{
-    test_gather<uint8_t, pto::MaskPattern::P0010, HALF_P0010_ROW, HALF_P0010_COL>();
-}
+TEST_F(TGATHERTest, case1_b8_P0010) { test_gather<uint8_t, pto::MaskPattern::P0010, HALF_P0010_ROW, HALF_P0010_COL>(); }
 
-TEST_F(TGATHERTest, case1_b8_P0100)
-{
-    test_gather<int8_t, pto::MaskPattern::P0100, HALF_P0100_ROW, HALF_P0100_COL>();
-}
+TEST_F(TGATHERTest, case1_b8_P0100) { test_gather<int8_t, pto::MaskPattern::P0100, HALF_P0100_ROW, HALF_P0100_COL>(); }
 
-TEST_F(TGATHERTest, case1_b8_P1000)
-{
-    test_gather<uint8_t, pto::MaskPattern::P1000, HALF_P1000_ROW, HALF_P1000_COL>();
-}
+TEST_F(TGATHERTest, case1_b8_P1000) { test_gather<uint8_t, pto::MaskPattern::P1000, HALF_P1000_ROW, HALF_P1000_COL>(); }
 
-TEST_F(TGATHERTest, case1_b8_P1111)
-{
-    test_gather<int8_t, pto::MaskPattern::P1111, HALF_P1111_ROW, HALF_P1111_COL>();
-}
+TEST_F(TGATHERTest, case1_b8_P1111) { test_gather<int8_t, pto::MaskPattern::P1111, HALF_P1111_ROW, HALF_P1111_COL>(); }
 
 template <typename srcT, typename src1T, typename dstT, uint32_t ROW, uint32_t COL, uint32_t K, pto::CmpMode cmpMode>
 void test_gather_cmp()
@@ -367,12 +329,12 @@ void test_gather_cmp()
     src1T *src1Host, *src1Device;
     dstT *dstHost, *dstDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstsize);
-    aclrtMallocHost((void **)(&srcHost), size);
-    aclrtMallocHost((void **)(&src1Host), scalarSize);
-    aclrtMalloc((void **)&dstDevice, dstsize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, size, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, scalarSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), dstsize);
+    aclrtMallocHost((void**)(&srcHost), size);
+    aclrtMallocHost((void**)(&src1Host), scalarSize);
+    aclrtMalloc((void**)&dstDevice, dstsize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, size, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, scalarSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/src.bin", size, srcHost, size);
     ReadFile(GetGoldenDir() + "/src1.bin", scalarSize, src1Host, scalarSize);
@@ -380,8 +342,8 @@ void test_gather_cmp()
     aclrtMemcpy(srcDevice, size, srcHost, size, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, scalarSize, src1Host, scalarSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemset(dstDevice, dstsize, 0, dstsize);
-    LaunchTGATHER_CMP<srcT, src1T, dstT, ROW, COL, ROW, COL, K, cmpMode>(srcDevice, src1Device, dstDevice, offset,
-                                                                         stream);
+    LaunchTGATHER_CMP<srcT, src1T, dstT, ROW, COL, ROW, COL, K, cmpMode>(
+        srcDevice, src1Device, dstDevice, offset, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, dstsize, dstDevice, dstsize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -408,30 +370,15 @@ void test_gather_cmp()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TGATHERTest, case1_float_topk)
-{
-    test_gather_cmp<float, uint32_t, uint32_t, 16, 64, 32, pto::CmpMode::GT>();
-}
+TEST_F(TGATHERTest, case1_float_topk) { test_gather_cmp<float, uint32_t, uint32_t, 16, 64, 32, pto::CmpMode::GT>(); }
 
-TEST_F(TGATHERTest, case2_u32_topk)
-{
-    test_gather_cmp<uint32_t, uint32_t, uint32_t, 8, 128, 64, pto::CmpMode::GT>();
-}
+TEST_F(TGATHERTest, case2_u32_topk) { test_gather_cmp<uint32_t, uint32_t, uint32_t, 8, 128, 64, pto::CmpMode::GT>(); }
 
-TEST_F(TGATHERTest, case3_float_topk)
-{
-    test_gather_cmp<float, uint32_t, uint32_t, 4, 256, 64, pto::CmpMode::EQ>();
-}
+TEST_F(TGATHERTest, case3_float_topk) { test_gather_cmp<float, uint32_t, uint32_t, 4, 256, 64, pto::CmpMode::EQ>(); }
 
-TEST_F(TGATHERTest, case4_s16_topk)
-{
-    test_gather_cmp<int16_t, uint16_t, uint32_t, 16, 128, 32, pto::CmpMode::GT>();
-}
+TEST_F(TGATHERTest, case4_s16_topk) { test_gather_cmp<int16_t, uint16_t, uint32_t, 16, 128, 32, pto::CmpMode::GT>(); }
 
-TEST_F(TGATHERTest, case5_s16_topk)
-{
-    test_gather_cmp<int16_t, uint16_t, uint32_t, 4, 64, 32, pto::CmpMode::EQ>();
-}
+TEST_F(TGATHERTest, case5_s16_topk) { test_gather_cmp<int16_t, uint16_t, uint32_t, 4, 64, 32, pto::CmpMode::EQ>(); }
 
 TEST_F(TGATHERTest, case6_half_topk)
 {
@@ -443,17 +390,8 @@ TEST_F(TGATHERTest, case7_half_topk)
     test_gather_cmp<aclFloat16, uint16_t, uint32_t, 8, 128, 32, pto::CmpMode::EQ>();
 }
 
-TEST_F(TGATHERTest, case8_i8_topk)
-{
-    test_gather_cmp<int8_t, uint16_t, uint32_t, 16, 128, 32, pto::CmpMode::GT>();
-}
+TEST_F(TGATHERTest, case8_i8_topk) { test_gather_cmp<int8_t, uint16_t, uint32_t, 16, 128, 32, pto::CmpMode::GT>(); }
 
-TEST_F(TGATHERTest, case9_i8_topk)
-{
-    test_gather_cmp<int8_t, uint16_t, uint32_t, 16, 128, 32, pto::CmpMode::EQ>();
-}
+TEST_F(TGATHERTest, case9_i8_topk) { test_gather_cmp<int8_t, uint16_t, uint32_t, 16, 128, 32, pto::CmpMode::EQ>(); }
 
-TEST_F(TGATHERTest, case10_u8_topk)
-{
-    test_gather_cmp<uint8_t, uint16_t, uint32_t, 16, 128, 32, pto::CmpMode::GT>();
-}
+TEST_F(TGATHERTest, case10_u8_topk) { test_gather_cmp<uint8_t, uint16_t, uint32_t, 16, 128, 32, pto::CmpMode::GT>(); }

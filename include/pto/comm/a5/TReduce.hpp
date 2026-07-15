@@ -27,25 +27,23 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 namespace comm {
 
-// Leading `CollEngine` placeholder mirrors the TPUT_ASYNC_IMPL<engine> pattern:
-// callers write `TREDUCE_CCU_IMPL<engine>(...)`, which turns the qualified
-// template-id into a dependent name so the discarded `if constexpr (engine ==
-// CCU)` branch in pto_comm_inst.hpp performs no lookup on non-A5 builds.
-template <CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalDstData, typename TileData,
-          typename... WaitEvents>
-PTO_INTERNAL void TREDUCE_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
-                                   TileData &accTileData, TileData &recvTileData, ReduceOp op,
-                                   const CcuTriggerContext &ctx, WaitEvents &...events)
+template <
+    CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalDstData, typename TileData,
+    typename... WaitEvents>
+PTO_INTERNAL void TREDUCE_CCU_IMPL(
+    ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& accTileData, TileData& recvTileData,
+    ReduceOp op, const CcuTriggerContext& ctx, WaitEvents&... events)
 {
     WaitAllEvents(events...);
     pto::comm::ccu::CkeTriggerFromTile(ctx.ckeSlotVA, ctx.mask, accTileData);
 }
 
-template <CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalDstData, typename TileData,
-          typename... WaitEvents>
-PTO_INTERNAL void TREDUCE_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
-                                   TileData &accTileData, TileData &pingTileData, TileData &pongTileData, ReduceOp op,
-                                   const CcuTriggerContext &ctx, WaitEvents &...events)
+template <
+    CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalDstData, typename TileData,
+    typename... WaitEvents>
+PTO_INTERNAL void TREDUCE_CCU_IMPL(
+    ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& accTileData, TileData& pingTileData,
+    TileData& pongTileData, ReduceOp op, const CcuTriggerContext& ctx, WaitEvents&... events)
 {
     WaitAllEvents(events...);
     pto::comm::ccu::CkeTriggerFromTile(ctx.ckeSlotVA, ctx.mask, accTileData);

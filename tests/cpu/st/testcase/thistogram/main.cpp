@@ -18,7 +18,7 @@ using namespace pto;
 
 namespace {
 template <bool UseMsb>
-std::array<uint32_t, 256> ReferenceHistogram(const std::vector<uint16_t> &values, uint8_t idx)
+std::array<uint32_t, 256> ReferenceHistogram(const std::vector<uint16_t>& values, uint8_t idx)
 {
     std::array<uint32_t, 256> counts{};
     for (uint16_t value : values) {
@@ -31,7 +31,7 @@ std::array<uint32_t, 256> ReferenceHistogram(const std::vector<uint16_t> &values
         }
     }
     uint32_t cumulative = 0;
-    for (auto &count : counts) {
+    for (auto& count : counts) {
         cumulative += count;
         count = cumulative;
     }

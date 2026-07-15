@@ -61,19 +61,19 @@ static inline double DbgNowMs()
 // Runtime APIs — lower-level device/stream management (from libruntime.so).
 // PyPTO uses rtSetDevice on rank 0 and rtStreamCreate for streams.
 using rtError_t = int32_t;
-using rtStream_t = void *;
+using rtStream_t = void*;
 static constexpr int32_t RT_STREAM_PRIORITY_DEFAULT = 0;
 extern "C" rtError_t rtSetDevice(int32_t device);
-extern "C" rtError_t rtStreamCreate(rtStream_t *stream, int32_t priority);
+extern "C" rtError_t rtStreamCreate(rtStream_t* stream, int32_t priority);
 extern "C" rtError_t rtStreamDestroy(rtStream_t stream);
 
 // Internal HCCL APIs — declared here instead of including hcom.h because
 // hcom.h uses internal types (s32 etc.) unavailable under bisheng -xcce.
-extern "C" HcclResult HcclAllocComResourceByTiling(HcclComm comm, void *stream, void *mc2Tiling, void **commContext);
-extern "C" HcclResult HcomGetCommHandleByGroup(const char *group, HcclComm *commHandle);
+extern "C" HcclResult HcclAllocComResourceByTiling(HcclComm comm, void* stream, void* mc2Tiling, void** commContext);
+extern "C" HcclResult HcomGetCommHandleByGroup(const char* group, HcclComm* commHandle);
 
 using CommTopo = uint32_t;
-extern "C" HcclResult HcomGetL0TopoTypeEx(const char *group, CommTopo *topoType, uint32_t isSetDevice);
+extern "C" HcclResult HcomGetL0TopoTypeEx(const char* group, CommTopo* topoType, uint32_t isSetDevice);
 static constexpr uint32_t COMM_IS_NOT_SET_DEVICE = 0;
 static constexpr uint32_t COMM_TOPO_MESH = 0b1u;
 
@@ -82,10 +82,10 @@ static constexpr uint32_t COMM_TOPO_MESH = 0b1u;
 // conflict with the bisheng -xcce compilation mode.
 struct aclTensor;
 struct aclOpExecutor;
-extern "C" aclTensor *aclCreateTensor(const int64_t *viewDims, uint64_t viewDimsNum, aclDataType dataType,
-                                      const int64_t *stride, int64_t offset, aclFormat format,
-                                      const int64_t *storageDims, uint64_t storageDimsNum, void *tensorData);
-extern "C" int32_t aclDestroyTensor(const aclTensor *tensor);
+extern "C" aclTensor* aclCreateTensor(
+    const int64_t* viewDims, uint64_t viewDimsNum, aclDataType dataType, const int64_t* stride, int64_t offset,
+    aclFormat format, const int64_t* storageDims, uint64_t storageDimsNum, void* tensorData);
+extern "C" int32_t aclDestroyTensor(const aclTensor* tensor);
 
 // Mc2 tiling structures passed to HcclAllocComResourceByTiling.
 // Binary layout must match the HCCL internal expectation.
@@ -307,11 +307,11 @@ struct CommOpResParam {
 // on a remote rank.
 // ============================================================================
 template <typename T>
-AICORE inline __gm__ T *CommRemotePtr(__gm__ CommDeviceContext *ctx, __gm__ T *localPtr, int pe)
+AICORE inline __gm__ T* CommRemotePtr(__gm__ CommDeviceContext* ctx, __gm__ T* localPtr, int pe)
 {
     uint64_t localBase = ctx->windowsIn[ctx->rankId];
     uint64_t offset = (uint64_t)localPtr - localBase;
-    return (__gm__ T *)(ctx->windowsIn[pe] + offset);
+    return (__gm__ T*)(ctx->windowsIn[pe] + offset);
 }
 
 // ============================================================================
@@ -326,9 +326,9 @@ inline void HcclHostBarrier(HcclComm comm, aclrtStream stream)
     COMM_DBG("  HcclHostBarrier: stream sync done (acl=" << (int)aret << ")");
 }
 
-inline void *WindowAlloc(uint64_t windowBase, size_t &offset, size_t bytes)
+inline void* WindowAlloc(uint64_t windowBase, size_t& offset, size_t bytes)
 {
-    void *ptr = reinterpret_cast<void *>(windowBase + offset);
+    void* ptr = reinterpret_cast<void*>(windowBase + offset);
     offset += bytes;
     return ptr;
 }
@@ -342,11 +342,11 @@ struct TestContext {
     int aclStatus{0};
     HcclComm comm{nullptr};
 
-    CommDeviceContext *deviceCtx{nullptr};
+    CommDeviceContext* deviceCtx{nullptr};
     CommDeviceContext hostCtx{};
     bool ownsDeviceCtx{false};
 
-    bool Init(int rankId, int nRanks, int nDevices, int firstDeviceId, const HcclRootInfo *rootInfo)
+    bool Init(int rankId, int nRanks, int nDevices, int firstDeviceId, const HcclRootInfo* rootInfo)
     {
         if (nDevices <= 0 || nRanks <= 0) {
             std::cerr << "[ERROR] n_devices and n_ranks must be > 0\n";
@@ -381,8 +381,9 @@ struct TestContext {
 
         CommTopo topoRet = 0;
         hret = HcomGetL0TopoTypeEx(group, &topoRet, COMM_IS_NOT_SET_DEVICE);
-        COMM_LOG("[INIT] Rank " << rankId << ": HcomGetL0TopoTypeEx -> " << (int)hret << " topo=" << topoRet
-                                << (topoRet == COMM_TOPO_MESH ? " (MESH)" : " (RING/other)"));
+        COMM_LOG(
+            "[INIT] Rank " << rankId << ": HcomGetL0TopoTypeEx -> " << (int)hret << " topo=" << topoRet
+                           << (topoRet == COMM_TOPO_MESH ? " (MESH)" : " (RING/other)"));
         if (hret != HCCL_SUCCESS) {
             std::cerr << "[ERROR] HcomGetL0TopoTypeEx failed: " << hret << std::endl;
             return false;
@@ -417,14 +418,16 @@ struct TestContext {
         strncpy(tiling.inner.groupName, group, GROUP_NAME_SIZE - 1);
         strncpy(tiling.inner.algConfig, "BatchWrite=level0:fullmesh", ALG_CONFIG_SIZE - 1);
 
-        COMM_LOG("[INIT] Rank " << rankId << ": tiling V2: init.version=100, inner.opType=18"
-                                << ", inner.commEngine=3, sizeof(Mc2CommConfigV2)=" << sizeof(Mc2CommConfigV2));
+        COMM_LOG(
+            "[INIT] Rank " << rankId << ": tiling V2: init.version=100, inner.opType=18"
+                           << ", inner.commEngine=3, sizeof(Mc2CommConfigV2)=" << sizeof(Mc2CommConfigV2));
 
-        void *ctxPtr = nullptr;
+        void* ctxPtr = nullptr;
         COMM_LOG("[INIT] Rank " << rankId << ": HcclAllocComResourceByTiling (V2 tiling, topo=" << topoRet << ") ...");
         hret = HcclAllocComResourceByTiling(commHandle, stream, &tiling, &ctxPtr);
-        COMM_LOG("[INIT] Rank " << rankId << ": HcclAllocComResourceByTiling -> " << static_cast<int>(hret)
-                                << " ctxPtr=" << ctxPtr);
+        COMM_LOG(
+            "[INIT] Rank " << rankId << ": HcclAllocComResourceByTiling -> " << static_cast<int>(hret)
+                           << " ctxPtr=" << ctxPtr);
         if (hret != HCCL_SUCCESS || ctxPtr == nullptr) {
             std::cerr << "[ERROR] HcclAllocComResourceByTiling failed: " << hret << std::endl;
             return false;
@@ -455,9 +458,9 @@ struct TestContext {
 
 private:
     // MESH: HCCL returns HcclCombinOpParamA5 whose first fields match CommDeviceContext.
-    bool InitMeshPath(int rankId, void *ctxPtr)
+    bool InitMeshPath(int rankId, void* ctxPtr)
     {
-        deviceCtx = reinterpret_cast<CommDeviceContext *>(ctxPtr);
+        deviceCtx = reinterpret_cast<CommDeviceContext*>(ctxPtr);
         aclError aRet = aclrtMemcpy(&hostCtx, sizeof(hostCtx), deviceCtx, sizeof(hostCtx), ACL_MEMCPY_DEVICE_TO_HOST);
         COMM_LOG("[INIT] Rank " << rankId << ": MESH path — aclrtMemcpy -> " << static_cast<int>(aRet));
         if (aRet != ACL_SUCCESS) {
@@ -465,11 +468,13 @@ private:
             return false;
         }
 
-        COMM_LOG("[INFO] Rank " << rankId << " hccl init OK (MESH)" << " rankId=" << hostCtx.rankId
-                                << " rankNum=" << hostCtx.rankNum << " winSize=" << hostCtx.winSize);
+        COMM_LOG(
+            "[INFO] Rank " << rankId << " hccl init OK (MESH)" << " rankId=" << hostCtx.rankId
+                           << " rankNum=" << hostCtx.rankNum << " winSize=" << hostCtx.winSize);
         for (uint32_t i = 0; i < hostCtx.rankNum && i < HCCL_MAX_RANK_NUM; ++i) {
-            COMM_LOG("[INFO] Rank " << rankId << ": windowsIn[" << i << "]=0x" << std::hex << hostCtx.windowsIn[i]
-                                    << " windowsOut[" << i << "]=0x" << hostCtx.windowsOut[i] << std::dec);
+            COMM_LOG(
+                "[INFO] Rank " << rankId << ": windowsIn[" << i << "]=0x" << std::hex << hostCtx.windowsIn[i]
+                               << " windowsOut[" << i << "]=0x" << hostCtx.windowsOut[i] << std::dec);
         }
         return true;
     }
@@ -477,10 +482,10 @@ private:
     // RING: HCCL returns CommOpResParam.  We extract RDMA remote window addresses
     // from remoteRes[i]->CommRankRelationResV2.windowsIn and build our own
     // CommDeviceContext on device.
-    bool InitRingPath(int rankId, int nRanks, void *ctxPtr)
+    bool InitRingPath(int rankId, int nRanks, void* ctxPtr)
     {
         using namespace hccl_compat;
-        auto *rawCtx = reinterpret_cast<uint8_t *>(ctxPtr);
+        auto* rawCtx = reinterpret_cast<uint8_t*>(ctxPtr);
 
         // 1. Read CommOpResParam head (from localUsrRankId through localWindowsExp).
         CommOpResParamHead head{};
@@ -491,9 +496,10 @@ private:
             return false;
         }
 
-        COMM_LOG("[INIT] Rank " << rankId << ": RING path — head: rankId=" << head.localUsrRankId << " rankSize="
-                                << head.rankSize << " winSize=" << head.winSize << " localWindowsIn=0x" << std::hex
-                                << head.localWindowsIn << " localWindowsOut=0x" << head.localWindowsOut << std::dec);
+        COMM_LOG(
+            "[INIT] Rank " << rankId << ": RING path — head: rankId=" << head.localUsrRankId << " rankSize="
+                           << head.rankSize << " winSize=" << head.winSize << " localWindowsIn=0x" << std::hex
+                           << head.localWindowsIn << " localWindowsOut=0x" << head.localWindowsOut << std::dec);
 
         if (head.rankSize == 0 || head.rankSize > HCCL_MAX_RANK_NUM) {
             std::cerr << "[ERROR] Rank " << rankId << ": invalid rankSize=" << head.rankSize << std::endl;
@@ -505,11 +511,12 @@ private:
         const size_t remoteResBytes = head.rankSize * sizeof(RemoteResPtr);
         std::vector<RemoteResPtr> remoteResArr(head.rankSize);
 
-        COMM_LOG("[INIT] Rank " << rankId << ": reading remoteRes at offset " << remoteResOff << " (" << remoteResBytes
-                                << " bytes, rankSize=" << head.rankSize << ")");
+        COMM_LOG(
+            "[INIT] Rank " << rankId << ": reading remoteRes at offset " << remoteResOff << " (" << remoteResBytes
+                           << " bytes, rankSize=" << head.rankSize << ")");
 
-        aRet = aclrtMemcpy(remoteResArr.data(), remoteResBytes, rawCtx + remoteResOff, remoteResBytes,
-                           ACL_MEMCPY_DEVICE_TO_HOST);
+        aRet = aclrtMemcpy(
+            remoteResArr.data(), remoteResBytes, rawCtx + remoteResOff, remoteResBytes, ACL_MEMCPY_DEVICE_TO_HOST);
         if (aRet != ACL_SUCCESS) {
             std::cerr << "[ERROR] Rank " << rankId << ": read remoteRes failed: " << (int)aRet << std::endl;
             return false;
@@ -533,8 +540,9 @@ private:
         for (uint32_t i = 0; i < head.rankSize; ++i) {
             if (i == head.localUsrRankId) {
                 hostCtx.windowsIn[i] = head.localWindowsIn;
-                COMM_LOG("[INIT] Rank " << rankId << ": windowsIn[" << i << "]=0x" << std::hex << head.localWindowsIn
-                                        << std::dec << " (local)");
+                COMM_LOG(
+                    "[INIT] Rank " << rankId << ": windowsIn[" << i << "]=0x" << std::hex << head.localWindowsIn
+                                   << std::dec << " (local)");
                 continue;
             }
 
@@ -544,12 +552,14 @@ private:
                 return false;
             }
 
-            COMM_LOG("[INIT] Rank " << rankId << ": remoteRes[" << i << "].nextDevicePtr=0x" << std::hex << devPtr
-                                    << std::dec);
+            COMM_LOG(
+                "[INIT] Rank " << rankId << ": remoteRes[" << i << "].nextDevicePtr=0x" << std::hex << devPtr
+                               << std::dec);
 
             CommRankRelationResV2 remoteInfo{};
-            aRet = aclrtMemcpy(&remoteInfo, sizeof(remoteInfo), reinterpret_cast<void *>(devPtr), sizeof(remoteInfo),
-                               ACL_MEMCPY_DEVICE_TO_HOST);
+            aRet = aclrtMemcpy(
+                &remoteInfo, sizeof(remoteInfo), reinterpret_cast<void*>(devPtr), sizeof(remoteInfo),
+                ACL_MEMCPY_DEVICE_TO_HOST);
             if (aRet != ACL_SUCCESS) {
                 std::cerr << "[ERROR] Rank " << rankId << ": read CommRankRelationResV2 for rank " << i
                           << " failed: " << (int)aRet << std::endl;
@@ -557,12 +567,13 @@ private:
             }
 
             hostCtx.windowsIn[i] = remoteInfo.windowsIn;
-            COMM_LOG("[INIT] Rank " << rankId << ": windowsIn[" << i << "]=0x" << std::hex << remoteInfo.windowsIn
-                                    << std::dec << " (remote, remoteRankId=" << remoteInfo.remoteUsrRankId << ")");
+            COMM_LOG(
+                "[INIT] Rank " << rankId << ": windowsIn[" << i << "]=0x" << std::hex << remoteInfo.windowsIn
+                               << std::dec << " (remote, remoteRankId=" << remoteInfo.remoteUsrRankId << ")");
         }
 
         // 4. Allocate new device memory and copy our correctly-built CommDeviceContext.
-        void *newDevMem = nullptr;
+        void* newDevMem = nullptr;
         aRet = aclrtMalloc(&newDevMem, sizeof(CommDeviceContext), ACL_MEM_MALLOC_HUGE_FIRST);
         if (aRet != ACL_SUCCESS || newDevMem == nullptr) {
             std::cerr << "[ERROR] Rank " << rankId << ": aclrtMalloc for RING deviceCtx failed: " << (int)aRet
@@ -570,8 +581,8 @@ private:
             return false;
         }
 
-        aRet = aclrtMemcpy(newDevMem, sizeof(CommDeviceContext), &hostCtx, sizeof(CommDeviceContext),
-                           ACL_MEMCPY_HOST_TO_DEVICE);
+        aRet = aclrtMemcpy(
+            newDevMem, sizeof(CommDeviceContext), &hostCtx, sizeof(CommDeviceContext), ACL_MEMCPY_HOST_TO_DEVICE);
         if (aRet != ACL_SUCCESS) {
             std::cerr << "[ERROR] Rank " << rankId << ": copy RING deviceCtx to device failed: " << (int)aRet
                       << std::endl;
@@ -579,11 +590,12 @@ private:
             return false;
         }
 
-        deviceCtx = reinterpret_cast<CommDeviceContext *>(newDevMem);
+        deviceCtx = reinterpret_cast<CommDeviceContext*>(newDevMem);
         ownsDeviceCtx = true;
 
-        COMM_LOG("[INFO] Rank " << rankId << " hccl init OK (RING)" << " rankId=" << hostCtx.rankId
-                                << " rankNum=" << hostCtx.rankNum << " winSize=" << hostCtx.winSize);
+        COMM_LOG(
+            "[INFO] Rank " << rankId << " hccl init OK (RING)" << " rankId=" << hostCtx.rankId
+                           << " rankNum=" << hostCtx.rankNum << " winSize=" << hostCtx.winSize);
         return true;
     }
 };
@@ -654,7 +666,7 @@ inline bool EnsureAclDeviceInit(int mpiRank, int deviceId)
 }
 
 template <typename Func>
-inline bool ForkAndRunWithHcclRootInfo(int nRanks, int firstRankId, int firstDeviceId, Func &&perRankFn)
+inline bool ForkAndRunWithHcclRootInfo(int nRanks, int firstRankId, int firstDeviceId, Func&& perRankFn)
 {
     int mpiSize = CommMpiSize();
     int mpiRank = CommMpiRank();

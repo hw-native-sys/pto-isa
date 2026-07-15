@@ -21,8 +21,7 @@ constexpr uint32_t VEC_CORES_PER_AIC = 2; // VecCores per AI Core (1AIC:2AIV)
 
 // ── Costmodel backend selector ──
 
-enum class CostModelBackend : uint8_t
-{
+enum class CostModelBackend : uint8_t {
     LightweightFormula, // profiling-fitted formula (lightweight_costmodel)
     CceMock,            // CCE mock trace
 };
@@ -62,16 +61,16 @@ struct PerfSimConfig {
     std::string output_dir = "./perf_sim_output"; // JSON swimlane output directory
 };
 
-inline PerfSimConfig &GetConfig()
+inline PerfSimConfig& GetConfig()
 {
     static thread_local PerfSimConfig cfg;
     return cfg;
 }
 
 // Called by LAUNCH_KERNEL macro to parse <<<blk_dim, l2_ptr, stream>>>
-inline void SetLaunchConfig(uint32_t blk_dim, void *l2_ptr, void * /*stream*/)
+inline void SetLaunchConfig(uint32_t blk_dim, void* l2_ptr, void* /*stream*/)
 {
-    auto &cfg = GetConfig();
+    auto& cfg = GetConfig();
     cfg.block_dim = blk_dim;
     cfg.has_l2 = (l2_ptr != nullptr);
 }

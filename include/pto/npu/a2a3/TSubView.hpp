@@ -16,26 +16,26 @@ full text of the License.
 #include <cstdint>
 
 template <typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TSUBVIEW_IMPL(TileDataDst &dst, TileDataSrc &src, uint16_t rowIdx, uint16_t colIdx)
+PTO_INTERNAL void TSUBVIEW_IMPL(TileDataDst& dst, TileDataSrc& src, uint16_t rowIdx, uint16_t colIdx)
 {
     constexpr int kRowStride = TileDataSrc::RowStride;
     constexpr int kColStride = TileDataSrc::ColStride;
     const uint64_t totalOffset = rowIdx * kRowStride + colIdx * kColStride;
 
-    static_assert(TileDataDst::Loc == TileDataSrc::Loc,
-                  "The destination and source tiles must have the same TileType!");
+    static_assert(
+        TileDataDst::Loc == TileDataSrc::Loc, "The destination and source tiles must have the same TileType!");
 
 #ifndef __PTO_AUTO__
     TASSIGN_IMPL(dst, (uint64_t)(src.data() + totalOffset));
 #else
-    static_assert(TileDataDst::BFractal == TileDataSrc::BFractal,
-                  "The destination and source tiles must have the same BFractal");
-    PTO_ASSERT(src.GetValidRow() >= dst.GetValidRow(),
-               "The source tile's validRow must be at least as big as the destination "
-               "tile's validRow!");
-    PTO_ASSERT(src.GetValidCol() >= dst.GetValidCol(),
-               "The source tile's validCol must be at least as big as the destination "
-               "tile's validCol!");
+    static_assert(
+        TileDataDst::BFractal == TileDataSrc::BFractal, "The destination and source tiles must have the same BFractal");
+    PTO_ASSERT(
+        src.GetValidRow() >= dst.GetValidRow(), "The source tile's validRow must be at least as big as the destination "
+                                                "tile's validRow!");
+    PTO_ASSERT(
+        src.GetValidCol() >= dst.GetValidCol(), "The source tile's validCol must be at least as big as the destination "
+                                                "tile's validCol!");
 
     const uint64_t byteOffset = totalOffset * sizeof(typename TileDataSrc::DType);
     __cce_alias(dst.data(), src.data(), byteOffset);

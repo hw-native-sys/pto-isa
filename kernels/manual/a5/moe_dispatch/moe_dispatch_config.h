@@ -62,10 +62,7 @@ struct DispatchTraits {
 };
 
 // Per-row byte stride in remote shmem: hiddenSize bytes of int8 data + UB_ALIGN padding (containing float scale)
-inline constexpr int32_t ShmemRowStride(int32_t hiddenSize)
-{
-    return hiddenSize + UB_ALIGN;
-}
+inline constexpr int32_t ShmemRowStride(int32_t hiddenSize) { return hiddenSize + UB_ALIGN; }
 
 // ============================================================================
 // CrossRankSync — shmem layout and DataAsFlag constants

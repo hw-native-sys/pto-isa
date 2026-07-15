@@ -16,19 +16,17 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <typename T, int rows, int src_col, int src_validCol, int dst_col, int dst_validCol>
-void launchTROWEXPAND(T *out, T *src, void *stream);
+void launchTROWEXPAND(T* out, T* src, void* stream);
 
 class TROWEXPANDTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -50,11 +48,11 @@ bool TRowExpandFramework()
     T *dstHost, *src0Host;
     T *dstDevice, *src0Device;
 
-    aclrtMallocHost((void **)(&dstHost), outputFileSize);
-    aclrtMallocHost((void **)(&src0Host), inputFileSize);
+    aclrtMallocHost((void**)(&dstHost), outputFileSize);
+    aclrtMallocHost((void**)(&src0Host), inputFileSize);
 
-    aclrtMalloc((void **)&dstDevice, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, inputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, inputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", inputFileSize, src0Host, inputFileSize);
 

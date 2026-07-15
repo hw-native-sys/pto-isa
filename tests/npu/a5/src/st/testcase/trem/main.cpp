@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class TREMTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -33,7 +31,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols, bool isHalf, bool highPrecision = false>
-void LaunchTRem(T *out, T *src0, T *src1, void *stream);
+void LaunchTRem(T* out, T* src0, T* src1, void* stream);
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols, bool isHalf, bool highPrecision = false>
 void test_trem()
@@ -48,13 +46,13 @@ void test_trem()
     T *dstHost, *src0Host, *src1Host;
     T *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&src0Host), fileSize);
-    aclrtMallocHost((void **)(&src1Host), fileSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&src0Host), fileSize);
+    aclrtMallocHost((void**)(&src1Host), fileSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input1.bin", fileSize, src0Host, fileSize);
     ReadFile(GetGoldenDir() + "/input2.bin", fileSize, src1Host, fileSize);
@@ -94,62 +92,26 @@ void test_trem()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TREMTest, case1)
-{
-    test_trem<uint16_t, 64, 64, 64, 64, false>();
-}
+TEST_F(TREMTest, case1) { test_trem<uint16_t, 64, 64, 64, 64, false>(); }
 
-TEST_F(TREMTest, case2)
-{
-    test_trem<uint16_t, 64, 64, 63, 63, false>();
-}
+TEST_F(TREMTest, case2) { test_trem<uint16_t, 64, 64, 63, 63, false>(); }
 
-TEST_F(TREMTest, case3)
-{
-    test_trem<uint16_t, 1, 16384, 1, 16384, false>();
-}
+TEST_F(TREMTest, case3) { test_trem<uint16_t, 1, 16384, 1, 16384, false>(); }
 
-TEST_F(TREMTest, case4)
-{
-    test_trem<uint16_t, 2048, 16, 2048, 16, false>();
-}
+TEST_F(TREMTest, case4) { test_trem<uint16_t, 2048, 16, 2048, 16, false>(); }
 
-TEST_F(TREMTest, case5)
-{
-    test_trem<float, 32, 32, 32, 32, false, true>();
-}
+TEST_F(TREMTest, case5) { test_trem<float, 32, 32, 32, 32, false, true>(); }
 
-TEST_F(TREMTest, case6)
-{
-    test_trem<uint32_t, 8, 8, 8, 8, false>();
-}
+TEST_F(TREMTest, case6) { test_trem<uint32_t, 8, 8, 8, 8, false>(); }
 
-TEST_F(TREMTest, case7)
-{
-    test_trem<aclFloat16, 32, 32, 31, 31, true>();
-}
+TEST_F(TREMTest, case7) { test_trem<aclFloat16, 32, 32, 31, 31, true>(); }
 
-TEST_F(TREMTest, case8)
-{
-    test_trem<int16_t, 16, 16, 16, 16, false>();
-}
+TEST_F(TREMTest, case8) { test_trem<int16_t, 16, 16, 16, 16, false>(); }
 
-TEST_F(TREMTest, case9)
-{
-    test_trem<int32_t, 8, 8, 8, 8, false>();
-}
+TEST_F(TREMTest, case9) { test_trem<int32_t, 8, 8, 8, 8, false>(); }
 
-TEST_F(TREMTest, case10)
-{
-    test_trem<float, 64, 64, 64, 64, false, true>();
-}
+TEST_F(TREMTest, case10) { test_trem<float, 64, 64, 64, 64, false, true>(); }
 
-TEST_F(TREMTest, case11)
-{
-    test_trem<float, 128, 128, 96, 96, false, true>();
-}
+TEST_F(TREMTest, case11) { test_trem<float, 128, 128, 96, 96, false, true>(); }
 
-TEST_F(TREMTest, case12)
-{
-    test_trem<float, 128, 128, 96, 97, false, true>();
-}
+TEST_F(TREMTest, case12) { test_trem<float, 128, 128, 96, 97, false, true>(); }

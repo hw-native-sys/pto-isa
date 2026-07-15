@@ -48,20 +48,21 @@ PTO_INTERNAL void checkAlias()
     static_assert(sizeof(DType) * Numel == sizeof(NewElement) * NewNumel, "TRESHAPE: Total byte size must match.");
 
     // 3. reshape between non-boxed and boxed tile is not allowed.
-    static_assert((SFractal == SLayout::NoneBox && NewSFractal == SLayout::NoneBox) ||
-                      (SFractal != SLayout::NoneBox && NewSFractal != SLayout::NoneBox),
-                  "TRESHAPE: Cannot reshape between boxed and non-boxed layouts.");
+    static_assert(
+        (SFractal == SLayout::NoneBox && NewSFractal == SLayout::NoneBox) ||
+            (SFractal != SLayout::NoneBox && NewSFractal != SLayout::NoneBox),
+        "TRESHAPE: Cannot reshape between boxed and non-boxed layouts.");
 }
 
 template <typename TileDataDst, typename TileDataSrc>
-__tf__ PTO_INTERNAL void TAlias(typename TileDataDst::TileDType __out__ original,
-                                typename TileDataSrc::TileDType __in__ alias)
+__tf__ PTO_INTERNAL void TAlias(
+    typename TileDataDst::TileDType __out__ original, typename TileDataSrc::TileDType __in__ alias)
 {
     return;
 }
 
 template <typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TALIAS_IMPL(TileDataDst &original, TileDataSrc &alias)
+PTO_INTERNAL void TALIAS_IMPL(TileDataDst& original, TileDataSrc& alias)
 {
     checkAlias<TileDataDst, TileDataSrc>();
     TAlias<TileDataDst, TileDataSrc>(original.data(), alias.data());

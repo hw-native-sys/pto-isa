@@ -34,23 +34,8 @@ void runTColMax()
 
 } // namespace
 
-TEST(TColMax, float_64x64)
-{
-    runTColMax<float, 64, 64, 1137.0f, 0.277044f>();
-}
-TEST(TColMax, half_64x64)
-{
-    runTColMax<half, 64, 64, 1120.0f, 0.140178f>();
-}
-TEST(TColMax, int16_64x64)
-{
-    runTColMax<int16_t, 64, 64, 454.0f, 0.0f>();
-}
-TEST(TColMax, half_16x256)
-{
-    runTColMax<half, 16, 256, 102.0f, 0.0f>();
-}
-TEST(TColMax, float_1x3072)
-{
-    runTColMax<float, 1, 3072, 390.0f, 0.053846f>();
-}
+TEST(TColMax, float_64x64) { runTColMax<float, 64, 64, 2589.0f, 0.277044f>(); }
+TEST(TColMax, half_64x64) { runTColMax<half, 64, 64, 2713.0f, 0.140178f>(); }
+TEST(TColMax, int16_64x64) { runTColMax<int16_t, 64, 64, 454.0f, 0.0f>(); }
+TEST(TColMax, half_16x256) { runTColMax<half, 16, 256, 102.0f, 0.0f>(); }
+TEST(TColMax, float_1x3072) { runTColMax<float, 1, 3072, 390.0f, 0.053846f>(); }

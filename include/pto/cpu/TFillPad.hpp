@@ -18,8 +18,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 template <typename TileDataDst, typename TileDataSrc, PadValue PadVal = TileDataDst::PadVal>
-void TFillPad(typename TileDataDst::TileDType dst, typename TileDataSrc::TileDType src, unsigned validDstRow,
-              unsigned validDstCol, unsigned validSrcRow, unsigned validSrcCol)
+void TFillPad(
+    typename TileDataDst::TileDType dst, typename TileDataSrc::TileDType src, unsigned validDstRow,
+    unsigned validDstCol, unsigned validSrcRow, unsigned validSrcCol)
 {
     using DType = typename TileDataDst::DType;
     DType padVal = 0;
@@ -64,7 +65,7 @@ void TFillPad(typename TileDataDst::TileDType dst, typename TileDataSrc::TileDTy
 }
 
 template <typename TileDataDst, typename TileDataSrc, bool inplace>
-PTO_INTERNAL void TFILLPAD_IMPL(TileDataDst &dst, TileDataSrc &src)
+PTO_INTERNAL void TFILLPAD_IMPL(TileDataDst& dst, TileDataSrc& src)
 {
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename TileDataSrc::DType);
     constexpr unsigned srcStride = TileDataSrc::RowStride;
@@ -90,7 +91,7 @@ PTO_INTERNAL void TFILLPAD_IMPL(TileDataDst &dst, TileDataSrc &src)
 }
 
 template <typename TileData, PadValue PadVal = PadValue::Zero>
-PTO_INTERNAL void TFILLPAD_IMPL(TileData &dst, TileData &src)
+PTO_INTERNAL void TFILLPAD_IMPL(TileData& dst, TileData& src)
 {
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename TileData::DType);
     constexpr unsigned Stride = TileData::RowStride;
@@ -110,28 +111,31 @@ PTO_INTERNAL void TFILLPAD_IMPL(TileData &dst, TileData &src)
 }
 
 template <typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TFILLPAD_IMPL(TileDataDst &dst, TileDataSrc &src)
+PTO_INTERNAL void TFILLPAD_IMPL(TileDataDst& dst, TileDataSrc& src)
 {
-    static_assert(TileDataDst::Cols == TileDataSrc::Cols && TileDataDst::Rows == TileDataSrc::Rows,
-                  "TFillPad: dst and src should have the same rows/cols!");
+    static_assert(
+        TileDataDst::Cols == TileDataSrc::Cols && TileDataDst::Rows == TileDataSrc::Rows,
+        "TFillPad: dst and src should have the same rows/cols!");
 
     TFILLPAD_IMPL<TileDataDst, TileDataSrc, false>(dst, src);
 }
 
 template <typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TFILLPAD_INPLACE_IMPL(TileDataDst &dst, TileDataSrc &src)
+PTO_INTERNAL void TFILLPAD_INPLACE_IMPL(TileDataDst& dst, TileDataSrc& src)
 {
-    static_assert(TileDataDst::Cols == TileDataSrc::Cols && TileDataDst::Rows == TileDataSrc::Rows,
-                  "TFillPad: dst and src should have the same rows/cols!");
+    static_assert(
+        TileDataDst::Cols == TileDataSrc::Cols && TileDataDst::Rows == TileDataSrc::Rows,
+        "TFillPad: dst and src should have the same rows/cols!");
 
     TFILLPAD_IMPL<TileDataDst, TileDataSrc, true>(dst, src);
 }
 
 template <typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TFILLPAD_EXPAND_IMPL(TileDataDst &dst, TileDataSrc &src)
+PTO_INTERNAL void TFILLPAD_EXPAND_IMPL(TileDataDst& dst, TileDataSrc& src)
 {
-    static_assert(TileDataDst::Cols >= TileDataSrc::Cols && TileDataDst::Rows >= TileDataSrc::Rows,
-                  "TFillPad: dst and src should have the same rows/cols!");
+    static_assert(
+        TileDataDst::Cols >= TileDataSrc::Cols && TileDataDst::Rows >= TileDataSrc::Rows,
+        "TFillPad: dst and src should have the same rows/cols!");
 
     TFILLPAD_IMPL<TileDataDst, TileDataSrc, false>(dst, src);
 }

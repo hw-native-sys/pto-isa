@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class TANDSTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -33,7 +31,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int vRows, int vCols>
-void LaunchTAndS(T *out, T *src, T scalar, void *stream);
+void LaunchTAndS(T* out, T* src, T scalar, void* stream);
 
 template <typename T, int dstTileH, int dstTileW, int srcTileH, int srcTileW, int vRows, int vCols>
 void test_tands()
@@ -51,14 +49,14 @@ void test_tands()
     T *dstDevice, *src0Device;
     T scalar;
 
-    aclrtMallocHost((void **)(&dstHost), fileSizeDst);
-    aclrtMallocHost((void **)(&src0Host), fileSizeSrc0);
+    aclrtMallocHost((void**)(&dstHost), fileSizeDst);
+    aclrtMallocHost((void**)(&src0Host), fileSizeSrc0);
 
-    aclrtMalloc((void **)&dstDevice, fileSizeDst, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, fileSizeSrc0, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSizeDst, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, fileSizeSrc0, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input1.bin", fileSizeSrc0, src0Host, fileSizeSrc0);
-    ReadFile(GetGoldenDir() + "/input2.bin", fileSizeSrc1, (void *)&scalar, sizeof(T));
+    ReadFile(GetGoldenDir() + "/input2.bin", fileSizeSrc1, (void*)&scalar, sizeof(T));
 
     aclrtMemcpy(src0Device, fileSizeSrc0, src0Host, fileSizeSrc0, ACL_MEMCPY_HOST_TO_DEVICE);
     LaunchTAndS<T, dstTileH, dstTileW, srcTileH, srcTileW, vRows, vCols>(dstDevice, src0Device, scalar, stream);
@@ -87,51 +85,15 @@ void test_tands()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TANDSTest, case_int16_64x64_64x64_64x64)
-{
-    test_tands<int16_t, 64, 64, 64, 64, 64, 64>();
-}
-TEST_F(TANDSTest, case_int16_32x128_32x128_32x128)
-{
-    test_tands<int16_t, 32, 128, 32, 128, 32, 128>();
-}
-TEST_F(TANDSTest, case_int16_32x112_32x128_32x111)
-{
-    test_tands<int16_t, 32, 112, 32, 128, 32, 111>();
-}
-TEST_F(TANDSTest, case_uint16_64x64_64x64_64x64)
-{
-    test_tands<uint16_t, 64, 64, 64, 64, 64, 64>();
-}
-TEST_F(TANDSTest, case_uint16_32x128_32x128_32x128)
-{
-    test_tands<uint16_t, 32, 128, 32, 128, 32, 128>();
-}
-TEST_F(TANDSTest, case_uint16_32x112_32x128_32x111)
-{
-    test_tands<uint16_t, 32, 112, 32, 128, 32, 111>();
-}
-TEST_F(TANDSTest, case_int32_64x64_64x64_64x64)
-{
-    test_tands<int32_t, 64, 64, 64, 64, 64, 64>();
-}
-TEST_F(TANDSTest, case_int32_32x128_32x128_32x128)
-{
-    test_tands<int32_t, 32, 128, 32, 128, 32, 128>();
-}
-TEST_F(TANDSTest, case_int32_32x112_32x128_32x111)
-{
-    test_tands<int32_t, 32, 112, 32, 128, 32, 111>();
-}
-TEST_F(TANDSTest, case_uint32_64x64_64x64_64x64)
-{
-    test_tands<uint32_t, 64, 64, 64, 64, 64, 64>();
-}
-TEST_F(TANDSTest, case_uint32_32x128_32x128_32x128)
-{
-    test_tands<uint32_t, 32, 128, 32, 128, 32, 128>();
-}
-TEST_F(TANDSTest, case_uint32_32x112_32x128_32x111)
-{
-    test_tands<uint32_t, 32, 112, 32, 128, 32, 111>();
-}
+TEST_F(TANDSTest, case_int16_64x64_64x64_64x64) { test_tands<int16_t, 64, 64, 64, 64, 64, 64>(); }
+TEST_F(TANDSTest, case_int16_32x128_32x128_32x128) { test_tands<int16_t, 32, 128, 32, 128, 32, 128>(); }
+TEST_F(TANDSTest, case_int16_32x112_32x128_32x111) { test_tands<int16_t, 32, 112, 32, 128, 32, 111>(); }
+TEST_F(TANDSTest, case_uint16_64x64_64x64_64x64) { test_tands<uint16_t, 64, 64, 64, 64, 64, 64>(); }
+TEST_F(TANDSTest, case_uint16_32x128_32x128_32x128) { test_tands<uint16_t, 32, 128, 32, 128, 32, 128>(); }
+TEST_F(TANDSTest, case_uint16_32x112_32x128_32x111) { test_tands<uint16_t, 32, 112, 32, 128, 32, 111>(); }
+TEST_F(TANDSTest, case_int32_64x64_64x64_64x64) { test_tands<int32_t, 64, 64, 64, 64, 64, 64>(); }
+TEST_F(TANDSTest, case_int32_32x128_32x128_32x128) { test_tands<int32_t, 32, 128, 32, 128, 32, 128>(); }
+TEST_F(TANDSTest, case_int32_32x112_32x128_32x111) { test_tands<int32_t, 32, 112, 32, 128, 32, 111>(); }
+TEST_F(TANDSTest, case_uint32_64x64_64x64_64x64) { test_tands<uint32_t, 64, 64, 64, 64, 64, 64>(); }
+TEST_F(TANDSTest, case_uint32_32x128_32x128_32x128) { test_tands<uint32_t, 32, 128, 32, 128, 32, 128>(); }
+TEST_F(TANDSTest, case_uint32_32x112_32x128_32x111) { test_tands<uint32_t, 32, 112, 32, 128, 32, 111>(); }

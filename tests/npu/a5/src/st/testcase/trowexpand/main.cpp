@@ -17,19 +17,17 @@ using namespace PtoTestCommon;
 
 namespace TRowExpandTest {
 template <typename T, uint32_t rows, uint32_t srcCols, uint32_t dstValidCols, uint32_t dstCols>
-void launchTROWEXPAND(T *out, T *src, void *stream);
+void launchTROWEXPAND(T* out, T* src, void* stream);
 
 class TROWEXPANDTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -50,11 +48,11 @@ void test_trowexpand()
     T *dstHost, *src0Host;
     T *dstDevice, *src0Device;
 
-    aclrtMallocHost((void **)(&dstHost), outputFileSize);
-    aclrtMallocHost((void **)(&src0Host), inputFileSize);
+    aclrtMallocHost((void**)(&dstHost), outputFileSize);
+    aclrtMallocHost((void**)(&src0Host), inputFileSize);
 
-    aclrtMalloc((void **)&dstDevice, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, inputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, inputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", inputFileSize, src0Host, inputFileSize);
 
@@ -85,28 +83,10 @@ void test_trowexpand()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TROWEXPANDTest, case0_half_16_16_16_512)
-{
-    test_trowexpand<aclFloat16, 16, 16, 512, 512>();
-}
-TEST_F(TROWEXPANDTest, case1_int8_16_32_16_256)
-{
-    test_trowexpand<int8_t, 16, 32, 256, 256>();
-}
-TEST_F(TROWEXPANDTest, case2_float_16_8_16_128)
-{
-    test_trowexpand<float, 16, 8, 128, 128>();
-}
-TEST_F(TROWEXPANDTest, case3_half_16_16_16_511)
-{
-    test_trowexpand<aclFloat16, 16, 16, 511, 512>();
-}
-TEST_F(TROWEXPANDTest, case4_int8_16_32_16_255)
-{
-    test_trowexpand<int8_t, 16, 32, 255, 256>();
-}
-TEST_F(TROWEXPANDTest, case5_float_16_8_16_127)
-{
-    test_trowexpand<float, 16, 8, 127, 128>();
-}
+TEST_F(TROWEXPANDTest, case0_half_16_16_16_512) { test_trowexpand<aclFloat16, 16, 16, 512, 512>(); }
+TEST_F(TROWEXPANDTest, case1_int8_16_32_16_256) { test_trowexpand<int8_t, 16, 32, 256, 256>(); }
+TEST_F(TROWEXPANDTest, case2_float_16_8_16_128) { test_trowexpand<float, 16, 8, 128, 128>(); }
+TEST_F(TROWEXPANDTest, case3_half_16_16_16_511) { test_trowexpand<aclFloat16, 16, 16, 511, 512>(); }
+TEST_F(TROWEXPANDTest, case4_int8_16_32_16_255) { test_trowexpand<int8_t, 16, 32, 255, 256>(); }
+TEST_F(TROWEXPANDTest, case5_float_16_8_16_127) { test_trowexpand<float, 16, 8, 127, 128>(); }
 } // namespace TRowExpandTest

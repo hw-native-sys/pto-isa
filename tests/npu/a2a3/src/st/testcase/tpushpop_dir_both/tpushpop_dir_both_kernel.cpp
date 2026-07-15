@@ -46,8 +46,9 @@ AICORE constexpr inline T CeilAlign(T num_1, T num_2)
 //   Cube→Vec (C2V): TPUSH tileE[TOTAL_M,N] → vectors pop their portion
 //   Vec: tileG = tileE_part - tileF, TSTORE tileG
 template <typename T, int TOTAL_M, int K, int N, TileSplitAxis SplitAxis = TileSplitAxis::TILE_UP_DOWN>
-__global__ AICORE void runTPushPopDirBoth(__gm__ uint64_t *ffts_addr, __gm__ T *out, __gm__ T *srcA, __gm__ T *srcB,
-                                          __gm__ T *srcD, __gm__ T *srcF, __gm__ T *fifoMem)
+__global__ AICORE void runTPushPopDirBoth(
+    __gm__ uint64_t* ffts_addr, __gm__ T* out, __gm__ T* srcA, __gm__ T* srcB, __gm__ T* srcD, __gm__ T* srcF,
+    __gm__ T* fifoMem)
 {
     set_ffts_base_addr((uint64_t)ffts_addr);
 
@@ -65,7 +66,7 @@ __global__ AICORE void runTPushPopDirBoth(__gm__ uint64_t *ffts_addr, __gm__ T *
     constexpr uint32_t v2cL1Base = 0x0;
     constexpr uint32_t c2vUBBase = 0x0;
 
-    BothPipe pipe((__gm__ void *)fifoMem, c2vUBBase, v2cL1Base);
+    BothPipe pipe((__gm__ void*)fifoMem, c2vUBBase, v2cL1Base);
 
     constexpr uint32_t blockAlign = C0_SIZE_BYTE / sizeof(T);
     constexpr uint32_t ALIGNED_M = CeilAlign<uint32_t>(TOTAL_M, 16);
@@ -75,8 +76,9 @@ __global__ AICORE void runTPushPopDirBoth(__gm__ uint64_t *ffts_addr, __gm__ T *
     if constexpr (DAV_VEC) {
         // ======================== Phase 1: V2C ========================
         using VecTileK = Tile<TileType::Vec, T, V2C_ROWS, V2C_COLS, BLayout::RowMajor, V2C_ROWS, V2C_COLS>;
-        using GlobalAB = GlobalTensor<T, pto::Shape<1, 1, 1, V2C_ROWS, V2C_COLS>,
-                                      pto::Stride<TOTAL_M * K, TOTAL_M * K, V2C_ROWS * V2C_COLS, K, 1>>;
+        using GlobalAB = GlobalTensor<
+            T, pto::Shape<1, 1, 1, V2C_ROWS, V2C_COLS>,
+            pto::Stride<TOTAL_M * K, TOTAL_M * K, V2C_ROWS * V2C_COLS, K, 1>>;
 
         VecTileK tileA, tileB, tileC;
         TASSIGN(tileA, 0x0);
@@ -120,8 +122,9 @@ __global__ AICORE void runTPushPopDirBoth(__gm__ uint64_t *ffts_addr, __gm__ T *
 
         // ======================== Phase 2: C2V ========================
         using VecTileN = Tile<TileType::Vec, T, C2V_ROWS, C2V_COLS, BLayout::RowMajor, C2V_ROWS, C2V_COLS>;
-        using GlobalFOut = GlobalTensor<T, pto::Shape<1, 1, 1, C2V_ROWS, C2V_COLS>,
-                                        pto::Stride<TOTAL_M * N, TOTAL_M * N, C2V_ROWS * C2V_COLS, N, 1>>;
+        using GlobalFOut = GlobalTensor<
+            T, pto::Shape<1, 1, 1, C2V_ROWS, C2V_COLS>,
+            pto::Stride<TOTAL_M * N, TOTAL_M * N, C2V_ROWS * C2V_COLS, N, 1>>;
 
         VecTileN vecTileHalf, tileF, tileG;
         TASSIGN(tileF, 0x10000);
@@ -229,23 +232,26 @@ __global__ AICORE void runTPushPopDirBoth(__gm__ uint64_t *ffts_addr, __gm__ T *
 }
 
 template <int32_t tilingKey>
-void LaunchTPushPopDirBoth(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *srcD, uint8_t *srcF,
-                           uint8_t *fifoMem, void *stream)
+void LaunchTPushPopDirBoth(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* srcD, uint8_t* srcF, uint8_t* fifoMem,
+    void* stream)
 {
     if constexpr (tilingKey == 1) {
         runTPushPopDirBoth<float, 128, 64, 128, TileSplitAxis::TILE_UP_DOWN><<<1, nullptr, stream>>>(
-            reinterpret_cast<uint64_t *>(ffts), reinterpret_cast<float *>(out), reinterpret_cast<float *>(srcA),
-            reinterpret_cast<float *>(srcB), reinterpret_cast<float *>(srcD), reinterpret_cast<float *>(srcF),
-            reinterpret_cast<float *>(fifoMem));
+            reinterpret_cast<uint64_t*>(ffts), reinterpret_cast<float*>(out), reinterpret_cast<float*>(srcA),
+            reinterpret_cast<float*>(srcB), reinterpret_cast<float*>(srcD), reinterpret_cast<float*>(srcF),
+            reinterpret_cast<float*>(fifoMem));
     } else if constexpr (tilingKey == 2) {
         runTPushPopDirBoth<float, 128, 64, 128, TileSplitAxis::TILE_LEFT_RIGHT><<<1, nullptr, stream>>>(
-            reinterpret_cast<uint64_t *>(ffts), reinterpret_cast<float *>(out), reinterpret_cast<float *>(srcA),
-            reinterpret_cast<float *>(srcB), reinterpret_cast<float *>(srcD), reinterpret_cast<float *>(srcF),
-            reinterpret_cast<float *>(fifoMem));
+            reinterpret_cast<uint64_t*>(ffts), reinterpret_cast<float*>(out), reinterpret_cast<float*>(srcA),
+            reinterpret_cast<float*>(srcB), reinterpret_cast<float*>(srcD), reinterpret_cast<float*>(srcF),
+            reinterpret_cast<float*>(fifoMem));
     }
 }
 
-template void LaunchTPushPopDirBoth<1>(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *srcD,
-                                       uint8_t *srcF, uint8_t *fifoMem, void *stream);
-template void LaunchTPushPopDirBoth<2>(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *srcD,
-                                       uint8_t *srcF, uint8_t *fifoMem, void *stream);
+template void LaunchTPushPopDirBoth<1>(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* srcD, uint8_t* srcF, uint8_t* fifoMem,
+    void* stream);
+template void LaunchTPushPopDirBoth<2>(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* srcD, uint8_t* srcF, uint8_t* fifoMem,
+    void* stream);

@@ -56,10 +56,7 @@ struct CcuScatterKernelArg : public CcuRootedKernelArgBase {
     using CcuRootedKernelArgBase::CcuRootedKernelArgBase;
 
 protected:
-    const char *SignatureName() const override
-    {
-        return "pto::comm::ccu::CcuScatterKernelArg::v1";
-    }
+    const char* SignatureName() const override { return "pto::comm::ccu::CcuScatterKernelArg::v1"; }
 };
 
 static constexpr uint32_t kMaxScatterRanks = kMaxCcuMeshRanks;
@@ -75,7 +72,7 @@ namespace detail {
 class CcuScatterMesh1D : public CcuRootedMeshKernelBase<CcuScatterMesh1D, CcuScatterKernelArg> {
 public:
     using Base = CcuRootedMeshKernelBase<CcuScatterMesh1D, CcuScatterKernelArg>;
-    static constexpr const char *kTraceName = "CCU_SCATTER";
+    static constexpr const char* kTraceName = "CCU_SCATTER";
     static constexpr bool kUsePreSync = false;
     static constexpr uint32_t kCkeIdx = 0;
     static constexpr uint32_t kPostSyncId = 3;
@@ -140,10 +137,7 @@ private:
 // Public factory
 // ============================================================================
 
-inline hcomm::KernelCreator MakeCcuScatterCreator()
-{
-    return detail::MakeCcuMeshCreator<detail::CcuScatterMesh1D>();
-}
+inline hcomm::KernelCreator MakeCcuScatterCreator() { return detail::MakeCcuMeshCreator<detail::CcuScatterMesh1D>(); }
 
 } // namespace ccu
 } // namespace comm

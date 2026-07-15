@@ -14,7 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-__aicore__ void runTSelS(__gm__ T *out, T scalar, __gm__ uint32_t *src0, __gm__ T *src1)
+__aicore__ void runTSelS(__gm__ T* out, T scalar, __gm__ uint32_t* src0, __gm__ T* src1)
 {
     constexpr int totalElements = kGRows_ * kGCols_;
     constexpr int maskWords = (totalElements + 31) / 32;
@@ -66,22 +66,22 @@ __aicore__ void runTSelS(__gm__ T *out, T scalar, __gm__ uint32_t *src0, __gm__ 
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTSelS(T *out, T scalar, uint32_t *src0, T *src1, void *stream)
+void LaunchTSelS(T* out, T scalar, uint32_t* src0, T* src1, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>)
-        runTSelS<half, kGRows_, kGCols_, kTRows_, kTCols_>((half *)(out), (half)(scalar), src0, (half *)(src1));
+        runTSelS<half, kGRows_, kGCols_, kTRows_, kTCols_>((half*)(out), (half)(scalar), src0, (half*)(src1));
     else
         runTSelS<T, kGRows_, kGCols_, kTRows_, kTCols_>(out, scalar, src0, src1);
 }
 
-template void LaunchTSelS<float, 64, 64, 64, 64>(float *out, float scalar, uint32_t *src0, float *src1, void *stream);
-template void LaunchTSelS<int32_t, 64, 64, 64, 64>(int32_t *out, int32_t scalar, uint32_t *src0, int32_t *src1,
-                                                   void *stream);
-template void LaunchTSelS<aclFloat16, 16, 256, 16, 256>(aclFloat16 *out, aclFloat16 scalar, uint32_t *src0,
-                                                        aclFloat16 *src1, void *stream);
-template void LaunchTSelS<int16_t, 64, 64, 64, 64>(int16_t *out, int16_t scalar, uint32_t *src0, int16_t *src1,
-                                                   void *stream);
+template void LaunchTSelS<float, 64, 64, 64, 64>(float* out, float scalar, uint32_t* src0, float* src1, void* stream);
+template void LaunchTSelS<int32_t, 64, 64, 64, 64>(
+    int32_t* out, int32_t scalar, uint32_t* src0, int32_t* src1, void* stream);
+template void LaunchTSelS<aclFloat16, 16, 256, 16, 256>(
+    aclFloat16* out, aclFloat16 scalar, uint32_t* src0, aclFloat16* src1, void* stream);
+template void LaunchTSelS<int16_t, 64, 64, 64, 64>(
+    int16_t* out, int16_t scalar, uint32_t* src0, int16_t* src1, void* stream);
 #ifdef CPU_SIM_BFLOAT_ENABLED
-template void LaunchTSelS<bfloat16_t, 16, 256, 16, 256>(bfloat16_t *out, bfloat16_t scalar, uint32_t *src0,
-                                                        bfloat16_t *src1, void *stream);
+template void LaunchTSelS<bfloat16_t, 16, 256, 16, 256>(
+    bfloat16_t* out, bfloat16_t scalar, uint32_t* src0, bfloat16_t* src1, void* stream);
 #endif

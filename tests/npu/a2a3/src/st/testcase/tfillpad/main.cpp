@@ -16,22 +16,20 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <int32_t testKey>
-void launchTFILLPAD(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream);
+void launchTFILLPAD(uint8_t* out, uint8_t* src, uint64_t* gLog, void* stream);
 
 template <int32_t testKey>
-int get_input_golden(uint8_t *input, uint8_t *golden);
+int get_input_golden(uint8_t* input, uint8_t* golden);
 
 class TFILLPADTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -65,31 +63,31 @@ void tfillpad_test()
 
     void *dstHost, *srcHost, *goldHost;
     void *dstDevice, *srcDevice;
-    void *logDevice;
+    void* logDevice;
 
-    aclrtMallocHost((void **)(&srcHost), in_byteSize);
-    aclrtMallocHost((void **)(&dstHost), out_byteSize);
-    aclrtMallocHost((void **)(&goldHost), out_byteSize);
+    aclrtMallocHost((void**)(&srcHost), in_byteSize);
+    aclrtMallocHost((void**)(&dstHost), out_byteSize);
+    aclrtMallocHost((void**)(&goldHost), out_byteSize);
 
-    aclrtMalloc((void **)&dstDevice, in_byteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, out_byteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, in_byteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, out_byteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     int actual_out_byteSize = 0;
-    actual_out_byteSize = get_input_golden<testKey>((uint8_t *)srcHost, (uint8_t *)goldHost);
+    actual_out_byteSize = get_input_golden<testKey>((uint8_t*)srcHost, (uint8_t*)goldHost);
     cout << "Golden size:" << actual_out_byteSize << " B" << endl;
-    std::fill((uint8_t *)dstHost, ((uint8_t *)(dstHost)) + out_byteSize, 0);
+    std::fill((uint8_t*)dstHost, ((uint8_t*)(dstHost)) + out_byteSize, 0);
 
     aclrtMemcpy(srcDevice, in_byteSize, srcHost, in_byteSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(dstDevice, out_byteSize, dstHost, out_byteSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
 #ifdef DEBUGLOG
     uint64_t logHost[MAXBLOCK][LOGSIZE];
-    std::fill((uint8_t *)logHost, ((uint8_t *)(logHost)) + sizeof(logHost), 0);
-    aclrtMalloc((void **)&logDevice, sizeof(logHost), ACL_MEM_MALLOC_HUGE_FIRST);
+    std::fill((uint8_t*)logHost, ((uint8_t*)(logHost)) + sizeof(logHost), 0);
+    aclrtMalloc((void**)&logDevice, sizeof(logHost), ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMemcpy(logDevice, sizeof(logHost), logHost, sizeof(logHost), ACL_MEMCPY_HOST_TO_DEVICE);
 #endif
 
-    launchTFILLPAD<testKey>((uint8_t *)dstDevice, (uint8_t *)srcDevice, (uint64_t *)logDevice, stream);
+    launchTFILLPAD<testKey>((uint8_t*)dstDevice, (uint8_t*)srcDevice, (uint64_t*)logDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, out_byteSize, dstDevice, out_byteSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -100,9 +98,9 @@ void tfillpad_test()
     std::ofstream inFile(GetGoldenDir() + "/input.bin", std::ios::binary | std::ios::out);
     std::ofstream outFile(GetGoldenDir() + "/output.bin", std::ios::binary | std::ios::out);
     std::ofstream goldFile(GetGoldenDir() + "/golden.bin", std::ios::binary | std::ios::out);
-    inFile.write((const char *)srcHost, actual_out_byteSize);
-    outFile.write((const char *)dstHost, actual_out_byteSize);
-    goldFile.write((const char *)goldHost, actual_out_byteSize);
+    inFile.write((const char*)srcHost, actual_out_byteSize);
+    outFile.write((const char*)dstHost, actual_out_byteSize);
+    goldFile.write((const char*)goldHost, actual_out_byteSize);
     inFile.close();
     outFile.close();
     goldFile.close();
@@ -146,106 +144,48 @@ void tfillpad_test()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TFILLPADTest, case_float_GT_128_127_VT_128_128_BLK1_PADMAX_PADMAX)
-{
-    tfillpad_test<1, float, 1>();
-}
+TEST_F(TFILLPADTest, case_float_GT_128_127_VT_128_128_BLK1_PADMAX_PADMAX) { tfillpad_test<1, float, 1>(); }
 
-TEST_F(TFILLPADTest, case_float_GT_128_127_VT_128_160_BLK1_PADMAX_PADMAX)
-{
-    tfillpad_test<2, float, 1>();
-}
+TEST_F(TFILLPADTest, case_float_GT_128_127_VT_128_160_BLK1_PADMAX_PADMAX) { tfillpad_test<2, float, 1>(); }
 
-TEST_F(TFILLPADTest, case_float_GT_128_127_VT_128_160_BLK1_PADMIN_PADMAX)
-{
-    tfillpad_test<3, float, 1>();
-}
+TEST_F(TFILLPADTest, case_float_GT_128_127_VT_128_160_BLK1_PADMIN_PADMAX) { tfillpad_test<3, float, 1>(); }
 
-TEST_F(TFILLPADTest, case_float_GT_260_7_VT_260_16_BLK1_PADMIN_PADMAX)
-{
-    tfillpad_test<4, float, 1>();
-}
+TEST_F(TFILLPADTest, case_float_GT_260_7_VT_260_16_BLK1_PADMIN_PADMAX) { tfillpad_test<4, float, 1>(); }
 
-TEST_F(TFILLPADTest, case_float_GT_260_7_VT_260_16_BLK1_PADMIN_PADMAX_INPLACE)
-{
-    tfillpad_test<5, float, 1>();
-}
+TEST_F(TFILLPADTest, case_float_GT_260_7_VT_260_16_BLK1_PADMIN_PADMAX_INPLACE) { tfillpad_test<5, float, 1>(); }
 
-TEST_F(TFILLPADTest, case_u16_GT_260_7_VT_260_32_BLK1_PADMIN_PADMAX)
-{
-    tfillpad_test<6, uint16_t, 1>();
-}
+TEST_F(TFILLPADTest, case_u16_GT_260_7_VT_260_32_BLK1_PADMIN_PADMAX) { tfillpad_test<6, uint16_t, 1>(); }
 
-TEST_F(TFILLPADTest, case_s8_GT_260_7_VT_260_64_BLK1_PADMIN_PADMAX)
-{
-    tfillpad_test<7, int8_t, 1>();
-}
+TEST_F(TFILLPADTest, case_s8_GT_260_7_VT_260_64_BLK1_PADMIN_PADMAX) { tfillpad_test<7, int8_t, 1>(); }
 
-TEST_F(TFILLPADTest, case_u16_GT_259_7_VT_260_32_BLK1_PADMIN_PADMAX_EXPAND)
-{
-    tfillpad_test<8, uint16_t, 1>();
-}
+TEST_F(TFILLPADTest, case_u16_GT_259_7_VT_260_32_BLK1_PADMIN_PADMAX_EXPAND) { tfillpad_test<8, uint16_t, 1>(); }
 
-TEST_F(TFILLPADTest, case_s8_GT_259_7_VT_260_64_BLK1_PADMIN_PADMAX_EXPAND)
-{
-    tfillpad_test<9, int8_t, 1>();
-}
+TEST_F(TFILLPADTest, case_s8_GT_259_7_VT_260_64_BLK1_PADMIN_PADMAX_EXPAND) { tfillpad_test<9, int8_t, 1>(); }
 
-TEST_F(TFILLPADTest, case_s16_GT_260_7_VT_260_32_BLK1_PADMIN_PADMIN)
-{
-    tfillpad_test<10, int16_t, 1>();
-}
+TEST_F(TFILLPADTest, case_s16_GT_260_7_VT_260_32_BLK1_PADMIN_PADMIN) { tfillpad_test<10, int16_t, 1>(); }
 
-TEST_F(TFILLPADTest, case_s32_GT_260_7_VT_260_32_BLK1_PADMIN_PADMIN)
-{
-    tfillpad_test<11, int32_t, 1>();
-}
-TEST_F(TFILLPADTest, case_float_GT_128_64_VT_128_128_PADCUSTOM_NEG1)
-{
-    tfillpad_test<12, float, 1>();
-}
+TEST_F(TFILLPADTest, case_s32_GT_260_7_VT_260_32_BLK1_PADMIN_PADMIN) { tfillpad_test<11, int32_t, 1>(); }
+TEST_F(TFILLPADTest, case_float_GT_128_64_VT_128_128_PADCUSTOM_NEG1) { tfillpad_test<12, float, 1>(); }
 
 TEST_F(TFILLPADTest, case_float_GT_128_127_VT_128_160_BLK1_PADCUSTOM_NEG1_PADCUSTOM_NEG1)
 {
     tfillpad_test<13, float, 1>();
 }
 
-TEST_F(TFILLPADTest, case_s8_GT_1_15_VT_1_32_BLK1_PADZERO)
-{
-    tfillpad_test<14, int8_t, 1>();
-}
+TEST_F(TFILLPADTest, case_s8_GT_1_15_VT_1_32_BLK1_PADZERO) { tfillpad_test<14, int8_t, 1>(); }
 
-TEST_F(TFILLPADTest, case_s8_GT_1_16_VT_1_32_BLK1_PADZERO)
-{
-    tfillpad_test<15, int8_t, 1>();
-}
+TEST_F(TFILLPADTest, case_s8_GT_1_16_VT_1_32_BLK1_PADZERO) { tfillpad_test<15, int8_t, 1>(); }
 
-TEST_F(TFILLPADTest, case_u8_GT_1_15_VT_1_32_BLK1_PADZERO)
-{
-    tfillpad_test<16, uint8_t, 1>();
-}
+TEST_F(TFILLPADTest, case_u8_GT_1_15_VT_1_32_BLK1_PADZERO) { tfillpad_test<16, uint8_t, 1>(); }
 
-TEST_F(TFILLPADTest, case_u8_GT_1_16_VT_1_32_BLK1_PADZERO)
-{
-    tfillpad_test<17, uint8_t, 1>();
-}
+TEST_F(TFILLPADTest, case_u8_GT_1_16_VT_1_32_BLK1_PADZERO) { tfillpad_test<17, uint8_t, 1>(); }
 
-TEST_F(TFILLPADTest, case_s8_GT_1_15_VT_1_32_BLK1_PADMIN)
-{
-    tfillpad_test<18, int8_t, 1>();
-}
+TEST_F(TFILLPADTest, case_s8_GT_1_15_VT_1_32_BLK1_PADMIN) { tfillpad_test<18, int8_t, 1>(); }
 
-TEST_F(TFILLPADTest, case_s8_GT_1_15_VT_1_32_BLK1_PADMAX)
-{
-    tfillpad_test<19, int8_t, 1>();
-}
+TEST_F(TFILLPADTest, case_s8_GT_1_15_VT_1_32_BLK1_PADMAX) { tfillpad_test<19, int8_t, 1>(); }
 
-TEST_F(TFILLPADTest, case_u8_GT_1_15_VT_1_32_BLK1_PADMIN)
-{
-    tfillpad_test<20, uint8_t, 1>();
-}
+TEST_F(TFILLPADTest, case_u8_GT_1_15_VT_1_32_BLK1_PADMIN) { tfillpad_test<20, uint8_t, 1>(); }
 
-TEST_F(TFILLPADTest, case_u8_GT_1_15_VT_1_32_BLK1_PADMAX)
-{
-    tfillpad_test<21, uint8_t, 1>();
-}
+TEST_F(TFILLPADTest, case_u8_GT_1_15_VT_1_32_BLK1_PADMAX) { tfillpad_test<21, uint8_t, 1>(); }
+
+TEST_F(TFILLPADTest, case_s8_GT_1_40_VT_1_64_BLK1_PADMIN_PADMAX) { tfillpad_test<22, int8_t, 1>(); }

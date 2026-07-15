@@ -16,19 +16,17 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
-void launchTIMG2COL(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
+void launchTIMG2COL(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 
 class TIMG2COLTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -36,10 +34,10 @@ std::string GetGoldenDir()
 }
 
 template <int32_t key, typename T, typename U>
-void timg2col_test(uint32_t FMN, uint32_t FMC1, uint32_t FMH, uint32_t FMW, uint32_t FMC0, uint32_t FTC1, uint32_t FTH,
-                   uint32_t FTW, uint32_t FTN, uint32_t FTC0, uint8_t dilationH = 1, uint8_t dilationW = 1,
-                   uint8_t strideH = 1, uint8_t strideW = 1, uint8_t padTop = 1, uint8_t padBottom = 1,
-                   uint8_t padLeft = 1, uint8_t padRight = 1)
+void timg2col_test(
+    uint32_t FMN, uint32_t FMC1, uint32_t FMH, uint32_t FMW, uint32_t FMC0, uint32_t FTC1, uint32_t FTH, uint32_t FTW,
+    uint32_t FTN, uint32_t FTC0, uint8_t dilationH = 1, uint8_t dilationW = 1, uint8_t strideH = 1, uint8_t strideW = 1,
+    uint8_t padTop = 1, uint8_t padBottom = 1, uint8_t padLeft = 1, uint8_t padRight = 1)
 {
     uint32_t heightOut = 0;
     uint32_t widthOut = 0;
@@ -61,13 +59,13 @@ void timg2col_test(uint32_t FMN, uint32_t FMC1, uint32_t FMH, uint32_t FMW, uint
     uint8_t *dstHost, *src0Host, *src1Host;
     uint8_t *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&src0Host), aFileSize);
-    aclrtMallocHost((void **)(&src1Host), bFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&src0Host), aFileSize);
+    aclrtMallocHost((void**)(&src1Host), bFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
@@ -106,10 +104,11 @@ void timg2col_test(uint32_t FMN, uint32_t FMC1, uint32_t FMH, uint32_t FMW, uint
     EXPECT_TRUE(ret);
 }
 template <int32_t key, typename T, typename U>
-void timg2col_test_fractal4d(uint32_t FMN, uint32_t FMC1, uint32_t FMH, uint32_t FMW, uint32_t FMC0, uint32_t FTDIM3,
-                             uint32_t FTDIM2, uint32_t FTDIM1, uint32_t FTDIM0, uint32_t FTH, uint32_t FTW,
-                             uint8_t dilationH = 1, uint8_t dilationW = 1, uint8_t strideH = 1, uint8_t strideW = 1,
-                             uint8_t padTop = 1, uint8_t padBottom = 1, uint8_t padLeft = 1, uint8_t padRight = 1)
+void timg2col_test_fractal4d(
+    uint32_t FMN, uint32_t FMC1, uint32_t FMH, uint32_t FMW, uint32_t FMC0, uint32_t FTDIM3, uint32_t FTDIM2,
+    uint32_t FTDIM1, uint32_t FTDIM0, uint32_t FTH, uint32_t FTW, uint8_t dilationH = 1, uint8_t dilationW = 1,
+    uint8_t strideH = 1, uint8_t strideW = 1, uint8_t padTop = 1, uint8_t padBottom = 1, uint8_t padLeft = 1,
+    uint8_t padRight = 1)
 {
     uint32_t widthOut = 0;
     uint32_t heightOut = 0;
@@ -131,13 +130,13 @@ void timg2col_test_fractal4d(uint32_t FMN, uint32_t FMC1, uint32_t FMH, uint32_t
     uint8_t *dstHost, *src0Host, *src1Host;
     uint8_t *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&src0Host), aFileSize);
-    aclrtMallocHost((void **)(&src1Host), bFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&src0Host), aFileSize);
+    aclrtMallocHost((void**)(&src1Host), bFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
@@ -175,10 +174,7 @@ void timg2col_test_fractal4d(uint32_t FMN, uint32_t FMC1, uint32_t FMH, uint32_t
 
     EXPECT_TRUE(ret);
 }
-TEST_F(TIMG2COLTest, case4_int8)
-{
-    timg2col_test<4, int32_t, int8_t>(1, 1, 8, 16, 32, 1, 3, 3, 16, 32);
-}
+TEST_F(TIMG2COLTest, case4_int8) { timg2col_test<4, int32_t, int8_t>(1, 1, 8, 16, 32, 1, 3, 3, 16, 32); }
 TEST_F(TIMG2COLTest, case8_int8_splitk)
 {
     timg2col_test<8, int32_t, int8_t>(1, 2, 29, 60, 32, 2, 2, 2, 64, 32, 2, 2, 2, 2, 1, 1, 1, 0);

@@ -23,7 +23,7 @@ using namespace pto;
 namespace {
 
 template <typename T>
-T max_abs_diff(const std::vector<T> &a, const std::vector<T> &b)
+T max_abs_diff(const std::vector<T>& a, const std::vector<T>& b)
 {
     T m = T{};
     for (size_t i = 0; i < a.size(); ++i) {
@@ -32,7 +32,7 @@ T max_abs_diff(const std::vector<T> &a, const std::vector<T> &b)
     return m;
 }
 
-void gemm_naive(const float *a, const float *b, float *c, int m, int k, int n)
+void gemm_naive(const float* a, const float* b, float* c, int m, int k, int n)
 {
     for (int i = 0; i < m; ++i) {
         for (int j = 0; j < n; ++j) {
@@ -131,8 +131,8 @@ int main()
     std::cout << "gemm_demo: M=" << kM << " K=" << kK << " N=" << kN << "\n";
     std::cout << "max_abs_diff=" << diff << "\n";
     std::cout << "perf: avg_ms=" << (elapsed_s * 1e3) << " matmul_flops=" << matmul_flops << " gflops=" << gflops;
-    if (const char *peak_env = std::getenv("PTO_CPU_PEAK_GFLOPS")) {
-        char *end = nullptr;
+    if (const char* peak_env = std::getenv("PTO_CPU_PEAK_GFLOPS")) {
+        char* end = nullptr;
         const double peak = std::strtod(peak_env, &end);
         if (end != peak_env && peak > 0.0) {
             std::cout << " peak_gflops=" << peak << " mfu=" << (gflops / peak);

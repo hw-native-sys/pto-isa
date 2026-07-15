@@ -38,7 +38,7 @@ struct CostModelRuntimeCtx {
     uint32_t npu_arch = 2201;
 };
 
-inline CostModelRuntimeCtx &GetCostModelCtx()
+inline CostModelRuntimeCtx& GetCostModelCtx()
 {
     static thread_local CostModelRuntimeCtx ctx;
     return ctx;
@@ -62,7 +62,7 @@ inline CostModelRuntimeCtx &GetCostModelCtx()
                 X(TEXTRACT) X(TINSERT) X(TROWEXPAND) X(TCOLEXPAND) X(TLOADCONV)
 // clang-format on
 
-inline bool TryMapOpcode(const std::string &opcode, ::pto::mocker::lightweight::PtoOpcode &out)
+inline bool TryMapOpcode(const std::string& opcode, ::pto::mocker::lightweight::PtoOpcode& out)
 {
 #define X(name)                                            \
     if (opcode == #name) {                                 \
@@ -82,7 +82,7 @@ inline bool TryMapOpcode(const std::string &opcode, ::pto::mocker::lightweight::
     X("int8", Int8)             \
     X("int16", Int16) X("int32", Int32) X("uint8", Uint8) X("uint16", Uint16) X("uint32", Uint32) X("bf16", BFloat16)
 
-inline ::pto::mocker::lightweight::DType MapDType(const std::string &dtype)
+inline ::pto::mocker::lightweight::DType MapDType(const std::string& dtype)
 {
 #define X(str, enum_val) \
     if (dtype == str)    \
@@ -94,7 +94,7 @@ inline ::pto::mocker::lightweight::DType MapDType(const std::string &dtype)
 
 // ── LightweightFormula backend ──
 
-inline uint64_t EstimateLightweightCycles(const std::string &opcode, int rows, int cols, const std::string &dtype)
+inline uint64_t EstimateLightweightCycles(const std::string& opcode, int rows, int cols, const std::string& dtype)
 {
     using namespace ::pto::mocker::lightweight;
 
@@ -121,7 +121,7 @@ inline uint64_t EstimateLightweightCycles(const std::string &opcode, int rows, i
 
 // ── Fallback for unsupported instructions ──
 
-inline uint64_t FallbackCycles(const std::string &opcode, int rows, int cols)
+inline uint64_t FallbackCycles(const std::string& opcode, int rows, int cols)
 {
     uint64_t elems = static_cast<uint64_t>(rows) * cols;
     PipeStage stage = StaticPipeStageLookup(opcode);
@@ -139,7 +139,7 @@ inline uint64_t FallbackCycles(const std::string &opcode, int rows, int cols)
 
 // ── Unified estimation entry (used when CCE mock trace is unavailable) ──
 
-inline uint64_t EstimateInstrCycles(const std::string &opcode, int rows, int cols, const std::string &dtype)
+inline uint64_t EstimateInstrCycles(const std::string& opcode, int rows, int cols, const std::string& dtype)
 {
     uint64_t cycles = EstimateLightweightCycles(opcode, rows, cols, dtype);
     return cycles > 0 ? cycles : FallbackCycles(opcode, rows, cols);

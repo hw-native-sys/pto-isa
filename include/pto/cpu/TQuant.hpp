@@ -26,20 +26,23 @@ namespace cpu_quant {
 
 constexpr uint16_t bf16Bits = 16;
 
-inline float BitsToFloat(uint32_t bits)
-{
-    return std::bit_cast<float>(bits);
-}
+inline float BitsToFloat(uint32_t bits) { return std::bit_cast<float>(bits); }
 
-inline uint32_t FloatToBits(float value)
-{
-    return std::bit_cast<uint32_t>(value);
-}
+inline uint32_t FloatToBits(float value) { return std::bit_cast<uint32_t>(value); }
 
-inline uint16_t FloatToBf16BitsTrunc(float value)
-{
-    return static_cast<uint16_t>(FloatToBits(value) >> bf16Bits);
-}
+struct NvMxFp8E4M3Spec {
+    static constexpr float descaleMultiplier = 1.0f / 448.0f;
+    static constexpr uint32_t b16SpecialScaleBits = 0x7F81u;
+    static constexpr uint32_t f32SpecialScaleBits = 0x7FC00000u;
+};
+
+struct NvMxFp4E2M1Spec {
+    static constexpr float descaleMultiplier = 1.0f / 6.0f;
+    static constexpr uint32_t b16SpecialScaleBits = 0x7FC0u;
+    static constexpr uint32_t f32SpecialScaleBits = 0x7FC00000u;
+};
+
+inline uint16_t FloatToBf16BitsTrunc(float value) { return static_cast<uint16_t>(FloatToBits(value) >> bf16Bits); }
 
 inline uint16_t FloatToBf16BitsRound(float value)
 {
@@ -69,7 +72,7 @@ inline float ApplyE2M1ScaleForSource(SrcT value, float scaling)
 }
 
 template <typename TileDataPara>
-inline typename TileDataPara::DType GetParamValue(const TileDataPara &tile, int row, int col)
+inline typename TileDataPara::DType GetParamValue(const TileDataPara& tile, int row, int col)
 {
     const int paramRow = std::min<int>(row, tile.GetValidRow() - 1);
     const int paramCol = std::min<int>(col, tile.GetValidCol() - 1);
@@ -208,23 +211,31 @@ inline float ComputeMxScalingFromExponent(uint8_t e8m0)
     return scaling;
 }
 
-inline float ComputeE2M1ScalingFromExponent(uint8_t e8m0)
+inline float ComputeNvScalingFromExponent(uint8_t e8m0)
 {
+    if (e8m0 == 0xFFu) {
+        return std::numeric_limits<float>::quiet_NaN();
+    }
+    if (e8m0 == 0xFEu) {
+        return std::ldexp(1.0f, SCALE_MIN_EXP);
+    }
     return ComputeMxScalingFromExponent(e8m0);
 }
 
-inline float ComputeScalingFromExponent(uint8_t e8m0)
-{
-    return ComputeMxScalingFromExponent(e8m0);
-}
+inline float ComputeE2M1ScalingFromExponent(uint8_t e8m0) { return ComputeMxScalingFromExponent(e8m0); }
 
-inline std::vector<uint8_t> ReorderExponentZZ(const std::vector<uint8_t> &exp, int rows, int groupCols)
+inline float ComputeScalingFromExponent(uint8_t e8m0) { return ComputeMxScalingFromExponent(e8m0); }
+
+inline std::vector<uint8_t> ReorderExponentZZ(const std::vector<uint8_t>& exp, int rows, int groupCols)
 {
-    PTO_CPU_ASSERT(rows % 16 == 0 && groupCols % 2 == 0,
-                   "Fix: MXFP8 NZ exponent reorder currently requires rows "
-                   "multiple of 16 and group cols multiple of 2.");
-    const int rowBlocks = rows / 16;
-    const int groupBlocks = groupCols / 2;
+    constexpr int groupBlockSize = 2;
+    constexpr int rowBlockSize = 16;
+    PTO_CPU_ASSERT(
+        rows % rowBlockSize == 0 && groupCols % groupBlockSize == 0,
+        "Fix: MXFP8 NZ exponent reorder currently requires rows "
+        "multiple of 16 and group cols multiple of 2.");
+    const int rowBlocks = rows / rowBlockSize;
+    const int groupBlocks = groupCols / groupBlockSize;
     std::vector<uint8_t> reordered;
     reordered.reserve(exp.size());
     for (int rb = 0; rb < rowBlocks; ++rb) {
@@ -241,14 +252,16 @@ inline std::vector<uint8_t> ReorderExponentZZ(const std::vector<uint8_t> &exp, i
     return reordered;
 }
 
-template <QuantType quant_type, typename TileDataSrc>
-inline float ComputeMxGroupMax(TileDataSrc &src, int row, int group)
+template <QuantType quant_type, QuantScaleAlg scale_alg, typename TileDataSrc>
+inline float ComputeMxGroupMax(TileDataSrc& src, int row, int group)
 {
     float maxAbsValue = 0.0f;
     uint16_t maxAbsBf16Bits = 0;
-    for (int inner = 0; inner < 32; ++inner) {
-        const float value = src.data()[GetTileElementOffset<TileDataSrc>(row, group * 32 + inner)];
-        if constexpr (quant_type == QuantType::MXFP8) {
+    constexpr int colGroupSize = 32;
+    for (int inner = 0; inner < colGroupSize; ++inner) {
+        const float value = src.data()[GetTileElementOffset<TileDataSrc>(row, group * colGroupSize + inner)];
+        if constexpr (
+            quant_type == QuantType::MXFP8 || (quant_type == QuantType::MXFP4_E2M1 && scale_alg == QuantScaleAlg::NV)) {
             maxAbsValue = std::max(maxAbsValue, std::fabs(value));
         } else {
             maxAbsBf16Bits = std::max(maxAbsBf16Bits, AbsBf16BitsFromFloat(value));
@@ -278,9 +291,32 @@ inline float ComputeMxGroupScaling(uint8_t e8m0)
     return ComputeE2M1ScalingFromExponent(e8m0);
 }
 
-template <QuantType quant_type, typename TileDataOut, typename TileDataSrc, typename FlatScalingTile>
-inline void StoreMxEncodedValue(TileDataOut &dst, TileDataSrc &src, FlatScalingTile &flatScaling, int row, int col,
-                                int cols, int flatGroupIdx, float groupScaling)
+template <QuantType quant_type, QuantScaleAlg scale_alg>
+inline uint8_t ComputeMxSharedExponent(float maxAbsValue)
+{
+    if constexpr (quant_type == QuantType::MXFP8 && scale_alg == QuantScaleAlg::NV) {
+        return ComputeNvSharedExponent<NvMxFp8E4M3Spec>(maxAbsValue);
+    } else if constexpr (quant_type == QuantType::MXFP4_E2M1 && scale_alg == QuantScaleAlg::NV) {
+        return ComputeNvSharedExponent<NvMxFp4E2M1Spec>(maxAbsValue);
+    }
+    return ComputeMxSharedExponent<quant_type>(maxAbsValue);
+}
+
+template <QuantType quant_type, QuantScaleAlg scale_alg>
+inline float ComputeMxGroupScaling(float maxAbsValue, uint8_t e8m0)
+{
+    if constexpr (scale_alg == QuantScaleAlg::NV) {
+        (void)maxAbsValue;
+        return ComputeNvScalingFromExponent(e8m0);
+    }
+    return ComputeMxGroupScaling<quant_type>(e8m0);
+}
+
+template <
+    QuantType quant_type, QuantScaleAlg scale_alg, typename TileDataOut, typename TileDataSrc, typename FlatScalingTile>
+inline void StoreMxEncodedValue(
+    TileDataOut& dst, TileDataSrc& src, FlatScalingTile& flatScaling, int row, int col, int cols, int flatGroupIdx,
+    float groupScaling)
 {
     using SrcT = typename TileDataSrc::DType;
     if constexpr (quant_type == QuantType::MXFP8) {
@@ -292,7 +328,7 @@ inline void StoreMxEncodedValue(TileDataOut &dst, TileDataSrc &src, FlatScalingT
         flatScaling.data()[flatGroupIdx] = groupScaling;
         const SrcT srcValue = src.data()[GetTileElementOffset<TileDataSrc>(row, col)];
         const uint8_t encoded = EncodeE2M1Magic(ApplyE2M1ScaleForSource<SrcT>(srcValue, groupScaling));
-        auto *dstBytes = reinterpret_cast<uint8_t *>(dst.data());
+        auto* dstBytes = reinterpret_cast<uint8_t*>(dst.data());
         const int byteOffset = row * TileDataOut::Cols + col / 2;
         if ((col & 1) == 0) {
             dstBytes[byteOffset] = static_cast<uint8_t>((dstBytes[byteOffset] & 0xF0u) | encoded);
@@ -302,19 +338,108 @@ inline void StoreMxEncodedValue(TileDataOut &dst, TileDataSrc &src, FlatScalingT
     }
 }
 
-template <QuantType quant_type, typename TileDataOut, typename TileDataSrc, typename FlatScalingTile>
-inline void QuantizeMxGroup(TileDataOut &dst, TileDataSrc &src, FlatScalingTile &flatScaling, int row, int group,
-                            int cols, int flatGroupIdx, float groupScaling)
+template <
+    QuantType quant_type, QuantScaleAlg scale_alg, typename TileDataOut, typename TileDataSrc, typename FlatScalingTile>
+inline void QuantizeMxGroup(
+    TileDataOut& dst, TileDataSrc& src, FlatScalingTile& flatScaling, int row, int group, int cols, int flatGroupIdx,
+    float groupScaling)
 {
-    for (int inner = 0; inner < 32; ++inner) {
-        const int col = group * 32 + inner;
-        StoreMxEncodedValue<quant_type>(dst, src, flatScaling, row, col, cols, flatGroupIdx, groupScaling);
+    constexpr int colGroupSize = 32;
+    for (int inner = 0; inner < colGroupSize; ++inner) {
+        const int col = group * colGroupSize + inner;
+        StoreMxEncodedValue<quant_type, scale_alg>(dst, src, flatScaling, row, col, cols, flatGroupIdx, groupScaling);
+    }
+}
+
+template <typename TileData>
+using FlatMxTile =
+    Tile<TileType::Vec, typename TileData::DType, 1, TileData::Rows * TileData::Cols, BLayout::RowMajor, -1, -1>;
+
+template <
+    QuantType quant_type, QuantScaleAlg scale_alg, typename TileDataOut, typename TileDataSrc, typename TileDataExp>
+inline void CheckMxQuantTypes()
+{
+    static_assert(
+        quant_type == QuantType::MXFP8 || quant_type == QuantType::MXFP4_E2M1,
+        "Fix: MX overload is reserved for MXFP8/MXFP4_E2M1.");
+    static_assert(
+        scale_alg == QuantScaleAlg::OCP || scale_alg == QuantScaleAlg::NV,
+        "Fix: MX scale algorithm must be OCP or NV.");
+    using SrcT = typename TileDataSrc::DType;
+    if constexpr (quant_type == QuantType::MXFP8) {
+        static_assert(
+            std::is_same_v<SrcT, float> || std::is_same_v<SrcT, half> || std::is_same_v<SrcT, aclFloat16> ||
+                std::is_same_v<SrcT, bfloat16_t>,
+            "Fix: MXFP8 CPU sim supports float/float16/bfloat16 source.");
+        static_assert(std::is_same_v<typename TileDataOut::DType, int8_t>, "Fix: MXFP8 output must be int8 bytes.");
+    } else {
+        static_assert(
+            std::is_same_v<SrcT, float> || std::is_same_v<SrcT, half> || std::is_same_v<SrcT, aclFloat16> ||
+                std::is_same_v<SrcT, bfloat16_t>,
+            "Fix: MXFP4_E2M1 CPU sim supports float/float16/bfloat16 source.");
+        static_assert(
+            std::is_same_v<typename TileDataOut::DType, float4_e2m1x2_t>,
+            "Fix: MXFP4_E2M1 output must be float4_e2m1x2_t.");
+    }
+    static_assert(std::is_same_v<typename TileDataExp::DType, uint8_t>, "Fix: MXFP8 exponent must be uint8 bytes.");
+}
+
+template <typename TileDataSrc, typename TileDataExp, typename TileDataMax, typename TileDataScaling>
+inline void CheckMxQuantInputs(TileDataSrc& src, TileDataExp* exp, TileDataMax* max, TileDataScaling* scaling)
+{
+    constexpr unsigned srcColDiv = 32;
+    PTO_CPU_ASSERT(exp != nullptr && max != nullptr && scaling != nullptr, "Fix: MX quant requires tiles.");
+    PTO_CPU_ASSERT(
+        src.GetValidCol() % srcColDiv == 0, "Fix: MX CPU sim currently requires valid cols to be a multiple of 32.");
+}
+
+template <typename FlatTileData, typename TileData>
+inline void FlattenMxTile(FlatTileData& flatTile, TileData& tile)
+{
+    TRESHAPE_IMPL(flatTile, tile);
+}
+
+template <typename TileData, typename FlatTileData>
+inline void RestoreMxTile(TileData& tile, FlatTileData& flatTile)
+{
+    TRESHAPE_IMPL(tile, flatTile);
+}
+
+template <QuantType quant_type, typename TileDataOut>
+inline void InitMxOutput(TileDataOut& dst)
+{
+    if constexpr (quant_type == QuantType::MXFP4_E2M1) {
+        std::fill(
+            reinterpret_cast<uint8_t*>(dst.data()),
+            reinterpret_cast<uint8_t*>(dst.data()) + TileDataOut::Rows * TileDataOut::Cols, 0);
+    }
+}
+
+template <
+    QuantType quant_type, QuantScaleAlg scale_alg, typename TileDataOut, typename TileDataSrc, typename FlatExpTile,
+    typename FlatMaxTile, typename FlatScalingTile>
+inline void QuantizeMxTile(
+    TileDataOut& dst, TileDataSrc& src, FlatExpTile& flatExp, FlatMaxTile& flatMax, FlatScalingTile& flatScaling)
+{
+    const int rows = src.GetValidRow();
+    const int cols = src.GetValidCol();
+    const int groupCols = cols / 32;
+    for (int row = 0; row < rows; ++row) {
+        for (int group = 0; group < groupCols; ++group) {
+            const int flatGroupIdx = row * groupCols + group;
+            const float maxAbsValue = ComputeMxGroupMax<quant_type, scale_alg>(src, row, group);
+            const uint8_t e8m0 = ComputeMxSharedExponent<quant_type, scale_alg>(maxAbsValue);
+            const float groupScaling = ComputeMxGroupScaling<quant_type, scale_alg>(maxAbsValue, e8m0);
+            flatMax.data()[flatGroupIdx] = maxAbsValue;
+            flatExp.data()[flatGroupIdx] = e8m0;
+            QuantizeMxGroup<quant_type, scale_alg>(dst, src, flatScaling, row, group, cols, flatGroupIdx, groupScaling);
+        }
     }
 }
 } // namespace cpu_quant
 
 template <QuantType quant_type, typename TileDataOut, typename TileDataSrc, typename TileDataPara>
-PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataPara &scale, TileDataPara *offset = nullptr)
+PTO_INTERNAL void TQUANT_IMPL(TileDataOut& dst, TileDataSrc& src, TileDataPara& scale, TileDataPara* offset = nullptr)
 {
     using SrcT = typename TileDataSrc::DType;
     static_assert(std::is_same_v<SrcT, float>, "Fix: Input has to be float 32");
@@ -324,12 +449,14 @@ PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataPara &
             const float srcValue = src.data()[GetTileElementOffset<TileDataSrc>(row, col)];
             const float invScale = static_cast<float>(cpu_quant::GetParamValue(scale, row, 0));
             if constexpr (quant_type == QuantType::INT8_SYM) {
-                static_assert(std::is_same_v<typename TileDataOut::DType, int8_t>,
-                              "Fix: Quant INT8 sym: Out data type has to be int8");
+                static_assert(
+                    std::is_same_v<typename TileDataOut::DType, int8_t>,
+                    "Fix: Quant INT8 sym: Out data type has to be int8");
                 dst.data()[GetTileElementOffset<TileDataOut>(row, col)] = cpu_quant::ClampInt8(srcValue * invScale);
             } else {
-                static_assert(std::is_same_v<typename TileDataOut::DType, uint8_t>,
-                              "Fix: Quant INT8 asym: Out data type has to be uint8");
+                static_assert(
+                    std::is_same_v<typename TileDataOut::DType, uint8_t>,
+                    "Fix: Quant INT8 asym: Out data type has to be uint8");
                 PTO_CPU_ASSERT(offset != nullptr, "Fix: Quant INT8 asym requires offset.");
                 const float zeroPoint = static_cast<float>(cpu_quant::GetParamValue(*offset, row, 0));
                 dst.data()[GetTileElementOffset<TileDataOut>(row, col)] =
@@ -339,10 +466,11 @@ PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataPara &
     }
 }
 
-template <QuantType quant_type, QuantScaleAlg scale_alg, typename TileDataOut, typename TileDataSrc,
-          typename TileDataExp, typename TileDataMax, typename TileDataScaling>
-inline void TQuantMxCpuImpl(TileDataOut &dst, TileDataSrc &src, TileDataExp *exp, TileDataMax *max,
-                            TileDataScaling *scaling)
+template <
+    QuantType quant_type, QuantScaleAlg scale_alg, typename TileDataOut, typename TileDataSrc, typename TileDataExp,
+    typename TileDataMax, typename TileDataScaling>
+inline void TQuantMxCpuImpl(
+    TileDataOut& dst, TileDataSrc& src, TileDataExp* exp, TileDataMax* max, TileDataScaling* scaling)
 {
     cpu_quant::CheckMxQuantTypes<quant_type, scale_alg, TileDataOut, TileDataSrc, TileDataExp>();
     cpu_quant::CheckMxQuantInputs(src, exp, max, scaling);
@@ -368,81 +496,39 @@ inline void TQuantMxCpuImpl(TileDataOut &dst, TileDataSrc &src, TileDataExp *exp
     cpu_quant::RestoreMxTile(*scaling, flatScaling);
 }
 
-template <QuantType quant_type, typename TileDataOut, typename TileDataSrc, typename TileDataExp, typename TileDataMax,
-          typename TileDataScaling>
-PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataExp *exp, TileDataMax *max,
-                              TileDataScaling *scaling)
+template <
+    QuantType quant_type, typename TileDataOut, typename TileDataSrc, typename TileDataExp, typename TileDataMax,
+    typename TileDataScaling>
+PTO_INTERNAL void TQUANT_IMPL(
+    TileDataOut& dst, TileDataSrc& src, TileDataExp* exp, TileDataMax* max, TileDataScaling* scaling)
 {
-    static_assert(quant_type == QuantType::MXFP8 || quant_type == QuantType::MXFP4_E2M1,
-                  "Fix: MX overload is reserved for MXFP8/MXFP4_E2M1.");
-    using SrcT = typename TileDataSrc::DType;
-    if constexpr (quant_type == QuantType::MXFP8) {
-        static_assert(std::is_same_v<typename TileDataOut::DType, int8_t>, "Fix: MXFP8 output must be int8 bytes.");
-    } else {
-        static_assert(std::is_same_v<SrcT, float> || std::is_same_v<SrcT, half> || std::is_same_v<SrcT, aclFloat16> ||
-                          std::is_same_v<SrcT, bfloat16_t>,
-                      "Fix: MXFP4_E2M1 CPU sim supports float/float16/bfloat16 source.");
-        static_assert(std::is_same_v<typename TileDataOut::DType, float4_e2m1x2_t>,
-                      "Fix: MXFP4_E2M1 output must be float4_e2m1x2_t.");
-    }
-    static_assert(std::is_same_v<typename TileDataExp::DType, uint8_t>, "Fix: MXFP8 exponent must be uint8 bytes.");
-
-    PTO_CPU_ASSERT(exp != nullptr && max != nullptr && scaling != nullptr, "Fix: MX quant requires tiles.");
-
-    const int rows = src.GetValidRow();
-    const int cols = src.GetValidCol();
-    PTO_CPU_ASSERT(cols % 32 == 0, "Fix: MX CPU sim currently requires valid cols to be a multiple of 32.");
-    const int groupCols = cols / 32;
-
-    // Flatten exp, max, scaling to 1D for internal processing
-    constexpr int expNumel = TileDataExp::Rows * TileDataExp::Cols;
-    using FlatExpTile = Tile<TileType::Vec, typename TileDataExp::DType, 1, expNumel, BLayout::RowMajor, -1, -1>;
-    FlatExpTile flatExp(1, expNumel);
-    TRESHAPE_IMPL(flatExp, *exp);
-
-    constexpr int maxNumel = TileDataMax::Rows * TileDataMax::Cols;
-    using FlatMaxTile = Tile<TileType::Vec, typename TileDataMax::DType, 1, maxNumel, BLayout::RowMajor, -1, -1>;
-    FlatMaxTile flatMax(1, maxNumel);
-    TRESHAPE_IMPL(flatMax, *max);
-
-    constexpr int scalingNumel = TileDataScaling::Rows * TileDataScaling::Cols;
-    using FlatScalingTile =
-        Tile<TileType::Vec, typename TileDataScaling::DType, 1, scalingNumel, BLayout::RowMajor, -1, -1>;
-    FlatScalingTile flatScaling(1, scalingNumel);
-    TRESHAPE_IMPL(flatScaling, *scaling);
-    if constexpr (quant_type == QuantType::MXFP4_E2M1) {
-        std::fill(reinterpret_cast<uint8_t *>(dst.data()),
-                  reinterpret_cast<uint8_t *>(dst.data()) + TileDataOut::Rows * TileDataOut::Cols, 0);
-    }
-
-    for (int row = 0; row < rows; ++row) {
-        for (int group = 0; group < groupCols; ++group) {
-            const int flatGroupIdx = row * groupCols + group;
-            const float maxAbsValue = cpu_quant::ComputeMxGroupMax<quant_type>(src, row, group);
-            const uint8_t e8m0 = cpu_quant::ComputeMxSharedExponent<quant_type>(maxAbsValue);
-            const float groupScaling = cpu_quant::ComputeMxGroupScaling<quant_type>(e8m0);
-            flatMax.data()[flatGroupIdx] = maxAbsValue;
-            flatExp.data()[flatGroupIdx] = e8m0;
-            cpu_quant::QuantizeMxGroup<quant_type>(dst, src, flatScaling, row, group, cols, flatGroupIdx, groupScaling);
-        }
-    }
-
-    // Reshape back so caller can inspect results
-    TRESHAPE_IMPL(*exp, flatExp);
-    TRESHAPE_IMPL(*max, flatMax);
-    TRESHAPE_IMPL(*scaling, flatScaling);
+    TQuantMxCpuImpl<quant_type, QuantScaleAlg::OCP>(dst, src, exp, max, scaling);
 }
 
-template <QuantType quant_type, VecStoreMode store_mode, typename TileDataOut, typename TileDataSrc,
-          typename TileDataExp, typename TileDataMax, typename TileDataScaling>
-PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataExp *exp, TileDataMax *max,
-                              TileDataScaling *scaling, TileDataExp *exp_zz)
+template <
+    QuantType quant_type, QuantScaleAlg scale_alg, typename TileDataOut, typename TileDataSrc, typename TileDataExp,
+    typename TileDataMax, typename TileDataScaling>
+PTO_INTERNAL void TQUANT_IMPL(
+    TileDataOut& dst, TileDataSrc& src, TileDataExp* exp, TileDataMax* max, TileDataScaling* scaling)
+{
+    static_assert(
+        quant_type == QuantType::MXFP8 || quant_type == QuantType::MXFP4_E2M1,
+        "Fix: scale algorithm overload is reserved for MXFP8/MXFP4_E2M1.");
+    TQuantMxCpuImpl<quant_type, scale_alg>(dst, src, exp, max, scaling);
+}
+
+template <
+    QuantType quant_type, VecStoreMode store_mode, typename TileDataOut, typename TileDataSrc, typename TileDataExp,
+    typename TileDataMax, typename TileDataScaling>
+PTO_INTERNAL void TQUANT_IMPL(
+    TileDataOut& dst, TileDataSrc& src, TileDataExp* exp, TileDataMax* max, TileDataScaling* scaling,
+    TileDataExp* exp_zz)
 {
     static_assert(quant_type == QuantType::MXFP8, "Fix: MX overload is reserved for MXFP8.");
     static_assert(store_mode == VecStoreMode::NZ, "Fix: This overload is reserved for MXFP8 NZ mode.");
 
-    TQUANT_IMPL<quant_type, TileDataOut, TileDataSrc, TileDataExp, TileDataMax, TileDataScaling>(dst, src, exp, max,
-                                                                                                 scaling);
+    TQUANT_IMPL<quant_type, TileDataOut, TileDataSrc, TileDataExp, TileDataMax, TileDataScaling>(
+        dst, src, exp, max, scaling);
 
     PTO_CPU_ASSERT(exp_zz != nullptr, "Fix: MXFP8 NZ mode requires reordered exponents.");
     const int rows = src.GetValidRow();

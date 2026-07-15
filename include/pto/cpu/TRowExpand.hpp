@@ -19,7 +19,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 template <typename TileDst, typename TileSrc>
-PTO_INTERNAL void TROWEXPAND_IMPL(TileDst &dst, TileSrc &src)
+PTO_INTERNAL void TROWEXPAND_IMPL(TileDst& dst, TileSrc& src)
 {
     const std::size_t rows = static_cast<std::size_t>(dst.GetValidRow());
     const std::size_t cols = static_cast<std::size_t>(dst.GetValidCol());

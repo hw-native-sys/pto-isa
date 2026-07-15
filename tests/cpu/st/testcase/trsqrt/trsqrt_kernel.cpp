@@ -14,7 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int kDstRows_, int kDstCols_, int kSrcRows_, int kSrcCols_, int kValRows_, int kValCols_>
-__global__ AICORE void runTRSqrt(__gm__ T __out__ *out, __gm__ T __in__ *src)
+__global__ AICORE void runTRSqrt(__gm__ T __out__* out, __gm__ T __in__* src)
 {
     using DynShapeDim5Src = Shape<1, 1, 1, kSrcRows_, kSrcCols_>;
     using DynShapeDim5Dst = Shape<1, 1, 1, kDstRows_, kDstCols_>;
@@ -42,13 +42,13 @@ __global__ AICORE void runTRSqrt(__gm__ T __out__ *out, __gm__ T __in__ *src)
 }
 
 template <typename T, int kDstRows_, int kDstCols_, int kSrcRows_, int kSrcCols_, int kValRows_, int kValCols_>
-void LaunchTRSqrt(T *out, T *src, void *stream)
+void LaunchTRSqrt(T* out, T* src, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>)
-        runTRSqrt<half, kDstRows_, kDstCols_, kSrcRows_, kSrcCols_, kValRows_, kValCols_>((half *)(out), (half *)(src));
+        runTRSqrt<half, kDstRows_, kDstCols_, kSrcRows_, kSrcCols_, kValRows_, kValCols_>((half*)(out), (half*)(src));
     else
         runTRSqrt<T, kDstRows_, kDstCols_, kSrcRows_, kSrcCols_, kValRows_, kValCols_>(out, src);
 }
 
-template void LaunchTRSqrt<float, 64, 64, 64, 64, 64, 64>(float *out, float *src, void *stream);
-template void LaunchTRSqrt<aclFloat16, 64, 64, 64, 64, 64, 64>(aclFloat16 *out, aclFloat16 *src, void *stream);
+template void LaunchTRSqrt<float, 64, 64, 64, 64, 64, 64>(float* out, float* src, void* stream);
+template void LaunchTRSqrt<aclFloat16, 64, 64, 64, 64, 64, 64>(aclFloat16* out, aclFloat16* src, void* stream);

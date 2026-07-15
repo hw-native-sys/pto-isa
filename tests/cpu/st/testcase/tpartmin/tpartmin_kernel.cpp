@@ -22,7 +22,7 @@ constexpr int kValidCols1 = 32;
 } // namespace
 
 template <int kRows, int kCols, int kValidRows1, int kValidCols1>
-AICORE void runTPARTMIN(__gm__ float __out__ *out, __gm__ float __in__ *src0, __gm__ float __in__ *src1)
+AICORE void runTPARTMIN(__gm__ float __out__* out, __gm__ float __in__* src0, __gm__ float __in__* src1)
 {
     using DynShapeDim5 = Shape<1, 1, 1, kRows, kCols>;
     using DynStridDim5 = Stride<1, 1, 1, kCols, 1>;
@@ -50,11 +50,11 @@ AICORE void runTPARTMIN(__gm__ float __out__ *out, __gm__ float __in__ *src0, __
 }
 
 template <int kRows, int kCols, int kValidRows1, int kValidCols1>
-void LaunchTPARTMIN(float *out, float *src0, float *src1, void *stream)
+void LaunchTPARTMIN(float* out, float* src0, float* src1, void* stream)
 {
     (void)stream;
     runTPARTMIN<kRows, kCols, kValidRows1, kValidCols1>(out, src0, src1);
 }
 
-template void LaunchTPARTMIN<kRows, kCols, kValidRows1, kValidCols1>(float *out, float *src0, float *src1,
-                                                                     void *stream);
+template void LaunchTPARTMIN<kRows, kCols, kValidRows1, kValidCols1>(
+    float* out, float* src0, float* src1, void* stream);

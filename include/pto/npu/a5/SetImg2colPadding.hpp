@@ -13,7 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL>
-PTO_INTERNAL void SET_IMG2COL_PADDING_IMPL(ConvTileData &src)
+PTO_INTERNAL void SET_IMG2COL_PADDING_IMPL(ConvTileData& src)
 {
     if constexpr (FmatrixMode == SetFmatrixMode::FMATRIX_A_MANUAL || FmatrixMode == SetFmatrixMode::FMATRIX_B_MANUAL) {
         using DataType = typename ConvTileData::DType;
@@ -21,12 +21,12 @@ PTO_INTERNAL void SET_IMG2COL_PADDING_IMPL(ConvTileData &src)
         uint32_t paddingValue = 0;
         const DataType padValue = src.GetPadValue();
         if constexpr (sizeof(DataType) == 1) {
-            uint8_t u8Value = *reinterpret_cast<const uint8_t *>(&padValue);
+            uint8_t u8Value = *reinterpret_cast<const uint8_t*>(&padValue);
             paddingValue = (static_cast<uint16_t>(u8Value) << padValueShiftBit) | u8Value;
         } else if constexpr (sizeof(DataType) == 2) {
-            paddingValue = *reinterpret_cast<const uint16_t *>(&padValue);
+            paddingValue = *reinterpret_cast<const uint16_t*>(&padValue);
         } else if constexpr (sizeof(DataType) == 4) {
-            paddingValue = *reinterpret_cast<const uint32_t *>(&padValue);
+            paddingValue = *reinterpret_cast<const uint32_t*>(&padValue);
         }
         if constexpr (FmatrixMode == SetFmatrixMode::FMATRIX_A_MANUAL) {
             set_padding(paddingValue);

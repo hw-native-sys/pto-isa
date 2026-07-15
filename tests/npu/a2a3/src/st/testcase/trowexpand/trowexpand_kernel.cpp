@@ -17,7 +17,7 @@ using namespace std;
 using namespace pto;
 
 template <typename T, int rows, int src_col, int src_validCol, int dst_col, int dst_validCol>
-__global__ AICORE void runTROWEXPAND(__gm__ T __out__ *out, __gm__ T __in__ *src)
+__global__ AICORE void runTROWEXPAND(__gm__ T __out__* out, __gm__ T __in__* src)
 {
     using DynShapeDim5 = Shape<1, 1, 1, rows, -1>;
     using DynStridDim5 = Stride<1, 1, rows, -1, 1>;
@@ -47,7 +47,7 @@ __global__ AICORE void runTROWEXPAND(__gm__ T __out__ *out, __gm__ T __in__ *src
 }
 
 template <typename T, int rows, int src_col, int dst_col>
-__global__ AICORE void runTROWBRCB(__gm__ T __out__ *out, __gm__ T __in__ *src)
+__global__ AICORE void runTROWBRCB(__gm__ T __out__* out, __gm__ T __in__* src)
 {
     constexpr bool isRowMajor = (rows == 1);
     constexpr BLayout tileLayout = isRowMajor ? BLayout::RowMajor : BLayout::ColMajor;
@@ -80,7 +80,7 @@ __global__ AICORE void runTROWBRCB(__gm__ T __out__ *out, __gm__ T __in__ *src)
 }
 
 template <typename T, int rows, int src_col, int src_validCol, int dst_col, int dst_validCol>
-void launchTROWEXPAND(T *out, T *src, void *stream)
+void launchTROWEXPAND(T* out, T* src, void* stream)
 {
     if constexpr (dst_col * sizeof(T) == BLOCK_BYTE_SIZE) {
         runTROWBRCB<T, rows, src_col, dst_col><<<1, nullptr, stream>>>(out, src);
@@ -89,26 +89,26 @@ void launchTROWEXPAND(T *out, T *src, void *stream)
     }
 }
 
-template void launchTROWEXPAND<uint16_t, 16, 16, 1, 512, 512>(uint16_t *out, uint16_t *src, void *stream);
-template void launchTROWEXPAND<uint8_t, 16, 32, 1, 256, 256>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTROWEXPAND<uint32_t, 16, 8, 1, 128, 128>(uint32_t *out, uint32_t *src, void *stream);
-template void launchTROWEXPAND<float, 16, 32, 1, 512, 512>(float *out, float *src, void *stream);
-template void launchTROWEXPAND<uint16_t, 16, 16, 1, 256, 255>(uint16_t *out, uint16_t *src, void *stream);
-template void launchTROWEXPAND<uint8_t, 16, 32, 1, 512, 511>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTROWEXPAND<uint32_t, 16, 8, 1, 128, 127>(uint32_t *out, uint32_t *src, void *stream);
-template void launchTROWEXPAND<uint16_t, 16, 16, 1, 128, 127>(uint16_t *out, uint16_t *src, void *stream);
-template void launchTROWEXPAND<uint8_t, 2, 32, 1, 64, 63>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTROWEXPAND<uint16_t, 4080, 1, 1, 16, 16>(uint16_t *out, uint16_t *src, void *stream);
-template void launchTROWEXPAND<uint16_t, 16, 1, 1, 16, 16>(uint16_t *out, uint16_t *src, void *stream);
-template void launchTROWEXPAND<uint32_t, 4080, 1, 1, 8, 8>(uint32_t *out, uint32_t *src, void *stream);
-template void launchTROWEXPAND<uint32_t, 16, 1, 1, 8, 8>(uint32_t *out, uint32_t *src, void *stream);
-template void launchTROWEXPAND<float, 4080, 1, 1, 8, 8>(float *out, float *src, void *stream);
-template void launchTROWEXPAND<float, 16, 1, 1, 8, 8>(float *out, float *src, void *stream);
-template void launchTROWEXPAND<int16_t, 16, 16, 1, 512, 512>(int16_t *out, int16_t *src, void *stream);
-template void launchTROWEXPAND<int8_t, 16, 32, 1, 256, 256>(int8_t *out, int8_t *src, void *stream);
-template void launchTROWEXPAND<int32_t, 16, 8, 1, 128, 128>(int32_t *out, int32_t *src, void *stream);
-template void launchTROWEXPAND<int16_t, 16, 16, 1, 256, 255>(int16_t *out, int16_t *src, void *stream);
-template void launchTROWEXPAND<int8_t, 16, 32, 1, 512, 511>(int8_t *out, int8_t *src, void *stream);
-template void launchTROWEXPAND<int32_t, 16, 8, 1, 128, 127>(int32_t *out, int32_t *src, void *stream);
-template void launchTROWEXPAND<int16_t, 16, 16, 1, 128, 127>(int16_t *out, int16_t *src, void *stream);
-template void launchTROWEXPAND<int8_t, 2, 32, 1, 64, 63>(int8_t *out, int8_t *src, void *stream);
+template void launchTROWEXPAND<uint16_t, 16, 16, 1, 512, 512>(uint16_t* out, uint16_t* src, void* stream);
+template void launchTROWEXPAND<uint8_t, 16, 32, 1, 256, 256>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTROWEXPAND<uint32_t, 16, 8, 1, 128, 128>(uint32_t* out, uint32_t* src, void* stream);
+template void launchTROWEXPAND<float, 16, 32, 1, 512, 512>(float* out, float* src, void* stream);
+template void launchTROWEXPAND<uint16_t, 16, 16, 1, 256, 255>(uint16_t* out, uint16_t* src, void* stream);
+template void launchTROWEXPAND<uint8_t, 16, 32, 1, 512, 511>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTROWEXPAND<uint32_t, 16, 8, 1, 128, 127>(uint32_t* out, uint32_t* src, void* stream);
+template void launchTROWEXPAND<uint16_t, 16, 16, 1, 128, 127>(uint16_t* out, uint16_t* src, void* stream);
+template void launchTROWEXPAND<uint8_t, 2, 32, 1, 64, 63>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTROWEXPAND<uint16_t, 4080, 1, 1, 16, 16>(uint16_t* out, uint16_t* src, void* stream);
+template void launchTROWEXPAND<uint16_t, 16, 1, 1, 16, 16>(uint16_t* out, uint16_t* src, void* stream);
+template void launchTROWEXPAND<uint32_t, 4080, 1, 1, 8, 8>(uint32_t* out, uint32_t* src, void* stream);
+template void launchTROWEXPAND<uint32_t, 16, 1, 1, 8, 8>(uint32_t* out, uint32_t* src, void* stream);
+template void launchTROWEXPAND<float, 4080, 1, 1, 8, 8>(float* out, float* src, void* stream);
+template void launchTROWEXPAND<float, 16, 1, 1, 8, 8>(float* out, float* src, void* stream);
+template void launchTROWEXPAND<int16_t, 16, 16, 1, 512, 512>(int16_t* out, int16_t* src, void* stream);
+template void launchTROWEXPAND<int8_t, 16, 32, 1, 256, 256>(int8_t* out, int8_t* src, void* stream);
+template void launchTROWEXPAND<int32_t, 16, 8, 1, 128, 128>(int32_t* out, int32_t* src, void* stream);
+template void launchTROWEXPAND<int16_t, 16, 16, 1, 256, 255>(int16_t* out, int16_t* src, void* stream);
+template void launchTROWEXPAND<int8_t, 16, 32, 1, 512, 511>(int8_t* out, int8_t* src, void* stream);
+template void launchTROWEXPAND<int32_t, 16, 8, 1, 128, 127>(int32_t* out, int32_t* src, void* stream);
+template void launchTROWEXPAND<int16_t, 16, 16, 1, 128, 127>(int16_t* out, int16_t* src, void* stream);
+template void launchTROWEXPAND<int8_t, 2, 32, 1, 64, 63>(int8_t* out, int8_t* src, void* stream);

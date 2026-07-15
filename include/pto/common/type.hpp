@@ -48,19 +48,17 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define PTO_DETAIL_STR_(x) #x
 #define PTO_DETAIL_STR(x) PTO_DETAIL_STR_(x)
 
-#define PTO_STATIC_ASSERT_1(cond)                   \
-    static_assert((cond),                           \
-                  "[PTO][SA] Constraint violated. " \
-                  "Condition: " #cond               \
-                  ". "                              \
-                  "Hint: see docs/coding/debug.md and search for " __FILE__ ":" PTO_DETAIL_STR(__LINE__))
+#define PTO_STATIC_ASSERT_1(cond)                 \
+    static_assert(                                \
+        (cond), "[PTO][SA] Constraint violated. " \
+                "Condition: " #cond ". "          \
+                "Hint: see docs/coding/debug.md and search for " __FILE__ ":" PTO_DETAIL_STR(__LINE__))
 
-#define PTO_STATIC_ASSERT_2(cond, msg)        \
-    static_assert((cond), "[PTO][SA] " msg    \
-                          " "                 \
-                          "Condition: " #cond \
-                          ". "                \
-                          "Hint: see docs/coding/debug.md and search for " __FILE__ ":" PTO_DETAIL_STR(__LINE__))
+#define PTO_STATIC_ASSERT_2(cond, msg)   \
+    static_assert(                       \
+        (cond), "[PTO][SA] " msg " "     \
+                "Condition: " #cond ". " \
+                "Hint: see docs/coding/debug.md and search for " __FILE__ ":" PTO_DETAIL_STR(__LINE__))
 
 #define PTO_DETAIL_GET_MACRO(_1, _2, NAME, ...) NAME
 #define PTO_STATIC_ASSERT(...) PTO_DETAIL_GET_MACRO(__VA_ARGS__, PTO_STATIC_ASSERT_2, PTO_STATIC_ASSERT_1)(__VA_ARGS__)
@@ -69,24 +67,26 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <cstdio>
 #include <cstdlib>
 
-#define PTO_CPU_ASSERT_1(cond)                                                                               \
-    do {                                                                                                     \
-        if (!(cond)) {                                                                                       \
-            std::fprintf(stderr,                                                                             \
-                         "[PTO][CA] Constraint violated. Condition: %s. Hint: see docs/coding/debug.md and " \
-                         "search for %s:%d\n",                                                               \
-                         #cond, __FILE__, __LINE__);                                                         \
-            std::abort();                                                                                    \
-        }                                                                                                    \
+#define PTO_CPU_ASSERT_1(cond)                                                                      \
+    do {                                                                                            \
+        if (!(cond)) {                                                                              \
+            std::fprintf(                                                                           \
+                stderr,                                                                             \
+                "[PTO][CA] Constraint violated. Condition: %s. Hint: see docs/coding/debug.md and " \
+                "search for %s:%d\n",                                                               \
+                #cond, __FILE__, __LINE__);                                                         \
+            std::abort();                                                                           \
+        }                                                                                           \
     } while (0)
 
-#define PTO_CPU_ASSERT_2(cond, msg)                                                                                   \
-    do {                                                                                                              \
-        if (!(cond)) {                                                                                                \
-            std::fprintf(stderr, "[PTO][CA] %s Condition: %s. Hint: see docs/coding/debug.md and search for %s:%d\n", \
-                         (msg), #cond, __FILE__, __LINE__);                                                           \
-            std::abort();                                                                                             \
-        }                                                                                                             \
+#define PTO_CPU_ASSERT_2(cond, msg)                                                                                 \
+    do {                                                                                                            \
+        if (!(cond)) {                                                                                              \
+            std::fprintf(                                                                                           \
+                stderr, "[PTO][CA] %s Condition: %s. Hint: see docs/coding/debug.md and search for %s:%d\n", (msg), \
+                #cond, __FILE__, __LINE__);                                                                         \
+            std::abort();                                                                                           \
+        }                                                                                                           \
     } while (0)
 
 #define PTO_CPU_ASSERT(...) PTO_DETAIL_GET_MACRO(__VA_ARGS__, PTO_CPU_ASSERT_2, PTO_CPU_ASSERT_1)(__VA_ARGS__)
@@ -109,8 +109,7 @@ namespace pto {
 struct int4b_t {
     uint8_t storage;
     int4b_t() = default;
-    explicit int4b_t(int32_t value) : storage(static_cast<uint8_t>(value) & 0x0F)
-    {}
+    explicit int4b_t(int32_t value) : storage(static_cast<uint8_t>(value) & 0x0F) {}
     operator int8_t() const
     {
         return (storage & 0x08) ? static_cast<int8_t>(storage | 0xF0) : static_cast<int8_t>(storage & 0x0F);
@@ -121,8 +120,7 @@ struct int4b_t {
 #include <type_traits>
 
 namespace pto {
-enum class TileType
-{
+enum class TileType {
     Vec,
     Mat,
     Left,
@@ -135,29 +133,25 @@ enum class TileType
     Ctrl,
 };
 
-enum class BLayout
-{
+enum class BLayout {
     RowMajor = 0,
     ColMajor = 1,
 };
 
-enum class SLayout
-{
+enum class SLayout {
     NoneBox = 0,
     RowMajor = 1,
     ColMajor = 2,
 };
 
-enum class PrintFormat : uint8_t
-{
+enum class PrintFormat : uint8_t {
     Width8_Precision4 = 0,
     Width8_Precision2 = 1,
     Width10_Precision6 = 2,
 };
 // 01-bits patterns are read from right to left.
 // Right bits are low bits, corresponding to low index positions of data.
-enum class MaskPattern : uint8_t
-{
+enum class MaskPattern : uint8_t {
     // 以下1~7与指令VREDUCEv2的pattern mode保持一致
     P0101 = 1, // 1: 01010101...0101 # 每个repeat内每两个元素取第一个元素
     P1010 = 2, // 2: 10101010...1010 # 每个repeat内每两个元素取第二个元素
@@ -168,8 +162,7 @@ enum class MaskPattern : uint8_t
     P1111 = 7, // 7: 11111111...1111 # 每个repeat内取全部元素
 };
 
-enum class Layout
-{
+enum class Layout {
     ND, // ND RowMajor
     DN, // DN ColMajor
     NZ, // NZ for cube
@@ -193,8 +186,7 @@ enum class Layout
     MAX,
 };
 
-enum class CmpMode : uint8_t
-{
+enum class CmpMode : uint8_t {
     EQ = 0,
     NE = 1,
     LT = 2,
@@ -203,45 +195,49 @@ enum class CmpMode : uint8_t
     GE = 5,
 };
 
-enum class QuantType
-{
+enum class QuantType {
     MXFP8 = 0,
     MXFP4_E2M1 = 1,
     INT8_SYM = 2,
     INT8_ASYM = 3,
 };
 
-enum class QuantScaleAlg
-{
+enum class QuantScaleAlg {
     OCP = 0,
     NV = 1,
 };
 
-enum class VecStoreMode
-{
+// Unified MX-quant algorithm tag: encodes MX destination format
+// (FP8_E4M3 / FP4_E2M1) and the shared-exponent scale algorithm (OCP / NV) in a
+// single enum
+enum class MxQuantAlg {
+    OcpMxFp8E4M3 = 0, // QuantType::MXFP8      + QuantScaleAlg::OCP
+    NvMxFp8E4M3 = 1,  // QuantType::MXFP8      + QuantScaleAlg::NV
+    OcpMxFp4E2M1 = 2, // QuantType::MXFP4_E2M1 + QuantScaleAlg::OCP
+    NvMxFp4E2M1 = 3,  // QuantType::MXFP4_E2M1 + QuantScaleAlg::NV
+};
+
+enum class VecStoreMode {
     ND = 0,
     NZ = 1,
 };
 
 // UF store phase encodes unit flag behavior for accumulator stores.
-enum class STPhase : uint8_t
-{
+enum class STPhase : uint8_t {
     Unspecified = 0x0,
     Partial = 0x2,
     Final = 0x3,
 };
 
 // Accumulate phase for unit-flag aware TMATMUL paths; Unknown is kept as an alias for compatibility.
-enum class AccPhase : uint8_t
-{
+enum class AccPhase : uint8_t {
     Unspecified = 0x0,
     Unknown = Unspecified,
     Partial = 0x2,
     Final = 0x3,
 };
 
-enum VFImplKind : unsigned
-{
+enum VFImplKind : unsigned {
     VFIMPL_DEFAULT = 0, // 默认版本
     VFIMPL_1D_NO_POST_UPDATE = 1,
     VFIMPL_2D_NO_POST_UPDATE = 2,
@@ -249,8 +245,7 @@ enum VFImplKind : unsigned
     VFIMPL_2D_POST_UPDATE = 4,
 };
 
-enum class RoundMode : uint8_t
-{
+enum class RoundMode : uint8_t {
     CAST_NONE = 0,
     CAST_RINT = 1,  // round to nearest, tie to even
     CAST_ROUND = 2, // round to nearest, tie away from zero
@@ -260,20 +255,17 @@ enum class RoundMode : uint8_t
     CAST_ODD = 6,   // round to odd (Von Neumann rounding)
 };
 
-enum class TCopyMode : uint8_t
-{
+enum class TCopyMode : uint8_t {
     SHALLOW_COPY = 0,
     DEEP_COPY = 1,
 };
 
-enum class SyncAllMode : uint8_t
-{
+enum class SyncAllMode : uint8_t {
     Hard = 0,
     Soft = 1,
 };
 
-enum class SyncCoreType : uint8_t
-{
+enum class SyncCoreType : uint8_t {
     AIVOnly = 0,
     AICOnly = 1,
     Mix = 2,
@@ -289,22 +281,19 @@ constexpr int32_t SYNCALL_SOFT_SLOT_INT32 = 8;
 constexpr int32_t SYNCALL_SOFT_BACKOFF_THRESHOLD = 16;
 constexpr int32_t SYNCALL_SOFT_MAX_POLL_ITERATIONS = 1000000;
 
-enum class AccToVecMode : uint8_t
-{
+enum class AccToVecMode : uint8_t {
     SingleModeVec0 = 0,
     SingleModeVec1 = 1,
     DualModeSplitM = 2,
     DualModeSplitN = 3,
 };
 
-enum class ReluPreMode : uint8_t
-{
+enum class ReluPreMode : uint8_t {
     NoRelu = 0,
     NormalRelu = 1,
 };
 
-enum class AtomicType : uint8_t
-{
+enum class AtomicType : uint8_t {
     AtomicNone = 0,
     AtomicAdd = 1,
 };
@@ -313,8 +302,7 @@ enum class AtomicType : uint8_t
 // - Standard values (Null, Zero, Max, Min) use values 0-3
 // - Custom values use bits [32:63] for the float bit pattern
 // - Use PadCustom<-1.0f> helper from constants.hpp for custom values
-enum class PadValue : uint64_t
-{
+enum class PadValue : uint64_t {
     Null = 0,
     Zero = 1,
     Max = 2,
@@ -323,8 +311,7 @@ enum class PadValue : uint64_t
     CustomBase = 0x100000000ULL,
 };
 
-enum class SaturationMode : uint8_t
-{
+enum class SaturationMode : uint8_t {
     // Saturation enabled (default) - CTRL bit 59 = 0
     ON = 0,
 
@@ -332,23 +319,20 @@ enum class SaturationMode : uint8_t
     OFF = 1,
 };
 
-enum class CompactMode
-{
+enum class CompactMode {
     Null,
     Normal,
     RowPlusOne,
     RowAlignedPadding, // apply padding only to the part of ValidRow aligned upward to 16 in TFILLPAD.
 };
-enum class SetFmatrixMode
-{
+enum class SetFmatrixMode {
     FMATRIX_A_AUTO,
     FMATRIX_B_AUTO,
     FMATRIX_A_MANUAL,
     FMATRIX_B_MANUAL,
 };
 
-enum class TileLayoutCustom : uint8_t
-{
+enum class TileLayoutCustom : uint8_t {
     ND,
     DN,
     NZ,
@@ -360,8 +344,7 @@ enum class TileLayoutCustom : uint8_t
 // Enum identifying which byte of a multi-byte element is being histogrammed.
 // BYTE_0 = LSB (bits 7-0), BYTE_3 = MSB (bits 31-24).
 // Radix sort processes MSB-first: BYTE_3 → BYTE_2 → BYTE_1 → BYTE_0.
-enum class HistByte : uint8_t
-{
+enum class HistByte : uint8_t {
     BYTE_0 = 0, // LSB (bits 7-0)
     BYTE_1 = 1, // bits 15-8
     BYTE_2 = 2, // bits 23-16
@@ -374,10 +357,8 @@ union FloatIntUnion {
     UIntegerType i;
 #ifdef __CCE_AICORE__
     T f;
-    constexpr PTO_INTERNAL FloatIntUnion() : f(0.0f)
-    {}
-    constexpr PTO_INTERNAL FloatIntUnion(UIntegerType val) : i(val)
-    {}
+    constexpr PTO_INTERNAL FloatIntUnion() : f(0.0f) {}
+    constexpr PTO_INTERNAL FloatIntUnion(UIntegerType val) : i(val) {}
 #endif
 };
 
@@ -386,119 +367,49 @@ using FloatUnion = FloatIntUnion<float>;
 using HalfUnion = FloatIntUnion<half>;
 #endif
 
-enum class PowAlgorithm : uint8_t
-{
-    DEFAULT,
-    HIGH_PRECISION
-};
+enum class PowAlgorithm : uint8_t { DEFAULT, HIGH_PRECISION };
 
-enum class DivAlgorithm : uint8_t
-{
-    DEFAULT,
-    HIGH_PRECISION
-};
+enum class DivAlgorithm : uint8_t { DEFAULT, HIGH_PRECISION };
 
-enum class SqrtAlgorithm : uint8_t
-{
-    DEFAULT,
-    HIGH_PRECISION
-};
+enum class SqrtAlgorithm : uint8_t { DEFAULT, HIGH_PRECISION };
 
-enum class RsqrtAlgorithm : uint8_t
-{
-    DEFAULT,
-    HIGH_PRECISION
-};
+enum class RsqrtAlgorithm : uint8_t { DEFAULT, HIGH_PRECISION };
 
-enum class RecipAlgorithm : uint8_t
-{
-    DEFAULT,
-    HIGH_PRECISION
-};
+enum class RecipAlgorithm : uint8_t { DEFAULT, HIGH_PRECISION };
 
-enum class ExpAlgorithm : uint8_t
-{
-    DEFAULT,
-    HIGH_PRECISION
-};
+enum class ExpAlgorithm : uint8_t { DEFAULT, HIGH_PRECISION };
 
-enum class LogAlgorithm : uint8_t
-{
-    DEFAULT,
-    HIGH_PRECISION
-};
+enum class LogAlgorithm : uint8_t { DEFAULT, HIGH_PRECISION };
 
-enum class FmodAlgorithm : uint8_t
-{
-    DEFAULT,
-    HIGH_PRECISION
-};
+enum class FmodAlgorithm : uint8_t { DEFAULT, HIGH_PRECISION };
 
-enum class FmodSAlgorithm : uint8_t
-{
-    DEFAULT,
-    HIGH_PRECISION
-};
+enum class FmodSAlgorithm : uint8_t { DEFAULT, HIGH_PRECISION };
 
-enum class RemAlgorithm : uint8_t
-{
-    DEFAULT,
-    HIGH_PRECISION
-};
+enum class RemAlgorithm : uint8_t { DEFAULT, HIGH_PRECISION };
 
-enum class RemSAlgorithm : uint8_t
-{
-    DEFAULT,
-    HIGH_PRECISION
-};
+enum class RemSAlgorithm : uint8_t { DEFAULT, HIGH_PRECISION };
 
-enum class ScatterAxis : uint8_t
-{
-    SCATTER_ROW = 0,
-    SCATTER_COL = 1
-};
+enum class ScatterAxis : uint8_t { SCATTER_ROW = 0, SCATTER_COL = 1 };
 
-enum class ScatterAtomicOp : uint8_t
-{
-    None = 0,
-    Add = 1,
-    Max = 2,
-    Min = 3
-};
+enum class ScatterAtomicOp : uint8_t { None = 0, Add = 1, Max = 2, Min = 3 };
 
-enum class ScatterOOB : uint8_t
-{
-    Undefined = 0,
-    Skip = 1,
-    Clamp = 2,
-    Wrap = 3
-};
+enum class ScatterOOB : uint8_t { Undefined = 0, Skip = 1, Clamp = 2, Wrap = 3 };
 
-enum class ScatterConflict : uint8_t
-{
-    Last = 0,
-    Default = 1
-};
+enum class ScatterConflict : uint8_t { Last = 0, Default = 1 };
 
-enum class GatherAxis : uint8_t
-{
-    GATHER_ROW = 0,
-    GATHER_COL = 1
-};
+enum class GatherAxis : uint8_t { GATHER_ROW = 0, GATHER_COL = 1 };
 
-enum class GatherOOB : uint8_t
-{
-    Undefined = 0,
-    Clamp = 1,
-    Wrap = 2,
-    Zero = 3
-};
+enum class GatherOOB : uint8_t { Undefined = 0, Clamp = 1, Wrap = 2, Zero = 3 };
 
-enum class Coalesce : uint8_t
-{
-    Row = 0,
-    Elem = 1
+#ifndef TINSERT_MODE_DEFINED
+#define TINSERT_MODE_DEFINED
+enum class TInsertMode : uint8_t {
+    SPLIT2 = 2,
+    SPLIT4 = 3,
 };
+#endif
+
+enum class Coalesce : uint8_t { Row = 0, Elem = 1 };
 
 namespace GlobalTensorDim {
 constexpr int DIM_0 = 0;

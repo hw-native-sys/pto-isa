@@ -16,19 +16,17 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <typename T, int dstVR, int dstVC, int src0VR, int src0VC, int src1VR, int src1VC>
-void LaunchTPartAdd(T *out, T *src0, T *src1, void *stream);
+void LaunchTPartAdd(T* out, T* src0, T* src1, void* stream);
 
 class TPARTADDTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -50,13 +48,13 @@ void test_tpartadd()
     T *dstHost, *src0Host, *src1Host;
     T *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&src0Host), src0FileSize);
-    aclrtMallocHost((void **)(&src1Host), src1FileSize);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMallocHost((void**)(&src0Host), src0FileSize);
+    aclrtMallocHost((void**)(&src1Host), src1FileSize);
 
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, src0FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, src1FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, src0FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, src1FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input1.bin", src0FileSize, src0Host, src0FileSize);
     ReadFile(GetGoldenDir() + "/input2.bin", src1FileSize, src1Host, src1FileSize);
@@ -93,63 +91,18 @@ void test_tpartadd()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TPARTADDTest, case_float_64x64_64x64_64x64)
-{
-    test_tpartadd<float, 64, 64, 64, 64, 64, 64>();
-}
-TEST_F(TPARTADDTest, case_float_64x64_8x64_64x64)
-{
-    test_tpartadd<float, 64, 64, 8, 64, 64, 64>();
-}
-TEST_F(TPARTADDTest, case_float_64x64_64x8_64x64)
-{
-    test_tpartadd<float, 64, 64, 64, 8, 64, 64>();
-}
-TEST_F(TPARTADDTest, case_float_64x64_64x64_8x64)
-{
-    test_tpartadd<float, 64, 64, 64, 64, 8, 64>();
-}
-TEST_F(TPARTADDTest, case_float_64x64_64x64_64x8)
-{
-    test_tpartadd<float, 64, 64, 64, 64, 64, 8>();
-}
-TEST_F(TPARTADDTest, case_half_8x48_8x16_8x48)
-{
-    test_tpartadd<aclFloat16, 8, 48, 8, 16, 8, 48>();
-}
-TEST_F(TPARTADDTest, case_half_8x768_8x512_8x768)
-{
-    test_tpartadd<aclFloat16, 8, 768, 8, 512, 8, 768>();
-}
-TEST_F(TPARTADDTest, case_int16_8x48_8x48_8x16)
-{
-    test_tpartadd<int16_t, 8, 48, 8, 48, 8, 16>();
-}
-TEST_F(TPARTADDTest, case_int32_64x64_8x64_64x64)
-{
-    test_tpartadd<int32_t, 64, 64, 8, 64, 64, 64>();
-}
-TEST_F(TPARTADDTest, case_uint32_64x64_8x64_64x64)
-{
-    test_tpartadd<uint32_t, 64, 64, 8, 64, 64, 64>();
-}
-TEST_F(TPARTADDTest, case_uint16_8x48_8x48_8x16)
-{
-    test_tpartadd<uint16_t, 8, 48, 8, 48, 8, 16>();
-}
-TEST_F(TPARTADDTest, case_int8_64x64_8x64_64x64)
-{
-    test_tpartadd<int8_t, 64, 64, 8, 64, 64, 64>();
-}
-TEST_F(TPARTADDTest, case_uint8_64x64_8x64_64x64)
-{
-    test_tpartadd<uint8_t, 64, 64, 8, 64, 64, 64>();
-}
-TEST_F(TPARTADDTest, case_int32_8x768_8x512_8x768)
-{
-    test_tpartadd<int32_t, 8, 768, 8, 512, 8, 768>();
-}
-TEST_F(TPARTADDTest, case_half_64x64_8x64_64x64)
-{
-    test_tpartadd<aclFloat16, 64, 64, 8, 64, 64, 64>();
-}
+TEST_F(TPARTADDTest, case_float_64x64_64x64_64x64) { test_tpartadd<float, 64, 64, 64, 64, 64, 64>(); }
+TEST_F(TPARTADDTest, case_float_64x64_8x64_64x64) { test_tpartadd<float, 64, 64, 8, 64, 64, 64>(); }
+TEST_F(TPARTADDTest, case_float_64x64_64x8_64x64) { test_tpartadd<float, 64, 64, 64, 8, 64, 64>(); }
+TEST_F(TPARTADDTest, case_float_64x64_64x64_8x64) { test_tpartadd<float, 64, 64, 64, 64, 8, 64>(); }
+TEST_F(TPARTADDTest, case_float_64x64_64x64_64x8) { test_tpartadd<float, 64, 64, 64, 64, 64, 8>(); }
+TEST_F(TPARTADDTest, case_half_8x48_8x16_8x48) { test_tpartadd<aclFloat16, 8, 48, 8, 16, 8, 48>(); }
+TEST_F(TPARTADDTest, case_half_8x768_8x512_8x768) { test_tpartadd<aclFloat16, 8, 768, 8, 512, 8, 768>(); }
+TEST_F(TPARTADDTest, case_int16_8x48_8x48_8x16) { test_tpartadd<int16_t, 8, 48, 8, 48, 8, 16>(); }
+TEST_F(TPARTADDTest, case_int32_64x64_8x64_64x64) { test_tpartadd<int32_t, 64, 64, 8, 64, 64, 64>(); }
+TEST_F(TPARTADDTest, case_uint32_64x64_8x64_64x64) { test_tpartadd<uint32_t, 64, 64, 8, 64, 64, 64>(); }
+TEST_F(TPARTADDTest, case_uint16_8x48_8x48_8x16) { test_tpartadd<uint16_t, 8, 48, 8, 48, 8, 16>(); }
+TEST_F(TPARTADDTest, case_int8_64x64_8x64_64x64) { test_tpartadd<int8_t, 64, 64, 8, 64, 64, 64>(); }
+TEST_F(TPARTADDTest, case_uint8_64x64_8x64_64x64) { test_tpartadd<uint8_t, 64, 64, 8, 64, 64, 64>(); }
+TEST_F(TPARTADDTest, case_int32_8x768_8x512_8x768) { test_tpartadd<int32_t, 8, 768, 8, 512, 8, 768>(); }
+TEST_F(TPARTADDTest, case_half_64x64_8x64_64x64) { test_tpartadd<aclFloat16, 64, 64, 8, 64, 64, 64>(); }

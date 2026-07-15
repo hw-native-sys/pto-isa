@@ -15,13 +15,14 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int vRows, int vCols>
-__global__ AICORE void runTPairReduceSum(__gm__ T __out__ *out, __gm__ T __in__ *src0)
+__global__ AICORE void runTPairReduceSum(__gm__ T __out__* out, __gm__ T __in__* src0)
 {
     using DynShape = pto::Shape<-1, -1, -1, -1, -1>;
     using DynStride = pto::Stride<-1, -1, -1, -1, -1>;
     using GlobalData = GlobalTensor<T, DynShape, DynStride>;
-    GlobalData dstGlobal(out, pto::Shape(1, 1, 1, vRows, vCols),
-                         pto::Stride(dstTileH * dstTileW, dstTileH * dstTileW, dstTileH * dstTileW, dstTileW, 1));
+    GlobalData dstGlobal(
+        out, pto::Shape(1, 1, 1, vRows, vCols),
+        pto::Stride(dstTileH * dstTileW, dstTileH * dstTileW, dstTileH * dstTileW, dstTileW, 1));
     GlobalData src0Global(
         src0, pto::Shape(1, 1, 1, vRows, vCols),
         pto::Stride(src0TileH * src0TileW, src0TileH * src0TileW, src0TileH * src0TileW, src0TileW, 1));
@@ -48,25 +49,25 @@ __global__ AICORE void runTPairReduceSum(__gm__ T __out__ *out, __gm__ T __in__ 
 }
 
 template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int vRows, int vCols>
-void LaunchTPairReduceSum(T *out, T *src0, void *stream)
+void LaunchTPairReduceSum(T* out, T* src0, void* stream)
 {
     runTPairReduceSum<T, dstTileH, dstTileW, src0TileH, src0TileW, vRows, vCols><<<1, nullptr, stream>>>(out, src0);
 }
 
 template <int dstTileH, int dstTileW, int src0TileH, int src0TileW, int vRows, int vCols>
-void LaunchTPairReduceSumHalf(aclFloat16 *out, aclFloat16 *src0, void *stream)
+void LaunchTPairReduceSumHalf(aclFloat16* out, aclFloat16* src0, void* stream)
 {
     runTPairReduceSum<half, dstTileH, dstTileW, src0TileH, src0TileW, vRows, vCols>
-        <<<1, nullptr, stream>>>((half *)(out), (half *)(src0));
+        <<<1, nullptr, stream>>>((half*)(out), (half*)(src0));
 }
 
-template void LaunchTPairReduceSum<float, 32, 64, 32, 64, 32, 64>(float *out, float *src0, void *stream);
-template void LaunchTPairReduceSum<float, 32, 128, 32, 128, 32, 128>(float *out, float *src0, void *stream);
-template void LaunchTPairReduceSumHalf<8, 256, 8, 256, 8, 256>(aclFloat16 *out, aclFloat16 *src0, void *stream);
-template void LaunchTPairReduceSumHalf<8, 64, 8, 128, 8, 64>(aclFloat16 *out, aclFloat16 *src0, void *stream);
-template void LaunchTPairReduceSum<float, 8, 32, 8, 64, 8, 32>(float *out, float *src0, void *stream);
-template void LaunchTPairReduceSumHalf<8, 64, 8, 128, 8, 63>(aclFloat16 *out, aclFloat16 *src0, void *stream);
-template void LaunchTPairReduceSum<float, 8, 32, 8, 64, 8, 31>(float *out, float *src0, void *stream);
-template void LaunchTPairReduceSumHalf<4, 128, 4, 128, 2, 106>(aclFloat16 *out, aclFloat16 *src0, void *stream);
-template void LaunchTPairReduceSum<float, 8, 128, 8, 128, 8, 127>(float *out, float *src0, void *stream);
-template void LaunchTPairReduceSumHalf<8, 256, 8, 256, 8, 255>(aclFloat16 *out, aclFloat16 *src0, void *stream);
+template void LaunchTPairReduceSum<float, 32, 64, 32, 64, 32, 64>(float* out, float* src0, void* stream);
+template void LaunchTPairReduceSum<float, 32, 128, 32, 128, 32, 128>(float* out, float* src0, void* stream);
+template void LaunchTPairReduceSumHalf<8, 256, 8, 256, 8, 256>(aclFloat16* out, aclFloat16* src0, void* stream);
+template void LaunchTPairReduceSumHalf<8, 64, 8, 128, 8, 64>(aclFloat16* out, aclFloat16* src0, void* stream);
+template void LaunchTPairReduceSum<float, 8, 32, 8, 64, 8, 32>(float* out, float* src0, void* stream);
+template void LaunchTPairReduceSumHalf<8, 64, 8, 128, 8, 63>(aclFloat16* out, aclFloat16* src0, void* stream);
+template void LaunchTPairReduceSum<float, 8, 32, 8, 64, 8, 31>(float* out, float* src0, void* stream);
+template void LaunchTPairReduceSumHalf<4, 128, 4, 128, 2, 106>(aclFloat16* out, aclFloat16* src0, void* stream);
+template void LaunchTPairReduceSum<float, 8, 128, 8, 128, 8, 127>(float* out, float* src0, void* stream);
+template void LaunchTPairReduceSumHalf<8, 256, 8, 256, 8, 255>(aclFloat16* out, aclFloat16* src0, void* stream);

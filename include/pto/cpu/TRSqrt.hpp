@@ -18,15 +18,17 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 template <auto PrecisionType = RsqrtAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TRSQRT_IMPL(TileDataDst &dst, TileDataSrc &src)
+PTO_INTERNAL void TRSQRT_IMPL(TileDataDst& dst, TileDataSrc& src)
 {
-    static_assert((std::is_same<typename TileDataDst::DType, half>::value &&
-                   std::is_same<typename TileDataSrc::DType, half>::value) ||
-                      (std::is_same<typename TileDataSrc::DType, float>::value &&
-                       std::is_same<typename TileDataDst::DType, float>::value),
-                  "TRSQRT: Invalid data type");
-    static_assert(TileDataSrc::ValidRow == TileDataDst::ValidRow && TileDataSrc::ValidCol == TileDataDst::ValidCol,
-                  "TRSQRT: Src valid row/col != Dst valid row/col");
+    static_assert(
+        (std::is_same<typename TileDataDst::DType, half>::value &&
+         std::is_same<typename TileDataSrc::DType, half>::value) ||
+            (std::is_same<typename TileDataSrc::DType, float>::value &&
+             std::is_same<typename TileDataDst::DType, float>::value),
+        "TRSQRT: Invalid data type");
+    static_assert(
+        TileDataSrc::ValidRow == TileDataDst::ValidRow && TileDataSrc::ValidCol == TileDataDst::ValidCol,
+        "TRSQRT: Src valid row/col != Dst valid row/col");
     const std::size_t rows = static_cast<std::size_t>(dst.GetValidRow());
     const std::size_t cols = static_cast<std::size_t>(dst.GetValidCol());
     if (rows == 0 || cols == 0) {
@@ -42,9 +44,9 @@ PTO_INTERNAL void TRSQRT_IMPL(TileDataDst &dst, TileDataSrc &src)
     });
 }
 
-template <auto PrecisionType = RsqrtAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc,
-          typename TmpTileData>
-PTO_INTERNAL void TRSQRT_IMPL(TileDataDst &dst, TileDataSrc &src, TmpTileData &tmp)
+template <
+    auto PrecisionType = RsqrtAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc, typename TmpTileData>
+PTO_INTERNAL void TRSQRT_IMPL(TileDataDst& dst, TileDataSrc& src, TmpTileData& tmp)
 {
     TRSQRT_IMPL(dst, src);
 }

@@ -29,17 +29,19 @@ void TSqrt_Impl(TileDataDst dst, TileDataSrc src, int validRow, int validCol)
 }
 
 template <auto PrecisionType = SqrtAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TSQRT_IMPL(TileDataDst &dst, TileDataSrc &src)
+PTO_INTERNAL void TSQRT_IMPL(TileDataDst& dst, TileDataSrc& src)
 {
-    static_assert((std::is_same<typename TileDataDst::DType, bfloat16_t>::value &&
-                   std::is_same<typename TileDataSrc::DType, bfloat16_t>::value) ||
-                      (std::is_same<typename TileDataDst::DType, half>::value &&
-                       std::is_same<typename TileDataSrc::DType, half>::value) ||
-                      (std::is_same<typename TileDataSrc::DType, float>::value &&
-                       std::is_same<typename TileDataDst::DType, float>::value),
-                  "TSQRT: Invalid data type");
-    static_assert(TileDataSrc::ValidRow == TileDataDst::ValidRow && TileDataSrc::ValidCol == TileDataDst::ValidCol,
-                  "TSQRT: Src valid row/col != Dst valid row/col");
+    static_assert(
+        (std::is_same<typename TileDataDst::DType, bfloat16_t>::value &&
+         std::is_same<typename TileDataSrc::DType, bfloat16_t>::value) ||
+            (std::is_same<typename TileDataDst::DType, half>::value &&
+             std::is_same<typename TileDataSrc::DType, half>::value) ||
+            (std::is_same<typename TileDataSrc::DType, float>::value &&
+             std::is_same<typename TileDataDst::DType, float>::value),
+        "TSQRT: Invalid data type");
+    static_assert(
+        TileDataSrc::ValidRow == TileDataDst::ValidRow && TileDataSrc::ValidCol == TileDataDst::ValidCol,
+        "TSQRT: Src valid row/col != Dst valid row/col");
     TSqrt_Impl<TileDataDst, TileDataSrc>(dst, src, dst.GetValidRow(), dst.GetValidCol());
 }
 } // namespace pto

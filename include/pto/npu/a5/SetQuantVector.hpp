@@ -16,13 +16,13 @@ namespace pto {
 template <typename FpTileData>
 __tf__ PTO_INTERNAL void SET_QUANT_VECTOR(typename FpTileData::TileDType __in__ fp)
 {
-    __fbuf__ typename FpTileData::DType *dstAddrFp = (__fbuf__ typename FpTileData::DType *)__cce_get_tile_ptr(fp);
+    __fbuf__ typename FpTileData::DType* dstAddrFp = (__fbuf__ typename FpTileData::DType*)__cce_get_tile_ptr(fp);
     uint64_t deqTensorAddr = ((uint64_t)dstAddrFp >> static_cast<uint64_t>(7)) << 8;
     set_fpc(deqTensorAddr);
 }
 
 template <typename FpTileData>
-PTO_INTERNAL void SET_QUANT_VECTOR_IMPL(FpTileData &fpTile)
+PTO_INTERNAL void SET_QUANT_VECTOR_IMPL(FpTileData& fpTile)
 {
     static_assert(FpTileData::Loc == TileType::Scaling, "Fix: SET_QUANT_VECTOR only supports Scaling input tile type.");
     SET_QUANT_VECTOR<FpTileData>(fpTile.data());

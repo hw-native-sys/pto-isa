@@ -37,8 +37,8 @@ constexpr float DEQ_SHIFT_RIGHT_17_BIT = 1.0f / 131072.0f;
 constexpr float DEQ_SHIFT_LEFT_17_BIT = 131072.0f;
 
 template <typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void ComputeAddDeqReluConvConfig(unsigned &elementsPerRepeat, unsigned &dstRepeatStride,
-                                              unsigned &srcRepeatStride)
+PTO_INTERNAL void ComputeAddDeqReluConvConfig(
+    unsigned& elementsPerRepeat, unsigned& dstRepeatStride, unsigned& srcRepeatStride)
 {
     constexpr unsigned dstSize = sizeof(typename TileDataDst::DType);
     constexpr unsigned srcSize = sizeof(typename TileDataSrc::DType);
@@ -48,14 +48,14 @@ PTO_INTERNAL void ComputeAddDeqReluConvConfig(unsigned &elementsPerRepeat, unsig
     elementsPerRepeat = REPEAT_BYTE / repeatWidth;
 }
 
-PTO_INTERNAL void AddDeqReluComputeBlock(__ubuf__ half *dst, __ubuf__ int32_t *src0, __ubuf__ int32_t *src1,
-                                         __ubuf__ int32_t *tmp, float deqScale, uint8_t repeatCount,
-                                         uint8_t convDstRepStride, uint8_t convSrcRepStride)
+PTO_INTERNAL void AddDeqReluComputeBlock(
+    __ubuf__ half* dst, __ubuf__ int32_t* src0, __ubuf__ int32_t* src1, __ubuf__ int32_t* tmp, float deqScale,
+    uint8_t repeatCount, uint8_t convDstRepStride, uint8_t convSrcRepStride)
 {
     vadd(tmp, src0, src1, repeatCount, 1, 1, 1, 8, 8, 8);
     pipe_barrier(PIPE_V);
 
-    __ubuf__ float *floatBuf = reinterpret_cast<__ubuf__ float *>(src0);
+    __ubuf__ float* floatBuf = reinterpret_cast<__ubuf__ float*>(src0);
     vconv_s322f32(floatBuf, tmp, repeatCount, 1, 1, 8, 8);
     pipe_barrier(PIPE_V);
 
@@ -68,11 +68,11 @@ PTO_INTERNAL void AddDeqReluComputeBlock(__ubuf__ half *dst, __ubuf__ int32_t *s
     vmuls(floatBuf, floatBuf, static_cast<float>(DEQ_SHIFT_LEFT_17_BIT), repeatCount, 1, 1, 8, 8);
     pipe_barrier(PIPE_V);
 
-    __ubuf__ float *zeroBuf = reinterpret_cast<__ubuf__ float *>(tmp);
+    __ubuf__ float* zeroBuf = reinterpret_cast<__ubuf__ float*>(tmp);
     vector_dup(zeroBuf, 0.0f, repeatCount, 1, 1, 8, 0);
     pipe_barrier(PIPE_V);
 
-    __ubuf__ float *reluBuf = reinterpret_cast<__ubuf__ float *>(src1);
+    __ubuf__ float* reluBuf = reinterpret_cast<__ubuf__ float*>(src1);
     vmax(reluBuf, floatBuf, zeroBuf, repeatCount, 1, 1, 1, 8, 8, 8);
     pipe_barrier(PIPE_V);
 
@@ -80,18 +80,18 @@ PTO_INTERNAL void AddDeqReluComputeBlock(__ubuf__ half *dst, __ubuf__ int32_t *s
     pipe_barrier(PIPE_V);
 }
 
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataTmp, unsigned SS0,
-          unsigned SS1, unsigned TS, unsigned DS>
-__tf__ PTO_INTERNAL void TAddDeqRelu(typename TileDataDst::TileDType __out__ dstData,
-                                     typename TileDataSrc0::TileDType __in__ src0Data,
-                                     typename TileDataSrc1::TileDType __in__ src1Data,
-                                     typename TileDataTmp::TileDType __in__ tmpData, float deqScale, unsigned validRow,
-                                     unsigned validCol)
+template <
+    typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataTmp, unsigned SS0,
+    unsigned SS1, unsigned TS, unsigned DS>
+__tf__ PTO_INTERNAL void TAddDeqRelu(
+    typename TileDataDst::TileDType __out__ dstData, typename TileDataSrc0::TileDType __in__ src0Data,
+    typename TileDataSrc1::TileDType __in__ src1Data, typename TileDataTmp::TileDType __in__ tmpData, float deqScale,
+    unsigned validRow, unsigned validCol)
 {
-    __ubuf__ half *dstPtr = (__ubuf__ half *)__cce_get_tile_ptr(dstData);
-    __ubuf__ int32_t *src0Ptr = (__ubuf__ int32_t *)__cce_get_tile_ptr(src0Data);
-    __ubuf__ int32_t *src1Ptr = (__ubuf__ int32_t *)__cce_get_tile_ptr(src1Data);
-    __ubuf__ int32_t *tmpPtr = (__ubuf__ int32_t *)__cce_get_tile_ptr(tmpData);
+    __ubuf__ half* dstPtr = (__ubuf__ half*)__cce_get_tile_ptr(dstData);
+    __ubuf__ int32_t* src0Ptr = (__ubuf__ int32_t*)__cce_get_tile_ptr(src0Data);
+    __ubuf__ int32_t* src1Ptr = (__ubuf__ int32_t*)__cce_get_tile_ptr(src1Data);
+    __ubuf__ int32_t* tmpPtr = (__ubuf__ int32_t*)__cce_get_tile_ptr(tmpData);
 
     unsigned elementsPerRepeat, convDstRepStride, convSrcRepStride;
     ComputeAddDeqReluConvConfig<TileDataDst, TileDataSrc0>(elementsPerRepeat, convDstRepStride, convSrcRepStride);
@@ -105,15 +105,15 @@ __tf__ PTO_INTERNAL void TAddDeqRelu(typename TileDataDst::TileDType __out__ dst
         for (unsigned i = 0; i < validRow; i++) {
             for (unsigned j = 0; j < numLoop; j++) {
                 unsigned span = j * elementsPerRepeat * REPEAT_MAX;
-                AddDeqReluComputeBlock(dstPtr + i * DS + span, src0Ptr + i * SS0 + span, src1Ptr + i * SS1 + span,
-                                       tmpPtr + i * TS + span, deqScale, (uint8_t)REPEAT_MAX, (uint8_t)convDstRepStride,
-                                       (uint8_t)convSrcRepStride);
+                AddDeqReluComputeBlock(
+                    dstPtr + i * DS + span, src0Ptr + i * SS0 + span, src1Ptr + i * SS1 + span, tmpPtr + i * TS + span,
+                    deqScale, (uint8_t)REPEAT_MAX, (uint8_t)convDstRepStride, (uint8_t)convSrcRepStride);
             }
             if (remainAfterLoop > 0) {
                 unsigned span = numLoop * elementsPerRepeat * REPEAT_MAX;
-                AddDeqReluComputeBlock(dstPtr + i * DS + span, src0Ptr + i * SS0 + span, src1Ptr + i * SS1 + span,
-                                       tmpPtr + i * TS + span, deqScale, (uint8_t)remainAfterLoop,
-                                       (uint8_t)convDstRepStride, (uint8_t)convSrcRepStride);
+                AddDeqReluComputeBlock(
+                    dstPtr + i * DS + span, src0Ptr + i * SS0 + span, src1Ptr + i * SS1 + span, tmpPtr + i * TS + span,
+                    deqScale, (uint8_t)remainAfterLoop, (uint8_t)convDstRepStride, (uint8_t)convSrcRepStride);
             }
         }
     }
@@ -122,17 +122,17 @@ __tf__ PTO_INTERNAL void TAddDeqRelu(typename TileDataDst::TileDType __out__ dst
         unsigned base = numRepeatPerLine * elementsPerRepeat;
         SetContinuousMask(numRemainPerLine);
         for (unsigned i = 0; i < validRow; i++) {
-            AddDeqReluComputeBlock(dstPtr + i * DS + base, src0Ptr + i * SS0 + base, src1Ptr + i * SS1 + base,
-                                   tmpPtr + i * TS + base, deqScale, 1, (uint8_t)convDstRepStride,
-                                   (uint8_t)convSrcRepStride);
+            AddDeqReluComputeBlock(
+                dstPtr + i * DS + base, src0Ptr + i * SS0 + base, src1Ptr + i * SS1 + base, tmpPtr + i * TS + base,
+                deqScale, 1, (uint8_t)convDstRepStride, (uint8_t)convSrcRepStride);
         }
         set_vector_mask(-1, -1);
     }
 }
 
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataTmp>
-PTO_INTERNAL void TAddDeqReluCheck(const TileDataDst &dst, const TileDataSrc0 &src0, const TileDataSrc1 &src1,
-                                   const TileDataTmp &tmp)
+PTO_INTERNAL void TAddDeqReluCheck(
+    const TileDataDst& dst, const TileDataSrc0& src0, const TileDataSrc1& src1, const TileDataTmp& tmp)
 {
     static_assert(std::is_same<typename TileDataSrc0::DType, int32_t>::value, "Fix: TADDDEQRELU src0 must be int32_t.");
     static_assert(std::is_same<typename TileDataSrc1::DType, int32_t>::value, "Fix: TADDDEQRELU src1 must be int32_t.");
@@ -141,23 +141,27 @@ PTO_INTERNAL void TAddDeqReluCheck(const TileDataDst &dst, const TileDataSrc0 &s
     static_assert(
         TileDataDst::isRowMajor && TileDataSrc0::isRowMajor && TileDataSrc1::isRowMajor && TileDataTmp::isRowMajor,
         "Fix: TADDDEQRELU only supports row major layout.");
-    static_assert(TileDataDst::Loc == TileType::Vec && TileDataSrc0::Loc == TileType::Vec &&
-                      TileDataSrc1::Loc == TileType::Vec && TileDataTmp::Loc == TileType::Vec,
-                  "Fix: TADDDEQRELU tiles must live in TileType::Vec.");
+    static_assert(
+        TileDataDst::Loc == TileType::Vec && TileDataSrc0::Loc == TileType::Vec && TileDataSrc1::Loc == TileType::Vec &&
+            TileDataTmp::Loc == TileType::Vec,
+        "Fix: TADDDEQRELU tiles must live in TileType::Vec.");
     unsigned validRow = dst.GetValidRow();
     unsigned validCol = dst.GetValidCol();
     PTO_ASSERT(validRow > 0 && validCol > 0, "Fix: TADDDEQRELU valid rows and columns must be greater than 0.");
-    PTO_ASSERT(src0.GetValidRow() == validRow && src0.GetValidCol() == validCol,
-               "Fix: TADDDEQRELU src0 valid shape mismatch with dst.");
-    PTO_ASSERT(src1.GetValidRow() == validRow && src1.GetValidCol() == validCol,
-               "Fix: TADDDEQRELU src1 valid shape mismatch with dst.");
-    PTO_ASSERT(tmp.GetValidRow() >= validRow && tmp.GetValidCol() >= validCol,
-               "Fix: TADDDEQRELU tmp must be at least as large as dst.");
+    PTO_ASSERT(
+        src0.GetValidRow() == validRow && src0.GetValidCol() == validCol,
+        "Fix: TADDDEQRELU src0 valid shape mismatch with dst.");
+    PTO_ASSERT(
+        src1.GetValidRow() == validRow && src1.GetValidCol() == validCol,
+        "Fix: TADDDEQRELU src1 valid shape mismatch with dst.");
+    PTO_ASSERT(
+        tmp.GetValidRow() >= validRow && tmp.GetValidCol() >= validCol,
+        "Fix: TADDDEQRELU tmp must be at least as large as dst.");
 }
 
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataTmp>
-PTO_INTERNAL void TADDDEQRELU_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, float deqScale,
-                                   TileDataTmp &tmp)
+PTO_INTERNAL void TADDDEQRELU_IMPL(
+    TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, float deqScale, TileDataTmp& tmp)
 {
     TAddDeqReluCheck<TileDataDst, TileDataSrc0, TileDataSrc1, TileDataTmp>(dst, src0, src1, tmp);
     unsigned validRow = dst.GetValidRow();

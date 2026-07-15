@@ -13,10 +13,12 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "acl/acl.h"
 
 using namespace pto;
-template <typename dstDType, typename srcDType, int dstRows, int dstCols, int srcRows, int srcCols, int dstValidRows,
-          int dstValidCols, int paraRows, int paraCols>
-__global__ AICORE void runTDequant(__gm__ dstDType __out__ *out, __gm__ srcDType __in__ *src,
-                                   __gm__ dstDType __in__ *scale, __gm__ dstDType __in__ *offset)
+template <
+    typename dstDType, typename srcDType, int dstRows, int dstCols, int srcRows, int srcCols, int dstValidRows,
+    int dstValidCols, int paraRows, int paraCols>
+__global__ AICORE void runTDequant(
+    __gm__ dstDType __out__* out, __gm__ srcDType __in__* src, __gm__ dstDType __in__* scale,
+    __gm__ dstDType __in__* offset)
 {
     using DstGlobalData =
         GlobalTensor<dstDType, Shape<1, 1, 1, dstValidRows, dstValidCols>, pto::Stride<1, 1, 1, dstCols, 1>>;
@@ -64,35 +66,34 @@ __global__ AICORE void runTDequant(__gm__ dstDType __out__ *out, __gm__ srcDType
     out = dstGlobal.data();
 }
 
-template <typename dstDType, typename srcDType, int dstRows, int dstCols, int srcRows, int srcCols, int dstValidRows,
-          int dstValidCols, int paraRows, int paraCols>
-void LaunchTDequant(dstDType *out, srcDType *src, dstDType *scale, dstDType *offset, void *stream)
+template <
+    typename dstDType, typename srcDType, int dstRows, int dstCols, int srcRows, int srcCols, int dstValidRows,
+    int dstValidCols, int paraRows, int paraCols>
+void LaunchTDequant(dstDType* out, srcDType* src, dstDType* scale, dstDType* offset, void* stream)
 {
     runTDequant<dstDType, srcDType, dstRows, dstCols, srcRows, srcCols, dstValidRows, dstValidCols, paraRows, paraCols>
         <<<1, nullptr, stream>>>(out, src, scale, offset);
 }
 
-template void LaunchTDequant<float, int8_t, 32, 32, 32, 32, 32, 32, 32, 32>(float *out, int8_t *src, float *scale,
-                                                                            float *offset, void *stream);
-template void LaunchTDequant<float, int16_t, 32, 32, 32, 32, 32, 32, 32, 32>(float *out, int16_t *src, float *scale,
-                                                                             float *offset, void *stream);
-template void LaunchTDequant<float, int8_t, 64, 64, 32, 64, 31, 31, 48, 32>(float *out, int8_t *src, float *scale,
-                                                                            float *offset, void *stream);
-template void LaunchTDequant<float, int16_t, 32, 32, 16, 32, 15, 15, 24, 16>(float *out, int16_t *src, float *scale,
-                                                                             float *offset, void *stream);
-template void LaunchTDequant<float, int8_t, 64, 128, 32, 128, 31, 62, 48, 32>(float *out, int8_t *src, float *scale,
-                                                                              float *offset, void *stream);
-template void LaunchTDequant<float, int16_t, 4, 256, 4, 256, 4, 255, 4, 16>(float *out, int16_t *src, float *scale,
-                                                                            float *offset, void *stream);
-template void LaunchTDequant<float, int8_t, 2, 128, 2, 128, 2, 128, 2, 128>(float *out, int8_t *src, float *scale,
-                                                                            float *offset, void *stream);
-template void LaunchTDequant<float, int8_t, 2, 128, 2, 128, 2, 127, 2, 128>(float *out, int8_t *src, float *scale,
-                                                                            float *offset, void *stream);
-template void LaunchTDequant<float, int8_t, 2, 512, 2, 512, 2, 511, 2, 512>(float *out, int8_t *src, float *scale,
-                                                                            float *offset, void *stream);
-template void LaunchTDequant<float, int8_t, 1, 12288, 1, 12288, 1, 12288, 1, 12288>(float *out, int8_t *src,
-                                                                                    float *scale, float *offset,
-                                                                                    void *stream);
-template void LaunchTDequant<float, int16_t, 1, 12288, 1, 12288, 1, 12288, 1, 12288>(float *out, int16_t *src,
-                                                                                     float *scale, float *offset,
-                                                                                     void *stream);
+template void LaunchTDequant<float, int8_t, 32, 32, 32, 32, 32, 32, 32, 32>(
+    float* out, int8_t* src, float* scale, float* offset, void* stream);
+template void LaunchTDequant<float, int16_t, 32, 32, 32, 32, 32, 32, 32, 32>(
+    float* out, int16_t* src, float* scale, float* offset, void* stream);
+template void LaunchTDequant<float, int8_t, 64, 64, 32, 64, 31, 31, 48, 32>(
+    float* out, int8_t* src, float* scale, float* offset, void* stream);
+template void LaunchTDequant<float, int16_t, 32, 32, 16, 32, 15, 15, 24, 16>(
+    float* out, int16_t* src, float* scale, float* offset, void* stream);
+template void LaunchTDequant<float, int8_t, 64, 128, 32, 128, 31, 62, 48, 32>(
+    float* out, int8_t* src, float* scale, float* offset, void* stream);
+template void LaunchTDequant<float, int16_t, 4, 256, 4, 256, 4, 255, 4, 16>(
+    float* out, int16_t* src, float* scale, float* offset, void* stream);
+template void LaunchTDequant<float, int8_t, 2, 128, 2, 128, 2, 128, 2, 128>(
+    float* out, int8_t* src, float* scale, float* offset, void* stream);
+template void LaunchTDequant<float, int8_t, 2, 128, 2, 128, 2, 127, 2, 128>(
+    float* out, int8_t* src, float* scale, float* offset, void* stream);
+template void LaunchTDequant<float, int8_t, 2, 512, 2, 512, 2, 511, 2, 512>(
+    float* out, int8_t* src, float* scale, float* offset, void* stream);
+template void LaunchTDequant<float, int8_t, 1, 12288, 1, 12288, 1, 12288, 1, 12288>(
+    float* out, int8_t* src, float* scale, float* offset, void* stream);
+template void LaunchTDequant<float, int16_t, 1, 12288, 1, 12288, 1, 12288, 1, 12288>(
+    float* out, int16_t* src, float* scale, float* offset, void* stream);

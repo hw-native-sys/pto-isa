@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class MGATHERGM2L1Test : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 static std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     return std::string("../") + testInfo->test_suite_name() + "." + testInfo->name();
 }
 
@@ -42,18 +40,18 @@ void run_gm2l1_test(size_t tableCount, size_t idxCount, size_t outCount, Launche
     aclrtCreateStream(&stream);
 
     T *tableHost, *outHost;
-    TIdx *idxHost;
+    TIdx* idxHost;
     T *tableDevice, *outDevice, *scratchDevice;
-    TIdx *idxDevice;
+    TIdx* idxDevice;
 
-    aclrtMallocHost((void **)(&tableHost), tableByteSize);
-    aclrtMallocHost((void **)(&idxHost), idxByteSize);
-    aclrtMallocHost((void **)(&outHost), outByteSize);
+    aclrtMallocHost((void**)(&tableHost), tableByteSize);
+    aclrtMallocHost((void**)(&idxHost), idxByteSize);
+    aclrtMallocHost((void**)(&outHost), outByteSize);
 
-    aclrtMalloc((void **)&tableDevice, tableByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&idxDevice, idxByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&outDevice, outByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&scratchDevice, outByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&tableDevice, tableByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&idxDevice, idxByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&outDevice, outByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&scratchDevice, outByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/table.bin", tableByteSize, tableHost, tableByteSize));
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/indices.bin", idxByteSize, idxHost, idxByteSize));
@@ -93,7 +91,7 @@ void run_gm2l1_test(size_t tableCount, size_t idxCount, size_t outCount, Launche
 }
 
 #define DECLARE_LAUNCH(NAME, THOST, TIDX) \
-    void Launch_##NAME(THOST *out, THOST *table, TIDX *indices, THOST *scratch, void *stream);
+    void Launch_##NAME(THOST* out, THOST* table, TIDX* indices, THOST* scratch, void* stream);
 
 DECLARE_LAUNCH(row_float_16x16_64rows, float, int32_t)
 DECLARE_LAUNCH(row_half_16x32_64rows, aclFloat16, int32_t)

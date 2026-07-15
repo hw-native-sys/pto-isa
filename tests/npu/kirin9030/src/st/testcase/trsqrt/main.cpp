@@ -18,27 +18,25 @@ using namespace PtoTestCommon;
 
 class TRSQRTTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol,
-          bool isInPlace = false>
-void LaunchTRsqrt(T *out, T *src, void *stream);
+template <
+    typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol, bool isInPlace = false>
+void LaunchTRsqrt(T* out, T* src, void* stream);
 
-template <typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol,
-          bool isInPlace = false>
+template <
+    typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol, bool isInPlace = false>
 void test_trsqrt()
 {
     size_t srcFileSize = srcRow * srcCol * sizeof(T);
@@ -52,10 +50,10 @@ void test_trsqrt()
     T *dstHost, *srcHost;
     T *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", srcFileSize, srcHost, srcFileSize);
     aclrtMemset(dstHost, dstFileSize, 0, dstFileSize);
@@ -92,35 +90,11 @@ void test_trsqrt()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TRSQRTTest, case1)
-{
-    test_trsqrt<float, 64, 64, 64, 64, 64, 64, true>();
-}
-TEST_F(TRSQRTTest, case2)
-{
-    test_trsqrt<float, 64, 64, 64, 64, 64, 64, false>();
-}
-TEST_F(TRSQRTTest, case3)
-{
-    test_trsqrt<aclFloat16, 64, 64, 64, 64, 64, 64, true>();
-}
-TEST_F(TRSQRTTest, case4)
-{
-    test_trsqrt<aclFloat16, 64, 64, 64, 64, 64, 64, false>();
-}
-TEST_F(TRSQRTTest, case5)
-{
-    test_trsqrt<float, 128, 128, 64, 64, 64, 64>();
-}
-TEST_F(TRSQRTTest, case6)
-{
-    test_trsqrt<float, 64, 64, 128, 128, 32, 32>();
-}
-TEST_F(TRSQRTTest, case7)
-{
-    test_trsqrt<aclFloat16, 128, 256, 64, 64, 64, 64>();
-}
-TEST_F(TRSQRTTest, case8)
-{
-    test_trsqrt<aclFloat16, 64, 64, 128, 256, 32, 32>();
-}
+TEST_F(TRSQRTTest, case1) { test_trsqrt<float, 64, 64, 64, 64, 64, 64, true>(); }
+TEST_F(TRSQRTTest, case2) { test_trsqrt<float, 64, 64, 64, 64, 64, 64, false>(); }
+TEST_F(TRSQRTTest, case3) { test_trsqrt<aclFloat16, 64, 64, 64, 64, 64, 64, true>(); }
+TEST_F(TRSQRTTest, case4) { test_trsqrt<aclFloat16, 64, 64, 64, 64, 64, 64, false>(); }
+TEST_F(TRSQRTTest, case5) { test_trsqrt<float, 128, 128, 64, 64, 64, 64>(); }
+TEST_F(TRSQRTTest, case6) { test_trsqrt<float, 64, 64, 128, 128, 32, 32>(); }
+TEST_F(TRSQRTTest, case7) { test_trsqrt<aclFloat16, 128, 256, 64, 64, 64, 64>(); }
+TEST_F(TRSQRTTest, case8) { test_trsqrt<aclFloat16, 64, 64, 128, 256, 32, 32>(); }

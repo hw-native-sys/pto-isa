@@ -28,16 +28,12 @@ constexpr size_t kBenchBytes[] = {
     4 * kBytesPerKiB, 16 * kBytesPerKiB, 64 * kBytesPerKiB, 256 * kBytesPerKiB, 1 * kBytesPerMiB, 4 * kBytesPerMiB,
 };
 
-enum class BenchInstr
-{
+enum class BenchInstr {
     TGet,
     TGetAsync,
 };
 
-const char *BenchInstrName(BenchInstr instr)
-{
-    return instr == BenchInstr::TGet ? "TGET" : "TGET_ASYNC";
-}
+const char* BenchInstrName(BenchInstr instr) { return instr == BenchInstr::TGet ? "TGET" : "TGET_ASYNC"; }
 
 int SelectWarmupIters(size_t bytes)
 {
@@ -88,7 +84,7 @@ inline AICORE uint64_t get_syscnt()
     return syscnt;
 }
 
-bool CheckAclCall(aclError ret, const char *op)
+bool CheckAclCall(aclError ret, const char* op)
 {
     if (ret != ACL_SUCCESS) {
         std::cerr << "[ERROR] " << op << " failed: " << static_cast<int>(ret) << std::endl;
@@ -98,7 +94,7 @@ bool CheckAclCall(aclError ret, const char *op)
 }
 
 template <typename T>
-bool VerifyRootBuffer(const T *buffer, size_t elemCount, int peerRank)
+bool VerifyRootBuffer(const T* buffer, size_t elemCount, int peerRank)
 {
     for (size_t i = 0; i < elemCount; ++i) {
         T expected = static_cast<T>(i + peerRank * 10000);
@@ -113,7 +109,7 @@ bool VerifyRootBuffer(const T *buffer, size_t elemCount, int peerRank)
 }
 
 template <typename T>
-AICORE inline void CopyContiguousImpl(__gm__ T *dst, __gm__ T *src, int elemCount)
+AICORE inline void CopyContiguousImpl(__gm__ T* dst, __gm__ T* src, int elemCount)
 {
     using ShapeDyn = pto::Shape<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
     using StrideDyn = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
@@ -140,23 +136,24 @@ AICORE inline void CopyContiguousImpl(__gm__ T *dst, __gm__ T *src, int elemCoun
 }
 
 template <typename T>
-__global__ AICORE void PrepareSendBufferKernel(__gm__ T *src, __gm__ T *shmem, int elemCount)
+__global__ AICORE void PrepareSendBufferKernel(__gm__ T* src, __gm__ T* shmem, int elemCount)
 {
     if (elemCount <= 0) {
         pipe_barrier(PIPE_ALL);
         return;
     }
 
-    __gm__ uint8_t *shmemBytes = reinterpret_cast<__gm__ uint8_t *>(shmem);
-    __gm__ T *shmemData = reinterpret_cast<__gm__ T *>(shmemBytes + 64 * sizeof(int32_t));
-    __gm__ T *sendShmem = shmemData;
+    __gm__ uint8_t* shmemBytes = reinterpret_cast<__gm__ uint8_t*>(shmem);
+    __gm__ T* shmemData = reinterpret_cast<__gm__ T*>(shmemBytes + 64 * sizeof(int32_t));
+    __gm__ T* sendShmem = shmemData;
     CopyContiguousImpl(sendShmem, src, elemCount);
     pipe_barrier(PIPE_ALL);
 }
 
 template <typename T>
-__global__ AICORE void TGetBandwidthKernel(__gm__ T *output, __gm__ T *shmem, int nranks, int rootRank, int peerRank,
-                                           int elemCount, __gm__ CommDeviceContext *hcclCtx)
+__global__ AICORE void TGetBandwidthKernel(
+    __gm__ T* output, __gm__ T* shmem, int nranks, int rootRank, int peerRank, int elemCount,
+    __gm__ CommDeviceContext* hcclCtx)
 {
     using ShapeDyn = pto::Shape<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
     using StrideDyn = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
@@ -168,10 +165,10 @@ __global__ AICORE void TGetBandwidthKernel(__gm__ T *output, __gm__ T *shmem, in
         return;
     }
 
-    __gm__ uint8_t *shmemBytes = reinterpret_cast<__gm__ uint8_t *>(shmem);
-    __gm__ T *shmemData = reinterpret_cast<__gm__ T *>(shmemBytes + 64 * sizeof(int32_t));
-    __gm__ T *sendShmem = shmemData;
-    __gm__ T *recvShmem = shmemData + (kMaxBenchBytes / sizeof(T));
+    __gm__ uint8_t* shmemBytes = reinterpret_cast<__gm__ uint8_t*>(shmem);
+    __gm__ T* shmemData = reinterpret_cast<__gm__ T*>(shmemBytes + 64 * sizeof(int32_t));
+    __gm__ T* sendShmem = shmemData;
+    __gm__ T* recvShmem = shmemData + (kMaxBenchBytes / sizeof(T));
 
     if (static_cast<int>(hcclCtx->rankId) == rootRank) {
         ShapeDyn shape(1, 1, 1, 1, elemCount);
@@ -181,7 +178,7 @@ __global__ AICORE void TGetBandwidthKernel(__gm__ T *output, __gm__ T *shmem, in
         stagingTile.ColMaskInternal =
             (elemCount < static_cast<int>(kTileElems)) ? elemCount : static_cast<int>(kTileElems);
 
-        __gm__ T *remoteSendShmem = CommRemotePtr(hcclCtx, sendShmem, peerRank);
+        __gm__ T* remoteSendShmem = CommRemotePtr(hcclCtx, sendShmem, peerRank);
         Global recvG(recvShmem, shape, stride);
         Global remoteSendG(remoteSendShmem, shape, stride);
         pto::comm::TGET(recvG, remoteSendG, stagingTile);
@@ -193,9 +190,9 @@ __global__ AICORE void TGetBandwidthKernel(__gm__ T *output, __gm__ T *shmem, in
 }
 
 template <typename T>
-__global__ AICORE void ProfileTGetBandwidthKernel(__gm__ T *output, __gm__ uint64_t *profileCycles, __gm__ T *shmem,
-                                                  int nranks, int rootRank, int peerRank, int elemCount,
-                                                  int warmupIters, int timedIters, __gm__ CommDeviceContext *hcclCtx)
+__global__ AICORE void ProfileTGetBandwidthKernel(
+    __gm__ T* output, __gm__ uint64_t* profileCycles, __gm__ T* shmem, int nranks, int rootRank, int peerRank,
+    int elemCount, int warmupIters, int timedIters, __gm__ CommDeviceContext* hcclCtx)
 {
     using ShapeDyn = pto::Shape<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
     using StrideDyn = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
@@ -207,10 +204,10 @@ __global__ AICORE void ProfileTGetBandwidthKernel(__gm__ T *output, __gm__ uint6
         return;
     }
 
-    __gm__ uint8_t *shmemBytes = reinterpret_cast<__gm__ uint8_t *>(shmem);
-    __gm__ T *shmemData = reinterpret_cast<__gm__ T *>(shmemBytes + 64 * sizeof(int32_t));
-    __gm__ T *sendShmem = shmemData;
-    __gm__ T *recvShmem = shmemData + (kMaxBenchBytes / sizeof(T));
+    __gm__ uint8_t* shmemBytes = reinterpret_cast<__gm__ uint8_t*>(shmem);
+    __gm__ T* shmemData = reinterpret_cast<__gm__ T*>(shmemBytes + 64 * sizeof(int32_t));
+    __gm__ T* sendShmem = shmemData;
+    __gm__ T* recvShmem = shmemData + (kMaxBenchBytes / sizeof(T));
 
     if (static_cast<int>(hcclCtx->rankId) == rootRank) {
         ShapeDyn shape(1, 1, 1, 1, elemCount);
@@ -220,7 +217,7 @@ __global__ AICORE void ProfileTGetBandwidthKernel(__gm__ T *output, __gm__ uint6
         stagingTile.ColMaskInternal =
             (elemCount < static_cast<int>(kTileElems)) ? elemCount : static_cast<int>(kTileElems);
 
-        __gm__ T *remoteSendShmem = CommRemotePtr(hcclCtx, sendShmem, peerRank);
+        __gm__ T* remoteSendShmem = CommRemotePtr(hcclCtx, sendShmem, peerRank);
         Global recvG(recvShmem, shape, stride);
         Global remoteSendG(remoteSendShmem, shape, stride);
 
@@ -248,9 +245,9 @@ __global__ AICORE void ProfileTGetBandwidthKernel(__gm__ T *output, __gm__ uint6
 }
 
 template <typename T>
-__global__ AICORE void TGetAsyncBandwidthKernel(__gm__ T *output, __gm__ T *shmem, int nranks, int rootRank,
-                                                int peerRank, int elemCount, __gm__ CommDeviceContext *hcclCtx,
-                                                __gm__ uint8_t *sdmaWorkspace, uint32_t sdmaSyncId)
+__global__ AICORE void TGetAsyncBandwidthKernel(
+    __gm__ T* output, __gm__ T* shmem, int nranks, int rootRank, int peerRank, int elemCount,
+    __gm__ CommDeviceContext* hcclCtx, __gm__ uint8_t* sdmaWorkspace, uint32_t sdmaSyncId)
 {
     using ShapeDyn = pto::Shape<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
     using StrideDyn = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
@@ -262,10 +259,10 @@ __global__ AICORE void TGetAsyncBandwidthKernel(__gm__ T *output, __gm__ T *shme
         return;
     }
 
-    __gm__ uint8_t *shmemBytes = reinterpret_cast<__gm__ uint8_t *>(shmem);
-    __gm__ T *shmemData = reinterpret_cast<__gm__ T *>(shmemBytes + 64 * sizeof(int32_t));
-    __gm__ T *sendShmem = shmemData;
-    __gm__ T *recvShmem = shmemData + (kMaxBenchBytes / sizeof(T));
+    __gm__ uint8_t* shmemBytes = reinterpret_cast<__gm__ uint8_t*>(shmem);
+    __gm__ T* shmemData = reinterpret_cast<__gm__ T*>(shmemBytes + 64 * sizeof(int32_t));
+    __gm__ T* sendShmem = shmemData;
+    __gm__ T* recvShmem = shmemData + (kMaxBenchBytes / sizeof(T));
 
     if (static_cast<int>(hcclCtx->rankId) == rootRank) {
         ShapeDyn shape(1, 1, 1, 1, elemCount);
@@ -274,7 +271,7 @@ __global__ AICORE void TGetAsyncBandwidthKernel(__gm__ T *output, __gm__ T *shme
         TASSIGN(scratchTile, 0x0);
         pto::comm::AsyncSession session;
         if (pto::comm::BuildAsyncSession(scratchTile, sdmaWorkspace, session, sdmaSyncId)) {
-            __gm__ T *remoteSendShmem = CommRemotePtr(hcclCtx, sendShmem, peerRank);
+            __gm__ T* remoteSendShmem = CommRemotePtr(hcclCtx, sendShmem, peerRank);
             Global recvG(recvShmem, shape, stride);
             Global remoteSendG(remoteSendShmem, shape, stride);
             pto::comm::AsyncEvent event = pto::comm::TGET_ASYNC(recvG, remoteSendG, session);
@@ -288,11 +285,10 @@ __global__ AICORE void TGetAsyncBandwidthKernel(__gm__ T *output, __gm__ T *shme
 }
 
 template <typename T>
-__global__ AICORE void ProfileTGetAsyncBandwidthKernel(__gm__ T *output, __gm__ uint64_t *profileCycles,
-                                                       __gm__ T *shmem, int nranks, int rootRank, int peerRank,
-                                                       int elemCount, int warmupIters, int timedIters,
-                                                       __gm__ CommDeviceContext *hcclCtx, __gm__ uint8_t *sdmaWorkspace,
-                                                       uint32_t sdmaSyncId)
+__global__ AICORE void ProfileTGetAsyncBandwidthKernel(
+    __gm__ T* output, __gm__ uint64_t* profileCycles, __gm__ T* shmem, int nranks, int rootRank, int peerRank,
+    int elemCount, int warmupIters, int timedIters, __gm__ CommDeviceContext* hcclCtx, __gm__ uint8_t* sdmaWorkspace,
+    uint32_t sdmaSyncId)
 {
     using ShapeDyn = pto::Shape<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
     using StrideDyn = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
@@ -304,10 +300,10 @@ __global__ AICORE void ProfileTGetAsyncBandwidthKernel(__gm__ T *output, __gm__ 
         return;
     }
 
-    __gm__ uint8_t *shmemBytes = reinterpret_cast<__gm__ uint8_t *>(shmem);
-    __gm__ T *shmemData = reinterpret_cast<__gm__ T *>(shmemBytes + 64 * sizeof(int32_t));
-    __gm__ T *sendShmem = shmemData;
-    __gm__ T *recvShmem = shmemData + (kMaxBenchBytes / sizeof(T));
+    __gm__ uint8_t* shmemBytes = reinterpret_cast<__gm__ uint8_t*>(shmem);
+    __gm__ T* shmemData = reinterpret_cast<__gm__ T*>(shmemBytes + 64 * sizeof(int32_t));
+    __gm__ T* sendShmem = shmemData;
+    __gm__ T* recvShmem = shmemData + (kMaxBenchBytes / sizeof(T));
 
     if (static_cast<int>(hcclCtx->rankId) == rootRank) {
         ShapeDyn shape(1, 1, 1, 1, elemCount);
@@ -316,7 +312,7 @@ __global__ AICORE void ProfileTGetAsyncBandwidthKernel(__gm__ T *output, __gm__ 
         TASSIGN(scratchTile, 0x0);
         pto::comm::AsyncSession session;
         if (pto::comm::BuildAsyncSession(scratchTile, sdmaWorkspace, session, sdmaSyncId)) {
-            __gm__ T *remoteSendShmem = CommRemotePtr(hcclCtx, sendShmem, peerRank);
+            __gm__ T* remoteSendShmem = CommRemotePtr(hcclCtx, sendShmem, peerRank);
             Global recvG(recvShmem, shape, stride);
             Global remoteSendG(remoteSendShmem, shape, stride);
 
@@ -347,7 +343,7 @@ __global__ AICORE void ProfileTGetAsyncBandwidthKernel(__gm__ T *output, __gm__ 
 }
 
 template <typename T>
-bool LaunchPrepareKernel(TestContext &ctx, T *inputBuf, T *shmem, int elemCount)
+bool LaunchPrepareKernel(TestContext& ctx, T* inputBuf, T* shmem, int elemCount)
 {
     PrepareSendBufferKernel<T><<<1, nullptr, ctx.stream>>>(inputBuf, shmem, elemCount);
     ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
@@ -359,15 +355,16 @@ bool LaunchPrepareKernel(TestContext &ctx, T *inputBuf, T *shmem, int elemCount)
 }
 
 template <typename T>
-bool LaunchBandwidthKernel(BenchInstr instr, TestContext &ctx, T *outputBuf, T *shmem, int nranks, int rootRank,
-                           int peerRank, int elemCount, uint8_t *sdmaWorkspace)
+bool LaunchBandwidthKernel(
+    BenchInstr instr, TestContext& ctx, T* outputBuf, T* shmem, int nranks, int rootRank, int peerRank, int elemCount,
+    uint8_t* sdmaWorkspace)
 {
     if (instr == BenchInstr::TGet) {
         TGetBandwidthKernel<T>
             <<<1, nullptr, ctx.stream>>>(outputBuf, shmem, nranks, rootRank, peerRank, elemCount, ctx.deviceCtx);
     } else {
-        TGetAsyncBandwidthKernel<T><<<1, nullptr, ctx.stream>>>(outputBuf, shmem, nranks, rootRank, peerRank, elemCount,
-                                                                ctx.deviceCtx, sdmaWorkspace, 0);
+        TGetAsyncBandwidthKernel<T><<<1, nullptr, ctx.stream>>>(
+            outputBuf, shmem, nranks, rootRank, peerRank, elemCount, ctx.deviceCtx, sdmaWorkspace, 0);
     }
     ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
     if (ctx.aclStatus != 0) {
@@ -378,18 +375,18 @@ bool LaunchBandwidthKernel(BenchInstr instr, TestContext &ctx, T *outputBuf, T *
 }
 
 template <typename T>
-bool LaunchProfileKernel(BenchInstr instr, TestContext &ctx, T *outputBuf, uint64_t *profileBuf, T *shmem, int nranks,
-                         int rootRank, int peerRank, int elemCount, int warmupIters, int timedIters,
-                         uint8_t *sdmaWorkspace)
+bool LaunchProfileKernel(
+    BenchInstr instr, TestContext& ctx, T* outputBuf, uint64_t* profileBuf, T* shmem, int nranks, int rootRank,
+    int peerRank, int elemCount, int warmupIters, int timedIters, uint8_t* sdmaWorkspace)
 {
     if (instr == BenchInstr::TGet) {
-        ProfileTGetBandwidthKernel<T><<<1, nullptr, ctx.stream>>>(outputBuf, profileBuf, shmem, nranks, rootRank,
-                                                                  peerRank, elemCount, warmupIters, timedIters,
-                                                                  ctx.deviceCtx);
+        ProfileTGetBandwidthKernel<T><<<1, nullptr, ctx.stream>>>(
+            outputBuf, profileBuf, shmem, nranks, rootRank, peerRank, elemCount, warmupIters, timedIters,
+            ctx.deviceCtx);
     } else {
-        ProfileTGetAsyncBandwidthKernel<T><<<1, nullptr, ctx.stream>>>(outputBuf, profileBuf, shmem, nranks, rootRank,
-                                                                       peerRank, elemCount, warmupIters, timedIters,
-                                                                       ctx.deviceCtx, sdmaWorkspace, 0);
+        ProfileTGetAsyncBandwidthKernel<T><<<1, nullptr, ctx.stream>>>(
+            outputBuf, profileBuf, shmem, nranks, rootRank, peerRank, elemCount, warmupIters, timedIters, ctx.deviceCtx,
+            sdmaWorkspace, 0);
     }
     ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
     if (ctx.aclStatus != 0) {
@@ -400,9 +397,9 @@ bool LaunchProfileKernel(BenchInstr instr, TestContext &ctx, T *outputBuf, uint6
 }
 
 template <typename T>
-bool RunSingleBandwidthCase(BenchInstr instr, TestContext &ctx, T *outputBuf, uint64_t *profileBufDev,
-                            uint64_t *profileBufHost, T *shmem, uint8_t *outputHost, size_t elemCount, int nRanks,
-                            int rootRank, int peerRank, uint8_t *sdmaWorkspace)
+bool RunSingleBandwidthCase(
+    BenchInstr instr, TestContext& ctx, T* outputBuf, uint64_t* profileBufDev, uint64_t* profileBufHost, T* shmem,
+    uint8_t* outputHost, size_t elemCount, int nRanks, int rootRank, int peerRank, uint8_t* sdmaWorkspace)
 {
     const size_t bytes = elemCount * sizeof(T);
     const int warmupIters = SelectWarmupIters(bytes);
@@ -413,8 +410,8 @@ bool RunSingleBandwidthCase(BenchInstr instr, TestContext &ctx, T *outputBuf, ui
     }
 
     for (int i = 0; i < warmupIters; ++i) {
-        if (!LaunchBandwidthKernel(instr, ctx, outputBuf, shmem, nRanks, rootRank, peerRank,
-                                   static_cast<int>(elemCount), sdmaWorkspace)) {
+        if (!LaunchBandwidthKernel(
+                instr, ctx, outputBuf, shmem, nRanks, rootRank, peerRank, static_cast<int>(elemCount), sdmaWorkspace)) {
             return false;
         }
     }
@@ -426,8 +423,8 @@ bool RunSingleBandwidthCase(BenchInstr instr, TestContext &ctx, T *outputBuf, ui
     HcclHostBarrier(ctx.comm, ctx.stream);
     const double beginMs = NowMs();
     for (int i = 0; i < timedIters; ++i) {
-        if (!LaunchBandwidthKernel(instr, ctx, outputBuf, shmem, nRanks, rootRank, peerRank,
-                                   static_cast<int>(elemCount), sdmaWorkspace)) {
+        if (!LaunchBandwidthKernel(
+                instr, ctx, outputBuf, shmem, nRanks, rootRank, peerRank, static_cast<int>(elemCount), sdmaWorkspace)) {
             return false;
         }
     }
@@ -436,11 +433,12 @@ bool RunSingleBandwidthCase(BenchInstr instr, TestContext &ctx, T *outputBuf, ui
 
     const double elapsedMs = endMs - beginMs;
     if (ctx.hostCtx.rankId == rootRank) {
-        if (!CheckAclCall(aclrtMemcpy(outputHost, bytes, outputBuf, bytes, ACL_MEMCPY_DEVICE_TO_HOST),
-                          "aclrtMemcpy(outputBuf -> host)")) {
+        if (!CheckAclCall(
+                aclrtMemcpy(outputHost, bytes, outputBuf, bytes, ACL_MEMCPY_DEVICE_TO_HOST),
+                "aclrtMemcpy(outputBuf -> host)")) {
             return false;
         }
-        if (!VerifyRootBuffer(reinterpret_cast<T *>(outputHost), elemCount, peerRank)) {
+        if (!VerifyRootBuffer(reinterpret_cast<T*>(outputHost), elemCount, peerRank)) {
             return false;
         }
     }
@@ -451,28 +449,31 @@ bool RunSingleBandwidthCase(BenchInstr instr, TestContext &ctx, T *outputBuf, ui
     if (!CheckAclCall(aclrtMemset(outputBuf, bytes, 0, bytes), "aclrtMemset(outputBuf)")) {
         return false;
     }
-    if (!CheckAclCall(aclrtMemset(profileBufDev, sizeof(uint64_t), 0, sizeof(uint64_t)),
-                      "aclrtMemset(profileBufDev)")) {
+    if (!CheckAclCall(
+            aclrtMemset(profileBufDev, sizeof(uint64_t), 0, sizeof(uint64_t)), "aclrtMemset(profileBufDev)")) {
         return false;
     }
     HcclHostBarrier(ctx.comm, ctx.stream);
-    if (!LaunchProfileKernel(instr, ctx, outputBuf, profileBufDev, shmem, nRanks, rootRank, peerRank,
-                             static_cast<int>(elemCount), warmupIters, timedIters, sdmaWorkspace)) {
+    if (!LaunchProfileKernel(
+            instr, ctx, outputBuf, profileBufDev, shmem, nRanks, rootRank, peerRank, static_cast<int>(elemCount),
+            warmupIters, timedIters, sdmaWorkspace)) {
         return false;
     }
     HcclHostBarrier(ctx.comm, ctx.stream);
 
     if (ctx.hostCtx.rankId == rootRank) {
-        if (!CheckAclCall(aclrtMemcpy(outputHost, bytes, outputBuf, bytes, ACL_MEMCPY_DEVICE_TO_HOST),
-                          "aclrtMemcpy(profile outputBuf -> host)")) {
+        if (!CheckAclCall(
+                aclrtMemcpy(outputHost, bytes, outputBuf, bytes, ACL_MEMCPY_DEVICE_TO_HOST),
+                "aclrtMemcpy(profile outputBuf -> host)")) {
             return false;
         }
-        if (!VerifyRootBuffer(reinterpret_cast<T *>(outputHost), elemCount, peerRank)) {
+        if (!VerifyRootBuffer(reinterpret_cast<T*>(outputHost), elemCount, peerRank)) {
             return false;
         }
-        if (!CheckAclCall(aclrtMemcpy(profileBufHost, sizeof(uint64_t), profileBufDev, sizeof(uint64_t),
-                                      ACL_MEMCPY_DEVICE_TO_HOST),
-                          "aclrtMemcpy(profileBufDev -> host)")) {
+        if (!CheckAclCall(
+                aclrtMemcpy(
+                    profileBufHost, sizeof(uint64_t), profileBufDev, sizeof(uint64_t), ACL_MEMCPY_DEVICE_TO_HOST),
+                "aclrtMemcpy(profileBufDev -> host)")) {
             return false;
         }
 
@@ -488,8 +489,8 @@ bool RunSingleBandwidthCase(BenchInstr instr, TestContext &ctx, T *outputBuf, ui
 }
 
 template <typename T>
-bool RunTGetBandwidthSweepKernel(int rankId, int nRanks, int nDevices, int firstRankId, int firstDeviceId,
-                                 const HcclRootInfo *rootInfo)
+bool RunTGetBandwidthSweepKernel(
+    int rankId, int nRanks, int nDevices, int firstRankId, int firstDeviceId, const HcclRootInfo* rootInfo)
 {
     const int rootRank = firstRankId;
     if (nRanks < 2) {
@@ -508,57 +509,61 @@ bool RunTGetBandwidthSweepKernel(int rankId, int nRanks, int nDevices, int first
     const size_t maxBytes = kMaxBenchBytes;
     const size_t maxElems = maxBytes / sizeof(T);
 
-    uint8_t *inputHost = nullptr;
-    uint8_t *outputHost = nullptr;
-    T *inputBuf = nullptr;
-    T *outputBuf = nullptr;
-    uint64_t *profileBufDev = nullptr;
-    uint64_t *profileBufHost = nullptr;
-    T *shmem = nullptr;
+    uint8_t* inputHost = nullptr;
+    uint8_t* outputHost = nullptr;
+    T* inputBuf = nullptr;
+    T* outputBuf = nullptr;
+    uint64_t* profileBufDev = nullptr;
+    uint64_t* profileBufHost = nullptr;
+    T* shmem = nullptr;
     SdmaWorkspaceManager sdmaMgr;
     bool ok = false;
 
     do {
-        if (!CheckAclCall(aclrtMallocHost(reinterpret_cast<void **>(&inputHost), maxBytes), "aclrtMallocHost(input)")) {
-            break;
-        }
-        if (!CheckAclCall(aclrtMallocHost(reinterpret_cast<void **>(&outputHost), maxBytes),
-                          "aclrtMallocHost(output)")) {
-            break;
-        }
-        if (!CheckAclCall(aclrtMalloc(reinterpret_cast<void **>(&inputBuf), maxBytes, ACL_MEM_MALLOC_HUGE_FIRST),
-                          "aclrtMalloc(inputBuf)")) {
-            break;
-        }
-        if (!CheckAclCall(aclrtMalloc(reinterpret_cast<void **>(&outputBuf), maxBytes, ACL_MEM_MALLOC_HUGE_FIRST),
-                          "aclrtMalloc(outputBuf)")) {
+        if (!CheckAclCall(aclrtMallocHost(reinterpret_cast<void**>(&inputHost), maxBytes), "aclrtMallocHost(input)")) {
             break;
         }
         if (!CheckAclCall(
-                aclrtMalloc(reinterpret_cast<void **>(&profileBufDev), sizeof(uint64_t), ACL_MEM_MALLOC_HUGE_FIRST),
+                aclrtMallocHost(reinterpret_cast<void**>(&outputHost), maxBytes), "aclrtMallocHost(output)")) {
+            break;
+        }
+        if (!CheckAclCall(
+                aclrtMalloc(reinterpret_cast<void**>(&inputBuf), maxBytes, ACL_MEM_MALLOC_HUGE_FIRST),
+                "aclrtMalloc(inputBuf)")) {
+            break;
+        }
+        if (!CheckAclCall(
+                aclrtMalloc(reinterpret_cast<void**>(&outputBuf), maxBytes, ACL_MEM_MALLOC_HUGE_FIRST),
+                "aclrtMalloc(outputBuf)")) {
+            break;
+        }
+        if (!CheckAclCall(
+                aclrtMalloc(reinterpret_cast<void**>(&profileBufDev), sizeof(uint64_t), ACL_MEM_MALLOC_HUGE_FIRST),
                 "aclrtMalloc(profileBufDev)")) {
             break;
         }
-        if (!CheckAclCall(aclrtMallocHost(reinterpret_cast<void **>(&profileBufHost), sizeof(uint64_t)),
-                          "aclrtMallocHost(profileBufHost)")) {
+        if (!CheckAclCall(
+                aclrtMallocHost(reinterpret_cast<void**>(&profileBufHost), sizeof(uint64_t)),
+                "aclrtMallocHost(profileBufHost)")) {
             break;
         }
 
-        T *inputHostData = reinterpret_cast<T *>(inputHost);
-        T *outputHostData = reinterpret_cast<T *>(outputHost);
+        T* inputHostData = reinterpret_cast<T*>(inputHost);
+        T* outputHostData = reinterpret_cast<T*>(outputHost);
         for (size_t i = 0; i < maxElems; ++i) {
             inputHostData[i] = static_cast<T>(i + rankId * 10000);
             outputHostData[i] = static_cast<T>(-1);
         }
 
-        if (!CheckAclCall(aclrtMemcpy(inputBuf, maxBytes, inputHostData, maxBytes, ACL_MEMCPY_HOST_TO_DEVICE),
-                          "aclrtMemcpy(input -> inputBuf)")) {
+        if (!CheckAclCall(
+                aclrtMemcpy(inputBuf, maxBytes, inputHostData, maxBytes, ACL_MEMCPY_HOST_TO_DEVICE),
+                "aclrtMemcpy(input -> inputBuf)")) {
             break;
         }
 
         uint64_t localWinBase = ctx.hostCtx.windowsIn[rankId];
         size_t winOffset = 0;
-        shmem = reinterpret_cast<T *>(WindowAlloc(localWinBase, winOffset, 64 * sizeof(int32_t) + 2 * maxBytes));
+        shmem = reinterpret_cast<T*>(WindowAlloc(localWinBase, winOffset, 64 * sizeof(int32_t) + 2 * maxBytes));
 
         HcclHostBarrier(ctx.comm, ctx.stream);
         if (!LaunchPrepareKernel(ctx, inputBuf, shmem, static_cast<int>(maxElems))) {
@@ -579,15 +584,16 @@ bool RunTGetBandwidthSweepKernel(int rankId, int nRanks, int nDevices, int first
         bool sweepOk = true;
         for (size_t bytes : kBenchBytes) {
             const size_t elemCount = bytes / sizeof(T);
-            if (!RunSingleBandwidthCase(BenchInstr::TGet, ctx, outputBuf, profileBufDev, profileBufHost, shmem,
-                                        outputHost, elemCount, nRanks, rootRank, peerRank, nullptr)) {
+            if (!RunSingleBandwidthCase(
+                    BenchInstr::TGet, ctx, outputBuf, profileBufDev, profileBufHost, shmem, outputHost, elemCount,
+                    nRanks, rootRank, peerRank, nullptr)) {
                 sweepOk = false;
                 break;
             }
             if (!RunSingleBandwidthCase(
                     BenchInstr::TGetAsync, ctx, outputBuf, profileBufDev, profileBufHost, shmem, outputHost, elemCount,
                     nRanks, rootRank, peerRank,
-                    rankId == rootRank ? reinterpret_cast<uint8_t *>(sdmaMgr.GetWorkspaceAddr()) : nullptr)) {
+                    rankId == rootRank ? reinterpret_cast<uint8_t*>(sdmaMgr.GetWorkspaceAddr()) : nullptr)) {
                 sweepOk = false;
                 break;
             }
@@ -625,9 +631,9 @@ bool RunTGetBandwidthSweepKernel(int rankId, int nRanks, int nDevices, int first
 
 bool RunTGetBandwidthSweep(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
-    return ForkAndRunWithHcclRootInfo(n_ranks, first_rank_id, first_device_id,
-                                      [&](int rankId, const HcclRootInfo *rootInfo) {
-                                          return RunTGetBandwidthSweepKernel<float>(
-                                              rankId, n_ranks, n_devices, first_rank_id, first_device_id, rootInfo);
-                                      });
+    return ForkAndRunWithHcclRootInfo(
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
+            return RunTGetBandwidthSweepKernel<float>(
+                rankId, n_ranks, n_devices, first_rank_id, first_device_id, rootInfo);
+        });
 }

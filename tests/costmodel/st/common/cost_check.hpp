@@ -16,6 +16,31 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <gtest/gtest.h>
 #include "pto/costmodel/trace.hpp"
 
+// Each st/st_a5_fit test measures one isolated PTO op and expects it to pay its own
+// startup latency. The stream-aware change in BeginPtoInstr preserves the VECTOR pipe
+// queue across PTO-instruction boundaries (so consecutive vec ops stream and share
+// startup). Because g_trace_state is a single thread_local shared across all gtest
+// cases, that queue would otherwise leak from one test into the next, making every op
+// after the first skip its startup latency and under-report cycles. Reset the trace at
+// the start of every test so each measured op runs in isolation. perf_sim_st is
+// unaffected: it does not include this header and resets its stream via LAUNCH_KERNEL.
+namespace pto_test_detail {
+class PtoTraceResetListener : public ::testing::EmptyTestEventListener {
+public:
+    void OnTestStart(const ::testing::TestInfo& /*test_info*/) override { ::pto::mocker::ResetTrace(); }
+};
+
+inline int RegisterPtoTraceResetListener()
+{
+    ::testing::UnitTest::GetInstance()->listeners().Append(new PtoTraceResetListener);
+    return 0;
+}
+} // namespace pto_test_detail
+
+namespace {
+const int g_pto_trace_reset_listener_registered = pto_test_detail::RegisterPtoTraceResetListener();
+} // namespace
+
 // Compare the cycle count stored in the most recently executed PTO trace record
 // against an expected `profiling` value. The check passes when relative
 // precision `1 - |profiling - actual| / profiling` is at least `accuracy`.

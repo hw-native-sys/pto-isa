@@ -16,19 +16,17 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <int32_t testKey>
-void launchTEXPANDS_Mat(uint8_t *out, void *stream);
+void launchTEXPANDS_Mat(uint8_t* out, void* stream);
 
 class TEXPANDSTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -46,15 +44,15 @@ void texpands_test(Dims... dims)
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    uint8_t *dstHost;
+    uint8_t* dstHost;
     uint8_t *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     aclrtMemcpy(dstDevice, fileSize, dstHost, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    launchTEXPANDS_Mat<testKey>((uint8_t *)dstDevice, stream);
+    launchTEXPANDS_Mat<testKey>((uint8_t*)dstDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, fileSize, dstDevice, fileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -83,42 +81,18 @@ TEST_F(TEXPANDSTest, case1)
     texpands_test<1, uint16_t>(128, 128); // uint16_t represent half
 }
 
-TEST_F(TEXPANDSTest, case2)
-{
-    texpands_test<2, int16_t>(32, 64);
-}
+TEST_F(TEXPANDSTest, case2) { texpands_test<2, int16_t>(32, 64); }
 
-TEST_F(TEXPANDSTest, case3)
-{
-    texpands_test<3, float>(32, 32);
-}
+TEST_F(TEXPANDSTest, case3) { texpands_test<3, float>(32, 32); }
 
-TEST_F(TEXPANDSTest, case4)
-{
-    texpands_test<4, int8_t>(32, 32);
-}
+TEST_F(TEXPANDSTest, case4) { texpands_test<4, int8_t>(32, 32); }
 
-TEST_F(TEXPANDSTest, case5)
-{
-    texpands_test<5, uint16_t>(256, 256);
-}
+TEST_F(TEXPANDSTest, case5) { texpands_test<5, uint16_t>(256, 256); }
 
-TEST_F(TEXPANDSTest, case6)
-{
-    texpands_test<6, uint16_t>(1, 16, 7, 7, 16);
-}
+TEST_F(TEXPANDSTest, case6) { texpands_test<6, uint16_t>(1, 16, 7, 7, 16); }
 
-TEST_F(TEXPANDSTest, case7)
-{
-    texpands_test<7, int16_t>(2, 5, 2, 3, 8);
-}
+TEST_F(TEXPANDSTest, case7) { texpands_test<7, int16_t>(2, 5, 2, 3, 8); }
 
-TEST_F(TEXPANDSTest, case8)
-{
-    texpands_test<8, int32_t>(2, 5, 5, 1, 8);
-}
+TEST_F(TEXPANDSTest, case8) { texpands_test<8, int32_t>(2, 5, 5, 1, 8); }
 
-TEST_F(TEXPANDSTest, case9)
-{
-    texpands_test<9, uint32_t>(3, 4, 5, 1, 8);
-}
+TEST_F(TEXPANDSTest, case9) { texpands_test<9, uint32_t>(3, 4, 5, 1, 8); }

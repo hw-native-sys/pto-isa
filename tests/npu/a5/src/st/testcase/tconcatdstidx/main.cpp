@@ -17,33 +17,35 @@ using namespace PtoTestCommon;
 
 class TCONCATTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename dataType, typename idxType, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH,
-          int src1TileW, int vRows, int vCols0, int vCols1>
-void LaunchTConcat(dataType *out, dataType *src0, dataType *src1, idxType *dstIdx, idxType *src0Idx, idxType *src1Idx,
-                   void *stream);
+template <
+    typename dataType, typename idxType, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH,
+    int src1TileW, int vRows, int vCols0, int vCols1>
+void LaunchTConcat(
+    dataType* out, dataType* src0, dataType* src1, idxType* dstIdx, idxType* src0Idx, idxType* src1Idx, void* stream);
 
-template <typename idxType, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW,
-          int vRows, int vCols0, int vCols1>
-void LaunchTConcatHalf(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1, idxType *dstIdx, idxType *src0Idx,
-                       idxType *src1Idx, void *stream);
+template <
+    typename idxType, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
+    int vCols0, int vCols1>
+void LaunchTConcatHalf(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, idxType* dstIdx, idxType* src0Idx, idxType* src1Idx,
+    void* stream);
 
-template <typename dataType, typename idxType, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH,
-          int src1TileW, int vRows, int vCols0, int vCols1>
+template <
+    typename dataType, typename idxType, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH,
+    int src1TileW, int vRows, int vCols0, int vCols1>
 void test_tconcat()
 {
     size_t fileSizeDst = dstTileH * dstTileW * sizeof(dataType);
@@ -63,19 +65,21 @@ void test_tconcat()
     dataType *dstDevice, *src0Device, *src1Device;
     idxType *src0IdxDevice, *src1IdxDevice, *dstIdxDevice;
 
-    aclrtMallocHost((void **)(&dstHost), fileSizeDst);
-    aclrtMallocHost((void **)(&src0Host), fileSizeSrc0);
-    aclrtMallocHost((void **)(&src1Host), fileSizeSrc1);
-    aclrtMallocHost((void **)(&src0IdxHost), fileSizeSrc0Idx);
-    aclrtMallocHost((void **)(&src1IdxHost), fileSizeSrc1Idx);
-    aclrtMallocHost((void **)(&dstIdxHost), fileSizeDstIdx);
+    aclrtMallocHost((void**)(&dstHost), fileSizeDst);
+    aclrtMallocHost((void**)(&src0Host), fileSizeSrc0);
+    aclrtMallocHost((void**)(&src1Host), fileSizeSrc1);
+    aclrtMallocHost((void**)(&src0IdxHost), fileSizeSrc0Idx);
+    aclrtMallocHost((void**)(&src1IdxHost), fileSizeSrc1Idx);
+    aclrtMallocHost((void**)(&dstIdxHost), fileSizeDstIdx);
 
-    aclrtMalloc((void **)&dstDevice, fileSizeDst, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, fileSizeSrc0, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, fileSizeSrc1, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0IdxDevice, fileSizeSrc0Idx, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1IdxDevice, fileSizeSrc1Idx, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&dstIdxDevice, fileSizeDstIdx, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSizeDst, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, fileSizeSrc0, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, fileSizeSrc1, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0IdxDevice, fileSizeSrc0Idx, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1IdxDevice, fileSizeSrc1Idx, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstIdxDevice, fileSizeDstIdx, ACL_MEM_MALLOC_HUGE_FIRST);
+    memset(dstHost, 0, fileSizeDst);
+    memset(dstIdxHost, 0, fileSizeDstIdx);
 
     ReadFile(GetGoldenDir() + "/input0.bin", fileSizeSrc0, src0Host, fileSizeSrc0);
     ReadFile(GetGoldenDir() + "/input1.bin", fileSizeSrc1, src1Host, fileSizeSrc1);
@@ -87,12 +91,13 @@ void test_tconcat()
     aclrtMemcpy(src0IdxDevice, fileSizeSrc0Idx, src0IdxHost, fileSizeSrc0Idx, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1IdxDevice, fileSizeSrc1Idx, src1IdxHost, fileSizeSrc1Idx, ACL_MEMCPY_HOST_TO_DEVICE);
     if constexpr (std::is_same<dataType, aclFloat16>::value) {
-        LaunchTConcatHalf<idxType, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols0,
-                          vCols1>(dstDevice, src0Device, src1Device, dstIdxDevice, src0IdxDevice, src1IdxDevice,
-                                  stream);
+        LaunchTConcatHalf<
+            idxType, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols0, vCols1>(
+            dstDevice, src0Device, src1Device, dstIdxDevice, src0IdxDevice, src1IdxDevice, stream);
     } else {
-        LaunchTConcat<dataType, idxType, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols0,
-                      vCols1>(dstDevice, src0Device, src1Device, dstIdxDevice, src0IdxDevice, src1IdxDevice, stream);
+        LaunchTConcat<
+            dataType, idxType, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols0, vCols1>(
+            dstDevice, src0Device, src1Device, dstIdxDevice, src0IdxDevice, src1IdxDevice, stream);
     }
 
     aclrtSynchronizeStream(stream);

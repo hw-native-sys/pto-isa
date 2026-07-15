@@ -14,15 +14,17 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
-          int vCols>
-__global__ AICORE void runTFUSEDMULADD(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in__ *src1)
+template <
+    typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
+    int vCols>
+__global__ AICORE void runTFUSEDMULADD(__gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in__* src1)
 {
     using DynShape = pto::Shape<-1, -1, -1, -1, -1>;
     using DynStride = pto::Stride<-1, -1, -1, -1, -1>;
     using GlobalData = GlobalTensor<T, DynShape, DynStride>;
-    GlobalData dstGlobal(out, pto::Shape(1, 1, 1, vRows, vCols),
-                         pto::Stride(dstTileH * dstTileW, dstTileH * dstTileW, dstTileH * dstTileW, dstTileW, 1));
+    GlobalData dstGlobal(
+        out, pto::Shape(1, 1, 1, vRows, vCols),
+        pto::Stride(dstTileH * dstTileW, dstTileH * dstTileW, dstTileH * dstTileW, dstTileW, 1));
     GlobalData src0Global(
         src0, pto::Shape(1, 1, 1, vRows, vCols),
         pto::Stride(src0TileH * src0TileW, src0TileH * src0TileW, src0TileH * src0TileW, src0TileW, 1));
@@ -56,24 +58,36 @@ __global__ AICORE void runTFUSEDMULADD(__gm__ T __out__ *out, __gm__ T __in__ *s
     out = dstGlobal.data();
 }
 
-template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
-          int vCols, bool isHalf = true>
-void LaunchTFUSEDMULADD(T *out, T *src0, T *src1, void *stream)
+template <
+    typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
+    int vCols, bool isHalf = true>
+void LaunchTFUSEDMULADD(T* out, T* src0, T* src1, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
         runTFUSEDMULADD<half, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols>
-            <<<1, nullptr, stream>>>((half *)(out), (half *)(src0), (half *)(src1));
+            <<<1, nullptr, stream>>>((half*)(out), (half*)(src0), (half*)(src1));
     } else {
         runTFUSEDMULADD<T, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols>
             <<<1, nullptr, stream>>>(out, src0, src1);
     }
 }
 
-template void LaunchTFUSEDMULADD<float, 64, 64, 64, 64, 64, 64, 64, 64>(float *out, float *src0, float *src1,
-                                                                        void *stream);
-template void LaunchTFUSEDMULADD<float, 32, 128, 32, 192, 32, 256, 32, 127>(float *out, float *src0, float *src1,
-                                                                            void *stream);
-template void LaunchTFUSEDMULADD<aclFloat16, 64, 64, 64, 64, 64, 64, 64, 64>(aclFloat16 *out, aclFloat16 *src0,
-                                                                             aclFloat16 *src1, void *stream);
-template void LaunchTFUSEDMULADD<aclFloat16, 32, 128, 32, 192, 32, 256, 32, 127>(aclFloat16 *out, aclFloat16 *src0,
-                                                                                 aclFloat16 *src1, void *stream);
+template void LaunchTFUSEDMULADD<float, 1, 8, 1, 8, 1, 8, 1, 8>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTFUSEDMULADD<float, 64, 64, 64, 64, 64, 64, 64, 64>(
+    float* out, float* src0, float* src1, void* stream);
+template void LaunchTFUSEDMULADD<float, 32, 128, 32, 192, 32, 256, 32, 127>(
+    float* out, float* src0, float* src1, void* stream);
+template void LaunchTFUSEDMULADD<float, 1, 16384, 1, 16384, 1, 16384, 1, 16384>(
+    float* out, float* src0, float* src1, void* stream);
+template void LaunchTFUSEDMULADD<float, 2048, 8, 2048, 8, 2048, 8, 2048, 8>(
+    float* out, float* src0, float* src1, void* stream);
+template void LaunchTFUSEDMULADD<aclFloat16, 1, 16, 1, 16, 1, 16, 1, 16>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void LaunchTFUSEDMULADD<aclFloat16, 64, 64, 64, 64, 64, 64, 64, 64>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void LaunchTFUSEDMULADD<aclFloat16, 32, 128, 32, 192, 32, 256, 32, 127>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void LaunchTFUSEDMULADD<aclFloat16, 2048, 16, 2048, 16, 2048, 16, 2048, 16>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void LaunchTFUSEDMULADD<aclFloat16, 1, 32768, 1, 32768, 1, 32768, 1, 32768>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);

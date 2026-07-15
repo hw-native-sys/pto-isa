@@ -17,29 +17,28 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <uint32_t caseId>
-void launchTSUBRELUCONVTestCase(void *out, void *src0, void *src1, aclrtStream stream);
+void launchTSUBRELUCONVTestCase(void* out, void* src0, void* src1, aclrtStream stream);
 
 class TSUBRELUCONVTest : public testing::Test {
 public:
 protected:
-    void SetUp() override
-    {}
+    void SetUp() override {}
 
-    void TearDown() override
-    {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <uint32_t caseId, typename DstT, typename SrcT, int row, int col, int toleranceX1000 = 1, int validRow = row,
-          int validCol = col>
+template <
+    uint32_t caseId, typename DstT, typename SrcT, int row, int col, int toleranceX1000 = 1, int validRow = row,
+    int validCol = col>
 bool TSUBRELUCONVTestFramework()
 {
     float tolerance = static_cast<float>(toleranceX1000) / 1000.0f;
@@ -52,24 +51,24 @@ bool TSUBRELUCONVTestFramework()
 
     size_t srcByteSize = row * col * sizeof(SrcT);
     size_t dstByteSize = row * col * sizeof(DstT);
-    SrcT *src0Host;
-    SrcT *src1Host;
-    DstT *dstHost;
-    SrcT *src0Device;
-    SrcT *src1Device;
-    DstT *dstDevice;
+    SrcT* src0Host;
+    SrcT* src1Host;
+    DstT* dstHost;
+    SrcT* src0Device;
+    SrcT* src1Device;
+    DstT* dstDevice;
 
-    aclrtMallocHost((void **)(&src0Host), srcByteSize);
-    aclrtMallocHost((void **)(&src1Host), srcByteSize);
-    aclrtMallocHost((void **)(&dstHost), dstByteSize);
+    aclrtMallocHost((void**)(&src0Host), srcByteSize);
+    aclrtMallocHost((void**)(&src1Host), srcByteSize);
+    aclrtMallocHost((void**)(&dstHost), dstByteSize);
 
-    aclrtMalloc((void **)&src0Device, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     if constexpr (validRow < row || validCol < col) {
-        DstT *zeroHost;
-        aclrtMallocHost((void **)(&zeroHost), dstByteSize);
+        DstT* zeroHost;
+        aclrtMallocHost((void**)(&zeroHost), dstByteSize);
         memset_s(zeroHost, dstByteSize, 0, dstByteSize);
         aclrtMemcpy(dstDevice, dstByteSize, zeroHost, dstByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
         aclrtFreeHost(zeroHost);

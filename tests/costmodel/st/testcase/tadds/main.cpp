@@ -34,32 +34,14 @@ void runTAddS(T scalar)
 
 } // namespace
 
-TEST(TAddS, float_32x64)
-{
-    runTAddS<float, 32, 32, 64, 64, 57.0f, 0.894736f>(0.0f);
-}
+TEST(TAddS, float_32x64) { runTAddS<float, 32, 32, 64, 64, 57.0f, 0.894736f>(0.0f); }
 
-TEST(TAddS, half_63x64)
-{
-    runTAddS<half, 63, 63, 64, 64, 69.0f, 0.608695f>((half)1.5f);
-}
+TEST(TAddS, half_63x64) { runTAddS<half, 63, 63, 64, 64, 69.0f, 0.608695f>((half)1.5f); }
 
-TEST(TAddS, int32_31x128)
-{
-    runTAddS<int32_t, 31, 31, 128, 128, 70.0f, 0.671428f>(3);
-}
+TEST(TAddS, int32_31x128) { runTAddS<int32_t, 31, 31, 128, 128, 70.0f, 0.671428f>(3); }
 
-TEST(TAddS, int16_15x192)
-{
-    runTAddS<int16_t, 15, 15, 192, 192, 40.0f, 0.425000f>(3);
-}
+TEST(TAddS, int16_15x192) { runTAddS<int16_t, 15, 15, 192, 192, 40.0f, 0.425000f>(3); }
 
-TEST(TAddS, float_7x448)
-{
-    runTAddS<float, 7, 7, 448, 448, 77.0f, 0.961038f>(1.5f);
-}
+TEST(TAddS, float_7x448) { runTAddS<float, 7, 7, 448, 448, 77.0f, 0.961038f>(1.5f); }
 
-TEST(TAddS, float_256x16)
-{
-    runTAddS<float, 256, 256, 16, 16, 266.0f, 0.913533f>(1.5f);
-}
+TEST(TAddS, float_256x16) { runTAddS<float, 256, 256, 16, 16, 266.0f, 0.913533f>(1.5f); }

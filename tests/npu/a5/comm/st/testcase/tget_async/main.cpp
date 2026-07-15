@@ -72,7 +72,7 @@ TEST(TGetAsync, Vec_Float_MultiCoreIndep)
     ASSERT_TRUE((RunGetAsyncMultiCore<float, 256>(2, 2, 0, 0, 2, 1)));
 }
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     CommMpiInit(&argc, &argv);
     ::testing::InitGoogleTest(&argc, argv);

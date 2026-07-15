@@ -18,8 +18,7 @@ const uint32_t VECTOR_REG_WIDTH = 256;
 const uint32_t VECTOR_REG_WIDTH_2XVL = 512;
 constexpr uint32_t SHIFT_MX_ADDR = 4;
 
-enum class DistVST
-{
+enum class DistVST {
     DIST_NORM_B8,
     DIST_NORM_B16,
     DIST_NORM_B32,
@@ -53,9 +52,9 @@ PTO_INTERNAL constexpr DistVST GetDistVst()
             return DistVST::DIST_NORM_B32;
         }
     } else if constexpr (dist == DistVST::DIST_ONEPT) {
-        static_assert(SupportBytes<T, 1, 2, 4>(),
-                      "DistVST DIST_ONEPT only support type b8/b16/b32 on "
-                      "current device");
+        static_assert(
+            SupportBytes<T, 1, 2, 4>(), "DistVST DIST_ONEPT only support type b8/b16/b32 on "
+                                        "current device");
         if constexpr (sizeof(T) == 1) {
             return DistVST::DIST_ONEPT_B8;
         } else if constexpr (sizeof(T) == 2) {
@@ -80,7 +79,7 @@ PTO_INTERNAL MaskReg PSetWithType(U dist)
 }
 
 template <typename T>
-PTO_INTERNAL uint64_t GetScaleAddr(T *dst)
+PTO_INTERNAL uint64_t GetScaleAddr(T* dst)
 {
     uintptr_t addr = reinterpret_cast<uintptr_t>(dst);
     return addr >> SHIFT_MX_ADDR;

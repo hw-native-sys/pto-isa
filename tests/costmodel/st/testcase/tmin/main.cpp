@@ -51,10 +51,7 @@ TEST(TMin, case_int16_64x64_64x64_64x64_PAD_VALUE_NULL)
     runTMin<int16_t, 64, 64, 64, 64, PadValue::Null, 0.0f, 0.0f>();
 }
 
-TEST(TMin, case_float_60x60_64x64_60x60_PAD_VALUE_MIN)
-{
-    runTMin<float, 64, 60, 64, 60, PadValue::Min, 0.0f, 0.0f>();
-}
+TEST(TMin, case_float_60x60_64x64_60x60_PAD_VALUE_MIN) { runTMin<float, 64, 60, 64, 60, PadValue::Min, 0.0f, 0.0f>(); }
 
 TEST(TMin, case_int32_60x60_64x64_60x60_PAD_VALUE_MIN)
 {

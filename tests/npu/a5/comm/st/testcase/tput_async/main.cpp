@@ -59,7 +59,7 @@ TEST(TPutAsync, Vec_FloatSmall_4Ranks)
     ASSERT_TRUE((RunPutAsyncRootPut<float, 256>(4, 4, 0, 0)));
 }
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     CommMpiInit(&argc, &argv);
     ::testing::InitGoogleTest(&argc, argv);

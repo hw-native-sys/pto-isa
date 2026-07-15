@@ -22,10 +22,10 @@ namespace pto {
 namespace comm {
 
 template <DmaEngine engine = DmaEngine::SDMA, typename ScratchTile>
-PTO_INTERNAL bool BuildAsyncSession(ScratchTile &scratchTile, __gm__ uint8_t *workspace, AsyncSession &session,
-                                    uint32_t syncId = 0,
-                                    const sdma::SdmaBaseConfig &baseConfig = {sdma::kDefaultSdmaBlockBytes, 0, 1},
-                                    uint32_t channelGroupIdx = sdma::kAutoChannelGroupIdx)
+PTO_INTERNAL bool BuildAsyncSession(
+    ScratchTile& scratchTile, __gm__ uint8_t* workspace, AsyncSession& session, uint32_t syncId = 0,
+    const sdma::SdmaBaseConfig& baseConfig = {sdma::kDefaultSdmaBlockBytes, 0, 1},
+    uint32_t channelGroupIdx = sdma::kAutoChannelGroupIdx)
 {
     session.engine = engine;
     if constexpr (engine == DmaEngine::SDMA) {
@@ -33,15 +33,16 @@ PTO_INTERNAL bool BuildAsyncSession(ScratchTile &scratchTile, __gm__ uint8_t *wo
             sdma::BuildSdmaSession(scratchTile, workspace, session.sdmaSession, syncId, baseConfig, channelGroupIdx);
         return session.valid;
     } else {
-        static_assert(engine == DmaEngine::SDMA,
-                      "This overload is for SDMA; use the URMA-specific BuildAsyncSession for DmaEngine::URMA");
+        static_assert(
+            engine == DmaEngine::SDMA,
+            "This overload is for SDMA; use the URMA-specific BuildAsyncSession for DmaEngine::URMA");
         return false;
     }
 }
 
 #ifdef PTO_URMA_SUPPORTED
 template <DmaEngine engine>
-PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t *workspace, uint32_t destRankId, AsyncSession &session)
+PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t* workspace, uint32_t destRankId, AsyncSession& session)
 {
     static_assert(engine == DmaEngine::URMA, "This overload is for URMA only");
     session.engine = engine;
@@ -54,7 +55,7 @@ PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t *workspace, uint32_t destRank
 // AsyncEvent::Wait / Test — AsyncSession overloads (primary user API)
 // ============================================================================
 
-PTO_INTERNAL bool AsyncEvent::Wait(const AsyncSession &session) const
+PTO_INTERNAL bool AsyncEvent::Wait(const AsyncSession& session) const
 {
     if (handle == 0) {
         return true;
@@ -71,7 +72,7 @@ PTO_INTERNAL bool AsyncEvent::Wait(const AsyncSession &session) const
     }
 }
 
-PTO_INTERNAL bool AsyncEvent::Test(const AsyncSession &session) const
+PTO_INTERNAL bool AsyncEvent::Test(const AsyncSession& session) const
 {
     if (handle == 0) {
         return true;

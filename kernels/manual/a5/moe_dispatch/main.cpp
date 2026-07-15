@@ -34,12 +34,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include "moe_dispatch_launch.h"
 
-enum class DispatchMode
-{
-    Direct,
-    ViaGM,
-    WithSync
-};
+enum class DispatchMode { Direct, ViaGM, WithSync };
 static DispatchMode g_dispatchMode = DispatchMode::Direct;
 
 // HCCL & comm test framework (reused from comm ST testcase directory)
@@ -72,7 +67,7 @@ struct RoutingTables {
     // preSumBeforeRank[srcRank * expertPerRank + groupIdx] = row offset in srcRank's shmem for myRank's expert groupIdx
     std::vector<int32_t> preSumBeforeRank;
 
-    void Generate(int myRank, std::mt19937 &rng)
+    void Generate(int myRank, std::mt19937& rng)
     {
         tokenPerExpert.resize(EP * EP * expertPerRank, 0);
 
@@ -156,8 +151,9 @@ struct RoutingTables {
 //
 // Each row in shmem: [int8_t x hiddenSize] [padding with float scale at offset hiddenSize]
 // ============================================================================
-void GenerateShmemData(std::vector<int8_t> &shmemData, std::vector<float> &expectedScales, int32_t totalRows,
-                       int32_t hiddenSize, int32_t rankId, std::mt19937 &rng)
+void GenerateShmemData(
+    std::vector<int8_t>& shmemData, std::vector<float>& expectedScales, int32_t totalRows, int32_t hiddenSize,
+    int32_t rankId, std::mt19937& rng)
 {
     int32_t rowStride = hiddenSize + UB_ALIGN;
     shmemData.resize(static_cast<size_t>(totalRows) * rowStride, 0);
@@ -167,7 +163,7 @@ void GenerateShmemData(std::vector<int8_t> &shmemData, std::vector<float> &expec
     std::uniform_real_distribution<float> scaleDist(0.001f, 1.0f);
 
     for (int32_t row = 0; row < totalRows; ++row) {
-        int8_t *rowPtr = shmemData.data() + static_cast<size_t>(row) * rowStride;
+        int8_t* rowPtr = shmemData.data() + static_cast<size_t>(row) * rowStride;
 
         // Fill token data with recognizable pattern: rank_id * 1000 + row * 10 + col % 10
         for (int32_t col = 0; col < hiddenSize; ++col) {
@@ -191,9 +187,9 @@ void GenerateShmemData(std::vector<int8_t> &shmemData, std::vector<float> &expec
 //
 // Simulates the Dispatch loop on host to produce expected gmA and gmPerTokenScale
 // ============================================================================
-void ComputeGolden(const RoutingTables &routing, const std::vector<std::vector<int8_t>> &allShmemData, int32_t myRank,
-                   int32_t hiddenSize, int32_t maxOutputSize, std::vector<int8_t> &expectedGmA,
-                   std::vector<float> &expectedGmScale)
+void ComputeGolden(
+    const RoutingTables& routing, const std::vector<std::vector<int8_t>>& allShmemData, int32_t myRank,
+    int32_t hiddenSize, int32_t maxOutputSize, std::vector<int8_t>& expectedGmA, std::vector<float>& expectedGmScale)
 {
     int32_t EP = routing.EP;
     int32_t expertPerRank = routing.expertPerRank;
@@ -238,12 +234,12 @@ void ComputeGolden(const RoutingTables &routing, const std::vector<std::vector<i
             uint32_t rowSrc = static_cast<uint32_t>(prevSumPerRank[dstEpIdx]);
             prevSumPerRank[dstEpIdx] += static_cast<int32_t>(rows);
 
-            const int8_t *srcShmem = allShmemData[dstEpIdx].data();
+            const int8_t* srcShmem = allShmemData[dstEpIdx].data();
             for (uint32_t r = 0; r < rows; ++r) {
-                const int8_t *srcRow = srcShmem + static_cast<size_t>(rowSrc + r) * rowStride;
+                const int8_t* srcRow = srcShmem + static_cast<size_t>(rowSrc + r) * rowStride;
 
                 // Token: compact K bytes/row into expectedGmA
-                int8_t *dstToken = expectedGmA.data() + static_cast<size_t>(rowStart + r) * hiddenSize;
+                int8_t* dstToken = expectedGmA.data() + static_cast<size_t>(rowStart + r) * hiddenSize;
                 memcpy_s(dstToken, hiddenSize, srcRow, hiddenSize);
 
                 // Scale: extract float at offset hiddenSize in interleaved row
@@ -261,8 +257,9 @@ void ComputeGolden(const RoutingTables &routing, const std::vector<std::vector<i
 // Per-rank test function
 // ============================================================================
 template <int HIDDEN_SIZE>
-bool RunMoeDispatch(int rankId, int nRanks, int nDevices, int firstDeviceId, const HcclRootInfo *rootInfo,
-                    const MoeDispatchParams &params, uint32_t seed)
+bool RunMoeDispatch(
+    int rankId, int nRanks, int nDevices, int firstDeviceId, const HcclRootInfo* rootInfo,
+    const MoeDispatchParams& params, uint32_t seed)
 {
     TestContext ctx;
     if (!ctx.Init(rankId, nRanks, nDevices, firstDeviceId, rootInfo)) {
@@ -344,13 +341,13 @@ bool RunMoeDispatch(int rankId, int nRanks, int nDevices, int firstDeviceId, con
     // Skip the first 256 bytes of the window to avoid the defective region.
     size_t winOffset = 256;
     size_t totalShmemAlloc = (g_dispatchMode == DispatchMode::WithSync) ? uniformShmemBase + tpeAreaSize : shmemSize;
-    void *devShmem = WindowAlloc(ctx.hostCtx.windowsIn[rankId], winOffset, totalShmemAlloc);
+    void* devShmem = WindowAlloc(ctx.hostCtx.windowsIn[rankId], winOffset, totalShmemAlloc);
 
     // Allocate regular device memory for outputs and routing tables
     void *devGmA = nullptr, *devGmScale = nullptr;
     void *devCumsumMM = nullptr, *devTPE = nullptr, *devPSBR = nullptr;
-    void *devSyncWs = nullptr;
-    void *devRoutingWs = nullptr;
+    void* devSyncWs = nullptr;
+    void* devRoutingWs = nullptr;
 
     aclrtMalloc(&devGmA, gmASize, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMalloc(&devGmScale, gmScaleSize, ACL_MEM_MALLOC_HUGE_FIRST);
@@ -385,10 +382,10 @@ bool RunMoeDispatch(int rankId, int nRanks, int nDevices, int firstDeviceId, con
             }
         }
         // Zero the entire TPE area first
-        uint8_t *tpeAreaPtr = reinterpret_cast<uint8_t *>(devShmem) + uniformShmemBase;
+        uint8_t* tpeAreaPtr = reinterpret_cast<uint8_t*>(devShmem) + uniformShmemBase;
         aclrtMemset(tpeAreaPtr, tpeAreaSize, 0, tpeAreaSize);
         // Write local TPE to row[myRank]
-        uint8_t *myRowPtr = tpeAreaPtr + static_cast<size_t>(rankId) * tpeRowBytes;
+        uint8_t* myRowPtr = tpeAreaPtr + static_cast<size_t>(rankId) * tpeRowBytes;
         aclrtMemcpy(myRowPtr, tpeRowBytes, localTPEPadded.data(), tpeRowBytes, ACL_MEMCPY_HOST_TO_DEVICE);
         // Zero routing workspace
         aclrtMemset(devRoutingWs, routingWsSize, 0, routingWsSize);
@@ -406,7 +403,7 @@ bool RunMoeDispatch(int rankId, int nRanks, int nDevices, int firstDeviceId, con
     // ========================================================================
     int64_t offsetA = 0;
 
-    void *devTempGm = nullptr;
+    void* devTempGm = nullptr;
     if (g_dispatchMode == DispatchMode::ViaGM) {
         size_t tempGmSize = static_cast<size_t>(maxOutputSize) * rowStride;
         aclrtMalloc(&devTempGm, tempGmSize, ACL_MEM_MALLOC_HUGE_FIRST);
@@ -415,16 +412,17 @@ bool RunMoeDispatch(int rankId, int nRanks, int nDevices, int firstDeviceId, con
 
     bool kernelOk = false;
     if (g_dispatchMode == DispatchMode::Direct) {
-        kernelOk = LaunchMoeDispatchK128(blockNum, ctx.stream, devGmA, devGmScale, devCumsumMM, devTPE, devPSBR,
-                                         devShmem, ctx.deviceCtx, devSyncWs, EP, expertPerRank, maxOutputSize, offsetA);
+        kernelOk = LaunchMoeDispatchK128(
+            blockNum, ctx.stream, devGmA, devGmScale, devCumsumMM, devTPE, devPSBR, devShmem, ctx.deviceCtx, devSyncWs,
+            EP, expertPerRank, maxOutputSize, offsetA);
     } else if (g_dispatchMode == DispatchMode::ViaGM) {
-        kernelOk = LaunchMoeDispatchViaGM_K128(blockNum, ctx.stream, devGmA, devGmScale, devTempGm, devCumsumMM, devTPE,
-                                               devPSBR, devShmem, ctx.deviceCtx, devSyncWs, EP, expertPerRank,
-                                               maxOutputSize, offsetA);
+        kernelOk = LaunchMoeDispatchViaGM_K128(
+            blockNum, ctx.stream, devGmA, devGmScale, devTempGm, devCumsumMM, devTPE, devPSBR, devShmem, ctx.deviceCtx,
+            devSyncWs, EP, expertPerRank, maxOutputSize, offsetA);
     } else {
-        kernelOk = LaunchMoeDispatchWithSync_K128(blockNum, ctx.stream, devGmA, devGmScale, devShmem, ctx.deviceCtx,
-                                                  devRoutingWs, devSyncWs, EP, expertPerRank, maxOutputSize, offsetA,
-                                                  offsetTPE);
+        kernelOk = LaunchMoeDispatchWithSync_K128(
+            blockNum, ctx.stream, devGmA, devGmScale, devShmem, ctx.deviceCtx, devRoutingWs, devSyncWs, EP,
+            expertPerRank, maxOutputSize, offsetA, offsetTPE);
     }
 
     if (!kernelOk) {
@@ -514,12 +512,12 @@ bool RunMoeDispatch(int rankId, int nRanks, int nDevices, int firstDeviceId, con
 // ============================================================================
 // Main: MPI-based multi-rank test
 // ============================================================================
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     CommMpiInit(&argc, &argv);
 
     // Parse dispatch mode from environment variable DISPATCH_MODE
-    const char *modeEnv = std::getenv("DISPATCH_MODE");
+    const char* modeEnv = std::getenv("DISPATCH_MODE");
     if (modeEnv && std::string(modeEnv) == "viagm") {
         g_dispatchMode = DispatchMode::ViaGM;
     } else if (modeEnv && std::string(modeEnv) == "sync") {
@@ -547,7 +545,7 @@ int main(int argc, char *argv[])
               << std::endl;
 
     bool success =
-        ForkAndRunWithHcclRootInfo(nRanks, 0, firstDeviceId, [&](int rankId, const HcclRootInfo *rootInfo) -> bool {
+        ForkAndRunWithHcclRootInfo(nRanks, 0, firstDeviceId, [&](int rankId, const HcclRootInfo* rootInfo) -> bool {
             return RunMoeDispatch<CONFIG_HIDDEN_SIZE>(rankId, nRanks, nDevices, firstDeviceId, rootInfo, params, seed);
         });
 

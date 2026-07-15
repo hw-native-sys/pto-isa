@@ -40,14 +40,8 @@ static constexpr uint32_t G_BASE_M = CONFIG_G_BASE_M;
 static constexpr uint32_t G_BASE_K = CONFIG_G_BASE_K;
 static constexpr uint32_t G_BASE_N = CONFIG_G_BASE_N;
 
-static constexpr uint32_t CeilDiv(uint32_t a, uint32_t b)
-{
-    return (b == 0) ? 0 : (a + b - 1) / b;
-}
-static constexpr uint32_t AlignUp(uint32_t a, uint32_t b)
-{
-    return CeilDiv(a, b) * b;
-}
+static constexpr uint32_t CeilDiv(uint32_t a, uint32_t b) { return (b == 0) ? 0 : (a + b - 1) / b; }
+static constexpr uint32_t AlignUp(uint32_t a, uint32_t b) { return CeilDiv(a, b) * b; }
 
 static constexpr uint32_t G_M = AlignUp(G_ORIG_M, G_BASE_M);
 static constexpr uint32_t G_K = G_ORIG_K;

@@ -13,9 +13,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace pto;
 
-template <typename T, uint32_t ROWS_, uint32_t COLS_, uint32_t VALID_R_, uint32_t VALID_C,
-          uint32_t ALIGN_C = (VALID_C + 31 - 1) / 32 * 32>
-__global__ AICORE void runTSORT32(__gm__ T *out, __gm__ T *src, __gm__ uint32_t *idx, __gm__ T *tmp)
+template <
+    typename T, uint32_t ROWS_, uint32_t COLS_, uint32_t VALID_R_, uint32_t VALID_C,
+    uint32_t ALIGN_C = (VALID_C + 31 - 1) / 32 * 32>
+__global__ AICORE void runTSORT32(__gm__ T* out, __gm__ T* src, __gm__ uint32_t* idx, __gm__ T* tmp)
 {
     constexpr uint32_t TYPE_COEF = sizeof(float) / sizeof(T);
     constexpr uint32_t OUT_COLS = TYPE_COEF * 2 * COLS_;
@@ -68,15 +69,15 @@ __global__ AICORE void runTSORT32(__gm__ T *out, __gm__ T *src, __gm__ uint32_t 
     out = dstGlobal.data();
 }
 
-template <uint32_t tRows, uint32_t tCols, uint32_t vRows, uint32_t vCols,
-          uint32_t alignedCols = (vCols + 31 - 1) / 32 * 32>
-void launchTSORT32Half(uint64_t *out, uint64_t *src, uint32_t *idx, uint64_t *tmp, void *stream)
+template <
+    uint32_t tRows, uint32_t tCols, uint32_t vRows, uint32_t vCols, uint32_t alignedCols = (vCols + 31 - 1) / 32 * 32>
+void launchTSORT32Half(uint64_t* out, uint64_t* src, uint32_t* idx, uint64_t* tmp, void* stream)
 {
     runTSORT32<half, tRows, tCols, vRows, vCols, alignedCols><<<1, nullptr, stream>>>(
-        reinterpret_cast<half *>(out), reinterpret_cast<half *>(src), idx, reinterpret_cast<half *>(tmp));
+        reinterpret_cast<half*>(out), reinterpret_cast<half*>(src), idx, reinterpret_cast<half*>(tmp));
 }
 
-template void launchTSORT32Half<2, 32, 2, 32>(uint64_t *out, uint64_t *src, uint32_t *idx, uint64_t *tmp, void *stream);
-template void launchTSORT32Half<4, 64, 4, 64>(uint64_t *out, uint64_t *src, uint32_t *idx, uint64_t *tmp, void *stream);
-template void launchTSORT32Half<1, 32 * 256, 1, 32 * 256>(uint64_t *out, uint64_t *src, uint32_t *idx, uint64_t *tmp,
-                                                          void *stream);
+template void launchTSORT32Half<2, 32, 2, 32>(uint64_t* out, uint64_t* src, uint32_t* idx, uint64_t* tmp, void* stream);
+template void launchTSORT32Half<4, 64, 4, 64>(uint64_t* out, uint64_t* src, uint32_t* idx, uint64_t* tmp, void* stream);
+template void launchTSORT32Half<1, 32 * 256, 1, 32 * 256>(
+    uint64_t* out, uint64_t* src, uint32_t* idx, uint64_t* tmp, void* stream);

@@ -17,8 +17,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 template <typename tile_shape, ElementOp op>
-void ZeroTileScalarOp_Impl(typename tile_shape::TileDType dst, typename tile_shape::DType scalar, unsigned validRow,
-                           unsigned validCol)
+void ZeroTileScalarOp_Impl(
+    typename tile_shape::TileDType dst, typename tile_shape::DType scalar, unsigned validRow, unsigned validCol)
 {
     using DType = typename tile_shape::DType;
     if constexpr (tile_shape::SFractal == SLayout::NoneBox) {
@@ -59,9 +59,9 @@ void ZeroTileScalarOp_Impl(typename tile_shape::TileDType dst, typename tile_sha
 }
 
 template <typename tile_shape, ElementOp op>
-void ElementTileScalarOpWithCarry_Impl(typename tile_shape::TileDType dst, typename tile_shape::TileDType src0,
-                                       typename tile_shape::DType scalar, typename tile_shape::TileDType src1,
-                                       unsigned validRow, unsigned validCol)
+void ElementTileScalarOpWithCarry_Impl(
+    typename tile_shape::TileDType dst, typename tile_shape::TileDType src0, typename tile_shape::DType scalar,
+    typename tile_shape::TileDType src1, unsigned validRow, unsigned validCol)
 {
     using DType = typename tile_shape::DType;
     if constexpr (tile_shape::SFractal == SLayout::NoneBox) {
@@ -104,21 +104,21 @@ void ElementTileScalarOpWithCarry_Impl(typename tile_shape::TileDType dst, typen
 }
 
 template <typename tile_shape>
-PTO_INTERNAL void TADDSC_IMPL(tile_shape &dst, tile_shape &src0, typename tile_shape::DType scalar, tile_shape &src1)
+PTO_INTERNAL void TADDSC_IMPL(tile_shape& dst, tile_shape& src0, typename tile_shape::DType scalar, tile_shape& src1)
 {
     unsigned row = dst.GetValidRow();
     unsigned col = dst.GetValidCol();
-    ElementTileScalarOpWithCarry_Impl<tile_shape, ElementOp::OP_ADDCS>(dst.data(), src0.data(), scalar, src1.data(),
-                                                                       row, col);
+    ElementTileScalarOpWithCarry_Impl<tile_shape, ElementOp::OP_ADDCS>(
+        dst.data(), src0.data(), scalar, src1.data(), row, col);
 }
 
 template <typename tile_shape>
-PTO_INTERNAL void TSUBSC_IMPL(tile_shape &dst, tile_shape &src0, typename tile_shape::DType scalar, tile_shape &src1)
+PTO_INTERNAL void TSUBSC_IMPL(tile_shape& dst, tile_shape& src0, typename tile_shape::DType scalar, tile_shape& src1)
 {
     unsigned row = dst.GetValidRow();
     unsigned col = dst.GetValidCol();
-    ElementTileScalarOpWithCarry_Impl<tile_shape, ElementOp::OP_SUBCS>(dst.data(), src0.data(), scalar, src1.data(),
-                                                                       row, col);
+    ElementTileScalarOpWithCarry_Impl<tile_shape, ElementOp::OP_SUBCS>(
+        dst.data(), src0.data(), scalar, src1.data(), row, col);
 }
 } // namespace pto
 #endif

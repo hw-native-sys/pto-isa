@@ -20,26 +20,29 @@ using ::pto::VFImplKind;
 using ::pto::mocker::lightweight::CostModelInput;
 using ::pto::mocker::lightweight::PtoOpcode;
 
-template <typename T, int Rows, int Cols, int ValidRows, int ValidCols,
-          VFImplKind VfImplKindValue = VFImplKind::VFIMPL_DEFAULT>
+template <
+    typename T, int Rows, int Cols, int ValidRows, int ValidCols,
+    VFImplKind VfImplKindValue = VFImplKind::VFIMPL_DEFAULT>
 CostModelInput TAddInput()
 {
     return pto::test::MakeA5VfInput<T, PtoOpcode::TADD, Rows, Cols, ValidRows, ValidCols, VfImplKindValue>();
 }
 
-template <typename T, int Rows, int Cols, double Profiling, double Precision,
-          VFImplKind VfImplKindValue = VFImplKind::VFIMPL_DEFAULT>
+template <
+    typename T, int Rows, int Cols, double Profiling, double Precision,
+    VFImplKind VfImplKindValue = VFImplKind::VFIMPL_DEFAULT>
 void runTAdd()
 {
     pto::test::ExpectA5CycleNear("TADD", TAddInput<T, Rows, Cols, 0, 0, VfImplKindValue>(), Profiling, Precision);
 }
 
-template <typename T, int Rows, int Cols, int ValidRows, int ValidCols, double Profiling, double Precision,
-          VFImplKind VfImplKindValue = VFImplKind::VFIMPL_DEFAULT>
+template <
+    typename T, int Rows, int Cols, int ValidRows, int ValidCols, double Profiling, double Precision,
+    VFImplKind VfImplKindValue = VFImplKind::VFIMPL_DEFAULT>
 void runTAdd()
 {
-    pto::test::ExpectA5CycleNear("TADD", TAddInput<T, Rows, Cols, ValidRows, ValidCols, VfImplKindValue>(), Profiling,
-                                 Precision);
+    pto::test::ExpectA5CycleNear(
+        "TADD", TAddInput<T, Rows, Cols, ValidRows, ValidCols, VfImplKindValue>(), Profiling, Precision);
 }
 
 } // namespace
@@ -113,7 +116,4 @@ TEST(A5TAddFit, Fp32Default2DNoPostUpdateTail)
     runTAdd<float, 20, 1312, 20, 1217, 869.0, 0.9804>();
 }
 
-TEST(A5TAddFit, Fp16ReusesFp32Curve)
-{
-    runTAdd<half, 1, 1280, 67.0, 0.9850>();
-}
+TEST(A5TAddFit, Fp16ReusesFp32Curve) { runTAdd<half, 1, 1280, 67.0, 0.9850>(); }

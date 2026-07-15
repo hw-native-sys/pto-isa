@@ -36,24 +36,21 @@ constexpr float kSwigluDynamicQuantEps = 1.0e-6f;
 template <typename InputElement>
 class Swiglu {
 public:
-    AICORE inline void Init(GM_ADDR expertTokenNumsGM, GM_ADDR workspaceGM, const __gm__ MegaMoeTilingData *tilingData);
+    AICORE inline void Init(GM_ADDR expertTokenNumsGM, GM_ADDR workspaceGM, const __gm__ MegaMoeTilingData* tilingData);
     AICORE inline void Process();
 
 private:
-    AICORE inline __gm__ MegaMoeSwigluSegmentRuntimeMeta *SegmentMetaPtr() const
+    AICORE inline __gm__ MegaMoeSwigluSegmentRuntimeMeta* SegmentMetaPtr() const
     {
-        return reinterpret_cast<__gm__ MegaMoeSwigluSegmentRuntimeMeta *>(
+        return reinterpret_cast<__gm__ MegaMoeSwigluSegmentRuntimeMeta*>(
             workspaceGM_ + tilingData_->swigluTiling.swigluSegmentMetaOffset);
     }
     AICORE inline void WriteSharedSegmentMetadata(uint32_t segmentIdx) const;
-    AICORE inline void ReadSharedSegmentMetadata(uint32_t segmentIdx, uint32_t &segmentStartExpert,
-                                                 uint32_t &segmentEndExpert, uint32_t &segmentRowBase,
-                                                 uint32_t &segmentRows, uint32_t &cumsumRows, uint32_t &expertTokenRows,
-                                                 uint32_t &rowSplitBase, uint32_t &rowSplitRem) const;
-    AICORE inline uint64_t AlignUbBytes(uint64_t value) const
-    {
-        return (value + 31U) / 32U * 32U;
-    }
+    AICORE inline void ReadSharedSegmentMetadata(
+        uint32_t segmentIdx, uint32_t& segmentStartExpert, uint32_t& segmentEndExpert, uint32_t& segmentRowBase,
+        uint32_t& segmentRows, uint32_t& cumsumRows, uint32_t& expertTokenRows, uint32_t& rowSplitBase,
+        uint32_t& rowSplitRem) const;
+    AICORE inline uint64_t AlignUbBytes(uint64_t value) const { return (value + 31U) / 32U * 32U; }
     AICORE inline uint64_t SwigluMaxScratchBytes() const
     {
         const uint64_t bytes = static_cast<uint64_t>(outputN_ / 2U) * sizeof(float);
@@ -104,26 +101,11 @@ private:
     {
         return SwigluScaleOutputOffset(kSwigluScaleChunkBuffers - 1U) + SwigluScaleOutputBytes() <= AtlasA2::UB_SIZE;
     }
-    AICORE inline event_t LoadFreeEvent(uint32_t bufferId) const
-    {
-        return static_cast<event_t>(bufferId);
-    }
-    AICORE inline event_t LoadReadyEvent(uint32_t bufferId) const
-    {
-        return static_cast<event_t>(bufferId);
-    }
-    AICORE inline event_t StoreReadyEvent(uint32_t bufferId) const
-    {
-        return static_cast<event_t>(bufferId);
-    }
-    AICORE inline event_t StoreDoneEvent(uint32_t bufferId) const
-    {
-        return static_cast<event_t>(bufferId);
-    }
-    AICORE inline event_t ScaleStoreEvent(uint32_t bufferId) const
-    {
-        return bufferId == 0U ? EVENT_ID2 : EVENT_ID3;
-    }
+    AICORE inline event_t LoadFreeEvent(uint32_t bufferId) const { return static_cast<event_t>(bufferId); }
+    AICORE inline event_t LoadReadyEvent(uint32_t bufferId) const { return static_cast<event_t>(bufferId); }
+    AICORE inline event_t StoreReadyEvent(uint32_t bufferId) const { return static_cast<event_t>(bufferId); }
+    AICORE inline event_t StoreDoneEvent(uint32_t bufferId) const { return static_cast<event_t>(bufferId); }
+    AICORE inline event_t ScaleStoreEvent(uint32_t bufferId) const { return bufferId == 0U ? EVENT_ID2 : EVENT_ID3; }
     AICORE inline void InitFullRowPipeline() const;
     AICORE inline void FinalizeFullRowPipeline() const;
     AICORE inline void RunFullRowEpilogue(uint32_t localRowStart, uint32_t localRows) const;
@@ -138,13 +120,13 @@ private:
     AICORE inline void IssueStoreScale2Chunk(uint32_t rowStart, uint32_t rowCount, uint32_t scaleBufferId) const;
 
     GM_ADDR workspaceGM_ = nullptr;
-    const __gm__ MegaMoeTilingData *tilingData_ = nullptr;
-    __gm__ half *gmCPtr_ = nullptr;
-    __gm__ float *perTokenScalePtr_ = nullptr;
-    __gm__ int8_t *gmPermutedTokenPtr_ = nullptr;
-    __gm__ float *perTokenScale2Ptr_ = nullptr;
-    __gm__ int32_t *cumsumMMPtr_ = nullptr;
-    __gm__ int32_t *expertTokenNumsPtr_ = nullptr;
+    const __gm__ MegaMoeTilingData* tilingData_ = nullptr;
+    __gm__ half* gmCPtr_ = nullptr;
+    __gm__ float* perTokenScalePtr_ = nullptr;
+    __gm__ int8_t* gmPermutedTokenPtr_ = nullptr;
+    __gm__ float* perTokenScale2Ptr_ = nullptr;
+    __gm__ int32_t* cumsumMMPtr_ = nullptr;
+    __gm__ int32_t* expertTokenNumsPtr_ = nullptr;
     uint32_t problemN_ = 0;
     uint32_t outputN_ = 0;
     uint32_t maxOutputSize_ = 0;
@@ -156,8 +138,8 @@ private:
 };
 
 template <typename InputElement>
-AICORE inline void Swiglu<InputElement>::Init(GM_ADDR expertTokenNumsGM, GM_ADDR workspaceGM,
-                                              const __gm__ MegaMoeTilingData *tilingData)
+AICORE inline void Swiglu<InputElement>::Init(
+    GM_ADDR expertTokenNumsGM, GM_ADDR workspaceGM, const __gm__ MegaMoeTilingData* tilingData)
 {
     (void)sizeof(InputElement);
     workspaceGM_ = workspaceGM;
@@ -176,15 +158,13 @@ AICORE inline void Swiglu<InputElement>::Init(GM_ADDR expertTokenNumsGM, GM_ADDR
         coreNum_ = get_block_num() * get_subblockdim();
     }
 
-    gmCPtr_ = reinterpret_cast<__gm__ half *>(workspaceGM_ + tilingData_->gmm1Tiling.gmCOffset);
-    perTokenScalePtr_ =
-        reinterpret_cast<__gm__ float *>(workspaceGM_ + tilingData_->dispatchTiling.perTokenScaleOffset);
+    gmCPtr_ = reinterpret_cast<__gm__ half*>(workspaceGM_ + tilingData_->gmm1Tiling.gmCOffset);
+    perTokenScalePtr_ = reinterpret_cast<__gm__ float*>(workspaceGM_ + tilingData_->dispatchTiling.perTokenScaleOffset);
     gmPermutedTokenPtr_ =
-        reinterpret_cast<__gm__ int8_t *>(workspaceGM_ + tilingData_->swigluTiling.gmPermutedTokenOffset);
-    perTokenScale2Ptr_ =
-        reinterpret_cast<__gm__ float *>(workspaceGM_ + tilingData_->swigluTiling.perTokenScale2Offset);
-    cumsumMMPtr_ = reinterpret_cast<__gm__ int32_t *>(workspaceGM_ + tilingData_->frontReorderTiling.cumsumMMOffset);
-    expertTokenNumsPtr_ = reinterpret_cast<__gm__ int32_t *>(expertTokenNumsGM);
+        reinterpret_cast<__gm__ int8_t*>(workspaceGM_ + tilingData_->swigluTiling.gmPermutedTokenOffset);
+    perTokenScale2Ptr_ = reinterpret_cast<__gm__ float*>(workspaceGM_ + tilingData_->swigluTiling.perTokenScale2Offset);
+    cumsumMMPtr_ = reinterpret_cast<__gm__ int32_t*>(workspaceGM_ + tilingData_->frontReorderTiling.cumsumMMOffset);
+    expertTokenNumsPtr_ = reinterpret_cast<__gm__ int32_t*>(expertTokenNumsGM);
 }
 template <typename InputElement>
 AICORE inline void Swiglu<InputElement>::WriteSharedSegmentMetadata(uint32_t segmentIdx) const
@@ -199,13 +179,13 @@ AICORE inline void Swiglu<InputElement>::WriteSharedSegmentMetadata(uint32_t seg
     uint32_t segmentRows = 0;
     uint32_t cumsumRows = 0;
     uint32_t expertTokenRows = 0;
-    MoeBuildSegmentMetadata(segmentIdx, expertPerRank_, maxOutputSize_, cumsumMMPtr_, expertTokenNumsPtr_, rankSize_,
-                            segmentStartExpert, segmentEndExpert, segmentRowBase, segmentRows, cumsumRows,
-                            expertTokenRows);
+    MoeBuildSegmentMetadata(
+        segmentIdx, expertPerRank_, maxOutputSize_, cumsumMMPtr_, expertTokenNumsPtr_, rankSize_, segmentStartExpert,
+        segmentEndExpert, segmentRowBase, segmentRows, cumsumRows, expertTokenRows);
     const uint32_t rowSplitBase = segmentRows / coreNum_;
     const uint32_t rowSplitRem = segmentRows - rowSplitBase * coreNum_;
 
-    volatile __gm__ MegaMoeSwigluSegmentRuntimeMeta *entry = SegmentMetaPtr() + segmentIdx;
+    volatile __gm__ MegaMoeSwigluSegmentRuntimeMeta* entry = SegmentMetaPtr() + segmentIdx;
     entry->valid = 0U;
     entry->segmentIdx = segmentIdx;
     entry->segmentStartExpert = segmentStartExpert;
@@ -225,18 +205,17 @@ AICORE inline void Swiglu<InputElement>::WriteSharedSegmentMetadata(uint32_t seg
     pipe_barrier(PIPE_ALL);
     entry->valid = 1U;
     pipe_barrier(PIPE_ALL);
-    V5DcciGmRange(reinterpret_cast<__gm__ void *>(SegmentMetaPtr() + segmentIdx),
-                  sizeof(MegaMoeSwigluSegmentRuntimeMeta));
+    V5DcciGmRange(
+        reinterpret_cast<__gm__ void*>(SegmentMetaPtr() + segmentIdx), sizeof(MegaMoeSwigluSegmentRuntimeMeta));
 }
 
 template <typename InputElement>
-AICORE inline void Swiglu<InputElement>::ReadSharedSegmentMetadata(uint32_t segmentIdx, uint32_t &segmentStartExpert,
-                                                                   uint32_t &segmentEndExpert, uint32_t &segmentRowBase,
-                                                                   uint32_t &segmentRows, uint32_t &cumsumRows,
-                                                                   uint32_t &expertTokenRows, uint32_t &rowSplitBase,
-                                                                   uint32_t &rowSplitRem) const
+AICORE inline void Swiglu<InputElement>::ReadSharedSegmentMetadata(
+    uint32_t segmentIdx, uint32_t& segmentStartExpert, uint32_t& segmentEndExpert, uint32_t& segmentRowBase,
+    uint32_t& segmentRows, uint32_t& cumsumRows, uint32_t& expertTokenRows, uint32_t& rowSplitBase,
+    uint32_t& rowSplitRem) const
 {
-    volatile __gm__ MegaMoeSwigluSegmentRuntimeMeta *entry = SegmentMetaPtr() + segmentIdx;
+    volatile __gm__ MegaMoeSwigluSegmentRuntimeMeta* entry = SegmentMetaPtr() + segmentIdx;
     segmentStartExpert = entry->segmentStartExpert;
     segmentEndExpert = entry->segmentEndExpert;
     segmentRowBase = entry->segmentRowBase;
@@ -316,16 +295,16 @@ AICORE inline void Swiglu<InputElement>::RunFullRowEpilogue(uint32_t localRowSta
 }
 
 template <typename InputElement>
-AICORE inline void Swiglu<InputElement>::IssueStoreScale2Chunk(uint32_t rowStart, uint32_t rowCount,
-                                                               uint32_t scaleBufferId) const
+AICORE inline void Swiglu<InputElement>::IssueStoreScale2Chunk(
+    uint32_t rowStart, uint32_t rowCount, uint32_t scaleBufferId) const
 {
     if (rowCount == 0U) {
         return;
     }
     set_flag(PIPE_S, PIPE_MTE3, ScaleStoreEvent(scaleBufferId));
     wait_flag(PIPE_S, PIPE_MTE3, ScaleStoreEvent(scaleBufferId));
-    PtoStoreVector<float, kSwigluScaleTileElems>(perTokenScale2Ptr_ + rowStart, SwigluScaleOutputOffset(scaleBufferId),
-                                                 rowCount);
+    PtoStoreVector<float, kSwigluScaleTileElems>(
+        perTokenScale2Ptr_ + rowStart, SwigluScaleOutputOffset(scaleBufferId), rowCount);
     set_flag(PIPE_MTE3, PIPE_S, ScaleStoreEvent(scaleBufferId));
 }
 
@@ -336,14 +315,14 @@ AICORE inline void Swiglu<InputElement>::IssueFullRowLoad(uint32_t rowIdx, uint3
     using VectorShape = pto::Shape<1, 1, 1, 1, pto::DYNAMIC>;
     using VectorStride = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, 1>;
     using CGlobal = pto::GlobalTensor<half, VectorShape, VectorStride, pto::Layout::ND>;
-    using BlockTileC = pto::Tile<pto::TileType::Vec, half, kSwigluFullRowIoBlockChunks, kSwigluVecTileElems,
-                                 pto::BLayout::RowMajor, -1, -1>;
+    using BlockTileC = pto::Tile<
+        pto::TileType::Vec, half, kSwigluFullRowIoBlockChunks, kSwigluVecTileElems, pto::BLayout::RowMajor, -1, -1>;
     using BlockShape = pto::Shape<1, 1, 1, pto::DYNAMIC, pto::DYNAMIC>;
     using BlockStride = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, 1>;
     using CBlockGlobal = pto::GlobalTensor<half, BlockShape, BlockStride, pto::Layout::ND>;
 
     const uint64_t ubCOffset = SwigluCOffset(bufferId);
-    __gm__ half *gmCRow = gmCPtr_ + static_cast<uint64_t>(rowIdx) * problemN_;
+    __gm__ half* gmCRow = gmCPtr_ + static_cast<uint64_t>(rowIdx) * problemN_;
 
     wait_flag(PIPE_V, PIPE_MTE2, LoadFreeEvent(bufferId));
     uint32_t offset = 0;
@@ -353,9 +332,10 @@ AICORE inline void Swiglu<InputElement>::IssueFullRowLoad(uint32_t rowIdx, uint3
         BlockTileC cTile(chunkRows, kSwigluVecTileElems);
         pto::TASSIGN(cTile, ubCOffset + static_cast<uint64_t>(offset) * sizeof(half));
         BlockShape cShape(chunkRows, kSwigluVecTileElems);
-        BlockStride cStride(static_cast<int64_t>(chunkRows) * kSwigluVecTileElems,
-                            static_cast<int64_t>(chunkRows) * kSwigluVecTileElems,
-                            static_cast<int64_t>(chunkRows) * kSwigluVecTileElems, kSwigluVecTileElems);
+        BlockStride cStride(
+            static_cast<int64_t>(chunkRows) * kSwigluVecTileElems,
+            static_cast<int64_t>(chunkRows) * kSwigluVecTileElems,
+            static_cast<int64_t>(chunkRows) * kSwigluVecTileElems, kSwigluVecTileElems);
         CBlockGlobal cGlobal(gmCRow + offset, cShape, cStride);
         pto::TLOAD(cTile, cGlobal);
         offset += chunkRows * kSwigluVecTileElems;
@@ -585,13 +565,13 @@ AICORE inline void Swiglu<InputElement>::StoreFullRowOutput(uint32_t rowIdx, uin
     using VectorShape = pto::Shape<1, 1, 1, 1, pto::DYNAMIC>;
     using VectorStride = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, 1>;
     using DGlobal = pto::GlobalTensor<int8_t, VectorShape, VectorStride, pto::Layout::ND>;
-    using BlockTileD = pto::Tile<pto::TileType::Vec, int8_t, kSwigluFullRowIoBlockChunks, kSwigluVecTileElems,
-                                 pto::BLayout::RowMajor, -1, -1>;
+    using BlockTileD = pto::Tile<
+        pto::TileType::Vec, int8_t, kSwigluFullRowIoBlockChunks, kSwigluVecTileElems, pto::BLayout::RowMajor, -1, -1>;
     using BlockShape = pto::Shape<1, 1, 1, pto::DYNAMIC, pto::DYNAMIC>;
     using BlockStride = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, 1>;
     using DBlockGlobal = pto::GlobalTensor<int8_t, BlockShape, BlockStride, pto::Layout::ND>;
     const uint64_t ubDOffset = SwigluDOffset(bufferId);
-    __gm__ int8_t *gmDRow = gmPermutedTokenPtr_ + static_cast<uint64_t>(rowIdx) * outputN_;
+    __gm__ int8_t* gmDRow = gmPermutedTokenPtr_ + static_cast<uint64_t>(rowIdx) * outputN_;
     uint32_t offset = 0;
     while (outputN_ - offset >= kSwigluVecTileElems) {
         const uint32_t fullChunks = (outputN_ - offset) / kSwigluVecTileElems;
@@ -599,9 +579,10 @@ AICORE inline void Swiglu<InputElement>::StoreFullRowOutput(uint32_t rowIdx, uin
         BlockTileD dTile(chunkRows, kSwigluVecTileElems);
         pto::TASSIGN(dTile, ubDOffset + static_cast<uint64_t>(offset) * sizeof(int8_t));
         BlockShape dShape(chunkRows, kSwigluVecTileElems);
-        BlockStride dStride(static_cast<int64_t>(chunkRows) * kSwigluVecTileElems,
-                            static_cast<int64_t>(chunkRows) * kSwigluVecTileElems,
-                            static_cast<int64_t>(chunkRows) * kSwigluVecTileElems, kSwigluVecTileElems);
+        BlockStride dStride(
+            static_cast<int64_t>(chunkRows) * kSwigluVecTileElems,
+            static_cast<int64_t>(chunkRows) * kSwigluVecTileElems,
+            static_cast<int64_t>(chunkRows) * kSwigluVecTileElems, kSwigluVecTileElems);
         DBlockGlobal dGlobal(gmDRow + offset, dShape, dStride);
         pto::TSTORE(dGlobal, dTile);
         offset += chunkRows * kSwigluVecTileElems;
@@ -618,8 +599,8 @@ AICORE inline void Swiglu<InputElement>::StoreFullRowOutput(uint32_t rowIdx, uin
 }
 
 template <typename InputElement>
-AICORE inline float Swiglu<InputElement>::ComputeAndStorePreparedFullRow(uint32_t rowIdx, uint32_t bufferId,
-                                                                         float perTokenScale) const
+AICORE inline float Swiglu<InputElement>::ComputeAndStorePreparedFullRow(
+    uint32_t rowIdx, uint32_t bufferId, float perTokenScale) const
 {
     ApplyFullRowPerTokenScale(bufferId, perTokenScale);
     ComputeFullRowSwiglu(bufferId);
@@ -659,8 +640,9 @@ AICORE inline void Swiglu<InputElement>::Process()
         uint32_t localRows = 0;
         uint32_t rowSplitBase = 0;
         uint32_t rowSplitRem = 0;
-        ReadSharedSegmentMetadata(segmentIdx, segmentStartExpert, segmentEndExpert, segmentRowBase, segmentRows,
-                                  cumsumRows, expertTokenRows, rowSplitBase, rowSplitRem);
+        ReadSharedSegmentMetadata(
+            segmentIdx, segmentStartExpert, segmentEndExpert, segmentRowBase, segmentRows, cumsumRows, expertTokenRows,
+            rowSplitBase, rowSplitRem);
         localRows = rowSplitBase + (coreIdx_ < rowSplitRem ? 1U : 0U);
         const uint32_t prefixRows = coreIdx_ * rowSplitBase + (coreIdx_ < rowSplitRem ? coreIdx_ : rowSplitRem);
         localRowStart = segmentRowBase + prefixRows;

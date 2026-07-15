@@ -17,20 +17,18 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
-void LaunchTPushPopMatmulAdd(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *bias, uint8_t *fifoMem,
-                             void *stream);
+void LaunchTPushPopMatmulAdd(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* bias, uint8_t* fifoMem, void* stream);
 
 class TPushPopCVTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -54,16 +52,16 @@ void TPushPopMatmulAddTestFunc(uint32_t M, uint32_t K, uint32_t N)
     uint8_t *dstHost, *srcAHost, *srcBHost, *biasHost;
     uint8_t *dstDevice, *srcADevice, *srcBDevice, *biasDevice, *fifoMemDevice;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&srcAHost), aFileSize);
-    aclrtMallocHost((void **)(&srcBHost), bFileSize);
-    aclrtMallocHost((void **)(&biasHost), biasFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&srcAHost), aFileSize);
+    aclrtMallocHost((void**)(&srcBHost), bFileSize);
+    aclrtMallocHost((void**)(&biasHost), biasFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcADevice, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcBDevice, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&biasDevice, biasFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&fifoMemDevice, fifoFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcADevice, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcBDevice, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&biasDevice, biasFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&fifoMemDevice, fifoFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, srcAHost, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, srcBHost, bFileSize);
@@ -77,7 +75,7 @@ void TPushPopMatmulAddTestFunc(uint32_t M, uint32_t K, uint32_t N)
     uint32_t fftsLen{0};
     rtGetC2cCtrlAddr(&ffts, &fftsLen);
 
-    LaunchTPushPopMatmulAdd<key>((uint8_t *)ffts, dstDevice, srcADevice, srcBDevice, biasDevice, fifoMemDevice, stream);
+    LaunchTPushPopMatmulAdd<key>((uint8_t*)ffts, dstDevice, srcADevice, srcBDevice, biasDevice, fifoMemDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, cFileSize, dstDevice, cFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -109,40 +107,22 @@ void TPushPopMatmulAddTestFunc(uint32_t M, uint32_t K, uint32_t N)
 }
 
 // TILE_UP_DOWN: cube pushes full AccTile; each vector core pops its row range
-TEST_F(TPushPopCVTest, case1_half_single_tile)
-{
-    TPushPopMatmulAddTestFunc<aclFloat16, float, 1>(16, 32, 32);
-}
+TEST_F(TPushPopCVTest, case1_half_single_tile) { TPushPopMatmulAddTestFunc<aclFloat16, float, 1>(16, 32, 32); }
 
-TEST_F(TPushPopCVTest, case2_half_split_m)
-{
-    TPushPopMatmulAddTestFunc<aclFloat16, float, 2>(32, 32, 32);
-}
+TEST_F(TPushPopCVTest, case2_half_split_m) { TPushPopMatmulAddTestFunc<aclFloat16, float, 2>(32, 32, 32); }
 
-TEST_F(TPushPopCVTest, case4_half_multi_tile_wrapping)
-{
-    TPushPopMatmulAddTestFunc<aclFloat16, float, 4>(64, 32, 32);
-}
+TEST_F(TPushPopCVTest, case4_half_multi_tile_wrapping) { TPushPopMatmulAddTestFunc<aclFloat16, float, 4>(64, 32, 32); }
 
-TEST_F(TPushPopCVTest, case3_float_single_tile)
-{
-    TPushPopMatmulAddTestFunc<float, float, 3>(16, 32, 32);
-}
+TEST_F(TPushPopCVTest, case3_float_single_tile) { TPushPopMatmulAddTestFunc<float, float, 3>(16, 32, 32); }
 // // TILE_LEFT_RIGHT: cube pushes full AccTile; each vector core pops its column range
 TEST_F(TPushPopCVTest, case5_half_single_tile_left_right)
 {
     TPushPopMatmulAddTestFunc<aclFloat16, float, 5>(16, 32, 32);
 }
 
-TEST_F(TPushPopCVTest, case6_half_split_m_left_right)
-{
-    TPushPopMatmulAddTestFunc<aclFloat16, float, 6>(32, 32, 32);
-}
+TEST_F(TPushPopCVTest, case6_half_split_m_left_right) { TPushPopMatmulAddTestFunc<aclFloat16, float, 6>(32, 32, 32); }
 
-TEST_F(TPushPopCVTest, case7_float_single_tile_left_right)
-{
-    TPushPopMatmulAddTestFunc<float, float, 7>(16, 32, 32);
-}
+TEST_F(TPushPopCVTest, case7_float_single_tile_left_right) { TPushPopMatmulAddTestFunc<float, float, 7>(16, 32, 32); }
 
 TEST_F(TPushPopCVTest, case8_half_multi_tile_wrapping_left_right)
 {

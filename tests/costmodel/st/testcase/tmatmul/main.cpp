@@ -24,8 +24,9 @@ constexpr T CeilAlign(T num_1, T num_2)
     return num_2 == 0 ? 0 : (num_1 + num_2 - 1) / num_2 * num_2;
 }
 
-template <typename outType, typename AType, typename BType, int validM, int validK, int validN, float profiling,
-          float accuracy>
+template <
+    typename outType, typename AType, typename BType, int validM, int validK, int validN, float profiling,
+    float accuracy>
 void runTMatmul()
 {
     constexpr int blockAlign = (sizeof(AType) == 1) ? 32 : 16;
@@ -49,8 +50,9 @@ void runTMatmul()
     EXPECT_CYCLE_NEAR(profiling, accuracy);
 }
 
-template <typename outType, typename AType, typename BType, int M, int K, int N, int numRepeats, float profiling,
-          float accuracy>
+template <
+    typename outType, typename AType, typename BType, int M, int K, int N, int numRepeats, float profiling,
+    float accuracy>
 void runTMatmulSplitK()
 {
     using LeftTile = TileLeft<AType, M, K, M, K>;
@@ -77,22 +79,10 @@ void runTMatmulSplitK()
 
 } // namespace
 
-TEST(TMatmul, half_40x50x60)
-{
-    runTMatmul<float, half, half, 40, 50, 60, 54.0f, 1.0f>();
-}
+TEST(TMatmul, half_40x50x60) { runTMatmul<float, half, half, 40, 50, 60, 54.0f, 1.0f>(); }
 
-TEST(TMatmul, int8_6x7x8)
-{
-    runTMatmul<int32_t, int8_t, int8_t, 6, 7, 8, 7.0f, 1.0f>();
-}
+TEST(TMatmul, int8_6x7x8) { runTMatmul<int32_t, int8_t, int8_t, 6, 7, 8, 7.0f, 1.0f>(); }
 
-TEST(TMatmul, split_k_half_128x128x64_reps5)
-{
-    runTMatmulSplitK<float, half, half, 128, 128, 64, 5, 262.0f, 1.0f>();
-}
+TEST(TMatmul, split_k_half_128x128x64_reps5) { runTMatmulSplitK<float, half, half, 128, 128, 64, 5, 262.0f, 1.0f>(); }
 
-TEST(TMatmul, float_120x110x50)
-{
-    runTMatmul<float, float, float, 120, 110, 50, 902.0f, 1.0f>();
-}
+TEST(TMatmul, float_120x110x50) { runTMatmul<float, float, float, 120, 110, 50, 902.0f, 1.0f>(); }

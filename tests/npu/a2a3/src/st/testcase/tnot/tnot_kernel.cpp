@@ -15,7 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-__global__ AICORE void runTNOT(__gm__ T __out__ *out, __gm__ T __in__ *input)
+__global__ AICORE void runTNOT(__gm__ T __out__* out, __gm__ T __in__* input)
 {
     using DynShapeDim5 = Shape<1, 1, 1, kGRows_, kGCols_>;
     using DynStridDim5 = pto::Stride<1, 1, 1, kGCols_, 1>;
@@ -47,14 +47,14 @@ __global__ AICORE void runTNOT(__gm__ T __out__ *out, __gm__ T __in__ *input)
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTNot(T *out, T *input, void *stream)
+void LaunchTNot(T* out, T* input, void* stream)
 {
-    runTNOT<T, kGRows_, kGCols_, kTRows_, kTCols_><<<1, nullptr, stream>>>((T *)out, (T *)input);
+    runTNOT<T, kGRows_, kGCols_, kTRows_, kTCols_><<<1, nullptr, stream>>>((T*)out, (T*)input);
 }
 
-template void LaunchTNot<int16_t, 64, 64, 64, 64>(int16_t *out, int16_t *input, void *stream);
-template void LaunchTNot<uint16_t, 60, 60, 64, 64>(uint16_t *out, uint16_t *input, void *stream);
-template void LaunchTNot<int8_t, 64, 64, 64, 64>(int8_t *out, int8_t *input, void *stream);
-template void LaunchTNot<uint8_t, 60, 60, 64, 64>(uint8_t *out, uint8_t *input, void *stream);
-template void LaunchTNot<int32_t, 64, 64, 64, 64>(int32_t *out, int32_t *input, void *stream);
-template void LaunchTNot<uint32_t, 60, 60, 64, 64>(uint32_t *out, uint32_t *input, void *stream);
+template void LaunchTNot<int16_t, 64, 64, 64, 64>(int16_t* out, int16_t* input, void* stream);
+template void LaunchTNot<uint16_t, 60, 60, 64, 64>(uint16_t* out, uint16_t* input, void* stream);
+template void LaunchTNot<int8_t, 64, 64, 64, 64>(int8_t* out, int8_t* input, void* stream);
+template void LaunchTNot<uint8_t, 60, 60, 64, 64>(uint8_t* out, uint8_t* input, void* stream);
+template void LaunchTNot<int32_t, 64, 64, 64, 64>(int32_t* out, int32_t* input, void* stream);
+template void LaunchTNot<uint32_t, 60, 60, 64, 64>(uint32_t* out, uint32_t* input, void* stream);

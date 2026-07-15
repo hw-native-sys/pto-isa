@@ -23,9 +23,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // ============================================================================
 
 template <typename T, size_t count>
-__global__ AICORE void TGetAsyncKernelImpl(__gm__ T *commBuf, int nranks, int root_rank, int elem_offset,
-                                           int elem_count, __gm__ CommDeviceContext *hcclCtx,
-                                           __gm__ uint8_t *sdmaWorkspace, uint32_t sdmaSyncId)
+__global__ AICORE void TGetAsyncKernelImpl(
+    __gm__ T* commBuf, int nranks, int root_rank, int elem_offset, int elem_count, __gm__ CommDeviceContext* hcclCtx,
+    __gm__ uint8_t* sdmaWorkspace, uint32_t sdmaSyncId)
 {
     using ShapeDyn = pto::Shape<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
     using StrideDyn = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
@@ -42,9 +42,9 @@ __global__ AICORE void TGetAsyncKernelImpl(__gm__ T *commBuf, int nranks, int ro
 
     int my_rank = static_cast<int>(hcclCtx->rankId);
 
-    __gm__ T *commData = reinterpret_cast<__gm__ T *>(commBuf);
-    __gm__ T *sendBuf = commData;
-    __gm__ T *recvBuf = commData + count;
+    __gm__ T* commData = reinterpret_cast<__gm__ T*>(commBuf);
+    __gm__ T* sendBuf = commData;
+    __gm__ T* recvBuf = commData + count;
 
     pipe_barrier(PIPE_ALL);
 
@@ -61,8 +61,8 @@ __global__ AICORE void TGetAsyncKernelImpl(__gm__ T *commBuf, int nranks, int ro
             if (target_rank == root_rank) {
                 continue;
             }
-            __gm__ T *remoteSendBuf = CommRemotePtr(hcclCtx, sendBuf, target_rank) + elem_offset;
-            __gm__ T *localRecvBuf = recvBuf + target_rank * count + elem_offset;
+            __gm__ T* remoteSendBuf = CommRemotePtr(hcclCtx, sendBuf, target_rank) + elem_offset;
+            __gm__ T* localRecvBuf = recvBuf + target_rank * count + elem_offset;
             Global remoteSendG(remoteSendBuf, shape, stride);
             Global localRecvG(localRecvBuf, shape, stride);
             lastEvent = pto::comm::TGET_ASYNC(localRecvG, remoteSendG, session);
@@ -74,8 +74,8 @@ __global__ AICORE void TGetAsyncKernelImpl(__gm__ T *commBuf, int nranks, int ro
 }
 
 template <typename T, size_t count>
-bool RunGetAsyncRootGetKernel(int rank_id, int n_ranks, int n_devices, int first_device_id,
-                              const HcclRootInfo *rootInfo, int root_rank)
+bool RunGetAsyncRootGetKernel(
+    int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo* rootInfo, int root_rank)
 {
     TestContext ctx;
     if (!ctx.Init(rank_id, n_ranks, n_devices, first_device_id, rootInfo))
@@ -83,30 +83,30 @@ bool RunGetAsyncRootGetKernel(int rank_id, int n_ranks, int n_devices, int first
 
     const size_t recv_elems = static_cast<size_t>(n_ranks) * count;
 
-    uint8_t *input_host = nullptr;
-    uint8_t *output_host = nullptr;
-    if (aclrtMallocHost(reinterpret_cast<void **>(&input_host), count * sizeof(T)) != 0 ||
-        aclrtMallocHost(reinterpret_cast<void **>(&output_host), recv_elems * sizeof(T)) != 0) {
+    uint8_t* input_host = nullptr;
+    uint8_t* output_host = nullptr;
+    if (aclrtMallocHost(reinterpret_cast<void**>(&input_host), count * sizeof(T)) != 0 ||
+        aclrtMallocHost(reinterpret_cast<void**>(&output_host), recv_elems * sizeof(T)) != 0) {
         std::cerr << "[ERROR] aclrtMallocHost failed!" << std::endl;
         return false;
     }
 
     for (size_t i = 0; i < count; ++i) {
-        reinterpret_cast<T *>(input_host)[i] = static_cast<T>(i + rank_id * 10000);
+        reinterpret_cast<T*>(input_host)[i] = static_cast<T>(i + rank_id * 10000);
     }
     for (size_t i = 0; i < recv_elems; ++i) {
-        reinterpret_cast<T *>(output_host)[i] = static_cast<T>(-1);
+        reinterpret_cast<T*>(output_host)[i] = static_cast<T>(-1);
     }
 
     uint64_t localWinBase = ctx.hostCtx.windowsIn[rank_id];
     size_t winOffset = 0;
     size_t commBytesNeeded = 64 * sizeof(int32_t) + (static_cast<size_t>(n_ranks) + 1) * count * sizeof(T);
-    void *commBufPtr = WindowAlloc(localWinBase, winOffset, commBytesNeeded);
+    void* commBufPtr = WindowAlloc(localWinBase, winOffset, commBytesNeeded);
 
-    uint8_t *commBytes = reinterpret_cast<uint8_t *>(commBufPtr);
-    T *dataBase = reinterpret_cast<T *>(commBytes + 64 * sizeof(int32_t));
-    T *sendBuf = dataBase;
-    T *recvBuf = dataBase + count;
+    uint8_t* commBytes = reinterpret_cast<uint8_t*>(commBufPtr);
+    T* dataBase = reinterpret_cast<T*>(commBytes + 64 * sizeof(int32_t));
+    T* sendBuf = dataBase;
+    T* recvBuf = dataBase + count;
 
     aclrtMemcpy(sendBuf, count * sizeof(T), input_host, count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(recvBuf, recv_elems * sizeof(T), output_host, recv_elems * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
@@ -119,8 +119,9 @@ bool RunGetAsyncRootGetKernel(int rank_id, int n_ranks, int n_devices, int first
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
-    TGetAsyncKernelImpl<T, count><<<1, nullptr, ctx.stream>>>(dataBase, n_ranks, root_rank, 0, static_cast<int>(count),
-                                                              ctx.deviceCtx, (uint8_t *)sdmaMgr.GetWorkspaceAddr(), 0);
+    TGetAsyncKernelImpl<T, count><<<1, nullptr, ctx.stream>>>(
+        dataBase, n_ranks, root_rank, 0, static_cast<int>(count), ctx.deviceCtx, (uint8_t*)sdmaMgr.GetWorkspaceAddr(),
+        0);
     ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
@@ -137,7 +138,7 @@ bool RunGetAsyncRootGetKernel(int rank_id, int n_ranks, int n_devices, int first
             }
             const size_t base = static_cast<size_t>(src_rank) * count;
             for (size_t i = 0; i < count; ++i) {
-                T value = reinterpret_cast<T *>(output_host)[base + i];
+                T value = reinterpret_cast<T*>(output_host)[base + i];
                 T expected = static_cast<T>(i + src_rank * 10000);
                 if (value != expected) {
                     std::cout << "Rank " << rank_id << " Device " << ctx.deviceId << " Status " << ctx.aclStatus
@@ -158,7 +159,7 @@ bool RunGetAsyncRootGetKernel(int rank_id, int n_ranks, int n_devices, int first
         const int sample_rank = (root_rank == 0 && n_ranks > 1) ? 1 : 0;
         const size_t sample_offset = static_cast<size_t>(sample_rank) * count;
         for (size_t i = 0; i < (count > 5 ? 5 : count); ++i) {
-            std::cout << (float)reinterpret_cast<T *>(output_host)[sample_offset + i] << " ";
+            std::cout << (float)reinterpret_cast<T*>(output_host)[sample_offset + i] << " ";
         }
         if (count > 5)
             std::cout << "... ";
@@ -178,7 +179,7 @@ bool RunGetAsyncRootGet(int n_ranks, int n_devices, int first_rank_id, int first
 {
     const int root_rank = first_rank_id;
     return ForkAndRunWithHcclRootInfo(
-        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo *rootInfo) {
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
             return RunGetAsyncRootGetKernel<T, count>(rankId, n_ranks, n_devices, first_device_id, rootInfo, root_rank);
         });
 }
@@ -192,10 +193,10 @@ template bool RunGetAsyncRootGet<uint8_t, 512>(int n_ranks, int n_devices, int f
 // Configurable SdmaBaseConfig Kernel
 // ============================================================================
 template <typename T, size_t count>
-__global__ AICORE void TGetAsyncConfigKernelImpl(__gm__ T *commBuf, int nranks, int root_rank, int elem_offset,
-                                                 int elem_count, __gm__ CommDeviceContext *hcclCtx,
-                                                 __gm__ uint8_t *sdmaWorkspace, uint32_t sdmaSyncId,
-                                                 uint64_t blockBytes, uint64_t commBlockOffset, uint32_t queueNum)
+__global__ AICORE void TGetAsyncConfigKernelImpl(
+    __gm__ T* commBuf, int nranks, int root_rank, int elem_offset, int elem_count, __gm__ CommDeviceContext* hcclCtx,
+    __gm__ uint8_t* sdmaWorkspace, uint32_t sdmaSyncId, uint64_t blockBytes, uint64_t commBlockOffset,
+    uint32_t queueNum)
 {
     using ShapeDyn = pto::Shape<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
     using StrideDyn = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
@@ -212,9 +213,9 @@ __global__ AICORE void TGetAsyncConfigKernelImpl(__gm__ T *commBuf, int nranks, 
 
     int my_rank = static_cast<int>(hcclCtx->rankId);
 
-    __gm__ T *commData = reinterpret_cast<__gm__ T *>(commBuf);
-    __gm__ T *sendBuf = commData;
-    __gm__ T *recvBuf = commData + count;
+    __gm__ T* commData = reinterpret_cast<__gm__ T*>(commBuf);
+    __gm__ T* sendBuf = commData;
+    __gm__ T* recvBuf = commData + count;
 
     pipe_barrier(PIPE_ALL);
 
@@ -232,8 +233,8 @@ __global__ AICORE void TGetAsyncConfigKernelImpl(__gm__ T *commBuf, int nranks, 
             if (target_rank == root_rank) {
                 continue;
             }
-            __gm__ T *remoteSendBuf = CommRemotePtr(hcclCtx, sendBuf, target_rank) + elem_offset;
-            __gm__ T *localRecvBuf = recvBuf + target_rank * count + elem_offset;
+            __gm__ T* remoteSendBuf = CommRemotePtr(hcclCtx, sendBuf, target_rank) + elem_offset;
+            __gm__ T* localRecvBuf = recvBuf + target_rank * count + elem_offset;
             Global remoteSendG(remoteSendBuf, shape, stride);
             Global localRecvG(localRecvBuf, shape, stride);
             lastEvent = pto::comm::TGET_ASYNC(localRecvG, remoteSendG, session);
@@ -245,9 +246,9 @@ __global__ AICORE void TGetAsyncConfigKernelImpl(__gm__ T *commBuf, int nranks, 
 }
 
 template <typename T, size_t count>
-bool RunGetAsyncWithConfigKernel(int rank_id, int n_ranks, int n_devices, int first_device_id,
-                                 const HcclRootInfo *rootInfo, int root_rank, uint64_t blockBytes,
-                                 uint64_t commBlockOffset, uint32_t queueNum)
+bool RunGetAsyncWithConfigKernel(
+    int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo* rootInfo, int root_rank,
+    uint64_t blockBytes, uint64_t commBlockOffset, uint32_t queueNum)
 {
     TestContext ctx;
     if (!ctx.Init(rank_id, n_ranks, n_devices, first_device_id, rootInfo))
@@ -255,30 +256,30 @@ bool RunGetAsyncWithConfigKernel(int rank_id, int n_ranks, int n_devices, int fi
 
     const size_t recv_elems = static_cast<size_t>(n_ranks) * count;
 
-    uint8_t *input_host = nullptr;
-    uint8_t *output_host = nullptr;
-    if (aclrtMallocHost(reinterpret_cast<void **>(&input_host), count * sizeof(T)) != 0 ||
-        aclrtMallocHost(reinterpret_cast<void **>(&output_host), recv_elems * sizeof(T)) != 0) {
+    uint8_t* input_host = nullptr;
+    uint8_t* output_host = nullptr;
+    if (aclrtMallocHost(reinterpret_cast<void**>(&input_host), count * sizeof(T)) != 0 ||
+        aclrtMallocHost(reinterpret_cast<void**>(&output_host), recv_elems * sizeof(T)) != 0) {
         std::cerr << "[ERROR] aclrtMallocHost failed!" << std::endl;
         return false;
     }
 
     for (size_t i = 0; i < count; ++i) {
-        reinterpret_cast<T *>(input_host)[i] = static_cast<T>(i + rank_id * 10000);
+        reinterpret_cast<T*>(input_host)[i] = static_cast<T>(i + rank_id * 10000);
     }
     for (size_t i = 0; i < recv_elems; ++i) {
-        reinterpret_cast<T *>(output_host)[i] = static_cast<T>(-1);
+        reinterpret_cast<T*>(output_host)[i] = static_cast<T>(-1);
     }
 
     uint64_t localWinBase = ctx.hostCtx.windowsIn[rank_id];
     size_t winOffset = 0;
     size_t commBytesNeeded = 64 * sizeof(int32_t) + (static_cast<size_t>(n_ranks) + 1) * count * sizeof(T);
-    void *commBufPtr = WindowAlloc(localWinBase, winOffset, commBytesNeeded);
+    void* commBufPtr = WindowAlloc(localWinBase, winOffset, commBytesNeeded);
 
-    uint8_t *commBytes = reinterpret_cast<uint8_t *>(commBufPtr);
-    T *dataBase = reinterpret_cast<T *>(commBytes + 64 * sizeof(int32_t));
-    T *sendBuf = dataBase;
-    T *recvBuf = dataBase + count;
+    uint8_t* commBytes = reinterpret_cast<uint8_t*>(commBufPtr);
+    T* dataBase = reinterpret_cast<T*>(commBytes + 64 * sizeof(int32_t));
+    T* sendBuf = dataBase;
+    T* recvBuf = dataBase + count;
 
     aclrtMemcpy(sendBuf, count * sizeof(T), input_host, count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(recvBuf, recv_elems * sizeof(T), output_host, recv_elems * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
@@ -295,9 +296,9 @@ bool RunGetAsyncWithConfigKernel(int rank_id, int n_ranks, int n_devices, int fi
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
-    TGetAsyncConfigKernelImpl<T, count>
-        <<<1, nullptr, ctx.stream>>>(dataBase, n_ranks, root_rank, 0, elemCount, ctx.deviceCtx,
-                                     (uint8_t *)sdmaMgr.GetWorkspaceAddr(), 0, blockBytes, commBlockOffset, queueNum);
+    TGetAsyncConfigKernelImpl<T, count><<<1, nullptr, ctx.stream>>>(
+        dataBase, n_ranks, root_rank, 0, elemCount, ctx.deviceCtx, (uint8_t*)sdmaMgr.GetWorkspaceAddr(), 0, blockBytes,
+        commBlockOffset, queueNum);
     ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
@@ -314,7 +315,7 @@ bool RunGetAsyncWithConfigKernel(int rank_id, int n_ranks, int n_devices, int fi
             }
             const size_t base = static_cast<size_t>(src_rank) * count;
             for (size_t i = offsetElems; i < offsetElems + static_cast<size_t>(elemCount); ++i) {
-                T value = reinterpret_cast<T *>(output_host)[base + i];
+                T value = reinterpret_cast<T*>(output_host)[base + i];
                 T expected = static_cast<T>(i + src_rank * 10000);
                 if (value != expected) {
                     std::cout << "Rank " << rank_id << " src_rank " << src_rank << " idx " << i << " expected "
@@ -334,14 +335,16 @@ bool RunGetAsyncWithConfigKernel(int rank_id, int n_ranks, int n_devices, int fi
 }
 
 template <typename T, size_t count>
-bool RunGetAsyncWithConfig(int n_ranks, int n_devices, int first_rank_id, int first_device_id, uint64_t blockBytes,
-                           uint64_t commBlockOffset, uint32_t queueNum)
+bool RunGetAsyncWithConfig(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id, uint64_t blockBytes, uint64_t commBlockOffset,
+    uint32_t queueNum)
 {
     const int root_rank = first_rank_id;
     return ForkAndRunWithHcclRootInfo(
-        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo *rootInfo) {
-            return RunGetAsyncWithConfigKernel<T, count>(rankId, n_ranks, n_devices, first_device_id, rootInfo,
-                                                         root_rank, blockBytes, commBlockOffset, queueNum);
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
+            return RunGetAsyncWithConfigKernel<T, count>(
+                rankId, n_ranks, n_devices, first_device_id, rootInfo, root_rank, blockBytes, commBlockOffset,
+                queueNum);
         });
 }
 
@@ -354,9 +357,9 @@ template bool RunGetAsyncWithConfig<float, 2048>(int, int, int, int, uint64_t, u
 // multiCoreMode: 0 = split (each core handles a data slice), 1 = independent
 // ============================================================================
 template <typename T, size_t count>
-__global__ AICORE void TGetAsyncMultiCoreKernelImpl(__gm__ T *commBuf, int nranks, int root_rank, int total_elem_count,
-                                                    __gm__ CommDeviceContext *hcclCtx, __gm__ uint8_t *sdmaWorkspace,
-                                                    uint32_t sdmaSyncId, int multiCoreMode)
+__global__ AICORE void TGetAsyncMultiCoreKernelImpl(
+    __gm__ T* commBuf, int nranks, int root_rank, int total_elem_count, __gm__ CommDeviceContext* hcclCtx,
+    __gm__ uint8_t* sdmaWorkspace, uint32_t sdmaSyncId, int multiCoreMode)
 {
     using ShapeDyn = pto::Shape<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
     using StrideDyn = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
@@ -384,9 +387,9 @@ __global__ AICORE void TGetAsyncMultiCoreKernelImpl(__gm__ T *commBuf, int nrank
 
     int my_rank = static_cast<int>(hcclCtx->rankId);
 
-    __gm__ T *commData = reinterpret_cast<__gm__ T *>(commBuf);
-    __gm__ T *sendBuf = commData;
-    __gm__ T *recvBuf = commData + count;
+    __gm__ T* commData = reinterpret_cast<__gm__ T*>(commBuf);
+    __gm__ T* sendBuf = commData;
+    __gm__ T* recvBuf = commData + count;
 
     pipe_barrier(PIPE_ALL);
 
@@ -404,8 +407,8 @@ __global__ AICORE void TGetAsyncMultiCoreKernelImpl(__gm__ T *commBuf, int nrank
             if (target_rank == root_rank) {
                 continue;
             }
-            __gm__ T *remoteSendBuf = CommRemotePtr(hcclCtx, sendBuf, target_rank);
-            __gm__ T *localRecvBuf = recvBuf + target_rank * count;
+            __gm__ T* remoteSendBuf = CommRemotePtr(hcclCtx, sendBuf, target_rank);
+            __gm__ T* localRecvBuf = recvBuf + target_rank * count;
             Global remoteSendG(remoteSendBuf, shape, stride);
             Global localRecvG(localRecvBuf, shape, stride);
             lastEvent = pto::comm::TGET_ASYNC(localRecvG, remoteSendG, session);
@@ -417,8 +420,9 @@ __global__ AICORE void TGetAsyncMultiCoreKernelImpl(__gm__ T *commBuf, int nrank
 }
 
 template <typename T, size_t count>
-bool RunGetAsyncMultiCoreKernel(int rank_id, int n_ranks, int n_devices, int first_device_id,
-                                const HcclRootInfo *rootInfo, int root_rank, int blockDim, int multiCoreMode)
+bool RunGetAsyncMultiCoreKernel(
+    int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo* rootInfo, int root_rank,
+    int blockDim, int multiCoreMode)
 {
     TestContext ctx;
     if (!ctx.Init(rank_id, n_ranks, n_devices, first_device_id, rootInfo))
@@ -426,30 +430,30 @@ bool RunGetAsyncMultiCoreKernel(int rank_id, int n_ranks, int n_devices, int fir
 
     const size_t recv_elems = static_cast<size_t>(n_ranks) * count;
 
-    uint8_t *input_host = nullptr;
-    uint8_t *output_host = nullptr;
-    if (aclrtMallocHost(reinterpret_cast<void **>(&input_host), count * sizeof(T)) != 0 ||
-        aclrtMallocHost(reinterpret_cast<void **>(&output_host), recv_elems * sizeof(T)) != 0) {
+    uint8_t* input_host = nullptr;
+    uint8_t* output_host = nullptr;
+    if (aclrtMallocHost(reinterpret_cast<void**>(&input_host), count * sizeof(T)) != 0 ||
+        aclrtMallocHost(reinterpret_cast<void**>(&output_host), recv_elems * sizeof(T)) != 0) {
         std::cerr << "[ERROR] aclrtMallocHost failed!" << std::endl;
         return false;
     }
 
     for (size_t i = 0; i < count; ++i) {
-        reinterpret_cast<T *>(input_host)[i] = static_cast<T>(i + rank_id * 10000);
+        reinterpret_cast<T*>(input_host)[i] = static_cast<T>(i + rank_id * 10000);
     }
     for (size_t i = 0; i < recv_elems; ++i) {
-        reinterpret_cast<T *>(output_host)[i] = static_cast<T>(-1);
+        reinterpret_cast<T*>(output_host)[i] = static_cast<T>(-1);
     }
 
     uint64_t localWinBase = ctx.hostCtx.windowsIn[rank_id];
     size_t winOffset = 0;
     size_t commBytesNeeded = 64 * sizeof(int32_t) + (static_cast<size_t>(n_ranks) + 1) * count * sizeof(T);
-    void *commBufPtr = WindowAlloc(localWinBase, winOffset, commBytesNeeded);
+    void* commBufPtr = WindowAlloc(localWinBase, winOffset, commBytesNeeded);
 
-    uint8_t *commBytes = reinterpret_cast<uint8_t *>(commBufPtr);
-    T *dataBase = reinterpret_cast<T *>(commBytes + 64 * sizeof(int32_t));
-    T *sendBuf = dataBase;
-    T *recvBuf = dataBase + count;
+    uint8_t* commBytes = reinterpret_cast<uint8_t*>(commBufPtr);
+    T* dataBase = reinterpret_cast<T*>(commBytes + 64 * sizeof(int32_t));
+    T* sendBuf = dataBase;
+    T* recvBuf = dataBase + count;
 
     aclrtMemcpy(sendBuf, count * sizeof(T), input_host, count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(recvBuf, recv_elems * sizeof(T), output_host, recv_elems * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
@@ -462,9 +466,9 @@ bool RunGetAsyncMultiCoreKernel(int rank_id, int n_ranks, int n_devices, int fir
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
-    TGetAsyncMultiCoreKernelImpl<T, count>
-        <<<blockDim, nullptr, ctx.stream>>>(dataBase, n_ranks, root_rank, static_cast<int>(count), ctx.deviceCtx,
-                                            (uint8_t *)sdmaMgr.GetWorkspaceAddr(), 0, multiCoreMode);
+    TGetAsyncMultiCoreKernelImpl<T, count><<<blockDim, nullptr, ctx.stream>>>(
+        dataBase, n_ranks, root_rank, static_cast<int>(count), ctx.deviceCtx, (uint8_t*)sdmaMgr.GetWorkspaceAddr(), 0,
+        multiCoreMode);
     ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
@@ -481,7 +485,7 @@ bool RunGetAsyncMultiCoreKernel(int rank_id, int n_ranks, int n_devices, int fir
             }
             const size_t base = static_cast<size_t>(src_rank) * count;
             for (size_t i = 0; i < count; ++i) {
-                T value = reinterpret_cast<T *>(output_host)[base + i];
+                T value = reinterpret_cast<T*>(output_host)[base + i];
                 T expected = static_cast<T>(i + src_rank * 10000);
                 if (value != expected) {
                     std::cout << "Rank " << rank_id << " src_rank " << src_rank << " idx " << i << " expected "
@@ -501,14 +505,14 @@ bool RunGetAsyncMultiCoreKernel(int rank_id, int n_ranks, int n_devices, int fir
 }
 
 template <typename T, size_t count>
-bool RunGetAsyncMultiCore(int n_ranks, int n_devices, int first_rank_id, int first_device_id, int blockDim,
-                          int multiCoreMode)
+bool RunGetAsyncMultiCore(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id, int blockDim, int multiCoreMode)
 {
     const int root_rank = first_rank_id;
     return ForkAndRunWithHcclRootInfo(
-        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo *rootInfo) {
-            return RunGetAsyncMultiCoreKernel<T, count>(rankId, n_ranks, n_devices, first_device_id, rootInfo,
-                                                        root_rank, blockDim, multiCoreMode);
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
+            return RunGetAsyncMultiCoreKernel<T, count>(
+                rankId, n_ranks, n_devices, first_device_id, rootInfo, root_rank, blockDim, multiCoreMode);
         });
 }
 

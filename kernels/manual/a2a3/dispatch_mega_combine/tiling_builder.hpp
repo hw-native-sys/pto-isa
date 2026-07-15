@@ -40,4 +40,4 @@ struct MegaMoeBuildResult {
     uint64_t workspace_bytes = 0;
 };
 
-MegaMoeBuildResult BuildMegaMoeTiling(const CaseConfig &cfg, const StandaloneRankRuntime &runtime);
+MegaMoeBuildResult BuildMegaMoeTiling(const CaseConfig& cfg, const StandaloneRankRuntime& runtime);

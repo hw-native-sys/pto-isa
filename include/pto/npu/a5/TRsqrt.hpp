@@ -21,7 +21,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 template <typename Op, RsqrtAlgorithm PrecisionType, typename T, unsigned nRepeatElem>
-PTO_INTERNAL void TRsqrt_1D_NoPostUpdate(__ubuf__ T *dst, __ubuf__ T *src, unsigned validRow, unsigned validCol)
+PTO_INTERNAL void TRsqrt_1D_NoPostUpdate(__ubuf__ T* dst, __ubuf__ T* src, unsigned validRow, unsigned validCol)
 {
     uint16_t repeatTimes = CeilDivision(validRow * validCol, nRepeatElem);
     __VEC_SCOPE__
@@ -55,7 +55,7 @@ PTO_INTERNAL void TRsqrt_1D_NoPostUpdate(__ubuf__ T *dst, __ubuf__ T *src, unsig
 }
 
 template <typename Op, RsqrtAlgorithm PrecisionType, typename T, unsigned nRepeatElem>
-PTO_INTERNAL void TRsqrt_1D_PostUpdate(__ubuf__ T *dst, __ubuf__ T *src, unsigned validRow, unsigned validCol)
+PTO_INTERNAL void TRsqrt_1D_PostUpdate(__ubuf__ T* dst, __ubuf__ T* src, unsigned validRow, unsigned validCol)
 {
     uint16_t repeatTimes = CeilDivision(validRow * validCol, nRepeatElem);
     __VEC_SCOPE__
@@ -88,9 +88,10 @@ PTO_INTERNAL void TRsqrt_1D_PostUpdate(__ubuf__ T *dst, __ubuf__ T *src, unsigne
     }
 }
 
-template <typename Op, RsqrtAlgorithm PrecisionType, typename T, unsigned DstRowStride, unsigned SrcRowStride,
-          unsigned nRepeatElem>
-PTO_INTERNAL void TRsqrt_2D(__ubuf__ T *dst, __ubuf__ T *src, unsigned validRow, unsigned validCol)
+template <
+    typename Op, RsqrtAlgorithm PrecisionType, typename T, unsigned DstRowStride, unsigned SrcRowStride,
+    unsigned nRepeatElem>
+PTO_INTERNAL void TRsqrt_2D(__ubuf__ T* dst, __ubuf__ T* src, unsigned validRow, unsigned validCol)
 {
     uint16_t repeatTimes = CeilDivision(validCol, nRepeatElem);
     __VEC_SCOPE__
@@ -126,10 +127,10 @@ PTO_INTERNAL void TRsqrt_2D(__ubuf__ T *dst, __ubuf__ T *src, unsigned validRow,
     }
 }
 
-template <typename Op, RsqrtAlgorithm PrecisionType, typename T, typename DstTile, typename SrcTile,
-          unsigned nRepeatElem>
-PTO_INTERNAL void TRsqrt_1D_Switch(__ubuf__ T *dst, __ubuf__ T *src, unsigned validRow, unsigned validCol,
-                                   VFImplKind version)
+template <
+    typename Op, RsqrtAlgorithm PrecisionType, typename T, typename DstTile, typename SrcTile, unsigned nRepeatElem>
+PTO_INTERNAL void TRsqrt_1D_Switch(
+    __ubuf__ T* dst, __ubuf__ T* src, unsigned validRow, unsigned validCol, VFImplKind version)
 {
     switch (version) {
         case VFImplKind::VFIMPL_1D_NO_POST_UPDATE: {
@@ -138,8 +139,8 @@ PTO_INTERNAL void TRsqrt_1D_Switch(__ubuf__ T *dst, __ubuf__ T *src, unsigned va
         }
         case VFImplKind::VFIMPL_2D_POST_UPDATE:
         case VFImplKind::VFIMPL_2D_NO_POST_UPDATE: {
-            TRsqrt_2D<Op, PrecisionType, T, DstTile::RowStride, SrcTile::RowStride, nRepeatElem>(dst, src, validRow,
-                                                                                                 validCol);
+            TRsqrt_2D<Op, PrecisionType, T, DstTile::RowStride, SrcTile::RowStride, nRepeatElem>(
+                dst, src, validRow, validCol);
             break;
         }
         default: {
@@ -150,39 +151,46 @@ PTO_INTERNAL void TRsqrt_1D_Switch(__ubuf__ T *dst, __ubuf__ T *src, unsigned va
 }
 
 template <auto PrecisionType = RsqrtAlgorithm::DEFAULT, typename DstTile, typename SrcTile>
-__tf__ PTO_INTERNAL void OP_NAME(TRSQRT) OP_TYPE(element_wise)
-    TRsqrt(typename DstTile::TileDType __out__ dstData, typename SrcTile::TileDType __in__ srcData, unsigned validRow,
-           unsigned validCol, VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
+__tf__ PTO_INTERNAL void OP_NAME(TRSQRT) OP_TYPE(element_wise) TRsqrt(
+    typename DstTile::TileDType __out__ dstData, typename SrcTile::TileDType __in__ srcData, unsigned validRow,
+    unsigned validCol, VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
 {
     using T = typename DstTile::DType;
-    __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
-    __ubuf__ T *src = (__ubuf__ T *)__cce_get_tile_ptr(srcData);
+    __ubuf__ T* dst = (__ubuf__ T*)__cce_get_tile_ptr(dstData);
+    __ubuf__ T* src = (__ubuf__ T*)__cce_get_tile_ptr(srcData);
     constexpr unsigned nRepeatElem = CCE_VL / sizeof(T);
-    if constexpr (((DstTile::ValidCol == DstTile::Cols) && (SrcTile::ValidCol == SrcTile::Cols)) ||
-                  ((DstTile::Rows == 1) && (SrcTile::Rows == 1))) {
+    if constexpr (
+        ((DstTile::ValidCol == DstTile::Cols) && (SrcTile::ValidCol == SrcTile::Cols)) ||
+        ((DstTile::Rows == 1) && (SrcTile::Rows == 1))) {
         TRsqrt_1D_Switch<Op, PrecisionType, T, DstTile, SrcTile, nRepeatElem>(dst, src, validRow, validCol, version);
     } else {
-        TRsqrt_2D<Op, PrecisionType, T, DstTile::RowStride, SrcTile::RowStride, nRepeatElem>(dst, src, validRow,
-                                                                                             validCol);
+        TRsqrt_2D<Op, PrecisionType, T, DstTile::RowStride, SrcTile::RowStride, nRepeatElem>(
+            dst, src, validRow, validCol);
     }
 }
 
 template <auto PrecisionType = RsqrtAlgorithm::DEFAULT, typename DstTile, typename SrcTile>
-PTO_INTERNAL void TRSQRT_IMPL(DstTile &dst, SrcTile &src)
+PTO_INTERNAL void TRSQRT_IMPL(DstTile& dst, SrcTile& src)
 {
     static_assert(DstTile::isRowMajor && SrcTile::isRowMajor, "TRSQRT: Not supported Layout type");
-    static_assert(DstTile::Loc == TileType::Vec && SrcTile::Loc == TileType::Vec,
-                  "TRSQRT: TileType of src and dst tiles must be TileType::Vec.");
-    static_assert(DstTile::ValidCol <= DstTile::Cols,
-                  "TRSQRT: Number of dst's valid columns must not be greater than number of tile columns.");
-    static_assert(DstTile::ValidRow <= DstTile::Rows,
-                  "TRSQRT: Number of dst's valid rows must not be greater than number of tile rows.");
-    static_assert(SrcTile::ValidCol <= SrcTile::Cols,
-                  "TRSQRT: Number of src's valid columns must not be greater than number of tile columns.");
-    static_assert(SrcTile::ValidRow <= SrcTile::Rows,
-                  "TRSQRT: Number of src's valid rows must not be greater than number of tile rows.");
-    static_assert(std::is_same_v<typename DstTile::DType, typename SrcTile::DType>,
-                  "TRSQRT: The data type of dst must be consistent with of src");
+    static_assert(
+        DstTile::Loc == TileType::Vec && SrcTile::Loc == TileType::Vec,
+        "TRSQRT: TileType of src and dst tiles must be TileType::Vec.");
+    static_assert(
+        DstTile::ValidCol <= DstTile::Cols,
+        "TRSQRT: Number of dst's valid columns must not be greater than number of tile columns.");
+    static_assert(
+        DstTile::ValidRow <= DstTile::Rows,
+        "TRSQRT: Number of dst's valid rows must not be greater than number of tile rows.");
+    static_assert(
+        SrcTile::ValidCol <= SrcTile::Cols,
+        "TRSQRT: Number of src's valid columns must not be greater than number of tile columns.");
+    static_assert(
+        SrcTile::ValidRow <= SrcTile::Rows,
+        "TRSQRT: Number of src's valid rows must not be greater than number of tile rows.");
+    static_assert(
+        std::is_same_v<typename DstTile::DType, typename SrcTile::DType>,
+        "TRSQRT: The data type of dst must be consistent with of src");
     static_assert(
         std::is_same_v<typename DstTile::DType, float32_t> || std::is_same_v<typename DstTile::DType, float> ||
             std::is_same_v<typename DstTile::DType, float16_t> || std::is_same_v<typename DstTile::DType, half>,
@@ -195,7 +203,7 @@ PTO_INTERNAL void TRSQRT_IMPL(DstTile &dst, SrcTile &src)
 }
 
 template <auto PrecisionType = RsqrtAlgorithm::DEFAULT, typename DstTile, typename SrcTile, typename TmpTile>
-PTO_INTERNAL void TRSQRT_IMPL(DstTile &dst, SrcTile &src, TmpTile &tmp)
+PTO_INTERNAL void TRSQRT_IMPL(DstTile& dst, SrcTile& src, TmpTile& tmp)
 {
     TRSQRT_IMPL<PrecisionType>(dst, src);
 }

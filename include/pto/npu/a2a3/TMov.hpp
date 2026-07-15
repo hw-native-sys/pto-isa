@@ -15,6 +15,25 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
+template <typename DstTileData, typename SrcTileData, QuantMode_t QuantPre, ReluPreMode reluMode>
+__tf__ AICORE void TMovCcToCb(
+    typename DstTileData::TileDType __out__ dst, typename SrcTileData::TileDType __in__ src, uint16_t validRow,
+    uint16_t validCol)
+{
+    using SrcType = typename SrcTileData::DType;
+    using DstType = typename DstTileData::DType;
+    constexpr int32_t c0Size = BLOCK_BYTE_SIZE / sizeof(DstType);
+    __cc__ SrcType* srcAddr = (__cc__ SrcType*)__cce_get_tile_ptr(src);
+    __cbuf__ DstType* dstAddr = (__cbuf__ DstType*)__cce_get_tile_ptr(dst);
+
+    constexpr uint32_t dstStride_dst_D = DstTileData::Rows;
+    constexpr uint16_t srcStride = SrcTileData::Rows;
+    validCol = CeilDivision(validCol, c0Size) * c0Size;
+    pto_copy_matrix_cc_to_cbuf(
+        dstAddr, srcAddr, 0, validCol, SrcTileData::Rows, dstStride_dst_D, srcStride, 0, QuantPre,
+        static_cast<uint8_t>(reluMode), false, false);
+}
+
 template <typename DstTileData, typename SrcTileData>
 __tf__ AICORE void TMovToBt(typename DstTileData::TileDType __out__ dst, typename SrcTileData::TileDType __in__ src)
 {
@@ -25,18 +44,20 @@ __tf__ AICORE void TMovToBt(typename DstTileData::TileDType __out__ dst, typenam
     constexpr const int BURST_LEN_UNIT = 64;
 
     if constexpr (std::is_same<SrcType, int32_t>::value || std::is_same<SrcType, float>::value) {
-        static_assert(std::is_same<DstType, SrcType>::value,
-                      "TMov: Destination and Source tile data types must be the same.");
+        static_assert(
+            std::is_same<DstType, SrcType>::value, "TMov: Destination and Source tile data types must be the same.");
     } else if constexpr (std::is_same<SrcType, half>::value) {
-        static_assert(std::is_same<DstType, float>::value,
-                      "TMov: When Source tile data types is half, dst tile data types must be float");
+        static_assert(
+            std::is_same<DstType, float>::value,
+            "TMov: When Source tile data types is half, dst tile data types must be float");
     }
     static_assert(SrcTileData::Rows == 1, "TMov: When TileType is Bias, row must be 1");
-    static_assert(SrcTileData::Cols * sizeof(SrcType) % BURST_LEN_UNIT == 0,
-                  "TMov: When TileType is Bias, col * sizeof(srcDType) must be aligned to 64");
+    static_assert(
+        SrcTileData::Cols * sizeof(SrcType) % BURST_LEN_UNIT == 0,
+        "TMov: When TileType is Bias, col * sizeof(srcDType) must be aligned to 64");
 
-    __cbuf__ SrcType *srcAddrP = (__cbuf__ SrcType *)(__cce_get_tile_ptr(src));
-    __biasbuf__ DstType *dstAddrP = (__biasbuf__ DstType *)(__cce_get_tile_ptr(dst));
+    __cbuf__ SrcType* srcAddrP = (__cbuf__ SrcType*)(__cce_get_tile_ptr(src));
+    __biasbuf__ DstType* dstAddrP = (__biasbuf__ DstType*)(__cce_get_tile_ptr(dst));
 
     uint16_t convControl = 0;
     constexpr uint16_t burstLen = srcRow * srcCol * sizeof(SrcType) / BURST_LEN_UNIT;
@@ -57,29 +78,31 @@ __tf__ AICORE void TMovToFb(typename DstTileData::TileDType __out__ dst, typenam
     constexpr const int BURST_LEN_UNIT = 128;
     constexpr const int RELU_BIT = 16;
 
-    static_assert(std::is_same<DstType, SrcType>::value,
-                  "TMov: Destination and Source tile data types must be the same.");
-    static_assert(std::is_same<DstType, uint64_t>::value || std::is_same<DstType, int64_t>::value,
-                  "TMov: Invalid data type.");
+    static_assert(
+        std::is_same<DstType, SrcType>::value, "TMov: Destination and Source tile data types must be the same.");
+    static_assert(
+        std::is_same<DstType, uint64_t>::value || std::is_same<DstType, int64_t>::value, "TMov: Invalid data type.");
     static_assert(SrcTileData::Rows == 1, "TMov: When TileType is Scaling, row must be 1");
-    static_assert(SrcTileData::Cols * sizeof(SrcType) % BURST_LEN_UNIT == 0,
-                  "TMov: When TileType is Scaling, col * sizeof(srcType) must be aligned to 128");
+    static_assert(
+        SrcTileData::Cols * sizeof(SrcType) % BURST_LEN_UNIT == 0,
+        "TMov: When TileType is Scaling, col * sizeof(srcType) must be aligned to 128");
 
-    __cbuf__ SrcType *srcAddrP = (__cbuf__ SrcType *)(__cce_get_tile_ptr(src));
-    __fbuf__ DstType *dstAddrP = (__fbuf__ DstType *)(__cce_get_tile_ptr(dst));
+    __cbuf__ SrcType* srcAddrP = (__cbuf__ SrcType*)(__cce_get_tile_ptr(src));
+    __fbuf__ DstType* dstAddrP = (__fbuf__ DstType*)(__cce_get_tile_ptr(dst));
 
     constexpr uint16_t burstLen = srcRow * srcCol * sizeof(SrcType) / BURST_LEN_UNIT;
     copy_cbuf_to_fbuf(dstAddrP, srcAddrP, (uint16_t)1, burstLen, (uint16_t)0, (uint16_t)0);
 }
 
 template <typename TileDataDst, typename TileDataSrc, unsigned blockSizeElem, unsigned srcStride, unsigned dstStride>
-__tf__ PTO_INTERNAL void TMovToVecImpl(typename TileDataDst::TileDType __out__ dst,
-                                       typename TileDataSrc::TileDType __in__ src, uint64_t validRow, uint64_t validCol)
+__tf__ PTO_INTERNAL void TMovToVecImpl(
+    typename TileDataDst::TileDType __out__ dst, typename TileDataSrc::TileDType __in__ src, uint64_t validRow,
+    uint64_t validCol)
 {
     using T = typename TileDataSrc::DType;
     using U = typename TileDataDst::DType;
-    __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src);
-    __ubuf__ U *dstPtr = (__ubuf__ U *)__cce_get_tile_ptr(dst);
+    __ubuf__ T* srcPtr = (__ubuf__ T*)__cce_get_tile_ptr(src);
+    __ubuf__ U* dstPtr = (__ubuf__ U*)__cce_get_tile_ptr(dst);
 
     static_assert(sizeof(T) == sizeof(U), "TMOV: src and dst data type is different!");
     if constexpr (TileDataDst::Cols == TileDataSrc::Cols || TileDataDst::Rows == 1) {
@@ -107,7 +130,7 @@ __tf__ PTO_INTERNAL void TMovToVecImpl(typename TileDataDst::TileDType __out__ d
 }
 
 template <typename DstTileData, typename SrcTileData>
-AICORE void TMovToVec(DstTileData &dst, SrcTileData &src)
+AICORE void TMovToVec(DstTileData& dst, SrcTileData& src)
 {
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename SrcTileData::DType);
     constexpr unsigned srcStride = SrcTileData::RowStride;
@@ -123,23 +146,25 @@ AICORE void TMovToVec(DstTileData &dst, SrcTileData &src)
     if (validRow == 0 || validCol == 0) {
         return;
     }
-    TMovToVecImpl<DstTileData, SrcTileData, blockSizeElem, srcStride, dstStride>(dst.data(), src.data(), validRow,
-                                                                                 validCol);
+    TMovToVecImpl<DstTileData, SrcTileData, blockSizeElem, srcStride, dstStride>(
+        dst.data(), src.data(), validRow, validCol);
 }
 
 #include "pto/common/arch/memory/tmov_common.hpp"
 
 template <typename DstTileData, typename SrcTileData>
-PTO_INTERNAL void TMOV_TILE_IMPL(DstTileData &dst, SrcTileData &src)
+PTO_INTERNAL void TMOV_TILE_IMPL(DstTileData& dst, SrcTileData& src)
 {
-    static_assert((SrcTileData::Rows == DstTileData::Rows) && ((SrcTileData::Cols == DstTileData::Cols)),
-                  "TMov: The shape of src needs to be the same as that of dst.");
-    static_assert((SrcTileData::Loc == TileType::Mat &&
-                   (DstTileData::Loc == TileType::Left || DstTileData::Loc == TileType::Right ||
-                    DstTileData::Loc == TileType::Bias || DstTileData::Loc == TileType::Scaling)) ||
-                      (DstTileData::Loc == TileType::Vec && SrcTileData::Loc == TileType::Vec) ||
-                      (DstTileData::Loc == TileType::Mat && SrcTileData::Loc == TileType::Acc),
-                  "TMov: Invalid TileType.");
+    static_assert(
+        (SrcTileData::Rows == DstTileData::Rows) && ((SrcTileData::Cols == DstTileData::Cols)),
+        "TMov: The shape of src needs to be the same as that of dst.");
+    static_assert(
+        (SrcTileData::Loc == TileType::Mat &&
+         (DstTileData::Loc == TileType::Left || DstTileData::Loc == TileType::Right ||
+          DstTileData::Loc == TileType::Bias || DstTileData::Loc == TileType::Scaling)) ||
+            (DstTileData::Loc == TileType::Vec && SrcTileData::Loc == TileType::Vec) ||
+            (DstTileData::Loc == TileType::Mat && SrcTileData::Loc == TileType::Acc),
+        "TMov: Invalid TileType.");
     if constexpr (SrcTileData::Loc == TileType::Mat && DstTileData::Loc == TileType::Left) {
         TMovToLeft<DstTileData, SrcTileData>(dst, src);
     } else if constexpr (SrcTileData::Loc == TileType::Mat && DstTileData::Loc == TileType::Right) {
@@ -161,7 +186,7 @@ PTO_INTERNAL void TMOV_TILE_IMPL(DstTileData &dst, SrcTileData &src)
 }
 
 template <typename DstTileData, typename SrcTileData>
-PTO_INTERNAL void TMOV_IMPL(DstTileData &dst, SrcTileData &src)
+PTO_INTERNAL void TMOV_IMPL(DstTileData& dst, SrcTileData& src)
 {
     if constexpr (is_conv_tile_v<SrcTileData>) {
         TMOV_CONVTILE_IMPL(dst, src);
@@ -171,7 +196,7 @@ PTO_INTERNAL void TMOV_IMPL(DstTileData &dst, SrcTileData &src)
 }
 // relu
 template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode>
-PTO_INTERNAL void TMOV_IMPL(DstTileData &dst, SrcTileData &src)
+PTO_INTERNAL void TMOV_IMPL(DstTileData& dst, SrcTileData& src)
 {
     CheckTMovAccToMat<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, true>();
     uint16_t m = src.GetValidRow();
@@ -182,7 +207,7 @@ PTO_INTERNAL void TMOV_IMPL(DstTileData &dst, SrcTileData &src)
 
 // scalar quant
 template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode = ReluPreMode::NoRelu>
-PTO_INTERNAL void TMOV_IMPL(DstTileData &dst, SrcTileData &src, uint64_t preQuantScalar)
+PTO_INTERNAL void TMOV_IMPL(DstTileData& dst, SrcTileData& src, uint64_t preQuantScalar)
 {
     CheckTMovAccToMat<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, false>();
     uint16_t m = src.GetValidRow();
@@ -194,7 +219,7 @@ PTO_INTERNAL void TMOV_IMPL(DstTileData &dst, SrcTileData &src, uint64_t preQuan
 
 // vector quant
 template <typename DstTileData, typename SrcTileData, typename FpTileData, ReluPreMode reluMode = ReluPreMode::NoRelu>
-PTO_INTERNAL void TMOV_IMPL(DstTileData &dst, SrcTileData &src, FpTileData &fp)
+PTO_INTERNAL void TMOV_IMPL(DstTileData& dst, SrcTileData& src, FpTileData& fp)
 {
     CheckTMovAccToMat<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, false>();
     static_assert(FpTileData::Loc == TileType::Scaling, "Fp only support Scaling.");

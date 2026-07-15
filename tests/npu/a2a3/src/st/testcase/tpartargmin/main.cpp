@@ -15,21 +15,24 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace PtoTestCommon;
 
-template <typename TVal, typename TIdx, int dstValH, int dstValW, int dstIdxH, int dstIdxW, int src0ValH, int src0ValW,
-          int src0IdxH, int src0IdxW, int src1ValH, int src1ValW, int src1IdxH, int src1IdxW, int vRows0, int vCols0,
-          int vRows1, int vCols1>
-void LaunchTPartArgMin(TVal *outVal, TIdx *outIdx, TVal *src0Val, TIdx *src0Idx, TVal *src1Val, TIdx *src1Idx,
-                       void *stream);
+template <
+    typename TVal, typename TIdx, int dstValH, int dstValW, int dstIdxH, int dstIdxW, int src0ValH, int src0ValW,
+    int src0IdxH, int src0IdxW, int src1ValH, int src1ValW, int src1IdxH, int src1IdxW, int vRows0, int vCols0,
+    int vRows1, int vCols1>
+void LaunchTPartArgMin(
+    TVal* outVal, TIdx* outIdx, TVal* src0Val, TIdx* src0Idx, TVal* src1Val, TIdx* src1Idx, void* stream);
 
-template <typename TIdx, int dstValH, int dstValW, int dstIdxH, int dstIdxW, int src0ValH, int src0ValW, int src0IdxH,
-          int src0IdxW, int src1ValH, int src1ValW, int src1IdxH, int src1IdxW, int vRows0, int vCols0, int vRows1,
-          int vCols1>
-void LaunchTPartArgMinHalf(aclFloat16 *outVal, TIdx *outIdx, aclFloat16 *src0Val, TIdx *src0Idx, aclFloat16 *src1Val,
-                           TIdx *src1Idx, void *stream);
+template <
+    typename TIdx, int dstValH, int dstValW, int dstIdxH, int dstIdxW, int src0ValH, int src0ValW, int src0IdxH,
+    int src0IdxW, int src1ValH, int src1ValW, int src1IdxH, int src1IdxW, int vRows0, int vCols0, int vRows1,
+    int vCols1>
+void LaunchTPartArgMinHalf(
+    aclFloat16* outVal, TIdx* outIdx, aclFloat16* src0Val, TIdx* src0Idx, aclFloat16* src1Val, TIdx* src1Idx,
+    void* stream);
 
 class TestResource {
 private:
-    void *device;
+    void* device;
     size_t size;
     inline bool allocMem(size_t size)
     {
@@ -49,27 +52,24 @@ public:
         this->size = 0;
         this->device = nullptr;
     }
-    ~TestResource()
-    {
-        this->close();
-    }
+    ~TestResource() { this->close(); }
     void init(size_t size)
     {
         if (!this->allocMem(size)) {
             return;
         }
-        void *host = nullptr;
+        void* host = nullptr;
         aclrtMallocHost(&host, this->size);
         memset(host, 0, size);
         aclrtMemcpy(this->device, size, host, size, ACL_MEMCPY_HOST_TO_DEVICE);
         aclrtFreeHost(host);
     }
-    void init(size_t size, const std::string &fileName)
+    void init(size_t size, const std::string& fileName)
     {
         if (!this->allocMem(size)) {
             return;
         }
-        void *host = nullptr;
+        void* host = nullptr;
         aclrtMallocHost(&host, this->size);
         ReadFile(fileName, size, host, size);
         aclrtMemcpy(this->device, size, host, size, ACL_MEMCPY_HOST_TO_DEVICE);
@@ -83,12 +83,9 @@ public:
         }
         this->size = 0;
     }
-    void *getDevice()
-    {
-        return this->device;
-    }
+    void* getDevice() { return this->device; }
     template <typename T>
-    bool checkOutput(const std::string &goldenFileName, const std::string &outputFileName, float eps = 0.0001f)
+    bool checkOutput(const std::string& goldenFileName, const std::string& outputFileName, float eps = 0.0001f)
     {
         size_t size = this->size;
         std::vector<T> golden(size);
@@ -114,7 +111,7 @@ private:
 protected:
     std::string GetGoldenDir()
     {
-        const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+        const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
         const std::string caseName = testInfo->name();
         std::string suiteName = testInfo->test_suite_name();
         std::string fullPath = "../" + suiteName + "." + caseName;
@@ -132,9 +129,10 @@ protected:
         aclrtResetDevice(0);
         aclFinalize();
     }
-    template <typename TVal, typename TIdx, int dstValH, int dstValW, int dstIdxH, int dstIdxW, int src0ValH,
-              int src0ValW, int src0IdxH, int src0IdxW, int src1ValH, int src1ValW, int src1IdxH, int src1IdxW,
-              int vRows0, int vCols0, int vRows1, int vCols1, bool isHalf = false>
+    template <
+        typename TVal, typename TIdx, int dstValH, int dstValW, int dstIdxH, int dstIdxW, int src0ValH, int src0ValW,
+        int src0IdxH, int src0IdxW, int src1ValH, int src1ValW, int src1IdxH, int src1IdxW, int vRows0, int vCols0,
+        int vRows1, int vCols1, bool isHalf = false>
     void Launch()
     {
         dstVal.init(sizeof(TVal) * dstValH * dstValW);
@@ -144,15 +142,17 @@ protected:
         src1Val.init(sizeof(TVal) * src1ValH * src1ValW, GetGoldenDir() + "/src_val1.bin");
         src1Idx.init(sizeof(TIdx) * src1IdxH * src1IdxW, GetGoldenDir() + "/src_idx1.bin");
         if constexpr (isHalf) {
-            LaunchTPartArgMinHalf<TIdx, dstValH, dstValW, dstIdxH, dstIdxW, src0ValH, src0ValW, src0IdxH, src0IdxW,
-                                  src1ValH, src1ValW, src1IdxH, src1IdxW, vRows0, vCols0, vRows1, vCols1>(
-                (TVal *)dstVal.getDevice(), (TIdx *)dstIdx.getDevice(), (TVal *)src0Val.getDevice(),
-                (TIdx *)src0Idx.getDevice(), (TVal *)src1Val.getDevice(), (TIdx *)src1Idx.getDevice(), this->stream);
+            LaunchTPartArgMinHalf<
+                TIdx, dstValH, dstValW, dstIdxH, dstIdxW, src0ValH, src0ValW, src0IdxH, src0IdxW, src1ValH, src1ValW,
+                src1IdxH, src1IdxW, vRows0, vCols0, vRows1, vCols1>(
+                (TVal*)dstVal.getDevice(), (TIdx*)dstIdx.getDevice(), (TVal*)src0Val.getDevice(),
+                (TIdx*)src0Idx.getDevice(), (TVal*)src1Val.getDevice(), (TIdx*)src1Idx.getDevice(), this->stream);
         } else {
-            LaunchTPartArgMin<TVal, TIdx, dstValH, dstValW, dstIdxH, dstIdxW, src0ValH, src0ValW, src0IdxH, src0IdxW,
-                              src1ValH, src1ValW, src1IdxH, src1IdxW, vRows0, vCols0, vRows1, vCols1>(
-                (TVal *)dstVal.getDevice(), (TIdx *)dstIdx.getDevice(), (TVal *)src0Val.getDevice(),
-                (TIdx *)src0Idx.getDevice(), (TVal *)src1Val.getDevice(), (TIdx *)src1Idx.getDevice(), this->stream);
+            LaunchTPartArgMin<
+                TVal, TIdx, dstValH, dstValW, dstIdxH, dstIdxW, src0ValH, src0ValW, src0IdxH, src0IdxW, src1ValH,
+                src1ValW, src1IdxH, src1IdxW, vRows0, vCols0, vRows1, vCols1>(
+                (TVal*)dstVal.getDevice(), (TIdx*)dstIdx.getDevice(), (TVal*)src0Val.getDevice(),
+                (TIdx*)src0Idx.getDevice(), (TVal*)src1Val.getDevice(), (TIdx*)src1Idx.getDevice(), this->stream);
         }
         aclrtSynchronizeStream(this->stream);
         bool res = dstVal.checkOutput<TVal>(GetGoldenDir() + "/dst_val.bin", GetGoldenDir() + "/dst_val_out.bin");
@@ -245,28 +245,28 @@ TEST_F(TPARTARGMINTest, case_float_uint32_small_32k_1)
 }
 TEST_F(TPARTARGMINTest, case_half_uint16_same_size_32k)
 {
-    this->Launch<aclFloat16, uint16_t, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
-                 true>();
+    this->Launch<
+        aclFloat16, uint16_t, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, true>();
 }
 TEST_F(TPARTARGMINTest, case_half_uint16_row_diff_32k_0)
 {
-    this->Launch<aclFloat16, uint16_t, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 111, 128, 128, 128,
-                 true>();
+    this->Launch<
+        aclFloat16, uint16_t, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 111, 128, 128, 128, true>();
 }
 TEST_F(TPARTARGMINTest, case_half_uint16_row_diff_32k_1)
 {
-    this->Launch<aclFloat16, uint16_t, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 111, 128,
-                 true>();
+    this->Launch<
+        aclFloat16, uint16_t, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 111, 128, true>();
 }
 TEST_F(TPARTARGMINTest, case_half_uint16_col_diff_32k_0)
 {
-    this->Launch<aclFloat16, uint16_t, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 111, 128, 128,
-                 true>();
+    this->Launch<
+        aclFloat16, uint16_t, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 111, 128, 128, true>();
 }
 TEST_F(TPARTARGMINTest, case_half_uint16_col_diff_32k_1)
 {
-    this->Launch<aclFloat16, uint16_t, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 111,
-                 true>();
+    this->Launch<
+        aclFloat16, uint16_t, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 111, true>();
 }
 TEST_F(TPARTARGMINTest, case_float_uint32_tile_diff)
 {

@@ -21,9 +21,9 @@ template <typename T>
 struct HasSFractal<T, std::void_t<decltype(T::SFractal)>> : std::true_type {};
 
 template <typename TileData>
-using TypeSum = std::conditional_t<std::is_same_v<typename TileData::DType, half> ||
-                                       std::is_same_v<typename TileData::DType, bfloat16_t>,
-                                   float, typename TileData::DType>;
+using TypeSum = std::conditional_t<
+    std::is_same_v<typename TileData::DType, half> || std::is_same_v<typename TileData::DType, bfloat16_t>, float,
+    typename TileData::DType>;
 
 template <typename TileData>
 size_t inline GetTileElementOffsetSubfractals(size_t subTileR, size_t innerR, size_t subTileC, size_t innerC)
@@ -68,19 +68,19 @@ size_t inline GetTileElementOffset(size_t r, size_t c)
     else {
         size_t subTileR = r / TileData::InnerRows;
         size_t innerR = r % TileData::InnerRows;
-        return GetTileElementOffsetSubfractals<TileData>(r / TileData::InnerRows, r % TileData::InnerRows,
-                                                         c / TileData::InnerCols, c % TileData::InnerCols);
+        return GetTileElementOffsetSubfractals<TileData>(
+            r / TileData::InnerRows, r % TileData::InnerRows, c / TileData::InnerCols, c % TileData::InnerCols);
     }
 }
 
 template <typename GlobalData>
-size_t inline GetGlobalElementOffsetPlain(GlobalData &gdata, size_t r, size_t c)
+size_t inline GetGlobalElementOffsetPlain(GlobalData& gdata, size_t r, size_t c)
 {
     return r * gdata.GetStride(GlobalTensorDim::DIM_3) + c;
 }
 
 template <typename DataStorage>
-size_t inline GetDataElementOffset(DataStorage &storage, size_t r, size_t c)
+size_t inline GetDataElementOffset(DataStorage& storage, size_t r, size_t c)
 {
     if constexpr (HasSFractal<DataStorage>::value) {
         return GetTileElementOffset<DataStorage>(r, c);

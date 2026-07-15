@@ -25,7 +25,7 @@ using namespace pto::comm;
 bool RunTWaitBasic()
 {
     alignas(64) std::atomic<int32_t> signal{0};
-    Signal sig(reinterpret_cast<int32_t *>(&signal));
+    Signal sig(reinterpret_cast<int32_t*>(&signal));
 
     bool success = true;
 
@@ -56,7 +56,7 @@ bool RunTWaitCompare()
     auto runCase = [](int32_t initial, int32_t stored, int32_t threshold, WaitCmp cmp,
                       std::function<bool(int32_t)> postCheck) -> bool {
         alignas(64) std::atomic<int32_t> signal{initial};
-        Signal sig(reinterpret_cast<int32_t *>(&signal));
+        Signal sig(reinterpret_cast<int32_t*>(&signal));
 
         std::thread notifier([&]() {
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -82,7 +82,7 @@ bool RunTWaitCompare()
 bool RunTWaitAtomic(int numThreads)
 {
     alignas(64) std::atomic<int32_t> counter{0};
-    Signal sig(reinterpret_cast<int32_t *>(&counter));
+    Signal sig(reinterpret_cast<int32_t*>(&counter));
 
     constexpr int kIncrementsPerThread = 25;
     const int kExpectedTotal = numThreads * kIncrementsPerThread;
@@ -104,7 +104,7 @@ bool RunTWaitAtomic(int numThreads)
 
     bool success = (counter.load() >= kExpectedTotal);
 
-    for (auto &worker : workers) {
+    for (auto& worker : workers) {
         worker.join();
     }
 
@@ -120,11 +120,11 @@ bool RunTWaitMatrix()
     constexpr int kTotal = Rows * Cols;
 
     alignas(64) std::vector<std::atomic<int32_t>> matrix(kTotal);
-    for (auto &elem : matrix) {
+    for (auto& elem : matrix) {
         elem.store(0, std::memory_order_release);
     }
 
-    Signal2D<Rows, Cols> sig(reinterpret_cast<int32_t *>(matrix.data()));
+    Signal2D<Rows, Cols> sig(reinterpret_cast<int32_t*>(matrix.data()));
 
     // Launch a thread to set all matrix elements to 1
     std::thread notifier([&]() {
@@ -158,7 +158,7 @@ bool RunTWaitMatrix()
 bool RunTWaitMultiPhase()
 {
     alignas(64) std::atomic<int32_t> signal{0};
-    Signal sig(reinterpret_cast<int32_t *>(&signal));
+    Signal sig(reinterpret_cast<int32_t*>(&signal));
 
     std::thread notifier([&]() {
         // Phase 1
@@ -210,12 +210,12 @@ bool RunTWaitSubRegion()
     constexpr int kStartCol = 5;
 
     alignas(64) std::vector<std::atomic<int32_t>> matrix(kFullRows * FullCols);
-    for (auto &elem : matrix) {
+    for (auto& elem : matrix) {
         elem.store(0, std::memory_order_release);
     }
 
     // Create signal pointing to the sub-region with proper stride
-    int32_t *subPtr = reinterpret_cast<int32_t *>(matrix.data()) + kStartRow * FullCols + kStartCol;
+    int32_t* subPtr = reinterpret_cast<int32_t*>(matrix.data()) + kStartRow * FullCols + kStartCol;
     Signal2D<SubRows, SubCols> sig(subPtr, FullCols);
 
     // Launch a thread to set only the sub-region elements to 1

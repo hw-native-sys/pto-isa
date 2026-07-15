@@ -18,8 +18,9 @@ using namespace pto;
 
 namespace {
 
-template <typename T, int dstRow, int dstCol, int srcRow, int validRow, int srcCol, int validCol, float profiling,
-          float accuracy>
+template <
+    typename T, int dstRow, int dstCol, int srcRow, int validRow, int srcCol, int validCol, float profiling,
+    float accuracy>
 void runTMaxS(T scalar)
 {
     using SrcTile = Tile<TileType::Vec, T, srcRow, srcCol, BLayout::RowMajor, -1, -1>;
@@ -36,51 +37,15 @@ void runTMaxS(T scalar)
 
 } // namespace
 
-TEST(TMaxS, case1)
-{
-    runTMaxS<float, 32, 64, 32, 32, 64, 64, 0.0f, 0.0f>(1.0f);
-}
-TEST(TMaxS, case2)
-{
-    runTMaxS<half, 63, 64, 63, 63, 64, 64, 0.0f, 0.0f>((half)1.0f);
-}
-TEST(TMaxS, case3)
-{
-    runTMaxS<int32_t, 31, 128, 31, 31, 128, 128, 0.0f, 0.0f>(1);
-}
-TEST(TMaxS, case4)
-{
-    runTMaxS<int16_t, 15, 192, 15, 15, 192, 192, 0.0f, 0.0f>(1);
-}
-TEST(TMaxS, case5)
-{
-    runTMaxS<float, 7, 448, 7, 7, 448, 448, 0.0f, 0.0f>(1.0f);
-}
-TEST(TMaxS, case6)
-{
-    runTMaxS<float, 256, 16, 256, 256, 16, 16, 0.0f, 0.0f>(1.0f);
-}
-TEST(TMaxS, case7)
-{
-    runTMaxS<float, 32, 128, 32, 32, 64, 64, 0.0f, 0.0f>(1.0f);
-}
-TEST(TMaxS, case8)
-{
-    runTMaxS<half, 63, 128, 63, 63, 64, 64, 0.0f, 0.0f>((half)1.0f);
-}
-TEST(TMaxS, case9)
-{
-    runTMaxS<int32_t, 31, 256, 31, 31, 128, 128, 0.0f, 0.0f>(1);
-}
-TEST(TMaxS, case10)
-{
-    runTMaxS<int16_t, 15, 192, 15, 15, 192, 192, 0.0f, 0.0f>(1);
-}
-TEST(TMaxS, case11)
-{
-    runTMaxS<float, 7, 512, 7, 7, 448, 448, 0.0f, 0.0f>(1.0f);
-}
-TEST(TMaxS, case12)
-{
-    runTMaxS<float, 256, 32, 256, 256, 16, 16, 0.0f, 0.0f>(1.0f);
-}
+TEST(TMaxS, case1) { runTMaxS<float, 32, 64, 32, 32, 64, 64, 0.0f, 0.0f>(1.0f); }
+TEST(TMaxS, case2) { runTMaxS<half, 63, 64, 63, 63, 64, 64, 0.0f, 0.0f>((half)1.0f); }
+TEST(TMaxS, case3) { runTMaxS<int32_t, 31, 128, 31, 31, 128, 128, 0.0f, 0.0f>(1); }
+TEST(TMaxS, case4) { runTMaxS<int16_t, 15, 192, 15, 15, 192, 192, 0.0f, 0.0f>(1); }
+TEST(TMaxS, case5) { runTMaxS<float, 7, 448, 7, 7, 448, 448, 0.0f, 0.0f>(1.0f); }
+TEST(TMaxS, case6) { runTMaxS<float, 256, 16, 256, 256, 16, 16, 0.0f, 0.0f>(1.0f); }
+TEST(TMaxS, case7) { runTMaxS<float, 32, 128, 32, 32, 64, 64, 0.0f, 0.0f>(1.0f); }
+TEST(TMaxS, case8) { runTMaxS<half, 63, 128, 63, 63, 64, 64, 0.0f, 0.0f>((half)1.0f); }
+TEST(TMaxS, case9) { runTMaxS<int32_t, 31, 256, 31, 31, 128, 128, 0.0f, 0.0f>(1); }
+TEST(TMaxS, case10) { runTMaxS<int16_t, 15, 192, 15, 15, 192, 192, 0.0f, 0.0f>(1); }
+TEST(TMaxS, case11) { runTMaxS<float, 7, 512, 7, 7, 448, 448, 0.0f, 0.0f>(1.0f); }
+TEST(TMaxS, case12) { runTMaxS<float, 256, 32, 256, 256, 16, 16, 0.0f, 0.0f>(1.0f); }

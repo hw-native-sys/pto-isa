@@ -22,21 +22,20 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <int S0, int HEAD_SIZE, int S1, int CUBE_S1 = 128, bool INTERMEDIATE_CHECK = false>
-void LaunchTFA(uint16_t *ffts, aclFloat16 *q, aclFloat16 *k, aclFloat16 *v, aclFloat16 *p_out, float *p_out_fp32,
-               float *global_sum_out, float *exp_max_out, float *o_out, float *o_parts_out, float *qk_out,
-               float *pv_out, aclrtStream stream);
+void LaunchTFA(
+    uint16_t* ffts, aclFloat16* q, aclFloat16* k, aclFloat16* v, aclFloat16* p_out, float* p_out_fp32,
+    float* global_sum_out, float* exp_max_out, float* o_out, float* o_parts_out, float* qk_out, float* pv_out,
+    aclrtStream stream);
 
 class TFATest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -68,59 +67,59 @@ void run_tfa()
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    T *outHost;
+    T* outHost;
     aclFloat16 *qHost, *kHost;
-    aclFloat16 *xexpHost;
-    float *tmpFloatExpHost;
-    aclFloat16 *vHost;
-    T *outDevice; // qk_out
-    aclFloat16 *xexpDevice;
-    T *midDevice = nullptr; // not used by this test but kept for symmetry
+    aclFloat16* xexpHost;
+    float* tmpFloatExpHost;
+    aclFloat16* vHost;
+    T* outDevice; // qk_out
+    aclFloat16* xexpDevice;
+    T* midDevice = nullptr; // not used by this test but kept for symmetry
     aclFloat16 *qDevice, *kDevice;
-    aclFloat16 *vDevice;
-    T *out2Device; // pv_out
-    T *out2Host;
+    aclFloat16* vDevice;
+    T* out2Device; // pv_out
+    T* out2Host;
 
-    aclrtMallocHost((void **)(&outHost), fullSize); // Allocate output buffer
-    aclrtMallocHost((void **)(&qHost), qSize);
-    aclrtMallocHost((void **)(&kHost), kSize);
+    aclrtMallocHost((void**)(&outHost), fullSize); // Allocate output buffer
+    aclrtMallocHost((void**)(&qHost), qSize);
+    aclrtMallocHost((void**)(&kHost), kSize);
 
-    aclrtMalloc((void **)&outDevice, fullSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&qDevice, qSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&kDevice, kSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&outDevice, fullSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&qDevice, qSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&kDevice, kSize, ACL_MEM_MALLOC_HUGE_FIRST);
     size_t halfSize = S0 * S1 * sizeof(aclFloat16);
     size_t floatSize = S0 * S1 * sizeof(float);
-    aclrtMalloc((void **)&xexpDevice, halfSize, ACL_MEM_MALLOC_HUGE_FIRST); // p_out (half)
-    void *pOutFp32Device = nullptr;
-    aclrtMalloc((void **)&pOutFp32Device, floatSize, ACL_MEM_MALLOC_HUGE_FIRST); // p_out_fp32 (float)
+    aclrtMalloc((void**)&xexpDevice, halfSize, ACL_MEM_MALLOC_HUGE_FIRST); // p_out (half)
+    void* pOutFp32Device = nullptr;
+    aclrtMalloc((void**)&pOutFp32Device, floatSize, ACL_MEM_MALLOC_HUGE_FIRST); // p_out_fp32 (float)
     // allocate v and out2 buffers
     size_t vSize = S1 * HEAD_SIZE * sizeof(aclFloat16);
     size_t pvPartSize = S0 * HEAD_SIZE * sizeof(T);
     int num_tiles = S1 / 128;
     size_t out2TotalSize = pvPartSize * num_tiles;
-    aclrtMalloc((void **)&vDevice, vSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&out2Device, out2TotalSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&vDevice, vSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&out2Device, out2TotalSize, ACL_MEM_MALLOC_HUGE_FIRST);
     // allocate global_sum buffer (per-tile S0 floats)
     size_t gsumTotalElems = static_cast<size_t>(S0) * static_cast<size_t>(num_tiles);
     size_t gsumSize = gsumTotalElems * sizeof(float);
-    float *gSumDevice = nullptr;
-    aclrtMalloc((void **)&gSumDevice, gsumSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    float* gSumDevice = nullptr;
+    aclrtMalloc((void**)&gSumDevice, gsumSize, ACL_MEM_MALLOC_HUGE_FIRST);
     // allocate per-tile exp_max buffer (per-tile S0 floats)
-    float *expMaxDevice = nullptr;
-    aclrtMalloc((void **)&expMaxDevice, gsumSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    float* expMaxDevice = nullptr;
+    aclrtMalloc((void**)&expMaxDevice, gsumSize, ACL_MEM_MALLOC_HUGE_FIRST);
     // allocate running output o (S0 x HEAD_SIZE)
-    T *oDevice = nullptr;
+    T* oDevice = nullptr;
     size_t oSize = pvPartSize; // S0 * HEAD_SIZE * sizeof(T)
-    aclrtMalloc((void **)&oDevice, oSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&oDevice, oSize, ACL_MEM_MALLOC_HUGE_FIRST);
     // allocate per-iteration running output snapshots (num_tiles * S0 * HEAD_SIZE)
-    T *oPartsDevice = nullptr;
+    T* oPartsDevice = nullptr;
     size_t oPartsTotalSize = pvPartSize * num_tiles;
-    aclrtMalloc((void **)&oPartsDevice, oPartsTotalSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&oPartsDevice, oPartsTotalSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/q.bin", qSize, qHost, qSize); // Read q data
     ReadFile(GetGoldenDir() + "/kt.bin", kSize, kHost, kSize);
     // read v
-    aclrtMallocHost((void **)(&vHost), S1 * HEAD_SIZE * sizeof(aclFloat16));
+    aclrtMallocHost((void**)(&vHost), S1 * HEAD_SIZE * sizeof(aclFloat16));
     ReadFile(GetGoldenDir() + "/v.bin", vSize, vHost, vSize);
 
     aclrtMemcpy(qDevice, qSize, qHost, qSize, ACL_MEMCPY_HOST_TO_DEVICE);
@@ -142,40 +141,40 @@ void run_tfa()
 
     // Launch kernel, pass ffts ctrl addr and device-side log buffer, and xexp/tmp_float_exp device ptrs
     LaunchTFA<S0, HEAD_SIZE, S1, 128, INTERMEDIATE_CHECK>(
-        (uint16_t *)ffts, (aclFloat16 *)qDevice, (aclFloat16 *)kDevice, (aclFloat16 *)vDevice, (aclFloat16 *)xexpDevice,
-        (float *)pOutFp32Device, (float *)gSumDevice, (float *)expMaxDevice, (float *)oDevice, (float *)oPartsDevice,
-        (float *)outDevice, (float *)out2Device, stream);
+        (uint16_t*)ffts, (aclFloat16*)qDevice, (aclFloat16*)kDevice, (aclFloat16*)vDevice, (aclFloat16*)xexpDevice,
+        (float*)pOutFp32Device, (float*)gSumDevice, (float*)expMaxDevice, (float*)oDevice, (float*)oPartsDevice,
+        (float*)outDevice, (float*)out2Device, stream);
 
     aclrtSynchronizeStream(stream);
 
     // copy outputs back
     aclrtMemcpy(outHost, fullSize, outDevice, fullSize, ACL_MEMCPY_DEVICE_TO_HOST);
-    aclrtMallocHost((void **)(&xexpHost), halfSize);
-    aclrtMallocHost((void **)(&tmpFloatExpHost), floatSize);
+    aclrtMallocHost((void**)(&xexpHost), halfSize);
+    aclrtMallocHost((void**)(&tmpFloatExpHost), floatSize);
     aclrtMemcpy(xexpHost, halfSize, xexpDevice, halfSize, ACL_MEMCPY_DEVICE_TO_HOST);
     aclrtMemcpy(tmpFloatExpHost, floatSize, pOutFp32Device, floatSize, ACL_MEMCPY_DEVICE_TO_HOST);
     // copy second matmul partial outputs (concatenated per-tile)
-    aclrtMallocHost((void **)(&out2Host), out2TotalSize);
+    aclrtMallocHost((void**)(&out2Host), out2TotalSize);
     aclrtMemcpy(out2Host, out2TotalSize, out2Device, out2TotalSize, ACL_MEMCPY_DEVICE_TO_HOST);
 
     // copy global_sum back
-    float *gSumHost = nullptr;
-    aclrtMallocHost((void **)(&gSumHost), gsumSize);
+    float* gSumHost = nullptr;
+    aclrtMallocHost((void**)(&gSumHost), gsumSize);
     aclrtMemcpy(gSumHost, gsumSize, gSumDevice, gsumSize, ACL_MEMCPY_DEVICE_TO_HOST);
 
     // copy exp_max back
-    float *expMaxHost = nullptr;
-    aclrtMallocHost((void **)(&expMaxHost), gsumSize);
+    float* expMaxHost = nullptr;
+    aclrtMallocHost((void**)(&expMaxHost), gsumSize);
     aclrtMemcpy(expMaxHost, gsumSize, expMaxDevice, gsumSize, ACL_MEMCPY_DEVICE_TO_HOST);
 
     // copy running output o back
-    T *oHost = nullptr;
-    aclrtMallocHost((void **)(&oHost), oSize);
+    T* oHost = nullptr;
+    aclrtMallocHost((void**)(&oHost), oSize);
     aclrtMemcpy(oHost, oSize, oDevice, oSize, ACL_MEMCPY_DEVICE_TO_HOST);
 
     // copy per-iteration o parts back
-    T *oPartsHost = nullptr;
-    aclrtMallocHost((void **)(&oPartsHost), oPartsTotalSize);
+    T* oPartsHost = nullptr;
+    aclrtMallocHost((void**)(&oPartsHost), oPartsTotalSize);
     aclrtMemcpy(oPartsHost, oPartsTotalSize, oPartsDevice, oPartsTotalSize, ACL_MEMCPY_DEVICE_TO_HOST);
 
     WriteFile(GetGoldenDir() + "/output.bin", outHost, fullSize);
@@ -185,22 +184,25 @@ void run_tfa()
     // write per-tile global_sum parts
     for (int ti = 0; ti < num_tiles; ++ti) {
         size_t partOffset = static_cast<size_t>(ti) * static_cast<size_t>(S0);
-        WriteFile(GetGoldenDir() + "/global_sum_part" + std::to_string(ti) + "_out.bin", gSumHost + partOffset,
-                  S0 * sizeof(float));
+        WriteFile(
+            GetGoldenDir() + "/global_sum_part" + std::to_string(ti) + "_out.bin", gSumHost + partOffset,
+            S0 * sizeof(float));
     }
     // write per-tile exp_max parts
     for (int ti = 0; ti < num_tiles; ++ti) {
         size_t partOffset = static_cast<size_t>(ti) * static_cast<size_t>(S0);
-        WriteFile(GetGoldenDir() + "/exp_max_part" + std::to_string(ti) + "_out.bin", expMaxHost + partOffset,
-                  S0 * sizeof(float));
+        WriteFile(
+            GetGoldenDir() + "/exp_max_part" + std::to_string(ti) + "_out.bin", expMaxHost + partOffset,
+            S0 * sizeof(float));
     }
     // write running output
     WriteFile(GetGoldenDir() + "/o_out.bin", oHost, oSize);
     // write per-iteration running output snapshots
     for (int ti = 0; ti < num_tiles; ++ti) {
         size_t byteOffset = static_cast<size_t>(ti) * pvPartSize;
-        WriteFile(GetGoldenDir() + "/o_part" + std::to_string(ti) + "_out.bin", ((uint8_t *)oPartsHost) + byteOffset,
-                  pvPartSize);
+        WriteFile(
+            GetGoldenDir() + "/o_part" + std::to_string(ti) + "_out.bin", ((uint8_t*)oPartsHost) + byteOffset,
+            pvPartSize);
     }
 
     aclrtFree(outDevice);
@@ -289,7 +291,7 @@ void run_tfa()
             std::string partName = GetGoldenDir() + "/pv_part" + std::to_string(ti) + ".bin";
             ReadFile(partName, pvPartSize, golden_part.data(), pvPartSize);
             // copy corresponding chunk from out2Host
-            memcpy(dev_part.data(), ((uint8_t *)out2Host) + ti * pvPartSize, pvPartSize);
+            memcpy(dev_part.data(), ((uint8_t*)out2Host) + ti * pvPartSize, pvPartSize);
             std::cout << "[CHECK] PV part " << ti << " compare" << std::endl;
             bool partOk = ResultCmp<T>(golden_part, dev_part, 0.001f);
             pv_part_status[ti] = partOk;
@@ -311,7 +313,7 @@ void run_tfa()
             std::cout << "[CHECK] Global sum " + std::to_string(ti) << std::endl;
             std::string gname = GetGoldenDir() + "/global_sum_part" + std::to_string(ti) + ".bin";
             ReadFile(gname, gSum_size, golden_gsum.data(), gSum_size);
-            memcpy(dev_gsum.data(), ((uint8_t *)gSumHost) + ti * gSum_size, gSum_size);
+            memcpy(dev_gsum.data(), ((uint8_t*)gSumHost) + ti * gSum_size, gSum_size);
             bool okg = ResultCmp<float>(golden_gsum, dev_gsum, 0.001f);
             gsum_part_status[ti] = okg;
             if (!okg)
@@ -324,7 +326,7 @@ void run_tfa()
             std::cout << "[CHECK] expmax part " + std::to_string(ti) << std::endl;
             std::string ename = GetGoldenDir() + "/exp_max_part" + std::to_string(ti) + ".bin";
             ReadFile(ename, gSum_size, golden_exp.data(), gSum_size);
-            memcpy(dev_exp.data(), ((uint8_t *)expMaxHost) + ti * gSum_size, gSum_size);
+            memcpy(dev_exp.data(), ((uint8_t*)expMaxHost) + ti * gSum_size, gSum_size);
             bool oke = ResultCmp<float>(golden_exp, dev_exp, 0.001f);
             exp_part_status[ti] = oke;
             if (!oke)
@@ -336,7 +338,7 @@ void run_tfa()
             std::cout << "[CHECK] O part " + std::to_string(ti) << std::endl;
             std::string oname = GetGoldenDir() + "/o_part" + std::to_string(ti) + ".bin";
             ReadFile(oname, pvPartSize, golden_opart.data(), pvPartSize);
-            memcpy(dev_opart.data(), ((uint8_t *)oPartsHost) + ti * pvPartSize, pvPartSize);
+            memcpy(dev_opart.data(), ((uint8_t*)oPartsHost) + ti * pvPartSize, pvPartSize);
             bool ok = ResultCmp<float>(golden_opart, dev_opart, 0.001f);
             o_part_status[ti] = ok;
             if (!ok)
@@ -369,7 +371,7 @@ void run_tfa()
 
     // Summary printout (single line)
     constexpr bool intermediateEnabled = INTERMEDIATE_CHECK;
-    auto summary_status = [](bool enabled, bool ok) -> const char * { return enabled ? (ok ? "OK" : "FAIL") : "SKIP"; };
+    auto summary_status = [](bool enabled, bool ok) -> const char* { return enabled ? (ok ? "OK" : "FAIL") : "SKIP"; };
 
     std::cout << "Summary: "
               << "QK=" << summary_status(intermediateEnabled, qk_ok) << ", "
@@ -426,66 +428,30 @@ void run_tfa()
     aclFinalize();
 }
 
-TEST_F(TFATest, case_float_H_128_S0_64_S1_256)
-{
-    run_tfa<float, 64, 128, 256>();
-}
+TEST_F(TFATest, case_float_H_128_S0_64_S1_256) { run_tfa<float, 64, 128, 256>(); }
 
-TEST_F(TFATest, case_float_H_128_S0_64_S1_128)
-{
-    run_tfa<float, 64, 128, 128>();
-}
+TEST_F(TFATest, case_float_H_128_S0_64_S1_128) { run_tfa<float, 64, 128, 128>(); }
 
-TEST_F(TFATest, case_float_H_128_S0_64_S1_512)
-{
-    run_tfa<float, 64, 128, 512>();
-}
+TEST_F(TFATest, case_float_H_128_S0_64_S1_512) { run_tfa<float, 64, 128, 512>(); }
 
-TEST_F(TFATest, case_float_H_128_S0_128_S1_512)
-{
-    run_tfa<float, 128, 128, 512>();
-}
+TEST_F(TFATest, case_float_H_128_S0_128_S1_512) { run_tfa<float, 128, 128, 512>(); }
 
-TEST_F(TFATest, case_float_H_128_S0_128_S1_2048)
-{
-    run_tfa<float, 128, 128, 2048>();
-}
+TEST_F(TFATest, case_float_H_128_S0_128_S1_2048) { run_tfa<float, 128, 128, 2048>(); }
 
-TEST_F(TFATest, case_float_H_128_S0_128_S1_8192)
-{
-    run_tfa<float, 128, 128, 8192>();
-}
+TEST_F(TFATest, case_float_H_128_S0_128_S1_8192) { run_tfa<float, 128, 128, 8192>(); }
 
 // Debug test that enables intermediate-value checks (expects device to
 // expose intermediate buffers via TSTORE so host can read and compare).
 // NOTE: test name intentionally uses "64x512_precision_debug" while
 // the run uses S1=256 — this mirrors the requested debug naming.
-TEST_F(TFATest, case_float_H_128_S0_64_S1_128_precision_debug)
-{
-    run_tfa<float, 64, 128, 128, true>();
-}
+TEST_F(TFATest, case_float_H_128_S0_64_S1_128_precision_debug) { run_tfa<float, 64, 128, 128, true>(); }
 
-TEST_F(TFATest, case_float_H_128_S0_64_S1_256_precision_debug)
-{
-    run_tfa<float, 64, 128, 256, true>();
-}
+TEST_F(TFATest, case_float_H_128_S0_64_S1_256_precision_debug) { run_tfa<float, 64, 128, 256, true>(); }
 
-TEST_F(TFATest, case_float_H_128_S0_64_S1_512_precision_debug)
-{
-    run_tfa<float, 64, 128, 512, true>();
-}
+TEST_F(TFATest, case_float_H_128_S0_64_S1_512_precision_debug) { run_tfa<float, 64, 128, 512, true>(); }
 
-TEST_F(TFATest, case_float_H_128_S0_128_S1_512_precision_debug)
-{
-    run_tfa<float, 128, 128, 512, true>();
-}
+TEST_F(TFATest, case_float_H_128_S0_128_S1_512_precision_debug) { run_tfa<float, 128, 128, 512, true>(); }
 
-TEST_F(TFATest, case_float_H_128_S0_128_S1_2048_precision_debug)
-{
-    run_tfa<float, 128, 128, 2048, true>();
-}
+TEST_F(TFATest, case_float_H_128_S0_128_S1_2048_precision_debug) { run_tfa<float, 128, 128, 2048, true>(); }
 
-TEST_F(TFATest, case_float_H_128_S0_128_S1_8192_precision_debug)
-{
-    run_tfa<float, 128, 128, 8192, true>();
-}
+TEST_F(TFATest, case_float_H_128_S0_128_S1_8192_precision_debug) { run_tfa<float, 128, 128, 8192, true>(); }

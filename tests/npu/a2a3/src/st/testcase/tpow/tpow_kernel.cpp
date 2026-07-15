@@ -14,7 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int TRow, int TCol, int validRow, int validCol>
-__global__ AICORE void runTPow(__gm__ T __out__ *out, __gm__ T __in__ *base, __gm__ T __in__ *exp)
+__global__ AICORE void runTPow(__gm__ T __out__* out, __gm__ T __in__* base, __gm__ T __in__* exp)
 {
     using ShapeDim5 = Shape<1, 1, 1, validRow, validCol>;
     using StrideDim5 = pto::Stride<TRow * TCol, TRow * TCol, TRow * TCol, TCol, 1>;
@@ -46,18 +46,18 @@ __global__ AICORE void runTPow(__gm__ T __out__ *out, __gm__ T __in__ *base, __g
 }
 
 template <typename T, int TRow, int TCol, int validRow, int validCol>
-void LaunchTPow(T *out, T *base, T *exp, void *stream)
+void LaunchTPow(T* out, T* base, T* exp, void* stream)
 {
     runTPow<T, TRow, TCol, validRow, validCol><<<1, nullptr, stream>>>(out, base, exp);
 }
 
-template void LaunchTPow<float, 1, 64, 1, 64>(float *out, float *base, float *exp, void *stream);
-template void LaunchTPow<float, 16, 64, 15, 63>(float *out, float *base, float *exp, void *stream);
-template void LaunchTPow<float, 16, 256, 15, 231>(float *out, float *base, float *exp, void *stream);
-template void LaunchTPow<int8_t, 16, 64, 15, 63>(int8_t *out, int8_t *base, int8_t *exp, void *stream);
-template void LaunchTPow<int32_t, 16, 64, 15, 63>(int32_t *out, int32_t *base, int32_t *exp, void *stream);
-template void LaunchTPow<int16_t, 16, 64, 15, 63>(int16_t *out, int16_t *base, int16_t *exp, void *stream);
-template void LaunchTPow<uint8_t, 16, 64, 15, 63>(uint8_t *out, uint8_t *base, uint8_t *exp, void *stream);
-template void LaunchTPow<uint16_t, 16, 64, 15, 63>(uint16_t *out, uint16_t *base, uint16_t *exp, void *stream);
-template void LaunchTPow<uint32_t, 16, 64, 15, 63>(uint32_t *out, uint32_t *base, uint32_t *exp, void *stream);
-template void LaunchTPow<uint16_t, 16, 512, 16, 400>(uint16_t *out, uint16_t *base, uint16_t *exp, void *stream);
+template void LaunchTPow<float, 1, 64, 1, 64>(float* out, float* base, float* exp, void* stream);
+template void LaunchTPow<float, 16, 64, 15, 63>(float* out, float* base, float* exp, void* stream);
+template void LaunchTPow<float, 16, 256, 15, 231>(float* out, float* base, float* exp, void* stream);
+template void LaunchTPow<int8_t, 16, 64, 15, 63>(int8_t* out, int8_t* base, int8_t* exp, void* stream);
+template void LaunchTPow<int32_t, 16, 64, 15, 63>(int32_t* out, int32_t* base, int32_t* exp, void* stream);
+template void LaunchTPow<int16_t, 16, 64, 15, 63>(int16_t* out, int16_t* base, int16_t* exp, void* stream);
+template void LaunchTPow<uint8_t, 16, 64, 15, 63>(uint8_t* out, uint8_t* base, uint8_t* exp, void* stream);
+template void LaunchTPow<uint16_t, 16, 64, 15, 63>(uint16_t* out, uint16_t* base, uint16_t* exp, void* stream);
+template void LaunchTPow<uint32_t, 16, 64, 15, 63>(uint32_t* out, uint32_t* base, uint32_t* exp, void* stream);
+template void LaunchTPow<uint16_t, 16, 512, 16, 400>(uint16_t* out, uint16_t* base, uint16_t* exp, void* stream);

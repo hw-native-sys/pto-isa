@@ -16,7 +16,7 @@ using namespace pto;
 namespace TRowExpandDivTest {
 
 template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst>
-__global__ AICORE void runROWEXPANDDIV(__gm__ T *out, __gm__ T *src0, __gm__ T *src1)
+__global__ AICORE void runROWEXPANDDIV(__gm__ T* out, __gm__ T* src0, __gm__ T* src1)
 {
     using DynShapeDim5 = Shape<1, 1, 1, src1Row, src1Col>;
     using DynStridDim5 = pto::Stride<1, 1, 1, src1Col, 1>;
@@ -56,7 +56,7 @@ __global__ AICORE void runROWEXPANDDIV(__gm__ T *out, __gm__ T *src0, __gm__ T *
 }
 
 template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst>
-__global__ AICORE void runROWEXPANDDIV2(__gm__ T *out, __gm__ T *src0, __gm__ T *src1)
+__global__ AICORE void runROWEXPANDDIV2(__gm__ T* out, __gm__ T* src0, __gm__ T* src1)
 {
     using DynShapeDim5 = Shape<1, 1, 1, src1Row, src1Col>;
     using DynStridDim5 = pto::Stride<1, 1, 1, src1Col, 1>;
@@ -96,40 +96,40 @@ __global__ AICORE void runROWEXPANDDIV2(__gm__ T *out, __gm__ T *src0, __gm__ T 
 }
 
 template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst>
-void launchTRowExpandDiv(T *out, T *src0, T *src1, void *stream)
+void launchTRowExpandDiv(T* out, T* src0, T* src1, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
         runROWEXPANDDIV<half, dstRow, dstCol, src1Row, src1Col, src0eqdst>
-            <<<1, nullptr, stream>>>((half *)out, (half *)src0, (half *)src1);
+            <<<1, nullptr, stream>>>((half*)out, (half*)src0, (half*)src1);
     } else {
         runROWEXPANDDIV<T, dstRow, dstCol, src1Row, src1Col, src0eqdst><<<1, nullptr, stream>>>(out, src0, src1);
     }
 }
 
 template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst>
-void launchTRowExpandDiv2(T *out, T *src0, T *src1, void *stream)
+void launchTRowExpandDiv2(T* out, T* src0, T* src1, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
         runROWEXPANDDIV2<half, dstRow, dstCol, src1Row, src1Col, src0eqdst>
-            <<<1, nullptr, stream>>>((half *)out, (half *)src0, (half *)src1);
+            <<<1, nullptr, stream>>>((half*)out, (half*)src0, (half*)src1);
     } else {
         runROWEXPANDDIV2<T, dstRow, dstCol, src1Row, src1Col, src0eqdst><<<1, nullptr, stream>>>(out, src0, src1);
     }
 }
 
-template void launchTRowExpandDiv<float, 40, 64, 40, 1, true>(float *out, float *src0, float *src1, void *stream);
-template void launchTRowExpandDiv<float, 16, 256, 16, 1, true>(float *out, float *src0, float *src1, void *stream);
-template void launchTRowExpandDiv<aclFloat16, 16, 32, 16, 1, true>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                                   void *stream);
-template void launchTRowExpandDiv<aclFloat16, 32, 512, 32, 1, true>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                                    void *stream);
-template void launchTRowExpandDiv2<float, 24, 64, 24, 8, true>(float *out, float *src0, float *src1, void *stream);
-template void launchTRowExpandDiv2<aclFloat16, 32, 32, 32, 16, true>(aclFloat16 *out, aclFloat16 *src0,
-                                                                     aclFloat16 *src1, void *stream);
-template void launchTRowExpandDiv<float, 16, 128, 16, 1, false>(float *out, float *src0, float *src1, void *stream);
-template void launchTRowExpandDiv<aclFloat16, 32, 64, 32, 1, false>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                                    void *stream);
-template void launchTRowExpandDiv2<float, 20, 64, 20, 8, false>(float *out, float *src0, float *src1, void *stream);
-template void launchTRowExpandDiv2<aclFloat16, 16, 64, 16, 16, false>(aclFloat16 *out, aclFloat16 *src0,
-                                                                      aclFloat16 *src1, void *stream);
+template void launchTRowExpandDiv<float, 40, 64, 40, 1, true>(float* out, float* src0, float* src1, void* stream);
+template void launchTRowExpandDiv<float, 16, 256, 16, 1, true>(float* out, float* src0, float* src1, void* stream);
+template void launchTRowExpandDiv<aclFloat16, 16, 32, 16, 1, true>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void launchTRowExpandDiv<aclFloat16, 32, 512, 32, 1, true>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void launchTRowExpandDiv2<float, 24, 64, 24, 8, true>(float* out, float* src0, float* src1, void* stream);
+template void launchTRowExpandDiv2<aclFloat16, 32, 32, 32, 16, true>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void launchTRowExpandDiv<float, 16, 128, 16, 1, false>(float* out, float* src0, float* src1, void* stream);
+template void launchTRowExpandDiv<aclFloat16, 32, 64, 32, 1, false>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void launchTRowExpandDiv2<float, 20, 64, 20, 8, false>(float* out, float* src0, float* src1, void* stream);
+template void launchTRowExpandDiv2<aclFloat16, 16, 64, 16, 16, false>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
 } // namespace TRowExpandDivTest

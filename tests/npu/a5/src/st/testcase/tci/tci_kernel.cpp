@@ -14,7 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int reverse, int mode>
-__global__ AICORE void runTci(__gm__ T __out__ *out, T S)
+__global__ AICORE void runTci(__gm__ T __out__* out, T S)
 {
     using DynShapeDim5 = Shape<1, 1, 1, kGRows_, kGCols_>;
     using DynStridDim5 = pto::Stride<1, 1, 1, kGCols_, 1>;
@@ -47,24 +47,24 @@ __global__ AICORE void runTci(__gm__ T __out__ *out, T S)
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int reverse, int mode>
-void LaunchTci(T *out, T S, void *stream)
+void LaunchTci(T* out, T S, void* stream)
 {
-    runTci<T, kGRows_, kGCols_, kTRows_, kTCols_, reverse, mode><<<1, nullptr, stream>>>((T *)(out), S);
+    runTci<T, kGRows_, kGCols_, kTRows_, kTCols_, reverse, mode><<<1, nullptr, stream>>>((T*)(out), S);
 }
 
-template void LaunchTci<int32_t, 1, 128, 1, 128, 1, 0>(int32_t *out, int32_t S = 100, void *stream);
-template void LaunchTci<int16_t, 1, 128, 1, 128, 0, 0>(int16_t *out, int16_t S = -1, void *stream);
-template void LaunchTci<int16_t, 1, 128, 1, 128, 1, 0>(int16_t *out, int16_t S = -1, void *stream);
-template void LaunchTci<int16_t, 1, 192, 1, 192, 1, 0>(int16_t *out, int16_t S = -1, void *stream);
-template void LaunchTci<int32_t, 1, 192, 1, 192, 1, 0>(int32_t *out, int32_t S = -1, void *stream);
-template void LaunchTci<int32_t, 1, 600, 1, 600, 1, 0>(int32_t *out, int32_t S = 0, void *stream);
-template void LaunchTci<int16_t, 1, 800, 1, 800, 0, 0>(int16_t *out, int16_t S = 0, void *stream);
-template void LaunchTci<int32_t, 1, 2560, 1, 2560, 1, 0>(int32_t *out, int32_t S = 0, void *stream);
-template void LaunchTci<int32_t, 1, 3200, 1, 3200, 0, 0>(int32_t *out, int32_t S = 0, void *stream);
-template void LaunchTci<int32_t, 1, 8, 1, 8, 0, 0>(int32_t *out, int32_t S = 0, void *stream);
-template void LaunchTci<int32_t, 1, 128, 1, 128, 1, 1>(int32_t *out, int32_t S = 100, void *stream);
-template void LaunchTci<int32_t, 1, 3200, 1, 3200, 0, 1>(int32_t *out, int32_t S = 0, void *stream);
-template void LaunchTci<int16_t, 1, 128, 1, 128, 1, 1>(int16_t *out, int16_t S = -1, void *stream);
-template void LaunchTci<int16_t, 1, 800, 1, 800, 0, 1>(int16_t *out, int16_t S = 0, void *stream);
-template void LaunchTci<int16_t, 1, 3840, 1, 3840, 1, 1>(int16_t *out, int16_t S = 20, void *stream);
-template void LaunchTci<int16_t, 1, 1408, 1, 1408, 0, 1>(int16_t *out, int16_t S = 50, void *stream);
+template void LaunchTci<int32_t, 1, 128, 1, 128, 1, 0>(int32_t* out, int32_t S = 100, void* stream);
+template void LaunchTci<int16_t, 1, 128, 1, 128, 0, 0>(int16_t* out, int16_t S = -1, void* stream);
+template void LaunchTci<int16_t, 1, 128, 1, 128, 1, 0>(int16_t* out, int16_t S = -1, void* stream);
+template void LaunchTci<int16_t, 1, 192, 1, 192, 1, 0>(int16_t* out, int16_t S = -1, void* stream);
+template void LaunchTci<int32_t, 1, 192, 1, 192, 1, 0>(int32_t* out, int32_t S = -1, void* stream);
+template void LaunchTci<int32_t, 1, 600, 1, 600, 1, 0>(int32_t* out, int32_t S = 0, void* stream);
+template void LaunchTci<int16_t, 1, 800, 1, 800, 0, 0>(int16_t* out, int16_t S = 0, void* stream);
+template void LaunchTci<int32_t, 1, 2560, 1, 2560, 1, 0>(int32_t* out, int32_t S = 0, void* stream);
+template void LaunchTci<int32_t, 1, 3200, 1, 3200, 0, 0>(int32_t* out, int32_t S = 0, void* stream);
+template void LaunchTci<int32_t, 1, 8, 1, 8, 0, 0>(int32_t* out, int32_t S = 0, void* stream);
+template void LaunchTci<int32_t, 1, 128, 1, 128, 1, 1>(int32_t* out, int32_t S = 100, void* stream);
+template void LaunchTci<int32_t, 1, 3200, 1, 3200, 0, 1>(int32_t* out, int32_t S = 0, void* stream);
+template void LaunchTci<int16_t, 1, 128, 1, 128, 1, 1>(int16_t* out, int16_t S = -1, void* stream);
+template void LaunchTci<int16_t, 1, 800, 1, 800, 0, 1>(int16_t* out, int16_t S = 0, void* stream);
+template void LaunchTci<int16_t, 1, 3840, 1, 3840, 1, 1>(int16_t* out, int16_t S = 20, void* stream);
+template void LaunchTci<int16_t, 1, 1408, 1, 1408, 0, 1>(int16_t* out, int16_t S = 50, void* stream);

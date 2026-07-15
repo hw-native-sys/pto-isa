@@ -17,27 +17,27 @@ using namespace PtoTestCommon;
 
 class TSQRTTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol, bool highPrecision,
-          bool isInPlace = false>
-void LaunchTSqrt(T *out, T *src, void *stream);
+template <
+    typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol, bool highPrecision,
+    bool isInPlace = false>
+void LaunchTSqrt(T* out, T* src, void* stream);
 
-template <typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol,
-          bool highPrecision = false, bool isInPlace = false>
+template <
+    typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol, bool highPrecision = false,
+    bool isInPlace = false>
 void test_tsqrt()
 {
     size_t srcFileSize = srcRow * srcCol * sizeof(T);
@@ -51,15 +51,15 @@ void test_tsqrt()
     T *dstHost, *srcHost;
     T *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", srcFileSize, srcHost, srcFileSize);
     aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    LaunchTSqrt<T, dstRow, dstCol, srcRow, srcCol, validRow, validCol, highPrecision, isInPlace>(dstDevice, srcDevice,
-                                                                                                 stream);
+    LaunchTSqrt<T, dstRow, dstCol, srcRow, srcCol, validRow, validCol, highPrecision, isInPlace>(
+        dstDevice, srcDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, dstFileSize, dstDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -90,35 +90,11 @@ void test_tsqrt()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TSQRTTest, case1)
-{
-    test_tsqrt<float, 64, 64, 64, 64, 64, 64, true, true>();
-}
-TEST_F(TSQRTTest, case2)
-{
-    test_tsqrt<float, 64, 64, 64, 64, 64, 64, true, false>();
-}
-TEST_F(TSQRTTest, case3)
-{
-    test_tsqrt<aclFloat16, 64, 64, 64, 64, 64, 64, true, true>();
-}
-TEST_F(TSQRTTest, case4)
-{
-    test_tsqrt<aclFloat16, 64, 64, 64, 64, 64, 64, true, false>();
-}
-TEST_F(TSQRTTest, case5)
-{
-    test_tsqrt<float, 128, 128, 64, 64, 64, 64>();
-}
-TEST_F(TSQRTTest, case6)
-{
-    test_tsqrt<float, 64, 64, 128, 128, 32, 32>();
-}
-TEST_F(TSQRTTest, case7)
-{
-    test_tsqrt<aclFloat16, 128, 256, 64, 64, 64, 64>();
-}
-TEST_F(TSQRTTest, case8)
-{
-    test_tsqrt<aclFloat16, 64, 64, 128, 256, 32, 32>();
-}
+TEST_F(TSQRTTest, case1) { test_tsqrt<float, 64, 64, 64, 64, 64, 64, true, true>(); }
+TEST_F(TSQRTTest, case2) { test_tsqrt<float, 64, 64, 64, 64, 64, 64, true, false>(); }
+TEST_F(TSQRTTest, case3) { test_tsqrt<aclFloat16, 64, 64, 64, 64, 64, 64, true, true>(); }
+TEST_F(TSQRTTest, case4) { test_tsqrt<aclFloat16, 64, 64, 64, 64, 64, 64, true, false>(); }
+TEST_F(TSQRTTest, case5) { test_tsqrt<float, 128, 128, 64, 64, 64, 64>(); }
+TEST_F(TSQRTTest, case6) { test_tsqrt<float, 64, 64, 128, 128, 32, 32>(); }
+TEST_F(TSQRTTest, case7) { test_tsqrt<aclFloat16, 128, 256, 64, 64, 64, 64>(); }
+TEST_F(TSQRTTest, case8) { test_tsqrt<aclFloat16, 64, 64, 128, 256, 32, 32>(); }

@@ -19,9 +19,10 @@ using namespace pto;
 #define type_32_aligned(T) (32 / sizeof(T))
 #define align_to_32B(x, T) ((((x) + type_32_aligned(T) - 1) / type_32_aligned(T)) * (type_32_aligned(T)))
 
-template <typename T, int srcRows, int srcCols, int dstRows, int dstCols, PadValue LoadPadVal_ = PadValue::Null,
-          PadValue FillPadVal_ = PadValue::Null, bool inplace = false, bool expand = false>
-AICORE void runTFILLPAD(__gm__ T *out, __gm__ T *src)
+template <
+    typename T, int srcRows, int srcCols, int dstRows, int dstCols, PadValue LoadPadVal_ = PadValue::Null,
+    PadValue FillPadVal_ = PadValue::Null, bool inplace = false, bool expand = false>
+AICORE void runTFILLPAD(__gm__ T* out, __gm__ T* src)
 {
     constexpr int srcTileCols = expand ? align_to_32B(srcCols, T) : dstCols;
 
@@ -35,10 +36,11 @@ AICORE void runTFILLPAD(__gm__ T *out, __gm__ T *src)
     SrcGlobal srcGlobal(src);
     DstGlobal dstGlobal(out);
 
-    using SrcTile = Tile<TileType::Vec, T, srcRows, srcTileCols, BLayout::RowMajor, srcRows, srcCols, SLayout::NoneBox,
-                         512, LoadPadVal_>;
-    using DstTile = Tile<TileType::Vec, T, dstRows, dstCols, BLayout::RowMajor, dstRows, dstCols, SLayout::NoneBox, 512,
-                         FillPadVal_>;
+    using SrcTile = Tile<
+        TileType::Vec, T, srcRows, srcTileCols, BLayout::RowMajor, srcRows, srcCols, SLayout::NoneBox, 512,
+        LoadPadVal_>;
+    using DstTile = Tile<
+        TileType::Vec, T, dstRows, dstCols, BLayout::RowMajor, dstRows, dstCols, SLayout::NoneBox, 512, FillPadVal_>;
     SrcTile srcTile;
     DstTile dstTile;
 
@@ -63,66 +65,65 @@ AICORE void runTFILLPAD(__gm__ T *out, __gm__ T *src)
     TSTORE(dstGlobal, dstTile);
 }
 
-extern "C" __global__ AICORE void launchTFILLPAD_1(__gm__ uint8_t *out, __gm__ uint8_t *src)
+extern "C" __global__ AICORE void launchTFILLPAD_1(__gm__ uint8_t* out, __gm__ uint8_t* src)
 {
-    runTFILLPAD<float, 64, 127, 64, 128, PadValue::Max, PadValue::Max>((__gm__ float *)out, (__gm__ float *)src);
+    runTFILLPAD<float, 64, 127, 64, 128, PadValue::Max, PadValue::Max>((__gm__ float*)out, (__gm__ float*)src);
 }
 
-extern "C" __global__ AICORE void launchTFILLPAD_2(__gm__ uint8_t *out, __gm__ uint8_t *src)
+extern "C" __global__ AICORE void launchTFILLPAD_2(__gm__ uint8_t* out, __gm__ uint8_t* src)
 {
-    runTFILLPAD<float, 64, 127, 64, 144, PadValue::Max, PadValue::Max>((__gm__ float *)out, (__gm__ float *)src);
+    runTFILLPAD<float, 64, 127, 64, 144, PadValue::Max, PadValue::Max>((__gm__ float*)out, (__gm__ float*)src);
 }
 
-extern "C" __global__ AICORE void launchTFILLPAD_3(__gm__ uint8_t *out, __gm__ uint8_t *src)
+extern "C" __global__ AICORE void launchTFILLPAD_3(__gm__ uint8_t* out, __gm__ uint8_t* src)
 {
-    runTFILLPAD<float, 64, 127, 64, 160, PadValue::Min, PadValue::Max>((__gm__ float *)out, (__gm__ float *)src);
+    runTFILLPAD<float, 64, 127, 64, 160, PadValue::Min, PadValue::Max>((__gm__ float*)out, (__gm__ float*)src);
 }
 
-extern "C" __global__ AICORE void launchTFILLPAD_4(__gm__ uint8_t *out, __gm__ uint8_t *src)
+extern "C" __global__ AICORE void launchTFILLPAD_4(__gm__ uint8_t* out, __gm__ uint8_t* src)
 {
-    runTFILLPAD<float, 260, 7, 260, 16, PadValue::Min, PadValue::Max>((__gm__ float *)out, (__gm__ float *)src);
+    runTFILLPAD<float, 260, 7, 260, 16, PadValue::Min, PadValue::Max>((__gm__ float*)out, (__gm__ float*)src);
 }
 
-extern "C" __global__ AICORE void launchTFILLPAD_5(__gm__ uint8_t *out, __gm__ uint8_t *src)
+extern "C" __global__ AICORE void launchTFILLPAD_5(__gm__ uint8_t* out, __gm__ uint8_t* src)
 {
-    runTFILLPAD<float, 260, 7, 260, 16, PadValue::Min, PadValue::Max, true>((__gm__ float *)out, (__gm__ float *)src);
+    runTFILLPAD<float, 260, 7, 260, 16, PadValue::Min, PadValue::Max, true>((__gm__ float*)out, (__gm__ float*)src);
 }
 
-extern "C" __global__ AICORE void launchTFILLPAD_6(__gm__ uint8_t *out, __gm__ uint8_t *src)
+extern "C" __global__ AICORE void launchTFILLPAD_6(__gm__ uint8_t* out, __gm__ uint8_t* src)
 {
-    runTFILLPAD<uint16_t, 260, 7, 260, 32, PadValue::Min, PadValue::Max>((__gm__ uint16_t *)out,
-                                                                         (__gm__ uint16_t *)src);
+    runTFILLPAD<uint16_t, 260, 7, 260, 32, PadValue::Min, PadValue::Max>((__gm__ uint16_t*)out, (__gm__ uint16_t*)src);
 }
 
-extern "C" __global__ AICORE void launchTFILLPAD_7(__gm__ uint8_t *out, __gm__ uint8_t *src)
+extern "C" __global__ AICORE void launchTFILLPAD_7(__gm__ uint8_t* out, __gm__ uint8_t* src)
 {
-    runTFILLPAD<int8_t, 260, 7, 260, 64, PadValue::Min, PadValue::Max>((__gm__ int8_t *)out, (__gm__ int8_t *)src);
+    runTFILLPAD<int8_t, 260, 7, 260, 64, PadValue::Min, PadValue::Max>((__gm__ int8_t*)out, (__gm__ int8_t*)src);
 }
 
-extern "C" __global__ AICORE void launchTFILLPAD_8(__gm__ uint8_t *out, __gm__ uint8_t *src)
+extern "C" __global__ AICORE void launchTFILLPAD_8(__gm__ uint8_t* out, __gm__ uint8_t* src)
 {
-    runTFILLPAD<uint16_t, 259, 7, 260, 32, PadValue::Min, PadValue::Max, false, true>((__gm__ uint16_t *)out,
-                                                                                      (__gm__ uint16_t *)src);
+    runTFILLPAD<uint16_t, 259, 7, 260, 32, PadValue::Min, PadValue::Max, false, true>(
+        (__gm__ uint16_t*)out, (__gm__ uint16_t*)src);
 }
 
-extern "C" __global__ AICORE void launchTFILLPAD_9(__gm__ uint8_t *out, __gm__ uint8_t *src)
+extern "C" __global__ AICORE void launchTFILLPAD_9(__gm__ uint8_t* out, __gm__ uint8_t* src)
 {
-    runTFILLPAD<int8_t, 259, 7, 260, 64, PadValue::Min, PadValue::Max, false, true>((__gm__ int8_t *)out,
-                                                                                    (__gm__ int8_t *)src);
+    runTFILLPAD<int8_t, 259, 7, 260, 64, PadValue::Min, PadValue::Max, false, true>(
+        (__gm__ int8_t*)out, (__gm__ int8_t*)src);
 }
 
-extern "C" __global__ AICORE void launchTFILLPAD_10(__gm__ uint8_t *out, __gm__ uint8_t *src)
+extern "C" __global__ AICORE void launchTFILLPAD_10(__gm__ uint8_t* out, __gm__ uint8_t* src)
 {
-    runTFILLPAD<int16_t, 260, 7, 260, 32, PadValue::Min, PadValue::Min>((__gm__ int16_t *)out, (__gm__ int16_t *)src);
+    runTFILLPAD<int16_t, 260, 7, 260, 32, PadValue::Min, PadValue::Min>((__gm__ int16_t*)out, (__gm__ int16_t*)src);
 }
 
-extern "C" __global__ AICORE void launchTFILLPAD_11(__gm__ uint8_t *out, __gm__ uint8_t *src)
+extern "C" __global__ AICORE void launchTFILLPAD_11(__gm__ uint8_t* out, __gm__ uint8_t* src)
 {
-    runTFILLPAD<int32_t, 260, 7, 260, 32, PadValue::Min, PadValue::Min>((__gm__ int32_t *)out, (__gm__ int32_t *)src);
+    runTFILLPAD<int32_t, 260, 7, 260, 32, PadValue::Min, PadValue::Min>((__gm__ int32_t*)out, (__gm__ int32_t*)src);
 }
 
 template <int32_t testKey>
-void launchTFILLPAD(uint8_t *out, uint8_t *src, void *stream)
+void launchTFILLPAD(uint8_t* out, uint8_t* src, void* stream)
 {
     if constexpr (testKey == 1) {
         launchTFILLPAD_1<<<1, nullptr, stream>>>(out, src);
@@ -149,14 +150,14 @@ void launchTFILLPAD(uint8_t *out, uint8_t *src, void *stream)
     }
 }
 
-template void launchTFILLPAD<1>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTFILLPAD<2>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTFILLPAD<3>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTFILLPAD<4>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTFILLPAD<5>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTFILLPAD<6>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTFILLPAD<7>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTFILLPAD<8>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTFILLPAD<9>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTFILLPAD<10>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTFILLPAD<11>(uint8_t *out, uint8_t *src, void *stream);
+template void launchTFILLPAD<1>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTFILLPAD<2>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTFILLPAD<3>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTFILLPAD<4>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTFILLPAD<5>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTFILLPAD<6>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTFILLPAD<7>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTFILLPAD<8>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTFILLPAD<9>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTFILLPAD<10>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTFILLPAD<11>(uint8_t* out, uint8_t* src, void* stream);

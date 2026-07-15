@@ -23,20 +23,20 @@ using namespace PtoTestCommon;
 
 // Kernel 启动函数声明
 template <typename T>
-void LaunchFusedAddReLUMul(uint8_t *out, uint8_t *x, float bias, float scale, uint32_t totalLength, void *stream);
+void LaunchFusedAddReLUMul(uint8_t* out, uint8_t* x, float bias, float scale, uint32_t totalLength, void* stream);
 
 template <typename T>
-void LaunchFusedAddReLUMulOptimized(uint8_t *out, uint8_t *x, float bias, float scale, uint32_t totalLength,
-                                    void *stream);
+void LaunchFusedAddReLUMulOptimized(
+    uint8_t* out, uint8_t* x, float bias, float scale, uint32_t totalLength, void* stream);
 
 template <typename T>
-void LaunchFusedAddReLUMulLargeTile(uint8_t *out, uint8_t *x, float bias, float scale, uint32_t totalLength,
-                                    void *stream);
+void LaunchFusedAddReLUMulLargeTile(
+    uint8_t* out, uint8_t* x, float bias, float scale, uint32_t totalLength, void* stream);
 
 /**
  * @brief CPU 参考实现：计算 golden 结果
  */
-void ComputeGolden(float *golden, const float *x, float bias, float scale, uint32_t length)
+void ComputeGolden(float* golden, const float* x, float bias, float scale, uint32_t length)
 {
     for (uint32_t i = 0; i < length; i++) {
         // Step 1: Add
@@ -53,7 +53,7 @@ void ComputeGolden(float *golden, const float *x, float bias, float scale, uint3
 /**
  * @brief 结果比较函数
  */
-bool CompareResults(const float *result, const float *golden, uint32_t length, float tolerance = 1e-5f)
+bool CompareResults(const float* result, const float* golden, uint32_t length, float tolerance = 1e-5f)
 {
     float max_diff = 0.0f;
     uint32_t error_count = 0;
@@ -87,7 +87,7 @@ bool CompareResults(const float *result, const float *golden, uint32_t length, f
 /**
  * @brief 初始化测试数据
  */
-static void InitializeTestData(float *x_host, uint32_t length)
+static void InitializeTestData(float* x_host, uint32_t length)
 {
     // 使用确定性公式生成测试数据，范围在 [-2, 2]
     // 这样可以保证测试的可重复性，同时避免使用不安全的 rand()
@@ -100,12 +100,13 @@ static void InitializeTestData(float *x_host, uint32_t length)
 /**
  * @brief 分配测试所需的内存资源
  */
-static bool AllocateTestMemory(uint32_t length, size_t data_size, float **x_host, float **out_host, float **golden_host,
-                               uint8_t **x_device, uint8_t **out_device)
+static bool AllocateTestMemory(
+    uint32_t length, size_t data_size, float** x_host, float** out_host, float** golden_host, uint8_t** x_device,
+    uint8_t** out_device)
 {
     // 分配 Host 内存
-    aclrtMallocHost((void **)x_host, data_size);
-    aclrtMallocHost((void **)out_host, data_size);
+    aclrtMallocHost((void**)x_host, data_size);
+    aclrtMallocHost((void**)out_host, data_size);
 
     // 校验内存分配大小
     if (length > 0 && length <= (1u << 30)) {
@@ -116,8 +117,8 @@ static bool AllocateTestMemory(uint32_t length, size_t data_size, float **x_host
     }
 
     // 分配 Device 内存
-    aclrtMalloc((void **)x_device, data_size, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)out_device, data_size, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)x_device, data_size, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)out_device, data_size, ACL_MEM_MALLOC_HUGE_FIRST);
 
     return true;
 }
@@ -125,8 +126,8 @@ static bool AllocateTestMemory(uint32_t length, size_t data_size, float **x_host
 /**
  * @brief 清理测试资源
  */
-static void CleanupTestResources(float *x_host, float *out_host, float *golden_host, uint8_t *x_device,
-                                 uint8_t *out_device, aclrtStream stream)
+static void CleanupTestResources(
+    float* x_host, float* out_host, float* golden_host, uint8_t* x_device, uint8_t* out_device, aclrtStream stream)
 {
     aclrtFree(x_device);
     aclrtFree(out_device);
@@ -143,7 +144,7 @@ static void CleanupTestResources(float *x_host, float *out_host, float *golden_h
  * @brief 测试函数模板
  */
 template <typename LaunchFunc>
-bool TestKernel(const char *kernel_name, LaunchFunc launch_func, uint32_t length, float bias, float scale)
+bool TestKernel(const char* kernel_name, LaunchFunc launch_func, uint32_t length, float bias, float scale)
 {
     printf("\n========== Testing %s ==========\n", kernel_name);
     printf("Parameters: length=%u, bias=%.2f, scale=%.2f\n", length, bias, scale);
@@ -185,7 +186,7 @@ bool TestKernel(const char *kernel_name, LaunchFunc launch_func, uint32_t length
     aclrtMemcpy(x_device, data_size, x_host, data_size, ACL_MEMCPY_HOST_TO_DEVICE);
 
     // 启动 Kernel
-    launch_func((uint8_t *)out_device, (uint8_t *)x_device, bias, scale, length, stream);
+    launch_func((uint8_t*)out_device, (uint8_t*)x_device, bias, scale, length, stream);
 
     // 同步并拷贝结果回 Host
     aclrtSynchronizeStream(stream);
@@ -210,8 +211,8 @@ bool TestKernel(const char *kernel_name, LaunchFunc launch_func, uint32_t length
  * @brief 性能测试函数
  */
 template <typename LaunchFunc>
-void BenchmarkKernel(const char *kernel_name, LaunchFunc launch_func, uint32_t length, float bias, float scale,
-                     int iterations = 100)
+void BenchmarkKernel(
+    const char* kernel_name, LaunchFunc launch_func, uint32_t length, float bias, float scale, int iterations = 100)
 {
     printf("\n========== Benchmarking %s ==========\n", kernel_name);
     printf("Parameters: length=%u, iterations=%d\n", length, iterations);
@@ -224,8 +225,8 @@ void BenchmarkKernel(const char *kernel_name, LaunchFunc launch_func, uint32_t l
     aclrtCreateStream(&stream);
 
     uint8_t *x_device, *out_device;
-    aclrtMalloc((void **)&x_device, data_size, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&out_device, data_size, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&x_device, data_size, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&out_device, data_size, ACL_MEM_MALLOC_HUGE_FIRST);
 
     // 预热
     for (int i = 0; i < 10; i++) {
@@ -260,7 +261,7 @@ void BenchmarkKernel(const char *kernel_name, LaunchFunc launch_func, uint32_t l
     aclFinalize();
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     printf("========================================\n");
     printf("Fused Add-ReLU-Mul Custom Operator Test\n");
@@ -298,8 +299,8 @@ int main(int argc, char *argv[])
 
     BenchmarkKernel("Basic Kernel", LaunchFusedAddReLUMul<float>, bench_length, bias, scale);
 
-    BenchmarkKernel("Optimized Kernel (Double Buffer)", LaunchFusedAddReLUMulOptimized<float>, bench_length, bias,
-                    scale);
+    BenchmarkKernel(
+        "Optimized Kernel (Double Buffer)", LaunchFusedAddReLUMulOptimized<float>, bench_length, bias, scale);
 
     BenchmarkKernel("Large Tile Kernel", LaunchFusedAddReLUMulLargeTile<float>, bench_length, bias, scale);
 

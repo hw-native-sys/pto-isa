@@ -20,7 +20,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 template <typename TileDataDst, typename TileDataSrc, typename TileInd>
-PTO_INTERNAL void TSCATTER_IMPL(TileDataDst &dst, TileDataSrc &src, TileInd &indexes)
+PTO_INTERNAL void TSCATTER_IMPL(TileDataDst& dst, TileDataSrc& src, TileInd& indexes)
 {
     using IndexT = typename TileInd::DType;
     static_assert(std::is_integral_v<IndexT>, "TSCATTER: indexes must be an integral type");
@@ -45,8 +45,8 @@ PTO_INTERNAL void TSCATTER_IMPL(TileDataDst &dst, TileDataSrc &src, TileInd &ind
 }
 
 template <MaskPattern maskPattern, typename DstTileData, typename SrcTileData>
-PTO_INTERNAL void TScatter(typename DstTileData::TileDType dst, typename SrcTileData::TileDType src, unsigned validRow,
-                           unsigned validCol)
+PTO_INTERNAL void TScatter(
+    typename DstTileData::TileDType dst, typename SrcTileData::TileDType src, unsigned validRow, unsigned validCol)
 {
     unsigned sR = 0;
     unsigned sC = 0;
@@ -68,8 +68,8 @@ PTO_INTERNAL void TScatter(typename DstTileData::TileDType dst, typename SrcTile
 }
 
 template <MaskPattern maskPattern, typename DstTileData, typename SrcTileData>
-PTO_INTERNAL void TScatterCol(typename DstTileData::TileDType dst, typename SrcTileData::TileDType src,
-                              unsigned validRow, unsigned validCol)
+PTO_INTERNAL void TScatterCol(
+    typename DstTileData::TileDType dst, typename SrcTileData::TileDType src, unsigned validRow, unsigned validCol)
 {
     unsigned srcRow = 0;
     for (unsigned r = 0; r < validRow; r++) {
@@ -89,9 +89,9 @@ PTO_INTERNAL void TScatterCol(typename DstTileData::TileDType dst, typename SrcT
     }
 }
 
-template <MaskPattern maskPattern, auto ScatterType = ScatterAxis::SCATTER_ROW, typename DstTileData,
-          typename SrcTileData>
-PTO_INTERNAL void TSCATTER_IMPL(DstTileData &dst, SrcTileData &src)
+template <
+    MaskPattern maskPattern, auto ScatterType = ScatterAxis::SCATTER_ROW, typename DstTileData, typename SrcTileData>
+PTO_INTERNAL void TSCATTER_IMPL(DstTileData& dst, SrcTileData& src)
 {
     if constexpr (maskPattern == MaskPattern::P1111) {
         return TMOV_IMPL(dst, src);
@@ -99,11 +99,11 @@ PTO_INTERNAL void TSCATTER_IMPL(DstTileData &dst, SrcTileData &src)
 
     using T = typename SrcTileData::DType;
     static_assert(sizeof(T) == 2 || sizeof(T) == 4, "TSCATTER: src element type must be 16 or 32-bit wide");
-    static_assert((DstTileData::Loc == TileType::Vec) && (SrcTileData::Loc == TileType::Vec),
-                  "TSCATTER: expect vec TileType");
+    static_assert(
+        (DstTileData::Loc == TileType::Vec) && (SrcTileData::Loc == TileType::Vec), "TSCATTER: expect vec TileType");
     static_assert((DstTileData::isRowMajor && SrcTileData::isRowMajor), "TSCATTER: expect row major");
-    static_assert((sizeof(typename DstTileData::DType) == sizeof(T)),
-                  "TSCATTER: expect same type size for dst and src");
+    static_assert(
+        (sizeof(typename DstTileData::DType) == sizeof(T)), "TSCATTER: expect same type size for dst and src");
 
     if constexpr (ScatterType == ScatterAxis::SCATTER_ROW) {
         const unsigned expectedSrcCols = CountSelected(maskPattern, dst.GetValidCol());
@@ -114,8 +114,8 @@ PTO_INTERNAL void TSCATTER_IMPL(DstTileData &dst, SrcTileData &src)
         const unsigned expectedSrcRows = CountSelected(maskPattern, dst.GetValidRow());
         assert(src.GetValidRow() == expectedSrcRows);
         assert(src.GetValidCol() == dst.GetValidCol());
-        TScatterCol<maskPattern, DstTileData, SrcTileData>(dst.data(), src.data(), dst.GetValidRow(),
-                                                           dst.GetValidCol());
+        TScatterCol<maskPattern, DstTileData, SrcTileData>(
+            dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol());
     }
 }
 

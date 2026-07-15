@@ -60,8 +60,9 @@ inline T compute_pow(T base_val, T exp_val)
 }
 
 template <typename tile_shape>
-PTO_INTERNAL void TPow_Impl(typename tile_shape::TileDType dst, typename tile_shape::TileDType base,
-                            typename tile_shape::TileDType exp, unsigned validRow, unsigned validCol)
+PTO_INTERNAL void TPow_Impl(
+    typename tile_shape::TileDType dst, typename tile_shape::TileDType base, typename tile_shape::TileDType exp,
+    unsigned validRow, unsigned validCol)
 {
     using T = typename tile_shape::DType;
     if constexpr (tile_shape::SFractal == SLayout::NoneBox) {
@@ -107,7 +108,7 @@ PTO_INTERNAL void TPow_Impl(typename tile_shape::TileDType dst, typename tile_sh
 }
 
 template <PowAlgorithm algo, typename DstTile, typename BaseTile, typename ExpTile, typename TmpTile>
-PTO_INTERNAL void TPOW_IMPL(DstTile &dst, BaseTile &base, ExpTile &exp, TmpTile &tmp)
+PTO_INTERNAL void TPOW_IMPL(DstTile& dst, BaseTile& base, ExpTile& exp, TmpTile& tmp)
 {
     (void)tmp;
     unsigned row = dst.GetValidRow();

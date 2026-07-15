@@ -45,31 +45,33 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 extern "C" int32_t rtSetDevice(int32_t deviceId);
 
-extern "C" int tbroadcast_ccu_trigger_launch(void *stream, uint64_t ckeVA, uint32_t mask);
+extern "C" int tbroadcast_ccu_trigger_launch(void* stream, uint64_t ckeVA, uint32_t mask);
 
 namespace {
 
 static constexpr size_t kMaxElements = 1024;
 static constexpr size_t kMaxPayload = kMaxElements * sizeof(float);
 
-#define ACL_OK(expr)                                                                                                   \
-    do {                                                                                                               \
-        aclError _r = (expr);                                                                                          \
-        if (_r != ACL_SUCCESS) {                                                                                       \
-            std::fprintf(stderr, "[TBROADCAST_CCU] ACL FAIL %s = %d (%s:%d)\n", #expr, static_cast<int>(_r), __FILE__, \
-                         __LINE__);                                                                                    \
-            return false;                                                                                              \
-        }                                                                                                              \
-    } while (0)
-
-#define HCCL_OK(expr)                                                                                         \
+#define ACL_OK(expr)                                                                                          \
     do {                                                                                                      \
-        HcclResult _r = (expr);                                                                               \
-        if (_r != HCCL_SUCCESS) {                                                                             \
-            std::fprintf(stderr, "[TBROADCAST_CCU] HCCL FAIL %s = %d (%s:%d)\n", #expr, static_cast<int>(_r), \
-                         __FILE__, __LINE__);                                                                 \
+        aclError _r = (expr);                                                                                 \
+        if (_r != ACL_SUCCESS) {                                                                              \
+            std::fprintf(                                                                                     \
+                stderr, "[TBROADCAST_CCU] ACL FAIL %s = %d (%s:%d)\n", #expr, static_cast<int>(_r), __FILE__, \
+                __LINE__);                                                                                    \
             return false;                                                                                     \
         }                                                                                                     \
+    } while (0)
+
+#define HCCL_OK(expr)                                                                                          \
+    do {                                                                                                       \
+        HcclResult _r = (expr);                                                                                \
+        if (_r != HCCL_SUCCESS) {                                                                              \
+            std::fprintf(                                                                                      \
+                stderr, "[TBROADCAST_CCU] HCCL FAIL %s = %d (%s:%d)\n", #expr, static_cast<int>(_r), __FILE__, \
+                __LINE__);                                                                                     \
+            return false;                                                                                      \
+        }                                                                                                      \
     } while (0)
 
 struct CcuEnv {
@@ -82,8 +84,8 @@ struct CcuEnv {
     int nRanks = 0;
     int devId = -1;
 
-    void *inputDev = nullptr;
-    void *outputDev = nullptr;
+    void* inputDev = nullptr;
+    void* outputDev = nullptr;
     uint64_t inputVa = 0;
     uint64_t outputVa = 0;
     uint64_t token = 0;
@@ -98,16 +100,16 @@ struct CcuEnv {
 static CcuEnv g_env;
 static uint64_t g_seqNo = 0;
 
-bool SetupChannelsForCcu(HcclComm comm, int rankId, int nRanks, std::vector<ChannelHandle> &channels)
+bool SetupChannelsForCcu(HcclComm comm, int rankId, int nRanks, std::vector<ChannelHandle>& channels)
 {
     std::vector<HcclChannelDesc> requests;
     for (int peer = 0; peer < nRanks; ++peer) {
         if (peer == rankId)
             continue;
         uint32_t netLayer = 0, listSize = 0;
-        CommLink *linkList = nullptr;
-        HcclResult rc = HcclRankGraphGetLinks(comm, netLayer, static_cast<uint32_t>(rankId),
-                                              static_cast<uint32_t>(peer), &linkList, &listSize);
+        CommLink* linkList = nullptr;
+        HcclResult rc = HcclRankGraphGetLinks(
+            comm, netLayer, static_cast<uint32_t>(rankId), static_cast<uint32_t>(peer), &linkList, &listSize);
         if (rc != HCCL_SUCCESS)
             return false;
 
@@ -133,8 +135,8 @@ bool SetupChannelsForCcu(HcclComm comm, int rankId, int nRanks, std::vector<Chan
     }
     channels.resize(requests.size());
     if (!requests.empty()) {
-        HcclResult rc = HcclChannelAcquire(comm, COMM_ENGINE_CCU, requests.data(),
-                                           static_cast<uint32_t>(requests.size()), channels.data());
+        HcclResult rc = HcclChannelAcquire(
+            comm, COMM_ENGINE_CCU, requests.data(), static_cast<uint32_t>(requests.size()), channels.data());
         if (rc != HCCL_SUCCESS)
             return false;
     }
@@ -165,8 +167,8 @@ bool EnsureEnvReady()
     ACL_OK(aclrtCreateStream(&g_env.stream));
     ACL_OK(aclrtCreateStream(&g_env.aivStream));
 
-    HCCL_OK(HcclCommInitRootInfo(static_cast<uint32_t>(g_env.nRanks), &rootInfo, static_cast<uint32_t>(g_env.rankId),
-                                 &g_env.comm));
+    HCCL_OK(HcclCommInitRootInfo(
+        static_cast<uint32_t>(g_env.nRanks), &rootInfo, static_cast<uint32_t>(g_env.rankId), &g_env.comm));
 
     constexpr uint32_t kNotifyNum = 1;
     HCCL_OK(HcclThreadAcquireWithStream(g_env.comm, COMM_ENGINE_CCU, g_env.stream, kNotifyNum, &g_env.threadHandle));
@@ -211,7 +213,7 @@ void CleanupEnv()
     g_env.ready = false;
 }
 
-static bool DiscoverGateDescriptor(pto::comm::ccu::CcuGateDescriptor &gateDesc)
+static bool DiscoverGateDescriptor(pto::comm::ccu::CcuGateDescriptor& gateDesc)
 {
     for (int retry = 0; retry < 200; ++retry) {
         if (pto::comm::ccu::TryGet(static_cast<uint32_t>(g_env.rankId), gateDesc)) {
@@ -223,7 +225,7 @@ static bool DiscoverGateDescriptor(pto::comm::ccu::CcuGateDescriptor &gateDesc)
     return false;
 }
 
-static bool ResolveCkeMmio(const pto::comm::ccu::CcuGateDescriptor &gateDesc)
+static bool ResolveCkeMmio(const pto::comm::ccu::CcuGateDescriptor& gateDesc)
 {
     constexpr int kRT_PROCESS_CP1 = 0;
     constexpr int kRT_RES_TYPE_CCU_CKE = 3;
@@ -235,12 +237,12 @@ static bool ResolveCkeMmio(const pto::comm::ccu::CcuGateDescriptor &gateDesc)
         uint32_t flag;
     };
     struct rtDevResAddrInfo_t {
-        uint64_t *resAddress;
-        uint32_t *len;
+        uint64_t* resAddress;
+        uint32_t* len;
     };
-    using rtGetFn = int (*)(rtDevResInfo_t *, rtDevResAddrInfo_t *);
+    using rtGetFn = int (*)(rtDevResInfo_t*, rtDevResAddrInfo_t*);
 
-    void *rt = dlopen("libruntime.so", RTLD_NOW | RTLD_GLOBAL);
+    void* rt = dlopen("libruntime.so", RTLD_NOW | RTLD_GLOBAL);
     if (!rt) {
         std::fprintf(stderr, "dlopen libruntime.so: %s\n", dlerror());
         return false;
@@ -300,8 +302,8 @@ static bool PrepareBroadcastBuffers(int rankId, uint32_t rootId, size_t numEleme
 
 static bool RegisterAndLaunchBroadcastCcu(int rankId, int nRanks, uint32_t rootId, size_t payloadSize, uint64_t seq)
 {
-    pto::comm::ccu::CcuBroadcastKernelArg karg(static_cast<uint32_t>(rankId), static_cast<uint32_t>(nRanks), rootId,
-                                               payloadSize + seq);
+    pto::comm::ccu::CcuBroadcastKernelArg karg(
+        static_cast<uint32_t>(rankId), static_cast<uint32_t>(nRanks), rootId, payloadSize + seq);
     karg.channels = g_env.channels;
 
     hcomm::KernelCreator creator = pto::comm::ccu::MakeCcuBroadcastCreator();
@@ -319,8 +321,9 @@ static bool TriggerAndSyncBroadcastCcu(int rankId)
 {
     if (!ResolveGateOnce())
         return false;
-    std::fprintf(stderr, "[TBROADCAST_CCU] rank=%d gate resolved mmio=0x%llx mask=0x%x\n", rankId,
-                 (unsigned long long)g_env.mmioAddr, g_env.gateMask);
+    std::fprintf(
+        stderr, "[TBROADCAST_CCU] rank=%d gate resolved mmio=0x%llx mask=0x%x\n", rankId,
+        (unsigned long long)g_env.mmioAddr, g_env.gateMask);
 
     usleep(200000);
 
@@ -346,8 +349,9 @@ static bool VerifyBroadcastResult(int rankId, size_t numElements, size_t payload
         const float expected = static_cast<float>(i + 1);
         if (std::fabs(outputHost[i] - expected) > 1e-3f) {
             if (mismatch < 8)
-                std::fprintf(stderr, "[TBROADCAST_CCU] rank=%d mismatch [%zu]: got=%f expected=%f\n", rankId, i,
-                             outputHost[i], expected);
+                std::fprintf(
+                    stderr, "[TBROADCAST_CCU] rank=%d mismatch [%zu]: got=%f expected=%f\n", rankId, i, outputHost[i],
+                    expected);
             ++mismatch;
         }
     }
@@ -390,10 +394,7 @@ void ResetEnv()
 
 class TBroadcastCcuTest : public ::testing::Test {
 protected:
-    void TearDown() override
-    {
-        ResetEnv();
-    }
+    void TearDown() override { ResetEnv(); }
 };
 
 TEST_F(TBroadcastCcuTest, Float_1024_Root0_2Ranks)
@@ -414,7 +415,4 @@ TEST_F(TBroadcastCcuTest, Float_1024_Root1)
 
 } // namespace
 
-int main(int argc, char **argv)
-{
-    return ::pto::comm::ccu::st::RunCcuStMain(argc, argv, &CleanupEnv);
-}
+int main(int argc, char** argv) { return ::pto::comm::ccu::st::RunCcuStMain(argc, argv, &CleanupEnv); }

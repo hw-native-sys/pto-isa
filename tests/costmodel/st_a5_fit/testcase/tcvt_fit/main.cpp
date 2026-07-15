@@ -40,7 +40,7 @@ struct A5TcvtFitCase {
     VFImplKind vf_impl_kind;
 };
 
-void RunTcvt(const A5TcvtFitCase &c)
+void RunTcvt(const A5TcvtFitCase& c)
 {
     CostModelInput input{
         .op = PtoOpcode::TCVT,
@@ -67,7 +67,7 @@ constexpr A5TcvtFitCase kCases0[] = {
 
 TEST(A5TcvtFit, bf16_to_fp16_1D_NO_POST_UPDATE_full)
 {
-    for (const auto &c : kCases0) {
+    for (const auto& c : kCases0) {
         RunTcvt(c);
     }
 }
@@ -84,7 +84,7 @@ constexpr A5TcvtFitCase kCases1[] = {
 
 TEST(A5TcvtFit, bf16_to_fp16_2D_POST_UPDATE_full)
 {
-    for (const auto &c : kCases1) {
+    for (const auto& c : kCases1) {
         RunTcvt(c);
     }
 }
@@ -98,7 +98,7 @@ constexpr A5TcvtFitCase kCases2[] = {
 
 TEST(A5TcvtFit, bf16_to_fp32_1D_NO_POST_UPDATE_full)
 {
-    for (const auto &c : kCases2) {
+    for (const auto& c : kCases2) {
         RunTcvt(c);
     }
 }
@@ -115,7 +115,7 @@ constexpr A5TcvtFitCase kCases3[] = {
 
 TEST(A5TcvtFit, bf16_to_fp32_2D_POST_UPDATE_full)
 {
-    for (const auto &c : kCases3) {
+    for (const auto& c : kCases3) {
         RunTcvt(c);
     }
 }
@@ -129,7 +129,7 @@ constexpr A5TcvtFitCase kCases4[] = {
 
 TEST(A5TcvtFit, bf16_to_fp4_e1m2_1D_NO_POST_UPDATE_full)
 {
-    for (const auto &c : kCases4) {
+    for (const auto& c : kCases4) {
         RunTcvt(c);
     }
 }
@@ -146,7 +146,7 @@ constexpr A5TcvtFitCase kCases5[] = {
 
 TEST(A5TcvtFit, bf16_to_fp4_e1m2_2D_POST_UPDATE_full)
 {
-    for (const auto &c : kCases5) {
+    for (const auto& c : kCases5) {
         RunTcvt(c);
     }
 }
@@ -160,7 +160,7 @@ constexpr A5TcvtFitCase kCases6[] = {
 
 TEST(A5TcvtFit, bf16_to_fp4_e2m1_1D_NO_POST_UPDATE_full)
 {
-    for (const auto &c : kCases6) {
+    for (const auto& c : kCases6) {
         RunTcvt(c);
     }
 }
@@ -177,7 +177,7 @@ constexpr A5TcvtFitCase kCases7[] = {
 
 TEST(A5TcvtFit, bf16_to_fp4_e2m1_2D_POST_UPDATE_full)
 {
-    for (const auto &c : kCases7) {
+    for (const auto& c : kCases7) {
         RunTcvt(c);
     }
 }
@@ -191,7 +191,7 @@ constexpr A5TcvtFitCase kCases8[] = {
 
 TEST(A5TcvtFit, fp16_to_fp32_1D_NO_POST_UPDATE_full)
 {
-    for (const auto &c : kCases8) {
+    for (const auto& c : kCases8) {
         RunTcvt(c);
     }
 }
@@ -208,7 +208,7 @@ constexpr A5TcvtFitCase kCases9[] = {
 
 TEST(A5TcvtFit, fp16_to_fp32_2D_POST_UPDATE_full)
 {
-    for (const auto &c : kCases9) {
+    for (const auto& c : kCases9) {
         RunTcvt(c);
     }
 }
@@ -222,7 +222,7 @@ constexpr A5TcvtFitCase kCases10[] = {
 
 TEST(A5TcvtFit, fp16_to_hif8_1D_NO_POST_UPDATE_full)
 {
-    for (const auto &c : kCases10) {
+    for (const auto& c : kCases10) {
         RunTcvt(c);
     }
 }
@@ -239,7 +239,7 @@ constexpr A5TcvtFitCase kCases11[] = {
 
 TEST(A5TcvtFit, fp16_to_hif8_2D_POST_UPDATE_full)
 {
-    for (const auto &c : kCases11) {
+    for (const auto& c : kCases11) {
         RunTcvt(c);
     }
 }
@@ -253,7 +253,7 @@ constexpr A5TcvtFitCase kCases12[] = {
 
 TEST(A5TcvtFit, fp32_to_bf16_1D_NO_POST_UPDATE_full)
 {
-    for (const auto &c : kCases12) {
+    for (const auto& c : kCases12) {
         RunTcvt(c);
     }
 }
@@ -270,7 +270,7 @@ constexpr A5TcvtFitCase kCases13[] = {
 
 TEST(A5TcvtFit, fp32_to_bf16_2D_POST_UPDATE_full)
 {
-    for (const auto &c : kCases13) {
+    for (const auto& c : kCases13) {
         RunTcvt(c);
     }
 }
@@ -284,7 +284,7 @@ constexpr A5TcvtFitCase kCases14[] = {
 
 TEST(A5TcvtFit, fp32_to_fp16_1D_NO_POST_UPDATE_full)
 {
-    for (const auto &c : kCases14) {
+    for (const auto& c : kCases14) {
         RunTcvt(c);
     }
 }
@@ -301,7 +301,7 @@ constexpr A5TcvtFitCase kCases15[] = {
 
 TEST(A5TcvtFit, fp32_to_fp16_2D_POST_UPDATE_full)
 {
-    for (const auto &c : kCases15) {
+    for (const auto& c : kCases15) {
         RunTcvt(c);
     }
 }
@@ -315,7 +315,7 @@ constexpr A5TcvtFitCase kCases16[] = {
 
 TEST(A5TcvtFit, fp32_to_fp8_e4m3_1D_NO_POST_UPDATE_full)
 {
-    for (const auto &c : kCases16) {
+    for (const auto& c : kCases16) {
         RunTcvt(c);
     }
 }
@@ -332,7 +332,7 @@ constexpr A5TcvtFitCase kCases17[] = {
 
 TEST(A5TcvtFit, fp32_to_fp8_e4m3_2D_POST_UPDATE_full)
 {
-    for (const auto &c : kCases17) {
+    for (const auto& c : kCases17) {
         RunTcvt(c);
     }
 }
@@ -346,7 +346,7 @@ constexpr A5TcvtFitCase kCases18[] = {
 
 TEST(A5TcvtFit, fp32_to_fp8_e5m2_1D_NO_POST_UPDATE_full)
 {
-    for (const auto &c : kCases18) {
+    for (const auto& c : kCases18) {
         RunTcvt(c);
     }
 }
@@ -363,7 +363,7 @@ constexpr A5TcvtFitCase kCases19[] = {
 
 TEST(A5TcvtFit, fp32_to_fp8_e5m2_2D_POST_UPDATE_full)
 {
-    for (const auto &c : kCases19) {
+    for (const auto& c : kCases19) {
         RunTcvt(c);
     }
 }
@@ -377,7 +377,7 @@ constexpr A5TcvtFitCase kCases20[] = {
 
 TEST(A5TcvtFit, fp32_to_hif8_1D_NO_POST_UPDATE_full)
 {
-    for (const auto &c : kCases20) {
+    for (const auto& c : kCases20) {
         RunTcvt(c);
     }
 }
@@ -394,7 +394,7 @@ constexpr A5TcvtFitCase kCases21[] = {
 
 TEST(A5TcvtFit, fp32_to_hif8_2D_POST_UPDATE_full)
 {
-    for (const auto &c : kCases21) {
+    for (const auto& c : kCases21) {
         RunTcvt(c);
     }
 }
@@ -408,7 +408,7 @@ constexpr A5TcvtFitCase kCases22[] = {
 
 TEST(A5TcvtFit, fp4_e1m2_to_bf16_1D_NO_POST_UPDATE_full)
 {
-    for (const auto &c : kCases22) {
+    for (const auto& c : kCases22) {
         RunTcvt(c);
     }
 }
@@ -425,7 +425,7 @@ constexpr A5TcvtFitCase kCases23[] = {
 
 TEST(A5TcvtFit, fp4_e1m2_to_bf16_2D_POST_UPDATE_full)
 {
-    for (const auto &c : kCases23) {
+    for (const auto& c : kCases23) {
         RunTcvt(c);
     }
 }
@@ -439,7 +439,7 @@ constexpr A5TcvtFitCase kCases24[] = {
 
 TEST(A5TcvtFit, fp4_e2m1_to_bf16_1D_NO_POST_UPDATE_full)
 {
-    for (const auto &c : kCases24) {
+    for (const auto& c : kCases24) {
         RunTcvt(c);
     }
 }
@@ -456,7 +456,7 @@ constexpr A5TcvtFitCase kCases25[] = {
 
 TEST(A5TcvtFit, fp4_e2m1_to_bf16_2D_POST_UPDATE_full)
 {
-    for (const auto &c : kCases25) {
+    for (const auto& c : kCases25) {
         RunTcvt(c);
     }
 }
@@ -470,7 +470,7 @@ constexpr A5TcvtFitCase kCases26[] = {
 
 TEST(A5TcvtFit, fp8_e4m3_to_fp32_1D_NO_POST_UPDATE_full)
 {
-    for (const auto &c : kCases26) {
+    for (const auto& c : kCases26) {
         RunTcvt(c);
     }
 }
@@ -487,7 +487,7 @@ constexpr A5TcvtFitCase kCases27[] = {
 
 TEST(A5TcvtFit, fp8_e4m3_to_fp32_2D_POST_UPDATE_full)
 {
-    for (const auto &c : kCases27) {
+    for (const auto& c : kCases27) {
         RunTcvt(c);
     }
 }
@@ -501,7 +501,7 @@ constexpr A5TcvtFitCase kCases28[] = {
 
 TEST(A5TcvtFit, fp8_e5m2_to_fp32_1D_NO_POST_UPDATE_full)
 {
-    for (const auto &c : kCases28) {
+    for (const auto& c : kCases28) {
         RunTcvt(c);
     }
 }
@@ -518,7 +518,7 @@ constexpr A5TcvtFitCase kCases29[] = {
 
 TEST(A5TcvtFit, fp8_e5m2_to_fp32_2D_POST_UPDATE_full)
 {
-    for (const auto &c : kCases29) {
+    for (const auto& c : kCases29) {
         RunTcvt(c);
     }
 }
@@ -532,7 +532,7 @@ constexpr A5TcvtFitCase kCases30[] = {
 
 TEST(A5TcvtFit, hif8_to_fp32_1D_NO_POST_UPDATE_full)
 {
-    for (const auto &c : kCases30) {
+    for (const auto& c : kCases30) {
         RunTcvt(c);
     }
 }
@@ -549,7 +549,7 @@ constexpr A5TcvtFitCase kCases31[] = {
 
 TEST(A5TcvtFit, hif8_to_fp32_2D_POST_UPDATE_full)
 {
-    for (const auto &c : kCases31) {
+    for (const auto& c : kCases31) {
         RunTcvt(c);
     }
 }

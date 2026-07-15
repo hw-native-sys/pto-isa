@@ -17,7 +17,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int N, int D, int C1, int H, int W, int C0>
-__global__ AICORE void runTStoreConv_NDC1HWC0(__gm__ T __out__ *out, __gm__ T __in__ *src)
+__global__ AICORE void runTStoreConv_NDC1HWC0(__gm__ T __out__* out, __gm__ T __in__* src)
 {
     static_assert(C0 == 32 / sizeof(T));
 
@@ -28,12 +28,13 @@ __global__ AICORE void runTStoreConv_NDC1HWC0(__gm__ T __out__ *out, __gm__ T __
     constexpr int64_t D_dim = D;
 
     using ShapeDim5 = Shape<N, D, C1, H, W>;
-    using StrideDim5 = pto::Stride<D_dim * C1_dim * H_dim * W_dim * C0, // Stride for N (Total elements)
-                                   C1_dim * H_dim * W_dim * C0,         // Stride for D
-                                   H_dim * W_dim * C0,                  // Stride for C1
-                                   W_dim * C0,                          // Stride for H (Crucial: W * C0)
-                                   C0                                   // Stride for W (Jump one full C0 vector)
-                                   >;
+    using StrideDim5 = pto::Stride<
+        D_dim * C1_dim * H_dim * W_dim * C0, // Stride for N (Total elements)
+        C1_dim * H_dim * W_dim * C0,         // Stride for D
+        H_dim * W_dim * C0,                  // Stride for C1
+        W_dim * C0,                          // Stride for H (Crucial: W * C0)
+        C0                                   // Stride for W (Jump one full C0 vector)
+        >;
     using GlobalData = GlobalTensor<T, ShapeDim5, StrideDim5, Layout::NDC1HWC0>;
 
     constexpr size_t srcElemNum = N * D * C1 * H * W * C0;
@@ -52,9 +53,10 @@ __global__ AICORE void runTStoreConv_NDC1HWC0(__gm__ T __out__ *out, __gm__ T __
     TSTORE(dstGlobal, srcTile);
 }
 
-template <typename T, int format, int srcShape0, int srcShape1, int srcShape2, int srcShape3, int srcShape4,
-          int dstShape0, int dstShape1, int dstShape2, int dstShape3, int dstShape4, int groupN>
-void LaunchTStoreConv(T *out, T *src, void *stream)
+template <
+    typename T, int format, int srcShape0, int srcShape1, int srcShape2, int srcShape3, int srcShape4, int dstShape0,
+    int dstShape1, int dstShape2, int dstShape3, int dstShape4, int groupN>
+void LaunchTStoreConv(T* out, T* src, void* stream)
 {
     if constexpr (format == 2) {
         runTStoreConv_NDC1HWC0<T, groupN, srcShape0, srcShape1, srcShape2, srcShape3, srcShape4>(out, src);
@@ -62,5 +64,5 @@ void LaunchTStoreConv(T *out, T *src, void *stream)
 }
 
 /*-------------------6D---------------------------*/
-template void LaunchTStoreConv<float, 2, 1, 1, 1, 2, 8, 1, 1, 1, 2, 8, 1>(float *out, float *src, void *stream);
-template void LaunchTStoreConv<float, 2, 3, 4, 1, 7, 8, 3, 4, 1, 7, 8, 2>(float *out, float *src, void *stream);
+template void LaunchTStoreConv<float, 2, 1, 1, 1, 2, 8, 1, 1, 1, 2, 8, 1>(float* out, float* src, void* stream);
+template void LaunchTStoreConv<float, 2, 3, 4, 1, 7, 8, 3, 4, 1, 7, 8, 2>(float* out, float* src, void* stream);

@@ -17,34 +17,42 @@ template <typename DstTileData, typename SrcTileData, typename DstType, typename
 PTO_INTERNAL void CheckTMovAccValid()
 {
     static_assert((SrcTileData::Loc == TileType::Acc), "Source TileType only support Acc.");
-    static_assert((DstTileData::Loc == TileType::Mat || DstTileData::Loc == TileType::Vec),
-                  "Destination TileType only support Mat or Vec.");
-    static_assert(((DstTileData::Cols * sizeof(DstType) % C0_SIZE_BYTE == 0) && ((DstTileData::Cols) > 0)),
-                  "Dst Tile Cols * sizeof(DstType) must be multiples of 32 and not 0.");
-    static_assert((!SrcTileData::isRowMajor && SrcTileData::SFractal == SLayout::RowMajor),
-                  "Src fractal format should be nz.");
-    static_assert(std::is_same_v<SrcType, half> || std::is_same_v<SrcType, int32_t>,
-                  "Src data type only support half or int32_t.");
+    static_assert(
+        (DstTileData::Loc == TileType::Mat || DstTileData::Loc == TileType::Vec),
+        "Destination TileType only support Mat or Vec.");
+    static_assert(
+        ((DstTileData::Cols * sizeof(DstType) % C0_SIZE_BYTE == 0) && ((DstTileData::Cols) > 0)),
+        "Dst Tile Cols * sizeof(DstType) must be multiples of 32 and not 0.");
+    static_assert(
+        (!SrcTileData::isRowMajor && SrcTileData::SFractal == SLayout::RowMajor), "Src fractal format should be nz.");
+    static_assert(
+        std::is_same_v<SrcType, half> || std::is_same_v<SrcType, int32_t>,
+        "Src data type only support half or int32_t.");
     if constexpr (isCastQuant) {
         if constexpr (std::is_same_v<SrcType, half>) {
-            static_assert(std::is_same_v<DstType, half> || std::is_same_v<DstType, uint8_t> ||
-                              std::is_same_v<DstType, int8_t> || std::is_same_v<DstType, int16_t>,
-                          "The output data type must be int8/uint8/half/int16 when input is data type half.");
+            static_assert(
+                std::is_same_v<DstType, half> || std::is_same_v<DstType, uint8_t> || std::is_same_v<DstType, int8_t> ||
+                    std::is_same_v<DstType, int16_t>,
+                "The output data type must be int8/uint8/half/int16 when input is data type half.");
         } else if constexpr (std::is_same_v<SrcType, int32_t>) {
-            static_assert(std::is_same_v<DstType, half> || std::is_same_v<DstType, uint8_t> ||
-                              std::is_same_v<DstType, int8_t> || std::is_same_v<DstType, int16_t>,
-                          "The output data type must be int8/uint8/half/int16/int32 when input is data type int32.");
+            static_assert(
+                std::is_same_v<DstType, half> || std::is_same_v<DstType, uint8_t> || std::is_same_v<DstType, int8_t> ||
+                    std::is_same_v<DstType, int16_t>,
+                "The output data type must be int8/uint8/half/int16/int32 when input is data type int32.");
         }
     } else {
-        static_assert(std::is_same_v<DstType, SrcType>,
-                      "The input data type must be consistent with the output data type when preQuantScalar is not "
-                      "configured");
-        static_assert(std::is_same_v<DstType, int32_t> || std::is_same_v<DstType, half>,
-                      "The data type must be half or int32 when preQuantScalar is not configured");
+        static_assert(
+            std::is_same_v<DstType, SrcType>,
+            "The input data type must be consistent with the output data type when preQuantScalar is not "
+            "configured");
+        static_assert(
+            std::is_same_v<DstType, int32_t> || std::is_same_v<DstType, half>,
+            "The data type must be half or int32 when preQuantScalar is not configured");
     }
-    static_assert((DstTileData::isRowMajor && DstTileData::SFractal == SLayout::NoneBox) ||
-                      (!DstTileData::isRowMajor && DstTileData::SFractal == SLayout::RowMajor),
-                  "Only support nz2nz or nz2nd");
+    static_assert(
+        (DstTileData::isRowMajor && DstTileData::SFractal == SLayout::NoneBox) ||
+            (!DstTileData::isRowMajor && DstTileData::SFractal == SLayout::RowMajor),
+        "Only support nz2nz or nz2nd");
 }
 
 PTO_INTERNAL void SetLoop3Para()

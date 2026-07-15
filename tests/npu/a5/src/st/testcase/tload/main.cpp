@@ -16,22 +16,20 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <int32_t testKey>
-void launchTLOAD(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream);
+void launchTLOAD(uint8_t* out, uint8_t* src, uint64_t* gLog, void* stream);
 
 template <int32_t testKey>
-int get_input_golden(uint8_t *input, uint8_t *golden);
+int get_input_golden(uint8_t* input, uint8_t* golden);
 
 class TLOADTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -59,30 +57,30 @@ void tload_test()
 
     void *dstHost, *srcHost, *goldHost;
     void *dstDevice, *srcDevice;
-    void *logDevice;
+    void* logDevice;
 
-    aclrtMallocHost((void **)(&srcHost), in_byteSize);
-    aclrtMallocHost((void **)(&dstHost), out_byteSize);
-    aclrtMallocHost((void **)(&goldHost), out_byteSize);
+    aclrtMallocHost((void**)(&srcHost), in_byteSize);
+    aclrtMallocHost((void**)(&dstHost), out_byteSize);
+    aclrtMallocHost((void**)(&goldHost), out_byteSize);
 
-    aclrtMalloc((void **)&dstDevice, in_byteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, out_byteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, in_byteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, out_byteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     int actual_out_byteSize = 0;
-    actual_out_byteSize = get_input_golden<testKey>((uint8_t *)srcHost, (uint8_t *)goldHost);
-    std::fill((uint8_t *)dstHost, ((uint8_t *)(dstHost)) + out_byteSize, 0);
+    actual_out_byteSize = get_input_golden<testKey>((uint8_t*)srcHost, (uint8_t*)goldHost);
+    std::fill((uint8_t*)dstHost, ((uint8_t*)(dstHost)) + out_byteSize, 0);
 
     aclrtMemcpy(srcDevice, in_byteSize, srcHost, in_byteSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(dstDevice, out_byteSize, dstHost, out_byteSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
 #ifdef DEBUGLOG
     uint64_t logHost[MAXBLOCK][LOGSIZE];
-    std::fill((uint8_t *)logHost, ((uint8_t *)(logHost)) + sizeof(logHost), 0);
-    aclrtMalloc((void **)&logDevice, sizeof(logHost), ACL_MEM_MALLOC_HUGE_FIRST);
+    std::fill((uint8_t*)logHost, ((uint8_t*)(logHost)) + sizeof(logHost), 0);
+    aclrtMalloc((void**)&logDevice, sizeof(logHost), ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMemcpy(logDevice, sizeof(logHost), logHost, sizeof(logHost), ACL_MEMCPY_HOST_TO_DEVICE);
 #endif
 
-    launchTLOAD<testKey>((uint8_t *)dstDevice, (uint8_t *)srcDevice, (uint64_t *)logDevice, stream);
+    launchTLOAD<testKey>((uint8_t*)dstDevice, (uint8_t*)srcDevice, (uint64_t*)logDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, out_byteSize, dstDevice, out_byteSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -93,9 +91,9 @@ void tload_test()
     std::ofstream inFile(GetGoldenDir() + "/input.bin", std::ios::binary | std::ios::out);
     std::ofstream outFile(GetGoldenDir() + "/output.bin", std::ios::binary | std::ios::out);
     std::ofstream goldFile(GetGoldenDir() + "/golden.bin", std::ios::binary | std::ios::out);
-    inFile.write((const char *)srcHost, actual_out_byteSize);
-    outFile.write((const char *)dstHost, actual_out_byteSize);
-    goldFile.write((const char *)goldHost, actual_out_byteSize);
+    inFile.write((const char*)srcHost, actual_out_byteSize);
+    outFile.write((const char*)dstHost, actual_out_byteSize);
+    goldFile.write((const char*)goldHost, actual_out_byteSize);
     inFile.close();
     outFile.close();
     goldFile.close();
@@ -136,62 +134,26 @@ void tload_test()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TLOADTest, case_float_GT_128_128_VT_128_128_BLK1)
-{
-    tload_test<1, float, 1>();
-}
+TEST_F(TLOADTest, case_float_GT_128_128_VT_128_128_BLK1) { tload_test<1, float, 1>(); }
 
-TEST_F(TLOADTest, case_float_GT_2_2_2_256_64_VT_256_64_BLK8)
-{
-    tload_test<2, float, 8>();
-}
+TEST_F(TLOADTest, case_float_GT_2_2_2_256_64_VT_256_64_BLK8) { tload_test<2, float, 8>(); }
 
-TEST_F(TLOADTest, case_float_GT_128_127_VT_128_128_BLK1_PADMAX)
-{
-    tload_test<3, float, 1>();
-}
+TEST_F(TLOADTest, case_float_GT_128_127_VT_128_128_BLK1_PADMAX) { tload_test<3, float, 1>(); }
 
-TEST_F(TLOADTest, case_s16_GT_128_127_VT_128_128_BLK1_PADMAX)
-{
-    tload_test<4, int16_t, 1>();
-}
+TEST_F(TLOADTest, case_s16_GT_128_127_VT_128_128_BLK1_PADMAX) { tload_test<4, int16_t, 1>(); }
 
-TEST_F(TLOADTest, case_u8_GT_128_127_VT_128_128_BLK1_PADMIN)
-{
-    tload_test<5, uint8_t, 1>();
-}
+TEST_F(TLOADTest, case_u8_GT_128_127_VT_128_128_BLK1_PADMIN) { tload_test<5, uint8_t, 1>(); }
 
-TEST_F(TLOADTest, case_float_GT_32_64_128_VT_64_128_BLK32_DYN)
-{
-    tload_test<6, int16_t, 32>();
-}
+TEST_F(TLOADTest, case_float_GT_32_64_128_VT_64_128_BLK32_DYN) { tload_test<6, int16_t, 32>(); }
 
-TEST_F(TLOADTest, case_float_GT_32_64_128_VT_64_128_BLK32_STC)
-{
-    tload_test<7, int16_t, 32>();
-}
+TEST_F(TLOADTest, case_float_GT_32_64_128_VT_64_128_BLK32_STC) { tload_test<7, int16_t, 32>(); }
 
-TEST_F(TLOADTest, case_float_GT_2_2_2_256_60_VT_256_64_BLK8_PADMAX)
-{
-    tload_test<8, float, 8>();
-}
+TEST_F(TLOADTest, case_float_GT_2_2_2_256_60_VT_256_64_BLK8_PADMAX) { tload_test<8, float, 8>(); }
 
-TEST_F(TLOADTest, case_int64_GT_128_128_VT_128_128_BLK1)
-{
-    tload_test<9, int64_t, 1>();
-}
+TEST_F(TLOADTest, case_int64_GT_128_128_VT_128_128_BLK1) { tload_test<9, int64_t, 1>(); }
 
-TEST_F(TLOADTest, case_uint64_GT_128_125_VT_128_128_BLK1_PADZERO)
-{
-    tload_test<10, uint64_t, 1>();
-}
+TEST_F(TLOADTest, case_uint64_GT_128_125_VT_128_128_BLK1_PADZERO) { tload_test<10, uint64_t, 1>(); }
 
-TEST_F(TLOADTest, case_int64_GT_2_2_2_256_62_VT_256_64_BLK8_PADZERO)
-{
-    tload_test<11, int64_t, 8>();
-}
+TEST_F(TLOADTest, case_int64_GT_2_2_2_256_62_VT_256_64_BLK8_PADZERO) { tload_test<11, int64_t, 8>(); }
 
-TEST_F(TLOADTest, case_uint64_GT_2_2_2_256_64_VT_256_64_BLK8)
-{
-    tload_test<12, uint64_t, 8>();
-}
+TEST_F(TLOADTest, case_uint64_GT_2_2_2_256_64_VT_256_64_BLK8) { tload_test<12, uint64_t, 8>(); }

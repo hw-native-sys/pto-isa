@@ -18,26 +18,26 @@ using namespace pto;
 namespace {
 
 template <typename TileData>
-void FillAll(TileData &tile, typename TileData::DType value)
+void FillAll(TileData& tile, typename TileData::DType value)
 {
     std::fill(tile.data(), tile.data() + TileData::Numel, value);
 }
 
 template <typename TileData>
-void SetValue(TileData &tile, int r, int c, typename TileData::DType value)
+void SetValue(TileData& tile, int r, int c, typename TileData::DType value)
 {
     tile.data()[GetTileElementOffset<TileData>(r, c)] = value;
 }
 
 template <typename TileData>
-auto GetValue(const TileData &tile, int r, int c) -> typename TileData::DType
+auto GetValue(const TileData& tile, int r, int c) -> typename TileData::DType
 {
     return tile.data()[GetTileElementOffset<TileData>(r, c)];
 }
 
 template <typename AccTile, typename LeftTile, typename RightTile>
-std::vector<typename AccTile::DType> ComputeExpected(const LeftTile &lhs, const RightTile &rhs,
-                                                     const AccTile *acc = nullptr)
+std::vector<typename AccTile::DType> ComputeExpected(
+    const LeftTile& lhs, const RightTile& rhs, const AccTile* acc = nullptr)
 {
     std::vector<typename AccTile::DType> expected(AccTile::Numel, typename AccTile::DType(0));
     for (int r = 0; r < lhs.GetValidRow(); ++r) {
@@ -54,7 +54,7 @@ std::vector<typename AccTile::DType> ComputeExpected(const LeftTile &lhs, const 
 }
 
 template <typename TileData>
-void ExpectTileEquals(const TileData &tile, const std::vector<typename TileData::DType> &expected)
+void ExpectTileEquals(const TileData& tile, const std::vector<typename TileData::DType>& expected)
 {
     ASSERT_EQ(expected.size(), static_cast<size_t>(TileData::Numel));
     for (int i = 0; i < TileData::Numel; ++i) {

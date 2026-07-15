@@ -20,7 +20,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 template <typename T, typename AddrType>
-PTO_INTERNAL void TASSIGN_IMPL(T &obj, AddrType addr)
+PTO_INTERNAL void TASSIGN_IMPL(T& obj, AddrType addr)
 {
     if constexpr (is_tile_data_v<T> || is_conv_tile_v<T>) {
         static_assert(std::is_integral_v<AddrType>, "Tile can only be assigned with address of int type.");
@@ -29,8 +29,9 @@ PTO_INTERNAL void TASSIGN_IMPL(T &obj, AddrType addr)
     } else {
         static_assert(is_global_data_v<T>, "Only Tile and GlobalTensor data types are supported.");
         static_assert(std::is_pointer_v<AddrType>, "GlobalTensor can only be assigned with address of pointer type.");
-        static_assert(std::is_same_v<std::remove_cv_t<std::remove_pointer_t<AddrType>>, typename T::DType>,
-                      "GlobalTensor can only be assigned with pointer of same data type.");
+        static_assert(
+            std::is_same_v<std::remove_cv_t<std::remove_pointer_t<AddrType>>, typename T::DType>,
+            "GlobalTensor can only be assigned with pointer of same data type.");
         obj.SetAddr(addr);
     }
 }
@@ -47,10 +48,7 @@ inline void NPU_MEMORY_INIT(NPUArch arch = NPUArch::A2A3)
 }
 
 // Clear all NPU memory (useful between test iterations)
-inline void NPU_MEMORY_CLEAR()
-{
-    NPUMemoryModel::Instance().Clear();
-}
+inline void NPU_MEMORY_CLEAR() { NPUMemoryModel::Instance().Clear(); }
 #endif
 
 } // namespace pto

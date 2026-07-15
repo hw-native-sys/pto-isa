@@ -16,11 +16,11 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <uint32_t caseId>
-void launchTCOLCMINTestCase(void *out, void *src, aclrtStream stream);
+void launchTCOLCMINTestCase(void* out, void* src, aclrtStream stream);
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -30,10 +30,10 @@ std::string GetGoldenDir()
 class TCOLCMINTest : public testing::Test {
 public:
     aclrtStream stream;
-    void *dstHost;
-    void *srcHost;
-    void *dstDevice;
-    void *srcDevice;
+    void* dstHost;
+    void* srcHost;
+    void* dstDevice;
+    void* srcDevice;
 
 protected:
     void SetUp() override

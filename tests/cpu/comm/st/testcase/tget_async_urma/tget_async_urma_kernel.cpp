@@ -26,9 +26,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // ============================================================================
 
 template <typename T, size_t count>
-__global__ AICORE void TGetAsyncUrmaKernelImpl(__gm__ T *localBuf, int nranks, int my_rank, int first_rank_id,
-                                               int root_rank, int elem_offset, int elem_count,
-                                               __gm__ uint8_t *urmaWorkspace)
+__global__ AICORE void TGetAsyncUrmaKernelImpl(
+    __gm__ T* localBuf, int nranks, int my_rank, int first_rank_id, int root_rank, int elem_offset, int elem_count,
+    __gm__ uint8_t* urmaWorkspace)
 {
     using ShapeDyn = pto::Shape<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
     using StrideDyn = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
@@ -44,8 +44,8 @@ __global__ AICORE void TGetAsyncUrmaKernelImpl(__gm__ T *localBuf, int nranks, i
 
     constexpr size_t kDataOffset = 64 * sizeof(int32_t);
 
-    __gm__ T *sendBuf = reinterpret_cast<__gm__ T *>(reinterpret_cast<__gm__ uint8_t *>(localBuf) + kDataOffset);
-    __gm__ T *recvBuf = sendBuf + count;
+    __gm__ T* sendBuf = reinterpret_cast<__gm__ T*>(reinterpret_cast<__gm__ uint8_t*>(localBuf) + kDataOffset);
+    __gm__ T* recvBuf = sendBuf + count;
 
     pipe_barrier(PIPE_ALL);
 
@@ -57,8 +57,8 @@ __global__ AICORE void TGetAsyncUrmaKernelImpl(__gm__ T *localBuf, int nranks, i
                 continue;
             }
             uint64_t peerBase = UrmaPeerMrBaseAddr(urmaWorkspace, static_cast<uint32_t>(target_peer));
-            __gm__ T *remoteSendBuf = reinterpret_cast<__gm__ T *>(peerBase + kDataOffset) + elem_offset;
-            __gm__ T *localRecvBuf = recvBuf + target_peer * count + elem_offset;
+            __gm__ T* remoteSendBuf = reinterpret_cast<__gm__ T*>(peerBase + kDataOffset) + elem_offset;
+            __gm__ T* localRecvBuf = recvBuf + target_peer * count + elem_offset;
             Global remoteSendG(remoteSendBuf, shape, stride);
             Global localRecvG(localRecvBuf, shape, stride);
 
@@ -77,8 +77,8 @@ __global__ AICORE void TGetAsyncUrmaKernelImpl(__gm__ T *localBuf, int nranks, i
 // Verify root-get results: each remote rank's data should match pattern i + rank * 10000.
 // ============================================================================
 template <typename T, size_t count>
-bool VerifyRootGetResults(const uint8_t *output_host, int n_ranks, int first_rank_id, int root_rank, int rank_id,
-                          int deviceId, int syncRet)
+bool VerifyRootGetResults(
+    const uint8_t* output_host, int n_ranks, int first_rank_id, int root_rank, int rank_id, int deviceId, int syncRet)
 {
     const int root_peer = root_rank - first_rank_id;
     for (int src_peer = 0; src_peer < n_ranks; ++src_peer) {
@@ -87,7 +87,7 @@ bool VerifyRootGetResults(const uint8_t *output_host, int n_ranks, int first_ran
         const int src_logical = first_rank_id + src_peer;
         const size_t base = static_cast<size_t>(src_peer) * count;
         for (size_t i = 0; i < count; ++i) {
-            T value = reinterpret_cast<const T *>(output_host)[base + i];
+            T value = reinterpret_cast<const T*>(output_host)[base + i];
             T expected = static_cast<T>(i + src_logical * 10000);
             if (value != expected) {
                 std::cerr << "Rank " << rank_id << " Device " << deviceId << " SyncRet " << syncRet
@@ -103,8 +103,8 @@ bool VerifyRootGetResults(const uint8_t *output_host, int n_ranks, int first_ran
 // Host-side runner.
 // ============================================================================
 template <typename T, size_t count>
-bool RunGetAsyncUrmaRootGetKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, int first_rank_id,
-                                  int root_rank)
+bool RunGetAsyncUrmaRootGetKernel(
+    int rank_id, int n_ranks, int n_devices, int first_device_id, int first_rank_id, int root_rank)
 {
     const size_t recv_elems = static_cast<size_t>(n_ranks) * count;
     size_t commBytesNeeded = 64 * sizeof(int32_t) + (static_cast<size_t>(n_ranks) + 1) * count * sizeof(T);
@@ -115,29 +115,29 @@ bool RunGetAsyncUrmaRootGetKernel(int rank_id, int n_ranks, int n_devices, int f
     }
 
     uint8_t *input_host = nullptr, *output_host = nullptr;
-    aclrtMallocHost(reinterpret_cast<void **>(&input_host), count * sizeof(T));
-    aclrtMallocHost(reinterpret_cast<void **>(&output_host), recv_elems * sizeof(T));
+    aclrtMallocHost(reinterpret_cast<void**>(&input_host), count * sizeof(T));
+    aclrtMallocHost(reinterpret_cast<void**>(&output_host), recv_elems * sizeof(T));
     if (!input_host || !output_host) {
         std::cerr << "[ERROR] aclrtMallocHost failed!" << std::endl;
         ctx.Cleanup();
         return false;
     }
     for (size_t i = 0; i < count; ++i)
-        reinterpret_cast<T *>(input_host)[i] = static_cast<T>(i + rank_id * 10000);
+        reinterpret_cast<T*>(input_host)[i] = static_cast<T>(i + rank_id * 10000);
     for (size_t i = 0; i < recv_elems; ++i)
-        reinterpret_cast<T *>(output_host)[i] = static_cast<T>(-1);
+        reinterpret_cast<T*>(output_host)[i] = static_cast<T>(-1);
 
     constexpr size_t kDataOffset = 64 * sizeof(int32_t);
-    T *sendBuf = reinterpret_cast<T *>(reinterpret_cast<uint8_t *>(ctx.devBuf) + kDataOffset);
-    T *recvBuf = sendBuf + count;
+    T* sendBuf = reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(ctx.devBuf) + kDataOffset);
+    T* recvBuf = sendBuf + count;
     aclrtMemcpy(sendBuf, count * sizeof(T), input_host, count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(recvBuf, recv_elems * sizeof(T), output_host, recv_elems * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
 
     CommMpiBarrier();
 
-    TGetAsyncUrmaKernelImpl<T, count>(reinterpret_cast<T *>(ctx.devBuf), n_ranks, rank_id, first_rank_id, root_rank, 0,
-                                      static_cast<int>(count),
-                                      reinterpret_cast<uint8_t *>(ctx.urmaMgr.GetWorkspaceAddr()));
+    TGetAsyncUrmaKernelImpl<T, count>(
+        reinterpret_cast<T*>(ctx.devBuf), n_ranks, rank_id, first_rank_id, root_rank, 0, static_cast<int>(count),
+        reinterpret_cast<uint8_t*>(ctx.urmaMgr.GetWorkspaceAddr()));
     int syncRet = aclrtSynchronizeStream(ctx.stream);
 
     CommMpiBarrier();
@@ -145,8 +145,8 @@ bool RunGetAsyncUrmaRootGetKernel(int rank_id, int n_ranks, int n_devices, int f
     bool is_ok = true;
     if (rank_id == root_rank) {
         aclrtMemcpy(output_host, recv_elems * sizeof(T), recvBuf, recv_elems * sizeof(T), ACL_MEMCPY_DEVICE_TO_HOST);
-        is_ok = VerifyRootGetResults<T, count>(output_host, n_ranks, first_rank_id, root_rank, rank_id, ctx.deviceId,
-                                               syncRet);
+        is_ok = VerifyRootGetResults<T, count>(
+            output_host, n_ranks, first_rank_id, root_rank, rank_id, ctx.deviceId, syncRet);
     }
 
     aclrtFreeHost(input_host);
@@ -162,8 +162,8 @@ bool RunGetAsyncUrmaRootGetKernel(int rank_id, int n_ranks, int n_devices, int f
 template <typename T, size_t count>
 bool RunGetAsyncUrmaRootGet(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
-    return RunUrmaTestMpiLaunch(n_ranks, n_devices, first_rank_id, first_device_id,
-                                RunGetAsyncUrmaRootGetKernel<T, count>);
+    return RunUrmaTestMpiLaunch(
+        n_ranks, n_devices, first_rank_id, first_device_id, RunGetAsyncUrmaRootGetKernel<T, count>);
 }
 
 // Explicit instantiations

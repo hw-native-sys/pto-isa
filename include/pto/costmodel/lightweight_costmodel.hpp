@@ -24,8 +24,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto::mocker::lightweight {
 
-enum class PtoOpcode
-{
+enum class PtoOpcode {
     TADD,
     TSUB,
     TMUL,
@@ -73,8 +72,7 @@ enum class PtoOpcode
     TPREFETCH,
 };
 
-enum class DType : uint8_t
-{
+enum class DType : uint8_t {
     Float,
     Half,
     Int8,
@@ -97,8 +95,7 @@ using SaturationMode = ::pto::SaturationMode;
 using TransferTileType = fit::TransferTileType;
 using VFImplKind = ::pto::VFImplKind;
 
-enum class CostModelArch : uint8_t
-{
+enum class CostModelArch : uint8_t {
     A2A3,
     A5,
 };
@@ -149,10 +146,10 @@ struct PredictRuntimeConfig {
 };
 
 namespace a5 {
-inline bool TryEstimateA5VfCycles(const CostModelInput &input, uint64_t &cycles);
+inline bool TryEstimateA5VfCycles(const CostModelInput& input, uint64_t& cycles);
 }
 
-inline constexpr const char *DTypeToString(DType dtype)
+inline constexpr const char* DTypeToString(DType dtype)
 {
     switch (dtype) {
         case DType::Float:
@@ -188,9 +185,9 @@ inline constexpr const char *DTypeToString(DType dtype)
     }
 }
 
-inline constexpr const char *PtoOpcodeToString(PtoOpcode op)
+inline constexpr const char* PtoOpcodeToString(PtoOpcode op)
 {
-    constexpr std::array<const char *, 45> names = {
+    constexpr std::array<const char*, 45> names = {
         "TADD",     "TSUB",    "TMUL",     "TDIV",     "TRECIP",  "TADDS",      "TSUBS",      "TMULS",     "TDIVS",
         "TMINS",    "TMAXS",   "TABS",     "TNEG",     "TEXP",    "TSQRT",      "TRSQRT",     "TLOG",      "TRELU",
         "TLRELU",   "TNOT",    "TROWSUM",  "TROWMAX",  "TROWMIN", "TROWPROD",   "TCOLSUM",    "TCOLMAX",   "TCOLMIN",
@@ -204,7 +201,7 @@ inline constexpr const char *PtoOpcodeToString(PtoOpcode op)
     return "Unknown";
 }
 
-inline constexpr const char *TransferTileTypeToString(TransferTileType tile_type)
+inline constexpr const char* TransferTileTypeToString(TransferTileType tile_type)
 {
     switch (tile_type) {
         case TransferTileType::Unknown:
@@ -228,7 +225,7 @@ inline constexpr const char *TransferTileTypeToString(TransferTileType tile_type
     }
 }
 
-inline bool WarnAndFallbackToZero(const CostModelInput &input, CostModelResult &result, std::string_view reason)
+inline bool WarnAndFallbackToZero(const CostModelInput& input, CostModelResult& result, std::string_view reason)
 {
     result.cycles = 0.0;
     result.latency_us = 0.0L;
@@ -242,7 +239,7 @@ inline bool WarnAndFallbackToZero(const CostModelInput &input, CostModelResult &
 
 inline PredictRuntimeConfig GetDefaultPredictRuntimeConfig()
 {
-    const auto &default_arch = evaluator::GetDefaultArchConfig();
+    const auto& default_arch = evaluator::GetDefaultArchConfig();
     return {
         default_arch.frequency_hz / evaluator::kMicrosPerSecond,
         default_arch.bandwidth,
@@ -250,7 +247,7 @@ inline PredictRuntimeConfig GetDefaultPredictRuntimeConfig()
 }
 
 template <typename FpType>
-inline bool TryEstimateSupportedCycles(PtoOpcode op, uint64_t rows, uint64_t cols, uint64_t &cycles)
+inline bool TryEstimateSupportedCycles(PtoOpcode op, uint64_t rows, uint64_t cols, uint64_t& cycles)
 {
     switch (op) {
         case PtoOpcode::TSUB:
@@ -284,7 +281,7 @@ inline bool TryEstimateSupportedCycles(PtoOpcode op, uint64_t rows, uint64_t col
     }
 }
 
-inline bool TryEstimateMatmulCycles(const CostModelInput &input, uint64_t &cycles)
+inline bool TryEstimateMatmulCycles(const CostModelInput& input, uint64_t& cycles)
 {
     if (input.rows <= 0 || input.k <= 0 || input.cols <= 0) {
         return false;
@@ -303,7 +300,7 @@ inline bool TryEstimateMatmulCycles(const CostModelInput &input, uint64_t &cycle
     }
 }
 
-inline bool TryGetDTypeSizeBytes(DType dtype, uint64_t &bytes)
+inline bool TryGetDTypeSizeBytes(DType dtype, uint64_t& bytes)
 {
     constexpr uint64_t kByteOne = 1;
     constexpr uint64_t kByteTwo = 2;
@@ -329,8 +326,8 @@ inline bool TryGetDTypeSizeBytes(DType dtype, uint64_t &bytes)
     }
 }
 
-inline bool TryEstimateTransferLatency(const CostModelInput &input, const PredictRuntimeConfig &predict_config,
-                                       CostModelResult &result)
+inline bool TryEstimateTransferLatency(
+    const CostModelInput& input, const PredictRuntimeConfig& predict_config, CostModelResult& result)
 {
     if (input.data_size <= 0) {
         return false;
@@ -358,8 +355,8 @@ inline bool TryEstimateTransferLatency(const CostModelInput &input, const Predic
     }
 
     long double latency_us = 0.0L;
-    if (!fit::TryEstimateTransferLatencyUs(transfer_op, input.tile_type, bytes, predict_config.bandwidth_bytes_per_us,
-                                           latency_us)) {
+    if (!fit::TryEstimateTransferLatencyUs(
+            transfer_op, input.tile_type, bytes, predict_config.bandwidth_bytes_per_us, latency_us)) {
         return false;
     }
     result.latency_us = latency_us;
@@ -367,8 +364,8 @@ inline bool TryEstimateTransferLatency(const CostModelInput &input, const Predic
     return true;
 }
 
-inline bool EstimateCycles(const CostModelInput &input, const PredictRuntimeConfig &predict_config,
-                           CostModelResult &result)
+inline bool EstimateCycles(
+    const CostModelInput& input, const PredictRuntimeConfig& predict_config, CostModelResult& result)
 {
     if (input.arch == CostModelArch::A5) {
         uint64_t cycles = 0;
@@ -424,13 +421,13 @@ inline bool EstimateCycles(const CostModelInput &input, const PredictRuntimeConf
     return true;
 }
 
-inline bool EstimateCycles(const CostModelInput &input, CostModelResult &result)
+inline bool EstimateCycles(const CostModelInput& input, CostModelResult& result)
 {
     const PredictRuntimeConfig default_config = GetDefaultPredictRuntimeConfig();
     return EstimateCycles(input, default_config, result);
 }
 
-inline CostModelResult EstimateCycles(const CostModelInput &input)
+inline CostModelResult EstimateCycles(const CostModelInput& input)
 {
     CostModelResult result{};
     (void)EstimateCycles(input, result);

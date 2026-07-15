@@ -13,7 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace ascendc_path {
 
-at::Tensor run_add_custom(const at::Tensor &x, const at::Tensor &y)
+at::Tensor run_add_custom(const at::Tensor& x, const at::Tensor& y)
 {
     at::Tensor z = at::empty_like(x);
     // Define the number of blocks of vector core

@@ -12,7 +12,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL>
-PTO_INTERNAL void SET_IMG2COL_RPT_IMPL(ConvTileData &src)
+PTO_INTERNAL void SET_IMG2COL_RPT_IMPL(ConvTileData& src)
 {
     (void)FmatrixMode;
     PTO_CPU_ASSERT(src.GetRepeatTime() >= 0, "Fix: SET_IMG2COL_RPT metadata must be initialized.");

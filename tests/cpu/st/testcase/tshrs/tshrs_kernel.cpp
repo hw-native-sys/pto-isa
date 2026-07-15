@@ -13,7 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int kDstRows_, int kDstCols_, int kSrcRows_, int kSrcCols_, int kValRows_, int kValCols_>
-AICORE void runTSHRS(__gm__ T __out__ *out, __gm__ T __in__ *src, __gm__ T __in__ *scalar)
+AICORE void runTSHRS(__gm__ T __out__* out, __gm__ T __in__* src, __gm__ T __in__* scalar)
 {
     using DynShapeDim5Src = Shape<1, 1, 1, kSrcRows_, kSrcCols_>;
     using DynShapeDim5Dst = Shape<1, 1, 1, kDstRows_, kDstCols_>;
@@ -38,14 +38,14 @@ AICORE void runTSHRS(__gm__ T __out__ *out, __gm__ T __in__ *src, __gm__ T __in_
 }
 
 template <typename T, int kDstRows_, int kDstCols_, int kSrcRows_, int kSrcCols_, int kValRows_, int kValCols_>
-void LaunchTSHRS(T *out, T *src, T *scalar, void *stream)
+void LaunchTSHRS(T* out, T* src, T* scalar, void* stream)
 {
     runTSHRS<T, kDstRows_, kDstCols_, kSrcRows_, kSrcCols_, kValRows_, kValCols_>(out, src, scalar);
 }
 const int NUM_16 = 16;
 const int NUM_64 = 64;
 const int NUM_256 = 256;
-template void LaunchTSHRS<int16_t, NUM_64, NUM_64, NUM_64, NUM_64, NUM_64, NUM_64>(int16_t *out, int16_t *src,
-                                                                                   int16_t *scalar, void *stream);
-template void LaunchTSHRS<int32_t, NUM_16, NUM_256, NUM_16, NUM_256, NUM_16, NUM_256>(int32_t *out, int32_t *src,
-                                                                                      int32_t *scalar, void *stream);
+template void LaunchTSHRS<int16_t, NUM_64, NUM_64, NUM_64, NUM_64, NUM_64, NUM_64>(
+    int16_t* out, int16_t* src, int16_t* scalar, void* stream);
+template void LaunchTSHRS<int32_t, NUM_16, NUM_256, NUM_16, NUM_256, NUM_16, NUM_256>(
+    int32_t* out, int32_t* src, int32_t* scalar, void* stream);

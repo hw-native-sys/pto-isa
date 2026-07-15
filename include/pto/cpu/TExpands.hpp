@@ -18,8 +18,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 template <typename tile_shape>
-void TExpands_Impl(typename tile_shape::TileDType dst, typename tile_shape::DType src, unsigned validRow,
-                   unsigned validCol)
+void TExpands_Impl(
+    typename tile_shape::TileDType dst, typename tile_shape::DType src, unsigned validRow, unsigned validCol)
 {
     if constexpr (tile_shape::SFractal == SLayout::NoneBox) {
         if constexpr (tile_shape::isRowMajor) {
@@ -50,7 +50,7 @@ void TExpands_Impl(typename tile_shape::TileDType dst, typename tile_shape::DTyp
 }
 
 template <typename tile_shape>
-PTO_INTERNAL void TEXPANDS_IMPL(tile_shape &dst, typename tile_shape::DType src)
+PTO_INTERNAL void TEXPANDS_IMPL(tile_shape& dst, typename tile_shape::DType& src)
 {
     unsigned row = dst.GetValidRow();
     unsigned col = dst.GetValidCol();

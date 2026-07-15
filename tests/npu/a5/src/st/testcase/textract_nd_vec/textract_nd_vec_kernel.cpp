@@ -14,9 +14,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-template <typename T, uint32_t SrcRows, uint32_t SrcCols, uint32_t DstRows, uint32_t DstCols, uint32_t IdxRow,
-          uint32_t IdxCol>
-__global__ AICORE void RunTExtractNDVec(__gm__ T *out, __gm__ T *srcIn, __gm__ T *dstInitIn)
+template <
+    typename T, uint32_t SrcRows, uint32_t SrcCols, uint32_t DstRows, uint32_t DstCols, uint32_t IdxRow,
+    uint32_t IdxCol>
+__global__ AICORE void RunTExtractNDVec(__gm__ T* out, __gm__ T* srcIn, __gm__ T* dstInitIn)
 {
     using SrcShape = pto::Shape<1, 1, 1, SrcRows, SrcCols>;
     using SrcStride = pto::Stride<SrcRows * SrcCols, SrcRows * SrcCols, SrcRows * SrcCols, SrcCols, 1>;
@@ -57,50 +58,50 @@ __global__ AICORE void RunTExtractNDVec(__gm__ T *out, __gm__ T *srcIn, __gm__ T
 }
 
 template <int32_t testKey>
-void launchTExtractNDVec(uint8_t *out, uint8_t *srcIn, uint8_t *dstInitIn, void *stream)
+void launchTExtractNDVec(uint8_t* out, uint8_t* srcIn, uint8_t* dstInitIn, void* stream)
 {
     if constexpr (testKey == 1) {
         RunTExtractNDVec<float, 16, 16, 8, 8, 0, 0><<<1, nullptr, stream>>>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float *>(srcIn), reinterpret_cast<float *>(dstInitIn));
+            reinterpret_cast<float*>(out), reinterpret_cast<float*>(srcIn), reinterpret_cast<float*>(dstInitIn));
     } else if constexpr (testKey == 2) {
         RunTExtractNDVec<float, 16, 16, 8, 8, 4, 8><<<1, nullptr, stream>>>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float *>(srcIn), reinterpret_cast<float *>(dstInitIn));
+            reinterpret_cast<float*>(out), reinterpret_cast<float*>(srcIn), reinterpret_cast<float*>(dstInitIn));
     } else if constexpr (testKey == 3) {
         RunTExtractNDVec<half, 32, 32, 16, 16, 8, 16><<<1, nullptr, stream>>>(
-            reinterpret_cast<half *>(out), reinterpret_cast<half *>(srcIn), reinterpret_cast<half *>(dstInitIn));
+            reinterpret_cast<half*>(out), reinterpret_cast<half*>(srcIn), reinterpret_cast<half*>(dstInitIn));
     } else if constexpr (testKey == 4) {
         RunTExtractNDVec<int8_t, 64, 64, 32, 32, 0, 32><<<1, nullptr, stream>>>(
-            reinterpret_cast<int8_t *>(out), reinterpret_cast<int8_t *>(srcIn), reinterpret_cast<int8_t *>(dstInitIn));
+            reinterpret_cast<int8_t*>(out), reinterpret_cast<int8_t*>(srcIn), reinterpret_cast<int8_t*>(dstInitIn));
     } else if constexpr (testKey == 5) {
         RunTExtractNDVec<half, 32, 48, 16, 16, 4, 16><<<1, nullptr, stream>>>(
-            reinterpret_cast<half *>(out), reinterpret_cast<half *>(srcIn), reinterpret_cast<half *>(dstInitIn));
+            reinterpret_cast<half*>(out), reinterpret_cast<half*>(srcIn), reinterpret_cast<half*>(dstInitIn));
     } else if constexpr (testKey == 6) {
         RunTExtractNDVec<float, 16, 24, 8, 8, 3, 8><<<1, nullptr, stream>>>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float *>(srcIn), reinterpret_cast<float *>(dstInitIn));
+            reinterpret_cast<float*>(out), reinterpret_cast<float*>(srcIn), reinterpret_cast<float*>(dstInitIn));
     } else if constexpr (testKey == 7) {
         RunTExtractNDVec<float, 16, 24, 8, 8, 0, 3><<<1, nullptr, stream>>>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float *>(srcIn), reinterpret_cast<float *>(dstInitIn));
+            reinterpret_cast<float*>(out), reinterpret_cast<float*>(srcIn), reinterpret_cast<float*>(dstInitIn));
     } else if constexpr (testKey == 8) {
         RunTExtractNDVec<half, 16, 48, 8, 16, 2, 5><<<1, nullptr, stream>>>(
-            reinterpret_cast<half *>(out), reinterpret_cast<half *>(srcIn), reinterpret_cast<half *>(dstInitIn));
+            reinterpret_cast<half*>(out), reinterpret_cast<half*>(srcIn), reinterpret_cast<half*>(dstInitIn));
     } else if constexpr (testKey == 9) {
         RunTExtractNDVec<int8_t, 64, 64, 32, 32, 0, 7><<<1, nullptr, stream>>>(
-            reinterpret_cast<int8_t *>(out), reinterpret_cast<int8_t *>(srcIn), reinterpret_cast<int8_t *>(dstInitIn));
+            reinterpret_cast<int8_t*>(out), reinterpret_cast<int8_t*>(srcIn), reinterpret_cast<int8_t*>(dstInitIn));
     }
 }
 
-template void launchTExtractNDVec<1>(uint8_t *out, uint8_t *srcIn, uint8_t *dstInitIn, void *stream);
-template void launchTExtractNDVec<2>(uint8_t *out, uint8_t *srcIn, uint8_t *dstInitIn, void *stream);
-template void launchTExtractNDVec<3>(uint8_t *out, uint8_t *srcIn, uint8_t *dstInitIn, void *stream);
-template void launchTExtractNDVec<4>(uint8_t *out, uint8_t *srcIn, uint8_t *dstInitIn, void *stream);
-template void launchTExtractNDVec<5>(uint8_t *out, uint8_t *srcIn, uint8_t *dstInitIn, void *stream);
-template void launchTExtractNDVec<6>(uint8_t *out, uint8_t *srcIn, uint8_t *dstInitIn, void *stream);
-template void launchTExtractNDVec<7>(uint8_t *out, uint8_t *srcIn, uint8_t *dstInitIn, void *stream);
-template void launchTExtractNDVec<8>(uint8_t *out, uint8_t *srcIn, uint8_t *dstInitIn, void *stream);
-template void launchTExtractNDVec<9>(uint8_t *out, uint8_t *srcIn, uint8_t *dstInitIn, void *stream);
+template void launchTExtractNDVec<1>(uint8_t* out, uint8_t* srcIn, uint8_t* dstInitIn, void* stream);
+template void launchTExtractNDVec<2>(uint8_t* out, uint8_t* srcIn, uint8_t* dstInitIn, void* stream);
+template void launchTExtractNDVec<3>(uint8_t* out, uint8_t* srcIn, uint8_t* dstInitIn, void* stream);
+template void launchTExtractNDVec<4>(uint8_t* out, uint8_t* srcIn, uint8_t* dstInitIn, void* stream);
+template void launchTExtractNDVec<5>(uint8_t* out, uint8_t* srcIn, uint8_t* dstInitIn, void* stream);
+template void launchTExtractNDVec<6>(uint8_t* out, uint8_t* srcIn, uint8_t* dstInitIn, void* stream);
+template void launchTExtractNDVec<7>(uint8_t* out, uint8_t* srcIn, uint8_t* dstInitIn, void* stream);
+template void launchTExtractNDVec<8>(uint8_t* out, uint8_t* srcIn, uint8_t* dstInitIn, void* stream);
+template void launchTExtractNDVec<9>(uint8_t* out, uint8_t* srcIn, uint8_t* dstInitIn, void* stream);
 
 template <typename T, uint32_t SrcRows, uint32_t SrcCols, uint32_t IdxRow, uint32_t IdxCol>
-__global__ AICORE void RunTExtractNDVecScalar(__gm__ T *out, __gm__ T *srcIn, __gm__ T *dstInitIn)
+__global__ AICORE void RunTExtractNDVecScalar(__gm__ T* out, __gm__ T* srcIn, __gm__ T* dstInitIn)
 {
     constexpr uint32_t MinAlignedCols = 32 / sizeof(T);
     using SrcShape = pto::Shape<1, 1, 1, SrcRows, SrcCols>;
@@ -145,20 +146,20 @@ __global__ AICORE void RunTExtractNDVecScalar(__gm__ T *out, __gm__ T *srcIn, __
 }
 
 template <int32_t testKey>
-void launchTExtractNDVecScalar(uint8_t *out, uint8_t *srcIn, uint8_t *dstInitIn, void *stream)
+void launchTExtractNDVecScalar(uint8_t* out, uint8_t* srcIn, uint8_t* dstInitIn, void* stream)
 {
     if constexpr (testKey == 1) {
         RunTExtractNDVecScalar<float, 16, 16, 5, 7><<<1, nullptr, stream>>>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float *>(srcIn), reinterpret_cast<float *>(dstInitIn));
+            reinterpret_cast<float*>(out), reinterpret_cast<float*>(srcIn), reinterpret_cast<float*>(dstInitIn));
     } else if constexpr (testKey == 2) {
         RunTExtractNDVecScalar<half, 32, 32, 10, 15><<<1, nullptr, stream>>>(
-            reinterpret_cast<half *>(out), reinterpret_cast<half *>(srcIn), reinterpret_cast<half *>(dstInitIn));
+            reinterpret_cast<half*>(out), reinterpret_cast<half*>(srcIn), reinterpret_cast<half*>(dstInitIn));
     } else if constexpr (testKey == 3) {
         RunTExtractNDVecScalar<int8_t, 64, 64, 20, 30><<<1, nullptr, stream>>>(
-            reinterpret_cast<int8_t *>(out), reinterpret_cast<int8_t *>(srcIn), reinterpret_cast<int8_t *>(dstInitIn));
+            reinterpret_cast<int8_t*>(out), reinterpret_cast<int8_t*>(srcIn), reinterpret_cast<int8_t*>(dstInitIn));
     }
 }
 
-template void launchTExtractNDVecScalar<1>(uint8_t *out, uint8_t *srcIn, uint8_t *dstInitIn, void *stream);
-template void launchTExtractNDVecScalar<2>(uint8_t *out, uint8_t *srcIn, uint8_t *dstInitIn, void *stream);
-template void launchTExtractNDVecScalar<3>(uint8_t *out, uint8_t *srcIn, uint8_t *dstInitIn, void *stream);
+template void launchTExtractNDVecScalar<1>(uint8_t* out, uint8_t* srcIn, uint8_t* dstInitIn, void* stream);
+template void launchTExtractNDVecScalar<2>(uint8_t* out, uint8_t* srcIn, uint8_t* dstInitIn, void* stream);
+template void launchTExtractNDVecScalar<3>(uint8_t* out, uint8_t* srcIn, uint8_t* dstInitIn, void* stream);

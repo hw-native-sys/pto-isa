@@ -52,9 +52,10 @@ __inline__ auto getOptDynShape(int gShape0, int gShape1, int gShape2, int gShape
 }
 
 // case shape is static, but testing would do dynamic or static test
-template <typename T, int shape0, int shape1, int shape2, int shape3, int shape4, int tRows, int tCols, BLayout major,
-          int dyn>
-__inline__ auto getGloablTensor(T *addr, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4)
+template <
+    typename T, int shape0, int shape1, int shape2, int shape3, int shape4, int tRows, int tCols, BLayout major,
+    int dyn>
+__inline__ auto getGloablTensor(T* addr, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4)
 {
     if constexpr (dyn) {
         int stride0 = gShape1 * gShape2 * shape3 * shape4;
@@ -97,16 +98,17 @@ __inline__ auto getGloablTensor(T *addr, int gShape0, int gShape1, int gShape2, 
 #define type_32_aligned(T) (32 / sizeof(T))
 #define align_to_32B(x, T) ((((x) + type_32_aligned(T) - 1) / type_32_aligned(T)) * (type_32_aligned(T)))
 
-template <typename T, int shape0, int shape1, int shape2, int shape3, int shape4, int kTRows_, int kTCols_, int dyn_,
-          PadValue LoadPadVal_ = PadValue::Null, PadValue FillPadVal_ = PadValue::Null, bool inplace = false,
-          bool expand = false>
-void runTFILLPAD(T *out, T *src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
+template <
+    typename T, int shape0, int shape1, int shape2, int shape3, int shape4, int kTRows_, int kTCols_, int dyn_,
+    PadValue LoadPadVal_ = PadValue::Null, PadValue FillPadVal_ = PadValue::Null, bool inplace = false,
+    bool expand = false>
+void runTFILLPAD(T* out, T* src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
 {
 #ifdef DEBUGLOG
     gLog += block_idx * LOGSIZE;
 #endif
-    T *ubaddr0 = 0x0;
-    T *ubaddr1 = (T *)0x18000;
+    T* ubaddr0 = 0x0;
+    T* ubaddr1 = (T*)0x18000;
     if (inplace)
         ubaddr1 = ubaddr0;
 
@@ -129,8 +131,8 @@ void runTFILLPAD(T *out, T *src, int gShape0, int gShape1, int gShape2, int gRow
     TASSIGN(vecTileP, (uint64_t)ubaddr1);
 
     if constexpr (expand) {
-        using TileData = Tile<TileType::Vec, T, kTRows_, shape4_aligned, BLayout::RowMajor, -1, -1, SLayout::NoneBox,
-                              512, LoadPadVal_>;
+        using TileData = Tile<
+            TileType::Vec, T, kTRows_, shape4_aligned, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512, LoadPadVal_>;
 
         TileData vecTile(shape3, shape4);
         TASSIGN(vecTile, (uint64_t)ubaddr0);
@@ -153,113 +155,113 @@ void runTFILLPAD(T *out, T *src, int gShape0, int gShape1, int gShape2, int gRow
     TSTORE(dstGlobal, vecTileP);
 }
 
-void launchTFILLPAD_1(uint8_t *out, uint8_t *src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
+void launchTFILLPAD_1(uint8_t* out, uint8_t* src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
 {
     runTFILLPAD<float, 1, 1, 1, 128, 127, 128, 128, 1, PadValue::Max, PadValue::Max>(
-        (float *)out, (float *)src, gShape0, gShape1, gShape2, gRows, gCols);
+        (float*)out, (float*)src, gShape0, gShape1, gShape2, gRows, gCols);
 }
 
-void launchTFILLPAD_2(uint8_t *out, uint8_t *src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
+void launchTFILLPAD_2(uint8_t* out, uint8_t* src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
 {
     runTFILLPAD<float, 1, 1, 1, 128, 127, 128, 160, 1, PadValue::Max, PadValue::Max>(
-        (float *)out, (float *)src, gShape0, gShape1, gShape2, gRows, gCols);
+        (float*)out, (float*)src, gShape0, gShape1, gShape2, gRows, gCols);
 }
 
-void launchTFILLPAD_3(uint8_t *out, uint8_t *src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
+void launchTFILLPAD_3(uint8_t* out, uint8_t* src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
 {
     runTFILLPAD<float, 1, 1, 1, 128, 127, 128, 160, 1, PadValue::Min, PadValue::Max>(
-        (float *)out, (float *)src, gShape0, gShape1, gShape2, gRows, gCols);
+        (float*)out, (float*)src, gShape0, gShape1, gShape2, gRows, gCols);
 }
 
-void launchTFILLPAD_4(uint8_t *out, uint8_t *src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
+void launchTFILLPAD_4(uint8_t* out, uint8_t* src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
 {
-    runTFILLPAD<float, 1, 1, 1, 260, 7, 260, 16, 1, PadValue::Min, PadValue::Max>((float *)out, (float *)src, gShape0,
-                                                                                  gShape1, gShape2, gRows, gCols);
+    runTFILLPAD<float, 1, 1, 1, 260, 7, 260, 16, 1, PadValue::Min, PadValue::Max>(
+        (float*)out, (float*)src, gShape0, gShape1, gShape2, gRows, gCols);
 }
 
-void launchTFILLPAD_5(uint8_t *out, uint8_t *src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
+void launchTFILLPAD_5(uint8_t* out, uint8_t* src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
 {
     runTFILLPAD<float, 1, 1, 1, 260, 7, 260, 16, 1, PadValue::Min, PadValue::Max, true>(
-        (float *)out, (float *)src, gShape0, gShape1, gShape2, gRows, gCols);
+        (float*)out, (float*)src, gShape0, gShape1, gShape2, gRows, gCols);
 }
 
-void launchTFILLPAD_6(uint8_t *out, uint8_t *src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
+void launchTFILLPAD_6(uint8_t* out, uint8_t* src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
 {
     runTFILLPAD<uint16_t, 1, 1, 1, 260, 7, 260, 32, 1, PadValue::Min, PadValue::Max>(
-        (uint16_t *)out, (uint16_t *)src, gShape0, gShape1, gShape2, gRows, gCols);
+        (uint16_t*)out, (uint16_t*)src, gShape0, gShape1, gShape2, gRows, gCols);
 }
 
-void launchTFILLPAD_7(uint8_t *out, uint8_t *src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
+void launchTFILLPAD_7(uint8_t* out, uint8_t* src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
 {
     runTFILLPAD<uint8_t, 1, 1, 1, 260, 7, 260, 64, 1, PadValue::Min, PadValue::Max>(
-        (uint8_t *)out, (uint8_t *)src, gShape0, gShape1, gShape2, gRows, gCols);
+        (uint8_t*)out, (uint8_t*)src, gShape0, gShape1, gShape2, gRows, gCols);
 }
 
-void launchTFILLPAD_8(uint8_t *out, uint8_t *src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
+void launchTFILLPAD_8(uint8_t* out, uint8_t* src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
 {
     runTFILLPAD<uint16_t, 1, 1, 1, 259, 7, 260, 32, 1, PadValue::Min, PadValue::Max, false, true>(
-        (uint16_t *)out, (uint16_t *)src, gShape0, gShape1, gShape2, gRows, gCols);
+        (uint16_t*)out, (uint16_t*)src, gShape0, gShape1, gShape2, gRows, gCols);
 }
 
-void launchTFILLPAD_9(uint8_t *out, uint8_t *src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
+void launchTFILLPAD_9(uint8_t* out, uint8_t* src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
 {
     runTFILLPAD<int8_t, 1, 1, 1, 259, 7, 260, 64, 1, PadValue::Min, PadValue::Max, false, true>(
-        (int8_t *)out, (int8_t *)src, gShape0, gShape1, gShape2, gRows, gCols);
+        (int8_t*)out, (int8_t*)src, gShape0, gShape1, gShape2, gRows, gCols);
 }
 
 // Test case 10: PadCustomNeg1 - custom pad value (float)
-void launchTFILLPAD_10(uint8_t *out, uint8_t *src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
+void launchTFILLPAD_10(uint8_t* out, uint8_t* src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
 {
     runTFILLPAD<float, 1, 1, 1, 128, 64, 128, 128, 1, PadValue::Null, PadCustomNeg1>(
-        (float *)out, (float *)src, gShape0, gShape1, gShape2, gRows, gCols);
+        (float*)out, (float*)src, gShape0, gShape1, gShape2, gRows, gCols);
 }
 
 #ifdef CPU_SIM_BFLOAT_ENABLED
 // Test case 11: PadCustomNeg1 - custom pad value (bfloat16)
-void launchTFILLPAD_11(uint8_t *out, uint8_t *src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
+void launchTFILLPAD_11(uint8_t* out, uint8_t* src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
 {
     runTFILLPAD<bfloat16_t, 1, 1, 1, 128, 64, 128, 128, 1, PadValue::Null, PadCustomNeg1>(
-        (bfloat16_t *)out, (bfloat16_t *)src, gShape0, gShape1, gShape2, gRows, gCols);
+        (bfloat16_t*)out, (bfloat16_t*)src, gShape0, gShape1, gShape2, gRows, gCols);
 }
 #endif
 
 // Test case 12: PadCustomNeg1_Half - custom pad value (half/fp16)
-void launchTFILLPAD_12(uint8_t *out, uint8_t *src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
+void launchTFILLPAD_12(uint8_t* out, uint8_t* src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
 {
     runTFILLPAD<half, 1, 1, 1, 128, 64, 128, 128, 1, PadValue::Null, PadCustomNeg1_Half>(
-        (half *)out, (half *)src, gShape0, gShape1, gShape2, gRows, gCols);
+        (half*)out, (half*)src, gShape0, gShape1, gShape2, gRows, gCols);
 }
 
 // Test case 13: s8, 1x32 tile, 15 valid cols, pad zero
-void launchTFILLPAD_13(uint8_t *out, uint8_t *src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
+void launchTFILLPAD_13(uint8_t* out, uint8_t* src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
 {
-    runTFILLPAD<int8_t, 1, 1, 1, 1, 15, 1, 32, 0, PadValue::Null, PadValue::Zero>((int8_t *)out, (int8_t *)src, gShape0,
-                                                                                  gShape1, gShape2, gRows, gCols);
+    runTFILLPAD<int8_t, 1, 1, 1, 1, 15, 1, 32, 0, PadValue::Null, PadValue::Zero>(
+        (int8_t*)out, (int8_t*)src, gShape0, gShape1, gShape2, gRows, gCols);
 }
 
 // Test case 14: s8, 1x32 tile, 16 valid cols, pad zero
-void launchTFILLPAD_14(uint8_t *out, uint8_t *src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
+void launchTFILLPAD_14(uint8_t* out, uint8_t* src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
 {
-    runTFILLPAD<int8_t, 1, 1, 1, 1, 16, 1, 32, 0, PadValue::Null, PadValue::Zero>((int8_t *)out, (int8_t *)src, gShape0,
-                                                                                  gShape1, gShape2, gRows, gCols);
+    runTFILLPAD<int8_t, 1, 1, 1, 1, 16, 1, 32, 0, PadValue::Null, PadValue::Zero>(
+        (int8_t*)out, (int8_t*)src, gShape0, gShape1, gShape2, gRows, gCols);
 }
 
 // Test case 15: u8, 1x32 tile, 15 valid cols, pad zero
-void launchTFILLPAD_15(uint8_t *out, uint8_t *src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
+void launchTFILLPAD_15(uint8_t* out, uint8_t* src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
 {
     runTFILLPAD<uint8_t, 1, 1, 1, 1, 15, 1, 32, 0, PadValue::Null, PadValue::Zero>(
-        (uint8_t *)out, (uint8_t *)src, gShape0, gShape1, gShape2, gRows, gCols);
+        (uint8_t*)out, (uint8_t*)src, gShape0, gShape1, gShape2, gRows, gCols);
 }
 
 // Test case 16: u8, 1x32 tile, 16 valid cols, pad zero
-void launchTFILLPAD_16(uint8_t *out, uint8_t *src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
+void launchTFILLPAD_16(uint8_t* out, uint8_t* src, int gShape0, int gShape1, int gShape2, int gRows, int gCols)
 {
     runTFILLPAD<uint8_t, 1, 1, 1, 1, 16, 1, 32, 0, PadValue::Null, PadValue::Zero>(
-        (uint8_t *)out, (uint8_t *)src, gShape0, gShape1, gShape2, gRows, gCols);
+        (uint8_t*)out, (uint8_t*)src, gShape0, gShape1, gShape2, gRows, gCols);
 }
 
 template <int32_t testKey>
-void launchTFILLPAD(uint8_t *out, uint8_t *src, void *stream)
+void launchTFILLPAD(uint8_t* out, uint8_t* src, void* stream)
 {
     if constexpr (testKey == 1) {
         launchTFILLPAD_1(out, src, 1, 1, 1, 128, 127);
@@ -298,9 +300,10 @@ void launchTFILLPAD(uint8_t *out, uint8_t *src, void *stream)
     }
 }
 
-template <typename U, int Shape0, int Shape1, int Shape2, int Shape3, int Shape4, int kTRows_, int kTCols_,
-          PadValue PadVal_ = PadValue::Null>
-int get_input_golden_case(uint8_t *input, uint8_t *golden)
+template <
+    typename U, int Shape0, int Shape1, int Shape2, int Shape3, int Shape4, int kTRows_, int kTCols_,
+    PadValue PadVal_ = PadValue::Null>
+int get_input_golden_case(uint8_t* input, uint8_t* golden)
 {
     constexpr int shape4_aligned = align_to_32B(Shape4, U); // 128
     int in_shape[5] = {Shape0, Shape1, Shape2, Shape3, Shape4};
@@ -352,17 +355,17 @@ int get_input_golden_case(uint8_t *input, uint8_t *golden)
                                                        i * Shape4 + j;
                             gold_arr[x0][x1][x2][i][j] = in_arr[x0][x1][x2][i][j];
                         } else {
-                            gold_arr[x0][x1][x2][i][j] = *(U *)(u_padVal);
+                            gold_arr[x0][x1][x2][i][j] = *(U*)(u_padVal);
                         }
                     }
                 }
-    std::copy((uint8_t *)in_arr, ((uint8_t *)(in_arr)) + in_byteSize, input);
-    std::copy((uint8_t *)gold_arr, ((uint8_t *)(gold_arr)) + out_byteSize, golden);
+    std::copy((uint8_t*)in_arr, ((uint8_t*)(in_arr)) + in_byteSize, input);
+    std::copy((uint8_t*)gold_arr, ((uint8_t*)(gold_arr)) + out_byteSize, golden);
     return sizeof(gold_arr);
 }
 
 template <int32_t testKey>
-int get_input_golden(uint8_t *input, uint8_t *golden)
+int get_input_golden(uint8_t* input, uint8_t* golden)
 {
     if constexpr (testKey == 1) {
         return get_input_golden_case<float, 1, 1, 1, 128, 127, 128, 128, PadValue::Max>(input, golden);
@@ -398,40 +401,40 @@ int get_input_golden(uint8_t *input, uint8_t *golden)
     return 0;
 }
 
-template void launchTFILLPAD<1>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTFILLPAD<2>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTFILLPAD<3>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTFILLPAD<4>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTFILLPAD<5>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTFILLPAD<6>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTFILLPAD<7>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTFILLPAD<8>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTFILLPAD<9>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTFILLPAD<10>(uint8_t *out, uint8_t *src, void *stream);
+template void launchTFILLPAD<1>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTFILLPAD<2>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTFILLPAD<3>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTFILLPAD<4>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTFILLPAD<5>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTFILLPAD<6>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTFILLPAD<7>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTFILLPAD<8>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTFILLPAD<9>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTFILLPAD<10>(uint8_t* out, uint8_t* src, void* stream);
 #ifdef CPU_SIM_BFLOAT_ENABLED
-template void launchTFILLPAD<11>(uint8_t *out, uint8_t *src, void *stream);
+template void launchTFILLPAD<11>(uint8_t* out, uint8_t* src, void* stream);
 #endif
-template void launchTFILLPAD<12>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTFILLPAD<13>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTFILLPAD<14>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTFILLPAD<15>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTFILLPAD<16>(uint8_t *out, uint8_t *src, void *stream);
+template void launchTFILLPAD<12>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTFILLPAD<13>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTFILLPAD<14>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTFILLPAD<15>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTFILLPAD<16>(uint8_t* out, uint8_t* src, void* stream);
 
-template int get_input_golden<1>(uint8_t *input, uint8_t *golden);
-template int get_input_golden<2>(uint8_t *input, uint8_t *golden);
-template int get_input_golden<3>(uint8_t *input, uint8_t *golden);
-template int get_input_golden<4>(uint8_t *input, uint8_t *golden);
-template int get_input_golden<5>(uint8_t *input, uint8_t *golden);
-template int get_input_golden<6>(uint8_t *input, uint8_t *golden);
-template int get_input_golden<7>(uint8_t *input, uint8_t *golden);
-template int get_input_golden<8>(uint8_t *input, uint8_t *golden);
-template int get_input_golden<9>(uint8_t *input, uint8_t *golden);
-template int get_input_golden<10>(uint8_t *input, uint8_t *golden);
+template int get_input_golden<1>(uint8_t* input, uint8_t* golden);
+template int get_input_golden<2>(uint8_t* input, uint8_t* golden);
+template int get_input_golden<3>(uint8_t* input, uint8_t* golden);
+template int get_input_golden<4>(uint8_t* input, uint8_t* golden);
+template int get_input_golden<5>(uint8_t* input, uint8_t* golden);
+template int get_input_golden<6>(uint8_t* input, uint8_t* golden);
+template int get_input_golden<7>(uint8_t* input, uint8_t* golden);
+template int get_input_golden<8>(uint8_t* input, uint8_t* golden);
+template int get_input_golden<9>(uint8_t* input, uint8_t* golden);
+template int get_input_golden<10>(uint8_t* input, uint8_t* golden);
 #ifdef CPU_SIM_BFLOAT_ENABLED
-template int get_input_golden<11>(uint8_t *input, uint8_t *golden);
+template int get_input_golden<11>(uint8_t* input, uint8_t* golden);
 #endif
-template int get_input_golden<12>(uint8_t *input, uint8_t *golden);
-template int get_input_golden<13>(uint8_t *input, uint8_t *golden);
-template int get_input_golden<14>(uint8_t *input, uint8_t *golden);
-template int get_input_golden<15>(uint8_t *input, uint8_t *golden);
-template int get_input_golden<16>(uint8_t *input, uint8_t *golden);
+template int get_input_golden<12>(uint8_t* input, uint8_t* golden);
+template int get_input_golden<13>(uint8_t* input, uint8_t* golden);
+template int get_input_golden<14>(uint8_t* input, uint8_t* golden);
+template int get_input_golden<15>(uint8_t* input, uint8_t* golden);
+template int get_input_golden<16>(uint8_t* input, uint8_t* golden);

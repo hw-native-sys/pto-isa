@@ -85,10 +85,9 @@ constexpr const size_t FP16_INT8_TEMP_BUFFER_SIZE = REPEAT_MAX * 256;
 
 // FP32 -> FP16 conversion
 template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void GenCastCallFp32ToFp16(__ubuf__ typename TileDataD::DType *dst,
-                                        __ubuf__ typename TileDataS::DType *src, uint8_t repeatNum, RoundMode mode,
-                                        uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride,
-                                        uint16_t srcRepeatStride)
+PTO_INTERNAL void GenCastCallFp32ToFp16(
+    __ubuf__ typename TileDataD::DType* dst, __ubuf__ typename TileDataS::DType* src, uint8_t repeatNum, RoundMode mode,
+    uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride, uint16_t srcRepeatStride)
 {
     switch (static_cast<RoundMode>(mode)) {
         case RoundMode::CAST_RINT:
@@ -117,10 +116,9 @@ PTO_INTERNAL void GenCastCallFp32ToFp16(__ubuf__ typename TileDataD::DType *dst,
 
 // FP32 -> FP32 conversion with rounding (normalization)
 template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void GenCastCallFp32ToFp32(__ubuf__ typename TileDataD::DType *dst,
-                                        __ubuf__ typename TileDataS::DType *src, uint8_t repeatNum, RoundMode mode,
-                                        uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride,
-                                        uint16_t srcRepeatStride)
+PTO_INTERNAL void GenCastCallFp32ToFp32(
+    __ubuf__ typename TileDataD::DType* dst, __ubuf__ typename TileDataS::DType* src, uint8_t repeatNum, RoundMode mode,
+    uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride, uint16_t srcRepeatStride)
 {
     switch (static_cast<RoundMode>(mode)) {
         case RoundMode::CAST_RINT:
@@ -146,10 +144,9 @@ PTO_INTERNAL void GenCastCallFp32ToFp32(__ubuf__ typename TileDataD::DType *dst,
 
 // FP32 -> INT64 conversion
 template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void GenCastCallFp32ToInt64(__ubuf__ typename TileDataD::DType *dst,
-                                         __ubuf__ typename TileDataS::DType *src, uint8_t repeatNum, RoundMode mode,
-                                         uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride,
-                                         uint16_t srcRepeatStride)
+PTO_INTERNAL void GenCastCallFp32ToInt64(
+    __ubuf__ typename TileDataD::DType* dst, __ubuf__ typename TileDataS::DType* src, uint8_t repeatNum, RoundMode mode,
+    uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride, uint16_t srcRepeatStride)
 {
     switch (static_cast<RoundMode>(mode)) {
         case RoundMode::CAST_RINT:
@@ -175,10 +172,9 @@ PTO_INTERNAL void GenCastCallFp32ToInt64(__ubuf__ typename TileDataD::DType *dst
 
 // FP32 -> INT32 conversion
 template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void GenCastCallFp32ToInt32(__ubuf__ typename TileDataD::DType *dst,
-                                         __ubuf__ typename TileDataS::DType *src, uint8_t repeatNum, RoundMode mode,
-                                         uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride,
-                                         uint16_t srcRepeatStride)
+PTO_INTERNAL void GenCastCallFp32ToInt32(
+    __ubuf__ typename TileDataD::DType* dst, __ubuf__ typename TileDataS::DType* src, uint8_t repeatNum, RoundMode mode,
+    uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride, uint16_t srcRepeatStride)
 {
     switch (static_cast<RoundMode>(mode)) {
         case RoundMode::CAST_RINT:
@@ -204,10 +200,9 @@ PTO_INTERNAL void GenCastCallFp32ToInt32(__ubuf__ typename TileDataD::DType *dst
 
 // FP32 -> INT16 conversion
 template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void GenCastCallFp32ToInt16(__ubuf__ typename TileDataD::DType *dst,
-                                         __ubuf__ typename TileDataS::DType *src, uint8_t repeatNum, RoundMode mode,
-                                         uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride,
-                                         uint16_t srcRepeatStride)
+PTO_INTERNAL void GenCastCallFp32ToInt16(
+    __ubuf__ typename TileDataD::DType* dst, __ubuf__ typename TileDataS::DType* src, uint8_t repeatNum, RoundMode mode,
+    uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride, uint16_t srcRepeatStride)
 {
     switch (static_cast<RoundMode>(mode)) {
         case RoundMode::CAST_RINT:
@@ -234,37 +229,36 @@ PTO_INTERNAL void GenCastCallFp32ToInt16(__ubuf__ typename TileDataD::DType *dst
 // FP32 -> INT16 conversion (PyTorch-compatible for inf/-inf)
 // Two-step: fp32 -> int32 -> int16
 template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void GenCastCallFp32ToInt16_NonSatTorch(__ubuf__ typename TileDataD::DType *dst,
-                                                     __ubuf__ typename TileDataS::DType *src, uint8_t repeatNum,
-                                                     RoundMode mode, uint16_t dstBlockStride, uint16_t srcBlockStride,
-                                                     uint16_t dstRepeatStride, uint16_t srcRepeatStride,
-                                                     __ubuf__ int32_t *tempInt32Buf)
+PTO_INTERNAL void GenCastCallFp32ToInt16_NonSatTorch(
+    __ubuf__ typename TileDataD::DType* dst, __ubuf__ typename TileDataS::DType* src, uint8_t repeatNum, RoundMode mode,
+    uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride, uint16_t srcRepeatStride,
+    __ubuf__ int32_t* tempInt32Buf)
 {
     set_ctrl(sbitset0(get_ctrl(), SAT_MODE_BIT)); // Turn on saturation for int32 conversion
     switch (static_cast<RoundMode>(mode)) {
         case RoundMode::CAST_RINT:
-            vconv_f322s32r(tempInt32Buf, src, repeatNum, srcBlockStride, srcBlockStride, srcRepeatStride,
-                           srcRepeatStride);
+            vconv_f322s32r(
+                tempInt32Buf, src, repeatNum, srcBlockStride, srcBlockStride, srcRepeatStride, srcRepeatStride);
             break;
         case RoundMode::CAST_ROUND:
-            vconv_f322s32a(tempInt32Buf, src, repeatNum, srcBlockStride, srcBlockStride, srcRepeatStride,
-                           srcRepeatStride);
+            vconv_f322s32a(
+                tempInt32Buf, src, repeatNum, srcBlockStride, srcBlockStride, srcRepeatStride, srcRepeatStride);
             break;
         case RoundMode::CAST_FLOOR:
-            vconv_f322s32f(tempInt32Buf, src, repeatNum, srcBlockStride, srcBlockStride, srcRepeatStride,
-                           srcRepeatStride);
+            vconv_f322s32f(
+                tempInt32Buf, src, repeatNum, srcBlockStride, srcBlockStride, srcRepeatStride, srcRepeatStride);
             break;
         case RoundMode::CAST_CEIL:
-            vconv_f322s32c(tempInt32Buf, src, repeatNum, srcBlockStride, srcBlockStride, srcRepeatStride,
-                           srcRepeatStride);
+            vconv_f322s32c(
+                tempInt32Buf, src, repeatNum, srcBlockStride, srcBlockStride, srcRepeatStride, srcRepeatStride);
             break;
         case RoundMode::CAST_TRUNC:
-            vconv_f322s32z(tempInt32Buf, src, repeatNum, srcBlockStride, srcBlockStride, srcRepeatStride,
-                           srcRepeatStride);
+            vconv_f322s32z(
+                tempInt32Buf, src, repeatNum, srcBlockStride, srcBlockStride, srcRepeatStride, srcRepeatStride);
             break;
         default:
-            vconv_f322s32z(tempInt32Buf, src, repeatNum, srcBlockStride, srcBlockStride, srcRepeatStride,
-                           srcRepeatStride);
+            vconv_f322s32z(
+                tempInt32Buf, src, repeatNum, srcBlockStride, srcBlockStride, srcRepeatStride, srcRepeatStride);
             break;
     }
 
@@ -275,10 +269,9 @@ PTO_INTERNAL void GenCastCallFp32ToInt16_NonSatTorch(__ubuf__ typename TileDataD
 
 // FP32 -> BF16 conversion
 template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void GenCastCallFp32ToBf16(__ubuf__ typename TileDataD::DType *dst,
-                                        __ubuf__ typename TileDataS::DType *src, uint8_t repeatNum, RoundMode mode,
-                                        uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride,
-                                        uint16_t srcRepeatStride)
+PTO_INTERNAL void GenCastCallFp32ToBf16(
+    __ubuf__ typename TileDataD::DType* dst, __ubuf__ typename TileDataS::DType* src, uint8_t repeatNum, RoundMode mode,
+    uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride, uint16_t srcRepeatStride)
 {
     // fp32 to bf16 - Convert floating point to bfloat16 format
     switch (static_cast<RoundMode>(mode)) {
@@ -304,9 +297,9 @@ PTO_INTERNAL void GenCastCallFp32ToBf16(__ubuf__ typename TileDataD::DType *dst,
 }
 
 // FP16 -> INT32 conversion
-PTO_INTERNAL void GenCastCallFp16ToInt32ByRoundMode(__ubuf__ int32_t *dst, __ubuf__ half *src, uint8_t repeatNum,
-                                                    RoundMode mode, uint16_t dstBlockStride, uint16_t srcBlockStride,
-                                                    uint16_t dstRepeatStride, uint16_t srcRepeatStride)
+PTO_INTERNAL void GenCastCallFp16ToInt32ByRoundMode(
+    __ubuf__ int32_t* dst, __ubuf__ half* src, uint8_t repeatNum, RoundMode mode, uint16_t dstBlockStride,
+    uint16_t srcBlockStride, uint16_t dstRepeatStride, uint16_t srcRepeatStride)
 {
     switch (static_cast<RoundMode>(mode)) {
         case RoundMode::CAST_RINT:
@@ -329,21 +322,20 @@ PTO_INTERNAL void GenCastCallFp16ToInt32ByRoundMode(__ubuf__ int32_t *dst, __ubu
 }
 
 template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void GenCastCallFp16ToInt32(__ubuf__ typename TileDataD::DType *dst,
-                                         __ubuf__ typename TileDataS::DType *src, uint8_t repeatNum, RoundMode mode,
-                                         uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride,
-                                         uint16_t srcRepeatStride)
+PTO_INTERNAL void GenCastCallFp16ToInt32(
+    __ubuf__ typename TileDataD::DType* dst, __ubuf__ typename TileDataS::DType* src, uint8_t repeatNum, RoundMode mode,
+    uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride, uint16_t srcRepeatStride)
 {
-    GenCastCallFp16ToInt32ByRoundMode((__ubuf__ int32_t *)dst, (__ubuf__ half *)src, repeatNum, mode, dstBlockStride,
-                                      srcBlockStride, dstRepeatStride, srcRepeatStride);
+    GenCastCallFp16ToInt32ByRoundMode(
+        (__ubuf__ int32_t*)dst, (__ubuf__ half*)src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride,
+        srcRepeatStride);
 }
 
 // FP16 -> INT16 conversion
 template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void GenCastCallFp16ToInt16(__ubuf__ typename TileDataD::DType *dst,
-                                         __ubuf__ typename TileDataS::DType *src, uint8_t repeatNum, RoundMode mode,
-                                         uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride,
-                                         uint16_t srcRepeatStride)
+PTO_INTERNAL void GenCastCallFp16ToInt16(
+    __ubuf__ typename TileDataD::DType* dst, __ubuf__ typename TileDataS::DType* src, uint8_t repeatNum, RoundMode mode,
+    uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride, uint16_t srcRepeatStride)
 {
     switch (static_cast<RoundMode>(mode)) {
         case RoundMode::CAST_RINT:
@@ -387,11 +379,10 @@ PTO_INTERNAL void GenCastCallFp16ToInt16(__ubuf__ typename TileDataD::DType *dst
 //   HEAD (TCvtHead): numElemsPerRow=0, caller mask full.
 //   TAIL (TCvtTail): numElemsPerRow=numRemainPerLine; caller's mask is overridden per sub-chunk.
 template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void GenCastCallFp16ToInt16_NonSatTorch(__ubuf__ typename TileDataD::DType *dst,
-                                                     __ubuf__ typename TileDataS::DType *src, uint8_t repeatNum,
-                                                     RoundMode mode, uint16_t dstBlockStride, uint16_t srcBlockStride,
-                                                     uint16_t dstRepeatStride, uint16_t srcRepeatStride,
-                                                     __ubuf__ int32_t *tempInt32Buf, uint16_t numElemsPerRow = 0)
+PTO_INTERNAL void GenCastCallFp16ToInt16_NonSatTorch(
+    __ubuf__ typename TileDataD::DType* dst, __ubuf__ typename TileDataS::DType* src, uint8_t repeatNum, RoundMode mode,
+    uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride, uint16_t srcRepeatStride,
+    __ubuf__ int32_t* tempInt32Buf, uint16_t numElemsPerRow = 0)
 {
     constexpr uint16_t fp16ElemsPerBlock = BLOCK_BYTE_SIZE / sizeof(half);     // 16
     constexpr uint16_t int16ElemsPerBlock = BLOCK_BYTE_SIZE / sizeof(int16_t); // 16
@@ -403,12 +394,12 @@ PTO_INTERNAL void GenCastCallFp16ToInt16_NonSatTorch(__ubuf__ typename TileDataD
     const uint16_t lastChunkMask = elemsPerRow - (numSubChunks - 1) * maxChunkElems; // [1, 64]
 
     for (uint16_t r = 0; r < repeatNum; r++) {
-        __ubuf__ half *rowSrc = src + static_cast<uint32_t>(r) * srcRepeatStride * fp16ElemsPerBlock;
-        __ubuf__ int16_t *rowDst = dst + static_cast<uint32_t>(r) * dstRepeatStride * int16ElemsPerBlock;
+        __ubuf__ half* rowSrc = src + static_cast<uint32_t>(r) * srcRepeatStride * fp16ElemsPerBlock;
+        __ubuf__ int16_t* rowDst = dst + static_cast<uint32_t>(r) * dstRepeatStride * int16ElemsPerBlock;
 
         for (uint16_t c = 0; c < numSubChunks; c++) {
-            __ubuf__ int16_t *chunkDst = rowDst + static_cast<uint32_t>(c) * maxChunkElems;
-            __ubuf__ half *chunkSrc = rowSrc + static_cast<uint32_t>(c) * maxChunkElems;
+            __ubuf__ int16_t* chunkDst = rowDst + static_cast<uint32_t>(c) * maxChunkElems;
+            __ubuf__ half* chunkSrc = rowSrc + static_cast<uint32_t>(c) * maxChunkElems;
             const uint16_t chunkMask = (c + 1 == numSubChunks) ? lastChunkMask : maxChunkElems;
 
             SetContinuousMask(chunkMask);
@@ -431,10 +422,9 @@ PTO_INTERNAL void GenCastCallFp16ToInt16_NonSatTorch(__ubuf__ typename TileDataD
 
 // FP16 -> INT8 conversion
 template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void GenCastCallFp16ToInt8(__ubuf__ typename TileDataD::DType *dst,
-                                        __ubuf__ typename TileDataS::DType *src, uint8_t repeatNum, RoundMode mode,
-                                        uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride,
-                                        uint16_t srcRepeatStride)
+PTO_INTERNAL void GenCastCallFp16ToInt8(
+    __ubuf__ typename TileDataD::DType* dst, __ubuf__ typename TileDataS::DType* src, uint8_t repeatNum, RoundMode mode,
+    uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride, uint16_t srcRepeatStride)
 {
     // fp16 to int8 - Convert half-precision float to 8-bit signed integer
     // Note: Saturation mode is now controlled globally by TCvt kernel
@@ -490,11 +480,10 @@ PTO_INTERNAL void GenCastCallFp16ToInt8(__ubuf__ typename TileDataD::DType *dst,
 // NOTE: src must NOT be reused as scratch — the saturation test kernel invokes TCVT three times
 // on the same srcTile (ON/OFF/default), so clobbering src would corrupt later invocations.
 template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void GenCastCallFp16ToInt8_NonSatTorch(__ubuf__ typename TileDataD::DType *dst,
-                                                    __ubuf__ typename TileDataS::DType *src, uint8_t repeatNum,
-                                                    RoundMode mode, uint16_t dstBlockStride, uint16_t srcBlockStride,
-                                                    uint16_t dstRepeatStride, uint16_t srcRepeatStride,
-                                                    __ubuf__ int32_t *tempInt32Buf, uint16_t numElemsPerRow)
+PTO_INTERNAL void GenCastCallFp16ToInt8_NonSatTorch(
+    __ubuf__ typename TileDataD::DType* dst, __ubuf__ typename TileDataS::DType* src, uint8_t repeatNum, RoundMode mode,
+    uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride, uint16_t srcRepeatStride,
+    __ubuf__ int32_t* tempInt32Buf, uint16_t numElemsPerRow)
 {
     constexpr uint16_t fp16ElemsPerBlock = BLOCK_BYTE_SIZE / sizeof(half);   // 16
     constexpr uint16_t int8ElemsPerBlock = BLOCK_BYTE_SIZE / sizeof(int8_t); // 32
@@ -503,9 +492,9 @@ PTO_INTERNAL void GenCastCallFp16ToInt8_NonSatTorch(__ubuf__ typename TileDataD:
     // Temp aliases over the shared 256-byte tempInt32Buf.
     //   tempAndBuf   : bytes [0..127]   -- int16 view (overlays the int32 lanes after narrow).
     //   tempMaskBuf  : bytes [128..255] -- scratch for the 0x00FF mask and step-5 fp16 output.
-    __ubuf__ int16_t *tempAndBuf = (__ubuf__ int16_t *)tempInt32Buf;
-    __ubuf__ int16_t *tempMaskBuf = tempAndBuf + maxChunkElems;
-    __ubuf__ half *tempFp16Out = (__ubuf__ half *)tempMaskBuf;
+    __ubuf__ int16_t* tempAndBuf = (__ubuf__ int16_t*)tempInt32Buf;
+    __ubuf__ int16_t* tempMaskBuf = tempAndBuf + maxChunkElems;
+    __ubuf__ half* tempFp16Out = (__ubuf__ half*)tempMaskBuf;
 
     // elemsPerRow: head path leaves numElemsPerRow=0 → full 128; tail forwards actual count.
     const uint16_t elemsPerRow = (numElemsPerRow == 0) ? static_cast<uint16_t>(128) : numElemsPerRow;
@@ -513,12 +502,12 @@ PTO_INTERNAL void GenCastCallFp16ToInt8_NonSatTorch(__ubuf__ typename TileDataD:
     const uint16_t lastChunkMask = elemsPerRow - (numSubChunks - 1) * maxChunkElems; // [1, 64]
 
     for (uint16_t r = 0; r < repeatNum; r++) {
-        __ubuf__ half *rowSrc = src + static_cast<uint32_t>(r) * srcRepeatStride * fp16ElemsPerBlock;
-        __ubuf__ int8_t *rowDst = dst + static_cast<uint32_t>(r) * dstRepeatStride * int8ElemsPerBlock;
+        __ubuf__ half* rowSrc = src + static_cast<uint32_t>(r) * srcRepeatStride * fp16ElemsPerBlock;
+        __ubuf__ int8_t* rowDst = dst + static_cast<uint32_t>(r) * dstRepeatStride * int8ElemsPerBlock;
 
         for (uint16_t c = 0; c < numSubChunks; c++) {
-            __ubuf__ half *chunkSrc = rowSrc + static_cast<uint32_t>(c) * maxChunkElems;
-            __ubuf__ int8_t *chunkDst = rowDst + static_cast<uint32_t>(c) * maxChunkElems;
+            __ubuf__ half* chunkSrc = rowSrc + static_cast<uint32_t>(c) * maxChunkElems;
+            __ubuf__ int8_t* chunkDst = rowDst + static_cast<uint32_t>(c) * maxChunkElems;
             const uint16_t chunkMask = (c + 1 == numSubChunks) ? lastChunkMask : maxChunkElems;
 
             SetContinuousMask(chunkMask);
@@ -577,10 +566,9 @@ PTO_INTERNAL void GenCastCallFp16ToInt8_NonSatTorch(__ubuf__ typename TileDataD:
 
 // FP16 -> UINT8 conversion
 template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void GenCastCallFp16ToUint8(__ubuf__ typename TileDataD::DType *dst,
-                                         __ubuf__ typename TileDataS::DType *src, uint8_t repeatNum, RoundMode mode,
-                                         uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride,
-                                         uint16_t srcRepeatStride)
+PTO_INTERNAL void GenCastCallFp16ToUint8(
+    __ubuf__ typename TileDataD::DType* dst, __ubuf__ typename TileDataS::DType* src, uint8_t repeatNum, RoundMode mode,
+    uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride, uint16_t srcRepeatStride)
 {
     switch (static_cast<RoundMode>(mode)) {
         case RoundMode::CAST_RINT:
@@ -608,9 +596,9 @@ PTO_INTERNAL void GenCastCallFp16ToUint8(__ubuf__ typename TileDataD::DType *dst
 // int4 is a packed type: 2 elements per byte. The vconv_f162s4* intrinsics accept void* for the
 // int4 destination. Each repeat processes 128 fp16 elements into 64 bytes of packed int4.
 template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void GenCastCallFp16ToS4(__ubuf__ void *dst, __ubuf__ half *src, uint8_t repeatNum, RoundMode mode,
-                                      uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride,
-                                      uint16_t srcRepeatStride)
+PTO_INTERNAL void GenCastCallFp16ToS4(
+    __ubuf__ void* dst, __ubuf__ half* src, uint8_t repeatNum, RoundMode mode, uint16_t dstBlockStride,
+    uint16_t srcBlockStride, uint16_t dstRepeatStride, uint16_t srcRepeatStride)
 {
     switch (static_cast<RoundMode>(mode)) {
         case RoundMode::CAST_RINT:
@@ -638,20 +626,20 @@ PTO_INTERNAL void GenCastCallFp16ToS4(__ubuf__ void *dst, __ubuf__ half *src, ui
 // No rounding mode variants — only a single intrinsic (vconv_s42f16).
 // Note: vconv_s42f16 uses uint8_t for repeat strides.
 template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void GenCastCallS4ToFp16(__ubuf__ half *dst, __ubuf__ void *src, uint8_t repeatNum, RoundMode mode,
-                                      uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride,
-                                      uint16_t srcRepeatStride)
+PTO_INTERNAL void GenCastCallS4ToFp16(
+    __ubuf__ half* dst, __ubuf__ void* src, uint8_t repeatNum, RoundMode mode, uint16_t dstBlockStride,
+    uint16_t srcBlockStride, uint16_t dstRepeatStride, uint16_t srcRepeatStride)
 {
-    vconv_s42f16(dst, src, repeatNum, dstBlockStride, srcBlockStride, static_cast<uint8_t>(dstRepeatStride),
-                 static_cast<uint8_t>(srcRepeatStride));
+    vconv_s42f16(
+        dst, src, repeatNum, dstBlockStride, srcBlockStride, static_cast<uint8_t>(dstRepeatStride),
+        static_cast<uint8_t>(srcRepeatStride));
 }
 
 // BF16 -> INT32 conversion
 template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void GenCastCallBf16ToInt32(__ubuf__ typename TileDataD::DType *dst,
-                                         __ubuf__ typename TileDataS::DType *src, uint8_t repeatNum, RoundMode mode,
-                                         uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride,
-                                         uint16_t srcRepeatStride)
+PTO_INTERNAL void GenCastCallBf16ToInt32(
+    __ubuf__ typename TileDataD::DType* dst, __ubuf__ typename TileDataS::DType* src, uint8_t repeatNum, RoundMode mode,
+    uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride, uint16_t srcRepeatStride)
 {
     switch (static_cast<RoundMode>(mode)) {
         case RoundMode::CAST_RINT:
@@ -677,10 +665,9 @@ PTO_INTERNAL void GenCastCallBf16ToInt32(__ubuf__ typename TileDataD::DType *dst
 
 // INT16 -> FP16 conversion
 template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void GenCastCallInt16ToFp16(__ubuf__ typename TileDataD::DType *dst,
-                                         __ubuf__ typename TileDataS::DType *src, uint8_t repeatNum, RoundMode mode,
-                                         uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride,
-                                         uint16_t srcRepeatStride)
+PTO_INTERNAL void GenCastCallInt16ToFp16(
+    __ubuf__ typename TileDataD::DType* dst, __ubuf__ typename TileDataS::DType* src, uint8_t repeatNum, RoundMode mode,
+    uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride, uint16_t srcRepeatStride)
 {
     switch (static_cast<RoundMode>(mode)) {
         case RoundMode::CAST_RINT:
@@ -706,10 +693,9 @@ PTO_INTERNAL void GenCastCallInt16ToFp16(__ubuf__ typename TileDataD::DType *dst
 
 // INT32 -> FP32 conversion
 template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void GenCastCallInt32ToFp32(__ubuf__ typename TileDataD::DType *dst,
-                                         __ubuf__ typename TileDataS::DType *src, uint8_t repeatNum, RoundMode mode,
-                                         uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride,
-                                         uint16_t srcRepeatStride)
+PTO_INTERNAL void GenCastCallInt32ToFp32(
+    __ubuf__ typename TileDataD::DType* dst, __ubuf__ typename TileDataS::DType* src, uint8_t repeatNum, RoundMode mode,
+    uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride, uint16_t srcRepeatStride)
 {
     switch (static_cast<RoundMode>(mode)) {
         case RoundMode::CAST_RINT:
@@ -735,10 +721,9 @@ PTO_INTERNAL void GenCastCallInt32ToFp32(__ubuf__ typename TileDataD::DType *dst
 
 // INT64 -> FP32 conversion
 template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void GenCastCallInt64ToFp32(__ubuf__ typename TileDataD::DType *dst,
-                                         __ubuf__ typename TileDataS::DType *src, uint8_t repeatNum, RoundMode mode,
-                                         uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride,
-                                         uint16_t srcRepeatStride)
+PTO_INTERNAL void GenCastCallInt64ToFp32(
+    __ubuf__ typename TileDataD::DType* dst, __ubuf__ typename TileDataS::DType* src, uint8_t repeatNum, RoundMode mode,
+    uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride, uint16_t srcRepeatStride)
 {
     switch (static_cast<RoundMode>(mode)) {
         case RoundMode::CAST_RINT:
@@ -765,37 +750,45 @@ PTO_INTERNAL void GenCastCallInt64ToFp32(__ubuf__ typename TileDataD::DType *dst
 // Special case conversions: half<->fp32, bf16<->fp32, int/uint 8<->half,
 // int32<->int64, int32<->int16, int32->half (deq)
 template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void GenCastCallSpecialCases(__ubuf__ typename TileDataD::DType *dst,
-                                          __ubuf__ typename TileDataS::DType *src, uint8_t repeatNum, RoundMode mode,
-                                          uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride,
-                                          uint16_t srcRepeatStride)
+PTO_INTERNAL void GenCastCallSpecialCases(
+    __ubuf__ typename TileDataD::DType* dst, __ubuf__ typename TileDataS::DType* src, uint8_t repeatNum, RoundMode mode,
+    uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride, uint16_t srcRepeatStride)
 {
-    if constexpr (std::is_same<typename TileDataD::DType, float>::value &&
-                  std::is_same<typename TileDataS::DType, half>::value) { // half to fp32
+    if constexpr (
+        std::is_same<typename TileDataD::DType, float>::value &&
+        std::is_same<typename TileDataS::DType, half>::value) { // half to fp32
         vconv_f162f32(dst, src, repeatNum, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
-    } else if constexpr (std::is_same<typename TileDataD::DType, float>::value &&
-                         std::is_same<typename TileDataS::DType, bfloat16_t>::value) { // bfloat16 to float
+    } else if constexpr (
+        std::is_same<typename TileDataD::DType, float>::value &&
+        std::is_same<typename TileDataS::DType, bfloat16_t>::value) { // bfloat16 to float
         vconv_bf162f32(dst, src, repeatNum, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
-    } else if constexpr (std::is_same<typename TileDataD::DType, half>::value &&
-                         std::is_same<typename TileDataS::DType, uint8_t>::value) { // uint8 to half
+    } else if constexpr (
+        std::is_same<typename TileDataD::DType, half>::value &&
+        std::is_same<typename TileDataS::DType, uint8_t>::value) { // uint8 to half
         vconv_u82f16(dst, src, repeatNum, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
-    } else if constexpr (std::is_same<typename TileDataD::DType, half>::value &&
-                         std::is_same<typename TileDataS::DType, int8_t>::value) { // int8 to half
+    } else if constexpr (
+        std::is_same<typename TileDataD::DType, half>::value &&
+        std::is_same<typename TileDataS::DType, int8_t>::value) { // int8 to half
         vconv_s82f16(dst, src, repeatNum, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
-    } else if constexpr (std::is_same<typename TileDataD::DType, float>::value &&
-                         std::is_same<typename TileDataS::DType, int16_t>::value) { // int16 to float32
+    } else if constexpr (
+        std::is_same<typename TileDataD::DType, float>::value &&
+        std::is_same<typename TileDataS::DType, int16_t>::value) { // int16 to float32
         vconv_s162f32(dst, src, repeatNum, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
-    } else if constexpr (std::is_same<typename TileDataD::DType, int32_t>::value &&
-                         std::is_same<typename TileDataS::DType, int64_t>::value) { // int64 to int32
+    } else if constexpr (
+        std::is_same<typename TileDataD::DType, int32_t>::value &&
+        std::is_same<typename TileDataS::DType, int64_t>::value) { // int64 to int32
         vconv_s642s32(dst, src, repeatNum, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
-    } else if constexpr (std::is_same<typename TileDataD::DType, int64_t>::value &&
-                         std::is_same<typename TileDataS::DType, int32_t>::value) { // int32 to int64
+    } else if constexpr (
+        std::is_same<typename TileDataD::DType, int64_t>::value &&
+        std::is_same<typename TileDataS::DType, int32_t>::value) { // int32 to int64
         vconv_s322s64(dst, src, repeatNum, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
-    } else if constexpr (std::is_same<typename TileDataD::DType, int16_t>::value &&
-                         std::is_same<typename TileDataS::DType, int32_t>::value) { // int32 to int16
+    } else if constexpr (
+        std::is_same<typename TileDataD::DType, int16_t>::value &&
+        std::is_same<typename TileDataS::DType, int32_t>::value) { // int32 to int16
         vconv_s322s16(dst, src, repeatNum, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
-    } else if constexpr (std::is_same<typename TileDataD::DType, half>::value &&
-                         std::is_same<typename TileDataS::DType, int32_t>::value) { // int32 to half
+    } else if constexpr (
+        std::is_same<typename TileDataD::DType, half>::value &&
+        std::is_same<typename TileDataS::DType, int32_t>::value) { // int32 to half
         set_deqscale(static_cast<half>(1.0));
         pipe_barrier(PIPE_V);
         vconv_deq(dst, src, repeatNum, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
@@ -811,77 +804,95 @@ PTO_INTERNAL void GenCastCallSpecialCases(__ubuf__ typename TileDataD::DType *ds
 // int32 hardware capacity (64 elements) into multiple sub-chunks.  TCvtHead leaves it at the
 // default 0 which the NonSatTorch path interprets as "full logical repeat" (= 128 elements).
 template <typename TileDataD, typename TileDataS>
-AICORE void GenCastCall(__ubuf__ typename TileDataD::DType *dst, __ubuf__ typename TileDataS::DType *src,
-                        uint8_t repeatNum, RoundMode mode, uint16_t dstBlockStride, uint16_t srcBlockStride,
-                        uint16_t dstRepeatStride, uint16_t srcRepeatStride, uint16_t /*numElemsPerRow*/ = 0)
+AICORE void GenCastCall(
+    __ubuf__ typename TileDataD::DType* dst, __ubuf__ typename TileDataS::DType* src, uint8_t repeatNum, RoundMode mode,
+    uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride, uint16_t srcRepeatStride,
+    uint16_t /*numElemsPerRow*/ = 0)
 {
-    if constexpr (std::is_same<typename TileDataD::DType, half>::value &&
-                  std::is_same<typename TileDataS::DType, float>::value) {
-        GenCastCallFp32ToFp16<TileDataD, TileDataS>(dst, src, repeatNum, mode, dstBlockStride, srcBlockStride,
-                                                    dstRepeatStride, srcRepeatStride);
-    } else if constexpr (std::is_same<typename TileDataD::DType, float>::value &&
-                         std::is_same<typename TileDataS::DType, float>::value) { // fp32 to fp32
-        GenCastCallFp32ToFp32<TileDataD, TileDataS>(dst, src, repeatNum, mode, dstBlockStride, srcBlockStride,
-                                                    dstRepeatStride, srcRepeatStride);
-    } else if constexpr (std::is_same<typename TileDataD::DType, int64_t>::value &&
-                         std::is_same<typename TileDataS::DType, float>::value) { // fp32 to int64
-        GenCastCallFp32ToInt64<TileDataD, TileDataS>(dst, src, repeatNum, mode, dstBlockStride, srcBlockStride,
-                                                     dstRepeatStride, srcRepeatStride);
-    } else if constexpr (std::is_same<typename TileDataD::DType, int32_t>::value &&
-                         std::is_same<typename TileDataS::DType, float>::value) { // fp32 to int32
-        GenCastCallFp32ToInt32<TileDataD, TileDataS>(dst, src, repeatNum, mode, dstBlockStride, srcBlockStride,
-                                                     dstRepeatStride, srcRepeatStride);
-    } else if constexpr (std::is_same<typename TileDataD::DType, int16_t>::value &&
-                         std::is_same<typename TileDataS::DType, float>::value) { // fp32 to int16
-        GenCastCallFp32ToInt16<TileDataD, TileDataS>(dst, src, repeatNum, mode, dstBlockStride, srcBlockStride,
-                                                     dstRepeatStride, srcRepeatStride);
-    } else if constexpr (std::is_same<typename TileDataD::DType, bfloat16_t>::value &&
-                         std::is_same<typename TileDataS::DType, float>::value) { // fp32 to bf16
-        GenCastCallFp32ToBf16<TileDataD, TileDataS>(dst, src, repeatNum, mode, dstBlockStride, srcBlockStride,
-                                                    dstRepeatStride, srcRepeatStride);
-    } else if constexpr (std::is_same<typename TileDataD::DType, int32_t>::value &&
-                         std::is_same<typename TileDataS::DType, half>::value) { // half to int32
-        GenCastCallFp16ToInt32<TileDataD, TileDataS>(dst, src, repeatNum, mode, dstBlockStride, srcBlockStride,
-                                                     dstRepeatStride, srcRepeatStride);
-    } else if constexpr (std::is_same<typename TileDataD::DType, int16_t>::value &&
-                         std::is_same<typename TileDataS::DType, half>::value) { // half to int16
-        GenCastCallFp16ToInt16<TileDataD, TileDataS>(dst, src, repeatNum, mode, dstBlockStride, srcBlockStride,
-                                                     dstRepeatStride, srcRepeatStride);
-    } else if constexpr (std::is_same<typename TileDataD::DType, int8_t>::value &&
-                         std::is_same<typename TileDataS::DType, half>::value) { // half to int8
-        GenCastCallFp16ToInt8<TileDataD, TileDataS>(dst, src, repeatNum, mode, dstBlockStride, srcBlockStride,
-                                                    dstRepeatStride, srcRepeatStride);
-    } else if constexpr (std::is_same<typename TileDataD::DType, uint8_t>::value &&
-                         std::is_same<typename TileDataS::DType, half>::value) { // half to uint8
-        GenCastCallFp16ToUint8<TileDataD, TileDataS>(dst, src, repeatNum, mode, dstBlockStride, srcBlockStride,
-                                                     dstRepeatStride, srcRepeatStride);
-    } else if constexpr (std::is_same<typename TileDataD::DType, int4b_t>::value &&
-                         std::is_same<typename TileDataS::DType, half>::value) { // half to int4
-        GenCastCallFp16ToS4<TileDataD, TileDataS>((__ubuf__ void *)dst, src, repeatNum, mode, dstBlockStride,
-                                                  srcBlockStride, dstRepeatStride, srcRepeatStride);
-    } else if constexpr (std::is_same<typename TileDataD::DType, half>::value &&
-                         std::is_same<typename TileDataS::DType, int4b_t>::value) { // int4 to half
-        GenCastCallS4ToFp16<TileDataD, TileDataS>(dst, (__ubuf__ void *)src, repeatNum, mode, dstBlockStride,
-                                                  srcBlockStride, dstRepeatStride, srcRepeatStride);
-    } else if constexpr (std::is_same<typename TileDataD::DType, int32_t>::value &&
-                         std::is_same<typename TileDataS::DType, bfloat16_t>::value) { // bfloat16 to int32
-        GenCastCallBf16ToInt32<TileDataD, TileDataS>(dst, src, repeatNum, mode, dstBlockStride, srcBlockStride,
-                                                     dstRepeatStride, srcRepeatStride);
-    } else if constexpr (std::is_same<typename TileDataD::DType, half>::value &&
-                         std::is_same<typename TileDataS::DType, int16_t>::value) { // int16 to half
-        GenCastCallInt16ToFp16<TileDataD, TileDataS>(dst, src, repeatNum, mode, dstBlockStride, srcBlockStride,
-                                                     dstRepeatStride, srcRepeatStride);
-    } else if constexpr (std::is_same<typename TileDataD::DType, float>::value &&
-                         std::is_same<typename TileDataS::DType, int32_t>::value) { // int32 to float
-        GenCastCallInt32ToFp32<TileDataD, TileDataS>(dst, src, repeatNum, mode, dstBlockStride, srcBlockStride,
-                                                     dstRepeatStride, srcRepeatStride);
-    } else if constexpr (std::is_same<typename TileDataD::DType, float>::value &&
-                         std::is_same<typename TileDataS::DType, int64_t>::value) { // int64 to float
-        GenCastCallInt64ToFp32<TileDataD, TileDataS>(dst, src, repeatNum, mode, dstBlockStride, srcBlockStride,
-                                                     dstRepeatStride, srcRepeatStride);
+    if constexpr (
+        std::is_same<typename TileDataD::DType, half>::value && std::is_same<typename TileDataS::DType, float>::value) {
+        GenCastCallFp32ToFp16<TileDataD, TileDataS>(
+            dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
+    } else if constexpr (
+        std::is_same<typename TileDataD::DType, float>::value &&
+        std::is_same<typename TileDataS::DType, float>::value) { // fp32 to fp32
+        GenCastCallFp32ToFp32<TileDataD, TileDataS>(
+            dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
+    } else if constexpr (
+        std::is_same<typename TileDataD::DType, int64_t>::value &&
+        std::is_same<typename TileDataS::DType, float>::value) { // fp32 to int64
+        GenCastCallFp32ToInt64<TileDataD, TileDataS>(
+            dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
+    } else if constexpr (
+        std::is_same<typename TileDataD::DType, int32_t>::value &&
+        std::is_same<typename TileDataS::DType, float>::value) { // fp32 to int32
+        GenCastCallFp32ToInt32<TileDataD, TileDataS>(
+            dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
+    } else if constexpr (
+        std::is_same<typename TileDataD::DType, int16_t>::value &&
+        std::is_same<typename TileDataS::DType, float>::value) { // fp32 to int16
+        GenCastCallFp32ToInt16<TileDataD, TileDataS>(
+            dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
+    } else if constexpr (
+        std::is_same<typename TileDataD::DType, bfloat16_t>::value &&
+        std::is_same<typename TileDataS::DType, float>::value) { // fp32 to bf16
+        GenCastCallFp32ToBf16<TileDataD, TileDataS>(
+            dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
+    } else if constexpr (
+        std::is_same<typename TileDataD::DType, int32_t>::value &&
+        std::is_same<typename TileDataS::DType, half>::value) { // half to int32
+        GenCastCallFp16ToInt32<TileDataD, TileDataS>(
+            dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
+    } else if constexpr (
+        std::is_same<typename TileDataD::DType, int16_t>::value &&
+        std::is_same<typename TileDataS::DType, half>::value) { // half to int16
+        GenCastCallFp16ToInt16<TileDataD, TileDataS>(
+            dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
+    } else if constexpr (
+        std::is_same<typename TileDataD::DType, int8_t>::value &&
+        std::is_same<typename TileDataS::DType, half>::value) { // half to int8
+        GenCastCallFp16ToInt8<TileDataD, TileDataS>(
+            dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
+    } else if constexpr (
+        std::is_same<typename TileDataD::DType, uint8_t>::value &&
+        std::is_same<typename TileDataS::DType, half>::value) { // half to uint8
+        GenCastCallFp16ToUint8<TileDataD, TileDataS>(
+            dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
+    } else if constexpr (
+        std::is_same<typename TileDataD::DType, int4b_t>::value &&
+        std::is_same<typename TileDataS::DType, half>::value) { // half to int4
+        GenCastCallFp16ToS4<TileDataD, TileDataS>(
+            (__ubuf__ void*)dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride,
+            srcRepeatStride);
+    } else if constexpr (
+        std::is_same<typename TileDataD::DType, half>::value &&
+        std::is_same<typename TileDataS::DType, int4b_t>::value) { // int4 to half
+        GenCastCallS4ToFp16<TileDataD, TileDataS>(
+            dst, (__ubuf__ void*)src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride,
+            srcRepeatStride);
+    } else if constexpr (
+        std::is_same<typename TileDataD::DType, int32_t>::value &&
+        std::is_same<typename TileDataS::DType, bfloat16_t>::value) { // bfloat16 to int32
+        GenCastCallBf16ToInt32<TileDataD, TileDataS>(
+            dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
+    } else if constexpr (
+        std::is_same<typename TileDataD::DType, half>::value &&
+        std::is_same<typename TileDataS::DType, int16_t>::value) { // int16 to half
+        GenCastCallInt16ToFp16<TileDataD, TileDataS>(
+            dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
+    } else if constexpr (
+        std::is_same<typename TileDataD::DType, float>::value &&
+        std::is_same<typename TileDataS::DType, int32_t>::value) { // int32 to float
+        GenCastCallInt32ToFp32<TileDataD, TileDataS>(
+            dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
+    } else if constexpr (
+        std::is_same<typename TileDataD::DType, float>::value &&
+        std::is_same<typename TileDataS::DType, int64_t>::value) { // int64 to float
+        GenCastCallInt64ToFp32<TileDataD, TileDataS>(
+            dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
     } else {
-        GenCastCallSpecialCases<TileDataD, TileDataS>(dst, src, repeatNum, mode, dstBlockStride, srcBlockStride,
-                                                      dstRepeatStride, srcRepeatStride);
+        GenCastCallSpecialCases<TileDataD, TileDataS>(
+            dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
     }
 }
 
@@ -893,61 +904,64 @@ AICORE void GenCastCall(__ubuf__ typename TileDataD::DType *dst, __ubuf__ typena
 // need explicit sub-chunk splitting.  TCvtTail passes numRemainPerLine here; TCvtHead leaves
 // it at 0 (interpreted as "full logical repeat" by the fp16 -> int8 NonSatTorch path).
 template <typename TileDataD, typename TileDataS>
-AICORE void GenCastCall(__ubuf__ typename TileDataD::DType *dst, __ubuf__ typename TileDataS::DType *src,
-                        uint8_t repeatNum, RoundMode mode, uint16_t dstBlockStride, uint16_t srcBlockStride,
-                        uint16_t dstRepeatStride, uint16_t srcRepeatStride, __ubuf__ int32_t *tmpPtr,
-                        uint16_t numElemsPerRow = 0)
+AICORE void GenCastCall(
+    __ubuf__ typename TileDataD::DType* dst, __ubuf__ typename TileDataS::DType* src, uint8_t repeatNum, RoundMode mode,
+    uint16_t dstBlockStride, uint16_t srcBlockStride, uint16_t dstRepeatStride, uint16_t srcRepeatStride,
+    __ubuf__ int32_t* tmpPtr, uint16_t numElemsPerRow = 0)
 {
-    if constexpr (std::is_same<typename TileDataD::DType, int16_t>::value &&
-                  std::is_same<typename TileDataS::DType, float>::value) { // fp32 to int16
+    if constexpr (
+        std::is_same<typename TileDataD::DType, int16_t>::value &&
+        std::is_same<typename TileDataS::DType, float>::value) { // fp32 to int16
         bool isSatOn = (get_ctrl() & (1ULL << SAT_MODE_BIT)) == 0;
 #if EDGE_CASE_ALIGN_ENABLE
         if (!isSatOn) {
             GenCastCallFp32ToInt16_NonSatTorch<TileDataD, TileDataS>(
                 dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride, tmpPtr);
         } else {
-            GenCastCallFp32ToInt16<TileDataD, TileDataS>(dst, src, repeatNum, mode, dstBlockStride, srcBlockStride,
-                                                         dstRepeatStride, srcRepeatStride);
+            GenCastCallFp32ToInt16<TileDataD, TileDataS>(
+                dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
         }
 #else
-        GenCastCallFp32ToInt16<TileDataD, TileDataS>(dst, src, repeatNum, mode, dstBlockStride, srcBlockStride,
-                                                     dstRepeatStride, srcRepeatStride);
+        GenCastCallFp32ToInt16<TileDataD, TileDataS>(
+            dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
 #endif
-    } else if constexpr (std::is_same<typename TileDataD::DType, int16_t>::value &&
-                         std::is_same<typename TileDataS::DType, half>::value) { // half to int16
+    } else if constexpr (
+        std::is_same<typename TileDataD::DType, int16_t>::value &&
+        std::is_same<typename TileDataS::DType, half>::value) { // half to int16
         bool isSatOn = (get_ctrl() & (1ULL << SAT_MODE_BIT)) == 0;
 #if EDGE_CASE_ALIGN_ENABLE
         if (!isSatOn) {
-            GenCastCallFp16ToInt16_NonSatTorch<TileDataD, TileDataS>(dst, src, repeatNum, mode, dstBlockStride,
-                                                                     srcBlockStride, dstRepeatStride, srcRepeatStride,
-                                                                     tmpPtr, numElemsPerRow);
+            GenCastCallFp16ToInt16_NonSatTorch<TileDataD, TileDataS>(
+                dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride, tmpPtr,
+                numElemsPerRow);
         } else {
-            GenCastCallFp16ToInt16<TileDataD, TileDataS>(dst, src, repeatNum, mode, dstBlockStride, srcBlockStride,
-                                                         dstRepeatStride, srcRepeatStride);
+            GenCastCallFp16ToInt16<TileDataD, TileDataS>(
+                dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
         }
 #else
-        GenCastCallFp16ToInt16<TileDataD, TileDataS>(dst, src, repeatNum, mode, dstBlockStride, srcBlockStride,
-                                                     dstRepeatStride, srcRepeatStride);
+        GenCastCallFp16ToInt16<TileDataD, TileDataS>(
+            dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
 #endif
-    } else if constexpr (std::is_same<typename TileDataD::DType, int8_t>::value &&
-                         std::is_same<typename TileDataS::DType, half>::value) { // half to int8
+    } else if constexpr (
+        std::is_same<typename TileDataD::DType, int8_t>::value &&
+        std::is_same<typename TileDataS::DType, half>::value) { // half to int8
         bool isSatOn = (get_ctrl() & (1ULL << SAT_MODE_BIT)) == 0;
 #if EDGE_CASE_ALIGN_ENABLE
         if (!isSatOn) {
-            GenCastCallFp16ToInt8_NonSatTorch<TileDataD, TileDataS>(dst, src, repeatNum, mode, dstBlockStride,
-                                                                    srcBlockStride, dstRepeatStride, srcRepeatStride,
-                                                                    tmpPtr, numElemsPerRow);
+            GenCastCallFp16ToInt8_NonSatTorch<TileDataD, TileDataS>(
+                dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride, tmpPtr,
+                numElemsPerRow);
         } else {
-            GenCastCallFp16ToInt8<TileDataD, TileDataS>(dst, src, repeatNum, mode, dstBlockStride, srcBlockStride,
-                                                        dstRepeatStride, srcRepeatStride);
+            GenCastCallFp16ToInt8<TileDataD, TileDataS>(
+                dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
         }
 #else
-        GenCastCallFp16ToInt8<TileDataD, TileDataS>(dst, src, repeatNum, mode, dstBlockStride, srcBlockStride,
-                                                    dstRepeatStride, srcRepeatStride);
+        GenCastCallFp16ToInt8<TileDataD, TileDataS>(
+            dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
 #endif
     } else {
-        GenCastCall<TileDataD, TileDataS>(dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride,
-                                          srcRepeatStride);
+        GenCastCall<TileDataD, TileDataS>(
+            dst, src, repeatNum, mode, dstBlockStride, srcBlockStride, dstRepeatStride, srcRepeatStride);
     }
 }
 
@@ -966,52 +980,54 @@ AICORE void GenCastCall(__ubuf__ typename TileDataD::DType *dst, __ubuf__ typena
 // @param dstRepeatStride: Stride between repeats in destination
 // @param srcRepeatStride: Stride between repeats in source
 template <typename TileDataD, typename TileDataS, unsigned SS, unsigned DS>
-PTO_INST void TCvtHead(__ubuf__ typename TileDataD::DType *dstPtr, __ubuf__ typename TileDataS::DType *srcPtr,
-                       RoundMode mode, unsigned numRepeatPerLine, unsigned validRow, unsigned elementsPerRepeat,
-                       unsigned dstRepeatStride, unsigned srcRepeatStride)
+PTO_INST void TCvtHead(
+    __ubuf__ typename TileDataD::DType* dstPtr, __ubuf__ typename TileDataS::DType* srcPtr, RoundMode mode,
+    unsigned numRepeatPerLine, unsigned validRow, unsigned elementsPerRepeat, unsigned dstRepeatStride,
+    unsigned srcRepeatStride)
 {
     unsigned numLoop = numRepeatPerLine / REPEAT_MAX;
     unsigned remainAfterLoop = numRepeatPerLine % REPEAT_MAX;
     for (uint32_t i = 0; i < validRow; i++) {
         if (numLoop > 0) {
             for (uint32_t j = 0; j < numLoop; j++) {
-                GenCastCall<TileDataD, TileDataS>(dstPtr + i * DS + j * elementsPerRepeat * REPEAT_MAX,
-                                                  srcPtr + i * SS + j * elementsPerRepeat * REPEAT_MAX,
-                                                  (uint8_t)REPEAT_MAX, mode, 1, 1, (uint16_t)dstRepeatStride,
-                                                  (uint16_t)srcRepeatStride);
+                GenCastCall<TileDataD, TileDataS>(
+                    dstPtr + i * DS + j * elementsPerRepeat * REPEAT_MAX,
+                    srcPtr + i * SS + j * elementsPerRepeat * REPEAT_MAX, (uint8_t)REPEAT_MAX, mode, 1, 1,
+                    (uint16_t)dstRepeatStride, (uint16_t)srcRepeatStride);
             }
         }
         if (remainAfterLoop > 0) {
-            GenCastCall<TileDataD, TileDataS>(dstPtr + i * DS + numLoop * elementsPerRepeat * REPEAT_MAX,
-                                              srcPtr + i * SS + numLoop * elementsPerRepeat * REPEAT_MAX,
-                                              (uint8_t)remainAfterLoop, mode, 1, 1, (uint16_t)dstRepeatStride,
-                                              (uint16_t)srcRepeatStride);
+            GenCastCall<TileDataD, TileDataS>(
+                dstPtr + i * DS + numLoop * elementsPerRepeat * REPEAT_MAX,
+                srcPtr + i * SS + numLoop * elementsPerRepeat * REPEAT_MAX, (uint8_t)remainAfterLoop, mode, 1, 1,
+                (uint16_t)dstRepeatStride, (uint16_t)srcRepeatStride);
         }
     }
 }
 
 // TCvtHead overload with explicit temporary buffer pointer (forwarded to GenCastCall with tmp).
 template <typename TileDataD, typename TileDataS, unsigned SS, unsigned DS>
-PTO_INST void TCvtHead(__ubuf__ typename TileDataD::DType *dstPtr, __ubuf__ typename TileDataS::DType *srcPtr,
-                       RoundMode mode, unsigned numRepeatPerLine, unsigned validRow, unsigned elementsPerRepeat,
-                       unsigned dstRepeatStride, unsigned srcRepeatStride, __ubuf__ int32_t *tmpPtr)
+PTO_INST void TCvtHead(
+    __ubuf__ typename TileDataD::DType* dstPtr, __ubuf__ typename TileDataS::DType* srcPtr, RoundMode mode,
+    unsigned numRepeatPerLine, unsigned validRow, unsigned elementsPerRepeat, unsigned dstRepeatStride,
+    unsigned srcRepeatStride, __ubuf__ int32_t* tmpPtr)
 {
     unsigned numLoop = numRepeatPerLine / REPEAT_MAX;
     unsigned remainAfterLoop = numRepeatPerLine % REPEAT_MAX;
     for (uint32_t i = 0; i < validRow; i++) {
         if (numLoop > 0) {
             for (uint32_t j = 0; j < numLoop; j++) {
-                GenCastCall<TileDataD, TileDataS>(dstPtr + i * DS + j * elementsPerRepeat * REPEAT_MAX,
-                                                  srcPtr + i * SS + j * elementsPerRepeat * REPEAT_MAX,
-                                                  (uint8_t)REPEAT_MAX, mode, 1, 1, (uint16_t)dstRepeatStride,
-                                                  (uint16_t)srcRepeatStride, tmpPtr);
+                GenCastCall<TileDataD, TileDataS>(
+                    dstPtr + i * DS + j * elementsPerRepeat * REPEAT_MAX,
+                    srcPtr + i * SS + j * elementsPerRepeat * REPEAT_MAX, (uint8_t)REPEAT_MAX, mode, 1, 1,
+                    (uint16_t)dstRepeatStride, (uint16_t)srcRepeatStride, tmpPtr);
             }
         }
         if (remainAfterLoop > 0) {
-            GenCastCall<TileDataD, TileDataS>(dstPtr + i * DS + numLoop * elementsPerRepeat * REPEAT_MAX,
-                                              srcPtr + i * SS + numLoop * elementsPerRepeat * REPEAT_MAX,
-                                              (uint8_t)remainAfterLoop, mode, 1, 1, (uint16_t)dstRepeatStride,
-                                              (uint16_t)srcRepeatStride, tmpPtr);
+            GenCastCall<TileDataD, TileDataS>(
+                dstPtr + i * DS + numLoop * elementsPerRepeat * REPEAT_MAX,
+                srcPtr + i * SS + numLoop * elementsPerRepeat * REPEAT_MAX, (uint8_t)remainAfterLoop, mode, 1, 1,
+                (uint16_t)dstRepeatStride, (uint16_t)srcRepeatStride, tmpPtr);
         }
     }
 }
@@ -1058,8 +1074,9 @@ PTO_INST void RestoreSatMode(bool originalSatMode)
 // NonSatTorch paths which need explicit sub-chunk splitting (fp16 -> int8) can honor the valid
 // column count even when it exceeds the int32 hardware capacity (64 elements) per repeat.
 template <typename TileDataD, typename TileDataS, unsigned SS, unsigned DS, typename... Args>
-PTO_INST void TCvtTail(__ubuf__ typename TileDataD::DType *dstPtr, __ubuf__ typename TileDataS::DType *srcPtr,
-                       RoundMode mode, unsigned validRow, unsigned numRemainPerLine, Args... args)
+PTO_INST void TCvtTail(
+    __ubuf__ typename TileDataD::DType* dstPtr, __ubuf__ typename TileDataS::DType* srcPtr, RoundMode mode,
+    unsigned validRow, unsigned numRemainPerLine, Args... args)
 {
     constexpr unsigned dstNElemPerBlock = BLOCK_BYTE_SIZE / sizeof(typename TileDataD::DType);
     constexpr unsigned srcNElemPerBlock = BLOCK_BYTE_SIZE / sizeof(typename TileDataS::DType);
@@ -1069,15 +1086,15 @@ PTO_INST void TCvtTail(__ubuf__ typename TileDataD::DType *dstPtr, __ubuf__ type
     const uint16_t numElemsPerRow = static_cast<uint16_t>(numRemainPerLine);
     if (numLoop > 0) {
         for (uint32_t j = 0; j < numLoop; j++) {
-            GenCastCall<TileDataD, TileDataS>(dstPtr + j * DS * REPEAT_MAX, srcPtr + j * SS * REPEAT_MAX,
-                                              (uint8_t)REPEAT_MAX, mode, 1, 1, (uint16_t)DS / dstNElemPerBlock,
-                                              (uint16_t)SS / srcNElemPerBlock, args..., numElemsPerRow);
+            GenCastCall<TileDataD, TileDataS>(
+                dstPtr + j * DS * REPEAT_MAX, srcPtr + j * SS * REPEAT_MAX, (uint8_t)REPEAT_MAX, mode, 1, 1,
+                (uint16_t)DS / dstNElemPerBlock, (uint16_t)SS / srcNElemPerBlock, args..., numElemsPerRow);
         }
     }
     if (remainAfterLoop > 0) {
-        GenCastCall<TileDataD, TileDataS>(dstPtr + numLoop * DS * REPEAT_MAX, srcPtr + numLoop * SS * REPEAT_MAX,
-                                          (uint8_t)remainAfterLoop, mode, 1, 1, (uint16_t)DS / dstNElemPerBlock,
-                                          (uint16_t)SS / srcNElemPerBlock, args..., numElemsPerRow);
+        GenCastCall<TileDataD, TileDataS>(
+            dstPtr + numLoop * DS * REPEAT_MAX, srcPtr + numLoop * SS * REPEAT_MAX, (uint8_t)remainAfterLoop, mode, 1,
+            1, (uint16_t)DS / dstNElemPerBlock, (uint16_t)SS / srcNElemPerBlock, args..., numElemsPerRow);
     }
     set_vector_mask(-1, -1);
 }
@@ -1106,19 +1123,19 @@ PTO_INST void TCvtTail(__ubuf__ typename TileDataD::DType *dstPtr, __ubuf__ type
 // @param dstRepeatStride: Stride between repeats in destination buffer
 // @param srcRepeatStride: Stride between repeats in source buffer
 template <typename TileDataD, typename TileDataS, unsigned SS, unsigned DS, bool NeedSetCtrl>
-__tf__ AICORE void TCvt(typename TileDataD::TileDType __out__ dst, typename TileDataS::TileDType __in__ src,
-                        RoundMode mode, SaturationMode satMode, unsigned numRepeatPerLine, unsigned numRemainPerLine,
-                        unsigned validRow, unsigned elementsPerRepeat, unsigned dstRepeatStride,
-                        unsigned srcRepeatStride)
+__tf__ AICORE void TCvt(
+    typename TileDataD::TileDType __out__ dst, typename TileDataS::TileDType __in__ src, RoundMode mode,
+    SaturationMode satMode, unsigned numRepeatPerLine, unsigned numRemainPerLine, unsigned validRow,
+    unsigned elementsPerRepeat, unsigned dstRepeatStride, unsigned srcRepeatStride)
 {
     bool originalSatMode = ApplySatMode<NeedSetCtrl>(satMode);
 
-    __ubuf__ typename TileDataD::DType *dstPtr = (__ubuf__ typename TileDataD::DType *)__cce_get_tile_ptr(dst);
-    __ubuf__ typename TileDataS::DType *srcPtr = (__ubuf__ typename TileDataS::DType *)__cce_get_tile_ptr(src);
+    __ubuf__ typename TileDataD::DType* dstPtr = (__ubuf__ typename TileDataD::DType*)__cce_get_tile_ptr(dst);
+    __ubuf__ typename TileDataS::DType* srcPtr = (__ubuf__ typename TileDataS::DType*)__cce_get_tile_ptr(src);
 
     if (numRepeatPerLine > 0) {
-        TCvtHead<TileDataD, TileDataS, SS, DS>(dstPtr, srcPtr, mode, numRepeatPerLine, validRow, elementsPerRepeat,
-                                               dstRepeatStride, srcRepeatStride);
+        TCvtHead<TileDataD, TileDataS, SS, DS>(
+            dstPtr, srcPtr, mode, numRepeatPerLine, validRow, elementsPerRepeat, dstRepeatStride, srcRepeatStride);
     }
     dstPtr += numRepeatPerLine * elementsPerRepeat;
     srcPtr += numRepeatPerLine * elementsPerRepeat;
@@ -1134,20 +1151,22 @@ __tf__ AICORE void TCvt(typename TileDataD::TileDType __out__ dst, typename Tile
 // Mirrors TSort32Impl's with-tmp overload: passes a user-supplied scratch tile
 // through to GenCastCallFp16ToInt8_NonSatTorch instead of using TMP_UB_OFFSET.
 template <typename TileDataD, typename TileDataS, typename TmpTileData, unsigned SS, unsigned DS, bool NeedSetCtrl>
-__tf__ AICORE void TCvt(typename TileDataD::TileDType __out__ dst, typename TileDataS::TileDType __in__ src,
-                        typename TmpTileData::TileDType __in__ tmp, RoundMode mode, SaturationMode satMode,
-                        unsigned numRepeatPerLine, unsigned numRemainPerLine, unsigned validRow,
-                        unsigned elementsPerRepeat, unsigned dstRepeatStride, unsigned srcRepeatStride)
+__tf__ AICORE void TCvt(
+    typename TileDataD::TileDType __out__ dst, typename TileDataS::TileDType __in__ src,
+    typename TmpTileData::TileDType __in__ tmp, RoundMode mode, SaturationMode satMode, unsigned numRepeatPerLine,
+    unsigned numRemainPerLine, unsigned validRow, unsigned elementsPerRepeat, unsigned dstRepeatStride,
+    unsigned srcRepeatStride)
 {
     bool originalSatMode = ApplySatMode<NeedSetCtrl>(satMode);
 
-    __ubuf__ typename TileDataD::DType *dstPtr = (__ubuf__ typename TileDataD::DType *)__cce_get_tile_ptr(dst);
-    __ubuf__ typename TileDataS::DType *srcPtr = (__ubuf__ typename TileDataS::DType *)__cce_get_tile_ptr(src);
-    __ubuf__ int32_t *tmpPtr = (__ubuf__ int32_t *)__cce_get_tile_ptr(tmp);
+    __ubuf__ typename TileDataD::DType* dstPtr = (__ubuf__ typename TileDataD::DType*)__cce_get_tile_ptr(dst);
+    __ubuf__ typename TileDataS::DType* srcPtr = (__ubuf__ typename TileDataS::DType*)__cce_get_tile_ptr(src);
+    __ubuf__ int32_t* tmpPtr = (__ubuf__ int32_t*)__cce_get_tile_ptr(tmp);
 
     if (numRepeatPerLine > 0) {
-        TCvtHead<TileDataD, TileDataS, SS, DS>(dstPtr, srcPtr, mode, numRepeatPerLine, validRow, elementsPerRepeat,
-                                               dstRepeatStride, srcRepeatStride, tmpPtr);
+        TCvtHead<TileDataD, TileDataS, SS, DS>(
+            dstPtr, srcPtr, mode, numRepeatPerLine, validRow, elementsPerRepeat, dstRepeatStride, srcRepeatStride,
+            tmpPtr);
     }
     dstPtr += numRepeatPerLine * elementsPerRepeat;
     srcPtr += numRepeatPerLine * elementsPerRepeat;
@@ -1165,8 +1184,8 @@ __tf__ AICORE void TCvt(typename TileDataD::TileDType __out__ dst, typename Tile
 // Computes repeat stride and element count based on source/destination types.
 // Handles int4b_t packing (2 elements per byte) as a special case.
 template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void ComputeTCvtRepeatConfig(unsigned &elementsPerRepeat, unsigned &dstRepeatStride,
-                                          unsigned &srcRepeatStride)
+PTO_INTERNAL void ComputeTCvtRepeatConfig(
+    unsigned& elementsPerRepeat, unsigned& dstRepeatStride, unsigned& srcRepeatStride)
 {
     constexpr bool isDstInt4 = std::is_same<typename TileDataD::DType, int4b_t>::value;
     constexpr bool isSrcInt4 = std::is_same<typename TileDataS::DType, int4b_t>::value;
@@ -1215,8 +1234,8 @@ constexpr bool kIsNarrowingCvt =
 //
 // This is the main implementation with explicit satMode parameter.
 template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, RoundMode mode, SaturationMode satMode,
-                            bool needSetCtrl = true)
+PTO_INTERNAL void TCVT_IMPL(
+    TileDataD& dst, TileDataS& src, RoundMode mode, SaturationMode satMode, bool needSetCtrl = true)
 {
     unsigned dstRepeatStride, srcRepeatStride, elementsPerRepeat;
     ComputeTCvtRepeatConfig<TileDataD, TileDataS>(elementsPerRepeat, dstRepeatStride, srcRepeatStride);
@@ -1228,23 +1247,23 @@ PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, RoundMode mode, Satu
     unsigned validRow = dst.GetValidRow();
     if (needSetCtrl) {
         if constexpr (kIsNarrowingCvt<TileDataD, TileDataS>) {
-            TCvt<TileDataD, TileDataS, SS, DS, true>(dst.data(), src.data(), mode, satMode, numRepeatPerLine,
-                                                     numRemainPerLine, validRow, elementsPerRepeat, dstRepeatStride,
-                                                     srcRepeatStride);
+            TCvt<TileDataD, TileDataS, SS, DS, true>(
+                dst.data(), src.data(), mode, satMode, numRepeatPerLine, numRemainPerLine, validRow, elementsPerRepeat,
+                dstRepeatStride, srcRepeatStride);
         } else {
-            TCvt<TileDataD, TileDataS, SS, DS, true>(dst.data(), src.data(), mode, SaturationMode::ON, numRepeatPerLine,
-                                                     numRemainPerLine, validRow, elementsPerRepeat, dstRepeatStride,
-                                                     srcRepeatStride);
+            TCvt<TileDataD, TileDataS, SS, DS, true>(
+                dst.data(), src.data(), mode, SaturationMode::ON, numRepeatPerLine, numRemainPerLine, validRow,
+                elementsPerRepeat, dstRepeatStride, srcRepeatStride);
         }
     } else {
         if constexpr (kIsNarrowingCvt<TileDataD, TileDataS>) {
-            TCvt<TileDataD, TileDataS, SS, DS, false>(dst.data(), src.data(), mode, satMode, numRepeatPerLine,
-                                                      numRemainPerLine, validRow, elementsPerRepeat, dstRepeatStride,
-                                                      srcRepeatStride);
+            TCvt<TileDataD, TileDataS, SS, DS, false>(
+                dst.data(), src.data(), mode, satMode, numRepeatPerLine, numRemainPerLine, validRow, elementsPerRepeat,
+                dstRepeatStride, srcRepeatStride);
         } else {
-            TCvt<TileDataD, TileDataS, SS, DS, false>(dst.data(), src.data(), mode, SaturationMode::ON,
-                                                      numRepeatPerLine, numRemainPerLine, validRow, elementsPerRepeat,
-                                                      dstRepeatStride, srcRepeatStride);
+            TCvt<TileDataD, TileDataS, SS, DS, false>(
+                dst.data(), src.data(), mode, SaturationMode::ON, numRepeatPerLine, numRemainPerLine, validRow,
+                elementsPerRepeat, dstRepeatStride, srcRepeatStride);
         }
     }
 }
@@ -1253,8 +1272,8 @@ PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, RoundMode mode, Satu
 // Mirrors TSORT32_IMPL's with-tmp overload: uses user-supplied scratch tile
 // instead of TMP_UB_OFFSET for conversions that need temporary storage.
 template <typename TileDataD, typename TileDataS, typename TmpTileData>
-PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, TmpTileData &tmp, RoundMode mode, SaturationMode satMode,
-                            bool needSetCtrl = true)
+PTO_INTERNAL void TCVT_IMPL(
+    TileDataD& dst, TileDataS& src, TmpTileData& tmp, RoundMode mode, SaturationMode satMode, bool needSetCtrl = true)
 {
     unsigned dstRepeatStride, srcRepeatStride, elementsPerRepeat;
     ComputeTCvtRepeatConfig<TileDataD, TileDataS>(elementsPerRepeat, dstRepeatStride, srcRepeatStride);
@@ -1265,19 +1284,19 @@ PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, TmpTileData &tmp, Ro
     constexpr unsigned DS = TileDataD::RowStride;
     unsigned validRow = dst.GetValidRow();
     if (needSetCtrl) {
-        TCvt<TileDataD, TileDataS, TmpTileData, SS, DS, true>(dst.data(), src.data(), tmp.data(), mode, satMode,
-                                                              numRepeatPerLine, numRemainPerLine, validRow,
-                                                              elementsPerRepeat, dstRepeatStride, srcRepeatStride);
+        TCvt<TileDataD, TileDataS, TmpTileData, SS, DS, true>(
+            dst.data(), src.data(), tmp.data(), mode, satMode, numRepeatPerLine, numRemainPerLine, validRow,
+            elementsPerRepeat, dstRepeatStride, srcRepeatStride);
     } else {
-        TCvt<TileDataD, TileDataS, TmpTileData, SS, DS, false>(dst.data(), src.data(), tmp.data(), mode, satMode,
-                                                               numRepeatPerLine, numRemainPerLine, validRow,
-                                                               elementsPerRepeat, dstRepeatStride, srcRepeatStride);
+        TCvt<TileDataD, TileDataS, TmpTileData, SS, DS, false>(
+            dst.data(), src.data(), tmp.data(), mode, satMode, numRepeatPerLine, numRemainPerLine, validRow,
+            elementsPerRepeat, dstRepeatStride, srcRepeatStride);
     }
 }
 
 // TCVT_IMPL overload with explicit TmpTileData and type-specific default satMode.
 template <typename TileDataD, typename TileDataS, typename TmpTileData>
-PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, TmpTileData &tmp, RoundMode mode, bool needSetCtrl = true)
+PTO_INTERNAL void TCVT_IMPL(TileDataD& dst, TileDataS& src, TmpTileData& tmp, RoundMode mode, bool needSetCtrl = true)
 {
     if constexpr (kIsNarrowingCvt<TileDataD, TileDataS>) {
         TCVT_IMPL(dst, src, tmp, mode, SaturationMode::OFF, needSetCtrl);
@@ -1294,7 +1313,7 @@ PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, TmpTileData &tmp, Ro
 // - INT64→INT32, INT32→INT16: defaults to OFF (truncation behavior)
 // - All others: defaults to ON (native TCVT saturation)
 template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, RoundMode mode, bool needSetCtrl = true)
+PTO_INTERNAL void TCVT_IMPL(TileDataD& dst, TileDataS& src, RoundMode mode, bool needSetCtrl = true)
 {
     if constexpr (kIsNarrowingCvt<TileDataD, TileDataS>) {
         TCVT_IMPL(dst, src, mode, SaturationMode::OFF, needSetCtrl);

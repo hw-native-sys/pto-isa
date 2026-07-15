@@ -68,23 +68,25 @@ PTO_INTERNAL void CheckBinSOpTileData()
 {
     static_assert(CategoryBinSOps<op>::value, "UnaryTileScalarOpImpl: invalid ElementOp value");
 
-    if constexpr (CategoryBinSOps<op>::value == CONSTRAINT_ROWMAJOR ||
-                  CategoryBinSOps<op>::value == CONSTRAINT_VEC_ROWMAJOR) {
+    if constexpr (
+        CategoryBinSOps<op>::value == CONSTRAINT_ROWMAJOR || CategoryBinSOps<op>::value == CONSTRAINT_VEC_ROWMAJOR) {
         static_assert(TileData::isRowMajor, "UnaryTileScalarOpImpl: TileType of src and dst tiles must be Row Major.");
     }
 
-    if constexpr (CategoryBinSOps<op>::value == CONSTRAINT_VEC ||
-                  CategoryBinSOps<op>::value == CONSTRAINT_VEC_ROWMAJOR) {
-        static_assert(TileData::Loc == TileType::Vec,
-                      "UnaryTileScalarOpImpl: TileType of src and dst tiles must be TileType::Vec.");
+    if constexpr (
+        CategoryBinSOps<op>::value == CONSTRAINT_VEC || CategoryBinSOps<op>::value == CONSTRAINT_VEC_ROWMAJOR) {
+        static_assert(
+            TileData::Loc == TileType::Vec,
+            "UnaryTileScalarOpImpl: TileType of src and dst tiles must be TileType::Vec.");
     }
 }
 
 template <typename TileDst, typename TileSrc, ElementOp op>
-PTO_INTERNAL void CheckDstSrcTileData(TileDst &dst, TileSrc &src)
+PTO_INTERNAL void CheckDstSrcTileData(TileDst& dst, TileSrc& src)
 {
-    static_assert(std::is_same_v<typename TileDst::DType, typename TileSrc::DType>,
-                  "UnaryTileScalarOpImpl: The data type of dst must be consistent with src.");
+    static_assert(
+        std::is_same_v<typename TileDst::DType, typename TileSrc::DType>,
+        "UnaryTileScalarOpImpl: The data type of dst must be consistent with src.");
 
     CheckBinSOpTileData<TileDst, op>();
     CheckBinSOpTileData<TileSrc, op>();
@@ -94,7 +96,7 @@ PTO_INTERNAL void CheckDstSrcTileData(TileDst &dst, TileSrc &src)
 }
 
 template <typename TileDst, typename TileSrc, ElementOp op>
-PTO_INTERNAL void UnaryTileScalarOpImpl(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar, size_t extra = 0)
+PTO_INTERNAL void UnaryTileScalarOpImpl(TileDst& dst, TileSrc& src, typename TileSrc::DType scalar, size_t extra = 0)
 {
     using T = typename TileDst::DType;
     CheckDstSrcTileData<TileDst, TileSrc, op>(dst, src);
@@ -148,25 +150,25 @@ PTO_INTERNAL void UnaryTileScalarOpImpl(TileDst &dst, TileSrc &src, typename Til
 }
 
 template <typename TileDst, typename TileSrc>
-PTO_INTERNAL void TADDS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar)
+PTO_INTERNAL void TADDS_IMPL(TileDst& dst, TileSrc& src, typename TileSrc::DType scalar)
 {
     UnaryTileScalarOpImpl<TileDst, TileSrc, ElementOp::OP_ADDS>(dst, src, scalar);
 }
 
 template <typename TileDst, typename TileSrc>
-PTO_INTERNAL void TSUBS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar)
+PTO_INTERNAL void TSUBS_IMPL(TileDst& dst, TileSrc& src, typename TileSrc::DType scalar)
 {
     UnaryTileScalarOpImpl<TileDst, TileSrc, ElementOp::OP_SUBS>(dst, src, scalar);
 }
 
 template <typename TileDst, typename TileSrc>
-PTO_INTERNAL void TMULS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar)
+PTO_INTERNAL void TMULS_IMPL(TileDst& dst, TileSrc& src, typename TileSrc::DType scalar)
 {
     UnaryTileScalarOpImpl<TileDst, TileSrc, ElementOp::OP_MULS>(dst, src, scalar);
 }
 
 template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDst, typename TileSrc>
-PTO_INTERNAL void TDIVS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar)
+PTO_INTERNAL void TDIVS_IMPL(TileDst& dst, TileSrc& src, typename TileSrc::DType scalar)
 {
     if (scalar == static_cast<typename TileSrc::DType>(0)) {
         PTO_ASSERT(false, "TDIVS: illegal scalar is zero");
@@ -175,37 +177,37 @@ PTO_INTERNAL void TDIVS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType
 }
 
 template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDst, typename TileSrc>
-PTO_INTERNAL void TDIVS_IMPL(TileDst &dst, typename TileSrc::DType scalar, TileSrc &src)
+PTO_INTERNAL void TDIVS_IMPL(TileDst& dst, typename TileSrc::DType scalar, TileSrc& src)
 {
     UnaryTileScalarOpImpl<TileDst, TileSrc, ElementOp::OP_RDIVS>(dst, src, scalar);
 }
 
 template <typename TileDst, typename TileSrc>
-PTO_INTERNAL void TMINS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar)
+PTO_INTERNAL void TMINS_IMPL(TileDst& dst, TileSrc& src, typename TileSrc::DType scalar)
 {
     UnaryTileScalarOpImpl<TileDst, TileSrc, ElementOp::OP_MINS>(dst, src, scalar);
 }
 
 template <typename TileDst, typename TileSrc>
-PTO_INTERNAL void TPOWS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar)
+PTO_INTERNAL void TPOWS_IMPL(TileDst& dst, TileSrc& src, typename TileSrc::DType scalar)
 {
     UnaryTileScalarOpImpl<TileDst, TileSrc, ElementOp::OP_POWS>(dst, src, scalar);
 }
 template <auto PrecisionType = PowAlgorithm::DEFAULT, typename TileDst, typename TileSrc, typename TmpTile>
-PTO_INTERNAL void TPOWS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar, TmpTile &tmp)
+PTO_INTERNAL void TPOWS_IMPL(TileDst& dst, TileSrc& src, typename TileSrc::DType scalar, TmpTile& tmp)
 {
     (void)tmp;
     TPOWS_IMPL(dst, src, scalar);
 }
 
 template <auto PrecisionType = RemSAlgorithm::DEFAULT, typename TileDst, typename TileSrc>
-PTO_INTERNAL void TREMS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar)
+PTO_INTERNAL void TREMS_IMPL(TileDst& dst, TileSrc& src, typename TileSrc::DType scalar)
 {
     UnaryTileScalarOpImpl<TileDst, TileSrc, ElementOp::OP_REMS>(dst, src, scalar);
 }
 
 template <auto PrecisionType = RemSAlgorithm::DEFAULT, typename TileDst, typename TileSrc>
-PTO_INTERNAL void TREMS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar, TileDst &tmp)
+PTO_INTERNAL void TREMS_IMPL(TileDst& dst, TileSrc& src, typename TileSrc::DType scalar, TileDst& tmp)
 {
     (void)tmp;
     if (scalar != static_cast<TileSrc::DType>(0)) {
@@ -216,44 +218,44 @@ PTO_INTERNAL void TREMS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType
 }
 
 template <typename TileDst, typename TileSrc>
-PTO_INTERNAL void TMAXS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar)
+PTO_INTERNAL void TMAXS_IMPL(TileDst& dst, TileSrc& src, typename TileSrc::DType scalar)
 {
     UnaryTileScalarOpImpl<TileDst, TileSrc, ElementOp::OP_MAXS>(dst, src, scalar);
 }
 
 template <typename TileDst, typename TileSrc>
-PTO_INTERNAL void TANDS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar)
+PTO_INTERNAL void TANDS_IMPL(TileDst& dst, TileSrc& src, typename TileSrc::DType scalar)
 {
     UnaryTileScalarOpImpl<TileDst, TileSrc, ElementOp::OP_ANDS>(dst, src, scalar);
 }
 
 template <typename TileDst, typename TileSrc>
-PTO_INTERNAL void TORS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar)
+PTO_INTERNAL void TORS_IMPL(TileDst& dst, TileSrc& src, typename TileSrc::DType scalar)
 {
     UnaryTileScalarOpImpl<TileDst, TileSrc, ElementOp::OP_ORS>(dst, src, scalar);
 }
 
 template <typename TileDst, typename TileSrc>
-PTO_INTERNAL void TXORS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar)
+PTO_INTERNAL void TXORS_IMPL(TileDst& dst, TileSrc& src, typename TileSrc::DType scalar)
 {
     UnaryTileScalarOpImpl<TileDst, TileSrc, ElementOp::OP_XORS>(dst, src, scalar);
 }
 
 template <typename TileDst, typename TileSrc>
-PTO_INTERNAL void TXORS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar, TileDst &tmp)
+PTO_INTERNAL void TXORS_IMPL(TileDst& dst, TileSrc& src, typename TileSrc::DType scalar, TileDst& tmp)
 {
     (void)tmp;
     TXORS_IMPL(dst, src, scalar);
 }
 
 template <typename TileDst, typename TileSrc>
-PTO_INTERNAL void TLRELU_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar)
+PTO_INTERNAL void TLRELU_IMPL(TileDst& dst, TileSrc& src, typename TileSrc::DType scalar)
 {
     UnaryTileScalarOpImpl<TileDst, TileSrc, ElementOp::OP_LRELU>(dst, src, scalar);
 }
 
 template <auto PrecisionType = FmodSAlgorithm::DEFAULT, typename TileDst, typename TileSrc>
-PTO_INTERNAL void TFMODS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar)
+PTO_INTERNAL void TFMODS_IMPL(TileDst& dst, TileSrc& src, typename TileSrc::DType scalar)
 {
     if (scalar != static_cast<TileSrc::DType>(0)) {
         UnaryTileScalarOpImpl<TileDst, TileSrc, ElementOp::OP_FMODS>(dst, src, scalar);
@@ -263,19 +265,19 @@ PTO_INTERNAL void TFMODS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DTyp
 }
 
 template <typename TileDst, typename TileSrc>
-PTO_INTERNAL void TSHLS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar)
+PTO_INTERNAL void TSHLS_IMPL(TileDst& dst, TileSrc& src, typename TileSrc::DType scalar)
 {
     UnaryTileScalarOpImpl<TileDst, TileSrc, ElementOp::OP_SHLS>(dst, src, scalar);
 }
 
 template <typename TileDst, typename TileSrc>
-PTO_INTERNAL void TSHRS_IMPL(TileDst &dst, TileSrc &src, typename TileSrc::DType scalar)
+PTO_INTERNAL void TSHRS_IMPL(TileDst& dst, TileSrc& src, typename TileSrc::DType scalar)
 {
     UnaryTileScalarOpImpl<TileDst, TileSrc, ElementOp::OP_SHRS>(dst, src, scalar);
 }
 
 template <typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TAXPY_IMPL(TileDataDst &dst, TileDataSrc &src, typename TileDataSrc::DType scalar)
+PTO_INTERNAL void TAXPY_IMPL(TileDataDst& dst, TileDataSrc& src, typename TileDataSrc::DType scalar)
 {
     unsigned row = dst.GetValidRow();
     unsigned col = dst.GetValidCol();

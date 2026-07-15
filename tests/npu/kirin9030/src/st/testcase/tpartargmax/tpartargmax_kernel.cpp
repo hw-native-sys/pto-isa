@@ -13,10 +13,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-template <typename T, typename U, int dstVR, int dstVC, int src0VR, int src0VC, int src1VR, int src1VC, int dstTR,
-          int dstTC, int src0TR, int src0TC, int src1TR, int src1TC>
-__global__ AICORE void runTPartArgMax(__gm__ T *out, __gm__ T *src0, __gm__ T *src1, __gm__ U *outIdx,
-                                      __gm__ U *src0Idx, __gm__ U *src1Idx)
+template <
+    typename T, typename U, int dstVR, int dstVC, int src0VR, int src0VC, int src1VR, int src1VC, int dstTR, int dstTC,
+    int src0TR, int src0TC, int src1TR, int src1TC>
+__global__ AICORE void runTPartArgMax(
+    __gm__ T* out, __gm__ T* src0, __gm__ T* src1, __gm__ U* outIdx, __gm__ U* src0Idx, __gm__ U* src1Idx)
 {
     using GlobalDataDst = GlobalTensor<T, Shape<1, 1, 1, dstVR, dstVC>, pto::Stride<1, 1, dstTR, dstTC, 1>>;
     using GlobalDataSrc0 = GlobalTensor<T, Shape<1, 1, 1, src0VR, src0VC>, pto::Stride<1, 1, src0TR, src0TC, 1>>;
@@ -44,8 +45,9 @@ __global__ AICORE void runTPartArgMax(__gm__ T *out, __gm__ T *src0, __gm__ T *s
     TASSIGN<(src0TR * src0TC + src1TR * src1TC) * sizeof(T)>(dstTile);
     TASSIGN<(src0TR * src0TC + src1TR * src1TC + dstTR * dstTC) * sizeof(T)>(src0TileIdx);
     TASSIGN<(src0TR * src0TC + src1TR * src1TC + dstTR * dstTC) * sizeof(T) + src0TR * src0TC * sizeof(U)>(src1TileIdx);
-    TASSIGN(dstTileIdx, (src0TR * src0TC + src1TR * src1TC + dstTR * dstTC) * sizeof(T) +
-                            (src0TR * src0TC + src1TR * src1TC) * sizeof(U));
+    TASSIGN(
+        dstTileIdx, (src0TR * src0TC + src1TR * src1TC + dstTR * dstTC) * sizeof(T) +
+                        (src0TR * src0TC + src1TR * src1TC) * sizeof(U));
 
     GlobalDataSrc0 src0Global(src0);
     GlobalDataSrc1 src1Global(src1);
@@ -74,14 +76,15 @@ __global__ AICORE void runTPartArgMax(__gm__ T *out, __gm__ T *src0, __gm__ T *s
     outIdx = dstGlobalIdx.data();
 }
 
-template <typename T, typename U, int dstVR, int dstVC, int src0VR, int src0VC, int src1VR, int src1VC, int dstTR,
-          int dstTC, int src0TR, int src0TC, int src1TR, int src1TC, bool isHalf = false>
-void LaunchTPartArgMax(T *out, T *src0, T *src1, U *outIdx, U *src0Idx, U *src1Idx, void *stream)
+template <
+    typename T, typename U, int dstVR, int dstVC, int src0VR, int src0VC, int src1VR, int src1VC, int dstTR, int dstTC,
+    int src0TR, int src0TC, int src1TR, int src1TC, bool isHalf = false>
+void LaunchTPartArgMax(T* out, T* src0, T* src1, U* outIdx, U* src0Idx, U* src1Idx, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16> && isHalf == true) {
-        runTPartArgMax<half, U, dstVR, dstVC, src0VR, src0VC, src1VR, src1VC, dstTR, dstTC, src0TR, src0TC, src1TR,
-                       src1TC>
-            <<<1, nullptr, stream>>>((half *)out, (half *)src0, (half *)src1, outIdx, src0Idx, src1Idx);
+        runTPartArgMax<
+            half, U, dstVR, dstVC, src0VR, src0VC, src1VR, src1VC, dstTR, dstTC, src0TR, src0TC, src1TR, src1TC>
+            <<<1, nullptr, stream>>>((half*)out, (half*)src0, (half*)src1, outIdx, src0Idx, src1Idx);
     } else {
         runTPartArgMax<T, U, dstVR, dstVC, src0VR, src0VC, src1VR, src1VC, dstTR, dstTC, src0TR, src0TC, src1TR, src1TC>
             <<<1, nullptr, stream>>>(out, src0, src1, outIdx, src0Idx, src1Idx);
@@ -89,14 +92,14 @@ void LaunchTPartArgMax(T *out, T *src0, T *src1, U *outIdx, U *src0Idx, U *src1I
 }
 
 template void LaunchTPartArgMax<float, uint32_t, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64>(
-    float *out, float *src0, float *src1, uint32_t *outIdx, uint32_t *src0Idx, uint32_t *src1Idx, void *stream);
+    float* out, float* src0, float* src1, uint32_t* outIdx, uint32_t* src0Idx, uint32_t* src1Idx, void* stream);
 template void LaunchTPartArgMax<float, int32_t, 2, 24, 2, 24, 2, 8, 4, 32, 3, 24, 2, 16>(
-    float *out, float *src0, float *src1, int32_t *outIdx, int32_t *src0Idx, int32_t *src1Idx, void *stream);
+    float* out, float* src0, float* src1, int32_t* outIdx, int32_t* src0Idx, int32_t* src1Idx, void* stream);
 template void LaunchTPartArgMax<float, int32_t, 12, 63, 12, 63, 6, 60, 12, 64, 12, 64, 6, 64>(
-    float *out, float *src0, float *src1, int32_t *outIdx, int32_t *src0Idx, int32_t *src1Idx, void *stream);
+    float* out, float* src0, float* src1, int32_t* outIdx, int32_t* src0Idx, int32_t* src1Idx, void* stream);
 template void LaunchTPartArgMax<aclFloat16, int16_t, 10, 31, 8, 16, 10, 31, 10, 32, 8, 32, 12, 32, true>(
-    aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1, int16_t *outIdx, int16_t *src0Idx, int16_t *src1Idx,
-    void *stream);
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, int16_t* outIdx, int16_t* src0Idx, int16_t* src1Idx,
+    void* stream);
 template void LaunchTPartArgMax<aclFloat16, uint16_t, 5, 33, 5, 33, 5, 30, 8, 48, 5, 48, 6, 48, true>(
-    aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1, uint16_t *outIdx, uint16_t *src0Idx, uint16_t *src1Idx,
-    void *stream);
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, uint16_t* outIdx, uint16_t* src0Idx, uint16_t* src1Idx,
+    void* stream);

@@ -22,9 +22,9 @@ This is a freely distributable industry-standard benchmark.
 
 using namespace pto;
 
-AICORE void custom_strcpy(char *des, char *source)
+AICORE void custom_strcpy(char* des, char* source)
 {
-    char *r = des;
+    char* r = des;
 
     if ((des == NULL) || (source == NULL))
         return;
@@ -33,12 +33,12 @@ AICORE void custom_strcpy(char *des, char *source)
         ;
 }
 
-AICORE int strcmp(char *sl, char *s2)
+AICORE int strcmp(char* sl, char* s2)
 {
     for (; *sl == *s2; ++sl, ++s2)
         if (*sl == '\0')
             return (0);
-    return ((*(unsigned char *)sl < *(unsigned char *)s2) ? -1 : +1);
+    return ((*(unsigned char*)sl < *(unsigned char*)s2) ? -1 : +1);
 }
 
 AICORE void proc_1(Rec_Pointer ptr_val_par)
@@ -67,11 +67,11 @@ AICORE void proc_1(Rec_Pointer ptr_val_par)
         structassign(*ptr_val_par, *ptr_val_par->ptr_comp);
 } /* proc_1 */
 
-AICORE void proc_2(int *int_par_ref)
+AICORE void proc_2(int* int_par_ref)
 
 {
-    char *ch_1_glob = (char *)0x100110;
-    char *int_glob = (char *)0x100100;
+    char* ch_1_glob = (char*)0x100110;
+    char* int_glob = (char*)0x100100;
     int int_loc;
     Enumeration enum_Loc;
 
@@ -87,11 +87,11 @@ AICORE void proc_2(int *int_par_ref)
     while (enum_Loc != Ident_1); /* true */
 } /* proc_2 */
 
-AICORE void proc_3(Rec_Pointer *ptr_ref_par)
+AICORE void proc_3(Rec_Pointer* ptr_ref_par)
 
 {
     Rec_Pointer ptr_glob = (Rec_Pointer)0x100000;
-    int *int_glob = (int *)0x100100;
+    int* int_glob = (int*)0x100100;
     if (ptr_glob != NULL)
         /* then, executed */
         *ptr_ref_par = ptr_glob->ptr_comp;
@@ -102,9 +102,9 @@ AICORE void proc_4(void)
 {
     bool bool_Loc;
 
-    bool *bool_glob = (bool *)0x100108;
-    char *ch_1_glob = (char *)0x100110;
-    char *ch_2_glob = (char *)0x100118;
+    bool* bool_glob = (bool*)0x100108;
+    char* ch_1_glob = (char*)0x100110;
+    char* ch_2_glob = (char*)0x100118;
 
     bool_Loc = *ch_1_glob == 'A';
     *bool_glob = bool_Loc | *bool_glob;
@@ -113,16 +113,16 @@ AICORE void proc_4(void)
 
 AICORE void proc_5(void)
 {
-    bool *bool_glob = (bool *)0x100108;
-    char *ch_1_glob = (char *)0x100110;
+    bool* bool_glob = (bool*)0x100108;
+    char* ch_1_glob = (char*)0x100110;
 
     *ch_1_glob = 'A';
     *bool_glob = false;
 } /* proc_5 */
 
-AICORE void proc_6(Enumeration enum_val_par, Enumeration *enum_ref_par)
+AICORE void proc_6(Enumeration enum_val_par, Enumeration* enum_ref_par)
 {
-    char *int_glob = (char *)0x100100;
+    char* int_glob = (char*)0x100100;
     *enum_ref_par = enum_val_par;
     if (!func_3(enum_val_par))
         /* then, not executed */
@@ -149,7 +149,7 @@ AICORE void proc_6(Enumeration enum_val_par, Enumeration *enum_ref_par)
     } /* switch */
 } /* proc_6 */
 
-AICORE void proc_7(int int_1_par_val, int int_2_par_val, int *int_par_ref)
+AICORE void proc_7(int int_1_par_val, int int_2_par_val, int* int_par_ref)
 {
     int int_loc;
 
@@ -157,11 +157,11 @@ AICORE void proc_7(int int_1_par_val, int int_2_par_val, int *int_par_ref)
     *int_par_ref = int_2_par_val + int_loc;
 } /* proc_7 */
 
-AICORE void proc_8(int *arr_1_par_ref, int *arr_2_par_ref, int int_1_par_val, int int_2_par_val)
+AICORE void proc_8(int* arr_1_par_ref, int* arr_2_par_ref, int int_1_par_val, int int_2_par_val)
 {
     int int_index;
     int int_loc;
-    char *int_glob = (char *)0x100100;
+    char* int_glob = (char*)0x100100;
 
     int_loc = int_1_par_val + 5;
     *(arr_1_par_ref + int_loc) = int_2_par_val;
@@ -183,7 +183,7 @@ AICORE Enumeration func_1(char ch_1_par_val, char ch_2_par_val)
 {
     char ch_1_loc;
     char ch_2_loc;
-    char *ch_1_glob = (char *)0x100110;
+    char* ch_1_glob = (char*)0x100110;
 
     ch_1_loc = ch_1_par_val;
     ch_2_loc = ch_1_loc;
@@ -205,7 +205,7 @@ AICORE bool func_2(Str_30 str_1_par_ref, Str_30 str_2_par_ref)
 {
     int int_loc;
     char ch_loc;
-    int *int_glob = (int *)0x100100;
+    int* int_glob = (int*)0x100100;
 
     int_loc = 2;
     while (int_loc <= 2) /* loop body executed once */
@@ -264,11 +264,11 @@ __global__ AICORE void runTDhrystone()
 
     Rec_Pointer ptr_glob = (Rec_Pointer)0x100000;
     Rec_Pointer next_ptr_glob = (Rec_Pointer)0x100080;
-    int *int_glob = (int *)0x100100;
-    bool *bool_glob = (bool *)0x100108;
-    char *ch_2_glob = (char *)0x100118;
-    int *arr_1_Glob = (int *)0x101000;
-    int *arr_2_Glob = (int *)0x102000;
+    int* int_glob = (int*)0x100100;
+    bool* bool_glob = (bool*)0x100108;
+    char* ch_2_glob = (char*)0x100118;
+    int* arr_1_Glob = (int*)0x101000;
+    int* arr_2_Glob = (int*)0x102000;
 
     /* Initializations */
     char cpystr0[31] = {'D', 'H', 'R', 'Y', 'S', 'T', 'O', 'N', 'E', ' ', 'P', 'R', 'O', 'G', 'R',
@@ -355,21 +355,20 @@ __global__ AICORE void runTDhrystone()
 #endif
 }
 
-__global__ AICORE __attribute__((aic)) void warmup_kernel()
-{}
+__global__ AICORE __attribute__((aic)) void warmup_kernel() {}
 
 template <int iteration>
-void LaunchTDhrystone(void *stream)
+void LaunchTDhrystone(void* stream)
 {
     warmup_kernel<<<24, nullptr, stream>>>();
     runTDhrystone<iteration><<<1, nullptr, stream>>>();
 }
 
-template void LaunchTDhrystone<1000>(void *stream);
-template void LaunchTDhrystone<2000>(void *stream);
-template void LaunchTDhrystone<3000>(void *stream);
-template void LaunchTDhrystone<4000>(void *stream);
-template void LaunchTDhrystone<5000>(void *stream);
-template void LaunchTDhrystone<6000>(void *stream);
-template void LaunchTDhrystone<7000>(void *stream);
-template void LaunchTDhrystone<8000>(void *stream);
+template void LaunchTDhrystone<1000>(void* stream);
+template void LaunchTDhrystone<2000>(void* stream);
+template void LaunchTDhrystone<3000>(void* stream);
+template void LaunchTDhrystone<4000>(void* stream);
+template void LaunchTDhrystone<5000>(void* stream);
+template void LaunchTDhrystone<6000>(void* stream);
+template void LaunchTDhrystone<7000>(void* stream);
+template void LaunchTDhrystone<8000>(void* stream);

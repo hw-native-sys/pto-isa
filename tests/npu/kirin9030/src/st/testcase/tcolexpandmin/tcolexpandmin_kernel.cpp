@@ -16,7 +16,7 @@ using namespace pto;
 namespace TColExpandMinTest {
 
 template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col>
-__global__ AICORE void runCOLEXPANDMIN(__gm__ T *out, __gm__ T *src0, __gm__ T *src1)
+__global__ AICORE void runCOLEXPANDMIN(__gm__ T* out, __gm__ T* src0, __gm__ T* src1)
 {
     using DynShapeDim5 = Shape<1, 1, 1, src1Row, src1Col>;
     using DynStridDim5 = pto::Stride<1, 1, 1, src1Col, 1>;
@@ -66,22 +66,22 @@ __global__ AICORE void runCOLEXPANDMIN(__gm__ T *out, __gm__ T *src0, __gm__ T *
 }
 
 template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col>
-void launchTColExpandMin(T *out, T *src0, T *src1, void *stream)
+void launchTColExpandMin(T* out, T* src0, T* src1, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
         runCOLEXPANDMIN<half, dstRow, dstCol, src1Row, src1Col>
-            <<<1, nullptr, stream>>>((half *)out, (half *)src0, (half *)src1);
+            <<<1, nullptr, stream>>>((half*)out, (half*)src0, (half*)src1);
     } else {
         runCOLEXPANDMIN<T, dstRow, dstCol, src1Row, src1Col><<<1, nullptr, stream>>>(out, src0, src1);
     }
 }
 
-template void launchTColExpandMin<float, 16, 128, 1, 128>(float *out, float *src0, float *src1, void *stream);
-template void launchTColExpandMin<float, 32, 32, 1, 32>(float *out, float *src0, float *src1, void *stream);
-template void launchTColExpandMin<aclFloat16, 4, 256, 1, 256>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                              void *stream);
-template void launchTColExpandMin<aclFloat16, 10, 64, 1, 64>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                             void *stream);
-template void launchTColExpandMin<int32_t, 16, 32, 1, 32>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
-template void launchTColExpandMin<int16_t, 16, 64, 1, 64>(int16_t *out, int16_t *src0, int16_t *src1, void *stream);
+template void launchTColExpandMin<float, 16, 128, 1, 128>(float* out, float* src0, float* src1, void* stream);
+template void launchTColExpandMin<float, 32, 32, 1, 32>(float* out, float* src0, float* src1, void* stream);
+template void launchTColExpandMin<aclFloat16, 4, 256, 1, 256>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void launchTColExpandMin<aclFloat16, 10, 64, 1, 64>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void launchTColExpandMin<int32_t, 16, 32, 1, 32>(int32_t* out, int32_t* src0, int32_t* src1, void* stream);
+template void launchTColExpandMin<int16_t, 16, 64, 1, 64>(int16_t* out, int16_t* src0, int16_t* src1, void* stream);
 } // namespace TColExpandMinTest

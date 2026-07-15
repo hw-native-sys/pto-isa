@@ -20,11 +20,12 @@ using namespace pto;
 // GEMM 1536x256x1024, single core, base=128x64x256, stepKa/Kb=4
 void runGemm_1536x256x1024()
 {
-    RunGemmE2E<float, half, half, float, /*blockDim=*/1, 1536, 256, 1024, // m, k, n
-               1536, 256, 1024,                                           // validM, validK, validN
-               1536, 256, 1024,                                           // singleCoreM, singleCoreK, singleCoreN
-               128, 64, 256,                                              // baseM, baseK, baseN
-               1, 4, 4, 1>(                                               // stepM, stepKa, stepKb, stepN
+    RunGemmE2E<
+        float, half, half, float, /*blockDim=*/1, 1536, 256, 1024, // m, k, n
+        1536, 256, 1024,                                           // validM, validK, validN
+        1536, 256, 1024,                                           // singleCoreM, singleCoreK, singleCoreN
+        128, 64, 256,                                              // baseM, baseK, baseN
+        1, 4, 4, 1>(                                               // stepM, stepKa, stepKb, stepN
         nullptr, nullptr, nullptr);
 }
 
@@ -32,11 +33,11 @@ TEST(GemmPerfSim, RunGemm_1536x256x1024)
 {
     LAUNCH_KERNEL(runGemm_1536x256x1024, , (1, nullptr, nullptr));
 
-    auto &instrs = ::pto::perf_sim::PtoRecorder::GetForCore(0);
+    auto& instrs = ::pto::perf_sim::PtoRecorder::GetForCore(0);
     EXPECT_GT(instrs.size(), 0u) << "Expected recorded GEMM instructions";
 
     bool has_matrix = false, has_mte2 = false, has_fixp = false;
-    for (auto &rec : instrs) {
+    for (auto& rec : instrs) {
         if (rec.stage == ::pto::perf_sim::PipeStage::Matrix)
             has_matrix = true;
         if (rec.stage == ::pto::perf_sim::PipeStage::MTE2_AIC)

@@ -15,8 +15,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename dstType, typename srcType, int kTRows_, int kTCols_, int vRows, int vCols>
-__global__ AICORE void runTDeuant(__gm__ dstType *out, __gm__ srcType *src, __gm__ dstType *scale,
-                                  __gm__ dstType *offset)
+__global__ AICORE void runTDeuant(
+    __gm__ dstType* out, __gm__ srcType* src, __gm__ dstType* scale, __gm__ dstType* offset)
 {
     using DynShapeDim5 = Shape<1, 1, 1, -1, -1>;
     using DynStridDim5 = pto::Stride<1, 1, -1, -1, 1>;
@@ -57,20 +57,20 @@ __global__ AICORE void runTDeuant(__gm__ dstType *out, __gm__ srcType *src, __gm
 }
 
 template <typename dstType, typename srcType, int kTRows_, int kTCols_, int vRows, int vCols>
-void launchTDequant(dstType *out, srcType *src, dstType *scale, dstType *offset, void *stream)
+void launchTDequant(dstType* out, srcType* src, dstType* scale, dstType* offset, void* stream)
 {
     runTDeuant<dstType, srcType, kTRows_, kTCols_, vRows, vCols><<<1, nullptr, stream>>>(out, src, scale, offset);
 }
 
-template void launchTDequant<float, int16_t, 64, 64, 64, 64>(float *out, int16_t *src, float *scale, float *offset,
-                                                             void *stream);
-template void launchTDequant<float, int16_t, 128, 128, 64, 64>(float *out, int16_t *src, float *scale, float *offset,
-                                                               void *stream);
-template void launchTDequant<float, int16_t, 128, 128, 63, 63>(float *out, int16_t *src, float *scale, float *offset,
-                                                               void *stream);
-template void launchTDequant<float, int8_t, 64, 64, 64, 64>(float *out, int8_t *src, float *scale, float *offset,
-                                                            void *stream);
-template void launchTDequant<float, int8_t, 128, 128, 64, 64>(float *out, int8_t *src, float *scale, float *offset,
-                                                              void *stream);
-template void launchTDequant<float, int8_t, 128, 128, 63, 63>(float *out, int8_t *src, float *scale, float *offset,
-                                                              void *stream);
+template void launchTDequant<float, int16_t, 64, 64, 64, 64>(
+    float* out, int16_t* src, float* scale, float* offset, void* stream);
+template void launchTDequant<float, int16_t, 128, 128, 64, 64>(
+    float* out, int16_t* src, float* scale, float* offset, void* stream);
+template void launchTDequant<float, int16_t, 128, 128, 63, 63>(
+    float* out, int16_t* src, float* scale, float* offset, void* stream);
+template void launchTDequant<float, int8_t, 64, 64, 64, 64>(
+    float* out, int8_t* src, float* scale, float* offset, void* stream);
+template void launchTDequant<float, int8_t, 128, 128, 64, 64>(
+    float* out, int8_t* src, float* scale, float* offset, void* stream);
+template void launchTDequant<float, int8_t, 128, 128, 63, 63>(
+    float* out, int8_t* src, float* scale, float* offset, void* stream);

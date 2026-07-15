@@ -21,7 +21,7 @@ template <int rows, int cols>
 using StrideDim2 = pto::Stride<rows * cols, rows * cols, rows * cols, cols, 1>;
 #endif
 template <typename Tsrc0, typename Tsrc1, int kGRows0_, int kGCols0_, int kGRows1_, int kGCols1_>
-inline AICORE void runTGather(__gm__ Tsrc0 *out, __gm__ Tsrc0 *src0, __gm__ Tsrc1 *src1)
+inline AICORE void runTGather(__gm__ Tsrc0* out, __gm__ Tsrc0* src0, __gm__ Tsrc1* src1)
 {
     using DynShapeDim5_src0 = pto::Shape<1, 1, 1, kGRows0_, kGCols0_>;
     using DynStridDim5_src0 = StrideDim2<kGRows0_, kGCols0_>;
@@ -69,48 +69,48 @@ inline AICORE void runTGather(__gm__ Tsrc0 *out, __gm__ Tsrc0 *src0, __gm__ Tsrc
     out = dstGlobal.data();
 }
 
-extern "C" __global__ AICORE void test_tgather_float(__gm__ float *out, __gm__ float *src0, __gm__ int32_t *src1)
+extern "C" __global__ AICORE void test_tgather_float(__gm__ float* out, __gm__ float* src0, __gm__ int32_t* src1)
 {
     runTGather<float, int32_t, 32, 864, 16, 64>(out, src0, src1);
 }
 
-extern "C" __global__ AICORE void test_tgather_int32(__gm__ int32_t *out, __gm__ int32_t *src0, __gm__ int32_t *src1)
+extern "C" __global__ AICORE void test_tgather_int32(__gm__ int32_t* out, __gm__ int32_t* src0, __gm__ int32_t* src1)
 {
     runTGather<int32_t, int32_t, 32, 512, 16, 256>(out, src0, src1);
 }
 
-extern "C" __global__ AICORE void test_tgather_half(__gm__ int16_t *out, __gm__ int16_t *src0, __gm__ int16_t *src1)
+extern "C" __global__ AICORE void test_tgather_half(__gm__ int16_t* out, __gm__ int16_t* src0, __gm__ int16_t* src1)
 {
     runTGather<int16_t, int16_t, 16, 1024, 16, 128>(out, src0, src1);
 }
 
-extern "C" __global__ AICORE void test_tgather_int16(__gm__ int16_t *out, __gm__ int16_t *src0, __gm__ int16_t *src1)
+extern "C" __global__ AICORE void test_tgather_int16(__gm__ int16_t* out, __gm__ int16_t* src0, __gm__ int16_t* src1)
 {
     runTGather<int16_t, int16_t, 32, 256, 32, 64>(out, src0, src1);
 }
 
-void launchTGATHER_demo_float(float *out, float *src0, int32_t *src1, aclrtStream stream)
+void launchTGATHER_demo_float(float* out, float* src0, int32_t* src1, aclrtStream stream)
 {
     test_tgather_float<<<1, nullptr, stream>>>(out, src0, src1);
 }
 
-void launchTGATHER_demo_int32(int32_t *out, int32_t *src0, int32_t *src1, aclrtStream stream)
+void launchTGATHER_demo_int32(int32_t* out, int32_t* src0, int32_t* src1, aclrtStream stream)
 {
     test_tgather_int32<<<1, nullptr, stream>>>(out, src0, src1);
 }
 
-void launchTGATHER_demo_half(int16_t *out, int16_t *src0, int16_t *src1, aclrtStream stream)
+void launchTGATHER_demo_half(int16_t* out, int16_t* src0, int16_t* src1, aclrtStream stream)
 {
     test_tgather_half<<<1, nullptr, stream>>>(out, src0, src1);
 }
 
-void launchTGATHER_demo_int16(int16_t *out, int16_t *src0, int16_t *src1, aclrtStream stream)
+void launchTGATHER_demo_int16(int16_t* out, int16_t* src0, int16_t* src1, aclrtStream stream)
 {
     test_tgather_int16<<<1, nullptr, stream>>>(out, src0, src1);
 }
 
 template <typename srcT, typename dstT, int kGRows_, int kGCols_, int kTRows_, int kTCols_, MaskPattern maskPattern>
-__global__ AICORE void runTGATHER(__gm__ dstT *out, __gm__ srcT *src)
+__global__ AICORE void runTGATHER(__gm__ dstT* out, __gm__ srcT* src)
 {
     using DynShapeDim5 = pto::Shape<1, 1, 1, kGRows_, kGCols_>;
     using DynStridDim5 = StrideDim2<kGRows_, kGCols_>;
@@ -137,114 +137,148 @@ __global__ AICORE void runTGATHER(__gm__ dstT *out, __gm__ srcT *src)
 }
 
 template <typename srcT, typename dstT, int kGRows_, int kGCols_, int kTRows_, int kTCols_, MaskPattern maskPattern>
-void LaunchTGATHER(dstT *out, srcT *src, void *stream)
+void LaunchTGATHER(dstT* out, srcT* src, void* stream)
 {
     if constexpr (std::is_same_v<srcT, uint16_t>) {
         runTGATHER<half, half, kGRows_, kGCols_, kTRows_, kTCols_, maskPattern>
-            <<<1, nullptr, stream>>>(reinterpret_cast<half *>(out), reinterpret_cast<half *>(src));
+            <<<1, nullptr, stream>>>(reinterpret_cast<half*>(out), reinterpret_cast<half*>(src));
     } else {
         runTGATHER<srcT, dstT, kGRows_, kGCols_, kTRows_, kTCols_, maskPattern><<<1, nullptr, stream>>>(out, src);
     }
 }
 
-template void LaunchTGATHER<int8_t, int8_t, HALF_P0101_ROW, HALF_P0101_COL, HALF_P0101_ROW, HALF_P0101_COL,
-                            MaskPattern::P0101>(int8_t *out, int8_t *src, void *stream);
+template void
+LaunchTGATHER<int8_t, int8_t, HALF_P0101_ROW, HALF_P0101_COL, HALF_P0101_ROW, HALF_P0101_COL, MaskPattern::P0101>(
+    int8_t* out, int8_t* src, void* stream);
 
-template void LaunchTGATHER<uint8_t, uint8_t, HALF_P1010_ROW, HALF_P1010_COL, HALF_P1010_ROW, HALF_P1010_COL,
-                            MaskPattern::P1010>(uint8_t *out, uint8_t *src, void *stream);
+template void
+LaunchTGATHER<uint8_t, uint8_t, HALF_P1010_ROW, HALF_P1010_COL, HALF_P1010_ROW, HALF_P1010_COL, MaskPattern::P1010>(
+    uint8_t* out, uint8_t* src, void* stream);
 
-template void LaunchTGATHER<int8_t, int8_t, HALF_P0001_ROW, HALF_P0001_COL, HALF_P0001_ROW, HALF_P0001_COL,
-                            MaskPattern::P0001>(int8_t *out, int8_t *src, void *stream);
+template void
+LaunchTGATHER<int8_t, int8_t, HALF_P0001_ROW, HALF_P0001_COL, HALF_P0001_ROW, HALF_P0001_COL, MaskPattern::P0001>(
+    int8_t* out, int8_t* src, void* stream);
 
-template void LaunchTGATHER<uint8_t, uint8_t, HALF_P0010_ROW, HALF_P0010_COL, HALF_P0010_ROW, HALF_P0010_COL,
-                            MaskPattern::P0010>(uint8_t *out, uint8_t *src, void *stream);
+template void
+LaunchTGATHER<uint8_t, uint8_t, HALF_P0010_ROW, HALF_P0010_COL, HALF_P0010_ROW, HALF_P0010_COL, MaskPattern::P0010>(
+    uint8_t* out, uint8_t* src, void* stream);
 
-template void LaunchTGATHER<int8_t, int8_t, HALF_P0100_ROW, HALF_P0100_COL, HALF_P0100_ROW, HALF_P0100_COL,
-                            MaskPattern::P0100>(int8_t *out, int8_t *src, void *stream);
+template void
+LaunchTGATHER<int8_t, int8_t, HALF_P0100_ROW, HALF_P0100_COL, HALF_P0100_ROW, HALF_P0100_COL, MaskPattern::P0100>(
+    int8_t* out, int8_t* src, void* stream);
 
-template void LaunchTGATHER<uint8_t, uint8_t, HALF_P1000_ROW, HALF_P1000_COL, HALF_P1000_ROW, HALF_P1000_COL,
-                            MaskPattern::P1000>(uint8_t *out, uint8_t *src, void *stream);
+template void
+LaunchTGATHER<uint8_t, uint8_t, HALF_P1000_ROW, HALF_P1000_COL, HALF_P1000_ROW, HALF_P1000_COL, MaskPattern::P1000>(
+    uint8_t* out, uint8_t* src, void* stream);
 
-template void LaunchTGATHER<int8_t, int8_t, HALF_P1111_ROW, HALF_P1111_COL, HALF_P1111_ROW, HALF_P1111_COL,
-                            MaskPattern::P1111>(int8_t *out, int8_t *src, void *stream);
+template void
+LaunchTGATHER<int8_t, int8_t, HALF_P1111_ROW, HALF_P1111_COL, HALF_P1111_ROW, HALF_P1111_COL, MaskPattern::P1111>(
+    int8_t* out, int8_t* src, void* stream);
 
-template void LaunchTGATHER<uint16_t, uint16_t, HALF_P0101_ROW, HALF_P0101_COL, HALF_P0101_ROW, HALF_P0101_COL,
-                            MaskPattern::P0101>(uint16_t *out, uint16_t *src, void *stream);
+template void
+LaunchTGATHER<uint16_t, uint16_t, HALF_P0101_ROW, HALF_P0101_COL, HALF_P0101_ROW, HALF_P0101_COL, MaskPattern::P0101>(
+    uint16_t* out, uint16_t* src, void* stream);
 
-template void LaunchTGATHER<uint16_t, uint16_t, HALF_P1010_ROW, HALF_P1010_COL, HALF_P1010_ROW, HALF_P1010_COL,
-                            MaskPattern::P1010>(uint16_t *out, uint16_t *src, void *stream);
+template void
+LaunchTGATHER<uint16_t, uint16_t, HALF_P1010_ROW, HALF_P1010_COL, HALF_P1010_ROW, HALF_P1010_COL, MaskPattern::P1010>(
+    uint16_t* out, uint16_t* src, void* stream);
 
-template void LaunchTGATHER<int16_t, int16_t, HALF_P0001_ROW, HALF_P0001_COL, HALF_P0001_ROW, HALF_P0001_COL,
-                            MaskPattern::P0001>(int16_t *out, int16_t *src, void *stream);
+template void
+LaunchTGATHER<int16_t, int16_t, HALF_P0001_ROW, HALF_P0001_COL, HALF_P0001_ROW, HALF_P0001_COL, MaskPattern::P0001>(
+    int16_t* out, int16_t* src, void* stream);
 
-template void LaunchTGATHER<int16_t, int16_t, HALF_P0010_ROW, HALF_P0010_COL, HALF_P0010_ROW, HALF_P0010_COL,
-                            MaskPattern::P0010>(int16_t *out, int16_t *src, void *stream);
+template void
+LaunchTGATHER<int16_t, int16_t, HALF_P0010_ROW, HALF_P0010_COL, HALF_P0010_ROW, HALF_P0010_COL, MaskPattern::P0010>(
+    int16_t* out, int16_t* src, void* stream);
 
-template void LaunchTGATHER<uint32_t, uint32_t, FLOAT_P0100_ROW, FLOAT_P0100_COL, FLOAT_P0100_ROW, FLOAT_P0100_COL,
-                            MaskPattern::P0100>(uint32_t *out, uint32_t *src, void *stream);
+template void LaunchTGATHER<
+    uint32_t, uint32_t, FLOAT_P0100_ROW, FLOAT_P0100_COL, FLOAT_P0100_ROW, FLOAT_P0100_COL, MaskPattern::P0100>(
+    uint32_t* out, uint32_t* src, void* stream);
 
-template void LaunchTGATHER<int32_t, int32_t, FLOAT_P1000_ROW, FLOAT_P1000_COL, FLOAT_P1000_ROW, FLOAT_P1000_COL,
-                            MaskPattern::P1000>(int32_t *out, int32_t *src, void *stream);
+template void
+LaunchTGATHER<int32_t, int32_t, FLOAT_P1000_ROW, FLOAT_P1000_COL, FLOAT_P1000_ROW, FLOAT_P1000_COL, MaskPattern::P1000>(
+    int32_t* out, int32_t* src, void* stream);
 
-template void LaunchTGATHER<int32_t, int32_t, FLOAT_P1111_ROW, FLOAT_P1111_COL, FLOAT_P1111_ROW, FLOAT_P1111_COL,
-                            MaskPattern::P1111>(int32_t *out, int32_t *src, void *stream);
+template void
+LaunchTGATHER<int32_t, int32_t, FLOAT_P1111_ROW, FLOAT_P1111_COL, FLOAT_P1111_ROW, FLOAT_P1111_COL, MaskPattern::P1111>(
+    int32_t* out, int32_t* src, void* stream);
 
-template void LaunchTGATHER<half, half, HALF_P0101_ROW, HALF_P0101_COL, HALF_P0101_ROW, HALF_P0101_COL,
-                            MaskPattern::P0101>(half *out, half *src, void *stream);
+template void
+LaunchTGATHER<half, half, HALF_P0101_ROW, HALF_P0101_COL, HALF_P0101_ROW, HALF_P0101_COL, MaskPattern::P0101>(
+    half* out, half* src, void* stream);
 
-template void LaunchTGATHER<half, half, HALF_P1010_ROW, HALF_P1010_COL, HALF_P1010_ROW, HALF_P1010_COL,
-                            MaskPattern::P1010>(half *out, half *src, void *stream);
+template void
+LaunchTGATHER<half, half, HALF_P1010_ROW, HALF_P1010_COL, HALF_P1010_ROW, HALF_P1010_COL, MaskPattern::P1010>(
+    half* out, half* src, void* stream);
 
-template void LaunchTGATHER<half, half, HALF_P0001_ROW, HALF_P0001_COL, HALF_P0001_ROW, HALF_P0001_COL,
-                            MaskPattern::P0001>(half *out, half *src, void *stream);
+template void
+LaunchTGATHER<half, half, HALF_P0001_ROW, HALF_P0001_COL, HALF_P0001_ROW, HALF_P0001_COL, MaskPattern::P0001>(
+    half* out, half* src, void* stream);
 
-template void LaunchTGATHER<half, half, HALF_P0010_ROW, HALF_P0010_COL, HALF_P0010_ROW, HALF_P0010_COL,
-                            MaskPattern::P0010>(half *out, half *src, void *stream);
+template void
+LaunchTGATHER<half, half, HALF_P0010_ROW, HALF_P0010_COL, HALF_P0010_ROW, HALF_P0010_COL, MaskPattern::P0010>(
+    half* out, half* src, void* stream);
 
-template void LaunchTGATHER<half, half, HALF_P0100_ROW, HALF_P0100_COL, HALF_P0100_ROW, HALF_P0100_COL,
-                            MaskPattern::P0100>(half *out, half *src, void *stream);
+template void
+LaunchTGATHER<half, half, HALF_P0100_ROW, HALF_P0100_COL, HALF_P0100_ROW, HALF_P0100_COL, MaskPattern::P0100>(
+    half* out, half* src, void* stream);
 
-template void LaunchTGATHER<half, half, HALF_P1000_ROW, HALF_P1000_COL, HALF_P1000_ROW, HALF_P1000_COL,
-                            MaskPattern::P1000>(half *out, half *src, void *stream);
+template void
+LaunchTGATHER<half, half, HALF_P1000_ROW, HALF_P1000_COL, HALF_P1000_ROW, HALF_P1000_COL, MaskPattern::P1000>(
+    half* out, half* src, void* stream);
 
-template void LaunchTGATHER<half, half, HALF_P1111_ROW, HALF_P1111_COL, HALF_P1111_ROW, HALF_P1111_COL,
-                            MaskPattern::P1111>(half *out, half *src, void *stream);
+template void
+LaunchTGATHER<half, half, HALF_P1111_ROW, HALF_P1111_COL, HALF_P1111_ROW, HALF_P1111_COL, MaskPattern::P1111>(
+    half* out, half* src, void* stream);
 
-template void LaunchTGATHER<uint16_t, uint16_t, HALF_P0001_ROW, HALF_P0001_COL, HALF_P0001_ROW, HALF_P0001_COL,
-                            MaskPattern::P0001>(uint16_t *out, uint16_t *src, void *stream);
+template void
+LaunchTGATHER<uint16_t, uint16_t, HALF_P0001_ROW, HALF_P0001_COL, HALF_P0001_ROW, HALF_P0001_COL, MaskPattern::P0001>(
+    uint16_t* out, uint16_t* src, void* stream);
 
-template void LaunchTGATHER<uint16_t, uint16_t, HALF_P0010_ROW, HALF_P0010_COL, HALF_P0010_ROW, HALF_P0010_COL,
-                            MaskPattern::P0010>(uint16_t *out, uint16_t *src, void *stream);
+template void
+LaunchTGATHER<uint16_t, uint16_t, HALF_P0010_ROW, HALF_P0010_COL, HALF_P0010_ROW, HALF_P0010_COL, MaskPattern::P0010>(
+    uint16_t* out, uint16_t* src, void* stream);
 
-template void LaunchTGATHER<uint16_t, uint16_t, HALF_P0100_ROW, HALF_P0100_COL, HALF_P0100_ROW, HALF_P0100_COL,
-                            MaskPattern::P0100>(uint16_t *out, uint16_t *src, void *stream);
+template void
+LaunchTGATHER<uint16_t, uint16_t, HALF_P0100_ROW, HALF_P0100_COL, HALF_P0100_ROW, HALF_P0100_COL, MaskPattern::P0100>(
+    uint16_t* out, uint16_t* src, void* stream);
 
-template void LaunchTGATHER<uint16_t, uint16_t, HALF_P1000_ROW, HALF_P1000_COL, HALF_P1000_ROW, HALF_P1000_COL,
-                            MaskPattern::P1000>(uint16_t *out, uint16_t *src, void *stream);
+template void
+LaunchTGATHER<uint16_t, uint16_t, HALF_P1000_ROW, HALF_P1000_COL, HALF_P1000_ROW, HALF_P1000_COL, MaskPattern::P1000>(
+    uint16_t* out, uint16_t* src, void* stream);
 
-template void LaunchTGATHER<uint16_t, uint16_t, HALF_P1111_ROW, HALF_P1111_COL, HALF_P1111_ROW, HALF_P1111_COL,
-                            MaskPattern::P1111>(uint16_t *out, uint16_t *src, void *stream);
+template void
+LaunchTGATHER<uint16_t, uint16_t, HALF_P1111_ROW, HALF_P1111_COL, HALF_P1111_ROW, HALF_P1111_COL, MaskPattern::P1111>(
+    uint16_t* out, uint16_t* src, void* stream);
 
-template void LaunchTGATHER<float, float, FLOAT_P0101_ROW, FLOAT_P0101_COL, FLOAT_P0101_ROW, FLOAT_P0101_COL,
-                            MaskPattern::P0101>(float *out, float *src, void *stream);
+template void
+LaunchTGATHER<float, float, FLOAT_P0101_ROW, FLOAT_P0101_COL, FLOAT_P0101_ROW, FLOAT_P0101_COL, MaskPattern::P0101>(
+    float* out, float* src, void* stream);
 
-template void LaunchTGATHER<float, float, FLOAT_P1010_ROW, FLOAT_P1010_COL, FLOAT_P1010_ROW, FLOAT_P1010_COL,
-                            MaskPattern::P1010>(float *out, float *src, void *stream);
+template void
+LaunchTGATHER<float, float, FLOAT_P1010_ROW, FLOAT_P1010_COL, FLOAT_P1010_ROW, FLOAT_P1010_COL, MaskPattern::P1010>(
+    float* out, float* src, void* stream);
 
-template void LaunchTGATHER<float, float, FLOAT_P0001_ROW, FLOAT_P0001_COL, FLOAT_P0001_ROW, FLOAT_P0001_COL,
-                            MaskPattern::P0001>(float *out, float *src, void *stream);
+template void
+LaunchTGATHER<float, float, FLOAT_P0001_ROW, FLOAT_P0001_COL, FLOAT_P0001_ROW, FLOAT_P0001_COL, MaskPattern::P0001>(
+    float* out, float* src, void* stream);
 
-template void LaunchTGATHER<float, float, FLOAT_P0010_ROW, FLOAT_P0010_COL, FLOAT_P0010_ROW, FLOAT_P0010_COL,
-                            MaskPattern::P0010>(float *out, float *src, void *stream);
+template void
+LaunchTGATHER<float, float, FLOAT_P0010_ROW, FLOAT_P0010_COL, FLOAT_P0010_ROW, FLOAT_P0010_COL, MaskPattern::P0010>(
+    float* out, float* src, void* stream);
 
-template void LaunchTGATHER<float, float, FLOAT_P0100_ROW, FLOAT_P0100_COL, FLOAT_P0100_ROW, FLOAT_P0100_COL,
-                            MaskPattern::P0100>(float *out, float *src, void *stream);
+template void
+LaunchTGATHER<float, float, FLOAT_P0100_ROW, FLOAT_P0100_COL, FLOAT_P0100_ROW, FLOAT_P0100_COL, MaskPattern::P0100>(
+    float* out, float* src, void* stream);
 
-template void LaunchTGATHER<float, float, FLOAT_P1000_ROW, FLOAT_P1000_COL, FLOAT_P1000_ROW, FLOAT_P1000_COL,
-                            MaskPattern::P1000>(float *out, float *src, void *stream);
+template void
+LaunchTGATHER<float, float, FLOAT_P1000_ROW, FLOAT_P1000_COL, FLOAT_P1000_ROW, FLOAT_P1000_COL, MaskPattern::P1000>(
+    float* out, float* src, void* stream);
 
-template void LaunchTGATHER<float, float, FLOAT_P1111_ROW, FLOAT_P1111_COL, FLOAT_P1111_ROW, FLOAT_P1111_COL,
-                            MaskPattern::P1111>(float *out, float *src, void *stream);
+template void
+LaunchTGATHER<float, float, FLOAT_P1111_ROW, FLOAT_P1111_COL, FLOAT_P1111_ROW, FLOAT_P1111_COL, MaskPattern::P1111>(
+    float* out, float* src, void* stream);
 
-template void LaunchTGATHER<float, int32_t, FLOAT_P1010_ROW, FLOAT_P1010_COL, FLOAT_P1010_ROW, FLOAT_P1010_COL,
-                            MaskPattern::P1010>(int32_t *out, float *src, void *stream);
+template void
+LaunchTGATHER<float, int32_t, FLOAT_P1010_ROW, FLOAT_P1010_COL, FLOAT_P1010_ROW, FLOAT_P1010_COL, MaskPattern::P1010>(
+    int32_t* out, float* src, void* stream);

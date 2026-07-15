@@ -21,27 +21,26 @@ using namespace pto;
 
 class TCMPSTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, int Row, int Col, int ValidRow, int ValidCol, CmpMode cmpMode, bool isSrc1Tile,
-          bool isBf16 = false>
-void LaunchTCmps(uint8_t *out, T *src0, T *src1, void *stream);
+template <
+    typename T, int Row, int Col, int ValidRow, int ValidCol, CmpMode cmpMode, bool isSrc1Tile, bool isBf16 = false>
+void LaunchTCmps(uint8_t* out, T* src0, T* src1, void* stream);
 
-template <typename T, int Row, int Col, int ValidRow, int ValidCol, CmpMode cmpMode, bool isSrc1Tile = false,
-          bool isBf16 = false>
+template <
+    typename T, int Row, int Col, int ValidRow, int ValidCol, CmpMode cmpMode, bool isSrc1Tile = false,
+    bool isBf16 = false>
 void test_tcmps()
 {
     size_t src0FileSize = Row * Col * sizeof(T);
@@ -57,13 +56,13 @@ void test_tcmps()
     T *src1Host, *src1Device;
 
     uint8_t *dstHost, *dstDevice;
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&src0Host), src0FileSize);
-    aclrtMallocHost((void **)(&src1Host), src1FileSize);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMallocHost((void**)(&src0Host), src0FileSize);
+    aclrtMallocHost((void**)(&src1Host), src1FileSize);
 
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, src0FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, src1FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, src0FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, src1FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input1.bin", src0FileSize, src0Host, src0FileSize);
     ReadFile(GetGoldenDir() + "/input2.bin", src1FileSize, src1Host, src1FileSize);
@@ -71,8 +70,8 @@ void test_tcmps()
     aclrtMemcpy(src0Device, src0FileSize, src0Host, src0FileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, src1FileSize, src1Host, src1FileSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
-    LaunchTCmps<T, Row, Col, ValidRow, ValidCol, cmpMode, isSrc1Tile, isBf16>(dstDevice, src0Device, src1Device,
-                                                                              stream);
+    LaunchTCmps<T, Row, Col, ValidRow, ValidCol, cmpMode, isSrc1Tile, isBf16>(
+        dstDevice, src0Device, src1Device, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, dstFileSize, dstDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -100,55 +99,16 @@ void test_tcmps()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TCMPSTest, case_half_32x32_32x32)
-{
-    test_tcmps<uint16_t, 32, 32, 32, 32, CmpMode::EQ>();
-}
-TEST_F(TCMPSTest, case_float_8x64_8x64)
-{
-    test_tcmps<float, 8, 64, 8, 64, CmpMode::GT, true>();
-}
-TEST_F(TCMPSTest, case_int32_4x64_4x64)
-{
-    test_tcmps<int32_t, 4, 64, 4, 64, CmpMode::NE>();
-}
-TEST_F(TCMPSTest, case_int32_128x128_64x64)
-{
-    test_tcmps<int32_t, 128, 128, 64, 64, CmpMode::LT, true>();
-}
-TEST_F(TCMPSTest, case_int32_64x64_32x32)
-{
-    test_tcmps<int32_t, 64, 64, 32, 32, CmpMode::EQ>();
-}
-TEST_F(TCMPSTest, case_int32_16x32_16x32)
-{
-    test_tcmps<int32_t, 16, 32, 16, 32, CmpMode::EQ, true>();
-}
-TEST_F(TCMPSTest, case_float_128x128_64x64)
-{
-    test_tcmps<float, 128, 128, 64, 64, CmpMode::LE>();
-}
-TEST_F(TCMPSTest, case_int32_77x80_32x32)
-{
-    test_tcmps<int32_t, 77, 80, 32, 32, CmpMode::EQ, true>();
-}
-TEST_F(TCMPSTest, case_int32_32x32_32x32)
-{
-    test_tcmps<int32_t, 32, 32, 32, 32, CmpMode::EQ>();
-}
-TEST_F(TCMPSTest, case_int16_32x32_16x32)
-{
-    test_tcmps<int16_t, 32, 32, 16, 32, CmpMode::EQ, true>();
-}
-TEST_F(TCMPSTest, case_int16_77x80_32x32)
-{
-    test_tcmps<int16_t, 77, 80, 32, 32, CmpMode::LE>();
-}
-TEST_F(TCMPSTest, case_bfloat16_32x32_16x32)
-{
-    test_tcmps<int16_t, 32, 32, 16, 32, CmpMode::EQ, true, true>();
-}
-TEST_F(TCMPSTest, case_bfloat16_77x80_32x32)
-{
-    test_tcmps<int16_t, 77, 80, 32, 32, CmpMode::LE, false, true>();
-}
+TEST_F(TCMPSTest, case_half_32x32_32x32) { test_tcmps<uint16_t, 32, 32, 32, 32, CmpMode::EQ>(); }
+TEST_F(TCMPSTest, case_float_8x64_8x64) { test_tcmps<float, 8, 64, 8, 64, CmpMode::GT, true>(); }
+TEST_F(TCMPSTest, case_int32_4x64_4x64) { test_tcmps<int32_t, 4, 64, 4, 64, CmpMode::NE>(); }
+TEST_F(TCMPSTest, case_int32_128x128_64x64) { test_tcmps<int32_t, 128, 128, 64, 64, CmpMode::LT, true>(); }
+TEST_F(TCMPSTest, case_int32_64x64_32x32) { test_tcmps<int32_t, 64, 64, 32, 32, CmpMode::EQ>(); }
+TEST_F(TCMPSTest, case_int32_16x32_16x32) { test_tcmps<int32_t, 16, 32, 16, 32, CmpMode::EQ, true>(); }
+TEST_F(TCMPSTest, case_float_128x128_64x64) { test_tcmps<float, 128, 128, 64, 64, CmpMode::LE>(); }
+TEST_F(TCMPSTest, case_int32_77x80_32x32) { test_tcmps<int32_t, 77, 80, 32, 32, CmpMode::EQ, true>(); }
+TEST_F(TCMPSTest, case_int32_32x32_32x32) { test_tcmps<int32_t, 32, 32, 32, 32, CmpMode::EQ>(); }
+TEST_F(TCMPSTest, case_int16_32x32_16x32) { test_tcmps<int16_t, 32, 32, 16, 32, CmpMode::EQ, true>(); }
+TEST_F(TCMPSTest, case_int16_77x80_32x32) { test_tcmps<int16_t, 77, 80, 32, 32, CmpMode::LE>(); }
+TEST_F(TCMPSTest, case_bfloat16_32x32_16x32) { test_tcmps<int16_t, 32, 32, 16, 32, CmpMode::EQ, true, true>(); }
+TEST_F(TCMPSTest, case_bfloat16_77x80_32x32) { test_tcmps<int16_t, 77, 80, 32, 32, CmpMode::LE, false, true>(); }

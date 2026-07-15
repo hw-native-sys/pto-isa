@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class TTESTTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -33,7 +31,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-bool LaunchTTest(T *src, int32_t cmpValue, pto::comm::WaitCmp cmp, void *stream);
+bool LaunchTTest(T* src, int32_t cmpValue, pto::comm::WaitCmp cmp, void* stream);
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, pto::comm::WaitCmp cmp>
 void test_ttest()
@@ -45,12 +43,12 @@ void test_ttest()
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    T *srcHost;
-    T *srcDevice;
+    T* srcHost;
+    T* srcDevice;
 
-    aclrtMallocHost((void **)(&srcHost), fileSize);
+    aclrtMallocHost((void**)(&srcHost), fileSize);
 
-    aclrtMalloc((void **)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input.bin", fileSize, srcHost, fileSize));
 
@@ -59,7 +57,7 @@ void test_ttest()
     std::string cmpFileName = GetGoldenDir() + "/cmp_file.bin";
     std::ifstream cmpFile(cmpFileName, std::ios::binary);
 
-    cmpFile.read(reinterpret_cast<char *>(&cmpValue), sizeof(cmpValue));
+    cmpFile.read(reinterpret_cast<char*>(&cmpValue), sizeof(cmpValue));
     cmpFile.close();
 
     bool outputTestTrue = LaunchTTest<T, kGRows_, kGCols_, kTRows_, kTCols_>(srcDevice, cmpValue[0], cmp, stream);
@@ -81,34 +79,16 @@ void test_ttest()
     std::string goldenFileName = GetGoldenDir() + "/golden.bin";
     std::ifstream goldenFile(goldenFileName, std::ios::binary);
 
-    goldenFile.read(reinterpret_cast<char *>(goldenValue), sizeof(goldenValue));
+    goldenFile.read(reinterpret_cast<char*>(goldenValue), sizeof(goldenValue));
     goldenFile.close();
 
     EXPECT_TRUE(goldenValue[0] == outputTestTrue);
     EXPECT_TRUE(goldenValue[1] == outputTestFalse);
 }
 
-TEST_F(TTESTTest, case1)
-{
-    test_ttest<int32_t, 64, 64, 64, 64, pto::comm::WaitCmp::LE>();
-}
-TEST_F(TTESTTest, case2)
-{
-    test_ttest<int32_t, 64, 64, 64, 64, pto::comm::WaitCmp::GE>();
-}
-TEST_F(TTESTTest, case3)
-{
-    test_ttest<int32_t, 64, 64, 64, 64, pto::comm::WaitCmp::EQ>();
-}
-TEST_F(TTESTTest, case4)
-{
-    test_ttest<int32_t, 16, 256, 16, 256, pto::comm::WaitCmp::LE>();
-}
-TEST_F(TTESTTest, case5)
-{
-    test_ttest<int32_t, 16, 256, 16, 256, pto::comm::WaitCmp::GE>();
-}
-TEST_F(TTESTTest, case6)
-{
-    test_ttest<int32_t, 16, 256, 16, 256, pto::comm::WaitCmp::EQ>();
-}
+TEST_F(TTESTTest, case1) { test_ttest<int32_t, 64, 64, 64, 64, pto::comm::WaitCmp::LE>(); }
+TEST_F(TTESTTest, case2) { test_ttest<int32_t, 64, 64, 64, 64, pto::comm::WaitCmp::GE>(); }
+TEST_F(TTESTTest, case3) { test_ttest<int32_t, 64, 64, 64, 64, pto::comm::WaitCmp::EQ>(); }
+TEST_F(TTESTTest, case4) { test_ttest<int32_t, 16, 256, 16, 256, pto::comm::WaitCmp::LE>(); }
+TEST_F(TTESTTest, case5) { test_ttest<int32_t, 16, 256, 16, 256, pto::comm::WaitCmp::GE>(); }
+TEST_F(TTESTTest, case6) { test_ttest<int32_t, 16, 256, 16, 256, pto::comm::WaitCmp::EQ>(); }

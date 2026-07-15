@@ -21,17 +21,17 @@ namespace pto_path {
 constexpr auto kNpuDevice = c10::DeviceType::PrivateUse1;
 
 template <typename Arg>
-decltype(auto) AdaptKernelArg(Arg &&arg)
+decltype(auto) AdaptKernelArg(Arg&& arg)
 {
     if constexpr (std::is_same_v<std::remove_cv_t<std::remove_reference_t<Arg>>, at::Tensor>) {
-        return const_cast<void *>(arg.storage().data());
+        return const_cast<void*>(arg.storage().data());
     } else {
         return std::forward<Arg>(arg);
     }
 }
 
 template <typename... Args>
-auto AdaptKernelArgs(Args &&...args)
+auto AdaptKernelArgs(Args&&... args)
 {
     return std::make_tuple(AdaptKernelArg(std::forward<Args>(args))...);
 }
@@ -42,7 +42,7 @@ auto AdaptKernelArgs(Args &&...args)
         auto __p = AdaptKernelArgs(__VA_ARGS__);                                                                \
         auto __fn = [__s, blk, __p]() -> int {                                                                  \
             uint32_t __rc = 0;                                                                                  \
-            std::apply([&](auto &&...__a) { __rc = ACLRT_LAUNCH_KERNEL(kernel_name)(blk, __s, __a...); }, __p); \
+            std::apply([&](auto&&... __a) { __rc = ACLRT_LAUNCH_KERNEL(kernel_name)(blk, __s, __a...); }, __p); \
             return __rc;                                                                                        \
         };                                                                                                      \
         at_npu::native::OpCommand::RunOpApi(#kernel_name, __fn);                                                \

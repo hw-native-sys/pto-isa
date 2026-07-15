@@ -15,7 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol, bool isInPlace>
-__global__ AICORE void runTExp(__gm__ T *out, __gm__ T *src)
+__global__ AICORE void runTExp(__gm__ T* out, __gm__ T* src)
 {
     using DynShapeDim5 = Shape<1, 1, 1, -1, -1>;
     using SrcGlobalData = GlobalTensor<T, DynShapeDim5, pto::Stride<1, 1, srcRow, srcCol, 1>>;
@@ -40,29 +40,29 @@ __global__ AICORE void runTExp(__gm__ T *out, __gm__ T *src)
 }
 
 template <typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol, bool isInPlace>
-void LaunchTExp(T *out, T *src, void *stream)
+void LaunchTExp(T* out, T* src, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>)
         runTExp<half, dstRow, dstCol, srcRow, srcCol, validRow, validCol, isInPlace>
-            <<<1, nullptr, stream>>>((half *)(out), (half *)(src));
+            <<<1, nullptr, stream>>>((half*)(out), (half*)(src));
     else
         runTExp<T, dstRow, dstCol, srcRow, srcCol, validRow, validCol, isInPlace><<<1, nullptr, stream>>>(out, src);
 }
 
-template void LaunchTExp<float, 64, 64, 64, 64, 64, 64, true>(float *out, float *src, void *stream);
-template void LaunchTExp<float, 64, 64, 64, 64, 64, 64, false>(float *out, float *src, void *stream);
-template void LaunchTExp<aclFloat16, 64, 64, 64, 64, 64, 64, true>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTExp<aclFloat16, 64, 64, 64, 64, 64, 64, false>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTExp<float, 128, 128, 64, 64, 64, 64, false>(float *out, float *src, void *stream);
-template void LaunchTExp<float, 64, 64, 128, 128, 32, 32, false>(float *out, float *src, void *stream);
-template void LaunchTExp<aclFloat16, 128, 256, 64, 64, 64, 64, false>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTExp<aclFloat16, 64, 64, 128, 256, 32, 32, false>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTExp<float, 16, 256, 16, 256, 16, 256, false>(float *out, float *src, void *stream);
-template void LaunchTExp<float, 16, 256, 16, 256, 16, 128, false>(float *out, float *src, void *stream);
-template void LaunchTExp<aclFloat16, 256, 16, 256, 16, 256, 16, false>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTExp<aclFloat16, 256, 16, 256, 16, 128, 16, false>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTExp<float, 128, 128, 128, 128, 64, 64, false>(float *out, float *src, void *stream);
-template void LaunchTExp<aclFloat16, 128, 128, 128, 128, 64, 64, false>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTExp<float, 32, 64, 128, 128, 32, 64, false>(float *out, float *src, void *stream);
-template void LaunchTExp<float, 32, 32, 32, 32, 32, 16, false>(float *out, float *src, void *stream);
-template void LaunchTExp<aclFloat16, 32, 32, 32, 32, 32, 16, false>(aclFloat16 *out, aclFloat16 *src, void *stream);
+template void LaunchTExp<float, 64, 64, 64, 64, 64, 64, true>(float* out, float* src, void* stream);
+template void LaunchTExp<float, 64, 64, 64, 64, 64, 64, false>(float* out, float* src, void* stream);
+template void LaunchTExp<aclFloat16, 64, 64, 64, 64, 64, 64, true>(aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTExp<aclFloat16, 64, 64, 64, 64, 64, 64, false>(aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTExp<float, 128, 128, 64, 64, 64, 64, false>(float* out, float* src, void* stream);
+template void LaunchTExp<float, 64, 64, 128, 128, 32, 32, false>(float* out, float* src, void* stream);
+template void LaunchTExp<aclFloat16, 128, 256, 64, 64, 64, 64, false>(aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTExp<aclFloat16, 64, 64, 128, 256, 32, 32, false>(aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTExp<float, 16, 256, 16, 256, 16, 256, false>(float* out, float* src, void* stream);
+template void LaunchTExp<float, 16, 256, 16, 256, 16, 128, false>(float* out, float* src, void* stream);
+template void LaunchTExp<aclFloat16, 256, 16, 256, 16, 256, 16, false>(aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTExp<aclFloat16, 256, 16, 256, 16, 128, 16, false>(aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTExp<float, 128, 128, 128, 128, 64, 64, false>(float* out, float* src, void* stream);
+template void LaunchTExp<aclFloat16, 128, 128, 128, 128, 64, 64, false>(aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTExp<float, 32, 64, 128, 128, 32, 64, false>(float* out, float* src, void* stream);
+template void LaunchTExp<float, 32, 32, 32, 32, 32, 16, false>(float* out, float* src, void* stream);
+template void LaunchTExp<aclFloat16, 32, 32, 32, 32, 32, 16, false>(aclFloat16* out, aclFloat16* src, void* stream);

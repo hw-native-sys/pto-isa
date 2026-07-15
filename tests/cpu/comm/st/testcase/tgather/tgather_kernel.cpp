@@ -23,7 +23,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 static constexpr size_t HCCL_WIN_SYNC_PREFIX = 64 * sizeof(int32_t);
 
 template <typename T>
-__global__ AICORE void WindowMemCopyIn(__gm__ T *winDst, __gm__ T *devSrc, int count)
+__global__ AICORE void WindowMemCopyIn(__gm__ T* winDst, __gm__ T* devSrc, int count)
 {
     for (int i = 0; i < count; ++i) {
         winDst[i] = devSrc[i];
@@ -32,7 +32,7 @@ __global__ AICORE void WindowMemCopyIn(__gm__ T *winDst, __gm__ T *devSrc, int c
 }
 
 template <typename T>
-__global__ AICORE void WindowMemCopyOut(__gm__ T *devDst, __gm__ T *winSrc, int count)
+__global__ AICORE void WindowMemCopyOut(__gm__ T* devDst, __gm__ T* winSrc, int count)
 {
     for (int i = 0; i < count; ++i) {
         devDst[i] = winSrc[i];
@@ -45,8 +45,8 @@ __global__ AICORE void WindowMemCopyOut(__gm__ T *devDst, __gm__ T *winSrc, int 
 // Tests the TGATHER collective - root gathers data from all ranks
 // ============================================================================
 template <typename T, size_t count>
-__global__ AICORE void TGatherKernelImpl(__gm__ T *dst, __gm__ T *src, __gm__ CommDeviceContext *hcclCtx, int nranks,
-                                         int root)
+__global__ AICORE void TGatherKernelImpl(
+    __gm__ T* dst, __gm__ T* src, __gm__ CommDeviceContext* hcclCtx, int nranks, int root)
 {
     using ShapeDyn = pto::Shape<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
     using StrideDyn = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
@@ -70,7 +70,7 @@ __global__ AICORE void TGatherKernelImpl(__gm__ T *dst, __gm__ T *src, __gm__ Co
     Global tensors[16];
     int actual_nranks = (nranks > 16) ? 16 : nranks;
     for (int i = 0; i < actual_nranks; ++i) {
-        __gm__ T *remoteSrc = CommRemotePtr(hcclCtx, src, i);
+        __gm__ T* remoteSrc = CommRemotePtr(hcclCtx, src, i);
         tensors[i] = Global(remoteSrc, srcShape, srcStride);
     }
 
@@ -89,8 +89,8 @@ __global__ AICORE void TGatherKernelImpl(__gm__ T *dst, __gm__ T *src, __gm__ Co
 }
 
 template <typename T, size_t count>
-bool RunGatherKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo *rootInfo,
-                     int root)
+bool RunGatherKernel(
+    int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo* rootInfo, int root)
 {
     TestContext<T, count> ctx;
     if (!ctx.Init(rank_id, n_ranks, n_devices, first_device_id, rootInfo))
@@ -104,13 +104,13 @@ bool RunGatherKernel(int rank_id, int n_ranks, int n_devices, int first_device_i
 
     size_t src_size = count * sizeof(T);
     size_t dst_size = n_ranks * count * sizeof(T);
-    void *src_ptr = WindowAlloc(localWinBase, winOffset, src_size);
-    void *dst_ptr = WindowAlloc(localWinBase, winOffset, dst_size);
+    void* src_ptr = WindowAlloc(localWinBase, winOffset, src_size);
+    void* dst_ptr = WindowAlloc(localWinBase, winOffset, dst_size);
 
-    T *src_host = nullptr;
-    T *dst_host = nullptr;
-    if (aclrtMallocHost(reinterpret_cast<void **>(&src_host), src_size) != 0 ||
-        aclrtMallocHost(reinterpret_cast<void **>(&dst_host), dst_size) != 0) {
+    T* src_host = nullptr;
+    T* dst_host = nullptr;
+    if (aclrtMallocHost(reinterpret_cast<void**>(&src_host), src_size) != 0 ||
+        aclrtMallocHost(reinterpret_cast<void**>(&dst_host), dst_size) != 0) {
         std::cerr << "[ERROR] aclrtMallocHost failed!" << std::endl;
         return false;
     }
@@ -122,26 +122,26 @@ bool RunGatherKernel(int rank_id, int n_ranks, int n_devices, int first_device_i
         dst_host[i] = static_cast<T>(-1);
     }
 
-    T *src_staging = nullptr;
-    aclrtMalloc(reinterpret_cast<void **>(&src_staging), src_size, ACL_MEM_MALLOC_HUGE_FIRST);
+    T* src_staging = nullptr;
+    aclrtMalloc(reinterpret_cast<void**>(&src_staging), src_size, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMemcpy(src_staging, src_size, src_host, src_size, ACL_MEMCPY_HOST_TO_DEVICE);
     WindowMemCopyIn<T>
 #ifndef __CPU_SIM
         <<<1, nullptr, ctx.stream>>>
 #endif
-        ((T *)src_ptr, src_staging, static_cast<int>(count));
+        ((T*)src_ptr, src_staging, static_cast<int>(count));
     aclrtSynchronizeStream(ctx.stream);
     aclrtFree(src_staging);
 
     if (rank_id == root) {
-        T *dst_staging = nullptr;
-        aclrtMalloc(reinterpret_cast<void **>(&dst_staging), dst_size, ACL_MEM_MALLOC_HUGE_FIRST);
+        T* dst_staging = nullptr;
+        aclrtMalloc(reinterpret_cast<void**>(&dst_staging), dst_size, ACL_MEM_MALLOC_HUGE_FIRST);
         aclrtMemcpy(dst_staging, dst_size, dst_host, dst_size, ACL_MEMCPY_HOST_TO_DEVICE);
         WindowMemCopyIn<T>
 #ifndef __CPU_SIM
             <<<1, nullptr, ctx.stream>>>
 #endif
-            ((T *)dst_ptr, dst_staging, static_cast<int>(n_ranks * count));
+            ((T*)dst_ptr, dst_staging, static_cast<int>(n_ranks * count));
         aclrtSynchronizeStream(ctx.stream);
         aclrtFree(dst_staging);
     }
@@ -152,20 +152,20 @@ bool RunGatherKernel(int rank_id, int n_ranks, int n_devices, int first_device_i
 #ifndef __CPU_SIM
         <<<1, nullptr, ctx.stream>>>
 #endif
-        ((T *)dst_ptr, (T *)src_ptr, ctx.deviceCtx, n_ranks, root);
+        ((T*)dst_ptr, (T*)src_ptr, ctx.deviceCtx, n_ranks, root);
     ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
     bool is_ok = true;
     if (rank_id == root) {
-        T *dst_readback = nullptr;
-        aclrtMalloc(reinterpret_cast<void **>(&dst_readback), dst_size, ACL_MEM_MALLOC_HUGE_FIRST);
+        T* dst_readback = nullptr;
+        aclrtMalloc(reinterpret_cast<void**>(&dst_readback), dst_size, ACL_MEM_MALLOC_HUGE_FIRST);
         WindowMemCopyOut<T>
 #ifndef __CPU_SIM
             <<<1, nullptr, ctx.stream>>>
 #endif
-            (dst_readback, (T *)dst_ptr, static_cast<int>(n_ranks * count));
+            (dst_readback, (T*)dst_ptr, static_cast<int>(n_ranks * count));
         aclrtSynchronizeStream(ctx.stream);
         aclrtMemcpy(dst_host, dst_size, dst_readback, dst_size, ACL_MEMCPY_DEVICE_TO_HOST);
         aclrtFree(dst_readback);
@@ -214,7 +214,7 @@ template <typename T, size_t count>
 bool RunGather(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
     return ForkAndRunWithHcclRootInfo(
-        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo *rootInfo) {
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
             return RunGatherKernel<T, count>(rankId, n_ranks, n_devices, first_device_id, rootInfo, 0);
         });
 }
@@ -223,7 +223,7 @@ template <typename T, size_t count>
 bool RunGatherWithRoot(int n_ranks, int n_devices, int first_rank_id, int first_device_id, int root)
 {
     return ForkAndRunWithHcclRootInfo(
-        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo *rootInfo) {
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
             return RunGatherKernel<T, count>(rankId, n_ranks, n_devices, first_device_id, rootInfo, root);
         });
 }
@@ -232,16 +232,16 @@ bool RunGatherWithRoot(int n_ranks, int n_devices, int first_rank_id, int first_
 template bool RunGather<float, 256>(int n_ranks, int n_devices, int first_rank_id, int first_device_id);
 template bool RunGather<int32_t, 4096>(int n_ranks, int n_devices, int first_rank_id, int first_device_id);
 template bool RunGather<uint8_t, 512>(int n_ranks, int n_devices, int first_rank_id, int first_device_id);
-template bool RunGatherWithRoot<float, 256>(int n_ranks, int n_devices, int first_rank_id, int first_device_id,
-                                            int root);
+template bool RunGatherWithRoot<float, 256>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id, int root);
 
 // ============================================================================
 // Empty Rows Test Kernel
 // Tests TGATHER with zero rows (empty data)
 // ============================================================================
 template <typename T, size_t count>
-__global__ AICORE void TGatherEmptyKernelImpl(__gm__ T *dst, __gm__ T *src, __gm__ CommDeviceContext *hcclCtx,
-                                              int nranks, int root)
+__global__ AICORE void TGatherEmptyKernelImpl(
+    __gm__ T* dst, __gm__ T* src, __gm__ CommDeviceContext* hcclCtx, int nranks, int root)
 {
     using ShapeDyn = pto::Shape<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
     using StrideDyn = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
@@ -261,7 +261,7 @@ __global__ AICORE void TGatherEmptyKernelImpl(__gm__ T *dst, __gm__ T *src, __gm
     Global tensors[16];
     int actual_nranks = (nranks > 16) ? 16 : nranks;
     for (int i = 0; i < actual_nranks; ++i) {
-        __gm__ T *remoteSrc = CommRemotePtr(hcclCtx, src, i);
+        __gm__ T* remoteSrc = CommRemotePtr(hcclCtx, src, i);
         tensors[i] = Global(remoteSrc, srcShape, srcStride);
     }
 
@@ -277,8 +277,8 @@ __global__ AICORE void TGatherEmptyKernelImpl(__gm__ T *dst, __gm__ T *src, __gm
 }
 
 template <typename T, size_t count>
-bool RunGatherEmptyKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo *rootInfo,
-                          int root)
+bool RunGatherEmptyKernel(
+    int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo* rootInfo, int root)
 {
     TestContext<T, count> ctx;
     if (!ctx.Init(rank_id, n_ranks, n_devices, first_device_id, rootInfo))
@@ -292,13 +292,13 @@ bool RunGatherEmptyKernel(int rank_id, int n_ranks, int n_devices, int first_dev
 
     size_t src_size = count * sizeof(T);
     size_t dst_size = n_ranks * count * sizeof(T);
-    void *src_ptr = WindowAlloc(localWinBase, winOffset, src_size);
-    void *dst_ptr = WindowAlloc(localWinBase, winOffset, dst_size);
+    void* src_ptr = WindowAlloc(localWinBase, winOffset, src_size);
+    void* dst_ptr = WindowAlloc(localWinBase, winOffset, dst_size);
 
-    T *src_host = nullptr;
-    T *dst_host = nullptr;
-    if (aclrtMallocHost(reinterpret_cast<void **>(&src_host), src_size) != 0 ||
-        aclrtMallocHost(reinterpret_cast<void **>(&dst_host), dst_size) != 0) {
+    T* src_host = nullptr;
+    T* dst_host = nullptr;
+    if (aclrtMallocHost(reinterpret_cast<void**>(&src_host), src_size) != 0 ||
+        aclrtMallocHost(reinterpret_cast<void**>(&dst_host), dst_size) != 0) {
         std::cerr << "[ERROR] aclrtMallocHost failed!" << std::endl;
         return false;
     }
@@ -310,26 +310,26 @@ bool RunGatherEmptyKernel(int rank_id, int n_ranks, int n_devices, int first_dev
         dst_host[i] = static_cast<T>(-1);
     }
 
-    T *src_staging = nullptr;
-    aclrtMalloc(reinterpret_cast<void **>(&src_staging), src_size, ACL_MEM_MALLOC_HUGE_FIRST);
+    T* src_staging = nullptr;
+    aclrtMalloc(reinterpret_cast<void**>(&src_staging), src_size, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMemcpy(src_staging, src_size, src_host, src_size, ACL_MEMCPY_HOST_TO_DEVICE);
     WindowMemCopyIn<T>
 #ifndef __CPU_SIM
         <<<1, nullptr, ctx.stream>>>
 #endif
-        ((T *)src_ptr, src_staging, static_cast<int>(count));
+        ((T*)src_ptr, src_staging, static_cast<int>(count));
     aclrtSynchronizeStream(ctx.stream);
     aclrtFree(src_staging);
 
     if (rank_id == root) {
-        T *dst_staging = nullptr;
-        aclrtMalloc(reinterpret_cast<void **>(&dst_staging), dst_size, ACL_MEM_MALLOC_HUGE_FIRST);
+        T* dst_staging = nullptr;
+        aclrtMalloc(reinterpret_cast<void**>(&dst_staging), dst_size, ACL_MEM_MALLOC_HUGE_FIRST);
         aclrtMemcpy(dst_staging, dst_size, dst_host, dst_size, ACL_MEMCPY_HOST_TO_DEVICE);
         WindowMemCopyIn<T>
 #ifndef __CPU_SIM
             <<<1, nullptr, ctx.stream>>>
 #endif
-            ((T *)dst_ptr, dst_staging, static_cast<int>(n_ranks * count));
+            ((T*)dst_ptr, dst_staging, static_cast<int>(n_ranks * count));
         aclrtSynchronizeStream(ctx.stream);
         aclrtFree(dst_staging);
     }
@@ -341,20 +341,20 @@ bool RunGatherEmptyKernel(int rank_id, int n_ranks, int n_devices, int first_dev
 #ifndef __CPU_SIM
         <<<1, nullptr, ctx.stream>>>
 #endif
-        ((T *)dst_ptr, (T *)src_ptr, ctx.deviceCtx, n_ranks, root);
+        ((T*)dst_ptr, (T*)src_ptr, ctx.deviceCtx, n_ranks, root);
     ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
     bool is_ok = true;
     if (rank_id == root) {
-        T *dst_readback = nullptr;
-        aclrtMalloc(reinterpret_cast<void **>(&dst_readback), dst_size, ACL_MEM_MALLOC_HUGE_FIRST);
+        T* dst_readback = nullptr;
+        aclrtMalloc(reinterpret_cast<void**>(&dst_readback), dst_size, ACL_MEM_MALLOC_HUGE_FIRST);
         WindowMemCopyOut<T>
 #ifndef __CPU_SIM
             <<<1, nullptr, ctx.stream>>>
 #endif
-            (dst_readback, (T *)dst_ptr, static_cast<int>(n_ranks * count));
+            (dst_readback, (T*)dst_ptr, static_cast<int>(n_ranks * count));
         aclrtSynchronizeStream(ctx.stream);
         aclrtMemcpy(dst_host, dst_size, dst_readback, dst_size, ACL_MEMCPY_DEVICE_TO_HOST);
         aclrtFree(dst_readback);
@@ -376,7 +376,7 @@ template <typename T, size_t count>
 bool RunGatherEmpty(int n_ranks, int n_devices, int first_rank_id, int first_device_id, int root)
 {
     return ForkAndRunWithHcclRootInfo(
-        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo *rootInfo) {
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
             return RunGatherEmptyKernel<T, count>(rankId, n_ranks, n_devices, first_device_id, rootInfo, root);
         });
 }
@@ -390,8 +390,8 @@ template bool RunGatherEmpty<float, 256>(int n_ranks, int n_devices, int first_r
 // Destination: (1, 1, 1, nranks * total_rows, cols)
 // ============================================================================
 template <typename T, size_t total_rows, size_t cols, size_t tile_rows>
-__global__ AICORE void TGatherLargeShapeKernelImpl(__gm__ T *dst, __gm__ T *src, __gm__ CommDeviceContext *hcclCtx,
-                                                   int nranks)
+__global__ AICORE void TGatherLargeShapeKernelImpl(
+    __gm__ T* dst, __gm__ T* src, __gm__ CommDeviceContext* hcclCtx, int nranks)
 {
     constexpr size_t total_count = total_rows * cols;
     static_assert(total_rows > tile_rows, "total_rows must exceed tile_rows to test chunking");
@@ -417,7 +417,7 @@ __global__ AICORE void TGatherLargeShapeKernelImpl(__gm__ T *dst, __gm__ T *src,
     Global tensors[16];
     int actual_nranks = (nranks > 16) ? 16 : nranks;
     for (int i = 0; i < actual_nranks; ++i) {
-        __gm__ T *remoteSrc = CommRemotePtr(hcclCtx, src, i);
+        __gm__ T* remoteSrc = CommRemotePtr(hcclCtx, src, i);
         tensors[i] = Global(remoteSrc, srcShape, srcStride);
     }
 
@@ -434,8 +434,8 @@ __global__ AICORE void TGatherLargeShapeKernelImpl(__gm__ T *dst, __gm__ T *src,
 }
 
 template <typename T, size_t total_rows, size_t cols, size_t tile_rows>
-bool RunGatherLargeShapeKernel(int rank_id, int n_ranks, int n_devices, int first_device_id,
-                               const HcclRootInfo *rootInfo)
+bool RunGatherLargeShapeKernel(
+    int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo* rootInfo)
 {
     constexpr size_t total_count = total_rows * cols;
 
@@ -449,13 +449,13 @@ bool RunGatherLargeShapeKernel(int rank_id, int n_ranks, int n_devices, int firs
         WindowAlloc(localWinBase, winOffset, HCCL_WIN_SYNC_PREFIX);
     }
 
-    void *src_ptr = WindowAlloc(localWinBase, winOffset, total_count * sizeof(T));
-    void *dst_ptr = WindowAlloc(localWinBase, winOffset, n_ranks * total_count * sizeof(T));
+    void* src_ptr = WindowAlloc(localWinBase, winOffset, total_count * sizeof(T));
+    void* dst_ptr = WindowAlloc(localWinBase, winOffset, n_ranks * total_count * sizeof(T));
 
-    T *src_host = nullptr;
-    T *dst_host = nullptr;
-    if (aclrtMallocHost(reinterpret_cast<void **>(&src_host), total_count * sizeof(T)) != 0 ||
-        aclrtMallocHost(reinterpret_cast<void **>(&dst_host), n_ranks * total_count * sizeof(T)) != 0) {
+    T* src_host = nullptr;
+    T* dst_host = nullptr;
+    if (aclrtMallocHost(reinterpret_cast<void**>(&src_host), total_count * sizeof(T)) != 0 ||
+        aclrtMallocHost(reinterpret_cast<void**>(&dst_host), n_ranks * total_count * sizeof(T)) != 0) {
         std::cerr << "[ERROR] aclrtMallocHost failed!" << std::endl;
         return false;
     }
@@ -467,26 +467,27 @@ bool RunGatherLargeShapeKernel(int rank_id, int n_ranks, int n_devices, int firs
         dst_host[i] = static_cast<T>(-1);
     }
 
-    T *src_staging = nullptr;
-    aclrtMalloc(reinterpret_cast<void **>(&src_staging), total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST);
+    T* src_staging = nullptr;
+    aclrtMalloc(reinterpret_cast<void**>(&src_staging), total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMemcpy(src_staging, total_count * sizeof(T), src_host, total_count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
     WindowMemCopyIn<T>
 #ifndef __CPU_SIM
         <<<1, nullptr, ctx.stream>>>
 #endif
-        ((T *)src_ptr, src_staging, static_cast<int>(total_count));
+        ((T*)src_ptr, src_staging, static_cast<int>(total_count));
     aclrtSynchronizeStream(ctx.stream);
     aclrtFree(src_staging);
 
-    T *dst_staging = nullptr;
-    aclrtMalloc(reinterpret_cast<void **>(&dst_staging), n_ranks * total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMemcpy(dst_staging, n_ranks * total_count * sizeof(T), dst_host, n_ranks * total_count * sizeof(T),
-                ACL_MEMCPY_HOST_TO_DEVICE);
+    T* dst_staging = nullptr;
+    aclrtMalloc(reinterpret_cast<void**>(&dst_staging), n_ranks * total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMemcpy(
+        dst_staging, n_ranks * total_count * sizeof(T), dst_host, n_ranks * total_count * sizeof(T),
+        ACL_MEMCPY_HOST_TO_DEVICE);
     WindowMemCopyIn<T>
 #ifndef __CPU_SIM
         <<<1, nullptr, ctx.stream>>>
 #endif
-        ((T *)dst_ptr, dst_staging, static_cast<int>(n_ranks * total_count));
+        ((T*)dst_ptr, dst_staging, static_cast<int>(n_ranks * total_count));
     aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
@@ -496,7 +497,7 @@ bool RunGatherLargeShapeKernel(int rank_id, int n_ranks, int n_devices, int firs
 #ifndef __CPU_SIM
         <<<1, nullptr, ctx.stream>>>
 #endif
-        ((T *)dst_ptr, (T *)src_ptr, ctx.deviceCtx, n_ranks);
+        ((T*)dst_ptr, (T*)src_ptr, ctx.deviceCtx, n_ranks);
     ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
@@ -508,10 +509,11 @@ bool RunGatherLargeShapeKernel(int rank_id, int n_ranks, int n_devices, int firs
 #ifndef __CPU_SIM
             <<<1, nullptr, ctx.stream>>>
 #endif
-            (dst_staging, (T *)dst_ptr, static_cast<int>(n_ranks * total_count));
+            (dst_staging, (T*)dst_ptr, static_cast<int>(n_ranks * total_count));
         aclrtSynchronizeStream(ctx.stream);
-        aclrtMemcpy(dst_host, n_ranks * total_count * sizeof(T), dst_staging, n_ranks * total_count * sizeof(T),
-                    ACL_MEMCPY_DEVICE_TO_HOST);
+        aclrtMemcpy(
+            dst_host, n_ranks * total_count * sizeof(T), dst_staging, n_ranks * total_count * sizeof(T),
+            ACL_MEMCPY_DEVICE_TO_HOST);
         aclrtFree(dst_staging);
 
         for (int r = 0; r < n_ranks; ++r) {
@@ -549,11 +551,11 @@ bool RunGatherLargeShapeKernel(int rank_id, int n_ranks, int n_devices, int firs
 template <typename T, size_t total_rows, size_t cols, size_t tile_rows>
 bool RunGatherLargeShape(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
-    return ForkAndRunWithHcclRootInfo(n_ranks, first_rank_id, first_device_id,
-                                      [&](int rankId, const HcclRootInfo *rootInfo) {
-                                          return RunGatherLargeShapeKernel<T, total_rows, cols, tile_rows>(
-                                              rankId, n_ranks, n_devices, first_device_id, rootInfo);
-                                      });
+    return ForkAndRunWithHcclRootInfo(
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
+            return RunGatherLargeShapeKernel<T, total_rows, cols, tile_rows>(
+                rankId, n_ranks, n_devices, first_device_id, rootInfo);
+        });
 }
 
 // Explicit instantiations for large shape tests
@@ -581,8 +583,8 @@ bool RunGatherLargeShape_Int32_512x32_tile64(int n_ranks, int n_devices, int fir
 // Uses the 4-parameter TGATHER(pg, dst, ping, pong) overload.
 // ============================================================================
 template <typename T, size_t total_rows, size_t cols, size_t tile_rows>
-__global__ AICORE void TGatherPingPongKernelImpl(__gm__ T *dst, __gm__ T *src, __gm__ CommDeviceContext *hcclCtx,
-                                                 int nranks)
+__global__ AICORE void TGatherPingPongKernelImpl(
+    __gm__ T* dst, __gm__ T* src, __gm__ CommDeviceContext* hcclCtx, int nranks)
 {
     constexpr size_t total_count = total_rows * cols;
     static_assert(total_rows > tile_rows, "total_rows must exceed tile_rows to test chunked ping-pong");
@@ -605,7 +607,7 @@ __global__ AICORE void TGatherPingPongKernelImpl(__gm__ T *dst, __gm__ T *src, _
     Global tensors[16];
     int actual_nranks = (nranks > 16) ? 16 : nranks;
     for (int i = 0; i < actual_nranks; ++i) {
-        __gm__ T *remoteSrc = CommRemotePtr(hcclCtx, src, i);
+        __gm__ T* remoteSrc = CommRemotePtr(hcclCtx, src, i);
         tensors[i] = Global(remoteSrc, srcShape, srcStride);
     }
 
@@ -626,7 +628,7 @@ __global__ AICORE void TGatherPingPongKernelImpl(__gm__ T *dst, __gm__ T *src, _
 }
 
 template <typename T, size_t total_rows, size_t cols, size_t tile_rows>
-bool RunGatherPingPongKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo *rootInfo)
+bool RunGatherPingPongKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo* rootInfo)
 {
     constexpr size_t total_count = total_rows * cols;
 
@@ -640,13 +642,13 @@ bool RunGatherPingPongKernel(int rank_id, int n_ranks, int n_devices, int first_
         WindowAlloc(localWinBase, winOffset, HCCL_WIN_SYNC_PREFIX);
     }
 
-    void *src_ptr = WindowAlloc(localWinBase, winOffset, total_count * sizeof(T));
-    void *dst_ptr = WindowAlloc(localWinBase, winOffset, n_ranks * total_count * sizeof(T));
+    void* src_ptr = WindowAlloc(localWinBase, winOffset, total_count * sizeof(T));
+    void* dst_ptr = WindowAlloc(localWinBase, winOffset, n_ranks * total_count * sizeof(T));
 
-    T *src_host = nullptr;
-    T *dst_host = nullptr;
-    if (aclrtMallocHost(reinterpret_cast<void **>(&src_host), total_count * sizeof(T)) != 0 ||
-        aclrtMallocHost(reinterpret_cast<void **>(&dst_host), n_ranks * total_count * sizeof(T)) != 0) {
+    T* src_host = nullptr;
+    T* dst_host = nullptr;
+    if (aclrtMallocHost(reinterpret_cast<void**>(&src_host), total_count * sizeof(T)) != 0 ||
+        aclrtMallocHost(reinterpret_cast<void**>(&dst_host), n_ranks * total_count * sizeof(T)) != 0) {
         std::cerr << "[ERROR] aclrtMallocHost failed!" << std::endl;
         return false;
     }
@@ -658,26 +660,27 @@ bool RunGatherPingPongKernel(int rank_id, int n_ranks, int n_devices, int first_
         dst_host[i] = static_cast<T>(-1);
     }
 
-    T *src_staging = nullptr;
-    aclrtMalloc(reinterpret_cast<void **>(&src_staging), total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST);
+    T* src_staging = nullptr;
+    aclrtMalloc(reinterpret_cast<void**>(&src_staging), total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMemcpy(src_staging, total_count * sizeof(T), src_host, total_count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
     WindowMemCopyIn<T>
 #ifndef __CPU_SIM
         <<<1, nullptr, ctx.stream>>>
 #endif
-        ((T *)src_ptr, src_staging, static_cast<int>(total_count));
+        ((T*)src_ptr, src_staging, static_cast<int>(total_count));
     aclrtSynchronizeStream(ctx.stream);
     aclrtFree(src_staging);
 
-    T *dst_staging = nullptr;
-    aclrtMalloc(reinterpret_cast<void **>(&dst_staging), n_ranks * total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMemcpy(dst_staging, n_ranks * total_count * sizeof(T), dst_host, n_ranks * total_count * sizeof(T),
-                ACL_MEMCPY_HOST_TO_DEVICE);
+    T* dst_staging = nullptr;
+    aclrtMalloc(reinterpret_cast<void**>(&dst_staging), n_ranks * total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMemcpy(
+        dst_staging, n_ranks * total_count * sizeof(T), dst_host, n_ranks * total_count * sizeof(T),
+        ACL_MEMCPY_HOST_TO_DEVICE);
     WindowMemCopyIn<T>
 #ifndef __CPU_SIM
         <<<1, nullptr, ctx.stream>>>
 #endif
-        ((T *)dst_ptr, dst_staging, static_cast<int>(n_ranks * total_count));
+        ((T*)dst_ptr, dst_staging, static_cast<int>(n_ranks * total_count));
     aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
@@ -687,7 +690,7 @@ bool RunGatherPingPongKernel(int rank_id, int n_ranks, int n_devices, int first_
 #ifndef __CPU_SIM
         <<<1, nullptr, ctx.stream>>>
 #endif
-        ((T *)dst_ptr, (T *)src_ptr, ctx.deviceCtx, n_ranks);
+        ((T*)dst_ptr, (T*)src_ptr, ctx.deviceCtx, n_ranks);
     ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
@@ -699,10 +702,11 @@ bool RunGatherPingPongKernel(int rank_id, int n_ranks, int n_devices, int first_
 #ifndef __CPU_SIM
             <<<1, nullptr, ctx.stream>>>
 #endif
-            (dst_staging, (T *)dst_ptr, static_cast<int>(n_ranks * total_count));
+            (dst_staging, (T*)dst_ptr, static_cast<int>(n_ranks * total_count));
         aclrtSynchronizeStream(ctx.stream);
-        aclrtMemcpy(dst_host, n_ranks * total_count * sizeof(T), dst_staging, n_ranks * total_count * sizeof(T),
-                    ACL_MEMCPY_DEVICE_TO_HOST);
+        aclrtMemcpy(
+            dst_host, n_ranks * total_count * sizeof(T), dst_staging, n_ranks * total_count * sizeof(T),
+            ACL_MEMCPY_DEVICE_TO_HOST);
         aclrtFree(dst_staging);
 
         for (int r = 0; r < n_ranks; ++r) {
@@ -740,11 +744,11 @@ bool RunGatherPingPongKernel(int rank_id, int n_ranks, int n_devices, int first_
 template <typename T, size_t total_rows, size_t cols, size_t tile_rows>
 bool RunGatherPingPong(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
-    return ForkAndRunWithHcclRootInfo(n_ranks, first_rank_id, first_device_id,
-                                      [&](int rankId, const HcclRootInfo *rootInfo) {
-                                          return RunGatherPingPongKernel<T, total_rows, cols, tile_rows>(
-                                              rankId, n_ranks, n_devices, first_device_id, rootInfo);
-                                      });
+    return ForkAndRunWithHcclRootInfo(
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
+            return RunGatherPingPongKernel<T, total_rows, cols, tile_rows>(
+                rankId, n_ranks, n_devices, first_device_id, rootInfo);
+        });
 }
 
 // Explicit instantiations for ping-pong tests

@@ -16,9 +16,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/cpu/parallel.hpp"
 
 namespace pto {
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
-void TDiv_Impl(typename TileDataDst::TileDType dst, typename TileDataSrc0::TileDType src0,
-               typename TileDataSrc1::TileDType src1, unsigned validRow, unsigned validCol)
+template <typename tile_shape, int stride>
+void TDiv_Impl(
+    typename tile_shape::TileDType dst, typename tile_shape::TileDType src0, typename tile_shape::TileDType src1,
+    unsigned validRow, unsigned validCol)
 {
     static_assert(std::is_same_v<typename TileDataDst::DType, typename TileDataSrc0::DType> &&
                       std::is_same_v<typename TileDataDst::DType, typename TileDataSrc1::DType>,
@@ -64,9 +65,8 @@ void TDiv_Impl(typename TileDataDst::TileDType dst, typename TileDataSrc0::TileD
     }
 }
 
-template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc0,
-          typename TileDataSrc1>
-PTO_INTERNAL void TDIV_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1)
+template <auto PrecisionType = DivAlgorithm::DEFAULT, typename tile_shape>
+PTO_INTERNAL void TDIV_IMPL(tile_shape& dst, tile_shape& src0, tile_shape& src1)
 {
     unsigned row = dst.GetValidRow();
     unsigned col = dst.GetValidCol();

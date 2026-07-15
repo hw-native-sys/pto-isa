@@ -15,35 +15,36 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace PtoTestCommon;
 
-template <typename T, int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
-          bool highPrecision = false>
-void LaunchTFModS(T *out, T *src, T scalar, void *stream);
+template <
+    typename T, int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
+    bool highPrecision = false>
+void LaunchTFModS(T* out, T* src, T scalar, void* stream);
 
-template <int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
-          bool highPrecision = false>
-void LaunchTFModSHalf(aclFloat16 *out, aclFloat16 *src, aclFloat16 scalar, void *stream);
+template <
+    int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
+    bool highPrecision = false>
+void LaunchTFModSHalf(aclFloat16* out, aclFloat16* src, aclFloat16 scalar, void* stream);
 
 class TFMODSTest : public testing::Test {
 public:
 protected:
-    void SetUp() override
-    {}
+    void SetUp() override {}
 
-    void TearDown() override
-    {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
-          bool isHalf = false, bool highPrecision = false>
+template <
+    typename T, int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
+    bool isHalf = false, bool highPrecision = false>
 inline void TFModSTestFramework()
 {
     aclInit(nullptr);
@@ -55,17 +56,17 @@ inline void TFModSTestFramework()
     size_t dstByteSize = dstTileRow * dstTileCol * sizeof(T);
     size_t srcByteSize = srcTileRow * srcTileCol * sizeof(T);
     size_t scalarByteSize = sizeof(T);
-    T *dstHost;
-    T *srcHost;
-    T *dstDevice;
-    T *srcDevice;
+    T* dstHost;
+    T* srcHost;
+    T* dstDevice;
+    T* srcDevice;
     T scalar;
 
-    aclrtMallocHost((void **)(&dstHost), dstByteSize);
-    aclrtMallocHost((void **)(&srcHost), srcByteSize);
+    aclrtMallocHost((void**)(&dstHost), dstByteSize);
+    aclrtMallocHost((void**)(&srcHost), srcByteSize);
 
-    aclrtMalloc((void **)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", srcByteSize, srcHost, srcByteSize);
     ReadFile(GetGoldenDir() + "/divider.bin", scalarByteSize, &scalar, scalarByteSize);
@@ -101,47 +102,20 @@ inline void TFModSTestFramework()
     EXPECT_TRUE(res);
 }
 
-TEST_F(TFMODSTest, case1)
-{
-    TFModSTestFramework<float, 32, 128, 32, 128, 32, 64>();
-}
+TEST_F(TFMODSTest, case1) { TFModSTestFramework<float, 32, 128, 32, 128, 32, 64>(); }
 
-TEST_F(TFMODSTest, case2)
-{
-    TFModSTestFramework<aclFloat16, 63, 128, 63, 128, 63, 64, true>();
-}
+TEST_F(TFMODSTest, case2) { TFModSTestFramework<aclFloat16, 63, 128, 63, 128, 63, 64, true>(); }
 
-TEST_F(TFMODSTest, case3)
-{
-    TFModSTestFramework<int32_t, 31, 256, 31, 256, 31, 128>();
-}
+TEST_F(TFMODSTest, case3) { TFModSTestFramework<int32_t, 31, 256, 31, 256, 31, 128>(); }
 
-TEST_F(TFMODSTest, case4)
-{
-    TFModSTestFramework<int16_t, 15, 192, 15, 192, 15, 192>();
-}
+TEST_F(TFMODSTest, case4) { TFModSTestFramework<int16_t, 15, 192, 15, 192, 15, 192>(); }
 
-TEST_F(TFMODSTest, case5)
-{
-    TFModSTestFramework<float, 7, 512, 7, 512, 7, 448>();
-}
+TEST_F(TFMODSTest, case5) { TFModSTestFramework<float, 7, 512, 7, 512, 7, 448>(); }
 
-TEST_F(TFMODSTest, case6)
-{
-    TFModSTestFramework<float, 256, 32, 256, 32, 256, 31>();
-}
+TEST_F(TFMODSTest, case6) { TFModSTestFramework<float, 256, 32, 256, 32, 256, 31>(); }
 
-TEST_F(TFMODSTest, case7)
-{
-    TFModSTestFramework<float, 1, 32, 1, 32, 1, 31>();
-}
+TEST_F(TFMODSTest, case7) { TFModSTestFramework<float, 1, 32, 1, 32, 1, 31>(); }
 
-TEST_F(TFMODSTest, caseHP1)
-{
-    TFModSTestFramework<float, 64, 64, 64, 64, 64, 64, false, true>();
-}
+TEST_F(TFMODSTest, caseHP1) { TFModSTestFramework<float, 64, 64, 64, 64, 64, 64, false, true>(); }
 
-TEST_F(TFMODSTest, caseHP2)
-{
-    TFModSTestFramework<float, 64, 64, 64, 64, 64, 61, false, true>();
-}
+TEST_F(TFMODSTest, caseHP2) { TFModSTestFramework<float, 64, 64, 64, 64, 64, 61, false, true>(); }

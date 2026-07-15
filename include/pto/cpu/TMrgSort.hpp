@@ -46,8 +46,8 @@ PTO_INTERNAL constexpr void CheckMrgSortTileConstraints()
 }
 
 template <typename TileData, size_t N>
-PTO_INTERNAL std::array<typename TileData::DType, N> ReadStruct(const typename TileData::TileDType tile, unsigned r,
-                                                                unsigned cBase)
+PTO_INTERNAL std::array<typename TileData::DType, N> ReadStruct(
+    const typename TileData::TileDType tile, unsigned r, unsigned cBase)
 {
     std::array<typename TileData::DType, N> out{};
     for (size_t i = 0; i < N; i++) {
@@ -58,8 +58,8 @@ PTO_INTERNAL std::array<typename TileData::DType, N> ReadStruct(const typename T
 }
 
 template <typename TileData, size_t N>
-PTO_INTERNAL void WriteStruct(typename TileData::TileDType tile, unsigned r, unsigned cBase,
-                              const std::array<typename TileData::DType, N> &v)
+PTO_INTERNAL void WriteStruct(
+    typename TileData::TileDType tile, unsigned r, unsigned cBase, const std::array<typename TileData::DType, N>& v)
 {
     for (size_t i = 0; i < N; i++) {
         const size_t idx = GetTileElementOffset<TileData>(r, cBase + static_cast<unsigned>(i));
@@ -67,8 +67,9 @@ PTO_INTERNAL void WriteStruct(typename TileData::TileDType tile, unsigned r, uns
     }
 }
 
-PTO_INTERNAL bool ReachExhaused(unsigned i0, unsigned i1, unsigned i2, unsigned i3, unsigned s0Structs,
-                                unsigned s1Structs, unsigned s2Structs, unsigned s3Structs, unsigned listNum)
+PTO_INTERNAL bool ReachExhaused(
+    unsigned i0, unsigned i1, unsigned i2, unsigned i3, unsigned s0Structs, unsigned s1Structs, unsigned s2Structs,
+    unsigned s3Structs, unsigned listNum)
 {
     if (i0 == s0Structs || i1 == s1Structs || (listNum >= LIST_NUM_3 && i2 == s2Structs) ||
         (listNum >= LIST_NUM_4 && i3 == s3Structs)) {
@@ -77,7 +78,7 @@ PTO_INTERNAL bool ReachExhaused(unsigned i0, unsigned i1, unsigned i2, unsigned 
     return false;
 }
 
-PTO_INTERNAL void UpdateIndex(int pick, unsigned &i0, unsigned &i1, unsigned &i2, unsigned &i3)
+PTO_INTERNAL void UpdateIndex(int pick, unsigned& i0, unsigned& i1, unsigned& i2, unsigned& i3)
 {
     if (pick == LIST_INDEX_0) {
         i0++;
@@ -90,8 +91,9 @@ PTO_INTERNAL void UpdateIndex(int pick, unsigned &i0, unsigned &i1, unsigned &i2
     }
 }
 
-PTO_INTERNAL void WriteExhaused(unsigned i0, unsigned i1, unsigned i2, unsigned i3, uint16_t &mrgSortList0,
-                                uint16_t &mrgSortList1, uint16_t &mrgSortList2, uint16_t &mrgSortList3)
+PTO_INTERNAL void WriteExhaused(
+    unsigned i0, unsigned i1, unsigned i2, unsigned i3, uint16_t& mrgSortList0, uint16_t& mrgSortList1,
+    uint16_t& mrgSortList2, uint16_t& mrgSortList3)
 {
     mrgSortList0 = static_cast<uint16_t>(i0);
     mrgSortList1 = static_cast<uint16_t>(i1);
@@ -100,8 +102,8 @@ PTO_INTERNAL void WriteExhaused(unsigned i0, unsigned i1, unsigned i2, unsigned 
 }
 
 template <typename Dtype, typename SrcTileData, size_t N, unsigned LIST_INDEX>
-PTO_INTERNAL void CompareAndPick(int &pick, std::array<Dtype, N> &vPick, typename SrcTileData::TileDType src,
-                                 unsigned index)
+PTO_INTERNAL void CompareAndPick(
+    int& pick, std::array<Dtype, N>& vPick, typename SrcTileData::TileDType src, unsigned index)
 {
     const auto v = ReadStruct<SrcTileData, N>(src, 0, index * N);
     if (pick < 0 || v[0] > vPick[0]) {
@@ -110,14 +112,14 @@ PTO_INTERNAL void CompareAndPick(int &pick, std::array<Dtype, N> &vPick, typenam
     }
 }
 
-template <typename DstTileData, typename TmpTileData, typename Src0TileData, typename Src1TileData,
-          typename Src2TileData, typename Src3TileData, bool exhausted, unsigned listNum, unsigned kElemsPerStruct>
-PTO_INTERNAL void TMrgsort(typename DstTileData::TileDType dst, typename TmpTileData::TileDType tmp,
-                           typename Src0TileData::TileDType src0, typename Src1TileData::TileDType src1,
-                           typename Src2TileData::TileDType src2, typename Src3TileData::TileDType src3,
-                           unsigned outStructs, uint16_t &mrgSortList0, uint16_t &mrgSortList1, uint16_t &mrgSortList2,
-                           uint16_t &mrgSortList3, unsigned s0Structs, unsigned s1Structs, unsigned s2Structs,
-                           unsigned s3Structs)
+template <
+    typename DstTileData, typename TmpTileData, typename Src0TileData, typename Src1TileData, typename Src2TileData,
+    typename Src3TileData, bool exhausted, unsigned listNum, unsigned kElemsPerStruct>
+PTO_INTERNAL void TMrgsort(
+    typename DstTileData::TileDType dst, typename TmpTileData::TileDType tmp, typename Src0TileData::TileDType src0,
+    typename Src1TileData::TileDType src1, typename Src2TileData::TileDType src2, typename Src3TileData::TileDType src3,
+    unsigned outStructs, uint16_t& mrgSortList0, uint16_t& mrgSortList1, uint16_t& mrgSortList2, uint16_t& mrgSortList3,
+    unsigned s0Structs, unsigned s1Structs, unsigned s2Structs, unsigned s3Structs)
 {
     (void)tmp;
     using DType = typename DstTileData::DType;
@@ -173,8 +175,8 @@ PTO_INTERNAL void TMrgsort(typename DstTileData::TileDType dst, typename TmpTile
 
 // blockLen includes values + indexes/payload, e.g. 32 (value,idx) pairs -> blockLen=64 for float.
 template <typename DstTileData, typename SrcTileData>
-PTO_INTERNAL void TMrgsort(typename DstTileData::TileDType dst, typename SrcTileData::TileDType src, uint32_t maxCols,
-                           uint32_t blockLen)
+PTO_INTERNAL void TMrgsort(
+    typename DstTileData::TileDType dst, typename SrcTileData::TileDType src, uint32_t maxCols, uint32_t blockLen)
 {
     CheckMrgSortTileConstraints<DstTileData>();
     CheckMrgSortTileConstraints<SrcTileData>();
@@ -222,10 +224,12 @@ PTO_INTERNAL void TMrgsort(typename DstTileData::TileDType dst, typename SrcTile
     }
 }
 
-template <typename DstTileData, typename TmpTileData, typename Src0TileData, typename Src1TileData,
-          typename Src2TileData, typename Src3TileData, bool exhausted>
-PTO_INTERNAL void TMRGSORT_IMPL(DstTileData &dst, MrgSortExecutedNumList &executedNumList, TmpTileData &tmp,
-                                Src0TileData &src0, Src1TileData &src1, Src2TileData &src2, Src3TileData &src3)
+template <
+    typename DstTileData, typename TmpTileData, typename Src0TileData, typename Src1TileData, typename Src2TileData,
+    typename Src3TileData, bool exhausted>
+PTO_INTERNAL void TMRGSORT_IMPL(
+    DstTileData& dst, MrgSortExecutedNumList& executedNumList, TmpTileData& tmp, Src0TileData& src0, Src1TileData& src1,
+    Src2TileData& src2, Src3TileData& src3)
 {
     CheckMrgSortTileConstraints<DstTileData>();
     CheckMrgSortTileConstraints<TmpTileData>();
@@ -240,16 +244,20 @@ PTO_INTERNAL void TMRGSORT_IMPL(DstTileData &dst, MrgSortExecutedNumList &execut
     unsigned src3Col = src3.GetValidCol() / kElemsPerStruct;
     unsigned dstCol = dst.GetValidCol() / kElemsPerStruct;
 
-    TMrgsort<DstTileData, TmpTileData, Src0TileData, Src1TileData, Src1TileData, Src1TileData, exhausted, LIST_NUM_4,
-             kElemsPerStruct>(dst.data(), tmp.data(), src0.data(), src1.data(), src2.data(), src3.data(), dstCol,
-                              executedNumList.mrgSortList0, executedNumList.mrgSortList1, executedNumList.mrgSortList2,
-                              executedNumList.mrgSortList3, src0Col, src1Col, src2Col, src3Col);
+    TMrgsort<
+        DstTileData, TmpTileData, Src0TileData, Src1TileData, Src1TileData, Src1TileData, exhausted, LIST_NUM_4,
+        kElemsPerStruct>(
+        dst.data(), tmp.data(), src0.data(), src1.data(), src2.data(), src3.data(), dstCol,
+        executedNumList.mrgSortList0, executedNumList.mrgSortList1, executedNumList.mrgSortList2,
+        executedNumList.mrgSortList3, src0Col, src1Col, src2Col, src3Col);
 }
 
-template <typename DstTileData, typename TmpTileData, typename Src0TileData, typename Src1TileData,
-          typename Src2TileData, bool exhausted>
-PTO_INTERNAL void TMRGSORT_IMPL(DstTileData &dst, MrgSortExecutedNumList &executedNumList, TmpTileData &tmp,
-                                Src0TileData &src0, Src1TileData &src1, Src2TileData &src2)
+template <
+    typename DstTileData, typename TmpTileData, typename Src0TileData, typename Src1TileData, typename Src2TileData,
+    bool exhausted>
+PTO_INTERNAL void TMRGSORT_IMPL(
+    DstTileData& dst, MrgSortExecutedNumList& executedNumList, TmpTileData& tmp, Src0TileData& src0, Src1TileData& src1,
+    Src2TileData& src2)
 {
     constexpr unsigned kElemsPerStruct = StructElemsForType<typename DstTileData::DType>();
     CheckMrgSortTileConstraints<Src0TileData>();
@@ -262,15 +270,17 @@ PTO_INTERNAL void TMRGSORT_IMPL(DstTileData &dst, MrgSortExecutedNumList &execut
     unsigned src2Col = src2.GetValidCol() / kElemsPerStruct;
     unsigned dstCol = dst.GetValidCol() / kElemsPerStruct;
 
-    TMrgsort<DstTileData, TmpTileData, Src0TileData, Src1TileData, Src1TileData, Src1TileData, exhausted, LIST_NUM_3,
-             kElemsPerStruct>(dst.data(), tmp.data(), src0.data(), src1.data(), src2.data(), nullptr, dstCol,
-                              executedNumList.mrgSortList0, executedNumList.mrgSortList1, executedNumList.mrgSortList2,
-                              executedNumList.mrgSortList3, src0Col, src1Col, src2Col, 0);
+    TMrgsort<
+        DstTileData, TmpTileData, Src0TileData, Src1TileData, Src1TileData, Src1TileData, exhausted, LIST_NUM_3,
+        kElemsPerStruct>(
+        dst.data(), tmp.data(), src0.data(), src1.data(), src2.data(), nullptr, dstCol, executedNumList.mrgSortList0,
+        executedNumList.mrgSortList1, executedNumList.mrgSortList2, executedNumList.mrgSortList3, src0Col, src1Col,
+        src2Col, 0);
 }
 
 template <typename DstTileData, typename TmpTileData, typename Src0TileData, typename Src1TileData, bool exhausted>
-PTO_INTERNAL void TMRGSORT_IMPL(DstTileData &dst, MrgSortExecutedNumList &executedNumList, TmpTileData &tmp,
-                                Src0TileData &src0, Src1TileData &src1)
+PTO_INTERNAL void TMRGSORT_IMPL(
+    DstTileData& dst, MrgSortExecutedNumList& executedNumList, TmpTileData& tmp, Src0TileData& src0, Src1TileData& src1)
 {
     CheckMrgSortTileConstraints<DstTileData>();
     CheckMrgSortTileConstraints<TmpTileData>();
@@ -281,15 +291,17 @@ PTO_INTERNAL void TMRGSORT_IMPL(DstTileData &dst, MrgSortExecutedNumList &execut
     unsigned src1Col = src1.GetValidCol() / kElemsPerStruct;
     unsigned dstCol = dst.GetValidCol() / kElemsPerStruct;
 
-    TMrgsort<DstTileData, TmpTileData, Src0TileData, Src1TileData, Src1TileData, Src1TileData, exhausted, LIST_NUM_2,
-             kElemsPerStruct>(dst.data(), tmp.data(), src0.data(), src1.data(), nullptr, nullptr, dstCol,
-                              executedNumList.mrgSortList0, executedNumList.mrgSortList1, executedNumList.mrgSortList2,
-                              executedNumList.mrgSortList3, src0Col, src1Col, 0, 0);
+    TMrgsort<
+        DstTileData, TmpTileData, Src0TileData, Src1TileData, Src1TileData, Src1TileData, exhausted, LIST_NUM_2,
+        kElemsPerStruct>(
+        dst.data(), tmp.data(), src0.data(), src1.data(), nullptr, nullptr, dstCol, executedNumList.mrgSortList0,
+        executedNumList.mrgSortList1, executedNumList.mrgSortList2, executedNumList.mrgSortList3, src0Col, src1Col, 0,
+        0);
 }
 
 // The blockLen size includes values and indexes, such as 32 values and indexes: blockLen=64
 template <typename DstTileData, typename SrcTileData>
-PTO_INTERNAL void TMRGSORT_IMPL(DstTileData &dst, SrcTileData &src, uint32_t blockLen)
+PTO_INTERNAL void TMRGSORT_IMPL(DstTileData& dst, SrcTileData& src, uint32_t blockLen)
 {
     uint32_t dstCol = dst.GetValidCol();
     TMrgsort<DstTileData, SrcTileData>(dst.data(), src.data(), dstCol, blockLen);

@@ -54,17 +54,15 @@ using __cce_simd::RoundRType;
 //   DS / SS0 / SS1 : dst / src0 / src1 row strides (in elements)
 // ============================================================================
 template <typename TileDataDst, typename TileDataSrc, unsigned DS, unsigned SS0, unsigned SS1>
-__tf__ PTO_INTERNAL OP_NAME(TADDRELUCONV)
-    OP_TYPE(element_wise) void TAddReluConv(typename TileDataDst::TileDType __out__ dstData,
-                                            typename TileDataSrc::TileDType __in__ src0Data,
-                                            typename TileDataSrc::TileDType __in__ src1Data, unsigned validRows,
-                                            unsigned validCols)
+__tf__ PTO_INTERNAL OP_NAME(TADDRELUCONV) OP_TYPE(element_wise) void TAddReluConv(
+    typename TileDataDst::TileDType __out__ dstData, typename TileDataSrc::TileDType __in__ src0Data,
+    typename TileDataSrc::TileDType __in__ src1Data, unsigned validRows, unsigned validCols)
 {
     using DT = typename TileDataDst::DType;
     using ST = typename TileDataSrc::DType;
-    __ubuf__ DT *dstPtr = (__ubuf__ DT *)__cce_get_tile_ptr(dstData);
-    __ubuf__ ST *src0Ptr = (__ubuf__ ST *)__cce_get_tile_ptr(src0Data);
-    __ubuf__ ST *src1Ptr = (__ubuf__ ST *)__cce_get_tile_ptr(src1Data);
+    __ubuf__ DT* dstPtr = (__ubuf__ DT*)__cce_get_tile_ptr(dstData);
+    __ubuf__ ST* src0Ptr = (__ubuf__ ST*)__cce_get_tile_ptr(src0Data);
+    __ubuf__ ST* src1Ptr = (__ubuf__ ST*)__cce_get_tile_ptr(src1Data);
 
     constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(ST);
     uint16_t repeatTimes = CeilDivision(validCols, elementsPerRepeat);
@@ -98,7 +96,7 @@ __tf__ PTO_INTERNAL OP_NAME(TADDRELUCONV)
                     vmins(vsum, vsum, (ST)127, preg, MODE_ZEROING);
                     RegTensor<uint8_t> vout;
                     vcvt(vout, vsum, preg, RS_DISABLE, PART_EVEN);
-                    vsts(vout, (__ubuf__ uint8_t *)dstPtr, i * DS + j * elementsPerRepeat, PK_B16, preg);
+                    vsts(vout, (__ubuf__ uint8_t*)dstPtr, i * DS + j * elementsPerRepeat, PK_B16, preg);
                 }
             }
         }
@@ -109,35 +107,40 @@ __tf__ PTO_INTERNAL OP_NAME(TADDRELUCONV)
 // Static / dynamic validation shared by the public entry point.
 // ============================================================================
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
-PTO_INTERNAL void TAddReluConvCheck(const TileDataDst &dst, const TileDataSrc0 &src0, const TileDataSrc1 &src1)
+PTO_INTERNAL void TAddReluConvCheck(const TileDataDst& dst, const TileDataSrc0& src0, const TileDataSrc1& src1)
 {
     using DT = typename TileDataDst::DType;
     using ST = typename TileDataSrc0::DType;
-    static_assert(std::is_same<ST, typename TileDataSrc1::DType>::value,
-                  "Fix: TADDRELUCONV on A5 requires src0 and src1 to have the same element type.");
-    static_assert((std::is_same<ST, float>::value && std::is_same<DT, half>::value) ||
-                      (std::is_same<ST, half>::value && std::is_same<DT, int8_t>::value) ||
-                      (std::is_same<ST, int16_t>::value && std::is_same<DT, int8_t>::value),
-                  "Fix: TADDRELUCONV supports float->half, half->int8 and int16->int8 only.");
-    static_assert(TileDataDst::isRowMajor && TileDataSrc0::isRowMajor && TileDataSrc1::isRowMajor,
-                  "Fix: TADDRELUCONV only supports row major layout.");
+    static_assert(
+        std::is_same<ST, typename TileDataSrc1::DType>::value,
+        "Fix: TADDRELUCONV on A5 requires src0 and src1 to have the same element type.");
+    static_assert(
+        (std::is_same<ST, float>::value && std::is_same<DT, half>::value) ||
+            (std::is_same<ST, half>::value && std::is_same<DT, int8_t>::value) ||
+            (std::is_same<ST, int16_t>::value && std::is_same<DT, int8_t>::value),
+        "Fix: TADDRELUCONV supports float->half, half->int8 and int16->int8 only.");
+    static_assert(
+        TileDataDst::isRowMajor && TileDataSrc0::isRowMajor && TileDataSrc1::isRowMajor,
+        "Fix: TADDRELUCONV only supports row major layout.");
     static_assert(
         TileDataDst::Loc == TileType::Vec && TileDataSrc0::Loc == TileType::Vec && TileDataSrc1::Loc == TileType::Vec,
         "Fix: TADDRELUCONV tiles must live in TileType::Vec.");
     unsigned validRows = dst.GetValidRow();
     unsigned validCols = dst.GetValidCol();
     PTO_ASSERT(validRows > 0 && validCols > 0, "Fix: TADDRELUCONV valid rows and columns must be greater than 0.");
-    PTO_ASSERT(src0.GetValidRow() == validRows && src0.GetValidCol() == validCols,
-               "Fix: TADDRELUCONV input tile src0 valid shape mismatch with output tile dst shape.");
-    PTO_ASSERT(src1.GetValidRow() == validRows && src1.GetValidCol() == validCols,
-               "Fix: TADDRELUCONV input tile src1 valid shape mismatch with output tile dst shape.");
+    PTO_ASSERT(
+        src0.GetValidRow() == validRows && src0.GetValidCol() == validCols,
+        "Fix: TADDRELUCONV input tile src0 valid shape mismatch with output tile dst shape.");
+    PTO_ASSERT(
+        src1.GetValidRow() == validRows && src1.GetValidCol() == validCols,
+        "Fix: TADDRELUCONV input tile src1 valid shape mismatch with output tile dst shape.");
 }
 
 // ============================================================================
 // Public implementation entry point.
 // ============================================================================
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
-PTO_INTERNAL void TADDRELUCONV_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1)
+PTO_INTERNAL void TADDRELUCONV_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1)
 {
     TAddReluConvCheck<TileDataDst, TileDataSrc0, TileDataSrc1>(dst, src0, src1);
 

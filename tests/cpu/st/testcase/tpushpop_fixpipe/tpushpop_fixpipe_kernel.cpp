@@ -25,7 +25,7 @@ AICORE constexpr inline T CeilAlign(T value, T align)
 }
 
 template <typename InT, typename AccT, typename OutT, int M, int K, int N>
-__global__ AICORE void RunTPushPopFixpipe(__gm__ OutT *out, __gm__ InT *srcA, __gm__ InT *srcB)
+__global__ AICORE void RunTPushPopFixpipe(__gm__ OutT* out, __gm__ InT* srcA, __gm__ InT* srcB)
 {
     constexpr uint16_t FLAG_ID = 0;
     constexpr uint8_t FIFO_DEPTH = 2;
@@ -40,7 +40,7 @@ __global__ AICORE void RunTPushPopFixpipe(__gm__ OutT *out, __gm__ InT *srcA, __
     using FixpipeConfig = FixpipeParams<LayoutMode_t::NZ2ND, QuantMode_t::F322F16>;
 
     using MatPipe = TPipe<FLAG_ID, Direction::DIR_C2V, sizeof(OutT) * M * N, FIFO_DEPTH, 2, true>;
-    MatPipe pipe((__gm__ void *)(uint64_t)0x0, (uint32_t)0x0, (uint32_t)0x0);
+    MatPipe pipe((__gm__ void*)(uint64_t)0x0, (uint32_t)0x0, (uint32_t)0x0);
 
     using GlobalA = GlobalTensor<InT, pto::Shape<1, 1, 1, M, K>, pto::Stride<M * K, M * K, M * K, K, 1>>;
     using GlobalB = GlobalTensor<InT, pto::Shape<1, 1, 1, K, N>, pto::Stride<K * N, K * N, K * N, N, 1>>;
@@ -130,7 +130,7 @@ __global__ AICORE void RunTPushPopFixpipe(__gm__ OutT *out, __gm__ InT *srcA, __
 }
 
 template <typename InT, typename AccT, typename OutT, int M, int K, int N>
-__global__ AICORE void RunTPushPopFixpipeDEQF16(__gm__ OutT *out, __gm__ InT *srcA, __gm__ InT *srcB)
+__global__ AICORE void RunTPushPopFixpipeDEQF16(__gm__ OutT* out, __gm__ InT* srcA, __gm__ InT* srcB)
 {
     constexpr uint16_t FLAG_ID = 0;
     constexpr uint8_t FIFO_DEPTH = 2;
@@ -145,7 +145,7 @@ __global__ AICORE void RunTPushPopFixpipeDEQF16(__gm__ OutT *out, __gm__ InT *sr
     using FixpipeConfig = FixpipeParams<LayoutMode_t::NZ2ND, QuantMode_t::DEQF16>;
 
     using MatPipe = TPipe<FLAG_ID, Direction::DIR_C2V, sizeof(OutT) * M * N, FIFO_DEPTH, 2, true>;
-    MatPipe pipe((__gm__ void *)(uint64_t)0x0, (uint32_t)0x0, (uint32_t)0x0);
+    MatPipe pipe((__gm__ void*)(uint64_t)0x0, (uint32_t)0x0, (uint32_t)0x0);
 
     using GlobalA = GlobalTensor<InT, pto::Shape<1, 1, 1, M, K>, pto::Stride<M * K, M * K, M * K, K, 1>>;
     using GlobalB = GlobalTensor<InT, pto::Shape<1, 1, 1, K, N>, pto::Stride<K * N, K * N, K * N, N, 1>>;
@@ -236,8 +236,8 @@ __global__ AICORE void RunTPushPopFixpipeDEQF16(__gm__ OutT *out, __gm__ InT *sr
 }
 
 template <typename InT, typename AccT, typename OutT, int M, int K, int N>
-__global__ AICORE void RunTPushPopFixpipeVDEQF16(__gm__ OutT *out, __gm__ InT *srcA, __gm__ InT *srcB,
-                                                 __gm__ uint64_t *srcQuant)
+__global__ AICORE void RunTPushPopFixpipeVDEQF16(
+    __gm__ OutT* out, __gm__ InT* srcA, __gm__ InT* srcB, __gm__ uint64_t* srcQuant)
 {
     constexpr uint16_t FLAG_ID = 0;
     constexpr uint8_t FIFO_DEPTH = 2;
@@ -252,7 +252,7 @@ __global__ AICORE void RunTPushPopFixpipeVDEQF16(__gm__ OutT *out, __gm__ InT *s
     using FixpipeConfig = FixpipeParams<LayoutMode_t::NZ2ND, QuantMode_t::VDEQF16>;
 
     using MatPipe = TPipe<FLAG_ID, Direction::DIR_C2V, sizeof(OutT) * M * N, FIFO_DEPTH, 2, true>;
-    MatPipe pipe((__gm__ void *)(uint64_t)0x0, (uint32_t)0x0, (uint32_t)0x0);
+    MatPipe pipe((__gm__ void*)(uint64_t)0x0, (uint32_t)0x0, (uint32_t)0x0);
 
     using GlobalA = GlobalTensor<InT, pto::Shape<1, 1, 1, M, K>, pto::Stride<M * K, M * K, M * K, K, 1>>;
     using GlobalB = GlobalTensor<InT, pto::Shape<1, 1, 1, K, N>, pto::Stride<K * N, K * N, K * N, N, 1>>;
@@ -356,7 +356,7 @@ __global__ AICORE void RunTPushPopFixpipeVDEQF16(__gm__ OutT *out, __gm__ InT *s
 }
 
 template <typename InT, typename AccT, typename OutT, int M, int K, int N>
-__global__ AICORE void RunTPushPopFixpipeF322BF16(__gm__ OutT *out, __gm__ InT *srcA, __gm__ InT *srcB)
+__global__ AICORE void RunTPushPopFixpipeF322BF16(__gm__ OutT* out, __gm__ InT* srcA, __gm__ InT* srcB)
 {
     constexpr uint16_t FLAG_ID = 0;
     constexpr uint8_t FIFO_DEPTH = 2;
@@ -371,7 +371,7 @@ __global__ AICORE void RunTPushPopFixpipeF322BF16(__gm__ OutT *out, __gm__ InT *
     using FixpipeConfig = FixpipeParams<LayoutMode_t::NZ2ND, QuantMode_t::F322BF16>;
 
     using MatPipe = TPipe<FLAG_ID, Direction::DIR_C2V, sizeof(OutT) * M * N, FIFO_DEPTH, 2, true>;
-    MatPipe pipe((__gm__ void *)(uint64_t)0x0, (uint32_t)0x0, (uint32_t)0x0);
+    MatPipe pipe((__gm__ void*)(uint64_t)0x0, (uint32_t)0x0, (uint32_t)0x0);
 
     using GlobalA = GlobalTensor<InT, pto::Shape<1, 1, 1, M, K>, pto::Stride<M * K, M * K, M * K, K, 1>>;
     using GlobalB = GlobalTensor<InT, pto::Shape<1, 1, 1, K, N>, pto::Stride<K * N, K * N, K * N, N, 1>>;
@@ -461,25 +461,25 @@ __global__ AICORE void RunTPushPopFixpipeF322BF16(__gm__ OutT *out, __gm__ InT *
 }
 
 template <int32_t tilingKey>
-void LaunchTPushPopFixpipe(uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *srcQuant, void *stream)
+void LaunchTPushPopFixpipe(uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* srcQuant, void* stream)
 {
     if constexpr (tilingKey == 1) {
-        RunTPushPopFixpipe<half, float, half, 64, 64, 64>(reinterpret_cast<half *>(out), reinterpret_cast<half *>(srcA),
-                                                          reinterpret_cast<half *>(srcB));
+        RunTPushPopFixpipe<half, float, half, 64, 64, 64>(
+            reinterpret_cast<half*>(out), reinterpret_cast<half*>(srcA), reinterpret_cast<half*>(srcB));
     } else if constexpr (tilingKey == 2) {
         RunTPushPopFixpipeF322BF16<half, float, bfloat16_t, 64, 64, 64>(
-            reinterpret_cast<bfloat16_t *>(out), reinterpret_cast<half *>(srcA), reinterpret_cast<half *>(srcB));
+            reinterpret_cast<bfloat16_t*>(out), reinterpret_cast<half*>(srcA), reinterpret_cast<half*>(srcB));
     } else if constexpr (tilingKey == 3) {
         RunTPushPopFixpipeDEQF16<int8_t, int32_t, half, 128, 128, 128>(
-            reinterpret_cast<half *>(out), reinterpret_cast<int8_t *>(srcA), reinterpret_cast<int8_t *>(srcB));
+            reinterpret_cast<half*>(out), reinterpret_cast<int8_t*>(srcA), reinterpret_cast<int8_t*>(srcB));
     } else if constexpr (tilingKey == 4) {
         RunTPushPopFixpipeVDEQF16<int8_t, int32_t, half, 128, 128, 128>(
-            reinterpret_cast<half *>(out), reinterpret_cast<int8_t *>(srcA), reinterpret_cast<int8_t *>(srcB),
-            reinterpret_cast<uint64_t *>(srcQuant));
+            reinterpret_cast<half*>(out), reinterpret_cast<int8_t*>(srcA), reinterpret_cast<int8_t*>(srcB),
+            reinterpret_cast<uint64_t*>(srcQuant));
     }
 }
 
-template void LaunchTPushPopFixpipe<1>(uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *srcQuant, void *stream);
-template void LaunchTPushPopFixpipe<2>(uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *srcQuant, void *stream);
-template void LaunchTPushPopFixpipe<3>(uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *srcQuant, void *stream);
-template void LaunchTPushPopFixpipe<4>(uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *srcQuant, void *stream);
+template void LaunchTPushPopFixpipe<1>(uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* srcQuant, void* stream);
+template void LaunchTPushPopFixpipe<2>(uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* srcQuant, void* stream);
+template void LaunchTPushPopFixpipe<3>(uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* srcQuant, void* stream);
+template void LaunchTPushPopFixpipe<4>(uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* srcQuant, void* stream);

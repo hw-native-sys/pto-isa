@@ -17,10 +17,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-template <typename T, unsigned ElementsPerRepeat, unsigned BlockSizeElem, unsigned DstRowStride,
-          unsigned Src0RowStride = DstRowStride>
-PTO_INTERNAL void TPairReduceSum_1D_NoPostUpdate(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, unsigned validRows,
-                                                 unsigned validCols)
+template <
+    typename T, unsigned ElementsPerRepeat, unsigned BlockSizeElem, unsigned DstRowStride,
+    unsigned Src0RowStride = DstRowStride>
+PTO_INTERNAL void TPairReduceSum_1D_NoPostUpdate(
+    __ubuf__ T* dstPtr, __ubuf__ T* src0Ptr, unsigned validRows, unsigned validCols)
 {
     constexpr unsigned halfElementsPerRepeat = ElementsPerRepeat >> 1;
     unsigned fullRptPerRow = validCols / ElementsPerRepeat;
@@ -34,9 +35,9 @@ PTO_INTERNAL void TPairReduceSum_1D_NoPostUpdate(__ubuf__ T *dstPtr, __ubuf__ T 
         unsigned rowsLeft = validRows;
         while (rowsLeft > 0) {
             unsigned rowsThisCall = (rowsLeft > REPEAT_MAX) ? REPEAT_MAX : rowsLeft;
-            vcpadd(dstPtr + rowIdx * DstRowStride + j * halfElementsPerRepeat,
-                   src0Ptr + rowIdx * Src0RowStride + j * ElementsPerRepeat, rowsThisCall, dstRptStride, 1,
-                   src0RptStride);
+            vcpadd(
+                dstPtr + rowIdx * DstRowStride + j * halfElementsPerRepeat,
+                src0Ptr + rowIdx * Src0RowStride + j * ElementsPerRepeat, rowsThisCall, dstRptStride, 1, src0RptStride);
             pipe_barrier(PIPE_V);
             rowIdx += rowsThisCall;
             rowsLeft -= rowsThisCall;
@@ -47,8 +48,9 @@ PTO_INTERNAL void TPairReduceSum_1D_NoPostUpdate(__ubuf__ T *dstPtr, __ubuf__ T 
         for (unsigned i = 0; i < validRows; ++i) {
             set_mask_count();
             SetVectorCount(evenRemain);
-            vcpadd(dstPtr + i * DstRowStride + fullRptPerRow * halfElementsPerRepeat,
-                   src0Ptr + i * Src0RowStride + fullRptPerRow * ElementsPerRepeat, 0, dstRptStride, 1, src0RptStride);
+            vcpadd(
+                dstPtr + i * DstRowStride + fullRptPerRow * halfElementsPerRepeat,
+                src0Ptr + i * Src0RowStride + fullRptPerRow * ElementsPerRepeat, 0, dstRptStride, 1, src0RptStride);
             pipe_barrier(PIPE_V);
             set_mask_norm();
             set_vector_mask(-1, -1);
@@ -56,10 +58,11 @@ PTO_INTERNAL void TPairReduceSum_1D_NoPostUpdate(__ubuf__ T *dstPtr, __ubuf__ T 
     }
 }
 
-template <typename T, unsigned ElementsPerRepeat, unsigned BlockSizeElem, unsigned DstRowStride,
-          unsigned Src0RowStride = DstRowStride>
-PTO_INTERNAL void TPairReduceSum_2D_NoPostUpdate(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, unsigned validRows,
-                                                 unsigned validCols)
+template <
+    typename T, unsigned ElementsPerRepeat, unsigned BlockSizeElem, unsigned DstRowStride,
+    unsigned Src0RowStride = DstRowStride>
+PTO_INTERNAL void TPairReduceSum_2D_NoPostUpdate(
+    __ubuf__ T* dstPtr, __ubuf__ T* src0Ptr, unsigned validRows, unsigned validCols)
 {
     constexpr unsigned halfElementsPerRepeat = ElementsPerRepeat >> 1;
     unsigned fullRptPerRow = validCols / ElementsPerRepeat;
@@ -69,19 +72,20 @@ PTO_INTERNAL void TPairReduceSum_2D_NoPostUpdate(__ubuf__ T *dstPtr, __ubuf__ T 
 
     set_mask_norm();
     for (unsigned i = 0; i < validRows; ++i) {
-        __ubuf__ T *rowDst = dstPtr + i * DstRowStride;
-        __ubuf__ T *rowSrc = src0Ptr + i * Src0RowStride;
+        __ubuf__ T* rowDst = dstPtr + i * DstRowStride;
+        __ubuf__ T* rowSrc = src0Ptr + i * Src0RowStride;
         for (unsigned j = 0; j < fullRptPerRow; ++j) {
-            vcpadd(rowDst + j * halfElementsPerRepeat, rowSrc + j * ElementsPerRepeat, 1, dstRptStride, 1,
-                   src0RptStride);
+            vcpadd(
+                rowDst + j * halfElementsPerRepeat, rowSrc + j * ElementsPerRepeat, 1, dstRptStride, 1, src0RptStride);
             pipe_barrier(PIPE_V);
         }
         unsigned evenRemain = remainElem & ~1u;
         if (evenRemain > 0) {
             set_mask_count();
             SetVectorCount(evenRemain);
-            vcpadd(rowDst + fullRptPerRow * halfElementsPerRepeat, rowSrc + fullRptPerRow * ElementsPerRepeat, 0,
-                   dstRptStride, 1, src0RptStride);
+            vcpadd(
+                rowDst + fullRptPerRow * halfElementsPerRepeat, rowSrc + fullRptPerRow * ElementsPerRepeat, 0,
+                dstRptStride, 1, src0RptStride);
             pipe_barrier(PIPE_V);
             set_mask_norm();
             set_vector_mask(-1, -1);
@@ -90,9 +94,9 @@ PTO_INTERNAL void TPairReduceSum_2D_NoPostUpdate(__ubuf__ T *dstPtr, __ubuf__ T 
 }
 
 template <typename TileDataDst, typename TileDataSrc0, unsigned ElementsPerRepeat, unsigned BlockSizeElem>
-PTO_INTERNAL void TPairReduceSumInstr(__ubuf__ typename TileDataDst::DType *dst,
-                                      __ubuf__ typename TileDataSrc0::DType *src0, unsigned validRows,
-                                      unsigned validCols)
+PTO_INTERNAL void TPairReduceSumInstr(
+    __ubuf__ typename TileDataDst::DType* dst, __ubuf__ typename TileDataSrc0::DType* src0, unsigned validRows,
+    unsigned validCols)
 {
     using T = typename TileDataDst::DType;
     constexpr unsigned dstRowStride = TileDataDst::RowStride;
@@ -111,44 +115,46 @@ PTO_INTERNAL void TPairReduceSumInstr(__ubuf__ typename TileDataDst::DType *dst,
 }
 
 template <typename TileDataDst, typename TileDataSrc0, unsigned ElementsPerRepeat, unsigned BlockSizeElem>
-__tf__ PTO_INTERNAL void TPairReduceSum(typename TileDataDst::TileDType __out__ dst,
-                                        typename TileDataSrc0::TileDType __in__ src0, unsigned validRows,
-                                        unsigned validCols)
+__tf__ PTO_INTERNAL void TPairReduceSum(
+    typename TileDataDst::TileDType __out__ dst, typename TileDataSrc0::TileDType __in__ src0, unsigned validRows,
+    unsigned validCols)
 {
     using T = typename TileDataDst::DType;
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *src0Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src0);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
 
-    TPairReduceSumInstr<TileDataDst, TileDataSrc0, ElementsPerRepeat, BlockSizeElem>(dstPtr, src0Ptr, validRows,
-                                                                                     validCols);
+    TPairReduceSumInstr<TileDataDst, TileDataSrc0, ElementsPerRepeat, BlockSizeElem>(
+        dstPtr, src0Ptr, validRows, validCols);
     return;
 }
 
 template <typename TileDataDst, typename TileDataSrc0>
-PTO_INTERNAL void TPairReduceSumCheck(const TileDataDst &dst, const TileDataSrc0 &src0)
+PTO_INTERNAL void TPairReduceSumCheck(const TileDataDst& dst, const TileDataSrc0& src0)
 {
     using T = typename TileDataDst::DType;
     static_assert(std::is_same_v<T, float> || std::is_same_v<T, half>, "Fix: TPAIRREDUCESUM has invalid data type.");
-    static_assert(TileDataDst::isRowMajor && TileDataSrc0::isRowMajor,
-                  "Fix: TPAIRREDUCESUM only support row major layout.");
-    static_assert(std::is_same_v<T, typename TileDataSrc0::DType>,
-                  "Fix: TPAIRREDUCESUM input tile src0 and dst tile data type mismatch.");
+    static_assert(
+        TileDataDst::isRowMajor && TileDataSrc0::isRowMajor, "Fix: TPAIRREDUCESUM only support row major layout.");
+    static_assert(
+        std::is_same_v<T, typename TileDataSrc0::DType>,
+        "Fix: TPAIRREDUCESUM input tile src0 and dst tile data type mismatch.");
     unsigned validRows = dst.GetValidRow();
     unsigned validCols = dst.GetValidCol();
-    PTO_ASSERT(src0.GetValidRow() == validRows && src0.GetValidCol() == validCols,
-               "Fix: TPAIRREDUCESUM input tile src0 valid shape mismatch with output tile dst shape.");
+    PTO_ASSERT(
+        src0.GetValidRow() == validRows && src0.GetValidCol() == validCols,
+        "Fix: TPAIRREDUCESUM input tile src0 valid shape mismatch with output tile dst shape.");
 }
 
 template <typename TileDataDst, typename TileDataSrc0>
-PTO_INTERNAL void TPAIRREDUCESUM_IMPL(TileDataDst &dst, TileDataSrc0 &src0)
+PTO_INTERNAL void TPAIRREDUCESUM_IMPL(TileDataDst& dst, TileDataSrc0& src0)
 {
     using T = typename TileDataDst::DType;
     TPairReduceSumCheck<TileDataDst, TileDataSrc0>(dst, src0);
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
     constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
 
-    TPairReduceSum<TileDataDst, TileDataSrc0, elementsPerRepeat, blockSizeElem>(dst.data(), src0.data(),
-                                                                                dst.GetValidRow(), dst.GetValidCol());
+    TPairReduceSum<TileDataDst, TileDataSrc0, elementsPerRepeat, blockSizeElem>(
+        dst.data(), src0.data(), dst.GetValidRow(), dst.GetValidCol());
 }
 } // namespace pto
 #endif

@@ -24,12 +24,9 @@ struct DivSOp {
     static constexpr bool isDynFunc = true;
     RegTensor<T> scalarReg;
 
-    PTO_INTERNAL DivSOp(T scalar)
-    {
-        vbr(scalarReg, scalar);
-    };
+    PTO_INTERNAL DivSOp(T scalar) { vbr(scalarReg, scalar); };
 
-    PTO_INTERNAL void BinSInstr(RegTensor<T> &dstReg, RegTensor<T> &srcReg, T scalar, MaskReg &pReg)
+    PTO_INTERNAL void BinSInstr(RegTensor<T>& dstReg, RegTensor<T>& srcReg, T scalar, MaskReg& pReg)
     {
         if constexpr (PrecisionType == DivAlgorithm::HIGH_PRECISION && std::is_same_v<T, float>) {
             DivIEEE754FloatImpl<T, RegTensor<T>>(dstReg, srcReg, scalarReg, pReg);
@@ -46,12 +43,9 @@ struct DivSOpS {
     static constexpr bool isDynFunc = true;
     RegTensor<T> scalarReg;
 
-    PTO_INTERNAL DivSOpS(T scalar)
-    {
-        vbr(scalarReg, scalar);
-    };
+    PTO_INTERNAL DivSOpS(T scalar) { vbr(scalarReg, scalar); };
 
-    PTO_INTERNAL void BinSInstr(RegTensor<T> &dstReg, RegTensor<T> &srcReg, T scalar, MaskReg &pReg)
+    PTO_INTERNAL void BinSInstr(RegTensor<T>& dstReg, RegTensor<T>& srcReg, T scalar, MaskReg& pReg)
     {
         if constexpr (PrecisionType == DivAlgorithm::HIGH_PRECISION && std::is_same_v<T, float>) {
             DivIEEE754FloatImpl<T, RegTensor<T>>(dstReg, scalarReg, srcReg, pReg);
@@ -63,7 +57,7 @@ struct DivSOpS {
     }
 };
 template <typename T, unsigned DstCols, unsigned SrcCols>
-PTO_INTERNAL void TDivs_naive(__ubuf__ T *dst, __ubuf__ T *src0, T src1, unsigned validRow, unsigned validCol)
+PTO_INTERNAL void TDivs_naive(__ubuf__ T* dst, __ubuf__ T* src0, T src1, unsigned validRow, unsigned validCol)
 {
 // auto mode adds in synchronization during compilation
 #ifndef __PTO_AUTO__
@@ -79,7 +73,7 @@ PTO_INTERNAL void TDivs_naive(__ubuf__ T *dst, __ubuf__ T *src0, T src1, unsigne
 }
 
 template <typename T, unsigned DstCols, unsigned SrcCols>
-PTO_INTERNAL void TSDiv_naive(__ubuf__ T *dst, __ubuf__ T *src0, T src1, unsigned validRow, unsigned validCol)
+PTO_INTERNAL void TSDiv_naive(__ubuf__ T* dst, __ubuf__ T* src0, T src1, unsigned validRow, unsigned validCol)
 {
 // auto mode adds in synchronization during compilation
 #ifndef __PTO_AUTO__
@@ -93,64 +87,72 @@ PTO_INTERNAL void TSDiv_naive(__ubuf__ T *dst, __ubuf__ T *src0, T src1, unsigne
         }
     }
 }
-template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc,
-          unsigned elementsPerRepeat, unsigned blockSizeElem, unsigned dstRowStride, unsigned srcRowStride>
-__tf__ PTO_INTERNAL OP_NAME(TDIVS)
-    OP_TYPE(element_wise) void TDivS(typename TileDataDst::TileDType __out__ dst,
-                                     typename TileDataSrc::TileDType __in__ src0, typename TileDataSrc::DType src1,
-                                     unsigned validRow, unsigned validCol,
-                                     VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
+template <
+    auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc, unsigned elementsPerRepeat,
+    unsigned blockSizeElem, unsigned dstRowStride, unsigned srcRowStride>
+__tf__ PTO_INTERNAL OP_NAME(TDIVS) OP_TYPE(element_wise) void TDivS(
+    typename TileDataDst::TileDType __out__ dst, typename TileDataSrc::TileDType __in__ src0,
+    typename TileDataSrc::DType src1, unsigned validRow, unsigned validCol,
+    VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
 {
     using T = typename TileDataDst::DType;
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *src0Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src0);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
     if constexpr (std::is_integral_v<T>) {
         TDivs_naive<T, TileDataDst::Cols, TileDataSrc::Cols>(dstPtr, src0Ptr, src1, validRow, validCol);
     } else {
-        BinaryInstr<DivSOp<PrecisionType, T>, TileDataDst, TileDataSrc, T, elementsPerRepeat, blockSizeElem,
-                    dstRowStride, srcRowStride>(dstPtr, src0Ptr, src1, validRow, validCol, version);
+        BinaryInstr<
+            DivSOp<PrecisionType, T>, TileDataDst, TileDataSrc, T, elementsPerRepeat, blockSizeElem, dstRowStride,
+            srcRowStride>(dstPtr, src0Ptr, src1, validRow, validCol, version);
     }
 }
 
-template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc,
-          unsigned elementsPerRepeat, unsigned blockSizeElem, unsigned dstRowStride, unsigned srcRowStride>
-__tf__ PTO_INTERNAL OP_NAME(TDIVS)
-    OP_TYPE(element_wise) void TDivS(typename TileDataDst::TileDType __out__ dst, typename TileDataSrc::DType src1,
-                                     typename TileDataSrc::TileDType __in__ src0, unsigned validRow, unsigned validCol,
-                                     VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
+template <
+    auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc, unsigned elementsPerRepeat,
+    unsigned blockSizeElem, unsigned dstRowStride, unsigned srcRowStride>
+__tf__ PTO_INTERNAL OP_NAME(TDIVS) OP_TYPE(element_wise) void TDivS(
+    typename TileDataDst::TileDType __out__ dst, typename TileDataSrc::DType src1,
+    typename TileDataSrc::TileDType __in__ src0, unsigned validRow, unsigned validCol,
+    VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
 {
     using T = typename TileDataDst::DType;
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *src0Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src0);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
     if constexpr (std::is_integral_v<T>) {
         TSDiv_naive<T, TileDataDst::Cols, TileDataSrc::Cols>(dstPtr, src0Ptr, src1, validRow, validCol);
     } else {
-        BinaryInstr<DivSOpS<PrecisionType, T>, TileDataDst, TileDataSrc, T, elementsPerRepeat, blockSizeElem,
-                    dstRowStride, srcRowStride>(dstPtr, src0Ptr, src1, validRow, validCol, version);
+        BinaryInstr<
+            DivSOpS<PrecisionType, T>, TileDataDst, TileDataSrc, T, elementsPerRepeat, blockSizeElem, dstRowStride,
+            srcRowStride>(dstPtr, src0Ptr, src1, validRow, validCol, version);
     }
 }
 
 template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TDIVS_IMPL(TileDataDst &dst, TileDataSrc &src0, typename TileDataSrc::DType scalar)
+PTO_INTERNAL void TDIVS_IMPL(TileDataDst& dst, TileDataSrc& src0, typename TileDataSrc::DType scalar)
 {
-    static_assert(std::is_same<typename TileDataDst::DType, uint32_t>::value ||
-                      std::is_same<typename TileDataDst::DType, int32_t>::value ||
-                      std::is_same<typename TileDataDst::DType, uint16_t>::value ||
-                      std::is_same<typename TileDataDst::DType, int16_t>::value ||
-                      std::is_same<typename TileDataDst::DType, half>::value ||
-                      std::is_same<typename TileDataDst::DType, float>::value,
-                  "TDIVS: Invalid data type");
+    static_assert(
+        std::is_same<typename TileDataDst::DType, uint32_t>::value ||
+            std::is_same<typename TileDataDst::DType, int32_t>::value ||
+            std::is_same<typename TileDataDst::DType, uint16_t>::value ||
+            std::is_same<typename TileDataDst::DType, int16_t>::value ||
+            std::is_same<typename TileDataDst::DType, half>::value ||
+            std::is_same<typename TileDataDst::DType, float>::value,
+        "TDIVS: Invalid data type");
 
     static_assert(TileDataSrc::Loc == TileType::Vec, "TileType of src and dst tiles must be TileType::Vec.");
     static_assert(TileDataDst::Loc == TileType::Vec, "TileType of src and dst tiles must be TileType::Vec.");
-    static_assert(TileDataSrc::ValidCol <= TileDataSrc::Cols,
-                  "Number of valid columns must not be greater than number of tile columns.");
-    static_assert(TileDataSrc::ValidRow <= TileDataSrc::Rows,
-                  "Number of valid rows must not be greater than number of tile rows.");
-    static_assert(TileDataDst::ValidCol <= TileDataDst::Cols,
-                  "Number of valid columns must not be greater than number of tile columns.");
-    static_assert(TileDataDst::ValidRow <= TileDataDst::Rows,
-                  "Number of valid rows must not be greater than number of tile rows.");
+    static_assert(
+        TileDataSrc::ValidCol <= TileDataSrc::Cols,
+        "Number of valid columns must not be greater than number of tile columns.");
+    static_assert(
+        TileDataSrc::ValidRow <= TileDataSrc::Rows,
+        "Number of valid rows must not be greater than number of tile rows.");
+    static_assert(
+        TileDataDst::ValidCol <= TileDataDst::Cols,
+        "Number of valid columns must not be greater than number of tile columns.");
+    static_assert(
+        TileDataDst::ValidRow <= TileDataDst::Rows,
+        "Number of valid rows must not be greater than number of tile rows.");
 
     PTO_ASSERT(src0.GetValidRow() == dst.GetValidRow(), "Number of rows of src and dst must be the same.");
     PTO_ASSERT(src0.GetValidCol() == dst.GetValidCol(), "Number of columns of src and dst must be the same.");
@@ -166,18 +168,22 @@ PTO_INTERNAL void TDIVS_IMPL(TileDataDst &dst, TileDataSrc &src0, typename TileD
 }
 
 template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TDIVS_IMPL(TileDataDst &dst, typename TileDataSrc::DType scalar, TileDataSrc &src0)
+PTO_INTERNAL void TDIVS_IMPL(TileDataDst& dst, typename TileDataSrc::DType scalar, TileDataSrc& src0)
 {
     static_assert(TileDataSrc::Loc == TileType::Vec, "TileType of src and dst tiles must be TileType::Vec.");
     static_assert(TileDataDst::Loc == TileType::Vec, "TileType of src and dst tiles must be TileType::Vec.");
-    static_assert(TileDataSrc::ValidCol <= TileDataSrc::Cols,
-                  "Number of valid columns must not be greater than number of tile columns.");
-    static_assert(TileDataSrc::ValidRow <= TileDataSrc::Rows,
-                  "Number of valid rows must not be greater than number of tile rows.");
-    static_assert(TileDataDst::ValidCol <= TileDataDst::Cols,
-                  "Number of valid columns must not be greater than number of tile columns.");
-    static_assert(TileDataDst::ValidRow <= TileDataDst::Rows,
-                  "Number of valid rows must not be greater than number of tile rows.");
+    static_assert(
+        TileDataSrc::ValidCol <= TileDataSrc::Cols,
+        "Number of valid columns must not be greater than number of tile columns.");
+    static_assert(
+        TileDataSrc::ValidRow <= TileDataSrc::Rows,
+        "Number of valid rows must not be greater than number of tile rows.");
+    static_assert(
+        TileDataDst::ValidCol <= TileDataDst::Cols,
+        "Number of valid columns must not be greater than number of tile columns.");
+    static_assert(
+        TileDataDst::ValidRow <= TileDataDst::Rows,
+        "Number of valid rows must not be greater than number of tile rows.");
 
     PTO_ASSERT(src0.GetValidRow() == dst.GetValidRow(), "Number of rows of src and dst must be the same.");
     PTO_ASSERT(src0.GetValidCol() == dst.GetValidCol(), "Number of columns of src and dst must be the same.");

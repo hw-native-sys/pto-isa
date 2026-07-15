@@ -15,39 +15,19 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <pto/costmodel/common/qualifiers.hpp>
 
-inline CceEventIdType __pto_set_flag(pipe_t, pipe_t)
-{
-    return EVENT_ID0;
-}
-inline void __pto_wait_flag(pipe_t, pipe_t, CceEventIdType)
-{}
-[[noreturn]] inline void trap()
-{
-    std::terminate();
-}
+inline CceEventIdType __pto_set_flag(pipe_t, pipe_t) { return EVENT_ID0; }
+inline void __pto_wait_flag(pipe_t, pipe_t, CceEventIdType) {}
+[[noreturn]] inline void trap() { std::terminate(); }
 
-inline int get_rsvd_cnt()
-{
-    return 0;
-}
-inline int get_coreid()
-{
-    return 0;
-}
-inline uint32_t get_block_num()
-{
-    return 1;
-}
-inline uint64_t get_sys_cnt()
-{
-    return 0;
-}
+inline int get_rsvd_cnt() { return 0; }
+inline int get_coreid() { return 0; }
+inline uint32_t get_block_num() { return 1; }
+inline uint64_t get_sys_cnt() { return 0; }
 
 // Stubs for NPU cache/barrier operations used by cross-core sync
 inline constexpr int SINGLE_CACHE_LINE = 0;
 inline constexpr int DSB_DDR = 0;
-inline void dcci(const volatile void *, int)
-{}
+inline void dcci(const volatile void*, int) {}
 
 template <typename T, typename U>
 inline constexpr std::common_type_t<T, U> max(T lhs, U rhs)

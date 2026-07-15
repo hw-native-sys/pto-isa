@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class TXORTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -33,7 +31,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols>
-void LaunchTXor(T *out, T *src0, T *src1, void *stream);
+void LaunchTXor(T* out, T* src0, T* src1, void* stream);
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols>
 void test_txor()
@@ -48,13 +46,13 @@ void test_txor()
     T *dstHost, *src0Host, *src1Host;
     T *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&src0Host), fileSize);
-    aclrtMallocHost((void **)(&src1Host), fileSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&src0Host), fileSize);
+    aclrtMallocHost((void**)(&src1Host), fileSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input1.bin", fileSize, src0Host, fileSize);
     ReadFile(GetGoldenDir() + "/input2.bin", fileSize, src1Host, fileSize);
@@ -89,47 +87,20 @@ void test_txor()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TXORTest, case1)
-{
-    test_txor<uint16_t, 64, 64, 64, 64>();
-}
+TEST_F(TXORTest, case1) { test_txor<uint16_t, 64, 64, 64, 64>(); }
 
-TEST_F(TXORTest, case2)
-{
-    test_txor<uint16_t, 64, 64, 63, 63>();
-}
+TEST_F(TXORTest, case2) { test_txor<uint16_t, 64, 64, 63, 63>(); }
 
-TEST_F(TXORTest, case3)
-{
-    test_txor<uint16_t, 1, 16384, 1, 16384>();
-}
+TEST_F(TXORTest, case3) { test_txor<uint16_t, 1, 16384, 1, 16384>(); }
 
-TEST_F(TXORTest, case4)
-{
-    test_txor<uint16_t, 2048, 16, 2048, 16>();
-}
+TEST_F(TXORTest, case4) { test_txor<uint16_t, 2048, 16, 2048, 16>(); }
 
-TEST_F(TXORTest, case5)
-{
-    test_txor<uint8_t, 32, 32, 32, 32>();
-}
+TEST_F(TXORTest, case5) { test_txor<uint8_t, 32, 32, 32, 32>(); }
 
-TEST_F(TXORTest, case6)
-{
-    test_txor<uint32_t, 8, 8, 8, 8>();
-}
+TEST_F(TXORTest, case6) { test_txor<uint32_t, 8, 8, 8, 8>(); }
 
-TEST_F(TXORTest, case7)
-{
-    test_txor<int8_t, 32, 32, 32, 32>();
-}
+TEST_F(TXORTest, case7) { test_txor<int8_t, 32, 32, 32, 32>(); }
 
-TEST_F(TXORTest, case8)
-{
-    test_txor<int16_t, 16, 16, 16, 16>();
-}
+TEST_F(TXORTest, case8) { test_txor<int16_t, 16, 16, 16, 16>(); }
 
-TEST_F(TXORTest, case9)
-{
-    test_txor<int32_t, 8, 8, 8, 8>();
-}
+TEST_F(TXORTest, case9) { test_txor<int32_t, 8, 8, 8, 8>(); }

@@ -40,7 +40,7 @@ using UnalignReg = vector_align;
 using AddrReg = vector_address;
 
 template <typename T>
-PTO_INTERNAL MaskReg CreatePredicateImpl(uint32_t &scalar)
+PTO_INTERNAL MaskReg CreatePredicateImpl(uint32_t& scalar)
 {
     MaskReg reg;
     if constexpr (sizeof(T) == 1) {
@@ -54,7 +54,7 @@ PTO_INTERNAL MaskReg CreatePredicateImpl(uint32_t &scalar)
 }
 
 template <typename T>
-PTO_INTERNAL MaskReg CreatePredicate(uint32_t &scalar)
+PTO_INTERNAL MaskReg CreatePredicate(uint32_t& scalar)
 {
     return CreatePredicateImpl<T>(scalar);
 }
@@ -65,10 +65,7 @@ struct RegTensor {
     using RegType = typename TypeGet<T>::T;
     RegType reg;
 
-    PTO_INTERNAL operator RegType &()
-    {
-        return reg;
-    }
+    PTO_INTERNAL operator RegType&() { return reg; }
     AICORE void Print() const;
 };
 
@@ -144,10 +141,12 @@ template <typename DstTileData, typename SrcTileData, typename DstType, typename
 PTO_INTERNAL void CheckTMovAccValid()
 {
     static_assert((SrcTileData::Loc == TileType::Acc), "Source TileType only support Acc.");
-    static_assert((!SrcTileData::isRowMajor && SrcTileData::SFractal == SLayout::RowMajor),
-                  "Src fractal format should be (BFractal: ColMajor, SFractal: RowMajor).");
-    static_assert(((std::is_same<SrcType, float>::value) || (std::is_same<SrcType, int32_t>::value)),
-                  "Src data type only support float or int32_t.");
+    static_assert(
+        (!SrcTileData::isRowMajor && SrcTileData::SFractal == SLayout::RowMajor),
+        "Src fractal format should be (BFractal: ColMajor, SFractal: RowMajor).");
+    static_assert(
+        ((std::is_same<SrcType, float>::value) || (std::is_same<SrcType, int32_t>::value)),
+        "Src data type only support float or int32_t.");
     if constexpr (isQuant) {
         if constexpr (std::is_same<SrcType, float>::value) {
             static_assert(
@@ -158,24 +157,27 @@ PTO_INTERNAL void CheckTMovAccValid()
                 "The output data type must be restricted to int8_t/uint8_t/hifloat/bfloat8_t/half/bfloat16_t/ \
                     float8_e4m3_t/float.");
         } else if constexpr (std::is_same<SrcType, int32_t>::value) {
-            static_assert((std::is_same<DstType, int8_t>::value) || (std::is_same<DstType, uint8_t>::value) ||
-                              (std::is_same<DstType, half>::value) || (std::is_same<DstType, bfloat16_t>::value),
-                          "The output data type must be restricted to int8_t/uint8_t/half/bfloat16_t.");
+            static_assert(
+                (std::is_same<DstType, int8_t>::value) || (std::is_same<DstType, uint8_t>::value) ||
+                    (std::is_same<DstType, half>::value) || (std::is_same<DstType, bfloat16_t>::value),
+                "The output data type must be restricted to int8_t/uint8_t/half/bfloat16_t.");
         }
     } else {
         if constexpr (std::is_same<SrcType, float>::value) {
-            static_assert((std::is_same<DstType, half>::value) || (std::is_same<DstType, bfloat16_t>::value) ||
-                              (std::is_same<DstType, float>::value),
-                          "The output data type must be restricted to half/bfloat16_t/float.");
+            static_assert(
+                (std::is_same<DstType, half>::value) || (std::is_same<DstType, bfloat16_t>::value) ||
+                    (std::is_same<DstType, float>::value),
+                "The output data type must be restricted to half/bfloat16_t/float.");
         } else if constexpr (std::is_same<SrcType, int32_t>::value) {
-            static_assert((std::is_same<DstType, int32_t>::value),
-                          "The output data type must be restricted to int32_t.");
+            static_assert(
+                (std::is_same<DstType, int32_t>::value), "The output data type must be restricted to int32_t.");
         }
     }
-    static_assert(((DstTileData::isRowMajor && DstTileData::SFractal == SLayout::NoneBox) ||
-                   (!DstTileData::isRowMajor && DstTileData::SFractal == SLayout::NoneBox) ||
-                   (!DstTileData::isRowMajor && DstTileData::SFractal == SLayout::RowMajor)),
-                  "Only support nz2nz, nz2nd or nz2dn.");
+    static_assert(
+        ((DstTileData::isRowMajor && DstTileData::SFractal == SLayout::NoneBox) ||
+         (!DstTileData::isRowMajor && DstTileData::SFractal == SLayout::NoneBox) ||
+         (!DstTileData::isRowMajor && DstTileData::SFractal == SLayout::RowMajor)),
+        "Only support nz2nz, nz2nd or nz2dn.");
 }
 
 template <typename DstTileData, typename SrcTileData, AccToVecMode mode, QuantMode_t quantPre>
@@ -183,8 +185,9 @@ PTO_INTERNAL constexpr uint8_t GetDualDstCtl()
 {
     if constexpr (mode == AccToVecMode::DualModeSplitM || mode == AccToVecMode::DualModeSplitN) {
         static_assert(quantPre == QuantMode_t::NoQuant, "Quant is not support in dual Dst Mode.");
-        static_assert((!(!DstTileData::isRowMajor && DstTileData::SFractal == SLayout::NoneBox)),
-                      "Dual Dst Mode is not support in nz2dn.");
+        static_assert(
+            (!(!DstTileData::isRowMajor && DstTileData::SFractal == SLayout::NoneBox)),
+            "Dual Dst Mode is not support in nz2dn.");
         return ((mode == AccToVecMode::DualModeSplitM) ? 1 : 2);
     }
     return 0;
@@ -192,8 +195,8 @@ PTO_INTERNAL constexpr uint8_t GetDualDstCtl()
 
 template <typename T>
 struct Padding {
-    using Type = std::conditional_t<sizeof(T) == sizeof(uint32_t), uint32_t,
-                                    std::conditional_t<sizeof(T) == sizeof(uint16_t), uint16_t, uint8_t>>;
+    using Type = std::conditional_t<
+        sizeof(T) == sizeof(uint32_t), uint32_t, std::conditional_t<sizeof(T) == sizeof(uint16_t), uint16_t, uint8_t>>;
 
     PTO_INTERNAL static constexpr Type GetPaddingMin()
     {

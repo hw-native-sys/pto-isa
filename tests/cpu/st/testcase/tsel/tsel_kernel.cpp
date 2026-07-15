@@ -13,12 +13,12 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-#define PTO_DIV_ROUNDUP(x, y) ((((x) + (y)-1) / (y)))
-#define PTO_CEIL(x, y) ((((x) + (y)-1) / (y)) * (y))
+#define PTO_DIV_ROUNDUP(x, y) ((((x) + (y) - 1) / (y)))
+#define PTO_CEIL(x, y) ((((x) + (y) - 1) / (y)) * (y))
 
 template <typename T, int Rows, int Cols, int ValidRows, int ValidCols>
-__global__ AICORE void runTSEL(__gm__ T __out__ *out, __gm__ uint8_t __in__ *mask, __gm__ T __in__ *src0,
-                               __gm__ T __in__ *src1)
+__global__ AICORE void runTSEL(
+    __gm__ T __out__* out, __gm__ uint8_t __in__* mask, __gm__ T __in__* src0, __gm__ T __in__* src1)
 {
     using DynShapeDim5 = pto::Shape<1, 1, 1, Rows, Cols>;
     using DynStridDim5 = pto::Stride<1, 1, 1, Cols, 1>;
@@ -63,24 +63,24 @@ __global__ AICORE void runTSEL(__gm__ T __out__ *out, __gm__ uint8_t __in__ *mas
 }
 
 template <typename T, int Rows, int Cols, int ValidRows, int ValidCols>
-void LaunchTSel(T *out, uint8_t *mask, T *src0, T *src1, void *stream)
+void LaunchTSel(T* out, uint8_t* mask, T* src0, T* src1, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
-        runTSEL<half, Rows, Cols, ValidRows, ValidCols>((half *)(out), mask, (half *)(src0), (half *)(src1));
+        runTSEL<half, Rows, Cols, ValidRows, ValidCols>((half*)(out), mask, (half*)(src0), (half*)(src1));
     } else {
         runTSEL<T, Rows, Cols, ValidRows, ValidCols>(out, mask, src0, src1);
     }
 }
 
-template void LaunchTSel<float, 2, 128, 2, 128>(float *out, uint8_t *mask, float *src0, float *src1, void *stream);
-template void LaunchTSel<float, 2, 32, 2, 32>(float *out, uint8_t *mask, float *src0, float *src1, void *stream);
-template void LaunchTSel<float, 2, 160, 2, 160>(float *out, uint8_t *mask, float *src0, float *src1, void *stream);
-template void LaunchTSel<aclFloat16, 2, 128, 2, 128>(aclFloat16 *out, uint8_t *mask, aclFloat16 *src0, aclFloat16 *src1,
-                                                     void *stream);
-template void LaunchTSel<aclFloat16, 2, 32, 2, 32>(aclFloat16 *out, uint8_t *mask, aclFloat16 *src0, aclFloat16 *src1,
-                                                   void *stream);
-template void LaunchTSel<aclFloat16, 2, 160, 2, 160>(aclFloat16 *out, uint8_t *mask, aclFloat16 *src0, aclFloat16 *src1,
-                                                     void *stream);
-template void LaunchTSel<int8_t, 2, 128, 2, 128>(int8_t *out, uint8_t *mask, int8_t *src0, int8_t *src1, void *stream);
-template void LaunchTSel<int8_t, 2, 32, 2, 32>(int8_t *out, uint8_t *mask, int8_t *src0, int8_t *src1, void *stream);
-template void LaunchTSel<int8_t, 2, 160, 2, 160>(int8_t *out, uint8_t *mask, int8_t *src0, int8_t *src1, void *stream);
+template void LaunchTSel<float, 2, 128, 2, 128>(float* out, uint8_t* mask, float* src0, float* src1, void* stream);
+template void LaunchTSel<float, 2, 32, 2, 32>(float* out, uint8_t* mask, float* src0, float* src1, void* stream);
+template void LaunchTSel<float, 2, 160, 2, 160>(float* out, uint8_t* mask, float* src0, float* src1, void* stream);
+template void LaunchTSel<aclFloat16, 2, 128, 2, 128>(
+    aclFloat16* out, uint8_t* mask, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void LaunchTSel<aclFloat16, 2, 32, 2, 32>(
+    aclFloat16* out, uint8_t* mask, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void LaunchTSel<aclFloat16, 2, 160, 2, 160>(
+    aclFloat16* out, uint8_t* mask, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void LaunchTSel<int8_t, 2, 128, 2, 128>(int8_t* out, uint8_t* mask, int8_t* src0, int8_t* src1, void* stream);
+template void LaunchTSel<int8_t, 2, 32, 2, 32>(int8_t* out, uint8_t* mask, int8_t* src0, int8_t* src1, void* stream);
+template void LaunchTSel<int8_t, 2, 160, 2, 160>(int8_t* out, uint8_t* mask, int8_t* src0, int8_t* src1, void* stream);

@@ -16,8 +16,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 template <typename tile_shape, int stride>
-void TPrefetch_Impl(typename tile_shape::TileDType dst, typename tile_shape::TileDType src, unsigned validRow,
-                    unsigned validCol)
+void TPrefetch_Impl(
+    typename tile_shape::TileDType dst, typename tile_shape::TileDType src, unsigned validRow, unsigned validCol)
 {
     cpu::parallel_for_rows(validRow, validCol, [&](std::size_t r) {
         const std::size_t base = r * tile_shape::Cols;
@@ -30,7 +30,7 @@ void TPrefetch_Impl(typename tile_shape::TileDType dst, typename tile_shape::Til
 }
 
 template <typename TileData, typename GlobalData>
-PTO_INTERNAL void TPREFETCH_IMPL(TileData &dst, GlobalData &src)
+PTO_INTERNAL void TPREFETCH_IMPL(TileData& dst, GlobalData& src)
 {
     unsigned row = dst.GetValidRow();
     unsigned col = dst.GetValidCol();

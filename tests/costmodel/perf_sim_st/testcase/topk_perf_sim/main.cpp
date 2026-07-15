@@ -27,11 +27,11 @@ TEST(TopkPerfSim, Small_128x1024_k128)
 {
     LAUNCH_KERNEL(runTopk_128x1024_k128, , (1, nullptr, nullptr));
 
-    auto &instrs = ::pto::perf_sim::PtoRecorder::GetForCore(0);
+    auto& instrs = ::pto::perf_sim::PtoRecorder::GetForCore(0);
     EXPECT_GT(instrs.size(), 0u) << "Expected recorded TopK instructions";
 
     bool has_vector = false, has_mte2 = false, has_mte3 = false;
-    for (auto &rec : instrs) {
+    for (auto& rec : instrs) {
         if (rec.stage == ::pto::perf_sim::PipeStage::Vector)
             has_vector = true;
         if (rec.stage == ::pto::perf_sim::PipeStage::MTE2_AIV)
@@ -54,11 +54,11 @@ TEST(TopkPerfSim, Medium_256x2048_k64)
 {
     LAUNCH_KERNEL(runTopk_256x2048_k64, , (1, nullptr, nullptr));
 
-    auto &instrs = ::pto::perf_sim::PtoRecorder::GetForCore(0);
+    auto& instrs = ::pto::perf_sim::PtoRecorder::GetForCore(0);
     EXPECT_GT(instrs.size(), 0u) << "Expected recorded TopK instructions";
 
     bool has_vector = false, has_mte2 = false, has_mte3 = false;
-    for (auto &rec : instrs) {
+    for (auto& rec : instrs) {
         if (rec.stage == ::pto::perf_sim::PipeStage::Vector)
             has_vector = true;
         if (rec.stage == ::pto::perf_sim::PipeStage::MTE2_AIV)
@@ -81,11 +81,11 @@ TEST(TopkPerfSim, Narrow_128x512_k32)
 {
     LAUNCH_KERNEL(runTopk_128x512_k32, , (1, nullptr, nullptr));
 
-    auto &instrs = ::pto::perf_sim::PtoRecorder::GetForCore(0);
+    auto& instrs = ::pto::perf_sim::PtoRecorder::GetForCore(0);
     EXPECT_GT(instrs.size(), 0u) << "Expected recorded TopK instructions";
 
     bool has_vector = false, has_mte2 = false, has_mte3 = false;
-    for (auto &rec : instrs) {
+    for (auto& rec : instrs) {
         if (rec.stage == ::pto::perf_sim::PipeStage::Vector)
             has_vector = true;
         if (rec.stage == ::pto::perf_sim::PipeStage::MTE2_AIV)

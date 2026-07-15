@@ -16,19 +16,17 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
-void launchTEXTRACT(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
+void launchTEXTRACT(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 
 class TEXTRACTTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -36,8 +34,9 @@ std::string GetGoldenDir()
 }
 
 template <int32_t key, typename T, typename U, typename S>
-void textract_test(uint32_t M, uint32_t K, uint32_t N, uint16_t indexM, uint16_t indexK, uint16_t indexN,
-                   uint16_t baseM, uint16_t baseK, uint16_t baseN)
+void textract_test(
+    uint32_t M, uint32_t K, uint32_t N, uint16_t indexM, uint16_t indexK, uint16_t indexN, uint16_t baseM,
+    uint16_t baseK, uint16_t baseN)
 {
     uint32_t mValid = M - indexM;
     uint32_t nValid = N - indexN;
@@ -53,13 +52,13 @@ void textract_test(uint32_t M, uint32_t K, uint32_t N, uint16_t indexM, uint16_t
     uint8_t *dstHost, *src0Host, *src1Host;
     uint8_t *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&src0Host), aFileSize);
-    aclrtMallocHost((void **)(&src1Host), bFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&src0Host), aFileSize);
+    aclrtMallocHost((void**)(&src1Host), bFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
@@ -94,115 +93,31 @@ void textract_test(uint32_t M, uint32_t K, uint32_t N, uint16_t indexM, uint16_t
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TEXTRACTTest, case11)
-{
-    textract_test<11, float, uint16_t, uint16_t>(63, 48, 66, 0, 0, 0, 128, 64, 256);
-}
-TEST_F(TEXTRACTTest, case12)
-{
-    textract_test<12, float, uint16_t, uint16_t>(68, 93, 97, 0, 0, 0, 128, 128, 128);
-}
-TEST_F(TEXTRACTTest, case13)
-{
-    textract_test<13, float, uint16_t, uint16_t>(75, 201, 79, 16, 16, 16, 80, 256, 80);
-}
-TEST_F(TEXTRACTTest, case14)
-{
-    textract_test<14, float, uint16_t, uint16_t>(59, 232, 61, 16, 16, 16, 64, 256, 64);
-}
-TEST_F(TEXTRACTTest, case21)
-{
-    textract_test<21, float, float, float>(68, 70, 69, 0, 0, 0, 80, 128, 80);
-}
-TEST_F(TEXTRACTTest, case22)
-{
-    textract_test<22, float, float, float>(20, 22, 21, 0, 0, 0, 64, 96, 64);
-}
-TEST_F(TEXTRACTTest, case23)
-{
-    textract_test<23, float, float, float>(49, 119, 63, 16, 32, 16, 64, 128, 64);
-}
-TEST_F(TEXTRACTTest, case24)
-{
-    textract_test<24, float, float, float>(127, 60, 102, 16, 16, 32, 128, 64, 128);
-}
-TEST_F(TEXTRACTTest, case31)
-{
-    textract_test<31, int32_t, int8_t, int8_t>(97, 231, 83, 0, 0, 0, 128, 256, 128);
-}
-TEST_F(TEXTRACTTest, case32)
-{
-    textract_test<32, int32_t, int8_t, int8_t>(71, 188, 82, 0, 0, 0, 128, 256, 128);
-}
-TEST_F(TEXTRACTTest, case33)
-{
-    textract_test<33, int32_t, int8_t, int8_t>(63, 112, 98, 32, 32, 32, 64, 128, 128);
-}
-TEST_F(TEXTRACTTest, case34)
-{
-    textract_test<34, int32_t, int8_t, int8_t>(106, 125, 60, 32, 32, 32, 128, 128, 64);
-}
-TEST_F(TEXTRACTTest, case41)
-{
-    textract_test<41, float, uint16_t, uint16_t>(23, 24, 25, 0, 0, 0, 96, 64, 96);
-}
-TEST_F(TEXTRACTTest, case42)
-{
-    textract_test<42, float, uint16_t, uint16_t>(23, 24, 25, 0, 0, 0, 96, 64, 96);
-}
-TEST_F(TEXTRACTTest, case43)
-{
-    textract_test<43, float, uint16_t, uint16_t>(39, 40, 41, 16, 16, 16, 96, 64, 96);
-}
-TEST_F(TEXTRACTTest, case44)
-{
-    textract_test<44, float, uint16_t, uint16_t>(39, 40, 41, 16, 16, 16, 96, 64, 96);
-}
-TEST_F(TEXTRACTTest, case51)
-{
-    textract_test<51, float, int8_t, int8_t>(46, 40, 45, 0, 0, 0, 128, 96, 128);
-}
-TEST_F(TEXTRACTTest, case52)
-{
-    textract_test<52, float, int8_t, int8_t>(46, 40, 45, 0, 0, 0, 128, 96, 128);
-}
-TEST_F(TEXTRACTTest, case53)
-{
-    textract_test<53, float, int8_t, int8_t>(78, 72, 77, 32, 32, 32, 128, 96, 128);
-}
-TEST_F(TEXTRACTTest, case54)
-{
-    textract_test<54, float, int8_t, int8_t>(78, 72, 77, 32, 32, 32, 128, 96, 128);
-}
-TEST_F(TEXTRACTTest, case61)
-{
-    textract_test<61, float, int8_t, int8_t>(46, 40, 45, 0, 0, 0, 128, 96, 128);
-}
-TEST_F(TEXTRACTTest, case62)
-{
-    textract_test<62, float, int8_t, int8_t>(46, 40, 45, 0, 0, 0, 128, 96, 128);
-}
-TEST_F(TEXTRACTTest, case63)
-{
-    textract_test<63, float, int8_t, int8_t>(78, 72, 77, 32, 32, 32, 128, 96, 128);
-}
-TEST_F(TEXTRACTTest, case64)
-{
-    textract_test<64, float, int8_t, int8_t>(78, 72, 77, 32, 32, 32, 128, 96, 128);
-}
-TEST_F(TEXTRACTTest, case71)
-{
-    textract_test<71, float, int8_t, int8_t>(46, 40, 45, 0, 0, 0, 128, 96, 128);
-}
-TEST_F(TEXTRACTTest, case72)
-{
-    textract_test<72, float, int8_t, int8_t>(46, 40, 45, 0, 0, 0, 128, 96, 128);
-}
-TEST_F(TEXTRACTTest, case73)
-{
-    textract_test<73, float, int8_t, int8_t>(78, 72, 77, 32, 32, 32, 128, 96, 128);
-}
-TEST_F(TEXTRACTTest, case74)
-{
-    textract_test<74, float, int8_t, int8_t>(78, 72, 77, 32, 32, 32, 128, 96, 128);
-}
+TEST_F(TEXTRACTTest, case11) { textract_test<11, float, uint16_t, uint16_t>(63, 48, 66, 0, 0, 0, 128, 64, 256); }
+TEST_F(TEXTRACTTest, case12) { textract_test<12, float, uint16_t, uint16_t>(68, 93, 97, 0, 0, 0, 128, 128, 128); }
+TEST_F(TEXTRACTTest, case13) { textract_test<13, float, uint16_t, uint16_t>(75, 201, 79, 16, 16, 16, 80, 256, 80); }
+TEST_F(TEXTRACTTest, case14) { textract_test<14, float, uint16_t, uint16_t>(59, 232, 61, 16, 16, 16, 64, 256, 64); }
+TEST_F(TEXTRACTTest, case21) { textract_test<21, float, float, float>(68, 70, 69, 0, 0, 0, 80, 128, 80); }
+TEST_F(TEXTRACTTest, case22) { textract_test<22, float, float, float>(20, 22, 21, 0, 0, 0, 64, 96, 64); }
+TEST_F(TEXTRACTTest, case23) { textract_test<23, float, float, float>(49, 119, 63, 16, 32, 16, 64, 128, 64); }
+TEST_F(TEXTRACTTest, case24) { textract_test<24, float, float, float>(127, 60, 102, 16, 16, 32, 128, 64, 128); }
+TEST_F(TEXTRACTTest, case31) { textract_test<31, int32_t, int8_t, int8_t>(97, 231, 83, 0, 0, 0, 128, 256, 128); }
+TEST_F(TEXTRACTTest, case32) { textract_test<32, int32_t, int8_t, int8_t>(71, 188, 82, 0, 0, 0, 128, 256, 128); }
+TEST_F(TEXTRACTTest, case33) { textract_test<33, int32_t, int8_t, int8_t>(63, 112, 98, 32, 32, 32, 64, 128, 128); }
+TEST_F(TEXTRACTTest, case34) { textract_test<34, int32_t, int8_t, int8_t>(106, 125, 60, 32, 32, 32, 128, 128, 64); }
+TEST_F(TEXTRACTTest, case41) { textract_test<41, float, uint16_t, uint16_t>(23, 24, 25, 0, 0, 0, 96, 64, 96); }
+TEST_F(TEXTRACTTest, case42) { textract_test<42, float, uint16_t, uint16_t>(23, 24, 25, 0, 0, 0, 96, 64, 96); }
+TEST_F(TEXTRACTTest, case43) { textract_test<43, float, uint16_t, uint16_t>(39, 40, 41, 16, 16, 16, 96, 64, 96); }
+TEST_F(TEXTRACTTest, case44) { textract_test<44, float, uint16_t, uint16_t>(39, 40, 41, 16, 16, 16, 96, 64, 96); }
+TEST_F(TEXTRACTTest, case51) { textract_test<51, float, int8_t, int8_t>(46, 40, 45, 0, 0, 0, 128, 96, 128); }
+TEST_F(TEXTRACTTest, case52) { textract_test<52, float, int8_t, int8_t>(46, 40, 45, 0, 0, 0, 128, 96, 128); }
+TEST_F(TEXTRACTTest, case53) { textract_test<53, float, int8_t, int8_t>(78, 72, 77, 32, 32, 32, 128, 96, 128); }
+TEST_F(TEXTRACTTest, case54) { textract_test<54, float, int8_t, int8_t>(78, 72, 77, 32, 32, 32, 128, 96, 128); }
+TEST_F(TEXTRACTTest, case61) { textract_test<61, float, int8_t, int8_t>(46, 40, 45, 0, 0, 0, 128, 96, 128); }
+TEST_F(TEXTRACTTest, case62) { textract_test<62, float, int8_t, int8_t>(46, 40, 45, 0, 0, 0, 128, 96, 128); }
+TEST_F(TEXTRACTTest, case63) { textract_test<63, float, int8_t, int8_t>(78, 72, 77, 32, 32, 32, 128, 96, 128); }
+TEST_F(TEXTRACTTest, case64) { textract_test<64, float, int8_t, int8_t>(78, 72, 77, 32, 32, 32, 128, 96, 128); }
+TEST_F(TEXTRACTTest, case71) { textract_test<71, float, int8_t, int8_t>(46, 40, 45, 0, 0, 0, 128, 96, 128); }
+TEST_F(TEXTRACTTest, case72) { textract_test<72, float, int8_t, int8_t>(46, 40, 45, 0, 0, 0, 128, 96, 128); }
+TEST_F(TEXTRACTTest, case73) { textract_test<73, float, int8_t, int8_t>(78, 72, 77, 32, 32, 32, 128, 96, 128); }
+TEST_F(TEXTRACTTest, case74) { textract_test<74, float, int8_t, int8_t>(78, 72, 77, 32, 32, 32, 128, 96, 128); }

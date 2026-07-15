@@ -16,9 +16,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 template <typename InstrOp, typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
-PTO_INTERNAL void TPartInstr(typename TileDataDst::TileDType dst, typename TileDataSrc0::TileDType src0,
-                             typename TileDataSrc1::TileDType src1, int DstValidRow, int DstValidCol, int Src0ValidRow,
-                             int Src0ValidCol, int Src1ValidRow, int Src1ValidCol)
+PTO_INTERNAL void TPartInstr(
+    typename TileDataDst::TileDType dst, typename TileDataSrc0::TileDType src0, typename TileDataSrc1::TileDType src1,
+    int DstValidRow, int DstValidCol, int Src0ValidRow, int Src0ValidCol, int Src1ValidRow, int Src1ValidCol)
 {
     for (int i = 0; i < DstValidRow; i++) {
         for (int j = 0; j < DstValidCol; j++) {
@@ -40,13 +40,14 @@ PTO_INTERNAL void TPartInstr(typename TileDataDst::TileDType dst, typename TileD
     }
 }
 
-template <typename InstrOp, typename TileDataDstVal, typename TileDataSrc0Val, typename TileDataSrc1Val,
-          typename TileDataDstIdx, typename TileDataSrc0Idx, typename TileDataSrc1Idx>
-PTO_INTERNAL void TPartInstr2(typename TileDataDstVal::TileDType dstVal, typename TileDataSrc0Val::TileDType src0Val,
-                              typename TileDataSrc1Val::TileDType src1Val, typename TileDataDstIdx::TileDType dstIdx,
-                              typename TileDataSrc0Idx::TileDType src0Idx, typename TileDataSrc1Idx::TileDType src1Idx,
-                              int DstValidRow, int DstValidCol, int Src0ValidRow, int Src0ValidCol, int Src1ValidRow,
-                              int Src1ValidCol)
+template <
+    typename InstrOp, typename TileDataDstVal, typename TileDataSrc0Val, typename TileDataSrc1Val,
+    typename TileDataDstIdx, typename TileDataSrc0Idx, typename TileDataSrc1Idx>
+PTO_INTERNAL void TPartInstr2(
+    typename TileDataDstVal::TileDType dstVal, typename TileDataSrc0Val::TileDType src0Val,
+    typename TileDataSrc1Val::TileDType src1Val, typename TileDataDstIdx::TileDType dstIdx,
+    typename TileDataSrc0Idx::TileDType src0Idx, typename TileDataSrc1Idx::TileDType src1Idx, int DstValidRow,
+    int DstValidCol, int Src0ValidRow, int Src0ValidCol, int Src1ValidRow, int Src1ValidCol)
 {
     for (int i = 0; i < DstValidRow; i++) {
         for (int j = 0; j < DstValidCol; j++) {
@@ -56,8 +57,8 @@ PTO_INTERNAL void TPartInstr2(typename TileDataDstVal::TileDType dstVal, typenam
             const size_t Src0Offset = InSrc0 ? GetTileElementOffset<TileDataSrc0Val>(i, j) : -1;
             const size_t Src1Offset = InSrc1 ? GetTileElementOffset<TileDataSrc1Val>(i, j) : -1;
             if (InSrc0 && InSrc1) {
-                InstrOp::PartInstr(dstVal, src0Val, src1Val, dstIdx, src0Idx, src1Idx, DstOffset, Src0Offset,
-                                   Src1Offset);
+                InstrOp::PartInstr(
+                    dstVal, src0Val, src1Val, dstIdx, src0Idx, src1Idx, DstOffset, Src0Offset, Src1Offset);
             } else if (InSrc0 && !InSrc1) {
                 dstVal[DstOffset] = src0Val[Src0Offset];
                 dstIdx[DstOffset] = src0Idx[Src0Offset];
@@ -75,11 +76,13 @@ PTO_INTERNAL void TPartInstr2(typename TileDataDstVal::TileDType dstVal, typenam
 template <typename T, typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
 PTO_INTERNAL void TPartCheck(int DstValidRow, int DstValidCol)
 {
-    static_assert(std::is_same_v<T, int32_t> || std::is_same_v<T, int16_t> || std::is_same_v<T, half> ||
-                      std::is_same_v<T, bfloat16_t> || std::is_same_v<T, float>,
-                  "TPARTMAX: Invalid data type.");
-    static_assert(std::is_same_v<typename TileDataDst::DType, T> && std::is_same_v<typename TileDataSrc1::DType, T>,
-                  "The Src0 data type must be consistent with the Dst and Src1 data type");
+    static_assert(
+        std::is_same_v<T, int32_t> || std::is_same_v<T, int16_t> || std::is_same_v<T, half> ||
+            std::is_same_v<T, bfloat16_t> || std::is_same_v<T, float>,
+        "TPARTMAX: Invalid data type.");
+    static_assert(
+        std::is_same_v<typename TileDataDst::DType, T> && std::is_same_v<typename TileDataSrc1::DType, T>,
+        "The Src0 data type must be consistent with the Dst and Src1 data type");
     if (DstValidRow == 0 || DstValidCol == 0) {
         return;
     }

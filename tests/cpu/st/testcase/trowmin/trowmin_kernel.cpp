@@ -14,7 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-AICORE void runTROWMIN(__gm__ T __out__ *out, __gm__ T __in__ *src)
+AICORE void runTROWMIN(__gm__ T __out__* out, __gm__ T __in__* src)
 {
     using DynShapeDim5 = Shape<1, 1, 1, -1, -1>;
     using DynStridDim5 = Stride<1, 1, -1, -1, 1>;
@@ -42,20 +42,20 @@ AICORE void runTROWMIN(__gm__ T __out__ *out, __gm__ T __in__ *src)
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTROWMIN(T *out, T *src, void *stream)
+void LaunchTROWMIN(T* out, T* src, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
-        runTROWMIN<half, kGRows_, kGCols_, kTRows_, kTCols_>((half *)(out), (half *)(src));
+        runTROWMIN<half, kGRows_, kGCols_, kTRows_, kTCols_>((half*)(out), (half*)(src));
     } else {
         runTROWMIN<T, kGRows_, kGCols_, kTRows_, kTCols_>(out, src);
     }
 }
 
-template void LaunchTROWMIN<float, 64, 64, 64, 64>(float *out, float *src, void *stream);
-template void LaunchTROWMIN<aclFloat16, 64, 64, 64, 64>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTROWMIN<aclFloat16, 161, 161, 32, 32>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTROWMIN<float, 77, 81, 32, 16>(float *out, float *src, void *stream);
-template void LaunchTROWMIN<float, 32, 32, 32, 16>(float *out, float *src, void *stream);
+template void LaunchTROWMIN<float, 64, 64, 64, 64>(float* out, float* src, void* stream);
+template void LaunchTROWMIN<aclFloat16, 64, 64, 64, 64>(aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTROWMIN<aclFloat16, 161, 161, 32, 32>(aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTROWMIN<float, 77, 81, 32, 16>(float* out, float* src, void* stream);
+template void LaunchTROWMIN<float, 32, 32, 32, 16>(float* out, float* src, void* stream);
 #ifdef CPU_SIM_BFLOAT_ENABLED
-template void LaunchTROWMIN<bfloat16_t, 64, 64, 64, 64>(bfloat16_t *out, bfloat16_t *src, void *stream);
+template void LaunchTROWMIN<bfloat16_t, 64, 64, 64, 64>(bfloat16_t* out, bfloat16_t* src, void* stream);
 #endif

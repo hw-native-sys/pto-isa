@@ -19,14 +19,14 @@ full text of the License.
 namespace pto {
 
 template <typename T>
-PTO_INTERNAL constexpr const __gm__ char *GetDTypeName()
+PTO_INTERNAL constexpr const __gm__ char* GetDTypeName()
 {
     return "unknown";
 }
 
 #define DEFINE_TYPE_NAME_GROUP(name, ...)                                 \
     template <>                                                           \
-    PTO_INTERNAL constexpr const __gm__ char *GetDTypeName<__VA_ARGS__>() \
+    PTO_INTERNAL constexpr const __gm__ char* GetDTypeName<__VA_ARGS__>() \
     {                                                                     \
         return name;                                                      \
     }
@@ -41,7 +41,7 @@ DEFINE_TYPE_NAME_GROUP("float32", float)
 DEFINE_TYPE_NAME_GROUP("float16", half)
 
 template <PrintFormat Format, typename T>
-PTO_INTERNAL void PrintValue(T &val, int col)
+PTO_INTERNAL void PrintValue(T& val, int col)
 {
     if (col > 0) {
         cce::printf(" ");
@@ -73,7 +73,7 @@ PTO_INTERNAL void PrintValue(T &val, int col)
 }
 
 template <PrintFormat Format, typename TileDataIn>
-PTO_INTERNAL void PrintTileRow(__ubuf__ typename TileDataIn::DType *src, int row, int validCols)
+PTO_INTERNAL void PrintTileRow(__ubuf__ typename TileDataIn::DType* src, int row, int validCols)
 {
     using DType = typename TileDataIn::DType;
     for (int j = 0; j < TileDataIn::Cols; ++j) {
@@ -108,10 +108,11 @@ template <PrintFormat Format, typename TileDataIn>
 __tf__ PTO_INTERNAL void TPrintTileImpl(typename TileDataIn::TileDType __in__ srcData, int validRows, int validCols)
 {
     using DType = typename TileDataIn::DType;
-    __ubuf__ DType *src = (__ubuf__ DType *)__cce_get_tile_ptr(srcData);
+    __ubuf__ DType* src = (__ubuf__ DType*)__cce_get_tile_ptr(srcData);
 
-    cce::printf("=== [TPRINT Tile] Data Type: %s, Layout: %s, TileType: %s ===\n", GetDTypeName<DType>(),
-                GetLayoutName(TileDataIn::BFractal, TileDataIn::SFractal), "Vec");
+    cce::printf(
+        "=== [TPRINT Tile] Data Type: %s, Layout: %s, TileType: %s ===\n", GetDTypeName<DType>(),
+        GetLayoutName(TileDataIn::BFractal, TileDataIn::SFractal), "Vec");
     cce::printf("  Shape: [%d, %d], Valid Shape: [%d, %d]\n", TileDataIn::Rows, TileDataIn::Cols, validRows, validCols);
     for (int i = 0; i < TileDataIn::Rows; ++i) {
         PrintTileRow<Format, TileDataIn>(src, i, validCols);
@@ -124,7 +125,7 @@ __tf__ PTO_INTERNAL void TPrintTileImpl(typename TileDataIn::TileDType __in__ sr
 }
 
 template <PrintFormat Format, typename T>
-PTO_INTERNAL void PrintRow(T *dataPtr, int i0, int i1, int i2, int r, int n4, int s0, int s1, int s2, int s3, int s4)
+PTO_INTERNAL void PrintRow(T* dataPtr, int i0, int i1, int i2, int r, int n4, int s0, int s1, int s2, int s3, int s4)
 {
     for (int c = 0; c < n4; ++c) {
         size_t offset = i0 * s0 + i1 * s1 + i2 * s2 + r * s3 + c * s4;
@@ -135,8 +136,8 @@ PTO_INTERNAL void PrintRow(T *dataPtr, int i0, int i1, int i2, int r, int n4, in
 }
 
 template <PrintFormat Format, typename T>
-PTO_INTERNAL void PrintGlobalTensorNDOrDN(T *dataPtr, int n0, int n1, int n2, int n3, int n4, int s0, int s1, int s2,
-                                          int s3, int s4)
+PTO_INTERNAL void PrintGlobalTensorNDOrDN(
+    T* dataPtr, int n0, int n1, int n2, int n3, int n4, int s0, int s1, int s2, int s3, int s4)
 {
     cce::printf("  Shape: [%d, %d, %d, %d, %d]\n", n0, n1, n2, n3, n4);
     // traverse the batch according to [n0, n1, n2]
@@ -154,8 +155,8 @@ PTO_INTERNAL void PrintGlobalTensorNDOrDN(T *dataPtr, int n0, int n1, int n2, in
 }
 
 template <PrintFormat Format, typename T>
-PTO_INTERNAL void PrintGlobalTensorNZ(T *dataPtr, int n0, int n1, int n2, int n3, int n4, int s0, int s1, int s2,
-                                      int s3, int s4)
+PTO_INTERNAL void PrintGlobalTensorNZ(
+    T* dataPtr, int n0, int n1, int n2, int n3, int n4, int s0, int s1, int s2, int s3, int s4)
 {
     // Shape<1, Cols/(C0Size/sizeof(T)), Rows/FractalRow, FractalRow, C0Size/sizeof(T)>
     // Stride<C*R, R*C0Size/sizeof(T), FractalRow*C0Size/sizeof(T), C0Size/sizeof(T), 1>
@@ -177,7 +178,7 @@ PTO_INTERNAL void PrintGlobalTensorNZ(T *dataPtr, int n0, int n1, int n2, int n3
 }
 
 template <PrintFormat Format, typename GlobalData>
-PTO_INTERNAL void TPrintGlobalTensorImpl(GlobalData &src)
+PTO_INTERNAL void TPrintGlobalTensorImpl(GlobalData& src)
 {
     using DType = typename GlobalData::DType;
     using ElemType = typename GlobalData::RawDType;
@@ -194,11 +195,12 @@ PTO_INTERNAL void TPrintGlobalTensorImpl(GlobalData &src)
     int s3 = src.GetStride(GlobalTensorDim::DIM_3);
     int s4 = src.GetStride(GlobalTensorDim::DIM_4);
 
-    typename GlobalData::DType *dataPtr = src.data();
+    typename GlobalData::DType* dataPtr = src.data();
 
     if constexpr (GlobalData::layout == Layout::ND || GlobalData::layout == Layout::DN) {
-        cce::printf("=== [TPRINT GlobalTensor] Data Type: %s, Layout: %s ===\n", GetDTypeName<ElemType>(),
-                    GlobalData::layout == Layout::ND ? "ND" : "DN");
+        cce::printf(
+            "=== [TPRINT GlobalTensor] Data Type: %s, Layout: %s ===\n", GetDTypeName<ElemType>(),
+            GlobalData::layout == Layout::ND ? "ND" : "DN");
         PrintGlobalTensorNDOrDN<Format>(dataPtr, n0, n1, n2, n3, n4, s0, s1, s2, s3, s4);
     } else if constexpr (GlobalData::layout == Layout::NZ) {
         cce::printf("=== [TPRINT GlobalTensor] Data Type: %s, Layout: %s ===\n", GetDTypeName<ElemType>(), "NZ");
@@ -209,7 +211,7 @@ PTO_INTERNAL void TPrintGlobalTensorImpl(GlobalData &src)
 }
 
 template <PrintFormat Format, typename T>
-PTO_INTERNAL void TPRINT_IMPL(T &src)
+PTO_INTERNAL void TPRINT_IMPL(T& src)
 {
     pipe_barrier(PIPE_ALL);
     if constexpr (is_tile_data_v<T>) {
@@ -228,12 +230,12 @@ PTO_INTERNAL void TPRINT_IMPL(T &src)
 }
 
 template <PrintFormat Format, typename GlobalData, typename TileData>
-__tf__ PTO_INTERNAL void TPrintCopyAcc2GM(typename GlobalData::DType __out__ *tmp,
-                                          typename TileData::TileDType __in__ src)
+__tf__ PTO_INTERNAL void TPrintCopyAcc2GM(
+    typename GlobalData::DType __out__* tmp, typename TileData::TileDType __in__ src)
 {
     using T = typename TileData::DType;
-    __cc__ T *srcAddr = (__cc__ T *)__cce_get_tile_ptr(src);
-    __gm__ T *tmpAddr = reinterpret_cast<__gm__ T *>(tmp);
+    __cc__ T* srcAddr = (__cc__ T*)__cce_get_tile_ptr(src);
+    __gm__ T* tmpAddr = reinterpret_cast<__gm__ T*>(tmp);
 
     constexpr uint16_t c0 = 16;
     constexpr uint8_t nz2ndEn = 1;
@@ -261,12 +263,12 @@ __tf__ PTO_INTERNAL void TPrintCopyAcc2GM(typename GlobalData::DType __out__ *tm
 
 #ifdef PTO_NPU_ARCH_A2A3
 template <PrintFormat Format, typename GlobalData, typename TileData>
-__tf__ PTO_INTERNAL void TPrintCopyMat2GM(typename GlobalData::DType __out__ *tmp,
-                                          typename TileData::TileDType __in__ src)
+__tf__ PTO_INTERNAL void TPrintCopyMat2GM(
+    typename GlobalData::DType __out__* tmp, typename TileData::TileDType __in__ src)
 {
     using T = typename TileData::DType;
-    __cbuf__ T *srcAddr = (__cbuf__ T *)__cce_get_tile_ptr(src);
-    __gm__ T *tmpAddr = reinterpret_cast<__gm__ T *>(tmp);
+    __cbuf__ T* srcAddr = (__cbuf__ T*)__cce_get_tile_ptr(src);
+    __gm__ T* tmpAddr = reinterpret_cast<__gm__ T*>(tmp);
 
     uint16_t lenBurst = (TileData::Numel * sizeof(T)) >> SHIFT_BLOCK_BYTE;
     copy_cbuf_to_gm(tmpAddr, srcAddr, (uint8_t)0, 1, lenBurst, 0, 0);
@@ -274,11 +276,12 @@ __tf__ PTO_INTERNAL void TPrintCopyMat2GM(typename GlobalData::DType __out__ *tm
 #endif
 
 template <PrintFormat Format, typename TileData>
-PTO_INTERNAL void TPrintMatOrAccTileByTmp(__gm__ typename TileData::DType *tmp, int validRows, int validCols)
+PTO_INTERNAL void TPrintMatOrAccTileByTmp(__gm__ typename TileData::DType* tmp, int validRows, int validCols)
 {
     using T = typename TileData::DType;
-    cce::printf("=== [TPRINT Tile] Data Type: %s, Layout: %s, TileType: %s ===\n", GetDTypeName<T>(),
-                GetLayoutName(TileData::BFractal, TileData::SFractal), GetTileTypeName<TileData::Loc>());
+    cce::printf(
+        "=== [TPRINT Tile] Data Type: %s, Layout: %s, TileType: %s ===\n", GetDTypeName<T>(),
+        GetLayoutName(TileData::BFractal, TileData::SFractal), GetTileTypeName<TileData::Loc>());
     cce::printf("  Shape: [%d, %d], Valid Shape: [%d, %d]\n", TileData::Rows, TileData::Cols, validRows, validCols);
     for (int i = 0; i < TileData::Rows; ++i) {
         for (int j = 0; j < TileData::Cols; ++j) {
@@ -297,14 +300,14 @@ PTO_INTERNAL void TPrintMatOrAccTileByTmp(__gm__ typename TileData::DType *tmp, 
 }
 
 template <PrintFormat Format, typename TileData, typename GlobalData>
-PTO_INTERNAL void TPRINT_IMPL(TileData &src, GlobalData &tmp)
+PTO_INTERNAL void TPRINT_IMPL(TileData& src, GlobalData& tmp)
 {
     pipe_barrier(PIPE_ALL);
     static_assert(is_tile_data_v<TileData>, "Fix: TPRINT First parameter must be Tile type.");
     static_assert(is_global_data_v<GlobalData>, "Fix: TPRINT Second parameter must be GlobalTensor type.");
 
     using T = typename TileData::DType;
-    __gm__ T *tmpData = reinterpret_cast<__gm__ T *>(tmp.data());
+    __gm__ T* tmpData = reinterpret_cast<__gm__ T*>(tmp.data());
 
     if constexpr (TileData::Loc == TileType::Mat) {
 #ifdef PTO_NPU_ARCH_A2A3

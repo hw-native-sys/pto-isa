@@ -17,19 +17,17 @@ using namespace PtoTestCommon;
 
 namespace TColExpandDivTest {
 template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col>
-void launchTColExpandDiv(T *out, T *src0, T *src1, void *stream);
+void launchTColExpandDiv(T* out, T* src0, T* src1, void* stream);
 
 class TColExpandDivTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -50,13 +48,13 @@ void test_tcolexpanddiv()
     T *dstHost, *src0Host, *src1Host;
     T *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), outputFileSize);
-    aclrtMallocHost((void **)(&src0Host), outputFileSize);
-    aclrtMallocHost((void **)(&src1Host), inputFileSize);
+    aclrtMallocHost((void**)(&dstHost), outputFileSize);
+    aclrtMallocHost((void**)(&src0Host), outputFileSize);
+    aclrtMallocHost((void**)(&src1Host), inputFileSize);
 
-    aclrtMalloc((void **)&dstDevice, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, inputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, inputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input0.bin", outputFileSize, src0Host, outputFileSize);
     ReadFile(GetGoldenDir() + "/input1.bin", inputFileSize, src1Host, inputFileSize);
@@ -91,20 +89,8 @@ void test_tcolexpanddiv()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TColExpandDivTest, case_fp32_32_64_1_64)
-{
-    test_tcolexpanddiv<float, 32, 64, 1, 64>();
-}
-TEST_F(TColExpandDivTest, case_fp32_8_32_1_32)
-{
-    test_tcolexpanddiv<float, 8, 32, 1, 32>();
-}
-TEST_F(TColExpandDivTest, case_fp16_16_64_1_64)
-{
-    test_tcolexpanddiv<aclFloat16, 16, 64, 1, 64>();
-}
-TEST_F(TColExpandDivTest, case_fp16_4_128_1_128)
-{
-    test_tcolexpanddiv<aclFloat16, 4, 128, 1, 128>();
-}
+TEST_F(TColExpandDivTest, case_fp32_32_64_1_64) { test_tcolexpanddiv<float, 32, 64, 1, 64>(); }
+TEST_F(TColExpandDivTest, case_fp32_8_32_1_32) { test_tcolexpanddiv<float, 8, 32, 1, 32>(); }
+TEST_F(TColExpandDivTest, case_fp16_16_64_1_64) { test_tcolexpanddiv<aclFloat16, 16, 64, 1, 64>(); }
+TEST_F(TColExpandDivTest, case_fp16_4_128_1_128) { test_tcolexpanddiv<aclFloat16, 4, 128, 1, 128>(); }
 } // namespace TColExpandDivTest

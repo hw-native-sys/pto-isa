@@ -16,16 +16,16 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
 struct PartMinOp {
-    PTO_INTERNAL static void PartInstr(typename TileDataDst::TileDType dst, typename TileDataSrc0::TileDType src0,
-                                       typename TileDataSrc1::TileDType src1, int DstOffset, int Src0Offset,
-                                       int Src1Offset)
+    PTO_INTERNAL static void PartInstr(
+        typename TileDataDst::TileDType dst, typename TileDataSrc0::TileDType src0,
+        typename TileDataSrc1::TileDType src1, int DstOffset, int Src0Offset, int Src1Offset)
     {
         dst[DstOffset] = std::min(src0[Src0Offset], src1[Src1Offset]);
     }
 };
 
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
-PTO_INTERNAL void TPARTMIN_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1)
+PTO_INTERNAL void TPARTMIN_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1)
 {
     using T = typename TileDataSrc0::DType;
     TPartCheck<T, TileDataDst, TileDataSrc0, TileDataSrc1>(dst.GetValidRow(), dst.GetValidCol());

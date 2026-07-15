@@ -19,18 +19,19 @@ using namespace pto;
 constexpr float kGateBiasF = 0.125f;
 constexpr int kHashHeads = 8;
 
-__global__ AICORE __attribute__((aiv)) void warmup_kernel()
-{}
+__global__ AICORE __attribute__((aiv)) void warmup_kernel() {}
 
 template <int kEmbDim, int kBlockSize>
-inline AICORE void runEngramBaseline(__gm__ float __out__ *output, __gm__ float __in__ *table,
-                                     __gm__ int32_t __in__ *indices, __gm__ float __in__ *hidden,
-                                     __gm__ float __in__ *gateWeight, int tableRows)
+inline AICORE void runEngramBaseline(
+    __gm__ float __out__* output, __gm__ float __in__* table, __gm__ int32_t __in__* indices,
+    __gm__ float __in__* hidden, __gm__ float __in__* gateWeight, int tableRows)
 {
-    static_assert(kEmbDim >= 128 && kEmbDim <= 1024 && (kEmbDim & (kEmbDim - 1)) == 0,
-                  "EmbDim must be power-of-2 in [128, 1024]");
-    static_assert(kBlockSize >= 1 && kBlockSize <= 64 && (kBlockSize & (kBlockSize - 1)) == 0,
-                  "BlockSize must be power-of-2 in [1, 64]");
+    static_assert(
+        kEmbDim >= 128 && kEmbDim <= 1024 && (kEmbDim & (kEmbDim - 1)) == 0,
+        "EmbDim must be power-of-2 in [128, 1024]");
+    static_assert(
+        kBlockSize >= 1 && kBlockSize <= 64 && (kBlockSize & (kBlockSize - 1)) == 0,
+        "BlockSize must be power-of-2 in [1, 64]");
 
     constexpr int H = kHashHeads;
     constexpr int D = kEmbDim;
@@ -92,7 +93,7 @@ inline AICORE void runEngramBaseline(__gm__ float __out__ *output, __gm__ float 
         TLOAD(gateWF, gwGM);
         TLOAD(idxTile, idxGM);
 
-        __ubuf__ const int32_t *idxPtr = (__ubuf__ const int32_t *)((__ubuf__ uint8_t *)idxTile.data());
+        __ubuf__ const int32_t* idxPtr = (__ubuf__ const int32_t*)((__ubuf__ uint8_t*)idxTile.data());
         PtoSetWaitFlag<PIPE_MTE2, PIPE_S>();
         for (int h = 0; h < H; ++h) {
             int32_t rowIdx = idxPtr[h];
@@ -151,10 +152,10 @@ struct ColChunksImpl<CWB, B, CWB> {
 };
 
 template <uint32_t kEmbDim, uint32_t kBlockSize>
-__simt_vf__ AICORE LAUNCH_BOUND(1024) PTO_INLINE
-    void simt_engram_v2(__gm__ float *__restrict__ gmOutput, __gm__ const float *__restrict__ gmTable,
-                        __gm__ const int32_t *__restrict__ gmIndices, __gm__ const float *__restrict__ gmHidden,
-                        __gm__ const float *__restrict__ gmGateW, uint32_t tableRows)
+__simt_vf__ AICORE LAUNCH_BOUND(1024) PTO_INLINE void simt_engram_v2(
+    __gm__ float* __restrict__ gmOutput, __gm__ const float* __restrict__ gmTable,
+    __gm__ const int32_t* __restrict__ gmIndices, __gm__ const float* __restrict__ gmHidden,
+    __gm__ const float* __restrict__ gmGateW, uint32_t tableRows)
 {
     constexpr uint32_t H = (uint32_t)kHashHeads;
     constexpr uint32_t D = kEmbDim;
@@ -165,7 +166,7 @@ __simt_vf__ AICORE LAUNCH_BOUND(1024) PTO_INLINE
     const uint32_t tx = __cce_simt_get_TID_X();
     const uint32_t ty = __cce_simt_get_TID_Y();
 
-    __ubuf__ float *scrBuf = (__ubuf__ float *)((__ubuf__ uint8_t *)0);
+    __ubuf__ float* scrBuf = (__ubuf__ float*)((__ubuf__ uint8_t*)0);
 
     if constexpr (B == 1u) {
         constexpr uint32_t kWarps = D / kLanes;
@@ -280,10 +281,10 @@ __simt_vf__ AICORE LAUNCH_BOUND(1024) PTO_INLINE
 }
 
 template <uint32_t kEmbDim, uint32_t kBlockSize>
-__simt_vf__ AICORE LAUNCH_BOUND(512) PTO_INLINE
-    void simt_engram_v2_lb512(__gm__ float *__restrict__ gmOutput, __gm__ const float *__restrict__ gmTable,
-                              __gm__ const int32_t *__restrict__ gmIndices, __gm__ const float *__restrict__ gmHidden,
-                              __gm__ const float *__restrict__ gmGateW, uint32_t tableRows)
+__simt_vf__ AICORE LAUNCH_BOUND(512) PTO_INLINE void simt_engram_v2_lb512(
+    __gm__ float* __restrict__ gmOutput, __gm__ const float* __restrict__ gmTable,
+    __gm__ const int32_t* __restrict__ gmIndices, __gm__ const float* __restrict__ gmHidden,
+    __gm__ const float* __restrict__ gmGateW, uint32_t tableRows)
 {
     constexpr uint32_t H = (uint32_t)kHashHeads;
     constexpr uint32_t D = kEmbDim;
@@ -300,7 +301,7 @@ __simt_vf__ AICORE LAUNCH_BOUND(512) PTO_INLINE
     const uint32_t tx = __cce_simt_get_TID_X();
     const uint32_t ty = __cce_simt_get_TID_Y();
 
-    __ubuf__ float *scrBuf = (__ubuf__ float *)((__ubuf__ uint8_t *)0);
+    __ubuf__ float* scrBuf = (__ubuf__ float*)((__ubuf__ uint8_t*)0);
 
     for (uint32_t warpId = ty; warpId < kTotalWarps; warpId += kLaunchWarps) {
         const uint32_t posId = warpId / kColWarps;
@@ -362,10 +363,10 @@ __simt_vf__ AICORE LAUNCH_BOUND(512) PTO_INLINE
 }
 
 template <uint32_t kEmbDim, uint32_t kBlockSize>
-__tf__ AICORE void FusedEngramImpl(__gm__ float *__restrict__ gmOutput, __gm__ const float *__restrict__ gmTable,
-                                   __gm__ const int32_t *__restrict__ gmIndices,
-                                   __gm__ const float *__restrict__ gmHidden, __gm__ const float *__restrict__ gmGateW,
-                                   uint32_t tableRows)
+__tf__ AICORE void FusedEngramImpl(
+    __gm__ float* __restrict__ gmOutput, __gm__ const float* __restrict__ gmTable,
+    __gm__ const int32_t* __restrict__ gmIndices, __gm__ const float* __restrict__ gmHidden,
+    __gm__ const float* __restrict__ gmGateW, uint32_t tableRows)
 {
     constexpr uint32_t kLanes = 32u;
 
@@ -374,12 +375,12 @@ __tf__ AICORE void FusedEngramImpl(__gm__ float *__restrict__ gmOutput, __gm__ c
         constexpr uint32_t kColWarps = kEmbDim / (32u * kCC);
         constexpr uint32_t kTotalWarps = kColWarps * kBlockSize;
         constexpr uint32_t kLaunchWarps = (kTotalWarps <= 16u) ? kTotalWarps : 16u;
-        cce::async_invoke<simt_engram_v2_lb512<kEmbDim, kBlockSize>>(cce::dim3{32, kLaunchWarps}, gmOutput, gmTable,
-                                                                     gmIndices, gmHidden, gmGateW, tableRows);
+        cce::async_invoke<simt_engram_v2_lb512<kEmbDim, kBlockSize>>(
+            cce::dim3{32, kLaunchWarps}, gmOutput, gmTable, gmIndices, gmHidden, gmGateW, tableRows);
     } else if constexpr (kBlockSize == 1u) {
         constexpr uint32_t kWarps = kEmbDim / kLanes;
-        cce::async_invoke<simt_engram_v2<kEmbDim, 1>>(cce::dim3{32, kWarps}, gmOutput, gmTable, gmIndices, gmHidden,
-                                                      gmGateW, tableRows);
+        cce::async_invoke<simt_engram_v2<kEmbDim, 1>>(
+            cce::dim3{32, kWarps}, gmOutput, gmTable, gmIndices, gmHidden, gmGateW, tableRows);
     } else {
         constexpr uint32_t kColWarpsBase = kEmbDim / kLanes;
         constexpr uint32_t kColChunksRaw = ColChunksImpl<kColWarpsBase, kBlockSize>::value;
@@ -389,55 +390,54 @@ __tf__ AICORE void FusedEngramImpl(__gm__ float *__restrict__ gmOutput, __gm__ c
         constexpr uint32_t kTotalWarps = kColWarps * kBlockSize;
         constexpr uint32_t kLaunchWarps = (kTotalWarps <= 32u) ? kTotalWarps : 32u;
 
-        cce::async_invoke<simt_engram_v2<kEmbDim, kBlockSize>>(cce::dim3{32, kLaunchWarps}, gmOutput, gmTable,
-                                                               gmIndices, gmHidden, gmGateW, tableRows);
+        cce::async_invoke<simt_engram_v2<kEmbDim, kBlockSize>>(
+            cce::dim3{32, kLaunchWarps}, gmOutput, gmTable, gmIndices, gmHidden, gmGateW, tableRows);
     }
 }
 
 template <int kEmbDim, int kBlockSize>
-inline AICORE void runEngramFused(__gm__ float __out__ *output, __gm__ float __in__ *table,
-                                  __gm__ int32_t __in__ *indices, __gm__ float __in__ *hidden,
-                                  __gm__ float __in__ *gateWeight, int tableRows)
+inline AICORE void runEngramFused(
+    __gm__ float __out__* output, __gm__ float __in__* table, __gm__ int32_t __in__* indices,
+    __gm__ float __in__* hidden, __gm__ float __in__* gateWeight, int tableRows)
 {
     FusedEngramImpl<(uint32_t)kEmbDim, (uint32_t)kBlockSize>(
-        output, table, reinterpret_cast<__gm__ const int32_t *>(indices),
-        reinterpret_cast<__gm__ const float *>(hidden), reinterpret_cast<__gm__ const float *>(gateWeight),
-        (uint32_t)tableRows);
+        output, table, reinterpret_cast<__gm__ const int32_t*>(indices), reinterpret_cast<__gm__ const float*>(hidden),
+        reinterpret_cast<__gm__ const float*>(gateWeight), (uint32_t)tableRows);
     pipe_barrier(PIPE_ALL);
 }
 
-#define ENGRAM_BASELINE(D, B)                                                                                \
-    extern "C" __global__ AICORE void runEngram_baseline_E##D##_B##B(__gm__ float *out, __gm__ float *table, \
-                                                                     __gm__ int32_t *idx, __gm__ float *hid, \
-                                                                     __gm__ float *gw, int tableRows)        \
-    {                                                                                                        \
-        runEngramBaseline<D, B>(out, table, idx, hid, gw, tableRows);                                        \
+#define ENGRAM_BASELINE(D, B)                                                                             \
+    extern "C" __global__ AICORE void runEngram_baseline_E##D##_B##B(                                     \
+        __gm__ float* out, __gm__ float* table, __gm__ int32_t* idx, __gm__ float* hid, __gm__ float* gw, \
+        int tableRows)                                                                                    \
+    {                                                                                                     \
+        runEngramBaseline<D, B>(out, table, idx, hid, gw, tableRows);                                     \
     }
 
 #define ENGRAM_FUSED(D, B)                                                                                \
-    extern "C" __global__ AICORE void runEngram_fused_E##D##_B##B(__gm__ float *out, __gm__ float *table, \
-                                                                  __gm__ int32_t *idx, __gm__ float *hid, \
-                                                                  __gm__ float *gw, int tableRows)        \
+    extern "C" __global__ AICORE void runEngram_fused_E##D##_B##B(                                        \
+        __gm__ float* out, __gm__ float* table, __gm__ int32_t* idx, __gm__ float* hid, __gm__ float* gw, \
+        int tableRows)                                                                                    \
     {                                                                                                     \
         runEngramFused<D, B>(out, table, idx, hid, gw, tableRows);                                        \
     }
 
-#define ENGRAM_LAUNCH_BASELINE(D, B)                                                                              \
-    template <>                                                                                                   \
-    void LaunchEngramBaseline<D, B>(float *out, float *table, int32_t *idx, float *hid, float *gw, int tableRows, \
-                                    void *stream)                                                                 \
-    {                                                                                                             \
-        warmup_kernel<<<64, nullptr, stream>>>();                                                                 \
-        runEngram_baseline_E##D##_B##B<<<1, nullptr, stream>>>(out, table, idx, hid, gw, tableRows);              \
+#define ENGRAM_LAUNCH_BASELINE(D, B)                                                                 \
+    template <>                                                                                      \
+    void LaunchEngramBaseline<D, B>(                                                                 \
+        float* out, float* table, int32_t* idx, float* hid, float* gw, int tableRows, void* stream)  \
+    {                                                                                                \
+        warmup_kernel<<<64, nullptr, stream>>>();                                                    \
+        runEngram_baseline_E##D##_B##B<<<1, nullptr, stream>>>(out, table, idx, hid, gw, tableRows); \
     }
 
-#define ENGRAM_LAUNCH_FUSED(D, B)                                                                              \
-    template <>                                                                                                \
-    void LaunchEngramFused<D, B>(float *out, float *table, int32_t *idx, float *hid, float *gw, int tableRows, \
-                                 void *stream)                                                                 \
-    {                                                                                                          \
-        warmup_kernel<<<64, nullptr, stream>>>();                                                              \
-        runEngram_fused_E##D##_B##B<<<1, nullptr, stream>>>(out, table, idx, hid, gw, tableRows);              \
+#define ENGRAM_LAUNCH_FUSED(D, B)                                                                   \
+    template <>                                                                                     \
+    void LaunchEngramFused<D, B>(                                                                   \
+        float* out, float* table, int32_t* idx, float* hid, float* gw, int tableRows, void* stream) \
+    {                                                                                               \
+        warmup_kernel<<<64, nullptr, stream>>>();                                                   \
+        runEngram_fused_E##D##_B##B<<<1, nullptr, stream>>>(out, table, idx, hid, gw, tableRows);   \
     }
 
 #define ENGRAM_INST(D, B)        \
@@ -447,10 +447,10 @@ inline AICORE void runEngramFused(__gm__ float __out__ *output, __gm__ float __i
     ENGRAM_LAUNCH_FUSED(D, B)
 
 template <int kEmbDim, int kBlockSize>
-void LaunchEngramBaseline(float *out, float *table, int32_t *idx, float *hid, float *gw, int tableRows, void *stream);
+void LaunchEngramBaseline(float* out, float* table, int32_t* idx, float* hid, float* gw, int tableRows, void* stream);
 
 template <int kEmbDim, int kBlockSize>
-void LaunchEngramFused(float *out, float *table, int32_t *idx, float *hid, float *gw, int tableRows, void *stream);
+void LaunchEngramFused(float* out, float* table, int32_t* idx, float* hid, float* gw, int tableRows, void* stream);
 
 #ifdef PERF_ANALYSIS
 ENGRAM_INST(128, 1);

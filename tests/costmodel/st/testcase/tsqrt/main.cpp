@@ -34,19 +34,7 @@ void runTSqrt()
 
 } // namespace
 
-TEST(TSqrt, float_64x64_inplace)
-{
-    runTSqrt<float, 64, 64, true, 198.0f, 0.843434f>();
-}
-TEST(TSqrt, float_64x64)
-{
-    runTSqrt<float, 64, 64, false, 160.0f, 0.956250f>();
-}
-TEST(TSqrt, half_64x64_inplace)
-{
-    runTSqrt<half, 64, 64, true, 102.0f, 0.990196f>();
-}
-TEST(TSqrt, half_64x64)
-{
-    runTSqrt<half, 64, 64, false, 160.0f, 0.643750f>();
-}
+TEST(TSqrt, float_64x64_inplace) { runTSqrt<float, 64, 64, true, 198.0f, 0.843434f>(); }
+TEST(TSqrt, float_64x64) { runTSqrt<float, 64, 64, false, 160.0f, 0.956250f>(); }
+TEST(TSqrt, half_64x64_inplace) { runTSqrt<half, 64, 64, true, 102.0f, 0.990196f>(); }
+TEST(TSqrt, half_64x64) { runTSqrt<half, 64, 64, false, 160.0f, 0.643750f>(); }

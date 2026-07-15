@@ -21,24 +21,26 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 constexpr double CAST_ODD_THRESHOLD = 0.5;
 
-inline void PrintFloatBits(double val, const char *name)
+inline void PrintFloatBits(double val, const char* name)
 {
     constexpr uint32_t signShift = 63;
     constexpr uint32_t expShift = 52;
-    uint64_t bits = *reinterpret_cast<const uint64_t *>(&val);
-    std::printf("[PTO][TCVT] %s: %.17g bits=0x%016lx sign=%lu exp=%lu(0x%lx) mantissa=0x%lx\n", name, val, bits,
-                (unsigned long)((bits >> signShift) & 1), (unsigned long)((bits >> expShift) & 0x7FF),
-                (unsigned long)((bits >> expShift) & 0x7FF), (unsigned long)(bits & 0xFFFFFFFFFFFFF));
+    uint64_t bits = *reinterpret_cast<const uint64_t*>(&val);
+    std::printf(
+        "[PTO][TCVT] %s: %.17g bits=0x%016lx sign=%lu exp=%lu(0x%lx) mantissa=0x%lx\n", name, val, bits,
+        (unsigned long)((bits >> signShift) & 1), (unsigned long)((bits >> expShift) & 0x7FF),
+        (unsigned long)((bits >> expShift) & 0x7FF), (unsigned long)(bits & 0xFFFFFFFFFFFFF));
 }
 
-inline void PrintFloatBits(float val, const char *name)
+inline void PrintFloatBits(float val, const char* name)
 {
     constexpr uint32_t signShift = 31;
     constexpr uint32_t expShift = 23;
-    uint32_t bits = *reinterpret_cast<const uint32_t *>(&val);
-    std::printf("[PTO][TCVT] %s: %.9g bits=0x%08x sign=%u exp=%u(0x%x) mantissa=0x%x\n", name, val, bits,
-                (unsigned)((bits >> signShift) & 1), (unsigned)((bits >> expShift) & 0xFF),
-                (unsigned)((bits >> expShift) & 0xFF), bits & 0x7FFFFF);
+    uint32_t bits = *reinterpret_cast<const uint32_t*>(&val);
+    std::printf(
+        "[PTO][TCVT] %s: %.9g bits=0x%08x sign=%u exp=%u(0x%x) mantissa=0x%x\n", name, val, bits,
+        (unsigned)((bits >> signShift) & 1), (unsigned)((bits >> expShift) & 0xFF),
+        (unsigned)((bits >> expShift) & 0xFF), bits & 0x7FFFFF);
 }
 
 template <typename T>
@@ -100,8 +102,9 @@ struct SafeLimits {
 };
 
 template <typename TileDataD, typename TileDataS, SaturationMode satMode>
-PTO_INTERNAL void TCvt_Impl(typename TileDataD::TileDType dst, typename TileDataS::TileDType src, unsigned validRow,
-                            unsigned validCol, RoundMode mode)
+PTO_INTERNAL void TCvt_Impl(
+    typename TileDataD::TileDType dst, typename TileDataS::TileDType src, unsigned validRow, unsigned validCol,
+    RoundMode mode)
 {
     for (int i = 0; i < validRow; ++i) {
         for (int j = 0; j < validCol; ++j) {
@@ -128,14 +131,14 @@ PTO_INTERNAL void TCvt_Impl(typename TileDataD::TileDType dst, typename TileData
 }
 
 template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, RoundMode mode, bool needSetCtrl = true)
+PTO_INTERNAL void TCVT_IMPL(TileDataD& dst, TileDataS& src, RoundMode mode, bool needSetCtrl = true)
 {
     TCVT_IMPL(dst, src, mode, SaturationMode::OFF, needSetCtrl);
 }
 
 template <typename TileDataD, typename TileDataS>
-PTO_INTERNAL void TCVT_IMPL(TileDataD &dst, TileDataS &src, RoundMode mode, SaturationMode satMode,
-                            bool needSetCtrl = true)
+PTO_INTERNAL void TCVT_IMPL(
+    TileDataD& dst, TileDataS& src, RoundMode mode, SaturationMode satMode, bool needSetCtrl = true)
 {
     (void)needSetCtrl;
     uint16_t rows = src.GetValidRow();

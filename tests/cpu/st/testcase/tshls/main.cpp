@@ -16,19 +16,17 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
-void launchTSHLS_demo(uint8_t *out, uint8_t *src, void *stream);
+void launchTSHLS_demo(uint8_t* out, uint8_t* src, void* stream);
 
 class TSHLSTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -36,7 +34,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kDstRows_, int kDstCols_, int kSrcRows_, int kSrcCols_, int kValRows_, int kValCols_>
-void LaunchTSHLS(T *out, T *src, T *scalar, void *stream);
+void LaunchTSHLS(T* out, T* src, T* scalar, void* stream);
 
 template <typename T, int kDstRows_, int kDstCols_, int kSrcRows_, int kSrcCols_, int kValRows_, int kValCols_>
 void test_tshls()
@@ -52,21 +50,21 @@ void test_tshls()
     T *dstHost, *srcHost, *scalarHost;
     T *dstDevice, *srcDevice, *scalarDevice;
 
-    aclrtMallocHost((void **)(&dstHost), fileSizeDst);
-    aclrtMallocHost((void **)(&srcHost), fileSizeSrc);
-    aclrtMallocHost((void **)(&scalarHost), scalarSize);
+    aclrtMallocHost((void**)(&dstHost), fileSizeDst);
+    aclrtMallocHost((void**)(&srcHost), fileSizeSrc);
+    aclrtMallocHost((void**)(&scalarHost), scalarSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSizeDst, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, fileSizeSrc, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&scalarDevice, scalarSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSizeDst, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, fileSizeSrc, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&scalarDevice, scalarSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input.bin", fileSizeSrc, srcHost, fileSizeSrc));
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/scalar.bin", scalarSize, scalarHost, scalarSize));
 
     aclrtMemcpy(srcDevice, fileSizeSrc, srcHost, fileSizeSrc, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(scalarDevice, scalarSize, scalarHost, scalarSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    LaunchTSHLS<T, kDstRows_, kDstCols_, kSrcRows_, kSrcCols_, kValRows_, kValCols_>(dstDevice, srcDevice, scalarDevice,
-                                                                                     stream);
+    LaunchTSHLS<T, kDstRows_, kDstCols_, kSrcRows_, kSrcCols_, kValRows_, kValCols_>(
+        dstDevice, srcDevice, scalarDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, fileSizeDst, dstDevice, fileSizeDst, ACL_MEMCPY_DEVICE_TO_HOST);

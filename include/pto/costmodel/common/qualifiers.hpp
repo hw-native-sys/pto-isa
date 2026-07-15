@@ -12,7 +12,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <pto/common/cpu_stub.hpp>
 
-using aclrtContext = void *;
+using aclrtContext = void*;
 using event_t = int;
 using CceEventIdType = event_t;
 using pad_t = int;

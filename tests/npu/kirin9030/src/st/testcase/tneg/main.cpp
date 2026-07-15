@@ -20,15 +20,13 @@ using namespace PtoTestCommon;
 
 class TNEGTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -36,7 +34,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTNeg(T *out, T *src, void *stream);
+void LaunchTNeg(T* out, T* src, void* stream);
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
 void test_tneg()
@@ -51,11 +49,11 @@ void test_tneg()
     T *dstHost, *srcHost;
     T *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&srcHost), fileSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&srcHost), fileSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input1.bin", fileSize, srcHost, fileSize);
     aclrtMemset(dstHost, fileSize, 0, fileSize);
@@ -94,55 +92,16 @@ void test_tneg()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TNEGTest, case_float_64x64_64x64)
-{
-    test_tneg<float, 64, 64, 64, 64>();
-}
-TEST_F(TNEGTest, case_int32_32x32_32x32)
-{
-    test_tneg<int32_t, 32, 32, 32, 32>();
-}
-TEST_F(TNEGTest, case_half_32x64_32x64)
-{
-    test_tneg<aclFloat16, 32, 64, 32, 64>();
-}
-TEST_F(TNEGTest, case_int16_64x16_64x16)
-{
-    test_tneg<int16_t, 64, 16, 64, 16>();
-}
-TEST_F(TNEGTest, case_uint32_32x32_32x32)
-{
-    test_tneg<uint32_t, 32, 32, 32, 32>();
-}
-TEST_F(TNEGTest, case_float_128x128_128x128)
-{
-    test_tneg<float, 128, 128, 128, 128>();
-}
-TEST_F(TNEGTest, case_half_128x128_128x128)
-{
-    test_tneg<aclFloat16, 128, 128, 128, 128>();
-}
-TEST_F(TNEGTest, case_int32_64x64_64x64)
-{
-    test_tneg<int32_t, 64, 64, 64, 64>();
-}
-TEST_F(TNEGTest, case_float_16x256_16x256)
-{
-    test_tneg<float, 16, 256, 16, 256>();
-}
-TEST_F(TNEGTest, case_half_16x256_16x256)
-{
-    test_tneg<aclFloat16, 16, 256, 16, 256>();
-}
-TEST_F(TNEGTest, case_int16_128x32_128x32)
-{
-    test_tneg<int16_t, 128, 32, 128, 32>();
-}
-TEST_F(TNEGTest, case_uint32_64x64_64x64)
-{
-    test_tneg<uint32_t, 64, 64, 64, 64>();
-}
-TEST_F(TNEGTest, case_int32_128x128_128x128)
-{
-    test_tneg<int32_t, 128, 128, 128, 128>();
-}
+TEST_F(TNEGTest, case_float_64x64_64x64) { test_tneg<float, 64, 64, 64, 64>(); }
+TEST_F(TNEGTest, case_int32_32x32_32x32) { test_tneg<int32_t, 32, 32, 32, 32>(); }
+TEST_F(TNEGTest, case_half_32x64_32x64) { test_tneg<aclFloat16, 32, 64, 32, 64>(); }
+TEST_F(TNEGTest, case_int16_64x16_64x16) { test_tneg<int16_t, 64, 16, 64, 16>(); }
+TEST_F(TNEGTest, case_uint32_32x32_32x32) { test_tneg<uint32_t, 32, 32, 32, 32>(); }
+TEST_F(TNEGTest, case_float_128x128_128x128) { test_tneg<float, 128, 128, 128, 128>(); }
+TEST_F(TNEGTest, case_half_128x128_128x128) { test_tneg<aclFloat16, 128, 128, 128, 128>(); }
+TEST_F(TNEGTest, case_int32_64x64_64x64) { test_tneg<int32_t, 64, 64, 64, 64>(); }
+TEST_F(TNEGTest, case_float_16x256_16x256) { test_tneg<float, 16, 256, 16, 256>(); }
+TEST_F(TNEGTest, case_half_16x256_16x256) { test_tneg<aclFloat16, 16, 256, 16, 256>(); }
+TEST_F(TNEGTest, case_int16_128x32_128x32) { test_tneg<int16_t, 128, 32, 128, 32>(); }
+TEST_F(TNEGTest, case_uint32_64x64_64x64) { test_tneg<uint32_t, 64, 64, 64, 64>(); }
+TEST_F(TNEGTest, case_int32_128x128_128x128) { test_tneg<int32_t, 128, 128, 128, 128>(); }

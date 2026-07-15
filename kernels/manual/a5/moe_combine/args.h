@@ -56,32 +56,30 @@ struct MoeCombineResourceConfig {
     uint32_t maxAivBlocks;
 };
 
-inline bool StartsWith(const std::string &value, const char *prefix)
-{
-    return value.rfind(prefix, 0) == 0;
-}
+inline bool StartsWith(const std::string& value, const char* prefix) { return value.rfind(prefix, 0) == 0; }
 
-inline bool IsA5Soc(const std::string &socVersion)
+inline bool IsA5Soc(const std::string& socVersion)
 {
     return socVersion.empty() || socVersion == "Ascend950" || StartsWith(socVersion, "Ascend950DT_") ||
            StartsWith(socVersion, "Ascend950PR_");
 }
 
-inline MoeCombineResourceConfig GetResourceConfig(const std::string &socVersion)
+inline MoeCombineResourceConfig GetResourceConfig(const std::string& socVersion)
 {
     if (!IsA5Soc(socVersion)) {
         throw std::runtime_error("unsupported moe_combine A5 resource config for soc: " + socVersion);
     }
-    return MoeCombineResourceConfig{CONFIG_MOE_COMBINE_MIX_AIC_BLOCKS, CONFIG_MOE_COMBINE_MIX_AIV_RATIO,
-                                    CONFIG_MOE_COMBINE_AIV_NUM, CONFIG_MOE_COMBINE_MAX_AIV_NUM};
+    return MoeCombineResourceConfig{
+        CONFIG_MOE_COMBINE_MIX_AIC_BLOCKS, CONFIG_MOE_COMBINE_MIX_AIV_RATIO, CONFIG_MOE_COMBINE_AIV_NUM,
+        CONFIG_MOE_COMBINE_MAX_AIV_NUM};
 }
 
-inline uint32_t ChooseDefaultAivBlocks(const std::string &socVersion, const MoeCombineShape &)
+inline uint32_t ChooseDefaultAivBlocks(const std::string& socVersion, const MoeCombineShape&)
 {
     return GetResourceConfig(socVersion).defaultAivBlocks;
 }
 
-inline uint32_t ParseU32(const std::string &value, const char *name)
+inline uint32_t ParseU32(const std::string& value, const char* name)
 {
     size_t parsed = 0;
     unsigned long out = std::stoul(value, &parsed, 10);
@@ -91,7 +89,7 @@ inline uint32_t ParseU32(const std::string &value, const char *name)
     return static_cast<uint32_t>(out);
 }
 
-inline double ParseDouble(const std::string &value, const char *name)
+inline double ParseDouble(const std::string& value, const char* name)
 {
     size_t parsed = 0;
     double out = std::stod(value, &parsed);
@@ -101,7 +99,7 @@ inline double ParseDouble(const std::string &value, const char *name)
     return out;
 }
 
-inline const char *RequireValue(int argc, char **argv, int *index, const char *name)
+inline const char* RequireValue(int argc, char** argv, int* index, const char* name)
 {
     if (*index + 1 >= argc) {
         throw std::invalid_argument(std::string("missing value for ") + name);
@@ -143,8 +141,7 @@ inline MoeCombineArgs DefaultArgs()
     return args;
 }
 
-enum class ArgOption
-{
+enum class ArgOption {
     kInvalid,
     kCasePreset,
     kRunMode,
@@ -182,7 +179,7 @@ enum class ArgOption
 };
 
 struct ArgAlias {
-    const char *name;
+    const char* name;
     ArgOption option;
 };
 
@@ -236,9 +233,9 @@ static constexpr ArgAlias kArgAliases[] = {
     {"--combine-return-only", ArgOption::kCombineReturnOnly},
 };
 
-inline ArgOption FindArgOption(const std::string &key)
+inline ArgOption FindArgOption(const std::string& key)
 {
-    for (const ArgAlias &alias : kArgAliases) {
+    for (const ArgAlias& alias : kArgAliases) {
         if (key == alias.name) {
             return alias.option;
         }
@@ -246,13 +243,13 @@ inline ArgOption FindArgOption(const std::string &key)
     return ArgOption::kInvalid;
 }
 
-inline std::string NextArgValue(int argc, char **argv, int *index, const std::string &key)
+inline std::string NextArgValue(int argc, char** argv, int* index, const std::string& key)
 {
     return std::string(RequireValue(argc, argv, index, key.c_str()));
 }
 
-inline bool ParseShapeOption(ArgOption option, int argc, char **argv, int *index, const std::string &key,
-                             MoeCombineArgs *args)
+inline bool ParseShapeOption(
+    ArgOption option, int argc, char** argv, int* index, const std::string& key, MoeCombineArgs* args)
 {
     switch (option) {
         case ArgOption::kPes:
@@ -286,8 +283,9 @@ inline bool ParseShapeOption(ArgOption option, int argc, char **argv, int *index
     }
 }
 
-inline bool ParseRuntimeOption(ArgOption option, int argc, char **argv, int *index, const std::string &key,
-                               MoeCombineArgs *args, bool *ndevicesSet)
+inline bool ParseRuntimeOption(
+    ArgOption option, int argc, char** argv, int* index, const std::string& key, MoeCombineArgs* args,
+    bool* ndevicesSet)
 {
     switch (option) {
         case ArgOption::kRunMode:
@@ -324,8 +322,8 @@ inline bool ParseRuntimeOption(ArgOption option, int argc, char **argv, int *ind
     }
 }
 
-inline bool ParseDataOption(ArgOption option, int argc, char **argv, int *index, const std::string &key,
-                            MoeCombineArgs *args)
+inline bool ParseDataOption(
+    ArgOption option, int argc, char** argv, int* index, const std::string& key, MoeCombineArgs* args)
 {
     switch (option) {
         case ArgOption::kDebug:
@@ -360,8 +358,8 @@ inline bool ParseDataOption(ArgOption option, int argc, char **argv, int *index,
     }
 }
 
-inline bool ParseBuildOption(ArgOption option, int argc, char **argv, int *index, const std::string &key,
-                             MoeCombineArgs *args)
+inline bool ParseBuildOption(
+    ArgOption option, int argc, char** argv, int* index, const std::string& key, MoeCombineArgs* args)
 {
     switch (option) {
         case ArgOption::kSkipRun:
@@ -387,7 +385,7 @@ inline bool ParseBuildOption(ArgOption option, int argc, char **argv, int *index
     }
 }
 
-inline void FinalizeParsedArgs(MoeCombineArgs *args, bool ndevicesSet)
+inline void FinalizeParsedArgs(MoeCombineArgs* args, bool ndevicesSet)
 {
     args->shape.expertNum = args->shape.ep * args->shape.expertPerRank;
     if (args->shape.maxOutputSize == 0) {
@@ -404,7 +402,7 @@ inline void FinalizeParsedArgs(MoeCombineArgs *args, bool ndevicesSet)
     }
 }
 
-inline MoeCombineArgs ParseArgs(int argc, char **argv)
+inline MoeCombineArgs ParseArgs(int argc, char** argv)
 {
     MoeCombineArgs args = DefaultArgs();
     bool ndevicesSet = false;
@@ -434,9 +432,9 @@ inline MoeCombineArgs ParseArgs(int argc, char **argv)
     return args;
 }
 
-inline void ValidateArgs(const MoeCombineArgs &args)
+inline void ValidateArgs(const MoeCombineArgs& args)
 {
-    const MoeCombineShape &shape = args.shape;
+    const MoeCombineShape& shape = args.shape;
     const MoeCombineResourceConfig resource = GetResourceConfig(args.socVersion);
     if (args.runMode != "npu") {
         throw std::invalid_argument("run-mode must be npu for the first version");
@@ -456,9 +454,9 @@ inline void ValidateArgs(const MoeCombineArgs &args)
     }
 }
 
-inline void PrintRunSummary(const MoeCombineArgs &args)
+inline void PrintRunSummary(const MoeCombineArgs& args)
 {
-    const MoeCombineShape &shape = args.shape;
+    const MoeCombineShape& shape = args.shape;
     std::cout << "RUN_MODE=" << args.runMode << "\n";
     std::cout << "SOC_VERSION=" << args.socVersion << "\n";
     std::cout << "PES=" << shape.ep << " DEVICE_BASE=" << args.runtime.deviceBase

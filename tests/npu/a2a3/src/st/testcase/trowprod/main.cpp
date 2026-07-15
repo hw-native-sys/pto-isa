@@ -16,11 +16,11 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <uint32_t caseId>
-void launchTROWPRODTestCase(void *out, void *src, aclrtStream stream);
+void launchTROWPRODTestCase(void* out, void* src, aclrtStream stream);
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -30,10 +30,10 @@ std::string GetGoldenDir()
 class TROWPRODTest : public testing::Test {
 public:
     aclrtStream stream;
-    void *dstHost;
-    void *srcHost;
-    void *dstDevice;
-    void *srcDevice;
+    void* dstHost;
+    void* srcHost;
+    void* dstDevice;
+    void* srcDevice;
 
 protected:
     void SetUp() override
@@ -93,92 +93,38 @@ protected:
     }
 };
 
-TEST_F(TROWPRODTest, case1)
-{
-    TRowProdTestFramework<1, float, 8, 1, 1, 8, 8>();
-}
+TEST_F(TROWPRODTest, case1) { TRowProdTestFramework<1, float, 8, 1, 1, 8, 8>(); }
 
-TEST_F(TROWPRODTest, case2)
-{
-    TRowProdTestFramework<2, float, 8, 1, 1, 16, 16>();
-}
+TEST_F(TROWPRODTest, case2) { TRowProdTestFramework<2, float, 8, 1, 1, 16, 16>(); }
 
-TEST_F(TROWPRODTest, case3)
-{
-    TRowProdTestFramework<3, float, 8, 1, 1, 128, 128>();
-}
+TEST_F(TROWPRODTest, case3) { TRowProdTestFramework<3, float, 8, 1, 1, 128, 128>(); }
 
-TEST_F(TROWPRODTest, case4)
-{
-    TRowProdTestFramework<4, float, 8, 1, 1, 8, 5>();
-}
+TEST_F(TROWPRODTest, case4) { TRowProdTestFramework<4, float, 8, 1, 1, 8, 5>(); }
 
-TEST_F(TROWPRODTest, case5)
-{
-    TRowProdTestFramework<5, float, 8, 1, 1, 16, 11>();
-}
+TEST_F(TROWPRODTest, case5) { TRowProdTestFramework<5, float, 8, 1, 1, 16, 11>(); }
 
-TEST_F(TROWPRODTest, case6)
-{
-    TRowProdTestFramework<6, float, 8, 3, 2, 8, 8>();
-}
+TEST_F(TROWPRODTest, case6) { TRowProdTestFramework<6, float, 8, 3, 2, 8, 8>(); }
 
-TEST_F(TROWPRODTest, case7)
-{
-    TRowProdTestFramework<7, float, 8, 3, 2, 24, 16>();
-}
+TEST_F(TROWPRODTest, case7) { TRowProdTestFramework<7, float, 8, 3, 2, 24, 16>(); }
 
-TEST_F(TROWPRODTest, case8)
-{
-    TRowProdTestFramework<8, float, 8, 4, 3, 16, 9>();
-}
+TEST_F(TROWPRODTest, case8) { TRowProdTestFramework<8, float, 8, 4, 3, 16, 9>(); }
 
-TEST_F(TROWPRODTest, case9)
-{
-    TRowProdTestFramework<9, __fp16, 16, 1, 1, 16, 16>();
-}
+TEST_F(TROWPRODTest, case9) { TRowProdTestFramework<9, __fp16, 16, 1, 1, 16, 16>(); }
 
-TEST_F(TROWPRODTest, case10)
-{
-    TRowProdTestFramework<10, __fp16, 32, 26, 19, 32, 26>();
-}
+TEST_F(TROWPRODTest, case10) { TRowProdTestFramework<10, __fp16, 32, 26, 19, 32, 26>(); }
 
-TEST_F(TROWPRODTest, case11)
-{
-    TRowProdTestFramework<11, int32_t, 8, 1, 1, 8, 8>();
-}
+TEST_F(TROWPRODTest, case11) { TRowProdTestFramework<11, int32_t, 8, 1, 1, 8, 8>(); }
 
-TEST_F(TROWPRODTest, case12)
-{
-    TRowProdTestFramework<12, int32_t, 8, 1, 1, 16, 16>();
-}
+TEST_F(TROWPRODTest, case12) { TRowProdTestFramework<12, int32_t, 8, 1, 1, 16, 16>(); }
 
-TEST_F(TROWPRODTest, case13)
-{
-    TRowProdTestFramework<13, int32_t, 8, 1, 1, 128, 128>();
-}
+TEST_F(TROWPRODTest, case13) { TRowProdTestFramework<13, int32_t, 8, 1, 1, 128, 128>(); }
 
-TEST_F(TROWPRODTest, case14)
-{
-    TRowProdTestFramework<14, int32_t, 8, 1, 1, 8, 5>();
-}
+TEST_F(TROWPRODTest, case14) { TRowProdTestFramework<14, int32_t, 8, 1, 1, 8, 5>(); }
 
-TEST_F(TROWPRODTest, case15)
-{
-    TRowProdTestFramework<15, int32_t, 8, 3, 2, 24, 16>();
-}
+TEST_F(TROWPRODTest, case15) { TRowProdTestFramework<15, int32_t, 8, 3, 2, 24, 16>(); }
 
-TEST_F(TROWPRODTest, case16)
-{
-    TRowProdTestFramework<16, int16_t, 16, 1, 1, 16, 16>();
-}
+TEST_F(TROWPRODTest, case16) { TRowProdTestFramework<16, int16_t, 16, 1, 1, 16, 16>(); }
 
-TEST_F(TROWPRODTest, case17)
-{
-    TRowProdTestFramework<17, int16_t, 32, 26, 19, 32, 32>();
-}
+TEST_F(TROWPRODTest, case17) { TRowProdTestFramework<17, int16_t, 32, 26, 19, 32, 32>(); }
 
-TEST_F(TROWPRODTest, case18)
-{
-    TRowProdTestFramework<18, int16_t, 16, 1, 1, 16, 16>();
-}
+TEST_F(TROWPRODTest, case18) { TRowProdTestFramework<18, int16_t, 16, 1, 1, 16, 16>(); }

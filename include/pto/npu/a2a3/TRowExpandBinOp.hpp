@@ -16,8 +16,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 template <typename Op, typename T, unsigned blockSizeElem, unsigned DstRowStride, unsigned Src0RowStride>
-PTO_INTERNAL void TRowExpandBinaryCountMode(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ubuf__ T *src1Ptr,
-                                            unsigned validRow, unsigned validCol)
+PTO_INTERNAL void TRowExpandBinaryCountMode(
+    __ubuf__ T* dstPtr, __ubuf__ T* src0Ptr, __ubuf__ T* src1Ptr, unsigned validRow, unsigned validCol)
 {
     set_mask_count();
     SetVectorCount(validCol);
@@ -28,10 +28,11 @@ PTO_INTERNAL void TRowExpandBinaryCountMode(__ubuf__ T *dstPtr, __ubuf__ T *src0
     SetFullVecMaskByDType<T>();
 }
 
-template <typename Op, typename T, unsigned elementsPerRepeat, unsigned blockSizeElem, unsigned DstRowStride,
-          unsigned Src0RowStride>
-PTO_INTERNAL void TRowExpandBinaryNormModeTail(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ubuf__ T *src1Ptr,
-                                               unsigned validRow, unsigned validCol)
+template <
+    typename Op, typename T, unsigned elementsPerRepeat, unsigned blockSizeElem, unsigned DstRowStride,
+    unsigned Src0RowStride>
+PTO_INTERNAL void TRowExpandBinaryNormModeTail(
+    __ubuf__ T* dstPtr, __ubuf__ T* src0Ptr, __ubuf__ T* src1Ptr, unsigned validRow, unsigned validCol)
 {
     // rowStride / blockSizeElem > 255不会进到norm mode
     constexpr uint8_t DstRepeatStride = (uint8_t)(DstRowStride / blockSizeElem);
@@ -56,11 +57,12 @@ PTO_INTERNAL void TRowExpandBinaryNormModeTail(__ubuf__ T *dstPtr, __ubuf__ T *s
     }
 }
 
-template <typename Op, typename T, typename U, unsigned elementsPerRepeat, unsigned blockSizeElem,
-          unsigned DstRowStride, unsigned Src0RowStride>
-PTO_INTERNAL void TRowExpandBinaryNormMode(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ubuf__ U *src1Ptr,
-                                           __ubuf__ T *tmpPtr, __ubuf__ U *tmpPtr_, unsigned validRow,
-                                           unsigned validCol)
+template <
+    typename Op, typename T, typename U, unsigned elementsPerRepeat, unsigned blockSizeElem, unsigned DstRowStride,
+    unsigned Src0RowStride>
+PTO_INTERNAL void TRowExpandBinaryNormMode(
+    __ubuf__ T* dstPtr, __ubuf__ T* src0Ptr, __ubuf__ U* src1Ptr, __ubuf__ T* tmpPtr, __ubuf__ U* tmpPtr_,
+    unsigned validRow, unsigned validCol)
 {
     // tmpbuf8KB只能存放vbrcb 32个repeat的数据,共256行大于REPEAT_MAX
     // NormMode计算255个repeat后需单独处理第256行，所以vbrcb取30个repeat，240行
@@ -90,8 +92,9 @@ PTO_INTERNAL void TRowExpandBinaryNormMode(__ubuf__ T *dstPtr, __ubuf__ T *src0P
 }
 
 template <typename Op, typename T, typename U, int row, unsigned DstRowStride, unsigned Src0RowStride>
-PTO_INTERNAL void TRowExpandBinaryInstr(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ubuf__ U *src1Ptr,
-                                        __ubuf__ T *tmpPtr, __ubuf__ U *tmpPtr_, unsigned validRow, unsigned validCol)
+PTO_INTERNAL void TRowExpandBinaryInstr(
+    __ubuf__ T* dstPtr, __ubuf__ T* src0Ptr, __ubuf__ U* src1Ptr, __ubuf__ T* tmpPtr, __ubuf__ U* tmpPtr_,
+    unsigned validRow, unsigned validCol)
 {
     constexpr unsigned elementsPerRepeat = pto::REPEAT_BYTE / sizeof(T);
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
@@ -104,8 +107,8 @@ PTO_INTERNAL void TRowExpandBinaryInstr(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr,
         vbrcb(tmpPtr_, src1Ptr, 1, 8, repeatTimes);
         pipe_barrier(PIPE_V);
         if (useCountMode) {
-            TRowExpandBinaryCountMode<Op, T, blockSizeElem, DstRowStride, Src0RowStride>(dstPtr, src0Ptr, tmpPtr,
-                                                                                         validRow, validCol);
+            TRowExpandBinaryCountMode<Op, T, blockSizeElem, DstRowStride, Src0RowStride>(
+                dstPtr, src0Ptr, tmpPtr, validRow, validCol);
         } else {
             TRowExpandBinaryNormModeTail<Op, T, elementsPerRepeat, blockSizeElem, DstRowStride, Src0RowStride>(
                 dstPtr, src0Ptr, tmpPtr, validRow, validCol);
@@ -115,8 +118,8 @@ PTO_INTERNAL void TRowExpandBinaryInstr(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr,
             vbrcb(tmpPtr_, src1Ptr, 1, 8, repeatTimes);
             pipe_barrier(PIPE_V);
             if (useCountMode) {
-                TRowExpandBinaryCountMode<Op, T, blockSizeElem, DstRowStride, Src0RowStride>(dstPtr, src0Ptr, tmpPtr,
-                                                                                             validRow, validCol);
+                TRowExpandBinaryCountMode<Op, T, blockSizeElem, DstRowStride, Src0RowStride>(
+                    dstPtr, src0Ptr, tmpPtr, validRow, validCol);
             } else {
                 TRowExpandBinaryNormModeTail<Op, T, elementsPerRepeat, blockSizeElem, DstRowStride, Src0RowStride>(
                     dstPtr, src0Ptr, tmpPtr, validRow, validCol);
@@ -128,10 +131,11 @@ PTO_INTERNAL void TRowExpandBinaryInstr(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr,
     }
 }
 
-template <typename Op, typename T, unsigned elementsPerRepeat, unsigned blockSizeElem, unsigned DstRowStride,
-          unsigned Src0RowStride, unsigned Src1RowStride>
-PTO_INTERNAL void TRowExpandBinaryNormMode32B(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ubuf__ T *src1Ptr,
-                                              unsigned validRow, unsigned validCol)
+template <
+    typename Op, typename T, unsigned elementsPerRepeat, unsigned blockSizeElem, unsigned DstRowStride,
+    unsigned Src0RowStride, unsigned Src1RowStride>
+PTO_INTERNAL void TRowExpandBinaryNormMode32B(
+    __ubuf__ T* dstPtr, __ubuf__ T* src0Ptr, __ubuf__ T* src1Ptr, unsigned validRow, unsigned validCol)
 {
     unsigned numLoop = validRow / REPEAT_MAX;
     unsigned numRemainAfterLoop = validRow % REPEAT_MAX;
@@ -152,8 +156,8 @@ PTO_INTERNAL void TRowExpandBinaryNormMode32B(__ubuf__ T *dstPtr, __ubuf__ T *sr
 }
 
 template <typename Op, typename T, int row, unsigned DstRowStride, unsigned Src0RowStride, unsigned Src1RowStride>
-PTO_INTERNAL void TRowExpandBinaryInstr32B(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ubuf__ T *src1Ptr,
-                                           unsigned validRow, unsigned validCol)
+PTO_INTERNAL void TRowExpandBinaryInstr32B(
+    __ubuf__ T* dstPtr, __ubuf__ T* src0Ptr, __ubuf__ T* src1Ptr, unsigned validRow, unsigned validCol)
 {
     constexpr unsigned elementsPerRepeat = pto::REPEAT_BYTE / sizeof(T);
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
@@ -162,8 +166,8 @@ PTO_INTERNAL void TRowExpandBinaryInstr32B(__ubuf__ T *dstPtr, __ubuf__ T *src0P
     bool useCountMode = repeatStrideOverflow || validCol / elementsPerRepeat > validRow;
     if constexpr (row < 256) {
         if (useCountMode) {
-            TRowExpandBinaryCountMode<Op, T, blockSizeElem, DstRowStride, Src0RowStride>(dstPtr, src0Ptr, src1Ptr,
-                                                                                         validRow, validCol);
+            TRowExpandBinaryCountMode<Op, T, blockSizeElem, DstRowStride, Src0RowStride>(
+                dstPtr, src0Ptr, src1Ptr, validRow, validCol);
         } else {
             TRowExpandBinaryNormModeTail<Op, T, elementsPerRepeat, blockSizeElem, DstRowStride, Src0RowStride>(
                 dstPtr, src0Ptr, src1Ptr, validRow, validCol);
@@ -171,56 +175,56 @@ PTO_INTERNAL void TRowExpandBinaryInstr32B(__ubuf__ T *dstPtr, __ubuf__ T *src0P
     } else {
         if (validRow < 256) {
             if (useCountMode) {
-                TRowExpandBinaryCountMode<Op, T, blockSizeElem, DstRowStride, Src0RowStride>(dstPtr, src0Ptr, src1Ptr,
-                                                                                             validRow, validCol);
+                TRowExpandBinaryCountMode<Op, T, blockSizeElem, DstRowStride, Src0RowStride>(
+                    dstPtr, src0Ptr, src1Ptr, validRow, validCol);
             } else {
                 TRowExpandBinaryNormModeTail<Op, T, elementsPerRepeat, blockSizeElem, DstRowStride, Src0RowStride>(
                     dstPtr, src0Ptr, src1Ptr, validRow, validCol);
             }
         } else { // 大于256行时repeatstride不会越界，可以用norm mode
-            TRowExpandBinaryNormMode32B<Op, T, elementsPerRepeat, blockSizeElem, DstRowStride, Src0RowStride,
-                                        Src1RowStride>(dstPtr, src0Ptr, src1Ptr, validRow, validCol);
+            TRowExpandBinaryNormMode32B<
+                Op, T, elementsPerRepeat, blockSizeElem, DstRowStride, Src0RowStride, Src1RowStride>(
+                dstPtr, src0Ptr, src1Ptr, validRow, validCol);
         }
     }
 }
 
 template <typename Op, typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
-__tf__ PTO_INTERNAL void TRowExpandBin(typename TileDataDst::TileDType __out__ dst,
-                                       typename TileDataSrc0::TileDType __in__ src0,
-                                       typename TileDataSrc1::TileDType __in__ src1, unsigned validRow,
-                                       unsigned validCol)
+__tf__ PTO_INTERNAL void TRowExpandBin(
+    typename TileDataDst::TileDType __out__ dst, typename TileDataSrc0::TileDType __in__ src0,
+    typename TileDataSrc1::TileDType __in__ src1, unsigned validRow, unsigned validCol)
 {
     using T = typename TileDataDst::DType;
     using U = typename std::conditional<sizeof(typename TileDataDst::DType) == 4, uint32_t, uint16_t>::type;
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *src0Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src0);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
     if constexpr (TileDataSrc1::isRowMajor) {
-        __ubuf__ T *src1Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src1);
-        TRowExpandBinaryInstr32B<Op, T, TileDataDst::Rows, TileDataDst::RowStride, TileDataSrc0::RowStride,
-                                 TileDataSrc1::RowStride>(dstPtr, src0Ptr, src1Ptr, validRow, validCol);
+        __ubuf__ T* src1Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src1);
+        TRowExpandBinaryInstr32B<
+            Op, T, TileDataDst::Rows, TileDataDst::RowStride, TileDataSrc0::RowStride, TileDataSrc1::RowStride>(
+            dstPtr, src0Ptr, src1Ptr, validRow, validCol);
     } else {
-        __ubuf__ U *src1Ptr = (__ubuf__ U *)__cce_get_tile_ptr(src1);
-        __ubuf__ T *tmpPtr = (__ubuf__ T *)(TMP_UB_OFFSET);  // 8KB tmpbuf address
-        __ubuf__ U *tmpPtr_ = (__ubuf__ U *)(TMP_UB_OFFSET); // 8KB tmpbuf address
+        __ubuf__ U* src1Ptr = (__ubuf__ U*)__cce_get_tile_ptr(src1);
+        __ubuf__ T* tmpPtr = (__ubuf__ T*)(TMP_UB_OFFSET);  // 8KB tmpbuf address
+        __ubuf__ U* tmpPtr_ = (__ubuf__ U*)(TMP_UB_OFFSET); // 8KB tmpbuf address
         TRowExpandBinaryInstr<Op, T, U, TileDataDst::Rows, TileDataDst::RowStride, TileDataSrc0::RowStride>(
             dstPtr, src0Ptr, src1Ptr, tmpPtr, tmpPtr_, validRow, validCol);
     }
 }
 
 template <typename Op, typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataTmp>
-__tf__ PTO_INTERNAL void TRowExpandBin(typename TileDataDst::TileDType __out__ dst,
-                                       typename TileDataSrc0::TileDType __in__ src0,
-                                       typename TileDataSrc1::TileDType __in__ src1,
-                                       typename TileDataTmp::TileDType __out__ tmp, unsigned validRow,
-                                       unsigned validCol)
+__tf__ PTO_INTERNAL void TRowExpandBin(
+    typename TileDataDst::TileDType __out__ dst, typename TileDataSrc0::TileDType __in__ src0,
+    typename TileDataSrc1::TileDType __in__ src1, typename TileDataTmp::TileDType __out__ tmp, unsigned validRow,
+    unsigned validCol)
 {
     using T = typename TileDataDst::DType;
     using U = typename std::conditional<sizeof(typename TileDataDst::DType) == 4, uint32_t, uint16_t>::type;
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *src0Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src0);
-    __ubuf__ U *src1Ptr = (__ubuf__ U *)__cce_get_tile_ptr(src1);
-    __ubuf__ T *tmpPtr = (__ubuf__ T *)__cce_get_tile_ptr(tmp);
-    __ubuf__ U *tmpPtr_ = (__ubuf__ U *)__cce_get_tile_ptr(tmp);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
+    __ubuf__ U* src1Ptr = (__ubuf__ U*)__cce_get_tile_ptr(src1);
+    __ubuf__ T* tmpPtr = (__ubuf__ T*)__cce_get_tile_ptr(tmp);
+    __ubuf__ U* tmpPtr_ = (__ubuf__ U*)__cce_get_tile_ptr(tmp);
     TRowExpandBinaryInstr<Op, T, U, TileDataDst::Rows, TileDataDst::RowStride, TileDataSrc0::RowStride>(
         dstPtr, src0Ptr, src1Ptr, tmpPtr, tmpPtr_, validRow, validCol);
 }

@@ -35,10 +35,25 @@ namespace ccu {
 // bit set; CCU hardware clears it after the trigger fires.
 static constexpr uint64_t kCkeValidBit = 1ULL << 63;
 
-PTO_INTERNAL void CkeTrigger(uint64_t ckeSlotVA, uint32_t mask, __ubuf__ uint8_t * /* ubScratch */)
+namespace detail {
+PTO_INTERNAL void DcciCke(__gm__ void* ptr)
 {
-    auto *p = reinterpret_cast<__gm__ uint64_t *>(ckeSlotVA);
-    *p = static_cast<uint64_t>(mask) | kCkeValidBit;
+    __asm__ __volatile__("");
+    dcci(ptr, ENTIRE_DATA_CACHE);
+    __asm__ __volatile__("");
+}
+} // namespace detail
+
+PTO_INTERNAL void CkeTrigger(uint64_t ckeSlotVA, uint32_t mask, __ubuf__ uint8_t* /* ubScratch */)
+{
+    volatile __gm__ uint64_t* p = reinterpret_cast<volatile __gm__ uint64_t*>(ckeSlotVA);
+    uint64_t payload = static_cast<uint64_t>(mask) | kCkeValidBit;
+
+    detail::DcciCke(reinterpret_cast<__gm__ void*>(ckeSlotVA));
+    *p = payload;
+    detail::DcciCke(reinterpret_cast<__gm__ void*>(ckeSlotVA));
+    dsb(DSB_DDR);
+    pipe_barrier(PIPE_ALL);
 }
 
 // Convenience wrapper used by the T{REDUCE,SCATTER,BROADCAST,GATHER}_CCU_IMPL
@@ -46,13 +61,51 @@ PTO_INTERNAL void CkeTrigger(uint64_t ckeSlotVA, uint32_t mask, __ubuf__ uint8_t
 // forwards to CkeTrigger; collapses two lines (reinterpret_cast + trigger)
 // at every call site into one.
 template <typename TileData>
-PTO_INTERNAL void CkeTriggerFromTile(uint64_t ckeSlotVA, uint32_t mask, TileData &tile)
+PTO_INTERNAL void CkeTriggerFromTile(uint64_t ckeSlotVA, uint32_t mask, TileData& tile)
 {
-    __ubuf__ uint8_t *ub = reinterpret_cast<__ubuf__ uint8_t *>(tile.data());
+    __ubuf__ uint8_t* ub = reinterpret_cast<__ubuf__ uint8_t*>(tile.data());
     CkeTrigger(ckeSlotVA, mask, ub);
 }
 
-} // namespace ccu
+// Store tileData to parallelGroup[selfIdx] (if AivStored) then trigger CKE.
+// Used by TREDUCE_CCU_IMPL and TGATHER_CCU_IMPL.
+template <typename ParallelGroupType, typename TileData, typename... WaitEvents>
+PTO_INTERNAL void CcuStoreTriggerSelf(
+    ParallelGroupType& parallelGroup, TileData& tileData, const CcuTriggerContext& ctx, WaitEvents&... events)
+{
+    WaitAllEvents(events...);
+
+    if (ctx.inputSource == CcuInputSource::AivStored) {
+        set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+        wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+        TSTORE(parallelGroup[static_cast<int>(ctx.selfIdx)], tileData);
+        pipe_barrier(PIPE_MTE3);
+    }
+
+    CkeTriggerFromTile(ctx.ckeSlotVA, ctx.mask, tileData);
+}
+
+// Root stores tileData to srcGlobalData (if AivStored) then trigger CKE.
+// Used by TSCATTER_CCU_IMPL and TBROADCAST_CCU_IMPL.
+template <typename ParallelGroupType, typename GlobalSrcData, typename TileData, typename... WaitEvents>
+PTO_INTERNAL void CcuStoreTriggerRoot(
+    ParallelGroupType& parallelGroup, GlobalSrcData& srcGlobalData, TileData& tileData, const CcuTriggerContext& ctx,
+    WaitEvents&... events)
+{
+    WaitAllEvents(events...);
+
+    if (ctx.inputSource == CcuInputSource::AivStored) {
+        if (static_cast<int>(ctx.selfIdx) == parallelGroup.GetRootIdx()) {
+            set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+            wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+            TSTORE(srcGlobalData, tileData);
+            pipe_barrier(PIPE_MTE3);
+        }
+    }
+
+    CkeTriggerFromTile(ctx.ckeSlotVA, ctx.mask, tileData);
+}
+
 } // namespace comm
 } // namespace pto
 

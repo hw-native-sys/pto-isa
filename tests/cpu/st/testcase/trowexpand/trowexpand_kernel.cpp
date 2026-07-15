@@ -13,7 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <int kRows, int kCols>
-AICORE void runTROWEXPAND(__gm__ float __out__ *out, __gm__ float __in__ *src)
+AICORE void runTROWEXPAND(__gm__ float __out__* out, __gm__ float __in__* src)
 {
     using ShapeMat = Shape<1, 1, 1, kRows, kCols>;
     using StrideMat = Stride<1, 1, 1, kCols, 1>;
@@ -36,10 +36,10 @@ AICORE void runTROWEXPAND(__gm__ float __out__ *out, __gm__ float __in__ *src)
 }
 
 template <int kRows, int kCols>
-void LaunchTROWEXPAND(float *out, float *src, void *stream)
+void LaunchTROWEXPAND(float* out, float* src, void* stream)
 {
     (void)stream;
     runTROWEXPAND<kRows, kCols>(out, src);
 }
 
-template void LaunchTROWEXPAND<64, 64>(float *out, float *src, void *stream);
+template void LaunchTROWEXPAND<64, 64>(float* out, float* src, void* stream);

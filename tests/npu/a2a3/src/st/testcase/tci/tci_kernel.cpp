@@ -18,7 +18,7 @@ using namespace std;
 using namespace pto;
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int descending, int mode>
-__global__ AICORE void runTCI(__gm__ T __out__ *out, T start)
+__global__ AICORE void runTCI(__gm__ T __out__* out, T start)
 {
     using DynShapeDim5_dst = Shape<1, 1, 1, kGRows_, kGCols_>;
     using DynStridDim5_dst = Stride<1, 1, 1, kGCols_, 1>;
@@ -53,43 +53,43 @@ __global__ AICORE void runTCI(__gm__ T __out__ *out, T start)
 }
 
 template <uint32_t GROW, uint32_t GCOL, uint32_t TROW, uint32_t TCOL, uint32_t descending, uint32_t mode>
-void launchTCI_demo_b32(int32_t *out, void *stream)
+void launchTCI_demo_b32(int32_t* out, void* stream)
 {
     runTCI<int32_t, GROW, GCOL, TROW, TCOL, descending, mode><<<1, nullptr, stream>>>(out, 0);
 }
 
-template void launchTCI_demo_b32<1, 128, 1, 128, 0, 0>(int32_t *out, void *stream);
-template void launchTCI_demo_b32<1, 128, 1, 128, 1, 0>(int32_t *out, void *stream);
-template void launchTCI_demo_b32<1, 600, 1, 600, 0, 0>(int32_t *out, void *stream);
-template void launchTCI_demo_b32<1, 600, 1, 600, 1, 0>(int32_t *out, void *stream);
-template void launchTCI_demo_b32<1, 32, 1, 32, 0, 0>(int32_t *out, void *stream);
-template void launchTCI_demo_b32<1, 32, 1, 32, 1, 0>(int32_t *out, void *stream);
-template void launchTCI_demo_b32<1, 2000, 1, 2000, 0, 0>(int32_t *out, void *stream);
-template void launchTCI_demo_b32<1, 2000, 1, 2000, 1, 0>(int32_t *out, void *stream);
-template void launchTCI_demo_b32<1, 128, 1, 128, 0, 1>(int32_t *out, void *stream);
-template void launchTCI_demo_b32<1, 128, 1, 128, 1, 1>(int32_t *out, void *stream);
-template void launchTCI_demo_b32<1, 32, 1, 32, 0, 1>(int32_t *out, void *stream);
-template void launchTCI_demo_b32<1, 32, 1, 32, 1, 1>(int32_t *out, void *stream);
+template void launchTCI_demo_b32<1, 128, 1, 128, 0, 0>(int32_t* out, void* stream);
+template void launchTCI_demo_b32<1, 128, 1, 128, 1, 0>(int32_t* out, void* stream);
+template void launchTCI_demo_b32<1, 600, 1, 600, 0, 0>(int32_t* out, void* stream);
+template void launchTCI_demo_b32<1, 600, 1, 600, 1, 0>(int32_t* out, void* stream);
+template void launchTCI_demo_b32<1, 32, 1, 32, 0, 0>(int32_t* out, void* stream);
+template void launchTCI_demo_b32<1, 32, 1, 32, 1, 0>(int32_t* out, void* stream);
+template void launchTCI_demo_b32<1, 2000, 1, 2000, 0, 0>(int32_t* out, void* stream);
+template void launchTCI_demo_b32<1, 2000, 1, 2000, 1, 0>(int32_t* out, void* stream);
+template void launchTCI_demo_b32<1, 128, 1, 128, 0, 1>(int32_t* out, void* stream);
+template void launchTCI_demo_b32<1, 128, 1, 128, 1, 1>(int32_t* out, void* stream);
+template void launchTCI_demo_b32<1, 32, 1, 32, 0, 1>(int32_t* out, void* stream);
+template void launchTCI_demo_b32<1, 32, 1, 32, 1, 1>(int32_t* out, void* stream);
 
 template <uint32_t GROW, uint32_t GCOL, uint32_t TROW, uint32_t TCOL, uint32_t descending, uint32_t mode>
-void launchTCI_demo_b16(int16_t *out, void *stream)
+void launchTCI_demo_b16(int16_t* out, void* stream)
 {
     runTCI<int16_t, GROW, GCOL, TROW, TCOL, descending, mode><<<1, nullptr, stream>>>(out, 0);
 }
 
-template void launchTCI_demo_b16<1, 256, 1, 256, 0, 0>(int16_t *out, void *stream);
-template void launchTCI_demo_b16<1, 256, 1, 256, 1, 0>(int16_t *out, void *stream);
-template void launchTCI_demo_b16<1, 800, 1, 800, 0, 0>(int16_t *out, void *stream);
-template void launchTCI_demo_b16<1, 800, 1, 800, 1, 0>(int16_t *out, void *stream);
-template void launchTCI_demo_b16<1, 64, 1, 64, 0, 0>(int16_t *out, void *stream);
-template void launchTCI_demo_b16<1, 64, 1, 64, 1, 0>(int16_t *out, void *stream);
-template void launchTCI_demo_b16<1, 5120, 1, 5120, 0, 0>(int16_t *out, void *stream);
-template void launchTCI_demo_b16<1, 5120, 1, 5120, 1, 0>(int16_t *out, void *stream);
-template void launchTCI_demo_b16<1, 256, 1, 256, 0, 1>(int16_t *out, void *stream);
-template void launchTCI_demo_b16<1, 256, 1, 256, 1, 1>(int16_t *out, void *stream);
-template void launchTCI_demo_b16<1, 800, 1, 800, 0, 1>(int16_t *out, void *stream);
-template void launchTCI_demo_b16<1, 800, 1, 800, 1, 1>(int16_t *out, void *stream);
-template void launchTCI_demo_b16<1, 3328, 1, 3328, 0, 1>(int16_t *out, void *stream);
-template void launchTCI_demo_b16<1, 3328, 1, 3328, 1, 1>(int16_t *out, void *stream);
-template void launchTCI_demo_b16<1, 64, 1, 64, 0, 1>(int16_t *out, void *stream);
-template void launchTCI_demo_b16<1, 32, 1, 32, 1, 1>(int16_t *out, void *stream);
+template void launchTCI_demo_b16<1, 256, 1, 256, 0, 0>(int16_t* out, void* stream);
+template void launchTCI_demo_b16<1, 256, 1, 256, 1, 0>(int16_t* out, void* stream);
+template void launchTCI_demo_b16<1, 800, 1, 800, 0, 0>(int16_t* out, void* stream);
+template void launchTCI_demo_b16<1, 800, 1, 800, 1, 0>(int16_t* out, void* stream);
+template void launchTCI_demo_b16<1, 64, 1, 64, 0, 0>(int16_t* out, void* stream);
+template void launchTCI_demo_b16<1, 64, 1, 64, 1, 0>(int16_t* out, void* stream);
+template void launchTCI_demo_b16<1, 5120, 1, 5120, 0, 0>(int16_t* out, void* stream);
+template void launchTCI_demo_b16<1, 5120, 1, 5120, 1, 0>(int16_t* out, void* stream);
+template void launchTCI_demo_b16<1, 256, 1, 256, 0, 1>(int16_t* out, void* stream);
+template void launchTCI_demo_b16<1, 256, 1, 256, 1, 1>(int16_t* out, void* stream);
+template void launchTCI_demo_b16<1, 800, 1, 800, 0, 1>(int16_t* out, void* stream);
+template void launchTCI_demo_b16<1, 800, 1, 800, 1, 1>(int16_t* out, void* stream);
+template void launchTCI_demo_b16<1, 3328, 1, 3328, 0, 1>(int16_t* out, void* stream);
+template void launchTCI_demo_b16<1, 3328, 1, 3328, 1, 1>(int16_t* out, void* stream);
+template void launchTCI_demo_b16<1, 64, 1, 64, 0, 1>(int16_t* out, void* stream);
+template void launchTCI_demo_b16<1, 32, 1, 32, 1, 1>(int16_t* out, void* stream);

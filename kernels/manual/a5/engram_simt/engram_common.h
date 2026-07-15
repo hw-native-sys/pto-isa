@@ -19,7 +19,7 @@ constexpr uint32_t kHashPrimes[16] = {0x85ebca6b, 0xc2b2ae35, 0x27d4eb2f, 0x1656
                                       0xcc9e2d51, 0xe6546b64, 0x9e3779b9, 0x7f4a7c15, 0x2c1b3c6d, 0x5851f42d,
                                       0x4ca5cf08, 0x32fd6b73, 0xa3f8c72e, 0x1f3b7e89};
 
-inline uint32_t compute_ngram_key_host(const uint32_t *ids, int pos, int ngram_size)
+inline uint32_t compute_ngram_key_host(const uint32_t* ids, int pos, int ngram_size)
 {
     if (pos < ngram_size - 1)
         return 0;

@@ -30,23 +30,17 @@ constexpr uint32_t START_AIC_BARRIER_EPOCH_INDEX = 24576;
 
 class PtoRemoteWindow {
 public:
-    AICORE inline PtoRemoteWindow()
-    {
-        segmentBytes_ = PTO_REMOTE_WINDOW_MEM;
-    }
+    AICORE inline PtoRemoteWindow() { segmentBytes_ = PTO_REMOTE_WINDOW_MEM; }
 
     AICORE inline void Init(GM_ADDR remoteWindowContext)
     {
-        context_ = reinterpret_cast<__gm__ PtoRemoteWindowContext *>(remoteWindowContext);
+        context_ = reinterpret_cast<__gm__ PtoRemoteWindowContext*>(remoteWindowContext);
         rank_ = static_cast<int32_t>(context_->rank);
         rankSize_ = static_cast<int32_t>(context_->rankSize);
         segmentBytes_ = static_cast<size_t>(context_->windowBytes);
     }
 
-    AICORE inline GM_ADDR LocalBase() const
-    {
-        return reinterpret_cast<GM_ADDR>(context_->windowIn[rank_]);
-    }
+    AICORE inline GM_ADDR LocalBase() const { return reinterpret_cast<GM_ADDR>(context_->windowIn[rank_]); }
 
     AICORE inline GM_ADDR RemoteBase(int64_t offset, int32_t rankId) const
     {
@@ -57,42 +51,33 @@ public:
     }
 
     template <typename T>
-    AICORE inline __gm__ T *RemotePtr(__gm__ T *localPtr, int32_t rankId) const
+    AICORE inline __gm__ T* RemotePtr(__gm__ T* localPtr, int32_t rankId) const
     {
         const uint64_t localBase = context_->windowIn[rank_];
         const uint64_t offset = reinterpret_cast<uint64_t>(localPtr) - localBase;
-        return reinterpret_cast<__gm__ T *>(context_->windowIn[rankId] + offset);
+        return reinterpret_cast<__gm__ T*>(context_->windowIn[rankId] + offset);
     }
 
-    AICORE inline size_t SegmentSize() const
+    AICORE inline size_t SegmentSize() const { return segmentBytes_; }
+
+    AICORE inline int32_t Rank() const { return rank_; }
+
+    AICORE inline int32_t RankSize() const { return rankSize_; }
+
+    AICORE inline __gm__ int32_t* LocalSignalBase() const
     {
-        return segmentBytes_;
+        return reinterpret_cast<__gm__ int32_t*>(LocalBase() + segmentBytes_ - MB_SIZE);
     }
 
-    AICORE inline int32_t Rank() const
-    {
-        return rank_;
-    }
-
-    AICORE inline int32_t RankSize() const
-    {
-        return rankSize_;
-    }
-
-    AICORE inline __gm__ int32_t *LocalSignalBase() const
-    {
-        return reinterpret_cast<__gm__ int32_t *>(LocalBase() + segmentBytes_ - MB_SIZE);
-    }
-
-    AICORE inline __gm__ int32_t *RemoteSignalBase(int32_t rankId) const
+    AICORE inline __gm__ int32_t* RemoteSignalBase(int32_t rankId) const
     {
         return RemotePtr(LocalSignalBase(), rankId);
     }
 
     AICORE inline void CrossRankSync() const
     {
-        __gm__ int32_t *localSignalBase = LocalSignalBase();
-        __gm__ int32_t *syncBase = localSignalBase + COMBINE_BARRIER_EPOCH_INDEX;
+        __gm__ int32_t* localSignalBase = LocalSignalBase();
+        __gm__ int32_t* syncBase = localSignalBase + COMBINE_BARRIER_EPOCH_INDEX;
         const int32_t count = *syncBase + 1;
         int32_t vecId = static_cast<int32_t>(get_block_idx());
         int32_t vecSize = static_cast<int32_t>(get_block_num());
@@ -103,11 +88,11 @@ public:
         pipe_barrier(PIPE_ALL);
         dsb(DSB_DDR);
         for (int32_t i = vecId; i < rankSize_; i += vecSize) {
-            __gm__ int32_t *remoteSignalBase = RemoteSignalBase(i);
-            auto remoteBarrier = pto::comm::Signal(remoteSignalBase + COMBINE_BARRIER_COUNTER_BASE_INDEX +
-                                                   rank_ * COMBINE_BARRIER_COUNTER_STRIDE);
-            auto localBarrier = pto::comm::Signal(localSignalBase + COMBINE_BARRIER_COUNTER_BASE_INDEX +
-                                                  i * COMBINE_BARRIER_COUNTER_STRIDE);
+            __gm__ int32_t* remoteSignalBase = RemoteSignalBase(i);
+            auto remoteBarrier = pto::comm::Signal(
+                remoteSignalBase + COMBINE_BARRIER_COUNTER_BASE_INDEX + rank_ * COMBINE_BARRIER_COUNTER_STRIDE);
+            auto localBarrier = pto::comm::Signal(
+                localSignalBase + COMBINE_BARRIER_COUNTER_BASE_INDEX + i * COMBINE_BARRIER_COUNTER_STRIDE);
             pto::comm::TNOTIFY(remoteBarrier, 1, pto::comm::NotifyOp::AtomicAdd);
             pto::comm::TWAIT(localBarrier, count, pto::comm::WaitCmp::GE);
         }
@@ -122,8 +107,8 @@ public:
             const int32_t coreId = static_cast<int32_t>(get_block_idx()) +
                                    static_cast<int32_t>(get_subblockid()) * static_cast<int32_t>(get_block_num());
             const int32_t coreNum = static_cast<int32_t>(get_block_num()) * static_cast<int32_t>(get_subblockdim());
-            const int32_t count = CrossRankSyncSignals(START_AIV_BARRIER_COUNTER_BASE_INDEX,
-                                                       START_AIV_BARRIER_EPOCH_INDEX, coreId, coreNum);
+            const int32_t count = CrossRankSyncSignals(
+                START_AIV_BARRIER_COUNTER_BASE_INDEX, START_AIV_BARRIER_EPOCH_INDEX, coreId, coreNum);
             pto::SYNCALL<pto::SyncCoreType::AIVOnly>();
             PublishCrossRankSyncEpoch(START_AIV_BARRIER_EPOCH_INDEX, count);
         }
@@ -134,24 +119,24 @@ public:
         if ASCEND_IS_AIC {
             const int32_t coreId = static_cast<int32_t>(get_block_idx());
             const int32_t coreNum = static_cast<int32_t>(get_block_num());
-            const int32_t count = CrossRankSyncSignals(START_AIC_BARRIER_COUNTER_BASE_INDEX,
-                                                       START_AIC_BARRIER_EPOCH_INDEX, coreId, coreNum);
+            const int32_t count = CrossRankSyncSignals(
+                START_AIC_BARRIER_COUNTER_BASE_INDEX, START_AIC_BARRIER_EPOCH_INDEX, coreId, coreNum);
             pto::SYNCALL<pto::SyncCoreType::AICOnly>();
             PublishCrossRankSyncEpoch(START_AIC_BARRIER_EPOCH_INDEX, count);
         }
     }
 
 private:
-    AICORE inline int32_t CrossRankSyncSignals(uint32_t counterBaseIndex, uint32_t epochIndex, int32_t coreId,
-                                               int32_t coreNum) const
+    AICORE inline int32_t CrossRankSyncSignals(
+        uint32_t counterBaseIndex, uint32_t epochIndex, int32_t coreId, int32_t coreNum) const
     {
-        __gm__ int32_t *localSignalBase = LocalSignalBase();
-        __gm__ int32_t *syncBase = localSignalBase + epochIndex;
+        __gm__ int32_t* localSignalBase = LocalSignalBase();
+        __gm__ int32_t* syncBase = localSignalBase + epochIndex;
         const int32_t count = *syncBase + 1;
         pipe_barrier(PIPE_ALL);
         dsb(DSB_DDR);
         for (int32_t i = coreId; i < rankSize_; i += coreNum) {
-            __gm__ int32_t *remoteSignalBase = RemoteSignalBase(i);
+            __gm__ int32_t* remoteSignalBase = RemoteSignalBase(i);
             auto remoteBarrier =
                 pto::comm::Signal(remoteSignalBase + counterBaseIndex + rank_ * COMBINE_BARRIER_COUNTER_STRIDE);
             auto localBarrier =
@@ -167,7 +152,7 @@ private:
         *(LocalSignalBase() + epochIndex) = count;
     }
 
-    __gm__ PtoRemoteWindowContext *context_ = nullptr;
+    __gm__ PtoRemoteWindowContext* context_ = nullptr;
     int32_t rank_ = 0;
     int32_t rankSize_ = 0;
     size_t segmentBytes_ = 0;
@@ -179,7 +164,7 @@ struct MegaMoePeerMemoryLayout {
     int64_t offsetPeerTokenPerExpert = 0;
     int64_t offsetD = 0;
 
-    AICORE inline void Init(const PtoRemoteWindow &remoteWindow)
+    AICORE inline void Init(const PtoRemoteWindow& remoteWindow)
     {
         constexpr int64_t alignBytes = 512;
         const int64_t segmentSize = static_cast<int64_t>(remoteWindow.SegmentSize());

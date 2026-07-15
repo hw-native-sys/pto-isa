@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class TAXPYTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -33,10 +31,10 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols>
-void LaunchTAxpy(T *out, T *src0, float scalar, void *stream);
+void LaunchTAxpy(T* out, T* src0, float scalar, void* stream);
 
 template <typename T, typename U, int kTRows_, int kTCols_, int vRows, int vCols>
-void LaunchTAxpy(T *out, U *src0, float scalar, void *stream);
+void LaunchTAxpy(T* out, U* src0, float scalar, void* stream);
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols, typename U = T>
 void test_taxpy()
@@ -53,18 +51,18 @@ void test_taxpy()
     U *src0Host, *src0Device;
     float scalar;
 
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&src0Host), srcFileSize);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMallocHost((void**)(&src0Host), srcFileSize);
 
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input1.bin", dstFileSize, dstHost, dstFileSize);
     ReadFile(GetGoldenDir() + "/input2.bin", srcFileSize, src0Host, srcFileSize);
     std::string scalar_file = GetGoldenDir() + "/scalar.bin";
     std::ifstream file(scalar_file, std::ios::binary);
 
-    file.read(reinterpret_cast<char *>(&scalar), 4);
+    file.read(reinterpret_cast<char*>(&scalar), 4);
     file.close();
 
     aclrtMemcpy(src0Device, srcFileSize, src0Host, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
@@ -99,47 +97,20 @@ void test_taxpy()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TAXPYTest, case1)
-{
-    test_taxpy<aclFloat16, 64, 64, 64, 64>();
-}
+TEST_F(TAXPYTest, case1) { test_taxpy<aclFloat16, 64, 64, 64, 64>(); }
 
-TEST_F(TAXPYTest, case2)
-{
-    test_taxpy<aclFloat16, 64, 64, 63, 63>();
-}
+TEST_F(TAXPYTest, case2) { test_taxpy<aclFloat16, 64, 64, 63, 63>(); }
 
-TEST_F(TAXPYTest, case3)
-{
-    test_taxpy<aclFloat16, 1, 16384, 1, 16384>();
-}
+TEST_F(TAXPYTest, case3) { test_taxpy<aclFloat16, 1, 16384, 1, 16384>(); }
 
-TEST_F(TAXPYTest, case4)
-{
-    test_taxpy<aclFloat16, 2048, 16, 2048, 16>();
-}
+TEST_F(TAXPYTest, case4) { test_taxpy<aclFloat16, 2048, 16, 2048, 16>(); }
 
-TEST_F(TAXPYTest, case5)
-{
-    test_taxpy<float, 64, 64, 64, 64>();
-}
+TEST_F(TAXPYTest, case5) { test_taxpy<float, 64, 64, 64, 64>(); }
 
-TEST_F(TAXPYTest, case6)
-{
-    test_taxpy<float, 64, 64, 63, 63>();
-}
+TEST_F(TAXPYTest, case6) { test_taxpy<float, 64, 64, 63, 63>(); }
 
-TEST_F(TAXPYTest, case7)
-{
-    test_taxpy<float, 64, 64, 63, 63, aclFloat16>();
-}
+TEST_F(TAXPYTest, case7) { test_taxpy<float, 64, 64, 63, 63, aclFloat16>(); }
 
-TEST_F(TAXPYTest, case8)
-{
-    test_taxpy<float, 4, 1024, 4, 1023, aclFloat16>();
-}
+TEST_F(TAXPYTest, case8) { test_taxpy<float, 4, 1024, 4, 1023, aclFloat16>(); }
 
-TEST_F(TAXPYTest, case9)
-{
-    test_taxpy<float, 256, 16, 256, 15, aclFloat16>();
-}
+TEST_F(TAXPYTest, case9) { test_taxpy<float, 256, 16, 256, 15, aclFloat16>(); }

@@ -28,7 +28,7 @@ void TRowProd(typename TileDst::TileDType dst, typename TileSrc::TileDType src, 
 }
 
 template <typename TileDataOut, typename TileDataIn, typename TileDataTmp>
-PTO_INTERNAL void TROWPROD_IMPL(TileDataOut &dstTile, TileDataIn &srcTile, TileDataTmp &tmp)
+PTO_INTERNAL void TROWPROD_IMPL(TileDataOut& dstTile, TileDataIn& srcTile, TileDataTmp& tmp)
 {
     (void)tmp;
     TRowProd<TileDataOut, TileDataIn>(dstTile.data(), srcTile.data(), srcTile.GetValidRow(), srcTile.GetValidCol());

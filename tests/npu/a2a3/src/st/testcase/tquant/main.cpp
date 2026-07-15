@@ -21,8 +21,9 @@ using namespace PtoTestCommon;
 namespace TQuantTest {
 
 template <int validRows, int validCols, int mode, pto::QuantType quantType>
-void LaunchTQuantInt8(std::conditional_t<quantType == pto::QuantType::INT8_SYM, int8_t, uint8_t> *dst, float *src,
-                      float *scale, void *stream, float *offset = nullptr);
+void LaunchTQuantInt8(
+    std::conditional_t<quantType == pto::QuantType::INT8_SYM, int8_t, uint8_t>* dst, float* src, float* scale,
+    void* stream, float* offset = nullptr);
 
 template <int validRows, int validCols, int mode, pto::QuantType quantType>
 void LaunchTQuantInt8NoTmp(std::conditional_t<quantType == pto::QuantType::INT8_SYM, int8_t, uint8_t> *dst, float *src,
@@ -30,15 +31,13 @@ void LaunchTQuantInt8NoTmp(std::conditional_t<quantType == pto::QuantType::INT8_
 
 class TQUANTTEST : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -60,13 +59,13 @@ void test_tquant_int8_sym()
     int8_t *dstHost, *dstDevice;
     float *srcHost, *srcDevice, *scaleHost, *scaleDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
-    aclrtMallocHost((void **)(&scaleHost), scaleFileSize);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
+    aclrtMallocHost((void**)(&scaleHost), scaleFileSize);
 
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&scaleDevice, scaleFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&scaleDevice, scaleFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", srcFileSize, srcHost, srcFileSize);
     aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
@@ -119,14 +118,14 @@ void test_tquant_int8_asym()
     aclrtCreateStream(&stream);
     uint8_t *dstHost, *dstDev;
     float *srcHost, *srcDev, *scaleHost, *scaleDev, *offHost, *offDev;
-    aclrtMallocHost((void **)&dstHost, dstSize);
-    aclrtMallocHost((void **)&srcHost, srcSize);
-    aclrtMallocHost((void **)&scaleHost, scaleSize);
-    aclrtMallocHost((void **)&offHost, offSize);
-    aclrtMalloc((void **)&dstDev, dstSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDev, srcSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&scaleDev, scaleSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&offDev, offSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)&dstHost, dstSize);
+    aclrtMallocHost((void**)&srcHost, srcSize);
+    aclrtMallocHost((void**)&scaleHost, scaleSize);
+    aclrtMallocHost((void**)&offHost, offSize);
+    aclrtMalloc((void**)&dstDev, dstSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDev, srcSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&scaleDev, scaleSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&offDev, offSize, ACL_MEM_MALLOC_HUGE_FIRST);
     ReadFile(GetGoldenDir() + "/input.bin", srcSize, srcHost, srcSize);
     ReadFile(GetGoldenDir() + "/inv_scale_fp32.bin", scaleSize, scaleHost, scaleSize);
     ReadFile(GetGoldenDir() + "/offset_fp32.bin", offSize, offHost, offSize);
@@ -162,53 +161,34 @@ void test_tquant_int8_asym()
     EXPECT_TRUE(ResultCmp<uint8_t>(golden_u8, dev_u8, 0.0f));
 }
 
-TEST_F(TQUANTTEST, case_int8_sym_fp32_64x128_nd)
-{
-    test_tquant_int8_sym<64, 128, 0>();
-}
+TEST_F(TQUANTTEST, case_int8_sym_fp32_64x128_nd) { test_tquant_int8_sym<64, 128, 0>(); }
 
-TEST_F(TQUANTTEST, case_int8_sym_fp32_128x128_nd)
-{
-    test_tquant_int8_sym<128, 128, 0>();
-}
+TEST_F(TQUANTTEST, case_int8_sym_fp32_128x128_nd) { test_tquant_int8_sym<128, 128, 0>(); }
 
-TEST_F(TQUANTTEST, case_int8_asym_fp32_64x128_nd)
-{
-    test_tquant_int8_asym<64, 128, 0>();
-}
+TEST_F(TQUANTTEST, case_int8_asym_fp32_64x128_nd) { test_tquant_int8_asym<64, 128, 0>(); }
 
-TEST_F(TQUANTTEST, case_int8_asym_fp32_128x128_nd)
-{
-    test_tquant_int8_asym<128, 128, 0>();
-}
+TEST_F(TQUANTTEST, case_int8_asym_fp32_128x128_nd) { test_tquant_int8_asym<128, 128, 0>(); }
 
-TEST_F(TQUANTTEST, case_int8_asym_fp32_32x72_nd)
-{
-    test_tquant_int8_asym<32, 72, 0>();
-}
+TEST_F(TQUANTTEST, case_int8_asym_fp32_32x72_nd) { test_tquant_int8_asym<32, 72, 0>(); }
 
-// INT8 SYM NoTmp cases
-TEST_F(TQUANTTEST, case_int8_sym_fp32_64x128_notmp_nd)
-{
-    test_tquant_int8_sym<64, 128, 0, true>();
-}
-TEST_F(TQUANTTEST, case_int8_sym_fp32_128x128_notmp_nd)
-{
-    test_tquant_int8_sym<128, 128, 0, true>();
-}
+TEST_F(TQUANTTEST, case_int8_sym_fp32_2x129_nd) { test_tquant_int8_sym<2, 129, 0>(); }
 
-// INT8 ASYM NoTmp cases
-TEST_F(TQUANTTEST, case_int8_asym_fp32_64x128_notmp_nd)
-{
-    test_tquant_int8_asym<64, 128, 0, true>();
-}
-TEST_F(TQUANTTEST, case_int8_asym_fp32_128x128_notmp_nd)
-{
-    test_tquant_int8_asym<128, 128, 0, true>();
-}
-TEST_F(TQUANTTEST, case_int8_asym_fp32_32x72_notmp_nd)
-{
-    test_tquant_int8_asym<32, 72, 0, true>();
-}
+TEST_F(TQUANTTEST, case_int8_asym_fp32_2x129_nd) { test_tquant_int8_asym<2, 129, 0>(); }
+
+TEST_F(TQUANTTEST, case_int8_sym_fp32_2x122_nd) { test_tquant_int8_sym<2, 122, 0>(); }
+
+TEST_F(TQUANTTEST, case_int8_asym_fp32_2x122_nd) { test_tquant_int8_asym<2, 122, 0>(); }
+
+TEST_F(TQUANTTEST, case_int8_sym_fp32_16x127_nd) { test_tquant_int8_sym<16, 127, 0>(); }
+
+TEST_F(TQUANTTEST, case_int8_asym_fp32_16x127_nd) { test_tquant_int8_asym<16, 127, 0>(); }
+
+TEST_F(TQUANTTEST, case_int8_sym_fp32_8x130_nd) { test_tquant_int8_sym<8, 130, 0>(); }
+
+TEST_F(TQUANTTEST, case_int8_asym_fp32_8x130_nd) { test_tquant_int8_asym<8, 130, 0>(); }
+
+TEST_F(TQUANTTEST, case_int8_sym_fp32_64x65_nd) { test_tquant_int8_sym<64, 65, 0>(); }
+
+TEST_F(TQUANTTEST, case_int8_asym_fp32_64x65_nd) { test_tquant_int8_asym<64, 65, 0>(); }
 
 } // namespace TQuantTest

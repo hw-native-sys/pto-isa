@@ -14,7 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <pto::GatherOOB Oob, typename T, typename TIdx, int kDstRows, int kDstCols, int kTableRows>
-inline AICORE void runRow(__gm__ T __out__ *out, __gm__ T __in__ *table, __gm__ TIdx __in__ *indices)
+inline AICORE void runRow(__gm__ T __out__* out, __gm__ T __in__* table, __gm__ TIdx __in__* indices)
 {
     using TableShape = pto::Shape<1, 1, 1, kTableRows, kDstCols>;
     using TableStride = pto::Stride<1, 1, 1, kDstCols, 1>;
@@ -53,7 +53,7 @@ inline AICORE void runRow(__gm__ T __out__ *out, __gm__ T __in__ *table, __gm__ 
 }
 
 template <pto::GatherOOB Oob, typename T, typename TIdx, int kValidRows, int kPadIdxCols, int kDstCols, int kTableRows>
-inline AICORE void runRowPadded(__gm__ T __out__ *out, __gm__ T __in__ *table, __gm__ TIdx __in__ *indices)
+inline AICORE void runRowPadded(__gm__ T __out__* out, __gm__ T __in__* table, __gm__ TIdx __in__* indices)
 {
     using TableShape = pto::Shape<1, 1, 1, kTableRows, kDstCols>;
     using TableStride = pto::Stride<1, 1, 1, kDstCols, 1>;
@@ -92,7 +92,7 @@ inline AICORE void runRowPadded(__gm__ T __out__ *out, __gm__ T __in__ *table, _
 }
 
 template <pto::GatherOOB Oob, typename T, typename TIdx, int kDstRows, int kDstCols, int kTableRows>
-inline AICORE void runRowColIdx(__gm__ T __out__ *out, __gm__ T __in__ *table, __gm__ TIdx __in__ *indices)
+inline AICORE void runRowColIdx(__gm__ T __out__* out, __gm__ T __in__* table, __gm__ TIdx __in__* indices)
 {
     using TableShape = pto::Shape<1, 1, 1, kTableRows, kDstCols>;
     using TableStride = pto::Stride<1, 1, 1, kDstCols, 1>;
@@ -131,7 +131,7 @@ inline AICORE void runRowColIdx(__gm__ T __out__ *out, __gm__ T __in__ *table, _
 }
 
 template <pto::GatherOOB Oob, typename T, typename TIdx, int kDstCols, int kTableSize>
-inline AICORE void runElem(__gm__ T __out__ *out, __gm__ T __in__ *table, __gm__ TIdx __in__ *indices)
+inline AICORE void runElem(__gm__ T __out__* out, __gm__ T __in__* table, __gm__ TIdx __in__* indices)
 {
     using TableShape = pto::Shape<1, 1, 1, 1, kTableSize>;
     using TableStride = pto::Stride<1, 1, 1, kTableSize, 1>;
@@ -169,9 +169,10 @@ inline AICORE void runElem(__gm__ T __out__ *out, __gm__ T __in__ *table, __gm__
     (void)dstBytes;
 }
 
-template <pto::GatherOOB Oob, typename T, typename TIdx, int kValidRows, int kValidCols, int kPadRows, int kPadCols,
-          int kTableSize>
-inline AICORE void runElem2DPadded(__gm__ T __out__ *out, __gm__ T __in__ *table, __gm__ TIdx __in__ *indices)
+template <
+    pto::GatherOOB Oob, typename T, typename TIdx, int kValidRows, int kValidCols, int kPadRows, int kPadCols,
+    int kTableSize>
+inline AICORE void runElem2DPadded(__gm__ T __out__* out, __gm__ T __in__* table, __gm__ TIdx __in__* indices)
 {
     using TableShape = pto::Shape<1, 1, 1, 1, kTableSize>;
     using TableStride = pto::Stride<1, 1, 1, kTableSize, 1>;
@@ -209,9 +210,10 @@ inline AICORE void runElem2DPadded(__gm__ T __out__ *out, __gm__ T __in__ *table
     (void)dstBytes;
 }
 
-template <pto::GatherOOB Oob, typename T, typename TIdx, int kPadRows, int kPadCols, int64_t kRtValidRows,
-          int64_t kRtValidCols, int64_t kRtTableR, int64_t kRtTableC>
-inline AICORE void runElem2DDyn(__gm__ T __out__ *out, __gm__ T __in__ *table, __gm__ TIdx __in__ *indices)
+template <
+    pto::GatherOOB Oob, typename T, typename TIdx, int kPadRows, int kPadCols, int64_t kRtValidRows,
+    int64_t kRtValidCols, int64_t kRtTableR, int64_t kRtTableC>
+inline AICORE void runElem2DDyn(__gm__ T __out__* out, __gm__ T __in__* table, __gm__ TIdx __in__* indices)
 {
     using TableShape = pto::Shape<1, 1, 1, -1, -1>;
     using TableStride = pto::Stride<1, 1, 1, -1, -1>;
@@ -256,9 +258,10 @@ inline AICORE void runElem2DDyn(__gm__ T __out__ *out, __gm__ T __in__ *table, _
     (void)dstBytes;
 }
 
-template <pto::GatherOOB Oob, typename T, typename TIdx, int kPadRows, int kPadCols, int kPadIdxCols,
-          int64_t kRtValidRows, int64_t kRtValidCols, int64_t kRtTableR>
-inline AICORE void runRowDyn(__gm__ T __out__ *out, __gm__ T __in__ *table, __gm__ TIdx __in__ *indices)
+template <
+    pto::GatherOOB Oob, typename T, typename TIdx, int kPadRows, int kPadCols, int kPadIdxCols, int64_t kRtValidRows,
+    int64_t kRtValidCols, int64_t kRtTableR>
+inline AICORE void runRowDyn(__gm__ T __out__* out, __gm__ T __in__* table, __gm__ TIdx __in__* indices)
 {
     using TableShape = pto::Shape<1, 1, 1, -1, -1>;
     using TableStride = pto::Stride<1, 1, 1, -1, -1>;
@@ -304,7 +307,7 @@ inline AICORE void runRowDyn(__gm__ T __out__ *out, __gm__ T __in__ *table, __gm
 }
 
 template <pto::GatherOOB Oob, typename T, typename TIdx, int kDstRows, int kDstCols, int kTableSize>
-inline AICORE void runElem2D(__gm__ T __out__ *out, __gm__ T __in__ *table, __gm__ TIdx __in__ *indices)
+inline AICORE void runElem2D(__gm__ T __out__* out, __gm__ T __in__* table, __gm__ TIdx __in__* indices)
 {
     using TableShape = pto::Shape<1, 1, 1, 1, kTableSize>;
     using TableStride = pto::Stride<1, 1, 1, kTableSize, 1>;
@@ -343,85 +346,85 @@ inline AICORE void runElem2D(__gm__ T __out__ *out, __gm__ T __in__ *table, __gm
 }
 
 #define DEFINE_ROW(NAME, THOST, T, TIDX, R, C, TR, OOB)                                                       \
-    extern "C" __global__ AICORE void runMGATHER_##NAME(__gm__ T *out, __gm__ T *table, __gm__ TIDX *indices) \
+    extern "C" __global__ AICORE void runMGATHER_##NAME(__gm__ T* out, __gm__ T* table, __gm__ TIDX* indices) \
     {                                                                                                         \
         runRow<pto::GatherOOB::OOB, T, TIDX, R, C, TR>(out, table, indices);                                  \
     }                                                                                                         \
-    void Launch_##NAME(THOST *out, THOST *table, TIDX *indices, void *stream)                                 \
+    void Launch_##NAME(THOST* out, THOST* table, TIDX* indices, void* stream)                                 \
     {                                                                                                         \
-        runMGATHER_##NAME(reinterpret_cast<T *>(out), reinterpret_cast<T *>(table), indices);                 \
+        runMGATHER_##NAME(reinterpret_cast<T*>(out), reinterpret_cast<T*>(table), indices);                   \
     }
 
 #define DEFINE_ROW_PAD(NAME, THOST, T, TIDX, VR, PIC, C, TR, OOB)                                             \
-    extern "C" __global__ AICORE void runMGATHER_##NAME(__gm__ T *out, __gm__ T *table, __gm__ TIDX *indices) \
+    extern "C" __global__ AICORE void runMGATHER_##NAME(__gm__ T* out, __gm__ T* table, __gm__ TIDX* indices) \
     {                                                                                                         \
         runRowPadded<pto::GatherOOB::OOB, T, TIDX, VR, PIC, C, TR>(out, table, indices);                      \
     }                                                                                                         \
-    void Launch_##NAME(THOST *out, THOST *table, TIDX *indices, void *stream)                                 \
+    void Launch_##NAME(THOST* out, THOST* table, TIDX* indices, void* stream)                                 \
     {                                                                                                         \
-        runMGATHER_##NAME(reinterpret_cast<T *>(out), reinterpret_cast<T *>(table), indices);                 \
+        runMGATHER_##NAME(reinterpret_cast<T*>(out), reinterpret_cast<T*>(table), indices);                   \
     }
 
 #define DEFINE_ROW_COLIDX(NAME, THOST, T, TIDX, R, C, TR, OOB)                                                \
-    extern "C" __global__ AICORE void runMGATHER_##NAME(__gm__ T *out, __gm__ T *table, __gm__ TIDX *indices) \
+    extern "C" __global__ AICORE void runMGATHER_##NAME(__gm__ T* out, __gm__ T* table, __gm__ TIDX* indices) \
     {                                                                                                         \
         runRowColIdx<pto::GatherOOB::OOB, T, TIDX, R, C, TR>(out, table, indices);                            \
     }                                                                                                         \
-    void Launch_##NAME(THOST *out, THOST *table, TIDX *indices, void *stream)                                 \
+    void Launch_##NAME(THOST* out, THOST* table, TIDX* indices, void* stream)                                 \
     {                                                                                                         \
-        runMGATHER_##NAME(reinterpret_cast<T *>(out), reinterpret_cast<T *>(table), indices);                 \
+        runMGATHER_##NAME(reinterpret_cast<T*>(out), reinterpret_cast<T*>(table), indices);                   \
     }
 
 #define DEFINE_ELEM(NAME, THOST, T, TIDX, N, TS, OOB)                                                         \
-    extern "C" __global__ AICORE void runMGATHER_##NAME(__gm__ T *out, __gm__ T *table, __gm__ TIDX *indices) \
+    extern "C" __global__ AICORE void runMGATHER_##NAME(__gm__ T* out, __gm__ T* table, __gm__ TIDX* indices) \
     {                                                                                                         \
         runElem<pto::GatherOOB::OOB, T, TIDX, N, TS>(out, table, indices);                                    \
     }                                                                                                         \
-    void Launch_##NAME(THOST *out, THOST *table, TIDX *indices, void *stream)                                 \
+    void Launch_##NAME(THOST* out, THOST* table, TIDX* indices, void* stream)                                 \
     {                                                                                                         \
-        runMGATHER_##NAME(reinterpret_cast<T *>(out), reinterpret_cast<T *>(table), indices);                 \
+        runMGATHER_##NAME(reinterpret_cast<T*>(out), reinterpret_cast<T*>(table), indices);                   \
     }
 
 #define DEFINE_ELEM2D(NAME, THOST, T, TIDX, R, C, TS, OOB)                                                    \
-    extern "C" __global__ AICORE void runMGATHER_##NAME(__gm__ T *out, __gm__ T *table, __gm__ TIDX *indices) \
+    extern "C" __global__ AICORE void runMGATHER_##NAME(__gm__ T* out, __gm__ T* table, __gm__ TIDX* indices) \
     {                                                                                                         \
         runElem2D<pto::GatherOOB::OOB, T, TIDX, R, C, TS>(out, table, indices);                               \
     }                                                                                                         \
-    void Launch_##NAME(THOST *out, THOST *table, TIDX *indices, void *stream)                                 \
+    void Launch_##NAME(THOST* out, THOST* table, TIDX* indices, void* stream)                                 \
     {                                                                                                         \
-        runMGATHER_##NAME(reinterpret_cast<T *>(out), reinterpret_cast<T *>(table), indices);                 \
+        runMGATHER_##NAME(reinterpret_cast<T*>(out), reinterpret_cast<T*>(table), indices);                   \
     }
 
 #define DEFINE_ELEM2D_PAD(NAME, THOST, T, TIDX, VR, VC, PR, PC, TS, OOB)                                      \
-    extern "C" __global__ AICORE void runMGATHER_##NAME(__gm__ T *out, __gm__ T *table, __gm__ TIDX *indices) \
+    extern "C" __global__ AICORE void runMGATHER_##NAME(__gm__ T* out, __gm__ T* table, __gm__ TIDX* indices) \
     {                                                                                                         \
         runElem2DPadded<pto::GatherOOB::OOB, T, TIDX, VR, VC, PR, PC, TS>(out, table, indices);               \
     }                                                                                                         \
-    void Launch_##NAME(THOST *out, THOST *table, TIDX *indices, void *stream)                                 \
+    void Launch_##NAME(THOST* out, THOST* table, TIDX* indices, void* stream)                                 \
     {                                                                                                         \
-        runMGATHER_##NAME(reinterpret_cast<T *>(out), reinterpret_cast<T *>(table), indices);                 \
+        runMGATHER_##NAME(reinterpret_cast<T*>(out), reinterpret_cast<T*>(table), indices);                   \
     }
 
 #define DEFINE_ELEM2D_DYN(NAME, THOST, T, TIDX, PR, PC, RVR, RVC, RTR, RTC, OOB)                                    \
-    extern "C" __global__ AICORE void runMGATHER_##NAME(__gm__ T *out, __gm__ T *table, __gm__ TIDX *indices)       \
+    extern "C" __global__ AICORE void runMGATHER_##NAME(__gm__ T* out, __gm__ T* table, __gm__ TIDX* indices)       \
     {                                                                                                               \
         runElem2DDyn<pto::GatherOOB::OOB, T, TIDX, PR, PC, (int64_t)RVR, (int64_t)RVC, (int64_t)RTR, (int64_t)RTC>( \
             out, table, indices);                                                                                   \
     }                                                                                                               \
-    void Launch_##NAME(THOST *out, THOST *table, TIDX *indices, void *stream)                                       \
+    void Launch_##NAME(THOST* out, THOST* table, TIDX* indices, void* stream)                                       \
     {                                                                                                               \
-        runMGATHER_##NAME(reinterpret_cast<T *>(out), reinterpret_cast<T *>(table), indices);                       \
+        runMGATHER_##NAME(reinterpret_cast<T*>(out), reinterpret_cast<T*>(table), indices);                         \
     }
 
-#define DEFINE_ROW_DYN(NAME, THOST, T, TIDX, PR, PC, PIC, RVR, RVC, RTR, OOB)                                      \
-    extern "C" __global__ AICORE void runMGATHER_##NAME(__gm__ T *out, __gm__ T *table, __gm__ TIDX *indices)      \
-    {                                                                                                              \
-        runRowDyn<pto::GatherOOB::OOB, T, TIDX, PR, PC, PIC, (int64_t)RVR, (int64_t)RVC, (int64_t)RTR>(out, table, \
-                                                                                                       indices);   \
-    }                                                                                                              \
-    void Launch_##NAME(THOST *out, THOST *table, TIDX *indices, void *stream)                                      \
-    {                                                                                                              \
-        runMGATHER_##NAME(reinterpret_cast<T *>(out), reinterpret_cast<T *>(table), indices);                      \
+#define DEFINE_ROW_DYN(NAME, THOST, T, TIDX, PR, PC, PIC, RVR, RVC, RTR, OOB)                                 \
+    extern "C" __global__ AICORE void runMGATHER_##NAME(__gm__ T* out, __gm__ T* table, __gm__ TIDX* indices) \
+    {                                                                                                         \
+        runRowDyn<pto::GatherOOB::OOB, T, TIDX, PR, PC, PIC, (int64_t)RVR, (int64_t)RVC, (int64_t)RTR>(       \
+            out, table, indices);                                                                             \
+    }                                                                                                         \
+    void Launch_##NAME(THOST* out, THOST* table, TIDX* indices, void* stream)                                 \
+    {                                                                                                         \
+        runMGATHER_##NAME(reinterpret_cast<T*>(out), reinterpret_cast<T*>(table), indices);                   \
     }
 
 DEFINE_ROW(row_float_8x32_64rows, float, float, int32_t, 8, 32, 64, Undefined)

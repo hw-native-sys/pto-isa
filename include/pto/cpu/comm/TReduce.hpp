@@ -51,7 +51,7 @@ namespace detail {
 
 // Element-wise reduction helper
 template <typename TileData>
-PTO_INTERNAL void ReduceTiles(TileData &acc, TileData &recv, pto::comm::ReduceOp op)
+PTO_INTERNAL void ReduceTiles(TileData& acc, TileData& recv, pto::comm::ReduceOp op)
 {
     // Perform element-wise reduction based on op
     switch (op) {
@@ -78,16 +78,18 @@ PTO_INTERNAL int GetRemoteRank(int rootIdx, int remoteOrdinal)
 } // namespace detail
 
 template <typename ParallelGroupType, typename GlobalDstData, typename TileData>
-PTO_INTERNAL void TREDUCE_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData, TileData &accTileData,
-                               TileData &recvTileData, pto::comm::ReduceOp op)
+PTO_INTERNAL void TREDUCE_IMPL(
+    ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& accTileData, TileData& recvTileData,
+    pto::comm::ReduceOp op)
 {
     using GlobalSrcData = typename pto::comm::ParallelGroupTraits<ParallelGroupType>::GlobalDataType;
     using T = typename GlobalSrcData::RawDType;
 
     // Type checks
     static_assert(std::is_same_v<T, typename GlobalDstData::RawDType>, "TREDUCE: GlobalData type mismatch!");
-    static_assert(std::is_same_v<T, typename TileData::DType>,
-                  "TREDUCE: TileData element type must match GlobalData element type");
+    static_assert(
+        std::is_same_v<T, typename TileData::DType>,
+        "TREDUCE: TileData element type must match GlobalData element type");
 
     const int rootIdx = parallelGroup.GetRootIdx();
     const int nranks = parallelGroup.GetSize();
@@ -97,7 +99,7 @@ PTO_INTERNAL void TREDUCE_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &
     PTO_ASSERT(rootIdx >= 0 && rootIdx < nranks, "rootIdx must be in range [0, nranks)!");
 
     // Get GlobalTensor dimensions from root's source tensor
-    GlobalSrcData &refTensor = parallelGroup[rootIdx];
+    GlobalSrcData& refTensor = parallelGroup[rootIdx];
     const int gShape0 = refTensor.GetShape(GlobalTensorDim::DIM_0);
     const int gShape1 = refTensor.GetShape(GlobalTensorDim::DIM_1);
     const int gShape2 = refTensor.GetShape(GlobalTensorDim::DIM_2);
@@ -157,15 +159,17 @@ PTO_INTERNAL void TREDUCE_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &
 
     // Row validation: static ValidRow requires shape3 to be exactly divisible
     if constexpr (!isDynamicRow) {
-        PTO_ASSERT(gShape3 % tileValidRow == 0,
-                   "TREDUCE chunked: shape3 must be divisible by tile ValidRow when ValidRow is static. "
-                   "Use a Tile with DYNAMIC ValidRow for partial row chunk support.");
+        PTO_ASSERT(
+            gShape3 % tileValidRow == 0,
+            "TREDUCE chunked: shape3 must be divisible by tile ValidRow when ValidRow is static. "
+            "Use a Tile with DYNAMIC ValidRow for partial row chunk support.");
     }
     // Column validation: static ValidCol requires shape4 to be exactly divisible
     if constexpr (!isDynamicCol) {
-        PTO_ASSERT(gShape4 % tileValidCol == 0,
-                   "TREDUCE chunked: shape4 must be divisible by tile ValidCol when ValidCol is static. "
-                   "Use a Tile with DYNAMIC ValidCol for partial column chunk support.");
+        PTO_ASSERT(
+            gShape4 % tileValidCol == 0,
+            "TREDUCE chunked: shape4 must be divisible by tile ValidCol when ValidCol is static. "
+            "Use a Tile with DYNAMIC ValidCol for partial column chunk support.");
     }
 
     // Source strides (from root's tensor, assumed same for all ranks)
@@ -269,16 +273,18 @@ PTO_INTERNAL void TREDUCE_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &
 // Constraints: same as TREDUCE_IMPL for chunked mode.
 // ============================================================================
 template <typename ParallelGroupType, typename GlobalDstData, typename TileData>
-PTO_INTERNAL void TREDUCE_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData, TileData &accTileData,
-                               TileData &pingTile, TileData &pongTile, pto::comm::ReduceOp op)
+PTO_INTERNAL void TREDUCE_IMPL(
+    ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& accTileData, TileData& pingTile,
+    TileData& pongTile, pto::comm::ReduceOp op)
 {
     using GlobalSrcData = typename pto::comm::ParallelGroupTraits<ParallelGroupType>::GlobalDataType;
     using T = typename GlobalSrcData::RawDType;
 
     // Type checks
     static_assert(std::is_same_v<T, typename GlobalDstData::RawDType>, "TREDUCE: GlobalData type mismatch!");
-    static_assert(std::is_same_v<T, typename TileData::DType>,
-                  "TREDUCE: TileData element type must match GlobalData element type");
+    static_assert(
+        std::is_same_v<T, typename TileData::DType>,
+        "TREDUCE: TileData element type must match GlobalData element type");
 
     const int rootIdx = parallelGroup.GetRootIdx();
     const int nranks = parallelGroup.GetSize();
@@ -288,7 +294,7 @@ PTO_INTERNAL void TREDUCE_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &
     PTO_ASSERT(rootIdx >= 0 && rootIdx < nranks, "rootIdx must be in range [0, nranks)!");
 
     // Get GlobalTensor dimensions from root's source tensor
-    GlobalSrcData &refTensor = parallelGroup[rootIdx];
+    GlobalSrcData& refTensor = parallelGroup[rootIdx];
     const int gShape0 = refTensor.GetShape(GlobalTensorDim::DIM_0);
     const int gShape1 = refTensor.GetShape(GlobalTensorDim::DIM_1);
     const int gShape2 = refTensor.GetShape(GlobalTensorDim::DIM_2);
@@ -329,8 +335,8 @@ PTO_INTERNAL void TREDUCE_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &
             const bool hasNext = (i + 1 < numRemote);
             const bool usePing = (i % 2 == 0);
 
-            TileData &currentTile = usePing ? pingTile : pongTile;
-            TileData &nextTile = usePing ? pongTile : pingTile;
+            TileData& currentTile = usePing ? pingTile : pongTile;
+            TileData& nextTile = usePing ? pongTile : pingTile;
 
             // Start prefetch of next remote data (overlapped with current reduction)
             if (hasNext) {
@@ -355,14 +361,16 @@ PTO_INTERNAL void TREDUCE_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &
     constexpr bool isDynamicCol = (TileData::ValidCol == DYNAMIC);
 
     if constexpr (!isDynamicRow) {
-        PTO_ASSERT(gShape3 % tileValidRow == 0,
-                   "TREDUCE chunked: shape3 must be divisible by tile ValidRow when ValidRow is static. "
-                   "Use a Tile with DYNAMIC ValidRow for partial row chunk support.");
+        PTO_ASSERT(
+            gShape3 % tileValidRow == 0,
+            "TREDUCE chunked: shape3 must be divisible by tile ValidRow when ValidRow is static. "
+            "Use a Tile with DYNAMIC ValidRow for partial row chunk support.");
     }
     if constexpr (!isDynamicCol) {
-        PTO_ASSERT(gShape4 % tileValidCol == 0,
-                   "TREDUCE chunked: shape4 must be divisible by tile ValidCol when ValidCol is static. "
-                   "Use a Tile with DYNAMIC ValidCol for partial column chunk support.");
+        PTO_ASSERT(
+            gShape4 % tileValidCol == 0,
+            "TREDUCE chunked: shape4 must be divisible by tile ValidCol when ValidCol is static. "
+            "Use a Tile with DYNAMIC ValidCol for partial column chunk support.");
     }
 
     // Source strides (from root's tensor, assumed same for all ranks)
@@ -438,8 +446,8 @@ PTO_INTERNAL void TREDUCE_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &
                                 const bool hasNext = (i + 1 < numRemote);
                                 const bool usePing = (i % 2 == 0);
 
-                                TileData &currentTile = usePing ? pingTile : pongTile;
-                                TileData &nextTile = usePing ? pongTile : pingTile;
+                                TileData& currentTile = usePing ? pingTile : pongTile;
+                                TileData& nextTile = usePing ? pongTile : pingTile;
 
                                 // Start prefetch of next remote chunk (overlapped with reduction)
                                 if (hasNext) {
@@ -463,17 +471,24 @@ PTO_INTERNAL void TREDUCE_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &
     }
 }
 
-// CCU engine is only available on A5 NPU hardware.  This stub mirrors the
-// a2a3 deferred-fail pattern: the template name must exist in `pto::comm`
-// so that `::pto::comm::TREDUCE_CCU_IMPL<engine>(...)` in pto_comm_inst.hpp
-// parses on CPU simulator builds; the static_assert depends on `engine` and
-// fires only if the overload is actually instantiated.
-template <CollEngine engine = CollEngine::CCU, typename... Args>
-PTO_INTERNAL void TREDUCE_CCU_IMPL(Args &&...)
+template <
+    CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalDstData, typename TileData,
+    typename... WaitEvents>
+PTO_INTERNAL void TREDUCE_CCU_IMPL(
+    ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& accTileData, TileData& recvTileData,
+    ReduceOp op, const CcuTriggerContext& ctx, WaitEvents&... events)
 {
-    static_assert(engine != CollEngine::CCU,
-                  "TREDUCE<CollEngine::CCU> is not supported on the CPU simulator; "
-                  "CCU engine requires A5 NPU hardware.");
+    TREDUCE_IMPL(parallelGroup, dstGlobalData, accTileData, recvTileData, op);
+}
+
+template <
+    CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalDstData, typename TileData,
+    typename... WaitEvents>
+PTO_INTERNAL void TREDUCE_CCU_IMPL(
+    ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& accTileData, TileData& pingTileData,
+    TileData& pongTileData, ReduceOp op, const CcuTriggerContext& ctx, WaitEvents&... events)
+{
+    TREDUCE_IMPL(parallelGroup, dstGlobalData, accTileData, pingTileData, pongTileData, op);
 }
 
 } // namespace comm
