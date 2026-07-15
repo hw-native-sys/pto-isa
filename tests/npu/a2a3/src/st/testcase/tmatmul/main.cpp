@@ -16,30 +16,26 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
-void LaunchTMATMUL(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
+void LaunchTMATMUL(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 
 template <int32_t tilingKey>
-void LaunchTMATMULBIAS(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
+void LaunchTMATMULBIAS(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, void* stream);
 
 class TMATMULTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 class TMATMULBIASTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -70,13 +66,13 @@ void TmatmulTest(uint32_t M, uint32_t K, uint32_t N)
     uint8_t *dstHost, *src0Host, *src1Host;
     uint8_t *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&src0Host), aFileSize);
-    aclrtMallocHost((void **)(&src1Host), bFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&src0Host), aFileSize);
+    aclrtMallocHost((void**)(&src1Host), bFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
@@ -165,15 +161,9 @@ TEST_F(TMATMULTest, case6)
     TmatmulTest<float, uint16_t, uint16_t, 6>(M, K, N);
 }
 
-TEST_F(TMATMULTest, case7)
-{
-    TmatmulTest<float, float, float, 7>(16, 32, 64);
-}
+TEST_F(TMATMULTest, case7) { TmatmulTest<float, float, float, 7>(16, 32, 64); }
 
-TEST_F(TMATMULTest, case8)
-{
-    TmatmulTest<float, float, float, 8>(5, 75, 11);
-}
+TEST_F(TMATMULTest, case8) { TmatmulTest<float, float, float, 8>(5, 75, 11); }
 
 template <typename T, typename U, typename S, typename biasType, int32_t key>
 void TmatmulBiasTest(uint32_t M, uint32_t K, uint32_t N)
@@ -191,16 +181,16 @@ void TmatmulBiasTest(uint32_t M, uint32_t K, uint32_t N)
     uint8_t *dstHost, *src0Host, *src1Host, *src2Host, *goldenHost;
     uint8_t *dstDevice, *src0Device, *src1Device, *src2Device;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&src0Host), aFileSize);
-    aclrtMallocHost((void **)(&src1Host), bFileSize);
-    aclrtMallocHost((void **)(&src2Host), biasFileSize);
-    aclrtMallocHost((void **)(&goldenHost), cFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&src0Host), aFileSize);
+    aclrtMallocHost((void**)(&src1Host), bFileSize);
+    aclrtMallocHost((void**)(&src2Host), biasFileSize);
+    aclrtMallocHost((void**)(&goldenHost), cFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src2Device, biasFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src2Device, biasFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
@@ -303,7 +293,4 @@ TEST_F(TMATMULBIASTest, case7)
     TmatmulBiasTest<int32_t, int8_t, int8_t, int32_t, 7>(M, K, N);
 }
 
-TEST_F(TMATMULBIASTest, case8)
-{
-    TmatmulBiasTest<float, uint16_t, uint16_t, float, 8>(1, 512, 32);
-}
+TEST_F(TMATMULBIASTest, case8) { TmatmulBiasTest<float, uint16_t, uint16_t, float, 8>(1, 512, 32); }

@@ -39,12 +39,12 @@ static_assert(kDispatchGatherPayloadStoreCols <= 4095U);
 template <typename InputElement>
 class DispatchGather {
 public:
-    AICORE inline void Init(GM_ADDR expertTokenNumsGM, GM_ADDR workspaceGM, const __gm__ MegaMoeTilingData *tilingData)
+    AICORE inline void Init(GM_ADDR expertTokenNumsGM, GM_ADDR workspaceGM, const __gm__ MegaMoeTilingData* tilingData)
     {
         (void)expertTokenNumsGM;
         tilingData_ = tilingData;
 
-        const auto &info = tilingData_->megaMoeInfo;
+        const auto& info = tilingData_->megaMoeInfo;
         problemK_ = info.K;
         maxOutputSize_ = info.maxOutputSize;
         expertPerRank_ = info.expertPerRank;
@@ -59,19 +59,19 @@ public:
             coreNum_ = get_block_num() * get_subblockdim();
         }
 
-        gmAPtr_ = reinterpret_cast<__gm__ int8_t *>(workspaceGM + tilingData_->dispatchTiling.gmAOffset);
+        gmAPtr_ = reinterpret_cast<__gm__ int8_t*>(workspaceGM + tilingData_->dispatchTiling.gmAOffset);
         perTokenScalePtr_ =
-            reinterpret_cast<__gm__ float *>(workspaceGM + tilingData_->dispatchTiling.perTokenScaleOffset);
-        dispatchGatherScratchPtr_ = reinterpret_cast<__gm__ uint8_t *>(workspaceGM + DispatchGatherScratchCoreOffset());
-        cumsumMMPtr_ = reinterpret_cast<__gm__ int32_t *>(workspaceGM + tilingData_->frontReorderTiling.cumsumMMOffset);
+            reinterpret_cast<__gm__ float*>(workspaceGM + tilingData_->dispatchTiling.perTokenScaleOffset);
+        dispatchGatherScratchPtr_ = reinterpret_cast<__gm__ uint8_t*>(workspaceGM + DispatchGatherScratchCoreOffset());
+        cumsumMMPtr_ = reinterpret_cast<__gm__ int32_t*>(workspaceGM + tilingData_->frontReorderTiling.cumsumMMOffset);
         preSumBeforeRankPtr_ =
-            reinterpret_cast<__gm__ int32_t *>(workspaceGM + tilingData_->frontReorderTiling.preSumBeforeRankOffset);
+            reinterpret_cast<__gm__ int32_t*>(workspaceGM + tilingData_->frontReorderTiling.preSumBeforeRankOffset);
 
         remoteWindow_.Init(reinterpret_cast<GM_ADDR>(tilingData_->runtimeInfo.remoteWindowContext));
         peerMemoryLayout_.Init(remoteWindow_);
         tokenPerExpertPtr_ =
-            reinterpret_cast<__gm__ int32_t *>(remoteWindow_.LocalBase() + peerMemoryLayout_.offsetPeerTokenPerExpert);
-        offsetAPtr_ = reinterpret_cast<__gm__ int8_t *>(remoteWindow_.LocalBase() + peerMemoryLayout_.offsetA);
+            reinterpret_cast<__gm__ int32_t*>(remoteWindow_.LocalBase() + peerMemoryLayout_.offsetPeerTokenPerExpert);
+        offsetAPtr_ = reinterpret_cast<__gm__ int8_t*>(remoteWindow_.LocalBase() + peerMemoryLayout_.offsetA);
     }
 
     AICORE inline void Process() const
@@ -89,10 +89,7 @@ private:
         uint32_t ubRowStride = 0;
     };
 
-    AICORE inline uint32_t PackedRowStride() const
-    {
-        return problemK_ + static_cast<uint32_t>(UB_ALIGN);
-    }
+    AICORE inline uint32_t PackedRowStride() const { return problemK_ + static_cast<uint32_t>(UB_ALIGN); }
 
     AICORE inline bool PayloadWordTStoreSupported(uint32_t ubRowStride) const
     {
@@ -111,10 +108,7 @@ private:
                static_cast<uint64_t>(coreIdx_) * tilingData_->dispatchTiling.dispatchGatherScratchBytesPerAiv;
     }
 
-    AICORE inline uint32_t MetadataElems() const
-    {
-        return rankSize_ * expertPerRank_;
-    }
+    AICORE inline uint32_t MetadataElems() const { return rankSize_ * expertPerRank_; }
 
     AICORE inline uint64_t MetadataTableBytes() const
     {
@@ -131,22 +125,16 @@ private:
         return bufferId == 0U ? EVENT_ID2 : EVENT_ID3;
     }
 
-    AICORE inline __gm__ int8_t *DispatchGatherScratchBuffer(uint32_t bufferId) const
+    AICORE inline __gm__ int8_t* DispatchGatherScratchBuffer(uint32_t bufferId) const
     {
-        return reinterpret_cast<__gm__ int8_t *>(dispatchGatherScratchPtr_ +
-                                                 static_cast<uint64_t>(bufferId) *
-                                                     tilingData_->dispatchTiling.dispatchGatherTileBytes);
+        return reinterpret_cast<__gm__ int8_t*>(
+            dispatchGatherScratchPtr_ +
+            static_cast<uint64_t>(bufferId) * tilingData_->dispatchTiling.dispatchGatherTileBytes);
     }
 
-    AICORE inline void SetGmm1InitialReady() const
-    {
-        SetGmm1ReadyByLogicalEvent(0U);
-    }
+    AICORE inline void SetGmm1InitialReady() const { SetGmm1ReadyByLogicalEvent(0U); }
 
-    AICORE inline void SetGmm1GroupReady(uint32_t groupIdx) const
-    {
-        SetGmm1ReadyByLogicalEvent(groupIdx + 1U);
-    }
+    AICORE inline void SetGmm1GroupReady(uint32_t groupIdx) const { SetGmm1ReadyByLogicalEvent(groupIdx + 1U); }
 
     AICORE inline void PrepareDispatchGatherCopyEvents() const
     {
@@ -160,10 +148,7 @@ private:
         wait_flag(PIPE_MTE3, PIPE_MTE2, DispatchGatherBufferEvent(1U));
     }
 
-    AICORE inline uint32_t LocalGroupGlobalExpert(uint32_t groupIdx) const
-    {
-        return rank_ * expertPerRank_ + groupIdx;
-    }
+    AICORE inline uint32_t LocalGroupGlobalExpert(uint32_t groupIdx) const { return rank_ * expertPerRank_ + groupIdx; }
 
     AICORE inline uint32_t TokenCountByGlobalExpert(uint32_t srcRank, uint32_t globalExpert) const
     {
@@ -184,8 +169,8 @@ private:
         return static_cast<uint32_t>(cumsumMMPtr_[static_cast<uint64_t>(srcRank - 1U) * expertPerRank_ + groupIdx]);
     }
 
-    AICORE inline void FetchRankGroupRows(uint32_t srcRank, uint32_t groupIdx, uint32_t prevGroupSum, uint32_t &prevSum,
-                                          int32_t &pingpongIdx) const
+    AICORE inline void FetchRankGroupRows(
+        uint32_t srcRank, uint32_t groupIdx, uint32_t prevGroupSum, uint32_t& prevSum, int32_t& pingpongIdx) const
     {
         const uint32_t rawRows = RawRowsForLocalGroup(srcRank, groupIdx);
         const uint32_t dstRowBase = prevGroupSum + CopyCumsumBeforeSource(srcRank, groupIdx);
@@ -201,28 +186,30 @@ private:
         if (rows == 0U) {
             return;
         }
-        __gm__ int8_t *remotePackedRows = reinterpret_cast<__gm__ int8_t *>(
+        __gm__ int8_t* remotePackedRows = reinterpret_cast<__gm__ int8_t*>(
             remoteWindow_.RemoteBase(peerMemoryLayout_.offsetA, static_cast<int32_t>(srcRank)));
-        __gm__ int8_t *remoteSrc = remotePackedRows + static_cast<uint64_t>(srcRowBase) * PackedRowStride();
-        FetchRemoteDispatchedRows(gmAPtr_ + static_cast<uint64_t>(dstRowBase) * problemK_,
-                                  perTokenScalePtr_ + dstRowBase, remoteSrc, rows, pingpongIdx);
+        __gm__ int8_t* remoteSrc = remotePackedRows + static_cast<uint64_t>(srcRowBase) * PackedRowStride();
+        FetchRemoteDispatchedRows(
+            gmAPtr_ + static_cast<uint64_t>(dstRowBase) * problemK_, perTokenScalePtr_ + dstRowBase, remoteSrc, rows,
+            pingpongIdx);
     }
 
-    AICORE inline void StorePerTokenRows(__gm__ int8_t *dst, uint64_t ubOffsetBytes, uint32_t ubRowStride,
-                                         uint32_t outputOffset, uint32_t rowNum) const
+    AICORE inline void StorePerTokenRows(
+        __gm__ int8_t* dst, uint64_t ubOffsetBytes, uint32_t ubRowStride, uint32_t outputOffset, uint32_t rowNum) const
     {
         if (PayloadWordTStoreSupported(ubRowStride)) {
             using ShapeDyn = pto::Shape<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
             using StrideDyn = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
             using PayloadWordGlobal = pto::GlobalTensor<uint32_t, ShapeDyn, StrideDyn, pto::Layout::ND>;
-            using PayloadWordTile = pto::Tile<pto::TileType::Vec, uint32_t, kDispatchGatherUbMoveNum,
-                                              kDispatchGatherPackedWordTileCols, pto::BLayout::RowMajor, -1, -1>;
+            using PayloadWordTile = pto::Tile<
+                pto::TileType::Vec, uint32_t, kDispatchGatherUbMoveNum, kDispatchGatherPackedWordTileCols,
+                pto::BLayout::RowMajor, -1, -1>;
 
             const uint32_t wordCols = problemK_ / sizeof(uint32_t);
             ShapeDyn payloadShape(1, 1, 1, rowNum, wordCols);
             StrideDyn payloadStride(rowNum * wordCols, rowNum * wordCols, rowNum * wordCols, wordCols, 1);
-            PayloadWordGlobal payloadDst(reinterpret_cast<__gm__ uint32_t *>(dst + outputOffset), payloadShape,
-                                         payloadStride);
+            PayloadWordGlobal payloadDst(
+                reinterpret_cast<__gm__ uint32_t*>(dst + outputOffset), payloadShape, payloadStride);
             PayloadWordTile payloadTile(rowNum, wordCols);
             pto::TASSIGN(payloadTile, ubOffsetBytes);
             pto::TSTORE(payloadDst, payloadTile);
@@ -232,8 +219,9 @@ private:
         using ShapeDyn = pto::Shape<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
         using StrideDyn = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
         using PayloadGlobal = pto::GlobalTensor<int8_t, ShapeDyn, StrideDyn, pto::Layout::ND>;
-        using PayloadTile = pto::Tile<pto::TileType::Vec, int8_t, kDispatchGatherUbMoveNum,
-                                      kDispatchGatherPackedTileCols, pto::BLayout::RowMajor, -1, -1>;
+        using PayloadTile = pto::Tile<
+            pto::TileType::Vec, int8_t, kDispatchGatherUbMoveNum, kDispatchGatherPackedTileCols, pto::BLayout::RowMajor,
+            -1, -1>;
 
         for (uint32_t colOffset = 0U; colOffset < problemK_; colOffset += kDispatchGatherPayloadStoreCols) {
             const uint32_t curCols = problemK_ - colOffset > kDispatchGatherPayloadStoreCols ?
@@ -248,14 +236,16 @@ private:
         }
     }
 
-    AICORE inline void StorePerTokenScales(__gm__ float *dstScale, uint64_t ubOffsetBytes, uint32_t ubRowStride,
-                                           uint32_t outputOffset, uint32_t rowNum) const
+    AICORE inline void StorePerTokenScales(
+        __gm__ float* dstScale, uint64_t ubOffsetBytes, uint32_t ubRowStride, uint32_t outputOffset,
+        uint32_t rowNum) const
     {
         using ShapeDyn = pto::Shape<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
         using StrideDyn = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
         using ScaleGlobal = pto::GlobalTensor<float, ShapeDyn, StrideDyn, pto::Layout::ND>;
-        using ScaleTile = pto::Tile<pto::TileType::Vec, float, kDispatchGatherUbMoveNum,
-                                    kDispatchGatherPackedScaleTileCols, pto::BLayout::RowMajor, -1, -1>;
+        using ScaleTile = pto::Tile<
+            pto::TileType::Vec, float, kDispatchGatherUbMoveNum, kDispatchGatherPackedScaleTileCols,
+            pto::BLayout::RowMajor, -1, -1>;
 
         ShapeDyn scaleShape(1, 1, 1, rowNum, 1);
         StrideDyn scaleStride(rowNum, rowNum, rowNum, 1, 1);
@@ -265,8 +255,8 @@ private:
         pto::TSTORE(scaleDst, scaleTile);
     }
 
-    AICORE inline void StorePendingDispatchGatherChunk(__gm__ int8_t *dst, __gm__ float *dstScale,
-                                                       const DispatchGatherChunk &chunk) const
+    AICORE inline void StorePendingDispatchGatherChunk(
+        __gm__ int8_t* dst, __gm__ float* dstScale, const DispatchGatherChunk& chunk) const
     {
         const event_t event = DispatchGatherBufferEvent(chunk.bufferId);
         const uint64_t ubOffsetBytes = DispatchGatherPackedUbOffset(chunk.bufferId);
@@ -276,14 +266,15 @@ private:
         set_flag(PIPE_MTE3, PIPE_MTE2, event);
     }
 
-    AICORE inline void FetchRemoteDispatchedRows(__gm__ int8_t *dst, __gm__ float *dstScale, __gm__ int8_t *src,
-                                                 uint32_t rows, int32_t &pingpongId) const
+    AICORE inline void FetchRemoteDispatchedRows(
+        __gm__ int8_t* dst, __gm__ float* dstScale, __gm__ int8_t* src, uint32_t rows, int32_t& pingpongId) const
     {
         using ShapeDyn = pto::Shape<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
         using StrideDyn = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
         using PackedGlobal = pto::GlobalTensor<int8_t, ShapeDyn, StrideDyn, pto::Layout::ND>;
-        using PackedTile = pto::Tile<pto::TileType::Vec, int8_t, kDispatchGatherUbMoveNum,
-                                     kDispatchGatherPackedTileCols, pto::BLayout::RowMajor, -1, -1>;
+        using PackedTile = pto::Tile<
+            pto::TileType::Vec, int8_t, kDispatchGatherUbMoveNum, kDispatchGatherPackedTileCols, pto::BLayout::RowMajor,
+            -1, -1>;
 
         const uint32_t packedStride = PackedRowStride();
         const uint32_t processCount = static_cast<uint32_t>(ceilDiv(rows, kDispatchGatherUbMoveNum));
@@ -298,9 +289,9 @@ private:
 
             wait_flag(PIPE_MTE3, PIPE_MTE2, event);
             ShapeDyn packedShape(1, 1, 1, rowNum, packedStride);
-            StrideDyn packedStrideShape(rowNum * packedStride, rowNum * packedStride, rowNum * packedStride,
-                                        packedStride, 1);
-            __gm__ int8_t *remoteBatchSrc = src + static_cast<uint64_t>(rowOffset) * packedStride;
+            StrideDyn packedStrideShape(
+                rowNum * packedStride, rowNum * packedStride, rowNum * packedStride, packedStride, 1);
+            __gm__ int8_t* remoteBatchSrc = src + static_cast<uint64_t>(rowOffset) * packedStride;
             PackedGlobal remotePackedG(remoteBatchSrc, packedShape, packedStrideShape);
             PackedTile packedTile(rowNum, packedStride);
             pto::TASSIGN(packedTile, ubOffsetBytes);
@@ -344,15 +335,15 @@ private:
         }
     }
 
-    const __gm__ MegaMoeTilingData *tilingData_ = nullptr;
+    const __gm__ MegaMoeTilingData* tilingData_ = nullptr;
 
-    __gm__ int8_t *gmAPtr_ = nullptr;
-    __gm__ float *perTokenScalePtr_ = nullptr;
-    __gm__ uint8_t *dispatchGatherScratchPtr_ = nullptr;
-    __gm__ int32_t *cumsumMMPtr_ = nullptr;
-    __gm__ int32_t *preSumBeforeRankPtr_ = nullptr;
-    __gm__ int32_t *tokenPerExpertPtr_ = nullptr;
-    __gm__ int8_t *offsetAPtr_ = nullptr;
+    __gm__ int8_t* gmAPtr_ = nullptr;
+    __gm__ float* perTokenScalePtr_ = nullptr;
+    __gm__ uint8_t* dispatchGatherScratchPtr_ = nullptr;
+    __gm__ int32_t* cumsumMMPtr_ = nullptr;
+    __gm__ int32_t* preSumBeforeRankPtr_ = nullptr;
+    __gm__ int32_t* tokenPerExpertPtr_ = nullptr;
+    __gm__ int8_t* offsetAPtr_ = nullptr;
 
     PtoRemoteWindow remoteWindow_;
     MegaMoePeerMemoryLayout peerMemoryLayout_;

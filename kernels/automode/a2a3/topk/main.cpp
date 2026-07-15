@@ -15,7 +15,7 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <typename T>
-void launchTopk(uint8_t *out, uint8_t *index, uint8_t *src, uint8_t *inIdx, void *stream);
+void launchTopk(uint8_t* out, uint8_t* index, uint8_t* src, uint8_t* inIdx, void* stream);
 
 template <typename T>
 inline bool ValidateDataResults(size_t outFileSize)
@@ -52,8 +52,9 @@ inline bool ValidateIndexResults(size_t indexFileSize)
     return ret;
 }
 
-template <typename T, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gWholeShape0,
-          int gWholeShape1, int gWholeShape2, int gWholeShape3, int gWholeShape4, int topk>
+template <
+    typename T, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gWholeShape0, int gWholeShape1,
+    int gWholeShape2, int gWholeShape3, int gWholeShape4, int topk>
 void Topk()
 {
     constexpr int rows = gWholeShape0 * gWholeShape1 * gWholeShape2 * gWholeShape3;
@@ -74,15 +75,15 @@ void Topk()
     uint8_t *dstHost, *srcHost, *indexHost, *inIdxHost;
     uint8_t *dstDevice, *srcDevice, *indexDevice, *inIdxDevice;
 
-    aclrtMallocHost((void **)(&dstHost), outFileSize);
-    aclrtMallocHost((void **)(&indexHost), indexFileSize);
-    aclrtMallocHost((void **)(&srcHost), inFileSize);
-    aclrtMallocHost((void **)(&inIdxHost), inIdxSize);
+    aclrtMallocHost((void**)(&dstHost), outFileSize);
+    aclrtMallocHost((void**)(&indexHost), indexFileSize);
+    aclrtMallocHost((void**)(&srcHost), inFileSize);
+    aclrtMallocHost((void**)(&inIdxHost), inIdxSize);
 
-    aclrtMalloc((void **)&dstDevice, outFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, inFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&indexDevice, indexFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&inIdxDevice, inIdxSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, outFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, inFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&indexDevice, indexFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&inIdxDevice, inIdxSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile("../input/x1_gm.bin", inFileSize, srcHost, inFileSize);
     ReadFile("../input/x1_idx.bin", inIdxSize, inIdxHost, inIdxSize);

@@ -15,28 +15,32 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace PtoTestCommon;
 
-template <typename TDst, typename TSrc, int dstTileH, int dstTileW, int srcTileH, int srcTileW, int tmpTileH,
-          int tmpTileW, int vRows, int vCols>
-void LaunchTRowArgMax(TDst *out, TSrc *src, void *stream);
-template <typename TDst, int dstTileH, int dstTileW, int srcTileH, int srcTileW, int tmpTileH, int tmpTileW, int vRows,
-          int vCols>
-void LaunchTRowArgMaxHalf(TDst *out, aclFloat16 *src, void *stream);
-template <typename TIdx, typename TVal, int dstValTileH, int dstValTileW, int dstIdxTileH, int dstIdxTileW,
-          int srcTileH, int srcTileW, int tmpTileH, int tmpTileW, int vRows, int vCols>
-void LaunchTRowArgMax(TVal *outVal, TIdx *outIdx, TVal *src, void *stream);
-template <typename TIdx, int dstValTileH, int dstValTileW, int dstIdxTileH, int dstIdxTileW, int srcTileH, int srcTileW,
-          int tmpTileH, int tmpTileW, int vRows, int vCols>
-void LaunchTRowArgMaxHalf(aclFloat16 *outVal, TIdx *outIdx, aclFloat16 *src, void *stream);
+template <
+    typename TDst, typename TSrc, int dstTileH, int dstTileW, int srcTileH, int srcTileW, int tmpTileH, int tmpTileW,
+    int vRows, int vCols>
+void LaunchTRowArgMax(TDst* out, TSrc* src, void* stream);
+template <
+    typename TDst, int dstTileH, int dstTileW, int srcTileH, int srcTileW, int tmpTileH, int tmpTileW, int vRows,
+    int vCols>
+void LaunchTRowArgMaxHalf(TDst* out, aclFloat16* src, void* stream);
+template <
+    typename TIdx, typename TVal, int dstValTileH, int dstValTileW, int dstIdxTileH, int dstIdxTileW, int srcTileH,
+    int srcTileW, int tmpTileH, int tmpTileW, int vRows, int vCols>
+void LaunchTRowArgMax(TVal* outVal, TIdx* outIdx, TVal* src, void* stream);
+template <
+    typename TIdx, int dstValTileH, int dstValTileW, int dstIdxTileH, int dstIdxTileW, int srcTileH, int srcTileW,
+    int tmpTileH, int tmpTileW, int vRows, int vCols>
+void LaunchTRowArgMaxHalf(aclFloat16* outVal, TIdx* outIdx, aclFloat16* src, void* stream);
 
 class TROWARGMAXTest : public testing::Test {
 private:
     aclrtStream stream;
-    void *dstHost;
-    void *dstValHost;
-    void *srcHost;
-    void *dstDevice;
-    void *dstValDevice;
-    void *srcDevice;
+    void* dstHost;
+    void* dstValHost;
+    void* srcHost;
+    void* dstDevice;
+    void* dstValDevice;
+    void* srcDevice;
     size_t dstFileSize;
     size_t dstValFileSize;
     size_t srcFileSize;
@@ -44,7 +48,7 @@ private:
 protected:
     std::string GetGoldenDir()
     {
-        const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+        const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
         const std::string caseName = testInfo->name();
         std::string suiteName = testInfo->test_suite_name();
         std::string fullPath = "../" + suiteName + "." + caseName;
@@ -80,8 +84,9 @@ protected:
         aclrtMemcpy(this->srcDevice, this->srcFileSize, this->srcHost, this->srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     }
 
-    template <typename TIdx, typename TVal, int dstValTileH, int dstValTileW, int dstTileH, int dstTileW, int srcTileH,
-              int srcTileW>
+    template <
+        typename TIdx, typename TVal, int dstValTileH, int dstValTileW, int dstTileH, int dstTileW, int srcTileH,
+        int srcTileW>
     inline void BeforeLaunch()
     {
         this->BeforeLaunch<TIdx, TVal, dstTileH, dstTileW, srcTileH, srcTileW>();
@@ -89,8 +94,9 @@ protected:
         aclrtMallocHost(&this->dstValHost, this->dstValFileSize);
         memset(this->dstValHost, 0, this->dstValFileSize);
         aclrtMalloc(&this->dstValDevice, this->dstValFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-        aclrtMemcpy(this->dstValDevice, this->dstValFileSize, this->dstValHost, this->dstValFileSize,
-                    ACL_MEMCPY_HOST_TO_DEVICE);
+        aclrtMemcpy(
+            this->dstValDevice, this->dstValFileSize, this->dstValHost, this->dstValFileSize,
+            ACL_MEMCPY_HOST_TO_DEVICE);
     }
 
     template <typename TIdx, typename TVal>
@@ -103,8 +109,9 @@ protected:
         std::vector<TVal> devValFinal(this->dstValFileSize);
         aclrtMemcpy(devFinal.data(), this->dstFileSize, this->dstDevice, this->dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
         if (this->dstValFileSize) {
-            aclrtMemcpy(devValFinal.data(), this->dstValFileSize, this->dstValDevice, this->dstValFileSize,
-                        ACL_MEMCPY_DEVICE_TO_HOST);
+            aclrtMemcpy(
+                devValFinal.data(), this->dstValFileSize, this->dstValDevice, this->dstValFileSize,
+                ACL_MEMCPY_DEVICE_TO_HOST);
         }
 
         aclrtFree(this->dstDevice);
@@ -134,45 +141,44 @@ protected:
         return res;
     }
 
-    template <typename TDst, typename TSrc, int dstTileH, int dstTileW, int srcTileH, int srcTileW, int tmpTileH,
-              int tmpTileW, int vRows, int vCols, bool isHalf = false>
+    template <
+        typename TDst, typename TSrc, int dstTileH, int dstTileW, int srcTileH, int srcTileW, int tmpTileH,
+        int tmpTileW, int vRows, int vCols, bool isHalf = false>
     void Launch()
     {
         this->BeforeLaunch<TDst, TSrc, dstTileH, dstTileW, srcTileH, srcTileW>();
         if constexpr (isHalf) {
             LaunchTRowArgMaxHalf<TDst, dstTileH, dstTileW, srcTileH, srcTileW, tmpTileH, tmpTileW, vRows, vCols>(
-                (TDst *)this->dstDevice, (TSrc *)this->srcDevice, this->stream);
+                (TDst*)this->dstDevice, (TSrc*)this->srcDevice, this->stream);
         } else {
             LaunchTRowArgMax<TDst, TSrc, dstTileH, dstTileW, srcTileH, srcTileW, tmpTileH, tmpTileW, vRows, vCols>(
-                (TDst *)this->dstDevice, (TSrc *)this->srcDevice, this->stream);
+                (TDst*)this->dstDevice, (TSrc*)this->srcDevice, this->stream);
         }
         bool res = this->AfterLaunch<TDst, TSrc>();
         EXPECT_TRUE(res);
     }
 
-    template <typename TIdx, typename TVal, int dstValTileH, int dstValTileW, int dstTileH, int dstTileW, int srcTileH,
-              int srcTileW, int tmpTileH, int tmpTileW, int vRows, int vCols, bool isHalf = false>
+    template <
+        typename TIdx, typename TVal, int dstValTileH, int dstValTileW, int dstTileH, int dstTileW, int srcTileH,
+        int srcTileW, int tmpTileH, int tmpTileW, int vRows, int vCols, bool isHalf = false>
     void Launch()
     {
         this->BeforeLaunch<TIdx, TVal, dstValTileH, dstValTileW, dstTileH, dstTileW, srcTileH, srcTileW>();
         if constexpr (isHalf) {
-            LaunchTRowArgMaxHalf<TIdx, dstValTileH, dstValTileW, dstTileH, dstTileW, srcTileH, srcTileW, tmpTileH,
-                                 tmpTileW, vRows, vCols>((TVal *)this->dstValDevice, (TIdx *)this->dstDevice,
-                                                         (TVal *)this->srcDevice, this->stream);
+            LaunchTRowArgMaxHalf<
+                TIdx, dstValTileH, dstValTileW, dstTileH, dstTileW, srcTileH, srcTileW, tmpTileH, tmpTileW, vRows,
+                vCols>((TVal*)this->dstValDevice, (TIdx*)this->dstDevice, (TVal*)this->srcDevice, this->stream);
         } else {
-            LaunchTRowArgMax<TIdx, TVal, dstValTileH, dstValTileW, dstTileH, dstTileW, srcTileH, srcTileW, tmpTileH,
-                             tmpTileW, vRows, vCols>((TVal *)this->dstValDevice, (TIdx *)this->dstDevice,
-                                                     (TVal *)this->srcDevice, this->stream);
+            LaunchTRowArgMax<
+                TIdx, TVal, dstValTileH, dstValTileW, dstTileH, dstTileW, srcTileH, srcTileW, tmpTileH, tmpTileW, vRows,
+                vCols>((TVal*)this->dstValDevice, (TIdx*)this->dstDevice, (TVal*)this->srcDevice, this->stream);
         }
         bool res = this->AfterLaunch<TIdx, TVal>();
         EXPECT_TRUE(res);
     }
 };
 
-TEST_F(TROWARGMAXTest, case_uint32_float_8x1_8x8_1x8_8x8)
-{
-    this->Launch<uint32_t, float, 8, 1, 8, 8, 1, 8, 8, 8>();
-}
+TEST_F(TROWARGMAXTest, case_uint32_float_8x1_8x8_1x8_8x8) { this->Launch<uint32_t, float, 8, 1, 8, 8, 1, 8, 8, 8>(); }
 TEST_F(TROWARGMAXTest, case_uint32_float_1024x1_1024x8_1x8_1024x8)
 {
     this->Launch<uint32_t, float, 1024, 1, 1024, 8, 1, 8, 1024, 8>();

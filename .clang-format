@@ -20,44 +20,45 @@ BreakBeforeBraces:  Custom
 
 # 大括号换行配置
 BraceWrapping:
-  AfterCaseLabel: false
-  AfterClass: false
-  AfterControlStatement: false
-  AfterEnum: true
-  AfterFunction: true
-  AfterNamespace: false
-  AfterStruct: false
-  AfterUnion: false
-  AfterExternBlock: false
-  BeforeCatch: false
-  BeforeElse: false
-  IndentBraces: false
-  SplitEmptyFunction: false
-  SplitEmptyRecord: true
-  SplitEmptyNamespace: true
+    AfterCaseLabel: false
+    AfterClass: false
+    AfterControlStatement: false
+    # AfterEnum: false (紧凑模式，左大括号和enum同行, enum Color {...), AfterEnum: true (左大括号和enum换行).
+    AfterEnum: false
+    AfterFunction: true
+    AfterNamespace: false
+    AfterStruct: false
+    AfterUnion: false
+    AfterExternBlock: false
+    BeforeCatch: false
+    BeforeElse: false
+    IndentBraces: false
+    SplitEmptyFunction: false
+    SplitEmptyRecord: true
+    SplitEmptyNamespace: true
 
 # Align
-# AlignAfterOpenBracket: AlwaysBreak
+AlignAfterOpenBracket: AlwaysBreak
 AlignEscapedNewlines: Left
 AlignOperands: true
 AlignTrailingComments: true
 AllowAllArgumentsOnNextLine: true
 AllowAllParametersOfDeclarationOnNextLine: true
-AlwaysBreakBeforeMultilineStrings: true
+AlwaysBreakBeforeMultilineStrings: false
 AlwaysBreakTemplateDeclarations: true
 
 BinPackArguments: true
 BreakBeforeTernaryOperators: false
 SpacesBeforeTrailingComments: 1
 
-# poniter aligment
+# pointer alignment
 DerivePointerAlignment: false
-PointerAlignment: Right
+PointerAlignment: Left
 
 # single line layout
 AllowShortBlocksOnASingleLine: false
 AllowShortCaseLabelsOnASingleLine: false
-AllowShortFunctionsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: true
 AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: false
 

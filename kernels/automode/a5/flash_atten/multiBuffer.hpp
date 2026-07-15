@@ -23,7 +23,7 @@ class MultiStaged {
 public:
     template <class F>
 
-    AICORE void callWithPragma(F &&f)
+    AICORE void callWithPragma(F&& f)
     {
 #pragma pto v_loop_barrier
         f();
@@ -36,7 +36,7 @@ public:
     // Requirement: At least one stage function must be provided.
     // Behavior: Executes the provided stage functions in overlapped/pipelined manner
     template <class F, class... Fs>
-    AICORE void run(F &&f, Fs &&...fs)
+    AICORE void run(F&& f, Fs&&... fs)
     {
         constexpr int NumFs = sizeof...(Fs);
         f();
@@ -54,15 +54,9 @@ template <int Dim0, int... Dims>
 struct Range {
     static constexpr std::array<int, 1 + sizeof...(Dims)> dims = {{Dim0, Dims...}};
 
-    static constexpr int getDim(int i)
-    {
-        return dims[i];
-    }
+    static constexpr int getDim(int i) { return dims[i]; }
 
-    static constexpr int numDims()
-    {
-        return 1 + sizeof...(Dims);
-    }
+    static constexpr int numDims() { return 1 + sizeof...(Dims); }
 
     static constexpr bool hasChildDimGTOne()
     {
@@ -86,12 +80,7 @@ template <typename T>
 using PopFront_t = typename PopFront<T>::type;
 
 // Phases for the MultiBuffered loop execution
-enum class Phase
-{
-    Prologue,
-    Main,
-    Epilogue
-};
+enum class Phase { Prologue, Main, Epilogue };
 
 // MultiBuffered Loop utility.
 // Template Parametrs:
@@ -111,10 +100,10 @@ public:
     // this is for invoking the child loop with the proper pre-feeded range
     class NestedLoopInvoker {
     public:
-        MultiBuffered &parent;
+        MultiBuffered& parent;
 
         template <int FirstK = 0, int LastK = 0, class Body>
-        AICORE void loop(Body &&body)
+        AICORE void loop(Body&& body)
         {
             parent.template loop<ChildRange, FirstK, LastK>(body);
         }
@@ -130,7 +119,7 @@ public:
     // 4. Body:     Type of the body lambda function.
     // Parameters:  Lambda function exectued for each iteration of the loop.
     template <class Range, int FirstK = 0, int LastK = 0, class Body>
-    AICORE void loop(Body &&body)
+    AICORE void loop(Body&& body)
     {
         constexpr int NumIters = Range::getDim(0);
 
@@ -150,7 +139,7 @@ public:
     // Loop helper function: executes the loop body in separate phases.
     // The phases are executed sequentially and do not overlap.
     template <int NumIters, bool ShouldUnroll, int FirstK = 0, int LastK = 0, class Body>
-    AICORE void loop(Body &&body)
+    AICORE void loop(Body&& body)
     {
         constexpr int MBFirstK = FirstK;
         constexpr int MBLastK = LastK;
@@ -173,14 +162,14 @@ public:
 
 private:
     template <int NumIters, int Start, bool ShouldUnroll, Phase P, class Body>
-    AICORE void runWIthPhase(Body &&body)
+    AICORE void runWIthPhase(Body&& body)
     {
         runLoop<NumIters, Start, ShouldUnroll>(
             [&](int i, auto bufferId) { body(Context<P, decltype(bufferId)::value>{i}); });
     }
 
     template <int buffIndex, class F>
-    AICORE void callWithPragma(int i, F &&f)
+    AICORE void callWithPragma(int i, F&& f)
     {
         if constexpr (buffIndex > 0) {
 #pragma pto v_loop_barrier
@@ -191,7 +180,7 @@ private:
     }
 
     template <int NumIters, int Start, bool ShouldUnroll, class F>
-    AICORE inline void runLoop(F &&f)
+    AICORE inline void runLoop(F&& f)
     {
         int i = Start / NumBuffs;
 
@@ -234,7 +223,7 @@ private:
     }
 
     template <int K, class BufferId, typename F>
-    AICORE auto every(int i, BufferId buffer_id, F &&f)
+    AICORE auto every(int i, BufferId buffer_id, F&& f)
     {
         constexpr int bi = decltype(buffer_id)::value;
         if constexpr (K == NumBuffs) {
@@ -249,7 +238,7 @@ private:
     }
 
     template <size_t... Indices, typename F>
-    AICORE inline void unroll_loop(std::index_sequence<Indices...>, F &&f)
+    AICORE inline void unroll_loop(std::index_sequence<Indices...>, F&& f)
     {
         (f(std::integral_constant<size_t, Indices>{}), ...);
     }

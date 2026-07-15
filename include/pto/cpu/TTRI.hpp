@@ -16,20 +16,20 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 template <typename TileData, int isUpperOrLower>
-PTO_INTERNAL void TTriCheck(const TileData &dst)
+PTO_INTERNAL void TTriCheck(const TileData& dst)
 {
     using T = typename TileData::DType;
-    static_assert(std::is_same<T, int32_t>::value || std::is_same<T, int>::value || std::is_same<T, int16_t>::value ||
-                      std::is_same<T, uint32_t>::value || std::is_same<T, uint16_t>::value ||
-                      std::is_same<T, half>::value || std::is_same<T, bfloat16_t>::value ||
-                      std::is_same<T, float>::value,
-                  "Fix: TTRI has invalid data type.");
+    static_assert(
+        std::is_same<T, int32_t>::value || std::is_same<T, int>::value || std::is_same<T, int16_t>::value ||
+            std::is_same<T, uint32_t>::value || std::is_same<T, uint16_t>::value || std::is_same<T, half>::value ||
+            std::is_same<T, bfloat16_t>::value || std::is_same<T, float>::value,
+        "Fix: TTRI has invalid data type.");
     static_assert(isUpperOrLower == 0 || isUpperOrLower == 1, "Fix: isUpperOrLower must be 0 or 1.");
     static_assert(TileData::isRowMajor, "Fix: TTRI only support row major layout.");
 }
 
 template <typename TileData>
-PTO_INTERNAL void TTril(__ubuf__ typename TileData::DType *dstPtr, unsigned validRow, unsigned validCol, int diagonal)
+PTO_INTERNAL void TTril(__ubuf__ typename TileData::DType* dstPtr, unsigned validRow, unsigned validCol, int diagonal)
 {
     for (int r = 0; r < validRow; r++) {
         int base = r * TileData::Cols;
@@ -47,7 +47,7 @@ PTO_INTERNAL void TTril(__ubuf__ typename TileData::DType *dstPtr, unsigned vali
 }
 
 template <typename TileData>
-PTO_INTERNAL void TTriu(__ubuf__ typename TileData::DType *dstPtr, unsigned validRow, unsigned validCol, int diagonal)
+PTO_INTERNAL void TTriu(__ubuf__ typename TileData::DType* dstPtr, unsigned validRow, unsigned validCol, int diagonal)
 {
     for (int r = 0; r < validRow; r++) {
         int base = r * TileData::Cols;
@@ -65,7 +65,7 @@ PTO_INTERNAL void TTriu(__ubuf__ typename TileData::DType *dstPtr, unsigned vali
 }
 
 template <typename TileData, int isUpperOrLower>
-PTO_INTERNAL void TTRI_IMPL(TileData &dst, int diagonal)
+PTO_INTERNAL void TTRI_IMPL(TileData& dst, int diagonal)
 {
     TTriCheck<TileData, isUpperOrLower>(dst);
     unsigned validRow = dst.GetValidRow();

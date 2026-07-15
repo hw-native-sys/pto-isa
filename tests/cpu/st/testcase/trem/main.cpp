@@ -16,19 +16,17 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
-void launchTREM_demo(uint8_t *out, uint8_t *src, void *stream);
+void launchTREM_demo(uint8_t* out, uint8_t* src, void* stream);
 
 class TREMTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -36,7 +34,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kDRows_, int kDCols_, int kTRows_, int kTCols_>
-void LaunchTRem(T *out, T *src0, T *src1, void *stream);
+void LaunchTRem(T* out, T* src0, T* src1, void* stream);
 
 template <typename T, int kDRows_, int kDCols_, int kTRows_, int kTCols_>
 void test_trem()
@@ -50,13 +48,13 @@ void test_trem()
     T *dstHost, *src0Host, *src1Host;
     T *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&src0Host), fileSize);
-    aclrtMallocHost((void **)(&src1Host), fileSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&src0Host), fileSize);
+    aclrtMallocHost((void**)(&src1Host), fileSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input1.bin", fileSize, src0Host, fileSize));
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input2.bin", fileSize, src1Host, fileSize));
@@ -95,29 +93,11 @@ const int NUM_32 = 32;
 const int NUM_64 = 64;
 const int NUM_256 = 256;
 const int NUM_512 = 256;
-TEST_F(TREMTest, case_float_64x64_64x64)
-{
-    test_trem<float, NUM_64, NUM_64, NUM_64, NUM_64>();
-}
-TEST_F(TREMTest, case_half_16x256_16x256)
-{
-    test_trem<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>();
-}
-TEST_F(TREMTest, case_float_64x512_64x64)
-{
-    test_trem<float, NUM_64, NUM_512, NUM_64, NUM_64>();
-}
-TEST_F(TREMTest, case_half_32x512_16x256)
-{
-    test_trem<aclFloat16, NUM_32, NUM_512, NUM_16, NUM_256>();
-}
+TEST_F(TREMTest, case_float_64x64_64x64) { test_trem<float, NUM_64, NUM_64, NUM_64, NUM_64>(); }
+TEST_F(TREMTest, case_half_16x256_16x256) { test_trem<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>(); }
+TEST_F(TREMTest, case_float_64x512_64x64) { test_trem<float, NUM_64, NUM_512, NUM_64, NUM_64>(); }
+TEST_F(TREMTest, case_half_32x512_16x256) { test_trem<aclFloat16, NUM_32, NUM_512, NUM_16, NUM_256>(); }
 #ifdef CPU_SIM_BFLOAT_ENABLED
-TEST_F(TREMTest, case_bf16_16x256_16x256)
-{
-    test_trem<bfloat16_t, NUM_16, NUM_256, NUM_16, NUM_256>();
-}
-TEST_F(TREMTest, case_bf16_32x256_16x256)
-{
-    test_trem<bfloat16_t, NUM_32, NUM_256, NUM_16, NUM_256>();
-}
+TEST_F(TREMTest, case_bf16_16x256_16x256) { test_trem<bfloat16_t, NUM_16, NUM_256, NUM_16, NUM_256>(); }
+TEST_F(TREMTest, case_bf16_32x256_16x256) { test_trem<bfloat16_t, NUM_32, NUM_256, NUM_16, NUM_256>(); }
 #endif

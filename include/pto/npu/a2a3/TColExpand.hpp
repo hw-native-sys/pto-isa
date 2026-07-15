@@ -16,11 +16,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 template <typename T, typename TileDataDst, typename TileDataSrc, unsigned dstStride>
-__tf__ PTO_INTERNAL void TColExpand(typename TileDataDst::TileDType __out__ dst,
-                                    typename TileDataSrc::TileDType __in__ src, int validRow, int validCol)
+__tf__ PTO_INTERNAL void TColExpand(
+    typename TileDataDst::TileDType __out__ dst, typename TileDataSrc::TileDType __in__ src, int validRow, int validCol)
 {
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* srcPtr = (__ubuf__ T*)__cce_get_tile_ptr(src);
 
     int lenBurst = (validCol * sizeof(T) + BLOCK_BYTE_SIZE - 1) / BLOCK_BYTE_SIZE;
 
@@ -32,22 +32,27 @@ __tf__ PTO_INTERNAL void TColExpand(typename TileDataDst::TileDType __out__ dst,
 template <typename T, typename TileDataOut, typename TileDataIn>
 PTO_INTERNAL void TColExpandCheck(int SrcValidRow, int SrcValidCol, int DstValidCol)
 {
-    static_assert(TileDataOut::Loc == pto::TileType::Vec && TileDataIn::Loc == pto::TileType::Vec,
-                  "Fix: TCOLEXPAND only support Vec Tile");
-    static_assert(TileDataIn::isRowMajor && TileDataIn::SFractal == SLayout::NoneBox,
-                  "Fix: TCOLEXPAND input tile only support Nd fractal Tile");
-    static_assert(TileDataOut::isRowMajor && TileDataOut::SFractal == SLayout::NoneBox,
-                  "Fix: TCOLEXPAND output tile only support Nd fractal Tile");
-    static_assert((sizeof(T) == 1) || (sizeof(T) == 2) || (sizeof(T) == 4),
-                  "Fix: TCOLEXPAND input data type is not supported by this instruction.");
-    static_assert(std::is_same_v<typename TileDataOut::DType, T>,
-                  "Fix: TCOLEXPAND input data type must be consistent with the output data type.");
-    PTO_ASSERT(SrcValidCol == DstValidCol,
-               "Fix: TCOLEXPAND input valid col must be consistent with the output valid row.");
+    static_assert(
+        TileDataOut::Loc == pto::TileType::Vec && TileDataIn::Loc == pto::TileType::Vec,
+        "Fix: TCOLEXPAND only support Vec Tile");
+    static_assert(
+        TileDataIn::isRowMajor && TileDataIn::SFractal == SLayout::NoneBox,
+        "Fix: TCOLEXPAND input tile only support Nd fractal Tile");
+    static_assert(
+        TileDataOut::isRowMajor && TileDataOut::SFractal == SLayout::NoneBox,
+        "Fix: TCOLEXPAND output tile only support Nd fractal Tile");
+    static_assert(
+        (sizeof(T) == 1) || (sizeof(T) == 2) || (sizeof(T) == 4),
+        "Fix: TCOLEXPAND input data type is not supported by this instruction.");
+    static_assert(
+        std::is_same_v<typename TileDataOut::DType, T>,
+        "Fix: TCOLEXPAND input data type must be consistent with the output data type.");
+    PTO_ASSERT(
+        SrcValidCol == DstValidCol, "Fix: TCOLEXPAND input valid col must be consistent with the output valid row.");
 }
 
 template <typename TileDataOut, typename TileDataIn>
-PTO_INTERNAL void TCOLEXPAND_IMPL(TileDataOut &dst, TileDataIn &src)
+PTO_INTERNAL void TCOLEXPAND_IMPL(TileDataOut& dst, TileDataIn& src)
 {
     using T = typename TileDataIn::DType;
     int validRow = dst.GetValidRow();

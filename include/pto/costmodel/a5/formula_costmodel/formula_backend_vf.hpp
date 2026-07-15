@@ -37,9 +37,9 @@ inline uint64_t RoundToCycles(double value)
     return static_cast<uint64_t>(std::llround(value));
 }
 
-inline bool TryLookupVfFormulaParam(const VfCurveKey &key, const VfFormulaParam *&param)
+inline bool TryLookupVfFormulaParam(const VfCurveKey& key, const VfFormulaParam*& param)
 {
-    for (const auto &entry : kVfFormulaParamTable) {
+    for (const auto& entry : kVfFormulaParamTable) {
         if (entry.op == key.op && entry.src_dtype == key.src_dtype && entry.dst_dtype == key.dst_dtype &&
             entry.shape_path == key.shape_path && entry.vf_impl_kind == key.vf_impl_kind &&
             entry.tail_kind == key.tail_kind && entry.op_params == key.op_params) {
@@ -50,8 +50,8 @@ inline bool TryLookupVfFormulaParam(const VfCurveKey &key, const VfFormulaParam 
     return false;
 }
 
-inline uint64_t EvalVfFormula(const VfFormulaParam &param, uint64_t loop_count, uint64_t outer_iter,
-                              uint64_t inner_iter, uint64_t tail_count)
+inline uint64_t EvalVfFormula(
+    const VfFormulaParam& param, uint64_t loop_count, uint64_t outer_iter, uint64_t inner_iter, uint64_t tail_count)
 {
     double value = 0.0;
     switch (param.formula_kind) {

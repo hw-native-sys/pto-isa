@@ -36,37 +36,37 @@ using DispatchTileMpiDatatype = int;
 static constexpr DispatchTileMpiComm kDispatchTileMpiCommWorld = static_cast<DispatchTileMpiComm>(0x44000000);
 static constexpr DispatchTileMpiDatatype kDispatchTileMpiChar = static_cast<DispatchTileMpiDatatype>(0x4c000101);
 
-using MpiInitFunc = int (*)(int *, char ***);
-using MpiCommSizeFunc = int (*)(DispatchTileMpiComm, int *);
-using MpiCommRankFunc = int (*)(DispatchTileMpiComm, int *);
-using MpiBcastFunc = int (*)(void *, int, DispatchTileMpiDatatype, int, DispatchTileMpiComm);
-using MpiGatherFunc = int (*)(const void *, int, DispatchTileMpiDatatype, void *, int, DispatchTileMpiDatatype, int,
-                              DispatchTileMpiComm);
+using MpiInitFunc = int (*)(int*, char***);
+using MpiCommSizeFunc = int (*)(DispatchTileMpiComm, int*);
+using MpiCommRankFunc = int (*)(DispatchTileMpiComm, int*);
+using MpiBcastFunc = int (*)(void*, int, DispatchTileMpiDatatype, int, DispatchTileMpiComm);
+using MpiGatherFunc =
+    int (*)(const void*, int, DispatchTileMpiDatatype, void*, int, DispatchTileMpiDatatype, int, DispatchTileMpiComm);
 using MpiBarrierFunc = int (*)(DispatchTileMpiComm);
 using MpiFinalizeFunc = int (*)();
 
-inline void *&MpiLibraryHandle()
+inline void*& MpiLibraryHandle()
 {
-    static void *handle = nullptr;
+    static void* handle = nullptr;
     return handle;
 }
 
-inline bool LooksLikeMpiLibrary(const char *path)
+inline bool LooksLikeMpiLibrary(const char* path)
 {
-    const char *slash = std::strrchr(path, '/');
-    const char *base = slash == nullptr ? path : slash + 1;
+    const char* slash = std::strrchr(path, '/');
+    const char* base = slash == nullptr ? path : slash + 1;
     return (std::strncmp(base, "libmpi", 6) == 0 || std::strncmp(base, "libmpich", 8) == 0) &&
            std::strstr(base, ".so") != nullptr;
 }
 
-inline void *LoadMpiLibrary()
+inline void* LoadMpiLibrary()
 {
-    void *&handle = MpiLibraryHandle();
+    void*& handle = MpiLibraryHandle();
     if (handle != nullptr) {
         return handle;
     }
 
-    const char *envPath = std::getenv("MPI_LIB_PATH");
+    const char* envPath = std::getenv("MPI_LIB_PATH");
     if (envPath != nullptr && envPath[0] != '\0') {
         if (envPath[0] != '/') {
             std::cerr << "[MPI] Ignoring MPI_LIB_PATH because it is not absolute: " << envPath << "\n";
@@ -82,14 +82,15 @@ inline void *LoadMpiLibrary()
         }
     }
 
-    static const char *candidates[] = {"libmpi.so",
-                                       "libmpich.so",
-                                       "/usr/local/mpich/lib/libmpi.so",
-                                       "/lib/aarch64-linux-gnu/libmpich.so",
-                                       "/lib/x86_64-linux-gnu/libmpich.so",
-                                       "/usr/lib/libmpi.so",
-                                       "/usr/lib/libmpich.so",
-                                       nullptr};
+    static const char* candidates[] = {
+        "libmpi.so",
+        "libmpich.so",
+        "/usr/local/mpich/lib/libmpi.so",
+        "/lib/aarch64-linux-gnu/libmpich.so",
+        "/lib/x86_64-linux-gnu/libmpich.so",
+        "/usr/lib/libmpi.so",
+        "/usr/lib/libmpich.so",
+        nullptr};
     for (uint32_t i = 0; candidates[i] != nullptr; ++i) {
         handle = dlopen(candidates[i], RTLD_NOW);
         if (handle != nullptr) {
@@ -102,13 +103,13 @@ inline void *LoadMpiLibrary()
 }
 
 template <typename Func>
-inline Func GetMpiFunc(const char *name)
+inline Func GetMpiFunc(const char* name)
 {
-    void *handle = LoadMpiLibrary();
+    void* handle = LoadMpiLibrary();
     if (handle == nullptr) {
         throw std::runtime_error("Cannot find MPI library. Set MPI_LIB_PATH to the path of libmpi.so");
     }
-    void *func = dlsym(handle, name);
+    void* func = dlsym(handle, name);
     if (func == nullptr) {
         throw std::runtime_error(std::string("Cannot find MPI symbol: ") + name);
     }
@@ -116,7 +117,7 @@ inline Func GetMpiFunc(const char *name)
 }
 
 // Header-only MPI dynamic-loading helper for the standalone moe_combine runner.
-inline MpiContext InitMpiAndRank(int *argc, char ***argv)
+inline MpiContext InitMpiAndRank(int* argc, char*** argv)
 {
     auto init = GetMpiFunc<MpiInitFunc>("MPI_Init");
     int ret = init(argc, argv);
@@ -139,7 +140,7 @@ inline MpiContext InitMpiAndRank(int *argc, char ***argv)
     return context;
 }
 
-inline void MpiBroadcast(MpiContext *context, void *data, size_t bytes, int root)
+inline void MpiBroadcast(MpiContext* context, void* data, size_t bytes, int root)
 {
     if (context == nullptr || !context->initialized) {
         return;
@@ -154,7 +155,7 @@ inline void MpiBroadcast(MpiContext *context, void *data, size_t bytes, int root
     }
 }
 
-inline void MpiGatherBytes(MpiContext *context, const void *sendData, size_t bytes, void *recvData, int root)
+inline void MpiGatherBytes(MpiContext* context, const void* sendData, size_t bytes, void* recvData, int root)
 {
     if (context == nullptr || !context->initialized) {
         if (recvData != nullptr && sendData != recvData && bytes != 0) {
@@ -168,14 +169,15 @@ inline void MpiGatherBytes(MpiContext *context, const void *sendData, size_t byt
         throw std::invalid_argument("MPI gather payload is too large");
     }
     auto gather = GetMpiFunc<MpiGatherFunc>("MPI_Gather");
-    int ret = gather(sendData, static_cast<int>(bytes), kDispatchTileMpiChar, recvData, static_cast<int>(bytes),
-                     kDispatchTileMpiChar, root, kDispatchTileMpiCommWorld);
+    int ret = gather(
+        sendData, static_cast<int>(bytes), kDispatchTileMpiChar, recvData, static_cast<int>(bytes),
+        kDispatchTileMpiChar, root, kDispatchTileMpiCommWorld);
     if (ret != 0) {
         throw std::runtime_error("MPI_Gather failed: " + std::to_string(ret));
     }
 }
 
-inline void MpiBarrier(MpiContext *context)
+inline void MpiBarrier(MpiContext* context)
 {
     if (context == nullptr || !context->initialized) {
         return;
@@ -187,7 +189,7 @@ inline void MpiBarrier(MpiContext *context)
     }
 }
 
-inline void FinalizeMpi(MpiContext *context)
+inline void FinalizeMpi(MpiContext* context)
 {
     if (context == nullptr || !context->initialized) {
         return;

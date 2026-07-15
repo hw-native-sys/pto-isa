@@ -19,7 +19,7 @@ using namespace pto;
 #define CASENAME TROWEXPAND_TROWSUM
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols>
-__global__ AICORE void CONCAT(run, CASENAME)(__gm__ T *out, __gm__ T *src0, __gm__ T *src1)
+__global__ AICORE void CONCAT(run, CASENAME)(__gm__ T* out, __gm__ T* src0, __gm__ T* src1)
 {
     using DynShapeSrc = Shape<1, 1, 1, vRows, vCols>;
     using DynStrideSrc = pto::Stride<1, 1, 1, kTCols_, 1>;
@@ -53,15 +53,15 @@ __global__ AICORE void CONCAT(run, CASENAME)(__gm__ T *out, __gm__ T *src0, __gm
 }
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols>
-void CONCAT(Launch, CASENAME)(T *out, T *src0, T *src1, void *stream)
+void CONCAT(Launch, CASENAME)(T* out, T* src0, T* src1, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>)
         CONCAT(run, CASENAME)<half, kTRows_, kTCols_, vRows, vCols>
-            <<<1, nullptr, stream>>>((half *)(out), (half *)(src0), (half *)(src1));
+            <<<1, nullptr, stream>>>((half*)(out), (half*)(src0), (half*)(src1));
     else
         CONCAT(run, CASENAME)<T, kTRows_, kTCols_, vRows, vCols><<<1, nullptr, stream>>>(out, src0, src1);
 }
 
-template void CONCAT(Launch, CASENAME)<float, 64, 64, 64, 64>(float *out, float *src0, float *src1, void *stream);
-template void CONCAT(Launch, CASENAME)<aclFloat16, 16, 256, 16, 256>(aclFloat16 *out, aclFloat16 *src0,
-                                                                     aclFloat16 *src1, void *stream);
+template void CONCAT(Launch, CASENAME)<float, 64, 64, 64, 64>(float* out, float* src0, float* src1, void* stream);
+template void CONCAT(Launch, CASENAME)<aclFloat16, 16, 256, 16, 256>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);

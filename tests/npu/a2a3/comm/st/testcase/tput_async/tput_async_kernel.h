@@ -19,17 +19,18 @@ bool RunPutAsyncRootPut(int n_ranks, int n_devices, int first_rank_id, int first
 
 // Configurable SdmaBaseConfig tests (custom block_bytes / comm_block_offset / queue_num)
 template <typename T, size_t count>
-bool RunPutAsyncWithConfig(int n_ranks, int n_devices, int first_rank_id, int first_device_id, uint64_t blockBytes,
-                           uint64_t commBlockOffset, uint32_t queueNum);
+bool RunPutAsyncWithConfig(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id, uint64_t blockBytes, uint64_t commBlockOffset,
+    uint32_t queueNum);
 
 // Multi-core tests (blockDim > 1). multiCoreMode: 0 = split, 1 = independent
 template <typename T, size_t count>
-bool RunPutAsyncMultiCore(int n_ranks, int n_devices, int first_rank_id, int first_device_id, int blockDim,
-                          int multiCoreMode);
+bool RunPutAsyncMultiCore(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id, int blockDim, int multiCoreMode);
 
 // Concurrent per-rank scatter: every rank runs nranks cores, core c pushes local
 // sendBuf to remote rank c's recvBuf via its own AsyncSession on sync channel c.
 // iters = TPUT+Wait cycles per core (mirrors DispatchGather's per-core distinct-channel + per-group Wait).
 template <typename T, size_t count>
-bool RunPutAsyncConcurrentRank(int n_ranks, int n_devices, int first_rank_id, int first_device_id, int iters,
-                               int freshSession);
+bool RunPutAsyncConcurrentRank(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id, int iters, int freshSession);

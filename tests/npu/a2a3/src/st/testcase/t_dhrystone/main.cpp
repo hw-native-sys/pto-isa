@@ -17,14 +17,12 @@ using namespace PtoTestCommon;
 
 class TDHRYSTONETest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 template <int iterations>
-void LaunchTDhrystone(void *stream);
+void LaunchTDhrystone(void* stream);
 
 template <int iterations>
 void test_tdhrystone()
@@ -39,35 +37,11 @@ void test_tdhrystone()
     EXPECT_TRUE(true);
 }
 
-TEST_F(TDHRYSTONETest, case_1000i)
-{
-    test_tdhrystone<1000>();
-}
-TEST_F(TDHRYSTONETest, case_2000i)
-{
-    test_tdhrystone<2000>();
-}
-TEST_F(TDHRYSTONETest, case_3000i)
-{
-    test_tdhrystone<3000>();
-}
-TEST_F(TDHRYSTONETest, case_4000i)
-{
-    test_tdhrystone<4000>();
-}
-TEST_F(TDHRYSTONETest, case_5000i)
-{
-    test_tdhrystone<5000>();
-}
-TEST_F(TDHRYSTONETest, case_6000i)
-{
-    test_tdhrystone<6000>();
-}
-TEST_F(TDHRYSTONETest, case_7000i)
-{
-    test_tdhrystone<7000>();
-}
-TEST_F(TDHRYSTONETest, case_8000i)
-{
-    test_tdhrystone<8000>();
-}
+TEST_F(TDHRYSTONETest, case_1000i) { test_tdhrystone<1000>(); }
+TEST_F(TDHRYSTONETest, case_2000i) { test_tdhrystone<2000>(); }
+TEST_F(TDHRYSTONETest, case_3000i) { test_tdhrystone<3000>(); }
+TEST_F(TDHRYSTONETest, case_4000i) { test_tdhrystone<4000>(); }
+TEST_F(TDHRYSTONETest, case_5000i) { test_tdhrystone<5000>(); }
+TEST_F(TDHRYSTONETest, case_6000i) { test_tdhrystone<6000>(); }
+TEST_F(TDHRYSTONETest, case_7000i) { test_tdhrystone<7000>(); }
+TEST_F(TDHRYSTONETest, case_8000i) { test_tdhrystone<8000>(); }

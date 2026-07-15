@@ -32,10 +32,10 @@ struct CoreConfig {
     int32_t aiv; // Vector core count: 910B1=48, 910B4=40 (= 2 * aic on 910B)
 };
 
-inline bool ReadCfgFile(CoreConfig &cfg)
+inline bool ReadCfgFile(CoreConfig& cfg)
 {
-    const char *candidates[] = {"syncall_core_cfg.txt", "../syncall_core_cfg.txt"};
-    for (const char *path : candidates) {
+    const char* candidates[] = {"syncall_core_cfg.txt", "../syncall_core_cfg.txt"};
+    for (const char* path : candidates) {
         std::ifstream file(path);
         if (!file.is_open()) {
             continue;

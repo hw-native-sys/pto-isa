@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class TORSTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -33,7 +31,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols>
-void LaunchTORS(T *out, T *src0, T src1, void *stream);
+void LaunchTORS(T* out, T* src0, T src1, void* stream);
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols>
 void test_tors()
@@ -49,16 +47,16 @@ void test_tors()
     T *dstDevice, *src0Device;
     T src1;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&src0Host), fileSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&src0Host), fileSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input1.bin", fileSize, src0Host, fileSize);
     std::string scalar_file = GetGoldenDir() + "/input2.bin";
     std::ifstream file(scalar_file, std::ios::binary);
-    file.read(reinterpret_cast<char *>(&src1), sizeof(T));
+    file.read(reinterpret_cast<char*>(&src1), sizeof(T));
     file.close();
 
     aclrtMemcpy(src0Device, fileSize, src0Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
@@ -89,52 +87,22 @@ void test_tors()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TORSTest, case1)
-{
-    test_tors<uint16_t, 64, 64, 64, 64>();
-}
+TEST_F(TORSTest, case1) { test_tors<uint16_t, 64, 64, 64, 64>(); }
 
-TEST_F(TORSTest, case2)
-{
-    test_tors<uint16_t, 64, 64, 63, 63>();
-}
+TEST_F(TORSTest, case2) { test_tors<uint16_t, 64, 64, 63, 63>(); }
 
-TEST_F(TORSTest, case3)
-{
-    test_tors<uint16_t, 1, 16384, 1, 16384>();
-}
+TEST_F(TORSTest, case3) { test_tors<uint16_t, 1, 16384, 1, 16384>(); }
 
-TEST_F(TORSTest, case4)
-{
-    test_tors<uint16_t, 2048, 16, 2048, 16>();
-}
+TEST_F(TORSTest, case4) { test_tors<uint16_t, 2048, 16, 2048, 16>(); }
 
-TEST_F(TORSTest, case5)
-{
-    test_tors<uint8_t, 32, 32, 32, 32>();
-}
+TEST_F(TORSTest, case5) { test_tors<uint8_t, 32, 32, 32, 32>(); }
 
-TEST_F(TORSTest, case6)
-{
-    test_tors<uint32_t, 8, 8, 8, 8>();
-}
+TEST_F(TORSTest, case6) { test_tors<uint32_t, 8, 8, 8, 8>(); }
 
-TEST_F(TORSTest, case7)
-{
-    test_tors<int8_t, 32, 32, 32, 32>();
-}
+TEST_F(TORSTest, case7) { test_tors<int8_t, 32, 32, 32, 32>(); }
 
-TEST_F(TORSTest, case8)
-{
-    test_tors<int16_t, 16, 16, 16, 16>();
-}
+TEST_F(TORSTest, case8) { test_tors<int16_t, 16, 16, 16, 16>(); }
 
-TEST_F(TORSTest, case9)
-{
-    test_tors<int32_t, 8, 8, 8, 8>();
-}
+TEST_F(TORSTest, case9) { test_tors<int32_t, 8, 8, 8, 8>(); }
 
-TEST_F(TORSTest, case10)
-{
-    test_tors<int32_t, 1, 8, 1, 8>();
-}
+TEST_F(TORSTest, case10) { test_tors<int32_t, 1, 8, 1, 8>(); }

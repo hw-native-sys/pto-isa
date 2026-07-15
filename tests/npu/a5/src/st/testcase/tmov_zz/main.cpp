@@ -17,22 +17,20 @@ using namespace PtoTestCommon;
 namespace TMovZZTest {
 
 template <int validRows, int validCols>
-void LaunchTMovZZ(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
+void LaunchTMovZZ(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
 
 template <int validRows, int validCols>
-void LaunchTMovZZ_e8m0(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
+void LaunchTMovZZ_e8m0(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
 
 class TMOVZZTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -57,13 +55,13 @@ void test_tmov_zz()
     uint8_t *dstFp8Host, *dstFp8Device, *dstE8Host, *dstE8Device;
     float *srcHost, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstFp8Host), dstFp8FileSize);
-    aclrtMallocHost((void **)(&dstE8Host), dstE8FileSize);
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
+    aclrtMallocHost((void**)(&dstFp8Host), dstFp8FileSize);
+    aclrtMallocHost((void**)(&dstE8Host), dstE8FileSize);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
 
-    aclrtMalloc((void **)&dstFp8Device, dstFp8FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&dstE8Device, dstE8FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstFp8Device, dstFp8FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstE8Device, dstE8FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", srcFileSize, srcHost, srcFileSize);
     aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
@@ -104,155 +102,65 @@ void test_tmov_zz()
     EXPECT_TRUE(ResultCmp<uint8_t>(goldenE8, outE8, 0.0f));
 }
 
-TEST_F(TMOVZZTest, case_fp32_32x64)
-{
-    test_tmov_zz<32, 64>();
-}
+TEST_F(TMOVZZTest, case_fp32_32x64) { test_tmov_zz<32, 64>(); }
 
-TEST_F(TMOVZZTest, case_fp32_64x64)
-{
-    test_tmov_zz<64, 64>();
-}
+TEST_F(TMOVZZTest, case_fp32_64x64) { test_tmov_zz<64, 64>(); }
 
-TEST_F(TMOVZZTest, case_fp32_64x128)
-{
-    test_tmov_zz<64, 128>();
-}
+TEST_F(TMOVZZTest, case_fp32_64x128) { test_tmov_zz<64, 128>(); }
 
-TEST_F(TMOVZZTest, case_fp32_64x192)
-{
-    test_tmov_zz<64, 192>();
-}
+TEST_F(TMOVZZTest, case_fp32_64x192) { test_tmov_zz<64, 192>(); }
 
-TEST_F(TMOVZZTest, case_fp32_64x256)
-{
-    test_tmov_zz<64, 256>();
-}
+TEST_F(TMOVZZTest, case_fp32_64x256) { test_tmov_zz<64, 256>(); }
 
-TEST_F(TMOVZZTest, case_fp32_64x320)
-{
-    test_tmov_zz<64, 320>();
-}
+TEST_F(TMOVZZTest, case_fp32_64x320) { test_tmov_zz<64, 320>(); }
 
-TEST_F(TMOVZZTest, case_fp32_64x384)
-{
-    test_tmov_zz<64, 384>();
-}
+TEST_F(TMOVZZTest, case_fp32_64x384) { test_tmov_zz<64, 384>(); }
 
-TEST_F(TMOVZZTest, case_fp32_64x448)
-{
-    test_tmov_zz<64, 448>();
-}
+TEST_F(TMOVZZTest, case_fp32_64x448) { test_tmov_zz<64, 448>(); }
 
-TEST_F(TMOVZZTest, case_fp32_64x512)
-{
-    test_tmov_zz<64, 512>();
-}
+TEST_F(TMOVZZTest, case_fp32_64x512) { test_tmov_zz<64, 512>(); }
 
-TEST_F(TMOVZZTest, case_fp32_64x576)
-{
-    test_tmov_zz<64, 576>();
-}
+TEST_F(TMOVZZTest, case_fp32_64x576) { test_tmov_zz<64, 576>(); }
 
-TEST_F(TMOVZZTest, case_fp32_64x640)
-{
-    test_tmov_zz<64, 640>();
-}
+TEST_F(TMOVZZTest, case_fp32_64x640) { test_tmov_zz<64, 640>(); }
 
-TEST_F(TMOVZZTest, case_fp32_64x704)
-{
-    test_tmov_zz<64, 704>();
-}
+TEST_F(TMOVZZTest, case_fp32_64x704) { test_tmov_zz<64, 704>(); }
 
-TEST_F(TMOVZZTest, case_fp32_64x768)
-{
-    test_tmov_zz<64, 768>();
-}
+TEST_F(TMOVZZTest, case_fp32_64x768) { test_tmov_zz<64, 768>(); }
 
-TEST_F(TMOVZZTest, case_fp32_64x832)
-{
-    test_tmov_zz<64, 832>();
-}
+TEST_F(TMOVZZTest, case_fp32_64x832) { test_tmov_zz<64, 832>(); }
 
-TEST_F(TMOVZZTest, case_fp32_64x896)
-{
-    test_tmov_zz<64, 896>();
-}
+TEST_F(TMOVZZTest, case_fp32_64x896) { test_tmov_zz<64, 896>(); }
 
-TEST_F(TMOVZZTest, case_fp32_128x128)
-{
-    test_tmov_zz<128, 128>();
-}
+TEST_F(TMOVZZTest, case_fp32_128x128) { test_tmov_zz<128, 128>(); }
 
-TEST_F(TMOVZZTest, case_fp32_128x256)
-{
-    test_tmov_zz<128, 256>();
-}
+TEST_F(TMOVZZTest, case_fp32_128x256) { test_tmov_zz<128, 256>(); }
 
-TEST_F(TMOVZZTest, case_fp32_128x384)
-{
-    test_tmov_zz<128, 384>();
-}
+TEST_F(TMOVZZTest, case_fp32_128x384) { test_tmov_zz<128, 384>(); }
 
-TEST_F(TMOVZZTest, case_fp32_256x192)
-{
-    test_tmov_zz<256, 192>();
-}
+TEST_F(TMOVZZTest, case_fp32_256x192) { test_tmov_zz<256, 192>(); }
 
-TEST_F(TMOVZZTest, case_fp32_8x64)
-{
-    test_tmov_zz<8, 64>();
-}
+TEST_F(TMOVZZTest, case_fp32_8x64) { test_tmov_zz<8, 64>(); }
 
-TEST_F(TMOVZZTest, case_fp32_6x64)
-{
-    test_tmov_zz<6, 64>();
-}
+TEST_F(TMOVZZTest, case_fp32_6x64) { test_tmov_zz<6, 64>(); }
 
-TEST_F(TMOVZZTest, case_fp32_13x64)
-{
-    test_tmov_zz<13, 64>();
-}
+TEST_F(TMOVZZTest, case_fp32_13x64) { test_tmov_zz<13, 64>(); }
 
-TEST_F(TMOVZZTest, case_fp32_3x64)
-{
-    test_tmov_zz<3, 64>();
-}
+TEST_F(TMOVZZTest, case_fp32_3x64) { test_tmov_zz<3, 64>(); }
 
-TEST_F(TMOVZZTest, case_fp32_29x64)
-{
-    test_tmov_zz<29, 64>();
-}
+TEST_F(TMOVZZTest, case_fp32_29x64) { test_tmov_zz<29, 64>(); }
 
-TEST_F(TMOVZZTest, case_fp32_31x64)
-{
-    test_tmov_zz<31, 64>();
-}
+TEST_F(TMOVZZTest, case_fp32_31x64) { test_tmov_zz<31, 64>(); }
 
-TEST_F(TMOVZZTest, case_fp32_47x64)
-{
-    test_tmov_zz<47, 64>();
-}
+TEST_F(TMOVZZTest, case_fp32_47x64) { test_tmov_zz<47, 64>(); }
 
-TEST_F(TMOVZZTest, case_fp32_31x128)
-{
-    test_tmov_zz<31, 128>();
-}
+TEST_F(TMOVZZTest, case_fp32_31x128) { test_tmov_zz<31, 128>(); }
 
-TEST_F(TMOVZZTest, case_fp32_47x128)
-{
-    test_tmov_zz<47, 128>();
-}
+TEST_F(TMOVZZTest, case_fp32_47x128) { test_tmov_zz<47, 128>(); }
 
-TEST_F(TMOVZZTest, case_fp32_31x256)
-{
-    test_tmov_zz<31, 256>();
-}
+TEST_F(TMOVZZTest, case_fp32_31x256) { test_tmov_zz<31, 256>(); }
 
-TEST_F(TMOVZZTest, case_fp32_47x256)
-{
-    test_tmov_zz<47, 256>();
-}
+TEST_F(TMOVZZTest, case_fp32_47x256) { test_tmov_zz<47, 256>(); }
 
 template <int validRows, int validCols>
 void test_tmov_zz_e8m0()
@@ -272,13 +180,13 @@ void test_tmov_zz_e8m0()
     uint8_t *dstFp8Host, *dstFp8Device, *dstE8Host, *dstE8Device;
     float *srcHost, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstFp8Host), dstFp8FileSize);
-    aclrtMallocHost((void **)(&dstE8Host), dstE8FileSize);
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
+    aclrtMallocHost((void**)(&dstFp8Host), dstFp8FileSize);
+    aclrtMallocHost((void**)(&dstE8Host), dstE8FileSize);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
 
-    aclrtMalloc((void **)&dstFp8Device, dstFp8FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&dstE8Device, dstE8FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstFp8Device, dstFp8FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstE8Device, dstE8FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", srcFileSize, srcHost, srcFileSize);
     aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);

@@ -17,8 +17,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 template <typename tile_shape, int stride>
-void TMAX_Impl(typename tile_shape::TileDType dst, typename tile_shape::TileDType src0,
-               typename tile_shape::TileDType src1, unsigned validRow, unsigned validCol)
+void TMAX_Impl(
+    typename tile_shape::TileDType dst, typename tile_shape::TileDType src0, typename tile_shape::TileDType src1,
+    unsigned validRow, unsigned validCol)
 {
     if constexpr (tile_shape::SFractal == SLayout::NoneBox) {
         if constexpr (tile_shape::isRowMajor) {
@@ -60,7 +61,7 @@ void TMAX_Impl(typename tile_shape::TileDType dst, typename tile_shape::TileDTyp
 }
 
 template <typename tile_shape>
-PTO_INTERNAL void TMAX_IMPL(tile_shape &dst, tile_shape &src0, tile_shape &src1)
+PTO_INTERNAL void TMAX_IMPL(tile_shape& dst, tile_shape& src0, tile_shape& src1)
 {
     unsigned row = dst.GetValidRow();
     unsigned col = dst.GetValidCol();

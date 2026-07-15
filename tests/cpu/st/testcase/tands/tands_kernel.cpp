@@ -14,7 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-AICORE void runTAnds(__gm__ T __out__ *out, __gm__ T __in__ *src, __gm__ T __in__ *scalar)
+AICORE void runTAnds(__gm__ T __out__* out, __gm__ T __in__* src, __gm__ T __in__* scalar)
 {
     using DynShapeDim5 = Shape<1, 1, 1, kGRows_, kGCols_>;
     using DynStridDim5 = Stride<1, 1, 1, kGCols_, 1>;
@@ -36,15 +36,15 @@ AICORE void runTAnds(__gm__ T __out__ *out, __gm__ T __in__ *src, __gm__ T __in_
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTAnds(T *out, T *src, T *scalar, void *stream)
+void LaunchTAnds(T* out, T* src, T* scalar, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>)
-        runTAnds<half, kGRows_, kGCols_, kTRows_, kTCols_>((half *)(out), (half *)(src), (half *)(scalar));
+        runTAnds<half, kGRows_, kGCols_, kTRows_, kTCols_>((half*)(out), (half*)(src), (half*)(scalar));
     else
         runTAnds<T, kGRows_, kGCols_, kTRows_, kTCols_>(out, src, scalar);
 }
 const int NUM_64 = 64;
-template void LaunchTAnds<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(int32_t *out, int32_t *src, int32_t *scalar,
-                                                                   void *stream);
-template void LaunchTAnds<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(int16_t *out, int16_t *src, int16_t *scalar,
-                                                                   void *stream);
+template void LaunchTAnds<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(
+    int32_t* out, int32_t* src, int32_t* scalar, void* stream);
+template void LaunchTAnds<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(
+    int16_t* out, int16_t* src, int16_t* scalar, void* stream);

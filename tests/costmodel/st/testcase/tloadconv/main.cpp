@@ -33,10 +33,10 @@ void runTloadConv()
 
     using GShape = std::conditional_t<L == Layout::NC1HWC0, Shape<N, C1, H, W, C0>, Shape<C1, H, W, N, C0>>;
 
-    GlobalTensor<T, GShape, SelectedStride, L> srcGlobal(reinterpret_cast<T *>(0x10000));
+    GlobalTensor<T, GShape, SelectedStride, L> srcGlobal(reinterpret_cast<T*>(0x10000));
 
-    using TShape = std::conditional_t<L == Layout::NC1HWC0, ConvTileShape<N, C1, H, W>,
-                                      ConvTileShape<(C1 * H * W), (N / 16), 16, C0>>;
+    using TShape = std::conditional_t<
+        L == Layout::NC1HWC0, ConvTileShape<N, C1, H, W>, ConvTileShape<(C1 * H * W), (N / 16), 16, C0>>;
 
     using MyTile = ConvTile<TileType::Mat, T, bufferSize, L, TShape>;
     MyTile convTile;
@@ -60,7 +60,7 @@ void runTloadConvFractalZ5D()
     using StrideFractalZ = Stride<(int64_t)H * W * N * C0, (int64_t)W * N * C0, (int64_t)N * C0, (int64_t)C0, 1>;
     using GShape = Shape<C1, H, W, N, C0>;
 
-    GlobalTensor<T, GShape, StrideFractalZ, L> srcGlobal(reinterpret_cast<T *>(0x10000));
+    GlobalTensor<T, GShape, StrideFractalZ, L> srcGlobal(reinterpret_cast<T*>(0x10000));
 
     using TShape = ConvTileShape<C1, H, W, N, C0>;
     using MyTile = ConvTile<TileType::Mat, T, bufferSize, L, TShape>;
@@ -76,22 +76,13 @@ void runTloadConvFractalZ5D()
 
 } // namespace
 
-TEST(TLoadConv, c01_nc1hwc0_half_1_2_4_4)
-{
-    runTloadConv<half, 1, 2, 4, 4, Layout::NC1HWC0, 28.0f, 0.464285f>();
-}
+TEST(TLoadConv, c01_nc1hwc0_half_1_2_4_4) { runTloadConv<half, 1, 2, 4, 4, Layout::NC1HWC0, 28.0f, 0.464285f>(); }
 
 TEST(TLoadConv, c02_nc1hwc0_float_1_4_10_10)
 {
     runTloadConv<float, 1, 4, 10, 10, Layout::NC1HWC0, 116.0f, 0.594827f>();
 }
 
-TEST(TLoadConv, c03_fractalz_half_16_2_1_18)
-{
-    runTloadConv<half, 16, 2, 1, 18, Layout::FRACTAL_Z, 96.0f, 0.0f>();
-}
+TEST(TLoadConv, c03_fractalz_half_16_2_1_18) { runTloadConv<half, 16, 2, 1, 18, Layout::FRACTAL_Z, 96.0f, 0.0f>(); }
 
-TEST(TLoadConv, c04_fractalz5d_int8_4_2_6_16)
-{
-    runTloadConvFractalZ5D<int8_t, 4, 2, 6, 16, 96.0f, 0.0f>();
-}
+TEST(TLoadConv, c04_fractalz5d_int8_4_2_6_16) { runTloadConvFractalZ5D<int8_t, 4, 2, 6, 16, 96.0f, 0.0f>(); }

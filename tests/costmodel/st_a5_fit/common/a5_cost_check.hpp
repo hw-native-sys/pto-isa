@@ -34,8 +34,9 @@ constexpr ::pto::mocker::lightweight::DType ToA5CostModelDType()
     }
 }
 
-template <typename T, ::pto::mocker::lightweight::PtoOpcode Op, int Rows, int Cols, int ValidRows, int ValidCols,
-          ::pto::VFImplKind VfImplKindValue = ::pto::VFImplKind::VFIMPL_DEFAULT>
+template <
+    typename T, ::pto::mocker::lightweight::PtoOpcode Op, int Rows, int Cols, int ValidRows, int ValidCols,
+    ::pto::VFImplKind VfImplKindValue = ::pto::VFImplKind::VFIMPL_DEFAULT>
 ::pto::mocker::lightweight::CostModelInput MakeA5VfInput()
 {
     return ::pto::mocker::lightweight::CostModelInput{
@@ -50,8 +51,9 @@ template <typename T, ::pto::mocker::lightweight::PtoOpcode Op, int Rows, int Co
     };
 }
 
-inline void ExpectA5CycleNear(const char *case_name, const ::pto::mocker::lightweight::CostModelInput &input,
-                              double expected_cycles, double min_precision)
+inline void ExpectA5CycleNear(
+    const char* case_name, const ::pto::mocker::lightweight::CostModelInput& input, double expected_cycles,
+    double min_precision)
 {
     ::pto::mocker::lightweight::CostModelResult result{};
     ASSERT_TRUE(::pto::mocker::lightweight::EstimateCycles(input, result)) << case_name;

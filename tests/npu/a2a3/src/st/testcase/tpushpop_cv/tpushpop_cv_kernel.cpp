@@ -36,10 +36,12 @@ AICORE constexpr inline T CeilAlign(T num_1, T num_2)
     return (num_1 + num_2 - 1) / num_2 * num_2;
 }
 
-template <typename InT, typename OutT, int TOTAL_M, int CASE_TILE_M, int K, int N,
-          TileSplitAxis SplitAxis = TileSplitAxis::TILE_UP_DOWN>
-__global__ AICORE void runTPushPopMatmulAdd(__gm__ uint64_t *ffts_addr, __gm__ OutT *out, __gm__ InT *srcA,
-                                            __gm__ InT *srcB, __gm__ OutT *bias, __gm__ OutT *fifoMem)
+template <
+    typename InT, typename OutT, int TOTAL_M, int CASE_TILE_M, int K, int N,
+    TileSplitAxis SplitAxis = TileSplitAxis::TILE_UP_DOWN>
+__global__ AICORE void runTPushPopMatmulAdd(
+    __gm__ uint64_t* ffts_addr, __gm__ OutT* out, __gm__ InT* srcA, __gm__ InT* srcB, __gm__ OutT* bias,
+    __gm__ OutT* fifoMem)
 {
     set_ffts_base_addr((uint64_t)ffts_addr);
     constexpr uint32_t TILE_K = K;
@@ -62,22 +64,26 @@ __global__ AICORE void runTPushPopMatmulAdd(__gm__ uint64_t *ffts_addr, __gm__ O
 
     // Slot size is the full AccTile regardless of split mode
     using MatPipe = TPipe<FLAG_ID, Direction::DIR_C2V, CASE_TILE_M * TILE_N * sizeof(OutT), FIFO_DEPTH>;
-    MatPipe mPipe((__gm__ void *)(uint64_t)fifoMem, 0x0, localFiFoBase);
+    MatPipe mPipe((__gm__ void*)(uint64_t)fifoMem, 0x0, localFiFoBase);
 
     constexpr uint32_t blockAlign = C0_SIZE_BYTE / sizeof(InT);
     constexpr uint32_t ALIGNED_M = CeilAlign<uint32_t>(CASE_TILE_M, 16);
     constexpr uint32_t ALIGNED_K = CeilAlign<uint32_t>(TILE_K, blockAlign);
     constexpr uint32_t ALIGNED_N = CeilAlign<uint32_t>(TILE_N, blockAlign);
 
-    using GlobalA = GlobalTensor<InT, pto::Shape<1, 1, 1, CASE_TILE_M, TILE_K>,
-                                 pto::Stride<TOTAL_M * TILE_K, TOTAL_M * TILE_K, CASE_TILE_M * TILE_K, TILE_K, 1>>;
-    using GlobalB = GlobalTensor<InT, pto::Shape<1, 1, 1, TILE_K, TILE_N>,
-                                 pto::Stride<TILE_K * TILE_N, TILE_K * TILE_N, TILE_K * TILE_N, TILE_N, 1>>;
+    using GlobalA = GlobalTensor<
+        InT, pto::Shape<1, 1, 1, CASE_TILE_M, TILE_K>,
+        pto::Stride<TOTAL_M * TILE_K, TOTAL_M * TILE_K, CASE_TILE_M * TILE_K, TILE_K, 1>>;
+    using GlobalB = GlobalTensor<
+        InT, pto::Shape<1, 1, 1, TILE_K, TILE_N>,
+        pto::Stride<TILE_K * TILE_N, TILE_K * TILE_N, TILE_K * TILE_N, TILE_N, 1>>;
     // Row stride is always TILE_N (full matrix width) so TILE_LEFT_RIGHT sub-tiles are accessed correctly
-    using GlobalBias = GlobalTensor<OutT, pto::Shape<1, 1, 1, VEC_M, VEC_N>,
-                                    pto::Stride<TOTAL_M * TILE_N, TOTAL_M * TILE_N, VEC_M * TILE_N, TILE_N, 1>>;
-    using GlobalOut = GlobalTensor<OutT, pto::Shape<1, 1, 1, VEC_M, VEC_N>,
-                                   pto::Stride<TOTAL_M * TILE_N, TOTAL_M * TILE_N, VEC_M * TILE_N, TILE_N, 1>>;
+    using GlobalBias = GlobalTensor<
+        OutT, pto::Shape<1, 1, 1, VEC_M, VEC_N>,
+        pto::Stride<TOTAL_M * TILE_N, TOTAL_M * TILE_N, VEC_M * TILE_N, TILE_N, 1>>;
+    using GlobalOut = GlobalTensor<
+        OutT, pto::Shape<1, 1, 1, VEC_M, VEC_N>,
+        pto::Stride<TOTAL_M * TILE_N, TOTAL_M * TILE_N, VEC_M * TILE_N, TILE_N, 1>>;
 
     using TileMatA =
         Tile<TileType::Mat, InT, ALIGNED_M, ALIGNED_K, BLayout::ColMajor, CASE_TILE_M, TILE_K, SLayout::RowMajor, 512>;
@@ -185,59 +191,59 @@ __global__ AICORE void runTPushPopMatmulAdd(__gm__ uint64_t *ffts_addr, __gm__ O
 }
 
 template <int32_t tilingKey>
-void LaunchTPushPopMatmulAdd(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *bias, uint8_t *fifoMem,
-                             void *stream)
+void LaunchTPushPopMatmulAdd(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* bias, uint8_t* fifoMem, void* stream)
 {
     // Keys 1-4: TILE_UP_DOWN (split along rows)
     if constexpr (tilingKey == 1) {
         runTPushPopMatmulAdd<half, float, 16, 16, 32, 32, TileSplitAxis::TILE_UP_DOWN><<<1, nullptr, stream>>>(
-            reinterpret_cast<uint64_t *>(ffts), reinterpret_cast<float *>(out), reinterpret_cast<half *>(srcA),
-            reinterpret_cast<half *>(srcB), reinterpret_cast<float *>(bias), reinterpret_cast<float *>(fifoMem));
+            reinterpret_cast<uint64_t*>(ffts), reinterpret_cast<float*>(out), reinterpret_cast<half*>(srcA),
+            reinterpret_cast<half*>(srcB), reinterpret_cast<float*>(bias), reinterpret_cast<float*>(fifoMem));
     } else if constexpr (tilingKey == 2) {
         runTPushPopMatmulAdd<half, float, 32, 16, 32, 32, TileSplitAxis::TILE_UP_DOWN><<<1, nullptr, stream>>>(
-            reinterpret_cast<uint64_t *>(ffts), reinterpret_cast<float *>(out), reinterpret_cast<half *>(srcA),
-            reinterpret_cast<half *>(srcB), reinterpret_cast<float *>(bias), reinterpret_cast<float *>(fifoMem));
+            reinterpret_cast<uint64_t*>(ffts), reinterpret_cast<float*>(out), reinterpret_cast<half*>(srcA),
+            reinterpret_cast<half*>(srcB), reinterpret_cast<float*>(bias), reinterpret_cast<float*>(fifoMem));
     } else if constexpr (tilingKey == 3) {
         runTPushPopMatmulAdd<float, float, 16, 16, 32, 32, TileSplitAxis::TILE_UP_DOWN><<<1, nullptr, stream>>>(
-            reinterpret_cast<uint64_t *>(ffts), reinterpret_cast<float *>(out), reinterpret_cast<float *>(srcA),
-            reinterpret_cast<float *>(srcB), reinterpret_cast<float *>(bias), reinterpret_cast<float *>(fifoMem));
+            reinterpret_cast<uint64_t*>(ffts), reinterpret_cast<float*>(out), reinterpret_cast<float*>(srcA),
+            reinterpret_cast<float*>(srcB), reinterpret_cast<float*>(bias), reinterpret_cast<float*>(fifoMem));
     } else if constexpr (tilingKey == 4) {
         runTPushPopMatmulAdd<half, float, 64, 16, 32, 32, TileSplitAxis::TILE_UP_DOWN><<<1, nullptr, stream>>>(
-            reinterpret_cast<uint64_t *>(ffts), reinterpret_cast<float *>(out), reinterpret_cast<half *>(srcA),
-            reinterpret_cast<half *>(srcB), reinterpret_cast<float *>(bias), reinterpret_cast<float *>(fifoMem));
+            reinterpret_cast<uint64_t*>(ffts), reinterpret_cast<float*>(out), reinterpret_cast<half*>(srcA),
+            reinterpret_cast<half*>(srcB), reinterpret_cast<float*>(bias), reinterpret_cast<float*>(fifoMem));
         // Keys 5-8: TILE_LEFT_RIGHT (split along columns)
     } else if constexpr (tilingKey == 5) {
         runTPushPopMatmulAdd<half, float, 16, 16, 32, 32, TileSplitAxis::TILE_LEFT_RIGHT><<<1, nullptr, stream>>>(
-            reinterpret_cast<uint64_t *>(ffts), reinterpret_cast<float *>(out), reinterpret_cast<half *>(srcA),
-            reinterpret_cast<half *>(srcB), reinterpret_cast<float *>(bias), reinterpret_cast<float *>(fifoMem));
+            reinterpret_cast<uint64_t*>(ffts), reinterpret_cast<float*>(out), reinterpret_cast<half*>(srcA),
+            reinterpret_cast<half*>(srcB), reinterpret_cast<float*>(bias), reinterpret_cast<float*>(fifoMem));
     } else if constexpr (tilingKey == 6) {
         runTPushPopMatmulAdd<half, float, 32, 16, 32, 32, TileSplitAxis::TILE_LEFT_RIGHT><<<1, nullptr, stream>>>(
-            reinterpret_cast<uint64_t *>(ffts), reinterpret_cast<float *>(out), reinterpret_cast<half *>(srcA),
-            reinterpret_cast<half *>(srcB), reinterpret_cast<float *>(bias), reinterpret_cast<float *>(fifoMem));
+            reinterpret_cast<uint64_t*>(ffts), reinterpret_cast<float*>(out), reinterpret_cast<half*>(srcA),
+            reinterpret_cast<half*>(srcB), reinterpret_cast<float*>(bias), reinterpret_cast<float*>(fifoMem));
     } else if constexpr (tilingKey == 7) {
         runTPushPopMatmulAdd<float, float, 16, 16, 32, 32, TileSplitAxis::TILE_LEFT_RIGHT><<<1, nullptr, stream>>>(
-            reinterpret_cast<uint64_t *>(ffts), reinterpret_cast<float *>(out), reinterpret_cast<float *>(srcA),
-            reinterpret_cast<float *>(srcB), reinterpret_cast<float *>(bias), reinterpret_cast<float *>(fifoMem));
+            reinterpret_cast<uint64_t*>(ffts), reinterpret_cast<float*>(out), reinterpret_cast<float*>(srcA),
+            reinterpret_cast<float*>(srcB), reinterpret_cast<float*>(bias), reinterpret_cast<float*>(fifoMem));
     } else if constexpr (tilingKey == 8) {
         runTPushPopMatmulAdd<half, float, 64, 16, 32, 32, TileSplitAxis::TILE_LEFT_RIGHT><<<1, nullptr, stream>>>(
-            reinterpret_cast<uint64_t *>(ffts), reinterpret_cast<float *>(out), reinterpret_cast<half *>(srcA),
-            reinterpret_cast<half *>(srcB), reinterpret_cast<float *>(bias), reinterpret_cast<float *>(fifoMem));
+            reinterpret_cast<uint64_t*>(ffts), reinterpret_cast<float*>(out), reinterpret_cast<half*>(srcA),
+            reinterpret_cast<half*>(srcB), reinterpret_cast<float*>(bias), reinterpret_cast<float*>(fifoMem));
     }
 }
 
-template void LaunchTPushPopMatmulAdd<1>(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *bias,
-                                         uint8_t *fifoMem, void *stream);
-template void LaunchTPushPopMatmulAdd<2>(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *bias,
-                                         uint8_t *fifoMem, void *stream);
-template void LaunchTPushPopMatmulAdd<3>(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *bias,
-                                         uint8_t *fifoMem, void *stream);
-template void LaunchTPushPopMatmulAdd<4>(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *bias,
-                                         uint8_t *fifoMem, void *stream);
-template void LaunchTPushPopMatmulAdd<5>(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *bias,
-                                         uint8_t *fifoMem, void *stream);
-template void LaunchTPushPopMatmulAdd<6>(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *bias,
-                                         uint8_t *fifoMem, void *stream);
-template void LaunchTPushPopMatmulAdd<7>(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *bias,
-                                         uint8_t *fifoMem, void *stream);
-template void LaunchTPushPopMatmulAdd<8>(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *bias,
-                                         uint8_t *fifoMem, void *stream);
+template void LaunchTPushPopMatmulAdd<1>(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* bias, uint8_t* fifoMem, void* stream);
+template void LaunchTPushPopMatmulAdd<2>(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* bias, uint8_t* fifoMem, void* stream);
+template void LaunchTPushPopMatmulAdd<3>(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* bias, uint8_t* fifoMem, void* stream);
+template void LaunchTPushPopMatmulAdd<4>(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* bias, uint8_t* fifoMem, void* stream);
+template void LaunchTPushPopMatmulAdd<5>(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* bias, uint8_t* fifoMem, void* stream);
+template void LaunchTPushPopMatmulAdd<6>(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* bias, uint8_t* fifoMem, void* stream);
+template void LaunchTPushPopMatmulAdd<7>(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* bias, uint8_t* fifoMem, void* stream);
+template void LaunchTPushPopMatmulAdd<8>(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* bias, uint8_t* fifoMem, void* stream);

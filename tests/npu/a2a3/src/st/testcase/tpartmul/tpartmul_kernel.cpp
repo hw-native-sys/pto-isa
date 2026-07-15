@@ -15,7 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int dstVR, int dstVC, int src0VR, int src0VC, int src1VR, int src1VC>
-__global__ AICORE void runTPartMul(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in__ *src1)
+__global__ AICORE void runTPartMul(__gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in__* src1)
 {
     constexpr uint16_t alignedSrc0VC = ((src0VC * sizeof(T) + 31) / 32) * (32 / sizeof(T));
     constexpr uint16_t alignedSrc1VC = ((src1VC * sizeof(T) + 31) / 32) * (32 / sizeof(T));
@@ -52,23 +52,23 @@ __global__ AICORE void runTPartMul(__gm__ T __out__ *out, __gm__ T __in__ *src0,
 }
 
 template <typename T, int dstVR, int dstVC, int src0VR, int src0VC, int src1VR, int src1VC>
-void LaunchTPartMul(T *out, T *src0, T *src1, void *stream)
+void LaunchTPartMul(T* out, T* src0, T* src1, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>)
         runTPartMul<half, dstVR, dstVC, src0VR, src0VC, src1VR, src1VC>
-            <<<1, nullptr, stream>>>((half *)(out), (half *)(src0), (half *)(src1));
+            <<<1, nullptr, stream>>>((half*)(out), (half*)(src0), (half*)(src1));
     else
         runTPartMul<T, dstVR, dstVC, src0VR, src0VC, src1VR, src1VC><<<1, nullptr, stream>>>(out, src0, src1);
 }
 
-template void LaunchTPartMul<float, 64, 64, 64, 64, 64, 64>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTPartMul<float, 64, 64, 8, 64, 64, 64>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTPartMul<float, 64, 64, 64, 8, 64, 64>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTPartMul<float, 64, 64, 64, 64, 8, 64>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTPartMul<float, 64, 64, 64, 64, 64, 8>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTPartMul<aclFloat16, 8, 48, 8, 16, 8, 48>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                              void *stream);
-template void LaunchTPartMul<aclFloat16, 8, 768, 8, 512, 8, 768>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                                 void *stream);
-template void LaunchTPartMul<int16_t, 8, 48, 8, 48, 8, 16>(int16_t *out, int16_t *src0, int16_t *src1, void *stream);
-template void LaunchTPartMul<int32_t, 64, 64, 8, 64, 64, 64>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
+template void LaunchTPartMul<float, 64, 64, 64, 64, 64, 64>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTPartMul<float, 64, 64, 8, 64, 64, 64>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTPartMul<float, 64, 64, 64, 8, 64, 64>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTPartMul<float, 64, 64, 64, 64, 8, 64>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTPartMul<float, 64, 64, 64, 64, 64, 8>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTPartMul<aclFloat16, 8, 48, 8, 16, 8, 48>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void LaunchTPartMul<aclFloat16, 8, 768, 8, 512, 8, 768>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void LaunchTPartMul<int16_t, 8, 48, 8, 48, 8, 16>(int16_t* out, int16_t* src0, int16_t* src1, void* stream);
+template void LaunchTPartMul<int32_t, 64, 64, 8, 64, 64, 64>(int32_t* out, int32_t* src0, int32_t* src1, void* stream);

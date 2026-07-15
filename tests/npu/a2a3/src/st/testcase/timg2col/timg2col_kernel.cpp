@@ -14,11 +14,12 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-template <typename T, typename U, uint32_t fmapN, uint32_t fmapC1, uint32_t fmapH, uint32_t fmapW, uint32_t fmapC0,
-          uint32_t filterC1, uint32_t filterH, uint32_t filterW, uint32_t filterN, uint32_t filterC0, uint32_t outC0,
-          uint8_t dilationH = 1, uint8_t dilationW = 1, uint8_t strideH = 1, uint8_t strideW = 1, uint8_t padTop = 1,
-          uint8_t padBottom = 1, uint8_t padLeft = 1, uint8_t padRight = 1>
-AICORE inline void runTIMG2COL(__gm__ T *out, __gm__ U *src0, __gm__ U *src1)
+template <
+    typename T, typename U, uint32_t fmapN, uint32_t fmapC1, uint32_t fmapH, uint32_t fmapW, uint32_t fmapC0,
+    uint32_t filterC1, uint32_t filterH, uint32_t filterW, uint32_t filterN, uint32_t filterC0, uint32_t outC0,
+    uint8_t dilationH = 1, uint8_t dilationW = 1, uint8_t strideH = 1, uint8_t strideW = 1, uint8_t padTop = 1,
+    uint8_t padBottom = 1, uint8_t padLeft = 1, uint8_t padRight = 1>
+AICORE inline void runTIMG2COL(__gm__ T* out, __gm__ U* src0, __gm__ U* src1)
 {
     constexpr uint32_t heightOut = (fmapH + padTop + padBottom - dilationH * (filterH - 1) - 1) / strideH + 1;
     constexpr uint32_t widthOut = (fmapW + padLeft + padRight - dilationW * (filterW - 1) - 1) / strideW + 1;
@@ -32,8 +33,8 @@ AICORE inline void runTIMG2COL(__gm__ T *out, __gm__ U *src0, __gm__ U *src1)
     using StridDim5Src0 = pto::Stride<gStrideSrc0[0], gStrideSrc0[1], gStrideSrc0[2], gStrideSrc0[3], gStrideSrc0[4]>;
     using GlobalDataSrc0 = GlobalTensor<U, ShapeDim5Src0, StridDim5Src0, Layout::NC1HWC0>;
 
-    constexpr int gStrideSrc1[5] = {filterH * filterW * filterN * filterC0, filterW * filterN * filterC0,
-                                    filterN * filterC0, filterC0, 1};
+    constexpr int gStrideSrc1[5] = {
+        filterH * filterW * filterN * filterC0, filterW * filterN * filterC0, filterN * filterC0, filterC0, 1};
     using ShapeDim5Src1 = pto::Shape<filterC1, filterH, filterW, filterN, filterC0>;
     using StridDim5Src1 = pto::Stride<gStrideSrc1[0], gStrideSrc1[1], gStrideSrc1[2], gStrideSrc1[3], gStrideSrc1[4]>;
     using GlobalDataSrc1 = GlobalTensor<U, ShapeDim5Src1, StridDim5Src1, Layout::FRACTAL_Z>;
@@ -44,15 +45,16 @@ AICORE inline void runTIMG2COL(__gm__ T *out, __gm__ U *src0, __gm__ U *src1)
     // for auto mode, bufferSize is a misleading variable name in convTile, it shouldn't be number of bytes it should be
     // the number of elements
     constexpr int bufferSizeA = fmapN * fmapC1 * fmapH * fmapW * fmapC0; // * sizeof(U);
-    using TileMatAData = ConvTile<TileType::Mat, U, bufferSizeA, Layout::NC1HWC0,
-                                  pto::ConvTileShape<fmapN, fmapC1, fmapH, fmapW, fmapC0>>;
+    using TileMatAData = ConvTile<
+        TileType::Mat, U, bufferSizeA, Layout::NC1HWC0, pto::ConvTileShape<fmapN, fmapC1, fmapH, fmapW, fmapC0>>;
     TileMatAData aMatTile;
     TASSIGN(aMatTile, 0x0);
     static_assert(aMatTile.totalDimCount == 5);
 
     constexpr int bufferSizeB = filterC1 * filterH * filterW * filterN * filterC0;
-    using TileMatBData = ConvTile<TileType::Mat, U, bufferSizeB, Layout::FRACTAL_Z,
-                                  pto::ConvTileShape<filterC1, filterH, filterW, filterN, filterC0>>;
+    using TileMatBData = ConvTile<
+        TileType::Mat, U, bufferSizeB, Layout::FRACTAL_Z,
+        pto::ConvTileShape<filterC1, filterH, filterW, filterN, filterC0>>;
     TileMatBData bMatTile;
     static_assert(bMatTile.totalDimCount == 5);
     TASSIGN(bMatTile, 0x40000);
@@ -126,11 +128,12 @@ AICORE constexpr inline T CeilAlign(T num_1, T num_2)
     }
     return (num_1 + num_2 - 1) / num_2 * num_2;
 }
-template <typename T, typename U, uint32_t fmapN, uint32_t fmapC1, uint32_t fmapH, uint32_t fmapW, uint32_t fmapC0,
-          uint32_t filterC1, uint32_t filterH, uint32_t filterW, uint32_t filterN, uint32_t filterC0, uint32_t outC0,
-          uint8_t dilationH = 1, uint8_t dilationW = 1, uint8_t strideH = 1, uint8_t strideW = 1, uint8_t padTop = 1,
-          uint8_t padBottom = 1, uint8_t padLeft = 1, uint8_t padRight = 1>
-AICORE inline void runTIMG2COLSplitK(__gm__ T *out, __gm__ U *src0, __gm__ U *src1)
+template <
+    typename T, typename U, uint32_t fmapN, uint32_t fmapC1, uint32_t fmapH, uint32_t fmapW, uint32_t fmapC0,
+    uint32_t filterC1, uint32_t filterH, uint32_t filterW, uint32_t filterN, uint32_t filterC0, uint32_t outC0,
+    uint8_t dilationH = 1, uint8_t dilationW = 1, uint8_t strideH = 1, uint8_t strideW = 1, uint8_t padTop = 1,
+    uint8_t padBottom = 1, uint8_t padLeft = 1, uint8_t padRight = 1>
+AICORE inline void runTIMG2COLSplitK(__gm__ T* out, __gm__ U* src0, __gm__ U* src1)
 {
     constexpr uint32_t heightOut = (fmapH + padTop + padBottom - dilationH * (filterH - 1) - 1) / strideH + 1;
     constexpr uint32_t widthOut = (fmapW + padLeft + padRight - dilationW * (filterW - 1) - 1) / strideW + 1;
@@ -150,8 +153,8 @@ AICORE inline void runTIMG2COLSplitK(__gm__ T *out, __gm__ U *src0, __gm__ U *sr
     using StridDim5Src0 = pto::Stride<gStrideSrc0[0], gStrideSrc0[1], gStrideSrc0[2], gStrideSrc0[3], gStrideSrc0[4]>;
     using GlobalDataSrc0 = GlobalTensor<U, ShapeDim5Src0, StridDim5Src0, Layout::NC1HWC0>;
 
-    constexpr int gStrideSrc1[5] = {filterH * filterW * filterN * filterC0, filterW * filterN * filterC0,
-                                    filterN * filterC0, filterC0, 1};
+    constexpr int gStrideSrc1[5] = {
+        filterH * filterW * filterN * filterC0, filterW * filterN * filterC0, filterN * filterC0, filterC0, 1};
     using ShapeDim5Src1 = pto::Shape<filterC1, filterH, filterW, filterN, filterC0>;
     using StridDim5Src1 = pto::Stride<gStrideSrc1[0], gStrideSrc1[1], gStrideSrc1[2], gStrideSrc1[3], gStrideSrc1[4]>;
     using GlobalDataSrc1 = GlobalTensor<U, ShapeDim5Src1, StridDim5Src1, Layout::FRACTAL_Z>;
@@ -160,15 +163,16 @@ AICORE inline void runTIMG2COLSplitK(__gm__ T *out, __gm__ U *src0, __gm__ U *sr
     GlobalDataSrc1 src1Global(src1);
 
     constexpr int bufferSizeA = fmapN * fmapC1 * fmapH * fmapW * fmapC0;
-    using TileMatAData = ConvTile<TileType::Mat, U, bufferSizeA, Layout::NC1HWC0,
-                                  pto::ConvTileShape<fmapN, fmapC1, fmapH, fmapW, fmapC0>>;
+    using TileMatAData = ConvTile<
+        TileType::Mat, U, bufferSizeA, Layout::NC1HWC0, pto::ConvTileShape<fmapN, fmapC1, fmapH, fmapW, fmapC0>>;
     TileMatAData aMatTile;
     static_assert(aMatTile.totalDimCount == 5);
     TASSIGN(aMatTile, 0x0);
 
     constexpr int bufferSizeB = filterC1 * filterH * filterW * filterN * filterC0;
-    using TileMatBData = ConvTile<TileType::Mat, U, bufferSizeB, Layout::FRACTAL_Z,
-                                  pto::ConvTileShape<filterC1, filterH, filterW, filterN, filterC0>>;
+    using TileMatBData = ConvTile<
+        TileType::Mat, U, bufferSizeB, Layout::FRACTAL_Z,
+        pto::ConvTileShape<filterC1, filterH, filterW, filterN, filterC0>>;
     TileMatBData bMatTile;
     static_assert(bMatTile.totalDimCount == 5);
     TASSIGN(bMatTile, 0x40000);
@@ -227,9 +231,9 @@ AICORE inline void runTIMG2COLSplitK(__gm__ T *out, __gm__ U *src0, __gm__ U *sr
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
 #endif
     if constexpr (std::is_same_v<T, int32_t>) {
-        using GlobalDataOut =
-            GlobalTensor<T, pto::Shape<1, 1, 1, validM, validN>,
-                         pto::Stride<1 * validM * validN, 1 * validM * validN, validM * validN, validN, 1>>;
+        using GlobalDataOut = GlobalTensor<
+            T, pto::Shape<1, 1, 1, validM, validN>,
+            pto::Stride<1 * validM * validN, 1 * validM * validN, validM * validN, validN, 1>>;
         GlobalDataOut dstGlobal(out);
         TSTORE(dstGlobal, cTile);
         out = dstGlobal.data();
@@ -243,11 +247,12 @@ AICORE inline void runTIMG2COLSplitK(__gm__ T *out, __gm__ U *src0, __gm__ U *sr
         out = dstGlobal.data();
     }
 }
-template <typename T, typename U, uint32_t fmapN, uint32_t fmapC1, uint32_t fmapH, uint32_t fmapW, uint32_t fmapC0,
-          uint32_t filterDim3, uint32_t filterDim2, uint32_t filterDim1, uint32_t filterDim0, uint32_t filterH,
-          uint32_t filterW, uint32_t outC0, uint8_t dilationH = 1, uint8_t dilationW = 1, uint8_t strideH = 1,
-          uint8_t strideW = 1, uint8_t padTop = 1, uint8_t padBottom = 1, uint8_t padLeft = 1, uint8_t padRight = 1>
-AICORE inline void runTIMG2COLFractalZ4D(__gm__ T *out, __gm__ U *src0, __gm__ U *src1)
+template <
+    typename T, typename U, uint32_t fmapN, uint32_t fmapC1, uint32_t fmapH, uint32_t fmapW, uint32_t fmapC0,
+    uint32_t filterDim3, uint32_t filterDim2, uint32_t filterDim1, uint32_t filterDim0, uint32_t filterH,
+    uint32_t filterW, uint32_t outC0, uint8_t dilationH = 1, uint8_t dilationW = 1, uint8_t strideH = 1,
+    uint8_t strideW = 1, uint8_t padTop = 1, uint8_t padBottom = 1, uint8_t padLeft = 1, uint8_t padRight = 1>
+AICORE inline void runTIMG2COLFractalZ4D(__gm__ T* out, __gm__ U* src0, __gm__ U* src1)
 {
     constexpr uint32_t heightOut = (fmapH + padTop + padBottom - dilationH * (filterH - 1) - 1) / strideH + 1;
     constexpr uint32_t widthOut = (fmapW + padLeft + padRight - dilationW * (filterW - 1) - 1) / strideW + 1;
@@ -267,8 +272,9 @@ AICORE inline void runTIMG2COLFractalZ4D(__gm__ T *out, __gm__ U *src0, __gm__ U
     using StridDim5Src0 = pto::Stride<gStrideSrc0[0], gStrideSrc0[1], gStrideSrc0[2], gStrideSrc0[3], gStrideSrc0[4]>;
     using GlobalDataSrc0 = GlobalTensor<U, ShapeDim5Src0, StridDim5Src0, Layout::NC1HWC0>;
 
-    constexpr int gStrideSrc1[5] = {filterDim3 * filterDim2 * filterDim1 * filterDim0,
-                                    filterDim2 * filterDim1 * filterDim0, filterDim1 * filterDim0, filterDim0, 1};
+    constexpr int gStrideSrc1[5] = {
+        filterDim3 * filterDim2 * filterDim1 * filterDim0, filterDim2 * filterDim1 * filterDim0,
+        filterDim1 * filterDim0, filterDim0, 1};
     using ShapeDim5Src1 = pto::Shape<1, filterDim3, filterDim2, filterDim1, filterDim0>;
     using StridDim5Src1 = pto::Stride<gStrideSrc1[0], gStrideSrc1[1], gStrideSrc1[2], gStrideSrc1[3], gStrideSrc1[4]>;
     using GlobalDataSrc1 = GlobalTensor<U, ShapeDim5Src1, StridDim5Src1, Layout::FRACTAL_Z>;
@@ -277,15 +283,16 @@ AICORE inline void runTIMG2COLFractalZ4D(__gm__ T *out, __gm__ U *src0, __gm__ U
     GlobalDataSrc1 src1Global(src1);
 
     constexpr int bufferSizeA = sizeof(U) * fmapN * fmapC1 * fmapH * fmapW * fmapC0;
-    using TileMatAData = ConvTile<TileType::Mat, U, bufferSizeA, Layout::NC1HWC0,
-                                  pto::ConvTileShape<fmapN, fmapC1, fmapH, fmapW, fmapC0>>;
+    using TileMatAData = ConvTile<
+        TileType::Mat, U, bufferSizeA, Layout::NC1HWC0, pto::ConvTileShape<fmapN, fmapC1, fmapH, fmapW, fmapC0>>;
     TileMatAData aMatTile;
     static_assert(aMatTile.totalDimCount == 5);
     TASSIGN(aMatTile, 0x0);
 
     constexpr int bufferSizeB = filterDim3 * filterDim2 * filterDim1 * filterDim0;
-    using TileMatBData = ConvTile<TileType::Mat, U, bufferSizeB, Layout::FRACTAL_Z,
-                                  pto::ConvTileShape<filterDim3, filterDim2, filterDim1, filterDim0>>;
+    using TileMatBData = ConvTile<
+        TileType::Mat, U, bufferSizeB, Layout::FRACTAL_Z,
+        pto::ConvTileShape<filterDim3, filterDim2, filterDim1, filterDim0>>;
     TileMatBData bMatTile;
     static_assert(bMatTile.totalDimCount == 4);
     TASSIGN(bMatTile, 0x40000);
@@ -343,24 +350,25 @@ AICORE inline void runTIMG2COLFractalZ4D(__gm__ T *out, __gm__ U *src0, __gm__ U
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
 #endif
     if constexpr (std::is_same_v<T, int32_t>) {
-        using GlobalDataOut =
-            GlobalTensor<T, pto::Shape<1, 1, 1, validM, validN>,
-                         pto::Stride<1 * validM * validN, 1 * validM * validN, validM * validN, validN, 1>>;
+        using GlobalDataOut = GlobalTensor<
+            T, pto::Shape<1, 1, 1, validM, validN>,
+            pto::Stride<1 * validM * validN, 1 * validM * validN, validM * validN, validN, 1>>;
         GlobalDataOut dstGlobal(out);
         TSTORE(dstGlobal, cTile);
         out = dstGlobal.data();
     } else {
-        using GlobalDataOut =
-            GlobalTensor<T, pto::Shape<1, filterDim2 * filterDim1 / outC0, heightOut, widthOut, outC0>,
-                         pto::Stride<filterDim2 * filterDim1 * heightOut * widthOut, heightOut * widthOut * outC0,
-                                     widthOut * outC0, outC0, 1>,
-                         Layout::NC1HWC0>;
+        using GlobalDataOut = GlobalTensor<
+            T, pto::Shape<1, filterDim2 * filterDim1 / outC0, heightOut, widthOut, outC0>,
+            pto::Stride<
+                filterDim2 * filterDim1 * heightOut * widthOut, heightOut * widthOut * outC0, widthOut * outC0, outC0,
+                1>,
+            Layout::NC1HWC0>;
         GlobalDataOut dstGlobal(out);
         TSTORE(dstGlobal, cTile);
         out = dstGlobal.data();
     }
 }
-extern "C" __global__ AICORE void launchTIMG2COL_1(__gm__ uint8_t *out, __gm__ uint8_t *src0, __gm__ uint8_t *src1)
+extern "C" __global__ AICORE void launchTIMG2COL_1(__gm__ uint8_t* out, __gm__ uint8_t* src0, __gm__ uint8_t* src1)
 {
     constexpr uint32_t fmapN = 1;
     constexpr uint32_t fmapC1 = 2;
@@ -375,11 +383,12 @@ extern "C" __global__ AICORE void launchTIMG2COL_1(__gm__ uint8_t *out, __gm__ u
     constexpr uint32_t filterC0 = 16;
     constexpr uint32_t outC0 = 16;
 
-    runTIMG2COL<float, bfloat16_t, fmapN, fmapC1, fmapH, fmapW, fmapC0, filterC1, filterH, filterW, filterN, filterC0,
-                outC0>(reinterpret_cast<__gm__ float *>(out), reinterpret_cast<__gm__ bfloat16_t *>(src0),
-                       reinterpret_cast<__gm__ bfloat16_t *>(src1));
+    runTIMG2COL<
+        float, bfloat16_t, fmapN, fmapC1, fmapH, fmapW, fmapC0, filterC1, filterH, filterW, filterN, filterC0, outC0>(
+        reinterpret_cast<__gm__ float*>(out), reinterpret_cast<__gm__ bfloat16_t*>(src0),
+        reinterpret_cast<__gm__ bfloat16_t*>(src1));
 }
-extern "C" __global__ AICORE void launchTIMG2COL_2(__gm__ uint8_t *out, __gm__ uint8_t *src0, __gm__ uint8_t *src1)
+extern "C" __global__ AICORE void launchTIMG2COL_2(__gm__ uint8_t* out, __gm__ uint8_t* src0, __gm__ uint8_t* src1)
 {
     constexpr uint32_t fmapN = 1;
     constexpr uint32_t fmapC1 = 4;
@@ -394,11 +403,12 @@ extern "C" __global__ AICORE void launchTIMG2COL_2(__gm__ uint8_t *out, __gm__ u
     constexpr uint32_t filterC0 = 16;
     constexpr uint32_t outC0 = 16;
 
-    runTIMG2COL<float, half, fmapN, fmapC1, fmapH, fmapW, fmapC0, filterC1, filterH, filterW, filterN, filterC0, outC0,
-                2, 1>(reinterpret_cast<__gm__ float *>(out), reinterpret_cast<__gm__ half *>(src0),
-                      reinterpret_cast<__gm__ half *>(src1));
+    runTIMG2COL<
+        float, half, fmapN, fmapC1, fmapH, fmapW, fmapC0, filterC1, filterH, filterW, filterN, filterC0, outC0, 2, 1>(
+        reinterpret_cast<__gm__ float*>(out), reinterpret_cast<__gm__ half*>(src0),
+        reinterpret_cast<__gm__ half*>(src1));
 }
-extern "C" __global__ AICORE void launchTIMG2COL_3(__gm__ uint8_t *out, __gm__ uint8_t *src0, __gm__ uint8_t *src1)
+extern "C" __global__ AICORE void launchTIMG2COL_3(__gm__ uint8_t* out, __gm__ uint8_t* src0, __gm__ uint8_t* src1)
 {
     constexpr uint32_t fmapN = 1;
     constexpr uint32_t fmapC1 = 4;
@@ -413,12 +423,14 @@ extern "C" __global__ AICORE void launchTIMG2COL_3(__gm__ uint8_t *out, __gm__ u
     constexpr uint32_t filterC0 = 8;
     constexpr uint32_t outC0 = 8;
 
-    runTIMG2COL<float, float, fmapN, fmapC1, fmapH, fmapW, fmapC0, filterC1, filterH, filterW, filterN, filterC0, outC0,
-                1, 1, 2, 2>(reinterpret_cast<__gm__ float *>(out), reinterpret_cast<__gm__ float *>(src0),
-                            reinterpret_cast<__gm__ float *>(src1));
+    runTIMG2COL<
+        float, float, fmapN, fmapC1, fmapH, fmapW, fmapC0, filterC1, filterH, filterW, filterN, filterC0, outC0, 1, 1,
+        2, 2>(
+        reinterpret_cast<__gm__ float*>(out), reinterpret_cast<__gm__ float*>(src0),
+        reinterpret_cast<__gm__ float*>(src1));
 }
 
-extern "C" __global__ AICORE void launchTIMG2COL_4(__gm__ uint8_t *out, __gm__ uint8_t *src0, __gm__ uint8_t *src1)
+extern "C" __global__ AICORE void launchTIMG2COL_4(__gm__ uint8_t* out, __gm__ uint8_t* src0, __gm__ uint8_t* src1)
 {
     constexpr uint32_t fmapN = 1;
     constexpr uint32_t fmapC1 = 1;
@@ -433,12 +445,13 @@ extern "C" __global__ AICORE void launchTIMG2COL_4(__gm__ uint8_t *out, __gm__ u
     constexpr uint32_t filterC0 = 32;
     constexpr uint32_t outC0 = 16;
 
-    runTIMG2COL<int32_t, int8_t, fmapN, fmapC1, fmapH, fmapW, fmapC0, filterC1, filterH, filterW, filterN, filterC0,
-                outC0>(reinterpret_cast<__gm__ int32_t *>(out), reinterpret_cast<__gm__ int8_t *>(src0),
-                       reinterpret_cast<__gm__ int8_t *>(src1));
+    runTIMG2COL<
+        int32_t, int8_t, fmapN, fmapC1, fmapH, fmapW, fmapC0, filterC1, filterH, filterW, filterN, filterC0, outC0>(
+        reinterpret_cast<__gm__ int32_t*>(out), reinterpret_cast<__gm__ int8_t*>(src0),
+        reinterpret_cast<__gm__ int8_t*>(src1));
 }
 
-extern "C" __global__ AICORE void launchTIMG2COL_5(__gm__ uint8_t *out, __gm__ uint8_t *src0, __gm__ uint8_t *src1)
+extern "C" __global__ AICORE void launchTIMG2COL_5(__gm__ uint8_t* out, __gm__ uint8_t* src0, __gm__ uint8_t* src1)
 {
     constexpr uint32_t fmapN = 1;
     constexpr uint32_t fmapC1 = 4;
@@ -453,12 +466,13 @@ extern "C" __global__ AICORE void launchTIMG2COL_5(__gm__ uint8_t *out, __gm__ u
     constexpr uint32_t filterC0 = 16;
     constexpr uint32_t outC0 = 16;
 
-    runTIMG2COLSplitK<float, bfloat16_t, fmapN, fmapC1, fmapH, fmapW, fmapC0, filterC1, filterH, filterW, filterN,
-                      filterC0, outC0, 2, 2, 2, 2, 1, 2, 1, 2>(reinterpret_cast<__gm__ float *>(out),
-                                                               reinterpret_cast<__gm__ bfloat16_t *>(src0),
-                                                               reinterpret_cast<__gm__ bfloat16_t *>(src1));
+    runTIMG2COLSplitK<
+        float, bfloat16_t, fmapN, fmapC1, fmapH, fmapW, fmapC0, filterC1, filterH, filterW, filterN, filterC0, outC0, 2,
+        2, 2, 2, 1, 2, 1, 2>(
+        reinterpret_cast<__gm__ float*>(out), reinterpret_cast<__gm__ bfloat16_t*>(src0),
+        reinterpret_cast<__gm__ bfloat16_t*>(src1));
 }
-extern "C" __global__ AICORE void launchTIMG2COL_6(__gm__ uint8_t *out, __gm__ uint8_t *src0, __gm__ uint8_t *src1)
+extern "C" __global__ AICORE void launchTIMG2COL_6(__gm__ uint8_t* out, __gm__ uint8_t* src0, __gm__ uint8_t* src1)
 {
     constexpr uint32_t fmapN = 1;
     constexpr uint32_t fmapC1 = 4;
@@ -473,12 +487,14 @@ extern "C" __global__ AICORE void launchTIMG2COL_6(__gm__ uint8_t *out, __gm__ u
     constexpr uint32_t filterC0 = 16;
     constexpr uint32_t outC0 = 16;
 
-    runTIMG2COLSplitK<float, half, fmapN, fmapC1, fmapH, fmapW, fmapC0, filterC1, filterH, filterW, filterN, filterC0,
-                      outC0, 1, 2, 2, 1>(reinterpret_cast<__gm__ float *>(out), reinterpret_cast<__gm__ half *>(src0),
-                                         reinterpret_cast<__gm__ half *>(src1));
+    runTIMG2COLSplitK<
+        float, half, fmapN, fmapC1, fmapH, fmapW, fmapC0, filterC1, filterH, filterW, filterN, filterC0, outC0, 1, 2, 2,
+        1>(
+        reinterpret_cast<__gm__ float*>(out), reinterpret_cast<__gm__ half*>(src0),
+        reinterpret_cast<__gm__ half*>(src1));
 }
 
-extern "C" __global__ AICORE void launchTIMG2COL_7(__gm__ uint8_t *out, __gm__ uint8_t *src0, __gm__ uint8_t *src1)
+extern "C" __global__ AICORE void launchTIMG2COL_7(__gm__ uint8_t* out, __gm__ uint8_t* src0, __gm__ uint8_t* src1)
 {
     constexpr uint32_t fmapN = 1;
     constexpr uint32_t fmapC1 = 2;
@@ -493,13 +509,14 @@ extern "C" __global__ AICORE void launchTIMG2COL_7(__gm__ uint8_t *out, __gm__ u
     constexpr uint32_t filterC0 = 8;
     constexpr uint32_t outC0 = 8;
 
-    runTIMG2COLSplitK<float, float, fmapN, fmapC1, fmapH, fmapW, fmapC0, filterC1, filterH, filterW, filterN, filterC0,
-                      outC0, 1, 1, 2, 2, 1, 2, 3, 0>(reinterpret_cast<__gm__ float *>(out),
-                                                     reinterpret_cast<__gm__ float *>(src0),
-                                                     reinterpret_cast<__gm__ float *>(src1));
+    runTIMG2COLSplitK<
+        float, float, fmapN, fmapC1, fmapH, fmapW, fmapC0, filterC1, filterH, filterW, filterN, filterC0, outC0, 1, 1,
+        2, 2, 1, 2, 3, 0>(
+        reinterpret_cast<__gm__ float*>(out), reinterpret_cast<__gm__ float*>(src0),
+        reinterpret_cast<__gm__ float*>(src1));
 }
 
-extern "C" __global__ AICORE void launchTIMG2COL_8(__gm__ uint8_t *out, __gm__ uint8_t *src0, __gm__ uint8_t *src1)
+extern "C" __global__ AICORE void launchTIMG2COL_8(__gm__ uint8_t* out, __gm__ uint8_t* src0, __gm__ uint8_t* src1)
 {
     constexpr uint32_t fmapN = 1;
     constexpr uint32_t fmapC1 = 2;
@@ -514,13 +531,14 @@ extern "C" __global__ AICORE void launchTIMG2COL_8(__gm__ uint8_t *out, __gm__ u
     constexpr uint32_t filterC0 = 32;
     constexpr uint32_t outC0 = 16;
 
-    runTIMG2COLSplitK<int32_t, int8_t, fmapN, fmapC1, fmapH, fmapW, fmapC0, filterC1, filterH, filterW, filterN,
-                      filterC0, outC0, 2, 2, 2, 2, 1, 1, 1, 0>(reinterpret_cast<__gm__ int32_t *>(out),
-                                                               reinterpret_cast<__gm__ int8_t *>(src0),
-                                                               reinterpret_cast<__gm__ int8_t *>(src1));
+    runTIMG2COLSplitK<
+        int32_t, int8_t, fmapN, fmapC1, fmapH, fmapW, fmapC0, filterC1, filterH, filterW, filterN, filterC0, outC0, 2,
+        2, 2, 2, 1, 1, 1, 0>(
+        reinterpret_cast<__gm__ int32_t*>(out), reinterpret_cast<__gm__ int8_t*>(src0),
+        reinterpret_cast<__gm__ int8_t*>(src1));
 }
 
-extern "C" __global__ AICORE void launchTIMG2COL_9(__gm__ uint8_t *out, __gm__ uint8_t *src0, __gm__ uint8_t *src1)
+extern "C" __global__ AICORE void launchTIMG2COL_9(__gm__ uint8_t* out, __gm__ uint8_t* src0, __gm__ uint8_t* src1)
 {
     constexpr uint32_t fmapN = 1;
     constexpr uint32_t fmapC1 = 4;
@@ -537,12 +555,13 @@ extern "C" __global__ AICORE void launchTIMG2COL_9(__gm__ uint8_t *out, __gm__ u
 
     constexpr uint32_t outC0 = 16;
 
-    runTIMG2COLFractalZ4D<float, bfloat16_t, fmapN, fmapC1, fmapH, fmapW, fmapC0, filterDim3, filterDim2, filterDim1,
-                          filterDim0, filterH, filterW, outC0, 2, 2, 2, 2, 1, 2, 1, 2>(
-        reinterpret_cast<__gm__ float *>(out), reinterpret_cast<__gm__ bfloat16_t *>(src0),
-        reinterpret_cast<__gm__ bfloat16_t *>(src1));
+    runTIMG2COLFractalZ4D<
+        float, bfloat16_t, fmapN, fmapC1, fmapH, fmapW, fmapC0, filterDim3, filterDim2, filterDim1, filterDim0, filterH,
+        filterW, outC0, 2, 2, 2, 2, 1, 2, 1, 2>(
+        reinterpret_cast<__gm__ float*>(out), reinterpret_cast<__gm__ bfloat16_t*>(src0),
+        reinterpret_cast<__gm__ bfloat16_t*>(src1));
 }
-extern "C" __global__ AICORE void launchTIMG2COL_10(__gm__ uint8_t *out, __gm__ uint8_t *src0, __gm__ uint8_t *src1)
+extern "C" __global__ AICORE void launchTIMG2COL_10(__gm__ uint8_t* out, __gm__ uint8_t* src0, __gm__ uint8_t* src1)
 {
     constexpr uint32_t fmapN = 1;
     constexpr uint32_t fmapC1 = 4;
@@ -559,13 +578,14 @@ extern "C" __global__ AICORE void launchTIMG2COL_10(__gm__ uint8_t *out, __gm__ 
 
     constexpr uint32_t outC0 = 16;
 
-    runTIMG2COLFractalZ4D<float, half, fmapN, fmapC1, fmapH, fmapW, fmapC0, filterDim3, filterDim2, filterDim1,
-                          filterDim0, filterH, filterW, outC0, 1, 2, 2, 1>(reinterpret_cast<__gm__ float *>(out),
-                                                                           reinterpret_cast<__gm__ half *>(src0),
-                                                                           reinterpret_cast<__gm__ half *>(src1));
+    runTIMG2COLFractalZ4D<
+        float, half, fmapN, fmapC1, fmapH, fmapW, fmapC0, filterDim3, filterDim2, filterDim1, filterDim0, filterH,
+        filterW, outC0, 1, 2, 2, 1>(
+        reinterpret_cast<__gm__ float*>(out), reinterpret_cast<__gm__ half*>(src0),
+        reinterpret_cast<__gm__ half*>(src1));
 }
 
-extern "C" __global__ AICORE void launchTIMG2COL_11(__gm__ uint8_t *out, __gm__ uint8_t *src0, __gm__ uint8_t *src1)
+extern "C" __global__ AICORE void launchTIMG2COL_11(__gm__ uint8_t* out, __gm__ uint8_t* src0, __gm__ uint8_t* src1)
 {
     constexpr uint32_t fmapN = 1;
     constexpr uint32_t fmapC1 = 2;
@@ -582,13 +602,14 @@ extern "C" __global__ AICORE void launchTIMG2COL_11(__gm__ uint8_t *out, __gm__ 
 
     constexpr uint32_t outC0 = 8;
 
-    runTIMG2COLFractalZ4D<float, float, fmapN, fmapC1, fmapH, fmapW, fmapC0, filterDim3, filterDim2, filterDim1,
-                          filterDim0, filterH, filterW, outC0, 1, 1, 2, 2, 1, 2, 3, 0>(
-        reinterpret_cast<__gm__ float *>(out), reinterpret_cast<__gm__ float *>(src0),
-        reinterpret_cast<__gm__ float *>(src1));
+    runTIMG2COLFractalZ4D<
+        float, float, fmapN, fmapC1, fmapH, fmapW, fmapC0, filterDim3, filterDim2, filterDim1, filterDim0, filterH,
+        filterW, outC0, 1, 1, 2, 2, 1, 2, 3, 0>(
+        reinterpret_cast<__gm__ float*>(out), reinterpret_cast<__gm__ float*>(src0),
+        reinterpret_cast<__gm__ float*>(src1));
 }
 
-extern "C" __global__ AICORE void launchTIMG2COL_12(__gm__ uint8_t *out, __gm__ uint8_t *src0, __gm__ uint8_t *src1)
+extern "C" __global__ AICORE void launchTIMG2COL_12(__gm__ uint8_t* out, __gm__ uint8_t* src0, __gm__ uint8_t* src1)
 {
     constexpr uint32_t fmapN = 1;
     constexpr uint32_t fmapC1 = 2;
@@ -605,14 +626,15 @@ extern "C" __global__ AICORE void launchTIMG2COL_12(__gm__ uint8_t *out, __gm__ 
 
     constexpr uint32_t outC0 = 16;
 
-    runTIMG2COLFractalZ4D<int32_t, int8_t, fmapN, fmapC1, fmapH, fmapW, fmapC0, filterDim3, filterDim2, filterDim1,
-                          filterDim0, filterH, filterW, outC0, 2, 2, 2, 2, 1, 1, 1, 0>(
-        reinterpret_cast<__gm__ int32_t *>(out), reinterpret_cast<__gm__ int8_t *>(src0),
-        reinterpret_cast<__gm__ int8_t *>(src1));
+    runTIMG2COLFractalZ4D<
+        int32_t, int8_t, fmapN, fmapC1, fmapH, fmapW, fmapC0, filterDim3, filterDim2, filterDim1, filterDim0, filterH,
+        filterW, outC0, 2, 2, 2, 2, 1, 1, 1, 0>(
+        reinterpret_cast<__gm__ int32_t*>(out), reinterpret_cast<__gm__ int8_t*>(src0),
+        reinterpret_cast<__gm__ int8_t*>(src1));
 }
 
 template <int32_t tilingKey>
-void launchTIMG2COL(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream)
+void launchTIMG2COL(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream)
 {
     if constexpr (tilingKey == 1) {
         launchTIMG2COL_1<<<1, nullptr, stream>>>(out, src0, src1);
@@ -641,15 +663,15 @@ void launchTIMG2COL(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream)
     }
 }
 
-template void launchTIMG2COL<1>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void launchTIMG2COL<2>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void launchTIMG2COL<3>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void launchTIMG2COL<4>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void launchTIMG2COL<5>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void launchTIMG2COL<6>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void launchTIMG2COL<7>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void launchTIMG2COL<8>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void launchTIMG2COL<9>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void launchTIMG2COL<10>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void launchTIMG2COL<11>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void launchTIMG2COL<12>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
+template void launchTIMG2COL<1>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void launchTIMG2COL<2>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void launchTIMG2COL<3>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void launchTIMG2COL<4>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void launchTIMG2COL<5>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void launchTIMG2COL<6>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void launchTIMG2COL<7>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void launchTIMG2COL<8>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void launchTIMG2COL<9>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void launchTIMG2COL<10>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void launchTIMG2COL<11>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void launchTIMG2COL<12>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);

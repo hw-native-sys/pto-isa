@@ -18,9 +18,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 template <typename T>
-struct is_one_of_mx_types : std::disjunction<std::is_same<T, float4_e2m1x2_t>, std::is_same<T, float4_e1m2x2_t>,
-                                             std::is_same<T, float8_e8m0_t>, std::is_same<T, float8_e4m3_t>,
-                                             std::is_same<T, float8_e5m2_t> > {};
+struct is_one_of_mx_types
+    : std::disjunction<
+          std::is_same<T, float4_e2m1x2_t>, std::is_same<T, float4_e1m2x2_t>, std::is_same<T, float8_e8m0_t>,
+          std::is_same<T, float8_e4m3_t>, std::is_same<T, float8_e5m2_t> > {};
 
 template <typename T>
 inline constexpr bool is_one_of_mx_types_v = is_one_of_mx_types<T>::value;
@@ -35,7 +36,7 @@ inline constexpr int GetTypeSize()
 }
 
 template <typename DstTileData, typename SrcTileData>
-inline void CheckValidConvShape(DstTileData &dst, SrcTileData &src)
+inline void CheckValidConvShape(DstTileData& dst, SrcTileData& src)
 {
     using T = typename DstTileData::DType;
     constexpr int64_t C0 = 32 / GetTypeSize<T>() * (isTwinType<T>() ? 2 : 1);
@@ -52,63 +53,69 @@ inline void CheckValidConvShape(DstTileData &dst, SrcTileData &src)
     if constexpr (src_layout == Layout::NCHW && dst_layout == Layout::NC1HWC0) {
         // NCHW (N, C, H, W) -> NC1HWC0 (N, C1, H, W, C0)
         // C1 = ceil(C / C0)
-        assert(dst.GetShape(DIM_0) == src.GetShape(DIM_0) &&                 // N
-               dst.GetShape(DIM_1) == (src.GetShape(DIM_1) + C0 - 1) / C0 && // C1
-               dst.GetShape(DIM_2) == src.GetShape(DIM_2) &&                 // H
-               dst.GetShape(DIM_3) == src.GetShape(DIM_3) &&                 // W
-               dst.GetShape(DIM_4) == C0 &&                                  // C0
-               "Shape mismatch: NCHW to NC1HWC0");
+        assert(
+            dst.GetShape(DIM_0) == src.GetShape(DIM_0) &&                 // N
+            dst.GetShape(DIM_1) == (src.GetShape(DIM_1) + C0 - 1) / C0 && // C1
+            dst.GetShape(DIM_2) == src.GetShape(DIM_2) &&                 // H
+            dst.GetShape(DIM_3) == src.GetShape(DIM_3) &&                 // W
+            dst.GetShape(DIM_4) == C0 &&                                  // C0
+            "Shape mismatch: NCHW to NC1HWC0");
     } else if constexpr (src_layout == Layout::NC1HWC0 && dst_layout == Layout::NCHW) {
         // NCHW (N, C, H, W) -> NC1HWC0 (N, C1, H, W, C0)
         // C1 = ceil(C / C0)
-        assert(dst.GetShape(DIM_0) == src.GetShape(DIM_0) &&      // N
-               dst.GetShape(DIM_1) == src.GetShape(DIM_1) * C0 && // C1
-               dst.GetShape(DIM_2) == src.GetShape(DIM_2) &&      // H
-               dst.GetShape(DIM_3) == src.GetShape(DIM_3) &&      // W
-               src.GetShape(DIM_4) == C0 && "Shape mismatch: NC1HWC0 to NCHW");
+        assert(
+            dst.GetShape(DIM_0) == src.GetShape(DIM_0) &&      // N
+            dst.GetShape(DIM_1) == src.GetShape(DIM_1) * C0 && // C1
+            dst.GetShape(DIM_2) == src.GetShape(DIM_2) &&      // H
+            dst.GetShape(DIM_3) == src.GetShape(DIM_3) &&      // W
+            src.GetShape(DIM_4) == C0 && "Shape mismatch: NC1HWC0 to NCHW");
     } else if constexpr (src_layout == Layout::NC1HWC0 && dst_layout == Layout::FRACTAL_Z) {
         // NC1HWC0 (N, C1, H, W, C0) -> C1HWN1N0C0 (C1, H, W, N1, N0, C0)
         // N = N1 * N0
-        assert(dst.GetShape(DIM_0) == src.GetShape(DIM_1) * src.GetShape(DIM_2) * src.GetShape(DIM_3) && // C1*H*W
-               dst.GetShape(DIM_1) * dst.GetShape(DIM_2) >= src.GetShape(DIM_0) &&                       // N1*N0 = N
-               dst.GetShape(DIM_3) == src.GetShape(DIM_4) &&                                             // C0
-               "Shape mismatch: NC1HWC0 to FRACTAL_Z");
+        assert(
+            dst.GetShape(DIM_0) == src.GetShape(DIM_1) * src.GetShape(DIM_2) * src.GetShape(DIM_3) && // C1*H*W
+            dst.GetShape(DIM_1) * dst.GetShape(DIM_2) >= src.GetShape(DIM_0) &&                       // N1*N0 = N
+            dst.GetShape(DIM_3) == src.GetShape(DIM_4) &&                                             // C0
+            "Shape mismatch: NC1HWC0 to FRACTAL_Z");
     } else if constexpr (src_layout == Layout::GNCHW && dst_layout == Layout::GNC1HWC0) {
         // GNCHW (G, N, C, H, W) -> GNC1HWC0 (G, N, C1, H, W, C0)
-        assert(dst.GetShape(DIM_0) == src.GetShape(DIM_0) &&                      // G
-               dst.GetShape(DIM_1) == src.GetShape(DIM_1) &&                      // N
-               dst.GetShape(DIM_3) == src.GetShape(DIM_3) &&                      // H
-               dst.GetShape(DIM_4) == src.GetShape(DIM_4) &&                      // W
-               dst.GetShape(DIM_2) == (src.GetShape(DIM_2) + C0 - 1) / C0 &&      // C1
-               dst.GetShape(DIM_5) == C0 && "Shape mismatch: GNCHW to GNC1HWC0"); // C0
+        assert(
+            dst.GetShape(DIM_0) == src.GetShape(DIM_0) &&                      // G
+            dst.GetShape(DIM_1) == src.GetShape(DIM_1) &&                      // N
+            dst.GetShape(DIM_3) == src.GetShape(DIM_3) &&                      // H
+            dst.GetShape(DIM_4) == src.GetShape(DIM_4) &&                      // W
+            dst.GetShape(DIM_2) == (src.GetShape(DIM_2) + C0 - 1) / C0 &&      // C1
+            dst.GetShape(DIM_5) == C0 && "Shape mismatch: GNCHW to GNC1HWC0"); // C0
     } else if constexpr (src_layout == Layout::GNC1HWC0 && dst_layout == Layout::FRACTAL_Z) {
         // GNC1HWC0 (G, N, C1, H, W, C0) -> C1HWGN1N0C0 (C1, H, W, G, N1, N0, C0)
         // Note: Assuming Dst shape maps dimensions G*C1*H*W as outer dimension
-        assert(dst.GetShape(DIM_0) == src.GetShape(DIM_0) * src.GetShape(DIM_2) * src.GetShape(DIM_3) *
-                                          src.GetShape(DIM_4) && // C1, H, W, G
-               dst.GetShape(DIM_1) == (src.GetShape(DIM_1) + dst.GetShape(DIM_2) - 1) / dst.GetShape(DIM_2) && // N1*N0
-               dst.GetShape(DIM_3) == src.GetShape(DIM_5) &&                                                   // C0
-               "Shape mismatch: GNC1HWC0 to FRACTAL_Z");
+        assert(
+            dst.GetShape(DIM_0) ==
+                src.GetShape(DIM_0) * src.GetShape(DIM_2) * src.GetShape(DIM_3) * src.GetShape(DIM_4) && // C1, H, W, G
+            dst.GetShape(DIM_1) == (src.GetShape(DIM_1) + dst.GetShape(DIM_2) - 1) / dst.GetShape(DIM_2) && // N1*N0
+            dst.GetShape(DIM_3) == src.GetShape(DIM_5) &&                                                   // C0
+            "Shape mismatch: GNC1HWC0 to FRACTAL_Z");
     } else if constexpr (src_layout == Layout::NCDHW && dst_layout == Layout::FRACTAL_Z_3D) {
         // NCDHW (N, C, D, H, W) -> FRACTAL_Z_3D (D, C1, H, W, N1, N0, C0)
         // Note: D, C1, H, W are merged into DIM 0 for dst.
         size_t dstC1 = dst.GetShape(DIM_0) / (src.GetShape(DIM_2) * src.GetShape(DIM_3) * src.GetShape(DIM_4));
-        assert(dstC1 == (src.GetShape(DIM_1) + C0 - 1) / C0 &&
-               dst.GetShape(DIM_1) == (src.GetShape(DIM_0) + dst.GetShape(DIM_2) - 1) / dst.GetShape(DIM_2) && // N1*N0
-               dst.GetShape(DIM_3) == C0 &&                                                                    // C0
-               "Shape mismatch: NCDHW to FRACTAL_Z_3D");
+        assert(
+            dstC1 == (src.GetShape(DIM_1) + C0 - 1) / C0 &&
+            dst.GetShape(DIM_1) == (src.GetShape(DIM_0) + dst.GetShape(DIM_2) - 1) / dst.GetShape(DIM_2) && // N1*N0
+            dst.GetShape(DIM_3) == C0 &&                                                                    // C0
+            "Shape mismatch: NCDHW to FRACTAL_Z_3D");
     }
 }
 
 template <typename DstTileData, typename SrcTileData, bool reverse = false>
-inline void TTRANS_GNCHW2NC1HWC0_Impl(DstTileData &dst, SrcTileData &src, int64_t G, int64_t N, int64_t C, int64_t H,
-                                      int64_t W)
+inline void TTRANS_GNCHW2NC1HWC0_Impl(
+    DstTileData& dst, SrcTileData& src, int64_t G, int64_t N, int64_t C, int64_t H, int64_t W)
 {
     using SrcDType = typename SrcTileData::DType;
     using DstDType = typename DstTileData::DType;
 
-    auto *src_ptr = reinterpret_cast<SrcDType *>(src.data());
-    auto *dst_ptr = reinterpret_cast<DstDType *>(dst.data());
+    auto* src_ptr = reinterpret_cast<SrcDType*>(src.data());
+    auto* dst_ptr = reinterpret_cast<DstDType*>(dst.data());
 
     constexpr int64_t C0 = (32 / GetTypeSize<SrcDType>()) * (isTwinType<DstDType>() ? 2 : 1);
     int64_t C1 = (C + C0 - 1) / C0;
@@ -152,7 +159,7 @@ inline void TTRANS_GNCHW2NC1HWC0_Impl(DstTileData &dst, SrcTileData &src, int64_
 }
 
 template <typename DstTileData, typename SrcTileData>
-inline void TTRANS_NCHW2NC1HWC0(DstTileData &dst, SrcTileData &src)
+inline void TTRANS_NCHW2NC1HWC0(DstTileData& dst, SrcTileData& src)
 {
     int64_t G = 1; // 4D layout has 1 implicit group
     int64_t N = src.GetShape(0);
@@ -164,7 +171,7 @@ inline void TTRANS_NCHW2NC1HWC0(DstTileData &dst, SrcTileData &src)
 }
 
 template <typename DstTileData, typename SrcTileData>
-inline void TTRANS_NC1HWC02NCHW(DstTileData &dst, SrcTileData &src)
+inline void TTRANS_NC1HWC02NCHW(DstTileData& dst, SrcTileData& src)
 {
     int64_t G = 1; // 4D layout has 1 implicit group
     int64_t N = dst.GetShape(0);
@@ -176,7 +183,7 @@ inline void TTRANS_NC1HWC02NCHW(DstTileData &dst, SrcTileData &src)
 }
 
 template <typename DstTileData, typename SrcTileData>
-inline void TTRANS_GNCHW2NC1HWC0(DstTileData &dst, SrcTileData &src)
+inline void TTRANS_GNCHW2NC1HWC0(DstTileData& dst, SrcTileData& src)
 {
     int64_t G = src.GetShape(0);
     int64_t N = src.GetShape(1);
@@ -188,14 +195,14 @@ inline void TTRANS_GNCHW2NC1HWC0(DstTileData &dst, SrcTileData &src)
 }
 
 template <typename DstTileData, typename SrcTileData>
-inline void TTRANS_GNC1HWC02C1HWN1N0C0_Impl(DstTileData &dst, SrcTileData &src, int64_t G, int64_t N, int64_t C1,
-                                            int64_t H, int64_t W)
+inline void TTRANS_GNC1HWC02C1HWN1N0C0_Impl(
+    DstTileData& dst, SrcTileData& src, int64_t G, int64_t N, int64_t C1, int64_t H, int64_t W)
 {
     using SrcDType = typename SrcTileData::DType;
     using DstDType = typename DstTileData::DType;
 
-    auto *src_ptr = reinterpret_cast<SrcDType *>(src.data());
-    auto *dst_ptr = reinterpret_cast<DstDType *>(dst.data());
+    auto* src_ptr = reinterpret_cast<SrcDType*>(src.data());
+    auto* dst_ptr = reinterpret_cast<DstDType*>(dst.data());
 
     int64_t N1 = dst.GetShape(1);
     int64_t N0 = dst.GetShape(2);
@@ -245,7 +252,7 @@ inline void TTRANS_GNC1HWC02C1HWN1N0C0_Impl(DstTileData &dst, SrcTileData &src, 
 }
 
 template <typename DstTileData, typename SrcTileData>
-inline void TTRANS_NC1HWC02C1HWN1N0C0(DstTileData &dst, SrcTileData &src)
+inline void TTRANS_NC1HWC02C1HWN1N0C0(DstTileData& dst, SrcTileData& src)
 {
     int64_t G = 1; // 4D layout implies 1 implicit group
     int64_t N = src.GetShape(0);
@@ -257,7 +264,7 @@ inline void TTRANS_NC1HWC02C1HWN1N0C0(DstTileData &dst, SrcTileData &src)
 }
 
 template <typename DstTileData, typename SrcTileData>
-inline void TTRANS_GNC1HWC02C1HWN1N0C0(DstTileData &dst, SrcTileData &src)
+inline void TTRANS_GNC1HWC02C1HWN1N0C0(DstTileData& dst, SrcTileData& src)
 {
     int64_t G = src.GetShape(0);
     int64_t N = src.GetShape(1);
@@ -269,13 +276,13 @@ inline void TTRANS_GNC1HWC02C1HWN1N0C0(DstTileData &dst, SrcTileData &src)
 }
 
 template <typename DstTileData, typename SrcTileData>
-inline void TTRANS_NCDHW2DC1HWN1N0C0(DstTileData &dst, SrcTileData &src)
+inline void TTRANS_NCDHW2DC1HWN1N0C0(DstTileData& dst, SrcTileData& src)
 {
     using SrcDType = typename SrcTileData::DType;
     using DstDType = typename DstTileData::DType;
 
-    const auto *src_ptr = reinterpret_cast<const SrcDType *>(src.data());
-    auto *dst_ptr = reinterpret_cast<DstDType *>(dst.data());
+    const auto* src_ptr = reinterpret_cast<const SrcDType*>(src.data());
+    auto* dst_ptr = reinterpret_cast<DstDType*>(dst.data());
 
     // Shape extraction
     const int64_t N = src.GetShape(0);
@@ -327,8 +334,8 @@ inline void TTRANS_NCDHW2DC1HWN1N0C0(DstTileData &dst, SrcTileData &src)
 }
 
 template <typename DstTileData, typename SrcTileData>
-void TTrans_Impl(typename DstTileData::TileDType dst, typename SrcTileData::TileDType src, unsigned validRow,
-                 unsigned validCol)
+void TTrans_Impl(
+    typename DstTileData::TileDType dst, typename SrcTileData::TileDType src, unsigned validRow, unsigned validCol)
 {
     for (size_t c = 0; c < validCol; c++) {
         size_t subTileSrcC = c / SrcTileData::InnerCols;
@@ -359,7 +366,7 @@ void TTrans_Impl(typename DstTileData::TileDType dst, typename SrcTileData::Tile
 }
 
 template <typename DstTileData, typename SrcTileData>
-PTO_INTERNAL void TTRANS_CONV_IMPL(DstTileData &dst, SrcTileData &src)
+PTO_INTERNAL void TTRANS_CONV_IMPL(DstTileData& dst, SrcTileData& src)
 {
     CheckValidConvShape<DstTileData, SrcTileData>(dst, src);
     constexpr Layout src_layout = SrcTileData::layout;
@@ -381,17 +388,19 @@ PTO_INTERNAL void TTRANS_CONV_IMPL(DstTileData &dst, SrcTileData &src)
 }
 
 template <typename DstTileData, typename SrcTileData, typename TmpTileData>
-PTO_INTERNAL void TTRANS_IMPL(DstTileData &dst, SrcTileData &src, TmpTileData &tmp)
+PTO_INTERNAL void TTRANS_IMPL(DstTileData& dst, SrcTileData& src, TmpTileData& tmp)
 {
     // Validate matching element widths at compilation
-    static_assert(sizeof(typename SrcTileData::DType) == sizeof(typename DstTileData::DType),
-                  "Data type sizes between source and destination tiles must match.");
+    static_assert(
+        sizeof(typename SrcTileData::DType) == sizeof(typename DstTileData::DType),
+        "Data type sizes between source and destination tiles must match.");
 
     if constexpr (is_conv_tile_v<SrcTileData> && is_conv_tile_v<DstTileData>) {
         TTRANS_CONV_IMPL(dst, src);
     } else if constexpr (is_tile_data_v<SrcTileData> && is_tile_data_v<DstTileData>) {
-        static_assert(SrcTileData::ValidRow == DstTileData::ValidCol && SrcTileData::ValidCol == DstTileData::ValidRow,
-                      "Hardware matrix tiles transpose dimension sizes must mirror match.");
+        static_assert(
+            SrcTileData::ValidRow == DstTileData::ValidCol && SrcTileData::ValidCol == DstTileData::ValidRow,
+            "Hardware matrix tiles transpose dimension sizes must mirror match.");
         unsigned validRow = src.GetValidRow();
         unsigned validCol = src.GetValidCol();
         TTrans_Impl<DstTileData, SrcTileData>(dst.data(), src.data(), validRow, validCol);

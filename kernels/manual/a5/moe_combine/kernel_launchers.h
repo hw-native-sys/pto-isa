@@ -17,9 +17,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace moe_combine {
 
-void LaunchMoeCombineKernel(MoeCombineShape shape, uint32_t myRank, uint8_t *expertOutput, uint8_t *probs,
-                            uint8_t *outputC, uint8_t *routeMeta, uint8_t *peerWindow, uint8_t *hcclCtx,
-                            uint8_t *workspace, void *stream, uint32_t launchBlockCount);
+void LaunchMoeCombineKernel(
+    MoeCombineShape shape, uint32_t myRank, uint8_t* expertOutput, uint8_t* probs, uint8_t* outputC, uint8_t* routeMeta,
+    uint8_t* peerWindow, uint8_t* hcclCtx, uint8_t* workspace, void* stream, uint32_t launchBlockCount);
 
 } // namespace moe_combine
 

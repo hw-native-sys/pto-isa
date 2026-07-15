@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class TPAIRREDUCESUMTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -33,13 +31,13 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int vRows, int vCols>
-void LaunchTPairReduceSum(T *out, T *src0, void *stream);
+void LaunchTPairReduceSum(T* out, T* src0, void* stream);
 
 template <int dstTileH, int dstTileW, int src0TileH, int src0TileW, int vRows, int vCols>
-void LaunchTPairReduceSumHalf(aclFloat16 *out, aclFloat16 *src0, void *stream);
+void LaunchTPairReduceSumHalf(aclFloat16* out, aclFloat16* src0, void* stream);
 
-template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int vRows, int vCols,
-          bool isHalf = false>
+template <
+    typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int vRows, int vCols, bool isHalf = false>
 void test_tpairreducesum()
 {
     size_t fileSizeDst = dstTileH * dstTileW * sizeof(T);
@@ -53,11 +51,11 @@ void test_tpairreducesum()
     T *dstHost, *src0Host;
     T *dstDevice, *src0Device;
 
-    aclrtMallocHost((void **)(&dstHost), fileSizeDst);
-    aclrtMallocHost((void **)(&src0Host), fileSizeSrc0);
+    aclrtMallocHost((void**)(&dstHost), fileSizeDst);
+    aclrtMallocHost((void**)(&src0Host), fileSizeSrc0);
 
-    aclrtMalloc((void **)&dstDevice, fileSizeDst, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, fileSizeSrc0, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSizeDst, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, fileSizeSrc0, ACL_MEM_MALLOC_HUGE_FIRST);
 
     aclrtMemset(dstHost, fileSizeDst, 0, fileSizeDst);
     ReadFile(GetGoldenDir() + "/input1.bin", fileSizeSrc0, src0Host, fileSizeSrc0);
@@ -94,14 +92,8 @@ void test_tpairreducesum()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TPAIRREDUCESUMTest, case_float_64x64_64x64_64x64)
-{
-    test_tpairreducesum<float, 64, 64, 64, 64, 64, 64>();
-}
-TEST_F(TPAIRREDUCESUMTest, case_float_64x128_64x128_64x128)
-{
-    test_tpairreducesum<float, 64, 128, 64, 128, 64, 128>();
-}
+TEST_F(TPAIRREDUCESUMTest, case_float_64x64_64x64_64x64) { test_tpairreducesum<float, 64, 64, 64, 64, 64, 64>(); }
+TEST_F(TPAIRREDUCESUMTest, case_float_64x128_64x128_64x128) { test_tpairreducesum<float, 64, 128, 64, 128, 64, 128>(); }
 TEST_F(TPAIRREDUCESUMTest, case_half_16x256_16x256_16x256)
 {
     test_tpairreducesum<aclFloat16, 16, 256, 16, 256, 16, 256, true>();
@@ -110,18 +102,12 @@ TEST_F(TPAIRREDUCESUMTest, case_half_16x64_16x128_16x64)
 {
     test_tpairreducesum<aclFloat16, 16, 64, 16, 128, 16, 64, true>();
 }
-TEST_F(TPAIRREDUCESUMTest, case_float_16x32_16x64_16x32)
-{
-    test_tpairreducesum<float, 16, 32, 16, 64, 16, 32>();
-}
+TEST_F(TPAIRREDUCESUMTest, case_float_16x32_16x64_16x32) { test_tpairreducesum<float, 16, 32, 16, 64, 16, 32>(); }
 TEST_F(TPAIRREDUCESUMTest, case_half_16x64_16x128_16x63)
 {
     test_tpairreducesum<aclFloat16, 16, 64, 16, 128, 16, 63, true>();
 }
-TEST_F(TPAIRREDUCESUMTest, case_float_16x32_16x64_16x31)
-{
-    test_tpairreducesum<float, 16, 32, 16, 64, 16, 31>();
-}
+TEST_F(TPAIRREDUCESUMTest, case_float_16x32_16x64_16x31) { test_tpairreducesum<float, 16, 32, 16, 64, 16, 31>(); }
 TEST_F(TPAIRREDUCESUMTest, case_half_2x128_2x128_1x106)
 {
     test_tpairreducesum<aclFloat16, 2, 128, 2, 128, 1, 106, true>();

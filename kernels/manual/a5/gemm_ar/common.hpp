@@ -27,11 +27,11 @@ using AscendC::GlobalTensor;
 #ifdef MEMORY_BASE
 
 template <typename T>
-AICORE inline __gm__ T *CommRemotePtr(__gm__ CommDeviceContext *ctx, __gm__ T *localPtr, int pe)
+AICORE inline __gm__ T* CommRemotePtr(__gm__ CommDeviceContext* ctx, __gm__ T* localPtr, int pe)
 {
     uint64_t localBase = ctx->windowsIn[ctx->rankId];
     uint64_t offset = (uint64_t)localPtr - localBase;
-    return (__gm__ T *)(ctx->windowsIn[pe] + offset);
+    return (__gm__ T*)(ctx->windowsIn[pe] + offset);
 }
 
 #endif // MEMORY_BASE

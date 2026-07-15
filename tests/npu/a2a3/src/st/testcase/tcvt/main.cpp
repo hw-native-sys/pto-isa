@@ -15,38 +15,38 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace PtoTestCommon;
 
-template <typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
-          int kValidCols_ = kTCols_>
-void launchTCVT(D *dst, S *src, void *stream);
+template <
+    typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
+    int kValidCols_ = kTCols_>
+void launchTCVT(D* dst, S* src, void* stream);
 
 // Saturation mode test launcher
 template <typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void launchTCVTSaturationTest(D *dstSaturated, D *dstTruncated, D *dstDefault, S *src, void *stream);
+void launchTCVTSaturationTest(D* dstSaturated, D* dstTruncated, D* dstDefault, S* src, void* stream);
 
 // NonSatTorch test launcher (with explicit tmp tile)
-template <typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
-          int kValidCols_ = kTCols_>
-void launchTCVTNonSatTorch(D *dst, S *src, void *stream);
+template <
+    typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
+    int kValidCols_ = kTCols_>
+void launchTCVTNonSatTorch(D* dst, S* src, void* stream);
 
 // Int4b_t (S4) conversion launchers
 // kGCols_ is the number of fp16 elements (= number of int4 elements)
 template <int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void launchTCVT_fp16_to_s4(uint8_t *dst, aclFloat16 *src, void *stream);
+void launchTCVT_fp16_to_s4(uint8_t* dst, aclFloat16* src, void* stream);
 
 template <int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void launchTCVT_s4_to_fp16(aclFloat16 *dst, uint8_t *src, void *stream);
+void launchTCVT_s4_to_fp16(aclFloat16* dst, uint8_t* src, void* stream);
 
 class TCVTTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -55,10 +55,10 @@ std::string GetGoldenDir()
 
 template <typename D, typename S>
 struct TcvtTestResources {
-    D *dstHost;
-    D *dstDevice;
-    S *srcHost;
-    S *srcDevice;
+    D* dstHost;
+    D* dstDevice;
+    S* srcHost;
+    S* srcDevice;
     size_t srcFileSize;
     size_t dstFileSize;
     aclrtStream stream;
@@ -73,17 +73,17 @@ TcvtTestResources<D, S> SetupTcvtTest()
     aclInit(nullptr);
     aclrtSetDevice(0);
     aclrtCreateStream(&res.stream);
-    aclrtMallocHost((void **)(&res.dstHost), res.dstFileSize);
-    aclrtMallocHost((void **)(&res.srcHost), res.srcFileSize);
-    aclrtMalloc((void **)&res.dstDevice, res.dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&res.srcDevice, res.srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&res.dstHost), res.dstFileSize);
+    aclrtMallocHost((void**)(&res.srcHost), res.srcFileSize);
+    aclrtMalloc((void**)&res.dstDevice, res.dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&res.srcDevice, res.srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
     ReadFile(GetGoldenDir() + "/x1_gm.bin", res.srcFileSize, res.srcHost, res.srcFileSize);
     aclrtMemcpy(res.srcDevice, res.srcFileSize, res.srcHost, res.srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     return res;
 }
 
 template <typename D, typename S>
-void CleanupTcvtTest(TcvtTestResources<D, S> &res)
+void CleanupTcvtTest(TcvtTestResources<D, S>& res)
 {
     aclrtFree(res.dstDevice);
     aclrtFree(res.srcDevice);
@@ -95,7 +95,7 @@ void CleanupTcvtTest(TcvtTestResources<D, S> &res)
 }
 
 template <typename D, int kValidRows_, int kTRows_, int kValidCols_, int kTCols_>
-bool CompareResults(const std::vector<D> &golden, const std::vector<D> &devFinal, uint32_t N)
+bool CompareResults(const std::vector<D>& golden, const std::vector<D>& devFinal, uint32_t N)
 {
     constexpr bool isPartialTile = (kValidRows_ != kTRows_) || (kValidCols_ != kTCols_);
     if constexpr (isPartialTile) {
@@ -112,13 +112,14 @@ bool CompareResults(const std::vector<D> &golden, const std::vector<D> &devFinal
     }
 }
 
-template <typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
-          int kValidCols_ = kTCols_>
+template <
+    typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
+    int kValidCols_ = kTCols_>
 void test_tcvt()
 {
     auto res = SetupTcvtTest<D, S, kGRows_, kGCols_>();
-    launchTCVT<D, S, kGRows_, kGCols_, kTRows_, kTCols_, kValidRows_, kValidCols_>(res.dstDevice, res.srcDevice,
-                                                                                   res.stream);
+    launchTCVT<D, S, kGRows_, kGCols_, kTRows_, kTCols_, kValidRows_, kValidCols_>(
+        res.dstDevice, res.srcDevice, res.stream);
     aclrtSynchronizeStream(res.stream);
     aclrtMemcpy(res.dstHost, res.dstFileSize, res.dstDevice, res.dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
     WriteFile(GetGoldenDir() + "/output_z.bin", res.dstHost, res.dstFileSize);
@@ -134,47 +135,17 @@ void test_tcvt()
 }
 
 // Macro to generate test cases for all shapes for a given type pair
-#define GENERATE_TCVT_TESTS(dst_type, src_type, type_name)       \
-    TEST_F(TCVTTest, case_##type_name##_1x32)                    \
-    {                                                            \
-        test_tcvt<dst_type, src_type, 1, 32, 1, 32>();           \
-    }                                                            \
-    TEST_F(TCVTTest, case_##type_name##_2x64)                    \
-    {                                                            \
-        test_tcvt<dst_type, src_type, 2, 64, 2, 64>();           \
-    }                                                            \
-    TEST_F(TCVTTest, case_##type_name##_4x32)                    \
-    {                                                            \
-        test_tcvt<dst_type, src_type, 4, 32, 4, 32>();           \
-    }                                                            \
-    TEST_F(TCVTTest, case_##type_name##_8x64)                    \
-    {                                                            \
-        test_tcvt<dst_type, src_type, 8, 64, 8, 64>();           \
-    }                                                            \
-    TEST_F(TCVTTest, case_##type_name##_1x256)                   \
-    {                                                            \
-        test_tcvt<dst_type, src_type, 1, 256, 1, 256>();         \
-    }                                                            \
-    TEST_F(TCVTTest, case_##type_name##_8x128)                   \
-    {                                                            \
-        test_tcvt<dst_type, src_type, 8, 128, 8, 128>();         \
-    }                                                            \
-    TEST_F(TCVTTest, case_##type_name##_4x128_4x65)              \
-    {                                                            \
-        test_tcvt<dst_type, src_type, 4, 128, 4, 128, 4, 65>();  \
-    }                                                            \
-    TEST_F(TCVTTest, case_##type_name##_4x256_4x200)             \
-    {                                                            \
-        test_tcvt<dst_type, src_type, 4, 256, 4, 256, 4, 200>(); \
-    }                                                            \
-    TEST_F(TCVTTest, case_##type_name##_1x256_1x129)             \
-    {                                                            \
-        test_tcvt<dst_type, src_type, 1, 256, 1, 256, 1, 129>(); \
-    }                                                            \
-    TEST_F(TCVTTest, case_##type_name##_2x32_2x16)               \
-    {                                                            \
-        test_tcvt<dst_type, src_type, 2, 32, 2, 32, 2, 16>();    \
-    }
+#define GENERATE_TCVT_TESTS(dst_type, src_type, type_name)                                                        \
+    TEST_F(TCVTTest, case_##type_name##_1x32) { test_tcvt<dst_type, src_type, 1, 32, 1, 32>(); }                  \
+    TEST_F(TCVTTest, case_##type_name##_2x64) { test_tcvt<dst_type, src_type, 2, 64, 2, 64>(); }                  \
+    TEST_F(TCVTTest, case_##type_name##_4x32) { test_tcvt<dst_type, src_type, 4, 32, 4, 32>(); }                  \
+    TEST_F(TCVTTest, case_##type_name##_8x64) { test_tcvt<dst_type, src_type, 8, 64, 8, 64>(); }                  \
+    TEST_F(TCVTTest, case_##type_name##_1x256) { test_tcvt<dst_type, src_type, 1, 256, 1, 256>(); }               \
+    TEST_F(TCVTTest, case_##type_name##_8x128) { test_tcvt<dst_type, src_type, 8, 128, 8, 128>(); }               \
+    TEST_F(TCVTTest, case_##type_name##_4x128_4x65) { test_tcvt<dst_type, src_type, 4, 128, 4, 128, 4, 65>(); }   \
+    TEST_F(TCVTTest, case_##type_name##_4x256_4x200) { test_tcvt<dst_type, src_type, 4, 256, 4, 256, 4, 200>(); } \
+    TEST_F(TCVTTest, case_##type_name##_1x256_1x129) { test_tcvt<dst_type, src_type, 1, 256, 1, 256, 1, 129>(); } \
+    TEST_F(TCVTTest, case_##type_name##_2x32_2x16) { test_tcvt<dst_type, src_type, 2, 32, 2, 32, 2, 16>(); }
 
 // FP32 Source → fp16, int16, int32, int64
 GENERATE_TCVT_TESTS(aclFloat16, float, fp32_fp16)
@@ -228,15 +199,15 @@ void test_tcvt_fp16_to_s4()
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    aclFloat16 *srcHost;
-    uint8_t *dstHost;
-    aclFloat16 *srcDevice;
-    uint8_t *dstDevice;
+    aclFloat16* srcHost;
+    uint8_t* dstHost;
+    aclFloat16* srcDevice;
+    uint8_t* dstDevice;
 
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", srcFileSize, srcHost, srcFileSize);
     aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
@@ -274,15 +245,15 @@ void test_tcvt_s4_to_fp16()
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    uint8_t *srcHost;
-    aclFloat16 *dstHost;
-    uint8_t *srcDevice;
-    aclFloat16 *dstDevice;
+    uint8_t* srcHost;
+    aclFloat16* dstHost;
+    uint8_t* srcDevice;
+    aclFloat16* dstDevice;
 
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", srcFileSize, srcHost, srcFileSize);
     aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
@@ -308,16 +279,10 @@ void test_tcvt_s4_to_fp16()
 }
 
 #define GENERATE_TCVT_FP16_TO_S4_TESTS(type_name, gR, gC, tR, tC) \
-    TEST_F(TCVTTest, case_##type_name##_##gR##x##gC)              \
-    {                                                             \
-        test_tcvt_fp16_to_s4<gR, gC, tR, tC>();                   \
-    }
+    TEST_F(TCVTTest, case_##type_name##_##gR##x##gC) { test_tcvt_fp16_to_s4<gR, gC, tR, tC>(); }
 
 #define GENERATE_TCVT_S4_TO_FP16_TESTS(type_name, gR, gC, tR, tC) \
-    TEST_F(TCVTTest, case_##type_name##_##gR##x##gC)              \
-    {                                                             \
-        test_tcvt_s4_to_fp16<gR, gC, tR, tC>();                   \
-    }
+    TEST_F(TCVTTest, case_##type_name##_##gR##x##gC) { test_tcvt_s4_to_fp16<gR, gC, tR, tC>(); }
 
 // FP16 → S4
 GENERATE_TCVT_FP16_TO_S4_TESTS(fp16_s4, 1, 64, 1, 64)
@@ -356,23 +321,23 @@ void test_tcvt_saturation()
     D *dstSatHost, *dstTruncHost, *dstDefaultHost, *dstSatDevice, *dstTruncDevice, *dstDefaultDevice;
     S *srcHost, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstSatHost), dstFileSize);
-    aclrtMallocHost((void **)(&dstTruncHost), dstFileSize);
-    aclrtMallocHost((void **)(&dstDefaultHost), dstFileSize);
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
+    aclrtMallocHost((void**)(&dstSatHost), dstFileSize);
+    aclrtMallocHost((void**)(&dstTruncHost), dstFileSize);
+    aclrtMallocHost((void**)(&dstDefaultHost), dstFileSize);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
 
-    aclrtMalloc((void **)&dstSatDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&dstTruncDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&dstDefaultDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstSatDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstTruncDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDefaultDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", srcFileSize, srcHost, srcFileSize);
 
     aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
     // Run saturation test - produces saturated, truncated, and default outputs
-    launchTCVTSaturationTest<D, S, kGRows_, kGCols_, kTRows_, kTCols_>(dstSatDevice, dstTruncDevice, dstDefaultDevice,
-                                                                       srcDevice, stream);
+    launchTCVTSaturationTest<D, S, kGRows_, kGCols_, kTRows_, kTCols_>(
+        dstSatDevice, dstTruncDevice, dstDefaultDevice, srcDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstSatHost, dstFileSize, dstSatDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -423,43 +388,26 @@ void test_tcvt_saturation()
 // Minimal saturation mode tests (fp32→int8 is NOT supported on A2A3 hardware)
 // Disabled at compile time by default - define ENABLE_SATURATION_TESTS to enable
 #ifdef ENABLE_SATURATION_TESTS
-TEST_F(TCVTTest, saturation_fp16_int8_1x32)
-{
-    test_tcvt_saturation<int8_t, aclFloat16, 1, 32, 1, 32>();
-}
+TEST_F(TCVTTest, saturation_fp16_int8_1x32) { test_tcvt_saturation<int8_t, aclFloat16, 1, 32, 1, 32>(); }
 
-TEST_F(TCVTTest, saturation_fp32_int16_1x32)
-{
-    test_tcvt_saturation<int16_t, float, 1, 32, 1, 32>();
-}
+TEST_F(TCVTTest, saturation_fp32_int16_1x32) { test_tcvt_saturation<int16_t, float, 1, 32, 1, 32>(); }
 
-TEST_F(TCVTTest, saturation_fp16_int16_1x32)
-{
-    test_tcvt_saturation<int16_t, aclFloat16, 1, 32, 1, 32>();
-}
+TEST_F(TCVTTest, saturation_fp16_int16_1x32) { test_tcvt_saturation<int16_t, aclFloat16, 1, 32, 1, 32>(); }
 
-TEST_F(TCVTTest, saturation_fp16_uint8_1x32)
-{
-    test_tcvt_saturation<uint8_t, aclFloat16, 1, 32, 1, 32>();
-}
+TEST_F(TCVTTest, saturation_fp16_uint8_1x32) { test_tcvt_saturation<uint8_t, aclFloat16, 1, 32, 1, 32>(); }
 
-TEST_F(TCVTTest, saturation_int64_int32_1x32)
-{
-    test_tcvt_saturation<int32_t, int64_t, 1, 32, 1, 32>();
-}
+TEST_F(TCVTTest, saturation_int64_int32_1x32) { test_tcvt_saturation<int32_t, int64_t, 1, 32, 1, 32>(); }
 
-TEST_F(TCVTTest, saturation_int32_int16_1x32)
-{
-    test_tcvt_saturation<int16_t, int32_t, 1, 32, 1, 32>();
-}
+TEST_F(TCVTTest, saturation_int32_int16_1x32) { test_tcvt_saturation<int16_t, int32_t, 1, 32, 1, 32>(); }
 #endif // ENABLE_SATURATION_TESTS
 
 // ============================================================================
 // NonSatTorch Tests (with explicit tmp tile)
 // ============================================================================
 
-template <typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
-          int kValidCols_ = kTCols_>
+template <
+    typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
+    int kValidCols_ = kTCols_>
 void test_tcvt_nonsattorch()
 {
     auto res = SetupTcvtTest<D, S, kGRows_, kGCols_>();
@@ -479,47 +427,26 @@ void test_tcvt_nonsattorch()
     EXPECT_TRUE(ret) << "NonSatTorch output mismatch";
 }
 
-TEST_F(TCVTTest, nonsattorch_fp16_int8_1x32)
-{
-    test_tcvt_nonsattorch<int8_t, aclFloat16, 1, 32, 1, 32>();
-}
+TEST_F(TCVTTest, nonsattorch_fp16_int8_1x32) { test_tcvt_nonsattorch<int8_t, aclFloat16, 1, 32, 1, 32>(); }
 
-TEST_F(TCVTTest, nonsattorch_fp16_int8_2x64)
-{
-    test_tcvt_nonsattorch<int8_t, aclFloat16, 2, 64, 2, 64>();
-}
+TEST_F(TCVTTest, nonsattorch_fp16_int8_2x64) { test_tcvt_nonsattorch<int8_t, aclFloat16, 2, 64, 2, 64>(); }
 
-TEST_F(TCVTTest, nonsattorch_fp16_int8_8x128)
-{
-    test_tcvt_nonsattorch<int8_t, aclFloat16, 8, 128, 8, 128>();
-}
+TEST_F(TCVTTest, nonsattorch_fp16_int8_8x128) { test_tcvt_nonsattorch<int8_t, aclFloat16, 8, 128, 8, 128>(); }
 
-TEST_F(TCVTTest, nonsattorch_fp16_int16_1x32)
-{
-    test_tcvt_nonsattorch<int16_t, aclFloat16, 1, 32, 1, 32>();
-}
+TEST_F(TCVTTest, nonsattorch_fp16_int16_1x32) { test_tcvt_nonsattorch<int16_t, aclFloat16, 1, 32, 1, 32>(); }
 
-TEST_F(TCVTTest, nonsattorch_fp32_int16_1x32)
-{
-    test_tcvt_nonsattorch<int16_t, float, 1, 32, 1, 32>();
-}
+TEST_F(TCVTTest, nonsattorch_fp32_int16_1x32) { test_tcvt_nonsattorch<int16_t, float, 1, 32, 1, 32>(); }
 
 TEST_F(TCVTTest, nonsattorch_fp16_int8_4x128_4x65)
 {
     test_tcvt_nonsattorch<int8_t, aclFloat16, 4, 128, 4, 128, 4, 65>();
 }
 
-TEST_F(TCVTTest, nonsattorch_fp16_int8_2x32_2x16)
-{
-    test_tcvt_nonsattorch<int8_t, aclFloat16, 2, 32, 2, 32, 2, 16>();
-}
+TEST_F(TCVTTest, nonsattorch_fp16_int8_2x32_2x16) { test_tcvt_nonsattorch<int8_t, aclFloat16, 2, 32, 2, 32, 2, 16>(); }
 
 TEST_F(TCVTTest, nonsattorch_fp16_int16_4x128_4x65)
 {
     test_tcvt_nonsattorch<int16_t, aclFloat16, 4, 128, 4, 128, 4, 65>();
 }
 
-TEST_F(TCVTTest, nonsattorch_fp32_int16_4x128_4x65)
-{
-    test_tcvt_nonsattorch<int16_t, float, 4, 128, 4, 128, 4, 65>();
-}
+TEST_F(TCVTTest, nonsattorch_fp32_int16_4x128_4x65) { test_tcvt_nonsattorch<int16_t, float, 4, 128, 4, 128, 4, 65>(); }

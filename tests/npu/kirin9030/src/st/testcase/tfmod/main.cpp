@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class TFMODTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -33,7 +31,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols, bool isHalf, bool highPrecision = false>
-void LaunchTFMod(T *out, T *src0, T *src1, void *stream);
+void LaunchTFMod(T* out, T* src0, T* src1, void* stream);
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols, bool isHalf = false, bool highPrecision = false>
 void test_tfmod()
@@ -48,13 +46,13 @@ void test_tfmod()
     T *dstHost, *src0Host, *src1Host;
     T *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&src0Host), fileSize);
-    aclrtMallocHost((void **)(&src1Host), fileSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&src0Host), fileSize);
+    aclrtMallocHost((void**)(&src1Host), fileSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input1.bin", fileSize, src0Host, fileSize);
     ReadFile(GetGoldenDir() + "/input2.bin", fileSize, src1Host, fileSize);
@@ -94,42 +92,18 @@ void test_tfmod()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TFMODTest, case1)
-{
-    test_tfmod<uint16_t, 64, 64, 64, 64>();
-}
+TEST_F(TFMODTest, case1) { test_tfmod<uint16_t, 64, 64, 64, 64>(); }
 
-TEST_F(TFMODTest, case2)
-{
-    test_tfmod<uint16_t, 64, 64, 63, 63>();
-}
+TEST_F(TFMODTest, case2) { test_tfmod<uint16_t, 64, 64, 63, 63>(); }
 
-TEST_F(TFMODTest, case3)
-{
-    test_tfmod<uint16_t, 1, 16384, 1, 16384>();
-}
+TEST_F(TFMODTest, case3) { test_tfmod<uint16_t, 1, 16384, 1, 16384>(); }
 
-TEST_F(TFMODTest, case4)
-{
-    test_tfmod<uint16_t, 512, 16, 512, 16>();
-}
+TEST_F(TFMODTest, case4) { test_tfmod<uint16_t, 512, 16, 512, 16>(); }
 
-TEST_F(TFMODTest, case6)
-{
-    test_tfmod<uint32_t, 8, 8, 8, 8>();
-}
+TEST_F(TFMODTest, case6) { test_tfmod<uint32_t, 8, 8, 8, 8>(); }
 
-TEST_F(TFMODTest, case7)
-{
-    test_tfmod<aclFloat16, 32, 32, 31, 31, true>();
-}
+TEST_F(TFMODTest, case7) { test_tfmod<aclFloat16, 32, 32, 31, 31, true>(); }
 
-TEST_F(TFMODTest, case8)
-{
-    test_tfmod<int16_t, 16, 16, 16, 16>();
-}
+TEST_F(TFMODTest, case8) { test_tfmod<int16_t, 16, 16, 16, 16>(); }
 
-TEST_F(TFMODTest, case9)
-{
-    test_tfmod<int32_t, 8, 8, 8, 8>();
-}
+TEST_F(TFMODTest, case9) { test_tfmod<int32_t, 8, 8, 8, 8>(); }

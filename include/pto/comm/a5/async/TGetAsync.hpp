@@ -22,17 +22,19 @@ namespace detail {
 
 #ifdef PTO_URMA_SUPPORTED
 template <typename GlobalDstData, typename GlobalSrcData>
-PTO_INTERNAL AsyncEvent TGET_ASYNC_URMA_IMPL(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData,
-                                             const urma::UrmaExecContext &execCtx)
+PTO_INTERNAL AsyncEvent
+TGET_ASYNC_URMA_IMPL(GlobalDstData& dstGlobalData, GlobalSrcData& srcGlobalData, const urma::UrmaExecContext& execCtx)
 {
     (void)TGetAsyncCheckTensorCompatibility<GlobalDstData, GlobalSrcData>();
 
-    PTO_ASSERT(TGetAsyncIsFlatContiguous1D(srcGlobalData),
-               "TGET_ASYNC URMA: src tensor must be flat contiguous 1D (packed layout, single logical line). "
-               "Multi-dimensional or non-contiguous tensors are not supported by URMA async path.");
-    PTO_ASSERT(TGetAsyncIsFlatContiguous1D(dstGlobalData),
-               "TGET_ASYNC URMA: dst tensor must be flat contiguous 1D (packed layout, single logical line). "
-               "Multi-dimensional or non-contiguous tensors are not supported by URMA async path.");
+    PTO_ASSERT(
+        TGetAsyncIsFlatContiguous1D(srcGlobalData),
+        "TGET_ASYNC URMA: src tensor must be flat contiguous 1D (packed layout, single logical line). "
+        "Multi-dimensional or non-contiguous tensors are not supported by URMA async path.");
+    PTO_ASSERT(
+        TGetAsyncIsFlatContiguous1D(dstGlobalData),
+        "TGET_ASYNC URMA: dst tensor must be flat contiguous 1D (packed layout, single logical line). "
+        "Multi-dimensional or non-contiguous tensors are not supported by URMA async path.");
 
     const uint32_t srcElems = TGetAsyncGetTotalElemCount(srcGlobalData);
     const uint32_t dstElems = TGetAsyncGetTotalElemCount(dstGlobalData);
@@ -40,12 +42,13 @@ PTO_INTERNAL AsyncEvent TGET_ASYNC_URMA_IMPL(GlobalDstData &dstGlobalData, Globa
 
     using T = typename GlobalSrcData::RawDType;
     const uint64_t transferSize = static_cast<uint64_t>(srcElems) * sizeof(T);
-    PTO_ASSERT(transferSize > 0 && transferSize <= urma::kUrmaMaxWqeTransferBytes,
-               "TGET_ASYNC URMA: transfer size must be in (0, 256MB] per single WQE");
+    PTO_ASSERT(
+        transferSize > 0 && transferSize <= urma::kUrmaMaxWqeTransferBytes,
+        "TGET_ASYNC URMA: transfer size must be in (0, 256MB] per single WQE");
 
-    const uint64_t eventHandle =
-        urma::__urma_get_async(reinterpret_cast<__gm__ uint8_t *>(dstGlobalData.data()),
-                               reinterpret_cast<__gm__ uint8_t *>(srcGlobalData.data()), transferSize, execCtx);
+    const uint64_t eventHandle = urma::__urma_get_async(
+        reinterpret_cast<__gm__ uint8_t*>(dstGlobalData.data()),
+        reinterpret_cast<__gm__ uint8_t*>(srcGlobalData.data()), transferSize, execCtx);
     return AsyncEvent(eventHandle, DmaEngine::URMA);
 }
 #endif
@@ -58,8 +61,8 @@ PTO_INTERNAL AsyncEvent TGET_ASYNC_URMA_IMPL(GlobalDstData &dstGlobalData, Globa
 // ============================================================================
 
 template <DmaEngine engine = DmaEngine::SDMA, typename GlobalDstData, typename GlobalSrcData>
-PTO_INTERNAL AsyncEvent TGET_ASYNC_IMPL(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData,
-                                        const AsyncSession &session)
+PTO_INTERNAL AsyncEvent
+TGET_ASYNC_IMPL(GlobalDstData& dstGlobalData, GlobalSrcData& srcGlobalData, const AsyncSession& session)
 {
     if constexpr (engine == DmaEngine::SDMA) {
         return detail::TGET_ASYNC_SDMA_IMPL(dstGlobalData, srcGlobalData, session.sdmaSession.execCtx);

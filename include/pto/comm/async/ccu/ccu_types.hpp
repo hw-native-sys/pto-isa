@@ -36,7 +36,7 @@ static_assert(sizeof(CcuGateDescriptor) == 24, "CcuGateDescriptor ABI size chang
 constexpr uint32_t CCU_GATE_MASK = 1u << 0;
 constexpr uint32_t CCU_DONE_MASK = 1u << 0;
 
-constexpr const char *CCU_GATE_ENV = "HCCL_PTO_GATE_REDUCE";
+constexpr const char* CCU_GATE_ENV = "HCCL_PTO_GATE_REDUCE";
 
 } // namespace ccu
 } // namespace comm

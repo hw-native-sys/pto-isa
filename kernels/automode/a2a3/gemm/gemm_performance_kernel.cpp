@@ -27,10 +27,12 @@ constexpr uint32_t L0_PINGPONG_BYTES = 32 * 1024; // L0A/L0B ping-pong split (32
 // The code still uses PIPE_MTE* events for synchronization because those are the underlying hardware pipes;
 // comments refer to the high-level PTO instructions to make tuning easier.
 
-template <typename T, typename U, typename S, int m, int k, int n, uint32_t singleCoreM, uint32_t singleCoreK,
-          uint32_t singleCoreN>
-AICORE inline void InitGMOffsets(__gm__ U *&currentSrc0, __gm__ S *&currentSrc1, __gm__ T *&currentDst, __gm__ T *out,
-                                 __gm__ U *src0, __gm__ S *src1)
+template <
+    typename T, typename U, typename S, int m, int k, int n, uint32_t singleCoreM, uint32_t singleCoreK,
+    uint32_t singleCoreN>
+AICORE inline void InitGMOffsets(
+    __gm__ U*& currentSrc0, __gm__ S*& currentSrc1, __gm__ T*& currentDst, __gm__ T* out, __gm__ U* src0,
+    __gm__ S* src1)
 {
     // Work partition (SPMD-style):
     // - Each core owns a contiguous C tile of shape [singleCoreM, singleCoreN].
@@ -46,9 +48,10 @@ AICORE inline void InitGMOffsets(__gm__ U *&currentSrc0, __gm__ S *&currentSrc1,
     currentDst = out + gmOffsetC;
 }
 
-template <typename T, typename U, typename S, int m, int n, uint32_t baseM, uint32_t baseN, uint32_t singleCoreK,
-          typename ResTile>
-AICORE inline void StoreResult(ResTile &cTile, __gm__ T *currentDst, uint32_t i, uint32_t j)
+template <
+    typename T, typename U, typename S, int m, int n, uint32_t baseM, uint32_t baseN, uint32_t singleCoreK,
+    typename ResTile>
+AICORE inline void StoreResult(ResTile& cTile, __gm__ T* currentDst, uint32_t i, uint32_t j)
 {
     // TSTORE stage: write the finished C tile [baseM, baseN] back to GM.
     // the data size read from L0C after single k loop is [baseM, baseN]
@@ -60,16 +63,17 @@ AICORE inline void StoreResult(ResTile &cTile, __gm__ T *currentDst, uint32_t i,
     TSTORE<STPhase::Final>(dstGlobal, cTile);
 }
 
-template <typename T, typename U, typename S, typename B, uint32_t blockDim, int m, int k, int n, int validM,
-          int validK, int validN, uint32_t singleCoreM, uint32_t singleCoreK, uint32_t singleCoreN, uint32_t baseM,
-          uint32_t baseK, uint32_t baseN, uint32_t stepM, uint32_t stepKa, uint32_t stepKb, uint32_t stepN>
-AICORE inline void RunGemmE2E(__gm__ T *out, __gm__ U *src0, __gm__ S *src1)
+template <
+    typename T, typename U, typename S, typename B, uint32_t blockDim, int m, int k, int n, int validM, int validK,
+    int validN, uint32_t singleCoreM, uint32_t singleCoreK, uint32_t singleCoreN, uint32_t baseM, uint32_t baseK,
+    uint32_t baseN, uint32_t stepM, uint32_t stepKa, uint32_t stepKb, uint32_t stepN>
+AICORE inline void RunGemmE2E(__gm__ T* out, __gm__ U* src0, __gm__ S* src1)
 {
-    __gm__ U *currentSrc0 = nullptr;
-    __gm__ S *currentSrc1 = nullptr;
-    __gm__ T *currentDst = nullptr;
-    InitGMOffsets<T, U, S, m, k, n, singleCoreM, singleCoreK, singleCoreN>(currentSrc0, currentSrc1, currentDst, out,
-                                                                           src0, src1);
+    __gm__ U* currentSrc0 = nullptr;
+    __gm__ S* currentSrc1 = nullptr;
+    __gm__ T* currentDst = nullptr;
+    InitGMOffsets<T, U, S, m, k, n, singleCoreM, singleCoreK, singleCoreN>(
+        currentSrc0, currentSrc1, currentDst, out, src0, src1);
 
     using TileMatA =
         Tile<TileType::Mat, U, baseM, baseK * stepKa, BLayout::ColMajor, baseM, baseK * stepKa, SLayout::RowMajor>;
@@ -140,19 +144,21 @@ AICORE inline void RunGemmE2E(__gm__ T *out, __gm__ U *src0, __gm__ S *src1)
     }
 }
 
-template <typename T, uint32_t blockDim, uint32_t m, uint32_t k, uint32_t n, uint32_t singleCoreM, uint32_t singleCoreK,
-          uint32_t singleCoreN, uint32_t baseM, uint32_t baseK, uint32_t baseN, uint32_t stepM, uint32_t stepKa,
-          uint32_t stepKb, uint32_t stepN>
-__global__ AICORE void GemmPerformance(__gm__ uint8_t *out, __gm__ uint8_t *src0, __gm__ uint8_t *src1)
+template <
+    typename T, uint32_t blockDim, uint32_t m, uint32_t k, uint32_t n, uint32_t singleCoreM, uint32_t singleCoreK,
+    uint32_t singleCoreN, uint32_t baseM, uint32_t baseK, uint32_t baseN, uint32_t stepM, uint32_t stepKa,
+    uint32_t stepKb, uint32_t stepN>
+__global__ AICORE void GemmPerformance(__gm__ uint8_t* out, __gm__ uint8_t* src0, __gm__ uint8_t* src1)
 {
-    RunGemmE2E<float, half, half, float, blockDim, m, k, n, m, k, n, singleCoreM, singleCoreK, singleCoreN, baseM,
-               baseK, baseN, stepM, stepKa, stepKb, stepN>(reinterpret_cast<__gm__ float *>(out),
-                                                           reinterpret_cast<__gm__ half *>(src0),
-                                                           reinterpret_cast<__gm__ half *>(src1));
+    RunGemmE2E<
+        float, half, half, float, blockDim, m, k, n, m, k, n, singleCoreM, singleCoreK, singleCoreN, baseM, baseK,
+        baseN, stepM, stepKa, stepKb, stepN>(
+        reinterpret_cast<__gm__ float*>(out), reinterpret_cast<__gm__ half*>(src0),
+        reinterpret_cast<__gm__ half*>(src1));
 }
 
 template <typename T>
-void LaunchGEMME2E(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream)
+void LaunchGEMME2E(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream)
 {
     constexpr uint32_t blockDim = 24;
     constexpr uint32_t m = 6144;
@@ -168,8 +174,9 @@ void LaunchGEMME2E(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream)
     constexpr uint32_t stepKa = 4;
     constexpr uint32_t stepKb = 4;
     constexpr uint32_t stepN = 1;
-    GemmPerformance<T, blockDim, m, k, n, singleCoreM, singleCoreK, singleCoreN, baseM, baseK, baseN, stepM, stepKa,
-                    stepKb, stepN><<<blockDim, nullptr, stream>>>(out, src0, src1);
+    GemmPerformance<
+        T, blockDim, m, k, n, singleCoreM, singleCoreK, singleCoreN, baseM, baseK, baseN, stepM, stepKa, stepKb, stepN>
+        <<<blockDim, nullptr, stream>>>(out, src0, src1);
 }
 
-template void LaunchGEMME2E<uint16_t>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
+template void LaunchGEMME2E<uint16_t>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);

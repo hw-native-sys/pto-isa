@@ -26,7 +26,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "unpermute.h"
 
 template <typename InputElement, uint32_t ExpertPerRank>
-AICORE inline void FrontRunVmsSort(FrontReorderVmsSort<InputElement> &path)
+AICORE inline void FrontRunVmsSort(FrontReorderVmsSort<InputElement>& path)
 {
     if ASCEND_IS_AIV {
         path.RunSort();
@@ -35,7 +35,7 @@ AICORE inline void FrontRunVmsSort(FrontReorderVmsSort<InputElement> &path)
 }
 
 template <typename InputElement, uint32_t ExpertPerRank>
-AICORE inline void FrontRunFullLoad(FrontReorderFullLoad<InputElement> &path)
+AICORE inline void FrontRunFullLoad(FrontReorderFullLoad<InputElement>& path)
 {
     if ASCEND_IS_AIV {
         path.RunFullLoadSort();
@@ -48,8 +48,9 @@ AICORE inline void FrontRunFullLoad(FrontReorderFullLoad<InputElement> &path)
 }
 
 template <typename InputElement, uint32_t ExpertPerRank>
-AICORE inline void FrontReorderProcess(GM_ADDR xGM, GM_ADDR expertIdGM, GM_ADDR expertTokenNumsGM, GM_ADDR workspaceGM,
-                                       const __gm__ MegaMoeTilingData *tilingData)
+AICORE inline void FrontReorderProcess(
+    GM_ADDR xGM, GM_ADDR expertIdGM, GM_ADDR expertTokenNumsGM, GM_ADDR workspaceGM,
+    const __gm__ MegaMoeTilingData* tilingData)
 {
     FrontReorderCommonState state;
     const uint32_t frontCase = tilingData->frontReorderTiling.frontCase;
@@ -69,9 +70,10 @@ AICORE inline void FrontReorderProcess(GM_ADDR xGM, GM_ADDR expertIdGM, GM_ADDR 
 template <typename CType_, uint32_t ExpertPerRank>
 class MegaMoe {
 public:
-    __aicore__ inline void Init(GM_ADDR xGM, GM_ADDR weight1GM, GM_ADDR weight2GM, GM_ADDR expertIdGM, GM_ADDR scale1GM,
-                                GM_ADDR scale2GM, GM_ADDR probs, GM_ADDR outGM, GM_ADDR expertTokenNums,
-                                GM_ADDR workspaceGM, const __gm__ MegaMoeTilingData *tilingData);
+    __aicore__ inline void Init(
+        GM_ADDR xGM, GM_ADDR weight1GM, GM_ADDR weight2GM, GM_ADDR expertIdGM, GM_ADDR scale1GM, GM_ADDR scale2GM,
+        GM_ADDR probs, GM_ADDR outGM, GM_ADDR expertTokenNums, GM_ADDR workspaceGM,
+        const __gm__ MegaMoeTilingData* tilingData);
     __aicore__ inline void Process();
 
 private:
@@ -85,15 +87,14 @@ private:
     GM_ADDR workspaceGM_ = nullptr;
     GM_ADDR probsGM_ = nullptr;
     GM_ADDR outGM_ = nullptr;
-    const __gm__ MegaMoeTilingData *tilingData_ = nullptr;
+    const __gm__ MegaMoeTilingData* tilingData_ = nullptr;
 };
 
 template <typename CType_, uint32_t ExpertPerRank>
-__aicore__ inline void MegaMoe<CType_, ExpertPerRank>::Init(GM_ADDR xGM, GM_ADDR weight1GM, GM_ADDR weight2GM,
-                                                            GM_ADDR expertIdGM, GM_ADDR scale1GM, GM_ADDR scale2GM,
-                                                            GM_ADDR probs, GM_ADDR outGM, GM_ADDR expertTokenNums,
-                                                            GM_ADDR workspaceGM,
-                                                            const __gm__ MegaMoeTilingData *tilingData)
+__aicore__ inline void MegaMoe<CType_, ExpertPerRank>::Init(
+    GM_ADDR xGM, GM_ADDR weight1GM, GM_ADDR weight2GM, GM_ADDR expertIdGM, GM_ADDR scale1GM, GM_ADDR scale2GM,
+    GM_ADDR probs, GM_ADDR outGM, GM_ADDR expertTokenNums, GM_ADDR workspaceGM,
+    const __gm__ MegaMoeTilingData* tilingData)
 {
     xGM_ = xGM;
     weight1GM_ = weight1GM;

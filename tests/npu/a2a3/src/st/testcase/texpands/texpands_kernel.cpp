@@ -17,7 +17,7 @@ using namespace pto;
 #define PAD_VALUE_MAX (1)
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kVRows_, int kVCols_, int padValueType>
-__global__ AICORE void runTEXPANDS(__gm__ T __out__ *out, float scalar)
+__global__ AICORE void runTEXPANDS(__gm__ T __out__* out, float scalar)
 {
     constexpr bool isColMajor = ((kTRows_ * sizeof(T) % 32) == 0);
     constexpr int stride3 = isColMajor ? 1 : kGCols_;
@@ -45,23 +45,23 @@ __global__ AICORE void runTEXPANDS(__gm__ T __out__ *out, float scalar)
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kVRows_, int kVCols_, int padValueType>
-void LaunchTExpandS(void *out, float scalar, void *stream)
+void LaunchTExpandS(void* out, float scalar, void* stream)
 {
     if constexpr (std::is_same_v<T, uint16_t>)
         runTEXPANDS<half, kGRows_, kGCols_, kTRows_, kTCols_, kVRows_, kVCols_, padValueType>
-            <<<1, nullptr, stream>>>((half *)out, scalar);
+            <<<1, nullptr, stream>>>((half*)out, scalar);
     else
         runTEXPANDS<T, kGRows_, kGCols_, kTRows_, kTCols_, kVRows_, kVCols_, padValueType>
-            <<<1, nullptr, stream>>>((T *)out, scalar);
+            <<<1, nullptr, stream>>>((T*)out, scalar);
 }
 
-template void LaunchTExpandS<float, 64, 64, 64, 64, 64, 64, PAD_VALUE_NULL>(void *out, float scalar, void *stream);
-template void LaunchTExpandS<int32_t, 64, 64, 64, 64, 64, 64, PAD_VALUE_NULL>(void *out, float scalar, void *stream);
-template void LaunchTExpandS<uint16_t, 64, 64, 64, 64, 64, 64, PAD_VALUE_NULL>(void *out, float scalar, void *stream);
-template void LaunchTExpandS<int16_t, 64, 64, 64, 64, 64, 64, PAD_VALUE_NULL>(void *out, float scalar, void *stream);
+template void LaunchTExpandS<float, 64, 64, 64, 64, 64, 64, PAD_VALUE_NULL>(void* out, float scalar, void* stream);
+template void LaunchTExpandS<int32_t, 64, 64, 64, 64, 64, 64, PAD_VALUE_NULL>(void* out, float scalar, void* stream);
+template void LaunchTExpandS<uint16_t, 64, 64, 64, 64, 64, 64, PAD_VALUE_NULL>(void* out, float scalar, void* stream);
+template void LaunchTExpandS<int16_t, 64, 64, 64, 64, 64, 64, PAD_VALUE_NULL>(void* out, float scalar, void* stream);
 
-template void LaunchTExpandS<float, 60, 60, 64, 64, 60, 60, PAD_VALUE_MAX>(void *out, float scalar, void *stream);
-template void LaunchTExpandS<int32_t, 60, 60, 64, 64, 60, 60, PAD_VALUE_MAX>(void *out, float scalar, void *stream);
-template void LaunchTExpandS<uint16_t, 1, 3600, 2, 4096, 1, 3600, PAD_VALUE_MAX>(void *out, float scalar, void *stream);
-template void LaunchTExpandS<int16_t, 16, 200, 20, 512, 16, 200, PAD_VALUE_MAX>(void *out, float scalar, void *stream);
-template void LaunchTExpandS<int8_t, 16, 200, 20, 512, 16, 200, PAD_VALUE_MAX>(void *out, float scalar, void *stream);
+template void LaunchTExpandS<float, 60, 60, 64, 64, 60, 60, PAD_VALUE_MAX>(void* out, float scalar, void* stream);
+template void LaunchTExpandS<int32_t, 60, 60, 64, 64, 60, 60, PAD_VALUE_MAX>(void* out, float scalar, void* stream);
+template void LaunchTExpandS<uint16_t, 1, 3600, 2, 4096, 1, 3600, PAD_VALUE_MAX>(void* out, float scalar, void* stream);
+template void LaunchTExpandS<int16_t, 16, 200, 20, 512, 16, 200, PAD_VALUE_MAX>(void* out, float scalar, void* stream);
+template void LaunchTExpandS<int8_t, 16, 200, 20, 512, 16, 200, PAD_VALUE_MAX>(void* out, float scalar, void* stream);

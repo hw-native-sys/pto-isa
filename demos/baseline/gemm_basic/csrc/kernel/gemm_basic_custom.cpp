@@ -18,8 +18,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // Placeholder for VEC compilation (the real kernel is CUBE-only).
 #include "kernel_operator.h"
 #include <pto/common/type.hpp>
-extern "C" __global__ AICORE void gemm_basic_custom(GM_ADDR a, GM_ADDR b_dn, GM_ADDR out)
-{}
+extern "C" __global__ AICORE void gemm_basic_custom(GM_ADDR a, GM_ADDR b_dn, GM_ADDR out) {}
 
 #elif (__CHECK_FEATURE_AT_PRECOMPILE) || (__CCE_AICORE__ == 220 && defined(__DAV_C220_CUBE__))
 
@@ -31,11 +30,11 @@ using namespace pto;
 
 template <typename T, typename U, typename S, int M, int K, int N, uint32_t baseM, uint32_t baseK, uint32_t baseN>
 AICORE inline void ProcessKIteration(
-    uint32_t kIter, __gm__ U *currentSrc0, __gm__ S *currentSrc1,
+    uint32_t kIter, __gm__ U* currentSrc0, __gm__ S* currentSrc1,
     Tile<TileType::Mat, U, baseM, baseK, BLayout::ColMajor, baseM, baseK, SLayout::RowMajor> aMatTile[2],
     Tile<TileType::Mat, S, baseK, baseN, BLayout::RowMajor, baseK, baseN, SLayout::ColMajor> bMatTile[2],
     TileLeft<U, baseM, baseK, baseM, baseK> aTile[2], TileRight<S, baseK, baseN, baseK, baseN> bTile[2],
-    TileAcc<T, baseM, baseN, baseM, baseN> &cTile)
+    TileAcc<T, baseM, baseN, baseM, baseN>& cTile)
 {
     using NDValidShapeA = TileShape2D<U, baseM, baseK>;
     using NDsingleCoreShapeA = BaseShape2D<U, M, K>;
@@ -72,9 +71,10 @@ AICORE inline void ProcessKIteration(
     set_flag(PIPE_M, PIPE_MTE1, (event_t)cur);
 }
 
-template <typename T, typename U, typename S, int M, int K, int N, uint32_t singleCoreM, uint32_t singleCoreK,
-          uint32_t singleCoreN, uint16_t baseM, uint16_t baseK, uint16_t baseN>
-AICORE inline void runGEMMBASIC(__gm__ T *out, __gm__ U *src0, __gm__ S *src1)
+template <
+    typename T, typename U, typename S, int M, int K, int N, uint32_t singleCoreM, uint32_t singleCoreK,
+    uint32_t singleCoreN, uint16_t baseM, uint16_t baseK, uint16_t baseN>
+AICORE inline void runGEMMBASIC(__gm__ T* out, __gm__ U* src0, __gm__ S* src1)
 {
     constexpr uint32_t mIter = M / singleCoreM;
     uint32_t mIterIdx = get_block_idx() % mIter;
@@ -82,9 +82,9 @@ AICORE inline void runGEMMBASIC(__gm__ T *out, __gm__ U *src0, __gm__ S *src1)
     uint64_t currentGmOffsetA = mIterIdx * singleCoreM * K;
     uint64_t currentGmOffsetB = nIterIdx * K * singleCoreN;
     uint64_t currentGmOffsetC = mIterIdx * singleCoreM * N + nIterIdx * singleCoreN;
-    __gm__ U *currentSrc0 = src0 + currentGmOffsetA;
-    __gm__ S *currentSrc1 = src1 + currentGmOffsetB;
-    __gm__ T *currentDst = out + currentGmOffsetC;
+    __gm__ U* currentSrc0 = src0 + currentGmOffsetA;
+    __gm__ S* currentSrc1 = src1 + currentGmOffsetB;
+    __gm__ T* currentDst = out + currentGmOffsetC;
 
     using NDValidShapeC = TileShape2D<T, baseM, baseN>;
     using NDWholeShapeC = BaseShape2D<T, M, N>;
@@ -120,8 +120,8 @@ AICORE inline void runGEMMBASIC(__gm__ T *out, __gm__ U *src0, __gm__ S *src1)
     set_flag(PIPE_M, PIPE_MTE1, EVENT_ID0);
     set_flag(PIPE_M, PIPE_MTE1, EVENT_ID1);
     for (uint32_t kIter = 0; kIter < kLoop; kIter++) {
-        ProcessKIteration<T, U, S, M, K, N, baseM, baseK, baseN>(kIter, currentSrc0, currentSrc1, aMatTile, bMatTile,
-                                                                 aTile, bTile, cTile);
+        ProcessKIteration<T, U, S, M, K, N, baseM, baseK, baseN>(
+            kIter, currentSrc0, currentSrc1, aMatTile, bMatTile, aTile, bTile, cTile);
     }
     wait_flag(PIPE_MTE1, PIPE_MTE2, EVENT_ID0);
     wait_flag(PIPE_MTE1, PIPE_MTE2, EVENT_ID1);
@@ -146,7 +146,6 @@ extern "C" __global__ AICORE void gemm_basic_custom(GM_ADDR a, GM_ADDR b_dn, GM_
     constexpr uint32_t baseK = 64;
     constexpr uint32_t baseN = 256;
     runGEMMBASIC<float, half, half, M, K, N, singleCoreM, singleCoreK, singleCoreN, baseM, baseK, baseN>(
-        reinterpret_cast<__gm__ float *>(out), reinterpret_cast<__gm__ half *>(a),
-        reinterpret_cast<__gm__ half *>(b_dn));
+        reinterpret_cast<__gm__ float*>(out), reinterpret_cast<__gm__ half*>(a), reinterpret_cast<__gm__ half*>(b_dn));
 }
 #endif

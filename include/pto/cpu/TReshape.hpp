@@ -18,7 +18,7 @@ full text of the License.
 
 namespace pto {
 template <typename TileDataOut, typename TileDataIn>
-PTO_INTERNAL void TRESHAPE_IMPL(TileDataOut &dst, TileDataIn &src)
+PTO_INTERNAL void TRESHAPE_IMPL(TileDataOut& dst, TileDataIn& src)
 {
     static_assert(is_tile_data_v<TileDataIn>, "input must be a Tile instance.");
     static_assert(is_tile_data_v<TileDataOut>, "output must be a Tile instance.");
@@ -35,24 +35,26 @@ PTO_INTERNAL void TRESHAPE_IMPL(TileDataOut &dst, TileDataIn &src)
     // 1. TileType must match
     static_assert(Loc == NewLoc, "TRESHAPE: Source and target TileType must be same.");
     // 2. Byte size must match
-    static_assert(sizeof(ElemType) * ElemNum == sizeof(NewElemType) * NewElemNum,
-                  "TRESHAPE: Total byte size must match.");
+    static_assert(
+        sizeof(ElemType) * ElemNum == sizeof(NewElemType) * NewElemNum, "TRESHAPE: Total byte size must match.");
     // 3. Element types must be compatible.
-    static_assert(std::is_same_v<std::remove_const_t<ElemType>, std::remove_const_t<NewElemType>> ||
-                      (std::is_floating_point_v<ElemType> && std::is_floating_point_v<NewElemType>) ||
-                      (std::is_integral_v<ElemType> && std::is_integral_v<NewElemType>),
-                  "TRESHAPE: Element types must be compatible.");
+    static_assert(
+        std::is_same_v<std::remove_const_t<ElemType>, std::remove_const_t<NewElemType>> ||
+            (std::is_floating_point_v<ElemType> && std::is_floating_point_v<NewElemType>) ||
+            (std::is_integral_v<ElemType> && std::is_integral_v<NewElemType>),
+        "TRESHAPE: Element types must be compatible.");
     // 4. reshape between non-boxed and boxed tile is not allowed.
-    static_assert((SFractal == SLayout::NoneBox && NewSFractal == SLayout::NoneBox) ||
-                      (SFractal != SLayout::NoneBox && NewSFractal != SLayout::NoneBox),
-                  "TRESHAPE: Cannot reshape between boxed and non-boxed layouts.");
+    static_assert(
+        (SFractal == SLayout::NoneBox && NewSFractal == SLayout::NoneBox) ||
+            (SFractal != SLayout::NoneBox && NewSFractal != SLayout::NoneBox),
+        "TRESHAPE: Cannot reshape between boxed and non-boxed layouts.");
 
 #ifdef __CPU_SIM
-    dst.data() = reinterpret_cast<NewElemType *>(src.data());
+    dst.data() = reinterpret_cast<NewElemType*>(src.data());
 #else
     constexpr size_t N = sizeof(ElemType) * ElemNum;
-    const std::byte *src_bytes = reinterpret_cast<const std::byte *>(src.data());
-    std::byte *dst_bytes = reinterpret_cast<std::byte *>(dst.data());
+    const std::byte* src_bytes = reinterpret_cast<const std::byte*>(src.data());
+    std::byte* dst_bytes = reinterpret_cast<std::byte*>(dst.data());
 
     for (size_t i = 0; i < N; ++i) {
         dst_bytes[i] = src_bytes[i];

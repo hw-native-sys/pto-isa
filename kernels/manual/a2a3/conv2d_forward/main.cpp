@@ -14,13 +14,14 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <typename T>
-void launchConv2dForward(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
+void launchConv2dForward(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 
 template <typename T, typename U>
-void conv2d_forward(uint32_t fmapN, uint32_t fmapC1, uint32_t fmapH, uint32_t fmapW, uint32_t fmapC0,
-                    uint32_t filterDim3, uint32_t filterDim2, uint32_t filterDim1, uint32_t filterDim0, uint32_t hk,
-                    uint32_t wk, uint8_t dilationH = 1, uint8_t dilationW = 1, uint8_t strideH = 1, uint8_t strideW = 1,
-                    uint8_t padTop = 1, uint8_t padBottom = 1, uint8_t padLeft = 1, uint8_t padRight = 1)
+void conv2d_forward(
+    uint32_t fmapN, uint32_t fmapC1, uint32_t fmapH, uint32_t fmapW, uint32_t fmapC0, uint32_t filterDim3,
+    uint32_t filterDim2, uint32_t filterDim1, uint32_t filterDim0, uint32_t hk, uint32_t wk, uint8_t dilationH = 1,
+    uint8_t dilationW = 1, uint8_t strideH = 1, uint8_t strideW = 1, uint8_t padTop = 1, uint8_t padBottom = 1,
+    uint8_t padLeft = 1, uint8_t padRight = 1)
 {
     uint32_t widthOut = 0;
     uint32_t heightOut = 0;
@@ -40,13 +41,13 @@ void conv2d_forward(uint32_t fmapN, uint32_t fmapC1, uint32_t fmapH, uint32_t fm
     uint8_t *dstHost, *src0Host, *src1Host;
     uint8_t *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&src0Host), aFileSize);
-    aclrtMallocHost((void **)(&src1Host), bFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&src0Host), aFileSize);
+    aclrtMallocHost((void**)(&src1Host), bFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile("../input/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile("../input/x2_gm.bin", bFileSize, src1Host, bFileSize);
@@ -98,6 +99,6 @@ int main()
     constexpr uint32_t hk = 3;
     constexpr uint32_t wk = 3;
 
-    conv2d_forward<uint16_t, uint16_t>(fmapN, fmapC1, fmapH, fmapW, fmapC0, filterDim3, filterDim2, filterDim1,
-                                       filterDim0, hk, wk);
+    conv2d_forward<uint16_t, uint16_t>(
+        fmapN, fmapC1, fmapH, fmapW, fmapC0, filterDim3, filterDim2, filterDim1, filterDim0, hk, wk);
 }

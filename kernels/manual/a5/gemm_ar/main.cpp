@@ -66,11 +66,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // Standalone bridge only: official 9.0 documentation assumes framework-managed
 // GetHcclContext<0>(), but this manual kernel launcher still has to bootstrap
 // the communication resource explicitly on the host side.
-extern "C" HcclResult HcclAllocComResourceByTiling(HcclComm comm, void *stream, void *mc2Tiling, void **commContext);
-extern "C" HcclResult HcomGetCommHandleByGroup(const char *group, HcclComm *commHandle);
+extern "C" HcclResult HcclAllocComResourceByTiling(HcclComm comm, void* stream, void* mc2Tiling, void** commContext);
+extern "C" HcclResult HcomGetCommHandleByGroup(const char* group, HcclComm* commHandle);
 
 using CommTopo = uint32_t;
-extern "C" HcclResult HcomGetL0TopoTypeEx(const char *group, CommTopo *topoType, uint32_t isSetDevice);
+extern "C" HcclResult HcomGetL0TopoTypeEx(const char* group, CommTopo* topoType, uint32_t isSetDevice);
 static constexpr uint32_t COMM_IS_NOT_SET_DEVICE = 0;
 static constexpr uint32_t COMM_TOPO_MESH = 0b1u;
 static constexpr size_t WINDOW_GUARD_BYTES = 4096;
@@ -289,9 +289,9 @@ inline void HcclHostBarrier(HcclComm comm, aclrtStream stream)
     aclrtSynchronizeStream(stream);
 }
 
-inline void *WindowAlloc(uint64_t windowBase, size_t &offset, size_t bytes)
+inline void* WindowAlloc(uint64_t windowBase, size_t& offset, size_t bytes)
 {
-    void *ptr = reinterpret_cast<void *>(windowBase + offset);
+    void* ptr = reinterpret_cast<void*>(windowBase + offset);
     offset += bytes;
     return ptr;
 }
@@ -309,7 +309,7 @@ struct PerfStats {
     double std_dev;
 };
 
-static PerfStats calcStats(const std::vector<double> &times)
+static PerfStats calcStats(const std::vector<double>& times)
 {
     double sum = 0.0;
     double mn = times[0];
@@ -335,11 +335,11 @@ static PerfStats calcStats(const std::vector<double> &times)
 // ============================================================================
 struct GemmHcclContext {
     HcclComm comm{nullptr};
-    CommDeviceContext *deviceCtx{nullptr};
+    CommDeviceContext* deviceCtx{nullptr};
     CommDeviceContext hostCtx{};
     bool ownsDeviceCtx{false};
 
-    bool Init(int rankId, int nRanks, const HcclRootInfo *rootInfo, aclrtStream hcclStream)
+    bool Init(int rankId, int nRanks, const HcclRootInfo* rootInfo, aclrtStream hcclStream)
     {
         if (!InitComm(rankId, nRanks, rootInfo))
             return false;
@@ -352,7 +352,7 @@ struct GemmHcclContext {
 
         CommMpiBarrier();
 
-        void *ctxPtr = nullptr;
+        void* ctxPtr = nullptr;
         if (!AllocCommResource(rankId, commHandle, hcclStream, group, ctxPtr))
             return false;
 
@@ -386,7 +386,7 @@ struct GemmHcclContext {
     }
 
 private:
-    bool InitComm(int rankId, int nRanks, const HcclRootInfo *rootInfo)
+    bool InitComm(int rankId, int nRanks, const HcclRootInfo* rootInfo)
     {
         constexpr int kMaxRetries = 3;
         HcclResult hret = HCCL_SUCCESS;
@@ -406,7 +406,7 @@ private:
         return true;
     }
 
-    bool QueryCommTopology(int rankId, char *group, CommTopo &topoRet, HcclComm &commHandle)
+    bool QueryCommTopology(int rankId, char* group, CommTopo& topoRet, HcclComm& commHandle)
     {
         HcclResult hret = HcclGetCommName(comm, group);
         if (hret != HCCL_SUCCESS) {
@@ -428,7 +428,7 @@ private:
         return true;
     }
 
-    bool AllocCommResource(int rankId, HcclComm commHandle, aclrtStream hcclStream, const char *group, void *&ctxPtr)
+    bool AllocCommResource(int rankId, HcclComm commHandle, aclrtStream hcclStream, const char* group, void*& ctxPtr)
     {
         gemm_ar_tiling::CommTilingData tiling{};
         AscendC::Mc2CcTilingConfig tilingConfig(group, HCCL_CMD_BATCH_WRITE, "BatchWrite=level0:fullmesh");
@@ -450,7 +450,7 @@ private:
         return true;
     }
 
-    bool InitDirectPath(int rankId, int nRanks, void *ctxPtr)
+    bool InitDirectPath(int rankId, int nRanks, void* ctxPtr)
     {
         memset_s(&hostCtx, sizeof(hostCtx), 0, sizeof(hostCtx));
 
@@ -471,7 +471,7 @@ private:
             return false;
         }
 
-        deviceCtx = reinterpret_cast<CommDeviceContext *>(ctxPtr);
+        deviceCtx = reinterpret_cast<CommDeviceContext*>(ctxPtr);
         if (rankId == 0) {
             std::cout << "[INFO] HCCL A5 direct context init OK" << " rankId=" << hostCtx.rankId
                       << " rankNum=" << hostCtx.rankNum << " winSize=" << hostCtx.winSize << std::endl;
@@ -479,9 +479,9 @@ private:
         return true;
     }
 
-    bool InitMeshPath(int rankId, void *ctxPtr)
+    bool InitMeshPath(int rankId, void* ctxPtr)
     {
-        deviceCtx = reinterpret_cast<CommDeviceContext *>(ctxPtr);
+        deviceCtx = reinterpret_cast<CommDeviceContext*>(ctxPtr);
         aclError aRet = aclrtMemcpy(&hostCtx, sizeof(hostCtx), deviceCtx, sizeof(hostCtx), ACL_MEMCPY_DEVICE_TO_HOST);
         if (aRet != ACL_SUCCESS) {
             std::cerr << "[ERROR] Rank " << rankId << ": aclrtMemcpy(deviceCtx) failed in mesh fallback: " << (int)aRet
@@ -495,8 +495,9 @@ private:
         return true;
     }
 
-    bool ReadRingParams(int rankId, uint8_t *rawCtx, hccl_compat::CommOpResParamHead &head,
-                        std::vector<hccl_compat::RemoteResPtr> &remoteResArr)
+    bool ReadRingParams(
+        int rankId, uint8_t* rawCtx, hccl_compat::CommOpResParamHead& head,
+        std::vector<hccl_compat::RemoteResPtr>& remoteResArr)
     {
         using namespace hccl_compat;
         const size_t headOff = offsetof(CommOpResParam, localUsrRankId);
@@ -515,8 +516,8 @@ private:
         const size_t remoteResBytes = head.rankSize * sizeof(RemoteResPtr);
         remoteResArr.resize(head.rankSize);
 
-        aRet = aclrtMemcpy(remoteResArr.data(), remoteResBytes, rawCtx + remoteResOff, remoteResBytes,
-                           ACL_MEMCPY_DEVICE_TO_HOST);
+        aRet = aclrtMemcpy(
+            remoteResArr.data(), remoteResBytes, rawCtx + remoteResOff, remoteResBytes, ACL_MEMCPY_DEVICE_TO_HOST);
         if (aRet != ACL_SUCCESS) {
             std::cerr << "[ERROR] Rank " << rankId << ": read remoteRes failed\n";
             return false;
@@ -524,8 +525,9 @@ private:
         return true;
     }
 
-    bool BuildRingHostCtx(int rankId, uint8_t *rawCtx, const hccl_compat::CommOpResParamHead &head,
-                          const std::vector<hccl_compat::RemoteResPtr> &remoteResArr)
+    bool BuildRingHostCtx(
+        int rankId, uint8_t* rawCtx, const hccl_compat::CommOpResParamHead& head,
+        const std::vector<hccl_compat::RemoteResPtr>& remoteResArr)
     {
         using namespace hccl_compat;
         memset_s(&hostCtx, sizeof(hostCtx), 0, sizeof(hostCtx));
@@ -555,8 +557,9 @@ private:
             }
 
             CommRankRelationResV2 remoteInfo{};
-            aRet = aclrtMemcpy(&remoteInfo, sizeof(remoteInfo), reinterpret_cast<void *>(devPtr), sizeof(remoteInfo),
-                               ACL_MEMCPY_DEVICE_TO_HOST);
+            aRet = aclrtMemcpy(
+                &remoteInfo, sizeof(remoteInfo), reinterpret_cast<void*>(devPtr), sizeof(remoteInfo),
+                ACL_MEMCPY_DEVICE_TO_HOST);
             if (aRet != ACL_SUCCESS) {
                 std::cerr << "[ERROR] Rank " << rankId << ": read remote rank " << i << " info failed\n";
                 return false;
@@ -570,29 +573,29 @@ private:
 
     bool CopyHostCtxToDevice(int rankId)
     {
-        void *newDevMem = nullptr;
+        void* newDevMem = nullptr;
         aclError aRet = aclrtMalloc(&newDevMem, sizeof(CommDeviceContext), ACL_MEM_MALLOC_HUGE_FIRST);
         if (aRet != ACL_SUCCESS || newDevMem == nullptr) {
             std::cerr << "[ERROR] Rank " << rankId << ": aclrtMalloc for RING deviceCtx failed\n";
             return false;
         }
 
-        aRet = aclrtMemcpy(newDevMem, sizeof(CommDeviceContext), &hostCtx, sizeof(CommDeviceContext),
-                           ACL_MEMCPY_HOST_TO_DEVICE);
+        aRet = aclrtMemcpy(
+            newDevMem, sizeof(CommDeviceContext), &hostCtx, sizeof(CommDeviceContext), ACL_MEMCPY_HOST_TO_DEVICE);
         if (aRet != ACL_SUCCESS) {
             aclrtFree(newDevMem);
             std::cerr << "[ERROR] Rank " << rankId << ": copy RING deviceCtx to device failed\n";
             return false;
         }
 
-        deviceCtx = reinterpret_cast<CommDeviceContext *>(newDevMem);
+        deviceCtx = reinterpret_cast<CommDeviceContext*>(newDevMem);
         ownsDeviceCtx = true;
         return true;
     }
 
-    bool InitRingPath(int rankId, int nRanks, void *ctxPtr)
+    bool InitRingPath(int rankId, int nRanks, void* ctxPtr)
     {
-        auto *rawCtx = reinterpret_cast<uint8_t *>(ctxPtr);
+        auto* rawCtx = reinterpret_cast<uint8_t*>(ctxPtr);
 
         hccl_compat::CommOpResParamHead head{};
         std::vector<hccl_compat::RemoteResPtr> remoteResArr;
@@ -653,7 +656,7 @@ static float halfToFloat(uint16_t h)
     return r.f;
 }
 
-static bool VerifyOutput(const uint16_t *output_fp16, const float *golden)
+static bool VerifyOutput(const uint16_t* output_fp16, const float* golden)
 {
     const float atol = 1.0f;
     const float rtol = 0.01f;
@@ -698,10 +701,10 @@ static bool VerifyOutput(const uint16_t *output_fp16, const float *golden)
     return ok;
 }
 
-static void PrintTimingDetails(const PerfStats &comp_s, const PerfStats &seq_s, const PerfStats &pipe_s,
-                               const PerfStats &seq_comp_s, const PerfStats &seq_comm_s, const PerfStats &pipe_comp_s,
-                               const PerfStats &pipe_comm_s, double flops_per_rank, double flops_total, double rs_bytes,
-                               double ag_bytes)
+static void PrintTimingDetails(
+    const PerfStats& comp_s, const PerfStats& seq_s, const PerfStats& pipe_s, const PerfStats& seq_comp_s,
+    const PerfStats& seq_comm_s, const PerfStats& pipe_comp_s, const PerfStats& pipe_comm_s, double flops_per_rank,
+    double flops_total, double rs_bytes, double ag_bytes)
 {
     auto gflops = [](double flops, double us) { return (us > 0) ? (flops / (us * 1e-6) / 1e9) : 0.0; };
     auto bw_gbs = [&](double us) {
@@ -737,11 +740,11 @@ static void PrintTimingDetails(const PerfStats &comp_s, const PerfStats &seq_s, 
     std::cout << "================================================================\n" << std::endl;
 }
 
-static void PrintPerfReport(bool is_ok, int n_ranks, const std::vector<double> &compute_times_us,
-                            const std::vector<double> &sequential_times_us,
-                            const std::vector<double> &pipelined_times_us, const std::vector<double> &seq_compute_us,
-                            const std::vector<double> &seq_comm_us, const std::vector<double> &pipe_compute_us,
-                            const std::vector<double> &pipe_comm_us)
+static void PrintPerfReport(
+    bool is_ok, int n_ranks, const std::vector<double>& compute_times_us,
+    const std::vector<double>& sequential_times_us, const std::vector<double>& pipelined_times_us,
+    const std::vector<double>& seq_compute_us, const std::vector<double>& seq_comm_us,
+    const std::vector<double>& pipe_compute_us, const std::vector<double>& pipe_comm_us)
 {
     PerfStats comp_s = calcStats(compute_times_us);
     PerfStats seq_s = calcStats(sequential_times_us);
@@ -772,26 +775,25 @@ static void PrintPerfReport(bool is_ok, int n_ranks, const std::vector<double> &
     std::cout << "  tiles=" << G_NUM_TILES << " (" << G_M_TILES << "x" << G_N_TILES << ")"
               << "  comm_data=" << std::setprecision(3) << data_gb << " GB/rank" << std::endl;
 
-    PrintTimingDetails(comp_s, seq_s, pipe_s, seq_comp_s, seq_comm_s, pipe_comp_s, pipe_comm_s, flops_per_rank,
-                       flops_total, rs_bytes, ag_bytes);
+    PrintTimingDetails(
+        comp_s, seq_s, pipe_s, seq_comp_s, seq_comm_s, pipe_comp_s, pipe_comm_s, flops_per_rank, flops_total, rs_bytes,
+        ag_bytes);
 }
 
 struct DeviceBuffers;
 
-static inline void DebugLog(int, const char *, int, const char *)
-{}
-static inline void DebugDumpState(const char *, int, int, const DeviceBuffers &)
-{}
-static inline aclError WaitStreamWithWatchdog(const char *, const char *, int, int, aclrtStream stream,
-                                              const DeviceBuffers &)
+static inline void DebugLog(int, const char*, int, const char*) {}
+static inline void DebugDumpState(const char*, int, int, const DeviceBuffers&) {}
+static inline aclError WaitStreamWithWatchdog(
+    const char*, const char*, int, int, aclrtStream stream, const DeviceBuffers&)
 {
     return aclrtSynchronizeStream(stream);
 }
 
 template <typename ResetFn, typename LaunchFn, typename SyncFn>
-static void RunComputeOnlyBenchmark(int rank_id, int n_ranks, const DeviceBuffers &buf, ResetFn &resetState,
-                                    LaunchFn &launchComp, SyncFn &syncAll, aclrtStream computeStream,
-                                    aclrtStream commStream, HcclComm comm, std::vector<double> &compute_times_us)
+static void RunComputeOnlyBenchmark(
+    int rank_id, int n_ranks, const DeviceBuffers& buf, ResetFn& resetState, LaunchFn& launchComp, SyncFn& syncAll,
+    aclrtStream computeStream, aclrtStream commStream, HcclComm comm, std::vector<double>& compute_times_us)
 {
     for (int iter = 0; iter < COMPUTE_ONLY_ITERS; ++iter) {
         DebugLog(rank_id, "compute-only", iter, "resetState begin");
@@ -820,11 +822,10 @@ static void RunComputeOnlyBenchmark(int rank_id, int n_ranks, const DeviceBuffer
 }
 
 template <typename ResetFn, typename LaunchCompFn, typename LaunchCommFn, typename SyncFn>
-static void RunSequentialBenchmark(int rank_id, int n_ranks, const DeviceBuffers &buf, ResetFn &resetState,
-                                   LaunchCompFn &launchComp, LaunchCommFn &launchComm, SyncFn &syncAll,
-                                   aclrtStream computeStream, aclrtStream commStream, HcclComm comm,
-                                   std::vector<double> &seq_us, std::vector<double> &seq_comp_us,
-                                   std::vector<double> &seq_comm_us)
+static void RunSequentialBenchmark(
+    int rank_id, int n_ranks, const DeviceBuffers& buf, ResetFn& resetState, LaunchCompFn& launchComp,
+    LaunchCommFn& launchComm, SyncFn& syncAll, aclrtStream computeStream, aclrtStream commStream, HcclComm comm,
+    std::vector<double>& seq_us, std::vector<double>& seq_comp_us, std::vector<double>& seq_comm_us)
 {
     for (int iter = 0; iter < MEASURE_ITERS; ++iter) {
         DebugLog(rank_id, "sequential", iter, "resetState begin");
@@ -857,10 +858,10 @@ static void RunSequentialBenchmark(int rank_id, int n_ranks, const DeviceBuffers
 }
 
 template <typename ResetFn, typename LaunchCompFn, typename LaunchCommFn, typename SyncFn>
-static void RunPipelinedBenchmark(int rank_id, int n_ranks, const DeviceBuffers &buf, ResetFn &resetState,
-                                  LaunchCompFn &launchComp, LaunchCommFn &launchComm, SyncFn &syncAll,
-                                  aclrtStream computeStream, aclrtStream commStream, std::vector<double> &pipe_us,
-                                  std::vector<double> &pipe_comp_us, std::vector<double> &pipe_comm_us)
+static void RunPipelinedBenchmark(
+    int rank_id, int n_ranks, const DeviceBuffers& buf, ResetFn& resetState, LaunchCompFn& launchComp,
+    LaunchCommFn& launchComm, SyncFn& syncAll, aclrtStream computeStream, aclrtStream commStream,
+    std::vector<double>& pipe_us, std::vector<double>& pipe_comp_us, std::vector<double>& pipe_comm_us)
 {
     aclrtEvent evStart = nullptr;
     aclrtEvent evEnd = nullptr;
@@ -907,14 +908,14 @@ static void RunPipelinedBenchmark(int rank_id, int n_ranks, const DeviceBuffers 
 // Per-rank device buffer management
 // ============================================================================
 struct DeviceBuffers {
-    void *gemm_output;
-    void *reduced_output_head_pad;
-    void *reduced_output;
-    void *signal_matrix;
-    void *src0_dev;
-    void *src1_dev;
-    void *queueSet_dev;
-    MultiBlockQueueSet *queueSet_reset_host;
+    void* gemm_output;
+    void* reduced_output_head_pad;
+    void* reduced_output;
+    void* signal_matrix;
+    void* src0_dev;
+    void* src1_dev;
+    void* queueSet_dev;
+    MultiBlockQueueSet* queueSet_reset_host;
     size_t outputSize;
     size_t reducedOutputHeadPadSize;
     size_t signalMatrixSize;
@@ -935,7 +936,7 @@ static int HostOwnedTileCount(int total_tiles, int my_rank, int nranks)
     return (my_rank < remainder) ? tiles_per_owner : (total_tiles / safe_nranks);
 }
 
-static void HostSwizzleTileIndex(int linear_idx, uint32_t &mi, uint32_t &ni)
+static void HostSwizzleTileIndex(int linear_idx, uint32_t& mi, uint32_t& ni)
 {
     const uint32_t row = static_cast<uint32_t>(linear_idx) / G_N_TILES;
     const uint32_t col = static_cast<uint32_t>(linear_idx) - row * G_N_TILES;
@@ -943,7 +944,7 @@ static void HostSwizzleTileIndex(int linear_idx, uint32_t &mi, uint32_t &ni)
     ni = ((row & 1U) == 0U) ? col : (G_N_TILES - 1U - col);
 }
 
-static std::string BuildLegacySlotSummary(const std::vector<int32_t> &signal_host)
+static std::string BuildLegacySlotSummary(const std::vector<int32_t>& signal_host)
 {
     std::string legacy_slots;
     const int legacy_count = std::min<int>(G_SIGNAL_LEGACY_BARRIER_SLOTS, signal_host.size());
@@ -964,8 +965,8 @@ struct SignalReadyStats {
     std::string bad_samples;
 };
 
-static SignalReadyStats CollectSignalReadyStats(const std::vector<int32_t> &signal_host, int total_local_subtiles,
-                                                int n_ranks)
+static SignalReadyStats CollectSignalReadyStats(
+    const std::vector<int32_t>& signal_host, int total_local_subtiles, int n_ranks)
 {
     SignalReadyStats stats;
     for (int i = 0; i < total_local_subtiles; ++i) {
@@ -990,7 +991,7 @@ struct SignalSummaryStats {
     int zero = 0;
 };
 
-static SignalSummaryStats CollectSignalSummaryStats(const std::vector<int32_t> &signal_host)
+static SignalSummaryStats CollectSignalSummaryStats(const std::vector<int32_t>& signal_host)
 {
     SignalSummaryStats stats;
     for (int block = 0; block < COMM_BLOCK_NUM; ++block) {
@@ -1002,11 +1003,11 @@ static SignalSummaryStats CollectSignalSummaryStats(const std::vector<int32_t> &
     return stats;
 }
 
-static void PrintSignalMatrixReadyStats(int rank_id, int n_ranks, const DeviceBuffers &buf)
+static void PrintSignalMatrixReadyStats(int rank_id, int n_ranks, const DeviceBuffers& buf)
 {
     std::vector<int32_t> signal_host(buf.signalMatrixSize / sizeof(int32_t), 0);
-    aclError aRet = aclrtMemcpy(signal_host.data(), buf.signalMatrixSize, buf.signal_matrix, buf.signalMatrixSize,
-                                ACL_MEMCPY_DEVICE_TO_HOST);
+    aclError aRet = aclrtMemcpy(
+        signal_host.data(), buf.signalMatrixSize, buf.signal_matrix, buf.signalMatrixSize, ACL_MEMCPY_DEVICE_TO_HOST);
     if (aRet != ACL_SUCCESS) {
         std::cerr << "[SIGNAL_DIAG] rank=" << rank_id << " copy signal_matrix failed: " << static_cast<int>(aRet)
                   << std::endl;
@@ -1036,7 +1037,7 @@ struct QueueDiagStats {
     std::string queue_samples;
 };
 
-static void AppendQueueSample(std::string &queue_samples, int block_id, int count, const PerBlockQueue *pq)
+static void AppendQueueSample(std::string& queue_samples, int block_id, int count, const PerBlockQueue* pq)
 {
     if (block_id >= 4 || queue_samples.size() >= 256) {
         return;
@@ -1054,7 +1055,7 @@ static void AppendQueueSample(std::string &queue_samples, int block_id, int coun
     queue_samples += ")";
 }
 
-static void CollectQueueBlockStats(int block_id, const PerBlockQueue *pq, std::vector<int> &freq, QueueDiagStats &stats)
+static void CollectQueueBlockStats(int block_id, const PerBlockQueue* pq, std::vector<int>& freq, QueueDiagStats& stats)
 {
     const int raw_count = static_cast<int>(pq->count);
     const int raw_capacity = static_cast<int>(pq->capacity);
@@ -1077,7 +1078,7 @@ static void CollectQueueBlockStats(int block_id, const PerBlockQueue *pq, std::v
     AppendQueueSample(stats.queue_samples, block_id, count, pq);
 }
 
-static std::string BuildMissingTileSamples(const std::vector<int> &freq, int &unique_tiles, int &missing_tiles)
+static std::string BuildMissingTileSamples(const std::vector<int>& freq, int& unique_tiles, int& missing_tiles)
 {
     std::string missing_samples;
     for (int tile = 0; tile < static_cast<int>(G_NUM_TILES); ++tile) {
@@ -1094,8 +1095,9 @@ static std::string BuildMissingTileSamples(const std::vector<int> &freq, int &un
     return missing_samples;
 }
 
-static void PrintQueueDiagLine(const char *tag, int rank_id, const QueueDiagStats &stats, int unique_tiles,
-                               int missing_tiles, const std::string &missing_samples)
+static void PrintQueueDiagLine(
+    const char* tag, int rank_id, const QueueDiagStats& stats, int unique_tiles, int missing_tiles,
+    const std::string& missing_samples)
 {
     std::cout << "[" << tag << "] rank=" << rank_id << " total_entries=" << stats.total_entries
               << " unique=" << unique_tiles << " missing=" << missing_tiles << " invalid=" << stats.invalid_tiles
@@ -1112,7 +1114,7 @@ static void PrintQueueDiagLine(const char *tag, int rank_id, const QueueDiagStat
     std::cout << std::endl;
 }
 
-static void PrintQueueSetStats(const char *tag, int rank_id, const DeviceBuffers &buf)
+static void PrintQueueSetStats(const char* tag, int rank_id, const DeviceBuffers& buf)
 {
     std::vector<uint8_t> queue_host(buf.queueSetSize, 0);
     aclError aRet =
@@ -1123,7 +1125,7 @@ static void PrintQueueSetStats(const char *tag, int rank_id, const DeviceBuffers
         return;
     }
 
-    const MultiBlockQueueSet *qset = reinterpret_cast<const MultiBlockQueueSet *>(queue_host.data());
+    const MultiBlockQueueSet* qset = reinterpret_cast<const MultiBlockQueueSet*>(queue_host.data());
     const int num_blocks = std::min<int>(qset->num_blocks, MAX_COMPUTE_BLOCKS);
     std::vector<int> freq(G_NUM_TILES, 0);
     QueueDiagStats stats;
@@ -1135,7 +1137,7 @@ static void PrintQueueSetStats(const char *tag, int rank_id, const DeviceBuffers
             continue;
         }
 
-        const PerBlockQueue *pq = reinterpret_cast<const PerBlockQueue *>(queue_host.data() + offset);
+        const PerBlockQueue* pq = reinterpret_cast<const PerBlockQueue*>(queue_host.data() + offset);
         CollectQueueBlockStats(b, pq, freq, stats);
     }
 
@@ -1145,7 +1147,7 @@ static void PrintQueueSetStats(const char *tag, int rank_id, const DeviceBuffers
     PrintQueueDiagLine(tag, rank_id, stats, unique_tiles, missing_tiles, missing_samples);
 }
 
-static void PrintTile0Stats(const char *tag, int rank_id, const void *dev_ptr, size_t bytes)
+static void PrintTile0Stats(const char* tag, int rank_id, const void* dev_ptr, size_t bytes)
 {
     constexpr size_t kTileElems = static_cast<size_t>(G_BASE_M) * G_BASE_N;
     constexpr size_t kTileBytes = kTileElems * sizeof(uint16_t);
@@ -1175,8 +1177,9 @@ static void PrintTile0Stats(const char *tag, int rank_id, const void *dev_ptr, s
               << " sample_u16=" << sample << std::endl;
 }
 
-static bool AllocDeviceBuffers(DeviceBuffers &buf, const GemmHcclContext &hctx, int rank_id, const uint16_t *a_data,
-                               size_t a_bytes, const uint16_t *b_data, size_t b_bytes, aclrtStream commStream)
+static bool AllocDeviceBuffers(
+    DeviceBuffers& buf, const GemmHcclContext& hctx, int rank_id, const uint16_t* a_data, size_t a_bytes,
+    const uint16_t* b_data, size_t b_bytes, aclrtStream commStream)
 {
     buf.outputSize = static_cast<size_t>(G_M) * G_N * sizeof(uint16_t);
     buf.reducedOutputHeadPadSize = WINDOW_GUARD_BYTES;
@@ -1219,8 +1222,8 @@ static bool AllocDeviceBuffers(DeviceBuffers &buf, const GemmHcclContext &hctx, 
     buf.queueSet_dev = nullptr;
     aclrtMalloc(&buf.queueSet_dev, buf.queueSetSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
-    MultiBlockQueueSet *queueSet_host = nullptr;
-    aclrtMallocHost(reinterpret_cast<void **>(&queueSet_host), buf.queueSetSize);
+    MultiBlockQueueSet* queueSet_host = nullptr;
+    aclrtMallocHost(reinterpret_cast<void**>(&queueSet_host), buf.queueSetSize);
     MultiBlockQueueSetInit(queueSet_host, COMPUTE_BLOCK_NUM, G_NUM_TILES);
     aclrtMemcpy(buf.queueSet_dev, buf.queueSetSize, queueSet_host, buf.queueSetSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtFreeHost(queueSet_host);
@@ -1230,11 +1233,11 @@ static bool AllocDeviceBuffers(DeviceBuffers &buf, const GemmHcclContext &hctx, 
     HcclHostBarrier(hctx.comm, commStream);
 
     buf.queueSet_reset_host = nullptr;
-    aclrtMallocHost(reinterpret_cast<void **>(&buf.queueSet_reset_host), buf.queueSetSize);
+    aclrtMallocHost(reinterpret_cast<void**>(&buf.queueSet_reset_host), buf.queueSetSize);
     return true;
 }
 
-static void FreeDeviceBuffers(DeviceBuffers &buf)
+static void FreeDeviceBuffers(DeviceBuffers& buf)
 {
     aclrtFreeHost(buf.queueSet_reset_host);
     aclrtFree(buf.gemm_output);
@@ -1247,9 +1250,9 @@ static void FreeDeviceBuffers(DeviceBuffers &buf)
 // Per-rank execution logic
 // ============================================================================
 template <typename ResetFn, typename LaunchCompFn, typename LaunchCommFn, typename SyncFn>
-static void RunWarmupPasses(int rank_id, int n_ranks, ResetFn &resetState, LaunchCompFn &launchComp,
-                            LaunchCommFn &launchComm, SyncFn &syncAll, aclrtStream computeStream,
-                            aclrtStream commStream, const DeviceBuffers &buf)
+static void RunWarmupPasses(
+    int rank_id, int n_ranks, ResetFn& resetState, LaunchCompFn& launchComp, LaunchCommFn& launchComm, SyncFn& syncAll,
+    aclrtStream computeStream, aclrtStream commStream, const DeviceBuffers& buf)
 {
     for (int i = 0; i < WARMUP_ITERS; ++i) {
         DebugLog(rank_id, "warmup", i, "resetState begin");
@@ -1272,9 +1275,9 @@ static void RunWarmupPasses(int rank_id, int n_ranks, ResetFn &resetState, Launc
 }
 
 template <typename ResetFn, typename LaunchCompFn, typename LaunchCommFn, typename SyncFn>
-static bool RunFinalVerificationPass(int rank_id, int n_ranks, ResetFn &resetState, LaunchCompFn &launchComp,
-                                     LaunchCommFn &launchComm, SyncFn &syncAll, aclrtStream computeStream,
-                                     aclrtStream commStream, const DeviceBuffers &buf, const float *golden)
+static bool RunFinalVerificationPass(
+    int rank_id, int n_ranks, ResetFn& resetState, LaunchCompFn& launchComp, LaunchCommFn& launchComm, SyncFn& syncAll,
+    aclrtStream computeStream, aclrtStream commStream, const DeviceBuffers& buf, const float* golden)
 {
     DebugLog(rank_id, "final-run", -1, "resetState begin");
     resetState();
@@ -1294,8 +1297,8 @@ static bool RunFinalVerificationPass(int rank_id, int n_ranks, ResetFn &resetSta
     DebugLog(rank_id, "final-run", -1, "syncAll after launch done");
     DebugDumpState("final-before-verify", rank_id, n_ranks, buf);
 
-    uint16_t *output_host_fp16 = nullptr;
-    aclrtMallocHost(reinterpret_cast<void **>(&output_host_fp16), buf.outputSize);
+    uint16_t* output_host_fp16 = nullptr;
+    aclrtMallocHost(reinterpret_cast<void**>(&output_host_fp16), buf.outputSize);
     aclrtMemcpy(output_host_fp16, buf.outputSize, buf.reduced_output, buf.outputSize, ACL_MEMCPY_DEVICE_TO_HOST);
     bool is_ok = (rank_id == 0) ? VerifyOutput(output_host_fp16, golden) : true;
     aclrtFreeHost(output_host_fp16);
@@ -1303,9 +1306,9 @@ static bool RunFinalVerificationPass(int rank_id, int n_ranks, ResetFn &resetSta
 }
 
 template <typename ResetFn, typename LaunchCompFn, typename LaunchCommFn, typename SyncFn>
-static bool RunBenchmarkAndVerify(int rank_id, int n_ranks, ResetFn &resetState, LaunchCompFn &launchComp,
-                                  LaunchCommFn &launchComm, SyncFn &syncAll, aclrtStream computeStream,
-                                  aclrtStream commStream, HcclComm comm, const DeviceBuffers &buf, const float *golden)
+static bool RunBenchmarkAndVerify(
+    int rank_id, int n_ranks, ResetFn& resetState, LaunchCompFn& launchComp, LaunchCommFn& launchComm, SyncFn& syncAll,
+    aclrtStream computeStream, aclrtStream commStream, HcclComm comm, const DeviceBuffers& buf, const float* golden)
 {
     RunWarmupPasses(rank_id, n_ranks, resetState, launchComp, launchComm, syncAll, computeStream, commStream, buf);
 
@@ -1316,28 +1319,30 @@ static bool RunBenchmarkAndVerify(int rank_id, int n_ranks, ResetFn &resetState,
     std::vector<double> pipe_us;
     std::vector<double> pipe_comp_us;
     std::vector<double> pipe_comm_us;
-    RunComputeOnlyBenchmark(rank_id, n_ranks, buf, resetState, launchComp, syncAll, computeStream, commStream, comm,
-                            compute_us);
-    RunSequentialBenchmark(rank_id, n_ranks, buf, resetState, launchComp, launchComm, syncAll, computeStream,
-                           commStream, comm, seq_us, seq_comp_us, seq_comm_us);
-    RunPipelinedBenchmark(rank_id, n_ranks, buf, resetState, launchComp, launchComm, syncAll, computeStream, commStream,
-                          pipe_us, pipe_comp_us, pipe_comm_us);
+    RunComputeOnlyBenchmark(
+        rank_id, n_ranks, buf, resetState, launchComp, syncAll, computeStream, commStream, comm, compute_us);
+    RunSequentialBenchmark(
+        rank_id, n_ranks, buf, resetState, launchComp, launchComm, syncAll, computeStream, commStream, comm, seq_us,
+        seq_comp_us, seq_comm_us);
+    RunPipelinedBenchmark(
+        rank_id, n_ranks, buf, resetState, launchComp, launchComm, syncAll, computeStream, commStream, pipe_us,
+        pipe_comp_us, pipe_comm_us);
 
-    const bool is_ok = RunFinalVerificationPass(rank_id, n_ranks, resetState, launchComp, launchComm, syncAll,
-                                                computeStream, commStream, buf, golden);
+    const bool is_ok = RunFinalVerificationPass(
+        rank_id, n_ranks, resetState, launchComp, launchComm, syncAll, computeStream, commStream, buf, golden);
 
     if (rank_id == 0) {
-        PrintPerfReport(is_ok, n_ranks, compute_us, seq_us, pipe_us, seq_comp_us, seq_comm_us, pipe_comp_us,
-                        pipe_comm_us);
+        PrintPerfReport(
+            is_ok, n_ranks, compute_us, seq_us, pipe_us, seq_comp_us, seq_comm_us, pipe_comp_us, pipe_comm_us);
     }
     return is_ok;
 }
 
-static void ResetDeviceState(int rank_id, int n_ranks, const DeviceBuffers &buf)
+static void ResetDeviceState(int rank_id, int n_ranks, const DeviceBuffers& buf)
 {
     MultiBlockQueueSetInit(buf.queueSet_reset_host, COMPUTE_BLOCK_NUM, G_NUM_TILES);
-    aclrtMemcpy(buf.queueSet_dev, buf.queueSetSize, buf.queueSet_reset_host, buf.queueSetSize,
-                ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(
+        buf.queueSet_dev, buf.queueSetSize, buf.queueSet_reset_host, buf.queueSetSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemset(buf.gemm_output, buf.outputSize, 0, buf.outputSize);
     aclrtMemset(buf.reduced_output_head_pad, buf.reducedOutputHeadPadSize, 0, buf.reducedOutputHeadPadSize);
     aclrtMemset(buf.reduced_output, buf.outputSize, 0, buf.outputSize);
@@ -1345,20 +1350,22 @@ static void ResetDeviceState(int rank_id, int n_ranks, const DeviceBuffers &buf)
     DebugDumpState("after-reset", rank_id, n_ranks, buf);
 }
 
-static void LaunchCompute(const DeviceBuffers &buf, int rank_id, aclrtStream s)
+static void LaunchCompute(const DeviceBuffers& buf, int rank_id, aclrtStream s)
 {
     DebugLog(rank_id, "launch-compute", -1, "dispatch kernel");
-    launchGemmCompute(reinterpret_cast<uint8_t *>(buf.gemm_output), reinterpret_cast<uint8_t *>(buf.src0_dev),
-                      reinterpret_cast<uint8_t *>(buf.src1_dev), reinterpret_cast<uint8_t *>(buf.queueSet_dev), rank_id,
-                      s, COMPUTE_BLOCK_NUM, G_K);
+    launchGemmCompute(
+        reinterpret_cast<uint8_t*>(buf.gemm_output), reinterpret_cast<uint8_t*>(buf.src0_dev),
+        reinterpret_cast<uint8_t*>(buf.src1_dev), reinterpret_cast<uint8_t*>(buf.queueSet_dev), rank_id, s,
+        COMPUTE_BLOCK_NUM, G_K);
 }
 
-static void LaunchComm(const DeviceBuffers &buf, uint8_t *hcclCtxPtr, int rank_id, int n_ranks, aclrtStream s)
+static void LaunchComm(const DeviceBuffers& buf, uint8_t* hcclCtxPtr, int rank_id, int n_ranks, aclrtStream s)
 {
     DebugLog(rank_id, "launch-comm", -1, "dispatch kernel");
-    launchGemmCommAll(reinterpret_cast<uint8_t *>(buf.gemm_output), reinterpret_cast<uint8_t *>(buf.reduced_output),
-                      reinterpret_cast<uint8_t *>(buf.signal_matrix), reinterpret_cast<uint8_t *>(buf.queueSet_dev),
-                      hcclCtxPtr, rank_id, n_ranks, s, COMPUTE_BLOCK_NUM);
+    launchGemmCommAll(
+        reinterpret_cast<uint8_t*>(buf.gemm_output), reinterpret_cast<uint8_t*>(buf.reduced_output),
+        reinterpret_cast<uint8_t*>(buf.signal_matrix), reinterpret_cast<uint8_t*>(buf.queueSet_dev), hcclCtxPtr,
+        rank_id, n_ranks, s, COMPUTE_BLOCK_NUM);
     DebugLog(rank_id, "launch-comm", -1, "sync comm stream begin");
     const aclError sync_ret = WaitStreamWithWatchdog("launch-comm", "sync comm stream", rank_id, n_ranks, s, buf);
     if (sync_ret != ACL_SUCCESS) {
@@ -1369,9 +1376,9 @@ static void LaunchComm(const DeviceBuffers &buf, uint8_t *hcclCtxPtr, int rank_i
     DebugDumpState("after-launch-comm", rank_id, n_ranks, buf);
 }
 
-static bool RunGemmAllReducePerRank(int rank_id, int n_ranks, const uint16_t *a_data, size_t a_bytes,
-                                    const uint16_t *b_data, size_t b_bytes, const float *golden,
-                                    const HcclRootInfo *rootInfo)
+static bool RunGemmAllReducePerRank(
+    int rank_id, int n_ranks, const uint16_t* a_data, size_t a_bytes, const uint16_t* b_data, size_t b_bytes,
+    const float* golden, const HcclRootInfo* rootInfo)
 {
     int status = 0;
     aclrtStream computeStream = nullptr;
@@ -1395,7 +1402,7 @@ static bool RunGemmAllReducePerRank(int rank_id, int n_ranks, const uint16_t *a_
         return false;
     }
 
-    uint8_t *hcclCtxPtr = reinterpret_cast<uint8_t *>(hctx.deviceCtx);
+    uint8_t* hcclCtxPtr = reinterpret_cast<uint8_t*>(hctx.deviceCtx);
     auto resetState = [&]() { ResetDeviceState(rank_id, n_ranks, buf); };
     auto launchComp = [&](aclrtStream s) { LaunchCompute(buf, rank_id, s); };
     auto launchComm = [&](aclrtStream s) { LaunchComm(buf, hcclCtxPtr, rank_id, n_ranks, s); };
@@ -1416,8 +1423,9 @@ static bool RunGemmAllReducePerRank(int rank_id, int n_ranks, const uint16_t *a_
         DebugLog(rank_id, "sync-all", -1, "hccl host barrier done");
     };
 
-    bool is_ok = RunBenchmarkAndVerify(rank_id, n_ranks, resetState, launchComp, launchComm, syncAll, computeStream,
-                                       commStream, hctx.comm, buf, golden);
+    bool is_ok = RunBenchmarkAndVerify(
+        rank_id, n_ranks, resetState, launchComp, launchComm, syncAll, computeStream, commStream, hctx.comm, buf,
+        golden);
 
     FreeDeviceBuffers(buf);
     hctx.Finalize();
@@ -1443,7 +1451,7 @@ static void PrintLaunchBanner(int n_ranks, int first_device_id)
     std::cout << "================================================================" << std::endl;
 }
 
-static bool InitHcclRootInfoWithRetry(HcclRootInfo &rootInfo)
+static bool InitHcclRootInfoWithRetry(HcclRootInfo& rootInfo)
 {
     constexpr int kMaxRetries = 3;
     HcclResult hret = HCCL_SUCCESS;
@@ -1459,8 +1467,8 @@ static bool InitHcclRootInfoWithRetry(HcclRootInfo &rootInfo)
     return false;
 }
 
-static bool RunGemmAllReduce(int n_ranks, int first_device_id, const uint16_t *a_parts, const uint16_t *b_data,
-                             const float *golden)
+static bool RunGemmAllReduce(
+    int n_ranks, int first_device_id, const uint16_t* a_parts, const uint16_t* b_data, const float* golden)
 {
     if (n_ranks <= 0 || n_ranks > 8) {
         std::cerr << "[ERROR] Invalid n_ranks: " << n_ranks << " (must be 1-8)\n";
@@ -1494,9 +1502,9 @@ static bool RunGemmAllReduce(int n_ranks, int first_device_id, const uint16_t *a
     CommMpiBarrier();
 
     size_t a_rank_elems = (size_t)G_M * G_K;
-    bool ok = RunGemmAllReducePerRank(mpiRank, n_ranks, a_parts + (size_t)mpiRank * a_rank_elems,
-                                      (size_t)G_M * G_K * sizeof(uint16_t), b_data,
-                                      (size_t)G_N * G_K * sizeof(uint16_t), golden, &rootInfo);
+    bool ok = RunGemmAllReducePerRank(
+        mpiRank, n_ranks, a_parts + (size_t)mpiRank * a_rank_elems, (size_t)G_M * G_K * sizeof(uint16_t), b_data,
+        (size_t)G_N * G_K * sizeof(uint16_t), golden, &rootInfo);
     CommMpiBarrier();
     aclrtResetDevice(device_id);
     aclFinalize();
@@ -1525,8 +1533,8 @@ static uint16_t floatToHalf(float f)
     return (uint16_t)(sign | ((uint32_t)exp << 10) | (mant >> 13));
 }
 
-static void gemmBlockedTile(const float *B, float *C_row, int K, int N, const float *A_row, int kk, int kEnd, int jj,
-                            int jEnd)
+static void gemmBlockedTile(
+    const float* B, float* C_row, int K, int N, const float* A_row, int kk, int kEnd, int jj, int jEnd)
 {
     for (int k = kk; k < kEnd; k++) {
         float aik = A_row[k];
@@ -1535,7 +1543,7 @@ static void gemmBlockedTile(const float *B, float *C_row, int K, int N, const fl
     }
 }
 
-static void gemmBlockedRowRange(const float *A, const float *B, float *C, int K, int N, int r0, int r1)
+static void gemmBlockedRowRange(const float* A, const float* B, float* C, int K, int N, int r0, int r1)
 {
     constexpr int BLK = 64;
     for (int i = r0; i < r1; i++) {
@@ -1547,7 +1555,7 @@ static void gemmBlockedRowRange(const float *A, const float *B, float *C, int K,
     }
 }
 
-static void computeGolden(const float *A, const float *B, float *C, int M, int K, int N)
+static void computeGolden(const float* A, const float* B, float* C, int M, int K, int N)
 {
     memset_s(C, (size_t)M * N * sizeof(float), 0, (size_t)M * N * sizeof(float));
 
@@ -1566,7 +1574,7 @@ static void computeGolden(const float *A, const float *B, float *C, int M, int K
             break;
         threads.emplace_back(gemmBlockedRowRange, A, B, C, K, N, r0, r1);
     }
-    for (auto &th : threads)
+    for (auto& th : threads)
         th.join();
 }
 
@@ -1581,7 +1589,7 @@ struct CachedEnvVars {
 
 static CachedEnvVars g_cached_env;
 
-static std::string SafeGetEnv(const char *name)
+static std::string SafeGetEnv(const char* name)
 {
     std::string prefix = std::string(name) + "=";
     std::ifstream ifs("/proc/self/environ", std::ios::binary);
@@ -1605,7 +1613,7 @@ static void InitCachedEnv()
 
 static std::string getInputDir()
 {
-    const std::string &envDir = g_cached_env.gemm_ar_dir;
+    const std::string& envDir = g_cached_env.gemm_ar_dir;
     if (!envDir.empty()) {
         return envDir + "/input";
     }
@@ -1619,28 +1627,25 @@ static std::string getInputPrefix(int nranks)
            "_R" + std::to_string(nranks);
 }
 
-static void ensureDirExists(const std::string &dir)
-{
-    mkdir(dir.c_str(), 0755);
-}
+static void ensureDirExists(const std::string& dir) { mkdir(dir.c_str(), 0755); }
 
 template <typename T>
-static bool saveBinary(const std::string &path, const T *data, size_t count)
+static bool saveBinary(const std::string& path, const T* data, size_t count)
 {
     std::ofstream ofs(path, std::ios::binary);
     if (!ofs)
         return false;
-    ofs.write(reinterpret_cast<const char *>(data), count * sizeof(T));
+    ofs.write(reinterpret_cast<const char*>(data), count * sizeof(T));
     return ofs.good();
 }
 
 template <typename T>
-static bool loadBinary(const std::string &path, T *data, size_t count)
+static bool loadBinary(const std::string& path, T* data, size_t count)
 {
     std::ifstream ifs(path, std::ios::binary);
     if (!ifs)
         return false;
-    ifs.read(reinterpret_cast<char *>(data), count * sizeof(T));
+    ifs.read(reinterpret_cast<char*>(data), count * sizeof(T));
     return ifs.good();
 }
 
@@ -1654,8 +1659,8 @@ static bool inputFilesExist(int nranks)
     return (stat(aFile.c_str(), &st) == 0 && stat(bFile.c_str(), &st) == 0 && stat(gFile.c_str(), &st) == 0);
 }
 
-static bool loadInputFiles(int nranks, std::vector<uint16_t> &a_parts, std::vector<uint16_t> &b_data,
-                           std::vector<float> &golden)
+static bool loadInputFiles(
+    int nranks, std::vector<uint16_t>& a_parts, std::vector<uint16_t>& b_data, std::vector<float>& golden)
 {
     std::string prefix = getInputPrefix(nranks);
     std::string aFile = prefix + "_A.bin";
@@ -1689,8 +1694,9 @@ static bool loadInputFiles(int nranks, std::vector<uint16_t> &a_parts, std::vect
     return true;
 }
 
-static bool saveInputFiles(int nranks, const std::vector<uint16_t> &a_parts, const std::vector<uint16_t> &b_data,
-                           const std::vector<float> &golden)
+static bool saveInputFiles(
+    int nranks, const std::vector<uint16_t>& a_parts, const std::vector<uint16_t>& b_data,
+    const std::vector<float>& golden)
 {
     ensureDirExists(getInputDir());
     std::string prefix = getInputPrefix(nranks);
@@ -1724,8 +1730,9 @@ static bool saveInputFiles(int nranks, const std::vector<uint16_t> &a_parts, con
     return true;
 }
 
-static void convertFp32ToFp16Padded(const std::vector<std::vector<float>> &A_fp32_all, const std::vector<float> &B_fp32,
-                                    int nranks, std::vector<uint16_t> &a_parts, std::vector<uint16_t> &b_data)
+static void convertFp32ToFp16Padded(
+    const std::vector<std::vector<float>>& A_fp32_all, const std::vector<float>& B_fp32, int nranks,
+    std::vector<uint16_t>& a_parts, std::vector<uint16_t>& b_data)
 {
     size_t a_rank_elems = (size_t)G_M * G_K;
     size_t b_elems = (size_t)G_N * G_K;
@@ -1733,31 +1740,33 @@ static void convertFp32ToFp16Padded(const std::vector<std::vector<float>> &A_fp3
     b_data.assign(b_elems, 0);
 
     for (int r = 0; r < nranks; r++) {
-        uint16_t *a_dst = a_parts.data() + (size_t)r * a_rank_elems;
+        uint16_t* a_dst = a_parts.data() + (size_t)r * a_rank_elems;
         for (int i = 0; i < (int)G_ORIG_M; i++)
             for (int j = 0; j < (int)G_K; j++)
                 a_dst[(size_t)i * G_K + j] = floatToHalf(A_fp32_all[r][(size_t)i * G_K + j]);
     }
 
-    uint16_t *b_dst = b_data.data();
+    uint16_t* b_dst = b_data.data();
     for (int i = 0; i < (int)G_ORIG_N; i++)
         for (int j = 0; j < (int)G_K; j++)
             b_dst[(size_t)i * G_K + j] = floatToHalf(B_fp32[(size_t)j * G_ORIG_N + i]);
 }
 
-static void padGoldenToAligned(const std::vector<float> &golden_orig, std::vector<float> &golden)
+static void padGoldenToAligned(const std::vector<float>& golden_orig, std::vector<float>& golden)
 {
     golden.assign((size_t)G_M * G_N, 0.0f);
     for (int i = 0; i < (int)G_ORIG_M; i++)
-        memcpy_s(&golden[(size_t)i * G_N], G_N * sizeof(float), &golden_orig[(size_t)i * G_ORIG_N],
-                 G_ORIG_N * sizeof(float));
+        memcpy_s(
+            &golden[(size_t)i * G_N], G_N * sizeof(float), &golden_orig[(size_t)i * G_ORIG_N],
+            G_ORIG_N * sizeof(float));
 }
 
-static bool generateData(int nranks, std::vector<uint16_t> &a_parts, std::vector<uint16_t> &b_data,
-                         std::vector<float> &golden)
+static bool generateData(
+    int nranks, std::vector<uint16_t>& a_parts, std::vector<uint16_t>& b_data, std::vector<float>& golden)
 {
-    printf("Data Parallel: each rank has independent A[%d,%d], shared B[%d,%d], %d ranks\n", G_ORIG_M, G_K, G_K,
-           G_ORIG_N, nranks);
+    printf(
+        "Data Parallel: each rank has independent A[%d,%d], shared B[%d,%d], %d ranks\n", G_ORIG_M, G_K, G_K, G_ORIG_N,
+        nranks);
 
     std::mt19937 gen(42);
     float scale = std::sqrt(65000.0f / ((float)G_K * nranks * 4.0f));
@@ -1766,11 +1775,11 @@ static bool generateData(int nranks, std::vector<uint16_t> &a_parts, std::vector
     std::vector<std::vector<float>> A_fp32_all(nranks);
     for (int r = 0; r < nranks; r++) {
         A_fp32_all[r].resize((size_t)G_ORIG_M * G_K);
-        for (auto &v : A_fp32_all[r])
+        for (auto& v : A_fp32_all[r])
             v = dist(gen);
     }
     std::vector<float> B_fp32((size_t)G_K * G_ORIG_N);
-    for (auto &v : B_fp32)
+    for (auto& v : B_fp32)
         v = dist(gen);
 
     printf("  Computing golden reference (sum of %d CPU GEMMs %d×%d×%d)...\n", nranks, G_ORIG_M, G_K, G_ORIG_N);
@@ -1802,9 +1811,9 @@ static bool generateData(int nranks, std::vector<uint16_t> &a_parts, std::vector
 // Entry point
 // ============================================================================
 
-static int parseFirstDevice(int argc, char *argv[])
+static int parseFirstDevice(int argc, char* argv[])
 {
-    const std::string &envVal = g_cached_env.first_device;
+    const std::string& envVal = g_cached_env.first_device;
     if (!envVal.empty()) {
         int val = atoi(envVal.c_str());
         if (val >= 0)
@@ -1820,8 +1829,8 @@ static int parseFirstDevice(int argc, char *argv[])
     return 0;
 }
 
-static bool PrepareInputData(int n_ranks, std::vector<uint16_t> &a_parts, std::vector<uint16_t> &b_data,
-                             std::vector<float> &golden)
+static bool PrepareInputData(
+    int n_ranks, std::vector<uint16_t>& a_parts, std::vector<uint16_t>& b_data, std::vector<float>& golden)
 {
     size_t a_total = (size_t)n_ranks * G_M * G_K;
     size_t b_total = (size_t)G_N * G_K;
@@ -1857,7 +1866,7 @@ static bool PrepareInputData(int n_ranks, std::vector<uint16_t> &a_parts, std::v
     return true;
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     InitCachedEnv();
 
@@ -1878,8 +1887,9 @@ int main(int argc, char *argv[])
     int first_device_id = parseFirstDevice(argc, argv);
 
     if (CommMpiRank() == 0) {
-        printf("GEMM AllReduce A5 FP16 (HCCL): ranks=%d, devices=[%d, %d)\n\n", n_ranks, first_device_id,
-               first_device_id + n_ranks);
+        printf(
+            "GEMM AllReduce A5 FP16 (HCCL): ranks=%d, devices=[%d, %d)\n\n", n_ranks, first_device_id,
+            first_device_id + n_ranks);
     }
 
     std::vector<uint16_t> a_parts;

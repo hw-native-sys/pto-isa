@@ -22,37 +22,40 @@ namespace pto {
 template <typename T>
 struct MaxSOp {
     static constexpr bool isDynFunc = false;
-    PTO_INTERNAL static void BinSInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src, T scalar, MaskReg &preg)
+    PTO_INTERNAL static void BinSInstr(RegTensor<T>& reg_dst, RegTensor<T>& reg_src, T scalar, MaskReg& preg)
     {
         vmaxs(reg_dst, reg_src, scalar, preg, MODE_ZEROING);
     }
 };
 
-template <typename TileDataDst, typename TileDataSrc, unsigned elementsPerRepeat, unsigned blockSizeElem,
-          unsigned dstRowStride, unsigned srcRowStride>
-__tf__ PTO_INTERNAL OP_NAME(TMAXS)
-    OP_TYPE(element_wise) void TMaxS(typename TileDataDst::TileDType __out__ dst,
-                                     typename TileDataSrc::TileDType __in__ src, typename TileDataSrc::DType scalar,
-                                     unsigned kValidRows, unsigned kValidCols,
-                                     VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
+template <
+    typename TileDataDst, typename TileDataSrc, unsigned elementsPerRepeat, unsigned blockSizeElem,
+    unsigned dstRowStride, unsigned srcRowStride>
+__tf__ PTO_INTERNAL OP_NAME(TMAXS) OP_TYPE(element_wise) void TMaxS(
+    typename TileDataDst::TileDType __out__ dst, typename TileDataSrc::TileDType __in__ src,
+    typename TileDataSrc::DType scalar, unsigned kValidRows, unsigned kValidCols,
+    VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
 {
     using T = typename TileDataDst::DType;
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* srcPtr = (__ubuf__ T*)__cce_get_tile_ptr(src);
     BinaryInstr<MaxSOp<T>, TileDataDst, TileDataSrc, T, elementsPerRepeat, blockSizeElem, dstRowStride, srcRowStride>(
         dstPtr, srcPtr, scalar, kValidRows, kValidCols, version);
 }
 
 template <typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TMAXS_IMPL(TileDataDst &dst, TileDataSrc &src, typename TileDataSrc::DType scalar)
+PTO_INTERNAL void TMAXS_IMPL(TileDataDst& dst, TileDataSrc& src, typename TileDataSrc::DType scalar)
 {
     using T = typename TileDataDst::DType;
-    static_assert((TileDataDst::Loc == TileType::Vec) && (TileDataSrc::Loc == TileType::Vec),
-                  "TileType of dst and src tiles must be TileType::Vec.");
-    static_assert((TileDataDst::ValidCol <= TileDataDst::Cols) && (TileDataDst::ValidRow <= TileDataDst::Rows),
-                  "Number of valid columns and rows must not be greater than number of tile columns and rows.");
-    static_assert((TileDataSrc::ValidCol <= TileDataSrc::Cols) && (TileDataSrc::ValidRow <= TileDataSrc::Rows),
-                  "Number of valid columns and rows must not be greater than number of tile columns and rows.");
+    static_assert(
+        (TileDataDst::Loc == TileType::Vec) && (TileDataSrc::Loc == TileType::Vec),
+        "TileType of dst and src tiles must be TileType::Vec.");
+    static_assert(
+        (TileDataDst::ValidCol <= TileDataDst::Cols) && (TileDataDst::ValidRow <= TileDataDst::Rows),
+        "Number of valid columns and rows must not be greater than number of tile columns and rows.");
+    static_assert(
+        (TileDataSrc::ValidCol <= TileDataSrc::Cols) && (TileDataSrc::ValidRow <= TileDataSrc::Rows),
+        "Number of valid columns and rows must not be greater than number of tile columns and rows.");
 
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
     constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);

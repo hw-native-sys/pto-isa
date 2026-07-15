@@ -21,7 +21,7 @@ constexpr int kHeadDim = 32;
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     return "../" + suiteName + "." + caseName;
@@ -29,14 +29,12 @@ std::string GetGoldenDir()
 
 } // namespace
 
-void LaunchTFLASHATTN(float *out, float *q, float *k, float *v, void *stream);
+void LaunchTFLASHATTN(float* out, float* q, float* k, float* v, void* stream);
 
 class TFLASHATTNTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 TEST_F(TFLASHATTNTest, case1)
@@ -51,25 +49,25 @@ TEST_F(TFLASHATTNTest, case1)
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    float *outHost = nullptr;
-    float *qHost = nullptr;
-    float *kHost = nullptr;
-    float *vHost = nullptr;
+    float* outHost = nullptr;
+    float* qHost = nullptr;
+    float* kHost = nullptr;
+    float* vHost = nullptr;
 
-    float *outDevice = nullptr;
-    float *qDevice = nullptr;
-    float *kDevice = nullptr;
-    float *vDevice = nullptr;
+    float* outDevice = nullptr;
+    float* qDevice = nullptr;
+    float* kDevice = nullptr;
+    float* vDevice = nullptr;
 
-    aclrtMallocHost(reinterpret_cast<void **>(&outHost), out_bytes);
-    aclrtMallocHost(reinterpret_cast<void **>(&qHost), q_bytes);
-    aclrtMallocHost(reinterpret_cast<void **>(&kHost), q_bytes);
-    aclrtMallocHost(reinterpret_cast<void **>(&vHost), q_bytes);
+    aclrtMallocHost(reinterpret_cast<void**>(&outHost), out_bytes);
+    aclrtMallocHost(reinterpret_cast<void**>(&qHost), q_bytes);
+    aclrtMallocHost(reinterpret_cast<void**>(&kHost), q_bytes);
+    aclrtMallocHost(reinterpret_cast<void**>(&vHost), q_bytes);
 
-    aclrtMalloc(reinterpret_cast<void **>(&outDevice), out_bytes, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc(reinterpret_cast<void **>(&qDevice), q_bytes, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc(reinterpret_cast<void **>(&kDevice), q_bytes, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc(reinterpret_cast<void **>(&vDevice), q_bytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc(reinterpret_cast<void**>(&outDevice), out_bytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc(reinterpret_cast<void**>(&qDevice), q_bytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc(reinterpret_cast<void**>(&kDevice), q_bytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc(reinterpret_cast<void**>(&vDevice), q_bytes, ACL_MEM_MALLOC_HUGE_FIRST);
 
     size_t fileSize = 0;
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/x1_gm.bin", fileSize, qHost, q_bytes));

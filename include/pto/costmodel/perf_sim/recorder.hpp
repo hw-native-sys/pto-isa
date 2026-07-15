@@ -24,8 +24,7 @@ inline thread_local uint32_t current_subblock_id = 0;
 
 using event_t = int;
 
-enum class CvSyncKind : uint8_t
-{
+enum class CvSyncKind : uint8_t {
     None,
     Push,
     Pop,
@@ -35,8 +34,7 @@ enum class CvSyncKind : uint8_t
 
 // ── PipeStage: NPU pipeline stages ──
 
-enum class PipeStage : uint8_t
-{
+enum class PipeStage : uint8_t {
     Scalar,
     MTE2_AIV, // GM/L2 → UB
     MTE2_AIC, // GM/L2 → L1
@@ -48,9 +46,9 @@ enum class PipeStage : uint8_t
     COUNT,
 };
 
-constexpr const char *PipeStageName(PipeStage s)
+constexpr const char* PipeStageName(PipeStage s)
 {
-    constexpr const char *names[] = {"Scalar", "MTE2_AIV", "MTE2_AIC", "MTE3", "MTE1", "VEC", "FIXP", "CUBE"};
+    constexpr const char* names[] = {"Scalar", "MTE2_AIV", "MTE2_AIC", "MTE3", "MTE1", "VEC", "FIXP", "CUBE"};
     return names[static_cast<int>(s)];
 }
 
@@ -70,10 +68,7 @@ inline bool IsAIVStage(PipeStage s)
 }
 
 // IsCubeSidePipe: hardware pipe IDs belonging to CubeCore (AIC)
-inline bool IsCubeSidePipe(int hw_pipe)
-{
-    return hw_pipe == PIPE_MTE1 || hw_pipe == PIPE_M || hw_pipe == PIPE_FIX;
-}
+inline bool IsCubeSidePipe(int hw_pipe) { return hw_pipe == PIPE_MTE1 || hw_pipe == PIPE_M || hw_pipe == PIPE_FIX; }
 
 // ── PTO instruction record ──
 
@@ -99,12 +94,7 @@ struct InstrRecord {
     uint64_t cv_key = 0; // logical FIFO identity for TPUSH/TPOP token matching
 };
 
-enum class SyncKind : uint8_t
-{
-    Signal,
-    Wait,
-    Barrier
-};
+enum class SyncKind : uint8_t { Signal, Wait, Barrier };
 
 struct SyncRecord {
     SyncKind kind;
@@ -128,24 +118,21 @@ inline uint64_t SharedNextSeq()
 template <typename Record>
 class CoreRecordStorage {
 public:
-    static std::vector<std::vector<Record>> &AllCoreRecords()
+    static std::vector<std::vector<Record>>& AllCoreRecords()
     {
         static thread_local std::vector<std::vector<Record>> per_core;
         return per_core;
     }
 
-    static std::vector<Record> &GetForCore(uint32_t core_id)
+    static std::vector<Record>& GetForCore(uint32_t core_id)
     {
-        auto &all = AllCoreRecords();
+        auto& all = AllCoreRecords();
         if (core_id >= all.size())
             all.resize(core_id + 1);
         return all[core_id];
     }
 
-    static std::vector<Record> &Get()
-    {
-        return GetForCore(ActiveCore());
-    }
+    static std::vector<Record>& Get() { return GetForCore(ActiveCore()); }
 
     static void SetActiveCore(uint32_t id)
     {
@@ -153,10 +140,7 @@ public:
         GetForCore(id);
     }
 
-    static uint32_t ActiveCore()
-    {
-        return ActiveCoreRef();
-    }
+    static uint32_t ActiveCore() { return ActiveCoreRef(); }
 
     static void Clear()
     {
@@ -165,7 +149,7 @@ public:
     }
 
 private:
-    static uint32_t &ActiveCoreRef()
+    static uint32_t& ActiveCoreRef()
     {
         static thread_local uint32_t id = 0;
         return id;
@@ -186,16 +170,10 @@ public:
         r.seq = NextSeq();
         Get().push_back(std::move(r));
     }
-    static size_t Size()
-    {
-        return Get().size();
-    }
+    static size_t Size() { return Get().size(); }
 
 private:
-    static uint64_t NextSeq()
-    {
-        return SharedNextSeq();
-    }
+    static uint64_t NextSeq() { return SharedNextSeq(); }
 };
 
 // ── Sync event recorder (per-core, thread-local) ──
@@ -231,10 +209,7 @@ public:
     }
 
 private:
-    static uint64_t NextSeq()
-    {
-        return SharedNextSeq();
-    }
+    static uint64_t NextSeq() { return SharedNextSeq(); }
 };
 
 // ── CV FIFO metadata recorder ──
@@ -250,14 +225,11 @@ public:
         uint64_t key = 0;
     };
 
-    static void SetPending(CvSyncKind kind, uint64_t key)
-    {
-        Pending() = {kind, key};
-    }
+    static void SetPending(CvSyncKind kind, uint64_t key) { Pending() = {kind, key}; }
 
-    static void ApplyPending(const char *opcode, InstrRecord &record)
+    static void ApplyPending(const char* opcode, InstrRecord& record)
     {
-        auto &pending = Pending();
+        auto& pending = Pending();
         if (pending.kind == CvSyncKind::None)
             return;
         std::string_view op(opcode);
@@ -272,13 +244,10 @@ public:
         pending = {};
     }
 
-    static void Clear()
-    {
-        Pending() = {};
-    }
+    static void Clear() { Pending() = {}; }
 
 private:
-    static PendingMeta &Pending()
+    static PendingMeta& Pending()
     {
         static thread_local PendingMeta pending;
         return pending;
@@ -286,8 +255,7 @@ private:
 };
 
 // Direction encoding for TPipe (matches Direction::DIR_* in fifo.hpp)
-enum class TPipeDir : uint8_t
-{
+enum class TPipeDir : uint8_t {
     DIR_C2V = 1,  // Cube → Vec
     DIR_V2C = 2,  // Vec → Cube
     DIR_BOTH = 3, // Both directions
@@ -328,10 +296,7 @@ template <typename T>
 struct TileTraits {
     static constexpr int rows = 0;
     static constexpr int cols = 0;
-    static constexpr const char *dtype_str()
-    {
-        return "unknown";
-    }
+    static constexpr const char* dtype_str() { return "unknown"; }
 };
 
 template <typename T>
@@ -347,7 +312,7 @@ struct TileTraits<T> {
     static constexpr int rows = T::Rows;
     static constexpr int cols = T::Cols;
 
-    static constexpr const char *dtype_str()
+    static constexpr const char* dtype_str()
     {
         if constexpr (std::is_same_v<DType, float>)
             return "fp32";

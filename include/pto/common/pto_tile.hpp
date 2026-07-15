@@ -57,9 +57,10 @@ struct Shape {
 
     PTO_INTERNAL Shape(int64_t n)
     {
-        static_assert((N1 == DYNAMIC) + (N2 == DYNAMIC) + (N3 == DYNAMIC) + (N4 == DYNAMIC) + (N5 == DYNAMIC) ==
-                          GlobalTensorDim::DIM_1,
-                      "1-parameter constructors is only applicable to Stride with 1 dynamic dimension.");
+        static_assert(
+            (N1 == DYNAMIC) + (N2 == DYNAMIC) + (N3 == DYNAMIC) + (N4 == DYNAMIC) + (N5 == DYNAMIC) ==
+                GlobalTensorDim::DIM_1,
+            "1-parameter constructors is only applicable to Stride with 1 dynamic dimension.");
         if constexpr (N1 == DYNAMIC)
             shape[GlobalTensorDim::DIM_0] = n;
         else if constexpr (N2 == DYNAMIC)
@@ -74,9 +75,10 @@ struct Shape {
 
     PTO_INTERNAL Shape(int64_t n1, int64_t n2)
     {
-        static_assert((N1 == DYNAMIC) + (N2 == DYNAMIC) + (N3 == DYNAMIC) + (N4 == DYNAMIC) + (N5 == DYNAMIC) ==
-                          GlobalTensorDim::DIM_2,
-                      "2-parameter constructors is only applicable to Stride with 2 dynamic dimension.");
+        static_assert(
+            (N1 == DYNAMIC) + (N2 == DYNAMIC) + (N3 == DYNAMIC) + (N4 == DYNAMIC) + (N5 == DYNAMIC) ==
+                GlobalTensorDim::DIM_2,
+            "2-parameter constructors is only applicable to Stride with 2 dynamic dimension.");
 
         int idx = 0;
         const int64_t vals[] = {n1, n2};
@@ -94,9 +96,10 @@ struct Shape {
 
     PTO_INTERNAL Shape(int64_t n1, int64_t n2, int64_t n3)
     {
-        static_assert((N1 == DYNAMIC) + (N2 == DYNAMIC) + (N3 == DYNAMIC) + (N4 == DYNAMIC) + (N5 == DYNAMIC) ==
-                          GlobalTensorDim::DIM_3,
-                      "3-parameter constructors is only applicable to Stride with 3 dynamic dimension.");
+        static_assert(
+            (N1 == DYNAMIC) + (N2 == DYNAMIC) + (N3 == DYNAMIC) + (N4 == DYNAMIC) + (N5 == DYNAMIC) ==
+                GlobalTensorDim::DIM_3,
+            "3-parameter constructors is only applicable to Stride with 3 dynamic dimension.");
         int idx = 0;
         const int64_t vals[] = {n1, n2, n3};
         if constexpr (N1 == DYNAMIC)
@@ -113,9 +116,10 @@ struct Shape {
 
     PTO_INTERNAL Shape(int64_t n1, int64_t n2, int64_t n3, int64_t n4)
     {
-        static_assert((N1 == DYNAMIC) + (N2 == DYNAMIC) + (N3 == DYNAMIC) + (N4 == DYNAMIC) + (N5 == DYNAMIC) ==
-                          GlobalTensorDim::DIM_4,
-                      "4-parameter constructors is only applicable to Stride with 4 dynamic dimension.");
+        static_assert(
+            (N1 == DYNAMIC) + (N2 == DYNAMIC) + (N3 == DYNAMIC) + (N4 == DYNAMIC) + (N5 == DYNAMIC) ==
+                GlobalTensorDim::DIM_4,
+            "4-parameter constructors is only applicable to Stride with 4 dynamic dimension.");
         int idx = 0;
         const int64_t vals[] = {n1, n2, n3, n4};
         if constexpr (N1 == DYNAMIC)
@@ -134,8 +138,8 @@ public:
     int64_t shape[GlobalTensorDim::TOTAL_DIM] = {1};
 };
 
-template <int64_t SN1 = DYNAMIC, int64_t SN2 = DYNAMIC, int64_t SN3 = DYNAMIC, int64_t SN4 = DYNAMIC,
-          int64_t SN5 = DYNAMIC>
+template <
+    int64_t SN1 = DYNAMIC, int64_t SN2 = DYNAMIC, int64_t SN3 = DYNAMIC, int64_t SN4 = DYNAMIC, int64_t SN5 = DYNAMIC>
 struct Stride {
     static constexpr int64_t staticStride[GlobalTensorDim::TOTAL_DIM] = {SN1, SN2, SN3, SN4, SN5};
     PTO_INTERNAL Stride(int64_t n1, int64_t n2, int64_t n3, int64_t n4, int64_t n5)
@@ -168,9 +172,10 @@ struct Stride {
 
     PTO_INTERNAL Stride(int64_t n)
     {
-        static_assert((SN1 == DYNAMIC) + (SN2 == DYNAMIC) + (SN3 == DYNAMIC) + (SN4 == DYNAMIC) + (SN5 == DYNAMIC) ==
-                          GlobalTensorDim::DIM_1,
-                      "1-parameter constructors is only applicable to Stride with 1 dynamic dimension.");
+        static_assert(
+            (SN1 == DYNAMIC) + (SN2 == DYNAMIC) + (SN3 == DYNAMIC) + (SN4 == DYNAMIC) + (SN5 == DYNAMIC) ==
+                GlobalTensorDim::DIM_1,
+            "1-parameter constructors is only applicable to Stride with 1 dynamic dimension.");
 
         if constexpr (SN1 == DYNAMIC)
             stride[GlobalTensorDim::DIM_0] = n;
@@ -186,9 +191,10 @@ struct Stride {
 
     PTO_INTERNAL Stride(int64_t n1, int64_t n2)
     {
-        static_assert((SN1 == DYNAMIC) + (SN2 == DYNAMIC) + (SN3 == DYNAMIC) + (SN4 == DYNAMIC) + (SN5 == DYNAMIC) ==
-                          GlobalTensorDim::DIM_2,
-                      "2-parameter constructors is only applicable to Stride with 2 dynamic dimension.");
+        static_assert(
+            (SN1 == DYNAMIC) + (SN2 == DYNAMIC) + (SN3 == DYNAMIC) + (SN4 == DYNAMIC) + (SN5 == DYNAMIC) ==
+                GlobalTensorDim::DIM_2,
+            "2-parameter constructors is only applicable to Stride with 2 dynamic dimension.");
         int idx = 0;
         const int64_t vals[] = {n1, n2};
         if constexpr (SN1 == DYNAMIC)
@@ -205,9 +211,10 @@ struct Stride {
 
     PTO_INTERNAL Stride(int64_t n1, int64_t n2, int64_t n3)
     {
-        static_assert((SN1 == DYNAMIC) + (SN2 == DYNAMIC) + (SN3 == DYNAMIC) + (SN4 == DYNAMIC) + (SN5 == DYNAMIC) ==
-                          GlobalTensorDim::DIM_3,
-                      "3-parameter constructors is only applicable to Stride with 3 dynamic dimension.");
+        static_assert(
+            (SN1 == DYNAMIC) + (SN2 == DYNAMIC) + (SN3 == DYNAMIC) + (SN4 == DYNAMIC) + (SN5 == DYNAMIC) ==
+                GlobalTensorDim::DIM_3,
+            "3-parameter constructors is only applicable to Stride with 3 dynamic dimension.");
         int idx = 0;
         const int64_t vals[] = {n1, n2, n3};
         if constexpr (SN1 == DYNAMIC)
@@ -224,9 +231,10 @@ struct Stride {
 
     PTO_INTERNAL Stride(int64_t n1, int64_t n2, int64_t n3, int64_t n4)
     {
-        static_assert((SN1 == DYNAMIC) + (SN2 == DYNAMIC) + (SN3 == DYNAMIC) + (SN4 == DYNAMIC) + (SN5 == DYNAMIC) ==
-                          GlobalTensorDim::DIM_4,
-                      "4-parameter constructors is only applicable to Stride with 4 dynamic dimension.");
+        static_assert(
+            (SN1 == DYNAMIC) + (SN2 == DYNAMIC) + (SN3 == DYNAMIC) + (SN4 == DYNAMIC) + (SN5 == DYNAMIC) ==
+                GlobalTensorDim::DIM_4,
+            "4-parameter constructors is only applicable to Stride with 4 dynamic dimension.");
         int idx = 0;
         const int64_t vals[] = {n1, n2, n3, n4};
         if constexpr (SN1 == DYNAMIC)
@@ -277,7 +285,7 @@ struct GlobalTensor {
         Stride::staticStride[GlobalTensorDim::DIM_0], Stride::staticStride[GlobalTensorDim::DIM_1],
         Stride::staticStride[GlobalTensorDim::DIM_2], Stride::staticStride[GlobalTensorDim::DIM_3],
         Stride::staticStride[GlobalTensorDim::DIM_4]};
-    PTO_INTERNAL GlobalTensor(DType *data, const Shape &shape = defaultShape, const Stride &stride = defaultStride)
+    PTO_INTERNAL GlobalTensor(DType* data, const Shape& shape = defaultShape, const Stride& stride = defaultStride)
     {
         data_ = data;
 
@@ -313,8 +321,7 @@ struct GlobalTensor {
             stride_.stride[GlobalTensorDim::DIM_4] = stride.stride[GlobalTensorDim::DIM_4];
         }
     }
-    PTO_INTERNAL GlobalTensor() : data_(nullptr)
-    {}
+    PTO_INTERNAL GlobalTensor() : data_(nullptr) {}
 
     PTO_INTERNAL int64_t GetShape(const int dim)
     {
@@ -357,28 +364,33 @@ struct GlobalTensor {
     {
         static_assert(dim >= GlobalTensorDim::DIM_0 && dim < GlobalTensorDim::TOTAL_DIM, "only support get dim(0-4)");
         if constexpr (dim == GlobalTensorDim::DIM_0) {
-            static_assert(staticShape[GlobalTensorDim::DIM_0] != DYNAMIC,
-                          "dim 0 is dynamic, cannot be obtained using the template interface.");
+            static_assert(
+                staticShape[GlobalTensorDim::DIM_0] != DYNAMIC,
+                "dim 0 is dynamic, cannot be obtained using the template interface.");
             return staticShape[GlobalTensorDim::DIM_0];
         }
         if constexpr (dim == GlobalTensorDim::DIM_1) {
-            static_assert(staticShape[GlobalTensorDim::DIM_1] != DYNAMIC,
-                          "dim 1 is dynamic, cannot be obtained using the template interface.");
+            static_assert(
+                staticShape[GlobalTensorDim::DIM_1] != DYNAMIC,
+                "dim 1 is dynamic, cannot be obtained using the template interface.");
             return staticShape[GlobalTensorDim::DIM_1];
         }
         if constexpr (dim == GlobalTensorDim::DIM_2) {
-            static_assert(staticShape[GlobalTensorDim::DIM_2] != DYNAMIC,
-                          "dim 2 is dynamic, cannot be obtained using the template interface.");
+            static_assert(
+                staticShape[GlobalTensorDim::DIM_2] != DYNAMIC,
+                "dim 2 is dynamic, cannot be obtained using the template interface.");
             return staticShape[GlobalTensorDim::DIM_2];
         }
         if constexpr (dim == GlobalTensorDim::DIM_3) {
-            static_assert(staticShape[GlobalTensorDim::DIM_3] != DYNAMIC,
-                          "dim 3 is dynamic, cannot be obtained using the template interface.");
+            static_assert(
+                staticShape[GlobalTensorDim::DIM_3] != DYNAMIC,
+                "dim 3 is dynamic, cannot be obtained using the template interface.");
             return staticShape[GlobalTensorDim::DIM_3];
         }
         if constexpr (dim == GlobalTensorDim::DIM_4) {
-            static_assert(staticShape[GlobalTensorDim::DIM_4] != DYNAMIC,
-                          "dim 4 is dynamic, cannot be obtained using the template interface.");
+            static_assert(
+                staticShape[GlobalTensorDim::DIM_4] != DYNAMIC,
+                "dim 4 is dynamic, cannot be obtained using the template interface.");
             return staticShape[GlobalTensorDim::DIM_4];
         }
         return -1;
@@ -389,28 +401,33 @@ struct GlobalTensor {
     {
         static_assert(dim >= GlobalTensorDim::DIM_0 && dim < GlobalTensorDim::TOTAL_DIM, "only support get dim(0-4)");
         if constexpr (dim == GlobalTensorDim::DIM_0) {
-            static_assert(staticStride[GlobalTensorDim::DIM_0] != DYNAMIC,
-                          "dim 0 is dynamic, cannot be obtained using the template interface.");
+            static_assert(
+                staticStride[GlobalTensorDim::DIM_0] != DYNAMIC,
+                "dim 0 is dynamic, cannot be obtained using the template interface.");
             return staticStride[GlobalTensorDim::DIM_0];
         }
         if constexpr (dim == GlobalTensorDim::DIM_1) {
-            static_assert(staticStride[GlobalTensorDim::DIM_1] != DYNAMIC,
-                          "dim 1 is dynamic, cannot be obtained using the template interface.");
+            static_assert(
+                staticStride[GlobalTensorDim::DIM_1] != DYNAMIC,
+                "dim 1 is dynamic, cannot be obtained using the template interface.");
             return staticStride[GlobalTensorDim::DIM_1];
         }
         if constexpr (dim == GlobalTensorDim::DIM_2) {
-            static_assert(staticStride[GlobalTensorDim::DIM_2] != DYNAMIC,
-                          "dim 2 is dynamic, cannot be obtained using the template interface.");
+            static_assert(
+                staticStride[GlobalTensorDim::DIM_2] != DYNAMIC,
+                "dim 2 is dynamic, cannot be obtained using the template interface.");
             return staticStride[GlobalTensorDim::DIM_2];
         }
         if constexpr (dim == GlobalTensorDim::DIM_3) {
-            static_assert(staticStride[GlobalTensorDim::DIM_3] != DYNAMIC,
-                          "dim 3 is dynamic, cannot be obtained using the template interface.");
+            static_assert(
+                staticStride[GlobalTensorDim::DIM_3] != DYNAMIC,
+                "dim 3 is dynamic, cannot be obtained using the template interface.");
             return staticStride[GlobalTensorDim::DIM_3];
         }
         if constexpr (dim == GlobalTensorDim::DIM_4) {
-            static_assert(staticStride[GlobalTensorDim::DIM_4] != DYNAMIC,
-                          "dim 4 is dynamic, cannot be obtained using the template interface.");
+            static_assert(
+                staticStride[GlobalTensorDim::DIM_4] != DYNAMIC,
+                "dim 4 is dynamic, cannot be obtained using the template interface.");
             return staticStride[GlobalTensorDim::DIM_4];
         }
         return -1;
@@ -557,12 +574,9 @@ struct GlobalTensor {
     }
 
     template <typename T, typename AddrType>
-    friend AICORE void TASSIGN_IMPL(T &src, AddrType addr);
+    friend AICORE void TASSIGN_IMPL(T& src, AddrType addr);
 
-    AICORE DType *data()
-    {
-        return data_;
-    }
+    AICORE DType* data() { return data_; }
 
 private:
     template <int64_t StaticShape>
@@ -585,12 +599,9 @@ private:
         }
     }
 
-    AICORE void SetAddr(DType *addr)
-    {
-        data_ = addr;
-    }
+    AICORE void SetAddr(DType* addr) { data_ = addr; }
 
-    DType *data_;
+    DType* data_;
     Shape shape_ = defaultShape;
     Stride stride_ = defaultStride;
 };
@@ -627,17 +638,16 @@ constexpr int64_t GetTileShape2DNZRows()
 }
 
 template <typename T, int64_t rows, int64_t cols>
-struct TileShape2D<T, rows, cols, Layout::NZ>
-    : public Shape<1, GetTileShape2DNZCols<T, cols>(), GetTileShape2DNZRows<T, rows>(), FRACTAL_NZ_ROW,
-                   C0_SIZE_BYTE / sizeof(T)> {
+struct TileShape2D<T, rows, cols, Layout::NZ> : public Shape<
+                                                    1, GetTileShape2DNZCols<T, cols>(), GetTileShape2DNZRows<T, rows>(),
+                                                    FRACTAL_NZ_ROW, C0_SIZE_BYTE / sizeof(T)> {
     static constexpr int C0Size = C0_SIZE_BYTE / sizeof(T);
     using Parent = Shape<1, GetTileShape2DNZCols<T, cols>(), GetTileShape2DNZRows<T, rows>(), FRACTAL_NZ_ROW, C0Size>;
 
     static_assert((rows == DYNAMIC) || (rows % FRACTAL_NZ_ROW == 0), "rows must be divisible by 16 for Layout::NZ");
     static_assert((cols == DYNAMIC) || (cols % C0Size == 0), "cols must be divisible by C0Size for Layout::NZ");
 
-    PTO_INTERNAL TileShape2D() : Parent()
-    {}
+    PTO_INTERNAL TileShape2D() : Parent() {}
 
     PTO_INTERNAL TileShape2D(int64_t dynamicRows, int64_t dynamicCols)
         : Parent(1, dynamicCols / C0Size, dynamicRows / FRACTAL_NZ_ROW, FRACTAL_NZ_ROW, C0Size)
@@ -668,11 +678,9 @@ struct TileShape2D<T, rows, cols, Layout::ND>
     : public Shape<1, 1, 1, GetShape2DRows<T, rows>(), GetShape2DCols<T, cols>()> {
     using Parent = Shape<1, 1, 1, GetShape2DRows<T, rows>(), GetShape2DCols<T, cols>()>;
 
-    PTO_INTERNAL TileShape2D() : Parent()
-    {}
+    PTO_INTERNAL TileShape2D() : Parent() {}
 
-    PTO_INTERNAL TileShape2D(int64_t dynamicRows, int64_t dynamicCols) : Parent(1, 1, 1, dynamicRows, dynamicCols)
-    {}
+    PTO_INTERNAL TileShape2D(int64_t dynamicRows, int64_t dynamicCols) : Parent(1, 1, 1, dynamicRows, dynamicCols) {}
     using Parent::Parent;
 };
 template <typename T, int64_t rows, int64_t cols>
@@ -680,11 +688,9 @@ struct TileShape2D<T, rows, cols, Layout::DN>
     : public Shape<1, 1, 1, GetShape2DRows<T, rows>(), GetShape2DCols<T, cols>()> {
     using Parent = Shape<1, 1, 1, GetShape2DRows<T, rows>(), GetShape2DCols<T, cols>()>;
 
-    PTO_INTERNAL TileShape2D() : Parent()
-    {}
+    PTO_INTERNAL TileShape2D() : Parent() {}
 
-    PTO_INTERNAL TileShape2D(int64_t dynamicRows, int64_t dynamicCols) : Parent(1, 1, 1, dynamicRows, dynamicCols)
-    {}
+    PTO_INTERNAL TileShape2D(int64_t dynamicRows, int64_t dynamicCols) : Parent(1, 1, 1, dynamicRows, dynamicCols) {}
     using Parent::Parent;
 };
 
@@ -721,8 +727,9 @@ constexpr int64_t GetBaseShape2DStride1()
 }
 template <typename T, int64_t rows, int64_t cols>
 struct BaseShape2D<T, rows, cols, Layout::NZ>
-    : public Stride<GetBaseShape2DStride0<T, rows, cols>(), GetBaseShape2DStride1<T, rows>(),
-                    FRACTAL_NZ_ROW *(C0_SIZE_BYTE / sizeof(T)), C0_SIZE_BYTE / sizeof(T), 1> {
+    : public Stride<
+          GetBaseShape2DStride0<T, rows, cols>(), GetBaseShape2DStride1<T, rows>(),
+          FRACTAL_NZ_ROW*(C0_SIZE_BYTE / sizeof(T)), C0_SIZE_BYTE / sizeof(T), 1> {
     static constexpr int C0Size = C0_SIZE_BYTE / sizeof(T);
     static constexpr int FractalNZSize = FRACTAL_NZ_ROW * (C0_SIZE_BYTE / sizeof(T));
     using Parent =
@@ -730,8 +737,7 @@ struct BaseShape2D<T, rows, cols, Layout::NZ>
     static_assert((rows == DYNAMIC) || (rows % FRACTAL_NZ_ROW == 0), "rows must be divisible by 16 for Layout::NZ");
     static_assert((cols == DYNAMIC) || (cols % C0Size == 0), "cols must be divisible by C0Size for Layout::NZ");
 
-    PTO_INTERNAL BaseShape2D() : Parent()
-    {}
+    PTO_INTERNAL BaseShape2D() : Parent() {}
 
     PTO_INTERNAL BaseShape2D(int64_t dynamicRows, int64_t dynamicCols)
         : Parent(dynamicCols * dynamicRows, dynamicRows * C0Size, FractalNZSize, C0Size, 1)
@@ -740,13 +746,14 @@ struct BaseShape2D<T, rows, cols, Layout::NZ>
 };
 template <typename T, int64_t rows, int64_t cols>
 struct BaseShape2D<T, rows, cols, Layout::ND>
-    : public Stride<GetBaseShape2DStride0<T, rows, cols>(), GetBaseShape2DStride0<T, rows, cols>(),
-                    GetBaseShape2DStride0<T, rows, cols>(), GetShape2DCols<T, cols>(), 1> {
-    using Parent = Stride<GetBaseShape2DStride0<T, rows, cols>(), GetBaseShape2DStride0<T, rows, cols>(),
-                          GetBaseShape2DStride0<T, rows, cols>(), GetShape2DCols<T, cols>(), 1>;
+    : public Stride<
+          GetBaseShape2DStride0<T, rows, cols>(), GetBaseShape2DStride0<T, rows, cols>(),
+          GetBaseShape2DStride0<T, rows, cols>(), GetShape2DCols<T, cols>(), 1> {
+    using Parent = Stride<
+        GetBaseShape2DStride0<T, rows, cols>(), GetBaseShape2DStride0<T, rows, cols>(),
+        GetBaseShape2DStride0<T, rows, cols>(), GetShape2DCols<T, cols>(), 1>;
 
-    PTO_INTERNAL BaseShape2D() : Parent()
-    {}
+    PTO_INTERNAL BaseShape2D() : Parent() {}
 
     PTO_INTERNAL BaseShape2D(int64_t dynamicRows, int64_t dynamicCols)
         : Parent(dynamicRows * dynamicCols, dynamicRows * dynamicCols, dynamicRows * dynamicCols, dynamicCols, 1)
@@ -755,13 +762,14 @@ struct BaseShape2D<T, rows, cols, Layout::ND>
 };
 template <typename T, int64_t rows, int64_t cols>
 struct BaseShape2D<T, rows, cols, Layout::DN>
-    : public Stride<GetBaseShape2DStride0<T, rows, cols>(), GetBaseShape2DStride0<T, rows, cols>(),
-                    GetBaseShape2DStride0<T, rows, cols>(), 1, GetShape2DRows<T, rows>()> {
-    using Parent = Stride<GetBaseShape2DStride0<T, rows, cols>(), GetBaseShape2DStride0<T, rows, cols>(),
-                          GetBaseShape2DStride0<T, rows, cols>(), 1, GetShape2DRows<T, rows>()>;
+    : public Stride<
+          GetBaseShape2DStride0<T, rows, cols>(), GetBaseShape2DStride0<T, rows, cols>(),
+          GetBaseShape2DStride0<T, rows, cols>(), 1, GetShape2DRows<T, rows>()> {
+    using Parent = Stride<
+        GetBaseShape2DStride0<T, rows, cols>(), GetBaseShape2DStride0<T, rows, cols>(),
+        GetBaseShape2DStride0<T, rows, cols>(), 1, GetShape2DRows<T, rows>()>;
 
-    PTO_INTERNAL BaseShape2D() : Parent()
-    {}
+    PTO_INTERNAL BaseShape2D() : Parent() {}
 
     PTO_INTERNAL BaseShape2D(int64_t dynamicRows, int64_t dynamicCols)
         : Parent(dynamicRows * dynamicCols, dynamicRows * dynamicCols, dynamicRows * dynamicCols, 1, dynamicRows)
@@ -771,13 +779,14 @@ struct BaseShape2D<T, rows, cols, Layout::DN>
 
 template <typename T, int64_t rows, int64_t cols>
 struct BaseShape2D<T, rows, cols, Layout::MX_A_ZZ>
-    : public Stride<GetBaseShape2DStride0<T, rows, cols>(), (cols == DYNAMIC) ? DYNAMIC : cols * MX_ROW_LEN,
-                    MX_BLOCK_SIZE, MX_COL_LEN, 1> {
-    using Parent = Stride<GetBaseShape2DStride0<T, rows, cols>(), (cols == DYNAMIC) ? DYNAMIC : cols * MX_ROW_LEN,
-                          MX_BLOCK_SIZE, MX_COL_LEN, 1>;
+    : public Stride<
+          GetBaseShape2DStride0<T, rows, cols>(), (cols == DYNAMIC) ? DYNAMIC : cols * MX_ROW_LEN, MX_BLOCK_SIZE,
+          MX_COL_LEN, 1> {
+    using Parent = Stride<
+        GetBaseShape2DStride0<T, rows, cols>(), (cols == DYNAMIC) ? DYNAMIC : cols * MX_ROW_LEN, MX_BLOCK_SIZE,
+        MX_COL_LEN, 1>;
 
-    PTO_INTERNAL BaseShape2D() : Parent()
-    {}
+    PTO_INTERNAL BaseShape2D() : Parent() {}
 
     PTO_INTERNAL BaseShape2D(int64_t dynamicRows, int64_t dynamicCols)
         : Parent(dynamicCols * dynamicRows, dynamicCols * MX_ROW_LEN, MX_BLOCK_SIZE, MX_COL_LEN, 1)
@@ -787,14 +796,15 @@ struct BaseShape2D<T, rows, cols, Layout::MX_A_ZZ>
 
 template <typename T, int64_t rows, int64_t cols>
 struct TileShape2D<T, rows, cols, Layout::MX_A_ZZ>
-    : public Shape<1, rows == DYNAMIC ? DYNAMIC : rows / MX_ROW_LEN, cols == DYNAMIC ? DYNAMIC : cols / MX_COL_LEN,
-                   MX_ROW_LEN, MX_COL_LEN> {
-    using Parent = Shape<1, rows == DYNAMIC ? DYNAMIC : rows / MX_ROW_LEN,
-                         cols == DYNAMIC ? DYNAMIC : cols / MX_COL_LEN, MX_ROW_LEN, MX_COL_LEN>;
+    : public Shape<
+          1, rows == DYNAMIC ? DYNAMIC : rows / MX_ROW_LEN, cols == DYNAMIC ? DYNAMIC : cols / MX_COL_LEN, MX_ROW_LEN,
+          MX_COL_LEN> {
+    using Parent = Shape<
+        1, rows == DYNAMIC ? DYNAMIC : rows / MX_ROW_LEN, cols == DYNAMIC ? DYNAMIC : cols / MX_COL_LEN, MX_ROW_LEN,
+        MX_COL_LEN>;
     static constexpr int C0Size = 2;
     static_assert((cols == DYNAMIC) || (cols % C0Size == 0), "cols must be divisible by C0Size for Layout::MX_A_ZZ");
-    PTO_INTERNAL TileShape2D() : Parent()
-    {}
+    PTO_INTERNAL TileShape2D() : Parent() {}
     PTO_INTERNAL TileShape2D(int64_t dynamicRows, int64_t dynamicCols)
         : Parent(1, dynamicRows / MX_ROW_LEN, dynamicCols / MX_COL_LEN, MX_ROW_LEN, MX_COL_LEN)
     {}
@@ -803,13 +813,12 @@ struct TileShape2D<T, rows, cols, Layout::MX_A_ZZ>
 
 template <typename T, int64_t rows, int64_t cols>
 struct BaseShape2D<T, rows, cols, Layout::MX_A_ND>
-    : public Stride<GetBaseShape2DStride0<T, rows, cols>(), GetBaseShape2DStride0<T, rows, cols>(), cols, MX_COL_LEN,
-                    1> {
+    : public Stride<
+          GetBaseShape2DStride0<T, rows, cols>(), GetBaseShape2DStride0<T, rows, cols>(), cols, MX_COL_LEN, 1> {
     using Parent =
         Stride<GetBaseShape2DStride0<T, rows, cols>(), GetBaseShape2DStride0<T, rows, cols>(), cols, MX_COL_LEN, 1>;
 
-    PTO_INTERNAL BaseShape2D() : Parent()
-    {}
+    PTO_INTERNAL BaseShape2D() : Parent() {}
     PTO_INTERNAL BaseShape2D(int64_t dynamicRows, int64_t dynamicCols)
         : Parent(dynamicCols * dynamicRows, dynamicCols * dynamicRows, dynamicCols, MX_COL_LEN, 1)
     {}
@@ -824,8 +833,7 @@ struct TileShape2D<T, rows, cols, Layout::MX_A_ND>
     static constexpr int C0Size = 2;
     static_assert((cols == DYNAMIC) || (cols % C0Size == 0), "cols must be divisible by C0Size for Layout::MX_A_ND");
 
-    PTO_INTERNAL TileShape2D() : Parent()
-    {}
+    PTO_INTERNAL TileShape2D() : Parent() {}
     PTO_INTERNAL TileShape2D(int64_t dynamicRows, int64_t dynamicCols)
         : Parent(1, 1, dynamicRows, dynamicCols / MX_COL_LEN, MX_COL_LEN)
     {}
@@ -834,13 +842,14 @@ struct TileShape2D<T, rows, cols, Layout::MX_A_ND>
 
 template <typename T, int64_t rows, int64_t cols>
 struct BaseShape2D<T, rows, cols, Layout::MX_A_DN>
-    : public Stride<GetBaseShape2DStride0<T, rows, cols>(), GetBaseShape2DStride0<T, rows, cols>(),
-                    rows == DYNAMIC ? DYNAMIC : rows * MX_COL_LEN, MX_COL_LEN, 1> {
-    using Parent = Stride<GetBaseShape2DStride0<T, rows, cols>(), GetBaseShape2DStride0<T, rows, cols>(),
-                          rows == DYNAMIC ? DYNAMIC : rows * MX_COL_LEN, MX_COL_LEN, 1>;
+    : public Stride<
+          GetBaseShape2DStride0<T, rows, cols>(), GetBaseShape2DStride0<T, rows, cols>(),
+          rows == DYNAMIC ? DYNAMIC : rows * MX_COL_LEN, MX_COL_LEN, 1> {
+    using Parent = Stride<
+        GetBaseShape2DStride0<T, rows, cols>(), GetBaseShape2DStride0<T, rows, cols>(),
+        rows == DYNAMIC ? DYNAMIC : rows * MX_COL_LEN, MX_COL_LEN, 1>;
 
-    PTO_INTERNAL BaseShape2D() : Parent()
-    {}
+    PTO_INTERNAL BaseShape2D() : Parent() {}
     PTO_INTERNAL BaseShape2D(int64_t dynamicRows, int64_t dynamicCols)
         : Parent(dynamicCols * dynamicRows, dynamicCols * dynamicRows, dynamicRows * MX_COL_LEN, MX_COL_LEN, 1)
     {}
@@ -855,8 +864,7 @@ struct TileShape2D<T, rows, cols, Layout::MX_A_DN>
     static constexpr int C0Size = 2;
     static_assert((cols == DYNAMIC) || (cols % C0Size == 0), "cols must be divisible by C0Size for Layout::MX_A_DN");
 
-    PTO_INTERNAL TileShape2D() : Parent()
-    {}
+    PTO_INTERNAL TileShape2D() : Parent() {}
     PTO_INTERNAL TileShape2D(int64_t dynamicRows, int64_t dynamicCols)
         : Parent(1, 1, dynamicCols / MX_COL_LEN, dynamicRows, MX_COL_LEN)
     {}
@@ -865,13 +873,14 @@ struct TileShape2D<T, rows, cols, Layout::MX_A_DN>
 
 template <typename T, int64_t rows, int64_t cols>
 struct BaseShape2D<T, rows, cols, Layout::MX_B_NN>
-    : public Stride<GetBaseShape2DStride0<T, rows, cols>(), (rows == DYNAMIC) ? DYNAMIC : rows * MX_ROW_LEN,
-                    MX_BLOCK_SIZE, MX_COL_LEN, 1> {
-    using Parent = Stride<GetBaseShape2DStride0<T, rows, cols>(), (rows == DYNAMIC) ? DYNAMIC : rows * MX_ROW_LEN,
-                          MX_BLOCK_SIZE, MX_COL_LEN, 1>;
+    : public Stride<
+          GetBaseShape2DStride0<T, rows, cols>(), (rows == DYNAMIC) ? DYNAMIC : rows * MX_ROW_LEN, MX_BLOCK_SIZE,
+          MX_COL_LEN, 1> {
+    using Parent = Stride<
+        GetBaseShape2DStride0<T, rows, cols>(), (rows == DYNAMIC) ? DYNAMIC : rows * MX_ROW_LEN, MX_BLOCK_SIZE,
+        MX_COL_LEN, 1>;
 
-    PTO_INTERNAL BaseShape2D() : Parent()
-    {}
+    PTO_INTERNAL BaseShape2D() : Parent() {}
     PTO_INTERNAL BaseShape2D(int64_t dynamicRows, int64_t dynamicCols)
         : Parent(dynamicCols * dynamicRows, dynamicRows * MX_ROW_LEN, MX_BLOCK_SIZE, MX_COL_LEN, 1)
     {}
@@ -880,15 +889,16 @@ struct BaseShape2D<T, rows, cols, Layout::MX_B_NN>
 
 template <typename T, int64_t rows, int64_t cols>
 struct TileShape2D<T, rows, cols, Layout::MX_B_NN>
-    : public Shape<1, cols == DYNAMIC ? DYNAMIC : cols / MX_ROW_LEN, rows == DYNAMIC ? DYNAMIC : rows / MX_COL_LEN,
-                   MX_ROW_LEN, MX_COL_LEN> {
-    using Parent = Shape<1, cols == DYNAMIC ? DYNAMIC : cols / MX_ROW_LEN,
-                         rows == DYNAMIC ? DYNAMIC : rows / MX_COL_LEN, MX_ROW_LEN, MX_COL_LEN>;
+    : public Shape<
+          1, cols == DYNAMIC ? DYNAMIC : cols / MX_ROW_LEN, rows == DYNAMIC ? DYNAMIC : rows / MX_COL_LEN, MX_ROW_LEN,
+          MX_COL_LEN> {
+    using Parent = Shape<
+        1, cols == DYNAMIC ? DYNAMIC : cols / MX_ROW_LEN, rows == DYNAMIC ? DYNAMIC : rows / MX_COL_LEN, MX_ROW_LEN,
+        MX_COL_LEN>;
     static constexpr int C0Size = 2;
     static_assert((rows == DYNAMIC) || (rows % C0Size == 0), "rows must be divisible by C0Size for Layout::MX_B_NN");
 
-    PTO_INTERNAL TileShape2D() : Parent()
-    {}
+    PTO_INTERNAL TileShape2D() : Parent() {}
     PTO_INTERNAL TileShape2D(int64_t dynamicRows, int64_t dynamicCols)
         : Parent(1, dynamicCols / MX_ROW_LEN, dynamicRows / MX_COL_LEN, MX_ROW_LEN, MX_COL_LEN)
     {}
@@ -897,13 +907,14 @@ struct TileShape2D<T, rows, cols, Layout::MX_B_NN>
 
 template <typename T, int64_t rows, int64_t cols>
 struct BaseShape2D<T, rows, cols, Layout::MX_B_ND>
-    : public Stride<GetBaseShape2DStride0<T, rows, cols>(), GetBaseShape2DStride0<T, rows, cols>(),
-                    cols == DYNAMIC ? DYNAMIC : cols * MX_COL_LEN, MX_COL_LEN, 1> {
-    using Parent = Stride<GetBaseShape2DStride0<T, rows, cols>(), GetBaseShape2DStride0<T, rows, cols>(),
-                          cols == DYNAMIC ? DYNAMIC : cols * MX_COL_LEN, MX_COL_LEN, 1>;
+    : public Stride<
+          GetBaseShape2DStride0<T, rows, cols>(), GetBaseShape2DStride0<T, rows, cols>(),
+          cols == DYNAMIC ? DYNAMIC : cols * MX_COL_LEN, MX_COL_LEN, 1> {
+    using Parent = Stride<
+        GetBaseShape2DStride0<T, rows, cols>(), GetBaseShape2DStride0<T, rows, cols>(),
+        cols == DYNAMIC ? DYNAMIC : cols * MX_COL_LEN, MX_COL_LEN, 1>;
 
-    PTO_INTERNAL BaseShape2D() : Parent()
-    {}
+    PTO_INTERNAL BaseShape2D() : Parent() {}
     PTO_INTERNAL BaseShape2D(int64_t dynamicRows, int64_t dynamicCols)
         : Parent(dynamicCols * dynamicRows, dynamicCols * dynamicRows, dynamicCols * MX_COL_LEN, MX_COL_LEN, 1)
     {}
@@ -918,8 +929,7 @@ struct TileShape2D<T, rows, cols, Layout::MX_B_ND>
     static constexpr int C0Size = 2;
     static_assert((rows == DYNAMIC) || (rows % C0Size == 0), "rows must be divisible by C0Size for Layout::MX_B_ND");
 
-    PTO_INTERNAL TileShape2D() : Parent()
-    {}
+    PTO_INTERNAL TileShape2D() : Parent() {}
     PTO_INTERNAL TileShape2D(int64_t dynamicRows, int64_t dynamicCols)
         : Parent(1, 1, dynamicRows / MX_COL_LEN, dynamicCols, MX_COL_LEN)
     {}
@@ -928,13 +938,14 @@ struct TileShape2D<T, rows, cols, Layout::MX_B_ND>
 
 template <typename T, int64_t rows, int64_t cols>
 struct BaseShape2D<T, rows, cols, Layout::MX_B_DN>
-    : public Stride<GetBaseShape2DStride0<T, rows, cols>(), GetBaseShape2DStride0<T, rows, cols>(),
-                    rows == DYNAMIC ? DYNAMIC : rows, MX_COL_LEN, 1> {
-    using Parent = Stride<GetBaseShape2DStride0<T, rows, cols>(), GetBaseShape2DStride0<T, rows, cols>(),
-                          rows == DYNAMIC ? DYNAMIC : rows, MX_COL_LEN, 1>;
+    : public Stride<
+          GetBaseShape2DStride0<T, rows, cols>(), GetBaseShape2DStride0<T, rows, cols>(),
+          rows == DYNAMIC ? DYNAMIC : rows, MX_COL_LEN, 1> {
+    using Parent = Stride<
+        GetBaseShape2DStride0<T, rows, cols>(), GetBaseShape2DStride0<T, rows, cols>(),
+        rows == DYNAMIC ? DYNAMIC : rows, MX_COL_LEN, 1>;
 
-    PTO_INTERNAL BaseShape2D() : Parent()
-    {}
+    PTO_INTERNAL BaseShape2D() : Parent() {}
     PTO_INTERNAL BaseShape2D(int64_t dynamicRows, int64_t dynamicCols)
         : Parent(dynamicCols * dynamicRows, dynamicCols * dynamicRows, dynamicRows, MX_COL_LEN, 1)
     {}
@@ -949,8 +960,7 @@ struct TileShape2D<T, rows, cols, Layout::MX_B_DN>
     static constexpr int C0Size = 2;
     static_assert((rows == DYNAMIC) || (rows % C0Size == 0), "rows must be divisible by C0Size for Layout::MX_B_DN");
 
-    PTO_INTERNAL TileShape2D() : Parent()
-    {}
+    PTO_INTERNAL TileShape2D() : Parent() {}
     PTO_INTERNAL TileShape2D(int64_t dynamicRows, int64_t dynamicCols)
         : Parent(1, 1, dynamicCols, dynamicRows / MX_COL_LEN, MX_COL_LEN)
     {}
@@ -996,7 +1006,7 @@ struct CountDynamicDim {
 
 template <int DimIdx, int64_t... Shapes>
 struct AssignDynamicDim {
-    static void apply(int64_t *shape, const int *vals, int &val_idx)
+    static void apply(int64_t* shape, const int* vals, int& val_idx)
     {
         if constexpr (GetNthShape<DimIdx, Shapes...>::value == DYNAMIC) {
             shape[DimIdx] = vals[val_idx++];
@@ -1051,8 +1061,8 @@ struct ConvTileShape {
 
     PTO_INTERNAL ConvTileShape(int64_t n)
     {
-        static_assert(dynamicDimCount == 1,
-                      "1-parameter constructors is only applicable to Shape with 1 dynamic dimension.");
+        static_assert(
+            dynamicDimCount == 1, "1-parameter constructors is only applicable to Shape with 1 dynamic dimension.");
 
         int val_idx = 0;
         const int64_t vals[] = {n};
@@ -1061,8 +1071,8 @@ struct ConvTileShape {
 
     PTO_INTERNAL ConvTileShape(int n1, int n2)
     {
-        static_assert(dynamicDimCount == 2,
-                      "2-parameter constructors is only applicable to Shape with 2 dynamic dimension.");
+        static_assert(
+            dynamicDimCount == 2, "2-parameter constructors is only applicable to Shape with 2 dynamic dimension.");
 
         int val_idx = 0;
         const int64_t vals[] = {n1, n2};
@@ -1071,8 +1081,8 @@ struct ConvTileShape {
 
     PTO_INTERNAL ConvTileShape(int64_t n1, int64_t n2, int64_t n3)
     {
-        static_assert(dynamicDimCount == 3,
-                      "3-parameter constructors is only applicable to Shape with 3 dynamic dimension.");
+        static_assert(
+            dynamicDimCount == 3, "3-parameter constructors is only applicable to Shape with 3 dynamic dimension.");
 
         int val_idx = 0;
         const int64_t vals[] = {n1, n2, n3};
@@ -1081,8 +1091,8 @@ struct ConvTileShape {
 
     PTO_INTERNAL ConvTileShape(int64_t n1, int64_t n2, int64_t n3, int64_t n4)
     {
-        static_assert(dynamicDimCount == 4,
-                      "4-parameter constructors is only applicable to Shape with 4 dynamic dimension.");
+        static_assert(
+            dynamicDimCount == 4, "4-parameter constructors is only applicable to Shape with 4 dynamic dimension.");
 
         int val_idx = 0;
         const int64_t vals[] = {n1, n2, n3, n4};
@@ -1090,8 +1100,8 @@ struct ConvTileShape {
     }
     PTO_INTERNAL ConvTileShape(int64_t n1, int64_t n2, int64_t n3, int64_t n4, int64_t n5)
     {
-        static_assert(dynamicDimCount == 5,
-                      "5-parameter constructors is only applicable to Shape with 5 dynamic dimension.");
+        static_assert(
+            dynamicDimCount == 5, "5-parameter constructors is only applicable to Shape with 5 dynamic dimension.");
 
         int val_idx = 0;
         const int64_t vals[] = {n1, n2, n3, n4, n5};
@@ -1116,8 +1126,8 @@ public:
     static constexpr Layout layout = Layout_;
 
     static constexpr int totalDimCount = ShapeType::totalDimCount;
-    static_assert(totalDimCount >= 1 && totalDimCount <= ConvTileDetail::MAX_CONVTILE_DIM,
-                  "ConvTile only support 1D~6D Shapes!");
+    static_assert(
+        totalDimCount >= 1 && totalDimCount <= ConvTileDetail::MAX_CONVTILE_DIM, "ConvTile only support 1D~6D Shapes!");
     static constexpr int64_t staticShape[ConvTileDetail::MAX_CONVTILE_DIM] = {
         ShapeType::staticShape[0], ShapeType::staticShape[1], ShapeType::staticShape[2],
         ShapeType::staticShape[3], ShapeType::staticShape[4], ShapeType::staticShape[5]};
@@ -1143,10 +1153,7 @@ public:
     }
 
 #ifdef __PTO_AUTO__
-    PTO_INTERNAL ConvTile()
-    {
-        data_ = __cce_tinit(data_);
-    }
+    PTO_INTERNAL ConvTile() { data_ = __cce_tinit(data_); }
 #else
     PTO_INTERNAL ConvTile() = default;
 #endif
@@ -1154,8 +1161,8 @@ public:
     template <typename... Ints>
     PTO_INTERNAL void SetDynamicShape(Ints... vals)
     {
-        static_assert(sizeof...(vals) == dynamicDimCount,
-                      "Number of dynamic values does not match dynamic dimension count!");
+        static_assert(
+            sizeof...(vals) == dynamicDimCount, "Number of dynamic values does not match dynamic dimension count!");
         static_assert((std::is_same_v<Ints, int64_t> && ...), "Dynamic values must be int64_t type!");
 
         int idx = 0;
@@ -1184,62 +1191,29 @@ public:
 
 #ifdef __COSTMODEL
     float cycle;
-    AICORE void SetCycle(const float cycle_)
-    {
-        cycle = cycle_;
-    }
+    AICORE void SetCycle(const float cycle_) { cycle = cycle_; }
 
-    AICORE void SetLastCycle(const float cycle_)
-    {
-        cycle = cycle_;
-    }
+    AICORE void SetLastCycle(const float cycle_) { cycle = cycle_; }
 
-    AICORE float GetCycle()
-    {
-        return cycle;
-    }
+    AICORE float GetCycle() { return cycle; }
 #endif
 
-    AICORE TileDType &data()
-    {
-        return data_;
-    }
-    AICORE const TileDType &data() const
-    {
-        return data_;
-    }
+    AICORE TileDType& data() { return data_; }
+    AICORE const TileDType& data() const { return data_; }
 
     template <typename T, typename AddrType>
-    friend AICORE void TASSIGN_IMPL(T &tile, AddrType addr);
+    friend AICORE void TASSIGN_IMPL(T& tile, AddrType addr);
 
-    PTO_INTERNAL uint16_t GetFmapH() const
-    {
-        return fmapH_;
-    }
-    PTO_INTERNAL void SetFmapH(uint16_t fmapH)
-    {
-        fmapH_ = fmapH;
-    }
-    PTO_INTERNAL uint16_t GetFmapW() const
-    {
-        return fmapW_;
-    }
-    PTO_INTERNAL void SetFmapW(uint16_t fmapW)
-    {
-        fmapW_ = fmapW;
-    }
+    PTO_INTERNAL uint16_t GetFmapH() const { return fmapH_; }
+    PTO_INTERNAL void SetFmapH(uint16_t fmapH) { fmapH_ = fmapH; }
+    PTO_INTERNAL uint16_t GetFmapW() const { return fmapW_; }
+    PTO_INTERNAL void SetFmapW(uint16_t fmapW) { fmapW_ = fmapW; }
     PTO_INTERNAL uint8_t GetPadList(uint8_t index) const
     { // PTO_Assert
         return padList_[index];
     }
-    PTO_INTERNAL void SetPadList(uint8_t index, uint8_t value)
-    {
-        padList_[index] = value;
-    }
-    PTO_INTERNAL const uint8_t *GetPadListArray() const
-    {
-        return padList_;
-    }
+    PTO_INTERNAL void SetPadList(uint8_t index, uint8_t value) { padList_[index] = value; }
+    PTO_INTERNAL const uint8_t* GetPadListArray() const { return padList_; }
     PTO_INTERNAL void SetPadListArray(const uint8_t values[4])
     {
         constexpr uint8_t padCount = 4;
@@ -1247,125 +1221,38 @@ public:
             padList_[i] = values[i];
         }
     }
-    PTO_INTERNAL uint16_t GetFilterH() const
-    {
-        return filterH_;
-    }
-    PTO_INTERNAL void SetFilterH(uint16_t filterH)
-    {
-        filterH_ = filterH;
-    }
-    PTO_INTERNAL uint16_t GetFilterW() const
-    {
-        return filterW_;
-    }
-    PTO_INTERNAL void SetFilterW(uint16_t filterW)
-    {
-        filterW_ = filterW;
-    }
-    PTO_INTERNAL uint8_t GetDilationH() const
-    {
-        return dilationH_;
-    }
-    PTO_INTERNAL void SetDilationH(uint8_t dilationH)
-    {
-        dilationH_ = dilationH;
-    }
-    PTO_INTERNAL uint8_t GetDilationW() const
-    {
-        return dilationW_;
-    }
-    PTO_INTERNAL void SetDilationW(uint8_t dilationW)
-    {
-        dilationW_ = dilationW;
-    }
-    PTO_INTERNAL uint8_t GetStrideH() const
-    {
-        return strideH_;
-    }
-    PTO_INTERNAL void SetStrideH(uint8_t strideH)
-    {
-        strideH_ = strideH;
-    }
-    PTO_INTERNAL uint8_t GetStrideW() const
-    {
-        return strideW_;
-    }
-    PTO_INTERNAL void SetStrideW(uint8_t strideW)
-    {
-        strideW_ = strideW;
-    }
-    PTO_INTERNAL DType GetPadValue() const
-    {
-        return padValue_;
-    }
-    PTO_INTERNAL void SetPadValue(DType padValue)
-    {
-        padValue_ = padValue;
-    }
-    PTO_INTERNAL uint16_t GetChannelSize() const
-    {
-        return channelSize_;
-    }
-    PTO_INTERNAL void SetChannelSize(uint16_t channelSize)
-    {
-        channelSize_ = channelSize;
-    }
-    PTO_INTERNAL uint16_t GetRepeatStride() const
-    {
-        return repeatStride_;
-    }
-    PTO_INTERNAL void SetRepeatStride(uint16_t repeatStride)
-    {
-        repeatStride_ = repeatStride;
-    }
-    PTO_INTERNAL uint16_t GetRepeatTime() const
-    {
-        return repeatTime_;
-    }
-    PTO_INTERNAL void SetRepeatTime(uint8_t repeatTime)
-    {
-        repeatTime_ = repeatTime;
-    }
-    PTO_INTERNAL uint16_t GetRepeatMode() const
-    {
-        return repeatMode_;
-    }
-    PTO_INTERNAL void SetRepeatMode(uint8_t repeatMode)
-    {
-        repeatMode_ = repeatMode;
-    }
-    PTO_INTERNAL bool GetTranspose() const
-    {
-        return transpose_;
-    }
-    PTO_INTERNAL void SetTranspose(bool transpose)
-    {
-        transpose_ = transpose;
-    }
+    PTO_INTERNAL uint16_t GetFilterH() const { return filterH_; }
+    PTO_INTERNAL void SetFilterH(uint16_t filterH) { filterH_ = filterH; }
+    PTO_INTERNAL uint16_t GetFilterW() const { return filterW_; }
+    PTO_INTERNAL void SetFilterW(uint16_t filterW) { filterW_ = filterW; }
+    PTO_INTERNAL uint8_t GetDilationH() const { return dilationH_; }
+    PTO_INTERNAL void SetDilationH(uint8_t dilationH) { dilationH_ = dilationH; }
+    PTO_INTERNAL uint8_t GetDilationW() const { return dilationW_; }
+    PTO_INTERNAL void SetDilationW(uint8_t dilationW) { dilationW_ = dilationW; }
+    PTO_INTERNAL uint8_t GetStrideH() const { return strideH_; }
+    PTO_INTERNAL void SetStrideH(uint8_t strideH) { strideH_ = strideH; }
+    PTO_INTERNAL uint8_t GetStrideW() const { return strideW_; }
+    PTO_INTERNAL void SetStrideW(uint8_t strideW) { strideW_ = strideW; }
+    PTO_INTERNAL DType GetPadValue() const { return padValue_; }
+    PTO_INTERNAL void SetPadValue(DType padValue) { padValue_ = padValue; }
+    PTO_INTERNAL uint16_t GetChannelSize() const { return channelSize_; }
+    PTO_INTERNAL void SetChannelSize(uint16_t channelSize) { channelSize_ = channelSize; }
+    PTO_INTERNAL uint16_t GetRepeatStride() const { return repeatStride_; }
+    PTO_INTERNAL void SetRepeatStride(uint16_t repeatStride) { repeatStride_ = repeatStride; }
+    PTO_INTERNAL uint16_t GetRepeatTime() const { return repeatTime_; }
+    PTO_INTERNAL void SetRepeatTime(uint8_t repeatTime) { repeatTime_ = repeatTime; }
+    PTO_INTERNAL uint16_t GetRepeatMode() const { return repeatMode_; }
+    PTO_INTERNAL void SetRepeatMode(uint8_t repeatMode) { repeatMode_ = repeatMode; }
+    PTO_INTERNAL bool GetTranspose() const { return transpose_; }
+    PTO_INTERNAL void SetTranspose(bool transpose) { transpose_ = transpose; }
 #ifndef PTO_NPU_ARCH_A2A3
-    PTO_INTERNAL void SetDstStride(uint16_t dstStride)
-    {
-        dstStride_ = dstStride;
-    }
-    PTO_INTERNAL uint16_t GetDstStride() const
-    {
-        return dstStride_;
-    }
-    PTO_INTERNAL void SetDstMposition(uint16_t dstMposition)
-    {
-        dstMposition_ = dstMposition;
-    }
-    PTO_INTERNAL uint16_t GetDstMposition() const
-    {
-        return dstMposition_;
-    }
+    PTO_INTERNAL void SetDstStride(uint16_t dstStride) { dstStride_ = dstStride; }
+    PTO_INTERNAL uint16_t GetDstStride() const { return dstStride_; }
+    PTO_INTERNAL void SetDstMposition(uint16_t dstMposition) { dstMposition_ = dstMposition; }
+    PTO_INTERNAL uint16_t GetDstMposition() const { return dstMposition_; }
 #endif
 private:
-    AICORE void assignData(TileDType data)
-    {
-        data_ = data;
-    }
+    AICORE void assignData(TileDType data) { data_ = data; }
     TileDType data_;
     uint8_t padList_[4] = {0};
     uint16_t fmapH_ = 0;
@@ -1391,10 +1278,11 @@ private:
     bool transpose_ = false;
 };
 
-template <TileType Loc_, typename Element_, const int Rows_, const int Cols_,
-          const BLayout BFractal_ = BLayout::RowMajor, const int RowValid_ = Rows_, const int ColValid_ = Cols_,
-          const SLayout SFractal_ = SLayout::NoneBox, const int SFractalSize_ = TileConfig::fractalABSize,
-          auto PadVal_ = PadValue::Null, const CompactMode Compact_ = CompactMode::Null>
+template <
+    TileType Loc_, typename Element_, const int Rows_, const int Cols_, const BLayout BFractal_ = BLayout::RowMajor,
+    const int RowValid_ = Rows_, const int ColValid_ = Cols_, const SLayout SFractal_ = SLayout::NoneBox,
+    const int SFractalSize_ = TileConfig::fractalABSize, auto PadVal_ = PadValue::Null,
+    const CompactMode Compact_ = CompactMode::Null>
 struct Tile {
 public:
     using DType = Element_;
@@ -1447,14 +1335,14 @@ public:
     __tf__ AICORE void SetValue(const uint32_t offset, const DType val)
     {
         static_assert(Loc == TileType::Vec, "Location of tile must be Location::Vec.");
-        __ubuf__ DType *ptr = (__ubuf__ DType *)__cce_get_tile_ptr(data_);
+        __ubuf__ DType* ptr = (__ubuf__ DType*)__cce_get_tile_ptr(data_);
         *(ptr + offset) = val;
     }
 
     __tf__ AICORE DType GetValue(const uint32_t offset)
     {
         static_assert(Loc == TileType::Vec, "Location of tile must be Location::Vec.");
-        __ubuf__ DType *ptr = (__ubuf__ DType *)__cce_get_tile_ptr(data_);
+        __ubuf__ DType* ptr = (__ubuf__ DType*)__cce_get_tile_ptr(data_);
         return *(ptr + offset);
     }
     // constructor for static shape
@@ -1470,8 +1358,9 @@ public:
 
     // constructor for both dimensions are runtime variables
     template <int RowMask = ValidRow, int ColMask = ValidCol>
-    AICORE Tile(std::enable_if_t<RowMask == DYNAMIC && ColMask == DYNAMIC, unsigned> VR,
-                std::enable_if_t<RowMask == DYNAMIC && ColMask == DYNAMIC, unsigned> VC)
+    AICORE Tile(
+        std::enable_if_t<RowMask == DYNAMIC && ColMask == DYNAMIC, unsigned> VR,
+        std::enable_if_t<RowMask == DYNAMIC && ColMask == DYNAMIC, unsigned> VC)
     {
 #if defined(__PTO_AUTO__) && !defined(__CPU_SIM)
         data_ = __cce_tinit(data_);
@@ -1501,8 +1390,8 @@ public:
     }
 
 #ifdef __PTO_AUTO__
-    Tile &operator=(const Tile &) = delete;
-    Tile &operator=(Tile &&) = delete;
+    Tile& operator=(const Tile&) = delete;
+    Tile& operator=(Tile&&) = delete;
 #endif
 
     static constexpr bool isBoxedLayout = (SFractal != SLayout::NoneBox);
@@ -1515,38 +1404,41 @@ public:
     static constexpr int InnerNumel = InnerRows * InnerCols;
 
     static_assert(InnerRows != 0 && InnerCols != 0, "rows or cols of fractal size is 0.");
-    static_assert((Loc == TileType::Vec) || (SFractalSize_ == TileConfig::fractalMxSize) || (Rows_ == 1) ||
-                      (Rows % InnerRows == 0),
-                  "Layout rows must be divisible by inner box rows");
+    static_assert(
+        (Loc == TileType::Vec) || (SFractalSize_ == TileConfig::fractalMxSize) || (Rows_ == 1) ||
+            (Rows % InnerRows == 0),
+        "Layout rows must be divisible by inner box rows");
     static_assert(Cols % InnerCols == 0, "Layout cols must be divisible by inner box cols");
 
-    static_assert((BFractal_ == BLayout::RowMajor && SFractal_ == SLayout::NoneBox &&
-                   Cols * sizeof(DType) % TileConfig::alignedSize == 0) ||
-                      (BFractal_ == BLayout::ColMajor && SFractal_ == SLayout::NoneBox &&
-                       Rows * sizeof(DType) % TileConfig::alignedSize == 0) ||
-                      (SFractal_ != SLayout::NoneBox) &&
-                          (((Loc == TileType::Vec) || (SFractalSize_ == TileConfig::fractalMxSize) || (Rows_ == 1) ||
-                            (Rows % InnerRows == 0)) &&
-                           Cols % InnerCols == 0),
-                  "BFractal_ is RowMajor and SFractal_ is NoneBox: Rows must be 32 bytes align, \
+    static_assert(
+        (BFractal_ == BLayout::RowMajor && SFractal_ == SLayout::NoneBox &&
+         Cols * sizeof(DType) % TileConfig::alignedSize == 0) ||
+            (BFractal_ == BLayout::ColMajor && SFractal_ == SLayout::NoneBox &&
+             Rows * sizeof(DType) % TileConfig::alignedSize == 0) ||
+            (SFractal_ != SLayout::NoneBox) &&
+                (((Loc == TileType::Vec) || (SFractalSize_ == TileConfig::fractalMxSize) || (Rows_ == 1) ||
+                  (Rows % InnerRows == 0)) &&
+                 Cols % InnerCols == 0),
+        "BFractal_ is RowMajor and SFractal_ is NoneBox: Rows must be 32 bytes align, \
          BFractal_ is ColMajor and SFractal_ is NoneBox: Cols must be 32 bytes align, \
          SFractal_ in not NoneBox: Rows/Cols must be integer multiple of InnerRows/InnerCols.");
 
-    static_assert(SFractalSize_ == TileConfig::fractalABSize || SFractalSize_ == TileConfig::fractalCSize ||
-                      SFractalSize_ == TileConfig::fractalMxSize,
-                  "SFractalSize_ illegal");
+    static_assert(
+        SFractalSize_ == TileConfig::fractalABSize || SFractalSize_ == TileConfig::fractalCSize ||
+            SFractalSize_ == TileConfig::fractalMxSize,
+        "SFractalSize_ illegal");
 
 #if defined(__CPU_SIM) || defined(__COSTMODEL)
     // CPU Sim: data_ is a pointer that TASSIGN can redirect to shared NPU memory
-    using TileDType = Tile::DType *;
+    using TileDType = Tile::DType*;
 #else
 #ifdef __PTO_AUTO__
 #if defined(PTO_NPU_ARCH_A2A3)
-    using TileDType = typename MemoryQualifier<Loc, DType>::type tile_size(Rows *Cols);
+    using TileDType = typename MemoryQualifier<Loc, DType>::type tile_size(Rows* Cols);
 #else
-    using TileDType = std::conditional_t<Loc == TileType::Bias,
-                                         typename MemoryQualifier<Loc, DType>::type, // special handling for Bias Tile
-                                         typename MemoryQualifier<Loc, DType>::type tile_size(Rows *Cols)>;
+    using TileDType = std::conditional_t<
+        Loc == TileType::Bias, typename MemoryQualifier<Loc, DType>::type, // special handling for Bias Tile
+        typename MemoryQualifier<Loc, DType>::type tile_size(Rows* Cols)>;
 #endif
 #else
     using TileDType = typename MemoryQualifier<Loc, DType>::type;
@@ -1554,7 +1446,7 @@ public:
 #endif
 
 #if (defined(__CPU_SIM) && defined(__PTO_AUTO__)) || defined(__COSTMODEL)
-    TileDType &data()
+    TileDType& data()
     {
         if (!data_) {
             internalBuffer.resize(Rows * Cols);
@@ -1563,32 +1455,17 @@ public:
         return data_;
     }
 #else
-    AICORE TileDType &data()
-    {
-        return data_;
-    }
-    AICORE const TileDType &data() const
-    {
-        return data_;
-    }
+    AICORE TileDType& data() { return data_; }
+    AICORE const TileDType& data() const { return data_; }
 #endif
 
 #ifdef __COSTMODEL
     float cycle;
-    AICORE void SetCycle(const float cycle_)
-    {
-        cycle = cycle_;
-    }
+    AICORE void SetCycle(const float cycle_) { cycle = cycle_; }
 
-    AICORE void SetLastCycle(const float cycle_)
-    {
-        cycle = cycle_;
-    }
+    AICORE void SetLastCycle(const float cycle_) { cycle = cycle_; }
 
-    AICORE float GetCycle()
-    {
-        return cycle;
-    }
+    AICORE float GetCycle() { return cycle; }
 #endif
 
     unsigned RowMaskInternal;
@@ -1644,16 +1521,10 @@ public:
     }
 
     template <typename T, typename AddrType>
-    friend AICORE void TASSIGN_IMPL(T &tile, AddrType addr);
+    friend AICORE void TASSIGN_IMPL(T& tile, AddrType addr);
 
-    PTO_INTERNAL bool GetKAligned() const
-    {
-        return isKAligned_;
-    }
-    PTO_INTERNAL void SetKAligned(bool isKAligned)
-    {
-        isKAligned_ = isKAligned;
-    }
+    PTO_INTERNAL bool GetKAligned() const { return isKAligned_; }
+    PTO_INTERNAL void SetKAligned(bool isKAligned) { isKAligned_ = isKAligned; }
 #if defined(__DAV_CUBE__)
     /*
         TF32 precision implementation varies across different chips:
@@ -1662,8 +1533,9 @@ public:
     */
     PTO_INTERNAL void SetMadTF32Mode(RoundMode tf32TransMode = RoundMode::CAST_ROUND)
     {
-        PTO_ASSERT(tf32TransMode == RoundMode::CAST_ROUND || tf32TransMode == RoundMode::CAST_RINT,
-                   "Unsupported RoundMode for TF32.");
+        PTO_ASSERT(
+            tf32TransMode == RoundMode::CAST_ROUND || tf32TransMode == RoundMode::CAST_RINT,
+            "Unsupported RoundMode for TF32.");
         set_ctrl(sbitset1(get_ctrl(), MAD_MODE_BIT));
         if (tf32TransMode == RoundMode::CAST_ROUND) {
             set_ctrl(sbitset1(get_ctrl(), MAD_ROUND_MODE_BIT));
@@ -1671,16 +1543,10 @@ public:
             set_ctrl(sbitset0(get_ctrl(), MAD_ROUND_MODE_BIT));
         }
     }
-    PTO_INTERNAL void ResetMadMode()
-    {
-        set_ctrl(sbitset0(get_ctrl(), MAD_MODE_BIT));
-    }
+    PTO_INTERNAL void ResetMadMode() { set_ctrl(sbitset0(get_ctrl(), MAD_MODE_BIT)); }
 #endif
 private:
-    AICORE void assignData(TileDType data)
-    {
-        data_ = data;
-    }
+    AICORE void assignData(TileDType data) { data_ = data; }
     bool isKAligned_; // K-Alignedment for A3
 
 #if (defined(__CPU_SIM) && defined(__PTO_AUTO__)) || defined(__COSTMODEL)
@@ -1693,56 +1559,67 @@ private:
 
 #if defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_KIRINX90)
 template <typename Element_, const int Rows_, const int Cols_, const int RowValid_ = Rows_, const int ColValid_ = Cols_>
-using TileLeft = Tile<TileType::Left, Element_, Rows_, Cols_, BLayout::RowMajor, RowValid_, ColValid_,
-                      SLayout::RowMajor, TileConfig::fractalABSize>;
+using TileLeft = Tile<
+    TileType::Left, Element_, Rows_, Cols_, BLayout::RowMajor, RowValid_, ColValid_, SLayout::RowMajor,
+    TileConfig::fractalABSize>;
 
 template <typename Element_, const int Rows_, const int Cols_, const int RowValid_ = Rows_, const int ColValid_ = Cols_>
-using TileLeftCompact = Tile<TileType::Left, Element_, Rows_, Cols_, BLayout::RowMajor, RowValid_, ColValid_,
-                             SLayout::RowMajor, TileConfig::fractalABSize, PadValue::Null, CompactMode::Normal>;
+using TileLeftCompact = Tile<
+    TileType::Left, Element_, Rows_, Cols_, BLayout::RowMajor, RowValid_, ColValid_, SLayout::RowMajor,
+    TileConfig::fractalABSize, PadValue::Null, CompactMode::Normal>;
 #endif
 
 #if (!defined(PTO_NPU_ARCH_A2A3) && !defined(PTO_NPU_ARCH_KIRINX90)) || defined(__CPU_SIM)
 template <typename Element_, const int Rows_, const int Cols_, const int RowValid_ = Rows_, const int ColValid_ = Cols_>
-using TileLeft = Tile<TileType::Left, Element_, Rows_, Cols_, BLayout::ColMajor, RowValid_, ColValid_,
-                      SLayout::RowMajor, TileConfig::fractalABSize>;
+using TileLeft = Tile<
+    TileType::Left, Element_, Rows_, Cols_, BLayout::ColMajor, RowValid_, ColValid_, SLayout::RowMajor,
+    TileConfig::fractalABSize>;
 
 template <typename Element_, const int Rows_, const int Cols_, const int RowValid_ = Rows_, const int ColValid_ = Cols_>
-using TileLeftCompact = Tile<TileType::Left, Element_, Rows_, Cols_, BLayout::ColMajor, RowValid_, ColValid_,
-                             SLayout::RowMajor, TileConfig::fractalABSize, PadValue::Null, CompactMode::Normal>;
+using TileLeftCompact = Tile<
+    TileType::Left, Element_, Rows_, Cols_, BLayout::ColMajor, RowValid_, ColValid_, SLayout::RowMajor,
+    TileConfig::fractalABSize, PadValue::Null, CompactMode::Normal>;
 #endif
 
 template <typename Element_, const int Rows_, const int Cols_, const int RowValid_ = Rows_, const int ColValid_ = Cols_>
-using TileRight = Tile<TileType::Right, Element_, Rows_, Cols_, BLayout::RowMajor, RowValid_, ColValid_,
-                       SLayout::ColMajor, TileConfig::fractalABSize>;
+using TileRight = Tile<
+    TileType::Right, Element_, Rows_, Cols_, BLayout::RowMajor, RowValid_, ColValid_, SLayout::ColMajor,
+    TileConfig::fractalABSize>;
 
 template <typename Element_, const int Rows_, const int Cols_, const int RowValid_ = Rows_, const int ColValid_ = Cols_>
-using TileRightCompact = Tile<TileType::Right, Element_, Rows_, Cols_, BLayout::RowMajor, RowValid_, ColValid_,
-                              SLayout::ColMajor, TileConfig::fractalABSize, PadValue::Null, CompactMode::Normal>;
+using TileRightCompact = Tile<
+    TileType::Right, Element_, Rows_, Cols_, BLayout::RowMajor, RowValid_, ColValid_, SLayout::ColMajor,
+    TileConfig::fractalABSize, PadValue::Null, CompactMode::Normal>;
 
 template <typename Element_, const int Rows_, const int Cols_, const int RowValid_ = Rows_, const int ColValid_ = Cols_>
-using TileLeftScale = Tile<TileType::ScaleLeft, Element_, Rows_, Cols_, BLayout::RowMajor, RowValid_, ColValid_,
-                           SLayout::RowMajor, TileConfig::fractalMxSize>;
+using TileLeftScale = Tile<
+    TileType::ScaleLeft, Element_, Rows_, Cols_, BLayout::RowMajor, RowValid_, ColValid_, SLayout::RowMajor,
+    TileConfig::fractalMxSize>;
 
 template <typename Element_, const int Rows_, const int Cols_, const int RowValid_ = Rows_, const int ColValid_ = Cols_>
-using TileLeftScaleCompact = Tile<TileType::ScaleLeft, Element_, Rows_, Cols_, BLayout::RowMajor, RowValid_, ColValid_,
-                                  SLayout::RowMajor, TileConfig::fractalMxSize, PadValue::Null, CompactMode::Normal>;
+using TileLeftScaleCompact = Tile<
+    TileType::ScaleLeft, Element_, Rows_, Cols_, BLayout::RowMajor, RowValid_, ColValid_, SLayout::RowMajor,
+    TileConfig::fractalMxSize, PadValue::Null, CompactMode::Normal>;
 
 template <typename Element_, const int Rows_, const int Cols_, const int RowValid_ = Rows_, const int ColValid_ = Cols_>
-using TileRightScale = Tile<TileType::ScaleRight, Element_, Rows_, Cols_, BLayout::ColMajor, RowValid_, ColValid_,
-                            SLayout::ColMajor, TileConfig::fractalMxSize>;
+using TileRightScale = Tile<
+    TileType::ScaleRight, Element_, Rows_, Cols_, BLayout::ColMajor, RowValid_, ColValid_, SLayout::ColMajor,
+    TileConfig::fractalMxSize>;
 
 template <typename Element_, const int Rows_, const int Cols_, const int RowValid_ = Rows_, const int ColValid_ = Cols_>
-using TileRightScaleCompact =
-    Tile<TileType::ScaleRight, Element_, Rows_, Cols_, BLayout::ColMajor, RowValid_, ColValid_, SLayout::ColMajor,
-         TileConfig::fractalMxSize, PadValue::Null, CompactMode::Normal>;
+using TileRightScaleCompact = Tile<
+    TileType::ScaleRight, Element_, Rows_, Cols_, BLayout::ColMajor, RowValid_, ColValid_, SLayout::ColMajor,
+    TileConfig::fractalMxSize, PadValue::Null, CompactMode::Normal>;
 
 template <typename Element_, const int Rows_, const int Cols_, const int RowValid_ = Rows_, const int ColValid_ = Cols_>
-using TileAcc = Tile<TileType::Acc, Element_, Rows_, Cols_, BLayout::ColMajor, RowValid_, ColValid_, SLayout::RowMajor,
-                     TileConfig::fractalCSize>;
+using TileAcc = Tile<
+    TileType::Acc, Element_, Rows_, Cols_, BLayout::ColMajor, RowValid_, ColValid_, SLayout::RowMajor,
+    TileConfig::fractalCSize>;
 
 template <typename Element_, const int Rows_, const int Cols_, const int RowValid_ = Rows_, const int ColValid_ = Cols_>
-using TileAccCompact = Tile<TileType::Acc, Element_, Rows_, Cols_, BLayout::ColMajor, RowValid_, ColValid_,
-                            SLayout::RowMajor, TileConfig::fractalCSize, PadValue::Null, CompactMode::Normal>;
+using TileAccCompact = Tile<
+    TileType::Acc, Element_, Rows_, Cols_, BLayout::ColMajor, RowValid_, ColValid_, SLayout::RowMajor,
+    TileConfig::fractalCSize, PadValue::Null, CompactMode::Normal>;
 
 template <typename T>
 struct is_global : std::false_type {};
@@ -1754,9 +1631,10 @@ struct is_tile : std::false_type {
 template <typename Element_, typename Shape_, typename Stride_, Layout Layout_>
 struct is_global<GlobalTensor<Element_, Shape_, Stride_, Layout_>> : std::true_type {};
 
-template <TileType Loc_, typename Element_, const int Rows_, const int Cols_, const BLayout BFractal_,
-          const int RowValid_, const int ColValid_, const SLayout SFractal_, const int SFractalSize_,
-          const PadValue PadVal_, const CompactMode Compact_>
+template <
+    TileType Loc_, typename Element_, const int Rows_, const int Cols_, const BLayout BFractal_, const int RowValid_,
+    const int ColValid_, const SLayout SFractal_, const int SFractalSize_, const PadValue PadVal_,
+    const CompactMode Compact_>
 struct is_tile<
     Tile<Loc_, Element_, Rows_, Cols_, BFractal_, RowValid_, ColValid_, SFractal_, SFractalSize_, PadVal_, Compact_>>
     : std::true_type {
@@ -1822,9 +1700,9 @@ PTO_INTERNAL size_t GetTileOffset(int row, int col)
             return (BlockNumCol * BlockRow + BlockCol) * TileT::InnerNumel + InnerRow * TileT::InnerCols + InnerCol;
         } else {
             // This branch should not be instantiated.
-            static_assert(sizeof(TileT) == 0,
-                          "Unsupported layout in Tile, fractal tiles should be "
-                          "Nz or Zn layout.");
+            static_assert(
+                sizeof(TileT) == 0, "Unsupported layout in Tile, fractal tiles should be "
+                                    "Nz or Zn layout.");
         }
     }
 }

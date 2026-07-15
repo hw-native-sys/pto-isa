@@ -14,7 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-AICORE void runTCOLEXPAND(__gm__ T __out__ *out, __gm__ T __in__ *src)
+AICORE void runTCOLEXPAND(__gm__ T __out__* out, __gm__ T __in__* src)
 {
     using DynShapeDim5 = Shape<1, 1, 1, kTRows_, kTCols_>;
     using DynStridDim5 = Stride<1, 1, 1, kTCols_, 1>;
@@ -37,17 +37,17 @@ AICORE void runTCOLEXPAND(__gm__ T __out__ *out, __gm__ T __in__ *src)
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTCOLEXPAND(T *out, T *src, void *stream)
+void LaunchTCOLEXPAND(T* out, T* src, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
-        runTCOLEXPAND<half, kGRows_, kGCols_, kTRows_, kTCols_>((half *)(out), (half *)(src));
+        runTCOLEXPAND<half, kGRows_, kGCols_, kTRows_, kTCols_>((half*)(out), (half*)(src));
     } else {
         runTCOLEXPAND<T, kGRows_, kGCols_, kTRows_, kTCols_>(out, src);
     }
 }
 
-template void LaunchTCOLEXPAND<float, 64, 64, 64, 64>(float *out, float *src, void *stream);
-template void LaunchTCOLEXPAND<aclFloat16, 16, 256, 16, 256>(aclFloat16 *out, aclFloat16 *src, void *stream);
+template void LaunchTCOLEXPAND<float, 64, 64, 64, 64>(float* out, float* src, void* stream);
+template void LaunchTCOLEXPAND<aclFloat16, 16, 256, 16, 256>(aclFloat16* out, aclFloat16* src, void* stream);
 #ifdef CPU_SIM_BFLOAT_ENABLED
-template void LaunchTCOLEXPAND<bfloat16_t, 16, 256, 16, 256>(bfloat16_t *out, bfloat16_t *src, void *stream);
+template void LaunchTCOLEXPAND<bfloat16_t, 16, 256, 16, 256>(bfloat16_t* out, bfloat16_t* src, void* stream);
 #endif

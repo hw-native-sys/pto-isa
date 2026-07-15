@@ -23,8 +23,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // TGET: Remote read operation - each rank reads data from next rank
 // ============================================================================
 template <typename T, size_t count>
-__global__ AICORE void TGetKernelImpl(__gm__ T *dst, __gm__ T *src, __gm__ T *shmem, int nranks,
-                                      __gm__ CommDeviceContext *hcclCtx, int phase)
+__global__ AICORE void TGetKernelImpl(
+    __gm__ T* dst, __gm__ T* src, __gm__ T* shmem, int nranks, __gm__ CommDeviceContext* hcclCtx, int phase)
 {
     if (nranks <= 0)
         return;
@@ -41,10 +41,10 @@ __global__ AICORE void TGetKernelImpl(__gm__ T *dst, __gm__ T *src, __gm__ T *sh
     int my_rank = static_cast<int>(hcclCtx->rankId);
     int next_rank = (my_rank + 1) % nranks;
 
-    __gm__ uint8_t *shmem_bytes = reinterpret_cast<__gm__ uint8_t *>(shmem);
-    __gm__ T *shmem_data = reinterpret_cast<__gm__ T *>(shmem_bytes + 64 * sizeof(int32_t));
-    __gm__ T *send_shmem = (__gm__ T *)((__gm__ T *)shmem_data + 0);
-    __gm__ T *recv_shmem = (__gm__ T *)((__gm__ T *)shmem_data + count);
+    __gm__ uint8_t* shmem_bytes = reinterpret_cast<__gm__ uint8_t*>(shmem);
+    __gm__ T* shmem_data = reinterpret_cast<__gm__ T*>(shmem_bytes + 64 * sizeof(int32_t));
+    __gm__ T* send_shmem = (__gm__ T*)((__gm__ T*)shmem_data + 0);
+    __gm__ T* recv_shmem = (__gm__ T*)((__gm__ T*)shmem_data + count);
 
     if (phase == 0) {
         Global srcG(src, shape, stride);
@@ -70,7 +70,7 @@ __global__ AICORE void TGetKernelImpl(__gm__ T *dst, __gm__ T *src, __gm__ T *sh
         TASSIGN(stagingTile, 0x0);
         TASSIGN(resultTile, 0x10000);
 
-        __gm__ T *remote_send_shmem = CommRemotePtr(hcclCtx, send_shmem, next_rank);
+        __gm__ T* remote_send_shmem = CommRemotePtr(hcclCtx, send_shmem, next_rank);
         Global remoteSendG(remote_send_shmem, shape, stride);
 
         pto::comm::TGET(recvG, remoteSendG, stagingTile);
@@ -87,7 +87,7 @@ __global__ AICORE void TGetKernelImpl(__gm__ T *dst, __gm__ T *src, __gm__ T *sh
 }
 
 template <typename T, size_t count>
-bool RunGetRingKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo *rootInfo)
+bool RunGetRingKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo* rootInfo)
 {
     if (n_ranks <= 0)
         return false;
@@ -95,26 +95,26 @@ bool RunGetRingKernel(int rank_id, int n_ranks, int n_devices, int first_device_
     if (!ctx.Init(rank_id, n_ranks, n_devices, first_device_id, rootInfo))
         return false;
 
-    void *input_ptr = nullptr;
-    void *output_ptr = nullptr;
+    void* input_ptr = nullptr;
+    void* output_ptr = nullptr;
     if (aclrtMalloc(&input_ptr, count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) != 0 ||
         aclrtMalloc(&output_ptr, count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) != 0) {
         std::cerr << "[ERROR] aclrtMalloc failed!" << std::endl;
         return false;
     }
 
-    uint8_t *input_host = nullptr;
-    uint8_t *output_host = nullptr;
-    if (aclrtMallocHost(reinterpret_cast<void **>(&input_host), count * sizeof(T)) != 0 ||
-        aclrtMallocHost(reinterpret_cast<void **>(&output_host), count * sizeof(T)) != 0) {
+    uint8_t* input_host = nullptr;
+    uint8_t* output_host = nullptr;
+    if (aclrtMallocHost(reinterpret_cast<void**>(&input_host), count * sizeof(T)) != 0 ||
+        aclrtMallocHost(reinterpret_cast<void**>(&output_host), count * sizeof(T)) != 0) {
         std::cerr << "[ERROR] aclrtMallocHost failed!" << std::endl;
         return false;
     }
 
     // Initialize Input/Output Host
     for (size_t i = 0; i < count; ++i) {
-        reinterpret_cast<T *>(input_host)[i] = static_cast<T>(i + rank_id * 10000);
-        reinterpret_cast<T *>(output_host)[i] = static_cast<T>(-1);
+        reinterpret_cast<T*>(input_host)[i] = static_cast<T>(i + rank_id * 10000);
+        reinterpret_cast<T*>(output_host)[i] = static_cast<T>(-1);
     }
 
     aclrtMemcpy(input_ptr, count * sizeof(T), input_host, count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
@@ -122,21 +122,21 @@ bool RunGetRingKernel(int rank_id, int n_ranks, int n_devices, int first_device_
     // Allocate window memory for shared buffer (sync buffer + data buffer)
     uint64_t localWinBase = ctx.hostCtx.windowsIn[rank_id];
     size_t winOffset = 0;
-    void *shmem_ptr = WindowAlloc(localWinBase, winOffset, 64 * sizeof(int32_t) + 4 * count * sizeof(T));
+    void* shmem_ptr = WindowAlloc(localWinBase, winOffset, 64 * sizeof(int32_t) + 4 * count * sizeof(T));
 
     // Barrier to ensure all ranks have initialized
     HcclHostBarrier(ctx.comm, ctx.stream);
 
     // Phase 0: populate local send buffer
     TGetKernelImpl<T, count>
-        <<<1, nullptr, ctx.stream>>>((T *)output_ptr, (T *)input_ptr, (T *)shmem_ptr, n_ranks, ctx.deviceCtx, 0);
+        <<<1, nullptr, ctx.stream>>>((T*)output_ptr, (T*)input_ptr, (T*)shmem_ptr, n_ranks, ctx.deviceCtx, 0);
     aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
     // Phase 1: TGET from remote + read to dst
     TGetKernelImpl<T, count>
-        <<<1, nullptr, ctx.stream>>>((T *)output_ptr, (T *)input_ptr, (T *)shmem_ptr, n_ranks, ctx.deviceCtx, 1);
+        <<<1, nullptr, ctx.stream>>>((T*)output_ptr, (T*)input_ptr, (T*)shmem_ptr, n_ranks, ctx.deviceCtx, 1);
     ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
 
     aclrtMemcpy(output_host, count * sizeof(T), output_ptr, count * sizeof(T), ACL_MEMCPY_DEVICE_TO_HOST);
@@ -150,7 +150,7 @@ bool RunGetRingKernel(int rank_id, int n_ranks, int n_devices, int first_device_
     }
     int next_rank = (rank_id + 1) % n_ranks;
     for (int i = 0; i < count; ++i) {
-        T value = reinterpret_cast<T *>(output_host)[i];
+        T value = reinterpret_cast<T*>(output_host)[i];
         T expected = static_cast<T>(i + next_rank * 10000);
         if (value != expected) {
             std::cout << "Rank " << rank_id << " Device " << ctx.deviceId << " Status " << ctx.aclStatus << std::endl;
@@ -167,7 +167,7 @@ bool RunGetRingKernel(int rank_id, int n_ranks, int n_devices, int first_device_
         std::cout << "[DEBUG] Rank 0: TGET Ring SUCCESSFUL!" << std::endl;
         std::cout << "Sample Result (First 5 elements): [ ";
         for (size_t i = 0; i < (count > 5 ? 5 : count); ++i) {
-            std::cout << (float)reinterpret_cast<T *>(output_host)[i] << " ";
+            std::cout << (float)reinterpret_cast<T*>(output_host)[i] << " ";
         }
         if (count > 5)
             std::cout << "... ";
@@ -188,7 +188,7 @@ template <typename T, size_t count>
 bool RunGetRing(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
     return ForkAndRunWithHcclRootInfo(
-        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo *rootInfo) {
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
             return RunGetRingKernel<T, count>(rankId, n_ranks, n_devices, first_device_id, rootInfo);
         });
 }
@@ -203,8 +203,8 @@ template bool RunGetRing<uint8_t, 512>(int n_ranks, int n_devices, int first_ran
 // Tests TGET with 2D Vec Tile (rows x cols) stored in UB
 // ============================================================================
 template <typename T, size_t rows, size_t cols>
-__global__ AICORE void TGetKernel2DImpl(__gm__ T *dst, __gm__ T *src, __gm__ T *shmem, int nranks,
-                                        __gm__ CommDeviceContext *hcclCtx, int phase)
+__global__ AICORE void TGetKernel2DImpl(
+    __gm__ T* dst, __gm__ T* src, __gm__ T* shmem, int nranks, __gm__ CommDeviceContext* hcclCtx, int phase)
 {
     if (nranks <= 0)
         return;
@@ -224,10 +224,10 @@ __global__ AICORE void TGetKernel2DImpl(__gm__ T *dst, __gm__ T *src, __gm__ T *
     int my_rank = static_cast<int>(hcclCtx->rankId);
     int next_rank = (my_rank + 1) % nranks;
 
-    __gm__ uint8_t *shmem_bytes = reinterpret_cast<__gm__ uint8_t *>(shmem);
-    __gm__ T *shmem_data = reinterpret_cast<__gm__ T *>(shmem_bytes + 64 * sizeof(int32_t));
-    __gm__ T *send_shmem = (__gm__ T *)((__gm__ T *)shmem_data + 0);
-    __gm__ T *recv_shmem = (__gm__ T *)((__gm__ T *)shmem_data + total_count);
+    __gm__ uint8_t* shmem_bytes = reinterpret_cast<__gm__ uint8_t*>(shmem);
+    __gm__ T* shmem_data = reinterpret_cast<__gm__ T*>(shmem_bytes + 64 * sizeof(int32_t));
+    __gm__ T* send_shmem = (__gm__ T*)((__gm__ T*)shmem_data + 0);
+    __gm__ T* recv_shmem = (__gm__ T*)((__gm__ T*)shmem_data + total_count);
 
     if (phase == 0) {
         Global srcG(src, shape, stride);
@@ -253,7 +253,7 @@ __global__ AICORE void TGetKernel2DImpl(__gm__ T *dst, __gm__ T *src, __gm__ T *
         TASSIGN(stagingTile, 0x0);
         TASSIGN(resultTile, 0x10000);
 
-        __gm__ T *remote_send_shmem = CommRemotePtr(hcclCtx, send_shmem, next_rank);
+        __gm__ T* remote_send_shmem = CommRemotePtr(hcclCtx, send_shmem, next_rank);
         Global remoteSendG(remote_send_shmem, shape, stride);
 
         pto::comm::TGET(recvG, remoteSendG, stagingTile);
@@ -270,7 +270,7 @@ __global__ AICORE void TGetKernel2DImpl(__gm__ T *dst, __gm__ T *src, __gm__ T *
 }
 
 template <typename T, size_t rows, size_t cols>
-bool RunGetRing2DKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo *rootInfo)
+bool RunGetRing2DKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo* rootInfo)
 {
     if (n_ranks <= 0)
         return false;
@@ -280,18 +280,18 @@ bool RunGetRing2DKernel(int rank_id, int n_ranks, int n_devices, int first_devic
     if (!ctx.Init(rank_id, n_ranks, n_devices, first_device_id, rootInfo))
         return false;
 
-    void *input_ptr = nullptr;
-    void *output_ptr = nullptr;
+    void* input_ptr = nullptr;
+    void* output_ptr = nullptr;
     if (aclrtMalloc(&input_ptr, total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) != 0 ||
         aclrtMalloc(&output_ptr, total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) != 0) {
         std::cerr << "[ERROR] aclrtMalloc failed!" << std::endl;
         return false;
     }
 
-    uint8_t *input_host = nullptr;
-    uint8_t *output_host = nullptr;
-    if (aclrtMallocHost(reinterpret_cast<void **>(&input_host), total_count * sizeof(T)) != 0 ||
-        aclrtMallocHost(reinterpret_cast<void **>(&output_host), total_count * sizeof(T)) != 0) {
+    uint8_t* input_host = nullptr;
+    uint8_t* output_host = nullptr;
+    if (aclrtMallocHost(reinterpret_cast<void**>(&input_host), total_count * sizeof(T)) != 0 ||
+        aclrtMallocHost(reinterpret_cast<void**>(&output_host), total_count * sizeof(T)) != 0) {
         std::cerr << "[ERROR] aclrtMallocHost failed!" << std::endl;
         return false;
     }
@@ -300,8 +300,8 @@ bool RunGetRing2DKernel(int rank_id, int n_ranks, int n_devices, int first_devic
     for (size_t r = 0; r < rows; ++r) {
         for (size_t c = 0; c < cols; ++c) {
             size_t idx = r * cols + c;
-            reinterpret_cast<T *>(input_host)[idx] = static_cast<T>(idx + rank_id * 10000);
-            reinterpret_cast<T *>(output_host)[idx] = static_cast<T>(-1);
+            reinterpret_cast<T*>(input_host)[idx] = static_cast<T>(idx + rank_id * 10000);
+            reinterpret_cast<T*>(output_host)[idx] = static_cast<T>(-1);
         }
     }
 
@@ -310,21 +310,21 @@ bool RunGetRing2DKernel(int rank_id, int n_ranks, int n_devices, int first_devic
     // Allocate window memory for shared buffer (sync buffer + data buffer)
     uint64_t localWinBase = ctx.hostCtx.windowsIn[rank_id];
     size_t winOffset = 0;
-    void *shmem_ptr = WindowAlloc(localWinBase, winOffset, 64 * sizeof(int32_t) + 4 * total_count * sizeof(T));
+    void* shmem_ptr = WindowAlloc(localWinBase, winOffset, 64 * sizeof(int32_t) + 4 * total_count * sizeof(T));
 
     // Barrier to ensure all ranks have initialized
     HcclHostBarrier(ctx.comm, ctx.stream);
 
     // Phase 0: populate local send buffer
     TGetKernel2DImpl<T, rows, cols>
-        <<<1, nullptr, ctx.stream>>>((T *)output_ptr, (T *)input_ptr, (T *)shmem_ptr, n_ranks, ctx.deviceCtx, 0);
+        <<<1, nullptr, ctx.stream>>>((T*)output_ptr, (T*)input_ptr, (T*)shmem_ptr, n_ranks, ctx.deviceCtx, 0);
     aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
     // Phase 1: TGET from remote + read to dst
     TGetKernel2DImpl<T, rows, cols>
-        <<<1, nullptr, ctx.stream>>>((T *)output_ptr, (T *)input_ptr, (T *)shmem_ptr, n_ranks, ctx.deviceCtx, 1);
+        <<<1, nullptr, ctx.stream>>>((T*)output_ptr, (T*)input_ptr, (T*)shmem_ptr, n_ranks, ctx.deviceCtx, 1);
     ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
 
     aclrtMemcpy(output_host, total_count * sizeof(T), output_ptr, total_count * sizeof(T), ACL_MEMCPY_DEVICE_TO_HOST);
@@ -339,7 +339,7 @@ bool RunGetRing2DKernel(int rank_id, int n_ranks, int n_devices, int first_devic
     for (size_t r = 0; r < rows && is_ok; ++r) {
         for (size_t c = 0; c < cols && is_ok; ++c) {
             size_t idx = r * cols + c;
-            T value = reinterpret_cast<T *>(output_host)[idx];
+            T value = reinterpret_cast<T*>(output_host)[idx];
             T expected = static_cast<T>(idx + next_rank * 10000);
             if (value != expected) {
                 std::cout << "Rank " << rank_id << " Device " << ctx.deviceId << " Status " << ctx.aclStatus
@@ -358,7 +358,7 @@ bool RunGetRing2DKernel(int rank_id, int n_ranks, int n_devices, int first_devic
         std::cout << "[DEBUG] Rank 0: TGET 2D Ring SUCCESSFUL! (" << rows << "x" << cols << ")" << std::endl;
         std::cout << "Sample Result (First row): [ ";
         for (size_t c = 0; c < (cols > 5 ? 5 : cols); ++c) {
-            std::cout << (float)reinterpret_cast<T *>(output_host)[c] << " ";
+            std::cout << (float)reinterpret_cast<T*>(output_host)[c] << " ";
         }
         if (cols > 5)
             std::cout << "... ";
@@ -379,7 +379,7 @@ template <typename T, size_t rows, size_t cols>
 bool RunGetRing2D(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
     return ForkAndRunWithHcclRootInfo(
-        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo *rootInfo) {
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
             return RunGetRing2DKernel<T, rows, cols>(rankId, n_ranks, n_devices, first_device_id, rootInfo);
         });
 }
@@ -396,8 +396,8 @@ template bool RunGetRing2D<int32_t, 4, 64>(int n_ranks, int n_devices, int first
 // where total_rows > tile_rows, triggering automatic chunking in TGET_IMPL
 // ============================================================================
 template <typename T, size_t total_rows, size_t cols, size_t tile_rows>
-__global__ AICORE void TGetLargeShapeKernelImpl(__gm__ T *dst, __gm__ T *src, __gm__ T *shmem, int nranks,
-                                                __gm__ CommDeviceContext *hcclCtx, int phase)
+__global__ AICORE void TGetLargeShapeKernelImpl(
+    __gm__ T* dst, __gm__ T* src, __gm__ T* shmem, int nranks, __gm__ CommDeviceContext* hcclCtx, int phase)
 {
     if (nranks <= 0)
         return;
@@ -422,10 +422,10 @@ __global__ AICORE void TGetLargeShapeKernelImpl(__gm__ T *dst, __gm__ T *src, __
     int my_rank = static_cast<int>(hcclCtx->rankId);
     int next_rank = (my_rank + 1) % nranks;
 
-    __gm__ uint8_t *shmem_bytes = reinterpret_cast<__gm__ uint8_t *>(shmem);
-    __gm__ T *shmem_data = reinterpret_cast<__gm__ T *>(shmem_bytes + 64 * sizeof(int32_t));
-    __gm__ T *send_shmem = shmem_data;
-    __gm__ T *recv_shmem = shmem_data + total_count;
+    __gm__ uint8_t* shmem_bytes = reinterpret_cast<__gm__ uint8_t*>(shmem);
+    __gm__ T* shmem_data = reinterpret_cast<__gm__ T*>(shmem_bytes + 64 * sizeof(int32_t));
+    __gm__ T* send_shmem = shmem_data;
+    __gm__ T* recv_shmem = shmem_data + total_count;
 
     if (phase == 0) {
         TileData stagingTile(tile_rows, cols);
@@ -452,7 +452,7 @@ __global__ AICORE void TGetLargeShapeKernelImpl(__gm__ T *dst, __gm__ T *src, __
         TASSIGN(stagingTile, 0x0);
         TASSIGN(resultTile, 0x10000);
 
-        __gm__ T *remote_send_shmem = CommRemotePtr(hcclCtx, send_shmem, next_rank);
+        __gm__ T* remote_send_shmem = CommRemotePtr(hcclCtx, send_shmem, next_rank);
         Global remoteSendG(remote_send_shmem, fullShape, fullStride);
         pto::comm::TGET(recvG, remoteSendG, stagingTile);
 
@@ -472,8 +472,8 @@ __global__ AICORE void TGetLargeShapeKernelImpl(__gm__ T *dst, __gm__ T *src, __
 }
 
 template <typename T, size_t total_rows, size_t cols, size_t tile_rows>
-bool RunGetRingLargeShapeKernel(int rank_id, int n_ranks, int n_devices, int first_device_id,
-                                const HcclRootInfo *rootInfo)
+bool RunGetRingLargeShapeKernel(
+    int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo* rootInfo)
 {
     if (n_ranks <= 0)
         return false;
@@ -483,45 +483,45 @@ bool RunGetRingLargeShapeKernel(int rank_id, int n_ranks, int n_devices, int fir
     if (!ctx.Init(rank_id, n_ranks, n_devices, first_device_id, rootInfo))
         return false;
 
-    void *input_ptr = nullptr;
-    void *output_ptr = nullptr;
+    void* input_ptr = nullptr;
+    void* output_ptr = nullptr;
     if (aclrtMalloc(&input_ptr, total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) != 0 ||
         aclrtMalloc(&output_ptr, total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) != 0) {
         std::cerr << "[ERROR] aclrtMalloc failed!" << std::endl;
         return false;
     }
 
-    uint8_t *input_host = nullptr;
-    uint8_t *output_host = nullptr;
-    if (aclrtMallocHost(reinterpret_cast<void **>(&input_host), total_count * sizeof(T)) != 0 ||
-        aclrtMallocHost(reinterpret_cast<void **>(&output_host), total_count * sizeof(T)) != 0) {
+    uint8_t* input_host = nullptr;
+    uint8_t* output_host = nullptr;
+    if (aclrtMallocHost(reinterpret_cast<void**>(&input_host), total_count * sizeof(T)) != 0 ||
+        aclrtMallocHost(reinterpret_cast<void**>(&output_host), total_count * sizeof(T)) != 0) {
         std::cerr << "[ERROR] aclrtMallocHost failed!" << std::endl;
         return false;
     }
 
     for (size_t i = 0; i < total_count; ++i) {
-        reinterpret_cast<T *>(input_host)[i] = static_cast<T>(i + rank_id * 10000);
-        reinterpret_cast<T *>(output_host)[i] = static_cast<T>(-1);
+        reinterpret_cast<T*>(input_host)[i] = static_cast<T>(i + rank_id * 10000);
+        reinterpret_cast<T*>(output_host)[i] = static_cast<T>(-1);
     }
 
     aclrtMemcpy(input_ptr, total_count * sizeof(T), input_host, total_count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
 
     uint64_t localWinBase = ctx.hostCtx.windowsIn[rank_id];
     size_t winOffset = 0;
-    void *shmem_ptr = WindowAlloc(localWinBase, winOffset, 64 * sizeof(int32_t) + 4 * total_count * sizeof(T));
+    void* shmem_ptr = WindowAlloc(localWinBase, winOffset, 64 * sizeof(int32_t) + 4 * total_count * sizeof(T));
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
     // Phase 0: populate local send buffer
     TGetLargeShapeKernelImpl<T, total_rows, cols, tile_rows>
-        <<<1, nullptr, ctx.stream>>>((T *)output_ptr, (T *)input_ptr, (T *)shmem_ptr, n_ranks, ctx.deviceCtx, 0);
+        <<<1, nullptr, ctx.stream>>>((T*)output_ptr, (T*)input_ptr, (T*)shmem_ptr, n_ranks, ctx.deviceCtx, 0);
     aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
     // Phase 1: TGET from remote + read to dst
     TGetLargeShapeKernelImpl<T, total_rows, cols, tile_rows>
-        <<<1, nullptr, ctx.stream>>>((T *)output_ptr, (T *)input_ptr, (T *)shmem_ptr, n_ranks, ctx.deviceCtx, 1);
+        <<<1, nullptr, ctx.stream>>>((T*)output_ptr, (T*)input_ptr, (T*)shmem_ptr, n_ranks, ctx.deviceCtx, 1);
     ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
 
     aclrtMemcpy(output_host, total_count * sizeof(T), output_ptr, total_count * sizeof(T), ACL_MEMCPY_DEVICE_TO_HOST);
@@ -533,7 +533,7 @@ bool RunGetRingLargeShapeKernel(int rank_id, int n_ranks, int n_devices, int fir
     }
     int next_rank = (rank_id + 1) % n_ranks;
     for (size_t i = 0; i < total_count && is_ok; ++i) {
-        T value = reinterpret_cast<T *>(output_host)[i];
+        T value = reinterpret_cast<T*>(output_host)[i];
         T expected = static_cast<T>(i + next_rank * 10000);
         if (value != expected) {
             std::cout << "Rank " << rank_id << " Device " << ctx.deviceId << " Status " << ctx.aclStatus << std::endl;
@@ -552,7 +552,7 @@ bool RunGetRingLargeShapeKernel(int rank_id, int n_ranks, int n_devices, int fir
                   << std::endl;
         std::cout << "Sample Result (First 5 elements): [ ";
         for (size_t i = 0; i < (total_count > 5 ? 5 : total_count); ++i) {
-            std::cout << (float)reinterpret_cast<T *>(output_host)[i] << " ";
+            std::cout << (float)reinterpret_cast<T*>(output_host)[i] << " ";
         }
         if (total_count > 5)
             std::cout << "... ";
@@ -572,35 +572,35 @@ bool RunGetRingLargeShapeKernel(int rank_id, int n_ranks, int n_devices, int fir
 template <typename T, size_t total_rows, size_t cols, size_t tile_rows>
 bool RunGetRingLargeShape(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
-    return ForkAndRunWithHcclRootInfo(n_ranks, first_rank_id, first_device_id,
-                                      [&](int rankId, const HcclRootInfo *rootInfo) {
-                                          return RunGetRingLargeShapeKernel<T, total_rows, cols, tile_rows>(
-                                              rankId, n_ranks, n_devices, first_device_id, rootInfo);
-                                      });
+    return ForkAndRunWithHcclRootInfo(
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
+            return RunGetRingLargeShapeKernel<T, total_rows, cols, tile_rows>(
+                rankId, n_ranks, n_devices, first_device_id, rootInfo);
+        });
 }
 
 // Explicit instantiations for large shape tests
 // float: 128 rows x 64 cols, tile 16 rows → 8 chunks
-template bool RunGetRingLargeShape<float, 128, 64, 16>(int n_ranks, int n_devices, int first_rank_id,
-                                                       int first_device_id);
+template bool RunGetRingLargeShape<float, 128, 64, 16>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);
 // int32: 256 rows x 32 cols, tile 32 rows → 8 chunks
-template bool RunGetRingLargeShape<int32_t, 256, 32, 32>(int n_ranks, int n_devices, int first_rank_id,
-                                                         int first_device_id);
+template bool RunGetRingLargeShape<int32_t, 256, 32, 32>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);
 // float: 512 rows x 32 cols, tile 64 rows → 8 chunks (larger data)
-template bool RunGetRingLargeShape<float, 512, 32, 64>(int n_ranks, int n_devices, int first_rank_id,
-                                                       int first_device_id);
+template bool RunGetRingLargeShape<float, 512, 32, 64>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);
 // float: 2048 rows x 32 cols, tile 64 rows → 32 chunks
-template bool RunGetRingLargeShape<float, 2048, 32, 64>(int n_ranks, int n_devices, int first_rank_id,
-                                                        int first_device_id);
+template bool RunGetRingLargeShape<float, 2048, 32, 64>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);
 // float: 4096 rows x 32 cols, tile 64 rows → 64 chunks
-template bool RunGetRingLargeShape<float, 4096, 32, 64>(int n_ranks, int n_devices, int first_rank_id,
-                                                        int first_device_id);
+template bool RunGetRingLargeShape<float, 4096, 32, 64>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);
 // float: 2048 rows x 64 cols, tile 128 rows → 16 chunks
-template bool RunGetRingLargeShape<float, 2048, 64, 128>(int n_ranks, int n_devices, int first_rank_id,
-                                                         int first_device_id);
+template bool RunGetRingLargeShape<float, 2048, 64, 128>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);
 // int32: 4096 rows x 64 cols, tile 128 rows → 32 chunks
-template bool RunGetRingLargeShape<int32_t, 4096, 64, 128>(int n_ranks, int n_devices, int first_rank_id,
-                                                           int first_device_id);
+template bool RunGetRingLargeShape<int32_t, 4096, 64, 128>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);
 
 // ============================================================================
 // Multi-Dimensional Chunked Test Kernel
@@ -609,8 +609,8 @@ template bool RunGetRingLargeShape<int32_t, 4096, 64, 128>(int n_ranks, int n_de
 // TGET_IMPL iterates outer dims (d0 x d1 x d2) and chunks d3 by tile_rows
 // ============================================================================
 template <typename T, size_t d0, size_t d1, size_t d2, size_t d3, size_t cols, size_t tile_rows>
-__global__ AICORE void TGetMultiDimKernelImpl(__gm__ T *dst, __gm__ T *src, __gm__ T *shmem, int nranks,
-                                              __gm__ CommDeviceContext *hcclCtx, int phase)
+__global__ AICORE void TGetMultiDimKernelImpl(
+    __gm__ T* dst, __gm__ T* src, __gm__ T* shmem, int nranks, __gm__ CommDeviceContext* hcclCtx, int phase)
 {
     if (nranks <= 0)
         return;
@@ -641,10 +641,10 @@ __global__ AICORE void TGetMultiDimKernelImpl(__gm__ T *dst, __gm__ T *src, __gm
     int my_rank = static_cast<int>(hcclCtx->rankId);
     int next_rank = (my_rank + 1) % nranks;
 
-    __gm__ uint8_t *shmem_bytes = reinterpret_cast<__gm__ uint8_t *>(shmem);
-    __gm__ T *shmem_data = reinterpret_cast<__gm__ T *>(shmem_bytes + 64 * sizeof(int32_t));
-    __gm__ T *send_shmem = shmem_data;
-    __gm__ T *recv_shmem = shmem_data + total_count;
+    __gm__ uint8_t* shmem_bytes = reinterpret_cast<__gm__ uint8_t*>(shmem);
+    __gm__ T* shmem_data = reinterpret_cast<__gm__ T*>(shmem_bytes + 64 * sizeof(int32_t));
+    __gm__ T* send_shmem = shmem_data;
+    __gm__ T* recv_shmem = shmem_data + total_count;
 
     if (phase == 0) {
         TileData stagingTile(tile_rows, cols);
@@ -671,7 +671,7 @@ __global__ AICORE void TGetMultiDimKernelImpl(__gm__ T *dst, __gm__ T *src, __gm
         TASSIGN(stagingTile, 0x0);
         TASSIGN(resultTile, 0x10000);
 
-        __gm__ T *remote_send_shmem = CommRemotePtr(hcclCtx, send_shmem, next_rank);
+        __gm__ T* remote_send_shmem = CommRemotePtr(hcclCtx, send_shmem, next_rank);
         Global remoteSendG(remote_send_shmem, fullShape, fullStride);
         pto::comm::TGET(recvG, remoteSendG, stagingTile);
 
@@ -691,8 +691,8 @@ __global__ AICORE void TGetMultiDimKernelImpl(__gm__ T *dst, __gm__ T *src, __gm
 }
 
 template <typename T, size_t d0, size_t d1, size_t d2, size_t d3, size_t cols, size_t tile_rows>
-bool RunGetRingMultiDimKernel(int rank_id, int n_ranks, int n_devices, int first_device_id,
-                              const HcclRootInfo *rootInfo)
+bool RunGetRingMultiDimKernel(
+    int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo* rootInfo)
 {
     if (n_ranks <= 0)
         return false;
@@ -702,45 +702,45 @@ bool RunGetRingMultiDimKernel(int rank_id, int n_ranks, int n_devices, int first
     if (!ctx.Init(rank_id, n_ranks, n_devices, first_device_id, rootInfo))
         return false;
 
-    void *input_ptr = nullptr;
-    void *output_ptr = nullptr;
+    void* input_ptr = nullptr;
+    void* output_ptr = nullptr;
     if (aclrtMalloc(&input_ptr, total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) != 0 ||
         aclrtMalloc(&output_ptr, total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) != 0) {
         std::cerr << "[ERROR] aclrtMalloc failed!" << std::endl;
         return false;
     }
 
-    uint8_t *input_host = nullptr;
-    uint8_t *output_host = nullptr;
-    if (aclrtMallocHost(reinterpret_cast<void **>(&input_host), total_count * sizeof(T)) != 0 ||
-        aclrtMallocHost(reinterpret_cast<void **>(&output_host), total_count * sizeof(T)) != 0) {
+    uint8_t* input_host = nullptr;
+    uint8_t* output_host = nullptr;
+    if (aclrtMallocHost(reinterpret_cast<void**>(&input_host), total_count * sizeof(T)) != 0 ||
+        aclrtMallocHost(reinterpret_cast<void**>(&output_host), total_count * sizeof(T)) != 0) {
         std::cerr << "[ERROR] aclrtMallocHost failed!" << std::endl;
         return false;
     }
 
     for (size_t i = 0; i < total_count; ++i) {
-        reinterpret_cast<T *>(input_host)[i] = static_cast<T>(i + rank_id * 10000);
-        reinterpret_cast<T *>(output_host)[i] = static_cast<T>(-1);
+        reinterpret_cast<T*>(input_host)[i] = static_cast<T>(i + rank_id * 10000);
+        reinterpret_cast<T*>(output_host)[i] = static_cast<T>(-1);
     }
 
     aclrtMemcpy(input_ptr, total_count * sizeof(T), input_host, total_count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
 
     uint64_t localWinBase = ctx.hostCtx.windowsIn[rank_id];
     size_t winOffset = 0;
-    void *shmem_ptr = WindowAlloc(localWinBase, winOffset, 64 * sizeof(int32_t) + 4 * total_count * sizeof(T));
+    void* shmem_ptr = WindowAlloc(localWinBase, winOffset, 64 * sizeof(int32_t) + 4 * total_count * sizeof(T));
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
     // Phase 0: populate local send buffer
     TGetMultiDimKernelImpl<T, d0, d1, d2, d3, cols, tile_rows>
-        <<<1, nullptr, ctx.stream>>>((T *)output_ptr, (T *)input_ptr, (T *)shmem_ptr, n_ranks, ctx.deviceCtx, 0);
+        <<<1, nullptr, ctx.stream>>>((T*)output_ptr, (T*)input_ptr, (T*)shmem_ptr, n_ranks, ctx.deviceCtx, 0);
     aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
     // Phase 1: TGET from remote + read to dst
     TGetMultiDimKernelImpl<T, d0, d1, d2, d3, cols, tile_rows>
-        <<<1, nullptr, ctx.stream>>>((T *)output_ptr, (T *)input_ptr, (T *)shmem_ptr, n_ranks, ctx.deviceCtx, 1);
+        <<<1, nullptr, ctx.stream>>>((T*)output_ptr, (T*)input_ptr, (T*)shmem_ptr, n_ranks, ctx.deviceCtx, 1);
     ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
 
     aclrtMemcpy(output_host, total_count * sizeof(T), output_ptr, total_count * sizeof(T), ACL_MEMCPY_DEVICE_TO_HOST);
@@ -752,7 +752,7 @@ bool RunGetRingMultiDimKernel(int rank_id, int n_ranks, int n_devices, int first
     }
     int next_rank = (rank_id + 1) % n_ranks;
     for (size_t i = 0; i < total_count && is_ok; ++i) {
-        T value = reinterpret_cast<T *>(output_host)[i];
+        T value = reinterpret_cast<T*>(output_host)[i];
         T expected = static_cast<T>(i + next_rank * 10000);
         if (value != expected) {
             std::cout << "Rank " << rank_id << " Device " << ctx.deviceId << " Status " << ctx.aclStatus << std::endl;
@@ -770,7 +770,7 @@ bool RunGetRingMultiDimKernel(int rank_id, int n_ranks, int n_devices, int first
                   << cols << ", tile=" << tile_rows << "x" << cols << ")" << std::endl;
         std::cout << "Sample Result (First 5 elements): [ ";
         for (size_t i = 0; i < (total_count > 5 ? 5 : total_count); ++i) {
-            std::cout << (float)reinterpret_cast<T *>(output_host)[i] << " ";
+            std::cout << (float)reinterpret_cast<T*>(output_host)[i] << " ";
         }
         if (total_count > 5)
             std::cout << "... ";
@@ -790,20 +790,20 @@ bool RunGetRingMultiDimKernel(int rank_id, int n_ranks, int n_devices, int first
 template <typename T, size_t d0, size_t d1, size_t d2, size_t d3, size_t cols, size_t tile_rows>
 bool RunGetRingMultiDim(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
-    return ForkAndRunWithHcclRootInfo(n_ranks, first_rank_id, first_device_id,
-                                      [&](int rankId, const HcclRootInfo *rootInfo) {
-                                          return RunGetRingMultiDimKernel<T, d0, d1, d2, d3, cols, tile_rows>(
-                                              rankId, n_ranks, n_devices, first_device_id, rootInfo);
-                                      });
+    return ForkAndRunWithHcclRootInfo(
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
+            return RunGetRingMultiDimKernel<T, d0, d1, d2, d3, cols, tile_rows>(
+                rankId, n_ranks, n_devices, first_device_id, rootInfo);
+        });
 }
 
 // Explicit instantiations for multi-dim tests
 // float: (2,2,1,32,32), tile 16 rows → 4 outer iters × 2 inner chunks = 8 total
-template bool RunGetRingMultiDim<float, 2, 2, 1, 32, 32, 16>(int n_ranks, int n_devices, int first_rank_id,
-                                                             int first_device_id);
+template bool RunGetRingMultiDim<float, 2, 2, 1, 32, 32, 16>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);
 // int32: (4,1,1,32,64), tile 16 rows → 4 outer iters × 2 inner chunks = 8 total
-template bool RunGetRingMultiDim<int32_t, 4, 1, 1, 32, 64, 16>(int n_ranks, int n_devices, int first_rank_id,
-                                                               int first_device_id);
+template bool RunGetRingMultiDim<int32_t, 4, 1, 1, 32, 64, 16>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);
 
 // ============================================================================
 // Irregular Shape Chunked Test Kernel
@@ -812,8 +812,8 @@ template bool RunGetRingMultiDim<int32_t, 4, 1, 1, 32, 64, 16>(int n_ranks, int 
 // The setup/readback loops also handle partial last chunks explicitly.
 // ============================================================================
 template <typename T, size_t total_rows, size_t cols, size_t tile_rows>
-__global__ AICORE void TGetIrregularShapeKernelImpl(__gm__ T *dst, __gm__ T *src, __gm__ T *shmem, int nranks,
-                                                    __gm__ CommDeviceContext *hcclCtx, int phase)
+__global__ AICORE void TGetIrregularShapeKernelImpl(
+    __gm__ T* dst, __gm__ T* src, __gm__ T* shmem, int nranks, __gm__ CommDeviceContext* hcclCtx, int phase)
 {
     if (nranks <= 0)
         return;
@@ -834,10 +834,10 @@ __global__ AICORE void TGetIrregularShapeKernelImpl(__gm__ T *dst, __gm__ T *src
     int my_rank = static_cast<int>(hcclCtx->rankId);
     int next_rank = (my_rank + 1) % nranks;
 
-    __gm__ uint8_t *shmem_bytes = reinterpret_cast<__gm__ uint8_t *>(shmem);
-    __gm__ T *shmem_data = reinterpret_cast<__gm__ T *>(shmem_bytes + 64 * sizeof(int32_t));
-    __gm__ T *send_shmem = shmem_data;
-    __gm__ T *recv_shmem = shmem_data + total_count;
+    __gm__ uint8_t* shmem_bytes = reinterpret_cast<__gm__ uint8_t*>(shmem);
+    __gm__ T* shmem_data = reinterpret_cast<__gm__ T*>(shmem_bytes + 64 * sizeof(int32_t));
+    __gm__ T* send_shmem = shmem_data;
+    __gm__ T* recv_shmem = shmem_data + total_count;
 
     if (phase == 0) {
         TileData stagingTile(tile_rows, cols);
@@ -873,7 +873,7 @@ __global__ AICORE void TGetIrregularShapeKernelImpl(__gm__ T *dst, __gm__ T *src
         TASSIGN(resultTile, 0x10000);
 
         // stagingTile starts with tile_rows RowMask — TGET_IMPL reads initial tileValidRow
-        __gm__ T *remote_send_shmem = CommRemotePtr(hcclCtx, send_shmem, next_rank);
+        __gm__ T* remote_send_shmem = CommRemotePtr(hcclCtx, send_shmem, next_rank);
         Global remoteSendG(remote_send_shmem, fullShape, fullStride);
         pto::comm::TGET(recvG, remoteSendG, stagingTile);
 
@@ -901,8 +901,8 @@ __global__ AICORE void TGetIrregularShapeKernelImpl(__gm__ T *dst, __gm__ T *src
 }
 
 template <typename T, size_t total_rows, size_t cols, size_t tile_rows>
-bool RunGetRingIrregularShapeKernel(int rank_id, int n_ranks, int n_devices, int first_device_id,
-                                    const HcclRootInfo *rootInfo)
+bool RunGetRingIrregularShapeKernel(
+    int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo* rootInfo)
 {
     if (n_ranks <= 0)
         return false;
@@ -912,45 +912,45 @@ bool RunGetRingIrregularShapeKernel(int rank_id, int n_ranks, int n_devices, int
     if (!ctx.Init(rank_id, n_ranks, n_devices, first_device_id, rootInfo))
         return false;
 
-    void *input_ptr = nullptr;
-    void *output_ptr = nullptr;
+    void* input_ptr = nullptr;
+    void* output_ptr = nullptr;
     if (aclrtMalloc(&input_ptr, total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) != 0 ||
         aclrtMalloc(&output_ptr, total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) != 0) {
         std::cerr << "[ERROR] aclrtMalloc failed!" << std::endl;
         return false;
     }
 
-    uint8_t *input_host = nullptr;
-    uint8_t *output_host = nullptr;
-    if (aclrtMallocHost(reinterpret_cast<void **>(&input_host), total_count * sizeof(T)) != 0 ||
-        aclrtMallocHost(reinterpret_cast<void **>(&output_host), total_count * sizeof(T)) != 0) {
+    uint8_t* input_host = nullptr;
+    uint8_t* output_host = nullptr;
+    if (aclrtMallocHost(reinterpret_cast<void**>(&input_host), total_count * sizeof(T)) != 0 ||
+        aclrtMallocHost(reinterpret_cast<void**>(&output_host), total_count * sizeof(T)) != 0) {
         std::cerr << "[ERROR] aclrtMallocHost failed!" << std::endl;
         return false;
     }
 
     for (size_t i = 0; i < total_count; ++i) {
-        reinterpret_cast<T *>(input_host)[i] = static_cast<T>(i + rank_id * 10000);
-        reinterpret_cast<T *>(output_host)[i] = static_cast<T>(-1);
+        reinterpret_cast<T*>(input_host)[i] = static_cast<T>(i + rank_id * 10000);
+        reinterpret_cast<T*>(output_host)[i] = static_cast<T>(-1);
     }
 
     aclrtMemcpy(input_ptr, total_count * sizeof(T), input_host, total_count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
 
     uint64_t localWinBase = ctx.hostCtx.windowsIn[rank_id];
     size_t winOffset = 0;
-    void *shmem_ptr = WindowAlloc(localWinBase, winOffset, 64 * sizeof(int32_t) + 4 * total_count * sizeof(T));
+    void* shmem_ptr = WindowAlloc(localWinBase, winOffset, 64 * sizeof(int32_t) + 4 * total_count * sizeof(T));
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
     // Phase 0: populate local send buffer
     TGetIrregularShapeKernelImpl<T, total_rows, cols, tile_rows>
-        <<<1, nullptr, ctx.stream>>>((T *)output_ptr, (T *)input_ptr, (T *)shmem_ptr, n_ranks, ctx.deviceCtx, 0);
+        <<<1, nullptr, ctx.stream>>>((T*)output_ptr, (T*)input_ptr, (T*)shmem_ptr, n_ranks, ctx.deviceCtx, 0);
     aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
     // Phase 1: TGET from remote + read to dst
     TGetIrregularShapeKernelImpl<T, total_rows, cols, tile_rows>
-        <<<1, nullptr, ctx.stream>>>((T *)output_ptr, (T *)input_ptr, (T *)shmem_ptr, n_ranks, ctx.deviceCtx, 1);
+        <<<1, nullptr, ctx.stream>>>((T*)output_ptr, (T*)input_ptr, (T*)shmem_ptr, n_ranks, ctx.deviceCtx, 1);
     ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
 
     aclrtMemcpy(output_host, total_count * sizeof(T), output_ptr, total_count * sizeof(T), ACL_MEMCPY_DEVICE_TO_HOST);
@@ -962,7 +962,7 @@ bool RunGetRingIrregularShapeKernel(int rank_id, int n_ranks, int n_devices, int
     }
     int next_rank = (rank_id + 1) % n_ranks;
     for (size_t i = 0; i < total_count && is_ok; ++i) {
-        T value = reinterpret_cast<T *>(output_host)[i];
+        T value = reinterpret_cast<T*>(output_host)[i];
         T expected = static_cast<T>(i + next_rank * 10000);
         if (value != expected) {
             std::cout << "Rank " << rank_id << " Device " << ctx.deviceId << " Status " << ctx.aclStatus << std::endl;
@@ -982,7 +982,7 @@ bool RunGetRingIrregularShapeKernel(int rank_id, int n_ranks, int n_devices, int
                   << ", remainder=" << remainder << ")" << std::endl;
         std::cout << "Sample Result (First 5 elements): [ ";
         for (size_t i = 0; i < (total_count > 5 ? 5 : total_count); ++i) {
-            std::cout << (float)reinterpret_cast<T *>(output_host)[i] << " ";
+            std::cout << (float)reinterpret_cast<T*>(output_host)[i] << " ";
         }
         if (total_count > 5)
             std::cout << "... ";
@@ -990,7 +990,7 @@ bool RunGetRingIrregularShapeKernel(int rank_id, int n_ranks, int n_devices, int
         // Also print last 5 elements to verify partial chunk correctness
         std::cout << "Last 5 elements: [ ";
         for (size_t i = (total_count > 5 ? total_count - 5 : 0); i < total_count; ++i) {
-            std::cout << (float)reinterpret_cast<T *>(output_host)[i] << " ";
+            std::cout << (float)reinterpret_cast<T*>(output_host)[i] << " ";
         }
         std::cout << "]" << std::endl;
         std::cout << "================================================================\n" << std::endl;
@@ -1008,23 +1008,23 @@ bool RunGetRingIrregularShapeKernel(int rank_id, int n_ranks, int n_devices, int
 template <typename T, size_t total_rows, size_t cols, size_t tile_rows>
 bool RunGetRingIrregularShape(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
-    return ForkAndRunWithHcclRootInfo(n_ranks, first_rank_id, first_device_id,
-                                      [&](int rankId, const HcclRootInfo *rootInfo) {
-                                          return RunGetRingIrregularShapeKernel<T, total_rows, cols, tile_rows>(
-                                              rankId, n_ranks, n_devices, first_device_id, rootInfo);
-                                      });
+    return ForkAndRunWithHcclRootInfo(
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
+            return RunGetRingIrregularShapeKernel<T, total_rows, cols, tile_rows>(
+                rankId, n_ranks, n_devices, first_device_id, rootInfo);
+        });
 }
 
 // Explicit instantiations for irregular shape tests
 // float: 2047 rows x 32 cols, tile 64 → 31 full chunks + 1 partial (63 rows)
-template bool RunGetRingIrregularShape<float, 2047, 32, 64>(int n_ranks, int n_devices, int first_rank_id,
-                                                            int first_device_id);
+template bool RunGetRingIrregularShape<float, 2047, 32, 64>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);
 // int32: 1025 rows x 32 cols, tile 64 → 16 full chunks + 1 partial (1 row)
-template bool RunGetRingIrregularShape<int32_t, 1025, 32, 64>(int n_ranks, int n_devices, int first_rank_id,
-                                                              int first_device_id);
+template bool RunGetRingIrregularShape<int32_t, 1025, 32, 64>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);
 // float: 4095 rows x 32 cols, tile 128 → 31 full chunks + 1 partial (127 rows)
-template bool RunGetRingIrregularShape<float, 4095, 32, 128>(int n_ranks, int n_devices, int first_rank_id,
-                                                             int first_device_id);
+template bool RunGetRingIrregularShape<float, 4095, 32, 128>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);
 
 // ============================================================================
 // 2D Sliding Test Kernel
@@ -1036,14 +1036,15 @@ template bool RunGetRingIrregularShape<float, 4095, 32, 128>(int n_ranks, int n_
 //   TGET_IMPL automatically does 2D sliding over (total_rows × total_cols).
 // ============================================================================
 template <typename T, size_t total_rows, size_t total_cols, size_t tile_rows, size_t tile_cols>
-__global__ AICORE void TGet2DSlidingKernelImpl(__gm__ T *dst, __gm__ T *src, __gm__ T *shmem, int nranks,
-                                               __gm__ CommDeviceContext *hcclCtx, int phase)
+__global__ AICORE void TGet2DSlidingKernelImpl(
+    __gm__ T* dst, __gm__ T* src, __gm__ T* shmem, int nranks, __gm__ CommDeviceContext* hcclCtx, int phase)
 {
     if (nranks <= 0)
         return;
     constexpr size_t total_count = total_rows * total_cols;
-    static_assert(total_rows > tile_rows || total_cols > tile_cols,
-                  "At least one dimension must exceed tile size to test 2D sliding");
+    static_assert(
+        total_rows > tile_rows || total_cols > tile_cols,
+        "At least one dimension must exceed tile size to test 2D sliding");
 
     using ShapeDyn = pto::Shape<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
     using StrideDyn = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
@@ -1057,10 +1058,10 @@ __global__ AICORE void TGet2DSlidingKernelImpl(__gm__ T *dst, __gm__ T *src, __g
     int my_rank = static_cast<int>(hcclCtx->rankId);
     int next_rank = (my_rank + 1) % nranks;
 
-    __gm__ uint8_t *shmem_bytes = reinterpret_cast<__gm__ uint8_t *>(shmem);
-    __gm__ T *shmem_data = reinterpret_cast<__gm__ T *>(shmem_bytes + 64 * sizeof(int32_t));
-    __gm__ T *send_shmem = shmem_data;
-    __gm__ T *recv_shmem = shmem_data + total_count;
+    __gm__ uint8_t* shmem_bytes = reinterpret_cast<__gm__ uint8_t*>(shmem);
+    __gm__ T* shmem_data = reinterpret_cast<__gm__ T*>(shmem_bytes + 64 * sizeof(int32_t));
+    __gm__ T* send_shmem = shmem_data;
+    __gm__ T* recv_shmem = shmem_data + total_count;
 
     if (phase == 0) {
         TileData stagingTile(tile_rows, tile_cols);
@@ -1099,7 +1100,7 @@ __global__ AICORE void TGet2DSlidingKernelImpl(__gm__ T *dst, __gm__ T *src, __g
         TASSIGN(stagingTile, 0x0);
         TASSIGN(resultTile, 0x10000);
 
-        __gm__ T *remote_send_shmem = CommRemotePtr(hcclCtx, send_shmem, next_rank);
+        __gm__ T* remote_send_shmem = CommRemotePtr(hcclCtx, send_shmem, next_rank);
         Global remoteSendG(remote_send_shmem, fullShape, fullStride);
         pto::comm::TGET(recvG, remoteSendG, stagingTile);
 
@@ -1131,8 +1132,8 @@ __global__ AICORE void TGet2DSlidingKernelImpl(__gm__ T *dst, __gm__ T *src, __g
 }
 
 template <typename T, size_t total_rows, size_t total_cols, size_t tile_rows, size_t tile_cols>
-bool RunGetRing2DSlidingKernel(int rank_id, int n_ranks, int n_devices, int first_device_id,
-                               const HcclRootInfo *rootInfo)
+bool RunGetRing2DSlidingKernel(
+    int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo* rootInfo)
 {
     if (n_ranks <= 0)
         return false;
@@ -1142,45 +1143,45 @@ bool RunGetRing2DSlidingKernel(int rank_id, int n_ranks, int n_devices, int firs
     if (!ctx.Init(rank_id, n_ranks, n_devices, first_device_id, rootInfo))
         return false;
 
-    void *input_ptr = nullptr;
-    void *output_ptr = nullptr;
+    void* input_ptr = nullptr;
+    void* output_ptr = nullptr;
     if (aclrtMalloc(&input_ptr, total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) != 0 ||
         aclrtMalloc(&output_ptr, total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) != 0) {
         std::cerr << "[ERROR] aclrtMalloc failed!" << std::endl;
         return false;
     }
 
-    uint8_t *input_host = nullptr;
-    uint8_t *output_host = nullptr;
-    if (aclrtMallocHost(reinterpret_cast<void **>(&input_host), total_count * sizeof(T)) != 0 ||
-        aclrtMallocHost(reinterpret_cast<void **>(&output_host), total_count * sizeof(T)) != 0) {
+    uint8_t* input_host = nullptr;
+    uint8_t* output_host = nullptr;
+    if (aclrtMallocHost(reinterpret_cast<void**>(&input_host), total_count * sizeof(T)) != 0 ||
+        aclrtMallocHost(reinterpret_cast<void**>(&output_host), total_count * sizeof(T)) != 0) {
         std::cerr << "[ERROR] aclrtMallocHost failed!" << std::endl;
         return false;
     }
 
     for (size_t i = 0; i < total_count; ++i) {
-        reinterpret_cast<T *>(input_host)[i] = static_cast<T>(i + rank_id * 10000);
-        reinterpret_cast<T *>(output_host)[i] = static_cast<T>(-1);
+        reinterpret_cast<T*>(input_host)[i] = static_cast<T>(i + rank_id * 10000);
+        reinterpret_cast<T*>(output_host)[i] = static_cast<T>(-1);
     }
 
     aclrtMemcpy(input_ptr, total_count * sizeof(T), input_host, total_count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
 
     uint64_t localWinBase = ctx.hostCtx.windowsIn[rank_id];
     size_t winOffset = 0;
-    void *shmem_ptr = WindowAlloc(localWinBase, winOffset, 64 * sizeof(int32_t) + 4 * total_count * sizeof(T));
+    void* shmem_ptr = WindowAlloc(localWinBase, winOffset, 64 * sizeof(int32_t) + 4 * total_count * sizeof(T));
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
     // Phase 0: populate local send buffer
     TGet2DSlidingKernelImpl<T, total_rows, total_cols, tile_rows, tile_cols>
-        <<<1, nullptr, ctx.stream>>>((T *)output_ptr, (T *)input_ptr, (T *)shmem_ptr, n_ranks, ctx.deviceCtx, 0);
+        <<<1, nullptr, ctx.stream>>>((T*)output_ptr, (T*)input_ptr, (T*)shmem_ptr, n_ranks, ctx.deviceCtx, 0);
     aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
     // Phase 1: TGET from remote + read to dst
     TGet2DSlidingKernelImpl<T, total_rows, total_cols, tile_rows, tile_cols>
-        <<<1, nullptr, ctx.stream>>>((T *)output_ptr, (T *)input_ptr, (T *)shmem_ptr, n_ranks, ctx.deviceCtx, 1);
+        <<<1, nullptr, ctx.stream>>>((T*)output_ptr, (T*)input_ptr, (T*)shmem_ptr, n_ranks, ctx.deviceCtx, 1);
     ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
 
     aclrtMemcpy(output_host, total_count * sizeof(T), output_ptr, total_count * sizeof(T), ACL_MEMCPY_DEVICE_TO_HOST);
@@ -1192,7 +1193,7 @@ bool RunGetRing2DSlidingKernel(int rank_id, int n_ranks, int n_devices, int firs
     }
     int next_rank = (rank_id + 1) % n_ranks;
     for (size_t i = 0; i < total_count && is_ok; ++i) {
-        T value = reinterpret_cast<T *>(output_host)[i];
+        T value = reinterpret_cast<T*>(output_host)[i];
         T expected = static_cast<T>(i + next_rank * 10000);
         if (value != expected) {
             size_t row = i / total_cols;
@@ -1215,14 +1216,14 @@ bool RunGetRing2DSlidingKernel(int rank_id, int n_ranks, int n_devices, int firs
                   << (rowChunks * colChunks) << ")" << std::endl;
         std::cout << "Sample Result (First 5 elements): [ ";
         for (size_t i = 0; i < (total_count > 5 ? 5 : total_count); ++i) {
-            std::cout << (float)reinterpret_cast<T *>(output_host)[i] << " ";
+            std::cout << (float)reinterpret_cast<T*>(output_host)[i] << " ";
         }
         if (total_count > 5)
             std::cout << "... ";
         std::cout << "]" << std::endl;
         std::cout << "Last 5 elements: [ ";
         for (size_t i = (total_count > 5 ? total_count - 5 : 0); i < total_count; ++i) {
-            std::cout << (float)reinterpret_cast<T *>(output_host)[i] << " ";
+            std::cout << (float)reinterpret_cast<T*>(output_host)[i] << " ";
         }
         std::cout << "]" << std::endl;
         std::cout << "================================================================\n" << std::endl;
@@ -1241,7 +1242,7 @@ template <typename T, size_t total_rows, size_t total_cols, size_t tile_rows, si
 bool RunGetRing2DSliding(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
     return ForkAndRunWithHcclRootInfo(
-        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo *rootInfo) {
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
             return RunGetRing2DSlidingKernel<T, total_rows, total_cols, tile_rows, tile_cols>(
                 rankId, n_ranks, n_devices, first_device_id, rootInfo);
         });
@@ -1250,25 +1251,25 @@ bool RunGetRing2DSliding(int n_ranks, int n_devices, int first_rank_id, int firs
 // Explicit instantiations for 2D sliding tests
 // ---- Regular 2D sliding (both dims divisible by tile dims) ----
 // float: 64x128, tile 16x32 → 4 row chunks × 4 col chunks = 16 total
-template bool RunGetRing2DSliding<float, 64, 128, 16, 32>(int n_ranks, int n_devices, int first_rank_id,
-                                                          int first_device_id);
+template bool RunGetRing2DSliding<float, 64, 128, 16, 32>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);
 // int32: 128x256, tile 32x64 → 4 row chunks × 4 col chunks = 16 total
-template bool RunGetRing2DSliding<int32_t, 128, 256, 32, 64>(int n_ranks, int n_devices, int first_rank_id,
-                                                             int first_device_id);
+template bool RunGetRing2DSliding<int32_t, 128, 256, 32, 64>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);
 // float: 256x512, tile 64x128 → 4 row chunks × 4 col chunks = 16 total (large)
-template bool RunGetRing2DSliding<float, 256, 512, 64, 128>(int n_ranks, int n_devices, int first_rank_id,
-                                                            int first_device_id);
+template bool RunGetRing2DSliding<float, 256, 512, 64, 128>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);
 
 // ---- Irregular 2D sliding (partial last chunks via DYNAMIC ValidRow/ValidCol) ----
 // float: 65x64, tile 16x32 → rows: 4+1(1), cols: 2 (irregular row only)
-template bool RunGetRing2DSliding<float, 65, 64, 16, 32>(int n_ranks, int n_devices, int first_rank_id,
-                                                         int first_device_id);
+template bool RunGetRing2DSliding<float, 65, 64, 16, 32>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);
 // float: 64x104, tile 16x32 → rows: 4 (regular), cols: 3+1(8) (irregular col only)
-template bool RunGetRing2DSliding<float, 64, 104, 16, 32>(int n_ranks, int n_devices, int first_rank_id,
-                                                          int first_device_id);
+template bool RunGetRing2DSliding<float, 64, 104, 16, 32>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);
 // float: 65x104, tile 16x32 → rows: 4+1(1), cols: 3+1(8) (both irregular)
-template bool RunGetRing2DSliding<float, 65, 104, 16, 32>(int n_ranks, int n_devices, int first_rank_id,
-                                                          int first_device_id);
+template bool RunGetRing2DSliding<float, 65, 104, 16, 32>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);
 
 // ============================================================================
 // Ping-Pong Double Buffering Test Kernel
@@ -1278,14 +1279,15 @@ template bool RunGetRing2DSliding<float, 65, 104, 16, 32>(int n_ranks, int n_dev
 //   Tile logical chunk: (tile_rows, tile_cols); physical cols padded to 32B for Vec RowMajor
 // ============================================================================
 template <typename T, size_t total_rows, size_t total_cols, size_t tile_rows, size_t tile_cols>
-__global__ AICORE void TGetPingPongKernelImpl(__gm__ T *dst, __gm__ T *src, __gm__ T *shmem, int nranks,
-                                              __gm__ CommDeviceContext *hcclCtx, int phase)
+__global__ AICORE void TGetPingPongKernelImpl(
+    __gm__ T* dst, __gm__ T* src, __gm__ T* shmem, int nranks, __gm__ CommDeviceContext* hcclCtx, int phase)
 {
     if (nranks <= 0)
         return;
     constexpr size_t total_count = total_rows * total_cols;
-    static_assert(total_rows > tile_rows || total_cols > tile_cols,
-                  "At least one dimension must exceed tile size to test ping-pong chunking");
+    static_assert(
+        total_rows > tile_rows || total_cols > tile_cols,
+        "At least one dimension must exceed tile size to test ping-pong chunking");
     constexpr size_t tile_cols_phys = ((tile_cols * sizeof(T) + 31) / 32) * (32 / sizeof(T));
     static_assert(tile_cols_phys >= tile_cols, "aligned tile cols must cover logical tile cols");
 
@@ -1300,10 +1302,10 @@ __global__ AICORE void TGetPingPongKernelImpl(__gm__ T *dst, __gm__ T *src, __gm
     int my_rank = static_cast<int>(hcclCtx->rankId);
     int next_rank = (my_rank + 1) % nranks;
 
-    __gm__ uint8_t *shmem_bytes = reinterpret_cast<__gm__ uint8_t *>(shmem);
-    __gm__ T *shmem_data = reinterpret_cast<__gm__ T *>(shmem_bytes + 64 * sizeof(int32_t));
-    __gm__ T *send_shmem = shmem_data;
-    __gm__ T *recv_shmem = shmem_data + total_count;
+    __gm__ uint8_t* shmem_bytes = reinterpret_cast<__gm__ uint8_t*>(shmem);
+    __gm__ T* shmem_data = reinterpret_cast<__gm__ T*>(shmem_bytes + 64 * sizeof(int32_t));
+    __gm__ T* send_shmem = shmem_data;
+    __gm__ T* recv_shmem = shmem_data + total_count;
 
     constexpr size_t tileUBBytes = ((tile_rows * tile_cols_phys * sizeof(T) + 1023) / 1024) * 1024;
 
@@ -1346,7 +1348,7 @@ __global__ AICORE void TGetPingPongKernelImpl(__gm__ T *dst, __gm__ T *src, __gm
         TASSIGN(pongTile, tileUBBytes);
         TASSIGN(resultTile, 2 * tileUBBytes);
 
-        __gm__ T *remote_send_shmem = CommRemotePtr(hcclCtx, send_shmem, next_rank);
+        __gm__ T* remote_send_shmem = CommRemotePtr(hcclCtx, send_shmem, next_rank);
         Global remoteSendG(remote_send_shmem, fullShape, fullStride);
         pto::comm::TGET(recvG, remoteSendG, pingTile, pongTile);
 
@@ -1378,8 +1380,8 @@ __global__ AICORE void TGetPingPongKernelImpl(__gm__ T *dst, __gm__ T *src, __gm
 }
 
 template <typename T, size_t total_rows, size_t total_cols, size_t tile_rows, size_t tile_cols>
-bool RunGetRingPingPongKernel(int rank_id, int n_ranks, int n_devices, int first_device_id,
-                              const HcclRootInfo *rootInfo)
+bool RunGetRingPingPongKernel(
+    int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo* rootInfo)
 {
     if (n_ranks <= 0)
         return false;
@@ -1389,45 +1391,45 @@ bool RunGetRingPingPongKernel(int rank_id, int n_ranks, int n_devices, int first
     if (!ctx.Init(rank_id, n_ranks, n_devices, first_device_id, rootInfo))
         return false;
 
-    void *input_ptr = nullptr;
-    void *output_ptr = nullptr;
+    void* input_ptr = nullptr;
+    void* output_ptr = nullptr;
     if (aclrtMalloc(&input_ptr, total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) != 0 ||
         aclrtMalloc(&output_ptr, total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) != 0) {
         std::cerr << "[ERROR] aclrtMalloc failed!" << std::endl;
         return false;
     }
 
-    uint8_t *input_host = nullptr;
-    uint8_t *output_host = nullptr;
-    if (aclrtMallocHost(reinterpret_cast<void **>(&input_host), total_count * sizeof(T)) != 0 ||
-        aclrtMallocHost(reinterpret_cast<void **>(&output_host), total_count * sizeof(T)) != 0) {
+    uint8_t* input_host = nullptr;
+    uint8_t* output_host = nullptr;
+    if (aclrtMallocHost(reinterpret_cast<void**>(&input_host), total_count * sizeof(T)) != 0 ||
+        aclrtMallocHost(reinterpret_cast<void**>(&output_host), total_count * sizeof(T)) != 0) {
         std::cerr << "[ERROR] aclrtMallocHost failed!" << std::endl;
         return false;
     }
 
     for (size_t i = 0; i < total_count; ++i) {
-        reinterpret_cast<T *>(input_host)[i] = static_cast<T>(i + rank_id * 10000);
-        reinterpret_cast<T *>(output_host)[i] = static_cast<T>(-1);
+        reinterpret_cast<T*>(input_host)[i] = static_cast<T>(i + rank_id * 10000);
+        reinterpret_cast<T*>(output_host)[i] = static_cast<T>(-1);
     }
 
     aclrtMemcpy(input_ptr, total_count * sizeof(T), input_host, total_count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
 
     uint64_t localWinBase = ctx.hostCtx.windowsIn[rank_id];
     size_t winOffset = 0;
-    void *shmem_ptr = WindowAlloc(localWinBase, winOffset, 64 * sizeof(int32_t) + 4 * total_count * sizeof(T));
+    void* shmem_ptr = WindowAlloc(localWinBase, winOffset, 64 * sizeof(int32_t) + 4 * total_count * sizeof(T));
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
     // Phase 0: populate local send buffer
     TGetPingPongKernelImpl<T, total_rows, total_cols, tile_rows, tile_cols>
-        <<<1, nullptr, ctx.stream>>>((T *)output_ptr, (T *)input_ptr, (T *)shmem_ptr, n_ranks, ctx.deviceCtx, 0);
+        <<<1, nullptr, ctx.stream>>>((T*)output_ptr, (T*)input_ptr, (T*)shmem_ptr, n_ranks, ctx.deviceCtx, 0);
     aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
     // Phase 1: TGET from remote + read to dst
     TGetPingPongKernelImpl<T, total_rows, total_cols, tile_rows, tile_cols>
-        <<<1, nullptr, ctx.stream>>>((T *)output_ptr, (T *)input_ptr, (T *)shmem_ptr, n_ranks, ctx.deviceCtx, 1);
+        <<<1, nullptr, ctx.stream>>>((T*)output_ptr, (T*)input_ptr, (T*)shmem_ptr, n_ranks, ctx.deviceCtx, 1);
     ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
 
     aclrtMemcpy(output_host, total_count * sizeof(T), output_ptr, total_count * sizeof(T), ACL_MEMCPY_DEVICE_TO_HOST);
@@ -1439,7 +1441,7 @@ bool RunGetRingPingPongKernel(int rank_id, int n_ranks, int n_devices, int first
     }
     int next_rank = (rank_id + 1) % n_ranks;
     for (size_t i = 0; i < total_count && is_ok; ++i) {
-        T value = reinterpret_cast<T *>(output_host)[i];
+        T value = reinterpret_cast<T*>(output_host)[i];
         T expected = static_cast<T>(i + next_rank * 10000);
         if (value != expected) {
             size_t row = i / total_cols;
@@ -1462,7 +1464,7 @@ bool RunGetRingPingPongKernel(int rank_id, int n_ranks, int n_devices, int first
                   << (rowChunks * colChunks) << ")" << std::endl;
         std::cout << "Sample Result (First 5 elements): [ ";
         for (size_t i = 0; i < (total_count > 5 ? 5 : total_count); ++i) {
-            std::cout << (float)reinterpret_cast<T *>(output_host)[i] << " ";
+            std::cout << (float)reinterpret_cast<T*>(output_host)[i] << " ";
         }
         if (total_count > 5)
             std::cout << "... ";
@@ -1483,22 +1485,22 @@ template <typename T, size_t total_rows, size_t total_cols, size_t tile_rows, si
 bool RunGetRingPingPong(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
     return ForkAndRunWithHcclRootInfo(
-        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo *rootInfo) {
-            return RunGetRingPingPongKernel<T, total_rows, total_cols, tile_rows, tile_cols>(rankId, n_ranks, n_devices,
-                                                                                             first_device_id, rootInfo);
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
+            return RunGetRingPingPongKernel<T, total_rows, total_cols, tile_rows, tile_cols>(
+                rankId, n_ranks, n_devices, first_device_id, rootInfo);
         });
 }
 
 // Explicit instantiations for ping-pong tests
 // Regular: float 128x128, tile 16x32 → 8×4=32 chunks, overlap TLOAD/TSTORE
-template bool RunGetRingPingPong<float, 128, 128, 16, 32>(int n_ranks, int n_devices, int first_rank_id,
-                                                          int first_device_id);
+template bool RunGetRingPingPong<float, 128, 128, 16, 32>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);
 // Regular: int32 256x256, tile 32x64 → 8×4=32 chunks
-template bool RunGetRingPingPong<int32_t, 256, 256, 32, 64>(int n_ranks, int n_devices, int first_rank_id,
-                                                            int first_device_id);
+template bool RunGetRingPingPong<int32_t, 256, 256, 32, 64>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);
 // Irregular: float 65x104, tile 16x32 → (4+1)×(3+1)=20 chunks, partial rows+cols
-template bool RunGetRingPingPong<float, 65, 104, 16, 32>(int n_ranks, int n_devices, int first_rank_id,
-                                                         int first_device_id);
+template bool RunGetRingPingPong<float, 65, 104, 16, 32>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);
 // Pypto AllReduce shape: float 7x10, tile 5x7 → 2×2=4 chunks incl. partial col 5x3
-template bool RunGetRingPingPong<float, 7, 10, 5, 7>(int n_ranks, int n_devices, int first_rank_id,
-                                                     int first_device_id);
+template bool RunGetRingPingPong<float, 7, 10, 5, 7>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);

@@ -30,7 +30,7 @@ constexpr unsigned MAX_TILE_SIZE = (0x10000 - 0x100);  // Maximum tile size
 constexpr uint32_t tileNum = 2;                        // tile number on one vector core
 
 template <typename T, unsigned tileRows, unsigned tileCols>
-AICORE void runTAdd(__gm__ T *z, __gm__ T *x, __gm__ T *y, uint32_t totalLength)
+AICORE void runTAdd(__gm__ T* z, __gm__ T* x, __gm__ T* y, uint32_t totalLength)
 {
     set_mask_norm();
     set_vector_mask(-1, -1);
@@ -122,7 +122,7 @@ extern "C" __global__ AICORE void add_custom(GM_ADDR x, GM_ADDR y, GM_ADDR z, ui
     constexpr unsigned tileRows = 20;
     constexpr unsigned tileCols = 2048;
     // main kernel, totalLength is dynamic input
-    runTAdd<half, tileRows, tileCols>((__gm__ half *)z, (__gm__ half *)x, (__gm__ half *)y, totalLength);
+    runTAdd<half, tileRows, tileCols>((__gm__ half*)z, (__gm__ half*)x, (__gm__ half*)y, totalLength);
 }
 
 #endif

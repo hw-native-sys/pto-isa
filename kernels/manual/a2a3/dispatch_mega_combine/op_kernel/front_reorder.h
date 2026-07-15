@@ -43,7 +43,7 @@ AICORE inline uint32_t FrontAlignSortBlock(uint32_t elemNum)
     return ((elemNum + kFrontSortBlockElems - 1U) / kFrontSortBlockElems) * kFrontSortBlockElems;
 }
 
-AICORE inline int32_t FrontFillTailMergeArray(int32_t *mergePlan, int32_t validCols, int32_t blockLen)
+AICORE inline int32_t FrontFillTailMergeArray(int32_t* mergePlan, int32_t validCols, int32_t blockLen)
 {
     int32_t planCount = 0;
     int32_t remainCols = validCols;
@@ -58,9 +58,8 @@ AICORE inline int32_t FrontFillTailMergeArray(int32_t *mergePlan, int32_t validC
     return planCount;
 }
 
-AICORE inline void FrontMergeTailPackedSortRecords(FrontPackedSortTile &packedSortTile,
-                                                   FrontPackedSortTile &mergeTmpTile, uint32_t validCols,
-                                                   uint32_t blockLen)
+AICORE inline void FrontMergeTailPackedSortRecords(
+    FrontPackedSortTile& packedSortTile, FrontPackedSortTile& mergeTmpTile, uint32_t validCols, uint32_t blockLen)
 {
     int32_t mergePlan[15] = {0};
     const int32_t mergePlanCount =
@@ -89,8 +88,8 @@ AICORE inline void FrontMergeTailPackedSortRecords(FrontPackedSortTile &packedSo
     }
 }
 
-AICORE inline void FrontMergePackedSortRecords(FrontPackedSortTile &packedSortTile, FrontPackedSortTile &mergeTmpTile,
-                                               uint32_t validCols)
+AICORE inline void FrontMergePackedSortRecords(
+    FrontPackedSortTile& packedSortTile, FrontPackedSortTile& mergeTmpTile, uint32_t validCols)
 {
     uint32_t blockLen = kFrontPackedSortBlockElems; // 32个排序单元，每个单元是[key,payload] 2个元素，因此是64
     const uint64_t packedAddr = reinterpret_cast<uint64_t>(packedSortTile.data());
@@ -124,8 +123,8 @@ AICORE inline void FrontBuildAscendingSortKey(uint64_t sortKeyUb, uint64_t input
     pipe_barrier(PIPE_V);
 }
 
-AICORE inline void FrontRestoreAscendingSortValue(uint64_t sortedValueUb, uint64_t sortedValueScratchUb,
-                                                  uint32_t elemNum)
+AICORE inline void FrontRestoreAscendingSortValue(
+    uint64_t sortedValueUb, uint64_t sortedValueScratchUb, uint32_t elemNum)
 {
     PtoMulScalarUb<float>(sortedValueScratchUb, sortedValueScratchUb, elemNum, -1.0F);
     pipe_barrier(PIPE_V);
@@ -142,9 +141,9 @@ sortKeyUb       float sort key 临时 UB, float[alignedElemNum]
 elemNum         有效元素数
 alignedElemNum  按 32 对齐后的排序元素数
  */
-AICORE inline void FrontSortInt32ToPackedUb(uint64_t inputValueUb, uint64_t inputPayloadUb, uint64_t packedSortUb,
-                                            uint64_t mergeTmpUb, uint64_t sortKeyUb, uint32_t elemNum,
-                                            uint32_t alignedElemNum)
+AICORE inline void FrontSortInt32ToPackedUb(
+    uint64_t inputValueUb, uint64_t inputPayloadUb, uint64_t packedSortUb, uint64_t mergeTmpUb, uint64_t sortKeyUb,
+    uint32_t elemNum, uint32_t alignedElemNum)
 {
     if (elemNum == 0) {
         return;
@@ -182,8 +181,9 @@ AICORE inline void FrontSortInt32ToPackedUb(uint64_t inputValueUb, uint64_t inpu
     FrontMergePackedSortRecords(packedTile, mergeTmpTile, alignedElemNum * 2U); // 将所有的32元素block做归并排序
 }
 
-AICORE inline void FrontExtractPackedSortResult(uint64_t sortedValueUb, uint64_t sortedPayloadUb,
-                                                uint64_t sortedValueScratchUb, uint64_t packedSortUb, uint32_t elemNum)
+AICORE inline void FrontExtractPackedSortResult(
+    uint64_t sortedValueUb, uint64_t sortedPayloadUb, uint64_t sortedValueScratchUb, uint64_t packedSortUb,
+    uint32_t elemNum)
 {
     if (elemNum == 0) {
         return;
@@ -193,8 +193,8 @@ AICORE inline void FrontExtractPackedSortResult(uint64_t sortedValueUb, uint64_t
     FrontSortPayloadTile sortedPayloadTile(1, elemNum);
     pto::TASSIGN(packedPayloadTile, packedSortUb);
     pto::TASSIGN(sortedPayloadTile, sortedPayloadUb);
-    pto::TGATHER<FrontSortPayloadTile, FrontPackedPayloadTile, pto::MaskPattern::P1010>(sortedPayloadTile,
-                                                                                        packedPayloadTile);
+    pto::TGATHER<FrontSortPayloadTile, FrontPackedPayloadTile, pto::MaskPattern::P1010>(
+        sortedPayloadTile, packedPayloadTile);
     pipe_barrier(PIPE_V);
 
     FrontSortKeyTile sortedKeyTile(1, elemNum);
@@ -275,7 +275,7 @@ AICORE inline FrontRowSplitCoreTiling FrontBuildRouteCoreTiling(uint32_t routeEl
     return tiling;
 }
 
-AICORE inline void FrontApplyPerCoreRowLoopSplit(FrontRowSplitLoopTiling &tiling, uint32_t perLoopMaxRows)
+AICORE inline void FrontApplyPerCoreRowLoopSplit(FrontRowSplitLoopTiling& tiling, uint32_t perLoopMaxRows)
 {
     if (tiling.perCoreRows == 0U || perLoopMaxRows == 0U) {
         tiling = FrontRowSplitLoopTiling{};
@@ -318,10 +318,7 @@ struct FrontUbStack {
         return base;
     }
 
-    AICORE inline uint64_t End() const
-    {
-        return cursor;
-    }
+    AICORE inline uint64_t End() const { return cursor; }
 };
 
 AICORE inline uint32_t FrontExpertTokenOutExpertNumUbAlign(uint32_t expertNum)
@@ -423,20 +420,16 @@ AICORE inline uint32_t FrontPtoGetSortOffset(uint32_t elemOffset)
     return elemOffset * 2U;
 }
 
-AICORE inline uint32_t FrontPackedRowStride(uint32_t k)
-{
-    return k + static_cast<uint32_t>(UB_ALIGN);
-}
+AICORE inline uint32_t FrontPackedRowStride(uint32_t k) { return k + static_cast<uint32_t>(UB_ALIGN); }
 
 AICORE inline uint64_t FrontPackedRowOffset(uint32_t row, uint32_t k)
 {
     return static_cast<uint64_t>(row) * FrontPackedRowStride(k);
 }
 
-AICORE inline void FrontMergePackedSortRecordsChecked(uint64_t dstUb, uint64_t tmpUb, uint64_t src0Ub, uint64_t src1Ub,
-                                                      uint64_t src2Ub, uint64_t src3Ub,
-                                                      const uint16_t *elementCountList, uint32_t remainListNum,
-                                                      uint32_t *listSortedNums)
+AICORE inline void FrontMergePackedSortRecordsChecked(
+    uint64_t dstUb, uint64_t tmpUb, uint64_t src0Ub, uint64_t src1Ub, uint64_t src2Ub, uint64_t src3Ub,
+    const uint16_t* elementCountList, uint32_t remainListNum, uint32_t* listSortedNums)
 {
     const uint32_t src0Cols = FrontPtoGetSortLen<float>(elementCountList[0]);
     const uint32_t src1Cols = (remainListNum >= 2U) ? FrontPtoGetSortLen<float>(elementCountList[1]) : 0U;
@@ -469,12 +462,13 @@ AICORE inline void FrontMergePackedSortRecordsChecked(uint64_t dstUb, uint64_t t
         pto::TMRGSORT<FrontPackedSortTile, FrontPackedSortTile, FrontPackedSortTile, FrontPackedSortTile, true>(
             dstTile, executedNumList, tmpTile, src0Tile, src1Tile);
     } else if (remainListNum == 3U) {
-        pto::TMRGSORT<FrontPackedSortTile, FrontPackedSortTile, FrontPackedSortTile, FrontPackedSortTile,
-                      FrontPackedSortTile, true>(dstTile, executedNumList, tmpTile, src0Tile, src1Tile, src2Tile);
+        pto::TMRGSORT<
+            FrontPackedSortTile, FrontPackedSortTile, FrontPackedSortTile, FrontPackedSortTile, FrontPackedSortTile,
+            true>(dstTile, executedNumList, tmpTile, src0Tile, src1Tile, src2Tile);
     } else {
-        pto::TMRGSORT<FrontPackedSortTile, FrontPackedSortTile, FrontPackedSortTile, FrontPackedSortTile,
-                      FrontPackedSortTile, FrontPackedSortTile, true>(dstTile, executedNumList, tmpTile, src0Tile,
-                                                                      src1Tile, src2Tile, src3Tile);
+        pto::TMRGSORT<
+            FrontPackedSortTile, FrontPackedSortTile, FrontPackedSortTile, FrontPackedSortTile, FrontPackedSortTile,
+            FrontPackedSortTile, true>(dstTile, executedNumList, tmpTile, src0Tile, src1Tile, src2Tile, src3Tile);
     }
     pipe_barrier(PIPE_V);
 
@@ -485,16 +479,17 @@ AICORE inline void FrontMergePackedSortRecordsChecked(uint64_t dstUb, uint64_t t
 }
 
 struct FrontReorderCommonState {
-    AICORE inline void InitCommonInputs(GM_ADDR xGM, GM_ADDR expertIdGM, GM_ADDR expertTokenNumsGM, GM_ADDR workspaceGM,
-                                        const __gm__ MegaMoeTilingData *tilingData)
+    AICORE inline void InitCommonInputs(
+        GM_ADDR xGM, GM_ADDR expertIdGM, GM_ADDR expertTokenNumsGM, GM_ADDR workspaceGM,
+        const __gm__ MegaMoeTilingData* tilingData)
     {
         xPtr_ = xGM;
-        expertIdPtr_ = reinterpret_cast<__gm__ int32_t *>(expertIdGM);
-        expertTokenNumsPtr_ = reinterpret_cast<__gm__ int32_t *>(expertTokenNumsGM);
+        expertIdPtr_ = reinterpret_cast<__gm__ int32_t*>(expertIdGM);
+        expertTokenNumsPtr_ = reinterpret_cast<__gm__ int32_t*>(expertTokenNumsGM);
         workspaceGM_ = workspaceGM;
         tilingData_ = tilingData;
 
-        const auto &info = tilingData_->megaMoeInfo;
+        const auto& info = tilingData_->megaMoeInfo;
         problemM_ = info.M;
         problemK_ = info.K;
         topK_ = info.topK;
@@ -517,26 +512,24 @@ struct FrontReorderCommonState {
     {
         remoteWindow_.Init(reinterpret_cast<GM_ADDR>(tilingData_->runtimeInfo.remoteWindowContext));
         peerMemoryLayout_.Init(remoteWindow_);
-        offsetAPtr_ = reinterpret_cast<__gm__ int8_t *>(remoteWindow_.LocalBase() + peerMemoryLayout_.offsetA);
+        offsetAPtr_ = reinterpret_cast<__gm__ int8_t*>(remoteWindow_.LocalBase() + peerMemoryLayout_.offsetA);
         tokenPerExpertPtr_ =
-            reinterpret_cast<__gm__ int32_t *>(remoteWindow_.LocalBase() + peerMemoryLayout_.offsetPeerTokenPerExpert);
+            reinterpret_cast<__gm__ int32_t*>(remoteWindow_.LocalBase() + peerMemoryLayout_.offsetPeerTokenPerExpert);
     }
 
-    AICORE inline void InitCommonWorkspacePtrs(const __gm__ MegaMoeFrontReorderTiling &front, bool extended)
+    AICORE inline void InitCommonWorkspacePtrs(const __gm__ MegaMoeFrontReorderTiling& front, bool extended)
     {
-        expandedRowIdxPtr_ = reinterpret_cast<__gm__ int32_t *>(workspaceGM_ + front.expandedRowIdxOffset);
-        localTokenPerExpertPtr_ = reinterpret_cast<__gm__ int32_t *>(workspaceGM_ + front.localTokenPerExpertOffset);
-        cumsumMMPtr_ = reinterpret_cast<__gm__ int32_t *>(workspaceGM_ + front.cumsumMMOffset);
-        preSumBeforeRankPtr_ = reinterpret_cast<__gm__ int32_t *>(workspaceGM_ + front.preSumBeforeRankOffset);
+        expandedRowIdxPtr_ = reinterpret_cast<__gm__ int32_t*>(workspaceGM_ + front.expandedRowIdxOffset);
+        localTokenPerExpertPtr_ = reinterpret_cast<__gm__ int32_t*>(workspaceGM_ + front.localTokenPerExpertOffset);
+        cumsumMMPtr_ = reinterpret_cast<__gm__ int32_t*>(workspaceGM_ + front.cumsumMMOffset);
+        preSumBeforeRankPtr_ = reinterpret_cast<__gm__ int32_t*>(workspaceGM_ + front.preSumBeforeRankOffset);
         if (extended) {
-            frontExpandedExpertPtr_ =
-                reinterpret_cast<__gm__ int32_t *>(workspaceGM_ + front.frontExpandedExpertOffset);
-            frontExpandDstToSrcPtr_ =
-                reinterpret_cast<__gm__ int32_t *>(workspaceGM_ + front.frontExpandDstToSrcOffset);
+            frontExpandedExpertPtr_ = reinterpret_cast<__gm__ int32_t*>(workspaceGM_ + front.frontExpandedExpertOffset);
+            frontExpandDstToSrcPtr_ = reinterpret_cast<__gm__ int32_t*>(workspaceGM_ + front.frontExpandDstToSrcOffset);
         }
     }
 
-    AICORE inline void InitCommonSortTiling(const __gm__ MegaMoeFrontReorderTiling &front)
+    AICORE inline void InitCommonSortTiling(const __gm__ MegaMoeFrontReorderTiling& front)
     {
         expertNum_ = front.expertNum;
         expertNumAligned_ = front.expertNumAligned;
@@ -555,7 +548,7 @@ struct FrontReorderCommonState {
         sortOutLoopMaxElems_ = front.sortOutLoopMaxElems;
     }
 
-    AICORE inline void InitMinimalSortTiling(const __gm__ MegaMoeFrontReorderTiling &front)
+    AICORE inline void InitMinimalSortTiling(const __gm__ MegaMoeFrontReorderTiling& front)
     {
         expertNum_ = front.expertNum;
         expertNumAligned_ = front.expertNumAligned;
@@ -565,18 +558,18 @@ struct FrontReorderCommonState {
     }
 
     GM_ADDR xPtr_ = nullptr;
-    __gm__ int32_t *expertIdPtr_ = nullptr;
-    __gm__ int32_t *expertTokenNumsPtr_ = nullptr;
-    __gm__ int32_t *expandedRowIdxPtr_ = nullptr;
-    __gm__ int32_t *frontExpandedExpertPtr_ = nullptr;
-    __gm__ int32_t *frontExpandDstToSrcPtr_ = nullptr;
-    __gm__ int32_t *localTokenPerExpertPtr_ = nullptr;
-    __gm__ int32_t *tokenPerExpertPtr_ = nullptr;
-    __gm__ int32_t *cumsumMMPtr_ = nullptr;
-    __gm__ int32_t *preSumBeforeRankPtr_ = nullptr;
-    __gm__ int8_t *offsetAPtr_ = nullptr;
+    __gm__ int32_t* expertIdPtr_ = nullptr;
+    __gm__ int32_t* expertTokenNumsPtr_ = nullptr;
+    __gm__ int32_t* expandedRowIdxPtr_ = nullptr;
+    __gm__ int32_t* frontExpandedExpertPtr_ = nullptr;
+    __gm__ int32_t* frontExpandDstToSrcPtr_ = nullptr;
+    __gm__ int32_t* localTokenPerExpertPtr_ = nullptr;
+    __gm__ int32_t* tokenPerExpertPtr_ = nullptr;
+    __gm__ int32_t* cumsumMMPtr_ = nullptr;
+    __gm__ int32_t* preSumBeforeRankPtr_ = nullptr;
+    __gm__ int8_t* offsetAPtr_ = nullptr;
     GM_ADDR workspaceGM_ = nullptr;
-    const __gm__ MegaMoeTilingData *tilingData_ = nullptr;
+    const __gm__ MegaMoeTilingData* tilingData_ = nullptr;
     PtoRemoteWindow remoteWindow_;
     MegaMoePeerMemoryLayout peerMemoryLayout_;
 
@@ -607,25 +600,18 @@ struct FrontReorderCommonState {
 
 class FrontReorderPathBase {
 public:
-    AICORE inline explicit FrontReorderPathBase(FrontReorderCommonState &op) : op_(op)
-    {}
+    AICORE inline explicit FrontReorderPathBase(FrontReorderCommonState& op) : op_(op) {}
 
-    AICORE inline FrontReorderCommonState &common()
-    {
-        return op_;
-    }
-    AICORE inline const FrontReorderCommonState &common() const
-    {
-        return op_;
-    }
+    AICORE inline FrontReorderCommonState& common() { return op_; }
+    AICORE inline const FrontReorderCommonState& common() const { return op_; }
 
 protected:
-    FrontReorderCommonState &op_;
+    FrontReorderCommonState& op_;
 };
 
-AICORE inline FrontCoreRowLoopView FrontGetCoreRowLoopView(const FrontReorderCommonState &op,
-                                                           const FrontRowSplitCoreTiling &tiling, uint32_t perLoopRows,
-                                                           uint32_t lastLoopRows, uint32_t explicitRowLoops = 0U)
+AICORE inline FrontCoreRowLoopView FrontGetCoreRowLoopView(
+    const FrontReorderCommonState& op, const FrontRowSplitCoreTiling& tiling, uint32_t perLoopRows,
+    uint32_t lastLoopRows, uint32_t explicitRowLoops = 0U)
 {
     FrontCoreRowLoopView view;
     if (tiling.needCoreNum == 0U || op.coreIdx_ >= tiling.needCoreNum || tiling.perCoreRows == 0U) {
@@ -643,27 +629,29 @@ AICORE inline FrontCoreRowLoopView FrontGetCoreRowLoopView(const FrontReorderCom
     return view;
 }
 
-AICORE inline FrontCoreRowLoopView FrontGetCoreRowLoopView(const FrontReorderCommonState &op,
-                                                           const FrontRowSplitLoopTiling &tiling)
+AICORE inline FrontCoreRowLoopView FrontGetCoreRowLoopView(
+    const FrontReorderCommonState& op, const FrontRowSplitLoopTiling& tiling)
 {
     if (op.coreIdx_ >= tiling.needCoreNum) {
         return FrontCoreRowLoopView{};
     }
     const bool isLastCore = op.coreIdx_ == tiling.needCoreNum - 1U;
-    return FrontGetCoreRowLoopView(op, tiling, isLastCore ? tiling.lastCorePerLoopRows : tiling.perCorePerLoopRows,
-                                   isLastCore ? tiling.lastCoreLastLoopRows : tiling.perCoreLastLoopRows, 0U);
+    return FrontGetCoreRowLoopView(
+        op, tiling, isLastCore ? tiling.lastCorePerLoopRows : tiling.perCorePerLoopRows,
+        isLastCore ? tiling.lastCoreLastLoopRows : tiling.perCoreLastLoopRows, 0U);
 }
 
-AICORE inline FrontCoreRowLoopView FrontGetCoreRowLoopView(const FrontReorderCommonState &op,
-                                                           const FrontGatherQuantTiling &tiling)
+AICORE inline FrontCoreRowLoopView FrontGetCoreRowLoopView(
+    const FrontReorderCommonState& op, const FrontGatherQuantTiling& tiling)
 {
     if (op.coreIdx_ >= tiling.needCoreNum) {
         return FrontCoreRowLoopView{};
     }
     const bool isLastCore = op.coreIdx_ == tiling.needCoreNum - 1U;
-    return FrontGetCoreRowLoopView(op, tiling, isLastCore ? tiling.lastCorePerLoopRows : tiling.perCorePerLoopRows,
-                                   isLastCore ? tiling.lastCoreLastLoopRows : tiling.perCoreLastLoopRows,
-                                   isLastCore ? tiling.lastCoreLoops : tiling.perCoreLoops);
+    return FrontGetCoreRowLoopView(
+        op, tiling, isLastCore ? tiling.lastCorePerLoopRows : tiling.perCorePerLoopRows,
+        isLastCore ? tiling.lastCoreLastLoopRows : tiling.perCoreLastLoopRows,
+        isLastCore ? tiling.lastCoreLoops : tiling.perCoreLoops);
 }
 
 AICORE inline uint32_t FrontSrcToDstPerLoopMaxRows(uint32_t coreNum)
@@ -679,7 +667,7 @@ AICORE inline uint32_t FrontSrcToDstPerLoopMaxRows(uint32_t coreNum)
 AICORE inline FrontSrcToDstTiling FrontBuildSrcToDstTiling(uint32_t routeElems, uint32_t coreNum)
 {
     FrontSrcToDstTiling tiling;
-    static_cast<FrontRowSplitCoreTiling &>(tiling) = FrontBuildRouteCoreTiling(routeElems, coreNum);
+    static_cast<FrontRowSplitCoreTiling&>(tiling) = FrontBuildRouteCoreTiling(routeElems, coreNum);
     if (tiling.perCoreRows == 0U) {
         return tiling;
     }
@@ -693,8 +681,8 @@ AICORE inline bool FrontGatherQuantPreferSingleColOneLoop(uint32_t problemK, uin
     return AtlasA2::UB_SIZE > colSize + scaleSize + 32U * 4U * 4U && problemK == kFrontFullLoadHLimit;
 }
 
-AICORE inline void FrontApplyGatherQuantOneLoop(FrontGatherQuantTiling &tiling, uint32_t perCoreRows,
-                                                uint32_t onceRowSize, uint32_t problemK, bool forceSplit)
+AICORE inline void FrontApplyGatherQuantOneLoop(
+    FrontGatherQuantTiling& tiling, uint32_t perCoreRows, uint32_t onceRowSize, uint32_t problemK, bool forceSplit)
 {
     const uint32_t perCoreOnceRows = forceSplit ? (onceRowSize < perCoreRows ? onceRowSize : perCoreRows) : perCoreRows;
     const uint32_t lastCoreOnceRows =
@@ -711,9 +699,9 @@ AICORE inline void FrontApplyGatherQuantOneLoop(FrontGatherQuantTiling &tiling, 
     tiling.colLoops = 1U;
 }
 
-AICORE inline void FrontApplyGatherQuantColumnSplit(FrontGatherQuantTiling &tiling, uint32_t perCoreRows,
-                                                    uint32_t problemK, uint64_t rowSize, uint64_t colSize,
-                                                    uint64_t scaleSize)
+AICORE inline void FrontApplyGatherQuantColumnSplit(
+    FrontGatherQuantTiling& tiling, uint32_t perCoreRows, uint32_t problemK, uint64_t rowSize, uint64_t colSize,
+    uint64_t scaleSize)
 {
     uint32_t baseMaxCols = 6144U;
     const uint64_t totalColSize =
@@ -741,12 +729,12 @@ AICORE inline void FrontApplyGatherQuantColumnSplit(FrontGatherQuantTiling &tili
         basePerLoopMaxRows == 0U ? 0U : static_cast<uint32_t>(ceilDiv(tiling.lastCoreRows, basePerLoopMaxRows));
 }
 
-AICORE inline FrontGatherQuantTiling FrontBuildGatherQuantTiling(uint32_t routeElems, uint32_t coreNum,
-                                                                 uint32_t problemK)
+AICORE inline FrontGatherQuantTiling FrontBuildGatherQuantTiling(
+    uint32_t routeElems, uint32_t coreNum, uint32_t problemK)
 {
     FrontGatherQuantTiling tiling;
     tiling.activateRows = routeElems;
-    static_cast<FrontRowSplitCoreTiling &>(tiling) = FrontBuildRouteCoreTiling(routeElems, coreNum);
+    static_cast<FrontRowSplitCoreTiling&>(tiling) = FrontBuildRouteCoreTiling(routeElems, coreNum);
     if (tiling.perCoreRows == 0U) {
         return tiling;
     }
@@ -772,23 +760,23 @@ AICORE inline FrontGatherQuantTiling FrontBuildGatherQuantTiling(uint32_t routeE
     return tiling;
 }
 
-AICORE inline bool FrontRowLoopUbFits(const FrontCoreRowLoopView &coreLoop, uint64_t requiredUbBytes)
+AICORE inline bool FrontRowLoopUbFits(const FrontCoreRowLoopView& coreLoop, uint64_t requiredUbBytes)
 {
     return coreLoop.coreRows != 0U && coreLoop.perLoopRows != 0U && requiredUbBytes <= AtlasA2::UB_SIZE;
 }
 
-AICORE inline bool FrontGatherQuantCoreLoopReady(const FrontCoreRowLoopView &coreLoop, uint64_t requiredUbBytes)
+AICORE inline bool FrontGatherQuantCoreLoopReady(const FrontCoreRowLoopView& coreLoop, uint64_t requiredUbBytes)
 {
     return FrontRowLoopUbFits(coreLoop, requiredUbBytes) && coreLoop.rowLoops != 0U;
 }
 
-AICORE inline bool FrontPostSortGatherQuantEnabled(const FrontGatherQuantTiling &tiling, uint32_t problemK)
+AICORE inline bool FrontPostSortGatherQuantEnabled(const FrontGatherQuantTiling& tiling, uint32_t problemK)
 {
     // Post-sort gather only implements single full-K quant tiles (colLoops == 1).
     return problemK <= kLargeFullRowMaxK && tiling.needCoreNum != 0U && tiling.colLoops == 1U;
 }
 
-AICORE inline bool FrontSrcToDstInputsValid(uint32_t routeElems, const FrontSrcToDstTiling &tiling)
+AICORE inline bool FrontSrcToDstInputsValid(uint32_t routeElems, const FrontSrcToDstTiling& tiling)
 {
     return routeElems != 0U && tiling.needCoreNum != 0U && tiling.perCoreRows != 0U;
 }
@@ -799,8 +787,9 @@ AICORE inline bool FrontExpertTokenOutInputsValid(uint32_t routeElems, uint32_t 
 }
 
 template <typename InputElement>
-AICORE inline float FrontDynamicQuantRowToUb(__gm__ InputElement *xRow, uint32_t k, uint64_t rawUb, uint64_t fp32Ub,
-                                             uint64_t tmpUb, uint64_t outUb, uint64_t scaleUb)
+AICORE inline float FrontDynamicQuantRowToUb(
+    __gm__ InputElement* xRow, uint32_t k, uint64_t rawUb, uint64_t fp32Ub, uint64_t tmpUb, uint64_t outUb,
+    uint64_t scaleUb)
 {
     PtoLoadVector<InputElement>(rawUb, xRow, k);
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
@@ -833,10 +822,10 @@ AICORE inline float FrontDynamicQuantRowToUb(__gm__ InputElement *xRow, uint32_t
 }
 
 template <typename InputElement>
-AICORE inline void FrontQuantAndScatterPackedRows(const FrontReorderCommonState &op, uint32_t routeRowStart,
-                                                  uint32_t routeRowCount, uint64_t dstRowIdxUb, uint32_t maxDstRow,
-                                                  bool relativeDstIdx, uint64_t rawUb, uint64_t fp32Ub, uint64_t tmpUb,
-                                                  uint64_t outUb, uint64_t scaleUb)
+AICORE inline void FrontQuantAndScatterPackedRows(
+    const FrontReorderCommonState& op, uint32_t routeRowStart, uint32_t routeRowCount, uint64_t dstRowIdxUb,
+    uint32_t maxDstRow, bool relativeDstIdx, uint64_t rawUb, uint64_t fp32Ub, uint64_t tmpUb, uint64_t outUb,
+    uint64_t scaleUb)
 {
     if (routeRowCount == 0U || op.topK_ == 0U) {
         return;
@@ -849,7 +838,7 @@ AICORE inline void FrontQuantAndScatterPackedRows(const FrontReorderCommonState 
 
     for (uint32_t tokenRow = startTokenRow; tokenRow <= endTokenRow && tokenRow < op.problemM_; ++tokenRow) {
         (void)FrontDynamicQuantRowToUb<InputElement>(
-            reinterpret_cast<__gm__ InputElement *>(op.xPtr_) + static_cast<uint64_t>(tokenRow) * op.problemK_,
+            reinterpret_cast<__gm__ InputElement*>(op.xPtr_) + static_cast<uint64_t>(tokenRow) * op.problemK_,
             op.problemK_, rawUb, fp32Ub, tmpUb, outUb, scaleUb);
 
         bool rowStored = false;
@@ -860,8 +849,9 @@ AICORE inline void FrontQuantAndScatterPackedRows(const FrontReorderCommonState 
             if (dstRow < 0 || static_cast<uint32_t>(dstRow) >= maxDstRow) {
                 continue;
             }
-            PtoStoreVector<int8_t>(op.offsetAPtr_ + FrontPackedRowOffset(static_cast<uint32_t>(dstRow), op.problemK_),
-                                   outUb, FrontPackedRowStride(op.problemK_));
+            PtoStoreVector<int8_t>(
+                op.offsetAPtr_ + FrontPackedRowOffset(static_cast<uint32_t>(dstRow), op.problemK_), outUb,
+                FrontPackedRowStride(op.problemK_));
             rowStored = true;
         }
         if (rowStored) {
@@ -875,46 +865,43 @@ constexpr uint32_t kFrontEndMaxExpertNumAligned = 384U;
 using FrontEndShapeDyn = pto::Shape<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
 using FrontEndStrideDyn = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
 
-AICORE inline uint64_t FrontEndCountRowBytes(const FrontReorderCommonState &op)
+AICORE inline uint64_t FrontEndCountRowBytes(const FrontReorderCommonState& op)
 {
     return AlignBytes<int32_t>(static_cast<uint64_t>(op.expertNumAligned_) * sizeof(int32_t));
 }
 
-AICORE inline uint64_t FrontEndCountRowUb()
-{
-    return 0U;
-}
+AICORE inline uint64_t FrontEndCountRowUb() { return 0U; }
 
-AICORE inline uint64_t FrontEndPrefixUb(const FrontReorderCommonState &op)
+AICORE inline uint64_t FrontEndPrefixUb(const FrontReorderCommonState& op)
 {
     return FrontEndCountRowUb() + FrontEndCountRowBytes(op);
 }
 
-AICORE inline uint64_t FrontEndTputUb(const FrontReorderCommonState &op)
+AICORE inline uint64_t FrontEndTputUb(const FrontReorderCommonState& op)
 {
     return FrontEndPrefixUb(op) + FrontEndCountRowBytes(op);
 }
 
-AICORE inline uint64_t FrontEndCumsumUb(const FrontReorderCommonState &op)
+AICORE inline uint64_t FrontEndCumsumUb(const FrontReorderCommonState& op)
 {
     return FrontEndTputUb(op) + FrontEndCountRowBytes(op);
 }
 
 template <uint32_t ExpertPerRank>
-AICORE inline uint64_t FrontEndCountExchangeRequiredUbBytes(const FrontReorderCommonState &op)
+AICORE inline uint64_t FrontEndCountExchangeRequiredUbBytes(const FrontReorderCommonState& op)
 {
     return FrontEndCumsumUb(op) + static_cast<uint64_t>(op.rankSize_) * ExpertPerRank * sizeof(int32_t);
 }
 
-AICORE inline __gm__ int32_t *FrontEndTokenPerExpertRow(const FrontReorderCommonState &op, uint32_t srcRank)
+AICORE inline __gm__ int32_t* FrontEndTokenPerExpertRow(const FrontReorderCommonState& op, uint32_t srcRank)
 {
-    return op.tokenPerExpertPtr_ + tokenPerExpertOffset(static_cast<int32_t>(srcRank), 0, 0,
-                                                        static_cast<int32_t>(op.expertNumAligned_),
-                                                        static_cast<int32_t>(op.expertPerRank_));
+    return op.tokenPerExpertPtr_ + tokenPerExpertOffset(
+                                       static_cast<int32_t>(srcRank), 0, 0, static_cast<int32_t>(op.expertNumAligned_),
+                                       static_cast<int32_t>(op.expertPerRank_));
 }
 
 template <uint32_t ExpertPerRank>
-AICORE inline bool FrontEndPostprocessEnabled(const FrontReorderCommonState &op)
+AICORE inline bool FrontEndPostprocessEnabled(const FrontReorderCommonState& op)
 {
     return op.rankSize_ != 0U && op.expertNumAligned_ != 0U && op.expertPerRank_ != 0U &&
            op.expertPerRank_ == ExpertPerRank && op.expertNumAligned_ <= kFrontEndMaxExpertNumAligned &&
@@ -924,7 +911,7 @@ AICORE inline bool FrontEndPostprocessEnabled(const FrontReorderCommonState &op)
 /* 本 rank 把自己的整行 localTokenPerExpert[expertNumAligned]
 写到每个 peer 的 tokenPerExpert[rank, :]
  */
-AICORE inline void FrontEndPublishCountRowsToPeers(const FrontReorderCommonState &op)
+AICORE inline void FrontEndPublishCountRowsToPeers(const FrontReorderCommonState& op)
 {
     for (uint32_t dstRank = op.coreIdx_; dstRank < op.rankSize_; dstRank += op.coreNum_) {
         if (dstRank == op.rank_) {
@@ -932,18 +919,18 @@ AICORE inline void FrontEndPublishCountRowsToPeers(const FrontReorderCommonState
         }
         PtoLoadVector<int32_t>(FrontEndCountRowUb(), op.localTokenPerExpertPtr_, op.expertNumAligned_);
         pto::PtoSetWaitFlag<PIPE_MTE2, PIPE_V>();
-        PtoAddScalarUb<int32_t>(FrontEndCountRowUb(), FrontEndCountRowUb(), op.expertNumAligned_,
-                                kFrontCountMarkerBias);
+        PtoAddScalarUb<int32_t>(
+            FrontEndCountRowUb(), FrontEndCountRowUb(), op.expertNumAligned_, kFrontCountMarkerBias);
         pipe_barrier(PIPE_V);
         pto::PtoSetWaitFlag<PIPE_V, PIPE_MTE3>();
-        __gm__ int32_t *remoteRow =
+        __gm__ int32_t* remoteRow =
             op.remoteWindow_.RemotePtr(FrontEndTokenPerExpertRow(op, op.rank_), static_cast<int32_t>(dstRank));
         PtoStoreVector<int32_t>(remoteRow, FrontEndCountRowUb(), op.expertNumAligned_);
         pto::PtoSetWaitFlag<PIPE_MTE3, PIPE_S>();
     }
 }
 
-AICORE inline void FrontEndWaitCountRowMarker(const FrontReorderCommonState &op, uint32_t srcRank)
+AICORE inline void FrontEndWaitCountRowMarker(const FrontReorderCommonState& op, uint32_t srcRank)
 {
     if (srcRank == op.rank_) {
         return;
@@ -952,24 +939,24 @@ AICORE inline void FrontEndWaitCountRowMarker(const FrontReorderCommonState &op,
     using MarkerGlobal = pto::GlobalTensor<int32_t, FrontEndShapeDyn, FrontEndStrideDyn, pto::Layout::ND>;
     const uint32_t markerNum = static_cast<uint32_t>(ceilDiv(op.expertNumAligned_, kFrontCountMarkerStrideElems));
     FrontEndShapeDyn markerShape(1, 1, 1, 1, markerNum);
-    FrontEndStrideDyn markerStride(kFrontCountMarkerStrideElems, kFrontCountMarkerStrideElems,
-                                   kFrontCountMarkerStrideElems, kFrontCountMarkerStrideElems,
-                                   kFrontCountMarkerStrideElems);
+    FrontEndStrideDyn markerStride(
+        kFrontCountMarkerStrideElems, kFrontCountMarkerStrideElems, kFrontCountMarkerStrideElems,
+        kFrontCountMarkerStrideElems, kFrontCountMarkerStrideElems);
     MarkerGlobal marker(FrontEndTokenPerExpertRow(op, srcRank), markerShape, markerStride);
     pto::comm::TWAIT(marker, 0, pto::comm::WaitCmp::NE);
-    V5DcciGmRange(static_cast<__gm__ void *>(FrontEndTokenPerExpertRow(op, srcRank)), FrontEndCountRowBytes(op));
+    V5DcciGmRange(static_cast<__gm__ void*>(FrontEndTokenPerExpertRow(op, srcRank)), FrontEndCountRowBytes(op));
 }
 
-AICORE inline void FrontEndRestoreCountRowAndBuildPreSum(const FrontReorderCommonState &op, uint32_t srcRank)
+AICORE inline void FrontEndRestoreCountRowAndBuildPreSum(const FrontReorderCommonState& op, uint32_t srcRank)
 {
-    __gm__ int32_t *srcRow = FrontEndTokenPerExpertRow(op, srcRank);
+    __gm__ int32_t* srcRow = FrontEndTokenPerExpertRow(op, srcRank);
     FrontEndWaitCountRowMarker(op, srcRank);
 
     if (srcRank != op.rank_) {
         PtoLoadVector<int32_t>(FrontEndCountRowUb(), srcRow, op.expertNumAligned_);
         pto::PtoSetWaitFlag<PIPE_MTE2, PIPE_V>();
-        PtoAddScalarUb<int32_t>(FrontEndCountRowUb(), FrontEndCountRowUb(), op.expertNumAligned_,
-                                -kFrontCountMarkerBias);
+        PtoAddScalarUb<int32_t>(
+            FrontEndCountRowUb(), FrontEndCountRowUb(), op.expertNumAligned_, -kFrontCountMarkerBias);
         pipe_barrier(PIPE_V);
         pto::PtoSetWaitFlag<PIPE_V, PIPE_MTE3>();
         PtoStoreVector<int32_t>(srcRow, FrontEndCountRowUb(), op.expertNumAligned_);
@@ -998,8 +985,9 @@ AICORE inline void FrontEndRestoreCountRowAndBuildPreSum(const FrontReorderCommo
         }
     }
     pto::PtoSetWaitFlag<PIPE_S, PIPE_MTE3>();
-    PtoStoreVector<int32_t>(op.preSumBeforeRankPtr_ + static_cast<uint64_t>(srcRank) * op.expertPerRank_,
-                            FrontEndPrefixUb(op), op.expertPerRank_);
+    PtoStoreVector<int32_t>(
+        op.preSumBeforeRankPtr_ + static_cast<uint64_t>(srcRank) * op.expertPerRank_, FrontEndPrefixUb(op),
+        op.expertPerRank_);
     pto::PtoSetWaitFlag<PIPE_MTE3, PIPE_S>();
 }
 
@@ -1009,7 +997,7 @@ AICORE inline void FrontEndRestoreCountRowAndBuildPreSum(const FrontReorderCommo
 取出“本 rank 的 local expert 在 srcRank.offsetA 里的起始行”，
 写成 preSumBeforeRank[srcRank, localExpert]。
  */
-AICORE inline void FrontEndBuildCountExchangeAndPreSum(const FrontReorderCommonState &op)
+AICORE inline void FrontEndBuildCountExchangeAndPreSum(const FrontReorderCommonState& op)
 {
     FrontEndPublishCountRowsToPeers(op);
 
@@ -1021,7 +1009,7 @@ AICORE inline void FrontEndBuildCountExchangeAndPreSum(const FrontReorderCommonS
 }
 
 template <uint32_t Pitch>
-AICORE inline void FrontEndBuildCumsumForPitch(const FrontReorderCommonState &op)
+AICORE inline void FrontEndBuildCumsumForPitch(const FrontReorderCommonState& op)
 {
     static_assert(Pitch == 8U || Pitch == 16U, "front cumsum supports expertPerRank 8 or 16");
     using CumsumTile = pto::Tile<pto::TileType::Vec, int32_t, 16, Pitch, pto::BLayout::RowMajor, -1, -1>;
@@ -1031,16 +1019,18 @@ AICORE inline void FrontEndBuildCumsumForPitch(const FrontReorderCommonState &op
     pto::TASSIGN(cumsumTile, FrontEndCumsumUb(op));
 
     FrontEndShapeDyn loadShape(1, 1, 1, op.rankSize_, Pitch);
-    FrontEndStrideDyn loadStride(op.rankSize_ * op.expertNumAligned_, op.rankSize_ * op.expertNumAligned_,
-                                 op.rankSize_ * op.expertNumAligned_, op.expertNumAligned_, 1);
+    FrontEndStrideDyn loadStride(
+        op.rankSize_ * op.expertNumAligned_, op.rankSize_ * op.expertNumAligned_, op.rankSize_ * op.expertNumAligned_,
+        op.expertNumAligned_, 1);
     CumsumGlobal srcGlobal(op.tokenPerExpertPtr_ + localBegin, loadShape, loadStride);
     pto::TLOAD(cumsumTile, srcGlobal);
     pto::PtoSetWaitFlag<PIPE_MTE2, PIPE_V>();
 
     for (uint32_t srcRank = 1U; srcRank < op.rankSize_; ++srcRank) {
-        PtoAddUb<int32_t>(FrontEndCumsumUb(op) + static_cast<uint64_t>(srcRank) * Pitch * sizeof(int32_t),
-                          FrontEndCumsumUb(op) + static_cast<uint64_t>(srcRank) * Pitch * sizeof(int32_t),
-                          FrontEndCumsumUb(op) + static_cast<uint64_t>(srcRank - 1U) * Pitch * sizeof(int32_t), Pitch);
+        PtoAddUb<int32_t>(
+            FrontEndCumsumUb(op) + static_cast<uint64_t>(srcRank) * Pitch * sizeof(int32_t),
+            FrontEndCumsumUb(op) + static_cast<uint64_t>(srcRank) * Pitch * sizeof(int32_t),
+            FrontEndCumsumUb(op) + static_cast<uint64_t>(srcRank - 1U) * Pitch * sizeof(int32_t), Pitch);
         pipe_barrier(PIPE_V);
     }
 
@@ -1058,7 +1048,7 @@ AICORE inline void FrontEndBuildCumsumForPitch(const FrontReorderCommonState &op
   expertTokenNums[localExpert]
    */
 template <uint32_t ExpertPerRank>
-AICORE inline void FrontEndBuildCumsumAndExpertTokenNums(const FrontReorderCommonState &op)
+AICORE inline void FrontEndBuildCumsumAndExpertTokenNums(const FrontReorderCommonState& op)
 {
     static_assert(ExpertPerRank == 8U || ExpertPerRank == 16U, "front cumsum supports expertPerRank 8 or 16");
     if (op.coreIdx_ == 0U) {
@@ -1066,9 +1056,9 @@ AICORE inline void FrontEndBuildCumsumAndExpertTokenNums(const FrontReorderCommo
     }
 
     if (op.coreIdx_ == 0U) {
-        PtoLoadVector<int32_t>(FrontEndPrefixUb(op),
-                               op.cumsumMMPtr_ + static_cast<uint64_t>(op.rankSize_ - 1U) * ExpertPerRank,
-                               ExpertPerRank);
+        PtoLoadVector<int32_t>(
+            FrontEndPrefixUb(op), op.cumsumMMPtr_ + static_cast<uint64_t>(op.rankSize_ - 1U) * ExpertPerRank,
+            ExpertPerRank);
         pto::PtoSetWaitFlag<PIPE_MTE2, PIPE_MTE3>();
         PtoStoreVector<int32_t>(op.expertTokenNumsPtr_, FrontEndPrefixUb(op), ExpertPerRank);
         pto::PtoSetWaitFlag<PIPE_MTE3, PIPE_S>();
@@ -1076,7 +1066,7 @@ AICORE inline void FrontEndBuildCumsumAndExpertTokenNums(const FrontReorderCommo
 }
 
 template <uint32_t ExpertPerRank>
-AICORE inline void FrontFinalizeRankMetadata(const FrontReorderCommonState &op)
+AICORE inline void FrontFinalizeRankMetadata(const FrontReorderCommonState& op)
 {
     if (!FrontEndPostprocessEnabled<ExpertPerRank>(op)) {
         return;
@@ -1088,8 +1078,9 @@ AICORE inline void FrontFinalizeRankMetadata(const FrontReorderCommonState &op)
     pto::SYNCALL<pto::SyncCoreType::AIVOnly>();
 }
 
-AICORE inline void FrontStoreExpertTokenOutCountSlice(const FrontReorderCommonState &op, int32_t firstExpertId,
-                                                      uint32_t copyLength, uint64_t countUb, uint64_t storeScratchUb)
+AICORE inline void FrontStoreExpertTokenOutCountSlice(
+    const FrontReorderCommonState& op, int32_t firstExpertId, uint32_t copyLength, uint64_t countUb,
+    uint64_t storeScratchUb)
 {
     if (copyLength == 0U) {
         return;
@@ -1109,8 +1100,8 @@ AICORE inline void FrontStoreExpertTokenOutCountSlice(const FrontReorderCommonSt
     pto::PtoSetWaitFlag<PIPE_MTE3, PIPE_S>();
 }
 
-AICORE inline void FrontUpdateExpertTokenOutCount(uint64_t countUb, int32_t curExpertId, int32_t &lastExpertId,
-                                                  int32_t &tokenCount)
+AICORE inline void FrontUpdateExpertTokenOutCount(
+    uint64_t countUb, int32_t curExpertId, int32_t& lastExpertId, int32_t& tokenCount)
 {
     tokenCount++;
     if (lastExpertId < curExpertId) {
@@ -1120,7 +1111,7 @@ AICORE inline void FrontUpdateExpertTokenOutCount(uint64_t countUb, int32_t curE
     }
 }
 
-AICORE inline void FrontBuildExpertTokenOut(const FrontReorderCommonState &op)
+AICORE inline void FrontBuildExpertTokenOut(const FrontReorderCommonState& op)
 {
     const FrontSrcToDstTiling tiling = FrontBuildSrcToDstTiling(op.routeElems_, op.coreNum_);
     const uint32_t expertNumUbAlign = FrontExpertTokenOutExpertNumUbAlign(op.expertNum_);
@@ -1141,9 +1132,9 @@ AICORE inline void FrontBuildExpertTokenOut(const FrontReorderCommonState &op)
     int32_t lastExpertId = -1;
     for (uint32_t loop = 0U; loop < coreLoop.rowLoops; ++loop) {
         const uint32_t currentLoopRows = loop == coreLoop.rowLoops - 1U ? coreLoop.lastLoopRows : coreLoop.perLoopRows;
-        PtoLoadVector<int32_t>(ubPlan.chunkUb,
-                               op.frontExpandedExpertPtr_ + coreLoop.coreBase + loop * coreLoop.perLoopRows,
-                               currentLoopRows);
+        PtoLoadVector<int32_t>(
+            ubPlan.chunkUb, op.frontExpandedExpertPtr_ + coreLoop.coreBase + loop * coreLoop.perLoopRows,
+            currentLoopRows);
         pto::PtoSetWaitFlag<PIPE_MTE2, PIPE_S>();
         for (uint32_t idx = 0U; idx < currentLoopRows; ++idx) {
             const int32_t expertId = PtoGetValue<int32_t>(ubPlan.chunkUb, idx);
@@ -1162,8 +1153,8 @@ AICORE inline void FrontBuildExpertTokenOut(const FrontReorderCommonState &op)
     pto::SYNCALL<pto::SyncCoreType::AIVOnly>();
 }
 
-AICORE inline void FrontPrepareSrcToDstAssist(const FrontReorderCommonState &op, uint64_t assistUb,
-                                              const FrontSrcToDstTiling &tiling)
+AICORE inline void FrontPrepareSrcToDstAssist(
+    const FrontReorderCommonState& op, uint64_t assistUb, const FrontSrcToDstTiling& tiling)
 {
     using AssistTile = PtoVecTile<int32_t, kFrontSrcToDstAssistElems>;
     AssistTile assistTile(1, kFrontSrcToDstAssistElems);
@@ -1179,8 +1170,8 @@ AICORE inline void FrontPrepareSrcToDstAssist(const FrontReorderCommonState &op,
     pto::PtoSetWaitFlag<PIPE_S, PIPE_V>();
 }
 
-AICORE inline void FrontComputeSrcToDstRows(uint32_t progress, uint32_t perLoopRows, uint32_t currentLoopRows,
-                                            uint64_t outputUb, uint64_t assistUb)
+AICORE inline void FrontComputeSrcToDstRows(
+    uint32_t progress, uint32_t perLoopRows, uint32_t currentLoopRows, uint64_t outputUb, uint64_t assistUb)
 {
     const uint32_t loops = (currentLoopRows + kFrontSrcToDstAssistIndexElems - 1U) / kFrontSrcToDstAssistIndexElems;
     wait_flag(PIPE_MTE3, PIPE_V, EVENT_ID0);
@@ -1195,15 +1186,16 @@ AICORE inline void FrontComputeSrcToDstRows(uint32_t progress, uint32_t perLoopR
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
 }
 
-AICORE inline void FrontCopyOutSrcToDstRows(const FrontReorderCommonState &op, uint32_t currentLoopRows,
-                                            uint64_t inputUb, uint64_t outputUb, bool hasNextLoop)
+AICORE inline void FrontCopyOutSrcToDstRows(
+    const FrontReorderCommonState& op, uint32_t currentLoopRows, uint64_t inputUb, uint64_t outputUb, bool hasNextLoop)
 {
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     pto::PtoSetWaitFlag<PIPE_MTE2, PIPE_S>();
     for (uint32_t idx = 0U; idx < currentLoopRows; ++idx) {
         const uint32_t srcRoute = static_cast<uint32_t>(PtoGetValue<int32_t>(inputUb, idx));
-        PtoStoreVector<int32_t>(op.expandedRowIdxPtr_ + srcRoute,
-                                outputUb + static_cast<uint64_t>(idx) * kFrontInt32OneBlockElems * sizeof(int32_t), 1);
+        PtoStoreVector<int32_t>(
+            op.expandedRowIdxPtr_ + srcRoute,
+            outputUb + static_cast<uint64_t>(idx) * kFrontInt32OneBlockElems * sizeof(int32_t), 1);
     }
     if (hasNextLoop) {
         set_flag(PIPE_MTE3, PIPE_V, EVENT_ID0);
@@ -1216,7 +1208,7 @@ assistUb : 32 个 8-int block 模板，用来批量生成 dstRow，固定 1024B
 8-int对齐是为了写GM的时候，由于是按照srcRoute乱序写，这么做能做到32B对齐
 assistUb 是为了expandedRowIdx[srcRoute] = dstRow的时候， dstRow的生成32个元素依次加偏移性能差，可以用aiv批量加偏移
  */
-AICORE inline void FrontBuildSrcToDst(const FrontReorderCommonState &op)
+AICORE inline void FrontBuildSrcToDst(const FrontReorderCommonState& op)
 {
     const FrontSrcToDstTiling tiling = FrontBuildSrcToDstTiling(op.routeElems_, op.coreNum_);
     if (FrontSrcToDstInputsValid(op.routeElems_, tiling)) {
@@ -1230,11 +1222,11 @@ AICORE inline void FrontBuildSrcToDst(const FrontReorderCommonState &op)
                     const uint32_t currentLoopRows =
                         loop == coreLoop.rowLoops - 1U ? coreLoop.lastLoopRows : coreLoop.perLoopRows;
                     const bool hasNextLoop = loop + 1U < coreLoop.rowLoops;
-                    PtoLoadVector<int32_t>(ubPlan.inputUb,
-                                           op.frontExpandDstToSrcPtr_ + coreLoop.coreBase + loop * coreLoop.perLoopRows,
-                                           currentLoopRows);
-                    FrontComputeSrcToDstRows(loop, coreLoop.perLoopRows, currentLoopRows, ubPlan.outputUb,
-                                             ubPlan.assistUb);
+                    PtoLoadVector<int32_t>(
+                        ubPlan.inputUb, op.frontExpandDstToSrcPtr_ + coreLoop.coreBase + loop * coreLoop.perLoopRows,
+                        currentLoopRows);
+                    FrontComputeSrcToDstRows(
+                        loop, coreLoop.perLoopRows, currentLoopRows, ubPlan.outputUb, ubPlan.assistUb);
                     FrontCopyOutSrcToDstRows(op, currentLoopRows, ubPlan.inputUb, ubPlan.outputUb, hasNextLoop);
                 }
             }
@@ -1244,16 +1236,16 @@ AICORE inline void FrontBuildSrcToDst(const FrontReorderCommonState &op)
 }
 
 template <typename InputElement>
-AICORE inline void FrontCopyInGatherExpandedRowIdx(const FrontReorderCommonState &op, uint32_t coreBase,
-                                                   uint32_t progress, uint32_t perLoopRows, uint32_t currentLoopRows,
-                                                   uint64_t indexUb)
+AICORE inline void FrontCopyInGatherExpandedRowIdx(
+    const FrontReorderCommonState& op, uint32_t coreBase, uint32_t progress, uint32_t perLoopRows,
+    uint32_t currentLoopRows, uint64_t indexUb)
 {
     PtoLoadVector<int32_t>(indexUb, op.expandedRowIdxPtr_ + coreBase + progress * perLoopRows, currentLoopRows);
     pto::PtoSetWaitFlag<PIPE_MTE2, PIPE_S>();
 }
 
 template <typename InputElement>
-AICORE inline void FrontRunGatherQuantLoop(const FrontReorderCommonState &op)
+AICORE inline void FrontRunGatherQuantLoop(const FrontReorderCommonState& op)
 {
     const FrontGatherQuantTiling tiling = FrontBuildGatherQuantTiling(op.routeElems_, op.coreNum_, op.problemK_);
     const FrontCoreRowLoopView coreLoop = FrontGetCoreRowLoopView(op, tiling);
@@ -1266,12 +1258,12 @@ AICORE inline void FrontRunGatherQuantLoop(const FrontReorderCommonState &op)
                 if (currentLoopRows == 0U && loop != coreLoop.rowLoops - 1U) {
                     currentLoopRows = coreLoop.perLoopRows;
                 }
-                FrontCopyInGatherExpandedRowIdx<InputElement>(op, coreLoop.coreBase, loop, coreLoop.perLoopRows,
-                                                              currentLoopRows, ubPlan.indexUb);
+                FrontCopyInGatherExpandedRowIdx<InputElement>(
+                    op, coreLoop.coreBase, loop, coreLoop.perLoopRows, currentLoopRows, ubPlan.indexUb);
                 const uint32_t routeRowStart = coreLoop.coreBase + coreLoop.perLoopRows * loop;
-                FrontQuantAndScatterPackedRows<InputElement>(op, routeRowStart, currentLoopRows, ubPlan.indexUb,
-                                                             op.routeElems_, true, ubPlan.rawUb, ubPlan.fp32Ub,
-                                                             ubPlan.tmpUb, ubPlan.outUb, ubPlan.scaleUb);
+                FrontQuantAndScatterPackedRows<InputElement>(
+                    op, routeRowStart, currentLoopRows, ubPlan.indexUb, op.routeElems_, true, ubPlan.rawUb,
+                    ubPlan.fp32Ub, ubPlan.tmpUb, ubPlan.outUb, ubPlan.scaleUb);
             }
         }
     }
@@ -1281,7 +1273,7 @@ AICORE inline void FrontRunGatherQuantLoop(const FrontReorderCommonState &op)
 }
 
 template <typename InputElement, uint32_t ExpertPerRank>
-AICORE inline void FrontRunPostSortPipeline(const FrontReorderCommonState &op)
+AICORE inline void FrontRunPostSortPipeline(const FrontReorderCommonState& op)
 {
     FrontBuildExpertTokenOut(op); // 生成 localTokenPerExpert[global_expert] = count
 

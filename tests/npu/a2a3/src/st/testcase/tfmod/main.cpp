@@ -17,27 +17,27 @@ using namespace PtoTestCommon;
 
 class TFMODTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
-          int vCols>
-void LaunchTFMOD(T *out, T *src0, T *src1, void *stream);
+template <
+    typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
+    int vCols>
+void LaunchTFMOD(T* out, T* src0, T* src1, void* stream);
 
-template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
-          int vCols>
+template <
+    typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
+    int vCols>
 void test_tfmod()
 {
     size_t dstFileSize = dstTileH * dstTileW * sizeof(T);
@@ -52,20 +52,20 @@ void test_tfmod()
     T *dstHost, *src0Host, *src1Host;
     T *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&src0Host), src0FileSize);
-    aclrtMallocHost((void **)(&src1Host), src1FileSize);
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, src0FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, src1FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMallocHost((void**)(&src0Host), src0FileSize);
+    aclrtMallocHost((void**)(&src1Host), src1FileSize);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, src0FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, src1FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input1.bin", src0FileSize, src0Host, src0FileSize);
     ReadFile(GetGoldenDir() + "/input2.bin", src1FileSize, src1Host, src1FileSize);
 
     aclrtMemcpy(src0Device, src0FileSize, src0Host, src0FileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, src1FileSize, src1Host, src1FileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    LaunchTFMOD<T, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols>(dstDevice, src0Device,
-                                                                                                 src1Device, stream);
+    LaunchTFMOD<T, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols>(
+        dstDevice, src0Device, src1Device, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, dstFileSize, dstDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -93,27 +93,12 @@ void test_tfmod()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TFMODTest, case_float_16x64_16x128_16x128_16x64)
-{
-    test_tfmod<float, 16, 64, 16, 128, 16, 128, 16, 64>();
-}
+TEST_F(TFMODTest, case_float_16x64_16x128_16x128_16x64) { test_tfmod<float, 16, 64, 16, 128, 16, 128, 16, 64>(); }
 
-TEST_F(TFMODTest, case_float_16x32_16x64_16x32_16x32)
-{
-    test_tfmod<float, 16, 32, 16, 64, 16, 32, 16, 32>();
-}
+TEST_F(TFMODTest, case_float_16x32_16x64_16x32_16x32) { test_tfmod<float, 16, 32, 16, 64, 16, 32, 16, 32>(); }
 
-TEST_F(TFMODTest, case_float_16x64_16x128_16x128_16x63)
-{
-    test_tfmod<float, 16, 64, 16, 128, 16, 128, 16, 63>();
-}
+TEST_F(TFMODTest, case_float_16x64_16x128_16x128_16x63) { test_tfmod<float, 16, 64, 16, 128, 16, 128, 16, 63>(); }
 
-TEST_F(TFMODTest, case_float_2x32_2x64_2x32_2x31)
-{
-    test_tfmod<float, 2, 32, 2, 64, 2, 32, 2, 31>();
-}
+TEST_F(TFMODTest, case_float_2x32_2x64_2x32_2x31) { test_tfmod<float, 2, 32, 2, 64, 2, 32, 2, 31>(); }
 
-TEST_F(TFMODTest, case_float_1x8192_1x8192_1x8192_1x8192)
-{
-    test_tfmod<float, 1, 8192, 1, 8192, 1, 8192, 1, 8192>();
-}
+TEST_F(TFMODTest, case_float_1x8192_1x8192_1x8192_1x8192) { test_tfmod<float, 1, 8192, 1, 8192, 1, 8192, 1, 8192>(); }

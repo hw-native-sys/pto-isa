@@ -17,8 +17,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-enum class ChipArch : uint8_t
-{
+enum class ChipArch : uint8_t {
     A2A3 = 0,
     A5 = 1,
     KIRIN9030 = 2,
@@ -122,10 +121,7 @@ struct ArchTraits<ChipArch::UNKNOWN> : ArchTraitsBase<ChipArch::UNKNOWN> {
 using CurrArch = ArchTraits<ChipArch::UNKNOWN>;
 #endif
 
-PTO_INTERNAL constexpr ChipArch GetCurrentArch() noexcept
-{
-    return CurrArch::Id;
-}
+PTO_INTERNAL constexpr ChipArch GetCurrentArch() noexcept { return CurrArch::Id; }
 
 namespace caps {
 

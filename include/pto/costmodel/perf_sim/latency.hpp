@@ -33,17 +33,18 @@ constexpr pto::TileType SafeGetTileLoc()
         return pto::TileType::Ctrl;
 }
 
-inline bool IsOneOf(const std::string &opcode, std::initializer_list<const char *> names)
+inline bool IsOneOf(const std::string& opcode, std::initializer_list<const char*> names)
 {
-    return std::any_of(names.begin(), names.end(), [&](const char *name) { return opcode == name; });
+    return std::any_of(names.begin(), names.end(), [&](const char* name) { return opcode == name; });
 }
 
 // ── Static opcode → PipeStage lookup (for non-polymorphic instructions) ──
 
-inline PipeStage StaticPipeStageLookup(const std::string &opcode)
+inline PipeStage StaticPipeStageLookup(const std::string& opcode)
 {
-    if (IsOneOf(opcode, {"TSYNC", "TRESHAPE", "TASSIGN", "TPRINT", "TGET_SCALE_ADDR", "TSUBVIEW", "TALLOC", "TFREE",
-                         "TPUSH", "TPOP"})) {
+    if (IsOneOf(
+            opcode, {"TSYNC", "TRESHAPE", "TASSIGN", "TPRINT", "TGET_SCALE_ADDR", "TSUBVIEW", "TALLOC", "TFREE",
+                     "TPUSH", "TPOP"})) {
         return PipeStage::Scalar;
     }
     if (IsOneOf(opcode, {"TMATMUL", "TMATMUL_ACC", "TMATMUL_BIAS", "TGEMV", "TGEMV_ACC", "TGEMV_BIAS"})) {
@@ -74,7 +75,7 @@ inline PipeStage ResolveOnChipMoveStage(pto::TileType dst_loc, pto::TileType src
 
 // ── Dynamic resolution: opcode + TileTypes → PipeStage ──
 
-inline PipeStage ResolvePipeStage(const std::string &opcode, pto::TileType dst_loc, pto::TileType src_loc)
+inline PipeStage ResolvePipeStage(const std::string& opcode, pto::TileType dst_loc, pto::TileType src_loc)
 {
     // TLOAD: GM/L2 → tile. dst tile determines MTE2_AIV (→UB) or MTE2_AIC (→L1)
     if (opcode == "TLOAD") {
@@ -112,13 +113,13 @@ inline PipeStage ResolvePipeStage(const std::string &opcode, pto::TileType dst_l
 
 // ── Variadic dispatch: extract TileTypes from macro arguments ──
 
-inline PipeStage ResolvePipeStageArgs(const char *opcode)
+inline PipeStage ResolvePipeStageArgs(const char* opcode)
 {
     return ResolvePipeStage(opcode, pto::TileType::Ctrl, pto::TileType::Ctrl);
 }
 
 template <typename First, typename... Rest>
-inline PipeStage ResolvePipeStageArgs(const char *opcode, First &, const Rest &...)
+inline PipeStage ResolvePipeStageArgs(const char* opcode, First&, const Rest&...)
 {
     using DstType = std::remove_cv_t<std::remove_reference_t<First>>;
     constexpr auto dst_loc = SafeGetTileLoc<DstType>();
@@ -133,7 +134,7 @@ inline PipeStage ResolvePipeStageArgs(const char *opcode, First &, const Rest &.
 
 // ── Instructions that need CPU simulation (iterative convergence depends on values) ──
 
-inline bool NeedsCpuSim(const std::string &opcode)
+inline bool NeedsCpuSim(const std::string& opcode)
 {
     static const std::unordered_map<std::string, bool> lut = {
         {"TEXP", true}, {"TLOG", true}, {"TSQRT", true}, {"TRSQRT", true}, {"TDIV", true}, {"TDIVS", true},
@@ -143,11 +144,8 @@ inline bool NeedsCpuSim(const std::string &opcode)
 }
 
 // ── Backward-compatible alias ──
-inline PipeStage OpToPipeStage(const std::string &opcode) __attribute__((deprecated));
-inline PipeStage OpToPipeStage(const std::string &opcode)
-{
-    return StaticPipeStageLookup(opcode);
-}
+inline PipeStage OpToPipeStage(const std::string& opcode) __attribute__((deprecated));
+inline PipeStage OpToPipeStage(const std::string& opcode) { return StaticPipeStageLookup(opcode); }
 
 } // namespace pto::perf_sim
 

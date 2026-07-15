@@ -47,8 +47,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/cpu/MXTypes.hpp"
 
 template <typename GT>
-void printRawGT(GT &tensor, const std::string name = "", int elementWidth = 5, int maxR = INT32_MAX,
-                int maxC = INT32_MAX)
+void printRawGT(
+    GT& tensor, const std::string name = "", int elementWidth = 5, int maxR = INT32_MAX, int maxC = INT32_MAX)
 {
     constexpr int PRECISION = 2;
     auto rows = tensor.GetShape(pto::GlobalTensorDim::DIM_3);
@@ -66,9 +66,10 @@ void printRawGT(GT &tensor, const std::string name = "", int elementWidth = 5, i
 
                 for (int y = 0; y < rows && y < maxR; y++) {
                     for (int x = 0; x < cols && x < maxC; x++) {
-                        auto val = tensor.data()[i * tensor.GetStride(pto::GlobalTensorDim::DIM_0) +
-                                                 j * tensor.GetStride(pto::GlobalTensorDim::DIM_1) +
-                                                 k * tensor.GetStride(pto::GlobalTensorDim::DIM_2) + y * stride3 + x];
+                        auto val = tensor.data()
+                                       [i * tensor.GetStride(pto::GlobalTensorDim::DIM_0) +
+                                        j * tensor.GetStride(pto::GlobalTensorDim::DIM_1) +
+                                        k * tensor.GetStride(pto::GlobalTensorDim::DIM_2) + y * stride3 + x];
                         if constexpr (std::is_integral_v<typename GT::DType>) {
                             std::cout << std::setw(elementWidth) << val << " ";
                         } else {
@@ -91,8 +92,8 @@ void printRawGT(GT &tensor, const std::string name = "", int elementWidth = 5, i
 }
 
 template <typename TL>
-void printRawTile(TL &tile, const std::string name = "", int elementWidth = 5, int maxR = INT32_MAX,
-                  int maxC = INT32_MAX)
+void printRawTile(
+    TL& tile, const std::string name = "", int elementWidth = 5, int maxR = INT32_MAX, int maxC = INT32_MAX)
 {
     constexpr int PRECISION = 2;
     std::cout << name << ": " << tile.GetValidRow() << " x " << tile.GetValidCol() << " (Full: " << tile.Rows << " x "
@@ -117,7 +118,7 @@ void printRawTile(TL &tile, const std::string name = "", int elementWidth = 5, i
 }
 
 template <typename TL>
-void printTile(TL &tile, const std::string name = "", int elementWidth = 5, int maxR = INT32_MAX, int maxC = INT32_MAX)
+void printTile(TL& tile, const std::string name = "", int elementWidth = 5, int maxR = INT32_MAX, int maxC = INT32_MAX)
 {
     constexpr int PRECISION = 2;
     std::cout << name << ": " << tile.GetValidRow() << " x " << tile.GetValidCol() << " (Full: " << tile.Rows << " x "
@@ -144,11 +145,11 @@ void printTile(TL &tile, const std::string name = "", int elementWidth = 5, int 
 }
 
 template <typename T>
-void printRawMemory(T *buf, size_t sz, const std::string name = "", int elementWidth = 10, int elementsPerRow = 8)
+void printRawMemory(T* buf, size_t sz, const std::string name = "", int elementWidth = 10, int elementsPerRow = 8)
 {
     constexpr int PRECISION = 2;
     constexpr int DEFAULT_WIDTH = 6;
-    std::cout << name << ": " << static_cast<void *>(buf) << std::endl;
+    std::cout << name << ": " << static_cast<void*>(buf) << std::endl;
     for (int i = 0; i < sz; i++) {
         if (i % elementsPerRow == 0) {
             std::cout << std::endl << std::setw(DEFAULT_WIDTH) << std::hex << i << ": " << std::dec;

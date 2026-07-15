@@ -14,7 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <pto::GatherOOB Oob, typename T, typename TIdx, uint32_t kRows, uint32_t kCols, uint32_t kTableRows>
-inline AICORE void runRowL1(__gm__ T *out, __gm__ T *table, __gm__ TIdx *indices)
+inline AICORE void runRowL1(__gm__ T* out, __gm__ T* table, __gm__ TIdx* indices)
 {
     using TableShape = pto::Shape<1, 1, 1, kTableRows, kCols>;
     using TableStride = pto::Stride<1, 1, 1, kCols, 1>;
@@ -32,9 +32,9 @@ inline AICORE void runRowL1(__gm__ T *out, __gm__ T *table, __gm__ TIdx *indices
     TileUBData ubTile(kRows, kCols);
     TASSIGN(ubTile, 0x0);
 
-    using GlobalDataOut =
-        GlobalTensor<T, pto::Shape<1, 1, 1, kRows, kCols>,
-                     pto::Stride<1 * kRows * kCols, 1 * kRows * kCols, kRows * kCols, kCols, 1>, Layout::ND>;
+    using GlobalDataOut = GlobalTensor<
+        T, pto::Shape<1, 1, 1, kRows, kCols>,
+        pto::Stride<1 * kRows * kCols, 1 * kRows * kCols, kRows * kCols, kCols, 1>, Layout::ND>;
     GlobalDataOut dstGlobal(out);
 
     MGATHER<Coalesce::Row, Oob>(dstTile, tableGlobal, idxGlobal);
@@ -48,7 +48,7 @@ inline AICORE void runRowL1(__gm__ T *out, __gm__ T *table, __gm__ TIdx *indices
 }
 
 template <pto::GatherOOB Oob, typename T, typename TIdx, uint32_t kRows, uint32_t kCols, uint32_t kTableSize>
-inline AICORE void runElemL1(__gm__ T *out, __gm__ T *table, __gm__ TIdx *indices, __gm__ T *scratch)
+inline AICORE void runElemL1(__gm__ T* out, __gm__ T* table, __gm__ TIdx* indices, __gm__ T* scratch)
 {
     using TableShape = pto::Shape<1, 1, 1, 1, kTableSize>;
     using TableStride = pto::Stride<1, 1, 1, kTableSize, 1>;
@@ -69,9 +69,9 @@ inline AICORE void runElemL1(__gm__ T *out, __gm__ T *table, __gm__ TIdx *indice
     TileUBData ubTile(kRows, kCols);
     TASSIGN(ubTile, 0x0);
 
-    using GlobalDataOut =
-        GlobalTensor<T, pto::Shape<1, 1, 1, kRows, kCols>,
-                     pto::Stride<1 * kRows * kCols, 1 * kRows * kCols, kRows * kCols, kCols, 1>, Layout::ND>;
+    using GlobalDataOut = GlobalTensor<
+        T, pto::Shape<1, 1, 1, kRows, kCols>,
+        pto::Stride<1 * kRows * kCols, 1 * kRows * kCols, kRows * kCols, kCols, 1>, Layout::ND>;
     GlobalDataOut dstGlobal(out);
 
     MGATHER<Coalesce::Elem, Oob>(dstTile, tableGlobal, idxGlobal, scratchGlobal);
@@ -85,7 +85,7 @@ inline AICORE void runElemL1(__gm__ T *out, __gm__ T *table, __gm__ TIdx *indice
 }
 
 template <pto::GatherOOB Oob, typename T, typename TIdx, uint32_t kRows, uint32_t kCols, uint32_t kTableSize>
-inline AICORE void runElemL1Simt(__gm__ T *out, __gm__ T *table, __gm__ TIdx *indices, __gm__ T *scratch)
+inline AICORE void runElemL1Simt(__gm__ T* out, __gm__ T* table, __gm__ TIdx* indices, __gm__ T* scratch)
 {
     using TableShape = pto::Shape<1, 1, 1, 1, kTableSize>;
     using TableStride = pto::Stride<1, 1, 1, kTableSize, 1>;
@@ -106,9 +106,9 @@ inline AICORE void runElemL1Simt(__gm__ T *out, __gm__ T *table, __gm__ TIdx *in
     TileUBData ubTile(kRows, kCols);
     TASSIGN(ubTile, 0x0);
 
-    using GlobalDataOut =
-        GlobalTensor<T, pto::Shape<1, 1, 1, kRows, kCols>,
-                     pto::Stride<1 * kRows * kCols, 1 * kRows * kCols, kRows * kCols, kCols, 1>, Layout::ND>;
+    using GlobalDataOut = GlobalTensor<
+        T, pto::Shape<1, 1, 1, kRows, kCols>,
+        pto::Stride<1 * kRows * kCols, 1 * kRows * kCols, kRows * kCols, kCols, 1>, Layout::ND>;
     GlobalDataOut dstGlobal(out);
 
     MGATHER<Coalesce::Elem, Oob>(dstTile, tableGlobal, idxGlobal, scratchGlobal);
@@ -121,28 +121,28 @@ inline AICORE void runElemL1Simt(__gm__ T *out, __gm__ T *table, __gm__ TIdx *in
     out = dstGlobal.data();
 }
 
-#define DEFINE_ROW_L1(NAME, THOST, T, TIDX, R, C, TR, OOB)                                                    \
-    extern "C" __global__ AICORE void runMGATHER_##NAME(__gm__ T *out, __gm__ T *table, __gm__ TIDX *indices, \
-                                                        __gm__ T *scratch)                                    \
-    {                                                                                                         \
-        runRowL1<pto::GatherOOB::OOB, T, TIDX, R, C, TR>(out, table, indices);                                \
-    }                                                                                                         \
-    void Launch_##NAME(THOST *out, THOST *table, TIDX *indices, THOST *scratch, void *stream)                 \
-    {                                                                                                         \
-        runMGATHER_##NAME(reinterpret_cast<T *>(out), reinterpret_cast<T *>(table), indices,                  \
-                          reinterpret_cast<T *>(scratch));                                                    \
+#define DEFINE_ROW_L1(NAME, THOST, T, TIDX, R, C, TR, OOB)                                                   \
+    extern "C" __global__ AICORE void runMGATHER_##NAME(                                                     \
+        __gm__ T* out, __gm__ T* table, __gm__ TIDX* indices, __gm__ T* scratch)                             \
+    {                                                                                                        \
+        runRowL1<pto::GatherOOB::OOB, T, TIDX, R, C, TR>(out, table, indices);                               \
+    }                                                                                                        \
+    void Launch_##NAME(THOST* out, THOST* table, TIDX* indices, THOST* scratch, void* stream)                \
+    {                                                                                                        \
+        runMGATHER_##NAME(                                                                                   \
+            reinterpret_cast<T*>(out), reinterpret_cast<T*>(table), indices, reinterpret_cast<T*>(scratch)); \
     }
 
-#define DEFINE_ELEM_L1(NAME, THOST, T, TIDX, R, C, TS, OOB)                                                   \
-    extern "C" __global__ AICORE void runMGATHER_##NAME(__gm__ T *out, __gm__ T *table, __gm__ TIDX *indices, \
-                                                        __gm__ T *scratch)                                    \
-    {                                                                                                         \
-        runElemL1<pto::GatherOOB::OOB, T, TIDX, R, C, TS>(out, table, indices, scratch);                      \
-    }                                                                                                         \
-    void Launch_##NAME(THOST *out, THOST *table, TIDX *indices, THOST *scratch, void *stream)                 \
-    {                                                                                                         \
-        runMGATHER_##NAME(reinterpret_cast<T *>(out), reinterpret_cast<T *>(table), indices,                  \
-                          reinterpret_cast<T *>(scratch));                                                    \
+#define DEFINE_ELEM_L1(NAME, THOST, T, TIDX, R, C, TS, OOB)                                                  \
+    extern "C" __global__ AICORE void runMGATHER_##NAME(                                                     \
+        __gm__ T* out, __gm__ T* table, __gm__ TIDX* indices, __gm__ T* scratch)                             \
+    {                                                                                                        \
+        runElemL1<pto::GatherOOB::OOB, T, TIDX, R, C, TS>(out, table, indices, scratch);                     \
+    }                                                                                                        \
+    void Launch_##NAME(THOST* out, THOST* table, TIDX* indices, THOST* scratch, void* stream)                \
+    {                                                                                                        \
+        runMGATHER_##NAME(                                                                                   \
+            reinterpret_cast<T*>(out), reinterpret_cast<T*>(table), indices, reinterpret_cast<T*>(scratch)); \
     }
 
 DEFINE_ROW_L1(row_float_16x16_64rows, float, float, int32_t, 16, 16, 64, Undefined)
@@ -158,16 +158,16 @@ DEFINE_ROW_L1(row_float_clamp_16x16_8rows, float, float, int32_t, 16, 16, 8, Cla
 DEFINE_ROW_L1(row_int32_wrap_16x8_8rows, int32_t, int32_t, int32_t, 16, 8, 8, Wrap)
 DEFINE_ROW_L1(row_half_zero_16x16_8rows, aclFloat16, half, int32_t, 16, 16, 8, Zero)
 
-#define DEFINE_ELEM_L1_SIMT(NAME, THOST, T, TIDX, R, C, TS, OOB)                                              \
-    extern "C" __global__ AICORE void runMGATHER_##NAME(__gm__ T *out, __gm__ T *table, __gm__ TIDX *indices, \
-                                                        __gm__ T *scratch)                                    \
-    {                                                                                                         \
-        runElemL1Simt<pto::GatherOOB::OOB, T, TIDX, R, C, TS>(out, table, indices, scratch);                  \
-    }                                                                                                         \
-    void Launch_##NAME(THOST *out, THOST *table, TIDX *indices, THOST *scratch, void *stream)                 \
-    {                                                                                                         \
-        runMGATHER_##NAME(reinterpret_cast<T *>(out), reinterpret_cast<T *>(table), indices,                  \
-                          reinterpret_cast<T *>(scratch));                                                    \
+#define DEFINE_ELEM_L1_SIMT(NAME, THOST, T, TIDX, R, C, TS, OOB)                                             \
+    extern "C" __global__ AICORE void runMGATHER_##NAME(                                                     \
+        __gm__ T* out, __gm__ T* table, __gm__ TIDX* indices, __gm__ T* scratch)                             \
+    {                                                                                                        \
+        runElemL1Simt<pto::GatherOOB::OOB, T, TIDX, R, C, TS>(out, table, indices, scratch);                 \
+    }                                                                                                        \
+    void Launch_##NAME(THOST* out, THOST* table, TIDX* indices, THOST* scratch, void* stream)                \
+    {                                                                                                        \
+        runMGATHER_##NAME(                                                                                   \
+            reinterpret_cast<T*>(out), reinterpret_cast<T*>(table), indices, reinterpret_cast<T*>(scratch)); \
     }
 
 DEFINE_ELEM_L1(elem_float_16x16_256size, float, float, int32_t, 16, 16, 256, Undefined)

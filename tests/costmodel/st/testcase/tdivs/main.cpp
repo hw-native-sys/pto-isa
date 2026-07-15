@@ -61,35 +61,11 @@ void runTDivS_ScalarTile(T scalar)
 
 } // namespace
 
-TEST(TDivS, case1_tile_scalar_float_32x64)
-{
-    runTDivS_TileScalar<float, 32, 32, 64, 64, 205.0f, 0.287804f>(0.0f);
-}
-TEST(TDivS, case2_tile_scalar_half_63x64)
-{
-    runTDivS_TileScalar<half, 63, 63, 64, 64, 328.0f, 0.073170f>(half{1.0f});
-}
-TEST(TDivS, case3_tile_scalar_int32_31x128)
-{
-    runTDivS_TileScalar<int32_t, 31, 31, 128, 128, 4.0f, 1.0f>(1);
-}
-TEST(TDivS, case4_tile_scalar_int16_15x192)
-{
-    runTDivS_TileScalar<int16_t, 15, 15, 192, 192, 4.0f, 1.0f>(1);
-}
-TEST(TDivS, case5_scalar_tile_float_32x64)
-{
-    runTDivS_ScalarTile<float, 32, 32, 64, 64, 205.0f, 0.287804f>(0.0f);
-}
-TEST(TDivS, case6_scalar_tile_half_63x64)
-{
-    runTDivS_ScalarTile<half, 63, 63, 64, 64, 328.0f, 0.073170f>(half{1.0f});
-}
-TEST(TDivS, case7_scalar_tile_int32_31x128)
-{
-    runTDivS_ScalarTile<int32_t, 31, 31, 128, 128, 4.0f, 1.0f>(1);
-}
-TEST(TDivS, case8_scalar_tile_int16_15x192)
-{
-    runTDivS_ScalarTile<int16_t, 15, 15, 192, 192, 4.0f, 1.0f>(1);
-}
+TEST(TDivS, case1_tile_scalar_float_32x64) { runTDivS_TileScalar<float, 32, 32, 64, 64, 205.0f, 0.287804f>(0.0f); }
+TEST(TDivS, case2_tile_scalar_half_63x64) { runTDivS_TileScalar<half, 63, 63, 64, 64, 328.0f, 0.073170f>(half{1.0f}); }
+TEST(TDivS, case3_tile_scalar_int32_31x128) { runTDivS_TileScalar<int32_t, 31, 31, 128, 128, 4.0f, 1.0f>(1); }
+TEST(TDivS, case4_tile_scalar_int16_15x192) { runTDivS_TileScalar<int16_t, 15, 15, 192, 192, 4.0f, 1.0f>(1); }
+TEST(TDivS, case5_scalar_tile_float_32x64) { runTDivS_ScalarTile<float, 32, 32, 64, 64, 205.0f, 0.287804f>(0.0f); }
+TEST(TDivS, case6_scalar_tile_half_63x64) { runTDivS_ScalarTile<half, 63, 63, 64, 64, 328.0f, 0.073170f>(half{1.0f}); }
+TEST(TDivS, case7_scalar_tile_int32_31x128) { runTDivS_ScalarTile<int32_t, 31, 31, 128, 128, 4.0f, 1.0f>(1); }
+TEST(TDivS, case8_scalar_tile_int16_15x192) { runTDivS_ScalarTile<int16_t, 15, 15, 192, 192, 4.0f, 1.0f>(1); }

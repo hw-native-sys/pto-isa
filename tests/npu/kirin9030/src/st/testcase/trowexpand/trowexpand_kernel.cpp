@@ -20,7 +20,7 @@ template <int rows, int cols>
 using StrideDim2 = pto::Stride<rows * cols, rows * cols, rows * cols, cols, 1>;
 #endif
 template <typename T, uint32_t rows, uint32_t srcCols, uint32_t dstValidCols, uint32_t dstCols>
-__global__ AICORE void runROWEXPAND(__gm__ T *out, __gm__ T *src)
+__global__ AICORE void runROWEXPAND(__gm__ T* out, __gm__ T* src)
 {
     using SrcShapeDim5 = Shape<1, 1, 1, rows, 1>;
     using DstShapeDim5 = Shape<1, 1, 1, rows, dstValidCols>;
@@ -52,27 +52,27 @@ __global__ AICORE void runROWEXPAND(__gm__ T *out, __gm__ T *src)
 }
 
 template <typename T, uint32_t rows, uint32_t srcCols, uint32_t dstValidCols, uint32_t dstCols>
-void launchTROWEXPAND(T *out, T *src, void *stream)
+void launchTROWEXPAND(T* out, T* src, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
-        runROWEXPAND<half, rows, srcCols, dstValidCols, dstCols><<<1, nullptr, stream>>>((half *)out, (half *)src);
+        runROWEXPAND<half, rows, srcCols, dstValidCols, dstCols><<<1, nullptr, stream>>>((half*)out, (half*)src);
     } else {
         runROWEXPAND<T, rows, srcCols, dstValidCols, dstCols><<<1, nullptr, stream>>>(out, src);
     }
 }
 
-template void launchTROWEXPAND<aclFloat16, 16, 16, 512, 512>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void launchTROWEXPAND<int8_t, 16, 32, 256, 256>(int8_t *out, int8_t *src, void *stream);
-template void launchTROWEXPAND<float, 16, 8, 128, 128>(float *out, float *src, void *stream);
-template void launchTROWEXPAND<aclFloat16, 16, 16, 511, 512>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void launchTROWEXPAND<int8_t, 16, 32, 255, 256>(int8_t *out, int8_t *src, void *stream);
-template void launchTROWEXPAND<float, 16, 8, 127, 128>(float *out, float *src, void *stream);
-template void launchTROWEXPAND<uint8_t, 16, 32, 256, 256>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTROWEXPAND<uint8_t, 16, 32, 255, 256>(uint8_t *out, uint8_t *src, void *stream);
-template void launchTROWEXPAND<int16_t, 16, 16, 512, 512>(int16_t *out, int16_t *src, void *stream);
-template void launchTROWEXPAND<int16_t, 16, 16, 511, 512>(int16_t *out, int16_t *src, void *stream);
-template void launchTROWEXPAND<int32_t, 16, 8, 128, 128>(int32_t *out, int32_t *src, void *stream);
-template void launchTROWEXPAND<int32_t, 16, 8, 127, 128>(int32_t *out, int32_t *src, void *stream);
-template void launchTROWEXPAND<uint32_t, 16, 8, 128, 128>(uint32_t *out, uint32_t *src, void *stream);
-template void launchTROWEXPAND<uint32_t, 16, 8, 127, 128>(uint32_t *out, uint32_t *src, void *stream);
+template void launchTROWEXPAND<aclFloat16, 16, 16, 512, 512>(aclFloat16* out, aclFloat16* src, void* stream);
+template void launchTROWEXPAND<int8_t, 16, 32, 256, 256>(int8_t* out, int8_t* src, void* stream);
+template void launchTROWEXPAND<float, 16, 8, 128, 128>(float* out, float* src, void* stream);
+template void launchTROWEXPAND<aclFloat16, 16, 16, 511, 512>(aclFloat16* out, aclFloat16* src, void* stream);
+template void launchTROWEXPAND<int8_t, 16, 32, 255, 256>(int8_t* out, int8_t* src, void* stream);
+template void launchTROWEXPAND<float, 16, 8, 127, 128>(float* out, float* src, void* stream);
+template void launchTROWEXPAND<uint8_t, 16, 32, 256, 256>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTROWEXPAND<uint8_t, 16, 32, 255, 256>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTROWEXPAND<int16_t, 16, 16, 512, 512>(int16_t* out, int16_t* src, void* stream);
+template void launchTROWEXPAND<int16_t, 16, 16, 511, 512>(int16_t* out, int16_t* src, void* stream);
+template void launchTROWEXPAND<int32_t, 16, 8, 128, 128>(int32_t* out, int32_t* src, void* stream);
+template void launchTROWEXPAND<int32_t, 16, 8, 127, 128>(int32_t* out, int32_t* src, void* stream);
+template void launchTROWEXPAND<uint32_t, 16, 8, 128, 128>(uint32_t* out, uint32_t* src, void* stream);
+template void launchTROWEXPAND<uint32_t, 16, 8, 127, 128>(uint32_t* out, uint32_t* src, void* stream);
 } // namespace TRowExpandTest

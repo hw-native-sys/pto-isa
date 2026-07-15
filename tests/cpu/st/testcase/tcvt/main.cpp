@@ -16,27 +16,26 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, pto::SaturationMode saturation>
-void launchTCVT(D *dst, S *src, void *stream);
+void launchTCVT(D* dst, S* src, void* stream);
 
 class TCVTTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_,
-          pto::SaturationMode saturation = pto::SaturationMode::OFF>
+template <
+    typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_,
+    pto::SaturationMode saturation = pto::SaturationMode::OFF>
 void test_tcvt()
 {
     uint32_t M = kGRows_;
@@ -53,11 +52,11 @@ void test_tcvt()
     D *dstHost, *dstDevice;
     S *srcHost, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
 
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/x1_gm.bin", srcFileSize, srcHost, srcFileSize));
 
@@ -89,77 +88,32 @@ void test_tcvt()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TCVTTest, case1)
-{
-    test_tcvt<int32_t, float, 128, 128, 128, 128>();
-}
+TEST_F(TCVTTest, case1) { test_tcvt<int32_t, float, 128, 128, 128, 128>(); }
 
-TEST_F(TCVTTest, case2)
-{
-    test_tcvt<float, int32_t, 256, 64, 256, 64>();
-}
+TEST_F(TCVTTest, case2) { test_tcvt<float, int32_t, 256, 64, 256, 64>(); }
 
-TEST_F(TCVTTest, case3)
-{
-    test_tcvt<int16_t, float, 16, 32, 16, 32>();
-}
+TEST_F(TCVTTest, case3) { test_tcvt<int16_t, float, 16, 32, 16, 32>(); }
 
-TEST_F(TCVTTest, case4)
-{
-    test_tcvt<int32_t, float, 32, 512, 32, 512>();
-}
+TEST_F(TCVTTest, case4) { test_tcvt<int32_t, float, 32, 512, 32, 512>(); }
 
-TEST_F(TCVTTest, case5)
-{
-    test_tcvt<int32_t, int16_t, 2, 512, 2, 512>();
-}
+TEST_F(TCVTTest, case5) { test_tcvt<int32_t, int16_t, 2, 512, 2, 512>(); }
 
-TEST_F(TCVTTest, case6)
-{
-    test_tcvt<int32_t, float, 4, 4096, 4, 4096>();
-}
+TEST_F(TCVTTest, case6) { test_tcvt<int32_t, float, 4, 4096, 4, 4096>(); }
 
-TEST_F(TCVTTest, case7)
-{
-    test_tcvt<float, int16_t, 64, 64, 64, 64>();
-}
+TEST_F(TCVTTest, case7) { test_tcvt<float, int16_t, 64, 64, 64, 64>(); }
 
-TEST_F(TCVTTest, case8)
-{
-    test_tcvt<aclFloat16, float, 64, 64, 64, 64>();
-}
+TEST_F(TCVTTest, case8) { test_tcvt<aclFloat16, float, 64, 64, 64, 64>(); }
 
-TEST_F(TCVTTest, case9)
-{
-    test_tcvt<uint8_t, aclFloat16, 64, 64, 64, 64>();
-}
+TEST_F(TCVTTest, case9) { test_tcvt<uint8_t, aclFloat16, 64, 64, 64, 64>(); }
 
-TEST_F(TCVTTest, case10)
-{
-    test_tcvt<float, int32_t, 64, 64, 64, 64, pto::SaturationMode::ON>();
-}
+TEST_F(TCVTTest, case10) { test_tcvt<float, int32_t, 64, 64, 64, 64, pto::SaturationMode::ON>(); }
 
-TEST_F(TCVTTest, case11)
-{
-    test_tcvt<float, int8_t, 128, 128, 128, 128, pto::SaturationMode::ON>();
-}
+TEST_F(TCVTTest, case11) { test_tcvt<float, int8_t, 128, 128, 128, 128, pto::SaturationMode::ON>(); }
 
-TEST_F(TCVTTest, case12)
-{
-    test_tcvt<uint8_t, float, 64, 64, 64, 64, pto::SaturationMode::ON>();
-}
+TEST_F(TCVTTest, case12) { test_tcvt<uint8_t, float, 64, 64, 64, 64, pto::SaturationMode::ON>(); }
 
-TEST_F(TCVTTest, case13)
-{
-    test_tcvt<int16_t, int32_t, 64, 64, 64, 64, pto::SaturationMode::ON>();
-}
+TEST_F(TCVTTest, case13) { test_tcvt<int16_t, int32_t, 64, 64, 64, 64, pto::SaturationMode::ON>(); }
 
-TEST_F(TCVTTest, case14)
-{
-    test_tcvt<int8_t, aclFloat16, 32, 32, 32, 32, pto::SaturationMode::ON>();
-}
+TEST_F(TCVTTest, case14) { test_tcvt<int8_t, aclFloat16, 32, 32, 32, 32, pto::SaturationMode::ON>(); }
 
-TEST_F(TCVTTest, case15)
-{
-    test_tcvt<uint8_t, aclFloat16, 64, 64, 64, 64, pto::SaturationMode::ON>();
-}
+TEST_F(TCVTTest, case15) { test_tcvt<uint8_t, aclFloat16, 64, 64, 64, 64, pto::SaturationMode::ON>(); }

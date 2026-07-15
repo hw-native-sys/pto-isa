@@ -13,7 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-AICORE inline void runTCOLMAX(__gm__ T __out__ *out, __gm__ T __in__ *src)
+AICORE inline void runTCOLMAX(__gm__ T __out__* out, __gm__ T __in__* src)
 {
     using SrcGlobalData = GlobalTensor<T, Shape<1, 1, 1, kGRows_, kGCols_>, Stride<1, 1, kGRows_, kGCols_, 1>>;
     using DstGlobalData = GlobalTensor<T, Shape<1, 1, 1, 1, kGCols_>, Stride<1, 1, 1, kGCols_, 1>>;
@@ -40,17 +40,17 @@ AICORE inline void runTCOLMAX(__gm__ T __out__ *out, __gm__ T __in__ *src)
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTCOLMAX(T *out, T *src, void *stream)
+void LaunchTCOLMAX(T* out, T* src, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
-        runTCOLMAX<half, kGRows_, kGCols_, kTRows_, kTCols_>((half *)(out), (half *)src);
+        runTCOLMAX<half, kGRows_, kGCols_, kTRows_, kTCols_>((half*)(out), (half*)src);
     } else {
         runTCOLMAX<T, kGRows_, kGCols_, kTRows_, kTCols_>(out, src);
     }
 }
 
-template void LaunchTCOLMAX<float, 64, 64, 64, 64>(float *out, float *src, void *stream);
-template void LaunchTCOLMAX<aclFloat16, 16, 256, 16, 256>(aclFloat16 *out, aclFloat16 *src, void *stream);
+template void LaunchTCOLMAX<float, 64, 64, 64, 64>(float* out, float* src, void* stream);
+template void LaunchTCOLMAX<aclFloat16, 16, 256, 16, 256>(aclFloat16* out, aclFloat16* src, void* stream);
 #ifdef CPU_SIM_BFLOAT_ENABLED
-template void LaunchTCOLMAX<bfloat16_t, 16, 256, 16, 256>(bfloat16_t *out, bfloat16_t *src, void *stream);
+template void LaunchTCOLMAX<bfloat16_t, 16, 256, 16, 256>(bfloat16_t* out, bfloat16_t* src, void* stream);
 #endif

@@ -30,7 +30,7 @@ struct CacheAccessResult {
 
 class L2CacheModel {
 public:
-    explicit L2CacheModel(const PerfSimConfig &config = GetConfig())
+    explicit L2CacheModel(const PerfSimConfig& config = GetConfig())
         : line_size_(config.l2_cache_line),
           capacity_(config.has_l2 ? config.l2_size / config.l2_cache_line : 0),
           l2_read_bw_(config.l2_read_bw),
@@ -70,10 +70,7 @@ public:
         }
     };
 
-    const Stats &GetStats() const
-    {
-        return stats_;
-    }
+    const Stats& GetStats() const { return stats_; }
     void Reset()
     {
         cache_.clear();
@@ -94,10 +91,7 @@ private:
     std::list<uint64_t> lru_; // front = least recently used
     Stats stats_;
 
-    uint64_t AlignToLine(uint64_t addr) const
-    {
-        return (addr / line_size_) * line_size_;
-    }
+    uint64_t AlignToLine(uint64_t addr) const { return (addr / line_size_) * line_size_; }
 
     bool Lookup(uint64_t line_addr)
     {

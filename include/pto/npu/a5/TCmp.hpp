@@ -21,7 +21,7 @@ namespace pto {
 const int32_t CMP_BITS_PER_INDEX = 32;
 
 template <typename T>
-AICORE void CmpCall(MaskReg &dst, T &src0, T &src1, CmpMode cmpMode, MaskReg &preg)
+AICORE void CmpCall(MaskReg& dst, T& src0, T& src1, CmpMode cmpMode, MaskReg& preg)
 {
     switch (static_cast<CmpMode>(cmpMode)) {
         case CmpMode::EQ:
@@ -49,18 +49,16 @@ AICORE void CmpCall(MaskReg &dst, T &src0, T &src1, CmpMode cmpMode, MaskReg &pr
 }
 
 template <typename DstTile, typename SrcTile0, typename SrcTile1>
-__tf__ PTO_INTERNAL OP_NAME(TCMP)
-    OP_TYPE(element_wise) void TCmp_8B_16B(typename DstTile::TileDType __out__ dstData,
-                                           typename SrcTile0::TileDType __in__ src0Data,
-                                           typename SrcTile1::TileDType __in__ src1Data, CmpMode mode,
-                                           unsigned validRow, unsigned validCol,
-                                           unsigned version = VFImplKind::VFIMPL_DEFAULT)
+__tf__ PTO_INTERNAL OP_NAME(TCMP) OP_TYPE(element_wise) void TCmp_8B_16B(
+    typename DstTile::TileDType __out__ dstData, typename SrcTile0::TileDType __in__ src0Data,
+    typename SrcTile1::TileDType __in__ src1Data, CmpMode mode, unsigned validRow, unsigned validCol,
+    unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
     using TIN = typename SrcTile0::DType;
     using TOUT = typename DstTile::DType;
-    __ubuf__ TIN *src0 = (__ubuf__ TIN *)__cce_get_tile_ptr(src0Data);
-    __ubuf__ TIN *src1 = (__ubuf__ TIN *)__cce_get_tile_ptr(src1Data);
-    __ubuf__ uint32_t *dst = (__ubuf__ uint32_t *)__cce_get_tile_ptr(dstData);
+    __ubuf__ TIN* src0 = (__ubuf__ TIN*)__cce_get_tile_ptr(src0Data);
+    __ubuf__ TIN* src1 = (__ubuf__ TIN*)__cce_get_tile_ptr(src1Data);
+    __ubuf__ uint32_t* dst = (__ubuf__ uint32_t*)__cce_get_tile_ptr(dstData);
     constexpr uint32_t repeatElm = CCE_VL / sizeof(TIN);
     uint16_t repeatTimes = CeilDivision(validCol, repeatElm);
     __VEC_SCOPE__
@@ -88,17 +86,16 @@ __tf__ PTO_INTERNAL OP_NAME(TCMP)
 }
 
 template <typename DstTile, typename SrcTile0, typename SrcTile1>
-__tf__ PTO_INTERNAL OP_NAME(TCMP)
-    OP_TYPE(element_wise) void TCmp_32B(typename DstTile::TileDType __out__ dstData,
-                                        typename SrcTile0::TileDType __in__ src0Data,
-                                        typename SrcTile1::TileDType __in__ src1Data, CmpMode mode, unsigned validRow,
-                                        unsigned validCol, unsigned version = VFImplKind::VFIMPL_DEFAULT)
+__tf__ PTO_INTERNAL OP_NAME(TCMP) OP_TYPE(element_wise) void TCmp_32B(
+    typename DstTile::TileDType __out__ dstData, typename SrcTile0::TileDType __in__ src0Data,
+    typename SrcTile1::TileDType __in__ src1Data, CmpMode mode, unsigned validRow, unsigned validCol,
+    unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
     using TIN = typename SrcTile0::DType;
     using TOUT = typename DstTile::DType;
-    __ubuf__ TIN *src0 = (__ubuf__ TIN *)__cce_get_tile_ptr(src0Data);
-    __ubuf__ TIN *src1 = (__ubuf__ TIN *)__cce_get_tile_ptr(src1Data);
-    __ubuf__ uint32_t *dst = (__ubuf__ uint32_t *)__cce_get_tile_ptr(dstData);
+    __ubuf__ TIN* src0 = (__ubuf__ TIN*)__cce_get_tile_ptr(src0Data);
+    __ubuf__ TIN* src1 = (__ubuf__ TIN*)__cce_get_tile_ptr(src1Data);
+    __ubuf__ uint32_t* dst = (__ubuf__ uint32_t*)__cce_get_tile_ptr(dstData);
     constexpr uint32_t repeatElm = CCE_VL / sizeof(uint32_t);
     uint16_t repeatTimes = CeilDivision(validCol, repeatElm) + 1;
     __VEC_SCOPE__
@@ -136,25 +133,29 @@ template <typename DstTile, typename SrcTile0, typename SrcTile1>
 PTO_INTERNAL void TcmpCheck()
 {
     using T = typename SrcTile0::DType;
-    static_assert(std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float> ||
-                      std::is_same_v<T, int16_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, half> ||
-                      std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t> || std::is_same_v<T, bfloat16_t>,
-                  "TCMP: Invalid data type.");
+    static_assert(
+        std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float> ||
+            std::is_same_v<T, int16_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, half> ||
+            std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t> || std::is_same_v<T, bfloat16_t>,
+        "TCMP: Invalid data type.");
     static_assert(std::is_same_v<T, typename SrcTile1::DType>, "TCMP: src0 and src1 must have same type");
-    static_assert(DstTile::isRowMajor && SrcTile0::isRowMajor && SrcTile1::isRowMajor,
-                  "TCMP: not supported Layout type");
-    static_assert(DstTile::Loc == TileType::Vec && SrcTile0::Loc == TileType::Vec && SrcTile1::Loc == TileType::Vec,
-                  "TCMP: TileType of tile must be TileType::Vec.");
-    static_assert(DstTile::ValidCol <= DstTile::Cols && SrcTile0::ValidCol <= SrcTile0::Cols &&
-                      SrcTile1::ValidCol <= SrcTile1::Cols,
-                  "TCMP: Number of valid columns must not be greater than number of tile columns.");
-    static_assert(DstTile::ValidRow <= DstTile::Rows && SrcTile0::ValidRow <= SrcTile0::Rows &&
-                      SrcTile1::ValidRow <= SrcTile1::Rows,
-                  "TCMP: Number of valid rows must not be greater than number of tile rows.");
+    static_assert(
+        DstTile::isRowMajor && SrcTile0::isRowMajor && SrcTile1::isRowMajor, "TCMP: not supported Layout type");
+    static_assert(
+        DstTile::Loc == TileType::Vec && SrcTile0::Loc == TileType::Vec && SrcTile1::Loc == TileType::Vec,
+        "TCMP: TileType of tile must be TileType::Vec.");
+    static_assert(
+        DstTile::ValidCol <= DstTile::Cols && SrcTile0::ValidCol <= SrcTile0::Cols &&
+            SrcTile1::ValidCol <= SrcTile1::Cols,
+        "TCMP: Number of valid columns must not be greater than number of tile columns.");
+    static_assert(
+        DstTile::ValidRow <= DstTile::Rows && SrcTile0::ValidRow <= SrcTile0::Rows &&
+            SrcTile1::ValidRow <= SrcTile1::Rows,
+        "TCMP: Number of valid rows must not be greater than number of tile rows.");
 }
 
 template <typename DstTile, typename SrcTile0, typename SrcTile1>
-PTO_INTERNAL void TCMP_IMPL(DstTile &dst, SrcTile0 &src0, SrcTile1 &src1, CmpMode cmpMode)
+PTO_INTERNAL void TCMP_IMPL(DstTile& dst, SrcTile0& src0, SrcTile1& src1, CmpMode cmpMode)
 {
     TcmpCheck<DstTile, SrcTile0, SrcTile1>();
     using T = typename SrcTile0::DType;

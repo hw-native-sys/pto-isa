@@ -16,7 +16,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 // Formula: fmod(a, b) = a - trunc(a/b) * b
 struct FmodSOp {
-    PTO_INTERNAL static void FmodSF32Instr(__ubuf__ float *dst, __ubuf__ float *src, float x)
+    PTO_INTERNAL static void FmodSF32Instr(__ubuf__ float* dst, __ubuf__ float* src, float x)
     {
         vector_dup(dst, x, 1, 1, 1, 8, 8);
         pipe_barrier(PIPE_V);
@@ -35,21 +35,23 @@ struct FmodSOp {
     }
 };
 
-template <typename TileDataDst, typename TileDataSrc, unsigned elementsPerRepeat, unsigned blockSizeElem,
-          unsigned dstRowStride, unsigned srcRowStride>
-__tf__ PTO_INTERNAL void TFmodS(typename TileDataDst::TileDType __out__ dst, typename TileDataSrc::TileDType __in__ src,
-                                typename TileDataSrc::DType x, unsigned validRows, unsigned validCols)
+template <
+    typename TileDataDst, typename TileDataSrc, unsigned elementsPerRepeat, unsigned blockSizeElem,
+    unsigned dstRowStride, unsigned srcRowStride>
+__tf__ PTO_INTERNAL void TFmodS(
+    typename TileDataDst::TileDType __out__ dst, typename TileDataSrc::TileDType __in__ src,
+    typename TileDataSrc::DType x, unsigned validRows, unsigned validCols)
 {
     using T = typename TileDataDst::DType;
 
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* srcPtr = (__ubuf__ T*)__cce_get_tile_ptr(src);
 
     set_mask_count();
     set_vector_mask(0, validCols);
     for (int i = 0; i < validRows; ++i) {
-        __ubuf__ T *dstNext = dstPtr + i * dstRowStride;
-        __ubuf__ T *s0Next = srcPtr + i * srcRowStride;
+        __ubuf__ T* dstNext = dstPtr + i * dstRowStride;
+        __ubuf__ T* s0Next = srcPtr + i * srcRowStride;
         if constexpr (std::is_same_v<T, float> || std::is_same_v<T, float32_t>) {
             FmodSOp::FmodSF32Instr(dstNext, s0Next, x);
         } else {
@@ -61,24 +63,27 @@ __tf__ PTO_INTERNAL void TFmodS(typename TileDataDst::TileDType __out__ dst, typ
 }
 
 template <auto PrecisionType = FmodSAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TFMODS_IMPL(TileDataDst &dst, TileDataSrc &src, typename TileDataSrc::DType scalar)
+PTO_INTERNAL void TFMODS_IMPL(TileDataDst& dst, TileDataSrc& src, typename TileDataSrc::DType scalar)
 {
     using T = typename TileDataDst::DType;
 
     // static assertions
-    static_assert(std::is_same_v<T, typename TileDataSrc::DType>,
-                  "TFMODS: The data types of dst and src must be the same.");
-    static_assert(std::is_same_v<T, float> || std::is_same_v<T, float32_t>,
-                  "Fix: TFMODS supports only float element type.");
-    static_assert(TileDataDst::Loc == TileType::Vec && TileDataSrc::Loc == TileType::Vec,
-                  "TFMODS: TileType of dst and src tiles must be TileType::Vec.");
+    static_assert(
+        std::is_same_v<T, typename TileDataSrc::DType>, "TFMODS: The data types of dst and src must be the same.");
+    static_assert(
+        std::is_same_v<T, float> || std::is_same_v<T, float32_t>, "Fix: TFMODS supports only float element type.");
+    static_assert(
+        TileDataDst::Loc == TileType::Vec && TileDataSrc::Loc == TileType::Vec,
+        "TFMODS: TileType of dst and src tiles must be TileType::Vec.");
     static_assert(TileDataDst::isRowMajor && TileDataSrc::isRowMajor, "TFMODS: Only support row major layout.");
 
     // dynamic checks
-    PTO_ASSERT(dst.GetValidRow() == src.GetValidRow() && dst.GetValidRow() > 0,
-               "TFMODS: Number of valid rows of dst and src must be the same, and both greater than 0.");
-    PTO_ASSERT(dst.GetValidCol() == src.GetValidCol() && dst.GetValidCol() > 0,
-               "TFMODS: Number of valid columns of dst and src must be the same, and all greater than 0.");
+    PTO_ASSERT(
+        dst.GetValidRow() == src.GetValidRow() && dst.GetValidRow() > 0,
+        "TFMODS: Number of valid rows of dst and src must be the same, and both greater than 0.");
+    PTO_ASSERT(
+        dst.GetValidCol() == src.GetValidCol() && dst.GetValidCol() > 0,
+        "TFMODS: Number of valid columns of dst and src must be the same, and all greater than 0.");
 
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
     constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);

@@ -21,7 +21,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 static constexpr size_t HCCL_WIN_SYNC_PREFIX = 64 * sizeof(int32_t);
 
 template <typename T>
-__global__ AICORE void WindowMemCopyIn(__gm__ T *winDst, __gm__ T *devSrc, int count)
+__global__ AICORE void WindowMemCopyIn(__gm__ T* winDst, __gm__ T* devSrc, int count)
 {
     for (int i = 0; i < count; ++i) {
         winDst[i] = devSrc[i];
@@ -30,7 +30,7 @@ __global__ AICORE void WindowMemCopyIn(__gm__ T *winDst, __gm__ T *devSrc, int c
 }
 
 template <typename T>
-__global__ AICORE void WindowMemCopyOut(__gm__ T *devDst, __gm__ T *winSrc, int count)
+__global__ AICORE void WindowMemCopyOut(__gm__ T* devDst, __gm__ T* winSrc, int count)
 {
     for (int i = 0; i < count; ++i) {
         devDst[i] = winSrc[i];
@@ -43,8 +43,8 @@ __global__ AICORE void WindowMemCopyOut(__gm__ T *devDst, __gm__ T *winSrc, int 
 // Tests the TSCATTER collective - root scatters data to all ranks
 // ============================================================================
 template <typename T, size_t count>
-__global__ AICORE void TScatterKernelImpl(__gm__ T *src, __gm__ T *dst, int nranks, int root,
-                                          __gm__ CommDeviceContext *hcclCtx)
+__global__ AICORE void TScatterKernelImpl(
+    __gm__ T* src, __gm__ T* dst, int nranks, int root, __gm__ CommDeviceContext* hcclCtx)
 {
     using ShapeDyn = pto::Shape<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
     using StrideDyn = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
@@ -68,7 +68,7 @@ __global__ AICORE void TScatterKernelImpl(__gm__ T *src, __gm__ T *dst, int nran
     Global tensors[16];
     int actual_nranks = (nranks > 16) ? 16 : nranks;
     for (int i = 0; i < actual_nranks; ++i) {
-        __gm__ T *remoteDst = CommRemotePtr(hcclCtx, dst, i);
+        __gm__ T* remoteDst = CommRemotePtr(hcclCtx, dst, i);
         tensors[i] = Global(remoteDst, dstShape, dstStride);
     }
 
@@ -87,8 +87,9 @@ __global__ AICORE void TScatterKernelImpl(__gm__ T *src, __gm__ T *dst, int nran
 }
 
 template <typename T, size_t count>
-bool RunScatterKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, int root,
-                      uint64_t /*local_mem_size*/, const HcclRootInfo *rootInfo)
+bool RunScatterKernel(
+    int rank_id, int n_ranks, int n_devices, int first_device_id, int root, uint64_t /*local_mem_size*/,
+    const HcclRootInfo* rootInfo)
 {
     TestContext ctx;
     if (!ctx.Init(rank_id, n_ranks, n_devices, first_device_id, rootInfo))
@@ -102,13 +103,13 @@ bool RunScatterKernel(int rank_id, int n_ranks, int n_devices, int first_device_
     if (n_ranks > 1) {
         WindowAlloc(localWinBase, winOffset, HCCL_WIN_SYNC_PREFIX);
     }
-    void *src_ptr = WindowAlloc(localWinBase, winOffset, src_size);
-    void *dst_ptr = WindowAlloc(localWinBase, winOffset, dst_size);
+    void* src_ptr = WindowAlloc(localWinBase, winOffset, src_size);
+    void* dst_ptr = WindowAlloc(localWinBase, winOffset, dst_size);
 
-    T *src_host = nullptr;
-    T *dst_host = nullptr;
-    if (aclrtMallocHost(reinterpret_cast<void **>(&src_host), src_size) != 0 ||
-        aclrtMallocHost(reinterpret_cast<void **>(&dst_host), dst_size) != 0) {
+    T* src_host = nullptr;
+    T* dst_host = nullptr;
+    if (aclrtMallocHost(reinterpret_cast<void**>(&src_host), src_size) != 0 ||
+        aclrtMallocHost(reinterpret_cast<void**>(&dst_host), dst_size) != 0) {
         std::cerr << "[ERROR] aclrtMallocHost failed!" << std::endl;
         return false;
     }
@@ -119,10 +120,10 @@ bool RunScatterKernel(int rank_id, int n_ranks, int n_devices, int first_device_
                 src_host[r * count + i] = static_cast<T>(i + r * 10000);
             }
         }
-        T *src_staging = nullptr;
-        aclrtMalloc(reinterpret_cast<void **>(&src_staging), src_size, ACL_MEM_MALLOC_HUGE_FIRST);
+        T* src_staging = nullptr;
+        aclrtMalloc(reinterpret_cast<void**>(&src_staging), src_size, ACL_MEM_MALLOC_HUGE_FIRST);
         aclrtMemcpy(src_staging, src_size, src_host, src_size, ACL_MEMCPY_HOST_TO_DEVICE);
-        WindowMemCopyIn<T><<<1, nullptr, ctx.stream>>>((T *)src_ptr, src_staging, static_cast<int>(n_ranks * count));
+        WindowMemCopyIn<T><<<1, nullptr, ctx.stream>>>((T*)src_ptr, src_staging, static_cast<int>(n_ranks * count));
         aclrtSynchronizeStream(ctx.stream);
         aclrtFree(src_staging);
     }
@@ -130,20 +131,20 @@ bool RunScatterKernel(int rank_id, int n_ranks, int n_devices, int first_device_
     for (size_t i = 0; i < count; ++i) {
         dst_host[i] = static_cast<T>(-1);
     }
-    T *dst_staging = nullptr;
-    aclrtMalloc(reinterpret_cast<void **>(&dst_staging), dst_size, ACL_MEM_MALLOC_HUGE_FIRST);
+    T* dst_staging = nullptr;
+    aclrtMalloc(reinterpret_cast<void**>(&dst_staging), dst_size, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMemcpy(dst_staging, dst_size, dst_host, dst_size, ACL_MEMCPY_HOST_TO_DEVICE);
-    WindowMemCopyIn<T><<<1, nullptr, ctx.stream>>>((T *)dst_ptr, dst_staging, static_cast<int>(count));
+    WindowMemCopyIn<T><<<1, nullptr, ctx.stream>>>((T*)dst_ptr, dst_staging, static_cast<int>(count));
     aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
-    TScatterKernelImpl<T, count><<<1, nullptr, ctx.stream>>>((T *)src_ptr, (T *)dst_ptr, n_ranks, root, ctx.deviceCtx);
+    TScatterKernelImpl<T, count><<<1, nullptr, ctx.stream>>>((T*)src_ptr, (T*)dst_ptr, n_ranks, root, ctx.deviceCtx);
     ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
-    WindowMemCopyOut<T><<<1, nullptr, ctx.stream>>>(dst_staging, (T *)dst_ptr, static_cast<int>(count));
+    WindowMemCopyOut<T><<<1, nullptr, ctx.stream>>>(dst_staging, (T*)dst_ptr, static_cast<int>(count));
     aclrtSynchronizeStream(ctx.stream);
     aclrtMemcpy(dst_host, dst_size, dst_staging, dst_size, ACL_MEMCPY_DEVICE_TO_HOST);
     aclrtFree(dst_staging);
@@ -179,7 +180,7 @@ template <typename T, size_t count>
 bool RunScatter(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
     return ForkAndRunWithHcclRootInfo(
-        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo *rootInfo) {
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
             return RunScatterKernel<T, count>(rankId, n_ranks, n_devices, first_device_id, 0, 0, rootInfo);
         });
 }
@@ -188,7 +189,7 @@ template <typename T, size_t count>
 bool RunScatterWithRoot(int n_ranks, int n_devices, int first_rank_id, int first_device_id, int root)
 {
     return ForkAndRunWithHcclRootInfo(
-        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo *rootInfo) {
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
             return RunScatterKernel<T, count>(rankId, n_ranks, n_devices, first_device_id, root, 0, rootInfo);
         });
 }
@@ -197,16 +198,16 @@ bool RunScatterWithRoot(int n_ranks, int n_devices, int first_rank_id, int first
 template bool RunScatter<float, 256>(int n_ranks, int n_devices, int first_rank_id, int first_device_id);
 template bool RunScatter<int32_t, 4096>(int n_ranks, int n_devices, int first_rank_id, int first_device_id);
 template bool RunScatter<uint8_t, 512>(int n_ranks, int n_devices, int first_rank_id, int first_device_id);
-template bool RunScatterWithRoot<float, 256>(int n_ranks, int n_devices, int first_rank_id, int first_device_id,
-                                             int root);
+template bool RunScatterWithRoot<float, 256>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id, int root);
 
 // ============================================================================
 // Empty Rows Test Kernel
 // Tests TSCATTER with zero rows (empty data)
 // ============================================================================
 template <typename T, size_t count>
-__global__ AICORE void TScatterEmptyKernelImpl(__gm__ T *src, __gm__ T *dst, int nranks, int root,
-                                               __gm__ CommDeviceContext *hcclCtx)
+__global__ AICORE void TScatterEmptyKernelImpl(
+    __gm__ T* src, __gm__ T* dst, int nranks, int root, __gm__ CommDeviceContext* hcclCtx)
 {
     using ShapeDyn = pto::Shape<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
     using StrideDyn = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
@@ -226,7 +227,7 @@ __global__ AICORE void TScatterEmptyKernelImpl(__gm__ T *src, __gm__ T *dst, int
     Global tensors[16];
     int actual_nranks = (nranks > 16) ? 16 : nranks;
     for (int i = 0; i < actual_nranks; ++i) {
-        __gm__ T *remoteDst = CommRemotePtr(hcclCtx, dst, i);
+        __gm__ T* remoteDst = CommRemotePtr(hcclCtx, dst, i);
         tensors[i] = Global(remoteDst, dstShape, dstStride);
     }
 
@@ -242,8 +243,9 @@ __global__ AICORE void TScatterEmptyKernelImpl(__gm__ T *src, __gm__ T *dst, int
 }
 
 template <typename T, size_t count>
-bool RunScatterEmptyKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, int root,
-                           uint64_t /*local_mem_size*/, const HcclRootInfo *rootInfo)
+bool RunScatterEmptyKernel(
+    int rank_id, int n_ranks, int n_devices, int first_device_id, int root, uint64_t /*local_mem_size*/,
+    const HcclRootInfo* rootInfo)
 {
     TestContext ctx;
     if (!ctx.Init(rank_id, n_ranks, n_devices, first_device_id, rootInfo))
@@ -257,13 +259,13 @@ bool RunScatterEmptyKernel(int rank_id, int n_ranks, int n_devices, int first_de
     if (n_ranks > 1) {
         WindowAlloc(localWinBase, winOffset, HCCL_WIN_SYNC_PREFIX);
     }
-    void *src_ptr = WindowAlloc(localWinBase, winOffset, src_size);
-    void *dst_ptr = WindowAlloc(localWinBase, winOffset, dst_size);
+    void* src_ptr = WindowAlloc(localWinBase, winOffset, src_size);
+    void* dst_ptr = WindowAlloc(localWinBase, winOffset, dst_size);
 
-    T *src_host = nullptr;
-    T *dst_host = nullptr;
-    if (aclrtMallocHost(reinterpret_cast<void **>(&src_host), src_size) != 0 ||
-        aclrtMallocHost(reinterpret_cast<void **>(&dst_host), dst_size) != 0) {
+    T* src_host = nullptr;
+    T* dst_host = nullptr;
+    if (aclrtMallocHost(reinterpret_cast<void**>(&src_host), src_size) != 0 ||
+        aclrtMallocHost(reinterpret_cast<void**>(&dst_host), dst_size) != 0) {
         std::cerr << "[ERROR] aclrtMallocHost failed!" << std::endl;
         return false;
     }
@@ -272,10 +274,10 @@ bool RunScatterEmptyKernel(int rank_id, int n_ranks, int n_devices, int first_de
         src_host[i] = static_cast<T>(i);
     }
     if (rank_id == root) {
-        T *src_staging = nullptr;
-        aclrtMalloc(reinterpret_cast<void **>(&src_staging), src_size, ACL_MEM_MALLOC_HUGE_FIRST);
+        T* src_staging = nullptr;
+        aclrtMalloc(reinterpret_cast<void**>(&src_staging), src_size, ACL_MEM_MALLOC_HUGE_FIRST);
         aclrtMemcpy(src_staging, src_size, src_host, src_size, ACL_MEMCPY_HOST_TO_DEVICE);
-        WindowMemCopyIn<T><<<1, nullptr, ctx.stream>>>((T *)src_ptr, src_staging, static_cast<int>(n_ranks * count));
+        WindowMemCopyIn<T><<<1, nullptr, ctx.stream>>>((T*)src_ptr, src_staging, static_cast<int>(n_ranks * count));
         aclrtSynchronizeStream(ctx.stream);
         aclrtFree(src_staging);
     }
@@ -283,21 +285,21 @@ bool RunScatterEmptyKernel(int rank_id, int n_ranks, int n_devices, int first_de
     for (size_t i = 0; i < count; ++i) {
         dst_host[i] = static_cast<T>(-1);
     }
-    T *dst_staging = nullptr;
-    aclrtMalloc(reinterpret_cast<void **>(&dst_staging), dst_size, ACL_MEM_MALLOC_HUGE_FIRST);
+    T* dst_staging = nullptr;
+    aclrtMalloc(reinterpret_cast<void**>(&dst_staging), dst_size, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMemcpy(dst_staging, dst_size, dst_host, dst_size, ACL_MEMCPY_HOST_TO_DEVICE);
-    WindowMemCopyIn<T><<<1, nullptr, ctx.stream>>>((T *)dst_ptr, dst_staging, static_cast<int>(count));
+    WindowMemCopyIn<T><<<1, nullptr, ctx.stream>>>((T*)dst_ptr, dst_staging, static_cast<int>(count));
     aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
     TScatterEmptyKernelImpl<T, count>
-        <<<1, nullptr, ctx.stream>>>((T *)src_ptr, (T *)dst_ptr, n_ranks, root, ctx.deviceCtx);
+        <<<1, nullptr, ctx.stream>>>((T*)src_ptr, (T*)dst_ptr, n_ranks, root, ctx.deviceCtx);
     ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
-    WindowMemCopyOut<T><<<1, nullptr, ctx.stream>>>(dst_staging, (T *)dst_ptr, static_cast<int>(count));
+    WindowMemCopyOut<T><<<1, nullptr, ctx.stream>>>(dst_staging, (T*)dst_ptr, static_cast<int>(count));
     aclrtSynchronizeStream(ctx.stream);
     aclrtMemcpy(dst_host, dst_size, dst_staging, dst_size, ACL_MEMCPY_DEVICE_TO_HOST);
     aclrtFree(dst_staging);
@@ -319,7 +321,7 @@ template <typename T, size_t count>
 bool RunScatterEmpty(int n_ranks, int n_devices, int first_rank_id, int first_device_id, int root)
 {
     return ForkAndRunWithHcclRootInfo(
-        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo *rootInfo) {
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
             return RunScatterEmptyKernel<T, count>(rankId, n_ranks, n_devices, first_device_id, root, 0, rootInfo);
         });
 }
@@ -333,8 +335,8 @@ template bool RunScatterEmpty<float, 256>(int n_ranks, int n_devices, int first_
 // Tile: (tile_rows, cols)
 // ============================================================================
 template <typename T, size_t total_rows, size_t cols, size_t tile_rows>
-__global__ AICORE void TScatterLargeShapeKernelImpl(__gm__ T *src, __gm__ T *dst, int nranks,
-                                                    __gm__ CommDeviceContext *hcclCtx)
+__global__ AICORE void TScatterLargeShapeKernelImpl(
+    __gm__ T* src, __gm__ T* dst, int nranks, __gm__ CommDeviceContext* hcclCtx)
 {
     constexpr size_t total_count = total_rows * cols;
     static_assert(total_rows > tile_rows, "total_rows must exceed tile_rows to test chunking");
@@ -360,7 +362,7 @@ __global__ AICORE void TScatterLargeShapeKernelImpl(__gm__ T *src, __gm__ T *dst
     Global tensors[16];
     int actual_nranks = (nranks > 16) ? 16 : nranks;
     for (int i = 0; i < actual_nranks; ++i) {
-        __gm__ T *remoteDst = CommRemotePtr(hcclCtx, dst, i);
+        __gm__ T* remoteDst = CommRemotePtr(hcclCtx, dst, i);
         tensors[i] = Global(remoteDst, dstShape, dstStride);
     }
 
@@ -377,8 +379,9 @@ __global__ AICORE void TScatterLargeShapeKernelImpl(__gm__ T *src, __gm__ T *dst
 }
 
 template <typename T, size_t total_rows, size_t cols, size_t tile_rows>
-bool RunScatterLargeShapeKernel(int rank_id, int n_ranks, int n_devices, int first_device_id,
-                                uint64_t /*local_mem_size*/, const HcclRootInfo *rootInfo)
+bool RunScatterLargeShapeKernel(
+    int rank_id, int n_ranks, int n_devices, int first_device_id, uint64_t /*local_mem_size*/,
+    const HcclRootInfo* rootInfo)
 {
     constexpr size_t total_count = total_rows * cols;
 
@@ -391,13 +394,13 @@ bool RunScatterLargeShapeKernel(int rank_id, int n_ranks, int n_devices, int fir
     if (n_ranks > 1) {
         WindowAlloc(localWinBase, winOffset, HCCL_WIN_SYNC_PREFIX);
     }
-    void *src_ptr = WindowAlloc(localWinBase, winOffset, n_ranks * total_count * sizeof(T));
-    void *dst_ptr = WindowAlloc(localWinBase, winOffset, total_count * sizeof(T));
+    void* src_ptr = WindowAlloc(localWinBase, winOffset, n_ranks * total_count * sizeof(T));
+    void* dst_ptr = WindowAlloc(localWinBase, winOffset, total_count * sizeof(T));
 
-    T *src_host = nullptr;
-    T *dst_host = nullptr;
-    if (aclrtMallocHost(reinterpret_cast<void **>(&src_host), n_ranks * total_count * sizeof(T)) != 0 ||
-        aclrtMallocHost(reinterpret_cast<void **>(&dst_host), total_count * sizeof(T)) != 0) {
+    T* src_host = nullptr;
+    T* dst_host = nullptr;
+    if (aclrtMallocHost(reinterpret_cast<void**>(&src_host), n_ranks * total_count * sizeof(T)) != 0 ||
+        aclrtMallocHost(reinterpret_cast<void**>(&dst_host), total_count * sizeof(T)) != 0) {
         std::cerr << "[ERROR] aclrtMallocHost failed!" << std::endl;
         return false;
     }
@@ -408,13 +411,14 @@ bool RunScatterLargeShapeKernel(int rank_id, int n_ranks, int n_devices, int fir
                 src_host[r * total_count + i] = static_cast<T>(i + r * 100);
             }
         }
-        T *src_staging = nullptr;
-        aclrtMalloc(reinterpret_cast<void **>(&src_staging), n_ranks * total_count * sizeof(T),
-                    ACL_MEM_MALLOC_HUGE_FIRST);
-        aclrtMemcpy(src_staging, n_ranks * total_count * sizeof(T), src_host, n_ranks * total_count * sizeof(T),
-                    ACL_MEMCPY_HOST_TO_DEVICE);
+        T* src_staging = nullptr;
+        aclrtMalloc(
+            reinterpret_cast<void**>(&src_staging), n_ranks * total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST);
+        aclrtMemcpy(
+            src_staging, n_ranks * total_count * sizeof(T), src_host, n_ranks * total_count * sizeof(T),
+            ACL_MEMCPY_HOST_TO_DEVICE);
         WindowMemCopyIn<T>
-            <<<1, nullptr, ctx.stream>>>((T *)src_ptr, src_staging, static_cast<int>(n_ranks * total_count));
+            <<<1, nullptr, ctx.stream>>>((T*)src_ptr, src_staging, static_cast<int>(n_ranks * total_count));
         aclrtSynchronizeStream(ctx.stream);
         aclrtFree(src_staging);
     }
@@ -422,21 +426,21 @@ bool RunScatterLargeShapeKernel(int rank_id, int n_ranks, int n_devices, int fir
     for (size_t i = 0; i < total_count; ++i) {
         dst_host[i] = static_cast<T>(-1);
     }
-    T *dst_staging = nullptr;
-    aclrtMalloc(reinterpret_cast<void **>(&dst_staging), total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST);
+    T* dst_staging = nullptr;
+    aclrtMalloc(reinterpret_cast<void**>(&dst_staging), total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMemcpy(dst_staging, total_count * sizeof(T), dst_host, total_count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
-    WindowMemCopyIn<T><<<1, nullptr, ctx.stream>>>((T *)dst_ptr, dst_staging, static_cast<int>(total_count));
+    WindowMemCopyIn<T><<<1, nullptr, ctx.stream>>>((T*)dst_ptr, dst_staging, static_cast<int>(total_count));
     aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
     TScatterLargeShapeKernelImpl<T, total_rows, cols, tile_rows>
-        <<<1, nullptr, ctx.stream>>>((T *)src_ptr, (T *)dst_ptr, n_ranks, ctx.deviceCtx);
+        <<<1, nullptr, ctx.stream>>>((T*)src_ptr, (T*)dst_ptr, n_ranks, ctx.deviceCtx);
     ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
-    WindowMemCopyOut<T><<<1, nullptr, ctx.stream>>>(dst_staging, (T *)dst_ptr, static_cast<int>(total_count));
+    WindowMemCopyOut<T><<<1, nullptr, ctx.stream>>>(dst_staging, (T*)dst_ptr, static_cast<int>(total_count));
     aclrtSynchronizeStream(ctx.stream);
     aclrtMemcpy(dst_host, total_count * sizeof(T), dst_staging, total_count * sizeof(T), ACL_MEMCPY_DEVICE_TO_HOST);
     aclrtFree(dst_staging);
@@ -473,11 +477,11 @@ bool RunScatterLargeShapeKernel(int rank_id, int n_ranks, int n_devices, int fir
 template <typename T, size_t total_rows, size_t cols, size_t tile_rows>
 bool RunScatterLargeShape(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
-    return ForkAndRunWithHcclRootInfo(n_ranks, first_rank_id, first_device_id,
-                                      [&](int rankId, const HcclRootInfo *rootInfo) {
-                                          return RunScatterLargeShapeKernel<T, total_rows, cols, tile_rows>(
-                                              rankId, n_ranks, n_devices, first_device_id, 0, rootInfo);
-                                      });
+    return ForkAndRunWithHcclRootInfo(
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
+            return RunScatterLargeShapeKernel<T, total_rows, cols, tile_rows>(
+                rankId, n_ranks, n_devices, first_device_id, 0, rootInfo);
+        });
 }
 
 // Explicit instantiations for large shape tests
@@ -505,8 +509,8 @@ bool RunScatterLargeShape_Int32_512x32_tile64(int n_ranks, int n_devices, int fi
 // Uses the 4-parameter TSCATTER(pg, src, ping, pong) overload.
 // ============================================================================
 template <typename T, size_t total_rows, size_t cols, size_t tile_rows>
-__global__ AICORE void TScatterPingPongKernelImpl(__gm__ T *src, __gm__ T *dst, int nranks,
-                                                  __gm__ CommDeviceContext *hcclCtx)
+__global__ AICORE void TScatterPingPongKernelImpl(
+    __gm__ T* src, __gm__ T* dst, int nranks, __gm__ CommDeviceContext* hcclCtx)
 {
     constexpr size_t total_count = total_rows * cols;
     static_assert(total_rows > tile_rows, "total_rows must exceed tile_rows to test chunked ping-pong");
@@ -529,7 +533,7 @@ __global__ AICORE void TScatterPingPongKernelImpl(__gm__ T *src, __gm__ T *dst, 
     Global tensors[16];
     int actual_nranks = (nranks > 16) ? 16 : nranks;
     for (int i = 0; i < actual_nranks; ++i) {
-        __gm__ T *remoteDst = CommRemotePtr(hcclCtx, dst, i);
+        __gm__ T* remoteDst = CommRemotePtr(hcclCtx, dst, i);
         tensors[i] = Global(remoteDst, dstShape, dstStride);
     }
 
@@ -550,8 +554,9 @@ __global__ AICORE void TScatterPingPongKernelImpl(__gm__ T *src, __gm__ T *dst, 
 }
 
 template <typename T, size_t total_rows, size_t cols, size_t tile_rows>
-bool RunScatterPingPongKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, uint64_t /*local_mem_size*/,
-                              const HcclRootInfo *rootInfo)
+bool RunScatterPingPongKernel(
+    int rank_id, int n_ranks, int n_devices, int first_device_id, uint64_t /*local_mem_size*/,
+    const HcclRootInfo* rootInfo)
 {
     constexpr size_t total_count = total_rows * cols;
 
@@ -564,13 +569,13 @@ bool RunScatterPingPongKernel(int rank_id, int n_ranks, int n_devices, int first
     if (n_ranks > 1) {
         WindowAlloc(localWinBase, winOffset, HCCL_WIN_SYNC_PREFIX);
     }
-    void *src_ptr = WindowAlloc(localWinBase, winOffset, n_ranks * total_count * sizeof(T));
-    void *dst_ptr = WindowAlloc(localWinBase, winOffset, total_count * sizeof(T));
+    void* src_ptr = WindowAlloc(localWinBase, winOffset, n_ranks * total_count * sizeof(T));
+    void* dst_ptr = WindowAlloc(localWinBase, winOffset, total_count * sizeof(T));
 
-    T *src_host = nullptr;
-    T *dst_host = nullptr;
-    if (aclrtMallocHost(reinterpret_cast<void **>(&src_host), n_ranks * total_count * sizeof(T)) != 0 ||
-        aclrtMallocHost(reinterpret_cast<void **>(&dst_host), total_count * sizeof(T)) != 0) {
+    T* src_host = nullptr;
+    T* dst_host = nullptr;
+    if (aclrtMallocHost(reinterpret_cast<void**>(&src_host), n_ranks * total_count * sizeof(T)) != 0 ||
+        aclrtMallocHost(reinterpret_cast<void**>(&dst_host), total_count * sizeof(T)) != 0) {
         std::cerr << "[ERROR] aclrtMallocHost failed!" << std::endl;
         return false;
     }
@@ -581,13 +586,14 @@ bool RunScatterPingPongKernel(int rank_id, int n_ranks, int n_devices, int first
                 src_host[r * total_count + i] = static_cast<T>(i + r * 100);
             }
         }
-        T *src_staging = nullptr;
-        aclrtMalloc(reinterpret_cast<void **>(&src_staging), n_ranks * total_count * sizeof(T),
-                    ACL_MEM_MALLOC_HUGE_FIRST);
-        aclrtMemcpy(src_staging, n_ranks * total_count * sizeof(T), src_host, n_ranks * total_count * sizeof(T),
-                    ACL_MEMCPY_HOST_TO_DEVICE);
+        T* src_staging = nullptr;
+        aclrtMalloc(
+            reinterpret_cast<void**>(&src_staging), n_ranks * total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST);
+        aclrtMemcpy(
+            src_staging, n_ranks * total_count * sizeof(T), src_host, n_ranks * total_count * sizeof(T),
+            ACL_MEMCPY_HOST_TO_DEVICE);
         WindowMemCopyIn<T>
-            <<<1, nullptr, ctx.stream>>>((T *)src_ptr, src_staging, static_cast<int>(n_ranks * total_count));
+            <<<1, nullptr, ctx.stream>>>((T*)src_ptr, src_staging, static_cast<int>(n_ranks * total_count));
         aclrtSynchronizeStream(ctx.stream);
         aclrtFree(src_staging);
     }
@@ -595,21 +601,21 @@ bool RunScatterPingPongKernel(int rank_id, int n_ranks, int n_devices, int first
     for (size_t i = 0; i < total_count; ++i) {
         dst_host[i] = static_cast<T>(-1);
     }
-    T *dst_staging = nullptr;
-    aclrtMalloc(reinterpret_cast<void **>(&dst_staging), total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST);
+    T* dst_staging = nullptr;
+    aclrtMalloc(reinterpret_cast<void**>(&dst_staging), total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMemcpy(dst_staging, total_count * sizeof(T), dst_host, total_count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
-    WindowMemCopyIn<T><<<1, nullptr, ctx.stream>>>((T *)dst_ptr, dst_staging, static_cast<int>(total_count));
+    WindowMemCopyIn<T><<<1, nullptr, ctx.stream>>>((T*)dst_ptr, dst_staging, static_cast<int>(total_count));
     aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
     TScatterPingPongKernelImpl<T, total_rows, cols, tile_rows>
-        <<<1, nullptr, ctx.stream>>>((T *)src_ptr, (T *)dst_ptr, n_ranks, ctx.deviceCtx);
+        <<<1, nullptr, ctx.stream>>>((T*)src_ptr, (T*)dst_ptr, n_ranks, ctx.deviceCtx);
     ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
-    WindowMemCopyOut<T><<<1, nullptr, ctx.stream>>>(dst_staging, (T *)dst_ptr, static_cast<int>(total_count));
+    WindowMemCopyOut<T><<<1, nullptr, ctx.stream>>>(dst_staging, (T*)dst_ptr, static_cast<int>(total_count));
     aclrtSynchronizeStream(ctx.stream);
     aclrtMemcpy(dst_host, total_count * sizeof(T), dst_staging, total_count * sizeof(T), ACL_MEMCPY_DEVICE_TO_HOST);
     aclrtFree(dst_staging);
@@ -646,11 +652,11 @@ bool RunScatterPingPongKernel(int rank_id, int n_ranks, int n_devices, int first
 template <typename T, size_t total_rows, size_t cols, size_t tile_rows>
 bool RunScatterPingPong(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
-    return ForkAndRunWithHcclRootInfo(n_ranks, first_rank_id, first_device_id,
-                                      [&](int rankId, const HcclRootInfo *rootInfo) {
-                                          return RunScatterPingPongKernel<T, total_rows, cols, tile_rows>(
-                                              rankId, n_ranks, n_devices, first_device_id, 0, rootInfo);
-                                      });
+    return ForkAndRunWithHcclRootInfo(
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
+            return RunScatterPingPongKernel<T, total_rows, cols, tile_rows>(
+                rankId, n_ranks, n_devices, first_device_id, 0, rootInfo);
+        });
 }
 
 // Explicit instantiations for ping-pong tests

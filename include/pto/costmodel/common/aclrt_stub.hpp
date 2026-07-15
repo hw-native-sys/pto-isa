@@ -15,41 +15,35 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <pto/costmodel/common/qualifiers.hpp>
 
-inline int aclrtGetDevice(int *deviceId)
+inline int aclrtGetDevice(int* deviceId)
 {
     if (deviceId != nullptr) {
         *deviceId = 0;
     }
     return 0;
 }
-inline int aclrtGetCurrentContext(aclrtContext *ctx)
+inline int aclrtGetCurrentContext(aclrtContext* ctx)
 {
     if (ctx != nullptr) {
         *ctx = nullptr;
     }
     return 0;
 }
-inline int aclrtCreateStreamWithConfig(aclrtStream *stream, uint32_t, uint32_t)
+inline int aclrtCreateStreamWithConfig(aclrtStream* stream, uint32_t, uint32_t)
 {
     if (stream != nullptr) {
         *stream = nullptr;
     }
     return 0;
 }
-inline int aclrtStreamGetId(aclrtStream, uint32_t *streamId)
+inline int aclrtStreamGetId(aclrtStream, uint32_t* streamId)
 {
     if (streamId != nullptr) {
         *streamId = 0;
     }
     return 0;
 }
-inline int aclrtSetStreamAttribute(aclrtStream, int, const void *)
-{
-    return 0;
-}
-inline int aclrtCmoAsync(void *, size_t, int, aclrtStream)
-{
-    return 0;
-}
+inline int aclrtSetStreamAttribute(aclrtStream, int, const void*) { return 0; }
+inline int aclrtCmoAsync(void*, size_t, int, aclrtStream) { return 0; }
 
 #endif

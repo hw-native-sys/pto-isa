@@ -84,13 +84,15 @@ template <typename DstTileData, typename Src0TileData, typename Src1TileData>
 PTO_INTERNAL void CheckValid()
 {
     static_assert((sizeof(typename Src1TileData::DType) == 4), "expect b32");
-    static_assert((std::is_same<typename DstTileData::DType, typename Src0TileData::DType>::value),
-                  "expect same size for indice and dst");
+    static_assert(
+        (std::is_same<typename DstTileData::DType, typename Src0TileData::DType>::value),
+        "expect same size for indice and dst");
 }
 
 template <typename TileDataD, typename TileDataS0, typename TileDataS1>
-PTO_INTERNAL void TGather(typename TileDataD::TileDType dst, typename TileDataS0::TileDType src0,
-                          typename TileDataS1::TileDType src1, unsigned validCol, unsigned validRow)
+PTO_INTERNAL void TGather(
+    typename TileDataD::TileDType dst, typename TileDataS0::TileDType src0, typename TileDataS1::TileDType src1,
+    unsigned validCol, unsigned validRow)
 {
     const std::size_t numel0 = static_cast<std::size_t>(TileDataS0::Rows) * static_cast<std::size_t>(TileDataS0::Cols);
     for (unsigned r = 0; r < validRow; r++) {
@@ -112,7 +114,7 @@ PTO_INTERNAL void TGather(typename TileDataD::TileDType dst, typename TileDataS0
 }
 
 template <typename TileDataD, typename TileDataS0, typename TileDataS1, typename TileDataTmp>
-PTO_INTERNAL void TGATHER_IMPL(TileDataD &dst, TileDataS0 &src0, TileDataS1 &src1, TileDataTmp &tmp)
+PTO_INTERNAL void TGATHER_IMPL(TileDataD& dst, TileDataS0& src0, TileDataS1& src1, TileDataTmp& tmp)
 {
     CheckValid<TileDataD, TileDataS0, TileDataS1>();
 
@@ -123,8 +125,8 @@ PTO_INTERNAL void TGATHER_IMPL(TileDataD &dst, TileDataS0 &src0, TileDataS1 &src
 }
 
 template <typename DstTileData, typename SrcTileData, MaskPattern maskPattern>
-PTO_INTERNAL void TGather(typename DstTileData::TileDType dst, typename SrcTileData::TileDType src, unsigned validRow,
-                          unsigned validCol)
+PTO_INTERNAL void TGather(
+    typename DstTileData::TileDType dst, typename SrcTileData::TileDType src, unsigned validRow, unsigned validCol)
 {
     size_t didx = GetTileElementOffset<DstTileData>(0, 0);
     for (unsigned r = 0; r < validRow; r++) {
@@ -139,8 +141,8 @@ PTO_INTERNAL void TGather(typename DstTileData::TileDType dst, typename SrcTileD
 }
 
 template <typename DstTileData, typename SrcTileData, MaskPattern maskPattern>
-PTO_INTERNAL void TGatherCol(typename DstTileData::TileDType dst, typename SrcTileData::TileDType src,
-                             unsigned validRow, unsigned validCol)
+PTO_INTERNAL void TGatherCol(
+    typename DstTileData::TileDType dst, typename SrcTileData::TileDType src, unsigned validRow, unsigned validCol)
 {
     unsigned dstRow = 0;
     for (unsigned r = 0; r < validRow; ++r) {
@@ -157,11 +159,11 @@ PTO_INTERNAL void TGatherCol(typename DstTileData::TileDType dst, typename SrcTi
 }
 
 template <typename DstTileData, typename SrcTileData, MaskPattern maskPattern, auto gatherType = GatherAxis::GATHER_ROW>
-PTO_INTERNAL void TGATHER_IMPL(DstTileData &dst, SrcTileData &src)
+PTO_INTERNAL void TGATHER_IMPL(DstTileData& dst, SrcTileData& src)
 {
     using T = typename SrcTileData::DType;
-    static_assert((DstTileData::Loc == TileType::Vec) && (SrcTileData::Loc == TileType::Vec),
-                  "TGATHER: expect vec TileType");
+    static_assert(
+        (DstTileData::Loc == TileType::Vec) && (SrcTileData::Loc == TileType::Vec), "TGATHER: expect vec TileType");
     static_assert((DstTileData::isRowMajor && SrcTileData::isRowMajor), "TGATHER: expect row major");
     static_assert((sizeof(typename DstTileData::DType) == sizeof(T)), "TGATHER: expect same type size for dst and src");
     if constexpr (gatherType == GatherAxis::GATHER_ROW) {

@@ -19,7 +19,7 @@ namespace pto {
 
 // free space for tile data
 template <typename Pipe, TileSplitAxis Split>
-PTO_INTERNAL void TFREE_IMPL(Pipe &pipe)
+PTO_INTERNAL void TFREE_IMPL(Pipe& pipe)
 {
     bool isFree = pipe.cons.getFreeStatus() && Pipe::shouldNotifyFree(static_cast<uint32_t>(pipe.cons.tileIndex - 1));
     if (isFree) {
@@ -28,14 +28,15 @@ PTO_INTERNAL void TFREE_IMPL(Pipe &pipe)
 }
 
 // free global tensor slot entry from global memory
-template <typename Pipe, typename GlobalData, TileSplitAxis Split,
-          std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
-PTO_INTERNAL void TFREE_IMPL(Pipe &pipe, GlobalData &gmTensor)
+template <
+    typename Pipe, typename GlobalData, TileSplitAxis Split, std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
+PTO_INTERNAL void TFREE_IMPL(Pipe& pipe, GlobalData& gmTensor)
 {
     (void)gmTensor;
     static_assert(is_global_data_v<GlobalData>, "Fix: GlobalTensor must satisfy is_global_data_v<GlobalData>.");
-    static_assert(Pipe::is_c2v_gm || Pipe::is_v2c_gm || Pipe::is_both_gm,
-                  "Fix: TFREE with GlobalTensor is only supported by GM FIFO directions on A5.");
+    static_assert(
+        Pipe::is_c2v_gm || Pipe::is_v2c_gm || Pipe::is_both_gm,
+        "Fix: TFREE with GlobalTensor is only supported by GM FIFO directions on A5.");
     bool isFree = pipe.cons.getFreeStatus() && Pipe::shouldNotifyFree(static_cast<uint32_t>(pipe.cons.tileIndex - 1));
     if (isFree) {
         pipe.cons.template free<Split>();
@@ -44,7 +45,7 @@ PTO_INTERNAL void TFREE_IMPL(Pipe &pipe, GlobalData &gmTensor)
 
 //------------------------------------------------
 template <typename Pipe>
-PTO_INTERNAL void TFREE_IMPL(Pipe &pipe)
+PTO_INTERNAL void TFREE_IMPL(Pipe& pipe)
 {
     bool isFree = pipe.cons.getFreeStatus();
     if (isFree) {

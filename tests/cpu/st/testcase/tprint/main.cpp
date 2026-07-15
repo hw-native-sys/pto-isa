@@ -21,17 +21,15 @@ using namespace pto;
 
 class TPrintTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 template <typename Func>
-static std::string CaptureStdout(Func &&func)
+static std::string CaptureStdout(Func&& func)
 {
     std::ostringstream oss;
-    auto *oldBuf = std::cout.rdbuf();
+    auto* oldBuf = std::cout.rdbuf();
     std::cout.rdbuf(oss.rdbuf());
     func();
     std::cout.rdbuf(oldBuf);

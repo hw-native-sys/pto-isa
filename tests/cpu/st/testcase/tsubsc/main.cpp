@@ -16,19 +16,17 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
-void launchTSubsc_demo(uint8_t *out, uint8_t *src, void *stream);
+void launchTSubsc_demo(uint8_t* out, uint8_t* src, void* stream);
 
 class TSUBSCTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -36,7 +34,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTSubsc(T *out, T *src0, T *scalar, T *src1, void *stream);
+void LaunchTSubsc(T* out, T* src0, T* scalar, T* src1, void* stream);
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
 void test_tsubsc()
@@ -51,15 +49,15 @@ void test_tsubsc()
 
     T *dstHost, *src0Host, *src1Host, *scalarHost;
     T *dstDevice, *src0Device, *src1Device, *scalarDevice;
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&src0Host), fileSize);
-    aclrtMallocHost((void **)(&src1Host), fileSize);
-    aclrtMallocHost((void **)(&scalarHost), scalarSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&src0Host), fileSize);
+    aclrtMallocHost((void**)(&src1Host), fileSize);
+    aclrtMallocHost((void**)(&scalarHost), scalarSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&scalarDevice, scalarSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&scalarDevice, scalarSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input1.bin", fileSize, src0Host, fileSize));
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input2.bin", fileSize, src1Host, fileSize));
@@ -100,25 +98,10 @@ void test_tsubsc()
 const int NUM_16 = 16;
 const int NUM_64 = 64;
 const int NUM_256 = 256;
-TEST_F(TSUBSCTest, case_float_64x64_64x64_64x64)
-{
-    test_tsubsc<float, NUM_64, NUM_64, NUM_64, NUM_64>();
-}
-TEST_F(TSUBSCTest, case_int32_64x64_64x64_64x64)
-{
-    test_tsubsc<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>();
-}
-TEST_F(TSUBSCTest, case_int16_64x64_64x64_64x64)
-{
-    test_tsubsc<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>();
-}
-TEST_F(TSUBSCTest, case_half_16x256_16x256_16x256)
-{
-    test_tsubsc<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>();
-}
+TEST_F(TSUBSCTest, case_float_64x64_64x64_64x64) { test_tsubsc<float, NUM_64, NUM_64, NUM_64, NUM_64>(); }
+TEST_F(TSUBSCTest, case_int32_64x64_64x64_64x64) { test_tsubsc<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
+TEST_F(TSUBSCTest, case_int16_64x64_64x64_64x64) { test_tsubsc<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
+TEST_F(TSUBSCTest, case_half_16x256_16x256_16x256) { test_tsubsc<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>(); }
 #ifdef CPU_SIM_BFLOAT_ENABLED
-TEST_F(TSUBSCTest, case_bf16_16x256_16x256_16x256)
-{
-    test_tsubsc<bfloat16_t, NUM_16, NUM_256, NUM_16, NUM_256>();
-}
+TEST_F(TSUBSCTest, case_bf16_16x256_16x256_16x256) { test_tsubsc<bfloat16_t, NUM_16, NUM_256, NUM_16, NUM_256>(); }
 #endif

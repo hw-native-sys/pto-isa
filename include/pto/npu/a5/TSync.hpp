@@ -26,8 +26,9 @@ PTO_INTERNAL void TSYNC_IMPL()
 {
 #ifndef __PTO_AUTO__
     constexpr pipe_t pipe = GetPipeByOpForA5<OpCode>();
-    PTO_STATIC_ASSERT((pipe == PIPE_MTE2) || (pipe == PIPE_MTE3) || (pipe == PIPE_ALL),
-                      "Single Op TSYNC only supports MTE2 / MTE3 / ALL pipeline.");
+    PTO_STATIC_ASSERT(
+        (pipe == PIPE_MTE2) || (pipe == PIPE_MTE3) || (pipe == PIPE_ALL),
+        "Single Op TSYNC only supports MTE2 / MTE3 / ALL pipeline.");
     pipe_barrier((pipe_t)pipe);
 #endif
 }
@@ -53,18 +54,16 @@ struct Event : EventBase<Event<SrcOp, DstOp, AutoToken, EventID>, SrcOp, DstOp, 
     PTO_STATIC_ASSERT(IsCrossCore || (Base::dstPipe != PIPE_ALL), "DstOp are invalid.");
 #endif
 
-    PTO_INTERNAL Event &InitAddrImpl(uint64_t fftsAddr)
-    {
-        return *this;
-    }
+    PTO_INTERNAL Event& InitAddrImpl(uint64_t fftsAddr) { return *this; }
 
     template <uint8_t CrossCoreId = 0xff>
-    PTO_INTERNAL Event &WaitImpl()
+    PTO_INTERNAL Event& WaitImpl()
     {
 #ifndef __PTO_AUTO__
         if constexpr (IsCrossCore) {
-            PTO_STATIC_ASSERT(CrossCoreId != 0xff,
-                              "The cross-core id must be assigned by user when the event is a cross-core event.");
+            PTO_STATIC_ASSERT(
+                CrossCoreId != 0xff,
+                "The cross-core id must be assigned by user when the event is a cross-core event.");
             wait_intra_block(Base::srcPipe, CrossCoreId);
         } else {
             if constexpr (Base::isSamePipe) {
@@ -84,12 +83,13 @@ struct Event : EventBase<Event<SrcOp, DstOp, AutoToken, EventID>, SrcOp, DstOp, 
     }
 
     template <uint8_t CrossCoreId = 0xff>
-    PTO_INTERNAL Event &InitImpl()
+    PTO_INTERNAL Event& InitImpl()
     {
 #ifndef __PTO_AUTO__
         if constexpr (IsCrossCore) {
-            PTO_STATIC_ASSERT(CrossCoreId != 0xff,
-                              "The cross-core id must be assigned by user when the event is a cross-core event.");
+            PTO_STATIC_ASSERT(
+                CrossCoreId != 0xff,
+                "The cross-core id must be assigned by user when the event is a cross-core event.");
             set_intra_block(Base::srcPipe, CrossCoreId);
             set_intra_block(Base::srcPipe, CrossCoreId + 16);
         } else if constexpr (!Base::isSamePipe) {
@@ -103,8 +103,7 @@ struct Event : EventBase<Event<SrcOp, DstOp, AutoToken, EventID>, SrcOp, DstOp, 
         return *this;
     }
 
-    PTO_INTERNAL Event(RecordEvent re) : Base(re)
-    {}
+    PTO_INTERNAL Event(RecordEvent re) : Base(re) {}
     PTO_INTERNAL Event() = default;
 };
 

@@ -27,7 +27,7 @@ PTO_INTERNAL void Tci_IMPL(typename TileData::TileDType dst, T start, unsigned v
 }
 
 template <typename TileData, typename T, int descending>
-PTO_INTERNAL void TCI_IMPL(TileData &dst, T index)
+PTO_INTERNAL void TCI_IMPL(TileData& dst, T index)
 {
     static_assert((TileData::Rows == 1), "TCI only support 1 row tile");
     static_assert((std::is_same<typename TileData::DType, T>::value), "TCI data type must match tile data type");

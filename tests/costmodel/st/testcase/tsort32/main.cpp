@@ -42,12 +42,6 @@ void runTSort32()
 
 } // namespace
 
-TEST(TSort32, float_8x32)
-{
-    runTSort32<float, uint32_t, 8, 32, 8.0f, 0.0f>();
-}
+TEST(TSort32, float_8x32) { runTSort32<float, uint32_t, 8, 32, 8.0f, 0.0f>(); }
 
-TEST(TSort32, half_32x16)
-{
-    runTSort32<half, uint32_t, 32, 16, 32.0f, 0.0f>();
-}
+TEST(TSort32, half_32x16) { runTSort32<half, uint32_t, 32, 16, 32.0f, 0.0f>(); }

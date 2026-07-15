@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class TSQRTTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -33,7 +31,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, bool isInPlace = false>
-void LaunchTSqrt(T *out, T *src, void *stream);
+void LaunchTSqrt(T* out, T* src, void* stream);
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, bool isInPlace = false>
 void test_tsqrt()
@@ -48,11 +46,11 @@ void test_tsqrt()
     T *dstHost, *srcHost;
     T *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&srcHost), fileSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&srcHost), fileSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input1.bin", fileSize, srcHost, fileSize);
 
@@ -89,31 +87,13 @@ void test_tsqrt()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TSQRTTest, case_float_64x64_64x64_64x64_inPlace_True)
-{
-    test_tsqrt<float, 64, 64, 64, 64, true>();
-}
-TEST_F(TSQRTTest, case_float_64x64_64x64_64x64_inPlace_False)
-{
-    test_tsqrt<float, 64, 64, 64, 64, false>();
-}
-TEST_F(TSQRTTest, case_half_64x64_64x64_64x64_inPlace_True)
-{
-    test_tsqrt<aclFloat16, 64, 64, 64, 64, true>();
-}
+TEST_F(TSQRTTest, case_float_64x64_64x64_64x64_inPlace_True) { test_tsqrt<float, 64, 64, 64, 64, true>(); }
+TEST_F(TSQRTTest, case_float_64x64_64x64_64x64_inPlace_False) { test_tsqrt<float, 64, 64, 64, 64, false>(); }
+TEST_F(TSQRTTest, case_half_64x64_64x64_64x64_inPlace_True) { test_tsqrt<aclFloat16, 64, 64, 64, 64, true>(); }
 #ifdef CPU_SIM_BFLOAT_ENABLED
-TEST_F(TSQRTTest, case_bf16_64x64_64x64_64x64_inPlace_True)
-{
-    test_tsqrt<bfloat16_t, 64, 64, 64, 64, true>();
-}
+TEST_F(TSQRTTest, case_bf16_64x64_64x64_64x64_inPlace_True) { test_tsqrt<bfloat16_t, 64, 64, 64, 64, true>(); }
 #endif
-TEST_F(TSQRTTest, case_half_64x64_64x64_64x64_inPlace_False)
-{
-    test_tsqrt<aclFloat16, 64, 64, 64, 64, false>();
-}
+TEST_F(TSQRTTest, case_half_64x64_64x64_64x64_inPlace_False) { test_tsqrt<aclFloat16, 64, 64, 64, 64, false>(); }
 #ifdef CPU_SIM_BFLOAT_ENABLED
-TEST_F(TSQRTTest, case_bf16_64x64_64x64_64x64_inPlace_False)
-{
-    test_tsqrt<bfloat16_t, 64, 64, 64, 64, false>();
-}
+TEST_F(TSQRTTest, case_bf16_64x64_64x64_64x64_inPlace_False) { test_tsqrt<bfloat16_t, 64, 64, 64, 64, false>(); }
 #endif

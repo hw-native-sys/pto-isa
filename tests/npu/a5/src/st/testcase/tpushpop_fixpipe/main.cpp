@@ -15,19 +15,17 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
-void LaunchTPushPopFixpipe(uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *srcQuant, void *stream);
+void LaunchTPushPopFixpipe(uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* srcQuant, void* stream);
 
 class TPushPopFixpipeTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     return "../" + suiteName + "." + caseName;
@@ -48,20 +46,20 @@ void TPushPopFixpipeTestFunc(uint32_t m, uint32_t k, uint32_t n)
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    uint8_t *dstHost = nullptr;
-    uint8_t *srcAHost = nullptr;
-    uint8_t *srcBHost = nullptr;
-    uint8_t *dstDevice = nullptr;
-    uint8_t *srcADevice = nullptr;
-    uint8_t *srcBDevice = nullptr;
+    uint8_t* dstHost = nullptr;
+    uint8_t* srcAHost = nullptr;
+    uint8_t* srcBHost = nullptr;
+    uint8_t* dstDevice = nullptr;
+    uint8_t* srcADevice = nullptr;
+    uint8_t* srcBDevice = nullptr;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&srcAHost), aFileSize);
-    aclrtMallocHost((void **)(&srcBHost), bFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&srcAHost), aFileSize);
+    aclrtMallocHost((void**)(&srcBHost), bFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcADevice, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcBDevice, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcADevice, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcBDevice, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, srcAHost, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, srcBHost, bFileSize);
@@ -111,20 +109,20 @@ void TPushPopFixpipeDEQF16TestFunc(uint32_t m, uint32_t k, uint32_t n)
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    uint8_t *dstHost = nullptr;
-    uint8_t *srcAHost = nullptr;
-    uint8_t *srcBHost = nullptr;
-    uint8_t *dstDevice = nullptr;
-    uint8_t *srcADevice = nullptr;
-    uint8_t *srcBDevice = nullptr;
+    uint8_t* dstHost = nullptr;
+    uint8_t* srcAHost = nullptr;
+    uint8_t* srcBHost = nullptr;
+    uint8_t* dstDevice = nullptr;
+    uint8_t* srcADevice = nullptr;
+    uint8_t* srcBDevice = nullptr;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&srcAHost), aFileSize);
-    aclrtMallocHost((void **)(&srcBHost), bFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&srcAHost), aFileSize);
+    aclrtMallocHost((void**)(&srcBHost), bFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcADevice, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcBDevice, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcADevice, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcBDevice, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, srcAHost, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, srcBHost, bFileSize);
@@ -176,24 +174,24 @@ void TPushPopFixpipeVDEQF16TestFunc(uint32_t m, uint32_t k, uint32_t n)
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    uint8_t *dstHost = nullptr;
-    uint8_t *srcAHost = nullptr;
-    uint8_t *srcBHost = nullptr;
-    uint8_t *srcQuantHost = nullptr;
-    uint8_t *dstDevice = nullptr;
-    uint8_t *srcADevice = nullptr;
-    uint8_t *srcBDevice = nullptr;
-    uint8_t *srcQuantDevice = nullptr;
+    uint8_t* dstHost = nullptr;
+    uint8_t* srcAHost = nullptr;
+    uint8_t* srcBHost = nullptr;
+    uint8_t* srcQuantHost = nullptr;
+    uint8_t* dstDevice = nullptr;
+    uint8_t* srcADevice = nullptr;
+    uint8_t* srcBDevice = nullptr;
+    uint8_t* srcQuantDevice = nullptr;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&srcAHost), aFileSize);
-    aclrtMallocHost((void **)(&srcBHost), bFileSize);
-    aclrtMallocHost((void **)(&srcQuantHost), quantFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&srcAHost), aFileSize);
+    aclrtMallocHost((void**)(&srcBHost), bFileSize);
+    aclrtMallocHost((void**)(&srcQuantHost), quantFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcADevice, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcBDevice, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcQuantDevice, quantFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcADevice, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcBDevice, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcQuantDevice, quantFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, srcAHost, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, srcBHost, bFileSize);
@@ -247,20 +245,20 @@ void TPushPopFixpipeF322BF16TestFunc(uint32_t m, uint32_t k, uint32_t n)
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    uint8_t *dstHost = nullptr;
-    uint8_t *srcAHost = nullptr;
-    uint8_t *srcBHost = nullptr;
-    uint8_t *dstDevice = nullptr;
-    uint8_t *srcADevice = nullptr;
-    uint8_t *srcBDevice = nullptr;
+    uint8_t* dstHost = nullptr;
+    uint8_t* srcAHost = nullptr;
+    uint8_t* srcBHost = nullptr;
+    uint8_t* dstDevice = nullptr;
+    uint8_t* srcADevice = nullptr;
+    uint8_t* srcBDevice = nullptr;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&srcAHost), aFileSize);
-    aclrtMallocHost((void **)(&srcBHost), bFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&srcAHost), aFileSize);
+    aclrtMallocHost((void**)(&srcBHost), bFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcADevice, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcBDevice, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcADevice, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcBDevice, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, srcAHost, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, srcBHost, bFileSize);
@@ -295,22 +293,10 @@ void TPushPopFixpipeF322BF16TestFunc(uint32_t m, uint32_t k, uint32_t n)
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TPushPopFixpipeTest, case1_matmul_64x64_f322f16_tadds)
-{
-    TPushPopFixpipeTestFunc<1>(64, 64, 64);
-}
+TEST_F(TPushPopFixpipeTest, case1_matmul_64x64_f322f16_tadds) { TPushPopFixpipeTestFunc<1>(64, 64, 64); }
 
-TEST_F(TPushPopFixpipeTest, case2_matmul_64x64_f322bf16_tadds)
-{
-    TPushPopFixpipeF322BF16TestFunc<2>(64, 64, 64);
-}
+TEST_F(TPushPopFixpipeTest, case2_matmul_64x64_f322bf16_tadds) { TPushPopFixpipeF322BF16TestFunc<2>(64, 64, 64); }
 
-TEST_F(TPushPopFixpipeTest, case3_matmul_128x128_deqf16_tadds)
-{
-    TPushPopFixpipeDEQF16TestFunc<3>(128, 128, 128);
-}
+TEST_F(TPushPopFixpipeTest, case3_matmul_128x128_deqf16_tadds) { TPushPopFixpipeDEQF16TestFunc<3>(128, 128, 128); }
 
-TEST_F(TPushPopFixpipeTest, case4_matmul_128x128_vdeqf16_tadds)
-{
-    TPushPopFixpipeVDEQF16TestFunc<4>(128, 128, 128);
-}
+TEST_F(TPushPopFixpipeTest, case4_matmul_128x128_vdeqf16_tadds) { TPushPopFixpipeVDEQF16TestFunc<4>(128, 128, 128); }

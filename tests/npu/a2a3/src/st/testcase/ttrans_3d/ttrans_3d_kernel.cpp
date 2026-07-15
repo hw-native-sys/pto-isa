@@ -16,7 +16,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int dstDC1HW, int dstN1, int dstN0, int dstC0, int srcN, int srcC, int srcD, int srcH, int srcW>
-__global__ AICORE void runTTRANS3D(__gm__ T __out__ *out, __gm__ T __in__ *src)
+__global__ AICORE void runTTRANS3D(__gm__ T __out__* out, __gm__ T __in__* src)
 {
     static_assert(dstN1 == (srcN + dstN0 - 1) / dstN0);
     constexpr int dstC1 = (srcC + dstC0 - 1) / dstC0;
@@ -107,25 +107,25 @@ __global__ AICORE void runTTRANS3D(__gm__ T __out__ *out, __gm__ T __in__ *src)
 }
 
 template <typename T, int dstDC1HW, int dstN1, int dstN0, int dstC0, int srcN, int srcC, int srcD, int srcH, int srcW>
-void LaunchTTRANS3D(T *out, T *src, void *stream)
+void LaunchTTRANS3D(T* out, T* src, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
         runTTRANS3D<half, dstDC1HW, dstN1, dstN0, dstC0, srcN, srcC, srcD, srcH, srcW>
-            <<<1, nullptr, stream>>>((half *)(out), (half *)(src));
+            <<<1, nullptr, stream>>>((half*)(out), (half*)(src));
     } else {
         runTTRANS3D<T, dstDC1HW, dstN1, dstN0, dstC0, srcN, srcC, srcD, srcH, srcW><<<1, nullptr, stream>>>(out, src);
     }
 }
 
 // NCDHW -> FRACTAL_Z_3D
-template void LaunchTTRANS3D<float, 8, 1, 16, 8, 2, 4, 2, 2, 2>(float *out, float *src, void *stream);
-template void LaunchTTRANS3D<float, 16, 1, 16, 8, 4, 5, 2, 2, 4>(float *out, float *src, void *stream);
-template void LaunchTTRANS3D<int32_t, 12, 2, 16, 8, 17, 3, 3, 2, 2>(int32_t *out, int32_t *src, void *stream);
-template void LaunchTTRANS3D<aclFloat16, 16, 1, 16, 16, 5, 6, 2, 2, 4>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTTRANS3D<aclFloat16, 16, 2, 16, 16, 19, 14, 2, 4, 2>(aclFloat16 *out, aclFloat16 *src,
-                                                                         void *stream);
-template void LaunchTTRANS3D<int16_t, 24, 1, 16, 16, 8, 13, 2, 3, 4>(int16_t *out, int16_t *src, void *stream);
-template void LaunchTTRANS3D<uint16_t, 12, 1, 16, 16, 4, 8, 2, 2, 3>(uint16_t *out, uint16_t *src, void *stream);
-template void LaunchTTRANS3D<int8_t, 24, 1, 16, 32, 7, 28, 2, 3, 4>(int8_t *out, int8_t *src, void *stream);
-template void LaunchTTRANS3D<int8_t, 36, 1, 16, 32, 16, 26, 3, 3, 4>(int8_t *out, int8_t *src, void *stream);
-template void LaunchTTRANS3D<uint8_t, 16, 1, 16, 32, 9, 18, 2, 2, 4>(uint8_t *out, uint8_t *src, void *stream);
+template void LaunchTTRANS3D<float, 8, 1, 16, 8, 2, 4, 2, 2, 2>(float* out, float* src, void* stream);
+template void LaunchTTRANS3D<float, 16, 1, 16, 8, 4, 5, 2, 2, 4>(float* out, float* src, void* stream);
+template void LaunchTTRANS3D<int32_t, 12, 2, 16, 8, 17, 3, 3, 2, 2>(int32_t* out, int32_t* src, void* stream);
+template void LaunchTTRANS3D<aclFloat16, 16, 1, 16, 16, 5, 6, 2, 2, 4>(aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTTRANS3D<aclFloat16, 16, 2, 16, 16, 19, 14, 2, 4, 2>(
+    aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTTRANS3D<int16_t, 24, 1, 16, 16, 8, 13, 2, 3, 4>(int16_t* out, int16_t* src, void* stream);
+template void LaunchTTRANS3D<uint16_t, 12, 1, 16, 16, 4, 8, 2, 2, 3>(uint16_t* out, uint16_t* src, void* stream);
+template void LaunchTTRANS3D<int8_t, 24, 1, 16, 32, 7, 28, 2, 3, 4>(int8_t* out, int8_t* src, void* stream);
+template void LaunchTTRANS3D<int8_t, 36, 1, 16, 32, 16, 26, 3, 3, 4>(int8_t* out, int8_t* src, void* stream);
+template void LaunchTTRANS3D<uint8_t, 16, 1, 16, 32, 9, 18, 2, 2, 4>(uint8_t* out, uint8_t* src, void* stream);

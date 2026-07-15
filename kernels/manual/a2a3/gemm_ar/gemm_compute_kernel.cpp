@@ -35,16 +35,17 @@ using namespace pto;
 // Every stepKa iterations, loads a larger panel into L1 for reuse,
 // reducing GM→L1 DMA frequency by 4x.
 // ============================================================================
-template <typename T, typename U, typename S, int M, int K, int N, uint32_t baseM, uint32_t baseK, uint32_t baseN,
-          uint32_t stepKa, uint32_t stepKb>
+template <
+    typename T, typename U, typename S, int M, int K, int N, uint32_t baseM, uint32_t baseK, uint32_t baseN,
+    uint32_t stepKa, uint32_t stepKb>
 AICORE inline void ProcessKIteration(
-    uint32_t kIter, __gm__ U *currentSrc0, __gm__ S *currentSrc1,
+    uint32_t kIter, __gm__ U* currentSrc0, __gm__ S* currentSrc1,
     Tile<TileType::Mat, U, baseM, baseK * stepKa, BLayout::ColMajor, baseM, baseK * stepKa, SLayout::RowMajor>
         aMatTile[2],
     Tile<TileType::Mat, S, baseK * stepKb, baseN, BLayout::RowMajor, baseK * stepKb, baseN, SLayout::ColMajor>
         bMatTile[2],
     TileLeft<U, baseM, baseK, baseM, baseK> aTile[2], TileRight<S, baseK, baseN, baseK, baseN> bTile[2],
-    TileAcc<T, baseM, baseN, baseM, baseN> &cTile, uint8_t &mte2DBFlag, uint8_t &mte1DBFlag, uint32_t k_stride)
+    TileAcc<T, baseM, baseN, baseM, baseN>& cTile, uint8_t& mte2DBFlag, uint8_t& mte1DBFlag, uint32_t k_stride)
 {
     using NDValidShapeA = TileShape2D<U, baseM, baseK * stepKa, Layout::ND>;
     using NDsingleCoreShapeA = BaseShape2D<U, M, DYNAMIC, Layout::ND>;
@@ -120,17 +121,19 @@ static_assert(G_K_LOOP >= G_STEP_KA, "K_LOOP must be >= stepKa for L1 caching");
 // ============================================================================
 // Type aliases for compute kernel tiles
 // ============================================================================
-using TileMatAData = Tile<TileType::Mat, half, G_BASE_M, G_BASE_K * G_STEP_KA, BLayout::ColMajor, G_BASE_M,
-                          G_BASE_K * G_STEP_KA, SLayout::RowMajor>;
-using TileMatBData = Tile<TileType::Mat, half, G_BASE_K * G_STEP_KB, G_BASE_N, BLayout::RowMajor, G_BASE_K * G_STEP_KB,
-                          G_BASE_N, SLayout::ColMajor>;
+using TileMatAData = Tile<
+    TileType::Mat, half, G_BASE_M, G_BASE_K * G_STEP_KA, BLayout::ColMajor, G_BASE_M, G_BASE_K * G_STEP_KA,
+    SLayout::RowMajor>;
+using TileMatBData = Tile<
+    TileType::Mat, half, G_BASE_K * G_STEP_KB, G_BASE_N, BLayout::RowMajor, G_BASE_K * G_STEP_KB, G_BASE_N,
+    SLayout::ColMajor>;
 using LeftTileT = TileLeft<half, G_BASE_M, G_BASE_K, G_BASE_M, G_BASE_K>;
 using RightTileT = TileRight<half, G_BASE_K, G_BASE_N, G_BASE_K, G_BASE_N>;
 using ResTileT = TileAcc<float, G_BASE_M, G_BASE_N, G_BASE_M, G_BASE_N>;
 
 // Swizzle: remap linear index to column-major within N_TILES-wide groups
 // to improve B-matrix L1 reuse (consecutive tiles share the same N column).
-AICORE inline void SwizzleTileIndex(int linear_idx, uint32_t &mi, uint32_t &ni)
+AICORE inline void SwizzleTileIndex(int linear_idx, uint32_t& mi, uint32_t& ni)
 {
     constexpr uint32_t SWIZZLE_GROUP = G_N_TILES;
     uint32_t group = linear_idx / SWIZZLE_GROUP;
@@ -144,18 +147,17 @@ AICORE inline void SwizzleTileIndex(int linear_idx, uint32_t &mi, uint32_t &ni)
 }
 
 // Run the K-loop for one output tile, then store result to GM and signal comm kernel.
-AICORE inline void ComputeAndStoreTile(__gm__ half *gemm_output, __gm__ half *src0, __gm__ half *src1,
-                                       volatile __gm__ PerBlockQueue *my_queue, TileMatAData aMatTile[2],
-                                       TileMatBData bMatTile[2], LeftTileT aTile[2], RightTileT bTile[2],
-                                       ResTileT &cTile, uint32_t mi, uint32_t ni, uint32_t k_per_rank,
-                                       int32_t &enqueue_slot)
+AICORE inline void ComputeAndStoreTile(
+    __gm__ half* gemm_output, __gm__ half* src0, __gm__ half* src1, volatile __gm__ PerBlockQueue* my_queue,
+    TileMatAData aMatTile[2], TileMatBData bMatTile[2], LeftTileT aTile[2], RightTileT bTile[2], ResTileT& cTile,
+    uint32_t mi, uint32_t ni, uint32_t k_per_rank, int32_t& enqueue_slot)
 {
     using NDValidShapeC = TileShape2D<half, G_BASE_M, G_BASE_N>;
     using NDWholeShapeC = BaseShape2D<half, G_M, G_N>;
     using GlobalDataOut = GlobalTensor<half, NDValidShapeC, NDWholeShapeC>;
 
-    __gm__ half *currentSrc0 = src0 + mi * G_BASE_M * k_per_rank;
-    __gm__ half *currentSrc1 = src1 + ni * G_BASE_N * k_per_rank;
+    __gm__ half* currentSrc0 = src0 + mi * G_BASE_M * k_per_rank;
+    __gm__ half* currentSrc1 = src1 + ni * G_BASE_N * k_per_rank;
 
     uint8_t mte2DBFlag = 0, mte1DBFlag = 0;
     uint32_t k_loop_per_rank = k_per_rank / G_BASE_K;
@@ -196,9 +198,9 @@ AICORE inline void ComputeAndStoreTile(__gm__ half *gemm_output, __gm__ half *sr
 //
 // Each block handles a subset of tiles (no contention — sole producer per queue).
 // ============================================================================
-AICORE inline void GemmComputeImpl(__gm__ half *gemm_output, __gm__ half *src0, __gm__ half *src1,
-                                   __gm__ MultiBlockQueueSet *queue_set, int rank, int launch_block_count,
-                                   uint32_t k_per_rank)
+AICORE inline void GemmComputeImpl(
+    __gm__ half* gemm_output, __gm__ half* src0, __gm__ half* src1, __gm__ MultiBlockQueueSet* queue_set, int rank,
+    int launch_block_count, uint32_t k_per_rank)
 {
     const int core_idx = get_block_idx();
 
@@ -224,33 +226,35 @@ AICORE inline void GemmComputeImpl(__gm__ half *gemm_output, __gm__ half *src0, 
     const int my_start_tile = GEMM_AR_BLOCK_START_TILE(core_idx, total_tiles, launch_block_count);
     const int my_end_tile = my_start_tile + GEMM_AR_BLOCK_TILE_COUNT(core_idx, total_tiles, launch_block_count);
 
-    volatile __gm__ PerBlockQueue *my_queue =
-        GetMyBlockQueue((volatile __gm__ MultiBlockQueueSet *)queue_set, core_idx);
+    volatile __gm__ PerBlockQueue* my_queue = GetMyBlockQueue((volatile __gm__ MultiBlockQueueSet*)queue_set, core_idx);
     int32_t enqueue_slot = 0;
 
     for (int linear_idx = my_start_tile; linear_idx < my_end_tile && linear_idx < total_tiles; linear_idx++) {
         uint32_t mi, ni;
         SwizzleTileIndex(linear_idx, mi, ni);
-        ComputeAndStoreTile(gemm_output, src0, src1, my_queue, aMatTile, bMatTile, aTile, bTile, cTile, mi, ni,
-                            k_per_rank, enqueue_slot);
+        ComputeAndStoreTile(
+            gemm_output, src0, src1, my_queue, aMatTile, bMatTile, aTile, bTile, cTile, mi, ni, k_per_rank,
+            enqueue_slot);
     }
 }
 
 // ============================================================================
 // Kernel entry point and host-side launcher
 // ============================================================================
-__global__ AICORE void GemmComputeKernel(__gm__ uint8_t *gemm_output, __gm__ uint8_t *src0, __gm__ uint8_t *src1,
-                                         __gm__ uint8_t *queue_set, int rank, int launch_block_count,
-                                         uint32_t k_per_rank)
+__global__ AICORE void GemmComputeKernel(
+    __gm__ uint8_t* gemm_output, __gm__ uint8_t* src0, __gm__ uint8_t* src1, __gm__ uint8_t* queue_set, int rank,
+    int launch_block_count, uint32_t k_per_rank)
 {
-    GemmComputeImpl(reinterpret_cast<__gm__ half *>(gemm_output), reinterpret_cast<__gm__ half *>(src0),
-                    reinterpret_cast<__gm__ half *>(src1), reinterpret_cast<__gm__ MultiBlockQueueSet *>(queue_set),
-                    rank, launch_block_count, k_per_rank);
+    GemmComputeImpl(
+        reinterpret_cast<__gm__ half*>(gemm_output), reinterpret_cast<__gm__ half*>(src0),
+        reinterpret_cast<__gm__ half*>(src1), reinterpret_cast<__gm__ MultiBlockQueueSet*>(queue_set), rank,
+        launch_block_count, k_per_rank);
 }
 
-void launchGemmCompute(uint8_t *gemm_output, uint8_t *src0, uint8_t *src1, uint8_t *queue_set, int rank, void *stream,
-                       int launch_block_count, uint32_t k_per_rank)
+void launchGemmCompute(
+    uint8_t* gemm_output, uint8_t* src0, uint8_t* src1, uint8_t* queue_set, int rank, void* stream,
+    int launch_block_count, uint32_t k_per_rank)
 {
-    GemmComputeKernel<<<launch_block_count, nullptr, stream>>>(gemm_output, src0, src1, queue_set, rank,
-                                                               launch_block_count, k_per_rank);
+    GemmComputeKernel<<<launch_block_count, nullptr, stream>>>(
+        gemm_output, src0, src1, queue_set, rank, launch_block_count, k_per_rank);
 }

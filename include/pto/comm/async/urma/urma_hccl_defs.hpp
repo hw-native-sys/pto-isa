@@ -33,13 +33,13 @@ extern "C" {
 
 #ifndef HCCL_MEM_HANDLE_DEFINED
 #define HCCL_MEM_HANDLE_DEFINED
-typedef void *HcclMemHandle;
+typedef void* HcclMemHandle;
 #endif
 
-extern HcclResult HcclCommMemReg(HcclComm comm, const char *memTag, const CommMem *mem, HcclMemHandle *memHandle);
+extern HcclResult HcclCommMemReg(HcclComm comm, const char* memTag, const CommMem* mem, HcclMemHandle* memHandle);
 
-extern HcclResult HcclChannelGetRemoteMems(HcclComm comm, ChannelHandle channel, uint32_t *memNum, CommMem **remoteMems,
-                                           char ***memTags);
+extern HcclResult HcclChannelGetRemoteMems(
+    HcclComm comm, ChannelHandle channel, uint32_t* memNum, CommMem** remoteMems, char*** memTags);
 
 #ifdef __cplusplus
 }
@@ -53,8 +53,7 @@ extern HcclResult HcclChannelGetRemoteMems(HcclComm comm, ChannelHandle channel,
 extern "C" {
 #endif
 
-typedef enum
-{
+typedef enum {
     REGED_BUFFER_INVALID = -1,
     REGED_BUFFER_IPC = 0,
     REGED_BUFFER_RMA = 1,
@@ -127,12 +126,12 @@ typedef struct {
     uint32_t remoteBufferNum;
     uint32_t sqNum;
     uint32_t cqNum;
-    void *localNotifyAddr;
-    void *remoteNotifyAddr;
-    RegedBufferEntity *localBufferAddr;
-    RegedBufferEntity *remoteBufferAddr;
-    SqContext *sqContextAddr;
-    CqContext *cqContextAddr;
+    void* localNotifyAddr;
+    void* remoteNotifyAddr;
+    RegedBufferEntity* localBufferAddr;
+    RegedBufferEntity* remoteBufferAddr;
+    SqContext* sqContextAddr;
+    CqContext* cqContextAddr;
     uint8_t reserve[160];
 } ChannelEntity;
 

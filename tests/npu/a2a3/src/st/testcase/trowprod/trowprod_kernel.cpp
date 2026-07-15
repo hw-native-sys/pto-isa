@@ -16,7 +16,7 @@ using namespace std;
 using namespace pto;
 
 template <typename T, int dstRow, int srcRow, int validRow, int srcCol, int srcValidCol>
-PTO_INTERNAL void runTRowProdSimple(__gm__ T *out, __gm__ T *src)
+PTO_INTERNAL void runTRowProdSimple(__gm__ T* out, __gm__ T* src)
 {
     using ValidSrcShape = TileShape2D<T, validRow, srcValidCol>;
     using NDSrcShape = BaseShape2D<T, srcRow, srcCol>;
@@ -48,170 +48,170 @@ PTO_INTERNAL void runTRowProdSimple(__gm__ T *out, __gm__ T *src)
     TSTORE(dstGlobal, dstTile);
 }
 
-extern "C" __global__ AICORE void launchTROWPRODCase1(__gm__ float *out, __gm__ float *src)
+extern "C" __global__ AICORE void launchTROWPRODCase1(__gm__ float* out, __gm__ float* src)
 {
     runTRowProdSimple<float, 8, 1, 1, 8, 8>(out, src);
 }
 
-extern "C" __global__ AICORE void launchTROWPRODCase2(__gm__ float *out, __gm__ float *src)
+extern "C" __global__ AICORE void launchTROWPRODCase2(__gm__ float* out, __gm__ float* src)
 {
     runTRowProdSimple<float, 8, 1, 1, 16, 16>(out, src);
 }
 
-extern "C" __global__ AICORE void launchTROWPRODCase3(__gm__ float *out, __gm__ float *src)
+extern "C" __global__ AICORE void launchTROWPRODCase3(__gm__ float* out, __gm__ float* src)
 {
     runTRowProdSimple<float, 8, 1, 1, 128, 128>(out, src);
 }
 
-extern "C" __global__ AICORE void launchTROWPRODCase4(__gm__ float *out, __gm__ float *src)
+extern "C" __global__ AICORE void launchTROWPRODCase4(__gm__ float* out, __gm__ float* src)
 {
     runTRowProdSimple<float, 8, 1, 1, 8, 5>(out, src);
 }
 
-extern "C" __global__ AICORE void launchTROWPRODCase5(__gm__ float *out, __gm__ float *src)
+extern "C" __global__ AICORE void launchTROWPRODCase5(__gm__ float* out, __gm__ float* src)
 {
     runTRowProdSimple<float, 8, 1, 1, 16, 11>(out, src);
 }
 
-extern "C" __global__ AICORE void launchTROWPRODCase6(__gm__ float *out, __gm__ float *src)
+extern "C" __global__ AICORE void launchTROWPRODCase6(__gm__ float* out, __gm__ float* src)
 {
     runTRowProdSimple<float, 8, 3, 2, 8, 8>(out, src);
 }
 
-extern "C" __global__ AICORE void launchTROWPRODCase7(__gm__ float *out, __gm__ float *src)
+extern "C" __global__ AICORE void launchTROWPRODCase7(__gm__ float* out, __gm__ float* src)
 {
     runTRowProdSimple<float, 8, 3, 2, 24, 16>(out, src);
 }
 
-extern "C" __global__ AICORE void launchTROWPRODCase8(__gm__ float *out, __gm__ float *src)
+extern "C" __global__ AICORE void launchTROWPRODCase8(__gm__ float* out, __gm__ float* src)
 {
     runTRowProdSimple<float, 8, 4, 3, 16, 9>(out, src);
 }
 
-extern "C" __global__ AICORE void launchTROWPRODCase9(__gm__ __fp16 *out, __gm__ __fp16 *src)
+extern "C" __global__ AICORE void launchTROWPRODCase9(__gm__ __fp16* out, __gm__ __fp16* src)
 {
     runTRowProdSimple<__fp16, 16, 1, 1, 16, 16>(out, src);
 }
 
-extern "C" __global__ AICORE void launchTROWPRODCase10(__gm__ __fp16 *out, __gm__ __fp16 *src)
+extern "C" __global__ AICORE void launchTROWPRODCase10(__gm__ __fp16* out, __gm__ __fp16* src)
 {
     runTRowProdSimple<__fp16, 32, 26, 19, 32, 26>(out, src);
 }
 
 // int32 test cases
-extern "C" __global__ AICORE void launchTROWPRODCase11(__gm__ int32_t *out, __gm__ int32_t *src)
+extern "C" __global__ AICORE void launchTROWPRODCase11(__gm__ int32_t* out, __gm__ int32_t* src)
 {
     runTRowProdSimple<int32_t, 8, 1, 1, 8, 8>(out, src);
 }
-extern "C" __global__ AICORE void launchTROWPRODCase12(__gm__ int32_t *out, __gm__ int32_t *src)
+extern "C" __global__ AICORE void launchTROWPRODCase12(__gm__ int32_t* out, __gm__ int32_t* src)
 {
     runTRowProdSimple<int32_t, 8, 1, 1, 16, 16>(out, src);
 }
-extern "C" __global__ AICORE void launchTROWPRODCase13(__gm__ int32_t *out, __gm__ int32_t *src)
+extern "C" __global__ AICORE void launchTROWPRODCase13(__gm__ int32_t* out, __gm__ int32_t* src)
 {
     runTRowProdSimple<int32_t, 8, 1, 1, 128, 128>(out, src);
 }
-extern "C" __global__ AICORE void launchTROWPRODCase14(__gm__ int32_t *out, __gm__ int32_t *src)
+extern "C" __global__ AICORE void launchTROWPRODCase14(__gm__ int32_t* out, __gm__ int32_t* src)
 {
     runTRowProdSimple<int32_t, 8, 1, 1, 8, 5>(out, src);
 }
-extern "C" __global__ AICORE void launchTROWPRODCase15(__gm__ int32_t *out, __gm__ int32_t *src)
+extern "C" __global__ AICORE void launchTROWPRODCase15(__gm__ int32_t* out, __gm__ int32_t* src)
 {
     runTRowProdSimple<int32_t, 8, 3, 2, 24, 16>(out, src);
 }
 
 // int16 test cases - need 32-byte alignment for int16_t (2 bytes), so cols must be multiple of 16
-extern "C" __global__ AICORE void launchTROWPRODCase16(__gm__ int16_t *out, __gm__ int16_t *src)
+extern "C" __global__ AICORE void launchTROWPRODCase16(__gm__ int16_t* out, __gm__ int16_t* src)
 {
     runTRowProdSimple<int16_t, 16, 1, 1, 16, 16>(out, src);
 }
-extern "C" __global__ AICORE void launchTROWPRODCase17(__gm__ int16_t *out, __gm__ int16_t *src)
+extern "C" __global__ AICORE void launchTROWPRODCase17(__gm__ int16_t* out, __gm__ int16_t* src)
 {
     runTRowProdSimple<int16_t, 32, 26, 19, 32, 32>(out, src);
 }
-extern "C" __global__ AICORE void launchTROWPRODCase18(__gm__ int16_t *out, __gm__ int16_t *src)
+extern "C" __global__ AICORE void launchTROWPRODCase18(__gm__ int16_t* out, __gm__ int16_t* src)
 {
     runTRowProdSimple<int16_t, 16, 1, 1, 16, 16>(out, src);
 }
 
 template <uint32_t caseId>
-void launchTROWPRODTestCase(void *out, void *src, aclrtStream stream)
+void launchTROWPRODTestCase(void* out, void* src, aclrtStream stream)
 {
     switch (caseId) {
         case 1:
-            launchTROWPRODCase1<<<1, nullptr, stream>>>((float *)out, (float *)src);
+            launchTROWPRODCase1<<<1, nullptr, stream>>>((float*)out, (float*)src);
             break;
         case 2:
-            launchTROWPRODCase2<<<1, nullptr, stream>>>((float *)out, (float *)src);
+            launchTROWPRODCase2<<<1, nullptr, stream>>>((float*)out, (float*)src);
             break;
         case 3:
-            launchTROWPRODCase3<<<1, nullptr, stream>>>((float *)out, (float *)src);
+            launchTROWPRODCase3<<<1, nullptr, stream>>>((float*)out, (float*)src);
             break;
         case 4:
-            launchTROWPRODCase4<<<1, nullptr, stream>>>((float *)out, (float *)src);
+            launchTROWPRODCase4<<<1, nullptr, stream>>>((float*)out, (float*)src);
             break;
         case 5:
-            launchTROWPRODCase5<<<1, nullptr, stream>>>((float *)out, (float *)src);
+            launchTROWPRODCase5<<<1, nullptr, stream>>>((float*)out, (float*)src);
             break;
         case 6:
-            launchTROWPRODCase6<<<1, nullptr, stream>>>((float *)out, (float *)src);
+            launchTROWPRODCase6<<<1, nullptr, stream>>>((float*)out, (float*)src);
             break;
         case 7:
-            launchTROWPRODCase7<<<1, nullptr, stream>>>((float *)out, (float *)src);
+            launchTROWPRODCase7<<<1, nullptr, stream>>>((float*)out, (float*)src);
             break;
         case 8:
-            launchTROWPRODCase8<<<1, nullptr, stream>>>((float *)out, (float *)src);
+            launchTROWPRODCase8<<<1, nullptr, stream>>>((float*)out, (float*)src);
             break;
         case 9:
-            launchTROWPRODCase9<<<1, nullptr, stream>>>((__fp16 *)out, (__fp16 *)src);
+            launchTROWPRODCase9<<<1, nullptr, stream>>>((__fp16*)out, (__fp16*)src);
             break;
         case 10:
-            launchTROWPRODCase10<<<1, nullptr, stream>>>((__fp16 *)out, (__fp16 *)src);
+            launchTROWPRODCase10<<<1, nullptr, stream>>>((__fp16*)out, (__fp16*)src);
             break;
         case 11:
-            launchTROWPRODCase11<<<1, nullptr, stream>>>((int32_t *)out, (int32_t *)src);
+            launchTROWPRODCase11<<<1, nullptr, stream>>>((int32_t*)out, (int32_t*)src);
             break;
         case 12:
-            launchTROWPRODCase12<<<1, nullptr, stream>>>((int32_t *)out, (int32_t *)src);
+            launchTROWPRODCase12<<<1, nullptr, stream>>>((int32_t*)out, (int32_t*)src);
             break;
         case 13:
-            launchTROWPRODCase13<<<1, nullptr, stream>>>((int32_t *)out, (int32_t *)src);
+            launchTROWPRODCase13<<<1, nullptr, stream>>>((int32_t*)out, (int32_t*)src);
             break;
         case 14:
-            launchTROWPRODCase14<<<1, nullptr, stream>>>((int32_t *)out, (int32_t *)src);
+            launchTROWPRODCase14<<<1, nullptr, stream>>>((int32_t*)out, (int32_t*)src);
             break;
         case 15:
-            launchTROWPRODCase15<<<1, nullptr, stream>>>((int32_t *)out, (int32_t *)src);
+            launchTROWPRODCase15<<<1, nullptr, stream>>>((int32_t*)out, (int32_t*)src);
             break;
         case 16:
-            launchTROWPRODCase16<<<1, nullptr, stream>>>((int16_t *)out, (int16_t *)src);
+            launchTROWPRODCase16<<<1, nullptr, stream>>>((int16_t*)out, (int16_t*)src);
             break;
         case 17:
-            launchTROWPRODCase17<<<1, nullptr, stream>>>((int16_t *)out, (int16_t *)src);
+            launchTROWPRODCase17<<<1, nullptr, stream>>>((int16_t*)out, (int16_t*)src);
             break;
         case 18:
-            launchTROWPRODCase18<<<1, nullptr, stream>>>((int16_t *)out, (int16_t *)src);
+            launchTROWPRODCase18<<<1, nullptr, stream>>>((int16_t*)out, (int16_t*)src);
             break;
         default:
             break;
     }
 }
 
-template void launchTROWPRODTestCase<1>(void *out, void *src, aclrtStream stream);
-template void launchTROWPRODTestCase<2>(void *out, void *src, aclrtStream stream);
-template void launchTROWPRODTestCase<3>(void *out, void *src, aclrtStream stream);
-template void launchTROWPRODTestCase<4>(void *out, void *src, aclrtStream stream);
-template void launchTROWPRODTestCase<5>(void *out, void *src, aclrtStream stream);
-template void launchTROWPRODTestCase<6>(void *out, void *src, aclrtStream stream);
-template void launchTROWPRODTestCase<7>(void *out, void *src, aclrtStream stream);
-template void launchTROWPRODTestCase<8>(void *out, void *src, aclrtStream stream);
-template void launchTROWPRODTestCase<9>(void *out, void *src, aclrtStream stream);
-template void launchTROWPRODTestCase<10>(void *out, void *src, aclrtStream stream);
-template void launchTROWPRODTestCase<11>(void *out, void *src, aclrtStream stream);
-template void launchTROWPRODTestCase<12>(void *out, void *src, aclrtStream stream);
-template void launchTROWPRODTestCase<13>(void *out, void *src, aclrtStream stream);
-template void launchTROWPRODTestCase<14>(void *out, void *src, aclrtStream stream);
-template void launchTROWPRODTestCase<15>(void *out, void *src, aclrtStream stream);
-template void launchTROWPRODTestCase<16>(void *out, void *src, aclrtStream stream);
-template void launchTROWPRODTestCase<17>(void *out, void *src, aclrtStream stream);
-template void launchTROWPRODTestCase<18>(void *out, void *src, aclrtStream stream);
+template void launchTROWPRODTestCase<1>(void* out, void* src, aclrtStream stream);
+template void launchTROWPRODTestCase<2>(void* out, void* src, aclrtStream stream);
+template void launchTROWPRODTestCase<3>(void* out, void* src, aclrtStream stream);
+template void launchTROWPRODTestCase<4>(void* out, void* src, aclrtStream stream);
+template void launchTROWPRODTestCase<5>(void* out, void* src, aclrtStream stream);
+template void launchTROWPRODTestCase<6>(void* out, void* src, aclrtStream stream);
+template void launchTROWPRODTestCase<7>(void* out, void* src, aclrtStream stream);
+template void launchTROWPRODTestCase<8>(void* out, void* src, aclrtStream stream);
+template void launchTROWPRODTestCase<9>(void* out, void* src, aclrtStream stream);
+template void launchTROWPRODTestCase<10>(void* out, void* src, aclrtStream stream);
+template void launchTROWPRODTestCase<11>(void* out, void* src, aclrtStream stream);
+template void launchTROWPRODTestCase<12>(void* out, void* src, aclrtStream stream);
+template void launchTROWPRODTestCase<13>(void* out, void* src, aclrtStream stream);
+template void launchTROWPRODTestCase<14>(void* out, void* src, aclrtStream stream);
+template void launchTROWPRODTestCase<15>(void* out, void* src, aclrtStream stream);
+template void launchTROWPRODTestCase<16>(void* out, void* src, aclrtStream stream);
+template void launchTROWPRODTestCase<17>(void* out, void* src, aclrtStream stream);
+template void launchTROWPRODTestCase<18>(void* out, void* src, aclrtStream stream);

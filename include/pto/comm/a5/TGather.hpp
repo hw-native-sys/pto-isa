@@ -31,19 +31,23 @@ namespace comm {
 // callers write `TGATHER_CCU_IMPL<engine>(...)`, which turns the qualified
 // template-id into a dependent name so the discarded `if constexpr (engine ==
 // CCU)` branch in pto_comm_inst.hpp performs no lookup on non-A5 builds.
-template <CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalDstData, typename TileData,
-          typename... WaitEvents>
-PTO_INTERNAL void TGATHER_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
-                                   TileData &stagingTileData, const CcuTriggerContext &ctx, WaitEvents &...events)
+template <
+    CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalDstData, typename TileData,
+    typename... WaitEvents>
+PTO_INTERNAL void TGATHER_CCU_IMPL(
+    ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& stagingTileData,
+    const CcuTriggerContext& ctx, WaitEvents&... events)
 {
     CcuStoreTriggerSelf(parallelGroup, stagingTileData, ctx, events...);
     (void)dstGlobalData;
 }
 
-template <CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalDstData, typename TileData,
-          typename... WaitEvents>
-PTO_INTERNAL void TGATHER_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData, TileData &pingTile,
-                                   TileData &pongTile, const CcuTriggerContext &ctx, WaitEvents &...events)
+template <
+    CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalDstData, typename TileData,
+    typename... WaitEvents>
+PTO_INTERNAL void TGATHER_CCU_IMPL(
+    ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& pingTile, TileData& pongTile,
+    const CcuTriggerContext& ctx, WaitEvents&... events)
 {
     CcuStoreTriggerSelf(parallelGroup, pingTile, ctx, events...);
     (void)dstGlobalData;

@@ -23,7 +23,7 @@ namespace pto {
 template <FmodSAlgorithm PrecisionType, typename T>
 struct FModSOp {
     static constexpr bool isDynFunc = false;
-    PTO_INTERNAL static void BinSInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, T scalar, MaskReg &preg)
+    PTO_INTERNAL static void BinSInstr(RegTensor<T>& reg_dst, RegTensor<T>& reg_src0, T scalar, MaskReg& preg)
     {
 #if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
         constexpr bool isHighPrecision = (PrecisionType == FmodSAlgorithm::HIGH_PRECISION && std::is_same_v<T, float>);
@@ -67,21 +67,22 @@ struct FModSOp {
     }
 };
 
-template <FmodSAlgorithm PrecisionType, typename TileDataDst, typename TileDataSrc, unsigned dstRowStride,
-          unsigned srcRowStride>
-__tf__ PTO_INTERNAL OP_NAME(TFMODS)
-    OP_TYPE(element_wise) void TFModS(typename TileDataDst::TileDType __out__ dst,
-                                      typename TileDataSrc::TileDType __in__ src, typename TileDataSrc::DType scalar,
-                                      unsigned kValidRows, unsigned kValidCols,
-                                      VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
+template <
+    FmodSAlgorithm PrecisionType, typename TileDataDst, typename TileDataSrc, unsigned dstRowStride,
+    unsigned srcRowStride>
+__tf__ PTO_INTERNAL OP_NAME(TFMODS) OP_TYPE(element_wise) void TFModS(
+    typename TileDataDst::TileDType __out__ dst, typename TileDataSrc::TileDType __in__ src,
+    typename TileDataSrc::DType scalar, unsigned kValidRows, unsigned kValidCols,
+    VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
 {
     using T = typename TileDataDst::DType;
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* srcPtr = (__ubuf__ T*)__cce_get_tile_ptr(src);
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
     constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
-    BinaryInstr<FModSOp<PrecisionType, T>, TileDataDst, TileDataSrc, T, elementsPerRepeat, blockSizeElem, dstRowStride,
-                srcRowStride>(dstPtr, srcPtr, scalar, kValidRows, kValidCols, version);
+    BinaryInstr<
+        FModSOp<PrecisionType, T>, TileDataDst, TileDataSrc, T, elementsPerRepeat, blockSizeElem, dstRowStride,
+        srcRowStride>(dstPtr, srcPtr, scalar, kValidRows, kValidCols, version);
 }
 
 template <typename TileDataDst, typename TileDataSrc>
@@ -90,15 +91,17 @@ PTO_INTERNAL void TFModSCheck(unsigned srcValidRow, unsigned srcValidCol, unsign
     using T = typename TileDataDst::DType;
     static_assert(std::is_same<T, typename TileDataSrc::DType>::value, "The data type must be same of src and dst");
     static_assert((sizeof(T) == 2) || (sizeof(T) == 4), "TFMODS: Invalid data type");
-    static_assert((TileDataDst::Loc == TileType::Vec) && (TileDataSrc::Loc == TileType::Vec),
-                  "TileType of dst and src tiles must be TileType::Vec.");
-    static_assert((TileDataDst::ValidCol <= TileDataDst::Cols) && (TileDataDst::ValidRow <= TileDataDst::Rows) &&
-                      (TileDataSrc::ValidCol <= TileDataSrc::Cols) && (TileDataSrc::ValidRow <= TileDataSrc::Rows),
-                  "Number of valid columns and rows must not be greater than number of tile columns and rows.");
+    static_assert(
+        (TileDataDst::Loc == TileType::Vec) && (TileDataSrc::Loc == TileType::Vec),
+        "TileType of dst and src tiles must be TileType::Vec.");
+    static_assert(
+        (TileDataDst::ValidCol <= TileDataDst::Cols) && (TileDataDst::ValidRow <= TileDataDst::Rows) &&
+            (TileDataSrc::ValidCol <= TileDataSrc::Cols) && (TileDataSrc::ValidRow <= TileDataSrc::Rows),
+        "Number of valid columns and rows must not be greater than number of tile columns and rows.");
 }
 
 template <auto PrecisionType = FmodSAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TFMODS_IMPL(TileDataDst &dst, TileDataSrc &src, typename TileDataSrc::DType scalar)
+PTO_INTERNAL void TFMODS_IMPL(TileDataDst& dst, TileDataSrc& src, typename TileDataSrc::DType scalar)
 {
     using T = typename TileDataDst::DType;
     unsigned validRow = dst.GetValidRow();
@@ -106,12 +109,13 @@ PTO_INTERNAL void TFMODS_IMPL(TileDataDst &dst, TileDataSrc &src, typename TileD
     constexpr unsigned dstRowStride = TileDataDst::RowStride;
     constexpr unsigned srcRowStride = TileDataSrc::RowStride;
 
-    PTO_ASSERT((src.GetValidCol() == validCol) && (src.GetValidRow() == validRow),
-               "Number of validColumns and validRows of src and dst must be the same.");
+    PTO_ASSERT(
+        (src.GetValidCol() == validCol) && (src.GetValidRow() == validRow),
+        "Number of validColumns and validRows of src and dst must be the same.");
 
     TFModSCheck<TileDataDst, TileDataSrc>(src.GetValidRow(), src.GetValidCol(), validRow, validCol);
-    TFModS<PrecisionType, TileDataDst, TileDataSrc, dstRowStride, srcRowStride>(dst.data(), src.data(), scalar,
-                                                                                validRow, validCol);
+    TFModS<PrecisionType, TileDataDst, TileDataSrc, dstRowStride, srcRowStride>(
+        dst.data(), src.data(), scalar, validRow, validCol);
 }
 } // namespace pto
 #endif

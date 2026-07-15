@@ -17,7 +17,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 #define SMALL_RPT (4)
 template <typename Op, typename T>
-PTO_INTERNAL void Unary1LCountMode(__ubuf__ T *dst, __ubuf__ T *src, unsigned validRow, unsigned validCol)
+PTO_INTERNAL void Unary1LCountMode(__ubuf__ T* dst, __ubuf__ T* src, unsigned validRow, unsigned validCol)
 {
     set_mask_count();
     SetVectorCount(validRow * validCol);
@@ -27,7 +27,7 @@ PTO_INTERNAL void Unary1LCountMode(__ubuf__ T *dst, __ubuf__ T *src, unsigned va
 }
 
 template <typename Op, typename T>
-PTO_INTERNAL void Unary1LNormMode(__ubuf__ T *dst, __ubuf__ T *src, unsigned validRow, unsigned validCol)
+PTO_INTERNAL void Unary1LNormMode(__ubuf__ T* dst, __ubuf__ T* src, unsigned validRow, unsigned validCol)
 {
     constexpr unsigned nRepeatElem = REPEAT_BYTE / sizeof(T);
     unsigned nElem = validRow * validCol;
@@ -44,7 +44,7 @@ PTO_INTERNAL void Unary1LNormMode(__ubuf__ T *dst, __ubuf__ T *src, unsigned val
 }
 
 template <typename Op, typename T, unsigned dstRowStride, unsigned srcRowStride>
-PTO_INTERNAL void Unary2LCountMode(__ubuf__ T *dst, __ubuf__ T *src, unsigned validRow, unsigned validCol)
+PTO_INTERNAL void Unary2LCountMode(__ubuf__ T* dst, __ubuf__ T* src, unsigned validRow, unsigned validCol)
 {
     set_mask_count();
     SetVectorCount(validCol);
@@ -56,7 +56,7 @@ PTO_INTERNAL void Unary2LCountMode(__ubuf__ T *dst, __ubuf__ T *src, unsigned va
 }
 
 template <typename Op, typename T, unsigned dstRowStride, unsigned srcRowStride, unsigned nRepeatElem>
-PTO_INTERNAL void Unary2LNormModeColVLAlign(__ubuf__ T *dst, __ubuf__ T *src, unsigned validRow, unsigned validCol)
+PTO_INTERNAL void Unary2LNormModeColVLAlign(__ubuf__ T* dst, __ubuf__ T* src, unsigned validRow, unsigned validCol)
 {
     unsigned headRepeats = validCol / nRepeatElem;
     for (uint32_t i = 0; i < validRow; i++) {
@@ -65,7 +65,7 @@ PTO_INTERNAL void Unary2LNormModeColVLAlign(__ubuf__ T *dst, __ubuf__ T *src, un
 }
 
 template <typename Op, typename T, unsigned dstRowStride, unsigned srcRowStride, unsigned nRepeatElem>
-PTO_INTERNAL void Unary2LNormModeHead(__ubuf__ T *dst, __ubuf__ T *src, unsigned validRow, unsigned nRepeatPerLine)
+PTO_INTERNAL void Unary2LNormModeHead(__ubuf__ T* dst, __ubuf__ T* src, unsigned validRow, unsigned nRepeatPerLine)
 {
     if (nRepeatPerLine) {
         unsigned loop = nRepeatPerLine / REPEAT_MAX;
@@ -73,21 +73,24 @@ PTO_INTERNAL void Unary2LNormModeHead(__ubuf__ T *dst, __ubuf__ T *src, unsigned
         for (unsigned i = 0; i < validRow; i++) {
             if (loop) {
                 for (unsigned j = 0; j < loop; j++) {
-                    Op::UnaryInstr(dst + i * dstRowStride + j * nRepeatElem * REPEAT_MAX,
-                                   src + i * srcRowStride + j * nRepeatElem * REPEAT_MAX, REPEAT_MAX);
+                    Op::UnaryInstr(
+                        dst + i * dstRowStride + j * nRepeatElem * REPEAT_MAX,
+                        src + i * srcRowStride + j * nRepeatElem * REPEAT_MAX, REPEAT_MAX);
                 }
             }
             if (remain) {
-                Op::UnaryInstr(dst + i * dstRowStride + loop * nRepeatElem * REPEAT_MAX,
-                               src + i * srcRowStride + loop * nRepeatElem * REPEAT_MAX, remain);
+                Op::UnaryInstr(
+                    dst + i * dstRowStride + loop * nRepeatElem * REPEAT_MAX,
+                    src + i * srcRowStride + loop * nRepeatElem * REPEAT_MAX, remain);
             }
         }
     }
 }
 
-template <typename Op, typename T, unsigned dstRowStride, unsigned srcRowStride, unsigned dstRow, unsigned srcRow,
-          unsigned nRepeatElem, unsigned blockSizeElem>
-PTO_INTERNAL void Unary2LNormModeTail(__ubuf__ T *dst, __ubuf__ T *src, unsigned validRow, unsigned nRemainPerLine)
+template <
+    typename Op, typename T, unsigned dstRowStride, unsigned srcRowStride, unsigned dstRow, unsigned srcRow,
+    unsigned nRepeatElem, unsigned blockSizeElem>
+PTO_INTERNAL void Unary2LNormModeTail(__ubuf__ T* dst, __ubuf__ T* src, unsigned validRow, unsigned nRemainPerLine)
 {
     constexpr unsigned dstStride = dstRowStride / blockSizeElem;
     constexpr unsigned srcStride = srcRowStride / blockSizeElem;
@@ -100,12 +103,13 @@ PTO_INTERNAL void Unary2LNormModeTail(__ubuf__ T *dst, __ubuf__ T *src, unsigned
         for (uint32_t i = 0; i < loop; i++) {
             if constexpr (strideOverFlag) {
                 for (uint64_t j = 0; j < REPEAT_MAX; j++) {
-                    Op::UnaryInstr(dst + (i * REPEAT_MAX + j) * dstRowStride, src + (i * REPEAT_MAX + j) * srcRowStride,
-                                   1, 1, 1);
+                    Op::UnaryInstr(
+                        dst + (i * REPEAT_MAX + j) * dstRowStride, src + (i * REPEAT_MAX + j) * srcRowStride, 1, 1, 1);
                 }
             } else {
-                Op::UnaryInstr(dst + i * REPEAT_MAX * dstRowStride, src + i * REPEAT_MAX * srcRowStride, REPEAT_MAX,
-                               dstStride, srcStride);
+                Op::UnaryInstr(
+                    dst + i * REPEAT_MAX * dstRowStride, src + i * REPEAT_MAX * srcRowStride, REPEAT_MAX, dstStride,
+                    srcStride);
             }
         }
         remain = validRow % REPEAT_MAX;
@@ -113,26 +117,30 @@ PTO_INTERNAL void Unary2LNormModeTail(__ubuf__ T *dst, __ubuf__ T *src, unsigned
     if (remain) {
         if constexpr (strideOverFlag) {
             for (uint32_t j = 0; j < remain; j++) {
-                Op::UnaryInstr(dst + (loop * REPEAT_MAX + j) * dstRowStride,
-                               src + (loop * REPEAT_MAX + j) * srcRowStride, 1, 1, 1);
+                Op::UnaryInstr(
+                    dst + (loop * REPEAT_MAX + j) * dstRowStride, src + (loop * REPEAT_MAX + j) * srcRowStride, 1, 1,
+                    1);
             }
         } else {
-            Op::UnaryInstr(dst + loop * REPEAT_MAX * dstRowStride, src + loop * REPEAT_MAX * srcRowStride, remain,
-                           dstStride, srcStride);
+            Op::UnaryInstr(
+                dst + loop * REPEAT_MAX * dstRowStride, src + loop * REPEAT_MAX * srcRowStride, remain, dstStride,
+                srcStride);
         }
     }
     SetFullVecMaskByDType<T>();
 }
 
-template <typename Op, typename T, unsigned dstRowStride, unsigned srcRowStride, unsigned dstRow, unsigned srcRow,
-          unsigned nRepeatElem>
-PTO_INTERNAL void Unary2LNormModeRowRpt(__ubuf__ T *dst, __ubuf__ T *src, unsigned validRow, unsigned validCol)
+template <
+    typename Op, typename T, unsigned dstRowStride, unsigned srcRowStride, unsigned dstRow, unsigned srcRow,
+    unsigned nRepeatElem>
+PTO_INTERNAL void Unary2LNormModeRowRpt(__ubuf__ T* dst, __ubuf__ T* src, unsigned validRow, unsigned validCol)
 {
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
     constexpr unsigned dstStride = dstRowStride / blockSizeElem;
     constexpr unsigned srcStride = srcRowStride / blockSizeElem;
-    constexpr bool condRowRpt = ((dstRow <= pto::REPEAT_MAX) && (dstStride <= REPEAT_STRIDE_MAX) &&
-                                 (srcRow <= pto::REPEAT_MAX) && (srcStride <= REPEAT_STRIDE_MAX));
+    constexpr bool condRowRpt =
+        ((dstRow <= pto::REPEAT_MAX) && (dstStride <= REPEAT_STRIDE_MAX) && (srcRow <= pto::REPEAT_MAX) &&
+         (srcStride <= REPEAT_STRIDE_MAX));
     if constexpr (condRowRpt) {
         unsigned loop = validCol / nRepeatElem;
         unsigned tailElements = validCol % nRepeatElem;
@@ -160,9 +168,10 @@ PTO_INTERNAL void Unary2LNormModeRowRpt(__ubuf__ T *dst, __ubuf__ T *src, unsign
     }
 }
 
-template <typename Op, typename T, unsigned dstRowStride, unsigned srcRowStride, unsigned dstRow, unsigned srcRow,
-          unsigned dstCol, unsigned nRepeatElem>
-PTO_INTERNAL void Unary2LProcess(__ubuf__ T *dst, __ubuf__ T *src, unsigned validRow, unsigned validCol)
+template <
+    typename Op, typename T, unsigned dstRowStride, unsigned srcRowStride, unsigned dstRow, unsigned srcRow,
+    unsigned dstCol, unsigned nRepeatElem>
+PTO_INTERNAL void Unary2LProcess(__ubuf__ T* dst, __ubuf__ T* src, unsigned validRow, unsigned validCol)
 {
     constexpr unsigned normColRepeat = dstCol / nRepeatElem;
     if constexpr ((normColRepeat > 1) && ((dstRow * normColRepeat) < SMALL_RPT)) {
@@ -175,21 +184,23 @@ PTO_INTERNAL void Unary2LProcess(__ubuf__ T *dst, __ubuf__ T *src, unsigned vali
             Unary2LNormModeColVLAlign<Op, T, dstRowStride, srcRowStride, nRepeatElem>(dst, src, validRow, validCol);
         }
     } else {
-        Unary2LNormModeRowRpt<Op, T, dstRowStride, srcRowStride, dstRow, srcRow, nRepeatElem>(dst, src, validRow,
-                                                                                              validCol);
+        Unary2LNormModeRowRpt<Op, T, dstRowStride, srcRowStride, dstRow, srcRow, nRepeatElem>(
+            dst, src, validRow, validCol);
     }
 }
 
 template <typename Op, typename DstTile, typename SrcTile, bool b322b16>
-__tf__ PTO_INTERNAL void TUnaryOp(typename DstTile::TileDType __out__ dstData,
-                                  typename SrcTile::TileDType __in__ srcData, unsigned validRow, unsigned validCol)
+__tf__ PTO_INTERNAL void TUnaryOp(
+    typename DstTile::TileDType __out__ dstData, typename SrcTile::TileDType __in__ srcData, unsigned validRow,
+    unsigned validCol)
 {
     using TOrig = typename DstTile::DType;
-    using TRANS = std::conditional_t<(std::is_same_v<TOrig, int32_t> || std::is_same_v<TOrig, uint32_t>) && b322b16,
-                                     B322B16Trait<TOrig>, B82B16Trait<TOrig>>;
+    using TRANS = std::conditional_t<
+        (std::is_same_v<TOrig, int32_t> || std::is_same_v<TOrig, uint32_t>) && b322b16, B322B16Trait<TOrig>,
+        B82B16Trait<TOrig>>;
     using T = typename TRANS::TransType;
-    __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
-    __ubuf__ T *src = (__ubuf__ T *)__cce_get_tile_ptr(srcData);
+    __ubuf__ T* dst = (__ubuf__ T*)__cce_get_tile_ptr(dstData);
+    __ubuf__ T* src = (__ubuf__ T*)__cce_get_tile_ptr(srcData);
     constexpr int nRepeatElem = REPEAT_BYTE / sizeof(T);
     constexpr unsigned dstRow = DstTile::Rows;
     constexpr unsigned srcRow = SrcTile::Rows;
@@ -223,8 +234,8 @@ __tf__ PTO_INTERNAL void TUnaryOp(typename DstTile::TileDType __out__ dstData,
                     dst, src, validRow, transValidCol);
             }
         } else {
-            Unary2LProcess<Op, T, dstRowStride, srcRowStride, dstRow, srcRow, dstCol, nRepeatElem>(dst, src, validRow,
-                                                                                                   transValidCol);
+            Unary2LProcess<Op, T, dstRowStride, srcRowStride, dstRow, srcRow, dstCol, nRepeatElem>(
+                dst, src, validRow, transValidCol);
         }
     }
 }
@@ -233,27 +244,33 @@ template <typename DstTile, typename SrcTile, bool floatOnly = true>
 PTO_INTERNAL void TunaryCheck()
 {
     static_assert(DstTile::isRowMajor && SrcTile::isRowMajor, "TUnaryOp: Not supported Layout type");
-    static_assert(DstTile::Loc == TileType::Vec && SrcTile::Loc == TileType::Vec,
-                  "TUnaryOp: TileType of src and dst tiles must be TileType::Vec.");
-    static_assert(SrcTile::ValidCol <= SrcTile::Cols,
-                  "TUnaryOp: Number of src's valid columns must not be greater than number of tile columns.");
-    static_assert(DstTile::ValidCol <= DstTile::Cols,
-                  "TUnaryOp: Number of dst's valid columns must not be greater than number of tile columns.");
-    static_assert(SrcTile::ValidRow <= SrcTile::Rows,
-                  "TUnaryOp: Number of src's valid rows must not be greater than number of tile rows.");
-    static_assert(DstTile::ValidRow <= DstTile::Rows,
-                  "TUnaryOp: Number of dst's valid rows must not be greater than number of tile rows.");
-    static_assert(std::is_same<typename DstTile::DType, typename SrcTile::DType>::value,
-                  "TUnaryOp: The data type of dst must be consistent with of src");
-    static_assert(!floatOnly || std::is_same<typename DstTile::DType, float32_t>::value ||
-                      std::is_same<typename DstTile::DType, float>::value ||
-                      std::is_same<typename DstTile::DType, half>::value ||
-                      std::is_same<typename DstTile::DType, float16_t>::value,
-                  "TUNARY: Invalid data type");
+    static_assert(
+        DstTile::Loc == TileType::Vec && SrcTile::Loc == TileType::Vec,
+        "TUnaryOp: TileType of src and dst tiles must be TileType::Vec.");
+    static_assert(
+        SrcTile::ValidCol <= SrcTile::Cols,
+        "TUnaryOp: Number of src's valid columns must not be greater than number of tile columns.");
+    static_assert(
+        DstTile::ValidCol <= DstTile::Cols,
+        "TUnaryOp: Number of dst's valid columns must not be greater than number of tile columns.");
+    static_assert(
+        SrcTile::ValidRow <= SrcTile::Rows,
+        "TUnaryOp: Number of src's valid rows must not be greater than number of tile rows.");
+    static_assert(
+        DstTile::ValidRow <= DstTile::Rows,
+        "TUnaryOp: Number of dst's valid rows must not be greater than number of tile rows.");
+    static_assert(
+        std::is_same<typename DstTile::DType, typename SrcTile::DType>::value,
+        "TUnaryOp: The data type of dst must be consistent with of src");
+    static_assert(
+        !floatOnly || std::is_same<typename DstTile::DType, float32_t>::value ||
+            std::is_same<typename DstTile::DType, float>::value || std::is_same<typename DstTile::DType, half>::value ||
+            std::is_same<typename DstTile::DType, float16_t>::value,
+        "TUNARY: Invalid data type");
 }
 
 template <typename Op, typename DstTile, typename SrcTile, bool floatOnly = true, bool b322b16 = false>
-PTO_INTERNAL void TUNARY_IMPL(DstTile &dst, SrcTile &src)
+PTO_INTERNAL void TUNARY_IMPL(DstTile& dst, SrcTile& src)
 {
     TunaryCheck<DstTile, SrcTile, floatOnly>();
     unsigned dstValidRow = dst.GetValidRow();
@@ -266,29 +283,28 @@ PTO_INTERNAL void TUNARY_IMPL(DstTile &dst, SrcTile &src)
 /* RSQRT */
 template <typename T>
 struct RsqrtOp {
-    PTO_INTERNAL static void UnaryInstr(__ubuf__ T *dst, __ubuf__ T *src, uint8_t repeat,
-                                        uint8_t dstStride = BLOCK_MAX_PER_REPEAT,
-                                        uint8_t srcStride = BLOCK_MAX_PER_REPEAT)
+    PTO_INTERNAL static void UnaryInstr(
+        __ubuf__ T* dst, __ubuf__ T* src, uint8_t repeat, uint8_t dstStride = BLOCK_MAX_PER_REPEAT,
+        uint8_t srcStride = BLOCK_MAX_PER_REPEAT)
     {
         vrsqrt(dst, src, repeat, 1, 1, dstStride, srcStride);
     }
 };
 template <auto PrecisionType = RsqrtAlgorithm::DEFAULT, typename DstTile, typename SrcTile>
-PTO_INTERNAL void TRSQRT_IMPL(DstTile &dst, SrcTile &src)
+PTO_INTERNAL void TRSQRT_IMPL(DstTile& dst, SrcTile& src)
 {
     TUNARY_IMPL<RsqrtOp<typename DstTile::DType>>(dst, src);
 }
 
 template <typename DstTile, typename SrcTile, typename TmpTile>
-__tf__ PTO_INTERNAL void TRsqrtHighPrecision(typename DstTile::TileDType __out__ dstData,
-                                             typename SrcTile::TileDType __in__ srcData,
-                                             typename TmpTile::TileDType __in__ tmpData, unsigned validRow,
-                                             unsigned validCol)
+__tf__ PTO_INTERNAL void TRsqrtHighPrecision(
+    typename DstTile::TileDType __out__ dstData, typename SrcTile::TileDType __in__ srcData,
+    typename TmpTile::TileDType __in__ tmpData, unsigned validRow, unsigned validCol)
 {
     using T = typename DstTile::DType;
-    __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
-    __ubuf__ T *src = (__ubuf__ T *)__cce_get_tile_ptr(srcData);
-    __ubuf__ T *tmp = (__ubuf__ T *)__cce_get_tile_ptr(tmpData);
+    __ubuf__ T* dst = (__ubuf__ T*)__cce_get_tile_ptr(dstData);
+    __ubuf__ T* src = (__ubuf__ T*)__cce_get_tile_ptr(srcData);
+    __ubuf__ T* tmp = (__ubuf__ T*)__cce_get_tile_ptr(tmpData);
 
     constexpr unsigned dstStride = DstTile::RowStride;
     constexpr unsigned srcStride = SrcTile::RowStride;
@@ -316,7 +332,7 @@ __tf__ PTO_INTERNAL void TRsqrtHighPrecision(typename DstTile::TileDType __out__
 }
 
 template <auto PrecisionType = RsqrtAlgorithm::DEFAULT, typename DstTile, typename SrcTile, typename TmpTile>
-PTO_INTERNAL void TRSQRT_IMPL(DstTile &dst, SrcTile &src, TmpTile &tmp)
+PTO_INTERNAL void TRSQRT_IMPL(DstTile& dst, SrcTile& src, TmpTile& tmp)
 {
     TunaryCheck<DstTile, SrcTile>();
     unsigned dstValidRow = dst.GetValidRow();
@@ -329,15 +345,15 @@ PTO_INTERNAL void TRSQRT_IMPL(DstTile &dst, SrcTile &src, TmpTile &tmp)
 /* SQRT */
 template <typename T>
 struct SqrtOp {
-    PTO_INTERNAL static void UnaryInstr(__ubuf__ T *dst, __ubuf__ T *src, uint8_t repeat,
-                                        uint8_t dstStride = BLOCK_MAX_PER_REPEAT,
-                                        uint8_t srcStride = BLOCK_MAX_PER_REPEAT)
+    PTO_INTERNAL static void UnaryInstr(
+        __ubuf__ T* dst, __ubuf__ T* src, uint8_t repeat, uint8_t dstStride = BLOCK_MAX_PER_REPEAT,
+        uint8_t srcStride = BLOCK_MAX_PER_REPEAT)
     {
         vsqrt(dst, src, repeat, 1, 1, dstStride, srcStride);
     }
 };
 template <auto PrecisionType = SqrtAlgorithm::DEFAULT, typename DstTile, typename SrcTile>
-PTO_INTERNAL void TSQRT_IMPL(DstTile &dst, SrcTile &src)
+PTO_INTERNAL void TSQRT_IMPL(DstTile& dst, SrcTile& src)
 {
     TUNARY_IMPL<SqrtOp<typename DstTile::DType>>(dst, src);
 }
@@ -345,15 +361,15 @@ PTO_INTERNAL void TSQRT_IMPL(DstTile &dst, SrcTile &src)
 /* EXP */
 template <typename T>
 struct ExpOp {
-    PTO_INTERNAL static void UnaryInstr(__ubuf__ T *dst, __ubuf__ T *src, uint8_t repeat,
-                                        uint8_t dstStride = BLOCK_MAX_PER_REPEAT,
-                                        uint8_t srcStride = BLOCK_MAX_PER_REPEAT)
+    PTO_INTERNAL static void UnaryInstr(
+        __ubuf__ T* dst, __ubuf__ T* src, uint8_t repeat, uint8_t dstStride = BLOCK_MAX_PER_REPEAT,
+        uint8_t srcStride = BLOCK_MAX_PER_REPEAT)
     {
         vexp(dst, src, repeat, 1, 1, dstStride, srcStride);
     }
 };
 template <auto PrecisionType = ExpAlgorithm::DEFAULT, typename DstTile, typename SrcTile>
-PTO_INTERNAL void TEXP_IMPL(DstTile &dst, SrcTile &src)
+PTO_INTERNAL void TEXP_IMPL(DstTile& dst, SrcTile& src)
 {
     TUNARY_IMPL<ExpOp<typename DstTile::DType>>(dst, src);
 }
@@ -361,15 +377,15 @@ PTO_INTERNAL void TEXP_IMPL(DstTile &dst, SrcTile &src)
 /* NOT */
 template <typename T>
 struct NotOp {
-    PTO_INTERNAL static void UnaryInstr(__ubuf__ T *dst, __ubuf__ T *src, uint8_t repeat,
-                                        uint8_t dstStride = BLOCK_MAX_PER_REPEAT,
-                                        uint8_t srcStride = BLOCK_MAX_PER_REPEAT)
+    PTO_INTERNAL static void UnaryInstr(
+        __ubuf__ T* dst, __ubuf__ T* src, uint8_t repeat, uint8_t dstStride = BLOCK_MAX_PER_REPEAT,
+        uint8_t srcStride = BLOCK_MAX_PER_REPEAT)
     {
         vnot(dst, src, repeat, 1, 1, dstStride, srcStride);
     }
 };
 template <typename DstTile, typename SrcTile>
-PTO_INTERNAL void TNOT_IMPL(DstTile &dst, SrcTile &src)
+PTO_INTERNAL void TNOT_IMPL(DstTile& dst, SrcTile& src)
 {
     using TOrig = typename DstTile::DType;
     using TRANS = std::conditional_t<sizeof(TOrig) == sizeof(uint32_t), B322B16Trait<TOrig>, B82B16Trait<TOrig>>;
@@ -379,15 +395,15 @@ PTO_INTERNAL void TNOT_IMPL(DstTile &dst, SrcTile &src)
 /* RELU */
 template <typename T>
 struct ReluOp {
-    PTO_INTERNAL static void UnaryInstr(__ubuf__ T *dst, __ubuf__ T *src, uint8_t repeat,
-                                        uint8_t dstStride = BLOCK_MAX_PER_REPEAT,
-                                        uint8_t srcStride = BLOCK_MAX_PER_REPEAT)
+    PTO_INTERNAL static void UnaryInstr(
+        __ubuf__ T* dst, __ubuf__ T* src, uint8_t repeat, uint8_t dstStride = BLOCK_MAX_PER_REPEAT,
+        uint8_t srcStride = BLOCK_MAX_PER_REPEAT)
     {
         vrelu(dst, src, repeat, 1, 1, dstStride, srcStride);
     }
 };
 template <typename DstTile, typename SrcTile>
-PTO_INTERNAL void TRELU_IMPL(DstTile &dst, SrcTile &src)
+PTO_INTERNAL void TRELU_IMPL(DstTile& dst, SrcTile& src)
 {
     TUNARY_IMPL<ReluOp<typename DstTile::DType>, DstTile, SrcTile, false>(dst, src);
 }
@@ -395,15 +411,15 @@ PTO_INTERNAL void TRELU_IMPL(DstTile &dst, SrcTile &src)
 /* ABS */
 template <typename T>
 struct AbsOp {
-    PTO_INTERNAL static void UnaryInstr(__ubuf__ T *dst, __ubuf__ T *src, uint8_t repeat,
-                                        uint8_t dstStride = BLOCK_MAX_PER_REPEAT,
-                                        uint8_t srcStride = BLOCK_MAX_PER_REPEAT)
+    PTO_INTERNAL static void UnaryInstr(
+        __ubuf__ T* dst, __ubuf__ T* src, uint8_t repeat, uint8_t dstStride = BLOCK_MAX_PER_REPEAT,
+        uint8_t srcStride = BLOCK_MAX_PER_REPEAT)
     {
         vabs(dst, src, repeat, 1, 1, dstStride, srcStride);
     }
 };
 template <typename DstTile, typename SrcTile>
-PTO_INTERNAL void TABS_IMPL(DstTile &dst, SrcTile &src)
+PTO_INTERNAL void TABS_IMPL(DstTile& dst, SrcTile& src)
 {
     TUNARY_IMPL<AbsOp<typename DstTile::DType>>(dst, src);
 }
@@ -411,22 +427,22 @@ PTO_INTERNAL void TABS_IMPL(DstTile &dst, SrcTile &src)
 /* LOG */
 template <typename T>
 struct LogOp {
-    PTO_INTERNAL static void UnaryInstr(__ubuf__ T *dst, __ubuf__ T *src, uint8_t repeat,
-                                        uint8_t dstStride = BLOCK_MAX_PER_REPEAT,
-                                        uint8_t srcStride = BLOCK_MAX_PER_REPEAT)
+    PTO_INTERNAL static void UnaryInstr(
+        __ubuf__ T* dst, __ubuf__ T* src, uint8_t repeat, uint8_t dstStride = BLOCK_MAX_PER_REPEAT,
+        uint8_t srcStride = BLOCK_MAX_PER_REPEAT)
     {
         vln(dst, src, repeat, 1, 1, dstStride, srcStride);
     }
 };
 template <auto PrecisionType = LogAlgorithm::DEFAULT, typename DstTile, typename SrcTile>
-PTO_INTERNAL void TLOG_IMPL(DstTile &dst, SrcTile &src)
+PTO_INTERNAL void TLOG_IMPL(DstTile& dst, SrcTile& src)
 {
     TUNARY_IMPL<LogOp<typename DstTile::DType>>(dst, src);
 }
 
 /* TNEG */
 template <typename DstTile, typename SrcTile>
-PTO_INTERNAL void TNEG_IMPL(DstTile &dst, SrcTile &src)
+PTO_INTERNAL void TNEG_IMPL(DstTile& dst, SrcTile& src)
 {
     TMULS_IMPL(dst, src, -1);
 }

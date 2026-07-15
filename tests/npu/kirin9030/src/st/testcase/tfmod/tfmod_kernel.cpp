@@ -15,7 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols, bool highPrecision>
-__global__ AICORE void runTFMod(__gm__ T *out, __gm__ T *src0, __gm__ T *src1)
+__global__ AICORE void runTFMod(__gm__ T* out, __gm__ T* src0, __gm__ T* src1)
 {
     using DynShapeDim5 = Shape<1, 1, 1, vRows, vCols>;
     using DynStridDim5 = pto::Stride<vRows * vCols, vRows * vCols, vRows * vCols, vCols, 1>;
@@ -48,28 +48,28 @@ __global__ AICORE void runTFMod(__gm__ T *out, __gm__ T *src0, __gm__ T *src1)
 }
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols, bool isHalf, bool highPrecision>
-void LaunchTFMod(T *out, T *src0, T *src1, void *stream)
+void LaunchTFMod(T* out, T* src0, T* src1, void* stream)
 {
     if constexpr (isHalf) {
         runTFMod<half, kTRows_, kTCols_, vRows, vCols, highPrecision>
-            <<<1, nullptr, stream>>>((half *)out, (half *)src0, (half *)src1);
+            <<<1, nullptr, stream>>>((half*)out, (half*)src0, (half*)src1);
     } else {
         runTFMod<T, kTRows_, kTCols_, vRows, vCols, highPrecision><<<1, nullptr, stream>>>(out, src0, src1);
     }
 }
 
-template void LaunchTFMod<uint16_t, 64, 64, 64, 64, false, false>(uint16_t *out, uint16_t *src0, uint16_t *src1,
-                                                                  void *stream);
-template void LaunchTFMod<uint16_t, 64, 64, 63, 63, false, false>(uint16_t *out, uint16_t *src0, uint16_t *src1,
-                                                                  void *stream);
-template void LaunchTFMod<uint16_t, 1, 16384, 1, 16384, false, false>(uint16_t *out, uint16_t *src0, uint16_t *src1,
-                                                                      void *stream);
-template void LaunchTFMod<uint16_t, 512, 16, 512, 16, false, false>(uint16_t *out, uint16_t *src0, uint16_t *src1,
-                                                                    void *stream);
-template void LaunchTFMod<uint32_t, 8, 8, 8, 8, false, false>(uint32_t *out, uint32_t *src0, uint32_t *src1,
-                                                              void *stream);
-template void LaunchTFMod<aclFloat16, 32, 32, 31, 31, true, false>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                                   void *stream);
-template void LaunchTFMod<int16_t, 16, 16, 16, 16, false, false>(int16_t *out, int16_t *src0, int16_t *src1,
-                                                                 void *stream);
-template void LaunchTFMod<int32_t, 8, 8, 8, 8, false, false>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
+template void LaunchTFMod<uint16_t, 64, 64, 64, 64, false, false>(
+    uint16_t* out, uint16_t* src0, uint16_t* src1, void* stream);
+template void LaunchTFMod<uint16_t, 64, 64, 63, 63, false, false>(
+    uint16_t* out, uint16_t* src0, uint16_t* src1, void* stream);
+template void LaunchTFMod<uint16_t, 1, 16384, 1, 16384, false, false>(
+    uint16_t* out, uint16_t* src0, uint16_t* src1, void* stream);
+template void LaunchTFMod<uint16_t, 512, 16, 512, 16, false, false>(
+    uint16_t* out, uint16_t* src0, uint16_t* src1, void* stream);
+template void LaunchTFMod<uint32_t, 8, 8, 8, 8, false, false>(
+    uint32_t* out, uint32_t* src0, uint32_t* src1, void* stream);
+template void LaunchTFMod<aclFloat16, 32, 32, 31, 31, true, false>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void LaunchTFMod<int16_t, 16, 16, 16, 16, false, false>(
+    int16_t* out, int16_t* src0, int16_t* src1, void* stream);
+template void LaunchTFMod<int32_t, 8, 8, 8, 8, false, false>(int32_t* out, int32_t* src0, int32_t* src1, void* stream);

@@ -15,10 +15,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace PtoTestCommon;
 
 template <int kRows, int kCols, int kValidRows1, int kValidCols1>
-void LaunchTPARTMAX(float *out, float *src0, float *src1, void *stream);
+void LaunchTPARTMAX(float* out, float* src0, float* src1, void* stream);
 
-class TPARTMAX_Test : public testing::Test {
-};
+class TPARTMAX_Test : public testing::Test {};
 
 namespace {
 
@@ -33,7 +32,7 @@ constexpr int kValidCols1 = 32;
 
 static std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     return "../" + std::string(testInfo->test_suite_name()) + "." + testInfo->name();
 }
 
@@ -48,12 +47,12 @@ TEST_F(TPARTMAX_Test, case_float_64x64_src1_32x32)
 
     float *dstHost, *src0Host, *src1Host;
     float *dstDevice, *src0Device, *src1Device;
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&src0Host), fileSize);
-    aclrtMallocHost((void **)(&src1Host), fileSize);
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&src0Host), fileSize);
+    aclrtMallocHost((void**)(&src1Host), fileSize);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     size_t readSize = 0;
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input1.bin", readSize, src0Host, fileSize));

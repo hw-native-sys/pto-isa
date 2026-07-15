@@ -39,8 +39,7 @@ constexpr uint32_t kUrmaSqeRmtAddrHOffset = 44;
 // ============================================================================
 // UrmaOpcode — URMA operation codes (binary-compatible with hcomm UB ABI)
 // ============================================================================
-enum class UrmaOpcode : uint32_t
-{
+enum class UrmaOpcode : uint32_t {
     SEND = 0,
     SEND_WITH_IMM,
     SEND_WITH_INV,
@@ -88,12 +87,7 @@ struct UrmaMemInfo {
 // ============================================================================
 // UrmaDbMode — doorbell mode for URMA queues
 // ============================================================================
-enum class UrmaDbMode : int32_t
-{
-    INVALID_DB = -1,
-    HW_DB = 0,
-    SW_DB
-};
+enum class UrmaDbMode : int32_t { INVALID_DB = -1, HW_DB = 0, SW_DB };
 
 // ============================================================================
 // UrmaWQCtx — send/receive work queue context

@@ -16,7 +16,7 @@ using namespace pto;
 namespace TRowExpandMulTest {
 
 template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst>
-__global__ AICORE void runROWEXPANDMUL(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in__ *src1)
+__global__ AICORE void runROWEXPANDMUL(__gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in__* src1)
 {
     using DynShapeDim5 = Shape<1, 1, 1, src1Row, src1Col>;
     using DynStridDim5 = pto::Stride<1, 1, 1, src1Col, 1>;
@@ -61,7 +61,7 @@ __global__ AICORE void runROWEXPANDMUL(__gm__ T __out__ *out, __gm__ T __in__ *s
 }
 
 template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst>
-__global__ AICORE void runROWEXPANDMUL2(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in__ *src1)
+__global__ AICORE void runROWEXPANDMUL2(__gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in__* src1)
 {
     using DynShapeDim5 = Shape<1, 1, 1, src1Row, src1Col>;
     using DynStridDim5 = pto::Stride<1, 1, 1, src1Col, 1>;
@@ -106,43 +106,43 @@ __global__ AICORE void runROWEXPANDMUL2(__gm__ T __out__ *out, __gm__ T __in__ *
 }
 
 template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst>
-void launchTRowExpandMul(T *out, T *src0, T *src1, void *stream)
+void launchTRowExpandMul(T* out, T* src0, T* src1, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
         runROWEXPANDMUL<half, dstRow, dstCol, src1Row, src1Col, src0eqdst>
-            <<<1, nullptr, stream>>>((half *)out, (half *)src0, (half *)src1);
+            <<<1, nullptr, stream>>>((half*)out, (half*)src0, (half*)src1);
     } else {
         runROWEXPANDMUL<T, dstRow, dstCol, src1Row, src1Col, src0eqdst><<<1, nullptr, stream>>>(out, src0, src1);
     }
 }
 
 template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst>
-void launchTRowExpandMul2(T *out, T *src0, T *src1, void *stream)
+void launchTRowExpandMul2(T* out, T* src0, T* src1, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
         runROWEXPANDMUL2<half, dstRow, dstCol, src1Row, src1Col, src0eqdst>
-            <<<1, nullptr, stream>>>((half *)out, (half *)src0, (half *)src1);
+            <<<1, nullptr, stream>>>((half*)out, (half*)src0, (half*)src1);
     } else {
         runROWEXPANDMUL2<T, dstRow, dstCol, src1Row, src1Col, src0eqdst><<<1, nullptr, stream>>>(out, src0, src1);
     }
 }
 
-template void launchTRowExpandMul<float, 16, 32, 16, 1, true>(float *out, float *src0, float *src1, void *stream);
-template void launchTRowExpandMul<float, 56, 128, 56, 1, true>(float *out, float *src0, float *src1, void *stream);
-template void launchTRowExpandMul<aclFloat16, 48, 64, 48, 1, true>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                                   void *stream);
-template void launchTRowExpandMul<aclFloat16, 16, 128, 16, 1, true>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                                    void *stream);
-template void launchTRowExpandMul2<float, 24, 64, 24, 8, true>(float *out, float *src0, float *src1, void *stream);
-template void launchTRowExpandMul<aclFloat16, 32, 64, 32, 1, false>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                                    void *stream);
-template void launchTRowExpandMul2<float, 20, 64, 20, 8, false>(float *out, float *src0, float *src1, void *stream);
-template void launchTRowExpandMul<int32_t, 16, 32, 16, 1, true>(int32_t *out, int32_t *src0, int32_t *src1,
-                                                                void *stream);
-template void launchTRowExpandMul<int16_t, 16, 64, 16, 1, true>(int16_t *out, int16_t *src0, int16_t *src1,
-                                                                void *stream);
-template void launchTRowExpandMul<uint32_t, 16, 32, 16, 1, true>(uint32_t *out, uint32_t *src0, uint32_t *src1,
-                                                                 void *stream);
-template void launchTRowExpandMul<uint16_t, 16, 64, 16, 1, true>(uint16_t *out, uint16_t *src0, uint16_t *src1,
-                                                                 void *stream);
+template void launchTRowExpandMul<float, 16, 32, 16, 1, true>(float* out, float* src0, float* src1, void* stream);
+template void launchTRowExpandMul<float, 56, 128, 56, 1, true>(float* out, float* src0, float* src1, void* stream);
+template void launchTRowExpandMul<aclFloat16, 48, 64, 48, 1, true>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void launchTRowExpandMul<aclFloat16, 16, 128, 16, 1, true>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void launchTRowExpandMul2<float, 24, 64, 24, 8, true>(float* out, float* src0, float* src1, void* stream);
+template void launchTRowExpandMul<aclFloat16, 32, 64, 32, 1, false>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void launchTRowExpandMul2<float, 20, 64, 20, 8, false>(float* out, float* src0, float* src1, void* stream);
+template void launchTRowExpandMul<int32_t, 16, 32, 16, 1, true>(
+    int32_t* out, int32_t* src0, int32_t* src1, void* stream);
+template void launchTRowExpandMul<int16_t, 16, 64, 16, 1, true>(
+    int16_t* out, int16_t* src0, int16_t* src1, void* stream);
+template void launchTRowExpandMul<uint32_t, 16, 32, 16, 1, true>(
+    uint32_t* out, uint32_t* src0, uint32_t* src1, void* stream);
+template void launchTRowExpandMul<uint16_t, 16, 64, 16, 1, true>(
+    uint16_t* out, uint16_t* src0, uint16_t* src1, void* stream);
 } // namespace TRowExpandMulTest

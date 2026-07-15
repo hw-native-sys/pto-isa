@@ -27,11 +27,12 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 namespace comm {
 
-template <CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalDstData, typename TileData,
-          typename... WaitEvents>
-PTO_INTERNAL void TREDUCE_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
-                                   TileData &accTileData, TileData &recvTileData, ReduceOp op,
-                                   const CcuTriggerContext &ctx, WaitEvents &...events)
+template <
+    CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalDstData, typename TileData,
+    typename... WaitEvents>
+PTO_INTERNAL void TREDUCE_CCU_IMPL(
+    ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& accTileData, TileData& recvTileData,
+    ReduceOp op, const CcuTriggerContext& ctx, WaitEvents&... events)
 {
     CcuStoreTriggerSelf(parallelGroup, accTileData, ctx, events...);
     (void)dstGlobalData;
@@ -39,11 +40,12 @@ PTO_INTERNAL void TREDUCE_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalDstDa
     (void)op;
 }
 
-template <CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalDstData, typename TileData,
-          typename... WaitEvents>
-PTO_INTERNAL void TREDUCE_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
-                                   TileData &accTileData, TileData &pingTileData, TileData &pongTileData, ReduceOp op,
-                                   const CcuTriggerContext &ctx, WaitEvents &...events)
+template <
+    CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalDstData, typename TileData,
+    typename... WaitEvents>
+PTO_INTERNAL void TREDUCE_CCU_IMPL(
+    ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& accTileData, TileData& pingTileData,
+    TileData& pongTileData, ReduceOp op, const CcuTriggerContext& ctx, WaitEvents&... events)
 {
     CcuStoreTriggerSelf(parallelGroup, accTileData, ctx, events...);
     (void)dstGlobalData;

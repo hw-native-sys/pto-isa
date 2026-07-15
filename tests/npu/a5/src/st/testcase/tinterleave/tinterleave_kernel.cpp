@@ -14,20 +14,20 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int tileH, int tileW, int vRows, int vCols>
-__global__ AICORE void runTInterleave(__gm__ T __out__ *out0, __gm__ T __out__ *out1, __gm__ T __in__ *src0,
-                                      __gm__ T __in__ *src1)
+__global__ AICORE void runTInterleave(
+    __gm__ T __out__* out0, __gm__ T __out__* out1, __gm__ T __in__* src0, __gm__ T __in__* src1)
 {
     using DynShape = pto::Shape<-1, -1, -1, -1, -1>;
     using DynStride = pto::Stride<-1, -1, -1, -1, -1>;
     using GlobalData = GlobalTensor<T, DynShape, DynStride>;
-    GlobalData dst0Global(out0, pto::Shape(1, 1, 1, vRows, vCols),
-                          pto::Stride(tileH * tileW, tileH * tileW, tileH * tileW, tileW, 1));
-    GlobalData dst1Global(out1, pto::Shape(1, 1, 1, vRows, vCols),
-                          pto::Stride(tileH * tileW, tileH * tileW, tileH * tileW, tileW, 1));
-    GlobalData src0Global(src0, pto::Shape(1, 1, 1, vRows, vCols),
-                          pto::Stride(tileH * tileW, tileH * tileW, tileH * tileW, tileW, 1));
-    GlobalData src1Global(src1, pto::Shape(1, 1, 1, vRows, vCols),
-                          pto::Stride(tileH * tileW, tileH * tileW, tileH * tileW, tileW, 1));
+    GlobalData dst0Global(
+        out0, pto::Shape(1, 1, 1, vRows, vCols), pto::Stride(tileH * tileW, tileH * tileW, tileH * tileW, tileW, 1));
+    GlobalData dst1Global(
+        out1, pto::Shape(1, 1, 1, vRows, vCols), pto::Stride(tileH * tileW, tileH * tileW, tileH * tileW, tileW, 1));
+    GlobalData src0Global(
+        src0, pto::Shape(1, 1, 1, vRows, vCols), pto::Stride(tileH * tileW, tileH * tileW, tileH * tileW, tileW, 1));
+    GlobalData src1Global(
+        src1, pto::Shape(1, 1, 1, vRows, vCols), pto::Stride(tileH * tileW, tileH * tileW, tileH * tileW, tileW, 1));
 
     using TileDataDst = Tile<TileType::Vec, T, tileH, tileW, BLayout::RowMajor, -1, -1>;
     using TileDataSrc = Tile<TileType::Vec, T, tileH, tileW, BLayout::RowMajor, -1, -1>;
@@ -59,49 +59,49 @@ __global__ AICORE void runTInterleave(__gm__ T __out__ *out0, __gm__ T __out__ *
 }
 
 template <typename T, int tileH, int tileW, int vRows, int vCols>
-void LaunchTInterleave(T *out0, T *out1, T *src0, T *src1, void *stream)
+void LaunchTInterleave(T* out0, T* out1, T* src0, T* src1, void* stream)
 {
     runTInterleave<T, tileH, tileW, vRows, vCols><<<1, nullptr, stream>>>(out0, out1, src0, src1);
 }
 
 template <int tileH, int tileW, int vRows, int vCols>
-void LaunchTInterleaveHalf(aclFloat16 *out0, aclFloat16 *out1, aclFloat16 *src0, aclFloat16 *src1, void *stream)
+void LaunchTInterleaveHalf(aclFloat16* out0, aclFloat16* out1, aclFloat16* src0, aclFloat16* src1, void* stream)
 {
     runTInterleave<half, tileH, tileW, vRows, vCols>
-        <<<1, nullptr, stream>>>((half *)(out0), (half *)(out1), (half *)(src0), (half *)(src1));
+        <<<1, nullptr, stream>>>((half*)(out0), (half*)(out1), (half*)(src0), (half*)(src1));
 }
 
-template void LaunchTInterleave<float, 64, 64, 64, 64>(float *out0, float *out1, float *src0, float *src1,
-                                                       void *stream);
-template void LaunchTInterleave<int32_t, 64, 64, 64, 64>(int32_t *out0, int32_t *out1, int32_t *src0, int32_t *src1,
-                                                         void *stream);
-template void LaunchTInterleave<int16_t, 64, 64, 64, 64>(int16_t *out0, int16_t *out1, int16_t *src0, int16_t *src1,
-                                                         void *stream);
-template void LaunchTInterleaveHalf<16, 256, 16, 256>(aclFloat16 *out0, aclFloat16 *out1, aclFloat16 *src0,
-                                                      aclFloat16 *src1, void *stream);
-template void LaunchTInterleave<float, 16, 32, 16, 32>(float *out0, float *out1, float *src0, float *src1,
-                                                       void *stream);
-template void LaunchTInterleave<int32_t, 16, 32, 16, 32>(int32_t *out0, int32_t *out1, int32_t *src0, int32_t *src1,
-                                                         void *stream);
-template void LaunchTInterleave<int8_t, 32, 256, 32, 256>(int8_t *out0, int8_t *out1, int8_t *src0, int8_t *src1,
-                                                          void *stream);
-template void LaunchTInterleave<uint8_t, 32, 256, 32, 256>(uint8_t *out0, uint8_t *out1, uint8_t *src0, uint8_t *src1,
-                                                           void *stream);
+template void LaunchTInterleave<float, 64, 64, 64, 64>(
+    float* out0, float* out1, float* src0, float* src1, void* stream);
+template void LaunchTInterleave<int32_t, 64, 64, 64, 64>(
+    int32_t* out0, int32_t* out1, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTInterleave<int16_t, 64, 64, 64, 64>(
+    int16_t* out0, int16_t* out1, int16_t* src0, int16_t* src1, void* stream);
+template void LaunchTInterleaveHalf<16, 256, 16, 256>(
+    aclFloat16* out0, aclFloat16* out1, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void LaunchTInterleave<float, 16, 32, 16, 32>(
+    float* out0, float* out1, float* src0, float* src1, void* stream);
+template void LaunchTInterleave<int32_t, 16, 32, 16, 32>(
+    int32_t* out0, int32_t* out1, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTInterleave<int8_t, 32, 256, 32, 256>(
+    int8_t* out0, int8_t* out1, int8_t* src0, int8_t* src1, void* stream);
+template void LaunchTInterleave<uint8_t, 32, 256, 32, 256>(
+    uint8_t* out0, uint8_t* out1, uint8_t* src0, uint8_t* src1, void* stream);
 
 // odd valid column cases
-template void LaunchTInterleave<float, 64, 64, 64, 63>(float *out0, float *out1, float *src0, float *src1,
-                                                       void *stream);
-template void LaunchTInterleave<int32_t, 64, 64, 64, 63>(int32_t *out0, int32_t *out1, int32_t *src0, int32_t *src1,
-                                                         void *stream);
-template void LaunchTInterleave<int16_t, 64, 64, 64, 63>(int16_t *out0, int16_t *out1, int16_t *src0, int16_t *src1,
-                                                         void *stream);
-template void LaunchTInterleaveHalf<16, 256, 16, 255>(aclFloat16 *out0, aclFloat16 *out1, aclFloat16 *src0,
-                                                      aclFloat16 *src1, void *stream);
-template void LaunchTInterleave<float, 16, 32, 16, 31>(float *out0, float *out1, float *src0, float *src1,
-                                                       void *stream);
-template void LaunchTInterleave<int32_t, 16, 32, 16, 31>(int32_t *out0, int32_t *out1, int32_t *src0, int32_t *src1,
-                                                         void *stream);
-template void LaunchTInterleave<int8_t, 32, 256, 32, 255>(int8_t *out0, int8_t *out1, int8_t *src0, int8_t *src1,
-                                                          void *stream);
-template void LaunchTInterleave<uint8_t, 32, 256, 32, 255>(uint8_t *out0, uint8_t *out1, uint8_t *src0, uint8_t *src1,
-                                                           void *stream);
+template void LaunchTInterleave<float, 64, 64, 64, 63>(
+    float* out0, float* out1, float* src0, float* src1, void* stream);
+template void LaunchTInterleave<int32_t, 64, 64, 64, 63>(
+    int32_t* out0, int32_t* out1, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTInterleave<int16_t, 64, 64, 64, 63>(
+    int16_t* out0, int16_t* out1, int16_t* src0, int16_t* src1, void* stream);
+template void LaunchTInterleaveHalf<16, 256, 16, 255>(
+    aclFloat16* out0, aclFloat16* out1, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void LaunchTInterleave<float, 16, 32, 16, 31>(
+    float* out0, float* out1, float* src0, float* src1, void* stream);
+template void LaunchTInterleave<int32_t, 16, 32, 16, 31>(
+    int32_t* out0, int32_t* out1, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTInterleave<int8_t, 32, 256, 32, 255>(
+    int8_t* out0, int8_t* out1, int8_t* src0, int8_t* src1, void* stream);
+template void LaunchTInterleave<uint8_t, 32, 256, 32, 255>(
+    uint8_t* out0, uint8_t* out1, uint8_t* src0, uint8_t* src1, void* stream);

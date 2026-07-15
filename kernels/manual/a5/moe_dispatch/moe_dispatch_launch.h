@@ -12,16 +12,17 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <cstdint>
 
-bool LaunchMoeDispatchK128(int32_t blockNum, void *stream, void *gmA, void *gmPerTokenScale, void *cumsumMM,
-                           void *tokenPerExpert, void *preSumBeforeRank, void *shmemBase, void *hcclCtx,
-                           void *syncWorkspace, int32_t EP, int32_t expertPerRank, int32_t maxOutputSize,
-                           int64_t offsetA);
+bool LaunchMoeDispatchK128(
+    int32_t blockNum, void* stream, void* gmA, void* gmPerTokenScale, void* cumsumMM, void* tokenPerExpert,
+    void* preSumBeforeRank, void* shmemBase, void* hcclCtx, void* syncWorkspace, int32_t EP, int32_t expertPerRank,
+    int32_t maxOutputSize, int64_t offsetA);
 
-bool LaunchMoeDispatchViaGM_K128(int32_t blockNum, void *stream, void *gmA, void *gmPerTokenScale, void *tempGmBuffer,
-                                 void *cumsumMM, void *tokenPerExpert, void *preSumBeforeRank, void *shmemBase,
-                                 void *hcclCtx, void *syncWorkspace, int32_t EP, int32_t expertPerRank,
-                                 int32_t maxOutputSize, int64_t offsetA);
+bool LaunchMoeDispatchViaGM_K128(
+    int32_t blockNum, void* stream, void* gmA, void* gmPerTokenScale, void* tempGmBuffer, void* cumsumMM,
+    void* tokenPerExpert, void* preSumBeforeRank, void* shmemBase, void* hcclCtx, void* syncWorkspace, int32_t EP,
+    int32_t expertPerRank, int32_t maxOutputSize, int64_t offsetA);
 
-bool LaunchMoeDispatchWithSync_K128(int32_t blockNum, void *stream, void *gmA, void *gmPerTokenScale, void *shmemBase,
-                                    void *hcclCtx, void *workspace, void *syncGmWorkspace, int32_t EP,
-                                    int32_t expertPerRank, int32_t maxOutputSize, int64_t offsetA, int64_t offsetTPE);
+bool LaunchMoeDispatchWithSync_K128(
+    int32_t blockNum, void* stream, void* gmA, void* gmPerTokenScale, void* shmemBase, void* hcclCtx, void* workspace,
+    void* syncGmWorkspace, int32_t EP, int32_t expertPerRank, int32_t maxOutputSize, int64_t offsetA,
+    int64_t offsetTPE);

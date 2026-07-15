@@ -16,7 +16,7 @@ using namespace pto;
 namespace TColExpandSubTest {
 
 template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col>
-__global__ AICORE void runCOLEXPANDSUB(__gm__ T *out, __gm__ T *src0, __gm__ T *src1)
+__global__ AICORE void runCOLEXPANDSUB(__gm__ T* out, __gm__ T* src0, __gm__ T* src1)
 {
     using DynShapeDim5 = Shape<1, 1, 1, src1Row, src1Col>;
     using DynStridDim5 = pto::Stride<1, 1, 1, src1Col, 1>;
@@ -56,20 +56,20 @@ __global__ AICORE void runCOLEXPANDSUB(__gm__ T *out, __gm__ T *src0, __gm__ T *
 }
 
 template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col>
-void launchTColExpandSub(T *out, T *src0, T *src1, void *stream)
+void launchTColExpandSub(T* out, T* src0, T* src1, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
         runCOLEXPANDSUB<half, dstRow, dstCol, src1Row, src1Col>
-            <<<1, nullptr, stream>>>((half *)out, (half *)src0, (half *)src1);
+            <<<1, nullptr, stream>>>((half*)out, (half*)src0, (half*)src1);
     } else {
         runCOLEXPANDSUB<T, dstRow, dstCol, src1Row, src1Col><<<1, nullptr, stream>>>(out, src0, src1);
     }
 }
 
-template void launchTColExpandSub<float, 6, 128, 1, 128>(float *out, float *src0, float *src1, void *stream);
-template void launchTColExpandSub<float, 18, 32, 1, 32>(float *out, float *src0, float *src1, void *stream);
-template void launchTColExpandSub<aclFloat16, 10, 256, 1, 256>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                               void *stream);
-template void launchTColExpandSub<aclFloat16, 12, 64, 1, 64>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                             void *stream);
+template void launchTColExpandSub<float, 6, 128, 1, 128>(float* out, float* src0, float* src1, void* stream);
+template void launchTColExpandSub<float, 18, 32, 1, 32>(float* out, float* src0, float* src1, void* stream);
+template void launchTColExpandSub<aclFloat16, 10, 256, 1, 256>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void launchTColExpandSub<aclFloat16, 12, 64, 1, 64>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
 } // namespace TColExpandSubTest

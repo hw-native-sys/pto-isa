@@ -16,11 +16,11 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <uint32_t caseId>
-void launchTRANDOMTestCase(void *out, uint32_t *key, uint32_t *counter, aclrtStream stream);
+void launchTRANDOMTestCase(void* out, uint32_t* key, uint32_t* counter, aclrtStream stream);
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -30,12 +30,12 @@ std::string GetGoldenDir()
 class TRANDOMTest : public testing::Test {
 public:
     aclrtStream stream;
-    void *dstHost;
-    void *dstDevice;
-    uint32_t *keyHost;
-    uint32_t *keyDevice;
-    uint32_t *counterHost;
-    uint32_t *counterDevice;
+    void* dstHost;
+    void* dstDevice;
+    uint32_t* keyHost;
+    uint32_t* keyDevice;
+    uint32_t* counterHost;
+    uint32_t* counterDevice;
 
 protected:
     void SetUp() override
@@ -76,12 +76,12 @@ protected:
         size_t counterSize = 4 * sizeof(uint32_t);
 
         aclrtMallocHost(&dstHost, dstSize);
-        aclrtMallocHost((void **)&keyHost, keySize);
-        aclrtMallocHost((void **)&counterHost, counterSize);
+        aclrtMallocHost((void**)&keyHost, keySize);
+        aclrtMallocHost((void**)&counterHost, counterSize);
 
         aclrtMalloc(&dstDevice, dstSize, ACL_MEM_MALLOC_HUGE_FIRST);
-        aclrtMalloc((void **)&keyDevice, keySize, ACL_MEM_MALLOC_HUGE_FIRST);
-        aclrtMalloc((void **)&counterDevice, counterSize, ACL_MEM_MALLOC_HUGE_FIRST);
+        aclrtMalloc((void**)&keyDevice, keySize, ACL_MEM_MALLOC_HUGE_FIRST);
+        aclrtMalloc((void**)&counterDevice, counterSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
         ReadFile(GetGoldenDir() + "/key.bin", keySize, keyHost, keySize);
         ReadFile(GetGoldenDir() + "/counter.bin", counterSize, counterHost, counterSize);

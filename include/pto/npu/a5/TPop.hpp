@@ -24,7 +24,7 @@ namespace pto {
  * 3. [Free]    Release GM space (Cross-Core)
  */
 template <typename Pipe, typename TileCons, TileSplitAxis Split>
-PTO_INTERNAL std::enable_if_t<is_tile_data_v<TileCons>, void> TPOP_IMPL(Pipe &pipe, TileCons &tile)
+PTO_INTERNAL std::enable_if_t<is_tile_data_v<TileCons>, void> TPOP_IMPL(Pipe& pipe, TileCons& tile)
 {
     // // 1. Cross-Core: Wait for Data
     bool isWait = pipe.cons.getWaitStatus();
@@ -45,7 +45,7 @@ PTO_INTERNAL std::enable_if_t<is_tile_data_v<TileCons>, void> TPOP_IMPL(Pipe &pi
 }
 
 template <typename Pipe, typename TileCons, TileSplitAxis Split>
-PTO_INTERNAL std::enable_if_t<is_tile_data_v<TileCons>, void> TPOP_IMPL(Pipe &pipe, TileCons &tile, int32_t subBlockId)
+PTO_INTERNAL std::enable_if_t<is_tile_data_v<TileCons>, void> TPOP_IMPL(Pipe& pipe, TileCons& tile, int32_t subBlockId)
 {
     // // 1. Cross-Core: Wait for Data
     bool isWait = pipe.cons.getWaitStatus();
@@ -83,13 +83,14 @@ PTO_INTERNAL uint64_t getPopSubAIVOffset()
 }
 
 // pop tensor slot entry from global memory
-template <typename Pipe, typename GlobalData, TileSplitAxis Split,
-          std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
-PTO_INTERNAL void TPOP_IMPL(Pipe &pipe, GlobalData &gmTensor)
+template <
+    typename Pipe, typename GlobalData, TileSplitAxis Split, std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
+PTO_INTERNAL void TPOP_IMPL(Pipe& pipe, GlobalData& gmTensor)
 {
     static_assert(is_global_data_v<GlobalData>, "Fix: GlobalTensor must satisfy is_global_data_v<GlobalData>.");
-    static_assert(Pipe::is_c2v_gm || Pipe::is_v2c_gm || Pipe::is_both_gm,
-                  "Fix: TPOP with GlobalTensor is only supported by GM FIFO directions on A5.");
+    static_assert(
+        Pipe::is_c2v_gm || Pipe::is_v2c_gm || Pipe::is_both_gm,
+        "Fix: TPOP with GlobalTensor is only supported by GM FIFO directions on A5.");
     // 1. Cross-Core: Wait for Data
     pipe.cons.template wait<Split>();
 
@@ -111,12 +112,12 @@ PTO_INTERNAL void TPOP_IMPL(Pipe &pipe, GlobalData &gmTensor)
 
     // 3. Increment tile index
     pipe.cons.tileIndex++;
-    TASSIGN_IMPL(gmTensor, reinterpret_cast<typename GlobalData::DType *>(entryBase));
+    TASSIGN_IMPL(gmTensor, reinterpret_cast<typename GlobalData::DType*>(entryBase));
 }
 
 //------------------------------------------------
 template <typename TileData, typename Pipe>
-PTO_INTERNAL void TPOP_IMPL(TileData &tile, Pipe &pipe)
+PTO_INTERNAL void TPOP_IMPL(TileData& tile, Pipe& pipe)
 {
     // 1. Cross-Core: Wait for Data
     bool isWait = pipe.cons.getWaitStatus();

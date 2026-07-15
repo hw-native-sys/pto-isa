@@ -92,9 +92,10 @@ PTO_INTERNAL constexpr QuantMode_t GetVectorPreQuantModeGm()
 template <typename T>
 PTO_INTERNAL void SetAtomicAdd()
 {
-    static_assert((caps::IsFP16<T>()) || (caps::IsFP32<T>()) || (caps::IsSInt16<T>()) || (caps::IsSInt32<T>()) ||
-                      (caps::IsSInt8<T>()) || (caps::IsBF16<T>()),
-                  "Dst and src must be half / float / int16_t / int32_t / int8_t / bfloat16_t.");
+    static_assert(
+        (caps::IsFP16<T>()) || (caps::IsFP32<T>()) || (caps::IsSInt16<T>()) || (caps::IsSInt32<T>()) ||
+            (caps::IsSInt8<T>()) || (caps::IsBF16<T>()),
+        "Dst and src must be half / float / int16_t / int32_t / int8_t / bfloat16_t.");
     atomic_type_t atomicType = atomic_type_t::ATOMIC_NONE;
     if constexpr (caps::IsFP32<T>()) {
         set_atomic_f32();
@@ -115,20 +116,23 @@ PTO_INTERNAL void SetAtomicAdd()
 template <typename TileData, typename GlobalData, bool isQuant>
 PTO_INTERNAL void CheckStaticAcc()
 {
-    static_assert(caps::IsSInt32<typename TileData::DType>() || caps::IsFP32<typename TileData::DType>(),
-                  "The input data type must be restricted to int32_t/float!");
-    static_assert((GlobalData::layout == pto::Layout::ND) || (GlobalData::layout == pto::Layout::NZ) ||
-                      (GlobalData::layout == pto::Layout::NHWC) || (GlobalData::layout == pto::Layout::NCHW) ||
-                      (GlobalData::layout == pto::Layout::NCDHW),
-                  "TSTORE(Acc2GM) only support NZ2ND / NZ2NZ / NZ2NHWC / NZ2NCHW / NZ2NCDHW.");
+    static_assert(
+        caps::IsSInt32<typename TileData::DType>() || caps::IsFP32<typename TileData::DType>(),
+        "The input data type must be restricted to int32_t/float!");
+    static_assert(
+        (GlobalData::layout == pto::Layout::ND) || (GlobalData::layout == pto::Layout::NZ) ||
+            (GlobalData::layout == pto::Layout::NHWC) || (GlobalData::layout == pto::Layout::NCHW) ||
+            (GlobalData::layout == pto::Layout::NCDHW),
+        "TSTORE(Acc2GM) only support NZ2ND / NZ2NZ / NZ2NHWC / NZ2NCHW / NZ2NCDHW.");
     static_assert(TileData::Cols >= 1 && TileData::Cols <= 4095, "The range of Cols is [1, 4095].");
-    static_assert((GlobalData::layout == pto::Layout::ND && TileData::Rows >= 1 && TileData::Rows <= 8192) ||
-                      ((GlobalData::layout == pto::Layout::NZ || (GlobalData::layout == pto::Layout::NHWC) ||
-                        (GlobalData::layout == pto::Layout::NCHW) || (GlobalData::layout == pto::Layout::NCDHW)) &&
-                       TileData::Rows >= 1 && TileData::Rows <= 65535 && TileData::Cols % 16 == 0),
-                  "When GlobalData is ND format, the range of Rows is [1, 8192]."
-                  "When GlobalData is NZ/NHWC/NCHW/NCDHW format, the range of Rows is [1, 65535] and Cols"
-                  "must be an integer multiple of 16.");
+    static_assert(
+        (GlobalData::layout == pto::Layout::ND && TileData::Rows >= 1 && TileData::Rows <= 8192) ||
+            ((GlobalData::layout == pto::Layout::NZ || (GlobalData::layout == pto::Layout::NHWC) ||
+              (GlobalData::layout == pto::Layout::NCHW) || (GlobalData::layout == pto::Layout::NCDHW)) &&
+             TileData::Rows >= 1 && TileData::Rows <= 65535 && TileData::Cols % 16 == 0),
+        "When GlobalData is ND format, the range of Rows is [1, 8192]."
+        "When GlobalData is NZ/NHWC/NCHW/NCDHW format, the range of Rows is [1, 65535] and Cols"
+        "must be an integer multiple of 16.");
     if constexpr (!isQuant) {
         static_assert(
             caps::IsSInt32<typename GlobalData::RawDType>() || caps::IsFP32<typename GlobalData::RawDType>() ||
@@ -143,10 +147,10 @@ PTO_INTERNAL void CheckStaticAcc()
                 "The output data type must be restricted to int8_t/uint8_t/bfloat16_t/half/hifloat8_t/ \
                     float8_e4m3_t/float.");
         } else if constexpr (caps::IsSInt32<typename TileData::DType>()) {
-            static_assert(caps::IsInt8<typename GlobalData::RawDType>() ||
-                              caps::IsBF16<typename GlobalData::RawDType>() ||
-                              caps::IsFP16<typename GlobalData::RawDType>(),
-                          "The output data type must be restricted to half/bfloat16_t/int8_t/uint8_t.");
+            static_assert(
+                caps::IsInt8<typename GlobalData::RawDType>() || caps::IsBF16<typename GlobalData::RawDType>() ||
+                    caps::IsFP16<typename GlobalData::RawDType>(),
+                "The output data type must be restricted to half/bfloat16_t/int8_t/uint8_t.");
         }
     }
 }
@@ -154,21 +158,23 @@ PTO_INTERNAL void CheckStaticAcc()
 template <typename TileData, typename GlobalData>
 PTO_INTERNAL void CheckStaticVec()
 {
-    static_assert(sizeof(typename TileData::DType) == sizeof(typename GlobalData::RawDType),
-                  "Source dtype must be same with dst dtype!");
+    static_assert(
+        sizeof(typename TileData::DType) == sizeof(typename GlobalData::RawDType),
+        "Source dtype must be same with dst dtype!");
     static_assert(
         caps::IsTypeSupported<typename TileData::DType>(),
         "Data type must be "
         "int8_t/uint8_t/int16_t/uint16_t/int32_t/uint32_t/int64_t/uint64_t/half/bfloat16_t/float/float8_e4m3_t/"
         "float8_e5m2_t/hifloat8_t/float8_e8m0_t/float4_e1m2x2_t/float4_e2m1x2_t!");
-    static_assert(((GlobalData::layout == pto::Layout::ND) &&
-                   (TileData::isRowMajor && (TileData::SFractal == SLayout::NoneBox))) ||
-                      ((GlobalData::layout == pto::Layout::DN) &&
-                       (!TileData::isRowMajor && (TileData::SFractal == SLayout::NoneBox))) ||
-                      ((GlobalData::layout == pto::Layout::NZ) &&
-                       (!TileData::isRowMajor && (TileData::SFractal == SLayout::RowMajor))) ||
-                      (TileData::Rows == 1) || (TileData::Cols == 1),
-                  "Src and dst layout must be same, only support ND/DN/NZ or the special case of one row/one column!");
+    static_assert(
+        ((GlobalData::layout == pto::Layout::ND) &&
+         (TileData::isRowMajor && (TileData::SFractal == SLayout::NoneBox))) ||
+            ((GlobalData::layout == pto::Layout::DN) &&
+             (!TileData::isRowMajor && (TileData::SFractal == SLayout::NoneBox))) ||
+            ((GlobalData::layout == pto::Layout::NZ) &&
+             (!TileData::isRowMajor && (TileData::SFractal == SLayout::RowMajor))) ||
+            (TileData::Rows == 1) || (TileData::Cols == 1),
+        "Src and dst layout must be same, only support ND/DN/NZ or the special case of one row/one column!");
     static_assert(
         ((GlobalData::layout == pto::Layout::ND) && (TileData::Cols * sizeof(typename TileData::DType) % 32 == 0)) ||
         ((GlobalData::layout == pto::Layout::DN) && (TileData::Rows * sizeof(typename TileData::DType) % 32 == 0)) ||
@@ -179,12 +185,14 @@ PTO_INTERNAL void CheckStaticVec()
          (TileData::Rows == 1)));
 }
 
-template <typename TileData, typename GlobalData, AtomicType atomicType = AtomicType::AtomicNone,
-          STPhase Phase = STPhase::Unspecified>
-PTO_INTERNAL void TSTORE_IMPL(GlobalData &dst, TileData &src)
+template <
+    typename TileData, typename GlobalData, AtomicType atomicType = AtomicType::AtomicNone,
+    STPhase Phase = STPhase::Unspecified>
+PTO_INTERNAL void TSTORE_IMPL(GlobalData& dst, TileData& src)
 {
-    static_assert(TileData::Loc == pto::TileType::Vec || TileData::Loc == pto::TileType::Acc,
-                  "Source TileType only suport Vec/Acc!");
+    static_assert(
+        TileData::Loc == pto::TileType::Vec || TileData::Loc == pto::TileType::Acc,
+        "Source TileType only suport Vec/Acc!");
     if constexpr (atomicType == AtomicType::AtomicAdd) {
         SetAtomicAdd<typename GlobalData::RawDType>();
     }
@@ -217,9 +225,10 @@ PTO_INTERNAL void TSTORE_IMPL(GlobalData &dst, TileData &src)
     }
 }
 
-template <typename TileData, typename GlobalData, AtomicType atomicType = AtomicType::AtomicNone,
-          ReluPreMode reluPreMode, STPhase Phase = STPhase::Unspecified>
-PTO_INTERNAL void TSTORE_IMPL(GlobalData &dst, TileData &src)
+template <
+    typename TileData, typename GlobalData, AtomicType atomicType = AtomicType::AtomicNone, ReluPreMode reluPreMode,
+    STPhase Phase = STPhase::Unspecified>
+PTO_INTERNAL void TSTORE_IMPL(GlobalData& dst, TileData& src)
 {
     static_assert(TileData::Loc == pto::TileType::Acc, "Source TileType only suport Acc!");
     using L0cT = typename TileData::DType;
@@ -241,9 +250,10 @@ PTO_INTERNAL void TSTORE_IMPL(GlobalData &dst, TileData &src)
     }
 }
 
-template <typename TileData, typename GlobalData, AtomicType atomicType = AtomicType::AtomicNone,
-          ReluPreMode reluPreMode = ReluPreMode::NoRelu, STPhase Phase = STPhase::Unspecified>
-PTO_INTERNAL void TSTORE_IMPL(GlobalData &dst, TileData &src, uint64_t preQuantScalar)
+template <
+    typename TileData, typename GlobalData, AtomicType atomicType = AtomicType::AtomicNone,
+    ReluPreMode reluPreMode = ReluPreMode::NoRelu, STPhase Phase = STPhase::Unspecified>
+PTO_INTERNAL void TSTORE_IMPL(GlobalData& dst, TileData& src, uint64_t preQuantScalar)
 {
     static_assert(TileData::Loc == pto::TileType::Acc, "Source TileType only suport Acc!");
 
@@ -267,9 +277,10 @@ PTO_INTERNAL void TSTORE_IMPL(GlobalData &dst, TileData &src, uint64_t preQuantS
     }
 }
 
-template <typename TileData, typename GlobalData, typename FpTileData, AtomicType atomicType = AtomicType::AtomicNone,
-          ReluPreMode reluPreMode = ReluPreMode::NoRelu, STPhase Phase = STPhase::Unspecified>
-PTO_INTERNAL void TSTORE_IMPL(GlobalData &dst, TileData &src, FpTileData &fp)
+template <
+    typename TileData, typename GlobalData, typename FpTileData, AtomicType atomicType = AtomicType::AtomicNone,
+    ReluPreMode reluPreMode = ReluPreMode::NoRelu, STPhase Phase = STPhase::Unspecified>
+PTO_INTERNAL void TSTORE_IMPL(GlobalData& dst, TileData& src, FpTileData& fp)
 {
     static_assert(TileData::Loc == pto::TileType::Acc, "Source TileType only suport Acc!");
     using DstT = typename GlobalData::RawDType;

@@ -36,16 +36,11 @@
 
 namespace pto {
 
-enum class NPUArch
-{
-    A2A3,
-    A5
-};
+enum class NPUArch { A2A3, A5 };
 
 class NPUMemoryModel {
 private:
-    enum MemoryRegion
-    {
+    enum MemoryRegion {
         REG, // Registers - simulates NPU registers
         UB,  // Unified Buffer - for Vec tiles
         L1,  // L1 Buffer - for Mat tiles
@@ -84,7 +79,7 @@ private:
 public:
     // Each thread gets its own NPUMemoryModel instance, accurately modeling
     // the hardware where each AICore has physically separate memory.
-    static NPUMemoryModel &Instance()
+    static NPUMemoryModel& Instance()
     {
         thread_local NPUMemoryModel instance;
         return instance;
@@ -92,10 +87,7 @@ public:
 
     // Set the default architecture for all threads.
     // Call once before any thread uses Instance().
-    static void SetDefaultArch(NPUArch arch)
-    {
-        defaultArch_ = arch;
-    }
+    static void SetDefaultArch(NPUArch arch) { defaultArch_ = arch; }
 
     // Initialize with specific architecture (call once per thread at startup)
     void Initialize(NPUArch arch)
@@ -131,7 +123,7 @@ public:
 
     // Get pointer to memory at offset within a region
     template <typename TileDef>
-    TileDef::DType *GetPointer(std::size_t byteOffset)
+    TileDef::DType* GetPointer(std::size_t byteOffset)
     {
         static_assert(is_tile_data_v<TileDef> || is_conv_tile_v<TileDef>);
         int numElem;
@@ -149,8 +141,9 @@ public:
         } else if constexpr (TileDef::Loc == TileType::Acc) {
             return GetPointer<typename TileDef::DType, MemoryRegion::L0C>(byteOffset, numElem);
         } else {
-            return GetPointer<typename TileDef::DType, MemoryRegion::UB>(byteOffset,
-                                                                         numElem); // For Vec and unknown types
+            return GetPointer<typename TileDef::DType, MemoryRegion::UB>(
+                byteOffset,
+                numElem); // For Vec and unknown types
         }
     }
 
@@ -159,67 +152,58 @@ public:
     // - an already-materialized host pointer to a tile in that region
     //   (used when creating another tile view over the same backing storage).
     template <typename TileDef>
-    typename TileDef::DType *ResolveAssignedAddress(std::uintptr_t addr)
+    typename TileDef::DType* ResolveAssignedAddress(std::uintptr_t addr)
     {
         static_assert(is_tile_data_v<TileDef> || is_conv_tile_v<TileDef>);
         EnsureInitialized();
 
-        if (auto *direct = TryResolveExistingPointer<typename TileDef::DType>(addr)) {
+        if (auto* direct = TryResolveExistingPointer<typename TileDef::DType>(addr)) {
             return direct;
         }
         return GetPointer<TileDef>(static_cast<std::size_t>(addr));
     }
 
     // Get raw buffer bases (for debugging/direct access)
-    char *GetREGBase()
+    char* GetREGBase()
     {
         EnsureInitialized();
         return buffers_[MemoryRegion::REG].data();
     }
-    char *GetUBBase()
+    char* GetUBBase()
     {
         EnsureInitialized();
         return buffers_[MemoryRegion::UB].data();
     }
-    char *GetL1Base()
+    char* GetL1Base()
     {
         EnsureInitialized();
         return buffers_[MemoryRegion::L1].data();
     }
-    char *GetL0ABase()
+    char* GetL0ABase()
     {
         EnsureInitialized();
         return buffers_[MemoryRegion::L0A].data();
     }
-    char *GetL0BBase()
+    char* GetL0BBase()
     {
         EnsureInitialized();
         return buffers_[MemoryRegion::L0B].data();
     }
-    char *GetL0CBase()
+    char* GetL0CBase()
     {
         EnsureInitialized();
         return buffers_[MemoryRegion::L0C].data();
     }
 
-    const NPUMemoryModel::ArchMemorySizes &GetSizes() const
-    {
-        return sizes_;
-    }
-    NPUArch GetArch() const
-    {
-        return arch_;
-    }
-    bool IsInitialized() const
-    {
-        return initialized_;
-    }
+    const NPUMemoryModel::ArchMemorySizes& GetSizes() const { return sizes_; }
+    NPUArch GetArch() const { return arch_; }
+    bool IsInitialized() const { return initialized_; }
 
     // Clear all memory (zero-fill)
     void Clear()
     {
         if (initialized_) {
-            for (auto &buf : buffers_) {
+            for (auto& buf : buffers_) {
                 std::fill(buf.begin(), buf.end(), 0);
             }
         }
@@ -228,7 +212,7 @@ public:
     // Reset to uninitialized state
     void Reset()
     {
-        for (auto &buf : buffers_) {
+        for (auto& buf : buffers_) {
             buf.clear();
         }
         initialized_ = false;
@@ -236,31 +220,31 @@ public:
 
 private:
     template <typename T>
-    T *TryResolveExistingPointer(std::uintptr_t addr)
+    T* TryResolveExistingPointer(std::uintptr_t addr)
     {
         for (int region = 0; region < MemoryRegion::_MAX_REGIONS; ++region) {
-            auto *base = buffers_[region].data();
+            auto* base = buffers_[region].data();
             const auto start = reinterpret_cast<std::uintptr_t>(base);
             const auto end = start + buffers_[region].size();
             if (addr >= start && addr < end) {
-                return reinterpret_cast<T *>(addr);
+                return reinterpret_cast<T*>(addr);
             }
         }
         return nullptr;
     }
 
     template <typename T, MemoryRegion region>
-    inline T *GetPointer(std::size_t byteOffset, size_t numel)
+    inline T* GetPointer(std::size_t byteOffset, size_t numel)
     {
         EnsureInitialized();
 
         assert(byteOffset + numel * sizeof(T) <= sizes_[region]);
-        return reinterpret_cast<T *>(buffers_[region].data() + byteOffset);
+        return reinterpret_cast<T*>(buffers_[region].data() + byteOffset);
     }
 
     NPUMemoryModel() = default;
-    NPUMemoryModel(const NPUMemoryModel &) = delete;
-    NPUMemoryModel(const NPUMemoryModel &&) = delete;
+    NPUMemoryModel(const NPUMemoryModel&) = delete;
+    NPUMemoryModel(const NPUMemoryModel&&) = delete;
 
     // Shared default architecture — set once, read by all threads during auto-init
     static inline NPUArch defaultArch_ = NPUArch::A2A3;

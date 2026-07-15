@@ -18,25 +18,25 @@ constexpr uint64_t kFlagUbAddr = 0x0;
 constexpr uint64_t kReadUbAddr = 0x1000;
 constexpr uint64_t kOutUbAddr = 0x2000;
 
-PTO_INTERNAL void HardStoreInt32Line(__gm__ int32_t *dst, int32_t value, uint64_t ubAddr)
+PTO_INTERNAL void HardStoreInt32Line(__gm__ int32_t* dst, int32_t value, uint64_t ubAddr)
 {
-    __ubuf__ int32_t *ub = reinterpret_cast<__ubuf__ int32_t *>(ubAddr);
+    __ubuf__ int32_t* ub = reinterpret_cast<__ubuf__ int32_t*>(ubAddr);
     ub[0] = value;
     pipe_barrier(PIPE_ALL);
-    copy_ubuf_to_gm_align_v2(static_cast<__gm__ void *>(dst), static_cast<__ubuf__ void *>(ub), 0, 1, 1, 0, 0, 0);
+    copy_ubuf_to_gm_align_v2(static_cast<__gm__ void*>(dst), static_cast<__ubuf__ void*>(ub), 0, 1, 1, 0, 0, 0);
     pipe_barrier(PIPE_ALL);
 }
 
-extern "C" __global__ AICORE void RunHardSyncAll(__gm__ int32_t __out__ *out, __gm__ int32_t __out__ *flags,
-                                                 int32_t totalBlocks)
+extern "C" __global__ AICORE void RunHardSyncAll(
+    __gm__ int32_t __out__* out, __gm__ int32_t __out__* flags, int32_t totalBlocks)
 {
     const int32_t idx = static_cast<int32_t>(get_block_idx());
     HardStoreInt32Line(flags + idx * kInt32PerCacheLine, idx + 1, kFlagUbAddr);
 
     SYNCALL();
 
-    __ubuf__ int32_t *readUb = reinterpret_cast<__ubuf__ int32_t *>(kReadUbAddr);
-    copy_gm_to_ubuf(static_cast<__ubuf__ void *>(readUb), static_cast<__gm__ void *>(flags), 0, 1, totalBlocks, 0, 0);
+    __ubuf__ int32_t* readUb = reinterpret_cast<__ubuf__ int32_t*>(kReadUbAddr);
+    copy_gm_to_ubuf(static_cast<__ubuf__ void*>(readUb), static_cast<__gm__ void*>(flags), 0, 1, totalBlocks, 0, 0);
     pipe_barrier(PIPE_ALL);
 
     int32_t allVisible = 1;
@@ -48,7 +48,7 @@ extern "C" __global__ AICORE void RunHardSyncAll(__gm__ int32_t __out__ *out, __
     HardStoreInt32Line(out + idx * kInt32PerCacheLine, allVisible, kOutUbAddr);
 }
 
-void LaunchHardSyncAll(int32_t *out, int32_t *flags, int32_t totalBlocks, void *stream)
+void LaunchHardSyncAll(int32_t* out, int32_t* flags, int32_t totalBlocks, void* stream)
 {
     RunHardSyncAll<<<totalBlocks, nullptr, stream>>>(out, flags, totalBlocks);
 }

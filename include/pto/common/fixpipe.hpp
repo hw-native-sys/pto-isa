@@ -20,14 +20,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-typedef enum
-{
-    NOCLIP_RELU = 0,
-    CLIP_RELU = 1
-} ClipReluMode_t;
+typedef enum { NOCLIP_RELU = 0, CLIP_RELU = 1 } ClipReluMode_t;
 
-enum class LayoutMode_t : uint8_t
-{
+enum class LayoutMode_t : uint8_t {
     NZ2NZ = 0,
     NZ2ND = 1,
     NZ2DN = 2,
@@ -54,10 +49,11 @@ enum class LayoutMode_t : uint8_t
 //     QF162S16_PRE,     // half量化成int16_t, scalar量化
 //     VQF162S16_PRE,    // half量化成int16_t, tensor量化
 */
-template <LayoutMode_t layoutMode = LayoutMode_t::NZ2ND, QuantMode_t quantMode = QuantMode_t::NoQuant,
-          ReluPreMode reluMode = ReluPreMode::NoRelu, STPhase phase = STPhase::Unspecified, uint8_t subBlockId = 0,
-          AtomicType atomicT = AtomicType::AtomicNone, ClipReluMode_t clipReluMode = ClipReluMode_t::NOCLIP_RELU,
-          bool isChannelSplit = false>
+template <
+    LayoutMode_t layoutMode = LayoutMode_t::NZ2ND, QuantMode_t quantMode = QuantMode_t::NoQuant,
+    ReluPreMode reluMode = ReluPreMode::NoRelu, STPhase phase = STPhase::Unspecified, uint8_t subBlockId = 0,
+    AtomicType atomicT = AtomicType::AtomicNone, ClipReluMode_t clipReluMode = ClipReluMode_t::NOCLIP_RELU,
+    bool isChannelSplit = false>
 struct FixpipeParams {
     FixpipeParams() = default;
     static constexpr LayoutMode_t LayoutMode = layoutMode;
@@ -80,9 +76,8 @@ struct FixpipeConsDType {
     static constexpr bool isInt8 = quantPre == QuantMode_t::QF322B8_PRE || quantPre == QuantMode_t::REQ8 ||
                                    quantPre == QuantMode_t::VQF322B8_PRE || quantPre == QuantMode_t::VREQ8;
 
-    using type =
-        std::conditional_t<isHalf, half,
-                           std::conditional_t<isBfloat16, bfloat16_t, std::conditional_t<isInt8, int8_t, SrcType>>>;
+    using type = std::conditional_t<
+        isHalf, half, std::conditional_t<isBfloat16, bfloat16_t, std::conditional_t<isInt8, int8_t, SrcType>>>;
 };
 
 #if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90)

@@ -32,13 +32,14 @@ constexpr int32_t kUnpermuteInvalidRow = -1;
 template <typename OutputElement>
 class Unpermute {
 public:
-    AICORE inline void Init(GM_ADDR workspaceGM, GM_ADDR probsGM, GM_ADDR outGM,
-                            const __gm__ MegaMoeTilingData *tilingData);
+    AICORE inline void Init(
+        GM_ADDR workspaceGM, GM_ADDR probsGM, GM_ADDR outGM, const __gm__ MegaMoeTilingData* tilingData);
     AICORE inline void Process();
 
 private:
-    static_assert(std::is_same_v<OutputElement, half> || std::is_same_v<OutputElement, bfloat16_t>,
-                  "unpermute output must be half or bfloat16");
+    static_assert(
+        std::is_same_v<OutputElement, half> || std::is_same_v<OutputElement, bfloat16_t>,
+        "unpermute output must be half or bfloat16");
 
     using VectorShape = pto::Shape<1, 1, 1, 1, pto::DYNAMIC>;
     using VectorStride = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, 1>;
@@ -60,22 +61,10 @@ private:
         uint32_t batch = tilingData_->unpermuteTiling.unpermuteTokenBatch;
         return batch == 0U ? 1U : batch;
     }
-    AICORE inline event_t LoadFreeEvent(uint32_t bufferId) const
-    {
-        return static_cast<event_t>(bufferId);
-    }
-    AICORE inline event_t LoadReadyEvent(uint32_t bufferId) const
-    {
-        return static_cast<event_t>(bufferId + 2U);
-    }
-    AICORE inline event_t StoreFreeEvent() const
-    {
-        return EVENT_ID4;
-    }
-    AICORE inline event_t StoreReadyEvent() const
-    {
-        return EVENT_ID5;
-    }
+    AICORE inline event_t LoadFreeEvent(uint32_t bufferId) const { return static_cast<event_t>(bufferId); }
+    AICORE inline event_t LoadReadyEvent(uint32_t bufferId) const { return static_cast<event_t>(bufferId + 2U); }
+    AICORE inline event_t StoreFreeEvent() const { return EVENT_ID4; }
+    AICORE inline event_t StoreReadyEvent() const { return EVENT_ID5; }
     AICORE inline event_t MetadataReadyEvent(uint32_t bufferId) const
     {
         return static_cast<event_t>(bufferId == 0U ? EVENT_ID6 : EVENT_ID7);
@@ -92,14 +81,14 @@ private:
     AICORE inline void StoreOutputChunk(uint32_t token, uint32_t col, uint32_t cols);
     AICORE inline void ProcessToken(uint32_t metaBufferId, uint32_t batchStart, uint32_t localToken);
 
-    const __gm__ MegaMoeTilingData *tilingData_ = nullptr;
+    const __gm__ MegaMoeTilingData* tilingData_ = nullptr;
 
     PtoRemoteWindow remoteWindow_;
     MegaMoePeerMemoryLayout peerMemoryLayout_;
-    __gm__ OutputElement *offsetDPtr_ = nullptr;
-    __gm__ int32_t *expandedRowIdxPtr_ = nullptr;
-    __gm__ float *probsPtr_ = nullptr;
-    __gm__ OutputElement *outPtr_ = nullptr;
+    __gm__ OutputElement* offsetDPtr_ = nullptr;
+    __gm__ int32_t* expandedRowIdxPtr_ = nullptr;
+    __gm__ float* probsPtr_ = nullptr;
+    __gm__ OutputElement* outPtr_ = nullptr;
 
     uint32_t problemM_ = 0;
     uint32_t problemK_ = 0;
@@ -123,8 +112,8 @@ private:
 };
 
 template <typename OutputElement>
-AICORE inline void Unpermute<OutputElement>::Init(GM_ADDR workspaceGM, GM_ADDR probsGM, GM_ADDR outGM,
-                                                  const __gm__ MegaMoeTilingData *tilingData)
+AICORE inline void Unpermute<OutputElement>::Init(
+    GM_ADDR workspaceGM, GM_ADDR probsGM, GM_ADDR outGM, const __gm__ MegaMoeTilingData* tilingData)
 {
     tilingData_ = tilingData;
 
@@ -148,11 +137,11 @@ AICORE inline void Unpermute<OutputElement>::Init(GM_ADDR workspaceGM, GM_ADDR p
 
     remoteWindow_.Init(reinterpret_cast<GM_ADDR>(tilingData_->runtimeInfo.remoteWindowContext));
     peerMemoryLayout_.Init(remoteWindow_);
-    offsetDPtr_ = reinterpret_cast<__gm__ OutputElement *>(remoteWindow_.LocalBase() + peerMemoryLayout_.offsetD);
+    offsetDPtr_ = reinterpret_cast<__gm__ OutputElement*>(remoteWindow_.LocalBase() + peerMemoryLayout_.offsetD);
     expandedRowIdxPtr_ =
-        reinterpret_cast<__gm__ int32_t *>(workspaceGM + tilingData_->frontReorderTiling.expandedRowIdxOffset);
-    probsPtr_ = reinterpret_cast<__gm__ float *>(probsGM);
-    outPtr_ = reinterpret_cast<__gm__ OutputElement *>(outGM);
+        reinterpret_cast<__gm__ int32_t*>(workspaceGM + tilingData_->frontReorderTiling.expandedRowIdxOffset);
+    probsPtr_ = reinterpret_cast<__gm__ float*>(probsGM);
+    outPtr_ = reinterpret_cast<__gm__ OutputElement*>(outGM);
 
     InitUbLayout();
 }
@@ -201,12 +190,12 @@ AICORE inline void Unpermute<OutputElement>::FinalizeLocalPipe() const
 }
 
 template <typename OutputElement>
-AICORE inline void Unpermute<OutputElement>::PrefetchMetadata(uint32_t bufferId, uint32_t batchStart,
-                                                              uint32_t batchTokens) const
+AICORE inline void Unpermute<OutputElement>::PrefetchMetadata(
+    uint32_t bufferId, uint32_t batchStart, uint32_t batchTokens) const
 {
     const uint32_t metaElems = batchTokens * topK_;
-    PtoLoadVector<int32_t, kUnpermuteVecTileElems>(ubIndexOffset_[bufferId], expandedRowIdxPtr_ + batchStart * topK_,
-                                                   metaElems);
+    PtoLoadVector<int32_t, kUnpermuteVecTileElems>(
+        ubIndexOffset_[bufferId], expandedRowIdxPtr_ + batchStart * topK_, metaElems);
     PtoLoadVector<float, kUnpermuteVecTileElems>(ubProbOffset_[bufferId], probsPtr_ + batchStart * topK_, metaElems);
     set_flag(PIPE_MTE2, PIPE_S, MetadataReadyEvent(bufferId));
 }
@@ -218,22 +207,22 @@ AICORE inline void Unpermute<OutputElement>::WaitMetadata(uint32_t bufferId) con
 }
 
 template <typename OutputElement>
-AICORE inline int32_t Unpermute<OutputElement>::ReadExpandedRow(uint32_t metaBufferId, uint32_t localToken,
-                                                                uint32_t topkIdx) const
+AICORE inline int32_t Unpermute<OutputElement>::ReadExpandedRow(
+    uint32_t metaBufferId, uint32_t localToken, uint32_t topkIdx) const
 {
     return PtoGetValue<int32_t, kUnpermuteVecTileElems>(ubIndexOffset_[metaBufferId], localToken * topK_ + topkIdx);
 }
 
 template <typename OutputElement>
-AICORE inline float Unpermute<OutputElement>::ReadProb(uint32_t metaBufferId, uint32_t localToken,
-                                                       uint32_t topkIdx) const
+AICORE inline float Unpermute<OutputElement>::ReadProb(
+    uint32_t metaBufferId, uint32_t localToken, uint32_t topkIdx) const
 {
     return PtoGetValue<float, kUnpermuteVecTileElems>(ubProbOffset_[metaBufferId], localToken * topK_ + topkIdx);
 }
 
 template <typename OutputElement>
-AICORE inline void Unpermute<OutputElement>::LoadOffsetDChunk(uint32_t bufferId, int32_t expandedRow, uint32_t col,
-                                                              uint32_t cols) const
+AICORE inline void Unpermute<OutputElement>::LoadOffsetDChunk(
+    uint32_t bufferId, int32_t expandedRow, uint32_t col, uint32_t cols) const
 {
     wait_flag(PIPE_V, PIPE_MTE2, LoadFreeEvent(bufferId));
     TileD dTile(1, cols);
@@ -283,8 +272,8 @@ AICORE inline void Unpermute<OutputElement>::StoreOutputChunk(uint32_t token, ui
 }
 
 template <typename OutputElement>
-AICORE inline void Unpermute<OutputElement>::ProcessToken(uint32_t metaBufferId, uint32_t batchStart,
-                                                          uint32_t localToken)
+AICORE inline void Unpermute<OutputElement>::ProcessToken(
+    uint32_t metaBufferId, uint32_t batchStart, uint32_t localToken)
 {
     const uint32_t token = batchStart + localToken;
     for (uint32_t col = 0; col < problemK_; col += TileCols()) { // K按照1024切分

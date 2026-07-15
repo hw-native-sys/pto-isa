@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class TABSTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -33,7 +31,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, bool isInPlace = false>
-void LaunchTAbs(T *out, T *src, void *stream);
+void LaunchTAbs(T* out, T* src, void* stream);
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, bool isInPlace = false>
 void test_tabs()
@@ -48,11 +46,11 @@ void test_tabs()
     T *dstHost, *srcHost;
     T *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&srcHost), fileSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&srcHost), fileSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input1.bin", fileSize, srcHost, fileSize);
 
@@ -89,43 +87,13 @@ void test_tabs()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TABSTest, case_float_64x64_64x64_64x64_InPlace)
-{
-    test_tabs<float, 64, 64, 64, 64, true>();
-}
-TEST_F(TABSTest, case_float_64x64_64x64_64x64)
-{
-    test_tabs<float, 64, 64, 64, 64, false>();
-}
-TEST_F(TABSTest, case_half_64x64_64x64_64x64_InPlace)
-{
-    test_tabs<aclFloat16, 64, 64, 64, 64, true>();
-}
-TEST_F(TABSTest, case_half_64x64_64x64_64x64)
-{
-    test_tabs<aclFloat16, 64, 64, 64, 64, false>();
-}
-TEST_F(TABSTest, case_int8_64x64_64x64_64x64_InPlace)
-{
-    test_tabs<int8_t, 64, 64, 64, 64, true>();
-}
-TEST_F(TABSTest, case_int8_64x64_64x64_64x64)
-{
-    test_tabs<int8_t, 64, 64, 64, 64, false>();
-}
-TEST_F(TABSTest, case_int16_64x64_64x64_64x64_InPlace)
-{
-    test_tabs<int16_t, 64, 64, 64, 64, true>();
-}
-TEST_F(TABSTest, case_int16_64x64_64x64_64x64)
-{
-    test_tabs<int16_t, 64, 64, 64, 64, false>();
-}
-TEST_F(TABSTest, case_int32_64x64_64x64_64x64_InPlace)
-{
-    test_tabs<int32_t, 64, 64, 64, 64, true>();
-}
-TEST_F(TABSTest, case_int32_64x64_64x64_64x64)
-{
-    test_tabs<int32_t, 64, 64, 64, 64, false>();
-}
+TEST_F(TABSTest, case_float_64x64_64x64_64x64_InPlace) { test_tabs<float, 64, 64, 64, 64, true>(); }
+TEST_F(TABSTest, case_float_64x64_64x64_64x64) { test_tabs<float, 64, 64, 64, 64, false>(); }
+TEST_F(TABSTest, case_half_64x64_64x64_64x64_InPlace) { test_tabs<aclFloat16, 64, 64, 64, 64, true>(); }
+TEST_F(TABSTest, case_half_64x64_64x64_64x64) { test_tabs<aclFloat16, 64, 64, 64, 64, false>(); }
+TEST_F(TABSTest, case_int8_64x64_64x64_64x64_InPlace) { test_tabs<int8_t, 64, 64, 64, 64, true>(); }
+TEST_F(TABSTest, case_int8_64x64_64x64_64x64) { test_tabs<int8_t, 64, 64, 64, 64, false>(); }
+TEST_F(TABSTest, case_int16_64x64_64x64_64x64_InPlace) { test_tabs<int16_t, 64, 64, 64, 64, true>(); }
+TEST_F(TABSTest, case_int16_64x64_64x64_64x64) { test_tabs<int16_t, 64, 64, 64, 64, false>(); }
+TEST_F(TABSTest, case_int32_64x64_64x64_64x64_InPlace) { test_tabs<int32_t, 64, 64, 64, 64, true>(); }
+TEST_F(TABSTest, case_int32_64x64_64x64_64x64) { test_tabs<int32_t, 64, 64, 64, 64, false>(); }

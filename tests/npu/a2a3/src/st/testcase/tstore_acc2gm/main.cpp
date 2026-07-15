@@ -22,44 +22,42 @@ constexpr int GetNDC1HWC0C0Size()
 }
 
 template <int tilingKey>
-void LaunchTStoreAcc2gmNz2nd(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
+void LaunchTStoreAcc2gmNz2nd(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 
 template <int tilingKey>
-void LaunchTStoreAcc2gmNz2nz(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
+void LaunchTStoreAcc2gmNz2nz(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 
 template <int tilingKey>
-void LaunchTStoreAcc2gmNz2NDC1HWC0(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
+void LaunchTStoreAcc2gmNz2NDC1HWC0(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 
 template <int tilingKey>
-void LaunchTStoreAcc2gmScalarNz2nd(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream, float scalarQuant);
+void LaunchTStoreAcc2gmScalarNz2nd(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream, float scalarQuant);
 
 template <int tilingKey>
-void LaunchTStoreAcc2gmScalarNz2nz(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream, float scalarQuant);
+void LaunchTStoreAcc2gmScalarNz2nz(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream, float scalarQuant);
 
 template <int tilingKey>
-void LaunchTStoreAcc2gmScalarNz2NDC1HWC0(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream, float scalarQuant);
+void LaunchTStoreAcc2gmScalarNz2NDC1HWC0(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream, float scalarQuant);
 
 template <int tilingKey>
-void LaunchTStoreAcc2gmVectorNz2nd(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *quantTensor, void *stream);
+void LaunchTStoreAcc2gmVectorNz2nd(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* quantTensor, void* stream);
 
 template <int tilingKey>
-void LaunchTStoreAcc2gmVectorNz2nz(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *quantTensor, void *stream);
+void LaunchTStoreAcc2gmVectorNz2nz(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* quantTensor, void* stream);
 
 template <int tilingKey>
-void LaunchTStoreAcc2gmVectorNz2NDC1HWC0(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *quantTensor,
-                                         void *stream);
+void LaunchTStoreAcc2gmVectorNz2NDC1HWC0(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* quantTensor, void* stream);
 
 class TStoreAcc2gmTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -82,13 +80,13 @@ void test_tstore_acc2gm_nz2nd()
     uint8_t *dstHost, *src0Host, *src1Host;
     uint8_t *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&src0Host), aFileSize);
-    aclrtMallocHost((void **)(&src1Host), bFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&src0Host), aFileSize);
+    aclrtMallocHost((void**)(&src1Host), bFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
@@ -139,13 +137,13 @@ void test_tstore_acc2gm_nz2nz()
     uint8_t *dstHost, *src0Host, *src1Host;
     uint8_t *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&src0Host), aFileSize);
-    aclrtMallocHost((void **)(&src1Host), bFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&src0Host), aFileSize);
+    aclrtMallocHost((void**)(&src1Host), bFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
@@ -179,8 +177,9 @@ void test_tstore_acc2gm_nz2nz()
     EXPECT_TRUE(ret);
 }
 
-template <int tilingKey, typename dstDataType, typename srcDataType, int validM, int validN, int validK, int dstN,
-          int dstD, int dstC1, int dstH, int dstW>
+template <
+    int tilingKey, typename dstDataType, typename srcDataType, int validM, int validN, int validK, int dstN, int dstD,
+    int dstC1, int dstH, int dstW>
 void test_tstore_acc2gm_nz2ndc1hwc0()
 {
     constexpr int c0Size = GetNDC1HWC0C0Size<dstDataType>();
@@ -199,13 +198,13 @@ void test_tstore_acc2gm_nz2ndc1hwc0()
     uint8_t *dstHost, *src0Host, *src1Host;
     uint8_t *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&src0Host), aFileSize);
-    aclrtMallocHost((void **)(&src1Host), bFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&src0Host), aFileSize);
+    aclrtMallocHost((void**)(&src1Host), bFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
@@ -240,8 +239,9 @@ void test_tstore_acc2gm_nz2ndc1hwc0()
     EXPECT_TRUE(ret);
 }
 
-template <int tilingKey, typename dstDataType, typename srcDataType, int validM, int validN, int validK, int dstN,
-          int dstD, int dstC1, int dstH, int dstW>
+template <
+    int tilingKey, typename dstDataType, typename srcDataType, int validM, int validN, int validK, int dstN, int dstD,
+    int dstC1, int dstH, int dstW>
 void test_tstore_acc2gm_scalar_nz2ndc1hwc0(float scalarQuant)
 {
     constexpr int c0Size = GetNDC1HWC0C0Size<dstDataType>();
@@ -260,13 +260,13 @@ void test_tstore_acc2gm_scalar_nz2ndc1hwc0(float scalarQuant)
     uint8_t *dstHost, *src0Host, *src1Host;
     uint8_t *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&src0Host), aFileSize);
-    aclrtMallocHost((void **)(&src1Host), bFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&src0Host), aFileSize);
+    aclrtMallocHost((void**)(&src1Host), bFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
@@ -316,13 +316,13 @@ void test_tstore_acc2gm_scalar_nz2nd(float scalarQuant)
     uint8_t *dstHost, *src0Host, *src1Host;
     uint8_t *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&src0Host), aFileSize);
-    aclrtMallocHost((void **)(&src1Host), bFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&src0Host), aFileSize);
+    aclrtMallocHost((void**)(&src1Host), bFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
@@ -356,8 +356,9 @@ void test_tstore_acc2gm_scalar_nz2nd(float scalarQuant)
     EXPECT_TRUE(ret);
 }
 
-template <int tilingKey, typename dstDataType, typename srcDataType, int validM, int validN, int validK, int dstN,
-          int dstD, int dstC1, int dstH, int dstW>
+template <
+    int tilingKey, typename dstDataType, typename srcDataType, int validM, int validN, int validK, int dstN, int dstD,
+    int dstC1, int dstH, int dstW>
 void test_tstore_acc2gm_vector_nz2ndc1hwc0()
 {
     using ScalingT = uint64_t;
@@ -376,24 +377,24 @@ void test_tstore_acc2gm_vector_nz2ndc1hwc0()
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    uint8_t *dstHost;
-    uint8_t *src0Host;
-    uint8_t *src1Host;
-    uint8_t *quantTensorHost;
-    uint8_t *dstDevice;
-    uint8_t *src0Device;
-    uint8_t *src1Device;
-    uint8_t *quantTensorDevice;
+    uint8_t* dstHost;
+    uint8_t* src0Host;
+    uint8_t* src1Host;
+    uint8_t* quantTensorHost;
+    uint8_t* dstDevice;
+    uint8_t* src0Device;
+    uint8_t* src1Device;
+    uint8_t* quantTensorDevice;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&src0Host), aFileSize);
-    aclrtMallocHost((void **)(&src1Host), bFileSize);
-    aclrtMallocHost((void **)(&quantTensorHost), fbFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&src0Host), aFileSize);
+    aclrtMallocHost((void**)(&src1Host), bFileSize);
+    aclrtMallocHost((void**)(&quantTensorHost), fbFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&quantTensorDevice, fbFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&quantTensorDevice, fbFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
@@ -447,13 +448,13 @@ void test_tstore_acc2gm_scalar_nz2nz(float scalarQuant)
     uint8_t *dstHost, *src0Host, *src1Host;
     uint8_t *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&src0Host), aFileSize);
-    aclrtMallocHost((void **)(&src1Host), bFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&src0Host), aFileSize);
+    aclrtMallocHost((void**)(&src1Host), bFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
@@ -503,24 +504,24 @@ void test_tstore_acc2gm_vector_nz2nd()
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    uint8_t *dstHost;
-    uint8_t *src0Host;
-    uint8_t *src1Host;
-    uint8_t *quantTensorHost;
-    uint8_t *dstDevice;
-    uint8_t *src0Device;
-    uint8_t *src1Device;
-    uint8_t *quantTensorDevice;
+    uint8_t* dstHost;
+    uint8_t* src0Host;
+    uint8_t* src1Host;
+    uint8_t* quantTensorHost;
+    uint8_t* dstDevice;
+    uint8_t* src0Device;
+    uint8_t* src1Device;
+    uint8_t* quantTensorDevice;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&src0Host), aFileSize);
-    aclrtMallocHost((void **)(&src1Host), bFileSize);
-    aclrtMallocHost((void **)(&quantTensorHost), fbFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&src0Host), aFileSize);
+    aclrtMallocHost((void**)(&src1Host), bFileSize);
+    aclrtMallocHost((void**)(&quantTensorHost), fbFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&quantTensorDevice, fbFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&quantTensorDevice, fbFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
@@ -574,24 +575,24 @@ void test_tstore_acc2gm_vector_nz2nz()
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    uint8_t *dstHost;
-    uint8_t *src0Host;
-    uint8_t *src1Host;
-    uint8_t *quantTensorHost;
-    uint8_t *dstDevice;
-    uint8_t *src0Device;
-    uint8_t *src1Device;
-    uint8_t *quantTensorDevice;
+    uint8_t* dstHost;
+    uint8_t* src0Host;
+    uint8_t* src1Host;
+    uint8_t* quantTensorHost;
+    uint8_t* dstDevice;
+    uint8_t* src0Device;
+    uint8_t* src1Device;
+    uint8_t* quantTensorDevice;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&src0Host), aFileSize);
-    aclrtMallocHost((void **)(&src1Host), bFileSize);
-    aclrtMallocHost((void **)(&quantTensorHost), fbFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&src0Host), aFileSize);
+    aclrtMallocHost((void**)(&src1Host), bFileSize);
+    aclrtMallocHost((void**)(&quantTensorHost), fbFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&quantTensorDevice, fbFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&quantTensorDevice, fbFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
@@ -629,205 +630,85 @@ void test_tstore_acc2gm_vector_nz2nz()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TStoreAcc2gmTest, case1)
-{
-    test_tstore_acc2gm_nz2nd<1, float, float, 128, 128, 61>();
-}
+TEST_F(TStoreAcc2gmTest, case1) { test_tstore_acc2gm_nz2nd<1, float, float, 128, 128, 61>(); }
 
-TEST_F(TStoreAcc2gmTest, case2)
-{
-    test_tstore_acc2gm_nz2nd<2, float, float, 31, 32, 126>();
-}
+TEST_F(TStoreAcc2gmTest, case2) { test_tstore_acc2gm_nz2nd<2, float, float, 31, 32, 126>(); }
 
-TEST_F(TStoreAcc2gmTest, case3)
-{
-    test_tstore_acc2gm_nz2nd<3, float, uint16_t, 65, 128, 96>();
-}
+TEST_F(TStoreAcc2gmTest, case3) { test_tstore_acc2gm_nz2nd<3, float, uint16_t, 65, 128, 96>(); }
 
-TEST_F(TStoreAcc2gmTest, case4)
-{
-    test_tstore_acc2gm_nz2nd<4, uint16_t, uint16_t, 73, 64, 32>();
-}
+TEST_F(TStoreAcc2gmTest, case4) { test_tstore_acc2gm_nz2nd<4, uint16_t, uint16_t, 73, 64, 32>(); }
 
-TEST_F(TStoreAcc2gmTest, case5)
-{
-    test_tstore_acc2gm_nz2nd<5, float, uint16_t, 13, 32, 25>();
-}
+TEST_F(TStoreAcc2gmTest, case5) { test_tstore_acc2gm_nz2nd<5, float, uint16_t, 13, 32, 25>(); }
 
-TEST_F(TStoreAcc2gmTest, case6)
-{
-    test_tstore_acc2gm_nz2nd<6, uint16_t, uint16_t, 100, 222, 60>();
-}
+TEST_F(TStoreAcc2gmTest, case6) { test_tstore_acc2gm_nz2nd<6, uint16_t, uint16_t, 100, 222, 60>(); }
 
-TEST_F(TStoreAcc2gmTest, case7)
-{
-    test_tstore_acc2gm_nz2nz<1, float, float, 32, 64, 25>();
-}
+TEST_F(TStoreAcc2gmTest, case7) { test_tstore_acc2gm_nz2nz<1, float, float, 32, 64, 25>(); }
 
-TEST_F(TStoreAcc2gmTest, case8)
-{
-    test_tstore_acc2gm_nz2nz<2, float, float, 48, 32, 45>();
-}
+TEST_F(TStoreAcc2gmTest, case8) { test_tstore_acc2gm_nz2nz<2, float, float, 48, 32, 45>(); }
 
-TEST_F(TStoreAcc2gmTest, case9)
-{
-    test_tstore_acc2gm_nz2nz<3, float, uint16_t, 32, 64, 24>();
-}
+TEST_F(TStoreAcc2gmTest, case9) { test_tstore_acc2gm_nz2nz<3, float, uint16_t, 32, 64, 24>(); }
 
-TEST_F(TStoreAcc2gmTest, case10)
-{
-    test_tstore_acc2gm_nz2nz<4, uint16_t, uint16_t, 96, 96, 23>();
-}
+TEST_F(TStoreAcc2gmTest, case10) { test_tstore_acc2gm_nz2nz<4, uint16_t, uint16_t, 96, 96, 23>(); }
 
-TEST_F(TStoreAcc2gmTest, case11)
-{
-    test_tstore_acc2gm_nz2nz<5, float, uint16_t, 48, 96, 22>();
-}
+TEST_F(TStoreAcc2gmTest, case11) { test_tstore_acc2gm_nz2nz<5, float, uint16_t, 48, 96, 22>(); }
 
-TEST_F(TStoreAcc2gmTest, case12)
-{
-    test_tstore_acc2gm_nz2nz<6, uint16_t, uint16_t, 48, 256, 32>();
-}
+TEST_F(TStoreAcc2gmTest, case12) { test_tstore_acc2gm_nz2nz<6, uint16_t, uint16_t, 48, 256, 32>(); }
 
-TEST_F(TStoreAcc2gmTest, case13)
-{
-    test_tstore_acc2gm_nz2nd<7, int32_t, int8_t, 44, 128, 27>();
-}
+TEST_F(TStoreAcc2gmTest, case13) { test_tstore_acc2gm_nz2nd<7, int32_t, int8_t, 44, 128, 27>(); }
 
-TEST_F(TStoreAcc2gmTest, case14)
-{
-    test_tstore_acc2gm_nz2nz<7, int32_t, int8_t, 64, 96, 30>();
-}
+TEST_F(TStoreAcc2gmTest, case14) { test_tstore_acc2gm_nz2nz<7, int32_t, int8_t, 64, 96, 30>(); }
 
-TEST_F(TStoreAcc2gmTest, case15)
-{
-    test_tstore_acc2gm_nz2nz<8, float, float, 64, 192, 43>();
-}
+TEST_F(TStoreAcc2gmTest, case15) { test_tstore_acc2gm_nz2nz<8, float, float, 64, 192, 43>(); }
 
-TEST_F(TStoreAcc2gmTest, case16)
-{
-    test_tstore_acc2gm_scalar_nz2nd<1, uint16_t, int8_t, 64, 64, 64>(5);
-}
+TEST_F(TStoreAcc2gmTest, case16) { test_tstore_acc2gm_scalar_nz2nd<1, uint16_t, int8_t, 64, 64, 64>(5); }
 
-TEST_F(TStoreAcc2gmTest, case17)
-{
-    test_tstore_acc2gm_scalar_nz2nd<2, int8_t, int8_t, 31, 32, 26>(2);
-}
+TEST_F(TStoreAcc2gmTest, case17) { test_tstore_acc2gm_scalar_nz2nd<2, int8_t, int8_t, 31, 32, 26>(2); }
 
-TEST_F(TStoreAcc2gmTest, case18)
-{
-    test_tstore_acc2gm_scalar_nz2nd<3, uint8_t, int8_t, 16, 32, 17>(2);
-}
+TEST_F(TStoreAcc2gmTest, case18) { test_tstore_acc2gm_scalar_nz2nd<3, uint8_t, int8_t, 16, 32, 17>(2); }
 
-TEST_F(TStoreAcc2gmTest, case19)
-{
-    test_tstore_acc2gm_scalar_nz2nz<1, uint16_t, int8_t, 64, 32, 64>(5);
-}
+TEST_F(TStoreAcc2gmTest, case19) { test_tstore_acc2gm_scalar_nz2nz<1, uint16_t, int8_t, 64, 32, 64>(5); }
 
-TEST_F(TStoreAcc2gmTest, case20)
-{
-    test_tstore_acc2gm_scalar_nz2nz<2, int8_t, int8_t, 32, 32, 32>(2);
-}
+TEST_F(TStoreAcc2gmTest, case20) { test_tstore_acc2gm_scalar_nz2nz<2, int8_t, int8_t, 32, 32, 32>(2); }
 
-TEST_F(TStoreAcc2gmTest, case21)
-{
-    test_tstore_acc2gm_scalar_nz2nz<3, uint8_t, int8_t, 32, 32, 17>(2);
-}
+TEST_F(TStoreAcc2gmTest, case21) { test_tstore_acc2gm_scalar_nz2nz<3, uint8_t, int8_t, 32, 32, 17>(2); }
 
-TEST_F(TStoreAcc2gmTest, case22)
-{
-    test_tstore_acc2gm_scalar_nz2nd<4, int8_t, uint16_t, 25, 35, 32>(2);
-}
+TEST_F(TStoreAcc2gmTest, case22) { test_tstore_acc2gm_scalar_nz2nd<4, int8_t, uint16_t, 25, 35, 32>(2); }
 
-TEST_F(TStoreAcc2gmTest, case23)
-{
-    test_tstore_acc2gm_scalar_nz2nd<5, uint8_t, float, 16, 20, 25>(1.5);
-}
+TEST_F(TStoreAcc2gmTest, case23) { test_tstore_acc2gm_scalar_nz2nd<5, uint8_t, float, 16, 20, 25>(1.5); }
 
-TEST_F(TStoreAcc2gmTest, case24)
-{
-    test_tstore_acc2gm_scalar_nz2nz<4, int8_t, float, 16, 64, 32>(2.5);
-}
+TEST_F(TStoreAcc2gmTest, case24) { test_tstore_acc2gm_scalar_nz2nz<4, int8_t, float, 16, 64, 32>(2.5); }
 
-TEST_F(TStoreAcc2gmTest, case25)
-{
-    test_tstore_acc2gm_scalar_nz2nz<5, uint8_t, uint16_t, 32, 64, 16>(2);
-}
+TEST_F(TStoreAcc2gmTest, case25) { test_tstore_acc2gm_scalar_nz2nz<5, uint8_t, uint16_t, 32, 64, 16>(2); }
 
-TEST_F(TStoreAcc2gmTest, case26)
-{
-    test_tstore_acc2gm_vector_nz2nd<1, uint16_t, int8_t, 55, 88, 32>();
-}
+TEST_F(TStoreAcc2gmTest, case26) { test_tstore_acc2gm_vector_nz2nd<1, uint16_t, int8_t, 55, 88, 32>(); }
 
-TEST_F(TStoreAcc2gmTest, case27)
-{
-    test_tstore_acc2gm_vector_nz2nd<2, int8_t, int8_t, 34, 85, 19>();
-}
+TEST_F(TStoreAcc2gmTest, case27) { test_tstore_acc2gm_vector_nz2nd<2, int8_t, int8_t, 34, 85, 19>(); }
 
-TEST_F(TStoreAcc2gmTest, case28)
-{
-    test_tstore_acc2gm_vector_nz2nd<3, uint8_t, int8_t, 31, 32, 29>();
-}
+TEST_F(TStoreAcc2gmTest, case28) { test_tstore_acc2gm_vector_nz2nd<3, uint8_t, int8_t, 31, 32, 29>(); }
 
-TEST_F(TStoreAcc2gmTest, case29)
-{
-    test_tstore_acc2gm_vector_nz2nz<1, int8_t, int8_t, 32, 32, 32>();
-}
+TEST_F(TStoreAcc2gmTest, case29) { test_tstore_acc2gm_vector_nz2nz<1, int8_t, int8_t, 32, 32, 32>(); }
 
-TEST_F(TStoreAcc2gmTest, case30)
-{
-    test_tstore_acc2gm_vector_nz2nz<2, uint8_t, int8_t, 32, 32, 128>();
-}
+TEST_F(TStoreAcc2gmTest, case30) { test_tstore_acc2gm_vector_nz2nz<2, uint8_t, int8_t, 32, 32, 128>(); }
 
-TEST_F(TStoreAcc2gmTest, case31)
-{
-    test_tstore_acc2gm_vector_nz2nd<4, uint8_t, uint16_t, 33, 65, 15>();
-}
+TEST_F(TStoreAcc2gmTest, case31) { test_tstore_acc2gm_vector_nz2nd<4, uint8_t, uint16_t, 33, 65, 15>(); }
 
-TEST_F(TStoreAcc2gmTest, case32)
-{
-    test_tstore_acc2gm_vector_nz2nd<5, uint8_t, uint16_t, 19, 33, 23>();
-}
+TEST_F(TStoreAcc2gmTest, case32) { test_tstore_acc2gm_vector_nz2nd<5, uint8_t, uint16_t, 19, 33, 23>(); }
 
-TEST_F(TStoreAcc2gmTest, case33)
-{
-    test_tstore_acc2gm_vector_nz2nz<3, uint8_t, uint16_t, 48, 64, 25>();
-}
+TEST_F(TStoreAcc2gmTest, case33) { test_tstore_acc2gm_vector_nz2nz<3, uint8_t, uint16_t, 48, 64, 25>(); }
 
-TEST_F(TStoreAcc2gmTest, case34)
-{
-    test_tstore_acc2gm_vector_nz2nz<4, uint8_t, uint16_t, 128, 96, 17>();
-}
+TEST_F(TStoreAcc2gmTest, case34) { test_tstore_acc2gm_vector_nz2nz<4, uint8_t, uint16_t, 128, 96, 17>(); }
 
-TEST_F(TStoreAcc2gmTest, case_relu_1)
-{
-    test_tstore_acc2gm_nz2nd<21, float, float, 128, 96, 61>();
-}
+TEST_F(TStoreAcc2gmTest, case_relu_1) { test_tstore_acc2gm_nz2nd<21, float, float, 128, 96, 61>(); }
 
-TEST_F(TStoreAcc2gmTest, case_relu_11)
-{
-    test_tstore_acc2gm_nz2nz<21, float, uint16_t, 256, 64, 33>();
-}
+TEST_F(TStoreAcc2gmTest, case_relu_11) { test_tstore_acc2gm_nz2nz<21, float, uint16_t, 256, 64, 33>(); }
 
-TEST_F(TStoreAcc2gmTest, case_relu_21)
-{
-    test_tstore_acc2gm_scalar_nz2nd<21, uint8_t, uint16_t, 55, 27, 33>(2);
-}
+TEST_F(TStoreAcc2gmTest, case_relu_21) { test_tstore_acc2gm_scalar_nz2nd<21, uint8_t, uint16_t, 55, 27, 33>(2); }
 
-TEST_F(TStoreAcc2gmTest, case_relu_31)
-{
-    test_tstore_acc2gm_scalar_nz2nz<21, uint8_t, uint8_t, 80, 96, 114>(2);
-}
+TEST_F(TStoreAcc2gmTest, case_relu_31) { test_tstore_acc2gm_scalar_nz2nz<21, uint8_t, uint8_t, 80, 96, 114>(2); }
 
-TEST_F(TStoreAcc2gmTest, case_relu_41)
-{
-    test_tstore_acc2gm_vector_nz2nd<21, uint8_t, uint16_t, 79, 63, 33>();
-}
+TEST_F(TStoreAcc2gmTest, case_relu_41) { test_tstore_acc2gm_vector_nz2nd<21, uint8_t, uint16_t, 79, 63, 33>(); }
 
-TEST_F(TStoreAcc2gmTest, case_relu_51)
-{
-    test_tstore_acc2gm_vector_nz2nz<21, uint8_t, uint8_t, 80, 128, 90>();
-}
+TEST_F(TStoreAcc2gmTest, case_relu_51) { test_tstore_acc2gm_vector_nz2nz<21, uint8_t, uint8_t, 80, 128, 90>(); }
 
 TEST_F(TStoreAcc2gmTest, case_ndc1hwc0_1)
 {

@@ -19,12 +19,12 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 template <Coalesce CMode, GatherOOB Mode, typename TileDst, typename GlobalData, typename TileInd>
-PTO_INTERNAL void MGATHER_IMPL(TileDst &dst, GlobalData &src, TileInd &indexes)
+PTO_INTERNAL void MGATHER_IMPL(TileDst& dst, GlobalData& src, TileInd& indexes)
 {
     using IndexT = typename TileInd::DType;
     static_assert(std::is_integral_v<IndexT>, "MGATHER: indexes must be an integral type");
-    static_assert(sizeof(typename TileDst::DType) == sizeof(typename GlobalData::DType),
-                  "MGATHER: element sizes must match");
+    static_assert(
+        sizeof(typename TileDst::DType) == sizeof(typename GlobalData::DType), "MGATHER: element sizes must match");
 
     const unsigned validRow = dst.GetValidRow();
     const unsigned validCol = dst.GetValidCol();
@@ -41,7 +41,7 @@ PTO_INTERNAL void MGATHER_IMPL(TileDst &dst, GlobalData &src, TileInd &indexes)
         capacity = src.GetShape(GlobalTensorDim::DIM_3);
     }
 
-    auto *base = src.data();
+    auto* base = src.data();
     const auto srcRowStride = src.GetStride(3);
     const auto srcColStride = src.GetStride(4);
     cpu::parallel_for_rows(validRow, validCol, [&](std::size_t i) {
@@ -64,8 +64,9 @@ PTO_INTERNAL void MGATHER_IMPL(TileDst &dst, GlobalData &src, TileInd &indexes)
 
         } else {
             if constexpr (HasSFractal<TileInd>::value) {
-                static_assert(TileInd::SFractal == SLayout::NoneBox,
-                              "Indicies array should be ND or DN in case of Coalesce::Elem");
+                static_assert(
+                    TileInd::SFractal == SLayout::NoneBox,
+                    "Indicies array should be ND or DN in case of Coalesce::Elem");
             }
             // indexes shape is [1,dstRows] in case of RowMajor or [dstRows,1] in case of colMajor
             size_t rowIdx = indexes.data()[i];
@@ -96,26 +97,26 @@ PTO_INTERNAL void MGATHER_IMPL(TileDst &dst, GlobalData &src, TileInd &indexes)
 }
 
 template <Coalesce CMode, typename TileDst, typename GlobalData, typename TileInd>
-PTO_INTERNAL void MGATHER_IMPL(TileDst &dst, GlobalData &src, TileInd &indexes)
+PTO_INTERNAL void MGATHER_IMPL(TileDst& dst, GlobalData& src, TileInd& indexes)
 {
     MGATHER_IMPL<CMode, GatherOOB::Undefined>(dst, src, indexes);
 }
 
 template <typename TileDst, typename GlobalData, typename TileInd>
-PTO_INTERNAL void MGATHER_IMPL(TileDst &dst, GlobalData &src, TileInd &indexes)
+PTO_INTERNAL void MGATHER_IMPL(TileDst& dst, GlobalData& src, TileInd& indexes)
 {
     MGATHER_IMPL<Coalesce::Elem, GatherOOB::Undefined>(dst, src, indexes);
 }
 
 template <Coalesce CMode, typename TileDst, typename GlobalData, typename GlobalIdx, typename GlobalScratch>
-PTO_INST void MGATHER_IMPL(TileDst &dst, GlobalData &src, GlobalIdx &indexes, GlobalScratch &scratch)
+PTO_INST void MGATHER_IMPL(TileDst& dst, GlobalData& src, GlobalIdx& indexes, GlobalScratch& scratch)
 {
     MGATHER_IMPL<CMode, GatherOOB::Undefined>(dst, src, indexes);
 }
 
-template <Coalesce CMode, GatherOOB Mode, typename TileDst, typename GlobalData, typename GlobalIdx,
-          typename GlobalScratch>
-PTO_INST void MGATHER_IMPL(TileDst &dst, GlobalData &src, GlobalIdx &indexes, GlobalScratch &scratch)
+template <
+    Coalesce CMode, GatherOOB Mode, typename TileDst, typename GlobalData, typename GlobalIdx, typename GlobalScratch>
+PTO_INST void MGATHER_IMPL(TileDst& dst, GlobalData& src, GlobalIdx& indexes, GlobalScratch& scratch)
 {
     MGATHER_IMPL<CMode, Mode>(dst, src, indexes);
 }

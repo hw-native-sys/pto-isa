@@ -19,23 +19,18 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 class TPrefetchAsyncTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
-TEST_F(TPrefetchAsyncTest, case_float_4096_globaltensor)
-{
-    ASSERT_TRUE((RunPrefetchAsyncCorrectness<float, 4096>(0)));
-}
+TEST_F(TPrefetchAsyncTest, case_float_4096_globaltensor) { ASSERT_TRUE((RunPrefetchAsyncCorrectness<float, 4096>(0))); }
 
 TEST_F(TPrefetchAsyncTest, case_int32_4096_globaltensor)
 {
     ASSERT_TRUE((RunPrefetchAsyncCorrectness<int32_t, 4096>(0)));
 }
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

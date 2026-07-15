@@ -45,7 +45,7 @@ inline bool CompareSignalRuntime(int32_t sigVal, int32_t cmpVal, comm::WaitCmp c
 } // namespace detail
 
 template <typename GlobalSignalData>
-inline void TWAIT_IMPL(GlobalSignalData &signalData, int32_t cmpValue, comm::WaitCmp cmp)
+inline void TWAIT_IMPL(GlobalSignalData& signalData, int32_t cmpValue, comm::WaitCmp cmp)
 {
     static_assert(std::is_same_v<typename GlobalSignalData::RawDType, int32_t>, "TWAIT: signal type must be int32_t");
     const int s0 = signalData.GetShape(GlobalTensorDim::DIM_0);
@@ -58,10 +58,11 @@ inline void TWAIT_IMPL(GlobalSignalData &signalData, int32_t cmpValue, comm::Wai
     const int64_t st2 = signalData.GetStride(GlobalTensorDim::DIM_2);
     const int64_t st3 = signalData.GetStride(GlobalTensorDim::DIM_3);
     const int64_t st4 = signalData.GetStride(GlobalTensorDim::DIM_4);
-    int32_t *basePtr = reinterpret_cast<int32_t *>(signalData.data());
+    int32_t* basePtr = reinterpret_cast<int32_t*>(signalData.data());
     const int total = s0 * s1 * s2 * s3 * s4;
-    PTO_ASSERT(s0 > 0 && s1 > 0 && s2 > 0 && s3 > 0 && s4 > 0,
-               "TWAIT: possible deadlock detected, spin count exceeded maximum limit");
+    PTO_ASSERT(
+        s0 > 0 && s1 > 0 && s2 > 0 && s3 > 0 && s4 > 0,
+        "TWAIT: possible deadlock detected, spin count exceeded maximum limit");
 
     bool allSatisfied = false;
     uint32_t spin = 0;
@@ -81,7 +82,7 @@ inline void TWAIT_IMPL(GlobalSignalData &signalData, int32_t cmpValue, comm::Wai
             tmp /= s1;
             const int d0 = tmp;
             const int64_t idx = d0 * st0 + d1 * st1 + d2 * st2 + d3 * st3 + d4 * st4;
-            int32_t val = reinterpret_cast<std::atomic<int32_t> *>(basePtr + idx)->load(std::memory_order_acquire);
+            int32_t val = reinterpret_cast<std::atomic<int32_t>*>(basePtr + idx)->load(std::memory_order_acquire);
             if (!detail::CompareSignalRuntime(val, cmpValue, cmp)) {
                 allSatisfied = false;
             }

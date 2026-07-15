@@ -17,9 +17,10 @@ using namespace pto;
 using namespace PtoTestCommon;
 using namespace pto;
 
-template <typename ST, typename DT, size_t rows, size_t cols, size_t validRows, size_t validCols, uint16_t idxRow,
-          uint16_t idxCol, uint16_t srcLayout, uint16_t dstLayout>
-AICORE inline void runTEXTRACT(__gm__ DT *out, __gm__ ST *src)
+template <
+    typename ST, typename DT, size_t rows, size_t cols, size_t validRows, size_t validCols, uint16_t idxRow,
+    uint16_t idxCol, uint16_t srcLayout, uint16_t dstLayout>
+AICORE inline void runTEXTRACT(__gm__ DT* out, __gm__ ST* src)
 {
     constexpr int validRowsDst = validRows - idxRow;
     constexpr int validColsDst = validCols - idxCol;
@@ -27,9 +28,11 @@ AICORE inline void runTEXTRACT(__gm__ DT *out, __gm__ ST *src)
     using GlobalDataSrc = GlobalTensor<
         ST, pto::Shape<1, 1, 1, validRows, validCols>,
         pto::Stride<1 * validRows * validCols, 1 * validRows * validCols, validRows * validCols, validCols, 1>>;
-    using GlobalDataDst = GlobalTensor<DT, pto::Shape<1, 1, 1, validRowsDst, validColsDst>,
-                                       pto::Stride<1 * validRowsDst * validColsDst, 1 * validRowsDst * validColsDst,
-                                                   validRowsDst * validColsDst, validColsDst, 1>>;
+    using GlobalDataDst = GlobalTensor<
+        DT, pto::Shape<1, 1, 1, validRowsDst, validColsDst>,
+        pto::Stride<
+            1 * validRowsDst * validColsDst, 1 * validRowsDst * validColsDst, validRowsDst * validColsDst, validColsDst,
+            1>>;
 
     GlobalDataSrc srcGlobal(src);
     GlobalDataDst dstGlobal(out);
@@ -65,23 +68,22 @@ AICORE inline void runTEXTRACT(__gm__ DT *out, __gm__ ST *src)
 
 class TEXTRACTTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename ST, typename DT, size_t rows, size_t cols, size_t validRows, size_t validCols, size_t idxRow,
-          size_t idxCol, uint16_t srcLayout, uint16_t dstLayout>
+template <
+    typename ST, typename DT, size_t rows, size_t cols, size_t validRows, size_t validCols, size_t idxRow,
+    size_t idxCol, uint16_t srcLayout, uint16_t dstLayout>
 void textract_test()
 {
     size_t srcFileSize = validRows * validCols * sizeof(ST);
@@ -95,18 +97,18 @@ void textract_test()
     uint8_t *dstHost, *srcHost;
     uint8_t *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
 
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     size_t inputSize = 0;
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input.bin", inputSize, srcHost, srcFileSize));
 
     aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    runTEXTRACT<ST, DT, rows, cols, validRows, validCols, idxRow, idxCol, srcLayout, dstLayout>((DT *)dstDevice,
-                                                                                                (ST *)srcDevice);
+    runTEXTRACT<ST, DT, rows, cols, validRows, validCols, idxRow, idxCol, srcLayout, dstLayout>(
+        (DT*)dstDevice, (ST*)srcDevice);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, dstFileSize, dstDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -117,7 +119,7 @@ void textract_test()
     size_t goldenSize = 0;
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/golden.bin", goldenSize, golden.data(), dstFileSize));
 
-    bool ret = ResultCmp(golden, (DT *)dstHost, 0);
+    bool ret = ResultCmp(golden, (DT*)dstHost, 0);
 
     aclrtFree(dstDevice);
     aclrtFree(srcDevice);

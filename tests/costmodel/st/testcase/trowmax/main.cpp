@@ -36,19 +36,7 @@ void runTRowMax()
 
 } // namespace
 
-TEST(TRowMax, float_64x64)
-{
-    runTRowMax<float, 64, 64, 480.0f, 0.022916f>();
-}
-TEST(TRowMax, float_16x256)
-{
-    runTRowMax<float, 16, 256, 32.0f, 0.0f>();
-}
-TEST(TRowMax, half_64x128)
-{
-    runTRowMax<half, 64, 128, 481.0f, 0.022869f>();
-}
-TEST(TRowMax, half_16x256)
-{
-    runTRowMax<half, 16, 256, 14.0f, 0.0f>();
-}
+TEST(TRowMax, float_64x64) { runTRowMax<float, 64, 64, 480.0f, 0.022916f>(); }
+TEST(TRowMax, float_16x256) { runTRowMax<float, 16, 256, 32.0f, 0.0f>(); }
+TEST(TRowMax, half_64x128) { runTRowMax<half, 64, 128, 481.0f, 0.022869f>(); }
+TEST(TRowMax, half_16x256) { runTRowMax<half, 16, 256, 14.0f, 0.0f>(); }

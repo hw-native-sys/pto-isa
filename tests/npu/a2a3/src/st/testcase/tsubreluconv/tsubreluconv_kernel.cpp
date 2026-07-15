@@ -16,7 +16,7 @@ using namespace std;
 using namespace pto;
 
 template <typename DstT, typename SrcT, int row, int validRow, int col, int validCol>
-PTO_INTERNAL void runTSUBRELUCONV(__gm__ DstT *out, __gm__ SrcT *src0, __gm__ SrcT *src1)
+PTO_INTERNAL void runTSUBRELUCONV(__gm__ DstT* out, __gm__ SrcT* src0, __gm__ SrcT* src1)
 {
     using DynDim2Shape = Shape<1, 1, 1, -1, -1>;
     using DynDim2Stride = pto::Stride<1, 1, -1, -1, 1>;
@@ -53,142 +53,142 @@ PTO_INTERNAL void runTSUBRELUCONV(__gm__ DstT *out, __gm__ SrcT *src0, __gm__ Sr
     out = dstGlobal.data();
 }
 
-extern "C" __global__ AICORE void launchTSUBRELUCONVCase1(__gm__ aclFloat16 *out, __gm__ float *src0,
-                                                          __gm__ float *src1)
+extern "C" __global__ AICORE void launchTSUBRELUCONVCase1(
+    __gm__ aclFloat16* out, __gm__ float* src0, __gm__ float* src1)
 {
-    runTSUBRELUCONV<half, float, 32, 32, 64, 64>((__gm__ half *)out, src0, src1);
+    runTSUBRELUCONV<half, float, 32, 32, 64, 64>((__gm__ half*)out, src0, src1);
 }
-extern "C" __global__ AICORE void launchTSUBRELUCONVCase2(__gm__ aclFloat16 *out, __gm__ float *src0,
-                                                          __gm__ float *src1)
+extern "C" __global__ AICORE void launchTSUBRELUCONVCase2(
+    __gm__ aclFloat16* out, __gm__ float* src0, __gm__ float* src1)
 {
-    runTSUBRELUCONV<half, float, 16, 16, 128, 128>((__gm__ half *)out, src0, src1);
+    runTSUBRELUCONV<half, float, 16, 16, 128, 128>((__gm__ half*)out, src0, src1);
 }
-extern "C" __global__ AICORE void launchTSUBRELUCONVCase3(__gm__ aclFloat16 *out, __gm__ float *src0,
-                                                          __gm__ float *src1)
+extern "C" __global__ AICORE void launchTSUBRELUCONVCase3(
+    __gm__ aclFloat16* out, __gm__ float* src0, __gm__ float* src1)
 {
-    runTSUBRELUCONV<half, float, 31, 31, 96, 96>((__gm__ half *)out, src0, src1);
+    runTSUBRELUCONV<half, float, 31, 31, 96, 96>((__gm__ half*)out, src0, src1);
 }
-extern "C" __global__ AICORE void launchTSUBRELUCONVCase4(__gm__ aclFloat16 *out, __gm__ float *src0,
-                                                          __gm__ float *src1)
+extern "C" __global__ AICORE void launchTSUBRELUCONVCase4(
+    __gm__ aclFloat16* out, __gm__ float* src0, __gm__ float* src1)
 {
-    runTSUBRELUCONV<half, float, 7, 7, 192, 192>((__gm__ half *)out, src0, src1);
+    runTSUBRELUCONV<half, float, 7, 7, 192, 192>((__gm__ half*)out, src0, src1);
 }
-extern "C" __global__ AICORE void launchTSUBRELUCONVCase5(__gm__ aclFloat16 *out, __gm__ float *src0,
-                                                          __gm__ float *src1)
+extern "C" __global__ AICORE void launchTSUBRELUCONVCase5(
+    __gm__ aclFloat16* out, __gm__ float* src0, __gm__ float* src1)
 {
-    runTSUBRELUCONV<half, float, 64, 64, 64, 64>((__gm__ half *)out, src0, src1);
+    runTSUBRELUCONV<half, float, 64, 64, 64, 64>((__gm__ half*)out, src0, src1);
 }
-extern "C" __global__ AICORE void launchTSUBRELUCONVCase6(__gm__ aclFloat16 *out, __gm__ float *src0,
-                                                          __gm__ float *src1)
+extern "C" __global__ AICORE void launchTSUBRELUCONVCase6(
+    __gm__ aclFloat16* out, __gm__ float* src0, __gm__ float* src1)
 {
-    runTSUBRELUCONV<half, float, 13, 13, 48, 48>((__gm__ half *)out, src0, src1);
-}
-
-extern "C" __global__ AICORE void launchTSUBRELUCONVCase7(__gm__ aclFloat16 *out, __gm__ float *src0,
-                                                          __gm__ float *src1)
-{
-    runTSUBRELUCONV<half, float, 16, 16, 64, 64>((__gm__ half *)out, src0, src1);
-}
-extern "C" __global__ AICORE void launchTSUBRELUCONVCase8(__gm__ aclFloat16 *out, __gm__ float *src0,
-                                                          __gm__ float *src1)
-{
-    runTSUBRELUCONV<half, float, 8, 8, 128, 128>((__gm__ half *)out, src0, src1);
-}
-extern "C" __global__ AICORE void launchTSUBRELUCONVCase9(__gm__ aclFloat16 *out, __gm__ float *src0,
-                                                          __gm__ float *src1)
-{
-    runTSUBRELUCONV<half, float, 4, 4, 256, 256>((__gm__ half *)out, src0, src1);
-}
-extern "C" __global__ AICORE void launchTSUBRELUCONVCase10(__gm__ aclFloat16 *out, __gm__ float *src0,
-                                                           __gm__ float *src1)
-{
-    runTSUBRELUCONV<half, float, 16, 16, 32, 32>((__gm__ half *)out, src0, src1);
+    runTSUBRELUCONV<half, float, 13, 13, 48, 48>((__gm__ half*)out, src0, src1);
 }
 
-extern "C" __global__ AICORE void launchTSUBRELUCONVCase11(__gm__ int8_t *out, __gm__ aclFloat16 *src0,
-                                                           __gm__ aclFloat16 *src1)
+extern "C" __global__ AICORE void launchTSUBRELUCONVCase7(
+    __gm__ aclFloat16* out, __gm__ float* src0, __gm__ float* src1)
 {
-    runTSUBRELUCONV<int8_t, half, 16, 16, 128, 128>(out, (__gm__ half *)src0, (__gm__ half *)src1);
+    runTSUBRELUCONV<half, float, 16, 16, 64, 64>((__gm__ half*)out, src0, src1);
 }
-extern "C" __global__ AICORE void launchTSUBRELUCONVCase12(__gm__ int8_t *out, __gm__ aclFloat16 *src0,
-                                                           __gm__ aclFloat16 *src1)
+extern "C" __global__ AICORE void launchTSUBRELUCONVCase8(
+    __gm__ aclFloat16* out, __gm__ float* src0, __gm__ float* src1)
 {
-    runTSUBRELUCONV<int8_t, half, 8, 8, 64, 64>(out, (__gm__ half *)src0, (__gm__ half *)src1);
+    runTSUBRELUCONV<half, float, 8, 8, 128, 128>((__gm__ half*)out, src0, src1);
 }
-extern "C" __global__ AICORE void launchTSUBRELUCONVCase13(__gm__ int8_t *out, __gm__ aclFloat16 *src0,
-                                                           __gm__ aclFloat16 *src1)
+extern "C" __global__ AICORE void launchTSUBRELUCONVCase9(
+    __gm__ aclFloat16* out, __gm__ float* src0, __gm__ float* src1)
 {
-    runTSUBRELUCONV<int8_t, half, 8, 8, 128, 128>(out, (__gm__ half *)src0, (__gm__ half *)src1);
+    runTSUBRELUCONV<half, float, 4, 4, 256, 256>((__gm__ half*)out, src0, src1);
 }
-extern "C" __global__ AICORE void launchTSUBRELUCONVCase14(__gm__ int8_t *out, __gm__ aclFloat16 *src0,
-                                                           __gm__ aclFloat16 *src1)
+extern "C" __global__ AICORE void launchTSUBRELUCONVCase10(
+    __gm__ aclFloat16* out, __gm__ float* src0, __gm__ float* src1)
 {
-    runTSUBRELUCONV<int8_t, half, 8, 8, 64, 64>(out, (__gm__ half *)src0, (__gm__ half *)src1);
+    runTSUBRELUCONV<half, float, 16, 16, 32, 32>((__gm__ half*)out, src0, src1);
 }
 
-extern "C" __global__ AICORE void launchTSUBRELUCONVCase15(__gm__ int8_t *out, __gm__ int16_t *src0,
-                                                           __gm__ int16_t *src1)
+extern "C" __global__ AICORE void launchTSUBRELUCONVCase11(
+    __gm__ int8_t* out, __gm__ aclFloat16* src0, __gm__ aclFloat16* src1)
+{
+    runTSUBRELUCONV<int8_t, half, 16, 16, 128, 128>(out, (__gm__ half*)src0, (__gm__ half*)src1);
+}
+extern "C" __global__ AICORE void launchTSUBRELUCONVCase12(
+    __gm__ int8_t* out, __gm__ aclFloat16* src0, __gm__ aclFloat16* src1)
+{
+    runTSUBRELUCONV<int8_t, half, 8, 8, 64, 64>(out, (__gm__ half*)src0, (__gm__ half*)src1);
+}
+extern "C" __global__ AICORE void launchTSUBRELUCONVCase13(
+    __gm__ int8_t* out, __gm__ aclFloat16* src0, __gm__ aclFloat16* src1)
+{
+    runTSUBRELUCONV<int8_t, half, 8, 8, 128, 128>(out, (__gm__ half*)src0, (__gm__ half*)src1);
+}
+extern "C" __global__ AICORE void launchTSUBRELUCONVCase14(
+    __gm__ int8_t* out, __gm__ aclFloat16* src0, __gm__ aclFloat16* src1)
+{
+    runTSUBRELUCONV<int8_t, half, 8, 8, 64, 64>(out, (__gm__ half*)src0, (__gm__ half*)src1);
+}
+
+extern "C" __global__ AICORE void launchTSUBRELUCONVCase15(
+    __gm__ int8_t* out, __gm__ int16_t* src0, __gm__ int16_t* src1)
 {
     runTSUBRELUCONV<int8_t, int16_t, 16, 16, 128, 128>(out, src0, src1);
 }
-extern "C" __global__ AICORE void launchTSUBRELUCONVCase16(__gm__ int8_t *out, __gm__ int16_t *src0,
-                                                           __gm__ int16_t *src1)
+extern "C" __global__ AICORE void launchTSUBRELUCONVCase16(
+    __gm__ int8_t* out, __gm__ int16_t* src0, __gm__ int16_t* src1)
 {
     runTSUBRELUCONV<int8_t, int16_t, 8, 8, 64, 64>(out, src0, src1);
 }
-extern "C" __global__ AICORE void launchTSUBRELUCONVCase17(__gm__ int8_t *out, __gm__ int16_t *src0,
-                                                           __gm__ int16_t *src1)
+extern "C" __global__ AICORE void launchTSUBRELUCONVCase17(
+    __gm__ int8_t* out, __gm__ int16_t* src0, __gm__ int16_t* src1)
 {
     runTSUBRELUCONV<int8_t, int16_t, 8, 8, 128, 128>(out, src0, src1);
 }
-extern "C" __global__ AICORE void launchTSUBRELUCONVCase18(__gm__ int8_t *out, __gm__ int16_t *src0,
-                                                           __gm__ int16_t *src1)
+extern "C" __global__ AICORE void launchTSUBRELUCONVCase18(
+    __gm__ int8_t* out, __gm__ int16_t* src0, __gm__ int16_t* src1)
 {
     runTSUBRELUCONV<int8_t, int16_t, 8, 8, 64, 64>(out, src0, src1);
 }
 
 template <uint32_t caseId>
-void launchTSUBRELUCONVF322F16(void *out, void *src0, void *src1, aclrtStream stream)
+void launchTSUBRELUCONVF322F16(void* out, void* src0, void* src1, aclrtStream stream)
 {
     switch (caseId) {
         case 1: {
-            launchTSUBRELUCONVCase1<<<1, nullptr, stream>>>((aclFloat16 *)out, (float *)src0, (float *)src1);
+            launchTSUBRELUCONVCase1<<<1, nullptr, stream>>>((aclFloat16*)out, (float*)src0, (float*)src1);
             break;
         }
         case 2: {
-            launchTSUBRELUCONVCase2<<<1, nullptr, stream>>>((aclFloat16 *)out, (float *)src0, (float *)src1);
+            launchTSUBRELUCONVCase2<<<1, nullptr, stream>>>((aclFloat16*)out, (float*)src0, (float*)src1);
             break;
         }
         case 3: {
-            launchTSUBRELUCONVCase3<<<1, nullptr, stream>>>((aclFloat16 *)out, (float *)src0, (float *)src1);
+            launchTSUBRELUCONVCase3<<<1, nullptr, stream>>>((aclFloat16*)out, (float*)src0, (float*)src1);
             break;
         }
         case 4: {
-            launchTSUBRELUCONVCase4<<<1, nullptr, stream>>>((aclFloat16 *)out, (float *)src0, (float *)src1);
+            launchTSUBRELUCONVCase4<<<1, nullptr, stream>>>((aclFloat16*)out, (float*)src0, (float*)src1);
             break;
         }
         case 5: {
-            launchTSUBRELUCONVCase5<<<1, nullptr, stream>>>((aclFloat16 *)out, (float *)src0, (float *)src1);
+            launchTSUBRELUCONVCase5<<<1, nullptr, stream>>>((aclFloat16*)out, (float*)src0, (float*)src1);
             break;
         }
         case 6: {
-            launchTSUBRELUCONVCase6<<<1, nullptr, stream>>>((aclFloat16 *)out, (float *)src0, (float *)src1);
+            launchTSUBRELUCONVCase6<<<1, nullptr, stream>>>((aclFloat16*)out, (float*)src0, (float*)src1);
             break;
         }
         case 7: {
-            launchTSUBRELUCONVCase7<<<1, nullptr, stream>>>((aclFloat16 *)out, (float *)src0, (float *)src1);
+            launchTSUBRELUCONVCase7<<<1, nullptr, stream>>>((aclFloat16*)out, (float*)src0, (float*)src1);
             break;
         }
         case 8: {
-            launchTSUBRELUCONVCase8<<<1, nullptr, stream>>>((aclFloat16 *)out, (float *)src0, (float *)src1);
+            launchTSUBRELUCONVCase8<<<1, nullptr, stream>>>((aclFloat16*)out, (float*)src0, (float*)src1);
             break;
         }
         case 9: {
-            launchTSUBRELUCONVCase9<<<1, nullptr, stream>>>((aclFloat16 *)out, (float *)src0, (float *)src1);
+            launchTSUBRELUCONVCase9<<<1, nullptr, stream>>>((aclFloat16*)out, (float*)src0, (float*)src1);
             break;
         }
         case 10: {
-            launchTSUBRELUCONVCase10<<<1, nullptr, stream>>>((aclFloat16 *)out, (float *)src0, (float *)src1);
+            launchTSUBRELUCONVCase10<<<1, nullptr, stream>>>((aclFloat16*)out, (float*)src0, (float*)src1);
             break;
         }
         default: {
@@ -197,23 +197,23 @@ void launchTSUBRELUCONVF322F16(void *out, void *src0, void *src1, aclrtStream st
 }
 
 template <uint32_t caseId>
-void launchTSUBRELUCONVF162S8(void *out, void *src0, void *src1, aclrtStream stream)
+void launchTSUBRELUCONVF162S8(void* out, void* src0, void* src1, aclrtStream stream)
 {
     switch (caseId) {
         case 11: {
-            launchTSUBRELUCONVCase11<<<1, nullptr, stream>>>((int8_t *)out, (aclFloat16 *)src0, (aclFloat16 *)src1);
+            launchTSUBRELUCONVCase11<<<1, nullptr, stream>>>((int8_t*)out, (aclFloat16*)src0, (aclFloat16*)src1);
             break;
         }
         case 12: {
-            launchTSUBRELUCONVCase12<<<1, nullptr, stream>>>((int8_t *)out, (aclFloat16 *)src0, (aclFloat16 *)src1);
+            launchTSUBRELUCONVCase12<<<1, nullptr, stream>>>((int8_t*)out, (aclFloat16*)src0, (aclFloat16*)src1);
             break;
         }
         case 13: {
-            launchTSUBRELUCONVCase13<<<1, nullptr, stream>>>((int8_t *)out, (aclFloat16 *)src0, (aclFloat16 *)src1);
+            launchTSUBRELUCONVCase13<<<1, nullptr, stream>>>((int8_t*)out, (aclFloat16*)src0, (aclFloat16*)src1);
             break;
         }
         case 14: {
-            launchTSUBRELUCONVCase14<<<1, nullptr, stream>>>((int8_t *)out, (aclFloat16 *)src0, (aclFloat16 *)src1);
+            launchTSUBRELUCONVCase14<<<1, nullptr, stream>>>((int8_t*)out, (aclFloat16*)src0, (aclFloat16*)src1);
             break;
         }
         default: {
@@ -222,23 +222,23 @@ void launchTSUBRELUCONVF162S8(void *out, void *src0, void *src1, aclrtStream str
 }
 
 template <uint32_t caseId>
-void launchTSUBRELUCONVS162S8(void *out, void *src0, void *src1, aclrtStream stream)
+void launchTSUBRELUCONVS162S8(void* out, void* src0, void* src1, aclrtStream stream)
 {
     switch (caseId) {
         case 15: {
-            launchTSUBRELUCONVCase15<<<1, nullptr, stream>>>((int8_t *)out, (int16_t *)src0, (int16_t *)src1);
+            launchTSUBRELUCONVCase15<<<1, nullptr, stream>>>((int8_t*)out, (int16_t*)src0, (int16_t*)src1);
             break;
         }
         case 16: {
-            launchTSUBRELUCONVCase16<<<1, nullptr, stream>>>((int8_t *)out, (int16_t *)src0, (int16_t *)src1);
+            launchTSUBRELUCONVCase16<<<1, nullptr, stream>>>((int8_t*)out, (int16_t*)src0, (int16_t*)src1);
             break;
         }
         case 17: {
-            launchTSUBRELUCONVCase17<<<1, nullptr, stream>>>((int8_t *)out, (int16_t *)src0, (int16_t *)src1);
+            launchTSUBRELUCONVCase17<<<1, nullptr, stream>>>((int8_t*)out, (int16_t*)src0, (int16_t*)src1);
             break;
         }
         case 18: {
-            launchTSUBRELUCONVCase18<<<1, nullptr, stream>>>((int8_t *)out, (int16_t *)src0, (int16_t *)src1);
+            launchTSUBRELUCONVCase18<<<1, nullptr, stream>>>((int8_t*)out, (int16_t*)src0, (int16_t*)src1);
             break;
         }
         default: {
@@ -247,7 +247,7 @@ void launchTSUBRELUCONVS162S8(void *out, void *src0, void *src1, aclrtStream str
 }
 
 template <uint32_t caseId>
-void launchTSUBRELUCONVTestCase(void *out, void *src0, void *src1, aclrtStream stream)
+void launchTSUBRELUCONVTestCase(void* out, void* src0, void* src1, aclrtStream stream)
 {
     if constexpr (caseId >= 1 && caseId <= 10) {
         launchTSUBRELUCONVF322F16<caseId>(out, src0, src1, stream);
@@ -258,42 +258,42 @@ void launchTSUBRELUCONVTestCase(void *out, void *src0, void *src1, aclrtStream s
     }
 }
 
-template void launchTSUBRELUCONVTestCase<1>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVTestCase<2>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVTestCase<3>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVTestCase<4>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVTestCase<5>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVTestCase<6>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVTestCase<7>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVTestCase<8>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVTestCase<9>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVTestCase<10>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVTestCase<11>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVTestCase<12>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVTestCase<13>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVTestCase<14>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVTestCase<15>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVTestCase<16>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVTestCase<17>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVTestCase<18>(void *out, void *src0, void *src1, aclrtStream stream);
+template void launchTSUBRELUCONVTestCase<1>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVTestCase<2>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVTestCase<3>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVTestCase<4>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVTestCase<5>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVTestCase<6>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVTestCase<7>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVTestCase<8>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVTestCase<9>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVTestCase<10>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVTestCase<11>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVTestCase<12>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVTestCase<13>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVTestCase<14>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVTestCase<15>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVTestCase<16>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVTestCase<17>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVTestCase<18>(void* out, void* src0, void* src1, aclrtStream stream);
 
-template void launchTSUBRELUCONVF322F16<1>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVF322F16<2>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVF322F16<3>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVF322F16<4>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVF322F16<5>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVF322F16<6>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVF322F16<7>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVF322F16<8>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVF322F16<9>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVF322F16<10>(void *out, void *src0, void *src1, aclrtStream stream);
+template void launchTSUBRELUCONVF322F16<1>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVF322F16<2>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVF322F16<3>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVF322F16<4>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVF322F16<5>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVF322F16<6>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVF322F16<7>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVF322F16<8>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVF322F16<9>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVF322F16<10>(void* out, void* src0, void* src1, aclrtStream stream);
 
-template void launchTSUBRELUCONVF162S8<11>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVF162S8<12>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVF162S8<13>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVF162S8<14>(void *out, void *src0, void *src1, aclrtStream stream);
+template void launchTSUBRELUCONVF162S8<11>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVF162S8<12>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVF162S8<13>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVF162S8<14>(void* out, void* src0, void* src1, aclrtStream stream);
 
-template void launchTSUBRELUCONVS162S8<15>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVS162S8<16>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVS162S8<17>(void *out, void *src0, void *src1, aclrtStream stream);
-template void launchTSUBRELUCONVS162S8<18>(void *out, void *src0, void *src1, aclrtStream stream);
+template void launchTSUBRELUCONVS162S8<15>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVS162S8<16>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVS162S8<17>(void* out, void* src0, void* src1, aclrtStream stream);
+template void launchTSUBRELUCONVS162S8<18>(void* out, void* src0, void* src1, aclrtStream stream);

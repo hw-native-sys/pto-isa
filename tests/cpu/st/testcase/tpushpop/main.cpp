@@ -21,7 +21,7 @@ using namespace pto;
 using namespace PtoTestCommon;
 
 template <typename T, int rows, int cols, TileType srcLoc>
-void fillTile(auto &tile, int iter)
+void fillTile(auto& tile, int iter)
 {
     for (int i = 0; i < tile.Numel; ++i) {
         tile.data()[i] = static_cast<T>(iter * 1000 + i + 1);
@@ -117,17 +117,12 @@ void testPushPopMultiCore()
 
 class TPushPopTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
-#define TPUSHPOP_TEST(T, rows, cols, srcLoc)                        \
-    TEST_F(TPushPopTest, T##_##rows##_##cols##_##srcLoc)            \
-    {                                                               \
-        testPushPopSingleThread<T, rows, cols, TileType::srcLoc>(); \
-    }
+#define TPUSHPOP_TEST(T, rows, cols, srcLoc) \
+    TEST_F(TPushPopTest, T##_##rows##_##cols##_##srcLoc) { testPushPopSingleThread<T, rows, cols, TileType::srcLoc>(); }
 
 TPUSHPOP_TEST(float, 64, 128, Vec)
 TPUSHPOP_TEST(float, 128, 128, Vec)
@@ -138,10 +133,7 @@ TPUSHPOP_TEST(uint32_t, 128, 128, Vec)
 TPUSHPOP_TEST(uint32_t, 64, 128, Mat)
 TPUSHPOP_TEST(uint32_t, 128, 128, Mat)
 
-TEST_F(TPushPopTest, multicore_float_64_128_Vec)
-{
-    testPushPopMultiCore<float, 64, 128, TileType::Vec>();
-}
+TEST_F(TPushPopTest, multicore_float_64_128_Vec) { testPushPopMultiCore<float, 64, 128, TileType::Vec>(); }
 
 TEST_F(TPushPopTest, a5_style_c2v_local_split_push_pop)
 {
@@ -150,7 +142,7 @@ TEST_F(TPushPopTest, a5_style_c2v_local_split_push_pop)
     using Pipe = TPipe<2, Direction::DIR_C2V, sizeof(float) * VecTile::Numel, 2>;
 
     Pipe::reset_for_cpu_sim();
-    Pipe pipe((__gm__ void *)nullptr, 0x0, 0x0);
+    Pipe pipe((__gm__ void*)nullptr, 0x0, 0x0);
 
     AccTile src;
     VecTile dst;
@@ -181,9 +173,9 @@ TEST_F(TPushPopTest, a5_style_c2v_dual_subblock_split_push_pop)
     using Pipe = TPipe<4, Direction::DIR_C2V, sizeof(float) * VecTile::Numel, 1>;
 
     Pipe::reset_for_cpu_sim();
-    Pipe producer((__gm__ void *)nullptr, 0x0, 0x0);
-    Pipe consumer0((__gm__ void *)nullptr, 0x0, 0x0);
-    Pipe consumer1((__gm__ void *)nullptr, 0x0, 0x0);
+    Pipe producer((__gm__ void*)nullptr, 0x0, 0x0);
+    Pipe consumer0((__gm__ void*)nullptr, 0x0, 0x0);
+    Pipe consumer1((__gm__ void*)nullptr, 0x0, 0x0);
 
     auto run_iteration = [&](int iter) {
         AccTile src;
@@ -191,8 +183,9 @@ TEST_F(TPushPopTest, a5_style_c2v_dual_subblock_split_push_pop)
         VecTile bottomHalf;
         TASSIGN(src, 0);
         TASSIGN(topHalf, AccTile::Numel * sizeof(typename AccTile::DType));
-        TASSIGN(bottomHalf,
-                AccTile::Numel * sizeof(typename AccTile::DType) + VecTile::Numel * sizeof(typename VecTile::DType));
+        TASSIGN(
+            bottomHalf,
+            AccTile::Numel * sizeof(typename AccTile::DType) + VecTile::Numel * sizeof(typename VecTile::DType));
         fillTile<float, 16, 16, TileType::Acc>(src, iter);
         std::fill(topHalf.data(), topHalf.data() + topHalf.Numel, 0.0f);
         std::fill(bottomHalf.data(), bottomHalf.data() + bottomHalf.Numel, 0.0f);
@@ -212,10 +205,12 @@ TEST_F(TPushPopTest, a5_style_c2v_dual_subblock_split_push_pop)
 
         for (int r = 0; r < topHalf.GetValidRow(); ++r) {
             for (int c = 0; c < topHalf.GetValidCol(); ++c) {
-                EXPECT_EQ(topHalf.data()[GetTileElementOffset<VecTile>(r, c)],
-                          src.data()[GetTileElementOffset<AccTile>(r, c)]);
-                EXPECT_EQ(bottomHalf.data()[GetTileElementOffset<VecTile>(r, c)],
-                          src.data()[GetTileElementOffset<AccTile>(r + topHalf.GetValidRow(), c)]);
+                EXPECT_EQ(
+                    topHalf.data()[GetTileElementOffset<VecTile>(r, c)],
+                    src.data()[GetTileElementOffset<AccTile>(r, c)]);
+                EXPECT_EQ(
+                    bottomHalf.data()[GetTileElementOffset<VecTile>(r, c)],
+                    src.data()[GetTileElementOffset<AccTile>(r + topHalf.GetValidRow(), c)]);
             }
         }
 
@@ -240,7 +235,7 @@ TEST_F(TPushPopTest, a5_style_v2c_local_split_push_pop)
     using Pipe = TPipe<3, Direction::DIR_V2C, sizeof(float) * MatTile::Numel, 2>;
 
     Pipe::reset_for_cpu_sim();
-    Pipe pipe((__gm__ void *)nullptr, 0x0, 0x10000);
+    Pipe pipe((__gm__ void*)nullptr, 0x0, 0x10000);
 
     VecTile src;
     MatTile dst;

@@ -25,22 +25,23 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace PtoTestCommon;
 
-template <int kEmbDim, int kBlockSize>
-void LaunchEngramBaseline(float *out, float *table, int32_t *indices, float *hid, float *gw, int tableRows,
-                          void *stream);
-
-template <int kEmbDim, int kBlockSize>
-void LaunchEngramFused(float *out, float *table, int32_t *indices, float *hid, float *gw, int tableRows, void *stream);
-
-enum class Variant
-{
-    Baseline,
-    Fused
+struct CaseEntry {
+    std::string name;
+    std::function<bool()> run;
 };
+
+template <int kEmbDim, int kBlockSize>
+void LaunchEngramBaseline(
+    float* out, float* table, int32_t* indices, float* hid, float* gw, int tableRows, void* stream);
+
+template <int kEmbDim, int kBlockSize>
+void LaunchEngramFused(float* out, float* table, int32_t* indices, float* hid, float* gw, int tableRows, void* stream);
+
+enum class Variant { Baseline, Fused };
 
 static int g_chip_id = 0;
 
-static bool FullResultCmp(const std::vector<float> &expected, const std::vector<float> &actual, float eps = 0.001f)
+static bool FullResultCmp(const std::vector<float>& expected, const std::vector<float>& actual, float eps = 0.001f)
 {
     if (expected.size() != actual.size()) {
         printf("[FullResultCmp] size mismatch: expected %zu, actual %zu\n", expected.size(), actual.size());
@@ -79,12 +80,13 @@ static bool FullResultCmp(const std::vector<float> &expected, const std::vector<
 }
 
 template <int kEmbDim, int kBlockSize, Variant V>
-static bool RunOneCase(const std::string &caseName, int tableRows)
+static bool RunOneCase(const std::string& caseName, int tableRows)
 {
-    static_assert(kEmbDim == 128 || kEmbDim == 256 || kEmbDim == 512 || kEmbDim == 1024,
-                  "EmbDim must be 128, 256, 512, or 1024");
-    static_assert(kBlockSize >= 1 && kBlockSize <= 64 && (kBlockSize & (kBlockSize - 1)) == 0,
-                  "BlockSize must be power-of-2 in [1, 64]");
+    static_assert(
+        kEmbDim == 128 || kEmbDim == 256 || kEmbDim == 512 || kEmbDim == 1024, "EmbDim must be 128, 256, 512, or 1024");
+    static_assert(
+        kBlockSize >= 1 && kBlockSize <= 64 && (kBlockSize & (kBlockSize - 1)) == 0,
+        "BlockSize must be power-of-2 in [1, 64]");
     static_assert(std::is_same_v<float, float>, "only float dtype supported");
 
     constexpr int H = 8;
@@ -104,20 +106,20 @@ static bool RunOneCase(const std::string &caseName, int tableRows)
     aclrtCreateStream(&stream);
 
     float *hTable, *hHidden, *hGateW, *hOutput;
-    int32_t *hIdx;
-    aclrtMallocHost((void **)&hTable, tBytes);
-    aclrtMallocHost((void **)&hIdx, idxBytes);
-    aclrtMallocHost((void **)&hHidden, hidBytes);
-    aclrtMallocHost((void **)&hGateW, hidBytes);
-    aclrtMallocHost((void **)&hOutput, outBytes);
+    int32_t* hIdx;
+    aclrtMallocHost((void**)&hTable, tBytes);
+    aclrtMallocHost((void**)&hIdx, idxBytes);
+    aclrtMallocHost((void**)&hHidden, hidBytes);
+    aclrtMallocHost((void**)&hGateW, hidBytes);
+    aclrtMallocHost((void**)&hOutput, outBytes);
 
     float *dTable, *dHidden, *dGateW, *dOutput;
-    int32_t *dIdx;
-    aclrtMalloc((void **)&dTable, tBytes, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&dIdx, idxBytes, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&dHidden, hidBytes, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&dGateW, hidBytes, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&dOutput, outBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    int32_t* dIdx;
+    aclrtMalloc((void**)&dTable, tBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dIdx, idxBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dHidden, hidBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dGateW, hidBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dOutput, outBytes, ACL_MEM_MALLOC_HUGE_FIRST);
 
     constexpr int tableMod = 8;
     for (size_t r = 0; r < (size_t)tableRows; ++r)
@@ -170,21 +172,18 @@ static bool RunOneCase(const std::string &caseName, int tableRows)
     return pass;
 }
 
-int main(int argc, char **argv)
+template <int kEmbDim, int kBlockSize, Variant V>
+static CaseEntry MakeEngramEntry(const std::string& name, int tableRows)
 {
-    struct CaseEntry {
-        std::string name;
-        std::function<bool()> run;
-    };
+    return CaseEntry{name, [name, tableRows]() -> bool { return RunOneCase<kEmbDim, kBlockSize, V>(name, tableRows); }};
+}
 
+int main(int argc, char** argv)
+{
     std::vector<CaseEntry> cases = {
-#define ENGRAM_CASE_ENTRY(D, B, T, TAG)                                                                  \
-    {"ENGRAMSIMTTest.baseline_E" #D "_B" #B "_" #TAG,                                                    \
-     []() -> bool {                                                                                      \
-         return RunOneCase<D, B, Variant::Baseline>("ENGRAMSIMTTest.baseline_E" #D "_B" #B "_" #TAG, T); \
-     }},                                                                                                 \
-        {"ENGRAMSIMTTest.fused_E" #D "_B" #B "_" #TAG,                                                   \
-         []() -> bool { return RunOneCase<D, B, Variant::Fused>("ENGRAMSIMTTest.fused_E" #D "_B" #B "_" #TAG, T); }},
+#define ENGRAM_CASE_ENTRY(D, B, T, TAG)                                                           \
+    MakeEngramEntry<D, B, Variant::Baseline>("ENGRAMSIMTTest.baseline_E" #D "_B" #B "_" #TAG, T), \
+        MakeEngramEntry<D, B, Variant::Fused>("ENGRAMSIMTTest.fused_E" #D "_B" #B "_" #TAG, T),
         ENGRAM_FOR_EACH_CASE(ENGRAM_CASE_ENTRY)
 #undef ENGRAM_CASE_ENTRY
     };
@@ -228,10 +227,10 @@ int main(int argc, char **argv)
         }
     }
 
-    auto should_run = [&](const std::string &name) {
+    auto should_run = [&](const std::string& name) {
         if (filters.empty())
             return true;
-        for (const auto &f : filters) {
+        for (const auto& f : filters) {
             if (name.find(f) != std::string::npos)
                 return true;
         }
@@ -239,12 +238,12 @@ int main(int argc, char **argv)
     };
 
     printf("[engram-simt] Available cases (%zu):\n", cases.size());
-    for (const auto &c : cases) {
+    for (const auto& c : cases) {
         printf("  %s\n", c.name.c_str());
     }
 
-    std::vector<const CaseEntry *> to_run;
-    for (const auto &c : cases) {
+    std::vector<const CaseEntry*> to_run;
+    for (const auto& c : cases) {
         if (should_run(c.name))
             to_run.push_back(&c);
     }
@@ -256,7 +255,7 @@ int main(int argc, char **argv)
 
     printf("[engram-simt] Running %zu case(s)...\n", to_run.size());
     int passed = 0, failed = 0;
-    for (const auto *c : to_run) {
+    for (const auto* c : to_run) {
         printf("\n=== %s ===\n", c->name.c_str());
         bool ok = c->run();
         if (ok) {

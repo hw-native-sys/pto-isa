@@ -17,19 +17,17 @@ using namespace PtoTestCommon;
 
 namespace TRowExpandTest {
 template <typename T, uint32_t dstRows, uint32_t dstCols>
-void launchTROWEXPAND(T *out, T *src, void *stream);
+void launchTROWEXPAND(T* out, T* src, void* stream);
 
 class TROWEXPANDBRCBTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -50,11 +48,11 @@ void test_trowexpand()
     T *dstHost, *src0Host;
     T *dstDevice, *src0Device;
 
-    aclrtMallocHost((void **)(&dstHost), outputFileSize);
-    aclrtMallocHost((void **)(&src0Host), inputFileSize);
+    aclrtMallocHost((void**)(&dstHost), outputFileSize);
+    aclrtMallocHost((void**)(&src0Host), inputFileSize);
 
-    aclrtMalloc((void **)&dstDevice, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, inputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, inputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", inputFileSize, src0Host, inputFileSize);
 
@@ -85,16 +83,7 @@ void test_trowexpand()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TROWEXPANDBRCBTest, case0_half_4800_16)
-{
-    test_trowexpand<aclFloat16, 2400, 16>();
-}
-TEST_F(TROWEXPANDBRCBTest, case1_float_3640_8)
-{
-    test_trowexpand<float, 3640, 8>();
-}
-TEST_F(TROWEXPANDBRCBTest, case2_float_16_8)
-{
-    test_trowexpand<float, 16, 8>();
-}
+TEST_F(TROWEXPANDBRCBTest, case0_half_4800_16) { test_trowexpand<aclFloat16, 2400, 16>(); }
+TEST_F(TROWEXPANDBRCBTest, case1_float_3640_8) { test_trowexpand<float, 3640, 8>(); }
+TEST_F(TROWEXPANDBRCBTest, case2_float_16_8) { test_trowexpand<float, 16, 8>(); }
 } // namespace TRowExpandTest

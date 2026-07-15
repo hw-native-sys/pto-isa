@@ -26,8 +26,8 @@ template <typename Element, int TileElems>
 constexpr int kPtoVectorBlockRows = (static_cast<uint64_t>(TileElems) * sizeof(Element) <= 32U * 1024U) ? 2 : 1;
 
 template <typename Element, int TileElems = 1024>
-using PtoVecBlockTile = pto::Tile<pto::TileType::Vec, Element, kPtoVectorBlockRows<Element, TileElems>, TileElems,
-                                  pto::BLayout::RowMajor, -1, -1>;
+using PtoVecBlockTile = pto::Tile<
+    pto::TileType::Vec, Element, kPtoVectorBlockRows<Element, TileElems>, TileElems, pto::BLayout::RowMajor, -1, -1>;
 
 template <typename Element>
 using PtoVectorShape = pto::Shape<1, 1, 1, 1, pto::DYNAMIC>;
@@ -55,13 +55,13 @@ AICORE inline uint64_t PtoElemOffsetBytes(uint32_t offset)
 }
 
 template <typename Tile, typename Element>
-AICORE inline void PtoAssignUbTile(Tile &tile, uint64_t baseOffsetBytes, uint32_t elemOffset)
+AICORE inline void PtoAssignUbTile(Tile& tile, uint64_t baseOffsetBytes, uint32_t elemOffset)
 {
     pto::TASSIGN(tile, baseOffsetBytes + PtoElemOffsetBytes<Element>(elemOffset));
 }
 
 template <typename Element, int TileElems = 1024>
-AICORE inline void PtoLoadVector(uint64_t dstUbOffsetBytes, __gm__ Element *src, uint32_t elemNum)
+AICORE inline void PtoLoadVector(uint64_t dstUbOffsetBytes, __gm__ Element* src, uint32_t elemNum)
 {
     using Tile = PtoVecTile<Element, TileElems>;
     using BlockTile = PtoVecBlockTile<Element, TileElems>;
@@ -74,9 +74,9 @@ AICORE inline void PtoLoadVector(uint64_t dstUbOffsetBytes, __gm__ Element *src,
         BlockTile tile(rowNum, TileElems);
         PtoAssignUbTile<BlockTile, Element>(tile, dstUbOffsetBytes, offset);
         PtoVectorBlockShape<Element> srcShape(rowNum, TileElems);
-        PtoVectorBlockStride<Element> srcStride(static_cast<int64_t>(rowNum) * TileElems,
-                                                static_cast<int64_t>(rowNum) * TileElems,
-                                                static_cast<int64_t>(rowNum) * TileElems, TileElems);
+        PtoVectorBlockStride<Element> srcStride(
+            static_cast<int64_t>(rowNum) * TileElems, static_cast<int64_t>(rowNum) * TileElems,
+            static_cast<int64_t>(rowNum) * TileElems, TileElems);
         PtoVectorBlockGlobal<Element> srcGlobal(src + offset, srcShape, srcStride);
         pto::TLOAD(tile, srcGlobal);
         offset += rowNum * TileElems;
@@ -94,7 +94,7 @@ AICORE inline void PtoLoadVector(uint64_t dstUbOffsetBytes, __gm__ Element *src,
 }
 
 template <bool AtomicAdd, typename Element, int TileElems = 1024>
-AICORE inline void PtoStoreVectorImpl(__gm__ Element *dst, uint64_t srcUbOffsetBytes, uint32_t elemNum)
+AICORE inline void PtoStoreVectorImpl(__gm__ Element* dst, uint64_t srcUbOffsetBytes, uint32_t elemNum)
 {
     using Tile = PtoVecTile<Element, TileElems>;
     using BlockTile = PtoVecBlockTile<Element, TileElems>;
@@ -105,9 +105,9 @@ AICORE inline void PtoStoreVectorImpl(__gm__ Element *dst, uint64_t srcUbOffsetB
         const uint32_t fullChunks = (elemNum - offset) / TileElems;
         const uint32_t rowNum = fullChunks > blockRows ? blockRows : fullChunks;
         PtoVectorBlockShape<Element> dstShape(rowNum, TileElems);
-        PtoVectorBlockStride<Element> dstStride(static_cast<int64_t>(rowNum) * TileElems,
-                                                static_cast<int64_t>(rowNum) * TileElems,
-                                                static_cast<int64_t>(rowNum) * TileElems, TileElems);
+        PtoVectorBlockStride<Element> dstStride(
+            static_cast<int64_t>(rowNum) * TileElems, static_cast<int64_t>(rowNum) * TileElems,
+            static_cast<int64_t>(rowNum) * TileElems, TileElems);
         PtoVectorBlockGlobal<Element> dstGlobal(dst + offset, dstShape, dstStride);
         BlockTile tile(rowNum, TileElems);
         PtoAssignUbTile<BlockTile, Element>(tile, srcUbOffsetBytes, offset);
@@ -135,20 +135,20 @@ AICORE inline void PtoStoreVectorImpl(__gm__ Element *dst, uint64_t srcUbOffsetB
 }
 
 template <typename Element, int TileElems = 1024>
-AICORE inline void PtoStoreVector(__gm__ Element *dst, uint64_t srcUbOffsetBytes, uint32_t elemNum)
+AICORE inline void PtoStoreVector(__gm__ Element* dst, uint64_t srcUbOffsetBytes, uint32_t elemNum)
 {
     PtoStoreVectorImpl<false, Element, TileElems>(dst, srcUbOffsetBytes, elemNum);
 }
 
 template <typename Element, int TileElems = 1024>
-AICORE inline void PtoStoreAtomicAddVector(__gm__ Element *dst, uint64_t srcUbOffsetBytes, uint32_t elemNum)
+AICORE inline void PtoStoreAtomicAddVector(__gm__ Element* dst, uint64_t srcUbOffsetBytes, uint32_t elemNum)
 {
     PtoStoreVectorImpl<true, Element, TileElems>(dst, srcUbOffsetBytes, elemNum);
 }
 
 template <typename DstElement, typename SrcElement, int TileElems = 1024>
-AICORE inline void PtoCastUb(uint64_t dstUbOffsetBytes, uint64_t srcUbOffsetBytes, uint32_t elemNum,
-                             pto::RoundMode mode)
+AICORE inline void PtoCastUb(
+    uint64_t dstUbOffsetBytes, uint64_t srcUbOffsetBytes, uint32_t elemNum, pto::RoundMode mode)
 {
     using DstTile = PtoVecTile<DstElement, TileElems>;
     using SrcTile = PtoVecTile<SrcElement, TileElems>;
@@ -189,8 +189,8 @@ AICORE inline void PtoMoveUb(uint64_t dstUbOffsetBytes, uint64_t srcUbOffsetByte
 }
 
 template <typename Element, int TileElems = 1024>
-AICORE inline void PtoAddUb(uint64_t dstUbOffsetBytes, uint64_t src0UbOffsetBytes, uint64_t src1UbOffsetBytes,
-                            uint32_t elemNum)
+AICORE inline void PtoAddUb(
+    uint64_t dstUbOffsetBytes, uint64_t src0UbOffsetBytes, uint64_t src1UbOffsetBytes, uint32_t elemNum)
 {
     using Tile = PtoVecTile<Element, TileElems>;
     for (uint32_t offset = 0; offset < elemNum; offset += TileElems) {
@@ -206,8 +206,8 @@ AICORE inline void PtoAddUb(uint64_t dstUbOffsetBytes, uint64_t src0UbOffsetByte
 }
 
 template <typename Element, int TileElems = 1024>
-AICORE inline void PtoAddScalarUb(uint64_t dstUbOffsetBytes, uint64_t srcUbOffsetBytes, uint32_t elemNum,
-                                  Element scalar)
+AICORE inline void PtoAddScalarUb(
+    uint64_t dstUbOffsetBytes, uint64_t srcUbOffsetBytes, uint32_t elemNum, Element scalar)
 {
     using Tile = PtoVecTile<Element, TileElems>;
     for (uint32_t offset = 0; offset < elemNum; offset += TileElems) {
@@ -221,8 +221,8 @@ AICORE inline void PtoAddScalarUb(uint64_t dstUbOffsetBytes, uint64_t srcUbOffse
 }
 
 template <typename Element, int TileElems = 1024>
-AICORE inline void PtoMulScalarUb(uint64_t dstUbOffsetBytes, uint64_t srcUbOffsetBytes, uint32_t elemNum,
-                                  Element scalar)
+AICORE inline void PtoMulScalarUb(
+    uint64_t dstUbOffsetBytes, uint64_t srcUbOffsetBytes, uint32_t elemNum, Element scalar)
 {
     using Tile = PtoVecTile<Element, TileElems>;
     for (uint32_t offset = 0; offset < elemNum; offset += TileElems) {

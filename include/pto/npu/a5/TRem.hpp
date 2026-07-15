@@ -23,8 +23,8 @@ namespace pto {
 
 template <RemAlgorithm PrecisionType, typename T>
 struct RemOp {
-    PTO_INTERNAL static void BinInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, RegTensor<T> &reg_src1,
-                                      MaskReg &preg)
+    PTO_INTERNAL static void BinInstr(
+        RegTensor<T>& reg_dst, RegTensor<T>& reg_src0, RegTensor<T>& reg_src1, MaskReg& preg)
     {
         if constexpr (PrecisionType == RemAlgorithm::HIGH_PRECISION && std::is_same<T, float>::value) {
             TFmodRemHP<false>(reg_dst, reg_src0, reg_src1, preg);
@@ -76,49 +76,52 @@ struct RemOp {
     }
 };
 
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataTmp,
-          unsigned ElementsPerRepeat, unsigned BlockSizeElem, auto PrecisionType = RemAlgorithm::DEFAULT>
-__tf__ PTO_INTERNAL OP_NAME(TREM)
-    OP_TYPE(element_wise) void TRem(typename TileDataDst::TileDType __out__ dst,
-                                    typename TileDataSrc0::TileDType __in__ src0,
-                                    typename TileDataSrc1::TileDType __in__ src1,
-                                    typename TileDataTmp::TileDType __in__ tmp, unsigned validRows, unsigned validCols,
-                                    VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
+template <
+    typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataTmp,
+    unsigned ElementsPerRepeat, unsigned BlockSizeElem, auto PrecisionType = RemAlgorithm::DEFAULT>
+__tf__ PTO_INTERNAL OP_NAME(TREM) OP_TYPE(element_wise) void TRem(
+    typename TileDataDst::TileDType __out__ dst, typename TileDataSrc0::TileDType __in__ src0,
+    typename TileDataSrc1::TileDType __in__ src1, typename TileDataTmp::TileDType __in__ tmp, unsigned validRows,
+    unsigned validCols, VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
 {
     using T = typename TileDataDst::DType;
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *src0Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src0);
-    __ubuf__ T *src1Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src1);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
+    __ubuf__ T* src1Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src1);
     // Note: tmp parameter is not used in a5 implementation (no sign correction needed)
     BinaryInstr<RemOp<PrecisionType, T>, TileDataDst, TileDataSrc0, TileDataSrc1, ElementsPerRepeat, BlockSizeElem>(
         dstPtr, src0Ptr, src1Ptr, validRows, validCols, version);
 }
 
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataTmp>
-PTO_INTERNAL void TRemCheck(const TileDataDst &dst, const TileDataSrc0 &src0, const TileDataSrc1 &src1,
-                            const TileDataTmp &tmp)
+PTO_INTERNAL void TRemCheck(
+    const TileDataDst& dst, const TileDataSrc0& src0, const TileDataSrc1& src1, const TileDataTmp& tmp)
 {
     using T = typename TileDataDst::DType;
-    static_assert(std::is_same<T, half>::value || std::is_same<T, float>::value || std::is_same<T, uint16_t>::value ||
-                      std::is_same<T, int16_t>::value || std::is_same<T, uint32_t>::value ||
-                      std::is_same<T, int32_t>::value,
-                  "Fix: TREM has invalid data type.");
-    static_assert(TileDataDst::isRowMajor && TileDataSrc0::isRowMajor && TileDataSrc1::isRowMajor,
-                  "Fix: TREM only support row major layout.");
+    static_assert(
+        std::is_same<T, half>::value || std::is_same<T, float>::value || std::is_same<T, uint16_t>::value ||
+            std::is_same<T, int16_t>::value || std::is_same<T, uint32_t>::value || std::is_same<T, int32_t>::value,
+        "Fix: TREM has invalid data type.");
+    static_assert(
+        TileDataDst::isRowMajor && TileDataSrc0::isRowMajor && TileDataSrc1::isRowMajor,
+        "Fix: TREM only support row major layout.");
     static_assert(
         std::is_same<T, typename TileDataSrc0::DType>::value && std::is_same<T, typename TileDataSrc1::DType>::value,
         "Fix: TREM input tile src0, src1 and dst tile data type mismatch.");
     unsigned validRows = dst.GetValidRow();
     unsigned validCols = dst.GetValidCol();
-    PTO_ASSERT(src0.GetValidRow() == validRows && src0.GetValidCol() == validCols,
-               "Fix: TREM input tile src0 valid shape mismatch with output tile dst shape.");
-    PTO_ASSERT(src1.GetValidRow() == validRows && src1.GetValidCol() == validCols,
-               "Fix: TREM input tile src1 valid shape mismatch with output tile dst shape.");
+    PTO_ASSERT(
+        src0.GetValidRow() == validRows && src0.GetValidCol() == validCols,
+        "Fix: TREM input tile src0 valid shape mismatch with output tile dst shape.");
+    PTO_ASSERT(
+        src1.GetValidRow() == validRows && src1.GetValidCol() == validCols,
+        "Fix: TREM input tile src1 valid shape mismatch with output tile dst shape.");
 }
 
-template <auto PrecisionType = RemAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc0,
-          typename TileDataSrc1, typename TileDataTmp>
-PTO_INTERNAL void TREM_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, TileDataTmp &tmp)
+template <
+    auto PrecisionType = RemAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1,
+    typename TileDataTmp>
+PTO_INTERNAL void TREM_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, TileDataTmp& tmp)
 {
     using T = typename TileDataDst::DType;
     TRemCheck<TileDataDst, TileDataSrc0, TileDataSrc1, TileDataTmp>(dst, src0, src1, tmp);

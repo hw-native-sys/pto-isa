@@ -22,45 +22,49 @@ namespace pto {
 template <typename T>
 struct ShlSOp {
     static constexpr bool isDynFunc = false;
-    PTO_INTERNAL static void BinSInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, T src1, MaskReg &preg)
+    PTO_INTERNAL static void BinSInstr(RegTensor<T>& reg_dst, RegTensor<T>& reg_src0, T src1, MaskReg& preg)
     {
         vshls(reg_dst, reg_src0, src1, preg, MODE_ZEROING);
     }
 };
 
-template <typename TileDataDst, typename TileDataSrc, unsigned elementsPerRepeat, unsigned blockSizeElem,
-          unsigned dstRowStride, unsigned src0RowStride>
-__tf__ PTO_INTERNAL OP_NAME(TSHLS)
-    OP_TYPE(element_wise) void TShlS(typename TileDataDst::TileDType __out__ dst,
-                                     typename TileDataSrc::TileDType __in__ src0, typename TileDataSrc::DType src1,
-                                     unsigned kValidRows, unsigned kValidCols,
-                                     VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
+template <
+    typename TileDataDst, typename TileDataSrc, unsigned elementsPerRepeat, unsigned blockSizeElem,
+    unsigned dstRowStride, unsigned src0RowStride>
+__tf__ PTO_INTERNAL OP_NAME(TSHLS) OP_TYPE(element_wise) void TShlS(
+    typename TileDataDst::TileDType __out__ dst, typename TileDataSrc::TileDType __in__ src0,
+    typename TileDataSrc::DType src1, unsigned kValidRows, unsigned kValidCols,
+    VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
 {
     using T = typename TileDataDst::DType;
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *src0Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src0);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
     BinaryInstr<ShlSOp<T>, TileDataDst, TileDataSrc, T, elementsPerRepeat, blockSizeElem, dstRowStride, src0RowStride>(
         dstPtr, src0Ptr, src1, kValidRows, kValidCols, version);
 }
 
 template <typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TSHLS_IMPL(TileDataDst &dst, TileDataSrc &src0, typename TileDataDst::DType src1)
+PTO_INTERNAL void TSHLS_IMPL(TileDataDst& dst, TileDataSrc& src0, typename TileDataDst::DType src1)
 {
     using T = typename TileDataDst::DType;
-    static_assert(std::is_same<T, int32_t>::value || std::is_same<T, int16_t>::value ||
-                      std::is_same<T, int8_t>::value || std::is_same<T, uint32_t>::value ||
-                      std::is_same<T, uint16_t>::value || std::is_same<T, uint8_t>::value,
-                  "TSHLS: Invalid data type");
+    static_assert(
+        std::is_same<T, int32_t>::value || std::is_same<T, int16_t>::value || std::is_same<T, int8_t>::value ||
+            std::is_same<T, uint32_t>::value || std::is_same<T, uint16_t>::value || std::is_same<T, uint8_t>::value,
+        "TSHLS: Invalid data type");
     static_assert(TileDataDst::Loc == TileType::Vec, "TileType of dst tiles must be TileType::Vec.");
-    static_assert(TileDataDst::ValidCol <= TileDataDst::Cols,
-                  "Number of valid columns must not be greater than number of tile columns.");
-    static_assert(TileDataDst::ValidRow <= TileDataDst::Rows,
-                  "Number of valid rows must not be greater than number of tile rows.");
+    static_assert(
+        TileDataDst::ValidCol <= TileDataDst::Cols,
+        "Number of valid columns must not be greater than number of tile columns.");
+    static_assert(
+        TileDataDst::ValidRow <= TileDataDst::Rows,
+        "Number of valid rows must not be greater than number of tile rows.");
     static_assert(TileDataSrc::Loc == TileType::Vec, "TileType of src tiles must be TileType::Vec.");
-    static_assert(TileDataSrc::ValidCol <= TileDataSrc::Cols,
-                  "Number of valid columns must not be greater than number of tile columns.");
-    static_assert(TileDataSrc::ValidRow <= TileDataSrc::Rows,
-                  "Number of valid rows must not be greater than number of tile rows.");
+    static_assert(
+        TileDataSrc::ValidCol <= TileDataSrc::Cols,
+        "Number of valid columns must not be greater than number of tile columns.");
+    static_assert(
+        TileDataSrc::ValidRow <= TileDataSrc::Rows,
+        "Number of valid rows must not be greater than number of tile rows.");
 
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
     constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);

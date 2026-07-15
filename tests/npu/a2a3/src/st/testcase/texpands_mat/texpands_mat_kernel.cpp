@@ -17,11 +17,11 @@ using namespace std;
 using namespace pto;
 
 template <typename GlobalData, typename TileData, int reshapeRow, int reshapeCol>
-__tf__ AICORE inline void TSTORE_MAT2GM_CONVTILE(typename GlobalData::DType __out__ *dst,
-                                                 typename TileData::TileDType __in__ src)
+__tf__ AICORE inline void TSTORE_MAT2GM_CONVTILE(
+    typename GlobalData::DType __out__* dst, typename TileData::TileDType __in__ src)
 {
-    __cbuf__ typename TileData::DType *srcAddr = __cce_get_tile_ptr(src);
-    typename GlobalData::DType *dstAddr = dst;
+    __cbuf__ typename TileData::DType* srcAddr = __cce_get_tile_ptr(src);
+    typename GlobalData::DType* dstAddr = dst;
 
     constexpr uint32_t blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename TileData::DType);
 
@@ -36,10 +36,10 @@ __tf__ AICORE inline void TSTORE_MAT2GM_CONVTILE(typename GlobalData::DType __ou
 }
 
 template <typename T, int Rows, int Cols>
-AICORE inline void runTExpandS_Tile(__gm__ T *out, T value)
+AICORE inline void runTExpandS_Tile(__gm__ T* out, T value)
 {
-    using GlobalData = GlobalTensor<T, pto::Shape<1, 1, 1, Rows, Cols>,
-                                    pto::Stride<1 * Rows * Cols, 1 * Rows * Cols, Rows * Cols, Cols, 1>>;
+    using GlobalData = GlobalTensor<
+        T, pto::Shape<1, 1, 1, Rows, Cols>, pto::Stride<1 * Rows * Cols, 1 * Rows * Cols, Rows * Cols, Cols, 1>>;
     GlobalData dstGlobal(out);
 
     using TileData = Tile<TileType::Mat, T, Rows, Cols, BLayout::RowMajor, Rows, Cols>;
@@ -53,12 +53,12 @@ AICORE inline void runTExpandS_Tile(__gm__ T *out, T value)
 }
 
 template <typename T, int N, int C1, int H, int W, int C0>
-AICORE inline void runTSetValue_ConvTile(__gm__ T *out, T value)
+AICORE inline void runTSetValue_ConvTile(__gm__ T* out, T value)
 {
     constexpr int elementSize = N * C1 * H * W * C0;
     constexpr int bufferSizeA = elementSize * sizeof(T);
-    using GlobalData = GlobalTensor<T, pto::Shape<1, 1, 1, 1, elementSize>,
-                                    pto::Stride<elementSize, elementSize, elementSize, elementSize, 1>>;
+    using GlobalData = GlobalTensor<
+        T, pto::Shape<1, 1, 1, 1, elementSize>, pto::Stride<elementSize, elementSize, elementSize, elementSize, 1>>;
     GlobalData dstGlobal(out);
 
     using TileData = ConvTile<TileType::Mat, T, elementSize, Layout::NC1HWC0, pto::ConvTileShape<N, C1, H, W, C0>>;
@@ -77,21 +77,21 @@ AICORE inline void runTSetValue_ConvTile(__gm__ T *out, T value)
 }
 
 template <typename T, int format, int shape0, int shape1, int shape2, int shape3, int shape4>
-__global__ AICORE void TEXPANDS_KERNEL(__gm__ uint8_t *out, T value)
+__global__ AICORE void TEXPANDS_KERNEL(__gm__ uint8_t* out, T value)
 {
     if constexpr (format == 0) { // Tile
         if constexpr (std::is_same_v<T, uint16_t>) {
-            runTExpandS_Tile<bfloat16_t, shape0, shape1>(reinterpret_cast<__gm__ bfloat16_t *>(out), 7);
+            runTExpandS_Tile<bfloat16_t, shape0, shape1>(reinterpret_cast<__gm__ bfloat16_t*>(out), 7);
         } else {
-            runTExpandS_Tile<T, shape0, shape1>(reinterpret_cast<__gm__ T *>(out), value);
+            runTExpandS_Tile<T, shape0, shape1>(reinterpret_cast<__gm__ T*>(out), value);
         }
     } else if constexpr (format == 1) { // convTile
-        runTSetValue_ConvTile<T, shape0, shape1, shape2, shape3, shape4>(reinterpret_cast<__gm__ T *>(out), value);
+        runTSetValue_ConvTile<T, shape0, shape1, shape2, shape3, shape4>(reinterpret_cast<__gm__ T*>(out), value);
     }
 }
 
 template <int32_t testKey>
-void launchTEXPANDS_Mat(uint8_t *out, void *stream)
+void launchTEXPANDS_Mat(uint8_t* out, void* stream)
 {
     if constexpr (testKey == 1) {
         TEXPANDS_KERNEL<half, 0, 128, 128, 0, 0, 0><<<1, nullptr, stream>>>(out, half(2));
@@ -114,12 +114,12 @@ void launchTEXPANDS_Mat(uint8_t *out, void *stream)
     }
 }
 
-template void launchTEXPANDS_Mat<1>(uint8_t *out, void *stream);
-template void launchTEXPANDS_Mat<2>(uint8_t *out, void *stream);
-template void launchTEXPANDS_Mat<3>(uint8_t *out, void *stream);
-template void launchTEXPANDS_Mat<4>(uint8_t *out, void *stream);
-template void launchTEXPANDS_Mat<5>(uint8_t *out, void *stream);
-template void launchTEXPANDS_Mat<6>(uint8_t *out, void *stream);
-template void launchTEXPANDS_Mat<7>(uint8_t *out, void *stream);
-template void launchTEXPANDS_Mat<8>(uint8_t *out, void *stream);
-template void launchTEXPANDS_Mat<9>(uint8_t *out, void *stream);
+template void launchTEXPANDS_Mat<1>(uint8_t* out, void* stream);
+template void launchTEXPANDS_Mat<2>(uint8_t* out, void* stream);
+template void launchTEXPANDS_Mat<3>(uint8_t* out, void* stream);
+template void launchTEXPANDS_Mat<4>(uint8_t* out, void* stream);
+template void launchTEXPANDS_Mat<5>(uint8_t* out, void* stream);
+template void launchTEXPANDS_Mat<6>(uint8_t* out, void* stream);
+template void launchTEXPANDS_Mat<7>(uint8_t* out, void* stream);
+template void launchTEXPANDS_Mat<8>(uint8_t* out, void* stream);
+template void launchTEXPANDS_Mat<9>(uint8_t* out, void* stream);

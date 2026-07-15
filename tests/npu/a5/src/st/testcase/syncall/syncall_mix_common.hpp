@@ -42,17 +42,17 @@ PTO_INTERNAL int32_t GetMixLogicalIdx()
 #endif
 }
 
-PTO_INTERNAL void SoftDcci(__gm__ void *ptr)
+PTO_INTERNAL void SoftDcci(__gm__ void* ptr)
 {
     __asm__ __volatile__("" ::: "memory");
     dcci(ptr, SINGLE_CACHE_LINE);
     __asm__ __volatile__("" ::: "memory");
 }
 
-PTO_INTERNAL void SoftDcciRange(__gm__ int32_t *base, int32_t lines)
+PTO_INTERNAL void SoftDcciRange(__gm__ int32_t* base, int32_t lines)
 {
     for (int32_t i = 0; i < lines; ++i) {
-        SoftDcci(static_cast<__gm__ void *>(base + i * kInt32PerCacheLine));
+        SoftDcci(static_cast<__gm__ void*>(base + i * kInt32PerCacheLine));
     }
     dsb(DSB_DDR);
     __asm__ __volatile__("" ::: "memory");
@@ -61,12 +61,12 @@ PTO_INTERNAL void SoftDcciRange(__gm__ int32_t *base, int32_t lines)
 #if defined(__DAV_CUBE__)
 PTO_INTERNAL void AicRequestProxyWrite(int32_t value)
 {
-    __cbuf__ int32_t *l1 = reinterpret_cast<__cbuf__ int32_t *>(kProxyL1Addr);
-    __ubuf__ int32_t *ub = reinterpret_cast<__ubuf__ int32_t *>(kProxyUbAddr);
+    __cbuf__ int32_t* l1 = reinterpret_cast<__cbuf__ int32_t*>(kProxyL1Addr);
+    __ubuf__ int32_t* ub = reinterpret_cast<__ubuf__ int32_t*>(kProxyUbAddr);
     constexpr int64_t repeatConfig = (static_cast<int64_t>(1) << 16) | 1;
     create_cbuf_matrix(l1, repeatConfig, static_cast<uint32_t>(value));
     pipe_barrier(PIPE_ALL);
-    copy_cbuf_to_ubuf(static_cast<__ubuf__ void *>(ub), static_cast<__cbuf__ void *>(l1), 0, 1, 1, 0, 0);
+    copy_cbuf_to_ubuf(static_cast<__ubuf__ void*>(ub), static_cast<__cbuf__ void*>(l1), 0, 1, 1, 0, 0);
     pipe_barrier(PIPE_ALL);
     set_intra_block(PIPE_S, kProxyReqId);
     wait_intra_block(PIPE_S, kProxyDoneId);
@@ -74,38 +74,38 @@ PTO_INTERNAL void AicRequestProxyWrite(int32_t value)
 #endif
 
 #if defined(__DAV_VEC__)
-PTO_INTERNAL void AivServeProxyWrite(__gm__ int32_t *dst)
+PTO_INTERNAL void AivServeProxyWrite(__gm__ int32_t* dst)
 {
-    __ubuf__ int32_t *ub = reinterpret_cast<__ubuf__ int32_t *>(kProxyUbAddr);
+    __ubuf__ int32_t* ub = reinterpret_cast<__ubuf__ int32_t*>(kProxyUbAddr);
     wait_intra_block(PIPE_S, kProxyReqId);
     pipe_barrier(PIPE_ALL);
-    copy_ubuf_to_gm_align_v2(static_cast<__gm__ void *>(dst), static_cast<__ubuf__ void *>(ub), 0, 1, 1, 0, 0, 0);
+    copy_ubuf_to_gm_align_v2(static_cast<__gm__ void*>(dst), static_cast<__ubuf__ void*>(ub), 0, 1, 1, 0, 0, 0);
     pipe_barrier(PIPE_ALL);
-    SoftDcci(static_cast<__gm__ void *>(dst));
+    SoftDcci(static_cast<__gm__ void*>(dst));
     dsb(DSB_DDR);
     set_intra_block(PIPE_MTE3, kProxyDoneId);
 }
 
-PTO_INTERNAL void AivWriteGm(__gm__ int32_t *dst, int32_t value, uint64_t ubAddr)
+PTO_INTERNAL void AivWriteGm(__gm__ int32_t* dst, int32_t value, uint64_t ubAddr)
 {
-    __ubuf__ int32_t *ub = reinterpret_cast<__ubuf__ int32_t *>(ubAddr);
+    __ubuf__ int32_t* ub = reinterpret_cast<__ubuf__ int32_t*>(ubAddr);
     ub[0] = value;
     pipe_barrier(PIPE_ALL);
-    copy_ubuf_to_gm_align_v2(static_cast<__gm__ void *>(dst), static_cast<__ubuf__ void *>(ub), 0, 1, 1, 0, 0, 0);
+    copy_ubuf_to_gm_align_v2(static_cast<__gm__ void*>(dst), static_cast<__ubuf__ void*>(ub), 0, 1, 1, 0, 0, 0);
     pipe_barrier(PIPE_ALL);
-    SoftDcci(static_cast<__gm__ void *>(dst));
+    SoftDcci(static_cast<__gm__ void*>(dst));
     dsb(DSB_DDR);
 }
 #endif
 
-PTO_INTERNAL int32_t CheckMixFlags(__gm__ int32_t *flags, int32_t totalParticipants, uint64_t ubAddr,
-                                   int32_t multiplier)
+PTO_INTERNAL int32_t
+CheckMixFlags(__gm__ int32_t* flags, int32_t totalParticipants, uint64_t ubAddr, int32_t multiplier)
 {
     SoftDcciRange(flags, totalParticipants);
 #if defined(__DAV_VEC__)
-    __ubuf__ int32_t *readUb = reinterpret_cast<__ubuf__ int32_t *>(ubAddr);
-    copy_gm_to_ubuf(static_cast<__ubuf__ void *>(readUb), static_cast<__gm__ void *>(flags), 0, 1, totalParticipants, 0,
-                    0);
+    __ubuf__ int32_t* readUb = reinterpret_cast<__ubuf__ int32_t*>(ubAddr);
+    copy_gm_to_ubuf(
+        static_cast<__ubuf__ void*>(readUb), static_cast<__gm__ void*>(flags), 0, 1, totalParticipants, 0, 0);
     pipe_barrier(PIPE_ALL);
     int32_t allVisible = 1;
     for (int32_t i = 0; i < totalParticipants; ++i) {
@@ -132,7 +132,7 @@ PTO_INTERNAL int32_t CheckMixFlags(__gm__ int32_t *flags, int32_t totalParticipa
 #endif
 }
 
-PTO_INTERNAL void SoftMixBarrierWrite(__gm__ int32_t *mySlot, int32_t curValue, __gm__ int32_t *aicSlot)
+PTO_INTERNAL void SoftMixBarrierWrite(__gm__ int32_t* mySlot, int32_t curValue, __gm__ int32_t* aicSlot)
 {
 #if defined(__DAV_VEC__)
     if (get_subblockid() == 0 && aicSlot != nullptr) {
@@ -146,7 +146,7 @@ PTO_INTERNAL void SoftMixBarrierWrite(__gm__ int32_t *mySlot, int32_t curValue, 
 #endif
 }
 
-PTO_INTERNAL void SoftMixBarrierPoll(__gm__ int32_t *syncWorkspace, int32_t totalParticipants, int32_t curValue)
+PTO_INTERNAL void SoftMixBarrierPoll(__gm__ int32_t* syncWorkspace, int32_t totalParticipants, int32_t curValue)
 {
     int32_t pollCount = 0;
     while (true) {
@@ -155,9 +155,9 @@ PTO_INTERNAL void SoftMixBarrierPoll(__gm__ int32_t *syncWorkspace, int32_t tota
         }
         SoftDcciRange(syncWorkspace, totalParticipants);
 #if defined(__DAV_VEC__)
-        __ubuf__ int32_t *ub = reinterpret_cast<__ubuf__ int32_t *>(kMixReadUbAddr);
-        copy_gm_to_ubuf(static_cast<__ubuf__ void *>(ub), static_cast<__gm__ void *>(syncWorkspace), 0, 1,
-                        totalParticipants, 0, 0);
+        __ubuf__ int32_t* ub = reinterpret_cast<__ubuf__ int32_t*>(kMixReadUbAddr);
+        copy_gm_to_ubuf(
+            static_cast<__ubuf__ void*>(ub), static_cast<__gm__ void*>(syncWorkspace), 0, 1, totalParticipants, 0, 0);
         set_flag(PIPE_MTE2, PIPE_S, EVENT_ID0);
         wait_flag(PIPE_MTE2, PIPE_S, EVENT_ID0);
         int32_t readyCount = 0;
@@ -187,11 +187,11 @@ PTO_INTERNAL void SoftMixBarrierPoll(__gm__ int32_t *syncWorkspace, int32_t tota
     }
 }
 
-PTO_INTERNAL void SoftMixBarrier(__gm__ int32_t *syncWorkspace, int32_t totalParticipants, int32_t participantIdx,
-                                 __gm__ int32_t *aicSlot)
+PTO_INTERNAL void SoftMixBarrier(
+    __gm__ int32_t* syncWorkspace, int32_t totalParticipants, int32_t participantIdx, __gm__ int32_t* aicSlot)
 {
-    __gm__ int32_t *mySlot = syncWorkspace + participantIdx * kInt32PerCacheLine;
-    SoftDcci(static_cast<__gm__ void *>(mySlot));
+    __gm__ int32_t* mySlot = syncWorkspace + participantIdx * kInt32PerCacheLine;
+    SoftDcci(static_cast<__gm__ void*>(mySlot));
     dsb(DSB_DDR);
     __asm__ __volatile__("" ::: "memory");
     const int32_t curValue = mySlot[0] + 1;
@@ -201,13 +201,13 @@ PTO_INTERNAL void SoftMixBarrier(__gm__ int32_t *syncWorkspace, int32_t totalPar
 }
 
 template <int32_t TotalParticipants>
-PTO_INTERNAL void RunMixSyncAllBody(__gm__ int32_t *out, __gm__ int32_t *flags, __gm__ int32_t *syncWorkspace)
+PTO_INTERNAL void RunMixSyncAllBody(__gm__ int32_t* out, __gm__ int32_t* flags, __gm__ int32_t* syncWorkspace)
 {
     const int32_t idx = GetMixLogicalIdx();
     const int32_t aicIdx = static_cast<int32_t>(get_block_idx());
-    __gm__ int32_t *aicFlagSlot = flags + aicIdx * kInt32PerCacheLine;
-    __gm__ int32_t *aicSyncSlot = syncWorkspace + aicIdx * kInt32PerCacheLine;
-    __gm__ int32_t *aicOutSlot = out + aicIdx * kInt32PerCacheLine;
+    __gm__ int32_t* aicFlagSlot = flags + aicIdx * kInt32PerCacheLine;
+    __gm__ int32_t* aicSyncSlot = syncWorkspace + aicIdx * kInt32PerCacheLine;
+    __gm__ int32_t* aicOutSlot = out + aicIdx * kInt32PerCacheLine;
 
 #if defined(__DAV_CUBE__)
     AicRequestProxyWrite(idx + 1);

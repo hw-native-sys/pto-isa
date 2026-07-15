@@ -17,27 +17,25 @@ using namespace PtoTestCommon;
 
 class TRECIPTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, bool isInPlace = false,
-          bool highPrecision = false>
-void LaunchTRecip(T *out, T *src, void *stream);
+template <
+    typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, bool isInPlace = false, bool highPrecision = false>
+void LaunchTRecip(T* out, T* src, void* stream);
 
-template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, bool isInPlace = false,
-          bool highPrecision = false>
+template <
+    typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, bool isInPlace = false, bool highPrecision = false>
 void test_trecip()
 {
     size_t fileSize = kGRows_ * kGCols_ * sizeof(T);
@@ -50,11 +48,11 @@ void test_trecip()
     T *dstHost, *srcHost;
     T *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&srcHost), fileSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&srcHost), fileSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input1.bin", fileSize, srcHost, fileSize);
 
@@ -91,39 +89,12 @@ void test_trecip()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TRECIPTest, case_float_64x64_64x64_64x64_inPlace)
-{
-    test_trecip<float, 64, 64, 64, 64, true>();
-}
-TEST_F(TRECIPTest, case_float_64x64_64x64_64x64)
-{
-    test_trecip<float, 64, 64, 64, 64, false>();
-}
-TEST_F(TRECIPTest, case_half_64x64_64x64_64x64_inPlace)
-{
-    test_trecip<aclFloat16, 64, 64, 64, 64, true>();
-}
-TEST_F(TRECIPTest, case_half_64x64_64x64_64x64)
-{
-    test_trecip<aclFloat16, 64, 64, 64, 64, false>();
-}
-TEST_F(TRECIPTest, case_float_64x64_66x72_64x64)
-{
-    test_trecip<float, 64, 64, 66, 72, false>();
-}
-TEST_F(TRECIPTest, case_float_58x70_66x72_58x70)
-{
-    test_trecip<float, 58, 70, 66, 72, false>();
-}
-TEST_F(TRECIPTest, case_float_1x70_1x72_1x70)
-{
-    test_trecip<float, 1, 70, 1, 72, false>();
-}
-TEST_F(TRECIPTest, case_float_hp_2x16_2x16_2x16)
-{
-    test_trecip<float, 2, 16, 2, 16, false, true>();
-}
-TEST_F(TRECIPTest, case_half_hp_2x32_2x32_2x32)
-{
-    test_trecip<aclFloat16, 2, 32, 2, 32, false, true>();
-}
+TEST_F(TRECIPTest, case_float_64x64_64x64_64x64_inPlace) { test_trecip<float, 64, 64, 64, 64, true>(); }
+TEST_F(TRECIPTest, case_float_64x64_64x64_64x64) { test_trecip<float, 64, 64, 64, 64, false>(); }
+TEST_F(TRECIPTest, case_half_64x64_64x64_64x64_inPlace) { test_trecip<aclFloat16, 64, 64, 64, 64, true>(); }
+TEST_F(TRECIPTest, case_half_64x64_64x64_64x64) { test_trecip<aclFloat16, 64, 64, 64, 64, false>(); }
+TEST_F(TRECIPTest, case_float_64x64_66x72_64x64) { test_trecip<float, 64, 64, 66, 72, false>(); }
+TEST_F(TRECIPTest, case_float_58x70_66x72_58x70) { test_trecip<float, 58, 70, 66, 72, false>(); }
+TEST_F(TRECIPTest, case_float_1x70_1x72_1x70) { test_trecip<float, 1, 70, 1, 72, false>(); }
+TEST_F(TRECIPTest, case_float_hp_2x16_2x16_2x16) { test_trecip<float, 2, 16, 2, 16, false, true>(); }
+TEST_F(TRECIPTest, case_half_hp_2x32_2x32_2x32) { test_trecip<aclFloat16, 2, 32, 2, 32, false, true>(); }

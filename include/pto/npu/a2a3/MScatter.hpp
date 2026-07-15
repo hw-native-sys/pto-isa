@@ -46,7 +46,7 @@ struct IsMScatterNZTile {
 };
 
 template <ScatterOOB Oob>
-AICORE PTO_INLINE uint32_t mscatter_remap(uint32_t idx, uint32_t cap, uint32_t &doWrite)
+AICORE PTO_INLINE uint32_t mscatter_remap(uint32_t idx, uint32_t cap, uint32_t& doWrite)
 {
     if constexpr (Oob == ScatterOOB::Undefined) {
         doWrite = 1u;
@@ -64,7 +64,7 @@ AICORE PTO_INLINE uint32_t mscatter_remap(uint32_t idx, uint32_t cap, uint32_t &
 }
 
 template <typename T>
-AICORE PTO_INLINE void MScatterRowDma(__gm__ T *dst, __ubuf__ T *src, uint32_t lenBytes)
+AICORE PTO_INLINE void MScatterRowDma(__gm__ T* dst, __ubuf__ T* src, uint32_t lenBytes)
 {
     if constexpr (sizeof(T) == 1) {
         copy_ubuf_to_gm_align_b8(dst, src, 0, 1, lenBytes, 0, 0, 0, 0);
@@ -76,8 +76,8 @@ AICORE PTO_INLINE void MScatterRowDma(__gm__ T *dst, __ubuf__ T *src, uint32_t l
 }
 
 template <typename T>
-AICORE PTO_INLINE void MScatterRowMultiDma(__gm__ T *dst, __ubuf__ T *src, uint16_t nBurst, uint32_t lenBytes,
-                                           uint32_t ubGapBlocks, uint32_t gmGapBytes)
+AICORE PTO_INLINE void MScatterRowMultiDma(
+    __gm__ T* dst, __ubuf__ T* src, uint16_t nBurst, uint32_t lenBytes, uint32_t ubGapBlocks, uint32_t gmGapBytes)
 {
     if constexpr (sizeof(T) == 1) {
         copy_ubuf_to_gm_align_b8(dst, src, 0, nBurst, lenBytes, 0, 0, ubGapBlocks, gmGapBytes);
@@ -107,14 +107,12 @@ AICORE PTO_INLINE void MScatterAtomicAddSet()
     set_atomic_add();
 }
 
-AICORE PTO_INLINE void MScatterAtomicNone()
-{
-    set_atomic_none();
-}
+AICORE PTO_INLINE void MScatterAtomicNone() { set_atomic_none(); }
 
 template <typename T>
-AICORE PTO_INLINE uint64_t MScatterNZGmOffset(uint32_t logicalRow, uint32_t logicalCol, int gShape0, int gShape1,
-                                              int gStride0, int gStride1, int gStride2, int gStride3, int gStride4)
+AICORE PTO_INLINE uint64_t MScatterNZGmOffset(
+    uint32_t logicalRow, uint32_t logicalCol, int gShape0, int gShape1, int gStride0, int gStride1, int gStride2,
+    int gStride3, int gStride4)
 {
     constexpr uint32_t kC0 = C0_SIZE_BYTE / sizeof(T);
     constexpr uint32_t kFRow = FRACTAL_NZ_ROW;
@@ -174,7 +172,7 @@ AICORE PTO_INLINE bfloat16_t MScatterBitsToBf16(uint16_t bits)
 }
 
 template <ScatterAtomicOp Atomic, typename T>
-AICORE PTO_INLINE void MScatterScalarStore(__gm__ T *dst, T value)
+AICORE PTO_INLINE void MScatterScalarStore(__gm__ T* dst, T value)
 {
     if constexpr (Atomic == ScatterAtomicOp::Add) {
         if constexpr (std::is_same_v<T, bfloat16_t>) {
@@ -205,12 +203,12 @@ AICORE PTO_INLINE void MScatterScalarStore(__gm__ T *dst, T value)
 }
 
 template <ScatterAtomicOp Atomic, ScatterOOB Oob, typename T, typename TIdx, typename SrcTile, typename IdxTile>
-__tf__ AICORE void MScatterRowImpl(__gm__ T *tablePtr, typename SrcTile::TileDType __in__ src,
-                                   typename IdxTile::TileDType __in__ indices, uint32_t validRow, uint32_t validCol,
-                                   uint32_t tableRows, uint32_t tableRowStride)
+__tf__ AICORE void MScatterRowImpl(
+    __gm__ T* tablePtr, typename SrcTile::TileDType __in__ src, typename IdxTile::TileDType __in__ indices,
+    uint32_t validRow, uint32_t validCol, uint32_t tableRows, uint32_t tableRowStride)
 {
-    __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src);
-    __ubuf__ TIdx *idxPtr = (__ubuf__ TIdx *)__cce_get_tile_ptr(indices);
+    __ubuf__ T* srcPtr = (__ubuf__ T*)__cce_get_tile_ptr(src);
+    __ubuf__ TIdx* idxPtr = (__ubuf__ TIdx*)__cce_get_tile_ptr(indices);
 
     PtoSetWaitFlag<PIPE_V, PIPE_S>();
     PtoSetWaitFlag<PIPE_MTE2, PIPE_S>();
@@ -229,8 +227,8 @@ __tf__ AICORE void MScatterRowImpl(__gm__ T *tablePtr, typename SrcTile::TileDTy
         uint32_t doWrite;
         uint32_t safeIdx = mscatter_remap<Oob>(rawIdx, tableRows, doWrite);
         if (doWrite) {
-            __gm__ T *dstRow = tablePtr + static_cast<uint64_t>(safeIdx) * tableRowStride;
-            __ubuf__ T *srcRow = srcPtr + r * kRowStride;
+            __gm__ T* dstRow = tablePtr + static_cast<uint64_t>(safeIdx) * tableRowStride;
+            __ubuf__ T* srcRow = srcPtr + r * kRowStride;
             MScatterRowDma<T>(dstRow, srcRow, lenBytes);
             if constexpr (Atomic == ScatterAtomicOp::None) {
                 PtoSetWaitFlag<PIPE_MTE3, PIPE_S>();
@@ -250,16 +248,16 @@ __tf__ AICORE void MScatterRowImpl(__gm__ T *tablePtr, typename SrcTile::TileDTy
 }
 
 template <ScatterAtomicOp Atomic, ScatterOOB Oob, typename T, typename TIdx, typename SrcTile, typename IdxTile>
-__tf__ AICORE void MScatterRowNzImpl(__gm__ T *tablePtr, typename SrcTile::TileDType __in__ src,
-                                     typename IdxTile::TileDType __in__ indices, uint32_t validRow, int gShape0,
-                                     int gShape1, int gShape2, int gStride0, int gStride1, int gStride2, int gStride3)
+__tf__ AICORE void MScatterRowNzImpl(
+    __gm__ T* tablePtr, typename SrcTile::TileDType __in__ src, typename IdxTile::TileDType __in__ indices,
+    uint32_t validRow, int gShape0, int gShape1, int gShape2, int gStride0, int gStride1, int gStride2, int gStride3)
 {
     constexpr uint32_t kC0 = C0_SIZE_BYTE / sizeof(T);
     constexpr uint32_t kFRow = FRACTAL_NZ_ROW;
     constexpr uint32_t kFractalRowBytes = kC0 * sizeof(T);
 
-    __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src);
-    __ubuf__ TIdx *idxPtr = (__ubuf__ TIdx *)__cce_get_tile_ptr(indices);
+    __ubuf__ T* srcPtr = (__ubuf__ T*)__cce_get_tile_ptr(src);
+    __ubuf__ TIdx* idxPtr = (__ubuf__ TIdx*)__cce_get_tile_ptr(indices);
 
     PtoSetWaitFlag<PIPE_V, PIPE_S>();
     PtoSetWaitFlag<PIPE_MTE2, PIPE_S>();
@@ -286,10 +284,10 @@ __tf__ AICORE void MScatterRowNzImpl(__gm__ T *tablePtr, typename SrcTile::TileD
             const uint32_t srcRowInBlock = r - srcBlockRow * kFRow;
 
             for (uint32_t i = 0; i < (uint32_t)gShape0; i++) {
-                __gm__ T *dstAddr = tablePtr + (int64_t)i * (int64_t)gStride0 +
+                __gm__ T* dstAddr = tablePtr + (int64_t)i * (int64_t)gStride0 +
                                     (int64_t)dstBlockRow * (int64_t)gStride2 +
                                     (int64_t)dstRowInBlock * (int64_t)gStride3;
-                __ubuf__ T *srcAddr = srcPtr + (int64_t)i * tileOuterStrideElem +
+                __ubuf__ T* srcAddr = srcPtr + (int64_t)i * tileOuterStrideElem +
                                       (int64_t)srcBlockRow * (int64_t)kFRow * (int64_t)kC0 +
                                       (int64_t)srcRowInBlock * (int64_t)kC0;
                 MScatterRowMultiDma<T>(dstAddr, srcAddr, (uint16_t)gShape1, kFractalRowBytes, ubGapBlocks, gmGapBytes);
@@ -312,12 +310,12 @@ __tf__ AICORE void MScatterRowNzImpl(__gm__ T *tablePtr, typename SrcTile::TileD
 }
 
 template <ScatterAtomicOp Atomic, ScatterOOB Oob, typename T, typename TIdx, typename SrcTile, typename IdxTile>
-__tf__ AICORE void MScatterElemImpl(__gm__ T *tablePtr, typename SrcTile::TileDType __in__ src,
-                                    typename IdxTile::TileDType __in__ indices, uint32_t validRow, uint32_t validCol,
-                                    uint32_t tableSize)
+__tf__ AICORE void MScatterElemImpl(
+    __gm__ T* tablePtr, typename SrcTile::TileDType __in__ src, typename IdxTile::TileDType __in__ indices,
+    uint32_t validRow, uint32_t validCol, uint32_t tableSize)
 {
-    __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src);
-    __ubuf__ TIdx *idxPtr = (__ubuf__ TIdx *)__cce_get_tile_ptr(indices);
+    __ubuf__ T* srcPtr = (__ubuf__ T*)__cce_get_tile_ptr(src);
+    __ubuf__ TIdx* idxPtr = (__ubuf__ TIdx*)__cce_get_tile_ptr(indices);
 
     PtoSetWaitFlag<PIPE_V, PIPE_S>();
     PtoSetWaitFlag<PIPE_MTE2, PIPE_S>();
@@ -347,14 +345,14 @@ __tf__ AICORE void MScatterElemImpl(__gm__ T *tablePtr, typename SrcTile::TileDT
 }
 
 template <ScatterAtomicOp Atomic, ScatterOOB Oob, typename T, typename TIdx, typename SrcTile, typename IdxTile>
-__tf__ AICORE void MScatterElemNzImpl(__gm__ T *tablePtr, typename SrcTile::TileDType __in__ src,
-                                      typename IdxTile::TileDType __in__ indices, uint32_t validRow, uint32_t validCol,
-                                      uint32_t tableSize, int gShape0, int gShape1, int gStride0, int gStride1,
-                                      int gStride2, int gStride3, int gStride4, uint32_t nLogicalCols)
+__tf__ AICORE void MScatterElemNzImpl(
+    __gm__ T* tablePtr, typename SrcTile::TileDType __in__ src, typename IdxTile::TileDType __in__ indices,
+    uint32_t validRow, uint32_t validCol, uint32_t tableSize, int gShape0, int gShape1, int gStride0, int gStride1,
+    int gStride2, int gStride3, int gStride4, uint32_t nLogicalCols)
 {
     constexpr uint32_t kC0 = C0_SIZE_BYTE / sizeof(T);
-    __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src);
-    __ubuf__ TIdx *idxPtr = (__ubuf__ TIdx *)__cce_get_tile_ptr(indices);
+    __ubuf__ T* srcPtr = (__ubuf__ T*)__cce_get_tile_ptr(src);
+    __ubuf__ TIdx* idxPtr = (__ubuf__ TIdx*)__cce_get_tile_ptr(indices);
 
     PtoSetWaitFlag<PIPE_V, PIPE_S>();
     PtoSetWaitFlag<PIPE_MTE2, PIPE_S>();
@@ -368,10 +366,10 @@ __tf__ AICORE void MScatterElemNzImpl(__gm__ T *tablePtr, typename SrcTile::Tile
         const uint32_t cBase = bcol * kC0;
         const uint32_t cLimit = (cBase + kC0 < validCol) ? (cBase + kC0) : validCol;
         const uint32_t kInBlock = cLimit - cBase;
-        __ubuf__ T *srcBlockBase = srcPtr + (uint64_t)bcol * (uint64_t)kSrcColBlockStride;
+        __ubuf__ T* srcBlockBase = srcPtr + (uint64_t)bcol * (uint64_t)kSrcColBlockStride;
         for (uint32_t r = 0; r < validRow; r++) {
             const uint32_t idxRowOff = r * kIdxRowStride;
-            __ubuf__ T *srcRowBase = srcBlockBase + (uint64_t)r * (uint64_t)kC0;
+            __ubuf__ T* srcRowBase = srcBlockBase + (uint64_t)r * (uint64_t)kC0;
             for (uint32_t cInner = 0; cInner < kInBlock; cInner++) {
                 const uint32_t c = cBase + cInner;
                 const uint32_t idxOff = idxRowOff + c;
@@ -381,8 +379,8 @@ __tf__ AICORE void MScatterElemNzImpl(__gm__ T *tablePtr, typename SrcTile::Tile
                 if (doWrite) {
                     const uint32_t logicalRow = safeIdx / nLogicalCols;
                     const uint32_t logicalCol = safeIdx - logicalRow * nLogicalCols;
-                    const uint64_t dstOff = MScatterNZGmOffset<T>(logicalRow, logicalCol, gShape0, gShape1, gStride0,
-                                                                  gStride1, gStride2, gStride3, gStride4);
+                    const uint64_t dstOff = MScatterNZGmOffset<T>(
+                        logicalRow, logicalCol, gShape0, gShape1, gStride0, gStride1, gStride2, gStride3, gStride4);
                     MScatterScalarStore<Atomic, T>(tablePtr + dstOff, srcRowBase[cInner]);
                 }
             }
@@ -400,12 +398,15 @@ PTO_INTERNAL void MScatterCheck()
     using T = typename SrcTile::DType;
     using TIdx = typename IdxTile::DType;
 
-    static_assert(IsValidMScatterDType<T>::value,
-                  "MSCATTER A2/A3 data type must be int8/uint8/int16/uint16/int32/uint32/half/bfloat16/float.");
-    static_assert(std::is_same_v<TIdx, int32_t> || std::is_same_v<TIdx, uint32_t>,
-                  "MSCATTER A2/A3 index type must be int32_t or uint32_t.");
-    static_assert(std::is_same_v<typename GlobalTable::DType, __gm__ T>,
-                  "MSCATTER A2/A3 destination table must be a GM GlobalTensor with element type matching the source.");
+    static_assert(
+        IsValidMScatterDType<T>::value,
+        "MSCATTER A2/A3 data type must be int8/uint8/int16/uint16/int32/uint32/half/bfloat16/float.");
+    static_assert(
+        std::is_same_v<TIdx, int32_t> || std::is_same_v<TIdx, uint32_t>,
+        "MSCATTER A2/A3 index type must be int32_t or uint32_t.");
+    static_assert(
+        std::is_same_v<typename GlobalTable::DType, __gm__ T>,
+        "MSCATTER A2/A3 destination table must be a GM GlobalTensor with element type matching the source.");
     static_assert(SrcTile::Loc == TileType::Vec, "MSCATTER A2/A3 source must be a Vec tile (UB).");
     static_assert(IdxTile::Loc == TileType::Vec, "MSCATTER A2/A3 indices must be a Vec tile (UB).");
 
@@ -418,28 +419,35 @@ PTO_INTERNAL void MScatterCheck()
     constexpr bool kIsSrcNZ = IsMScatterNZTile<SrcTile>::value;
 
     static_assert(kIsTableND || kIsTableNZ, "MSCATTER A2/A3 table must use Layout::ND or Layout::NZ.");
-    static_assert((kIsTableND && kIsSrcND) || (kIsTableNZ && kIsSrcNZ),
-                  "MSCATTER A2/A3 layout pairing must be either:\n"
-                  "  (a) GM Layout::ND + UB tile (BLayout::RowMajor + SLayout::NoneBox), or\n"
-                  "  (b) GM Layout::NZ + UB tile (BLayout::ColMajor + SLayout::RowMajor + SFractalSize=512).");
+    static_assert(
+        (kIsTableND && kIsSrcND) || (kIsTableNZ && kIsSrcNZ),
+        "MSCATTER A2/A3 layout pairing must be either:\n"
+        "  (a) GM Layout::ND + UB tile (BLayout::RowMajor + SLayout::NoneBox), or\n"
+        "  (b) GM Layout::NZ + UB tile (BLayout::ColMajor + SLayout::RowMajor + SFractalSize=512).");
 
-    static_assert(SrcTile::Cols * sizeof(T) % BLOCK_BYTE_SIZE == 0,
-                  "MSCATTER A2/A3 source tile padded Cols*sizeof(T) must be 32-byte aligned.");
+    static_assert(
+        SrcTile::Cols * sizeof(T) % BLOCK_BYTE_SIZE == 0,
+        "MSCATTER A2/A3 source tile padded Cols*sizeof(T) must be 32-byte aligned.");
 
     if constexpr (kIsTableNZ) {
-        static_assert(GlobalTable::staticShape[3] == FRACTAL_NZ_ROW,
-                      "MSCATTER A2/A3 NZ table requires staticShape[3] == FRACTAL_NZ_ROW (16).");
-        static_assert(GlobalTable::staticShape[4] == C0_SIZE_BYTE / sizeof(T),
-                      "MSCATTER A2/A3 NZ table requires staticShape[4] == 32 / sizeof(T).");
-        static_assert(SrcTile::Cols % (C0_SIZE_BYTE / sizeof(T)) == 0,
-                      "MSCATTER A2/A3 NZ source tile Cols must be a multiple of C0 (= 32 / sizeof(T)).");
-        static_assert(SrcTile::Rows % FRACTAL_NZ_ROW == 0,
-                      "MSCATTER A2/A3 NZ source tile Rows must be a multiple of FRACTAL_NZ_ROW (16).");
+        static_assert(
+            GlobalTable::staticShape[3] == FRACTAL_NZ_ROW,
+            "MSCATTER A2/A3 NZ table requires staticShape[3] == FRACTAL_NZ_ROW (16).");
+        static_assert(
+            GlobalTable::staticShape[4] == C0_SIZE_BYTE / sizeof(T),
+            "MSCATTER A2/A3 NZ table requires staticShape[4] == 32 / sizeof(T).");
+        static_assert(
+            SrcTile::Cols % (C0_SIZE_BYTE / sizeof(T)) == 0,
+            "MSCATTER A2/A3 NZ source tile Cols must be a multiple of C0 (= 32 / sizeof(T)).");
+        static_assert(
+            SrcTile::Rows % FRACTAL_NZ_ROW == 0,
+            "MSCATTER A2/A3 NZ source tile Rows must be a multiple of FRACTAL_NZ_ROW (16).");
     }
 
-    static_assert(IsValidMScatterAtomic<T, Atomic, Mode>::value,
-                  "MSCATTER A2/A3 atomic operation: Add only valid for int8/int16/int32/half/bfloat16/float; "
-                  "Max/Min not supported.");
+    static_assert(
+        IsValidMScatterAtomic<T, Atomic, Mode>::value,
+        "MSCATTER A2/A3 atomic operation: Add only valid for int8/int16/int32/half/bfloat16/float; "
+        "Max/Min not supported.");
 
     constexpr int kSrcValidR = SrcTile::ValidRow;
     constexpr int kSrcValidC = SrcTile::ValidCol;
@@ -448,31 +456,35 @@ PTO_INTERNAL void MScatterCheck()
 
     if constexpr (Mode == Coalesce::Row) {
         if constexpr (kSrcValidR > 0 && kIdxValidR > 0 && kIdxValidC > 0) {
-            static_assert(kIdxValidR == 1 && kIdxValidC == kSrcValidR,
-                          "MSCATTER A2/A3 Coalesce::Row requires index tile valid shape [1, R].");
+            static_assert(
+                kIdxValidR == 1 && kIdxValidC == kSrcValidR,
+                "MSCATTER A2/A3 Coalesce::Row requires index tile valid shape [1, R].");
         }
     } else {
         if constexpr (kSrcValidR > 0 && kIdxValidR > 0) {
-            static_assert(kIdxValidR == kSrcValidR,
-                          "MSCATTER A2/A3 Coalesce::Elem requires index tile ValidRow == source ValidRow.");
+            static_assert(
+                kIdxValidR == kSrcValidR,
+                "MSCATTER A2/A3 Coalesce::Elem requires index tile ValidRow == source ValidRow.");
         }
         if constexpr (kSrcValidC > 0 && kIdxValidC > 0) {
-            static_assert(kIdxValidC == kSrcValidC,
-                          "MSCATTER A2/A3 Coalesce::Elem requires index tile ValidCol == source ValidCol.");
+            static_assert(
+                kIdxValidC == kSrcValidC,
+                "MSCATTER A2/A3 Coalesce::Elem requires index tile ValidCol == source ValidCol.");
         }
     }
 }
 
-template <Coalesce Mode = Coalesce::Row, ScatterAtomicOp Atomic = ScatterAtomicOp::None,
-          ScatterOOB Oob = ScatterOOB::Undefined, typename GlobalTable, typename SrcTile, typename IdxTile>
-PTO_INTERNAL void MSCATTER_IMPL(GlobalTable &table, SrcTile &src, IdxTile &indices)
+template <
+    Coalesce Mode = Coalesce::Row, ScatterAtomicOp Atomic = ScatterAtomicOp::None,
+    ScatterOOB Oob = ScatterOOB::Undefined, typename GlobalTable, typename SrcTile, typename IdxTile>
+PTO_INTERNAL void MSCATTER_IMPL(GlobalTable& table, SrcTile& src, IdxTile& indices)
 {
     using T = typename SrcTile::DType;
     using TIdx = typename IdxTile::DType;
 
     MScatterCheck<Mode, Atomic, GlobalTable, SrcTile, IdxTile>();
 
-    __gm__ T *tablePtr = reinterpret_cast<__gm__ T *>(table.data());
+    __gm__ T* tablePtr = reinterpret_cast<__gm__ T*>(table.data());
 
     const uint32_t validRow = src.GetValidRow();
     const uint32_t validCol = src.GetValidCol();
@@ -490,9 +502,9 @@ PTO_INTERNAL void MSCATTER_IMPL(GlobalTable &table, SrcTile &src, IdxTile &indic
         const int gStride4 = static_cast<int>(table.GetStride(GlobalTensorDim::DIM_4));
 
         if constexpr (Mode == Coalesce::Row) {
-            MScatterRowNzImpl<Atomic, Oob, T, TIdx, SrcTile, IdxTile>(tablePtr, src.data(), indices.data(), validRow,
-                                                                      gShape0, gShape1, gShape2, gStride0, gStride1,
-                                                                      gStride2, gStride3);
+            MScatterRowNzImpl<Atomic, Oob, T, TIdx, SrcTile, IdxTile>(
+                tablePtr, src.data(), indices.data(), validRow, gShape0, gShape1, gShape2, gStride0, gStride1, gStride2,
+                gStride3);
         } else {
             constexpr uint32_t kC0 = C0_SIZE_BYTE / sizeof(T);
             const uint32_t nLogicalCols = static_cast<uint32_t>(gShape0 * gShape1) * kC0;
@@ -503,19 +515,19 @@ PTO_INTERNAL void MSCATTER_IMPL(GlobalTable &table, SrcTile &src, IdxTile &indic
         }
     } else {
         if constexpr (Mode == Coalesce::Row) {
-            const uint32_t tableRows =
-                static_cast<uint32_t>(table.GetShape(GlobalTensorDim::DIM_0) * table.GetShape(GlobalTensorDim::DIM_1) *
-                                      table.GetShape(GlobalTensorDim::DIM_2) * table.GetShape(GlobalTensorDim::DIM_3));
+            const uint32_t tableRows = static_cast<uint32_t>(
+                table.GetShape(GlobalTensorDim::DIM_0) * table.GetShape(GlobalTensorDim::DIM_1) *
+                table.GetShape(GlobalTensorDim::DIM_2) * table.GetShape(GlobalTensorDim::DIM_3));
             const uint32_t tableRowStride = static_cast<uint32_t>(table.GetStride(GlobalTensorDim::DIM_3));
-            MScatterRowImpl<Atomic, Oob, T, TIdx, SrcTile, IdxTile>(tablePtr, src.data(), indices.data(), validRow,
-                                                                    validCol, tableRows, tableRowStride);
+            MScatterRowImpl<Atomic, Oob, T, TIdx, SrcTile, IdxTile>(
+                tablePtr, src.data(), indices.data(), validRow, validCol, tableRows, tableRowStride);
         } else {
-            const uint32_t tableSize =
-                static_cast<uint32_t>(table.GetShape(GlobalTensorDim::DIM_0) * table.GetShape(GlobalTensorDim::DIM_1) *
-                                      table.GetShape(GlobalTensorDim::DIM_2) * table.GetShape(GlobalTensorDim::DIM_3) *
-                                      table.GetShape(GlobalTensorDim::DIM_4));
-            MScatterElemImpl<Atomic, Oob, T, TIdx, SrcTile, IdxTile>(tablePtr, src.data(), indices.data(), validRow,
-                                                                     validCol, tableSize);
+            const uint32_t tableSize = static_cast<uint32_t>(
+                table.GetShape(GlobalTensorDim::DIM_0) * table.GetShape(GlobalTensorDim::DIM_1) *
+                table.GetShape(GlobalTensorDim::DIM_2) * table.GetShape(GlobalTensorDim::DIM_3) *
+                table.GetShape(GlobalTensorDim::DIM_4));
+            MScatterElemImpl<Atomic, Oob, T, TIdx, SrcTile, IdxTile>(
+                tablePtr, src.data(), indices.data(), validRow, validCol, tableSize);
         }
     }
 }

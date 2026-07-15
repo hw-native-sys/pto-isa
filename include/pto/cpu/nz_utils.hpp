@@ -25,8 +25,9 @@ PTO_INLINE size_t GetNZTileIndex(size_t r, size_t c)
     return GetTileElementOffsetSubfractals<TileData>(subTileR, innerR, subTileC, innerC);
 }
 
-PTO_INLINE size_t GetNZGlobalIndex(size_t r, size_t c, int gShape1, int gShape3, int gShape4, int gStride0,
-                                   int gStride1, int gStride2, int gStride3, int gStride4)
+PTO_INLINE size_t GetNZGlobalIndex(
+    size_t r, size_t c, int gShape1, int gShape3, int gShape4, int gStride0, int gStride1, int gStride2, int gStride3,
+    int gStride4)
 {
     const size_t outerCol = c / static_cast<size_t>(gShape4);
     const size_t i0 = outerCol / static_cast<size_t>(gShape1);
@@ -40,8 +41,9 @@ PTO_INLINE size_t GetNZGlobalIndex(size_t r, size_t c, int gShape1, int gShape3,
 }
 
 template <typename TileData, typename Func>
-PTO_INLINE void ForEachNZElement(size_t validRow, size_t validCol, int gShape1, int gShape3, int gShape4, int gStride0,
-                                 int gStride1, int gStride2, int gStride3, int gStride4, Func &&func)
+PTO_INLINE void ForEachNZElement(
+    size_t validRow, size_t validCol, int gShape1, int gShape3, int gShape4, int gStride0, int gStride1, int gStride2,
+    int gStride3, int gStride4, Func&& func)
 {
     for (size_t r = 0; r < validRow; ++r) {
         for (size_t c = 0; c < validCol; ++c) {

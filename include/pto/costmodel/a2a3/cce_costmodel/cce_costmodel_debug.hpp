@@ -9,27 +9,15 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 #pragma once
 
-inline void printf(...)
-{}
-inline void print(...)
-{}
-inline void print_str(...)
-{}
-inline void print_int(...)
-{}
-inline void print_float(...)
-{}
-inline void print_half(...)
-{}
-inline void print_hex(...)
-{}
-inline void print_matrix(...)
-{}
-inline void print_tensor(...)
-{}
-inline void print_ubuf(...)
-{}
-inline void print_cbuf(...)
-{}
-inline void print_gm(...)
-{}
+inline void printf(...) {}
+inline void print(...) {}
+inline void print_str(...) {}
+inline void print_int(...) {}
+inline void print_float(...) {}
+inline void print_half(...) {}
+inline void print_hex(...) {}
+inline void print_matrix(...) {}
+inline void print_tensor(...) {}
+inline void print_ubuf(...) {}
+inline void print_cbuf(...) {}
+inline void print_gm(...) {}

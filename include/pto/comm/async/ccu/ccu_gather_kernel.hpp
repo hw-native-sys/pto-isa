@@ -60,10 +60,7 @@ struct CcuGatherKernelArg : public CcuRootedKernelArgBase {
     using CcuRootedKernelArgBase::CcuRootedKernelArgBase;
 
 protected:
-    const char *SignatureName() const override
-    {
-        return "pto::comm::ccu::CcuGatherKernelArg::v1";
-    }
+    const char* SignatureName() const override { return "pto::comm::ccu::CcuGatherKernelArg::v1"; }
 };
 
 static constexpr uint32_t kMaxGatherRanks = kMaxCcuMeshRanks;
@@ -79,7 +76,7 @@ namespace detail {
 class CcuGatherMesh1D : public CcuRootedMeshKernelBase<CcuGatherMesh1D, CcuGatherKernelArg> {
 public:
     using Base = CcuRootedMeshKernelBase<CcuGatherMesh1D, CcuGatherKernelArg>;
-    static constexpr const char *kTraceName = "CCU_GATHER";
+    static constexpr const char* kTraceName = "CCU_GATHER";
     static constexpr bool kUsePreSync = true;
     static constexpr uint32_t kPreSyncId = 0;
     static constexpr uint32_t kCkeIdx = 0;
@@ -159,10 +156,7 @@ private:
 // Public factory
 // ============================================================================
 
-inline hcomm::KernelCreator MakeCcuGatherCreator()
-{
-    return detail::MakeCcuMeshCreator<detail::CcuGatherMesh1D>();
-}
+inline hcomm::KernelCreator MakeCcuGatherCreator() { return detail::MakeCcuMeshCreator<detail::CcuGatherMesh1D>(); }
 
 } // namespace ccu
 } // namespace comm

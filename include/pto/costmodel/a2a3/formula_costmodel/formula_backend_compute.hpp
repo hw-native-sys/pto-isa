@@ -58,7 +58,7 @@ inline uint64_t CeilDivU64(uint64_t x, uint64_t y)
 }
 
 template <typename CType, typename AType, typename BType>
-inline bool TryEstimateMadCycles(uint64_t m, uint64_t k, uint64_t n, uint64_t &cycles)
+inline bool TryEstimateMadCycles(uint64_t m, uint64_t k, uint64_t n, uint64_t& cycles)
 {
     (void)sizeof(CType);
     (void)sizeof(BType);
@@ -89,14 +89,14 @@ inline bool TryEstimateMadCycles(uint64_t m, uint64_t k, uint64_t n, uint64_t &c
     return true;
 }
 
-inline bool TryLookupFormulaParam(std::string_view op, FormulaParamDType dtype, uint64_t cols, double &slope,
-                                  double &bias)
+inline bool TryLookupFormulaParam(
+    std::string_view op, FormulaParamDType dtype, uint64_t cols, double& slope, double& bias)
 {
     if (cols > static_cast<uint64_t>(std::numeric_limits<uint16_t>::max())) {
         return false;
     }
     const uint16_t cols16 = static_cast<uint16_t>(cols);
-    for (const auto &entry : kFormulaParamTable) {
+    for (const auto& entry : kFormulaParamTable) {
         if (entry.op == op && entry.dtype == dtype && entry.cols == cols16) {
             slope = entry.slope;
             bias = entry.bias;
@@ -107,7 +107,7 @@ inline bool TryLookupFormulaParam(std::string_view op, FormulaParamDType dtype, 
 }
 
 template <typename T>
-inline bool TryEstimateFormulaCycles(std::string_view op, uint64_t rows, uint64_t cols, uint64_t &cycles)
+inline bool TryEstimateFormulaCycles(std::string_view op, uint64_t rows, uint64_t cols, uint64_t& cycles)
 {
     const FormulaParamDType dtype = GetFormulaParamDType<T>();
     if (dtype == FormulaParamDType::Any) {
@@ -123,7 +123,7 @@ inline bool TryEstimateFormulaCycles(std::string_view op, uint64_t rows, uint64_
 }
 
 template <typename T>
-inline bool TryEstimateFormulaCyclesAnyDType(std::string_view op, uint64_t rows, uint64_t cols, uint64_t &cycles)
+inline bool TryEstimateFormulaCyclesAnyDType(std::string_view op, uint64_t rows, uint64_t cols, uint64_t& cycles)
 {
     const FormulaParamDType dtype = GetFormulaParamDType<T>();
     double slope = 0.0;

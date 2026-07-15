@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class MSCATTERTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 static std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     return std::string("../") + testInfo->test_suite_name() + "." + testInfo->name();
 }
 
@@ -42,17 +40,17 @@ void run_mscatter_test(size_t srcCount, size_t idxCount, size_t outCount, Launch
     aclrtCreateStream(&stream);
 
     T *srcHost, *outHost;
-    TIdx *idxHost;
+    TIdx* idxHost;
     T *srcDevice, *outDevice;
-    TIdx *idxDevice;
+    TIdx* idxDevice;
 
-    aclrtMallocHost((void **)(&srcHost), srcByteSize);
-    aclrtMallocHost((void **)(&idxHost), idxByteSize);
-    aclrtMallocHost((void **)(&outHost), outByteSize);
+    aclrtMallocHost((void**)(&srcHost), srcByteSize);
+    aclrtMallocHost((void**)(&idxHost), idxByteSize);
+    aclrtMallocHost((void**)(&outHost), outByteSize);
 
-    aclrtMalloc((void **)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&idxDevice, idxByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&outDevice, outByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&idxDevice, idxByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&outDevice, outByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/src.bin", srcByteSize, srcHost, srcByteSize);
     ReadFile(GetGoldenDir() + "/indices.bin", idxByteSize, idxHost, idxByteSize);
@@ -89,7 +87,7 @@ void run_mscatter_test(size_t srcCount, size_t idxCount, size_t outCount, Launch
     EXPECT_TRUE(ret);
 }
 
-#define DECLARE_LAUNCH(NAME, THOST, TIDX) void Launch_##NAME(THOST *out, THOST *src, TIDX *indices, void *stream);
+#define DECLARE_LAUNCH(NAME, THOST, TIDX) void Launch_##NAME(THOST* out, THOST* src, TIDX* indices, void* stream);
 
 DECLARE_LAUNCH(row_float_8x32_64rows, float, int32_t)
 DECLARE_LAUNCH(row_half_16x64_64rows, aclFloat16, int32_t)

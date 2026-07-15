@@ -17,15 +17,13 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto::mocker::fit {
 
-enum class TransferOp : uint8_t
-{
+enum class TransferOp : uint8_t {
     TLoad,
     TStore,
     TMov,
 };
 
-enum class TransferTileType : uint8_t
-{
+enum class TransferTileType : uint8_t {
     Unknown,
     VecTile,
     MatTile,
@@ -36,7 +34,7 @@ enum class TransferTileType : uint8_t
     ScalingTile,
 };
 
-inline bool TryResolveTransferPipe(TransferOp op, TransferTileType tile_type, evaluator::PipeKey &pipe)
+inline bool TryResolveTransferPipe(TransferOp op, TransferTileType tile_type, evaluator::PipeKey& pipe)
 {
     constexpr evaluator::PipeKey kInvalid = evaluator::PipeKey::COUNT;
     constexpr int kTransferOpCount = 3;
@@ -63,8 +61,9 @@ inline bool TryResolveTransferPipe(TransferOp op, TransferTileType tile_type, ev
     return pipe != kInvalid;
 }
 
-inline bool TryEstimateTransferLatencyUs(TransferOp op, TransferTileType tile_type, uint64_t bytes,
-                                         const evaluator::BandwidthTable &bandwidth, long double &latency_us)
+inline bool TryEstimateTransferLatencyUs(
+    TransferOp op, TransferTileType tile_type, uint64_t bytes, const evaluator::BandwidthTable& bandwidth,
+    long double& latency_us)
 {
     evaluator::PipeKey pipe = evaluator::PipeKey::COUNT;
     if (!TryResolveTransferPipe(op, tile_type, pipe)) {

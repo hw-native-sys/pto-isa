@@ -36,8 +36,8 @@ AICORE constexpr inline T CeilAlign(T num_1, T num_2)
 }
 
 template <typename InT, typename OutT, int M, int K, int N, int RepeatN>
-__global__ AICORE void runTPushTpopSubtile(__gm__ uint64_t *fftsAddr, __gm__ OutT *out, __gm__ InT *srcA,
-                                           __gm__ InT *srcB, __gm__ OutT *fifoMem)
+__global__ AICORE void runTPushTpopSubtile(
+    __gm__ uint64_t* fftsAddr, __gm__ OutT* out, __gm__ InT* srcA, __gm__ InT* srcB, __gm__ OutT* fifoMem)
 {
     constexpr int FULL_N = N * RepeatN;
     constexpr int VEC_M = 16;
@@ -49,7 +49,7 @@ __global__ AICORE void runTPushTpopSubtile(__gm__ uint64_t *fftsAddr, __gm__ Out
 
     // slot size is [128, 512]
     using MatPipe = TPipe<FLAG_ID, Direction::DIR_C2V_GM, M * FULL_N * sizeof(OutT), FIFO_DEPTH>;
-    MatPipe mPipe((__gm__ void *)(uint64_t)fifoMem, LOCAL_FIFO_BASE, 0x0);
+    MatPipe mPipe((__gm__ void*)(uint64_t)fifoMem, LOCAL_FIFO_BASE, 0x0);
 
     using AccTile = TileAcc<OutT, M, N, M, N>;
     using PushGlobal = GlobalTensor<OutT, pto::Shape<1, 1, 1, M, FULL_N>, pto::Stride<1, 1, 1, FULL_N, 1>>;
@@ -138,7 +138,7 @@ __global__ AICORE void runTPushTpopSubtile(__gm__ uint64_t *fftsAddr, __gm__ Out
             const size_t vecBaseRow = static_cast<size_t>(M / VEC_CORES) * subBlockIdx;
             const size_t localRowOffset = static_cast<size_t>(rowSlice * VEC_M);
             const size_t outRowOffset = (vecBaseRow + localRowOffset) * FULL_N;
-            __gm__ OutT *loadPtr = popGlobal.data() + rowSlice * VEC_M * FULL_N;
+            __gm__ OutT* loadPtr = popGlobal.data() + rowSlice * VEC_M * FULL_N;
 
             wait_flag(PIPE_V, PIPE_MTE2, EVENT_ID0);
             TASSIGN(loadGlobal, loadPtr);
@@ -168,14 +168,14 @@ __global__ AICORE void runTPushTpopSubtile(__gm__ uint64_t *fftsAddr, __gm__ Out
 }
 
 template <int32_t tilingKey>
-void LaunchTPushTpopSubtile(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *fifoMem, void *stream)
+void LaunchTPushTpopSubtile(uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* fifoMem, void* stream)
 {
     if constexpr (tilingKey == 1) {
         runTPushTpopSubtile<half, float, 128, 128, 128, 4><<<1, nullptr, stream>>>(
-            reinterpret_cast<uint64_t *>(ffts), reinterpret_cast<float *>(out), reinterpret_cast<half *>(srcA),
-            reinterpret_cast<half *>(srcB), reinterpret_cast<float *>(fifoMem));
+            reinterpret_cast<uint64_t*>(ffts), reinterpret_cast<float*>(out), reinterpret_cast<half*>(srcA),
+            reinterpret_cast<half*>(srcB), reinterpret_cast<float*>(fifoMem));
     }
 }
 
-template void LaunchTPushTpopSubtile<1>(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *fifoMem,
-                                        void *stream);
+template void LaunchTPushTpopSubtile<1>(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* fifoMem, void* stream);

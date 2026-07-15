@@ -20,8 +20,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 template <QuantType quant_type, typename TileDataOut, typename TileDataSrc, typename TileDataPara, typename TileDataTmp>
-PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataPara &scale, TileDataTmp &tmp,
-                              TileDataPara *offset = nullptr)
+PTO_INTERNAL void TQUANT_IMPL(
+    TileDataOut& dst, TileDataSrc& src, TileDataPara& scale, TileDataTmp& tmp, TileDataPara* offset = nullptr)
 {
     using T = typename TileDataSrc::DType;
     using U = typename TileDataOut::DType;

@@ -16,7 +16,7 @@ using namespace std;
 using namespace pto;
 
 template <typename T, int cols, int src_row, int src_validRow, bool IsBinary>
-__global__ AICORE void runTCOLSUM(__gm__ T __out__ *out, __gm__ T __in__ *src)
+__global__ AICORE void runTCOLSUM(__gm__ T __out__* out, __gm__ T __in__* src)
 {
     using DynDim2Shape = Shape<1, 1, 1, -1, -1>;
     using DynDim2Stride = pto::Stride<1, 1, -1, -1, 1>;
@@ -63,7 +63,7 @@ __global__ AICORE void runTCOLSUM(__gm__ T __out__ *out, __gm__ T __in__ *src)
 }
 
 template <typename T, int cols, int src_row, int src_validRow, bool IsBinary>
-void launchTCOLSUM(T *out, T *src, void *stream)
+void launchTCOLSUM(T* out, T* src, void* stream)
 {
     cout << "launchTCOLSUM start!" << endl;
 
@@ -72,30 +72,30 @@ void launchTCOLSUM(T *out, T *src, void *stream)
     cout << "launchTCOLSUM end!" << endl;
 }
 
-template void launchTCOLSUM<int16_t, 16, 16, 8, false>(int16_t *out, int16_t *src, void *stream);
-template void launchTCOLSUM<int32_t, 16, 16, 8, false>(int32_t *out, int32_t *src, void *stream);
-template void launchTCOLSUM<float, 16, 16, 8, false>(float *out, float *src, void *stream);
-template void launchTCOLSUM<int16_t, 128, 16, 8, false>(int16_t *out, int16_t *src, void *stream);
-template void launchTCOLSUM<int32_t, 64, 16, 8, false>(int32_t *out, int32_t *src, void *stream);
-template void launchTCOLSUM<float, 64, 16, 8, false>(float *out, float *src, void *stream);
-template void launchTCOLSUM<int16_t, 512, 16, 8, false>(int16_t *out, int16_t *src, void *stream);
-template void launchTCOLSUM<int32_t, 256, 16, 8, false>(int32_t *out, int32_t *src, void *stream);
-template void launchTCOLSUM<float, 256, 16, 8, false>(float *out, float *src, void *stream);
-template void launchTCOLSUM<int16_t, 512, 16, 7, false>(int16_t *out, int16_t *src, void *stream);
-template void launchTCOLSUM<int32_t, 256, 32, 31, false>(int32_t *out, int32_t *src, void *stream);
-template void launchTCOLSUM<float, 256, 32, 31, false>(float *out, float *src, void *stream);
-template void launchTCOLSUM<float, 256, 16, 1, false>(float *out, float *src, void *stream);
+template void launchTCOLSUM<int16_t, 16, 16, 8, false>(int16_t* out, int16_t* src, void* stream);
+template void launchTCOLSUM<int32_t, 16, 16, 8, false>(int32_t* out, int32_t* src, void* stream);
+template void launchTCOLSUM<float, 16, 16, 8, false>(float* out, float* src, void* stream);
+template void launchTCOLSUM<int16_t, 128, 16, 8, false>(int16_t* out, int16_t* src, void* stream);
+template void launchTCOLSUM<int32_t, 64, 16, 8, false>(int32_t* out, int32_t* src, void* stream);
+template void launchTCOLSUM<float, 64, 16, 8, false>(float* out, float* src, void* stream);
+template void launchTCOLSUM<int16_t, 512, 16, 8, false>(int16_t* out, int16_t* src, void* stream);
+template void launchTCOLSUM<int32_t, 256, 16, 8, false>(int32_t* out, int32_t* src, void* stream);
+template void launchTCOLSUM<float, 256, 16, 8, false>(float* out, float* src, void* stream);
+template void launchTCOLSUM<int16_t, 512, 16, 7, false>(int16_t* out, int16_t* src, void* stream);
+template void launchTCOLSUM<int32_t, 256, 32, 31, false>(int32_t* out, int32_t* src, void* stream);
+template void launchTCOLSUM<float, 256, 32, 31, false>(float* out, float* src, void* stream);
+template void launchTCOLSUM<float, 256, 16, 1, false>(float* out, float* src, void* stream);
 
-template void launchTCOLSUM<int16_t, 16, 16, 8, true>(int16_t *out, int16_t *src, void *stream);
-template void launchTCOLSUM<int32_t, 16, 16, 8, true>(int32_t *out, int32_t *src, void *stream);
-template void launchTCOLSUM<float, 16, 16, 8, true>(float *out, float *src, void *stream);
-template void launchTCOLSUM<int16_t, 128, 16, 8, true>(int16_t *out, int16_t *src, void *stream);
-template void launchTCOLSUM<int32_t, 64, 16, 8, true>(int32_t *out, int32_t *src, void *stream);
-template void launchTCOLSUM<float, 64, 16, 8, true>(float *out, float *src, void *stream);
-template void launchTCOLSUM<int16_t, 512, 16, 8, true>(int16_t *out, int16_t *src, void *stream);
-template void launchTCOLSUM<int32_t, 256, 16, 8, true>(int32_t *out, int32_t *src, void *stream);
-template void launchTCOLSUM<float, 256, 16, 8, true>(float *out, float *src, void *stream);
-template void launchTCOLSUM<int16_t, 512, 16, 7, true>(int16_t *out, int16_t *src, void *stream);
-template void launchTCOLSUM<int32_t, 256, 32, 31, true>(int32_t *out, int32_t *src, void *stream);
-template void launchTCOLSUM<float, 256, 32, 31, true>(float *out, float *src, void *stream);
-template void launchTCOLSUM<float, 256, 16, 1, true>(float *out, float *src, void *stream);
+template void launchTCOLSUM<int16_t, 16, 16, 8, true>(int16_t* out, int16_t* src, void* stream);
+template void launchTCOLSUM<int32_t, 16, 16, 8, true>(int32_t* out, int32_t* src, void* stream);
+template void launchTCOLSUM<float, 16, 16, 8, true>(float* out, float* src, void* stream);
+template void launchTCOLSUM<int16_t, 128, 16, 8, true>(int16_t* out, int16_t* src, void* stream);
+template void launchTCOLSUM<int32_t, 64, 16, 8, true>(int32_t* out, int32_t* src, void* stream);
+template void launchTCOLSUM<float, 64, 16, 8, true>(float* out, float* src, void* stream);
+template void launchTCOLSUM<int16_t, 512, 16, 8, true>(int16_t* out, int16_t* src, void* stream);
+template void launchTCOLSUM<int32_t, 256, 16, 8, true>(int32_t* out, int32_t* src, void* stream);
+template void launchTCOLSUM<float, 256, 16, 8, true>(float* out, float* src, void* stream);
+template void launchTCOLSUM<int16_t, 512, 16, 7, true>(int16_t* out, int16_t* src, void* stream);
+template void launchTCOLSUM<int32_t, 256, 32, 31, true>(int32_t* out, int32_t* src, void* stream);
+template void launchTCOLSUM<float, 256, 32, 31, true>(float* out, float* src, void* stream);
+template void launchTCOLSUM<float, 256, 16, 1, true>(float* out, float* src, void* stream);

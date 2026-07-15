@@ -13,30 +13,32 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 struct PartArgMinRunner {
-    template <typename TileDataDstVal, typename TileDataSrc0Val, typename TileDataSrc1Val, typename TileDataDstIdx,
-              typename TileDataSrc0Idx, typename TileDataSrc1Idx>
-    PTO_INTERNAL static void Run(TileDataDstVal &dstVal, TileDataSrc0Val &src0Val, TileDataSrc1Val &src1Val,
-                                 TileDataDstIdx &dstIdx, TileDataSrc0Idx &src0Idx, TileDataSrc1Idx &src1Idx)
+    template <
+        typename TileDataDstVal, typename TileDataSrc0Val, typename TileDataSrc1Val, typename TileDataDstIdx,
+        typename TileDataSrc0Idx, typename TileDataSrc1Idx>
+    PTO_INTERNAL static void Run(
+        TileDataDstVal& dstVal, TileDataSrc0Val& src0Val, TileDataSrc1Val& src1Val, TileDataDstIdx& dstIdx,
+        TileDataSrc0Idx& src0Idx, TileDataSrc1Idx& src1Idx)
     {
         TPARTARGMIN(dstVal, src0Val, src1Val, dstIdx, src0Idx, src1Idx);
     }
 };
 
 template <int kRows, int kCols, int kValidRows1, int kValidCols1>
-AICORE void runTPARTARGMIN(__gm__ float *__out__ outVal, __gm__ float *__in__ src0Val, __gm__ float *__in__ src1Val,
-                           __gm__ uint32_t *__out__ outIdx, __gm__ uint32_t *__in__ src0Idx,
-                           __gm__ uint32_t *__in__ src1Idx)
+AICORE void runTPARTARGMIN(
+    __gm__ float* __out__ outVal, __gm__ float* __in__ src0Val, __gm__ float* __in__ src1Val,
+    __gm__ uint32_t* __out__ outIdx, __gm__ uint32_t* __in__ src0Idx, __gm__ uint32_t* __in__ src1Idx)
 {
-    RunPartArgKernel<kRows, kCols, kValidRows1, kValidCols1, PartArgMinRunner>(outVal, src0Val, src1Val, outIdx,
-                                                                               src0Idx, src1Idx);
+    RunPartArgKernel<kRows, kCols, kValidRows1, kValidCols1, PartArgMinRunner>(
+        outVal, src0Val, src1Val, outIdx, src0Idx, src1Idx);
 }
 
 template <int kRows, int kCols, int kValidRows1, int kValidCols1>
-void LaunchTPARTARGMIN(float *outVal, float *src0Val, float *src1Val, uint32_t *outIdx, uint32_t *src0Idx,
-                       uint32_t *src1Idx, void *stream)
+void LaunchTPARTARGMIN(
+    float* outVal, float* src0Val, float* src1Val, uint32_t* outIdx, uint32_t* src0Idx, uint32_t* src1Idx, void* stream)
 {
     (void)stream;
     runTPARTARGMIN<kRows, kCols, kValidRows1, kValidCols1>(outVal, src0Val, src1Val, outIdx, src0Idx, src1Idx);
 }
 
-template void LaunchTPARTARGMIN<64, 64, 32, 32>(float *, float *, float *, uint32_t *, uint32_t *, uint32_t *, void *);
+template void LaunchTPARTARGMIN<64, 64, 32, 32>(float*, float*, float*, uint32_t*, uint32_t*, uint32_t*, void*);

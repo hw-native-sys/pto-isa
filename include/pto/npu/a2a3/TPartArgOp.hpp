@@ -16,8 +16,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 template <typename T, unsigned dstStride, unsigned srcStride>
-PTO_INTERNAL void TPartArgCopyInstr(__ubuf__ T *dstPtr, __ubuf__ T *srcPtr, uint64_t validRow, uint64_t validCol,
-                                    uint64_t startRow)
+PTO_INTERNAL void TPartArgCopyInstr(
+    __ubuf__ T* dstPtr, __ubuf__ T* srcPtr, uint64_t validRow, uint64_t validCol, uint64_t startRow)
 {
     constexpr uint64_t elemPerBlock = BLOCK_BYTE_SIZE / sizeof(T);
     validRow -= startRow;
@@ -40,11 +40,12 @@ PTO_INTERNAL void TPartArgCopyInstr(__ubuf__ T *dstPtr, __ubuf__ T *srcPtr, uint
     SetFullVecMaskByDType<T>();
 }
 
-template <typename Op, typename TVal, typename TIdx, typename TileDstVal, typename TileDstIdx, typename TileSrcVal0,
-          typename TileSrcIdx0, typename TileSrcVal1, typename TileSrcIdx1>
-PTO_INTERNAL void TPartArgOps(__ubuf__ TVal *dstValPtr, __ubuf__ TIdx *dstIdxPtr, __ubuf__ TVal *srcVal0Ptr,
-                              __ubuf__ TIdx *srcIdx0Ptr, __ubuf__ TVal *srcVal1Ptr, __ubuf__ TIdx *srcIdx1Ptr,
-                              unsigned validRow, unsigned validCol)
+template <
+    typename Op, typename TVal, typename TIdx, typename TileDstVal, typename TileDstIdx, typename TileSrcVal0,
+    typename TileSrcIdx0, typename TileSrcVal1, typename TileSrcIdx1>
+PTO_INTERNAL void TPartArgOps(
+    __ubuf__ TVal* dstValPtr, __ubuf__ TIdx* dstIdxPtr, __ubuf__ TVal* srcVal0Ptr, __ubuf__ TIdx* srcIdx0Ptr,
+    __ubuf__ TVal* srcVal1Ptr, __ubuf__ TIdx* srcIdx1Ptr, unsigned validRow, unsigned validCol)
 {
     constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(TVal);
     using TIdxSel = std::conditional_t<sizeof(TIdx) == sizeof(uint32_t), float, TVal>;
@@ -60,16 +61,19 @@ PTO_INTERNAL void TPartArgOps(__ubuf__ TVal *dstValPtr, __ubuf__ TIdx *dstIdxPtr
     }
     for (unsigned i = 0; i < completeRepeats; i++) {
         for (unsigned row = 0; row < validRow; row++) {
-            Op::CmpInstr(srcVal0Ptr + row * TileSrcVal0::RowStride + i * elementsPerRepeat,
-                         srcVal1Ptr + row * TileSrcVal1::RowStride + i * elementsPerRepeat);
+            Op::CmpInstr(
+                srcVal0Ptr + row * TileSrcVal0::RowStride + i * elementsPerRepeat,
+                srcVal1Ptr + row * TileSrcVal1::RowStride + i * elementsPerRepeat);
             pipe_barrier(PIPE_V);
-            vsel(dstValPtr + row * TileDstVal::RowStride + i * elementsPerRepeat,
-                 srcVal0Ptr + row * TileSrcVal0::RowStride + i * elementsPerRepeat,
-                 srcVal1Ptr + row * TileSrcVal1::RowStride + i * elementsPerRepeat, 1, 1, 1, 1, 0, 0, 0);
-            vsel((__ubuf__ TIdxSel *)dstIdxPtr + row * TileDstIdx::RowStride + i * elementsPerRepeat,
-                 (__ubuf__ TIdxSel *)srcIdx0Ptr + row * TileSrcIdx0::RowStride + i * elementsPerRepeat,
-                 (__ubuf__ TIdxSel *)srcIdx1Ptr + row * TileSrcIdx1::RowStride + i * elementsPerRepeat, 1, 1, 1, 1, 0,
-                 0, 0);
+            vsel(
+                dstValPtr + row * TileDstVal::RowStride + i * elementsPerRepeat,
+                srcVal0Ptr + row * TileSrcVal0::RowStride + i * elementsPerRepeat,
+                srcVal1Ptr + row * TileSrcVal1::RowStride + i * elementsPerRepeat, 1, 1, 1, 1, 0, 0, 0);
+            vsel(
+                (__ubuf__ TIdxSel*)dstIdxPtr + row * TileDstIdx::RowStride + i * elementsPerRepeat,
+                (__ubuf__ TIdxSel*)srcIdx0Ptr + row * TileSrcIdx0::RowStride + i * elementsPerRepeat,
+                (__ubuf__ TIdxSel*)srcIdx1Ptr + row * TileSrcIdx1::RowStride + i * elementsPerRepeat, 1, 1, 1, 1, 0, 0,
+                0);
             pipe_barrier(PIPE_V);
         }
     }
@@ -77,28 +81,32 @@ PTO_INTERNAL void TPartArgOps(__ubuf__ TVal *dstValPtr, __ubuf__ TIdx *dstIdxPtr
     if (remainElem) {
         SetContinuousMask(remainElem);
         for (unsigned row = 0; row < validRow; row++) {
-            Op::CmpInstr(srcVal0Ptr + row * TileSrcVal0::RowStride + completeRepeats * elementsPerRepeat,
-                         srcVal1Ptr + row * TileSrcVal1::RowStride + completeRepeats * elementsPerRepeat);
+            Op::CmpInstr(
+                srcVal0Ptr + row * TileSrcVal0::RowStride + completeRepeats * elementsPerRepeat,
+                srcVal1Ptr + row * TileSrcVal1::RowStride + completeRepeats * elementsPerRepeat);
             pipe_barrier(PIPE_V);
-            vsel(dstValPtr + row * TileDstVal::RowStride + completeRepeats * elementsPerRepeat,
-                 srcVal0Ptr + row * TileSrcVal0::RowStride + completeRepeats * elementsPerRepeat,
-                 srcVal1Ptr + row * TileSrcVal1::RowStride + completeRepeats * elementsPerRepeat, 1, 1, 1, 1, 0, 0, 0);
-            vsel((__ubuf__ TIdxSel *)dstIdxPtr + row * TileDstIdx::RowStride + completeRepeats * elementsPerRepeat,
-                 (__ubuf__ TIdxSel *)srcIdx0Ptr + row * TileSrcIdx0::RowStride + completeRepeats * elementsPerRepeat,
-                 (__ubuf__ TIdxSel *)srcIdx1Ptr + row * TileSrcIdx1::RowStride + completeRepeats * elementsPerRepeat, 1,
-                 1, 1, 1, 0, 0, 0);
+            vsel(
+                dstValPtr + row * TileDstVal::RowStride + completeRepeats * elementsPerRepeat,
+                srcVal0Ptr + row * TileSrcVal0::RowStride + completeRepeats * elementsPerRepeat,
+                srcVal1Ptr + row * TileSrcVal1::RowStride + completeRepeats * elementsPerRepeat, 1, 1, 1, 1, 0, 0, 0);
+            vsel(
+                (__ubuf__ TIdxSel*)dstIdxPtr + row * TileDstIdx::RowStride + completeRepeats * elementsPerRepeat,
+                (__ubuf__ TIdxSel*)srcIdx0Ptr + row * TileSrcIdx0::RowStride + completeRepeats * elementsPerRepeat,
+                (__ubuf__ TIdxSel*)srcIdx1Ptr + row * TileSrcIdx1::RowStride + completeRepeats * elementsPerRepeat, 1,
+                1, 1, 1, 0, 0, 0);
             pipe_barrier(PIPE_V);
         }
     }
     set_vector_mask(-1, -1);
 }
 
-template <typename Op, typename TVal, typename TIdx, typename TileDstVal, typename TileDstIdx, typename TileSrcVal0,
-          typename TileSrcIdx0, typename TileSrcVal1, typename TileSrcIdx1>
-PTO_INTERNAL void TPartArgInstr(__ubuf__ TVal *dstValPtr, __ubuf__ TIdx *dstIdxPtr, __ubuf__ TVal *srcVal0Ptr,
-                                __ubuf__ TIdx *srcIdx0Ptr, __ubuf__ TVal *srcVal1Ptr, __ubuf__ TIdx *srcIdx1Ptr,
-                                unsigned src0ValidRow, unsigned src0ValidCol, unsigned src1ValidRow,
-                                unsigned src1ValidCol)
+template <
+    typename Op, typename TVal, typename TIdx, typename TileDstVal, typename TileDstIdx, typename TileSrcVal0,
+    typename TileSrcIdx0, typename TileSrcVal1, typename TileSrcIdx1>
+PTO_INTERNAL void TPartArgInstr(
+    __ubuf__ TVal* dstValPtr, __ubuf__ TIdx* dstIdxPtr, __ubuf__ TVal* srcVal0Ptr, __ubuf__ TIdx* srcIdx0Ptr,
+    __ubuf__ TVal* srcVal1Ptr, __ubuf__ TIdx* srcIdx1Ptr, unsigned src0ValidRow, unsigned src0ValidCol,
+    unsigned src1ValidRow, unsigned src1ValidCol)
 {
     if (src0ValidRow == src1ValidRow && src0ValidCol == src1ValidCol) {
         TPartArgOps<Op, TVal, TIdx, TileDstVal, TileDstIdx, TileSrcVal0, TileSrcIdx0, TileSrcVal1, TileSrcIdx1>(
@@ -108,28 +116,29 @@ PTO_INTERNAL void TPartArgInstr(__ubuf__ TVal *dstValPtr, __ubuf__ TIdx *dstIdxP
             dstValPtr, dstIdxPtr, srcVal0Ptr, srcIdx0Ptr, srcVal1Ptr, srcIdx1Ptr, min(src0ValidRow, src1ValidRow),
             src0ValidCol);
         if (src0ValidRow < src1ValidRow) {
-            TPartArgCopyInstr<TVal, TileDstVal::RowStride, TileSrcVal1::RowStride>(dstValPtr, srcVal1Ptr, src1ValidRow,
-                                                                                   src1ValidCol, src0ValidRow);
-            TPartArgCopyInstr<TIdx, TileDstIdx::RowStride, TileSrcIdx1::RowStride>(dstIdxPtr, srcIdx1Ptr, src1ValidRow,
-                                                                                   src1ValidCol, src0ValidRow);
+            TPartArgCopyInstr<TVal, TileDstVal::RowStride, TileSrcVal1::RowStride>(
+                dstValPtr, srcVal1Ptr, src1ValidRow, src1ValidCol, src0ValidRow);
+            TPartArgCopyInstr<TIdx, TileDstIdx::RowStride, TileSrcIdx1::RowStride>(
+                dstIdxPtr, srcIdx1Ptr, src1ValidRow, src1ValidCol, src0ValidRow);
         } else {
-            TPartArgCopyInstr<TVal, TileDstVal::RowStride, TileSrcVal0::RowStride>(dstValPtr, srcVal0Ptr, src0ValidRow,
-                                                                                   src0ValidCol, src1ValidRow);
-            TPartArgCopyInstr<TIdx, TileDstIdx::RowStride, TileSrcIdx0::RowStride>(dstIdxPtr, srcIdx0Ptr, src0ValidRow,
-                                                                                   src0ValidCol, src1ValidRow);
+            TPartArgCopyInstr<TVal, TileDstVal::RowStride, TileSrcVal0::RowStride>(
+                dstValPtr, srcVal0Ptr, src0ValidRow, src0ValidCol, src1ValidRow);
+            TPartArgCopyInstr<TIdx, TileDstIdx::RowStride, TileSrcIdx0::RowStride>(
+                dstIdxPtr, srcIdx0Ptr, src0ValidRow, src0ValidCol, src1ValidRow);
         }
-    } else if ((src0ValidRow <= src1ValidRow && src0ValidCol < src1ValidCol) ||
-               (src1ValidRow <= src0ValidRow && src1ValidCol < src0ValidCol)) {
+    } else if (
+        (src0ValidRow <= src1ValidRow && src0ValidCol < src1ValidCol) ||
+        (src1ValidRow <= src0ValidRow && src1ValidCol < src0ValidCol)) {
         if (src0ValidCol < src1ValidCol) {
-            TPartArgCopyInstr<TVal, TileDstVal::RowStride, TileSrcVal1::RowStride>(dstValPtr, srcVal1Ptr, src1ValidRow,
-                                                                                   src1ValidCol, 0);
-            TPartArgCopyInstr<TIdx, TileDstIdx::RowStride, TileSrcIdx1::RowStride>(dstIdxPtr, srcIdx1Ptr, src1ValidRow,
-                                                                                   src1ValidCol, 0);
+            TPartArgCopyInstr<TVal, TileDstVal::RowStride, TileSrcVal1::RowStride>(
+                dstValPtr, srcVal1Ptr, src1ValidRow, src1ValidCol, 0);
+            TPartArgCopyInstr<TIdx, TileDstIdx::RowStride, TileSrcIdx1::RowStride>(
+                dstIdxPtr, srcIdx1Ptr, src1ValidRow, src1ValidCol, 0);
         } else {
-            TPartArgCopyInstr<TVal, TileDstVal::RowStride, TileSrcVal0::RowStride>(dstValPtr, srcVal0Ptr, src0ValidRow,
-                                                                                   src0ValidCol, 0);
-            TPartArgCopyInstr<TIdx, TileDstIdx::RowStride, TileSrcIdx0::RowStride>(dstIdxPtr, srcIdx0Ptr, src0ValidRow,
-                                                                                   src0ValidCol, 0);
+            TPartArgCopyInstr<TVal, TileDstVal::RowStride, TileSrcVal0::RowStride>(
+                dstValPtr, srcVal0Ptr, src0ValidRow, src0ValidCol, 0);
+            TPartArgCopyInstr<TIdx, TileDstIdx::RowStride, TileSrcIdx0::RowStride>(
+                dstIdxPtr, srcIdx0Ptr, src0ValidRow, src0ValidCol, 0);
         }
         TPartArgOps<Op, TVal, TIdx, TileDstVal, TileDstIdx, TileSrcVal0, TileSrcIdx0, TileSrcVal1, TileSrcIdx1>(
             dstValPtr, dstIdxPtr, srcVal0Ptr, srcIdx0Ptr, srcVal1Ptr, srcIdx1Ptr, min(src0ValidRow, src1ValidRow),
@@ -139,33 +148,34 @@ PTO_INTERNAL void TPartArgInstr(__ubuf__ TVal *dstValPtr, __ubuf__ TIdx *dstIdxP
     }
 }
 
-template <typename Op, typename TileDstVal, typename TileDstIdx, typename TileSrcVal0, typename TileSrcIdx0,
-          typename TileSrcVal1, typename TileSrcIdx1>
-__tf__ PTO_INTERNAL void TPartArgOp(typename TileDstVal::TileDType __out__ dstVal,
-                                    typename TileDstIdx::TileDType __out__ dstIdx,
-                                    typename TileSrcVal0::TileDType __in__ srcVal0,
-                                    typename TileSrcIdx0::TileDType __in__ srcIdx0,
-                                    typename TileSrcVal1::TileDType __in__ srcVal1,
-                                    typename TileSrcIdx1::TileDType __in__ srcIdx1, unsigned src0ValidRow,
-                                    unsigned src0ValidCol, unsigned src1ValidRow, unsigned src1ValidCol)
+template <
+    typename Op, typename TileDstVal, typename TileDstIdx, typename TileSrcVal0, typename TileSrcIdx0,
+    typename TileSrcVal1, typename TileSrcIdx1>
+__tf__ PTO_INTERNAL void TPartArgOp(
+    typename TileDstVal::TileDType __out__ dstVal, typename TileDstIdx::TileDType __out__ dstIdx,
+    typename TileSrcVal0::TileDType __in__ srcVal0, typename TileSrcIdx0::TileDType __in__ srcIdx0,
+    typename TileSrcVal1::TileDType __in__ srcVal1, typename TileSrcIdx1::TileDType __in__ srcIdx1,
+    unsigned src0ValidRow, unsigned src0ValidCol, unsigned src1ValidRow, unsigned src1ValidCol)
 {
     using TVal = typename TileDstVal::DType;
     using TIdx = typename TileDstIdx::DType;
-    __ubuf__ TVal *dstValPtr = (__ubuf__ TVal *)__cce_get_tile_ptr(dstVal);
-    __ubuf__ TVal *srcVal0Ptr = (__ubuf__ TVal *)__cce_get_tile_ptr(srcVal0);
-    __ubuf__ TVal *srcVal1Ptr = (__ubuf__ TVal *)__cce_get_tile_ptr(srcVal1);
-    __ubuf__ TIdx *dstIdxPtr = (__ubuf__ TIdx *)__cce_get_tile_ptr(dstIdx);
-    __ubuf__ TIdx *srcIdx0Ptr = (__ubuf__ TIdx *)__cce_get_tile_ptr(srcIdx0);
-    __ubuf__ TIdx *srcIdx1Ptr = (__ubuf__ TIdx *)__cce_get_tile_ptr(srcIdx1);
+    __ubuf__ TVal* dstValPtr = (__ubuf__ TVal*)__cce_get_tile_ptr(dstVal);
+    __ubuf__ TVal* srcVal0Ptr = (__ubuf__ TVal*)__cce_get_tile_ptr(srcVal0);
+    __ubuf__ TVal* srcVal1Ptr = (__ubuf__ TVal*)__cce_get_tile_ptr(srcVal1);
+    __ubuf__ TIdx* dstIdxPtr = (__ubuf__ TIdx*)__cce_get_tile_ptr(dstIdx);
+    __ubuf__ TIdx* srcIdx0Ptr = (__ubuf__ TIdx*)__cce_get_tile_ptr(srcIdx0);
+    __ubuf__ TIdx* srcIdx1Ptr = (__ubuf__ TIdx*)__cce_get_tile_ptr(srcIdx1);
     TPartArgInstr<Op, TVal, TIdx, TileDstVal, TileDstIdx, TileSrcVal0, TileSrcIdx0, TileSrcVal1, TileSrcIdx1>(
         dstValPtr, dstIdxPtr, srcVal0Ptr, srcIdx0Ptr, srcVal1Ptr, srcIdx1Ptr, src0ValidRow, src0ValidCol, src1ValidRow,
         src1ValidCol);
 }
 
-template <typename TileDstVal, typename TileDstIdx, typename TileSrcVal0, typename TileSrcIdx0, typename TileSrcVal1,
-          typename TileSrcIdx1>
-PTO_INTERNAL bool checkTiles(TileDstVal &dstVal, TileDstIdx &dstIdx, TileSrcVal0 &srcVal0, TileSrcIdx0 &srcIdx0,
-                             TileSrcVal1 &srcVal1, TileSrcIdx1 &srcIdx1)
+template <
+    typename TileDstVal, typename TileDstIdx, typename TileSrcVal0, typename TileSrcIdx0, typename TileSrcVal1,
+    typename TileSrcIdx1>
+PTO_INTERNAL bool checkTiles(
+    TileDstVal& dstVal, TileDstIdx& dstIdx, TileSrcVal0& srcVal0, TileSrcIdx0& srcIdx0, TileSrcVal1& srcVal1,
+    TileSrcIdx1& srcIdx1)
 {
     using TVal = typename TileDstVal::DType;
     using TIdx = typename TileDstIdx::DType;
@@ -175,12 +185,13 @@ PTO_INTERNAL bool checkTiles(TileDstVal &dstVal, TileDstIdx &dstIdx, TileSrcVal0
     static_assert(
         std::is_same_v<TIdx, typename TileSrcIdx0::DType> && std::is_same_v<TIdx, typename TileSrcIdx1::DType>,
         "TPARTARGOPS: dstIdx srcIdx0 srcIdx1 type must be consistent");
-    static_assert(std::is_same_v<TVal, float> || std::is_same_v<TVal, half>,
-                  "TPARTARGOPS: val type only support float, half.");
-    static_assert((std::is_same_v<TVal, float> && (std::is_same_v<TIdx, uint32_t> || std::is_same_v<TIdx, int32_t>)) ||
-                      (std::is_same_v<TVal, half> && (std::is_same_v<TIdx, uint32_t> || std::is_same_v<TIdx, int32_t> ||
-                                                      std::is_same_v<TIdx, uint16_t> || std::is_same_v<TIdx, int16_t>)),
-                  "TPARTARGOPS: idx type must be intergal type.");
+    static_assert(
+        std::is_same_v<TVal, float> || std::is_same_v<TVal, half>, "TPARTARGOPS: val type only support float, half.");
+    static_assert(
+        (std::is_same_v<TVal, float> && (std::is_same_v<TIdx, uint32_t> || std::is_same_v<TIdx, int32_t>)) ||
+            (std::is_same_v<TVal, half> && (std::is_same_v<TIdx, uint32_t> || std::is_same_v<TIdx, int32_t> ||
+                                            std::is_same_v<TIdx, uint16_t> || std::is_same_v<TIdx, int16_t>)),
+        "TPARTARGOPS: idx type must be intergal type.");
     unsigned dstValidRow = dstVal.GetValidRow();
     unsigned dstValidCol = dstVal.GetValidCol();
     unsigned dstIdxValidRow = dstIdx.GetValidRow();
@@ -211,16 +222,15 @@ PTO_INTERNAL bool checkTiles(TileDstVal &dstVal, TileDstIdx &dstIdx, TileSrcVal0
 
 template <typename T>
 struct PartArgMaxOp {
-    PTO_INTERNAL static void CmpInstr(__ubuf__ T *src0, __ubuf__ T *src1)
-    {
-        vcmp_ge(src0, src1, 1, 1, 1, 1, 0, 0, 0);
-    }
+    PTO_INTERNAL static void CmpInstr(__ubuf__ T* src0, __ubuf__ T* src1) { vcmp_ge(src0, src1, 1, 1, 1, 1, 0, 0, 0); }
 };
 
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataDstIdx,
-          typename TileDataSrc0Idx, typename TileDataSrc1Idx>
-PTO_INTERNAL void TPARTARGMAX_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, TileDataDstIdx &dstIdx,
-                                   TileDataSrc0Idx &src0Idx, TileDataSrc1Idx &src1Idx)
+template <
+    typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataDstIdx,
+    typename TileDataSrc0Idx, typename TileDataSrc1Idx>
+PTO_INTERNAL void TPARTARGMAX_IMPL(
+    TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, TileDataDstIdx& dstIdx, TileDataSrc0Idx& src0Idx,
+    TileDataSrc1Idx& src1Idx)
 {
     unsigned src0ValidRow = src0.GetValidRow();
     unsigned src0ValidCol = src0.GetValidCol();
@@ -229,23 +239,24 @@ PTO_INTERNAL void TPARTARGMAX_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDat
     if (!checkTiles(dst, dstIdx, src0, src0Idx, src1, src1Idx)) {
         return;
     }
-    TPartArgOp<PartArgMaxOp<typename TileDataDst::DType>, TileDataDst, TileDataDstIdx, TileDataSrc0, TileDataSrc0Idx,
-               TileDataSrc1, TileDataSrc1Idx>(dst.data(), dstIdx.data(), src0.data(), src0Idx.data(), src1.data(),
-                                              src1Idx.data(), src0ValidRow, src0ValidCol, src1ValidRow, src1ValidCol);
+    TPartArgOp<
+        PartArgMaxOp<typename TileDataDst::DType>, TileDataDst, TileDataDstIdx, TileDataSrc0, TileDataSrc0Idx,
+        TileDataSrc1, TileDataSrc1Idx>(
+        dst.data(), dstIdx.data(), src0.data(), src0Idx.data(), src1.data(), src1Idx.data(), src0ValidRow, src0ValidCol,
+        src1ValidRow, src1ValidCol);
 }
 
 template <typename T>
 struct PartArgMinOp {
-    PTO_INTERNAL static void CmpInstr(__ubuf__ T *src0, __ubuf__ T *src1)
-    {
-        vcmp_le(src0, src1, 1, 1, 1, 1, 0, 0, 0);
-    }
+    PTO_INTERNAL static void CmpInstr(__ubuf__ T* src0, __ubuf__ T* src1) { vcmp_le(src0, src1, 1, 1, 1, 1, 0, 0, 0); }
 };
 
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataDstIdx,
-          typename TileDataSrc0Idx, typename TileDataSrc1Idx>
-PTO_INTERNAL void TPARTARGMIN_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, TileDataDstIdx &dstIdx,
-                                   TileDataSrc0Idx &src0Idx, TileDataSrc1Idx &src1Idx)
+template <
+    typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataDstIdx,
+    typename TileDataSrc0Idx, typename TileDataSrc1Idx>
+PTO_INTERNAL void TPARTARGMIN_IMPL(
+    TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, TileDataDstIdx& dstIdx, TileDataSrc0Idx& src0Idx,
+    TileDataSrc1Idx& src1Idx)
 {
     unsigned src0ValidRow = src0.GetValidRow();
     unsigned src0ValidCol = src0.GetValidCol();
@@ -254,9 +265,11 @@ PTO_INTERNAL void TPARTARGMIN_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDat
     if (!checkTiles(dst, dstIdx, src0, src0Idx, src1, src1Idx)) {
         return;
     }
-    TPartArgOp<PartArgMinOp<typename TileDataDst::DType>, TileDataDst, TileDataDstIdx, TileDataSrc0, TileDataSrc0Idx,
-               TileDataSrc1, TileDataSrc1Idx>(dst.data(), dstIdx.data(), src0.data(), src0Idx.data(), src1.data(),
-                                              src1Idx.data(), src0ValidRow, src0ValidCol, src1ValidRow, src1ValidCol);
+    TPartArgOp<
+        PartArgMinOp<typename TileDataDst::DType>, TileDataDst, TileDataDstIdx, TileDataSrc0, TileDataSrc0Idx,
+        TileDataSrc1, TileDataSrc1Idx>(
+        dst.data(), dstIdx.data(), src0.data(), src0Idx.data(), src1.data(), src1Idx.data(), src0ValidRow, src0ValidCol,
+        src1ValidRow, src1ValidCol);
 }
 
 } // namespace pto

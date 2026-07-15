@@ -23,26 +23,27 @@ AICORE constexpr inline T CeilAlign(T num_1, T num_2)
     return (num_1 + num_2 - 1) / num_2 * num_2;
 }
 
-template <typename outType, typename AType, typename BType, typename BiasType, int validM, int validK, int validN,
-          bool isBias>
-__global__ AICORE void RunTMATMUL(__gm__ outType *out, __gm__ AType *src0, __gm__ BType *src1, __gm__ BiasType *src2)
+template <
+    typename outType, typename AType, typename BType, typename BiasType, int validM, int validK, int validN,
+    bool isBias>
+__global__ AICORE void RunTMATMUL(__gm__ outType* out, __gm__ AType* src0, __gm__ BType* src1, __gm__ BiasType* src2)
 {
     constexpr int blockAlign = (sizeof(AType) == 1) ? 32 : 16;
     constexpr int M = CeilAlign<int>(validM, blockAlign);
     constexpr int N = CeilAlign<int>(validN, blockAlign);
     constexpr int K = CeilAlign<int>(validK, blockAlign);
 
-    using GlobalDataSrc0 =
-        GlobalTensor<AType, pto::Shape<1, 1, 1, validM, validK>,
-                     pto::Stride<1 * validM * validK, 1 * validM * validK, validM * validK, validK, 1>>;
-    using GlobalDataSrc1 =
-        GlobalTensor<BType, pto::Shape<1, 1, 1, validK, validN>,
-                     pto::Stride<1 * validK * validN, 1 * validK * validN, validK * validN, validN, 1>>;
-    using GlobalDataSrc2 = GlobalTensor<BiasType, pto::Shape<1, 1, 1, 1, validN>,
-                                        pto::Stride<1 * validN, 1 * validN, 1 * validN, validN, 1>>;
-    using GlobalDataOut =
-        GlobalTensor<outType, pto::Shape<1, 1, 1, validM, validN>,
-                     pto::Stride<1 * validM * validN, 1 * validM * validN, validM * validN, validN, 1>>;
+    using GlobalDataSrc0 = GlobalTensor<
+        AType, pto::Shape<1, 1, 1, validM, validK>,
+        pto::Stride<1 * validM * validK, 1 * validM * validK, validM * validK, validK, 1>>;
+    using GlobalDataSrc1 = GlobalTensor<
+        BType, pto::Shape<1, 1, 1, validK, validN>,
+        pto::Stride<1 * validK * validN, 1 * validK * validN, validK * validN, validN, 1>>;
+    using GlobalDataSrc2 = GlobalTensor<
+        BiasType, pto::Shape<1, 1, 1, 1, validN>, pto::Stride<1 * validN, 1 * validN, 1 * validN, validN, 1>>;
+    using GlobalDataOut = GlobalTensor<
+        outType, pto::Shape<1, 1, 1, validM, validN>,
+        pto::Stride<1 * validM * validN, 1 * validM * validN, validM * validN, validN, 1>>;
 
     int offset = 0;
     GlobalDataSrc0 src0Global(src0);
@@ -111,7 +112,7 @@ __global__ AICORE void RunTMATMUL(__gm__ outType *out, __gm__ AType *src0, __gm_
 }
 
 template <typename T, typename U, typename S, int M, int K, int N>
-AICORE inline void RunTMATMUL_SPLIT_K(__gm__ T *out, __gm__ U *src0, __gm__ S *src1, uint32_t numRepeats)
+AICORE inline void RunTMATMUL_SPLIT_K(__gm__ T* out, __gm__ U* src0, __gm__ S* src1, uint32_t numRepeats)
 {
     using GlobalDataSrc0 = GlobalTensor<U, Shape<1, 1, 1, M, K>, Stride<1 * M * K, 1 * M * K, M * K, K, 1>>;
     using GlobalDataSrc1 = GlobalTensor<S, Shape<1, 1, 1, K, N>, Stride<1 * K * N, 1 * K * N, K * N, N, 1>>;
@@ -172,78 +173,77 @@ AICORE inline void RunTMATMUL_SPLIT_K(__gm__ T *out, __gm__ U *src0, __gm__ S *s
 }
 
 template <int32_t tilingKey>
-void LaunchTMATMUL(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream)
+void LaunchTMATMUL(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream)
 {
     if constexpr (tilingKey == 1) {
         RunTMATMUL<float, half, half, float, 40, 50, 60, false>(
-            reinterpret_cast<float *>(out), reinterpret_cast<half *>(src0), reinterpret_cast<half *>(src1), nullptr);
+            reinterpret_cast<float*>(out), reinterpret_cast<half*>(src0), reinterpret_cast<half*>(src1), nullptr);
     } else if constexpr (tilingKey == 2) {
-        RunTMATMUL<int32_t, int8_t, int8_t, int8_t, 6, 7, 8, false>(reinterpret_cast<int32_t *>(out),
-                                                                    reinterpret_cast<int8_t *>(src0),
-                                                                    reinterpret_cast<int8_t *>(src1), nullptr);
+        RunTMATMUL<int32_t, int8_t, int8_t, int8_t, 6, 7, 8, false>(
+            reinterpret_cast<int32_t*>(out), reinterpret_cast<int8_t*>(src0), reinterpret_cast<int8_t*>(src1), nullptr);
     } else if constexpr (tilingKey == 3) {
         RunTMATMUL_SPLIT_K<float, half, half, 128, 128, 64>(
-            reinterpret_cast<float *>(out), reinterpret_cast<half *>(src0), reinterpret_cast<half *>(src1), 5);
+            reinterpret_cast<float*>(out), reinterpret_cast<half*>(src0), reinterpret_cast<half*>(src1), 5);
     } else if constexpr (tilingKey == 4) {
         RunTMATMUL<float, float, float, float, 120, 110, 50, false>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float *>(src0), reinterpret_cast<float *>(src1), nullptr);
+            reinterpret_cast<float*>(out), reinterpret_cast<float*>(src0), reinterpret_cast<float*>(src1), nullptr);
     } else if constexpr (tilingKey == 5) {
         RunTMATMUL<float, half, half, half, 1, 110, 50, false>(
-            reinterpret_cast<float *>(out), reinterpret_cast<half *>(src0), reinterpret_cast<half *>(src1), nullptr);
+            reinterpret_cast<float*>(out), reinterpret_cast<half*>(src0), reinterpret_cast<half*>(src1), nullptr);
     } else if constexpr (tilingKey == 6) {
         RunTMATMUL<float, float, float, float, 1, 128, 64, false>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float *>(src0), reinterpret_cast<float *>(src1), nullptr);
+            reinterpret_cast<float*>(out), reinterpret_cast<float*>(src0), reinterpret_cast<float*>(src1), nullptr);
 #ifdef CPU_SIM_BFLOAT_ENABLED
     } else if constexpr (tilingKey == 7) {
         RunTMATMUL<float, bfloat16_t, bfloat16_t, float, 40, 50, 60, false>(
-            reinterpret_cast<float *>(out), reinterpret_cast<bfloat16_t *>(src0), reinterpret_cast<bfloat16_t *>(src1),
+            reinterpret_cast<float*>(out), reinterpret_cast<bfloat16_t*>(src0), reinterpret_cast<bfloat16_t*>(src1),
             nullptr);
 #endif
     }
 }
 
-template void LaunchTMATMUL<1>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void LaunchTMATMUL<2>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void LaunchTMATMUL<3>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void LaunchTMATMUL<4>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void LaunchTMATMUL<5>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void LaunchTMATMUL<6>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
+template void LaunchTMATMUL<1>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTMATMUL<2>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTMATMUL<3>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTMATMUL<4>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTMATMUL<5>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTMATMUL<6>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 #ifdef CPU_SIM_BFLOAT_ENABLED
-template void LaunchTMATMUL<7>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
+template void LaunchTMATMUL<7>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 #endif
 
 template <int32_t tilingKey>
-void LaunchTMATMULBIAS(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream)
+void LaunchTMATMULBIAS(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, void* stream)
 {
     if constexpr (tilingKey == 1) {
         RunTMATMUL<int32_t, int8_t, int8_t, int32_t, 8, 7, 6, true>(
-            reinterpret_cast<int32_t *>(out), reinterpret_cast<int8_t *>(src0), reinterpret_cast<int8_t *>(src1),
-            reinterpret_cast<int32_t *>(src2));
+            reinterpret_cast<int32_t*>(out), reinterpret_cast<int8_t*>(src0), reinterpret_cast<int8_t*>(src1),
+            reinterpret_cast<int32_t*>(src2));
     } else if constexpr (tilingKey == 2) {
         RunTMATMUL<float, half, half, float, 16, 15, 16, true>(
-            reinterpret_cast<float *>(out), reinterpret_cast<half *>(src0), reinterpret_cast<half *>(src1),
-            reinterpret_cast<float *>(src2));
+            reinterpret_cast<float*>(out), reinterpret_cast<half*>(src0), reinterpret_cast<half*>(src1),
+            reinterpret_cast<float*>(src2));
     } else if constexpr (tilingKey == 5) {
         RunTMATMUL<float, float, float, float, 127, 128, 63, true>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float *>(src0), reinterpret_cast<float *>(src1),
-            reinterpret_cast<float *>(src2));
+            reinterpret_cast<float*>(out), reinterpret_cast<float*>(src0), reinterpret_cast<float*>(src1),
+            reinterpret_cast<float*>(src2));
     } else if constexpr (tilingKey == 6) {
         RunTMATMUL<float, half, half, float, 1, 110, 50, true>(
-            reinterpret_cast<float *>(out), reinterpret_cast<half *>(src0), reinterpret_cast<half *>(src1),
-            reinterpret_cast<float *>(src2));
+            reinterpret_cast<float*>(out), reinterpret_cast<half*>(src0), reinterpret_cast<half*>(src1),
+            reinterpret_cast<float*>(src2));
 #ifdef CPU_SIM_BFLOAT_ENABLED
     } else if constexpr (tilingKey == 7) {
         RunTMATMUL<float, bfloat16_t, bfloat16_t, float, 16, 15, 16, true>(
-            reinterpret_cast<float *>(out), reinterpret_cast<bfloat16_t *>(src0), reinterpret_cast<bfloat16_t *>(src1),
-            reinterpret_cast<float *>(src2));
+            reinterpret_cast<float*>(out), reinterpret_cast<bfloat16_t*>(src0), reinterpret_cast<bfloat16_t*>(src1),
+            reinterpret_cast<float*>(src2));
 #endif
     }
 }
 
-template void LaunchTMATMULBIAS<1>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
-template void LaunchTMATMULBIAS<2>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
-template void LaunchTMATMULBIAS<5>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
-template void LaunchTMATMULBIAS<6>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
+template void LaunchTMATMULBIAS<1>(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, void* stream);
+template void LaunchTMATMULBIAS<2>(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, void* stream);
+template void LaunchTMATMULBIAS<5>(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, void* stream);
+template void LaunchTMATMULBIAS<6>(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, void* stream);
 #ifdef CPU_SIM_BFLOAT_ENABLED
-template void LaunchTMATMULBIAS<7>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
+template void LaunchTMATMULBIAS<7>(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, void* stream);
 #endif

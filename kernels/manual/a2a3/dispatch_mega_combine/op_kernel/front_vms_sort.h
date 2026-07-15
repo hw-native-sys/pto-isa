@@ -17,11 +17,11 @@ constexpr uint32_t kFrontSingleCoreSortAlignElems = 32U;
 template <typename InputElement>
 class FrontReorderVmsSort : public FrontReorderPathBase {
 public:
-    AICORE inline explicit FrontReorderVmsSort(FrontReorderCommonState &op) : FrontReorderPathBase(op)
-    {}
+    AICORE inline explicit FrontReorderVmsSort(FrontReorderCommonState& op) : FrontReorderPathBase(op) {}
 
-    AICORE inline void Init(GM_ADDR xGM, GM_ADDR expertIdGM, GM_ADDR expertTokenNumsGM, GM_ADDR workspaceGM,
-                            const __gm__ MegaMoeTilingData *tilingData)
+    AICORE inline void Init(
+        GM_ADDR xGM, GM_ADDR expertIdGM, GM_ADDR expertTokenNumsGM, GM_ADDR workspaceGM,
+        const __gm__ MegaMoeTilingData* tilingData)
     {
         op_.InitCommonInputs(xGM, expertIdGM, expertTokenNumsGM, workspaceGM, tilingData);
         op_.InitCommonSortTiling(op_.tilingData_->frontReorderTiling);
@@ -188,11 +188,11 @@ private:
         return sortedIntBytes > packedRunBytes ? sortedIntBytes : packedRunBytes;
     }
 
-    AICORE inline __gm__ float *FrontSortWsPtr(uint32_t srcWsIndex) const
+    AICORE inline __gm__ float* FrontSortWsPtr(uint32_t srcWsIndex) const
     {
-        const auto &front = op_.tilingData_->frontReorderTiling;
+        const auto& front = op_.tilingData_->frontReorderTiling;
         const uint64_t offset = srcWsIndex == 0U ? front.frontSortWs0Offset : front.frontSortWs1Offset;
-        return reinterpret_cast<__gm__ float *>(op_.workspaceGM_ + offset);
+        return reinterpret_cast<__gm__ float*>(op_.workspaceGM_ + offset);
     }
 
     AICORE inline uint32_t BuildOneCoreVmsSrcWsIndex(uint32_t listNum) const
@@ -230,9 +230,9 @@ private:
         return state;
     }
 
-    AICORE inline bool InitMergeListState(MergeListState &state, uint32_t inputBaseElem, uint32_t outputBaseElem,
-                                          uint32_t listNum, uint32_t perListElements, uint32_t lastListElements,
-                                          uint64_t srcWorkspaceBytes, bool extractToFinal) const
+    AICORE inline bool InitMergeListState(
+        MergeListState& state, uint32_t inputBaseElem, uint32_t outputBaseElem, uint32_t listNum,
+        uint32_t perListElements, uint32_t lastListElements, uint64_t srcWorkspaceBytes, bool extractToFinal) const
     {
         for (uint32_t listIdx = 0U; listIdx < listNum; ++listIdx) {
             const uint32_t elems = listIdx == listNum - 1U ? lastListElements : perListElements;
@@ -250,7 +250,7 @@ private:
         return !extractToFinal || state.allRemain == op_.routeElems_;
     }
 
-    AICORE inline uint32_t CountActiveMergeLists(const MergeListState &state, uint32_t listNum) const
+    AICORE inline uint32_t CountActiveMergeLists(const MergeListState& state, uint32_t listNum) const
     {
         uint32_t activeListNum = 0U;
         for (uint32_t listIdx = 0U; listIdx < listNum; ++listIdx) {
@@ -259,8 +259,9 @@ private:
         return activeListNum;
     }
 
-    AICORE inline bool LoadMergeLoopInputs(__gm__ float *srcPtr, MergeListState &listState, MergeLoopState &loopState,
-                                           uint32_t listNum, uint32_t perListElems) const
+    AICORE inline bool LoadMergeLoopInputs(
+        __gm__ float* srcPtr, MergeListState& listState, MergeLoopState& loopState, uint32_t listNum,
+        uint32_t perListElems) const
     {
         pto::PtoSetWaitFlag<PIPE_MTE3, PIPE_MTE2>();
         uint32_t activeIdx = 0U;
@@ -282,13 +283,13 @@ private:
         return activeIdx == loopState.activeListNum && loopState.loadedElems != 0U;
     }
 
-    AICORE inline void MergeLoopInputs(MergeLoopState &loopState, uint32_t perListElems, uint64_t mergedUb,
-                                       bool extractToFinal) const
+    AICORE inline void MergeLoopInputs(
+        MergeLoopState& loopState, uint32_t perListElems, uint64_t mergedUb, bool extractToFinal) const
     {
         pto::PtoSetWaitFlag<PIPE_MTE2, PIPE_V>();
         if (loopState.activeListNum == 1U) {
-            PtoMoveUb<float>(mergedUb, loopState.tmpUbInputs[0],
-                             FrontPtoGetSortLen<float>(loopState.elementCountList[0]));
+            PtoMoveUb<float>(
+                mergedUb, loopState.tmpUbInputs[0], FrontPtoGetSortLen<float>(loopState.elementCountList[0]));
             loopState.listSortedNums[0] = loopState.elementCountList[0];
             if (extractToFinal) {
                 pipe_barrier(PIPE_V);
@@ -302,9 +303,9 @@ private:
             loopState.activeListNum, loopState.listSortedNums);
     }
 
-    AICORE inline bool UpdateMergeListState(MergeListState &listState, const MergeLoopState &loopState,
-                                            uint32_t perListElems, bool extractToFinal,
-                                            uint32_t &curLoopSortedNum) const
+    AICORE inline bool UpdateMergeListState(
+        MergeListState& listState, const MergeLoopState& loopState, uint32_t perListElems, bool extractToFinal,
+        uint32_t& curLoopSortedNum) const
     {
         curLoopSortedNum = 0U;
         for (uint32_t idx = 0U; idx < loopState.activeListNum; ++idx) {
@@ -325,19 +326,19 @@ private:
         return true;
     }
 
-    AICORE inline bool StoreMergeLoopOutput(__gm__ float *dstPtr, MergeListState &listState,
-                                            const MergeLoopState &loopState, uint32_t perListElems, uint64_t mergedUb,
-                                            uint32_t curLoopSortedNum, uint64_t dstWorkspaceBytes,
-                                            bool extractToFinal) const
+    AICORE inline bool StoreMergeLoopOutput(
+        __gm__ float* dstPtr, MergeListState& listState, const MergeLoopState& loopState, uint32_t perListElems,
+        uint64_t mergedUb, uint32_t curLoopSortedNum, uint64_t dstWorkspaceBytes, bool extractToFinal) const
     {
         if (extractToFinal) {
-            FrontExtractPackedSortResult(0U, SortOutPayloadUb(loopState.activeListNum, perListElems),
-                                         SortOutScratchUb(loopState.activeListNum, perListElems), mergedUb,
-                                         curLoopSortedNum);
+            FrontExtractPackedSortResult(
+                0U, SortOutPayloadUb(loopState.activeListNum, perListElems),
+                SortOutScratchUb(loopState.activeListNum, perListElems), mergedUb, curLoopSortedNum);
             pto::PtoSetWaitFlag<PIPE_V, PIPE_MTE3>();
             PtoStoreVector<int32_t>(op_.frontExpandedExpertPtr_ + listState.outOffset, 0U, curLoopSortedNum);
-            PtoStoreVector<int32_t>(op_.frontExpandDstToSrcPtr_ + listState.outOffset,
-                                    SortOutPayloadUb(loopState.activeListNum, perListElems), curLoopSortedNum);
+            PtoStoreVector<int32_t>(
+                op_.frontExpandDstToSrcPtr_ + listState.outOffset,
+                SortOutPayloadUb(loopState.activeListNum, perListElems), curLoopSortedNum);
             listState.outOffset += curLoopSortedNum;
             return true;
         }
@@ -363,18 +364,19 @@ private:
         srcWorkspaceBytes  输入 workspace 字节数
         dstWorkspaceBytes  输出 workspace 字节数
         extractToFinal     是否最终抽取为 int32 结果 */
-    AICORE inline bool MergePackedListGroupImpl(__gm__ float *srcPtr, __gm__ float *dstPtr, uint32_t inputBaseElem,
-                                                uint32_t outputBaseElem, uint32_t listNum, uint32_t perListElements,
-                                                uint32_t lastListElements, uint64_t srcWorkspaceBytes,
-                                                uint64_t dstWorkspaceBytes, bool extractToFinal) const
+    AICORE inline bool MergePackedListGroupImpl(
+        __gm__ float* srcPtr, __gm__ float* dstPtr, uint32_t inputBaseElem, uint32_t outputBaseElem, uint32_t listNum,
+        uint32_t perListElements, uint32_t lastListElements, uint64_t srcWorkspaceBytes, uint64_t dstWorkspaceBytes,
+        bool extractToFinal) const
     {
         if (listNum == 0U || listNum > kFrontMergeOutMaxFanIn || perListElements == 0U || lastListElements == 0U) {
             return false;
         }
 
         MergeListState listState;
-        if (!InitMergeListState(listState, inputBaseElem, outputBaseElem, listNum, perListElements, lastListElements,
-                                srcWorkspaceBytes, extractToFinal)) {
+        if (!InitMergeListState(
+                listState, inputBaseElem, outputBaseElem, listNum, perListElements, lastListElements, srcWorkspaceBytes,
+                extractToFinal)) {
             return false;
         }
         while (listState.allRemain > 0U) {
@@ -400,8 +402,9 @@ private:
             if (!UpdateMergeListState(listState, loopState, perListElems, extractToFinal, curLoopSortedNum)) {
                 return false;
             }
-            if (!StoreMergeLoopOutput(dstPtr, listState, loopState, perListElems, mergedUb, curLoopSortedNum,
-                                      dstWorkspaceBytes, extractToFinal)) {
+            if (!StoreMergeLoopOutput(
+                    dstPtr, listState, loopState, perListElems, mergedUb, curLoopSortedNum, dstWorkspaceBytes,
+                    extractToFinal)) {
                 return false;
             }
         }
@@ -431,14 +434,15 @@ private:
             const uint32_t loops =
                 (listNum + kFrontMergeOutMaxFanIn - 1U) / kFrontMergeOutMaxFanIn; // kFrontMergeOutMaxFanIn=4路归并
             const uint32_t remainListNum = listNum - (loops - 1U) * kFrontMergeOutMaxFanIn;
-            __gm__ float *srcPtr = FrontSortWsPtr(srcWsIndex);
-            __gm__ float *dstPtr = FrontSortWsPtr(1U - srcWsIndex);
+            __gm__ float* srcPtr = FrontSortWsPtr(srcWsIndex);
+            __gm__ float* dstPtr = FrontSortWsPtr(1U - srcWsIndex);
             for (uint32_t loop = 0U; loop < loops; ++loop) {
                 const uint32_t groupListNum = loop == loops - 1U ? remainListNum : kFrontMergeOutMaxFanIn;
                 const uint32_t groupLastListElements = loop == loops - 1U ? lastListElements : perListElements;
                 const uint32_t baseElem = runStart + loop * kFrontMergeOutMaxFanIn * perListElements;
-                if (!MergePackedListGroupImpl(srcPtr, dstPtr, baseElem, baseElem, groupListNum, perListElements,
-                                              groupLastListElements, workspaceBytes, workspaceBytes, false)) {
+                if (!MergePackedListGroupImpl(
+                        srcPtr, dstPtr, baseElem, baseElem, groupListNum, perListElements, groupLastListElements,
+                        workspaceBytes, workspaceBytes, false)) {
                     return;
                 }
             }
@@ -463,16 +467,17 @@ private:
                 (state.listNum + kFrontMergeOutMaxFanIn - 1U) / kFrontMergeOutMaxFanIn;
             const uint32_t remainListNum =
                 state.listNum - (currentStageNeedCoreNum - 1U) * kFrontMergeOutMaxFanIn; // 4路归并
-            __gm__ float *srcPtr = FrontSortWsPtr(state.srcWsIndex);
-            __gm__ float *dstPtr = FrontSortWsPtr(1U - state.srcWsIndex);
+            __gm__ float* srcPtr = FrontSortWsPtr(state.srcWsIndex);
+            __gm__ float* dstPtr = FrontSortWsPtr(1U - state.srcWsIndex);
             if (op_.coreIdx_ < currentStageNeedCoreNum) {
                 const uint32_t groupListNum =
                     op_.coreIdx_ == currentStageNeedCoreNum - 1U ? remainListNum : kFrontMergeOutMaxFanIn;
                 const uint32_t groupLastListElements =
                     op_.coreIdx_ == currentStageNeedCoreNum - 1U ? state.lastListElements : state.perListElements;
                 const uint32_t baseElem = op_.coreIdx_ * kFrontMergeOutMaxFanIn * state.perListElements;
-                (void)MergePackedListGroupImpl(srcPtr, dstPtr, baseElem, baseElem, groupListNum, state.perListElements,
-                                               groupLastListElements, workspaceBytes, workspaceBytes, false);
+                (void)MergePackedListGroupImpl(
+                    srcPtr, dstPtr, baseElem, baseElem, groupListNum, state.perListElements, groupLastListElements,
+                    workspaceBytes, workspaceBytes, false);
             }
             state.lastListElements = state.perListElements * (remainListNum - 1U) + state.lastListElements;
             state.perListElements *= kFrontMergeOutMaxFanIn;
@@ -482,7 +487,7 @@ private:
         }
     }
 
-    AICORE inline void GetVbsSortRunRange(uint32_t &runStart, uint32_t &runElems) const
+    AICORE inline void GetVbsSortRunRange(uint32_t& runStart, uint32_t& runElems) const
     {
         runStart = op_.coreIdx_ * op_.sortPerCoreElems_;
         runElems = 0U;
@@ -505,7 +510,7 @@ private:
                requiredBytes <= AtlasA2::UB_SIZE;
     }
 
-    AICORE inline bool ProcessOneVbsSortRun(__gm__ float *packedPtr, uint32_t loopStart, uint32_t loopElems) const
+    AICORE inline bool ProcessOneVbsSortRun(__gm__ float* packedPtr, uint32_t loopStart, uint32_t loopElems) const
     {
         const uint32_t loopAlignedElems = FrontAlignSortBlock(loopElems);
         if (!VbsSortRunFitsUb(loopAlignedElems)) {
@@ -524,8 +529,8 @@ private:
         pto::PtoSetWaitFlag<PIPE_MTE2, PIPE_S>();
         PtoFillArithProgressionInt32(runPayloadUb, static_cast<int32_t>(loopStart), 1, loopElems);
         pto::PtoSetWaitFlag<PIPE_S, PIPE_V>();
-        FrontSortInt32ToPackedUb(runExpertUb, runPayloadUb, runPackedSortUb, runMergeTmpUb, runSortKeyUb, loopElems,
-                                 loopAlignedElems);
+        FrontSortInt32ToPackedUb(
+            runExpertUb, runPayloadUb, runPackedSortUb, runMergeTmpUb, runSortKeyUb, loopElems, loopAlignedElems);
         pipe_barrier(PIPE_V);
 
         const uint32_t packedOffset = FrontPtoGetSortOffset<float>(loopStart);
@@ -559,8 +564,8 @@ private:
             return;
         }
 
-        const auto &front = op_.tilingData_->frontReorderTiling;
-        __gm__ float *packedPtr = reinterpret_cast<__gm__ float *>(op_.workspaceGM_ + front.frontSortWs0Offset);
+        const auto& front = op_.tilingData_->frontReorderTiling;
+        __gm__ float* packedPtr = reinterpret_cast<__gm__ float*>(op_.workspaceGM_ + front.frontSortWs0Offset);
         for (uint32_t loop = 0U; loop < coreLoops; ++loop) { // 按照多轮6144遍历
             const uint32_t loopStart = runStart + loop * corePerLoopElems;
             if (loopStart >= runStart + runElems || loopStart >= op_.routeElems_) {
@@ -598,9 +603,10 @@ private:
             return;
         }
         const uint64_t workspaceBytes = FrontSortWorkspaceBytes();
-        __gm__ float *srcPackedPtr = FrontSortWsPtr(finalState.srcWsIndex);
-        (void)MergePackedListGroupImpl(srcPackedPtr, srcPackedPtr, 0U, 0U, finalListNum, finalPerListElements,
-                                       finalLastListElements, workspaceBytes, 0U, true);
+        __gm__ float* srcPackedPtr = FrontSortWsPtr(finalState.srcWsIndex);
+        (void)MergePackedListGroupImpl(
+            srcPackedPtr, srcPackedPtr, 0U, 0U, finalListNum, finalPerListElements, finalLastListElements,
+            workspaceBytes, 0U, true);
     }
 };
 

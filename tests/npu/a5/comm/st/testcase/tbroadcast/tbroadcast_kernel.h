@@ -19,15 +19,15 @@ template <typename T, size_t count>
 bool RunBroadCast(int n_ranks, int n_devices, int first_rank_id, int first_device_id, int root);
 
 // Large shape chunked tests
-bool RunBroadCastLargeShape_Int32_128x32_tile16(int n_ranks, int n_devices, int first_rank_id, int first_device_id,
-                                                int root);
-bool RunBroadCastLargeShape_Float_256x64_tile32(int n_ranks, int n_devices, int first_rank_id, int first_device_id,
-                                                int root);
-bool RunBroadCastLargeShape_Int32_512x32_tile64(int n_ranks, int n_devices, int first_rank_id, int first_device_id,
-                                                int root);
+bool RunBroadCastLargeShape_Int32_128x32_tile16(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id, int root);
+bool RunBroadCastLargeShape_Float_256x64_tile32(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id, int root);
+bool RunBroadCastLargeShape_Int32_512x32_tile64(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id, int root);
 
 // Ping-pong tests
-bool RunBroadCastPingPong_Int32_128x32_tile16(int n_ranks, int n_devices, int first_rank_id, int first_device_id,
-                                              int root);
-bool RunBroadCastPingPong_Float_256x64_tile32(int n_ranks, int n_devices, int first_rank_id, int first_device_id,
-                                              int root);
+bool RunBroadCastPingPong_Int32_128x32_tile16(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id, int root);
+bool RunBroadCastPingPong_Float_256x64_tile32(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id, int root);

@@ -16,7 +16,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 template <typename T, int SrcStride, int DstStride>
-PTO_INTERNAL void BinarySum(__ubuf__ T *dst, __ubuf__ T *src, int validRow, int validCol)
+PTO_INTERNAL void BinarySum(__ubuf__ T* dst, __ubuf__ T* src, int validRow, int validCol)
 {
     set_mask_count();
     set_vector_mask(0, validCol);
@@ -34,7 +34,7 @@ PTO_INTERNAL void BinarySum(__ubuf__ T *dst, __ubuf__ T *src, int validRow, int 
 }
 
 template <typename T, int SrcStride, int DstStride>
-PTO_INTERNAL void SequentialSum(__ubuf__ T *dst, __ubuf__ T *src, int validRow, int validCol)
+PTO_INTERNAL void SequentialSum(__ubuf__ T* dst, __ubuf__ T* src, int validRow, int validCol)
 {
     set_mask_count();
     set_vector_mask(0, validCol);
@@ -46,15 +46,16 @@ PTO_INTERNAL void SequentialSum(__ubuf__ T *dst, __ubuf__ T *src, int validRow, 
     set_vector_mask(-1, -1);
 }
 
-template <typename T, typename TileDataDst, typename TileDataSrc, typename TileDataTmp, int srcStride, int dstStride,
-          int tmpStride, bool IsBinary>
-__tf__ PTO_INTERNAL void TColSum(typename TileDataDst::TileDType __out__ dst,
-                                 typename TileDataSrc::TileDType __in__ src, typename TileDataTmp::TileDType __in__ tmp,
-                                 int validRow, int validCol)
+template <
+    typename T, typename TileDataDst, typename TileDataSrc, typename TileDataTmp, int srcStride, int dstStride,
+    int tmpStride, bool IsBinary>
+__tf__ PTO_INTERNAL void TColSum(
+    typename TileDataDst::TileDType __out__ dst, typename TileDataSrc::TileDType __in__ src,
+    typename TileDataTmp::TileDType __in__ tmp, int validRow, int validCol)
 {
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src);
-    __ubuf__ T *tmpPtr = (__ubuf__ T *)__cce_get_tile_ptr(tmp);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* srcPtr = (__ubuf__ T*)__cce_get_tile_ptr(src);
+    __ubuf__ T* tmpPtr = (__ubuf__ T*)__cce_get_tile_ptr(tmp);
 
     constexpr int DTypeSize = sizeof(T);
     int lenBurst = (validCol * DTypeSize + BLOCK_BYTE_SIZE - 1) / BLOCK_BYTE_SIZE;
@@ -85,24 +86,29 @@ __tf__ PTO_INTERNAL void TColSum(typename TileDataDst::TileDType __out__ dst,
 template <typename T, typename TileDataDst, typename TileDataSrc, typename TileDataTmp>
 PTO_INTERNAL void TColSumCheck()
 {
-    static_assert(TileDataDst::Loc == pto::TileType::Vec && TileDataSrc::Loc == pto::TileType::Vec &&
-                      TileDataTmp::Loc == pto::TileType::Vec,
-                  "Fix: TCOLSUM only support Vec Tile");
-    static_assert(TileDataSrc::isRowMajor && TileDataSrc::SFractal == SLayout::NoneBox,
-                  "Fix: TCOLSUM only support Nd fractal Tile");
-    static_assert(TileDataDst::isRowMajor && TileDataDst::SFractal == SLayout::NoneBox,
-                  "Fix: TCOLSUM only support Nd fractal Tile");
-    static_assert(TileDataTmp::isRowMajor && TileDataTmp::SFractal == SLayout::NoneBox,
-                  "Fix: TCOLSUM only support Nd fractal Tile");
+    static_assert(
+        TileDataDst::Loc == pto::TileType::Vec && TileDataSrc::Loc == pto::TileType::Vec &&
+            TileDataTmp::Loc == pto::TileType::Vec,
+        "Fix: TCOLSUM only support Vec Tile");
+    static_assert(
+        TileDataSrc::isRowMajor && TileDataSrc::SFractal == SLayout::NoneBox,
+        "Fix: TCOLSUM only support Nd fractal Tile");
+    static_assert(
+        TileDataDst::isRowMajor && TileDataDst::SFractal == SLayout::NoneBox,
+        "Fix: TCOLSUM only support Nd fractal Tile");
+    static_assert(
+        TileDataTmp::isRowMajor && TileDataTmp::SFractal == SLayout::NoneBox,
+        "Fix: TCOLSUM only support Nd fractal Tile");
     static_assert(
         std::is_same_v<T, half> || std::is_same_v<T, float> || std::is_same_v<T, int16_t> || std::is_same_v<T, int32_t>,
         "Fix: TCOLSUM input data type is not supported by this instruction.");
-    static_assert(std::is_same_v<typename TileDataDst::DType, T>,
-                  "Fix: TCOLSUM input data type must be consistent with the output data type.");
+    static_assert(
+        std::is_same_v<typename TileDataDst::DType, T>,
+        "Fix: TCOLSUM input data type must be consistent with the output data type.");
 }
 
 template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp>
-PTO_INTERNAL void TCOLSUM_IMPL(TileDataDst &dst, TileDataSrc &src, TileDataTmp &tmp, bool IsBinary)
+PTO_INTERNAL void TCOLSUM_IMPL(TileDataDst& dst, TileDataSrc& src, TileDataTmp& tmp, bool IsBinary)
 {
     using T = typename TileDataSrc::DType;
     TColSumCheck<T, TileDataDst, TileDataSrc, TileDataTmp>();
@@ -112,16 +118,16 @@ PTO_INTERNAL void TCOLSUM_IMPL(TileDataDst &dst, TileDataSrc &src, TileDataTmp &
     constexpr int srcStride = TileDataSrc::RowStride;
     constexpr int dstStride = TileDataDst::RowStride;
 
-    PTO_ASSERT(validCol == dst.GetValidCol(),
-               "Fix: TCOLSUM input valid col must be consistent with the output valid row.");
+    PTO_ASSERT(
+        validCol == dst.GetValidCol(), "Fix: TCOLSUM input valid col must be consistent with the output valid row.");
     if (validRow == 0 || validCol == 0) {
         return;
     }
 
     if (IsBinary) {
         constexpr int tmpStride = TileDataTmp::RowStride * sizeof(typename TileDataTmp::DType) / sizeof(T);
-        PTO_ASSERT(validCol <= tmpStride,
-                   "Fix: TCOLSUM input valid columns must be less than or equal to the tmp columns.");
+        PTO_ASSERT(
+            validCol <= tmpStride, "Fix: TCOLSUM input valid columns must be less than or equal to the tmp columns.");
         TColSum<T, TileDataDst, TileDataSrc, TileDataTmp, srcStride, dstStride, tmpStride, true>(
             dst.data(), src.data(), tmp.data(), validRow, validCol);
     } else {
@@ -131,11 +137,11 @@ PTO_INTERNAL void TCOLSUM_IMPL(TileDataDst &dst, TileDataSrc &src, TileDataTmp &
 }
 
 template <typename T, typename TileDataDst, typename TileDataSrc>
-__tf__ PTO_INTERNAL void TColSum(typename TileDataDst::TileDType __out__ dst,
-                                 typename TileDataSrc::TileDType __in__ src, int validRow, int validCol)
+__tf__ PTO_INTERNAL void TColSum(
+    typename TileDataDst::TileDType __out__ dst, typename TileDataSrc::TileDType __in__ src, int validRow, int validCol)
 {
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* srcPtr = (__ubuf__ T*)__cce_get_tile_ptr(src);
 
     constexpr int DTypeSize = sizeof(T);
     int lenBurst = (validCol * DTypeSize + BLOCK_BYTE_SIZE - 1) / BLOCK_BYTE_SIZE;
@@ -148,7 +154,7 @@ __tf__ PTO_INTERNAL void TColSum(typename TileDataDst::TileDType __out__ dst,
 }
 
 template <typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TCOLSUM_IMPL(TileDataDst &dst, TileDataSrc &src)
+PTO_INTERNAL void TCOLSUM_IMPL(TileDataDst& dst, TileDataSrc& src)
 {
     using T = typename TileDataSrc::DType;
     TColSumCheck<T, TileDataDst, TileDataSrc, TileDataDst>();
@@ -156,8 +162,8 @@ PTO_INTERNAL void TCOLSUM_IMPL(TileDataDst &dst, TileDataSrc &src)
     int validRow = src.GetValidRow();
     int validCol = src.GetValidCol();
 
-    PTO_ASSERT(validCol == dst.GetValidCol(),
-               "Fix: TCOLSUM input valid col must be consistent with the output valid row.");
+    PTO_ASSERT(
+        validCol == dst.GetValidCol(), "Fix: TCOLSUM input valid col must be consistent with the output valid row.");
     if (validRow == 0 || validCol == 0) {
         return;
     }

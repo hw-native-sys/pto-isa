@@ -36,8 +36,9 @@ PTO_INTERNAL bool TestCompareSignal(int32_t sigVal, int32_t cmpVal, WaitCmp cmp)
     }
 }
 
-PTO_INTERNAL bool TestPartSignal(volatile int32_t *basePtr, int32_t cmpValue, WaitCmp cmp, int d0, int st0, int d1,
-                                 int st1, int d2, int st2, int s3, int st3, int s4, int st4)
+PTO_INTERNAL bool TestPartSignal(
+    volatile int32_t* basePtr, int32_t cmpValue, WaitCmp cmp, int d0, int st0, int d1, int st1, int d2, int st2, int s3,
+    int st3, int s4, int st4)
 {
     for (int d3 = 0; d3 < s3; ++d3) {
         for (int d4 = 0; d4 < s4; ++d4) {
@@ -51,10 +52,10 @@ PTO_INTERNAL bool TestPartSignal(volatile int32_t *basePtr, int32_t cmpValue, Wa
 }
 
 template <typename GlobalSignalData>
-PTO_INTERNAL bool TTEST_IMPL(GlobalSignalData &signalData, int32_t cmpValue, WaitCmp cmp)
+PTO_INTERNAL bool TTEST_IMPL(GlobalSignalData& signalData, int32_t cmpValue, WaitCmp cmp)
 {
-    static_assert(sizeof(typename GlobalSignalData::DType) == sizeof(int32_t),
-                  "TTEST: signal type must be 32-bit (int32_t)");
+    static_assert(
+        sizeof(typename GlobalSignalData::DType) == sizeof(int32_t), "TTEST: signal type must be 32-bit (int32_t)");
 
     // Get full 5-D shape and stride
     const int s0 = signalData.GetShape(GlobalTensorDim::DIM_0);
@@ -69,7 +70,7 @@ PTO_INTERNAL bool TTEST_IMPL(GlobalSignalData &signalData, int32_t cmpValue, Wai
     const int st3 = signalData.GetStride(GlobalTensorDim::DIM_3);
     const int st4 = signalData.GetStride(GlobalTensorDim::DIM_4);
 
-    volatile int32_t *basePtr = (volatile int32_t *)signalData.data();
+    volatile int32_t* basePtr = (volatile int32_t*)signalData.data();
 
     // Test if all signals satisfy the condition (full 5-D traversal)
     for (int d0 = 0; d0 < s0; ++d0) {

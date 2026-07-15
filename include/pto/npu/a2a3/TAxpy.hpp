@@ -16,24 +16,24 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 template <typename T>
 struct AxpyOp {
-    PTO_INTERNAL static void BinSInstr(__ubuf__ T *dst, __ubuf__ T *src0, T src1, uint8_t repeats)
+    PTO_INTERNAL static void BinSInstr(__ubuf__ T* dst, __ubuf__ T* src0, T src1, uint8_t repeats)
     {
         vaxpy(dst, src0, src1, repeats, 1, 1, 8, 8);
     }
-    PTO_INTERNAL static void BinSInstr(__ubuf__ T *dst, __ubuf__ T *src0, T src1, uint8_t repeats,
-                                       uint8_t dstRepeatStride, uint8_t srcRepeatStride)
+    PTO_INTERNAL static void BinSInstr(
+        __ubuf__ T* dst, __ubuf__ T* src0, T src1, uint8_t repeats, uint8_t dstRepeatStride, uint8_t srcRepeatStride)
     {
         vaxpy(dst, src0, src1, repeats, 1, 1, dstRepeatStride, srcRepeatStride);
     }
 };
 
 template <typename T, typename TileDataDst, typename TileDataSrc>
-__tf__ PTO_INTERNAL void TAxpy(typename TileDataDst::TileDType __out__ dstData,
-                               typename TileDataSrc::TileDType __in__ srcData, T scalar, unsigned validRow,
-                               unsigned validCol)
+__tf__ PTO_INTERNAL void TAxpy(
+    typename TileDataDst::TileDType __out__ dstData, typename TileDataSrc::TileDType __in__ srcData, T scalar,
+    unsigned validRow, unsigned validCol)
 {
-    __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
-    __ubuf__ T *src = (__ubuf__ T *)__cce_get_tile_ptr(srcData);
+    __ubuf__ T* dst = (__ubuf__ T*)__cce_get_tile_ptr(dstData);
+    __ubuf__ T* src = (__ubuf__ T*)__cce_get_tile_ptr(srcData);
     constexpr unsigned elementsPerRepeat = pto::REPEAT_BYTE / sizeof(T);
     constexpr unsigned blockSizeElem = pto::BLOCK_BYTE_SIZE / sizeof(T);
     constexpr unsigned dstStride = TileDataDst::RowStride;
@@ -43,7 +43,7 @@ __tf__ PTO_INTERNAL void TAxpy(typename TileDataDst::TileDType __out__ dstData,
 }
 
 template <typename T, typename U, unsigned DstRowStride, unsigned Src0RowStride>
-PTO_INTERNAL void AxpyCountMode(__ubuf__ T *dstPtr, __ubuf__ U *src0Ptr, U scalar, unsigned validRow, unsigned validCol)
+PTO_INTERNAL void AxpyCountMode(__ubuf__ T* dstPtr, __ubuf__ U* src0Ptr, U scalar, unsigned validRow, unsigned validCol)
 {
     set_mask_count();
     SetVectorCount(validCol);
@@ -56,8 +56,8 @@ PTO_INTERNAL void AxpyCountMode(__ubuf__ T *dstPtr, __ubuf__ U *src0Ptr, U scala
 }
 
 template <typename T, typename U, unsigned DstRowStride, unsigned Src0RowStride>
-PTO_INTERNAL void AxpyNormModeTail(__ubuf__ T *dstPtr, __ubuf__ U *src0Ptr, U scalar, unsigned validRow,
-                                   unsigned validCol)
+PTO_INTERNAL void AxpyNormModeTail(
+    __ubuf__ T* dstPtr, __ubuf__ U* src0Ptr, U scalar, unsigned validRow, unsigned validCol)
 {
     constexpr unsigned dstElementsPerRepeat = pto::REPEAT_BYTE / sizeof(T);
     constexpr unsigned srcElementsPerRepeat = pto::REPEAT_BYTE / sizeof(U) / 2; // src一个repeat只有4个block，所以除以2
@@ -84,7 +84,7 @@ PTO_INTERNAL void AxpyNormModeTail(__ubuf__ T *dstPtr, __ubuf__ U *src0Ptr, U sc
 }
 
 template <typename T, typename U, unsigned DstRowStride, unsigned Src0RowStride>
-PTO_INTERNAL void AxpyNormMode(__ubuf__ T *dstPtr, __ubuf__ U *src0Ptr, U scalar, unsigned validRow, unsigned validCol)
+PTO_INTERNAL void AxpyNormMode(__ubuf__ T* dstPtr, __ubuf__ U* src0Ptr, U scalar, unsigned validRow, unsigned validCol)
 {
     unsigned numLoop = validRow / REPEAT_MAX;
     unsigned numRemainAfterLoop = validRow % REPEAT_MAX;
@@ -101,12 +101,12 @@ PTO_INTERNAL void AxpyNormMode(__ubuf__ T *dstPtr, __ubuf__ U *src0Ptr, U scalar
 }
 
 template <typename T, typename U, typename TileDataDst, typename TileDataSrc>
-__tf__ PTO_INTERNAL void TAxpy(typename TileDataDst::TileDType __out__ dstData,
-                               typename TileDataSrc::TileDType __in__ srcData, U scalar, unsigned validRow,
-                               unsigned validCol)
+__tf__ PTO_INTERNAL void TAxpy(
+    typename TileDataDst::TileDType __out__ dstData, typename TileDataSrc::TileDType __in__ srcData, U scalar,
+    unsigned validRow, unsigned validCol)
 {
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
-    __ubuf__ U *srcPtr = (__ubuf__ U *)__cce_get_tile_ptr(srcData);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dstData);
+    __ubuf__ U* srcPtr = (__ubuf__ U*)__cce_get_tile_ptr(srcData);
     constexpr unsigned dstStride = TileDataDst::RowStride;
     constexpr unsigned srcStride = TileDataSrc::RowStride;
     // 类型为float和half时，vaxpy取4个block的src和8个block的dst
@@ -123,13 +123,14 @@ __tf__ PTO_INTERNAL void TAxpy(typename TileDataDst::TileDType __out__ dstData,
 }
 
 template <typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TAXPY_IMPL(TileDataDst &dst, TileDataSrc &src, typename TileDataSrc::DType scalar)
+PTO_INTERNAL void TAXPY_IMPL(TileDataDst& dst, TileDataSrc& src, typename TileDataSrc::DType scalar)
 {
     using T = typename TileDataDst::DType;
     using U = typename TileDataSrc::DType;
     static_assert(std::is_same_v<T, half> || std::is_same_v<T, float>, "TAXPY: Invalid data type");
-    static_assert(std::is_same_v<T, U> || (std::is_same_v<T, float> && std::is_same_v<U, half>),
-                  "TAXPY: The data type of dst must be consistent with src or dst is float while src is half.");
+    static_assert(
+        std::is_same_v<T, U> || (std::is_same_v<T, float> && std::is_same_v<U, half>),
+        "TAXPY: The data type of dst must be consistent with src or dst is float while src is half.");
 
     static_assert(TileDataSrc::Loc == TileType::Vec, "TileType of src and dst tiles must be TileType::Vec.");
 

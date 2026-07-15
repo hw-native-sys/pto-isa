@@ -15,8 +15,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW>
-__global__ AICORE void runTRem(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in__ *src1, int vRows,
-                               int vCols)
+__global__ AICORE void runTRem(
+    __gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in__* src1, int vRows, int vCols)
 {
     using DynShape = pto::Shape<-1, -1, -1, -1, -1>;
     using DynStride = pto::Stride<-1, -1, -1, -1, -1>;
@@ -41,8 +41,9 @@ __global__ AICORE void runTRem(__gm__ T __out__ *out, __gm__ T __in__ *src0, __g
     TASSIGN(src0Tile, 0x0);
     TASSIGN(src1Tile, src0TileH * src0TileW * sizeof(T));
     TASSIGN(dstTile, src0TileH * src0TileW * sizeof(T) + src1TileH * src1TileW * sizeof(T));
-    TASSIGN(tmpTile,
-            src0TileH * src0TileW * sizeof(T) + src1TileH * src1TileW * sizeof(T) + dstTileH * dstTileW * sizeof(T));
+    TASSIGN(
+        tmpTile,
+        src0TileH * src0TileW * sizeof(T) + src1TileH * src1TileW * sizeof(T) + dstTileH * dstTileW * sizeof(T));
 
     TLOAD(src0Tile, src0Global);
     TLOAD(src1Tile, src1Global);
@@ -50,8 +51,8 @@ __global__ AICORE void runTRem(__gm__ T __out__ *out, __gm__ T __in__ *src0, __g
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 #endif
-    TREM<RemAlgorithm::DEFAULT, TileDataDst, TileDataSrc0, TileDataSrc1, TileDataTmp>(dstTile, src0Tile, src1Tile,
-                                                                                      tmpTile);
+    TREM<RemAlgorithm::DEFAULT, TileDataDst, TileDataSrc0, TileDataSrc1, TileDataTmp>(
+        dstTile, src0Tile, src1Tile, tmpTile);
 #ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
@@ -60,21 +61,22 @@ __global__ AICORE void runTRem(__gm__ T __out__ *out, __gm__ T __in__ *src0, __g
     out = dstGlobal.data();
 }
 
-template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
-          int vCols>
-void LaunchTREM(T *out, T *src0, T *src1, void *stream)
+template <
+    typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
+    int vCols>
+void LaunchTREM(T* out, T* src0, T* src1, void* stream)
 {
     runTRem<T, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW>
         <<<1, nullptr, stream>>>(out, src0, src1, vRows, vCols);
 }
 
-template void LaunchTREM<float, 16, 64, 16, 128, 16, 128, 16, 64>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTREM<float, 16, 32, 16, 64, 16, 32, 16, 32>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTREM<int32_t, 4, 32, 4, 32, 4, 32, 4, 32>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
-template void LaunchTREM<int32_t, 16, 32, 16, 64, 16, 32, 16, 32>(int32_t *out, int32_t *src0, int32_t *src1,
-                                                                  void *stream);
-template void LaunchTREM<float, 16, 64, 16, 128, 16, 128, 16, 63>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTREM<float, 2, 32, 2, 64, 2, 32, 2, 31>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTREM<int32_t, 16, 32, 16, 64, 16, 32, 16, 31>(int32_t *out, int32_t *src0, int32_t *src1,
-                                                                  void *stream);
-template void LaunchTREM<float, 1, 8192, 1, 8192, 1, 8192, 1, 8192>(float *out, float *src0, float *src1, void *stream);
+template void LaunchTREM<float, 16, 64, 16, 128, 16, 128, 16, 64>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTREM<float, 16, 32, 16, 64, 16, 32, 16, 32>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTREM<int32_t, 4, 32, 4, 32, 4, 32, 4, 32>(int32_t* out, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTREM<int32_t, 16, 32, 16, 64, 16, 32, 16, 32>(
+    int32_t* out, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTREM<float, 16, 64, 16, 128, 16, 128, 16, 63>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTREM<float, 2, 32, 2, 64, 2, 32, 2, 31>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTREM<int32_t, 16, 32, 16, 64, 16, 32, 16, 31>(
+    int32_t* out, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTREM<float, 1, 8192, 1, 8192, 1, 8192, 1, 8192>(float* out, float* src0, float* src1, void* stream);

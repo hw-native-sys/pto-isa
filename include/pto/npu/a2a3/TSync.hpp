@@ -33,17 +33,19 @@ PTO_INTERNAL void TSYNC_IMPL()
 {
 #ifndef __PTO_AUTO__
     constexpr pipe_t pipe = GetPipeByOpForA3<OpCode>();
-    PTO_STATIC_ASSERT((pipe == PIPE_S) || (pipe == PIPE_V) || (pipe == PIPE_M) || (pipe == PIPE_MTE1) ||
-                          (pipe == PIPE_MTE2) || (pipe == PIPE_MTE3) || (pipe == PIPE_FIX) || (pipe == PIPE_ALL),
-                      "Single Op TSYNC only supports S / V / M / MTE1 / MTE2 / MTE3 / FIX / ALL pipeline.");
+    PTO_STATIC_ASSERT(
+        (pipe == PIPE_S) || (pipe == PIPE_V) || (pipe == PIPE_M) || (pipe == PIPE_MTE1) || (pipe == PIPE_MTE2) ||
+            (pipe == PIPE_MTE3) || (pipe == PIPE_FIX) || (pipe == PIPE_ALL),
+        "Single Op TSYNC only supports S / V / M / MTE1 / MTE2 / MTE3 / FIX / ALL pipeline.");
     pipe_barrier((pipe_t)pipe);
 #endif
 }
 
 PTO_INTERNAL uint16_t getFFTSMsg(uint16_t mode, uint16_t eventId, uint16_t baseConst = 0x1)
 {
-    return ((baseConst & FFTS_BASE_COUNT_WIDTH) + ((mode & FFTS_MODE_WIDTH) << FFTS_MODE_OFFSET) +
-            ((eventId & FFTS_EVENT_ID_WIDTH) << FFTS_EVENT_ID_OFFSET));
+    return (
+        (baseConst & FFTS_BASE_COUNT_WIDTH) + ((mode & FFTS_MODE_WIDTH) << FFTS_MODE_OFFSET) +
+        ((eventId & FFTS_EVENT_ID_WIDTH) << FFTS_EVENT_ID_OFFSET));
 }
 
 template <Op SrcOp, Op DstOp, bool AutoToken = true, event_t EventID = EVENT_ID0>
@@ -66,7 +68,7 @@ struct Event : EventBase<Event<SrcOp, DstOp, AutoToken, EventID>, SrcOp, DstOp, 
     PTO_STATIC_ASSERT(IsCrossCore || (Base::srcPipe != PIPE_ALL), "SrcOp are invalid.");
 #endif
 
-    PTO_INTERNAL Event &InitAddrImpl(uint64_t fftsAddr)
+    PTO_INTERNAL Event& InitAddrImpl(uint64_t fftsAddr)
     {
 #ifndef __PTO_AUTO__
         PTO_STATIC_ASSERT(IsCrossCore, "Only cross-core events require setting the initial addr.");
@@ -76,12 +78,13 @@ struct Event : EventBase<Event<SrcOp, DstOp, AutoToken, EventID>, SrcOp, DstOp, 
     }
 
     template <uint8_t CrossCoreId = 0xff>
-    PTO_INTERNAL Event &InitImpl()
+    PTO_INTERNAL Event& InitImpl()
     {
 #ifndef __PTO_AUTO__
         if constexpr (IsCrossCore) {
-            PTO_STATIC_ASSERT(CrossCoreId != 0xff,
-                              "Fix: The cross-core id must be assigned by user when the event is a cross-core event.");
+            PTO_STATIC_ASSERT(
+                CrossCoreId != 0xff,
+                "Fix: The cross-core id must be assigned by user when the event is a cross-core event.");
             ffts_cross_core_sync(Base::srcPipe, getFFTSMsg(FFTS_MODE_VAL, CrossCoreId));
         } else if constexpr (!Base::isSamePipe) {
 #ifdef PTO_FLAG_TEST
@@ -95,12 +98,13 @@ struct Event : EventBase<Event<SrcOp, DstOp, AutoToken, EventID>, SrcOp, DstOp, 
     }
 
     template <uint8_t CrossCoreId = 0xff>
-    PTO_INTERNAL Event &WaitImpl()
+    PTO_INTERNAL Event& WaitImpl()
     {
 #ifndef __PTO_AUTO__
         if constexpr (IsCrossCore) {
-            PTO_STATIC_ASSERT(CrossCoreId != 0xff,
-                              "Fix: The cross-core id must be assigned by user when the event is a cross-core event.");
+            PTO_STATIC_ASSERT(
+                CrossCoreId != 0xff,
+                "Fix: The cross-core id must be assigned by user when the event is a cross-core event.");
             wait_flag_dev(CrossCoreId);
         } else if constexpr (Base::isSamePipe) {
             pipe_barrier((pipe_t)Base::srcPipe);
@@ -116,8 +120,7 @@ struct Event : EventBase<Event<SrcOp, DstOp, AutoToken, EventID>, SrcOp, DstOp, 
     }
 
     PTO_INTERNAL Event() = default;
-    PTO_INTERNAL Event(RecordEvent re) : Base(re)
-    {}
+    PTO_INTERNAL Event(RecordEvent re) : Base(re) {}
 };
 
 } // namespace pto

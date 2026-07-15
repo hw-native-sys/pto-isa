@@ -26,8 +26,7 @@ namespace pto {
  * First letter represents the layout of matrix A, second letter represents matrix B.
  * N = Normal (Row-major), T = Transposed (Column-major)
  */
-enum class layout_t
-{
+enum class layout_t {
     NN, // Matrix A: Normal, Matrix B: Normal
     NT, // Matrix A: Normal, Matrix B: Transposed
     TN, // Matrix A: Transposed, Matrix B: Normal
@@ -35,8 +34,7 @@ enum class layout_t
     NONE
 };
 
-enum class AccMode
-{
+enum class AccMode {
     Init,           // auto phase, first slice initializes, rest accumulate
     Acc,            // auto phase, all slices accumulate into existing C
     InitPartialSum, // explicitly partial, first slice initializes
@@ -45,14 +43,14 @@ enum class AccMode
     AccFinalSum,    // explicitly final, all slices accumulate
 };
 
-#define L0A_BUF0 ((__ca__ half *)(__ca__ char *)0x0)
-#define L0A_BUF1 ((__ca__ half *)(__ca__ char *)0x8000)
-#define L0B_BUF0 ((__ca__ half *)(__ca__ char *)0x0)
-#define L0B_BUF1 ((__ca__ half *)(__ca__ char *)0x8000)
-#define L0C_BUF0 ((__ca__ half *)(__ca__ char *)0x0)
-#define L0C_BUF1 ((__ca__ half *)(__ca__ char *)0x20000)
+#define L0A_BUF0 ((__ca__ half*)(__ca__ char*)0x0)
+#define L0A_BUF1 ((__ca__ half*)(__ca__ char*)0x8000)
+#define L0B_BUF0 ((__ca__ half*)(__ca__ char*)0x0)
+#define L0B_BUF1 ((__ca__ half*)(__ca__ char*)0x8000)
+#define L0C_BUF0 ((__ca__ half*)(__ca__ char*)0x0)
+#define L0C_BUF1 ((__ca__ half*)(__ca__ char*)0x20000)
 
-#define LAST_LOOP(x, n) ((x) == ((n)-1))
+#define LAST_LOOP(x, n) ((x) == ((n) - 1))
 #define UNIT_FLAG_ENABLE(i, n) (LAST_LOOP(i, n) ? 3 : 2)
 
 AICORE inline uint64_t getPingPong(uint32_t flip)
@@ -88,11 +86,13 @@ AICORE inline constexpr uint32_t calculateFittingCubeK(uint32_t Cube_M, uint32_t
     if (Cube_M * CUBE_K_256 * HALF_SIZE_BYTES <= MEM_BUFFER_SIZE_BYTES &&
         CUBE_K_256 * Cube_N * HALF_SIZE_BYTES <= MEM_BUFFER_SIZE_BYTES) {
         bestCubeK = CUBE_K_256;
-    } else if (Cube_M * CUBE_K_128 * HALF_SIZE_BYTES <= MEM_BUFFER_SIZE_BYTES &&
-               CUBE_K_128 * Cube_N * HALF_SIZE_BYTES <= MEM_BUFFER_SIZE_BYTES) {
+    } else if (
+        Cube_M * CUBE_K_128 * HALF_SIZE_BYTES <= MEM_BUFFER_SIZE_BYTES &&
+        CUBE_K_128 * Cube_N * HALF_SIZE_BYTES <= MEM_BUFFER_SIZE_BYTES) {
         bestCubeK = CUBE_K_128;
-    } else if (Cube_M * CUBE_K_64 * HALF_SIZE_BYTES <= MEM_BUFFER_SIZE_BYTES &&
-               CUBE_K_64 * Cube_N * HALF_SIZE_BYTES <= MEM_BUFFER_SIZE_BYTES) {
+    } else if (
+        Cube_M * CUBE_K_64 * HALF_SIZE_BYTES <= MEM_BUFFER_SIZE_BYTES &&
+        CUBE_K_64 * Cube_N * HALF_SIZE_BYTES <= MEM_BUFFER_SIZE_BYTES) {
         bestCubeK = CUBE_K_64;
     }
 
@@ -138,19 +138,20 @@ AICORE inline MatmulCallConfig resolve_acc_mode(AccMode mode, bool isFirstSlice,
     return MatmulCallConfig{!isFirstSlice, AccPhase::Partial};
 }
 
-template <unsigned Cube_M, unsigned Tile_K, unsigned Cube_N, layout_t LAYOUT = layout_t::NONE, typename TileDataA,
-          typename TileDataB, typename TileDataC>
-AICORE inline void pto_macro_matmul(TileDataA &aMatTile, TileDataB &bMatTile, TileDataC &cAccTile,
-                                    AccMode accMode = AccMode::Init)
+template <
+    unsigned Cube_M, unsigned Tile_K, unsigned Cube_N, layout_t LAYOUT = layout_t::NONE, typename TileDataA,
+    typename TileDataB, typename TileDataC>
+AICORE inline void pto_macro_matmul(
+    TileDataA& aMatTile, TileDataB& bMatTile, TileDataC& cAccTile, AccMode accMode = AccMode::Init)
 {
     constexpr layout_t layout = deduce_layout<TileDataA, TileDataB>();
 
     static_assert(layout != layout_t::NONE, "Deduced layout is NONE, check tile SLayouts");
     // Assert that template LAYOUT matches deduced layout if LAYOUT is not NONE
     if constexpr (LAYOUT != layout_t::NONE) {
-        static_assert(LAYOUT == layout,
-                      "Layout mismatch: template LAYOUT does not match deduced layout from tile SLayouts. "
-                      "Check SLayout of TileDataA and TileDataB.");
+        static_assert(
+            LAYOUT == layout, "Layout mismatch: template LAYOUT does not match deduced layout from tile SLayouts. "
+                              "Check SLayout of TileDataA and TileDataB.");
     }
 
     // Ping-pong is used to overlap TEXTRACT (L1->L0) with TMATMUL on alternating buffers.

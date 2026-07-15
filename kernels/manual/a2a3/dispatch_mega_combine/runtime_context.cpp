@@ -24,10 +24,7 @@ void StandaloneHcclContext::ReleaseRemoteWindowContext()
     owns_remote_window_ctx = false;
 }
 
-void StandaloneHcclContext::ResetHostRemoteWindowContext()
-{
-    host_remote_window_ctx = {};
-}
+void StandaloneHcclContext::ResetHostRemoteWindowContext() { host_remote_window_ctx = {}; }
 
 void StandaloneHcclContext::SetHostContextWorkspace(uint64_t workspaceBase, uint64_t workspaceBytes)
 {
@@ -50,25 +47,27 @@ void StandaloneHcclContext::SetHostWindow(uint32_t rank, uint64_t windowIn, uint
 
 bool StandaloneHcclContext::LoadHostRemoteWindowContextFromDevice()
 {
-    return aclrtMemcpy(&host_remote_window_ctx, sizeof(host_remote_window_ctx), remote_window_ctx,
-                       sizeof(host_remote_window_ctx), ACL_MEMCPY_DEVICE_TO_HOST) == ACL_SUCCESS;
+    return aclrtMemcpy(
+               &host_remote_window_ctx, sizeof(host_remote_window_ctx), remote_window_ctx,
+               sizeof(host_remote_window_ctx), ACL_MEMCPY_DEVICE_TO_HOST) == ACL_SUCCESS;
 }
 
 bool StandaloneHcclContext::CopyHostRemoteWindowContextToDevice()
 {
-    void *new_dev_mem = nullptr;
+    void* new_dev_mem = nullptr;
     if (aclrtMalloc(&new_dev_mem, sizeof(PtoRemoteWindowContext), ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS ||
         new_dev_mem == nullptr) {
         return false;
     }
 
-    if (aclrtMemcpy(new_dev_mem, sizeof(PtoRemoteWindowContext), &host_remote_window_ctx,
-                    sizeof(PtoRemoteWindowContext), ACL_MEMCPY_HOST_TO_DEVICE) != ACL_SUCCESS) {
+    if (aclrtMemcpy(
+            new_dev_mem, sizeof(PtoRemoteWindowContext), &host_remote_window_ctx, sizeof(PtoRemoteWindowContext),
+            ACL_MEMCPY_HOST_TO_DEVICE) != ACL_SUCCESS) {
         aclrtFree(new_dev_mem);
         return false;
     }
 
-    remote_window_ctx = reinterpret_cast<PtoRemoteWindowContext *>(new_dev_mem);
+    remote_window_ctx = reinterpret_cast<PtoRemoteWindowContext*>(new_dev_mem);
     owns_remote_window_ctx = true;
     return true;
 }
@@ -253,7 +252,7 @@ struct HcclOpResParam {
 } // namespace pto_hccl_compat
 
 template <size_t Size>
-void CopyCStringBounded(char (&dst)[Size], const char *src)
+void CopyCStringBounded(char (&dst)[Size], const char* src)
 {
     static_assert(Size > 0U);
     std::fill(dst, dst + Size, '\0');
@@ -271,20 +270,21 @@ constexpr uint32_t COMM_IS_NOT_SET_DEVICE = 0;
 constexpr uint32_t COMM_TOPO_MESH = 0b1U;
 constexpr int32_t RT_STREAM_PRIORITY_DEFAULT = 0;
 
-void AttachExternalRemoteWindowContext(StandaloneHcclContext &hccl, PtoRemoteWindowContext *remoteWindowCtx)
+void AttachExternalRemoteWindowContext(StandaloneHcclContext& hccl, PtoRemoteWindowContext* remoteWindowCtx)
 {
     hccl.remote_window_ctx = remoteWindowCtx;
     hccl.owns_remote_window_ctx = false;
 }
 
-bool LoadMeshRemoteWindowContext(StandaloneHcclContext &hccl, void *ctx_ptr)
+bool LoadMeshRemoteWindowContext(StandaloneHcclContext& hccl, void* ctx_ptr)
 {
-    AttachExternalRemoteWindowContext(hccl, reinterpret_cast<PtoRemoteWindowContext *>(ctx_ptr));
+    AttachExternalRemoteWindowContext(hccl, reinterpret_cast<PtoRemoteWindowContext*>(ctx_ptr));
     return hccl.LoadHostRemoteWindowContextFromDevice();
 }
 
-bool ReadRingParams(uint8_t *raw_ctx, pto_hccl_compat::HcclOpResParamHead &head,
-                    std::vector<pto_hccl_compat::RemoteResPtr> &remote_res_arr)
+bool ReadRingParams(
+    uint8_t* raw_ctx, pto_hccl_compat::HcclOpResParamHead& head,
+    std::vector<pto_hccl_compat::RemoteResPtr>& remote_res_arr)
 {
     const size_t head_offset = offsetof(pto_hccl_compat::HcclOpResParam, localUsrRankId);
     if (aclrtMemcpy(&head, sizeof(head), raw_ctx + head_offset, sizeof(head), ACL_MEMCPY_DEVICE_TO_HOST) !=
@@ -299,22 +299,24 @@ bool ReadRingParams(uint8_t *raw_ctx, pto_hccl_compat::HcclOpResParamHead &head,
     const size_t remote_res_offset = offsetof(pto_hccl_compat::HcclOpResParam, remoteRes);
     const size_t remote_res_bytes = static_cast<size_t>(head.rankSize) * sizeof(pto_hccl_compat::RemoteResPtr);
     remote_res_arr.resize(head.rankSize);
-    if (aclrtMemcpy(remote_res_arr.data(), remote_res_bytes, raw_ctx + remote_res_offset, remote_res_bytes,
-                    ACL_MEMCPY_DEVICE_TO_HOST) != ACL_SUCCESS) {
+    if (aclrtMemcpy(
+            remote_res_arr.data(), remote_res_bytes, raw_ctx + remote_res_offset, remote_res_bytes,
+            ACL_MEMCPY_DEVICE_TO_HOST) != ACL_SUCCESS) {
         return false;
     }
     return true;
 }
 
-bool BuildRingHostRemoteWindowContext(StandaloneHcclContext &hccl, uint8_t *raw_ctx,
-                                      const pto_hccl_compat::HcclOpResParamHead &head,
-                                      const std::vector<pto_hccl_compat::RemoteResPtr> &remote_res_arr)
+bool BuildRingHostRemoteWindowContext(
+    StandaloneHcclContext& hccl, uint8_t* raw_ctx, const pto_hccl_compat::HcclOpResParamHead& head,
+    const std::vector<pto_hccl_compat::RemoteResPtr>& remote_res_arr)
 {
     hccl.ResetHostRemoteWindowContext();
 
     uint64_t workspace_fields[2] = {0, 0};
-    if (aclrtMemcpy(workspace_fields, sizeof(workspace_fields), raw_ctx, sizeof(workspace_fields),
-                    ACL_MEMCPY_DEVICE_TO_HOST) == ACL_SUCCESS) {
+    if (aclrtMemcpy(
+            workspace_fields, sizeof(workspace_fields), raw_ctx, sizeof(workspace_fields), ACL_MEMCPY_DEVICE_TO_HOST) ==
+        ACL_SUCCESS) {
         hccl.SetHostContextWorkspace(workspace_fields[0], workspace_fields[1]);
     }
 
@@ -332,8 +334,9 @@ bool BuildRingHostRemoteWindowContext(StandaloneHcclContext &hccl, uint8_t *raw_
         }
 
         pto_hccl_compat::HcclRankRelationResV2 remote_info{};
-        if (aclrtMemcpy(&remote_info, sizeof(remote_info), reinterpret_cast<void *>(dev_ptr), sizeof(remote_info),
-                        ACL_MEMCPY_DEVICE_TO_HOST) != ACL_SUCCESS) {
+        if (aclrtMemcpy(
+                &remote_info, sizeof(remote_info), reinterpret_cast<void*>(dev_ptr), sizeof(remote_info),
+                ACL_MEMCPY_DEVICE_TO_HOST) != ACL_SUCCESS) {
             return false;
         }
 
@@ -343,8 +346,8 @@ bool BuildRingHostRemoteWindowContext(StandaloneHcclContext &hccl, uint8_t *raw_
 }
 } // namespace
 
-bool InitStandaloneRankRuntime(StandaloneRankRuntime &runtime, int rank_id, int world_size,
-                               const HcclRootInfo &root_info)
+bool InitStandaloneRankRuntime(
+    StandaloneRankRuntime& runtime, int rank_id, int world_size, const HcclRootInfo& root_info)
 {
     runtime.hccl.rank_id = rank_id;
     runtime.hccl.world_size = world_size;
@@ -359,8 +362,9 @@ bool InitStandaloneRankRuntime(StandaloneRankRuntime &runtime, int rank_id, int 
     if (rtStreamCreate(&runtime.hccl.hccl_stream, RT_STREAM_PRIORITY_DEFAULT) != 0) {
         return false;
     }
-    if (HcclCommInitRootInfo(static_cast<uint32_t>(world_size), &root_info, static_cast<uint32_t>(rank_id),
-                             &runtime.hccl.comm) != HCCL_SUCCESS) {
+    if (HcclCommInitRootInfo(
+            static_cast<uint32_t>(world_size), &root_info, static_cast<uint32_t>(rank_id), &runtime.hccl.comm) !=
+        HCCL_SUCCESS) {
         return false;
     }
 
@@ -392,7 +396,7 @@ bool InitStandaloneRankRuntime(StandaloneRankRuntime &runtime, int rank_id, int 
     CopyCStringBounded(tiling.inner.groupName, group);
     CopyCStringBounded(tiling.inner.algConfig, "BatchWrite=level0:fullmesh");
 
-    void *ctx_ptr = nullptr;
+    void* ctx_ptr = nullptr;
     if (HcclAllocComResourceByTiling(comm_handle, runtime.hccl.hccl_stream, &tiling, &ctx_ptr) != HCCL_SUCCESS ||
         ctx_ptr == nullptr) {
         return false;
@@ -402,7 +406,7 @@ bool InitStandaloneRankRuntime(StandaloneRankRuntime &runtime, int rank_id, int 
         return LoadMeshRemoteWindowContext(runtime.hccl, ctx_ptr);
     }
 
-    auto *raw_ctx = reinterpret_cast<uint8_t *>(ctx_ptr);
+    auto* raw_ctx = reinterpret_cast<uint8_t*>(ctx_ptr);
     pto_hccl_compat::HcclOpResParamHead head{};
     std::vector<pto_hccl_compat::RemoteResPtr> remote_res_arr;
     if (!ReadRingParams(raw_ctx, head, remote_res_arr)) {
@@ -414,7 +418,7 @@ bool InitStandaloneRankRuntime(StandaloneRankRuntime &runtime, int rank_id, int 
     return runtime.hccl.CopyHostRemoteWindowContextToDevice();
 }
 
-void DestroyStandaloneRankRuntime(StandaloneRankRuntime &runtime)
+void DestroyStandaloneRankRuntime(StandaloneRankRuntime& runtime)
 {
     runtime.hccl.ReleaseRemoteWindowContext();
     runtime.hccl.ResetHostRemoteWindowContext();

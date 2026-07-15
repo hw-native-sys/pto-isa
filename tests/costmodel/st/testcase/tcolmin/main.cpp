@@ -40,55 +40,16 @@ void runTColMin()
 
 } // namespace
 
-TEST(TColMin, case1)
-{
-    runTColMin<int16_t, 16, 16, 8, 0.0f, 0.0f>();
-}
-TEST(TColMin, case2)
-{
-    runTColMin<int32_t, 16, 16, 8, 0.0f, 0.0f>();
-}
-TEST(TColMin, case3)
-{
-    runTColMin<float, 16, 16, 8, 0.0f, 0.0f>();
-}
-TEST(TColMin, case4)
-{
-    runTColMin<int16_t, 128, 16, 8, 0.0f, 0.0f>();
-}
-TEST(TColMin, case5)
-{
-    runTColMin<int32_t, 64, 16, 8, 0.0f, 0.0f>();
-}
-TEST(TColMin, case6)
-{
-    runTColMin<float, 64, 16, 8, 0.0f, 0.0f>();
-}
-TEST(TColMin, case7)
-{
-    runTColMin<int16_t, 512, 16, 8, 0.0f, 0.0f>();
-}
-TEST(TColMin, case8)
-{
-    runTColMin<int32_t, 256, 16, 8, 0.0f, 0.0f>();
-}
-TEST(TColMin, case9)
-{
-    runTColMin<float, 256, 16, 8, 0.0f, 0.0f>();
-}
-TEST(TColMin, case10)
-{
-    runTColMin<int16_t, 512, 16, 7, 0.0f, 0.0f>();
-}
-TEST(TColMin, case11)
-{
-    runTColMin<int32_t, 256, 32, 31, 0.0f, 0.0f>();
-}
-TEST(TColMin, case12)
-{
-    runTColMin<float, 256, 32, 31, 0.0f, 0.0f>();
-}
-TEST(TColMin, case13)
-{
-    runTColMin<float, 256, 16, 1, 0.0f, 0.0f>();
-}
+TEST(TColMin, case1) { runTColMin<int16_t, 16, 16, 8, 0.0f, 0.0f>(); }
+TEST(TColMin, case2) { runTColMin<int32_t, 16, 16, 8, 0.0f, 0.0f>(); }
+TEST(TColMin, case3) { runTColMin<float, 16, 16, 8, 0.0f, 0.0f>(); }
+TEST(TColMin, case4) { runTColMin<int16_t, 128, 16, 8, 0.0f, 0.0f>(); }
+TEST(TColMin, case5) { runTColMin<int32_t, 64, 16, 8, 0.0f, 0.0f>(); }
+TEST(TColMin, case6) { runTColMin<float, 64, 16, 8, 0.0f, 0.0f>(); }
+TEST(TColMin, case7) { runTColMin<int16_t, 512, 16, 8, 0.0f, 0.0f>(); }
+TEST(TColMin, case8) { runTColMin<int32_t, 256, 16, 8, 0.0f, 0.0f>(); }
+TEST(TColMin, case9) { runTColMin<float, 256, 16, 8, 0.0f, 0.0f>(); }
+TEST(TColMin, case10) { runTColMin<int16_t, 512, 16, 7, 0.0f, 0.0f>(); }
+TEST(TColMin, case11) { runTColMin<int32_t, 256, 32, 31, 0.0f, 0.0f>(); }
+TEST(TColMin, case12) { runTColMin<float, 256, 32, 31, 0.0f, 0.0f>(); }
+TEST(TColMin, case13) { runTColMin<float, 256, 16, 1, 0.0f, 0.0f>(); }

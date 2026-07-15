@@ -25,10 +25,7 @@ inline constexpr uint64_t kElementsPerRepeatB32 = 64;
 inline constexpr uint64_t kElementsPerRepeatB16 = 128;
 inline constexpr uint64_t kElementsPerRepeatB8 = 256;
 
-inline uint64_t CeilDivU64(uint64_t x, uint64_t y)
-{
-    return y == 0 ? 0 : (x + y - 1) / y;
-}
+inline uint64_t CeilDivU64(uint64_t x, uint64_t y) { return y == 0 ? 0 : (x + y - 1) / y; }
 
 inline std::string_view PtoOpcodeToKey(PtoOpcode op)
 {
@@ -53,7 +50,7 @@ inline std::string_view PtoOpcodeToKey(PtoOpcode op)
         std::pair{PtoOpcode::TCVT, std::string_view("TCVT")},
         std::pair{PtoOpcode::TSEL, std::string_view("TSEL")},
     };
-    for (const auto &[opcode, key] : kOpcodeKeys) {
+    for (const auto& [opcode, key] : kOpcodeKeys) {
         if (opcode == op) {
             return key;
         }
@@ -97,7 +94,7 @@ inline std::string_view DTypeToKey(DType dtype)
     }
 }
 
-inline bool TryGetA5ElementsPerRepeatByDTypeKey(std::string_view dtype_key, uint64_t &elements_per_repeat)
+inline bool TryGetA5ElementsPerRepeatByDTypeKey(std::string_view dtype_key, uint64_t& elements_per_repeat)
 {
     if (dtype_key == "fp4_e1m2" || dtype_key == "fp4_e2m1") {
         elements_per_repeat = kElementsPerRepeatB8;
@@ -123,13 +120,13 @@ inline bool TryGetA5ElementsPerRepeatByDTypeKey(std::string_view dtype_key, uint
     return false;
 }
 
-inline bool TryGetA5ElementsPerRepeat(DType dtype, uint64_t &elements_per_repeat)
+inline bool TryGetA5ElementsPerRepeat(DType dtype, uint64_t& elements_per_repeat)
 {
     return TryGetA5ElementsPerRepeatByDTypeKey(DTypeToKey(dtype), elements_per_repeat);
 }
 
-inline bool TryGetA5CvtElementsPerRepeat(std::string_view src_dtype, std::string_view dst_dtype,
-                                         fit::ShapePath shape_path, uint64_t &elements_per_repeat)
+inline bool TryGetA5CvtElementsPerRepeat(
+    std::string_view src_dtype, std::string_view dst_dtype, fit::ShapePath shape_path, uint64_t& elements_per_repeat)
 {
     if ((src_dtype == "fp16" || src_dtype == "bf16") && dst_dtype == "fp32") {
         elements_per_repeat = kElementsPerRepeatB32;
@@ -252,7 +249,7 @@ struct VfCurveContext {
     uint64_t elements_per_repeat = 0;
 };
 
-inline bool TryInitVfCurveContext(const CostModelInput &input, VfCurveContext &context)
+inline bool TryInitVfCurveContext(const CostModelInput& input, VfCurveContext& context)
 {
     context.valid_rows_i = input.valid_rows > 0 ? input.valid_rows : input.rows;
     context.valid_cols_i = input.valid_cols > 0 ? input.valid_cols : input.cols;
@@ -270,7 +267,7 @@ inline bool TryInitVfCurveContext(const CostModelInput &input, VfCurveContext &c
     return !context.src_dtype.empty();
 }
 
-inline bool TryResolveVfOpParams(const CostModelInput &input, VfCurveContext &context)
+inline bool TryResolveVfOpParams(const CostModelInput& input, VfCurveContext& context)
 {
     if (input.op == PtoOpcode::TCVT) {
         context.dst_dtype = DTypeToKey(input.dst_dtype);
@@ -286,17 +283,18 @@ inline bool TryResolveVfOpParams(const CostModelInput &input, VfCurveContext &co
     return !context.dst_dtype.empty();
 }
 
-inline bool TryResolveElementsPerRepeat(const CostModelInput &input, VfCurveContext &context)
+inline bool TryResolveElementsPerRepeat(const CostModelInput& input, VfCurveContext& context)
 {
     if (input.op == PtoOpcode::TCVT) {
-        return TryGetA5CvtElementsPerRepeat(context.src_dtype, context.dst_dtype, context.shape_path,
-                                            context.elements_per_repeat);
+        return TryGetA5CvtElementsPerRepeat(
+            context.src_dtype, context.dst_dtype, context.shape_path, context.elements_per_repeat);
     }
     return TryGetA5ElementsPerRepeat(input.dtype, context.elements_per_repeat);
 }
 
-inline void ResolveLoopCounts(const VfCurveContext &context, uint64_t &loop_count, uint64_t &outer_iter,
-                              uint64_t &inner_iter, uint64_t &tail_count)
+inline void ResolveLoopCounts(
+    const VfCurveContext& context, uint64_t& loop_count, uint64_t& outer_iter, uint64_t& inner_iter,
+    uint64_t& tail_count)
 {
     const uint64_t valid_rows = static_cast<uint64_t>(context.valid_rows_i);
     const uint64_t valid_cols = static_cast<uint64_t>(context.valid_cols_i);
@@ -313,7 +311,7 @@ inline void ResolveLoopCounts(const VfCurveContext &context, uint64_t &loop_coun
     tail_count = valid_cols % context.elements_per_repeat;
 }
 
-inline bool TryResolveTselOpParams(const CostModelInput &input, uint64_t inner_iter, VfCurveContext &context)
+inline bool TryResolveTselOpParams(const CostModelInput& input, uint64_t inner_iter, VfCurveContext& context)
 {
     if (input.op != PtoOpcode::TSEL) {
         return true;
@@ -324,8 +322,9 @@ inline bool TryResolveTselOpParams(const CostModelInput &input, uint64_t inner_i
     return !context.op_params.empty();
 }
 
-inline bool BuildVfCurveKeyAndLoopCount(const CostModelInput &input, fit::VfCurveKey &key, uint64_t &loop_count,
-                                        uint64_t &outer_iter, uint64_t &inner_iter, uint64_t &tail_count)
+inline bool BuildVfCurveKeyAndLoopCount(
+    const CostModelInput& input, fit::VfCurveKey& key, uint64_t& loop_count, uint64_t& outer_iter, uint64_t& inner_iter,
+    uint64_t& tail_count)
 {
     VfCurveContext context;
     if (!TryInitVfCurveContext(input, context) || !TryResolveVfOpParams(input, context) ||
@@ -351,7 +350,7 @@ inline bool BuildVfCurveKeyAndLoopCount(const CostModelInput &input, fit::VfCurv
     return true;
 }
 
-inline bool TryEstimateA5VfCycles(const CostModelInput &input, uint64_t &cycles)
+inline bool TryEstimateA5VfCycles(const CostModelInput& input, uint64_t& cycles)
 {
     fit::VfCurveKey key{};
     uint64_t loop_count = 0;
@@ -362,7 +361,7 @@ inline bool TryEstimateA5VfCycles(const CostModelInput &input, uint64_t &cycles)
         return false;
     }
 
-    const fit::VfFormulaParam *param = nullptr;
+    const fit::VfFormulaParam* param = nullptr;
     if (!fit::TryLookupVfFormulaParam(key, param)) {
         return false;
     }

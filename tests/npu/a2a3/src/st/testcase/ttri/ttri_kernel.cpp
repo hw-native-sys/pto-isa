@@ -15,7 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int isUpperOrLower, int diagonal, int kTRows_, int kTCols_, int vRows, int vCols>
-__global__ AICORE void runTTri(__gm__ T __out__ *out)
+__global__ AICORE void runTTri(__gm__ T __out__* out)
 {
     using DynShapeDim5 = Shape<1, 1, 1, vRows, vCols>;
     using DynStridDim5 = Stride<1, 1, 1, vCols, 1>;
@@ -36,34 +36,34 @@ __global__ AICORE void runTTri(__gm__ T __out__ *out)
 }
 
 template <typename T, int isUpperOrLower, int diagonal, int kTRows_, int kTCols_, int vRows, int vCols>
-void LaunchTTri(T *out, void *stream)
+void LaunchTTri(T* out, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>)
-        runTTri<half, isUpperOrLower, diagonal, kTRows_, kTCols_, vRows, vCols><<<1, nullptr, stream>>>((half *)(out));
+        runTTri<half, isUpperOrLower, diagonal, kTRows_, kTCols_, vRows, vCols><<<1, nullptr, stream>>>((half*)(out));
     else
         runTTri<T, isUpperOrLower, diagonal, kTRows_, kTCols_, vRows, vCols><<<1, nullptr, stream>>>(out);
 }
 
-template void LaunchTTri<float, 1, 0, 4, 8, 4, 4>(float *out, void *stream);
-template void LaunchTTri<float, 1, 0, 64, 64, 64, 64>(float *out, void *stream);
-template void LaunchTTri<int32_t, 1, 0, 64, 64, 64, 64>(int32_t *out, void *stream);
-template void LaunchTTri<int16_t, 1, 0, 64, 64, 64, 64>(int16_t *out, void *stream);
-template void LaunchTTri<aclFloat16, 1, 0, 16, 256, 16, 256>(aclFloat16 *out, void *stream);
-template void LaunchTTri<float, 1, 0, 128, 128, 128, 128>(float *out, void *stream);
-template void LaunchTTri<float, 0, 0, 64, 64, 64, 64>(float *out, void *stream);
-template void LaunchTTri<int32_t, 0, 0, 64, 64, 64, 64>(int32_t *out, void *stream);
-template void LaunchTTri<int16_t, 0, 0, 64, 64, 64, 64>(int16_t *out, void *stream);
-template void LaunchTTri<aclFloat16, 0, 0, 16, 256, 16, 256>(aclFloat16 *out, void *stream);
-template void LaunchTTri<float, 0, 0, 128, 128, 128, 128>(float *out, void *stream);
-template void LaunchTTri<float, 0, 0, 128, 128, 128, 125>(float *out, void *stream);
-template void LaunchTTri<uint32_t, 1, 0, 64, 64, 64, 64>(uint32_t *out, void *stream);
-template void LaunchTTri<uint32_t, 0, 0, 64, 64, 64, 64>(uint32_t *out, void *stream);
+template void LaunchTTri<float, 1, 0, 4, 8, 4, 4>(float* out, void* stream);
+template void LaunchTTri<float, 1, 0, 64, 64, 64, 64>(float* out, void* stream);
+template void LaunchTTri<int32_t, 1, 0, 64, 64, 64, 64>(int32_t* out, void* stream);
+template void LaunchTTri<int16_t, 1, 0, 64, 64, 64, 64>(int16_t* out, void* stream);
+template void LaunchTTri<aclFloat16, 1, 0, 16, 256, 16, 256>(aclFloat16* out, void* stream);
+template void LaunchTTri<float, 1, 0, 128, 128, 128, 128>(float* out, void* stream);
+template void LaunchTTri<float, 0, 0, 64, 64, 64, 64>(float* out, void* stream);
+template void LaunchTTri<int32_t, 0, 0, 64, 64, 64, 64>(int32_t* out, void* stream);
+template void LaunchTTri<int16_t, 0, 0, 64, 64, 64, 64>(int16_t* out, void* stream);
+template void LaunchTTri<aclFloat16, 0, 0, 16, 256, 16, 256>(aclFloat16* out, void* stream);
+template void LaunchTTri<float, 0, 0, 128, 128, 128, 128>(float* out, void* stream);
+template void LaunchTTri<float, 0, 0, 128, 128, 128, 125>(float* out, void* stream);
+template void LaunchTTri<uint32_t, 1, 0, 64, 64, 64, 64>(uint32_t* out, void* stream);
+template void LaunchTTri<uint32_t, 0, 0, 64, 64, 64, 64>(uint32_t* out, void* stream);
 
-template void LaunchTTri<float, 0, 2, 128, 128, 128, 111>(float *out, void *stream);
-template void LaunchTTri<float, 0, -2, 128, 128, 128, 111>(float *out, void *stream);
-template void LaunchTTri<float, 0, 444, 128, 128, 128, 31>(float *out, void *stream);
-template void LaunchTTri<float, 0, -444, 128, 128, 128, 31>(float *out, void *stream);
-template void LaunchTTri<float, 1, 2, 128, 128, 128, 111>(float *out, void *stream);
-template void LaunchTTri<float, 1, -2, 128, 128, 128, 111>(float *out, void *stream);
-template void LaunchTTri<float, 1, 444, 128, 128, 128, 31>(float *out, void *stream);
-template void LaunchTTri<float, 1, -444, 128, 128, 128, 31>(float *out, void *stream);
+template void LaunchTTri<float, 0, 2, 128, 128, 128, 111>(float* out, void* stream);
+template void LaunchTTri<float, 0, -2, 128, 128, 128, 111>(float* out, void* stream);
+template void LaunchTTri<float, 0, 444, 128, 128, 128, 31>(float* out, void* stream);
+template void LaunchTTri<float, 0, -444, 128, 128, 128, 31>(float* out, void* stream);
+template void LaunchTTri<float, 1, 2, 128, 128, 128, 111>(float* out, void* stream);
+template void LaunchTTri<float, 1, -2, 128, 128, 128, 111>(float* out, void* stream);
+template void LaunchTTri<float, 1, 444, 128, 128, 128, 31>(float* out, void* stream);
+template void LaunchTTri<float, 1, -444, 128, 128, 128, 31>(float* out, void* stream);

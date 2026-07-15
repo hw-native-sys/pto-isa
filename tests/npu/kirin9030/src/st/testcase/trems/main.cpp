@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class TREMSTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -33,7 +31,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols, bool isHalf>
-void LaunchTRems(T *out, T *src0, T *src1, void *stream);
+void LaunchTRems(T* out, T* src0, T* src1, void* stream);
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols, bool isHalf>
 void test_trems()
@@ -49,13 +47,13 @@ void test_trems()
     T *dstHost, *src0Host, *src1Host;
     T *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&src0Host), fileSize);
-    aclrtMallocHost((void **)(&src1Host), scalarSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&src0Host), fileSize);
+    aclrtMallocHost((void**)(&src1Host), scalarSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, scalarSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, scalarSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input1.bin", fileSize, src0Host, fileSize);
     ReadFile(GetGoldenDir() + "/input2.bin", scalarSize, src1Host, scalarSize);
@@ -92,42 +90,18 @@ void test_trems()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TREMSTest, case1)
-{
-    test_trems<uint16_t, 64, 64, 64, 64, false>();
-}
+TEST_F(TREMSTest, case1) { test_trems<uint16_t, 64, 64, 64, 64, false>(); }
 
-TEST_F(TREMSTest, case2)
-{
-    test_trems<uint16_t, 64, 64, 63, 63, false>();
-}
+TEST_F(TREMSTest, case2) { test_trems<uint16_t, 64, 64, 63, 63, false>(); }
 
-TEST_F(TREMSTest, case3)
-{
-    test_trems<uint16_t, 1, 16384, 1, 16384, false>();
-}
+TEST_F(TREMSTest, case3) { test_trems<uint16_t, 1, 16384, 1, 16384, false>(); }
 
-TEST_F(TREMSTest, case5)
-{
-    test_trems<float, 32, 32, 32, 32, false>();
-}
+TEST_F(TREMSTest, case5) { test_trems<float, 32, 32, 32, 32, false>(); }
 
-TEST_F(TREMSTest, case6)
-{
-    test_trems<uint32_t, 8, 8, 8, 8, false>();
-}
+TEST_F(TREMSTest, case6) { test_trems<uint32_t, 8, 8, 8, 8, false>(); }
 
-TEST_F(TREMSTest, case7)
-{
-    test_trems<aclFloat16, 32, 32, 31, 31, true>();
-}
+TEST_F(TREMSTest, case7) { test_trems<aclFloat16, 32, 32, 31, 31, true>(); }
 
-TEST_F(TREMSTest, case8)
-{
-    test_trems<int16_t, 16, 16, 16, 16, false>();
-}
+TEST_F(TREMSTest, case8) { test_trems<int16_t, 16, 16, 16, 16, false>(); }
 
-TEST_F(TREMSTest, case9)
-{
-    test_trems<int32_t, 8, 8, 8, 8, false>();
-}
+TEST_F(TREMSTest, case9) { test_trems<int32_t, 8, 8, 8, 8, false>(); }

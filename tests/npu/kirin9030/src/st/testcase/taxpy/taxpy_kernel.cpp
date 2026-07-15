@@ -15,7 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols>
-__global__ AICORE void runTAxpy(__gm__ T *out, __gm__ T *src0, float scalar)
+__global__ AICORE void runTAxpy(__gm__ T* out, __gm__ T* src0, float scalar)
 {
     using DynShapeDim5 = Shape<1, 1, 1, vRows, vCols>;
     using DynStridDim5 = pto::Stride<vRows * vCols, vRows * vCols, vRows * vCols, vCols, 1>;
@@ -41,19 +41,19 @@ __global__ AICORE void runTAxpy(__gm__ T *out, __gm__ T *src0, float scalar)
 }
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols>
-void LaunchTAxpy(T *out, T *src0, float scalar, void *stream)
+void LaunchTAxpy(T* out, T* src0, float scalar, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>)
-        runTAxpy<half, kTRows_, kTCols_, vRows, vCols><<<1, nullptr, stream>>>((half *)out, (half *)src0, scalar);
+        runTAxpy<half, kTRows_, kTCols_, vRows, vCols><<<1, nullptr, stream>>>((half*)out, (half*)src0, scalar);
     else
         runTAxpy<T, kTRows_, kTCols_, vRows, vCols><<<1, nullptr, stream>>>(out, src0, scalar);
 }
 
-template void LaunchTAxpy<aclFloat16, 64, 64, 64, 64>(aclFloat16 *out, aclFloat16 *src0, float scalar, void *stream);
-template void LaunchTAxpy<aclFloat16, 64, 64, 63, 63>(aclFloat16 *out, aclFloat16 *src0, float scalar, void *stream);
-template void LaunchTAxpy<aclFloat16, 1, 16384, 1, 16384>(aclFloat16 *out, aclFloat16 *src0, float scalar,
-                                                          void *stream);
-template void LaunchTAxpy<aclFloat16, 2048, 16, 2048, 16>(aclFloat16 *out, aclFloat16 *src0, float scalar,
-                                                          void *stream);
-template void LaunchTAxpy<float, 8, 8, 8, 8>(float *out, float *src0, float scalar, void *stream);
-template void LaunchTAxpy<float, 16, 16, 15, 15>(float *out, float *src0, float scalar, void *stream);
+template void LaunchTAxpy<aclFloat16, 64, 64, 64, 64>(aclFloat16* out, aclFloat16* src0, float scalar, void* stream);
+template void LaunchTAxpy<aclFloat16, 64, 64, 63, 63>(aclFloat16* out, aclFloat16* src0, float scalar, void* stream);
+template void LaunchTAxpy<aclFloat16, 1, 16384, 1, 16384>(
+    aclFloat16* out, aclFloat16* src0, float scalar, void* stream);
+template void LaunchTAxpy<aclFloat16, 2048, 16, 2048, 16>(
+    aclFloat16* out, aclFloat16* src0, float scalar, void* stream);
+template void LaunchTAxpy<float, 8, 8, 8, 8>(float* out, float* src0, float scalar, void* stream);
+template void LaunchTAxpy<float, 16, 16, 15, 15>(float* out, float* src0, float scalar, void* stream);

@@ -17,8 +17,9 @@ using namespace std;
 using namespace pto;
 using namespace PtoTestCommon;
 
-template <typename T, int rows, int cols, int validRow, int validCol, TileType srcLoc, BLayout srcBL, SLayout srcSL,
-          TileType dstLoc, BLayout dstBL, SLayout dstSL>
+template <
+    typename T, int rows, int cols, int validRow, int validCol, TileType srcLoc, BLayout srcBL, SLayout srcSL,
+    TileType dstLoc, BLayout dstBL, SLayout dstSL>
 void testMov()
 {
     Tile<srcLoc, T, rows, cols, srcBL, validRow, validCol, srcSL> src;
@@ -37,8 +38,8 @@ void testMov()
         srcData[i] = static_cast<T>(std::rand() / 1000.0);
     }
 
-    using TensorType = GlobalTensor<T, Shape<1, 1, 1, validRow, validCol>,
-                                    Stride<validRow * validCol, validRow * validCol, validRow, validCol, 1>>;
+    using TensorType = GlobalTensor<
+        T, Shape<1, 1, 1, validRow, validCol>, Stride<validRow * validCol, validRow * validCol, validRow, validCol, 1>>;
     TensorType srcTensor(srcData.data());
     TensorType dstTensor(dstData.data());
 
@@ -51,19 +52,18 @@ void testMov()
 
 class TMOVTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
-#define TMOV_TEST(T, rows, cols, validRow, validCol, srcLoc, srcBL, srcSL, dstLoc, dstBL, dstSL)                       \
-    TEST_F(                                                                                                            \
-        TMOVTest,                                                                                                      \
-        T##_##rows##_##cols##_##validRow##_##validCol##_##srcLoc##_##srcBL##_##srcSL##_##dstLoc##_##dstBL##_##dstSL)   \
-    {                                                                                                                  \
-        testMov<T, rows, cols, validRow, validCol, TileType::srcLoc, BLayout::srcBL, SLayout::srcSL, TileType::dstLoc, \
-                BLayout::dstBL, SLayout::dstSL>();                                                                     \
+#define TMOV_TEST(T, rows, cols, validRow, validCol, srcLoc, srcBL, srcSL, dstLoc, dstBL, dstSL)                     \
+    TEST_F(                                                                                                          \
+        TMOVTest,                                                                                                    \
+        T##_##rows##_##cols##_##validRow##_##validCol##_##srcLoc##_##srcBL##_##srcSL##_##dstLoc##_##dstBL##_##dstSL) \
+    {                                                                                                                \
+        testMov<                                                                                                     \
+            T, rows, cols, validRow, validCol, TileType::srcLoc, BLayout::srcBL, SLayout::srcSL, TileType::dstLoc,   \
+            BLayout::dstBL, SLayout::dstSL>();                                                                       \
     }
 
 TMOV_TEST(float, 64, 128, 64, 128, Vec, RowMajor, NoneBox, Vec, RowMajor, NoneBox)

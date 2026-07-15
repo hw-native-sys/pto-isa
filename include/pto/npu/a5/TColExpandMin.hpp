@@ -21,15 +21,15 @@ namespace pto {
 
 template <typename T>
 struct ColExpandMinOp {
-    PTO_INTERNAL static void ColExpandBinaryInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, RegTensor<T> &reg_src1,
-                                                  MaskReg &preg)
+    PTO_INTERNAL static void ColExpandBinaryInstr(
+        RegTensor<T>& reg_dst, RegTensor<T>& reg_src0, RegTensor<T>& reg_src1, MaskReg& preg)
     {
         vmin(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);
     }
 };
 
 template <typename TileData, typename TileDataSrc0, typename TileDataSrc1>
-PTO_INTERNAL void TCOLEXPANDMIN_IMPL(TileData &dst, TileDataSrc0 &src0, TileDataSrc1 &src1)
+PTO_INTERNAL void TCOLEXPANDMIN_IMPL(TileData& dst, TileDataSrc0& src0, TileDataSrc1& src1)
 {
     using T = typename TileData::DType;
     TCOLEXPANDOP_IMPL<ColExpandMinOp<T>, ColExpandMinOp<T>, TileData, TileDataSrc0, TileDataSrc1>(dst, src0, src1);

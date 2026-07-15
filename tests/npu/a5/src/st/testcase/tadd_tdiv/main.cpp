@@ -21,15 +21,13 @@ using namespace PtoTestCommon;
 
 class CONCAT(CASENAME, Test) : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -37,7 +35,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols>
-void CONCAT(Launch, CASENAME)(T *out, T *src0, T *src1, T *src2, void *stream);
+void CONCAT(Launch, CASENAME)(T* out, T* src0, T* src1, T* src2, void* stream);
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols>
 void CONCAT(test_, CASENAME)()
@@ -52,15 +50,15 @@ void CONCAT(test_, CASENAME)()
     T *dstHost, *src0Host, *src1Host, *src2Host;
     T *dstDevice, *src0Device, *src1Device, *src2Device;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&src0Host), fileSize);
-    aclrtMallocHost((void **)(&src1Host), fileSize);
-    aclrtMallocHost((void **)(&src2Host), fileSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&src0Host), fileSize);
+    aclrtMallocHost((void**)(&src1Host), fileSize);
+    aclrtMallocHost((void**)(&src2Host), fileSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src2Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src2Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input1.bin", fileSize, src0Host, fileSize);
     ReadFile(GetGoldenDir() + "/input2.bin", fileSize, src1Host, fileSize);
@@ -98,11 +96,5 @@ void CONCAT(test_, CASENAME)()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(CONCAT(CASENAME, Test), case_float_64x64_64x64)
-{
-    CONCAT(test_, CASENAME)<float, 64, 64, 64, 64>();
-}
-TEST_F(CONCAT(CASENAME, Test), case_half_16x256_16x256)
-{
-    CONCAT(test_, CASENAME)<aclFloat16, 16, 256, 16, 256>();
-}
+TEST_F(CONCAT(CASENAME, Test), case_float_64x64_64x64) { CONCAT(test_, CASENAME)<float, 64, 64, 64, 64>(); }
+TEST_F(CONCAT(CASENAME, Test), case_half_16x256_16x256) { CONCAT(test_, CASENAME)<aclFloat16, 16, 256, 16, 256>(); }

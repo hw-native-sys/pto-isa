@@ -17,30 +17,28 @@ using namespace PtoTestCommon;
 
 namespace TRowExpandMulTest {
 template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst>
-void launchTRowExpandMul(T *out, T *src0, T *src1, void *stream);
+void launchTRowExpandMul(T* out, T* src0, T* src1, void* stream);
 
 template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst>
-void launchTRowExpandMul2(T *out, T *src0, T *src1, void *stream);
+void launchTRowExpandMul2(T* out, T* src0, T* src1, void* stream);
 
 class TRowExpandMulTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst,
-          bool isRowMajor>
+template <
+    typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst, bool isRowMajor>
 void test_trowexpandmul()
 {
     size_t inputFileSize = src1Row * src1Col * sizeof(T);
@@ -54,13 +52,13 @@ void test_trowexpandmul()
     T *dstHost, *src0Host, *src1Host;
     T *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), outputFileSize);
-    aclrtMallocHost((void **)(&src0Host), outputFileSize);
-    aclrtMallocHost((void **)(&src1Host), inputFileSize);
+    aclrtMallocHost((void**)(&dstHost), outputFileSize);
+    aclrtMallocHost((void**)(&src0Host), outputFileSize);
+    aclrtMallocHost((void**)(&src1Host), inputFileSize);
 
-    aclrtMalloc((void **)&dstDevice, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, inputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, inputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input0.bin", outputFileSize, src0Host, outputFileSize);
     ReadFile(GetGoldenDir() + "/input1.bin", inputFileSize, src1Host, inputFileSize);
@@ -99,32 +97,11 @@ void test_trowexpandmul()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TRowExpandMulTest, case_fp32_16_32)
-{
-    test_trowexpandmul<float, 16, 32, 16, 1, true, false>();
-}
-TEST_F(TRowExpandMulTest, case_fp32_56_128)
-{
-    test_trowexpandmul<float, 56, 128, 56, 1, true, false>();
-}
-TEST_F(TRowExpandMulTest, case_fp16_48_64)
-{
-    test_trowexpandmul<aclFloat16, 48, 64, 48, 1, true, false>();
-}
-TEST_F(TRowExpandMulTest, case_fp16_16_128)
-{
-    test_trowexpandmul<aclFloat16, 16, 128, 16, 1, true, false>();
-}
-TEST_F(TRowExpandMulTest, case_fp32_24_64)
-{
-    test_trowexpandmul<float, 24, 64, 24, 8, true, true>();
-}
-TEST_F(TRowExpandMulTest, case_fp16_32_64)
-{
-    test_trowexpandmul<aclFloat16, 32, 64, 32, 1, false, false>();
-}
-TEST_F(TRowExpandMulTest, case_fp32_20_64)
-{
-    test_trowexpandmul<float, 20, 64, 20, 8, false, true>();
-}
+TEST_F(TRowExpandMulTest, case_fp32_16_32) { test_trowexpandmul<float, 16, 32, 16, 1, true, false>(); }
+TEST_F(TRowExpandMulTest, case_fp32_56_128) { test_trowexpandmul<float, 56, 128, 56, 1, true, false>(); }
+TEST_F(TRowExpandMulTest, case_fp16_48_64) { test_trowexpandmul<aclFloat16, 48, 64, 48, 1, true, false>(); }
+TEST_F(TRowExpandMulTest, case_fp16_16_128) { test_trowexpandmul<aclFloat16, 16, 128, 16, 1, true, false>(); }
+TEST_F(TRowExpandMulTest, case_fp32_24_64) { test_trowexpandmul<float, 24, 64, 24, 8, true, true>(); }
+TEST_F(TRowExpandMulTest, case_fp16_32_64) { test_trowexpandmul<aclFloat16, 32, 64, 32, 1, false, false>(); }
+TEST_F(TRowExpandMulTest, case_fp32_20_64) { test_trowexpandmul<float, 20, 64, 20, 8, false, true>(); }
 } // namespace TRowExpandMulTest

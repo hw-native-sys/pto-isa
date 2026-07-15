@@ -17,15 +17,15 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 template <typename TileDataDst, typename TileDataMask, typename TileDataSrc, unsigned elementsPerRepeat>
-__tf__ PTO_INTERNAL void TSels_b32(typename TileDataDst::TileDType __out__ dst,
-                                   typename TileDataMask::TileDType __in__ mask,
-                                   typename TileDataSrc::TileDType __in__ src,
-                                   typename TileDataSrc::DType __in__ scalar, unsigned validRow, unsigned validCol)
+__tf__ PTO_INTERNAL void TSels_b32(
+    typename TileDataDst::TileDType __out__ dst, typename TileDataMask::TileDType __in__ mask,
+    typename TileDataSrc::TileDType __in__ src, typename TileDataSrc::DType __in__ scalar, unsigned validRow,
+    unsigned validCol)
 {
     using T = typename TileDataSrc::DType;
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ uint32_t *maskPtr = (__ubuf__ uint32_t *)__cce_get_tile_ptr(mask);
-    __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ uint32_t* maskPtr = (__ubuf__ uint32_t*)__cce_get_tile_ptr(mask);
+    __ubuf__ T* srcPtr = (__ubuf__ T*)__cce_get_tile_ptr(src);
     constexpr uint32_t maskRowStride = TileDataMask::RowStride * sizeof(typename TileDataMask::DType);
     uint16_t loopTimes = CeilDivision(validCol, elementsPerRepeat) / 2;
     __VEC_SCOPE__
@@ -74,15 +74,15 @@ __tf__ PTO_INTERNAL void TSels_b32(typename TileDataDst::TileDType __out__ dst,
 }
 
 template <typename TileDataDst, typename TileDataMask, typename TileDataSrc, unsigned elementsPerRepeat>
-__tf__ PTO_INTERNAL void TSels_b16_8(typename TileDataDst::TileDType __out__ dst,
-                                     typename TileDataMask::TileDType __in__ mask,
-                                     typename TileDataSrc::TileDType __in__ src,
-                                     typename TileDataSrc::DType __in__ scalar, unsigned validRow, unsigned validCol)
+__tf__ PTO_INTERNAL void TSels_b16_8(
+    typename TileDataDst::TileDType __out__ dst, typename TileDataMask::TileDType __in__ mask,
+    typename TileDataSrc::TileDType __in__ src, typename TileDataSrc::DType __in__ scalar, unsigned validRow,
+    unsigned validCol)
 {
     using T = typename TileDataSrc::DType;
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ typename TileDataMask::DType *maskPtr = (__ubuf__ typename TileDataMask::DType *)__cce_get_tile_ptr(mask);
-    __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ typename TileDataMask::DType* maskPtr = (__ubuf__ typename TileDataMask::DType*)__cce_get_tile_ptr(mask);
+    __ubuf__ T* srcPtr = (__ubuf__ T*)__cce_get_tile_ptr(src);
     uint16_t repeatTimes = CeilDivision(validCol, elementsPerRepeat);
     constexpr uint32_t maskRowStride = TileDataMask::RowStride * sizeof(typename TileDataMask::DType);
     __VEC_SCOPE__
@@ -100,9 +100,9 @@ __tf__ PTO_INTERNAL void TSels_b16_8(typename TileDataDst::TileDType __out__ dst
             for (uint16_t j = 0; j < (uint16_t)repeatTimes; ++j) {
                 vlds(vregSrc, srcPtr, i * TileDataSrc::RowStride + j * elementsPerRepeat, NORM);
                 if constexpr (sizeof(T) == 2) {
-                    plds(maskreg, (__ubuf__ uint32_t *)maskPtr, i * maskRowStride + j * 16, US);
+                    plds(maskreg, (__ubuf__ uint32_t*)maskPtr, i * maskRowStride + j * 16, US);
                 } else {
-                    plds(maskreg, (__ubuf__ uint32_t *)maskPtr, i * maskRowStride + j * 32, NORM);
+                    plds(maskreg, (__ubuf__ uint32_t*)maskPtr, i * maskRowStride + j * 32, NORM);
                 }
                 vsel(vregDst, vregSrc, vregScalar, maskreg);
                 preg = CreatePredicate<T>(sreg);
@@ -113,19 +113,21 @@ __tf__ PTO_INTERNAL void TSels_b16_8(typename TileDataDst::TileDType __out__ dst
 }
 
 template <typename TileDataDst, typename TileDataMask, typename TileDataSrc, typename TileDataTmp>
-PTO_INTERNAL void TSELS_IMPL(TileDataDst &dst, TileDataMask &mask, TileDataSrc &src, TileDataTmp &tmp,
-                             typename TileDataSrc::DType scalar)
+PTO_INTERNAL void TSELS_IMPL(
+    TileDataDst& dst, TileDataMask& mask, TileDataSrc& src, TileDataTmp& tmp, typename TileDataSrc::DType scalar)
 {
     using T = typename TileDataDst::DType;
-    static_assert(std::is_same_v<typename TileDataSrc::DType, typename TileDataDst::DType>,
-                  "TileType of dst and src must be the same.");
-    static_assert(std::is_same<T, int8_t>::value || std::is_same<T, int16_t>::value ||
-                      std::is_same<T, int32_t>::value || std::is_same<T, half>::value ||
-                      std::is_same<T, float32_t>::value || std::is_same<T, uint8_t>::value ||
-                      std::is_same<T, uint16_t>::value || std::is_same<T, uint32_t>::value,
-                  "TSELS: Invalid data type");
-    static_assert(TileDataDst::isRowMajor && TileDataMask::isRowMajor && TileDataSrc::isRowMajor,
-                  "TSELS: not supported Layout type");
+    static_assert(
+        std::is_same_v<typename TileDataSrc::DType, typename TileDataDst::DType>,
+        "TileType of dst and src must be the same.");
+    static_assert(
+        std::is_same<T, int8_t>::value || std::is_same<T, int16_t>::value || std::is_same<T, int32_t>::value ||
+            std::is_same<T, half>::value || std::is_same<T, float32_t>::value || std::is_same<T, uint8_t>::value ||
+            std::is_same<T, uint16_t>::value || std::is_same<T, uint32_t>::value,
+        "TSELS: Invalid data type");
+    static_assert(
+        TileDataDst::isRowMajor && TileDataMask::isRowMajor && TileDataSrc::isRowMajor,
+        "TSELS: not supported Layout type");
     static_assert(sizeof(T) == 4 || sizeof(T) == 2 || sizeof(T) == 1, "TSELS: Invalid data type.");
 
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
@@ -137,11 +139,11 @@ PTO_INTERNAL void TSELS_IMPL(TileDataDst &dst, TileDataMask &mask, TileDataSrc &
     PTO_ASSERT(src.GetValidRow() == dst.GetValidRow(), "Number of rows of src and dst must be the same.");
 
     if (sizeof(T) == 4) {
-        TSels_b32<TileDataDst, TileDataMask, TileDataSrc, elementsPerRepeat>(dst.data(), mask.data(), src.data(),
-                                                                             scalar, validRow, validCol);
+        TSels_b32<TileDataDst, TileDataMask, TileDataSrc, elementsPerRepeat>(
+            dst.data(), mask.data(), src.data(), scalar, validRow, validCol);
     } else {
-        TSels_b16_8<TileDataDst, TileDataMask, TileDataSrc, elementsPerRepeat>(dst.data(), mask.data(), src.data(),
-                                                                               scalar, validRow, validCol);
+        TSels_b16_8<TileDataDst, TileDataMask, TileDataSrc, elementsPerRepeat>(
+            dst.data(), mask.data(), src.data(), scalar, validRow, validCol);
     }
 }
 } // namespace pto

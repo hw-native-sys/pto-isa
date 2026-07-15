@@ -39,7 +39,7 @@ inline uint64_t AlignUp(uint64_t value, uint64_t alignment)
     return value + add;
 }
 
-inline uint64_t CheckedMul(uint64_t a, uint64_t b, const char *label)
+inline uint64_t CheckedMul(uint64_t a, uint64_t b, const char* label)
 {
     if (a != 0 && b > std::numeric_limits<uint64_t>::max() / a) {
         throw std::overflow_error(std::string(label) + " overflow");
@@ -47,17 +47,14 @@ inline uint64_t CheckedMul(uint64_t a, uint64_t b, const char *label)
     return a * b;
 }
 
-inline uint64_t EffectiveAivBlocks(const MoeCombineShape &shape)
-{
-    return shape.aivBlocks == 0 ? 1 : shape.aivBlocks;
-}
+inline uint64_t EffectiveAivBlocks(const MoeCombineShape& shape) { return shape.aivBlocks == 0 ? 1 : shape.aivBlocks; }
 
-inline uint64_t ExpertNumPadded(const MoeCombineShape &shape)
+inline uint64_t ExpertNumPadded(const MoeCombineShape& shape)
 {
     return AlignUp(shape.expertNum, kMoeCombineMetadataPad);
 }
 
-inline uint64_t AppendField(uint64_t *offset, uint64_t bytes)
+inline uint64_t AppendField(uint64_t* offset, uint64_t bytes)
 {
     *offset = AlignUp(*offset, 64);
     uint64_t fieldOffset = *offset;
@@ -68,7 +65,7 @@ inline uint64_t AppendField(uint64_t *offset, uint64_t bytes)
     return fieldOffset;
 }
 
-inline WorkspaceLayout ComputeWorkspaceLayout(const MoeCombineShape &shape)
+inline WorkspaceLayout ComputeWorkspaceLayout(const MoeCombineShape& shape)
 {
     constexpr uint64_t kI32 = 4;
     uint64_t aivBlocks = EffectiveAivBlocks(shape);
@@ -84,29 +81,31 @@ inline WorkspaceLayout ComputeWorkspaceLayout(const MoeCombineShape &shape)
     return layout;
 }
 
-inline CombineRouteMetaLayout ComputeCombineRouteMetaLayout(const MoeCombineShape &shape)
+inline CombineRouteMetaLayout ComputeCombineRouteMetaLayout(const MoeCombineShape& shape)
 {
     constexpr uint64_t kI32 = 4;
     uint64_t expertNumPadded = ExpertNumPadded(shape);
     uint64_t expandedRows = CheckedMul(shape.m, shape.topK, "expanded rows");
     uint64_t offset = 0;
     CombineRouteMetaLayout layout{};
-    layout.peerTokenPerExpert =
-        AppendField(&offset, CheckedMul(CheckedMul(shape.ep, expertNumPadded, "peerTokenPerExpert elems"), kI32,
-                                        "peerTokenPerExpert bytes"));
+    layout.peerTokenPerExpert = AppendField(
+        &offset,
+        CheckedMul(
+            CheckedMul(shape.ep, expertNumPadded, "peerTokenPerExpert elems"), kI32, "peerTokenPerExpert bytes"));
     layout.expandedRowIdx = AppendField(&offset, CheckedMul(expandedRows, kI32, "expandedRowIdx"));
     layout.cumsumPerExpert = AppendField(
         &offset,
         CheckedMul(CheckedMul(shape.ep, expertNumPadded, "cumsumPerExpert elems"), kI32, "cumsumPerExpert bytes"));
     layout.dispatchOffset = AppendField(&offset, CheckedMul(shape.expertPerRank, kI32, "dispatchOffset"));
-    layout.prevSumBeforeRank =
-        AppendField(&offset, CheckedMul(CheckedMul(shape.ep, shape.expertPerRank, "prevSumBeforeRank elems"), kI32,
-                                        "prevSumBeforeRank bytes"));
+    layout.prevSumBeforeRank = AppendField(
+        &offset,
+        CheckedMul(
+            CheckedMul(shape.ep, shape.expertPerRank, "prevSumBeforeRank elems"), kI32, "prevSumBeforeRank bytes"));
     layout.totalBytes = AlignUp(offset, 64);
     return layout;
 }
 
-inline PeerWindowLayout ComputePeerWindowLayout(const MoeCombineShape &shape)
+inline PeerWindowLayout ComputePeerWindowLayout(const MoeCombineShape& shape)
 {
     constexpr uint64_t kI32 = 4;
     constexpr uint64_t kHalf = 2;
@@ -121,7 +120,7 @@ inline PeerWindowLayout ComputePeerWindowLayout(const MoeCombineShape &shape)
     return layout;
 }
 
-inline uint64_t EstimateHcclBuffSizeMb(const MoeCombineShape &, const PeerWindowLayout &peerWindowLayout)
+inline uint64_t EstimateHcclBuffSizeMb(const MoeCombineShape&, const PeerWindowLayout& peerWindowLayout)
 {
     constexpr uint64_t kMiB = 1024ULL * 1024ULL;
     constexpr uint64_t kSafetyMargin = 64ULL * kMiB;

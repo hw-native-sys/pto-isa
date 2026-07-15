@@ -49,18 +49,16 @@ struct CcuReduceKernelArg : public CcuRootedKernelArgBase {
     HcclReduceOp reduceOp{HcclReduceOp::HCCL_REDUCE_SUM};
 
     CcuReduceKernelArg() = default;
-    CcuReduceKernelArg(uint32_t rid, uint32_t rsize, uint32_t root, HcclDataType dt, HcclReduceOp op, uint64_t bytes,
-                       uint32_t gMask = (1u << 0), uint32_t dMask = (1u << 0))
+    CcuReduceKernelArg(
+        uint32_t rid, uint32_t rsize, uint32_t root, HcclDataType dt, HcclReduceOp op, uint64_t bytes,
+        uint32_t gMask = (1u << 0), uint32_t dMask = (1u << 0))
         : CcuRootedKernelArgBase(rid, rsize, root, bytes, gMask, dMask), dataType(dt), outputDataType(dt), reduceOp(op)
     {}
 
 protected:
-    const char *SignatureName() const override
-    {
-        return "pto::comm::ccu::CcuReduceKernelArg::v1";
-    }
+    const char* SignatureName() const override { return "pto::comm::ccu::CcuReduceKernelArg::v1"; }
 
-    void AppendExtraSignature(hcomm::CcuKernelSignature &sig) const override
+    void AppendExtraSignature(hcomm::CcuKernelSignature& sig) const override
     {
         sig.Append(static_cast<uint32_t>(dataType));
         sig.Append(static_cast<uint32_t>(outputDataType));
@@ -81,22 +79,23 @@ namespace detail {
 class CcuReduceMesh1D : public CcuRootedMeshKernelBase<CcuReduceMesh1D, CcuReduceKernelArg> {
 public:
     using Base = CcuRootedMeshKernelBase<CcuReduceMesh1D, CcuReduceKernelArg>;
-    static constexpr const char *kTraceName = "CCU_REDUCE";
+    static constexpr const char* kTraceName = "CCU_REDUCE";
     static constexpr bool kUsePreSync = true;
     static constexpr uint32_t kPreSyncId = 0;
     static constexpr uint32_t kCkeIdx = 0;
     static constexpr uint32_t kPostSyncId = 3;
 
-    inline explicit CcuReduceMesh1D(const hcomm::CcuKernelArg &arg) : Base(arg)
+    inline explicit CcuReduceMesh1D(const hcomm::CcuKernelArg& arg) : Base(arg)
     {
-        const auto *kArg = dynamic_cast<const CcuReduceKernelArg *>(&arg);
+        const auto* kArg = dynamic_cast<const CcuReduceKernelArg*>(&arg);
         if (kArg != nullptr) {
             dataType_ = kArg->dataType;
             outputDataType_ = kArg->outputDataType;
             reduceOp_ = kArg->reduceOp;
         }
-        std::fprintf(stderr, "[CCU_REDUCE/ctor] dataType=%d reduceOp=%d\n", static_cast<int>(dataType_),
-                     static_cast<int>(reduceOp_));
+        std::fprintf(
+            stderr, "[CCU_REDUCE/ctor] dataType=%d reduceOp=%d\n", static_cast<int>(dataType_),
+            static_cast<int>(reduceOp_));
     }
 
     ~CcuReduceMesh1D() override = default;
@@ -143,8 +142,9 @@ private:
         }
         uint32_t localBufIdx = rankSize_ - 1;
         opEvent_.SetMask(1u << localBufIdx);
-        LocalCopyNb(bufs[localBufIdx], *reinterpret_cast<hcomm::CcuRep::LocalAddr *>(&srcAddr_[localBufIdx]),
-                    lengthVar_, opEvent_);
+        LocalCopyNb(
+            bufs[localBufIdx], *reinterpret_cast<hcomm::CcuRep::LocalAddr*>(&srcAddr_[localBufIdx]), lengthVar_,
+            opEvent_);
 
         opEvent_.SetMask((1u << rankSize_) - 1);
         WaitEvent(opEvent_);
@@ -176,10 +176,7 @@ private:
 // Public factory
 // ============================================================================
 
-inline hcomm::KernelCreator MakeCcuReduceCreator()
-{
-    return detail::MakeCcuMeshCreator<detail::CcuReduceMesh1D>();
-}
+inline hcomm::KernelCreator MakeCcuReduceCreator() { return detail::MakeCcuMeshCreator<detail::CcuReduceMesh1D>(); }
 
 } // namespace ccu
 } // namespace comm

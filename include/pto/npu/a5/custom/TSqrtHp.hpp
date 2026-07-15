@@ -13,7 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 template <typename T, typename U>
-PTO_INTERNAL void SqrtPrecisionImpl(U &dstReg, U &srcReg, MaskReg &mask)
+PTO_INTERNAL void SqrtPrecisionImpl(U& dstReg, U& srcReg, MaskReg& mask)
 {
     HalfUnion multiplyFactor0;
     multiplyFactor0.i = 0x6C00;
@@ -35,7 +35,7 @@ PTO_INTERNAL void SqrtPrecisionImpl(U &dstReg, U &srcReg, MaskReg &mask)
 }
 
 template <typename T, typename U>
-PTO_INTERNAL void SqrtFloatImpl(RegTensor<float> &dst, RegTensor<float> &src, MaskReg &mask)
+PTO_INTERNAL void SqrtFloatImpl(RegTensor<float>& dst, RegTensor<float>& src, MaskReg& mask)
 {
     constexpr float subnormalBound = 1;
     constexpr float halfFactor = 0.5f;
@@ -83,9 +83,9 @@ PTO_INTERNAL void SqrtFloatImpl(RegTensor<float> &dst, RegTensor<float> &src, Ma
     vmuls(dstRegCopy, tmpReg, multiplyFactor1, mask, MODE_ZEROING);
     vsel(tmpReg, dstRegCopy, tmpReg, cmpMaskReg);
 
-    vcmps_eq(isInfPreg, (vector_u32 &)srcRegCopy, posInf, mask);
+    vcmps_eq(isInfPreg, (vector_u32&)srcRegCopy, posInf, mask);
     vdup(regNegOne, negZero, maskFull, MODE_ZEROING);
-    vor(zeroReg, (vector_u32 &)srcRegCopy, regNegOne, mask, MODE_ZEROING);
+    vor(zeroReg, (vector_u32&)srcRegCopy, regNegOne, mask, MODE_ZEROING);
     vcmps_eq(isZeroPreg, zeroReg, negZero, mask);
     por(cmpMaskReg, isZeroPreg, isInfPreg, mask);
     vsel(dst, srcRegCopy, tmpReg, cmpMaskReg);

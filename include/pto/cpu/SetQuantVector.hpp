@@ -17,14 +17,14 @@ template <typename FpTileData>
 __tf__ PTO_INTERNAL void SET_QUANT_VECTOR(typename FpTileData::TileDType __in__ fp)
 {
     uint64_t fpAddres = reinterpret_cast<uint64_t>(fp);
-    uint8_t *quantSrc = reinterpret_cast<uint8_t *>(&fpAddres);
-    uint8_t *reg_base = reinterpret_cast<uint8_t *>(NPUMemoryModel::Instance().GetREGBase());
-    uint8_t *scalarReg = reg_base + QUANT_VECTOR_REG_OFFSET * sizeof(uint64_t);
+    uint8_t* quantSrc = reinterpret_cast<uint8_t*>(&fpAddres);
+    uint8_t* reg_base = reinterpret_cast<uint8_t*>(NPUMemoryModel::Instance().GetREGBase());
+    uint8_t* scalarReg = reg_base + QUANT_VECTOR_REG_OFFSET * sizeof(uint64_t);
     std::copy(quantSrc, quantSrc + sizeof(uint64_t), scalarReg);
 }
 
 template <typename FpTileData>
-PTO_INTERNAL void SET_QUANT_VECTOR_IMPL(FpTileData &fpTile)
+PTO_INTERNAL void SET_QUANT_VECTOR_IMPL(FpTileData& fpTile)
 {
     static_assert(FpTileData::Loc == TileType::Scaling, "Fix: SET_QUANT_VECTOR only supports Scaling input tile type.");
     SET_QUANT_VECTOR<FpTileData>(fpTile.data());

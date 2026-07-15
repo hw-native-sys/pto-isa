@@ -16,7 +16,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 template <typename TileDataDst, typename TileDataSrc, typename TileDataPara>
-PTO_INTERNAL void TDEQUANT_IMPL(TileDataDst &dst, TileDataSrc &src, TileDataPara &scale, TileDataPara &offset)
+PTO_INTERNAL void TDEQUANT_IMPL(TileDataDst& dst, TileDataSrc& src, TileDataPara& scale, TileDataPara& offset)
 {
     const unsigned rows = dst.GetValidRow();
     const unsigned cols = dst.GetValidCol();
@@ -28,10 +28,10 @@ PTO_INTERNAL void TDEQUANT_IMPL(TileDataDst &dst, TileDataSrc &src, TileDataPara
             const auto scaleVal = scale.data()[GetTileElementOffset<TileDataPara>(r, paraCol)];
             const auto offsetVal = offset.data()[GetTileElementOffset<TileDataPara>(r, paraCol)];
             const auto srcVal = src.data()[GetTileElementOffset<TileDataSrc>(r, c)];
-            dst.data()[GetTileElementOffset<TileDataDst>(r, c)] =
-                static_cast<typename TileDataDst::DType>((static_cast<typename TileDataDst::DType>(srcVal) -
-                                                          static_cast<typename TileDataDst::DType>(offsetVal)) *
-                                                         static_cast<typename TileDataDst::DType>(scaleVal));
+            dst.data()[GetTileElementOffset<TileDataDst>(r, c)] = static_cast<typename TileDataDst::DType>(
+                (static_cast<typename TileDataDst::DType>(srcVal) -
+                 static_cast<typename TileDataDst::DType>(offsetVal)) *
+                static_cast<typename TileDataDst::DType>(scaleVal));
         }
     }
 }

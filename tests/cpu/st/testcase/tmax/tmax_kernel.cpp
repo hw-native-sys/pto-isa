@@ -14,7 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-AICORE void runTMax(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in__ *src1)
+AICORE void runTMax(__gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in__* src1)
 {
     using DynShapeDim5 = Shape<1, 1, 1, kGRows_, kGCols_>;
     using DynStridDim5 = Stride<1, 1, 1, kGCols_, 1>;
@@ -47,20 +47,20 @@ AICORE void runTMax(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in_
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTMax(T *out, T *src0, T *src1, void *stream)
+void LaunchTMax(T* out, T* src0, T* src1, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>)
-        runTMax<half, kGRows_, kGCols_, kTRows_, kTCols_>((half *)(out), (half *)(src0), (half *)(src1));
+        runTMax<half, kGRows_, kGCols_, kTRows_, kTCols_>((half*)(out), (half*)(src0), (half*)(src1));
     else
         runTMax<T, kGRows_, kGCols_, kTRows_, kTCols_>(out, src0, src1);
 }
 
-template void LaunchTMax<float, 64, 64, 64, 64>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTMax<int32_t, 64, 64, 64, 64>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
-template void LaunchTMax<aclFloat16, 16, 256, 16, 256>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                       void *stream);
-template void LaunchTMax<int16_t, 64, 64, 64, 64>(int16_t *out, int16_t *src0, int16_t *src1, void *stream);
+template void LaunchTMax<float, 64, 64, 64, 64>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTMax<int32_t, 64, 64, 64, 64>(int32_t* out, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTMax<aclFloat16, 16, 256, 16, 256>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void LaunchTMax<int16_t, 64, 64, 64, 64>(int16_t* out, int16_t* src0, int16_t* src1, void* stream);
 #ifdef CPU_SIM_BFLOAT_ENABLED
-template void LaunchTMax<bfloat16_t, 16, 256, 16, 256>(bfloat16_t *out, bfloat16_t *src0, bfloat16_t *src1,
-                                                       void *stream);
+template void LaunchTMax<bfloat16_t, 16, 256, 16, 256>(
+    bfloat16_t* out, bfloat16_t* src0, bfloat16_t* src1, void* stream);
 #endif

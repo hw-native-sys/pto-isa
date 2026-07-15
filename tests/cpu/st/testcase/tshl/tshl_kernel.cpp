@@ -13,7 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-AICORE void runTSHL(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in__ *src1)
+AICORE void runTSHL(__gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in__* src1)
 {
     using DynShapeDim5 = Shape<1, 1, 1, kGRows_, kGCols_>;
     using DynStridDim5 = Stride<1, 1, 1, kGCols_, 1>;
@@ -39,17 +39,17 @@ AICORE void runTSHL(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in_
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTSHL(T *out, T *src0, T *src1, void *stream)
+void LaunchTSHL(T* out, T* src0, T* src1, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>)
-        runTSHL<half, kGRows_, kGCols_, kTRows_, kTCols_>((half *)(out), (half *)(src0), (half *)(src1));
+        runTSHL<half, kGRows_, kGCols_, kTRows_, kTCols_>((half*)(out), (half*)(src0), (half*)(src1));
     else
         runTSHL<T, kGRows_, kGCols_, kTRows_, kTCols_>(out, src0, src1);
 }
 const int NUM_16 = 16;
 const int NUM_64 = 64;
 const int NUM_256 = 256;
-template void LaunchTSHL<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(int16_t *out, int16_t *src0, int16_t *src1,
-                                                                  void *stream);
-template void LaunchTSHL<int32_t, NUM_16, NUM_256, NUM_16, NUM_256>(int32_t *out, int32_t *src0, int32_t *src1,
-                                                                    void *stream);
+template void LaunchTSHL<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(
+    int16_t* out, int16_t* src0, int16_t* src1, void* stream);
+template void LaunchTSHL<int32_t, NUM_16, NUM_256, NUM_16, NUM_256>(
+    int32_t* out, int32_t* src0, int32_t* src1, void* stream);

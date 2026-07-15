@@ -13,7 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-AICORE bool runTTest(__gm__ T __in__ *input, __gm__ int32_t __in__ cmpValue, __gm__ comm::WaitCmp __in__ cmp)
+AICORE bool runTTest(__gm__ T __in__* input, __gm__ int32_t __in__ cmpValue, __gm__ comm::WaitCmp __in__ cmp)
 {
     using DynShapeDim5 = Shape<1, 1, 1, kGRows_, kGCols_>;
     using DynStridDim5 = Stride<1, 1, 1, kGCols_, 1>;
@@ -25,10 +25,10 @@ AICORE bool runTTest(__gm__ T __in__ *input, __gm__ int32_t __in__ cmpValue, __g
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-bool LaunchTTest(T *src, int32_t cmpValue, comm::WaitCmp cmp, void *stream)
+bool LaunchTTest(T* src, int32_t cmpValue, comm::WaitCmp cmp, void* stream)
 {
     return runTTest<T, kGRows_, kGCols_, kTRows_, kTCols_>(src, cmpValue, cmp);
 }
 
-template bool LaunchTTest<int32_t, 64, 64, 64, 64>(int32_t *src, int32_t cmpValue, comm::WaitCmp cmp, void *stream);
-template bool LaunchTTest<int32_t, 16, 256, 16, 256>(int32_t *src, int32_t cmpValue, comm::WaitCmp cmp, void *stream);
+template bool LaunchTTest<int32_t, 64, 64, 64, 64>(int32_t* src, int32_t cmpValue, comm::WaitCmp cmp, void* stream);
+template bool LaunchTTest<int32_t, 16, 256, 16, 256>(int32_t* src, int32_t cmpValue, comm::WaitCmp cmp, void* stream);

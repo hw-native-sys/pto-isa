@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class MGATHERTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 static std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     return std::string("../") + testInfo->test_suite_name() + "." + testInfo->name();
 }
 
@@ -42,17 +40,17 @@ void run_mgather_test(size_t tableCount, size_t idxCount, size_t outCount, Launc
     aclrtCreateStream(&stream);
 
     T *tableHost, *outHost;
-    TIdx *idxHost;
+    TIdx* idxHost;
     T *tableDevice, *outDevice;
-    TIdx *idxDevice;
+    TIdx* idxDevice;
 
-    aclrtMallocHost((void **)(&tableHost), tableByteSize);
-    aclrtMallocHost((void **)(&idxHost), idxByteSize);
-    aclrtMallocHost((void **)(&outHost), outByteSize);
+    aclrtMallocHost((void**)(&tableHost), tableByteSize);
+    aclrtMallocHost((void**)(&idxHost), idxByteSize);
+    aclrtMallocHost((void**)(&outHost), outByteSize);
 
-    aclrtMalloc((void **)&tableDevice, tableByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&idxDevice, idxByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&outDevice, outByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&tableDevice, tableByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&idxDevice, idxByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&outDevice, outByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/table.bin", tableByteSize, tableHost, tableByteSize);
     ReadFile(GetGoldenDir() + "/indices.bin", idxByteSize, idxHost, idxByteSize);
@@ -89,7 +87,7 @@ void run_mgather_test(size_t tableCount, size_t idxCount, size_t outCount, Launc
     EXPECT_TRUE(ret);
 }
 
-#define DECLARE_LAUNCH(NAME, THOST, TIDX) void Launch_##NAME(THOST *out, THOST *table, TIDX *indices, void *stream);
+#define DECLARE_LAUNCH(NAME, THOST, TIDX) void Launch_##NAME(THOST* out, THOST* table, TIDX* indices, void* stream);
 
 DECLARE_LAUNCH(row_float_8x32_64rows, float, int32_t)
 DECLARE_LAUNCH(row_half_16x64_64rows, aclFloat16, int32_t)
@@ -168,11 +166,8 @@ DECLARE_LAUNCH(elem2d_nz_half_zero_16x16_1blk, aclFloat16, int32_t)
         run_mgather_test<THOST, TIDX>((size_t)TR * C, (size_t)R, (size_t)R * C, Launch_##NAME); \
     }
 
-#define ELEM_TEST(NAME, THOST, TIDX, N, TS)                                             \
-    TEST_F(MGATHERTest, case_##NAME)                                                    \
-    {                                                                                   \
-        run_mgather_test<THOST, TIDX>((size_t)TS, (size_t)N, (size_t)N, Launch_##NAME); \
-    }
+#define ELEM_TEST(NAME, THOST, TIDX, N, TS) \
+    TEST_F(MGATHERTest, case_##NAME) { run_mgather_test<THOST, TIDX>((size_t)TS, (size_t)N, (size_t)N, Launch_##NAME); }
 
 #define ELEM2D_TEST(NAME, THOST, TIDX, R, C, TS)                                                \
     TEST_F(MGATHERTest, case_##NAME)                                                            \
@@ -180,11 +175,8 @@ DECLARE_LAUNCH(elem2d_nz_half_zero_16x16_1blk, aclFloat16, int32_t)
         run_mgather_test<THOST, TIDX>((size_t)TS, (size_t)R * C, (size_t)R * C, Launch_##NAME); \
     }
 
-#define SCALAR_TEST(NAME, THOST, TIDX, TS)                                              \
-    TEST_F(MGATHERTest, case_##NAME)                                                    \
-    {                                                                                   \
-        run_mgather_test<THOST, TIDX>((size_t)TS, (size_t)1, (size_t)1, Launch_##NAME); \
-    }
+#define SCALAR_TEST(NAME, THOST, TIDX, TS) \
+    TEST_F(MGATHERTest, case_##NAME) { run_mgather_test<THOST, TIDX>((size_t)TS, (size_t)1, (size_t)1, Launch_##NAME); }
 
 ROW_TEST(row_float_8x32_64rows, float, int32_t, 8, 32, 64)
 ROW_TEST(row_half_16x64_64rows, aclFloat16, int32_t, 16, 64, 64)

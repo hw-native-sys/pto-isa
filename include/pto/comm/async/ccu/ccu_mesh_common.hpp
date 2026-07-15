@@ -53,8 +53,9 @@ struct CcuRootedKernelArgBase : public hcomm::CcuKernelArg {
     uint64_t payloadBytes{0};
 
     CcuRootedKernelArgBase() = default;
-    CcuRootedKernelArgBase(uint32_t rid, uint32_t rsize, uint32_t root, uint64_t bytes, uint32_t gMask = (1u << 0),
-                           uint32_t dMask = (1u << 0))
+    CcuRootedKernelArgBase(
+        uint32_t rid, uint32_t rsize, uint32_t root, uint64_t bytes, uint32_t gMask = (1u << 0),
+        uint32_t dMask = (1u << 0))
         : rankId(rid), rankSize(rsize), rootId(root), gateMask(gMask), doneMask(dMask), payloadBytes(bytes)
     {}
 
@@ -73,22 +74,21 @@ struct CcuRootedKernelArgBase : public hcomm::CcuKernelArg {
 
 protected:
     // Versioned type name, e.g. "pto::comm::ccu::CcuBroadcastKernelArg::v1".
-    virtual const char *SignatureName() const = 0;
+    virtual const char* SignatureName() const = 0;
 
     // Extra fields inserted between rank/root and gate/payload (e.g. reduce
     // dtype/op). Default: none.
-    virtual void AppendExtraSignature(hcomm::CcuKernelSignature &) const
-    {}
+    virtual void AppendExtraSignature(hcomm::CcuKernelSignature&) const {}
 
 private:
-    inline void AppendRankRoot(hcomm::CcuKernelSignature &sig) const
+    inline void AppendRankRoot(hcomm::CcuKernelSignature& sig) const
     {
         sig.Append(rankId);
         sig.Append(rankSize);
         sig.Append(rootId);
     }
 
-    inline void AppendGatePayload(hcomm::CcuKernelSignature &sig) const
+    inline void AppendGatePayload(hcomm::CcuKernelSignature& sig) const
     {
         sig.Append(gateMask);
         sig.Append(doneMask);
@@ -116,7 +116,7 @@ struct CcuMeshTaskArg : public hcomm::CcuTaskArg {
         : inputAddr(in), outputAddr(out), length(len), token(tok)
     {}
 
-    inline void SetPeerAddrs(uint32_t rankSize, const uint64_t *inputs, const uint64_t *outputs, const uint64_t *tokens)
+    inline void SetPeerAddrs(uint32_t rankSize, const uint64_t* inputs, const uint64_t* outputs, const uint64_t* tokens)
     {
         peerCount = rankSize;
         for (uint32_t i = 0; i < rankSize && i < kMaxCcuMeshRanks; ++i) {
@@ -137,16 +137,16 @@ protected:
     // Load every rank's input/output/token (packed by GeneArgs) then length.
     // Mirrors the GeneArgs layout [input_0..N-1, output_0..N-1, token_0..N-1, length].
     template <typename VarVec>
-    inline void LoadPeerArgs(const VarVec &input, const VarVec &output, const VarVec &token,
-                             const hcomm::CcuRep::Variable &length)
+    inline void LoadPeerArgs(
+        const VarVec& input, const VarVec& output, const VarVec& token, const hcomm::CcuRep::Variable& length)
     {
-        for (const auto &v : input) {
+        for (const auto& v : input) {
             Load(v);
         }
-        for (const auto &v : output) {
+        for (const auto& v : output) {
             Load(v);
         }
-        for (const auto &v : token) {
+        for (const auto& v : token) {
             Load(v);
         }
         Load(length);
@@ -156,26 +156,27 @@ protected:
     // Used for both the readiness PreSync and the data-landing PostSync; the
     // two are kept distinct by passing different syncBit values.
     template <typename ChannelVec>
-    inline void NotifyBarrier(const ChannelVec &channels, uint32_t notifyIdx, uint32_t syncBit)
+    inline void NotifyBarrier(const ChannelVec& channels, uint32_t notifyIdx, uint32_t syncBit)
     {
-        for (const auto &ch : channels) {
+        for (const auto& ch : channels) {
             (void)NotifyRecord(ch, notifyIdx, 1u << syncBit);
         }
-        for (const auto &ch : channels) {
+        for (const auto& ch : channels) {
             (void)NotifyWait(ch, notifyIdx, 1u << syncBit);
         }
     }
 };
 
-inline std::vector<uint64_t> PackPeerArgs(uint32_t rankSize, const uint64_t *peerInput, const uint64_t *peerOutput,
-                                          const uint64_t *peerToken, uint64_t length);
+inline std::vector<uint64_t> PackPeerArgs(
+    uint32_t rankSize, const uint64_t* peerInput, const uint64_t* peerOutput, const uint64_t* peerToken,
+    uint64_t length);
 
 template <typename Derived, typename KernelArg>
 class CcuRootedMeshKernelBase : public CcuMeshKernelBase {
 public:
-    inline explicit CcuRootedMeshKernelBase(const hcomm::CcuKernelArg &arg) : CcuMeshKernelBase(arg)
+    inline explicit CcuRootedMeshKernelBase(const hcomm::CcuKernelArg& arg) : CcuMeshKernelBase(arg)
     {
-        const auto *kArg = dynamic_cast<const KernelArg *>(&arg);
+        const auto* kArg = dynamic_cast<const KernelArg*>(&arg);
         if (kArg != nullptr) {
             rankId_ = kArg->rankId;
             rankSize_ = kArg->rankSize;
@@ -186,10 +187,10 @@ public:
         }
 
         ownChannels_ = arg.channels;
-        std::fprintf(stderr,
-                     "[%s/ctor] rank=%u rankSize=%u rootId=%u payloadBytes=%llu ownChannels=%zu channels_=%zu\n",
-                     Derived::kTraceName, rankId_, rankSize_, rootId_, static_cast<unsigned long long>(payloadBytes_),
-                     ownChannels_.size(), channels_.size());
+        std::fprintf(
+            stderr, "[%s/ctor] rank=%u rankSize=%u rootId=%u payloadBytes=%llu ownChannels=%zu channels_=%zu\n",
+            Derived::kTraceName, rankId_, rankSize_, rootId_, static_cast<unsigned long long>(payloadBytes_),
+            ownChannels_.size(), channels_.size());
     }
 
     inline HcclResult Algorithm() override
@@ -198,8 +199,9 @@ public:
 
         HcclResult ret = InitResource();
         if (ret != HcclResult::HCCL_SUCCESS) {
-            std::fprintf(stderr, "[%s/algo] rank=%u InitResource FAILED ret=%d\n", Derived::kTraceName, rankId_,
-                         static_cast<int>(ret));
+            std::fprintf(
+                stderr, "[%s/algo] rank=%u InitResource FAILED ret=%d\n", Derived::kTraceName, rankId_,
+                static_cast<int>(ret));
             return ret;
         }
 
@@ -231,9 +233,9 @@ public:
         return HcclResult::HCCL_SUCCESS;
     }
 
-    inline std::vector<uint64_t> GeneArgs(const hcomm::CcuTaskArg &arg) override
+    inline std::vector<uint64_t> GeneArgs(const hcomm::CcuTaskArg& arg) override
     {
-        const auto *tArg = dynamic_cast<const CcuMeshTaskArg *>(&arg);
+        const auto* tArg = dynamic_cast<const CcuMeshTaskArg*>(&arg);
         if (tArg == nullptr) {
             std::fprintf(stderr, "[%s/gene] GeneArgs FAILED dynamic_cast\n", Derived::kTraceName);
             return {};
@@ -243,13 +245,13 @@ public:
         const uint32_t ckeId = static_cast<uint32_t>(gateEvent_.Id());
         pto::comm::ccu::Publish(rankId_, dieId, ckeId, gateMask_);
 
-        std::fprintf(stderr,
-                     "[%s/gene] rank=%u published (die=%u, cke=%u, mask=0x%x) "
-                     "input=0x%llx output=0x%llx len=%llu token=0x%llx peerCount=%u gateOnly=%d\n",
-                     Derived::kTraceName, rankId_, dieId, ckeId, gateMask_,
-                     static_cast<unsigned long long>(tArg->inputAddr),
-                     static_cast<unsigned long long>(tArg->outputAddr), static_cast<unsigned long long>(tArg->length),
-                     static_cast<unsigned long long>(tArg->token), tArg->peerCount, static_cast<int>(gateOnly_));
+        std::fprintf(
+            stderr,
+            "[%s/gene] rank=%u published (die=%u, cke=%u, mask=0x%x) "
+            "input=0x%llx output=0x%llx len=%llu token=0x%llx peerCount=%u gateOnly=%d\n",
+            Derived::kTraceName, rankId_, dieId, ckeId, gateMask_, static_cast<unsigned long long>(tArg->inputAddr),
+            static_cast<unsigned long long>(tArg->outputAddr), static_cast<unsigned long long>(tArg->length),
+            static_cast<unsigned long long>(tArg->token), tArg->peerCount, static_cast<int>(gateOnly_));
 
         if (gateOnly_) {
             return {};
@@ -258,7 +260,7 @@ public:
     }
 
 protected:
-    inline void Trace(const char *tag, const char *msg) const
+    inline void Trace(const char* tag, const char* msg) const
     {
         std::fprintf(stderr, "[%s/%s] rank=%u %s\n", Derived::kTraceName, tag, rankId_, msg);
         std::fflush(stderr);
@@ -306,12 +308,13 @@ private:
 
     inline HcclResult InitResourceGateOnly()
     {
-        std::fprintf(stderr,
-                     "[%s/init] rank=%u — no channels, "
-                     "gate-only mode (SetDieId fallback).\n",
-                     Derived::kTraceName, rankId_);
+        std::fprintf(
+            stderr,
+            "[%s/init] rank=%u — no channels, "
+            "gate-only mode (SetDieId fallback).\n",
+            Derived::kTraceName, rankId_);
         uint32_t pinDieId = 1U;
-        const char *env = std::getenv("HCCL_PTO_GATE_DIE_ID");
+        const char* env = std::getenv("HCCL_PTO_GATE_DIE_ID");
         if (env != nullptr && *env != '\0') {
             try {
                 unsigned long v = std::stoul(std::string(env), nullptr, 10);
@@ -354,10 +357,7 @@ private:
         return HcclResult::HCCL_SUCCESS;
     }
 
-    inline void LoadArgs()
-    {
-        LoadPeerArgs(input_, output_, token_, lengthVar_);
-    }
+    inline void LoadArgs() { LoadPeerArgs(input_, output_, token_, lengthVar_); }
 
     // Readiness barrier before the root reads peers (reduce / gather): a rank
     // records its notify only after its CKE gate fired, i.e. after its AIV
@@ -375,18 +375,16 @@ private:
         Trace("sync", "PostSync done");
     }
 
-    inline Derived &DerivedRef()
-    {
-        return static_cast<Derived &>(*this);
-    }
+    inline Derived& DerivedRef() { return static_cast<Derived&>(*this); }
 };
 
 // Pack all ranks' peer addresses into the GeneArgs uint64 vector:
 // [input_0..N-1, output_0..N-1, token_0..N-1, length].  Addresses are
 // exchanged on the host (MPI AllGather) and shipped to the CCU microcode
 // through this packing, so no runtime address-exchange PreSync is needed.
-inline std::vector<uint64_t> PackPeerArgs(uint32_t rankSize, const uint64_t *peerInput, const uint64_t *peerOutput,
-                                          const uint64_t *peerToken, uint64_t length)
+inline std::vector<uint64_t> PackPeerArgs(
+    uint32_t rankSize, const uint64_t* peerInput, const uint64_t* peerOutput, const uint64_t* peerToken,
+    uint64_t length)
 {
     // Per-rank address arrays packed into the args vector: input, output, token.
     constexpr uint32_t kPeerAddrArrayCount = 3;
@@ -413,7 +411,7 @@ inline std::vector<uint64_t> PackPeerArgs(uint32_t rankSize, const uint64_t *pee
 template <typename KernelImpl>
 inline hcomm::KernelCreator MakeCcuMeshCreator()
 {
-    return [](const hcomm::CcuKernelArg &arg) -> std::unique_ptr<hcomm::CcuKernel> {
+    return [](const hcomm::CcuKernelArg& arg) -> std::unique_ptr<hcomm::CcuKernel> {
         return std::make_unique<KernelImpl>(arg);
     };
 }

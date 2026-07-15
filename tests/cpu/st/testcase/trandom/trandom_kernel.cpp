@@ -14,7 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int rows, int cols, int validRows, int validCols>
-AICORE void runTRandom(__gm__ T __out__ *out, __gm__ uint32_t *key, __gm__ uint32_t *counter)
+AICORE void runTRandom(__gm__ T __out__* out, __gm__ uint32_t* key, __gm__ uint32_t* counter)
 {
     using DynShapeDim5 = Shape<1, 1, 1, validRows, validCols>;
     using DynStridDim5 = pto::Stride<rows * cols, rows * cols, rows * cols, cols, 1>;
@@ -34,11 +34,11 @@ AICORE void runTRandom(__gm__ T __out__ *out, __gm__ uint32_t *key, __gm__ uint3
 }
 
 template <typename T, int rows, int cols>
-void LaunchTRandom(T *out, uint32_t *key, uint32_t *counter, void *stream)
+void LaunchTRandom(T* out, uint32_t* key, uint32_t* counter, void* stream)
 {
     runTRandom<T, rows, cols, rows, cols>(out, key, counter);
 }
 const int NUM_4 = 4;
 const int NUM_256 = 256;
 
-template void LaunchTRandom<uint32_t, NUM_4, NUM_256>(uint32_t *out, uint32_t *key, uint32_t *counter, void *stream);
+template void LaunchTRandom<uint32_t, NUM_4, NUM_256>(uint32_t* out, uint32_t* key, uint32_t* counter, void* stream);

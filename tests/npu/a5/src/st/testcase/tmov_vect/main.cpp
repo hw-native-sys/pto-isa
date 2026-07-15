@@ -15,22 +15,20 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void launchTMOV(T *out, T *src, void *stream);
+void launchTMOV(T* out, T* src, void* stream);
 
 template <int32_t testKey>
-int gen_input_golden(uint8_t *input, uint8_t *golden);
+int gen_input_golden(uint8_t* input, uint8_t* golden);
 
 class TMOVTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -52,10 +50,10 @@ void test_tmov()
     T *dstHost, *dstDevice;
     T *srcHost, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dataSize);
-    aclrtMallocHost((void **)(&srcHost), dataSize);
-    aclrtMalloc((void **)(&dstDevice), dataSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)(&srcDevice), dataSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), dataSize);
+    aclrtMallocHost((void**)(&srcHost), dataSize);
+    aclrtMalloc((void**)(&dstDevice), dataSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)(&srcDevice), dataSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input_arr.bin", dataSize, srcHost, dataSize);
 
@@ -86,77 +84,32 @@ void test_tmov()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TMOVTest, vect_copy_case1)
-{
-    test_tmov<float, 64, 64, 64, 64>();
-}
+TEST_F(TMOVTest, vect_copy_case1) { test_tmov<float, 64, 64, 64, 64>(); }
 
-TEST_F(TMOVTest, vect_copy_case2)
-{
-    test_tmov<float, 32, 32, 32, 32>();
-}
+TEST_F(TMOVTest, vect_copy_case2) { test_tmov<float, 32, 32, 32, 32>(); }
 
-TEST_F(TMOVTest, vect_copy_case3)
-{
-    test_tmov<float, 128, 128, 128, 128>();
-}
+TEST_F(TMOVTest, vect_copy_case3) { test_tmov<float, 128, 128, 128, 128>(); }
 
-TEST_F(TMOVTest, vect_copy_case4)
-{
-    test_tmov<float, 128, 32, 128, 32>();
-}
+TEST_F(TMOVTest, vect_copy_case4) { test_tmov<float, 128, 32, 128, 32>(); }
 
-TEST_F(TMOVTest, vect_copy_case5)
-{
-    test_tmov<float, 128, 64, 128, 64>();
-}
+TEST_F(TMOVTest, vect_copy_case5) { test_tmov<float, 128, 64, 128, 64>(); }
 
-TEST_F(TMOVTest, vect_copy_case6)
-{
-    test_tmov<aclFloat16, 64, 64, 64, 64>();
-}
+TEST_F(TMOVTest, vect_copy_case6) { test_tmov<aclFloat16, 64, 64, 64, 64>(); }
 
-TEST_F(TMOVTest, vect_copy_case7)
-{
-    test_tmov<aclFloat16, 32, 32, 32, 32>();
-}
+TEST_F(TMOVTest, vect_copy_case7) { test_tmov<aclFloat16, 32, 32, 32, 32>(); }
 
-TEST_F(TMOVTest, vect_copy_case8)
-{
-    test_tmov<aclFloat16, 128, 128, 128, 128>();
-}
+TEST_F(TMOVTest, vect_copy_case8) { test_tmov<aclFloat16, 128, 128, 128, 128>(); }
 
-TEST_F(TMOVTest, vect_copy_case9)
-{
-    test_tmov<aclFloat16, 128, 32, 128, 32>();
-}
+TEST_F(TMOVTest, vect_copy_case9) { test_tmov<aclFloat16, 128, 32, 128, 32>(); }
 
-TEST_F(TMOVTest, vect_copy_case10)
-{
-    test_tmov<aclFloat16, 128, 64, 128, 64>();
-}
+TEST_F(TMOVTest, vect_copy_case10) { test_tmov<aclFloat16, 128, 64, 128, 64>(); }
 
-TEST_F(TMOVTest, vect_copy_case11)
-{
-    test_tmov<uint8_t, 64, 64, 64, 64>();
-}
+TEST_F(TMOVTest, vect_copy_case11) { test_tmov<uint8_t, 64, 64, 64, 64>(); }
 
-TEST_F(TMOVTest, vect_copy_case12)
-{
-    test_tmov<uint8_t, 32, 32, 32, 32>();
-}
+TEST_F(TMOVTest, vect_copy_case12) { test_tmov<uint8_t, 32, 32, 32, 32>(); }
 
-TEST_F(TMOVTest, vect_copy_case13)
-{
-    test_tmov<uint8_t, 128, 128, 128, 128>();
-}
+TEST_F(TMOVTest, vect_copy_case13) { test_tmov<uint8_t, 128, 128, 128, 128>(); }
 
-TEST_F(TMOVTest, vect_copy_case14)
-{
-    test_tmov<uint8_t, 128, 32, 128, 32>();
-}
+TEST_F(TMOVTest, vect_copy_case14) { test_tmov<uint8_t, 128, 32, 128, 32>(); }
 
-TEST_F(TMOVTest, vect_copy_case15)
-{
-    test_tmov<uint8_t, 128, 64, 128, 64>();
-}
+TEST_F(TMOVTest, vect_copy_case15) { test_tmov<uint8_t, 128, 64, 128, 64>(); }

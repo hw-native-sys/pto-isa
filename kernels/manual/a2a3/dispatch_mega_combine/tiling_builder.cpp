@@ -17,7 +17,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "op_kernel/utils/const_args.hpp"
 
 namespace {
-void RequirePositive(const char *name, uint32_t value)
+void RequirePositive(const char* name, uint32_t value)
 {
     if (value == 0) {
         throw std::runtime_error(std::string(name) + " must be positive");
@@ -32,7 +32,7 @@ void RequireInt8RowAligned(uint32_t k)
     }
 }
 
-void RequirePackedOffsetACapacity(const CaseConfig &cfg, const StandaloneRankRuntime &runtime)
+void RequirePackedOffsetACapacity(const CaseConfig& cfg, const StandaloneRankRuntime& runtime)
 {
     constexpr uint64_t kPackedScalePadBytes = 32;
     const uint64_t rawOffsetABytes = runtime.hccl.WindowBytes() / 3U;
@@ -91,10 +91,7 @@ uint64_t AlignUp(uint64_t value, uint64_t align)
     return (value + align - 1) / align * align;
 }
 
-uint32_t DivCeil(uint32_t value, uint32_t divisor)
-{
-    return divisor == 0U ? 0U : (value + divisor - 1U) / divisor;
-}
+uint32_t DivCeil(uint32_t value, uint32_t divisor) { return divisor == 0U ? 0U : (value + divisor - 1U) / divisor; }
 
 uint32_t Pow4Ceil(uint32_t value)
 {
@@ -112,7 +109,7 @@ constexpr uint32_t kFrontMaxColsOneLoopQuant = 8192U;
 constexpr uint32_t kFrontSortAlignElems = 32U;
 constexpr uint32_t kFrontSortOutLoopMaxElems = 2040U;
 
-void PopulateFrontSortLoopFields(MegaMoeFrontReorderTiling &front)
+void PopulateFrontSortLoopFields(MegaMoeFrontReorderTiling& front)
 {
     if (front.sortNeedCoreNum == 0U || front.sortPerCoreElems == 0U || front.sortLastCoreElems == 0U ||
         front.sortLoopMaxElement == 0U) {
@@ -136,8 +133,8 @@ uint32_t FrontSortLoopMaxElement()
 {
     constexpr uint32_t kSort32AlignElement = 32U;
     constexpr uint32_t kFrontSortBytesPerRouteElem = sizeof(int32_t) * 2U * 4U;
-    return static_cast<uint32_t>(AtlasA2::UB_SIZE / kFrontSortBytesPerRouteElem / kSort32AlignElement *
-                                 kSort32AlignElement);
+    return static_cast<uint32_t>(
+        AtlasA2::UB_SIZE / kFrontSortBytesPerRouteElem / kSort32AlignElement * kSort32AlignElement);
 }
 
 uint32_t FrontAlignedRouteElems(uint32_t routeElems)
@@ -167,7 +164,7 @@ uint64_t FrontRouteWorkspaceBytes(uint32_t alignedRouteElems)
     return std::max(sortedIntBytes, packedRunBytes);
 }
 
-bool IsFrontFullLoadDynamic(const CaseConfig &cfg, uint32_t routeElems, uint32_t sortLoopMaxElement)
+bool IsFrontFullLoadDynamic(const CaseConfig& cfg, uint32_t routeElems, uint32_t sortLoopMaxElement)
 {
     if (routeElems == 0U || routeElems > sortLoopMaxElement || cfg.k > kFrontMaxColsOneLoopQuant ||
         cfg.k % UB_ALIGN != 0U) {
@@ -177,7 +174,7 @@ bool IsFrontFullLoadDynamic(const CaseConfig &cfg, uint32_t routeElems, uint32_t
     return FullLoadDynamicUbBudgetBytes(routeElems, cfg.k, expertNum) <= AtlasA2::UB_SIZE;
 }
 
-uint32_t SelectFrontCase(const CaseConfig &cfg, uint32_t routeElems, uint32_t sortLoopMaxElement)
+uint32_t SelectFrontCase(const CaseConfig& cfg, uint32_t routeElems, uint32_t sortLoopMaxElement)
 {
     if (routeElems == 0U) {
         return 0U;
@@ -191,7 +188,7 @@ uint32_t SelectFrontCase(const CaseConfig &cfg, uint32_t routeElems, uint32_t so
     return kFrontCaseMultiCoreDynamic;
 }
 
-void PopulateFrontSortSplit(MegaMoeFrontReorderTiling &front, uint32_t aivNum)
+void PopulateFrontSortSplit(MegaMoeFrontReorderTiling& front, uint32_t aivNum)
 {
     front.sortOutLoopMaxElems = static_cast<uint16_t>(kFrontSortOutLoopMaxElems);
     if (front.routeElems == 0U) {
@@ -241,14 +238,14 @@ void PopulateFrontSortSplit(MegaMoeFrontReorderTiling &front, uint32_t aivNum)
     }
 }
 
-void RequireAlignedRange(const char *name, uint64_t offset, uint64_t bytes)
+void RequireAlignedRange(const char* name, uint64_t offset, uint64_t bytes)
 {
     if (offset % 512U != 0U || bytes % 512U != 0U) {
         throw std::runtime_error(std::string(name) + " must be 512-byte aligned");
     }
 }
 
-void PopulateMegaMoeInfo(MegaMoeInfo &info, const CaseConfig &cfg)
+void PopulateMegaMoeInfo(MegaMoeInfo& info, const CaseConfig& cfg)
 {
     info.M = cfg.m;
     info.K = cfg.k;
@@ -260,14 +257,14 @@ void PopulateMegaMoeInfo(MegaMoeInfo &info, const CaseConfig &cfg)
     info.aivNum = cfg.aiv_num;
 }
 
-void PopulateRuntimeInfo(MegaMoeRuntimeInfo &runtimeInfo, const StandaloneRankRuntime &runtime)
+void PopulateRuntimeInfo(MegaMoeRuntimeInfo& runtimeInfo, const StandaloneRankRuntime& runtime)
 {
     runtimeInfo.remoteWindowContext = reinterpret_cast<uint64_t>(runtime.hccl.RemoteWindowContextPtr());
     runtimeInfo.rank = static_cast<uint32_t>(runtime.hccl.rank_id);
     runtimeInfo.rankSize = static_cast<uint32_t>(runtime.hccl.world_size);
 }
 
-void PopulateFrontTiling(MegaMoeFrontReorderTiling &front, const CaseConfig &cfg)
+void PopulateFrontTiling(MegaMoeFrontReorderTiling& front, const CaseConfig& cfg)
 {
     const uint64_t expertNum = static_cast<uint64_t>(cfg.world_size) * cfg.expert_per_rank;
     front.expertNum = static_cast<uint32_t>(expertNum);
@@ -281,7 +278,7 @@ void PopulateFrontTiling(MegaMoeFrontReorderTiling &front, const CaseConfig &cfg
     front.expandedRowIdxOffset = 0;
 }
 
-uint64_t AllocateFrontRouteWorkspace(MegaMoeFrontReorderTiling &front, uint64_t frontWorkspaceOffset)
+uint64_t AllocateFrontRouteWorkspace(MegaMoeFrontReorderTiling& front, uint64_t frontWorkspaceOffset)
 {
     frontWorkspaceOffset = AlignUp(frontWorkspaceOffset, 512U);
     front.frontExpandedExpertOffset = static_cast<uint32_t>(frontWorkspaceOffset);
@@ -299,16 +296,18 @@ uint64_t AllocateFrontRouteWorkspace(MegaMoeFrontReorderTiling &front, uint64_t 
     front.frontSortWs1Offset = static_cast<uint32_t>(frontWorkspaceOffset);
     frontWorkspaceOffset += FrontRouteWorkspaceBytes(front.alignedRouteElems);
 
-    RequireAlignedRange("frontExpandedExpert", front.frontExpandedExpertOffset,
-                        AlignUp(static_cast<uint64_t>(front.alignedRouteElems) * sizeof(int32_t), 512U));
-    RequireAlignedRange("frontExpandDstToSrc", front.frontExpandDstToSrcOffset,
-                        AlignUp(static_cast<uint64_t>(front.alignedRouteElems) * sizeof(int32_t), 512U));
+    RequireAlignedRange(
+        "frontExpandedExpert", front.frontExpandedExpertOffset,
+        AlignUp(static_cast<uint64_t>(front.alignedRouteElems) * sizeof(int32_t), 512U));
+    RequireAlignedRange(
+        "frontExpandDstToSrc", front.frontExpandDstToSrcOffset,
+        AlignUp(static_cast<uint64_t>(front.alignedRouteElems) * sizeof(int32_t), 512U));
     RequireAlignedRange("frontSortWs0", front.frontSortWs0Offset, FrontRouteWorkspaceBytes(front.alignedRouteElems));
     RequireAlignedRange("frontSortWs1", front.frontSortWs1Offset, FrontRouteWorkspaceBytes(front.alignedRouteElems));
     return frontWorkspaceOffset;
 }
 
-void AllocateFrontWorkspace(MegaMoeFrontReorderTiling &front, const CaseConfig &cfg)
+void AllocateFrontWorkspace(MegaMoeFrontReorderTiling& front, const CaseConfig& cfg)
 {
     const uint64_t expandedRowIdxBytes = ((cfg.m + 255) / 256) * 256 * cfg.topk * sizeof(int32_t);
     uint64_t frontWorkspaceOffset = expandedRowIdxBytes;
@@ -324,7 +323,7 @@ void AllocateFrontWorkspace(MegaMoeFrontReorderTiling &front, const CaseConfig &
     front.frontWorkspaceBytes = static_cast<uint32_t>(AlignUp(frontWorkspaceOffset, 512U));
 }
 
-void PopulateDispatchScratch(MegaMoeDispatchTiling &dispatch, const CaseConfig &cfg, uint64_t &workspaceOffset)
+void PopulateDispatchScratch(MegaMoeDispatchTiling& dispatch, const CaseConfig& cfg, uint64_t& workspaceOffset)
 {
     dispatch.dispatchTileBytes = std::max<uint64_t>(32U * 1024U, AlignUp(static_cast<uint64_t>(cfg.k) + 32U, 32U));
     RequireDispatchTileCapacity(dispatch.dispatchTileBytes);
@@ -333,12 +332,12 @@ void PopulateDispatchScratch(MegaMoeDispatchTiling &dispatch, const CaseConfig &
     dispatch.dispatchGatherScratchOffset = workspaceOffset;
     dispatch.dispatchGatherScratchBytes =
         static_cast<uint64_t>(cfg.aiv_num) * dispatch.dispatchGatherScratchBytesPerAiv;
-    RequireAlignedRange("dispatchGatherScratch", dispatch.dispatchGatherScratchOffset,
-                        dispatch.dispatchGatherScratchBytes);
+    RequireAlignedRange(
+        "dispatchGatherScratch", dispatch.dispatchGatherScratchOffset, dispatch.dispatchGatherScratchBytes);
     workspaceOffset = AlignUp(workspaceOffset + dispatch.dispatchGatherScratchBytes, 512U);
 }
 
-void PopulateSwigluMetadata(MegaMoeSwigluTiling &swiglu, const CaseConfig &cfg, uint64_t &workspaceOffset)
+void PopulateSwigluMetadata(MegaMoeSwigluTiling& swiglu, const CaseConfig& cfg, uint64_t& workspaceOffset)
 {
     const uint32_t swigluSegmentNum = MoeSwigluSegmentNum(cfg.expert_per_rank);
     swiglu.swigluSegmentMetaOffset = workspaceOffset;
@@ -347,13 +346,13 @@ void PopulateSwigluMetadata(MegaMoeSwigluTiling &swiglu, const CaseConfig &cfg, 
     workspaceOffset = AlignUp(workspaceOffset + swiglu.swigluSegmentMetaBytes, 512U);
 }
 
-uint64_t AllocatePipelineWorkspace(MegaMoeTilingData &tiling, const CaseConfig &cfg)
+uint64_t AllocatePipelineWorkspace(MegaMoeTilingData& tiling, const CaseConfig& cfg)
 {
-    auto &dispatch = tiling.dispatchTiling;
-    auto &swiglu = tiling.swigluTiling;
-    auto &gmm1 = tiling.gmm1Tiling;
-    auto &gmm2 = tiling.gmm2Tiling;
-    auto &combine = tiling.combineTiling;
+    auto& dispatch = tiling.dispatchTiling;
+    auto& swiglu = tiling.swigluTiling;
+    auto& gmm1 = tiling.gmm1Tiling;
+    auto& gmm2 = tiling.gmm2Tiling;
+    auto& combine = tiling.combineTiling;
 
     uint64_t workspaceOffset = tiling.frontReorderTiling.frontWorkspaceBytes;
     dispatch.perTokenScaleOffset = workspaceOffset;
@@ -380,7 +379,7 @@ uint64_t AllocatePipelineWorkspace(MegaMoeTilingData &tiling, const CaseConfig &
     return workspaceOffset;
 }
 
-void PopulateUnpermuteTiling(MegaMoeUnpermuteTiling &unpermute, const CaseConfig &cfg)
+void PopulateUnpermuteTiling(MegaMoeUnpermuteTiling& unpermute, const CaseConfig& cfg)
 {
     unpermute.unpermuteTileCols = 2048U;
     unpermute.unpermuteTokenBatch = 256U;
@@ -389,7 +388,7 @@ void PopulateUnpermuteTiling(MegaMoeUnpermuteTiling &unpermute, const CaseConfig
 
 } // namespace
 
-MegaMoeBuildResult BuildMegaMoeTiling(const CaseConfig &cfg, const StandaloneRankRuntime &runtime)
+MegaMoeBuildResult BuildMegaMoeTiling(const CaseConfig& cfg, const StandaloneRankRuntime& runtime)
 {
     RequirePositive("aic_num", cfg.aic_num);
     RequirePositive("aiv_num", cfg.aiv_num);

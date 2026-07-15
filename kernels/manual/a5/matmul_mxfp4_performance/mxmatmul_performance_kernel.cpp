@@ -28,8 +28,8 @@ constexpr uint32_t mxScalePara = 4;
 // comments refer to the high-level PTO instructions to make tuning easier.
 
 template <typename OutTile, typename LeftTile, typename RightTile, typename LeftScaleTile, typename RightScaleTile>
-AICORE inline void MatmulAcc(OutTile cTile, LeftTile aTile, RightTile bTile, LeftScaleTile aScaleTile,
-                             RightScaleTile bScaleTile, uint32_t k)
+AICORE inline void MatmulAcc(
+    OutTile cTile, LeftTile aTile, RightTile bTile, LeftScaleTile aScaleTile, RightScaleTile bScaleTile, uint32_t k)
 {
     if (k == 0) {
         TMATMUL_MX(cTile, aTile, aScaleTile, bTile, bScaleTile);
@@ -50,12 +50,13 @@ AICORE inline void WaitFlag(uint32_t id)
     wait_flag(srcPipe, dstPipe, static_cast<event_t>(id));
 }
 
-template <typename T, typename U, typename X, int m, int k, int n, uint32_t singleCoreM, uint32_t singleCoreK,
-          uint32_t singleCoreN>
-AICORE inline void InitGMOffsets(__gm__ U *&currentSrc0, __gm__ U *&currentSrc1, __gm__ X *&currentSrc2,
-                                 __gm__ X *&currentSrc3, __gm__ T *&currentDst, __gm__ T *out, __gm__ U *src0,
-                                 __gm__ U *src1, __gm__ X *src2, __gm__ X *src3, uint32_t validsingleCoreM,
-                                 uint32_t validsingleCoreN)
+template <
+    typename T, typename U, typename X, int m, int k, int n, uint32_t singleCoreM, uint32_t singleCoreK,
+    uint32_t singleCoreN>
+AICORE inline void InitGMOffsets(
+    __gm__ U*& currentSrc0, __gm__ U*& currentSrc1, __gm__ X*& currentSrc2, __gm__ X*& currentSrc3,
+    __gm__ T*& currentDst, __gm__ T* out, __gm__ U* src0, __gm__ U* src1, __gm__ X* src2, __gm__ X* src3,
+    uint32_t validsingleCoreM, uint32_t validsingleCoreN)
 {
     // Work partition (SPMD-style):
     // - Each core owns a contiguous C tile of shape [singleCoreM, singleCoreN].
@@ -80,30 +81,32 @@ AICORE inline void InitGMOffsets(__gm__ U *&currentSrc0, __gm__ U *&currentSrc1,
     currentDst = out + gmOffsetC;
 }
 
-template <typename T, typename U, typename X, uint32_t baseM, uint32_t baseK, uint32_t baseN, uint32_t baseScaleK,
-          uint32_t stepKa, uint32_t stepKb, uint32_t stepKscaleA, uint32_t stepKscaleB, typename TileMatA,
-          typename TileMatB, typename TileScaleA, typename TileScaleB, typename LeftTile, typename RightTile,
-          typename LeftScaleTile, typename RightScaleTile, typename ResTile>
-AICORE inline void InitBuffers(TileMatA aMatTile[BUFFER_NUM], TileMatB bMatTile[BUFFER_NUM],
-                               TileScaleA aScaleMatTile[BUFFER_NUM], TileScaleB bScaleMatTile[BUFFER_NUM],
-                               LeftTile aTile[BUFFER_NUM], RightTile bTile[BUFFER_NUM],
-                               LeftScaleTile aScaleTile[BUFFER_NUM], RightScaleTile bScaleTile[BUFFER_NUM],
-                               ResTile &cTile)
+template <
+    typename T, typename U, typename X, uint32_t baseM, uint32_t baseK, uint32_t baseN, uint32_t baseScaleK,
+    uint32_t stepKa, uint32_t stepKb, uint32_t stepKscaleA, uint32_t stepKscaleB, typename TileMatA, typename TileMatB,
+    typename TileScaleA, typename TileScaleB, typename LeftTile, typename RightTile, typename LeftScaleTile,
+    typename RightScaleTile, typename ResTile>
+AICORE inline void InitBuffers(
+    TileMatA aMatTile[BUFFER_NUM], TileMatB bMatTile[BUFFER_NUM], TileScaleA aScaleMatTile[BUFFER_NUM],
+    TileScaleB bScaleMatTile[BUFFER_NUM], LeftTile aTile[BUFFER_NUM], RightTile bTile[BUFFER_NUM],
+    LeftScaleTile aScaleTile[BUFFER_NUM], RightScaleTile bScaleTile[BUFFER_NUM], ResTile& cTile)
 {
     // L1 staging buffers (aMatTile/bMatTile) are double-buffered for TLOAD overlap.
     TASSIGN(aMatTile[0], 0x0);
     TASSIGN(aMatTile[1], 0x0 + baseM * baseK * stepKa * sizeof(U) / 2);
     TASSIGN(bMatTile[0], 0x0 + baseM * baseK * stepKa * BUFFER_NUM * sizeof(U) / 2);
-    TASSIGN(bMatTile[1],
-            0x0 + baseM * baseK * stepKa * BUFFER_NUM * sizeof(U) / 2 + baseK * baseN * stepKb * sizeof(U) / 2);
+    TASSIGN(
+        bMatTile[1],
+        0x0 + baseM * baseK * stepKa * BUFFER_NUM * sizeof(U) / 2 + baseK * baseN * stepKb * sizeof(U) / 2);
 
     constexpr uint32_t baseAddr =
         baseM * baseK * stepKa * BUFFER_NUM * sizeof(U) / 2 + baseK * baseN * stepKb * sizeof(U) / 2 * BUFFER_NUM;
     TASSIGN(aScaleMatTile[0], baseAddr);
     TASSIGN(aScaleMatTile[1], baseAddr + baseM * baseScaleK * stepKscaleA * sizeof(X));
     TASSIGN(bScaleMatTile[0], baseAddr + baseM * baseScaleK * stepKscaleA * BUFFER_NUM * sizeof(X));
-    TASSIGN(bScaleMatTile[1], baseAddr + baseM * baseScaleK * stepKscaleA * BUFFER_NUM * sizeof(X) +
-                                  baseScaleK * baseN * stepKscaleB * sizeof(X));
+    TASSIGN(
+        bScaleMatTile[1], baseAddr + baseM * baseScaleK * stepKscaleA * BUFFER_NUM * sizeof(X) +
+                              baseScaleK * baseN * stepKscaleB * sizeof(X));
 
     // L0A/L0B ping-pong buffers (TEXTRACT destination).
     // Keep each per-buffer footprint <= 32 KiB to fit in a ping/pang slot.
@@ -119,15 +122,15 @@ AICORE inline void InitBuffers(TileMatA aMatTile[BUFFER_NUM], TileMatB bMatTile[
     TASSIGN(bScaleTile[1], GetScaleAddr(bTile[1].data()));
 }
 
-template <uint32_t baseK, uint32_t baseScaleK, uint32_t stepKa, uint32_t stepKb, uint32_t stepKscaleA,
-          uint32_t stepKscaleB, typename TileMatA, typename TileMatB, typename TileScaleA, typename TileScaleB,
-          typename LeftTile, typename RightTile, typename LeftScaleTile, typename RightScaleTile, typename ResTile>
-AICORE inline void MacroMatmul(uint32_t kIter, uint8_t currMte2Idx, uint8_t currMte2mxIdx, uint8_t mte1DBFlag,
-                               TileMatA aMatTile[BUFFER_NUM], TileMatB bMatTile[BUFFER_NUM],
-                               TileScaleA aScaleMatTile[BUFFER_NUM], TileScaleB bScaleMatTile[BUFFER_NUM],
-                               LeftTile aTile[BUFFER_NUM], RightTile bTile[BUFFER_NUM],
-                               LeftScaleTile aScaleTile[BUFFER_NUM], RightScaleTile bScaleTile[BUFFER_NUM],
-                               ResTile &cTile, uint32_t currentM, uint32_t currentN)
+template <
+    uint32_t baseK, uint32_t baseScaleK, uint32_t stepKa, uint32_t stepKb, uint32_t stepKscaleA, uint32_t stepKscaleB,
+    typename TileMatA, typename TileMatB, typename TileScaleA, typename TileScaleB, typename LeftTile,
+    typename RightTile, typename LeftScaleTile, typename RightScaleTile, typename ResTile>
+AICORE inline void MacroMatmul(
+    uint32_t kIter, uint8_t currMte2Idx, uint8_t currMte2mxIdx, uint8_t mte1DBFlag, TileMatA aMatTile[BUFFER_NUM],
+    TileMatB bMatTile[BUFFER_NUM], TileScaleA aScaleMatTile[BUFFER_NUM], TileScaleB bScaleMatTile[BUFFER_NUM],
+    LeftTile aTile[BUFFER_NUM], RightTile bTile[BUFFER_NUM], LeftScaleTile aScaleTile[BUFFER_NUM],
+    RightScaleTile bScaleTile[BUFFER_NUM], ResTile& cTile, uint32_t currentM, uint32_t currentN)
 {
     const uint32_t kModstepKa = kIter % stepKa;
     // Wait until TMATMUL is done with the current L0A/L0B buffer before overwriting it via TEXTRACT.
@@ -157,18 +160,18 @@ AICORE inline void MacroMatmul(uint32_t kIter, uint8_t currMte2Idx, uint8_t curr
     SetFlag<PIPE_M, PIPE_MTE1>(mte1DBFlag);
 }
 
-template <typename T, typename U, typename X, int m, int k, int n, uint32_t singleCoreK, uint32_t baseM, uint32_t baseK,
-          uint32_t baseN, uint32_t baseScaleK, uint32_t stepKa, uint32_t stepKb, uint32_t stepKscaleA,
-          uint32_t stepKscaleB, typename TileMatA, typename TileMatB, typename TileScaleA, typename TileScaleB,
-          typename LeftTile, typename RightTile, typename LeftScaleTile, typename RightScaleTile, typename ResTile>
-AICORE inline void ProcessKIteration(uint32_t kIter, uint32_t i, uint32_t j, __gm__ U *currentSrc0,
-                                     __gm__ U *currentSrc1, __gm__ X *currentSrc2, __gm__ X *currentSrc3,
-                                     TileMatA aMatTile[BUFFER_NUM], TileMatB bMatTile[BUFFER_NUM],
-                                     TileScaleA aScaleMatTile[BUFFER_NUM], TileScaleB bScaleMatTile[BUFFER_NUM],
-                                     LeftTile aTile[BUFFER_NUM], RightTile bTile[BUFFER_NUM],
-                                     LeftScaleTile aScaleTile[BUFFER_NUM], RightScaleTile bScaleTile[BUFFER_NUM],
-                                     ResTile &cTile, uint8_t &mte2DBFlag, uint8_t &mte2mxDBFlag, uint8_t &mte1DBFlag,
-                                     uint32_t currentM, uint32_t currentN)
+template <
+    typename T, typename U, typename X, int m, int k, int n, uint32_t singleCoreK, uint32_t baseM, uint32_t baseK,
+    uint32_t baseN, uint32_t baseScaleK, uint32_t stepKa, uint32_t stepKb, uint32_t stepKscaleA, uint32_t stepKscaleB,
+    typename TileMatA, typename TileMatB, typename TileScaleA, typename TileScaleB, typename LeftTile,
+    typename RightTile, typename LeftScaleTile, typename RightScaleTile, typename ResTile>
+AICORE inline void ProcessKIteration(
+    uint32_t kIter, uint32_t i, uint32_t j, __gm__ U* currentSrc0, __gm__ U* currentSrc1, __gm__ X* currentSrc2,
+    __gm__ X* currentSrc3, TileMatA aMatTile[BUFFER_NUM], TileMatB bMatTile[BUFFER_NUM],
+    TileScaleA aScaleMatTile[BUFFER_NUM], TileScaleB bScaleMatTile[BUFFER_NUM], LeftTile aTile[BUFFER_NUM],
+    RightTile bTile[BUFFER_NUM], LeftScaleTile aScaleTile[BUFFER_NUM], RightScaleTile bScaleTile[BUFFER_NUM],
+    ResTile& cTile, uint8_t& mte2DBFlag, uint8_t& mte2mxDBFlag, uint8_t& mte1DBFlag, uint32_t currentM,
+    uint32_t currentN)
 {
     using DynShapeDim5 = Shape<1, 1, 1, -1, -1>;
 
@@ -187,16 +190,18 @@ AICORE inline void ProcessKIteration(uint32_t kIter, uint32_t i, uint32_t j, __g
     // - Double buffering is driven by mte2DBFlag.
 
     if (kModstepKa == 0) {
-        GlobalDataSrc0 gmA(currentSrc0 + i * singleCoreK * baseM / 2 + kIter * baseK / 2,
-                           DynShapeDim5(currentM, baseK * stepKa));
-        GlobalDataSrc1 gmB(currentSrc1 + j * singleCoreK * baseN / 2 + kIter * baseK / 2,
-                           DynShapeDim5(baseK * stepKa, currentN));
+        GlobalDataSrc0 gmA(
+            currentSrc0 + i * singleCoreK * baseM / 2 + kIter * baseK / 2, DynShapeDim5(currentM, baseK * stepKa));
+        GlobalDataSrc1 gmB(
+            currentSrc1 + j * singleCoreK * baseN / 2 + kIter * baseK / 2, DynShapeDim5(baseK * stepKa, currentN));
 
         if (kModstepKscaleA == 0) {
-            GlobalDataSrc2 gmScaleA(currentSrc2 + i * singleCoreK * baseM / SCALE_FACTOR + kIter * baseScaleK,
-                                    DynShapeDim5(currentM, baseScaleK * stepKscaleA));
-            GlobalDataSrc3 gmScaleB(currentSrc3 + j * singleCoreK * baseN / SCALE_FACTOR + kIter * baseScaleK,
-                                    DynShapeDim5(baseScaleK * stepKscaleB, currentN));
+            GlobalDataSrc2 gmScaleA(
+                currentSrc2 + i * singleCoreK * baseM / SCALE_FACTOR + kIter * baseScaleK,
+                DynShapeDim5(currentM, baseScaleK * stepKscaleA));
+            GlobalDataSrc3 gmScaleB(
+                currentSrc3 + j * singleCoreK * baseN / SCALE_FACTOR + kIter * baseScaleK,
+                DynShapeDim5(baseScaleK * stepKscaleB, currentN));
             // Wait until TEXTRACT is done with this L1 buffer before reusing it.
             WaitFlag<PIPE_MTE1, PIPE_MTE2>(mte2DBFlag);
             TLOAD(aMatTile[mte2DBFlag], gmA);
@@ -218,16 +223,17 @@ AICORE inline void ProcessKIteration(uint32_t kIter, uint32_t i, uint32_t j, __g
     const uint32_t currMte2Idx = (mte2DBFlag == 0) ? 1 : 0;     // mte2DBFlag reversed
     const uint32_t currMte2mxIdx = (mte2mxDBFlag == 0) ? 1 : 0; // mte2mxDBFlag reversed
 
-    MacroMatmul<baseK, baseScaleK, stepKa, stepKb, stepKscaleA, stepKscaleB, TileMatA, TileMatB, TileScaleA, TileScaleB,
-                LeftTile, RightTile, LeftScaleTile, RightScaleTile, ResTile>(
+    MacroMatmul<
+        baseK, baseScaleK, stepKa, stepKb, stepKscaleA, stepKscaleB, TileMatA, TileMatB, TileScaleA, TileScaleB,
+        LeftTile, RightTile, LeftScaleTile, RightScaleTile, ResTile>(
         kIter, currMte2Idx, currMte2mxIdx, mte1DBFlag, aMatTile, bMatTile, aScaleMatTile, bScaleMatTile, aTile, bTile,
         aScaleTile, bScaleTile, cTile, currentM, currentN);
     mte1DBFlag = (mte1DBFlag == 0) ? 1 : 0;
 }
 
 template <typename T, typename U, int m, int n, uint32_t singleCoreK, uint32_t baseM, uint32_t baseN, typename ResTile>
-AICORE inline void StoreResult(ResTile &cTile, __gm__ T *currentDst, uint32_t i, uint32_t j, uint32_t currentM,
-                               uint32_t currentN)
+AICORE inline void StoreResult(
+    ResTile& cTile, __gm__ T* currentDst, uint32_t i, uint32_t j, uint32_t currentM, uint32_t currentN)
 {
     // TSTORE stage: write the finished C tile [baseM, baseN] back to GM.
     SetFlag<PIPE_M, PIPE_FIX>(0);
@@ -264,17 +270,18 @@ AICORE inline void WaitSyncFlags()
     WaitFlag<PIPE_MTE1, PIPE_MTE2>(1);
 }
 
-template <typename T, typename U, typename X, int m, int k, int n, uint32_t singleCoreM, uint32_t singleCoreK,
-          uint32_t singleCoreN, uint32_t baseM, uint32_t baseK, uint32_t baseN, uint32_t baseScaleK, uint32_t stepKa,
-          uint32_t stepKb, uint32_t stepKscaleA, uint32_t stepKscaleB, typename TileMatA, typename TileMatB,
-          typename TileScaleA, typename TileScaleB, typename LeftTile, typename RightTile, typename LeftScaleTile,
-          typename RightScaleTile, typename ResTile>
-AICORE inline void Compute(__gm__ U *currentSrc0, __gm__ U *currentSrc1, __gm__ X *currentSrc2, __gm__ X *currentSrc3,
-                           __gm__ T *&currentDst, TileMatA aMatTile[BUFFER_NUM], TileMatB bMatTile[BUFFER_NUM],
-                           TileScaleA aScaleMatTile[BUFFER_NUM], TileScaleB bScaleMatTile[BUFFER_NUM],
-                           LeftTile aTile[BUFFER_NUM], RightTile bTile[BUFFER_NUM],
-                           LeftScaleTile aScaleTile[BUFFER_NUM], RightScaleTile bScaleTile[BUFFER_NUM], ResTile &cTile,
-                           uint32_t currentSingleCoreM, uint32_t currentSingleCoreN)
+template <
+    typename T, typename U, typename X, int m, int k, int n, uint32_t singleCoreM, uint32_t singleCoreK,
+    uint32_t singleCoreN, uint32_t baseM, uint32_t baseK, uint32_t baseN, uint32_t baseScaleK, uint32_t stepKa,
+    uint32_t stepKb, uint32_t stepKscaleA, uint32_t stepKscaleB, typename TileMatA, typename TileMatB,
+    typename TileScaleA, typename TileScaleB, typename LeftTile, typename RightTile, typename LeftScaleTile,
+    typename RightScaleTile, typename ResTile>
+AICORE inline void Compute(
+    __gm__ U* currentSrc0, __gm__ U* currentSrc1, __gm__ X* currentSrc2, __gm__ X* currentSrc3, __gm__ T*& currentDst,
+    TileMatA aMatTile[BUFFER_NUM], TileMatB bMatTile[BUFFER_NUM], TileScaleA aScaleMatTile[BUFFER_NUM],
+    TileScaleB bScaleMatTile[BUFFER_NUM], LeftTile aTile[BUFFER_NUM], RightTile bTile[BUFFER_NUM],
+    LeftScaleTile aScaleTile[BUFFER_NUM], RightScaleTile bScaleTile[BUFFER_NUM], ResTile& cTile,
+    uint32_t currentSingleCoreM, uint32_t currentSingleCoreN)
 {
     uint8_t mte2DBFlag = 0;
     uint8_t mte2mxDBFlag = 0;
@@ -308,9 +315,10 @@ AICORE inline void Compute(__gm__ U *currentSrc0, __gm__ U *currentSrc1, __gm__ 
             TASSIGN(outTile, 0x0);
 
             for (uint32_t kIter = 0; kIter < loopsK; ++kIter) {
-                ProcessKIteration<T, U, X, m, k, n, singleCoreK, baseM, baseK, baseN, baseScaleK, stepKa, stepKb,
-                                  stepKscaleA, stepKscaleB, TileMatA, TileMatB, TileScaleA, TileScaleB, LeftTile,
-                                  RightTile, LeftScaleTile, RightScaleTile, ResTile>(
+                ProcessKIteration<
+                    T, U, X, m, k, n, singleCoreK, baseM, baseK, baseN, baseScaleK, stepKa, stepKb, stepKscaleA,
+                    stepKscaleB, TileMatA, TileMatB, TileScaleA, TileScaleB, LeftTile, RightTile, LeftScaleTile,
+                    RightScaleTile, ResTile>(
                     kIter, i, j, currentSrc0, currentSrc1, currentSrc2, currentSrc3, aMatTile, bMatTile, aScaleMatTile,
                     bScaleMatTile, aTile, bTile, aScaleTile, bScaleTile, outTile, mte2DBFlag, mte2mxDBFlag, mte1DBFlag,
                     currentM, currentN);
@@ -321,17 +329,19 @@ AICORE inline void Compute(__gm__ U *currentSrc0, __gm__ U *currentSrc1, __gm__ 
     }
 }
 
-template <typename T, typename U, typename X, uint32_t blockDim, int m, int k, int n, uint32_t baseM, uint32_t baseK,
-          uint32_t baseN, uint32_t stepM, uint32_t stepKa, uint32_t stepKb, uint32_t stepN, uint32_t singleCoreM,
-          uint32_t singleCoreK, uint32_t singleCoreN>
-AICORE inline void RunMxMatmulWithTail(__gm__ T *out, __gm__ U *src0, __gm__ U *src1, __gm__ X *src2, __gm__ X *src3,
-                                       uint32_t validSingleCoreM, uint32_t validSingleCoreN)
+template <
+    typename T, typename U, typename X, uint32_t blockDim, int m, int k, int n, uint32_t baseM, uint32_t baseK,
+    uint32_t baseN, uint32_t stepM, uint32_t stepKa, uint32_t stepKb, uint32_t stepN, uint32_t singleCoreM,
+    uint32_t singleCoreK, uint32_t singleCoreN>
+AICORE inline void RunMxMatmulWithTail(
+    __gm__ T* out, __gm__ U* src0, __gm__ U* src1, __gm__ X* src2, __gm__ X* src3, uint32_t validSingleCoreM,
+    uint32_t validSingleCoreN)
 {
-    __gm__ U *currentSrc0 = nullptr;
-    __gm__ U *currentSrc1 = nullptr;
-    __gm__ X *currentSrc2 = nullptr;
-    __gm__ X *currentSrc3 = nullptr;
-    __gm__ T *currentDst = nullptr;
+    __gm__ U* currentSrc0 = nullptr;
+    __gm__ U* currentSrc1 = nullptr;
+    __gm__ X* currentSrc2 = nullptr;
+    __gm__ X* currentSrc3 = nullptr;
+    __gm__ T* currentDst = nullptr;
 
     InitGMOffsets<T, U, X, m, k, n, singleCoreM, singleCoreK, singleCoreN>(
         currentSrc0, currentSrc1, currentSrc2, currentSrc3, currentDst, out, src0, src1, src2, src3, validSingleCoreM,
@@ -369,24 +379,27 @@ AICORE inline void RunMxMatmulWithTail(__gm__ T *out, __gm__ U *src0, __gm__ U *
     RightScaleTile bScaleTile[BUFFER_NUM];
     ResTile cTile;
 
-    InitBuffers<T, U, X, baseM, baseK, baseN, baseScaleK, stepKa, stepKb, stepKscaleA, stepKscaleB, TileMatA, TileMatB,
-                TileScaleA, TileScaleB, LeftTile, RightTile, LeftScaleTile, RightScaleTile, ResTile>(
+    InitBuffers<
+        T, U, X, baseM, baseK, baseN, baseScaleK, stepKa, stepKb, stepKscaleA, stepKscaleB, TileMatA, TileMatB,
+        TileScaleA, TileScaleB, LeftTile, RightTile, LeftScaleTile, RightScaleTile, ResTile>(
         aMatTile, bMatTile, aScaleMatTile, bScaleMatTile, aTile, bTile, aScaleTile, bScaleTile, cTile);
 
     InitSyncFlags();
-    Compute<T, U, X, m, k, n, singleCoreM, singleCoreK, singleCoreN, baseM, baseK, baseN, baseScaleK, stepKa, stepKb,
-            stepKscaleA, stepKscaleB, TileMatA, TileMatB, TileScaleA, TileScaleB, LeftTile, RightTile, LeftScaleTile,
-            RightScaleTile, ResTile>(currentSrc0, currentSrc1, currentSrc2, currentSrc3, currentDst, aMatTile, bMatTile,
-                                     aScaleMatTile, bScaleMatTile, aTile, bTile, aScaleTile, bScaleTile, cTile,
-                                     validSingleCoreM, validSingleCoreN);
+    Compute<
+        T, U, X, m, k, n, singleCoreM, singleCoreK, singleCoreN, baseM, baseK, baseN, baseScaleK, stepKa, stepKb,
+        stepKscaleA, stepKscaleB, TileMatA, TileMatB, TileScaleA, TileScaleB, LeftTile, RightTile, LeftScaleTile,
+        RightScaleTile, ResTile>(
+        currentSrc0, currentSrc1, currentSrc2, currentSrc3, currentDst, aMatTile, bMatTile, aScaleMatTile,
+        bScaleMatTile, aTile, bTile, aScaleTile, bScaleTile, cTile, validSingleCoreM, validSingleCoreN);
 
     WaitSyncFlags();
 }
 
-template <typename T, typename U, typename X, uint32_t blockDim, int m, int k, int n, uint32_t singleCoreM,
-          uint32_t singleCoreK, uint32_t singleCoreN, uint32_t baseM, uint32_t baseK, uint32_t baseN, uint32_t stepM,
-          uint32_t stepKa, uint32_t stepKb, uint32_t stepN>
-AICORE inline void RunMxMatmulDispatch(__gm__ T *out, __gm__ U *src0, __gm__ U *src1, __gm__ X *src2, __gm__ X *src3)
+template <
+    typename T, typename U, typename X, uint32_t blockDim, int m, int k, int n, uint32_t singleCoreM,
+    uint32_t singleCoreK, uint32_t singleCoreN, uint32_t baseM, uint32_t baseK, uint32_t baseN, uint32_t stepM,
+    uint32_t stepKa, uint32_t stepKb, uint32_t stepN>
+AICORE inline void RunMxMatmulDispatch(__gm__ T* out, __gm__ U* src0, __gm__ U* src1, __gm__ X* src2, __gm__ X* src3)
 {
     constexpr uint32_t mIter = (m + singleCoreM - 1) / singleCoreM;
     constexpr uint32_t nIter = (n + singleCoreN - 1) / singleCoreN;
@@ -410,24 +423,27 @@ AICORE inline void RunMxMatmulDispatch(__gm__ T *out, __gm__ U *src0, __gm__ U *
         currentSingleCoreN = n % singleCoreN;
     }
 
-    RunMxMatmulWithTail<T, U, X, blockDim, m, k, n, baseM, baseK, baseN, stepM, stepKa, stepKb, stepN, singleCoreM,
-                        singleCoreK, singleCoreN>(out, src0, src1, src2, src3, currentSingleCoreM, currentSingleCoreN);
+    RunMxMatmulWithTail<
+        T, U, X, blockDim, m, k, n, baseM, baseK, baseN, stepM, stepKa, stepKb, stepN, singleCoreM, singleCoreK,
+        singleCoreN>(out, src0, src1, src2, src3, currentSingleCoreM, currentSingleCoreN);
 }
 
-template <uint32_t blockDim, uint32_t m, uint32_t k, uint32_t n, uint32_t singleCoreM, uint32_t singleCoreK,
-          uint32_t singleCoreN, uint32_t baseM, uint32_t baseK, uint32_t baseN, uint32_t stepM, uint32_t stepKa,
-          uint32_t stepKb, uint32_t stepN>
-__global__ AICORE void MxMatmulPerformance(__gm__ uint8_t *out, __gm__ uint8_t *src0, __gm__ uint8_t *src1,
-                                           __gm__ uint8_t *src2, __gm__ uint8_t *src3)
+template <
+    uint32_t blockDim, uint32_t m, uint32_t k, uint32_t n, uint32_t singleCoreM, uint32_t singleCoreK,
+    uint32_t singleCoreN, uint32_t baseM, uint32_t baseK, uint32_t baseN, uint32_t stepM, uint32_t stepKa,
+    uint32_t stepKb, uint32_t stepN>
+__global__ AICORE void MxMatmulPerformance(
+    __gm__ uint8_t* out, __gm__ uint8_t* src0, __gm__ uint8_t* src1, __gm__ uint8_t* src2, __gm__ uint8_t* src3)
 {
-    RunMxMatmulDispatch<bfloat16_t, float4_e2m1x2_t, float8_e8m0_t, blockDim, m, k, n, singleCoreM, singleCoreK,
-                        singleCoreN, baseM, baseK, baseN, stepM, stepKa, stepKb, stepN>(
-        reinterpret_cast<__gm__ bfloat16_t *>(out), reinterpret_cast<__gm__ float4_e2m1x2_t *>(src0),
-        reinterpret_cast<__gm__ float4_e2m1x2_t *>(src1), reinterpret_cast<__gm__ float8_e8m0_t *>(src2),
-        reinterpret_cast<__gm__ float8_e8m0_t *>(src3));
+    RunMxMatmulDispatch<
+        bfloat16_t, float4_e2m1x2_t, float8_e8m0_t, blockDim, m, k, n, singleCoreM, singleCoreK, singleCoreN, baseM,
+        baseK, baseN, stepM, stepKa, stepKb, stepN>(
+        reinterpret_cast<__gm__ bfloat16_t*>(out), reinterpret_cast<__gm__ float4_e2m1x2_t*>(src0),
+        reinterpret_cast<__gm__ float4_e2m1x2_t*>(src1), reinterpret_cast<__gm__ float8_e8m0_t*>(src2),
+        reinterpret_cast<__gm__ float8_e8m0_t*>(src3));
 }
 
-void LaunchMxMatmul(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3, void *stream)
+void LaunchMxMatmul(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, void* stream)
 {
     constexpr uint32_t blockDim = 32;
     constexpr uint32_t m = 2040;
@@ -443,8 +459,9 @@ void LaunchMxMatmul(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, u
     constexpr uint32_t stepKa = 2;
     constexpr uint32_t stepKb = 2;
     constexpr uint32_t stepN = 1;
-    MxMatmulPerformance<blockDim, m, k, n, singleCoreM, singleCoreK, singleCoreN, baseM, baseK, baseN, stepM, stepKa,
-                        stepKb, stepN><<<blockDim, nullptr, stream>>>(out, src0, src1, src2, src3);
+    MxMatmulPerformance<
+        blockDim, m, k, n, singleCoreM, singleCoreK, singleCoreN, baseM, baseK, baseN, stepM, stepKa, stepKb, stepN>
+        <<<blockDim, nullptr, stream>>>(out, src0, src1, src2, src3);
 }
 
-void LaunchMxMatmul(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3, void *stream);
+void LaunchMxMatmul(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, void* stream);

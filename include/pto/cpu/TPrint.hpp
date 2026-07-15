@@ -42,7 +42,7 @@ struct PrintFormatTraits<PrintFormat::Width10_Precision6> {
 };
 
 template <PrintFormat Format, typename T>
-PTO_INTERNAL void PrintValue(const T &value)
+PTO_INTERNAL void PrintValue(const T& value)
 {
     constexpr int width = PrintFormatTraits<Format>::Width;
     if constexpr (std::is_floating_point_v<T>) {
@@ -58,7 +58,7 @@ PTO_INTERNAL void PrintValue(const T &value)
 }
 
 template <PrintFormat Format = PrintFormat::Width8_Precision4, typename T>
-PTO_INTERNAL void TPRINT_IMPL(T &src)
+PTO_INTERNAL void TPRINT_IMPL(T& src)
 {
     std::cout << "TPRINT " << src.GetValidRow() << "x" << src.GetValidCol() << '\n';
     for (unsigned r = 0; r < src.GetValidRow(); ++r) {
@@ -74,7 +74,7 @@ PTO_INTERNAL void TPRINT_IMPL(T &src)
 }
 
 template <PrintFormat Format = PrintFormat::Width8_Precision4, typename TileData, typename GlobalData>
-PTO_INTERNAL void TPRINT_IMPL(TileData &src, GlobalData &tmp)
+PTO_INTERNAL void TPRINT_IMPL(TileData& src, GlobalData& tmp)
 {
     TPRINT_IMPL<Format>(src);
 }

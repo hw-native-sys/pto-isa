@@ -17,19 +17,22 @@ namespace pto {
 
 template <typename T, typename U>
 struct TPartArgMaxOp {
-    PTO_INTERNAL static void BinInstr(MaskReg &maskReg, RegTensor<T> &src, RegTensor<T> &dst, MaskReg preg)
+    PTO_INTERNAL static void BinInstr(MaskReg& maskReg, RegTensor<T>& src, RegTensor<T>& dst, MaskReg preg)
     {
         vcmp_gt(maskReg, src, dst, preg);
     }
 };
 
-template <typename DstValTileData, typename Src0ValTileData, typename Src1ValTileData, typename DstIdxTileData,
-          typename Src0IdxTileData, typename Src1IdxTileData>
-PTO_INTERNAL void TPARTARGMAX_IMPL(DstValTileData &dstVal, Src0ValTileData &src0Val, Src1ValTileData &src1Val,
-                                   DstIdxTileData &dstIdx, Src0IdxTileData &src0Idx, Src1IdxTileData &src1Idx)
+template <
+    typename DstValTileData, typename Src0ValTileData, typename Src1ValTileData, typename DstIdxTileData,
+    typename Src0IdxTileData, typename Src1IdxTileData>
+PTO_INTERNAL void TPARTARGMAX_IMPL(
+    DstValTileData& dstVal, Src0ValTileData& src0Val, Src1ValTileData& src1Val, DstIdxTileData& dstIdx,
+    Src0IdxTileData& src0Idx, Src1IdxTileData& src1Idx)
 {
-    TPartArgImpl<TPartArgMaxOp<typename DstValTileData::DType, typename DstIdxTileData::DType>, DstValTileData,
-                 Src0ValTileData, Src1ValTileData, DstIdxTileData, Src0IdxTileData, Src1IdxTileData>(
+    TPartArgImpl<
+        TPartArgMaxOp<typename DstValTileData::DType, typename DstIdxTileData::DType>, DstValTileData, Src0ValTileData,
+        Src1ValTileData, DstIdxTileData, Src0IdxTileData, Src1IdxTileData>(
         dstVal, src0Val, src1Val, dstIdx, src0Idx, src1Idx);
 }
 } // namespace pto

@@ -19,14 +19,16 @@ namespace pto {
 namespace comm {
 
 template <typename GlobalDstData, typename GlobalSrcData, AtomicType atomicType = AtomicType::AtomicNone>
-PTO_INTERNAL void Copy_Data(GlobalDstData &dstTensor, GlobalSrcData &srcTensor)
+PTO_INTERNAL void Copy_Data(GlobalDstData& dstTensor, GlobalSrcData& srcTensor)
 {
-    typename GlobalDstData::DType *dst = dstTensor.data();
-    typename GlobalSrcData::DType *src = srcTensor.data();
-    int64_t shape[] = {dstTensor.GetShape(0), dstTensor.GetShape(1), dstTensor.GetShape(2), dstTensor.GetShape(3),
-                       dstTensor.GetShape(4)};
-    int64_t stride[] = {dstTensor.GetStride(0), dstTensor.GetStride(1), dstTensor.GetStride(2), dstTensor.GetStride(3),
-                        dstTensor.GetStride(4)};
+    typename GlobalDstData::DType* dst = dstTensor.data();
+    typename GlobalSrcData::DType* src = srcTensor.data();
+    int64_t shape[] = {
+        dstTensor.GetShape(0), dstTensor.GetShape(1), dstTensor.GetShape(2), dstTensor.GetShape(3),
+        dstTensor.GetShape(4)};
+    int64_t stride[] = {
+        dstTensor.GetStride(0), dstTensor.GetStride(1), dstTensor.GetStride(2), dstTensor.GetStride(3),
+        dstTensor.GetStride(4)};
 
     for (size_t i = 0; i < shape[0]; i++) {
         for (size_t j = 0; j < shape[1]; j++) {
@@ -47,19 +49,19 @@ PTO_INTERNAL void Copy_Data(GlobalDstData &dstTensor, GlobalSrcData &srcTensor)
 }
 
 template <typename GlobalDstData, typename GlobalSrcData, typename TileData>
-PTO_INTERNAL void TGET_IMPL(GlobalDstData &dst, GlobalSrcData &src, TileData &src1)
+PTO_INTERNAL void TGET_IMPL(GlobalDstData& dst, GlobalSrcData& src, TileData& src1)
 {
     Copy_Data(dst, src);
 }
 
 template <typename GlobalDstData, typename GlobalSrcData, typename TileData>
-PTO_INTERNAL void TGET_IMPL(GlobalDstData &dst, GlobalSrcData &src, TileData &ping, TileData &pong)
+PTO_INTERNAL void TGET_IMPL(GlobalDstData& dst, GlobalSrcData& src, TileData& ping, TileData& pong)
 {
     Copy_Data(dst, src);
 }
 
 template <DmaEngine engine = DmaEngine::SDMA, typename GlobalDstData, typename GlobalSrcData>
-PTO_INTERNAL AsyncEvent TGET_ASYNC_IMPL(GlobalDstData &dst, GlobalSrcData &src, const AsyncSession &session)
+PTO_INTERNAL AsyncEvent TGET_ASYNC_IMPL(GlobalDstData& dst, GlobalSrcData& src, const AsyncSession& session)
 {
     Copy_Data(dst, src);
     return AsyncEvent(0, engine);

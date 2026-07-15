@@ -22,7 +22,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 static constexpr size_t HCCL_WIN_SYNC_PREFIX = 64 * sizeof(int32_t);
 
 template <typename T>
-__global__ AICORE void WindowMemCopyIn(__gm__ T *winDst, __gm__ T *devSrc, int count)
+__global__ AICORE void WindowMemCopyIn(__gm__ T* winDst, __gm__ T* devSrc, int count)
 {
     for (int i = 0; i < count; ++i) {
         winDst[i] = devSrc[i];
@@ -35,8 +35,8 @@ __global__ AICORE void WindowMemCopyIn(__gm__ T *winDst, __gm__ T *devSrc, int c
 // Tests the TREDUCE collective - root gathers and reduces data from all ranks
 // ============================================================================
 template <typename T, size_t count, pto::comm::ReduceOp op>
-__global__ AICORE void TReduceKernelImpl(__gm__ T *input, __gm__ T *output, int nranks, int root,
-                                         __gm__ CommDeviceContext *hcclCtx)
+__global__ AICORE void TReduceKernelImpl(
+    __gm__ T* input, __gm__ T* output, int nranks, int root, __gm__ CommDeviceContext* hcclCtx)
 {
     using ShapeDyn = pto::Shape<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
     using StrideDyn = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
@@ -56,7 +56,7 @@ __global__ AICORE void TReduceKernelImpl(__gm__ T *input, __gm__ T *output, int 
     Global tensors[16];
     int actual_nranks = (nranks > 16) ? 16 : nranks;
     for (int i = 0; i < actual_nranks; ++i) {
-        __gm__ T *remoteInput = CommRemotePtr(hcclCtx, input, i);
+        __gm__ T* remoteInput = CommRemotePtr(hcclCtx, input, i);
         tensors[i] = Global(remoteInput, shape, stride);
     }
 
@@ -99,8 +99,8 @@ T ReduceExpected(T base, int n_ranks, pto::comm::ReduceOp op)
 }
 
 template <typename T, size_t count, pto::comm::ReduceOp op>
-bool RunReduceKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, int root,
-                     const HcclRootInfo *rootInfo)
+bool RunReduceKernel(
+    int rank_id, int n_ranks, int n_devices, int first_device_id, int root, const HcclRootInfo* rootInfo)
 {
     TestContext ctx;
     if (!ctx.Init(rank_id, n_ranks, n_devices, first_device_id, rootInfo)) {
@@ -112,16 +112,16 @@ bool RunReduceKernel(int rank_id, int n_ranks, int n_devices, int first_device_i
     if (n_ranks > 1) {
         WindowAlloc(localWinBase, winOffset, HCCL_WIN_SYNC_PREFIX);
     }
-    void *input_ptr = WindowAlloc(localWinBase, winOffset, count * sizeof(T));
+    void* input_ptr = WindowAlloc(localWinBase, winOffset, count * sizeof(T));
 
-    T *input_host = nullptr;
-    T *output_host = nullptr;
-    T *output_device = nullptr;
-    T *staging = nullptr;
-    if (aclrtMallocHost(reinterpret_cast<void **>(&input_host), count * sizeof(T)) != 0 ||
-        aclrtMallocHost(reinterpret_cast<void **>(&output_host), count * sizeof(T)) != 0 ||
-        aclrtMalloc(reinterpret_cast<void **>(&output_device), count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) != 0 ||
-        aclrtMalloc(reinterpret_cast<void **>(&staging), count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) != 0) {
+    T* input_host = nullptr;
+    T* output_host = nullptr;
+    T* output_device = nullptr;
+    T* staging = nullptr;
+    if (aclrtMallocHost(reinterpret_cast<void**>(&input_host), count * sizeof(T)) != 0 ||
+        aclrtMallocHost(reinterpret_cast<void**>(&output_host), count * sizeof(T)) != 0 ||
+        aclrtMalloc(reinterpret_cast<void**>(&output_device), count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) != 0 ||
+        aclrtMalloc(reinterpret_cast<void**>(&staging), count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) != 0) {
         std::cerr << "[ERROR] aclrtMallocHost/aclrtMalloc failed!" << std::endl;
         return false;
     }
@@ -131,14 +131,14 @@ bool RunReduceKernel(int rank_id, int n_ranks, int n_devices, int first_device_i
     }
 
     aclrtMemcpy(staging, count * sizeof(T), input_host, count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
-    WindowMemCopyIn<T><<<1, nullptr, ctx.stream>>>((T *)input_ptr, staging, static_cast<int>(count));
+    WindowMemCopyIn<T><<<1, nullptr, ctx.stream>>>((T*)input_ptr, staging, static_cast<int>(count));
     aclrtSynchronizeStream(ctx.stream);
     aclrtFree(staging);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
     TReduceKernelImpl<T, count, op>
-        <<<1, nullptr, ctx.stream>>>((T *)input_ptr, (T *)output_device, n_ranks, root, ctx.deviceCtx);
+        <<<1, nullptr, ctx.stream>>>((T*)input_ptr, (T*)output_device, n_ranks, root, ctx.deviceCtx);
     ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
 
     // Barrier after kernel execution
@@ -190,7 +190,7 @@ template <typename T, size_t count, pto::comm::ReduceOp op>
 bool RunReduce(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
     return ForkAndRunWithHcclRootInfo(
-        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo *rootInfo) {
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
             return RunReduceKernel<T, count, op>(rankId, n_ranks, n_devices, first_device_id, 0, rootInfo);
         });
 }
@@ -199,32 +199,32 @@ template <typename T, size_t count, pto::comm::ReduceOp op>
 bool RunReduceWithRoot(int n_ranks, int n_devices, int first_rank_id, int first_device_id, int root)
 {
     return ForkAndRunWithHcclRootInfo(
-        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo *rootInfo) {
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
             return RunReduceKernel<T, count, op>(rankId, n_ranks, n_devices, first_device_id, root, rootInfo);
         });
 }
 
 // Explicit instantiations
-template bool RunReduce<float, 256, pto::comm::ReduceOp::Sum>(int n_ranks, int n_devices, int first_rank_id,
-                                                              int first_device_id);
-template bool RunReduce<int32_t, 4096, pto::comm::ReduceOp::Sum>(int n_ranks, int n_devices, int first_rank_id,
-                                                                 int first_device_id);
-template bool RunReduce<int32_t, 512, pto::comm::ReduceOp::Sum>(int n_ranks, int n_devices, int first_rank_id,
-                                                                int first_device_id);
-template bool RunReduce<int32_t, 256, pto::comm::ReduceOp::Max>(int n_ranks, int n_devices, int first_rank_id,
-                                                                int first_device_id);
-template bool RunReduce<int32_t, 256, pto::comm::ReduceOp::Min>(int n_ranks, int n_devices, int first_rank_id,
-                                                                int first_device_id);
-template bool RunReduceWithRoot<float, 256, pto::comm::ReduceOp::Sum>(int n_ranks, int n_devices, int first_rank_id,
-                                                                      int first_device_id, int root);
+template bool RunReduce<float, 256, pto::comm::ReduceOp::Sum>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);
+template bool RunReduce<int32_t, 4096, pto::comm::ReduceOp::Sum>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);
+template bool RunReduce<int32_t, 512, pto::comm::ReduceOp::Sum>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);
+template bool RunReduce<int32_t, 256, pto::comm::ReduceOp::Max>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);
+template bool RunReduce<int32_t, 256, pto::comm::ReduceOp::Min>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id);
+template bool RunReduceWithRoot<float, 256, pto::comm::ReduceOp::Sum>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id, int root);
 
 // ============================================================================
 // Empty Rows Test Kernel
 // Tests TREDUCE with zero rows (empty data)
 // ============================================================================
 template <typename T, size_t count, pto::comm::ReduceOp op>
-__global__ AICORE void TReduceEmptyKernelImpl(__gm__ T *input, __gm__ T *output, int nranks, int root,
-                                              __gm__ CommDeviceContext *hcclCtx)
+__global__ AICORE void TReduceEmptyKernelImpl(
+    __gm__ T* input, __gm__ T* output, int nranks, int root, __gm__ CommDeviceContext* hcclCtx)
 {
     using ShapeDyn = pto::Shape<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
     using StrideDyn = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
@@ -241,7 +241,7 @@ __global__ AICORE void TReduceEmptyKernelImpl(__gm__ T *input, __gm__ T *output,
     Global tensors[16];
     int actual_nranks = (nranks > 16) ? 16 : nranks;
     for (int i = 0; i < actual_nranks; ++i) {
-        __gm__ T *remoteInput = CommRemotePtr(hcclCtx, input, i);
+        __gm__ T* remoteInput = CommRemotePtr(hcclCtx, input, i);
         tensors[i] = Global(remoteInput, shape, stride);
     }
 
@@ -260,8 +260,8 @@ __global__ AICORE void TReduceEmptyKernelImpl(__gm__ T *input, __gm__ T *output,
 }
 
 template <typename T, size_t count, pto::comm::ReduceOp op>
-bool RunReduceEmptyKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, int root,
-                          const HcclRootInfo *rootInfo)
+bool RunReduceEmptyKernel(
+    int rank_id, int n_ranks, int n_devices, int first_device_id, int root, const HcclRootInfo* rootInfo)
 {
     TestContext ctx;
     if (!ctx.Init(rank_id, n_ranks, n_devices, first_device_id, rootInfo)) {
@@ -273,16 +273,16 @@ bool RunReduceEmptyKernel(int rank_id, int n_ranks, int n_devices, int first_dev
     if (n_ranks > 1) {
         WindowAlloc(localWinBase, winOffset, HCCL_WIN_SYNC_PREFIX);
     }
-    void *input_ptr = WindowAlloc(localWinBase, winOffset, count * sizeof(T));
+    void* input_ptr = WindowAlloc(localWinBase, winOffset, count * sizeof(T));
 
-    T *input_host = nullptr;
-    T *output_host = nullptr;
-    T *output_device = nullptr;
-    T *staging = nullptr;
-    if (aclrtMallocHost(reinterpret_cast<void **>(&input_host), count * sizeof(T)) != 0 ||
-        aclrtMallocHost(reinterpret_cast<void **>(&output_host), count * sizeof(T)) != 0 ||
-        aclrtMalloc(reinterpret_cast<void **>(&output_device), count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) != 0 ||
-        aclrtMalloc(reinterpret_cast<void **>(&staging), count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) != 0) {
+    T* input_host = nullptr;
+    T* output_host = nullptr;
+    T* output_device = nullptr;
+    T* staging = nullptr;
+    if (aclrtMallocHost(reinterpret_cast<void**>(&input_host), count * sizeof(T)) != 0 ||
+        aclrtMallocHost(reinterpret_cast<void**>(&output_host), count * sizeof(T)) != 0 ||
+        aclrtMalloc(reinterpret_cast<void**>(&output_device), count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) != 0 ||
+        aclrtMalloc(reinterpret_cast<void**>(&staging), count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) != 0) {
         std::cerr << "[ERROR] aclrtMallocHost/aclrtMalloc failed!" << std::endl;
         return false;
     }
@@ -293,7 +293,7 @@ bool RunReduceEmptyKernel(int rank_id, int n_ranks, int n_devices, int first_dev
     }
 
     aclrtMemcpy(staging, count * sizeof(T), input_host, count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
-    WindowMemCopyIn<T><<<1, nullptr, ctx.stream>>>((T *)input_ptr, staging, static_cast<int>(count));
+    WindowMemCopyIn<T><<<1, nullptr, ctx.stream>>>((T*)input_ptr, staging, static_cast<int>(count));
     aclrtSynchronizeStream(ctx.stream);
     aclrtFree(staging);
 
@@ -304,7 +304,7 @@ bool RunReduceEmptyKernel(int rank_id, int n_ranks, int n_devices, int first_dev
     HcclHostBarrier(ctx.comm, ctx.stream);
 
     TReduceEmptyKernelImpl<T, count, op>
-        <<<1, nullptr, ctx.stream>>>((T *)input_ptr, (T *)output_device, n_ranks, root, ctx.deviceCtx);
+        <<<1, nullptr, ctx.stream>>>((T*)input_ptr, (T*)output_device, n_ranks, root, ctx.deviceCtx);
     ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
@@ -331,13 +331,13 @@ template <typename T, size_t count, pto::comm::ReduceOp op>
 bool RunReduceEmpty(int n_ranks, int n_devices, int first_rank_id, int first_device_id, int root)
 {
     return ForkAndRunWithHcclRootInfo(
-        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo *rootInfo) {
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
             return RunReduceEmptyKernel<T, count, op>(rankId, n_ranks, n_devices, first_device_id, root, rootInfo);
         });
 }
 
-template bool RunReduceEmpty<float, 256, pto::comm::ReduceOp::Sum>(int n_ranks, int n_devices, int first_rank_id,
-                                                                   int first_device_id, int root);
+template bool RunReduceEmpty<float, 256, pto::comm::ReduceOp::Sum>(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id, int root);
 
 // Non-template wrappers for test main.cpp
 bool RunReduceFloat256Sum(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
@@ -347,14 +347,14 @@ bool RunReduceFloat256Sum(int n_ranks, int n_devices, int first_rank_id, int fir
 
 bool RunReduceFloat256SumWithRoot(int n_ranks, int n_devices, int first_rank_id, int first_device_id, int root)
 {
-    return RunReduceWithRoot<float, 256, pto::comm::ReduceOp::Sum>(n_ranks, n_devices, first_rank_id, first_device_id,
-                                                                   root);
+    return RunReduceWithRoot<float, 256, pto::comm::ReduceOp::Sum>(
+        n_ranks, n_devices, first_rank_id, first_device_id, root);
 }
 
 bool RunReduceEmptyFloat256Sum(int n_ranks, int n_devices, int first_rank_id, int first_device_id, int root)
 {
-    return RunReduceEmpty<float, 256, pto::comm::ReduceOp::Sum>(n_ranks, n_devices, first_rank_id, first_device_id,
-                                                                root);
+    return RunReduceEmpty<float, 256, pto::comm::ReduceOp::Sum>(
+        n_ranks, n_devices, first_rank_id, first_device_id, root);
 }
 
 bool RunReduceInt32_4096_Sum(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
@@ -384,8 +384,8 @@ bool RunReduceInt32_256_Min(int n_ranks, int n_devices, int first_rank_id, int f
 // where total_rows > tile_rows, triggering automatic chunking in TREDUCE_IMPL
 // ============================================================================
 template <typename T, size_t total_rows, size_t cols, size_t tile_rows, pto::comm::ReduceOp op>
-__global__ AICORE void TReduceLargeShapeKernelImpl(__gm__ T *input, __gm__ T *output, int nranks,
-                                                   __gm__ CommDeviceContext *hcclCtx)
+__global__ AICORE void TReduceLargeShapeKernelImpl(
+    __gm__ T* input, __gm__ T* output, int nranks, __gm__ CommDeviceContext* hcclCtx)
 {
     constexpr size_t total_count = total_rows * cols;
     static_assert(total_rows > tile_rows, "total_rows must exceed tile_rows to test chunking");
@@ -408,7 +408,7 @@ __global__ AICORE void TReduceLargeShapeKernelImpl(__gm__ T *input, __gm__ T *ou
     Global tensors[16];
     int actual_nranks = (nranks > 16) ? 16 : nranks;
     for (int i = 0; i < actual_nranks; ++i) {
-        __gm__ T *remoteInput = CommRemotePtr(hcclCtx, input, i);
+        __gm__ T* remoteInput = CommRemotePtr(hcclCtx, input, i);
         tensors[i] = Global(remoteInput, fullShape, fullStride);
     }
 
@@ -430,8 +430,8 @@ __global__ AICORE void TReduceLargeShapeKernelImpl(__gm__ T *input, __gm__ T *ou
 }
 
 template <typename T, size_t total_rows, size_t cols, size_t tile_rows, pto::comm::ReduceOp op>
-bool RunReduceLargeShapeKernel(int rank_id, int n_ranks, int n_devices, int first_device_id,
-                               const HcclRootInfo *rootInfo)
+bool RunReduceLargeShapeKernel(
+    int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo* rootInfo)
 {
     constexpr size_t total_count = total_rows * cols;
 
@@ -445,17 +445,17 @@ bool RunReduceLargeShapeKernel(int rank_id, int n_ranks, int n_devices, int firs
     if (n_ranks > 1) {
         WindowAlloc(localWinBase, winOffset, HCCL_WIN_SYNC_PREFIX);
     }
-    void *input_ptr = WindowAlloc(localWinBase, winOffset, total_count * sizeof(T));
+    void* input_ptr = WindowAlloc(localWinBase, winOffset, total_count * sizeof(T));
 
-    T *input_host = nullptr;
-    T *output_host = nullptr;
-    T *output_device = nullptr;
-    T *staging = nullptr;
-    if (aclrtMallocHost(reinterpret_cast<void **>(&input_host), total_count * sizeof(T)) != 0 ||
-        aclrtMallocHost(reinterpret_cast<void **>(&output_host), total_count * sizeof(T)) != 0 ||
-        aclrtMalloc(reinterpret_cast<void **>(&output_device), total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) !=
+    T* input_host = nullptr;
+    T* output_host = nullptr;
+    T* output_device = nullptr;
+    T* staging = nullptr;
+    if (aclrtMallocHost(reinterpret_cast<void**>(&input_host), total_count * sizeof(T)) != 0 ||
+        aclrtMallocHost(reinterpret_cast<void**>(&output_host), total_count * sizeof(T)) != 0 ||
+        aclrtMalloc(reinterpret_cast<void**>(&output_device), total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) !=
             0 ||
-        aclrtMalloc(reinterpret_cast<void **>(&staging), total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) != 0) {
+        aclrtMalloc(reinterpret_cast<void**>(&staging), total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) != 0) {
         std::cerr << "[ERROR] aclrtMallocHost/aclrtMalloc failed!" << std::endl;
         return false;
     }
@@ -465,14 +465,14 @@ bool RunReduceLargeShapeKernel(int rank_id, int n_ranks, int n_devices, int firs
     }
 
     aclrtMemcpy(staging, total_count * sizeof(T), input_host, total_count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
-    WindowMemCopyIn<T><<<1, nullptr, ctx.stream>>>((T *)input_ptr, staging, static_cast<int>(total_count));
+    WindowMemCopyIn<T><<<1, nullptr, ctx.stream>>>((T*)input_ptr, staging, static_cast<int>(total_count));
     aclrtSynchronizeStream(ctx.stream);
     aclrtFree(staging);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
     TReduceLargeShapeKernelImpl<T, total_rows, cols, tile_rows, op>
-        <<<1, nullptr, ctx.stream>>>((T *)input_ptr, (T *)output_device, n_ranks, ctx.deviceCtx);
+        <<<1, nullptr, ctx.stream>>>((T*)input_ptr, (T*)output_device, n_ranks, ctx.deviceCtx);
     ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
@@ -480,8 +480,8 @@ bool RunReduceLargeShapeKernel(int rank_id, int n_ranks, int n_devices, int firs
     // Only root verifies result
     bool is_ok = true;
     if (rank_id == 0) {
-        aclrtMemcpy(output_host, total_count * sizeof(T), output_device, total_count * sizeof(T),
-                    ACL_MEMCPY_DEVICE_TO_HOST);
+        aclrtMemcpy(
+            output_host, total_count * sizeof(T), output_device, total_count * sizeof(T), ACL_MEMCPY_DEVICE_TO_HOST);
 
         for (size_t i = 0; i < total_count; ++i) {
             const T expected = ReduceExpected(static_cast<T>(i), n_ranks, op);
@@ -523,11 +523,11 @@ bool RunReduceLargeShapeKernel(int rank_id, int n_ranks, int n_devices, int firs
 template <typename T, size_t total_rows, size_t cols, size_t tile_rows, pto::comm::ReduceOp op>
 bool RunReduceLargeShape(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
-    return ForkAndRunWithHcclRootInfo(n_ranks, first_rank_id, first_device_id,
-                                      [&](int rankId, const HcclRootInfo *rootInfo) {
-                                          return RunReduceLargeShapeKernel<T, total_rows, cols, tile_rows, op>(
-                                              rankId, n_ranks, n_devices, first_device_id, rootInfo);
-                                      });
+    return ForkAndRunWithHcclRootInfo(
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
+            return RunReduceLargeShapeKernel<T, total_rows, cols, tile_rows, op>(
+                rankId, n_ranks, n_devices, first_device_id, rootInfo);
+        });
 }
 
 // Explicit instantiations for large shape tests
@@ -543,23 +543,23 @@ template bool RunReduceLargeShape<int32_t, 512, 32, 64, pto::comm::ReduceOp::Sum
 // Non-template wrappers for large shape tests
 bool RunReduceLargeShape_Int32_128x32_tile16_Sum(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
-    return RunReduceLargeShape<int32_t, 128, 32, 16, pto::comm::ReduceOp::Sum>(n_ranks, n_devices, first_rank_id,
-                                                                               first_device_id);
+    return RunReduceLargeShape<int32_t, 128, 32, 16, pto::comm::ReduceOp::Sum>(
+        n_ranks, n_devices, first_rank_id, first_device_id);
 }
 bool RunReduceLargeShape_Float_256x64_tile32_Sum(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
-    return RunReduceLargeShape<float, 256, 64, 32, pto::comm::ReduceOp::Sum>(n_ranks, n_devices, first_rank_id,
-                                                                             first_device_id);
+    return RunReduceLargeShape<float, 256, 64, 32, pto::comm::ReduceOp::Sum>(
+        n_ranks, n_devices, first_rank_id, first_device_id);
 }
 bool RunReduceLargeShape_Int32_128x32_tile16_Max(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
-    return RunReduceLargeShape<int32_t, 128, 32, 16, pto::comm::ReduceOp::Max>(n_ranks, n_devices, first_rank_id,
-                                                                               first_device_id);
+    return RunReduceLargeShape<int32_t, 128, 32, 16, pto::comm::ReduceOp::Max>(
+        n_ranks, n_devices, first_rank_id, first_device_id);
 }
 bool RunReduceLargeShape_Int32_512x32_tile64_Sum(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
-    return RunReduceLargeShape<int32_t, 512, 32, 64, pto::comm::ReduceOp::Sum>(n_ranks, n_devices, first_rank_id,
-                                                                               first_device_id);
+    return RunReduceLargeShape<int32_t, 512, 32, 64, pto::comm::ReduceOp::Sum>(
+        n_ranks, n_devices, first_rank_id, first_device_id);
 }
 
 // ============================================================================
@@ -569,8 +569,8 @@ bool RunReduceLargeShape_Int32_512x32_tile64_Sum(int n_ranks, int n_devices, int
 // Uses the 6-parameter TREDUCE(pg, dst, acc, ping, pong, op) overload.
 // ============================================================================
 template <typename T, size_t total_rows, size_t cols, size_t tile_rows, pto::comm::ReduceOp op>
-__global__ AICORE void TReducePingPongKernelImpl(__gm__ T *input, __gm__ T *output, int nranks,
-                                                 __gm__ CommDeviceContext *hcclCtx)
+__global__ AICORE void TReducePingPongKernelImpl(
+    __gm__ T* input, __gm__ T* output, int nranks, __gm__ CommDeviceContext* hcclCtx)
 {
     constexpr size_t total_count = total_rows * cols;
     static_assert(total_rows > tile_rows, "total_rows must exceed tile_rows to test chunked ping-pong");
@@ -592,7 +592,7 @@ __global__ AICORE void TReducePingPongKernelImpl(__gm__ T *input, __gm__ T *outp
     Global tensors[16];
     int actual_nranks = (nranks > 16) ? 16 : nranks;
     for (int i = 0; i < actual_nranks; ++i) {
-        __gm__ T *remoteInput = CommRemotePtr(hcclCtx, input, i);
+        __gm__ T* remoteInput = CommRemotePtr(hcclCtx, input, i);
         tensors[i] = Global(remoteInput, fullShape, fullStride);
     }
 
@@ -617,7 +617,7 @@ __global__ AICORE void TReducePingPongKernelImpl(__gm__ T *input, __gm__ T *outp
 }
 
 template <typename T, size_t total_rows, size_t cols, size_t tile_rows, pto::comm::ReduceOp op>
-bool RunReducePingPongKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo *rootInfo)
+bool RunReducePingPongKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo* rootInfo)
 {
     constexpr size_t total_count = total_rows * cols;
 
@@ -631,17 +631,17 @@ bool RunReducePingPongKernel(int rank_id, int n_ranks, int n_devices, int first_
     if (n_ranks > 1) {
         WindowAlloc(localWinBase, winOffset, HCCL_WIN_SYNC_PREFIX);
     }
-    void *input_ptr = WindowAlloc(localWinBase, winOffset, total_count * sizeof(T));
+    void* input_ptr = WindowAlloc(localWinBase, winOffset, total_count * sizeof(T));
 
-    T *input_host = nullptr;
-    T *output_host = nullptr;
-    T *output_device = nullptr;
-    T *staging = nullptr;
-    if (aclrtMallocHost(reinterpret_cast<void **>(&input_host), total_count * sizeof(T)) != 0 ||
-        aclrtMallocHost(reinterpret_cast<void **>(&output_host), total_count * sizeof(T)) != 0 ||
-        aclrtMalloc(reinterpret_cast<void **>(&output_device), total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) !=
+    T* input_host = nullptr;
+    T* output_host = nullptr;
+    T* output_device = nullptr;
+    T* staging = nullptr;
+    if (aclrtMallocHost(reinterpret_cast<void**>(&input_host), total_count * sizeof(T)) != 0 ||
+        aclrtMallocHost(reinterpret_cast<void**>(&output_host), total_count * sizeof(T)) != 0 ||
+        aclrtMalloc(reinterpret_cast<void**>(&output_device), total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) !=
             0 ||
-        aclrtMalloc(reinterpret_cast<void **>(&staging), total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) != 0) {
+        aclrtMalloc(reinterpret_cast<void**>(&staging), total_count * sizeof(T), ACL_MEM_MALLOC_HUGE_FIRST) != 0) {
         std::cerr << "[ERROR] aclrtMallocHost/aclrtMalloc failed!" << std::endl;
         return false;
     }
@@ -651,22 +651,22 @@ bool RunReducePingPongKernel(int rank_id, int n_ranks, int n_devices, int first_
     }
 
     aclrtMemcpy(staging, total_count * sizeof(T), input_host, total_count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
-    WindowMemCopyIn<T><<<1, nullptr, ctx.stream>>>((T *)input_ptr, staging, static_cast<int>(total_count));
+    WindowMemCopyIn<T><<<1, nullptr, ctx.stream>>>((T*)input_ptr, staging, static_cast<int>(total_count));
     aclrtSynchronizeStream(ctx.stream);
     aclrtFree(staging);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
     TReducePingPongKernelImpl<T, total_rows, cols, tile_rows, op>
-        <<<1, nullptr, ctx.stream>>>((T *)input_ptr, (T *)output_device, n_ranks, ctx.deviceCtx);
+        <<<1, nullptr, ctx.stream>>>((T*)input_ptr, (T*)output_device, n_ranks, ctx.deviceCtx);
     ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
 
     HcclHostBarrier(ctx.comm, ctx.stream);
 
     bool is_ok = true;
     if (rank_id == 0) {
-        aclrtMemcpy(output_host, total_count * sizeof(T), output_device, total_count * sizeof(T),
-                    ACL_MEMCPY_DEVICE_TO_HOST);
+        aclrtMemcpy(
+            output_host, total_count * sizeof(T), output_device, total_count * sizeof(T), ACL_MEMCPY_DEVICE_TO_HOST);
 
         for (size_t i = 0; i < total_count; ++i) {
             const T expected = ReduceExpected(static_cast<T>(i), n_ranks, op);
@@ -708,11 +708,11 @@ bool RunReducePingPongKernel(int rank_id, int n_ranks, int n_devices, int first_
 template <typename T, size_t total_rows, size_t cols, size_t tile_rows, pto::comm::ReduceOp op>
 bool RunReducePingPong(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
-    return ForkAndRunWithHcclRootInfo(n_ranks, first_rank_id, first_device_id,
-                                      [&](int rankId, const HcclRootInfo *rootInfo) {
-                                          return RunReducePingPongKernel<T, total_rows, cols, tile_rows, op>(
-                                              rankId, n_ranks, n_devices, first_device_id, rootInfo);
-                                      });
+    return ForkAndRunWithHcclRootInfo(
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
+            return RunReducePingPongKernel<T, total_rows, cols, tile_rows, op>(
+                rankId, n_ranks, n_devices, first_device_id, rootInfo);
+        });
 }
 
 // Explicit instantiations for ping-pong tests
@@ -726,16 +726,16 @@ template bool RunReducePingPong<int32_t, 128, 32, 16, pto::comm::ReduceOp::Max>(
 // Non-template wrappers for ping-pong tests
 bool RunReducePingPong_Int32_128x32_tile16_Sum(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
-    return RunReducePingPong<int32_t, 128, 32, 16, pto::comm::ReduceOp::Sum>(n_ranks, n_devices, first_rank_id,
-                                                                             first_device_id);
+    return RunReducePingPong<int32_t, 128, 32, 16, pto::comm::ReduceOp::Sum>(
+        n_ranks, n_devices, first_rank_id, first_device_id);
 }
 bool RunReducePingPong_Float_256x64_tile32_Sum(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
-    return RunReducePingPong<float, 256, 64, 32, pto::comm::ReduceOp::Sum>(n_ranks, n_devices, first_rank_id,
-                                                                           first_device_id);
+    return RunReducePingPong<float, 256, 64, 32, pto::comm::ReduceOp::Sum>(
+        n_ranks, n_devices, first_rank_id, first_device_id);
 }
 bool RunReducePingPong_Int32_128x32_tile16_Max(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
-    return RunReducePingPong<int32_t, 128, 32, 16, pto::comm::ReduceOp::Max>(n_ranks, n_devices, first_rank_id,
-                                                                             first_device_id);
+    return RunReducePingPong<int32_t, 128, 32, 16, pto::comm::ReduceOp::Max>(
+        n_ranks, n_devices, first_rank_id, first_device_id);
 }

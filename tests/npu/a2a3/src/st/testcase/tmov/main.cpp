@@ -15,29 +15,29 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace PtoTestCommon;
 
-template <typename AT, typename BT, typename L0CT, typename BiasT, typename GMT, typename ScalingT, int M, int N, int K,
-          int IsTransA, int IsTransB, int IsBias, int IsQuant, int ReluMode = 0, int Isdynamic = 0, int IsNd = 1>
-void LaunchTMOV(GMT *out, AT *src0, BT *src1, BiasT *src2, ScalingT *src3, void *stream);
+template <
+    typename AT, typename BT, typename L0CT, typename BiasT, typename GMT, typename ScalingT, int M, int N, int K,
+    int IsTransA, int IsTransB, int IsBias, int IsQuant, int ReluMode = 0, int Isdynamic = 0, int IsNd = 1>
+void LaunchTMOV(GMT* out, AT* src0, BT* src1, BiasT* src2, ScalingT* src3, void* stream);
 
 class TMOVTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename AT, typename BT, typename L0CT, typename BiasT, typename GMT, typename ScalingT, int M, int N, int K,
-          int IsTransA, int IsTransB, int IsBias, int IsQuant, int ReluMode = 0, int Isdynamic = 0, int IsNd = 1>
+template <
+    typename AT, typename BT, typename L0CT, typename BiasT, typename GMT, typename ScalingT, int M, int N, int K,
+    int IsTransA, int IsTransB, int IsBias, int IsQuant, int ReluMode = 0, int Isdynamic = 0, int IsNd = 1>
 void test_tmov()
 {
     // The bias addr needs to be 64B aligned.
@@ -55,26 +55,26 @@ void test_tmov()
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    GMT *dstHost;
+    GMT* dstHost;
     AT *src0Host, *src1Host;
-    BiasT *src2Host;
-    ScalingT *src3Host;
-    GMT *dstDevice;
+    BiasT* src2Host;
+    ScalingT* src3Host;
+    GMT* dstDevice;
     AT *src0Device, *src1Device;
-    BiasT *src2Device;
-    ScalingT *src3Device;
+    BiasT* src2Device;
+    ScalingT* src3Device;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&src0Host), aFileSize);
-    aclrtMallocHost((void **)(&src1Host), bFileSize);
-    aclrtMallocHost((void **)(&src2Host), biasFileSize);
-    aclrtMallocHost((void **)(&src3Host), fbFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&src0Host), aFileSize);
+    aclrtMallocHost((void**)(&src1Host), bFileSize);
+    aclrtMallocHost((void**)(&src2Host), biasFileSize);
+    aclrtMallocHost((void**)(&src3Host), fbFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src2Device, biasFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src3Device, fbFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src2Device, biasFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src3Device, fbFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
@@ -85,8 +85,9 @@ void test_tmov()
     aclrtMemcpy(src1Device, bFileSize, src1Host, bFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src2Device, biasFileSize, src2Host, biasFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src3Device, fbFileSize, src3Host, fbFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    LaunchTMOV<AT, BT, L0CT, BiasT, GMT, ScalingT, M, N, K, IsTransA, IsTransB, IsBias, IsQuant, ReluMode, Isdynamic,
-               IsNd>(dstDevice, src0Device, src1Device, src2Device, src3Device, stream);
+    LaunchTMOV<
+        AT, BT, L0CT, BiasT, GMT, ScalingT, M, N, K, IsTransA, IsTransB, IsBias, IsQuant, ReluMode, Isdynamic, IsNd>(
+        dstDevice, src0Device, src1Device, src2Device, src3Device, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, cFileSize, dstDevice, cFileSize, ACL_MEMCPY_DEVICE_TO_HOST);

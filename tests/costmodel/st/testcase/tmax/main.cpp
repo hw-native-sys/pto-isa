@@ -51,10 +51,7 @@ TEST(TMax, case_int16_64x64_64x64_64x64_PAD_VALUE_NULL)
     runTMax<int16_t, 64, 64, 64, 64, PadValue::Null, 167.0f, 0.982035f>();
 }
 
-TEST(TMax, case_float_60x60_64x64_60x60_PAD_VALUE_MAX)
-{
-    runTMax<float, 64, 60, 64, 60, PadValue::Max, 0.0f, 0.0f>();
-}
+TEST(TMax, case_float_60x60_64x64_60x60_PAD_VALUE_MAX) { runTMax<float, 64, 60, 64, 60, PadValue::Max, 0.0f, 0.0f>(); }
 
 TEST(TMax, case_int32_60x60_64x64_60x60_PAD_VALUE_MAX)
 {

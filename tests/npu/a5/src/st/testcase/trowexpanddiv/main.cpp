@@ -16,61 +16,63 @@ using namespace std;
 using namespace PtoTestCommon;
 
 namespace TRowExpandDivTest {
-template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst,
-          bool highPrecision>
-void launchTRowExpandDiv(T *out, T *src0, T *src1, void *stream);
+template <
+    typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst,
+    bool highPrecision>
+void launchTRowExpandDiv(T* out, T* src0, T* src1, void* stream);
 
 template <uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst, bool highPrecision>
-void launchTRowExpandDivHalf(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1, void *stream);
+void launchTRowExpandDivHalf(aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
 
-template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst,
-          bool highPrecision>
-void launchTRowExpandDiv2(T *out, T *src0, T *src1, void *stream);
+template <
+    typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst,
+    bool highPrecision>
+void launchTRowExpandDiv2(T* out, T* src0, T* src1, void* stream);
 
 template <uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst, bool highPrecision>
-void launchTRowExpandDiv2Half(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1, void *stream);
+void launchTRowExpandDiv2Half(aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
 
 class TRowExpandDivTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst,
-          bool isRowMajor, bool highPrecision, bool isHalf>
-void launchKernel(T *dst, T *src0, T *src1, aclrtStream stream)
+template <
+    typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst, bool isRowMajor,
+    bool highPrecision, bool isHalf>
+void launchKernel(T* dst, T* src0, T* src1, aclrtStream stream)
 {
     if constexpr (isHalf) {
         if (isRowMajor) {
-            launchTRowExpandDiv2Half<dstRow, dstCol, src1Row, src1Col, src0eqdst, highPrecision>(dst, src0, src1,
-                                                                                                 stream);
+            launchTRowExpandDiv2Half<dstRow, dstCol, src1Row, src1Col, src0eqdst, highPrecision>(
+                dst, src0, src1, stream);
         } else {
-            launchTRowExpandDivHalf<dstRow, dstCol, src1Row, src1Col, src0eqdst, highPrecision>(dst, src0, src1,
-                                                                                                stream);
+            launchTRowExpandDivHalf<dstRow, dstCol, src1Row, src1Col, src0eqdst, highPrecision>(
+                dst, src0, src1, stream);
         }
     } else {
         if (isRowMajor) {
-            launchTRowExpandDiv2<T, dstRow, dstCol, src1Row, src1Col, src0eqdst, highPrecision>(dst, src0, src1,
-                                                                                                stream);
+            launchTRowExpandDiv2<T, dstRow, dstCol, src1Row, src1Col, src0eqdst, highPrecision>(
+                dst, src0, src1, stream);
         } else {
             launchTRowExpandDiv<T, dstRow, dstCol, src1Row, src1Col, src0eqdst, highPrecision>(dst, src0, src1, stream);
         }
     }
 }
 
-template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst,
-          bool isRowMajor, bool highPrecision = false, bool isHalf = false>
+template <
+    typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst, bool isRowMajor,
+    bool highPrecision = false, bool isHalf = false>
 void test_trowexpanddiv()
 {
     size_t inputFileSize = src1Row * src1Col * sizeof(T);
@@ -84,13 +86,13 @@ void test_trowexpanddiv()
     T *dstHost, *src0Host, *src1Host;
     T *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), outputFileSize);
-    aclrtMallocHost((void **)(&src0Host), outputFileSize);
-    aclrtMallocHost((void **)(&src1Host), inputFileSize);
+    aclrtMallocHost((void**)(&dstHost), outputFileSize);
+    aclrtMallocHost((void**)(&src0Host), outputFileSize);
+    aclrtMallocHost((void**)(&src1Host), inputFileSize);
 
-    aclrtMalloc((void **)&dstDevice, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, inputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, inputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input0.bin", outputFileSize, src0Host, outputFileSize);
     ReadFile(GetGoldenDir() + "/input1.bin", inputFileSize, src1Host, inputFileSize);
@@ -127,14 +129,8 @@ void test_trowexpanddiv()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TRowExpandDivTest, case_fp32_40_64)
-{
-    test_trowexpanddiv<float, 40, 64, 40, 1, true, false>();
-}
-TEST_F(TRowExpandDivTest, case_fp32_16_256)
-{
-    test_trowexpanddiv<float, 16, 256, 16, 1, true, false>();
-}
+TEST_F(TRowExpandDivTest, case_fp32_40_64) { test_trowexpanddiv<float, 40, 64, 40, 1, true, false>(); }
+TEST_F(TRowExpandDivTest, case_fp32_16_256) { test_trowexpanddiv<float, 16, 256, 16, 1, true, false>(); }
 TEST_F(TRowExpandDivTest, case_fp16_16_32)
 {
     test_trowexpanddiv<aclFloat16, 16, 32, 16, 1, true, false, false, true>();
@@ -143,60 +139,30 @@ TEST_F(TRowExpandDivTest, case_fp16_32_512)
 {
     test_trowexpanddiv<aclFloat16, 32, 512, 32, 1, true, false, false, true>();
 }
-TEST_F(TRowExpandDivTest, case_fp32_24_64)
-{
-    test_trowexpanddiv<float, 24, 64, 24, 8, true, true>();
-}
+TEST_F(TRowExpandDivTest, case_fp32_24_64) { test_trowexpanddiv<float, 24, 64, 24, 8, true, true>(); }
 TEST_F(TRowExpandDivTest, case_fp16_32_32)
 {
     test_trowexpanddiv<aclFloat16, 32, 32, 32, 16, true, true, false, true>();
 }
-TEST_F(TRowExpandDivTest, case_fp32_16_128)
-{
-    test_trowexpanddiv<float, 16, 128, 16, 1, false, false>();
-}
+TEST_F(TRowExpandDivTest, case_fp32_16_128) { test_trowexpanddiv<float, 16, 128, 16, 1, false, false>(); }
 TEST_F(TRowExpandDivTest, case_fp16_32_64)
 {
     test_trowexpanddiv<aclFloat16, 32, 64, 32, 1, false, false, false, true>();
 }
-TEST_F(TRowExpandDivTest, case_fp32_20_64)
-{
-    test_trowexpanddiv<float, 20, 64, 20, 8, false, true>();
-}
+TEST_F(TRowExpandDivTest, case_fp32_20_64) { test_trowexpanddiv<float, 20, 64, 20, 8, false, true>(); }
 TEST_F(TRowExpandDivTest, case_fp16_16_64)
 {
     test_trowexpanddiv<aclFloat16, 16, 64, 16, 16, false, true, false, true>();
 }
-TEST_F(TRowExpandDivTest, case_fp32_40_32)
-{
-    test_trowexpanddiv<float, 40, 32, 40, 1, true, false, true>();
-}
+TEST_F(TRowExpandDivTest, case_fp32_40_32) { test_trowexpanddiv<float, 40, 32, 40, 1, true, false, true>(); }
 TEST_F(TRowExpandDivTest, case_fp16_16_128)
 {
     test_trowexpanddiv<aclFloat16, 16, 128, 16, 1, true, false, true, true>();
 }
-TEST_F(TRowExpandDivTest, case_fp32_8_32)
-{
-    test_trowexpanddiv<float, 8, 32, 8, 8, true, true, true>();
-}
-TEST_F(TRowExpandDivTest, case_fp16_8_128)
-{
-    test_trowexpanddiv<aclFloat16, 8, 128, 8, 16, true, true, true, true>();
-}
-TEST_F(TRowExpandDivTest, case_int32_16_32)
-{
-    test_trowexpanddiv<int32_t, 16, 32, 16, 1, true, false>();
-}
-TEST_F(TRowExpandDivTest, case_int16_16_64)
-{
-    test_trowexpanddiv<int16_t, 16, 64, 16, 1, true, false>();
-}
-TEST_F(TRowExpandDivTest, case_uint32_16_32)
-{
-    test_trowexpanddiv<uint32_t, 16, 32, 16, 1, true, false>();
-}
-TEST_F(TRowExpandDivTest, case_uint16_16_64)
-{
-    test_trowexpanddiv<uint16_t, 16, 64, 16, 1, true, false>();
-}
+TEST_F(TRowExpandDivTest, case_fp32_8_32) { test_trowexpanddiv<float, 8, 32, 8, 8, true, true, true>(); }
+TEST_F(TRowExpandDivTest, case_fp16_8_128) { test_trowexpanddiv<aclFloat16, 8, 128, 8, 16, true, true, true, true>(); }
+TEST_F(TRowExpandDivTest, case_int32_16_32) { test_trowexpanddiv<int32_t, 16, 32, 16, 1, true, false>(); }
+TEST_F(TRowExpandDivTest, case_int16_16_64) { test_trowexpanddiv<int16_t, 16, 64, 16, 1, true, false>(); }
+TEST_F(TRowExpandDivTest, case_uint32_16_32) { test_trowexpanddiv<uint32_t, 16, 32, 16, 1, true, false>(); }
+TEST_F(TRowExpandDivTest, case_uint16_16_64) { test_trowexpanddiv<uint16_t, 16, 64, 16, 1, true, false>(); }
 } // namespace TRowExpandDivTest

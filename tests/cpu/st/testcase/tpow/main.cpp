@@ -16,19 +16,17 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
-void launchTPOW_demo(uint8_t *out, uint8_t *src, void *stream);
+void launchTPOW_demo(uint8_t* out, uint8_t* src, void* stream);
 
 class TPOWTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -36,7 +34,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kVRows_, int kVCols_>
-void LaunchTPow(T *out, T *src0, T *src1, void *stream);
+void LaunchTPow(T* out, T* src0, T* src1, void* stream);
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kVRows_, int kVCols_>
 void test_tpow()
@@ -51,13 +49,13 @@ void test_tpow()
     T *dstHost, *src0Host, *src1Host;
     T *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&src0Host), fileSize);
-    aclrtMallocHost((void **)(&src1Host), fileSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&src0Host), fileSize);
+    aclrtMallocHost((void**)(&src1Host), fileSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input1.bin", readSize, src0Host, fileSize));
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input2.bin", readSize, src1Host, fileSize));
@@ -92,25 +90,10 @@ void test_tpow()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TPOWTest, case_float_64x64_64x64_63x63)
-{
-    test_tpow<float, 64, 64, 64, 64, 63, 63>();
-}
-TEST_F(TPOWTest, case_int32_64x64_64x64_63x63)
-{
-    test_tpow<int32_t, 64, 64, 64, 64, 63, 63>();
-}
-TEST_F(TPOWTest, case_int16_64x64_64x64_63x63)
-{
-    test_tpow<int16_t, 64, 64, 64, 64, 63, 63>();
-}
-TEST_F(TPOWTest, case_half_16x256_16x256_16x256)
-{
-    test_tpow<aclFloat16, 16, 256, 16, 256, 16, 256>();
-}
+TEST_F(TPOWTest, case_float_64x64_64x64_63x63) { test_tpow<float, 64, 64, 64, 64, 63, 63>(); }
+TEST_F(TPOWTest, case_int32_64x64_64x64_63x63) { test_tpow<int32_t, 64, 64, 64, 64, 63, 63>(); }
+TEST_F(TPOWTest, case_int16_64x64_64x64_63x63) { test_tpow<int16_t, 64, 64, 64, 64, 63, 63>(); }
+TEST_F(TPOWTest, case_half_16x256_16x256_16x256) { test_tpow<aclFloat16, 16, 256, 16, 256, 16, 256>(); }
 #ifdef CPU_SIM_BFLOAT_ENABLED
-TEST_F(TPOWTest, case_bf16_16x256_16x256_16x256)
-{
-    test_tpow<bfloat16_t, 16, 256, 16, 256, 16, 256>();
-}
+TEST_F(TPOWTest, case_bf16_16x256_16x256_16x256) { test_tpow<bfloat16_t, 16, 256, 16, 256, 16, 256>(); }
 #endif

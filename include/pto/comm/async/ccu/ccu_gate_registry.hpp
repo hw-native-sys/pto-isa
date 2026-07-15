@@ -35,13 +35,13 @@ namespace ccu {
 
 namespace detail {
 
-inline std::mutex &GateMapMutex()
+inline std::mutex& GateMapMutex()
 {
     static std::mutex m;
     return m;
 }
 
-inline std::unordered_map<uint32_t, CcuGateDescriptor> &GateMap()
+inline std::unordered_map<uint32_t, CcuGateDescriptor>& GateMap()
 {
     static std::unordered_map<uint32_t, CcuGateDescriptor> m;
     return m;
@@ -51,7 +51,7 @@ inline std::unordered_map<uint32_t, CcuGateDescriptor> &GateMap()
 
 inline bool IsCcuGateEnabledFromEnv()
 {
-    const char *v = std::getenv(CCU_GATE_ENV);
+    const char* v = std::getenv(CCU_GATE_ENV);
     return v != nullptr && std::strcmp(v, "1") == 0;
 }
 
@@ -67,7 +67,7 @@ inline void Publish(uint32_t rankId, uint32_t dieId, uint32_t ckeId, uint32_t ma
     detail::GateMap()[rankId] = desc;
 }
 
-inline bool TryGet(uint32_t rankId, CcuGateDescriptor &out)
+inline bool TryGet(uint32_t rankId, CcuGateDescriptor& out)
 {
     std::lock_guard<std::mutex> lk(detail::GateMapMutex());
     auto it = detail::GateMap().find(rankId);

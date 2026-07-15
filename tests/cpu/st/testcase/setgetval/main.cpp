@@ -18,23 +18,21 @@ using namespace PtoTestCommon;
 class SETGETVALTest : public testing::Test {
 public:
 protected:
-    void SetUp() override
-    {}
+    void SetUp() override {}
 
-    void TearDown() override
-    {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchSetGetVal(T *src0, void *stream);
+void LaunchSetGetVal(T* src0, void* stream);
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
 void test_setgetval()
@@ -46,12 +44,12 @@ void test_setgetval()
     aclrtCreateStream(&stream);
 
     size_t srcByteSize = kGRows_ * kGCols_ * sizeof(T);
-    T *srcHost;
-    T *srcDevice;
+    T* srcHost;
+    T* srcDevice;
 
-    aclrtMallocHost((void **)(&srcHost), srcByteSize);
+    aclrtMallocHost((void**)(&srcHost), srcByteSize);
 
-    aclrtMalloc((void **)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     LaunchSetGetVal<T, kGRows_, kGCols_, kTRows_, kTCols_>(srcDevice, stream);
     aclrtSynchronizeStream(stream);
@@ -73,7 +71,4 @@ void test_setgetval()
     EXPECT_TRUE(res);
 }
 
-TEST_F(SETGETVALTest, case1)
-{
-    test_setgetval<float, 32, 32, 32, 32>();
-}
+TEST_F(SETGETVALTest, case1) { test_setgetval<float, 32, 32, 32, 32>(); }

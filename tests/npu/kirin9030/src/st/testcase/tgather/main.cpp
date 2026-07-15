@@ -15,29 +15,27 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace PtoTestCommon;
 
-void launchTGATHER_demo_float(float *out, float *src0, int32_t *src1, aclrtStream stream);
-void launchTGATHER_demo_int32(int32_t *out, int32_t *src0, int32_t *src1, aclrtStream stream);
-void launchTGATHER_demo_half(int16_t *out, int16_t *src0, int16_t *src1, aclrtStream stream);
-void launchTGATHER_demo_int16(int16_t *out, int16_t *src0, int16_t *src1, aclrtStream stream);
+void launchTGATHER_demo_float(float* out, float* src0, int32_t* src1, aclrtStream stream);
+void launchTGATHER_demo_int32(int32_t* out, int32_t* src0, int32_t* src1, aclrtStream stream);
+void launchTGATHER_demo_half(int16_t* out, int16_t* src0, int16_t* src1, aclrtStream stream);
+void launchTGATHER_demo_int16(int16_t* out, int16_t* src0, int16_t* src1, aclrtStream stream);
 
 constexpr int HALF_SIZE = 2;
 constexpr int QUARTER_SIZE = 4;
 
-template <typename srcT, typename dstT, int kGRows_, int kGCols_, int kTRows_, int kTCols_,
-          pto::MaskPattern maskPattern>
-void LaunchTGATHER(dstT *out, srcT *src, void *stream);
+template <
+    typename srcT, typename dstT, int kGRows_, int kGCols_, int kTRows_, int kTCols_, pto::MaskPattern maskPattern>
+void LaunchTGATHER(dstT* out, srcT* src, void* stream);
 
 class TGATHERTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -56,17 +54,17 @@ TEST_F(TGATHERTest, case1_float)
     aclrtCreateStream(&stream);
 
     float *dstHost, *src0Host;
-    int32_t *src1Host;
+    int32_t* src1Host;
     float *dstDevice, *src0Device;
-    int32_t *src1Device;
+    int32_t* src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&src0Host), src0FileSize);
-    aclrtMallocHost((void **)(&src1Host), src1FileSize);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMallocHost((void**)(&src0Host), src0FileSize);
+    aclrtMallocHost((void**)(&src1Host), src1FileSize);
 
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, src0FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, src1FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, src0FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, src1FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/src0.bin", src0FileSize, src0Host, src0FileSize);
     ReadFile(GetGoldenDir() + "/src1.bin", src1FileSize, src1Host, src1FileSize);
@@ -116,17 +114,17 @@ TEST_F(TGATHERTest, case2_int32)
     aclrtCreateStream(&stream);
 
     int32_t *dstHost, *src0Host;
-    int32_t *src1Host;
+    int32_t* src1Host;
     int32_t *dstDevice, *src0Device;
-    int32_t *src1Device;
+    int32_t* src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&src0Host), src0FileSize);
-    aclrtMallocHost((void **)(&src1Host), src1FileSize);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMallocHost((void**)(&src0Host), src0FileSize);
+    aclrtMallocHost((void**)(&src1Host), src1FileSize);
 
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, src0FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, src1FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, src0FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, src1FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/src0.bin", src0FileSize, src0Host, src0FileSize);
     ReadFile(GetGoldenDir() + "/src1.bin", src1FileSize, src1Host, src1FileSize);
@@ -174,17 +172,17 @@ TEST_F(TGATHERTest, case3_half)
     aclrtCreateStream(&stream);
 
     int16_t *dstHost, *src0Host;
-    int16_t *src1Host;
+    int16_t* src1Host;
     int16_t *dstDevice, *src0Device;
-    int16_t *src1Device;
+    int16_t* src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&src0Host), src0FileSize);
-    aclrtMallocHost((void **)(&src1Host), src1FileSize);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMallocHost((void**)(&src0Host), src0FileSize);
+    aclrtMallocHost((void**)(&src1Host), src1FileSize);
 
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, src0FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, src1FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, src0FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, src1FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/src0.bin", src0FileSize, src0Host, src0FileSize);
     ReadFile(GetGoldenDir() + "/src1.bin", src1FileSize, src1Host, src1FileSize);
@@ -232,17 +230,17 @@ TEST_F(TGATHERTest, case4_int16)
     aclrtCreateStream(&stream);
 
     int16_t *dstHost, *src0Host;
-    int16_t *src1Host;
+    int16_t* src1Host;
     int16_t *dstDevice, *src0Device;
-    int16_t *src1Device;
+    int16_t* src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&src0Host), src0FileSize);
-    aclrtMallocHost((void **)(&src1Host), src1FileSize);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMallocHost((void**)(&src0Host), src0FileSize);
+    aclrtMallocHost((void**)(&src1Host), src1FileSize);
 
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, src0FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, src1FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, src0FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, src1FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/src0.bin", src0FileSize, src0Host, src0FileSize);
     ReadFile(GetGoldenDir() + "/src1.bin", src1FileSize, src1Host, src1FileSize);
@@ -298,10 +296,10 @@ void test_gather()
     T *src0Host, *src0Device;
     dstT *dstHost, *dstDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstsize);
-    aclrtMallocHost((void **)(&src0Host), size);
-    aclrtMalloc((void **)&dstDevice, size, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, size, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), dstsize);
+    aclrtMallocHost((void**)(&src0Host), size);
+    aclrtMalloc((void**)&dstDevice, size, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, size, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", size, src0Host, size);
 
@@ -441,37 +439,16 @@ TEST_F(TGATHERTest, case1_I32_P1111)
     test_gather<int32_t, pto::MaskPattern::P1111, FLOAT_P1111_ROW, FLOAT_P1111_COL>();
 }
 
-TEST_F(TGATHERTest, case1_b8_P0101)
-{
-    test_gather<int8_t, pto::MaskPattern::P0101, HALF_P0101_ROW, HALF_P0101_COL>();
-}
+TEST_F(TGATHERTest, case1_b8_P0101) { test_gather<int8_t, pto::MaskPattern::P0101, HALF_P0101_ROW, HALF_P0101_COL>(); }
 
-TEST_F(TGATHERTest, case1_b8_P1010)
-{
-    test_gather<uint8_t, pto::MaskPattern::P1010, HALF_P1010_ROW, HALF_P1010_COL>();
-}
+TEST_F(TGATHERTest, case1_b8_P1010) { test_gather<uint8_t, pto::MaskPattern::P1010, HALF_P1010_ROW, HALF_P1010_COL>(); }
 
-TEST_F(TGATHERTest, case1_b8_P0001)
-{
-    test_gather<int8_t, pto::MaskPattern::P0001, HALF_P0001_ROW, HALF_P0001_COL>();
-}
+TEST_F(TGATHERTest, case1_b8_P0001) { test_gather<int8_t, pto::MaskPattern::P0001, HALF_P0001_ROW, HALF_P0001_COL>(); }
 
-TEST_F(TGATHERTest, case1_b8_P0010)
-{
-    test_gather<uint8_t, pto::MaskPattern::P0010, HALF_P0010_ROW, HALF_P0010_COL>();
-}
+TEST_F(TGATHERTest, case1_b8_P0010) { test_gather<uint8_t, pto::MaskPattern::P0010, HALF_P0010_ROW, HALF_P0010_COL>(); }
 
-TEST_F(TGATHERTest, case1_b8_P0100)
-{
-    test_gather<int8_t, pto::MaskPattern::P0100, HALF_P0100_ROW, HALF_P0100_COL>();
-}
+TEST_F(TGATHERTest, case1_b8_P0100) { test_gather<int8_t, pto::MaskPattern::P0100, HALF_P0100_ROW, HALF_P0100_COL>(); }
 
-TEST_F(TGATHERTest, case1_b8_P1000)
-{
-    test_gather<uint8_t, pto::MaskPattern::P1000, HALF_P1000_ROW, HALF_P1000_COL>();
-}
+TEST_F(TGATHERTest, case1_b8_P1000) { test_gather<uint8_t, pto::MaskPattern::P1000, HALF_P1000_ROW, HALF_P1000_COL>(); }
 
-TEST_F(TGATHERTest, case1_b8_P1111)
-{
-    test_gather<int8_t, pto::MaskPattern::P1111, HALF_P1111_ROW, HALF_P1111_COL>();
-}
+TEST_F(TGATHERTest, case1_b8_P1111) { test_gather<int8_t, pto::MaskPattern::P1111, HALF_P1111_ROW, HALF_P1111_COL>(); }

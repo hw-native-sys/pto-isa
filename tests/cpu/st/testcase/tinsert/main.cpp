@@ -29,19 +29,24 @@ constexpr struct {
     {BLayout::ColMajor, SLayout::ColMajor}  // NN
 };
 
-template <typename ST, typename DT, TileType locSrc, TileType locDst, size_t rows, size_t cols, size_t srcValidRows,
-          size_t srcValidCols, size_t dstValidRows, size_t dstValidCols, uint16_t srcLayout, uint16_t dstLayout>
-AICORE inline void runTINSERT(__gm__ DT *out, __gm__ ST *src)
+template <
+    typename ST, typename DT, TileType locSrc, TileType locDst, size_t rows, size_t cols, size_t srcValidRows,
+    size_t srcValidCols, size_t dstValidRows, size_t dstValidCols, uint16_t srcLayout, uint16_t dstLayout>
+AICORE inline void runTINSERT(__gm__ DT* out, __gm__ ST* src)
 {
     constexpr int idxRow = dstValidRows - srcValidRows;
     constexpr int idxCol = dstValidCols - srcValidCols;
 
-    using GlobalDataSrc = GlobalTensor<ST, pto::Shape<1, 1, 1, srcValidRows, srcValidCols>,
-                                       pto::Stride<1 * srcValidRows * srcValidCols, 1 * srcValidRows * srcValidCols,
-                                                   srcValidRows * srcValidCols, srcValidCols, 1>>;
-    using GlobalDataDst = GlobalTensor<DT, pto::Shape<1, 1, 1, dstValidRows, dstValidCols>,
-                                       pto::Stride<1 * dstValidRows * dstValidCols, 1 * dstValidRows * dstValidCols,
-                                                   dstValidRows * dstValidCols, dstValidCols, 1>>;
+    using GlobalDataSrc = GlobalTensor<
+        ST, pto::Shape<1, 1, 1, srcValidRows, srcValidCols>,
+        pto::Stride<
+            1 * srcValidRows * srcValidCols, 1 * srcValidRows * srcValidCols, srcValidRows * srcValidCols, srcValidCols,
+            1>>;
+    using GlobalDataDst = GlobalTensor<
+        DT, pto::Shape<1, 1, 1, dstValidRows, dstValidCols>,
+        pto::Stride<
+            1 * dstValidRows * dstValidCols, 1 * dstValidRows * dstValidCols, dstValidRows * dstValidCols, dstValidCols,
+            1>>;
 
     GlobalDataSrc srcGlobal(src);
     GlobalDataDst dstGlobal(out);
@@ -78,23 +83,22 @@ AICORE inline void runTINSERT(__gm__ DT *out, __gm__ ST *src)
 
 class TINSERTTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename ST, typename DT, TileType locSrc, TileType locDst, size_t rows, size_t cols, size_t srcValidRows,
-          size_t srcValidCols, size_t dstValidRows, size_t dstValidCols, uint16_t srcLayout, uint16_t dstLayout>
+template <
+    typename ST, typename DT, TileType locSrc, TileType locDst, size_t rows, size_t cols, size_t srcValidRows,
+    size_t srcValidCols, size_t dstValidRows, size_t dstValidCols, uint16_t srcLayout, uint16_t dstLayout>
 void tinsert_test()
 {
     size_t srcFileSize = srcValidRows * srcValidCols * sizeof(ST);
@@ -108,18 +112,19 @@ void tinsert_test()
     uint8_t *dstHost, *srcHost;
     uint8_t *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
 
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     size_t inputSize = 0;
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input.bin", inputSize, srcHost, srcFileSize));
 
     aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    runTINSERT<ST, DT, locSrc, locDst, rows, cols, srcValidRows, srcValidCols, dstValidRows, dstValidCols, srcLayout,
-               dstLayout>((DT *)dstDevice, (ST *)srcDevice);
+    runTINSERT<
+        ST, DT, locSrc, locDst, rows, cols, srcValidRows, srcValidCols, dstValidRows, dstValidCols, srcLayout,
+        dstLayout>((DT*)dstDevice, (ST*)srcDevice);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, dstFileSize, dstDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -130,7 +135,7 @@ void tinsert_test()
     size_t goldenSize = 0;
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/golden.bin", goldenSize, golden.data(), dstFileSize));
 
-    bool ret = ResultCmp(golden, (DT *)dstHost, 0, 100, false, true);
+    bool ret = ResultCmp(golden, (DT*)dstHost, 0, 100, false, true);
 
     aclrtFree(dstDevice);
     aclrtFree(srcDevice);

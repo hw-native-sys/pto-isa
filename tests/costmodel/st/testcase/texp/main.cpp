@@ -34,23 +34,8 @@ void runTExp()
 
 } // namespace
 
-TEST(TExp, float_64x64)
-{
-    runTExp<float, 64, 64, 159.0f, 0.157232f>();
-}
-TEST(TExp, half_64x64)
-{
-    runTExp<half, 64, 64, 95.0f, 0.962263f>();
-}
-TEST(TExp, half_32x32)
-{
-    runTExp<half, 32, 32, 47.0f, 0.904761f>();
-}
-TEST(TExp, float_32x32)
-{
-    runTExp<float, 32, 32, 63.0f, 0.396825f>();
-}
-TEST(TExp, float_32x16)
-{
-    runTExp<float, 32, 16, 30.0f, 0.0f>();
-}
+TEST(TExp, float_64x64) { runTExp<float, 64, 64, 159.0f, 0.157232f>(); }
+TEST(TExp, half_64x64) { runTExp<half, 64, 64, 95.0f, 0.962263f>(); }
+TEST(TExp, half_32x32) { runTExp<half, 32, 32, 47.0f, 0.904761f>(); }
+TEST(TExp, float_32x32) { runTExp<float, 32, 32, 63.0f, 0.396825f>(); }
+TEST(TExp, float_32x16) { runTExp<float, 32, 16, 30.0f, 0.0f>(); }

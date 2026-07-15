@@ -23,8 +23,9 @@ namespace pto {
 namespace comm {
 
 template <typename GlobalDataDst, typename GlobalDataSrc>
-void Gather(typename GlobalDataDst::DType *dst, typename GlobalDataSrc::DType *src, int64_t srcShape[],
-            int64_t srcStride[], int64_t dstStride[], int64_t dstOffset)
+void Gather(
+    typename GlobalDataDst::DType* dst, typename GlobalDataSrc::DType* src, int64_t srcShape[], int64_t srcStride[],
+    int64_t dstStride[], int64_t dstOffset)
 {
     auto gatherInner = [&](size_t i, size_t j, size_t k) {
         for (size_t l = 0; l < srcShape[3]; l++) {
@@ -69,15 +70,16 @@ void Gather(typename GlobalDataDst::DType *dst, typename GlobalDataSrc::DType *s
 // ============================================================================
 
 template <typename ParallelGroupType, typename GlobalDstData, typename TileData>
-PTO_INTERNAL void TGATHER_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
-                               TileData &stagingTileData)
+PTO_INTERNAL void TGATHER_IMPL(
+    ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& stagingTileData)
 {
     using GlobalSrcData = typename ParallelGroupTraits<ParallelGroupType>::GlobalDataType;
     using T = typename GlobalSrcData::RawDType;
 
     static_assert(std::is_same_v<T, typename GlobalDstData::RawDType>, "TGATHER: GlobalData type mismatch!");
-    static_assert(std::is_same_v<T, typename TileData::DType>,
-                  "TGATHER: TileData element type must match GlobalData element type");
+    static_assert(
+        std::is_same_v<T, typename TileData::DType>,
+        "TGATHER: TileData element type must match GlobalData element type");
     static_assert(GlobalSrcData::layout == GlobalDstData::layout, "TGATHER: src/dst layout mismatch");
 
     const int nranks = parallelGroup.GetSize();
@@ -88,28 +90,32 @@ PTO_INTERNAL void TGATHER_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &
 
     constexpr size_t numDims = 5;
 
-    int64_t dstStride[numDims] = {dstGlobalData.GetStride(0), dstGlobalData.GetStride(1), dstGlobalData.GetStride(2),
-                                  dstGlobalData.GetStride(3), dstGlobalData.GetStride(4)};
+    int64_t dstStride[numDims] = {
+        dstGlobalData.GetStride(0), dstGlobalData.GetStride(1), dstGlobalData.GetStride(2), dstGlobalData.GetStride(3),
+        dstGlobalData.GetStride(4)};
 
-    GlobalSrcData &srcTensor = parallelGroup[0];
-    int64_t srcShape[numDims] = {srcTensor.GetShape(0), srcTensor.GetShape(1), srcTensor.GetShape(2),
-                                 srcTensor.GetShape(3), srcTensor.GetShape(4)};
-    int64_t srcStride[numDims] = {srcTensor.GetStride(0), srcTensor.GetStride(1), srcTensor.GetStride(2),
-                                  srcTensor.GetStride(3), srcTensor.GetStride(4)};
+    GlobalSrcData& srcTensor = parallelGroup[0];
+    int64_t srcShape[numDims] = {
+        srcTensor.GetShape(0), srcTensor.GetShape(1), srcTensor.GetShape(2), srcTensor.GetShape(3),
+        srcTensor.GetShape(4)};
+    int64_t srcStride[numDims] = {
+        srcTensor.GetStride(0), srcTensor.GetStride(1), srcTensor.GetStride(2), srcTensor.GetStride(3),
+        srcTensor.GetStride(4)};
     int64_t DST_DIM_3 = srcTensor.GetShape(3);
 
     PTO_ASSERT(dstGlobalData.GetShape(0) == srcTensor.GetShape(0), "TSCATTER: src DIM0 must equal dst DIM0!");
     PTO_ASSERT(dstGlobalData.GetShape(1) == srcTensor.GetShape(1), "TSCATTER: src DIM1 must equal dst DIM1!");
     PTO_ASSERT(dstGlobalData.GetShape(2) == srcTensor.GetShape(2), "TSCATTER: src DIM2 must equal dst DIM2!");
-    PTO_ASSERT(dstGlobalData.GetShape(3) == srcTensor.GetShape(3) * nranks,
-               "TSCATTER: src DIM3 must equal dst DIM3 * nranks!");
+    PTO_ASSERT(
+        dstGlobalData.GetShape(3) == srcTensor.GetShape(3) * nranks,
+        "TSCATTER: src DIM3 must equal dst DIM3 * nranks!");
     PTO_ASSERT(dstGlobalData.GetShape(4) == srcTensor.GetShape(4), "TSCATTER: src DIM4 must equal dst DIM4!");
 
     for (int r = 0; r < nranks; ++r) {
-        GlobalSrcData &srcGlobalData = parallelGroup[r];
+        GlobalSrcData& srcGlobalData = parallelGroup[r];
         int64_t currentSrcOffset = r * DST_DIM_3;
-        Gather<GlobalDstData, GlobalSrcData>(dstGlobalData.data(), srcGlobalData.data(), srcShape, srcStride, dstStride,
-                                             currentSrcOffset);
+        Gather<GlobalDstData, GlobalSrcData>(
+            dstGlobalData.data(), srcGlobalData.data(), srcShape, srcStride, dstStride, currentSrcOffset);
     }
 }
 
@@ -129,24 +135,28 @@ PTO_INTERNAL void TGATHER_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &
 // ============================================================================
 
 template <typename ParallelGroupType, typename GlobalDstData, typename TileData>
-PTO_INTERNAL void TGATHER_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData, TileData &pingTile,
-                               TileData &pongTile)
+PTO_INTERNAL void TGATHER_IMPL(
+    ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& pingTile, TileData& pongTile)
 {
     TGATHER_IMPL(parallelGroup, dstGlobalData, pingTile);
 }
 
-template <CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalDstData, typename TileData,
-          typename... WaitEvents>
-PTO_INTERNAL void TGATHER_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
-                                   TileData &stagingTileData, const CcuTriggerContext &ctx, WaitEvents &...events)
+template <
+    CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalDstData, typename TileData,
+    typename... WaitEvents>
+PTO_INTERNAL void TGATHER_CCU_IMPL(
+    ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& stagingTileData,
+    const CcuTriggerContext& ctx, WaitEvents&... events)
 {
     TGATHER_IMPL(parallelGroup, dstGlobalData, stagingTileData);
 }
 
-template <CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalDstData, typename TileData,
-          typename... WaitEvents>
-PTO_INTERNAL void TGATHER_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData, TileData &pingTile,
-                                   TileData &pongTile, const CcuTriggerContext &ctx, WaitEvents &...events)
+template <
+    CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalDstData, typename TileData,
+    typename... WaitEvents>
+PTO_INTERNAL void TGATHER_CCU_IMPL(
+    ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& pingTile, TileData& pongTile,
+    const CcuTriggerContext& ctx, WaitEvents&... events)
 {
     TGATHER_IMPL(parallelGroup, dstGlobalData, pingTile);
 }

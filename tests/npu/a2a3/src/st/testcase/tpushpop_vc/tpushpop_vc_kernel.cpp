@@ -34,11 +34,12 @@ AICORE constexpr inline T CeilAlign(T num_1, T num_2)
     return (num_1 + num_2 - 1) / num_2 * num_2;
 }
 
-template <typename QuantT, typename InT, typename OutT, int TOTAL_M, int TOTAL_K, int N, int CASE_TILE_K,
-          TileSplitAxis SplitAxis = TileSplitAxis::TILE_UP_DOWN>
-__global__ AICORE void runTPushPopVCMatmul(__gm__ uint64_t *ffts_addr, __gm__ OutT *out, __gm__ InT *srcA,
-                                           __gm__ QuantT *quantB, __gm__ OutT *scale, __gm__ OutT *offset,
-                                           __gm__ OutT *fifoMem)
+template <
+    typename QuantT, typename InT, typename OutT, int TOTAL_M, int TOTAL_K, int N, int CASE_TILE_K,
+    TileSplitAxis SplitAxis = TileSplitAxis::TILE_UP_DOWN>
+__global__ AICORE void runTPushPopVCMatmul(
+    __gm__ uint64_t* ffts_addr, __gm__ OutT* out, __gm__ InT* srcA, __gm__ QuantT* quantB, __gm__ OutT* scale,
+    __gm__ OutT* offset, __gm__ OutT* fifoMem)
 {
     set_ffts_base_addr((uint64_t)ffts_addr);
     constexpr uint32_t TILE_K = CASE_TILE_K;
@@ -60,17 +61,19 @@ __global__ AICORE void runTPushPopVCMatmul(__gm__ uint64_t *ffts_addr, __gm__ Ou
 
     // Slot size is the full TILE_K x TILE_N tile regardless of split mode
     using MatPipe = TPipe<FLAG_ID, Direction::DIR_V2C, TILE_K * TILE_N * sizeof(OutT), FIFO_DEPTH>;
-    MatPipe mPipe((__gm__ void *)fifoMem, 0x0, localFiFoBase);
+    MatPipe mPipe((__gm__ void*)fifoMem, 0x0, localFiFoBase);
 
     constexpr uint32_t blockAlign = C0_SIZE_BYTE / sizeof(InT);
     constexpr uint32_t ALIGNED_M = CeilAlign<uint32_t>(TOTAL_M, 16);
     constexpr uint32_t ALIGNED_K = CeilAlign<uint32_t>(TILE_K, blockAlign);
     constexpr uint32_t ALIGNED_N = CeilAlign<uint32_t>(TILE_N, blockAlign);
 
-    using GlobalA = GlobalTensor<InT, pto::Shape<1, 1, 1, TOTAL_M, TILE_K>,
-                                 pto::Stride<TOTAL_M * TOTAL_K, TOTAL_M * TOTAL_K, TOTAL_M * TOTAL_K, TOTAL_K, 1>>;
-    using GlobalOut = GlobalTensor<OutT, pto::Shape<1, 1, 1, TOTAL_M, TILE_N>,
-                                   pto::Stride<TOTAL_M * TILE_N, TOTAL_M * TILE_N, TOTAL_M * TILE_N, TILE_N, 1>>;
+    using GlobalA = GlobalTensor<
+        InT, pto::Shape<1, 1, 1, TOTAL_M, TILE_K>,
+        pto::Stride<TOTAL_M * TOTAL_K, TOTAL_M * TOTAL_K, TOTAL_M * TOTAL_K, TOTAL_K, 1>>;
+    using GlobalOut = GlobalTensor<
+        OutT, pto::Shape<1, 1, 1, TOTAL_M, TILE_N>,
+        pto::Stride<TOTAL_M * TILE_N, TOTAL_M * TILE_N, TOTAL_M * TILE_N, TILE_N, 1>>;
 
     using TileMatA =
         Tile<TileType::Mat, InT, ALIGNED_M, ALIGNED_K, BLayout::ColMajor, TOTAL_M, TILE_K, SLayout::RowMajor, 512>;
@@ -98,8 +101,9 @@ __global__ AICORE void runTPushPopVCMatmul(__gm__ uint64_t *ffts_addr, __gm__ Ou
         set_flag(PIPE_MTE3, PIPE_V, EVENT_ID1);
 
         // Row stride in global memory is always TILE_N (full matrix width)
-        using GlobalQuantB = GlobalTensor<QuantT, pto::Shape<1, 1, 1, PROD_K, PROD_N>,
-                                          pto::Stride<TOTAL_K * TILE_N, TOTAL_K * TILE_N, PROD_K * PROD_N, TILE_N, 1>>;
+        using GlobalQuantB = GlobalTensor<
+            QuantT, pto::Shape<1, 1, 1, PROD_K, PROD_N>,
+            pto::Stride<TOTAL_K * TILE_N, TOTAL_K * TILE_N, PROD_K * PROD_N, TILE_N, 1>>;
         using GlobalScaleOffset =
             GlobalTensor<OutT, pto::Shape<1, 1, 1, PROD_K, 1>, pto::Stride<TOTAL_K, TOTAL_K, PROD_K, 1, 1>>;
 
@@ -210,20 +214,23 @@ __global__ AICORE void runTPushPopVCMatmul(__gm__ uint64_t *ffts_addr, __gm__ Ou
     }
 }
 
-template <typename QuantT, typename InT, typename OutT, int TOTAL_M, int TOTAL_K, int N, int CASE_TILE_K,
-          TileSplitAxis SplitAxis>
-void LaunchTPushPopVCMatmulImpl(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *quantB, uint8_t *scale,
-                                uint8_t *offset, uint8_t *fifoMem, void *stream)
+template <
+    typename QuantT, typename InT, typename OutT, int TOTAL_M, int TOTAL_K, int N, int CASE_TILE_K,
+    TileSplitAxis SplitAxis>
+void LaunchTPushPopVCMatmulImpl(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* quantB, uint8_t* scale, uint8_t* offset, uint8_t* fifoMem,
+    void* stream)
 {
     runTPushPopVCMatmul<QuantT, InT, OutT, TOTAL_M, TOTAL_K, N, CASE_TILE_K, SplitAxis><<<1, nullptr, stream>>>(
-        reinterpret_cast<uint64_t *>(ffts), reinterpret_cast<OutT *>(out), reinterpret_cast<InT *>(srcA),
-        reinterpret_cast<QuantT *>(quantB), reinterpret_cast<OutT *>(scale), reinterpret_cast<OutT *>(offset),
-        reinterpret_cast<OutT *>(fifoMem));
+        reinterpret_cast<uint64_t*>(ffts), reinterpret_cast<OutT*>(out), reinterpret_cast<InT*>(srcA),
+        reinterpret_cast<QuantT*>(quantB), reinterpret_cast<OutT*>(scale), reinterpret_cast<OutT*>(offset),
+        reinterpret_cast<OutT*>(fifoMem));
 }
 
 template <int32_t tilingKey>
-void LaunchTPushPopVCMatmul(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *quantB, uint8_t *scale,
-                            uint8_t *offset, uint8_t *fifoMem, void *stream)
+void LaunchTPushPopVCMatmul(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* quantB, uint8_t* scale, uint8_t* offset, uint8_t* fifoMem,
+    void* stream)
 {
     // Keys 1-6: TILE_UP_DOWN (split along K rows)
     if constexpr (tilingKey == 1) {
@@ -267,30 +274,42 @@ void LaunchTPushPopVCMatmul(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t 
     }
 }
 
-template void LaunchTPushPopVCMatmul<1>(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *quantB, uint8_t *scale,
-                                        uint8_t *offset, uint8_t *fifoMem, void *stream);
-template void LaunchTPushPopVCMatmul<2>(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *quantB, uint8_t *scale,
-                                        uint8_t *offset, uint8_t *fifoMem, void *stream);
-template void LaunchTPushPopVCMatmul<3>(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *quantB, uint8_t *scale,
-                                        uint8_t *offset, uint8_t *fifoMem, void *stream);
-template void LaunchTPushPopVCMatmul<4>(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *quantB, uint8_t *scale,
-                                        uint8_t *offset, uint8_t *fifoMem, void *stream);
-template void LaunchTPushPopVCMatmul<5>(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *quantB, uint8_t *scale,
-                                        uint8_t *offset, uint8_t *fifoMem, void *stream);
-template void LaunchTPushPopVCMatmul<6>(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *quantB, uint8_t *scale,
-                                        uint8_t *offset, uint8_t *fifoMem, void *stream);
-template void LaunchTPushPopVCMatmul<7>(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *quantB, uint8_t *scale,
-                                        uint8_t *offset, uint8_t *fifoMem, void *stream);
-template void LaunchTPushPopVCMatmul<8>(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *quantB, uint8_t *scale,
-                                        uint8_t *offset, uint8_t *fifoMem, void *stream);
-template void LaunchTPushPopVCMatmul<9>(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *quantB, uint8_t *scale,
-                                        uint8_t *offset, uint8_t *fifoMem, void *stream);
-template void LaunchTPushPopVCMatmul<10>(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *quantB, uint8_t *scale,
-                                         uint8_t *offset, uint8_t *fifoMem, void *stream);
-template void LaunchTPushPopVCMatmul<11>(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *quantB, uint8_t *scale,
-                                         uint8_t *offset, uint8_t *fifoMem, void *stream);
-template void LaunchTPushPopVCMatmul<12>(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *quantB, uint8_t *scale,
-                                         uint8_t *offset, uint8_t *fifoMem, void *stream);
+template void LaunchTPushPopVCMatmul<1>(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* quantB, uint8_t* scale, uint8_t* offset, uint8_t* fifoMem,
+    void* stream);
+template void LaunchTPushPopVCMatmul<2>(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* quantB, uint8_t* scale, uint8_t* offset, uint8_t* fifoMem,
+    void* stream);
+template void LaunchTPushPopVCMatmul<3>(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* quantB, uint8_t* scale, uint8_t* offset, uint8_t* fifoMem,
+    void* stream);
+template void LaunchTPushPopVCMatmul<4>(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* quantB, uint8_t* scale, uint8_t* offset, uint8_t* fifoMem,
+    void* stream);
+template void LaunchTPushPopVCMatmul<5>(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* quantB, uint8_t* scale, uint8_t* offset, uint8_t* fifoMem,
+    void* stream);
+template void LaunchTPushPopVCMatmul<6>(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* quantB, uint8_t* scale, uint8_t* offset, uint8_t* fifoMem,
+    void* stream);
+template void LaunchTPushPopVCMatmul<7>(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* quantB, uint8_t* scale, uint8_t* offset, uint8_t* fifoMem,
+    void* stream);
+template void LaunchTPushPopVCMatmul<8>(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* quantB, uint8_t* scale, uint8_t* offset, uint8_t* fifoMem,
+    void* stream);
+template void LaunchTPushPopVCMatmul<9>(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* quantB, uint8_t* scale, uint8_t* offset, uint8_t* fifoMem,
+    void* stream);
+template void LaunchTPushPopVCMatmul<10>(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* quantB, uint8_t* scale, uint8_t* offset, uint8_t* fifoMem,
+    void* stream);
+template void LaunchTPushPopVCMatmul<11>(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* quantB, uint8_t* scale, uint8_t* offset, uint8_t* fifoMem,
+    void* stream);
+template void LaunchTPushPopVCMatmul<12>(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* quantB, uint8_t* scale, uint8_t* offset, uint8_t* fifoMem,
+    void* stream);
 
 /**
  * V2C test for TPUSH with explicit subBlockId (TILE_UP_DOWN).
@@ -299,8 +318,8 @@ template void LaunchTPushPopVCMatmul<12>(uint8_t *ffts, uint8_t *out, uint8_t *s
  * Cube: TPOP resTile [M,K], TLOAD src2 [K,N], TMATMUL, TSTORE out [M,N]
  */
 template <typename T, int TOTAL_M, int K, int N>
-__global__ AICORE void runTPushPopVCSubBlockId(__gm__ uint64_t *ffts_addr, __gm__ T *out, __gm__ T *src0,
-                                               __gm__ T *src1, __gm__ T *src2, __gm__ T *fifoMem)
+__global__ AICORE void runTPushPopVCSubBlockId(
+    __gm__ uint64_t* ffts_addr, __gm__ T* out, __gm__ T* src0, __gm__ T* src1, __gm__ T* src2, __gm__ T* fifoMem)
 {
     set_ffts_base_addr((uint64_t)ffts_addr);
 
@@ -314,7 +333,7 @@ __global__ AICORE void runTPushPopVCSubBlockId(__gm__ uint64_t *ffts_addr, __gm_
     constexpr uint32_t localFiFoBase = 0x0;
 
     using MatPipe = TPipe<FLAG_ID, Direction::DIR_V2C, TOTAL_M * K * sizeof(T), FIFO_DEPTH>;
-    MatPipe mPipe((__gm__ void *)fifoMem, 0x0, localFiFoBase);
+    MatPipe mPipe((__gm__ void*)fifoMem, 0x0, localFiFoBase);
 
     constexpr uint32_t blockAlign = C0_SIZE_BYTE / sizeof(T);
     constexpr uint32_t ALIGNED_M = CeilAlign<uint32_t>(TOTAL_M, 16);
@@ -323,8 +342,9 @@ __global__ AICORE void runTPushPopVCSubBlockId(__gm__ uint64_t *ffts_addr, __gm_
 
     if constexpr (DAV_VEC) {
         using VecTile = Tile<TileType::Vec, T, VEC_ROWS, VEC_COLS, BLayout::RowMajor, VEC_ROWS, VEC_COLS>;
-        using GlobalSrc = GlobalTensor<T, pto::Shape<1, 1, 1, VEC_ROWS, VEC_COLS>,
-                                       pto::Stride<TOTAL_M * K, TOTAL_M * K, VEC_ROWS * VEC_COLS, K, 1>>;
+        using GlobalSrc = GlobalTensor<
+            T, pto::Shape<1, 1, 1, VEC_ROWS, VEC_COLS>,
+            pto::Stride<TOTAL_M * K, TOTAL_M * K, VEC_ROWS * VEC_COLS, K, 1>>;
 
         VecTile src0Tile, src1Tile, resTile;
         TASSIGN(src0Tile, 0x0);
@@ -431,15 +451,15 @@ __global__ AICORE void runTPushPopVCSubBlockId(__gm__ uint64_t *ffts_addr, __gm_
 }
 
 template <int32_t tilingKey>
-void LaunchTPushPopVCSubBlockId(uint8_t *ffts, uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2,
-                                uint8_t *fifoMem, void *stream)
+void LaunchTPushPopVCSubBlockId(
+    uint8_t* ffts, uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* fifoMem, void* stream)
 {
     if constexpr (tilingKey == 1) {
         runTPushPopVCSubBlockId<float, 64, 64, 64><<<1, nullptr, stream>>>(
-            reinterpret_cast<uint64_t *>(ffts), reinterpret_cast<float *>(out), reinterpret_cast<float *>(src0),
-            reinterpret_cast<float *>(src1), reinterpret_cast<float *>(src2), reinterpret_cast<float *>(fifoMem));
+            reinterpret_cast<uint64_t*>(ffts), reinterpret_cast<float*>(out), reinterpret_cast<float*>(src0),
+            reinterpret_cast<float*>(src1), reinterpret_cast<float*>(src2), reinterpret_cast<float*>(fifoMem));
     }
 }
 
-template void LaunchTPushPopVCSubBlockId<1>(uint8_t *ffts, uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2,
-                                            uint8_t *fifoMem, void *stream);
+template void LaunchTPushPopVCSubBlockId<1>(
+    uint8_t* ffts, uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* fifoMem, void* stream);

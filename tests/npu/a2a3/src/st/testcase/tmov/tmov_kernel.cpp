@@ -27,8 +27,9 @@ AICORE inline T CeilAlign(T num_1, T num_2)
 }
 
 template <typename GMT, typename L0CT, unsigned TShape0, unsigned TShape1, unsigned oriTShape0, unsigned oriTShape1>
-AICORE inline void L0CCopyOut(__gm__ GMT *dst, __cc__ L0CT *src, unsigned GmShape0, unsigned GmShape1,
-                              unsigned GmOffset0, unsigned GmOffset1, int uf = 0, uint8_t reluMode = 0)
+AICORE inline void L0CCopyOut(
+    __gm__ GMT* dst, __cc__ L0CT* src, unsigned GmShape0, unsigned GmShape1, unsigned GmOffset0, unsigned GmOffset1,
+    int uf = 0, uint8_t reluMode = 0)
 {
     uint16_t MSize = oriTShape0 < GmShape0 ? oriTShape0 : GmShape0;
     uint16_t NSize = TShape1 < GmShape1 ? TShape1 : GmShape1;
@@ -66,14 +67,16 @@ AICORE inline void L0CCopyOut(__gm__ GMT *dst, __cc__ L0CT *src, unsigned GmShap
         }
     }
 
-    copy_matrix_cc_to_gm((__gm__ GMT *)dst, (__cc__ L0CT *)src, 0, NSize, MSize, dstStride_dst_D, srcStride,
-                         UnitFlagMode, QuantPRE, ReLUPRE, channelSplit, NZ2ND_EN);
+    copy_matrix_cc_to_gm(
+        (__gm__ GMT*)dst, (__cc__ L0CT*)src, 0, NSize, MSize, dstStride_dst_D, srcStride, UnitFlagMode, QuantPRE,
+        ReLUPRE, channelSplit, NZ2ND_EN);
 }
 
-template <typename cType, typename aType, typename bType, typename biasInputType, typename l0cType, int M, int N, int K,
-          int isAtranspose, int isBtranspose>
-__global__ AICORE void TMOV2BiasKernel(__gm__ cType *out, __gm__ aType *src0, __gm__ bType *src1,
-                                       __gm__ biasInputType *src2)
+template <
+    typename cType, typename aType, typename bType, typename biasInputType, typename l0cType, int M, int N, int K,
+    int isAtranspose, int isBtranspose>
+__global__ AICORE void TMOV2BiasKernel(
+    __gm__ cType* out, __gm__ aType* src0, __gm__ bType* src1, __gm__ biasInputType* src2)
 {
     // The bias addr needs to be 64B aligned.
     constexpr int alignBiasN =
@@ -86,8 +89,9 @@ __global__ AICORE void TMOV2BiasKernel(__gm__ cType *out, __gm__ aType *src0, __
         isBtranspose,
         GlobalTensor<bType, pto::Shape<1, 1, 1, K, N>, pto::Stride<1 * K * N, 1 * K * N, K * N, 1, K>, Layout::DN>,
         GlobalTensor<bType, pto::Shape<1, 1, 1, K, N>, pto::Stride<1 * K * N, 1 * K * N, K * N, N, 1>, Layout::ND>>;
-    using GlobalDataSrc2 = GlobalTensor<biasInputType, Shape<1, 1, 1, 1, alignBiasN>,
-                                        Stride<1 * alignBiasN, 1 * alignBiasN, alignBiasN, alignBiasN, 1>>;
+    using GlobalDataSrc2 = GlobalTensor<
+        biasInputType, Shape<1, 1, 1, 1, alignBiasN>,
+        Stride<1 * alignBiasN, 1 * alignBiasN, alignBiasN, alignBiasN, 1>>;
     using GlobalDataOut = GlobalTensor<cType, Shape<1, 1, 1, M, N>, Stride<1 * M * N, 1 * M * N, M * N, N, 1>>;
 
     GlobalDataSrc0 src0Global(src0);
@@ -95,14 +99,12 @@ __global__ AICORE void TMOV2BiasKernel(__gm__ cType *out, __gm__ aType *src0, __
     GlobalDataSrc2 src2Global(src2);
     GlobalDataOut dstGlobal(out);
 
-    using TileMatAData =
-        std::conditional_t<isAtranspose,
-                           Tile<TileType::Mat, aType, M, K, BLayout::RowMajor, M, K, SLayout::ColMajor, 512>,
-                           Tile<TileType::Mat, aType, M, K, BLayout::ColMajor, M, K, SLayout::RowMajor, 512>>;
-    using TileMatBData =
-        std::conditional_t<isBtranspose,
-                           Tile<TileType::Mat, bType, K, N, BLayout::RowMajor, K, N, SLayout::ColMajor, 512>,
-                           Tile<TileType::Mat, bType, K, N, BLayout::ColMajor, K, N, SLayout::RowMajor, 512>>;
+    using TileMatAData = std::conditional_t<
+        isAtranspose, Tile<TileType::Mat, aType, M, K, BLayout::RowMajor, M, K, SLayout::ColMajor, 512>,
+        Tile<TileType::Mat, aType, M, K, BLayout::ColMajor, M, K, SLayout::RowMajor, 512>>;
+    using TileMatBData = std::conditional_t<
+        isBtranspose, Tile<TileType::Mat, bType, K, N, BLayout::RowMajor, K, N, SLayout::ColMajor, 512>,
+        Tile<TileType::Mat, bType, K, N, BLayout::ColMajor, K, N, SLayout::RowMajor, 512>>;
     using TileMatBiasData =
         Tile<TileType::Mat, biasInputType, 1, alignBiasN, BLayout::RowMajor, 1, alignBiasN, SLayout::NoneBox>;
 
@@ -154,10 +156,11 @@ __global__ AICORE void TMOV2BiasKernel(__gm__ cType *out, __gm__ aType *src0, __
     out = dstGlobal.data();
 }
 
-template <typename cType, typename aType, typename bType, typename biasInputType, typename l0cType, int M, int N, int K,
-          int isAtranspose, int isBtranspose>
-__global__ AICORE void TMOV2BiasDyncmicKernel(__gm__ cType *out, __gm__ aType *src0, __gm__ bType *src1,
-                                              __gm__ biasInputType *src2, int m, int n, int k)
+template <
+    typename cType, typename aType, typename bType, typename biasInputType, typename l0cType, int M, int N, int K,
+    int isAtranspose, int isBtranspose>
+__global__ AICORE void TMOV2BiasDyncmicKernel(
+    __gm__ cType* out, __gm__ aType* src0, __gm__ bType* src1, __gm__ biasInputType* src2, int m, int n, int k)
 {
     // The bias addr needs to be 64B aligned.
     constexpr int alignN =
@@ -184,14 +187,12 @@ __global__ AICORE void TMOV2BiasDyncmicKernel(__gm__ cType *out, __gm__ aType *s
     GlobalDataSrc2 src2Global(src2);
     GlobalDataOut dstGlobal(out);
 
-    using TileMatAData =
-        std::conditional_t<isAtranspose,
-                           Tile<TileType::Mat, aType, M, K, BLayout::RowMajor, -1, -1, SLayout::ColMajor, 512>,
-                           Tile<TileType::Mat, aType, M, K, BLayout::ColMajor, -1, -1, SLayout::RowMajor, 512>>;
-    using TileMatBData =
-        std::conditional_t<isBtranspose,
-                           Tile<TileType::Mat, bType, K, N, BLayout::RowMajor, -1, -1, SLayout::ColMajor, 512>,
-                           Tile<TileType::Mat, bType, K, N, BLayout::ColMajor, -1, -1, SLayout::RowMajor, 512>>;
+    using TileMatAData = std::conditional_t<
+        isAtranspose, Tile<TileType::Mat, aType, M, K, BLayout::RowMajor, -1, -1, SLayout::ColMajor, 512>,
+        Tile<TileType::Mat, aType, M, K, BLayout::ColMajor, -1, -1, SLayout::RowMajor, 512>>;
+    using TileMatBData = std::conditional_t<
+        isBtranspose, Tile<TileType::Mat, bType, K, N, BLayout::RowMajor, -1, -1, SLayout::ColMajor, 512>,
+        Tile<TileType::Mat, bType, K, N, BLayout::ColMajor, -1, -1, SLayout::RowMajor, 512>>;
     using TileMatBiasData = Tile<TileType::Mat, biasInputType, 1, alignN, BLayout::RowMajor, 1, -1, SLayout::NoneBox>;
 
     using LeftTile = Tile<TileType::Left, aType, M, K, BLayout::RowMajor, -1, K, SLayout::RowMajor, 512>;
@@ -243,10 +244,11 @@ __global__ AICORE void TMOV2BiasDyncmicKernel(__gm__ cType *out, __gm__ aType *s
     out = dstGlobal.data();
 }
 
-template <typename cType, typename aType, typename bType, typename scalingType, typename l0cType, int M, int N, int K,
-          int isAtranspose, int isBtranspose, uint8_t reluMode>
-__global__ AICORE void TMOV2ScalingKernel(__gm__ cType *out, __gm__ aType *src0, __gm__ bType *src1,
-                                          __gm__ scalingType *src2)
+template <
+    typename cType, typename aType, typename bType, typename scalingType, typename l0cType, int M, int N, int K,
+    int isAtranspose, int isBtranspose, uint8_t reluMode>
+__global__ AICORE void TMOV2ScalingKernel(
+    __gm__ cType* out, __gm__ aType* src0, __gm__ bType* src1, __gm__ scalingType* src2)
 {
     using GlobalDataSrc0 = std::conditional_t<
         isAtranspose,
@@ -264,14 +266,12 @@ __global__ AICORE void TMOV2ScalingKernel(__gm__ cType *out, __gm__ aType *src0,
     GlobalDataSrc2 src2Global(src2);
     GlobalDataOut dstGlobal(out);
 
-    using TileMatAData =
-        std::conditional_t<isAtranspose,
-                           Tile<TileType::Mat, aType, M, K, BLayout::RowMajor, M, K, SLayout::ColMajor, 512>,
-                           Tile<TileType::Mat, aType, M, K, BLayout::ColMajor, M, K, SLayout::RowMajor, 512>>;
-    using TileMatBData =
-        std::conditional_t<isBtranspose,
-                           Tile<TileType::Mat, bType, K, N, BLayout::RowMajor, K, N, SLayout::ColMajor, 512>,
-                           Tile<TileType::Mat, bType, K, N, BLayout::ColMajor, K, N, SLayout::RowMajor, 512>>;
+    using TileMatAData = std::conditional_t<
+        isAtranspose, Tile<TileType::Mat, aType, M, K, BLayout::RowMajor, M, K, SLayout::ColMajor, 512>,
+        Tile<TileType::Mat, aType, M, K, BLayout::ColMajor, M, K, SLayout::RowMajor, 512>>;
+    using TileMatBData = std::conditional_t<
+        isBtranspose, Tile<TileType::Mat, bType, K, N, BLayout::RowMajor, K, N, SLayout::ColMajor, 512>,
+        Tile<TileType::Mat, bType, K, N, BLayout::ColMajor, K, N, SLayout::RowMajor, 512>>;
     using TileMatFbData = Tile<TileType::Mat, scalingType, 1, N, BLayout::RowMajor, 1, N, SLayout::NoneBox>;
 
     using LeftTile = Tile<TileType::Left, aType, M, K, BLayout::RowMajor, M, K, SLayout::RowMajor, 512>;
@@ -325,11 +325,12 @@ __global__ AICORE void TMOV2ScalingKernel(__gm__ cType *out, __gm__ aType *src0,
     out = dstGlobal.data();
 }
 
-template <typename cType, typename aType, typename bType, typename biasInputType, typename scalingType,
-          typename l0cType, int M, int N, int K, int isAtranspose, int isBtranspose>
-__global__ AICORE void TMOV2BiasAndScalingDyncmicKernel(__gm__ cType *out, __gm__ aType *src0, __gm__ bType *src1,
-                                                        __gm__ biasInputType *src2, __gm__ scalingType *src3, int m,
-                                                        int n, int k)
+template <
+    typename cType, typename aType, typename bType, typename biasInputType, typename scalingType, typename l0cType,
+    int M, int N, int K, int isAtranspose, int isBtranspose>
+__global__ AICORE void TMOV2BiasAndScalingDyncmicKernel(
+    __gm__ cType* out, __gm__ aType* src0, __gm__ bType* src1, __gm__ biasInputType* src2, __gm__ scalingType* src3,
+    int m, int n, int k)
 {
     // The bias addr needs to be 64B aligned.
     constexpr int alignBiasN =
@@ -449,22 +450,24 @@ __global__ AICORE void TMOV2BiasAndScalingDyncmicKernel(__gm__ cType *out, __gm_
     out = dstGlobal.data();
 }
 
-template <typename AT, typename BT, typename L0CT, typename BiasT, typename GMT, typename ScalingT, int M, int N, int K,
-          int isAtranspose, int isBtranspose, int IsBias, int IsQuant, int ReluMode, int Isdynamic, int IsNd = 1>
-void LaunchTMOV(GMT *out, AT *src0, BT *src1, BiasT *src2, ScalingT *src3, void *stream)
+template <
+    typename AT, typename BT, typename L0CT, typename BiasT, typename GMT, typename ScalingT, int M, int N, int K,
+    int isAtranspose, int isBtranspose, int IsBias, int IsQuant, int ReluMode, int Isdynamic, int IsNd = 1>
+void LaunchTMOV(GMT* out, AT* src0, BT* src1, BiasT* src2, ScalingT* src3, void* stream)
 {
     if constexpr (!Isdynamic) {
         if constexpr (IsBias) {
             if constexpr (std::is_same_v<AT, uint16_t> && std::is_same_v<BiasT, uint16_t>) {
                 TMOV2BiasKernel<GMT, half, half, half, L0CT, M, N, K, isAtranspose, isBtranspose>
-                    <<<1, nullptr, stream>>>(out, reinterpret_cast<half *>(src0), reinterpret_cast<half *>(src1),
-                                             reinterpret_cast<half *>(src2));
+                    <<<1, nullptr, stream>>>(
+                        out, reinterpret_cast<half*>(src0), reinterpret_cast<half*>(src1),
+                        reinterpret_cast<half*>(src2));
             } else if constexpr (std::is_same_v<BiasT, uint16_t>) {
                 TMOV2BiasKernel<GMT, AT, BT, half, L0CT, M, N, K, isAtranspose, isBtranspose>
-                    <<<1, nullptr, stream>>>(out, src0, src1, reinterpret_cast<half *>(src2));
+                    <<<1, nullptr, stream>>>(out, src0, src1, reinterpret_cast<half*>(src2));
             } else if constexpr (std::is_same_v<AT, uint16_t>) {
                 TMOV2BiasKernel<GMT, half, half, BiasT, L0CT, M, N, K, isAtranspose, isBtranspose>
-                    <<<1, nullptr, stream>>>(out, reinterpret_cast<half *>(src0), reinterpret_cast<half *>(src1), src2);
+                    <<<1, nullptr, stream>>>(out, reinterpret_cast<half*>(src0), reinterpret_cast<half*>(src1), src2);
             } else {
                 TMOV2BiasKernel<GMT, AT, BT, BiasT, L0CT, M, N, K, isAtranspose, isBtranspose>
                     <<<1, nullptr, stream>>>(out, src0, src1, src2);
@@ -472,10 +475,10 @@ void LaunchTMOV(GMT *out, AT *src0, BT *src1, BiasT *src2, ScalingT *src3, void 
         } else if constexpr (IsQuant) {
             if constexpr (std::is_same_v<AT, uint16_t>) {
                 TMOV2ScalingKernel<GMT, half, half, ScalingT, L0CT, M, N, K, isAtranspose, isBtranspose, ReluMode>
-                    <<<1, nullptr, stream>>>(out, reinterpret_cast<half *>(src0), reinterpret_cast<half *>(src1), src3);
+                    <<<1, nullptr, stream>>>(out, reinterpret_cast<half*>(src0), reinterpret_cast<half*>(src1), src3);
             } else if constexpr (std::is_same_v<GMT, uint16_t>) {
                 TMOV2ScalingKernel<half, AT, BT, ScalingT, L0CT, M, N, K, isAtranspose, isBtranspose, ReluMode>
-                    <<<1, nullptr, stream>>>(reinterpret_cast<half *>(out), src0, src1, src3);
+                    <<<1, nullptr, stream>>>(reinterpret_cast<half*>(out), src0, src1, src3);
             } else {
                 TMOV2ScalingKernel<GMT, AT, BT, ScalingT, L0CT, M, N, K, isAtranspose, isBtranspose, ReluMode>
                     <<<1, nullptr, stream>>>(out, src0, src1, src3);
@@ -485,15 +488,16 @@ void LaunchTMOV(GMT *out, AT *src0, BT *src1, BiasT *src2, ScalingT *src3, void 
         if constexpr (IsBias && !IsQuant) {
             if constexpr (std::is_same_v<AT, uint16_t> && std::is_same_v<BiasT, uint16_t>) {
                 TMOV2BiasDyncmicKernel<GMT, half, half, half, L0CT, M, N, K, isAtranspose, isBtranspose>
-                    <<<1, nullptr, stream>>>(out, reinterpret_cast<half *>(src0), reinterpret_cast<half *>(src1),
-                                             reinterpret_cast<half *>(src2), M, N, K);
+                    <<<1, nullptr, stream>>>(
+                        out, reinterpret_cast<half*>(src0), reinterpret_cast<half*>(src1),
+                        reinterpret_cast<half*>(src2), M, N, K);
             } else if constexpr (std::is_same_v<BiasT, uint16_t>) {
                 TMOV2BiasDyncmicKernel<GMT, AT, BT, half, L0CT, M, N, K, isAtranspose, isBtranspose>
-                    <<<1, nullptr, stream>>>(out, src0, src1, reinterpret_cast<half *>(src2), M, N, K);
+                    <<<1, nullptr, stream>>>(out, src0, src1, reinterpret_cast<half*>(src2), M, N, K);
             } else if constexpr (std::is_same_v<AT, uint16_t>) {
                 TMOV2BiasDyncmicKernel<GMT, half, half, BiasT, L0CT, M, N, K, isAtranspose, isBtranspose>
-                    <<<1, nullptr, stream>>>(out, reinterpret_cast<half *>(src0), reinterpret_cast<half *>(src1), src2,
-                                             M, N, K);
+                    <<<1, nullptr, stream>>>(
+                        out, reinterpret_cast<half*>(src0), reinterpret_cast<half*>(src1), src2, M, N, K);
             } else {
                 TMOV2BiasDyncmicKernel<GMT, AT, BT, BiasT, L0CT, M, N, K, isAtranspose, isBtranspose>
                     <<<1, nullptr, stream>>>(out, src0, src1, src2, M, N, K);
@@ -508,26 +512,26 @@ void LaunchTMOV(GMT *out, AT *src0, BT *src1, BiasT *src2, ScalingT *src3, void 
 // atype, btype, l0ctype, biastype, gmtype, scalingtype, M, N, K, is_atrans, is_btrans, is_bias, is_quant, relu_mode,
 // isdynamic
 template void LaunchTMOV<uint16_t, uint16_t, float, float, float, uint64_t, 64, 32, 80, 0, 1, 1, 0, 0, 0>(
-    float *out, uint16_t *src0, uint16_t *src1, float *src2, uint64_t *src3, void *stream);
+    float* out, uint16_t* src0, uint16_t* src1, float* src2, uint64_t* src3, void* stream);
 template void LaunchTMOV<int8_t, int8_t, int32_t, int32_t, int32_t, uint64_t, 128, 64, 128, 0, 1, 1, 0, 0, 0>(
-    int32_t *out, int8_t *src0, int8_t *src1, int32_t *src2, uint64_t *src3, void *stream);
+    int32_t* out, int8_t* src0, int8_t* src1, int32_t* src2, uint64_t* src3, void* stream);
 template void LaunchTMOV<float, float, float, float, float, uint64_t, 128, 48, 64, 0, 1, 1, 0, 0, 0>(
-    float *out, float *src0, float *src1, float *src2, uint64_t *src3, void *stream);
+    float* out, float* src0, float* src1, float* src2, uint64_t* src3, void* stream);
 template void LaunchTMOV<uint16_t, uint16_t, float, uint16_t, float, uint64_t, 64, 32, 80, 0, 1, 1, 0, 0, 1>(
-    float *out, uint16_t *src0, uint16_t *src1, uint16_t *src2, uint64_t *src3, void *stream);
+    float* out, uint16_t* src0, uint16_t* src1, uint16_t* src2, uint64_t* src3, void* stream);
 template void LaunchTMOV<float, float, float, uint16_t, float, uint64_t, 112, 48, 96, 0, 1, 1, 0, 0, 1>(
-    float *out, float *src0, float *src1, uint16_t *src2, uint64_t *src3, void *stream);
+    float* out, float* src0, float* src1, uint16_t* src2, uint64_t* src3, void* stream);
 template void LaunchTMOV<float, float, float, uint16_t, float, uint64_t, 64, 128, 96, 0, 1, 1, 0, 0, 0>(
-    float *out, float *src0, float *src1, uint16_t *src2, uint64_t *src3, void *stream);
+    float* out, float* src0, float* src1, uint16_t* src2, uint64_t* src3, void* stream);
 
 template void LaunchTMOV<int8_t, int8_t, int32_t, int32_t, int8_t, uint64_t, 128, 112, 32, 0, 1, 0, 1, 0, 0>(
-    int8_t *out, int8_t *src0, int8_t *src1, int32_t *src2, uint64_t *src3, void *stream);
+    int8_t* out, int8_t* src0, int8_t* src1, int32_t* src2, uint64_t* src3, void* stream);
 template void LaunchTMOV<int8_t, int8_t, int32_t, int32_t, uint16_t, uint64_t, 144, 80, 160, 0, 1, 0, 1, 0, 0>(
-    uint16_t *out, int8_t *src0, int8_t *src1, int32_t *src2, uint64_t *src3, void *stream);
+    uint16_t* out, int8_t* src0, int8_t* src1, int32_t* src2, uint64_t* src3, void* stream);
 template void LaunchTMOV<uint16_t, uint16_t, float, float, int8_t, uint64_t, 64, 32, 80, 0, 1, 0, 1, 0, 0>(
-    int8_t *out, uint16_t *src0, uint16_t *src1, float *src2, uint64_t *src3, void *stream);
+    int8_t* out, uint16_t* src0, uint16_t* src1, float* src2, uint64_t* src3, void* stream);
 
 template void LaunchTMOV<int8_t, int8_t, int32_t, int32_t, int8_t, uint64_t, 60, 17, 80, 0, 1, 1, 1, 0, 1, 1>(
-    int8_t *out, int8_t *src0, int8_t *src1, int32_t *src2, uint64_t *src3, void *stream);
+    int8_t* out, int8_t* src0, int8_t* src1, int32_t* src2, uint64_t* src3, void* stream);
 template void LaunchTMOV<int8_t, int8_t, int32_t, int32_t, int8_t, uint64_t, 15, 10, 30, 0, 1, 1, 1, 0, 1, 1>(
-    int8_t *out, int8_t *src0, int8_t *src1, int32_t *src2, uint64_t *src3, void *stream);
+    int8_t* out, int8_t* src0, int8_t* src1, int32_t* src2, uint64_t* src3, void* stream);

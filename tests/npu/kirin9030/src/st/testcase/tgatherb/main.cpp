@@ -17,27 +17,25 @@ using namespace PtoTestCommon;
 
 class TGATHERBTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, uint64_t dstS1, uint64_t dstS0, uint64_t offsetS1, uint64_t offsetS0, uint64_t srcS1,
-          uint64_t srcS0>
-void LaunchTGatherB(T *out, T *src, uint32_t *offset, void *stream);
+template <
+    typename T, uint64_t dstS1, uint64_t dstS0, uint64_t offsetS1, uint64_t offsetS0, uint64_t srcS1, uint64_t srcS0>
+void LaunchTGatherB(T* out, T* src, uint32_t* offset, void* stream);
 
-template <typename T, uint64_t dstS1, uint64_t dstS0, uint64_t offsetS1, uint64_t offsetS0, uint64_t srcS1,
-          uint64_t srcS0>
+template <
+    typename T, uint64_t dstS1, uint64_t dstS0, uint64_t offsetS1, uint64_t offsetS0, uint64_t srcS1, uint64_t srcS0>
 void test_tgatherb()
 {
     size_t dstFileSize = dstS1 * dstS0 * sizeof(T);
@@ -52,13 +50,13 @@ void test_tgatherb()
     T *dstHost, *srcHost, *dstDevice, *srcDevice;
     uint32_t *offsetHost, *offsetDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
-    aclrtMallocHost((void **)(&offsetHost), offsetFileSize);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
+    aclrtMallocHost((void**)(&offsetHost), offsetFileSize);
 
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&offsetDevice, offsetFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&offsetDevice, offsetFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x.bin", srcFileSize, srcHost, srcFileSize);
     ReadFile(GetGoldenDir() + "/offset.bin", offsetFileSize, offsetHost, offsetFileSize);
@@ -93,27 +91,9 @@ void test_tgatherb()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TGATHERBTest, case_float_2x128_2x16_2x128)
-{
-    test_tgatherb<float, 2, 128, 2, 16, 2, 128>();
-}
-TEST_F(TGATHERBTest, case_int32_2x128_2x16_2x128)
-{
-    test_tgatherb<int32_t, 2, 128, 2, 16, 2, 128>();
-}
-TEST_F(TGATHERBTest, case_uint32_2x128_2x16_2x128)
-{
-    test_tgatherb<uint32_t, 2, 128, 2, 16, 2, 128>();
-}
-TEST_F(TGATHERBTest, case_int16_1x16384_1x2048_1x16384)
-{
-    test_tgatherb<int16_t, 1, 16384, 1, 2048, 1, 16384>();
-}
-TEST_F(TGATHERBTest, case_uint16_257x128_257x8_257x128)
-{
-    test_tgatherb<uint16_t, 129, 128, 129, 8, 129, 128>();
-}
-TEST_F(TGATHERBTest, case_int8_2x256_2x8_2x256)
-{
-    test_tgatherb<int8_t, 2, 256, 2, 8, 2, 256>();
-}
+TEST_F(TGATHERBTest, case_float_2x128_2x16_2x128) { test_tgatherb<float, 2, 128, 2, 16, 2, 128>(); }
+TEST_F(TGATHERBTest, case_int32_2x128_2x16_2x128) { test_tgatherb<int32_t, 2, 128, 2, 16, 2, 128>(); }
+TEST_F(TGATHERBTest, case_uint32_2x128_2x16_2x128) { test_tgatherb<uint32_t, 2, 128, 2, 16, 2, 128>(); }
+TEST_F(TGATHERBTest, case_int16_1x16384_1x2048_1x16384) { test_tgatherb<int16_t, 1, 16384, 1, 2048, 1, 16384>(); }
+TEST_F(TGATHERBTest, case_uint16_257x128_257x8_257x128) { test_tgatherb<uint16_t, 129, 128, 129, 8, 129, 128>(); }
+TEST_F(TGATHERBTest, case_int8_2x256_2x8_2x256) { test_tgatherb<int8_t, 2, 256, 2, 8, 2, 256>(); }

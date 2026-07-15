@@ -20,8 +20,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 template <typename T, unsigned ElementsPerRepeat, unsigned BlockSizeElem>
-PTO_INTERNAL void TPairReduceSum_1D_NoPostUpdate(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, unsigned validRows,
-                                                 unsigned validCols)
+PTO_INTERNAL void TPairReduceSum_1D_NoPostUpdate(
+    __ubuf__ T* dstPtr, __ubuf__ T* src0Ptr, unsigned validRows, unsigned validCols)
 {
     constexpr unsigned halfElementsPerRepeat = ElementsPerRepeat >> 1;
     uint16_t repeatTimes = CeilDivision(validRows * validCols, ElementsPerRepeat);
@@ -50,10 +50,11 @@ PTO_INTERNAL void TPairReduceSum_1D_NoPostUpdate(__ubuf__ T *dstPtr, __ubuf__ T 
     }
 }
 
-template <typename T, unsigned ElementsPerRepeat, unsigned BlockSizeElem, unsigned DstRowStride,
-          unsigned Src0RowStride = DstRowStride>
-PTO_INTERNAL void TPairReduceSum_2D_NoPostUpdate(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, unsigned validRows,
-                                                 unsigned validCols)
+template <
+    typename T, unsigned ElementsPerRepeat, unsigned BlockSizeElem, unsigned DstRowStride,
+    unsigned Src0RowStride = DstRowStride>
+PTO_INTERNAL void TPairReduceSum_2D_NoPostUpdate(
+    __ubuf__ T* dstPtr, __ubuf__ T* src0Ptr, unsigned validRows, unsigned validCols)
 {
     constexpr unsigned halfElementsPerRepeat = ElementsPerRepeat >> 1;
     uint16_t repeatTimes = CeilDivision(validCols, ElementsPerRepeat);
@@ -84,9 +85,9 @@ PTO_INTERNAL void TPairReduceSum_2D_NoPostUpdate(__ubuf__ T *dstPtr, __ubuf__ T 
 }
 
 template <typename TileDataDst, typename TileDataSrc0, unsigned ElementsPerRepeat, unsigned BlockSizeElem>
-PTO_INTERNAL void TPairReduceSumInstr(__ubuf__ typename TileDataDst::DType *dst,
-                                      __ubuf__ typename TileDataSrc0::DType *src0, unsigned validRows,
-                                      unsigned validCols)
+PTO_INTERNAL void TPairReduceSumInstr(
+    __ubuf__ typename TileDataDst::DType* dst, __ubuf__ typename TileDataSrc0::DType* src0, unsigned validRows,
+    unsigned validCols)
 {
     using T = typename TileDataDst::DType;
     constexpr unsigned src0RowStride = TileDataSrc0::RowStride;
@@ -104,45 +105,46 @@ PTO_INTERNAL void TPairReduceSumInstr(__ubuf__ typename TileDataDst::DType *dst,
 }
 
 template <typename TileDataDst, typename TileDataSrc0, unsigned ElementsPerRepeat, unsigned BlockSizeElem>
-__tf__ PTO_INTERNAL OP_NAME(TPAIRREDUCESUM)
-    OP_TYPE(element_wise) void TPairReduceSum(typename TileDataDst::TileDType __out__ dst,
-                                              typename TileDataSrc0::TileDType __in__ src0, unsigned validRows,
-                                              unsigned validCols)
+__tf__ PTO_INTERNAL OP_NAME(TPAIRREDUCESUM) OP_TYPE(element_wise) void TPairReduceSum(
+    typename TileDataDst::TileDType __out__ dst, typename TileDataSrc0::TileDType __in__ src0, unsigned validRows,
+    unsigned validCols)
 {
     using T = typename TileDataDst::DType;
-    __ubuf__ T *src0Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src0);
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
+    __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
 
-    TPairReduceSumInstr<TileDataDst, TileDataSrc0, ElementsPerRepeat, BlockSizeElem>(dstPtr, src0Ptr, validRows,
-                                                                                     validCols);
+    TPairReduceSumInstr<TileDataDst, TileDataSrc0, ElementsPerRepeat, BlockSizeElem>(
+        dstPtr, src0Ptr, validRows, validCols);
     return;
 }
 
 template <typename TileDataDst, typename TileDataSrc0>
-PTO_INTERNAL void TPairReduceSumCheck(const TileDataDst &dst, const TileDataSrc0 &src0)
+PTO_INTERNAL void TPairReduceSumCheck(const TileDataDst& dst, const TileDataSrc0& src0)
 {
     using T = typename TileDataDst::DType;
     static_assert(std::is_same_v<T, float> || std::is_same_v<T, half>, "Fix: TPAIRREDUCESUM has invalid data type.");
-    static_assert(std::is_same_v<T, typename TileDataSrc0::DType>,
-                  "Fix: TPAIRREDUCESUM input tile src0 and dst tile data type mismatch.");
-    static_assert(TileDataDst::isRowMajor && TileDataSrc0::isRowMajor,
-                  "Fix: TPAIRREDUCESUM only support row major layout.");
+    static_assert(
+        std::is_same_v<T, typename TileDataSrc0::DType>,
+        "Fix: TPAIRREDUCESUM input tile src0 and dst tile data type mismatch.");
+    static_assert(
+        TileDataDst::isRowMajor && TileDataSrc0::isRowMajor, "Fix: TPAIRREDUCESUM only support row major layout.");
     unsigned validCols = dst.GetValidCol();
     unsigned validRows = dst.GetValidRow();
-    PTO_ASSERT(src0.GetValidRow() == validRows && src0.GetValidCol() == validCols,
-               "Fix: TPAIRREDUCESUM input tile src0 valid shape mismatch with output tile dst shape.");
+    PTO_ASSERT(
+        src0.GetValidRow() == validRows && src0.GetValidCol() == validCols,
+        "Fix: TPAIRREDUCESUM input tile src0 valid shape mismatch with output tile dst shape.");
 }
 
 template <typename TileDataDst, typename TileDataSrc0>
-PTO_INTERNAL void TPAIRREDUCESUM_IMPL(TileDataDst &dst, TileDataSrc0 &src0)
+PTO_INTERNAL void TPAIRREDUCESUM_IMPL(TileDataDst& dst, TileDataSrc0& src0)
 {
     using T = typename TileDataDst::DType;
     TPairReduceSumCheck<TileDataDst, TileDataSrc0>(dst, src0);
     constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
 
-    TPairReduceSum<TileDataDst, TileDataSrc0, elementsPerRepeat, blockSizeElem>(dst.data(), src0.data(),
-                                                                                dst.GetValidRow(), dst.GetValidCol());
+    TPairReduceSum<TileDataDst, TileDataSrc0, elementsPerRepeat, blockSizeElem>(
+        dst.data(), src0.data(), dst.GetValidRow(), dst.GetValidCol());
 }
 } // namespace pto
 #endif

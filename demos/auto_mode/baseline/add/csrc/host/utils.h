@@ -31,7 +31,7 @@ namespace ascendc_path {
 
 #define DEVICE_TYPE c10::DeviceType::PrivateUse1
 
-inline at::Tensor CopyTensorHostToDevice(const at::Tensor &cpu_tensor)
+inline at::Tensor CopyTensorHostToDevice(const at::Tensor& cpu_tensor)
 {
     at::Tensor cpuPinMemTensor = cpu_tensor.pin_memory();
     int deviceIndex = 0;
@@ -39,15 +39,12 @@ inline at::Tensor CopyTensorHostToDevice(const at::Tensor &cpu_tensor)
     return cpuPinMemTensor.to(c10::Device(DEVICE_TYPE, deviceIndex), cpuPinMemTensor.scalar_type(), true, true);
 }
 
-inline at::Tensor CopyScalarToDevice(const c10::Scalar &cpu_scalar, at::ScalarType scalar_data_type)
+inline at::Tensor CopyScalarToDevice(const c10::Scalar& cpu_scalar, at::ScalarType scalar_data_type)
 {
     return CopyTensorHostToDevice(scalar_to_tensor(cpu_scalar).to(scalar_data_type));
 }
 
-inline void *ConvertType(const at::Tensor &at_tensor)
-{
-    return const_cast<void *>(at_tensor.storage().data());
-}
+inline void* ConvertType(const at::Tensor& at_tensor) { return const_cast<void*>(at_tensor.storage().data()); }
 
 template <typename T>
 T ConvertType(T value)
@@ -56,7 +53,7 @@ T ConvertType(T value)
 }
 
 template <typename... Ts>
-constexpr auto ConvertTypes(Ts &... args)
+constexpr auto ConvertTypes(Ts&... args)
 {
     return std::make_tuple(ConvertType(args)...);
 }
@@ -67,7 +64,7 @@ constexpr auto ConvertTypes(Ts &... args)
         auto converted_params = ConvertTypes(__VA_ARGS__);                  \
         auto acl_call = [acl_stream, blockdim, converted_params]() -> int { \
             std::apply(                                                     \
-                [&](auto &&... params) {                                    \
+                [&](auto&&... params) {                                     \
                     ACLRT_LAUNCH_KERNEL(kernel_name)                        \
                     (blockdim, acl_stream, params...);                      \
                 },                                                          \

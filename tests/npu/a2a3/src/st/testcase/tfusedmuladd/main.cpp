@@ -17,27 +17,27 @@ using namespace PtoTestCommon;
 
 class TFUSEDMULADDTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
-          int vCols, bool isHalf = true>
-void LaunchTFUSEDMULADD(T *out, T *src0, T *src1, void *stream);
+template <
+    typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
+    int vCols, bool isHalf = true>
+void LaunchTFUSEDMULADD(T* out, T* src0, T* src1, void* stream);
 
-template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
-          int vCols, bool isHalf = false>
+template <
+    typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
+    int vCols, bool isHalf = false>
 void test_TFUSEDMULADD()
 {
     size_t fileSizeDst = dstTileH * dstTileW * sizeof(T);
@@ -52,13 +52,13 @@ void test_TFUSEDMULADD()
     T *dstHost, *src0Host, *src1Host;
     T *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), fileSizeDst);
-    aclrtMallocHost((void **)(&src0Host), fileSizeSrc0);
-    aclrtMallocHost((void **)(&src1Host), fileSizeSrc1);
+    aclrtMallocHost((void**)(&dstHost), fileSizeDst);
+    aclrtMallocHost((void**)(&src0Host), fileSizeSrc0);
+    aclrtMallocHost((void**)(&src1Host), fileSizeSrc1);
 
-    aclrtMalloc((void **)&dstDevice, fileSizeDst, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, fileSizeSrc0, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, fileSizeSrc1, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSizeDst, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, fileSizeSrc0, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, fileSizeSrc1, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input_dst.bin", fileSizeDst, dstHost, fileSizeDst);
     ReadFile(GetGoldenDir() + "/input0.bin", fileSizeSrc0, src0Host, fileSizeSrc0);
@@ -97,10 +97,7 @@ void test_TFUSEDMULADD()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TFUSEDMULADDTest, case_float_1x8_1x8_1x8_1x8)
-{
-    test_TFUSEDMULADD<float, 1, 8, 1, 8, 1, 8, 1, 8>();
-}
+TEST_F(TFUSEDMULADDTest, case_float_1x8_1x8_1x8_1x8) { test_TFUSEDMULADD<float, 1, 8, 1, 8, 1, 8, 1, 8>(); }
 TEST_F(TFUSEDMULADDTest, case_float_64x64_64x64_64x64_64x64)
 {
     test_TFUSEDMULADD<float, 64, 64, 64, 64, 64, 64, 64, 64>();
@@ -117,10 +114,7 @@ TEST_F(TFUSEDMULADDTest, case_float_2048x8_2048x8_2048x8_2048x8)
 {
     test_TFUSEDMULADD<float, 2048, 8, 2048, 8, 2048, 8, 2048, 8>();
 }
-TEST_F(TFUSEDMULADDTest, case_half_1x16_1x16_1x16_1x16)
-{
-    test_TFUSEDMULADD<aclFloat16, 1, 16, 1, 16, 1, 16, 1, 16>();
-}
+TEST_F(TFUSEDMULADDTest, case_half_1x16_1x16_1x16_1x16) { test_TFUSEDMULADD<aclFloat16, 1, 16, 1, 16, 1, 16, 1, 16>(); }
 TEST_F(TFUSEDMULADDTest, case_half_64x64_64x64_64x64_64x64)
 {
     test_TFUSEDMULADD<aclFloat16, 64, 64, 64, 64, 64, 64, 64, 64>();

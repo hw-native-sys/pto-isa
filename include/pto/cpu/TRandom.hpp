@@ -26,7 +26,7 @@ constexpr uint16_t BLOCK_SIZE = 32;
 constexpr uint16_t kCounterWords = 4;
 constexpr uint16_t kKeyCount = 2;
 
-inline void IncrementCounter(std::array<uint32_t, kCounterWords> &counter, uint32_t value)
+inline void IncrementCounter(std::array<uint32_t, kCounterWords>& counter, uint32_t value)
 {
     uint64_t carry = value;
     for (size_t i = 0; i < counter.size(); ++i) {
@@ -40,8 +40,8 @@ inline void IncrementCounter(std::array<uint32_t, kCounterWords> &counter, uint3
 }
 
 template <uint16_t Rounds>
-inline std::array<uint32_t, kCounterWords> RunRounds(std::array<uint32_t, kCounterWords> counter,
-                                                     std::array<uint32_t, kKeyCount> key)
+inline std::array<uint32_t, kCounterWords> RunRounds(
+    std::array<uint32_t, kCounterWords> counter, std::array<uint32_t, kKeyCount> key)
 {
     for (uint16_t i = 0; i < Rounds; ++i) {
         const uint64_t mul0 = static_cast<uint64_t>(counter[0]) * static_cast<uint64_t>(kConst0);
@@ -65,11 +65,11 @@ inline std::array<uint32_t, kCounterWords> RunRounds(std::array<uint32_t, kCount
 } // namespace cpu_random
 
 template <uint16_t Rounds = 10, typename DstTile>
-PTO_INTERNAL void TRANDOM_IMPL(DstTile &dst, TRandomKey &key, TRandomCounter &counter)
+PTO_INTERNAL void TRANDOM_IMPL(DstTile& dst, TRandomKey& key, TRandomCounter& counter)
 {
     using T = typename DstTile::DType;
-    static_assert(std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t>,
-                  "Fix: TRANDOM only support int32_t and uint32_t.");
+    static_assert(
+        std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t>, "Fix: TRANDOM only support int32_t and uint32_t.");
     static_assert(Rounds == 7 || Rounds == 10, "Fix: TRANDOM Rounds can only  be configured to 7 or 10.");
     static_assert(DstTile::isRowMajor, "Fix: TRANDOM only support row major layout.");
 

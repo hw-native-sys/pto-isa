@@ -17,27 +17,27 @@ using namespace PtoTestCommon;
 
 class TSUBRELUTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
-          int vCols, bool isHalf = true>
-void LaunchTSUBRELU(T *out, T *src0, T *src1, void *stream);
+template <
+    typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
+    int vCols, bool isHalf = true>
+void LaunchTSUBRELU(T* out, T* src0, T* src1, void* stream);
 
-template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
-          int vCols, bool isHalf = false>
+template <
+    typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
+    int vCols, bool isHalf = false>
 void test_TSUBRELU()
 {
     size_t fileSizeDst = dstTileH * dstTileW * sizeof(T);
@@ -52,13 +52,13 @@ void test_TSUBRELU()
     T *dstHost, *src0Host, *src1Host;
     T *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), fileSizeDst);
-    aclrtMallocHost((void **)(&src0Host), fileSizeSrc0);
-    aclrtMallocHost((void **)(&src1Host), fileSizeSrc1);
+    aclrtMallocHost((void**)(&dstHost), fileSizeDst);
+    aclrtMallocHost((void**)(&src0Host), fileSizeSrc0);
+    aclrtMallocHost((void**)(&src1Host), fileSizeSrc1);
 
-    aclrtMalloc((void **)&dstDevice, fileSizeDst, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, fileSizeSrc0, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, fileSizeSrc1, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSizeDst, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, fileSizeSrc0, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, fileSizeSrc1, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input_dst.bin", fileSizeDst, dstHost, fileSizeDst);
     ReadFile(GetGoldenDir() + "/input0.bin", fileSizeSrc0, src0Host, fileSizeSrc0);
@@ -97,18 +97,12 @@ void test_TSUBRELU()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TSUBRELUTest, case_float_64x64_64x64_64x64_64x64)
-{
-    test_TSUBRELU<float, 64, 64, 64, 64, 64, 64, 64, 64>();
-}
+TEST_F(TSUBRELUTest, case_float_64x64_64x64_64x64_64x64) { test_TSUBRELU<float, 64, 64, 64, 64, 64, 64, 64, 64>(); }
 TEST_F(TSUBRELUTest, case_float_32x128_32x192_32x256_32x127)
 {
     test_TSUBRELU<float, 32, 128, 32, 192, 32, 256, 32, 127>();
 }
-TEST_F(TSUBRELUTest, case_half_64x64_64x64_64x64_64x64)
-{
-    test_TSUBRELU<aclFloat16, 64, 64, 64, 64, 64, 64, 64, 64>();
-}
+TEST_F(TSUBRELUTest, case_half_64x64_64x64_64x64_64x64) { test_TSUBRELU<aclFloat16, 64, 64, 64, 64, 64, 64, 64, 64>(); }
 TEST_F(TSUBRELUTest, case_half_32x128_32x192_32x256_32x127)
 {
     test_TSUBRELU<aclFloat16, 32, 128, 32, 192, 32, 256, 32, 127>();

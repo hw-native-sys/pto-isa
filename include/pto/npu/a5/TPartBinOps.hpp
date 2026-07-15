@@ -18,8 +18,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 template <typename T, unsigned dstStride, unsigned elementsPerRepeat>
-PTO_INTERNAL void TPartProcRow(__ubuf__ T *dstPtr, __ubuf__ T *srcPtr, unsigned srcStride, unsigned row,
-                               uint32_t &dstSReg, uint32_t repeatStart, uint32_t repeatEnd)
+PTO_INTERNAL void TPartProcRow(
+    __ubuf__ T* dstPtr, __ubuf__ T* srcPtr, unsigned srcStride, unsigned row, uint32_t& dstSReg, uint32_t repeatStart,
+    uint32_t repeatEnd)
 {
     constexpr auto distValue =
         std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
@@ -32,11 +33,11 @@ PTO_INTERNAL void TPartProcRow(__ubuf__ T *dstPtr, __ubuf__ T *srcPtr, unsigned 
     }
 }
 
-template <typename Op, typename T, unsigned dstStride, unsigned src0Stride, unsigned src1Stride,
-          unsigned elementsPerRepeat>
-PTO_INTERNAL void TPartProcRow(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ubuf__ T *src1Ptr, __ubuf__ T *srcBigPtr,
-                               unsigned srcBigStride, unsigned row, uint32_t &dstSReg, uint32_t &srcSReg,
-                               uint32_t repeatEnd)
+template <
+    typename Op, typename T, unsigned dstStride, unsigned src0Stride, unsigned src1Stride, unsigned elementsPerRepeat>
+PTO_INTERNAL void TPartProcRow(
+    __ubuf__ T* dstPtr, __ubuf__ T* src0Ptr, __ubuf__ T* src1Ptr, __ubuf__ T* srcBigPtr, unsigned srcBigStride,
+    unsigned row, uint32_t& dstSReg, uint32_t& srcSReg, uint32_t repeatEnd)
 {
     constexpr auto distValue =
         std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
@@ -55,8 +56,9 @@ PTO_INTERNAL void TPartProcRow(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ubuf__
 }
 
 template <typename T, unsigned dstRowStride, unsigned srcRowStride, unsigned elementsPerRepeat>
-PTO_INTERNAL void TPartCopySrc(__ubuf__ T *dstPtr, __ubuf__ T *srcPtr, unsigned dstValidRow, unsigned dstValidCol,
-                               unsigned srcValidRow, unsigned srcValidCol)
+PTO_INTERNAL void TPartCopySrc(
+    __ubuf__ T* dstPtr, __ubuf__ T* srcPtr, unsigned dstValidRow, unsigned dstValidCol, unsigned srcValidRow,
+    unsigned srcValidCol)
 {
     unsigned validRow = min(dstValidRow, srcValidRow);
     unsigned validCol = min(dstValidCol, srcValidCol);
@@ -80,28 +82,28 @@ PTO_INTERNAL void TPartCopySrc(__ubuf__ T *dstPtr, __ubuf__ T *srcPtr, unsigned 
     }
 }
 
-template <typename Op, typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
-          unsigned blockSizeElem, unsigned dstRowStride, unsigned src0RowStride, unsigned src1RowStride>
-__tf__ PTO_INTERNAL void TPartOp(typename TileDataDst::TileDType __out__ dst,
-                                 typename TileDataSrc0::TileDType __in__ src0,
-                                 typename TileDataSrc1::TileDType __in__ src1, unsigned src0ValidRow,
-                                 unsigned src0ValidCol, unsigned src1ValidRow, unsigned src1ValidCol,
-                                 unsigned dstValidRow, unsigned dstValidCol, VFImplKind version)
+template <
+    typename Op, typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
+    unsigned blockSizeElem, unsigned dstRowStride, unsigned src0RowStride, unsigned src1RowStride>
+__tf__ PTO_INTERNAL void TPartOp(
+    typename TileDataDst::TileDType __out__ dst, typename TileDataSrc0::TileDType __in__ src0,
+    typename TileDataSrc1::TileDType __in__ src1, unsigned src0ValidRow, unsigned src0ValidCol, unsigned src1ValidRow,
+    unsigned src1ValidCol, unsigned dstValidRow, unsigned dstValidCol, VFImplKind version)
 {
     using T = typename TileDataDst::DType;
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *src0Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src0);
-    __ubuf__ T *src1Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src1);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
+    __ubuf__ T* src1Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src1);
     if (dstValidRow == 0 || dstValidCol == 0) {
         return;
     }
     if (src0ValidRow == 0 || src0ValidCol == 0 || src1ValidRow == 0 || src1ValidCol == 0) {
         if (src0ValidRow == 0 || src0ValidCol == 0) {
-            TPartCopySrc<T, dstRowStride, src1RowStride, elementsPerRepeat>(dstPtr, src1Ptr, dstValidRow, dstValidCol,
-                                                                            src1ValidRow, src1ValidCol);
+            TPartCopySrc<T, dstRowStride, src1RowStride, elementsPerRepeat>(
+                dstPtr, src1Ptr, dstValidRow, dstValidCol, src1ValidRow, src1ValidCol);
         } else {
-            TPartCopySrc<T, dstRowStride, src0RowStride, elementsPerRepeat>(dstPtr, src0Ptr, dstValidRow, dstValidCol,
-                                                                            src0ValidRow, src0ValidCol);
+            TPartCopySrc<T, dstRowStride, src0RowStride, elementsPerRepeat>(
+                dstPtr, src0Ptr, dstValidRow, dstValidCol, src0ValidRow, src0ValidCol);
         }
         return;
     }
@@ -112,7 +114,7 @@ __tf__ PTO_INTERNAL void TPartOp(typename TileDataDst::TileDType __out__ dst,
         return;
     }
     bool src1Bigger = (src0ValidRow < src1ValidRow || src0ValidCol < src1ValidCol);
-    __ubuf__ T *srcBigPtr = src1Bigger ? src1Ptr : src0Ptr;
+    __ubuf__ T* srcBigPtr = src1Bigger ? src1Ptr : src0Ptr;
     unsigned srcBigStride = src1Bigger ? src1RowStride : src0RowStride;
     unsigned srcSmallValidRow = min(src0ValidRow, src1ValidRow);
     unsigned srcSmallValidCol = min(src0ValidCol, src1ValidCol);
@@ -125,8 +127,8 @@ __tf__ PTO_INTERNAL void TPartOp(typename TileDataDst::TileDType __out__ dst,
             uint32_t srcSReg = srcSmallValidCol;
             TPartProcRow<Op, T, dstRowStride, src0RowStride, src1RowStride, elementsPerRepeat>(
                 dstPtr, src0Ptr, src1Ptr, srcBigPtr, srcBigStride, i, dstSReg, srcSReg, repeatSrcSmall);
-            TPartProcRow<T, dstRowStride, elementsPerRepeat>(dstPtr, srcBigPtr, srcBigStride, i, dstSReg,
-                                                             repeatSrcSmall, repeatDst);
+            TPartProcRow<T, dstRowStride, elementsPerRepeat>(
+                dstPtr, srcBigPtr, srcBigStride, i, dstSReg, repeatSrcSmall, repeatDst);
         }
         for (uint16_t i = (uint16_t)srcSmallValidRow; i < (uint16_t)dstValidRow; i++) {
             uint32_t dstSReg = dstValidCol;
@@ -136,8 +138,8 @@ __tf__ PTO_INTERNAL void TPartOp(typename TileDataDst::TileDType __out__ dst,
 }
 
 template <typename Op, typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
-PTO_INTERNAL void TPARTOP_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1,
-                               VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
+PTO_INTERNAL void TPARTOP_IMPL(
+    TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
 {
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename TileDataDst::DType);
     constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(typename TileDataDst::DType);
@@ -155,9 +157,11 @@ PTO_INTERNAL void TPARTOP_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc
          (dstValidRow == src1ValidRow && dstValidCol == src1ValidCol)) &&
             max(src0ValidRow, src1ValidRow) == dstValidRow && max(src0ValidCol, src1ValidCol) == dstValidCol,
         "Fix: TPARTADD/MUL At most one entry in the valid-rows and valid-cols of src0 and src1 is smaller than dst.");
-    TPartOp<Op, TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem, dstRowStride, src0RowStride,
-            src1RowStride>(dst.data(), src0.data(), src1.data(), src0ValidRow, src0ValidCol, src1ValidRow, src1ValidCol,
-                           dstValidRow, dstValidCol, version);
+    TPartOp<
+        Op, TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem, dstRowStride, src0RowStride,
+        src1RowStride>(
+        dst.data(), src0.data(), src1.data(), src0ValidRow, src0ValidCol, src1ValidRow, src1ValidCol, dstValidRow,
+        dstValidCol, version);
 }
 
 } // namespace pto

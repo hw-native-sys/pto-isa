@@ -53,7 +53,7 @@ public:
     // iteration N+1's compute op to wait on iteration N's signal — which
     // has already been consumed — creating deadlock.
     template <typename First, typename... Rest>
-    static DepResult TrackByAddr(const char *opcode, PipeStage current_stage, First &first, Rest &...rest)
+    static DepResult TrackByAddr(const char* opcode, PipeStage current_stage, First& first, Rest&... rest)
     {
         DepResult result;
 
@@ -121,7 +121,7 @@ public:
     // Max events per core (for channel sizing after all cores recorded)
     static int MaxEventsPerCore()
     {
-        auto &c = CoreCounts();
+        auto& c = CoreCounts();
         if (c.empty())
             return 64;
         return *std::max_element(c.begin(), c.end()) + 1;
@@ -135,7 +135,7 @@ private:
 
     // ── Scalar fallback tracking ──
 
-    static event_t &LatestScalarEvent(uint32_t subblock_id)
+    static event_t& LatestScalarEvent(uint32_t subblock_id)
     {
         static thread_local event_t events[2] = {-1, -1};
         return events[subblock_id & 1];
@@ -147,26 +147,26 @@ private:
         return enabled;
     }
 
-    static void DebugLog(const char *tag, const char *opcode, PipeStage stage, uintptr_t addr, event_t ev = -1,
-                         event_t wait_ev = -1)
+    static void DebugLog(
+        const char* tag, const char* opcode, PipeStage stage, uintptr_t addr, event_t ev = -1, event_t wait_ev = -1)
     {
         if (!DebugDepEnabled())
             return;
-        fprintf(stderr, "[DEP] %-14s %-12s stage=%-8s addr=0x%08lx ev=%d wait=%d\n", tag, opcode, PipeStageName(stage),
-                (unsigned long)addr, ev, wait_ev);
+        fprintf(
+            stderr, "[DEP] %-14s %-12s stage=%-8s addr=0x%08lx ev=%d wait=%d\n", tag, opcode, PipeStageName(stage),
+            (unsigned long)addr, ev, wait_ev);
     }
 
     // ── Input dependency checking ──
 
     // Base case: no more inputs to check
-    static void CheckInputs(const char * /*opcode*/, PipeStage /*current_stage*/, DepResult & /*result*/)
-    {}
+    static void CheckInputs(const char* /*opcode*/, PipeStage /*current_stage*/, DepResult& /*result*/) {}
 
     // Recursive: check one input arg, then recurse
     // NOTE: Scalar TASSIGN/TALLOC/etc are memory-setup (not data-producing).
     // Skipping them as "last writer" avoids cross-iteration pollution.
     template <typename T, typename... Ts>
-    static void CheckInputs(const char *opcode, PipeStage current_stage, DepResult &result, T &arg, Ts &...rest)
+    static void CheckInputs(const char* opcode, PipeStage current_stage, DepResult& result, T& arg, Ts&... rest)
     {
         uintptr_t addr = AddrOf(arg);
         auto it = AddrMap().find(addr);
@@ -176,12 +176,13 @@ private:
                 result.wait_events[result.wait_count++] = it->second.signal_event;
             }
         } else if (DebugDepEnabled()) {
-            const char *reason = (it == AddrMap().end())                    ? "NO_WRITER" :
+            const char* reason = (it == AddrMap().end())                    ? "NO_WRITER" :
                                  (it->second.writer_stage == current_stage) ? "SAME_PIPE" :
                                                                               "SCALAR_WRITER";
-            fprintf(stderr, "[DEP] %-14s %-12s addr=0x%08lx writer=%-8s current=%-8s %s\n", "INPUT_MISS", opcode,
-                    (unsigned long)addr, it != AddrMap().end() ? PipeStageName(it->second.writer_stage) : "NONE",
-                    PipeStageName(current_stage), reason);
+            fprintf(
+                stderr, "[DEP] %-14s %-12s addr=0x%08lx writer=%-8s current=%-8s %s\n", "INPUT_MISS", opcode,
+                (unsigned long)addr, it != AddrMap().end() ? PipeStageName(it->second.writer_stage) : "NONE",
+                PipeStageName(current_stage), reason);
         }
         CheckInputs(opcode, current_stage, result, rest...);
     }
@@ -197,12 +198,12 @@ private:
     // not the stack address of the data_ member variable.
 
     template <typename T>
-    static uintptr_t AddrOf(T &arg)
+    static uintptr_t AddrOf(T& arg)
     {
         using RawT = std::remove_reference_t<T>;
         using MutableT = std::remove_const_t<RawT>;
-        if constexpr (requires(MutableT &value) { value.data(); }) {
-            auto &mutable_arg = const_cast<MutableT &>(arg);
+        if constexpr (requires(MutableT& value) { value.data(); }) {
+            auto& mutable_arg = const_cast<MutableT&>(arg);
             auto d = mutable_arg.data();
             if constexpr (std::is_pointer_v<decltype(d)>) {
                 // data() returns a pointer (GlobalTensor) or copies a pointer
@@ -217,19 +218,19 @@ private:
         }
     }
 
-    static std::unordered_map<uintptr_t, AddrInfo> &AddrMap()
+    static std::unordered_map<uintptr_t, AddrInfo>& AddrMap()
     {
         static thread_local std::unordered_map<uintptr_t, AddrInfo> m;
         return m;
     }
 
-    static int &Counter()
+    static int& Counter()
     {
         static thread_local int c = 0;
         return c;
     }
 
-    static std::vector<int> &CoreCounts()
+    static std::vector<int>& CoreCounts()
     {
         static thread_local std::vector<int> v;
         return v;

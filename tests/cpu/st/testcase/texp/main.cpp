@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class TEXPTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -33,7 +31,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTExp(T *out, T *src, void *stream);
+void LaunchTExp(T* out, T* src, void* stream);
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
 void test_texp()
@@ -48,11 +46,11 @@ void test_texp()
     T *dstHost, *srcHost;
     T *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&srcHost), fileSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&srcHost), fileSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input1.bin", fileSize, srcHost, fileSize));
 
@@ -83,35 +81,14 @@ void test_texp()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TEXPTest, case_float_64x64_64x64_64x64)
-{
-    test_texp<float, 64, 64, 64, 64>();
-}
-TEST_F(TEXPTest, case_half_64x64_64x64_64x64)
-{
-    test_texp<aclFloat16, 64, 64, 64, 64>();
-}
+TEST_F(TEXPTest, case_float_64x64_64x64_64x64) { test_texp<float, 64, 64, 64, 64>(); }
+TEST_F(TEXPTest, case_half_64x64_64x64_64x64) { test_texp<aclFloat16, 64, 64, 64, 64>(); }
 #ifdef CPU_SIM_BFLOAT_ENABLED
-TEST_F(TEXPTest, case_bf16_64x64_64x64_64x64)
-{
-    test_texp<bfloat16_t, 64, 64, 64, 64>();
-}
+TEST_F(TEXPTest, case_bf16_64x64_64x64_64x64) { test_texp<bfloat16_t, 64, 64, 64, 64>(); }
 #endif
-TEST_F(TEXPTest, case_half_32x32_32x32_32x32)
-{
-    test_texp<aclFloat16, 32, 32, 32, 32>();
-}
+TEST_F(TEXPTest, case_half_32x32_32x32_32x32) { test_texp<aclFloat16, 32, 32, 32, 32>(); }
 #ifdef CPU_SIM_BFLOAT_ENABLED
-TEST_F(TEXPTest, case_bf16_32x32_32x32_32x32)
-{
-    test_texp<bfloat16_t, 32, 32, 32, 32>();
-}
+TEST_F(TEXPTest, case_bf16_32x32_32x32_32x32) { test_texp<bfloat16_t, 32, 32, 32, 32>(); }
 #endif
-TEST_F(TEXPTest, case_float_32x32_32x32_32x32)
-{
-    test_texp<float, 32, 32, 32, 32>();
-}
-TEST_F(TEXPTest, case_float_32x16_32x16_32x16)
-{
-    test_texp<float, 32, 16, 32, 16>();
-}
+TEST_F(TEXPTest, case_float_32x32_32x32_32x32) { test_texp<float, 32, 32, 32, 32>(); }
+TEST_F(TEXPTest, case_float_32x16_32x16_32x16) { test_texp<float, 32, 16, 32, 16>(); }

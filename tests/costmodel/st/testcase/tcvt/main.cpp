@@ -37,11 +37,5 @@ void runTCvt()
 
 } // namespace
 
-TEST(TCvt, f32_to_f16_4x64)
-{
-    runTCvt<half, float, 4, 64, 33.0f, 0.913042f>();
-}
-TEST(TCvt, f16_to_f32_4x64)
-{
-    runTCvt<float, half, 4, 64, 33.0f, 0.913042f>();
-}
+TEST(TCvt, f32_to_f16_4x64) { runTCvt<half, float, 4, 64, 33.0f, 0.913042f>(); }
+TEST(TCvt, f16_to_f32_4x64) { runTCvt<float, half, 4, 64, 33.0f, 0.913042f>(); }

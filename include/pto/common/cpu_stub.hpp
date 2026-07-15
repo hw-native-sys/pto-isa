@@ -36,7 +36,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define __fbuf__
 #define __tf__
 
-typedef void *aclrtStream;
+typedef void* aclrtStream;
 typedef int pipe_t;
 using event_t = int;
 const pipe_t PIPE_S = 0;
@@ -47,10 +47,7 @@ const pipe_t PIPE_MTE3 = 4;
 const pipe_t PIPE_M = 5;
 const pipe_t PIPE_ALL = 6;
 const pipe_t PIPE_FIX = 7;
-inline void pipe_barrier(pipe_t pipe)
-{
-    (void)pipe;
-}
+inline void pipe_barrier(pipe_t pipe) { (void)pipe; }
 
 #define aclFloat16ToFloat(x) (float)(x)
 #define aclInit(x)
@@ -58,7 +55,7 @@ inline void pipe_barrier(pipe_t pipe)
 
 #define aclrtCreateStream(x)
 
-static inline int aclrtMallocHost(void **p, size_t sz)
+static inline int aclrtMallocHost(void** p, size_t sz)
 {
     assert(sz != 0 && "[PTO][CA] Constraint violated. Condition: %s. Hint: see docs/coding/debug.md\n");
     *p = malloc(sz);
@@ -67,13 +64,13 @@ static inline int aclrtMallocHost(void **p, size_t sz)
 
 #define aclrtMalloc(a, b, c) aclrtMallocHost(a, b)
 
-#define aclrtMemcpy(dst, sz_dst, src, sz_src, type)                              \
-    {                                                                            \
-        for (size_t i = 0; i < sz_src && i < sz_dst; i++)                        \
-            reinterpret_cast<char *>(dst)[i] = reinterpret_cast<char *>(src)[i]; \
+#define aclrtMemcpy(dst, sz_dst, src, sz_src, type)                            \
+    {                                                                          \
+        for (size_t i = 0; i < sz_src && i < sz_dst; i++)                      \
+            reinterpret_cast<char*>(dst)[i] = reinterpret_cast<char*>(src)[i]; \
     }
 
-inline int aclrtMemset(void *dst, size_t dstSize, int value, size_t count)
+inline int aclrtMemset(void* dst, size_t dstSize, int value, size_t count)
 {
     constexpr int ACL_SUCCESS = 0;
     constexpr int ACL_ERROR_GE_PARAM_INVALID = 145000;
@@ -84,7 +81,7 @@ inline int aclrtMemset(void *dst, size_t dstSize, int value, size_t count)
     if (dst == nullptr || count > dstSize) {
         return ACL_ERROR_GE_PARAM_INVALID;
     }
-    std::fill_n(reinterpret_cast<uint8_t *>(dst), count, static_cast<uint8_t>(value));
+    std::fill_n(reinterpret_cast<uint8_t*>(dst), count, static_cast<uint8_t>(value));
     return ACL_SUCCESS;
 }
 
@@ -133,8 +130,8 @@ struct CommDeviceContext {
 
 namespace pto::cpu_sim {
 using SetExecutionContextHookFn = void (*)(uint32_t block_idx, uint32_t subblock_id, uint32_t subblock_dim);
-using GetExecutionContextHookFn = void (*)(uint32_t *block_idx, uint32_t *subblock_id, uint32_t *subblock_dim);
-using GetSharedStorageHookFn = void *(*)(std::string key, size_t size);
+using GetExecutionContextHookFn = void (*)(uint32_t* block_idx, uint32_t* subblock_id, uint32_t* subblock_dim);
+using GetSharedStorageHookFn = void* (*)(std::string key, size_t size);
 using GetTaskCookieHookFn = uint64_t (*)();
 
 inline SetExecutionContextHookFn ResolveSetExecutionContextHook()
@@ -182,15 +179,9 @@ inline void set_execution_context(uint32_t block_idx, uint32_t subblock_id, uint
     }
 }
 
-inline void reset_execution_context()
-{
-    execution_context = {};
-}
+inline void reset_execution_context() { execution_context = {}; }
 
-inline void set_task_cookie(uint64_t task_cookie)
-{
-    execution_context.task_cookie = task_cookie;
-}
+inline void set_task_cookie(uint64_t task_cookie) { execution_context.task_cookie = task_cookie; }
 
 class ScopedExecutionContext {
 public:
@@ -200,10 +191,7 @@ public:
         set_execution_context(block_idx, subblock_id, subblock_dim);
     }
 
-    ~ScopedExecutionContext()
-    {
-        execution_context = saved_;
-    }
+    ~ScopedExecutionContext() { execution_context = saved_; }
 
 private:
     ExecutionContext saved_{};
@@ -268,7 +256,7 @@ inline void SYNCALL_IMPL()
 }
 
 template <SyncCoreType CoreType = SyncCoreType::AIVOnly>
-inline void SYNCALL_SOFT_IMPL(int32_t *gmWorkspace, int32_t *ubWorkspace, int32_t usedCores)
+inline void SYNCALL_SOFT_IMPL(int32_t* gmWorkspace, int32_t* ubWorkspace, int32_t usedCores)
 {
     (void)CoreType;
     (void)gmWorkspace;
@@ -276,7 +264,7 @@ inline void SYNCALL_SOFT_IMPL(int32_t *gmWorkspace, int32_t *ubWorkspace, int32_
     (void)usedCores;
 }
 
-inline void SYNCALL_SOFT_AIC_IMPL(int32_t *gmWorkspace, int32_t *l1Workspace, int32_t usedCores)
+inline void SYNCALL_SOFT_AIC_IMPL(int32_t* gmWorkspace, int32_t* l1Workspace, int32_t usedCores)
 {
     (void)gmWorkspace;
     (void)l1Workspace;
@@ -284,7 +272,7 @@ inline void SYNCALL_SOFT_AIC_IMPL(int32_t *gmWorkspace, int32_t *l1Workspace, in
 }
 
 template <SyncCoreType CoreType = SyncCoreType::Mix>
-inline void SYNCALL_SOFT_MIX_IMPL(int32_t *gmWorkspace, int32_t *ubWorkspace, int32_t *l1Workspace, int32_t usedCores)
+inline void SYNCALL_SOFT_MIX_IMPL(int32_t* gmWorkspace, int32_t* ubWorkspace, int32_t* l1Workspace, int32_t usedCores)
 {
     (void)CoreType;
     (void)gmWorkspace;

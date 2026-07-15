@@ -33,7 +33,7 @@ static constexpr size_t HCCL_WIN_SYNC_PREFIX = 64 * sizeof(int32_t);
 // Helper kernels: access window memory via AICORE instead of aclrtMemcpy,
 // because aclrtMemcpy may not work correctly on HCCL window memory on A5.
 // ============================================================================
-__global__ AICORE void WindowMemInit(__gm__ int32_t *ptr, int32_t value, int count)
+__global__ AICORE void WindowMemInit(__gm__ int32_t* ptr, int32_t value, int count)
 {
     for (int i = 0; i < count; ++i) {
         ptr[i] = value;
@@ -41,7 +41,7 @@ __global__ AICORE void WindowMemInit(__gm__ int32_t *ptr, int32_t value, int cou
     pipe_barrier(PIPE_ALL);
 }
 
-__global__ AICORE void WindowMemRead(__gm__ int32_t *devDst, __gm__ int32_t *winSrc, int count)
+__global__ AICORE void WindowMemRead(__gm__ int32_t* devDst, __gm__ int32_t* winSrc, int count)
 {
     for (int i = 0; i < count; ++i) {
         devDst[i] = winSrc[i];
@@ -54,12 +54,12 @@ __global__ AICORE void WindowMemRead(__gm__ int32_t *devDst, __gm__ int32_t *win
 // Rank 0 sends signal to rank 1, rank 1 waits for the signal
 // Tests blocking wait functionality
 // ============================================================================
-__global__ AICORE void TWaitBasicKernel(__gm__ int32_t *shmem_signal, __gm__ CommDeviceContext *hcclCtx)
+__global__ AICORE void TWaitBasicKernel(__gm__ int32_t* shmem_signal, __gm__ CommDeviceContext* hcclCtx)
 {
     int my_rank = static_cast<int>(hcclCtx->rankId);
 
     if (my_rank == 0) {
-        __gm__ int32_t *remote_signal = CommRemotePtr(hcclCtx, shmem_signal, 1);
+        __gm__ int32_t* remote_signal = CommRemotePtr(hcclCtx, shmem_signal, 1);
         pto::comm::Signal targetSignal(remote_signal);
 
         pto::comm::TNOTIFY(targetSignal, 42, pto::comm::NotifyOp::Set);
@@ -76,13 +76,13 @@ __global__ AICORE void TWaitBasicKernel(__gm__ int32_t *shmem_signal, __gm__ Com
 // Kernel 2: TWAIT with different comparison operators
 // Tests EQ, NE, GT, GE, LT, LE comparisons
 // ============================================================================
-__global__ AICORE void TWaitCompareKernel(__gm__ int32_t *shmem_signal, int32_t notifyValue,
-                                          __gm__ CommDeviceContext *hcclCtx)
+__global__ AICORE void TWaitCompareKernel(
+    __gm__ int32_t* shmem_signal, int32_t notifyValue, __gm__ CommDeviceContext* hcclCtx)
 {
     int my_rank = static_cast<int>(hcclCtx->rankId);
 
     if (my_rank == 0) {
-        __gm__ int32_t *remote_signal = CommRemotePtr(hcclCtx, shmem_signal, 1);
+        __gm__ int32_t* remote_signal = CommRemotePtr(hcclCtx, shmem_signal, 1);
         pto::comm::Signal targetSignal(remote_signal);
 
         pto::comm::TNOTIFY(targetSignal, notifyValue, pto::comm::NotifyOp::Set);
@@ -100,12 +100,12 @@ __global__ AICORE void TWaitCompareKernel(__gm__ int32_t *shmem_signal, int32_t 
 // Kernel 3: TWAIT with multi-rank atomic add
 // Multiple ranks atomically add to rank 0's counter, rank 0 waits for threshold
 // ============================================================================
-__global__ AICORE void TWaitAtomicKernel(__gm__ int32_t *shmem_counter, int threshold, int iters,
-                                         __gm__ CommDeviceContext *hcclCtx)
+__global__ AICORE void TWaitAtomicKernel(
+    __gm__ int32_t* shmem_counter, int threshold, int iters, __gm__ CommDeviceContext* hcclCtx)
 {
     int my_rank = static_cast<int>(hcclCtx->rankId);
 
-    __gm__ int32_t *remote_counter = CommRemotePtr(hcclCtx, shmem_counter, 0);
+    __gm__ int32_t* remote_counter = CommRemotePtr(hcclCtx, shmem_counter, 0);
     pto::comm::Signal counterSignal(remote_counter);
 
     if (my_rank != 0) {
@@ -126,15 +126,15 @@ __global__ AICORE void TWaitAtomicKernel(__gm__ int32_t *shmem_counter, int thre
 // Rank 0 sets a 2D signal matrix for rank 1, rank 1 waits on the matrix
 // ============================================================================
 template <int Rows, int Cols>
-__global__ AICORE void TWaitMatrixKernel(__gm__ int32_t *shmem_matrix, __gm__ CommDeviceContext *hcclCtx)
+__global__ AICORE void TWaitMatrixKernel(__gm__ int32_t* shmem_matrix, __gm__ CommDeviceContext* hcclCtx)
 {
     int my_rank = static_cast<int>(hcclCtx->rankId);
 
     if (my_rank == 0) {
-        __gm__ int32_t *remote_matrix = CommRemotePtr(hcclCtx, shmem_matrix, 1);
+        __gm__ int32_t* remote_matrix = CommRemotePtr(hcclCtx, shmem_matrix, 1);
         for (int r = 0; r < Rows; ++r) {
             for (int c = 0; c < Cols; ++c) {
-                __gm__ int32_t *remote_elem = remote_matrix + r * Cols + c;
+                __gm__ int32_t* remote_elem = remote_matrix + r * Cols + c;
                 pto::comm::Signal targetElem(remote_elem);
                 pto::comm::TNOTIFY(targetElem, 1, pto::comm::NotifyOp::Set);
             }
@@ -153,7 +153,7 @@ __global__ AICORE void TWaitMatrixKernel(__gm__ int32_t *shmem_matrix, __gm__ Co
 // Rank 1 uses Signal2D with stride to wait on just that sub-region
 // ============================================================================
 template <int FullCols, int SubRows, int SubCols>
-__global__ AICORE void TWaitSubRegionKernel(__gm__ int32_t *shmem_matrix, __gm__ CommDeviceContext *hcclCtx)
+__global__ AICORE void TWaitSubRegionKernel(__gm__ int32_t* shmem_matrix, __gm__ CommDeviceContext* hcclCtx)
 {
     int my_rank = static_cast<int>(hcclCtx->rankId);
 
@@ -161,16 +161,16 @@ __global__ AICORE void TWaitSubRegionKernel(__gm__ int32_t *shmem_matrix, __gm__
     constexpr int startCol = 4;
 
     if (my_rank == 0) {
-        __gm__ int32_t *remote_matrix = CommRemotePtr(hcclCtx, shmem_matrix, 1);
+        __gm__ int32_t* remote_matrix = CommRemotePtr(hcclCtx, shmem_matrix, 1);
         for (int r = 0; r < SubRows; ++r) {
             for (int c = 0; c < SubCols; ++c) {
-                __gm__ int32_t *elem = remote_matrix + (startRow + r) * FullCols + (startCol + c);
+                __gm__ int32_t* elem = remote_matrix + (startRow + r) * FullCols + (startCol + c);
                 pto::comm::Signal sig(elem);
                 pto::comm::TNOTIFY(sig, 1, pto::comm::NotifyOp::Set);
             }
         }
     } else if (my_rank == 1) {
-        __gm__ int32_t *subPtr = shmem_matrix + startRow * FullCols + startCol;
+        __gm__ int32_t* subPtr = shmem_matrix + startRow * FullCols + startCol;
         pto::comm::Signal2D<SubRows, SubCols> subRegion(subPtr, FullCols);
         pto::comm::TWAIT(subRegion, 1, pto::comm::WaitCmp::EQ);
     }
@@ -182,12 +182,12 @@ __global__ AICORE void TWaitSubRegionKernel(__gm__ int32_t *shmem_matrix, __gm__
 // Kernel 5: TWAIT Multi-Phase
 // Rank 0 updates signal in phases, rank 1 waits in phases
 // ============================================================================
-__global__ AICORE void TWaitMultiPhaseKernel(__gm__ int32_t *shmem_signal, __gm__ CommDeviceContext *hcclCtx, int phase)
+__global__ AICORE void TWaitMultiPhaseKernel(__gm__ int32_t* shmem_signal, __gm__ CommDeviceContext* hcclCtx, int phase)
 {
     int my_rank = static_cast<int>(hcclCtx->rankId);
 
     if (my_rank == 0) {
-        __gm__ int32_t *remote_signal = CommRemotePtr(hcclCtx, shmem_signal, 1);
+        __gm__ int32_t* remote_signal = CommRemotePtr(hcclCtx, shmem_signal, 1);
         pto::comm::Signal targetSignal(remote_signal);
 
         if (phase == 0) {
@@ -217,7 +217,7 @@ __global__ AICORE void TWaitMultiPhaseKernel(__gm__ int32_t *shmem_signal, __gm_
 // Host-side Test Implementation
 // ============================================================================
 
-bool RunTWaitBasicKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo *rootInfo)
+bool RunTWaitBasicKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo* rootInfo)
 {
     TestContext ctx;
     if (!ctx.Init(rank_id, n_ranks, n_devices, first_device_id, rootInfo))
@@ -227,7 +227,7 @@ bool RunTWaitBasicKernel(int rank_id, int n_ranks, int n_devices, int first_devi
     size_t winOffset = 0;
     WindowAlloc(localWinBase, winOffset, HCCL_WIN_SYNC_PREFIX);
 
-    int32_t *shmem_signal = (int32_t *)WindowAlloc(localWinBase, winOffset, sizeof(int32_t));
+    int32_t* shmem_signal = (int32_t*)WindowAlloc(localWinBase, winOffset, sizeof(int32_t));
 
     WindowMemInit<<<1, nullptr, ctx.stream>>>(shmem_signal, 0, 1);
     aclrtSynchronizeStream(ctx.stream);
@@ -242,8 +242,8 @@ bool RunTWaitBasicKernel(int rank_id, int n_ranks, int n_devices, int first_devi
     bool is_ok = true;
 
     if (rank_id == 1) {
-        int32_t *result_dev = nullptr;
-        aclrtMalloc(reinterpret_cast<void **>(&result_dev), sizeof(int32_t), ACL_MEM_MALLOC_HUGE_FIRST);
+        int32_t* result_dev = nullptr;
+        aclrtMalloc(reinterpret_cast<void**>(&result_dev), sizeof(int32_t), ACL_MEM_MALLOC_HUGE_FIRST);
         WindowMemRead<<<1, nullptr, ctx.stream>>>(result_dev, shmem_signal, 1);
         aclrtSynchronizeStream(ctx.stream);
 
@@ -262,8 +262,8 @@ bool RunTWaitBasicKernel(int rank_id, int n_ranks, int n_devices, int first_devi
     return ctx.Finalize() && is_ok;
 }
 
-bool RunTWaitCompareKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo *rootInfo,
-                           int32_t notifyValue)
+bool RunTWaitCompareKernel(
+    int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo* rootInfo, int32_t notifyValue)
 {
     TestContext ctx;
     if (!ctx.Init(rank_id, n_ranks, n_devices, first_device_id, rootInfo))
@@ -273,7 +273,7 @@ bool RunTWaitCompareKernel(int rank_id, int n_ranks, int n_devices, int first_de
     size_t winOffset = 0;
     WindowAlloc(localWinBase, winOffset, HCCL_WIN_SYNC_PREFIX);
 
-    int32_t *shmem_signal = (int32_t *)WindowAlloc(localWinBase, winOffset, sizeof(int32_t));
+    int32_t* shmem_signal = (int32_t*)WindowAlloc(localWinBase, winOffset, sizeof(int32_t));
 
     WindowMemInit<<<1, nullptr, ctx.stream>>>(shmem_signal, 0, 1);
     aclrtSynchronizeStream(ctx.stream);
@@ -288,8 +288,8 @@ bool RunTWaitCompareKernel(int rank_id, int n_ranks, int n_devices, int first_de
     bool is_ok = true;
 
     if (rank_id == 1) {
-        int32_t *result_dev = nullptr;
-        aclrtMalloc(reinterpret_cast<void **>(&result_dev), sizeof(int32_t), ACL_MEM_MALLOC_HUGE_FIRST);
+        int32_t* result_dev = nullptr;
+        aclrtMalloc(reinterpret_cast<void**>(&result_dev), sizeof(int32_t), ACL_MEM_MALLOC_HUGE_FIRST);
         WindowMemRead<<<1, nullptr, ctx.stream>>>(result_dev, shmem_signal, 1);
         aclrtSynchronizeStream(ctx.stream);
 
@@ -308,7 +308,7 @@ bool RunTWaitCompareKernel(int rank_id, int n_ranks, int n_devices, int first_de
     return ctx.Finalize() && is_ok;
 }
 
-bool RunTWaitAtomicKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo *rootInfo)
+bool RunTWaitAtomicKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo* rootInfo)
 {
     TestContext ctx;
     if (!ctx.Init(rank_id, n_ranks, n_devices, first_device_id, rootInfo))
@@ -318,7 +318,7 @@ bool RunTWaitAtomicKernel(int rank_id, int n_ranks, int n_devices, int first_dev
     size_t winOffset = 0;
     WindowAlloc(localWinBase, winOffset, HCCL_WIN_SYNC_PREFIX);
 
-    int32_t *shmem_counter = (int32_t *)WindowAlloc(localWinBase, winOffset, sizeof(int32_t));
+    int32_t* shmem_counter = (int32_t*)WindowAlloc(localWinBase, winOffset, sizeof(int32_t));
 
     WindowMemInit<<<1, nullptr, ctx.stream>>>(shmem_counter, 0, 1);
     aclrtSynchronizeStream(ctx.stream);
@@ -335,8 +335,8 @@ bool RunTWaitAtomicKernel(int rank_id, int n_ranks, int n_devices, int first_dev
     bool is_ok = true;
 
     if (rank_id == 0) {
-        int32_t *result_dev = nullptr;
-        aclrtMalloc(reinterpret_cast<void **>(&result_dev), sizeof(int32_t), ACL_MEM_MALLOC_HUGE_FIRST);
+        int32_t* result_dev = nullptr;
+        aclrtMalloc(reinterpret_cast<void**>(&result_dev), sizeof(int32_t), ACL_MEM_MALLOC_HUGE_FIRST);
         WindowMemRead<<<1, nullptr, ctx.stream>>>(result_dev, shmem_counter, 1);
         aclrtSynchronizeStream(ctx.stream);
 
@@ -357,7 +357,7 @@ bool RunTWaitAtomicKernel(int rank_id, int n_ranks, int n_devices, int first_dev
 }
 
 template <int Rows, int Cols>
-bool RunTWaitMatrixKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo *rootInfo)
+bool RunTWaitMatrixKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo* rootInfo)
 {
     TestContext ctx;
     if (!ctx.Init(rank_id, n_ranks, n_devices, first_device_id, rootInfo))
@@ -369,7 +369,7 @@ bool RunTWaitMatrixKernel(int rank_id, int n_ranks, int n_devices, int first_dev
     WindowAlloc(localWinBase, winOffset, HCCL_WIN_SYNC_PREFIX);
 
     constexpr size_t total = Rows * Cols;
-    int32_t *shmem_matrix = (int32_t *)WindowAlloc(localWinBase, winOffset, total * sizeof(int32_t));
+    int32_t* shmem_matrix = (int32_t*)WindowAlloc(localWinBase, winOffset, total * sizeof(int32_t));
 
     WindowMemInit<<<1, nullptr, ctx.stream>>>(shmem_matrix, 0, static_cast<int>(total));
     aclrtSynchronizeStream(ctx.stream);
@@ -383,14 +383,14 @@ bool RunTWaitMatrixKernel(int rank_id, int n_ranks, int n_devices, int first_dev
 
     bool is_ok = true;
     if (rank_id == 1) {
-        int32_t *result_dev = nullptr;
-        aclrtMalloc(reinterpret_cast<void **>(&result_dev), total * sizeof(int32_t), ACL_MEM_MALLOC_HUGE_FIRST);
+        int32_t* result_dev = nullptr;
+        aclrtMalloc(reinterpret_cast<void**>(&result_dev), total * sizeof(int32_t), ACL_MEM_MALLOC_HUGE_FIRST);
         WindowMemRead<<<1, nullptr, ctx.stream>>>(result_dev, shmem_matrix, static_cast<int>(total));
         aclrtSynchronizeStream(ctx.stream);
 
         std::vector<int32_t> result(total, 0);
-        aclrtMemcpy(result.data(), total * sizeof(int32_t), result_dev, total * sizeof(int32_t),
-                    ACL_MEMCPY_DEVICE_TO_HOST);
+        aclrtMemcpy(
+            result.data(), total * sizeof(int32_t), result_dev, total * sizeof(int32_t), ACL_MEMCPY_DEVICE_TO_HOST);
         aclrtFree(result_dev);
 
         for (size_t i = 0; i < total; ++i) {
@@ -405,8 +405,8 @@ bool RunTWaitMatrixKernel(int rank_id, int n_ranks, int n_devices, int first_dev
     return ctx.Finalize() && is_ok;
 }
 
-bool RunTWaitMultiPhaseKernel(int rank_id, int n_ranks, int n_devices, int first_device_id,
-                              const HcclRootInfo *rootInfo)
+bool RunTWaitMultiPhaseKernel(
+    int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo* rootInfo)
 {
     TestContext ctx;
     if (!ctx.Init(rank_id, n_ranks, n_devices, first_device_id, rootInfo))
@@ -417,7 +417,7 @@ bool RunTWaitMultiPhaseKernel(int rank_id, int n_ranks, int n_devices, int first
 
     WindowAlloc(localWinBase, winOffset, HCCL_WIN_SYNC_PREFIX);
 
-    int32_t *shmem_signal = (int32_t *)WindowAlloc(localWinBase, winOffset, sizeof(int32_t));
+    int32_t* shmem_signal = (int32_t*)WindowAlloc(localWinBase, winOffset, sizeof(int32_t));
 
     WindowMemInit<<<1, nullptr, ctx.stream>>>(shmem_signal, 0, 1);
     aclrtSynchronizeStream(ctx.stream);
@@ -432,8 +432,8 @@ bool RunTWaitMultiPhaseKernel(int rank_id, int n_ranks, int n_devices, int first
 
     bool is_ok = true;
     if (rank_id == 1) {
-        int32_t *result_dev = nullptr;
-        aclrtMalloc(reinterpret_cast<void **>(&result_dev), sizeof(int32_t), ACL_MEM_MALLOC_HUGE_FIRST);
+        int32_t* result_dev = nullptr;
+        aclrtMalloc(reinterpret_cast<void**>(&result_dev), sizeof(int32_t), ACL_MEM_MALLOC_HUGE_FIRST);
         WindowMemRead<<<1, nullptr, ctx.stream>>>(result_dev, shmem_signal, 1);
         aclrtSynchronizeStream(ctx.stream);
 
@@ -451,7 +451,7 @@ bool RunTWaitMultiPhaseKernel(int rank_id, int n_ranks, int n_devices, int first
 }
 
 template <int FullCols, int SubRows, int SubCols>
-bool RunTWaitSubRegionKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo *rootInfo)
+bool RunTWaitSubRegionKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo* rootInfo)
 {
     TestContext ctx;
     if (!ctx.Init(rank_id, n_ranks, n_devices, first_device_id, rootInfo))
@@ -464,7 +464,7 @@ bool RunTWaitSubRegionKernel(int rank_id, int n_ranks, int n_devices, int first_
 
     constexpr size_t totalRows = 8;
     constexpr size_t total = totalRows * FullCols;
-    int32_t *shmem_matrix = (int32_t *)WindowAlloc(localWinBase, winOffset, total * sizeof(int32_t));
+    int32_t* shmem_matrix = (int32_t*)WindowAlloc(localWinBase, winOffset, total * sizeof(int32_t));
 
     WindowMemInit<<<1, nullptr, ctx.stream>>>(shmem_matrix, 0, static_cast<int>(total));
     aclrtSynchronizeStream(ctx.stream);
@@ -478,14 +478,14 @@ bool RunTWaitSubRegionKernel(int rank_id, int n_ranks, int n_devices, int first_
 
     bool is_ok = true;
     if (rank_id == 1) {
-        int32_t *result_dev = nullptr;
-        aclrtMalloc(reinterpret_cast<void **>(&result_dev), total * sizeof(int32_t), ACL_MEM_MALLOC_HUGE_FIRST);
+        int32_t* result_dev = nullptr;
+        aclrtMalloc(reinterpret_cast<void**>(&result_dev), total * sizeof(int32_t), ACL_MEM_MALLOC_HUGE_FIRST);
         WindowMemRead<<<1, nullptr, ctx.stream>>>(result_dev, shmem_matrix, static_cast<int>(total));
         aclrtSynchronizeStream(ctx.stream);
 
         std::vector<int32_t> result(total, 0);
-        aclrtMemcpy(result.data(), total * sizeof(int32_t), result_dev, total * sizeof(int32_t),
-                    ACL_MEMCPY_DEVICE_TO_HOST);
+        aclrtMemcpy(
+            result.data(), total * sizeof(int32_t), result_dev, total * sizeof(int32_t), ACL_MEMCPY_DEVICE_TO_HOST);
         aclrtFree(result_dev);
 
         constexpr int startRow = 2;
@@ -515,7 +515,7 @@ bool RunTWaitSubRegionKernel(int rank_id, int n_ranks, int n_devices, int first_
 bool RunTWaitBasic(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
     return ForkAndRunWithHcclRootInfo(
-        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo *rootInfo) {
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
             return RunTWaitBasicKernel(rankId, n_ranks, n_devices, first_device_id, rootInfo);
         });
 }
@@ -523,7 +523,7 @@ bool RunTWaitBasic(int n_ranks, int n_devices, int first_rank_id, int first_devi
 bool RunTWaitCompare(int n_ranks, int n_devices, int first_rank_id, int first_device_id, int32_t notifyValue)
 {
     return ForkAndRunWithHcclRootInfo(
-        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo *rootInfo) {
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
             return RunTWaitCompareKernel(rankId, n_ranks, n_devices, first_device_id, rootInfo, notifyValue);
         });
 }
@@ -531,7 +531,7 @@ bool RunTWaitCompare(int n_ranks, int n_devices, int first_rank_id, int first_de
 bool RunTWaitAtomic(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
     return ForkAndRunWithHcclRootInfo(
-        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo *rootInfo) {
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
             return RunTWaitAtomicKernel(rankId, n_ranks, n_devices, first_device_id, rootInfo);
         });
 }
@@ -540,7 +540,7 @@ template <int Rows, int Cols>
 bool RunTWaitMatrix(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
     return ForkAndRunWithHcclRootInfo(
-        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo *rootInfo) {
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
             return RunTWaitMatrixKernel<Rows, Cols>(rankId, n_ranks, n_devices, first_device_id, rootInfo);
         });
 }
@@ -548,7 +548,7 @@ bool RunTWaitMatrix(int n_ranks, int n_devices, int first_rank_id, int first_dev
 bool RunTWaitMultiPhase(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
     return ForkAndRunWithHcclRootInfo(
-        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo *rootInfo) {
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
             return RunTWaitMultiPhaseKernel(rankId, n_ranks, n_devices, first_device_id, rootInfo);
         });
 }
@@ -556,11 +556,11 @@ bool RunTWaitMultiPhase(int n_ranks, int n_devices, int first_rank_id, int first
 template <int FullCols, int SubRows, int SubCols>
 bool RunTWaitSubRegion(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
-    return ForkAndRunWithHcclRootInfo(n_ranks, first_rank_id, first_device_id,
-                                      [&](int rankId, const HcclRootInfo *rootInfo) {
-                                          return RunTWaitSubRegionKernel<FullCols, SubRows, SubCols>(
-                                              rankId, n_ranks, n_devices, first_device_id, rootInfo);
-                                      });
+    return ForkAndRunWithHcclRootInfo(
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
+            return RunTWaitSubRegionKernel<FullCols, SubRows, SubCols>(
+                rankId, n_ranks, n_devices, first_device_id, rootInfo);
+        });
 }
 
 template bool RunTWaitMatrix<4, 8>(int n_ranks, int n_devices, int first_rank_id, int first_device_id);

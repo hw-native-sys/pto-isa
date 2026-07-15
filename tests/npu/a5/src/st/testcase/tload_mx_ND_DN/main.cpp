@@ -16,29 +16,29 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace PtoTestCommon;
 
-template <typename T, int format, int N1, int N2, int N3, int N4, int N5, int WN1, int WN2, int WN3, int WN4, int WN5,
-          int BASEM, int BASEK>
-void launchTLOADMX(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
+template <
+    typename T, int format, int N1, int N2, int N3, int N4, int N5, int WN1, int WN2, int WN3, int WN4, int WN5,
+    int BASEM, int BASEK>
+void launchTLOADMX(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 
 class TLOADMXTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, int format, int N1, int N2, int N3, int N4, int N5, int WN1, int WN2, int WN3, int WN4, int WN5,
-          int BASEM, int BASEK>
+template <
+    typename T, int format, int N1, int N2, int N3, int N4, int N5, int WN1, int WN2, int WN3, int WN4, int WN5,
+    int BASEM, int BASEK>
 void TLOADMXFUNC()
 {
     size_t aFileSize = WN1 * WN2 * WN3 * WN4 * WN5 * sizeof(T);
@@ -53,21 +53,21 @@ void TLOADMXFUNC()
     uint8_t *dstHost, *src0Host, *src1Host;
     uint8_t *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&src0Host), aFileSize);
-    aclrtMallocHost((void **)(&src1Host), bFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&src0Host), aFileSize);
+    aclrtMallocHost((void**)(&src1Host), bFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
 
     aclrtMemcpy(src0Device, aFileSize, src0Host, aFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, bFileSize, src1Host, bFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    launchTLOADMX<T, format, N1, N2, N3, N4, N5, WN1, WN2, WN3, WN4, WN5, BASEM, BASEK>(dstDevice, src0Device,
-                                                                                        src1Device, stream);
+    launchTLOADMX<T, format, N1, N2, N3, N4, N5, WN1, WN2, WN3, WN4, WN5, BASEM, BASEK>(
+        dstDevice, src0Device, src1Device, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, cFileSize, dstDevice, cFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -96,14 +96,8 @@ void TLOADMXFUNC()
 }
 
 // format 0:AND2ZZ
-TEST_F(TLOADMXTest, 1_1_1_16_4_uint8_AND2ZZ)
-{
-    TLOADMXFUNC<uint8_t, 0, 1, 1, 1, 16, 4, 1, 1, 1, 16, 4, 16, 4>();
-}
-TEST_F(TLOADMXTest, 1_1_1_16_64_uint8_AND2ZZ)
-{
-    TLOADMXFUNC<uint8_t, 0, 1, 1, 1, 16, 64, 1, 1, 1, 16, 64, 32, 158>();
-}
+TEST_F(TLOADMXTest, 1_1_1_16_4_uint8_AND2ZZ) { TLOADMXFUNC<uint8_t, 0, 1, 1, 1, 16, 4, 1, 1, 1, 16, 4, 16, 4>(); }
+TEST_F(TLOADMXTest, 1_1_1_16_64_uint8_AND2ZZ) { TLOADMXFUNC<uint8_t, 0, 1, 1, 1, 16, 64, 1, 1, 1, 16, 64, 32, 158>(); }
 TEST_F(TLOADMXTest, 1_1_1_32_128_uint8_AND2ZZ)
 {
     TLOADMXFUNC<uint8_t, 0, 1, 1, 1, 32, 128, 1, 1, 1, 160, 128, 64, 1008>();
@@ -118,14 +112,8 @@ TEST_F(TLOADMXTest, 1_1_1_64_128_uint8_AND2ZZ)
 }
 
 // format 1:ADN2ZZ
-TEST_F(TLOADMXTest, 1_1_1_16_4_uint8_ADN2ZZ)
-{
-    TLOADMXFUNC<uint8_t, 1, 1, 1, 1, 1, 2, 1, 1, 1, 65534, 4, 16, 8>();
-}
-TEST_F(TLOADMXTest, 1_1_1_16_64_uint8_ADN2ZZ)
-{
-    TLOADMXFUNC<uint8_t, 1, 1, 1, 1, 16, 64, 1, 1, 1, 16, 64, 16, 64>();
-}
+TEST_F(TLOADMXTest, 1_1_1_16_4_uint8_ADN2ZZ) { TLOADMXFUNC<uint8_t, 1, 1, 1, 1, 1, 2, 1, 1, 1, 65534, 4, 16, 8>(); }
+TEST_F(TLOADMXTest, 1_1_1_16_64_uint8_ADN2ZZ) { TLOADMXFUNC<uint8_t, 1, 1, 1, 1, 16, 64, 1, 1, 1, 16, 64, 16, 64>(); }
 TEST_F(TLOADMXTest, 1_1_1_32_128_uint8_ADN2ZZ)
 {
     TLOADMXFUNC<uint8_t, 1, 1, 1, 1, 32, 128, 1, 1, 1, 32, 128, 32, 128>();
@@ -140,14 +128,8 @@ TEST_F(TLOADMXTest, 1_1_1_64_128_uint8_ADN2ZZ)
 }
 
 // format 2:BND2NN
-TEST_F(TLOADMXTest, 1_1_1_4_64_uint8_BND2NN)
-{
-    TLOADMXFUNC<uint8_t, 2, 1, 1, 1, 4, 64, 1, 1, 1, 4, 64, 4, 64>();
-}
-TEST_F(TLOADMXTest, 1_1_1_16_64_uint8_BND2NN)
-{
-    TLOADMXFUNC<uint8_t, 2, 1, 1, 1, 16, 64, 1, 1, 1, 16, 64, 16, 64>();
-}
+TEST_F(TLOADMXTest, 1_1_1_4_64_uint8_BND2NN) { TLOADMXFUNC<uint8_t, 2, 1, 1, 1, 4, 64, 1, 1, 1, 4, 64, 4, 64>(); }
+TEST_F(TLOADMXTest, 1_1_1_16_64_uint8_BND2NN) { TLOADMXFUNC<uint8_t, 2, 1, 1, 1, 16, 64, 1, 1, 1, 16, 64, 16, 64>(); }
 TEST_F(TLOADMXTest, 1_1_1_32_128_uint8_BND2NN)
 {
     TLOADMXFUNC<uint8_t, 2, 1, 1, 1, 32, 127, 1, 1, 1, 32, 128, 32, 256>();
@@ -162,14 +144,8 @@ TEST_F(TLOADMXTest, 1_1_1_128_64_uint8_BND2NN)
 }
 
 // format 3:BDN2NN
-TEST_F(TLOADMXTest, 1_1_1_4_64_uint8_BDN2NN)
-{
-    TLOADMXFUNC<uint8_t, 3, 1, 1, 1, 4, 64, 1, 1, 1, 4, 64, 4, 64>();
-}
-TEST_F(TLOADMXTest, 1_1_1_16_64_uint8_BDN2NN)
-{
-    TLOADMXFUNC<uint8_t, 3, 1, 1, 1, 16, 64, 1, 1, 1, 16, 64, 16, 64>();
-}
+TEST_F(TLOADMXTest, 1_1_1_4_64_uint8_BDN2NN) { TLOADMXFUNC<uint8_t, 3, 1, 1, 1, 4, 64, 1, 1, 1, 4, 64, 4, 64>(); }
+TEST_F(TLOADMXTest, 1_1_1_16_64_uint8_BDN2NN) { TLOADMXFUNC<uint8_t, 3, 1, 1, 1, 16, 64, 1, 1, 1, 16, 64, 16, 64>(); }
 TEST_F(TLOADMXTest, 1_1_1_32_128_uint8_BDN2NN)
 {
     TLOADMXFUNC<uint8_t, 3, 1, 1, 1, 2, 128, 1, 1, 1, 32, 128, 4, 1088>();

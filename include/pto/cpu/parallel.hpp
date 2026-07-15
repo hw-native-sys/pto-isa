@@ -89,7 +89,7 @@ inline void parallel_for_1d(std::size_t begin, std::size_t end, std::size_t tota
             }
         });
     }
-    for (auto &w : workers) {
+    for (auto& w : workers) {
         w.join();
     }
 }

@@ -53,10 +53,12 @@ AICORE inline void WaitFlag(uint32_t id)
 {
     wait_flag(srcPipe, dstPipe, static_cast<event_t>(id));
 }
-template <typename T, typename U, typename S, int n, uint32_t singleCoreN, uint32_t cin, uint32_t hin, uint32_t win,
-          uint32_t c0, uint32_t hout, uint32_t wout>
-AICORE inline void InitGMOffsets(__gm__ U *&currentSrc0, __gm__ S *&currentSrc1, __gm__ T *&currentDst, __gm__ T *out,
-                                 __gm__ U *src0, __gm__ S *src1)
+template <
+    typename T, typename U, typename S, int n, uint32_t singleCoreN, uint32_t cin, uint32_t hin, uint32_t win,
+    uint32_t c0, uint32_t hout, uint32_t wout>
+AICORE inline void InitGMOffsets(
+    __gm__ U*& currentSrc0, __gm__ S*& currentSrc1, __gm__ T*& currentDst, __gm__ T* out, __gm__ U* src0,
+    __gm__ S* src1)
 {
     // - Each core owns a contiguous C tile of shape [singleCoreM, singleCoreN].
     // - It reads the corresponding A panel [singleCoreM, K] and B panel [K, singleCoreN].
@@ -71,9 +73,10 @@ AICORE inline void InitGMOffsets(__gm__ U *&currentSrc0, __gm__ S *&currentSrc1,
     currentDst = out + gmOffsetC;
 }
 
-template <typename T, typename U, typename S, uint32_t n, uint32_t baseM, uint32_t baseN, uint32_t hout, uint32_t wout,
-          typename OutTile>
-AICORE inline void StoreResult(OutTile cTile, __gm__ T *currentDst, uint32_t mIter, uint32_t nIter)
+template <
+    typename T, typename U, typename S, uint32_t n, uint32_t baseM, uint32_t baseN, uint32_t hout, uint32_t wout,
+    typename OutTile>
+AICORE inline void StoreResult(OutTile cTile, __gm__ T* currentDst, uint32_t mIter, uint32_t nIter)
 {
     // TSTORE stage: write the finished C tile [baseM, baseN] back to GM.
     SetFlag<PIPE_M, PIPE_FIX>(0);
@@ -108,12 +111,13 @@ AICORE inline void WaitSyncFlags()
     WaitFlag<PIPE_MTE1, PIPE_MTE2>(0);
     WaitFlag<PIPE_MTE1, PIPE_MTE2>(1);
 }
-template <uint32_t baseK, uint32_t stepKa, uint32_t stepKb, typename TileMatAData, typename TileMatBData,
-          typename LeftTile, typename RightTile, typename ResTile>
-AICORE inline void MacroMatmul(uint32_t kIter, uint8_t currMte2Idx, uint8_t mte1DBFlag,
-                               TileMatAData fmapMat[BUFFER_NUM], TileMatBData weightMat[BUFFER_NUM],
-                               LeftTile aTile[BUFFER_NUM], RightTile bTile[BUFFER_NUM], ResTile &cTile,
-                               uint32_t woutStart)
+template <
+    uint32_t baseK, uint32_t stepKa, uint32_t stepKb, typename TileMatAData, typename TileMatBData, typename LeftTile,
+    typename RightTile, typename ResTile>
+AICORE inline void MacroMatmul(
+    uint32_t kIter, uint8_t currMte2Idx, uint8_t mte1DBFlag, TileMatAData fmapMat[BUFFER_NUM],
+    TileMatBData weightMat[BUFFER_NUM], LeftTile aTile[BUFFER_NUM], RightTile bTile[BUFFER_NUM], ResTile& cTile,
+    uint32_t woutStart)
 {
     const uint32_t kModStepKa = kIter % stepKa;
     // Wait until TMATMUL is done with the current L0A/L0B buffer before overwriting it via TEXTRACT.
@@ -139,14 +143,14 @@ AICORE inline void MacroMatmul(uint32_t kIter, uint8_t currMte2Idx, uint8_t mte1
     // Signal that TMATMUL is done, so the next iteration may TEXTRACT into the other ping-pong slot.
     SetFlag<PIPE_M, PIPE_MTE1>(mte1DBFlag);
 }
-template <typename U, uint32_t cin, uint32_t hin, uint32_t win, uint32_t c0, uint32_t n, uint32_t channelSize,
-          uint32_t hk, uint32_t wk, uint32_t baseK, uint32_t baseN, uint32_t stepKa, uint32_t stepKb,
-          typename TileMatAData, typename TileMatBData, typename LeftTile, typename RightTile, typename ResTile>
-AICORE inline void ProcessKIteration(__gm__ U *currentSrc0, __gm__ U *currentSrc1, uint32_t hinStart, uint32_t hinCount,
-                                     uint32_t woutStart, uint32_t kIter, uint32_t nIter,
-                                     TileMatAData fmapMat[BUFFER_NUM], TileMatBData weightMat[BUFFER_NUM],
-                                     LeftTile aTile[BUFFER_NUM], RightTile bTile[BUFFER_NUM], ResTile &outTile,
-                                     uint8_t &mte2DBFlag, uint8_t &mte1DBFlag)
+template <
+    typename U, uint32_t cin, uint32_t hin, uint32_t win, uint32_t c0, uint32_t n, uint32_t channelSize, uint32_t hk,
+    uint32_t wk, uint32_t baseK, uint32_t baseN, uint32_t stepKa, uint32_t stepKb, typename TileMatAData,
+    typename TileMatBData, typename LeftTile, typename RightTile, typename ResTile>
+AICORE inline void ProcessKIteration(
+    __gm__ U* currentSrc0, __gm__ U* currentSrc1, uint32_t hinStart, uint32_t hinCount, uint32_t woutStart,
+    uint32_t kIter, uint32_t nIter, TileMatAData fmapMat[BUFFER_NUM], TileMatBData weightMat[BUFFER_NUM],
+    LeftTile aTile[BUFFER_NUM], RightTile bTile[BUFFER_NUM], ResTile& outTile, uint8_t& mte2DBFlag, uint8_t& mte1DBFlag)
 {
     constexpr int gStrideSrc0[5] = {cin * hin * win * c0, hin * win * c0, win * c0, c0, 1};
     using ShapeDim5Src0 = pto::Shape<1, channelSize / c0, -1, win, c0>;
@@ -161,10 +165,11 @@ AICORE inline void ProcessKIteration(__gm__ U *currentSrc0, __gm__ U *currentSrc
     const uint32_t kModStepKa = kIter % stepKa;
 
     if (kModStepKa == 0) {
-        GlobalDataSrc0 fmap(currentSrc0 + (kIter * baseK) / (hk * wk * c0) * gStrideSrc0[1] + hinStart * gStrideSrc0[2],
-                            pto::Shape<1, channelSize / c0, -1, win, c0>(hinCount));
-        GlobalDataSrc1 weight(currentSrc1 + (kIter * baseK / c0) * gStrideSrc1[1] +
-                              (nIter * baseN / 16) * gStrideSrc1[2]);
+        GlobalDataSrc0 fmap(
+            currentSrc0 + (kIter * baseK) / (hk * wk * c0) * gStrideSrc0[1] + hinStart * gStrideSrc0[2],
+            pto::Shape<1, channelSize / c0, -1, win, c0>(hinCount));
+        GlobalDataSrc1 weight(
+            currentSrc1 + (kIter * baseK / c0) * gStrideSrc1[1] + (nIter * baseN / 16) * gStrideSrc1[2]);
         WaitFlag<PIPE_MTE1, PIPE_MTE2>(mte2DBFlag);
         TLOAD(fmapMat[mte2DBFlag], fmap);
         SetFlag<PIPE_MTE2, PIPE_MTE1>(0);
@@ -174,20 +179,21 @@ AICORE inline void ProcessKIteration(__gm__ U *currentSrc0, __gm__ U *currentSrc
     }
     const uint32_t currMte2Idx = (mte2DBFlag == 0) ? 1 : 0; // mte2DBFlag reversed
 
-    MacroMatmul<baseK, stepKa, stepKb>(kIter, currMte2Idx, mte1DBFlag, fmapMat, weightMat, aTile, bTile, outTile,
-                                       woutStart);
+    MacroMatmul<baseK, stepKa, stepKb>(
+        kIter, currMte2Idx, mte1DBFlag, fmapMat, weightMat, aTile, bTile, outTile, woutStart);
     mte1DBFlag = (mte1DBFlag == 0) ? 1 : 0;
 }
-template <typename T, typename U, uint32_t blockDim, uint32_t m, uint32_t k, uint32_t n, uint32_t singleCoreM,
-          uint32_t singleCoreK, uint32_t singleCoreN, uint32_t baseM, uint32_t baseK, uint32_t baseN, uint32_t stepM,
-          uint32_t stepKa, uint32_t stepKb, uint32_t stepN, uint32_t batch, uint32_t cin, uint32_t hin, uint32_t win,
-          uint32_t c0, uint32_t hk, uint32_t wk, uint32_t hout, uint32_t wout, uint32_t channelSize, typename ResTile,
-          uint32_t strideH = 1, uint32_t padTop = 1, typename TileMatAData, typename TileMatBData, typename LeftTile,
-          typename RightTile>
+template <
+    typename T, typename U, uint32_t blockDim, uint32_t m, uint32_t k, uint32_t n, uint32_t singleCoreM,
+    uint32_t singleCoreK, uint32_t singleCoreN, uint32_t baseM, uint32_t baseK, uint32_t baseN, uint32_t stepM,
+    uint32_t stepKa, uint32_t stepKb, uint32_t stepN, uint32_t batch, uint32_t cin, uint32_t hin, uint32_t win,
+    uint32_t c0, uint32_t hk, uint32_t wk, uint32_t hout, uint32_t wout, uint32_t channelSize, typename ResTile,
+    uint32_t strideH = 1, uint32_t padTop = 1, typename TileMatAData, typename TileMatBData, typename LeftTile,
+    typename RightTile>
 
-AICORE inline void Compute(__gm__ U *currentSrc0, __gm__ U *currentSrc1, __gm__ T *&currentDst,
-                           TileMatAData fmapMat[BUFFER_NUM], TileMatBData weightMat[BUFFER_NUM],
-                           LeftTile aTile[BUFFER_NUM], RightTile bTile[BUFFER_NUM])
+AICORE inline void Compute(
+    __gm__ U* currentSrc0, __gm__ U* currentSrc1, __gm__ T*& currentDst, TileMatAData fmapMat[BUFFER_NUM],
+    TileMatBData weightMat[BUFFER_NUM], LeftTile aTile[BUFFER_NUM], RightTile bTile[BUFFER_NUM])
 {
     constexpr uint32_t tailValidM = singleCoreM % baseM;
     constexpr uint32_t mLoop = CeilDivision(singleCoreM, baseM);
@@ -234,19 +240,20 @@ AICORE inline void Compute(__gm__ U *currentSrc0, __gm__ U *currentSrc1, __gm__ 
         }
     }
 }
-template <typename T, typename U, typename S, uint32_t blockDim, uint32_t m, uint32_t k, uint32_t n,
-          uint32_t singleCoreM, uint32_t singleCoreK, uint32_t singleCoreN, uint32_t baseM, uint32_t baseK,
-          uint32_t baseN, uint32_t stepM, uint32_t stepKa, uint32_t stepKb, uint32_t stepN, uint32_t batch,
-          uint32_t cin, uint32_t hin, uint32_t win, uint32_t c0, uint32_t hk, uint32_t wk, uint32_t hout, uint32_t wout,
-          uint32_t strideH = 1, uint32_t strideW = 1, uint32_t dilationH = 1, uint32_t dilationW = 1,
-          uint32_t padTop = 1, uint32_t padBottom = 1, uint32_t padLeft = 1, uint32_t padRight = 1>
-AICORE inline void RunConv2dForward(__gm__ T *out, __gm__ U *src0, __gm__ S *src1)
+template <
+    typename T, typename U, typename S, uint32_t blockDim, uint32_t m, uint32_t k, uint32_t n, uint32_t singleCoreM,
+    uint32_t singleCoreK, uint32_t singleCoreN, uint32_t baseM, uint32_t baseK, uint32_t baseN, uint32_t stepM,
+    uint32_t stepKa, uint32_t stepKb, uint32_t stepN, uint32_t batch, uint32_t cin, uint32_t hin, uint32_t win,
+    uint32_t c0, uint32_t hk, uint32_t wk, uint32_t hout, uint32_t wout, uint32_t strideH = 1, uint32_t strideW = 1,
+    uint32_t dilationH = 1, uint32_t dilationW = 1, uint32_t padTop = 1, uint32_t padBottom = 1, uint32_t padLeft = 1,
+    uint32_t padRight = 1>
+AICORE inline void RunConv2dForward(__gm__ T* out, __gm__ U* src0, __gm__ S* src1)
 {
-    __gm__ U *currentSrc0 = nullptr;
-    __gm__ S *currentSrc1 = nullptr;
-    __gm__ T *currentDst = nullptr;
-    InitGMOffsets<T, U, S, n, singleCoreN, cin, hin, win, c0, hout, wout>(currentSrc0, currentSrc1, currentDst, out,
-                                                                          src0, src1);
+    __gm__ U* currentSrc0 = nullptr;
+    __gm__ S* currentSrc1 = nullptr;
+    __gm__ T* currentDst = nullptr;
+    InitGMOffsets<T, U, S, n, singleCoreN, cin, hin, win, c0, hout, wout>(
+        currentSrc0, currentSrc1, currentDst, out, src0, src1);
     constexpr uint32_t channelSize = CeilDivision(stepKa * baseK, hk * wk);
     constexpr int bufferSizeA = sizeof(U) * channelSize * win * (CeilDivision(baseM, wout) + (hk - 1));
     using TileMatAData =
@@ -254,8 +261,8 @@ AICORE inline void RunConv2dForward(__gm__ T *out, __gm__ U *src0, __gm__ S *src
     TileMatAData fmapMat[BUFFER_NUM];
 
     constexpr int bufferSizeB = stepKb * baseK * baseN * sizeof(U);
-    using TileMatBData = ConvTile<TileType::Mat, U, bufferSizeB, Layout::FRACTAL_Z,
-                                  pto::ConvTileShape<stepKb * baseK / c0, baseN / 16, 16, c0>>;
+    using TileMatBData = ConvTile<
+        TileType::Mat, U, bufferSizeB, Layout::FRACTAL_Z, pto::ConvTileShape<stepKb * baseK / c0, baseN / 16, 16, c0>>;
     TileMatBData weightMat[BUFFER_NUM];
     TASSIGN(weightMat[0], 0x20000);
     TASSIGN(weightMat[1], 0x20000 + baseK * baseN * stepKb * sizeof(U));
@@ -272,29 +279,31 @@ AICORE inline void RunConv2dForward(__gm__ T *out, __gm__ U *src0, __gm__ S *src
     TASSIGN(bTile[1], 0x0 + L0_PINGPONG_BYTES); // L0B pang
 
     InitSyncFlags();
-    Compute<half, half, blockDim, m, k, n, singleCoreM, singleCoreK, singleCoreN, baseM, baseK, baseN, stepM, stepKa,
-            stepKb, stepN, batch, cin, hin, win, c0, hk, wk, hout, wout, channelSize, ResTile>(
+    Compute<
+        half, half, blockDim, m, k, n, singleCoreM, singleCoreK, singleCoreN, baseM, baseK, baseN, stepM, stepKa,
+        stepKb, stepN, batch, cin, hin, win, c0, hk, wk, hout, wout, channelSize, ResTile>(
         currentSrc0, currentSrc1, currentDst, fmapMat, weightMat, aTile, bTile);
     WaitSyncFlags();
 }
 
-template <typename T, uint32_t blockDim, uint32_t m, uint32_t k, uint32_t n, uint32_t singleCoreM, uint32_t singleCoreK,
-          uint32_t singleCoreN, uint32_t baseM, uint32_t baseK, uint32_t baseN, uint32_t stepM, uint32_t stepKa,
-          uint32_t stepKb, uint32_t stepN, uint32_t batch, uint32_t cin, uint32_t hin, uint32_t win, uint32_t c0,
-          uint32_t hk, uint32_t wk, uint32_t hout, uint32_t wout, uint32_t strideH = 1, uint32_t strideW = 1,
-          uint32_t dilationH = 1, uint32_t dilationW = 1, uint32_t padTop = 1, uint32_t padBottom = 1,
-          uint32_t padLeft = 1, uint32_t padRight = 1>
-__global__ AICORE void Conv2dForward(__gm__ uint8_t *out, __gm__ uint8_t *src0, __gm__ uint8_t *src1)
+template <
+    typename T, uint32_t blockDim, uint32_t m, uint32_t k, uint32_t n, uint32_t singleCoreM, uint32_t singleCoreK,
+    uint32_t singleCoreN, uint32_t baseM, uint32_t baseK, uint32_t baseN, uint32_t stepM, uint32_t stepKa,
+    uint32_t stepKb, uint32_t stepN, uint32_t batch, uint32_t cin, uint32_t hin, uint32_t win, uint32_t c0, uint32_t hk,
+    uint32_t wk, uint32_t hout, uint32_t wout, uint32_t strideH = 1, uint32_t strideW = 1, uint32_t dilationH = 1,
+    uint32_t dilationW = 1, uint32_t padTop = 1, uint32_t padBottom = 1, uint32_t padLeft = 1, uint32_t padRight = 1>
+__global__ AICORE void Conv2dForward(__gm__ uint8_t* out, __gm__ uint8_t* src0, __gm__ uint8_t* src1)
 {
-    RunConv2dForward<half, half, half, blockDim, m, k, n, singleCoreM, singleCoreK, singleCoreN, baseM, baseK, baseN,
-                     stepM, stepKa, stepKb, stepN, batch, cin, hin, win, c0, hk, wk, hout, wout>(
-        reinterpret_cast<__gm__ half *>(out), reinterpret_cast<__gm__ half *>(src0),
-        reinterpret_cast<__gm__ half *>(src1));
+    RunConv2dForward<
+        half, half, half, blockDim, m, k, n, singleCoreM, singleCoreK, singleCoreN, baseM, baseK, baseN, stepM, stepKa,
+        stepKb, stepN, batch, cin, hin, win, c0, hk, wk, hout, wout>(
+        reinterpret_cast<__gm__ half*>(out), reinterpret_cast<__gm__ half*>(src0),
+        reinterpret_cast<__gm__ half*>(src1));
 }
 
 #ifndef __COSTMODEL
 template <typename T>
-void launchConv2dForward(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream)
+void launchConv2dForward(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream)
 {
     constexpr uint32_t blockDim = 24;
     constexpr uint32_t m = 6144;
@@ -329,9 +338,9 @@ void launchConv2dForward(uint8_t *out, uint8_t *src0, uint8_t *src1, void *strea
     constexpr uint32_t padRight = 1;
     constexpr uint32_t hout = (hin + padTop + padBottom - dilationH * (hk - 1) - 1) / strideH + 1;
     constexpr uint32_t wout = (win + padLeft + padRight - dilationW * (wk - 1) - 1) / strideW + 1;
-    Conv2dForward<T, blockDim, m, k, n, singleCoreM, singleCoreK, singleCoreN, baseM, baseK, baseN, stepM, stepKa,
-                  stepKb, stepN, batch, cin, hin, win, c0, hk, wk, hout, wout>
-        <<<blockDim, nullptr, stream>>>(out, src0, src1);
+    Conv2dForward<
+        T, blockDim, m, k, n, singleCoreM, singleCoreK, singleCoreN, baseM, baseK, baseN, stepM, stepKa, stepKb, stepN,
+        batch, cin, hin, win, c0, hk, wk, hout, wout><<<blockDim, nullptr, stream>>>(out, src0, src1);
 }
-template void launchConv2dForward<uint16_t>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
+template void launchConv2dForward<uint16_t>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 #endif

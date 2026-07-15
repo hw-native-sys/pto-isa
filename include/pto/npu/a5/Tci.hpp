@@ -38,7 +38,7 @@ template <typename TileData, typename T, int descending = 0>
 __tf__ AICORE void Tci(typename TileData::TileDType __out__ dst, T start, unsigned validCol)
 {
     using Tdst = typename TileData::DType;
-    __ubuf__ Tdst *dstPtr = (__ubuf__ Tdst *)__cce_get_tile_ptr(dst);
+    __ubuf__ Tdst* dstPtr = (__ubuf__ Tdst*)__cce_get_tile_ptr(dst);
     // scalar
     if constexpr (descending) {
         for (int32_t j = 0; j < validCol; j++) {
@@ -52,7 +52,7 @@ __tf__ AICORE void Tci(typename TileData::TileDType __out__ dst, T start, unsign
 }
 
 template <typename TileData, typename T, int descending>
-PTO_INTERNAL void TCI_IMPL(TileData &dst, T start)
+PTO_INTERNAL void TCI_IMPL(TileData& dst, T start)
 {
     CheckValid<TileData, T>();
     unsigned validCol = dst.GetValidCol();
@@ -60,11 +60,11 @@ PTO_INTERNAL void TCI_IMPL(TileData &dst, T start)
 }
 
 template <typename TileData, typename TileDataTmp, typename T, int descending = 0>
-__tf__ AICORE void Tci(typename TileData::TileDType __out__ dst, typename TileDataTmp::TileDType __in__ tmp, T S,
-                       unsigned validCol)
+__tf__ AICORE void Tci(
+    typename TileData::TileDType __out__ dst, typename TileDataTmp::TileDType __in__ tmp, T S, unsigned validCol)
 {
     using Tdst = typename GetSignedType<typename TileData::DType>::type;
-    __ubuf__ Tdst *dstPtr = (__ubuf__ Tdst *)__cce_get_tile_ptr(dst);
+    __ubuf__ Tdst* dstPtr = (__ubuf__ Tdst*)__cce_get_tile_ptr(dst);
     constexpr uint16_t vl_size = REPEAT_BYTE / static_cast<uint16_t>(sizeof(typename TileData::DType));
     uint16_t loop_cnt = (validCol + vl_size - 1) / vl_size;
     int32_t s = S; // starting value for TCI sequence
@@ -80,11 +80,11 @@ __tf__ AICORE void Tci(typename TileData::TileDType __out__ dst, typename TileDa
             uint16_t i;
             for (i = 0; i < (uint16_t)(loop_cnt - 1); ++i) {
                 vci(index, s + i * vl_size);
-                vsts(index, (__ubuf__ Tdst *)dstPtr, (i * vl_size), distValue, preg_all);
+                vsts(index, (__ubuf__ Tdst*)dstPtr, (i * vl_size), distValue, preg_all);
             }
             preg = CreatePredicate<Tdst>(remain);
             vci(index, s + i * vl_size);
-            vsts(index, (__ubuf__ Tdst *)dstPtr, (i * vl_size), distValue, preg);
+            vsts(index, (__ubuf__ Tdst*)dstPtr, (i * vl_size), distValue, preg);
         }
     } else if constexpr (descending == 1) {
         s = S - vl_size + 1;
@@ -97,17 +97,17 @@ __tf__ AICORE void Tci(typename TileData::TileDType __out__ dst, typename TileDa
             uint16_t i;
             for (i = 0; i < (uint16_t)(loop_cnt - 1); ++i) {
                 vci(index, s - i * vl_size, DEC_ORDER);
-                vsts(index, (__ubuf__ Tdst *)dstPtr, (i * vl_size), distValue, preg_all);
+                vsts(index, (__ubuf__ Tdst*)dstPtr, (i * vl_size), distValue, preg_all);
             }
             preg = CreatePredicate<Tdst>(remain);
             vci(index, s - i * vl_size, DEC_ORDER);
-            vsts(index, (__ubuf__ Tdst *)dstPtr, (i * vl_size), distValue, preg);
+            vsts(index, (__ubuf__ Tdst*)dstPtr, (i * vl_size), distValue, preg);
         }
     }
 }
 
 template <typename TileData, typename TileDataTmp, typename T, int descending>
-PTO_INTERNAL void TCI_IMPL(TileData &dst, T start, TileDataTmp &tmp)
+PTO_INTERNAL void TCI_IMPL(TileData& dst, T start, TileDataTmp& tmp)
 {
     CheckValid<TileData, T>();
     unsigned validCol = dst.GetValidCol();

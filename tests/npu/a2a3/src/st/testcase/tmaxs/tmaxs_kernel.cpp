@@ -16,7 +16,7 @@ using namespace std;
 using namespace pto;
 
 template <typename T, int dstTileRow, int dstTileCol, int row, int validRow, int col, int validCol>
-PTO_INTERNAL void runTMAXS(__gm__ T *out, __gm__ T *src, T scalar)
+PTO_INTERNAL void runTMAXS(__gm__ T* out, __gm__ T* src, T scalar)
 {
     using DynDim2Shape = Shape<1, 1, 1, -1, -1>;
     using DynDim2Stride = pto::Stride<1, 1, -1, -1, 1>;
@@ -52,105 +52,105 @@ PTO_INTERNAL void runTMAXS(__gm__ T *out, __gm__ T *src, T scalar)
     out = dstGlobal.data();
 }
 
-extern "C" __global__ AICORE void launchTMAXSCase1(__gm__ float *out, __gm__ float *src, float scalar)
+extern "C" __global__ AICORE void launchTMAXSCase1(__gm__ float* out, __gm__ float* src, float scalar)
 {
     runTMAXS<float, 32, 64, 32, 32, 64, 64>(out, src, scalar);
 }
-extern "C" __global__ AICORE void launchTMAXSCase2(__gm__ aclFloat16 *out, __gm__ aclFloat16 *src, float scalar)
+extern "C" __global__ AICORE void launchTMAXSCase2(__gm__ aclFloat16* out, __gm__ aclFloat16* src, float scalar)
 {
-    runTMAXS<half, 63, 64, 63, 63, 64, 64>((__gm__ half *)out, (__gm__ half *)src, (half)scalar);
+    runTMAXS<half, 63, 64, 63, 63, 64, 64>((__gm__ half*)out, (__gm__ half*)src, (half)scalar);
 }
-extern "C" __global__ AICORE void launchTMAXSCase3(__gm__ int32_t *out, __gm__ int32_t *src, int32_t scalar)
+extern "C" __global__ AICORE void launchTMAXSCase3(__gm__ int32_t* out, __gm__ int32_t* src, int32_t scalar)
 {
     runTMAXS<int32_t, 31, 128, 31, 31, 128, 128>(out, src, scalar);
 }
-extern "C" __global__ AICORE void launchTMAXSCase4(__gm__ int16_t *out, __gm__ int16_t *src, int16_t scalar)
+extern "C" __global__ AICORE void launchTMAXSCase4(__gm__ int16_t* out, __gm__ int16_t* src, int16_t scalar)
 {
     runTMAXS<int16_t, 15, 192, 15, 15, 192, 192>(out, src, scalar);
 }
-extern "C" __global__ AICORE void launchTMAXSCase5(__gm__ float *out, __gm__ float *src, float scalar)
+extern "C" __global__ AICORE void launchTMAXSCase5(__gm__ float* out, __gm__ float* src, float scalar)
 {
     runTMAXS<float, 7, 448, 7, 7, 448, 448>(out, src, scalar);
 }
-extern "C" __global__ AICORE void launchTMAXSCase6(__gm__ float *out, __gm__ float *src, float scalar)
+extern "C" __global__ AICORE void launchTMAXSCase6(__gm__ float* out, __gm__ float* src, float scalar)
 {
     runTMAXS<float, 256, 16, 256, 256, 16, 16>(out, src, scalar);
 }
-extern "C" __global__ AICORE void launchTMAXSCase7(__gm__ float *out, __gm__ float *src, float scalar)
+extern "C" __global__ AICORE void launchTMAXSCase7(__gm__ float* out, __gm__ float* src, float scalar)
 {
     runTMAXS<float, 32, 128, 32, 32, 64, 64>(out, src, scalar);
 }
-extern "C" __global__ AICORE void launchTMAXSCase8(__gm__ aclFloat16 *out, __gm__ aclFloat16 *src, float scalar)
+extern "C" __global__ AICORE void launchTMAXSCase8(__gm__ aclFloat16* out, __gm__ aclFloat16* src, float scalar)
 {
-    runTMAXS<half, 63, 128, 63, 63, 64, 64>((__gm__ half *)out, (__gm__ half *)src, (half)scalar);
+    runTMAXS<half, 63, 128, 63, 63, 64, 64>((__gm__ half*)out, (__gm__ half*)src, (half)scalar);
 }
-extern "C" __global__ AICORE void launchTMAXSCase9(__gm__ int32_t *out, __gm__ int32_t *src, int32_t scalar)
+extern "C" __global__ AICORE void launchTMAXSCase9(__gm__ int32_t* out, __gm__ int32_t* src, int32_t scalar)
 {
     runTMAXS<int32_t, 31, 256, 31, 31, 128, 128>(out, src, scalar);
 }
-extern "C" __global__ AICORE void launchTMAXSCase10(__gm__ int16_t *out, __gm__ int16_t *src, int16_t scalar)
+extern "C" __global__ AICORE void launchTMAXSCase10(__gm__ int16_t* out, __gm__ int16_t* src, int16_t scalar)
 {
     runTMAXS<int16_t, 15, 192, 15, 15, 192, 192>(out, src, scalar);
 }
-extern "C" __global__ AICORE void launchTMAXSCase11(__gm__ float *out, __gm__ float *src, float scalar)
+extern "C" __global__ AICORE void launchTMAXSCase11(__gm__ float* out, __gm__ float* src, float scalar)
 {
     runTMAXS<float, 7, 512, 7, 7, 448, 448>(out, src, scalar);
 }
-extern "C" __global__ AICORE void launchTMAXSCase12(__gm__ float *out, __gm__ float *src, float scalar)
+extern "C" __global__ AICORE void launchTMAXSCase12(__gm__ float* out, __gm__ float* src, float scalar)
 {
     runTMAXS<float, 256, 32, 256, 256, 16, 16>(out, src, scalar);
 }
 
 template <uint32_t caseId>
-void launchTMAXSTestCase(void *out, void *src, float scalar, aclrtStream stream)
+void launchTMAXSTestCase(void* out, void* src, float scalar, aclrtStream stream)
 {
     switch (caseId) {
         case 1: {
-            launchTMAXSCase1<<<1, nullptr, stream>>>((float *)out, (float *)src, scalar);
+            launchTMAXSCase1<<<1, nullptr, stream>>>((float*)out, (float*)src, scalar);
             break;
         }
         case 2: {
-            launchTMAXSCase2<<<1, nullptr, stream>>>((aclFloat16 *)out, (aclFloat16 *)src, scalar);
+            launchTMAXSCase2<<<1, nullptr, stream>>>((aclFloat16*)out, (aclFloat16*)src, scalar);
             break;
         }
         case 3: {
-            launchTMAXSCase3<<<1, nullptr, stream>>>((int32_t *)out, (int32_t *)src, scalar);
+            launchTMAXSCase3<<<1, nullptr, stream>>>((int32_t*)out, (int32_t*)src, scalar);
             break;
         }
         case 4: {
-            launchTMAXSCase4<<<1, nullptr, stream>>>((int16_t *)out, (int16_t *)src, scalar);
+            launchTMAXSCase4<<<1, nullptr, stream>>>((int16_t*)out, (int16_t*)src, scalar);
             break;
         }
         case 5: {
-            launchTMAXSCase5<<<1, nullptr, stream>>>((float *)out, (float *)src, scalar);
+            launchTMAXSCase5<<<1, nullptr, stream>>>((float*)out, (float*)src, scalar);
             break;
         }
         case 6: {
-            launchTMAXSCase6<<<1, nullptr, stream>>>((float *)out, (float *)src, scalar);
+            launchTMAXSCase6<<<1, nullptr, stream>>>((float*)out, (float*)src, scalar);
             break;
         }
         case 7: {
-            launchTMAXSCase7<<<1, nullptr, stream>>>((float *)out, (float *)src, scalar);
+            launchTMAXSCase7<<<1, nullptr, stream>>>((float*)out, (float*)src, scalar);
             break;
         }
         case 8: {
-            launchTMAXSCase8<<<1, nullptr, stream>>>((aclFloat16 *)out, (aclFloat16 *)src, scalar);
+            launchTMAXSCase8<<<1, nullptr, stream>>>((aclFloat16*)out, (aclFloat16*)src, scalar);
             break;
         }
         case 9: {
-            launchTMAXSCase9<<<1, nullptr, stream>>>((int32_t *)out, (int32_t *)src, scalar);
+            launchTMAXSCase9<<<1, nullptr, stream>>>((int32_t*)out, (int32_t*)src, scalar);
             break;
         }
         case 10: {
-            launchTMAXSCase10<<<1, nullptr, stream>>>((int16_t *)out, (int16_t *)src, scalar);
+            launchTMAXSCase10<<<1, nullptr, stream>>>((int16_t*)out, (int16_t*)src, scalar);
             break;
         }
         case 11: {
-            launchTMAXSCase11<<<1, nullptr, stream>>>((float *)out, (float *)src, scalar);
+            launchTMAXSCase11<<<1, nullptr, stream>>>((float*)out, (float*)src, scalar);
             break;
         }
         case 12: {
-            launchTMAXSCase12<<<1, nullptr, stream>>>((float *)out, (float *)src, scalar);
+            launchTMAXSCase12<<<1, nullptr, stream>>>((float*)out, (float*)src, scalar);
             break;
         }
         default: {
@@ -158,15 +158,15 @@ void launchTMAXSTestCase(void *out, void *src, float scalar, aclrtStream stream)
     }
 }
 
-template void launchTMAXSTestCase<1>(void *out, void *src, float scalar, aclrtStream stream);
-template void launchTMAXSTestCase<2>(void *out, void *src, float scalar, aclrtStream stream);
-template void launchTMAXSTestCase<3>(void *out, void *src, float scalar, aclrtStream stream);
-template void launchTMAXSTestCase<4>(void *out, void *src, float scalar, aclrtStream stream);
-template void launchTMAXSTestCase<5>(void *out, void *src, float scalar, aclrtStream stream);
-template void launchTMAXSTestCase<6>(void *out, void *src, float scalar, aclrtStream stream);
-template void launchTMAXSTestCase<7>(void *out, void *src, float scalar, aclrtStream stream);
-template void launchTMAXSTestCase<8>(void *out, void *src, float scalar, aclrtStream stream);
-template void launchTMAXSTestCase<9>(void *out, void *src, float scalar, aclrtStream stream);
-template void launchTMAXSTestCase<10>(void *out, void *src, float scalar, aclrtStream stream);
-template void launchTMAXSTestCase<11>(void *out, void *src, float scalar, aclrtStream stream);
-template void launchTMAXSTestCase<12>(void *out, void *src, float scalar, aclrtStream stream);
+template void launchTMAXSTestCase<1>(void* out, void* src, float scalar, aclrtStream stream);
+template void launchTMAXSTestCase<2>(void* out, void* src, float scalar, aclrtStream stream);
+template void launchTMAXSTestCase<3>(void* out, void* src, float scalar, aclrtStream stream);
+template void launchTMAXSTestCase<4>(void* out, void* src, float scalar, aclrtStream stream);
+template void launchTMAXSTestCase<5>(void* out, void* src, float scalar, aclrtStream stream);
+template void launchTMAXSTestCase<6>(void* out, void* src, float scalar, aclrtStream stream);
+template void launchTMAXSTestCase<7>(void* out, void* src, float scalar, aclrtStream stream);
+template void launchTMAXSTestCase<8>(void* out, void* src, float scalar, aclrtStream stream);
+template void launchTMAXSTestCase<9>(void* out, void* src, float scalar, aclrtStream stream);
+template void launchTMAXSTestCase<10>(void* out, void* src, float scalar, aclrtStream stream);
+template void launchTMAXSTestCase<11>(void* out, void* src, float scalar, aclrtStream stream);
+template void launchTMAXSTestCase<12>(void* out, void* src, float scalar, aclrtStream stream);

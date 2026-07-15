@@ -16,35 +16,33 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <int32_t testKey>
-void launchTExtractVecND(uint8_t *out, uint8_t *srcIn, uint8_t *dstInitIn, void *stream);
+void launchTExtractVecND(uint8_t* out, uint8_t* srcIn, uint8_t* dstInitIn, void* stream);
 
 template <int32_t testKey>
-void launchTExtractVecNDScalar(uint8_t *out, uint8_t *srcIn, uint8_t *dstInitIn, void *stream);
+void launchTExtractVecNDScalar(uint8_t* out, uint8_t* srcIn, uint8_t* dstInitIn, void* stream);
 
 template <int32_t testKey>
-void launchTExtractVecNZ(uint8_t *out, uint8_t *srcIn, uint8_t *dstInitIn, void *stream);
+void launchTExtractVecNZ(uint8_t* out, uint8_t* srcIn, uint8_t* dstInitIn, void* stream);
 
 template <int32_t testKey>
-void launchTExtractVecNZScalar(uint8_t *out, uint8_t *srcIn, uint8_t *dstInitIn, void *stream);
+void launchTExtractVecNZScalar(uint8_t* out, uint8_t* srcIn, uint8_t* dstInitIn, void* stream);
 
 class TExtractVecTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     return "../" + suiteName + "." + caseName;
 }
 
-using NdLaunchFn = void (*)(uint8_t *, uint8_t *, uint8_t *, void *);
-using NzLaunchFn = void (*)(uint8_t *, uint8_t *, uint8_t *, void *);
+using NdLaunchFn = void (*)(uint8_t*, uint8_t*, uint8_t*, void*);
+using NzLaunchFn = void (*)(uint8_t*, uint8_t*, uint8_t*, void*);
 
 template <typename dType>
 void runNDTest(size_t srcByteSize, size_t dstByteSize, NdLaunchFn launch)
@@ -57,13 +55,13 @@ void runNDTest(size_t srcByteSize, size_t dstByteSize, NdLaunchFn launch)
     uint8_t *outHost, *srcHost, *dstInitHost;
     uint8_t *outDevice, *srcDevice, *dstInitDevice;
 
-    aclrtMallocHost((void **)(&outHost), dstByteSize);
-    aclrtMallocHost((void **)(&srcHost), srcByteSize);
-    aclrtMallocHost((void **)(&dstInitHost), dstByteSize);
+    aclrtMallocHost((void**)(&outHost), dstByteSize);
+    aclrtMallocHost((void**)(&srcHost), srcByteSize);
+    aclrtMallocHost((void**)(&dstInitHost), dstByteSize);
 
-    aclrtMalloc((void **)&outDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&dstInitDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&outDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstInitDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/src_input.bin", srcByteSize, srcHost, srcByteSize);
     ReadFile(GetGoldenDir() + "/dst_init.bin", dstByteSize, dstInitHost, dstByteSize);
@@ -108,13 +106,13 @@ void runNZTest(size_t srcByteSize, size_t dstByteSize, NzLaunchFn launch)
     uint8_t *outHost, *srcHost, *dstInitHost;
     uint8_t *outDevice, *srcDevice, *dstInitDevice;
 
-    aclrtMallocHost((void **)(&outHost), dstByteSize);
-    aclrtMallocHost((void **)(&srcHost), srcByteSize);
-    aclrtMallocHost((void **)(&dstInitHost), dstByteSize);
+    aclrtMallocHost((void**)(&outHost), dstByteSize);
+    aclrtMallocHost((void**)(&srcHost), srcByteSize);
+    aclrtMallocHost((void**)(&dstInitHost), dstByteSize);
 
-    aclrtMalloc((void **)&outDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&dstInitDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&outDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstInitDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/src_input.bin", srcByteSize, srcHost, srcByteSize);
     ReadFile(GetGoldenDir() + "/dst_init.bin", dstByteSize, dstInitHost, dstByteSize);
@@ -151,150 +149,63 @@ void runNZTest(size_t srcByteSize, size_t dstByteSize, NzLaunchFn launch)
 template <int32_t TestKey, typename dType>
 void testND(int32_t srcRows, int32_t srcCols, int32_t dstStaticRows, int32_t dstStaticCols)
 {
-    runNDTest<dType>(srcRows * srcCols * sizeof(dType), dstStaticRows * dstStaticCols * sizeof(dType),
-                     launchTExtractVecND<TestKey>);
+    runNDTest<dType>(
+        srcRows * srcCols * sizeof(dType), dstStaticRows * dstStaticCols * sizeof(dType), launchTExtractVecND<TestKey>);
 }
 
 template <int32_t TestKey, typename dType>
 void testNDScalar(int32_t srcRows, int32_t srcCols)
 {
     constexpr size_t MinAligned = 32 / sizeof(dType);
-    runNDTest<dType>(srcRows * srcCols * sizeof(dType), 1 * MinAligned * sizeof(dType),
-                     launchTExtractVecNDScalar<TestKey>);
+    runNDTest<dType>(
+        srcRows * srcCols * sizeof(dType), 1 * MinAligned * sizeof(dType), launchTExtractVecNDScalar<TestKey>);
 }
 
 template <int32_t TestKey, typename dType>
 void testNZ(int32_t srcRows, int32_t srcCols, int32_t dstRows, int32_t dstCols)
 {
-    runNZTest<dType>(srcRows * srcCols * sizeof(dType), dstRows * dstCols * sizeof(dType),
-                     launchTExtractVecNZ<TestKey>);
+    runNZTest<dType>(
+        srcRows * srcCols * sizeof(dType), dstRows * dstCols * sizeof(dType), launchTExtractVecNZ<TestKey>);
 }
 
 template <int32_t TestKey, typename dType>
 void testNZScalar(int32_t srcRows, int32_t srcCols, int32_t dstRows, int32_t dstCols)
 {
-    runNDTest<dType>(srcRows * srcCols * sizeof(dType), dstRows * dstCols * sizeof(dType),
-                     launchTExtractVecNZScalar<TestKey>);
+    runNDTest<dType>(
+        srcRows * srcCols * sizeof(dType), dstRows * dstCols * sizeof(dType), launchTExtractVecNZScalar<TestKey>);
 }
 
-TEST_F(TExtractVecTest, case_nd_aligned_1)
-{
-    testND<1, float>(16, 16, 8, 8);
-}
-TEST_F(TExtractVecTest, case_nd_aligned_2)
-{
-    testND<2, float>(16, 16, 8, 8);
-}
-TEST_F(TExtractVecTest, case_nd_aligned_3)
-{
-    testND<3, uint16_t>(32, 32, 16, 16);
-}
-TEST_F(TExtractVecTest, case_nd_aligned_5)
-{
-    testND<5, int32_t>(16, 16, 8, 8);
-}
-TEST_F(TExtractVecTest, case_nd_aligned_6)
-{
-    testND<6, int8_t>(64, 64, 32, 32);
-}
+TEST_F(TExtractVecTest, case_nd_aligned_1) { testND<1, float>(16, 16, 8, 8); }
+TEST_F(TExtractVecTest, case_nd_aligned_2) { testND<2, float>(16, 16, 8, 8); }
+TEST_F(TExtractVecTest, case_nd_aligned_3) { testND<3, uint16_t>(32, 32, 16, 16); }
+TEST_F(TExtractVecTest, case_nd_aligned_5) { testND<5, int32_t>(16, 16, 8, 8); }
+TEST_F(TExtractVecTest, case_nd_aligned_6) { testND<6, int8_t>(64, 64, 32, 32); }
 
-TEST_F(TExtractVecTest, case_nd_unaligned_validcol_1)
-{
-    testND<7, float>(16, 16, 8, 8);
-}
-TEST_F(TExtractVecTest, case_nd_unaligned_validcol_2)
-{
-    testND<8, uint16_t>(16, 32, 8, 16);
-}
+TEST_F(TExtractVecTest, case_nd_unaligned_validcol_1) { testND<7, float>(16, 16, 8, 8); }
+TEST_F(TExtractVecTest, case_nd_unaligned_validcol_2) { testND<8, uint16_t>(16, 32, 8, 16); }
 
-TEST_F(TExtractVecTest, case_nd_unaligned_indexcol_1)
-{
-    testND<9, float>(16, 16, 8, 8);
-}
-TEST_F(TExtractVecTest, case_nd_unaligned_indexcol_2)
-{
-    testND<10, uint16_t>(16, 48, 8, 16);
-}
-TEST_F(TExtractVecTest, case_nd_unaligned_indexcol_3)
-{
-    testND<11, int8_t>(64, 64, 32, 32);
-}
-TEST_F(TExtractVecTest, case_nd_unaligned_validcol_3)
-{
-    testND<12, int8_t>(64, 64, 32, 32);
-}
-TEST_F(TExtractVecTest, case_nd_partial_validrow)
-{
-    testND<16, uint16_t>(32, 32, 16, 16);
-}
-TEST_F(TExtractVecTest, case_nd_scalar_1)
-{
-    testNDScalar<1, float>(16, 16);
-}
-TEST_F(TExtractVecTest, case_nd_scalar_2)
-{
-    testNDScalar<2, uint16_t>(32, 32);
-}
-TEST_F(TExtractVecTest, case_nd_scalar_4)
-{
-    testNDScalar<4, int8_t>(64, 64);
-}
-TEST_F(TExtractVecTest, case_nd_scalar_5)
-{
-    testNDScalar<5, int32_t>(16, 16);
-}
+TEST_F(TExtractVecTest, case_nd_unaligned_indexcol_1) { testND<9, float>(16, 16, 8, 8); }
+TEST_F(TExtractVecTest, case_nd_unaligned_indexcol_2) { testND<10, uint16_t>(16, 48, 8, 16); }
+TEST_F(TExtractVecTest, case_nd_unaligned_indexcol_3) { testND<11, int8_t>(64, 64, 32, 32); }
+TEST_F(TExtractVecTest, case_nd_unaligned_validcol_3) { testND<12, int8_t>(64, 64, 32, 32); }
+TEST_F(TExtractVecTest, case_nd_partial_validrow) { testND<16, uint16_t>(32, 32, 16, 16); }
+TEST_F(TExtractVecTest, case_nd_scalar_1) { testNDScalar<1, float>(16, 16); }
+TEST_F(TExtractVecTest, case_nd_scalar_2) { testNDScalar<2, uint16_t>(32, 32); }
+TEST_F(TExtractVecTest, case_nd_scalar_4) { testNDScalar<4, int8_t>(64, 64); }
+TEST_F(TExtractVecTest, case_nd_scalar_5) { testNDScalar<5, int32_t>(16, 16); }
 
-TEST_F(TExtractVecTest, case_nz_1)
-{
-    testNZ<1, float>(32, 32, 16, 32);
-}
-TEST_F(TExtractVecTest, case_nz_2)
-{
-    testNZ<2, float>(32, 32, 16, 32);
-}
-TEST_F(TExtractVecTest, case_nz_3)
-{
-    testNZ<3, uint16_t>(32, 32, 16, 32);
-}
-TEST_F(TExtractVecTest, case_nz_5)
-{
-    testNZ<5, int8_t>(32, 64, 16, 64);
-}
-TEST_F(TExtractVecTest, case_nz_6)
-{
-    testNZ<6, int8_t>(32, 64, 16, 64);
-}
+TEST_F(TExtractVecTest, case_nz_1) { testNZ<1, float>(32, 32, 16, 32); }
+TEST_F(TExtractVecTest, case_nz_2) { testNZ<2, float>(32, 32, 16, 32); }
+TEST_F(TExtractVecTest, case_nz_3) { testNZ<3, uint16_t>(32, 32, 16, 32); }
+TEST_F(TExtractVecTest, case_nz_5) { testNZ<5, int8_t>(32, 64, 16, 64); }
+TEST_F(TExtractVecTest, case_nz_6) { testNZ<6, int8_t>(32, 64, 16, 64); }
 
-TEST_F(TExtractVecTest, case_nz_indexcol_nonzero)
-{
-    testNZ<7, int8_t>(32, 64, 16, 32);
-}
-TEST_F(TExtractVecTest, case_nz_partial_valid)
-{
-    testNZ<8, uint16_t>(32, 32, 16, 32);
-}
-TEST_F(TExtractVecTest, case_nz_multi_fractal_dst)
-{
-    testNZ<9, uint16_t>(64, 32, 32, 32);
-}
-TEST_F(TExtractVecTest, case_nz_int32)
-{
-    testNZ<13, int32_t>(32, 16, 16, 8);
-}
+TEST_F(TExtractVecTest, case_nz_indexcol_nonzero) { testNZ<7, int8_t>(32, 64, 16, 32); }
+TEST_F(TExtractVecTest, case_nz_partial_valid) { testNZ<8, uint16_t>(32, 32, 16, 32); }
+TEST_F(TExtractVecTest, case_nz_multi_fractal_dst) { testNZ<9, uint16_t>(64, 32, 32, 32); }
+TEST_F(TExtractVecTest, case_nz_int32) { testNZ<13, int32_t>(32, 16, 16, 8); }
 
-TEST_F(TExtractVecTest, case_nz_scalar_1)
-{
-    testNZScalar<1, float>(32, 32, 16, 32);
-}
-TEST_F(TExtractVecTest, case_nz_scalar_2)
-{
-    testNZScalar<2, uint16_t>(32, 32, 16, 32);
-}
-TEST_F(TExtractVecTest, case_nz_scalar_4)
-{
-    testNZScalar<4, int8_t>(32, 64, 16, 64);
-}
-TEST_F(TExtractVecTest, case_nz_scalar_5)
-{
-    testNZScalar<5, int32_t>(32, 16, 16, 16);
-}
+TEST_F(TExtractVecTest, case_nz_scalar_1) { testNZScalar<1, float>(32, 32, 16, 32); }
+TEST_F(TExtractVecTest, case_nz_scalar_2) { testNZScalar<2, uint16_t>(32, 32, 16, 32); }
+TEST_F(TExtractVecTest, case_nz_scalar_4) { testNZScalar<4, int8_t>(32, 64, 16, 64); }
+TEST_F(TExtractVecTest, case_nz_scalar_5) { testNZScalar<5, int32_t>(32, 16, 16, 16); }

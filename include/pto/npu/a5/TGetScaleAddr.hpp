@@ -19,7 +19,7 @@ full text of the License.
 namespace pto {
 
 template <typename TileDataOut, typename TileDataIn>
-PTO_INTERNAL void TGET_SCALE_ADDR_IMPL(TileDataOut &dst, TileDataIn &src)
+PTO_INTERNAL void TGET_SCALE_ADDR_IMPL(TileDataOut& dst, TileDataIn& src)
 {
     static_assert(is_tile_data_v<TileDataIn>, "input must be a Tile instance.");
     static_assert(is_tile_data_v<TileDataOut>, "output must be a Tile instance.");

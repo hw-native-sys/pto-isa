@@ -18,25 +18,25 @@ template <typename T>
 struct TColProdOp {
     using PadType = T;
     static constexpr T InitVal = (T)1;
-    PTO_INTERNAL static void ReduceInstr(RegTensor<T> &dst, RegTensor<T> &src0, RegTensor<T> &src1, MaskReg &pReg)
+    PTO_INTERNAL static void ReduceInstr(RegTensor<T>& dst, RegTensor<T>& src0, RegTensor<T>& src1, MaskReg& pReg)
     {
         vmul(dst, src0, src1, pReg, MODE_ZEROING);
     }
 };
 
 template <typename T, typename TileDataOut, typename TileDataIn>
-__tf__ PTO_INTERNAL void TColProd(typename TileDataOut::TileDType __out__ dstData,
-                                  typename TileDataIn::TileDType __in__ srcData, unsigned validRow, unsigned validCol,
-                                  unsigned version)
+__tf__ PTO_INTERNAL void TColProd(
+    typename TileDataOut::TileDType __out__ dstData, typename TileDataIn::TileDType __in__ srcData, unsigned validRow,
+    unsigned validCol, unsigned version)
 {
-    __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
-    __ubuf__ T *src = (__ubuf__ T *)__cce_get_tile_ptr(srcData);
+    __ubuf__ T* dst = (__ubuf__ T*)__cce_get_tile_ptr(dstData);
+    __ubuf__ T* src = (__ubuf__ T*)__cce_get_tile_ptr(srcData);
 
     TColReduceInstr<TColProdOp<T>, T, TileDataIn>(dst, src, validRow, validCol, version);
 }
 
 template <typename TileDataOut, typename TileDataIn>
-PTO_INTERNAL void TCOLPROD_IMPL(TileDataOut &dst, TileDataIn &src)
+PTO_INTERNAL void TCOLPROD_IMPL(TileDataOut& dst, TileDataIn& src)
 {
     using T = typename TileDataIn::DType;
     static_assert(

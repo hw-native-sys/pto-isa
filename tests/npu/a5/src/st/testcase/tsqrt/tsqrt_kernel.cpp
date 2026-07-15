@@ -14,9 +14,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-template <typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol, bool highPrecision,
-          bool isInPlace>
-__global__ AICORE void runTsqrt(__gm__ T __out__ *out, __gm__ T __in__ *src)
+template <
+    typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol, bool highPrecision,
+    bool isInPlace>
+__global__ AICORE void runTsqrt(__gm__ T __out__* out, __gm__ T __in__* src)
 {
     using DynShapeDim5 = Shape<1, 1, 1, -1, -1>;
     using SrcGlobalData = GlobalTensor<T, DynShapeDim5, pto::Stride<1, 1, srcRow, srcCol, 1>>;
@@ -40,27 +41,28 @@ __global__ AICORE void runTsqrt(__gm__ T __out__ *out, __gm__ T __in__ *src)
     TSTORE(dstGlobal, dstTile, event1);
 }
 
-template <typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol, bool highPrecision,
-          bool isInPlace>
-void LaunchTSqrt(T *out, T *src, void *stream)
+template <
+    typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol, bool highPrecision,
+    bool isInPlace>
+void LaunchTSqrt(T* out, T* src, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>)
         runTsqrt<half, dstRow, dstCol, srcRow, srcCol, validRow, validCol, highPrecision, isInPlace>
-            <<<1, nullptr, stream>>>((half *)(out), (half *)(src));
+            <<<1, nullptr, stream>>>((half*)(out), (half*)(src));
     else
         runTsqrt<T, dstRow, dstCol, srcRow, srcCol, validRow, validCol, highPrecision, isInPlace>
             <<<1, nullptr, stream>>>(out, src);
 }
 
-template void LaunchTSqrt<float, 64, 64, 64, 64, 64, 64, true, true>(float *out, float *src, void *stream);
-template void LaunchTSqrt<float, 64, 64, 64, 64, 64, 64, true, false>(float *out, float *src, void *stream);
-template void LaunchTSqrt<aclFloat16, 64, 64, 64, 64, 64, 64, true, true>(aclFloat16 *out, aclFloat16 *src,
-                                                                          void *stream);
-template void LaunchTSqrt<aclFloat16, 64, 64, 64, 64, 64, 64, true, false>(aclFloat16 *out, aclFloat16 *src,
-                                                                           void *stream);
-template void LaunchTSqrt<float, 128, 128, 64, 64, 64, 64, false, false>(float *out, float *src, void *stream);
-template void LaunchTSqrt<float, 64, 64, 128, 128, 32, 32, false, false>(float *out, float *src, void *stream);
-template void LaunchTSqrt<aclFloat16, 128, 256, 64, 64, 64, 64, false, false>(aclFloat16 *out, aclFloat16 *src,
-                                                                              void *stream);
-template void LaunchTSqrt<aclFloat16, 64, 64, 128, 256, 32, 32, false, false>(aclFloat16 *out, aclFloat16 *src,
-                                                                              void *stream);
+template void LaunchTSqrt<float, 64, 64, 64, 64, 64, 64, true, true>(float* out, float* src, void* stream);
+template void LaunchTSqrt<float, 64, 64, 64, 64, 64, 64, true, false>(float* out, float* src, void* stream);
+template void LaunchTSqrt<aclFloat16, 64, 64, 64, 64, 64, 64, true, true>(
+    aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTSqrt<aclFloat16, 64, 64, 64, 64, 64, 64, true, false>(
+    aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTSqrt<float, 128, 128, 64, 64, 64, 64, false, false>(float* out, float* src, void* stream);
+template void LaunchTSqrt<float, 64, 64, 128, 128, 32, 32, false, false>(float* out, float* src, void* stream);
+template void LaunchTSqrt<aclFloat16, 128, 256, 64, 64, 64, 64, false, false>(
+    aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTSqrt<aclFloat16, 64, 64, 128, 256, 32, 32, false, false>(
+    aclFloat16* out, aclFloat16* src, void* stream);

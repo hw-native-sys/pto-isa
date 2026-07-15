@@ -42,12 +42,13 @@ constexpr uint32_t kCombineLargeLanesPerRank = 2U;
 template <typename OutputElement>
 class Combine {
 public:
-    AICORE inline void Init(GM_ADDR workspaceGM, const __gm__ MegaMoeTilingData *tilingData);
+    AICORE inline void Init(GM_ADDR workspaceGM, const __gm__ MegaMoeTilingData* tilingData);
     AICORE inline void Process();
 
 private:
-    static_assert(std::is_same_v<OutputElement, half> || std::is_same_v<OutputElement, bfloat16_t>,
-                  "combine output must be half or bfloat16");
+    static_assert(
+        std::is_same_v<OutputElement, half> || std::is_same_v<OutputElement, bfloat16_t>,
+        "combine output must be half or bfloat16");
 
     using VectorShape = pto::Shape<1, 1, 1, 1, pto::DYNAMIC>;
     using VectorStride = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, 1>;
@@ -59,25 +60,19 @@ private:
     using TileC = pto::Tile<pto::TileType::Vec, half, 1, kCombineVecTileElems, pto::BLayout::RowMajor, -1, -1>;
     using TileFp32 = pto::Tile<pto::TileType::Vec, float, 1, kCombineVecTileElems, pto::BLayout::RowMajor, -1, -1>;
     using TileD = pto::Tile<pto::TileType::Vec, OutputElement, 1, kCombineVecTileElems, pto::BLayout::RowMajor, -1, -1>;
-    using SmallTileC = pto::Tile<pto::TileType::Vec, half, kCombineSmallTokenSubtileRows, kCombineSmallTokenSubtileCols,
-                                 pto::BLayout::RowMajor, -1, -1>;
-    using SmallTileFp32 = pto::Tile<pto::TileType::Vec, float, kCombineSmallTokenSubtileRows,
-                                    kCombineSmallTokenSubtileCols, pto::BLayout::RowMajor, -1, -1>;
-    using SmallTileD = pto::Tile<pto::TileType::Vec, OutputElement, kCombineSmallTokenSubtileRows,
-                                 kCombineSmallTokenSubtileCols, pto::BLayout::RowMajor, -1, -1>;
+    using SmallTileC = pto::Tile<
+        pto::TileType::Vec, half, kCombineSmallTokenSubtileRows, kCombineSmallTokenSubtileCols, pto::BLayout::RowMajor,
+        -1, -1>;
+    using SmallTileFp32 = pto::Tile<
+        pto::TileType::Vec, float, kCombineSmallTokenSubtileRows, kCombineSmallTokenSubtileCols, pto::BLayout::RowMajor,
+        -1, -1>;
+    using SmallTileD = pto::Tile<
+        pto::TileType::Vec, OutputElement, kCombineSmallTokenSubtileRows, kCombineSmallTokenSubtileCols,
+        pto::BLayout::RowMajor, -1, -1>;
 
-    AICORE inline uint64_t TokenVolume() const
-    {
-        return static_cast<uint64_t>(problemM_) * topK_;
-    }
-    AICORE inline bool IsSmallTokenPath() const
-    {
-        return TokenVolume() <= kCombineSmallTokenThreshold;
-    }
-    AICORE inline uint32_t CombineImplMode() const
-    {
-        return tilingData_->combineTiling.combineImplMode;
-    }
+    AICORE inline uint64_t TokenVolume() const { return static_cast<uint64_t>(problemM_) * topK_; }
+    AICORE inline bool IsSmallTokenPath() const { return TokenVolume() <= kCombineSmallTokenThreshold; }
+    AICORE inline uint32_t CombineImplMode() const { return tilingData_->combineTiling.combineImplMode; }
     AICORE inline bool DirectLargeEnabled() const
     {
         const uint32_t mode = CombineImplMode();
@@ -103,10 +98,7 @@ private:
         }
         return static_cast<uint32_t>(cumsumMMPtr_[static_cast<uint64_t>(srcRank - 1U) * expertPerRank_ + groupIdx]);
     }
-    AICORE inline uint32_t GlobalExpert(uint32_t groupIdx) const
-    {
-        return rank_ * expertPerRank_ + groupIdx;
-    }
+    AICORE inline uint32_t GlobalExpert(uint32_t groupIdx) const { return rank_ * expertPerRank_ + groupIdx; }
     AICORE inline uint32_t RowsRaw(uint32_t srcRank, uint32_t groupIdx) const
     {
         return static_cast<uint32_t>(
@@ -146,22 +138,10 @@ private:
         const uint32_t end = LargeLaneRowBegin(rows, laneIdx + 1U, lanesPerRank);
         return end > begin ? end - begin : 0U;
     }
-    AICORE inline event_t LoadFreeEvent(uint32_t bufferId) const
-    {
-        return static_cast<event_t>(bufferId);
-    }
-    AICORE inline event_t LoadReadyEvent(uint32_t bufferId) const
-    {
-        return static_cast<event_t>(bufferId + 2U);
-    }
-    AICORE inline event_t StoreFreeEvent(uint32_t bufferId) const
-    {
-        return static_cast<event_t>(bufferId);
-    }
-    AICORE inline event_t StoreReadyEvent(uint32_t bufferId) const
-    {
-        return static_cast<event_t>(bufferId + 2U);
-    }
+    AICORE inline event_t LoadFreeEvent(uint32_t bufferId) const { return static_cast<event_t>(bufferId); }
+    AICORE inline event_t LoadReadyEvent(uint32_t bufferId) const { return static_cast<event_t>(bufferId + 2U); }
+    AICORE inline event_t StoreFreeEvent(uint32_t bufferId) const { return static_cast<event_t>(bufferId); }
+    AICORE inline event_t StoreReadyEvent(uint32_t bufferId) const { return static_cast<event_t>(bufferId + 2U); }
     AICORE inline void InitUbLayout();
     AICORE inline void SetInitialFlags() const;
     AICORE inline void FinalizeLocalPipe() const;
@@ -169,30 +149,31 @@ private:
     AICORE inline bool ResetTokenPerExpert(uint32_t elems) const;
     AICORE inline void ProcessFinalBoundary();
     AICORE inline void WaitGmm2Ready(uint32_t groupIdx, bool aivSyncAfterWait) const;
-    AICORE inline void ProcessDirectLargeSegmentRows(uint32_t srcRank, uint32_t srcRowOffset, uint32_t rows,
-                                                     uint32_t dstRowOffset);
+    AICORE inline void ProcessDirectLargeSegmentRows(
+        uint32_t srcRank, uint32_t srcRowOffset, uint32_t rows, uint32_t dstRowOffset);
     AICORE inline void ProcessDirectLargeTokenPath();
-    AICORE inline void LoadSmallSubtile(uint32_t bufferId, uint32_t srcRowOffset, uint32_t rowNum, uint32_t colBegin,
-                                        uint32_t colNum) const;
+    AICORE inline void LoadSmallSubtile(
+        uint32_t bufferId, uint32_t srcRowOffset, uint32_t rowNum, uint32_t colBegin, uint32_t colNum) const;
     AICORE inline void DequantDirectSmallSubtile(uint32_t bufferId, uint32_t rowNum, uint32_t colNum);
-    AICORE inline void StoreSmallSubtileIntersection(uint32_t bufferId, __gm__ OutputElement *dstBase,
-                                                     uint32_t dstRowOffset, uint32_t ubRowOffset, uint32_t rowNum,
-                                                     uint32_t colBegin, uint32_t colNum);
-    AICORE inline void StoreSmallSubtileToRanks(uint32_t groupIdx, const GmmCommonTileInfo &tileInfo,
-                                                uint32_t tileRowBegin, uint32_t rows, uint32_t bufferId);
-    AICORE inline void ProcessDirectSmallTile(uint32_t groupIdx, uint32_t groupBase, const GmmCommonTileInfo &tileInfo,
-                                              uint32_t subtileBegin, uint32_t subtileCount);
+    AICORE inline void StoreSmallSubtileIntersection(
+        uint32_t bufferId, __gm__ OutputElement* dstBase, uint32_t dstRowOffset, uint32_t ubRowOffset, uint32_t rowNum,
+        uint32_t colBegin, uint32_t colNum);
+    AICORE inline void StoreSmallSubtileToRanks(
+        uint32_t groupIdx, const GmmCommonTileInfo& tileInfo, uint32_t tileRowBegin, uint32_t rows, uint32_t bufferId);
+    AICORE inline void ProcessDirectSmallTile(
+        uint32_t groupIdx, uint32_t groupBase, const GmmCommonTileInfo& tileInfo, uint32_t subtileBegin,
+        uint32_t subtileCount);
     AICORE inline void ProcessDirectSmallTokenPath();
 
-    const __gm__ MegaMoeTilingData *tilingData_ = nullptr;
+    const __gm__ MegaMoeTilingData* tilingData_ = nullptr;
 
     PtoRemoteWindow remoteWindow_;
     MegaMoePeerMemoryLayout peerMemoryLayout_;
-    __gm__ half *gmm2OutputPtr_ = nullptr;
-    __gm__ float *perTokenScale2Ptr_ = nullptr;
-    __gm__ int32_t *cumsumMMPtr_ = nullptr;
-    __gm__ int32_t *preSumBeforeRankPtr_ = nullptr;
-    __gm__ int32_t *tokenPerExpertPtr_ = nullptr;
+    __gm__ half* gmm2OutputPtr_ = nullptr;
+    __gm__ float* perTokenScale2Ptr_ = nullptr;
+    __gm__ int32_t* cumsumMMPtr_ = nullptr;
+    __gm__ int32_t* preSumBeforeRankPtr_ = nullptr;
+    __gm__ int32_t* tokenPerExpertPtr_ = nullptr;
 
     uint32_t problemM_ = 0;
     uint32_t problemK_ = 0;
@@ -213,7 +194,7 @@ private:
 };
 
 template <typename OutputElement>
-AICORE inline void Combine<OutputElement>::Init(GM_ADDR workspaceGM, const __gm__ MegaMoeTilingData *tilingData)
+AICORE inline void Combine<OutputElement>::Init(GM_ADDR workspaceGM, const __gm__ MegaMoeTilingData* tilingData)
 {
     tilingData_ = tilingData;
     pingpongId_ = 0;
@@ -236,14 +217,13 @@ AICORE inline void Combine<OutputElement>::Init(GM_ADDR workspaceGM, const __gm_
     remoteWindow_.Init(reinterpret_cast<GM_ADDR>(tilingData_->runtimeInfo.remoteWindowContext));
     peerMemoryLayout_.Init(remoteWindow_);
 
-    gmm2OutputPtr_ = reinterpret_cast<__gm__ half *>(workspaceGM + tilingData_->combineTiling.gmm2OutputOffset);
-    perTokenScale2Ptr_ =
-        reinterpret_cast<__gm__ float *>(workspaceGM + tilingData_->combineTiling.perTokenScale2Offset);
-    cumsumMMPtr_ = reinterpret_cast<__gm__ int32_t *>(workspaceGM + tilingData_->frontReorderTiling.cumsumMMOffset);
+    gmm2OutputPtr_ = reinterpret_cast<__gm__ half*>(workspaceGM + tilingData_->combineTiling.gmm2OutputOffset);
+    perTokenScale2Ptr_ = reinterpret_cast<__gm__ float*>(workspaceGM + tilingData_->combineTiling.perTokenScale2Offset);
+    cumsumMMPtr_ = reinterpret_cast<__gm__ int32_t*>(workspaceGM + tilingData_->frontReorderTiling.cumsumMMOffset);
     preSumBeforeRankPtr_ =
-        reinterpret_cast<__gm__ int32_t *>(workspaceGM + tilingData_->frontReorderTiling.preSumBeforeRankOffset);
+        reinterpret_cast<__gm__ int32_t*>(workspaceGM + tilingData_->frontReorderTiling.preSumBeforeRankOffset);
     tokenPerExpertPtr_ =
-        reinterpret_cast<__gm__ int32_t *>(remoteWindow_.LocalBase() + peerMemoryLayout_.offsetPeerTokenPerExpert);
+        reinterpret_cast<__gm__ int32_t*>(remoteWindow_.LocalBase() + peerMemoryLayout_.offsetPeerTokenPerExpert);
 
     InitUbLayout();
 }
@@ -336,13 +316,13 @@ AICORE inline void Combine<OutputElement>::WaitGmm2Ready(uint32_t groupIdx, bool
 }
 
 template <typename OutputElement>
-AICORE inline void Combine<OutputElement>::ProcessDirectLargeSegmentRows(uint32_t srcRank, uint32_t srcRowOffset,
-                                                                         uint32_t rows, uint32_t dstRowOffset)
+AICORE inline void Combine<OutputElement>::ProcessDirectLargeSegmentRows(
+    uint32_t srcRank, uint32_t srcRowOffset, uint32_t rows, uint32_t dstRowOffset)
 {
     if (rows == 0U) {
         return;
     }
-    __gm__ OutputElement *dstBase = reinterpret_cast<__gm__ OutputElement *>(
+    __gm__ OutputElement* dstBase = reinterpret_cast<__gm__ OutputElement*>(
         remoteWindow_.RemoteBase(peerMemoryLayout_.offsetD, static_cast<int32_t>(srcRank)));
     if (dstBase == nullptr) {
         return;
@@ -420,15 +400,16 @@ AICORE inline void Combine<OutputElement>::ProcessDirectLargeTokenPath()
 }
 
 template <typename OutputElement>
-AICORE inline void Combine<OutputElement>::LoadSmallSubtile(uint32_t bufferId, uint32_t srcRowOffset, uint32_t rowNum,
-                                                            uint32_t colBegin, uint32_t colNum) const
+AICORE inline void Combine<OutputElement>::LoadSmallSubtile(
+    uint32_t bufferId, uint32_t srcRowOffset, uint32_t rowNum, uint32_t colBegin, uint32_t colNum) const
 {
     wait_flag(PIPE_V, PIPE_MTE2, LoadFreeEvent(bufferId));
     SmallTileC cTile(rowNum, colNum);
     pto::TASSIGN(cTile, ubCOffset_[bufferId]);
     BlockShape cShape(rowNum, colNum);
-    BlockStride cStride(static_cast<int64_t>(rowNum) * problemK_, static_cast<int64_t>(rowNum) * problemK_,
-                        static_cast<int64_t>(rowNum) * problemK_, problemK_);
+    BlockStride cStride(
+        static_cast<int64_t>(rowNum) * problemK_, static_cast<int64_t>(rowNum) * problemK_,
+        static_cast<int64_t>(rowNum) * problemK_, problemK_);
     CBlockGlobal cGlobal(gmm2OutputPtr_ + static_cast<uint64_t>(srcRowOffset) * problemK_ + colBegin, cShape, cStride);
     pto::TLOAD(cTile, cGlobal);
 
@@ -446,8 +427,8 @@ AICORE inline void Combine<OutputElement>::LoadSmallSubtile(uint32_t bufferId, u
 }
 
 template <typename OutputElement>
-AICORE inline void Combine<OutputElement>::DequantDirectSmallSubtile(uint32_t bufferId, uint32_t rowNum,
-                                                                     uint32_t colNum)
+AICORE inline void Combine<OutputElement>::DequantDirectSmallSubtile(
+    uint32_t bufferId, uint32_t rowNum, uint32_t colNum)
 {
     wait_flag(PIPE_MTE2, PIPE_V, LoadReadyEvent(bufferId));
     SmallTileFp32 fp32Tile(rowNum, colNum);
@@ -464,8 +445,9 @@ AICORE inline void Combine<OutputElement>::DequantDirectSmallSubtile(uint32_t bu
     for (uint32_t row = 0; row < rowNum; ++row) {
         const float scale = scaleTile.GetValue(row);
         SmallTileFp32 rowTile(1, colNum);
-        pto::TASSIGN(rowTile, ubFp32Offset_[bufferId] +
-                                  static_cast<uint64_t>(row) * kCombineSmallTokenSubtileCols * sizeof(float));
+        pto::TASSIGN(
+            rowTile,
+            ubFp32Offset_[bufferId] + static_cast<uint64_t>(row) * kCombineSmallTokenSubtileCols * sizeof(float));
         pto::TMULS(rowTile, rowTile, scale);
     }
     pipe_barrier(PIPE_V);
@@ -477,27 +459,25 @@ AICORE inline void Combine<OutputElement>::DequantDirectSmallSubtile(uint32_t bu
 }
 
 template <typename OutputElement>
-AICORE inline void Combine<OutputElement>::StoreSmallSubtileIntersection(uint32_t bufferId,
-                                                                         __gm__ OutputElement *dstBase,
-                                                                         uint32_t dstRowOffset, uint32_t ubRowOffset,
-                                                                         uint32_t rowNum, uint32_t colBegin,
-                                                                         uint32_t colNum)
+AICORE inline void Combine<OutputElement>::StoreSmallSubtileIntersection(
+    uint32_t bufferId, __gm__ OutputElement* dstBase, uint32_t dstRowOffset, uint32_t ubRowOffset, uint32_t rowNum,
+    uint32_t colBegin, uint32_t colNum)
 {
     SmallTileD dTile(rowNum, colNum);
-    pto::TASSIGN(dTile, ubDOffset_[bufferId] +
-                            static_cast<uint64_t>(ubRowOffset) * kCombineSmallTokenSubtileCols * sizeof(OutputElement));
+    pto::TASSIGN(
+        dTile, ubDOffset_[bufferId] +
+                   static_cast<uint64_t>(ubRowOffset) * kCombineSmallTokenSubtileCols * sizeof(OutputElement));
     BlockShape dShape(rowNum, colNum);
-    BlockStride dStride(static_cast<int64_t>(rowNum) * problemK_, static_cast<int64_t>(rowNum) * problemK_,
-                        static_cast<int64_t>(rowNum) * problemK_, problemK_);
+    BlockStride dStride(
+        static_cast<int64_t>(rowNum) * problemK_, static_cast<int64_t>(rowNum) * problemK_,
+        static_cast<int64_t>(rowNum) * problemK_, problemK_);
     DBlockGlobal dGlobal(dstBase + static_cast<uint64_t>(dstRowOffset) * problemK_ + colBegin, dShape, dStride);
     pto::TSTORE(dGlobal, dTile);
 }
 
 template <typename OutputElement>
-AICORE inline void Combine<OutputElement>::StoreSmallSubtileToRanks(uint32_t groupIdx,
-                                                                    const GmmCommonTileInfo &tileInfo,
-                                                                    uint32_t tileRowBegin, uint32_t rows,
-                                                                    uint32_t bufferId)
+AICORE inline void Combine<OutputElement>::StoreSmallSubtileToRanks(
+    uint32_t groupIdx, const GmmCommonTileInfo& tileInfo, uint32_t tileRowBegin, uint32_t rows, uint32_t bufferId)
 {
     const uint32_t stTile = tileRowBegin;
     const uint32_t edTile = tileRowBegin + rows;
@@ -523,11 +503,12 @@ AICORE inline void Combine<OutputElement>::StoreSmallSubtileToRanks(uint32_t gro
         }
         const uint32_t lenData = edData - stData;
         const uint32_t dstOffsetInExpert = stTile > stRankInExpert ? stTile - stRankInExpert : 0U;
-        __gm__ OutputElement *dstBase = reinterpret_cast<__gm__ OutputElement *>(
+        __gm__ OutputElement* dstBase = reinterpret_cast<__gm__ OutputElement*>(
             remoteWindow_.RemoteBase(peerMemoryLayout_.offsetD, static_cast<int32_t>(srcRank)));
         if (dstBase != nullptr) {
-            StoreSmallSubtileIntersection(bufferId, dstBase, dstExpertOffset + dstOffsetInExpert, tileOffset, lenData,
-                                          tileInfo.blockColStart, tileInfo.actualN);
+            StoreSmallSubtileIntersection(
+                bufferId, dstBase, dstExpertOffset + dstOffsetInExpert, tileOffset, lenData, tileInfo.blockColStart,
+                tileInfo.actualN);
         }
         tileOffset += lenData;
     }
@@ -535,9 +516,9 @@ AICORE inline void Combine<OutputElement>::StoreSmallSubtileToRanks(uint32_t gro
 }
 
 template <typename OutputElement>
-AICORE inline void Combine<OutputElement>::ProcessDirectSmallTile(uint32_t groupIdx, uint32_t groupBase,
-                                                                  const GmmCommonTileInfo &tileInfo,
-                                                                  uint32_t subtileBegin, uint32_t subtileCount)
+AICORE inline void Combine<OutputElement>::ProcessDirectSmallTile(
+    uint32_t groupIdx, uint32_t groupBase, const GmmCommonTileInfo& tileInfo, uint32_t subtileBegin,
+    uint32_t subtileCount)
 {
     for (uint32_t subtile = 0; subtile < subtileCount; ++subtile) {
         const uint32_t rowInTile = (subtileBegin + subtile) * kCombineSmallTokenSubtileRows;

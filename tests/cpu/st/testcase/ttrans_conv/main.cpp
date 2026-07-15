@@ -14,33 +14,34 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace PtoTestCommon;
 
-template <typename T, int format, int srcShape0, int srcShape1, int srcShape2, int srcShape3, int srcShape4,
-          int dstShape0, int dstShape1, int dstShape2, int dstShape3, int dstShape4, int dstShape5, int groupN>
-void LaunchTTRANSConv(T *out, T *src, void *stream);
+template <
+    typename T, int format, int srcShape0, int srcShape1, int srcShape2, int srcShape3, int srcShape4, int dstShape0,
+    int dstShape1, int dstShape2, int dstShape3, int dstShape4, int dstShape5, int groupN>
+void LaunchTTRANSConv(T* out, T* src, void* stream);
 
-template <typename MXType, int format, int srcShape0, int srcShape1, int srcShape2, int srcShape3, int srcShape4,
-          int dstShape0, int dstShape1, int dstShape2, int dstShape3, int dstShape4, int dstShape5, int groupN>
-void LaunchTTRANSConvMX(uint8_t *out, uint8_t *src, void *stream);
+template <
+    typename MXType, int format, int srcShape0, int srcShape1, int srcShape2, int srcShape3, int srcShape4,
+    int dstShape0, int dstShape1, int dstShape2, int dstShape3, int dstShape4, int dstShape5, int groupN>
+void LaunchTTRANSConvMX(uint8_t* out, uint8_t* src, void* stream);
 
 class TTRANSConvTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, int format, int srcShape0, int srcShape1, int srcShape2, int srcShape3, int srcShape4,
-          int dstShape0, int dstShape1, int dstShape2, int dstShape3, int dstShape4, int dstShape5 = 1, int groupN = 1>
+template <
+    typename T, int format, int srcShape0, int srcShape1, int srcShape2, int srcShape3, int srcShape4, int dstShape0,
+    int dstShape1, int dstShape2, int dstShape3, int dstShape4, int dstShape5 = 1, int groupN = 1>
 void test_ttrans()
 {
     size_t srcFileSize = srcShape0 * srcShape1 * srcShape2 * srcShape3 * srcShape4 * groupN * sizeof(T);
@@ -54,18 +55,19 @@ void test_ttrans()
     T *dstHost, *srcHost;
     T *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
 
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", srcFileSize, srcHost, srcFileSize);
 
     aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
-    LaunchTTRANSConv<T, format, srcShape0, srcShape1, srcShape2, srcShape3, srcShape4, dstShape0, dstShape1, dstShape2,
-                     dstShape3, dstShape4, dstShape5, groupN>(dstDevice, srcDevice, stream);
+    LaunchTTRANSConv<
+        T, format, srcShape0, srcShape1, srcShape2, srcShape3, srcShape4, dstShape0, dstShape1, dstShape2, dstShape3,
+        dstShape4, dstShape5, groupN>(dstDevice, srcDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, dstFileSize, dstDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -91,8 +93,9 @@ void test_ttrans()
     EXPECT_TRUE(ret);
 }
 
-template <typename MXType, int format, int srcShape0, int srcShape1, int srcShape2, int srcShape3, int srcShape4,
-          int dstShape0, int dstShape1, int dstShape2, int dstShape3, int dstShape4, int dstShape5 = 1, int groupN = 1>
+template <
+    typename MXType, int format, int srcShape0, int srcShape1, int srcShape2, int srcShape3, int srcShape4,
+    int dstShape0, int dstShape1, int dstShape2, int dstShape3, int dstShape4, int dstShape5 = 1, int groupN = 1>
 void test_ttrans_MX()
 {
     size_t srcFileSize = srcShape0 * srcShape1 * srcShape2 * srcShape3 * srcShape4 * groupN * sizeof(uint8_t);
@@ -111,18 +114,19 @@ void test_ttrans_MX()
     uint8_t *dstHost, *srcHost;
     uint8_t *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstFileSize * 2);
-    aclrtMallocHost((void **)(&srcHost), srcFileSize * 2);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize * 2);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize * 2);
 
-    aclrtMalloc((void **)&dstDevice, dstFileSize * 2, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcFileSize * 2, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstFileSize * 2, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcFileSize * 2, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", srcFileSize, srcHost, srcFileSize);
 
     aclrtMemcpy(srcDevice, srcFileSize * 2, srcHost, srcFileSize * 2, ACL_MEMCPY_HOST_TO_DEVICE);
 
-    LaunchTTRANSConvMX<MXType, format, srcShape0, srcShape1, srcShape2, srcShape3, srcShape4, dstShape0, dstShape1,
-                       dstShape2, dstShape3, dstShape4, dstShape5, groupN>(dstDevice, srcDevice, stream);
+    LaunchTTRANSConvMX<
+        MXType, format, srcShape0, srcShape1, srcShape2, srcShape3, srcShape4, dstShape0, dstShape1, dstShape2,
+        dstShape3, dstShape4, dstShape5, groupN>(dstDevice, srcDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, dstFileSize * 2, dstDevice, dstFileSize * 2, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -148,74 +152,35 @@ void test_ttrans_MX()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TTRANSConvTest, NCHW2NC1HWC0_1)
-{
-    test_ttrans<float, 0, 5, 4, 3, 8, 1, 5, 1, 3, 8, 8>();
-}
+TEST_F(TTRANSConvTest, NCHW2NC1HWC0_1) { test_ttrans<float, 0, 5, 4, 3, 8, 1, 5, 1, 3, 8, 8>(); }
 
-TEST_F(TTRANSConvTest, NCHW2NC1HWC0_2)
-{
-    test_ttrans<int32_t, 0, 5, 14, 13, 16, 1, 5, 2, 13, 16, 8>();
-}
+TEST_F(TTRANSConvTest, NCHW2NC1HWC0_2) { test_ttrans<int32_t, 0, 5, 14, 13, 16, 1, 5, 2, 13, 16, 8>(); }
 
-TEST_F(TTRANSConvTest, NCHW2NC1HWC0_3)
-{
-    test_ttrans<uint16_t, 0, 1, 11, 13, 16, 1, 1, 1, 13, 16, 16>();
-}
+TEST_F(TTRANSConvTest, NCHW2NC1HWC0_3) { test_ttrans<uint16_t, 0, 1, 11, 13, 16, 1, 1, 1, 13, 16, 16>(); }
 
-TEST_F(TTRANSConvTest, NCHW2NC1HWC0_4)
-{
-    test_ttrans<int32_t, 0, 4, 32, 3, 7, 1, 4, 4, 3, 7, 8>();
-}
+TEST_F(TTRANSConvTest, NCHW2NC1HWC0_4) { test_ttrans<int32_t, 0, 4, 32, 3, 7, 1, 4, 4, 3, 7, 8>(); }
 
-TEST_F(TTRANSConvTest, NCHW2NC1HWC0_5)
-{
-    test_ttrans<int8_t, 0, 4, 32, 3, 7, 1, 4, 1, 3, 7, 32>();
-}
+TEST_F(TTRANSConvTest, NCHW2NC1HWC0_5) { test_ttrans<int8_t, 0, 4, 32, 3, 7, 1, 4, 1, 3, 7, 32>(); }
 
-TEST_F(TTRANSConvTest, NCHW2NC1HWC0_MX_e8m0)
-{
-    test_ttrans_MX<float8_e8m0_t, 0, 4, 32, 3, 7, 1, 4, 1, 3, 7, 32>();
-}
+TEST_F(TTRANSConvTest, NCHW2NC1HWC0_MX_e8m0) { test_ttrans_MX<float8_e8m0_t, 0, 4, 32, 3, 7, 1, 4, 1, 3, 7, 32>(); }
 
 /*------------------------------------------------*/
 
-TEST_F(TTRANSConvTest, NC1HWC02NCHW_1)
-{
-    test_ttrans<float, 1, 5, 3, 3, 4, 8, 5, 24, 3, 4, 1>();
-}
+TEST_F(TTRANSConvTest, NC1HWC02NCHW_1) { test_ttrans<float, 1, 5, 3, 3, 4, 8, 5, 24, 3, 4, 1>(); }
 
-TEST_F(TTRANSConvTest, NC1HWC02NCHW_2)
-{
-    test_ttrans<int32_t, 1, 5, 2, 4, 5, 8, 5, 16, 4, 5, 1>();
-}
+TEST_F(TTRANSConvTest, NC1HWC02NCHW_2) { test_ttrans<int32_t, 1, 5, 2, 4, 5, 8, 5, 16, 4, 5, 1>(); }
 
 /*------------------------------------------------*/
 
-TEST_F(TTRANSConvTest, NC1HWC02C1HWN1N0C0_1)
-{
-    test_ttrans<float, 2, 25, 4, 3, 8, 8, 4, 3, 8, 2, 16, 8>();
-}
+TEST_F(TTRANSConvTest, NC1HWC02C1HWN1N0C0_1) { test_ttrans<float, 2, 25, 4, 3, 8, 8, 4, 3, 8, 2, 16, 8>(); }
 
-TEST_F(TTRANSConvTest, NC1HWC02C1HWN1N0C0_2)
-{
-    test_ttrans<int32_t, 2, 15, 2, 3, 16, 8, 2, 3, 16, 2, 8, 8>();
-}
+TEST_F(TTRANSConvTest, NC1HWC02C1HWN1N0C0_2) { test_ttrans<int32_t, 2, 15, 2, 3, 16, 8, 2, 3, 16, 2, 8, 8>(); }
 
-TEST_F(TTRANSConvTest, NC1HWC02C1HWN1N0C0_3)
-{
-    test_ttrans<uint16_t, 2, 11, 3, 2, 16, 16, 3, 2, 16, 2, 8, 16>();
-}
+TEST_F(TTRANSConvTest, NC1HWC02C1HWN1N0C0_3) { test_ttrans<uint16_t, 2, 11, 3, 2, 16, 16, 3, 2, 16, 2, 8, 16>(); }
 
-TEST_F(TTRANSConvTest, NC1HWC02C1HWN1N0C0_4)
-{
-    test_ttrans<int32_t, 2, 4, 32, 3, 7, 8, 32, 3, 7, 1, 4, 8>();
-}
+TEST_F(TTRANSConvTest, NC1HWC02C1HWN1N0C0_4) { test_ttrans<int32_t, 2, 4, 32, 3, 7, 8, 32, 3, 7, 1, 4, 8>(); }
 
-TEST_F(TTRANSConvTest, NC1HWC02C1HWN1N0C0_5)
-{
-    test_ttrans<int8_t, 2, 4, 2, 3, 7, 32, 2, 3, 7, 1, 8, 32>();
-}
+TEST_F(TTRANSConvTest, NC1HWC02C1HWN1N0C0_5) { test_ttrans<int8_t, 2, 4, 2, 3, 7, 32, 2, 3, 7, 1, 8, 32>(); }
 
 TEST_F(TTRANSConvTest, NC1HWC02C1HWN1N0C0_MX_e4m3)
 {
@@ -224,30 +189,15 @@ TEST_F(TTRANSConvTest, NC1HWC02C1HWN1N0C0_MX_e4m3)
 
 /*------------------------------------------------*/
 
-TEST_F(TTRANSConvTest, GNCHW2GNC1HWC0_1)
-{
-    test_ttrans<float, 3, 5, 4, 3, 8, 1, 5, 1, 3, 8, 8, 1, 4>();
-}
+TEST_F(TTRANSConvTest, GNCHW2GNC1HWC0_1) { test_ttrans<float, 3, 5, 4, 3, 8, 1, 5, 1, 3, 8, 8, 1, 4>(); }
 
-TEST_F(TTRANSConvTest, GNCHW2GNC1HWC0_2)
-{
-    test_ttrans<int32_t, 3, 5, 14, 13, 8, 1, 5, 2, 13, 8, 8, 1, 2>();
-}
+TEST_F(TTRANSConvTest, GNCHW2GNC1HWC0_2) { test_ttrans<int32_t, 3, 5, 14, 13, 8, 1, 5, 2, 13, 8, 8, 1, 2>(); }
 
-TEST_F(TTRANSConvTest, GNCHW2GNC1HWC0_3)
-{
-    test_ttrans<uint16_t, 3, 1, 11, 13, 16, 1, 1, 1, 13, 16, 16, 1, 3>();
-}
+TEST_F(TTRANSConvTest, GNCHW2GNC1HWC0_3) { test_ttrans<uint16_t, 3, 1, 11, 13, 16, 1, 1, 1, 13, 16, 16, 1, 3>(); }
 
-TEST_F(TTRANSConvTest, GNCHW2GNC1HWC0_4)
-{
-    test_ttrans<int32_t, 3, 4, 32, 3, 7, 1, 4, 4, 3, 7, 8, 1, 1>();
-}
+TEST_F(TTRANSConvTest, GNCHW2GNC1HWC0_4) { test_ttrans<int32_t, 3, 4, 32, 3, 7, 1, 4, 4, 3, 7, 8, 1, 1>(); }
 
-TEST_F(TTRANSConvTest, GNCHW2GNC1HWC0_5)
-{
-    test_ttrans<int8_t, 3, 4, 32, 3, 7, 1, 4, 1, 3, 7, 32, 1, 3>();
-}
+TEST_F(TTRANSConvTest, GNCHW2GNC1HWC0_5) { test_ttrans<int8_t, 3, 4, 32, 3, 7, 1, 4, 1, 3, 7, 32, 1, 3>(); }
 
 // TEST_F(TTRANSConvTest, GNCHW2GNC1HWC0_MX_e2m1)
 // {
@@ -261,39 +211,18 @@ TEST_F(TTRANSConvTest, GNCHW2GNC1HWC0_MXFP4_e2m1)
 
 /*------------------------------------------*/
 
-TEST_F(TTRANSConvTest, GNC1HWC02C1HWN1N0C0_1)
-{
-    test_ttrans<float, 4, 25, 4, 3, 4, 8, 4, 3, 4, 2, 16, 8, 2>();
-}
+TEST_F(TTRANSConvTest, GNC1HWC02C1HWN1N0C0_1) { test_ttrans<float, 4, 25, 4, 3, 4, 8, 4, 3, 4, 2, 16, 8, 2>(); }
 
-TEST_F(TTRANSConvTest, GNC1HWC02C1HWN1N0C0_2)
-{
-    test_ttrans<int32_t, 4, 15, 2, 3, 4, 8, 2, 3, 4, 2, 8, 8, 3>();
-}
+TEST_F(TTRANSConvTest, GNC1HWC02C1HWN1N0C0_2) { test_ttrans<int32_t, 4, 15, 2, 3, 4, 8, 2, 3, 4, 2, 8, 8, 3>(); }
 
-TEST_F(TTRANSConvTest, GNC1HWC02C1HWN1N0C0_3)
-{
-    test_ttrans<uint16_t, 4, 11, 3, 2, 16, 16, 3, 2, 16, 2, 8, 16, 2>();
-}
+TEST_F(TTRANSConvTest, GNC1HWC02C1HWN1N0C0_3) { test_ttrans<uint16_t, 4, 11, 3, 2, 16, 16, 3, 2, 16, 2, 8, 16, 2>(); }
 
-TEST_F(TTRANSConvTest, GNC1HWC02C1HWN1N0C0_4)
-{
-    test_ttrans<int32_t, 4, 4, 8, 3, 7, 8, 8, 3, 7, 1, 4, 8, 3>();
-}
+TEST_F(TTRANSConvTest, GNC1HWC02C1HWN1N0C0_4) { test_ttrans<int32_t, 4, 4, 8, 3, 7, 8, 8, 3, 7, 1, 4, 8, 3>(); }
 
-TEST_F(TTRANSConvTest, GNC1HWC02C1HWN1N0C0_5)
-{
-    test_ttrans<int8_t, 4, 4, 2, 3, 7, 32, 2, 3, 7, 1, 8, 32, 1>();
-}
+TEST_F(TTRANSConvTest, GNC1HWC02C1HWN1N0C0_5) { test_ttrans<int8_t, 4, 4, 2, 3, 7, 32, 2, 3, 7, 1, 8, 32, 1>(); }
 
 /*---------------------------------------------------------------*/
 
-TEST_F(TTRANSConvTest, NCDHW2C1DHWN1N0C0_1)
-{
-    test_ttrans<float, 5, 5, 3, 3, 4, 8, 96, 1, 16, 8, 1>();
-}
+TEST_F(TTRANSConvTest, NCDHW2C1DHWN1N0C0_1) { test_ttrans<float, 5, 5, 3, 3, 4, 8, 96, 1, 16, 8, 1>(); }
 
-TEST_F(TTRANSConvTest, NCDHW2C1DHWN1N0C0_2)
-{
-    test_ttrans<int32_t, 5, 18, 2, 4, 5, 3, 60, 2, 16, 8, 1>();
-}
+TEST_F(TTRANSConvTest, NCDHW2C1DHWN1N0C0_2) { test_ttrans<int32_t, 5, 18, 2, 4, 5, 3, 60, 2, 16, 8, 1>(); }

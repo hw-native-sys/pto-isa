@@ -15,7 +15,7 @@ using namespace std;
 using namespace pto;
 
 template <typename T, uint32_t ROWS_, uint32_t COLS_, uint32_t VALID_R_, uint32_t VALID_C, uint32_t ALIGN_C>
-AICORE void runTSORT32(__gm__ T *out, __gm__ T *src, __gm__ uint32_t *idx)
+AICORE void runTSORT32(__gm__ T* out, __gm__ T* src, __gm__ uint32_t* idx)
 {
     constexpr uint32_t TYPE_COEF = sizeof(float) / sizeof(T);
     constexpr uint32_t VALID_C_32B_aligned = PTO_CEIL(VALID_C, 32 / sizeof(uint32_t));
@@ -70,18 +70,18 @@ AICORE void runTSORT32(__gm__ T *out, __gm__ T *src, __gm__ uint32_t *idx)
     out = dstGlobal.data();
 }
 
-extern "C" __global__ AICORE void launchTSORT32_1(__gm__ uint64_t *out, __gm__ uint64_t *src, __gm__ uint32_t *idx)
+extern "C" __global__ AICORE void launchTSORT32_1(__gm__ uint64_t* out, __gm__ uint64_t* src, __gm__ uint32_t* idx)
 {
     constexpr uint32_t ROWS = 2;
     constexpr uint32_t COLS = 32;
     constexpr uint32_t VALID_R = 2;
     constexpr uint32_t VALID_C = 32;
     constexpr uint32_t ALIGN_C = (VALID_C + 31 - 1) / 32 * 32;
-    runTSORT32<float, ROWS, COLS, VALID_R, VALID_C, ALIGN_C>(reinterpret_cast<__gm__ float *>(out),
-                                                             reinterpret_cast<__gm__ float *>(src), idx);
+    runTSORT32<float, ROWS, COLS, VALID_R, VALID_C, ALIGN_C>(
+        reinterpret_cast<__gm__ float*>(out), reinterpret_cast<__gm__ float*>(src), idx);
 }
 
-extern "C" __global__ AICORE void launchTSORT32_2(__gm__ uint64_t *out, __gm__ uint64_t *src, __gm__ uint32_t *idx)
+extern "C" __global__ AICORE void launchTSORT32_2(__gm__ uint64_t* out, __gm__ uint64_t* src, __gm__ uint32_t* idx)
 {
     constexpr uint32_t ROWS = 4;
     constexpr uint32_t COLS = 64;
@@ -89,11 +89,11 @@ extern "C" __global__ AICORE void launchTSORT32_2(__gm__ uint64_t *out, __gm__ u
     constexpr uint32_t VALID_C = 64;
     constexpr uint32_t ALIGN_C = (VALID_C + 31 - 1) / 32 * 32;
 
-    runTSORT32<half, ROWS, COLS, VALID_R, VALID_C, ALIGN_C>(reinterpret_cast<__gm__ half *>(out),
-                                                            reinterpret_cast<__gm__ half *>(src), idx);
+    runTSORT32<half, ROWS, COLS, VALID_R, VALID_C, ALIGN_C>(
+        reinterpret_cast<__gm__ half*>(out), reinterpret_cast<__gm__ half*>(src), idx);
 }
 
-extern "C" __global__ AICORE void launchTSORT32_3(__gm__ uint64_t *out, __gm__ uint64_t *src, __gm__ uint32_t *idx)
+extern "C" __global__ AICORE void launchTSORT32_3(__gm__ uint64_t* out, __gm__ uint64_t* src, __gm__ uint32_t* idx)
 {
     constexpr uint32_t ROWS = 1;
     constexpr uint32_t COLS = 256 * 32;
@@ -101,11 +101,11 @@ extern "C" __global__ AICORE void launchTSORT32_3(__gm__ uint64_t *out, __gm__ u
     constexpr uint32_t VALID_C = 256 * 32;
     constexpr uint32_t ALIGN_C = (VALID_C + 31 - 1) / 32 * 32;
 
-    runTSORT32<float, ROWS, COLS, VALID_R, VALID_C, ALIGN_C>(reinterpret_cast<__gm__ float *>(out),
-                                                             reinterpret_cast<__gm__ float *>(src), idx);
+    runTSORT32<float, ROWS, COLS, VALID_R, VALID_C, ALIGN_C>(
+        reinterpret_cast<__gm__ float*>(out), reinterpret_cast<__gm__ float*>(src), idx);
 }
 
-extern "C" __global__ AICORE void launchTSORT32_4(__gm__ uint64_t *out, __gm__ uint64_t *src, __gm__ uint32_t *idx)
+extern "C" __global__ AICORE void launchTSORT32_4(__gm__ uint64_t* out, __gm__ uint64_t* src, __gm__ uint32_t* idx)
 {
     constexpr uint32_t ROWS = 2;
     constexpr uint32_t COLS = 13;
@@ -113,11 +113,11 @@ extern "C" __global__ AICORE void launchTSORT32_4(__gm__ uint64_t *out, __gm__ u
     constexpr uint32_t VALID_C = 13;
     constexpr uint32_t ALIGN_C = (VALID_C * sizeof(float) + 31 - 1) / 32 * 32 / sizeof(float);
 
-    runTSORT32<float, ROWS, COLS, VALID_R, VALID_C, ALIGN_C>(reinterpret_cast<__gm__ float *>(out),
-                                                             reinterpret_cast<__gm__ float *>(src), idx);
+    runTSORT32<float, ROWS, COLS, VALID_R, VALID_C, ALIGN_C>(
+        reinterpret_cast<__gm__ float*>(out), reinterpret_cast<__gm__ float*>(src), idx);
 }
 
-extern "C" __global__ AICORE void launchTSORT32_5(__gm__ uint64_t *out, __gm__ uint64_t *src, __gm__ uint32_t *idx)
+extern "C" __global__ AICORE void launchTSORT32_5(__gm__ uint64_t* out, __gm__ uint64_t* src, __gm__ uint32_t* idx)
 {
     constexpr uint32_t ROWS = 1;
     constexpr uint32_t COLS = 4164;
@@ -125,11 +125,11 @@ extern "C" __global__ AICORE void launchTSORT32_5(__gm__ uint64_t *out, __gm__ u
     constexpr uint32_t VALID_C = 4164;
     constexpr uint32_t ALIGN_C = 8192;
 
-    runTSORT32<float, ROWS, COLS, VALID_R, VALID_C, ALIGN_C>(reinterpret_cast<__gm__ float *>(out),
-                                                             reinterpret_cast<__gm__ float *>(src), idx);
+    runTSORT32<float, ROWS, COLS, VALID_R, VALID_C, ALIGN_C>(
+        reinterpret_cast<__gm__ float*>(out), reinterpret_cast<__gm__ float*>(src), idx);
 }
 
-extern "C" __global__ AICORE void launchTSORT32_6(__gm__ uint64_t *out, __gm__ uint64_t *src, __gm__ uint32_t *idx)
+extern "C" __global__ AICORE void launchTSORT32_6(__gm__ uint64_t* out, __gm__ uint64_t* src, __gm__ uint32_t* idx)
 {
     constexpr uint32_t ROWS = 2;
     constexpr uint32_t COLS = 2084;
@@ -137,13 +137,13 @@ extern "C" __global__ AICORE void launchTSORT32_6(__gm__ uint64_t *out, __gm__ u
     constexpr uint32_t VALID_C = 2084;
     constexpr uint32_t ALIGN_C = 3072;
 
-    runTSORT32<float, ROWS, COLS, VALID_R, VALID_C, ALIGN_C>(reinterpret_cast<__gm__ float *>(out),
-                                                             reinterpret_cast<__gm__ float *>(src), idx);
+    runTSORT32<float, ROWS, COLS, VALID_R, VALID_C, ALIGN_C>(
+        reinterpret_cast<__gm__ float*>(out), reinterpret_cast<__gm__ float*>(src), idx);
 }
 
 // case7: Path A (whole-row copy), float, non-32-aligned cols, 2 rows.
 // COLS=VALID_C (GM shape uses valid cols -> no stride gap, matching case6's pattern).
-extern "C" __global__ AICORE void launchTSORT32_7(__gm__ uint64_t *out, __gm__ uint64_t *src, __gm__ uint32_t *idx)
+extern "C" __global__ AICORE void launchTSORT32_7(__gm__ uint64_t* out, __gm__ uint64_t* src, __gm__ uint32_t* idx)
 {
     constexpr uint32_t ROWS = 2;
     constexpr uint32_t COLS = 100;
@@ -151,12 +151,12 @@ extern "C" __global__ AICORE void launchTSORT32_7(__gm__ uint64_t *out, __gm__ u
     constexpr uint32_t VALID_C = 100;
     constexpr uint32_t ALIGN_C = 128;
 
-    runTSORT32<float, ROWS, COLS, VALID_R, VALID_C, ALIGN_C>(reinterpret_cast<__gm__ float *>(out),
-                                                             reinterpret_cast<__gm__ float *>(src), idx);
+    runTSORT32<float, ROWS, COLS, VALID_R, VALID_C, ALIGN_C>(
+        reinterpret_cast<__gm__ float*>(out), reinterpret_cast<__gm__ float*>(src), idx);
 }
 
 template <int32_t testKey>
-void launchTSORT32(uint64_t *out, uint64_t *src, uint32_t *idx, void *stream)
+void launchTSORT32(uint64_t* out, uint64_t* src, uint32_t* idx, void* stream)
 {
     cout << "launchTSORT32 start!" << endl;
     if constexpr (testKey == 1) {
@@ -177,10 +177,10 @@ void launchTSORT32(uint64_t *out, uint64_t *src, uint32_t *idx, void *stream)
     cout << "launchTSORT32 end!" << endl;
 }
 
-template void launchTSORT32<1>(uint64_t *out, uint64_t *src, uint32_t *idx, void *stream);
-template void launchTSORT32<2>(uint64_t *out, uint64_t *src, uint32_t *idx, void *stream);
-template void launchTSORT32<3>(uint64_t *out, uint64_t *src, uint32_t *idx, void *stream);
-template void launchTSORT32<4>(uint64_t *out, uint64_t *src, uint32_t *idx, void *stream);
-template void launchTSORT32<5>(uint64_t *out, uint64_t *src, uint32_t *idx, void *stream);
-template void launchTSORT32<6>(uint64_t *out, uint64_t *src, uint32_t *idx, void *stream);
-template void launchTSORT32<7>(uint64_t *out, uint64_t *src, uint32_t *idx, void *stream);
+template void launchTSORT32<1>(uint64_t* out, uint64_t* src, uint32_t* idx, void* stream);
+template void launchTSORT32<2>(uint64_t* out, uint64_t* src, uint32_t* idx, void* stream);
+template void launchTSORT32<3>(uint64_t* out, uint64_t* src, uint32_t* idx, void* stream);
+template void launchTSORT32<4>(uint64_t* out, uint64_t* src, uint32_t* idx, void* stream);
+template void launchTSORT32<5>(uint64_t* out, uint64_t* src, uint32_t* idx, void* stream);
+template void launchTSORT32<6>(uint64_t* out, uint64_t* src, uint32_t* idx, void* stream);
+template void launchTSORT32<7>(uint64_t* out, uint64_t* src, uint32_t* idx, void* stream);

@@ -21,8 +21,9 @@ constexpr int32_t kNotFound = -1;
 } // namespace
 
 template <int kTileRows, int kTileCols, int kCap, int kMaxProbe>
-AICORE void runHashFind(__gm__ int32_t __out__ *out, __gm__ int32_t __in__ *table_keys,
-                        __gm__ int32_t __in__ *table_vals, __gm__ int32_t __in__ *queries)
+AICORE void runHashFind(
+    __gm__ int32_t __out__* out, __gm__ int32_t __in__* table_keys, __gm__ int32_t __in__* table_vals,
+    __gm__ int32_t __in__* queries)
 {
     static_assert((kCap & (kCap - 1)) == 0, "hashfind: capacity must be power-of-two");
 
@@ -143,11 +144,11 @@ AICORE void runHashFind(__gm__ int32_t __out__ *out, __gm__ int32_t __in__ *tabl
 }
 
 template <int kTileRows, int kTileCols, int kCap, int kMaxProbe>
-void LaunchHashFind(int32_t *out, int32_t *table_keys, int32_t *table_vals, int32_t *queries, void *stream)
+void LaunchHashFind(int32_t* out, int32_t* table_keys, int32_t* table_vals, int32_t* queries, void* stream)
 {
     (void)stream;
     runHashFind<kTileRows, kTileCols, kCap, kMaxProbe>(out, table_keys, table_vals, queries);
 }
 
-template void LaunchHashFind<16, 16, 512, 64>(int32_t *out, int32_t *table_keys, int32_t *table_vals, int32_t *queries,
-                                              void *stream);
+template void LaunchHashFind<16, 16, 512, 64>(
+    int32_t* out, int32_t* table_keys, int32_t* table_vals, int32_t* queries, void* stream);

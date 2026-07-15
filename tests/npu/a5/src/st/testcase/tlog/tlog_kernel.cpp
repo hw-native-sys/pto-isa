@@ -14,9 +14,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-template <typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol, bool isInPlace,
-          bool highPrecision>
-__global__ AICORE void runTLog(__gm__ T __out__ *out, __gm__ T __in__ *src)
+template <
+    typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol, bool isInPlace,
+    bool highPrecision>
+__global__ AICORE void runTLog(__gm__ T __out__* out, __gm__ T __in__* src)
 {
     using DynShapeDim5 = Shape<1, 1, 1, -1, -1>;
     using SrcGlobalData = GlobalTensor<T, DynShapeDim5, pto::Stride<1, 1, srcRow, srcCol, 1>>;
@@ -45,23 +46,24 @@ __global__ AICORE void runTLog(__gm__ T __out__ *out, __gm__ T __in__ *src)
     TSTORE(dstGlobal, dstTile);
 }
 
-template <typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol,
-          bool isInPlace = false, bool highPrecision = false>
-void LaunchTLog(T *out, T *src, void *stream)
+template <
+    typename T, int dstRow, int dstCol, int srcRow, int srcCol, int validRow, int validCol, bool isInPlace = false,
+    bool highPrecision = false>
+void LaunchTLog(T* out, T* src, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
         runTLog<half, dstRow, dstCol, srcRow, srcCol, validRow, validCol, isInPlace, highPrecision>
-            <<<1, nullptr, stream>>>((half *)(out), (half *)(src));
+            <<<1, nullptr, stream>>>((half*)(out), (half*)(src));
     } else {
         runTLog<T, dstRow, dstCol, srcRow, srcCol, validRow, validCol, isInPlace, highPrecision>
             <<<1, nullptr, stream>>>(out, src);
     }
 }
 
-template void LaunchTLog<float, 64, 64, 64, 64, 64, 64, true>(float *out, float *src, void *stream);
-template void LaunchTLog<float, 64, 64, 64, 64, 64, 64>(float *out, float *src, void *stream);
-template void LaunchTLog<aclFloat16, 64, 64, 64, 64, 64, 64, true>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTLog<aclFloat16, 64, 64, 64, 64, 64, 64>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTLog<float, 64, 64, 64, 64, 64, 64, false, true>(float *out, float *src, void *stream);
-template void LaunchTLog<aclFloat16, 64, 64, 64, 64, 64, 64, false, true>(aclFloat16 *out, aclFloat16 *src,
-                                                                          void *stream);
+template void LaunchTLog<float, 64, 64, 64, 64, 64, 64, true>(float* out, float* src, void* stream);
+template void LaunchTLog<float, 64, 64, 64, 64, 64, 64>(float* out, float* src, void* stream);
+template void LaunchTLog<aclFloat16, 64, 64, 64, 64, 64, 64, true>(aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTLog<aclFloat16, 64, 64, 64, 64, 64, 64>(aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTLog<float, 64, 64, 64, 64, 64, 64, false, true>(float* out, float* src, void* stream);
+template void LaunchTLog<aclFloat16, 64, 64, 64, 64, 64, 64, false, true>(
+    aclFloat16* out, aclFloat16* src, void* stream);

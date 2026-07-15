@@ -21,14 +21,18 @@ bool RunTTestTrue(int n_ranks, int n_devices, int first_rank_id, int first_devic
 bool RunTTestFalse(int n_ranks, int n_devices, int first_rank_id, int first_device_id);
 
 // TTEST Compare: Test with different comparison operators
-bool RunTTestCompare_GE(int n_ranks, int n_devices, int first_rank_id, int first_device_id, int32_t signalValue,
-                        int32_t cmpValue, bool expectedResult);
-bool RunTTestCompare_GT(int n_ranks, int n_devices, int first_rank_id, int first_device_id, int32_t signalValue,
-                        int32_t cmpValue, bool expectedResult);
-bool RunTTestCompare_LE(int n_ranks, int n_devices, int first_rank_id, int first_device_id, int32_t signalValue,
-                        int32_t cmpValue, bool expectedResult);
-bool RunTTestCompare_LT(int n_ranks, int n_devices, int first_rank_id, int first_device_id, int32_t signalValue,
-                        int32_t cmpValue, bool expectedResult);
+bool RunTTestCompare_GE(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id, int32_t signalValue, int32_t cmpValue,
+    bool expectedResult);
+bool RunTTestCompare_GT(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id, int32_t signalValue, int32_t cmpValue,
+    bool expectedResult);
+bool RunTTestCompare_LE(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id, int32_t signalValue, int32_t cmpValue,
+    bool expectedResult);
+bool RunTTestCompare_LT(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id, int32_t signalValue, int32_t cmpValue,
+    bool expectedResult);
 
 // TTEST Polling with Timeout
 bool RunTTestPollingTimeout(int n_ranks, int n_devices, int first_rank_id, int first_device_id);

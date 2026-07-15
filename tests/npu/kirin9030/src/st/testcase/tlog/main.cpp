@@ -18,15 +18,13 @@ using namespace PtoTestCommon;
 
 class TLOGTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -34,7 +32,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, bool isInPlace = false>
-void LaunchTLog(T *out, T *src, void *stream);
+void LaunchTLog(T* out, T* src, void* stream);
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, bool isInPlace = false>
 void test_tlog()
@@ -49,11 +47,11 @@ void test_tlog()
     T *dstHost, *srcHost;
     T *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&srcHost), fileSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&srcHost), fileSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input1.bin", fileSize, srcHost, fileSize);
 
@@ -90,63 +88,18 @@ void test_tlog()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TLOGTest, case_float_64x64_64x64_64x64_inPlace_True)
-{
-    test_tlog<float, 64, 64, 64, 64, true>();
-}
-TEST_F(TLOGTest, case_float_64x64_64x64_64x64_inPlace_False)
-{
-    test_tlog<float, 64, 64, 64, 64, false>();
-}
-TEST_F(TLOGTest, case_half_64x64_64x64_64x64_inPlace_True)
-{
-    test_tlog<aclFloat16, 64, 64, 64, 64, true>();
-}
-TEST_F(TLOGTest, case_half_64x64_64x64_64x64_inPlace_False)
-{
-    test_tlog<aclFloat16, 64, 64, 64, 64, false>();
-}
-TEST_F(TLOGTest, case_float_128x128_128x128_128x128_inPlace_False)
-{
-    test_tlog<float, 128, 128, 128, 128, false>();
-}
-TEST_F(TLOGTest, case_float_16x256_16x256_16x256_inPlace_False)
-{
-    test_tlog<float, 16, 256, 16, 256, false>();
-}
-TEST_F(TLOGTest, case_half_16x256_16x256_16x256_inPlace_False)
-{
-    test_tlog<aclFloat16, 16, 256, 16, 256, false>();
-}
-TEST_F(TLOGTest, case_float_128x128_128x128_128x128_inPlace_True)
-{
-    test_tlog<float, 128, 128, 128, 128, true>();
-}
-TEST_F(TLOGTest, case_half_16x256_16x256_16x256_inPlace_True)
-{
-    test_tlog<aclFloat16, 16, 256, 16, 256, true>();
-}
-TEST_F(TLOGTest, case_float_256x16_256x16_256x16_inPlace_False)
-{
-    test_tlog<float, 256, 16, 256, 16, false>();
-}
-TEST_F(TLOGTest, case_half_256x16_256x16_256x16_inPlace_False)
-{
-    test_tlog<aclFloat16, 256, 16, 256, 16, false>();
-}
-TEST_F(TLOGTest, case_float_32x256_32x256_32x256_inPlace_False)
-{
-    test_tlog<float, 32, 256, 32, 256, false>();
-}
-TEST_F(TLOGTest, case_half_32x256_32x256_32x256_inPlace_False)
-{
-    test_tlog<aclFloat16, 32, 256, 32, 256, false>();
-}
-TEST_F(TLOGTest, case_float_256x16_256x16_256x16_inPlace_True)
-{
-    test_tlog<float, 256, 16, 256, 16, true>();
-}
-TEST_F(TLOGTest, case_half_256x16_256x16_256x16_inPlace_True)
-{
-    test_tlog<aclFloat16, 256, 16, 256, 16, true>();
-}
+TEST_F(TLOGTest, case_float_64x64_64x64_64x64_inPlace_True) { test_tlog<float, 64, 64, 64, 64, true>(); }
+TEST_F(TLOGTest, case_float_64x64_64x64_64x64_inPlace_False) { test_tlog<float, 64, 64, 64, 64, false>(); }
+TEST_F(TLOGTest, case_half_64x64_64x64_64x64_inPlace_True) { test_tlog<aclFloat16, 64, 64, 64, 64, true>(); }
+TEST_F(TLOGTest, case_half_64x64_64x64_64x64_inPlace_False) { test_tlog<aclFloat16, 64, 64, 64, 64, false>(); }
+TEST_F(TLOGTest, case_float_128x128_128x128_128x128_inPlace_False) { test_tlog<float, 128, 128, 128, 128, false>(); }
+TEST_F(TLOGTest, case_float_16x256_16x256_16x256_inPlace_False) { test_tlog<float, 16, 256, 16, 256, false>(); }
+TEST_F(TLOGTest, case_half_16x256_16x256_16x256_inPlace_False) { test_tlog<aclFloat16, 16, 256, 16, 256, false>(); }
+TEST_F(TLOGTest, case_float_128x128_128x128_128x128_inPlace_True) { test_tlog<float, 128, 128, 128, 128, true>(); }
+TEST_F(TLOGTest, case_half_16x256_16x256_16x256_inPlace_True) { test_tlog<aclFloat16, 16, 256, 16, 256, true>(); }
+TEST_F(TLOGTest, case_float_256x16_256x16_256x16_inPlace_False) { test_tlog<float, 256, 16, 256, 16, false>(); }
+TEST_F(TLOGTest, case_half_256x16_256x16_256x16_inPlace_False) { test_tlog<aclFloat16, 256, 16, 256, 16, false>(); }
+TEST_F(TLOGTest, case_float_32x256_32x256_32x256_inPlace_False) { test_tlog<float, 32, 256, 32, 256, false>(); }
+TEST_F(TLOGTest, case_half_32x256_32x256_32x256_inPlace_False) { test_tlog<aclFloat16, 32, 256, 32, 256, false>(); }
+TEST_F(TLOGTest, case_float_256x16_256x16_256x16_inPlace_True) { test_tlog<float, 256, 16, 256, 16, true>(); }
+TEST_F(TLOGTest, case_half_256x16_256x16_256x16_inPlace_True) { test_tlog<aclFloat16, 256, 16, 256, 16, true>(); }

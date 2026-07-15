@@ -17,30 +17,28 @@ using namespace PtoTestCommon;
 
 namespace TRowExpandSubTest {
 template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst>
-void launchTRowExpandSub(T *out, T *src0, T *src1, void *stream);
+void launchTRowExpandSub(T* out, T* src0, T* src1, void* stream);
 
 template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst>
-void launchTRowExpandSub2(T *out, T *src0, T *src1, void *stream);
+void launchTRowExpandSub2(T* out, T* src0, T* src1, void* stream);
 
 class TRowExpandSubTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst,
-          bool isRowMajor>
+template <
+    typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst, bool isRowMajor>
 void test_trowexpandsub()
 {
     size_t inputFileSize = src1Row * src1Col * sizeof(T);
@@ -54,13 +52,13 @@ void test_trowexpandsub()
     T *dstHost, *src0Host, *src1Host;
     T *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), outputFileSize);
-    aclrtMallocHost((void **)(&src0Host), outputFileSize);
-    aclrtMallocHost((void **)(&src1Host), inputFileSize);
+    aclrtMallocHost((void**)(&dstHost), outputFileSize);
+    aclrtMallocHost((void**)(&src0Host), outputFileSize);
+    aclrtMallocHost((void**)(&src1Host), inputFileSize);
 
-    aclrtMalloc((void **)&dstDevice, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, inputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, inputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input0.bin", outputFileSize, src0Host, outputFileSize);
     ReadFile(GetGoldenDir() + "/input1.bin", inputFileSize, src1Host, inputFileSize);
@@ -100,44 +98,17 @@ void test_trowexpandsub()
 }
 
 // 2D_NoPostUpdate
-TEST_F(TRowExpandSubTest, case_fp32_8_128)
-{
-    test_trowexpandsub<float, 8, 128, 8, 1, true, false>();
-}
-TEST_F(TRowExpandSubTest, case_fp32_24_32)
-{
-    test_trowexpandsub<float, 24, 32, 24, 1, true, false>();
-}
-TEST_F(TRowExpandSubTest, case_fp16_16_256)
-{
-    test_trowexpandsub<aclFloat16, 16, 256, 16, 1, true, false>();
-}
-TEST_F(TRowExpandSubTest, case_fp16_32_64)
-{
-    test_trowexpandsub<aclFloat16, 32, 64, 32, 1, true, false>();
-}
+TEST_F(TRowExpandSubTest, case_fp32_8_128) { test_trowexpandsub<float, 8, 128, 8, 1, true, false>(); }
+TEST_F(TRowExpandSubTest, case_fp32_24_32) { test_trowexpandsub<float, 24, 32, 24, 1, true, false>(); }
+TEST_F(TRowExpandSubTest, case_fp16_16_256) { test_trowexpandsub<aclFloat16, 16, 256, 16, 1, true, false>(); }
+TEST_F(TRowExpandSubTest, case_fp16_32_64) { test_trowexpandsub<aclFloat16, 32, 64, 32, 1, true, false>(); }
 // 2D_NoPostUpdate2
-TEST_F(TRowExpandSubTest, case_fp32_24_64)
-{
-    test_trowexpandsub<float, 24, 64, 24, 8, true, true>();
-}
+TEST_F(TRowExpandSubTest, case_fp32_24_64) { test_trowexpandsub<float, 24, 64, 24, 8, true, true>(); }
 // 2D_NoPostUpdate
-TEST_F(TRowExpandSubTest, case_fp32_16_128)
-{
-    test_trowexpandsub<float, 16, 128, 16, 1, false, false>();
-}
+TEST_F(TRowExpandSubTest, case_fp32_16_128) { test_trowexpandsub<float, 16, 128, 16, 1, false, false>(); }
 // 2D_NoPostUpdate2
-TEST_F(TRowExpandSubTest, case_fp16_16_64)
-{
-    test_trowexpandsub<aclFloat16, 16, 64, 16, 16, false, true>();
-}
+TEST_F(TRowExpandSubTest, case_fp16_16_64) { test_trowexpandsub<aclFloat16, 16, 64, 16, 16, false, true>(); }
 // 2D_NoPostUpdate
-TEST_F(TRowExpandSubTest, case_int32_16_32)
-{
-    test_trowexpandsub<int32_t, 16, 32, 16, 1, true, false>();
-}
-TEST_F(TRowExpandSubTest, case_int16_16_64)
-{
-    test_trowexpandsub<int16_t, 16, 64, 16, 1, true, false>();
-}
+TEST_F(TRowExpandSubTest, case_int32_16_32) { test_trowexpandsub<int32_t, 16, 32, 16, 1, true, false>(); }
+TEST_F(TRowExpandSubTest, case_int16_16_64) { test_trowexpandsub<int16_t, 16, 64, 16, 1, true, false>(); }
 } // namespace TRowExpandSubTest

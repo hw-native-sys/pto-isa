@@ -18,26 +18,14 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // ============================================================================
 // 1D Vector Tile Tests
 // ============================================================================
-TEST(TGetAsync, Vec_FloatSmall_4Ranks)
-{
-    ASSERT_TRUE((RunGetAsyncRootGet<float, 256>(4, 4, 0, 0)));
-}
-TEST(TGetAsync, Vec_Int32Large)
-{
-    ASSERT_TRUE((RunGetAsyncRootGet<int32_t, 4096>(2, 2, 0, 0)));
-}
-TEST(TGetAsync, Vec_Uint8Small_8Ranks)
-{
-    ASSERT_TRUE((RunGetAsyncRootGet<uint8_t, 512>(8, 8, 0, 0)));
-}
+TEST(TGetAsync, Vec_FloatSmall_4Ranks) { ASSERT_TRUE((RunGetAsyncRootGet<float, 256>(4, 4, 0, 0))); }
+TEST(TGetAsync, Vec_Int32Large) { ASSERT_TRUE((RunGetAsyncRootGet<int32_t, 4096>(2, 2, 0, 0))); }
+TEST(TGetAsync, Vec_Uint8Small_8Ranks) { ASSERT_TRUE((RunGetAsyncRootGet<uint8_t, 512>(8, 8, 0, 0))); }
 
 // ============================================================================
 // Configurable SdmaBaseConfig Tests
 // ============================================================================
-TEST(TGetAsync, Vec_Int32_QueueNum2)
-{
-    ASSERT_TRUE((RunGetAsyncWithConfig<int32_t, 4096>(2, 2, 0, 0, 4096, 0, 2)));
-}
+TEST(TGetAsync, Vec_Int32_QueueNum2) { ASSERT_TRUE((RunGetAsyncWithConfig<int32_t, 4096>(2, 2, 0, 0, 4096, 0, 2))); }
 TEST(TGetAsync, Vec_Float_SmallBlockBytes)
 {
     ASSERT_TRUE((RunGetAsyncWithConfig<float, 4096>(2, 2, 0, 0, 4096, 0, 1)));
@@ -54,14 +42,8 @@ TEST(TGetAsync, Vec_Float_CommOffset)
 // ============================================================================
 // Multi-Core Tests (blockDim > 1)
 // ============================================================================
-TEST(TGetAsync, Vec_Float_MultiCoreSplit)
-{
-    ASSERT_TRUE((RunGetAsyncMultiCore<float, 2048>(2, 2, 0, 0, 2, 0)));
-}
-TEST(TGetAsync, Vec_Float_MultiCoreIndep)
-{
-    ASSERT_TRUE((RunGetAsyncMultiCore<float, 256>(2, 2, 0, 0, 2, 1)));
-}
+TEST(TGetAsync, Vec_Float_MultiCoreSplit) { ASSERT_TRUE((RunGetAsyncMultiCore<float, 2048>(2, 2, 0, 0, 2, 0))); }
+TEST(TGetAsync, Vec_Float_MultiCoreIndep) { ASSERT_TRUE((RunGetAsyncMultiCore<float, 256>(2, 2, 0, 0, 2, 1))); }
 
 // ============================================================================
 // Concurrent Per-Rank Gather Tests (every rank: nranks cores, distinct channels)
@@ -87,7 +69,7 @@ TEST(TGetAsync, ConcurrentRank_FloatIter16Fresh_8Ranks)
     ASSERT_TRUE((RunGetAsyncConcurrentRank<float, 8192>(8, 8, 0, 0, 16, 1)));
 }
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     CommMpiInit(&argc, &argv);
     ::testing::InitGoogleTest(&argc, argv);

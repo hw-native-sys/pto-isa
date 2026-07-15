@@ -19,57 +19,30 @@ using namespace pto;
 // FP8 wrappers for testing
 struct fp8_e4m3_wrapper {
     int8_t value;
-    operator int8_t() const
-    {
-        return value;
-    }
-    operator float() const
-    {
-        return static_cast<float>(value);
-    }
+    operator int8_t() const { return value; }
+    operator float() const { return static_cast<float>(value); }
 };
 struct fp8_e5m2_wrapper {
     int8_t value;
-    operator int8_t() const
-    {
-        return value;
-    }
-    operator float() const
-    {
-        return static_cast<float>(value);
-    }
+    operator int8_t() const { return value; }
+    operator float() const { return static_cast<float>(value); }
 };
 struct hifloat8_wrapper {
     int8_t value;
-    operator int8_t() const
-    {
-        return value;
-    }
-    operator float() const
-    {
-        return static_cast<float>(value);
-    }
+    operator int8_t() const { return value; }
+    operator float() const { return static_cast<float>(value); }
 };
 struct fp4_e1m2x2_wrapper {
     uint8_t value;
-    operator uint8_t() const
-    {
-        return value;
-    }
+    operator uint8_t() const { return value; }
 };
 struct fp4_e2m1x2_wrapper {
     uint8_t value;
-    operator uint8_t() const
-    {
-        return value;
-    }
+    operator uint8_t() const { return value; }
 };
 struct bf16_wrapper {
     uint16_t value;
-    operator uint16_t() const
-    {
-        return value;
-    }
+    operator uint16_t() const { return value; }
 };
 
 template <typename T, bool UseDynamicTile>
@@ -82,9 +55,10 @@ PTO_INTERNAL T getTile(int kValidRows, int kValidCols)
     }
 }
 
-template <typename T, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
-          int kValidCols_ = kTCols_>
-__global__ AICORE void runTCVT(__gm__ T *out, __gm__ S *src)
+template <
+    typename T, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
+    int kValidCols_ = kTCols_>
+__global__ AICORE void runTCVT(__gm__ T* out, __gm__ S* src)
 {
     using DynShapeDim4 = pto::Shape<1, 1, 1, kGRows_, kGCols_>;
     using DynStridDim4 = pto::Stride<1, 1, 1, kGCols_, 1>;
@@ -93,12 +67,12 @@ __global__ AICORE void runTCVT(__gm__ T *out, __gm__ S *src)
 
     constexpr bool useDynamicTile = (kValidRows_ != kTRows_) || (kValidCols_ != kTCols_);
 
-    using TileDataSrc =
-        std::conditional_t<useDynamicTile, Tile<TileType::Vec, S, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>,
-                           Tile<TileType::Vec, S, kTRows_, kTCols_, BLayout::RowMajor>>;
-    using TileDataDst =
-        std::conditional_t<useDynamicTile, Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>,
-                           Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor>>;
+    using TileDataSrc = std::conditional_t<
+        useDynamicTile, Tile<TileType::Vec, S, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>,
+        Tile<TileType::Vec, S, kTRows_, kTCols_, BLayout::RowMajor>>;
+    using TileDataDst = std::conditional_t<
+        useDynamicTile, Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>,
+        Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor>>;
 
     // auto mode doesn't allow copy-initialize and copy-assignment of tiles
     auto srcTile = getTile<TileDataSrc, useDynamicTile>(kValidRows_, kValidCols_);
@@ -135,9 +109,10 @@ __global__ AICORE void runTCVT(__gm__ T *out, __gm__ S *src)
     out = dstGlobal.data();
 }
 
-template <typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
-          int kValidCols_ = kTCols_>
-void launchTCVT(D *dst, S *src, void *stream)
+template <
+    typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
+    int kValidCols_ = kTCols_>
+void launchTCVT(D* dst, S* src, void* stream)
 {
     // Map aclFloat16 to half for kernel execution
     using DstType = std::conditional_t<
@@ -150,8 +125,9 @@ void launchTCVT(D *dst, S *src, void *stream)
                     std::is_same_v<D, hifloat8_wrapper>, hifloat8_t,
                     std::conditional_t<
                         std::is_same_v<D, fp4_e1m2x2_wrapper>, float4_e1m2x2_t,
-                        std::conditional_t<std::is_same_v<D, fp4_e2m1x2_wrapper>, float4_e2m1x2_t,
-                                           std::conditional_t<std::is_same_v<D, bf16_wrapper>, bfloat16_t, D>>>>>>>;
+                        std::conditional_t<
+                            std::is_same_v<D, fp4_e2m1x2_wrapper>, float4_e2m1x2_t,
+                            std::conditional_t<std::is_same_v<D, bf16_wrapper>, bfloat16_t, D>>>>>>>;
     using SrcType = std::conditional_t<
         std::is_same_v<S, aclFloat16>, half,
         std::conditional_t<
@@ -160,24 +136,25 @@ void launchTCVT(D *dst, S *src, void *stream)
                 std::is_same_v<S, fp8_e5m2_wrapper>, float8_e5m2_t,
                 std::conditional_t<
                     std::is_same_v<S, hifloat8_wrapper>, hifloat8_t,
-                    std::conditional_t<std::is_same_v<S, bf16_wrapper>, bfloat16_t,
-                                       std::conditional_t<std::is_same_v<S, fp4_e1m2x2_wrapper>, float4_e1m2x2_t,
-                                                          std::conditional_t<std::is_same_v<S, fp4_e2m1x2_wrapper>,
-                                                                             float4_e2m1x2_t, S>>>>>>>;
+                    std::conditional_t<
+                        std::is_same_v<S, bf16_wrapper>, bfloat16_t,
+                        std::conditional_t<
+                            std::is_same_v<S, fp4_e1m2x2_wrapper>, float4_e1m2x2_t,
+                            std::conditional_t<std::is_same_v<S, fp4_e2m1x2_wrapper>, float4_e2m1x2_t, S>>>>>>>;
 
     runTCVT<DstType, SrcType, kGRows_, kGCols_, kTRows_, kTCols_, kValidRows_, kValidCols_>
-        <<<1, nullptr, stream>>>(reinterpret_cast<DstType *>(dst), reinterpret_cast<SrcType *>(src));
+        <<<1, nullptr, stream>>>(reinterpret_cast<DstType*>(dst), reinterpret_cast<SrcType*>(src));
 }
 
 #define INSTANTIATE_TCVT(dst_type, src_type)                                                                           \
-    template void launchTCVT<dst_type, src_type, 1, 128, 1, 128>(dst_type * dst, src_type * src, void *stream);        \
-    template void launchTCVT<dst_type, src_type, 2, 64, 2, 64>(dst_type * dst, src_type * src, void *stream);          \
-    template void launchTCVT<dst_type, src_type, 4, 32, 4, 32>(dst_type * dst, src_type * src, void *stream);          \
-    template void launchTCVT<dst_type, src_type, 2, 128, 2, 128>(dst_type * dst, src_type * src, void *stream);        \
-    template void launchTCVT<dst_type, src_type, 4, 128, 4, 128, 4, 65>(dst_type * dst, src_type * src, void *stream); \
-    template void launchTCVT<dst_type, src_type, 4, 256, 4, 256, 4, 200>(dst_type * dst, src_type * src,               \
-                                                                         void *stream);                                \
-    template void launchTCVT<dst_type, src_type, 1, 256, 1, 256, 1, 129>(dst_type * dst, src_type * src, void *stream);
+    template void launchTCVT<dst_type, src_type, 1, 128, 1, 128>(dst_type * dst, src_type * src, void* stream);        \
+    template void launchTCVT<dst_type, src_type, 2, 64, 2, 64>(dst_type * dst, src_type * src, void* stream);          \
+    template void launchTCVT<dst_type, src_type, 4, 32, 4, 32>(dst_type * dst, src_type * src, void* stream);          \
+    template void launchTCVT<dst_type, src_type, 2, 128, 2, 128>(dst_type * dst, src_type * src, void* stream);        \
+    template void launchTCVT<dst_type, src_type, 4, 128, 4, 128, 4, 65>(dst_type * dst, src_type * src, void* stream); \
+    template void launchTCVT<dst_type, src_type, 4, 256, 4, 256, 4, 200>(                                              \
+        dst_type * dst, src_type * src, void* stream);                                                                 \
+    template void launchTCVT<dst_type, src_type, 1, 256, 1, 256, 1, 129>(dst_type * dst, src_type * src, void* stream);
 
 // FP32 Source → fp16, bf16, int16, int32, int64, fp8 variants
 INSTANTIATE_TCVT(aclFloat16, float)
@@ -252,8 +229,8 @@ INSTANTIATE_TCVT(float, hifloat8_wrapper)
 // Test kernel to demonstrate saturation mode behavior
 // Tests saturation ON, OFF, and DEFAULT modes
 template <typename T, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-__global__ AICORE void runTCVTSaturationTest(__gm__ T *outSaturated, __gm__ T *outTruncated, __gm__ T *outDefault,
-                                             __gm__ S *src)
+__global__ AICORE void runTCVTSaturationTest(
+    __gm__ T* outSaturated, __gm__ T* outTruncated, __gm__ T* outDefault, __gm__ S* src)
 {
     using DynShapeDim4 = pto::Shape<1, 1, 1, kGRows_, kGCols_>;
     using DynStridDim4 = pto::Stride<1, 1, 1, kGCols_, 1>;
@@ -319,35 +296,36 @@ __global__ AICORE void runTCVTSaturationTest(__gm__ T *outSaturated, __gm__ T *o
 
 // Launcher for saturation mode tests (including default mode)
 template <typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void launchTCVTSaturationTest(D *dstSaturated, D *dstTruncated, D *dstDefault, S *src, void *stream)
+void launchTCVTSaturationTest(D* dstSaturated, D* dstTruncated, D* dstDefault, S* src, void* stream)
 {
     using DstType = std::conditional_t<
         std::is_same_v<D, aclFloat16>, half,
-        std::conditional_t<std::is_same_v<D, fp8_e4m3_wrapper>, float8_e4m3_t,
-                           std::conditional_t<std::is_same_v<D, fp8_e5m2_wrapper>, float8_e5m2_t,
-                                              std::conditional_t<std::is_same_v<D, hifloat8_wrapper>, hifloat8_t, D>>>>;
+        std::conditional_t<
+            std::is_same_v<D, fp8_e4m3_wrapper>, float8_e4m3_t,
+            std::conditional_t<
+                std::is_same_v<D, fp8_e5m2_wrapper>, float8_e5m2_t,
+                std::conditional_t<std::is_same_v<D, hifloat8_wrapper>, hifloat8_t, D>>>>;
     using SrcType = std::conditional_t<
         std::is_same_v<S, aclFloat16>, half,
-        std::conditional_t<std::is_same_v<S, fp8_e4m3_wrapper>, float8_e4m3_t,
-                           std::conditional_t<std::is_same_v<S, fp8_e5m2_wrapper>, float8_e5m2_t,
-                                              std::conditional_t<std::is_same_v<S, hifloat8_wrapper>, hifloat8_t, S>>>>;
+        std::conditional_t<
+            std::is_same_v<S, fp8_e4m3_wrapper>, float8_e4m3_t,
+            std::conditional_t<
+                std::is_same_v<S, fp8_e5m2_wrapper>, float8_e5m2_t,
+                std::conditional_t<std::is_same_v<S, hifloat8_wrapper>, hifloat8_t, S>>>>;
 
-    runTCVTSaturationTest<DstType, SrcType, kGRows_, kGCols_, kTRows_, kTCols_>
-        <<<1, nullptr, stream>>>(reinterpret_cast<DstType *>(dstSaturated), reinterpret_cast<DstType *>(dstTruncated),
-                                 reinterpret_cast<DstType *>(dstDefault), reinterpret_cast<SrcType *>(src));
+    runTCVTSaturationTest<DstType, SrcType, kGRows_, kGCols_, kTRows_, kTCols_><<<1, nullptr, stream>>>(
+        reinterpret_cast<DstType*>(dstSaturated), reinterpret_cast<DstType*>(dstTruncated),
+        reinterpret_cast<DstType*>(dstDefault), reinterpret_cast<SrcType*>(src));
 }
-template void launchTCVTSaturationTest<int8_t, aclFloat16, 1, 32, 1, 32>(int8_t *dstSat, int8_t *dstTrunc,
-                                                                         int8_t *dstDefault, aclFloat16 *src,
-                                                                         void *stream);
-template void launchTCVTSaturationTest<int16_t, float, 1, 32, 1, 32>(int16_t *dstSat, int16_t *dstTrunc,
-                                                                     int16_t *dstDefault, float *src, void *stream);
-template void launchTCVTSaturationTest<int16_t, aclFloat16, 1, 32, 1, 32>(int16_t *dstSat, int16_t *dstTrunc,
-                                                                          int16_t *dstDefault, aclFloat16 *src,
-                                                                          void *stream);
-template void launchTCVTSaturationTest<uint8_t, aclFloat16, 1, 32, 1, 32>(uint8_t *dstSat, uint8_t *dstTrunc,
-                                                                          uint8_t *dstDefault, aclFloat16 *src,
-                                                                          void *stream);
-template void launchTCVTSaturationTest<int32_t, int64_t, 1, 32, 1, 32>(int32_t *dstSat, int32_t *dstTrunc,
-                                                                       int32_t *dstDefault, int64_t *src, void *stream);
-template void launchTCVTSaturationTest<int16_t, int32_t, 1, 32, 1, 32>(int16_t *dstSat, int16_t *dstTrunc,
-                                                                       int16_t *dstDefault, int32_t *src, void *stream);
+template void launchTCVTSaturationTest<int8_t, aclFloat16, 1, 32, 1, 32>(
+    int8_t* dstSat, int8_t* dstTrunc, int8_t* dstDefault, aclFloat16* src, void* stream);
+template void launchTCVTSaturationTest<int16_t, float, 1, 32, 1, 32>(
+    int16_t* dstSat, int16_t* dstTrunc, int16_t* dstDefault, float* src, void* stream);
+template void launchTCVTSaturationTest<int16_t, aclFloat16, 1, 32, 1, 32>(
+    int16_t* dstSat, int16_t* dstTrunc, int16_t* dstDefault, aclFloat16* src, void* stream);
+template void launchTCVTSaturationTest<uint8_t, aclFloat16, 1, 32, 1, 32>(
+    uint8_t* dstSat, uint8_t* dstTrunc, uint8_t* dstDefault, aclFloat16* src, void* stream);
+template void launchTCVTSaturationTest<int32_t, int64_t, 1, 32, 1, 32>(
+    int32_t* dstSat, int32_t* dstTrunc, int32_t* dstDefault, int64_t* src, void* stream);
+template void launchTCVTSaturationTest<int16_t, int32_t, 1, 32, 1, 32>(
+    int16_t* dstSat, int16_t* dstTrunc, int16_t* dstDefault, int32_t* src, void* stream);

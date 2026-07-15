@@ -21,15 +21,14 @@ namespace pto {
 // returns the memory qualifier for a given TileType and data type.
 // compilation errors occur if the TileType does not have a specialized version.
 template <TileType L, typename DType>
-struct MemoryQualifier {
-};
+struct MemoryQualifier {};
 
 template <typename DType>
 struct MemoryQualifier<TileType::Vec, DType> {
 #ifdef __PTO_AUTO__
     using type = __ubuf__ DType;
 #else
-    using type = __ubuf__ DType *;
+    using type = __ubuf__ DType*;
 #endif
 };
 
@@ -38,7 +37,7 @@ struct MemoryQualifier<TileType::Mat, DType> {
 #ifdef __PTO_AUTO__
     using type = __cbuf__ DType;
 #else
-    using type = __cbuf__ DType *;
+    using type = __cbuf__ DType*;
 #endif
 };
 
@@ -47,7 +46,7 @@ struct MemoryQualifier<TileType::Left, DType> {
 #ifdef __PTO_AUTO__
     using type = __ca__ DType;
 #else
-    using type = __ca__ DType *;
+    using type = __ca__ DType*;
 #endif
 };
 
@@ -56,7 +55,7 @@ struct MemoryQualifier<TileType::Right, DType> {
 #ifdef __PTO_AUTO__
     using type = __cb__ DType;
 #else
-    using type = __cb__ DType *;
+    using type = __cb__ DType*;
 #endif
 };
 
@@ -65,7 +64,7 @@ struct MemoryQualifier<TileType::Acc, DType> {
 #ifdef __PTO_AUTO__
     using type = __cc__ DType;
 #else
-    using type = __cc__ DType *;
+    using type = __cc__ DType*;
 #endif
 };
 
@@ -75,7 +74,7 @@ struct MemoryQualifier<TileType::Bias, DType> {
 #ifdef __PTO_AUTO__
     using type = __biasbuf__ DType;
 #else
-    using type = __biasbuf__ DType *;
+    using type = __biasbuf__ DType*;
 #endif
 #else
     using type = uint64_t;
@@ -87,7 +86,7 @@ struct MemoryQualifier<TileType::Scaling, DType> {
 #ifdef __PTO_AUTO__
     using type = __fbuf__ DType;
 #else
-    using type = __fbuf__ DType *;
+    using type = __fbuf__ DType*;
 #endif
 };
 
@@ -96,7 +95,7 @@ struct MemoryQualifier<TileType::ScaleLeft, DType> {
 #ifdef __PTO_AUTO__
     using type = __ca__ DType;
 #else
-    using type = __ca__ DType *;
+    using type = __ca__ DType*;
 #endif
 };
 
@@ -105,7 +104,7 @@ struct MemoryQualifier<TileType::ScaleRight, DType> {
 #ifdef __PTO_AUTO__
     using type = __cb__ DType;
 #else
-    using type = __cb__ DType *;
+    using type = __cb__ DType*;
 #endif
 };
 
@@ -114,7 +113,7 @@ struct MemoryQualifier<TileType::Ctrl, DType> {
     using type = uint64_t;
 };
 
-PTO_INTERNAL constexpr const __gm__ char *GetLayoutName(BLayout bType, SLayout sType) noexcept
+PTO_INTERNAL constexpr const __gm__ char* GetLayoutName(BLayout bType, SLayout sType) noexcept
 {
     switch (sType) {
         case SLayout::NoneBox:
@@ -129,7 +128,7 @@ PTO_INTERNAL constexpr const __gm__ char *GetLayoutName(BLayout bType, SLayout s
 }
 
 template <TileType type>
-PTO_INTERNAL constexpr const __gm__ char *GetTileTypeName() noexcept
+PTO_INTERNAL constexpr const __gm__ char* GetTileTypeName() noexcept
 {
     switch (type) {
         case TileType::Vec:

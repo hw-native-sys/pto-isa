@@ -28,9 +28,9 @@ void runTFA_128x128x1024()
     // S0=128, HEAD_SIZE=128, S1=1024, CUBE_S0=128, CUBE_S1=128, TILE_S1=256,
     // QK_PRELOAD=4, CV_FIFO_SIZE=8, INTERMEDIATE_CHECK=false, CAUSAL_MASK=false,
     // CV_FIFO_CONS_SYNC_PERIOD=4
-    runTFA<128, 128, 1024, 128, 128, 256, 4, 8, false, false, 4>(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-                                                                 nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-                                                                 nullptr, nullptr);
+    runTFA<128, 128, 1024, 128, 128, 256, 4, 8, false, false, 4>(
+        nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+        nullptr, nullptr);
 }
 
 TEST(FAPerfSim, RunTFA_128x128x1024)
@@ -38,11 +38,11 @@ TEST(FAPerfSim, RunTFA_128x128x1024)
     LAUNCH_KERNEL(runTFA_128x128x1024, , (1, nullptr, nullptr));
 
     // Core 0 has Cube+VecCore0 records (logical cores 0,1 for block_dim=1)
-    auto &instrs = ::pto::perf_sim::PtoRecorder::GetForCore(0);
+    auto& instrs = ::pto::perf_sim::PtoRecorder::GetForCore(0);
     EXPECT_GT(instrs.size(), 0u) << "Expected recorded instructions from real FA kernel";
 
     bool has_matrix = false, has_vector = false, has_gm_read = false, has_gm_write = false;
-    for (auto &rec : instrs) {
+    for (auto& rec : instrs) {
         if (rec.stage == ::pto::perf_sim::PipeStage::Matrix)
             has_matrix = true;
         if (rec.stage == ::pto::perf_sim::PipeStage::Vector)
@@ -66,9 +66,9 @@ TEST(FAPerfSim, RunTFA_MultiCore_4x128x128x1024)
     constexpr uint32_t kNumCores = 4;
     constexpr uint32_t kLogicalPerCore = ::pto::perf_sim::VEC_CORES_PER_AIC;
     for (uint32_t c = 0; c < kNumCores; ++c) {
-        auto &instrs = ::pto::perf_sim::PtoRecorder::GetForCore(c * kLogicalPerCore);
+        auto& instrs = ::pto::perf_sim::PtoRecorder::GetForCore(c * kLogicalPerCore);
         EXPECT_GT(instrs.size(), 0u) << "Core " << c << " should have instructions";
-        for (auto &r : instrs) {
+        for (auto& r : instrs) {
             EXPECT_EQ(r.core_id / kLogicalPerCore, c) << "core_id mismatch on core " << c;
         }
     }
