@@ -36,7 +36,7 @@ PTO_INTERNAL void LoadSrc(
     RegTensor<dstType>& reg_dst, __ubuf__ srcType*& srcPtr, int32_t rowNum, int32_t repeatNum, MaskReg& preg,
     MaskReg& pregSrc)
 {
-    constexpr unsigned dstElementsPerRepeat = REPEAT_BYTE / sizeof(dstType);
+    constexpr unsigned dstElementsPerRepeat = CCE_VL / sizeof(dstType);
     RegTensor<srcType> reg_src;
     if constexpr (sizeof(srcType) == 1) {
         RegTensor<int32_t> reg_int;
@@ -64,8 +64,8 @@ PTO_INTERNAL void TDeQuantImpl(
     __ubuf__ dstType __out__* dstPtr, __ubuf__ srcType __in__* srcPtr, __ubuf__ dstType __in__* scalePtr,
     __ubuf__ dstType __in__* offsetPtr, unsigned validRows, unsigned validCols)
 {
-    constexpr unsigned srcElementsPerRepeat = REPEAT_BYTE / sizeof(srcType);
-    constexpr unsigned dstElementsPerRepeat = REPEAT_BYTE / sizeof(dstType);
+    constexpr unsigned srcElementsPerRepeat = CCE_VL / sizeof(srcType);
+    constexpr unsigned dstElementsPerRepeat = CCE_VL / sizeof(dstType);
     uint16_t repeatTimes = CeilDivision(validCols, dstElementsPerRepeat);
     constexpr auto distValue =
         std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<dstType, DistVST::DIST_NORM>())>();

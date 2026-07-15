@@ -203,7 +203,7 @@ PTO_INTERNAL void TCOLEXPANDOP_IMPL(TileData& dst, TileDataSrc0& src0, TileDataS
         "Fix: TCOLEXPANDOP Invalid data type.");
     static_assert(TileData::isRowMajor, "Fix: TCOLEXPANDOP not supported Layout type");
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename TileData::DType);
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(typename TileData::DType);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(typename TileData::DType);
     constexpr unsigned dstRowStride = TileData::RowStride;
     unsigned validRow = dst.GetValidRow();
     unsigned validCol = dst.GetValidCol();

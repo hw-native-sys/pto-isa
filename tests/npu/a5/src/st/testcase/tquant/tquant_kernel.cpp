@@ -632,7 +632,7 @@ PTO_INTERNAL void CompactFp4PackedRows(
     __ubuf__ uint8_t* dstPtr, __ubuf__ uint8_t* srcPtr, uint32_t rows, uint32_t validPackedCols, uint32_t srcStride,
     uint32_t dstStride)
 {
-    constexpr uint32_t elementsPerRepeat = REPEAT_BYTE / sizeof(uint8_t);
+    constexpr uint32_t elementsPerRepeat = CCE_VL / sizeof(uint8_t);
     RegTensor<uint8_t> vreg;
     UnalignReg ureg;
     uint16_t repeatTimes = CeilDivision(validPackedCols, elementsPerRepeat);

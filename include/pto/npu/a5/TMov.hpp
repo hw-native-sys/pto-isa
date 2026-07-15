@@ -268,7 +268,7 @@ PTO_INTERNAL constexpr void CommonCheckZZ()
 // vgather2 reads zeros instead of stale UB residue on real NPU hardware.
 PTO_INTERNAL void ZeroSourcePaddingB16(__ubuf__ uint16_t* srcPtr_b16, uint16_t validB16, uint16_t totalB16)
 {
-    constexpr uint16_t vlElem = REPEAT_BYTE / sizeof(uint16_t); // 128
+    constexpr uint16_t vlElem = CCE_VL / sizeof(uint16_t); // 128
     if (validB16 >= totalB16) {
         return;
     }
@@ -317,9 +317,9 @@ PTO_INTERNAL void GenerateB8IndicesZZToUB(
     const uint16_t P = groupedCols / 2;
     const uint16_t rowBlockCount = (rows + 15) / 16; // ceil-divide to support non-16-aligned row counts
     const uint16_t N_blk = rowBlockCount * P;
-    const uint16_t vlElem = REPEAT_BYTE / sizeof(uint16_t);     // 128
+    const uint16_t vlElem = CCE_VL / sizeof(uint16_t);          // 128
     constexpr uint16_t blkElem = BLOCK_SIZE / sizeof(uint16_t); // 16
-    constexpr uint16_t blksPerVL = REPEAT_BYTE / BLOCK_SIZE;    // 8
+    constexpr uint16_t blksPerVL = CCE_VL / BLOCK_SIZE;         // 8
     __ubuf__ uint16_t* srcPtr_b16 = (__ubuf__ uint16_t*)src;
     __ubuf__ uint16_t* dstPtr_b16 = (__ubuf__ uint16_t*)dst;
     __ubuf__ uint16_t* basePtr = (__ubuf__ uint16_t*)tmp;
@@ -464,7 +464,7 @@ PTO_INTERNAL void TMovNd2NzLoop(
     __ubuf__ WorkT* srcPtr, __ubuf__ WorkT* dstPtr, uint16_t repeatTimes, uint16_t innerLoopNum, uint32_t validCol,
     uint32_t cfgVsstb, uint32_t cfgVsstbLast, uint32_t srcOffset)
 {
-    constexpr uint32_t elementsPerRepeat = REPEAT_BYTE / sizeof(WorkT);
+    constexpr uint32_t elementsPerRepeat = CCE_VL / sizeof(WorkT);
     RegTensor<WorkT> vreg;
     MaskReg preg;
     uint32_t cols = validCol;
@@ -502,7 +502,7 @@ __tf__ PTO_INTERNAL void TMovToVecNd2Nz(
     constexpr int32_t srcByteSize = srcRow * srcCol * sizeof(T);
     constexpr int32_t dstByteSize = DstTileData::Rows * DstTileData::Cols * sizeof(T);
 
-    constexpr uint32_t elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr uint32_t elementsPerRepeat = CCE_VL / sizeof(T);
     uint16_t repeatTimes = CeilDivision(validCol, elementsPerRepeat);
     constexpr bool isOptForConflict = DstTileData::Compact == CompactMode::RowPlusOne;
     uint32_t alignRow = (validRow + FRACTAL_NZ_ROW - 1) / FRACTAL_NZ_ROW * FRACTAL_NZ_ROW;
@@ -512,7 +512,7 @@ __tf__ PTO_INTERNAL void TMovToVecNd2Nz(
     uint32_t repeatStride = 1;
     uint16_t innerLoopNum = srcValidRow - 1;
     uint32_t cfgVsstb = (blockStride << 16u) | (1 & 0xFFFFU);
-    uint32_t repeatStrideLast = (REPEAT_BYTE * virtualRow - innerLoopNum * BLOCK_BYTE_SIZE) / BLOCK_BYTE_SIZE;
+    uint32_t repeatStrideLast = (CCE_VL * virtualRow - innerLoopNum * BLOCK_BYTE_SIZE) / BLOCK_BYTE_SIZE;
     uint32_t cfgVsstbLast = (blockStride << 16u) | (repeatStrideLast & 0xFFFFU);
     uint32_t srcOffset = innerLoopNum * SrcTileData::RowStride;
     constexpr bool isByte = (sizeof(T) == 1);
@@ -540,7 +540,7 @@ __tf__ PTO_INTERNAL OP_NAME(TMOV) OP_TYPE(element_wise) void TMovVecToVec(
     using T = typename DstTileData::DType;
     __ubuf__ T* dst = (__ubuf__ T*)__cce_get_tile_ptr(dstData);
     __ubuf__ T* src = (__ubuf__ T*)__cce_get_tile_ptr(srcData);
-    constexpr unsigned nRepeatElem = REPEAT_BYTE / sizeof(T);
+    constexpr unsigned nRepeatElem = CCE_VL / sizeof(T);
     __VEC_SCOPE__
     {
         RegTensor<T> vreg0;

@@ -102,7 +102,7 @@ PTO_INTERNAL void TGATHERB_IMPL(TileDataDst& dst, TileDataSrc& src, TileDataOffs
             sizeof(typename TileDataDst::DType) == 1,
         "Fix: TGATHERB has invalid data type.");
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename TileDataDst::DType);
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(typename TileDataDst::DType);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(typename TileDataDst::DType);
     constexpr unsigned staticRepeatTimes = (TileDataDst::Cols + elementsPerRepeat - 1) / elementsPerRepeat;
     constexpr unsigned dstRowStride = TileDataDst::RowStride;
     constexpr unsigned offsetRowStride = TileDataOffset::RowStride;

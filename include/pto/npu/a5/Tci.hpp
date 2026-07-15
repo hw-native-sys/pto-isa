@@ -65,7 +65,7 @@ __tf__ AICORE void Tci(
 {
     using Tdst = typename GetSignedType<typename TileData::DType>::type;
     __ubuf__ Tdst* dstPtr = (__ubuf__ Tdst*)__cce_get_tile_ptr(dst);
-    constexpr uint16_t vl_size = REPEAT_BYTE / static_cast<uint16_t>(sizeof(typename TileData::DType));
+    constexpr uint16_t vl_size = CCE_VL / static_cast<uint16_t>(sizeof(typename TileData::DType));
     uint16_t loop_cnt = (validCol + vl_size - 1) / vl_size;
     int32_t s = S; // starting value for TCI sequence
     uint32_t remain = (validCol % vl_size == 0) ? vl_size : (validCol % vl_size);

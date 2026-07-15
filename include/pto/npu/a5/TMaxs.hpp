@@ -58,7 +58,7 @@ PTO_INTERNAL void TMAXS_IMPL(TileDataDst& dst, TileDataSrc& src, typename TileDa
         "Number of valid columns and rows must not be greater than number of tile columns and rows.");
 
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
     constexpr unsigned dstRowStride = TileDataDst::RowStride;
     constexpr unsigned srcRowStride = TileDataSrc::RowStride;
     unsigned validRow = dst.GetValidRow();

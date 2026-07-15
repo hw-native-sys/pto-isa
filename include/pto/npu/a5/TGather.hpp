@@ -305,7 +305,7 @@ __tf__ AICORE void TGather_float_gt(
     __ubuf__ typename TileDataD::DType* dstPtr = (__ubuf__ typename TileDataD::DType*)__cce_get_tile_ptr(dst);
     __ubuf__ typename TileDataS1::DType* kvaluePtr = (__ubuf__ typename TileDataS1::DType*)__cce_get_tile_ptr(k_value);
 
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(typename TileDataS::DType);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(typename TileDataS::DType);
     uint16_t repeatTimes = CeilDivision(srcValidCol, elementsPerRepeat);
     unsigned srcRowStride = TileDataS::RowStride;
     unsigned dstRowStride = TileDataD::RowStride;
@@ -360,7 +360,7 @@ __tf__ AICORE void TGather_float_eq(
     __ubuf__ typename TileDataS1::DType* kvaluePtr = (__ubuf__ typename TileDataS1::DType*)__cce_get_tile_ptr(k_value);
 
     using T = typename TileDataD::DType;
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(typename TileDataS::DType);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(typename TileDataS::DType);
     uint16_t repeatTimes = CeilDivision(srcValidCol, elementsPerRepeat);
 
     __VEC_SCOPE__
@@ -413,7 +413,7 @@ __tf__ AICORE void TGather_b32_gt(
     __ubuf__ typename TileDataC::DType* cdstPtr = (__ubuf__ typename TileDataC::DType*)__cce_get_tile_ptr(cdst);
     __ubuf__ typename TileDataS1::DType* kvaluePtr = (__ubuf__ typename TileDataS1::DType*)__cce_get_tile_ptr(k_value);
 
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(typename TileDataS::DType);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(typename TileDataS::DType);
     uint16_t repeatTimes = CeilDivision(srcValidCol, elementsPerRepeat);
     unsigned srcRowStride = TileDataS::RowStride;
     unsigned dstRowStride = TileDataD::RowStride;
@@ -465,7 +465,7 @@ __tf__ AICORE void TGather_b32_eq(
     __ubuf__ typename TileDataC::DType* cdstPtr = (__ubuf__ typename TileDataC::DType*)__cce_get_tile_ptr(cdst);
 
     using T = typename TileDataD::DType;
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(typename TileDataS::DType);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(typename TileDataS::DType);
     uint16_t repeatTimes = CeilDivision(srcValidCol, elementsPerRepeat);
 
     __VEC_SCOPE__
@@ -515,7 +515,7 @@ __tf__ AICORE void TGather_b16_gt(
     __ubuf__ typename TileDataS1::DType* kvaluePtr = (__ubuf__ typename TileDataS1::DType*)__cce_get_tile_ptr(k_value);
 
     unsigned dstStride = TileDataD::Cols;
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(typename TileDataD::DType);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(typename TileDataD::DType);
     uint16_t repeatTimes = CeilDivision(srcValidCol, elementsPerRepeat);
 
     __VEC_SCOPE__
@@ -565,7 +565,7 @@ __tf__ AICORE void TGather_b16_eq(
     __ubuf__ typename TileDataC::DType* cdstPtr = (__ubuf__ typename TileDataC::DType*)__cce_get_tile_ptr(cdst);
     __ubuf__ typename TileDataS1::DType* kvaluePtr = (__ubuf__ typename TileDataS1::DType*)__cce_get_tile_ptr(k_value);
 
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(typename TileDataD::DType);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(typename TileDataD::DType);
     uint16_t repeatTimes = CeilDivision(srcValidCol, elementsPerRepeat);
 
     __VEC_SCOPE__
@@ -616,7 +616,7 @@ __tf__ AICORE void TGather_half_gt(
     __ubuf__ typename TileDataC::DType* cdstPtr = (__ubuf__ typename TileDataC::DType*)__cce_get_tile_ptr(cdst);
     __ubuf__ typename TileDataS1::DType* kvaluePtr = (__ubuf__ typename TileDataS1::DType*)__cce_get_tile_ptr(k_value);
 
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(typename TileDataD::DType);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(typename TileDataD::DType);
     uint16_t repeatTimes = CeilDivision(srcValidCol, elementsPerRepeat);
     unsigned srcRowStride = TileDataS::RowStride;
     unsigned dstRowStride = TileDataD::RowStride;
@@ -676,7 +676,7 @@ __tf__ AICORE void TGather_half_eq(
 
     unsigned TShape1 = TileDataD::Cols;
     using T = typename TileDataD::DType;
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(typename TileDataD::DType);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(typename TileDataD::DType);
     uint16_t repeatTimes = CeilDivision(srcValidCol, elementsPerRepeat);
 
     __VEC_SCOPE__

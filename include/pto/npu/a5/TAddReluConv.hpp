@@ -64,7 +64,7 @@ __tf__ PTO_INTERNAL OP_NAME(TADDRELUCONV) OP_TYPE(element_wise) void TAddReluCon
     __ubuf__ ST* src0Ptr = (__ubuf__ ST*)__cce_get_tile_ptr(src0Data);
     __ubuf__ ST* src1Ptr = (__ubuf__ ST*)__cce_get_tile_ptr(src1Data);
 
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(ST);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(ST);
     uint16_t repeatTimes = CeilDivision(validCols, elementsPerRepeat);
 
     __VEC_SCOPE__

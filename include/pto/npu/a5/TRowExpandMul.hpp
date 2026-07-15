@@ -67,7 +67,7 @@ PTO_INTERNAL void TROWEXPANDMUL_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileD
     unsigned src1ValidCol = src1.GetValidCol();
 
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename TileDataDst::DType);
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(typename TileDataDst::DType);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(typename TileDataDst::DType);
 #ifndef __PTO_AUTO__
     bool src0eqdst = (validRow == src0ValidRow) && (validCol == src0ValidCol);
     bool src1eqdst = (validRow == src1ValidRow) && (validCol == src1ValidCol);

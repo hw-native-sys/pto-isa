@@ -55,7 +55,7 @@ __tf__ PTO_INTERNAL void THistogram(
         vector_u32 vb32_BIN_N0_even, vb32_BIN_N0_odd, vb32_BIN_N1_even, vb32_BIN_N1_odd;
         vector_u8 vb8_src_MSB, vb8_src_LSB, vb8_idx;
         vector_bool preg_idx;
-        constexpr unsigned ElemPerRepeatB8 = REPEAT_BYTE / sizeof(uint8_t);
+        constexpr unsigned ElemPerRepeatB8 = CCE_VL / sizeof(uint8_t);
         unsigned repeatTimesPerRow = CeilDivision(validCols, ElemPerRepeatB8);
         vbr(vb16_BIN_N0, 0);
         vbr(vb16_BIN_N1, 0);
@@ -199,7 +199,7 @@ __tf__ PTO_INTERNAL void THistogramU32(
         vector_u32 vb32_BIN_N0_even, vb32_BIN_N0_odd, vb32_BIN_N1_even, vb32_BIN_N1_odd;
         vector_u8 vb8_byte0, vb8_byte1, vb8_byte2, vb8_byte3;
         vector_u8 vb8_idx0, vb8_idx1, vb8_idx2;
-        constexpr unsigned ElemPerRepeatB8 = REPEAT_BYTE / sizeof(uint8_t);
+        constexpr unsigned ElemPerRepeatB8 = CCE_VL / sizeof(uint8_t);
         unsigned repeatTimesPerRow = CeilDivision(validCols, ElemPerRepeatB8);
         vbr(vb16_BIN_N0, 0);
         vbr(vb16_BIN_N1, 0);

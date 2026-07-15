@@ -382,7 +382,7 @@ __tf__ PTO_INTERNAL OP_NAME(TINSERT) OP_TYPE(element_wise) void TInsertVecToVecN
     __ubuf__ T* srcAddr = (__ubuf__ T*)__cce_get_tile_ptr(src);
     constexpr uint32_t srcRowStride = SrcTileData::RowStride;
     constexpr uint32_t dstRowStride = DstTileData::RowStride;
-    constexpr uint32_t elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr uint32_t elementsPerRepeat = CCE_VL / sizeof(T);
     constexpr int32_t kStaticValidCol = SrcTileData::ValidCol;
     constexpr bool kSingleChunkStatic =
         (kStaticValidCol > 0) && (static_cast<uint32_t>(kStaticValidCol) <= elementsPerRepeat);
@@ -445,7 +445,7 @@ __tf__ PTO_INTERNAL OP_NAME(TINSERT) OP_TYPE(element_wise) void TInsertVecToVecN
     __ubuf__ T* dstAddr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
     constexpr uint32_t dstRowStride = DstTileData::RowStride;
     constexpr uint32_t srcRowStride = SrcTileData::RowStride;
-    constexpr uint32_t elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr uint32_t elementsPerRepeat = CCE_VL / sizeof(T);
     constexpr uint32_t kValidCol = SrcTileData::ValidCol;
     constexpr uint16_t kFullRepeats = static_cast<uint16_t>(kValidCol / elementsPerRepeat);
     constexpr uint32_t kRemainder = kValidCol % elementsPerRepeat;

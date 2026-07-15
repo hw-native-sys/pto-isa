@@ -251,7 +251,7 @@ __tf__ PTO_INTERNAL void TMovToVecNd2Nz(
     constexpr int32_t srcByteSize = srcRow * srcCol * sizeof(U);
     constexpr int32_t dstByteSize = DstTile::Rows * DstTile::Cols * sizeof(U);
 
-    constexpr uint32_t elementsPerRepeat = REPEAT_BYTE / sizeof(U);
+    constexpr uint32_t elementsPerRepeat = CCE_VL / sizeof(U);
     uint16_t repeatTimes = CeilDivision(validCol, elementsPerRepeat);
     constexpr bool isOptForConflict = DstTile::Compact == CompactMode::RowPlusOne;
     uint32_t alignRow = (srcRow + FRACTAL_NZ_ROW - 1) / FRACTAL_NZ_ROW * FRACTAL_NZ_ROW;
@@ -261,7 +261,7 @@ __tf__ PTO_INTERNAL void TMovToVecNd2Nz(
     uint32_t repeatStride = 1;
     uint16_t innerLoopNum = validRow - 1;
     uint32_t cfgVsstb = (blockStride << 16u) | (1 & 0xFFFFU);
-    uint32_t repeatStrideLast = (REPEAT_BYTE * virtualRow - innerLoopNum * BLOCK_BYTE_SIZE) / BLOCK_BYTE_SIZE;
+    uint32_t repeatStrideLast = (CCE_VL * virtualRow - innerLoopNum * BLOCK_BYTE_SIZE) / BLOCK_BYTE_SIZE;
     uint32_t cfgVsstbLast = (blockStride << 16u) | (repeatStrideLast & 0xFFFFU);
     uint32_t srcOffset = innerLoopNum * SrcTile::RowStride;
     __VEC_SCOPE__

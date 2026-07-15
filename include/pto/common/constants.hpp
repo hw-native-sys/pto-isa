@@ -18,6 +18,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 constexpr int REPEAT_BYTE = 256;
+constexpr const uint64_t BLOCK_MAX_PER_REPEAT = 8; // 256 / 32 = 8
 constexpr int REPEAT_MAX = 255;
 constexpr const int BLOCK_BYTE_SIZE = 32;
 constexpr const int FIXP_BURST_UNIT_LEN = 64;
@@ -25,7 +26,6 @@ constexpr const uint32_t SHIFT_BLOCK_LEN = 4;
 constexpr const uint32_t SHIFT_BLOCK_BYTE = 5;
 constexpr const uint32_t SHIFT_FRACTAL_BYTE = 9;
 constexpr const int REPEAT_STRIDE_MAX = 255;
-constexpr const uint64_t BLOCK_MAX_PER_REPEAT = 8;
 constexpr const uint32_t TMP_UB_SIZE = 8 * 1024;
 constexpr const uint32_t TMP_UB_OFFSET = 184 * 1024;
 constexpr const uint64_t MASK_LEN = 64;

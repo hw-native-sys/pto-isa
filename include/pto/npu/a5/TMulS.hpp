@@ -68,7 +68,7 @@ PTO_INTERNAL void TMULS_IMPL(TileDataDst& dst, TileDataSrc& src0, typename TileD
         "Number of valid rows must not be greater than number of tile rows.");
 
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
     constexpr unsigned dstRowStride = TileDataDst::RowStride;
     constexpr unsigned srcRowStride = TileDataSrc::RowStride;
     unsigned validRow = dst.GetValidRow();

@@ -314,6 +314,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifdef PTO_NPU_ARCH_KIRINX90
 #include "pto/npu/kirinX90/header.hpp"
 #endif
+#ifdef PTO_NPU_ARCH_KIRINDEV0000
+#include "pto/npu/kirinDev0000/header.hpp"
+#endif
 
 // Async L2 cache prefetch via SDMA CMO. Same backend file is reused across A2/A3
 // and A5 because the SDMA infrastructure is common to both architectures

@@ -72,6 +72,7 @@ PTO_INTERNAL void UpdateIdxValue(
     RegTensor<TDst>& vregIdxOrig, RegTensor<TSrc>& vregValOrig, RegTensor<TSrc>& vregVal, RegTensor<TSrc>& vregZero,
     RegTensor<TDst>& vregIdxOffset, MaskReg& pRegOneElem)
 {
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(TSrc);
     MaskReg pregCmp;
     RegTensor<TDst> vregIdx;
     vdintlv(vregVal, (RegTensor<TSrc>&)vregIdx, vregVal, vregZero);
@@ -91,15 +92,13 @@ PTO_INTERNAL void TRowReduceIdxProc(
     using TDstVal = typename TileDataOutVal::DType;
     using TDstIdx = typename TileDataOutIdx::DType;
     using TSrc = typename TileDataIn::DType;
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(TSrc);
-    uint16_t repeatTimes = CeilDivision(cols, elementsPerRepeat);
-    constexpr auto distValueVal =
-        std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<TDstVal, DistVST::DIST_ONEPT>())>();
-    constexpr auto distValueIdx =
-        std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<TDstIdx, DistVST::DIST_ONEPT>())>();
-    RegTensor<TSrc> vregZero, vregSrc, vregValOrig;
-    RegTensor<TDstIdx> vregIdxOrig;
-    vbr(vregZero, 0);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(TSrc);
+    __VEC_SCOPE__
+    {
+        constexpr auto distValueVal =
+            std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<TDstVal, DistVST::DIST_ONEPT>())>();
+        constexpr auto distValueIdx =
+            std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<TDstIdx, DistVST::DIST_ONEPT>())>();
 
         RegTensor<TSrc> vregZero, vregSrc, vregValOrig;
         RegTensor<TDstIdx> vregIdxOrig, vregIdxOffset;
@@ -154,15 +153,18 @@ PTO_INTERNAL void TRowReduceIdxImpl(
     __ubuf__ typename TileDataOutVal::DType* dstValPtr, __ubuf__ typename TileDataOutIdx::DType* dstIdxPtr,
     __ubuf__ typename TileDataIn::DType* srcPtr, uint32_t rows, uint32_t cols, unsigned version)
 {
-    __VEC_SCOPE__
-    {
-        if (version == VFIMPL_2D_NO_POST_UPDATE) {
-            TRowReduceIdxProc<ReduceIdxOp, TileDataOutVal, TileDataOutIdx, TileDataIn, outputVal, false>(
-                dstValPtr, dstIdxPtr, srcPtr, rows, cols);
-        } else {
-            TRowReduceIdxProc<ReduceIdxOp, TileDataOutVal, TileDataOutIdx, TileDataIn, outputVal, false>(
-                dstValPtr, dstIdxPtr, srcPtr, rows, cols);
-        }
+    using TDstVal = typename TileDataOutVal::DType;
+    using TDstIdx = typename TileDataOutIdx::DType;
+    using TSrc = typename TileDataIn::DType;
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(TSrc);
+    int32_t repeatTimes = CeilDivision(cols, elementsPerRepeat);
+    if (version == VFIMPL_2D_NO_POST_UPDATE) {
+        TRowReduceIdxProc<ReduceIdxOp, TileDataOutVal, TileDataOutIdx, TileDataIn, outputVal, false>(
+            dstValPtr, dstIdxPtr, srcPtr, rows, cols, repeatTimes, 0);
+    } else {
+        int32_t srcAdjust = static_cast<int32_t>(TileDataIn::RowStride) - repeatTimes * elementsPerRepeat;
+        TRowReduceIdxProc<ReduceIdxOp, TileDataOutVal, TileDataOutIdx, TileDataIn, outputVal, true>(
+            dstValPtr, dstIdxPtr, srcPtr, rows, cols, repeatTimes, srcAdjust);
     }
 }
 

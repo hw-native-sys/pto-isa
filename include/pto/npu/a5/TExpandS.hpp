@@ -37,7 +37,7 @@ __tf__ OP_NAME(TEXPANDS) OP_TYPE(broadcast) PTO_INTERNAL void TExpandS(
 {
     using T = typename TileData::DType;
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
 
     __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
 

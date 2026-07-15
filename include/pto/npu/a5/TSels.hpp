@@ -131,7 +131,7 @@ PTO_INTERNAL void TSELS_IMPL(
     static_assert(sizeof(T) == 4 || sizeof(T) == 2 || sizeof(T) == 1, "TSELS: Invalid data type.");
 
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
     unsigned validRow = dst.GetValidRow();
     unsigned validCol = dst.GetValidCol();
 

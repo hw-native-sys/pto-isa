@@ -40,7 +40,7 @@ def set_env_variables(run_mode, soc_version):
             raise EnvironmentError("ASCEND_HOME_PATH is not set")
 
         os.environ["LD_LIBRARY_PATH"] = f"{ascend_home}/runtime/lib64/stub:{os.environ.get('LD_LIBRARY_PATH', '')}"
-        if soc_version == "Kirin9030" or soc_version == "KirinX90":
+        if soc_version == "Kirin9030" or soc_version == "KirinX90" or soc_version == "KirinDev0000":
             setenv_path = os.path.join(ascend_home, "set_env.sh")
         else:
             setenv_path = os.path.join(ascend_home, "bin", "setenv.bash")
@@ -271,7 +271,9 @@ def main():
     # 解析命令行参数
     parser = argparse.ArgumentParser(description="执行st脚本")
     parser.add_argument("-r", "--run-mode", required=True, help="运行模式（如 sim or npu)")
-    parser.add_argument("-v", "--soc-version", required=True, help="SOC版本 只支持 a3 / a5 / a6 / kirin9030 / kirinX90")
+    parser.add_argument(
+        "-v", "--soc-version", required=True, help="SOC版本 只支持 a3 / a5 / a6 / kirin9030 / kirinX90 kirinDev0000"
+    )
     parser.add_argument("-t", "--testcase", required=True, help="需要执行的用例")
     parser.add_argument("-g", "--gtest_filter", required=False, help="可选 需要执行的具体case名")
     parser.add_argument("-d", "--debug-enable", action="store_true", help="开启debug检查")
@@ -289,6 +291,8 @@ def main():
         default_soc_version = "Kirin9030"
     elif args.soc_version == "kirinX90":
         default_soc_version = "KirinX90"
+    elif args.soc_version == "kirinDev0000":
+        default_soc_version = "KirinDev0000"
     elif args.soc_version == "a6":
         default_soc_version = "dav_9201"
     default_cases = "all"
@@ -317,7 +321,9 @@ def main():
             target_dir = target_dir + "/npu/kirin9030/src/st"
         elif args.soc_version == "kirinX90":
             target_dir = target_dir + "/npu/kirinX90/src/st"
-        else : # a5
+        elif args.soc_version == "kirinDev0000":
+            target_dir = target_dir + "/npu/kirinDev0000/src/st"
+        else:  # a5
             target_dir = target_dir + "/npu/a5/src/st"
 
         print(f"target_dir: {target_dir}")

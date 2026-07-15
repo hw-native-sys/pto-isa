@@ -35,7 +35,7 @@ PTO_INTERNAL void CopyValidElementsVec(
     __ubuf__ T* dstPtr, __ubuf__ T* srcPtr, uint64_t srcValidRow, uint64_t srcValidCol, unsigned srcStride,
     unsigned dstStride, DistType distValue)
 {
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
     RegTensor<T> vreg0;
     MaskReg preg;
     uint16_t repeatTimes = CeilDivision(srcValidCol, elementsPerRepeat);
@@ -58,7 +58,7 @@ __tf__ PTO_INTERNAL void TFillPad(
     using U = typename TileDataDst::DType;
     __ubuf__ T* srcPtr = (__ubuf__ T*)__cce_get_tile_ptr(src);
     __ubuf__ U* dstPtr = (__ubuf__ U*)__cce_get_tile_ptr(dst);
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(typename TileDataSrc::DType);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(typename TileDataSrc::DType);
     constexpr unsigned srcStride = TileDataSrc::Cols;
     constexpr unsigned dstStride = TileDataDst::Cols;
     unsigned padCols = TileDataDst::Cols - srcValidCol;

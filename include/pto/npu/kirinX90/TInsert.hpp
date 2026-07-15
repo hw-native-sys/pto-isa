@@ -32,7 +32,7 @@ __tf__ AICORE void TInsertVecToVecNDUnaligned(
     __ubuf__ T* dstAddr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
     constexpr uint32_t dstRowStride = DstTileData::RowStride;
     constexpr uint32_t srcRowStride = SrcTileData::RowStride;
-    constexpr uint32_t elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr uint32_t elementsPerRepeat = CCE_VL / sizeof(T);
     constexpr uint32_t kValidCol = SrcTileData::ValidCol;
     constexpr uint16_t kFullRepeats = static_cast<uint16_t>(kValidCol / elementsPerRepeat);
     constexpr uint32_t kRemainder = kValidCol % elementsPerRepeat;

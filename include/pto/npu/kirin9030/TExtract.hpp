@@ -537,7 +537,7 @@ __tf__ PTO_INTERNAL void TExtractVecToVecNDAlignedImpl(
     __ubuf__ RegT* srcAddr = (__ubuf__ RegT*)__cce_get_tile_ptr(src);
     constexpr uint32_t dstRowStride = DstTile::RowStride;
     constexpr uint32_t srcRowStride = SrcTile::RowStride;
-    constexpr uint32_t elementsPerRepeat = REPEAT_BYTE / sizeof(RegT);
+    constexpr uint32_t elementsPerRepeat = CCE_VL / sizeof(RegT);
 
     __VEC_SCOPE__
     {
@@ -570,7 +570,7 @@ __tf__ PTO_INTERNAL void TExtractVecToVecNDVectorImpl(
     __ubuf__ RegT* srcAddr = (__ubuf__ RegT*)__cce_get_tile_ptr(src);
     constexpr uint32_t dstRowStride = DstTile::RowStride;
     constexpr uint32_t srcRowStride = SrcTile::RowStride;
-    constexpr uint32_t elementsPerRepeat = REPEAT_BYTE / sizeof(RegT);
+    constexpr uint32_t elementsPerRepeat = CCE_VL / sizeof(RegT);
 
     __VEC_SCOPE__
     {

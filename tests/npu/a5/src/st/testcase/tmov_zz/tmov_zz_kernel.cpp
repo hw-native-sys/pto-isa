@@ -121,7 +121,7 @@ AICORE void runTMovZZ(__gm__ uint8_t* outFp8Nz, __gm__ float* src, __gm__ uint8_
     constexpr int scalingTileAddr = PTO_CEIL(maxTileAddr + maxTileBytes, 0x20);
     constexpr int e8TileAddr = PTO_CEIL(scalingTileAddr + scalingTileBytes, 0x20);
     constexpr int fp8TileAddr = 0x0;
-    // vlds reads a full VL (REPEAT_BYTE = 256 bytes) even when paddedCols < 256.
+    // vlds reads a full VL (CCE_VL = 256 bytes) even when paddedCols < 256.
     // The tail bytes spill past fp8TileBytes into adjacent memory.  Add a gap so
     // that fp8TileNZ starts beyond the maximum vlds read address, preventing
     // VLD/VST overlap on real NPU hardware (store queue is not in-order).
@@ -306,7 +306,10 @@ AICORE void runTMovZZ_e8m0(__gm__ uint8_t* outFp8Nz, __gm__ float* src, __gm__ u
     constexpr int scalingTileAddr = PTO_CEIL(maxTileAddr + maxTileBytes, 0x20);
     constexpr int e8TileAddr = PTO_CEIL(scalingTileAddr + scalingTileBytes, 0x20);
     constexpr int fp8TileAddr = 0x0;
-    constexpr int fp8TileNZAddr = fp8TileAddr + fp8TileBytes;
+    // vlds reads a full VL (CCE_VL = 256 bytes) even when paddedCols < 256.
+    // Add gap to prevent VLD/VST address overlap on real NPU hardware.
+    constexpr int vldOverreadGap = PTO_CEIL(paddedCols * (int)sizeof(int8_t), 256) - paddedCols * (int)sizeof(int8_t);
+    constexpr int fp8TileNZAddr = PTO_CEIL(fp8TileAddr + fp8TileBytes + vldOverreadGap, 0x20);
     constexpr int workTileEnd = e8TileAddr + e8TileBytes;
     constexpr int fp8TileNZEnd = fp8TileNZAddr + fp8TileNZBytes;
     constexpr int zzTmpStart = PTO_CEIL(workTileEnd > fp8TileNZEnd ? workTileEnd : fp8TileNZEnd, 0x20);

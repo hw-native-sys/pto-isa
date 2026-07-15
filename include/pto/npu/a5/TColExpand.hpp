@@ -119,7 +119,7 @@ __tf__ PTO_INTERNAL OP_NAME(TCOLEXPAND) OP_TYPE(broadcast) void TColExpand(
 template <typename TileDataDst, typename TileDataSrc>
 PTO_INTERNAL void TCOLEXPAND_IMPL(TileDataDst& dst, TileDataSrc& src)
 {
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(typename TileDataDst::DType);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(typename TileDataDst::DType);
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename TileDataDst::DType);
     unsigned dstValidRow = dst.GetValidRow();
     unsigned dstValidCol = dst.GetValidCol();

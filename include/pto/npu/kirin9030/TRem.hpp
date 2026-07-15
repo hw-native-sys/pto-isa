@@ -170,7 +170,7 @@ __tf__ PTO_INTERNAL OP_NAME(TREM) OP_TYPE(element_wise) void TRem(
     __ubuf__ T* src1Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src1);
 
     constexpr unsigned blockSizeElem = CCE_VL / sizeof(T);
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
     // Note: tmp parameter is not used in a5 implementation (no sign correction needed)
     BinaryInstr<RemOp<T>, DstTile, Src0Tile, Src1Tile, elementsPerRepeat, blockSizeElem>(
         dstPtr, src0Ptr, src1Ptr, validRows, validCols, version);

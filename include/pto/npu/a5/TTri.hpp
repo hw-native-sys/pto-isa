@@ -23,7 +23,7 @@ __tf__ PTO_INTERNAL void TTriu(
 {
     using T = typename TileData::DType;
     __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
     unsigned numRepeatPerRow = CeilDivision(validCols, elementsPerRepeat);
     uint32_t start_row = (diagonal > 0) ? 0 : (1 - diagonal);
     int start_num = diagonal;
@@ -60,7 +60,7 @@ __tf__ PTO_INTERNAL void TTril(
 {
     using T = typename TileData::DType;
     __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
     unsigned numRepeatPerRow = CeilDivision(validCols, elementsPerRepeat);
     uint32_t start_row = (diagonal < 0) ? (-diagonal) : (0);
     int start_num = diagonal + 1;

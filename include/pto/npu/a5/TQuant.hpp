@@ -248,9 +248,9 @@ template <typename T, bool fp16AsBf16ForMax = true>
 PTO_INTERNAL void AbsReduceMax_b16_ND(
     __ubuf__ T* srcPtr, __ubuf__ T* maxPtr, unsigned vl_count, unsigned total_elem_count)
 {
-    constexpr uint32_t elements_per_dintlv = 2 * REPEAT_BYTE / sizeof(T); // 256 b16 per DINTLV
-    constexpr uint32_t grps_per_dintlv = elements_per_dintlv / 32;        // 8 BF16 abs maxima per iter
-    constexpr uint32_t blks_per_vl = REPEAT_BYTE / BLOCK_BYTE_SIZE;
+    constexpr uint32_t elements_per_dintlv = 2 * CCE_VL / sizeof(T); // 256 b16 per DINTLV
+    constexpr uint32_t grps_per_dintlv = elements_per_dintlv / 32;   // 8 BF16 abs maxima per iter
+    constexpr uint32_t blks_per_vl = CCE_VL / BLOCK_BYTE_SIZE;
     static constexpr auto distValue =
         std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
     uint16_t loop_num = CeilDivision(vl_count, 2);
@@ -297,13 +297,13 @@ PTO_INTERNAL void AbsReduceMax_b16_ND_largesizes(
     vector_align ureg_max;
     uint32_t total_count = total_elements_count;
     constexpr uint32_t grp_size = 32;
-    constexpr uint32_t elements_per_vl = REPEAT_BYTE / sizeof(T); // 256 B / 2 B = 128 elements per VL
-    constexpr uint32_t grps_per_vl = elements_per_vl / grp_size;  // 128 / 32 = 4 groups per VL
-    constexpr uint32_t num_vl_per_inner_loop = 2;                 // 2 VLs per inner loop (1 DINTLV load)
+    constexpr uint32_t elements_per_vl = CCE_VL / sizeof(T);     // 256 B / 2 B = 128 elements per VL
+    constexpr uint32_t grps_per_vl = elements_per_vl / grp_size; // 128 / 32 = 4 groups per VL
+    constexpr uint32_t num_vl_per_inner_loop = 2;                // 2 VLs per inner loop (1 DINTLV load)
     constexpr uint32_t num_vl_per_outer_loop = 32;
     constexpr uint32_t grps_per_inner_loop = num_vl_per_inner_loop * grps_per_vl; // 2 * 4 = 8 grps per inner loop
     constexpr uint32_t grps_per_outer_loop = num_vl_per_outer_loop * grps_per_vl; // 32 * 4 = 128
-    constexpr uint32_t blks_per_vl = REPEAT_BYTE / BLOCK_BYTE_SIZE;               // 8 blocks per VL
+    constexpr uint32_t blks_per_vl = CCE_VL / BLOCK_BYTE_SIZE;                    // 8 blocks per VL
     static constexpr auto distValue =
         std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
     for (uint16_t i = 0; i < (uint16_t)vl_count / num_vl_per_outer_loop; ++i) {        // 32 VLs per outer loop
@@ -347,7 +347,7 @@ PTO_INTERNAL void AbsReduceMax_b16_ND_2D(
     RegTensor<T> vb16_max_1;
     vector_align ureg_max;
     constexpr uint32_t grp_size = 32;
-    constexpr uint32_t elements_per_vl = REPEAT_BYTE / sizeof(T);        // 128
+    constexpr uint32_t elements_per_vl = CCE_VL / sizeof(T);             // 128
     constexpr uint32_t elements_per_dintlv = 2 * elements_per_vl;        // 256
     constexpr uint32_t grps_per_dintlv = elements_per_dintlv / grp_size; // 8 group maxes per DINTLV
     uint32_t groupsPerRow = srcCols / grp_size;                          // srcCols is always 32-aligned
@@ -705,7 +705,7 @@ PTO_INTERNAL void ExtractMxOcpExponentAndScaling(
     __ubuf__ T* maxPtr, __ubuf__ uint8_t* expPtr, __ubuf__ T* scalingPtr, unsigned exp_max_loop_count,
     unsigned total_elements_count)
 {
-    constexpr uint32_t elementsPerVL = REPEAT_BYTE / sizeof(T);
+    constexpr uint32_t elementsPerVL = CCE_VL / sizeof(T);
     B16OcpQuantCtx<OcpFormatSpec> ctx;
     InitB16OcpQuantCtx(ctx);
     for (uint16_t i = 0; i < (uint16_t)exp_max_loop_count; ++i) {
@@ -864,7 +864,7 @@ PTO_INTERNAL void ExtractNVExponentAndScalingB16(
 {
     B16NvQuantCtx<NvFormatSpec> ctx;
     InitB16NvQuantCtx(ctx);
-    constexpr uint32_t elementsPerChunk = REPEAT_BYTE / sizeof(float);
+    constexpr uint32_t elementsPerChunk = CCE_VL / sizeof(float);
     uint16_t loopCount = CeilDivision(total_elements_count, elementsPerChunk);
     for (uint16_t i = 0; i < loopCount; ++i) {
         uint32_t off = i * elementsPerChunk;
@@ -958,9 +958,7 @@ PTO_INTERNAL void ExtractB8ExponentAndScaling_2D(
     __ubuf__ T* maxPtr, __ubuf__ uint8_t* expPtr, __ubuf__ T* scalingPtr, unsigned validRows, unsigned validCols,
     unsigned srcCols)
 {
-    static_assert(std::is_same<T, bfloat16_t>::value || std::is_same<T, half>::value,
-                  "ExtractB8ExponentAndScaling_2D: T must be bfloat16_t or half");
-    constexpr uint32_t elementsPerVL = REPEAT_BYTE / sizeof(T); // 128 group-maxes per VL
+    constexpr uint32_t elementsPerVL = CCE_VL / sizeof(T); // 128 group-maxes per VL
 
     uint32_t groupsPerRow = srcCols / 32; // srcCols is 32-aligned
     uint32_t validGroupsPerRow = CeilDivision((uint32_t)validCols, 32u);
@@ -1055,7 +1053,7 @@ PTO_INTERNAL void CalcQuantizedFP8Values_B16_Window(
     __ubuf__ T* srcPtr, __ubuf__ T* scalingPtr, __ubuf__ uint8_t* dstPtr, uint16_t i, uint32_t offset_b16,
     uint32_t remaining)
 {
-    constexpr uint32_t elementsPerVL_b8 = REPEAT_BYTE / sizeof(uint8_t);
+    constexpr uint32_t elementsPerVL_b8 = CCE_VL / sizeof(uint8_t);
     RegTensor<T> vb16_scaling, vb16_in_1, vb16_in_2, vb16_out_1, vb16_out_2;
     vector_f32 vb32_cvt_1, vb32_cvt_2, vb32_cvt_3, vb32_cvt_4;
     vector_f8e4m3 vb8_or1, vb8_or2, vb8_out, vb8_p0, vb8_p1, vb8_p2, vb8_p3;
@@ -1098,9 +1096,7 @@ template <typename T>
 PTO_INTERNAL void CalcQuantizedFP8Values(
     __ubuf__ T* srcPtr, __ubuf__ T* scalingPtr, __ubuf__ uint8_t* dstPtr, unsigned total_elements_count)
 {
-    static_assert(std::is_same<T, bfloat16_t>::value || std::is_same<T, half>::value,
-                  "CalcQuantizedFP8Values B16: T must be bfloat16_t or half");
-    constexpr uint32_t elementsPerVL_b16 = REPEAT_BYTE / sizeof(T);
+    constexpr uint32_t elementsPerVL_b16 = CCE_VL / sizeof(T);
     constexpr uint32_t elementsPerDintlv = 2 * elementsPerVL_b16;
     uint32_t vl_count = CeilDivision(total_elements_count, elementsPerVL_b16);
     uint16_t quant_iters = (uint16_t)CeilDivision(vl_count, static_cast<uint32_t>(2u));
@@ -1127,8 +1123,8 @@ PTO_INTERNAL void CalcQuantizedFP8Values_2D(
     __ubuf__ T* srcPtr, __ubuf__ T* scalingPtr, __ubuf__ uint8_t* dstPtr, unsigned validRows, unsigned validCols,
     unsigned srcCols)
 {
-    constexpr uint32_t elementsPerVL_b16 = REPEAT_BYTE / sizeof(T); // 128
-    constexpr uint32_t elementsPerDintlv = 2 * elementsPerVL_b16;   // 256
+    constexpr uint32_t elementsPerVL_b16 = CCE_VL / sizeof(T);    // 128
+    constexpr uint32_t elementsPerDintlv = 2 * elementsPerVL_b16; // 256
     uint32_t groupsPerRow = srcCols / 32;
     uint16_t loopsPerRow = CeilDivision((uint32_t)validCols, elementsPerDintlv);
     for (uint16_t row = 0; row < (uint16_t)validRows; ++row) {
@@ -1210,8 +1206,8 @@ PTO_INTERNAL void CalcQuantizedFP4E2M1Values_Half_Window(
 {
     constexpr uint32_t kElementsPerWindow = 256;
     constexpr uint32_t kPackedBytesPerWindow = kElementsPerWindow / 2;
-    constexpr uint32_t kB16LanesPerReg = REPEAT_BYTE / sizeof(half);
-    constexpr uint32_t kF32LanesPerReg = REPEAT_BYTE / sizeof(float);
+    constexpr uint32_t kB16LanesPerReg = CCE_VL / sizeof(half);
+    constexpr uint32_t kF32LanesPerReg = CCE_VL / sizeof(float);
     uint32_t b16LanesPerReg = kB16LanesPerReg;
     uint32_t f32LanesPerReg = kF32LanesPerReg;
     uint32_t packedBytesPerWindow = kPackedBytesPerWindow;
@@ -1480,7 +1476,7 @@ template <QuantScaleAlg scale_alg, typename T>
 PTO_INTERNAL void ReduceMxB16AbsMaxFlat(
     __ubuf__ T* srcPtr, __ubuf__ T* maxPtr, uint16_t vl_count, uint32_t total_elements_count)
 {
-    constexpr uint32_t elementsPerVL = REPEAT_BYTE / sizeof(T);
+    constexpr uint32_t elementsPerVL = CCE_VL / sizeof(T);
     constexpr uint32_t elementsPerLargeLoop = 32 * elementsPerVL;
     const bool useLargeSizePath = (total_elements_count % elementsPerLargeLoop == 0);
 
@@ -1533,7 +1529,7 @@ PTO_INTERNAL void AbsReduceMax_b16_ND_2D_Packed(
     RegTensor<T> vb16_max;
     vector_align ureg_max;
     constexpr uint32_t grp_size = 32;
-    constexpr uint32_t elements_per_vl = REPEAT_BYTE / sizeof(T);
+    constexpr uint32_t elements_per_vl = CCE_VL / sizeof(T);
     constexpr uint32_t elements_per_dintlv = 2 * elements_per_vl;
     constexpr uint32_t grps_per_dintlv = elements_per_dintlv / grp_size;
     uint32_t groupsPerRow = CeilDivision((uint32_t)validCols, grp_size);
@@ -1981,7 +1977,7 @@ PTO_INTERNAL void TQuant_MXFP8_F32_2D(
     __ubuf__ float* scalingPtr, unsigned validRows, unsigned validCols, unsigned srcCols, unsigned expColStride)
 {
     constexpr uint32_t kGroupSize = 32;
-    constexpr uint32_t elementsPerRepeat = REPEAT_BYTE / sizeof(float);
+    constexpr uint32_t elementsPerRepeat = CCE_VL / sizeof(float);
     uint32_t groupsPerRow = CeilDivision((uint32_t)validCols, kGroupSize);
     uint16_t vlCountPerRow = (uint16_t)CeilDivision((uint32_t)validCols, elementsPerRepeat);
     MaskReg preg_lower32 = pset_b32(PAT_VL32), preg_upper32, preg_ALL = pset_b32(PAT_ALL);
@@ -2013,7 +2009,7 @@ template <QuantScaleAlg scale_alg, typename T>
 PTO_INTERNAL void AbsReduceMax_b16_ND_2D_Strided(
     __ubuf__ T* srcPtr, __ubuf__ T* maxPtr, unsigned validRows, unsigned srcCols, unsigned maxRowGroupStride)
 {
-    constexpr uint32_t elemPerVL = REPEAT_BYTE / sizeof(T);
+    constexpr uint32_t elemPerVL = CCE_VL / sizeof(T);
     uint16_t vlPerRow = (uint16_t)CeilDivision(srcCols, elemPerVL);
     for (uint16_t row = 0; row < (uint16_t)validRows; ++row) {
         if constexpr (scale_alg == QuantScaleAlg::NV && std::is_same<T, half>::value)
@@ -2028,7 +2024,7 @@ PTO_INTERNAL void ExtractB8ExponentAndScaling_2D_Strided(
     __ubuf__ T* maxPtr, __ubuf__ uint8_t* expPtr, __ubuf__ T* scalingPtr, unsigned validRows, unsigned srcCols,
     unsigned maxRowGroupStride, unsigned expColStride, unsigned scalingRowGroupStride)
 {
-    constexpr uint32_t elementsPerVL = REPEAT_BYTE / sizeof(T);
+    constexpr uint32_t elementsPerVL = CCE_VL / sizeof(T);
     uint32_t groupsPerRow = srcCols / 32;
     uint16_t loopsPerRow = (uint16_t)CeilDivision(groupsPerRow, elementsPerVL);
     for (uint16_t row = 0; row < (uint16_t)validRows; ++row) {
@@ -2054,7 +2050,7 @@ PTO_INTERNAL void CalcQuantizedFP8Values_2D_Strided(
     __ubuf__ T* srcPtr, __ubuf__ T* scalingPtr, __ubuf__ uint8_t* dstPtr, unsigned validRows, unsigned srcCols,
     unsigned scalingRowGroupStride)
 {
-    constexpr uint32_t elementsPerVL_b16 = REPEAT_BYTE / sizeof(T);
+    constexpr uint32_t elementsPerVL_b16 = CCE_VL / sizeof(T);
     constexpr uint32_t elementsPerDintlv = 2 * elementsPerVL_b16;
     uint16_t loopsPerRow = (uint16_t)CeilDivision(srcCols, elementsPerDintlv);
     for (uint16_t row = 0; row < (uint16_t)validRows; ++row) {
@@ -2242,7 +2238,7 @@ PTO_INTERNAL void TQuant_MXFP4_E2M1_B16_2D(
 template <typename T, unsigned StaticCols>
 PTO_INTERNAL void ZeroPadColumns_VLAligned(__ubuf__ T* srcPtr, unsigned validRows, unsigned validCols)
 {
-    constexpr unsigned elemPerVL = REPEAT_BYTE / sizeof(T);
+    constexpr unsigned elemPerVL = CCE_VL / sizeof(T);
     static_assert(
         elemPerVL % StaticCols == 0, "StaticCols must evenly divide "
                                      "elements-per-VL for VL-aligned padding");
@@ -2287,7 +2283,7 @@ PTO_INTERNAL void ZeroPadColumns_VLAligned(__ubuf__ T* srcPtr, unsigned validRow
 template <typename T, unsigned StaticCols>
 PTO_INTERNAL void ZeroPadColumns_Unaligned(__ubuf__ T* srcPtr, unsigned validRows, unsigned validCols)
 {
-    constexpr unsigned padElemPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr unsigned padElemPerRepeat = CCE_VL / sizeof(T);
     unsigned padCols = StaticCols - validCols;
     uint16_t padRepeatTimes = CeilDivision(padCols, padElemPerRepeat);
     RegTensor<T> vreg_zero;
@@ -2315,7 +2311,7 @@ PTO_INTERNAL void ZeroPadSourceTile(__ubuf__ T* srcPtr, unsigned validRows, unsi
 {
     if constexpr (!std::is_same<T, float>::value) {
         if (validCols < StaticCols) {
-            constexpr unsigned elemPerVL = REPEAT_BYTE / sizeof(T);
+            constexpr unsigned elemPerVL = CCE_VL / sizeof(T);
             if constexpr (elemPerVL % StaticCols == 0)
                 ZeroPadColumns_VLAligned<T, StaticCols>(srcPtr, validRows, validCols);
             else
@@ -2350,7 +2346,7 @@ __tf__ PTO_INTERNAL void TQuant_MXFP8_Impl(
         ZeroPadSourceTile<T, TileDataSrc::Cols>(srcPtr, validRows, validCols);
         mem_bar(VST_VLD);
 
-        constexpr unsigned elemPerVL = REPEAT_BYTE / sizeof(T);
+        constexpr unsigned elemPerVL = CCE_VL / sizeof(T);
         uint32_t totalElems = validRows * (unsigned)TileDataSrc::Cols;
         uint16_t vlCount = CeilDivision(totalElems, elemPerVL);
         uint32_t numGroups = totalElems / 32;
@@ -2400,7 +2396,7 @@ __tf__ PTO_INTERNAL void TQuant_MXFP4_E2M1_Impl(
         ZeroPadSourceTile<T, TileDataSrc::Cols>(srcPtr, validRows, validCols);
         mem_bar(VST_VLD);
 
-        constexpr unsigned elemPerVL = REPEAT_BYTE / sizeof(T);
+        constexpr unsigned elemPerVL = CCE_VL / sizeof(T);
         uint32_t totalElems = validRows * (unsigned)TileDataSrc::Cols;
         uint16_t vlCount = CeilDivision(totalElems, elemPerVL);
         uint32_t numGroups = totalElems / 32;
@@ -2508,7 +2504,7 @@ template <typename T, uint32_t StaticCols>
 PTO_INTERNAL void AbsReduceMax_DN(__ubuf__ T* srcPtr, __ubuf__ T* maxPtr, unsigned validRows, unsigned validCols)
 {
     constexpr uint32_t grpSize = 32;
-    constexpr uint32_t elementsPerVL = REPEAT_BYTE / sizeof(T);
+    constexpr uint32_t elementsPerVL = CCE_VL / sizeof(T);
     uint32_t num_vls_per_row = CeilDivision(validCols, elementsPerVL);
     uint32_t num_grps_per_col = CeilDivision(validRows, grpSize);
     constexpr uint32_t num_vls_inner_loop = 4;
@@ -2561,7 +2557,7 @@ PTO_INTERNAL void calcQuantizedFP8Values_DN_B16(
     __ubuf__ T* srcPtr, __ubuf__ T* scalingPtr, __ubuf__ uint8_t* dstPtr, unsigned validRows, unsigned validCols)
 {
     constexpr uint32_t grpSize = 32;
-    constexpr uint32_t b16ElementsPerVL = REPEAT_BYTE / sizeof(T); // B16 elements per VL
+    constexpr uint32_t b16ElementsPerVL = CCE_VL / sizeof(T); // B16 elements per VL
     uint32_t num_vls_per_row = CeilDivision((uint32_t)validCols, b16ElementsPerVL);
     uint32_t num_grps_per_col = CeilDivision((uint32_t)validRows, grpSize);
     RegTensor<T> vb16_scaling, vb16_input;
@@ -2605,7 +2601,7 @@ PTO_INTERNAL void calcQuantizedFP8Values_DN_float(
     unsigned validCols)
 {
     constexpr uint32_t grpSize = 32;
-    constexpr uint32_t b32ElementsPerVL = REPEAT_BYTE / sizeof(float); // B32 elements per VL
+    constexpr uint32_t b32ElementsPerVL = CCE_VL / sizeof(float); // B32 elements per VL
     uint32_t num_vls_per_row = CeilDivision((uint32_t)validCols, b32ElementsPerVL);
     uint32_t num_grps_per_col = CeilDivision((uint32_t)validRows, grpSize);
     RegTensor<float> vf32_scaling, vf32_input;
@@ -2641,7 +2637,7 @@ PTO_INTERNAL void calcQuantizedFP4E2M1Values_DN_Bf16(
     unsigned validCols)
 {
     constexpr uint32_t grpSize = 32;
-    constexpr uint32_t b16ElementsPerVL = REPEAT_BYTE / sizeof(bfloat16_t);
+    constexpr uint32_t b16ElementsPerVL = CCE_VL / sizeof(bfloat16_t);
     uint32_t num_vls_per_row = CeilDivision((uint32_t)validCols, b16ElementsPerVL);
     uint32_t num_grps_per_col = CeilDivision((uint32_t)validRows, grpSize);
     RegTensor<bfloat16_t> vb16_scaling, vb16_input;
@@ -2706,7 +2702,7 @@ PTO_INTERNAL void calcQuantizedFP4E2M1Values_DN_Fp16(
     __ubuf__ half* srcPtr, __ubuf__ half* scalingPtr, __ubuf__ uint8_t* dstPtr, unsigned validRows, unsigned validCols)
 {
     constexpr uint32_t grpSize = 32;
-    constexpr uint32_t b16ElementsPerVL = REPEAT_BYTE / sizeof(half);
+    constexpr uint32_t b16ElementsPerVL = CCE_VL / sizeof(half);
     uint32_t num_vls_per_row = CeilDivision((uint32_t)validCols, b16ElementsPerVL);
     uint32_t num_grps_per_col = CeilDivision((uint32_t)validRows, grpSize);
     vector_bf16 vb16_scaling;
@@ -2739,7 +2735,7 @@ PTO_INTERNAL void TQuant_MXFP8_DN(
     unsigned validRows, unsigned validCols)
 {
     constexpr uint32_t grpSize = 32;
-    constexpr uint32_t elementsPerVL = REPEAT_BYTE / sizeof(T);
+    constexpr uint32_t elementsPerVL = CCE_VL / sizeof(T);
     AbsReduceMax_DN<T, StaticCols>(srcPtr, maxPtr, validRows, validCols);
     mem_bar(VST_VLD);
     // DN-aware 2D extraction: each row-group j owns one row
@@ -2805,7 +2801,7 @@ PTO_INTERNAL void TQuant_MXFP4_E2M1_DN(
     unsigned validRows, unsigned validCols)
 {
     constexpr uint32_t grpSize = 32;
-    constexpr uint32_t elementsPerVL = REPEAT_BYTE / sizeof(T);
+    constexpr uint32_t elementsPerVL = CCE_VL / sizeof(T);
     AbsReduceMax_DN<T, StaticCols>(srcPtr, maxPtr, validRows, validCols);
     mem_bar(VST_VLD);
     uint32_t num_grps_per_col = CeilDivision((uint32_t)validRows, grpSize);

@@ -140,7 +140,7 @@ PTO_INTERNAL void TPAIRREDUCESUM_IMPL(TileDataDst& dst, TileDataSrc0& src0)
 {
     using T = typename TileDataDst::DType;
     TPairReduceSumCheck<TileDataDst, TileDataSrc0>(dst, src0);
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
 
     TPairReduceSum<TileDataDst, TileDataSrc0, elementsPerRepeat, blockSizeElem>(

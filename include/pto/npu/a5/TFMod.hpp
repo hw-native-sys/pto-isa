@@ -113,7 +113,7 @@ PTO_INTERNAL void TFMOD_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1&
     using T = typename TileDataDst::DType;
     TFModCheck<TileDataDst, TileDataSrc0, TileDataSrc1>(dst, src0, src1);
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
 
     TFMod<TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem, PrecisionType>(
         dst.data(), src0.data(), src1.data(), dst.GetValidRow(), dst.GetValidCol());

@@ -142,7 +142,7 @@ PTO_INTERNAL void TPARTOP_IMPL(
     TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
 {
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename TileDataDst::DType);
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(typename TileDataDst::DType);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(typename TileDataDst::DType);
     unsigned src0ValidRow = src0.GetValidRow();
     unsigned src0ValidCol = src0.GetValidCol();
     unsigned src1ValidRow = src1.GetValidRow();

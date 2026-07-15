@@ -168,7 +168,7 @@ PTO_INTERNAL void TDEINTERLEAVE_IMPL(TileDataDst& dst1, TileDataDst& dst0, TileD
     using T = typename TileDataDst::DType;
     TDeInterleaveCheck<TileDataDst, TileDataSrc>(dst1, dst0, src1, src0);
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
 
     const bool isValicColAlign = (dst0.GetValidCol() * sizeof(T) / 2 % BLOCK_BYTE_SIZE == 0);
     if (isValicColAlign) {
@@ -248,7 +248,7 @@ PTO_INTERNAL void TDEINTERLEAVE_IMPL(TileDataDst& dst1, TileDataDst& dst0, TileD
     using T = typename TileDataDst::DType;
     TDeInterleaveCheckSingleSrc<TileDataDst, TileDataSrc>(dst1, dst0, src);
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
 
     TDeInterleaveSingleSrc<TileDataDst, TileDataSrc, elementsPerRepeat, blockSizeElem>(
         dst1.data(), dst0.data(), src.data(), src.GetValidRow(), src.GetValidCol());

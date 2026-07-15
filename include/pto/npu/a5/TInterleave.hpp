@@ -170,7 +170,7 @@ PTO_INTERNAL void TINTERLEAVE_IMPL(TileDataDst& dst1, TileDataDst& dst0, TileDat
     using T = typename TileDataDst::DType;
     TInterleaveCheck<TileDataDst, TileDataSrc>(dst1, dst0, src1, src0);
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
 
     const bool isValicColAlign = ((dst0.GetValidCol() * sizeof(T) >> 1) % BLOCK_BYTE_SIZE == 0);
     if (isValicColAlign) {

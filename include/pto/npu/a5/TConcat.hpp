@@ -108,7 +108,7 @@ PTO_INTERNAL void TCONCAT_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc
 {
     using T = typename TileDataDst::DType;
     TConcatCheck<TileDataDst, TileDataSrc0, TileDataSrc1>(dst, src0, src1);
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
 
     TConcat<TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat>(
         dst.data(), src0.data(), src1.data(), dst.GetValidRow(), src0.GetValidCol(), src1.GetValidCol());
@@ -224,7 +224,7 @@ PTO_INTERNAL void TCONCAT_IMPL(TileDst& dst, TileSrc0& src0, TileSrc1& src1, Til
     unsigned validRow = dst.GetValidRow();
     unsigned dstValidCol = dst.GetValidCol();
 
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(typename TileDst::DType);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(typename TileDst::DType);
     constexpr unsigned dstStride = TileDst::RowStride;
     constexpr unsigned src0Stride = TileSrc0::RowStride;
     constexpr unsigned src1Stride = TileSrc1::RowStride;
@@ -258,7 +258,7 @@ PTO_INTERNAL void TCONCAT_IMPL(
     PTO_ASSERT(validRow == src1.GetValidRow(), "TCONCAT: validRow of src1 must match dst.");
     PTO_ASSERT(dstIdx.GetValidRow() == 1, "TCONCAT: validCol of src1 must match 1.");
 
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(typename TileDst::DType);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(typename TileDst::DType);
     constexpr unsigned dstStride = TileDst::RowStride;
     constexpr unsigned src0Stride = TileSrc0::RowStride;
     constexpr unsigned src1Stride = TileSrc1::RowStride;

@@ -72,7 +72,7 @@ PTO_INTERNAL void TROWEXPANDMAX_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileD
         "TROWEXPANDMAX: the validShape of src0 or src1 should be equal to dst");
 
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename TileDataDst::DType);
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(typename TileDataDst::DType);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(typename TileDataDst::DType);
 
     if (src0eqdst) {
         unsigned src1ValidCol = src1.GetValidCol();
