@@ -95,5 +95,5 @@ TEST_F(TGATHERBTest, case_float_2x128_2x16_2x128) { test_tgatherb<float, 2, 128,
 TEST_F(TGATHERBTest, case_int32_2x128_2x16_2x128) { test_tgatherb<int32_t, 2, 128, 2, 16, 2, 128>(); }
 TEST_F(TGATHERBTest, case_uint32_2x128_2x16_2x128) { test_tgatherb<uint32_t, 2, 128, 2, 16, 2, 128>(); }
 TEST_F(TGATHERBTest, case_int16_1x16384_1x2048_1x16384) { test_tgatherb<int16_t, 1, 16384, 1, 2048, 1, 16384>(); }
-TEST_F(TGATHERBTest, case_uint16_257x128_257x8_257x128) { test_tgatherb<uint16_t, 129, 128, 129, 8, 129, 128>(); }
+TEST_F(TGATHERBTest, case_uint16_129x128_129x8_129x128) { test_tgatherb<uint16_t, 129, 128, 129, 8, 129, 128>(); }
 TEST_F(TGATHERBTest, case_int8_2x256_2x8_2x256) { test_tgatherb<int8_t, 2, 256, 2, 8, 2, 256>(); }

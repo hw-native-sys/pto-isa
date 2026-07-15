@@ -83,7 +83,7 @@ void test_trowexpand()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TROWEXPANDBRCBTest, case0_half_4800_16) { test_trowexpand<aclFloat16, 2400, 16>(); }
+TEST_F(TROWEXPANDBRCBTest, case0_half_2400_16) { test_trowexpand<aclFloat16, 2400, 16>(); }
 TEST_F(TROWEXPANDBRCBTest, case1_float_3640_8) { test_trowexpand<float, 3640, 8>(); }
 TEST_F(TROWEXPANDBRCBTest, case2_float_16_8) { test_trowexpand<float, 16, 8>(); }
 } // namespace TRowExpandTest

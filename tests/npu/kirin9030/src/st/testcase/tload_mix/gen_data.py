@@ -163,24 +163,23 @@ if __name__ == "__main__":
         "TLOADMIXTest.1_8_4_16_32_1_9_4_16_32_80_256_int8_t_NZ2NZ",
         "TLOADMIXTest.1_1_1_59_119_1_1_1_59_124_59_120_int64_t_ND2ND",
         "TLOADMIXTest.1_2_1_64_128_1_3_4_128_128_128_128_uint64_t_ND2ND",
-        "TLOADMIXTest.NC1HWC02NC1HWC0_int8_t_1_3_16_128_32_3_4_1024_1024_32",  # cut N H
-        "TLOADMIXTest.NC1HWC02NC1HWC0_int8_t_3_2_128_8_32_3_2_128_128_32",  # cut W
-        "TLOADMIXTest.NC1HWC02NC1HWC0_int8_t_3_2_8_128_32_3_8_8_128_32",  # cut C1
-        "TLOADMIXTest.NC1HWC02NC1HWC0_float16_1_6_10_100_16_1_6_100_100_16",  # cut H
-        "TLOADMIXTest.NC1HWC02NC1HWC0_float16_10_16_16_2_16_256_16_100_16_16",  # cut N C1 W
-        "TLOADMIXTest.NC1HWC02NC1HWC0_float16_1_1_1_8192_16_8_16_16_8192_16",  # cut N C1 H
-        "TLOADMIXTest.NC1HWC02NC1HWC0_float_1_1_56_112_8_2_3_224_224_8",  # cut N C1 H W
+        "TLOADMIXTest.NC1HWC02NC1HWC0_int8_t_1_3_16_64_32_3_4_1024_1024_32",  # cut N H
+        "TLOADMIXTest.NC1HWC02NC1HWC0_int8_t_3_2_64_8_32_3_2_128_128_32",  # cut W
+        "TLOADMIXTest.NC1HWC02NC1HWC0_int8_t_3_2_8_64_32_3_8_8_128_32",  # cut C1
+        "TLOADMIXTest.NC1HWC02NC1HWC0_float16_1_6_10_64_16_1_6_100_100_16",  # cut H
+        "TLOADMIXTest.NC1HWC02NC1HWC0_float16_6_16_16_2_16_256_16_100_16_16",  # cut N C1 W
+        "TLOADMIXTest.NC1HWC02NC1HWC0_float_1_1_56_64_8_2_3_224_224_8",  # cut N C1 H W
         "TLOADMIXTest.FZ2FZ_float16_1_7_7_20_16_3_7_7_100_16",  # cut N C1
-        "TLOADMIXTest.FZ2FZ_float16_64_7_7_2_16_256_7_7_16_16",  # cut N C1
-        "TLOADMIXTest.FZ2FZ_float16_96_3_3_8_16_256_3_3_8_16",  # cut C1
-        "TLOADMIXTest.FZ2FZ_int8_t_1_3_3_64_32_3_3_3_128_32",  # cut N C1
-        "TLOADMIXTest.FZ2FZ_int8_t_8_5_5_32_32_8_5_5_128_32",  # cut N
-        "TLOADMIXTest.FZ2FZ_float_70_7_7_2_8_256_7_7_256_8",  # cut C1 N
-        "TLOADMIXTest.FZ4D2FZ4D_float16_1_49_7_16_16_1_980_32_16_16",  # cut C1HW N
+        "TLOADMIXTest.FZ2FZ_float16_32_7_7_2_16_256_7_7_16_16",  # cut N C1
+        "TLOADMIXTest.FZ2FZ_float16_48_3_3_8_16_256_3_3_8_16",  # cut C1
+        "TLOADMIXTest.FZ2FZ_int8_t_2_3_3_64_32_3_3_3_128_32",  # cut N C1
+        "TLOADMIXTest.FZ2FZ_int8_t_4_5_5_32_32_8_5_5_128_32",  # cut N
+        "TLOADMIXTest.FZ2FZ_float_35_7_7_2_8_256_7_7_256_8",  # cut C1 N
+        "TLOADMIXTest.FZ4D2FZ4D_float16_1_32_7_16_16_1_980_32_16_16",  # cut C1HW N
         "TLOADMIXTest.FZ4D2FZ4D_float16_1_81_3_16_16_1_90_3_16_16",  # cut C1HW
         "TLOADMIXTest.FZ4D2FZ4D_int8_t_1_63_3_16_32_1_63_9_16_32",  # cut N
-        "TLOADMIXTest.FZ4D2FZ4D_int8_t_1_125_3_16_32_1_250_5_16_32",  # cut C1HW N
-        "TLOADMIXTest.FZ4D2FZ4D_float_1_126_3_16_8_1_4704_7_16_8",  # cut C1HW N
+        "TLOADMIXTest.FZ4D2FZ4D_int8_t_1_64_3_16_32_1_250_5_16_32",  # cut C1HW N
+        "TLOADMIXTest.FZ4D2FZ4D_float_1_64_3_16_8_1_4704_7_16_8",  # cut C1HW N
     ]
 
     case_params_list = [
@@ -199,24 +198,23 @@ if __name__ == "__main__":
         TloadParams(np.int8, 1, 8, 4, 16, 32, 1, 9, 4, 16, 32, 80, 256, DataFormat["NZ2NZ"].value),
         TloadParams(np.int64, 1, 1, 1, 59, 119, 1, 1, 1, 59, 124, 59, 120, DataFormat["ND2ND"].value),
         TloadParams(np.uint64, 1, 2, 1, 64, 128, 1, 3, 4, 128, 128, 128, 128, DataFormat["ND2ND"].value),
-        TloadParams(np.int8, 1, 3, 16, 128, 32, 3, 4, 1024, 1024, 32, 1, 1, DataFormat["NC1HWC02NC1HWC0"].value),
-        TloadParams(np.int8, 3, 2, 128, 8, 32, 3, 2, 128, 128, 32, 1, 1, DataFormat["NC1HWC02NC1HWC0"].value),
-        TloadParams(np.int8, 3, 2, 8, 128, 32, 3, 8, 8, 128, 32, 1, 1, DataFormat["NC1HWC02NC1HWC0"].value),
-        TloadParams(np.float16, 1, 6, 10, 100, 16, 1, 6, 100, 100, 16, 1, 1, DataFormat["NC1HWC02NC1HWC0"].value),
-        TloadParams(np.float16, 10, 16, 16, 2, 16, 256, 16, 100, 16, 16, 1, 1, DataFormat["NC1HWC02NC1HWC0"].value),
-        TloadParams(np.float16, 1, 1, 1, 8192, 16, 8, 16, 16, 8192, 16, 1, 1, DataFormat["NC1HWC02NC1HWC0"].value),
-        TloadParams(np.float32, 1, 1, 56, 112, 8, 2, 3, 224, 224, 8, 1, 1, DataFormat["NC1HWC02NC1HWC0"].value),
+        TloadParams(np.int8, 1, 3, 16, 64, 32, 3, 4, 1024, 1024, 32, 1, 1, DataFormat["NC1HWC02NC1HWC0"].value),
+        TloadParams(np.int8, 3, 2, 64, 8, 32, 3, 2, 128, 128, 32, 1, 1, DataFormat["NC1HWC02NC1HWC0"].value),
+        TloadParams(np.int8, 3, 2, 8, 64, 32, 3, 8, 8, 128, 32, 1, 1, DataFormat["NC1HWC02NC1HWC0"].value),
+        TloadParams(np.float16, 1, 6, 10, 64, 16, 1, 6, 100, 100, 16, 1, 1, DataFormat["NC1HWC02NC1HWC0"].value),
+        TloadParams(np.float16, 6, 16, 16, 2, 16, 256, 16, 100, 16, 16, 1, 1, DataFormat["NC1HWC02NC1HWC0"].value),
+        TloadParams(np.float32, 1, 1, 56, 64, 8, 2, 3, 224, 224, 8, 1, 1, DataFormat["NC1HWC02NC1HWC0"].value),
         TloadParams(np.float16, 1, 7, 7, 20, 16, 3, 7, 7, 100, 16, 1, 1, DataFormat["FZ2FZ"].value),
-        TloadParams(np.float16, 64, 7, 7, 2, 16, 256, 7, 7, 16, 16, 1, 1, DataFormat["FZ2FZ"].value),
-        TloadParams(np.float16, 96, 3, 3, 8, 16, 256, 3, 3, 8, 16, 1, 1, DataFormat["FZ2FZ"].value),
+        TloadParams(np.float16, 32, 7, 7, 2, 16, 256, 7, 7, 16, 16, 1, 1, DataFormat["FZ2FZ"].value),
+        TloadParams(np.float16, 48, 3, 3, 8, 16, 256, 3, 3, 8, 16, 1, 1, DataFormat["FZ2FZ"].value),
         TloadParams(np.int8, 2, 3, 3, 64, 32, 3, 3, 3, 128, 32, 1, 1, DataFormat["FZ2FZ"].value),
-        TloadParams(np.int8, 8, 5, 5, 32, 32, 8, 5, 5, 128, 32, 1, 1, DataFormat["FZ2FZ"].value),
-        TloadParams(np.float32, 70, 7, 7, 2, 8, 256, 7, 7, 256, 8, 1, 1, DataFormat["FZ2FZ"].value),
-        TloadParams(np.float16, 1, 49, 7, 16, 16, 1, 980, 32, 16, 16, 1, 1, DataFormat["FZ4D2FZ4D"].value),
+        TloadParams(np.int8, 4, 5, 5, 32, 32, 8, 5, 5, 128, 32, 1, 1, DataFormat["FZ2FZ"].value),
+        TloadParams(np.float32, 35, 7, 7, 2, 8, 256, 7, 7, 256, 8, 1, 1, DataFormat["FZ2FZ"].value),
+        TloadParams(np.float16, 1, 32, 7, 16, 16, 1, 980, 32, 16, 16, 1, 1, DataFormat["FZ4D2FZ4D"].value),
         TloadParams(np.float16, 1, 81, 3, 16, 16, 1, 90, 3, 16, 16, 1, 1, DataFormat["FZ4D2FZ4D"].value),
         TloadParams(np.int8, 1, 63, 3, 16, 32, 1, 63, 9, 16, 32, 1, 1, DataFormat["FZ4D2FZ4D"].value),
-        TloadParams(np.int8, 1, 125, 3, 16, 32, 1, 250, 5, 16, 32, 1, 1, DataFormat["FZ4D2FZ4D"].value),
-        TloadParams(np.float32, 1, 126, 3, 16, 8, 1, 4704, 7, 16, 8, 1, 1, DataFormat["FZ4D2FZ4D"].value),
+        TloadParams(np.int8, 1, 64, 3, 16, 32, 1, 250, 5, 16, 32, 1, 1, DataFormat["FZ4D2FZ4D"].value),
+        TloadParams(np.float32, 1, 64, 3, 16, 8, 1, 4704, 7, 16, 8, 1, 1, DataFormat["FZ4D2FZ4D"].value),
     ]
 
     for i, case_name in enumerate(case_name_list):

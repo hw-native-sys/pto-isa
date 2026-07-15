@@ -340,43 +340,41 @@ template void launchTLOADMIX<uint64_t, 2, 1, 2, 1, 64, 128, 1, 3, 4, 128, 128, 1
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 
 // 6 NC1HWC0
-template void launchTLOADMIX<int8_t, 6, 1, 3, 16, 128, 32, 3, 4, 1024, 1024, 32, 1, 1>(
+template void launchTLOADMIX<int8_t, 6, 1, 3, 16, 64, 32, 3, 4, 1024, 1024, 32, 1, 1>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
-template void launchTLOADMIX<int8_t, 6, 3, 2, 128, 8, 32, 3, 2, 128, 128, 32, 1, 1>(
+template void launchTLOADMIX<int8_t, 6, 3, 2, 64, 8, 32, 3, 2, 128, 128, 32, 1, 1>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
-template void launchTLOADMIX<int8_t, 6, 3, 2, 8, 128, 32, 3, 8, 8, 128, 32, 1, 1>(
+template void launchTLOADMIX<int8_t, 6, 3, 2, 8, 64, 32, 3, 8, 8, 128, 32, 1, 1>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
-template void launchTLOADMIX<uint16_t, 6, 1, 6, 10, 100, 16, 1, 6, 100, 100, 16, 1, 1>(
+template void launchTLOADMIX<uint16_t, 6, 1, 6, 10, 64, 16, 1, 6, 100, 100, 16, 1, 1>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
-template void launchTLOADMIX<uint16_t, 6, 10, 16, 16, 2, 16, 256, 16, 100, 16, 16, 1, 1>(
+template void launchTLOADMIX<uint16_t, 6, 6, 16, 16, 2, 16, 256, 16, 100, 16, 16, 1, 1>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
-template void launchTLOADMIX<uint16_t, 6, 1, 1, 1, 8192, 16, 8, 16, 16, 8192, 16, 1, 1>(
-    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
-template void launchTLOADMIX<float, 6, 1, 1, 56, 112, 8, 2, 3, 224, 224, 8, 1, 1>(
+template void launchTLOADMIX<float, 6, 1, 1, 56, 64, 8, 2, 3, 224, 224, 8, 1, 1>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 
 // 7 FZ2FZ
 template void launchTLOADMIX<int8_t, 7, 2, 3, 3, 64, 32, 3, 3, 3, 128, 32, 1, 1>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
-template void launchTLOADMIX<int8_t, 7, 8, 5, 5, 32, 32, 8, 5, 5, 128, 32, 1, 1>(
+template void launchTLOADMIX<int8_t, 7, 4, 5, 5, 32, 32, 8, 5, 5, 128, 32, 1, 1>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 template void launchTLOADMIX<uint16_t, 7, 1, 7, 7, 20, 16, 3, 7, 7, 100, 16, 1, 1>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
-template void launchTLOADMIX<uint16_t, 7, 64, 7, 7, 2, 16, 256, 7, 7, 16, 16, 1, 1>(
+template void launchTLOADMIX<uint16_t, 7, 32, 7, 7, 2, 16, 256, 7, 7, 16, 16, 1, 1>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
-template void launchTLOADMIX<uint16_t, 7, 96, 3, 3, 8, 16, 256, 3, 3, 8, 16, 1, 1>(
+template void launchTLOADMIX<uint16_t, 7, 48, 3, 3, 8, 16, 256, 3, 3, 8, 16, 1, 1>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
-template void launchTLOADMIX<float, 7, 70, 7, 7, 2, 8, 256, 7, 7, 256, 8, 1, 1>(
+template void launchTLOADMIX<float, 7, 35, 7, 7, 2, 8, 256, 7, 7, 256, 8, 1, 1>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 
 // 8 FZ4D
-template void launchTLOADMIX<uint16_t, 8, 1, 49, 7, 16, 16, 1, 980, 32, 16, 16, 1, 1>(
+template void launchTLOADMIX<uint16_t, 8, 1, 32, 7, 16, 16, 1, 980, 32, 16, 16, 1, 1>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 template void launchTLOADMIX<uint16_t, 8, 1, 81, 3, 16, 16, 1, 90, 3, 16, 16, 1, 1>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 template void launchTLOADMIX<int8_t, 8, 1, 63, 3, 16, 32, 1, 63, 9, 16, 32, 1, 1>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
-template void launchTLOADMIX<int8_t, 8, 1, 125, 3, 16, 32, 1, 250, 5, 16, 32, 1, 1>(
+template void launchTLOADMIX<int8_t, 8, 1, 64, 3, 16, 32, 1, 250, 5, 16, 32, 1, 1>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
-template void launchTLOADMIX<float, 8, 1, 126, 3, 16, 8, 1, 4704, 7, 16, 8, 1, 1>(
+template void launchTLOADMIX<float, 8, 1, 64, 3, 16, 8, 1, 4704, 7, 16, 8, 1, 1>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);

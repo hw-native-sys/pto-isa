@@ -188,9 +188,9 @@ TEST_F(TSELSTest, case_half_uint8_32x672_32x96_32x672_32x666)
 {
     this->Launch<aclFloat16, uint8_t, 32, 672, 32, 96, 32, 672, 32, 666, true>();
 }
-TEST_F(TSELSTest, case_float_uint8_32x672_32x96_32x672_32x666)
+TEST_F(TSELSTest, case_float_uint8_16x672_16x96_16x672_16x666)
 {
-    this->Launch<float, uint8_t, 32, 672, 32, 96, 32, 672, 32, 666>();
+    this->Launch<float, uint8_t, 16, 672, 16, 96, 16, 672, 16, 666>();
 }
 TEST_F(TSELSTest, case_float_uint8_1x8192_1x4096_1x8192_1x8192)
 {

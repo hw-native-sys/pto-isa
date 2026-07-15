@@ -105,5 +105,5 @@ TEST_F(TCMPTest, case_int32_16x32_16x32) { test_tcmp<int32_t, 16, 32, 16, 32, Cm
 TEST_F(TCMPTest, case_float_96x96_64x64) { test_tcmp<float, 96, 96, 64, 64, CmpMode::LE>(); }
 TEST_F(TCMPTest, case_int32_77x80_32x32) { test_tcmp<int32_t, 77, 80, 32, 32, CmpMode::EQ>(); }
 TEST_F(TCMPTest, case_int32_32x32_32x32) { test_tcmp<int32_t, 32, 32, 32, 32, CmpMode::EQ>(); }
-TEST_F(TCMPTest, case_int16_32x32_16x322) { test_tcmp<int16_t, 32, 32, 16, 32, CmpMode::EQ>(); }
+TEST_F(TCMPTest, case_int16_32x32_16x32) { test_tcmp<int16_t, 32, 32, 16, 32, CmpMode::EQ>(); }
 TEST_F(TCMPTest, case_int16_77x80_32x32) { test_tcmp<int16_t, 77, 80, 32, 32, CmpMode::LE>(); }
