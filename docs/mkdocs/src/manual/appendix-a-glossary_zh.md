@@ -15,4 +15,3 @@
 **流水线（Pipeline）**：对 load/transform/compute/store 等阶段的重叠调度，并通过同步机制协调阶段间依赖。
 
 **TSYNC**：用于在阶段类别之间建立顺序关系的同步指令/抽象。
-

@@ -15,4 +15,3 @@
 **Pipeline**: An overlapped schedule of stages (load/transform/compute/store) coordinated by synchronization.
 
 **TSYNC**: A synchronization instruction/abstraction used to establish ordering between stage classes.
-

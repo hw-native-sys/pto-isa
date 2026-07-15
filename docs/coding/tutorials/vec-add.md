@@ -99,4 +99,3 @@ __global__ AICORE void VecAddPingPong(__gm__ T* out, __gm__ T* a, __gm__ T* b) {
 ```
 
 This version still appears sequential in source form; real overlap comes from the device’s pipeline concurrency plus correct event ordering and buffer reuse.
-

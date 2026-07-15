@@ -74,7 +74,7 @@ license: CANN Open Software License Agreement Version 2.0
 
 #### docs/PTOISA.md / docs/PTOISA_zh.md
 - **位置**: 指令索引表格
-- **分类**: 
+- **分类**:
   - 逐元素（Tile-Tile）指令 → 插在 `TFMOD` 后
   - Tile-标量 / Tile-立即数 → 插在 `TSUBSC` 后
 

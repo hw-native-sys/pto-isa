@@ -26,6 +26,3 @@ To work with CPU_SIM you should use one of these strategies:
 - **Automatic allocation:** Enable `__PTO_AUTO__` compiler definition, in this case memory for the tiles will be allocated automatically. You may still use TASSIGN operation if needed.
 
 **NOTE:** You should follow one of the paths described above. If you won't do any of these actions, program will crash with segfault.
-
-
-

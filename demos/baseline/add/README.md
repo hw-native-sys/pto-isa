@@ -87,7 +87,7 @@ This example requires PTO Tile Lib, PyTorch, `torch_npu`, and CANN. Follow the o
 
 https://gitcode.com/ascend/pytorch#%E5%AE%89%E8%A3%85
 
-or 
+or
 
 ```bash
 python3 -m pip install -r requirements.txt

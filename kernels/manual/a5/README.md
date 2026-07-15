@@ -17,8 +17,3 @@ source ${ASCEND_INSTALL_PATH}/bin/setenv.bash
 ```
 
 Then follow the `run.sh` usage documented in each example directory.
-
-
-
-
-

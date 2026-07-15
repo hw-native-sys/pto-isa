@@ -162,4 +162,3 @@ void example_manual_tmp() {
 # AS Level 2 (DPS)
 pto.tci ins(%scalar {descending = false} : dtype) outs(%dst : !pto.tile_buf<...>)
 ```
-

@@ -176,4 +176,3 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.tmatmul.mx ins(%a, %a_scale, %b, %b_scale : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>)
 ```
-

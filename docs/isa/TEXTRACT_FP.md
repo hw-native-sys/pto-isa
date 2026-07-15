@@ -74,4 +74,3 @@ See related examples in `docs/isa/` and `docs/coding/tutorials/`.
 # AS Level 2 (DPS)
 pto.textract_fp ins(%src, %idxrow, %idxcol : !pto.tile_buf<...>, dtype, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
-

@@ -99,4 +99,3 @@ __global__ AICORE void VecAddPingPong(__gm__ T* out, __gm__ T* a, __gm__ T* b) {
 ```
 
 该版本在源码形式上仍是顺序结构；真实“重叠”来自设备流水线并行能力、正确的 event 顺序，以及 buffer 的复用策略。
-

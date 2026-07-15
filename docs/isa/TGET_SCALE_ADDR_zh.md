@@ -47,7 +47,7 @@ PTO_INST RecordEvent TGET_SCALE_ADDR(TileDataDst &dst, TileDataSrc &src, WaitEve
 
 using namespace pto;
 
-template <typename T, int ARows, int ACols, int BRows, int BCols> 
+template <typename T, int ARows, int ACols, int BRows, int BCols>
 void example() {
     using LeftTile = TileLeft<T, ARows, ACols>;
     using RightTile = TileRight<T, BRows, BCols>;

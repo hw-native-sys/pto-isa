@@ -69,4 +69,3 @@ PTO_INST RecordEvent TIMG2COL(TileData &dst, ConvTileData &src, uint16_t posM = 
 # AS Level 2 (DPS)
 pto.timg2col ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-

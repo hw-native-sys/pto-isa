@@ -123,7 +123,7 @@ struct ParallelGroup {
     GlobalData *tensors;
     int nranks;   // Number of ranks
     int rootIdx;  // Root NPU's rank index
-    
+
     // Factory function (recommended): build from an existing tensor array.
     static ParallelGroup Create(GlobalData *tensorArray, int size, int rank_id);
 };

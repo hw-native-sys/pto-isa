@@ -11,14 +11,14 @@
 
 #example script
 
-set -e 
+set -e
 export ASCEND_HOME_PATH=/usr/local/Ascend/
 source /usr/local/Ascend/ascend-toolkit/set_env.sh
 # specify your path to pto-isa
 #export PTO_LIB_PATH=[YOUR_PATH]/pto-isa
 
 rm -fr build op_extension.egg-info
-python3 setup.py bdist_wheel 
+python3 setup.py bdist_wheel
 cd dist &&
 python3 -m pip uninstall op_extension-0.0.0-cp39-cp39-linux_aarch64.whl &&
 python3 -m pip install op_extension-0.0.0-cp39-cp39-linux_aarch64.whl &&

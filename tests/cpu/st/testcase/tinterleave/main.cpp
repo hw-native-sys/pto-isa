@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class TINTERLEAVETest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -33,7 +31,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int row, int col>
-void LaunchTINTERLEAVE(T *dst1, T *dst0, T *src1, T *src0, void *stream);
+void LaunchTINTERLEAVE(T* dst1, T* dst0, T* src1, T* src0, void* stream);
 
 template <typename T, int row, int col>
 void test_TINTERLEAVE()
@@ -48,15 +46,15 @@ void test_TINTERLEAVE()
     T *dst1Host, *dst0Host, *src1Host, *src0Host;
     T *dst1Device, *dst0Device, *src1Device, *src0Device;
 
-    aclrtMallocHost((void **)(&dst1Host), fileSize);
-    aclrtMallocHost((void **)(&dst0Host), fileSize);
-    aclrtMallocHost((void **)(&src1Host), fileSize);
-    aclrtMallocHost((void **)(&src0Host), fileSize);
+    aclrtMallocHost((void**)(&dst1Host), fileSize);
+    aclrtMallocHost((void**)(&dst0Host), fileSize);
+    aclrtMallocHost((void**)(&src1Host), fileSize);
+    aclrtMallocHost((void**)(&src0Host), fileSize);
 
-    aclrtMalloc((void **)&dst1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&dst0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dst1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dst0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input0.bin", fileSize, src0Host, fileSize));
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input1.bin", fileSize, src1Host, fileSize));
@@ -103,19 +101,7 @@ void test_TINTERLEAVE()
     EXPECT_TRUE(ret0 && ret1);
 }
 
-TEST_F(TINTERLEAVETest, case_1)
-{
-    test_TINTERLEAVE<float, 64, 64>();
-}
-TEST_F(TINTERLEAVETest, case_2)
-{
-    test_TINTERLEAVE<int32_t, 16, 64>();
-}
-TEST_F(TINTERLEAVETest, case_3)
-{
-    test_TINTERLEAVE<int16_t, 32, 128>();
-}
-TEST_F(TINTERLEAVETest, case_4)
-{
-    test_TINTERLEAVE<aclFloat16, 20, 16>();
-}
+TEST_F(TINTERLEAVETest, case_1) { test_TINTERLEAVE<float, 64, 64>(); }
+TEST_F(TINTERLEAVETest, case_2) { test_TINTERLEAVE<int32_t, 16, 64>(); }
+TEST_F(TINTERLEAVETest, case_3) { test_TINTERLEAVE<int16_t, 32, 128>(); }
+TEST_F(TINTERLEAVETest, case_4) { test_TINTERLEAVE<aclFloat16, 20, 16>(); }

@@ -212,4 +212,3 @@ __global__ AICORE void runTMatMul(__gm__ cType *out, __gm__ aType *src0, __gm__ 
     TSTORE_FP<AccTile, GlobalDataOut, FbTile>(dstGlobal, cTile, fbTile);
 }
 ```
-

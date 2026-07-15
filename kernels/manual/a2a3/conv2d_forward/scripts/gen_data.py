@@ -64,7 +64,7 @@ def img2col_nhwc(input_data, kernel_size, stride=(1, 1), dilation=(1, 1), paddin
 
     h_out = (h + pad_top + pad_bottom - dilation_h * (h_k - 1) - 1) // stride_h + 1
     w_out = (w + pad_left + pad_right - dilation_w * (w_k - 1) - 1) // stride_w + 1
-    
+
     #padding
     input_padded = np.pad(
         input_data,
@@ -79,7 +79,7 @@ def img2col_nhwc(input_data, kernel_size, stride=(1, 1), dilation=(1, 1), paddin
             for w_out_idx in range(w_out):
                 col_idx = n_idx * h_out * w_out + h_out_idx * w_out + w_out_idx
                 col = np.zeros((c_in, h_k, w_k), dtype=input_data.dtype)
-                
+
                 for hk in range(h_k):
                     for wk in range(w_k):
                         h_in = h_out_idx * stride_h + hk * dilation_h
@@ -110,7 +110,7 @@ def conv2d_matmul_nhwc_float(input_data, weight, stride=(1, 1), dilation=(1, 1),
     kernel_matrix = kernel2matrix_new(weight)
 
     output_flat = np.dot(
-        kernel_matrix.astype(np.float32), 
+        kernel_matrix.astype(np.float32),
         col_matrix.astype(np.float32)
     )
     output = output_flat.reshape(weight.shape[0], n, h_out, w_out).transpose(1, 2, 3, 0)
@@ -121,11 +121,11 @@ def gen_golden_data(params: ConvTestParams):
     # input
     n, c1_input, h, w, c0_input = params.input_shape_nc1hwc0
     c_in = c1_input * c0_input
-    
+
     # weight
     c1_weight, h_k, w_k, n_out, c0_weight = params.weight_shape
     dtype = params.dtype
-    
+
     # 1. Generate an input tensor (in NC1HWC0 format) using the provided data type.
     input_nc1hwc0 = np.random.uniform(-5, 5, size=params.input_shape_nc1hwc0).astype(dtype)
 
@@ -143,8 +143,8 @@ def gen_golden_data(params: ConvTestParams):
     weight_for_calc = weight.transpose(3, 0, 4, 1, 2).reshape(n_out, c1_weight * c0_weight, h_k, w_k)
 
     output_nhwc, col_matrix, kernel_matrix = conv2d_matmul_nhwc_float(
-        input_nhwc, weight_for_calc, 
-        params.stride, params.dilation, 
+        input_nhwc, weight_for_calc,
+        params.stride, params.dilation,
         params.padding
     )
     # 5. Convert the output to NC1HWC0 format.

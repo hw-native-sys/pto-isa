@@ -17,8 +17,3 @@ source ${ASCEND_INSTALL_PATH}/bin/setenv.bash
 ```
 
 然后按各示例目录里的 `run.sh`/README 说明执行即可。
-
-
-
-
-

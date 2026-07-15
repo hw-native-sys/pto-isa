@@ -97,7 +97,3 @@ void example() {
 # AS Level 2 (DPS)
 pto.tsubsc ins(%src0, %scalar, %src1 : !pto.tile_buf<...>, dtype, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-
-
-
-

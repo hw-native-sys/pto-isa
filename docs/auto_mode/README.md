@@ -28,7 +28,7 @@ __global__ AICORE void runTMul(__gm__ T __out__ *out, __gm__ T __in__ *src0, __g
     TileData src0Tile(kGRows_, kGCols_);
     TileData src1Tile(kGRows_, kGCols_);
     TileData dstTile(kGRows_, kGCols_);
-    
+
     TASSIGN(src0Tile, 0x0 + 0x400 * block_idx);
     TASSIGN(src1Tile, 0x4000 + 0x400 * block_idx);
     TASSIGN(dstTile, 0x8000 + 0x400 * block_idx);
@@ -46,7 +46,7 @@ __global__ AICORE void runTMul(__gm__ T __out__ *out, __gm__ T __in__ *src0, __g
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     TSTORE(dstGlobal, dstTile);
-    
+
     out = dstGlobal.data();
 }
 ```
@@ -61,11 +61,11 @@ __global__ AICORE void runTMul(__gm__ T __out__ *out, __gm__ T __in__ *src0, __g
     using DynStridDim5 = Stride<1, 1, 1, kGCols_, 1>;
     using GlobalData = GlobalTensor<T, DynShapeDim5, DynStridDim5>;
     using TileData = Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>;
-    
+
     TileData src0Tile(kGRows_, kGCols_);
     TileData src1Tile(kGRows_, kGCols_);
     TileData dstTile(kGRows_, kGCols_);
-    
+
     int offset = (block_idx / 4) * (64 * 16) + (block_idx % 4) * 16;
     GlobalData src0Global(src0 + offset);
     GlobalData src1Global(src1 + offset);
@@ -75,18 +75,18 @@ __global__ AICORE void runTMul(__gm__ T __out__ *out, __gm__ T __in__ *src0, __g
     TLOAD(src1Tile, src1Global);
     TMUL(dstTile, src0Tile, src1Tile);
     TSTORE(dstGlobal, dstTile);
-    
+
     out = dstGlobal.data();
 }
 ```
 
-## PTO AUTO Compiler Features  
+## PTO AUTO Compiler Features
 
 ### Cross-Architecture Compatibility
 
 PTO AUTO Compiler ensures a single source PTO program can be compiled for different Ascend architecture generations without requiring any source-level modifications while maintaining performance.
 
-### Automatic Synchronization   
+### Automatic Synchronization
 
 In manual mode, user would normally have to keep track of the asynchronous nature of the hardware by using PTO's [`event model`](../coding/Event.md) at precise code locations in order to ensure both functional correctness and high performance in execution. This might be tedious and error prone.
 

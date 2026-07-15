@@ -125,4 +125,3 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.tgatherb ins(%src, %offsets : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-

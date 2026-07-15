@@ -323,4 +323,3 @@ bisheng -c -xcce -O2 --cce-aicore-only \
 - `-mllvm -cce-enable-pto-passes`
 
 如果不确定，优先以 `bisheng --help` 与 `bisheng -mllvm --help` 的输出为准，而不要在文档中硬编码某一版本的拼写。
-

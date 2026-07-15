@@ -56,5 +56,3 @@ cmake --build build/docs --target pto_docs_serve
 
 - MkDocs 源目录是 `docs/mkdocs/src/`。
 - `docs/mkdocs/gen_pages.py` 在构建时将仓库 markdown 文件镜像到站点中，保留路径以便仓库相对链接继续工作。
-
-

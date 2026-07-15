@@ -304,8 +304,3 @@ PTO 在**性能**和**开发效率**之间取得了良好平衡：
 - [PTO 性能优化](opt_zh.md)
 - [GEMM 性能案例](../../kernels/manual/a2a3/gemm_performance/README_zh.md)
 - [Flash Attention 案例](../../kernels/manual/common/flash_atten/README_zh.md)
-
-
-
-
-

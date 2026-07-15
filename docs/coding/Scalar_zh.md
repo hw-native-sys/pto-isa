@@ -91,4 +91,3 @@ void example(Tile<TileType::Vec, float, 16, 16>& dst,
   TMINS(dst, src, 0.0f);
 }
 ```
-

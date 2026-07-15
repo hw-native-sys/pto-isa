@@ -193,7 +193,7 @@ void my_kernel(..., uint32_t size) {
     printf("Error: size %u exceeds MAX_SIZE %u\n", size, MAX_SIZE);
     return;
   }
-  
+
   // Continue execution
   // ...
 }
@@ -216,7 +216,7 @@ void my_kernel(__gm__ float* out, __gm__ const float* in) {
     printf("Error: null pointer\n");
     return;
   }
-  
+
   // Continue execution
   // ...
 }
@@ -457,7 +457,7 @@ z = torch.ops.npu.my_add(x, y)
 
 # Or check in operator
 at::Tensor my_add_impl(const at::Tensor& x, const at::Tensor& y) {
-  TORCH_CHECK(x.device() == y.device(), 
+  TORCH_CHECK(x.device() == y.device(),
               "Inputs must be on same device");
   // ...
 }
@@ -472,4 +472,3 @@ at::Tensor my_add_impl(const at::Tensor& x, const at::Tensor& y) {
 - [Compilation Process](compilation-process.md)
 - [Framework Integration](framework-integration.md)
 - [Memory Optimization](memory-optimization.md)
-

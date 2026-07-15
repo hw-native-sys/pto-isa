@@ -93,4 +93,3 @@ void example(__gm__ half* in, __gm__ half* out) {
   TLOAD(tile5d, gin);
 }
 ```
-

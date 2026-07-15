@@ -131,4 +131,3 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.tmatmul.acc ins(%c_in, %a, %b : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%c_out : !pto.tile_buf<...>)
 ```
-

@@ -197,4 +197,3 @@ void example_manual() {
 # IR Level 2 (DPS)
 pto.trowargmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-

@@ -127,4 +127,3 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.trsqrt ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-

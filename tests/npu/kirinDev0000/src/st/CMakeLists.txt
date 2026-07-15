@@ -98,7 +98,7 @@ if(RUN_MODE STREQUAL "npu")
     set(CMAKE_CCE_COMPILE_OPTIONS "${CMAKE_CCE_COMPILE_OPTIONS} --cce-pto-enable")
 
     include_directories(
-        ${PROJECT_SOURCE_DIR}/../../../../../include 
+        ${PROJECT_SOURCE_DIR}/../../../../../include
         ${ASCEND_HOME_PATH}/ohos
         ${ASCEND_DRIVER_PATH}/kernel/inc
     )
@@ -110,7 +110,7 @@ else()
     )
 
     include_directories(
-        ${PROJECT_SOURCE_DIR}/../../../../../include 
+        ${PROJECT_SOURCE_DIR}/../../../../../include
         ${ASCEND_HOME_PATH}/include
         ${ASCEND_DRIVER_PATH}/kernel/inc
     )

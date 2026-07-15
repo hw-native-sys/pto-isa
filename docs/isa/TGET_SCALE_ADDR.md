@@ -47,7 +47,7 @@ Enforced by `TGET_SCALE_ADDR_IMPL` (A5 only; no A2A3 implementation):
 
 using namespace pto;
 
-template <typename T, int ARows, int ACols, int BRows, int BCols> 
+template <typename T, int ARows, int ACols, int BRows, int BCols>
 void example() {
     using LeftTile = TileLeft<T, ARows, ACols>;
     using RightTile = TileRight<T, BRows, BCols>;

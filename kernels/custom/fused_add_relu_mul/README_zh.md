@@ -91,20 +91,20 @@ load_event[0] = TLOAD(tile_x[0], ...);
 for (int tile_idx = 0; tile_idx < num_tiles; tile_idx++) {
     int curr = tile_idx % 2;
     int next = (tile_idx + 1) % 2;
-    
+
     // 预加载下一批（异步）
     if (tile_idx + 1 < num_tiles) {
         load_event[next] = TLOAD(tile_x[next], ...);
     }
-    
+
     // 等待当前数据
     WAIT(load_event[curr]);
-    
+
     // 计算当前数据
     TADDS(tile_result[curr], tile_x[curr], bias);
     TRELU(tile_result[curr], tile_result[curr]);
     TMULS(tile_result[curr], tile_result[curr], scale);
-    
+
     // 存储结果
     TSTORE(..., tile_result[curr]);
 }
@@ -324,15 +324,15 @@ event[0] = TLOAD(tile[0], ...);
 for (int i = 0; i < N; i++) {
     int curr = i % 2;
     int next = (i + 1) % 2;
-    
+
     // 加载下一批（异步）
     if (i + 1 < N) {
         event[next] = TLOAD(tile[next], ...);
     }
-    
+
     // 等待当前批
     WAIT(event[curr]);
-    
+
     // 计算当前批
     COMPUTE(tile[curr]);
 }
@@ -489,4 +489,3 @@ msprof --application="./fused_add_relu_mul" --output=./profiling_data
 ## 许可证
 
 本项目基于 CANN Open Software License Agreement Version 2.0 进行许可。
-

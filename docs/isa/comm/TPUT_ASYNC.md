@@ -15,8 +15,8 @@ Data flow:
     - `DmaEngine::SDMA` (default)
     - `DmaEngine::URMA` (Ascend950, NPU_ARCH 3510 only)
 
-> **Important (SDMA path)**  
-> `TPUT_ASYNC` with `DmaEngine::SDMA` currently supports **only flat contiguous logical 1D tensors**.  
+> **Important (SDMA path)**
+> `TPUT_ASYNC` with `DmaEngine::SDMA` currently supports **only flat contiguous logical 1D tensors**.
 > Non-1D or non-contiguous layouts are not supported by the current SDMA async implementation.
 
 
@@ -99,7 +99,7 @@ If the 1D contiguous requirement is not met, current implementation returns an i
 
 ## scratchTile Role
 
-`scratchTile` is **not** the payload staging buffer for user data.  
+`scratchTile` is **not** the payload staging buffer for user data.
 It is converted to `TmpBuffer` and used as temporary UB workspace for:
 
 - writing/reading SDMA control words (flag, sq_tail, channel_info)
