@@ -127,7 +127,7 @@ if [ "$ENABLE_A3" = "false" ] && [ "$ENABLE_A5" = "false" ] && \
 fi
 
 if { [ "$ENABLE_A3" = "true" ] || [ "$ENABLE_A5" = "true" ]; } && \
-   [ "$ENABLE_SIMPLE" = "false" ] && [ "$ENABLE_ALL" = "false" ]; then
+   [ "$ENABLE_SIMPLE" = "false" ] && [ "$ENABLE_ALL" = "false" ] && [ "$ENABLE_COMM" = "false" ]; then
   echo "Error: --a3/--a5 requires a test mode: pass --simple or --all." >&2
   usage
   exit 1
