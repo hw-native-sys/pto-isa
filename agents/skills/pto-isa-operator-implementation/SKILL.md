@@ -106,7 +106,7 @@ license: CANN Open Software License Agreement Version 2.0
 
 **最小化原则**: 使用最少的指令完成功能，减少数据搬运。
 
-**数据流优化**: 
+**数据流优化**:
 - **Vector计算**: 遵循 gm → ub → vector → ub → gm 的基本数据流
 - **Cube计算(矩阵乘)**: 遵循 GM → L1 → L0A/L0B → L0C → GM 的矩阵数据流
 
@@ -187,7 +187,7 @@ GELU(x) = x * Φ(x) ≈ 0.5 * x * (1 + tanh(sqrt(2/π) * (x + 0.044715 * x^3)))
 数据流: GlobalMemory[srcGlobal] → UnifiedBuffer[srcTile]
 输入: GlobalTensor对象，描述GM上的数据布局
 输出: Tile对象，存储加载到UB的数据
-同步需求: 
+同步需求:
   - 推荐使用Event同步: Event<Op::TLOAD, Op::NextOp>
   - 或手动同步: set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0)
 
@@ -253,14 +253,14 @@ event4 = TMAX(dstTile, src0Tile, src1Tile, event3);
 ```
 矩阵乘法: TMATMUL
 功能: 矩阵乘法计算 C = A * B
-数据流: 
+数据流:
   - GM → L1: GlobalMemory[矩阵A/B] → L1Buffer[MatTile] (TLOAD)
   - L1 → L0A/L0B: L1Buffer[MatTile] → L0Buffer[Left/RightTile] (TMOV)
   - L0A/L0B → L0C: 矩阵乘法计算 (TMATMUL)
   - L0C → GM: L0Buffer[AccTile] → GlobalMemory[结果] (TSTORE)
 输入: 矩阵A和B (通过MatTile加载)
 输出: 矩阵C (通过AccTile存储)
-同步需求: 
+同步需求:
   - TLOAD完成后: Event<Op::TLOAD, Op::TMOV> 或 set_flag(PIPE_MTE2, PIPE_MTE1)
   - TMOV完成后: Event<Op::TMOV, Op::TMATMUL> 或 set_flag(PIPE_MTE1, PIPE_M)
   - TMATMUL完成后: Event<Op::TMATMUL, Op::TSTORE_VEC> 或 set_flag(PIPE_M, PIPE_FIX)
@@ -301,7 +301,7 @@ TSTORE(dstGlobal, cTile);
 数据流: UnifiedBuffer[dstTile] → GlobalMemory[dstGlobal]
 输入: Tile对象，UB上的数据
 输出: GlobalTensor对象，GM上的数据
-同步需求: 
+同步需求:
   - 推荐使用Event同步: Event<Op::LastOp, Op::TSTORE_VEC>
   - 或手动同步: set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0)
 
@@ -758,34 +758,34 @@ __global__ AICORE void runOperator(__gm__ T *out, __gm__ T *srcA, __gm__ T *srcB
         // Vector计算：逐元素操作、激活函数、归约等
         TLOAD(vecTile, srcGlobal);
         TADD(dstTile, src0Tile, src1Tile);
-        
+
         // V2C: TPUSH数据到Cube核
         TPUSH<V2CPipe, VecTileNZ, TileSplitAxis::TILE_NO_SPLIT>(pipe, vecTile);
-        
+
         // C2V: TPOP从Cube核接收数据
         TPOP<C2VPipe, VecTile, TileSplitAxis::TILE_NO_SPLIT>(pipe, recvTile);
         TFREE<C2VPipe, TileSplitAxis::TILE_NO_SPLIT>(pipe);
-        
+
         TSTORE(dstGlobal, dstTile);
     }
-    
+
     // Cube核执行路径
     if constexpr (DAV_CUBE) {
         // Cube计算：矩阵乘法
         TLOAD(matTileA, srcAGlobal);
         TLOAD(matTileB, srcBGlobal);
-        
+
         // V2C: TPOP从Vector核接收数据
         TPOP<V2CPipe, MatTile, TileSplitAxis::TILE_NO_SPLIT>(pipe, matTileB);
         TFREE<V2CPipe, TileSplitAxis::TILE_NO_SPLIT>(pipe);
-        
+
         TMOV(leftTile, matTileA);
         TMOV(rightTile, matTileB);
         TMATMUL(accTile, leftTile, rightTile);
-        
+
         // C2V: TPUSH数据到Vector核
         TPUSH<C2VPipe, AccTile, TileSplitAxis::TILE_NO_SPLIT>(pipe, accTile);
-        
+
         TSTORE(dstGlobal, accTile);
     }
 }
@@ -1063,7 +1063,7 @@ __global__ AICORE void runSoftmax(__gm__ T *out, __gm__ T *src)
     TileData expTile(vRows, vCols);
     TileData dstTile(vRows, vCols);
     SumTileData sumTile(vRows, 1);
-    
+
     TASSIGN(srcTile, 0x0);
     TASSIGN(expTile, sizeof(T) * TileData::Numel);
     TASSIGN(sumTile, 2 * sizeof(T) * TileData::Numel);

@@ -255,7 +255,7 @@ On A5, each die contains **18 core clusters** with a fixed 1:2 architecture. The
     comm_slot = die_id * CORE_PER_DIE + get_coreid() % AIC_AIV_PER_DIE;
 #elif defined(__DAV_VEC__)
     int die_id = get_coreid() / AIC_AIV_PER_DIE;
-    comm_slot = die_id * CORE_PER_DIE + 
+    comm_slot = die_id * CORE_PER_DIE +
                 (((get_coreid() % AIC_AIV_PER_DIE) - CORE_PER_DIE - get_subblockid()) / AIV_RATIO);
 #endif
 ```
@@ -275,17 +275,17 @@ On A2A3, when using the generic implementation, the cluster ID is communicated t
     // Cube core writes its core ID to GM slot
     comm_slot = static_cast<int>(get_coreid() & 0x7f);
     comm_slot %= CV_MAX_CORES;
-    
+
     // Write to GM slot and flush cache
     __gm__ volatile uint32_t *comm_slot_ptr = reinterpret_cast<__gm__ volatile uint32_t *>(
         cv_comm_buf + static_cast<std::size_t>(block_idx) * CV_COMM_SLOT_BYTES);
     comm_slot_ptr[0] = static_cast<uint32_t>(comm_slot);
     dcci(comm_slot_ptr, SINGLE_CACHE_LINE);
     dsb(DSB_DDR);
-    
+
     // Signal Vector cores via FFTS
     ffts_cross_core_sync(PIPE_MTE2, _getFFTSMsg(CV_CORE_SYNC, CV_COMM_CTRL));
-    
+
 #elif defined(__DAV_VEC__)
     // Vector core waits for Cube's signal, then reads cluster ID from GM
     __gm__ volatile uint32_t *comm_slot_ptr = reinterpret_cast<__gm__ volatile uint32_t *>(

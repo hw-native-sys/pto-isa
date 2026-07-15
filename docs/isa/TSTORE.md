@@ -171,4 +171,3 @@ tstore %t1, %sv_out[%c0, %c0]
 # AS Level 2 (DPS)
 pto.tstore ins(%src : !pto.tile_buf<...>) outs(%mem : !pto.partition_tensor_view<MxNxdtype>)
 ```
-

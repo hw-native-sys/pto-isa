@@ -78,4 +78,3 @@ PTO_INST RecordEvent TPREFETCH(TileData &dst, GlobalData &src);
 # AS Level 2 (DPS)
 pto.tprefetch ins(%src : !pto.global<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-

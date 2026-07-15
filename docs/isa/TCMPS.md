@@ -168,4 +168,3 @@ void example_tile() {
 # AS Level 2 (DPS)
 pto.tcmps ins(%src, %scalar{cmpMode = #pto<cmp xx>}: !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
-

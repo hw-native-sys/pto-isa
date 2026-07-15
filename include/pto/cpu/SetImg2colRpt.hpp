@@ -20,4 +20,4 @@ PTO_INTERNAL void SET_IMG2COL_RPT_IMPL(ConvTileData& src)
 
 } // namespace pto
 
-#endif // PTO_COSTMODEL_STUBS_PTO_PREFETCH_HPP
+#endif

@@ -47,7 +47,7 @@ PTO_INLINE void ForEachNZElement(
 {
     for (size_t r = 0; r < validRow; ++r) {
         for (size_t c = 0; c < validCol; ++c) {
-            const size_t tile_idx = GetNZTileIndex<TileData>(r, c);
+            const size_t tile_idx = GetTileElementOffset<TileData>(r, c);
             const size_t gd_idx =
                 GetNZGlobalIndex(r, c, gShape1, gShape3, gShape4, gStride0, gStride1, gStride2, gStride3, gStride4);
             func(r, c, tile_idx, gd_idx);

@@ -19,9 +19,4 @@ PTO_INTERNAL void SET_IMG2COL_PADDING_IMPL(ConvTileData& src)
 }
 } // namespace pto
 
-#include <cstddef>
-
-// Single-card host runner for the public TPREFETCH_ASYNC GlobalTensor API
-// correctness test. Defined in tprefetch_async_kernel.cpp.
-template <typename T, size_t count>
-bool RunPrefetchAsyncCorrectness(int deviceId);
+#endif

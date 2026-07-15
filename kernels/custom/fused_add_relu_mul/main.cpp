@@ -8,11 +8,7 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-#ifdef __CPU_SIM
-#include <pto/common/cpu_stub.hpp>
-#else
 #include "acl/acl.h"
-#endif
 #include "test_common.h"
 #include <vector>
 #include <cmath>

@@ -78,4 +78,3 @@ See related examples in `docs/isa/` and `docs/coding/tutorials/`.
 # AS Level 2 (DPS)
 pto.tprefetch ins(%src : !pto.global<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-

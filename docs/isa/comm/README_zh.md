@@ -128,4 +128,3 @@ struct ParallelGroup {
     static ParallelGroup Create(GlobalData *tensorArray, int size, int rank_id);
 };
 ```
-

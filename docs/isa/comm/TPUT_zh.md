@@ -123,4 +123,3 @@ comm::TPUT(dstG, srcG, pingTile, pongTile);
 // 在运行时而非编译期模板参数中选择原子类型
 comm::TPUT(dstG, srcG, stagingTile, AtomicType::AtomicAdd);
 ```
-

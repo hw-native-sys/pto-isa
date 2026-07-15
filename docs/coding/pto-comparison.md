@@ -151,10 +151,10 @@ __global__ __aicore__ void VecAdd(
     __gm__ const float* in0,
     __gm__ const float* in1,
     uint32_t length) {
-  
+
   using TileT = Tile<TileType::Vec, float, 16, 256>;
   TileT a, b, c;
-  
+
   for (int i = 0; i < length; i += 16 * 256) {
     TLOAD(a, GlobalTensor(in0 + i));
     TLOAD(b, GlobalTensor(in1 + i));
@@ -171,9 +171,9 @@ __global__ void VecAdd(
     const float* in0,
     const float* in1,
     int length) {
-  
+
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  
+
   if (idx < length) {
     out[idx] = in0[idx] + in1[idx];
   }
@@ -195,23 +195,23 @@ __global__ __aicore__ void MatMul(
     __gm__ const float* A,
     __gm__ const float* B,
     int M, int K, int N) {
-  
+
   using TileLeft = TileLeft<half, 128, 64>;
   using TileRight = TileRight<half, 64, 256>;
   using TileAcc = TileAcc<float, 128, 256>;
-  
+
   TileAcc acc;
   TFILL(acc, 0);
-  
+
   for (int k = 0; k < K; k += 64) {
     TileLeft tileA;
     TileRight tileB;
-    
+
     TLOAD(tileA, A[m:m+128, k:k+64]);
     TLOAD(tileB, B[k:k+64, n:n+256]);
     TMATMUL_ACC(acc, tileA, tileB);
   }
-  
+
   TSTORE(C[m:m+128, n:n+256], acc);
 }
 ```
@@ -223,28 +223,28 @@ __global__ void MatMul(
     const float* A,
     const float* B,
     int M, int K, int N) {
-  
+
   __shared__ float As[TILE_SIZE][TILE_SIZE];
   __shared__ float Bs[TILE_SIZE][TILE_SIZE];
-  
+
   int row = blockIdx.y * TILE_SIZE + threadIdx.y;
   int col = blockIdx.x * TILE_SIZE + threadIdx.x;
-  
+
   float sum = 0.0f;
-  
+
   for (int k = 0; k < K; k += TILE_SIZE) {
     // Load to shared memory
     As[threadIdx.y][threadIdx.x] = A[row * K + k + threadIdx.x];
     Bs[threadIdx.y][threadIdx.x] = B[(k + threadIdx.y) * N + col];
     __syncthreads();
-    
+
     // Compute
     for (int i = 0; i < TILE_SIZE; i++) {
       sum += As[threadIdx.y][i] * Bs[i][threadIdx.x];
     }
     __syncthreads();
   }
-  
+
   C[row * N + col] = sum;
 }
 ```
@@ -357,4 +357,3 @@ __global__ __aicore__ void kernel() {
 - [Programming Guide](README.md)
 - [Performance Best Practices](performance-best-practices.md)
 - [GEMM Optimization Case](../../kernels/manual/a2a3/gemm_performance/README.md)
-

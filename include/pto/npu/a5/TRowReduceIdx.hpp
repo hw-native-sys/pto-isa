@@ -53,10 +53,10 @@ PTO_INTERNAL void TRowReduceIdxCheck(
     using TIdx = typename TileDataOutIdx::DType;
     if constexpr (outputVal) {
         static_assert(
-            (sizeof(TVal) == sizeof(half) && (std::is_same_v<int16_t, TIdx> || std::is_same_v<uint16_t, TIdx>)) ||
+            (sizeof(TVal) == sizeof(half) && (std::is_same_v<int16_t, TIdx> || std::is_same_v<uint16_t, TIdx> ||
+                                              std::is_same_v<int32_t, TIdx> || std::is_same_v<uint32_t, TIdx>)) ||
                 (sizeof(TVal) == sizeof(float) && (std::is_same_v<int32_t, TIdx> || std::is_same_v<uint32_t, TIdx>)),
-            "Input and output tile data types must match. "
-            "Fix: Ensure TileDataOutIdx uses the same DType as TileDataIn.");
+            "Dest index tile must use int16_t/uint16_t/int32_t/uint32_t.");
         TRowReduceCheck<TileDataOutVal, TileDataIn, false>(srcValidRows, srcValidCols, dstValValidRow);
     } else {
         static_assert(
@@ -80,6 +80,7 @@ PTO_INTERNAL void UpdateIdxValue(
     ReduceIdxOp::Compare(pregCmp, vregValOrig, vregVal, pRegOneElem);
     vsel(vregValOrig, vregVal, vregValOrig, pregCmp);
     vsel(vregIdxOrig, vregIdx, vregIdxOrig, pregCmp);
+    vadds(vregIdxOffset, vregIdxOffset, elementsPerRepeat, pRegOneElem, MODE_ZEROING);
 }
 
 template <
@@ -125,24 +126,17 @@ PTO_INTERNAL void TRowReduceIdxProc(
                     vregIdxOrig, vregValOrig, vregSrc, vregZero, vregIdxOffset, pRegOneElem);
             }
             if constexpr (postUpdate) {
-                vlds(vregSrc, rowPtr, elementsPerRepeat, NORM, POST_UPDATE);
+                vsts(vregIdxOrig, dstIdxPtr, TileDataOutIdx::RowStride, distValueIdx, pRegOneElem, POST_UPDATE);
+                srcPtr += srcAdjust;
             } else {
-                vlds(vregSrc, srcPtr, i * TileDataIn::RowStride + j * elementsPerRepeat, NORM);
+                vsts(vregIdxOrig, dstIdxPtr, i * TileDataOutIdx::RowStride, distValueIdx, pRegOneElem);
             }
-            ReduceIdxOp::Reduce(vregSrc, vregSrc, pRegSrc);
-            UpdateIdxValue<ReduceIdxOp, TDstIdx, TSrc>(vregIdxOrig, vregValOrig, vregSrc, vregZero,
-                                                       j * elementsPerRepeat, pRegOneElem);
-        }
-        if constexpr (postUpdate) {
-            vsts(vregIdxOrig, dstIdxPtr, TileDataOutIdx::RowStride, distValueIdx, pRegOneElem, POST_UPDATE);
-        } else {
-            vsts(vregIdxOrig, dstIdxPtr, i * TileDataOutIdx::RowStride, distValueIdx, pRegOneElem);
-        }
-        if constexpr (outputVal) {
-            if constexpr (postUpdate) {
-                vsts(vregValOrig, dstValPtr, TileDataOutVal::RowStride, distValueVal, pRegOneElem, POST_UPDATE);
-            } else {
-                vsts(vregValOrig, dstValPtr, i * TileDataOutVal::RowStride, distValueVal, pRegOneElem);
+            if constexpr (outputVal) {
+                if constexpr (postUpdate) {
+                    vsts(vregValOrig, dstValPtr, TileDataOutVal::RowStride, distValueVal, pRegOneElem, POST_UPDATE);
+                } else {
+                    vsts(vregValOrig, dstValPtr, i * TileDataOutVal::RowStride, distValueVal, pRegOneElem);
+                }
             }
         }
     }

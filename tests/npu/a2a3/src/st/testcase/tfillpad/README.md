@@ -126,12 +126,12 @@ using DstTile = TileDyn<float, 128, 128, TileType::Vec, PadCustomNeg1>;
 void example() {
     SrcTile src(128, 64);
     DstTile dst(128, 128);
-    
+
     // Fill source with data...
-    
+
     // TFILLPAD copies src to dst, pads remaining cols with -1.0f
     TFILLPAD(dst, src);
-    
+
     // Result:
     // - dst[0:128, 0:64]   = src data
     // - dst[0:128, 64:128] = -1.0f (padded)

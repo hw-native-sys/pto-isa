@@ -144,4 +144,3 @@ void example_manual(__gm__ T* in) {
 # AS Level 2 (DPS)
 pto.tload ins(%mem : !pto.partition_tensor_view<MxNxdtype>) outs(%dst : !pto.tile_buf<...>)
 ```
-

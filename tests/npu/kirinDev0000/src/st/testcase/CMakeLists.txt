@@ -7,33 +7,33 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 # --------------------------------------------------------------------------------
-function(pto_st NAME)	 
-     add_library(${NAME}_kernel SHARED ${NAME}_kernel.cpp)	 
-     target_compile_options(${NAME}_kernel PRIVATE ${CMAKE_CCE_COMPILE_OPTIONS}	 
-         --cce-aicore-arch=dav-l510 -DREGISTER_BASE -std=c++17)	 
-     target_include_directories(${NAME}_kernel PRIVATE 	 
-         ${ASCEND_HOME_PATH}/pkg_inc/	 
-         ${ASCEND_HOME_PATH}/pkg_inc/profiling/	 
-         ${ASCEND_HOME_PATH}/pkg_inc/runtime/runtime	 
-     )	 
-     target_link_options(${NAME}_kernel PRIVATE --cce-fatobj-link)	 
-  	 
-     add_executable(${NAME} main.cpp)	 
-     target_compile_options(${NAME} PRIVATE ${CMAKE_CPP_COMPILE_OPTIONS})	 
-     target_include_directories(${NAME} PRIVATE	 
-         ${PROJECT_SOURCE_DIR}/../../../../common	 
-     )	 
-     target_link_directories(${NAME} PUBLIC	 
-         ${ASCEND_HOME_PATH}/lib64	 
-         ${ASCEND_HOME_PATH}/tools/simulator/${SOC_VERSION}/lib	 
-     )	 
-     target_link_libraries(${NAME} PRIVATE	 
-         ${NAME}_kernel	 
-         $<BUILD_INTERFACE:$<$<STREQUAL:${RUN_MODE},sim>:runtime_camodel>>	 
-         $<BUILD_INTERFACE:$<$<STREQUAL:${RUN_MODE},npu>:ai_runtime>>	 
-         $<BUILD_INTERFACE:$<$<STREQUAL:${RUN_MODE},npu>:runtime>>	 
-         stdc++ ascendcl m tiling_api platform c_sec dl nnopbase GTest::gtest GTest::gtest_main pthread 
-     ) 
+function(pto_st NAME)
+     add_library(${NAME}_kernel SHARED ${NAME}_kernel.cpp)
+     target_compile_options(${NAME}_kernel PRIVATE ${CMAKE_CCE_COMPILE_OPTIONS}
+         --cce-aicore-arch=dav-l510 -DREGISTER_BASE -std=c++17)
+     target_include_directories(${NAME}_kernel PRIVATE
+         ${ASCEND_HOME_PATH}/pkg_inc/
+         ${ASCEND_HOME_PATH}/pkg_inc/profiling/
+         ${ASCEND_HOME_PATH}/pkg_inc/runtime/runtime
+     )
+     target_link_options(${NAME}_kernel PRIVATE --cce-fatobj-link)
+
+     add_executable(${NAME} main.cpp)
+     target_compile_options(${NAME} PRIVATE ${CMAKE_CPP_COMPILE_OPTIONS})
+     target_include_directories(${NAME} PRIVATE
+         ${PROJECT_SOURCE_DIR}/../../../../common
+     )
+     target_link_directories(${NAME} PUBLIC
+         ${ASCEND_HOME_PATH}/lib64
+         ${ASCEND_HOME_PATH}/tools/simulator/${SOC_VERSION}/lib
+     )
+     target_link_libraries(${NAME} PRIVATE
+         ${NAME}_kernel
+         $<BUILD_INTERFACE:$<$<STREQUAL:${RUN_MODE},sim>:runtime_camodel>>
+         $<BUILD_INTERFACE:$<$<STREQUAL:${RUN_MODE},npu>:ai_runtime>>
+         $<BUILD_INTERFACE:$<$<STREQUAL:${RUN_MODE},npu>:runtime>>
+         stdc++ ascendcl m tiling_api platform c_sec dl nnopbase GTest::gtest GTest::gtest_main pthread
+     )
  endfunction()
 
 
@@ -41,25 +41,25 @@ function(pto_st_npu NAME)
     add_library(${NAME}_kernel SHARED ${NAME}_kernel.cpp)
     target_compile_options(${NAME}_kernel PRIVATE ${CMAKE_CCE_COMPILE_OPTIONS}
         --cce-aicore-arch=dav-l510 -DREGISTER_BASE -std=c++17)
-    target_include_directories(${NAME}_kernel PRIVATE 
+    target_include_directories(${NAME}_kernel PRIVATE
         ${ASCEND_HOME_PATH}/pkg_inc/
         ${ASCEND_HOME_PATH}/pkg_inc/profiling/
         ${ASCEND_HOME_PATH}/pkg_inc/runtime/runtime
     )
-    target_link_options(${NAME}_kernel PRIVATE 
+    target_link_options(${NAME}_kernel PRIVATE
         --cce-fatobj-link
         --target=aarch64-linux-ohos
         --sysroot=${NATIVE}/sysroot
         -nostdlib)
-    
+
     set(OUTPUT_OBJ "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_FILES_DIRECTORY}/${NAME}.dir/main.cpp.o")
     set(DEP_FILE "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_FILES_DIRECTORY}/${NAME}.dir/main.cpp.o.d")
-    
+
     add_custom_command(
         OUTPUT ${OUTPUT_OBJ}
         DEPFILE ${DEP_FILE}
         COMMAND ${NATIVE}/llvm/bin/clang-15
-                -I${PROJECT_SOURCE_DIR}/../../../../../include 
+                -I${PROJECT_SOURCE_DIR}/../../../../../include
                 -I${ASCEND_HOME_PATH}/ohos
                 -I${ASCEND_DRIVER_PATH}/kernel/inc
                 -I${PROJECT_SOURCE_DIR}/../../../../common
@@ -108,10 +108,10 @@ function(pto_st_npu NAME)
             ${NAME} ALL
             DEPENDS ${EXECUTABLE_OUTPUT}
         )
-    
+
 endfunction()
 
-function(pto_test NAME)	
+function(pto_test NAME)
     if(RUN_MODE STREQUAL "npu")
         pto_st_npu(${NAME})
         target_compile_definitions(${NAME} PRIVATE PTO_RUN_MODE_NPU)

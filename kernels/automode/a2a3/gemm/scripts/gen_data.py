@@ -52,7 +52,7 @@ class GemmParams:
         self.ctype = ctype
         self.m = m
         self.k = k
-        self.n = n 
+        self.n = n
         self.is_bias = is_bias
         if (bias_type):
             self.bias_type = bias_type

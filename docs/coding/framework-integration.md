@@ -72,16 +72,16 @@ Target Ascend AI Core execution
 TORCH_LIBRARY_FRAGMENT(npu, m) {
   // Basic operator
   m.def("my_add(Tensor x, Tensor y) -> Tensor");
-  
+
   // With scalar parameter
   m.def("my_mul(Tensor x, Scalar alpha) -> Tensor");
-  
+
   // Multiple outputs
   m.def("my_split(Tensor x, int dim) -> (Tensor, Tensor)");
-  
+
   // Inplace operator
   m.def("my_relu_(Tensor(a!) self) -> Tensor(a!)");
-  
+
   // Optional parameters
   m.def("my_conv(Tensor input, Tensor weight, Tensor? bias=None, "
         "int stride=1, int padding=0) -> Tensor");
@@ -100,19 +100,19 @@ __global__ __aicore__ void MyAddKernel(
     __gm__ const float* x,
     __gm__ const float* y,
     uint32_t length) {
-  
+
   int block_idx = get_block_idx();
   int block_num = get_block_num();
-  
+
   int elements_per_block = (length + block_num - 1) / block_num;
   int start = block_idx * elements_per_block;
   int end = min(start + elements_per_block, length);
-  
+
   using TileT = Tile<TileType::Vec, float, 16, 256>;
-  
+
   for (int i = start; i < end; i += 16 * 256) {
     TileT tile_x, tile_y, tile_out;
-    
+
     TLOAD(tile_x, GlobalTensor(x + i));
     TLOAD(tile_y, GlobalTensor(y + i));
     TADD(tile_out, tile_x, tile_y);
@@ -126,20 +126,20 @@ at::Tensor my_add_impl(const at::Tensor& x, const at::Tensor& y) {
   TORCH_CHECK(x.device() == y.device(), "Inputs must be on same device");
   TORCH_CHECK(x.sizes() == y.sizes(), "Inputs must have same shape");
   TORCH_CHECK(x.scalar_type() == at::kFloat, "Only float32 supported");
-  
+
   // Allocate output
   at::Tensor out = at::empty_like(x);
-  
+
   // Get data pointers
   float* out_ptr = out.data_ptr<float>();
   const float* x_ptr = x.data_ptr<float>();
   const float* y_ptr = y.data_ptr<float>();
   uint32_t length = x.numel();
-  
+
   // Launch kernel
   int block_num = 24;  // A3 core count
   EXEC_KERNEL_CMD(MyAddKernel, block_num, out_ptr, x_ptr, y_ptr, length);
-  
+
   return out;
 }
 ```
@@ -156,41 +156,41 @@ class MyConvFunction : public torch::autograd::Function<MyConvFunction> {
       const at::Tensor& bias,
       int stride,
       int padding) {
-    
+
     // Save tensors for backward pass
     ctx->save_for_backward({input, weight, bias});
     ctx->saved_data["stride"] = stride;
     ctx->saved_data["padding"] = padding;
-    
+
     // Call PTO kernel
     at::Tensor output = run_conv_forward(input, weight, bias, stride, padding);
-    
+
     return output;
   }
-  
+
   static std::vector<at::Tensor> backward(
       torch::autograd::AutogradContext* ctx,
       std::vector<at::Tensor> grad_outputs) {
-    
+
     // Restore saved tensors
     auto saved = ctx->get_saved_variables();
     auto input = saved[0];
     auto weight = saved[1];
     auto bias = saved[2];
-    
+
     int stride = ctx->saved_data["stride"].toInt();
     int padding = ctx->saved_data["padding"].toInt();
-    
+
     auto grad_output = grad_outputs[0];
-    
+
     // Compute gradients
     at::Tensor grad_input = run_conv_backward_input(
         grad_output, weight, stride, padding);
     at::Tensor grad_weight = run_conv_backward_weight(
         grad_output, input, stride, padding);
     at::Tensor grad_bias = run_conv_backward_bias(grad_output);
-    
-    return {grad_input, grad_weight, grad_bias, 
+
+    return {grad_input, grad_weight, grad_bias,
             at::Tensor(), at::Tensor()};  // stride, padding have no gradient
   }
 };
@@ -353,22 +353,22 @@ class MyAddOp : public tensorflow::OpKernel {
     // Get inputs
     const tensorflow::Tensor& x = context->input(0);
     const tensorflow::Tensor& y = context->input(1);
-    
+
     // Check shapes
     OP_REQUIRES(context, x.shape() == y.shape(),
                 tensorflow::errors::InvalidArgument(
                     "Inputs must have same shape"));
-    
+
     // Allocate output
     tensorflow::Tensor* z = nullptr;
     OP_REQUIRES_OK(context, context->allocate_output(0, x.shape(), &z));
-    
+
     // Call PTO kernel
     const float* x_ptr = x.flat<float>().data();
     const float* y_ptr = y.flat<float>().data();
     float* z_ptr = z->flat<float>().data();
     uint32_t length = x.NumElements();
-    
+
     EXEC_KERNEL_CMD(MyAddKernel, 24, z_ptr, x_ptr, y_ptr, length);
   }
 };
@@ -440,18 +440,18 @@ class MyAddKernel : public onnxruntime::OpKernel {
     // Get inputs
     const onnxruntime::Tensor* X = context->Input<onnxruntime::Tensor>(0);
     const onnxruntime::Tensor* Y = context->Input<onnxruntime::Tensor>(1);
-    
+
     // Allocate output
     onnxruntime::Tensor* Z = context->Output(0, X->Shape());
-    
+
     // Call PTO kernel
     const float* x_data = X->Data<float>();
     const float* y_data = Y->Data<float>();
     float* z_data = Z->MutableData<float>();
     size_t length = X->Shape().Size();
-    
+
     EXEC_KERNEL_CMD(MyAddKernel, 24, z_data, x_data, y_data, length);
-    
+
     return onnxruntime::Status::OK();
   }
 };
@@ -474,7 +474,7 @@ ONNX_OPERATOR_KERNEL_EX(
 class NpuExecutionProvider : public onnxruntime::IExecutionProvider {
  public:
   NpuExecutionProvider() : IExecutionProvider(kNpuExecutionProvider) {}
-  
+
   std::vector<std::unique_ptr<onnxruntime::ComputeCapability>>
   GetCapability(const onnxruntime::GraphViewer& graph,
                 const std::vector<const onnxruntime::KernelRegistry*>& registries) const override {
@@ -517,15 +517,15 @@ outputs = session.run(None, {'input': input_data})
 class MyAddKernel : public mindspore::kernel::Kernel {
  public:
   int Prepare() override { return RET_OK; }
-  
+
   int Execute() override {
     auto input0 = in_tensors_[0];
     auto input1 = in_tensors_[1];
     auto output = out_tensors_[0];
-    
+
     // Call PTO kernel
     // ...
-    
+
     return RET_OK;
   }
 };
@@ -559,9 +559,9 @@ at::Tensor& my_add_inplace(at::Tensor& x, const at::Tensor& y) {
   float* x_ptr = x.data_ptr<float>();
   const float* y_ptr = y.data_ptr<float>();
   uint32_t length = x.numel();
-  
+
   EXEC_KERNEL_CMD(MyAddInplaceKernel, 24, x_ptr, y_ptr, length);
-  
+
   return x;
 }
 ```
@@ -572,17 +572,17 @@ at::Tensor& my_add_inplace(at::Tensor& x, const at::Tensor& y) {
 // Use CUDA Stream (or NPU Stream)
 at::Tensor my_add_async(const at::Tensor& x, const at::Tensor& y) {
   at::Tensor out = at::empty_like(x);
-  
+
   // Get current stream
   auto stream = at::cuda::getCurrentCUDAStream();
-  
+
   // Launch kernel asynchronously
-  EXEC_KERNEL_ASYNC(MyAddKernel, 24, stream, 
+  EXEC_KERNEL_ASYNC(MyAddKernel, 24, stream,
                     out.data_ptr<float>(),
                     x.data_ptr<float>(),
                     y.data_ptr<float>(),
                     x.numel());
-  
+
   return out;
 }
 ```
@@ -602,24 +602,24 @@ class TestMyOps(unittest.TestCase):
     def test_my_add(self):
         x = torch.randn(100, 100).npu()
         y = torch.randn(100, 100).npu()
-        
+
         # Custom operator
         z_custom = torch.ops.npu.my_add(x, y)
-        
+
         # Reference implementation
         z_ref = x + y
-        
+
         # Verify
         self.assertTrue(torch.allclose(z_custom, z_ref, rtol=1e-5))
-    
+
     def test_my_add_backward(self):
         x = torch.randn(100, 100, requires_grad=True).npu()
         y = torch.randn(100, 100, requires_grad=True).npu()
-        
+
         z = torch.ops.npu.my_add(x, y)
         loss = z.sum()
         loss.backward()
-        
+
         # Verify gradients
         self.assertIsNotNone(x.grad)
         self.assertIsNotNone(y.grad)
@@ -639,17 +639,17 @@ def benchmark(func, *args, warmup=10, iterations=100):
     # Warmup
     for _ in range(warmup):
         func(*args)
-    
+
     # Synchronize
     torch.npu.synchronize()
-    
+
     # Measure
     start = time.time()
     for _ in range(iterations):
         func(*args)
     torch.npu.synchronize()
     end = time.time()
-    
+
     avg_time = (end - start) / iterations * 1000  # ms
     return avg_time
 

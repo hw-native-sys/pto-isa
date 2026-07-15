@@ -28,9 +28,9 @@ PTO_INTERNAL void TRowReduceIdxCheck(
     if constexpr (outputVal) {
         static_assert(
             (sizeof(TVal) == sizeof(float) && (std::is_same_v<int32_t, TIdx> || std::is_same_v<uint32_t, TIdx>)) ||
-                (sizeof(TVal) == sizeof(half) && (std::is_same_v<int16_t, TIdx> || std::is_same_v<uint16_t, TIdx>)),
-            "Input and output tile data types must match. "
-            "Fix: Ensure TileDataOutIdx uses the same DType as TileDataIn.");
+                (sizeof(TVal) == sizeof(half) && (std::is_same_v<int16_t, TIdx> || std::is_same_v<uint16_t, TIdx> ||
+                                                  std::is_same_v<int32_t, TIdx> || std::is_same_v<uint32_t, TIdx>)),
+            "Dest index tile must use int16_t/uint16_t/int32_t/uint32_t.");
         TRowReduceCheck<TileDataOutVal, TileDataIn, false>(srcValidRows, srcValidCols, dstValValidRow);
     } else {
         static_assert(
@@ -99,7 +99,12 @@ PTO_INTERNAL void ProcReduceIdxStage2(
     }
     set_mask_norm();
     set_vector_mask(-1, -1);
+#ifndef __PTO_AUTO__
     PtoSetWaitFlag<PIPE_V, PIPE_S>();
+#else
+    set_flag(PIPE_V, PIPE_S, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
+#endif
     for (int i = 0; i < validRow; i++) {
         __ubuf__ U* idxArrStage1 = (reinterpret_cast<__ubuf__ U*>(tmp + i * TileDataTmp::Cols + tempIdxOffsetStage1));
         __ubuf__ U* idxArrStage2 = (reinterpret_cast<__ubuf__ U*>(tmp + i * TileDataTmp::Cols + tempIdxOffsetStage2));
@@ -111,7 +116,12 @@ PTO_INTERNAL void ProcReduceIdxStage2(
                 *(reinterpret_cast<__ubuf__ T*>(tmp + i * TileDataTmp::Cols + tempIdxOffsetFinal));
         }
     }
+#ifndef __PTO_AUTO__
     PtoSetWaitFlag<PIPE_S, PIPE_V>();
+#else
+    set_flag(PIPE_S, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_S, PIPE_V, EVENT_ID0);
+#endif
 }
 
 template <
@@ -145,7 +155,12 @@ PTO_INTERNAL void ProcReduceIdxStage1(
     }
     set_mask_norm();
     set_vector_mask(-1, -1);
+#ifndef __PTO_AUTO__
     PtoSetWaitFlag<PIPE_V, PIPE_S>();
+#else
+    set_flag(PIPE_V, PIPE_S, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
+#endif
     for (int i = 0; i < validRow; i++) {
         idxArr = reinterpret_cast<__ubuf__ U*>(tmp + i * TileDataTmp::Cols);
         idxStage1 = *(reinterpret_cast<__ubuf__ U*>(tmp + i * TileDataTmp::Cols + tempOffset + 1));
@@ -156,7 +171,12 @@ PTO_INTERNAL void ProcReduceIdxStage1(
                 *(reinterpret_cast<__ubuf__ T*>(tmp + i * TileDataTmp::Cols + tempOffset));
         }
     }
+#ifndef __PTO_AUTO__
     PtoSetWaitFlag<PIPE_S, PIPE_V>();
+#else
+    set_flag(PIPE_S, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_S, PIPE_V, EVENT_ID0);
+#endif
 }
 
 template <typename InstrOp, typename TileDataOut, typename TileDataIn>
@@ -250,21 +270,11 @@ PTO_INTERNAL void ExtractValIdxFromTmp(
     __ubuf__ typename TileDataTmp::DType* tmp, int validRow)
 {
     using T = typename TileDataOutVal::DType;
+    using TIdx = typename TileDataOutIdx::DType;
     using U = std::conditional_t<sizeof(T) == sizeof(uint32_t), uint32_t, uint16_t>;
     constexpr uint8_t elemPerBlock = BLOCK_BYTE_SIZE / sizeof(T);
     if constexpr (TileDataOutVal::Cols == 1 || TileDataOutIdx::Cols == 1) {
-        set_mask_count();
-        set_vector_mask(0, validRow * 2);
-        if constexpr (TileDataOutIdx::Cols == 1) {
-            vreducev2(reinterpret_cast<__ubuf__ U *>(dstIdx), reinterpret_cast<__ubuf__ U *>(tmp),
-                      reinterpret_cast<__ubuf__ U *>(tmp), 1, 1, 2, elemPerBlock, elemPerBlock);
-            pipe_barrier(PIPE_V);
-        }
-        if constexpr (TileDataOutVal::Cols == 1) {
-            vreducev2(reinterpret_cast<__ubuf__ U *>(dstVal), reinterpret_cast<__ubuf__ U *>(tmp),
-                      reinterpret_cast<__ubuf__ U *>(tmp), 1, 1, 1, elemPerBlock, elemPerBlock);
-            pipe_barrier(PIPE_V);
-        }
+        ExtractValIdxFromTmpColMajor<TileDataOutVal, TileDataOutIdx, TileDataTmp>(dstVal, dstIdx, tmp, validRow);
     }
     set_mask_norm();
     set_vector_mask(-1, -1);

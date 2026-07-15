@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class TDEINTERLEAVETest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -33,10 +31,10 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int row, int col>
-void LaunchTDEINTERLEAVE(T *dst1, T *dst0, T *src1, T *src0, void *stream);
+void LaunchTDEINTERLEAVE(T* dst1, T* dst0, T* src1, T* src0, void* stream);
 
 template <typename T, int row, int col>
-void LaunchTDEINTERLEAVE(T *dst1, T *dst0, T *src, void *stream);
+void LaunchTDEINTERLEAVE(T* dst1, T* dst0, T* src, void* stream);
 
 template <typename T, int row, int col>
 void test_TDEINTERLEAVE()
@@ -51,15 +49,15 @@ void test_TDEINTERLEAVE()
     T *dst1Host, *dst0Host, *src1Host, *src0Host;
     T *dst1Device, *dst0Device, *src1Device, *src0Device;
 
-    aclrtMallocHost((void **)(&dst1Host), dstFileSize);
-    aclrtMallocHost((void **)(&dst0Host), dstFileSize);
-    aclrtMallocHost((void **)(&src1Host), dstFileSize);
-    aclrtMallocHost((void **)(&src0Host), dstFileSize);
+    aclrtMallocHost((void**)(&dst1Host), dstFileSize);
+    aclrtMallocHost((void**)(&dst0Host), dstFileSize);
+    aclrtMallocHost((void**)(&src1Host), dstFileSize);
+    aclrtMallocHost((void**)(&src0Host), dstFileSize);
 
-    aclrtMalloc((void **)&dst1Device, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&dst0Device, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dst1Device, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dst0Device, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input0.bin", dstFileSize, src0Host, dstFileSize));
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input1.bin", dstFileSize, src1Host, dstFileSize));
@@ -120,13 +118,13 @@ void test_TDEINTERLEAVE_MODE_1()
     T *dst1Host, *dst0Host, *srcHost;
     T *dst1Device, *dst0Device, *srcDevice;
 
-    aclrtMallocHost((void **)(&dst1Host), dstFileSize);
-    aclrtMallocHost((void **)(&dst0Host), dstFileSize);
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
+    aclrtMallocHost((void**)(&dst1Host), dstFileSize);
+    aclrtMallocHost((void**)(&dst0Host), dstFileSize);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
 
-    aclrtMalloc((void **)&dst1Device, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&dst0Device, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dst1Device, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dst0Device, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/src.bin", srcFileSize, srcHost, srcFileSize));
 
@@ -169,24 +167,9 @@ void test_TDEINTERLEAVE_MODE_1()
     EXPECT_TRUE(ret0 && ret1);
 }
 
-TEST_F(TDEINTERLEAVETest, case_1)
-{
-    test_TDEINTERLEAVE<float, 64, 64>();
-}
-TEST_F(TDEINTERLEAVETest, case_2)
-{
-    test_TDEINTERLEAVE<int32_t, 16, 64>();
-}
-TEST_F(TDEINTERLEAVETest, case_3)
-{
-    test_TDEINTERLEAVE<int16_t, 32, 128>();
-}
-TEST_F(TDEINTERLEAVETest, case_4)
-{
-    test_TDEINTERLEAVE<aclFloat16, 20, 16>();
-}
+TEST_F(TDEINTERLEAVETest, case_1) { test_TDEINTERLEAVE<float, 64, 64>(); }
+TEST_F(TDEINTERLEAVETest, case_2) { test_TDEINTERLEAVE<int32_t, 16, 64>(); }
+TEST_F(TDEINTERLEAVETest, case_3) { test_TDEINTERLEAVE<int16_t, 32, 128>(); }
+TEST_F(TDEINTERLEAVETest, case_4) { test_TDEINTERLEAVE<aclFloat16, 20, 16>(); }
 
-TEST_F(TDEINTERLEAVETest, case_5)
-{
-    test_TDEINTERLEAVE_MODE_1<int32_t, 16, 64>();
-}
+TEST_F(TDEINTERLEAVETest, case_5) { test_TDEINTERLEAVE_MODE_1<int32_t, 16, 64>(); }

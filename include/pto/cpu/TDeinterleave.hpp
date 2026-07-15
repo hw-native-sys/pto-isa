@@ -17,9 +17,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 template <typename TileDataDst, typename TileDataSrc>
-PTO_INST void TDeinterleave_Impl(typename TileDataDst::TileDType dst1, typename TileDataDst::TileDType dst0,
-                                 typename TileDataSrc::TileDType src1, typename TileDataSrc::TileDType src0,
-                                 size_t validRow, size_t validCol)
+PTO_INST void TDeinterleave_Impl(
+    typename TileDataDst::TileDType dst1, typename TileDataDst::TileDType dst0, typename TileDataSrc::TileDType src1,
+    typename TileDataSrc::TileDType src0, size_t validRow, size_t validCol)
 {
     size_t mid = validCol / 2;
     for (size_t r = 0; r < validRow; r++) {
@@ -37,8 +37,9 @@ PTO_INST void TDeinterleave_Impl(typename TileDataDst::TileDType dst1, typename 
 }
 
 template <typename TileDataDst, typename TileDataSrc>
-PTO_INST void TDeinterleave_Impl(typename TileDataDst::TileDType dst1, typename TileDataDst::TileDType dst0,
-                                 typename TileDataSrc::TileDType src, size_t validRow, size_t validCol)
+PTO_INST void TDeinterleave_Impl(
+    typename TileDataDst::TileDType dst1, typename TileDataDst::TileDType dst0, typename TileDataSrc::TileDType src,
+    size_t validRow, size_t validCol)
 {
     for (size_t r = 0; r < validRow; r++) {
         for (size_t c = 0; c < validCol; c++) {
@@ -50,25 +51,27 @@ PTO_INST void TDeinterleave_Impl(typename TileDataDst::TileDType dst1, typename 
 }
 
 template <typename TileDataDst, typename TileDataSrc>
-PTO_INST void TDEINTERLEAVE_IMPL(TileDataDst &dst1, TileDataDst &dst0, TileDataSrc &src1, TileDataSrc &src0)
+PTO_INST void TDEINTERLEAVE_IMPL(TileDataDst& dst1, TileDataDst& dst0, TileDataSrc& src1, TileDataSrc& src0)
 {
-    static_assert(TileDataDst::isRowMajor && TileDataSrc::isRowMajor,
-                  "[TDEINTERLEAVE] Invalid tile data layout! Tile should be row major!");
+    static_assert(
+        TileDataDst::isRowMajor && TileDataSrc::isRowMajor,
+        "[TDEINTERLEAVE] Invalid tile data layout! Tile should be row major!");
     size_t validRow = dst0.GetValidRow();
     size_t validCol = dst0.GetValidCol();
     assert(validCol % 2 == 0);
     assert(dst1.GetValidRow() == validRow && dst1.GetValidCol() == validCol);
     assert(src1.GetValidRow() == validRow && src1.GetValidCol() == validCol);
     assert(src0.GetValidRow() == validRow && src0.GetValidCol() == validCol);
-    TDeinterleave_Impl<TileDataDst, TileDataSrc>(dst1.data(), dst0.data(), src1.data(), src0.data(), validRow,
-                                                 validCol);
+    TDeinterleave_Impl<TileDataDst, TileDataSrc>(
+        dst1.data(), dst0.data(), src1.data(), src0.data(), validRow, validCol);
 }
 
 template <typename TileDataDst, typename TileDataSrc>
-PTO_INST void TDEINTERLEAVE_IMPL(TileDataDst &dst1, TileDataDst &dst0, TileDataSrc &src)
+PTO_INST void TDEINTERLEAVE_IMPL(TileDataDst& dst1, TileDataDst& dst0, TileDataSrc& src)
 {
-    static_assert(TileDataDst::isRowMajor && TileDataSrc::isRowMajor,
-                  "[TDEINTERLEAVE] Invalid tile data layout! Tile should be row major!");
+    static_assert(
+        TileDataDst::isRowMajor && TileDataSrc::isRowMajor,
+        "[TDEINTERLEAVE] Invalid tile data layout! Tile should be row major!");
     size_t validRow = dst0.GetValidRow();
     size_t validCol = dst0.GetValidCol();
     assert(validCol % 2 == 0);

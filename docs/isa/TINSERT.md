@@ -251,4 +251,3 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.tinsert ins(%src, %idxrow, %idxcol : !pto.tile_buf<...>, dtype, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
-

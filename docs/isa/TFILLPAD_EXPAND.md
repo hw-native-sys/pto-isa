@@ -73,4 +73,3 @@ See related examples in `docs/isa/` and `docs/coding/tutorials/`.
 # AS Level 2 (DPS)
 pto.tfillpad_expand ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-
