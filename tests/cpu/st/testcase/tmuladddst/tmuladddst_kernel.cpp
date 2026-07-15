@@ -77,3 +77,5 @@ template void LaunchTMULADDDST<aclFloat16, 64, 64, 64, 64, 64, 64, 64, 64>(
     aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
 template void LaunchTMULADDDST<aclFloat16, 32, 128, 32, 192, 32, 256, 32, 127>(
     aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void LaunchTMULADDDST<aclFloat16, 1, 16384, 1, 16384, 1, 16384, 1, 16384>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);

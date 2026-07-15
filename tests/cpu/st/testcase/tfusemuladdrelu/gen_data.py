@@ -61,9 +61,9 @@ def gen_golden_data(case_name, param):
         for i in range(h_valid):
             for j in range(w_valid):
                 # 1. Promote to float32
-                prod = float(input0[i, j]) * float(dst[i, j])
+                prod = input0[i, j] * dst[i, j]
                 # 2. Add to existing value (also promoted)
-                res = relu(prod + float(input1[i, j]))
+                res = relu(prod + input1[i, j])
                 # 3. Cast back to half at the very end
                 dst[i, j] = np.float16(res)
     # Perform the operation
