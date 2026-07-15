@@ -128,3 +128,4 @@ TEST_F(TINTERLEAVETest, case_float_16x32_16x31) { test_tinterleave<float, 16, 32
 TEST_F(TINTERLEAVETest, case_int32_16x32_16x31) { test_tinterleave<int32_t, 16, 32, 16, 31>(); }
 TEST_F(TINTERLEAVETest, case_int8_32x256_32x255) { test_tinterleave<int8_t, 32, 256, 32, 255>(); }
 TEST_F(TINTERLEAVETest, case_uint8_32x256_32x255) { test_tinterleave<uint8_t, 32, 256, 32, 255>(); }
+TEST_F(TINTERLEAVETest, case_float_2x72_2x66) { test_tinterleave<float, 2, 72, 2, 66>(); }

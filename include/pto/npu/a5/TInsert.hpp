@@ -574,8 +574,6 @@ PTO_INTERNAL void TInsertVecToMatImpl(DstTileData& dst, SrcTileData& src, uint16
 {
     uint16_t validRow = static_cast<uint16_t>(src.GetValidRow());
     uint16_t validCol = static_cast<uint16_t>(src.GetValidCol());
-    PTO_ASSERT(indexRow + validRow <= DstTileData::Rows, "TINSERT : indexRow + validRow exceeds destination rows!");
-    PTO_ASSERT(indexCol + validCol <= DstTileData::Cols, "TINSERT : indexCol + validCol exceeds destination cols!");
 
     if constexpr (SrcTileData::isRowMajor) {
         uint16_t dstCols = static_cast<uint16_t>(DstTileData::Cols);
