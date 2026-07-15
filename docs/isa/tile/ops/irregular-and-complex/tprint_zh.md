@@ -43,6 +43,7 @@ pto.tprint ins(%src : !pto.tile_buf<...> | !pto.partition_tensor_view<MxNxdtype>
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 ```cpp
 // 适用于打印GlobalTensor或Vec类型Tile
 template <PrintFormat Format = PrintFormat::Width8_Precision4, typename TileData>

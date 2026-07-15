@@ -78,6 +78,7 @@ pto.tscatter ins(%src, %idx : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst 
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
 ### 索引散播
 
@@ -128,9 +129,9 @@ PTO_INST RecordEvent TSCATTER(DstTileData& dst, SrcTileData& src, WaitEvents&...
     - 不对 `indexes` 值执行边界检查。
     - 静态有效边界：`TileDataD::ValidRow <= TileDataD::Rows`、`TileDataD::ValidCol <= TileDataD::Cols`、`TileDataS::ValidRow <= TileDataS::Rows`、`TileDataS::ValidCol <= TileDataS::Cols`、`TileDataI::ValidRow <= TileDataI::Rows`、`TileDataI::ValidCol <= TileDataI::Cols`。
     - `TileDataD::DType` 与 `TileDataS::DType` 必须相同。
-    - 当 `TileDataD::DType` 大小为 4 字节时，`TileDataI::DType` 大小必须为 4 字节。
-    - 当 `TileDataD::DType` 大小为 2 字节时，`TileDataI::DType` 大小必须为 2 字节。
-    - 当 `TileDataD::DType` 大小为 1 字节时，`TileDataI::DType` 大小必须为 2 字节。
+    - 当 `TileDataD::DType` 大小为 4字节时，`TileDataI::DType` 大小必须为 4字节。
+    - 当 `TileDataD::DType` 大小为 2字节时，`TileDataI::DType` 大小必须为 2字节。
+    - 当 `TileDataD::DType` 大小为 1字节时，`TileDataI::DType` 大小必须为 2字节。
 - **实现检查 (A5)**:
     - `TileDataD::Loc`、`TileDataS::Loc`、`TileDataI::Loc` 必须是 `TileType::Vec`。
     - `TileDataD::DType`、`TileDataS::DType` 必须是以下之一：`int32_t`、`int16_t`、`int8_t`、`half`、`float16_t`、`float32_t`、`uint32_t`、`uint16_t`、`uint8_t`、`bfloat16_t`。
@@ -138,9 +139,9 @@ PTO_INST RecordEvent TSCATTER(DstTileData& dst, SrcTileData& src, WaitEvents&...
     - 不对 `indexes` 值执行边界检查。
     - 静态有效边界：`TileDataD::ValidRow <= TileDataD::Rows`、`TileDataD::ValidCol <= TileDataD::Cols`、`TileDataS::ValidRow <= TileDataS::Rows`、`TileDataS::ValidCol <= TileDataS::Cols`、`TileDataI::ValidRow <= TileDataI::Rows`、`TileDataI::ValidCol <= TileDataI::Cols`。
     - `TileDataD::DType` 与 `TileDataS::DType` 必须相同。
-    - 当 `TileDataD::DType` 大小为 4 字节时，`TileDataI::DType` 大小必须为 4 字节。
-    - 当 `TileDataD::DType` 大小为 2 字节时，`TileDataI::DType` 大小必须为 2 字节。
-    - 当 `TileDataD::DType` 大小为 1 字节时，`TileDataI::DType` 大小必须为 2 字节。
+    - 当 `TileDataD::DType` 大小为 4字节时，`TileDataI::DType` 大小必须为 4字节。
+    - 当 `TileDataD::DType` 大小为 2字节时，`TileDataI::DType` 大小必须为 2字节。
+    - 当 `TileDataD::DType` 大小为 1字节时，`TileDataI::DType` 大小必须为 2字节。
 
 ### 掩码散播
 
@@ -162,7 +163,7 @@ PTO_INST RecordEvent TSCATTER(DstTileData& dst, SrcTileData& src, WaitEvents&...
         - `SrcTileData::ValidCol` 必须等于 `DstTileData::ValidCol / 扩展倍数`，扩展倍数取决于掩码模式（P1111 为 1，P1010/P0101 为 2，P0001/P0010/P0100/P1000 为 4）。
     - `SCATTER_COL` 模式运行时断言：
         - `SrcTileData::ValidCol` 必须等于 `DstTileData::ValidCol`。
-        - `SrcTileData::ValidRow` 必须等于 `DstTileData::ValidRow * 扩展倍数`，扩展倍数取决于掩码模式（P1111 为 1，P1010/P0101 为 2，P0001/P0010/P0100/P1000 为 4）。
+        - `SrcTileData::ValidRow` 必须等于 `DstTileData::ValidRow / 扩展倍数`，扩展倍数取决于掩码模式（P1111 为 1，P1010/P0101 为 2，P0001/P0010/P0100/P1000 为 4）。
 
 ## 重要提示
 

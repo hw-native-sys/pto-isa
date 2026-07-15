@@ -39,6 +39,7 @@ pto.tcvt ins(%src{rmode = #pto<round_mode xx>}: !pto.tile_buf<...>) outs(%dst : 
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp` 和 `include/pto/common/constants.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
 ```cpp
 template <typename TileDataD, typename TileDataS, typename... WaitEvents>
@@ -67,7 +68,7 @@ PTO_INST RecordEvent TCVT(TileDataD &dst, TileDataS &src, TmpTileData &tmp, Roun
 - **临时 Tile**:
   - C++ API 提供显式传入 `tmp` Tile 的重载。在 A2A3 上，当 `SaturationMode::OFF` 用于 `float -> int16`、`half -> int16` 或 `half -> int8` 时，PyTorch 兼容的非饱和窄化路径会使用该临时 Tile。其他转换不需要 tmp 空间。
   - 实现会将 `tmp` 转换为 `int32_t *` 使用；因此应按字节数来规划 tmp Tile 大小，而不是按 `TmpTileData::DType` 的类型理解。
-  - 下列公式给出按实现使用的 32 字节向量块粒度向上取整后的最小分配大小。若 `C = 0`，不会发起需要 tmp 的转换，所需 tmp 大小为 `0`。
+  - 下列公式给出按实现使用的 32字节向量块粒度向上取整后的最小分配大小。若 `C = 0`，不会发起需要 tmp 的转换，所需 tmp 大小为 `0`。
   - **公共参数**:
     - `R = dst.GetValidRow()`。
     - `C = dst.GetValidCol()`。
@@ -78,7 +79,7 @@ PTO_INST RecordEvent TCVT(TileDataD &dst, TileDataS &src, TmpTileData &tmp, Roun
     - 由于 `float` 源行受 Tile 约束保证 32字节对齐，`SS / 8` 是以 32字节块为单位的源 repeat stride。
     - 对齐的主区域中，一次调用处理一行，最多处理 `REPEAT_MAX` 个 repeat，每个 repeat 为 `64` 个元素：
     $$ \text{tmpHeadBytes} = 4 \times 64 \times \min\left(\left\lfloor\frac{C}{64}\right\rfloor, 255\right) $$
-    - 尾部区域中，一次调用最多处理 `REPEAT_MAX` 行，并使用源行 stride。由于向量 repeat stride 以块为单位，空间范围按 32 字节块计算：
+    - 尾部区域中，一次调用最多处理 `REPEAT_MAX` 行，并使用源行 stride。由于向量 repeat stride 以块为单位，空间范围按 32字节块计算：
     $$ \text{tmpTailBytes} =
     \begin{cases}
     32 \times \left((\min(R, 255) - 1) \times \frac{SS}{8} + \left\lceil\frac{C \bmod 64}{8}\right\rceil\right), & C \bmod 64 > 0 \\
@@ -94,8 +95,8 @@ PTO_INST RecordEvent TCVT(TileDataD &dst, TileDataS &src, TmpTileData &tmp, Roun
     $$ \text{tmpHalfToInt16Bytes} = 32 \times \left\lceil\frac{H}{8}\right\rceil $$
     - 对任意非空 Tile，该路径的形状无关上界为 `256` 字节。
   - **`half -> int8`，非饱和 (`SaturationMode::OFF`)**:
-    - 实现同样按不超过 `64` 个元素的子块处理，并复用同一段 256 字节临时区域。第一步最多将 `64` 个 `int32_t` 写入字节 `[0, 255]`；完成 `int32 -> int16` 窄化后，字节 `[0, 127]` 保存 `int16_t` 值，字节 `[128, 255]` 被复用为 scratch。
-    - `tempMaskBuf = tempAndBuf + 64` 会前进 `64 * sizeof(int16_t) = 128` 字节，因此它指向同一 256 字节临时区域的上半部分，不需要额外再分配 256 字节。
+    - 实现同样按不超过 `64` 个元素的子块处理，并复用同一段 256字节临时区域。第一步最多将 `64` 个 `int32_t` 写入字节 `[0, 255]`；完成 `int32 -> int16` 窄化后，字节 `[0, 127]` 保存 `int16_t` 值，字节 `[128, 255]` 被复用为 scratch。
+    - `tempMaskBuf = tempAndBuf + 64` 会前进 `64 * sizeof(int16_t) = 128` 字节，因此它指向同一 256字节临时区域的上半部分，不需要额外再分配 256字节。
     - 该路径所需的最小 tmp 大小为：
     $$ \text{tmpHalfToInt8Bytes} = \max\left(32 \times \left\lceil\frac{H}{8}\right\rceil,\ 128 + 32 \times \left\lceil\frac{H}{16}\right\rceil\right) $$
     - 对任意非空 Tile，该路径的形状无关上界为 `256` 字节。

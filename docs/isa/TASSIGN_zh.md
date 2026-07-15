@@ -19,7 +19,7 @@
 同步形式：
 
 ```text
-tassign %tile, %addr : !pto.tile<...>, index
+tassign %tile, %addr : !pto.tile<...>, dtype
 ```
 
 ### AS Level 1（SSA）
@@ -37,6 +37,7 @@ pto.tassign ins(%tile, %addr : !pto.tile_buf<...>, dtype)
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`。
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
 ### 形式 1：运行时地址
 
@@ -71,14 +72,14 @@ PTO_INST void TASSIGN(T& obj);
 | TileType | 内存空间 | 容量 (A2A3) | 容量 (A5) | 容量 (Kirin9030) | 容量 (KirinX90) | 对齐 |
 |----------|----------|-------------|-----------|------------------|-----------------|------|
 | Vec | UB | 192KB | 256KB | 128KB | 128KB | 32B |
-| Mat | L1 | 512 KB | 512 KB | 512 KB | 1024 KB | 32 B |
-| Left | L0A | 64 KB | 64 KB | 32 KB | 64 KB | 32 B |
-| Right | L0B | 64 KB | 64 KB | 32 KB | 64 KB | 32 B |
-| Acc | L0C | 128 KB | 256 KB | 64 KB | 128 KB | 32 B |
-| Bias | Bias | 1 KB | 4 KB | 1 KB | 1 KB | 32 B |
-| Scaling | FBuffer | 2 KB | 4 KB | 7 KB | 6 KB | 32 B |
-| ScaleLeft | L0A | N/A | 4 KB | N/A | N/A | 32 B |
-| ScaleRight | L0B | N/A | 4 KB | N/A | N/A | 32 B |
+| Mat | L1 | 512KB | 512KB | 512KB | 1024KB | 32Byte |
+| Left | L0A | 64KB | 64KB | 32KB | 64KB | 32Byte |
+| Right | L0B | 64KB | 64KB | 32KB | 64KB | 32Byte |
+| Acc | L0C | 128KB | 256KB | 64KB | 128KB | 32Byte |
+| Bias | Bias | 1KB | 4KB | 1KB | 1KB | 32Byte |
+| Scaling | FBuffer | 2KB | 4KB | 7KB | 6KB | 32Byte |
+| ScaleLeft | L0A | N/A | 4KB | N/A | N/A | 32Byte |
+| ScaleRight | L0B | N/A | 4KB | N/A | N/A | 32Byte |
 
 容量可通过编译标志 `-D` 覆盖（如 `-DPTO_UBUF_SIZE_BYTES=262144`）。详见 `include/pto/common/buffer_limits.hpp`。
 

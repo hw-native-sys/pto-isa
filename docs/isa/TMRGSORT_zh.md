@@ -6,16 +6,16 @@
 
 ## 简介
 
-硬件加速的多路归并排序（`vmrgsort4`）。将最多 4 个已预排序的列表归并为一个**降序**排列的输出。每个元素是固定 8 字节的**值-索引对**结构体。
+硬件加速的多路归并排序（`vmrgsort4`）。将最多 4 个已预排序的列表归并为一个**降序**排列的输出。每个元素是固定 8字节的**值-索引对**结构体。
 
 ## 数据格式：值-索引对
 
-TMRGSORT 操作的是 8 字节结构体，Tile 中的每个元素构成值-索引对的一部分：
+TMRGSORT 操作的是 8字节结构体，Tile 中的每个元素构成值-索引对的一部分：
 
 | 数据类型 | 值字段 | 填充 | 索引字段 | 结构体大小 | 每结构体占 Tile 元素数 |
 |----------|--------|------|----------|------------|----------------------|
-| `float`  | 4 字节 | 0    | 4 字节（`uint32_t`） | 8 字节 | **2 个元素** |
-| `half`   | 2 字节 | 2 字节 | 4 字节（`uint32_t`） | 8 字节 | **4 个元素** |
+| `float`  | 4字节 | 0    | 4字节（`uint32_t`） | 8字节 | **2 个元素** |
+| `half`   | 2字节 | 2字节 | 4字节（`uint32_t`） | 8字节 | **4 个元素** |
 
 因此 Tile 中排序对的数量为：
 
@@ -134,6 +134,7 @@ outs(%dst, %executed : !pto.tile_buf<...>, vector<4xi16>)
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
 ### 单列表变体
 
@@ -176,7 +177,7 @@ PTO_INST RecordEvent TMRGSORT(DstTileData &dst, MrgSortExecutedNumList &executed
 | 行数 | 所有 Tile 必须 `Rows == 1` |
 | 布局 | 所有 Tile 必须是行主序（`BLayout::RowMajor`） |
 | 数据类型 | `half` 或 `float`，且所有 Tile 一致 |
-| UB 内存 | 总计不超过 192 KiB（`UB_SIZE`） |
+| UB 内存 | 总计不超过 192KiB（`UB_SIZE`） |
 
 ### 各变体的 UB 内存约束
 

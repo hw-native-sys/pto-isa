@@ -15,7 +15,7 @@ Conceptually, for each element `(i, j)` in the valid region:
 $$ \mathrm{dst}_{i,j} = \bigl(\mathrm{src}_{i,j} - \mathrm{offset}_{i}\bigr) \cdot \mathrm{scale}_{i} $$
 
 - `src`: the quantized integer code (`S8` or `S16`).
-- `scale`, `offset`: per-row FP32 dequantization parameters; `scale` valid-column count is `paraCols = max(1, scale.GetValidCol())` with parameter column index `paraCol = min(j, paraCols - 1)` — i.e. parameters broadcast along the column axis.
+- `scale`, `offset`: per-row FP32 dequantization parameters (parameter group selected by row index `i`, broadcast along the column axis to the entire row); `scale` valid-column count is `paraCols = max(1, scale.GetValidCol())` with parameter column index `paraCol = min(j, paraCols - 1)` used only to clamp the read column within the parameter tile when it has multiple columns (typical usage is one scalar per row, `paraCols = 1`); the parameter group itself is determined by row `i`.
 - Inverse of `TQUANT` integer affine quantization: `TQUANT` has $q = \mathrm{round}(x / \mathrm{scale}) + \mathrm{offset}$, hence $x = (q - \mathrm{offset}) \cdot \mathrm{scale}$.
 
 > Unless otherwise specified, semantics are defined over the valid region and target-dependent behavior is marked as implementation-defined. `scale` and `offset` are ISA-visible tile operands (not compiler scratch).

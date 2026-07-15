@@ -94,8 +94,8 @@ Let $C$ = `validCol`, $b$ = `sizeof(T)` bytes, $G$ = 32 (block size). The implem
 $$
 \mathrm{tmpSize} =
 \begin{cases}
-\mathrm{ceil}_{G}(C) & \text{A2A3: } C \le 8160 \text{ (elements)} \quad \text{or} \quad \text{A5: } C \cdot b \le 8160 \text{ (bytes)} \\
-G = 32 & \text{A2A3: } C > 8160 \text{ (elements)} \quad \text{or} \quad \text{A5: } C \cdot b > 8160 \text{ (bytes)}
+\mathrm{ceil}_{G}(C) & \text{A2A3: } C \le 8160 \text{ (elements)} \;\; \text{(A5: } C \cdot b \le 8160 \text{ (bytes))} \\
+G = 32 & \text{A2A3: } C > 8160 \text{ (elements)} \;\; \text{(A5: } C \cdot b > 8160 \text{ (bytes))}
 \end{cases}
 $$
 
@@ -106,7 +106,7 @@ $$
 - Path A ($C \cdot b \le 8160$) copies the **entire row** from its start into tmp, then pads the last 32 elements in place.
 - Path B ($C \cdot b > 8160$) copies **only the tail block** into tmp; full blocks are sorted directly from `src`.
 - VBS32 hard cap: `repeat ≤ REPEAT_MAX = 255` blocks per call (≤ 8160 elements); rows longer than 255 blocks are split across multiple `vbitsort` calls.
-- **UB placement:** `tmp` should be placed right after `dst` (32-B aligned), sized `ceil(ALIGN_C·b, 32)` bytes — not at a fixed 8 KB offset, since Path A (A2A3) needs up to ~32 KB for float near the threshold ($C \le 8160$ elements = 32 KB for float).
+- **UB placement:** `tmp` should be placed right after `dst` (32-B aligned), sized `ceil(C·b, 32)` bytes (equivalently `ceil(ceil(C, 32)·b, 32)` since $b \in \{2,4\}$ divides 32) — not at a fixed 8 KB offset, since Path A (A2A3) needs up to ~32 KB for float near the threshold ($C \le 8160$ elements = 32 KB for float).
 
 ### 4-arg tail handling
 

@@ -64,7 +64,7 @@ Halts the scalar unit. Does not affect other NPUs.
 - **Type constraints**:
     - `GlobalSignalData::DType` must be `int32_t` (32-bit signal).
 - **Memory constraints**:
-    - `signalData` must point to local address (on current NPU).
+    - `signalData` must point to the current NPU's local GM/HBM address (`__gm__`); a remote NPU writes into it via `TNOTIFY`. "Local" refers to NPU ownership (current NPU's GM vs. a remote NPU's GM), not the CCE address-space qualifier.
 - **Shape semantics**:
     - For single signal: Shape is `<1,1,1,1,1>`.
     - For signal tensor: Shape determines the multi-dimensional region (up to 5-D) to wait on. All signals in the tensor must satisfy the condition.

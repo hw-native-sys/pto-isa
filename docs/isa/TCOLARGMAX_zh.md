@@ -67,6 +67,7 @@ pto.tcolargmax ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%ds
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`:
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
 ### 纯索引模式（3 参数）
 
@@ -89,7 +90,7 @@ PTO_INST RecordEvent TCOLARGMAX(TileDataOutVal& dstVal, TileDataOutIdx& dstIdx, 
 ### 通用约束或检查
 
 - `dstIdx` 和 `src` 必须为 `TileType::Vec`。
-- `src` 可使用 ND 或 DN 的非分形布局（`SLayout::NoneBox`）。
+- `src` 可使用 ND 或 DN 的非分形布局（`SLayout::NoneBox`）。`BLayout` 可为 `RowMajor`（与 `SLayout::NoneBox` 正交；示例中省略 `SLayout` 时默认为 `SLayout::NoneBox`）。
 - `dstIdx` 必须使用标准 ND 布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
 - 支持的索引目标元素类型：`uint16_t`、`int16_t`、`uint32_t`、`int32_t`（具体取决于源元素大小）。
 - 运行时检查：
@@ -128,16 +129,16 @@ PTO_INST RecordEvent TCOLARGMAX(TileDataOutVal& dstVal, TileDataOutIdx& dstIdx, 
 #### A2A3 实现检查
 
 - 支持的源元素类型：`half`、`float`、`uint16_t`、`uint32_t`。
-- 当源元素大小为 2 字节（`half`、`uint16_t`）时：`dstIdx` 元素类型必须为 `uint16_t` 或 `int16_t`。
-- 当源元素大小为 4 字节（`float`、`uint32_t`）时：`dstIdx` 元素类型必须为 `uint32_t` 或 `int32_t`。
+- 当源元素大小为 2字节（`half`、`uint16_t`）时：`dstIdx` 元素类型必须为 `uint16_t` 或 `int16_t`。
+- 当源元素大小为 4字节（`float`、`uint32_t`）时：`dstIdx` 元素类型必须为 `uint32_t` 或 `int32_t`。
 - `tmp` 的元素类型必须与 `src` 一致。
 - `tmp` 用作临时存储；对 half 输入类型，内部执行 s16->f16->s32 转换路径。
 
 #### A5 实现检查
 
 - 源元素大小必须为 16 位或 32 位（`sizeof(T) != 1`）。
-- 当源元素大小为 2 字节（`half`、`int16_t`、`uint16_t`）时：`dstIdx` 元素类型必须为 `uint16_t` 或 `int16_t`。
-- 当源元素大小为 4 字节（`float`、`int32_t`、`uint32_t`）时：`dstIdx` 元素类型必须为 `uint32_t` 或 `int32_t`。
+- 当源元素大小为 2字节（`half`、`int16_t`、`uint16_t`）时：`dstIdx` 元素类型必须为 `uint16_t` 或 `int16_t`。
+- 当源元素大小为 4字节（`float`、`int32_t`、`uint32_t`）时：`dstIdx` 元素类型必须为 `uint32_t` 或 `int32_t`。
 - 接口接收 `tmp`，但实现实际并不使用它。
 
 ### A2A3 `tmp` 临时 Tile 相关说明

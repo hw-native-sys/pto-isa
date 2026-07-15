@@ -60,11 +60,11 @@ PTO_INST RecordEvent TFILLPAD(DstTileData &dst, SrcTileData &src, WaitEvents &..
 
 ## 约束
 
-- `TileDataDst::PadVal != PadValue::Null`.
+- `TileDataDst::PadVal != PadValue::Null`（Vec 类型重载）.
 - `sizeof(TileDataDst::DType) == sizeof(TileDataSrc::DType)`且元素大小必须是 `1`, `2`,或`4`字节.
 - `TFILLPAD`: `TileDataDst::Rows/Cols` 必须匹配 `TileDataSrc::Rows/Cols`.
 - `TFILLPAD_EXPAND`: `TileDataDst::Rows >= TileDataSrc::Rows`且`TileDataDst::Cols >= TileDataSrc::Cols`.
-- `TFILLPAD(TileData &dst, TileData &src)`:`if TileData::TileType is Mat, layout 仅 support (!TileData::isRowMajor && TileData::SLayout::RowMajor),且PadVal 仅 support PadValue::Zero 或 PadValue::Null`
+- `TFILLPAD(TileData &dst, TileData &src)`:`if TileData::TileType is Mat, layout 仅 support (!TileData::isRowMajor && TileData::SLayout::RowMajor),且PadVal 仅 support PadValue::Zero 或 PadValue::Null`（Mat 类型重载，与首条 Vec 约束分属不同 SFINAE 重载，不矛盾）
 
 ## 示例
 

@@ -90,7 +90,7 @@ PTO_INST RecordEvent TCOLARGMAX(TileDataOutVal& dstVal, TileDataOutIdx& dstIdx, 
 ### General constraints / checks
 
 - `dstIdx` and `src` must be `TileType::Vec`.
-- `src` may use ND or DN non-fractal layout (`SLayout::NoneBox`).
+- `src` may use ND or DN non-fractal layout (`SLayout::NoneBox`). `BLayout` may be `RowMajor` (orthogonal to `SLayout::NoneBox`; when `SLayout` is omitted in examples it defaults to `SLayout::NoneBox`).
 - `dstIdx` must use standard ND layout: row-major and non-fractal (`BLayout::RowMajor`, `SLayout::NoneBox`).
 - Supported destination index element types: `uint32_t`, `int32_t`.
 - Runtime checks:

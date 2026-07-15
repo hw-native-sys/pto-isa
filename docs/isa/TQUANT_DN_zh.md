@@ -87,7 +87,7 @@ $$E_{ZZ}[c_b, p, q, \delta] = E_{DN}^T[16c_b + q][2p + \delta] = E_{DN}[2p + \de
 
 $$\text{src\_idx}(c_b, p, q, \delta) = (2p + \delta) \cdot N + 16c_b + q$$
 
-**推论（无需 gather）：** 对于固定的 `(c_b, p)`，ZZ 块的 32 字节来自两个连续的 16 字节运行：`E_DN[2p][16c_b:16c_b+16]` 和 `E_DN[2p+1][16c_b:16c_b+16]`。通过 `vintlv` 将它们交错即可得到 ZZ fractal 所需的 `qδ` 交错顺序。因此 DN→ZZ 比 ND→ZZ 更高效（连续加载，无需 `vgather2`/`BLK`/`E2B`）。
+**推论（无需 gather）：** 对于固定的 `(c_b, p)`，ZZ 块的 32字节来自两个连续的 16字节运行：`E_DN[2p][16c_b:16c_b+16]` 和 `E_DN[2p+1][16c_b:16c_b+16]`。通过 `vintlv` 将它们交错即可得到 ZZ fractal 所需的 `qδ` 交错顺序。因此 DN→ZZ 比 ND→ZZ 更高效（连续加载，无需 `vgather2`/`BLK`/`E2B`）。
 
 ### 对齐约束
 

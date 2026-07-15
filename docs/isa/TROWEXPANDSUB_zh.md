@@ -6,7 +6,7 @@
 
 ![TROWEXPANDSUB 模式 1 tile operation](../figures/isa/TROWEXPANDSUB.svg)
 
-### 模式 2 — 每行 32 字节块（RowMajor src1）
+### 模式 2 — 每行 32字节块（RowMajor src1）
 
 ![TROWEXPANDSUB 模式 2 tile operation](../figures/isa/TROWEXPANDSUB_mode2.svg)
 
@@ -17,7 +17,7 @@
 指令支持两种模式，由扩展操作数的布局决定（当 `src0` 与 `dst` 形状匹配时为 `src1`，当 `src1` 与 `dst` 形状匹配时为 `src0`）：
 
 - **模式 1**：扩展操作数为 **ColMajor** 布局，单列（每行一个标量）。每个标量广播到整行。
-- **模式 2**：扩展操作数为 **RowMajor** 布局，每行 `32 / sizeof(T)` 列（每行一个 32 字节块）。每个 32 字节块在向量重复步长内自然重复，提供行级广播。
+- **模式 2**：扩展操作数为 **RowMajor** 布局，每行 `32 / sizeof(T)` 列（每行一个 32字节块）。每个 32字节块在向量重复步长内自然重复，提供行级广播。
 
 ## 数学语义
 
@@ -33,7 +33,7 @@ $$ \mathrm{dst}_{i,j} = \mathrm{src0}_{i,j} - s_i $$
 
 ### 模式 2
 
-设 `b_i` 为第 `i` 行从扩展操作数中获取的 32 字节块（RowMajor 布局，每行 `32 / sizeof(T)` 个值）。该块在每个向量重复步长内自然重复。
+设 `b_i` 为第 `i` 行从扩展操作数中获取的 32字节块（RowMajor 布局，每行 `32 / sizeof(T)` 个值）。该块在每个向量重复步长内自然重复。
 
 对于 `0 <= i < R` 和 `0 <= j < C`：
 
@@ -62,6 +62,7 @@ pto.trowexpandsub ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) out
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
 ```cpp
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
@@ -75,7 +76,7 @@ PTO_INST RecordEvent TROWEXPANDSUB(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 ## 约束
 
 - `TileDataDst::DType == TileDataSrc0::DType == TileDataSrc1::DType`
-- `TileDataDst::DType`、`TileDataSrc0::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`、`int16`、`int32`适用于A2, A3和A5，`uint16`、`uint32`适用于A5。
+- `TileDataDst::DType`、`TileDataSrc0::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`、`int16`、`int32`（适用于A2、A3和A5），`uint16`、`uint32`（仅适用于A5）。
 - `TileDataDst` 必须为 **RowMajor**（`TileDataDst::isRowMajor == true`）。
 - `src0` 或 `src1` 中必须恰好一个与 `dst` 的有效形状相同（即 `validRow == dst.validRow` 且 `validCol == dst.validCol`），该操作数为全尺寸操作数。另一个操作数为**扩展操作数**（行广播源）。
 - 全尺寸操作数必须为 **RowMajor**（`isRowMajor == true`）。
@@ -87,7 +88,7 @@ PTO_INST RecordEvent TROWEXPANDSUB(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 - 其有效列数必须为 **1**（每行一个标量）：`srcX.GetValidCol() == 1`。
 - 其有效行数必须等于 `dst.GetValidRow()`：`srcX.GetValidRow() == dst.GetValidRow()`。
 
-### 模式 2 — 扩展操作数为 RowMajor（每行 32 字节块）
+### 模式 2 — 扩展操作数为 RowMajor（每行 32字节块）
 
 当扩展操作数为 **RowMajor**（`isRowMajor == true`）时：
 

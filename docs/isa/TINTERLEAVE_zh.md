@@ -6,7 +6,7 @@
 
 ## 简介
 
-将两个源 Tile（`src0` 和 `src1`）交织到两个目标 Tile（`dst0` 和 `dst1`）中。该操作以交替模式组合 `src0` 和 `src1` 的元素：交织流的偶数位置元素放入 `dst0`，奇数位置元素放入 `dst1`。每个目标 Tile 各持有交织流的一半，在中点处拆分。
+将两个源 Tile（`src0` 和 `src1`）交织到两个目标 Tile（`dst0` 和 `dst1`）中。该操作以交替模式组合 `src0` 和 `src1` 的元素生成交织流，随后将交织流在中点处拆分为两半，前半部分放入 `dst0`，后半部分放入 `dst1`。每个目标 Tile 各持有交织流的一半。
 
 `TInterleave` 是 `TDeInterleave` 的逆操作。
 
@@ -50,6 +50,7 @@ pto.tinterleave ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
 ```cpp
 template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>

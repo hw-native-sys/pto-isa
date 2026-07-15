@@ -37,6 +37,7 @@ pto.texpands ins(%scalar : dtype) outs(%dst : !pto.tile_buf<...>)
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
 ```cpp
 template <typename TileData, typename... WaitEvents>
@@ -113,9 +114,6 @@ void example_manual() {
 
 ```text
 # 手动模式：先显式绑定资源，再发射指令。
-# 可选（当该指令包含 tile 操作数时）：
-# pto.tassign %arg0, @tile(0x1000)
-# pto.tassign %arg1, @tile(0x2000)
 %dst = pto.texpands %scalar : dtype -> !pto.tile<...>
 ```
 

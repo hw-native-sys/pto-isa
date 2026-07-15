@@ -113,7 +113,7 @@ PTO_INST RecordEvent TDeInterleave(TileDataDst &dst1, TileDataDst &dst0, TileDat
     - The `validCols` of `dst0`/`dst1` tile must be half the `validCols` of `src` tile.
 - **Valid region**:
     - Two-source form: The op uses `dst0.GetValidRow()` / `dst0.GetValidCol()` as the iteration domain. `dst0/dst1` each hold `validCols` elements per row.
-    - Single-source form: `dst0/dst1` each hold `validCols / 2` valid elements per row. Elements beyond `halfValidCols` in each row are **unspecified**.
+    - Single-source form: `dst0/dst1` each hold `src.GetValidCol() / 2` valid elements per row. Elements beyond `halfValidCols` in each row are **unspecified**.
 
 ## Examples
 

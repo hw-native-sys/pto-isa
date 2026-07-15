@@ -75,7 +75,7 @@ PTO_INST void SYNCALL(GlobalData &gmWorkspace, UbTileData &ubWorkspace, L1TileDa
 ## Parameters
 
 - `gmWorkspace`: `GlobalTensor<int32_t, pto::Shape<>, pto::Stride<>>` (when `using namespace pto` coexists with Ascend C headers, qualify with `pto::` to avoid name collision with the compiler-intrinsic `Stride` enum). GM workspace for software mode; must be zero-initialized before the call. Each participating core occupies 8 `int32_t` values (cache-line-isolated sync counter).
-- `ubWorkspace`: `Tile<TileType::Vec, int32_t, 1, SYNCALL_SOFT_SLOT_INT32>`. UB scratch for AIV-only and MIX software mode; capacity must be at least `usedCores * 8 * sizeof(int32_t)`.
+- `ubWorkspace`: `Tile<TileType::Vec, int32_t, 1, SYNCALL_SOFT_SLOT_INT32>` (template parameter is fixed at `SYNCALL_SOFT_SLOT_INT32 = 8`, one cache-line slot per core). UB scratch for AIV-only and MIX software mode; the runtime backing memory capacity must be at least `usedCores * 8 * sizeof(int32_t)` (the implementation accesses via raw pointer and does not validate the template capacity; examples declare it as compile-time max participant count × `SYNCALL_SOFT_SLOT_INT32` to guarantee sufficient backing memory).
 - `l1Workspace`: `Tile<TileType::Mat, int32_t, 1, SYNCALL_SOFT_SLOT_INT32>`. L1 (cbuf) scratch for AIC-only and MIX software mode; used by `create_cbuf_matrix` to fill a sync value then DMA-transfer to GM.
 - `usedCores`: Number of cores participating in the software barrier. When 0, automatically inferred — AIV-only / AIC-only use `get_block_num()`, MIX uses `SYNCALL_GET_MIX_PARTICIPANT_COUNT()` (i.e. `AIC blocks × (1 + AIV ratio)`).
 

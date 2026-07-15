@@ -41,7 +41,7 @@ PTO_INST void TWAIT(GlobalSignalData &signalData, int32_t cmpValue, WaitCmp cmp,
 - **类型约束**：
     - `GlobalSignalData::DType` 必须为 `int32_t`（32 位信号）。
 - **内存约束**：
-    - `signalData` 必须指向本地地址（当前 NPU）。
+    - `signalData` 必须指向当前 NPU 本地的 GM/HBM 地址（`__gm__`），远端 NPU 通过 `TNOTIFY` 写入该地址。"本地"指 NPU 归属（当前 NPU 的 GM vs 远端 NPU 的 GM），而非 CCE 地址空间修饰符。
 - **形状语义**：
     - 单个信号：形状为 `<1,1,1,1,1>`。
     - 信号 tensor：形状决定要等待的多维区域（最高 5 维）。tensor 中所有信号必须满足条件。
