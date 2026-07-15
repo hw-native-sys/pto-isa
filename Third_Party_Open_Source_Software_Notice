@@ -156,7 +156,7 @@ Yoyodyne, Inc., hereby disclaims all copyright interest in the program `Gnomovis
 signature of Ty Coon, 1 April 1989 Ty Coon, President of Vice This General Public License does not permit incorporating your program into proprietary programs. If your program is a subroutine library, you may consider it more useful to permit linking proprietary applications with the library. If this is what you want to do, use the GNU Lesser General Public License instead of this License.
 
 Copyright Notice and License Texts
-Software: json v3.11.3
+Software: json v3.12.0
 Copyright notice:
 Copyright 2013-2023 Niels Lohmann <https://nlohmann.me>
 Copyright 2018 The Abseil Authors
