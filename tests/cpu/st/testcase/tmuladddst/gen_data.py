@@ -55,9 +55,9 @@ def gen_golden_data(case_name, param):
         for i in range(h_valid):
             for j in range(w_valid):
                 # 1. Promote to float32
-                prod = float(input0[i, j]) * float(input1[i, j])
+                prod = input0[i, j] * input1[i, j]
                 # 2. Add to existing value (also promoted)
-                res = prod + float(dst[i, j])
+                res = prod + dst[i, j]
                 # 3. Cast back to half at the very end
                 dst[i, j] = np.float16(res)
     # Perform the operation
@@ -109,6 +109,7 @@ if __name__ == "__main__":
         TestParams(np.float32, 32, 128, 32, 192, 32, 256, 32, 127),
         TestParams(np.float16, 64, 64, 64, 64, 64, 64, 64, 64),
         TestParams(np.float16, 32, 128, 32, 192, 32, 256, 32, 127),
+        TestParams(np.float16, 1, 16384, 1, 16384, 1, 16384, 1, 16384),
     ]
 
     for param in case_list:

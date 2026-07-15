@@ -110,3 +110,8 @@ TEST_F(TMULADDDSTTest, case_half_32x128_32x192_32x256_32x127)
 {
     test_TMULADDDST<aclFloat16, 32, 128, 32, 192, 32, 256, 32, 127>();
 }
+
+TEST_F(TMULADDDSTTest, case_half_1x16384_1x16384_1x16384_1x16384)
+{
+    test_TMULADDDST<aclFloat16, 1, 16384, 1, 16384, 1, 16384, 1, 16384>();
+}
