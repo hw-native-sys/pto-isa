@@ -1,0 +1,104 @@
+/**
+Copyright (c) 2025 Huawei Technologies Co., Ltd.
+This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+CANN Open Software License Agreement Version 2.0 (the "License").
+Please refer to the License for details. You may not use this file except in compliance with the License.
+THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+See LICENSE in the root of the software repository for the full text of the License.
+*/
+
+#include "test_common.h"
+#include "acl/acl.h"
+#include <gtest/gtest.h>
+
+using namespace std;
+using namespace PtoTestCommon;
+
+namespace TRowExpandTest {
+template <typename T, uint32_t rows, uint32_t srcCols, uint32_t dstValidCols, uint32_t dstCols>
+void launchTROWEXPAND(T* out, T* src, void* stream);
+
+class TROWEXPANDTest : public testing::Test {
+protected:
+    void SetUp() override {}
+    void TearDown() override {}
+};
+
+std::string GetGoldenDir()
+{
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const std::string caseName = testInfo->name();
+    std::string suiteName = testInfo->test_suite_name();
+    std::string fullPath = "../" + suiteName + "." + caseName;
+    return fullPath;
+}
+
+template <typename T, uint32_t rows, uint32_t srcCols, uint32_t dstValidCols, uint32_t dstCols>
+void test_trowexpand()
+{
+    size_t inputFileSize = rows * srcCols * sizeof(T);
+    size_t outputFileSize = rows * dstCols * sizeof(T);
+
+    aclInit(nullptr);
+    aclrtSetDevice(0);
+    aclrtStream stream;
+    aclrtCreateStream(&stream);
+
+    T *dstHost, *src0Host;
+    T *dstDevice, *src0Device;
+
+    aclrtMallocHost((void**)(&dstHost), outputFileSize);
+    aclrtMallocHost((void**)(&src0Host), inputFileSize);
+
+    aclrtMalloc((void**)&dstDevice, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, inputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+
+    ReadFile(GetGoldenDir() + "/input.bin", inputFileSize, src0Host, inputFileSize);
+    aclrtMemset(dstHost, outputFileSize, 0, outputFileSize);
+
+    aclrtMemcpy(dstDevice, outputFileSize, dstHost, outputFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(src0Device, inputFileSize, src0Host, inputFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    launchTROWEXPAND<T, rows, srcCols, dstValidCols, dstCols>(dstDevice, src0Device, stream);
+
+    aclrtSynchronizeStream(stream);
+    aclrtMemcpy(dstHost, outputFileSize, dstDevice, outputFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
+
+    WriteFile(GetGoldenDir() + "/output.bin", dstHost, outputFileSize);
+
+    aclrtFree(dstDevice);
+    aclrtFree(src0Device);
+
+    aclrtFreeHost(dstHost);
+    aclrtFreeHost(src0Host);
+
+    aclrtDestroyStream(stream);
+    aclrtResetDevice(0);
+    aclFinalize();
+
+    std::vector<T> golden(outputFileSize);
+    std::vector<T> devFinal(outputFileSize);
+    ReadFile(GetGoldenDir() + "/golden.bin", outputFileSize, golden.data(), outputFileSize);
+    ReadFile(GetGoldenDir() + "/output.bin", outputFileSize, devFinal.data(), outputFileSize);
+    bool ret = ResultCmp(golden, devFinal, 0.001f);
+
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TROWEXPANDTest, case0_half_16_16_16_512) { test_trowexpand<aclFloat16, 16, 16, 512, 512>(); }
+TEST_F(TROWEXPANDTest, case1_int8_16_32_16_256) { test_trowexpand<int8_t, 16, 32, 256, 256>(); }
+TEST_F(TROWEXPANDTest, case2_float_16_8_16_128) { test_trowexpand<float, 16, 8, 128, 128>(); }
+TEST_F(TROWEXPANDTest, case3_half_16_16_16_511) { test_trowexpand<aclFloat16, 16, 16, 511, 512>(); }
+TEST_F(TROWEXPANDTest, case4_int8_16_32_16_255) { test_trowexpand<int8_t, 16, 32, 255, 256>(); }
+TEST_F(TROWEXPANDTest, case5_float_16_8_16_127) { test_trowexpand<float, 16, 8, 127, 128>(); }
+TEST_F(TROWEXPANDTest, case6_uint8_16_32_16_256) { test_trowexpand<uint8_t, 16, 32, 256, 256>(); }
+TEST_F(TROWEXPANDTest, case7_uint8_16_32_16_255) { test_trowexpand<uint8_t, 16, 32, 255, 256>(); }
+TEST_F(TROWEXPANDTest, case8_int16_16_16_16_512) { test_trowexpand<int16_t, 16, 16, 512, 512>(); }
+TEST_F(TROWEXPANDTest, case9_int16_16_16_16_511) { test_trowexpand<int16_t, 16, 16, 511, 512>(); }
+TEST_F(TROWEXPANDTest, case10_uint16_16_16_16_512) { test_trowexpand<uint16_t, 16, 16, 512, 512>(); }
+TEST_F(TROWEXPANDTest, case11_uint16_16_16_16_511) { test_trowexpand<uint16_t, 16, 16, 511, 512>(); }
+TEST_F(TROWEXPANDTest, case12_int32_16_8_16_128) { test_trowexpand<int32_t, 16, 8, 128, 128>(); }
+TEST_F(TROWEXPANDTest, case13_int32_16_8_16_127) { test_trowexpand<int32_t, 16, 8, 127, 128>(); }
+TEST_F(TROWEXPANDTest, case14_uint32_16_8_16_128) { test_trowexpand<uint32_t, 16, 8, 128, 128>(); }
+TEST_F(TROWEXPANDTest, case15_uint32_16_8_16_127) { test_trowexpand<uint32_t, 16, 8, 127, 128>(); }
+} // namespace TRowExpandTest
