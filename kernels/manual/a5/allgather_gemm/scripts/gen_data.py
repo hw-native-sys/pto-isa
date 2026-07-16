@@ -35,6 +35,7 @@ np.random.seed(19)
 @dataclass
 class GemmDataConfig:
     """Configuration for GEMM data generation."""
+
     m: int
     k: int
     n: int
@@ -116,8 +117,13 @@ def main():
 
     args = parser.parse_args()
     cfg = GemmDataConfig(
-        m=args.m, k=args.k, n=args.n, n_ranks=args.n_ranks,
-        padded_m=args.padded_m, padded_k=args.padded_k, padded_n=args.padded_n,
+        m=args.m,
+        k=args.k,
+        n=args.n,
+        n_ranks=args.n_ranks,
+        padded_m=args.padded_m,
+        padded_k=args.padded_k,
+        padded_n=args.padded_n,
         output_dir=args.output_dir,
     )
     gen_data(cfg)

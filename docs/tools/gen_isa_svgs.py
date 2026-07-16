@@ -99,14 +99,7 @@ def _cell_center(x: int, y: int, r: int, c: int) -> Tuple[int, int]:
     return (cx, cy)
 
 
-def _draw_text_lines(
-    out: List[str],
-    x: int,
-    y: int,
-    lines: Sequence[str],
-    cls: str,
-    line_height: int,
-) -> None:
+def _draw_text_lines(out: List[str], x: int, y: int, lines: Sequence[str], cls: str, line_height: int) -> None:
     out.append(f'<text x="{x}" y="{y}" class="{cls}" xml:space="preserve">')
     first = True
     for ln in lines:
@@ -180,7 +173,9 @@ def _draw_tile_grid(
                 )
 
     if vr and vc:
-        out.append(f'<rect x="{x}" y="{y}" width="{vc * CELL}" height="{vr * CELL}" class="validBox" stroke="{accent}" />')
+        out.append(
+            f'<rect x="{x}" y="{y}" width="{vc * CELL}" height="{vr * CELL}" class="validBox" stroke="{accent}" />'
+        )
 
         # Indicate the valid extents (Rv/Cv) without hard-coding numeric sizes.
         out.append(f'<text x="{x + 4}" y="{y + vr * CELL - 4}" class="axisText">{_esc("Rv")}</text>')
@@ -291,12 +286,7 @@ def _scalar_port_top(*, x: int, y: int, w: int = 160, h: int = 54) -> Tuple[int,
 
 
 def _draw_op_node(
-    out: List[str],
-    *,
-    cx: int,
-    cy: int,
-    instr: str,
-    accent: str,
+    out: List[str], *, cx: int, cy: int, instr: str, accent: str
 ) -> Tuple[Tuple[int, int], Tuple[int, int], Tuple[int, int]]:
     """Draw a circled-square op node and return (left, right, bottom) anchors."""
     max_chars_per_line = 6
@@ -354,15 +344,7 @@ def _draw_binary_flow(
     left, right, bottom = _draw_op_node(out, cx=op_cx, cy=op_cy, instr=instr, accent=accent)
     _draw_ortho_arrow(out, x1=l_src[0], y1=l_src[1], x2=left[0], y2=left[1], via_y=left[1], accent=accent)
     _draw_ortho_arrow(out, x1=r_src[0], y1=r_src[1], x2=right[0], y2=right[1], via_y=right[1], accent=accent)
-    _draw_ortho_arrow(
-        out,
-        x1=bottom[0],
-        y1=bottom[1],
-        x2=dx,
-        y2=dy,
-        via_y=int((bottom[1] + dy) / 2),
-        accent=accent,
-    )
+    _draw_ortho_arrow(out, x1=bottom[0], y1=bottom[1], x2=dx, y2=dy, via_y=int((bottom[1] + dy) / 2), accent=accent)
 
 
 def _mem_anchor_top(x: int, y: int, i: int) -> Tuple[int, int]:
@@ -514,68 +496,35 @@ def _elementwise_spec(instr: str) -> Tuple[List[str], str, List[str]]:
         "TREM": "remainder(src0, src1)",
         "TFMOD": "fmod(src0, src1)",
     }
-    ternary = {
-        "TADDC": "src0 + src1 + src2",
-        "TSUBC": "src0 - src1 + src2",
-    }
+    ternary = {"TADDC": "src0 + src1 + src2", "TSUBC": "src0 - src1 + src2"}
 
     if instr in unary:
         expr = f"dst[r,c] = {unary[instr]}"
-        proc = [
-            "for r in 0..Rv-1:",
-            "  for c in 0..Cv-1:",
-            f"    {expr}",
-        ]
+        proc = ["for r in 0..Rv-1:", "  for c in 0..Cv-1:", f"    {expr}"]
         return (["src"], expr, proc)
     if instr in ternary:
         expr = f"dst[r,c] = {ternary[instr]}"
-        proc = [
-            "for r in 0..Rv-1:",
-            "  for c in 0..Cv-1:",
-            f"    {expr}",
-        ]
+        proc = ["for r in 0..Rv-1:", "  for c in 0..Cv-1:", f"    {expr}"]
         return (["src0", "src1", "src2"], expr, proc)
     if instr == "TSEL":
         expr = "dst[r,c] = (mask[r,c] != 0) ? src0[r,c] : src1[r,c]"
-        proc = [
-            "for r in 0..Rv-1:",
-            "  for c in 0..Cv-1:",
-            f"    {expr}",
-        ]
+        proc = ["for r in 0..Rv-1:", "  for c in 0..Cv-1:", f"    {expr}"]
         return (["mask", "src0", "src1"], expr, proc)
     if instr == "TCMP":
         expr = "dst_mask[r,c] = cmp(src0[r,c], src1[r,c])"
-        proc = [
-            "for r in 0..Rv-1:",
-            "  for c in 0..Cv-1:",
-            f"    {expr}",
-        ]
+        proc = ["for r in 0..Rv-1:", "  for c in 0..Cv-1:", f"    {expr}"]
         return (["src0", "src1"], expr, proc)
     if instr == "TPRELU":
         expr = "dst[r,c] = (x>0) ? x : slope*x"
-        proc = [
-            "for r in 0..Rv-1:",
-            "  for c in 0..Cv-1:",
-            "    x = src0[r,c]",
-            "    slope = src1[r,c]",
-            f"    {expr}",
-        ]
+        proc = ["for r in 0..Rv-1:", "  for c in 0..Cv-1:", "    x = src0[r,c]", "    slope = src1[r,c]", f"    {expr}"]
         return (["src0", "src1"], expr, proc)
     if instr in binary:
         expr = f"dst[r,c] = {binary[instr]}"
-        proc = [
-            "for r in 0..Rv-1:",
-            "  for c in 0..Cv-1:",
-            f"    {expr}",
-        ]
+        proc = ["for r in 0..Rv-1:", "  for c in 0..Cv-1:", f"    {expr}"]
         return (["src0", "src1"], expr, proc)
 
     expr = "dst[r,c] = op(src...)[r,c]"
-    proc = [
-        "for r in 0..Rv-1:",
-        "  for c in 0..Cv-1:",
-        f"    {expr}",
-    ]
+    proc = ["for r in 0..Rv-1:", "  for c in 0..Cv-1:", f"    {expr}"]
     return (["src0", "src1"], expr, proc)
 
 
@@ -598,70 +547,36 @@ def _scalar_spec(instr: str) -> Tuple[List[str], str, List[str]]:
 
     if instr == "TEXPANDS":
         expr = "dst[r,c] = s"
-        proc = [
-            "for r in 0..Rv-1:",
-            "  for c in 0..Cv-1:",
-            f"    {expr}",
-        ]
+        proc = ["for r in 0..Rv-1:", "  for c in 0..Cv-1:", f"    {expr}"]
         return (["src(tile)"], expr, proc)
     if instr == "TCMPS":
         expr = "dst_mask[r,c] = cmp(src[r,c], s)"
-        proc = [
-            "for r in 0..Rv-1:",
-            "  for c in 0..Cv-1:",
-            f"    {expr}",
-        ]
+        proc = ["for r in 0..Rv-1:", "  for c in 0..Cv-1:", f"    {expr}"]
         return (["src(tile)"], expr, proc)
     if instr == "TSELS":
         expr = "dst = (selectMode) ? src0 : src1"
-        proc = [
-            "if selectMode:",
-            "  dst = src0",
-            "else:",
-            "  dst = src1",
-        ]
+        proc = ["if selectMode:", "  dst = src0", "else:", "  dst = src1"]
         return (["src0", "src1"], expr, proc)
     if instr == "TLRELU":
         expr = "dst[r,c] = (x>0) ? x : slope*x"
-        proc = [
-            "for r in 0..Rv-1:",
-            "  for c in 0..Cv-1:",
-            "    x = src[r,c]",
-            f"    {expr}",
-        ]
+        proc = ["for r in 0..Rv-1:", "  for c in 0..Cv-1:", "    x = src[r,c]", f"    {expr}"]
         return (["src(tile)"], expr, proc)
     if instr == "TADDSC":
         expr = "dst[r,c] = src0[r,c] + s + src1[r,c]"
-        proc = [
-            "for r in 0..Rv-1:",
-            "  for c in 0..Cv-1:",
-            f"    {expr}",
-        ]
+        proc = ["for r in 0..Rv-1:", "  for c in 0..Cv-1:", f"    {expr}"]
         return (["src0", "src1"], expr, proc)
     if instr == "TSUBSC":
         expr = "dst[r,c] = src0[r,c] - s + src1[r,c]"
-        proc = [
-            "for r in 0..Rv-1:",
-            "  for c in 0..Cv-1:",
-            f"    {expr}",
-        ]
+        proc = ["for r in 0..Rv-1:", "  for c in 0..Cv-1:", f"    {expr}"]
         return (["src0", "src1"], expr, proc)
 
     if instr in tile_scalar:
         expr = f"dst[r,c] = {tile_scalar[instr]}"
-        proc = [
-            "for r in 0..Rv-1:",
-            "  for c in 0..Cv-1:",
-            f"    {expr}",
-        ]
+        proc = ["for r in 0..Rv-1:", "  for c in 0..Cv-1:", f"    {expr}"]
         return (["src(tile)"], expr, proc)
 
     expr = "dst[r,c] = op(src[r,c], s)"
-    proc = [
-        "for r in 0..Rv-1:",
-        "  for c in 0..Cv-1:",
-        f"    {expr}",
-    ]
+    proc = ["for r in 0..Rv-1:", "  for c in 0..Cv-1:", f"    {expr}"]
     return (["src(tile)"], expr, proc)
 
 
@@ -707,7 +622,9 @@ def _render_elementwise(instr: str, summary: str, accent: str, bg: str) -> str:
     out_label = "dst(mask)" if instr == "TCMP" else "dst"
     out_prefix = "m" if instr == "TCMP" else "d"
     x_dst = (CANVAS_W - tile_w) // 2
-    _draw_tile_grid(out, x=x_dst, y=y_dst, label=out_label, prefix=out_prefix, highlight_cells=[(EX_R, EX_C)], accent=accent)
+    _draw_tile_grid(
+        out, x=x_dst, y=y_dst, label=out_label, prefix=out_prefix, highlight_cells=[(EX_R, EX_C)], accent=accent
+    )
 
     dx, dy = _tile_port_top(x=x_dst, y=y_dst, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
 
@@ -766,7 +683,9 @@ def _render_scalar(instr: str, summary: str, accent: str, bg: str) -> str:
     out_label = "dst(mask)" if instr == "TCMPS" else "dst"
     out_prefix = "m" if instr == "TCMPS" else "d"
     x_dst = (CANVAS_W - tile_w) // 2
-    _draw_tile_grid(out, x=x_dst, y=y_dst, label=out_label, prefix=out_prefix, highlight_cells=[(EX_R, EX_C)], accent=accent)
+    _draw_tile_grid(
+        out, x=x_dst, y=y_dst, label=out_label, prefix=out_prefix, highlight_cells=[(EX_R, EX_C)], accent=accent
+    )
 
     dx, dy = _tile_port_top(x=x_dst, y=y_dst, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
     via_base = int((y_src + tile_h + y_dst) / 2)
@@ -808,10 +727,7 @@ def _render_reduce_expand(instr: str, summary: str, accent: str, bg: str) -> str
     if mode == "reduce":
         if axis == "row":
             expr = f"dst[r,0] = {op}_c src[r,c]"
-            proc = [
-                "for r in 0..Rv-1:",
-                f"  dst[r,0] = {op} over c=0..Cv-1 of src[r,c]",
-            ]
+            proc = ["for r in 0..Rv-1:", f"  dst[r,0] = {op} over c=0..Cv-1 of src[r,c]"]
             x_src = (CANVAS_W - tile_w) // 2
             x_dst = (CANVAS_W - _tile_width(1)) // 2
             _draw_tile_grid(out, x=x_src, y=y_src, label="src", prefix="a", highlight_rows=[EX_R], accent=accent)
@@ -830,10 +746,7 @@ def _render_reduce_expand(instr: str, summary: str, accent: str, bg: str) -> str
             dx, dy = _tile_port_top(x=x_dst, y=y_dst, rows=TILE_ROWS, cols=1, c=0)
         else:
             expr = f"dst[0,c] = {op}_r src[r,c]"
-            proc = [
-                "for c in 0..Cv-1:",
-                f"  dst[0,c] = {op} over r=0..Rv-1 of src[r,c]",
-            ]
+            proc = ["for c in 0..Cv-1:", f"  dst[0,c] = {op} over r=0..Rv-1 of src[r,c]"]
             x_src = (CANVAS_W - tile_w) // 2
             dst_rows, dst_cols = 1, TILE_COLS
             dst_w, dst_h = _tile_width(dst_cols), _tile_height(dst_rows)
@@ -865,30 +778,38 @@ def _render_reduce_expand(instr: str, summary: str, accent: str, bg: str) -> str
     if mode == "expand":
         if axis == "row":
             expr = "dst[r,c] = src[r,0]"
-            proc = [
-                "for r in 0..Rv-1:",
-                "  v = src[r,0]",
-                "  for c in 0..Cv-1:",
-                "    dst[r,c] = v",
-            ]
+            proc = ["for r in 0..Rv-1:", "  v = src[r,0]", "  for c in 0..Cv-1:", "    dst[r,c] = v"]
             x_src = (CANVAS_W - tile_w) // 2
             x_dst = (CANVAS_W - tile_w) // 2
             _draw_tile_grid(out, x=x_src, y=y_src, label="src", prefix="a", highlight_cells=[(EX_R, 0)], accent=accent)
-            _draw_tile_grid(out, x=x_dst, y=y_dst, label="dst", prefix="d", highlight_rows=[EX_R], highlight_cells=[(EX_R, EX_C)], accent=accent)
+            _draw_tile_grid(
+                out,
+                x=x_dst,
+                y=y_dst,
+                label="dst",
+                prefix="d",
+                highlight_rows=[EX_R],
+                highlight_cells=[(EX_R, EX_C)],
+                accent=accent,
+            )
             sx, sy = _tile_port_bottom(x=x_src, y=y_src, rows=TILE_ROWS, cols=TILE_COLS, c=0)
             dx, dy = _tile_port_top(x=x_dst, y=y_dst, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
         else:
             expr = "dst[r,c] = src[0,c]"
-            proc = [
-                "for c in 0..Cv-1:",
-                "  v = src[0,c]",
-                "  for r in 0..Rv-1:",
-                "    dst[r,c] = v",
-            ]
+            proc = ["for c in 0..Cv-1:", "  v = src[0,c]", "  for r in 0..Rv-1:", "    dst[r,c] = v"]
             x_src = (CANVAS_W - tile_w) // 2
             x_dst = (CANVAS_W - tile_w) // 2
             _draw_tile_grid(out, x=x_src, y=y_src, label="src", prefix="a", highlight_cells=[(0, EX_C)], accent=accent)
-            _draw_tile_grid(out, x=x_dst, y=y_dst, label="dst", prefix="d", highlight_cols=[EX_C], highlight_cells=[(EX_R, EX_C)], accent=accent)
+            _draw_tile_grid(
+                out,
+                x=x_dst,
+                y=y_dst,
+                label="dst",
+                prefix="d",
+                highlight_cols=[EX_C],
+                highlight_cells=[(EX_R, EX_C)],
+                accent=accent,
+            )
             sx, sy = _tile_port_bottom(x=x_src, y=y_src, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
             dx, dy = _tile_port_top(x=x_dst, y=y_dst, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
 
@@ -931,12 +852,7 @@ def _render_reduce_expand(instr: str, summary: str, accent: str, bg: str) -> str
     else:
         expr = "dst[r,c] = op(src0[r,c], s)"
 
-    proc = [
-        "for r in 0..Rv-1:",
-        "  for c in 0..Cv-1:",
-        f"    {scalar_ref}",
-        f"    {expr}",
-    ]
+    proc = ["for r in 0..Rv-1:", "  for c in 0..Cv-1:", f"    {scalar_ref}", f"    {expr}"]
 
     widths = [tile_w, _tile_width(s_cols)]
     xs = _layout_row_lefts(CANVAS_W // 2, widths, 80)
@@ -965,13 +881,7 @@ def _render_reduce_expand(instr: str, summary: str, accent: str, bg: str) -> str
     a_x, a_y = _tile_port_bottom(x=x_src0, y=y_src, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
     s_x, s_y = _tile_port_bottom(x=x_src1, y=y_s, rows=s_rows, cols=s_cols, c=s_cell[1])
     _draw_binary_flow(
-        out,
-        instr=instr,
-        left_src=(a_x, a_y),
-        right_src=(s_x, s_y),
-        dst=(dx, dy),
-        accent=accent,
-        op_cx=CANVAS_W // 2,
+        out, instr=instr, left_src=(a_x, a_y), right_src=(s_x, s_y), dst=(dx, dy), accent=accent, op_cx=CANVAS_W // 2
     )
 
     _draw_procedure(out, lines=proc, accent=accent)
@@ -987,10 +897,7 @@ def _render_memory(instr: str, summary: str, accent: str, bg: str) -> str:
 
     if instr in {"TLOAD", "TPREFETCH"}:
         expr = "dst[r,c] = GM[...]"
-        proc = [
-            "for r,c in valid(dst):",
-            "  dst[r,c] = GM[base + (row0+r)*stride + (col0+c)]",
-        ]
+        proc = ["for r,c in valid(dst):", "  dst[r,c] = GM[base + (row0+r)*stride + (col0+c)]"]
         out.append(
             f'<text x="{CANVAS_W // 2}" y="{EXPR_Y}" class="subtitle" text-anchor="middle" fill="{_esc(accent)}">{_esc(expr)}</text>'
         )
@@ -1000,7 +907,9 @@ def _render_memory(instr: str, summary: str, accent: str, bg: str) -> str:
         _draw_mem_row(out, x=x_mem, y=y_mem, label="GlobalTensor / GM", prefix="g", highlight_idx=6, accent=accent)
 
         x_tile = (CANVAS_W - tile_w) // 2
-        _draw_tile_grid(out, x=x_tile, y=y_dst, label="dst tile", prefix="d", highlight_cells=[(EX_R, EX_C)], accent=accent)
+        _draw_tile_grid(
+            out, x=x_tile, y=y_dst, label="dst tile", prefix="d", highlight_cells=[(EX_R, EX_C)], accent=accent
+        )
 
         sx, sy = _mem_anchor_bottom(x_mem, y_mem, 6)
         dx, dy = _tile_port_top(x=x_tile, y=y_dst, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
@@ -1011,15 +920,14 @@ def _render_memory(instr: str, summary: str, accent: str, bg: str) -> str:
 
     if instr == "TSTORE":
         expr = "GM[...] = src[r,c]"
-        proc = [
-            "for r,c in valid(src):",
-            "  GM[base + (row0+r)*stride + (col0+c)] = src[r,c]",
-        ]
+        proc = ["for r,c in valid(src):", "  GM[base + (row0+r)*stride + (col0+c)] = src[r,c]"]
         out.append(
             f'<text x="{CANVAS_W // 2}" y="{EXPR_Y}" class="subtitle" text-anchor="middle" fill="{_esc(accent)}">{_esc(expr)}</text>'
         )
         x_src = (CANVAS_W - tile_w) // 2
-        _draw_tile_grid(out, x=x_src, y=y_src, label="src tile", prefix="a", highlight_cells=[(EX_R, EX_C)], accent=accent)
+        _draw_tile_grid(
+            out, x=x_src, y=y_src, label="src tile", prefix="a", highlight_cells=[(EX_R, EX_C)], accent=accent
+        )
 
         mem_w = 12 * CELL
         x_mem = (CANVAS_W - mem_w) // 2
@@ -1035,18 +943,18 @@ def _render_memory(instr: str, summary: str, accent: str, bg: str) -> str:
 
     if instr == "TSTORE_FP":
         expr = "GM[...] = quantize(src, fp)"
-        proc = [
-            "for r,c in valid(src):",
-            "  q = quantize(src[r,c], fp[r,c])",
-            "  GM[...] = q",
-        ]
+        proc = ["for r,c in valid(src):", "  q = quantize(src[r,c], fp[r,c])", "  GM[...] = q"]
         out.append(
             f'<text x="{CANVAS_W // 2}" y="{EXPR_Y}" class="subtitle" text-anchor="middle" fill="{_esc(accent)}">{_esc(expr)}</text>'
         )
         xs = _layout_row_lefts(CANVAS_W // 2, [tile_w, tile_w], 80)
         x_src, x_fp = xs[0], xs[1]
-        _draw_tile_grid(out, x=x_src, y=y_src, label="src (acc)", prefix="a", highlight_cells=[(EX_R, EX_C)], accent=accent)
-        _draw_tile_grid(out, x=x_fp, y=y_src, label="fp/scale", prefix="s", highlight_cells=[(EX_R, EX_C)], accent=accent)
+        _draw_tile_grid(
+            out, x=x_src, y=y_src, label="src (acc)", prefix="a", highlight_cells=[(EX_R, EX_C)], accent=accent
+        )
+        _draw_tile_grid(
+            out, x=x_fp, y=y_src, label="fp/scale", prefix="s", highlight_cells=[(EX_R, EX_C)], accent=accent
+        )
 
         mem_w = 12 * CELL
         x_mem = (CANVAS_W - mem_w) // 2
@@ -1070,11 +978,7 @@ def _render_memory(instr: str, summary: str, accent: str, bg: str) -> str:
 
     if instr == "MGATHER":
         expr = "dst[r,c] = mem[indexes[r,c]]"
-        proc = [
-            "for r,c in valid(dst):",
-            "  idx = indexes[r,c]",
-            "  dst[r,c] = mem[idx]",
-        ]
+        proc = ["for r,c in valid(dst):", "  idx = indexes[r,c]", "  dst[r,c] = mem[idx]"]
         out.append(
             f'<text x="{CANVAS_W // 2}" y="{EXPR_Y}" class="subtitle" text-anchor="middle" fill="{_esc(accent)}">{_esc(expr)}</text>'
         )
@@ -1084,10 +988,14 @@ def _render_memory(instr: str, summary: str, accent: str, bg: str) -> str:
         x_mem, x_idx = xs[0], xs[1]
         y_mem = y_src + (tile_h - CELL) // 2
         _draw_mem_row(out, x=x_mem, y=y_mem, label="GM / mem", prefix="g", highlight_idx=10, accent=accent)
-        _draw_tile_grid(out, x=x_idx, y=y_src, label="idx tile", prefix="i", highlight_cells=[(EX_R, EX_C)], accent=accent)
+        _draw_tile_grid(
+            out, x=x_idx, y=y_src, label="idx tile", prefix="i", highlight_cells=[(EX_R, EX_C)], accent=accent
+        )
 
         x_dst = (CANVAS_W - tile_w) // 2
-        _draw_tile_grid(out, x=x_dst, y=y_dst, label="dst tile", prefix="d", highlight_cells=[(EX_R, EX_C)], accent=accent)
+        _draw_tile_grid(
+            out, x=x_dst, y=y_dst, label="dst tile", prefix="d", highlight_cells=[(EX_R, EX_C)], accent=accent
+        )
 
         dx, dy = _tile_port_top(x=x_dst, y=y_dst, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
         m_x, m_y = _mem_anchor_bottom(x_mem, y_mem, 10)
@@ -1106,18 +1014,18 @@ def _render_memory(instr: str, summary: str, accent: str, bg: str) -> str:
 
     if instr == "MSCATTER":
         expr = "mem[indexes[r,c]] = src[r,c]"
-        proc = [
-            "for r,c in valid(src):",
-            "  idx = indexes[r,c]",
-            "  mem[idx] = src[r,c]",
-        ]
+        proc = ["for r,c in valid(src):", "  idx = indexes[r,c]", "  mem[idx] = src[r,c]"]
         out.append(
             f'<text x="{CANVAS_W // 2}" y="{EXPR_Y}" class="subtitle" text-anchor="middle" fill="{_esc(accent)}">{_esc(expr)}</text>'
         )
         xs = _layout_row_lefts(CANVAS_W // 2, [tile_w, tile_w], 80)
         x_src, x_idx = xs[0], xs[1]
-        _draw_tile_grid(out, x=x_src, y=y_src, label="src tile", prefix="a", highlight_cells=[(EX_R, EX_C)], accent=accent)
-        _draw_tile_grid(out, x=x_idx, y=y_src, label="idx tile", prefix="i", highlight_cells=[(EX_R, EX_C)], accent=accent)
+        _draw_tile_grid(
+            out, x=x_src, y=y_src, label="src tile", prefix="a", highlight_cells=[(EX_R, EX_C)], accent=accent
+        )
+        _draw_tile_grid(
+            out, x=x_idx, y=y_src, label="idx tile", prefix="i", highlight_cells=[(EX_R, EX_C)], accent=accent
+        )
 
         mem_w = 12 * CELL
         x_mem = (CANVAS_W - mem_w) // 2
@@ -1175,13 +1083,7 @@ def _render_matmul(instr: str, summary: str, accent: str, bg: str) -> str:
     a_x, a_y = _tile_port_bottom(x=x_a, y=y_src, rows=TILE_ROWS, cols=TILE_COLS, c=1)
     b_x, b_y = _tile_port_bottom(x=x_b, y=y_src, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
     _draw_binary_flow(
-        out,
-        instr=instr,
-        left_src=(a_x, a_y),
-        right_src=(b_x, b_y),
-        dst=(dx, dy),
-        accent=accent,
-        op_cx=CANVAS_W // 2,
+        out, instr=instr, left_src=(a_x, a_y), right_src=(b_x, b_y), dst=(dx, dy), accent=accent, op_cx=CANVAS_W // 2
     )
 
     proc = [
@@ -1205,17 +1107,18 @@ def _render_reshape_move(instr: str, summary: str, accent: str, bg: str) -> str:
 
     if instr.startswith("TEXTRACT"):
         expr = "dst = slice(src, offset)"
-        proc = [
-            "for r,c in valid(dst):",
-            "  dst[r,c] = src[r + row_off, c + col_off]",
-        ]
+        proc = ["for r,c in valid(dst):", "  dst[r,c] = src[r + row_off, c + col_off]"]
         out.append(
             f'<text x="{CANVAS_W // 2}" y="{EXPR_Y}" class="subtitle" text-anchor="middle" fill="{_esc(accent)}">{_esc(expr)}</text>'
         )
         x_src = (CANVAS_W - tile_w) // 2
         x_dst = (CANVAS_W - tile_w) // 2
-        _draw_tile_grid(out, x=x_src, y=y_src, label="src", prefix="a", valid_box=(3, 3), highlight_cells=[(0, 0)], accent=accent)
-        _draw_tile_grid(out, x=x_dst, y=y_dst, label="dst (window)", prefix="d", highlight_cells=[(0, 0)], accent=accent)
+        _draw_tile_grid(
+            out, x=x_src, y=y_src, label="src", prefix="a", valid_box=(3, 3), highlight_cells=[(0, 0)], accent=accent
+        )
+        _draw_tile_grid(
+            out, x=x_dst, y=y_dst, label="dst (window)", prefix="d", highlight_cells=[(0, 0)], accent=accent
+        )
         sx, sy = _tile_port_bottom(x=x_src, y=y_src, rows=TILE_ROWS, cols=TILE_COLS, c=0)
         dx, dy = _tile_port_top(x=x_dst, y=y_dst, rows=TILE_ROWS, cols=TILE_COLS, c=0)
         via_y = int((sy + dy) / 2)
@@ -1225,19 +1128,29 @@ def _render_reshape_move(instr: str, summary: str, accent: str, bg: str) -> str:
 
     if instr.startswith("TINSERT"):
         expr = "dst[off + (r,c)] = src[r,c]"
-        proc = [
-            "for r,c in valid(src):",
-            "  dst[r + row_off, c + col_off] = src[r,c]",
-        ]
+        proc = ["for r,c in valid(src):", "  dst[r + row_off, c + col_off] = src[r,c]"]
         out.append(
             f'<text x="{CANVAS_W // 2}" y="{EXPR_Y}" class="subtitle" text-anchor="middle" fill="{_esc(accent)}">{_esc(expr)}</text>'
         )
         xs = _layout_row_lefts(CANVAS_W // 2, [tile_w, tile_w], 120)
         x_dst_in, x_src_win = xs[0], xs[1]
         x_dst_out = (CANVAS_W - tile_w) // 2
-        _draw_tile_grid(out, x=x_dst_in, y=y_src, label="dst (in)", prefix="d", highlight_cells=[(EX_R, EX_C)], accent=accent)
-        _draw_tile_grid(out, x=x_src_win, y=y_src, label="src (window)", prefix="a", valid_box=(2, 2), highlight_cells=[(0, 0)], accent=accent)
-        _draw_tile_grid(out, x=x_dst_out, y=y_dst, label="dst (out)", prefix="d", highlight_cells=[(EX_R, EX_C)], accent=accent)
+        _draw_tile_grid(
+            out, x=x_dst_in, y=y_src, label="dst (in)", prefix="d", highlight_cells=[(EX_R, EX_C)], accent=accent
+        )
+        _draw_tile_grid(
+            out,
+            x=x_src_win,
+            y=y_src,
+            label="src (window)",
+            prefix="a",
+            valid_box=(2, 2),
+            highlight_cells=[(0, 0)],
+            accent=accent,
+        )
+        _draw_tile_grid(
+            out, x=x_dst_out, y=y_dst, label="dst (out)", prefix="d", highlight_cells=[(EX_R, EX_C)], accent=accent
+        )
         dx, dy = _tile_port_top(x=x_dst_out, y=y_dst, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
         d_x, d_y = _tile_port_bottom(x=x_dst_in, y=y_src, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
         s_x, s_y = _tile_port_bottom(x=x_src_win, y=y_src, rows=TILE_ROWS, cols=TILE_COLS, c=0)
@@ -1267,9 +1180,25 @@ def _render_reshape_move(instr: str, summary: str, accent: str, bg: str) -> str:
         )
         x_src = (CANVAS_W - tile_w) // 2
         x_dst = (CANVAS_W - tile_w) // 2
-        _draw_tile_grid(out, x=x_src, y=y_src, label="src (valid)", prefix="a", valid_box=(3, 3), highlight_cells=[(EX_R, EX_C)], accent=accent)
         _draw_tile_grid(
-            out, x=x_dst, y=y_dst, label="dst (padded)", prefix="d", valid_box=(3, 3), highlight_cells=[(3, 3)], accent=accent
+            out,
+            x=x_src,
+            y=y_src,
+            label="src (valid)",
+            prefix="a",
+            valid_box=(3, 3),
+            highlight_cells=[(EX_R, EX_C)],
+            accent=accent,
+        )
+        _draw_tile_grid(
+            out,
+            x=x_dst,
+            y=y_dst,
+            label="dst (padded)",
+            prefix="d",
+            valid_box=(3, 3),
+            highlight_cells=[(3, 3)],
+            accent=accent,
         )
         sx, sy = _tile_port_bottom(x=x_src, y=y_src, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
         dx, dy = _tile_port_top(x=x_dst, y=y_dst, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
@@ -1280,10 +1209,7 @@ def _render_reshape_move(instr: str, summary: str, accent: str, bg: str) -> str:
 
     if instr == "TTRANS":
         expr = "dst[r,c] = src[c,r]"
-        proc = [
-            "for r,c in valid(dst):",
-            "  dst[r,c] = src[c,r]",
-        ]
+        proc = ["for r,c in valid(dst):", "  dst[r,c] = src[c,r]"]
         out.append(
             f'<text x="{CANVAS_W // 2}" y="{EXPR_Y}" class="subtitle" text-anchor="middle" fill="{_esc(accent)}">{_esc(expr)}</text>'
         )
@@ -1300,10 +1226,7 @@ def _render_reshape_move(instr: str, summary: str, accent: str, bg: str) -> str:
 
     if instr.startswith("TSUBVIEW"):
         expr = "dst = subview(src, rI, cI)"
-        proc = [
-            "for r,c in valid(dst):",
-            "  dst[r,c] = src[r + rI, c + cI]",
-        ]
+        proc = ["for r,c in valid(dst):", "  dst[r,c] = src[r + rI, c + cI]"]
         out.append(
             f'<text x="{CANVAS_W // 2}" y="{EXPR_Y}" class="subtitle" text-anchor="middle" fill="{_esc(accent)}">{_esc(expr)}</text>'
         )
@@ -1317,7 +1240,8 @@ def _render_reshape_move(instr: str, summary: str, accent: str, bg: str) -> str:
             prefix="a",
             valid_box=(5, 5),
             highlight_cells=[(0, 0)],
-            accent=accent)
+            accent=accent,
+        )
         _draw_tile_grid(
             out,
             x=x_dst,
@@ -1326,7 +1250,7 @@ def _render_reshape_move(instr: str, summary: str, accent: str, bg: str) -> str:
             valid_box=(3, 3),
             prefix="d",
             highlight_cells=[(0, 0)],
-            accent=accent
+            accent=accent,
         )
         sx, sy = _tile_port_bottom(x=x_src, y=y_src, rows=TILE_ROWS, cols=TILE_COLS, c=0)
         dx, dy = _tile_port_top(x=x_dst, y=y_dst, rows=TILE_ROWS, cols=TILE_COLS, c=0)
@@ -1337,10 +1261,7 @@ def _render_reshape_move(instr: str, summary: str, accent: str, bg: str) -> str:
 
     # Default: movement/reshape
     expr = "dst = move/reshape(src)"
-    proc = [
-        "for r,c in valid(dst):",
-        "  dst[r,c] = transform(src[r,c])   (layout/location dependent)",
-    ]
+    proc = ["for r,c in valid(dst):", "  dst[r,c] = transform(src[r,c])   (layout/location dependent)"]
     out.append(
         f'<text x="{CANVAS_W // 2}" y="{EXPR_Y}" class="subtitle" text-anchor="middle" fill="{_esc(accent)}">{_esc(expr)}</text>'
     )
@@ -1366,11 +1287,7 @@ def _render_complex(instr: str, summary: str, accent: str, bg: str) -> str:
 
     if instr == "TCI":
         expr = "dst[r,c] = base + r*stride + c"
-        proc = [
-            "for r in 0..Rv-1:",
-            "  for c in 0..Cv-1:",
-            f"    {expr}",
-        ]
+        proc = ["for r in 0..Rv-1:", "  for c in 0..Cv-1:", f"    {expr}"]
         out.append(
             f'<text x="{CANVAS_W // 2}" y="{EXPR_Y}" class="subtitle" text-anchor="middle" fill="{_esc(accent)}">{_esc(expr)}</text>'
         )
@@ -1383,7 +1300,16 @@ def _render_complex(instr: str, summary: str, accent: str, bg: str) -> str:
 
         override: Dict[Tuple[int, int], str] = {(EX_R, EX_C): "base+..."}
         x_dst = (CANVAS_W - tile_w) // 2
-        _draw_tile_grid(out, x=x_dst, y=y_dst, label="dst", prefix="d", text_override=override, highlight_cells=[(EX_R, EX_C)], accent=accent)
+        _draw_tile_grid(
+            out,
+            x=x_dst,
+            y=y_dst,
+            label="dst",
+            prefix="d",
+            text_override=override,
+            highlight_cells=[(EX_R, EX_C)],
+            accent=accent,
+        )
         dx, dy = _tile_port_top(x=x_dst, y=y_dst, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
         sources = [_scalar_port_bottom(x=x_base, y=scalar_y), _scalar_port_bottom(x=x_stride, y=scalar_y)]
         _draw_binary_flow(
@@ -1400,11 +1326,7 @@ def _render_complex(instr: str, summary: str, accent: str, bg: str) -> str:
 
     if instr == "TTRI":
         expr = "mask[r,c] = (r >= c) ? 1 : 0"
-        proc = [
-            "for r in 0..Rv-1:",
-            "  for c in 0..Cv-1:",
-            f"    {expr}",
-        ]
+        proc = ["for r in 0..Rv-1:", "  for c in 0..Cv-1:", f"    {expr}"]
         out.append(
             f'<text x="{CANVAS_W // 2}" y="{EXPR_Y}" class="subtitle" text-anchor="middle" fill="{_esc(accent)}">{_esc(expr)}</text>'
         )
@@ -1414,7 +1336,16 @@ def _render_complex(instr: str, summary: str, accent: str, bg: str) -> str:
 
         override = {(r, c): ("1" if r >= c else "0") for r in range(TILE_ROWS) for c in range(TILE_COLS)}
         x_dst = (CANVAS_W - tile_w) // 2
-        _draw_tile_grid(out, x=x_dst, y=y_dst, label="mask tile", prefix="m", text_override=override, highlight_cells=[(EX_R, EX_C)], accent=accent)
+        _draw_tile_grid(
+            out,
+            x=x_dst,
+            y=y_dst,
+            label="mask tile",
+            prefix="m",
+            text_override=override,
+            highlight_cells=[(EX_R, EX_C)],
+            accent=accent,
+        )
         dx, dy = _tile_port_top(x=x_dst, y=y_dst, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
         sx, sy = _scalar_port_bottom(x=scalar_x, y=scalar_y)
         _draw_ortho_arrow(out, x1=sx, y1=sy, x2=dx, y2=dy, via_y=int((sy + dy) / 2), accent=accent)
@@ -1423,11 +1354,7 @@ def _render_complex(instr: str, summary: str, accent: str, bg: str) -> str:
 
     if instr in {"TGATHER", "TGATHERB"}:
         expr = "dst[r,c] = src0[ indices[r,c] ]"
-        proc = [
-            "for r,c in valid(dst):",
-            "  k = indices[r,c]",
-            "  dst[r,c] = src0[k]",
-        ]
+        proc = ["for r,c in valid(dst):", "  k = indices[r,c]", "  dst[r,c] = src0[k]"]
         out.append(
             f'<text x="{CANVAS_W // 2}" y="{EXPR_Y}" class="subtitle" text-anchor="middle" fill="{_esc(accent)}">{_esc(expr)}</text>'
         )
@@ -1435,7 +1362,16 @@ def _render_complex(instr: str, summary: str, accent: str, bg: str) -> str:
         x_src0, x_idx = xs[0], xs[1]
         idx_text = {(EX_R, EX_C): "k"}
         _draw_tile_grid(out, x=x_src0, y=y_src, label="src0", prefix="a", highlight_cells=[(EX_R, EX_C)], accent=accent)
-        _draw_tile_grid(out, x=x_idx, y=y_src, label="indices", prefix="i", highlight_cells=[(EX_R, EX_C)], text_override=idx_text, accent=accent)
+        _draw_tile_grid(
+            out,
+            x=x_idx,
+            y=y_src,
+            label="indices",
+            prefix="i",
+            highlight_cells=[(EX_R, EX_C)],
+            text_override=idx_text,
+            accent=accent,
+        )
 
         x_dst = (CANVAS_W - tile_w) // 2
         _draw_tile_grid(out, x=x_dst, y=y_dst, label="dst", prefix="d", highlight_cells=[(EX_R, EX_C)], accent=accent)
@@ -1456,12 +1392,8 @@ def _render_complex(instr: str, summary: str, accent: str, bg: str) -> str:
         return _end_svg(out)
 
     if instr == "TSCATTER":
-        expr = "dst_flat[ idx[r,c] ] = src[r,c]"
-        proc = [
-            "for r,c in valid(src):",
-            "  k = idx[r,c]",
-            "  dst_flat[k] = src[r,c]",
-        ]
+        expr = "dst[ idx[r,c], c ] = src[r,c]"
+        proc = ["for r,c in valid(src):", "  rr = idx[r,c]", "  dst[rr, c] = src[r,c]"]
         out.append(
             f'<text x="{CANVAS_W // 2}" y="{EXPR_Y}" class="subtitle" text-anchor="middle" fill="{_esc(accent)}">{_esc(expr)}</text>'
         )
@@ -1469,7 +1401,16 @@ def _render_complex(instr: str, summary: str, accent: str, bg: str) -> str:
         x_src, x_idx = xs[0], xs[1]
         idx_text = {(EX_R, EX_C): "k"}
         _draw_tile_grid(out, x=x_src, y=y_src, label="src", prefix="a", highlight_cells=[(EX_R, EX_C)], accent=accent)
-        _draw_tile_grid(out, x=x_idx, y=y_src, label="flat idx", prefix="i", highlight_cells=[(EX_R, EX_C)], text_override=idx_text, accent=accent)
+        _draw_tile_grid(
+            out,
+            x=x_idx,
+            y=y_src,
+            label="row idx",
+            prefix="i",
+            highlight_cells=[(EX_R, EX_C)],
+            text_override=idx_text,
+            accent=accent,
+        )
 
         x_dst = (CANVAS_W - tile_w) // 2
         dst_r = min(TILE_ROWS - 2, EX_R + 1) if TILE_ROWS > 2 else EX_R
@@ -1492,20 +1433,23 @@ def _render_complex(instr: str, summary: str, accent: str, bg: str) -> str:
 
     if instr == "TSORT32":
         expr = "dst[i,k] = src[i, pi_i(k)] ; idx = pi"
-        proc = [
-            "for each row i:",
-            "  (dst_row, idx_row) = sort_with_indices(src_row)",
-        ]
+        proc = ["for each row i:", "  (dst_row, idx_row) = sort_with_indices(src_row)"]
         out.append(
             f'<text x="{CANVAS_W // 2}" y="{EXPR_Y}" class="subtitle" text-anchor="middle" fill="{_esc(accent)}">{_esc(expr)}</text>'
         )
         x_src = (CANVAS_W - tile_w) // 2
-        _draw_tile_grid(out, x=x_src, y=y_src, label="src (block)", prefix="a", highlight_cells=[(EX_R, EX_C)], accent=accent)
+        _draw_tile_grid(
+            out, x=x_src, y=y_src, label="src (block)", prefix="a", highlight_cells=[(EX_R, EX_C)], accent=accent
+        )
 
         xs = _layout_row_lefts(CANVAS_W // 2, [tile_w, tile_w], 120)
         x_dst, x_idx = xs[0], xs[1]
-        _draw_tile_grid(out, x=x_dst, y=y_dst, label="dst (sorted)", prefix="d", highlight_cells=[(EX_R, EX_C)], accent=accent)
-        _draw_tile_grid(out, x=x_idx, y=y_dst, label="idx (perm)", prefix="p", highlight_cells=[(EX_R, EX_C)], accent=accent)
+        _draw_tile_grid(
+            out, x=x_dst, y=y_dst, label="dst (sorted)", prefix="d", highlight_cells=[(EX_R, EX_C)], accent=accent
+        )
+        _draw_tile_grid(
+            out, x=x_idx, y=y_dst, label="idx (perm)", prefix="p", highlight_cells=[(EX_R, EX_C)], accent=accent
+        )
 
         s_x, s_y = _tile_port_bottom(x=x_src, y=y_src, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
         d1_x, d1_y = _tile_port_top(x=x_dst, y=y_dst, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
@@ -1518,10 +1462,7 @@ def _render_complex(instr: str, summary: str, accent: str, bg: str) -> str:
 
     if instr == "TMRGSORT":
         expr = "dst = merge(src0, src1, ...)"
-        proc = [
-            "dst = merge(sorted_lists...)",
-            "(ordering/format are implementation-defined)",
-        ]
+        proc = ["dst = merge(sorted_lists...)", "(ordering/format are implementation-defined)"]
         out.append(
             f'<text x="{CANVAS_W // 2}" y="{EXPR_Y}" class="subtitle" text-anchor="middle" fill="{_esc(accent)}">{_esc(expr)}</text>'
         )
@@ -1530,7 +1471,9 @@ def _render_complex(instr: str, summary: str, accent: str, bg: str) -> str:
         _draw_tile_grid(out, x=x0, y=y_src, label="src0 (sorted)", prefix="a", accent=accent)
         _draw_tile_grid(out, x=x1, y=y_src, label="src1 (sorted)", prefix="b", accent=accent)
         x_dst = (CANVAS_W - tile_w) // 2
-        _draw_tile_grid(out, x=x_dst, y=y_dst, label="dst (merged)", prefix="d", highlight_cells=[(EX_R, EX_C)], accent=accent)
+        _draw_tile_grid(
+            out, x=x_dst, y=y_dst, label="dst (merged)", prefix="d", highlight_cells=[(EX_R, EX_C)], accent=accent
+        )
         dx, dy = _tile_port_top(x=x_dst, y=y_dst, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
         a_x, a_y = _tile_port_bottom(x=x0, y=y_src, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
         b_x, b_y = _tile_port_bottom(x=x1, y=y_src, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
@@ -1558,7 +1501,9 @@ def _render_complex(instr: str, summary: str, accent: str, bg: str) -> str:
             f'<text x="{CANVAS_W // 2}" y="{EXPR_Y}" class="subtitle" text-anchor="middle" fill="{_esc(accent)}">{_esc(expr)}</text>'
         )
         x_src = (CANVAS_W - tile_w) // 2
-        _draw_tile_grid(out, x=x_src, y=y_src, label="src (fp32)", prefix="a", highlight_cells=[(EX_R, EX_C)], accent=accent)
+        _draw_tile_grid(
+            out, x=x_src, y=y_src, label="src (fp32)", prefix="a", highlight_cells=[(EX_R, EX_C)], accent=accent
+        )
 
         # Outputs: exp tile, dst tile, scaling/max (vector).
         scale_rows, scale_cols = 1, TILE_COLS
@@ -1567,9 +1512,15 @@ def _render_complex(instr: str, summary: str, accent: str, bg: str) -> str:
         widths = [tile_w, tile_w, tile_w]
         xs = _layout_row_lefts(CANVAS_W // 2, widths, 80)
         x_exp, x_dst, x_scale = xs[0], xs[1], xs[2]
-        _draw_tile_grid(out, x=x_exp, y=y_dst, label="exp tile", prefix="e", highlight_cells=[(EX_R, EX_C)], accent=accent)
-        _draw_tile_grid(out, x=x_dst, y=y_dst, label="dst (quant)", prefix="q", highlight_cells=[(EX_R, EX_C)], accent=accent)
-        _draw_tile_grid(out, x=x_scale, y=y_scale, label="max/scale", prefix="s", rows=scale_rows, cols=scale_cols, accent=accent)
+        _draw_tile_grid(
+            out, x=x_exp, y=y_dst, label="exp tile", prefix="e", highlight_cells=[(EX_R, EX_C)], accent=accent
+        )
+        _draw_tile_grid(
+            out, x=x_dst, y=y_dst, label="dst (quant)", prefix="q", highlight_cells=[(EX_R, EX_C)], accent=accent
+        )
+        _draw_tile_grid(
+            out, x=x_scale, y=y_scale, label="max/scale", prefix="s", rows=scale_rows, cols=scale_cols, accent=accent
+        )
 
         s_x, s_y = _tile_port_bottom(x=x_src, y=y_src, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
         d_x, d_y = _tile_port_top(x=x_dst, y=y_dst, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
@@ -1609,10 +1560,37 @@ def _render_complex(instr: str, summary: str, accent: str, bg: str) -> str:
         )
         xs = _layout_row_lefts(CANVAS_W // 2, [tile_w, tile_w], 120)
         x0, x1 = xs[0], xs[1]
-        _draw_tile_grid(out, x=x0, y=y_src, label="src0 (valid A)", prefix="a", valid_box=(3, 3), highlight_cells=[(EX_R, EX_C)], accent=accent)
-        _draw_tile_grid(out, x=x1, y=y_src, label="src1 (valid B)", prefix="b", valid_box=(2, 4), highlight_cells=[(EX_R, EX_C)], accent=accent)
+        _draw_tile_grid(
+            out,
+            x=x0,
+            y=y_src,
+            label="src0 (valid A)",
+            prefix="a",
+            valid_box=(3, 3),
+            highlight_cells=[(EX_R, EX_C)],
+            accent=accent,
+        )
+        _draw_tile_grid(
+            out,
+            x=x1,
+            y=y_src,
+            label="src1 (valid B)",
+            prefix="b",
+            valid_box=(2, 4),
+            highlight_cells=[(EX_R, EX_C)],
+            accent=accent,
+        )
         x_dst = (CANVAS_W - tile_w) // 2
-        _draw_tile_grid(out, x=x_dst, y=y_dst, label="dst (valid D)", prefix="d", valid_box=(3, 3), highlight_cells=[(EX_R, EX_C)], accent=accent)
+        _draw_tile_grid(
+            out,
+            x=x_dst,
+            y=y_dst,
+            label="dst (valid D)",
+            prefix="d",
+            valid_box=(3, 3),
+            highlight_cells=[(EX_R, EX_C)],
+            accent=accent,
+        )
         dx, dy = _tile_port_top(x=x_dst, y=y_dst, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
         a_x, a_y = _tile_port_bottom(x=x0, y=y_src, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
         b_x, b_y = _tile_port_bottom(x=x1, y=y_src, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
@@ -1635,7 +1613,9 @@ def _render_complex(instr: str, summary: str, accent: str, bg: str) -> str:
             f'<text x="{CANVAS_W // 2}" y="{EXPR_Y}" class="subtitle" text-anchor="middle" fill="{_esc(accent)}">{_esc(expr)}</text>'
         )
         x_src = (CANVAS_W - tile_w) // 2
-        _draw_tile_grid(out, x=x_src, y=y_src, label="src tile", prefix="a", highlight_cells=[(EX_R, EX_C)], accent=accent)
+        _draw_tile_grid(
+            out, x=x_src, y=y_src, label="src tile", prefix="a", highlight_cells=[(EX_R, EX_C)], accent=accent
+        )
         box_x = (CANVAS_W - 160) // 2
         box_y = y_dst + 20
         _draw_scalar_box(out, x=box_x, y=box_y, label="side effect", value="print/log", accent=accent)
@@ -1666,7 +1646,9 @@ def _render_sync(instr: str, summary: str, accent: str, bg: str) -> str:
         out.append(
             f'<rect x="{box_x}" y="{y}" width="{box_w}" height="{box_h}" rx="14" fill="#ffffff" stroke="{_esc(accent)}" stroke-width="2"/>'
         )
-        out.append(f'<text x="{box_x + box_w // 2}" y="{y + 38}" text-anchor="middle" class="tileLabel">{_esc(title)}</text>')
+        out.append(
+            f'<text x="{box_x + box_w // 2}" y="{y + 38}" text-anchor="middle" class="tileLabel">{_esc(title)}</text>'
+        )
         out.append(
             f'<text x="{box_x + box_w // 2}" y="{y + 64}" text-anchor="middle" class="smallLabel">{_esc(detail)}</text>'
         )
@@ -1700,7 +1682,9 @@ def _render_config(instr: str, summary: str, accent: str, bg: str) -> str:
     def draw_state_box(*, x: int, y: int, title: str, lines: Sequence[str]) -> Tuple[int, int]:
         w = 520
         h = 92
-        out.append(f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="14" fill="#ffffff" stroke="{_esc(accent)}" stroke-width="2"/>')
+        out.append(
+            f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="14" fill="#ffffff" stroke="{_esc(accent)}" stroke-width="2"/>'
+        )
         out.append(f'<text x="{x + 18}" y="{y + 34}" class="tileLabel">{_esc(title)}</text>')
         # Two lines is enough for these config diagrams; keep text tidy.
         _draw_text_lines(out, x + 18, y + 56, lines[:2], "smallLabel", 18)
@@ -1751,13 +1735,7 @@ def _render_config(instr: str, summary: str, accent: str, bg: str) -> str:
         sx, sy = _tile_port_bottom(x=x_tile, y=y_src, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
         ax, ay = _scalar_port_bottom(x=x_addr, y=scalar_y)
         _draw_binary_flow(
-            out,
-            instr=instr,
-            left_src=(sx, sy),
-            right_src=(ax, ay),
-            dst=(dx, dy),
-            accent=accent,
-            op_cx=CANVAS_W // 2,
+            out, instr=instr, left_src=(sx, sy), right_src=(ax, ay), dst=(dx, dy), accent=accent, op_cx=CANVAS_W // 2
         )
         _draw_procedure(out, lines=proc, accent=accent)
         return _end_svg(out)

@@ -13,6 +13,7 @@ import os
 
 from typing import Tuple
 import numpy as np
+
 np.random.seed(19)
 
 
@@ -40,10 +41,7 @@ def nhwc_to_nc1hwc0(input_nhwc, c0=16):
     if c_in % c0 != 0:
         pad_size = c1 * c0 - c_in
         input_padded = np.pad(
-            input_nhwc,
-            pad_width=((0, 0), (0, 0), (0, 0), (0, pad_size)),
-            mode='constant',
-            constant_values=0
+            input_nhwc, pad_width=((0, 0), (0, 0), (0, 0), (0, pad_size)), mode="constant", constant_values=0
         )
     else:
         input_padded = input_nhwc
@@ -65,12 +63,12 @@ def img2col_nhwc(input_data, kernel_size, stride=(1, 1), dilation=(1, 1), paddin
     h_out = (h + pad_top + pad_bottom - dilation_h * (h_k - 1) - 1) // stride_h + 1
     w_out = (w + pad_left + pad_right - dilation_w * (w_k - 1) - 1) // stride_w + 1
 
-    #padding
+    # padding
     input_padded = np.pad(
         input_data,
         pad_width=((0, 0), (pad_top, pad_bottom), (pad_left, pad_right), (0, 0)),
-        mode='constant',
-        constant_values=0
+        mode="constant",
+        constant_values=0,
     )
     col_matrix = np.zeros((c_in * h_k * w_k, n * h_out * w_out), dtype=input_data.dtype)
     # img2col
@@ -109,10 +107,7 @@ def conv2d_matmul_nhwc_float(input_data, weight, stride=(1, 1), dilation=(1, 1),
     col_matrix, (n, h_out, w_out) = img2col_nhwc(input_data, (h_k, w_k), stride, dilation, padding)
     kernel_matrix = kernel2matrix_new(weight)
 
-    output_flat = np.dot(
-        kernel_matrix.astype(np.float32),
-        col_matrix.astype(np.float32)
-    )
+    output_flat = np.dot(kernel_matrix.astype(np.float32), col_matrix.astype(np.float32))
     output = output_flat.reshape(weight.shape[0], n, h_out, w_out).transpose(1, 2, 3, 0)
     return output, col_matrix, kernel_matrix
 
@@ -143,9 +138,7 @@ def gen_golden_data(params: ConvTestParams):
     weight_for_calc = weight.transpose(3, 0, 4, 1, 2).reshape(n_out, c1_weight * c0_weight, h_k, w_k)
 
     output_nhwc, col_matrix, kernel_matrix = conv2d_matmul_nhwc_float(
-        input_nhwc, weight_for_calc,
-        params.stride, params.dilation,
-        params.padding
+        input_nhwc, weight_for_calc, params.stride, params.dilation, params.padding
     )
     # 5. Convert the output to NC1HWC0 format.
     output_nc1hwc0, c1_out = nhwc_to_nc1hwc0(output_nhwc, c0_input)
@@ -157,6 +150,7 @@ def gen_golden_data(params: ConvTestParams):
     weight_to_save.tofile("./input/x2_gm.bin")
     output_nc1hwc0.tofile("./output/golden.bin")
 
+
 if __name__ == "__main__":
     # Define a list of test cases.
     case_name_list = [
@@ -167,6 +161,6 @@ if __name__ == "__main__":
             dilation=(1, 1),
             padding=(1, 1, 1, 1),
             dtype=np.float16,
-        ),
+        )
     ]
     gen_golden_data(case_name_list[0])

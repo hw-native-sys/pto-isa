@@ -20,8 +20,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 template <typename TileDataDst, typename TileDataSrc>
-void TPairReduceSum_Impl(typename TileDataDst::TileDType dst, typename TileDataSrc::TileDType src, unsigned validRow,
-                         unsigned validCol)
+void TPairReduceSum_Impl(
+    typename TileDataDst::TileDType dst, typename TileDataSrc::TileDType src, unsigned validRow, unsigned validCol)
 {
     size_t elemNum = TileDataDst::Rows * TileDataDst::Cols;
     std::fill(dst, dst + elemNum, 0);
@@ -41,14 +41,16 @@ void TPairReduceSum_Impl(typename TileDataDst::TileDType dst, typename TileDataS
 }
 
 template <typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TPAIRREDUCESUM_IMPL(TileDataDst &dst, TileDataSrc &src)
+PTO_INTERNAL void TPAIRREDUCESUM_IMPL(TileDataDst& dst, TileDataSrc& src)
 {
-    static_assert(TileDataDst::isRowMajor && TileDataSrc::isRowMajor,
-                  "[TPAIRREDUCESUM] src and dst tile data should be row major!");
+    static_assert(
+        TileDataDst::isRowMajor && TileDataSrc::isRowMajor,
+        "[TPAIRREDUCESUM] src and dst tile data should be row major!");
     unsigned row = dst.GetValidRow();
     unsigned col = dst.GetValidCol();
-    assert(src.GetValidRow() == row && src.GetValidCol() == col &&
-           "[TPAIRREDUCESUM] src and dst tile data should have the same valid shape!");
+    assert(
+        src.GetValidRow() == row && src.GetValidCol() == col &&
+        "[TPAIRREDUCESUM] src and dst tile data should have the same valid shape!");
     TPairReduceSum_Impl<TileDataDst, TileDataSrc>(dst.data(), src.data(), row, col);
 }
 } // namespace pto

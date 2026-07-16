@@ -44,3 +44,5 @@ kernels/**/**/**/build/
 PROF*/
 .claude/
 .opencode/
+oat_reports/
+log/

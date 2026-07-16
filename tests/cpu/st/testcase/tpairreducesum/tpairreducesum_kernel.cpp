@@ -13,7 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int row, int col>
-__global__ AICORE void runTPAIRREDUCESUM(__gm__ T __out__ *out, __gm__ T __in__ *src)
+__global__ AICORE void runTPAIRREDUCESUM(__gm__ T __out__* out, __gm__ T __in__* src)
 {
     using Shape = pto::Shape<1, 1, 1, row, col>;
     using Stride = pto::Stride<1, 1, 1, col, 1>;
@@ -42,16 +42,16 @@ __global__ AICORE void runTPAIRREDUCESUM(__gm__ T __out__ *out, __gm__ T __in__ 
 }
 
 template <typename T, int row, int col>
-void LaunchTPAIRREDUCESUM(T *out, T *src, void *stream)
+void LaunchTPAIRREDUCESUM(T* out, T* src, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
-        runTPAIRREDUCESUM<half, row, col>((half *)(out), (half *)(src));
+        runTPAIRREDUCESUM<half, row, col>((half*)(out), (half*)(src));
     } else {
         runTPAIRREDUCESUM<T, row, col>(out, src);
     }
 }
 
-template void LaunchTPAIRREDUCESUM<float, 16, 64>(float *out, float *src, void *stream);
-template void LaunchTPAIRREDUCESUM<int32_t, 64, 8>(int32_t *out, int32_t *src, void *stream);
-template void LaunchTPAIRREDUCESUM<aclFloat16, 64, 64>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTPAIRREDUCESUM<int16_t, 20, 16>(int16_t *out, int16_t *src, void *stream);
+template void LaunchTPAIRREDUCESUM<float, 16, 64>(float* out, float* src, void* stream);
+template void LaunchTPAIRREDUCESUM<int32_t, 64, 8>(int32_t* out, int32_t* src, void* stream);
+template void LaunchTPAIRREDUCESUM<aclFloat16, 64, 64>(aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTPAIRREDUCESUM<int16_t, 20, 16>(int16_t* out, int16_t* src, void* stream);

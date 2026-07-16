@@ -37,12 +37,7 @@ def _missing_modules_for(python_exe: Path) -> list[str]:
         "raise SystemExit(1 if miss else 0)\n"
     )
     try:
-        proc = subprocess.run(
-            [str(python_exe), "-c", code],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
+        proc = subprocess.run([str(python_exe), "-c", code], check=False, capture_output=True, text=True)
     except OSError:
         return REQUIRED_MODULES[:]
     if proc.returncode == 0:
@@ -87,9 +82,7 @@ def main(argv: list[str] | None = None) -> int:
                 _pip_install_requirements(venv_python)
                 missing = _missing_modules_for(venv_python)
             if missing:
-                sys.stderr.write(
-                    "error: missing Python packages in venv: " + ", ".join(missing) + "\n"
-                )
+                sys.stderr.write("error: missing Python packages in venv: " + ", ".join(missing) + "\n")
                 sys.stderr.write(f"venv: {args.ensure_venv}\n")
                 sys.stderr.write(f"python: {venv_python}\n")
                 sys.stderr.write(f"requirements: {REQUIREMENTS_TXT}\n")
@@ -108,9 +101,7 @@ def main(argv: list[str] | None = None) -> int:
     sys.stderr.write("error: missing Python packages: " + ", ".join(missing) + "\n")
     sys.stderr.write(f"python: {sys.executable}\n")
     sys.stderr.write(f"install: python -m pip install -r {REQUIREMENTS_TXT.as_posix()}\n")
-    sys.stderr.write(
-        "tip: prefer a venv and point CMake at it via -DPython3_EXECUTABLE=<venv>/bin/python\n"
-    )
+    sys.stderr.write("tip: prefer a venv and point CMake at it via -DPython3_EXECUTABLE=<venv>/bin/python\n")
     return 1
 
 

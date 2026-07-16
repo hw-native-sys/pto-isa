@@ -21,11 +21,7 @@ CSV_PATH = SCRIPT_DIR / "formula_params.csv"
 OUT_PATH = SCRIPT_DIR / "formula_params_generated.hpp"
 EXPECTED_HEADER = ["op", "dtype", "cols", "slope", "bias"]
 
-DTYPE_MAP = {
-    "fp32": "FormulaParamDType::Fp32",
-    "fp16": "FormulaParamDType::Fp16",
-    "any": "FormulaParamDType::Any",
-}
+DTYPE_MAP = {"fp32": "FormulaParamDType::Fp32", "fp16": "FormulaParamDType::Fp16", "any": "FormulaParamDType::Any"}
 
 
 def _validate_csv_header(fieldnames: list[str] | None) -> None:
@@ -73,9 +69,9 @@ def _build_header_prefix(rows_count: int) -> list[str]:
         "/**",
         "Copyright (c) 2026 Huawei Technologies Co., Ltd.",
         "This program is free software, you can redistribute it and/or modify it under the terms and conditions of",
-        "CANN Open Software License Agreement Version 2.0 (the \"License\").",
+        'CANN Open Software License Agreement Version 2.0 (the "License").',
         "Please refer to the License for details. You may not use this file except in compliance with the License.",
-        "THIS SOFTWARE IS PROVIDED ON AN \"AS IS\" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,",
+        'THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,',
         "INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.",
         "See LICENSE in the root of the software repository for the full text of the License.",
         "*/",
@@ -120,21 +116,11 @@ def _append_table_entries(lines: list[str], rows: list[tuple[str, str, str, str,
         cols_expr = "kFormulaAnyCols" if cols == "*" else cols
         slope_expr = _fmt_float(slope)
         bias_expr = _fmt_float(bias)
-        lines.append(
-            f'    FormulaParamEntry{{"{op}", {DTYPE_MAP[dtype]}, {cols_expr}, {slope_expr}, {bias_expr}}},'
-        )
+        lines.append(f'    FormulaParamEntry{{"{op}", {DTYPE_MAP[dtype]}, {cols_expr}, {slope_expr}, {bias_expr}}},')
 
 
 def _build_header_suffix() -> list[str]:
-    return [
-        "}};",
-        "// NOLINTEND(readability-magic-numbers)",
-        "",
-        "} // namespace pto::mocker::fit",
-        "",
-        "#endif",
-        "",
-    ]
+    return ["}};", "// NOLINTEND(readability-magic-numbers)", "", "} // namespace pto::mocker::fit", "", "#endif", ""]
 
 
 def _render_generated_header(rows: list[tuple[str, str, str, str, str]]) -> str:

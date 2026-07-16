@@ -96,6 +96,7 @@ class MxMatmulParams:
         else:
             self.bias_type = ctype
 
+
 if __name__ == "__main__":
     case_params_list = [MxMatmulParams(fp4_e2m1x2, fp4_e2m1x2, bfloat16, 2040, 8192, 8100, False)]
     gen_golden_data(case_params_list[0])

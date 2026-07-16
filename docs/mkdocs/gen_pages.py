@@ -55,59 +55,7 @@ SKIP_PREFIXES = (
 
 SKIP_CONTAINS = ("/__pycache__/", "/CMakeFiles/")
 
-SKIP_EXACT = {
-    "AGENTS.md",
-    "CONTRIBUTING.md",
-    "CONTRIBUTING_zh.md",
-    "ReleaseNote.md",
-    "ReleaseNote_zh.md",
-    "SECURITY.md",
-    "SECURITY_zh.md",
-    "docs/menu_ops_development.md",
-}
-
 ASSET_EXTS = {".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bnf"}
-
-PUBLISHED_MD_PREFIXES = ("docs/isa/",)
-
-PUBLISHED_MD_EXACT = {
-    "docs/getting-started.md",
-    "docs/getting-started_zh.md",
-}
-
-PUBLISHED_ASSET_PREFIXES = ("docs/figures/",)
-
-HANDWRITTEN_MKDOCS_MD = {"index.md", "index_zh.md"}
-
-GENERATED_MKDOCS_ROOTS = (
-    ".claude",
-    ".codex",
-    "agents",
-    "assembly",
-    "cmake",
-    "demos",
-    "docs",
-    "include",
-    "kernels",
-    "manual",
-    "scripts",
-    "tests",
-)
-
-GENERATED_MKDOCS_FILES = (
-    "AGENTS.md",
-    "CONTRIBUTING.md",
-    "CONTRIBUTING_zh.md",
-    "README.md",
-    "README_zh.md",
-    "ReleaseNote.md",
-    "ReleaseNote_zh.md",
-    "SECURITY.md",
-    "SECURITY_zh.md",
-    "all-pages.md",
-    "all-pages_zh.md",
-    "lang-map.json",
-)
 
 # Directory names whose README is the canonical index page.
 # Used by _en_url_to_zh_url to map e.g. /docs/isa/ -> /docs/isa/README_zh/.
@@ -139,13 +87,6 @@ README_DIRS = {
     "npu",
     "pto",
     "comm",
-    "introduction",
-    "programming-model",
-    "machine-model",
-    "memory-model",
-    "state-and-types",
-    "syntax-and-operands",
-    "instruction-families",
 }
 
 
@@ -173,14 +114,6 @@ def _should_skip(rel_posix: str) -> bool:
     if rel_posix.endswith((".pyc",)):
         return True
     return False
-
-
-def _is_published_md(rel_posix: str) -> bool:
-    return rel_posix in PUBLISHED_MD_EXACT or rel_posix.startswith(PUBLISHED_MD_PREFIXES)
-
-
-def _is_published_asset(rel_posix: str) -> bool:
-    return rel_posix.startswith(PUBLISHED_ASSET_PREFIXES)
 
 
 ABS_LINK_RE = re.compile(r"\]\(/((?!http)[^)]+)\)")
@@ -227,7 +160,7 @@ def _rewrite_rel_imgs_for_build(text: str, src_rel: str) -> str:
 # target.  The prefix must capture *all* leading "../" segments so the depth can
 # be counted correctly; matching only the first one mis-counts deep links such as
 # "../../../../docs/isa/README_zh.md" (4 levels) as a single level.
-REL_LINK_RE = re.compile(r'\]\(((?:\.\./)+)([^)]+)\)')
+REL_LINK_RE = re.compile(r"\]\(((?:\.\./)+)([^)]+)\)")
 
 # Matches repo-relative links into docs/mkdocs/src/.
 # These appear in repo-level docs so they resolve correctly during static browsing,
@@ -707,55 +640,128 @@ NAV_PAGES_EN = [
     "docs/isa/SETFMATRIX.md",
     "docs/isa/SET_IMG2COL_RPT.md",
     "docs/isa/SET_IMG2COL_PADDING.md",
-    "docs/isa/TADD.md", "docs/isa/TABS.md", "docs/isa/TAND.md",
-    "docs/isa/TOR.md", "docs/isa/TSUB.md", "docs/isa/TMUL.md",
-    "docs/isa/TMIN.md", "docs/isa/TMAX.md", "docs/isa/TCMP.md",
-    "docs/isa/TDIV.md", "docs/isa/TSHL.md", "docs/isa/TSHR.md",
-    "docs/isa/TXOR.md", "docs/isa/TLOG.md", "docs/isa/TRECIP.md",
-    "docs/isa/TPRELU.md", "docs/isa/TADDC.md", "docs/isa/TSUBC.md",
-    "docs/isa/TCVT.md", "docs/isa/TSEL.md", "docs/isa/TRSQRT.md",
-    "docs/isa/TSQRT.md", "docs/isa/TEXP.md", "docs/isa/TNOT.md",
-    "docs/isa/TRELU.md", "docs/isa/TNEG.md", "docs/isa/TREM.md",
+    "docs/isa/TADD.md",
+    "docs/isa/TABS.md",
+    "docs/isa/TAND.md",
+    "docs/isa/TOR.md",
+    "docs/isa/TSUB.md",
+    "docs/isa/TMUL.md",
+    "docs/isa/TMIN.md",
+    "docs/isa/TMAX.md",
+    "docs/isa/TCMP.md",
+    "docs/isa/TDIV.md",
+    "docs/isa/TSHL.md",
+    "docs/isa/TSHR.md",
+    "docs/isa/TXOR.md",
+    "docs/isa/TLOG.md",
+    "docs/isa/TRECIP.md",
+    "docs/isa/TPRELU.md",
+    "docs/isa/TADDC.md",
+    "docs/isa/TSUBC.md",
+    "docs/isa/TCVT.md",
+    "docs/isa/TSEL.md",
+    "docs/isa/TRSQRT.md",
+    "docs/isa/TSQRT.md",
+    "docs/isa/TEXP.md",
+    "docs/isa/TNOT.md",
+    "docs/isa/TRELU.md",
+    "docs/isa/TNEG.md",
+    "docs/isa/TREM.md",
     "docs/isa/TFMOD.md",
-    "docs/isa/TEXPANDS.md", "docs/isa/TCMPS.md", "docs/isa/TSELS.md",
-    "docs/isa/TMINS.md", "docs/isa/TADDS.md", "docs/isa/TSUBS.md",
-    "docs/isa/TDIVS.md", "docs/isa/TMULS.md", "docs/isa/TFMODS.md",
-    "docs/isa/TREMS.md", "docs/isa/TMAXS.md", "docs/isa/TANDS.md",
-    "docs/isa/TORS.md", "docs/isa/TSHLS.md", "docs/isa/TSHRS.md",
-    "docs/isa/TXORS.md", "docs/isa/TLRELU.md", "docs/isa/TADDSC.md",
+    "docs/isa/TEXPANDS.md",
+    "docs/isa/TCMPS.md",
+    "docs/isa/TSELS.md",
+    "docs/isa/TMINS.md",
+    "docs/isa/TADDS.md",
+    "docs/isa/TSUBS.md",
+    "docs/isa/TDIVS.md",
+    "docs/isa/TMULS.md",
+    "docs/isa/TFMODS.md",
+    "docs/isa/TREMS.md",
+    "docs/isa/TMAXS.md",
+    "docs/isa/TANDS.md",
+    "docs/isa/TORS.md",
+    "docs/isa/TSHLS.md",
+    "docs/isa/TSHRS.md",
+    "docs/isa/TXORS.md",
+    "docs/isa/TLRELU.md",
+    "docs/isa/TADDSC.md",
     "docs/isa/TSUBSC.md",
-    "docs/isa/TROWSUM.md", "docs/isa/TROWPROD.md", "docs/isa/TCOLSUM.md",
-    "docs/isa/TCOLPROD.md", "docs/isa/TCOLMAX.md", "docs/isa/TROWMAX.md",
-    "docs/isa/TROWMIN.md", "docs/isa/TCOLMIN.md", "docs/isa/TROWEXPAND.md",
-    "docs/isa/TROWEXPANDDIV.md", "docs/isa/TROWEXPANDMUL.md",
-    "docs/isa/TROWEXPANDSUB.md", "docs/isa/TROWEXPANDADD.md",
-    "docs/isa/TROWEXPANDMAX.md", "docs/isa/TROWEXPANDMIN.md",
-    "docs/isa/TROWEXPANDEXPDIF.md", "docs/isa/TCOLEXPAND.md",
-    "docs/isa/TCOLEXPANDDIV.md", "docs/isa/TCOLEXPANDMUL.md",
-    "docs/isa/TCOLEXPANDADD.md", "docs/isa/TCOLEXPANDMAX.md",
-    "docs/isa/TCOLEXPANDMIN.md", "docs/isa/TCOLEXPANDSUB.md",
+    "docs/isa/TROWSUM.md",
+    "docs/isa/TROWPROD.md",
+    "docs/isa/TCOLSUM.md",
+    "docs/isa/TCOLPROD.md",
+    "docs/isa/TCOLMAX.md",
+    "docs/isa/TROWMAX.md",
+    "docs/isa/TROWMIN.md",
+    "docs/isa/TCOLMIN.md",
+    "docs/isa/TROWEXPAND.md",
+    "docs/isa/TROWEXPANDDIV.md",
+    "docs/isa/TROWEXPANDMUL.md",
+    "docs/isa/TROWEXPANDSUB.md",
+    "docs/isa/TROWEXPANDADD.md",
+    "docs/isa/TROWEXPANDMAX.md",
+    "docs/isa/TROWEXPANDMIN.md",
+    "docs/isa/TROWEXPANDEXPDIF.md",
+    "docs/isa/TCOLEXPAND.md",
+    "docs/isa/TCOLEXPANDDIV.md",
+    "docs/isa/TCOLEXPANDMUL.md",
+    "docs/isa/TCOLEXPANDADD.md",
+    "docs/isa/TCOLEXPANDMAX.md",
+    "docs/isa/TCOLEXPANDMIN.md",
+    "docs/isa/TCOLEXPANDSUB.md",
     "docs/isa/TCOLEXPANDEXPDIF.md",
-    "docs/isa/TLOAD.md", "docs/isa/TPREFETCH.md", "docs/isa/TSTORE.md",
-    "docs/isa/TSTORE_FP.md", "docs/isa/MGATHER.md", "docs/isa/MSCATTER.md",
-    "docs/isa/TMATMUL.md", "docs/isa/TMATMUL_ACC.md", "docs/isa/TMATMUL_BIAS.md",
-    "docs/isa/TMATMUL_MX.md", "docs/isa/TGEMV.md", "docs/isa/TGEMV_ACC.md",
-    "docs/isa/TGEMV_BIAS.md", "docs/isa/TGEMV_MX.md",
-    "docs/isa/TMOV.md", "docs/isa/TMOV_FP.md", "docs/isa/TEXTRACT.md",
-    "docs/isa/TEXTRACT_FP.md", "docs/isa/TINSERT.md", "docs/isa/TINSERT_FP.md",
-    "docs/isa/TFILLPAD.md", "docs/isa/TFILLPAD_INPLACE.md",
-    "docs/isa/TFILLPAD_EXPAND.md", "docs/isa/TRESHAPE.md",
-    "docs/isa/TTRANS.md", "docs/isa/TIMG2COL.md",
-    "docs/isa/TGATHER.md", "docs/isa/TGATHERB.md", "docs/isa/TSCATTER.md",
-    "docs/isa/TCI.md", "docs/isa/TTRI.md", "docs/isa/TPARTADD.md",
-    "docs/isa/TPARTMUL.md", "docs/isa/TPARTMAX.md", "docs/isa/TPARTMIN.md",
-    "docs/isa/TSORT32.md", "docs/isa/TMRGSORT.md", "docs/isa/TQUANT.md",
+    "docs/isa/TLOAD.md",
+    "docs/isa/TPREFETCH.md",
+    "docs/isa/TSTORE.md",
+    "docs/isa/TSTORE_FP.md",
+    "docs/isa/MGATHER.md",
+    "docs/isa/MSCATTER.md",
+    "docs/isa/TMATMUL.md",
+    "docs/isa/TMATMUL_ACC.md",
+    "docs/isa/TMATMUL_BIAS.md",
+    "docs/isa/TMATMUL_MX.md",
+    "docs/isa/TGEMV.md",
+    "docs/isa/TGEMV_ACC.md",
+    "docs/isa/TGEMV_BIAS.md",
+    "docs/isa/TGEMV_MX.md",
+    "docs/isa/TMOV.md",
+    "docs/isa/TMOV_FP.md",
+    "docs/isa/TEXTRACT.md",
+    "docs/isa/TEXTRACT_FP.md",
+    "docs/isa/TINSERT.md",
+    "docs/isa/TINSERT_FP.md",
+    "docs/isa/TFILLPAD.md",
+    "docs/isa/TFILLPAD_INPLACE.md",
+    "docs/isa/TFILLPAD_EXPAND.md",
+    "docs/isa/TRESHAPE.md",
+    "docs/isa/TTRANS.md",
+    "docs/isa/TIMG2COL.md",
+    "docs/isa/TGATHER.md",
+    "docs/isa/TGATHERB.md",
+    "docs/isa/TSCATTER.md",
+    "docs/isa/TCI.md",
+    "docs/isa/TTRI.md",
+    "docs/isa/TPARTADD.md",
+    "docs/isa/TPARTMUL.md",
+    "docs/isa/TPARTMAX.md",
+    "docs/isa/TPARTMIN.md",
+    "docs/isa/TSORT32.md",
+    "docs/isa/TMRGSORT.md",
+    "docs/isa/TQUANT.md",
     "docs/isa/TPRINT.md",
     "docs/isa/comm/README.md",
-    "docs/isa/comm/TPUT.md", "docs/isa/comm/TGET.md",
-    "docs/isa/comm/TPUT_ASYNC.md", "docs/isa/comm/TGET_ASYNC.md",
-    "docs/isa/comm/TNOTIFY.md", "docs/isa/comm/TWAIT.md", "docs/isa/comm/TTEST.md",
-    "docs/isa/comm/TGATHER.md", "docs/isa/comm/TSCATTER.md",
-    "docs/isa/comm/TREDUCE.md", "docs/isa/comm/TBROADCAST.md",
+    "docs/isa/comm/TPUT.md",
+    "docs/isa/comm/TGET.md",
+    "docs/isa/comm/TPUT_ASYNC.md",
+    "docs/isa/comm/TGET_ASYNC.md",
+    "docs/isa/comm/TNOTIFY.md",
+    "docs/isa/comm/TWAIT.md",
+    "docs/isa/comm/TTEST.md",
+    "docs/isa/comm/TGATHER.md",
+    "docs/isa/comm/TSCATTER.md",
+    "docs/isa/comm/TREDUCE.md",
+    "docs/isa/comm/TBROADCAST.md",
     "docs/reference/pto-intrinsics-header.md",
     "docs/README.md",
     "docs/reference/pto-isa-writing-playbook.md",
@@ -865,13 +871,16 @@ def _extract_first_heading(md_path: Path) -> str:
     return md_path.stem
 
 
-def _zh_md_path(rel: str) -> str:
-    p = Path(rel)
-    if p.name == "README.md":
-        return p.with_name("README_zh.md").as_posix()
-    if p.name == "index.md":
-        return p.with_name("index_zh.md").as_posix()
-    return p.with_name(f"{p.stem}_zh.md").as_posix()
+@dataclass
+class IsaReferenceIndexConfig:
+    """Configuration for generating an ISA reference index page."""
+
+    out_path: str
+    isa_pages: list[tuple[str, str]]
+    heading: str
+    preamble: str
+    section_heading: str
+    empty_msg: str
 
 
 def _rel_md_link(from_rel: str, to_rel: str) -> str:
@@ -880,18 +889,10 @@ def _rel_md_link(from_rel: str, to_rel: str) -> str:
     return posixpath.relpath(to_rel, base)
 
 
-def _existing_root_zh_doc_for(rel: str) -> str | None:
-    if not rel.startswith("docs/isa/"):
-        return None
-
-    stem = Path(rel).stem
-    root_name = stem.replace("-", "_").upper() + "_zh.md"
-
-    candidates = [f"docs/isa/{root_name}", f"docs/isa/comm/{root_name}"]
-    for candidate in candidates:
-        if (REPO_ROOT / candidate).exists():
-            return candidate
-    return None
+def _format_section_entry(rel: str, top: str) -> str:
+    """Return a markdown list entry for a single page in a section."""
+    label = rel if top == "(root)" else rel[len(top) + 1 :]
+    return f"- [{label}]({rel})\n"
 
 
 def _zh_context_links_for(rel: str) -> list[tuple[str, str]]:
@@ -921,50 +922,17 @@ def _zh_context_links_for(rel: str) -> list[tuple[str, str]]:
     return links
 
 
-def _write_missing_zh_wrapper(en_rel: str, zh_rel: str) -> None:
-    title = _extract_first_heading(REPO_ROOT / en_rel)
-    with mkdocs_gen_files.open(zh_rel, "w") as f:
-        f.write(f"# {title}\n\n")
-        f.write("自动生成的中文入口页，用于保证中文导航保持在中文路径下。\n\n")
-        f.write("## 当前状态\n\n")
-        f.write(
-            f"- [对应英文页面]({_rel_md_link(zh_rel, en_rel)})\n"
-            f"- [中文手册入口]({_rel_md_link(zh_rel, 'docs/PTO-Virtual-ISA-Manual_zh.md')})\n"
-        )
-
-        existing_zh = _existing_root_zh_doc_for(en_rel)
-        if existing_zh:
-            f.write(f"- [现有中文指令说明]({_rel_md_link(zh_rel, existing_zh)})\n")
-
-        extra_links = _zh_context_links_for(en_rel)
-        if extra_links:
-            for label, target in extra_links:
-                f.write(f"- [{label}]({_rel_md_link(zh_rel, target)})\n")
-
-        f.write("\n## 说明\n\n")
-        f.write(
-            "当前 PTO ISA 的新英文手册结构已经展开，但对应的中文正文尚未完全按新结构补齐。"
-            "在中文导航中点击本页时，你仍然停留在中文路径下；若需要完整细节，请使用上面的英文页面或已有中文参考页。\n"
-        )
-
-
-def _generate_missing_zh_wrappers(copied_md: list[str]) -> list[str]:
-    generated: list[str] = []
-    existing = set(copied_md)
-
-    for en_rel in NAV_PAGES_EN:
-        if en_rel.endswith("_zh.md"):
-            continue
-        zh_rel = _zh_md_path(en_rel)
-        if zh_rel in existing:
-            continue
-        if not (REPO_ROOT / en_rel).exists():
-            continue
-        _write_missing_zh_wrapper(en_rel, zh_rel)
-        generated.append(zh_rel)
-        existing.add(zh_rel)
-
-    return generated
+def _write_all_pages_index(
+    out_path: str, sections: dict[str, list[str]], heading: str, preamble: str, empty_msg: str
+) -> None:
+    """Write a generated all-pages index to *out_path*."""
+    with mkdocs_gen_files.open(out_path, "w") as f:
+        f.write(f"{heading}\n\n")
+        f.write(preamble)
+        if not sections:
+            f.write(empty_msg)
+        else:
+            _write_sections(f, sections)
 
 
 # ---------------------------------------------------------------------------
@@ -972,7 +940,7 @@ def _generate_missing_zh_wrappers(copied_md: list[str]) -> list[str]:
 # ---------------------------------------------------------------------------
 
 # Matches a markdown link target: group1 "](", group2 the target, group3 ")".
-_MD_LINK_TARGET_RE = re.compile(r'(\]\()([^)]+)(\))')
+_MD_LINK_TARGET_RE = re.compile(r"(\]\()([^)]+)(\))")
 
 
 def _rewrite_root_readme_links(text: str, rel: str) -> str:
@@ -993,7 +961,7 @@ def _rewrite_root_readme_links(text: str, rel: str) -> str:
     def repl(m: "re.Match[str]") -> str:
         target = m.group(2)
         url = target.split("#", 1)[0]
-        anchor = target[len(url):]
+        anchor = target[len(url) :]
         if not url or url.startswith(("http://", "https://", "mailto:")):
             return m.group(0)
         if url.startswith("/"):
@@ -1068,6 +1036,60 @@ def main() -> None:
     # sidebar stays on Chinese URLs instead of falling back to English paths.
     copied_md.extend(_generate_missing_zh_wrappers(copied_md))
 
+    if isa_dir.exists():
+        for p in sorted(isa_dir.glob("*.md")):
+            if p.name in ("README.md", "README_zh.md", "conventions.md", "conventions_zh.md"):
+                continue
+            stem = p.stem
+            title = _extract_first_heading(p)
+            if stem.endswith("_zh"):
+                isa_pages_zh.append((stem, title))
+            else:
+                isa_pages_en.append((stem, title))
+        # Also include comm sub-directory instructions
+        comm_dir = isa_dir / "comm"
+        if comm_dir.exists():
+            for p in sorted(comm_dir.glob("*.md")):
+                if p.name in ("README.md", "README_zh.md"):
+                    continue
+                stem = p.stem
+                title = _extract_first_heading(p)
+                if stem.endswith("_zh"):
+                    isa_pages_zh.append(("comm/" + stem, title))
+                else:
+                    isa_pages_en.append(("comm/" + stem, title))
+
+    _write_isa_reference_index(
+        IsaReferenceIndexConfig(
+            out_path="manual/isa-reference.md",
+            isa_pages=isa_pages_en,
+            heading="# Instruction Reference Pages",
+            preamble=(
+                "This page is generated at build time.\n\n"
+                "- Instruction index: `docs/isa/README.md`\n"
+                "- ISA conventions: `docs/isa/conventions.md`\n\n"
+            ),
+            section_heading="## All instructions",
+            empty_msg="No English instruction pages were found under `docs/isa/`.\n",
+        )
+    )
+
+    _write_isa_reference_index(
+        IsaReferenceIndexConfig(
+            out_path="manual/isa-reference_zh.md",
+            isa_pages=isa_pages_zh,
+            heading="# 指令参考页面（全量）",
+            preamble=(
+                "本页在构建站点时自动生成。\n\n"
+                "- 指令索引：`docs/isa/README_zh.md`\n"
+                "- ISA 通用约定：`docs/isa/conventions_zh.md`\n\n"
+            ),
+            section_heading="## 全部指令",
+            empty_msg="未在 `docs/isa/` 下发现中文指令页面。\n",
+        )
+    )
+
+    # Generate a simple index page that links to all mirrored markdown.
     all_md = sorted(set(copied_md))
     published_md = [rel for rel in all_md if _is_published_md(rel)]
 

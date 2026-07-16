@@ -27,10 +27,7 @@ import matplotlib.pyplot as plt
 BYTES = [4096, 16384, 65536, 262144, 1048576, 4194304]
 SIZE_LABELS = ["4KB", "16KB", "64KB", "256KB", "1MB", "4MB"]
 
-HOST_BW = {
-    "TGET": [0.25, 0.89, 1.98, 3.28, 3.81, 4.02],
-    "TGET_ASYNC": [0.22, 1.03, 3.24, 7.35, 11.88, 13.92],
-}
+HOST_BW = {"TGET": [0.25, 0.89, 1.98, 3.28, 3.81, 4.02], "TGET_ASYNC": [0.22, 1.03, 3.24, 7.35, 11.88, 13.92]}
 
 DEVICE_AVG_CYCLES = {
     "TGET": [50.54, 200.72, 786.95, 3363.55, 12776.61, 53561.08],
@@ -53,15 +50,7 @@ def plot_subplot(ax, title, series):
     colors = {"TGET": "#1f77b4", "TGET_ASYNC": "#d62728"}
     markers = {"TGET": "o", "TGET_ASYNC": "s"}
     for name, values in series.items():
-        ax.plot(
-            SIZE_LABELS,
-            values,
-            label=name,
-            color=colors[name],
-            marker=markers[name],
-            linewidth=2.2,
-            markersize=7,
-        )
+        ax.plot(SIZE_LABELS, values, label=name, color=colors[name], marker=markers[name], linewidth=2.2, markersize=7)
     ax.set_title(title)
     ax.set_xlabel("Transfer Size")
     ax.set_ylabel("Bandwidth (GB/s)")
