@@ -149,9 +149,15 @@ def render_ptoisa(entries: List[Dict[str, object]]) -> str:
     lines.append("|---|---|---|")
     lines.append("| Overview | [`docs/README.md`](README.md) | PTO ISA guide entry point and navigation. |")
     lines.append("| Overview | [`docs/PTOISA.md`](PTOISA.md) | This page (overview + full instruction index). |")
-    lines.append("| ISA reference | [`docs/isa/README.md`](isa/README.md) | Per-instruction reference directory index. |")
-    lines.append("| ISA reference | [`docs/isa/conventions.md`](isa/conventions.md) | Shared notation, operands, events, and modifiers. |")
-    lines.append("| Source of truth | [`include/pto/common/pto_instr.hpp`](reference/pto-intrinsics-header.md) | C++ intrinsic API (authoritative). |")
+    lines.append(
+        "| ISA reference | [`docs/isa/README.md`](isa/README.md) | Per-instruction reference directory index. |"
+    )
+    lines.append(
+        "| ISA reference | [`docs/isa/conventions.md`](isa/conventions.md) | Shared notation, operands, events, and modifiers. |"
+    )
+    lines.append(
+        "| Source of truth | [`include/pto/common/pto_instr.hpp`](reference/pto-intrinsics-header.md) | C++ intrinsic API (authoritative). |"
+    )
     lines.append("")
     lines.append("## Instruction Index (All PTO Instructions)")
     lines.append("")
@@ -179,8 +185,12 @@ def render_ptoisa_zh(entries: List[Dict[str, object]]) -> str:
     lines.append("| 概述 | [`docs/README_zh.md`](README_zh.md) | PTO ISA 指南入口与导航。 |")
     lines.append("| 概述 | [`docs/PTOISA_zh.md`](PTOISA_zh.md) | 本页（概述 + 全量指令索引）。 |")
     lines.append("| ISA 参考 | [`docs/isa/README_zh.md`](isa/README_zh.md) | 每条指令参考目录。 |")
-    lines.append("| ISA 参考 | [`docs/isa/conventions_zh.md`](isa/conventions_zh.md) | 通用符号、操作数、事件与修饰符。 |")
-    lines.append("| 权威源 | [`include/pto/common/pto_instr.hpp`](reference/pto-intrinsics-header_zh.md) | C++ intrinsic API（权威来源）。 |")
+    lines.append(
+        "| ISA 参考 | [`docs/isa/conventions_zh.md`](isa/conventions_zh.md) | 通用符号、操作数、事件与修饰符。 |"
+    )
+    lines.append(
+        "| 权威源 | [`include/pto/common/pto_instr.hpp`](reference/pto-intrinsics-header_zh.md) | C++ intrinsic API（权威来源）。 |"
+    )
     lines.append("")
     lines.append("## 指令索引（全部 PTO 指令）")
     lines.append("")

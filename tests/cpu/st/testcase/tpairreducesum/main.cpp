@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class TPAIRREDUCESUMTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -33,7 +31,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int row, int col>
-void LaunchTPAIRREDUCESUM(T *out, T *src0, void *stream);
+void LaunchTPAIRREDUCESUM(T* out, T* src0, void* stream);
 
 template <typename T, int row, int col>
 void test_TPAIRREDUCESUM()
@@ -48,11 +46,11 @@ void test_TPAIRREDUCESUM()
     T *dstHost, *srcHost;
     T *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&srcHost), fileSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&srcHost), fileSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input.bin", fileSize, srcHost, fileSize));
 
@@ -84,19 +82,7 @@ void test_TPAIRREDUCESUM()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TPAIRREDUCESUMTest, case_1)
-{
-    test_TPAIRREDUCESUM<float, 16, 64>();
-}
-TEST_F(TPAIRREDUCESUMTest, case_2)
-{
-    test_TPAIRREDUCESUM<int32_t, 64, 8>();
-}
-TEST_F(TPAIRREDUCESUMTest, case_3)
-{
-    test_TPAIRREDUCESUM<aclFloat16, 64, 64>();
-}
-TEST_F(TPAIRREDUCESUMTest, case_4)
-{
-    test_TPAIRREDUCESUM<int16_t, 20, 16>();
-}
+TEST_F(TPAIRREDUCESUMTest, case_1) { test_TPAIRREDUCESUM<float, 16, 64>(); }
+TEST_F(TPAIRREDUCESUMTest, case_2) { test_TPAIRREDUCESUM<int32_t, 64, 8>(); }
+TEST_F(TPAIRREDUCESUMTest, case_3) { test_TPAIRREDUCESUM<aclFloat16, 64, 64>(); }
+TEST_F(TPAIRREDUCESUMTest, case_4) { test_TPAIRREDUCESUM<int16_t, 20, 16>(); }

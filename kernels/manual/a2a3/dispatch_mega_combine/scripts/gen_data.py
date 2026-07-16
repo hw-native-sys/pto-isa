@@ -385,7 +385,7 @@ def compute_outputs_naive_and_workload(
     for dst_rank in range(args.world_size):
         for local_expert in range(args.experts):
             for src_rank, token_idx, topk_idx in route_groups[dst_rank][local_expert]:
-                x_token = data.xs[src_rank][token_idx: token_idx + 1, :]
+                x_token = data.xs[src_rank][token_idx : token_idx + 1, :]
                 qx, per_token_scale1 = quantize_input_rows_to_int8(x_token)
                 product1 = qx.astype(np.int32) @ data.weight1_nd[dst_rank][local_expert].astype(np.int32)
                 gm_c = fp32_to_fp16_value(
@@ -459,7 +459,7 @@ def run_expert_batches(ctx: BatchGoldenContext) -> None:
         for local_expert in range(ctx.args.experts):
             routes = ctx.route_groups[dst_rank][local_expert]
             for start in range(0, len(routes), ctx.chunk_rows):
-                chunk = routes[start: start + ctx.chunk_rows]
+                chunk = routes[start : start + ctx.chunk_rows]
                 if chunk:
                     run_batch_chunk(ctx, dst_rank, local_expert, chunk)
 

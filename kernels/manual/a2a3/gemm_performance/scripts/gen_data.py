@@ -13,6 +13,7 @@
 import os
 
 import numpy as np
+
 np.random.seed(19)
 
 
@@ -25,7 +26,7 @@ def gen_golden_data(param):
 
     x1_gm = np.random.uniform(-5, 5, [m, k]).astype(src_type)
     x2_gm = np.random.uniform(-5, 5, [k, n]).astype(src_type)
-    bias_gm = np.random.uniform(-10, 10, [n, ]).astype(bias_type)
+    bias_gm = np.random.uniform(-10, 10, [n]).astype(bias_type)
 
     if is_bias:
         golden = np.matmul(x1_gm.astype(dst_type), x2_gm.astype(dst_type)).astype(dst_type) + bias_gm.astype(dst_type)
@@ -54,13 +55,12 @@ class GemmParams:
         self.k = k
         self.n = n
         self.is_bias = is_bias
-        if (bias_type):
+        if bias_type:
             self.bias_type = bias_type
         else:
             self.bias_type = ctype
 
+
 if __name__ == "__main__":
-    case_params_list = [
-        GemmParams(np.float16, np.float16, np.float32, 6144, 6144, 6144, False, np.float32),
-    ]
+    case_params_list = [GemmParams(np.float16, np.float16, np.float32, 6144, 6144, 6144, False, np.float32)]
     gen_golden_data(case_params_list[0])

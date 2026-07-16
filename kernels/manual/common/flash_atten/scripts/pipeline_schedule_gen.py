@@ -38,6 +38,7 @@ from typing import List, Tuple
 import argparse
 import math
 
+
 @dataclass
 class Stage:
     name: str
@@ -47,6 +48,7 @@ class Stage:
     def total(self, io_overhead: int) -> int:
         # Model TLOAD + COMPUTE + TSTORE, each IO side costs io_overhead; compute in between
         return self.cycles + 2 * io_overhead
+
 
 @dataclass
 class Task:
@@ -146,13 +148,33 @@ def schedule_pipeline(
     for t in range(num_tiles):
         # QK scheduling (cube: load/comp/store)
         qk_done, cube_comp_free = schedule_stage(
-            t, qk, 0, io_load_overhead, io_store_overhead, cube_comp_free, io_load_free, io_store_free, pending_comp, tasks, True
+            t,
+            qk,
+            0,
+            io_load_overhead,
+            io_store_overhead,
+            cube_comp_free,
+            io_load_free,
+            io_store_free,
+            pending_comp,
+            tasks,
+            True,
         )
 
         # P scheduling (depends on qk(t) done; vector load/comp/store)
         p_start_dep = qk_done
         p_done_t, vec_comp_free = schedule_stage(
-            t, p, p_start_dep, io_load_overhead, io_store_overhead, vec_comp_free, io_load_free, io_store_free, pending_comp, tasks, True
+            t,
+            p,
+            p_start_dep,
+            io_load_overhead,
+            io_store_overhead,
+            vec_comp_free,
+            io_load_free,
+            io_store_free,
+            pending_comp,
+            tasks,
+            True,
         )
         p_done[t] = p_done_t
 
@@ -164,13 +186,32 @@ def schedule_pipeline(
             tile_idx = pv_queue.pop(0)
             pv_start_dep = p_done[tile_idx]
             pv_done, cube_comp_free = schedule_stage(
-                tile_idx, pv, pv_start_dep, io_load_overhead, io_store_overhead, cube_comp_free, io_load_free, io_store_free, pending_comp, tasks, True
+                tile_idx,
+                pv,
+                pv_start_dep,
+                io_load_overhead,
+                io_store_overhead,
+                cube_comp_free,
+                io_load_free,
+                io_store_free,
+                pending_comp,
+                tasks,
+                True,
             )
 
             gu_start_dep = pv_done
             _, vec_comp_free = schedule_stage(
-                tile_idx, gu, gu_start_dep, io_load_overhead, io_store_overhead, vec_comp_free, io_load_free, io_store_free, pending_comp,
-                tasks, tile_idx == num_tiles - 1
+                tile_idx,
+                gu,
+                gu_start_dep,
+                io_load_overhead,
+                io_store_overhead,
+                vec_comp_free,
+                io_load_free,
+                io_store_free,
+                pending_comp,
+                tasks,
+                tile_idx == num_tiles - 1,
             )
 
     # Flush any remaining PV/GU after all qk/p issued
@@ -178,13 +219,32 @@ def schedule_pipeline(
         tile_idx = pv_queue.pop(0)
         pv_start_dep = p_done[tile_idx]
         pv_done, cube_comp_free = schedule_stage(
-            tile_idx, pv, pv_start_dep, io_load_overhead, io_store_overhead, cube_comp_free, io_load_free, io_store_free, pending_comp, tasks, True
+            tile_idx,
+            pv,
+            pv_start_dep,
+            io_load_overhead,
+            io_store_overhead,
+            cube_comp_free,
+            io_load_free,
+            io_store_free,
+            pending_comp,
+            tasks,
+            True,
         )
 
         gu_start_dep = pv_done
         _, vec_comp_free = schedule_stage(
-            tile_idx, gu, gu_start_dep, io_load_overhead, io_store_overhead, vec_comp_free, io_load_free, io_store_free, pending_comp,
-            tasks, tile_idx == num_tiles - 1
+            tile_idx,
+            gu,
+            gu_start_dep,
+            io_load_overhead,
+            io_store_overhead,
+            vec_comp_free,
+            io_load_free,
+            io_store_free,
+            pending_comp,
+            tasks,
+            tile_idx == num_tiles - 1,
         )
 
     return tasks
@@ -239,34 +299,42 @@ def to_svg(tasks: List[Task], slot_width: int, output: str):
 
     svg_parts: List[str] = []
     svg_parts.append('<?xml version="1.0" encoding="UTF-8"?>')
-    svg_parts.append(f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">')
+    svg_parts.append(
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">'
+    )
     svg_parts.append(f'  <rect width="{width}" height="{height}" fill="#fff" />')
     svg_parts.append(
         "  <defs>\n"
-        "    <marker id=\"arrowhead\" markerWidth=\"10\" markerHeight=\"7\" refX=\"10\" refY=\"3.5\" orient=\"auto\">\n"
-        "      <polygon points=\"0 0 10 3.5 0 7\" fill=\"#333\" />\n"
+        '    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">\n'
+        '      <polygon points="0 0 10 3.5 0 7" fill="#333" />\n'
         "    </marker>\n"
-        "    <marker id=\"arrowhead-intra\" markerWidth=\"10\" markerHeight=\"7\" refX=\"10\" refY=\"3.5\" orient=\"auto\">\n"
-        "      <polygon points=\"0 0 10 3.5 0 7\" fill=\"#1b75d1\" />\n"
+        '    <marker id="arrowhead-intra" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">\n'
+        '      <polygon points="0 0 10 3.5 0 7" fill="#1b75d1" />\n'
         "    </marker>\n"
         "  </defs>"
     )
-    svg_parts.append('  <text x="20" y="28" font-family="Arial" font-size="16" font-weight="bold" fill="#222">FA Pipeline Schedule (generated)</text>')
+    svg_parts.append(
+        '  <text x="20" y="28" font-family="Arial" font-size="16" font-weight="bold" fill="#222">FA Pipeline Schedule (generated)</text>'
+    )
 
     # grid (light weight)
     svg_parts.append('  <g stroke="#f2f2f2" stroke-width="1">')
     for t in range(0, tmax + 1, 10):
         x = 120 + slot_width * t
         svg_parts.append(f'    <line x1="{x}" y1="40" x2="{x}" y2="280" />')
-    svg_parts.append('  </g>')
+    svg_parts.append("  </g>")
 
     # row labels
     svg_parts.append('  <text x="20" y="80" font-family="Arial" font-size="13" fill="#222">compute_qk (cube)</text>')
     svg_parts.append('  <text x="20" y="140" font-family="Arial" font-size="13" fill="#222">compute_p (vector)</text>')
     svg_parts.append('  <text x="20" y="200" font-family="Arial" font-size="13" fill="#222">compute_pv (cube)</text>')
     svg_parts.append('  <text x="20" y="260" font-family="Arial" font-size="13" fill="#222">compute_gu (vector)</text>')
-    svg_parts.append('  <text x="20" y="340" font-family="Arial" font-size="13" fill="#222">cube timeline (qk+pv)</text>')
-    svg_parts.append('  <text x="20" y="400" font-family="Arial" font-size="13" fill="#222">vector timeline (p+gu)</text>')
+    svg_parts.append(
+        '  <text x="20" y="340" font-family="Arial" font-size="13" fill="#222">cube timeline (qk+pv)</text>'
+    )
+    svg_parts.append(
+        '  <text x="20" y="400" font-family="Arial" font-size="13" fill="#222">vector timeline (p+gu)</text>'
+    )
 
     # blocks
     for task in tasks:
@@ -311,7 +379,7 @@ def to_svg(tasks: List[Task], slot_width: int, output: str):
             y1 = y_for(qk_store) + mini_h / 2 + y_offset
             y2 = y_for(p_load) + mini_h / 2 + y_offset
             svg_parts.append(
-                f'  <path d="M{x1:.1f} {y1} L{x1:.1f} {y2-4} L{x2} {y2-4}" stroke="#333" stroke-width="1.5" fill="none" marker-end="url(#arrowhead)" />'
+                f'  <path d="M{x1:.1f} {y1} L{x1:.1f} {y2 - 4} L{x2} {y2 - 4}" stroke="#333" stroke-width="1.5" fill="none" marker-end="url(#arrowhead)" />'
             )
         p_store = find("p_store", tile)
         pv_load = find("pv_load", tile)
@@ -321,7 +389,7 @@ def to_svg(tasks: List[Task], slot_width: int, output: str):
             y1 = y_for(p_store) + mini_h / 2 + y_offset
             y2 = y_for(pv_load) + mini_h / 2 + y_offset
             svg_parts.append(
-                f'  <path d="M{x1:.1f} {y1} L{x1:.1f} {y2-4} L{x2} {y2-4}" stroke="#333" stroke-width="1.5" fill="none" marker-end="url(#arrowhead)" />'
+                f'  <path d="M{x1:.1f} {y1} L{x1:.1f} {y2 - 4} L{x2} {y2 - 4}" stroke="#333" stroke-width="1.5" fill="none" marker-end="url(#arrowhead)" />'
             )
         pv_store = find("pv_store", tile)
         gu_load = find("gu_load", tile)
@@ -331,7 +399,7 @@ def to_svg(tasks: List[Task], slot_width: int, output: str):
             y1 = y_for(pv_store) + mini_h / 2 + y_offset
             y2 = y_for(gu_load) + mini_h / 2 + y_offset
             svg_parts.append(
-                f'  <path d="M{x1:.1f} {y1} L{x1:.1f} {y2-4} L{x2} {y2-4}" stroke="#333" stroke-width="1.5" fill="none" marker-end="url(#arrowhead)" />'
+                f'  <path d="M{x1:.1f} {y1} L{x1:.1f} {y2 - 4} L{x2} {y2 - 4}" stroke="#333" stroke-width="1.5" fill="none" marker-end="url(#arrowhead)" />'
             )
 
         # intra-stage deps (load -> comp -> store) in blue
@@ -356,7 +424,7 @@ def to_svg(tasks: List[Task], slot_width: int, output: str):
                     f'  <path d="M{x1:.1f} {y1} L{x2} {y2}" stroke="#1b75d1" stroke-width="1.2" fill="none" marker-end="url(#arrowhead-intra)" />'
                 )
 
-    svg_parts.append('</svg>')
+    svg_parts.append("</svg>")
 
     with open(output, "w", encoding="utf-8") as f:
         f.write("\n".join(svg_parts))
@@ -381,7 +449,12 @@ def dump_schedule(tasks: List[Task]):
 def main():
     ap = argparse.ArgumentParser(description="Generate FA pipeline schedule SVG")
     ap.add_argument("--tiles", type=int, default=10, help="Total S1/Cube_S1 tiles")
-    ap.add_argument("--preload", type=int, default=0, help="Tiles to issue before first PV is allowed (0 = allow PV0 as soon as p0 is done)")
+    ap.add_argument(
+        "--preload",
+        type=int,
+        default=0,
+        help="Tiles to issue before first PV is allowed (0 = allow PV0 as soon as p0 is done)",
+    )
     ap.add_argument("--cycle-qk", type=int, default=10, help="Cycles for qk stage")
     ap.add_argument("--cycle-p", type=int, default=16, help="Cycles for p stage")
     ap.add_argument("--cycle-pv", type=int, default=10, help="Cycles for pv stage")
