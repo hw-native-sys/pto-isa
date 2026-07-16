@@ -270,7 +270,7 @@ struct TPipe {
         {
             static_assert(
                 TileProd::Loc == TileType::Acc,
-                "Fix: the push interface with cast quant mode only suppport Acc tile type!");
+                "Fix: the push interface with cast quant mode only support Acc tile type!");
             if constexpr (is_c2v) {
 #ifdef __DAV_CUBE__
                 pushAcc2GMFiFo<TileProd, TConfig>(fifo, tile);

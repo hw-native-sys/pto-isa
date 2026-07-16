@@ -33,7 +33,7 @@ std::string GetGoldenDir()
     return fullPath;
 }
 
-template <typename T, int rows, int srcCols, int srcVaildCols, int dstCols, int dstVaildCols>
+template <typename T, int rows, int srcCols, int srcValidCols, int dstCols, int dstValidCols>
 bool TRowExpandFramework()
 {
     size_t inputFileSize = rows * srcCols * sizeof(T);
@@ -57,7 +57,7 @@ bool TRowExpandFramework()
     ReadFile(GetGoldenDir() + "/input.bin", inputFileSize, src0Host, inputFileSize);
 
     aclrtMemcpy(src0Device, inputFileSize, src0Host, inputFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    launchTROWEXPAND<T, rows, srcCols, srcVaildCols, dstCols, dstVaildCols>(dstDevice, src0Device, stream);
+    launchTROWEXPAND<T, rows, srcCols, srcValidCols, dstCols, dstValidCols>(dstDevice, src0Device, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, outputFileSize, dstDevice, outputFileSize, ACL_MEMCPY_DEVICE_TO_HOST);

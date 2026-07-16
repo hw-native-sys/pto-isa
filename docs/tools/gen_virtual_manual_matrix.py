@@ -24,7 +24,7 @@ import json
 import re
 from collections import OrderedDict
 from pathlib import Path
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, List
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]

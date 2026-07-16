@@ -15,9 +15,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "TBinSOp.hpp"
 
 namespace pto {
-inline namespace TExpandsInternel {
+inline namespace TExpandsInternal {
 constexpr const int EXPANDS_MAX_SUPPORT_REPEAT_TIMES = 32767; // [0:14]
-} // namespace TExpandsInternel
+} // namespace TExpandsInternal
 template <typename T>
 PTO_INTERNAL void TExpandsVec1D(__ubuf__ T* dst, T scalar, uint64_t nElem)
 {

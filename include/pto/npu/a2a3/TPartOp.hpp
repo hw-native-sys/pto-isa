@@ -183,7 +183,7 @@ PTO_INTERNAL void TPartInstr(
         TPartOps<Op, T, dstRow, dstCol, elementsPerRepeat, blockSizeElem, dstRowStride, src0RowStride, src1RowStride>(
             dstPtr, src0Ptr, src1Ptr, dstValidRow, dstValidCol);
     } else {
-        // unsupport other conditions
+        // unsupported other conditions
         PTO_ASSERT(
             condSrc1EqDst || condSrc1RowLtDst || condSrc1ColLtDst,
             "TPARTOPS: At most one entry in the valid-rows and valid-cols of src0 and src1 is smaller than dst.");

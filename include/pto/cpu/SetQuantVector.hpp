@@ -16,8 +16,8 @@ namespace pto {
 template <typename FpTileData>
 __tf__ PTO_INTERNAL void SET_QUANT_VECTOR(typename FpTileData::TileDType __in__ fp)
 {
-    uint64_t fpAddres = reinterpret_cast<uint64_t>(fp);
-    uint8_t* quantSrc = reinterpret_cast<uint8_t*>(&fpAddres);
+    uint64_t fpAddress = reinterpret_cast<uint64_t>(fp);
+    uint8_t* quantSrc = reinterpret_cast<uint8_t*>(&fpAddress);
     uint8_t* reg_base = reinterpret_cast<uint8_t*>(NPUMemoryModel::Instance().GetREGBase());
     uint8_t* scalarReg = reg_base + QUANT_VECTOR_REG_OFFSET * sizeof(uint64_t);
     std::copy(quantSrc, quantSrc + sizeof(uint64_t), scalarReg);

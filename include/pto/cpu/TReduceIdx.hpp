@@ -23,7 +23,7 @@ template <typename DType, ElementCmp op>
 struct ElementCmpCal {
     static bool apply(const DType& a, const DType& b)
     {
-        static_assert(false, "Unsupport element cmp.");
+        static_assert(false, "Unsupported element cmp.");
         return false;
     }
 };

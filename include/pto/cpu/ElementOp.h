@@ -87,7 +87,7 @@ enum class ElementOp {
 
 template <typename DType, ElementOp op>
 struct ElementOpCal {
-    static void apply(DType& dst, DType& src0, DType& src1, size_t) { assert(false && "Unsupport element op."); }
+    static void apply(DType& dst, DType& src0, DType& src1, size_t) { assert(false && "Unsupported element op."); }
 };
 
 template <typename DType>
@@ -482,7 +482,7 @@ struct ElementOpCal<DType, ElementOp::OP_CMPS> {
                 dst = (src <= scalar);
                 break;
             default:
-                assert(false && "Unsupport CMP_MODE.");
+                assert(false && "Unsupported CMP_MODE.");
                 break;
         }
     }

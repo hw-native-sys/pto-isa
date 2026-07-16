@@ -22,7 +22,6 @@
 #
 
 import os
-import sys
 import argparse
 from dataclasses import dataclass
 from typing import Optional

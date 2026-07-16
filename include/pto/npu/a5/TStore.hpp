@@ -293,7 +293,7 @@ PTO_INTERNAL void TSTORE_IMPL(GlobalData& dst, TileData& src)
 {
     static_assert(
         TileData::Loc == pto::TileType::Vec || TileData::Loc == pto::TileType::Acc,
-        "Source TileType only suport Vec/Acc!");
+        "Source TileType only support Vec/Acc!");
     if constexpr (atomicType == AtomicType::AtomicAdd) {
         SetAtomicAdd<typename GlobalData::RawDType>();
     }
@@ -331,7 +331,7 @@ template <
     STPhase Phase = STPhase::Unspecified>
 PTO_INTERNAL void TSTORE_IMPL(GlobalData& dst, TileData& src)
 {
-    static_assert(TileData::Loc == pto::TileType::Acc, "Source TileType only suport Acc!");
+    static_assert(TileData::Loc == pto::TileType::Acc, "Source TileType only support Acc!");
     using L0cT = typename TileData::DType;
     using DstT = typename GlobalData::RawDType;
     CheckStaticAcc<TileData, GlobalData, false>();
@@ -356,7 +356,7 @@ template <
     ReluPreMode reluPreMode = ReluPreMode::NoRelu, STPhase Phase = STPhase::Unspecified>
 PTO_INTERNAL void TSTORE_IMPL(GlobalData& dst, TileData& src, uint64_t preQuantScalar)
 {
-    static_assert(TileData::Loc == pto::TileType::Acc, "Source TileType only suport Acc!");
+    static_assert(TileData::Loc == pto::TileType::Acc, "Source TileType only support Acc!");
 
     using L0cT = typename TileData::DType;
     using DstT = typename GlobalData::RawDType;
@@ -383,7 +383,7 @@ template <
     ReluPreMode reluPreMode = ReluPreMode::NoRelu, STPhase Phase = STPhase::Unspecified>
 PTO_INTERNAL void TSTORE_IMPL(GlobalData& dst, TileData& src, FpTileData& fp)
 {
-    static_assert(TileData::Loc == pto::TileType::Acc, "Source TileType only suport Acc!");
+    static_assert(TileData::Loc == pto::TileType::Acc, "Source TileType only support Acc!");
     using DstT = typename GlobalData::RawDType;
     using L0cT = typename TileData::DType;
     CheckStaticAcc<TileData, GlobalData, true>();

@@ -41,7 +41,7 @@ template <
 void TestTload()
 {
     // format = 0: ND2ND
-    // foramt = 1: DN2DN
+    // format = 1: DN2DN
     // format = 2: NZ2NZ
     // format = 3: ND2NZ
     // format = 4: DN2ZN

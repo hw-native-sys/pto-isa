@@ -64,7 +64,7 @@ protected:
         return ResultCmp(golden, result, eps, 0, 1000, false, true);
     }
 
-    template <uint32_t caseId, typename T, int row, int validRow, int srcCol, int srcVaildCol, int dstCol>
+    template <uint32_t caseId, typename T, int row, int validRow, int srcCol, int srcValidCol, int dstCol>
     bool TRowMaxTestFramework()
     {
         size_t dstByteSize = row * dstCol * sizeof(T);

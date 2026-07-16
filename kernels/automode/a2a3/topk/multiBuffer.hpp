@@ -83,7 +83,7 @@ using PopFront_t = typename PopFront<T>::type;
 enum class Phase { Prologue, Main, Epilogue };
 
 // MultiBuffered Loop utility.
-// Template Parametrs:
+// Template Parameters:
 //      NumBuffs:   Number of buffers used for multi-buffering
 template <int NumBuffs>
 class MultiBuffered {
@@ -97,7 +97,7 @@ public:
     };
 
     template <class ChildRange>
-    // this is for invoking the child loop with the proper pre-feeded range
+    // this is for invoking the child loop with the proper pre-fed range
     class NestedLoopInvoker {
     public:
         MultiBuffered& parent;
@@ -117,7 +117,7 @@ public:
     // 2. FirstK:   Number of iterations executed in the Prologue phase, default = 0.
     // 3. LastK:    Number of iterations executed in the Epilogue phase, default = 0.
     // 4. Body:     Type of the body lambda function.
-    // Parameters:  Lambda function exectued for each iteration of the loop.
+    // Parameters:  Lambda function executed for each iteration of the loop.
     template <class Range, int FirstK = 0, int LastK = 0, class Body>
     AICORE void loop(Body&& body)
     {

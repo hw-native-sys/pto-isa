@@ -8,8 +8,8 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-#ifndef ELEMENT_TILE_SCLAR_OP_HPP
-#define ELEMENT_TILE_SCLAR_OP_HPP
+#ifndef ELEMENT_TILE_SCALAR_OP_HPP
+#define ELEMENT_TILE_SCALAR_OP_HPP
 
 #include <type_traits>
 #include "pto/cpu/ElementOp.h"

@@ -35,7 +35,7 @@ std::string GetGoldenDir()
     return fullPath;
 }
 
-template <uint32_t caseId, typename T, int dstTileRow, int dstTileCol, int row, int vaildRow, int col, int srcVaildCol>
+template <uint32_t caseId, typename T, int dstTileRow, int dstTileCol, int row, int validRow, int col, int srcValidCol>
 bool TMAXSTestFramework()
 {
     aclInit(nullptr);

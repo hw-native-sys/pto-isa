@@ -215,7 +215,7 @@ __tf__ PTO_INLINE void TStore(
             dst, src, scalars, gShape0, gShape1, gShape2, gShape3, gShape4, gStride0, gStride1, gStride2, gStride3,
             gStride4, validRow, validCol);
     } else {
-        assert(gShape0 == 1 && gShape1 == 1 && gShape2 == 1 && "Nz,Zn -> ND,DN convertion does support only 2D GMs");
+        assert(gShape0 == 1 && gShape1 == 1 && gShape2 == 1 && "Nz,Zn -> ND,DN conversion does support only 2D GMs");
         StoreSubfractalMatrix<GlobalData, TileData, quantMode, applyRelu>(
             dst, src, scalars, gShape3, gShape4, gStride3, gStride4, validRow, validCol);
     }

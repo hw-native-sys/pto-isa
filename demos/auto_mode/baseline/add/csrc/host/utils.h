@@ -20,8 +20,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#ifndef EXTENTION_CSRC_UTILS_H
-#define EXTENTION_CSRC_UTILS_H
+#ifndef EXTENSION_CSRC_UTILS_H
+#define EXTENSION_CSRC_UTILS_H
 #include <ATen/ATen.h>
 #include <torch/library.h>
 #include "torch_npu/csrc/core/npu/NPUStream.h"

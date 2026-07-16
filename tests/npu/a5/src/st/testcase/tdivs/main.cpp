@@ -43,7 +43,7 @@ std::string GetGoldenDir()
 }
 
 template <
-    typename T, int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int vaildRow, int vaildCol,
+    typename T, int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
     bool isHalf = false, bool highPrecision = false>
 void TDivSTestFramework()
 {
@@ -72,10 +72,10 @@ void TDivSTestFramework()
     ReadFile(GetGoldenDir() + "/divider.bin", scalarByteSize, (void*)&scalar, sizeof(T));
     aclrtMemcpy(srcDevice, srcByteSize, srcHost, srcByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
     if constexpr (isHalf) {
-        LaunchTDivSHalf<dstTileRow, dstTileCol, srcTileRow, srcTileCol, vaildRow, vaildCol, highPrecision>(
+        LaunchTDivSHalf<dstTileRow, dstTileCol, srcTileRow, srcTileCol, validRow, validCol, highPrecision>(
             dstDevice, srcDevice, scalar, stream);
     } else {
-        LaunchTDivS<T, dstTileRow, dstTileCol, srcTileRow, srcTileCol, vaildRow, vaildCol, highPrecision>(
+        LaunchTDivS<T, dstTileRow, dstTileCol, srcTileRow, srcTileCol, validRow, validCol, highPrecision>(
             dstDevice, srcDevice, scalar, stream);
     }
     aclrtSynchronizeStream(stream);

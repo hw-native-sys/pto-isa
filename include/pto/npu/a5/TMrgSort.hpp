@@ -127,18 +127,18 @@ __tf__ AICORE void TMrgsort(
 
 template <typename DstTileData, typename SrcTileData>
 __tf__ AICORE void TMrgsort(
-    typename DstTileData::TileDType __out__ dst, typename SrcTileData::TileDType __in__ src, uint32_t numStrcutures,
+    typename DstTileData::TileDType __out__ dst, typename SrcTileData::TileDType __in__ src, uint32_t numStructures,
     uint8_t repeatTimes)
 {
     __ubuf__ typename SrcTileData::DType* srcPtr = (__ubuf__ typename SrcTileData::DType*)__cce_get_tile_ptr(src);
     __ubuf__ typename DstTileData::DType* dstPtr = (__ubuf__ typename DstTileData::DType*)__cce_get_tile_ptr(dst);
 
-    uint64_t count = (uint64_t(numStrcutures)); // VMS4_SR[15:0], length of block0 in the list
-    count |= (uint64_t(numStrcutures) << 16);   // VMS4_SR[31:16], length of block1 in the list
-    count |= (uint64_t(numStrcutures) << 32);   // VMS4_SR[47:32], length of block2 in the list
-    count |= (uint64_t(numStrcutures) << 48);   // VMS4_SR[63:48], length of block3 in the list
+    uint64_t count = (uint64_t(numStructures)); // VMS4_SR[15:0], length of block0 in the list
+    count |= (uint64_t(numStructures) << 16);   // VMS4_SR[31:16], length of block1 in the list
+    count |= (uint64_t(numStructures) << 32);   // VMS4_SR[47:32], length of block2 in the list
+    count |= (uint64_t(numStructures) << 48);   // VMS4_SR[63:48], length of block3 in the list
 
-    unsigned offset = numStrcutures * STRUCT_SIZE / sizeof(typename DstTileData::DType);
+    unsigned offset = numStructures * STRUCT_SIZE / sizeof(typename DstTileData::DType);
 
     constexpr const int BLOCK3_INDEX = 2;
     constexpr const int BLOCK4_INDEX = 3;
@@ -269,9 +269,9 @@ PTO_INTERNAL void TMRGSORT_IMPL(DstTileData& dst, SrcTileData& src, uint32_t blo
     CheckOverMemory<DstTileData, DstTileData, SrcTileData, SrcTileData, SrcTileData, SrcTileData, LIST_NUM_1>();
     uint32_t srcCol = src.GetValidCol();
     // 一个strcut是8字节
-    uint32_t numStrcutures = blockLen * sizeof(typename SrcTileData::DType) >> STRUCT_SIZE_SHIFT;
+    uint32_t numStructures = blockLen * sizeof(typename SrcTileData::DType) >> STRUCT_SIZE_SHIFT;
     uint8_t repeatTimes = srcCol / (blockLen * BLOCK_NUM);
-    TMrgsort<DstTileData, SrcTileData>(dst.data(), src.data(), numStrcutures, repeatTimes);
+    TMrgsort<DstTileData, SrcTileData>(dst.data(), src.data(), numStructures, repeatTimes);
 }
 
 template <typename Src0TileData, typename Src1TileData>

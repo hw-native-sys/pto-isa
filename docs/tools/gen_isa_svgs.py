@@ -1055,7 +1055,6 @@ def _render_matmul(instr: str, summary: str, accent: str, bg: str) -> str:
     out = _begin_svg(instr, summary, "matmul", accent, bg)
 
     tile_w = _tile_width(TILE_COLS)
-    tile_h = _tile_height(TILE_ROWS)
     y_src = SRC_Y
     y_dst = DST_Y
 
@@ -1101,7 +1100,6 @@ def _render_reshape_move(instr: str, summary: str, accent: str, bg: str) -> str:
     out = _begin_svg(instr, summary, "reshape_move", accent, bg)
 
     tile_w = _tile_width(TILE_COLS)
-    tile_h = _tile_height(TILE_ROWS)
     y_src = SRC_Y
     y_dst = DST_Y
 
@@ -1675,7 +1673,6 @@ def _render_sync(instr: str, summary: str, accent: str, bg: str) -> str:
 def _render_config(instr: str, summary: str, accent: str, bg: str) -> str:
     out = _begin_svg(instr, summary, "config", accent, bg)
     tile_w = _tile_width(TILE_COLS)
-    tile_h = _tile_height(TILE_ROWS)
     y_src = SRC_Y
     y_dst = DST_Y
 

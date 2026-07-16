@@ -21,7 +21,7 @@ void BinaryElementTileOp_Impl(TileDataDst& dstTile, TileDataSrc0& src0Tile, Tile
     static_assert(
         std::is_same_v<typename TileDataDst::TileDType, typename TileDataSrc0::TileDType> &&
         std::is_same_v<typename TileDataDst::TileDType, typename TileDataSrc1::TileDType> &&
-        "Undelying data types in tiles should be the same");
+        "Underlying data types in tiles should be the same");
 
     assert(
         dstTile.GetValidRow() == src0Tile.GetValidRow() && dstTile.GetValidCol() == src0Tile.GetValidCol() &&
@@ -62,7 +62,7 @@ void UnaryElementTileOp_Impl(TileDataDst& dstTile, TileDataSrc& srcTile)
 {
     static_assert(
         std::is_same_v<typename TileDataDst::TileDType, typename TileDataSrc::TileDType> &&
-        "Undelying data types in tiles should be the same");
+        "Underlying data types in tiles should be the same");
 
     assert(
         dstTile.GetValidRow() == srcTile.GetValidRow() && dstTile.GetValidCol() == srcTile.GetValidCol() &&

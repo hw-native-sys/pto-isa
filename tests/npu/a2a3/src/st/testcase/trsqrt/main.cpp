@@ -81,7 +81,7 @@ void test_trsqrt()
         if constexpr (isInPlace) {
             eps = 0.0001f;
         } else {
-            // Known issue with accuracy for built-in `vrsqrt` intrinsic funtion
+            // Known issue with accuracy for built-in `vrsqrt` intrinsic function
             // Thats why epsilon is 0.003f, while requirement 0.0001f
             eps = 0.003f;
         }

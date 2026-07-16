@@ -114,7 +114,7 @@ AICORE inline void RunTStoreNZ2NZ(__gm__ T __out__* out, __gm__ T __in__* src)
 }
 
 // format = 0: ND2ND
-// foramt = 1: DN2DN
+// format = 1: DN2DN
 // format = 2: NZ2NZ
 template <
     typename T, int format, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gWholeShape0,

@@ -752,7 +752,7 @@ void LaunchTStoreAcc2gmVectorNz2nz(uint8_t* out, uint8_t* src0, uint8_t* src1, u
     }
 }
 
-// Explicit template instantiations for LanuchTStoreAcc2gmNz2nd
+// Explicit template instantiations for LaunchTStoreAcc2gmNz2nd
 template void LaunchTStoreAcc2gmNz2nd<1>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 template void LaunchTStoreAcc2gmNz2nd<2>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 template void LaunchTStoreAcc2gmNz2nd<3>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
@@ -760,7 +760,7 @@ template void LaunchTStoreAcc2gmNz2nd<4>(uint8_t* out, uint8_t* src0, uint8_t* s
 template void LaunchTStoreAcc2gmNz2nd<7>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 template void LaunchTStoreAcc2gmNz2nd<21>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 
-// Explicit template instantiations for LanuchTStoreAcc2gmNz2nz
+// Explicit template instantiations for LaunchTStoreAcc2gmNz2nz
 template void LaunchTStoreAcc2gmNz2nz<1>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 template void LaunchTStoreAcc2gmNz2nz<2>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 template void LaunchTStoreAcc2gmNz2nz<3>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
@@ -768,7 +768,7 @@ template void LaunchTStoreAcc2gmNz2nz<4>(uint8_t* out, uint8_t* src0, uint8_t* s
 template void LaunchTStoreAcc2gmNz2nz<7>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 template void LaunchTStoreAcc2gmNz2nz<21>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 
-// Explicit template instantiations for LanuchTStoreAcc2gmScalarNz2nd
+// Explicit template instantiations for LaunchTStoreAcc2gmScalarNz2nd
 template void LaunchTStoreAcc2gmScalarNz2nd<1>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream, float scalarQuant);
 template void LaunchTStoreAcc2gmScalarNz2nd<2>(
@@ -782,7 +782,7 @@ template void LaunchTStoreAcc2gmScalarNz2nd<6>(
 template void LaunchTStoreAcc2gmScalarNz2nd<21>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream, float scalarQuant);
 
-// Explicit template instantiations for LanuchTStoreAcc2gmScalarNz2nz
+// Explicit template instantiations for LaunchTStoreAcc2gmScalarNz2nz
 template void LaunchTStoreAcc2gmScalarNz2nz<1>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream, float scalarQuant);
 template void LaunchTStoreAcc2gmScalarNz2nz<2>(
@@ -794,7 +794,7 @@ template void LaunchTStoreAcc2gmScalarNz2nz<5>(
 template void LaunchTStoreAcc2gmScalarNz2nz<21>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream, float scalarQuant);
 
-// Explicit template instantiations for LanuchTStoreAcc2gmVectorNz2nd
+// Explicit template instantiations for LaunchTStoreAcc2gmVectorNz2nd
 template void LaunchTStoreAcc2gmVectorNz2nd<1>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* quantTensor, void* stream);
 template void LaunchTStoreAcc2gmVectorNz2nd<2>(
@@ -808,7 +808,7 @@ template void LaunchTStoreAcc2gmVectorNz2nd<8>(
 template void LaunchTStoreAcc2gmVectorNz2nd<21>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* quantTensor, void* stream);
 
-// Explicit template instantiations for LanuchTStoreAcc2gmVectorNz2nz
+// Explicit template instantiations for LaunchTStoreAcc2gmVectorNz2nz
 template void LaunchTStoreAcc2gmVectorNz2nz<1>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* quantTensor, void* stream);
 template void LaunchTStoreAcc2gmVectorNz2nz<2>(

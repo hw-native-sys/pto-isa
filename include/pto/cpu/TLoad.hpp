@@ -144,7 +144,7 @@ __tf__ AICORE void TLoad(
             dst, src, gShape0, gShape1, gShape2, gShape3, gShape4, gStride0, gStride1, gStride2, gStride3, gStride4,
             validRow, validCol);
     } else {
-        assert(gShape0 == 1 && gShape1 == 1 && gShape2 == 1 && "ND,DN -> Nz,Zn convertion does support only 2D GMs");
+        assert(gShape0 == 1 && gShape1 == 1 && gShape2 == 1 && "ND,DN -> Nz,Zn conversion does support only 2D GMs");
         LoadSubfractalMatrix<GlobalData, TileData>(dst, src, gShape3, gShape4, gStride3, gStride4, validRow, validCol);
     }
 }

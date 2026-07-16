@@ -422,7 +422,7 @@ __global__ AICORE void TLoadKernel(__gm__ T* out, __gm__ T* src)
         RunTLoadND2ND<
             T, gShape0, gShape1, gShape2, gShape3, gShape4, gWholeShape0, gWholeShape1, gWholeShape2, gWholeShape3,
             gWholeShape4>(out, src);
-    } else if constexpr (format == 1) { // foramt = 1: DN2DN
+    } else if constexpr (format == 1) { // format = 1: DN2DN
         RunTLoadDN2DN<
             T, gShape0, gShape1, gShape2, gShape3, gShape4, gWholeShape0, gWholeShape1, gWholeShape2, gWholeShape3,
             gWholeShape4>(out, src);
@@ -458,7 +458,7 @@ __global__ AICORE void TLoadKernel(__gm__ T* out, __gm__ T* src)
 }
 
 // format = 0: ND2ND
-// foramt = 1: DN2DN
+// format = 1: DN2DN
 // format = 2: NZ2NZ
 // format = 3: ND2NZ
 template <

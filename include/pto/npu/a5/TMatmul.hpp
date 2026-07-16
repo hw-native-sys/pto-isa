@@ -15,9 +15,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-inline namespace TMatmulInternel {
+inline namespace TMatmulInternal {
 constexpr const int MMAD_MAX_SUPPORT_LENGTH = 4095;
-} // namespace TMatmulInternel
+} // namespace TMatmulInternal
 
 template <typename TileLeft>
 PTO_INTERNAL constexpr bool GetGemvCtrl()
@@ -142,7 +142,7 @@ PTO_INTERNAL void CheckMadValid()
     if constexpr (std::is_same_v<CType, int32_t>) {
         static_assert(
             std::is_same_v<AType, int8_t> && std::is_same_v<BType, int8_t>,
-            "Left Type and Rigth Type must be int8_t when Acc Type is int32_t.");
+            "Left Type and Right Type must be int8_t when Acc Type is int32_t.");
     } else if constexpr (std::is_same_v<CType, float>) {
         static_assert(
             (std::is_same_v<AType, half> && std::is_same_v<BType, half>) ||

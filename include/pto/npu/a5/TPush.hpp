@@ -413,7 +413,7 @@ struct TPipe {
         {
             static_assert(
                 TileProd::Loc == TileType::Acc,
-                "Fix: the push interface with cast quant mode only suppport Acc tile type!");
+                "Fix: the push interface with cast quant mode only support Acc tile type!");
             pushAcc2FiFoByDir<TileProd, TConfig>(fifo, tile);
         } // end of push
     };

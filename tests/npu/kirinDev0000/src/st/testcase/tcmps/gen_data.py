@@ -80,7 +80,7 @@ if __name__ == "__main__":
     if not os.path.exists(testcases_dir):
         os.makedirs(testcases_dir)
 
-    case_params_list = [  # Comment out test cases that do not handle size corectly
+    case_params_list = [  # Comment out test cases that do not handle size correctly
         TcmpsParams(np.float16, 32, 32, 32, 32, "EQ"),
         TcmpsParams(np.float32, 8, 64, 8, 64, "GT"),
         TcmpsParams(np.int32, 4, 64, 4, 64, "NE"),

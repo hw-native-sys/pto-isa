@@ -282,7 +282,7 @@ PTO_INTERNAL void TSTORE_IMPL(GlobalData& dst, TileData& src)
 {
     static_assert(
         TileData::Loc == TileType::Vec || TileData::Loc == TileType::Acc || TileData::Loc == TileType::Mat,
-        "Source TileType only suport Vec/Acc/Mat!");
+        "Source TileType only support Vec/Acc/Mat!");
     PTO_ASSERT(
         dst.GetShape(GlobalTensorDim::DIM_0) > 0 && dst.GetShape(GlobalTensorDim::DIM_1) > 0 &&
             dst.GetShape(GlobalTensorDim::DIM_2) > 0 && dst.GetShape(GlobalTensorDim::DIM_3) > 0 &&
@@ -330,7 +330,7 @@ template <
     ReluPreMode reluPreMode, STPhase Phase = STPhase::Unspecified>
 PTO_INTERNAL void TSTORE_IMPL(GlobalData& dst, TileData& src)
 {
-    static_assert(TileData::Loc == TileType::Acc, "Source TileType only suport Acc!");
+    static_assert(TileData::Loc == TileType::Acc, "Source TileType only support Acc!");
     CheckAcc2gm<TileData, GlobalData, false>(dst, src);
     if constexpr (currentAtomicType == AtomicType::AtomicAdd) {
         SetAtomicAdd<typename GlobalData::DType>();
@@ -353,7 +353,7 @@ template <
     ReluPreMode reluPreMode = ReluPreMode::NoRelu, STPhase Phase = STPhase::Unspecified>
 PTO_INTERNAL void TSTORE_IMPL(GlobalData& dst, TileData& src, uint64_t preQuantScalar)
 {
-    static_assert(TileData::Loc == TileType::Acc, "Source TileType only suport Acc!");
+    static_assert(TileData::Loc == TileType::Acc, "Source TileType only support Acc!");
     CheckAcc2gm<TileData, GlobalData, true>(dst, src);
     if constexpr (currentAtomicType == AtomicType::AtomicAdd) {
         SetAtomicAdd<typename GlobalData::DType>();
@@ -377,7 +377,7 @@ template <
     ReluPreMode reluPreMode = ReluPreMode::NoRelu>
 PTO_INTERNAL void TSTORE_IMPL(GlobalData& dst, TileData& src, FpTileData& fp)
 {
-    static_assert(TileData::Loc == TileType::Acc, "Source TileType only suport Acc!");
+    static_assert(TileData::Loc == TileType::Acc, "Source TileType only support Acc!");
     CheckAcc2gm<TileData, GlobalData, true>(dst, src);
     if constexpr (AtomicType::AtomicAdd == currentAtomicType) {
         SetAtomicAdd<typename GlobalData::DType>();

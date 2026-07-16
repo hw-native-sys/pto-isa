@@ -266,7 +266,7 @@ __tf__ PTO_INTERNAL void TLoadMxCubeAVector(
     static_assert(
         (GlobalData::staticShape[0] == 1 && GlobalData::staticShape[1] == 1 && GlobalData::staticShape[2] == 1 &&
          GlobalData::staticShape[3] == 1),
-        "Vector input must have the first 4 dimensions of staticShpae all equal to 1.");
+        "Vector input must have the first 4 dimensions of staticShape all equal to 1.");
     using L1Type = typename TileData::TileDType;
     __cbuf__ typename TileData::DType* dstAddrP = __cce_get_tile_ptr(dst);
     typename GlobalData::DType* srcAddrP = src;
@@ -698,7 +698,7 @@ __tf__ PTO_INTERNAL void TLoadNCHW2FractalZ(
     uint64_t loop4SrcStride = GetByteSize<typename TileData::DType>(gStride1); // global C*H*W, unit Byte
     uint16_t loop2DstStride = dstShape1 * dstShape2;
     uint16_t loop3DstStride = loop2DstStride * dstHW;                  // unit is 32B
-    constexpr uint16_t loop4DstStride = 1;                             // each c0 of contiguous dNnum save continously
+    constexpr uint16_t loop4DstStride = 1;                             // each c0 of contiguous dNnum save continuously
     uint64_t mte2NzPara = static_cast<uint64_t>(loop4DstStride) << 48; // MTE2_NZ_PARA[63:48]
     mte2NzPara |= static_cast<uint64_t>(loop3DstStride) << 32;         // MTE2_NZ_PARA[47:32]
     mte2NzPara |= static_cast<uint64_t>(loop2DstStride) << 16;         // MTE2_NZ_PARA[31:16]
@@ -790,7 +790,7 @@ __tf__ PTO_INTERNAL void TLoadNCDHW2FractalZ3D(
     uint32_t c1Size = CeilDivision(srcShape1, c0ElemCount);
     uint32_t dstDHW = dstShape0 / c1Size;
 
-    constexpr uint16_t loop4DstStride = 1; // each c0 of contiguous dNnum save continously
+    constexpr uint16_t loop4DstStride = 1; // each c0 of contiguous dNnum save continuously
     uint64_t loop1SrcStride = GetByteSize<typename TileData::DType>(gStride1); // global D*H*W, unit Byte
     uint64_t loop4SrcStride = GetByteSize<typename TileData::DType>(gStride0); // global C*D*H*W, unit Byte
     uint16_t loop2DstStride = dstShape1 * dstShape2;

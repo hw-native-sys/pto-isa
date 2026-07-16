@@ -19,7 +19,7 @@ __global__ AICORE void runTPrelu(__gm__ T __out__* out, __gm__ T __in__* src0, _
 {
     constexpr unsigned tmpRow = kTRows_ + 1;
     constexpr unsigned tmpCol = (((kTCols_ + 7) / 8 + 31) / 32) * 32; // 除以8后向上取整，然后向上取32B对齐
-    // tmp的vaild row/col在运算中不生效，不需要打印出来的话不用在意
+    // tmp的valid row/col在运算中不生效，不需要打印出来的话不用在意
     constexpr unsigned tmpVRow = vRows;
     constexpr unsigned tmpVCol = (vCols + 7) / 8;
 

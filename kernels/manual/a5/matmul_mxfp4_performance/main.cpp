@@ -36,9 +36,9 @@ void MxMatmul()
 {
     size_t aFileSize = m * k * sizeof(U) / 2;
     size_t bFileSize = k * n * sizeof(U) / 2;
-    int sacleFactor = 32;
-    size_t aScaleFileSize = m * k / sacleFactor * sizeof(X);
-    size_t bScaleFileSize = k / sacleFactor * n * sizeof(X);
+    int scaleFactor = 32;
+    size_t aScaleFileSize = m * k / scaleFactor * sizeof(X);
+    size_t bScaleFileSize = k / scaleFactor * n * sizeof(X);
     size_t cFileSize = m * n * sizeof(T); // uint16_t represent bf16
 
     aclInit(nullptr);

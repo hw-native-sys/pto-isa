@@ -275,7 +275,7 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
 
     if [ "$IS_AUTO_MODE" = "false" ]; then
       # this testcase has to directly call CCE intrinsics now, which won't compile for auto mode;
-      # besides, auto-sync doesn't work with CCE intrisics
+      # besides, auto-sync doesn't work with CCE intrinsics
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tpushpop_cv -g TPushPopCVTest.case1_half_single_tile
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tpushpop_vc -g TPushPopVCTest.case1_int8_single_k_tile
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tpushpop_cv_nosplit -g TPushPopCVNoSplitTest.case1_half_single_tile
@@ -444,7 +444,7 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
       python3 tests/script/run_st.py $ARGS -w -v a3 -t ttrans_3d
       python3 tests/script/run_st.py $ARGS -w -v a3 -t mscatter
       # this testcase has to directly call CCE intrinsics now, which won't compile for auto mode;
-      # besides, auto-sync doesn't work with CCE intrisics
+      # besides, auto-sync doesn't work with CCE intrinsics
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tpushpop_cv
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tpushpop_vc
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tpushpop_cv_nosplit
@@ -492,7 +492,7 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a5 -t texpands -g TEXPANDSTest.case_float_64x64_64x64_64x64_PAD_VALUE_NULL
     if [ "$IS_AUTO_MODE" = "false" ]; then
       # this testcase has to directly call CCE intrinsics now, which won't compile for auto mode;
-      # besides, auto-sync doesn't work with CCE intrisics
+      # besides, auto-sync doesn't work with CCE intrinsics
       python3 tests/script/run_st.py $ARGS -w -v a5 -t texpands_mat -g TEXPANDSTest.case1
       python3 tests/script/run_st.py $ARGS -w -v a5 -t tpushpop_cv -g TPushPopCVTest.case1_half_single_tile
       python3 tests/script/run_st.py $ARGS -w -v a5 -t tpushpop_vc -g TPushPopVCTest.case1_int8_single_k_tile
@@ -697,7 +697,7 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a5 -t texpands
     if [ "$IS_AUTO_MODE" = "false" ]; then
       # this testcase has to directly call CCE intrinsics now, which won't compile for auto mode;
-      # besides, auto-sync doesn't work with CCE intrisics
+      # besides, auto-sync doesn't work with CCE intrinsics
       python3 tests/script/run_st.py $ARGS -w -v a5 -t texpands_mat
       python3 tests/script/run_st.py $ARGS -w -v a5 -t tpushpop_cv
       python3 tests/script/run_st.py $ARGS -w -v a5 -t tpushpop_vc

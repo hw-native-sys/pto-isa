@@ -66,7 +66,7 @@ PTO_INTERNAL void MGATHER_IMPL(TileDst& dst, GlobalData& src, TileInd& indexes)
             if constexpr (HasSFractal<TileInd>::value) {
                 static_assert(
                     TileInd::SFractal == SLayout::NoneBox,
-                    "Indicies array should be ND or DN in case of Coalesce::Elem");
+                    "Indices array should be ND or DN in case of Coalesce::Elem");
             }
             // indexes shape is [1,dstRows] in case of RowMajor or [dstRows,1] in case of colMajor
             size_t rowIdx = indexes.data()[i];

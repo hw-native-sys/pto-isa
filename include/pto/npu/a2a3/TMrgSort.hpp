@@ -129,7 +129,7 @@ __tf__ AICORE void TMrgsort(
 
 template <typename DstTileData, typename SrcTileData>
 __tf__ AICORE void TMrgsort(
-    typename DstTileData::TileDType __out__ dst, typename SrcTileData::TileDType __in__ src, uint32_t numStrcutures,
+    typename DstTileData::TileDType __out__ dst, typename SrcTileData::TileDType __in__ src, uint32_t numStructures,
     uint8_t repeatTimes)
 {
     __ubuf__ typename DstTileData::DType* dstPtr = (__ubuf__ typename DstTileData::DType*)__cce_get_tile_ptr(dst);
@@ -139,14 +139,14 @@ __tf__ AICORE void TMrgsort(
     config |= (uint64_t(0b1111) << 8);          // Xt[11:8]: 4-bit mask signal
     config |= (uint64_t(0b0) << 12);            // Xt[12]: 1-enable input list exhausted suspension
 
-    uint64_t count = (uint64_t(numStrcutures)); // VMS4_SR[15:0], length of block0 in the list
-    count |= (uint64_t(numStrcutures) << 16);   // VMS4_SR[31:16], length of block1 in the list
-    count |= (uint64_t(numStrcutures) << 32);   // VMS4_SR[47:32], length of block2 in the list
-    count |= (uint64_t(numStrcutures) << 48);   // VMS4_SR[63:48], length of block3 in the list
+    uint64_t count = (uint64_t(numStructures)); // VMS4_SR[15:0], length of block0 in the list
+    count |= (uint64_t(numStructures) << 16);   // VMS4_SR[31:16], length of block1 in the list
+    count |= (uint64_t(numStructures) << 32);   // VMS4_SR[47:32], length of block2 in the list
+    count |= (uint64_t(numStructures) << 48);   // VMS4_SR[63:48], length of block3 in the list
 
     constexpr const int BLOCK3_INDEX = 2;
     constexpr const int BLOCK4_INDEX = 3;
-    unsigned offset = numStrcutures * STRUCTSIZE / sizeof(typename DstTileData::DType);
+    unsigned offset = numStructures * STRUCTSIZE / sizeof(typename DstTileData::DType);
 
     __ubuf__ typename SrcTileData::DType* addrArray[BLOCK_NUM] = {
         (__ubuf__ typename SrcTileData::DType*)(srcPtr), (__ubuf__ typename SrcTileData::DType*)(srcPtr + offset),
@@ -287,7 +287,7 @@ PTO_INTERNAL void TMRGSORT_IMPL(DstTileData& dst, SrcTileData& src, uint32_t blo
         (srcCol + dstCol) * sizeof(typename DstTileData::DType) < UB_SIZE,
         "ERROR: Total memory usage exceeds UB limit!");
     // A struct is 8 bytes
-    uint32_t numStrcutures = blockLen * sizeof(typename SrcTileData::DType) >> STRUCT_SIZE_SHIFT;
+    uint32_t numStructures = blockLen * sizeof(typename SrcTileData::DType) >> STRUCT_SIZE_SHIFT;
     PTO_ASSERT(blockLen % TMRGSORT_BLOCK_LEN == 0, "blockLen is a multiple of 64");
     PTO_ASSERT(
         srcCol % (blockLen * BLOCK_NUM) == 0,
@@ -296,7 +296,7 @@ PTO_INTERNAL void TMRGSORT_IMPL(DstTileData& dst, SrcTileData& src, uint32_t blo
     PTO_ASSERT(
         repeatTimes >= REPEAT_ONE_TIME && repeatTimes <= MAX_REPEAT_TIMES,
         "ERROR: The range of Tile Valid divided by blockLen is [1,255].");
-    TMrgsort<DstTileData, SrcTileData>(dst.data(), src.data(), numStrcutures, repeatTimes);
+    TMrgsort<DstTileData, SrcTileData>(dst.data(), src.data(), numStructures, repeatTimes);
 }
 
 template <typename Src0TileData, typename Src1TileData, typename Src2TileData, typename Src3TileData>

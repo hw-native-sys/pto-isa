@@ -188,7 +188,7 @@ void LaunchTQuantDN_fp32(
 
 // MXFP4 (E2M1) DN kernel: quantizes src[M,N_pad] to packed FP4 plus per-group
 // e8m0/max tiles. TQUANT writes FP4 as a flat float4_e2m1x2_t tile; a uint8_t
-// TSTORE tile is TASSIGNed to the same UB region so TSTORE reads it in-place
+// TSTORE tile is assigned via TASSIGN to the same UB region so TSTORE reads it in-place
 // (no copy/intrinsics needed).
 template <typename T, int M, int N, int N_pad>
 __global__ AICORE void runTQuantDN_MXFP4(

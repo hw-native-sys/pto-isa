@@ -15,11 +15,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-inline namespace TMatmulInternel {
+inline namespace TMatmulInternal {
 constexpr const int MMAD_MAX_SUPPORT_LENGTH = 4095;
 constexpr const int TF32_MODE_BIT = 46;
 constexpr const int TF32_TRANS_MODE_BIT = 47;
-} // namespace TMatmulInternel
+} // namespace TMatmulInternal
 
 template <
     AccPhase Phase = AccPhase::Unspecified, typename TileRes, typename TileLeft, typename TileRight, bool cmatrixSource,
@@ -84,11 +84,11 @@ PTO_INTERNAL void CheckMadValid()
     if constexpr (std::is_same_v<CType, half>) {
         static_assert(
             std::is_same_v<AType, half> && std::is_same_v<BType, half>,
-            "TMATMUL: Left Type and Rigth Type must be half when Acc Type is half.");
+            "TMATMUL: Left Type and Right Type must be half when Acc Type is half.");
     } else if constexpr (std::is_same_v<CType, int32_t>) {
         static_assert(
             std::is_same_v<AType, int8_t> && std::is_same_v<BType, int8_t>,
-            "TMATMUL: Left Type and Rigth Type must be int8_t when Acc Type is int32_t.");
+            "TMATMUL: Left Type and Right Type must be int8_t when Acc Type is int32_t.");
     } else {
         static_assert(sizeof(CType) == 0, "TMATMUL: Acc Type only supports int32_t or half.");
     }

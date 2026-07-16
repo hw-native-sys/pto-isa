@@ -117,7 +117,7 @@ PTO_INTERNAL void TCONCAT_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc
 template <
     typename TileDst, typename TileSrc0, typename TileSrc1, typename TileDstIdx, typename TileSrc0Idx,
     typename TileSrc1Idx, unsigned elementsPerRepeat, unsigned dstStride, unsigned src0Stride, unsigned src1Stride,
-    unsigned dstIdxStride, unsigned idx0Stride, unsigned idx1Stride, bool NeetCntDstIdx = false>
+    unsigned dstIdxStride, unsigned idx0Stride, unsigned idx1Stride, bool NeedCntDstIdx = false>
 __tf__ PTO_INTERNAL void TConcatIdx(
     typename TileDst::TileDType __out__ dst, typename TileSrc0::TileDType __in__ src0,
     typename TileSrc1::TileDType __in__ src1, typename TileDstIdx::TileDType __out__ dstIdx,
@@ -134,7 +134,7 @@ __tf__ PTO_INTERNAL void TConcatIdx(
     __ubuf__ idxType* idx1Ptr = (__ubuf__ idxType*)__cce_get_tile_ptr(idx1);
     __ubuf__ idxType* dstIdxPtr = nullptr;
 
-    if constexpr (NeetCntDstIdx) {
+    if constexpr (NeedCntDstIdx) {
         dstIdxPtr = (__ubuf__ idxType*)__cce_get_tile_ptr(dstIdx);
     }
 
@@ -152,7 +152,7 @@ __tf__ PTO_INTERNAL void TConcatIdx(
             unsigned idx0Num = *(idx0Ptr + i * idx0Stride) / sizeof(idxType);
             unsigned idx1Num = *(idx1Ptr + i * idx1Stride) / sizeof(idxType);
 
-            if constexpr (NeetCntDstIdx) {
+            if constexpr (NeedCntDstIdx) {
                 idxType dstIdxNum = ((idxType)(idx0Num + idx1Num));
                 dstIdxNum = dstIdxNum < ((idxType)dstValidCol) ? dstIdxNum : ((idxType)dstValidCol);
                 *(dstIdxPtr + i * dstIdxStride) = dstIdxNum * sizeof(idxType);

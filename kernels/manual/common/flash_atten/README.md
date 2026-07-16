@@ -257,7 +257,7 @@ Sim vs NPU comparison (Seq = 2K):
 
 ## Operator Description
 
-### Flash Attention Kernel — Overview, Implemenation and Optimization Details
+### Flash Attention Kernel — Overview, Implementation and Optimization Details
 
   - **Purpose:** Explain the end-to-end computation performed by the `TFA` kernel (Flash‑Attention 2.0 style tiled/streamed attention), map the maths to the kernel stages (`compute_qk`, `compute_p`, `compute_pv`, `compute_gu`), show tensor shapes between stages for the `tfa` testcases, and provide implementation & tuning notes for each stage.
 
@@ -382,7 +382,7 @@ Sim vs NPU comparison (Seq = 2K):
 
     - Optimizations & tradeoffs:
       - Use TROWMAX/TROWSUM call with a static tile size to allow most effiecnt implementon for 128/256/512/1024 reduce axis, pls consider to do a TFILLPAD (PAD_MIN/-INF) to convert dynamic valid rows/cols to static for handling dynamic input (e.g. S0 seqlen)
-      - Use TROWEXPANDSUB inplace computation (dst==src) to mininize buffer allocation
+      - Use TROWEXPANDSUB inplace computation (dst==src) to minimize buffer allocation
       - Carefully interleaving 1d reduced tile compute and 2d compute to reuse pipe barrier bubble within vector unit
 
     - Vector tile UB allocation and reuse (allocate_vec_tile_buffers)
@@ -413,7 +413,7 @@ Sim vs NPU comparison (Seq = 2K):
       - `compute_gu` is vector-core driven and performs per-tile accumulation using `TGU_ND` / `TGU_LAST_ND` macro kernel. The last tile triggers final division by `l2_global_sum`.
     - Optimizations & tradeoffs:
       - Keep `runningOTile` accumulator assigned.
-      - Use TROWEXPANDMUL and TROWEXPANDDIV inplace computation (dst==src) to mininize buffer allocation
+      - Use TROWEXPANDMUL and TROWEXPANDDIV inplace computation (dst==src) to minimize buffer allocation
 
   ### 3. Pipeline orchestration & cube/vector parallelism
 
@@ -433,7 +433,7 @@ Sim vs NPU comparison (Seq = 2K):
       4. GU (compute_gu) running on vector cores consumes pv_tile_fifo and accumulates into `runningOTile`.
 
   - **Intra Cube Core and Vector Core pipelines:**
-    - The matmul_macro_pto and assign_running_acc_tile provided the leftTile/rightTile/AccTile double buffering pipeline mechanism for cube core level pipeline accross different perload sequence of compute_qk and compute_pv calls
+    - The matmul_macro_pto and assign_running_acc_tile provided the leftTile/rightTile/AccTile double buffering pipeline mechanism for cube core level pipeline across different perload sequence of compute_qk and compute_pv calls
     - Inputs k_tile, p_tile (intermediate between CV), v_tile matTiles are double buffered to provide smooth pipeline
     - Compute_p qk_tile input and p_tile output are double buffered, and expT has multi-preload-buffer to allow preload result late forwarding
 
@@ -443,16 +443,16 @@ Sim vs NPU comparison (Seq = 2K):
     - The design is allow out-of-order execution for Reordering the pipeline stage schedule below.
 
   - **Reorder the pipeline stage execution schedule to resolve datadpenency**
-    - Lets look at an example for Head=128 S0=128 and S1=1024 case, for CUBE_S1=128 tiling, there are totally 4 loops each with compute_qk->compute_p->compute_pv->compute_gu, and there is data depenency between stage in the loop. compute_qk & compute_pv stages are executed in cube core, and compute_pv & compute_gu stages are executed in vector core.
+    - Lets look at an example for Head=128 S0=128 and S1=1024 case, for CUBE_S1=128 tiling, there are totally 4 loops each with compute_qk->compute_p->compute_pv->compute_gu, and there is data dependency between stage in the loop. compute_qk & compute_pv stages are executed in cube core, and compute_pv & compute_gu stages are executed in vector core.
 
 
     In theory, without software pipelining (pre-executing qk, p, and later pv) the execution would be fully in sequential below:
 
     <div>
-    <img src="fa_pipeline_preload0_generated.svg" alt="CV Seqential execution" />
+    <img src="fa_pipeline_preload0_generated.svg" alt="CV Sequential execution" />
     </div>
 
-    With pre-execution of qk, p (and later pv) would resolve the data depenency and keep the vector compute resoruce fully busy, below showing the intra-core (tload,tcompute,tstore) and inter-CV-stage pipeline
+    With pre-execution of qk, p (and later pv) would resolve the data dependency and keep the vector compute resource fully busy, below showing the intra-core (tload,tcompute,tstore) and inter-CV-stage pipeline
 
     QK pre-execution = 2 (Theory)
 
@@ -465,14 +465,14 @@ Sim vs NPU comparison (Seq = 2K):
     <img src="fa_pipeline_preload4_generated.svg" alt="Pre-execution of QK=4" />
     </div>
 
-    Actual kernel exection using simulation result for H128 Seqlen=1024, behaviour is similar to the theory one as we excepted.
+    Actual kernel execution using simulation result for H128 Seqlen=1024, behaviour is similar to the theory one as we expected.
 
     Kernel Execution - QK pre-execution = 4 (Sim)
     <div>
     <img src="fa_sim_run_pipeline_h128_s0_128_s1_1024.svg" alt="Pre-execution of QK=4" />
     </div>
 
-    From the pipeline diagram, we could see the actual bound right now is on TSTORE on the cube side, and the cube utilization is bound ~30%, Next vesion we would see how we could further optiminize this case.
+    From the pipeline diagram, we could see the actual bound right now is on TSTORE on the cube side, and the cube utilization is bound ~30%, Next version we would see how we could further optiminize this case.
 
   - **Overlap mechanisms & tuning knobs:**
     - `qkPreloadNum` lets cube pipeline run ahead producing QK tiles for future S1 tiles.
@@ -483,7 +483,7 @@ Sim vs NPU comparison (Seq = 2K):
   ### 4. Multicore task split, tiling and load balancing
 
   - **Multicore tiling and work distribution:**
-    - For BNSD (Batch, no-of-Head, Seqlen, HEAD_SIZE) QKV input, with intermediate QK(S0,S1) during computation, since S1 is the reduce axis, multi-core tiling should be split base on (B,N,S/Cube-S0), while in Flash-decoding case, since (B,N,S/Cube-S0) is small multi-core tiling could split in S1 axis (TODO) and each core keeping partial O and have another kernel to do final GU. The intermediate fifo buffers in case of a very large S0 > Max-no-of-physical-cores (which is 25 in A2/A3) introduce a wastage and uncessary of L2 cache write back it could be optimized base on core id (TODO)
+    - For BNSD (Batch, no-of-Head, Seqlen, HEAD_SIZE) QKV input, with intermediate QK(S0,S1) during computation, since S1 is the reduce axis, multi-core tiling should be split base on (B,N,S/Cube-S0), while in Flash-decoding case, since (B,N,S/Cube-S0) is small multi-core tiling could split in S1 axis (TODO) and each core keeping partial O and have another kernel to do final GU. The intermediate fifo buffers in case of a very large S0 > Max-no-of-physical-cores (which is 25 in A2/A3) introduce a wastage and unnecessary of L2 cache write back it could be optimized base on core id (TODO)
 
   - **Load balancing guidance:**
-    - Consider the compution sparity when casual attention mask applied (TODO), mulit-core tiling also need to take core unbalanced loading along the S0 axis, current appoarch is base on multi-block launchng with block num > physical no of core for large S0. More appoarches we could explorer later.
+    - Consider the computation sparsity when causal attention mask applied (TODO), multi-core tiling also need to take core unbalanced loading along the S0 axis, current approach is base on multi-block launching with block num > physical no of core for large S0. More approaches we could explore later.

@@ -55,7 +55,7 @@ __inline__ auto getOptDynShape(int gShape0, int gShape1, int gShape2, int gShape
 template <
     typename T, int shape0, int shape1, int shape2, int shape3, int shape4, int tRows, int tCols, BLayout major,
     int dyn>
-__inline__ auto getGloablTensor(T* addr, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4)
+__inline__ auto getGlobalTensor(T* addr, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4)
 {
     if constexpr (dyn) {
         int stride0 = gShape1 * gShape2 * shape3 * shape4;
@@ -116,11 +116,11 @@ void runTFILLPAD(T* out, T* src, int gShape0, int gShape1, int gShape2, int gRow
     constexpr int kGTRows = kTRows_ / shape0 / shape1 / shape2; // Dst Tile Rows, merged all shape0*shape1*shape2 row
     // int srcOffset = (block_idx) * (shape3/block_num) * shape4;
     auto srcGlobal =
-        getGloablTensor<T, shape0, shape1, shape2, shape3, shape4, kGTRows, shape4, BLayout::RowMajor, dyn_>(
+        getGlobalTensor<T, shape0, shape1, shape2, shape3, shape4, kGTRows, shape4, BLayout::RowMajor, dyn_>(
             src, gShape0, gShape1, gShape2, shape3, shape4);
     // int dstOffset = (block_idx) * (shape3/block_num) * kTCols_;
     auto dstGlobal =
-        getGloablTensor<T, shape0, shape1, shape2, shape3, kTCols_, kGTRows, kTCols_, BLayout::RowMajor, 0>(
+        getGlobalTensor<T, shape0, shape1, shape2, shape3, kTCols_, kGTRows, kTCols_, BLayout::RowMajor, 0>(
             out, gShape0, gShape1, gShape2, shape3, kTCols_); // dst TStore GlobalTensor just use static
 
     volatile uint64_t t0, t1, t2;

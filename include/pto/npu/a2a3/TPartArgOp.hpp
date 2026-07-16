@@ -191,7 +191,7 @@ PTO_INTERNAL bool checkTiles(
         (std::is_same_v<TVal, float> && (std::is_same_v<TIdx, uint32_t> || std::is_same_v<TIdx, int32_t>)) ||
             (std::is_same_v<TVal, half> && (std::is_same_v<TIdx, uint32_t> || std::is_same_v<TIdx, int32_t> ||
                                             std::is_same_v<TIdx, uint16_t> || std::is_same_v<TIdx, int16_t>)),
-        "TPARTARGOPS: idx type must be intergal type.");
+        "TPARTARGOPS: idx type must be integral type.");
     unsigned dstValidRow = dstVal.GetValidRow();
     unsigned dstValidCol = dstVal.GetValidCol();
     unsigned dstIdxValidRow = dstIdx.GetValidRow();

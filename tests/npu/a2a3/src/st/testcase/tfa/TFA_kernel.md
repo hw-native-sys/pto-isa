@@ -1,4 +1,4 @@
-# Flash Attention Kernel — Overview, Implemenation and Optimization Details
+# Flash Attention Kernel — Overview, Implementation and Optimization Details
 
   - **Purpose:** Explain the end-to-end computation performed by the `TFA` kernel (Flash‑Attention 2.0 style tiled/streamed attention), map the maths to the kernel stages (`compute_qk`, `compute_p`, `compute_pv`, `compute_gu`), show tensor shapes between stages for the `tfa` testcases, and provide implementation & tuning notes for each stage.
 
@@ -123,7 +123,7 @@
 
     - Optimizations & tradeoffs:
       - Use TROWMAX/TROWSUM call with a static tile size to allow most effiecnt implementon for 128/256/512/1024 reduce axis, pls consider to do a TFILLPAD (PAD_MIN/-INF) to convert dynamic valid rows/cols to static for handling dynamic input (e.g. S0 seqlen)
-      - Use TROWEXPANDSUB inplace computation (dst==src) to mininize buffer allocation
+      - Use TROWEXPANDSUB inplace computation (dst==src) to minimize buffer allocation
       - Carefully interleaving 1d reduced tile compute and 2d compute to reuse pipe barrier bubble within vector unit
 
     - Vector tile UB allocation and reuse (allocate_vec_tile_buffers)
@@ -154,7 +154,7 @@
       - `compute_gu` is vector-core driven and performs per-tile accumulation using `TGU_ND` / `TGU_LAST_ND` macro kernel. The last tile triggers final division by `l2_global_sum`.
     - Optimizations & tradeoffs:
       - Keep `runningOTile` accumulator assigned.
-      - Use TROWEXPANDMUL and TROWEXPANDDIV inplace computation (dst==src) to mininize buffer allocation
+      - Use TROWEXPANDMUL and TROWEXPANDDIV inplace computation (dst==src) to minimize buffer allocation
 
   ## 3. Pipeline orchestration & cube/vector parallelism
 
@@ -174,7 +174,7 @@
       4. GU (compute_gu) running on vector cores consumes pv_part and accumulates into `runningOTile`.
 
   - **Intra Cube Core and Vector Core pipelines:**
-    - The matmul_macro_pto and assign_running_acc_tile provided the leftTile/rightTile/AccTile double buffering pipeline mechanism for cube core level pipeline accross different perload sequence of compute_qk and compute_pv calls
+    - The matmul_macro_pto and assign_running_acc_tile provided the leftTile/rightTile/AccTile double buffering pipeline mechanism for cube core level pipeline across different perload sequence of compute_qk and compute_pv calls
     - Inputs k_tile, p_tile (intermediate between CV), v_tile matTiles are double buffered to provide smooth pipeline
     - Compute_p qk_tile input and p_tile output are double buffered, and expT has multi-preload-buffer to allow preload result late forwarding
 
@@ -184,12 +184,12 @@
     - The design is allow out-of-order execution for Reordering the pipeline stage schedule below.
 
   - **Reorder the pipeline stage execution schedule to resolve datadpenency**
-    - Lets look at an example for Head=128 S0=128 and S1=512 case, for CUBE_S1=128 tiling, there are totally 4 loops each with compute_qk->compute_p->compute_pv->compute_gu, and there is data depenency between stage in the loop. compute_qk & compute_pv stages are executed in cube core, and compute_pv & compute_gu stages are executed in vector core.
+    - Lets look at an example for Head=128 S0=128 and S1=512 case, for CUBE_S1=128 tiling, there are totally 4 loops each with compute_qk->compute_p->compute_pv->compute_gu, and there is data dependency between stage in the loop. compute_qk & compute_pv stages are executed in cube core, and compute_pv & compute_gu stages are executed in vector core.
     Without software pipelining (pre-executing qk, p, and later pv) the execution would be fully in sequence below:
     <div>
     <img src="fa_pipeline_preload0_generated.svg" alt="Inter CV FIFOs and intra stage ping/pong" />
     </div>
-    With pre-execution of qk, p (and later pv) would resolve the data depenency and keep the vector compute resoruce fully busy, in theory below showing the intra-core (tload,tcompute,tstore) and inter-CV-stage pipeline
+    With pre-execution of qk, p (and later pv) would resolve the data dependency and keep the vector compute resource fully busy, in theory below showing the intra-core (tload,tcompute,tstore) and inter-CV-stage pipeline
     <div>
     <img src="fa_pipeline_preload2_generated.svg" alt="Inter CV FIFOs and intra stage ping/pong" />
     </div>
@@ -206,7 +206,7 @@
     - For BNSD (Batch, no-of-Head, Seqlen, HEAD_SIZE) QKV input, with intermediate QK(S0,S1) during computation, since S1 is the reduce axis, multi-core tiling should be split base on (B,N,S/Cube-S0), while in Flash-decoding case, since (B,N,S/Cube-S0) is small multi-core tiling could split in S1 axis and each core keeping partial O and have another kernel to do final GU.
 
   - **Load balancing guidance:**
-    - Consider the compution sparity when casual attention mask (TODO) applied, mulit-core tiling also need to take core unbalanced loading along the S0 axis.
+    - Consider the computation sparsity when causal attention mask (TODO) applied, multi-core tiling also need to take core unbalanced loading along the S0 axis.
 
   ## 5. Precision Debugging with INTERMEDIATE_CHECK
 

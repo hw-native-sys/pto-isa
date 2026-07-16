@@ -183,7 +183,7 @@ PTO_INTERNAL void TLoadGm2L1VectorInND(
         "The validRow of TileData must be equal to (Shape0 * Shape1 * Shape2 * Shape3) of ND shape!");
     static_assert(
         GlobalData::staticShape[0] == 1 && GlobalData::staticShape[1] == 1 && GlobalData::staticShape[2] == 1,
-        "Fix: GlobalTensor ony support 2 dim when using vector input!");
+        "Fix: GlobalTensor only support 2 dim when using vector input!");
     uint16_t nValue = gShape3;
     uint16_t dValue = gShape4;
     uint16_t srcDValue = gStride3;
@@ -200,7 +200,7 @@ PTO_INTERNAL void TLoadGm2L1VectorInDn(
 {
     static_assert(
         GlobalData::staticShape[0] == 1 && GlobalData::staticShape[1] == 1 && GlobalData::staticShape[2] == 1,
-        "Fix: GlobalTensor ony support 2 dim when using vector input!");
+        "Fix: GlobalTensor only support 2 dim when using vector input!");
     PTO_ASSERT(validRow == gShape3, "The validCol of TileData must be equal to the 4th dim(Shape3) of DN shape!");
     PTO_ASSERT(
         validCol == gShape0 * gShape1 * gShape2 * gShape4,
@@ -258,8 +258,8 @@ __tf__ PTO_INTERNAL void TLoadGm2L1Nd2nz(
     typename GlobalData::DType* srcAddr = src;
     static_assert(
         GlobalData::staticShape[0] == 1 && GlobalData::staticShape[1] == 1 && GlobalData::staticShape[2] == 1,
-        "Fix: GlobalTensor ony support 2 dim when ND2NZ!");
-    static_assert(TileData::SFractalSize == 512, "Fix: TileData ony support SFractalSize = 512Bytes!");
+        "Fix: GlobalTensor only support 2 dim when ND2NZ!");
+    static_assert(TileData::SFractalSize == 512, "Fix: TileData only support SFractalSize = 512Bytes!");
     PTO_ASSERT(gShape3 > 0 && gShape3 <= 16384, "The Shape3 of GlobalTensor must be in range of [1, 16384]!");
     PTO_ASSERT(gShape4 > 0 && gShape4 <= 65535, "The Shape4 of GlobalTensor must be must be in range of [1, 65535]!");
     PTO_ASSERT(
@@ -280,8 +280,8 @@ __tf__ PTO_INTERNAL void TLoadGm2L1Dn2zn(
 {
     static_assert(
         GlobalData::staticShape[0] == 1 && GlobalData::staticShape[1] == 1 && GlobalData::staticShape[2] == 1,
-        "Fix: GlobalTensor ony support 2 dim when DN2ZN!");
-    static_assert(TileData::SFractalSize == 512, "Fix: TileData ony support SFractalSize = 512Bytes!");
+        "Fix: GlobalTensor only support 2 dim when DN2ZN!");
+    static_assert(TileData::SFractalSize == 512, "Fix: TileData only support SFractalSize = 512Bytes!");
     __cbuf__ typename TileData::DType* dstAddr = (__cbuf__ typename TileData::DType*)__cce_get_tile_ptr(dst);
     typename GlobalData::DType* srcAddr = src;
     PTO_ASSERT(gShape4 > 0 && gShape4 <= 16384, "The Shape4 of GlobalTensor must be in range of [1, 16384]!");

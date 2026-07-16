@@ -69,7 +69,7 @@ namespace pto {
 // Specialized data type conversions with support for multiple rounding modes:
 // RINT, ROUND, FLOOR, CEIL, TRUNC, ODD, NONE
 // ============================================================================
-inline namespace TCvtInternel {
+inline namespace TCvtInternal {
 // CTRL[59] controls saturation mode for FP to INT conversions:
 // - 0 (ON):  Clamp to datatype range (e.g., 300.0f -> int8 = 127)
 // - 1 (OFF): Truncate via bit masking (e.g., 300.0f -> int8 = 44 from 300 & 0xFF)
@@ -77,7 +77,7 @@ constexpr const int SAT_MODE_BIT = 59;
 
 // Temporary buffer size for non-saturation conversions (REPEAT_MAX * 256 bytes)
 constexpr const size_t FP16_INT8_TEMP_BUFFER_SIZE = REPEAT_MAX * 256;
-} // namespace TCvtInternel
+} // namespace TCvtInternal
 
 // PyTorch alignment for edge cases (inf, -inf, nan, overflow)
 // 1 = PyTorch-compatible (uses NonSatTorch), 0 = standard (faster)

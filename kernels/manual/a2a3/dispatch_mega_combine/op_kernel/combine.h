@@ -578,7 +578,7 @@ AICORE inline void Combine<OutputElement>::Process()
         return;
     }
     SetInitialFlags();
-    if (DirectSmallEnabled()) { // problemM_ * topK_ 小于4096的时候走smal case
+    if (DirectSmallEnabled()) { // problemM_ * topK_ 小于4096的时候走small case
         ProcessDirectSmallTokenPath();
     } else if (DirectLargeEnabled()) {
         ProcessDirectLargeTokenPath();

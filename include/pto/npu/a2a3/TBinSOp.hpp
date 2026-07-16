@@ -193,8 +193,8 @@ PTO_INTERNAL void TBinSInstr(
             (TileDataDst::Rows * TileDataDst::Cols + elementsPerRepeat - 1) / elementsPerRepeat;
         constexpr bool nonVLAligned =
             (((TileDataDst::Cols % elementsPerRepeat) != 0) && (TileDataDst::Cols > elementsPerRepeat));
-        constexpr bool enbleCountMode = nonVLAligned || (totalRepeats > pto::REPEAT_MAX);
-        if constexpr (enbleCountMode) {
+        constexpr bool enableCountMode = nonVLAligned || (totalRepeats > pto::REPEAT_MAX);
+        if constexpr (enableCountMode) {
             BinS1LCountMode<Op, T>(dst, src0, src1, validRow, validCol);
         } else {
             BinS1LNormMode<Op, T, elementsPerRepeat, blockSizeElem, TileDataDst::Cols>(
@@ -204,8 +204,8 @@ PTO_INTERNAL void TBinSInstr(
         if (tileDataContinue) [[likely]] {
             unsigned totalRepeats = (validRow * validCol + elementsPerRepeat - 1) / elementsPerRepeat;
             bool nonVLAligned = ((validCol > elementsPerRepeat) && ((validCol % elementsPerRepeat) != 0));
-            bool enbleCountMode = nonVLAligned || (totalRepeats > pto::REPEAT_MAX);
-            if (enbleCountMode) [[unlikely]] {
+            bool enableCountMode = nonVLAligned || (totalRepeats > pto::REPEAT_MAX);
+            if (enableCountMode) [[unlikely]] {
                 BinS1LCountMode<Op, T>(dst, src0, src1, validRow, validCol);
             } else {
                 BinS1LNormMode<Op, T, elementsPerRepeat, blockSizeElem, TileDataDst::Cols>(

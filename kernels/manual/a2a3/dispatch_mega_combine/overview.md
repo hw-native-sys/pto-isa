@@ -16,11 +16,11 @@ h2, h3 {
 
 <img src="../../../../docs/figures/megamoe/moe_ffn_flow_improved.png"  width="800" />
 
-- ① 本地token permuate：源卡内 [token,expert,k] 按expert排序 [expert,token,k]
+- ① 本地token permute：源卡内 [token,expert,k] 按expert排序 [expert,token,k]
 - ② All2All通信：发送 [expert,token,k] 到目标卡
-- ③ 通信后permuate： 目标卡将收到的token按照expert再做一次排序 [expert,srcRank,token,k]
+- ③ 通信后permute： 目标卡将收到的token按照expert再做一次排序 [expert,srcRank,token,k]
 - ④ FFN计算：执行GMM1、Swiglu激活函数和GMM2计算。
-- ⑤ 计算后unpermuate：目标卡将token按照 [srcRank,expert,token,k] 重新排序
+- ⑤ 计算后unpermute：目标卡将token按照 [srcRank,expert,token,k] 重新排序
 - ⑥ AlltoallV还原：将 [expert,token,k] all2allv发回srcRank源卡
 - ⑦ 源卡按照topk结果累加，并还原原始token顺序 [token，k]
 
@@ -38,9 +38,9 @@ h2, h3 {
 
 <img src="../../../../docs/figures/megamoe/megamoe_pipeline_swiglu_2seg_fixed.png"  width="800" />
 
-- ① 开头：两次permuate合并到一起，通过一次轻量的all2all通信对齐内存布局
+- ① 开头：两次permute合并到一起，通过一次轻量的all2all通信对齐内存布局
 
-   <img src="../../../../docs/figures/megamoe/permuate_all2all_count.png"  width="250" />
+   <img src="../../../../docs/figures/megamoe/permute_all2all_count.png"  width="250" />
 
 - ② 中间：
   - a.按照expert逐个做AIC和AIV的overlap,第i个专家的GMM可以与第i-1专家的AlltoallV

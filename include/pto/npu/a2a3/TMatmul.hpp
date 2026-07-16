@@ -13,9 +13,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-inline namespace TMatmulInternel {
+inline namespace TMatmulInternal {
 constexpr const int MMAD_MAX_SUPPORT_LENGTH = 4095;
-} // namespace TMatmulInternel
+} // namespace TMatmulInternal
 
 template <typename TileLeft, typename TileRight>
 PTO_INTERNAL bool GetKDirectionAlign(TileLeft& aMatrix, TileRight& bMatrix)

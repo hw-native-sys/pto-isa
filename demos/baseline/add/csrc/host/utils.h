@@ -8,8 +8,8 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-#ifndef EXTENTION_CSRC_UTILS_H
-#define EXTENTION_CSRC_UTILS_H
+#ifndef EXTENSION_CSRC_UTILS_H
+#define EXTENSION_CSRC_UTILS_H
 #include <torch/library.h>
 #include <ATen/ATen.h>
 #include "torch_npu/csrc/framework/OpCommand.h"

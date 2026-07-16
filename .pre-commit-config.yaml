@@ -48,7 +48,7 @@ repos:
       - id: codespell
         args: [
             "-L",
-            "CANN,cann,NNAL,nnal,ASCEND,ascend,EnQue,CopyIn,ArchType,AND,ND,Nd,nd,tbe,copyin,alog,subtile,Subtile,subtiles,Subtiles,SUBTILE,SUBTILES,TTEST,ttest,FpT,indexT,curEv,Fo,vor,requestors",
+            "CANN,cann,NNAL,nnal,ASCEND,ascend,EnQue,CopyIn,ArchType,AND,ND,Nd,nd,tbe,copyin,alog,subtile,Subtile,subtiles,Subtiles,SUBTILE,SUBTILES,TTEST,ttest,FpT,indexT,curEv,Fo,vor,requestors,fo,adn,eles,binar,mis,compatiable",
             "--skip",
             "*.py,*.cpp,*.hpp,*.c,*.h",
           ]

@@ -259,7 +259,7 @@ PTO_INTERNAL void BinaryInstr(
     }
 }
 
-// support differnent tile shape of dst, src0, src1
+// support different tile shape of dst, src0, src1
 template <
     typename Op, typename T, unsigned elemPerRpt, unsigned elemPerBlk, unsigned dstStride,
     unsigned src0Stride = dstStride, unsigned src1Stride = dstStride>

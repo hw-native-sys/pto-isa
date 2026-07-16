@@ -199,10 +199,10 @@ PTO_INTERNAL void TDeInterleaveCheckSingleSrc(const TileDataDst& dst1, const Til
     uint32_t halfValidCols = validCols >> 1;
     PTO_ASSERT(
         dst0.GetValidRow() == validRows && dst0.GetValidCol() == halfValidCols,
-        "Fix: TDEINTERLEAVE dst0 tile valid shape shoud be half of input tile src shape.");
+        "Fix: TDEINTERLEAVE dst0 tile valid shape should be half of input tile src shape.");
     PTO_ASSERT(
         dst1.GetValidRow() == validRows && dst1.GetValidCol() == halfValidCols,
-        "Fix: TDEINTERLEAVE dst1 tile valid shape shoud be half of input tile src shape.");
+        "Fix: TDEINTERLEAVE dst1 tile valid shape should be half of input tile src shape.");
 }
 
 template <typename TileDataDst, typename TileDataSrc, unsigned ElementsPerRepeat, unsigned BlockSizeElem>

@@ -67,7 +67,7 @@ PTO_INTERNAL void WriteStruct(
     }
 }
 
-PTO_INTERNAL bool ReachExhaused(
+PTO_INTERNAL bool ReachExhausted(
     unsigned i0, unsigned i1, unsigned i2, unsigned i3, unsigned s0Structs, unsigned s1Structs, unsigned s2Structs,
     unsigned s3Structs, unsigned listNum)
 {
@@ -91,7 +91,7 @@ PTO_INTERNAL void UpdateIndex(int pick, unsigned& i0, unsigned& i1, unsigned& i2
     }
 }
 
-PTO_INTERNAL void WriteExhaused(
+PTO_INTERNAL void WriteExhausted(
     unsigned i0, unsigned i1, unsigned i2, unsigned i3, uint16_t& mrgSortList0, uint16_t& mrgSortList1,
     uint16_t& mrgSortList2, uint16_t& mrgSortList3)
 {
@@ -164,13 +164,13 @@ PTO_INTERNAL void TMrgsort(
         UpdateIndex(pick, i0, i1, i2, i3);
 
         if constexpr (exhausted) {
-            if (ReachExhaused(i0, i1, i2, i3, s0Structs, s1Structs, s2Structs, s3Structs, listNum)) {
+            if (ReachExhausted(i0, i1, i2, i3, s0Structs, s1Structs, s2Structs, s3Structs, listNum)) {
                 break;
             }
         }
     }
 
-    WriteExhaused(i0, i1, i2, i3, mrgSortList0, mrgSortList1, mrgSortList2, mrgSortList3);
+    WriteExhausted(i0, i1, i2, i3, mrgSortList0, mrgSortList1, mrgSortList2, mrgSortList3);
 }
 
 // blockLen includes values + indexes/payload, e.g. 32 (value,idx) pairs -> blockLen=64 for float.
