@@ -58,10 +58,10 @@ AICORE void runTInsertNZ(__gm__ T* out, __gm__ T* src)
     DstVecTile dstTile(Rows, Cols);
     MatTile matTile(Rows, Cols);
 
-    TASSIGN(srcTile, 0x0);
-    TASSIGN(tmpTile, 0x10000);
-    TASSIGN(dstTile, 0x20000);
-    TASSIGN(matTile, 0x0);
+    TASSIGN<0x0>(srcTile);
+    TASSIGN<Rows * Cols * sizeof(T)>(tmpTile);
+    TASSIGN<2 * Rows * Cols * sizeof(T)>(dstTile);
+    TASSIGN<0x0>(matTile);
 
     SrcGlobalData srcGlobal(src);
     OutGlobalData dstGlobal(out);
@@ -124,10 +124,10 @@ AICORE void runTInsertNZPlusOne(__gm__ T* out, __gm__ T* src)
     DstVecTile dstTile(Rows, Cols);
     MatTile matTile(Rows, Cols);
 
-    TASSIGN(srcTile, 0x0);
-    TASSIGN(tmpTile, 0x10000);
-    TASSIGN(dstTile, 0x20000);
-    TASSIGN(matTile, 0x0);
+    TASSIGN<0x0>(srcTile);
+    TASSIGN<Rows * Cols * sizeof(T)>(dstTile);
+    TASSIGN<2 * Rows * Cols * sizeof(T)>(tmpTile);
+    TASSIGN<0x0>(matTile);
 
     SrcGlobalData srcGlobal(src);
     OutGlobalData dstGlobal(out);
@@ -187,10 +187,10 @@ AICORE void runTInsertNZSplit(__gm__ T* out, __gm__ T* src)
     DstVecTile dstTile(Rows, Cols);
     MatTile matTile(Rows, Cols);
 
-    TASSIGN(srcTile, 0x0);
-    TASSIGN(tmpTile, 0x10000);
-    TASSIGN(dstTile, 0x20000);
-    TASSIGN(matTile, 0x0);
+    TASSIGN<0x0>(srcTile);
+    TASSIGN<Rows * Cols * sizeof(T)>(dstTile);
+    TASSIGN<2 * Rows * Cols * sizeof(T)>(tmpTile);
+    TASSIGN<0x0>(matTile);
 
     SrcGlobalData srcGlobal(src);
     OutGlobalData dstGlobal(out);
@@ -267,9 +267,9 @@ AICORE void runTInsertNZLargeTile(__gm__ T* out, __gm__ T* src)
     DstVecTile dstTile(DstRows, Cols);
     MatTile matTile(DstRows, Cols);
 
-    TASSIGN(srcTile, 0x0);
-    TASSIGN(dstTile, 0x10000);
-    TASSIGN(matTile, 0x0);
+    TASSIGN<0x0>(srcTile);
+    TASSIGN<TileRows * Cols * sizeof(T)>(dstTile);
+    TASSIGN<0x0>(matTile);
 
     SrcNZGlobalData srcGlobal(src);
     OutGlobalData dstGlobal(out);
@@ -381,10 +381,10 @@ __global__ AICORE void RunTInsertNDVec(__gm__ T* out, __gm__ T* srcIn, __gm__ T*
     SrcVec srcTile;
     DstVec dstTile;
 
-    TASSIGN(srcTile, 0x0);
+    TASSIGN<0x0>(srcTile);
     constexpr uint32_t srcSize = SrcRows * SrcCols * sizeof(T);
     constexpr uint32_t dstAssignAddr = ((srcSize + 0xFF) / 0x100) * 0x100;
-    TASSIGN(dstTile, dstAssignAddr);
+    TASSIGN<dstAssignAddr>(dstTile);
 
     SrcGlobal srcGlobal(srcIn);
     DstGlobal dstInitGlobal(dstIn);
@@ -465,11 +465,11 @@ __global__ AICORE void RunTInsertNDVecValid(__gm__ T* out, __gm__ T* srcIn, __gm
     SrcInsertVec srcInsert;
     DstVec dstTile;
 
-    TASSIGN(srcLoad, 0x0);
-    TASSIGN(srcInsert, 0x0);
+    TASSIGN<0x0>(srcLoad);
+    TASSIGN<0x0>(srcInsert);
     constexpr uint32_t srcSize = SrcRows * SrcCols * sizeof(T);
     constexpr uint32_t dstAssignAddr = ((srcSize + 0xFF) / 0x100) * 0x100;
-    TASSIGN(dstTile, dstAssignAddr);
+    TASSIGN<dstAssignAddr>(dstTile);
 
     SrcGlobal srcGlobal(srcIn);
     DstGlobal dstInitGlobal(dstIn);
@@ -534,11 +534,11 @@ __global__ AICORE void RunTInsertNDVecScalar(__gm__ T* out, __gm__ T* srcIn, __g
     SrcInsertVec srcInsert;
     DstVec dstTile;
 
-    TASSIGN(srcLoad, 0x0);
-    TASSIGN(srcInsert, 0x0);
+    TASSIGN<0x0>(srcLoad);
+    TASSIGN<0x0>(srcInsert);
     constexpr uint32_t srcSize = 1 * MinAlignedCols * sizeof(T);
     constexpr uint32_t dstAssignAddr = ((srcSize + 0xFF) / 0x100) * 0x100;
-    TASSIGN(dstTile, dstAssignAddr);
+    TASSIGN<dstAssignAddr>(dstTile);
 
     SrcGlobal srcGlobal(srcIn);
     DstGlobal dstInitGlobal(dstIn);
@@ -603,11 +603,11 @@ AICORE void runTInsertNZUnaligned(__gm__ T* out, __gm__ T* src)
     ZeroVecTile zeroTile(DstRows, Cols);
     MatTile matTile(DstRows, Cols);
 
-    TASSIGN(srcTile, 0x0);
-    TASSIGN(tmpTile, 0x10000);
-    TASSIGN(dstTile, 0x20000);
-    TASSIGN(zeroTile, 0x20000);
-    TASSIGN(matTile, 0x0);
+    TASSIGN<0x0>(srcTile);
+    TASSIGN<SrcRows * Cols * sizeof(T)>(tmpTile);
+    TASSIGN<(SrcRows + AlignedRow + 1) * Cols * sizeof(T)>(dstTile);
+    TASSIGN<(SrcRows + AlignedRow + 1) * Cols * sizeof(T)>(zeroTile);
+    TASSIGN<0x0>(matTile);
 
     SrcGlobalData srcGlobal(src);
     OutGlobalData dstGlobal(out);
@@ -711,12 +711,12 @@ AICORE void runTInsertNZTwoInsert(__gm__ T* out, __gm__ T* src1, __gm__ T* src2)
     DstVecTile dstTile(DstRows, Cols);
     MatTile matTile(DstRows, Cols);
 
-    TASSIGN(src1Tile, 0x0);
-    TASSIGN(src2Tile, 0x4000);
-    TASSIGN(tmpTile1, 0x10000);
-    TASSIGN(tmpTile2, 0x10000);
-    TASSIGN(dstTile, 0x20000);
-    TASSIGN(matTile, 0x0);
+    TASSIGN<0x0>(src1Tile);
+    TASSIGN<SrcRows1 * Cols * sizeof(T)>(src2Tile);
+    TASSIGN<(SrcRows1 + SrcRows2) * Cols * sizeof(T)>(tmpTile1);
+    TASSIGN<(SrcRows1 + SrcRows2) * Cols * sizeof(T)>(tmpTile2);
+    TASSIGN<(SrcRows1 + SrcRows2 + MaxAlignedRow + 1) * Cols * sizeof(T)>(dstTile);
+    TASSIGN<0x0>(matTile);
 
     Src1GlobalData src1Global(src1);
     Src2GlobalData src2Global(src2);
@@ -850,6 +850,7 @@ AICORE void runTInsertNZOverwrite(__gm__ T* out, __gm__ T* src1, __gm__ T* src2)
 {
     constexpr uint32_t c0Size = CUBE_BLOCK_SIZE / (FRACTAL_NZ_ROW * sizeof(T));
     constexpr uint32_t AlignedRow2 = ((SrcRows2 + FRACTAL_NZ_ROW - 1) / FRACTAL_NZ_ROW) * FRACTAL_NZ_ROW;
+    constexpr uint32_t MaxAlignedRow = (DstRows > AlignedRow2) ? DstRows : AlignedRow2;
 
     using Src1ShapeDim5 = pto::Shape<1, 1, 1, DstRows, Cols>;
     using Src1StridDim5 = pto::Stride<1, 1, 1, Cols, 1>;
@@ -884,12 +885,12 @@ AICORE void runTInsertNZOverwrite(__gm__ T* out, __gm__ T* src1, __gm__ T* src2)
     DstVecTile dstTile(DstRows, Cols);
     MatTile matTile(DstRows, Cols);
 
-    TASSIGN(src1Tile, 0x0);
-    TASSIGN(src2Tile, 0x4000);
-    TASSIGN(tmpTile1, 0x10000);
-    TASSIGN(tmpTile2, 0x10000);
-    TASSIGN(dstTile, 0x20000);
-    TASSIGN(matTile, 0x0);
+    TASSIGN<0x0>(src1Tile);
+    TASSIGN<DstRows * Cols * sizeof(T)>(src2Tile);
+    TASSIGN<(DstRows + SrcRows2) * Cols * sizeof(T)>(tmpTile1);
+    TASSIGN<(DstRows + SrcRows2) * Cols * sizeof(T)>(tmpTile2);
+    TASSIGN<(DstRows + SrcRows2 + MaxAlignedRow + 1) * Cols * sizeof(T)>(dstTile);
+    TASSIGN<0x0>(matTile);
 
     Src1GlobalData src1Global(src1);
     Src2GlobalData src2Global(src2);
@@ -993,9 +994,9 @@ AICORE void runTInsertNZVecToVec(__gm__ T* out, __gm__ T* src)
     SrcNZTile srcNZTile;
     DstNZTile dstNZTile(DstRows, Cols);
 
-    TASSIGN(srcNDTile, 0x0);
-    TASSIGN(srcNZTile, 0x10000);
-    TASSIGN(dstNZTile, 0x20000);
+    TASSIGN<0x0>(srcNDTile);
+    TASSIGN<sizeof(T) * SrcRows * Cols>(srcNZTile);
+    TASSIGN<2 * sizeof(T) * SrcRows * Cols>(dstNZTile);
 
     SrcGlobalData srcGlobal(src);
     OutGlobalData dstGlobal(out);
@@ -1062,9 +1063,9 @@ AICORE void runTInsertNZPlusOneVecToVec(__gm__ T* out, __gm__ T* src)
     SrcNZTile srcNZTile;
     DstNZTile dstNZTile(DstRows, Cols);
 
-    TASSIGN(srcNDTile, 0x0);
-    TASSIGN(srcNZTile, 0x10000);
-    TASSIGN(dstNZTile, 0x20000);
+    TASSIGN<0x0>(srcNDTile);
+    TASSIGN<sizeof(T) * SrcRows * Cols>(srcNZTile);
+    TASSIGN<sizeof(T) * (SrcRows + AlignedSrcRow + 1) * Cols>(dstNZTile);
 
     SrcGlobalData srcGlobal(src);
     OutGlobalData dstGlobal(out);
@@ -1169,9 +1170,9 @@ AICORE void runTInsertNZSplitCustom(__gm__ T* out, __gm__ T* src)
     constexpr uint32_t srcSize = ValidRow * Cols * sizeof(T);
     constexpr uint32_t tmpOffset = ((srcSize + 0xFF) / 0x100) * 0x100;
 
-    TASSIGN(srcTile, 0x0);
-    TASSIGN(tmpTile, tmpOffset);
-    TASSIGN(matTile, 0x0);
+    TASSIGN<0x0>(srcTile);
+    TASSIGN<tmpOffset>(tmpTile);
+    TASSIGN<0x0>(matTile);
 
     SrcGlobalData srcGlobal(src);
     OutGlobalData dstGlobal(out);
@@ -1183,8 +1184,7 @@ AICORE void runTInsertNZSplitCustom(__gm__ T* out, __gm__ T* src)
     constexpr uint16_t burstLen = (DstRows * c0Size * sizeof(T)) / BLOCK_BYTE_SIZE;
 
     constexpr uint32_t dstUbOffset = ((tmpOffset + (DstRows + 1) * Cols * sizeof(T) + 0xFF) / 0x100) * 0x100;
-
-    TASSIGN(dstTile, dstUbOffset);
+    TASSIGN<dstUbOffset>(dstTile);
 
     __cbuf__ T* matAddr = matTile.data();
     __ubuf__ T* dstUbAddr = dstTile.data();
@@ -1255,9 +1255,9 @@ void launchTInsertNZSplitCustom(uint64_t* out, uint64_t* src, void* stream)
     } else if constexpr (testKey == 2) {
         launchTInsertNZSplitCustomKernel<TInsertMode::SPLIT4, float, 8, 16, 256><<<1, nullptr, stream>>>(out, src);
     } else if constexpr (testKey == 3) {
-        launchTInsertNZSplitCustomKernel<TInsertMode::SPLIT2, float, 128, 128, 128><<<1, nullptr, stream>>>(out, src);
+        launchTInsertNZSplitCustomKernel<TInsertMode::SPLIT2, float, 128, 128, 64><<<1, nullptr, stream>>>(out, src);
     } else if constexpr (testKey == 4) {
-        launchTInsertNZSplitCustomKernel<TInsertMode::SPLIT4, float, 128, 128, 128><<<1, nullptr, stream>>>(out, src);
+        launchTInsertNZSplitCustomKernel<TInsertMode::SPLIT4, float, 128, 128, 64><<<1, nullptr, stream>>>(out, src);
     }
 }
 
@@ -1284,9 +1284,9 @@ AICORE void runTInsertNZTwoInputSplit(__gm__ T* out, __gm__ T* src)
     DstVecTile dstTile(DstRows, Cols);
     MatTile matTile(DstRows, Cols);
 
-    TASSIGN(srcTile, 0x0);
-    TASSIGN(dstTile, 0x0);
-    TASSIGN(matTile, 0x0);
+    TASSIGN<0x0>(srcTile);
+    TASSIGN<0x0>(dstTile);
+    TASSIGN<0x0>(matTile);
 
     OutGlobalData dstGlobal(out);
 
@@ -1355,7 +1355,7 @@ void launchTInsertNZTwoInput(uint64_t* out, uint64_t* src, void* stream)
     } else if constexpr (testKey == 4) {
         launchTInsertNZTwoInputSplitKernel<TInsertMode::SPLIT2, half, 129, 256, 256><<<1, nullptr, stream>>>(out, src);
     } else if constexpr (testKey == 5) {
-        launchTInsertNZTwoInputSplitKernel<TInsertMode::SPLIT2, float, 129, 256, 256><<<1, nullptr, stream>>>(out, src);
+        launchTInsertNZTwoInputSplitKernel<TInsertMode::SPLIT2, float, 129, 256, 128><<<1, nullptr, stream>>>(out, src);
     } else if constexpr (testKey == 6) {
         launchTInsertNZTwoInputSplitKernel<TInsertMode::SPLIT2, int8_t, 129, 256, 256>
             <<<1, nullptr, stream>>>(out, src);
@@ -1392,10 +1392,10 @@ AICORE void runTInsertNZDoubleInput(__gm__ T* out, __gm__ T* src)
     DstVecTile dstTile(DstRows, Cols);
     MatTile matTile(DstRows, Cols);
 
-    TASSIGN(src1Tile, 0x0);
-    TASSIGN(src2Tile, ubSrc2Offset);
-    TASSIGN(dstTile, 0x0);
-    TASSIGN(matTile, 0x0);
+    TASSIGN<0x0>(src1Tile);
+    TASSIGN<ubSrc2Offset>(src2Tile);
+    TASSIGN<0x0>(dstTile);
+    TASSIGN<0x0>(matTile);
 
     OutGlobalData dstGlobal(out);
 
@@ -1469,9 +1469,9 @@ void launchTInsertNZDoubleInput(uint64_t* out, uint64_t* src, void* stream)
     } else if constexpr (testKey == 3) {
         launchTInsertNZDoubleInputKernel<int8_t, 17, 128, 4, 0, 4, 4, 16><<<1, nullptr, stream>>>(out, src);
     } else if constexpr (testKey == 4) {
-        launchTInsertNZDoubleInputKernel<half, 129, 256, 1, 128, 128, 0, 256><<<1, nullptr, stream>>>(out, src);
+        launchTInsertNZDoubleInputKernel<half, 129, 128, 1, 128, 128, 0, 256><<<1, nullptr, stream>>>(out, src);
     } else if constexpr (testKey == 5) {
-        launchTInsertNZDoubleInputKernel<float, 129, 128, 1, 128, 128, 0, 256><<<1, nullptr, stream>>>(out, src);
+        launchTInsertNZDoubleInputKernel<float, 129, 64, 1, 128, 128, 0, 256><<<1, nullptr, stream>>>(out, src);
     } else if constexpr (testKey == 6) {
         launchTInsertNZDoubleInputKernel<int8_t, 129, 256, 1, 128, 128, 0, 256><<<1, nullptr, stream>>>(out, src);
     }
@@ -1509,9 +1509,9 @@ AICORE void runTInsertCompactNullTLoad(__gm__ T* out, __gm__ T* src)
     DstUbTile dstTile;
     MatTile matTile(IdxRow + ValidRow, IdxCol + ValidCol);
 
-    TASSIGN(nzTile, 0x10000);
-    TASSIGN(dstTile, 0x20000);
-    TASSIGN(matTile, 0x0);
+    TASSIGN<0x0>(nzTile);
+    TASSIGN<SrcRows * SrcCols * sizeof(T)>(dstTile);
+    TASSIGN<0x0>(matTile);
 
     InitGlobal initGlobal(src);
     SrcGlobal srcGlobal(src + DstRows * DstCols);
@@ -1592,10 +1592,10 @@ AICORE void runTInsertCompactTMov(__gm__ T* out, __gm__ T* src)
     DstUbTile dstTile;
     MatTile matTile(IdxRow + ValidRow, IdxCol + ValidCol);
 
-    TASSIGN(ndTile, 0x0);
-    TASSIGN(nzTile, 0x10000);
-    TASSIGN(dstTile, 0x20000);
-    TASSIGN(matTile, 0x0);
+    TASSIGN<0x0>(ndTile);
+    TASSIGN<ValidRow * ValidCol * sizeof(T)>(nzTile);
+    TASSIGN<(ValidRow * ValidCol + NzRows * NzCols) * sizeof(T)>(dstTile);
+    TASSIGN<0x0>(matTile);
 
     InitGlobal initGlobal(src);
     SrcNdGlobal srcGlobal(src + DstRows * DstCols);

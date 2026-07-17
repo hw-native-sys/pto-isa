@@ -152,6 +152,9 @@ __tf__ PTO_INTERNAL void TInsertAccToVec(
     __ubuf__ dstType* dstAddr = (__ubuf__ dstType*)__cce_get_tile_ptr(dst) + dstOffset;
     __cc__ typename SrcTileData::DType* srcData = (__cc__ typename SrcTileData::DType*)__cce_get_tile_ptr(src);
 
+    PTO_ASSERT(indexRow + validRow <= DstTileData::Rows, "Acc2Vec: indexRow + validRow exceeds dstRows!");
+    PTO_ASSERT(indexCol + validCol <= DstTileData::Cols, "Acc2Vec: indexCol + validCol exceeds dstCols!");
+
     pto_copy_matrix_cc_to_ub(
         dstAddr, srcData, 0, validCol, validRow, dstStride, srcStride, 0, false, 0, 0, QuantPre,
         static_cast<uint8_t>(reluMode), false, enableNz2Nd, 0, 0, false, false, 0, false, false, false, false, false,
@@ -179,12 +182,50 @@ __tf__ PTO_INTERNAL void TInsertAccToMat(
     constexpr uint32_t dstStrideD = DstTileData::Rows * c0Size;
     constexpr uint16_t srcStride = SrcTileData::Rows;
     uint16_t nSize = CeilDivision(validCol, c0Size) * c0Size;
+    PTO_ASSERT(indexRow + SrcTileData::Rows <= DstTileData::Rows, "Acc2Mat: indexRow + srcRows exceeds dstRows!");
+    PTO_ASSERT(indexCol + nSize <= DstTileData::Cols, "Acc2Mat: indexCol + nSize exceeds dstCols!");
     pto_copy_matrix_cc_to_cbuf(
         dstAddr, srcAddr, 0, nSize, SrcTileData::Rows, dstStrideD, srcStride, 0, QuantPre,
         static_cast<uint8_t>(reluMode), channelSplitEnable, false);
 }
 
 #include "pto/common/arch/memory/tinsert_common.hpp"
+
+template <typename DstTileData, typename SrcTileData>
+PTO_INTERNAL void TInsertVecToVecNDDispatch(DstTileData& dst, SrcTileData& src, uint16_t indexRow, uint16_t indexCol)
+{
+    using T = typename DstTileData::DType;
+    CheckTInsertVecToVecND<DstTileData, SrcTileData>();
+    uint32_t idxRow = static_cast<uint32_t>(indexRow);
+    uint32_t idxCol = static_cast<uint32_t>(indexCol);
+    if constexpr (SrcTileData::ValidRow == 1 && SrcTileData::ValidCol == 1) {
+        PTO_ASSERT(idxRow < DstTileData::Rows, "TINSERT ND Vec->Vec : indexRow exceeds dstRows!");
+        PTO_ASSERT(idxCol < DstTileData::Cols, "TINSERT ND Vec->Vec : indexCol exceeds dstCols!");
+        TInsertVecToVecNDScalar<T, DstTileData, SrcTileData>(dst.data(), src.data(), idxRow, idxCol);
+    } else {
+        PTO_ASSERT(
+            idxRow + SrcTileData::ValidRow <= DstTileData::Rows,
+            "TINSERT ND Vec->Vec : indexRow + srcValidRow exceeds destination rows!");
+        PTO_ASSERT(
+            idxCol + SrcTileData::ValidCol <= DstTileData::Cols,
+            "TINSERT ND Vec->Vec : indexCol + srcValidCol exceeds destination cols!");
+        uint16_t validRow = static_cast<uint16_t>(src.GetValidRow());
+        uint16_t validCol = static_cast<uint16_t>(src.GetValidCol());
+        if constexpr ((SrcTileData::ValidCol * sizeof(T)) % BLOCK_BYTE_SIZE == 0) {
+            if (idxCol * sizeof(T) % BLOCK_BYTE_SIZE == 0) {
+                TInsertVecToVecNDAligned<T, DstTileData, SrcTileData>(
+                    dst.data(), src.data(), validRow, validCol, idxRow, idxCol);
+            } else {
+                TInsertVecToVecNDUnaligned<T, DstTileData, SrcTileData>(
+                    dst.data(), src.data(), validRow, validCol, idxRow, idxCol);
+            }
+        } else {
+            TInsertVecToVecNDUnaligned<T, DstTileData, SrcTileData>(
+                dst.data(), src.data(), validRow, validCol, idxRow, idxCol);
+        }
+    }
+}
+
 template <typename T, typename DstTileData, typename SrcTileData>
 __tf__ PTO_INTERNAL void TInsertNDImpl(
     typename DstTileData::TileDType __out__ dst, typename SrcTileData::TileDType __in__ src, uint16_t validRow,
@@ -332,12 +373,6 @@ PTO_INTERNAL void TINSERT_IMPL(DstTileData& dst, SrcTileData& src, uint16_t inde
 
     } else {
         CheckTMovAccValid<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, false>();
-        PTO_ASSERT(
-            indexRow + SrcTileData::Rows <= DstTileData::Rows,
-            "The sum of indexRow and srcRow should be less than dstRow!");
-        PTO_ASSERT(
-            indexCol + SrcTileData::Cols <= DstTileData::Cols,
-            "The sum of indexCol and srcCol should be less than dstCol!");
         constexpr QuantMode_t quantPre =
             GetCastPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
         if constexpr (DstTileData::Loc == TileType::Mat) {
@@ -355,12 +390,6 @@ template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode>
 PTO_INTERNAL void TINSERT_IMPL(DstTileData& dst, SrcTileData& src, uint16_t indexRow = 0, uint16_t indexCol = 0)
 {
     CheckTMovAccValid<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, false>();
-    PTO_ASSERT(
-        indexRow + SrcTileData::Rows <= DstTileData::Rows,
-        "The sum of indexRow and srcRow should be less than dstRow!");
-    PTO_ASSERT(
-        indexCol + SrcTileData::Cols <= DstTileData::Cols,
-        "The sum of indexCol and srcCol should be less than dstCol!");
     constexpr QuantMode_t quantPre = GetCastPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
     if constexpr (DstTileData::Loc == TileType::Mat) {
         TInsertAccToMat<DstTileData, SrcTileData, quantPre, reluMode>(
@@ -377,12 +406,6 @@ PTO_INTERNAL void TINSERT_IMPL(
     DstTileData& dst, SrcTileData& src, uint64_t preQuantScalar, uint16_t indexRow = 0, uint16_t indexCol = 0)
 {
     CheckTMovAccValid<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, true>();
-    PTO_ASSERT(
-        indexRow + SrcTileData::Rows <= DstTileData::Rows,
-        "The sum of indexRow and srcRow should be less than dstRow!");
-    PTO_ASSERT(
-        indexCol + SrcTileData::Cols <= DstTileData::Cols,
-        "The sum of indexCol and srcCol should be less than dstCol!");
     constexpr QuantMode_t quantPre = GetScalarPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
     set_quant_pre(preQuantScalar);
     if constexpr (DstTileData::Loc == TileType::Mat) {
@@ -400,12 +423,6 @@ PTO_INTERNAL void TINSERT_IMPL(
     DstTileData& dst, SrcTileData& src, FpTileData& fp, uint16_t indexRow = 0, uint16_t indexCol = 0)
 {
     CheckTMovAccValid<DstTileData, SrcTileData, typename DstTileData::DType, typename SrcTileData::DType, true>();
-    PTO_ASSERT(
-        indexRow + SrcTileData::Rows <= DstTileData::Rows,
-        "The sum of indexRow and srcRow should be less than dstRow!");
-    PTO_ASSERT(
-        indexCol + SrcTileData::Cols <= DstTileData::Cols,
-        "The sum of indexCol and srcCol should be less than dstCol!");
     static_assert(FpTileData::Loc == TileType::Scaling, "Fp only support Scaling.");
     constexpr QuantMode_t quantPre = GetVectorPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
     SetFPCInsert<FpTileData>(fp.data());

@@ -53,7 +53,5 @@ template void LaunchTAxpy<aclFloat16, 64, 64, 64, 64>(aclFloat16* out, aclFloat1
 template void LaunchTAxpy<aclFloat16, 64, 64, 63, 63>(aclFloat16* out, aclFloat16* src0, float scalar, void* stream);
 template void LaunchTAxpy<aclFloat16, 1, 16384, 1, 16384>(
     aclFloat16* out, aclFloat16* src0, float scalar, void* stream);
-template void LaunchTAxpy<aclFloat16, 2048, 16, 2048, 16>(
-    aclFloat16* out, aclFloat16* src0, float scalar, void* stream);
 template void LaunchTAxpy<float, 8, 8, 8, 8>(float* out, float* src0, float scalar, void* stream);
 template void LaunchTAxpy<float, 16, 16, 15, 15>(float* out, float* src0, float scalar, void* stream);

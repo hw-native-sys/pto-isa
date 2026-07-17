@@ -41,7 +41,7 @@ PTO_INTERNAL void TLoadInstrGm2L1(
     __cbuf__ typename TileDataDst::DType* dst, typename GlobalDataSrc::DType* src, uint16_t nBurst, uint32_t lenBurst,
     uint32_t gmGap, uint32_t l1Gap)
 {
-    if (l1Gap == 0) {
+    if (l1Gap == 0 && (lenBurst % BLOCK_BYTE_SIZE == 0)) {
         lenBurst = lenBurst >> SHIFT_BLOCK_BYTE;
         gmGap = gmGap >> SHIFT_BLOCK_BYTE;
         pto_copy_gm_to_cbuf(dst, src, (uint8_t)0, nBurst, lenBurst, gmGap, l1Gap);
@@ -125,9 +125,6 @@ PTO_INTERNAL void TLoadGm2L1Nd2nd(
     int gShape2, int gShape3, int gShape4, int gStride0, int gStride1, int gStride2, int gStride3, int gStride4,
     int validRow, int validCol)
 {
-    PTO_ASSERT(
-        gShape4 * sizeof(typename TileDataDst::DType) % BLOCK_BYTE_SIZE == 0,
-        "The 5th dim of ND shape must be 32 bytes aligned!");
     PTO_ASSERT(validCol == gShape4, "The validCol of TileDataDst must be equal to the 5th dim(Shape4) of ND shape!");
     PTO_ASSERT(
         validRow == gShape0 * gShape1 * gShape2 * gShape3,
@@ -164,9 +161,6 @@ PTO_INTERNAL void TLoadGm2L1Dn2dn(
     int gShape2, int gShape3, int gShape4, int gStride0, int gStride1, int gStride2, int gStride3, int gStride4,
     int validRow, int validCol)
 {
-    PTO_ASSERT(
-        gShape3 * sizeof(typename TileDataDst::DType) % BLOCK_BYTE_SIZE == 0,
-        "The 4th dim of DN shape must be 32 bytes aligned!");
     PTO_ASSERT(validRow == gShape3, "The validCol of TileDataDst must be equal to the 4th dim(Shape3) of DN shape!");
     PTO_ASSERT(
         validCol == gShape0 * gShape1 * gShape2 * gShape4,

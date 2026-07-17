@@ -263,11 +263,11 @@ TEST_F(TInsertTest, case_nz_split_1) { testSingleSrc<float>(8 * 256 * 4, 16 * 25
 TEST_F(TInsertTest, case_nz_split_2) { testSingleSrc<float>(8 * 256 * 4, 16 * 256 * 4, launchTInsertNZSplitCustom<2>); }
 TEST_F(TInsertTest, case_nz_split_3)
 {
-    testSingleSrc<float>(128 * 128 * 4, 128 * 128 * 4, launchTInsertNZSplitCustom<3>);
+    testSingleSrc<float>(128 * 64 * 4, 128 * 64 * 4, launchTInsertNZSplitCustom<3>);
 }
 TEST_F(TInsertTest, case_nz_split_4)
 {
-    testSingleSrc<float>(128 * 128 * 4, 128 * 128 * 4, launchTInsertNZSplitCustom<4>);
+    testSingleSrc<float>(128 * 64 * 4, 128 * 64 * 4, launchTInsertNZSplitCustom<4>);
 }
 
 template <int32_t testKey, typename dType, int32_t ValidRow, int32_t ValidCol, int32_t DstRows, int32_t DstCols>

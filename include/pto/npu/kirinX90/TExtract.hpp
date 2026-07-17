@@ -255,6 +255,45 @@ __tf__ AICORE void TExtractVecToVecNZ(
     }
 }
 
+template <typename T>
+using TExtractRegT =
+    std::conditional_t<sizeof(T) == 1 && !std::is_same_v<T, int8_t> && !std::is_same_v<T, uint8_t>, int8_t, T>;
+
+template <typename T, typename DstTileData, typename SrcTileData>
+__tf__ AICORE void TExtractVecToVecNDVectorImpl(
+    typename DstTileData::TileDType __out__ dst, typename SrcTileData::TileDType __in__ src, uint16_t validRow,
+    uint16_t validCol, uint32_t indexRow, uint32_t indexCol)
+{
+    using RegT = TExtractRegT<T>;
+    __ubuf__ RegT* dstAddr = (__ubuf__ RegT*)__cce_get_tile_ptr(dst);
+    __ubuf__ RegT* srcAddr = (__ubuf__ RegT*)__cce_get_tile_ptr(src);
+    constexpr uint32_t dstRowStride = DstTileData::RowStride;
+    constexpr uint32_t srcRowStride = SrcTileData::RowStride;
+    constexpr uint32_t elementsPerRepeat = CCE_VL / sizeof(RegT);
+
+    __VEC_SCOPE__
+    {
+        constexpr auto distValue =
+            std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<RegT, DistVST::DIST_NORM>())>();
+        RegTensor<RegT> vreg;
+        UnalignReg ureg;
+        MaskReg preg;
+        uint16_t repeatTimes = CeilDivision(static_cast<uint32_t>(validCol), elementsPerRepeat);
+
+        for (uint16_t i = 0; i < validRow; ++i) {
+            uint32_t sreg = static_cast<uint32_t>(validCol);
+            __ubuf__ RegT* psrc = srcAddr + (indexRow + static_cast<uint32_t>(i)) * srcRowStride + indexCol;
+            uint32_t dstRowOff = static_cast<uint32_t>(i) * dstRowStride;
+            for (uint16_t j = 0; j < repeatTimes; ++j) {
+                preg = CreatePredicate<RegT>(sreg);
+                vldas(ureg, psrc + static_cast<uint32_t>(j) * elementsPerRepeat);
+                vldus(vreg, ureg, psrc + static_cast<uint32_t>(j) * elementsPerRepeat);
+                vsts(vreg, dstAddr, dstRowOff + static_cast<uint32_t>(j) * elementsPerRepeat, distValue, preg);
+            }
+        }
+    }
+}
+
 template <typename DstTileData, typename SrcTileData>
 PTO_INTERNAL void TExtractVecToVecNDDispatch(DstTileData& dst, SrcTileData& src, uint16_t indexRow, uint16_t indexCol)
 {
@@ -268,9 +307,6 @@ PTO_INTERNAL void TExtractVecToVecNDDispatch(DstTileData& dst, SrcTileData& src,
         TExtractVecToVecNDScalar<T, DstTileData, SrcTileData>(dst.data(), src.data(), idxRow, idxCol);
     } else {
         PTO_ASSERT(
-            idxCol * sizeof(T) % BLOCK_BYTE_SIZE == 0,
-            "TEXTRACT ND Vec->Vec : indexCol bytes must be 32-byte aligned (A3 limitation).");
-        PTO_ASSERT(
             idxRow + DstTileData::ValidRow <= SrcTileData::Rows,
             "TEXTRACT ND Vec->Vec : indexRow + dstValidRow exceeds source rows!");
         PTO_ASSERT(
@@ -278,7 +314,12 @@ PTO_INTERNAL void TExtractVecToVecNDDispatch(DstTileData& dst, SrcTileData& src,
             "TEXTRACT ND Vec->Vec : indexCol + dstValidCol exceeds source cols!");
         uint16_t validRow = static_cast<uint16_t>(dst.GetValidRow());
         uint16_t validCol = static_cast<uint16_t>(dst.GetValidCol());
-        TExtractVecToVecND<T, DstTileData, SrcTileData>(dst.data(), src.data(), validRow, validCol, idxRow, idxCol);
+        if (idxCol * sizeof(T) % BLOCK_BYTE_SIZE == 0) {
+            TExtractVecToVecND<T, DstTileData, SrcTileData>(dst.data(), src.data(), validRow, validCol, idxRow, idxCol);
+        } else {
+            TExtractVecToVecNDVectorImpl<T, DstTileData, SrcTileData>(
+                dst.data(), src.data(), validRow, validCol, idxRow, idxCol);
+        }
     }
 }
 

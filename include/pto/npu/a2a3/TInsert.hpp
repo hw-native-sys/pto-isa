@@ -126,6 +126,39 @@ __tf__ PTO_INTERNAL void TInsertAccToMat(
 #include "pto/common/arch/memory/tinsert_common.hpp"
 
 template <typename DstTileData, typename SrcTileData>
+PTO_INTERNAL void TInsertVecToVecNDDispatch(DstTileData& dst, SrcTileData& src, uint16_t indexRow, uint16_t indexCol)
+{
+    using T = typename DstTileData::DType;
+    CheckTInsertVecToVecND<DstTileData, SrcTileData>();
+    uint32_t idxRow = static_cast<uint32_t>(indexRow);
+    uint32_t idxCol = static_cast<uint32_t>(indexCol);
+    if constexpr (SrcTileData::ValidRow == 1 && SrcTileData::ValidCol == 1) {
+        PTO_ASSERT(idxRow < DstTileData::Rows, "TINSERT ND Vec->Vec : indexRow exceeds dstRows!");
+        PTO_ASSERT(idxCol < DstTileData::Cols, "TINSERT ND Vec->Vec : indexCol exceeds dstCols!");
+        TInsertVecToVecNDScalar<T, DstTileData, SrcTileData>(dst.data(), src.data(), idxRow, idxCol);
+    } else {
+        PTO_ASSERT(
+            idxCol * sizeof(T) % BLOCK_BYTE_SIZE == 0,
+            "TINSERT ND Vec->Vec : indexCol bytes must be 32-byte aligned (A3 limitation).");
+        PTO_ASSERT(
+            idxRow + SrcTileData::ValidRow <= DstTileData::Rows,
+            "TINSERT ND Vec->Vec : indexRow + srcValidRow exceeds destination rows!");
+        PTO_ASSERT(
+            idxCol + SrcTileData::ValidCol <= DstTileData::Cols,
+            "TINSERT ND Vec->Vec : indexCol + srcValidCol exceeds destination cols!");
+        uint16_t validRow = static_cast<uint16_t>(src.GetValidRow());
+        uint16_t validCol = static_cast<uint16_t>(src.GetValidCol());
+        if constexpr ((SrcTileData::ValidCol * sizeof(T)) % BLOCK_BYTE_SIZE == 0) {
+            TInsertVecToVecNDAligned<T, DstTileData, SrcTileData>(
+                dst.data(), src.data(), validRow, validCol, idxRow, idxCol);
+        } else {
+            TInsertVecToVecNDUnaligned<T, DstTileData, SrcTileData>(
+                dst.data(), src.data(), validRow, validCol, idxRow, idxCol);
+        }
+    }
+}
+
+template <typename DstTileData, typename SrcTileData>
 PTO_INTERNAL void TINSERT_IMPL(DstTileData& dst, SrcTileData& src, uint16_t indexRow = 0, uint16_t indexCol = 0)
 {
     if constexpr (DstTileData::Loc == TileType::Vec && SrcTileData::Loc == TileType::Vec) {

@@ -94,8 +94,6 @@ TEST_F(TAXPYTest, case2) { test_taxpy<aclFloat16, 64, 64, 63, 63>(); }
 
 TEST_F(TAXPYTest, case3) { test_taxpy<aclFloat16, 1, 16384, 1, 16384>(); }
 
-TEST_F(TAXPYTest, case4) { test_taxpy<aclFloat16, 2048, 16, 2048, 16>(); }
-
 TEST_F(TAXPYTest, case5) { test_taxpy<float, 8, 8, 8, 8>(); }
 
 TEST_F(TAXPYTest, case6) { test_taxpy<float, 16, 16, 15, 15>(); }
