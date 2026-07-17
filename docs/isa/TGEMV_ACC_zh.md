@@ -36,7 +36,7 @@ PTO_INST RecordEvent TGEMV_ACC(TileRes &cOutMatrix, TileRes &cInMatrix, TileLeft
 
 对于 `0 <= j < N`（累加到已有输出 Tile）：
 
-$$ \mathrm{C}_{0,j} \gets \mathrm{C}_{0,j} + \sum_{k=0}^{K-1} \mathrm{A}_{0,k} \cdot \mathrm{Byte}_{k,j} $$
+$$ \mathrm{C}_{0,j} \gets \mathrm{C}_{0,j} + \sum_{k=0}^{K-1} \mathrm{A}_{0,k} \cdot \mathrm{B}_{k,j} $$
 
 **注意：** 精确的累加器行为和数据类型提升由目标/实现定义。
 

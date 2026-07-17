@@ -56,6 +56,7 @@ PTO_INST RecordEvent TANDS(TileDataDst &dst, TileDataSrc &src, typename TileData
     - 适用于 `TANDS` 支持的整数元素类型。
     - `dst` 和 `src` 必须使用相同的元素类型。
     - `dst` 和 `src` 必须是向量 Tile。
+    - 运行时：`src0.GetValidRow() == dst.GetValidRow()` 且 `src0.GetValidCol() == dst.GetValidCol()`。
     - 在手动模式下，不支持将源 Tile 和目标 Tile 设置为相同的内存。
 - **有效区域**:
     - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。

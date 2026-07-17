@@ -55,7 +55,7 @@ PTO_INST RecordEvent TROWARGMIN(TileDataOut& dst, TileDataIn& src, TileDataTmp& 
 template <typename TileDataOutVal, typename TileDataOutIdx, typename TileDataIn, typename TileDataTmp,
           typename... WaitEvents>
 PTO_INST RecordEvent TROWARGMIN(TileDataOutVal &dstVal, TileDataOutIdx &dstIdx, TileDataIn &src, TileDataTmp &tmp,
-                                WaitEvents &... events)
+                                WaitEvents &... events);
 ```
 
 ## 约束
@@ -108,7 +108,7 @@ PTO_INST RecordEvent TROWARGMIN(TileDataOutVal &dstVal, TileDataOutIdx &dstIdx, 
 - `tmp` tile 每行所需 stride 按以下公式计算：
 
 ```text
-R1 = ceil(validCol / elemPerRpt)
+R1 = ceil(srcValidCol / elemPerRpt)
 stride = (ceil(R1 * 2 / elemPerBlock) + ceil(R1 / elemPerBlock)) * elemPerBlock
 ```
 
@@ -119,7 +119,7 @@ stride = (ceil(R1 * 2 / elemPerBlock) + ceil(R1 / elemPerBlock)) * elemPerBlock
 - `tmp` tile 每行所需 stride 按以下公式计算：
 
 ```text
-R1 = ceil(validCol / elemPerRpt)
+R1 = ceil(srcValidCol / elemPerRpt)
 R2 = ceil(R1 / elemPerRpt)
 stage1_size = ceil(R1 * 2 / elemPerBlock) * elemPerBlock
 stage2_end  = ceil(R1 / elemPerBlock) * elemPerBlock + ceil(R2 * 2 / elemPerBlock) * elemPerBlock

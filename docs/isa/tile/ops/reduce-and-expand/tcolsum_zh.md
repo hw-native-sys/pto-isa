@@ -63,7 +63,7 @@ PTO_INST RecordEvent TCOLSUM(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
     - `src.GetValidCol() == dst.GetValidCol()`
     - `src.GetValidRow() != 0`（为零时实现静默返回，不执行计算）
     - `src.GetValidCol() != 0`（为零时实现静默返回，不执行计算）
-    - `src.GetValidCol()` 必须不大于按 `src` 元素计的 `tmp` 行跨度
+    - `src.GetValidCol()` 必须不大于按 `src` 元素计的 `tmp` 行跨度（即 `tmp.RowStride * sizeof(TmpDType) / sizeof(DType) >= src.GetValidCol()`）
 - `isBinary` 选择已检查到的后端路径：
     - `true`：使用 `tmp` 做二叉树累加
     - `false`：直接在 `dst` 上做顺序累加

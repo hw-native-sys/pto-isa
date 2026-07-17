@@ -69,7 +69,7 @@ PTO_INST RecordEvent TSort32(DstTileData &dst, SrcTileData &src, IdxTileData &id
 | `dst` | $T$ | $R \times (2C)$ float，$R \times (4C)$ half | 排序后的值-索引对（见下方扩展因子） |
 | `tmp`（仅 4 参数） | $T$ | 见下方 tmp 尺寸公式 | 尾部填充 scratch |
 
-**`dst` 扩展因子**（`typeCoef`）：每个输入元素生成一个 8字节的 tuple `[value (4Byte), index (4Byte)]`——`float` 的 value 占满 4Byte；`half` 的 2Byte value 零扩展至 4Byte。因此 `dst` 恒为 $C \times 8$ 字节。
+**`dst` 扩展因子**（`typeCoef`）：每个输入元素生成一个 8Byte 的 tuple `[value (4Byte), index (4Byte)]`——`float` 的 value 占满 4Byte；`half` 的 2Byte value 零扩展至 4Byte。因此 `dst` 恒为 $C \times 8$ 字节。
 
 | dtype | 每个 `src` 列对应的 `dst` 列数（dtype 单位） | tuple 布局 | 字节/tuple |
 |-------|-------------------------------------------|--------------|------------|

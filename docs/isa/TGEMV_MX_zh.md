@@ -13,7 +13,7 @@
 概念上（基础 GEMV 路径）：
 
 $$
-\mathrm{C}_{0,j} = \sum_{k=0}^{K-1} \mathrm{A}_{0,k} \cdot \mathrm{Byte}_{k,j}
+\mathrm{C}_{0,j} = \sum_{k=0}^{K-1} \mathrm{A}_{0,k} \cdot \mathrm{B}_{k,j}
 $$
 
 对于 `TGEMV_MX`，缩放 tile 参与实现定义的混合精度重建/缩放。架构约定是输出对应于目标定义的 mx GEMV 语义。

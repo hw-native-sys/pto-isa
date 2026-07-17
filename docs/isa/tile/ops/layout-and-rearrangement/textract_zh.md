@@ -86,7 +86,7 @@ PTO_INST RecordEvent TEXTRACT_FP(DstTileData &dst, SrcTileData &src, FpTileData 
 - 在以 `Left` 为目标的 GEMV 场景中，已检查到的源布局还允许 `(SrcTileData::Rows == 1 && SrcTileData::isRowMajor)`。
 - 目标支持 `TileType::Mat -> TileType::Left/Right/Scale`、`TileType::Acc -> TileType::Mat`（含 relu、标量量化、向量量化形式）、`TileType::Acc -> TileType::Vec`，以及特定的 `TileType::Vec -> TileType::Mat` 提取路径。
 - 向量量化形式额外要求提供 `FpTileData` 缩放操作数，对应 `TEXTRACT_FP(...)` 接口。
-- 对于 `TileType::Acc -> TileType::Vec`，当目标为 32 位类型（`float`/`int32_t`）且使用 `DualModeSplitN` 时，切分前的 `ValidCol` 必须是 `32` 的整数倍。
+- 对于 `TileType::Acc -> TileType::Vec`，当目标为 32位类型（`float`/`int32_t`）且使用 `DualModeSplitN` 时，切分前的 `ValidCol` 必须是 `32` 的整数倍。
 
 ## 示例
 

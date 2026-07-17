@@ -83,7 +83,7 @@ AICORE void example_c2v(__gm__ void *fifoMem)
     using Pipe = TPipe<FlagID, Direction::DIR_C2V, M * N * sizeof(T), FifoDepth>;
     using VecTile = Tile<TileType::Vec, T, M / 2, N, BLayout::RowMajor, M / 2, N>;
 
-    Pipe pipe(fifoMem, LocalBase, 0x0); // 需统一V2C示例中的参数顺序，建议核对TPipe构造函数实际定义
+    Pipe pipe(fifoMem, LocalBase, 0x0); // C2V 模式：第二参数为 C2V 消费者缓冲基址，第三参数为 V2C 消费者缓冲基址（此处为 0）
     VecTile tile;
 
     TPOP<Pipe, VecTile, TileSplitAxis::TILE_UP_DOWN>(pipe, tile);

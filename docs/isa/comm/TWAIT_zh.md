@@ -2,9 +2,9 @@
 
 ## 简介
 
-阻塞等待，直到信号满足比较条件。与 `TNOTIFY` 配合使用，实现基于标志的同步。
+自旋等待，直到信号满足比较条件。与 `TNOTIFY` 配合使用，实现基于标志的同步。
 
-支持单个信号或多维信号 tensor（最高 5 维，形状由 GlobalTensor 决定）。
+支持单个信号或多维信号 tensor（最高 5 维，形状由 GlobalSignalData 决定）。
 
 ## 数学语义
 
@@ -39,7 +39,7 @@ PTO_INST void TWAIT(GlobalSignalData &signalData, int32_t cmpValue, WaitCmp cmp,
 ## 约束
 
 - **类型约束**：
-    - `GlobalSignalData::DType` 必须为 `int32_t`（32 位信号）。
+    - `GlobalSignalData::DType` 必须为 `int32_t`（32位信号）。
 - **内存约束**：
     - `signalData` 必须指向当前 NPU 本地的 GM/HBM 地址（`__gm__`），远端 NPU 通过 `TNOTIFY` 写入该地址。"本地"指 NPU 归属（当前 NPU 的 GM vs 远端 NPU 的 GM），而非 CCE 地址空间修饰符。
 - **形状语义**：

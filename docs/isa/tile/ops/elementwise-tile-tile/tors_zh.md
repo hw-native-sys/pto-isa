@@ -53,7 +53,7 @@ PTO_INST RecordEvent TORS(TileDataDst &dst, TileDataSrc &src, typename TileDataD
     - 运行时：`src.GetValidRow() == dst.GetValidRow()` 且 `src.GetValidCol() == dst.GetValidCol()`。
     - 在手动模式下，不支持将源 Tile 和目标 Tile 设置为相同的内存。
 - **实现检查 (A5)**:
-    - 适用于 `TEXPANDS` 和 `TOR` 支持的整数元素类型。
+    - 适用于 `TORS` 支持的整数元素类型。
     - `dst` 和 `src` 必须使用相同的元素类型。
     - `dst` 和 `src` 必须是向量 Tile。
     - 运行时：`src.GetValidRow() == dst.GetValidRow()` 且 `src.GetValidCol() == dst.GetValidCol()`。

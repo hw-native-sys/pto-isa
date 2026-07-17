@@ -57,7 +57,7 @@ PTO_INST RecordEvent TXOR(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &sr
     - `dst`、`src0`、`src1` 和 `tmp` 的元素类型必须一致。
     - 支持的元素类型为 `uint8_t`、`int8_t`、`uint16_t`、`int16_t`、`uint32_t`、`int32_t`。
     - `dst`、`src0`、`src1` 和 `tmp` 必须是行主序。
-    - `src0`、`src1` 和 `tmp` 的有效形状必须不小于 `dst`。
+    - `src0`、`src1` 和 `tmp` 的有效形状必须与 `dst` 一致。
     - 在手动模式下，`dst`、`src0`、`src1` 和 `tmp` 的内存区域不得重叠。
 
 ## 临时空间
@@ -68,7 +68,7 @@ PTO_INST RecordEvent TXOR(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &sr
 
 - `tmp` 必须与 `dst`/`src0`/`src1` 具有相同的元素类型。
 - `tmp` 必须是行主序。
-- `tmp.GetValidRow() >= dst.GetValidRow()` 且 `tmp.GetValidCol() >= dst.GetValidCol()`。
+- `tmp` 的有效形状必须与 `dst` 一致（`tmp.GetValidRow() == dst.GetValidRow()` 且 `tmp.GetValidCol() == dst.GetValidCol()`）。
 - 在手动模式下，`tmp` 的内存区域不得与 `dst`、`src0` 或 `src1` 重叠。
 
 ### A5

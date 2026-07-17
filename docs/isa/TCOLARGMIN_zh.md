@@ -109,7 +109,7 @@ PTO_INST RecordEvent TCOLARGMIN(TileDataOutVal& dstVal, TileDataOutIdx& dstIdx, 
 
 #### A5 实现检查
 
-- 支持的源元素宽度为 8 位、16 位或 32 位，覆盖 `int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`float`。
+- 支持的源元素宽度为 8位、16位或 32位，覆盖 `int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`float`。
 - 接口接收 `tmp`，但实现实际并不使用它。
 
 ### 值 + 索引模式（4 参数）
@@ -118,7 +118,7 @@ PTO_INST RecordEvent TCOLARGMIN(TileDataOutVal& dstVal, TileDataOutIdx& dstIdx, 
 
 - `dstVal` 必须为 `TileType::Vec`，使用标准 ND 布局（行主、非分形）。
 - `dstVal` 元素类型必须与源元素类型 `TileDataIn::DType` 一致。
-- **不支持** 8 位源类型。
+- **不支持** 8位源类型。
 - 运行时检查：
     - `dstVal.GetValidRow() == 1`
     - `dstVal.GetValidCol() != 0`
@@ -136,7 +136,7 @@ PTO_INST RecordEvent TCOLARGMIN(TileDataOutVal& dstVal, TileDataOutIdx& dstIdx, 
 
 #### A5 实现检查
 
-- 源元素大小必须为 16 位或 32 位（`sizeof(T) != 1`）。
+- 源元素大小必须为 16位或 32位（`sizeof(T) != 1`）。
 - 当源元素大小为 2字节（`half`、`int16_t`、`uint16_t`）时：`dstIdx` 元素类型必须为 `uint16_t` 或 `int16_t`。
 - 当源元素大小为 4字节（`float`、`int32_t`、`uint32_t`）时：`dstIdx` 元素类型必须为 `uint32_t` 或 `int32_t`。
 - 接口接收 `tmp`，但实现实际并不使用它。

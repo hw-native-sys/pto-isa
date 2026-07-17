@@ -137,7 +137,7 @@ Same as MXFP8 except:
 | $M \bmod 64 = 0$ | DN MX + ZZ conversion | δ-pairing ($\hat M / 2$ integer) |
 | $N \bmod 32 = 0$ | all MX | group size $G = 32$ |
 | $N \bmod 64 = 0$ | ND MX + ZZ conversion | even number of exponent groups |
-| $R \cdot C \le 59461$ | MX (UB 256 KB) | buffer budget with reuse |
+| $R \cdot C \le 59461$ | MX (UB 256KB) | buffer budget with reuse |
 | BF16/FP16: `validCols % 32 != 0` → zero-padded to `StaticCols` | MX B16 path | group alignment |
 
 ## Output Layout & Layout Conversion

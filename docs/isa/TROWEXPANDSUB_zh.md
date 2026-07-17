@@ -29,7 +29,9 @@
 
 对于 `0 <= i < R` 和 `0 <= j < C`：
 
-$$ \mathrm{dst}_{i,j} = \mathrm{src0}_{i,j} - s_i $$
+$$ \mathrm{dst}_{i,j} = \mathrm{full}_{i,j} - s_i $$
+
+其中 `full` 指代与 `dst` 形状匹配的全尺寸操作数（可为 `src0` 或 `src1`）。
 
 ### 模式 2
 
@@ -37,7 +39,7 @@ $$ \mathrm{dst}_{i,j} = \mathrm{src0}_{i,j} - s_i $$
 
 对于 `0 <= i < R` 和 `0 <= j < C`：
 
-$$ \mathrm{dst}_{i,j} = \mathrm{src0}_{i,j} - b_i[\,j \bmod (32 / \mathit{sizeof}(T))\,] $$
+$$ \mathrm{dst}_{i,j} = \mathrm{full}_{i,j} - b_i[\,j \bmod (32 / \mathit{sizeof}(T))\,] $$
 
 ## 汇编语法
 
@@ -109,11 +111,11 @@ C++ API 提供了显式传入 `TileDataTmp &tmp` 的重载。该重载仅支持*
     - **公共参数**：
         - `R = dst.GetValidRow()`，`T = TileDataDst::DType`。
     - 当 `R < 256` 时：
-        $$ \text{tmpSize} = \left\lceil\frac{R}{8}\right\rceil \times 256 \text{ 字节} $$
+        $$ \text{tmpSize} = \left\lceil\frac{R}{8}\right\rceil \times 256 \text{字节} $$
     - 当 `R >= 256` 时：
         - 操作采用循环方式，每次循环最多 30 个 repeat（240 行）。tmp 缓冲区在各循环间复用，每次循环需要：
-        $$ \text{tmpSize} = 30 \times 256 = 7680 \text{ 字节} $$
-    - 对于任何模式 1 调用，一个紧凑的形状无关上界为 **8KB**（8192字节）。
+        $$ \text{tmpSize} = 30 \times 256 = 7680 \text{字节} $$
+    - 对于任何模式 1 调用，一个紧凑的形状无关上界为 **8KB**（8192Byte）。
     - 不带 `tmp` 的 3 参数重载支持模式 1 和模式 2。对于模式 1，使用内部8KB缓冲区（`TMP_UB_OFFSET`）。对于模式 2，不需要广播缓冲区。
 - **A5**：`tmp` Tile 被接受但不使用（`[[maybe_unused]]`）。A5 硬件通过 `vlds` 指令的广播模式原生支持行广播，因此不需要临时缓冲区。
 

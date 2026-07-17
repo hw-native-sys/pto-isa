@@ -23,7 +23,7 @@ $$ \mathrm{dst}_{i,j} = \mathrm{src}_{j,i} $$
 ```text
 %dst = ttrans %src : !pto.tile<...> -> !pto.tile<...>
 ```
-降低时可能引入内部临时 Tile；C++ 内建接口需要显式传入 `tmp` 操作数。
+编译器降级（Lowering）阶段可能引入内部临时 Tile；C++ 内建接口需要显式传入 `tmp` 操作数。
 
 ### AS Level 1（SSA）
 

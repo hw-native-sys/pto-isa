@@ -20,7 +20,7 @@
 
 概念上，结果对应于有效矩阵乘法域（`0 <= i < M`，`0 <= j < N`）上的矩阵乘法，缩放 tile `aScaleMatrix` / `bScaleMatrix` 配置实现定义的混合精度行为：
 
-$$ \mathrm{C}_{i,j} = \sum_{k=0}^{K-1} \mathrm{A}_{i,k} \cdot \mathrm{Byte}_{k,j} $$
+$$ \mathrm{C}_{i,j} = \sum_{k=0}^{K-1} \mathrm{A}_{i,k} \cdot \mathrm{B}_{k,j} $$
 
 `aScaleMatrix` / `bScaleMatrix` 的确切作用（以及任何反量化/量化语义）由目标定义。
 

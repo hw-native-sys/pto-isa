@@ -219,8 +219,8 @@ Hard and soft kernels **must not share the same `.so`** in AIV-only / AIC-only c
 
 ### 2. Per-core slot must own a full cache line: avoid false-sharing lost writes
 
-- `dcci` / DMA operate at **32B cache-line** granularity; if adjacent cores' slots share one cache line, cross-core flushes overwrite / lose each other's writes.
-- Each core's slot should be 32B-aligned and **own one full cache line** (for `int32`, that means stride = 8, not 4).
+- `dcci` / DMA operate at **32Byte cache-line** granularity; if adjacent cores' slots share one cache line, cross-core flushes overwrite / lose each other's writes.
+- Each core's slot should be 32Byte-aligned and **own one full cache line** (for `int32`, that means stride = 8, not 4).
 - `SYNCALL`'s own sync slots follow this design: `SYNCALL_SOFT_SLOT_INT32 = 8` (see `include/pto/common/type.hpp`); the caller's business workspace should follow the same isolation principle.
 
 ## Examples

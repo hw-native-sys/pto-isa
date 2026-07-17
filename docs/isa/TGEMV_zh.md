@@ -20,19 +20,19 @@
 
 对于 `0 <= j < N`（有效矩阵乘法域中的输出元素）：
 
-$$ \mathrm{C}_{0,j} = \sum_{k=0}^{K-1} \mathrm{A}_{0,k} \cdot \mathrm{Byte}_{k,j} $$
+$$ \mathrm{C}_{0,j} = \sum_{k=0}^{K-1} \mathrm{A}_{0,k} \cdot \mathrm{B}_{k,j} $$
 
 ### 2. TGEMV_ACC（带累加的基于 Tile 的 GEMV）
 
 对于 `0 <= j < N`（累加到现有 tile）：
 
-$$ \mathrm{C}_{0,j} \gets \mathrm{C}_{0,j} + \sum_{k=0}^{K-1} \mathrm{A}_{0,k} \cdot \mathrm{Byte}_{k,j} $$
+$$ \mathrm{C}_{0,j} \gets \mathrm{C}_{0,j} + \sum_{k=0}^{K-1} \mathrm{A}_{0,k} \cdot \mathrm{B}_{k,j} $$
 
 ### 3. TGEMV_BIAS（带偏置的基于 Tile 的 GEMV）
 
 对于 `0 <= j < N`（将偏置项添加到矩阵乘积）：
 
-$$ \mathrm{C}_{0,j} = \mathrm{Bias}_{0,j} + \sum_{k=0}^{K-1} \mathrm{A}_{0,k} \cdot \mathrm{Byte}_{k,j} $$
+$$ \mathrm{C}_{0,j} = \mathrm{Bias}_{0,j} + \sum_{k=0}^{K-1} \mathrm{A}_{0,k} \cdot \mathrm{B}_{k,j} $$
 
 **注意：** 精确的累加器行为和数据类型提升由目标/实现定义。
 

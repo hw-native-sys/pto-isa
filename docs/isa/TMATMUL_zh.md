@@ -18,7 +18,7 @@
 
 对于 `0 <= i < M` 和 `0 <= j < N`（有效矩阵乘法域中的输出元素）：
 
-$$ \mathrm{C}_{i,j} = \sum_{k=0}^{K-1} \mathrm{A}_{i,k} \cdot \mathrm{Byte}_{k,j} $$
+$$ \mathrm{C}_{i,j} = \sum_{k=0}^{K-1} \mathrm{A}_{i,k} \cdot \mathrm{B}_{k,j} $$
 
 精确的累加器行为和数据类型提升由目标/实现定义。
 

@@ -320,8 +320,8 @@ void example_manual() {
   using DstT = Tile<TileType::Vec, float, 1, 256>;
   SrcT src;
   DstT dst;
-  TASSIGN(src, 0x1000);
-  TASSIGN(dst, 0x2000);
+  TASSIGN(src, 0x1000);  // 将 src 绑定到 UB 地址 0x1000
+  TASSIGN(dst, 0x2000);  // 将 dst 绑定到 UB 地址 0x2000
   TMRGSORT(dst, src, /*blockLen=*/64);
 }
 ```

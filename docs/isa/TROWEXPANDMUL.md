@@ -116,8 +116,8 @@ The C++ API provides an overload with an explicit `TileDataTmp &tmp`. This overl
     - For `R >= 256`:
         - The operation is looped, with at most 30 repeats (240 rows) per loop iteration. The tmp buffer is reused across loops, so the per-loop requirement is:
         $$ \text{tmpSize} = 30 \times 256 = 7680 \text{ bytes} $$
-    - A compact shape-independent upper bound for any Mode 1 invocation is **8 KB** (8192 bytes).
-    - The 3-arg overload (without `tmp`) supports both Mode 1 and Mode 2. For Mode 1, it uses an internal 8 KB buffer (`TMP_UB_OFFSET`). For Mode 2, no broadcast buffer is needed.
+    - A compact shape-independent upper bound for any Mode 1 invocation is **8KB** (8192 bytes).
+    - The 3-arg overload (without `tmp`) supports both Mode 1 and Mode 2. For Mode 1, it uses an internal 8KB buffer (`TMP_UB_OFFSET`). For Mode 2, no broadcast buffer is needed.
 - **A5**: The `tmp` tile is accepted and ignored (`[[maybe_unused]]`). A5 hardware supports row-broadcast natively via the `vlds` instruction's broadcast modes, so no scratch buffer is required.
 
 ## Examples

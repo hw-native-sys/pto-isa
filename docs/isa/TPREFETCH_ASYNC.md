@@ -65,7 +65,7 @@ The instruction builds and stores an SDMA session inside `PrefetchAsyncContext` 
 |-----------|-----------|--------------|
 | Data flow | GM → UB | GM → L2 Cache |
 | Hardware path | MTE (`copy_gm_to_ubuf`) | SDMA CMO (opcode=6) |
-| UB consumption | Yes (requires dst Tile) | No (only 256B scratch for SQE construction) |
+| UB consumption | Yes (requires dst Tile) | No (only 256Byte scratch for SQE construction) |
 | Synchronization | Synchronous (pipeline barrier) | Asynchronous (`AsyncEvent`) |
 | Use case | Small data preload to UB | Large data L2 warm-up |
 

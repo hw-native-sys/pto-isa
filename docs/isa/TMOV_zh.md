@@ -194,7 +194,7 @@ PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, TmpTileData &tmp, 
     - `mode` 选择 `SingleModeVec0`、`SingleModeVec1`、`DualModeSplitM` 或 `DualModeSplitN`
     - 双目标模式要求 `QuantMode_t::NoQuant`
     - 双目标模式不支持 `nz2dn` 路径
-    - 对于 32 位目标类型（`float`/`int32_t`），使用 `DualModeSplitN` 时 `ValidCol`（分裂前）须为 32 的倍数
+    - 对于 32位目标类型（`float`/`int32_t`），使用 `DualModeSplitN` 时 `ValidCol`（分裂前）须为 32 的倍数
     - 目标 stride 须非零且 `dstStride * sizeof(dstType)` 须为 32字节的倍数
 - 对于 `TileType::Acc -> TileType::Mat`：
     - 目标 stride 须非零且 `dstStride * sizeof(dstType)` 须为 32字节的倍数
@@ -236,7 +236,7 @@ $$\boxed{\mathrm{tmpBytes} = \bigl(16 + r_b \cdot P + 16\bigr) \times 2 = \left(
 
 **示例：** $M = 128$，$N = 256$ → 指数 Tile $128 \times 8$，$r_b = 8$，$P = 4$：
 
-$$\mathrm{tmpBytes} = (32 + 8 \times 4) \times 2 = 128\ \mathrm{Byte}$$
+$$\mathrm{tmpBytes} = (32 + 8 \times 4) \times 2 = 128\ \mathrm{B}$$
 
 ### DN → ZZ（指数）— `tmp`
 

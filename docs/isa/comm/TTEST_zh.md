@@ -39,7 +39,7 @@ PTO_INST bool TTEST(GlobalSignalData &signalData, int32_t cmpValue, WaitCmp cmp)
 ## 约束
 
 - **类型约束**：
-    - `GlobalSignalData::DType` 必须为 `int32_t`（32 位信号）。
+    - `GlobalSignalData::DType` 必须为 `int32_t`（32位信号）。
 - **内存约束**：
     - `signalData` 必须指向本地地址（当前 NPU）。
 - **返回值**：

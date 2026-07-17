@@ -15,7 +15,7 @@
 > **重要**:
 > - 此指令**仅用于开发和调试**。
 > - 它会产生**显著的运行时开销**，**不得在生产 kernel 中使用**。
-> - 如果输出超过内部打印缓冲区，可能会被**截断**。可以通过在编译选项中添加`-DCCEBlockMaxSize=16384`来修改打印缓冲区，默认为16KB。
+> - 如果输出超过内部打印缓冲区，可能会被**截断**。可以通过在编译选项中添加 `-DCCEBlockMaxSize=16384` 来修改打印缓冲区，默认为16KB。
 > - **需要 CCE 编译选项 `-D_DEBUG --cce-enable-print`**（参见 [行为](#behavior)）。
 
 ## 数学语义
@@ -76,7 +76,7 @@ enum class PrintFormat : uint8_t
     - 有符号整数：`int8_t`、`int16_t`、`int32_t`
     - 无符号整数：`uint8_t`、`uint16_t`、`uint32_t`
 - **对于 GlobalTensor**：布局必须是 `Layout::ND`、`Layout::DN` 或 `Layout::NZ` 之一。
-- **对于 临时空间**：打印`TileType`为`Mat`或`Acc`的Tile时需要传入gm上的临时空间，临时空间不得小于`TileData::Numel * sizeof(T)`。
+- **对于 临时空间**：打印`TileType`为`Mat`或`Acc`的Tile时需要传入gm上的临时空间，临时空间不得小于`TileData::Numel * sizeof(TileData::DType)`。
 - A5暂不支持`TileType`为`Mat`的Tile打印。
 - **回显信息**: `TileType`为`Mat`时，布局将按照`Layout::ND`进行打印，其他布局可能会导致信息错位。
 

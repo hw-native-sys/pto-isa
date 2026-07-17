@@ -18,7 +18,7 @@
 
 对于 `0 <= i < M` 和 `0 <= j < N`：
 
-$$ \mathrm{C}_{i,j} = \sum_{k=0}^{K-1} \mathrm{A}_{i,k} \cdot \mathrm{Byte}_{k,j} + \mathrm{Bias}_{0,j} $$
+$$ \mathrm{C}_{i,j} = \sum_{k=0}^{K-1} \mathrm{A}_{i,k} \cdot \mathrm{B}_{k,j} + \mathrm{Bias}_{0,j} $$
 
 偏置广播行为由实现定义。
 
@@ -78,7 +78,7 @@ using namespace pto;
 void example_auto() {
   using A = TileLeft<half, 16, 16>;
   using B = TileRight<half, 16, 16>;
-  using Bias = Tile<TileType::Bias, half, 1, 16>;
+  using Bias = Tile<TileType::Bias, float, 1, 16>;
   using C = TileAcc<float, 16, 16>;
   A a;
   B b;
@@ -98,7 +98,7 @@ using namespace pto;
 void example_manual() {
   using A = TileLeft<half, 16, 16>;
   using B = TileRight<half, 16, 16>;
-  using Bias = Tile<TileType::Bias, half, 1, 16>;
+  using Bias = Tile<TileType::Bias, float, 1, 16>;
   using C = TileAcc<float, 16, 16>;
   A a;
   B b;

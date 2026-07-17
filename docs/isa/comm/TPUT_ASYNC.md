@@ -114,7 +114,7 @@ Data payload moves between GM buffers directly; `scratchTile` only supports cont
 - must be UB/Vec tile (`ScratchTile::Loc == TileType::Vec`)
 - available bytes must be at least `sizeof(uint64_t)` (8 bytes)
 
-Recommended: `Tile<TileType::Vec, uint8_t, 1, comm::sdma::UB_ALIGN_SIZE>` (256B).
+Recommended: `Tile<TileType::Vec, uint8_t, 1, comm::sdma::UB_ALIGN_SIZE>` (256Byte).
 
 ## Completion Semantics (Quiet Semantics)
 

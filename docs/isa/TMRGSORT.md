@@ -176,7 +176,7 @@ PTO_INST RecordEvent TMRGSORT(DstTileData &dst, MrgSortExecutedNumList &executed
 | Rows | All tiles must have `Rows == 1` |
 | Layout | All tiles must be row-major (`BLayout::RowMajor`) |
 | Data type | `half` or `float`, consistent across all tiles |
-| UB memory | Total must not exceed 192 KiB (`UB_SIZE`) |
+| UB memory | Total must not exceed 192KiB (`UB_SIZE`) |
 
 ### UB memory constraints by variant
 

@@ -481,11 +481,11 @@ No UB — the implementation runs in host memory. Tile sizes are bounded by the 
 
 ### A2/A3
 
-The AIV vector core has the standard CANN 192 KB UB layout. `MSCATTER` does not allocate any UB scratch from inside the kernel — the only UB consumers are the caller-allocated source tile (`R * C * sizeof(T)`, padded up to the 32-byte burst alignment) and index tile (`R * C * sizeof(TIdx)`, same padding rule). A2/A3 has no `dynUBufSize` knob; the working set must fit in the caller's static UB budget.
+The AIV vector core has the standard CANN 192KB UB layout. `MSCATTER` does not allocate any UB scratch from inside the kernel — the only UB consumers are the caller-allocated source tile (`R * C * sizeof(T)`, padded up to the 32-byte burst alignment) and index tile (`R * C * sizeof(TIdx)`, same padding rule). A2/A3 has no `dynUBufSize` knob; the working set must fit in the caller's static UB budget.
 
 ### A5
 
-A5 SIMT kernels run on the AIV vector core. All user tiles must fit inside the AIV's 256 KB Unified Buffer alongside two fixed runtime reservations: an 8 KB reserved region (AscendC / TBE bookkeeping) and the Data Cache (32 KB minimum, sized at launch time). The UB layout is:
+A5 SIMT kernels run on the AIV vector core. All user tiles must fit inside the AIV's 256KB Unified Buffer alongside two fixed runtime reservations: an 8KB reserved region (AscendC / TBE bookkeeping) and the Data Cache (32KB minimum, sized at launch time). The UB layout is:
 
 ```text
 +---------------------------+
@@ -493,44 +493,44 @@ A5 SIMT kernels run on the AIV vector core. All user tiles must fit inside the A
 +---------------------------+
 | Dynamic memory            |  Sized at launch through dynUBufSize
 +---------------------------+
-| Reserved (8 KB)           |  Fixed compiler / AscendC reservation
+| Reserved (8KB)           |  Fixed compiler / AscendC reservation
 +---------------------------+
-| Data Cache (>= 32 KB)     |  Min 32 KB; grows when dynUBufSize is small
+| Data Cache (>= 32KB)     |  Min 32KB; grows when dynUBufSize is small
 +---------------------------+
 ```
 
 The configurable maximum is therefore:
 
 ```text
-max dynUBufSize = 256 KB - 8 KB (reserved) - 32 KB (min DCache) - static_memory
-                = 216 KB - static_memory
+max dynUBufSize = 256KB - 8KB (reserved) - 32KB (min DCache) - static_memory
+                = 216KB - static_memory
 ```
 
-When tiles are placed manually with `TASSIGN` (as in the A5 ST suite), the compiler sees `static_memory ≈ 0` and the full **216 KB** is available as `dynUBufSize`.
+When tiles are placed manually with `TASSIGN` (as in the A5 ST suite), the compiler sees `static_memory ≈ 0` and the full **216KB** is available as `dynUBufSize`.
 
 #### Default Per-Call Budget (No `dynUBufSize`)
 
-When the kernel is launched without an explicit `dynUBufSize` (`<<<numBlocks, nullptr, stream>>>`), the runtime keeps the default DCache size and reserves only a small default dynamic region. In practice the safe `src + idx` working set is **≤ 128 KB**; beyond that, on-board execution may silently corrupt or zero out the result while still passing the CPU simulator (which does not model these reservations).
+When the kernel is launched without an explicit `dynUBufSize` (`<<<numBlocks, nullptr, stream>>>`), the runtime keeps the default DCache size and reserves only a small default dynamic region. In practice the safe `src + idx` working set is **≤ 128KB**; beyond that, on-board execution may silently corrupt or zero out the result while still passing the CPU simulator (which does not model these reservations).
 
-#### Extending Per-Call UB Beyond 128 KB
+#### Extending Per-Call UB Beyond 128KB
 
-Callers that need a single-shot `src + idx` footprint larger than 128 KB must declare the dynamic-UB request explicitly through the second argument of the kernel launch:
+Callers that need a single-shot `src + idx` footprint larger than 128KB must declare the dynamic-UB request explicitly through the second argument of the kernel launch:
 
 ```cpp
 kernel_name<<<numBlocks, dynUBufSize, stream>>>(args...);
 ```
 
-`dynUBufSize` is the byte size of the dynamic-UB region the kernel will use. The bisheng/CCE compiler routes such launches through `__cce_rtKernelLaunchWithFlagV2`, setting `rtTaskCfgInfo_t::localMemorySize = dynUBufSize`. The runtime then shrinks the DCache toward its 32 KB minimum and hands the remaining space back to the kernel.
+`dynUBufSize` is the byte size of the dynamic-UB region the kernel will use. The bisheng/CCE compiler routes such launches through `__cce_rtKernelLaunchWithFlagV2`, setting `rtTaskCfgInfo_t::localMemorySize = dynUBufSize`. The runtime then shrinks the DCache toward its 32KB minimum and hands the remaining space back to the kernel.
 
 Key points:
 
-- **The simulator does not enforce this.** Passing `nullptr` (or `0`) still runs to completion in sim regardless of the actual UB footprint. Always set `dynUBufSize` explicitly when the workload exceeds 128 KB so the binary stays correct on real hardware.
+- **The simulator does not enforce this.** Passing `nullptr` (or `0`) still runs to completion in sim regardless of the actual UB footprint. Always set `dynUBufSize` explicitly when the workload exceeds 128KB so the binary stays correct on real hardware.
 - **Exceeding the ceiling is silent.** The compiler does not error and the simulator does not flag it. On-board, the first overflow byte corrupts the reserved region or DCache and the kernel returns undefined output.
 - **Size to actual usage.** For Elem coalesce with `R × C × sizeof(T)` source and `R × C × sizeof(int32_t)` index, the working set is `R * C * (sizeof(T) + 4)`. Round up to a comfortable margin when passing `dynUBufSize`. In the extended-UB ST cases (`float` source + `int32_t` index, `C = 8`) the per-element footprint is `8 + 4 = 12 B`; the suite rounds up and passes `R * 8 * 8 = R * 64` as `dynUBufSize` to keep the math simple.
 
 #### Tiled-Iteration Pattern (Legacy 2048×8 Cases)
 
-The `case_elem2d_float_2048x8_*` ST cases predate the `dynUBufSize` path and use a chunked approach instead: a `2048 × 8` `float` source is split into 16 chunks of `128 × 8` (8 KB src + 8 KB idx per iteration), and `MSCATTER` is reissued per chunk into the same destination GM tensor. Semantics are preserved:
+The `case_elem2d_float_2048x8_*` ST cases predate the `dynUBufSize` path and use a chunked approach instead: a `2048 × 8` `float` source is split into 16 chunks of `128 × 8` (8KB src + 8KB idx per iteration), and `MSCATTER` is reissued per chunk into the same destination GM tensor. Semantics are preserved:
 
 - `Conflict::Last` — each chunk writes its in-chunk last-writer to GM; later chunks overwrite earlier ones for any shared slot, so the surviving value is the global largest-index writer.
 - `Conflict::Default` / atomic modes — writes from later chunks compose with earlier ones (overwrite, add, max, min) on the same GM table.

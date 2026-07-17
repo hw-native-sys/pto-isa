@@ -76,7 +76,7 @@ PTO_INST RecordEvent TREMS(TileDataDst &dst, TileDataSrc &src, typename TileData
     - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
 - **对于 `int32_t` 输入（仅 A2A3）**：`src` 的元素和 `scalar` 必须在 `[-2^24, 2^24]` 范围内（即 `[-16777216, 16777216]`），以确保在计算过程中能精确转换为 float32。
 - **高精度算法**
-    - 仅在A5上有效，`PrecisionType`选项A3上将被忽略。
+    - 仅在A5上有效，`PrecisionType`选项在A3上将被忽略。
 
 ## 示例
 

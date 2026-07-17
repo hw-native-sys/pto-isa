@@ -71,7 +71,7 @@ PTO_INST void TASSIGN(T& obj);
 
 | TileType | 内存空间 | 容量 (A2A3) | 容量 (A5) | 容量 (Kirin9030) | 容量 (KirinX90) | 对齐 |
 |----------|----------|-------------|-----------|------------------|-----------------|------|
-| Vec | UB | 192KB | 256KB | 128KB | 128KB | 32B |
+| Vec | UB | 192KB | 256KB | 128KB | 128KB | 32Byte |
 | Mat | L1 | 512KB | 512KB | 512KB | 1024KB | 32Byte |
 | Left | L0A | 64KB | 64KB | 32KB | 64KB | 32Byte |
 | Right | L0B | 64KB | 64KB | 32KB | 64KB | 32Byte |
@@ -195,7 +195,7 @@ pto.tassign %tile, %addr : !pto.tile<...>, dtype
 ### PTO 汇编形式
 
 ```text
-tassign %tile, %addr : !pto.tile<...>, index
+tassign %tile, %addr : !pto.tile<...>, dtype
 # AS Level 2 (DPS)
 pto.tassign ins(%tile, %addr : !pto.tile_buf<...>, dtype)
 ```

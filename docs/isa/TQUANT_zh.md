@@ -27,7 +27,7 @@
 
 - $e_{\max}$ = 目标格式最大指数（e4m3 为 8，e2m1 为 1）。
 - $V_{\max}$ = 目标格式 MAX_NORM（e4m3 为 448，e2m1 为 6）。
-- 阶段 1–2 使用精确的 IEEE-754 位操作（无 FP `log`/`floor`）；阶段 3 使用硬件类型转换 + 随机舍入（`SPR.CTRL[50]=1`）。
+- 阶段 1–2 使用精确的 IEEE-754位操作（无 FP `log`/`floor`）；阶段 3 使用硬件类型转换 + 随机舍入（`SPR.CTRL[50]=1`）。
 - **ND**（"normal direction"，`grp_axis=1`）：每 32 个连续**列**为一组——默认/标准分组方式。**DN**（`grp_axis=0`）：每 32 个连续**行**为一组——转置式 axis-0 分组；指数 Tile 形状 `M̂×N`，`M̂ = M/32`。
 
 ### Integer INT8（仿射，5 阶段类型转换）
@@ -138,7 +138,7 @@ PTO_INST RecordEvent TQUANT(TileDataOut &dst, TileDataSrc &src, TileDataPara &sc
 | $M \bmod 64 = 0$ | DN MX + ZZ 转换 | δ 配对（$\hat M / 2$ 为整数） |
 | $N \bmod 32 = 0$ | 所有 MX | 组大小 $G = 32$ |
 | $N \bmod 64 = 0$ | ND MX + ZZ 转换 | 指数组数为偶数 |
-| $R \cdot C \le 59461$ | MX（UB 256KB） | 复用后的缓冲预算 |
+| $M \cdot N \le 59461$ | MX（UB 256KB） | 复用后的缓冲预算 |
 | BF16/FP16：`validCols % 32 != 0` → 零填充至 `StaticCols` | MX B16 路径 | 组对齐 |
 
 ## 输出布局与布局转换

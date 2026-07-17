@@ -63,7 +63,7 @@ struct TPipe;
     - `TileSplitAxis::TILE_LEFT_RIGHT`：向量子块映射到左右两个列半区。
 - **A5切分行为**：
     - `TileSplitAxis::TILE_NO_SPLIT`：不做切分。
-    - `TileSplitAxis::TILE_UP_DOWN`：将数据按照上下切分。当Cube->Vector方向且L0C->UB通路时，该切分模式仅支持数据类型为b32，且srcTile的validRows必须为2的整数倍；当Vector->Cube方向且UB->L1通路时，该切分模式下validCols必须是32字节的整数倍。
+    - `TileSplitAxis::TILE_UP_DOWN`：将数据按照上下切分。当Cube->Vector方向且L0C->UB通路时，该切分模式仅支持数据类型为b32，且srcTile的validRows必须为2的整数倍；当Vector->Cube方向且UB->L1通路时，该切分模式下validRows必须是32字节的整数倍。
     - `TileSplitAxis::TILE_LEFT_RIGHT`：将数据按照左右切分成两个列半区。当Cube->Vector方向且L0C->UB通路时，该切分模式仅支持数据类型为b32，且srcTile的validCols必须为32的整数倍。当Vector->Cube方向且UB->L1通路时，该切分模式下validCols必须是32字节的整数倍。
 - **简化版 TileData 接口**：
     - `TPUSH(TileData&, Pipe&)` 内部使用 `TileSplitAxis::TILE_NO_SPLIT` 语义。
