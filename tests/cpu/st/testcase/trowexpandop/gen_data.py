@@ -73,7 +73,8 @@ def generate_case_name(param, element_op: str):
     dtype_str = {
         np.float32: "float", np.float16: "half",
         np.int16: "int16", np.int32: "int32",
-        np.uint16: "uint16", np.uint32: "uint32"
+        np.uint16: "uint16", np.uint32: "uint32",
+        np.uint8: "uint8",
     }[param.dtype]
 
     def substring(a, b) -> str:
@@ -98,11 +99,16 @@ if __name__ == "__main__":
         TRowExpandOpParams(np.uint16, 64, 64),
         TRowExpandOpParams(np.uint32, 64, 64),
     ]
+    case_uint8_params_list = [
+        TRowExpandOpParams(np.uint8, 64, 64),
+    ]
     operations_list = ["div", "mul", "sub", "add", "min", "max", "expdif"]
     operations_list_int = ["div", "mul", "sub", "add", "min", "max"]
+    operations_list_uint8 = ["mul"]
 
     combinations = [(param, element_op) for param in case_params_list for element_op in operations_list]
     combinations.extend((param, element_op) for param in case_int_params_list for element_op in operations_list_int)
+    combinations.extend((param, element_op) for param in case_uint8_params_list for element_op in operations_list_uint8)
 
     for param, element_op in combinations:
         case_name = generate_case_name(param, element_op)

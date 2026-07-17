@@ -75,7 +75,8 @@ def generate_case_name(param, kind: str):
     dtype_str = {
         np.float32: "float", np.float16: "half",
         np.int16: "int16", np.int32: "int32",
-        np.uint16: "uint16", np.uint32: "uint32"
+        np.uint16: "uint16", np.uint32: "uint32",
+        np.uint8: "uint8",
     }[param.dtype]
 
     def substring(a, b) -> str:
@@ -100,12 +101,17 @@ if __name__ == "__main__":
         TColExpandOpParams(np.uint16, 64, 64),
         TColExpandOpParams(np.uint32, 64, 64),
     ]
+    case_uint8_params_list = [
+        TColExpandOpParams(np.uint8, 64, 64),
+    ]
     kind_list = ["div", "mul", "sub", "add", "min", "max", "expdif"]
     kind_list_int = ["div", "mul", "sub", "add", "min", "max"]
+    kind_list_uint8 = ["mul"]
 
     combinations = [(param, kind) for param in case_params_list for kind in kind_list]
 
     combinations.extend([(param, kind) for param in case_int_params_list for kind in kind_list_int])
+    combinations.extend([(param, kind) for param in case_uint8_params_list for kind in kind_list_uint8])
 
     for param, kind in combinations:
         case_name = generate_case_name(param, kind)

@@ -19,7 +19,14 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-template <typename TileDst, typename TileSrc0, typename TileSrc1, bool include_integer>
+template <ElementOp Op, typename T>
+constexpr bool IsRowExpandAllowedType =
+    std::is_same_v<T, float> || std::is_same_v<T, half> ||
+    (Op != ElementOp::OP_EXPDIF && (std::is_same_v<T, int32_t> || std::is_same_v<T, int16_t> ||
+                                    std::is_same_v<T, uint32_t> || std::is_same_v<T, uint16_t>)) ||
+    (Op == ElementOp::OP_MUL && std::is_same_v<T, uint8_t>);
+
+template <typename TileDst, typename TileSrc0, typename TileSrc1, ElementOp Op>
 PTO_INTERNAL void CheckRowExtendTiles()
 {
     using T = typename TileDst::DType;
@@ -27,10 +34,8 @@ PTO_INTERNAL void CheckRowExtendTiles()
         std::is_same_v<T, typename TileSrc0::DType> && std::is_same_v<T, typename TileSrc1::DType>,
         "TRowExpandOp: The data type of dst must be consistent with src0, src1.");
     static_assert(
-        std::is_same_v<T, float> || std::is_same_v<T, half> ||
-            (include_integer && (std::is_same_v<T, int32_t> || std::is_same_v<T, int16_t> ||
-                                 std::is_same_v<T, uint32_t> || std::is_same_v<T, uint16_t>)),
-        "TRowExpandOp: The data type of dst, src0, src1 must be one of: `half`, `float`");
+        IsRowExpandAllowedType<Op, T>, "TRowExpandOp: unsupported data type. Supported types for this operation: "
+                                       "`half`, `float`, and selected integer types.");
 
     static_assert(TileDst::isRowMajor, "TRowExpandOp: TileType of dst tile must be Row Major.");
 }
@@ -49,11 +54,11 @@ PTO_INTERNAL void TRowExpandOp(TileDst& dst, TileSrc0& src0, TileSrc1& src1, std
     });
 }
 
-template <typename TileDst, typename TileSrc0, typename TileSrc1, ElementOp TileOperation, bool include_integer = true>
+template <typename TileDst, typename TileSrc0, typename TileSrc1, ElementOp TileOperation>
 PTO_INTERNAL void TRowExpandOp(TileDst& dst, TileSrc0& src0, TileSrc1& src1)
 {
     using T = typename TileDst::DType;
-    CheckRowExtendTiles<TileDst, TileSrc0, TileSrc1, include_integer>();
+    CheckRowExtendTiles<TileDst, TileSrc0, TileSrc1, TileOperation>();
     const std::size_t rows = static_cast<std::size_t>(dst.GetValidRow());
     const std::size_t cols = static_cast<std::size_t>(dst.GetValidCol());
     if (rows == 0 || cols == 0) {
@@ -125,7 +130,7 @@ PTO_INTERNAL void TROWEXPANDMIN_IMPL(TileDst& dst, TileSrc0& src0, TileSrc1& src
 template <typename TileDst, typename TileSrc0, typename TileSrc1>
 PTO_INTERNAL void TROWEXPANDEXPDIF_IMPL(TileDst& dst, TileSrc0& src0, TileSrc1& src1)
 {
-    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_EXPDIF, false>(dst, src0, src1);
+    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_EXPDIF>(dst, src0, src1);
 }
 
 template <
@@ -169,7 +174,7 @@ PTO_INTERNAL void TROWEXPANDMIN_IMPL(TileDst& dst, TileSrc0& src0, TileSrc1& src
 template <typename TileDst, typename TileSrc0, typename TileSrc1, typename TileTmp>
 PTO_INTERNAL void TROWEXPANDEXPDIF_IMPL(TileDst& dst, TileSrc0& src0, TileSrc1& src1, TileTmp& tmp)
 {
-    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_EXPDIF, false>(dst, src0, src1);
+    TRowExpandOp<TileDst, TileSrc0, TileSrc1, ElementOp::OP_EXPDIF>(dst, src0, src1);
 }
 
 } // namespace pto

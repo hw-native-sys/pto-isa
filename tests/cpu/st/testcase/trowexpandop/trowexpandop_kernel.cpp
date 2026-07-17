@@ -169,6 +169,7 @@ template void LaunchTROWEXPANDDIV<aclFloat16, 16, 256>(
 template void LaunchTROWEXPANDMUL<float, 64, 64>(float* out, float* src0, float* src1, void* stream);
 template void LaunchTROWEXPANDMUL<aclFloat16, 16, 256>(
     aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void LaunchTROWEXPANDMUL<uint8_t, 64, 64>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 template void LaunchTROWEXPANDSUB<float, 64, 64>(float* out, float* src0, float* src1, void* stream);
 template void LaunchTROWEXPANDSUB<aclFloat16, 16, 256>(
     aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);

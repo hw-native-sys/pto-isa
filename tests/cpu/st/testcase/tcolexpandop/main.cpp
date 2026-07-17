@@ -413,6 +413,13 @@ TEST_F(TCOLEXPANDOPTest, case_mul_uint32_64x64_64x64_64x64)
     });
 }
 
+TEST_F(TCOLEXPANDOPTest, case_mul_uint8_64x64_64x64_64x64)
+{
+    run_vec_op<uint8_t, 64, 64>([](uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream) {
+        LaunchTCOLEXPANDMUL<uint8_t, 64, 64>(out, src0, src1, stream);
+    });
+}
+
 TEST_F(TCOLEXPANDOPTest, case_sub_uint32_64x64_64x64_64x64)
 {
     run_vec_op<uint32_t, 64, 64>([](uint32_t* out, uint32_t* src0, uint32_t* src1, void* stream) {
