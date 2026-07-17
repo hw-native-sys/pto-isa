@@ -21,7 +21,7 @@ AICORE void runTROWMIN(__gm__ T __out__* out, __gm__ T __in__* src)
     using GlobalData = GlobalTensor<T, DynShapeDim5, DynStridDim5>;
 
     using SrcTile = Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>;
-    using DstTile = Tile<TileType::Vec, T, kTRows_, 16, BLayout::RowMajor, -1, -1>;
+    using DstTile = Tile<TileType::Vec, T, kTRows_, 32, BLayout::RowMajor, -1, -1>;
 
     SrcTile srcTile(kTRows_, kTCols_);
     DstTile dstTile(kTRows_, 1);
@@ -56,6 +56,8 @@ template void LaunchTROWMIN<aclFloat16, 64, 64, 64, 64>(aclFloat16* out, aclFloa
 template void LaunchTROWMIN<aclFloat16, 161, 161, 32, 32>(aclFloat16* out, aclFloat16* src, void* stream);
 template void LaunchTROWMIN<float, 77, 81, 32, 16>(float* out, float* src, void* stream);
 template void LaunchTROWMIN<float, 32, 32, 32, 16>(float* out, float* src, void* stream);
+template void LaunchTROWMIN<int8_t, 64, 64, 64, 64>(int8_t* out, int8_t* src, void* stream);
+template void LaunchTROWMIN<uint8_t, 64, 64, 64, 64>(uint8_t* out, uint8_t* src, void* stream);
 #ifdef CPU_SIM_BFLOAT_ENABLED
 template void LaunchTROWMIN<bfloat16_t, 64, 64, 64, 64>(bfloat16_t* out, bfloat16_t* src, void* stream);
 #endif

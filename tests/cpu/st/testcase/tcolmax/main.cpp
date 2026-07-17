@@ -99,3 +99,5 @@ TEST_F(TCOLMAXTest, case_half_16x256_16x256_16x256) { test_tcolmax<aclFloat16, 1
 #ifdef CPU_SIM_BFLOAT_ENABLED
 TEST_F(TCOLMAXTest, case_bf16_16x256_16x256_16x256) { test_tcolmax<bfloat16_t, 16, 256, 16, 256>(); }
 #endif
+TEST_F(TCOLMAXTest, case_int8_64x64_64x64_64x64) { test_tcolmax<int8_t, 64, 64, 64, 64>(); }
+TEST_F(TCOLMAXTest, case_uint8_64x64_64x64_64x64) { test_tcolmax<uint8_t, 64, 64, 64, 64>(); }

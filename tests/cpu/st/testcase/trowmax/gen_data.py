@@ -15,6 +15,7 @@ import numpy as np
 from utils import NumExt
 np.random.seed(19)
 
+
 def gen_golden_data_trowmax(case_name, param):
     dtype = param.dtype
 
@@ -22,10 +23,11 @@ def gen_golden_data_trowmax(case_name, param):
     h_valid, w_valid = [min(row, param.valid_row), min(col, param.valid_col)]
 
     # Generate random input array
-    input1 = NumExt.astype(np.random.uniform(low=-16, high=16, size=[row, col]), dtype)
+    input1 = NumExt.astype(np.random.uniform(
+        low=-16, high=16, size=[row, col]), dtype)
 
     # Apply valid region constraints
-    golden = NumExt.astype(np.full((h_valid), np.finfo(np.float32).min, dtype=np.float32), dtype)
+    golden = NumExt.astype(np.full((h_valid), 0, dtype=np.float32), dtype)
     for i in range(h_valid):
         golden[i] = NumExt.astype(np.max(input1[i][:w_valid]), dtype)
 
@@ -52,12 +54,12 @@ def generate_case_name(param):
 
     def substring(a, b) -> str:
         return f"_{a}x{b}"
-        
-    name = f"TROWMAXTest.case_{dtype_str}" 
+
+    name = f"TROWMAXTest.case_{dtype_str}"
     name += substring(param.global_row, param.global_col)
     name += substring(param.tile_row, param.tile_col)
     name += substring(param.valid_row, param.valid_col)
-    
+
     return name
 
 
@@ -75,10 +77,13 @@ if __name__ == "__main__":
         TRowmaxParams(np.float16, 64, 64, 64, 64, 64, 64),
         TRowmaxParams(np.float16, 161, 161, 32, 32, 161, 161),
         TRowmaxParams(np.float32, 77, 81, 32, 16, 77, 81),
-        TRowmaxParams(np.float32, 32, 32, 32, 16, 32, 32)
+        TRowmaxParams(np.float32, 32, 32, 32, 16, 32, 32),
+        TRowmaxParams(np.int8, 64, 64, 64, 64, 64, 64),
+        TRowmaxParams(np.uint8, 64, 64, 64, 64, 64, 64)
     ]
     if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
-        case_params_list.append(TRowmaxParams(NumExt.bf16, 64, 64, 64, 64, 64, 64))
+        case_params_list.append(TRowmaxParams(
+            NumExt.bf16, 64, 64, 64, 64, 64, 64))
 
     for i, param in enumerate(case_params_list):
         case_name = generate_case_name(param)

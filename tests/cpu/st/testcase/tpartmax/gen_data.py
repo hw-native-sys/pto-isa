@@ -18,17 +18,20 @@ H = 64
 W = 64
 VALID_H = 32
 VALID_W = 32
-UNIFORM_LOW = -1.0
-UNIFORM_HIGH = 1.0
 
 
-def gen_case():
+def gen_case(dtype, low, high):
     rng = np.random.default_rng(RANDOM_SEED)
-    src0 = rng.uniform(UNIFORM_LOW, UNIFORM_HIGH, size=(H, W)).astype(np.float32)
-    src1 = rng.uniform(UNIFORM_LOW, UNIFORM_HIGH, size=(H, W)).astype(np.float32)
-    golden = np.zeros((H, W), dtype=np.float32)
+    if dtype in [np.int8, np.uint8]:
+        src0 = rng.integers(low, high, size=(H, W), dtype=dtype)
+        src1 = rng.integers(low, high, size=(H, W), dtype=dtype)
+    else:
+        src0 = rng.uniform(low, high, size=(H, W)).astype(dtype)
+        src1 = rng.uniform(low, high, size=(H, W)).astype(dtype)
+    golden = np.zeros((H, W), dtype=dtype)
     golden[:, :] = src0
-    golden[:VALID_H, :VALID_W] = np.maximum(src0[:VALID_H, :VALID_W], src1[:VALID_H, :VALID_W])
+    golden[:VALID_H, :VALID_W] = np.maximum(
+        src0[:VALID_H, :VALID_W], src1[:VALID_H, :VALID_W])
     src0.tofile("input1.bin")
     src1.tofile("input2.bin")
     golden.tofile("golden.bin")
@@ -38,9 +41,16 @@ if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(os.path.join(script_dir, "testcases"), exist_ok=True)
 
-    case_name = "TPARTMAX_Test.case_float_64x64_src1_32x32"
-    os.makedirs(case_name, exist_ok=True)
-    cwd = os.getcwd()
-    os.chdir(case_name)
-    gen_case()
-    os.chdir(cwd)
+    test_cases = [
+        (np.float32, -1.0, 1.0, "float"),
+        (np.int8, -128, 127, "int8"),
+        (np.uint8, 0, 255, "uint8"),
+    ]
+
+    for dtype, low, high, dtype_name in test_cases:
+        case_name = f"TPARTMAX_Test.case_{dtype_name}_64x64_src1_32x32"
+        os.makedirs(case_name, exist_ok=True)
+        cwd = os.getcwd()
+        os.chdir(case_name)
+        gen_case(dtype, low, high)
+        os.chdir(cwd)

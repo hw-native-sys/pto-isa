@@ -22,9 +22,10 @@ def gen_golden_data_trowmin(param):
     row, col = [param.tile_row, param.tile_col]
     h_valid, w_valid = [min(row, param.valid_row), min(col, param.valid_col)]
 
-    input1 = NumExt.astype(np.random.uniform(low=-16, high=16, size=[row, col]), dtype)
+    input1 = NumExt.astype(np.random.uniform(
+        low=-16, high=16, size=[row, col]), dtype)
 
-    golden = NumExt.astype(np.full((h_valid,), np.finfo(np.float32).max, dtype=np.float32), dtype)
+    golden = NumExt.astype(np.full((h_valid,), 0, dtype=np.float32), dtype)
     for i in range(h_valid):
         golden[i] = NumExt.astype(np.min(input1[i][:w_valid]), dtype)
 
@@ -63,9 +64,12 @@ if __name__ == "__main__":
         TRowminParams(np.float16, 161, 161, 32, 32, 161, 161),
         TRowminParams(np.float32, 77, 81, 32, 16, 77, 81),
         TRowminParams(np.float32, 32, 32, 32, 16, 32, 32),
+        TRowminParams(np.int8, 64, 64, 64, 64, 64, 64),
+        TRowminParams(np.uint8, 64, 64, 64, 64, 64, 64),
     ]
     if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
-        case_params_list.append(TRowminParams(NumExt.bf16, 64, 64, 64, 64, 64, 64))
+        case_params_list.append(TRowminParams(
+            NumExt.bf16, 64, 64, 64, 64, 64, 64))
 
     for param in case_params_list:
         case_name = generate_case_name(param)

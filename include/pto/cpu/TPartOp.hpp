@@ -78,7 +78,8 @@ PTO_INTERNAL void TPartCheck(int DstValidRow, int DstValidCol)
 {
     static_assert(
         std::is_same_v<T, int32_t> || std::is_same_v<T, int16_t> || std::is_same_v<T, half> ||
-            std::is_same_v<T, bfloat16_t> || std::is_same_v<T, float>,
+            std::is_same_v<T, bfloat16_t> || std::is_same_v<T, float> || std::is_same_v<T, int8_t> ||
+            std::is_same_v<T, uint8_t>,
         "TPARTMAX: Invalid data type.");
     static_assert(
         std::is_same_v<typename TileDataDst::DType, T> && std::is_same_v<typename TileDataSrc1::DType, T>,
