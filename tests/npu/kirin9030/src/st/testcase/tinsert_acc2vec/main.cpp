@@ -189,7 +189,7 @@ void tmov_acc2vec_fb_quant_test(uint32_t M, uint32_t K, uint32_t N)
 
 TEST_F(TMOVTest, case_nz2nd_1)
 {
-    tmov_acc2vec_test<1, uint16_t, uint16_t, uint16_t, 1, 0, 8, true, 60, 128>(60, 127, 120);
+    tmov_acc2vec_test<1, uint16_t, uint16_t, uint16_t, 1, 0, 16, true, 60, 144>(60, 127, 120);
 }
 
 TEST_F(TMOVTest, case_nz2nd_2)

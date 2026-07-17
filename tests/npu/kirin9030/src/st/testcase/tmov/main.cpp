@@ -259,7 +259,6 @@ TEST_F(TMOVTest, case_fixpipe2)
     tMovL12Fb<int8_t, int8_t, uint16_t, uint64_t, 2>(M, N, K);
 }
 
-#ifndef PTO_TEST_KIRINX90
 TEST_F(TMOVTest, case_acc2vec_Nz2Nd)
 {
     constexpr uint32_t M = 64;
@@ -275,4 +274,3 @@ TEST_F(TMOVTest, case_acc2vec_Nz2Nz)
     constexpr uint32_t K = 64;
     tMovAcc2Vec<aclFloat16, aclFloat16, aclFloat16, 2>(M, N, K);
 }
-#endif
