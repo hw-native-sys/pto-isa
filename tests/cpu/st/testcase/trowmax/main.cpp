@@ -90,3 +90,5 @@ TEST_F(TROWMAXTest, case_bf16_64x64_64x64_64x64) { test_trowmax<bfloat16_t, 64, 
 TEST_F(TROWMAXTest, case_half_161x161_32x32_161x161) { test_trowmax<aclFloat16, 161, 161, 32, 32>(); }
 TEST_F(TROWMAXTest, case_float_77x81_32x16_77x81) { test_trowmax<float, 77, 81, 32, 16>(); }
 TEST_F(TROWMAXTest, case_float_32x32_32x16_32x32) { test_trowmax<float, 32, 32, 32, 16>(); }
+TEST_F(TROWMAXTest, case_int8_64x64_64x64_64x64) { test_trowmax<int8_t, 64, 64, 64, 64>(); }
+TEST_F(TROWMAXTest, case_uint8_64x64_64x64_64x64) { test_trowmax<uint8_t, 64, 64, 64, 64>(); }

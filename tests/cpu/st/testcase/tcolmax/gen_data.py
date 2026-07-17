@@ -15,15 +15,18 @@ import numpy as np
 from utils import NumExt
 np.random.seed(19)
 
+
 def gen_golden_data_tcolmax(case_name, param):
     dtype = param.dtype
 
     srcRow, srcCols = [param.tile_row, param.tile_col]
     dstRow, dstCols = [1, param.tile_col]
-    row_valid, col_valid = [min(dstRow, param.valid_row), min(dstCols, param.valid_col)]
+    row_valid, col_valid = [
+        min(dstRow, param.valid_row), min(dstCols, param.valid_col)]
 
     # Generate random input arrays
-    input1 = NumExt.astype(np.random.randint(low=-16, high=16, size=[srcRow, srcCols]), dtype)
+    input1 = NumExt.astype(np.random.randint(
+        low=-16, high=16, size=[srcRow, srcCols]), dtype)
 
     # Perform the addbtraction
     golden = NumExt.zeros([dstRow, dstCols], dtype)
@@ -43,6 +46,7 @@ def gen_golden_data_tcolmax(case_name, param):
 
     return output, input1, golden
 
+
 class tcolmaxParams:
     def __init__(self, dtype, global_row, global_col, tile_row, tile_col, valid_row, valid_col):
         self.dtype = dtype
@@ -53,6 +57,7 @@ class tcolmaxParams:
         self.valid_row = valid_row
         self.valid_col = valid_col
 
+
 def generate_case_name(param):
     dtype_str = NumExt.get_short_type_name(param.dtype)
 
@@ -60,8 +65,9 @@ def generate_case_name(param):
     name += f"_{param.global_row}x{param.global_col}"
     name += f"_{param.tile_row}x{param.tile_col}"
     name += f"_{param.valid_row}x{param.valid_col}"
-    
+
     return name
+
 
 if __name__ == "__main__":
     # Get the absolute path of the script
@@ -75,9 +81,12 @@ if __name__ == "__main__":
     case_params_list = [
         tcolmaxParams(np.float32, 64, 64, 64, 64, 64, 64),
         tcolmaxParams(np.float16, 16, 256, 16, 256, 16, 256),
+        tcolmaxParams(np.int8, 64, 64, 64, 64, 64, 64),
+        tcolmaxParams(np.uint8, 64, 64, 64, 64, 64, 64),
     ]
     if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
-        case_params_list.append(tcolmaxParams(NumExt.bf16, 16, 256, 16, 256, 16, 256))
+        case_params_list.append(tcolmaxParams(
+            NumExt.bf16, 16, 256, 16, 256, 16, 256))
 
     for i, param in enumerate(case_params_list):
         case_name = generate_case_name(param)
