@@ -111,6 +111,7 @@ __tf__ PTO_INTERNAL OP_NAME(TCMP) OP_TYPE(element_wise) void TCmp_32B(
         MaskReg dstReg;
         MaskReg tmpMask2;
         constexpr uint32_t dstStride = DstTile::RowStride * sizeof(TOUT) / sizeof(uint32_t);
+        constexpr int32_t dstRepeatStride = 2 * repeatElm / CMP_BITS_PER_INDEX;
         for (uint16_t i = 0; i < (uint16_t)(validRow); i++) {
             sReg = validCol;
             for (uint16_t j = 0; j < (uint16_t)(repeatTimes / 2); j++) {
@@ -123,7 +124,7 @@ __tf__ PTO_INTERNAL OP_NAME(TCMP) OP_TYPE(element_wise) void TCmp_32B(
                 pReg = plt_b32(sReg, POST_UPDATE);
                 CmpCall(tmpMask1, src0Reg1, src1Reg1, mode, pReg);
                 pdintlv_b8(dstReg, tmpMask2, tmpMask0, tmpMask1);
-                psts(dstReg, dst + i * dstStride + j * 4, 0, PK);
+                psts(dstReg, dst + i * dstStride + j * dstRepeatStride, 0, PK);
             }
         }
     }
