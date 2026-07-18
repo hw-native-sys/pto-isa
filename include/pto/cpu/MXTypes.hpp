@@ -174,7 +174,7 @@ using float8_e4m3_t = MXType<kFloat8E4M3ExponentBits, kFloat8E4M3MantissaBits, k
 using float8_e5m2_t = MXType<kFloat8E5M2ExponentBits, kFloat8E5M2MantissaBits, kFloat8E5M2Bias, false>;
 
 template <typename T>
-constexpr bool isTwinType()
+constexpr bool IsTwinType()
 {
     return std::is_same_v<T, float4_e2m1x2_t> || std::is_same_v<T, float4_e1m2x2_t>;
 }
@@ -183,10 +183,9 @@ constexpr bool isTwinType()
 #define HALF_BYTE_SHIFT 4
 
 template <typename T>
-inline T getProperDataPart(T* buf, size_t offset)
+inline T GetProperDataPart(T* buf, size_t offset)
 {
-    if constexpr (isTwinType<T>()) {
-        // For FP4 data types we split byte into 2 parts at load operation and then operate with them as single bytes
+    if constexpr (IsTwinType<T>()) {
         return T::FromRaw((buf[offset / 2].RawData() >> ((offset % 2) ? HALF_BYTE_SHIFT : 0)) & HALF_BYTE_MASK);
     } else {
         return buf[offset];
@@ -194,9 +193,9 @@ inline T getProperDataPart(T* buf, size_t offset)
 }
 
 template <typename T>
-inline void setProperDataPart(T* buf, size_t offset, T val)
+inline void SetProperDataPart(T* buf, size_t offset, T val)
 {
-    if constexpr (isTwinType<T>()) {
+    if constexpr (IsTwinType<T>()) {
         uint16_t shiftByte = (offset % 2) ? HALF_BYTE_SHIFT : 0;
         uint8_t rawVal = (val.RawData() & HALF_BYTE_MASK) << shiftByte;
         buf[offset / 2] = T::FromRaw((buf[offset / 2].RawData() & ~(HALF_BYTE_MASK << shiftByte)) | rawVal);

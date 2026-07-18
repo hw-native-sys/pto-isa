@@ -343,10 +343,8 @@ TEST_F(TPushPopTest, a5_style_c2v_dual_subblock_split_push_pop)
         VecTile topHalf;
         VecTile bottomHalf;
         TASSIGN(src, 0);
-        TASSIGN(topHalf, AccTile::Numel * sizeof(typename AccTile::DType));
-        TASSIGN(
-            bottomHalf,
-            AccTile::Numel * sizeof(typename AccTile::DType) + VecTile::Numel * sizeof(typename VecTile::DType));
+        TASSIGN(topHalf, AccTile::GetSizeInBytes());
+        TASSIGN(bottomHalf, AccTile::GetSizeInBytes() + VecTile::GetSizeInBytes());
         fillTile<float, 16, 16, TileType::Acc>(src, iter);
         std::fill(topHalf.data(), topHalf.data() + topHalf.Numel, 0.0f);
         std::fill(bottomHalf.data(), bottomHalf.data() + bottomHalf.Numel, 0.0f);

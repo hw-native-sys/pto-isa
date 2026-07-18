@@ -41,7 +41,7 @@ template <typename DstTileData, typename SrcTileData>
 inline void CheckValidConvShape(DstTileData& dst, SrcTileData& src)
 {
     using T = typename DstTileData::DType;
-    constexpr int64_t C0 = 32 / GetTypeSize<T>() * (isTwinType<T>() ? 2 : 1);
+    constexpr int64_t C0 = 32 / GetTypeSize<T>() * (IsTwinType<T>() ? 2 : 1);
 
     constexpr Layout src_layout = SrcTileData::layout;
     constexpr Layout dst_layout = DstTileData::layout;
@@ -119,7 +119,7 @@ inline void TTRANS_GNCHW2NC1HWC0_Impl(
     auto* src_ptr = reinterpret_cast<SrcDType*>(src.data());
     auto* dst_ptr = reinterpret_cast<DstDType*>(dst.data());
 
-    constexpr int64_t C0 = (32 / GetTypeSize<SrcDType>()) * (isTwinType<DstDType>() ? 2 : 1);
+    constexpr int64_t C0 = (32 / GetTypeSize<SrcDType>()) * (IsTwinType<DstDType>() ? 2 : 1);
     int64_t C1 = (C + C0 - 1) / C0;
     const size_t HW = H * W;
     const size_t CHW = C * HW;
@@ -148,7 +148,11 @@ inline void TTRANS_GNCHW2NC1HWC0_Impl(
                     size_t base_dst = gOffset_dst + nOffset_dst + cOffset_dst + hOffset_dst;
 
                     for (int64_t w = 0; w < W; ++w) {
-                        dst_ptr[base_dst + w * C0] = src_ptr[base_src + w];
+                        if constexpr (reverse) {
+                            SetProperDataPart(src_ptr, base_src + w, GetProperDataPart(dst_ptr, base_dst + w * C0));
+                        } else {
+                            SetProperDataPart(dst_ptr, base_dst + w * C0, GetProperDataPart(src_ptr, base_src + w));
+                        }
                     }
                 }
             }
@@ -240,7 +244,7 @@ inline void TTRANS_GNC1HWC02C1HWN1N0C0_Impl(
 
                         // Continuous block copy
                         for (size_t c0 = 0; c0 < C0; ++c0) {
-                            dst_ptr[dst_base + c0] = src_ptr[src_base + c0];
+                            SetProperDataPart(dst_ptr, dst_base + c0, GetProperDataPart(src_ptr, src_base + c0));
                         }
                     }
                 }
@@ -322,8 +326,7 @@ inline void TTRANS_NCDHW2DC1HWN1N0C0(DstTileData& dst, SrcTileData& src)
 
                         // Base for fractal block
                         size_t dst_base = (dst_base_d + base_w) * C0_N0_N1 + dst_base_n + c0;
-
-                        dst_ptr[dst_base] = src_ptr[src_offset];
+                        SetProperDataPart(dst_ptr, dst_base, GetProperDataPart(src_ptr, src_offset));
                     }
                 }
             }
@@ -332,23 +335,13 @@ inline void TTRANS_NCDHW2DC1HWN1N0C0(DstTileData& dst, SrcTileData& src)
 }
 
 template <typename DstTileData, typename SrcTileData>
-void TTrans_Impl(
-    typename DstTileData::TileDType dst, typename SrcTileData::TileDType src, unsigned validRow, unsigned validCol)
+void TTrans_Impl(DstTileData& dst, SrcTileData& src)
 {
-    using SrcDType = typename SrcTileData::DType;
-    std::array<SrcDType, SrcTileData::Rows * SrcTileData::Cols> srcSnapshot;
-
-    for (size_t r = 0; r < validRow; r++) {
-        for (size_t c = 0; c < validCol; c++) {
-            size_t srcTileIdx = GetTileElementOffset<SrcTileData>(r, c);
-            srcSnapshot[r * validCol + c] = src[srcTileIdx];
-        }
-    }
-
+    unsigned validRow = src.GetValidRow();
+    unsigned validCol = src.GetValidCol();
     for (size_t c = 0; c < validCol; c++) {
         for (size_t r = 0; r < validRow; r++) {
-            size_t dstTileIdx = GetTileElementOffset<DstTileData>(c, r);
-            dst[dstTileIdx] = srcSnapshot[r * validCol + c];
+            dst.SetElement(c, r, src.GetElement(r, c));
         }
     }
 }
@@ -400,9 +393,7 @@ PTO_INTERNAL void TTRANS_IMPL(DstTileData& dst, SrcTileData& src, TmpTileData& t
         static_assert(
             SrcTileData::ValidRow == DstTileData::ValidCol && SrcTileData::ValidCol == DstTileData::ValidRow,
             "Hardware matrix tiles transpose dimension sizes must mirror match.");
-        unsigned validRow = src.GetValidRow();
-        unsigned validCol = src.GetValidCol();
-        TTrans_Impl<DstTileData, SrcTileData>(dst.data(), src.data(), validRow, validCol);
+        TTrans_Impl<DstTileData, SrcTileData>(dst, src);
     }
 }
 

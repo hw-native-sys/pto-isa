@@ -101,7 +101,7 @@ void test_ttrans_MX()
     size_t srcFileSize = srcShape0 * srcShape1 * srcShape2 * srcShape3 * srcShape4 * groupN * sizeof(uint8_t);
     size_t dstFileSize =
         dstShape0 * dstShape1 * dstShape2 * dstShape3 * dstShape4 * dstShape5 * groupN * sizeof(uint8_t);
-    if (isTwinType<MXType>()) {
+    if (IsTwinType<MXType>()) {
         srcFileSize /= 2;
         dstFileSize /= 2;
     }

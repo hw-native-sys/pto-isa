@@ -29,24 +29,7 @@ PTO_INTERNAL void TMOV_IMPL(DstTileData& dst, SrcTileData& src)
         size_t innerDstC = c % DstTileData::InnerCols;
 
         for (size_t r = 0; r < src.GetValidRow(); r++) {
-            size_t srcTileIdx;
-            size_t dstTileIdx;
-            if constexpr (SrcTileData::SFractal == SLayout::NoneBox) {
-                srcTileIdx = GetTileElementOffsetPlain<SrcTileData>(r, c);
-            } else {
-                size_t subTileR = r / SrcTileData::InnerRows;
-                size_t innerR = r % SrcTileData::InnerRows;
-                srcTileIdx = GetTileElementOffsetSubfractals<SrcTileData>(subTileR, innerR, subTileSrcC, innerSrcC);
-            }
-
-            if constexpr (DstTileData::SFractal == SLayout::NoneBox) {
-                dstTileIdx = GetTileElementOffsetPlain<DstTileData>(r, c);
-            } else {
-                size_t subTileR = r / DstTileData::InnerRows;
-                size_t innerR = r % DstTileData::InnerRows;
-                dstTileIdx = GetTileElementOffsetSubfractals<DstTileData>(subTileR, innerR, subTileDstC, innerDstC);
-            }
-            dst.data()[dstTileIdx] = src.data()[srcTileIdx];
+            dst.SetElement(r, c, src.GetElement(r, c));
         }
     }
 }

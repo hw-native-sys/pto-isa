@@ -32,7 +32,7 @@ PTO_INTERNAL void TStoreInstrL12Gm(
     for (uint16_t i = 0; i < nBurst; i++) {
         for (size_t j = 0; j < lenBurst * elemNum; j++) {
             // Write from buffer (src) to GM (dst)
-            setProperDataPart(dst, dstStride * i + j, src[srcStride * i + j]);
+            SetProperDataPart(dst, dstStride * i + j, src[srcStride * i + j]);
         }
     }
 }
@@ -77,147 +77,80 @@ PTO_INTERNAL void TStore6HD(
     }
 }
 
-template <
-    typename GlobalData, typename TileData, QuantMode_t quantMode, bool applyRelu,
-    std::enable_if_t<TileData::isRowMajor, int> = 0>
-__tf__ PTO_INLINE void StorePlainMatrix(
-    typename GlobalData::DType __out__* dst, typename TileData::TileDType __in__ src,
-    const std::vector<uint64_t>& scalars, int gShape3, int gShape4, int gStride3, int gStride4, int validRow,
-    int validCol, size_t idx3)
-{
-    size_t offsetSrcBase = idx3 * gShape3 * TileData::Cols;
-    using D = typename GlobalData::DType;
-    using S = typename TileData::DType;
-    cpu::parallel_for_1d(
-        0, static_cast<std::size_t>(gShape3), static_cast<std::size_t>(gShape3) * gShape4, [&](std::size_t r) {
-            const std::size_t srcBase = offsetSrcBase + r * TileData::Cols;
-            const std::size_t dstBase = r * static_cast<std::size_t>(gStride3);
-            PTO_CPU_VECTORIZE_LOOP
-            for (std::size_t c = 0; c < static_cast<std::size_t>(gShape4); c++) {
-                int dstIdx = dstBase + c * static_cast<std::size_t>(gStride4);
-                if constexpr (quantMode != QuantMode_t::NoQuant) {
-                    uint64_t scalar = scalars[c];
-                    D val = quantize_element<D, S, quantMode, applyRelu>(src[srcBase + c], scalar);
-                    setProperDataPart(dst, dstIdx, val);
-                } else {
-                    S val = src[srcBase + c];
-                    if constexpr (applyRelu) {
-                        val = ReLU(val);
-                    }
-                    setProperDataPart(dst, dstIdx, static_cast<D>(val));
-                }
-            }
-        });
-}
-
-template <
-    typename GlobalData, typename TileData, QuantMode_t quantMode, bool applyRelu,
-    std::enable_if_t<!TileData::isRowMajor, int> = 0>
-__tf__ PTO_INLINE void StorePlainMatrix(
-    typename GlobalData::DType __out__* dst, typename TileData::TileDType __in__ src,
-    const std::vector<uint64_t>& scalars, int gShape3, int gShape4, int gStride3, int gStride4, int validRow,
-    int validCol, size_t idx3)
-{
-    size_t offsetSrcBase = idx3 * gShape4 * TileData::Rows;
-    using D = typename GlobalData::DType;
-    using S = typename TileData::DType;
-    cpu::parallel_for_1d(
-        0, static_cast<std::size_t>(gShape4), static_cast<std::size_t>(gShape3) * gShape4, [&](std::size_t c) {
-            const std::size_t srcBase = offsetSrcBase + c * TileData::Rows;
-            const std::size_t dstStride4 = static_cast<std::size_t>(gStride4);
-            PTO_CPU_VECTORIZE_LOOP
-            for (std::size_t r = 0; r < static_cast<std::size_t>(gShape3); r++) {
-                int dstIdx = r * static_cast<std::size_t>(gStride3) + c * dstStride4;
-                if constexpr (quantMode != QuantMode_t::NoQuant) {
-                    uint64_t scalar = scalars[r];
-                    D val = quantize_element<D, S, quantMode, applyRelu>(src[srcBase + r], scalar);
-                    setProperDataPart(dst, dstIdx, val);
-                } else {
-                    S val = src[srcBase + r];
-                    if constexpr (applyRelu) {
-                        val = ReLU(val);
-                    }
-                    setProperDataPart(dst, dstIdx, static_cast<D>(val));
-                }
-            }
-        });
-}
-
 template <typename GlobalData, typename TileData, QuantMode_t quantMode, bool applyRelu>
-__tf__ PTO_INLINE void StorePlain(
-    typename GlobalData::DType __out__* dst, typename TileData::TileDType __in__ src,
-    const std::vector<uint64_t>& scalars, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gStride0,
-    int gStride1, int gStride2, int gStride3, int gStride4, int validRow, int validCol)
+__tf__ PTO_INLINE void StorePlainGT(GlobalData& dst, TileData& src, const std::vector<uint64_t>& scalars)
 {
-    int64_t srcStride1 = gShape2;
-    int64_t srcStride0 = gShape1 * srcStride1;
-    for (uint32_t i = 0; i < gShape0; i++) {
-        int64_t srcAddr0 = i * srcStride0;
-        int64_t dstAddr0 = i * gStride0;
-        for (uint32_t j = 0; j < gShape1; j++) {
-            int64_t srcAddr1 = j * srcStride1;
-            int64_t dstAddr1 = j * gStride1;
-            for (uint32_t k = 0; k < gShape2; k++) {
-                size_t offsetDstBase = dstAddr0 + dstAddr1 + k * gStride2;
-                StorePlainMatrix<GlobalData, TileData, quantMode, applyRelu>(
-                    dst + offsetDstBase, src, scalars, gShape3, gShape4, gStride3, gStride4, validRow, validCol,
-                    srcAddr0 + srcAddr1 + k);
+    uint64_t scalar = 0;
+    for (int64_t i = 0; i < dst.GetShape(GlobalTensorDim::DIM_0); i++) {
+        const int64_t tileHighRankOffset0 = i * dst.GetShape(GlobalTensorDim::DIM_1);
+        for (int64_t j = 0; j < dst.GetShape(GlobalTensorDim::DIM_1); j++) {
+            const int64_t tileHighRankOffset1 = (tileHighRankOffset0 + j) * dst.GetShape(GlobalTensorDim::DIM_2);
+            for (int64_t k = 0; k < dst.GetShape(GlobalTensorDim::DIM_2); k++) {
+                const int64_t tileHighRankOffset2 =
+                    (tileHighRankOffset1 + k) *
+                    dst.GetShape(
+                        TileData::BFractal == BLayout::RowMajor ? GlobalTensorDim::DIM_3 : GlobalTensorDim::DIM_4);
+                cpu::parallel_for_1d(
+                    0, dst.GetShape(GlobalTensorDim::DIM_3),
+                    static_cast<std::size_t>(dst.GetShape(GlobalTensorDim::DIM_3)) *
+                        dst.GetShape(GlobalTensorDim::DIM_4),
+                    [&](std::size_t r) {
+                        const auto cols = dst.GetShape(GlobalTensorDim::DIM_4);
+                        PTO_CPU_VECTORIZE_LOOP
+                        for (int64_t c = 0; c < cols; c++) {
+                            typename TileData::DType val;
+                            if constexpr (TileData::BFractal == BLayout::RowMajor) {
+                                val = src.GetElement(tileHighRankOffset2 + r, c);
+                            } else {
+                                val = src.GetElement(r, tileHighRankOffset2 + c);
+                            }
+
+                            if constexpr (quantMode != QuantMode_t::NoQuant) {
+                                scalar = scalars[TileData::isRowMajor ? c : r];
+                            }
+
+                            dst.SetElement(
+                                i, j, k, r, c,
+                                ConvertStoreValue<
+                                    typename GlobalData::DType, typename TileData::DType, quantMode, applyRelu>(
+                                    val, scalar));
+                        }
+                    });
             }
         }
     }
 }
 
 template <typename GlobalData, typename TileData, QuantMode_t quantMode, bool applyRelu>
-__tf__ PTO_INLINE void StoreSubfractalMatrix(
-    typename GlobalData::DType __out__* dst, typename TileData::TileDType __in__ src,
-    const std::vector<uint64_t>& scalars, int gShape3, int gShape4, int gStride3, int gStride4, int validRow,
-    int validCol)
-{
-    using D = typename GlobalData::DType;
-    using S = typename TileData::DType;
-    cpu::parallel_for_1d(
-        0, static_cast<std::size_t>(gShape4), static_cast<std::size_t>(gShape3) * gShape4, [&](std::size_t c) {
-            size_t subTileC = c / TileData::InnerCols;
-            size_t innerC = c % TileData::InnerCols;
-            for (size_t r = 0; r < static_cast<std::size_t>(gShape3); r++) {
-                size_t subTileR = r / TileData::InnerRows;
-                size_t innerR = r % TileData::InnerRows;
-
-                size_t tile_idx = GetTileElementOffsetSubfractals<TileData>(subTileR, innerR, subTileC, innerC);
-
-                size_t gd_idx = r * static_cast<std::size_t>(gStride3) + c * static_cast<std::size_t>(gStride4);
-                StoreElement<D, S, TileData, quantMode, applyRelu>(dst, gd_idx, src[tile_idx], r, c, scalars);
-            }
-        });
-}
-
-template <typename GlobalData, typename TileData, QuantMode_t quantMode, bool applyRelu>
-__tf__ PTO_INLINE void TStore(
-    typename GlobalData::DType __out__* dst, typename TileData::TileDType __in__ src,
-    const std::vector<uint64_t>& scalars, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gStride0,
-    int gStride1, int gStride2, int gStride3, int gStride4, int validRow, int validCol)
+__tf__ PTO_INLINE void TStore(GlobalData& dst, TileData& src, const std::vector<uint64_t>& scalars)
 {
     if constexpr (GlobalData::layout == pto::Layout::NZ) {
-        assert(validRow == gShape2 * gShape3 && validCol == gShape0 * gShape1 * gShape4);
+        assert(
+            src.GetValidRow() == dst.GetShape(GlobalTensorDim::DIM_2) * dst.GetShape(GlobalTensorDim::DIM_3) &&
+            src.GetValidCol() == dst.GetShape(GlobalTensorDim::DIM_0) * dst.GetShape(GlobalTensorDim::DIM_1) *
+                                     dst.GetShape(GlobalTensorDim::DIM_4));
+
     } else {
-        assert(gShape0 * gShape1 * gShape2 * gShape3 * gShape4 >= validRow * validCol);
+        assert(
+            dst.GetShape(GlobalTensorDim::DIM_0) * dst.GetShape(GlobalTensorDim::DIM_1) *
+                dst.GetShape(GlobalTensorDim::DIM_2) * dst.GetShape(GlobalTensorDim::DIM_3) *
+                dst.GetShape(GlobalTensorDim::DIM_4) >=
+            src.GetValidRow() * src.GetValidCol());
     }
     if constexpr (GlobalData::layout == pto::Layout::NZ) {
         using D = typename GlobalData::DType;
         using S = typename TileData::DType;
         ForEachNZElement<TileData>(
-            validRow, validCol, gShape1, gShape3, gShape4, gStride0, gStride1, gStride2, gStride3, gStride4,
-            [&](size_t r, size_t c, size_t tile_idx, size_t gd_idx) {
-                StoreElement<D, S, TileData, quantMode, applyRelu>(dst, gd_idx, src[tile_idx], r, c, scalars);
+            src.GetValidRow(), src.GetValidCol(), dst.GetShape(GlobalTensorDim::DIM_1),
+            dst.GetShape(GlobalTensorDim::DIM_3), dst.GetShape(GlobalTensorDim::DIM_4),
+            dst.GetStride(GlobalTensorDim::DIM_0), dst.GetStride(GlobalTensorDim::DIM_1),
+            dst.GetStride(GlobalTensorDim::DIM_2), dst.GetStride(GlobalTensorDim::DIM_3),
+            dst.GetStride(GlobalTensorDim::DIM_4), [&](size_t r, size_t c, size_t tile_idx, size_t gd_idx) {
+                StoreElement<D, S, TileData, quantMode, applyRelu>(
+                    dst.data(), gd_idx, src.data()[tile_idx], r, c, scalars);
             });
-    } else if (TileData::SFractal == SLayout::NoneBox) {
-        StorePlain<GlobalData, TileData, quantMode, applyRelu>(
-            dst, src, scalars, gShape0, gShape1, gShape2, gShape3, gShape4, gStride0, gStride1, gStride2, gStride3,
-            gStride4, validRow, validCol);
     } else {
-        assert(gShape0 == 1 && gShape1 == 1 && gShape2 == 1 && "Nz,Zn -> ND,DN conversion does support only 2D GMs");
-        StoreSubfractalMatrix<GlobalData, TileData, quantMode, applyRelu>(
-            dst, src, scalars, gShape3, gShape4, gStride3, gStride4, validRow, validCol);
+        StorePlainGT<GlobalData, TileData, quantMode, applyRelu>(dst, src, scalars);
     }
 }
 
@@ -234,13 +167,7 @@ PTO_INTERNAL void TSTORE_IMPL(GlobalData& dst, TileData& src, const std::vector<
             dst.GetStride(0), dst.GetStride(1), dst.GetStride(2), dst.GetStride(3), dst.GetStride(4), src.GetShape(0),
             src.GetShape(1), src.GetShape(2), src.GetShape(3), src.GetShape(4));
     } else {
-        TStore<GlobalData, TileData, quantMode, applyRelu>(
-            dst.data(), src.data(), scalars, dst.GetShape(pto::GlobalTensorDim::DIM_0),
-            dst.GetShape(pto::GlobalTensorDim::DIM_1), dst.GetShape(pto::GlobalTensorDim::DIM_2),
-            dst.GetShape(pto::GlobalTensorDim::DIM_3), dst.GetShape(pto::GlobalTensorDim::DIM_4),
-            dst.GetStride(pto::GlobalTensorDim::DIM_0), dst.GetStride(pto::GlobalTensorDim::DIM_1),
-            dst.GetStride(pto::GlobalTensorDim::DIM_2), dst.GetStride(pto::GlobalTensorDim::DIM_3),
-            dst.GetStride(pto::GlobalTensorDim::DIM_4), src.GetValidRow(), src.GetValidCol());
+        TStore<GlobalData, TileData, quantMode, applyRelu>(dst, src, scalars);
     }
 }
 

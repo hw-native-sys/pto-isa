@@ -18,12 +18,13 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 template <typename TileDataDst, typename TileDataSrc, PadValue PadVal = TileDataDst::PadVal>
-void TFillPad(
-    typename TileDataDst::TileDType dst, typename TileDataSrc::TileDType src, unsigned validDstRow,
-    unsigned validDstCol, unsigned validSrcRow, unsigned validSrcCol)
+void TFillPad(TileDataDst& dst, TileDataSrc& src)
 {
     using DType = typename TileDataDst::DType;
     DType padVal = 0;
+
+    const auto validSrcRow = src.GetValidRow();
+    const auto validSrcCol = src.GetValidCol();
 
     // Handle custom pad values (PadCustom<-1.0f>, etc.)
     if constexpr (isCustomPadValue(PadVal)) {
@@ -56,9 +57,9 @@ void TFillPad(
             PTO_CPU_VECTORIZE_LOOP
             for (std::size_t j = 0; j < TileDataDst::Cols; ++j) {
                 if (i < validSrcRow && j < validSrcCol) {
-                    dst[GetTileElementOffset<TileDataDst>(i, j)] = src[GetTileElementOffset<TileDataSrc>(i, j)];
+                    dst.SetElement(i, j, src.GetElement(i, j));
                 } else {
-                    dst[GetTileElementOffset<TileDataDst>(i, j)] = padVal;
+                    dst.SetElement(i, j, padVal);
                 }
             }
         });
@@ -84,10 +85,7 @@ PTO_INTERNAL void TFILLPAD_IMPL(TileDataDst& dst, TileDataSrc& src)
     if (validDstRow == 0 || validDstCol == 0) {
         return;
     }
-    if constexpr (!inplace) {
-        TFillPad<TileDataDst, TileDataSrc>(dst.data(), src.data(), validDstRow, validDstCol, validSrcRow, validSrcCol);
-    }
-    TFillPad<TileDataDst, TileDataSrc>(dst.data(), src.data(), validDstRow, validDstCol, validSrcRow, validSrcCol);
+    TFillPad<TileDataDst, TileDataSrc>(dst, src);
 }
 
 template <typename TileData, PadValue PadVal = PadValue::Zero>
@@ -107,7 +105,7 @@ PTO_INTERNAL void TFILLPAD_IMPL(TileData& dst, TileData& src)
         return;
     }
 
-    TFillPad<TileData, TileData, PadVal>(dst.data(), src.data(), validDstRow, validDstCol, validSrcRow, validSrcCol);
+    TFillPad<TileData, TileData, PadVal>(dst, src);
 }
 
 template <typename TileDataDst, typename TileDataSrc>

@@ -125,11 +125,10 @@ void printTile(TL& tile, const std::string name = "", int elementWidth = 5, int 
               << tile.Cols << ") (RxC)" << std::endl;
     for (int y = 0; y < tile.GetValidRow() && y < maxR; y++) {
         for (int x = 0; x < tile.GetValidCol() && x < maxC; x++) {
-            auto offset = pto::GetTileElementOffset<TL>(y, x);
             if constexpr (std::is_integral_v<typename TL::DType>) {
-                std::cout << std::setw(elementWidth) << tile.data()[offset] << " ";
+                std::cout << std::setw(elementWidth) << tile.GetElement(y, x) << " ";
             } else {
-                double val = static_cast<double>(tile.data()[offset]);
+                double val = static_cast<double>(tile.GetElement(y, x));
                 std::cout << std::setw(elementWidth) << std::fixed << std::setprecision(PRECISION)
                           << (std::abs(val) < 1e-20 ? 0 : val) << " ";
             }

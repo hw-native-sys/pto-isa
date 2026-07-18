@@ -107,15 +107,15 @@ __global__ AICORE void RunTMATMULMX(
     TileBiasData biasDataTile;
     size_t addr = 0;
     TASSIGN(aMatTile, addr);
-    addr += TileMatAData::Numel * sizeof(typename TileMatAData::DType);
+    addr += TileMatAData::GetSizeInBytes();
     TASSIGN(bMatTile, addr);
-    addr += TileMatBData::Numel * sizeof(typename TileMatBData::DType);
+    addr += TileMatBData::GetSizeInBytes();
     TASSIGN(aScaleMatTile, addr);
-    addr += TileScaleAData::Numel * sizeof(typename TileScaleAData::DType);
+    addr += TileScaleAData::GetSizeInBytes();
     TASSIGN(bScaleMatTile, addr);
-    addr += TileScaleBData::Numel * sizeof(typename TileScaleBData::DType);
+    addr += TileScaleBData::GetSizeInBytes();
     TASSIGN(biasDataTile, addr);
-    addr += TileBiasData::Numel * sizeof(typename TileBiasData::DType);
+    addr += TileBiasData::GetSizeInBytes();
 
     LeftTile aTile;
     RightTile bTile;
@@ -128,14 +128,15 @@ __global__ AICORE void RunTMATMULMX(
     TASSIGN(cTile, 0x0);
 
     TASSIGN(aScaleTile, addr);
-    addr += LeftScaleTile::Numel * sizeof(typename LeftScaleTile::DType);
+    addr += LeftScaleTile::GetSizeInBytes();
     TASSIGN(bScaleTile, addr);
-    addr += RightScaleTile::Numel * sizeof(typename RightScaleTile::DType);
+    addr += RightScaleTile::GetSizeInBytes();
     TASSIGN(biasTile, addr);
 
     /*************************************TLOAD****************************************/
     TLOAD(aMatTile, src0Global);
     TLOAD(bMatTile, src1Global);
+
     // Clear L1 buffer
     // Tload will pad to 32B alignment with at most 32B padding
     if constexpr (kAlign - validK >= blockAlign) {
@@ -260,15 +261,15 @@ __global__ AICORE void RunTMATMULMX_SPLIT_K(
 
     size_t addr = 0;
     TASSIGN(aMatTile, addr);
-    addr += TileMatAData::Numel * sizeof(typename TileMatAData::DType);
+    addr += TileMatAData::GetSizeInBytes();
     TASSIGN(bMatTile, addr);
-    addr += TileMatBData::Numel * sizeof(typename TileMatBData::DType);
+    addr += TileMatBData::GetSizeInBytes();
     TASSIGN(aScaleMatTile, addr);
-    addr += TileScaleAData::Numel * sizeof(typename TileScaleAData::DType);
+    addr += TileScaleAData::GetSizeInBytes();
     TASSIGN(bScaleMatTile, addr);
-    addr += TileScaleBData::Numel * sizeof(typename TileScaleBData::DType);
+    addr += TileScaleBData::GetSizeInBytes();
     TASSIGN(biasDataTile, addr);
-    addr += TileBiasData::Numel * sizeof(typename TileBiasData::DType);
+    addr += TileBiasData::GetSizeInBytes();
 
     LeftTile aTile;
     RightTile bTile;
@@ -282,9 +283,9 @@ __global__ AICORE void RunTMATMULMX_SPLIT_K(
     TASSIGN(cTile, 0x0);
 
     TASSIGN(aScaleTile, addr);
-    addr += LeftScaleTile::Numel * sizeof(typename LeftScaleTile::DType);
+    addr += LeftScaleTile::GetSizeInBytes();
     TASSIGN(bScaleTile, addr);
-    addr += RightScaleTile::Numel * sizeof(typename RightScaleTile::DType);
+    addr += RightScaleTile::GetSizeInBytes();
     TASSIGN(biasTile, addr);
 
     constexpr int iter = K / BASEK;
@@ -444,8 +445,8 @@ __global__ AICORE void RunTGEMVMX(
     TASSIGN(aTile, 0x0);
     TASSIGN(bTile, 0x0);
 
-    TASSIGN(aScaleTile, LeftTile::Numel * sizeof(typename LeftTile::DType));
-    TASSIGN(bScaleTile, RightTile::Numel * sizeof(typename RightTile::DType));
+    TASSIGN(aScaleTile, LeftTile::GetSizeInBytes());
+    TASSIGN(bScaleTile, RightTile::GetSizeInBytes());
 
     TASSIGN(cTile, 0x0);
 

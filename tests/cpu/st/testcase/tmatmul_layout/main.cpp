@@ -75,13 +75,13 @@ TEST(TMatmulLayoutTest, AcceptsExplicitRowMajorLeftTileEncoding)
     AccTile accOut;
     size_t addr = 0;
     TASSIGN(lhs, addr);
-    addr += ExplicitLeftTile::Numel * sizeof(typename ExplicitLeftTile::DType);
+    addr += ExplicitLeftTile::GetSizeInBytes();
     TASSIGN(rhs, addr);
-    addr += RightTile::Numel * sizeof(typename RightTile::DType);
+    addr += RightTile::GetSizeInBytes();
     TASSIGN(dst, addr);
-    addr += AccTile::Numel * sizeof(typename AccTile::DType);
+    addr += AccTile::GetSizeInBytes();
     TASSIGN(accIn, addr);
-    addr += AccTile::Numel * sizeof(typename AccTile::DType);
+    addr += AccTile::GetSizeInBytes();
     TASSIGN(accOut, addr);
 
     FillAll(lhs, 0.0f);

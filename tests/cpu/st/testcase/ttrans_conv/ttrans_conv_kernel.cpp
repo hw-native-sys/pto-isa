@@ -189,7 +189,7 @@ template <typename T, int G, int N, int C, int H, int W>
 __global__ AICORE void runTTRANSConv_GNCHW2NC1HWC0(__gm__ T __out__* out, __gm__ T __in__* src)
 {
     constexpr size_t DTypeSize = GetTypeSize<T>();
-    constexpr size_t C0 = (32 / DTypeSize) * (isTwinType<T>() ? 2 : 1);
+    constexpr size_t C0 = (32 / DTypeSize) * (IsTwinType<T>() ? 2 : 1);
     constexpr size_t C1 = (C + C0 - 1) / C0;
     constexpr size_t dstElemNum = G * N * C1 * H * W * C0;
     constexpr size_t srcElemNum = G * N * C * H * W;
@@ -224,7 +224,7 @@ __global__ AICORE void runTTRANSConv_GNCHW2NC1HWC0(__gm__ T __out__* out, __gm__
     dstTile.data() = dst0Tile.data();
 
     std::fill((uint8_t*)dstTile.data(), (uint8_t*)dstTile.data() + dstElemNum * DTypeSize, 0);
-    std::fill((uint8_t*)out, (uint8_t*)out + dstElemNum * DTypeSize / (isTwinType<T>() ? 2 : 1), 0);
+    std::fill((uint8_t*)out, (uint8_t*)out + dstElemNum * DTypeSize / (IsTwinType<T>() ? 2 : 1), 0);
 
     // Not used internally, just for placeholder
     using TmpTileData = Tile<TileType::Vec, T, 1, 32, BLayout::RowMajor, 1, 32>;

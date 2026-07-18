@@ -578,6 +578,37 @@ struct GlobalTensor {
 
     AICORE DType* data() { return data_; }
 
+#if defined(__CPU_SIM)
+    DType GetElement(int64_t i0, int64_t i1, int64_t i2, int64_t i3, int64_t i4)
+    {
+        const auto offset = i0 * GetStride(GlobalTensorDim::DIM_0) + i1 * GetStride(GlobalTensorDim::DIM_1) +
+                            i2 * GetStride(GlobalTensorDim::DIM_2) + i3 * GetStride(GlobalTensorDim::DIM_3) +
+                            i4 * GetStride(GlobalTensorDim::DIM_4);
+        return GetProperDataPart(data_, offset);
+    }
+
+    void SetElement(int64_t i0, int64_t i1, int64_t i2, int64_t i3, int64_t i4, const DType& val)
+    {
+        const auto offset = i0 * GetStride(GlobalTensorDim::DIM_0) + i1 * GetStride(GlobalTensorDim::DIM_1) +
+                            i2 * GetStride(GlobalTensorDim::DIM_2) + i3 * GetStride(GlobalTensorDim::DIM_3) +
+                            i4 * GetStride(GlobalTensorDim::DIM_4);
+        SetProperDataPart(data(), offset, val);
+    }
+
+    void AddToElement(int64_t i0, int64_t i1, int64_t i2, int64_t i3, int64_t i4, const DType& summand)
+    {
+        const auto offset = i0 * GetStride(GlobalTensorDim::DIM_0) + i1 * GetStride(GlobalTensorDim::DIM_1) +
+                            i2 * GetStride(GlobalTensorDim::DIM_2) + i3 * GetStride(GlobalTensorDim::DIM_3) +
+                            i4 * GetStride(GlobalTensorDim::DIM_4);
+        if constexpr (IsTwinType<DType>()) {
+            const auto val = GetProperDataPart(data(), offset);
+            SetProperDataPart(data(), offset, val + summand);
+        } else {
+            data()[offset] += summand;
+        }
+    }
+#endif
+
 private:
     template <int64_t StaticShape>
     PTO_INTERNAL int64_t GetShapeSize(const int dim)
@@ -1452,7 +1483,7 @@ public:
     TileDType& data()
     {
         if (!data_) {
-            internalBuffer.resize(Rows * Cols);
+            internalBuffer.resize(Rows * Cols / (IsTwinType<DType>() ? 2 : 1));
             data_ = internalBuffer.data();
         }
         return data_;
@@ -1555,6 +1586,42 @@ public:
         }
     }
     PTO_INTERNAL void ResetMadMode() { set_ctrl(sbitset0(get_ctrl(), MAD_MODE_BIT)); }
+#endif
+
+    static constexpr size_t GetSizeInUnits()
+    {
+        // One unit is sizeof(DType)
+        if constexpr (IsTwinType<DType>()) {
+            return Numel / 2;
+        } else {
+            return Numel;
+        }
+    }
+
+    static constexpr size_t GetSizeInBytes() { return GetSizeInUnits() * sizeof(DType); }
+
+#if defined(__CPU_SIM)
+    DType GetElement(int64_t r, int64_t c)
+    {
+        return GetProperDataPart(data(), GetTileElementOffset<std::remove_reference_t<decltype(*this)>>(r, c));
+    }
+
+    void SetElement(int64_t r, int64_t c, const DType& val)
+    {
+        const auto offset = GetTileElementOffset<std::remove_reference_t<decltype(*this)>>(r, c);
+        SetProperDataPart(data(), offset, val);
+    }
+
+    void AddToElement(int64_t r, int64_t c, const DType& summand)
+    {
+        const auto offset = GetTileElementOffset<std::remove_reference_t<decltype(*this)>>(r, c);
+        if constexpr (IsTwinType<DType>()) {
+            const auto val = GetProperDataPart(data(), offset);
+            SetProperDataPart(data(), offset, val + summand);
+        } else {
+            data()[offset] += summand;
+        }
+    }
 #endif
 private:
     AICORE void assignData(TileDType data) { data_ = data; }

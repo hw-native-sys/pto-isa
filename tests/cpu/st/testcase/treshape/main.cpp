@@ -27,7 +27,7 @@ TEST_F(TReshapeTest, AliasesBackingStorageInCpuSim)
     SrcTile src;
     DstTile dst;
     TASSIGN(src, 0);
-    TASSIGN(dst, SrcTile::Numel * sizeof(typename SrcTile::DType));
+    TASSIGN(dst, SrcTile::GetSizeInBytes());
 
     for (int i = 0; i < SrcTile::Numel; ++i) {
         src.data()[i] = static_cast<float>(i + 1);

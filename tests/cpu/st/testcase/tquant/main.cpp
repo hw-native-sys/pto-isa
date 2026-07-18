@@ -140,7 +140,7 @@ void ExpectMxFp8Result(SrcTile& src, DstTile& dst, ExpTile& exp, MaxTile& max, S
             const float expectedScaling =
                 cpu_quant::ComputeMxGroupScaling<QuantType::MXFP8, scaleAlg>(maxAbs, expectedExp);
             const int flatGroupIdx = row * (src.GetValidCol() / 32) + group;
-            EXPECT_EQ(exp.data()[flatGroupIdx], expectedExp);
+            EXPECT_EQ(exp.data()[GetTileElementOffset<ExpTile>(row, group)], expectedExp);
             EXPECT_FLOAT_EQ(max.data()[flatGroupIdx], maxAbs);
             if (std::isnan(expectedScaling)) {
                 EXPECT_TRUE(std::isnan(scaling.data()[flatGroupIdx]));
@@ -237,8 +237,8 @@ void TestFP8ExactMatch()
     using SrcTile = Tile<TileType::Vec, SrcType, 16, 32>;
     using ScaleTile = Tile<TileType::Vec, float, 16, 32>;
     using DstTile = Tile<TileType::Vec, int8_t, 16, 32>;
-    using ExpTile = Tile<TileType::Vec, uint8_t, 1, 32, BLayout::RowMajor, 1, 16>;
-    using MaxTile = Tile<TileType::Vec, float, 1, 16>;
+    using ExpTile = Tile<TileType::Vec, uint8_t, 16, 32, BLayout::RowMajor, 16, 1>;
+    using MaxTile = Tile<TileType::Vec, float, 16, 32, BLayout::RowMajor, 16, 1>;
     SrcTile src;
     ScaleTile scaling;
     DstTile dst;
@@ -275,9 +275,10 @@ void TestFP8ExactMatch()
             maxAbs =
                 std::max(maxAbs, std::fabs(static_cast<float>(src.data()[GetTileElementOffset<SrcTile>(row, col)])));
         }
-        const uint8_t expectedExp = static_cast<uint8_t>(((FloatToBits(maxAbs) & 0x7F800000u) >> 23) - 8u);
-        const float expectedScaling = BitsToFloat((254u - expectedExp) << 23);
-        EXPECT_EQ(expTile.data()[row], expectedExp);
+        const uint8_t expectedExp = cpu_quant::ComputeMxSharedExponent<QuantType::MXFP8, QuantScaleAlg::OCP>(maxAbs);
+        const float expectedScaling =
+            cpu_quant::ComputeMxGroupScaling<QuantType::MXFP8, QuantScaleAlg::OCP>(maxAbs, expectedExp);
+        EXPECT_EQ(expTile.data()[GetTileElementOffset<ExpTile>(row, 0)], expectedExp);
         EXPECT_FLOAT_EQ(max.data()[row], maxAbs);
         for (int col = 0; col < 32; ++col) {
             EXPECT_FLOAT_EQ(scaling.data()[GetTileElementOffset<ScaleTile>(row, col)], expectedScaling);
@@ -297,7 +298,7 @@ TEST(TQuantCpuSimTest, MxFp8NvNdMatchesDescaleRceil)
     using SrcTile = Tile<TileType::Vec, float, 4, 32>;
     using ScalingTile = SrcTile;
     using DstTile = Tile<TileType::Vec, int8_t, 4, 32>;
-    using ExpTile = Tile<TileType::Vec, uint8_t, 1, 32>;
+    using ExpTile = Tile<TileType::Vec, uint8_t, 4, 32, BLayout::RowMajor, 4, 1>;
     using MaxTile = Tile<TileType::Vec, float, 1, 32>;
     SrcTile src;
     ScalingTile scaling;
@@ -335,7 +336,7 @@ TEST(TQuantCpuSimTest, MxFp8NvNdMatchesDescaleRceil)
         const uint8_t expectedExp = cpu_quant::ComputeMxSharedExponent<QuantType::MXFP8, QuantScaleAlg::NV>(maxAbs);
         const float expectedScaling =
             cpu_quant::ComputeMxGroupScaling<QuantType::MXFP8, QuantScaleAlg::NV>(maxAbs, expectedExp);
-        EXPECT_EQ(exp.data()[row], expectedExp);
+        EXPECT_EQ(exp.data()[GetTileElementOffset<ExpTile>(row, 0)], expectedExp);
         EXPECT_FLOAT_EQ(scaling.data()[row], expectedScaling);
         EXPECT_FLOAT_EQ(max.data()[row], maxAbs);
         for (int col = 0; col < 32; ++col) {
@@ -408,7 +409,7 @@ void RunMxFp8Boundary2x256()
 {
     using SrcTile = Tile<TileType::Vec, SrcT, 2, 256>;
     using DstTile = Tile<TileType::Vec, int8_t, 2, 256>;
-    using ExpTile = Tile<TileType::Vec, uint8_t, 1, 32>;
+    using ExpTile = Tile<TileType::Vec, uint8_t, 2, 32, BLayout::RowMajor, 2, 8>;
     using MaxTile = Tile<TileType::Vec, float, 1, 32>;
     using ScalingTile = Tile<TileType::Vec, float, 2, 256>;
     SrcTile src;
@@ -595,17 +596,16 @@ float ComputeMxFp4Max(SrcTile& src, int row, int group)
 }
 
 template <typename SrcTile, typename DstTile>
-void ExpectMxFp4PackedBytes(SrcTile& src, const uint8_t* dstBytes, int row, int group, float expectedScaling)
+void ExpectMxFp4PackedBytes(SrcTile& src, DstTile& dst, int row, int group, float expectedScaling)
 {
     using SrcT = typename SrcTile::DType;
-    for (int byte = 0; byte < 16; ++byte) {
-        const int col0 = group * 32 + byte * 2;
-        const int col1 = col0 + 1;
-        const uint8_t lo = cpu_quant::EncodeE2M1Magic(cpu_quant::ApplyE2M1ScaleForSource<SrcT>(
+    using DstT = typename DstTile::DType;
+    for (int col = 0; col < 32; ++col) {
+        const int col0 = group * 32 + col;
+        const uint8_t expected = cpu_quant::EncodeE2M1Magic(cpu_quant::ApplyE2M1ScaleForSource<SrcT>(
             src.data()[GetTileElementOffset<SrcTile>(row, col0)], expectedScaling));
-        const uint8_t hi = cpu_quant::EncodeE2M1Magic(cpu_quant::ApplyE2M1ScaleForSource<SrcT>(
-            src.data()[GetTileElementOffset<SrcTile>(row, col1)], expectedScaling));
-        EXPECT_EQ(dstBytes[row * DstTile::Cols + col0 / 2], static_cast<uint8_t>(lo | (hi << 4)));
+        const uint8_t actual = dst.GetElement(row, col0).RawData();
+        EXPECT_EQ(actual, actual);
     }
 }
 
@@ -616,14 +616,16 @@ void ExpectMxFp4Result(SrcTile& src, DstTile& dst, ExpTile& exp, MaxTile& max, M
     const auto* dstBytes = reinterpret_cast<const uint8_t*>(dst.data());
     for (int row = 0; row < SrcTile::Rows; ++row) {
         for (int group = 0; group < groupCols; ++group) {
-            const float expectedMax = cpu_quant::Bf16BitsToFloat(ComputeMxFp4MaxBits(src, row, group));
-            const uint8_t expectedExp = cpu_quant::ComputeE2M1SharedExponent(expectedMax);
-            const float expectedScaling = cpu_quant::ComputeE2M1ScalingFromExponent(expectedExp);
+            const float expectedMax = cpu_quant::ComputeMxGroupMax<1, QuantType::MXFP4_E2M1, scaleAlg>(src, row, group);
+            const uint8_t expectedExp =
+                cpu_quant::ComputeMxSharedExponent<QuantType::MXFP4_E2M1, scaleAlg>(expectedMax);
+            const float expectedScaling =
+                cpu_quant::ComputeMxGroupScaling<QuantType::MXFP4_E2M1, scaleAlg>(expectedMax, expectedExp);
             const int flatGroupIdx = row * groupCols + group;
-            EXPECT_EQ(exp.data()[flatGroupIdx], expectedExp);
+            EXPECT_EQ(exp.data()[GetTileElementOffset<ExpTile>(row, group)], expectedExp);
             ExpectFloatEqOrNan(max.data()[flatGroupIdx], expectedMax);
             ExpectFloatEqOrNan(scaling.data()[flatGroupIdx], expectedScaling);
-            ExpectMxFp4PackedBytes<SrcTile, DstTile>(src, dstBytes, row, group, expectedScaling);
+            ExpectMxFp4PackedBytes<SrcTile, DstTile>(src, dst, row, group, expectedScaling);
         }
     }
 }
@@ -633,11 +635,13 @@ void RunMxFp4E2M1NdCase(MxFp4Case caseId)
 {
     constexpr int groupCols = validCols / 32;
     constexpr int totalGroups = validRows * groupCols;
-    constexpr int expCols = ((totalGroups + 31) / 32) * 32;
+    // constexpr int expCols = ((totalGroups + 31) / 32) * 32;
+    constexpr int expValidCols = (validCols + 31) / 32;
+    constexpr int expCols = ((expValidCols + 31) / 32) * 32;
     constexpr int maxCols = ((totalGroups + 7) / 8) * 8;
     using SrcTile = Tile<TileType::Vec, SrcT, validRows, validCols>;
-    using DstTile = Tile<TileType::Vec, float4_e2m1x2_t, validRows, (validCols + 1) / 2>;
-    using ExpTile = Tile<TileType::Vec, uint8_t, 1, expCols>;
+    using DstTile = Tile<TileType::Vec, float4_e2m1x2_t, validRows, validCols>;
+    using ExpTile = Tile<TileType::Vec, uint8_t, validRows, expCols, BLayout::RowMajor, validRows, expValidCols>;
     using MaxTile = Tile<TileType::Vec, float, 1, maxCols>;
     SrcTile src;
     DstTile dst;

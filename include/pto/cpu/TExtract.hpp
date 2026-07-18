@@ -29,18 +29,18 @@ PTO_INTERNAL void TExtract_Impl(
 
     for (size_t c = 0; c < dst.GetValidCol(); c++) {
         for (size_t r = 0; r < dst.GetValidRow(); r++) {
-            size_t srcTileIdx = GetTileElementOffset<SrcTileData>(r + idxRow, c + idxCol);
-            size_t dstTileIdx = GetTileElementOffset<DstTileData>(r, c);
             if constexpr (quantMode != QuantMode_t::NoQuant) {
                 size_t scalarIndex = SrcTileData::isRowMajor ? c : r;
-                dst.data()[dstTileIdx] =
-                    quantize_element<D, S, quantMode, applyRelu>(src.data()[srcTileIdx], scalars[scalarIndex]);
+                dst.SetElement(
+                    r, c,
+                    quantize_element<D, S, quantMode, applyRelu>(
+                        src.GetElement(r + idxRow, c + idxCol), scalars[scalarIndex]));
             } else {
-                S val = src.data()[srcTileIdx];
+                S val = src.GetElement(r + idxRow, c + idxCol);
                 if constexpr (applyRelu) {
                     val = ReLU(val);
                 }
-                dst.data()[dstTileIdx] = val;
+                dst.SetElement(r, c, val);
             }
         }
     }
