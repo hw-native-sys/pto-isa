@@ -89,6 +89,14 @@ if __name__ == "__main__":
         TCmpParams(np.int32, 64, 64, 64, 64, 64, 64, "EQ"),
         TCmpParams(np.int16, 64, 64, 64, 64, 64, 64, "EQ"),
         TCmpParams(np.float16, 16, 256, 16, 256, 16, 256, "EQ"),
+        TCmpParams(np.int8, 64, 64, 64, 64, 64, 64, "EQ"),
+        TCmpParams(np.int8, 64, 64, 64, 64, 64, 64, "GT"),
+        TCmpParams(np.uint8, 64, 64, 64, 64, 64, 64, "EQ"),
+        TCmpParams(np.uint8, 64, 64, 64, 64, 64, 64, "LT"),
+        TCmpParams(np.uint16, 64, 64, 64, 64, 64, 64, "EQ"),
+        TCmpParams(np.uint16, 64, 64, 64, 64, 64, 64, "NE"),
+        TCmpParams(np.uint32, 64, 64, 64, 64, 64, 64, "EQ"),
+        TCmpParams(np.uint32, 64, 64, 64, 64, 64, 64, "GE")
     ]
     if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
         case_params_list.append(TCmpParams(NumExt.bf16, 16, 256, 16, 256, 16, 256, "EQ"))

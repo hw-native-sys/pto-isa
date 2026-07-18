@@ -51,16 +51,27 @@ void LaunchTCmps(uint8_t* out, T* src0, T* src1, void* stream)
 
 template void LaunchTCmps<aclFloat16, 32, 32, 32, 32, 5>(
     uint8_t* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void LaunchTCmps<aclFloat16, 32, 64, 32, 64, 2>(
+    uint8_t* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void LaunchTCmps<float, 1, 64, 1, 64, 0>(uint8_t* out, float* src0, float* src1, void* stream);
+template void LaunchTCmps<float, 8, 64, 8, 64, 4>(uint8_t* out, float* src0, float* src1, void* stream);
+template void LaunchTCmps<float, 4, 64, 4, 64, 1>(uint8_t* out, float* src0, float* src1, void* stream);
+template void LaunchTCmps<float, 128, 128, 128, 128, 2>(uint8_t* out, float* src0, float* src1, void* stream);
+template void LaunchTCmps<int8_t, 32, 32, 32, 32, 0>(uint8_t* out, int8_t* src0, int8_t* src1, void* stream);
+template void LaunchTCmps<int8_t, 16, 32, 16, 32, 4>(uint8_t* out, int8_t* src0, int8_t* src1, void* stream);
+template void LaunchTCmps<uint8_t, 32, 64, 32, 64, 1>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTCmps<uint8_t, 32, 32, 32, 32, 2>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTCmps<int16_t, 8, 32, 8, 32, 5>(uint8_t* out, int16_t* src0, int16_t* src1, void* stream);
+template void LaunchTCmps<int16_t, 64, 64, 64, 64, 3>(uint8_t* out, int16_t* src0, int16_t* src1, void* stream);
+template void LaunchTCmps<uint16_t, 32, 32, 32, 32, 0>(uint8_t* out, uint16_t* src0, uint16_t* src1, void* stream);
+template void LaunchTCmps<uint16_t, 16, 32, 16, 32, 4>(uint8_t* out, uint16_t* src0, uint16_t* src1, void* stream);
+template void LaunchTCmps<int32_t, 64, 64, 64, 64, 0>(uint8_t* out, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTCmps<int32_t, 16, 32, 16, 32, 3>(uint8_t* out, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTCmps<int32_t, 77, 96, 77, 96, 4>(uint8_t* out, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTCmps<int32_t, 32, 32, 32, 32, 5>(uint8_t* out, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTCmps<uint32_t, 32, 32, 32, 32, 1>(uint8_t* out, uint32_t* src0, uint32_t* src1, void* stream);
+template void LaunchTCmps<uint32_t, 16, 32, 16, 32, 3>(uint8_t* out, uint32_t* src0, uint32_t* src1, void* stream);
 #ifdef CPU_SIM_BFLOAT_ENABLED
 template void LaunchTCmps<bfloat16_t, 32, 32, 32, 32, 5>(
     uint8_t* out, bfloat16_t* src0, bfloat16_t* src1, void* stream);
 #endif
-template void LaunchTCmps<float, 1, 64, 1, 64, 0>(uint8_t* out, float* src0, float* src1, void* stream);
-template void LaunchTCmps<float, 8, 64, 8, 64, 4>(uint8_t* out, float* src0, float* src1, void* stream);
-template void LaunchTCmps<float, 4, 64, 4, 64, 1>(uint8_t* out, float* src0, float* src1, void* stream);
-template void LaunchTCmps<float, 28, 28, 64, 64, 2>(uint8_t* out, float* src0, float* src1, void* stream);
-template void LaunchTCmps<int32_t, 64, 64, 32, 32, 0>(uint8_t* out, int32_t* src0, int32_t* src1, void* stream);
-template void LaunchTCmps<int32_t, 16, 32, 16, 32, 0>(uint8_t* out, int32_t* src0, int32_t* src1, void* stream);
-template void LaunchTCmps<float, 128, 128, 128, 128, 3>(uint8_t* out, float* src0, float* src1, void* stream);
-template void LaunchTCmps<int32_t, 13, 14, 32, 32, 0>(uint8_t* out, int32_t* src0, int32_t* src1, void* stream);
-template void LaunchTCmps<int32_t, 32, 32, 32, 32, 0>(uint8_t* out, int32_t* src0, int32_t* src1, void* stream);

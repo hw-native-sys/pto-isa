@@ -95,13 +95,26 @@ void test_tcmps()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TCMPSTest, case_half_32x32_32x32_32x32) { test_tcmps<aclFloat16, 32, 32, 32, 32, 5>(); }
+TEST_F(TCMPSTest, case_half_32x32_32x32_32x32_GE) { test_tcmps<aclFloat16, 32, 32, 32, 32, 5>(); }
+TEST_F(TCMPSTest, case_half_32x64_32x64_32x64_LT) { test_tcmps<aclFloat16, 32, 64, 32, 64, 2>(); }
+TEST_F(TCMPSTest, case_float_1x64_1x64_1x64_EQ) { test_tcmps<float, 1, 64, 1, 64, 0>(); }
+TEST_F(TCMPSTest, case_float_8x64_8x64_8x64_GT) { test_tcmps<float, 8, 64, 8, 64, 4>(); }
+TEST_F(TCMPSTest, case_float_4x64_4x64_4x64_NE) { test_tcmps<float, 4, 64, 4, 64, 1>(); }
+TEST_F(TCMPSTest, case_float_128x128_128x128_128x128_LT) { test_tcmps<float, 128, 128, 128, 128, 2>(); }
+TEST_F(TCMPSTest, case_int8_32x32_32x32_32x32_EQ) { test_tcmps<int8_t, 32, 32, 32, 32, 0>(); }
+TEST_F(TCMPSTest, case_int8_16x32_16x32_16x32_GT) { test_tcmps<int8_t, 16, 32, 16, 32, 4>(); }
+TEST_F(TCMPSTest, case_uint8_32x64_32x64_32x64_NE) { test_tcmps<uint8_t, 32, 64, 32, 64, 1>(); }
+TEST_F(TCMPSTest, case_uint8_32x32_32x32_32x32_LT) { test_tcmps<uint8_t, 32, 32, 32, 32, 2>(); }
+TEST_F(TCMPSTest, case_int16_8x32_8x32_8x32_GE) { test_tcmps<int16_t, 8, 32, 8, 32, 5>(); }
+TEST_F(TCMPSTest, case_int16_64x64_64x64_64x64_LE) { test_tcmps<int16_t, 64, 64, 64, 64, 3>(); }
+TEST_F(TCMPSTest, case_uint16_32x32_32x32_32x32_EQ) { test_tcmps<uint16_t, 32, 32, 32, 32, 0>(); }
+TEST_F(TCMPSTest, case_uint16_16x32_16x32_16x32_GT) { test_tcmps<uint16_t, 16, 32, 16, 32, 4>(); }
+TEST_F(TCMPSTest, case_int32_64x64_64x64_64x64_EQ) { test_tcmps<int32_t, 64, 64, 64, 64, 0>(); }
+TEST_F(TCMPSTest, case_int32_16x32_16x32_16x32_LE) { test_tcmps<int32_t, 16, 32, 16, 32, 3>(); }
+TEST_F(TCMPSTest, case_int32_77x96_77x96_77x96_GT) { test_tcmps<int32_t, 77, 96, 77, 96, 4>(); }
+TEST_F(TCMPSTest, case_int32_32x32_32x32_32x32_GE) { test_tcmps<int32_t, 32, 32, 32, 32, 5>(); }
+TEST_F(TCMPSTest, case_uint32_32x32_32x32_32x32_NE) { test_tcmps<uint32_t, 32, 32, 32, 32, 1>(); }
+TEST_F(TCMPSTest, case_uint32_16x32_16x32_16x32_LE) { test_tcmps<uint32_t, 16, 32, 16, 32, 3>(); }
 #ifdef CPU_SIM_BFLOAT_ENABLED
-TEST_F(TCMPSTest, case_bf16_32x32_32x32_32x32) { test_tcmps<bfloat16_t, 32, 32, 32, 32, 5>(); }
+TEST_F(TCMPSTest, case_bf16_32x32_32x32_32x32_GE) { test_tcmps<bfloat16_t, 32, 32, 32, 32, 5>(); }
 #endif
-TEST_F(TCMPSTest, case_float_1x64_1x64_1x64) { test_tcmps<float, 1, 64, 1, 64, 0>(); }
-TEST_F(TCMPSTest, case_float_8x64_8x64_8x64) { test_tcmps<float, 8, 64, 8, 64, 4>(); }
-TEST_F(TCMPSTest, case_float_4x64_4x64_4x64) { test_tcmps<float, 4, 64, 4, 64, 1>(); }
-TEST_F(TCMPSTest, case_int32_16x32_16x32_16x32) { test_tcmps<int32_t, 16, 32, 16, 32, 0>(); }
-TEST_F(TCMPSTest, case_float_128x128_128x128_128x128) { test_tcmps<float, 128, 128, 128, 128, 3>(); }
-TEST_F(TCMPSTest, case_int32_32x32_32x32_32x32) { test_tcmps<int32_t, 32, 32, 32, 32, 0>(); }

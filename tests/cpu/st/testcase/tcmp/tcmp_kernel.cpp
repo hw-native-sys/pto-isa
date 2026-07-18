@@ -58,6 +58,14 @@ template void LaunchTCmp<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>(
     aclFloat16* out, aclFloat16* src0, aclFloat16* src1, pto::CmpMode mode, void* stream);
 template void LaunchTCmp<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(
     int16_t* out, int16_t* src0, int16_t* src1, pto::CmpMode mode, void* stream);
+template void LaunchTCmp<int8_t, NUM_64, NUM_64, NUM_64, NUM_64>(
+    int8_t* out, int8_t* src0, int8_t* src1, pto::CmpMode mode, void* stream);
+template void LaunchTCmp<uint8_t, NUM_64, NUM_64, NUM_64, NUM_64>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, pto::CmpMode mode, void* stream);
+template void LaunchTCmp<uint16_t, NUM_64, NUM_64, NUM_64, NUM_64>(
+    uint16_t* out, uint16_t* src0, uint16_t* src1, pto::CmpMode mode, void* stream);
+template void LaunchTCmp<uint32_t, NUM_64, NUM_64, NUM_64, NUM_64>(
+    uint32_t* out, uint32_t* src0, uint32_t* src1, pto::CmpMode mode, void* stream);
 #ifdef CPU_SIM_BFLOAT_ENABLED
 template void LaunchTCmp<bfloat16_t, NUM_16, NUM_256, NUM_16, NUM_256>(
     bfloat16_t* out, bfloat16_t* src0, bfloat16_t* src1, pto::CmpMode mode, void* stream);

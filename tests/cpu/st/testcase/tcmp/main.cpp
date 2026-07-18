@@ -108,6 +108,38 @@ TEST_F(TCMPTest, case_half_16x256_16x256_16x256_EQ)
 {
     test_tcmp<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>(pto::CmpMode::EQ);
 }
+TEST_F(TCMPTest, case_int8_64x64_64x64_64x64_EQ)
+{
+    test_tcmp<int8_t, NUM_64, NUM_64, NUM_64, NUM_64>(pto::CmpMode::EQ);
+}
+TEST_F(TCMPTest, case_int8_64x64_64x64_64x64_GT)
+{
+    test_tcmp<int8_t, NUM_64, NUM_64, NUM_64, NUM_64>(pto::CmpMode::GT);
+}
+TEST_F(TCMPTest, case_uint8_64x64_64x64_64x64_EQ)
+{
+    test_tcmp<uint8_t, NUM_64, NUM_64, NUM_64, NUM_64>(pto::CmpMode::EQ);
+}
+TEST_F(TCMPTest, case_uint8_64x64_64x64_64x64_LT)
+{
+    test_tcmp<uint8_t, NUM_64, NUM_64, NUM_64, NUM_64>(pto::CmpMode::LT);
+}
+TEST_F(TCMPTest, case_uint16_64x64_64x64_64x64_EQ)
+{
+    test_tcmp<uint16_t, NUM_64, NUM_64, NUM_64, NUM_64>(pto::CmpMode::EQ);
+}
+TEST_F(TCMPTest, case_uint16_64x64_64x64_64x64_NE)
+{
+    test_tcmp<uint16_t, NUM_64, NUM_64, NUM_64, NUM_64>(pto::CmpMode::NE);
+}
+TEST_F(TCMPTest, case_uint32_64x64_64x64_64x64_EQ)
+{
+    test_tcmp<uint32_t, NUM_64, NUM_64, NUM_64, NUM_64>(pto::CmpMode::EQ);
+}
+TEST_F(TCMPTest, case_uint32_64x64_64x64_64x64_GE)
+{
+    test_tcmp<uint32_t, NUM_64, NUM_64, NUM_64, NUM_64>(pto::CmpMode::GE);
+}
 #ifdef CPU_SIM_BFLOAT_ENABLED
 TEST_F(TCMPTest, case_bf16_16x256_16x256_16x256_EQ)
 {
