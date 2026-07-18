@@ -77,7 +77,9 @@ class tcmpsParams:
 
 def generate_case_name(param):
     dtype_str = NumExt.get_short_type_name(param.dtype)
-    return f"TCMPSTest.case_{dtype_str}_{param.global_row}x{param.global_col}_{param.tile_row}x{param.tile_col}_{param.valid_row}x{param.valid_col}"
+    mode_str = param.mode.replace("CmpMode::", "")
+    return f"TCMPSTest.case_{dtype_str}_{param.global_row}x{param.global_col}_{param.tile_row}x{param.tile_col}_" + \
+           f"{param.valid_row}x{param.valid_col}_{mode_str}"
 
 if __name__ == "__main__":
     # Get the absolute path of the script
@@ -90,15 +92,25 @@ if __name__ == "__main__":
 
     case_params_list = [
         tcmpsParams(np.float16, 32, 32, 32, 32, 32, 32, "CmpMode::GE"),
+        tcmpsParams(np.float16, 32, 64, 32, 64, 32, 64, "CmpMode::LT"),
         tcmpsParams(np.float32, 1, 64, 1, 64, 1, 64, "CmpMode::EQ"),
         tcmpsParams(np.float32, 8, 64, 8, 64, 8, 64, "CmpMode::GT"),
         tcmpsParams(np.float32, 4, 64, 4, 64, 4, 64, "CmpMode::NE"),
-        tcmpsParams(np.float32, 128, 128, 64, 64, 128, 128, "CmpMode::LT"),
-        tcmpsParams(np.int32, 64, 64, 32, 32, 64, 64, "CmpMode::EQ"),
-        tcmpsParams(np.int32, 16, 32, 16, 32, 16, 32, "CmpMode::EQ"),
-        tcmpsParams(np.float32, 128, 128, 128, 128, 128, 128, "CmpMode::LE"),
-        tcmpsParams(np.int32, 77, 81, 32, 32, 77, 81, "CmpMode::EQ"),
-        tcmpsParams(np.int32, 32, 32, 32, 32, 32, 32, "CmpMode::EQ"),
+        tcmpsParams(np.float32, 128, 128, 128, 128, 128, 128, "CmpMode::LT"),
+        tcmpsParams(np.int8, 32, 32, 32, 32, 32, 32, "CmpMode::EQ"),
+        tcmpsParams(np.int8, 16, 32, 16, 32, 16, 32, "CmpMode::GT"),
+        tcmpsParams(np.uint8, 32, 64, 32, 64, 32, 64, "CmpMode::NE"),
+        tcmpsParams(np.uint8, 32, 32, 32, 32, 32, 32, "CmpMode::LT"),
+        tcmpsParams(np.int16, 8, 32, 8, 32, 8, 32, "CmpMode::GE"),
+        tcmpsParams(np.int16, 64, 64, 64, 64, 64, 64, "CmpMode::LE"),
+        tcmpsParams(np.uint16, 32, 32, 32, 32, 32, 32, "CmpMode::EQ"),
+        tcmpsParams(np.uint16, 16, 32, 16, 32, 16, 32, "CmpMode::GT"),
+        tcmpsParams(np.int32, 64, 64, 64, 64, 64, 64, "CmpMode::EQ"),
+        tcmpsParams(np.int32, 16, 32, 16, 32, 16, 32, "CmpMode::LE"),
+        tcmpsParams(np.int32, 77, 96, 77, 96, 77, 96, "CmpMode::GT"),
+        tcmpsParams(np.int32, 32, 32, 32, 32, 32, 32, "CmpMode::GE"),
+        tcmpsParams(np.uint32, 32, 32, 32, 32, 32, 32, "CmpMode::NE"),
+        tcmpsParams(np.uint32, 16, 32, 16, 32, 16, 32, "CmpMode::LE")
     ]
     if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
         case_params_list.append(tcmpsParams(NumExt.bf16, 32, 32, 32, 32, 32, 32, "CmpMode::GE"))
