@@ -81,6 +81,10 @@ template void LaunchTSelS<aclFloat16, 16, 256, 16, 256>(
     aclFloat16* out, aclFloat16 scalar, uint32_t* src0, aclFloat16* src1, void* stream);
 template void LaunchTSelS<int16_t, 64, 64, 64, 64>(
     int16_t* out, int16_t scalar, uint32_t* src0, int16_t* src1, void* stream);
+template void LaunchTSelS<uint16_t, 64, 64, 64, 64>(
+    uint16_t* out, uint16_t scalar, uint32_t* src0, uint16_t* src1, void* stream);
+template void LaunchTSelS<uint32_t, 64, 64, 64, 64>(
+    uint32_t* out, uint32_t scalar, uint32_t* src0, uint32_t* src1, void* stream);
 #ifdef CPU_SIM_BFLOAT_ENABLED
 template void LaunchTSelS<bfloat16_t, 16, 256, 16, 256>(
     bfloat16_t* out, bfloat16_t scalar, uint32_t* src0, bfloat16_t* src1, void* stream);

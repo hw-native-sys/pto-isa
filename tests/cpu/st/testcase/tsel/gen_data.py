@@ -70,6 +70,12 @@ if __name__ == "__main__":
         TSelParams("TSELTest.case7", np.int8, 2, 128, 2, 128),
         TSelParams("TSELTest.case8", np.int8, 2, 32, 2, 32),
         TSelParams("TSELTest.case9", np.int8, 2, 160, 2, 160),
+        TSelParams("TSELTest.case10", np.uint16, 2, 128, 2, 128),
+        TSelParams("TSELTest.case11", np.uint16, 2, 32, 2, 32),
+        TSelParams("TSELTest.case12", np.uint16, 2, 160, 2, 160),
+        TSelParams("TSELTest.case13", np.uint32, 2, 128, 2, 128),
+        TSelParams("TSELTest.case14", np.uint32, 2, 32, 2, 32),
+        TSelParams("TSELTest.case15", np.uint32, 2, 160, 2, 160),
     ]
 
     for i, param in enumerate(case_params_list):

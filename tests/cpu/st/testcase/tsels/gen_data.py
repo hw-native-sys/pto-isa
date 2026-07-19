@@ -87,6 +87,8 @@ if __name__ == "__main__":
         TSelsParams(np.int32, 64, 64, 64, 64, 64, 64),
         TSelsParams(np.int16, 64, 64, 64, 64, 64, 64),
         TSelsParams(np.float16, 16, 256, 16, 256, 16, 256),
+        TSelsParams(np.uint16, 64, 64, 64, 64, 64, 64),
+        TSelsParams(np.uint32, 64, 64, 64, 64, 64, 64),
     ]
     if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
         case_params_list.append(TSelsParams(
