@@ -105,6 +105,8 @@ TEST_F(TSELSTest, case_float_64x64_64x64_64x64) { test_tsels<float, 64, 64, 64, 
 TEST_F(TSELSTest, case_int32_64x64_64x64_64x64) { test_tsels<int32_t, 64, 64, 64, 64>(); }
 TEST_F(TSELSTest, case_int16_64x64_64x64_64x64) { test_tsels<int16_t, 64, 64, 64, 64>(); }
 TEST_F(TSELSTest, case_half_16x256_16x256_16x256) { test_tsels<aclFloat16, 16, 256, 16, 256>(); }
+TEST_F(TSELSTest, case_uint16_64x64_64x64_64x64) { test_tsels<uint16_t, 64, 64, 64, 64>(); }
+TEST_F(TSELSTest, case_uint32_64x64_64x64_64x64) { test_tsels<uint32_t, 64, 64, 64, 64>(); }
 #ifdef CPU_SIM_BFLOAT_ENABLED
 TEST_F(TSELSTest, case_bf16_16x256_16x256_16x256) { test_tsels<bfloat16_t, 16, 256, 16, 256>(); }
 #endif

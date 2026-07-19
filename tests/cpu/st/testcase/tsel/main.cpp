@@ -105,3 +105,9 @@ TEST_F(TSELTest, case6) { test_tsel<aclFloat16, 2, 160, 2, 160>(); }
 TEST_F(TSELTest, case7) { test_tsel<int8_t, 2, 128, 2, 128>(); }
 TEST_F(TSELTest, case8) { test_tsel<int8_t, 2, 32, 2, 32>(); }
 TEST_F(TSELTest, case9) { test_tsel<int8_t, 2, 160, 2, 160>(); }
+TEST_F(TSELTest, case10) { test_tsel<uint16_t, 2, 128, 2, 128>(); }
+TEST_F(TSELTest, case11) { test_tsel<uint16_t, 2, 32, 2, 32>(); }
+TEST_F(TSELTest, case12) { test_tsel<uint16_t, 2, 160, 2, 160>(); }
+TEST_F(TSELTest, case13) { test_tsel<uint32_t, 2, 128, 2, 128>(); }
+TEST_F(TSELTest, case14) { test_tsel<uint32_t, 2, 32, 2, 32>(); }
+TEST_F(TSELTest, case15) { test_tsel<uint32_t, 2, 160, 2, 160>(); }
