@@ -58,8 +58,9 @@ def generate_case_name(param):
         np.float32: 'float',
         np.float16: 'half',
         np.int8: 'int8',
+        np.int16: 'int16',
         np.int32: 'int32',
-        np.int16: 'int16'
+        np.uint32: 'uint32'
     }[param.dtype]
     
     def substring(a, b) -> str:
@@ -84,7 +85,14 @@ if __name__ == "__main__":
 
     case_params_list = [
         TAndParams(np.int16, 64, 64, 64, 64, 64, 64),
-        TAndParams(np.int32, 16, 256, 16, 256, 16, 256)
+        TAndParams(np.int32, 16, 256, 16, 256, 16, 256),
+        TAndParams(np.int32, 32, 32, 32, 32, 32, 32),
+        TAndParams(np.int32, 77, 96, 77, 96, 77, 96),
+        TAndParams(np.int32, 8, 64, 8, 64, 8, 64),
+        TAndParams(np.uint32, 64, 64, 64, 64, 64, 64),
+        TAndParams(np.uint32, 16, 32, 16, 32, 16, 32),
+        TAndParams(np.uint32, 12, 128, 12, 128, 12, 128),
+        TAndParams(np.uint32, 4, 64, 4, 64, 4, 64)        
     ]
 
     for i, param in enumerate(case_params_list):

@@ -10,9 +10,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include "test_common.h"
 #include <pto/pto-inst.hpp>
+#include <pto/common/constants.hpp>
 #include <gtest/gtest.h>
 
 using namespace std;
+using namespace pto;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
@@ -89,6 +91,12 @@ void test_tors()
     EXPECT_TRUE(ret);
 }
 
-const int NUM_64 = 64;
-TEST_F(TORSTest, case_int32_64x64_64x64_64x64) { test_tors<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
 TEST_F(TORSTest, case_int16_64x64_64x64_64x64) { test_tors<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
+TEST_F(TORSTest, case_int32_64x64_64x64_64x64) { test_tors<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
+TEST_F(TORSTest, case_int32_16x256_16x256_16x256) { test_tors<int32_t, NUM_16, NUM_256, NUM_16, NUM_256>(); }
+TEST_F(TORSTest, case_int32_77x96_77x96_77x96) { test_tors<int32_t, NUM_77, NUM_96, NUM_77, NUM_96>(); }
+TEST_F(TORSTest, case_int32_8x32_8x32_8x32) { test_tors<int32_t, NUM_8, NUM_32, NUM_8, NUM_32>(); }
+TEST_F(TORSTest, case_uint32_32x32_32x32_32x32) { test_tors<uint32_t, NUM_32, NUM_32, NUM_32, NUM_32>(); }
+TEST_F(TORSTest, case_uint32_16x64_16x64_16x64) { test_tors<uint32_t, NUM_16, NUM_64, NUM_16, NUM_64>(); }
+TEST_F(TORSTest, case_uint32_12x128_12x128_12x128) { test_tors<uint32_t, NUM_12, NUM_128, NUM_12, NUM_128>(); }
+TEST_F(TORSTest, case_uint32_64x64_64x64_64x64) { test_tors<uint32_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }

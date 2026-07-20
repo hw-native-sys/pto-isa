@@ -9,10 +9,12 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include "test_common.h"
-#include "pto/pto-inst.hpp"
+#include <pto/pto-inst.hpp>
+#include <pto/common/constants.hpp>
 #include <gtest/gtest.h>
 
 using namespace std;
+using namespace pto;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
@@ -88,11 +90,7 @@ void test_trem()
 
     EXPECT_TRUE(ret);
 }
-const int NUM_16 = 16;
-const int NUM_32 = 32;
-const int NUM_64 = 64;
-const int NUM_256 = 256;
-const int NUM_512 = 256;
+
 TEST_F(TREMTest, case_float_64x64_64x64) { test_trem<float, NUM_64, NUM_64, NUM_64, NUM_64>(); }
 TEST_F(TREMTest, case_half_16x256_16x256) { test_trem<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>(); }
 TEST_F(TREMTest, case_float_64x512_64x64) { test_trem<float, NUM_64, NUM_512, NUM_64, NUM_64>(); }

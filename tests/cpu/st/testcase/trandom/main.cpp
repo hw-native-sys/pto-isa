@@ -10,9 +10,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include "test_common.h"
 #include <pto/pto-inst.hpp>
+#include <pto/common/constants.hpp>
 #include <gtest/gtest.h>
 
 using namespace std;
+using namespace pto;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
@@ -115,7 +117,4 @@ void test_trandom()
     CheckResults<T>(GetGoldenDir(), dstSize);
 }
 
-const int ROWS = 4;
-const int COLS = 256;
-
-TEST_F(TRANDOMTest, case_uint32_4x256_4x256) { test_trandom<uint32_t, ROWS, COLS>(); }
+TEST_F(TRANDOMTest, case_uint32_4x256_4x256) { test_trandom<uint32_t, NUM_4, NUM_256>(); }

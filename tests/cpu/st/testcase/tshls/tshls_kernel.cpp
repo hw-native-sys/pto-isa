@@ -8,7 +8,8 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-#include "pto/pto-inst.hpp"
+#include <pto/pto-inst.hpp>
+#include <pto/common/constants.hpp>
 
 using namespace pto;
 
@@ -42,9 +43,7 @@ void LaunchTSHLS(T* out, T* src, T* scalar, void* stream)
 {
     runTSHLS<T, kDstRows_, kDstCols_, kSrcRows_, kSrcCols_, kValRows_, kValCols_>(out, src, scalar);
 }
-const int NUM_16 = 16;
-const int NUM_64 = 64;
-const int NUM_256 = 256;
+
 template void LaunchTSHLS<int16_t, NUM_64, NUM_64, NUM_64, NUM_64, NUM_64, NUM_64>(
     int16_t* out, int16_t* src, int16_t* scalar, void* stream);
 template void LaunchTSHLS<int32_t, NUM_16, NUM_256, NUM_16, NUM_256, NUM_16, NUM_256>(

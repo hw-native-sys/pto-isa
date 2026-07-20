@@ -8,7 +8,8 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-#include "pto/pto-inst.hpp"
+#include <pto/pto-inst.hpp>
+#include <pto/common/constants.hpp>
 
 using namespace pto;
 
@@ -48,9 +49,7 @@ void LaunchTXOR(T* out, T* src0, T* src1, void* stream)
     else
         runTXOR<T, kGRows_, kGCols_, kTRows_, kTCols_>(out, src0, src1);
 }
-const int NUM_16 = 16;
-const int NUM_64 = 64;
-const int NUM_256 = 256;
+
 template void LaunchTXOR<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(
     int16_t* out, int16_t* src0, int16_t* src1, void* stream);
 template void LaunchTXOR<int32_t, NUM_16, NUM_256, NUM_16, NUM_256>(

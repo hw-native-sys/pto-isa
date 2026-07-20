@@ -46,11 +46,6 @@ void LaunchTRems(T* out, T* src, T* scalar, void* stream)
     else
         runTRems<T, kGRows_, kGCols_, kTRows_, kTCols_>(out, src, scalar);
 }
-const int NUM_16 = 16;
-const int NUM_32 = 64;
-const int NUM_64 = 64;
-const int NUM_256 = 256;
-const int NUM_512 = 512;
 
 template void LaunchTRems<float, NUM_64, NUM_64, NUM_64, NUM_64>(float* out, float* src, float* scalar, void* stream);
 template void LaunchTRems<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(
