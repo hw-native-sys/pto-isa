@@ -6,9 +6,9 @@
 
 ## 简介
 
-带额外缩放 Tile 的矩阵乘法 (GEMM)，用于支持目标上的混合精度/量化矩阵乘法。
+带额外缩放Tile的矩阵乘法 (GEMM)，用于支持目标上的混合精度/量化矩阵乘法。
 
-该指令目前仅 A5 实现（参见 `include/pto/npu/a5/TMatmul.hpp`）。
+该指令目前仅Ascend 950PR/Ascend 950DT实现（参见 `include/pto/npu/a5/TMatmul.hpp`）。
 
 ## 数学语义
 
@@ -18,7 +18,7 @@
 - `K = aMatrix.GetValidCol()`
 - `N = bMatrix.GetValidCol()`
 
-概念上，结果对应于有效矩阵乘法域（`0 <= i < M`，`0 <= j < N`）上的矩阵乘法，缩放 tile `aScaleMatrix` / `bScaleMatrix` 配置实现定义的混合精度行为：
+概念上，结果对应于有效矩阵乘法域（`0 <= i < M`，`0 <= j < N`）上的矩阵乘法，缩放tile `aScaleMatrix` / `bScaleMatrix` 配置实现定义的混合精度行为：
 
 $$ \mathrm{C}_{i,j} = \sum_{k=0}^{K-1} \mathrm{A}_{i,k} \cdot \mathrm{B}_{k,j} $$
 
@@ -56,7 +56,7 @@ pto.tmatmul.mx.bias ins(%a, %a_scale, %b, %b_scale, %bias : !pto.tile_buf<...>, 
 !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%c : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -89,11 +89,11 @@ PTO_INST RecordEvent TMATMUL_MX(TileRes &cMatrix, TileLeft &aMatrix, TileLeftSca
 
 ## 约束
 
-- **实现检查 (A5)**:
+- **实现检查 (Ascend 950PR/Ascend 950DT)**:
     - `m/k/n` 取自 `aMatrix.GetValidRow()`、`aMatrix.GetValidCol()`、`bMatrix.GetValidCol()`。
-    - 静态合法性检查通过 `CheckMadMxValid<...>()`（类型、形状、分形和缩放 tile 合法性）。
+    - 静态合法性检查通过 `CheckMadMxValid<...>()`（类型、形状、分形和缩放tile合法性）。
 - **偏置形式**:
-    - `TileBias::DType` 必须是 `float` 且 `TileBias::Loc == TileType::Bias`，`TileBias::Rows == 1`（A5 通过 `static_assert` 检查）。
+    - `TileBias::DType` 必须是 `float` 且 `TileBias::Loc == TileType::Bias`，`TileBias::Rows == 1`（Ascend 950PR/Ascend 950DT通过 `static_assert` 检查）。
 
 ## 示例
 
@@ -170,7 +170,7 @@ void example_manual() {
 %c = pto.tmatmul.mx %a, %a_scale, %b, %b_scale : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>)
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %c = pto.tmatmul.mx %a, %a_scale, %b, %b_scale : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>)

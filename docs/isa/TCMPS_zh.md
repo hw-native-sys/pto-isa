@@ -6,24 +6,24 @@
 
 ## 简介
 
-将 Tile 与**标量**或**另一个 Tile 的首元素**进行比较，并写入逐元素比较结果。
+将Tile与**标量**或**另一个Tile的首元素**进行比较，并写入逐元素比较结果。
 
 提供两种重载形式：
 
 - **标量形式**：将 `src0` 的每个元素与标量值进行比较。
-- **Tile 形式**：将 `src0` 的每个元素与从 `src1` Tile 首元素的标量进行比较。
+- **Tile形式**：将 `src0` 的每个元素与从 `src1` Tile首元素的标量进行比较。
 
 ## 数学语义
 
-**标量形式** — 对每个元素 `(i, j)` 在有效区域内：
+**标量形式** —对每个元素 `(i, j)` 在有效区域内：
 
 $$ \mathrm{dst}_{i,j} = \left(\mathrm{src0}_{i,j}\ \mathrm{cmpMode}\ \mathrm{scalar}\right) $$
 
-**Tile 形式** — 对每个元素 `(i, j)` 在有效区域内：
+**Tile形式** —对每个元素 `(i, j)` 在有效区域内：
 
 $$ \mathrm{dst}_{i,j} = \left(\mathrm{src0}_{i,j}\ \mathrm{cmpMode}\ \mathrm{src1}_{0,0}\right) $$
 
-`dst` 的编码/类型由实现定义（位压缩掩码 Tile，每个比特代表一个比较结果）。
+`dst` 的编码/类型由实现定义（位压缩掩码Tile，每个比特代表一个比较结果）。
 
 ## 汇编语法
 
@@ -45,12 +45,12 @@ $$ \mathrm{dst}_{i,j} = \left(\mathrm{src0}_{i,j}\ \mathrm{cmpMode}\ \mathrm{src
 pto.tcmps ins(%src, %scalar{cmpMode = #pto<cmp xx>}: !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp` 和 `include/pto/common/type.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
-**标量形式** — 将 Tile 与标量进行比较：
+**标量形式** —将Tile与标量进行比较：
 
 ```cpp
 template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents,
@@ -60,7 +60,7 @@ PTO_INST RecordEvent TCMPS(TileDataDst& dst, TileDataSrc& src0,
                            WaitEvents&... events);
 ```
 
-**Tile 形式** — 将 Tile 与另一个 Tile 进行比较（从 `src1` 广播标量）：
+**Tile形式** —将Tile与另一个Tile进行比较（从 `src1` 广播标量）：
 
 ```cpp
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1,
@@ -73,22 +73,22 @@ PTO_INST RecordEvent TCMPS(TileDataDst& dst, TileDataSrc0& src0,
 
 ## 约束
 
-- **实现检查 (A2A3)**:
+- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
     - `TileData::DType` 必须是以下之一：`int32_t`、`float`、`half`、`uint16_t`、`int16_t`。
-    - Tile 布局必须是行主序（`TileData::isRowMajor`）。
+    - Tile布局必须是行主序（`TileData::isRowMajor`）。
     - 当输入类型为 `int32_t` 时，仅支持 `CmpMode::EQ`；其他比较模式会回退到 `EQ`。
-- **实现检查 (A5)**:
+- **实现检查 (Ascend 950PR/Ascend 950DT)**:
     - `TileData::DType` 必须是以下之一：`int32_t`、`uint32_t`、`float`、`int16_t`、`uint16_t`、`half`、`uint8_t`、`int8_t`、`bfloat16_t`。
-    - Tile 布局必须是行主序（`TileData::isRowMajor`）。
+    - Tile布局必须是行主序（`TileData::isRowMajor`）。
 - **通用约束**:
-    - `src` 和 `dst` 的 Tile 位置都必须是向量（`TileData::Loc == TileType::Vec`）。
+    - `src` 和 `dst` 的Tile位置都必须是向量（`TileData::Loc == TileType::Vec`）。
     - 静态有效边界：`TileData::ValidRow <= TileData::Rows` 且 `TileData::ValidCol <= TileData::Cols`。
     - 运行时：`src0` 和 `dst` 的有效行列数必须相同。
     - 数据类型：`src0` 和 `src1` 的数据类型必须相同。
 - **有效区域**:
     - 该操作使用 `src0.GetValidRow()` / `src0.GetValidCol()` 作为迭代域。
 - **比较模式**:
-    - 支持 `CmpMode::EQ`、`CmpMode::NE`、`CmpMode::LT`、`CmpMode::GT`、`CmpMode::LE`、`CmpMode::GE`（注：A2A3 上当输入类型为 `int32_t` 时，仅支持 `CmpMode::EQ`，其他模式会回退至 `EQ`；A5 支持全部模式）。
+    - 支持 `CmpMode::EQ`、`CmpMode::NE`、`CmpMode::LT`、`CmpMode::GT`、`CmpMode::LE`、`CmpMode::GE`（注：Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品上当输入类型为 `int32_t` 时，仅支持 `CmpMode::EQ`，其他模式会回退至 `EQ`；Ascend 950PR/Ascend 950DT支持全部模式）。
 
 ## 示例
 
@@ -126,7 +126,7 @@ void example_manual() {
 }
 ```
 
-### Tile 形式（与另一个 Tile 比较）
+### Tile形式（与另一个Tile比较）
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -162,7 +162,7 @@ void example_tile() {
 %dst = pto.tcmps %src, %scalar {cmpMode = #pto<cmp xx>} : (!pto.tile<...>, dtype) -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %dst = tcmps %src, %scalar {cmpMode = #pto<cmp xx>} : !pto.tile<...> -> !pto.tile<...>

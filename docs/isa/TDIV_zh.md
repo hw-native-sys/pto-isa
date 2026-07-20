@@ -6,7 +6,7 @@
 
 ## 简介
 
-两个 Tile 的逐元素除法。
+两个Tile的逐元素除法。
 
 ## 数学语义
 
@@ -34,7 +34,7 @@ $$ \mathrm{dst}_{i,j} = \frac{\mathrm{src0}_{i,j}}{\mathrm{src1}_{i,j}} $$
 pto.tdiv ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -52,24 +52,24 @@ PTO_INST RecordEvent TDIV(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &sr
 
 ## 约束
 
-- **实现检查 (A2A3)**:
+- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
     - `TileData::DType` 必须是以下之一： `half`, `float`.
-    - Tile 布局必须是行主序（`TileData::isRowMajor`）。
-    - Tile 位置必须是向量（`TileData::Loc == TileType::Vec`）。
+    - Tile布局必须是行主序（`TileData::isRowMajor`）。
+    - Tile位置必须是向量（`TileData::Loc == TileType::Vec`）。
     - 静态有效边界： `TileData::ValidRow <= TileData::Rows`且`TileData::ValidCol <= TileData::Cols`.
-    - 运行时： `src0`, `src1`且`dst` tiles 应具有相同的 `validRow/validCol`.
-- **实现检查 (A5)**:
+    - 运行时： `src0`, `src1`且`dst` tiles应具有相同的 `validRow/validCol`.
+- **实现检查 (Ascend 950PR/Ascend 950DT)**:
     - `TileData::DType` 必须是以下之一： `int32_t`, `uint32_t`, `float`, `int16_t`, `uint16_t`, `half`.
-    - Tile 布局必须是行主序（`TileData::isRowMajor`）。
-    - Tile 位置必须是向量（`TileData::Loc == TileType::Vec`）。
+    - Tile布局必须是行主序（`TileData::isRowMajor`）。
+    - Tile位置必须是向量（`TileData::Loc == TileType::Vec`）。
     - 静态有效边界： `TileData::ValidRow <= TileData::Rows`且`TileData::ValidCol <= TileData::Cols`.
-    - 运行时： `src0`, `src1`且`dst` tiles 应具有相同的 `validRow/validCol`.
+    - 运行时： `src0`, `src1`且`dst` tiles应具有相同的 `validRow/validCol`.
 - **有效区域**:
     - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
 - **除零**:
     - 行为由目标定义。
 - **高精度算法**
-    - 仅在A5上有效，`PrecisionType`选项在A3上将被忽略。
+    - 仅在Ascend 950PR/Ascend 950DT上有效，`PrecisionType`选项在Atlas A3 训练系列产品/Atlas A3 推理系列产品上将被忽略。
 
 ## 示例
 
@@ -125,7 +125,7 @@ void example_manual() {
 %dst = pto.tdiv %src0, %src1 : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %dst = tdiv %src0, %src1 : !pto.tile<...>

@@ -18,8 +18,8 @@ $$
 \begin{cases}
 (\mathrm{src0Val}_{i,j}, \mathrm{src0Idx}_{i,j}) & \text{若 } \mathrm{src0Val}_{i,j} < \mathrm{src1Val}_{i,j} \text{ 且两个输入在 } (i,j) \text{ 处均有定义} \\
 (\mathrm{src1Val}_{i,j}, \mathrm{src1Idx}_{i,j}) & \text{若 } \mathrm{src1Val}_{i,j} \le \mathrm{src0Val}_{i,j} \text{ 且两个输入在 } (i,j) \text{ 处均有定义} \\
-(\mathrm{src0Val}_{i,j}, \mathrm{src0Idx}_{i,j}) & \text{若仅 src0 在 } (i,j) \text{ 处有定义} \\
-(\mathrm{src1Val}_{i,j}, \mathrm{src1Idx}_{i,j}) & \text{若仅 src1 在 } (i,j) \text{ 处有定义}
+(\mathrm{src0Val}_{i,j}, \mathrm{src0Idx}_{i,j}) & \text{若仅src0在 } (i,j) \text{ 处有定义} \\
+(\mathrm{src1Val}_{i,j}, \mathrm{src1Idx}_{i,j}) & \text{若仅src1在 } (i,j) \text{ 处有定义}
 \end{cases}
 \end{aligned}
 $$
@@ -44,7 +44,7 @@ $$
 pto.tpartargmin ins(%src0Val, %src1Val, %src0Idx, %src1Idx : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dstVal, %dstIdx : !pto.tile_buf<...>, !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -64,10 +64,10 @@ PTO_INST RecordEvent TPARTARGMIN(TileDataDst &dstVal, TileDataSrc0 &src0Val, Til
 
 - `dstVal`、`src0Val` 和 `src1Val` 的元素类型必须一致。
 - `dstIdx`、`src0Idx` 和 `src1Idx` 的元素类型必须一致。
-- 值类型与索引类型的组合约束（A2A3 由 `static_assert` 强制执行）：
+- 值类型与索引类型的组合约束（Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品由 `static_assert` 强制执行）：
     - 若值类型为 `half`，则索引类型必须为 `int16_t`、`uint16_t`、`int32_t` 或 `uint32_t`。
     - 若值类型为 `float`，则索引类型必须为 `int32_t` 或 `uint32_t`。
-- 每对值 Tile 和索引 Tile 的有效区域必须一致：
+- 每对值Tile和索引Tile的有效区域必须一致：
     - `src0Val` 与 `src0Idx` 的有效区域必须一致。
     - `src1Val` 与 `src1Idx` 的有效区域必须一致。
     - `dstVal` 与 `dstIdx` 的有效区域必须一致。
@@ -78,7 +78,7 @@ PTO_INST RecordEvent TPARTARGMIN(TileDataDst &dstVal, TileDataSrc0 &src0Val, Til
     - 若只有一个输入有效，则结果直接取该输入的值和索引。
 - 上述范围之外的有效区域组合，其行为均由具体实现定义。
 
-### A5 实现检查
+### Ascend 950PR/Ascend 950DT实现检查
 
 - 支持的值类型：`half`、`float`。
 - 支持的索引类型：`int16_t`、`uint16_t`、`int32_t`、`uint32_t`。
@@ -142,7 +142,7 @@ void example_manual() {
 %dstVal, %dstIdx = pto.tpartargmin %src0Val, %src1Val, %src0Idx, %src1Idx : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> (!pto.tile<...>, !pto.tile<...>)
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %dstVal, %dstIdx = tpartargmin %src0Val, %src1Val, %src0Idx, %src1Idx : !pto.tile<...> -> (!pto.tile<...>, !pto.tile<...>)

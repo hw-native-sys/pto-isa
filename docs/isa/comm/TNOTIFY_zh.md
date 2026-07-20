@@ -2,7 +2,7 @@
 
 ## 简介
 
-向远端 NPU 发送标志通知。用于 NPU 之间的轻量级同步，无需传输大量数据。
+向远端NPU发送标志通知。用于NPU之间的轻量级同步，无需传输大量数据。
 
 ## 数学语义
 
@@ -21,7 +21,7 @@ tnotify %signal_remote, %value {op = #pto.notify_op<Set>} : (!pto.memref<i32>, i
 tnotify %signal_remote, %value {op = #pto.notify_op<AtomicAdd>} : (!pto.memref<i32>, i32)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/comm/pto_comm_inst.hpp`：
 
@@ -35,15 +35,15 @@ PTO_INST void TNOTIFY(GlobalSignalData &dstSignalData, int32_t value, NotifyOp o
 - **类型约束**：
     - `GlobalSignalData::DType` 必须为 `int32_t`（32位信号）。
 - **内存约束**：
-    - `dstSignalData` 必须指向远端地址（目标 NPU）。
-    - `dstSignalData` 应 4字节对齐。
+    - `dstSignalData` 必须指向远端地址（目标NPU）。
+    - `dstSignalData` 应4字节对齐。
 - **操作语义**：
     - `NotifyOp::Set`：直接存储到远端内存。
     - `NotifyOp::AtomicAdd`：使用 `st_atomic` 指令执行硬件原子加。
 
 ## 示例
 
-### 基础 Set 通知
+### 基础Set通知
 
 ```cpp
 #include <pto/comm/pto_comm_inst.hpp>

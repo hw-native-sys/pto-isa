@@ -6,11 +6,11 @@
 
 ## 简介
 
-复制 Tile 并在有效区域外使用编译时填充值进行填充。
+复制Tile并在有效区域外使用编译时填充值进行填充。
 
-将源 Tile 复制到目标 Tile 中，并使用由 `TileDataDst::PadVal` 选定的编译时填充值（如 `PadValue::Min`/`PadValue::Max`）填充剩余（填充）元素。
+将源Tile复制到目标Tile中，并使用由 `TileDataDst::PadVal` 选定的编译时填充值（如 `PadValue::Min`/`PadValue::Max`）填充剩余（填充）元素。
 
-此操作常用于在运行时有效区域之外确定性地物化特定值，使后续操作能够在完整的静态 Tile 形状上运算。
+此操作常用于在运行时有效区域之外确定性地物化特定值，使后续操作能够在完整的静态Tile形状上运算。
 
 ## 数学语义
 
@@ -46,7 +46,7 @@ $$
 pto.tfillpad ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 在 `include/pto/common/pto_instr_impl.hpp` 引入的后端头文件中实现：
 
@@ -60,11 +60,11 @@ PTO_INST RecordEvent TFILLPAD(DstTileData &dst, SrcTileData &src, WaitEvents &..
 
 ## 约束
 
-- `TileDataDst::PadVal != PadValue::Null`（Vec 类型重载）.
+- `TileDataDst::PadVal != PadValue::Null`（Vec类型重载）.
 - `sizeof(TileDataDst::DType) == sizeof(TileDataSrc::DType)`且元素大小必须是 `1`, `2`,或`4`字节.
 - `TFILLPAD`: `TileDataDst::Rows/Cols` 必须匹配 `TileDataSrc::Rows/Cols`.
 - `TFILLPAD_EXPAND`: `TileDataDst::Rows >= TileDataSrc::Rows`且`TileDataDst::Cols >= TileDataSrc::Cols`.
-- `TFILLPAD(TileData &dst, TileData &src)`:`if TileData::TileType is Mat, layout 仅 support (!TileData::isRowMajor && TileData::SLayout::RowMajor),且PadVal 仅 support PadValue::Zero 或 PadValue::Null`（Mat 类型重载，与首条 Vec 约束分属不同 SFINAE 重载，不矛盾）
+- `TFILLPAD(TileData &dst, TileData &src)`:`if TileData::TileType is Mat, layout 仅 support (!TileData::isRowMajor && TileData::SLayout::RowMajor),且PadVal 仅 support PadValue::Zero 或 PadValue::Null`（Mat类型重载，与首条Vec约束分属不同SFINAE重载，不矛盾）
 
 ## 示例
 
@@ -109,7 +109,7 @@ void example2() {
 %dst = pto.tfillpad %src : !pto.tile<...> -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %dst = pto.tfillpad %src : !pto.tile<...> -> !pto.tile<...>

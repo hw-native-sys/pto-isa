@@ -42,7 +42,7 @@ $$ \mathrm{C}_{i,j} = \sum_{k=0}^{K-1} \mathrm{A}_{i,k} \cdot \mathrm{B}_{k,j} +
 pto.tmatmul.bias ins(%a, %b, %bias : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%c : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -59,10 +59,10 @@ PTO_INST RecordEvent TMATMUL_BIAS(TileRes &cMatrix, TileLeft &aMatrix, TileRight
 ## 约束
 
 - 所有来自 `TMATMUL` 的约束都适用于 `(cMatrix, aMatrix, bMatrix)` 三元组。
-- **偏置约束 (A2A3)**:
+- **偏置约束 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
     - `TileBias::DType` 必须匹配 `TileRes::DType`。
     - `TileBias::Loc == TileType::Bias` 且 `TileBias::Rows == 1`。
-- **偏置约束 (A5)**:
+- **偏置约束 (Ascend 950PR/Ascend 950DT)**:
     - `TileBias::DType` 必须匹配 `TileRes::DType`。
     - `TileBias::Loc == TileType::Bias`、`TileBias::Rows == 1` 且 `TileBias::isRowMajor`。
 
@@ -131,7 +131,7 @@ void example_manual() {
 %c = pto.tmatmul.bias %a, %b, %bias : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %acc = tmatmul.bias %a, %b, %bias : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>

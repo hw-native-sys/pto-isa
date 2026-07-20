@@ -6,7 +6,7 @@
 
 ## 简介
 
-Tile 的逐元素取负。
+Tile的逐元素取负。
 
 ## 数学语义
 
@@ -34,7 +34,7 @@ $$ \mathrm{dst}_{i,j} = -\mathrm{src}_{i,j} $$
 pto.tneg ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -81,7 +81,7 @@ void example() {
 %dst = pto.tneg %src : !pto.tile<...> -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %dst = tneg %src : !pto.tile<...>

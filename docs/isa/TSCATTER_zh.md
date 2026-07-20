@@ -6,9 +6,9 @@
 
 ## 简介
 
-TSCATTER 提供两种操作模式：
+TSCATTER提供两种操作模式：
 
-1. **索引散播（Index-based Scatter）**：使用逐元素行索引将源 Tile 的行散播到目标 Tile 中。
+1. **索引散播（Index-based Scatter）**：使用逐元素行索引将源Tile的行散播到目标Tile中。
 2. **掩码散播（Mask Scatter）**：按照掩码模式将源元素散播到目标位置，并在元素间交错填充零值。支持按行散播（`SCATTER_ROW`）和按列散播（`SCATTER_COL`）两种模式。
 
 ## 数学语义
@@ -75,7 +75,7 @@ $$ \mathrm{dst}_{P \cdot i + \mathrm{zeros}_P, j} = 0 $$
 pto.tscatter ins(%src, %idx : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -95,7 +95,7 @@ template <MaskPattern maskPattern = MaskPattern::P1111, auto ScatterType = Scatt
 PTO_INST RecordEvent TSCATTER(DstTileData& dst, SrcTileData& src, WaitEvents&... events);
 ```
 
-### MaskPattern 枚举
+### MaskPattern枚举
 
 定义于 `include/pto/common/type.hpp`：
 
@@ -107,9 +107,9 @@ PTO_INST RecordEvent TSCATTER(DstTileData& dst, SrcTileData& src, WaitEvents&...
 | `P0010` | 00100010... | 每四个元素取第二个 | ×4 |
 | `P0100` | 01000100... | 每四个元素取第三个 | ×4 |
 | `P1000` | 10001000... | 每四个元素取第四个 | ×4 |
-| `P1111` | 11111111... | 取全部元素（等同于 TMOV） | ×1 |
+| `P1111` | 11111111... | 取全部元素（等同于TMOV） | ×1 |
 
-### ScatterAxis 枚举
+### ScatterAxis枚举
 
 定义于 `include/pto/common/type.hpp`：
 
@@ -122,37 +122,37 @@ PTO_INST RecordEvent TSCATTER(DstTileData& dst, SrcTileData& src, WaitEvents&...
 
 ### 索引散播
 
-- **实现检查 (A2A3)**:
+- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
     - `TileDataD::Loc`、`TileDataS::Loc`、`TileDataI::Loc` 必须是 `TileType::Vec`。
     - `TileDataD::DType`、`TileDataS::DType` 必须是以下之一：`int32_t`、`int16_t`、`int8_t`、`half`、`float16_t`、`float32_t`、`uint32_t`、`uint16_t`、`uint8_t`、`bfloat16_t`。
     - `TileDataI::DType` 必须是以下之一：`int16_t`、`int32_t`、`uint16_t` 或 `uint32_t`。
     - 不对 `indexes` 值执行边界检查。
     - 静态有效边界：`TileDataD::ValidRow <= TileDataD::Rows`、`TileDataD::ValidCol <= TileDataD::Cols`、`TileDataS::ValidRow <= TileDataS::Rows`、`TileDataS::ValidCol <= TileDataS::Cols`、`TileDataI::ValidRow <= TileDataI::Rows`、`TileDataI::ValidCol <= TileDataI::Cols`。
     - `TileDataD::DType` 与 `TileDataS::DType` 必须相同。
-    - 当 `TileDataD::DType` 大小为 4字节时，`TileDataI::DType` 大小必须为 4字节。
-    - 当 `TileDataD::DType` 大小为 2字节时，`TileDataI::DType` 大小必须为 2字节。
-    - 当 `TileDataD::DType` 大小为 1字节时，`TileDataI::DType` 大小必须为 2字节。
-- **实现检查 (A5)**:
+    - 当 `TileDataD::DType` 大小为4字节时，`TileDataI::DType` 大小必须为4字节。
+    - 当 `TileDataD::DType` 大小为2字节时，`TileDataI::DType` 大小必须为2字节。
+    - 当 `TileDataD::DType` 大小为1字节时，`TileDataI::DType` 大小必须为2字节。
+- **实现检查 (Ascend 950PR/Ascend 950DT)**:
     - `TileDataD::Loc`、`TileDataS::Loc`、`TileDataI::Loc` 必须是 `TileType::Vec`。
     - `TileDataD::DType`、`TileDataS::DType` 必须是以下之一：`int32_t`、`int16_t`、`int8_t`、`half`、`float16_t`、`float32_t`、`uint32_t`、`uint16_t`、`uint8_t`、`bfloat16_t`。
     - `TileDataI::DType` 必须是以下之一：`int16_t`、`int32_t`、`uint16_t` 或 `uint32_t`。
     - 不对 `indexes` 值执行边界检查。
     - 静态有效边界：`TileDataD::ValidRow <= TileDataD::Rows`、`TileDataD::ValidCol <= TileDataD::Cols`、`TileDataS::ValidRow <= TileDataS::Rows`、`TileDataS::ValidCol <= TileDataS::Cols`、`TileDataI::ValidRow <= TileDataI::Rows`、`TileDataI::ValidCol <= TileDataI::Cols`。
     - `TileDataD::DType` 与 `TileDataS::DType` 必须相同。
-    - 当 `TileDataD::DType` 大小为 4字节时，`TileDataI::DType` 大小必须为 4字节。
-    - 当 `TileDataD::DType` 大小为 2字节时，`TileDataI::DType` 大小必须为 2字节。
-    - 当 `TileDataD::DType` 大小为 1字节时，`TileDataI::DType` 大小必须为 2字节。
+    - 当 `TileDataD::DType` 大小为4字节时，`TileDataI::DType` 大小必须为4字节。
+    - 当 `TileDataD::DType` 大小为2字节时，`TileDataI::DType` 大小必须为2字节。
+    - 当 `TileDataD::DType` 大小为1字节时，`TileDataI::DType` 大小必须为2字节。
 
 ### 掩码散播
 
-- **实现检查 (A2A3)**:
+- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
     - `DstTileData::Loc`、`SrcTileData::Loc` 必须是 `TileType::Vec`。
     - `DstTileData::DType`、`SrcTileData::DType` 必须是以下之一：`int32_t`、`int16_t`、`int8_t`、`half`、`float16_t`、`float32_t`、`uint32_t`、`uint16_t`、`uint8_t`、`bfloat16_t`。
     - `DstTileData::DType` 与 `SrcTileData::DType` 必须相同。
     - `maskPattern` 必须在 `P0101` 到 `P1111` 范围内。
     - 静态有效边界：`DstTileData::ValidCol <= DstTileData::Cols`、`SrcTileData::ValidCol <= SrcTileData::Cols`、`DstTileData::ValidRow <= DstTileData::Rows`、`SrcTileData::ValidRow <= SrcTileData::Rows`。
     - `P1111` 模式等同 `TMOV`：要求 `validRow` 和 `validCol` 分别匹配，内部通过 `TMOV_IMPL` 实现。
-- **实现检查 (A5)**:
+- **实现检查 (Ascend 950PR/Ascend 950DT)**:
     - `DstTileData::Loc`、`SrcTileData::Loc` 必须是 `TileType::Vec`。
     - `DstTileData::DType`、`SrcTileData::DType` 必须是以下之一：`int32_t`、`int16_t`、`int8_t`、`half`、`float16_t`、`float32_t`、`uint32_t`、`uint16_t`、`uint8_t`、`bfloat16_t`。
     - `DstTileData::DType` 与 `SrcTileData::DType` 必须相同。
@@ -160,21 +160,21 @@ PTO_INST RecordEvent TSCATTER(DstTileData& dst, SrcTileData& src, WaitEvents&...
     - 静态有效边界：`DstTileData::ValidRow <= DstTileData::Rows`、`DstTileData::ValidCol <= DstTileData::Cols`、`SrcTileData::ValidRow <= SrcTileData::Rows`、`SrcTileData::ValidCol <= SrcTileData::Cols`。
     - `SCATTER_ROW` 模式运行时断言：
         - `SrcTileData::ValidRow` 必须等于 `DstTileData::ValidRow`。
-        - `SrcTileData::ValidCol` 必须等于 `DstTileData::ValidCol × 扩展倍数`，扩展倍数取决于掩码模式（P1111 为 1，P1010/P0101 为 2，P0001/P0010/P0100/P1000 为 4）。
+        - `SrcTileData::ValidCol` 必须等于 `DstTileData::ValidCol × 扩展倍数`，扩展倍数取决于掩码模式（P1111为1，P1010/P0101为2，P0001/P0010/P0100/P1000为4）。
     - `SCATTER_COL` 模式运行时断言：
         - `SrcTileData::ValidCol` 必须等于 `DstTileData::ValidCol`。
-        - `SrcTileData::ValidRow` 必须等于 `DstTileData::ValidRow × 扩展倍数`，扩展倍数取决于掩码模式（P1111 为 1，P1010/P0101 为 2，P0001/P0010/P0100/P1000 为 4）。
+        - `SrcTileData::ValidRow` 必须等于 `DstTileData::ValidRow × 扩展倍数`，扩展倍数取决于掩码模式（P1111为1，P1010/P0101为2，P0001/P0010/P0100/P1000为4）。
 
 ## 重要提示
 
-> **警告**：在执行散播操作前，目标 Tile 缓冲区会**完全初始化为 0**（整个 Tile 大小 `Rows × Cols`），**不受 `ValidRow` 和 `ValidCol` 限制**。这意味着：
-> - 分配给 `dstTile` 的整个 UB 缓冲区都会被写入零值。
+> **警告**：在执行散播操作前，目标Tile缓冲区会**完全初始化为0**（整个Tile大小 `Rows × Cols`），**不受 `ValidRow` 和 `ValidCol` 限制**。这意味着：
+> - 分配给 `dstTile` 的整个UB缓冲区都会被写入零值。
 > - `ValidRow`/`ValidCol` 范围之外的元素在操作后也将为零。
-> - 请确保目标 Tile 的 UB 缓冲区不会与其他活跃数据重叠。
+> - 请确保目标Tile的UB缓冲区不会与其他活跃数据重叠。
 
 ## 示例
 
-### 索引散播（自动 Auto）
+### 索引散播（自动Auto）
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -190,7 +190,7 @@ void example_auto() {
 }
 ```
 
-### 索引散播（手动 Manual）
+### 索引散播（手动Manual）
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -209,7 +209,7 @@ void example_manual() {
 }
 ```
 
-### 掩码散播（自动 Auto）
+### 掩码散播（自动Auto）
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -245,7 +245,7 @@ void example_mask_scatter_col() {
 }
 ```
 
-### 掩码散播（手动 Manual）
+### 掩码散播（手动Manual）
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -293,7 +293,7 @@ void example_mask_manual_scatter_col() {
 %dst = pto.tscatter %src, %idx : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %dst = tscatter %src, %idx : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>

@@ -6,14 +6,14 @@
 
 ## 简介
 
-带偏置加法的 GEMV。
+带偏置加法的GEMV。
 
 ## 另请参见
 
-- 基础 GEMV 指令：`docs/isa/TGEMV.md`。
+- 基础GEMV指令：`docs/isa/TGEMV.md`。
 - 累加变体：`docs/isa/TGEMV_ACC.md`。
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -69,7 +69,7 @@ pto.tgemv.bias ins(%a, %b, %bias : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.
     - `TileLeft::Rows == TileRes::Rows`
     - `TileLeft::Cols == TileRight::Rows`
     - `TileRight::Cols == TileRes::Cols`
-- Tile 位置约束：
+- Tile位置约束：
     - `TileLeft::Loc == Left`
     - `TileRight::Loc == Right`
     - `TileRes::Loc == Acc`
@@ -79,16 +79,16 @@ pto.tgemv.bias ins(%a, %b, %bias : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.
 
 ### 数据类型约束
 
-- **实现检查 (A2A3)**:
+- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
     - 支持的 `(CType, AType, BType)` 三元组：
         - `(int32_t, int8_t, int8_t)`
         - `(float, half, half)`
         - `(float, float, float)`
         - `(float, bfloat16_t, bfloat16_t)`
-- **实现检查 (A5)**:
+- **实现检查 (Ascend 950PR/Ascend 950DT)**:
     - 累加器类型必须是 `int32_t` 或 `float`。
     - 如果为 `int32_t`：`AType == int8_t` 且 `BType == int8_t`。
-    - 如果为 `float`：支持 `half`、`bfloat16_t`、`float`、选定的 fp8 组合以及 `hifloat8_t/hifloat8_t`（目标定义）。
+    - 如果为 `float`：支持 `half`、`bfloat16_t`、`float`、选定的fp8组合以及 `hifloat8_t/hifloat8_t`（目标定义）。
     - 会强制执行以下分形/布局约束：
         - Left：`Loc == Left`、`!isRowMajor`、`SFractal == RowMajor`
         - Right：`Loc == Right`、`isRowMajor`、`SFractal == ColMajor`
@@ -96,11 +96,11 @@ pto.tgemv.bias ins(%a, %b, %bias : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.
 
 ### 偏置专属约束
 
-- 偏置 tile 的数据类型必须与 `TileRes::DType` 完全一致。
-- 偏置 tile 必须配置为单行。
-- 偏置 tile 的位置必须为 `TileType::Bias`。
-- **A5 附加说明**：
-    - 除上述 GEMV 约定外，底层 A5 matmul 实现不会再单独补充一组显式的 `m/k/n` 运行时断言。
+- 偏置tile的数据类型必须与 `TileRes::DType` 完全一致。
+- 偏置tile必须配置为单行。
+- 偏置tile的位置必须为 `TileType::Bias`。
+- **Ascend 950PR/Ascend 950DT附加说明**：
+    - 除上述GEMV约定外，底层Ascend 950PR/Ascend 950DT matmul实现不会再单独补充一组显式的 `m/k/n` 运行时断言。
 
 ## 示例
 
@@ -167,7 +167,7 @@ void example_manual() {
 %c = pto.tgemv.bias %a, %b, %bias : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %acc = tgemv.bias %a, %b, %bias : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>

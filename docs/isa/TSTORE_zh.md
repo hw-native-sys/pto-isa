@@ -6,7 +6,7 @@
 
 ## 简介
 
-将 Tile 中的数据存储到 GlobalTensor (GM)，可选使用原子写入或量化参数。
+将Tile中的数据存储到GlobalTensor (GM)，可选使用原子写入或量化参数。
 
 ## 数学语义
 
@@ -34,7 +34,7 @@ pto.tstore %src, %mem : (!pto.tile<...>, !pto.partition_tensor_view<MxNxdtype>) 
 pto.tstore ins(%src : !pto.tile_buf<...>) outs(%mem : !pto.partition_tensor_view<MxNxdtype>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp` 和 `include/pto/common/constants.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -55,19 +55,19 @@ PTO_INST RecordEvent TSTORE_FP(GlobalData& dst, TileData& src, FpTileData& fp, W
 
 ## 约束
 
-- **实现检查 (A2A3)**:
-    - 源 tile 位置必须是以下之一：`TileType::Vec`、`TileType::Mat`、`TileType::Acc`。
+- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
+    - 源tile位置必须是以下之一：`TileType::Vec`、`TileType::Mat`、`TileType::Acc`。
     - 运行时：所有 `dst.GetShape(dim)` 值和 `src.GetValidRow()/GetValidCol()` 必须 `> 0`。
-    - 对于源 tile 位置为 `TileType::Vec` / `TileType::Mat`：
+    - 对于源tile位置为 `TileType::Vec` / `TileType::Mat`：
         - `TileData::DType` 必须是以下之一：`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`int64_t`、`uint64_t`、`half`、`bfloat16_t`、`float`。
         - `sizeof(TileData::DType) == sizeof(GlobalData::DType)`。
-        - 布局必须匹配 ND/DN/NZ（或特殊情况：`TileData::Rows == 1` 或 `TileData::Cols == 1`）。
-        - 对于 `int64_t/uint64_t`，仅支持 ND->ND 或 DN->DN。
-    - 对于源 tile 位置为`TileType::Acc`（包括带量化参数的调用形式和原子写入变体）：
-        - 目标布局必须是 ND、NZ、NC1HWC0 或 NDC1HWC0。
+        - 布局必须匹配ND/DN/NZ（或特殊情况：`TileData::Rows == 1` 或 `TileData::Cols == 1`）。
+        - 对于 `int64_t/uint64_t`，仅支持ND->ND或DN->DN。
+    - 对于源tile位置为`TileType::Acc`（包括带量化参数的调用形式和原子写入变体）：
+        - 目标布局必须是ND、NZ、NC1HWC0或NDC1HWC0。
         - 源数据类型必须是 `int32_t` 或 `float`。
         - 不使用量化时，目标数据类型必须是 `int32_t/float/half/bfloat16_t`。
-        - ACC 到 GM 的数据类型支持取决于调用形式：
+        - ACC到GM的数据类型支持取决于调用形式：
 
           | 调用形式 | 源数据类型 | 支持的目标数据类型 |
           | --- | --- | --- |
@@ -77,19 +77,19 @@ PTO_INST RecordEvent TSTORE_FP(GlobalData& dst, TileData& src, FpTileData& fp, W
           | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE_FP(dst, acc, fp)` | `int32_t` | `int8_t`、`uint8_t`、`half` |
 
           其它未列出的跨类型组合不属于支持范围。
-        - 静态形状约束：`1 <= TileData::Cols <= 4095`；如果是 ND 则 `1 <= TileData::Rows <= 8192`；如果是 NZ、NC1HWC0 或 NDC1HWC0 则 `1 <= TileData::Rows <= 65535` 且 `TileData::Cols % 16 == 0`。
+        - 静态形状约束：`1 <= TileData::Cols <= 4095`；如果是ND则 `1 <= TileData::Rows <= 8192`；如果是NZ、NC1HWC0或NDC1HWC0则 `1 <= TileData::Rows <= 65535` 且 `TileData::Cols % 16 == 0`。
         - 运行时：`1 <= src.GetValidCol() <= 4095`。
-- **实现检查 (A5)**:
-    - 源 tile 位置必须是 `TileType::Vec` 或 `TileType::Acc`（此目标不支持 `Mat` 存储）。
-    - 对于源 tile 位置为 `TileType::Vec`：
+- **实现检查 (Ascend 950PR/Ascend 950DT)**:
+    - 源tile位置必须是 `TileType::Vec` 或 `TileType::Acc`（此目标不支持 `Mat` 存储）。
+    - 对于源tile位置为 `TileType::Vec`：
         - `sizeof(TileData::DType) == sizeof(GlobalData::DType)`。
         - `TileData::DType` 必须是以下之一：`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`int64_t`、`uint64_t`、`half`、`bfloat16_t`、`float`、`float8_e4m3_t`、`float8_e5m2_t`、`hifloat8_t`、`float8_e8m0_t`、`float4_e1m2x2_t`、`float4_e2m1x2_t`。
-        - 布局必须匹配 ND/DN/NZ（或特殊情况：`TileData::Rows == 1` 或 `TileData::Cols == 1`）。
-        - 强制执行额外的对齐约束（例如，对于 ND，行主序宽度（以字节为单位）必须是 32 的倍数；对于 DN，列主序高度（以字节为单位）必须是 32 的倍数，但有特殊情况例外）。
-    - 对于源 tile 位置为`TileType::Acc`（包括带量化参数的调用形式和原子写入变体）：
-        - 目标布局必须是 ND、NZ、NHWC、NCHW 或 NCDHW；源数据类型必须是 `int32_t` 或 `float`。
+        - 布局必须匹配ND/DN/NZ（或特殊情况：`TileData::Rows == 1` 或 `TileData::Cols == 1`）。
+        - 强制执行额外的对齐约束（例如，对于ND，行主序宽度（以字节为单位）必须是32的倍数；对于DN，列主序高度（以字节为单位）必须是32的倍数，但有特殊情况例外）。
+    - 对于源tile位置为`TileType::Acc`（包括带量化参数的调用形式和原子写入变体）：
+        - 目标布局必须是ND、NZ、NHWC、NCHW或NCDHW；源数据类型必须是 `int32_t` 或 `float`。
         - 不使用量化时，目标数据类型必须是 `int32_t/float/half/bfloat16_t`。
-        - ACC 到 GM 的数据类型支持取决于调用形式：
+        - ACC到GM的数据类型支持取决于调用形式：
 
           | 调用形式 | 源数据类型 | 支持的目标数据类型 |
           | --- | --- | --- |
@@ -99,7 +99,7 @@ PTO_INST RecordEvent TSTORE_FP(GlobalData& dst, TileData& src, FpTileData& fp, W
           | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE_FP(dst, acc, fp)` | `int32_t` | `int8_t`、`uint8_t`、`half`、`bfloat16_t` |
 
           其它未列出的跨类型组合不属于支持范围。
-        - 静态形状约束与 A2A3 对于行/列的约束相同；`AtomicAdd` 额外限制目标数据类型为支持的原子类型。
+        - 静态形状约束与Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品对于行/列的约束相同；`AtomicAdd` 额外限制目标数据类型为支持的原子类型。
 - **有效区域**:
     - 实现使用 `src.GetValidRow()` / `src.GetValidCol()` 作为传输大小.
 
@@ -165,7 +165,7 @@ pto.tstore %src, %mem : (!pto.tile<...>, !pto.partition_tensor_view<MxNxdtype>) 
 pto.tstore %src, %mem : (!pto.tile<...>, !pto.partition_tensor_view<MxNxdtype>) -> ()
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 tstore %t1, %sv_out[%c0, %c0]

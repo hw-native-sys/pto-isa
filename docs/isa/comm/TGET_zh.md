@@ -2,9 +2,9 @@
 
 ## 简介
 
-远程读操作：将远端 NPU 的数据读取到本地内存。数据通过 UB Tile 作为中间暂存缓冲区进行传输。
+远程读操作：将远端NPU的数据读取到本地内存。数据通过UB Tile作为中间暂存缓冲区进行传输。
 
-当 GlobalTensor 超出 UB Tile 容量时，TGET 将自动执行**二维滑动**——沿行（DIM_3）和列（DIM_4）分块以适配 Tile，并遍历所有外层维度（DIM_0、DIM_1、DIM_2）。
+当GlobalTensor超出UB Tile容量时，TGET将自动执行**二维滑动**——沿行（DIM_3）和列（DIM_4）分块以适配Tile，并遍历所有外层维度（DIM_0、DIM_1、DIM_2）。
 
 ## 数学语义
 
@@ -22,13 +22,13 @@ $$\mathrm{dst}^{\mathrm{local}}_{i,j} = \mathrm{src}^{\mathrm{remote}}_{i,j}$$
 tget %dst_local, %src_remote : (!pto.memref<...>, !pto.memref<...>)
 ```
 
-降级时会为 GM→UB→GM 数据路径引入 UB 暂存 Tile；C++ 内建接口需要显式传入 `stagingTileData`（或 `pingTile` / `pongTile`）操作数。
+降级时会为GM→UB→GM数据路径引入UB暂存Tile；C++内建接口需要显式传入 `stagingTileData`（或 `pingTile` / `pongTile`）操作数。
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/comm/pto_comm_inst.hpp`
 
-### 单 Tile（自动分块）
+### 单Tile（自动分块）
 
 ```cpp
 template <typename GlobalDstData, typename GlobalSrcData, typename TileData, typename... WaitEvents>
@@ -38,7 +38,7 @@ PTO_INST RecordEvent TGET(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobal
 
 ### 乒乓双缓冲
 
-使用两个暂存 Tile，将相邻块的 TGET 与 TSTORE 重叠执行，隐藏 DMA 传输延迟。
+使用两个暂存Tile，将相邻块的TGET与TSTORE重叠执行，隐藏DMA传输延迟。
 
 ```cpp
 template <typename GlobalDstData, typename GlobalSrcData, typename TileData, typename... WaitEvents>
@@ -53,14 +53,14 @@ PTO_INST RecordEvent TGET(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobal
     - `TileData::DType` 必须等于 `GlobalSrcData::RawDType`。
     - `GlobalSrcData::layout` 必须等于 `GlobalDstData::layout`。
 - **内存约束**：
-    - `srcGlobalData` 必须指向远端地址（源 NPU）。
-    - `dstGlobalData` 必须指向本地地址（当前 NPU）。
+    - `srcGlobalData` 必须指向远端地址（源NPU）。
+    - `dstGlobalData` 必须指向本地地址（当前NPU）。
     - `stagingTileData` / `pingTile` / `pongTile` 必须预先在统一缓冲区中分配。
 - **有效区域**：
-    - 传输大小由 `GlobalTensor` 的形状决定（自动分块以适配 Tile）。
+    - 传输大小由 `GlobalTensor` 的形状决定（自动分块以适配Tile）。
 - **乒乓约束**：
     - `pingTile` 和 `pongTile` 必须具有相同的类型和维度。
-    - 必须位于不重叠的 UB 偏移处。
+    - 必须位于不重叠的UB偏移处。
 
 ## 示例
 

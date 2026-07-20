@@ -6,9 +6,9 @@
 
 ## 简介
 
-将数据从全局内存预取到 Tile 本地缓存/缓冲区（实现定义）。这通常用于在随后的 `TLOAD` 之前减少延迟。
+将数据从全局内存预取到Tile本地缓存/缓冲区（实现定义）。这通常用于在随后的 `TLOAD` 之前减少延迟。
 
-注意：与大多数 PTO 指令不同，`TPREFETCH` 在 C++ 包装器中**不会**隐式调用 `TSYNC(events...)`。
+注意：与大多数PTO指令不同，`TPREFETCH` 在C++包装器中**不会**隐式调用 `TSYNC(events...)`。
 
 ## 数学语义
 
@@ -34,7 +34,7 @@
 pto.tprefetch ins(%src : !pto.global<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -72,7 +72,7 @@ PTO_INST RecordEvent TPREFETCH(TileData &dst, GlobalData &src);
 %dst = pto.tprefetch %src : !pto.global<...> -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %dst = tprefetch %src : !pto.global<...> -> !pto.tile<...>

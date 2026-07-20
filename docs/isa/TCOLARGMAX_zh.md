@@ -64,19 +64,19 @@ IR Level 2（DPS）：
 pto.tcolargmax ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dstVal, %dstIdx : !pto.tile_buf<...>, !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`:
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
-### 纯索引模式（3 参数）
+### 纯索引模式（3参数）
 
 ```cpp
 template <typename TileDataOut, typename TileDataIn, typename TileDataTmp, typename... WaitEvents>
 PTO_INST RecordEvent TCOLARGMAX(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp, WaitEvents &...events)
 ```
 
-### 值 + 索引模式（4 参数）
+### 值 + 索引模式（4参数）
 
 ```cpp
 template <typename TileDataOutVal, typename TileDataOutIdx, typename TileDataIn, typename TileDataTmp,
@@ -90,8 +90,8 @@ PTO_INST RecordEvent TCOLARGMAX(TileDataOutVal& dstVal, TileDataOutIdx& dstIdx, 
 ### 通用约束或检查
 
 - `dstIdx` 和 `src` 必须为 `TileType::Vec`。
-- `src` 可使用 ND 或 DN 的非分形布局（`SLayout::NoneBox`）。`BLayout` 可为 `RowMajor`（与 `SLayout::NoneBox` 正交；示例中省略 `SLayout` 时默认为 `SLayout::NoneBox`）。
-- `dstIdx` 必须使用标准 ND 布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
+- `src` 可使用ND或DN的非分形布局（`SLayout::NoneBox`）。`BLayout` 可为 `RowMajor`（与 `SLayout::NoneBox` 正交；示例中省略 `SLayout` 时默认为 `SLayout::NoneBox`）。
+- `dstIdx` 必须使用标准ND布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
 - 支持的索引目标元素类型：`uint16_t`、`int16_t`、`uint32_t`、`int32_t`（具体取决于源元素大小）。
 - 运行时检查：
     - `src.GetValidRow() != 0`
@@ -99,24 +99,24 @@ PTO_INST RecordEvent TCOLARGMAX(TileDataOutVal& dstVal, TileDataOutIdx& dstIdx, 
     - `dstIdx.GetValidRow() == 1`
     - `src.GetValidCol() == dstIdx.GetValidCol()`
 
-### 纯索引模式（3 参数）
+### 纯索引模式（3参数）
 
-#### A2A3 实现检查
+#### Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品实现检查
 
 - 支持的源元素类型：`half`、`float`、`uint16_t`、`uint32_t`。
 - `tmp` 的元素类型必须与 `src` 一致。
 - `tmp` 用作索引跟踪和当前比较值的临时存储。
 
-#### A5 实现检查
+#### Ascend 950PR/Ascend 950DT实现检查
 
-- 支持的源元素宽度为 8位、16位或 32位，覆盖 `int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`float`。
+- 支持的源元素宽度为8位、16位或32位，覆盖 `int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`float`。
 - 接口接收 `tmp`，但实现实际并不使用它。
 
-### 值 + 索引模式（4 参数）
+### 值 + 索引模式（4参数）
 
 除通用约束外：
 
-- `dstVal` 必须为 `TileType::Vec`，使用标准 ND 布局（行主、非分形）。
+- `dstVal` 必须为 `TileType::Vec`，使用标准ND布局（行主、非分形）。
 - `dstVal` 元素类型必须与源元素类型 `TileDataIn::DType` 一致。
 - **不支持** 8位源类型。
 - 运行时检查：
@@ -126,55 +126,55 @@ PTO_INST RecordEvent TCOLARGMAX(TileDataOutVal& dstVal, TileDataOutIdx& dstIdx, 
     - `dstVal.GetValidRow() == dstIdx.GetValidRow()`
     - `dstVal.GetValidCol() == dstIdx.GetValidCol()`
 
-#### A2A3 实现检查
+#### Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品实现检查
 
 - 支持的源元素类型：`half`、`float`、`uint16_t`、`uint32_t`。
-- 当源元素大小为 2字节（`half`、`uint16_t`）时：`dstIdx` 元素类型必须为 `uint16_t` 或 `int16_t`。
-- 当源元素大小为 4字节（`float`、`uint32_t`）时：`dstIdx` 元素类型必须为 `uint32_t` 或 `int32_t`。
+- 当源元素大小为2字节（`half`、`uint16_t`）时：`dstIdx` 元素类型必须为 `uint16_t` 或 `int16_t`。
+- 当源元素大小为4字节（`float`、`uint32_t`）时：`dstIdx` 元素类型必须为 `uint32_t` 或 `int32_t`。
 - `tmp` 的元素类型必须与 `src` 一致。
-- `tmp` 用作临时存储；对 half 输入类型，内部执行 s16->f16->s32 转换路径。
+- `tmp` 用作临时存储；对half输入类型，内部执行s16->f16->s32转换路径。
 
-#### A5 实现检查
+#### Ascend 950PR/Ascend 950DT实现检查
 
-- 源元素大小必须为 16位或 32位（`sizeof(T) != 1`）。
-- 当源元素大小为 2字节（`half`、`int16_t`、`uint16_t`）时：`dstIdx` 元素类型必须为 `uint16_t` 或 `int16_t`。
-- 当源元素大小为 4字节（`float`、`int32_t`、`uint32_t`）时：`dstIdx` 元素类型必须为 `uint32_t` 或 `int32_t`。
+- 源元素大小必须为16位或32位（`sizeof(T) != 1`）。
+- 当源元素大小为2字节（`half`、`int16_t`、`uint16_t`）时：`dstIdx` 元素类型必须为 `uint16_t` 或 `int16_t`。
+- 当源元素大小为4字节（`float`、`int32_t`、`uint32_t`）时：`dstIdx` 元素类型必须为 `uint32_t` 或 `int32_t`。
 - 接口接收 `tmp`，但实现实际并不使用它。
 
-### A2A3 `tmp` 临时 Tile 相关说明
+### Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品 `tmp` 临时Tile相关说明
 
-- A2A3 实现中 `tmp` **始终被使用**，但使用程度取决于源元素类型和模式：
+- Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品实现中 `tmp` **始终被使用**，但使用程度取决于源元素类型和模式：
 
-  | 源类型 | 模式 | 区域 0（行索引） | 区域 1（比较值） | 区域 2（argmax 索引） |
+  | 源类型 | 模式 | 区域0（行索引） | 区域1（比较值） | 区域2（argmax索引） |
   |---|---|---|---|---|
   | `half` | 纯索引 | `tmp` | `tmp` | `tmp` |
   | `half` | 值+索引 | `tmp` | `tmp` | `dstIdx` |
   | `float` | 纯索引 | `tmp` | `dstIdx` | `dstIdx` |
   | `float` | 值+索引 | `tmp` | `dstIdx` | `dstIdx` |
 
-- `tmp` Tile 的数据类型必须与 `src` 的数据类型一致。
-- `tmp` Tile 在单行内被划分为最多三个区域：
-  - 区域 0（`[0, tmpGapEles)`）：当前行索引计数器（每行递增）。始终存储在 `tmp` 中。
-  - 区域 1（`[tmpGapEles, 2 * tmpGapEles)`）：当前最大值元素，用于比较。`half` 类型存储在 `tmp` 中；`float` 类型存储在 `dstIdx` 中。
-  - 区域 2（`[2 * tmpGapEles, 3 * tmpGapEles)`）：argmax 索引结果。仅在 `half` + 纯索引模式下存储在 `tmp` 中；其他情况存储在 `dstIdx` 中。
+- `tmp` Tile的数据类型必须与 `src` 的数据类型一致。
+- `tmp` Tile在单行内被划分为最多三个区域：
+  - 区域0（`[0, tmpGapEles)`）：当前行索引计数器（每行递增）。始终存储在 `tmp` 中。
+  - 区域1（`[tmpGapEles, 2 * tmpGapEles)`）：当前最大值元素，用于比较。`half` 类型存储在 `tmp` 中；`float` 类型存储在 `dstIdx` 中。
+  - 区域2（`[2 * tmpGapEles, 3 * tmpGapEles)`）：argmax索引结果。仅在 `half` + 纯索引模式下存储在 `tmp` 中；其他情况存储在 `dstIdx` 中。
 - `tmpGapEles` 的确定方式：
   - 当 `srcValidCol >= elemPerRpt` 时：`tmpGapEles = elemPerRpt`。
   - 当 `srcValidCol < elemPerRpt` 时：`tmpGapEles = ceil(srcValidCol / elemPerBlock) * elemPerBlock`。
-- 对于 `half` + 纯索引模式（`tmp` 使用量最大的情况），当 `src` 较小时可直接将 `tmp` Tile 大小设为与 `src` 相同；也可按以下公式算出 `tmp` Tile 所需 stride：
+- 对于 `half` + 纯索引模式（`tmp` 使用量最大的情况），当 `src` 较小时可直接将 `tmp` Tile大小设为与 `src` 相同；也可按以下公式算出 `tmp` Tile所需stride：
 
   ```text
   repeats = ceil(validCol / elementPerRepeat)
   stride = ceil(repeats * 2 / elementPerBlock) * elementPerBlock + ceil(repeats / elementPerBlock) * elementPerBlock
   ```
 
-  对于其他类型/模式组合，`tmp` 中仅需要区域 0，因此 `tmp` 跨度为 `tmpGapEles` 即可。
+  对于其他类型/模式组合，`tmp` 中仅需要区域0，因此 `tmp` 跨度为 `tmpGapEles` 即可。
 
-- 在纯索引模式下，若输入为 `half` 类型，`tmp` 区域 2 的数据将经过 s16->f16->s32 转换后才写入 `dstIdx`。
+- 在纯索引模式下，若输入为 `half` 类型，`tmp` 区域2的数据将经过s16->f16->s32转换后才写入 `dstIdx`。
 
-### A5 `tmp` 临时 Tile 相关说明
+### Ascend 950PR/Ascend 950DT `tmp` 临时Tile相关说明
 
-- A5 实现中 `tmp` 临时 Tile **在两种模式下均不使用**。A5 使用基于向量寄存器的计算方式（`__VEC_SCOPE__`），不需要临时 Tile 存储。
-- `tmp` 在 C++ 内建接口签名中保留，仅为了与 A2A3 的 API 兼容。
+- Ascend 950PR/Ascend 950DT实现中 `tmp` 临时Tile **在两种模式下均不使用**。Ascend 950PR/Ascend 950DT使用基于向量寄存器的计算方式（`__VEC_SCOPE__`），不需要临时Tile存储。
+- `tmp` 在C++内建接口签名中保留，仅为了与Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品的API兼容。
 
 ## 示例
 
@@ -300,7 +300,7 @@ void example_manual_val_idx() {
 %dstVal, %dstIdx = pto.tcolargmax %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> (!pto.tile<...>, !pto.tile<...>)
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 # 纯索引

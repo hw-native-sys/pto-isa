@@ -6,7 +6,7 @@
 
 ## 简介
 
-Tile 的逐元素绝对值。
+Tile的逐元素绝对值。
 
 ## 数学语义
 
@@ -34,7 +34,7 @@ $$ \mathrm{dst}_{i,j} = \left|\mathrm{src}_{i,j}\right| $$
 pto.tabs ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -52,12 +52,12 @@ PTO_INST RecordEvent TABS(TileDataDst &dst, TileDataSrc &src, WaitEvents &... ev
 - **实现检查 (Costmodel)**:
     - `TileData::DType` 必须是以下之一：`int32_t`、`int16_t`、`int8_t`、`uint8_t`、`half`、`float`。
 - **实现检查 (NPU)**:
-    - A3 `TileData::DType` 必须是以下之一：`float` 或 `half`。
-    - A5 `TileData::DType` 必须是以下之一：`int32_t`、`int16_t`、`int8_t`、`half`、`float`。
-    - Tile 位置必须是向量（`TileData::Loc == TileType::Vec`）。
+    - Atlas A3 训练系列产品/Atlas A3 推理系列产品 `TileData::DType` 必须是以下之一：`float` 或 `half`。
+    - Ascend 950PR/Ascend 950DT `TileData::DType` 必须是以下之一：`int32_t`、`int16_t`、`int8_t`、`half`、`float`。
+    - Tile位置必须是向量（`TileData::Loc == TileType::Vec`）。
     - 静态有效边界：`TileData::ValidRow <= TileData::Rows` 且 `TileData::ValidCol <= TileData::Cols`。
     - 运行时：`src.GetValidRow() == dst.GetValidRow()` 且 `src.GetValidCol() == dst.GetValidCol()`。
-    - Tile 布局必须是行主序（`TileData::isRowMajor`）。
+    - Tile布局必须是行主序（`TileData::isRowMajor`）。
 - **有效区域**:
     - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
 
@@ -112,7 +112,7 @@ void example_manual() {
 %dst = pto.tabs %src : !pto.tile<...> -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %dst = tabs %src : !pto.tile<...> -> !pto.tile<...>

@@ -34,7 +34,7 @@ $$ \mathrm{dst}_{i,j} = \frac{1}{\sqrt{\mathrm{src}_{i,j}}} $$
 pto.trsqrt ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -51,10 +51,10 @@ PTO_INST RecordEvent TRSQRT(TileDataDst &dst, TileDataSrc &src, TileDataTmp &tmp
 
 - **实现检查 (NPU)**:
     - `TileData::DType` 必须是以下之一：`float` 或 `half`。
-    - Tile 位置必须是向量（`TileData::Loc == TileType::Vec`）。
+    - Tile位置必须是向量（`TileData::Loc == TileType::Vec`）。
     - 静态有效边界：`TileData::ValidRow <= TileData::Rows` 且 `TileData::ValidCol <= TileData::Cols`。
     - 运行时：`src.GetValidRow() == dst.GetValidRow()` 且 `src.GetValidCol() == dst.GetValidCol()`。
-    - Tile 布局必须是行主序（`TileData::isRowMajor`）。
+    - Tile布局必须是行主序（`TileData::isRowMajor`）。
 - **有效区域**:
     - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
 - **域 / NaN**:
@@ -62,13 +62,13 @@ PTO_INST RecordEvent TRSQRT(TileDataDst &dst, TileDataSrc &src, TileDataTmp &tmp
 
 ## 临时空间
 
-### 无 `tmp`（2 参数重载：`TRSQRT(dst, src)`）
+### 无 `tmp`（2参数重载：`TRSQRT(dst, src)`）
 
 不需要 `tmp`。默认精度实现直接使用 `vsqrt` + `vdiv`。
 
-### 带 `tmp`（3 参数重载：`TRSQRT(dst, src, tmp)`）
+### 带 `tmp`（3参数重载：`TRSQRT(dst, src, tmp)`）
 
-`tmp` 被接口接受但当前 A5 实现**不使用**。3 参数重载简单地委托给 2 参数实现（`TRSQRT_IMPL<PrecisionType>(dst, src)`）。`tmp` 仅为了 API 兼容性和潜在的未来高精度路径而保留在 C++ 内建接口签名中。
+`tmp` 被接口接受但当前Ascend 950PR/Ascend 950DT实现**不使用**。3参数重载简单地委托给2参数实现（`TRSQRT_IMPL<PrecisionType>(dst, src)`）。`tmp` 仅为了API兼容性和潜在的未来高精度路径而保留在C++内建接口签名中。
 
 ## 示例
 
@@ -121,7 +121,7 @@ void example_manual() {
 %dst = pto.trsqrt %src : !pto.tile<...> -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %dst = trsqrt %src : !pto.tile<...>

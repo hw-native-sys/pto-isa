@@ -6,7 +6,7 @@
 
 ## 简介
 
-使用掩码 Tile 在两个 Tile 之间进行选择（逐元素选择）。
+使用掩码Tile在两个Tile之间进行选择（逐元素选择）。
 
 ## 数学语义
 
@@ -40,7 +40,7 @@ $$
 pto.tsel ins(%mask, %src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -52,34 +52,34 @@ PTO_INST RecordEvent TSEL(TileData &dst, MaskTile &selMask, TileData &src0, Tile
 
 ## 约束
 
-- **实现检查 (A2A3)**:
+- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
     - `sizeof(TileData::DType)` 必须是 `2` 或 `4` 字节。
     - `TileData::DType` 必须是 `int16_t` 或 `uint16_t` 或 `int32_t` 或 `uint32_t` 或 `half` 或 `bfloat16_t` 或 `float`。
     - `dst`、`src0` 和 `src1` 必须使用相同的元素类型。
     - `dst`、`src0` 和 `src1` 必须是行主序。
     - 选择域由 `dst.GetValidRow()` / `dst.GetValidCol()` 决定。
-- **实现检查 (A5)**:
+- **实现检查 (Ascend 950PR/Ascend 950DT)**:
     - `sizeof(TileData::DType)` 必须是 `1`、`2` 或 `4` 字节。
     - `TileData::DType` 必须是 `int8_t` 或 `uint8_t` 或 `int16_t` 或 `uint16_t` 或 `int32_t` 或 `uint32_t` 或 `half` 或 `bfloat16_t` 或 `float`。
     - `dst`、`src0` 和 `src1` 必须使用相同的元素类型。
     - `dst`、`src0` 和 `src1` 必须是行主序。
     - 选择域由 `dst.GetValidRow()` / `dst.GetValidCol()` 决定。
 - **掩码编码**:
-    - 掩码 tile 被解释为目标定义布局中的打包谓词位。
+    - 掩码tile被解释为目标定义布局中的打包谓词位。
 
 ## 临时空间
 
-### A2A3
+### Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品
 
-`tmp` **被使用**作为小型缓冲区，用于存放从掩码 Tile 复制到每行的比较掩码（`cmpmask`）。A2A3 实现使用 `set_cmpmask`，要求掩码数据位于特定的 UB 位置。
+`tmp` **被使用**作为小型缓冲区，用于存放从掩码Tile复制到每行的比较掩码（`cmpmask`）。Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品实现使用 `set_cmpmask`，要求掩码数据位于特定的UB位置。
 
 - `tmp` 的元素类型必须是 `uint32_t`。
-- `tmp` 大小要求：每行至少 `cmpmaskLen` 个 `uint32_t` 元素，其中 16位数据类型（`half`、`bfloat16_t`）的 `cmpmaskLen = 4`（16字节，128位），32位数据类型（`float`、`int32_t`、`uint32_t`）的 `cmpmaskLen = 2`（8字节，64位）。
-- 典型的 `tmp` Tile 声明：`Tile<TileType::Vec, uint32_t, 1, 16>` 可满足大多数使用场景。
+- `tmp` 大小要求：每行至少 `cmpmaskLen` 个 `uint32_t` 元素，其中16位数据类型（`half`、`bfloat16_t`）的 `cmpmaskLen = 4`（16字节，128位），32位数据类型（`float`、`int32_t`、`uint32_t`）的 `cmpmaskLen = 2`（8字节，64位）。
+- 典型的 `tmp` Tile声明：`Tile<TileType::Vec, uint32_t, 1, 16>` 可满足大多数使用场景。
 
-### A5
+### Ascend 950PR/Ascend 950DT
 
-`tmp` 被接口接受但 A5 实现**不使用**。A5 后端使用基于向量寄存器的掩码操作（`plds`、`vsel`），不需要暂存 Tile 存储。`tmp` 仅为了与 A2A3 的 API 兼容性而保留在 C++ 内建接口签名中。
+`tmp` 被接口接受但Ascend 950PR/Ascend 950DT实现**不使用**。Ascend 950PR/Ascend 950DT后端使用基于向量寄存器的掩码操作（`plds`、`vsel`），不需要暂存Tile存储。`tmp` 仅为了与Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品的API兼容性而保留在C++内建接口签名中。
 
 ## 示例
 
@@ -143,7 +143,7 @@ void example_manual() {
 %dst = pto.tsel %mask, %src0, %src1 : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %dst = tsel %mask, %src0, %src1 : !pto.tile<...>

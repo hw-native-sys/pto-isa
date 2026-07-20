@@ -6,18 +6,18 @@
 
 ## 简介
 
-硬件加速的多路归并排序（`vmrgsort4`）。将最多 4 个已预排序的列表归并为一个**降序**排列的输出。每个元素是固定 8字节的**值-索引对**结构体。
+硬件加速的多路归并排序（`vmrgsort4`）。将最多4个已预排序的列表归并为一个**降序**排列的输出。每个元素是固定8字节的**值-索引对**结构体。
 
 ## 数据格式：值-索引对
 
-TMRGSORT 操作的是 8字节结构体，Tile 中的每个元素构成值-索引对的一部分：
+TMRGSORT操作的是8字节结构体，Tile中的每个元素构成值-索引对的一部分：
 
-| 数据类型 | 值字段 | 填充 | 索引字段 | 结构体大小 | 每结构体占 Tile 元素数 |
+| 数据类型 | 值字段 | 填充 | 索引字段 | 结构体大小 | 每结构体占Tile元素数 |
 |----------|--------|------|----------|------------|----------------------|
-| `float`  | 4字节 | 0    | 4字节（`uint32_t`） | 8字节 | **2 个元素** |
-| `half`   | 2字节 | 2字节 | 4字节（`uint32_t`） | 8字节 | **4 个元素** |
+| `float`  | 4字节 | 0    | 4字节（`uint32_t`） | 8字节 | **2个元素** |
+| `half`   | 2字节 | 2字节 | 4字节（`uint32_t`） | 8字节 | **4个元素** |
 
-因此 Tile 中排序对的数量为：
+因此Tile中排序对的数量为：
 
 - `float`：`numPairs = ValidCol / 2`
 - `half`：`numPairs = ValidCol / 4`
@@ -37,9 +37,9 @@ $$ \mathrm{dst} = \mathrm{merge\_desc}(\mathrm{src}_0, \mathrm{src}_1, \ldots) $
 
 ## 两种变体
 
-### 变体 A：单列表排序 — `TMRGSORT(dst, src, blockLen)`
+### 变体A：单列表排序— `TMRGSORT(dst, src, blockLen)`
 
-将 `src` 视为 **4 个连续等长的已排序块**，在单个 Tile 内完成 4 路归并。
+将 `src` 视为 **4个连续等长的已排序块**，在单个Tile内完成4路归并。
 
 ```
 src Tile（1 行）：
@@ -58,20 +58,20 @@ dst Tile（1 行）：
 - `blockLen` 必须是 **64** 的倍数。
 - `src.GetValidCol()` 必须是 `blockLen * 4` 的整数倍。
 - `repeatTimes = src.GetValidCol() / (blockLen * 4)` 必须在 `[1, 255]` 范围内。
-- **不需要 `tmp`** — 结果直接写入 `dst`。
+- **不需要 `tmp`** —结果直接写入 `dst`。
 - 无 `exhausted` 参数（固定为非挂起模式）。
 
 **`blockLen` 对应的排序对数：**
 
-| blockLen | float 每块对数 | half 每块对数 |
+| blockLen | float每块对数 | half每块对数 |
 |----------|---------------|--------------|
 | 64       | 32            | 16           |
 | 128      | 64            | 32           |
 | 256      | 128           | 64           |
 
-### 变体 B：多列表归并 — `TMRGSORT<..., exhausted>(dst, executedNumList, tmp, src0, src1, [src2], [src3])`
+### 变体B：多列表归并— `TMRGSORT<..., exhausted>(dst, executedNumList, tmp, src0, src1, [src2], [src3])`
 
-将 2~4 个**独立的已预排序列表**归并为一个有序输出。
+将2~4个**独立的已预排序列表**归并为一个有序输出。
 
 ```
 src0 Tile ──┐
@@ -82,7 +82,7 @@ src3 Tile ──┘
 
 **模板参数 `exhausted`：**
 
-- `exhausted = false`：正常归并 — 处理所有输入数据。
+- `exhausted = false`：正常归并—处理所有输入数据。
 - `exhausted = true`：当任一输入列表耗尽时，硬件挂起并通过 `executedNumList` 返回每个列表实际处理的元素数量。
 
 **`MrgSortExecutedNumList` 结构体：**
@@ -98,13 +98,13 @@ struct MrgSortExecutedNumList {
 
 仅在 `exhausted = true` 时有意义。数据来自硬件寄存器 `VMS4_SR`。
 
-**不同列表数的 mask 配置：**
+**不同列表数的mask配置：**
 
 | 列表数 | Xt[11:8] mask | 未使用的列表 |
 |--------|---------------|-------------|
-| 2 列表 | `0b0011`      | src2, src3（size=0） |
-| 3 列表 | `0b0111`      | src3（size=0） |
-| 4 列表 | `0b1111`      | 无 |
+| 2列表 | `0b0011`      | src2, src3（size=0） |
+| 3列表 | `0b0111`      | src3（size=0） |
+| 4列表 | `0b1111`      | 无 |
 
 ## 汇编语法
 
@@ -131,7 +131,7 @@ pto.tmrgsort ins(%src0, %src1, %src2, %src3 {exhausted = false} : !pto.tile_buf<
 outs(%dst, %executed : !pto.tile_buf<...>, vector<4xi16>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -143,7 +143,7 @@ template <typename DstTileData, typename SrcTileData, typename... WaitEvents>
 PTO_INST RecordEvent TMRGSORT(DstTileData &dst, SrcTileData &src, uint32_t blockLen, WaitEvents &... events);
 ```
 
-### 多列表变体（2/3/4 列表）
+### 多列表变体（2/3/4列表）
 
 ```cpp
 // 4 列表
@@ -169,43 +169,43 @@ PTO_INST RecordEvent TMRGSORT(DstTileData &dst, MrgSortExecutedNumList &executed
 
 ## 约束
 
-### 通用约束（A2A3 和 A5）
+### 通用约束（Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品和Ascend 950PR/Ascend 950DT）
 
 | 约束项 | 要求 |
 |--------|------|
-| Tile 类型 | 所有 Tile 必须是 `TileType::Vec` |
-| 行数 | 所有 Tile 必须 `Rows == 1` |
-| 布局 | 所有 Tile 必须是行主序（`BLayout::RowMajor`） |
-| 数据类型 | `half` 或 `float`，且所有 Tile 一致 |
-| UB 内存 | 总计不超过 192KiB（`UB_SIZE`） |
+| Tile类型 | 所有Tile必须是 `TileType::Vec` |
+| 行数 | 所有Tile必须 `Rows == 1` |
+| 布局 | 所有Tile必须是行主序（`BLayout::RowMajor`） |
+| 数据类型 | `half` 或 `float`，且所有Tile一致 |
+| UB内存 | 总计不超过192KiB（`UB_SIZE`） |
 
-### 各变体的 UB 内存约束
+### 各变体的UB内存约束
 
 | 变体 | 约束 |
 |------|------|
 | 单列表 | `(src.Cols + dst.Cols) * sizeof(T) < UB_SIZE` |
-| 2 列表 | `(src0.Cols + src1.Cols + tmp.Cols) * sizeof(T) < UB_SIZE`，且 `tmp.Cols + src0.Cols <= UB_SIZE / sizeof(T)` |
-| 3 列表 | `(src0.Cols + src1.Cols + src2.Cols + tmp.Cols) * sizeof(T) < UB_SIZE` |
-| 4 列表 | `(src0.Cols + src1.Cols + src2.Cols + src3.Cols + tmp.Cols) * sizeof(T) < UB_SIZE` |
+| 2列表 | `(src0.Cols + src1.Cols + tmp.Cols) * sizeof(T) < UB_SIZE`，且 `tmp.Cols + src0.Cols <= UB_SIZE / sizeof(T)` |
+| 3列表 | `(src0.Cols + src1.Cols + src2.Cols + tmp.Cols) * sizeof(T) < UB_SIZE` |
+| 4列表 | `(src0.Cols + src1.Cols + src2.Cols + src3.Cols + tmp.Cols) * sizeof(T) < UB_SIZE` |
 
 ### 单列表约束
 
-- `blockLen` 必须是 64 的倍数。
+- `blockLen` 必须是64的倍数。
 - `src.GetValidCol()` 必须是 `blockLen * 4` 的整数倍。
 - `repeatTimes = src.GetValidCol() / (blockLen * 4)` 必须在 `[1, 255]` 范围内。
 
 ## 临时空间
 
-### 多列表变体（2/3/4 列表）
+### 多列表变体（2/3/4列表）
 
-`tmp` **被使用**作为 `vmrgsort4` 硬件指令的中间输出缓冲区。归并排序结果首先写入 `tmp`，然后通过 `MovUb2Ub`（UB 到 UB 的 memcpy）复制到 `dst`。
+`tmp` **被使用**作为 `vmrgsort4` 硬件指令的中间输出缓冲区。归并排序结果首先写入 `tmp`，然后通过 `MovUb2Ub`（UB到UB的memcpy）复制到 `dst`。
 
-- `tmp` 必须与 `dst` 和所有 `src` Tile 具有相同的元素类型（`half` 或 `float`）。
+- `tmp` 必须与 `dst` 和所有 `src` Tile具有相同的元素类型（`half` 或 `float`）。
 - `tmp` 必须 `Rows == 1` 且为行主序。
-- `tmp` 的 Cols 必须至少为所有输入源 Cols 之和：
-    - 2 列表：`tmp.Cols >= src0.Cols + src1.Cols`
-    - 3 列表：`tmp.Cols >= src0.Cols + src1.Cols + src2.Cols`
-    - 4 列表：`tmp.Cols >= src0.Cols + src1.Cols + src2.Cols + src3.Cols`
+- `tmp` 的Cols必须至少为所有输入源Cols之和：
+    - 2列表：`tmp.Cols >= src0.Cols + src1.Cols`
+    - 3列表：`tmp.Cols >= src0.Cols + src1.Cols + src2.Cols`
+    - 4列表：`tmp.Cols >= src0.Cols + src1.Cols + src2.Cols + src3.Cols`
 - 辅助函数 `GETMRGSORTTMPSIZE<...>()` 返回所需的 `tmp` Cols：
 
 ```cpp
@@ -225,7 +225,7 @@ GETMRGSORTTMPSIZE<Src0Tile, Src1Tile, Src2Tile, Src3Tile>() = Src0Tile::Cols + S
 
 ## 典型用法：TopK
 
-TMRGSORT 常用于通过迭代归并排序实现 TopK 选择：
+TMRGSORT常用于通过迭代归并排序实现TopK选择：
 
 ```
 阶段 1：单列表排序（逐步增大 blockLen）
@@ -237,11 +237,11 @@ TMRGSORT 常用于通过迭代归并排序实现 TopK 选择：
   使用 2 列表变体归并剩余块，保留前 K 个元素
 ```
 
-## A2A3 与 A5 的差异
+## Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品与Ascend 950PR/Ascend 950DT的差异
 
 两者实现几乎完全相同，均调用 `vmrgsort4` 硬件指令。微小差异：
 
-| 项目 | A2A3 | A5 |
+| 项目 | Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品 | Ascend 950PR/Ascend 950DT |
 |------|------|-----|
 | `UB_SIZE` 常量 | 硬编码 `196608`（192×1024） | 使用 `PTO_UBUF_SIZE_BYTES` |
 | `TMRGSORT_BLOCK_LEN` | 定义了常量 `64` | 未定义（直接使用字面量） |
@@ -265,7 +265,7 @@ void example_single() {
 }
 ```
 
-### 多列表归并（4 列表，非挂起模式）
+### 多列表归并（4列表，非挂起模式）
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -285,7 +285,7 @@ void example_multi4() {
 }
 ```
 
-### 多列表归并（2 列表，挂起模式）
+### 多列表归并（2列表，挂起模式）
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -345,7 +345,7 @@ void example_manual() {
 %dst = pto.tmrgsort %src, %blockLen : (!pto.tile<...>, dtype) -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %dst = pto.tmrgsort %src, %blockLen : (!pto.tile<...>, dtype) -> !pto.tile<...>

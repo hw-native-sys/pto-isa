@@ -6,7 +6,7 @@
 
 ## 简介
 
-Tile 与标量的逐元素最大值：`max(src, scalar)`。
+Tile与标量的逐元素最大值：`max(src, scalar)`。
 
 ## 数学语义
 
@@ -34,7 +34,7 @@ $$ \mathrm{dst}_{i,j} = \max(\mathrm{src}_{i,j}, \mathrm{scalar}) $$
 pto.tmaxs ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -46,20 +46,19 @@ PTO_INST RecordEvent TMAXS(TileDataDst& dst, TileDataSrc& src, typename TileData
 
 ## 约束
 
-!!! warning "约束"
-    - **实现检查 (A2A3)**:
-        - `TileData::DType` 必须是以下之一：`int32_t`、`int16_t`、`half`、`float`。
-        - Tile 布局必须是行主序（`TileData::isRowMajor`）。
-    - **实现检查 (A5)**:
-        - `TileData::DType` 必须是以下之一：`int32_t`、`uint32_t`、`float`、`int16_t`、`uint16_t`、`half`、`bfloat16_t`、`uint8_t`、`int8_t`。
-        - Tile 布局必须是行主序（`TileData::isRowMajor`）。
-    - **通用约束**:
-        - Tile 位置必须是向量（`TileData::Loc == TileType::Vec`）。
-        - 静态有效边界：`TileData::ValidRow <= TileData::Rows` 且 `TileData::ValidCol <= TileData::Cols`。
-        - 运行时：`dst` 和 `src` 的有效行列数必须相同。
-        - 标量类型必须与 Tile 数据类型一致。
-    - **有效区域**:
-        - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
+- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
+    - `TileData::DType` 必须是以下之一：`int32_t`、`int16_t`、`half`、`float`。
+    - Tile布局必须是行主序（`TileData::isRowMajor`）。
+- **实现检查 (Ascend 950PR/Ascend 950DT)**:
+    - `TileData::DType` 必须是以下之一：`int32_t`、`uint32_t`、`float`、`int16_t`、`uint16_t`、`half`、`bfloat16_t`、`uint8_t`、`int8_t`。
+    - Tile布局必须是行主序（`TileData::isRowMajor`）。
+- **通用约束**:
+    - Tile位置必须是向量（`TileData::Loc == TileType::Vec`）。
+    - 静态有效边界：`TileData::ValidRow <= TileData::Rows` 且 `TileData::ValidCol <= TileData::Cols`。
+    - 运行时：`dst` 和 `src` 的有效行列数必须相同。
+    - 标量类型必须与Tile数据类型一致。
+- **有效区域**:
+    - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
 
 ## 示例
 
@@ -94,7 +93,7 @@ void example() {
 %dst = pto.tmaxs %src, %scalar : (!pto.tile<...>, dtype) -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %dst = tmaxs %src, %scalar : !pto.tile<...>, f32

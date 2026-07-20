@@ -1,23 +1,23 @@
 # TCONCAT
 
-## Tile 操作示意图
+## Tile操作示意图
 
 ### 基本形式（3参数）
 
-![TCONCAT 基本形式](../figures/isa/TCONCAT.svg)
+![TCONCAT基本形式](../figures/isa/TCONCAT.svg)
 
 ### 索引形式（5-6参数）
 
-![TCONCAT 索引形式](../figures/isa/TCONCAT_idx.svg)
+![TCONCAT索引形式](../figures/isa/TCONCAT_idx.svg)
 
 ## 简介
 
-将两个源 Tile（`src0` 和 `src1`）沿列维度水平拼接到目标 Tile（`dst`）中。`dst` 的每一行包含来自 `src0` 和 `src1` 对应行的拼接结果。
+将两个源Tile（`src0` 和 `src1`）沿列维度水平拼接到目标Tile（`dst`）中。`dst` 的每一行包含来自 `src0` 和 `src1` 对应行的拼接结果。
 
 `TCONCAT` 用于：
 
-- 沿列轴拼接两个 Tile（水平拼接）
-- 在 attention 和 transformer 架构中拼接 Tile（例如拼接 KV cache 条目）
+- 沿列轴拼接两个Tile（水平拼接）
+- 在attention和transformer架构中拼接Tile（例如拼接KV cache条目）
 - 合并来自拆分操作的局部结果
 
 ## 数学解释
@@ -42,7 +42,7 @@ $$ \mathrm{dst}_{i, j} = \begin{cases} \mathrm{src0}_{i, j} & \text{若 } 0 \le 
 pto.tconcat ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建函数
+## C++内建函数
 
 声明于 `include/pto/common/pto_instr.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -64,38 +64,38 @@ PTO_INST RecordEvent TCONCAT(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1, TileD
 
 - `TCONCAT` 有三种重载变体：
     - 基本形式：`TCONCAT(dst, src0, src1)` - 拼接完整有效区域
-    - 索引形式（5参数）：`TCONCAT(dst, src0, src1, src0Idx, src1Idx)` - 使用每行索引 Tile 指定动态列数
+    - 索引形式（5参数）：`TCONCAT(dst, src0, src1, src0Idx, src1Idx)` - 使用每行索引Tile指定动态列数
     - 索引形式（6参数）：`TCONCAT(dst, src0, src1, dstIdx, src0Idx, src1Idx)` - 同时输出每行的拼接列数
-- 所有 Tile 必须为 `TileType::Vec`（向量 Tile）
-- 所有 Tile 必须使用行主序布局（`isRowMajor == true`）
+- 所有Tile必须为 `TileType::Vec`（向量Tile）
+- 所有Tile必须使用行主序布局（`isRowMajor == true`）
 
 ### 形状约束
 
 - 基本形式：
     - `dst.GetValidRow() == src0.GetValidRow() == src1.GetValidRow()`
-    - A2A3：`src0.GetValidCol() + src1.GetValidCol() <= TileDataDst::Cols`（总列数不得超过 dst 物理容量）
-    - A5：`dst.GetValidCol() == src0.GetValidCol() + src1.GetValidCol()`（总列数必须等于 dst 有效列数）
+    - Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品：`src0.GetValidCol() + src1.GetValidCol() <= TileDataDst::Cols`（总列数不得超过dst物理容量）
+    - Ascend 950PR/Ascend 950DT：`dst.GetValidCol() == src0.GetValidCol() + src1.GetValidCol()`（总列数必须等于dst有效列数）
 - 索引形式：
     - 行数约束与基本形式相同
-    - 列数由索引 Tile 动态确定
-    - 6参数形式要求 `dstIdx.GetValidRow() == 1`（`dstIdx` 为单行聚合 Tile，汇总每行的拼接列数）
+    - 列数由索引Tile动态确定
+    - 6参数形式要求 `dstIdx.GetValidRow() == 1`（`dstIdx` 为单行聚合Tile，汇总每行的拼接列数）
 
 ### 数据类型约束
 
 - 支持的元素类型：`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`bfloat16_t`、`float`
-- 源 Tile 和目标 Tile 必须具有相同的元素类型
-- 索引 Tile 必须使用整数类型（`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`）
+- 源Tile和目标Tile必须具有相同的元素类型
+- 索引Tile必须使用整数类型（`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`）
 
-### A5 实现检查
+### Ascend 950PR/Ascend 950DT实现检查
 
-- 所有 Tile 必须为 `TileType::Vec`
-- 所有 Tile 必须为行主序布局
-- `validRows` 不能超过任何操作数的物理 Tile 行数
-- 索引 Tile（如果提供）必须满足类型兼容性检查
+- 所有Tile必须为 `TileType::Vec`
+- 所有Tile必须为行主序布局
+- `validRows` 不能超过任何操作数的物理Tile行数
+- 索引Tile（如果提供）必须满足类型兼容性检查
 
 ## 示例
 
-### Auto 模式
+### Auto模式
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -112,7 +112,7 @@ void example_auto() {
 }
 ```
 
-### Manual 模式
+### Manual模式
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -154,16 +154,16 @@ void example_indexed() {
 }
 ```
 
-## ASM 形式示例
+## ASM形式示例
 
-### Auto 模式
+### Auto模式
 
 ```text
 # Auto 模式：编译器/运行时管理放置和调度。
 %dst = pto.tconcat %src0, %src1 : (!pto.tile<16x32xf32>, !pto.tile<16x32xf32>) -> !pto.tile<16x64xf32>
 ```
 
-### Manual 模式
+### Manual模式
 
 ```text
 # Manual 模式：在发出指令之前必须显式绑定资源。
@@ -176,6 +176,6 @@ void example_indexed() {
 
 ## 相关指令
 
-- [TINSERT](TINSERT_zh.md) - 在指定偏移处将子 Tile 插入到目标 Tile 中
-- [TEXTRACT](TEXTRACT_zh.md) - 从源 Tile 中提取子 Tile
-- [TRESHAPE](TRESHAPE_zh.md) - 将 Tile 重新解释为另一种 Tile 类型/形状
+- [TINSERT](TINSERT_zh.md) - 在指定偏移处将子Tile插入到目标Tile中
+- [TEXTRACT](TEXTRACT_zh.md) - 从源Tile中提取子Tile
+- [TRESHAPE](TRESHAPE_zh.md) - 将Tile重新解释为另一种Tile类型/形状

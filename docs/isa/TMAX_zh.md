@@ -6,7 +6,7 @@
 
 ## 简介
 
-两个 Tile 的逐元素最大值。
+两个Tile的逐元素最大值。
 
 ## 数学语义
 
@@ -34,7 +34,7 @@ $$ \mathrm{dst}_{i,j} = \max(\mathrm{src0}_{i,j}, \mathrm{src1}_{i,j}) $$
 pto.tmax ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -46,18 +46,18 @@ PTO_INST RecordEvent TMAX(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &sr
 
 ## 约束
 
-- **实现检查 (A2A3)**:
+- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
     - `TileData::DType` 必须是以下之一： `int32_t`, `int16_t`, `half`, `float`.
-    - Tile 布局必须是行主序（`TileData::isRowMajor`）。
-    - Tile 位置必须是向量（`TileData::Loc == TileType::Vec`）。
+    - Tile布局必须是行主序（`TileData::isRowMajor`）。
+    - Tile位置必须是向量（`TileData::Loc == TileType::Vec`）。
     - 静态有效边界： `TileData::ValidRow <= TileData::Rows`且`TileData::ValidCol <= TileData::Cols`.
-    - 运行时： `src0`, `src1`且`dst` tiles 应具有相同的 `validRow/validCol`.
-- **实现检查 (A5)**:
+    - 运行时： `src0`, `src1`且`dst` tiles应具有相同的 `validRow/validCol`.
+- **实现检查 (Ascend 950PR/Ascend 950DT)**:
     - `TileData::DType` 必须是以下之一： `uint32_t`, `int32_t`, `uint16_t`, `int16_t`, `uint8_t`,  `int8_t`, `float`, `half`.
-    - Tile 布局必须是行主序（`TileData::isRowMajor`）。
-    - Tile 位置必须是向量（`TileData::Loc == TileType::Vec`）。
+    - Tile布局必须是行主序（`TileData::isRowMajor`）。
+    - Tile位置必须是向量（`TileData::Loc == TileType::Vec`）。
     - 静态有效边界： `TileData::ValidRow <= TileData::Rows`且`TileData::ValidCol <= TileData::Cols`.
-    - 运行时： `src0`, `src1`且`dst` tiles 应具有相同的 `validRow/validCol`.
+    - 运行时： `src0`, `src1`且`dst` tiles应具有相同的 `validRow/validCol`.
 - **有效区域**:
     - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域; `src0/src1` 假定是兼容的 (此操作中不通过显式运行时检查进行验证).
 
@@ -113,7 +113,7 @@ void example_manual() {
 %dst = pto.tmax %src0, %src1 : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %dst = tmax %src0, %src1 : !pto.tile<...>

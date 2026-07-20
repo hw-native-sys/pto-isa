@@ -34,7 +34,7 @@ $$ \mathrm{dst}_{0,j} = \prod_{i=0}^{R-1} \mathrm{src}_{i,j} $$
 pto.tcolprod ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -49,17 +49,17 @@ PTO_INST RecordEvent TCOLPROD(TileDataOut &dst, TileDataIn &src, WaitEvents &...
 ### 通用约束或检查
 
 - `dst` 和 `src` 必须为 `TileType::Vec`。
-- `dst` 和 `src` 必须使用标准 ND 布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
+- `dst` 和 `src` 必须使用标准ND布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
 - `dst` 和 `src` 的元素类型必须一致。
 - 运行时检查：
     - `src.GetValidCol() == dst.GetValidCol()`
 - 若 `src.GetValidRow() == 0` 或 `src.GetValidCol() == 0`，实现会直接返回。
 
-### A2A3 实现检查
+### Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品实现检查
 
 - 支持的元素类型：`half`、`float`、`int16_t`、`int32_t`。
 
-### A5 实现检查
+### Ascend 950PR/Ascend 950DT实现检查
 
 - 支持的元素类型：`half`、`float`、`bfloat16_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`。
 
@@ -118,7 +118,7 @@ void example_manual() {
 %dst = pto.tcolprod %src : !pto.tile<...> -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %dst = tcolprod %src : !pto.tile<...> -> !pto.tile<...>

@@ -4,7 +4,7 @@
 
 自旋等待，直到信号满足比较条件。与 `TNOTIFY` 配合使用，实现基于标志的同步。
 
-支持单个信号或多维信号 tensor（最高 5 维，形状由 GlobalSignalData 决定）。
+支持单个信号或多维信号tensor（最高5维，形状由GlobalSignalData决定）。
 
 ## 数学语义
 
@@ -14,7 +14,7 @@
 
 $$\mathrm{signal} \;\mathtt{cmp}\; \mathrm{cmpValue}$$
 
-信号 tensor（所有元素均须满足）：
+信号tensor（所有元素均须满足）：
 
 $$\forall d_0, d_1, d_2, d_3, d_4: \mathrm{signal}_{d_0, d_1, d_2, d_3, d_4} \;\mathtt{cmp}\; \mathrm{cmpValue}$$
 
@@ -27,7 +27,7 @@ twait %signal, %cmp_value {cmp = #pto.cmp<EQ>} : (!pto.memref<i32>, i32)
 twait %signal_matrix, %cmp_value {cmp = #pto.cmp<GE>} : (!pto.memref<i32, MxN>, i32)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/comm/pto_comm_inst.hpp`：
 
@@ -41,10 +41,10 @@ PTO_INST void TWAIT(GlobalSignalData &signalData, int32_t cmpValue, WaitCmp cmp,
 - **类型约束**：
     - `GlobalSignalData::DType` 必须为 `int32_t`（32位信号）。
 - **内存约束**：
-    - `signalData` 必须指向当前 NPU 本地的 GM/HBM 地址（`__gm__`），远端 NPU 通过 `TNOTIFY` 写入该地址。"本地"指 NPU 归属（当前 NPU 的 GM vs 远端 NPU 的 GM），而非 CCE 地址空间修饰符。
+    - `signalData` 必须指向当前NPU本地的GM/HBM地址（`__gm__`），远端NPU通过 `TNOTIFY` 写入该地址。"本地"指NPU归属（当前NPU的GM vs远端NPU的GM），而非CCE地址空间修饰符。
 - **形状语义**：
     - 单个信号：形状为 `<1,1,1,1,1>`。
-    - 信号 tensor：形状决定要等待的多维区域（最高 5 维）。tensor 中所有信号必须满足条件。
+    - 信号tensor：形状决定要等待的多维区域（最高5维）。tensor中所有信号必须满足条件。
 - **比较运算符**（WaitCmp）：
   | 值 | 条件 |
   |-------|--------|

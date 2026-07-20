@@ -6,7 +6,7 @@
 
 ## 简介
 
-Tile 按标量逐元素右移。
+Tile按标量逐元素右移。
 
 ## 数学语义
 
@@ -34,7 +34,7 @@ $$ \mathrm{dst}_{i,j} = \mathrm{src}_{i,j} \gg \mathrm{scalar} $$
 pto.tshrs ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -46,17 +46,17 @@ PTO_INST RecordEvent TSHRS(TileDataDst &dst, TileDataSrc &src, typename TileData
 
 ## 约束
 
-- **实现检查 (A2A3)**:
+- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
     - 支持的元素类型为 `int32_t`、`int`、`int16_t`、`uint32_t`、`unsigned int` 和 `uint16_t`。
     - `dst` 和 `src` 必须使用相同的元素类型。
-    - `dst` 和 `src` 必须是向量 Tile。
+    - `dst` 和 `src` 必须是向量Tile。
     - 运行时：`src.GetValidRow() == dst.GetValidRow()` 且 `src.GetValidCol() == dst.GetValidCol()`。
     - 标量仅支持零和正值。
-- **实现检查 (A5)**:
+- **实现检查 (Ascend 950PR/Ascend 950DT)**:
     - 支持的元素类型为 `int32_t`、`int16_t`、`int8_t`、`uint32_t`、`uint16_t` 和 `uint8_t`。
     - `dst` 和 `src` 必须使用相同的元素类型。
-    - `dst` 和 `src` 必须是向量 Tile。
-    - 两个 Tile 的静态有效边界都必须满足 `ValidRow <= Rows` 且 `ValidCol <= Cols`。
+    - `dst` 和 `src` 必须是向量Tile。
+    - 两个Tile的静态有效边界都必须满足 `ValidRow <= Rows` 且 `ValidCol <= Cols`。
     - 运行时：`src.GetValidRow() == dst.GetValidRow()` 且 `src.GetValidCol() == dst.GetValidCol()`。
     - 标量仅支持零和正值。
 - **有效区域**:
@@ -97,7 +97,7 @@ void example() {
 %dst = pto.tshrs %src, %scalar : (!pto.tile<...>, dtype) -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %dst = tshrs %src, %scalar : !pto.tile<...>, i32

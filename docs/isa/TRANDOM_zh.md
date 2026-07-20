@@ -7,7 +7,7 @@
 
 ## 简介
 
-使用基于计数器的密码算法在目标 Tile 中生成随机数。
+使用基于计数器的密码算法在目标Tile中生成随机数。
 
 ## 数学解释
 
@@ -16,7 +16,7 @@
 该算法使用：
 - 128位状态（4 × 32位计数器）
 - 64位密钥（2 × 32位字）
-- 类似 ChaCha 的四分之一轮操作，使用向量指令
+- 类似ChaCha的四分之一轮操作，使用向量指令
 
 ## 汇编语法
 
@@ -38,7 +38,7 @@ trandom %dst, %key, %counter : !pto.tile<...>
 pto.trandom ins(%key, %counter : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内置函数
+## C++内置函数
 
 声明于 `include/pto/common/pto_instr.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -50,17 +50,17 @@ PTO_INST RecordEvent TRANDOM(DstTile &dst, TRandomKey &key, TRandomCounter &coun
 
 ## 约束条件
 
-- **实现检查（A5）**：
+- **实现检查（Ascend 950PR/Ascend 950DT）**：
     - `DstTile::DType` 必须为以下类型之一：`int32_t`、`uint32_t`。
-    - Tile 布局必须为行主序（`DstTile::isRowMajor`）。
-    - `Rounds` 必须为 7 或 10（默认为 10）。
+    - Tile布局必须为行主序（`DstTile::isRowMajor`）。
+    - `Rounds` 必须为7或10（默认为10）。
     - `key` 和 `counter` 不能为空。
 - **有效区域**：
     - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
 
 ## 示例
 
-### Auto 模式
+### Auto模式
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -76,7 +76,7 @@ void example_auto() {
 }
 ```
 
-### Manual 模式
+### Manual模式
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -95,14 +95,14 @@ void example_manual() {
 
 ## 汇编形式示例
 
-### Auto 模式
+### Auto模式
 
 ```text
 # Auto 模式：编译器/运行时管理的布局和调度。
 %dst = pto.trandom %key, %counter : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
-### Manual 模式
+### Manual模式
 
 ```text
 # Manual 模式：在发出指令之前显式绑定资源。
@@ -111,7 +111,7 @@ void example_manual() {
 %dst = pto.trandom %key, %counter : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 trandom %dst, %key, %counter : !pto.tile<...>

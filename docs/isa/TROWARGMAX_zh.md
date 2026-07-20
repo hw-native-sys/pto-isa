@@ -37,7 +37,7 @@ Lowering may introduce internal scratch tiles; the C++ intrinsic requires an exp
 pto.trowargmax ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`:
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -63,7 +63,7 @@ PTO_INST RecordEvent TROWARGMAX(TileDataOutVal &dstVal, TileDataOutIdx &dstIdx, 
 ### 通用约束或检查
 
 - 支持的源元素类型：`half`、`float`。
-- `src` 必须使用标准 ND 布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
+- `src` 必须使用标准ND布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
 - 仅输出索引时：
     - `dst` 和 `src` 必须为 `TileType::Vec`。
     - 支持的目标元素类型：`uint32_t`、`int32_t`。
@@ -72,8 +72,8 @@ PTO_INST RecordEvent TROWARGMAX(TileDataOutVal &dstVal, TileDataOutIdx &dstIdx, 
         - `src.GetValidCol() != 0`
         - `src.GetValidRow() == dst.GetValidRow()`
     - `dst` 通过共享的行归约索引检查路径约束，可使用以下任一非分形布局：
-        - 单列 DN 布局（`BLayout::ColMajor`、`Cols == 1`），或
-        - 有效列数为 1 的 ND 布局。
+        - 单列DN布局（`BLayout::ColMajor`、`Cols == 1`），或
+        - 有效列数为1的ND布局。
 - 同时输出值和索引时：
     - `dstVal`、`dstIdx`、`src` 必须为 `TileType::Vec`。
     - `dstVal`的元素类型必须与`src`的元素类型一致。
@@ -86,37 +86,37 @@ PTO_INST RecordEvent TROWARGMAX(TileDataOutVal &dstVal, TileDataOutIdx &dstIdx, 
         - `src.GetValidRow() == dstIdx.GetValidRow()`
         - `src.GetValidRow() == dstVal.GetValidRow()`
     - `dstVal`、`dstIdx`通过共享的行归约索引检查路径约束，可使用以下任一非分形布局：
-        - 单列 DN 布局（`BLayout::ColMajor`、`Cols == 1`），或
-        - 有效列数为 1 的 ND 布局。
+        - 单列DN布局（`BLayout::ColMajor`、`Cols == 1`），或
+        - 有效列数为1的ND布局。
 
 ### `tmp`临时Tile相关说明
 
-- 仅 A2A3 使用`tmp`临时 Tile，A5 接收`tmp`但实际并不使用。
-- A2A3 实现根据 `srcValidCol` 与 `elementPerRepeat`（以下缩写为 `elemPerRpt`）的关系选择三条代码路径之一：
+- 仅Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品使用`tmp`临时Tile，Ascend 950PR/Ascend 950DT接收`tmp`但实际并不使用。
+- Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品实现根据 `srcValidCol` 与 `elementPerRepeat`（以下缩写为 `elemPerRpt`）的关系选择三条代码路径之一：
 
-#### 情况 1：`srcValidCol <= elemPerRpt`
+#### 情况1：`srcValidCol <= elemPerRpt`
 
 - **仅输出索引模式**：`tmp` **不使用**。硬件 `vcmax` 指令直接写入 `dst`。
-- **值+索引模式**：`tmp` 用作小型缓冲区（每行 2 个元素：一个值 + 一个索引）。`tmp` 可使用以下任一非分形布局：
-    - 单列 DN 布局（`BLayout::ColMajor`、`Cols == 1`），有效行数为 `srcValidRow * 2`。
-    - 有效行数为 `srcValidRow` 且有效列数为 2 的 ND 布局。
+- **值+索引模式**：`tmp` 用作小型缓冲区（每行2个元素：一个值 + 一个索引）。`tmp` 可使用以下任一非分形布局：
+    - 单列DN布局（`BLayout::ColMajor`、`Cols == 1`），有效行数为 `srcValidRow * 2`。
+    - 有效行数为 `srcValidRow` 且有效列数为2的ND布局。
 
-#### 情况 2：`elemPerRpt < srcValidCol <= elemPerRpt²`（单阶段归约）
+#### 情况2：`elemPerRpt < srcValidCol <= elemPerRpt²`（单阶段归约）
 
 - `tmp` **被使用**于单阶段归约。
-- `tmp` tile 的行数与 `src` 相同。
-- `tmp` tile 每行所需 stride 按以下公式计算：
+- `tmp` tile的行数与 `src` 相同。
+- `tmp` tile每行所需stride按以下公式计算：
 
 ```text
 R1 = ceil(validCol / elemPerRpt)
 stride = (ceil(R1 * 2 / elemPerBlock) + ceil(R1 / elemPerBlock)) * elemPerBlock
 ```
 
-#### 情况 3：`srcValidCol > elemPerRpt²`（两阶段归约）
+#### 情况3：`srcValidCol > elemPerRpt²`（两阶段归约）
 
 - `tmp` **被使用**于两阶段归约，所需空间大于单阶段。
-- `tmp` tile 的行数与 `src` 相同。
-- `tmp` tile 每行所需 stride 按以下公式计算：
+- `tmp` tile的行数与 `src` 相同。
+- `tmp` tile每行所需stride按以下公式计算：
 
 ```text
 R1 = ceil(validCol / elemPerRpt)
@@ -126,7 +126,7 @@ stage2_end  = ceil(R1 / elemPerBlock) * elemPerBlock + ceil(R2 * 2 / elemPerBloc
 stride = max(stage1_size, stage2_end) + 2
 ```
 
-- `+ 2` 用于存放每行 tmp 区域末尾的最终值+索引结果。
+- `+ 2` 用于存放每行tmp区域末尾的最终值+索引结果。
 
 
 ## 示例
@@ -196,7 +196,7 @@ void example_manual() {
 %dst = pto.trowargmax %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %dst = trowargmax %src : !pto.tile<...> -> !pto.tile<...>

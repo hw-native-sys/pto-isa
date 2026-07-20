@@ -6,7 +6,7 @@
 
 ## 简介
 
-将 Tile 重新解释为另一种 Tile 类型/形状，同时保留底层字节。
+将Tile重新解释为另一种Tile类型/形状，同时保留底层字节。
 
 ## 数学语义
 
@@ -30,7 +30,7 @@
 pto.treshape ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -44,15 +44,15 @@ PTO_INST RecordEvent TRESHAPE(TileDataOut &dst, TileDataIn &src, WaitEvents &...
 
 由 `TRESHAPE_IMPL` 强制执行：
 
-- **Tile 类型必须匹配**：`TileDataIn::Loc == TileDataOut::Loc`。
+- **Tile类型必须匹配**：`TileDataIn::Loc == TileDataOut::Loc`。
 - **总字节大小必须匹配**：`sizeof(InElem) * InNumel == sizeof(OutElem) * OutNumel`。
-- **不允许 boxed/non-boxed 转换**：
-    - 不能在 `SLayout::NoneBox` 与 boxed 布局之间进行 reshape。
+- **不允许boxed/non-boxed转换**：
+    - 不能在 `SLayout::NoneBox` 与boxed布局之间进行reshape。
 
 ## 备注
 
-- **CPU 模拟**：实现为按字节拷贝到 `dst`。
-- **A2/A3**：实现为别名（`TASSIGN_IMPL(dst, src.data())`），因此 `dst` 和 `src` 引用同一底层存储。
+- **CPU模拟**：实现为按字节拷贝到 `dst`。
+- **Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品**：实现为别名（`TASSIGN_IMPL(dst, src.data())`），因此 `dst` 和 `src` 引用同一底层存储。
 
 ## 示例
 
@@ -91,7 +91,7 @@ void example() {
 %dst = pto.treshape %src : !pto.tile<...> -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %dst = pto.treshape %src : !pto.tile<...> -> !pto.tile<...>

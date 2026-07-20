@@ -16,8 +16,8 @@ $$
 \mathrm{dst}_{i,j} =
 \begin{cases}
 \min(\mathrm{src0}_{i,j}, \mathrm{src1}_{i,j}) & \text{若两个输入在 } (i,j) \text{ 处均有定义} \\\\
-\mathrm{src0}_{i,j} & \text{若仅 src0 在 } (i,j) \text{ 处有定义} \\\\
-\mathrm{src1}_{i,j} & \text{若仅 src1 在 } (i,j) \text{ 处有定义}
+\mathrm{src0}_{i,j} & \text{若仅src0在 } (i,j) \text{ 处有定义} \\\\
+\mathrm{src1}_{i,j} & \text{若仅src1在 } (i,j) \text{ 处有定义}
 \end{cases}
 $$
 
@@ -41,7 +41,7 @@ $$
 pto.tpartmin ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -56,21 +56,21 @@ PTO_INST RecordEvent TPARTMIN(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1
 !!! warning "约束"
     ### 通用约束或检查
 
-    - `dst`、`src0` 和 `src1` 的元素类型必须一致。
-    - 目标有效区域定义结果的计算范围。
-    - 对目标有效区域内的每个元素：
-      - 若两个输入都有效，则执行逐元素最小值运算；
-      - 若只有一个输入有效，则结果直接取该输入的值。
-    - 若 `dst` 的有效区域为零，指令直接返回。
-    - 支持的部分有效区域模式要求至少有一个源 Tile 的有效区域与 `dst` 完全一致，另一个源 Tile 的有效区域在两个维度上都不能超过 `dst`。
-    - 上述范围之外的有效区域组合，其行为均由具体实现定义。
+- `dst`、`src0` 和 `src1` 的元素类型必须一致。
+- 目标有效区域定义结果的计算范围。
+- 对目标有效区域内的每个元素：
+    - 若两个输入都有效，则执行逐元素最小值运算；
+    - 若只有一个输入有效，则结果直接取该输入的值。
+- 若 `dst` 的有效区域为零，指令直接返回。
+- 支持的部分有效区域模式要求至少有一个源Tile的有效区域与 `dst` 完全一致，另一个源Tile的有效区域在两个维度上都不能超过 `dst`。
+- 上述范围之外的有效区域组合，其行为均由具体实现定义。
 
-    ### A2A3 实现检查
+### Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品实现检查
 
 - 支持的元素类型：`int32_t`、`int`、`int16_t`、`half`、`float16_t`、`float`、`float32_t`。
 - `dst`、`src0` 和 `src1` 必须全部为行主序（`isRowMajor`）。
 
-    ### A5 实现检查
+### Ascend 950PR/Ascend 950DT实现检查
 
     - 支持的元素类型：`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`bfloat16_t`、`float`。
 
@@ -126,7 +126,7 @@ void example_manual() {
 %dst = pto.tpartmin %src0, %src1 : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %dst = tpartmin %src0, %src1 : !pto.tile<...> -> !pto.tile<...>

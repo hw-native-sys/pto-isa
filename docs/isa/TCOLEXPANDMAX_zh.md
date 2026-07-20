@@ -38,7 +38,7 @@ $$
 pto.tcolexpandmax ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -50,8 +50,8 @@ PTO_INST RecordEvent TCOLEXPANDMAX(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 
 ## 约束
 
-- `TileDataDst::DType`、`TileDataSrc0::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`、`int16`、`int32`（适用于 A2、A3 和 A5），`uint16`、`uint32`（仅适用于 A5）。
-- Tile 形状/布局约束（编译时）：`TileDataDst::isRowMajor`。
+- `TileDataDst::DType`、`TileDataSrc0::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`、`int16`、`int32`（适用于Atlas A2 训练系列产品/Atlas A2 推理系列产品、Atlas A3 训练系列产品/Atlas A3 推理系列产品和Ascend 950PR/Ascend 950DT），`uint16`、`uint32`（仅适用于Ascend 950PR/Ascend 950DT）。
+- Tile形状/布局约束（编译时）：`TileDataDst::isRowMajor`。
 - `src1` 预期提供**每列一个标量**（即，其有效形状必须覆盖 `C` 个值）。
 - 确切的布局/分形约束是目标特定的；参见 `include/pto/npu/*/TColExpand*.hpp` 下的后端头文件。
 
@@ -78,7 +78,7 @@ PTO_INST RecordEvent TCOLEXPANDMAX(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 %dst = pto.tcolexpandmax %src0, %src1 : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %dst = tcolexpandmax %src0, %src1 : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>

@@ -6,7 +6,7 @@
 
 ## 简介
 
-生成三角（下/上）掩码 Tile。
+生成三角（下/上）掩码Tile。
 
 ## 数学语义
 
@@ -38,7 +38,7 @@ $$
 pto.ttri ins(%diag : i32) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -51,10 +51,10 @@ PTO_INST RecordEvent TTRI(TileData &dst, int diagonal, WaitEvents &... events);
 ## 约束
 
 - `isUpperOrLower` 必须是 `0`（下三角）或 `1`（上三角）。
-- **实现检查 (A2A3)**:
-    - 目标 Tile 必须是行主序（`isRowMajor`），由 `static_assert` 强制执行。
+- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
+    - 目标Tile必须是行主序（`isRowMajor`），由 `static_assert` 强制执行。
     - 支持的元素类型：`int32_t`、`int`、`int16_t`、`uint32_t`、`uint16_t`、`half`、`float16_t`、`float`、`float32_t`。
-- **实现检查 (A5)**:
+- **实现检查 (Ascend 950PR/Ascend 950DT)**:
     - 支持的元素类型：`int32_t`、`int16_t`、`int8_t`、`uint32_t`、`uint16_t`、`uint8_t`、`half`、`float16_t`、`float32_t`、`bfloat16_t`。
     - 下三角（`upperOrLower == 0`）和上三角（`upperOrLower == 1`）由 `if constexpr` 分支区分。
 - 有效区域通过 `dst.GetValidRow()` / `dst.GetValidCol()` 获取。
@@ -98,7 +98,7 @@ void example_upper() {
 %dst = pto.ttri %diag : i32 -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %dst = pto.ttri %diag : i32 -> !pto.tile<...>

@@ -6,7 +6,7 @@
 
 ## 简介
 
-将 Tile 对象绑定到实现定义的片上地址（手动放置）。
+将Tile对象绑定到实现定义的片上地址（手动放置）。
 
 ## 数学语义
 
@@ -14,7 +14,7 @@
 
 ## 汇编语法
 
-`TASSIGN` 通常在将 SSA tile 映射到物理存储时由缓冲化/降级引入。
+`TASSIGN` 通常在将SSA tile映射到物理存储时由缓冲化/降级引入。
 
 同步形式：
 
@@ -34,12 +34,12 @@ pto.tassign %tile, %addr : !pto.tile<...>, dtype
 pto.tassign ins(%tile, %addr : !pto.tile_buf<...>, dtype)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`。
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
-### 形式 1：运行时地址
+### 形式1：运行时地址
 
 ```cpp
 template <typename T, typename AddrType>
@@ -48,7 +48,7 @@ PTO_INST void TASSIGN(T& obj, AddrType addr);
 
 将 `obj` 绑定到片上地址 `addr`。不执行编译时边界检查（地址值在编译时不可知）。
 
-### 形式 2：编译时地址（含静态边界检查）
+### 形式2：编译时地址（含静态边界检查）
 
 ```cpp
 template <std::size_t Addr, typename T>
@@ -58,18 +58,18 @@ PTO_INST void TASSIGN(T& obj);
 将 `obj` 绑定到片上地址 `Addr`。由于 `Addr` 是非类型模板参数，编译器通过 `static_assert`
 执行以下**编译时**检查：
 
-| 检查项 | 条件 | 断言 ID | 错误信息 |
+| 检查项 | 条件 | 断言ID | 错误信息 |
 |--------|------|---------|----------|
 | 内存空间存在 | `capacity > 0` | SA-0351 | 当前架构不支持该内存空间。 |
-| Tile 可放入内存 | `tile_size <= capacity` | SA-0352 | Tile 存储大小超出内存空间容量。 |
-| 地址未越界 | `Addr + tile_size <= capacity` | SA-0353 | addr + tile_size 超出内存空间容量（越界）。 |
-| 地址对齐 | `Addr % alignment == 0` | SA-0354 | addr 未按目标内存空间要求对齐。 |
+| Tile可放入内存 | `tile_size <= capacity` | SA-0352 | Tile存储大小超出内存空间容量。 |
+| 地址未越界 | `Addr + tile_size <= capacity` | SA-0353 | addr + tile_size超出内存空间容量（越界）。 |
+| 地址对齐 | `Addr % alignment == 0` | SA-0354 | addr未按目标内存空间要求对齐。 |
 
 修复建议请参阅 `docs/coding/debug.md`（修复方案 `FIX-A12`）。
 
-内存空间、容量和对齐由 Tile 的 `TileType`（即 `Loc` 模板参数）自动确定：
+内存空间、容量和对齐由Tile的 `TileType`（即 `Loc` 模板参数）自动确定：
 
-| TileType | 内存空间 | 容量 (A2A3) | 容量 (A5) | 容量 (Kirin9030) | 容量 (KirinX90) | 对齐 |
+| TileType | 内存空间 | 容量 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品) | 容量 (Ascend 950PR/Ascend 950DT) | 容量 (Kirin9030) | 容量 (KirinX90) | 对齐 |
 |----------|----------|-------------|-----------|------------------|-----------------|------|
 | Vec | UB | 192KB | 256KB | 128KB | 128KB | 32Byte |
 | Mat | L1 | 512KB | 512KB | 512KB | 1024KB | 32Byte |
@@ -83,13 +83,13 @@ PTO_INST void TASSIGN(T& obj);
 
 容量可通过编译标志 `-D` 覆盖（如 `-DPTO_UBUF_SIZE_BYTES=262144`）。详见 `include/pto/common/buffer_limits.hpp`。
 
-**注意：** 该重载仅适用于 `Tile` 和 `ConvTile` 类型。对于 `GlobalTensor`，请使用 `TASSIGN(obj, pointer)`（形式 1）。
+**注意：** 该重载仅适用于 `Tile` 和 `ConvTile` 类型。对于 `GlobalTensor`，请使用 `TASSIGN(obj, pointer)`（形式1）。
 
 ## 约束
 
 - **实现检查**:
-    - 如果 `obj` 是 Tile（含 ConvTile）：
-        - 在手动模式下（未定义 `__PTO_AUTO__` 时），`addr` 必须是整数类型，并被重新解释为 tile 的存储地址。
+    - 如果 `obj` 是Tile（含ConvTile）：
+        - 在手动模式下（未定义 `__PTO_AUTO__` 时），`addr` 必须是整数类型，并被重新解释为tile的存储地址。
         - 在自动模式下（定义了 `__PTO_AUTO__` 时），`TASSIGN(tile, addr)` 是空操作。
     - 如果 `obj` 是 `GlobalTensor`：
         - `addr` 必须是指针类型。
@@ -156,7 +156,7 @@ void example_oob_addr() {
 }
 ```
 
-### Ping-pong L0 缓冲区分配
+### Ping-pong L0缓冲区分配
 
 ```cpp
 void example_pingpong() {
@@ -192,7 +192,7 @@ pto.tassign %tile, %addr : !pto.tile<...>, dtype
 pto.tassign %tile, %addr : !pto.tile<...>, dtype
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 tassign %tile, %addr : !pto.tile<...>, dtype

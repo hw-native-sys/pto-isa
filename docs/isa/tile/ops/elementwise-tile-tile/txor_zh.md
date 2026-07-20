@@ -6,7 +6,7 @@
 
 ## 简介
 
-两个 Tile 的逐元素按位异或。
+两个Tile的逐元素按位异或。
 
 ## 数学语义
 
@@ -34,7 +34,7 @@ $$ \mathrm{dst}_{i,j} = \mathrm{src0}_{i,j} \oplus \mathrm{src1}_{i,j} $$
 pto.txor ins(%src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -48,12 +48,12 @@ PTO_INST RecordEvent TXOR(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &sr
 ## 约束
 
 - 该操作在 `dst.GetValidRow()` / `dst.GetValidCol()` 上迭代。
-- **实现检查 (A5)**:
+- **实现检查 (Ascend 950PR/Ascend 950DT)**:
     - `dst`、`src0` 和 `src1` 的元素类型必须一致。
     - 支持的元素类型为 `uint8_t`、`int8_t`、`uint16_t`、`int16_t`、`uint32_t`、`int32_t`。
     - `dst`、`src0` 和 `src1` 必须是行主序。
     - `src0.GetValidRow()/GetValidCol()` 和 `src1.GetValidRow()/GetValidCol()` 必须与 `dst` 一致。
-- **实现检查 (A2A3)**:
+- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
     - `dst`、`src0`、`src1` 和 `tmp` 的元素类型必须一致。
     - 支持的元素类型为 `uint8_t`、`int8_t`、`uint16_t`、`int16_t`、`uint32_t`、`int32_t`。
     - `dst`、`src0`、`src1` 和 `tmp` 必须是行主序。
@@ -62,18 +62,18 @@ PTO_INST RecordEvent TXOR(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &sr
 
 ## 临时空间
 
-### A2A3
+### Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品
 
-`tmp` **被使用**作为中间暂存存储。A2A3 实现通过分解计算 XOR：`XOR(a,b) = AND(NOT(AND(a,b)), OR(a,b))`，需要 `tmp` 来保存中间结果 `OR(a,b)`。
+`tmp` **被使用**作为中间暂存存储。Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品实现通过分解计算XOR：`XOR(a,b) = AND(NOT(AND(a,b)), OR(a,b))`，需要 `tmp` 来保存中间结果 `OR(a,b)`。
 
 - `tmp` 必须与 `dst`/`src0`/`src1` 具有相同的元素类型。
 - `tmp` 必须是行主序。
 - `tmp` 的有效形状必须与 `dst` 一致（`tmp.GetValidRow() == dst.GetValidRow()` 且 `tmp.GetValidCol() == dst.GetValidCol()`）。
 - 在手动模式下，`tmp` 的内存区域不得与 `dst`、`src0` 或 `src1` 重叠。
 
-### A5
+### Ascend 950PR/Ascend 950DT
 
-`tmp` 被接口接受但 A5 实现**不使用**。A5 后端直接使用 `vxor` 向量指令，不需要暂存 Tile 存储。`tmp` 仅为了与 A2A3 的 API 兼容性而保留在 C++ 内建接口签名中。
+`tmp` 被接口接受但Ascend 950PR/Ascend 950DT实现**不使用**。Ascend 950PR/Ascend 950DT后端直接使用 `vxor` 向量指令，不需要暂存Tile存储。`tmp` 仅为了与Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品的API兼容性而保留在C++内建接口签名中。
 
 ## 示例
 
@@ -114,7 +114,7 @@ void example() {
 %dst = pto.txor %src0, %src1 : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %dst = txor %src0, %src1 : !pto.tile<...>

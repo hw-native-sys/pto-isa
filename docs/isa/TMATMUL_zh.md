@@ -6,7 +6,7 @@
 
 ## 简介
 
-矩阵乘法 (GEMM)，生成累加器/输出 Tile。
+矩阵乘法 (GEMM)，生成累加器/输出Tile。
 
 ## 数学语义
 
@@ -42,7 +42,7 @@ $$ \mathrm{C}_{i,j} = \sum_{k=0}^{K-1} \mathrm{A}_{i,k} \cdot \mathrm{B}_{k,j} $
 pto.tmatmul ins(%a, %b : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%c : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -57,19 +57,19 @@ PTO_INST RecordEvent TMATMUL(TileRes &cMatrix, TileLeft &aMatrix, TileRight &bMa
 
 ## 约束
 
-- **实现检查 (A2A3)**:
+- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
     - 支持的 `(CType, AType, BType)` 三元组：
     - `(int32_t, int8_t, int8_t)`
     - `(float, half, half)`
     - `(float, float, float)`
     - `(float, bfloat16_t, bfloat16_t)`
     - 静态形状约束：`TileLeft::Rows == TileRes::Rows`、`TileLeft::Cols == TileRight::Rows`、`TileRight::Cols == TileRes::Cols`。
-    - Tile 位置：`TileLeft::Loc == Left`、`TileRight::Loc == Right`、`TileRes::Loc == Acc`。
+    - Tile位置：`TileLeft::Loc == Left`、`TileRight::Loc == Right`、`TileRes::Loc == Acc`。
     - 运行时：`m/k/n`（取自 `aMatrix.GetValidRow()`、`aMatrix.GetValidCol()`、`bMatrix.GetValidCol()`）必须在 `[1, 4095]` 范围内。
-- **实现检查 (A5)**:
+- **实现检查 (Ascend 950PR/Ascend 950DT)**:
     - 累加器类型必须是 `int32_t` 或 `float`。
     - 如果是 `int32_t`：`AType == int8_t` 且 `BType == int8_t`。
-    - 如果是 `float`：支持 `half/bfloat16_t/float`、选定的 fp8 对以及 `hifloat8_t/hifloat8_t`（目标定义）。
+    - 如果是 `float`：支持 `half/bfloat16_t/float`、选定的fp8对以及 `hifloat8_t/hifloat8_t`（目标定义）。
     - 静态形状约束：`TileLeft::Rows == TileRes::Rows`、`TileLeft::Cols == TileRight::Rows`、`TileRight::Cols == TileRes::Cols`。
     - 强制执行分形/布局约束：
     - Left：`Loc == Left`、`!isRowMajor`、`SFractal == RowMajor`
@@ -137,7 +137,7 @@ void example_manual() {
 %c = pto.tmatmul %a, %b : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %acc = tmatmul %a, %b : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>

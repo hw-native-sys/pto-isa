@@ -6,15 +6,15 @@
 
 ## 简介
 
-在 `(indexRow, indexCol)` 偏移处将源子 Tile 插入目标 Tile。概念上是 `TEXTRACT` 的逆操作。
+在 `(indexRow, indexCol)` 偏移处将源子Tile插入目标Tile。概念上是 `TEXTRACT` 的逆操作。
 
 `TINSERT` 用于：
 
-- Acc → Mat 插入（含可选的 relu、标量量化或向量量化）
-- Acc → Vec 插入（含可选的 `AccToVecMode`、relu、标量量化或向量量化） *(A5)*
-- Vec → Mat 插入（ND 和 NZ 布局） *(A5)*
-- Vec → Vec 插入（ND 和 NZ 布局） *(A5)*
-- NZ split 插入（`SPLIT2`、`SPLIT4`） *(A5)*
+- Acc → Mat插入（含可选的relu、标量量化或向量量化）
+- Acc → Vec插入（含可选的 `AccToVecMode`、relu、标量量化或向量量化） *(Ascend 950PR/Ascend 950DT)*
+- Vec → Mat插入（ND和NZ布局） *(Ascend 950PR/Ascend 950DT)*
+- Vec → Vec插入（ND和NZ布局） *(Ascend 950PR/Ascend 950DT)*
+- NZ split插入（`SPLIT2`、`SPLIT4`） *(Ascend 950PR/Ascend 950DT)*
 
 ## 数学语义
 
@@ -44,7 +44,7 @@ $$
 pto.tinsert ins(%src, %idxrow, %idxcol : !pto.tile_buf<...>, dtype, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -111,38 +111,38 @@ PTO_INST RecordEvent TINSERT(DstTileData &dst, SrcTileData &src,
 
 - `TINSERT` 有以下重载族：
     - 普通插入：`TINSERT(dst, src, indexRow, indexCol)`
-    - relu 形式：`TINSERT<..., reluMode>(dst, src, indexRow, indexCol)`
+    - relu形式：`TINSERT<..., reluMode>(dst, src, indexRow, indexCol)`
     - 累加器到向量形式：`TINSERT<..., mode, reluMode>(dst, src, indexRow, indexCol)`
     - 标量量化形式：`TINSERT<..., reluMode>(dst, src, preQuantScalar, indexRow, indexCol)` 和 `TINSERT<..., mode, reluMode>(dst, src, preQuantScalar, indexRow, indexCol)`
     - 向量量化形式：`TINSERT_FP<..., reluMode>(dst, src, fp, indexRow, indexCol)` 和 `TINSERT<..., FpTileData, mode, reluMode>(dst, src, fp, indexRow, indexCol)`
-    - NZ split 形式 *(仅 A5/kirin9030/kirinX90)*：`TINSERT<TInsertMode::SPLIT2>(dst, src, indexRow, indexCol)` 或 `TINSERT<TInsertMode::SPLIT4>(...)`
+    - NZ split形式 *(仅Ascend 950PR/Ascend 950DT/kirin9030/kirinX90)*：`TINSERT<TInsertMode::SPLIT2>(dst, src, indexRow, indexCol)` 或 `TINSERT<TInsertMode::SPLIT4>(...)`
 - `reluMode` 取值为 `ReluPreMode::{NoRelu, NormalRelu}`。
 - `mode` 取值为 `AccToVecMode::{SingleModeVec0, SingleModeVec1, DualModeSplitM, DualModeSplitN}`。
 - 运行时边界：`indexRow + src.ValidRow <= dst.Rows` 且 `indexCol + src.ValidCol <= dst.Cols`。
 
-### A2A3 实现检查
+### Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品实现检查
 
-- 支持的 tile 类型对：仅 `TileType::Acc → TileType::Mat`。
+- 支持的tile类型对：仅 `TileType::Acc → TileType::Mat`。
 - 源布局必须为 `(BFractal: ColMajor, SFractal: RowMajor)`。
 - 目标布局必须为 `(BFractal: ColMajor, SFractal: RowMajor)`，且 `SFractalSize == 512`。
 - `Dst.Cols * sizeof(DstDType)` 必须是 `32` 字节的倍数且非零。
-- **普通 / relu**（非量化）支持的 dtype 对：
+- **普通 / relu**（非量化）支持的dtype对：
     - `float` Acc → `half`、`bfloat16_t`
-- **标量量化** 支持的 dtype 对：
+- **标量量化** 支持的dtype对：
     - `float` Acc → `int8_t`
     - `int32_t` Acc → `int8_t`、`uint8_t`、`half`、`int16_t`
-- **向量量化**（`TINSERT_FP`）支持的 dtype 对：
+- **向量量化**（`TINSERT_FP`）支持的dtype对：
     - `float` Acc → `int8_t`、`uint8_t`
     - `int32_t` Acc → `int8_t`、`uint8_t`、`half`、`int16_t`
 - 向量量化要求提供 `FpTileData` 缩放操作数（`TileType::Scaling`）。
 
-### A5 实现检查
+### Ascend 950PR/Ascend 950DT实现检查
 
-除了 Acc → Mat 路径外，A5 还支持 Acc → Vec、Vec → Vec、Vec → Mat 和 NZ split 路径。
+除了Acc → Mat路径外，Ascend 950PR/Ascend 950DT还支持Acc → Vec、Vec → Vec、Vec → Mat和NZ split路径。
 
 - **Acc → Mat**（`TileType::Acc → TileType::Mat`）：
-    - 源 Acc 类型必须是 `float` 或 `int32_t`；源布局必须为 `(BFractal: ColMajor, SFractal: RowMajor)`。
-    - 目标布局必须为 `(!isRowMajor, SFractal: RowMajor)`（NZ 格式）。
+    - 源Acc类型必须是 `float` 或 `int32_t`；源布局必须为 `(BFractal: ColMajor, SFractal: RowMajor)`。
+    - 目标布局必须为 `(!isRowMajor, SFractal: RowMajor)`（NZ格式）。
     - **非量化**（普通 / relu）目标类型：
         - `float` Acc → `half`、`bfloat16_t`、`float`
         - `int32_t` Acc → `int32_t`
@@ -152,7 +152,7 @@ PTO_INST RecordEvent TINSERT(DstTileData &dst, SrcTileData &src,
     - **向量量化**（`TINSERT_FP`）目标类型：与标量量化相同。
 
 - **Acc → Vec**（`TileType::Acc → TileType::Vec`）：
-    - 源 Acc 类型必须是 `float` 或 `int32_t`；源布局必须为 `(BFractal: ColMajor, SFractal: RowMajor)`。
+    - 源Acc类型必须是 `float` 或 `int32_t`；源布局必须为 `(BFractal: ColMajor, SFractal: RowMajor)`。
     - **非量化**（普通 / relu）目标类型：
         - `float` Acc → `half`、`bfloat16_t`、`float`
         - `int32_t` Acc → `int32_t`
@@ -160,32 +160,32 @@ PTO_INST RecordEvent TINSERT(DstTileData &dst, SrcTileData &src,
         - `float` Acc → `int8_t`、`uint8_t`、`hifloat8_t`、`half`、`bfloat16_t`、`float8_e4m3_t`
         - `int32_t` Acc → `int8_t`、`uint8_t`、`half`、`bfloat16_t`
     - **向量量化**（`TINSERT_FP` / `TINSERT` 含 `FpTileData`）目标类型：与标量量化相同。
-    - 目标布局必须为以下之一：NZ-to-NZ（`!isRowMajor, SFractal: RowMajor`）、NZ-to-ND（`isRowMajor, SFractal: NoneBox`）或 NZ-to-DN（`!isRowMajor, SFractal: NoneBox`）。
+    - 目标布局必须为以下之一：NZ-to-NZ（`!isRowMajor, SFractal: RowMajor`）、NZ-to-ND（`isRowMajor, SFractal: NoneBox`）或NZ-to-DN（`!isRowMajor, SFractal: NoneBox`）。
     - `AccToVecMode` 选择 `SingleModeVec0`、`SingleModeVec1`、`DualModeSplitM` 或 `DualModeSplitN`。
-    - 双目标模式（`DualModeSplitM`、`DualModeSplitN`）要求 `QuantMode_t::NoQuant` 且不支持 NZ-to-DN 路径。
-    - 对于 32 位目标类型（`float`/`int32_t`），使用 `DualModeSplitN` 时切分前的 `ValidCol` 必须是 `32` 的整数倍。
-    - 目标 stride 必须非零且 `dstStride * sizeof(dstType)` 必须是 `32` 字节的倍数。
+    - 双目标模式（`DualModeSplitM`、`DualModeSplitN`）要求 `QuantMode_t::NoQuant` 且不支持NZ-to-DN路径。
+    - 对于32位目标类型（`float`/`int32_t`），使用 `DualModeSplitN` 时切分前的 `ValidCol` 必须是 `32` 的整数倍。
+    - 目标stride必须非零且 `dstStride * sizeof(dstType)` 必须是 `32` 字节的倍数。
 
 - **Vec → Vec**（`TileType::Vec → TileType::Vec`）：
     - `DstTileData::DType` 必须等于 `SrcTileData::DType`。
     - 支持的元素类型：`half`、`bfloat16_t`、`float`、`int32_t`、`int8_t`、`hifloat8_t`、`float8_e4m3_t`、`float8_e5m2_t`、`float8_e8m0_t`、`float4_e2m1x2_t`、`float4_e1m2x2_t`。
-    - 源和目标布局必须匹配（均 ND 或均 NZ）。
-    - ND 路径：源有效区域必须在目标边界内。分发选择 `copy_ubuf_to_ubuf`（对齐）、`vlds`/`vsts`（stride 对齐、未对齐 validCol）、`vlds`/`vstus`（未对齐 stride 或 indexCol）或标量拷贝（1×1 元素）。
-    - NZ 路径：源列数不得超目标列数。使用 `ComputeNZBlockParams` 进行分形块 `copy_ubuf_to_ubuf`。
+    - 源和目标布局必须匹配（均ND或均NZ）。
+    - ND路径：源有效区域必须在目标边界内。分发选择 `copy_ubuf_to_ubuf`（对齐）、`vlds`/`vsts`（stride对齐、未对齐validCol）、`vlds`/`vstus`（未对齐stride或indexCol）或标量拷贝（1×1元素）。
+    - NZ路径：源列数不得超目标列数。使用 `ComputeNZBlockParams` 进行分形块 `copy_ubuf_to_ubuf`。
 
 - **Vec → Mat**（`TileType::Vec → TileType::Mat`，UB → L1）：
     - `DstTileData::DType` 必须等于 `SrcTileData::DType`。
     - 支持的元素类型：`half`、`bfloat16_t`、`float`、`int32_t`、`int8_t`、`hifloat8_t`、`float8_e4m3_t`、`float8_e5m2_t`、`float8_e8m0_t`、`float4_e2m1x2_t`、`float4_e1m2x2_t`。
-    - ND 路径：源必须为 `isRowMajor`；使用 `copy_ubuf_to_cbuf`。每行数据字节数必须与 `BLOCK_BYTE_SIZE`（32字节）对齐。
-    - NZ 路径：源必须为 `(!isRowMajor, SFractal: RowMajor)`；使用 `ComputeNZBlockParams` 进行分形块 `copy_ubuf_to_cbuf`。
+    - ND路径：源必须为 `isRowMajor`；使用 `copy_ubuf_to_cbuf`。每行数据字节数必须与 `BLOCK_BYTE_SIZE`（32字节）对齐。
+    - NZ路径：源必须为 `(!isRowMajor, SFractal: RowMajor)`；使用 `ComputeNZBlockParams` 进行分形块 `copy_ubuf_to_cbuf`。
 
-- **NZ Split**（`TInsertMode::SPLIT2` / `TInsertMode::SPLIT4`，仅 A5/kirin9030/kirinX90）：
+- **NZ Split**（`TInsertMode::SPLIT2` / `TInsertMode::SPLIT4`，仅Ascend 950PR/Ascend 950DT/kirin9030/kirinX90）：
     - 目标必须为 `TileType::Mat`；源必须为 `TileType::Vec`。
     - `DstTileData::DType` 必须等于 `SrcTileData::DType`。
-    - 源必须为 NZ 格式：`(!isRowMajor, SFractal: RowMajor)`。
+    - 源必须为NZ格式：`(!isRowMajor, SFractal: RowMajor)`。
     - 支持的元素类型：`half`、`bfloat16_t`、`float`、`int32_t`、`int8_t`、`hifloat8_t`、`float8_e4m3_t`、`float8_e5m2_t`、`float8_e8m0_t`、`float4_e2m1x2_t`、`float4_e1m2x2_t`。
-    - `validRow` 对齐到 `FRACTAL_NZ_ROW`（16）用于 burst 计算。
-    - 将 `copy_ubuf_to_cbuf` 的总 burst 拆分为 2 或 4 个子传输，每个处理 `totalBurstNum / SplitCount` 列块。
+    - `validRow` 对齐到 `FRACTAL_NZ_ROW`（16）用于burst计算。
+    - 将 `copy_ubuf_to_cbuf` 的总burst拆分为2或4个子传输，每个处理 `totalBurstNum / SplitCount` 列块。
 
 ## 示例
 
@@ -243,7 +243,7 @@ void example_manual() {
 %dst = pto.tinsert %src, %idxrow, %idxcol : (!pto.tile<...>, dtype, dtype) -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %dst = tinsert %src[%r0, %r1] : !pto.tile<...> -> !pto.tile<...>

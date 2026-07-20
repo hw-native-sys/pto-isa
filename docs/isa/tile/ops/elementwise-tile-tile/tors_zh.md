@@ -6,7 +6,7 @@
 
 ## 简介
 
-Tile 与标量的逐元素按位或。
+Tile与标量的逐元素按位或。
 
 ## 数学语义
 
@@ -34,7 +34,7 @@ $$ \mathrm{dst}_{i,j} = \mathrm{src}_{i,j} \;|\; \mathrm{scalar} $$
 pto.tors ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
@@ -46,18 +46,18 @@ PTO_INST RecordEvent TORS(TileDataDst &dst, TileDataSrc &src, typename TileDataD
 
 ## 约束
 
-- **实现检查 (A2A3)**:
+- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
     - 适用于整数元素类型。
     - `dst` 和 `src` 必须使用相同的元素类型。
-    - `dst` 和 `src` 必须是向量 Tile。
+    - `dst` 和 `src` 必须是向量Tile。
     - 运行时：`src.GetValidRow() == dst.GetValidRow()` 且 `src.GetValidCol() == dst.GetValidCol()`。
-    - 在手动模式下，不支持将源 Tile 和目标 Tile 设置为相同的内存。
-- **实现检查 (A5)**:
+    - 在手动模式下，不支持将源Tile和目标Tile设置为相同的内存。
+- **实现检查 (Ascend 950PR/Ascend 950DT)**:
     - 适用于 `TORS` 支持的整数元素类型。
     - `dst` 和 `src` 必须使用相同的元素类型。
-    - `dst` 和 `src` 必须是向量 Tile。
+    - `dst` 和 `src` 必须是向量Tile。
     - 运行时：`src.GetValidRow() == dst.GetValidRow()` 且 `src.GetValidCol() == dst.GetValidCol()`。
-    - 在手动模式下，不支持将源 Tile 和目标 Tile 设置为相同的内存。
+    - 在手动模式下，不支持将源Tile和目标Tile设置为相同的内存。
 - **有效区域**:
     - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
 
@@ -96,7 +96,7 @@ void example() {
 %dst = pto.tors %src, %scalar : (!pto.tile<...>, dtype) -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %dst = tors %src, %scalar : !pto.tile<...>, i32
