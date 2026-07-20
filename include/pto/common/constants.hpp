@@ -52,6 +52,18 @@ constexpr uint16_t PTO_IDX_0 = 0;
 constexpr uint16_t PTO_IDX_1 = 1;
 constexpr uint16_t PTO_IDX_2 = 2;
 constexpr uint16_t PTO_IDX_3 = 3;
+constexpr const int NUM_1 = 1;
+constexpr const int NUM_4 = 4;
+constexpr const int NUM_8 = 8;
+constexpr const int NUM_12 = 12;
+constexpr const int NUM_16 = 16;
+constexpr const int NUM_32 = 32;
+constexpr const int NUM_64 = 64;
+constexpr const int NUM_77 = 77;
+constexpr const int NUM_96 = 96;
+constexpr const int NUM_128 = 128;
+constexpr const int NUM_256 = 256;
+constexpr const int NUM_512 = 512;
 
 // ============================================================================
 // Custom pad value helpers for uint64_t-based PadValue enum

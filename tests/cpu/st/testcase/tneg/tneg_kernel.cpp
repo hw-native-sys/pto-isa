@@ -43,9 +43,7 @@ void LaunchTNeg(T* out, T* src0, void* stream)
     else
         runTNeg<T, kGRows_, kGCols_, kTRows_, kTCols_>(out, src0);
 }
-const int NUM_16 = 16;
-const int NUM_64 = 64;
-const int NUM_256 = 256;
+
 template void LaunchTNeg<float, NUM_64, NUM_64, NUM_64, NUM_64>(float* out, float* src0, void* stream);
 template void LaunchTNeg<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(int32_t* out, int32_t* src0, void* stream);
 template void LaunchTNeg<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>(aclFloat16* out, aclFloat16* src0, void* stream);

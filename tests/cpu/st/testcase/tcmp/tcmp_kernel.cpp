@@ -47,9 +47,7 @@ void LaunchTCmp(T* out, T* src0, T* src1, pto::CmpMode mode, void* stream)
     else
         runTCmp<T, kGRows_, kGCols_, kTRows_, kTCols_>(out, src0, src1, mode);
 }
-const int NUM_16 = 16;
-const int NUM_64 = 64;
-const int NUM_256 = 256;
+
 template void LaunchTCmp<float, NUM_64, NUM_64, NUM_64, NUM_64>(
     float* out, float* src0, float* src1, pto::CmpMode mode, void* stream);
 template void LaunchTCmp<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(

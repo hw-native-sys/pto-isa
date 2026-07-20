@@ -9,14 +9,16 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include "test_common.h"
-#include "pto/pto-inst.hpp"
+#include <pto/pto-inst.hpp>
+#include <pto/common/constants.hpp>
 #include <gtest/gtest.h>
 
 using namespace std;
+using namespace pto;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
-void launchTAND_demo(uint8_t* out, uint8_t* src, void* stream);
+void launchTAnd_demo(uint8_t* out, uint8_t* src, void* stream);
 
 class TANDTest : public testing::Test {
 protected:
@@ -88,8 +90,13 @@ void test_tand()
 
     EXPECT_TRUE(ret);
 }
-const int NUM_16 = 16;
-const int NUM_64 = 64;
-const int NUM_256 = 256;
+
 TEST_F(TANDTest, case_int16_64x64_64x64_64x64) { test_tand<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
 TEST_F(TANDTest, case_int32_16x256_16x256_16x256) { test_tand<int32_t, NUM_16, NUM_256, NUM_16, NUM_256>(); }
+TEST_F(TANDTest, case_int32_32x32_32x32_32x32) { test_tand<int32_t, NUM_32, NUM_32, NUM_32, NUM_32>(); }
+TEST_F(TANDTest, case_int32_77x96_77x96_77x96) { test_tand<int32_t, NUM_77, NUM_96, NUM_77, NUM_96>(); }
+TEST_F(TANDTest, case_int32_8x64_8x64_8x64) { test_tand<int32_t, NUM_8, NUM_64, NUM_8, NUM_64>(); }
+TEST_F(TANDTest, case_uint32_64x64_64x64_64x64) { test_tand<uint32_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
+TEST_F(TANDTest, case_uint32_16x32_16x32_16x32) { test_tand<uint32_t, NUM_16, NUM_32, NUM_16, NUM_32>(); }
+TEST_F(TANDTest, case_uint32_12x128_12x128_12x128) { test_tand<uint32_t, NUM_12, NUM_128, NUM_12, NUM_128>(); }
+TEST_F(TANDTest, case_uint32_4x64_4x64_4x64) { test_tand<uint32_t, NUM_4, NUM_64, NUM_4, NUM_64>(); }

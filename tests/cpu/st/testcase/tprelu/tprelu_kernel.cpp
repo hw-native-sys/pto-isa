@@ -49,9 +49,7 @@ void LaunchTPrelu(T* out, T* src0, T* src1, void* stream)
     else
         runTPrelu<T, kGRows_, kGCols_, kTRows_, kTCols_>(out, src0, src1);
 }
-const int NUM_16 = 16;
-const int NUM_64 = 64;
-const int NUM_256 = 256;
+
 template void LaunchTPrelu<float, NUM_64, NUM_64, NUM_64, NUM_64>(float* out, float* src0, float* src1, void* stream);
 template void LaunchTPrelu<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(
     int32_t* out, int32_t* src0, int32_t* src1, void* stream);

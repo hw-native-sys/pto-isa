@@ -10,9 +10,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include "test_common.h"
 #include <pto/pto-inst.hpp>
+#include <pto/common/constants.hpp>
 #include <gtest/gtest.h>
 
 using namespace std;
+using namespace pto;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
@@ -89,9 +91,7 @@ void test_tmin()
 
     EXPECT_TRUE(ret);
 }
-const int NUM_16 = 16;
-const int NUM_64 = 64;
-const int NUM_256 = 256;
+
 TEST_F(TMINTest, case_float_64x64_64x64_64x64) { test_tmin<float, NUM_64, NUM_64, NUM_64, NUM_64>(); }
 TEST_F(TMINTest, case_int32_64x64_64x64_64x64) { test_tmin<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
 TEST_F(TMINTest, case_int16_64x64_64x64_64x64) { test_tmin<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }

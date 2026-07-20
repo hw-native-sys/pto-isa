@@ -44,9 +44,6 @@ void LaunchTPrefetch(T* out, T* src, void* stream)
         runTPrefetch<T, kGRows_, kGCols_, kTRows_, kTCols_>(out, src);
 }
 
-const int NUM_16 = 16;
-const int NUM_64 = 64;
-const int NUM_256 = 256;
 template void LaunchTPrefetch<float, NUM_64, NUM_64, NUM_64, NUM_64>(float* out, float* src, void* stream);
 template void LaunchTPrefetch<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(int32_t* out, int32_t* src, void* stream);
 template void LaunchTPrefetch<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>(

@@ -48,9 +48,7 @@ void LaunchTAddsc(T* out, T* src0, T* scalar, T* src1, void* stream)
     else
         runTAddsc<T, kGRows_, kGCols_, kTRows_, kTCols_>(out, src0, scalar, src1);
 }
-const int NUM_16 = 16;
-const int NUM_64 = 64;
-const int NUM_256 = 256;
+
 template void LaunchTAddsc<float, NUM_64, NUM_64, NUM_64, NUM_64>(
     float* out, float* src0, float* scalar, float* src1, void* stream);
 template void LaunchTAddsc<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(

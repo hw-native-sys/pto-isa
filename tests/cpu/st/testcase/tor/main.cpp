@@ -9,14 +9,16 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include "test_common.h"
-#include "pto/pto-inst.hpp"
+#include <pto/pto-inst.hpp>
+#include <pto/common/constants.hpp>
 #include <gtest/gtest.h>
 
 using namespace std;
+using namespace pto;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
-void launchTOR_demo(uint8_t* out, uint8_t* src, void* stream);
+void launchTOr_demo(uint8_t* out, uint8_t* src, void* stream);
 
 class TORTest : public testing::Test {
 protected:
@@ -34,7 +36,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTOR(T* out, T* src0, T* src1, void* stream);
+void LaunchTOr(T* out, T* src0, T* src1, void* stream);
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
 void test_tor()
@@ -61,7 +63,7 @@ void test_tor()
 
     aclrtMemcpy(src0Device, fileSize, src0Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, fileSize, src1Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    LaunchTOR<T, kGRows_, kGCols_, kTRows_, kTCols_>(dstDevice, src0Device, src1Device, stream);
+    LaunchTOr<T, kGRows_, kGCols_, kTRows_, kTCols_>(dstDevice, src0Device, src1Device, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, fileSize, dstDevice, fileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -88,8 +90,13 @@ void test_tor()
 
     EXPECT_TRUE(ret);
 }
-const int NUM_16 = 16;
-const int NUM_64 = 64;
-const int NUM_256 = 256;
+
 TEST_F(TORTest, case_int16_64x64_64x64_64x64) { test_tor<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
 TEST_F(TORTest, case_int32_16x256_16x256_16x256) { test_tor<int32_t, NUM_16, NUM_256, NUM_16, NUM_256>(); }
+TEST_F(TORTest, case_int32_64x64_64x64_64x64) { test_tor<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
+TEST_F(TORTest, case_int32_77x96_77x96_77x96) { test_tor<int32_t, NUM_77, NUM_96, NUM_77, NUM_96>(); }
+TEST_F(TORTest, case_int32_32x32_32x32_32x32) { test_tor<int32_t, NUM_32, NUM_32, NUM_32, NUM_32>(); }
+TEST_F(TORTest, case_uint32_64x64_64x64_64x64) { test_tor<uint32_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
+TEST_F(TORTest, case_uint32_16x32_16x32_16x32) { test_tor<uint32_t, NUM_16, NUM_32, NUM_16, NUM_32>(); }
+TEST_F(TORTest, case_uint32_77x96_77x96_77x96) { test_tor<uint32_t, NUM_77, NUM_96, NUM_77, NUM_96>(); }
+TEST_F(TORTest, case_uint32_32x64_32x64_32x64) { test_tor<uint32_t, NUM_32, NUM_64, NUM_32, NUM_64>(); }

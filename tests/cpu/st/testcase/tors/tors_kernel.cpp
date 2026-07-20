@@ -43,8 +43,22 @@ void LaunchTOrs(T* out, T* src, T* scalar, void* stream)
     else
         runTOrs<T, kGRows_, kGCols_, kTRows_, kTCols_>(out, src, scalar);
 }
-const int NUM_64 = 64;
-template void LaunchTOrs<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(
-    int32_t* out, int32_t* src, int32_t* scalar, void* stream);
+
 template void LaunchTOrs<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(
     int16_t* out, int16_t* src, int16_t* scalar, void* stream);
+template void LaunchTOrs<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(
+    int32_t* out, int32_t* src, int32_t* scalar, void* stream);
+template void LaunchTOrs<int32_t, NUM_16, NUM_256, NUM_16, NUM_256>(
+    int32_t* out, int32_t* src, int32_t* scalar, void* stream);
+template void LaunchTOrs<int32_t, NUM_77, NUM_96, NUM_77, NUM_96>(
+    int32_t* out, int32_t* src, int32_t* scalar, void* stream);
+template void LaunchTOrs<int32_t, NUM_8, NUM_32, NUM_8, NUM_32>(
+    int32_t* out, int32_t* src, int32_t* scalar, void* stream);
+template void LaunchTOrs<uint32_t, NUM_32, NUM_32, NUM_32, NUM_32>(
+    uint32_t* out, uint32_t* src, uint32_t* scalar, void* stream);
+template void LaunchTOrs<uint32_t, NUM_16, NUM_64, NUM_16, NUM_64>(
+    uint32_t* out, uint32_t* src, uint32_t* scalar, void* stream);
+template void LaunchTOrs<uint32_t, NUM_12, NUM_128, NUM_12, NUM_128>(
+    uint32_t* out, uint32_t* src, uint32_t* scalar, void* stream);
+template void LaunchTOrs<uint32_t, NUM_64, NUM_64, NUM_64, NUM_64>(
+    uint32_t* out, uint32_t* src, uint32_t* scalar, void* stream);

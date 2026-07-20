@@ -38,7 +38,5 @@ void LaunchTRandom(T* out, uint32_t* key, uint32_t* counter, void* stream)
 {
     runTRandom<T, rows, cols, rows, cols>(out, key, counter);
 }
-const int NUM_4 = 4;
-const int NUM_256 = 256;
 
 template void LaunchTRandom<uint32_t, NUM_4, NUM_256>(uint32_t* out, uint32_t* key, uint32_t* counter, void* stream);

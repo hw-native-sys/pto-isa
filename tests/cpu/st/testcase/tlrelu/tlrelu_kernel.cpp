@@ -43,9 +43,7 @@ void LaunchTLrelu(T* out, T* src, T* scalar, void* stream)
     else
         runTLrelu<T, kGRows_, kGCols_, kTRows_, kTCols_>(out, src, scalar);
 }
-const int NUM_16 = 16;
-const int NUM_64 = 64;
-const int NUM_256 = 256;
+
 template void LaunchTLrelu<float, NUM_64, NUM_64, NUM_64, NUM_64>(float* out, float* src, float* scalar, void* stream);
 template void LaunchTLrelu<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(
     int32_t* out, int32_t* src, int32_t* scalar, void* stream);

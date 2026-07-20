@@ -8,7 +8,8 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-#include "pto/pto-inst.hpp"
+#include <pto/pto-inst.hpp>
+#include <pto/common/constants.hpp>
 
 using namespace pto;
 
@@ -51,9 +52,6 @@ void LaunchTSubc(T* out, T* src0, T* src1, T* src2, void* stream)
         runTSubc<T, kGRows_, kGCols_, kTRows_, kTCols_>(out, src0, src1, src2);
 }
 
-const int NUM_16 = 16;
-const int NUM_64 = 64;
-const int NUM_256 = 256;
 template void LaunchTSubc<float, NUM_64, NUM_64, NUM_64, NUM_64>(
     float* out, float* src0, float* src1, float* src2, void* stream);
 template void LaunchTSubc<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(

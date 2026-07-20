@@ -8,7 +8,8 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-#include "pto/pto-inst.hpp"
+#include <pto/pto-inst.hpp>
+#include <pto/common/constants.hpp>
 
 using namespace pto;
 
@@ -47,11 +48,7 @@ void LaunchTFmod(T* out, T* src0, T* src1, void* stream)
     else
         runTFmod<T, kDRows_, kDCols_, kTRows_, kTCols_>(out, src0, src1);
 }
-const int NUM_16 = 16;
-const int NUM_32 = 32;
-const int NUM_64 = 64;
-const int NUM_256 = 256;
-const int NUM_512 = 256;
+
 template void LaunchTFmod<float, NUM_64, NUM_64, NUM_64, NUM_64>(float* out, float* src0, float* src1, void* stream);
 template void LaunchTFmod<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>(
     aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);

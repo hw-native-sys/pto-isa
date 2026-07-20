@@ -45,7 +45,7 @@ void LaunchTXors(T* out, T* src, T* scalar, void* stream)
     else
         runTXors<T, kGRows_, kGCols_, kTRows_, kTCols_>(out, src, scalar);
 }
-const int NUM_64 = 64;
+
 template void LaunchTXors<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(
     int32_t* out, int32_t* src, int32_t* scalar, void* stream);
 template void LaunchTXors<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(
