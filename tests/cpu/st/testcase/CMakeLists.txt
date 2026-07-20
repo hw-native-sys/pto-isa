@@ -44,6 +44,7 @@ mscatter
 setgetval
 tabs
 tadd
+tadddeqrelu
 taddc
 tadds
 taddsc

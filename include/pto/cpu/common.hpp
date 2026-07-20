@@ -98,9 +98,7 @@ PTO_INTERNAL constexpr QuantMode_t GetVectorPreQuantMode()
 template <typename T>
 inline T ReLU(T val)
 {
-    if (val < 0)
-        return 0;
-    return val;
+    return (val > 0) ? val : 0;
 }
 
 inline float extract_m1_from_quant(uint64_t quant)

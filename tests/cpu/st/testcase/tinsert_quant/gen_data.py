@@ -112,7 +112,7 @@ def apply_quant_element(src_val, quant_gm, mode, dst_dtype, use_relu=False):
         res = np.clip(res, f16_lim.min, f16_lim.max)
     
     if use_relu:
-        res = np.maximum(res, 0)
+        res = np.fmax(res, 0)
 
     return NumExt.astype(np.array([res]), dst_dtype)[0]
 
