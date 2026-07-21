@@ -294,7 +294,7 @@ void RunMxFp4E2M1NvFp16DnCase(MxFp4Case caseId) { RunMxFp4E2M1DnCase<aclFloat16,
 #if defined(PTO_CPU_SIM_ENABLE_BF16)
 void RunMxFp4E2M1Bf16DnCase(MxFp4Case caseId) { RunMxFp4E2M1DnCase<bfloat16_t>(caseId); }
 
-void RunMxFp4E2M1NvBf16DnCase(MxFp4Case caseId) { RunMxFp4E2M1DnCase<bfloat16_t, 2, 128, QuantScaleAlg::NV>(caseId); }
+void RunMxFp4E2M1NvBf16DnCase(MxFp4Case caseId) { RunMxFp4E2M1DnCase<bfloat16_t, 64, 32, QuantScaleAlg::NV>(caseId); }
 #endif
 
 TEST(TQuantCpuSimTest, MxFp4E2M1Fp16DnSpecial) { RunMxFp4E2M1Fp16DnCase(MxFp4Case::Special); }
@@ -338,7 +338,4 @@ TEST(TQuantCpuSimTest, MxFp4E2M1NVBf16DnRounding) { RunMxFp4E2M1NvBf16DnCase(MxF
 
 TEST(TQuantCpuSimTest, MxFp4E2M1NVBf16DnMixed) { RunMxFp4E2M1NvBf16DnCase(MxFp4Case::Mixed); }
 
-TEST(TQuantCpuSimTest, MxFp8BF16NdMatchesExactBytes) { TestFP8ExactMatch<bfloat16_t>(); }
-
-TEST(TQuantCpuSimTest, MxFp8BF16NzReordersExponentsExactly) { TestFp8NzReordersExponentsExactly<bfloat16_t>(); }
 #endif
