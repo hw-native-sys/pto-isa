@@ -71,6 +71,7 @@ add_link_options(
 )
 if (SOC_VERSION STREQUAL "KirinDev0000")
     set(CCE_AICORE_ARCH dav-l510)
+    add_compile_definitions(__NPU_ARCH__=5101)
 endif()
 
 if(RUN_MODE STREQUAL "npu")

@@ -10,17 +10,17 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #ifndef HEADER_HPP
 #define HEADER_HPP
-#define bfloat16_t half
-#define float8_e4m3_t int8_t
-#define float8_e5m2_t int8_t
-#define hifloat8_t int8_t
 #define float8_e8m0_t int8_t
 #define float4_e2m1x2_t int64_t
 #define float4_e1m2x2_t int64_t
 #include <pto/common/constants.hpp>
 #include <pto/common/utils.hpp>
 
-#include "pto/npu/kirin9030/TCvt.hpp"
+#include "pto/npu/kirinDev0000/datatype.hpp"
+#include "pto/npu/kirinDev0000/TCvt.hpp"
+#include "pto/npu/kirinDev0000/TDiv.hpp"
+#include "pto/npu/kirinDev0000/TStore.hpp"
+
 #include "pto/npu/kirin9030/TExtract.hpp"
 #include "pto/npu/kirin9030/TGather.hpp"
 #include "pto/npu/kirin9030/TInsert.hpp"
@@ -28,7 +28,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/kirin9030/TMatmul.hpp"
 #include "pto/npu/kirin9030/TMov.hpp"
 #include "pto/npu/kirin9030/TQuant.hpp"
-#include "pto/npu/kirin9030/TStore.hpp"
 #include "pto/npu/kirin9030/TSubS.hpp"
 #include "pto/npu/kirin9030/TSync.hpp"
 #include "pto/npu/kirin9030/TRem.hpp"
@@ -107,7 +106,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TUnaryOp.hpp"
 #include "pto/npu/a5/TGatherB.hpp"
 #include "pto/npu/a5/TBinSOp.hpp"
-#include "pto/npu/a5/TDiv.hpp"
 #include "pto/npu/a5/TMul.hpp"
 #include "pto/npu/a5/TScatter.hpp"
 // MGather to be evaluated
@@ -129,10 +127,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/SetQuantScalar.hpp"
 #include "pto/npu/a5/SetQuantVector.hpp"
 
-#undef bfloat16_t
-#undef float8_e4m3_t
-#undef float8_e5m2_t
-#undef hifloat8_t
 #undef float8_e8m0_t
 #undef float4_e2m1x2_t
 #undef float4_e1m2x2_t
