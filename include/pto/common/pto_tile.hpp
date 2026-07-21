@@ -1588,6 +1588,7 @@ public:
     PTO_INTERNAL void ResetMadMode() { set_ctrl(sbitset0(get_ctrl(), MAD_MODE_BIT)); }
 #endif
 
+#if defined(__CPU_SIM)
     static constexpr size_t GetSizeInUnits()
     {
         // One unit is sizeof(DType)
@@ -1600,7 +1601,6 @@ public:
 
     static constexpr size_t GetSizeInBytes() { return GetSizeInUnits() * sizeof(DType); }
 
-#if defined(__CPU_SIM)
     DType GetElement(int64_t r, int64_t c)
     {
         return GetProperDataPart(data(), GetTileElementOffset<std::remove_reference_t<decltype(*this)>>(r, c));
