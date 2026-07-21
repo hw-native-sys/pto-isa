@@ -213,6 +213,7 @@ enum class MxQuantAlg {
     NvMxFp8E4M3 = 1,  // QuantType::MXFP8      + QuantScaleAlg::NV
     OcpMxFp4E2M1 = 2, // QuantType::MXFP4_E2M1 + QuantScaleAlg::OCP
     NvMxFp4E2M1 = 3,  // QuantType::MXFP4_E2M1 + QuantScaleAlg::NV
+    Hif4 = 4,         // HiFloat4 (BF16 -> FP4 e1m2)
 };
 
 enum class VecStoreMode {
