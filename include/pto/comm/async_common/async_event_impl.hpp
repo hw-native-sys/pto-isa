@@ -13,7 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include "pto/comm/comm_types.hpp"
 #include "pto/comm/async_common/async_types.hpp"
-#include "pto/npu/comm/async/sdma/sdma_async_intrin.hpp"
+#include "pto/comm/async/sdma/sdma_async_intrin.hpp"
 #ifdef PTO_URMA_SUPPORTED
 #include "pto/comm/async/urma/urma_async_intrin.hpp"
 #endif

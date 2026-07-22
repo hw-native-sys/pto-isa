@@ -13,7 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include "pto/comm/async_common/TGetAsyncCommonDetail.hpp"
 #ifdef PTO_URMA_SUPPORTED
-#include "pto/npu/comm/async/urma/urma_async_intrin.hpp"
+#include "pto/comm/async/urma/urma_async_intrin.hpp"
 #endif
 
 namespace pto {
