@@ -293,7 +293,8 @@ PTO_INTERNAL void TAXPY_IMPL(TileDataDst& dst, TileDataSrc& src, typename TileDa
                 volatile auto result = static_cast<typename TileDataDst::DType>(dst.data()[dstIdx] + product);
                 dst.data()[dstIdx] = result;
             } else {
-                dst.data()[dstIdx] = static_cast<typename TileDataDst::DType>(dst.data()[dstIdx] + src.data()[srcIdx] * scalar);
+                dst.data()[dstIdx] =
+                    static_cast<typename TileDataDst::DType>(dst.data()[dstIdx] + src.data()[srcIdx] * scalar);
             }
         }
     }

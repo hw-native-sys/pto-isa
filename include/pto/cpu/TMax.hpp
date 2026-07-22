@@ -65,10 +65,12 @@ PTO_INTERNAL void TMAX_IMPL(tile_shape& dst, tile_shape& src0, tile_shape& src1)
 {
     unsigned row = dst.GetValidRow();
     unsigned col = dst.GetValidCol();
-    PTO_ASSERT(src0.GetValidRow() == row && src0.GetValidCol() == col,
-               "Fix: TMAX input tile src0 valid shape mismatch with output tile dst shape.");
-    PTO_ASSERT(src1.GetValidRow() == row && src1.GetValidCol() == col,
-               "Fix: TMAX input tile src1 valid shape mismatch with output tile dst shape.");
+    PTO_ASSERT(
+        src0.GetValidRow() == row && src0.GetValidCol() == col,
+        "Fix: TMAX input tile src0 valid shape mismatch with output tile dst shape.");
+    PTO_ASSERT(
+        src1.GetValidRow() == row && src1.GetValidCol() == col,
+        "Fix: TMAX input tile src1 valid shape mismatch with output tile dst shape.");
     constexpr unsigned stride = tile_shape::RowStride;
     TMAX_Impl<tile_shape, stride>(dst.data(), src0.data(), src1.data(), row, col);
 }

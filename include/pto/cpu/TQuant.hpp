@@ -53,10 +53,7 @@ inline uint16_t FloatToBf16BitsRound(float value)
     return static_cast<uint16_t>((bits + 0x7FFFu + lsb) >> 16);
 }
 
-inline float Bf16BitsToFloat(uint16_t bits)
-{
-    return BitsToFloat(static_cast<uint32_t>(bits) << 16);
-}
+inline float Bf16BitsToFloat(uint16_t bits) { return BitsToFloat(static_cast<uint32_t>(bits) << 16); }
 
 inline uint16_t AbsBf16BitsFromFloat(float value)
 {

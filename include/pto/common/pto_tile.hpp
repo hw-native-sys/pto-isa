@@ -1500,7 +1500,7 @@ public:
         }
         return data_;
     }
-    const TileDType &data() const
+    const TileDType& data() const
     {
         if (!data_) {
             internalBuffer.resize(Rows * Cols);

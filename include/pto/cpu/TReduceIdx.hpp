@@ -45,8 +45,7 @@ PTO_INTERNAL void CheckArgTiles()
     using T = typename TileSrc::DType;
     using TIdx = typename TileDst::DType;
     static_assert(
-        std::is_integral_v<T> || std::is_same_v<T, float> || std::is_same_v<T, half> ||
-            std::is_same_v<T, bfloat16_t>,
+        std::is_integral_v<T> || std::is_same_v<T, float> || std::is_same_v<T, half> || std::is_same_v<T, bfloat16_t>,
         "TColArgMin(Max) TRowArgMin(Max): The data type of src must be integral, half, bfloat16_t, or float");
     static_assert(
         std::is_same_v<TIdx, int32_t> || std::is_same_v<TIdx, uint32_t>,

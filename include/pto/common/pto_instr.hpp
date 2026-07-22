@@ -481,8 +481,8 @@ template <
 PTO_INST RecordEvent TSTORE(GlobalData& dst, TileData& src, uint64_t preQuantScalar, WaitEvents&... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TSTORE, PTO_TEMPLATE_ARGS(TileData, GlobalData, atomicType, reluPreMode), dst, src,
-                     preQuantScalar);
+    MAP_INSTR_IMPL_T(
+        TSTORE, PTO_TEMPLATE_ARGS(TileData, GlobalData, atomicType, reluPreMode), dst, src, preQuantScalar);
     return {};
 }
 
@@ -492,8 +492,8 @@ template <
 PTO_INST RecordEvent TSTORE(GlobalData& dst, TileData& src, uint64_t preQuantScalar, WaitEvents&... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TSTORE, PTO_TEMPLATE_ARGS(TileData, GlobalData, atomicType, reluPreMode, Phase), dst, src,
-                     preQuantScalar);
+    MAP_INSTR_IMPL_T(
+        TSTORE, PTO_TEMPLATE_ARGS(TileData, GlobalData, atomicType, reluPreMode, Phase), dst, src, preQuantScalar);
     return {};
 }
 
@@ -503,8 +503,8 @@ template <
 PTO_INST RecordEvent TSTORE_FP(GlobalData& dst, TileData& src, FpTileData& fp, WaitEvents&... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TSTORE, PTO_TEMPLATE_ARGS(TileData, GlobalData, FpTileData, atomicType, reluPreMode), dst, src,
-                     fp);
+    MAP_INSTR_IMPL_T(
+        TSTORE, PTO_TEMPLATE_ARGS(TileData, GlobalData, FpTileData, atomicType, reluPreMode), dst, src, fp);
     return {};
 }
 
@@ -652,8 +652,8 @@ PTO_INST RecordEvent TGEMV_MX(
     TileRightScale& bScaleMatrix, WaitEvents&... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TGEMV_MX, PTO_TEMPLATE_ARGS(Phase), cOutMatrix, cInMatrix, aMatrix, aScaleMatrix, bMatrix,
-                     bScaleMatrix);
+    MAP_INSTR_IMPL_T(
+        TGEMV_MX, PTO_TEMPLATE_ARGS(Phase), cOutMatrix, cInMatrix, aMatrix, aScaleMatrix, bMatrix, bScaleMatrix);
     return {};
 }
 
@@ -677,8 +677,8 @@ PTO_INST RecordEvent TGEMV_MX(
     TileBias& biasData, WaitEvents&... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TGEMV_MX, PTO_TEMPLATE_ARGS(Phase), cMatrix, aMatrix, aScaleMatrix, bMatrix, bScaleMatrix,
-                     biasData);
+    MAP_INSTR_IMPL_T(
+        TGEMV_MX, PTO_TEMPLATE_ARGS(Phase), cMatrix, aMatrix, aScaleMatrix, bMatrix, bScaleMatrix, biasData);
     return {};
 }
 
@@ -727,8 +727,8 @@ PTO_INST RecordEvent TMATMUL_MX(
     TileRightScale& bScaleMatrix, WaitEvents&... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TMATMUL_MX, PTO_TEMPLATE_ARGS(Phase), cOutMatrix, cInMatrix, aMatrix, aScaleMatrix, bMatrix,
-                     bScaleMatrix);
+    MAP_INSTR_IMPL_T(
+        TMATMUL_MX, PTO_TEMPLATE_ARGS(Phase), cOutMatrix, cInMatrix, aMatrix, aScaleMatrix, bMatrix, bScaleMatrix);
     return {};
 }
 
@@ -752,8 +752,8 @@ PTO_INST RecordEvent TMATMUL_MX(
     TileBias& biasData, WaitEvents&... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TMATMUL_MX, PTO_TEMPLATE_ARGS(Phase), cMatrix, aMatrix, aScaleMatrix, bMatrix, bScaleMatrix,
-                     biasData);
+    MAP_INSTR_IMPL_T(
+        TMATMUL_MX, PTO_TEMPLATE_ARGS(Phase), cMatrix, aMatrix, aScaleMatrix, bMatrix, bScaleMatrix, biasData);
     return {};
 }
 
@@ -959,8 +959,8 @@ PTO_INST RecordEvent
 TEXTRACT(DstTileData& dst, SrcTileData& src, uint16_t indexRow, uint16_t indexCol, WaitEvents&... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TEXTRACT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, mode, reluMode), dst, src, indexRow,
-                     indexCol);
+    MAP_INSTR_IMPL_T(
+        TEXTRACT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, mode, reluMode), dst, src, indexRow, indexCol);
     return {};
 }
 
@@ -971,8 +971,8 @@ PTO_INST RecordEvent TEXTRACT(
     WaitEvents&... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TEXTRACT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, reluMode), dst, src, preQuantScalar,
-                     indexRow, indexCol);
+    MAP_INSTR_IMPL_T(
+        TEXTRACT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, reluMode), dst, src, preQuantScalar, indexRow, indexCol);
     return {};
 }
 
@@ -984,8 +984,9 @@ PTO_INST RecordEvent TEXTRACT(
     WaitEvents&... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TEXTRACT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, mode, reluMode), dst, src, preQuantScalar,
-                     indexRow, indexCol);
+    MAP_INSTR_IMPL_T(
+        TEXTRACT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, mode, reluMode), dst, src, preQuantScalar, indexRow,
+        indexCol);
     return {};
 }
 
@@ -996,8 +997,8 @@ PTO_INST RecordEvent TEXTRACT_FP(
     DstTileData& dst, SrcTileData& src, FpTileData& fp, uint16_t indexRow, uint16_t indexCol, WaitEvents&... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TEXTRACT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, FpTileData, reluMode), dst, src, fp,
-                     indexRow, indexCol);
+    MAP_INSTR_IMPL_T(
+        TEXTRACT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, FpTileData, reluMode), dst, src, fp, indexRow, indexCol);
     return {};
 }
 
@@ -1008,8 +1009,9 @@ PTO_INST RecordEvent TEXTRACT(
     DstTileData& dst, SrcTileData& src, FpTileData& fp, uint16_t indexRow, uint16_t indexCol, WaitEvents&... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TEXTRACT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, FpTileData, mode, reluMode), dst, src, fp,
-                     indexRow, indexCol);
+    MAP_INSTR_IMPL_T(
+        TEXTRACT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, FpTileData, mode, reluMode), dst, src, fp, indexRow,
+        indexCol);
     return {};
 }
 
@@ -1108,8 +1110,8 @@ PTO_INST RecordEvent
 TINSERT(DstTileData& dst, SrcTileData& src, uint16_t indexRow, uint16_t indexCol, WaitEvents&... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TINSERT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, mode, reluMode), dst, src, indexRow,
-                     indexCol);
+    MAP_INSTR_IMPL_T(
+        TINSERT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, mode, reluMode), dst, src, indexRow, indexCol);
     return {};
 }
 
@@ -1120,8 +1122,8 @@ PTO_INST RecordEvent TINSERT(
     WaitEvents&... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TINSERT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, reluMode), dst, src, preQuantScalar, indexRow,
-                     indexCol);
+    MAP_INSTR_IMPL_T(
+        TINSERT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, reluMode), dst, src, preQuantScalar, indexRow, indexCol);
     return {};
 }
 template <
@@ -1132,8 +1134,9 @@ PTO_INST RecordEvent TINSERT(
     WaitEvents&... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TINSERT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, mode, reluMode), dst, src, preQuantScalar,
-                     indexRow, indexCol);
+    MAP_INSTR_IMPL_T(
+        TINSERT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, mode, reluMode), dst, src, preQuantScalar, indexRow,
+        indexCol);
     return {};
 }
 template <
@@ -1143,8 +1146,8 @@ PTO_INST RecordEvent TINSERT_FP(
     DstTileData& dst, SrcTileData& src, FpTileData& fp, uint16_t indexRow, uint16_t indexCol, WaitEvents&... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TINSERT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, FpTileData, reluMode), dst, src, fp, indexRow,
-                     indexCol);
+    MAP_INSTR_IMPL_T(
+        TINSERT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, FpTileData, reluMode), dst, src, fp, indexRow, indexCol);
     return {};
 }
 
@@ -1155,8 +1158,9 @@ PTO_INST RecordEvent
 TINSERT(DstTileData& dst, SrcTileData& src, FpTileData& fp, uint16_t indexRow, uint16_t indexCol, WaitEvents&... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TINSERT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, FpTileData, mode, reluMode), dst, src, fp,
-                     indexRow, indexCol);
+    MAP_INSTR_IMPL_T(
+        TINSERT, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, FpTileData, mode, reluMode), dst, src, fp, indexRow,
+        indexCol);
     return {};
 }
 
@@ -2429,9 +2433,10 @@ PTO_INST RecordEvent TPUSH(TileData& tile, Pipe& pipe, WaitEvents&... events)
     return {};
 }
 
-template <typename Pipe, typename TileCons, TileSplitAxis Split, std::enable_if_t<is_tile_data_v<TileCons>, int> = 0,
-          typename... WaitEvents>
-PTO_INST RecordEvent TPOP(Pipe &pipe, TileCons &tile, WaitEvents &...events)
+template <
+    typename Pipe, typename TileCons, TileSplitAxis Split, std::enable_if_t<is_tile_data_v<TileCons>, int> = 0,
+    typename... WaitEvents>
+PTO_INST RecordEvent TPOP(Pipe& pipe, TileCons& tile, WaitEvents&... events)
 {
     TSYNC(events...);
     PTO_INSTR_SCOPE(TPOP, pipe, tile);
@@ -2528,7 +2533,7 @@ PTO_INST RecordEvent TFREE(Pipe& pipe, WaitEvents&... events)
 
 #if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_KIRIN9030) || defined(__CPU_SIM)
 template <HistByte byte, typename TileDataDst, typename TileDataSrc, typename TileDataIdx, typename... WaitEvents>
-PTO_INST RecordEvent THISTOGRAM(TileDataDst &dst, TileDataSrc &src, TileDataIdx &idx, WaitEvents &...events)
+PTO_INST RecordEvent THISTOGRAM(TileDataDst& dst, TileDataSrc& src, TileDataIdx& idx, WaitEvents&... events)
 {
     TSYNC(events...);
     MAP_INSTR_IMPL_T(THISTOGRAM, PTO_TEMPLATE_ARGS(byte), dst, src, idx);
@@ -2607,8 +2612,8 @@ PTO_INST RecordEvent
 TQUANT(TileDataOut& dst, TileDataSrc& src, TileDataPara& scale, TileDataPara* offset = nullptr, WaitEvents&... events)
 {
     TSYNC(events...);
-    MAP_INSTR_IMPL_T(TQUANT, PTO_TEMPLATE_ARGS(quant_type, TileDataOut, TileDataSrc, TileDataPara), dst, src, scale,
-                     offset);
+    MAP_INSTR_IMPL_T(
+        TQUANT, PTO_TEMPLATE_ARGS(quant_type, TileDataOut, TileDataSrc, TileDataPara), dst, src, scale, offset);
     return {};
 }
 
@@ -2643,29 +2648,31 @@ PTO_INST RecordEvent TGET_SCALE_ADDR(TileDataOut& dst, TileDataIn& src, WaitEven
 // at lowering time.
 // ---------------------------------------------------------------------------
 
-template <pto::GridDirection Direction, int Dist = 1, typename Pipe, typename TileProd,
-          std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0, typename... WaitEvents>
-PTO_INST RecordEvent TPUSH(Pipe &pipe, TileProd &tile, WaitEvents &...events)
+template <
+    pto::GridDirection Direction, int Dist = 1, typename Pipe, typename TileProd,
+    std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0, typename... WaitEvents>
+PTO_INST RecordEvent TPUSH(Pipe& pipe, TileProd& tile, WaitEvents&... events)
 {
-    static_assert(Direction != pto::GridDirection::SOURCE,
-                  "GridPipe TPUSH<SOURCE> is illegal (design doc section 4.3): "
-                  "SOURCE is only valid for TPOP.");
+    static_assert(
+        Direction != pto::GridDirection::SOURCE, "GridPipe TPUSH<SOURCE> is illegal (design doc section 4.3): "
+                                                 "SOURCE is only valid for TPOP.");
     // Dist is the routed-unicast hop count; Dist == 1 (default) is the original
     // nearest-neighbor push.  TPUSH<EAST, 2>(pipe, tile) pushes 2 hops east.
 #if defined(PTO_NPU_ARCH_A2A3)
     TSYNC(events...);
     GRID_TPUSH_IMPL<Direction, Dist, Pipe, TileProd>(pipe, tile);
 #else
-    static_assert(sizeof(Pipe) == 0,
-                  "GridPipe TPUSH not supported on this target profile "
-                  "(design doc section 5.4 forbids silent GM fallback).");
+    static_assert(
+        sizeof(Pipe) == 0, "GridPipe TPUSH not supported on this target profile "
+                           "(design doc section 5.4 forbids silent GM fallback).");
 #endif
     return {};
 }
 
-template <pto::GridDirection Direction, int Dist = 1, typename Pipe, typename TileCons,
-          std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0, typename... WaitEvents>
-PTO_INST RecordEvent TPOP(Pipe &pipe, TileCons &tile, WaitEvents &...events)
+template <
+    pto::GridDirection Direction, int Dist = 1, typename Pipe, typename TileCons,
+    std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0, typename... WaitEvents>
+PTO_INST RecordEvent TPOP(Pipe& pipe, TileCons& tile, WaitEvents&... events)
 {
     // Dist must match the producer's TPUSH distance for this logical edge so the
     // free-credit doorbell routes back to the K-hop producer; Dist == 1 default.
@@ -2673,9 +2680,9 @@ PTO_INST RecordEvent TPOP(Pipe &pipe, TileCons &tile, WaitEvents &...events)
     TSYNC(events...);
     GRID_TPOP_IMPL<Direction, Dist, Pipe, TileCons>(pipe, tile);
 #else
-    static_assert(sizeof(Pipe) == 0,
-                  "GridPipe TPOP not supported on this target profile "
-                  "(design doc section 5.4 forbids silent GM fallback).");
+    static_assert(
+        sizeof(Pipe) == 0, "GridPipe TPOP not supported on this target profile "
+                           "(design doc section 5.4 forbids silent GM fallback).");
 #endif
     return {};
 }
@@ -2694,17 +2701,18 @@ PTO_INST RecordEvent TPOP(Pipe &pipe, TileCons &tile, WaitEvents &...events)
 // (ROW) or TPOP<NORTH/SOUTH, dist> (COL).  There is no Dist parameter: a span
 // always fans to the grid boundary on both of its arms.
 // ---------------------------------------------------------------------------
-template <pto::GridSpan Span, typename Pipe, typename TileProd, std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0,
-          typename... WaitEvents>
-PTO_INST RecordEvent TPUSH(Pipe &pipe, TileProd &tile, WaitEvents &...events)
+template <
+    pto::GridSpan Span, typename Pipe, typename TileProd, std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0,
+    typename... WaitEvents>
+PTO_INST RecordEvent TPUSH(Pipe& pipe, TileProd& tile, WaitEvents&... events)
 {
 #if defined(PTO_NPU_ARCH_A2A3)
     TSYNC(events...);
     GRID_TPUSH_BCAST_IMPL<Span, Pipe, TileProd>(pipe, tile);
 #else
-    static_assert(sizeof(Pipe) == 0,
-                  "GridPipe TPUSH<GridSpan> broadcast not supported on this target profile "
-                  "(design doc section 5.4 forbids silent GM fallback).");
+    static_assert(
+        sizeof(Pipe) == 0, "GridPipe TPUSH<GridSpan> broadcast not supported on this target profile "
+                           "(design doc section 5.4 forbids silent GM fallback).");
 #endif
     return {};
 }
