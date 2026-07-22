@@ -38,8 +38,8 @@ PTO_INTERNAL void TGATHER_CCU_IMPL(
     ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& stagingTileData,
     const CcuTriggerContext& ctx, WaitEvents&... events)
 {
-    WaitAllEvents(events...);
-    pto::comm::ccu::CkeTriggerFromTile(ctx.ckeSlotVA, ctx.mask, stagingTileData);
+    CcuStoreTriggerSelf(parallelGroup, stagingTileData, ctx, events...);
+    (void)dstGlobalData;
 }
 
 template <
@@ -49,8 +49,9 @@ PTO_INTERNAL void TGATHER_CCU_IMPL(
     ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& pingTile, TileData& pongTile,
     const CcuTriggerContext& ctx, WaitEvents&... events)
 {
-    WaitAllEvents(events...);
-    pto::comm::ccu::CkeTriggerFromTile(ctx.ckeSlotVA, ctx.mask, pingTile);
+    CcuStoreTriggerSelf(parallelGroup, pingTile, ctx, events...);
+    (void)dstGlobalData;
+    (void)pongTile;
 }
 
 } // namespace comm

@@ -28,7 +28,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 namespace comm {
-namespace ccu {
 
 // CKE gate slot encoding: the most-significant bit marks the entry as
 // valid; the low bits carry the rank mask.  Producer (this) writes the

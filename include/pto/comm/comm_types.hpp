@@ -161,8 +161,10 @@ enum class CcuInputSource : uint8_t {
 // ============================================================================
 
 struct CcuTriggerContext {
-    uint64_t ckeSlotVA{0}; // CKE slot VA from rtGetDevResAddress(dieId, ckeId)
-    uint32_t mask{0};      // 16-bit CKE trigger mask
+    uint64_t ckeSlotVA{0};                                   // CKE slot VA from rtGetDevResAddress(dieId, ckeId)
+    uint32_t mask{0};                                        // 16-bit CKE trigger mask
+    uint32_t selfIdx{0};                                     // This rank's index inside the ParallelGroup
+    CcuInputSource inputSource{CcuInputSource::HostManaged}; // Who fills CCU's input HBM
 };
 
 // ============================================================================

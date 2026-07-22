@@ -34,8 +34,10 @@ PTO_INTERNAL void TREDUCE_CCU_IMPL(
     ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& accTileData, TileData& recvTileData,
     ReduceOp op, const CcuTriggerContext& ctx, WaitEvents&... events)
 {
-    WaitAllEvents(events...);
-    pto::comm::ccu::CkeTriggerFromTile(ctx.ckeSlotVA, ctx.mask, accTileData);
+    CcuStoreTriggerSelf(parallelGroup, accTileData, ctx, events...);
+    (void)dstGlobalData;
+    (void)recvTileData;
+    (void)op;
 }
 
 template <
@@ -45,8 +47,11 @@ PTO_INTERNAL void TREDUCE_CCU_IMPL(
     ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& accTileData, TileData& pingTileData,
     TileData& pongTileData, ReduceOp op, const CcuTriggerContext& ctx, WaitEvents&... events)
 {
-    WaitAllEvents(events...);
-    pto::comm::ccu::CkeTriggerFromTile(ctx.ckeSlotVA, ctx.mask, accTileData);
+    CcuStoreTriggerSelf(parallelGroup, accTileData, ctx, events...);
+    (void)dstGlobalData;
+    (void)pingTileData;
+    (void)pongTileData;
+    (void)op;
 }
 
 } // namespace comm
