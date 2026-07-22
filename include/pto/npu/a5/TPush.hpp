@@ -35,6 +35,9 @@ struct TPipe {
     static constexpr bool is_v2c_gm = (DIR_TYPE == Direction::DIR_V2C_GM);     // 6
     static constexpr bool is_both_gm = (DIR_TYPE == Direction::DIR_BOTH_GM);   // 7
     static constexpr uint32_t SyncPeriod = (SlotNum <= 2) ? SlotNum : SlotNum / 2;
+    static constexpr uint8_t FlagIDPlusOne = FlagID + 1;
+    static constexpr uint8_t FlagIDPlusTwo = FlagID + 2;
+    static constexpr uint8_t FlagIDPlusThree = FlagID + 3;
     static constexpr bool is_c2v = is_c2v_gm || is_c2v_ub;
     static constexpr bool is_v2c = is_v2c_gm || is_v2c_mat || is_v2c_ctrl;
     static_assert(
