@@ -318,9 +318,9 @@ struct TPipe {
         PTO_INTERNAL void pushVec2FiFoByDir(RingFiFo& fifo, TileProd& tile, int32_t subBlockId)
         {
             if constexpr (is_v2c_mat || is_both) {
-                pushVec2MatFiFo<TileProd, Split>(fifo, tile);
+                pushVec2MatFiFo<TileProd, Split>(fifo, tile, subBlockId);
             } else if constexpr (is_v2c_gm) {
-                pushVec2GMFiFo<TileProd, Split>(fifo, tile);
+                pushVec2GMFiFo<TileProd, Split>(fifo, tile, subBlockId);
             } else if constexpr (is_v2c_ctrl) {
                 pushVec2CtrlFiFo<TileProd>(fifo, tile);
             }
@@ -337,7 +337,7 @@ struct TPipe {
                     pushAcc2GMFiFo<TileProd>(fifo, tile);
                 }
             } else if constexpr (TileProd::Loc == TileType::Vec) {
-                pushVec2FiFoByDir<TileProd, Split>(fifo, tile);
+                pushVec2FiFoByDir<TileProd, Split>(fifo, tile, subBlockId);
             }
         }
 

@@ -47,7 +47,7 @@ __global__ AICORE void runTInterleave(
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 #endif
-    TInterleave<TileDataDst, TileDataSrc>(dst1Tile, dst0Tile, src1Tile, src0Tile);
+    TINTERLEAVE<TileDataDst, TileDataSrc>(dst1Tile, dst0Tile, src1Tile, src0Tile);
 #ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
